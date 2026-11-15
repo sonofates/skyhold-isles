@@ -1,0 +1,306 @@
+import { EventBus } from '../src/core/eventBus.ts';
+import type { EnemyType } from '../src/core/types.ts';
+import { BALANCE } from '../src/data/balance.ts';
+import { LEVELS, type LevelDef, type ScriptedBuildAction } from '../src/data/levels/index.ts';
+import { getTowerTierStats } from '../src/data/towers.ts';
+import { computeStarRating, SimWorld } from '../src/sim/world.ts';
+
+type ScriptKind = 'greedy' | 'weak';
+
+interface WaveStatRow {
+  waveNumber: number;
+  startGold: number;
+  livesStart: number;
+  livesLost: number;
+  leaksByType: Partial<Record<EnemyType, number>>;
+}
+
+interface SimRunResult {
+  levelId: string;
+  name: string;
+  scriptKind: ScriptKind;
+  outcome: 'ongoing' | 'won' | 'lost';
+  finalLives: number;
+  stars: number;
+  startingGold: number;
+  goldEarned: number;
+  goldSpent: number;
+  finalGold: number;
+  endGoldPctOfEarned: number;
+  towersBuilt: number;
+  plannedTowers: number;
+  targetingChanges: number;
+  waves: WaveStatRow[];
+  unspentScriptActions: number;
+  invalidActions: number;
+}
+
+function tryExecuteAction(
+  world: SimWorld,
+  act: ScriptedBuildAction,
+): { executed: boolean; invalid: boolean; cost: number; isBuild: boolean; changedTargeting: boolean } {
+  if (act.action === 'build') {
+    if (!act.towerType) return { executed: false, invalid: true, cost: 0, isBuild: false, changedTargeting: false };
+    if (!world.grid.canPlaceTower(act.col, act.row)) {
+      return { executed: false, invalid: true, cost: 0, isBuild: false, changedTargeting: false };
+    }
+    const cost = getTowerTierStats(act.towerType, 1).upgradeCost;
+    if (world.gold < cost) {
+      return { executed: false, invalid: false, cost, isBuild: false, changedTargeting: false };
+    }
+    const mode = act.targetingMode ?? 'first';
+    const built = world.placeTower(act.col, act.row, act.towerType, mode);
+    if (!built) {
+      return { executed: false, invalid: true, cost: 0, isBuild: false, changedTargeting: false };
+    }
+    return {
+      executed: true,
+      invalid: false,
+      cost,
+      isBuild: true,
+      changedTargeting: mode !== 'first',
+    };
+  }
+
+  const tid = world.grid.getTowerIdAt(act.col, act.row);
+  if (tid === -1) {
+    return { executed: false, invalid: true, cost: 0, isBuild: false, changedTargeting: false };
+  }
+  const tower = world.getTowerById(tid);
+  if (!tower || tower.tier >= 3) {
+    return { executed: false, invalid: true, cost: 0, isBuild: false, changedTargeting: false };
+  }
+  const nextTier = (tower.tier + 1) as 2 | 3;
+  const cost = getTowerTierStats(tower.type, nextTier).upgradeCost;
+  if (world.gold < cost) {
+    return { executed: false, invalid: false, cost, isBuild: false, changedTargeting: false };
+  }
+  const upgraded = world.upgradeTower(tid);
+  if (!upgraded) {
+    return { executed: false, invalid: true, cost: 0, isBuild: false, changedTargeting: false };
+  }
+  return { executed: true, invalid: false, cost, isBuild: false, changedTargeting: false };
+}
+
+function runLevelBalanceSim(
+  level: LevelDef,
+  scriptKind: ScriptKind,
+  scriptActions: readonly ScriptedBuildAction[],
+): SimRunResult {
+  const events = new EventBus();
+  const world = new SimWorld(level, events);
+
+  const plannedTowers = scriptActions.filter((a) => a.action === 'build').length;
+  const waveRows: WaveStatRow[] = [];
+  let activeWaveRow: WaveStatRow | null = null;
+  let goldEarned = 0;
+  let goldSpent = 0;
+  let towersBuilt = 0;
+  let targetingChanges = 0;
+  let invalidActions = 0;
+
+  events.on('waveStarted', (ev) => {
+    goldEarned += ev.earlyBonus;
+    activeWaveRow = {
+      waveNumber: ev.waveIndex + 1,
+      startGold: world.gold,
+      livesStart: world.lives,
+      livesLost: 0,
+      leaksByType: {},
+    };
+    waveRows.push(activeWaveRow);
+  });
+
+  events.on('enemyKilled', (ev) => {
+    goldEarned += ev.reward;
+  });
+
+  events.on('waveCompleted', (ev) => {
+    goldEarned += ev.bonus;
+  });
+
+  events.on('enemyLeaked', (ev) => {
+    if (!activeWaveRow) return;
+    activeWaveRow.livesLost += ev.livesLost;
+    activeWaveRow.leaksByType[ev.enemyType] =
+      (activeWaveRow.leaksByType[ev.enemyType] ?? 0) + 1;
+  });
+
+  const queue = [...scriptActions];
+  const executeStep = (): boolean => {
+    while (queue.length > 0) {
+      const res = tryExecuteAction(world, queue[0]);
+      if (res.invalid) {
+        invalidActions++;
+        queue.shift();
+        continue;
+      }
+      if (!res.executed) return false;
+      goldSpent += res.cost;
+      if (res.isBuild) towersBuilt++;
+      if (res.changedTargeting) targetingChanges++;
+      queue.shift();
+      return true;
+    }
+    return false;
+  };
+
+  // Pre-wave 1: human player places initial towers freely before pressing Start Wave
+  while (executeStep()) {
+    // spend starting gold greedily
+  }
+  world.startNextWave();
+
+  // During active waves, player builds/upgrades at most once every 8.0 seconds.
+  // Between waves, player builds/upgrades greedily using available gold.
+  const COMBAT_COOLDOWN_SEC = 8.0;
+  let combatCooldown = COMBAT_COOLDOWN_SEC;
+  let wasBetweenWaves = false;
+
+  const maxTicks = 60 * 1400;
+  for (let tick = 0; tick < maxTicks && world.outcome === 'ongoing'; tick++) {
+    const state = world.waveSystem.state;
+    if (state === 'betweenWaves') {
+      wasBetweenWaves = true;
+      while (executeStep()) {
+        // spend between waves greedily
+      }
+    } else {
+      if (wasBetweenWaves) {
+        combatCooldown = COMBAT_COOLDOWN_SEC;
+        wasBetweenWaves = false;
+      }
+      if (combatCooldown > 0) {
+        combatCooldown = Math.max(0, combatCooldown - BALANCE.fixedDt);
+      }
+      if (combatCooldown <= 0 && executeStep()) {
+        combatCooldown = COMBAT_COOLDOWN_SEC;
+      }
+    }
+
+    world.fixedTick(BALANCE.fixedDt);
+  }
+
+  const endGoldPctOfEarned = goldEarned > 0 ? (world.gold / goldEarned) * 100 : 0;
+
+  return {
+    levelId: level.id,
+    name: level.name,
+    scriptKind,
+    outcome: world.outcome,
+    finalLives: world.lives,
+    stars: world.outcome === 'won' ? computeStarRating(world.lives) : 0,
+    startingGold: level.startingGold,
+    goldEarned,
+    goldSpent,
+    finalGold: world.gold,
+    endGoldPctOfEarned,
+    towersBuilt,
+    plannedTowers,
+    targetingChanges,
+    waves: waveRows,
+    unspentScriptActions: queue.length,
+    invalidActions,
+  };
+}
+
+function printResult(lvlIdx: number, res: SimRunResult, difficulty: string): void {
+  const tag = res.scriptKind === 'greedy' ? 'GREEDY' : 'WEAK  ';
+  console.log(
+    `[L${lvlIdx + 1} ${tag}] ${res.name} (${difficulty}) -> ${res.outcome.toUpperCase()} | ` +
+      `Lives: ${res.finalLives}/${BALANCE.startingLives} | Stars: ${res.stars}/3 | ` +
+      `Towers: ${res.towersBuilt}/${res.plannedTowers} (tgtSwaps: ${res.targetingChanges})`,
+  );
+  console.log(
+    `           Start: ${res.startingGold}g | Earned: ${res.goldEarned}g | Spent: ${res.goldSpent}g | ` +
+      `End Gold: ${res.finalGold}g (${res.endGoldPctOfEarned.toFixed(1)}% of earned) | ` +
+      `RemainingSteps: ${res.unspentScriptActions} | Invalid: ${res.invalidActions}`,
+  );
+  if (res.scriptKind === 'greedy' || res.outcome === 'lost' || res.finalLives < 20) {
+    console.log('           Wave | StartGold | LivesLost | Leaks');
+    for (let w = 0; w < res.waves.length; w++) {
+      const row = res.waves[w];
+      if (row.livesLost === 0 && res.waves.length > 12 && w > 0 && w < res.waves.length - 1) {
+        continue;
+      }
+      const leakPairs = Object.entries(row.leaksByType)
+        .map(([k, v]) => `${k}:${v}`)
+        .join(', ');
+      console.log(
+        `           ${String(row.waveNumber).padStart(4)} | ${String(row.startGold).padStart(8)}g | ` +
+          `${String(row.livesLost).padStart(9)} | ${leakPairs || '-'}`,
+      );
+    }
+  }
+}
+
+console.log('=== Skyhold Isles Headless Balance Simulator (60 Hz Human-Paced) ===\n');
+
+const failures: string[] = [];
+
+for (let i = 0; i < LEVELS.length; i++) {
+  const level = LEVELS[i];
+  const greedyRes = runLevelBalanceSim(level, 'greedy', level.scriptedBuildOrder ?? []);
+  printResult(i, greedyRes, level.difficulty);
+
+  const weakRes = runLevelBalanceSim(level, 'weak', level.weakBuildOrder ?? []);
+  printResult(i, weakRes, level.difficulty);
+  console.log('');
+
+  if (greedyRes.outcome !== 'won') {
+    failures.push(`L${i + 1} greedy did not win`);
+  }
+  if (greedyRes.endGoldPctOfEarned >= 15) {
+    failures.push(`L${i + 1} greedy end gold ${greedyRes.endGoldPctOfEarned.toFixed(1)}% >= 15%`);
+  }
+  if (greedyRes.invalidActions > 0) {
+    failures.push(`L${i + 1} greedy has ${greedyRes.invalidActions} invalid actions`);
+  }
+  if (weakRes.invalidActions > 0) {
+    failures.push(`L${i + 1} weak has ${weakRes.invalidActions} invalid actions`);
+  }
+  if (weakRes.targetingChanges > 0) {
+    failures.push(`L${i + 1} weak used ${weakRes.targetingChanges} targeting mode changes (expected 0)`);
+  }
+
+  const weakPlanRatio =
+    greedyRes.plannedTowers > 0 ? weakRes.plannedTowers / greedyRes.plannedTowers : 1;
+  if (weakPlanRatio > 0.74 || weakPlanRatio < 0.64) {
+    failures.push(
+      `L${i + 1} weak planned towers (${weakRes.plannedTowers}/${greedyRes.plannedTowers} = ${(weakPlanRatio * 100).toFixed(0)}%) should be ~70%`,
+    );
+  }
+
+  if (i === 0 && greedyRes.stars !== 3) {
+    failures.push(`L1 greedy got ${greedyRes.stars} stars (expected 3)`);
+  }
+  if (i === 1 && greedyRes.stars !== 2) {
+    failures.push(`L2 greedy got ${greedyRes.stars} stars (expected 2)`);
+  }
+  if (i === 2 && (greedyRes.stars < 1 || greedyRes.stars > 2)) {
+    failures.push(`L3 greedy got ${greedyRes.stars} stars (expected 1-2)`);
+  }
+
+  if (i === 0 && weakRes.outcome !== 'won') {
+    failures.push('L1 weak must still be winnable');
+  }
+  if (i === 1) {
+    if (weakRes.outcome === 'won' && weakRes.finalLives > 8) {
+      failures.push(`L2 weak too comfortable (${weakRes.finalLives} lives left; expected borderline <= 8)`);
+    }
+    if (weakRes.outcome === 'lost' && weakRes.waves.length < Math.ceil(level.waves.length * 0.75)) {
+      failures.push(`L2 weak lost too early on wave ${weakRes.waves.length}/${level.waves.length}`);
+    }
+  }
+  if (i === 2 && weakRes.outcome !== 'lost') {
+    failures.push(`L3 weak must lose (got ${weakRes.outcome} with ${weakRes.finalLives} lives)`);
+  }
+}
+
+if (failures.length > 0) {
+  console.error('Balance check FAILED:');
+  for (const f of failures) console.error(' - ' + f);
+  process.exit(1);
+}
+console.log('Balance check PASSED: Greedy & Weak targets met across all 3 levels!');
+

@@ -1,0 +1,115 @@
+import type { EnemyType, TowerType, Vec3 } from './types.ts';
+
+export interface GameEventMap {
+  towerBuilt: { towerId: number; type: TowerType; tier: number; x: number; z: number };
+  towerUpgraded: { towerId: number; type: TowerType; tier: number; x: number; z: number };
+  towerSold: { towerId: number; type: TowerType; refund: number; x: number; z: number };
+  towerFired: {
+    towerId: number;
+    type: TowerType;
+    tier: number;
+    x: number;
+    y: number;
+    z: number;
+    yaw: number;
+  };
+  projectileImpact: {
+    towerType: TowerType;
+    x: number;
+    y: number;
+    z: number;
+    radius: number;
+    isBossHit: boolean;
+  };
+  lightningChain: {
+    points: readonly Vec3[];
+  };
+  enemySpawned: {
+    enemyId: number;
+    enemyType: EnemyType;
+    flying: boolean;
+  };
+  enemyHit: {
+    enemyId: number;
+    enemyType: EnemyType;
+    damage: number;
+    x: number;
+    y: number;
+    z: number;
+    isBoss: boolean;
+  };
+  enemyKilled: {
+    enemyId: number;
+    enemyType: EnemyType;
+    reward: number;
+    x: number;
+    y: number;
+    z: number;
+  };
+  enemyLeaked: {
+    enemyType: EnemyType;
+    livesLost: number;
+    x: number;
+    y: number;
+    z: number;
+  };
+  healerPulse: {
+    x: number;
+    y: number;
+    z: number;
+    radius: number;
+  };
+  waveStarted: {
+    waveIndex: number;
+    totalWaves: number;
+    earlyBonus: number;
+  };
+  waveCompleted: {
+    waveIndex: number;
+    bonus: number;
+  };
+  economyChanged: {
+    gold: number;
+    lives: number;
+  };
+  gameWon: {
+    stars: 1 | 2 | 3;
+    livesRemaining: number;
+  };
+  gameLost: {
+    waveIndex: number;
+  };
+}
+
+type Listener<T> = (payload: T) => void;
+
+export class EventBus {
+  private listeners: { [K in keyof GameEventMap]?: Array<Listener<GameEventMap[K]>> } = {};
+
+  on<K extends keyof GameEventMap>(event: K, listener: Listener<GameEventMap[K]>): () => void {
+    let list = this.listeners[event];
+    if (!list) {
+      list = [];
+      this.listeners[event] = list;
+    }
+    list.push(listener);
+    return () => {
+      const idx = list.indexOf(listener);
+      if (idx !== -1) {
+        list.splice(idx, 1);
+      }
+    };
+  }
+
+  emit<K extends keyof GameEventMap>(event: K, payload: GameEventMap[K]): void {
+    const list = this.listeners[event];
+    if (!list) return;
+    for (let i = 0; i < list.length; i++) {
+      list[i](payload);
+    }
+  }
+
+  clear(): void {
+    this.listeners = {};
+  }
+}

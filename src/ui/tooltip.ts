@@ -1,0 +1,61 @@
+import { ENEMY_DEFS } from '../data/enemies.ts';
+import type { EnemyEntity } from '../sim/entities.ts';
+
+export class EnemyTooltip {
+  private readonly el: HTMLDivElement;
+  private readonly nameEl: HTMLDivElement;
+  private readonly hpEl: HTMLSpanElement;
+  private readonly armorEl: HTMLSpanElement;
+  private readonly statusEl: HTMLSpanElement;
+  private visible = false;
+
+  constructor(root: HTMLElement) {
+    this.el = document.createElement('div');
+    this.el.className = 'enemy-tooltip hidden';
+
+    this.nameEl = document.createElement('div');
+    this.nameEl.className = 'enemy-tooltip-name';
+
+    const statsRow = document.createElement('div');
+    statsRow.className = 'enemy-tooltip-stats';
+
+    this.hpEl = document.createElement('span');
+    this.armorEl = document.createElement('span');
+    this.statusEl = document.createElement('span');
+    this.statusEl.className = 'enemy-tooltip-slow';
+
+    statsRow.append(this.hpEl, this.armorEl, this.statusEl);
+    this.el.append(this.nameEl, statsRow);
+    root.appendChild(this.el);
+  }
+
+  show(enemy: EnemyEntity, clientX: number, clientY: number): void {
+    const def = ENEMY_DEFS[enemy.type];
+    this.nameEl.textContent = def.name;
+    this.hpEl.textContent = `HP ${Math.ceil(enemy.hp)}/${enemy.maxHp}`;
+    this.armorEl.textContent = enemy.armor > 0 ? ` · Armor ${enemy.armor}` : '';
+    this.statusEl.textContent =
+      enemy.slowTimer > 0 ? ` · Slowed ${Math.round(enemy.slowRatio * 100)}%` : '';
+
+    const offsetX = 14;
+    const offsetY = -14;
+    const left = Math.min(window.innerWidth - 190, clientX + offsetX);
+    const top = Math.max(12, clientY + offsetY);
+
+    this.el.style.transform = `translate3d(${left}px, ${top}px, 0)`;
+    if (!this.visible) {
+      this.el.classList.remove('hidden');
+      this.visible = true;
+    }
+  }
+
+  hide(): void {
+    if (!this.visible) return;
+    this.el.classList.add('hidden');
+    this.visible = false;
+  }
+
+  dispose(): void {
+    this.el.remove();
+  }
+}
