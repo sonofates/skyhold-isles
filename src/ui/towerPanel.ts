@@ -30,6 +30,7 @@ export class TowerPanel {
   private readonly upgradeTitleEl: HTMLSpanElement;
   private readonly upgradeDiffEl: HTMLSpanElement;
   private readonly sellBtn: HTMLButtonElement;
+  private sellConfirmArmed = false;
 
   private boundTowerId: number | null = null;
 
@@ -72,7 +73,7 @@ export class TowerPanel {
     targetWrap.className = 'tower-targeting';
     const targetLbl = document.createElement('div');
     targetLbl.className = 'tower-section-label';
-    targetLbl.textContent = 'Targeting';
+    targetLbl.textContent = 'Targeting [T]';
 
     const targetRow = document.createElement('div');
     targetRow.className = 'tower-target-row';
@@ -123,9 +124,16 @@ export class TowerPanel {
     parent.appendChild(this.rootEl);
   }
 
+  setSellConfirmArmed(armed: boolean): void {
+    this.sellConfirmArmed = armed;
+    this.sellBtn.classList.toggle('confirming', armed);
+  }
+
   update(tower: TowerEntity | null, gold: number): void {
     if (!tower) {
       this.boundTowerId = null;
+      this.sellConfirmArmed = false;
+      this.sellBtn.classList.remove('confirming');
       this.rootEl.classList.add('hidden');
       return;
     }
@@ -176,7 +184,7 @@ export class TowerPanel {
       this.upgradeBtn.disabled = !canAfford;
       this.upgradeBtn.classList.toggle('unaffordable', !canAfford);
       this.upgradeBtn.classList.remove('maxed');
-      this.upgradeTitleEl.textContent = `Upgrade T${nextTier} · ${nextStats.upgradeCost}g`;
+      this.upgradeTitleEl.textContent = `[U] Upgrade T${nextTier} · ${nextStats.upgradeCost}g`;
 
       const diffs: string[] = [];
       const dmgDiff = nextStats.damage - stats.damage;
@@ -202,7 +210,10 @@ export class TowerPanel {
     }
 
     const refund = computeSellRefund(tower.totalInvested);
-    this.sellBtn.textContent = `Sell +${refund}g (70%)`;
+    this.sellBtn.classList.toggle('confirming', this.sellConfirmArmed);
+    this.sellBtn.textContent = this.sellConfirmArmed
+      ? `Confirm Sell [S] +${refund}g`
+      : `[S] Sell +${refund}g (70%)`;
   }
 
   dispose(): void {

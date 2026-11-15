@@ -88,9 +88,10 @@ async function bootstrap(): Promise<void> {
     onZoomDelta: (delta, ndcX, ndcY) => renderWorld.cameraController.zoomByDelta(delta, ndcX, ndcY),
     onRotateCamera: (dir) => renderWorld.cameraController.rotate90(dir),
     onPointerMoveNdc: (ndcX, ndcY, cx, cy) => session.onPointerMove(ndcX, ndcY, cx, cy),
-    onPrimaryTapNdc: (ndcX, ndcY) => session.onPrimaryTap(ndcX, ndcY),
+    onPrimaryTapNdc: (ndcX, ndcY, shiftKey) => session.onPrimaryTap(ndcX, ndcY, shiftKey),
     onSecondaryAction: (source) => session.onSecondaryAction(source),
     onHotkeyTower: (index) => session.onHotkeyTower(index),
+    onTowerActionHotkey: (action) => session.onTowerActionHotkey(action),
     onTogglePause: () => session.toggleUserPause(),
     onKeyPanState: (x, z) => renderWorld.cameraController.setKeyPan(x, z),
   });

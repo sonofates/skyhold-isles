@@ -685,6 +685,13 @@ button {
   background: rgba(232, 93, 93, 0.22);
 }
 
+.tower-sell-btn.confirming {
+  background: rgba(232, 93, 93, 0.28);
+  border-color: var(--pal-coral);
+  color: #8f1d1d;
+  box-shadow: 0 0 0 2px rgba(232, 93, 93, 0.2);
+}
+
 /* Shared modals (Settings, Pause, Level Select, Outcome) */
 .modal-backdrop {
   position: absolute;
@@ -843,6 +850,13 @@ button {
 .float-gold {
   font-size: 14px;
   color: var(--pal-gold);
+}
+
+.float-upgrade {
+  font-size: 16px;
+  font-weight: 900;
+  color: #ffe27a;
+  letter-spacing: 0.02em;
 }
 
 /* Enemy hover tooltip */

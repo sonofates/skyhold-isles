@@ -12,7 +12,10 @@ import { EnemyRenderer } from './enemyMeshes.ts';
 import type { KenneyAssetStore } from './kenneyAssets.ts';
 import { MapBuilder } from './mapBuilder.ts';
 import { MaterialLibrary } from './materials.ts';
+import type { TowerEntity } from '../sim/entities.ts';
 import { OverlayIndicators } from './overlayIndicators.ts';
+import { TowerBadgeRenderer } from './towerBadges.ts';
+import { pickTowerByRay } from './towerPicking.ts';
 import { ProjectileRenderer } from './projectileRenderer.ts';
 import { SceneManager } from './sceneManager.ts';
 import { TowerRenderer } from './towerMeshes.ts';
@@ -35,6 +38,8 @@ export class RenderWorld {
   readonly projectileRenderer: ProjectileRenderer;
   readonly effectsRenderer: EffectsRenderer;
   readonly overlayIndicators: OverlayIndicators;
+  private readonly towerBadges: TowerBadgeRenderer;
+  private hoveredTowerId: number | null = null;
   readonly assets: KenneyAssetStore;
 
   private eventUnsubs: Array<() => void> = [];
@@ -54,6 +59,7 @@ export class RenderWorld {
     this.projectileRenderer = new ProjectileRenderer(this.materials, assets);
     this.effectsRenderer = new EffectsRenderer();
     this.overlayIndicators = new OverlayIndicators(this.materials);
+    this.towerBadges = new TowerBadgeRenderer();
 
     const scene = this.sceneManager.scene;
     scene.add(this.mapBuilder.group);
@@ -63,6 +69,7 @@ export class RenderWorld {
     scene.add(this.projectileRenderer.group);
     scene.add(this.effectsRenderer.group);
     scene.add(this.overlayIndicators.group);
+    scene.add(this.towerBadges.group);
   }
 
   loadLevel(level: LevelDef, events?: EventBus, getSettings?: () => GameSettings): void {
@@ -72,6 +79,8 @@ export class RenderWorld {
     this.projectileRenderer.clear();
     this.effectsRenderer.clearEffects();
     this.overlayIndicators.clear();
+    this.towerBadges.clear();
+    this.hoveredTowerId = null;
 
     this.mapBuilder.build(level, this.materials, this.assets);
     this.decorBuilder.build(level, this.materials, this.assets);
@@ -95,6 +104,8 @@ export class RenderWorld {
       }),
       events.on('towerUpgraded', (e) => {
         this.effectsRenderer.spawnParticles(e.x, 0.5, e.z, PALETTE_HEX.gold, 14, 3.2, 3.0);
+        this.effectsRenderer.spawnParticles(e.x, 0.25, e.z, PALETTE_HEX.cream, 10, 2.6, 4.0);
+        this.effectsRenderer.spawnParticles(e.x, 0.2, e.z, PALETTE_HEX.sand, 6, 2.2, 4.0);
       }),
       events.on('towerSold', (e) => {
         this.effectsRenderer.spawnParticles(e.x, 0.4, e.z, PALETTE_HEX.gold, 10, 2.6, 4.5);
@@ -188,6 +199,19 @@ export class RenderWorld {
     this.overlayIndicators.setPlacementGridActive(active);
   }
 
+  setHoveredTowerId(towerId: number | null): void {
+    this.hoveredTowerId = towerId;
+  }
+
+  setCanvasCursor(cursor: string): void {
+    this.sceneManager.renderer.domElement.style.cursor = cursor;
+  }
+
+  pickTowerAtNdc(ndcX: number, ndcY: number, towers: readonly TowerEntity[]): TowerEntity | null {
+    const ray = this.cameraController.setNdcRay(ndcX, ndcY);
+    return pickTowerByRay(ray, towers);
+  }
+
   setQuality(quality: QualityLevel): void {
     this.sceneManager.setQuality(quality);
     this.materials.setOutlineAlphaEnabled(quality !== 'low');
@@ -215,7 +239,19 @@ export class RenderWorld {
 
     if (simWorld) {
       this.mapBuilder.syncOccupiedTiles(simWorld.towers);
-      this.towerRenderer.syncTowers(simWorld.towers, this.materials, alpha, elapsedVisualTime);
+      this.towerRenderer.syncTowers(
+        simWorld.towers,
+        this.materials,
+        alpha,
+        elapsedVisualTime,
+        this.hoveredTowerId,
+      );
+      this.towerBadges.sync(
+        simWorld.towers,
+        simWorld.gold,
+        this.cameraController.camera.quaternion,
+        elapsedVisualTime,
+      );
       this.enemyRenderer.update(
         simWorld.enemyPool,
         alpha,
@@ -298,6 +334,7 @@ export class RenderWorld {
     this.projectileRenderer.dispose();
     this.effectsRenderer.dispose();
     this.overlayIndicators.dispose();
+    this.towerBadges.dispose();
     this.materials.dispose();
     this.assets.dispose();
     this.sceneManager.dispose();

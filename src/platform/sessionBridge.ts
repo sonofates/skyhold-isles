@@ -5,6 +5,7 @@ import { BALANCE } from '../data/balance.ts';
 import { LEVELS } from '../data/levels/index.ts';
 import { getTowerTierStats } from '../data/towers.ts';
 import type { RenderWorld } from '../render/renderWorld.ts';
+import { getTowerPickHeight } from '../render/towerPicking.ts';
 import type { SimWorld } from '../sim/world.ts';
 import type { GameOverlays } from '../ui/gameOverlays.ts';
 import type { HudStateView } from '../ui/hud.ts';
@@ -28,7 +29,13 @@ export function bindSimEventBridge(h: SimBridgeHandlers): () => void {
   h.bus.on('waveStarted', h.onSyncUi);
   h.bus.on('waveCompleted', h.onSyncUi);
   h.bus.on('towerBuilt', h.onSyncUi);
-  h.bus.on('towerUpgraded', h.onSyncUi);
+  h.bus.on('towerUpgraded', (e) => {
+    h.onSyncUi();
+    if (e.tier === 2 || e.tier === 3) {
+      const topY = getTowerPickHeight(e.type, e.tier) + 0.35;
+      h.overlays.floatingTextPool.spawnUpgradeTier(e.tier, e.x, topY, e.z, h.getSimClock());
+    }
+  });
   h.bus.on('towerSold', h.onSyncUi);
   h.bus.on('enemySpawned', (e) => {
     if (!e.flying || hasSeenFlyerToast()) return;
@@ -96,6 +103,10 @@ export function updatePlacementPreviewFromNdc(
     renderWorld.setPlacementPreview(false, null, 0, 0, false);
     return;
   }
+  if (renderWorld.pickTowerAtNdc(ndcX, ndcY, simWorld.towers)) {
+    renderWorld.setPlacementPreview(false, null, 0, 0, false);
+    return;
+  }
   const hit = renderWorld.cameraController.screenNdcToPlane(ndcX, ndcY, 0);
   if (!hit) {
     renderWorld.setPlacementPreview(false, null, 0, 0, false);
@@ -130,10 +141,11 @@ export function stepPendingSpawns(
   }
 }
 
-export function updateEnemyHoverTooltip(
+export function updateHoverFeedback(
   inPlay: boolean,
   pointerInside: boolean,
   paused: boolean,
+  placementActive: boolean,
   ndcX: number,
   ndcY: number,
   clientX: number,
@@ -142,15 +154,35 @@ export function updateEnemyHoverTooltip(
   simWorld: SimWorld,
   overlays: GameOverlays,
 ): void {
-  if (!inPlay) {
+  if (!inPlay || !pointerInside) {
+    renderWorld.setHoveredTowerId(null);
+    renderWorld.setCanvasCursor('');
     overlays.tooltip.hide();
     return;
   }
-  if (!pointerInside || paused) return;
+
+  const hoveredTower = renderWorld.pickTowerAtNdc(ndcX, ndcY, simWorld.towers);
+  if (hoveredTower) {
+    renderWorld.setHoveredTowerId(hoveredTower.id);
+    renderWorld.setCanvasCursor('pointer');
+    overlays.tooltip.showTower(hoveredTower, clientX, clientY);
+    return;
+  }
+
+  renderWorld.setHoveredTowerId(null);
+  renderWorld.setCanvasCursor(placementActive ? 'crosshair' : '');
+
+  if (paused || placementActive) {
+    overlays.tooltip.hide();
+    return;
+  }
 
   const groundHit = renderWorld.cameraController.screenNdcToPlane(ndcX, ndcY, 0);
   const flyerHit = renderWorld.cameraController.screenNdcToPlane(ndcX, ndcY, BALANCE.flyerHeight);
-  if (!groundHit || !flyerHit) return;
+  if (!groundHit || !flyerHit) {
+    overlays.tooltip.hide();
+    return;
+  }
 
   const hovered = simWorld.findHoveredEnemy(groundHit.x, groundHit.z, flyerHit.x, flyerHit.z);
   if (hovered) overlays.tooltip.show(hovered, clientX, clientY);

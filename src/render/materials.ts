@@ -77,11 +77,29 @@ export class MaterialLibrary {
     });
     this.kenneyTower.onBeforeCompile = (shader) => {
       shader.uniforms.uOutlineAlpha = this.outlineAlphaUniform;
+      shader.vertexShader = shader.vertexShader
+        .replace(
+          '#include <common>',
+          `#include <common>
+attribute float aHighlight;
+varying float vHighlight;`,
+        )
+        .replace(
+          '#include <begin_vertex>',
+          `#include <begin_vertex>
+vHighlight = aHighlight;`,
+        );
       shader.fragmentShader = shader.fragmentShader
         .replace(
           '#include <common>',
           `#include <common>
-uniform float uOutlineAlpha;`,
+uniform float uOutlineAlpha;
+varying float vHighlight;`,
+        )
+        .replace(
+          '#include <emissivemap_fragment>',
+          `#include <emissivemap_fragment>
+totalEmissiveRadiance += vec3(0.28, 0.24, 0.12) * vHighlight;`,
         )
         .replace(
           '#include <opaque_fragment>',
@@ -89,7 +107,7 @@ uniform float uOutlineAlpha;`,
 gl_FragColor.a = mix(1.0, 0.25, uOutlineAlpha);`,
         );
     };
-    this.kenneyTower.customProgramCacheKey = () => 'kenney-tower-outline-v2';
+    this.kenneyTower.customProgramCacheKey = () => 'kenney-tower-outline-v3';
 
     this.kenneyProjectile = new THREE.MeshStandardMaterial({
       map: colormapTexture ?? null,

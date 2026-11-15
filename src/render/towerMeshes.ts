@@ -10,6 +10,8 @@ interface TowerInstancedBucket {
   readonly tier: 1 | 2 | 3;
   baseMesh: THREE.InstancedMesh;
   turretMesh: THREE.InstancedMesh;
+  highlightArray: Float32Array;
+  highlightAttr: THREE.InstancedBufferAttribute;
   capacity: number;
   readonly turretAnchorY: number;
   readonly idleSpinTurret: boolean;
@@ -35,6 +37,7 @@ export class TowerRenderer {
     materials: MaterialLibrary,
     alpha: number,
     elapsedTime: number,
+    hoveredTowerId: number | null = null,
   ): void {
     this.keyCounts.clear();
     for (let i = 0; i < towers.length; i++) {
@@ -59,6 +62,7 @@ export class TowerRenderer {
       const slot = bucket.baseMesh.count;
       bucket.baseMesh.count = slot + 1;
       bucket.turretMesh.count = slot + 1;
+      bucket.highlightArray[slot] = t.id === hoveredTowerId ? 1 : 0;
 
       // Squash-and-stretch pop animation on build & upgrade
       let sxz = 1;
@@ -104,6 +108,7 @@ export class TowerRenderer {
         bucket.turretMesh.visible = true;
         bucket.baseMesh.instanceMatrix.needsUpdate = true;
         bucket.turretMesh.instanceMatrix.needsUpdate = true;
+        bucket.highlightAttr.needsUpdate = true;
       }
     });
   }
@@ -138,7 +143,14 @@ export class TowerRenderer {
     newTurret.receiveShadow = true;
     newTurret.frustumCulled = false;
 
+    const highlightArray = new Float32Array(capacity);
+    const highlightAttr = new THREE.InstancedBufferAttribute(highlightArray, 1);
+    highlightAttr.setUsage(THREE.DynamicDrawUsage);
+    pair.base.setAttribute('aHighlight', highlightAttr);
+    pair.turret.setAttribute('aHighlight', highlightAttr);
+
     if (bucket) {
+      highlightArray.set(bucket.highlightArray.subarray(0, prevCount));
       for (let s = 0; s < prevCount; s++) {
         bucket.baseMesh.getMatrixAt(s, _turretWorldMat);
         newBase.setMatrixAt(s, _turretWorldMat);
@@ -150,6 +162,8 @@ export class TowerRenderer {
       bucket.turretMesh.dispose();
       bucket.baseMesh = newBase;
       bucket.turretMesh = newTurret;
+      bucket.highlightArray = highlightArray;
+      bucket.highlightAttr = highlightAttr;
       bucket.capacity = capacity;
       this.group.add(newBase, newTurret);
       return bucket;
@@ -161,6 +175,8 @@ export class TowerRenderer {
       tier,
       baseMesh: newBase,
       turretMesh: newTurret,
+      highlightArray,
+      highlightAttr,
       capacity,
       turretAnchorY: pair.turretAnchorY,
       idleSpinTurret: pair.idleSpinTurret,

@@ -3,6 +3,23 @@ import type { GameSettings, ProgressData, QualityLevel } from '../core/types.ts'
 const SETTINGS_KEY = 'skyhold_isles_settings_v1';
 const PROGRESS_KEY = 'skyhold_isles_progress_v1';
 const FLYER_TOAST_SEEN_KEY = 'skyhold_isles_flyer_toast_seen_v1';
+const UPGRADE_TOAST_SEEN_KEY = 'skyhold_isles_upgrade_toast_seen_v1';
+
+export function hasSeenUpgradeToast(): boolean {
+  try {
+    return localStorage.getItem(UPGRADE_TOAST_SEEN_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+export function markUpgradeToastSeen(): void {
+  try {
+    localStorage.setItem(UPGRADE_TOAST_SEEN_KEY, '1');
+  } catch {
+    // ignore storage errors
+  }
+}
 
 export function hasSeenFlyerToast(): boolean {
   try {

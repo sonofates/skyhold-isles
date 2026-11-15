@@ -1,6 +1,6 @@
 import { BALANCE } from '../data/balance.ts';
 
-export type FloatingTextKind = 'damage' | 'gold' | 'heal';
+export type FloatingTextKind = 'damage' | 'gold' | 'heal' | 'upgrade';
 
 interface FloatingSlot {
   active: boolean;
@@ -139,9 +139,32 @@ export class FloatingTextPool {
     slot.el.className = 'float-txt float-gold';
   }
 
+  spawnUpgradeTier(
+    tier: 2 | 3,
+    worldX: number,
+    worldY: number,
+    worldZ: number,
+    nowSec: number,
+  ): void {
+    const slot = this.acquireSlot();
+    slot.kind = 'upgrade';
+    slot.enemyId = 0;
+    slot.amount = tier;
+    slot.createdSeq = this.seqCounter++;
+    slot.lastUpdateSec = nowSec;
+    slot.age = 0;
+    slot.duration = 1.1;
+    slot.worldX = worldX;
+    slot.worldY = worldY;
+    slot.worldZ = worldZ;
+    slot.el.textContent = tier === 2 ? '+Tier II' : '+Tier III';
+    slot.el.className = 'float-txt float-upgrade';
+  }
+
   update(
     dt: number,
     projectWorldToScreen: (x: number, y: number, z: number, out: { x: number; y: number }) => void,
+    uiDt: number = dt,
   ): void {
     const out = { x: 0, y: 0 };
     let count = 0;
@@ -150,7 +173,7 @@ export class FloatingTextPool {
       const s = this.slots[i];
       if (!s.active) continue;
 
-      s.age += dt;
+      s.age += s.kind === 'upgrade' ? uiDt : dt;
       if (s.age >= s.duration) {
         s.active = false;
         s.el.classList.add('hidden');
@@ -159,7 +182,7 @@ export class FloatingTextPool {
 
       count++;
       const t = s.age / s.duration;
-      const liftY = s.kind === 'gold' ? t * 1.15 : t * 0.75;
+      const liftY = s.kind === 'upgrade' ? t * 1.4 : s.kind === 'gold' ? t * 1.15 : t * 0.75;
       projectWorldToScreen(s.worldX, s.worldY + liftY, s.worldZ, out);
 
       const spreadX = s.enemyId > 0 ? ((s.enemyId * 29) % 21) - 10 : 0;

@@ -5,9 +5,10 @@ export interface InputHandlers {
   onZoomDelta: (delta: number, ndcX: number, ndcY: number) => void;
   onRotateCamera: (dir: -1 | 1) => void;
   onPointerMoveNdc: (ndcX: number, ndcY: number, clientX: number, clientY: number) => void;
-  onPrimaryTapNdc: (ndcX: number, ndcY: number) => void;
+  onPrimaryTapNdc: (ndcX: number, ndcY: number, shiftKey: boolean) => void;
   onSecondaryAction: (source: 'escape' | 'rightClick') => void;
   onHotkeyTower: (index: number) => void;
+  onTowerActionHotkey: (action: 'upgrade' | 'sell' | 'target') => boolean;
   onTogglePause: () => void;
   onKeyPanState: (panX: number, panZ: number) => void;
 }
@@ -153,7 +154,7 @@ export class InputManager {
       if (tracked && this.pointers.size === 1 && !this.isDragging && this.enabled && !this.modalOpen) {
         const ndc = this.toNdc(e.clientX, e.clientY);
         if (e.button === 0) {
-          this.handlers.onPrimaryTapNdc(ndc.ndcX, ndc.ndcY);
+          this.handlers.onPrimaryTapNdc(ndc.ndcX, ndc.ndcY, e.shiftKey);
         } else if (e.button === 2) {
           this.handlers.onSecondaryAction('rightClick');
         }
@@ -216,6 +217,20 @@ export class InputManager {
       }
       if (!e.repeat && e.key >= '1' && e.key <= '5') {
         this.handlers.onHotkeyTower(Number(e.key) - 1);
+        return;
+      }
+      if (!e.repeat && e.code === 'KeyU' && this.handlers.onTowerActionHotkey('upgrade')) {
+        e.preventDefault();
+        return;
+      }
+      if (!e.repeat && e.code === 'KeyT' && this.handlers.onTowerActionHotkey('target')) {
+        e.preventDefault();
+        return;
+      }
+      if (!e.repeat && e.code === 'KeyS' && this.handlers.onTowerActionHotkey('sell')) {
+        e.preventDefault();
+        this.keysDown.delete('KeyS');
+        updateKeyPan();
         return;
       }
 

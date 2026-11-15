@@ -20,10 +20,16 @@ import {
   buildHudStateView,
   recordWinProgress,
   stepPendingSpawns,
-  updateEnemyHoverTooltip,
+  updateHoverFeedback,
   updatePlacementPreviewFromNdc,
 } from './sessionBridge.ts';
-import { loadProgress, loadSettings, saveSettings } from './storage.ts';
+import {
+  hasSeenUpgradeToast,
+  loadProgress,
+  loadSettings,
+  markUpgradeToastSeen,
+  saveSettings,
+} from './storage.ts';
 
 export type ViewMode = 'menu' | 'levelSelect' | 'playing';
 export type SettingsOrigin = 'menu' | 'hud' | 'pause';
@@ -51,6 +57,8 @@ export class GameSession {
   private simClockSec = 0;
   private activePlacementType: TowerType | null = null;
   private selectedTowerId: number | null = null;
+  private sellConfirmTowerId: number | null = null;
+  private sellConfirmDeadlineMs = 0;
   private lastClientX = -1;
   private lastClientY = -1;
   private lastNdcX = 0;
@@ -126,7 +134,34 @@ export class GameSession {
     );
   }
 
+  private clearSellConfirm(): void {
+    if (this.sellConfirmTowerId === null) return;
+    this.sellConfirmTowerId = null;
+    this.sellConfirmDeadlineMs = 0;
+    this.d.overlays.towerPanel.setSellConfirmArmed(false);
+  }
+
+  refreshHoverFeedback(): void {
+    const { overlays, loop } = this.d;
+    updateHoverFeedback(
+      this.viewMode === 'playing',
+      this.pointerInside,
+      loop.paused,
+      this.activePlacementType !== null,
+      this.lastNdcX,
+      this.lastNdcY,
+      this.lastClientX,
+      this.lastClientY,
+      this.renderWorld,
+      this.simWorld,
+      overlays,
+    );
+  }
+
   selectTower(towerId: number | null): void {
+    if (this.sellConfirmTowerId !== towerId) {
+      this.clearSellConfirm();
+    }
     this.selectedTowerId = towerId;
     const tower = towerId !== null ? this.simWorld.getTowerById(towerId) : null;
     this.renderWorld.overlayIndicators.setSelectedTowerRing(tower);
@@ -151,9 +186,12 @@ export class GameSession {
 
   private clearTransientPlayState(): void {
     this.pendingDebugSpawns.length = 0;
+    this.clearSellConfirm();
     this.d.overlays.floatingTextPool.clear();
     this.d.overlays.tooltip.hide();
     this.d.overlays.toast.hide();
+    this.renderWorld.setHoveredTowerId(null);
+    this.renderWorld.setCanvasCursor('');
     this.renderWorld.setPlacementGridActive(false);
     this.renderWorld.setFlightPathHighlight(false);
     this.activePlacementType = null;
@@ -301,6 +339,7 @@ export class GameSession {
 
   upgradeTower(id: number): void {
     this.soundManager.unlock();
+    this.clearSellConfirm();
     if (this.simWorld.upgradeTower(id)) {
       this.renderWorld.overlayIndicators.setSelectedTowerRing(this.simWorld.getTowerById(id));
       this.syncUi();
@@ -327,23 +366,94 @@ export class GameSession {
     this.lastClientY = clientY;
     this.pointerInside = true;
     this.refreshPlacementPreview();
+    this.refreshHoverFeedback();
   }
 
-  onPrimaryTap(ndcX: number, ndcY: number): void {
+  onPrimaryTap(ndcX: number, ndcY: number, shiftKey = false): void {
     this.soundManager.unlock();
+    this.lastNdcX = ndcX;
+    this.lastNdcY = ndcY;
+    const pickedTower = this.renderWorld.pickTowerAtNdc(ndcX, ndcY, this.simWorld.towers);
     const hit = this.renderWorld.cameraController.screenNdcToPlane(ndcX, ndcY, 0);
-    if (!hit) return;
-    const coord = this.simWorld.grid.worldToGrid(hit.x, hit.z);
-    if (!coord) return;
+    const coord = hit ? this.simWorld.grid.worldToGrid(hit.x, hit.z) : null;
+
     if (this.activePlacementType) {
-      if (this.simWorld.placeTower(coord.col, coord.row, this.activePlacementType)) {
-        this.refreshPlacementPreview();
-        this.syncUi();
+      if (pickedTower) {
+        this.setPlacementMode(null);
+        this.selectTower(pickedTower.id);
+        this.refreshHoverFeedback();
+        return;
       }
+      if (!coord) return;
+      const existingTowerId = this.simWorld.grid.getTowerIdAt(coord.col, coord.row);
+      if (existingTowerId !== -1) {
+        this.setPlacementMode(null);
+        this.selectTower(existingTowerId);
+        this.refreshHoverFeedback();
+        return;
+      }
+      if (this.simWorld.placeTower(coord.col, coord.row, this.activePlacementType)) {
+        if (!hasSeenUpgradeToast()) {
+          markUpgradeToastSeen();
+          this.d.overlays.toast.show('Click a tower to upgrade or sell it');
+        }
+        if (!shiftKey) {
+          this.setPlacementMode(null);
+        } else {
+          this.refreshPlacementPreview();
+          this.syncUi();
+        }
+        this.refreshHoverFeedback();
+      }
+      return;
+    }
+
+    if (pickedTower) {
+      this.selectTower(pickedTower.id);
+      this.refreshHoverFeedback();
+      return;
+    }
+    if (!coord) {
+      this.selectTower(null);
+      this.refreshHoverFeedback();
       return;
     }
     const towerId = this.simWorld.grid.getTowerIdAt(coord.col, coord.row);
     this.selectTower(towerId !== -1 ? towerId : null);
+    this.refreshHoverFeedback();
+  }
+
+  onTowerActionHotkey(action: 'upgrade' | 'sell' | 'target'): boolean {
+    if (this.viewMode !== 'playing' || this.selectedTowerId === null) {
+      return false;
+    }
+    const tower = this.simWorld.getTowerById(this.selectedTowerId);
+    if (!tower) {
+      this.selectTower(null);
+      return false;
+    }
+    if (action === 'upgrade') {
+      this.upgradeTower(tower.id);
+      return true;
+    }
+    if (action === 'target') {
+      const modes: readonly TargetingMode[] = ['first', 'last', 'strongest', 'closest'];
+      const nextMode = modes[(modes.indexOf(tower.targetingMode) + 1) % modes.length];
+      this.setTowerTargeting(tower.id, nextMode);
+      return true;
+    }
+
+    const nowMs = performance.now();
+    if (this.sellConfirmTowerId === tower.id && nowMs <= this.sellConfirmDeadlineMs) {
+      this.sellTower(tower.id);
+    } else {
+      this.soundManager.unlock();
+      this.sellConfirmTowerId = tower.id;
+      this.sellConfirmDeadlineMs = nowMs + 3500;
+      this.d.overlays.towerPanel.setSellConfirmArmed(true);
+      this.syncUi();
+    }
+    return true;
   }
 
   onSecondaryAction(source: 'escape' | 'rightClick'): void {
@@ -374,21 +484,16 @@ export class GameSession {
     const inPlay = this.viewMode === 'playing';
     const fxDt = !inPlay || loop.paused ? 0 : frameDt * loop.speed;
     this.renderWorld.render(inPlay ? this.simWorld : null, frameDt, alpha, elapsedVisualTime, fxDt);
-    overlays.floatingTextPool.update(fxDt > 0 ? frameDt : 0, (wx, wy, wz, out) =>
-      this.renderWorld.cameraController.worldCoordsToScreen(wx, wy, wz, out),
+    overlays.floatingTextPool.update(
+      fxDt > 0 ? frameDt : 0,
+      (wx, wy, wz, out) => this.renderWorld.cameraController.worldCoordsToScreen(wx, wy, wz, out),
+      inPlay ? frameDt : 0,
     );
-    updateEnemyHoverTooltip(
-      inPlay,
-      this.pointerInside,
-      loop.paused,
-      this.lastNdcX,
-      this.lastNdcY,
-      this.lastClientX,
-      this.lastClientY,
-      this.renderWorld,
-      this.simWorld,
-      overlays,
-    );
+    if (this.sellConfirmTowerId !== null && performance.now() > this.sellConfirmDeadlineMs) {
+      this.clearSellConfirm();
+      this.syncUi();
+    }
+    this.refreshHoverFeedback();
     if (inPlay) {
       overlays.toast.update(frameDt);
       this.syncUi();
