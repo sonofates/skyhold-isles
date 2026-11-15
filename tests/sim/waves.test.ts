@@ -234,14 +234,14 @@ describe('wave spawn order and timing', () => {
     const world = new SimWorld(level2, events);
     expect(world.flightPath.totalLength).toBeGreaterThanOrEqual(38);
 
-    // Realistic ~1,100g anti-air + support spend well within Wave 13 economy (~2,100g)
+    // Realistic anti-air + ground defense within Wave 13 economy (~2,100g)
     world.gold = 2130;
     const placements: Array<[number, number, 'archer' | 'frost' | 'tesla' | 'cannon' | 'mortar', 1 | 2 | 3]> = [
       [2, 3, 'archer', 2],
       [4, 3, 'archer', 2],
       [4, 5, 'frost', 2],
       [2, 5, 'cannon', 2],
-      [5, 6, 'mortar', 2],
+      [5, 6, 'mortar', 3],
       [9, 5, 'tesla', 2],
       [11, 5, 'cannon', 2],
       [10, 6, 'archer', 3],

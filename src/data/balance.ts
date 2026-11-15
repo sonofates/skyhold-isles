@@ -38,9 +38,9 @@ export const BALANCE = {
     rotationDurationSec: 0.34,
     dragThresholdPx: 6,
     panBoundsPadding: 6,
-    shakeDecay: 8.5,
-    bossHitShake: 0.16,
-    mortarImpactShake: 0.11,
+    shakeDecay: 12,
+    bossHitShake: 0.11,
+    mortarImpactShake: 0.045,
   },
 
   // Object pools & spatial hash

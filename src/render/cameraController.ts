@@ -36,6 +36,7 @@ export class CameraController {
   private keyPanZ = 0;
 
   private shakeIntensity = 0;
+  private shakeCooldown = 0;
   private shakeSeed = 0;
   private shakeOffset = new THREE.Vector3();
 
@@ -233,7 +234,13 @@ export class CameraController {
 
   addShake(amount: number, enabled: boolean): void {
     if (!enabled) return;
-    this.shakeIntensity = Math.min(0.45, this.shakeIntensity + amount);
+    if (this.shakeCooldown > 0) {
+      // Allow heavier impacts (e.g. boss defeat) to raise amplitude without stacking rapid chip hits.
+      this.shakeIntensity = Math.min(0.15, Math.max(this.shakeIntensity, amount));
+      return;
+    }
+    this.shakeIntensity = Math.min(0.15, Math.max(this.shakeIntensity, amount));
+    this.shakeCooldown = 0.22;
   }
 
   update(dt: number): void {
@@ -272,6 +279,10 @@ export class CameraController {
     if (Math.abs(this.camera.zoom - this.zoom) > 0.0001) {
       this.camera.zoom = this.zoom;
       this.camera.updateProjectionMatrix();
+    }
+
+    if (this.shakeCooldown > 0) {
+      this.shakeCooldown = Math.max(0, this.shakeCooldown - dt);
     }
 
     // Camera shake decay

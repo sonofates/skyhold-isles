@@ -47,7 +47,7 @@ export const LEVEL_2: LevelDef = {
   decorationSeed: 224737,
   startingGold: 240,
   enemyHpScale: 1.21,
-  waveHpGrowth: 0.245,
+  waveHpGrowth: 0.255,
   waves: [
     {
       clearBonus: 14,

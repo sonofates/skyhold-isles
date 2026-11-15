@@ -11,6 +11,7 @@ import type {
 import { LEVELS } from '../data/levels/index.ts';
 import { TOWER_DEFS, TOWER_TYPES } from '../data/towers.ts';
 import type { RenderWorld } from '../render/renderWorld.ts';
+import { getTowerPickHeight } from '../render/towerPicking.ts';
 import { SimWorld } from '../sim/world.ts';
 import type { GameOverlays } from '../ui/gameOverlays.ts';
 import type { GameLoop } from './browserLoop.ts';
@@ -54,6 +55,7 @@ export class GameSession {
 
   private readonly renderWorld: RenderWorld;
   private readonly soundManager: SoundManager;
+  private readonly towerPanelAnchorOut = { x: 0, y: 0 };
   private simClockSec = 0;
   private activePlacementType: TowerType | null = null;
   private selectedTowerId: number | null = null;
@@ -156,6 +158,7 @@ export class GameSession {
       this.renderWorld,
       this.simWorld,
       overlays,
+      this.selectedTowerId,
     );
   }
 
@@ -167,6 +170,7 @@ export class GameSession {
     const tower = towerId !== null ? this.simWorld.getTowerById(towerId) : null;
     this.renderWorld.overlayIndicators.setSelectedTowerRing(tower);
     this.syncUi();
+    this.syncTowerPanelAnchor();
   }
 
   private syncFlightPathHighlight(): void {
@@ -501,6 +505,25 @@ export class GameSession {
     this.simWorld.fixedTick(dt);
   }
 
+  private syncTowerPanelAnchor(): void {
+    if (this.viewMode !== 'playing' || this.selectedTowerId === null) return;
+    const tower = this.simWorld.getTowerById(this.selectedTowerId);
+    if (!tower) return;
+    const anchorY = getTowerPickHeight(tower.type, tower.tier) * 0.52;
+    this.renderWorld.cameraController.worldCoordsToScreen(
+      tower.x,
+      anchorY,
+      tower.z,
+      this.towerPanelAnchorOut,
+    );
+    this.d.overlays.towerPanel.setAnchorScreenPos(
+      this.towerPanelAnchorOut.x,
+      this.towerPanelAnchorOut.y,
+      window.innerWidth,
+      window.innerHeight,
+    );
+  }
+
   renderFrame(frameDt: number, alpha: number, elapsedVisualTime: number): void {
     const { overlays, loop } = this.d;
     const inPlay = this.viewMode === 'playing';
@@ -519,6 +542,7 @@ export class GameSession {
     if (inPlay) {
       overlays.toast.update(frameDt);
       this.syncUi();
+      this.syncTowerPanelAnchor();
     }
   }
 

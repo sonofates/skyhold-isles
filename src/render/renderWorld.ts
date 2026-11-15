@@ -150,9 +150,6 @@ export class RenderWorld {
         } else {
           this.effectsRenderer.spawnParticles(e.x, e.y, e.z, PALETTE_HEX.gold, 3, 1.8, 3.0);
         }
-        if (e.isBossHit) {
-          this.cameraController.addShake(BALANCE.camera.bossHitShake, shakeEnabled());
-        }
       }),
       events.on('lightningChain', (e) => {
         this.effectsRenderer.spawnLightningArc(e.points);
@@ -163,6 +160,9 @@ export class RenderWorld {
       }),
       events.on('enemyKilled', (e) => {
         this.effectsRenderer.spawnDeathShards(e.enemyType, e.x, e.y, e.z);
+        if (e.enemyType === 'boss') {
+          this.cameraController.addShake(BALANCE.camera.bossHitShake, shakeEnabled());
+        }
       }),
       events.on('healerPulse', (e) => {
         this.effectsRenderer.spawnPulseRing(e.x, e.y, e.z, e.radius, PALETTE_HEX.grass);

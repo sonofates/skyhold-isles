@@ -153,6 +153,7 @@ export function updateHoverFeedback(
   renderWorld: RenderWorld,
   simWorld: SimWorld,
   overlays: GameOverlays,
+  selectedTowerId: number | null = null,
 ): void {
   if (!inPlay || !pointerInside) {
     renderWorld.setHoveredTowerId(null);
@@ -165,7 +166,11 @@ export function updateHoverFeedback(
   if (hoveredTower) {
     renderWorld.setHoveredTowerId(hoveredTower.id);
     renderWorld.setCanvasCursor('pointer');
-    overlays.tooltip.showTower(hoveredTower, clientX, clientY);
+    if (hoveredTower.id === selectedTowerId) {
+      overlays.tooltip.hide();
+    } else {
+      overlays.tooltip.showTower(hoveredTower, clientX, clientY);
+    }
     return;
   }
 
