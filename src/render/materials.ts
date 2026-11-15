@@ -27,6 +27,7 @@ export class MaterialLibrary {
   readonly frostProjectile: THREE.MeshStandardMaterial;
   readonly goalCrystal: THREE.MeshStandardMaterial;
   readonly waterMaterial: THREE.MeshStandardMaterial;
+  readonly shoreFoamMaterial: THREE.ShaderMaterial;
   readonly waterUniforms = {
     uWaterTime: { value: 0 },
     uLagoonRadius: { value: 22 },
@@ -34,6 +35,7 @@ export class MaterialLibrary {
   readonly outlineAlphaUniform = { value: 1 };
   readonly enemyInstancedMaterial: THREE.MeshStandardMaterial;
   readonly shadowDecalMaterial: THREE.MeshBasicMaterial;
+  private readonly shadowDecalTexture: THREE.CanvasTexture;
   readonly hpBarMaterial: THREE.MeshBasicMaterial;
   readonly ghostValidMaterial: THREE.MeshStandardMaterial;
   readonly ghostInvalidMaterial: THREE.MeshStandardMaterial;
@@ -119,12 +121,14 @@ gl_FragColor.a = mix(1.0, 0.25, uOutlineAlpha);`,
     });
 
     this.waterMaterial = new THREE.MeshStandardMaterial({
-      color: PALETTE_HEX.water,
+      color: 0x33b5e5,
+      emissive: 0x0b5882,
+      emissiveIntensity: 0.16,
       flatShading: true,
-      roughness: 0.25,
+      roughness: 0.2,
       metalness: 0.08,
       transparent: true,
-      opacity: 0.84,
+      opacity: 0.87,
       depthWrite: false,
     });
     applyAlphaPreserveBlend(this.waterMaterial);
@@ -150,6 +154,56 @@ transformed.y += waveH;`,
         );
     };
     this.waterMaterial.customProgramCacheKey = () => 'water-vertex-waves-v1';
+
+    this.shoreFoamMaterial = new THREE.ShaderMaterial({
+      transparent: true,
+      depthWrite: false,
+      polygonOffset: true,
+      polygonOffsetFactor: -1,
+      polygonOffsetUnits: -1,
+      uniforms: {
+        uWaterTime: this.waterUniforms.uWaterTime,
+        uLagoonRadius: this.waterUniforms.uLagoonRadius,
+        uFoamColor: { value: new THREE.Color(0xf7fdff) },
+      },
+      vertexShader: `
+        uniform float uWaterTime;
+        uniform float uLagoonRadius;
+        varying vec2 vUv;
+        varying vec3 vWorldPos;
+        void main() {
+          vUv = uv;
+          vec3 pos = position;
+          float rNorm = clamp(length(pos.xz) / max(1.0, uLagoonRadius), 0.0, 1.0);
+          float waveFalloff = max(0.0, 1.0 - pow(rNorm, 3.2));
+          float waveH = (sin(pos.x * 0.34 + uWaterTime * 1.45) * 0.085
+            + cos(pos.z * 0.40 - uWaterTime * 1.15) * 0.065
+            + sin((pos.x + pos.z) * 0.24 + uWaterTime * 0.85) * 0.04) * waveFalloff;
+          pos.y += waveH;
+          vWorldPos = pos;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
+        }
+      `,
+      fragmentShader: `
+        uniform float uWaterTime;
+        uniform vec3 uFoamColor;
+        varying vec2 vUv;
+        varying vec3 vWorldPos;
+        void main() {
+          // vUv.y = 0 at cliff shoreline, 1 out in open water
+          float waveShift = 0.14 * sin(vWorldPos.x * 2.5 + uWaterTime * 1.8)
+            * cos(vWorldPos.z * 2.3 - uWaterTime * 1.5)
+            + 0.08 * sin(vWorldPos.x * 4.1 - vWorldPos.z * 3.7 + uWaterTime * 2.3);
+          float shore = 1.0 - clamp(vUv.y + waveShift, 0.0, 1.0);
+          float crest = smoothstep(0.46, 0.86, shore);
+          float rippleBand = smoothstep(0.14, 0.42, shore)
+            * (0.45 + 0.55 * sin(vWorldPos.x * 3.4 + vWorldPos.z * 2.9 - uWaterTime * 2.1));
+          float alpha = clamp(crest * 0.78 + max(0.0, rippleBand) * 0.26, 0.0, 0.82);
+          gl_FragColor = vec4(uFoamColor, alpha);
+        }
+      `,
+    });
+    applyAlphaPreserveBlend(this.shoreFoamMaterial);
 
     this.enemyInstancedMaterial = new THREE.MeshStandardMaterial({
       vertexColors: true,
@@ -191,11 +245,29 @@ gl_FragColor.a = mix(1.0, 0.55, uOutlineAlpha);`,
     };
     this.enemyInstancedMaterial.customProgramCacheKey = () => 'enemy-instanced-flash-v3';
 
+    const shadowCanvas = document.createElement('canvas');
+    shadowCanvas.width = 64;
+    shadowCanvas.height = 64;
+    const sCtx = shadowCanvas.getContext('2d');
+    if (sCtx) {
+      const grad = sCtx.createRadialGradient(32, 32, 4, 32, 32, 31);
+      grad.addColorStop(0, 'rgba(255,255,255,1)');
+      grad.addColorStop(0.55, 'rgba(255,255,255,0.62)');
+      grad.addColorStop(1, 'rgba(255,255,255,0)');
+      sCtx.fillStyle = grad;
+      sCtx.fillRect(0, 0, 64, 64);
+    }
+    this.shadowDecalTexture = new THREE.CanvasTexture(shadowCanvas);
+
     this.shadowDecalMaterial = new THREE.MeshBasicMaterial({
-      color: PALETTE_HEX.indigo,
+      color: 0x1e1b38,
+      map: this.shadowDecalTexture,
       transparent: true,
-      opacity: 0.28,
+      opacity: 0.56,
       depthWrite: false,
+      polygonOffset: true,
+      polygonOffsetFactor: -1,
+      polygonOffsetUnits: -1,
     });
     applyAlphaPreserveBlend(this.shadowDecalMaterial);
 
@@ -282,6 +354,8 @@ if (vBarUv.y < padY || vBarUv.y > (1.0 - padY) || innerX < 0.0 || innerX > vHpRa
     this.frostProjectile.dispose();
     this.goalCrystal.dispose();
     this.waterMaterial.dispose();
+    this.shoreFoamMaterial.dispose();
+    this.shadowDecalTexture.dispose();
     this.enemyInstancedMaterial.dispose();
     this.shadowDecalMaterial.dispose();
     this.hpBarMaterial.dispose();

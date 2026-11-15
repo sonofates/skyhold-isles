@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import type { TowerType } from '../core/types.ts';
 import { BALANCE } from '../data/balance.ts';
-import type { LevelDef } from '../data/levels/index.ts';
+import { parseLevelGrid, type LevelDef } from '../data/levels/index.ts';
 import { PALETTE_HEX } from '../data/palette.ts';
 import { getTowerTierStats } from '../data/towers.ts';
 import type { TowerEntity } from '../sim/entities.ts';
@@ -72,12 +72,27 @@ export class OverlayIndicators {
   private flightPathSkyMat: THREE.MeshBasicMaterial | null = null;
   private flightPathArrowMat: THREE.MeshBasicMaterial | null = null;
 
+  private readonly gridLineMat: THREE.LineBasicMaterial;
+  private gridLinesMesh: THREE.LineSegments | null = null;
+  private gridGeometry: THREE.BufferGeometry | null = null;
+  private placementGridActive = false;
+  private placementGridAlpha = 0;
+
   private readonly geometries: THREE.BufferGeometry[] = [];
   private readonly ownMaterials: THREE.Material[] = [];
   private readonly materials: MaterialLibrary;
 
   constructor(materials: MaterialLibrary) {
     this.materials = materials;
+
+    this.gridLineMat = new THREE.LineBasicMaterial({
+      color: 0xf6fae8,
+      transparent: true,
+      opacity: 0,
+      depthWrite: false,
+    });
+    applyAlphaPreserveBlend(this.gridLineMat);
+    this.ownMaterials.push(this.gridLineMat);
 
     const tileGeo = new THREE.PlaneGeometry(BALANCE.tileSize * 0.94, BALANCE.tileSize * 0.94);
     tileGeo.rotateX(-Math.PI / 2);
@@ -250,11 +265,81 @@ export class OverlayIndicators {
     this.flightPathGroup.add(groundRibbon, skyRibbon, arrowsMesh);
   }
 
+  setBuildableGrid(level: LevelDef): void {
+    this.clearBuildableGrid();
+    const grid = parseLevelGrid(level);
+    const ts = BALANCE.tileSize;
+    const half = ts * 0.5;
+    const y = 0.016;
+    const seenEdges = new Set<string>();
+    const positions: number[] = [];
+
+    const addSeg = (ax: number, az: number, bx: number, bz: number): void => {
+      const k1 = `${Math.round(ax * 100)},${Math.round(az * 100)}`;
+      const k2 = `${Math.round(bx * 100)},${Math.round(bz * 100)}`;
+      const edgeKey = k1 < k2 ? `${k1}|${k2}` : `${k2}|${k1}`;
+      if (seenEdges.has(edgeKey)) return;
+      seenEdges.add(edgeKey);
+      positions.push(ax, y, az, bx, y, bz);
+    };
+
+    for (let r = 0; r < level.rows; r++) {
+      for (let c = 0; c < level.cols; c++) {
+        if (grid[r][c] !== 'grass') continue;
+        const wx = gridToWorldX(c, level.cols);
+        const wz = gridToWorldZ(r, level.rows);
+        addSeg(wx - half, wz - half, wx + half, wz - half);
+        addSeg(wx + half, wz - half, wx + half, wz + half);
+        addSeg(wx + half, wz + half, wx - half, wz + half);
+        addSeg(wx - half, wz + half, wx - half, wz - half);
+      }
+    }
+
+    if (positions.length === 0) return;
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    this.gridGeometry = geo;
+    const lines = new THREE.LineSegments(geo, this.gridLineMat);
+    lines.visible = false;
+    lines.renderOrder = 3;
+    lines.frustumCulled = false;
+    this.gridLinesMesh = lines;
+    this.group.add(lines);
+  }
+
+  setPlacementGridActive(active: boolean): void {
+    this.placementGridActive = active;
+  }
+
+  private clearBuildableGrid(): void {
+    if (this.gridLinesMesh) {
+      this.group.remove(this.gridLinesMesh);
+      this.gridLinesMesh = null;
+    }
+    if (this.gridGeometry) {
+      this.gridGeometry.dispose();
+      this.gridGeometry = null;
+    }
+  }
+
   setFlightPathHighlight(visible: boolean): void {
     this.flightPathGroup.visible = visible;
   }
 
-  update(elapsedTime: number): void {
+  update(elapsedTime: number, frameDt = 0): void {
+    const targetAlpha = this.placementGridActive ? 1 : 0;
+    if (Math.abs(this.placementGridAlpha - targetAlpha) > 0.001) {
+      const step = frameDt > 0 ? Math.min(1, frameDt * 7.0) : 1;
+      this.placementGridAlpha += (targetAlpha - this.placementGridAlpha) * step;
+      if (Math.abs(this.placementGridAlpha - targetAlpha) < 0.005) {
+        this.placementGridAlpha = targetAlpha;
+      }
+      this.gridLineMat.opacity = this.placementGridAlpha * 0.3;
+    }
+    if (this.gridLinesMesh) {
+      this.gridLinesMesh.visible = this.placementGridAlpha > 0.005;
+    }
+
     if (!this.flightPathGroup.visible) return;
     const pulse = 0.5 + 0.5 * Math.sin(elapsedTime * 3.8);
     if (this.flightPathGroundMat) {
@@ -365,6 +450,12 @@ export class OverlayIndicators {
 
   clear(): void {
     this.setPlacementPreview(false, null, 0, 0, false, null);
+    this.setPlacementGridActive(false);
+    this.placementGridAlpha = 0;
+    this.gridLineMat.opacity = 0;
+    if (this.gridLinesMesh) {
+      this.gridLinesMesh.visible = false;
+    }
     this.setSelectedTowerRing(null);
     this.syncDebugAllRanges(false, []);
     this.setFlightPathHighlight(false);
@@ -387,6 +478,7 @@ export class OverlayIndicators {
   }
 
   dispose(): void {
+    this.clearBuildableGrid();
     this.clearFlightPath();
     this.debugRingsMesh.dispose();
     this.group.clear();

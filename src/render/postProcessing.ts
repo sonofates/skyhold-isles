@@ -6,6 +6,7 @@ import {
   EffectAttribute,
   EffectComposer,
   EffectPass,
+  HueSaturationEffect,
   RenderPass,
   SMAAEffect,
   SMAAPreset,
@@ -104,21 +105,30 @@ export class PostProcessingPipeline {
     this.n8aoPass.configuration.halfRes = false;
     this.composer.addPass(this.n8aoPass);
 
-    const outlineEffect = new SilhouetteOutlineEffect(1.07, 0x181628, 0.74);
+    const outlineEffect = new SilhouetteOutlineEffect(1.06, 0x181628, 0.72);
     const bloomEffect = new BloomEffect({
       blendFunction: BlendFunction.ADD,
       luminanceThreshold: 1.05,
       luminanceSmoothing: 0.14,
-      intensity: 0.4,
+      intensity: 0.34,
       mipmapBlur: true,
-      radius: 0.62,
+      radius: 0.58,
       levels: 4,
     });
+    const hueSatEffect = new HueSaturationEffect({
+      saturation: 0.17,
+    });
     const toneMappingEffect = new ToneMappingEffect({
-      mode: ToneMappingMode.ACES_FILMIC,
+      mode: ToneMappingMode.NEUTRAL,
     });
 
-    const compositePass = new EffectPass(camera, outlineEffect, bloomEffect, toneMappingEffect);
+    const compositePass = new EffectPass(
+      camera,
+      outlineEffect,
+      bloomEffect,
+      hueSatEffect,
+      toneMappingEffect,
+    );
     this.composer.addPass(compositePass);
 
     const smaaEffect = new SMAAEffect({ preset: SMAAPreset.MEDIUM });

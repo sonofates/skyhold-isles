@@ -17,10 +17,10 @@ export const WHITE_SWATCH_UV: readonly [number, number] = [7.5 / 8, 0.5 / 4];
  * to Skyhold Isles' palette in src/data/palette.ts.
  */
 const SWATCH_TINTS: readonly SwatchTint[] = [
-  // (3, 2): Grass & tree foliage -> sunny spring grass + crisp emerald shadow gradient
-  { cx: 3, cy: 2, lightHex: 0x72cf4b, darkHex: 0x3b8e3e, mix: 0.46 },
-  // (7, 3): Road dirt & timber -> warm sandstone & cocoa earth
-  { cx: 7, cy: 3, lightHex: PALETTE_HEX.sand, darkHex: PALETTE_HEX.dirt, mix: 0.52 },
+  // (3, 2): Grass & tree foliage -> sunny vibrant meadow grass + rich emerald foliage gradient
+  { cx: 3, cy: 2, lightHex: 0x8ae24b, darkHex: 0x52ad42, mix: 0.58 },
+  // (7, 3): Road dirt & timber -> warm sandstone trail & terracotta earth
+  { cx: 7, cy: 3, lightHex: 0xe3c794, darkHex: 0xa6744c, mix: 0.48 },
   // (1, 2): Tan wood / catapult frame -> soft sand-tan
   { cx: 1, cy: 2, lightHex: PALETTE_HEX.sand, darkHex: 0xc29368, mix: 0.34 },
   // (6, 2): Roof red -> Skyhold coral

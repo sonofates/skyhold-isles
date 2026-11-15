@@ -17,9 +17,6 @@ const DIR_E = 2; // col + 1 (+X)
 const DIR_S = 4; // row + 1 (+Z)
 const DIR_W = 8; // col - 1 (-X)
 
-const GRASS_TINTS = [0xffffff, 0xf4faee, 0xeaf6df, 0xfaf6ea, 0xe4f1d6] as const;
-const PATH_TINTS = [0xffffff, 0xfcf6eb, 0xf6eedf] as const;
-
 function dirToMask(dc: number, dr: number): number {
   if (dr < 0) return DIR_N;
   if (dc > 0) return DIR_E;
@@ -62,6 +59,174 @@ function resolvePathPiece(mask: number): {
   return { model: 'tile-split', rotY: 0 };
 }
 
+function sampleGrassTopUv(geo: THREE.BufferGeometry): readonly [number, number] {
+  const pos = geo.getAttribute('position') as THREE.BufferAttribute | undefined;
+  const norm = geo.getAttribute('normal') as THREE.BufferAttribute | undefined;
+  const uv = geo.getAttribute('uv') as THREE.BufferAttribute | undefined;
+  if (pos && norm && uv) {
+    for (let i = 0; i < pos.count; i++) {
+      if (norm.getY(i) < 0.9 || pos.getY(i) < 0.16) continue;
+      const u = uv.getX(i);
+      const v = uv.getY(i);
+      if (u >= 0.375 && u <= 0.5 && v >= 0.5 && v <= 0.75) {
+        return [u, v];
+      }
+    }
+  }
+  return [0.46875, 0.525];
+}
+
+function buildGrassTilePatchGeometry(
+  ts: number,
+  grassU: number,
+  grassV: number,
+  edgeN: boolean,
+  edgeE: boolean,
+  edgeS: boolean,
+  edgeW: boolean,
+): THREE.BufferGeometry {
+  const subs = 4;
+  const half = ts * 0.5;
+  const positions: number[] = [];
+  const normals: number[] = [];
+  const uvs: number[] = [];
+  const indices: number[] = [];
+
+  // Continuous 4x4 top grid so world-space noise interpolates seamlessly with zero internal seams
+  for (let iz = 0; iz <= subs; iz++) {
+    const z = -half + (iz / subs) * ts;
+    for (let ix = 0; ix <= subs; ix++) {
+      const x = -half + (ix / subs) * ts;
+      positions.push(x, 0, z);
+      normals.push(0, 1, 0);
+      uvs.push(grassU, grassV);
+    }
+  }
+  const stride = subs + 1;
+  for (let iz = 0; iz < subs; iz++) {
+    for (let ix = 0; ix < subs; ix++) {
+      const i00 = iz * stride + ix;
+      const i10 = i00 + 1;
+      const i01 = i00 + stride;
+      const i11 = i01 + 1;
+      indices.push(i00, i01, i10, i10, i01, i11);
+    }
+  }
+
+  const skirtV = Math.min(0.735, grassV + 0.085);
+  const pushLipWall = (x0: number, z0: number, x1: number, z1: number, nx: number, nz: number): void => {
+    const base = positions.length / 3;
+    positions.push(
+      x0, 0, z0,
+      x0, -0.2, z0,
+      x1, 0, z1,
+      x1, -0.2, z1,
+    );
+    normals.push(nx, 0, nz, nx, 0, nz, nx, 0, nz, nx, 0, nz);
+    uvs.push(grassU, grassV, grassU, skirtV, grassU, grassV, grassU, skirtV);
+    indices.push(base, base + 1, base + 2, base + 2, base + 1, base + 3);
+  };
+
+  if (edgeN) pushLipWall(half, -half, -half, -half, 0, -1);
+  if (edgeE) pushLipWall(half, half, half, -half, 1, 0);
+  if (edgeS) pushLipWall(-half, half, half, half, 0, 1);
+  if (edgeW) pushLipWall(-half, -half, -half, half, -1, 0);
+
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geo.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
+  geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+  geo.setIndex(indices);
+  return geo;
+}
+
+function hash2D(ix: number, iz: number, seed: number): number {
+  let n = Math.imul(ix, 374761393) ^ Math.imul(iz, 668265263) ^ Math.imul(seed, 1442695041);
+  n = (n ^ (n >>> 13)) | 0;
+  n = Math.imul(n, 1274126177);
+  return ((n ^ (n >>> 16)) >>> 0) / 4294967295;
+}
+
+function smoothValueNoise2D(wx: number, wz: number, wavelength: number, seed: number): number {
+  const sx = wx / wavelength;
+  const sz = wz / wavelength;
+  const ix = Math.floor(sx);
+  const iz = Math.floor(sz);
+  const fx = sx - ix;
+  const fz = sz - iz;
+  const ux = fx * fx * (3 - 2 * fx);
+  const uz = fz * fz * (3 - 2 * fz);
+  const a = hash2D(ix, iz, seed);
+  const b = hash2D(ix + 1, iz, seed);
+  const c = hash2D(ix, iz + 1, seed);
+  const d = hash2D(ix + 1, iz + 1, seed);
+  return a + (b - a) * ux + (c - a) * uz + (a - b - c + d) * ux * uz;
+}
+
+function applyContinuousGrassVariation(geo: THREE.BufferGeometry, seed: number, ts: number): void {
+  const pos = geo.getAttribute('position') as THREE.BufferAttribute | undefined;
+  const norm = geo.getAttribute('normal') as THREE.BufferAttribute | undefined;
+  const uv = geo.getAttribute('uv') as THREE.BufferAttribute | undefined;
+  const col = geo.getAttribute('color') as THREE.BufferAttribute | undefined;
+  if (!pos || !norm || !uv || !col) return;
+
+  for (let i = 0; i < pos.count; i++) {
+    const py = pos.getY(i);
+    const ny = norm.getY(i);
+    if (ny <= 0.72 || Math.abs(py) > 0.065) continue;
+    const u = uv.getX(i);
+    const v = uv.getY(i);
+    const cx = Math.min(7, Math.max(0, Math.floor(u * 8)));
+    const cy = Math.min(3, Math.max(0, Math.floor(v * 4)));
+    if (cx !== 3 || cy !== 2) continue;
+
+    const px = pos.getX(i);
+    const pz = pos.getZ(i);
+    const lowFreq = smoothValueNoise2D(px, pz, ts * 5.0, seed);
+    const midFreq = smoothValueNoise2D(px + 17.3, pz - 11.7, ts * 2.3, seed + 131);
+    const n = lowFreq * 0.72 + midFreq * 0.28;
+
+    const rMul = 0.935 + n * 0.125;
+    const gMul = 0.965 + n * 0.07;
+    const bMul = 0.905 + (1 - n) * 0.11;
+    col.setXYZ(i, col.getX(i) * rMul, col.getY(i) * gMul, col.getZ(i) * bMul);
+  }
+  col.needsUpdate = true;
+}
+
+interface ShoreFoamCollector {
+  positions: number[];
+  uvs: number[];
+  indices: number[];
+}
+
+function pushShoreTriangle(
+  col: ShoreFoamCollector,
+  p0x: number,
+  p0z: number,
+  u0: number,
+  v0: number,
+  p1x: number,
+  p1z: number,
+  u1: number,
+  v1: number,
+  p2x: number,
+  p2z: number,
+  u2: number,
+  v2: number,
+  foamY: number,
+): void {
+  const crossY = (p1z - p0z) * (p2x - p0x) - (p1x - p0x) * (p2z - p0z);
+  const base = col.positions.length / 3;
+  col.positions.push(p0x, foamY, p0z, p1x, foamY, p1z, p2x, foamY, p2z);
+  col.uvs.push(u0, v0, u1, v1, u2, v2);
+  if (crossY >= 0) {
+    col.indices.push(base, base + 1, base + 2);
+  } else {
+    col.indices.push(base, base + 2, base + 1);
+  }
+}
+
 export class MapBuilder {
   readonly group = new THREE.Group();
   private readonly ambient = new AmbientDiorama();
@@ -85,8 +250,10 @@ export class MapBuilder {
     const unitIco = new THREE.IcosahedronGeometry(1, 0);
 
     // Clone reusable base Kenney geometries once per map build
-    const geoGrassTile = assets.cloneGeometry('tile');
     const geoStraight = assets.cloneGeometry('tile-straight');
+    const [grassU, grassV] = sampleGrassTopUv(geoStraight);
+    const geoGrassInterior = buildGrassTilePatchGeometry(ts, grassU, grassV, false, false, false, false);
+    const edgeGrassPatches: THREE.BufferGeometry[] = [];
     const geoCorner = assets.cloneGeometry('tile-corner-round');
     const geoEnd = assets.cloneGeometry('tile-end-round');
     const geoSpawnEnd = assets.cloneGeometry('tile-spawn-end-round');
@@ -94,10 +261,24 @@ export class MapBuilder {
     const geoCrossing = assets.cloneGeometry('tile-crossing');
     const geoBridgePier = assets.cloneGeometry('wood-structure-high');
     const geoTowerBase = assets.cloneGeometry('tower-round-base');
+    const geoSpawnPad = remapUvCell(
+      remapUvCell(assets.cloneGeometry('spawn-square'), [3, 3], [1, 1]),
+      [5, 3],
+      [1, 1],
+    );
+    const geoSpawnPillar = assets.cloneGeometry('tower-square-bottom-c');
+    const geoSpawnCap = assets.cloneGeometry('tower-square-top-a');
+    const geoSpawnBeam = assets.cloneGeometry('wood-structure');
+    const geoSpawnCrystal = remapUvCell(assets.cloneGeometry('detail-crystal'), [2, 1], [6, 2]);
+    const geoGoalPad = remapUvCell(
+      remapUvCell(assets.cloneGeometry('spawn-square'), [3, 3], [7, 0]),
+      [5, 3],
+      [7, 0],
+    );
     const geoRocks = assets.cloneGeometry('detail-rocks');
     const geoShrub = assets.cloneGeometry('detail-rocks-large');
-    const geoDirt = assets.cloneGeometry('detail-dirt');
     const geoCrystalSmall = remapUvCell(assets.cloneGeometry('detail-crystal'), [2, 1], [0, 3]);
+    const shoreFoam: ShoreFoamCollector = { positions: [], uvs: [], indices: [] };
 
     const isLand = (c: number, r: number): boolean => {
       if (c < 0 || c >= level.cols || r < 0 || r >= level.rows) return false;
@@ -136,7 +317,6 @@ export class MapBuilder {
         const wz = gridToWorldZ(r, level.rows);
 
         const mask = pathMask[r][c];
-        const isPathLike = tile === 'path' || tile === 'spawn' || tile === 'goal';
         // Detect open-water bridges (e.g. Level 2 twin timber/stone bridges over water)
         const isBridge =
           tile === 'path' &&
@@ -148,73 +328,89 @@ export class MapBuilder {
           (isLand(c, r - 1) ? 0 : 1) +
           (isLand(c, r + 1) ? 0 : 1);
 
-        // 1. Tile top cap using Kenney modular terrain tiles (top Y = 0.00 grass, -0.10 road)
+        // 1. Tile top cap using Kenney modular terrain tiles & continuous grass surface
         if (tile === 'spawn') {
           const rotY = maskToSingleRotY(mask);
           parts.push({
             geometry: geoSpawnEnd,
-            colorHex: 0xf7f5ef,
+            colorHex: 0xffffff,
             position: [wx, -0.2, wz],
             rotation: [0, rotY, 0],
             scale: [ts, 1, ts],
           });
 
-          // Flanking stone gateway pillars perpendicular to road exit
+          // Kenney fortress spawn archway & crystal threshold
+          parts.push({
+            geometry: geoSpawnPad,
+            colorHex: 0xf4f6ff,
+            position: [wx, -0.09, wz],
+            rotation: [0, rotY, 0],
+            scale: [1.35, 0.9, 1.35],
+          });
           const dirX = mask === DIR_E ? 1 : mask === DIR_W ? -1 : 0;
           const alongX = Math.abs(dirX) > 0;
+          const pOff = 0.78;
+          for (const side of [-1, 1] as const) {
+            const px = wx + (alongX ? 0 : side * pOff);
+            const pz = wz + (alongX ? side * pOff : 0);
+            parts.push(
+              {
+                geometry: geoSpawnPillar,
+                position: [px, -0.06, pz],
+                scale: [0.68, 1.05, 0.68],
+              },
+              {
+                geometry: geoSpawnCap,
+                position: [px, 0.56, pz],
+                scale: [0.7, 0.82, 0.7],
+              },
+              {
+                geometry: geoSpawnCrystal,
+                position: [px, 1.06, pz],
+                rotation: [0, side * 0.6, 0],
+                scale: [0.9, 1.05, 0.9],
+              },
+            );
+          }
           parts.push(
             {
-              geometry: unitBox,
-              colorHex: PALETTE_HEX.indigo,
-              position: [wx + (alongX ? 0 : -0.76), 0.36, wz + (alongX ? -0.76 : 0)],
-              scale: [0.3, 0.92, 0.3],
-              forceWhiteUv: true,
+              geometry: geoSpawnBeam,
+              position: [wx, 0.86, wz],
+              rotation: [0, alongX ? Math.PI / 2 : 0, 0],
+              scale: [1.62, 0.42, 0.5],
             },
             {
-              geometry: unitBox,
-              colorHex: PALETTE_HEX.indigo,
-              position: [wx + (alongX ? 0 : 0.76), 0.36, wz + (alongX ? 0.76 : 0)],
-              scale: [0.3, 0.92, 0.3],
-              forceWhiteUv: true,
-            },
-            {
-              geometry: unitBox,
-              colorHex: PALETTE_HEX.stone,
-              position: [wx, 0.88, wz],
-              scale: [alongX ? 0.34 : 1.82, 0.2, alongX ? 1.82 : 0.34],
-              forceWhiteUv: true,
-            },
-            {
-              geometry: unitBox,
-              colorHex: PALETTE_HEX.coral,
-              position: [wx, 1.04, wz],
-              scale: [alongX ? 0.2 : 0.44, 0.14, alongX ? 0.44 : 0.2],
-              forceWhiteUv: true,
+              geometry: geoSpawnCrystal,
+              position: [wx, 1.15, wz],
+              rotation: [0, rotY, 0],
+              scale: [1.45, 1.55, 1.45],
             },
           );
         } else if (tile === 'goal') {
           const rotY = maskToSingleRotY(mask);
           parts.push({
             geometry: geoEnd,
-            colorHex: 0xf8f6f0,
+            colorHex: 0xffffff,
             position: [wx, -0.2, wz],
             rotation: [0, rotY, 0],
             scale: [ts, 1, ts],
           });
-          // Shrine pedestal base
-          parts.push({
-            geometry: geoTowerBase,
-            colorHex: 0xf0f4ff,
-            position: [wx, -0.1, wz],
-            scale: [1.35, 1.15, 1.35],
-          });
-          parts.push({
-            geometry: unitBox,
-            colorHex: PALETTE_HEX.gold,
-            position: [wx, 0.16, wz],
-            scale: [0.84, 0.1, 0.84],
-            forceWhiteUv: true,
-          });
+          // Shrine pedestal base + golden Kenney spawn pad
+          parts.push(
+            {
+              geometry: geoTowerBase,
+              colorHex: 0xf0f4ff,
+              position: [wx, -0.1, wz],
+              scale: [1.35, 1.15, 1.35],
+            },
+            {
+              geometry: geoGoalPad,
+              colorHex: PALETTE_HEX.gold,
+              position: [wx, 0.08, wz],
+              rotation: [0, rotY, 0],
+              scale: [1.15, 0.78, 1.15],
+            },
+          );
           this.goalPos = new THREE.Vector3(wx, 0.82, wz);
         } else if (tile === 'path') {
           const { model, rotY } = resolvePathPiece(mask);
@@ -224,26 +420,28 @@ export class MapBuilder {
             'tile-split': geoSplit,
             'tile-crossing': geoCrossing,
           } as const;
-          const tint = PATH_TINTS[(r * 3 + c) % PATH_TINTS.length];
           parts.push({
             geometry: geoMap[model],
-            colorHex: tint,
+            colorHex: 0xffffff,
             position: [wx, -0.2, wz],
             rotation: [0, rotY, 0],
             scale: [ts, 1, ts],
           });
         } else {
-          // Grass / decor tile: subtle deterministic elevation & shade variation breaks chessboard look
-          const jitterY = tile === 'decor' ? rng.range(-0.02, 0.025) : rng.range(-0.022, 0.015);
-          const tint =
-            tile === 'decor' && rng.chance(0.42)
-              ? 0xe0efd0
-              : GRASS_TINTS[(c * 7 + r * 13 + (rng.chance(0.5) ? 1 : 0)) % GRASS_TINTS.length];
+          // Seamless flat meadow grass patch with continuous world-space noise applied post-merge
+          const edgeN = !isLand(c, r - 1);
+          const edgeE = !isLand(c + 1, r);
+          const edgeS = !isLand(c, r + 1);
+          const edgeW = !isLand(c - 1, r);
+          let patchGeo = geoGrassInterior;
+          if (edgeN || edgeE || edgeS || edgeW) {
+            patchGeo = buildGrassTilePatchGeometry(ts, grassU, grassV, edgeN, edgeE, edgeS, edgeW);
+            edgeGrassPatches.push(patchGeo);
+          }
           parts.push({
-            geometry: geoGrassTile,
-            colorHex: tint,
-            position: [wx, -0.2 + jitterY, wz],
-            scale: [ts, 1, ts],
+            geometry: patchGeo,
+            colorHex: 0xffffff,
+            position: [wx, 0, wz],
           });
 
           // Bake static rocks/shrubs/crystals directly into terrain mesh to keep draw calls minimal
@@ -251,7 +449,7 @@ export class MapBuilder {
             if (rng.chance(0.28)) {
               parts.push({
                 geometry: geoRocks,
-                position: [wx + rng.range(-0.42, 0.42), jitterY - 0.02, wz + rng.range(-0.42, 0.42)],
+                position: [wx + rng.range(-0.42, 0.42), -0.02, wz + rng.range(-0.42, 0.42)],
                 rotation: [0, rng.range(0, Math.PI * 2), 0],
                 scale: [1.65, 1.65, 1.65],
               });
@@ -261,7 +459,7 @@ export class MapBuilder {
               parts.push({
                 geometry: geoShrub,
                 colorHex: rng.chance(0.5) ? 0xf2faea : 0xe4f1d8,
-                position: [wx + rng.range(-0.38, 0.38), jitterY - 0.01, wz + rng.range(-0.38, 0.38)],
+                position: [wx + rng.range(-0.38, 0.38), -0.01, wz + rng.range(-0.38, 0.38)],
                 rotation: [0, rng.range(0, Math.PI * 2), 0],
                 scale: [sScale, sScale, sScale],
               });
@@ -269,7 +467,7 @@ export class MapBuilder {
             if (rng.chance(0.14)) {
               parts.push({
                 geometry: geoCrystalSmall,
-                position: [wx + rng.range(-0.4, 0.4), jitterY, wz + rng.range(-0.4, 0.4)],
+                position: [wx + rng.range(-0.4, 0.4), 0, wz + rng.range(-0.4, 0.4)],
                 rotation: [0, rng.range(0, Math.PI * 2), 0],
                 scale: [1.35, 1.35, 1.35],
               });
@@ -333,46 +531,65 @@ export class MapBuilder {
           });
         }
 
-        // Shoreline foam strips around exposed coastal tiles
-        if (edgeCount > 0) {
+        // Animated shoreline foam ribbon riding directly on waterPlaneY along exposed coast
+        if (edgeCount > 0 && !isBridge) {
+          const inR = ts * 0.44;
+          const outR = ts * 0.46 + 0.58;
+          const foamW = outR - inR;
+          const foamY = BALANCE.waterPlaneY + 0.015;
           const foamOffsets: Array<[number, number, boolean]> = [
             [-1, 0, !isLand(c - 1, r)],
             [1, 0, !isLand(c + 1, r)],
             [0, -1, !isLand(c, r - 1)],
             [0, 1, !isLand(c, r + 1)],
           ];
+
           for (let k = 0; k < foamOffsets.length; k++) {
             const [ox, oz, exposed] = foamOffsets[k];
             if (!exposed) continue;
-            parts.push({
-              geometry: unitBox,
-              colorHex: PALETTE_HEX.cream,
-              position: [
-                wx + ox * (ts * 0.56 + rng.range(0.02, 0.14)),
-                BALANCE.waterPlaneY + 0.03,
-                wz + oz * (ts * 0.56 + rng.range(0.02, 0.14)),
-              ],
-              rotation: [0, rng.range(-0.2, 0.2), 0],
-              scale: [
-                ox !== 0 ? rng.range(0.22, 0.36) : ts * rng.range(0.68, 0.92),
-                0.06,
-                oz !== 0 ? rng.range(0.22, 0.36) : ts * rng.range(0.68, 0.92),
-              ],
-              forceWhiteUv: true,
-            });
 
-            // Occasional coastal rock ledge right at water edge
-            if (!isPathLike && rng.chance(0.18)) {
-              parts.push({
-                geometry: geoDirt,
-                position: [
-                  wx + ox * (ts * 0.46),
-                  BALANCE.waterPlaneY + 0.1,
-                  wz + oz * (ts * 0.46),
-                ],
-                rotation: [0, rng.range(0, Math.PI * 2), 0],
-                scale: [1.1, 1.1, 1.1],
-              });
+            const tx = oz;
+            const tz = -ox;
+            const tMin = !isLand(c - tx, r - tz) ? -inR : -ts * 0.5;
+            const tMax = !isLand(c + tx, r + tz) ? inR : ts * 0.5;
+            const segs = 4;
+            for (let s = 0; s < segs; s++) {
+              const t0 = tMin + ((tMax - tMin) * s) / segs;
+              const t1 = tMin + ((tMax - tMin) * (s + 1)) / segs;
+              const in0x = wx + ox * inR + tx * t0;
+              const in0z = wz + oz * inR + tz * t0;
+              const in1x = wx + ox * inR + tx * t1;
+              const in1z = wz + oz * inR + tz * t1;
+              const out0x = wx + ox * outR + tx * t0;
+              const out0z = wz + oz * outR + tz * t0;
+              const out1x = wx + ox * outR + tx * t1;
+              const out1z = wz + oz * outR + tz * t1;
+              pushShoreTriangle(shoreFoam, in0x, in0z, 0, 0, out0x, out0z, 0, 1, in1x, in1z, 1, 0, foamY);
+              pushShoreTriangle(shoreFoam, in1x, in1z, 1, 0, out0x, out0z, 0, 1, out1x, out1z, 1, 1, foamY);
+            }
+          }
+
+          // Smooth rounded quarter-arc foam at convex island corners
+          const corners: Array<[number, number]> = [
+            [-1, -1],
+            [1, -1],
+            [1, 1],
+            [-1, 1],
+          ];
+          for (const [sx, sz] of corners) {
+            if (!isLand(c + sx, r) && !isLand(c, r + sz)) {
+              const cx0 = wx + sx * inR;
+              const cz0 = wz + sz * inR;
+              const cornerSteps = 3;
+              for (let i = 0; i < cornerSteps; i++) {
+                const a0 = (i / cornerSteps) * (Math.PI * 0.5);
+                const a1 = ((i + 1) / cornerSteps) * (Math.PI * 0.5);
+                const p1x = cx0 + sx * Math.cos(a0) * foamW;
+                const p1z = cz0 + sz * Math.sin(a0) * foamW;
+                const p2x = cx0 + sx * Math.cos(a1) * foamW;
+                const p2z = cz0 + sz * Math.sin(a1) * foamW;
+                pushShoreTriangle(shoreFoam, cx0, cz0, 0, 0, p1x, p1z, a0, 1, p2x, p2z, a1, 1, foamY);
+              }
             }
           }
         }
@@ -380,11 +597,26 @@ export class MapBuilder {
     }
 
     const islandGeo = mergeTexturedParts(parts);
+    applyContinuousGrassVariation(islandGeo, level.decorationSeed + 7919, ts);
     this.disposableGeometries.push(islandGeo);
     const islandMesh = new THREE.Mesh(islandGeo, materials.kenneyTerrain);
     islandMesh.castShadow = true;
     islandMesh.receiveShadow = true;
     this.group.add(islandMesh);
+
+    if (shoreFoam.positions.length > 0) {
+      const foamGeo = new THREE.BufferGeometry();
+      foamGeo.setAttribute('position', new THREE.Float32BufferAttribute(shoreFoam.positions, 3));
+      foamGeo.setAttribute('uv', new THREE.Float32BufferAttribute(shoreFoam.uvs, 2));
+      foamGeo.setIndex(shoreFoam.indices);
+      foamGeo.computeVertexNormals();
+      this.disposableGeometries.push(foamGeo);
+      const foamMesh = new THREE.Mesh(foamGeo, materials.shoreFoamMaterial);
+      foamMesh.castShadow = false;
+      foamMesh.receiveShadow = false;
+      foamMesh.renderOrder = 2;
+      this.group.add(foamMesh);
+    }
 
     // Bounded low-poly lagoon disc (1 draw call, GPU waves)
     const lagoonRadius = Math.hypot(level.cols * ts * 0.5, level.rows * ts * 0.5) + 4.4;
@@ -449,7 +681,8 @@ export class MapBuilder {
     unitBox.dispose();
     unitCone.dispose();
     unitIco.dispose();
-    geoGrassTile.dispose();
+    geoGrassInterior.dispose();
+    for (const p of edgeGrassPatches) p.dispose();
     geoStraight.dispose();
     geoCorner.dispose();
     geoEnd.dispose();
@@ -458,9 +691,14 @@ export class MapBuilder {
     geoCrossing.dispose();
     geoBridgePier.dispose();
     geoTowerBase.dispose();
+    geoSpawnPad.dispose();
+    geoSpawnPillar.dispose();
+    geoSpawnCap.dispose();
+    geoSpawnBeam.dispose();
+    geoSpawnCrystal.dispose();
+    geoGoalPad.dispose();
     geoRocks.dispose();
     geoShrub.dispose();
-    geoDirt.dispose();
     geoCrystalSmall.dispose();
   }
 

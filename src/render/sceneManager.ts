@@ -36,16 +36,23 @@ export class SceneManager {
     this.renderer.toneMappingExposure = 1.0;
 
     this.scene = new THREE.Scene();
-    this.scene.fog = new THREE.Fog(SKY_HORIZON_HEX, 72, 145);
+    this.scene.fog = new THREE.Fog(SKY_HORIZON_HEX, 125, 260);
 
-    // Full-screen vertical gradient sky quad rendered first without depth writes
+    // Full-screen vertical gradient sky quad rendered first without depth writes.
+    // On High quality EffectComposer performs tone mapping & sRGB encoding once at the end,
+    // so uDirectOutput = 0 prevents washed-out double-gamma sky colors.
     this.skyGeometry = new THREE.PlaneGeometry(2, 2);
     this.skyMaterial = new THREE.ShaderMaterial({
       depthTest: false,
       depthWrite: false,
       uniforms: {
-        uHorizon: { value: new THREE.Color(SKY_HORIZON_HEX) },
-        uZenith: { value: new THREE.Color(SKY_ZENITH_HEX) },
+        uHorizon: {
+          value: new THREE.Color(SKY_HORIZON_HEX).lerp(new THREE.Color(PALETTE_HEX.water), 0.36),
+        },
+        uZenith: {
+          value: new THREE.Color(PALETTE_HEX.water).lerp(new THREE.Color(0x2888c4), 0.32),
+        },
+        uDirectOutput: { value: 0 },
       },
       vertexShader: `
         varying vec2 vUv;
@@ -57,13 +64,16 @@ export class SceneManager {
       fragmentShader: `
         uniform vec3 uHorizon;
         uniform vec3 uZenith;
+        uniform float uDirectOutput;
         varying vec2 vUv;
         void main() {
-          float t = smoothstep(0.08, 0.92, vUv.y);
+          float t = smoothstep(0.06, 0.92, vUv.y);
           vec3 col = mix(uHorizon, uZenith, t);
           gl_FragColor = vec4(col, 1.0);
-          #include <tonemapping_fragment>
-          #include <colorspace_fragment>
+          if (uDirectOutput > 0.5) {
+            #include <tonemapping_fragment>
+            #include <colorspace_fragment>
+          }
         }
       `,
     });
@@ -74,12 +84,12 @@ export class SceneManager {
 
     this.hemiLight = new THREE.HemisphereLight(
       SKY_ZENITH_HEX,
-      PALETTE_HEX.dirt,
+      0x9a6d4b,
       0.92,
     );
     this.scene.add(this.hemiLight);
 
-    this.dirLight = new THREE.DirectionalLight(PALETTE_HEX.cream, 1.62);
+    this.dirLight = new THREE.DirectionalLight(0xfffaf0, 1.64);
     this.dirLight.position.set(22, 34, 18);
     this.dirLight.castShadow = true;
     this.dirLight.shadow.mapSize.set(2048, 2048);
@@ -103,7 +113,8 @@ export class SceneManager {
     this.renderer.shadowMap.enabled = !isLow;
     this.dirLight.castShadow = !isLow;
     this.renderer.shadowMap.needsUpdate = true;
-    this.renderer.toneMapping = isLow ? THREE.ACESFilmicToneMapping : THREE.NoToneMapping;
+    this.skyMaterial.uniforms.uDirectOutput.value = isLow ? 1 : 0;
+    this.renderer.toneMapping = isLow ? THREE.NeutralToneMapping : THREE.NoToneMapping;
     this.renderer.toneMappingExposure = isLow ? 1.06 : 1.0;
     const w = this.canvas.clientWidth || window.innerWidth;
     const h = this.canvas.clientHeight || window.innerHeight;

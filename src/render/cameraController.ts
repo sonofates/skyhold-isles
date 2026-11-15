@@ -1,9 +1,13 @@
 import * as THREE from 'three';
 import { BALANCE } from '../data/balance.ts';
+import { parseTileChar } from '../data/levels/types.ts';
+import { gridToWorldX, gridToWorldZ } from '../sim/grid.ts';
 
 const ISO_TILT_RAD = Math.asin(1 / Math.sqrt(3)); // ~35.26439 deg true isometric elevation
 const BASE_YAW_RAD = Math.PI / 4; // 45 deg
 const CAMERA_DISTANCE = 54;
+const CAMERA_MIN_ZOOM = 0.72;
+const CAMERA_MAX_ZOOM = 3.6;
 
 export class CameraController {
   readonly camera: THREE.OrthographicCamera;
@@ -49,7 +53,7 @@ export class CameraController {
     this.updateCameraTransform();
   }
 
-  configureForMap(cols: number, rows: number): void {
+  configureForMap(cols: number, rows: number, layout?: readonly string[]): void {
     const halfW = cols * BALANCE.tileSize * 0.5 + BALANCE.camera.panBoundsPadding;
     const halfH = rows * BALANCE.tileSize * 0.5 + BALANCE.camera.panBoundsPadding;
     this.minBoundX = -halfW;
@@ -65,11 +69,80 @@ export class CameraController {
     this.rotTargetYaw = BASE_YAW_RAD;
     this.rotProgress = 1;
 
-    // Fit initial zoom gracefully across desktop and portrait mobile screens
+    // Frame the playable island tightly (~85-88% desktop viewport height) from exact land projection
+    this.camera.zoom = 1;
+    this.camera.updateProjectionMatrix();
+    this.updateCameraTransform();
+    this.camera.updateMatrixWorld(true);
+
+    let minNdcX = Infinity;
+    let maxNdcX = -Infinity;
+    let minNdcY = Infinity;
+    let maxNdcY = -Infinity;
+    const ts = BALANCE.tileSize;
+    const halfTile = ts * 0.5;
+    const probe = new THREE.Vector3();
+
+    const includePoint = (x: number, y: number, z: number): void => {
+      probe.set(x, y, z).project(this.camera);
+      if (probe.x < minNdcX) minNdcX = probe.x;
+      if (probe.x > maxNdcX) maxNdcX = probe.x;
+      if (probe.y < minNdcY) minNdcY = probe.y;
+      if (probe.y > maxNdcY) maxNdcY = probe.y;
+    };
+
+    if (layout && layout.length === rows) {
+      for (let r = 0; r < rows; r++) {
+        const tokens = (layout[r] ?? '').trim().split(/\s+/);
+        for (let c = 0; c < cols; c++) {
+          const tile = parseTileChar(tokens[c] ?? '~');
+          if (tile === 'empty') continue;
+          const wx = gridToWorldX(c, cols);
+          const wz = gridToWorldZ(r, rows);
+          const topY = tile === 'spawn' || tile === 'goal' ? 1.35 : tile === 'decor' ? 0.9 : 0.4;
+          const botY = -0.65;
+          for (const sx of [-halfTile, halfTile]) {
+            for (const sz of [-halfTile, halfTile]) {
+              includePoint(wx + sx, topY, wz + sz);
+              includePoint(wx + sx, botY, wz + sz);
+            }
+          }
+        }
+      }
+    }
+
     const aspect = this.viewportWidth / this.viewportHeight;
-    const mapSpan = Math.max(cols, rows) * BALANCE.tileSize * 1.15;
-    const horizAvailable = BALANCE.camera.defaultFrustumHalfHeight * 2 * aspect;
-    const fitZoom = Math.max(0.58, Math.min(1.0, horizAvailable / mapSpan));
+    const isDesktop = aspect >= 1.1;
+    const targetFillV = isDesktop ? 0.86 : 0.78;
+    const targetFillH = isDesktop ? 0.88 : 0.9;
+
+    let fitZoom: number;
+    if (Number.isFinite(minNdcY) && maxNdcY > minNdcY && maxNdcX > minNdcX) {
+      const spanX = (maxNdcX - minNdcX) * 0.5;
+      const spanY = (maxNdcY - minNdcY) * 0.5;
+      fitZoom = Math.max(
+        CAMERA_MIN_ZOOM,
+        Math.min(1.55, Math.min(targetFillV / spanY, targetFillH / spanX)),
+      );
+
+      // Center island cleanly between top HUD pills and bottom tower card dock on desktop
+      if (isDesktop) {
+        const midNdcY = (minNdcY + maxNdcY) * 0.5;
+        const desiredMidNdcY = 0.055;
+        const shiftGroundY =
+          ((desiredMidNdcY - midNdcY) * BALANCE.camera.defaultFrustumHalfHeight) /
+          Math.sin(ISO_TILT_RAD);
+        const shiftX = Math.sin(BASE_YAW_RAD) * shiftGroundY;
+        const shiftZ = Math.cos(BASE_YAW_RAD) * shiftGroundY;
+        this.target.set(shiftX, 0, shiftZ);
+        this.desiredTarget.set(shiftX, 0, shiftZ);
+      }
+    } else {
+      const mapSpan = Math.max(cols, rows) * ts * 1.05;
+      const horizAvailable = BALANCE.camera.defaultFrustumHalfHeight * 2 * aspect;
+      fitZoom = Math.max(CAMERA_MIN_ZOOM, Math.min(1.35, horizAvailable / mapSpan));
+    }
+
     this.zoom = fitZoom;
     this.desiredZoom = fitZoom;
     this.camera.zoom = fitZoom;
@@ -137,8 +210,8 @@ export class CameraController {
     const prevZ = before ? before.z : this.desiredTarget.z;
 
     this.desiredZoom = Math.max(
-      BALANCE.camera.minZoom,
-      Math.min(BALANCE.camera.maxZoom, this.desiredZoom + delta * this.desiredZoom),
+      CAMERA_MIN_ZOOM,
+      Math.min(CAMERA_MAX_ZOOM, this.desiredZoom + delta * this.desiredZoom),
     );
 
     if (before) {

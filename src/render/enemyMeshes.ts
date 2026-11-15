@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { ObjectPool } from '../core/pool.ts';
-import type { EnemyType, QualityLevel } from '../core/types.ts';
+import type { EnemyType } from '../core/types.ts';
 import { BALANCE } from '../data/balance.ts';
 import { ENEMY_TYPES } from '../data/enemies.ts';
 import { FROST_TINT_HEX, PALETTE_HEX } from '../data/palette.ts';
@@ -97,7 +97,6 @@ export class EnemyRenderer {
   private hpRatioAttr: THREE.InstancedBufferAttribute;
   private hpRatioArray: Float32Array;
   private shadowDecalMesh: THREE.InstancedMesh;
-  private groundDecalsEnabled = true;
 
   constructor(materials: MaterialLibrary) {
     const cap = BALANCE.pools.maxEnemies;
@@ -146,17 +145,14 @@ export class EnemyRenderer {
     if (this.hpBarMesh.instanceColor) this.hpBarMesh.instanceColor.needsUpdate = true;
     this.group.add(this.hpBarMesh);
 
-    const shadowGeo = new THREE.CircleGeometry(0.45, 8);
+    const shadowGeo = new THREE.PlaneGeometry(1.15, 1.15);
     shadowGeo.rotateX(-Math.PI / 2);
     this.geometries.push(shadowGeo);
     this.shadowDecalMesh = new THREE.InstancedMesh(shadowGeo, materials.shadowDecalMaterial, cap);
     this.shadowDecalMesh.count = 0;
+    this.shadowDecalMesh.renderOrder = 2;
     this.shadowDecalMesh.frustumCulled = false;
     this.group.add(this.shadowDecalMesh);
-  }
-
-  setQuality(quality: QualityLevel): void {
-    this.groundDecalsEnabled = quality !== 'low';
   }
 
   update(
@@ -202,9 +198,10 @@ export class EnemyRenderer {
         tiltX = e.type === 'runner' ? 0.18 : 0.04;
       }
 
+      const enemyScale = e.type === 'boss' ? 1.26 : 1.28;
       _dummy.position.set(ix, iy + bobY, iz);
       _dummy.rotation.set(tiltX, iyaw, tiltZ);
-      _dummy.scale.setScalar(1);
+      _dummy.scale.setScalar(enemyScale);
       _dummy.updateMatrix();
       layer.mesh.setMatrixAt(slot, _dummy.matrix);
 
@@ -218,16 +215,23 @@ export class EnemyRenderer {
       layer.flashArray[slot] = e.hitFlashTimer > 0 ? Math.min(1, e.hitFlashTimer / 0.12) : 0;
 
       if (e.flying) {
-        _dummy.position.set(ix, 0.03, iz);
+        _dummy.position.set(ix, 0.024, iz);
         _dummy.rotation.set(0, 0, 0);
-        const s = 0.85 + Math.sin(elapsedTime * 4.5 + e.walkPhase) * 0.08;
+        const s = 1.12 + Math.sin(elapsedTime * 4.5 + e.walkPhase) * 0.08;
         _dummy.scale.setScalar(s);
         _dummy.updateMatrix();
         this.shadowDecalMesh.setMatrixAt(shadowDecalCount++, _dummy.matrix);
-      } else if (this.groundDecalsEnabled && e.type !== 'brute' && e.type !== 'boss') {
-        _dummy.position.set(ix, 0.02, iz);
+      } else {
+        _dummy.position.set(ix, iy + 0.018, iz);
         _dummy.rotation.set(0, 0, 0);
-        const s = e.type === 'runner' ? 0.65 : e.type === 'healer' ? 0.78 : 0.72;
+        const s =
+          e.type === 'boss'
+            ? 1.95
+            : e.type === 'brute'
+              ? 1.48
+              : e.type === 'runner'
+                ? 0.94
+                : 1.08;
         _dummy.scale.setScalar(s);
         _dummy.updateMatrix();
         this.shadowDecalMesh.setMatrixAt(shadowDecalCount++, _dummy.matrix);
@@ -235,10 +239,10 @@ export class EnemyRenderer {
 
       if (e.hp < e.maxHp && e.hp > 0) {
         const ratio = Math.max(0.02, Math.min(1, e.hp / e.maxHp));
-        const barW = e.type === 'boss' ? 1.55 : e.type === 'brute' ? 1.05 : 0.84;
-        const barH = e.type === 'boss' ? 0.18 : 0.13;
+        const barW = e.type === 'boss' ? 1.75 : e.type === 'brute' ? 1.2 : 0.94;
+        const barH = e.type === 'boss' ? 0.2 : 0.14;
 
-        _barPos.set(ix, iy + bobY + e.height + 0.32, iz);
+        _barPos.set(ix, iy + bobY + e.height * enemyScale + 0.34, iz);
 
         _dummy.position.copy(_barPos);
         _dummy.quaternion.copy(camera.quaternion);
@@ -303,84 +307,79 @@ export class EnemyRenderer {
 
     const eyeDark = 0x1a1829;
     const eyeGlowGold = 0xffcf4d;
-    const eyeGlowRed = 0xff6b52;
     const skinWarm = 0xd6b08c;
     const leatherDark = 0x5c3c28;
-    const ironDark = 0x545d70;
     const steelMid = 0x768194;
-    const navyDeep = 0x353358;
 
     let parts: ColoredPart[];
     switch (type) {
       case 'grunt': {
-        // Armored goblin raider with nasal steel helmet, kite shield, dagger, and dark eyes
+        // Crimson raider goblin with steel nasal helm, kite shield, dagger, and expressive dark eyes
         parts = [
-          { geometry: chamfer, colorHex: leatherDark, position: [-0.14, 0.14, 0], scale: [0.16, 0.28, 0.2] },
-          { geometry: chamfer, colorHex: leatherDark, position: [0.14, 0.14, 0], scale: [0.16, 0.28, 0.2] },
-          { geometry: chamfer, colorHex: 0xd94848, position: [0, 0.45, 0], scale: [0.46, 0.42, 0.34] },
+          { geometry: chamfer, colorHex: 0x733229, position: [-0.14, 0.14, 0], scale: [0.16, 0.28, 0.2] },
+          { geometry: chamfer, colorHex: 0x733229, position: [0.14, 0.14, 0], scale: [0.16, 0.28, 0.2] },
+          { geometry: chamfer, colorHex: 0xed3b3b, position: [0, 0.45, 0], scale: [0.46, 0.42, 0.34] },
           { geometry: box, colorHex: leatherDark, position: [0, 0.31, 0], scale: [0.48, 0.08, 0.36] },
           { geometry: chamfer, colorHex: skinWarm, position: [0, 0.78, 0.03], scale: [0.3, 0.26, 0.28] },
-          // Nasal helm dome + brow + back neckguard
-          { geometry: cyl, colorHex: ironDark, position: [0, 0.9, 0.01], scale: [0.22, 0.16, 0.22] },
-          { geometry: cone, colorHex: steelMid, position: [0, 1.03, 0.01], scale: [0.22, 0.14, 0.22] },
-          { geometry: box, colorHex: ironDark, position: [0, 0.82, 0.16], scale: [0.05, 0.14, 0.06] },
-          // Left shield with brass boss + right short blade
-          { geometry: chamfer, colorHex: ironDark, position: [-0.29, 0.48, 0.1], rotation: [0, 0.2, 0], scale: [0.1, 0.38, 0.32] },
+          { geometry: cyl, colorHex: steelMid, position: [0, 0.9, 0.01], scale: [0.22, 0.16, 0.22] },
+          { geometry: cone, colorHex: 0xa2b0c4, position: [0, 1.03, 0.01], scale: [0.22, 0.14, 0.22] },
+          { geometry: box, colorHex: steelMid, position: [0, 0.82, 0.16], scale: [0.05, 0.14, 0.06] },
+          { geometry: chamfer, colorHex: 0xb82828, position: [-0.29, 0.48, 0.1], rotation: [0, 0.2, 0], scale: [0.1, 0.38, 0.32] },
           { geometry: cyl, colorHex: PALETTE_HEX.gold, position: [-0.34, 0.48, 0.1], rotation: [0, 0, Math.PI / 2], scale: [0.09, 0.04, 0.09] },
-          { geometry: chamfer, colorHex: steelMid, position: [0.28, 0.48, 0.18], rotation: [0.85, 0, 0], scale: [0.07, 0.32, 0.08] },
+          { geometry: chamfer, colorHex: 0xb8c3d4, position: [0.28, 0.48, 0.18], rotation: [0.85, 0, 0], scale: [0.07, 0.32, 0.08] },
         ];
         addEyes(parts, ico, 0.77, 0.17, 0.075, 0.034, eyeDark);
         break;
       }
 
       case 'runner': {
-        // Agile hooded wind-scout with crimson scarf, swept plumes, amber goggles, and twin blades
+        // High-visibility canary-yellow wind-scout with orange-red scarf, swept gold plumes, and twin daggers
         parts = [
-          { geometry: chamfer, colorHex: navyDeep, position: [-0.11, 0.15, -0.02], scale: [0.13, 0.3, 0.16] },
-          { geometry: chamfer, colorHex: navyDeep, position: [0.11, 0.15, 0.02], scale: [0.13, 0.3, 0.16] },
-          { geometry: chamfer, colorHex: 0xde9f2c, position: [0, 0.46, 0], scale: [0.36, 0.38, 0.28] },
-          { geometry: chamfer, colorHex: 0xc93f3f, position: [0, 0.62, -0.06], rotation: [-0.2, 0, 0], scale: [0.32, 0.12, 0.34] },
-          { geometry: chamfer, colorHex: navyDeep, position: [0, 0.75, 0.04], scale: [0.28, 0.26, 0.28] },
-          { geometry: cone, colorHex: PALETTE_HEX.gold, position: [-0.08, 0.85, -0.2], rotation: [-1.15, 0, 0.14], scale: [0.08, 0.34, 0.08] },
-          { geometry: cone, colorHex: PALETTE_HEX.gold, position: [0.08, 0.85, -0.2], rotation: [-1.15, 0, -0.14], scale: [0.08, 0.34, 0.08] },
+          { geometry: chamfer, colorHex: 0xc28a18, position: [-0.11, 0.15, -0.02], scale: [0.13, 0.3, 0.16] },
+          { geometry: chamfer, colorHex: 0xc28a18, position: [0.11, 0.15, 0.02], scale: [0.13, 0.3, 0.16] },
+          { geometry: chamfer, colorHex: 0xffd22b, position: [0, 0.46, 0], scale: [0.36, 0.38, 0.28] },
+          { geometry: chamfer, colorHex: 0xf25a2b, position: [0, 0.62, -0.06], rotation: [-0.2, 0, 0], scale: [0.32, 0.12, 0.34] },
+          { geometry: chamfer, colorHex: 0xf5b81d, position: [0, 0.75, 0.04], scale: [0.28, 0.26, 0.28] },
+          { geometry: cone, colorHex: 0xffe666, position: [-0.08, 0.85, -0.2], rotation: [-1.15, 0, 0.14], scale: [0.08, 0.34, 0.08] },
+          { geometry: cone, colorHex: 0xffe666, position: [0.08, 0.85, -0.2], rotation: [-1.15, 0, -0.14], scale: [0.08, 0.34, 0.08] },
           { geometry: box, colorHex: leatherDark, position: [0, 0.5, -0.19], scale: [0.24, 0.24, 0.12] },
-          { geometry: cone, colorHex: steelMid, position: [-0.22, 0.42, 0.18], rotation: [Math.PI / 2, 0, 0], scale: [0.045, 0.26, 0.045] },
-          { geometry: cone, colorHex: steelMid, position: [0.22, 0.42, 0.18], rotation: [Math.PI / 2, 0, 0], scale: [0.045, 0.26, 0.045] },
+          { geometry: cone, colorHex: 0xc4cfde, position: [-0.22, 0.42, 0.18], rotation: [Math.PI / 2, 0, 0], scale: [0.045, 0.26, 0.045] },
+          { geometry: cone, colorHex: 0xc4cfde, position: [0.22, 0.42, 0.18], rotation: [Math.PI / 2, 0, 0], scale: [0.045, 0.26, 0.045] },
         ];
-        addEyes(parts, ico, 0.74, 0.18, 0.065, 0.036, eyeGlowGold);
+        addEyes(parts, ico, 0.74, 0.18, 0.065, 0.036, eyeDark);
         break;
       }
 
       case 'brute': {
-        // Heavy horned siege juggernaut with iron pauldrons, crimson sash, amber visor slit
+        // Steel-grey armored siege juggernaut with bold crimson belt/pauldrons, horns, and glowing amber eyes
         parts = [
-          { geometry: chamfer, colorHex: navyDeep, position: [-0.2, 0.18, 0], scale: [0.24, 0.36, 0.28] },
-          { geometry: chamfer, colorHex: navyDeep, position: [0.2, 0.18, 0], scale: [0.24, 0.36, 0.28] },
-          { geometry: chamfer, colorHex: ironDark, position: [0, 0.64, 0], scale: [0.76, 0.58, 0.54] },
-          { geometry: chamfer, colorHex: 0xc94141, position: [0, 0.45, 0.04], scale: [0.64, 0.18, 0.52] },
-          { geometry: chamfer, colorHex: 0x3f4659, position: [-0.47, 0.78, 0], rotation: [0, 0, 0.16], scale: [0.26, 0.34, 0.38] },
-          { geometry: chamfer, colorHex: 0x3f4659, position: [0.47, 0.78, 0], rotation: [0, 0, -0.16], scale: [0.26, 0.34, 0.38] },
-          { geometry: cone, colorHex: PALETTE_HEX.gold, position: [-0.49, 0.98, 0], scale: [0.06, 0.14, 0.06] },
-          { geometry: cone, colorHex: PALETTE_HEX.gold, position: [0.49, 0.98, 0], scale: [0.06, 0.14, 0.06] },
-          { geometry: chamfer, colorHex: navyDeep, position: [0, 1.04, 0.05], scale: [0.38, 0.32, 0.36] },
-          { geometry: box, colorHex: 0x1a1929, position: [0, 1.04, 0.21], scale: [0.26, 0.09, 0.06] },
-          { geometry: cone, colorHex: 0xdfd0b4, position: [-0.22, 1.22, 0.05], rotation: [0, 0, 0.42], scale: [0.09, 0.28, 0.09] },
-          { geometry: cone, colorHex: 0xdfd0b4, position: [0.22, 1.22, 0.05], rotation: [0, 0, -0.42], scale: [0.09, 0.28, 0.09] },
+          { geometry: chamfer, colorHex: 0x6c798c, position: [-0.2, 0.18, 0], scale: [0.24, 0.36, 0.28] },
+          { geometry: chamfer, colorHex: 0x6c798c, position: [0.2, 0.18, 0], scale: [0.24, 0.36, 0.28] },
+          { geometry: chamfer, colorHex: 0x9aa7ba, position: [0, 0.64, 0], scale: [0.76, 0.58, 0.54] },
+          { geometry: chamfer, colorHex: 0xe63636, position: [0, 0.45, 0.04], scale: [0.64, 0.18, 0.52] },
+          { geometry: chamfer, colorHex: 0x8593a8, position: [-0.47, 0.78, 0], rotation: [0, 0, 0.16], scale: [0.26, 0.34, 0.38] },
+          { geometry: chamfer, colorHex: 0x8593a8, position: [0.47, 0.78, 0], rotation: [0, 0, -0.16], scale: [0.26, 0.34, 0.38] },
+          { geometry: cone, colorHex: 0xe63636, position: [-0.49, 0.98, 0], scale: [0.075, 0.16, 0.075] },
+          { geometry: cone, colorHex: 0xe63636, position: [0.49, 0.98, 0], scale: [0.075, 0.16, 0.075] },
+          { geometry: chamfer, colorHex: 0x7b889c, position: [0, 1.04, 0.05], scale: [0.38, 0.32, 0.36] },
+          { geometry: box, colorHex: 0x2a2f3d, position: [0, 1.04, 0.21], scale: [0.26, 0.09, 0.06] },
+          { geometry: cone, colorHex: 0xf0e1c4, position: [-0.22, 1.22, 0.05], rotation: [0, 0, 0.42], scale: [0.09, 0.28, 0.09] },
+          { geometry: cone, colorHex: 0xf0e1c4, position: [0.22, 1.22, 0.05], rotation: [0, 0, -0.42], scale: [0.09, 0.28, 0.09] },
         ];
         addEyes(parts, ico, 1.04, 0.23, 0.075, 0.036, eyeGlowGold);
         break;
       }
 
       case 'flyer': {
-        // Winged obsidian-indigo sky drake with swept teal-slate wings and golden drake eyes
+        // Vivid royal-purple sky drake with lavender-purple wing membranes and gold horns
         parts = [
-          { geometry: chamfer, colorHex: 0x3b3863, position: [0, 0.1, 0.04], scale: [0.26, 0.22, 0.62] },
-          { geometry: cone, colorHex: 0x4ca6c9, position: [0, 0.06, -0.34], rotation: [-Math.PI / 2, 0, 0], scale: [0.13, 0.36, 0.12] },
-          { geometry: wing, colorHex: 0x3f7999, position: [0.1, 0.14, 0.02], rotation: [0, -0.18, 0.06], scale: [0.95, 1.0, 1.0] },
-          { geometry: wing, colorHex: 0x3f7999, position: [-0.1, 0.14, 0.02], rotation: [0, 0.18, -0.06], scale: [-0.95, 1.0, 1.0] },
-          { geometry: box, colorHex: navyDeep, position: [0.42, 0.16, 0.08], rotation: [0, -0.15, 0.06], scale: [0.64, 0.045, 0.05] },
-          { geometry: box, colorHex: navyDeep, position: [-0.42, 0.16, 0.08], rotation: [0, 0.15, -0.06], scale: [0.64, 0.045, 0.05] },
-          { geometry: chamfer, colorHex: 0x4b4778, position: [0, 0.18, 0.34], scale: [0.22, 0.18, 0.28] },
+          { geometry: chamfer, colorHex: 0x8b3ee8, position: [0, 0.1, 0.04], scale: [0.26, 0.22, 0.62] },
+          { geometry: cone, colorHex: 0xa65bf5, position: [0, 0.06, -0.34], rotation: [-Math.PI / 2, 0, 0], scale: [0.13, 0.36, 0.12] },
+          { geometry: wing, colorHex: 0xb068fa, position: [0.1, 0.14, 0.02], rotation: [0, -0.18, 0.06], scale: [0.95, 1.0, 1.0] },
+          { geometry: wing, colorHex: 0xb068fa, position: [-0.1, 0.14, 0.02], rotation: [0, 0.18, -0.06], scale: [-0.95, 1.0, 1.0] },
+          { geometry: box, colorHex: 0x5c24a8, position: [0.42, 0.16, 0.08], rotation: [0, -0.15, 0.06], scale: [0.64, 0.045, 0.05] },
+          { geometry: box, colorHex: 0x5c24a8, position: [-0.42, 0.16, 0.08], rotation: [0, 0.15, -0.06], scale: [0.64, 0.045, 0.05] },
+          { geometry: chamfer, colorHex: 0x9b50f2, position: [0, 0.18, 0.34], scale: [0.22, 0.18, 0.28] },
           { geometry: cone, colorHex: PALETTE_HEX.gold, position: [-0.08, 0.3, 0.26], rotation: [-0.65, 0, 0.2], scale: [0.05, 0.18, 0.05] },
           { geometry: cone, colorHex: PALETTE_HEX.gold, position: [0.08, 0.3, 0.26], rotation: [-0.65, 0, -0.2], scale: [0.05, 0.18, 0.05] },
         ];
@@ -389,17 +388,17 @@ export class EnemyRenderer {
       }
 
       case 'healer': {
-        // Emerald druid cleric with layered robes, cowl hood, floating gold halo, and crystal staff
+        // Vivid emerald-green druid cleric with gold stole, halo, and bright mint healing orb staff
         parts = [
-          { geometry: cyl, colorHex: 0x367532, position: [0, 0.38, 0], scale: [0.25, 0.72, 0.25] },
-          { geometry: cyl, colorHex: 0x6ab848, position: [0, 0.56, 0], scale: [0.22, 0.36, 0.22] },
+          { geometry: cyl, colorHex: 0x26a648, position: [0, 0.38, 0], scale: [0.25, 0.72, 0.25] },
+          { geometry: cyl, colorHex: 0x45e06b, position: [0, 0.56, 0], scale: [0.22, 0.36, 0.22] },
           { geometry: chamfer, colorHex: PALETTE_HEX.gold, position: [0, 0.42, 0.16], scale: [0.1, 0.48, 0.05] },
-          { geometry: chamfer, colorHex: 0x2c612b, position: [0, 0.87, -0.02], scale: [0.3, 0.3, 0.3] },
+          { geometry: chamfer, colorHex: 0x208c3b, position: [0, 0.87, -0.02], scale: [0.3, 0.3, 0.3] },
           { geometry: ico, colorHex: skinWarm, position: [0, 0.86, 0.06], scale: [0.16, 0.17, 0.16] },
-          { geometry: cone, colorHex: 0x3a8035, position: [0, 1.07, -0.02], rotation: [-0.15, 0, 0], scale: [0.18, 0.22, 0.18] },
+          { geometry: cone, colorHex: 0x3ad15c, position: [0, 1.07, -0.02], rotation: [-0.15, 0, 0], scale: [0.18, 0.22, 0.18] },
           { geometry: cyl, colorHex: PALETTE_HEX.gold, position: [0, 1.22, 0], scale: [0.19, 0.05, 0.19] },
           { geometry: cyl, colorHex: leatherDark, position: [0.31, 0.56, 0.12], scale: [0.045, 0.94, 0.045] },
-          { geometry: ico, colorHex: 0x7be06b, position: [0.31, 1.08, 0.12], scale: [0.12, 0.15, 0.12] },
+          { geometry: ico, colorHex: 0x94ffb0, position: [0.31, 1.08, 0.12], scale: [0.12, 0.15, 0.12] },
         ];
         addEyes(parts, ico, 0.87, 0.2, 0.055, 0.028, eyeDark);
         break;
@@ -407,27 +406,26 @@ export class EnemyRenderer {
 
       case 'boss':
       default: {
-        // Towering Obsidian Siege Overlord with furnace core, brass pauldrons, dread crown, glowing crimson eyes
+        // Large dark-crimson Dread Warlord with burnished gold armor trim, crown, pauldrons, and banners
         parts = [
-          { geometry: chamfer, colorHex: navyDeep, position: [-0.32, 0.24, 0], scale: [0.34, 0.48, 0.38] },
-          { geometry: chamfer, colorHex: navyDeep, position: [0.32, 0.24, 0], scale: [0.34, 0.48, 0.38] },
-          { geometry: chamfer, colorHex: 0x2f2d4f, position: [0, 0.86, 0], scale: [1.08, 0.84, 0.78] },
+          { geometry: chamfer, colorHex: 0x751524, position: [-0.32, 0.24, 0], scale: [0.34, 0.48, 0.38] },
+          { geometry: chamfer, colorHex: 0x751524, position: [0.32, 0.24, 0], scale: [0.34, 0.48, 0.38] },
+          { geometry: chamfer, colorHex: 0xa61e30, position: [0, 0.86, 0], scale: [1.08, 0.84, 0.78] },
           { geometry: chamfer, colorHex: PALETTE_HEX.gold, position: [0, 0.54, 0], scale: [1.04, 0.14, 0.8] },
-          { geometry: ico, colorHex: PALETTE_HEX.coral, position: [0, 0.9, 0.38], scale: [0.26, 0.26, 0.16] },
-          { geometry: chamfer, colorHex: ironDark, position: [-0.67, 0.98, 0], rotation: [0, 0, 0.14], scale: [0.38, 0.56, 0.5] },
-          { geometry: chamfer, colorHex: ironDark, position: [0.67, 0.98, 0], rotation: [0, 0, -0.14], scale: [0.38, 0.56, 0.5] },
+          { geometry: ico, colorHex: 0xffc83b, position: [0, 0.9, 0.38], scale: [0.26, 0.26, 0.16] },
+          { geometry: chamfer, colorHex: 0xd99b26, position: [-0.67, 0.98, 0], rotation: [0, 0, 0.14], scale: [0.38, 0.56, 0.5] },
+          { geometry: chamfer, colorHex: 0xd99b26, position: [0.67, 0.98, 0], rotation: [0, 0, -0.14], scale: [0.38, 0.56, 0.5] },
           { geometry: cone, colorHex: PALETTE_HEX.gold, position: [-0.72, 1.32, 0], scale: [0.11, 0.24, 0.11] },
           { geometry: cone, colorHex: PALETTE_HEX.gold, position: [0.72, 1.32, 0], scale: [0.11, 0.24, 0.11] },
-          { geometry: chamfer, colorHex: 0x262442, position: [0, 1.44, 0.06], scale: [0.52, 0.42, 0.48] },
-          { geometry: box, colorHex: 0x161526, position: [0, 1.44, 0.28], scale: [0.34, 0.11, 0.06] },
+          { geometry: chamfer, colorHex: 0x7d1726, position: [0, 1.44, 0.06], scale: [0.52, 0.42, 0.48] },
+          { geometry: box, colorHex: 0x260a10, position: [0, 1.44, 0.28], scale: [0.34, 0.11, 0.06] },
           { geometry: cyl, colorHex: PALETTE_HEX.gold, position: [0, 1.72, 0.06], scale: [0.31, 0.16, 0.31] },
-          { geometry: cone, colorHex: PALETTE_HEX.coral, position: [-0.32, 1.72, 0.06], rotation: [0, 0, 0.36], scale: [0.12, 0.38, 0.12] },
-          { geometry: cone, colorHex: PALETTE_HEX.coral, position: [0.32, 1.72, 0.06], rotation: [0, 0, -0.36], scale: [0.12, 0.38, 0.12] },
-          // Back shoulder war banners / exhaust spires
-          { geometry: box, colorHex: PALETTE_HEX.coral, position: [-0.42, 1.54, -0.32], scale: [0.1, 0.62, 0.08] },
-          { geometry: box, colorHex: PALETTE_HEX.coral, position: [0.42, 1.54, -0.32], scale: [0.1, 0.62, 0.08] },
+          { geometry: cone, colorHex: PALETTE_HEX.gold, position: [-0.32, 1.72, 0.06], rotation: [0, 0, 0.36], scale: [0.12, 0.38, 0.12] },
+          { geometry: cone, colorHex: PALETTE_HEX.gold, position: [0.32, 1.72, 0.06], rotation: [0, 0, -0.36], scale: [0.12, 0.38, 0.12] },
+          { geometry: box, colorHex: 0xd92b3a, position: [-0.42, 1.54, -0.32], scale: [0.1, 0.62, 0.08] },
+          { geometry: box, colorHex: 0xd92b3a, position: [0.42, 1.54, -0.32], scale: [0.1, 0.62, 0.08] },
         ];
-        addEyes(parts, ico, 1.44, 0.3, 0.11, 0.055, eyeGlowRed);
+        addEyes(parts, ico, 1.44, 0.3, 0.11, 0.055, eyeGlowGold);
         break;
       }
     }

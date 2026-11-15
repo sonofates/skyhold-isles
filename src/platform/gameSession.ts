@@ -136,8 +136,9 @@ export class GameSession {
   setPlacementMode(type: TowerType | null): void {
     this.activePlacementType = type;
     if (type !== null) this.selectTower(null);
-    const highlightFlight =
-      this.viewMode === 'playing' && type !== null && !TOWER_DEFS[type].hitsFlyers;
+    const inPlay = this.viewMode === 'playing';
+    this.renderWorld.setPlacementGridActive(inPlay && type !== null);
+    const highlightFlight = inPlay && type !== null && !TOWER_DEFS[type].hitsFlyers;
     this.renderWorld.setFlightPathHighlight(highlightFlight);
     this.refreshPlacementPreview();
     this.syncUi();
@@ -153,6 +154,7 @@ export class GameSession {
     this.d.overlays.floatingTextPool.clear();
     this.d.overlays.tooltip.hide();
     this.d.overlays.toast.hide();
+    this.renderWorld.setPlacementGridActive(false);
     this.renderWorld.setFlightPathHighlight(false);
     this.activePlacementType = null;
     this.selectedTowerId = null;

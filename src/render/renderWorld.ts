@@ -75,9 +75,10 @@ export class RenderWorld {
 
     this.mapBuilder.build(level, this.materials, this.assets);
     this.decorBuilder.build(level, this.materials, this.assets);
+    this.overlayIndicators.setBuildableGrid(level);
     this.overlayIndicators.setFlightPath(level);
     this.sceneManager.fitShadowToMap(level.cols, level.rows);
-    this.cameraController.configureForMap(level.cols, level.rows);
+    this.cameraController.configureForMap(level.cols, level.rows, level.layout);
 
     if (events) {
       this.bindEvents(events, getSettings);
@@ -183,11 +184,14 @@ export class RenderWorld {
     this.overlayIndicators.setFlightPathHighlight(visible);
   }
 
+  setPlacementGridActive(active: boolean): void {
+    this.overlayIndicators.setPlacementGridActive(active);
+  }
+
   setQuality(quality: QualityLevel): void {
     this.sceneManager.setQuality(quality);
     this.materials.setOutlineAlphaEnabled(quality !== 'low');
     this.decorBuilder.setQuality(quality);
-    this.enemyRenderer.setQuality(quality);
   }
 
   resize(width: number, height: number): void {
@@ -205,7 +209,7 @@ export class RenderWorld {
     this.cameraController.update(frameDt);
     this.mapBuilder.update(elapsedVisualTime);
     this.decorBuilder.update(elapsedVisualTime);
-    this.overlayIndicators.update(elapsedVisualTime);
+    this.overlayIndicators.update(elapsedVisualTime, frameDt);
     const activeFxDt = fxDt ?? frameDt;
     this.effectsRenderer.update(activeFxDt);
 

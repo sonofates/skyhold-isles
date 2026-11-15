@@ -5,13 +5,13 @@ import { createHarmonizedColormapTexture } from './kenneyPalette.ts';
 
 export const KENNEY_MODEL_LIST = [
   // Terrain tiles & bridges
-  'tile',
   'tile-straight',
   'tile-corner-round',
   'tile-end-round',
   'tile-spawn-end-round',
   'tile-crossing',
   'tile-split',
+  'spawn-square',
   'wood-structure-high',
   'wood-structure',
   // Nature & island props
@@ -19,7 +19,6 @@ export const KENNEY_MODEL_LIST = [
   'detail-tree-large',
   'detail-rocks',
   'detail-rocks-large',
-  'detail-dirt',
   'detail-crystal',
   'detail-crystal-large',
   // Modular tower pieces
