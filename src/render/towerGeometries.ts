@@ -1,7 +1,9 @@
 import * as THREE from 'three';
 import type { TowerType } from '../core/types.ts';
 import { PALETTE_HEX } from '../data/palette.ts';
-import { mergeColoredParts, type ColoredPart } from './geometryHelpers.ts';
+import { mergeTexturedParts, type TexturedPart } from './geometryHelpers.ts';
+import type { KenneyAssetStore, KenneyModelName } from './kenneyAssets.ts';
+import { remapUvCell } from './kenneyPalette.ts';
 
 export interface TowerTierGeometryPair {
   readonly base: THREE.BufferGeometry;
@@ -11,8 +13,18 @@ export interface TowerTierGeometryPair {
   readonly bobTurret: boolean;
 }
 
+/**
+ * Assembles modular 5x3 tower geometries from preloaded Kenney Tower Defense Kit GLBs
+ * plus minimal geometric accents (such as brass Tesla coils and stone plinths), keeping
+ * the static base and rotating turret split for the existing InstancedMesh pipeline.
+ */
 export class TowerGeometryCache {
   private readonly cache = new Map<string, TowerTierGeometryPair>();
+  private readonly assets: KenneyAssetStore;
+
+  constructor(assets: KenneyAssetStore) {
+    this.assets = assets;
+  }
 
   get(type: TowerType, tier: 1 | 2 | 3): TowerTierGeometryPair {
     const key = `${type}_${tier}`;
@@ -25,227 +37,311 @@ export class TowerGeometryCache {
   }
 
   private buildPair(type: TowerType, tier: 1 | 2 | 3): TowerTierGeometryPair {
+    const disposable: THREE.BufferGeometry[] = [];
     const box = new THREE.BoxGeometry(1, 1, 1);
-    const cyl = new THREE.CylinderGeometry(1, 1, 1, 6);
-    const cone = new THREE.ConeGeometry(1, 1, 6);
-    const ico = new THREE.IcosahedronGeometry(1, 0);
+    const cyl = new THREE.CylinderGeometry(1, 1, 1, 8);
+    const torus = new THREE.TorusGeometry(1, 0.24, 6, 12);
     const oct = new THREE.OctahedronGeometry(1, 0);
+    disposable.push(box, cyl, torus, oct);
 
-    let baseParts: ColoredPart[] = [];
-    let turretParts: ColoredPart[] = [];
-    let turretAnchorY = 1.3;
+    const grab = (
+      name: KenneyModelName,
+      uvRemaps?: ReadonlyArray<readonly [readonly [number, number], readonly [number, number]]>,
+    ): THREE.BufferGeometry => {
+      const g = this.assets.cloneGeometry(name);
+      if (uvRemaps) {
+        for (let i = 0; i < uvRemaps.length; i++) {
+          remapUvCell(g, uvRemaps[i][0], uvRemaps[i][1]);
+        }
+      }
+      disposable.push(g);
+      return g;
+    };
+
+    const baseParts: TexturedPart[] = [];
+    const turretParts: TexturedPart[] = [];
+    let turretAnchorY: number;
     let idleSpinTurret = false;
     let bobTurret = false;
 
     switch (type) {
       case 'archer': {
-        turretAnchorY = tier === 1 ? 1.25 : tier === 2 ? 1.48 : 1.72;
-        baseParts = [
-          { geometry: box, colorHex: PALETTE_HEX.stone, position: [0, 0.14, 0], scale: [1.34, 0.28, 1.34] },
-          { geometry: box, colorHex: PALETTE_HEX.dirt, position: [-0.42, 0.68, -0.42], scale: [0.18, 0.9, 0.18] },
-          { geometry: box, colorHex: PALETTE_HEX.dirt, position: [0.42, 0.68, -0.42], scale: [0.18, 0.9, 0.18] },
-          { geometry: box, colorHex: PALETTE_HEX.dirt, position: [-0.42, 0.68, 0.42], scale: [0.18, 0.9, 0.18] },
-          { geometry: box, colorHex: PALETTE_HEX.dirt, position: [0.42, 0.68, 0.42], scale: [0.18, 0.9, 0.18] },
-          { geometry: box, colorHex: PALETTE_HEX.sand, position: [0, turretAnchorY - 0.1, 0], scale: [1.14, 0.16, 1.14] },
-        ];
-        if (tier >= 2) {
+        if (tier === 1) {
+          turretAnchorY = 0.94;
           baseParts.push(
-            { geometry: box, colorHex: PALETTE_HEX.stone, position: [0, 0.56, 0], scale: [0.96, 0.62, 0.96] },
-            { geometry: box, colorHex: PALETTE_HEX.foliageDark, position: [0, turretAnchorY + 0.04, -0.52], scale: [0.92, 0.18, 0.1] },
+            { geometry: grab('wood-structure'), position: [0, 0, 0], scale: [1.14, 1.32, 1.14] },
+            { geometry: grab('tower-round-base'), position: [0, 0.6, 0], scale: [1.16, 0.9, 1.16] },
+            { geometry: grab('tower-round-top-a'), position: [0, 0.76, 0], scale: [1.06, 0.84, 1.06] },
+            { geometry: cyl, colorHex: PALETTE_HEX.sand, position: [0, 0.85, 0], scale: [0.38, 0.18, 0.38], forceWhiteUv: true },
           );
-        }
-        if (tier === 3) {
+          turretParts.push({
+            geometry: grab('weapon-ballista'),
+            position: [0, 0, 0],
+            scale: [1.28, 1.28, 1.28],
+          });
+        } else if (tier === 2) {
+          turretAnchorY = 1.08;
           baseParts.push(
-            { geometry: box, colorHex: PALETTE_HEX.gold, position: [0, 0.96, 0], scale: [1.22, 0.12, 1.22] },
-            { geometry: cone, colorHex: PALETTE_HEX.coral, position: [-0.52, turretAnchorY + 0.35, -0.52], scale: [0.14, 0.45, 0.14] },
+            { geometry: grab('tower-round-base'), position: [0, 0, 0], scale: [1.38, 1.0, 1.38] },
+            { geometry: grab('tower-round-bottom-a'), position: [0, 0.16, 0], scale: [1.3, 1.14, 1.3] },
+            { geometry: grab('tower-round-top-b'), position: [0, 0.84, 0], scale: [1.26, 0.92, 1.26] },
+            { geometry: cyl, colorHex: PALETTE_HEX.sand, position: [0, 0.96, 0], scale: [0.46, 0.24, 0.46], forceWhiteUv: true },
           );
-        }
-        // Rotating crossbow / ballista turret
-        turretParts = [
-          { geometry: box, colorHex: PALETTE_HEX.dirt, position: [0, 0.1, 0.06], scale: [0.22, 0.18, 0.72] },
-          { geometry: box, colorHex: PALETTE_HEX.indigo, position: [0, 0.12, 0.28], rotation: [0, 0.25, 0], scale: [0.85, 0.09, 0.12] },
-          { geometry: cone, colorHex: PALETTE_HEX.gold, position: [0, 0.16, 0.48], rotation: [Math.PI / 2, 0, 0], scale: [0.09, 0.28, 0.09] },
-        ];
-        if (tier >= 2) {
-          turretParts.push(
-            { geometry: box, colorHex: PALETTE_HEX.gold, position: [0, 0.14, 0.26], scale: [0.96, 0.07, 0.09] },
+          turretParts.push({
+            geometry: grab('weapon-ballista'),
+            colorHex: 0xfff5e4,
+            position: [0, 0, 0],
+            scale: [1.46, 1.46, 1.46],
+          });
+        } else {
+          turretAnchorY = 1.68;
+          baseParts.push(
+            { geometry: grab('tower-round-base'), position: [0, 0, 0], scale: [1.56, 1.12, 1.56] },
+            { geometry: grab('tower-round-bottom-b'), position: [0, 0.18, 0], scale: [1.48, 1.16, 1.48] },
+            { geometry: grab('tower-round-middle-a'), position: [0, 0.87, 0], scale: [1.4, 1.06, 1.4] },
+            { geometry: grab('tower-round-top-b'), position: [0, 1.5, 0], scale: [1.36, 0.88, 1.36] },
+            { geometry: cyl, colorHex: PALETTE_HEX.gold, position: [0, 1.59, 0], scale: [0.5, 0.18, 0.5], forceWhiteUv: true },
           );
-        }
-        if (tier === 3) {
           turretParts.push(
-            { geometry: box, colorHex: PALETTE_HEX.gold, position: [-0.14, 0.2, 0.14], scale: [0.1, 0.12, 0.64] },
-            { geometry: box, colorHex: PALETTE_HEX.gold, position: [0.14, 0.2, 0.14], scale: [0.1, 0.12, 0.64] },
-            { geometry: oct, colorHex: PALETTE_HEX.coral, position: [0, 0.3, -0.15], scale: [0.13, 0.13, 0.13] },
+            { geometry: grab('weapon-ballista'), position: [0, 0, 0], scale: [1.66, 1.66, 1.66] },
+            { geometry: box, colorHex: PALETTE_HEX.gold, position: [0, 0.28, 0.34], scale: [0.74, 0.09, 0.12], forceWhiteUv: true },
           );
         }
         break;
       }
+
       case 'cannon': {
-        turretAnchorY = tier === 1 ? 0.72 : tier === 2 ? 0.88 : 1.02;
-        baseParts = [
-          { geometry: cyl, colorHex: PALETTE_HEX.stone, position: [0, 0.34, 0], scale: [0.76, 0.68, 0.76] },
-          { geometry: cyl, colorHex: PALETTE_HEX.indigo, position: [0, 0.68, 0], scale: [0.64, 0.1, 0.64] },
-        ];
-        if (tier >= 2) {
+        if (tier === 1) {
+          turretAnchorY = 0.72;
           baseParts.push(
-            { geometry: box, colorHex: PALETTE_HEX.stone, position: [0, 0.42, 0], scale: [1.38, 0.42, 1.38] },
-            { geometry: ico, colorHex: PALETTE_HEX.indigo, position: [0.56, 0.7, 0.42], scale: [0.14, 0.14, 0.14] },
-            { geometry: ico, colorHex: PALETTE_HEX.indigo, position: [0.38, 0.7, 0.54], scale: [0.14, 0.14, 0.14] },
+            { geometry: grab('tower-round-base'), position: [0, 0, 0], scale: [1.36, 1.0, 1.36] },
+            { geometry: grab('tower-round-bottom-c'), position: [0, 0.15, 0], scale: [1.3, 0.96, 1.3] },
           );
-        }
-        if (tier === 3) {
+          turretParts.push(
+            { geometry: grab('weapon-cannon'), position: [0, 0, 0], scale: [1.42, 1.42, 1.42] },
+            { geometry: cyl, colorHex: PALETTE_HEX.gold, position: [0, 0.06, -0.02], scale: [0.34, 0.1, 0.34], forceWhiteUv: true },
+          );
+        } else if (tier === 2) {
+          turretAnchorY = 1.32;
           baseParts.push(
-            { geometry: box, colorHex: PALETTE_HEX.gold, position: [0, 0.66, 0], scale: [1.26, 0.12, 1.26] },
-            { geometry: box, colorHex: PALETTE_HEX.indigo, position: [-0.66, 0.45, -0.66], scale: [0.22, 0.7, 0.22] },
-            { geometry: box, colorHex: PALETTE_HEX.indigo, position: [0.66, 0.45, 0.66], scale: [0.22, 0.7, 0.22] },
+            { geometry: grab('tower-round-base'), position: [0, 0, 0], scale: [1.5, 1.05, 1.5] },
+            { geometry: grab('tower-round-bottom-c'), position: [0, 0.16, 0], scale: [1.44, 1.02, 1.44] },
+            { geometry: grab('tower-round-middle-c'), position: [0, 0.77, 0], scale: [1.36, 0.92, 1.36] },
           );
-        }
-        turretParts = [
-          { geometry: box, colorHex: PALETTE_HEX.dirt, position: [0, 0.14, 0], scale: [0.58, 0.28, 0.64] },
-          { geometry: cyl, colorHex: PALETTE_HEX.indigo, position: [0, 0.28, 0.28], rotation: [Math.PI / 2 - 0.15, 0, 0], scale: [0.22, 0.92, 0.22] },
-          { geometry: cyl, colorHex: PALETTE_HEX.stone, position: [0, 0.35, 0.66], rotation: [Math.PI / 2 - 0.15, 0, 0], scale: [0.26, 0.14, 0.26] },
-        ];
-        if (tier >= 2) {
           turretParts.push(
-            { geometry: cyl, colorHex: PALETTE_HEX.gold, position: [0, 0.32, 0.48], rotation: [Math.PI / 2 - 0.15, 0, 0], scale: [0.25, 0.12, 0.25] },
+            { geometry: grab('weapon-cannon'), position: [0, 0, 0], scale: [1.66, 1.66, 1.66] },
+            { geometry: cyl, colorHex: PALETTE_HEX.gold, position: [0, 0.07, -0.02], scale: [0.42, 0.13, 0.42], forceWhiteUv: true },
           );
-        }
-        if (tier === 3) {
+        } else {
+          turretAnchorY = 1.62;
+          baseParts.push(
+            {
+              geometry: grab('tower-square-bottom-a', [[[1, 1], [3, 3]]]),
+              position: [0, 0, 0],
+              scale: [1.58, 0.9, 1.58],
+            },
+            { geometry: grab('tower-round-bottom-c'), position: [0, 0.44, 0], scale: [1.44, 0.96, 1.44] },
+            { geometry: grab('tower-round-middle-b'), position: [0, 1.01, 0], scale: [1.38, 1.02, 1.38] },
+          );
+          const cannonGeo = grab('weapon-cannon');
           turretParts.push(
-            { geometry: cyl, colorHex: PALETTE_HEX.indigo, position: [-0.22, 0.28, 0.34], rotation: [Math.PI / 2 - 0.15, 0, 0], scale: [0.16, 0.95, 0.16] },
-            { geometry: cyl, colorHex: PALETTE_HEX.indigo, position: [0.22, 0.28, 0.34], rotation: [Math.PI / 2 - 0.15, 0, 0], scale: [0.16, 0.95, 0.16] },
-            { geometry: ico, colorHex: PALETTE_HEX.coral, position: [0, 0.42, -0.26], scale: [0.16, 0.16, 0.16] },
+            { geometry: cannonGeo, position: [-0.22, 0, 0.03], scale: [1.34, 1.38, 1.46] },
+            { geometry: cannonGeo, position: [0.22, 0, 0.03], scale: [1.34, 1.38, 1.46] },
+            { geometry: cyl, colorHex: PALETTE_HEX.gold, position: [0, 0.08, -0.05], scale: [0.46, 0.16, 0.46], forceWhiteUv: true },
           );
         }
         break;
       }
+
       case 'frost': {
-        turretAnchorY = tier === 1 ? 1.15 : tier === 2 ? 1.35 : 1.55;
         idleSpinTurret = true;
         bobTurret = true;
-        baseParts = [
-          { geometry: cyl, colorHex: PALETTE_HEX.stone, position: [0, 0.2, 0], scale: [0.74, 0.4, 0.74] },
-          { geometry: cyl, colorHex: PALETTE_HEX.cream, position: [0, 0.58, 0], scale: [0.46, 0.44, 0.46] },
-        ];
-        if (tier >= 2) {
+        const frostBase = (name: KenneyModelName) =>
+          grab(name, [
+            [[6, 2], [0, 1]],
+            [[1, 1], [7, 2]],
+            [[2, 1], [0, 3]],
+            [[3, 2], [0, 1]],
+          ]);
+        const frostShard = grab('detail-crystal-large', [
+          [[2, 1], [0, 3]],
+          [[3, 2], [0, 1]],
+        ]);
+        const frostMini = grab('detail-crystal', [
+          [[2, 1], [0, 3]],
+          [[3, 2], [0, 1]],
+        ]);
+
+        if (tier === 1) {
+          turretAnchorY = 1.32;
           baseParts.push(
-            { geometry: cone, colorHex: PALETTE_HEX.water, position: [-0.52, 0.56, 0], scale: [0.18, 0.56, 0.18] },
-            { geometry: cone, colorHex: PALETTE_HEX.water, position: [0.52, 0.56, 0], scale: [0.18, 0.56, 0.18] },
+            { geometry: frostBase('tower-round-base'), colorHex: 0xeaf8ff, position: [0, 0, 0], scale: [1.3, 1.0, 1.3] },
+            { geometry: frostBase('tower-round-bottom-a'), colorHex: 0xeaf8ff, position: [0, 0.16, 0], scale: [1.18, 0.96, 1.18] },
+            { geometry: frostBase('tower-round-crystals'), colorHex: 0xf4fcff, position: [0, 0.72, 0], scale: [1.16, 1.16, 1.16] },
           );
-        }
-        if (tier === 3) {
+          turretParts.push({
+            geometry: frostShard,
+            colorHex: 0xdff8ff,
+            position: [0, -0.26, 0],
+            scale: [1.08, 1.18, 1.08],
+          });
+        } else if (tier === 2) {
+          turretAnchorY = 1.66;
           baseParts.push(
-            { geometry: cone, colorHex: PALETTE_HEX.cream, position: [0, 0.62, -0.54], scale: [0.2, 0.68, 0.2] },
-            { geometry: cone, colorHex: PALETTE_HEX.cream, position: [0, 0.62, 0.54], scale: [0.2, 0.68, 0.2] },
-            { geometry: cyl, colorHex: PALETTE_HEX.water, position: [0, 0.88, 0], scale: [0.58, 0.1, 0.58] },
+            { geometry: frostBase('tower-square-bottom-b'), colorHex: 0xeaf8ff, position: [0, 0, 0], scale: [1.4, 1.08, 1.4] },
+            { geometry: frostBase('tower-square-middle-c'), colorHex: 0xeaf8ff, position: [0, 0.53, 0], scale: [1.3, 1.04, 1.3] },
+            { geometry: frostBase('tower-round-crystals'), colorHex: 0xf4fcff, position: [0, 1.03, 0], scale: [1.32, 1.32, 1.32] },
           );
-        }
-        turretParts = [
-          { geometry: oct, colorHex: PALETTE_HEX.water, position: [0, 0.25, 0], scale: [0.34, 0.55, 0.34] },
-          { geometry: oct, colorHex: PALETTE_HEX.cream, position: [0, 0.25, 0], rotation: [0, Math.PI / 4, 0], scale: [0.24, 0.62, 0.24] },
-        ];
-        if (tier >= 2) {
           turretParts.push(
-            { geometry: oct, colorHex: PALETTE_HEX.cream, position: [-0.46, 0.15, 0], scale: [0.14, 0.24, 0.14] },
-            { geometry: oct, colorHex: PALETTE_HEX.cream, position: [0.46, 0.15, 0], scale: [0.14, 0.24, 0.14] },
+            { geometry: frostShard, colorHex: 0xdff8ff, position: [0, -0.32, 0], scale: [1.26, 1.38, 1.26] },
+            { geometry: frostMini, colorHex: 0xccf4ff, position: [-0.36, -0.14, 0], rotation: [0, 0, 0.35], scale: [1.0, 1.05, 1.0] },
+            { geometry: frostMini, colorHex: 0xccf4ff, position: [0.36, -0.14, 0], rotation: [0, 0, -0.35], scale: [1.0, 1.05, 1.0] },
           );
-        }
-        if (tier === 3) {
-          turretParts.push(
-            { geometry: oct, colorHex: PALETTE_HEX.water, position: [0, 0.15, 0.48], scale: [0.15, 0.26, 0.15] },
-            { geometry: oct, colorHex: PALETTE_HEX.water, position: [0, 0.15, -0.48], scale: [0.15, 0.26, 0.15] },
+        } else {
+          turretAnchorY = 2.08;
+          baseParts.push(
+            { geometry: frostBase('tower-square-bottom-b'), colorHex: 0xeaf8ff, position: [0, 0, 0], scale: [1.58, 1.2, 1.58] },
+            { geometry: frostBase('tower-square-middle-a'), colorHex: 0xeaf8ff, position: [0, 0.59, 0], scale: [1.44, 1.1, 1.44] },
+            { geometry: frostBase('tower-square-top-b'), colorHex: 0xeaf8ff, position: [0, 1.14, 0], scale: [1.36, 0.92, 1.36] },
+            { geometry: frostBase('tower-round-crystals'), colorHex: 0xf4fcff, position: [0, 1.38, 0], scale: [1.34, 1.34, 1.34] },
           );
+          turretParts.push({
+            geometry: frostShard,
+            colorHex: 0xdff8ff,
+            position: [0, -0.36, 0],
+            scale: [1.45, 1.58, 1.45],
+          });
+          for (let i = 0; i < 4; i++) {
+            const a = (i / 4) * Math.PI * 2;
+            turretParts.push({
+              geometry: frostMini,
+              colorHex: 0xccf4ff,
+              position: [Math.cos(a) * 0.42, -0.1, Math.sin(a) * 0.42],
+              rotation: [Math.sin(a) * 0.32, a, -Math.cos(a) * 0.32],
+              scale: [1.08, 1.15, 1.08],
+            });
+          }
         }
         break;
       }
+
       case 'tesla': {
-        turretAnchorY = tier === 1 ? 1.2 : tier === 2 ? 1.48 : 1.72;
-        idleSpinTurret = true;
-        baseParts = [
-          { geometry: box, colorHex: PALETTE_HEX.indigo, position: [0, 0.2, 0], scale: [1.34, 0.4, 1.34] },
-          { geometry: cyl, colorHex: PALETTE_HEX.stone, position: [0, 0.62, 0], scale: [0.42, 0.48, 0.42] },
-          { geometry: cyl, colorHex: PALETTE_HEX.gold, position: [0, 0.96, 0], scale: [0.54, 0.14, 0.54] },
-        ];
-        if (tier >= 2) {
+        const teslaSquare = (name: KenneyModelName) =>
+          grab(name, [[[1, 1], [7, 2]]]);
+        const copperHex = 0xd98a3a;
+        const coilCyan = 0x8ef1ff;
+
+        if (tier === 1) {
+          turretAnchorY = 0.88;
           baseParts.push(
-            { geometry: cyl, colorHex: PALETTE_HEX.gold, position: [0, 1.2, 0], scale: [0.48, 0.12, 0.48] },
-            { geometry: cyl, colorHex: PALETTE_HEX.indigo, position: [-0.46, 0.8, 0], scale: [0.1, 0.85, 0.1] },
-            { geometry: cyl, colorHex: PALETTE_HEX.indigo, position: [0.46, 0.8, 0], scale: [0.1, 0.85, 0.1] },
+            { geometry: teslaSquare('tower-square-bottom-c'), position: [0, 0, 0], scale: [1.34, 1.1, 1.34] },
+            { geometry: teslaSquare('tower-square-top-c'), position: [0, 0.54, 0], scale: [1.24, 0.9, 1.24] },
+            { geometry: cyl, colorHex: PALETTE_HEX.indigo, position: [0, 0.78, 0], scale: [0.36, 0.16, 0.36], forceWhiteUv: true },
           );
-        }
-        if (tier === 3) {
+          turretParts.push(
+            { geometry: cyl, colorHex: PALETTE_HEX.indigo, position: [0, 0.08, 0], scale: [0.24, 0.16, 0.24], forceWhiteUv: true },
+            { geometry: cyl, colorHex: copperHex, position: [0, 0.36, 0], scale: [0.1, 0.52, 0.1], forceWhiteUv: true },
+            { geometry: torus, colorHex: PALETTE_HEX.gold, position: [0, 0.28, 0], rotation: [Math.PI / 2, 0, 0], scale: [0.24, 0.24, 0.24], forceWhiteUv: true },
+            { geometry: torus, colorHex: PALETTE_HEX.gold, position: [0, 0.48, 0], rotation: [Math.PI / 2, 0, 0], scale: [0.19, 0.19, 0.19], forceWhiteUv: true },
+            { geometry: oct, colorHex: coilCyan, position: [0, 0.68, 0], scale: [0.18, 0.2, 0.18], forceWhiteUv: true },
+          );
+        } else if (tier === 2) {
+          turretAnchorY = 1.4;
           baseParts.push(
-            { geometry: cyl, colorHex: PALETTE_HEX.gold, position: [0, 1.44, 0], scale: [0.42, 0.12, 0.42] },
-            { geometry: cyl, colorHex: PALETTE_HEX.indigo, position: [0, 0.95, 0.48], scale: [0.11, 1.1, 0.11] },
-            { geometry: cyl, colorHex: PALETTE_HEX.indigo, position: [0, 0.95, -0.48], scale: [0.11, 1.1, 0.11] },
+            { geometry: teslaSquare('tower-square-bottom-a'), position: [0, 0, 0], scale: [1.46, 1.15, 1.46] },
+            { geometry: teslaSquare('tower-square-middle-b'), position: [0, 0.56, 0], scale: [1.38, 1.08, 1.38] },
+            { geometry: teslaSquare('tower-square-top-c'), position: [0, 1.09, 0], scale: [1.28, 0.92, 1.28] },
+            { geometry: cyl, colorHex: PALETTE_HEX.indigo, position: [0, 1.3, 0], scale: [0.42, 0.18, 0.42], forceWhiteUv: true },
           );
-        }
-        turretParts = [
-          { geometry: ico, colorHex: PALETTE_HEX.water, position: [0, 0.28, 0], scale: [0.28, 0.28, 0.28] },
-          { geometry: cyl, colorHex: PALETTE_HEX.gold, position: [0, 0.04, 0], scale: [0.36, 0.08, 0.36] },
-        ];
-        if (tier >= 2) {
           turretParts.push(
-            { geometry: cone, colorHex: PALETTE_HEX.gold, position: [-0.3, 0.28, 0], rotation: [0, 0, 0.35], scale: [0.09, 0.34, 0.09] },
-            { geometry: cone, colorHex: PALETTE_HEX.gold, position: [0.3, 0.28, 0], rotation: [0, 0, -0.35], scale: [0.09, 0.34, 0.09] },
+            { geometry: cyl, colorHex: PALETTE_HEX.indigo, position: [0, 0.1, 0], scale: [0.28, 0.2, 0.28], forceWhiteUv: true },
+            { geometry: cyl, colorHex: copperHex, position: [0, 0.44, 0], scale: [0.12, 0.68, 0.12], forceWhiteUv: true },
+            { geometry: torus, colorHex: PALETTE_HEX.gold, position: [0, 0.3, 0], rotation: [Math.PI / 2, 0, 0], scale: [0.3, 0.3, 0.3], forceWhiteUv: true },
+            { geometry: torus, colorHex: PALETTE_HEX.gold, position: [0, 0.5, 0], rotation: [Math.PI / 2, 0, 0], scale: [0.25, 0.25, 0.25], forceWhiteUv: true },
+            { geometry: torus, colorHex: coilCyan, position: [0, 0.68, 0], rotation: [Math.PI / 2, 0, 0], scale: [0.19, 0.19, 0.19], forceWhiteUv: true },
+            { geometry: box, colorHex: PALETTE_HEX.gold, position: [-0.24, 0.62, 0], rotation: [0, 0, 0.45], scale: [0.06, 0.24, 0.06], forceWhiteUv: true },
+            { geometry: box, colorHex: PALETTE_HEX.gold, position: [0.24, 0.62, 0], rotation: [0, 0, -0.45], scale: [0.06, 0.24, 0.06], forceWhiteUv: true },
+            { geometry: oct, colorHex: 0xc2f6ff, position: [0, 0.88, 0], scale: [0.21, 0.24, 0.21], forceWhiteUv: true },
           );
-        }
-        if (tier === 3) {
+        } else {
+          turretAnchorY = 1.72;
+          const spireCollar = grab('tower-round-crystals', [
+            [[2, 1], [4, 2]],
+            [[3, 3], [7, 2]],
+          ]);
+          baseParts.push(
+            { geometry: teslaSquare('tower-square-bottom-c'), position: [0, 0, 0], scale: [1.62, 1.18, 1.62] },
+            { geometry: teslaSquare('tower-square-middle-a'), position: [0, 0.58, 0], scale: [1.5, 1.12, 1.5] },
+            { geometry: teslaSquare('tower-square-top-a'), position: [0, 1.13, 0], scale: [1.4, 0.98, 1.4] },
+            { geometry: spireCollar, position: [0, 1.42, 0], scale: [1.26, 1.26, 1.26] },
+          );
           turretParts.push(
-            { geometry: oct, colorHex: PALETTE_HEX.cream, position: [0, 0.62, 0], scale: [0.18, 0.24, 0.18] },
+            { geometry: cyl, colorHex: PALETTE_HEX.indigo, position: [0, 0.1, 0], scale: [0.32, 0.22, 0.32], forceWhiteUv: true },
+            { geometry: cyl, colorHex: copperHex, position: [0, 0.5, 0], scale: [0.14, 0.82, 0.14], forceWhiteUv: true },
+            { geometry: torus, colorHex: PALETTE_HEX.gold, position: [0, 0.3, 0], rotation: [Math.PI / 2, 0, 0], scale: [0.35, 0.35, 0.35], forceWhiteUv: true },
+            { geometry: torus, colorHex: PALETTE_HEX.gold, position: [0, 0.5, 0], rotation: [Math.PI / 2, 0, 0], scale: [0.29, 0.29, 0.29], forceWhiteUv: true },
+            { geometry: torus, colorHex: coilCyan, position: [0, 0.68, 0], rotation: [Math.PI / 2, 0, 0], scale: [0.24, 0.24, 0.24], forceWhiteUv: true },
+            { geometry: box, colorHex: PALETTE_HEX.gold, position: [-0.3, 0.72, 0], rotation: [0, 0, 0.42], scale: [0.07, 0.3, 0.07], forceWhiteUv: true },
+            { geometry: box, colorHex: PALETTE_HEX.gold, position: [0.3, 0.72, 0], rotation: [0, 0, -0.42], scale: [0.07, 0.3, 0.07], forceWhiteUv: true },
+            { geometry: box, colorHex: PALETTE_HEX.gold, position: [0, 0.72, -0.3], rotation: [-0.42, 0, 0], scale: [0.07, 0.3, 0.07], forceWhiteUv: true },
+            { geometry: box, colorHex: PALETTE_HEX.gold, position: [0, 0.72, 0.3], rotation: [0.42, 0, 0], scale: [0.07, 0.3, 0.07], forceWhiteUv: true },
+            { geometry: oct, colorHex: 0xdffaff, position: [0, 0.96, 0], scale: [0.25, 0.28, 0.25], forceWhiteUv: true },
           );
         }
         break;
       }
-      case 'mortar': {
-        turretAnchorY = tier === 1 ? 0.62 : tier === 2 ? 0.78 : 0.92;
-        baseParts = [
-          { geometry: box, colorHex: PALETTE_HEX.stone, position: [0, 0.28, 0], scale: [1.56, 0.56, 1.56] },
-          { geometry: box, colorHex: PALETTE_HEX.dirt, position: [-0.66, 0.38, -0.66], scale: [0.28, 0.68, 0.28] },
-          { geometry: box, colorHex: PALETTE_HEX.dirt, position: [0.66, 0.38, -0.66], scale: [0.28, 0.68, 0.28] },
-          { geometry: box, colorHex: PALETTE_HEX.dirt, position: [-0.66, 0.38, 0.66], scale: [0.28, 0.68, 0.28] },
-          { geometry: box, colorHex: PALETTE_HEX.dirt, position: [0.66, 0.38, 0.66], scale: [0.28, 0.68, 0.28] },
-        ];
-        if (tier >= 2) {
+
+      case 'mortar':
+      default: {
+        const mortarSquare = (name: KenneyModelName) =>
+          grab(name, [[[1, 1], [6, 2]]]);
+        const catapult = () => grab('weapon-catapult');
+
+        if (tier === 1) {
+          turretAnchorY = 0.47;
           baseParts.push(
-            { geometry: box, colorHex: PALETTE_HEX.indigo, position: [0, 0.56, 0], scale: [1.32, 0.24, 1.32] },
+            { geometry: mortarSquare('tower-square-bottom-a'), position: [0, 0, 0], scale: [1.48, 0.96, 1.48] },
           );
-        }
-        if (tier === 3) {
+          turretParts.push({
+            geometry: catapult(),
+            position: [0, 0, 0],
+            scale: [1.46, 1.46, 1.46],
+          });
+        } else if (tier === 2) {
+          turretAnchorY = 1.0;
           baseParts.push(
-            { geometry: box, colorHex: PALETTE_HEX.gold, position: [0, 0.72, 0], scale: [1.22, 0.12, 1.22] },
-            { geometry: box, colorHex: PALETTE_HEX.coral, position: [-0.68, 0.65, 0], scale: [0.16, 0.34, 0.8] },
-            { geometry: box, colorHex: PALETTE_HEX.coral, position: [0.68, 0.65, 0], scale: [0.16, 0.34, 0.8] },
+            { geometry: mortarSquare('tower-square-bottom-a'), position: [0, 0, 0], scale: [1.58, 1.04, 1.58] },
+            { geometry: mortarSquare('tower-square-middle-c'), position: [0, 0.51, 0], scale: [1.46, 1.0, 1.46] },
           );
-        }
-        turretParts = [
-          { geometry: box, colorHex: PALETTE_HEX.dirt, position: [0, 0.16, -0.05], scale: [0.68, 0.32, 0.72] },
-          { geometry: cyl, colorHex: PALETTE_HEX.indigo, position: [0, 0.44, 0.16], rotation: [0.58, 0, 0], scale: [0.34, 0.86, 0.34] },
-          { geometry: cyl, colorHex: PALETTE_HEX.coral, position: [0, 0.68, 0.34], rotation: [0.58, 0, 0], scale: [0.38, 0.14, 0.38] },
-        ];
-        if (tier >= 2) {
-          turretParts.push(
-            { geometry: cyl, colorHex: PALETTE_HEX.gold, position: [0, 0.48, 0.2], rotation: [0.58, 0, 0], scale: [0.37, 0.12, 0.37] },
+          turretParts.push({
+            geometry: catapult(),
+            colorHex: 0xfff0e0,
+            position: [0, 0, 0],
+            scale: [1.66, 1.66, 1.66],
+          });
+        } else {
+          turretAnchorY = 1.38;
+          baseParts.push(
+            { geometry: mortarSquare('tower-square-bottom-b'), position: [0, 0, 0], scale: [1.68, 1.1, 1.68] },
+            { geometry: mortarSquare('tower-square-middle-a'), position: [0, 0.54, 0], scale: [1.56, 1.04, 1.56] },
+            { geometry: mortarSquare('tower-square-top-a'), position: [0, 1.05, 0], scale: [1.48, 0.9, 1.48] },
+            { geometry: box, colorHex: PALETTE_HEX.stone, position: [0, 1.24, 0], scale: [0.9, 0.3, 0.9], forceWhiteUv: true },
           );
-        }
-        if (tier === 3) {
           turretParts.push(
-            { geometry: cyl, colorHex: PALETTE_HEX.stone, position: [0, 0.78, 0.42], rotation: [0.58, 0, 0], scale: [0.42, 0.16, 0.42] },
-            { geometry: ico, colorHex: PALETTE_HEX.gold, position: [0, 0.24, -0.44], scale: [0.22, 0.22, 0.22] },
+            { geometry: catapult(), position: [0, 0, 0], scale: [1.82, 1.82, 1.82] },
+            { geometry: grab('weapon-ammo-boulder'), colorHex: PALETTE_HEX.coral, position: [0, 0.42, -0.58], scale: [1.35, 1.35, 1.35] },
           );
         }
         break;
       }
     }
 
-    const base = mergeColoredParts(baseParts);
-    const turret = mergeColoredParts(turretParts);
+    const base = mergeTexturedParts(baseParts);
+    const turret = mergeTexturedParts(turretParts);
 
-    box.dispose();
-    cyl.dispose();
-    cone.dispose();
-    ico.dispose();
-    oct.dispose();
+    for (let i = 0; i < disposable.length; i++) {
+      disposable[i].dispose();
+    }
 
     return { base, turret, turretAnchorY, idleSpinTurret, bobTurret };
   }

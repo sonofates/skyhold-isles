@@ -9,6 +9,7 @@ import { CameraController } from './cameraController.ts';
 import { DecorBuilder } from './decorBuilder.ts';
 import { EffectsRenderer } from './effectsRenderer.ts';
 import { EnemyRenderer } from './enemyMeshes.ts';
+import type { KenneyAssetStore } from './kenneyAssets.ts';
 import { MapBuilder } from './mapBuilder.ts';
 import { MaterialLibrary } from './materials.ts';
 import { OverlayIndicators } from './overlayIndicators.ts';
@@ -34,21 +35,23 @@ export class RenderWorld {
   readonly projectileRenderer: ProjectileRenderer;
   readonly effectsRenderer: EffectsRenderer;
   readonly overlayIndicators: OverlayIndicators;
+  readonly assets: KenneyAssetStore;
 
   private eventUnsubs: Array<() => void> = [];
   private showAllRanges = false;
 
-  constructor(canvas: HTMLCanvasElement) {
+  constructor(canvas: HTMLCanvasElement, assets: KenneyAssetStore) {
+    this.assets = assets;
     const width = canvas.clientWidth || window.innerWidth;
     const height = canvas.clientHeight || window.innerHeight;
     this.sceneManager = new SceneManager(canvas);
     this.cameraController = new CameraController(width, height);
-    this.materials = new MaterialLibrary();
+    this.materials = new MaterialLibrary(assets.colormapTexture);
     this.mapBuilder = new MapBuilder();
     this.decorBuilder = new DecorBuilder();
-    this.towerRenderer = new TowerRenderer();
+    this.towerRenderer = new TowerRenderer(assets);
     this.enemyRenderer = new EnemyRenderer(this.materials);
-    this.projectileRenderer = new ProjectileRenderer(this.materials);
+    this.projectileRenderer = new ProjectileRenderer(this.materials, assets);
     this.effectsRenderer = new EffectsRenderer();
     this.overlayIndicators = new OverlayIndicators(this.materials);
 
@@ -70,8 +73,8 @@ export class RenderWorld {
     this.effectsRenderer.clearEffects();
     this.overlayIndicators.clear();
 
-    this.mapBuilder.build(level, this.materials);
-    this.decorBuilder.build(level, this.materials);
+    this.mapBuilder.build(level, this.materials, this.assets);
+    this.decorBuilder.build(level, this.materials, this.assets);
     this.overlayIndicators.setFlightPath(level);
     this.sceneManager.fitShadowToMap(level.cols, level.rows);
     this.cameraController.configureForMap(level.cols, level.rows);
@@ -182,6 +185,7 @@ export class RenderWorld {
 
   setQuality(quality: QualityLevel): void {
     this.sceneManager.setQuality(quality);
+    this.materials.setOutlineAlphaEnabled(quality !== 'low');
     this.decorBuilder.setQuality(quality);
     this.enemyRenderer.setQuality(quality);
   }
@@ -240,7 +244,7 @@ export class RenderWorld {
       this.overlayIndicators.syncDebugAllRanges(this.showAllRanges, simWorld.towers);
     }
 
-    this.sceneManager.renderer.render(this.sceneManager.scene, this.cameraController.camera);
+    this.sceneManager.render(this.cameraController.camera);
   }
 
   getRenderMetrics(): RenderMetrics {
@@ -290,6 +294,7 @@ export class RenderWorld {
     this.effectsRenderer.dispose();
     this.overlayIndicators.dispose();
     this.materials.dispose();
+    this.assets.dispose();
     this.sceneManager.dispose();
   }
 }

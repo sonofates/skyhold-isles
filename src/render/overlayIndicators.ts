@@ -6,7 +6,7 @@ import { PALETTE_HEX } from '../data/palette.ts';
 import { getTowerTierStats } from '../data/towers.ts';
 import type { TowerEntity } from '../sim/entities.ts';
 import { gridToWorldX, gridToWorldZ } from '../sim/grid.ts';
-import type { MaterialLibrary } from './materials.ts';
+import { applyAlphaPreserveBlend, type MaterialLibrary } from './materials.ts';
 import type { TowerGeometryCache } from './towerGeometries.ts';
 
 const _ringDummy = new THREE.Object3D();
@@ -89,6 +89,7 @@ export class OverlayIndicators {
       opacity: 0.38,
       depthWrite: false,
     });
+    applyAlphaPreserveBlend(tileMat);
     this.ownMaterials.push(tileMat);
 
     this.tileHighlightMesh = new THREE.Mesh(tileGeo, tileMat);
@@ -122,6 +123,8 @@ export class OverlayIndicators {
       depthWrite: false,
       side: THREE.DoubleSide,
     });
+    applyAlphaPreserveBlend(this.rangeMat);
+    applyAlphaPreserveBlend(deadzoneMat);
     this.ownMaterials.push(this.rangeMat, deadzoneMat);
 
     this.placementOuterRing = new THREE.Mesh(this.ringGeo, this.rangeMat);
@@ -193,6 +196,9 @@ export class OverlayIndicators {
       opacity: 0.52,
       depthWrite: false,
     });
+    applyAlphaPreserveBlend(groundMat);
+    applyAlphaPreserveBlend(skyMat);
+    applyAlphaPreserveBlend(arrowMat);
     this.flightPathMaterials.push(groundMat, skyMat, arrowMat);
     this.flightPathGroundMat = groundMat;
     this.flightPathSkyMat = skyMat;

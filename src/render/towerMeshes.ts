@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import type { TowerType } from '../core/types.ts';
 import type { TowerEntity } from '../sim/entities.ts';
+import type { KenneyAssetStore } from './kenneyAssets.ts';
 import type { MaterialLibrary } from './materials.ts';
 import { TowerGeometryCache } from './towerGeometries.ts';
 
@@ -21,9 +22,13 @@ const _turretWorldMat = new THREE.Matrix4();
 
 export class TowerRenderer {
   readonly group = new THREE.Group();
-  readonly geometryCache = new TowerGeometryCache();
+  readonly geometryCache: TowerGeometryCache;
   private readonly buckets = new Map<string, TowerInstancedBucket>();
   private readonly keyCounts = new Map<string, number>();
+
+  constructor(assets: KenneyAssetStore) {
+    this.geometryCache = new TowerGeometryCache(assets);
+  }
 
   syncTowers(
     towers: readonly TowerEntity[],
@@ -119,14 +124,14 @@ export class TowerRenderer {
     const capacity = Math.max(64, neededCapacity + 16);
     const pair = this.geometryCache.get(type, tier);
 
-    const newBase = new THREE.InstancedMesh(pair.base, materials.vertexColored, capacity);
+    const newBase = new THREE.InstancedMesh(pair.base, materials.kenneyTower, capacity);
     newBase.count = prevCount;
     newBase.visible = prevCount > 0;
     newBase.castShadow = true;
     newBase.receiveShadow = true;
     newBase.frustumCulled = false;
 
-    const newTurret = new THREE.InstancedMesh(pair.turret, materials.vertexColored, capacity);
+    const newTurret = new THREE.InstancedMesh(pair.turret, materials.kenneyTower, capacity);
     newTurret.count = prevCount;
     newTurret.visible = prevCount > 0;
     newTurret.castShadow = false;

@@ -3,6 +3,7 @@ import type { EnemyType, Vec3 } from '../core/types.ts';
 import { BALANCE } from '../data/balance.ts';
 import { PALETTE_HEX } from '../data/palette.ts';
 import { LightningArcPool } from './lightningPool.ts';
+import { applyAlphaPreserveBlend } from './materials.ts';
 
 interface Shard {
   active: boolean;
@@ -111,7 +112,7 @@ export class EffectsRenderer {
 
     const partGeo = new THREE.IcosahedronGeometry(0.14, 0);
     this.geometries.push(partGeo);
-    const partMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+    const partMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(1.22, 1.22, 1.22) });
     this.ownMaterials.push(partMat);
     this.particleMesh = new THREE.InstancedMesh(partGeo, partMat, BALANCE.pools.maxParticles);
     this.particleMesh.count = 0;
@@ -140,12 +141,13 @@ export class EffectsRenderer {
     pulseGeo.rotateX(-Math.PI / 2);
     this.geometries.push(pulseGeo);
     const pulseMat = new THREE.MeshBasicMaterial({
-      color: 0xffffff,
+      color: new THREE.Color(1.28, 1.38, 1.5),
       transparent: true,
       opacity: 0.65,
       depthWrite: false,
       side: THREE.DoubleSide,
     });
+    applyAlphaPreserveBlend(pulseMat);
     this.ownMaterials.push(pulseMat);
     this.pulseRingMesh = new THREE.InstancedMesh(pulseGeo, pulseMat, BALANCE.pools.maxPulseRings);
     this.pulseRingMesh.count = 0;

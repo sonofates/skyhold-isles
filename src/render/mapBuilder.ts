@@ -5,9 +5,62 @@ import { SeededRng } from '../core/rng.ts';
 import { gridToWorldX, gridToWorldZ } from '../sim/grid.ts';
 import type { LevelDef } from '../data/levels/index.ts';
 import { parseLevelGrid } from '../data/levels/index.ts';
-import { mergeColoredParts, type ColoredPart } from './geometryHelpers.ts';
+import { mergeTexturedParts, type TexturedPart } from './geometryHelpers.ts';
+import type { KenneyAssetStore } from './kenneyAssets.ts';
+import { remapUvCell } from './kenneyPalette.ts';
 import type { MaterialLibrary } from './materials.ts';
 import { AmbientDiorama } from './ambientDiorama.ts';
+
+// Cardinal neighbor bitmask for auto-tiling path geometry
+const DIR_N = 1; // row - 1 (-Z)
+const DIR_E = 2; // col + 1 (+X)
+const DIR_S = 4; // row + 1 (+Z)
+const DIR_W = 8; // col - 1 (-X)
+
+const GRASS_TINTS = [0xffffff, 0xf4faee, 0xeaf6df, 0xfaf6ea, 0xe4f1d6] as const;
+const PATH_TINTS = [0xffffff, 0xfcf6eb, 0xf6eedf] as const;
+
+function dirToMask(dc: number, dr: number): number {
+  if (dr < 0) return DIR_N;
+  if (dc > 0) return DIR_E;
+  if (dr > 0) return DIR_S;
+  if (dc < 0) return DIR_W;
+  return 0;
+}
+
+function maskToSingleRotY(mask: number): number {
+  // Kenney end/spawn tiles open toward +Z (South) at rotY = 0
+  if (mask === DIR_S) return 0;
+  if (mask === DIR_E) return Math.PI / 2;
+  if (mask === DIR_N) return Math.PI;
+  if (mask === DIR_W) return -Math.PI / 2;
+  return 0;
+}
+
+function resolvePathPiece(mask: number): {
+  model: 'tile-straight' | 'tile-corner-round' | 'tile-split' | 'tile-crossing';
+  rotY: number;
+} {
+  // Straight: tile-straight connects N (-Z) and S (+Z) at rotY = 0
+  if (mask === (DIR_N | DIR_S)) return { model: 'tile-straight', rotY: 0 };
+  if (mask === (DIR_E | DIR_W)) return { model: 'tile-straight', rotY: Math.PI / 2 };
+
+  // Corners: tile-corner-round connects E (+X) and S (+Z) at rotY = 0
+  if (mask === (DIR_E | DIR_S)) return { model: 'tile-corner-round', rotY: 0 };
+  if (mask === (DIR_N | DIR_E)) return { model: 'tile-corner-round', rotY: Math.PI / 2 };
+  if (mask === (DIR_W | DIR_N)) return { model: 'tile-corner-round', rotY: Math.PI };
+  if (mask === (DIR_S | DIR_W)) return { model: 'tile-corner-round', rotY: -Math.PI / 2 };
+
+  // Single-ended / fallback straights
+  if (mask === DIR_N || mask === DIR_S) return { model: 'tile-straight', rotY: 0 };
+  if (mask === DIR_E || mask === DIR_W) return { model: 'tile-straight', rotY: Math.PI / 2 };
+
+  // 3-way T-junctions (tile-split open sides at rotY=0 are E/S/W? Fall back cleanly)
+  if ((mask & (DIR_N | DIR_E | DIR_S | DIR_W)) === (DIR_N | DIR_E | DIR_S | DIR_W)) {
+    return { model: 'tile-crossing', rotY: 0 };
+  }
+  return { model: 'tile-split', rotY: 0 };
+}
 
 export class MapBuilder {
   readonly group = new THREE.Group();
@@ -17,7 +70,7 @@ export class MapBuilder {
   private goalPos: THREE.Vector3 | null = null;
   private goalCrystalMesh: THREE.Mesh | null = null;
 
-  build(level: LevelDef, materials: MaterialLibrary): void {
+  build(level: LevelDef, materials: MaterialLibrary, assets: KenneyAssetStore): void {
     this.dispose();
     this.materialsRef = materials;
     this.group.add(this.ambient.group);
@@ -25,16 +78,54 @@ export class MapBuilder {
     const grid = parseLevelGrid(level);
     const rng = new SeededRng(level.decorationSeed + 7919);
     const ts = BALANCE.tileSize;
-    const parts: ColoredPart[] = [];
+    const parts: TexturedPart[] = [];
 
     const unitBox = new THREE.BoxGeometry(1, 1, 1);
     const unitCone = new THREE.ConeGeometry(1, 1, 5);
     const unitIco = new THREE.IcosahedronGeometry(1, 0);
 
+    // Clone reusable base Kenney geometries once per map build
+    const geoGrassTile = assets.cloneGeometry('tile');
+    const geoStraight = assets.cloneGeometry('tile-straight');
+    const geoCorner = assets.cloneGeometry('tile-corner-round');
+    const geoEnd = assets.cloneGeometry('tile-end-round');
+    const geoSpawnEnd = assets.cloneGeometry('tile-spawn-end-round');
+    const geoSplit = assets.cloneGeometry('tile-split');
+    const geoCrossing = assets.cloneGeometry('tile-crossing');
+    const geoBridgePier = assets.cloneGeometry('wood-structure-high');
+    const geoTowerBase = assets.cloneGeometry('tower-round-base');
+    const geoRocks = assets.cloneGeometry('detail-rocks');
+    const geoShrub = assets.cloneGeometry('detail-rocks-large');
+    const geoDirt = assets.cloneGeometry('detail-dirt');
+    const geoCrystalSmall = remapUvCell(assets.cloneGeometry('detail-crystal'), [2, 1], [0, 3]);
+
     const isLand = (c: number, r: number): boolean => {
       if (c < 0 || c >= level.cols || r < 0 || r >= level.rows) return false;
       return grid[r][c] !== 'empty';
     };
+
+    // Derive exact waypoint-order path connectivity per tile (immune to parallel road proximity)
+    const pathMask = Array.from({ length: level.rows }, () => new Uint8Array(level.cols));
+    for (let i = 0; i < level.pathWaypoints.length - 1; i++) {
+      const a = level.pathWaypoints[i];
+      const b = level.pathWaypoints[i + 1];
+      const stepC = Math.sign(b.col - a.col);
+      const stepR = Math.sign(b.row - a.row);
+      let c = a.col;
+      let r = a.row;
+      while (c !== b.col || r !== b.row) {
+        const nc = c + stepC;
+        const nr = r + stepR;
+        if (r >= 0 && r < level.rows && c >= 0 && c < level.cols) {
+          pathMask[r][c] |= dirToMask(stepC, stepR);
+        }
+        if (nr >= 0 && nr < level.rows && nc >= 0 && nc < level.cols) {
+          pathMask[nr][nc] |= dirToMask(-stepC, -stepR);
+        }
+        c = nc;
+        r = nr;
+      }
+    }
 
     for (let r = 0; r < level.rows; r++) {
       for (let c = 0; c < level.cols; c++) {
@@ -44,107 +135,185 @@ export class MapBuilder {
         const wx = gridToWorldX(c, level.cols);
         const wz = gridToWorldZ(r, level.rows);
 
+        const mask = pathMask[r][c];
+        const isPathLike = tile === 'path' || tile === 'spawn' || tile === 'goal';
+        // Detect open-water bridges (e.g. Level 2 twin timber/stone bridges over water)
+        const isBridge =
+          tile === 'path' &&
+          ((!isLand(c, r - 1) && !isLand(c, r + 1)) || (!isLand(c - 1, r) && !isLand(c + 1, r)));
+
         const edgeCount =
           (isLand(c - 1, r) ? 0 : 1) +
           (isLand(c + 1, r) ? 0 : 1) +
           (isLand(c, r - 1) ? 0 : 1) +
           (isLand(c, r + 1) ? 0 : 1);
 
-        // 1. Tile top cap
-        if (tile === 'path') {
-          // Seamless sandy path slab (exact ts touch avoids both gaps and overlap z-fighting)
+        // 1. Tile top cap using Kenney modular terrain tiles (top Y = 0.00 grass, -0.10 road)
+        if (tile === 'spawn') {
+          const rotY = maskToSingleRotY(mask);
           parts.push({
-            geometry: unitBox,
-            colorHex: PALETTE_HEX.sand,
-            position: [wx, -0.26, wz],
-            scale: [ts, 0.32, ts],
+            geometry: geoSpawnEnd,
+            colorHex: 0xf7f5ef,
+            position: [wx, -0.2, wz],
+            rotation: [0, rotY, 0],
+            scale: [ts, 1, ts],
           });
-          if (rng.chance(0.5)) {
-            const sx = wx + rng.range(-0.42, 0.42);
-            const sz = wz + rng.range(-0.42, 0.42);
-            parts.push({
+
+          // Flanking stone gateway pillars perpendicular to road exit
+          const dirX = mask === DIR_E ? 1 : mask === DIR_W ? -1 : 0;
+          const alongX = Math.abs(dirX) > 0;
+          parts.push(
+            {
+              geometry: unitBox,
+              colorHex: PALETTE_HEX.indigo,
+              position: [wx + (alongX ? 0 : -0.76), 0.36, wz + (alongX ? -0.76 : 0)],
+              scale: [0.3, 0.92, 0.3],
+              forceWhiteUv: true,
+            },
+            {
+              geometry: unitBox,
+              colorHex: PALETTE_HEX.indigo,
+              position: [wx + (alongX ? 0 : 0.76), 0.36, wz + (alongX ? 0.76 : 0)],
+              scale: [0.3, 0.92, 0.3],
+              forceWhiteUv: true,
+            },
+            {
               geometry: unitBox,
               colorHex: PALETTE_HEX.stone,
-              position: [sx, -0.09, sz],
-              rotation: [0, rng.range(0, Math.PI), 0],
-              scale: [rng.range(0.28, 0.44), 0.04, rng.range(0.22, 0.36)],
-            });
-          }
-        } else if (tile === 'spawn' || tile === 'goal') {
+              position: [wx, 0.88, wz],
+              scale: [alongX ? 0.34 : 1.82, 0.2, alongX ? 1.82 : 0.34],
+              forceWhiteUv: true,
+            },
+            {
+              geometry: unitBox,
+              colorHex: PALETTE_HEX.coral,
+              position: [wx, 1.04, wz],
+              scale: [alongX ? 0.2 : 0.44, 0.14, alongX ? 0.44 : 0.2],
+              forceWhiteUv: true,
+            },
+          );
+        } else if (tile === 'goal') {
+          const rotY = maskToSingleRotY(mask);
           parts.push({
-            geometry: unitBox,
-            colorHex: PALETTE_HEX.stone,
-            position: [wx, -0.22, wz],
-            scale: [ts * 0.99, 0.38, ts * 0.99],
+            geometry: geoEnd,
+            colorHex: 0xf8f6f0,
+            position: [wx, -0.2, wz],
+            rotation: [0, rotY, 0],
+            scale: [ts, 1, ts],
+          });
+          // Shrine pedestal base
+          parts.push({
+            geometry: geoTowerBase,
+            colorHex: 0xf0f4ff,
+            position: [wx, -0.1, wz],
+            scale: [1.35, 1.15, 1.35],
           });
           parts.push({
             geometry: unitBox,
-            colorHex: tile === 'goal' ? PALETTE_HEX.cream : PALETTE_HEX.sand,
-            position: [wx, -0.015, wz],
-            scale: [ts * 0.72, 0.05, ts * 0.72],
+            colorHex: PALETTE_HEX.gold,
+            position: [wx, 0.16, wz],
+            scale: [0.84, 0.1, 0.84],
+            forceWhiteUv: true,
+          });
+          this.goalPos = new THREE.Vector3(wx, 0.82, wz);
+        } else if (tile === 'path') {
+          const { model, rotY } = resolvePathPiece(mask);
+          const geoMap = {
+            'tile-straight': geoStraight,
+            'tile-corner-round': geoCorner,
+            'tile-split': geoSplit,
+            'tile-crossing': geoCrossing,
+          } as const;
+          const tint = PATH_TINTS[(r * 3 + c) % PATH_TINTS.length];
+          parts.push({
+            geometry: geoMap[model],
+            colorHex: tint,
+            position: [wx, -0.2, wz],
+            rotation: [0, rotY, 0],
+            scale: [ts, 1, ts],
+          });
+        } else {
+          // Grass / decor tile: subtle deterministic elevation & shade variation breaks chessboard look
+          const jitterY = tile === 'decor' ? rng.range(-0.02, 0.025) : rng.range(-0.022, 0.015);
+          const tint =
+            tile === 'decor' && rng.chance(0.42)
+              ? 0xe0efd0
+              : GRASS_TINTS[(c * 7 + r * 13 + (rng.chance(0.5) ? 1 : 0)) % GRASS_TINTS.length];
+          parts.push({
+            geometry: geoGrassTile,
+            colorHex: tint,
+            position: [wx, -0.2 + jitterY, wz],
+            scale: [ts, 1, ts],
           });
 
-          if (tile === 'spawn') {
-            // Orient archway perpendicular to path exit direction
-            const p0 = level.pathWaypoints[0];
-            const p1 = level.pathWaypoints[1];
-            const dirX = p1 ? p1.col - p0.col : 1;
-            const dirZ = p1 ? p1.row - p0.row : 0;
-            const alongX = Math.abs(dirX) >= Math.abs(dirZ);
-            if (alongX) {
-              parts.push(
-                { geometry: unitBox, colorHex: PALETTE_HEX.indigo, position: [wx, 0.48, wz - 0.62], scale: [0.36, 0.92, 0.28] },
-                { geometry: unitBox, colorHex: PALETTE_HEX.indigo, position: [wx, 0.48, wz + 0.62], scale: [0.36, 0.92, 0.28] },
-                { geometry: unitBox, colorHex: PALETTE_HEX.stone, position: [wx, 1.0, wz], scale: [0.42, 0.24, 1.56] },
-                { geometry: unitBox, colorHex: PALETTE_HEX.coral, position: [wx, 1.18, wz], scale: [0.24, 0.16, 0.42] },
-              );
-            } else {
-              parts.push(
-                { geometry: unitBox, colorHex: PALETTE_HEX.indigo, position: [wx - 0.62, 0.48, wz], scale: [0.28, 0.92, 0.36] },
-                { geometry: unitBox, colorHex: PALETTE_HEX.indigo, position: [wx + 0.62, 0.48, wz], scale: [0.28, 0.92, 0.36] },
-                { geometry: unitBox, colorHex: PALETTE_HEX.stone, position: [wx, 1.0, wz], scale: [1.56, 0.24, 0.42] },
-                { geometry: unitBox, colorHex: PALETTE_HEX.coral, position: [wx, 1.18, wz], scale: [0.42, 0.16, 0.24] },
-              );
+          // Bake static rocks/shrubs/crystals directly into terrain mesh to keep draw calls minimal
+          if (tile === 'decor') {
+            if (rng.chance(0.28)) {
+              parts.push({
+                geometry: geoRocks,
+                position: [wx + rng.range(-0.42, 0.42), jitterY - 0.02, wz + rng.range(-0.42, 0.42)],
+                rotation: [0, rng.range(0, Math.PI * 2), 0],
+                scale: [1.65, 1.65, 1.65],
+              });
             }
-          } else {
-            // Sanctuary skyhold shrine pedestal + gold trim
-            parts.push(
-              { geometry: unitBox, colorHex: PALETTE_HEX.stone, position: [wx, 0.2, wz], scale: [1.1, 0.36, 1.1] },
-              { geometry: unitBox, colorHex: PALETTE_HEX.gold, position: [wx, 0.42, wz], scale: [0.76, 0.12, 0.76] },
-              { geometry: unitBox, colorHex: PALETTE_HEX.indigo, position: [wx - 0.52, 0.42, wz - 0.52], scale: [0.2, 0.8, 0.2] },
-              { geometry: unitBox, colorHex: PALETTE_HEX.indigo, position: [wx + 0.52, 0.42, wz - 0.52], scale: [0.2, 0.8, 0.2] },
-              { geometry: unitBox, colorHex: PALETTE_HEX.indigo, position: [wx - 0.52, 0.42, wz + 0.52], scale: [0.2, 0.8, 0.2] },
-              { geometry: unitBox, colorHex: PALETTE_HEX.indigo, position: [wx + 0.52, 0.42, wz + 0.52], scale: [0.2, 0.8, 0.2] },
-            );
-            this.goalPos = new THREE.Vector3(wx, 1.15, wz);
+            if (rng.chance(0.32)) {
+              const sScale = rng.range(1.35, 1.8);
+              parts.push({
+                geometry: geoShrub,
+                colorHex: rng.chance(0.5) ? 0xf2faea : 0xe4f1d8,
+                position: [wx + rng.range(-0.38, 0.38), jitterY - 0.01, wz + rng.range(-0.38, 0.38)],
+                rotation: [0, rng.range(0, Math.PI * 2), 0],
+                scale: [sScale, sScale, sScale],
+              });
+            }
+            if (rng.chance(0.14)) {
+              parts.push({
+                geometry: geoCrystalSmall,
+                position: [wx + rng.range(-0.4, 0.4), jitterY, wz + rng.range(-0.4, 0.4)],
+                rotation: [0, rng.range(0, Math.PI * 2), 0],
+                scale: [1.35, 1.35, 1.35],
+              });
+            }
           }
-        } else {
-          // Grass or decor meadow cap with crisp tactile tile bevel
-          const capColor =
-            tile === 'decor' && rng.chance(0.35) ? PALETTE_HEX.foliageDark : PALETTE_HEX.grass;
-          parts.push({
-            geometry: unitBox,
-            colorHex: capColor,
-            position: [wx, -0.18, wz],
-            scale: [ts * 0.982, 0.36, ts * 0.982],
-          });
         }
 
-        // 2. Upper dirt terrace rim beneath all tiles
+        // 2. Sub-surface cliffs & bridge piers
+        if (isBridge) {
+          // Slender bridge deck + Kenney timber trestle piers reaching into lagoon water
+          const alongX = !isLand(c, r - 1) && !isLand(c, r + 1);
+          parts.push({
+            geometry: unitBox,
+            colorHex: PALETTE_HEX.dirt,
+            position: [wx, -0.26, wz],
+            scale: [ts, 0.14, ts],
+            forceWhiteUv: true,
+          });
+          parts.push({
+            geometry: geoBridgePier,
+            colorHex: 0xd8c3aa,
+            position: [wx, -1.04, wz],
+            rotation: [0, alongX ? 0 : Math.PI / 2, 0],
+            scale: [1.55, 0.8, 1.55],
+          });
+          continue;
+        }
+
+        // Solid island earth skirt + cliff strata (zero seam below tile y = -0.20)
         parts.push({
           geometry: unitBox,
           colorHex: PALETTE_HEX.dirt,
-          position: [wx, -0.58, wz],
+          position: [wx, -0.51, wz],
           scale: [ts * 1.002, 0.62, ts * 1.002],
+          forceWhiteUv: true,
         });
 
-        // 3. Lower stone cliff strata & hanging inverted rocky spires
         const cliffDepth = edgeCount > 0 ? rng.range(1.1, 1.85) : rng.range(2.0, 3.4);
         parts.push({
           geometry: unitBox,
           colorHex: PALETTE_HEX.stone,
-          position: [wx, -0.89 - cliffDepth * 0.5, wz],
+          position: [wx, -0.82 - cliffDepth * 0.5, wz],
           scale: [ts * (edgeCount > 0 ? 0.92 : 1.0), cliffDepth, ts * (edgeCount > 0 ? 0.92 : 1.0)],
+          forceWhiteUv: true,
         });
 
         if (edgeCount <= 2 && rng.chance(edgeCount === 0 ? 0.78 : 0.45)) {
@@ -155,15 +324,16 @@ export class MapBuilder {
             colorHex: rng.chance(0.68) ? PALETTE_HEX.stone : PALETTE_HEX.dirt,
             position: [
               wx + rng.range(-0.18, 0.18),
-              -0.89 - cliffDepth - spireH * 0.45,
+              -0.82 - cliffDepth - spireH * 0.45,
               wz + rng.range(-0.18, 0.18),
             ],
             rotation: [Math.PI, rng.range(0, Math.PI * 2), 0],
             scale: [spireR, spireH, spireR],
+            forceWhiteUv: true,
           });
         }
 
-        // Shoreline foam strips around coastal edge tiles
+        // Shoreline foam strips around exposed coastal tiles
         if (edgeCount > 0) {
           const foamOffsets: Array<[number, number, boolean]> = [
             [-1, 0, !isLand(c - 1, r)],
@@ -188,20 +358,35 @@ export class MapBuilder {
                 0.06,
                 oz !== 0 ? rng.range(0.22, 0.36) : ts * rng.range(0.68, 0.92),
               ],
+              forceWhiteUv: true,
             });
+
+            // Occasional coastal rock ledge right at water edge
+            if (!isPathLike && rng.chance(0.18)) {
+              parts.push({
+                geometry: geoDirt,
+                position: [
+                  wx + ox * (ts * 0.46),
+                  BALANCE.waterPlaneY + 0.1,
+                  wz + oz * (ts * 0.46),
+                ],
+                rotation: [0, rng.range(0, Math.PI * 2), 0],
+                scale: [1.1, 1.1, 1.1],
+              });
+            }
           }
         }
       }
     }
 
-    const islandGeo = mergeColoredParts(parts);
+    const islandGeo = mergeTexturedParts(parts);
     this.disposableGeometries.push(islandGeo);
-    const islandMesh = new THREE.Mesh(islandGeo, materials.vertexColored);
+    const islandMesh = new THREE.Mesh(islandGeo, materials.kenneyTerrain);
     islandMesh.castShadow = true;
     islandMesh.receiveShadow = true;
     this.group.add(islandMesh);
 
-    // Bounded low-poly lagoon disc + outer lip skirt around the floating island (1 draw call, vertex waves on GPU)
+    // Bounded low-poly lagoon disc (1 draw call, GPU waves)
     const lagoonRadius = Math.hypot(level.cols * ts * 0.5, level.rows * ts * 0.5) + 4.4;
     materials.waterUniforms.uLagoonRadius.value = lagoonRadius;
     const waterGeo = this.createWaterDiscGeometry(lagoonRadius, 14, 42);
@@ -216,16 +401,45 @@ export class MapBuilder {
     this.ambient.build(lagoonRadius, rng, materials, unitBox, unitCone, unitIco);
 
     if (this.goalPos) {
-      const crystalOct = new THREE.OctahedronGeometry(0.36, 0);
-      const crystalRing = new THREE.CylinderGeometry(0.45, 0.45, 0.06, 6);
-      const crystalGeo = mergeColoredParts([
-        { geometry: crystalOct, colorHex: PALETTE_HEX.water, position: [0, 0, 0], scale: [0.85, 1.3, 0.85] },
-        { geometry: crystalRing, colorHex: PALETTE_HEX.gold, position: [0, -0.45, 0] },
+      // Crisp faceted cyan sanctuary crystal spire flanked by Kenney crystal shards & gold halo ring
+      const spireGeo = new THREE.OctahedronGeometry(0.42, 0);
+      const miniShard = remapUvCell(assets.cloneGeometry('detail-crystal'), [2, 1], [0, 3]);
+      const crystalRing = new THREE.CylinderGeometry(0.5, 0.5, 0.06, 8);
+      const crystalGeo = mergeTexturedParts([
+        {
+          geometry: spireGeo,
+          colorHex: 0x5be3ff,
+          position: [0, 0.12, 0],
+          scale: [0.88, 1.55, 0.88],
+          forceWhiteUv: true,
+        },
+        {
+          geometry: miniShard,
+          colorHex: 0xccf7ff,
+          position: [-0.26, -0.32, 0.14],
+          rotation: [0.18, 0.4, 0.28],
+          scale: [0.95, 1.15, 0.95],
+        },
+        {
+          geometry: miniShard,
+          colorHex: 0xccf7ff,
+          position: [0.25, -0.32, -0.14],
+          rotation: [-0.15, 2.1, -0.26],
+          scale: [0.85, 1.05, 0.85],
+        },
+        {
+          geometry: crystalRing,
+          colorHex: PALETTE_HEX.gold,
+          position: [0, -0.4, 0],
+          forceWhiteUv: true,
+        },
       ]);
-      crystalOct.dispose();
+      spireGeo.dispose();
+      miniShard.dispose();
       crystalRing.dispose();
       this.disposableGeometries.push(crystalGeo);
-      const crystalMesh = new THREE.Mesh(crystalGeo, materials.vertexColored);
+
+      const crystalMesh = new THREE.Mesh(crystalGeo, materials.goalCrystal);
       crystalMesh.position.copy(this.goalPos);
       crystalMesh.castShadow = false;
       this.group.add(crystalMesh);
@@ -235,6 +449,19 @@ export class MapBuilder {
     unitBox.dispose();
     unitCone.dispose();
     unitIco.dispose();
+    geoGrassTile.dispose();
+    geoStraight.dispose();
+    geoCorner.dispose();
+    geoEnd.dispose();
+    geoSpawnEnd.dispose();
+    geoSplit.dispose();
+    geoCrossing.dispose();
+    geoBridgePier.dispose();
+    geoTowerBase.dispose();
+    geoRocks.dispose();
+    geoShrub.dispose();
+    geoDirt.dispose();
+    geoCrystalSmall.dispose();
   }
 
   private createWaterDiscGeometry(
@@ -244,6 +471,7 @@ export class MapBuilder {
   ): THREE.BufferGeometry {
     const positions: number[] = [];
     const indices: number[] = [];
+
     positions.push(0, 0, 0);
 
     for (let r = 1; r <= rings; r++) {
@@ -254,7 +482,6 @@ export class MapBuilder {
       }
     }
 
-    // Outer tapered rim skirt ring (static at r >= radius*0.96 so GPU waveFalloff == 0)
     const rimBottomStart = positions.length / 3;
     const bottomRadius = radius * 0.96;
     for (let s = 0; s < segments; s++) {

@@ -4,7 +4,9 @@ import type { TowerType } from '../core/types.ts';
 import { BALANCE } from '../data/balance.ts';
 import { PALETTE_HEX } from '../data/palette.ts';
 import type { ProjectileEntity } from '../sim/entities.ts';
-import { mergeColoredParts } from './geometryHelpers.ts';
+import { mergeTexturedParts } from './geometryHelpers.ts';
+import type { KenneyAssetStore } from './kenneyAssets.ts';
+import { remapUvCell } from './kenneyPalette.ts';
 import type { MaterialLibrary } from './materials.ts';
 
 const _dummy = new THREE.Object3D();
@@ -14,15 +16,16 @@ export class ProjectileRenderer {
   private readonly meshes = new Map<TowerType, THREE.InstancedMesh>();
   private readonly geometries: THREE.BufferGeometry[] = [];
 
-  constructor(materials: MaterialLibrary) {
+  constructor(materials: MaterialLibrary, assets: KenneyAssetStore) {
     const cap = BALANCE.pools.maxProjectiles;
     const types: TowerType[] = ['archer', 'cannon', 'frost', 'mortar'];
 
     for (let i = 0; i < types.length; i++) {
       const type = types[i];
-      const geo = this.buildProjectileGeo(type);
+      const geo = this.buildProjectileGeo(type, assets);
       this.geometries.push(geo);
-      const mesh = new THREE.InstancedMesh(geo, materials.vertexColored, cap);
+      const mat = type === 'frost' ? materials.frostProjectile : materials.kenneyProjectile;
+      const mesh = new THREE.InstancedMesh(geo, mat, cap);
       mesh.count = 0;
       mesh.visible = false;
       mesh.castShadow = false;
@@ -82,47 +85,42 @@ export class ProjectileRenderer {
     });
   }
 
-  private buildProjectileGeo(type: TowerType): THREE.BufferGeometry {
-    const box = new THREE.BoxGeometry(1, 1, 1);
-    const cone = new THREE.ConeGeometry(1, 1, 5);
-    const ico = new THREE.IcosahedronGeometry(1, 0);
-    const oct = new THREE.OctahedronGeometry(1, 0);
-
-    let geo: THREE.BufferGeometry;
+  private buildProjectileGeo(type: TowerType, assets: KenneyAssetStore): THREE.BufferGeometry {
     switch (type) {
-      case 'archer':
-        geo = mergeColoredParts([
-          { geometry: box, colorHex: PALETTE_HEX.dirt, position: [0, 0, -0.1], scale: [0.07, 0.07, 0.56] },
-          { geometry: cone, colorHex: PALETTE_HEX.gold, position: [0, 0, 0.24], rotation: [Math.PI / 2, 0, 0], scale: [0.09, 0.22, 0.09] },
-          { geometry: box, colorHex: PALETTE_HEX.cream, position: [0, 0, -0.34], scale: [0.14, 0.04, 0.14] },
+      case 'archer': {
+        const arrow = assets.cloneGeometry('weapon-ammo-arrow');
+        const geo = mergeTexturedParts([
+          { geometry: arrow, colorHex: PALETTE_HEX.gold, scale: [1.05, 1.05, 0.92] },
         ]);
-        break;
-      case 'cannon':
-        geo = mergeColoredParts([
-          { geometry: ico, colorHex: PALETTE_HEX.indigo, scale: [0.22, 0.22, 0.22] },
+        arrow.dispose();
+        return geo;
+      }
+      case 'cannon': {
+        const ball = assets.cloneGeometry('weapon-ammo-cannonball');
+        const geo = mergeTexturedParts([
+          { geometry: ball, scale: [1.55, 1.55, 1.55] },
         ]);
-        break;
-      case 'frost':
-        geo = mergeColoredParts([
-          { geometry: oct, colorHex: PALETTE_HEX.water, scale: [0.14, 0.14, 0.34] },
-          { geometry: oct, colorHex: PALETTE_HEX.cream, rotation: [0, 0, Math.PI / 4], scale: [0.1, 0.1, 0.28] },
+        ball.dispose();
+        return geo;
+      }
+      case 'frost': {
+        const crystal = remapUvCell(assets.cloneGeometry('detail-crystal'), [2, 1], [0, 3]);
+        const geo = mergeTexturedParts([
+          { geometry: crystal, position: [0, 0, -0.22], rotation: [Math.PI / 2, 0, 0], scale: [1.1, 1.15, 1.1] },
         ]);
-        break;
+        crystal.dispose();
+        return geo;
+      }
       case 'mortar':
-      default:
-        geo = mergeColoredParts([
-          { geometry: ico, colorHex: PALETTE_HEX.indigo, scale: [0.26, 0.26, 0.34] },
-          { geometry: cone, colorHex: PALETTE_HEX.coral, position: [0, 0, 0.24], rotation: [Math.PI / 2, 0, 0], scale: [0.22, 0.28, 0.22] },
-          { geometry: box, colorHex: PALETTE_HEX.gold, position: [0, 0, -0.22], scale: [0.36, 0.06, 0.14] },
+      default: {
+        const boulder = assets.cloneGeometry('weapon-ammo-boulder');
+        const geo = mergeTexturedParts([
+          { geometry: boulder, colorHex: 0xffb380, scale: [2.2, 2.2, 2.2] },
         ]);
-        break;
+        boulder.dispose();
+        return geo;
+      }
     }
-
-    box.dispose();
-    cone.dispose();
-    ico.dispose();
-    oct.dispose();
-    return geo;
   }
 
   dispose(): void {

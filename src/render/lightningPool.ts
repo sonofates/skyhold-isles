@@ -1,7 +1,6 @@
 import * as THREE from 'three';
 import type { Vec3 } from '../core/types.ts';
 import { BALANCE } from '../data/balance.ts';
-import { PALETTE_HEX } from '../data/palette.ts';
 
 interface LightningArc {
   active: boolean;
@@ -24,7 +23,10 @@ export class LightningArcPool {
   private readonly lineSegments: THREE.LineSegments;
 
   constructor() {
-    this.lineMaterial = new THREE.LineBasicMaterial({ color: PALETTE_HEX.cream });
+    // Subtle HDR emissive tint triggers soft Bloom only in High post-processing mode
+    this.lineMaterial = new THREE.LineBasicMaterial({
+      color: new THREE.Color(1.45, 2.05, 2.85),
+    });
     this.positions = new Float32Array(MAX_VERTICES_TOTAL * 3);
     this.posAttr = new THREE.BufferAttribute(this.positions, 3);
     this.posAttr.setUsage(THREE.DynamicDrawUsage);
