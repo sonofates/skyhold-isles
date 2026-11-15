@@ -3,6 +3,7 @@ import { BALANCE } from '../data/balance.ts';
 import { PALETTE_HEX } from '../data/palette.ts';
 import { SeededRng } from '../core/rng.ts';
 import { gridToWorldX, gridToWorldZ } from '../sim/grid.ts';
+import type { TowerEntity } from '../sim/entities.ts';
 import type { LevelDef } from '../data/levels/index.ts';
 import { parseLevelGrid } from '../data/levels/index.ts';
 import { mergeTexturedParts, type TexturedPart } from './geometryHelpers.ts';
@@ -10,6 +11,7 @@ import type { KenneyAssetStore } from './kenneyAssets.ts';
 import { remapUvCell } from './kenneyPalette.ts';
 import type { MaterialLibrary } from './materials.ts';
 import { AmbientDiorama } from './ambientDiorama.ts';
+import { GroundDetails } from './groundDetails.ts';
 
 // Cardinal neighbor bitmask for auto-tiling path geometry
 const DIR_N = 1; // row - 1 (-Z)
@@ -182,13 +184,20 @@ function applyContinuousGrassVariation(geo: THREE.BufferGeometry, seed: number, 
 
     const px = pos.getX(i);
     const pz = pos.getZ(i);
-    const lowFreq = smoothValueNoise2D(px, pz, ts * 5.0, seed);
-    const midFreq = smoothValueNoise2D(px + 17.3, pz - 11.7, ts * 2.3, seed + 131);
-    const n = lowFreq * 0.72 + midFreq * 0.28;
+    const lowFreqB = smoothValueNoise2D(px, pz, ts * 4.5, seed);
+    const midFreqB = smoothValueNoise2D(px + 21.4, pz - 13.8, ts * 2.1, seed + 131);
+    const brightSigned = (lowFreqB * 0.7 + midFreqB * 0.3) * 2 - 1;
+    const brightMul = 1.0 + brightSigned * 0.135;
 
-    const rMul = 0.935 + n * 0.125;
-    const gMul = 0.965 + n * 0.07;
-    const bMul = 0.905 + (1 - n) * 0.11;
+    const lowFreqH = smoothValueNoise2D(px - 37.1, pz + 29.3, ts * 3.8, seed + 503);
+    const midFreqH = smoothValueNoise2D(px + 9.2, pz + 43.7, ts * 1.8, seed + 887);
+    const hueSigned = (lowFreqH * 0.7 + midFreqH * 0.3) * 2 - 1;
+
+    const warm = Math.max(0, hueSigned);
+    const cool = Math.max(0, -hueSigned);
+    const rMul = brightMul * (1.0 + warm * 0.3 - cool * 0.26);
+    const gMul = brightMul * (1.0 + warm * 0.055 - cool * 0.015);
+    const bMul = brightMul * (1.0 - warm * 0.28 + cool * 0.72);
     col.setXYZ(i, col.getX(i) * rMul, col.getY(i) * gMul, col.getZ(i) * bMul);
   }
   col.needsUpdate = true;
@@ -230,6 +239,7 @@ function pushShoreTriangle(
 export class MapBuilder {
   readonly group = new THREE.Group();
   private readonly ambient = new AmbientDiorama();
+  readonly groundDetails = new GroundDetails();
   private disposableGeometries: THREE.BufferGeometry[] = [];
   private materialsRef: MaterialLibrary | null = null;
   private goalPos: THREE.Vector3 | null = null;
@@ -239,6 +249,7 @@ export class MapBuilder {
     this.dispose();
     this.materialsRef = materials;
     this.group.add(this.ambient.group);
+    this.group.add(this.groundDetails.group);
 
     const grid = parseLevelGrid(level);
     const rng = new SeededRng(level.decorationSeed + 7919);
@@ -496,45 +507,112 @@ export class MapBuilder {
           continue;
         }
 
-        // Solid island earth skirt + cliff strata (zero seam below tile y = -0.20)
+        // 3-stratum stepped floating-island underside (dirt band -> prominent stone -> inset craggy bedrock)
+        const dirtWarmHex = rng.chance(0.45) ? 0x7b5338 : PALETTE_HEX.dirt;
         parts.push({
           geometry: unitBox,
-          colorHex: PALETTE_HEX.dirt,
-          position: [wx, -0.51, wz],
-          scale: [ts * 1.002, 0.62, ts * 1.002],
+          colorHex: dirtWarmHex,
+          position: [wx, -0.265, wz],
+          scale: [ts * 0.994, 0.19, ts * 0.994],
           forceWhiteUv: true,
         });
 
-        const cliffDepth = edgeCount > 0 ? rng.range(1.1, 1.85) : rng.range(2.0, 3.4);
+        const upperStoneHex = edgeCount > 0 && rng.chance(0.45) ? 0x9aa4b0 : PALETTE_HEX.stone;
+        const stoneDrop = edgeCount > 0 ? rng.range(0.54, 0.62) : 0.56;
         parts.push({
           geometry: unitBox,
-          colorHex: PALETTE_HEX.stone,
-          position: [wx, -0.82 - cliffDepth * 0.5, wz],
-          scale: [ts * (edgeCount > 0 ? 0.92 : 1.0), cliffDepth, ts * (edgeCount > 0 ? 0.92 : 1.0)],
+          colorHex: upperStoneHex,
+          position: [wx, -0.36 - stoneDrop * 0.5, wz],
+          scale: [
+            ts * (edgeCount > 0 ? 0.938 : 0.99),
+            stoneDrop,
+            ts * (edgeCount > 0 ? 0.938 : 0.99),
+          ],
           forceWhiteUv: true,
         });
 
-        if (edgeCount <= 2 && rng.chance(edgeCount === 0 ? 0.78 : 0.45)) {
-          const spireH = rng.range(1.3, 2.7);
-          const spireR = rng.range(0.65, 1.08);
+        const cliffDepth = edgeCount > 0 ? rng.range(1.45, 2.3) : rng.range(2.3, 3.8);
+        const bedrockHex = edgeCount > 0 ? (rng.chance(0.5) ? 0x768393 : 0x677484) : 0x5c6878;
+        const bedrockTopY = -0.36 - stoneDrop;
+        parts.push({
+          geometry: unitBox,
+          colorHex: bedrockHex,
+          position: [wx, bedrockTopY - cliffDepth * 0.5, wz],
+          scale: [
+            ts * (edgeCount > 0 ? 0.86 : 0.96),
+            cliffDepth,
+            ts * (edgeCount > 0 ? 0.86 : 0.96),
+          ],
+          forceWhiteUv: true,
+        });
+
+        // Sculpted stone cliff outcrops clinging to exposed sides above & at the waterline
+        if (edgeCount > 0 && rng.chance(edgeCount >= 2 ? 0.9 : 0.68)) {
+          const rockSides: Array<[number, number]> = [];
+          if (!isLand(c - 1, r)) rockSides.push([-1, 0]);
+          if (!isLand(c + 1, r)) rockSides.push([1, 0]);
+          if (!isLand(c, r - 1)) rockSides.push([0, -1]);
+          if (!isLand(c, r + 1)) rockSides.push([0, 1]);
+          const [ox, oz] = rockSides[rng.int(0, rockSides.length - 1)];
+          const tangentOffset = rng.range(-0.42, 0.42);
+          const rx = wx + ox * ts * 0.42 + oz * tangentOffset;
+          const rz = wz + oz * ts * 0.42 - ox * tangentOffset;
           parts.push({
-            geometry: unitCone,
-            colorHex: rng.chance(0.68) ? PALETTE_HEX.stone : PALETTE_HEX.dirt,
-            position: [
-              wx + rng.range(-0.18, 0.18),
-              -0.82 - cliffDepth - spireH * 0.45,
-              wz + rng.range(-0.18, 0.18),
-            ],
-            rotation: [Math.PI, rng.range(0, Math.PI * 2), 0],
-            scale: [spireR, spireH, spireR],
+            geometry: geoRocks,
+            colorHex: rng.chance(0.5) ? PALETTE_HEX.stone : 0x8793a1,
+            position: [rx, rng.range(-0.92, -0.52), rz],
+            rotation: [rng.range(-0.18, 0.18), rng.range(0, Math.PI * 2), rng.range(-0.18, 0.18)],
+            scale: [rng.range(0.68, 0.98), rng.range(0.64, 0.96), rng.range(0.68, 0.98)],
             forceWhiteUv: true,
           });
         }
 
+        // Hanging faceted rock spires & crags beneath the island base
+        if (edgeCount <= 2 && rng.chance(edgeCount === 0 ? 0.92 : edgeCount === 1 ? 0.8 : 0.62)) {
+          const spireH = rng.range(1.65, 3.25);
+          const spireR = rng.range(0.75, 1.24);
+          const pullIn = edgeCount > 0 ? 0.16 : 0;
+          const inX = (!isLand(c + 1, r) ? -1 : !isLand(c - 1, r) ? 1 : 0) * pullIn;
+          const inZ = (!isLand(c, r + 1) ? -1 : !isLand(c, r - 1) ? 1 : 0) * pullIn;
+          parts.push({
+            geometry: unitCone,
+            colorHex: rng.chance(0.45)
+              ? PALETTE_HEX.stone
+              : rng.chance(0.55)
+                ? 0x8b96a4
+                : PALETTE_HEX.dirt,
+            position: [
+              wx + inX + rng.range(-0.16, 0.16),
+              bedrockTopY - cliffDepth - spireH * 0.44,
+              wz + inZ + rng.range(-0.16, 0.16),
+            ],
+            rotation: [Math.PI + rng.range(-0.08, 0.08), rng.range(0, Math.PI * 2), rng.range(-0.08, 0.08)],
+            scale: [spireR, spireH, spireR],
+            forceWhiteUv: true,
+          });
+
+          if (edgeCount <= 1 && rng.chance(0.55)) {
+            const subH = spireH * rng.range(0.5, 0.72);
+            const subR = spireR * rng.range(0.5, 0.72);
+            parts.push({
+              geometry: unitCone,
+              colorHex: PALETTE_HEX.stone,
+              position: [
+                wx + inX + rng.range(-0.4, 0.4),
+                bedrockTopY - cliffDepth - subH * 0.42,
+                wz + inZ + rng.range(-0.4, 0.4),
+              ],
+              rotation: [Math.PI + rng.range(-0.08, 0.08), rng.range(0, Math.PI * 2), rng.range(-0.08, 0.08)],
+              scale: [subR, subH, subR],
+              forceWhiteUv: true,
+            });
+          }
+        }
+
         // Animated shoreline foam ribbon riding directly on waterPlaneY along exposed coast
         if (edgeCount > 0 && !isBridge) {
-          const inR = ts * 0.44;
-          const outR = ts * 0.46 + 0.58;
+          const inR = ts * 0.42;
+          const outR = ts * 0.45 + 0.3;
           const foamW = outR - inR;
           const foamY = BALANCE.waterPlaneY + 0.015;
           const foamOffsets: Array<[number, number, boolean]> = [
@@ -618,10 +696,11 @@ export class MapBuilder {
       this.group.add(foamMesh);
     }
 
-    // Bounded low-poly lagoon disc (1 draw call, GPU waves)
-    const lagoonRadius = Math.hypot(level.cols * ts * 0.5, level.rows * ts * 0.5) + 4.4;
-    materials.waterUniforms.uLagoonRadius.value = lagoonRadius;
-    const waterGeo = this.createWaterDiscGeometry(lagoonRadius, 14, 42);
+    // Extended smooth-fading low-poly lagoon disc (keeps ambient islets tightly framed around main isle)
+    const dioramaRadius = Math.hypot(level.cols * ts * 0.5, level.rows * ts * 0.5) + 4.4;
+    const waterRadius = dioramaRadius + 72;
+    materials.waterUniforms.uLagoonRadius.value = waterRadius;
+    const waterGeo = this.createWaterDiscGeometry(waterRadius, 24, 56);
     this.disposableGeometries.push(waterGeo);
 
     const waterMesh = new THREE.Mesh(waterGeo, materials.waterMaterial);
@@ -630,7 +709,8 @@ export class MapBuilder {
     waterMesh.castShadow = false;
     this.group.add(waterMesh);
 
-    this.ambient.build(lagoonRadius, rng, materials, unitBox, unitCone, unitIco);
+    this.ambient.build(dioramaRadius, rng, materials, unitBox, unitCone, unitIco);
+    this.groundDetails.build(level, materials);
 
     if (this.goalPos) {
       // Crisp faceted cyan sanctuary crystal spire flanked by Kenney crystal shards & gold halo ring
@@ -713,7 +793,8 @@ export class MapBuilder {
     positions.push(0, 0, 0);
 
     for (let r = 1; r <= rings; r++) {
-      const rad = (r / rings) * radius;
+      const t = r / rings;
+      const rad = Math.pow(t, 1.45) * radius;
       for (let s = 0; s < segments; s++) {
         const theta = (s / segments) * Math.PI * 2;
         positions.push(Math.cos(theta) * rad, 0, Math.sin(theta) * rad);
@@ -777,8 +858,13 @@ export class MapBuilder {
     this.ambient.update(elapsedTime);
   }
 
+  syncOccupiedTiles(towers: readonly TowerEntity[]): void {
+    this.groundDetails.syncOccupiedTiles(towers);
+  }
+
   dispose(): void {
     this.ambient.dispose();
+    this.groundDetails.dispose();
     this.group.clear();
     for (let i = 0; i < this.disposableGeometries.length; i++) {
       this.disposableGeometries[i].dispose();

@@ -214,6 +214,7 @@ export class RenderWorld {
     this.effectsRenderer.update(activeFxDt);
 
     if (simWorld) {
+      this.mapBuilder.syncOccupiedTiles(simWorld.towers);
       this.towerRenderer.syncTowers(simWorld.towers, this.materials, alpha, elapsedVisualTime);
       this.enemyRenderer.update(
         simWorld.enemyPool,

@@ -99,8 +99,9 @@ export class CameraController {
           if (tile === 'empty') continue;
           const wx = gridToWorldX(c, cols);
           const wz = gridToWorldZ(r, rows);
-          const topY = tile === 'spawn' || tile === 'goal' ? 1.35 : tile === 'decor' ? 0.9 : 0.4;
-          const botY = -0.65;
+          const topY =
+            tile === 'spawn' || tile === 'goal' || tile === 'decor' ? 1.85 : 0.5;
+          const botY = -0.85;
           for (const sx of [-halfTile, halfTile]) {
             for (const sz of [-halfTile, halfTile]) {
               includePoint(wx + sx, topY, wz + sz);
@@ -113,34 +114,33 @@ export class CameraController {
 
     const aspect = this.viewportWidth / this.viewportHeight;
     const isDesktop = aspect >= 1.1;
-    const targetFillV = isDesktop ? 0.86 : 0.78;
-    const targetFillH = isDesktop ? 0.88 : 0.9;
+    const targetFillV = isDesktop ? 0.7 : 0.68;
+    const targetFillH = isDesktop ? 0.85 : 0.88;
 
+    const minFitZoom = isDesktop ? CAMERA_MIN_ZOOM : 0.34;
     let fitZoom: number;
     if (Number.isFinite(minNdcY) && maxNdcY > minNdcY && maxNdcX > minNdcX) {
       const spanX = (maxNdcX - minNdcX) * 0.5;
       const spanY = (maxNdcY - minNdcY) * 0.5;
       fitZoom = Math.max(
-        CAMERA_MIN_ZOOM,
+        minFitZoom,
         Math.min(1.55, Math.min(targetFillV / spanY, targetFillH / spanX)),
       );
 
-      // Center island cleanly between top HUD pills and bottom tower card dock on desktop
-      if (isDesktop) {
-        const midNdcY = (minNdcY + maxNdcY) * 0.5;
-        const desiredMidNdcY = 0.055;
-        const shiftGroundY =
-          ((desiredMidNdcY - midNdcY) * BALANCE.camera.defaultFrustumHalfHeight) /
-          Math.sin(ISO_TILT_RAD);
-        const shiftX = Math.sin(BASE_YAW_RAD) * shiftGroundY;
-        const shiftZ = Math.cos(BASE_YAW_RAD) * shiftGroundY;
-        this.target.set(shiftX, 0, shiftZ);
-        this.desiredTarget.set(shiftX, 0, shiftZ);
-      }
+      // Center island cleanly between top HUD pills and bottom dock on both desktop & mobile
+      const midNdcY = (minNdcY + maxNdcY) * 0.5;
+      const desiredMidNdcY = isDesktop ? 0.045 : 0.01;
+      const shiftGroundY =
+        (((desiredMidNdcY / fitZoom) - midNdcY) * BALANCE.camera.defaultFrustumHalfHeight) /
+        Math.sin(ISO_TILT_RAD);
+      const shiftX = Math.sin(BASE_YAW_RAD) * shiftGroundY;
+      const shiftZ = Math.cos(BASE_YAW_RAD) * shiftGroundY;
+      this.target.set(shiftX, 0, shiftZ);
+      this.desiredTarget.set(shiftX, 0, shiftZ);
     } else {
       const mapSpan = Math.max(cols, rows) * ts * 1.05;
       const horizAvailable = BALANCE.camera.defaultFrustumHalfHeight * 2 * aspect;
-      fitZoom = Math.max(CAMERA_MIN_ZOOM, Math.min(1.35, horizAvailable / mapSpan));
+      fitZoom = Math.max(minFitZoom, Math.min(1.35, horizAvailable / mapSpan));
     }
 
     this.zoom = fitZoom;
@@ -209,8 +209,9 @@ export class CameraController {
     const prevX = before ? before.x : this.desiredTarget.x;
     const prevZ = before ? before.z : this.desiredTarget.z;
 
+    const minAllowedZoom = this.viewportWidth / this.viewportHeight >= 1.1 ? CAMERA_MIN_ZOOM : 0.34;
     this.desiredZoom = Math.max(
-      CAMERA_MIN_ZOOM,
+      minAllowedZoom,
       Math.min(CAMERA_MAX_ZOOM, this.desiredZoom + delta * this.desiredZoom),
     );
 

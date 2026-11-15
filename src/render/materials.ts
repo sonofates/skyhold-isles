@@ -121,14 +121,14 @@ gl_FragColor.a = mix(1.0, 0.25, uOutlineAlpha);`,
     });
 
     this.waterMaterial = new THREE.MeshStandardMaterial({
-      color: 0x33b5e5,
+      color: 0x26aadf,
       emissive: 0x0b5882,
-      emissiveIntensity: 0.16,
+      emissiveIntensity: 0.14,
       flatShading: true,
       roughness: 0.2,
       metalness: 0.08,
       transparent: true,
-      opacity: 0.87,
+      opacity: 0.7,
       depthWrite: false,
     });
     applyAlphaPreserveBlend(this.waterMaterial);
@@ -140,20 +140,33 @@ gl_FragColor.a = mix(1.0, 0.25, uOutlineAlpha);`,
           '#include <common>',
           `#include <common>
 uniform float uWaterTime;
-uniform float uLagoonRadius;`,
+uniform float uLagoonRadius;
+varying float vWaterRNorm;`,
         )
         .replace(
           '#include <begin_vertex>',
           `#include <begin_vertex>
 float rNorm = clamp(length(transformed.xz) / max(1.0, uLagoonRadius), 0.0, 1.0);
+vWaterRNorm = rNorm;
 float waveFalloff = max(0.0, 1.0 - pow(rNorm, 3.2));
 float waveH = (sin(transformed.x * 0.34 + uWaterTime * 1.45) * 0.085
   + cos(transformed.z * 0.40 - uWaterTime * 1.15) * 0.065
   + sin((transformed.x + transformed.z) * 0.24 + uWaterTime * 0.85) * 0.04) * waveFalloff;
 transformed.y += waveH;`,
         );
+      shader.fragmentShader = shader.fragmentShader
+        .replace(
+          '#include <common>',
+          `#include <common>
+varying float vWaterRNorm;`,
+        )
+        .replace(
+          '#include <alphamap_fragment>',
+          `#include <alphamap_fragment>
+diffuseColor.a *= 1.0 - smoothstep(0.46, 0.94, vWaterRNorm);`,
+        );
     };
-    this.waterMaterial.customProgramCacheKey = () => 'water-vertex-waves-v1';
+    this.waterMaterial.customProgramCacheKey = () => 'water-vertex-waves-v2';
 
     this.shoreFoamMaterial = new THREE.ShaderMaterial({
       transparent: true,
