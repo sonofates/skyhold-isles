@@ -3,7 +3,7 @@ import { EventBus } from '../../src/core/eventBus.ts';
 import type { EnemyType } from '../../src/core/types.ts';
 import { BALANCE } from '../../src/data/balance.ts';
 import { ENEMY_DEFS } from '../../src/data/enemies.ts';
-import { LEVELS, type LevelDef } from '../../src/data/levels/index.ts';
+import { LEVELS, parseLevelGrid, type LevelDef } from '../../src/data/levels/index.ts';
 import { buildWaveSpawnQueue, computeEarlyCallBonus } from '../../src/sim/waveSystem.ts';
 import { computeStarRating, SimWorld } from '../../src/sim/world.ts';
 
@@ -268,5 +268,80 @@ describe('wave spawn order and timing', () => {
 
     expect(flyerLeaks).toBe(0);
     expect(world.lives).toBe(20);
+  });
+
+  it('validates grid dimensions, orthogonal non-overlapping paths, and build coords across all levels', () => {
+    expect(LEVELS.length).toBe(9);
+    const seenIds = new Set<string>();
+
+    LEVELS.forEach((lvl, idx) => {
+      expect(lvl.index).toBe(idx);
+      expect(seenIds.has(lvl.id)).toBe(false);
+      seenIds.add(lvl.id);
+
+      expect(lvl.layout.length).toBe(lvl.rows);
+      for (const rowStr of lvl.layout) {
+        expect(rowStr.trim().split(/\s+/).length).toBe(lvl.cols);
+      }
+
+      const grid = parseLevelGrid(lvl);
+      const spawns: Array<{ col: number; row: number }> = [];
+      const goals: Array<{ col: number; row: number }> = [];
+      const roadTiles = new Set<string>();
+
+      for (let r = 0; r < lvl.rows; r++) {
+        for (let c = 0; c < lvl.cols; c++) {
+          const tile = grid[r][c];
+          if (tile === 'spawn') spawns.push({ col: c, row: r });
+          if (tile === 'goal') goals.push({ col: c, row: r });
+          if (tile === 'path' || tile === 'spawn' || tile === 'goal') {
+            roadTiles.add(`${c},${r}`);
+          }
+        }
+      }
+
+      expect(spawns).toEqual([lvl.pathWaypoints[0]]);
+      expect(goals).toEqual([lvl.pathWaypoints[lvl.pathWaypoints.length - 1]]);
+
+      const walked = new Set<string>();
+      for (let i = 0; i < lvl.pathWaypoints.length - 1; i++) {
+        const a = lvl.pathWaypoints[i];
+        const b = lvl.pathWaypoints[i + 1];
+        const isOrtho = (a.col === b.col) !== (a.row === b.row);
+        expect(isOrtho).toBe(true);
+
+        const dc = Math.sign(b.col - a.col);
+        const dr = Math.sign(b.row - a.row);
+        let c = a.col;
+        let r = a.row;
+        while (true) {
+          const key = `${c},${r}`;
+          const isSegmentJoin = i > 0 && c === a.col && r === a.row;
+          if (!isSegmentJoin) {
+            expect(walked.has(key)).toBe(false);
+            walked.add(key);
+          }
+          const tile = grid[r]?.[c];
+          if (i === 0 && c === a.col && r === a.row) {
+            expect(tile).toBe('spawn');
+          } else if (i === lvl.pathWaypoints.length - 2 && c === b.col && r === b.row) {
+            expect(tile).toBe('goal');
+          } else {
+            expect(tile).toBe('path');
+          }
+          if (c === b.col && r === b.row) break;
+          c += dc;
+          r += dr;
+        }
+      }
+
+      expect(walked.size).toBe(roadTiles.size);
+
+      for (const order of [lvl.scriptedBuildOrder ?? [], lvl.weakBuildOrder ?? []]) {
+        for (const step of order) {
+          expect(grid[step.row]?.[step.col]).toBe('grass');
+        }
+      }
+    });
   });
 });

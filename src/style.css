@@ -1171,10 +1171,11 @@ button {
 }
 
 .level-select-card {
-  width: 820px;
+  width: 860px;
+  max-height: min(90vh, 840px);
   align-items: stretch;
   text-align: left;
-  gap: 16px;
+  gap: 14px;
 }
 
 .menu-crest {
@@ -1299,6 +1300,9 @@ button {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
+  overflow-y: auto;
+  padding: 2px 4px 4px 2px;
+  min-height: 0;
 }
 
 .level-card {
@@ -1352,6 +1356,11 @@ button {
 .diff-heroic {
   background: rgba(232, 93, 93, 0.2);
   color: #a93030;
+}
+
+.diff-master {
+  background: rgba(72, 69, 115, 0.16);
+  color: var(--pal-indigo);
 }
 
 .level-card-name {

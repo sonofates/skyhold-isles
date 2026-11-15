@@ -271,29 +271,29 @@ for (let i = 0; i < LEVELS.length; i++) {
     );
   }
 
-  if (i === 0 && greedyRes.stars !== 3) {
-    failures.push(`L1 greedy got ${greedyRes.stars} stars (expected 3)`);
+  if (level.difficulty === 'Breezy' && greedyRes.stars !== 3) {
+    failures.push(`L${i + 1} greedy got ${greedyRes.stars} stars (expected 3)`);
   }
-  if (i === 1 && greedyRes.stars !== 2) {
-    failures.push(`L2 greedy got ${greedyRes.stars} stars (expected 2)`);
+  if (level.difficulty === 'Challenging' && greedyRes.stars !== 2) {
+    failures.push(`L${i + 1} greedy got ${greedyRes.stars} stars (expected 2)`);
   }
-  if (i === 2 && (greedyRes.stars < 1 || greedyRes.stars > 2)) {
-    failures.push(`L3 greedy got ${greedyRes.stars} stars (expected 1-2)`);
+  if ((level.difficulty === 'Heroic' || level.difficulty === 'Master') && (greedyRes.stars < 1 || greedyRes.stars > 2)) {
+    failures.push(`L${i + 1} greedy got ${greedyRes.stars} stars (expected 1-2)`);
   }
 
-  if (i === 0 && weakRes.outcome !== 'won') {
-    failures.push('L1 weak must still be winnable');
+  if (level.difficulty === 'Breezy' && weakRes.outcome !== 'won') {
+    failures.push(`L${i + 1} weak must still be winnable`);
   }
-  if (i === 1) {
+  if (level.difficulty === 'Challenging') {
     if (weakRes.outcome === 'won' && weakRes.finalLives > 8) {
-      failures.push(`L2 weak too comfortable (${weakRes.finalLives} lives left; expected borderline <= 8)`);
+      failures.push(`L${i + 1} weak too comfortable (${weakRes.finalLives} lives left; expected borderline <= 8)`);
     }
     if (weakRes.outcome === 'lost' && weakRes.waves.length < Math.ceil(level.waves.length * 0.75)) {
-      failures.push(`L2 weak lost too early on wave ${weakRes.waves.length}/${level.waves.length}`);
+      failures.push(`L${i + 1} weak lost too early on wave ${weakRes.waves.length}/${level.waves.length}`);
     }
   }
-  if (i === 2 && weakRes.outcome !== 'lost') {
-    failures.push(`L3 weak must lose (got ${weakRes.outcome} with ${weakRes.finalLives} lives)`);
+  if ((level.difficulty === 'Heroic' || level.difficulty === 'Master') && weakRes.outcome !== 'lost') {
+    failures.push(`L${i + 1} weak must lose (got ${weakRes.outcome} with ${weakRes.finalLives} lives)`);
   }
 }
 
@@ -302,5 +302,5 @@ if (failures.length > 0) {
   for (const f of failures) console.error(' - ' + f);
   process.exit(1);
 }
-console.log('Balance check PASSED: Greedy & Weak targets met across all 3 levels!');
+console.log(`Balance check PASSED: Greedy & Weak targets met across all ${LEVELS.length} levels!`);
 

@@ -26,7 +26,7 @@ export interface LevelDef {
   readonly index: number;
   readonly name: string;
   readonly subtitle: string;
-  readonly difficulty: 'Breezy' | 'Challenging' | 'Heroic';
+  readonly difficulty: 'Breezy' | 'Challenging' | 'Heroic' | 'Master';
   readonly cols: number;
   readonly rows: number;
   readonly layout: readonly string[];
