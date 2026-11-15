@@ -71,6 +71,7 @@ export class OverlayIndicators {
   private flightPathGroundMat: THREE.MeshBasicMaterial | null = null;
   private flightPathSkyMat: THREE.MeshBasicMaterial | null = null;
   private flightPathArrowMat: THREE.MeshBasicMaterial | null = null;
+  private flightPathSubtle = false;
 
   private readonly gridLineMat: THREE.LineBasicMaterial;
   private gridLinesMesh: THREE.LineSegments | null = null;
@@ -322,8 +323,9 @@ export class OverlayIndicators {
     }
   }
 
-  setFlightPathHighlight(visible: boolean): void {
+  setFlightPathHighlight(visible: boolean, subtle = false): void {
     this.flightPathGroup.visible = visible;
+    this.flightPathSubtle = subtle;
   }
 
   update(elapsedTime: number, frameDt = 0): void {
@@ -341,15 +343,16 @@ export class OverlayIndicators {
     }
 
     if (!this.flightPathGroup.visible) return;
+    const mul = this.flightPathSubtle ? 0.58 : 1.0;
     const pulse = 0.5 + 0.5 * Math.sin(elapsedTime * 3.8);
     if (this.flightPathGroundMat) {
-      this.flightPathGroundMat.opacity = 0.14 + pulse * 0.08;
+      this.flightPathGroundMat.opacity = (0.14 + pulse * 0.08) * mul;
     }
     if (this.flightPathSkyMat) {
-      this.flightPathSkyMat.opacity = 0.24 + pulse * 0.12;
+      this.flightPathSkyMat.opacity = (0.24 + pulse * 0.12) * mul;
     }
     if (this.flightPathArrowMat) {
-      this.flightPathArrowMat.opacity = 0.48 + pulse * 0.2;
+      this.flightPathArrowMat.opacity = (0.48 + pulse * 0.2) * mul;
     }
   }
 

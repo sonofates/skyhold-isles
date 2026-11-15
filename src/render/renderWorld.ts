@@ -191,8 +191,8 @@ export class RenderWorld {
     this.showAllRanges = show;
   }
 
-  setFlightPathHighlight(visible: boolean): void {
-    this.overlayIndicators.setFlightPathHighlight(visible);
+  setFlightPathHighlight(visible: boolean, subtle = false): void {
+    this.overlayIndicators.setFlightPathHighlight(visible, subtle);
   }
 
   setPlacementGridActive(active: boolean): void {

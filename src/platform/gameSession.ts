@@ -121,6 +121,7 @@ export class GameSession {
       selectedTower,
       this.userPaused,
     );
+    this.syncFlightPathHighlight();
   };
 
   refreshPlacementPreview(): void {
@@ -168,13 +169,34 @@ export class GameSession {
     this.syncUi();
   }
 
+  private syncFlightPathHighlight(): void {
+    const inPlay = this.viewMode === 'playing';
+    if (!inPlay) {
+      this.renderWorld.setFlightPathHighlight(false);
+      return;
+    }
+    if (this.activePlacementType !== null) {
+      // Bright when positioning anti-air towers, soft warning when placing ground-only towers
+      this.renderWorld.setFlightPathHighlight(true, !TOWER_DEFS[this.activePlacementType].hitsFlyers);
+      return;
+    }
+    const ws = this.simWorld.waveSystem;
+    const nextHasFlyers =
+      ws.getNextWavePreview()?.items.some((item) => item.enemyType === 'flyer') ?? false;
+    const activeWave =
+      ws.state === 'spawning' || ws.state === 'clearing'
+        ? this.simWorld.level.waves[ws.currentWaveIndex]
+        : undefined;
+    const currentHasFlyers = activeWave?.groups.some((g) => g.enemyType === 'flyer') ?? false;
+    this.renderWorld.setFlightPathHighlight(nextHasFlyers || currentHasFlyers, true);
+  }
+
   setPlacementMode(type: TowerType | null): void {
     this.activePlacementType = type;
     if (type !== null) this.selectTower(null);
     const inPlay = this.viewMode === 'playing';
     this.renderWorld.setPlacementGridActive(inPlay && type !== null);
-    const highlightFlight = inPlay && type !== null && !TOWER_DEFS[type].hitsFlyers;
-    this.renderWorld.setFlightPathHighlight(highlightFlight);
+    this.syncFlightPathHighlight();
     this.refreshPlacementPreview();
     this.syncUi();
   }

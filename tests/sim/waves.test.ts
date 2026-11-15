@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { EventBus } from '../../src/core/eventBus.ts';
 import type { EnemyType } from '../../src/core/types.ts';
 import { BALANCE } from '../../src/data/balance.ts';
-import type { LevelDef } from '../../src/data/levels/index.ts';
+import { ENEMY_DEFS } from '../../src/data/enemies.ts';
+import { LEVELS, type LevelDef } from '../../src/data/levels/index.ts';
 import { buildWaveSpawnQueue, computeEarlyCallBonus } from '../../src/sim/waveSystem.ts';
 import { computeStarRating, SimWorld } from '../../src/sim/world.ts';
 
@@ -218,5 +219,54 @@ describe('wave spawn order and timing', () => {
     for (let i = 0; i < 40; i++) world.fixedTick(BALANCE.fixedDt);
     expect(spawned.some((s) => s.enemyType === 'flyer' && s.flying)).toBe(true);
     expect(spawned.some((s) => s.enemyType === 'grunt' && !s.flying)).toBe(true);
+  });
+
+  it('gives flyers fair traversal time across Twin-Bridge Cay and stops W13 flyers under balanced defense', () => {
+    for (const lvl of LEVELS) {
+      const world = new SimWorld(lvl, new EventBus());
+      const flightSec = world.flightPath.totalLength / ENEMY_DEFS.flyer.speed;
+      // No level should allow sub-9s full-map aerial skips at 1x speed
+      expect(flightSec).toBeGreaterThanOrEqual(9.5);
+    }
+
+    const level2 = LEVELS[1];
+    const events = new EventBus();
+    const world = new SimWorld(level2, events);
+    expect(world.flightPath.totalLength).toBeGreaterThanOrEqual(38);
+
+    // Realistic ~1,100g anti-air + support spend well within Wave 13 economy (~2,100g)
+    world.gold = 2130;
+    const placements: Array<[number, number, 'archer' | 'frost' | 'tesla' | 'cannon' | 'mortar', 1 | 2 | 3]> = [
+      [2, 3, 'archer', 2],
+      [4, 3, 'archer', 2],
+      [4, 5, 'frost', 2],
+      [2, 5, 'cannon', 2],
+      [5, 6, 'mortar', 2],
+      [9, 5, 'tesla', 2],
+      [11, 5, 'cannon', 2],
+      [10, 6, 'archer', 3],
+      [11, 6, 'frost', 2],
+      [3, 8, 'archer', 2],
+    ];
+    for (const [col, row, type, tier] of placements) {
+      const tower = world.placeTower(col, row, type);
+      expect(tower).not.toBeNull();
+      if (tower && tier >= 2) world.upgradeTower(tower.id);
+      if (tower && tier >= 3) world.upgradeTower(tower.id);
+    }
+
+    let flyerLeaks = 0;
+    events.on('enemyLeaked', (ev) => {
+      if (ev.enemyType === 'flyer') flyerLeaks += 1;
+    });
+
+    world.debugSkipToWave(13);
+    for (let i = 0; i < 60 * 120; i++) {
+      world.fixedTick(BALANCE.fixedDt);
+      if (world.waveSystem.state !== 'spawning' && world.enemyPool.getActiveCount() === 0) break;
+    }
+
+    expect(flyerLeaks).toBe(0);
+    expect(world.lives).toBe(20);
   });
 });
