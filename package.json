@@ -22,6 +22,8 @@
     "vitest": "^5.1.0"
   },
   "dependencies": {
+    "n8ao": "^2.0.2",
+    "postprocessing": "^6.39.6",
     "three": "^0.187.0"
   }
 }
