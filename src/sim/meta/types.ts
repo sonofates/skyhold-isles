@@ -288,9 +288,12 @@ export interface RunMetaOutcome {
   readonly won: boolean;
   readonly isDaily: boolean;
   readonly newlyCompletedChallengeIds: readonly string[];
+  readonly completedChallengeIds: readonly string[];
   readonly newlyUnlockedAchievementIds: readonly string[];
   readonly endlessScore: EndlessScoreBreakdown | null;
   readonly dailyScore: number | null;
+  readonly runDurationSec: number;
+  readonly isNewBestLives: boolean;
   readonly isNewFastestWin: boolean;
   readonly isNewBestEndlessWave: boolean;
   readonly isNewBestEndlessScore: boolean;

@@ -4,7 +4,12 @@ import { ENDLESS_MUTATORS, ENDLESS_MUTATOR_PRESETS } from '../data/challenges.ts
 import { LEVELS } from '../data/levels/index.ts';
 import type { LevelDef } from '../data/levels/types.ts';
 import { TOWER_TYPES } from '../data/towers.ts';
-import { computeDailyStreaks, generateDailyChallenge, getRecentDailySpecs } from '../sim/meta/daily.ts';
+import {
+  computeDailyStreaks,
+  generateDailyChallenge,
+  getRecentDailySpecs,
+  isValidDateString,
+} from '../sim/meta/daily.ts';
 import {
   applyTelemetryDeltaToStats,
   getAchievements,
@@ -114,7 +119,10 @@ export class MetaSession {
     this.observer = observer;
     this.committedTelemetry = null;
     this.countedGamePlayed = false;
-    this.activeDailyDate = options?.dailyDate ?? null;
+    this.activeDailyDate =
+      options?.dailyDate && isValidDateString(options.dailyDate)
+        ? options.dailyDate.trim()
+        : null;
     this.lastRunOutcome = null;
     this.runUnlockedAchievementIds = [];
     this.runStartBestEndlessWave = this.save.campaign.bestEndlessWaves[level.index] ?? 0;
@@ -212,6 +220,10 @@ export class MetaSession {
 
   markDebugTainted(): void {
     this.observer?.markDebugTainted();
+  }
+
+  isCurrentRunEligible(): boolean {
+    return this.observer ? this.observer.isEligibleForChallenges() : true;
   }
 
   verifyWorldIntegrity(actualGold: number, actualLives: number): boolean {

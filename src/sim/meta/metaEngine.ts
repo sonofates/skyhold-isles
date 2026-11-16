@@ -365,6 +365,7 @@ export function applyTelemetryDeltaToStats(
   }
 
   if (
+    current.eligibleForChallenges &&
     current.endlessEntered &&
     current.maxWaveReached > current.storyWaveCount &&
     current.maxWaveReached > save.stats.bestEndlessWaveOverall
@@ -464,6 +465,7 @@ export function recordEndlessRunStats(
   scoreMultiplier = 1,
 ): EndlessScoreBreakdown | null {
   if (
+    !telemetry.eligibleForChallenges ||
     !telemetry.endlessEntered ||
     (telemetry.maxWaveReached <= telemetry.storyWaveCount && telemetry.endlessWavesCompleted === 0)
   ) {
@@ -521,12 +523,15 @@ export function recordRunCompletion(
   const { level, telemetry, won, stars, livesRemaining } = params;
   const isDaily = Boolean(params.dailyDate && isValidDateString(params.dailyDate));
   const newlyCompletedChallengeIds: string[] = [];
+  const completedChallengeIds: string[] = [];
+  let isNewBestLives = false;
   let isNewFastestWin = false;
 
   const prevEndlessWave =
     params.previousBestEndlessWave ?? (save.campaign.bestEndlessWaves[level.index] ?? 0);
   const prevEndlessScore =
     params.previousBestEndlessScore ?? (save.bestEndlessScoresByLevelId[level.id] ?? 0);
+  const runDurationSec = +Math.max(0, telemetry.simTimeSec).toFixed(1);
 
   if (won) {
     if (telemetry.eligibleForChallenges) {
@@ -546,8 +551,10 @@ export function recordRunCompletion(
           );
         }
 
-        if (livesRemaining > (save.bestLivesByLevelId[level.id] ?? 0)) {
-          save.bestLivesByLevelId[level.id] = Math.min(BALANCE.startingLives, livesRemaining);
+        const clampedLives = Math.min(BALANCE.startingLives, livesRemaining);
+        if (clampedLives > (save.bestLivesByLevelId[level.id] ?? 0)) {
+          save.bestLivesByLevelId[level.id] = clampedLives;
+          isNewBestLives = true;
         }
         if (telemetry.simTimeSec > 0) {
           const clearSec = Math.max(0.1, +telemetry.simTimeSec.toFixed(1));
@@ -574,6 +581,7 @@ export function recordRunCompletion(
         const satisfied = evaluateLevelChallenges(level, telemetry, true, livesRemaining);
         for (let i = 0; i < satisfied.length; i++) {
           const cid = satisfied[i].id;
+          completedChallengeIds.push(cid);
           if (!save.completedChallenges[cid]) {
             save.completedChallenges[cid] = true;
             newlyCompletedChallengeIds.push(cid);
@@ -625,9 +633,12 @@ export function recordRunCompletion(
     won,
     isDaily,
     newlyCompletedChallengeIds,
+    completedChallengeIds,
     newlyUnlockedAchievementIds,
     endlessScore,
     dailyScore,
+    runDurationSec,
+    isNewBestLives,
     isNewFastestWin,
     isNewBestEndlessWave,
     isNewBestEndlessScore,

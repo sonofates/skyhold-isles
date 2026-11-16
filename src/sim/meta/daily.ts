@@ -151,6 +151,11 @@ export function generateDailyChallenge(
   const level = levels[levelIndex];
   const isMaster = level.difficulty === 'Master';
   const isHeroic = level.difficulty === 'Heroic';
+  const hasHeavyArmoredWaves = level.waves.some((wave) =>
+    wave.groups.some(
+      (grp) => (grp.enemyType === 'brute' && grp.count >= 6) || grp.enemyType === 'boss',
+    ),
+  );
 
   const mutatorCount = isMaster
     ? 1
@@ -184,6 +189,7 @@ export function generateDailyChallenge(
       preserveAntiAir: mutatorRoll.modifiers.flyerCountMultiplier > 1,
       requireArmorBreaker:
         isHeroic ||
+        (level.difficulty !== 'Breezy' && hasHeavyArmoredWaves) ||
         mutatorRoll.modifiers.enemyArmorBonus > 0 ||
         mutatorRoll.modifiers.enemyHpMultiplier > 1,
     },

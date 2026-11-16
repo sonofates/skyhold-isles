@@ -151,7 +151,9 @@ export class GameSession {
     overlays.setPlayVisibility(inPlay);
     setDebugVisible(inPlay);
     if (!inPlay) return;
-    this.meta.verifyWorldIntegrity(this.simWorld.gold, this.simWorld.lives);
+    if (this.simWorld.outcome === 'ongoing') {
+      this.meta.verifyWorldIntegrity(this.simWorld.gold, this.simWorld.lives);
+    }
 
     const selectedTower =
       this.selectedTowerId !== null ? this.simWorld.getTowerById(this.selectedTowerId) : null;
@@ -251,7 +253,7 @@ export class GameSession {
 
   /** Records the current endless run (if any) so leaving/restarting mid-run keeps the best wave. */
   private recordEndlessIfActive(): void {
-    if (this.viewMode !== 'playing') return;
+    if (this.viewMode !== 'playing' || !this.meta.isCurrentRunEligible()) return;
     const ws = this.simWorld.waveSystem;
     if (!ws.isEndless || ws.currentWaveOneBased <= this.simWorld.level.waves.length) return;
     recordEndlessProgress(this.progress, this.currentLevelIndex, ws.currentWaveOneBased);
@@ -369,7 +371,7 @@ export class GameSession {
       getSimClock: () => this.simClockSec,
       onSyncUi: this.syncUi,
       onGameWon: (stars, livesRemaining) => {
-        if (!this.meta.getActiveDailyDate()) {
+        if (!this.meta.getActiveDailyDate() && this.meta.isCurrentRunEligible()) {
           recordWinProgress(this.progress, this.currentLevelIndex, stars);
         }
         this.activeAbilityMode = null;
@@ -393,7 +395,7 @@ export class GameSession {
         overlays.tooltip.hide();
         overlays.closeModals();
         const isEndless = Boolean(endless ?? this.simWorld.waveSystem.isEndless);
-        if (isEndless) {
+        if (isEndless && this.meta.isCurrentRunEligible()) {
           recordEndlessProgress(this.progress, this.currentLevelIndex, waveIndex + 1);
         }
         overlays.outcomeOverlay.showLose(
@@ -798,11 +800,13 @@ export class GameSession {
 
   fixedTick(dt: number): void {
     this.simClockSec += dt;
-    this.meta.onTick(dt, this.deps?.loop.speed ?? 1);
-    if (this.pendingDebugSpawns.length > 0) {
-      this.meta.markDebugTainted();
+    if (this.simWorld.outcome === 'ongoing') {
+      this.meta.onTick(dt, this.deps?.loop.speed ?? 1);
+      if (this.pendingDebugSpawns.length > 0) {
+        this.meta.markDebugTainted();
+      }
+      this.meta.verifyWorldIntegrity(this.simWorld.gold, this.simWorld.lives);
     }
-    this.meta.verifyWorldIntegrity(this.simWorld.gold, this.simWorld.lives);
     stepPendingSpawns(this.pendingDebugSpawns, this.simWorld, dt);
     this.simWorld.fixedTick(dt);
   }

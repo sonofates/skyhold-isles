@@ -472,6 +472,11 @@ export class RunObserver {
     this.eligibleForChallenges = false;
   }
 
+  /** Returns false if debug cheats, skipped waves, or economy tampering tainted this run. */
+  isEligibleForChallenges(): boolean {
+    return this.eligibleForChallenges;
+  }
+
   /**
    * Verifies that live SimWorld gold & lives still match EventBus-derived economy state.
    * Any external mutation (e.g. `?debug` +100g / +500g / Lives=20) immediately taints the run.
