@@ -1,4 +1,4 @@
-import type { ProgressData } from '../../core/types.ts';
+import type { EnemyType, ProgressData, TowerType } from '../../core/types.ts';
 import { BALANCE } from '../../data/balance.ts';
 import { ACHIEVEMENTS, getChallengesForLevel } from '../../data/challenges.ts';
 import { LEVELS } from '../../data/levels/index.ts';
@@ -11,8 +11,10 @@ import type {
   AllChallengeProgress,
   ChallengeItemStatus,
   EndlessScoreBreakdown,
+  IslandMasteryStatus,
   LevelChallengeStatus,
   LifetimeStats,
+  MetaCareerSummary,
   MetaSaveData,
   RunMetaOutcome,
   RunTelemetry,
@@ -67,6 +69,7 @@ export function createDefaultMetaSave(levelCount: number): MetaSaveData {
       bestMutatedEndlessWavesCleared: 0,
     },
     stats: createEmptyLifetimeStats(),
+    bestEndlessScoresByLevelId: {},
     completedDailyDates: [],
     dailyBestScores: {},
   };
@@ -243,9 +246,16 @@ export function migrateToMetaSave(
       base.completedDailyDates = [...uniqueDates].sort();
     }
 
+    base.bestEndlessScoresByLevelId = sanitizeCountRecord(obj.bestEndlessScoresByLevelId);
     base.dailyBestScores = sanitizeCountRecord(obj.dailyBestScores);
   } else {
     base.campaign = v1Campaign;
+  }
+
+  for (const score of Object.values(base.bestEndlessScoresByLevelId)) {
+    if (score > base.stats.bestEndlessScoreOverall) {
+      base.stats.bestEndlessScoreOverall = score;
+    }
   }
 
   // Keep stats consistent with migrated v1 endless waves and wins
@@ -428,7 +438,7 @@ export function recordEndlessRunStats(
   if (telemetry.maxWaveReached > save.stats.bestEndlessWaveOverall) {
     save.stats.bestEndlessWaveOverall = telemetry.maxWaveReached;
   }
-  const endlessWavesCleared = Math.max(0, telemetry.wavesCompleted - level.waves.length);
+  const endlessWavesCleared = telemetry.endlessWavesCompleted;
   if (
     telemetry.activeMutatorIds.length > 0 &&
     endlessWavesCleared > save.achievementMilestones.bestMutatedEndlessWavesCleared
@@ -439,6 +449,10 @@ export function recordEndlessRunStats(
     endlessWavesCleared,
     telemetry.endlessEnemiesKilled,
     scoreMultiplier,
+  );
+  save.bestEndlessScoresByLevelId[level.id] = Math.max(
+    save.bestEndlessScoresByLevelId[level.id] ?? 0,
+    endlessScore.totalScore,
   );
   if (endlessScore.totalScore > save.stats.bestEndlessScoreOverall) {
     save.stats.bestEndlessScoreOverall = endlessScore.totalScore;
@@ -506,7 +520,7 @@ export function recordRunCompletion(
         }
       }
     }
-  } else {
+  } else if (!telemetry.endlessEntered) {
     save.stats.gamesLost++;
   }
 
@@ -622,5 +636,94 @@ export function getStats(save: MetaSaveData): LifetimeStats {
     ...save.stats,
     enemiesDefeatedByType: { ...save.stats.enemiesDefeatedByType },
     towersBuiltByType: { ...save.stats.towersBuiltByType },
+  };
+}
+
+/** Typed UI query: combined campaign stars, challenge stars, endless records, and mastery flag for one island. */
+export function getIslandMasteryStatus(
+  save: MetaSaveData,
+  levelIndex: number,
+  levels: readonly LevelDef[] = LEVELS,
+): IslandMasteryStatus | null {
+  const challengeStatus = getChallengeStatus(save, levelIndex, levels);
+  if (!challengeStatus) return null;
+  const campaignStars = save.campaign.bestStars[levelIndex] ?? 0;
+  const bestEndlessWave = save.campaign.bestEndlessWaves[levelIndex] ?? 0;
+  const bestEndlessScore = save.bestEndlessScoresByLevelId[challengeStatus.levelId] ?? 0;
+  return {
+    levelId: challengeStatus.levelId,
+    levelIndex,
+    levelName: challengeStatus.levelName,
+    campaignStars,
+    challengeStars: challengeStatus.earnedStars,
+    challengeTotal: challengeStatus.totalStars,
+    bestEndlessWave,
+    bestEndlessScore,
+    mastered:
+      campaignStars >= 3 &&
+      challengeStatus.totalStars > 0 &&
+      challengeStatus.earnedStars >= challengeStatus.totalStars,
+  };
+}
+
+function getTopKey(record: Readonly<Record<string, number>>): string | null {
+  let bestKey: string | null = null;
+  let bestCount = 0;
+  for (const [key, count] of Object.entries(record)) {
+    if (count > bestCount || (count === bestCount && count > 0 && (bestKey === null || key < bestKey))) {
+      bestCount = count;
+      bestKey = key;
+    }
+  }
+  return bestKey;
+}
+
+/** Typed UI query: high-level progression & career summary across campaign, challenges, achievements, and dailies. */
+export function getMetaCareerSummary(
+  save: MetaSaveData,
+  todayDateStr: string,
+  levels: readonly LevelDef[] = LEVELS,
+): MetaCareerSummary {
+  const challengeProg = getAllChallengeProgress(save, levels);
+  let campaignStarsEarned = 0;
+  let islandsCleared = 0;
+  let islandsMastered = 0;
+
+  for (let i = 0; i < levels.length; i++) {
+    const stars = save.campaign.bestStars[i] ?? 0;
+    campaignStarsEarned += stars;
+    if (stars > 0) islandsCleared++;
+    const mastery = getIslandMasteryStatus(save, i, levels);
+    if (mastery?.mastered) islandsMastered++;
+  }
+
+  let achievementsUnlocked = 0;
+  for (let i = 0; i < ACHIEVEMENTS.length; i++) {
+    if (save.unlockedAchievements[ACHIEVEMENTS[i].id]) {
+      achievementsUnlocked++;
+    }
+  }
+
+  const streaks = computeDailyStreaks(save.completedDailyDates, todayDateStr);
+  const completedOutcomes = save.stats.gamesWon + save.stats.gamesLost;
+  const winRatePct =
+    completedOutcomes > 0 ? Math.round((save.stats.gamesWon / completedOutcomes) * 100) : 0;
+
+  return {
+    campaignStarsEarned,
+    campaignStarsTotal: levels.length * 3,
+    challengeStarsEarned: challengeProg.earnedStars,
+    challengeStarsTotal: challengeProg.totalStars,
+    islandsCleared,
+    islandsMastered,
+    totalIslands: levels.length,
+    achievementsUnlocked,
+    achievementsTotal: ACHIEVEMENTS.length,
+    dailyCompletedTotal: save.completedDailyDates.length,
+    dailyCurrentStreak: streaks.currentStreak,
+    dailyBestStreak: streaks.bestStreak,
+    winRatePct,
+    favoriteTowerType: getTopKey(save.stats.towersBuiltByType) as TowerType | null,
+    mostDefeatedEnemyType: getTopKey(save.stats.enemiesDefeatedByType) as EnemyType | null,
   };
 }

@@ -3,7 +3,7 @@ import type { SpeedMultiplier, TowerType } from '../../core/types.ts';
 import { BALANCE } from '../../data/balance.ts';
 import { getChallengesForLevel } from '../../data/challenges.ts';
 import type { LevelDef } from '../../data/levels/types.ts';
-import { getTowerTierStats } from '../../data/towers.ts';
+import { TOWER_DEFS } from '../../data/towers.ts';
 import { resolveRunModifiers, scaleGoldCost, scaleGoldReward } from './modifiers.ts';
 import type {
   ChallengeCondition,
@@ -241,6 +241,10 @@ export class RunObserver {
   private towersCleansed = 0;
   private wavesCompleted = 0;
   private storyWavesCompleted = 0;
+  private endlessWavesCompleted = 0;
+  private pendingAbsorbedStoryWaves = 0;
+  private pendingAbsorbedEndlessWaves = 0;
+  private lastCompletedWaveIndex = -1;
   private endlessEntered = false;
   private maxWaveReached = 0;
   private currentSpeed: SpeedMultiplier = 1;
@@ -252,11 +256,15 @@ export class RunObserver {
   private expectedNextWaveIndex = 0;
   private skippedWaves = false;
   private eligibleForChallenges = true;
+  private expectedGold: number;
+  private expectedLives: number;
   private disposed = false;
 
   constructor(level: LevelDef, events: EventBus, modifiers?: RunModifiers | null) {
     this.level = level;
     this.modifiers = resolveRunModifiers(modifiers);
+    this.expectedGold = Math.round(level.startingGold * this.modifiers.startingGoldMultiplier);
+    this.expectedLives = BALANCE.startingLives;
     this.bind(events);
   }
 
@@ -273,10 +281,11 @@ export class RunObserver {
           this.maxTowerTierBuilt = ev.tier;
         }
         const tier = (ev.tier === 1 || ev.tier === 2 || ev.tier === 3 ? ev.tier : 1) as 1 | 2 | 3;
-        const baseCost = getTowerTierStats(ev.type, tier).upgradeCost;
+        const baseCost = TOWER_DEFS[ev.type]?.tiers[tier - 1]?.upgradeCost ?? 0;
         const paid = scaleGoldCost(baseCost, this.modifiers);
         this.grossGoldSpent += paid;
         this.netGoldSpent += paid;
+        this.expectedGold -= paid;
       }),
       events.on('towerUpgraded', (ev) => {
         this.towersUpgraded++;
@@ -287,15 +296,17 @@ export class RunObserver {
           this.maxTowerTierBuilt = ev.tier;
         }
         const tier = (ev.tier === 1 || ev.tier === 2 || ev.tier === 3 ? ev.tier : 2) as 1 | 2 | 3;
-        const baseCost = getTowerTierStats(ev.type, tier).upgradeCost;
+        const baseCost = TOWER_DEFS[ev.type]?.tiers[tier - 1]?.upgradeCost ?? 0;
         const paid = scaleGoldCost(baseCost, this.modifiers);
         this.grossGoldSpent += paid;
         this.netGoldSpent += paid;
+        this.expectedGold -= paid;
       }),
       events.on('towerSold', (ev) => {
         this.activeTowers = Math.max(0, this.activeTowers - 1);
         this.towersSold++;
         this.netGoldSpent = Math.max(0, this.netGoldSpent - ev.refund);
+        this.expectedGold += ev.refund;
       }),
       events.on('enemySpawned', (ev) => {
         if (!this.inWavePhase) {
@@ -316,9 +327,11 @@ export class RunObserver {
           this.flyingEnemiesKilled++;
         }
         this.goldEarned += ev.reward;
+        this.expectedGold += ev.reward;
       }),
       events.on('enemyLeaked', (ev) => {
         this.livesLost += ev.livesLost;
+        this.expectedLives = Math.max(0, this.expectedLives - ev.livesLost);
       }),
       events.on('abilityTargeted', (ev) => {
         this.abilitiesCastTotal++;
@@ -339,6 +352,18 @@ export class RunObserver {
           this.skippedWaves = true;
           this.eligibleForChallenges = false;
         }
+        if (this.inWavePhase) {
+          // Legitimate early-call during 'clearing'/'allSpawned' always awards earlyBonus > 0;
+          // mid-wave debugSkipToWave awards 0 earlyBonus without firing waveCompleted.
+          if (ev.earlyBonus <= 0) {
+            this.skippedWaves = true;
+            this.eligibleForChallenges = false;
+          } else if (this.endlessEntered) {
+            this.pendingAbsorbedEndlessWaves++;
+          } else if (ev.waveIndex - 1 < this.level.waves.length) {
+            this.pendingAbsorbedStoryWaves++;
+          }
+        }
         this.inWavePhase = true;
         this.expectedNextWaveIndex = ev.waveIndex + 1;
         if (ev.waveIndex + 1 > this.maxWaveReached) {
@@ -346,7 +371,9 @@ export class RunObserver {
         }
         if (ev.earlyBonus > 0) {
           this.earlyWavesCalled++;
-          this.goldEarned += scaleGoldReward(ev.earlyBonus, this.modifiers);
+          const scaledEarly = scaleGoldReward(ev.earlyBonus, this.modifiers);
+          this.goldEarned += scaledEarly;
+          this.expectedGold += scaledEarly;
         }
         if (!this.inCombat) {
           this.inCombat = true;
@@ -355,12 +382,22 @@ export class RunObserver {
       }),
       events.on('waveCompleted', (ev) => {
         this.inWavePhase = false;
-        this.wavesCompleted++;
-        if (ev.waveIndex < this.level.waves.length) {
-          this.storyWavesCompleted++;
+        this.lastCompletedWaveIndex = ev.waveIndex;
+        if (this.endlessEntered || ev.waveIndex >= this.level.waves.length) {
+          const cleared = 1 + this.pendingAbsorbedEndlessWaves;
+          this.pendingAbsorbedEndlessWaves = 0;
+          this.wavesCompleted += cleared;
+          this.endlessWavesCompleted += cleared;
+        } else {
+          const cleared = 1 + this.pendingAbsorbedStoryWaves;
+          this.pendingAbsorbedStoryWaves = 0;
+          this.wavesCompleted += cleared;
+          this.storyWavesCompleted += cleared;
         }
         if (ev.bonus > 0) {
-          this.goldEarned += scaleGoldReward(ev.bonus, this.modifiers);
+          const scaledBonus = scaleGoldReward(ev.bonus, this.modifiers);
+          this.goldEarned += scaledBonus;
+          this.expectedGold += scaledBonus;
         }
       }),
       events.on('endlessEntered', () => {
@@ -375,7 +412,8 @@ export class RunObserver {
           this.endlessEntered ||
           this.storyWinSnapshot !== null ||
           this.skippedWaves ||
-          this.storyWavesCompleted < this.level.waves.length
+          this.storyWavesCompleted < this.level.waves.length ||
+          this.lastCompletedWaveIndex !== this.level.waves.length - 1
         ) {
           this.eligibleForChallenges = false;
         }
@@ -432,6 +470,18 @@ export class RunObserver {
     this.eligibleForChallenges = false;
   }
 
+  /**
+   * Verifies that live SimWorld gold & lives still match EventBus-derived economy state.
+   * Any external mutation (e.g. `?debug` +100g / +500g / Lives=20) immediately taints the run.
+   */
+  verifyEconomyIntegrity(actualGold: number, actualLives: number): boolean {
+    if (actualGold !== this.expectedGold || actualLives !== this.expectedLives) {
+      this.eligibleForChallenges = false;
+      return false;
+    }
+    return true;
+  }
+
   /** Returns frozen story-win telemetry/lives once campaign waves are won (prevents Endless mutations). */
   getStoryWinSnapshot(): { livesRemaining: number; telemetry: RunTelemetry } | null {
     return this.storyWinSnapshot;
@@ -466,6 +516,7 @@ export class RunObserver {
       towersCleansed: this.towersCleansed,
       wavesCompleted: this.wavesCompleted,
       storyWavesCompleted: this.storyWavesCompleted,
+      endlessWavesCompleted: this.endlessWavesCompleted,
       endlessEntered: this.endlessEntered,
       maxWaveReached: this.maxWaveReached,
       minCombatSpeed: this.minCombatSpeed,

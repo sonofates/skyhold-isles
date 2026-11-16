@@ -38,6 +38,9 @@ function pickTowerRestriction(
 ): { restriction: DailyTowerRestriction; modifiers: RunModifiers } {
   const available = TOWER_TYPES.filter((t) => !alreadyForbidden.includes(t));
   const antiAirAvailable = available.filter((t) => TOWER_DEFS[t].hitsFlyers);
+  const antiAirDpsAvailable = antiAirAvailable.filter((t) => TOWER_DEFS[t].tiers[0].damage >= 15);
+  const primaryAntiAirPool =
+    antiAirDpsAvailable.length > 0 ? antiAirDpsAvailable : antiAirAvailable;
 
   if (options?.forceNone || available.length <= 2 || antiAirAvailable.length === 0) {
     return {
@@ -64,11 +67,12 @@ function pickTowerRestriction(
     };
   }
 
-  // Ban one tower while guaranteeing at least 1 anti-air tower remains legal
+  // Ban one tower while guaranteeing at least 1 primary anti-air DPS tower remains legal
   const allowLimited = options?.allowLimitedArsenal ?? true;
   if (!allowLimited || roll < 0.65 || available.length <= 3) {
     const bannable = available.filter((t) => {
       if (options?.preserveAntiAir && TOWER_DEFS[t].hitsFlyers) return false;
+      if (primaryAntiAirPool.includes(t) && primaryAntiAirPool.length <= 1) return false;
       return !TOWER_DEFS[t].hitsFlyers || antiAirAvailable.length > 1;
     });
     if (bannable.length > 0) {
@@ -85,9 +89,9 @@ function pickTowerRestriction(
     }
   }
 
-  // Limited arsenal: pick 3 available towers including at least 1 anti-air tower
+  // Limited arsenal: pick 3 available towers including at least 1 primary anti-air DPS tower
   const targetSize = Math.min(3, available.length);
-  const chosen: TowerType[] = [rng.pick(antiAirAvailable)];
+  const chosen: TowerType[] = [rng.pick(primaryAntiAirPool)];
   const remaining = available.filter((t) => t !== chosen[0]);
   while (chosen.length < targetSize && remaining.length > 0) {
     const idx = rng.int(0, remaining.length - 1);
@@ -196,6 +200,37 @@ function dateStringToEpochDay(dateStr: string): number | null {
   const month = Number(match[2]);
   const day = Number(match[3]);
   return Math.floor(Date.UTC(year, month - 1, day) / 86_400_000);
+}
+
+function epochDayToDateString(epochDay: number): string {
+  const dt = new Date(epochDay * 86_400_000);
+  const y = dt.getUTCFullYear();
+  const m = String(dt.getUTCMonth() + 1).padStart(2, '0');
+  const d = String(dt.getUTCDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+/**
+ * Pure helper returning Daily Challenge specs for `days` consecutive calendar days
+ * ending on `endDateStr` (ordered oldest -> newest). Useful for UI history/archive cards.
+ */
+export function getRecentDailySpecs(
+  endDateStr: string,
+  days = 7,
+  levels: readonly LevelDef[] = LEVELS,
+  mutatorCatalog: readonly MutatorDef[] = ENDLESS_MUTATORS,
+): readonly DailyChallengeSpec[] {
+  const endDay = dateStringToEpochDay(endDateStr);
+  if (endDay === null) {
+    throw new RangeError(`Invalid daily challenge date "${endDateStr}": expected YYYY-MM-DD.`);
+  }
+  const clampedDays = Math.max(1, Math.min(31, Math.floor(days)));
+  const specs: DailyChallengeSpec[] = [];
+  for (let offset = clampedDays - 1; offset >= 0; offset--) {
+    const ds = epochDayToDateString(endDay - offset);
+    specs.push(generateDailyChallenge(ds, levels, mutatorCatalog));
+  }
+  return specs;
 }
 
 /**

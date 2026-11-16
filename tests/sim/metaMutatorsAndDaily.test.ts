@@ -1,17 +1,28 @@
 import { describe, expect, it } from 'vitest';
 import { EventBus } from '../../src/core/eventBus.ts';
 import { BALANCE } from '../../src/data/balance.ts';
-import { ENDLESS_MUTATORS } from '../../src/data/challenges.ts';
+import { ENDLESS_MUTATOR_PRESETS, ENDLESS_MUTATORS } from '../../src/data/challenges.ts';
 import { ENEMY_DEFS } from '../../src/data/enemies.ts';
 import { LEVELS, type LevelDef } from '../../src/data/levels/index.ts';
 import { getTowerTierStats, TOWER_DEFS } from '../../src/data/towers.ts';
-import { computeDailyStreaks, generateDailyChallenge, isValidDateString } from '../../src/sim/meta/daily.ts';
+import {
+  computeDailyStreaks,
+  generateDailyChallenge,
+  getRecentDailySpecs,
+  isValidDateString,
+} from '../../src/sim/meta/daily.ts';
 import {
   describeActiveModifiers,
   getAllowedTowerTypes,
   isTowerTypeAllowed,
 } from '../../src/sim/meta/modifiers.ts';
-import { computeEndlessScore, hashSeedString, selectEndlessMutators } from '../../src/sim/meta/mutators.ts';
+import {
+  buildEndlessMutatorLoadout,
+  computeEndlessScore,
+  getMutatorPresetRoll,
+  hashSeedString,
+  selectEndlessMutators,
+} from '../../src/sim/meta/mutators.ts';
 import { RunObserver } from '../../src/sim/meta/runObserver.ts';
 import { SimWorld } from '../../src/sim/world.ts';
 
@@ -275,5 +286,42 @@ describe('Daily challenge pure date-seeded generator', () => {
       expect(badges.length).toBeGreaterThanOrEqual(spec.mutators.length);
       start.setUTCDate(start.getUTCDate() + 1);
     }
+  });
+
+  it('always retains at least 1 primary anti-air DPS tower across 365 daily challenges and builds recent calendar history', () => {
+    const start = new Date('2026-01-01T00:00:00Z');
+    for (let i = 0; i < 365; i++) {
+      const ds = start.toISOString().slice(0, 10);
+      const spec = generateDailyChallenge(ds, LEVELS);
+      const legalTowers = getAllowedTowerTypes(spec.modifiers);
+      expect(
+        legalTowers.some((t) => TOWER_DEFS[t].hitsFlyers && TOWER_DEFS[t].tiers[0].damage >= 15),
+      ).toBe(true);
+      start.setUTCDate(start.getUTCDate() + 1);
+    }
+
+    const recent = getRecentDailySpecs('2026-03-02', 5, LEVELS);
+    expect(recent.map((s) => s.date)).toEqual([
+      '2026-02-26',
+      '2026-02-27',
+      '2026-02-28',
+      '2026-03-01',
+      '2026-03-02',
+    ]);
+  });
+
+  it('validates custom mutator loadouts and curated mutator presets cleanly', () => {
+    // Conflict group 'economy-squeeze' prevents stacking gold_drought + tight_budget
+    const custom = buildEndlessMutatorLoadout(['gold_drought', 'tight_budget', 'swift_march', 'gold_drought', 'unknown']);
+    expect(custom.mutators.map((m) => m.id)).toEqual(['gold_drought', 'swift_march']);
+    expect(custom.scoreMultiplier).toBe(1.6);
+
+    for (const preset of ENDLESS_MUTATOR_PRESETS) {
+      const roll = getMutatorPresetRoll(preset.id);
+      expect(roll).not.toBeNull();
+      expect(roll!.mutators.map((m) => m.id)).toEqual(preset.mutatorIds);
+      expect(roll!.scoreMultiplier).toBeGreaterThan(1);
+    }
+    expect(getMutatorPresetRoll('non-existent')).toBeNull();
   });
 });

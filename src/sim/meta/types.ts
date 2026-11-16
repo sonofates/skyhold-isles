@@ -1,4 +1,4 @@
-import type { ProgressData, SpeedMultiplier, TowerType } from '../../core/types.ts';
+import type { EnemyType, ProgressData, SpeedMultiplier, TowerType } from '../../core/types.ts';
 
 /** Optional gameplay modifiers applied to a SimWorld run (endless mutators / daily challenges). */
 export interface RunModifiers {
@@ -116,6 +116,7 @@ export interface RunTelemetry {
   readonly towersCleansed: number;
   readonly wavesCompleted: number;
   readonly storyWavesCompleted: number;
+  readonly endlessWavesCompleted: number;
   readonly endlessEntered: boolean;
   readonly maxWaveReached: number;
   readonly minCombatSpeed: SpeedMultiplier | null;
@@ -175,6 +176,43 @@ export interface MutatorDef {
   readonly scoreMultiplierBonus: number;
   readonly conflictGroup?: string;
   readonly modifiers: RunModifiers;
+}
+
+export interface MutatorPreset {
+  readonly id: string;
+  readonly name: string;
+  readonly description: string;
+  readonly mutatorIds: readonly string[];
+}
+
+export interface IslandMasteryStatus {
+  readonly levelId: string;
+  readonly levelIndex: number;
+  readonly levelName: string;
+  readonly campaignStars: number;
+  readonly challengeStars: number;
+  readonly challengeTotal: number;
+  readonly bestEndlessWave: number;
+  readonly bestEndlessScore: number;
+  readonly mastered: boolean;
+}
+
+export interface MetaCareerSummary {
+  readonly campaignStarsEarned: number;
+  readonly campaignStarsTotal: number;
+  readonly challengeStarsEarned: number;
+  readonly challengeStarsTotal: number;
+  readonly islandsCleared: number;
+  readonly islandsMastered: number;
+  readonly totalIslands: number;
+  readonly achievementsUnlocked: number;
+  readonly achievementsTotal: number;
+  readonly dailyCompletedTotal: number;
+  readonly dailyCurrentStreak: number;
+  readonly dailyBestStreak: number;
+  readonly winRatePct: number;
+  readonly favoriteTowerType: TowerType | null;
+  readonly mostDefeatedEnemyType: EnemyType | null;
 }
 
 export interface EndlessMutatorRoll {
@@ -243,6 +281,7 @@ export interface MetaSaveData {
     bestMutatedEndlessWavesCleared: number;
   };
   stats: LifetimeStats;
+  bestEndlessScoresByLevelId: Record<string, number>;
   completedDailyDates: string[];
   dailyBestScores: Record<string, number>;
 }

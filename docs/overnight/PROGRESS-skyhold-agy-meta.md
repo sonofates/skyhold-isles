@@ -1,7 +1,7 @@
 # Overnight Progress — META (`hermes/skyhold-agy-meta`)
 
 ## Status Overview
-All 5 meta-progression & replayability backlog items + live in-run tracking, daily calendar streaks, bugfixes, difficulty-aware daily balancing, and cheat hardening are implemented, verified, and passing all checks (`tsc --noEmit`, `npm run lint`, `npm test`, `npm run build`, `npm run sim:balance`). Ready for morning integration & UI hookup.
+All 5 meta-progression & replayability backlog items + live in-run tracking, daily calendar streaks & archive, Endless mutator presets/custom loadouts, island mastery & career summaries, early-clearing wave counting fix, difficulty-aware daily anti-air balancing, and economy/lives tamper hardening are implemented, verified, and passing all checks (`tsc --noEmit`, `npm run lint`, `npm test`, `npm run build`, `npm run sim:balance`). Ready for morning integration & UI hookup.
 
 ---
 
@@ -9,15 +9,17 @@ All 5 meta-progression & replayability backlog items + live in-run tracking, dai
 1. **Per-Island Optional Challenges (`src/data/challenges.ts`, `src/sim/meta/runObserver.ts`)**
    - 27 hand-crafted optional challenges (3 per island for Islands 1–9), keyed by `level.id` (`CHALLENGES_BY_LEVEL_ID`), awarding Challenge Stars tracked separately from normal 3-star campaign ratings.
    - Verified all 27 curated challenges across Islands 1–9 against `SimWorld` (including ban-substituted & budget-constrained runs) to confirm winnability.
-   - Deterministic `getChallengesForLevel(level)` fallback generator keyed by `level.id` so new islands (10+) added by ENEMIES/ISLANDS automatically get 3 balanced, persistable challenges.
-   - `RunObserver` observes `EventBus` purely without modifying `EnemySystem` or `WaveSystem`, rejects debug-skipped (`debugSkipToWave`), debug-forced (`debugForceWin`), debug-spawned (`enemySpawned` outside wave phase or via `pendingDebugSpawns`), or post-loss resumed runs from unlocking challenges/dailies/wins, and prevents sell-rebuild cheese on `maxTowersBuilt` / `maxGoldSpent`.
+   - Deterministic `getChallengesForLevel(level)` fallback generator keyed by `level.id` (scaling `minLives` across `Breezy: 20 / Challenging: 16 / Heroic: 13 / Master: 10`) so new islands (10+) added by ENEMIES/ISLANDS automatically get 3 balanced, persistable challenges.
+   - `RunObserver` observes `EventBus` purely without modifying `EnemySystem` or `WaveSystem`, accurately counts waves when players call the next wave early during `'clearing'` (`pendingAbsorbedStoryWaves` / `pendingAbsorbedEndlessWaves`), rejects debug-skipped (`debugSkipToWave`, including mid-wave skips with `earlyBonus <= 0`), debug-forced (`debugForceWin`), debug-spawned (`enemySpawned` outside wave phase or via `pendingDebugSpawns`), out-of-band gold/lives cheats (`verifyEconomyIntegrity` / `MetaSession.verifyWorldIntegrity`), or post-loss resumed runs, and prevents sell-rebuild cheese on `maxTowersBuilt` / `maxGoldSpent`.
    - Snapshots story win state on `gameWon` (`getStoryWinSnapshot`) so entering Endless Mode never retroactively flips completed story challenges to `'failed'` in `getLiveChallengeStates()`.
    - Added live mid-run tracker (`evaluateLiveLevelChallenges`, exposed via `session.getLiveChallengeStates()`) reporting `'on_track' | 'failed' | 'completed'` plus human-readable `progressLabel` (e.g., `4/6 towers`, `1240/2750g`, `Set 3x before W1`, `Banned tower built`) and `previouslyCompleted`.
 
 2. **Achievements & Lifetime Stats (`src/data/challenges.ts`, `src/sim/meta/metaEngine.ts`, `src/platform/metaSession.ts`)**
    - 25 achievements across `campaign`, `combat`, `economy`, `mastery`, and `endless` categories with progress counters (`current`, `target`, `progressRatio`), including `upgrade_specialist` (100 upgrades), `mutated_endless` (5+ mutated Endless waves in one run), and `daily_streak_3` (3 consecutive Daily Challenge days).
    - `LifetimeStats` tracks `totalPlayTimeSec`, `gamesPlayed`, `gamesWon`, `gamesLost`, `wavesCleared`, `earlyWavesCalled`, `enemiesDefeatedTotal`, `enemiesDefeatedByType` (open `Record<string, number>` so future enemy types count automatically), `flyingEnemiesDefeated`, `towersBuiltTotal`, `towersBuiltByType` (open `Record<string, number>`), `towersUpgradedTotal`, `towersUpgradedToTier3`, `towersSoldTotal`, `goldEarnedTotal`, `goldSpentTotal`, `abilitiesCastTotal`, `meteorsCast`, `overchargesCast`, `towersCleansed`, `perfectClears`, `bestEndlessWaveOverall`, `bestEndlessScoreOverall`, and `dailyChallengesCompleted`.
-   - Incremental delta flushing on `waveCompleted` / `endlessEntered` / `gameWon` / `gameLost` / `endRun` ensures stats, `bestEndlessScoreOverall`, and `mutated_endless` persist mid-run (even when quitting Endless early) without double-counting.
+   - Incremental delta flushing on `waveCompleted` / `endlessEntered` / `gameWon` / `gameLost` / `endRun` ensures stats, `bestEndlessScoreOverall`, per-island `bestEndlessScoresByLevelId`, and `mutated_endless` persist mid-run (even when quitting Endless early) without double-counting.
+   - `MetaSession` captures achievements unlocked mid-run during `flushStats()` so `getLastRunMetaOutcome().newlyUnlockedAchievementIds` never omits achievements earned before the final wave, and `recordRunCompletion` does not misclassify an Endless defeat after a Story victory as a campaign loss (`gamesLost`).
+   - Added derived career & island mastery queries (`getIslandMasteryStatus`, `getMetaCareerSummary`) reporting campaign stars, challenge stars, Endless high score/wave, mastered island counts, win rate, favorite tower, and top enemy defeated.
 
 3. **Versioned Save Persistence & v1 Migration (`src/platform/storage.ts`, `src/sim/meta/metaEngine.ts`)**
    - Versioned `MetaSaveData` (`version: 2`, key `skyhold_isles_meta_v2`) alongside `skyhold_isles_progress_v1`.
@@ -26,17 +28,18 @@ All 5 meta-progression & replayability backlog items + live in-run tracking, dai
 4. **Endless Mutators (`src/data/challenges.ts`, `src/sim/meta/mutators.ts`, `src/sim/meta/modifiers.ts`)**
    - 8 mutators (`swift_march`, `iron_clad`, `sky_swarm`, `gold_drought`, `titan_tide`, `tight_budget`, `no_frost`, `no_tesla`) with conflict-group guards so seeded rolls never pair conflicting economy squeezes or stack anti-air bans with `sky_swarm`.
    - `selectEndlessMutators(seed, count)` accepts integer or string seeds and returns deterministic mutators, merged `RunModifiers`, and `scoreMultiplier`.
-   - `RunObserver` tracks `endlessEnemiesKilled` separately from story kills so `computeEndlessScore(wavesClearedInEndless, endlessEnemiesKilled, scoreMultiplier)` accurately scores Endless performance.
+   - Added 4 curated Endless mutator presets (`ENDLESS_MUTATOR_PRESETS`: *Iron Skies*, *Blitz Tide*, *Lean Siege*, *Skyhold Gauntlet*) plus `buildEndlessMutatorLoadout(ids)` and `getMutatorPresetRoll(presetId)` for preset or custom mutator toggle UIs.
+   - `RunObserver` tracks `endlessEnemiesKilled` and `endlessWavesCompleted` directly (including absorbed early-called waves) so `computeEndlessScore(wavesClearedInEndless, endlessEnemiesKilled, scoreMultiplier)` accurately scores Endless performance.
    - `describeActiveModifiers` formats active mutators and tower restrictions into clean UI badges (`ModifierBadgeInfo`).
 
 5. **Daily Challenge & Streaks (`src/sim/meta/daily.ts`)**
    - Pure function `generateDailyChallenge(dateStr, levels?)` seeded by strict calendar `YYYY-MM-DD` string (`isValidDateString`, including leap years).
-   - Deterministically picks island, compatible mutators, and tower restriction (`none`, `ban_one`, `limited_arsenal`) while guaranteeing at least 1 anti-air tower (`hitsFlyers`) remains available, scaling rule severity by island difficulty (`Master` islands cap at 1 non-drought mutator and avoid double-bans/`limited_arsenal`/anti-air bans on `sky_swarm`), and keeping `spec.scoreMultiplier === spec.modifiers.scoreMultiplier` exact.
-   - `computeDailyStreaks(completedDates, referenceDate)` computes `currentStreak` and `bestStreak` via pure UTC calendar-day math.
+   - Deterministically picks island, compatible mutators, and tower restriction (`none`, `ban_one`, `limited_arsenal`) while guaranteeing at least 1 primary anti-air DPS tower (`archer` or `tesla`, never leaving Frost-only anti-air), scaling rule severity by island difficulty (`Master` islands cap at 1 non-drought mutator and avoid double-bans/`limited_arsenal`/anti-air bans on `sky_swarm`), and keeping `spec.scoreMultiplier === spec.modifiers.scoreMultiplier` exact.
+   - `computeDailyStreaks(completedDates, referenceDate)` computes `currentStreak` and `bestStreak` via pure UTC calendar-day math, and `getRecentDailySpecs(endDateStr, days)` builds recent daily archive entries.
    - Daily completions record `dailyBestScores` and `daily_victor` without prematurely unlocking locked campaign islands (and reject debug-tainted wins).
 
 6. **Tests (`tests/sim/metaChallenges.test.ts`, `tests/sim/metaMutatorsAndDaily.test.ts`, `tests/sim/metaSaveAndStats.test.ts`)**
-   - Comprehensive unit & `SimWorld` integration coverage (79 total tests passing across 12 suites): challenge conditions, live mid-run challenge status, Endless story-snapshot freezing, anti-cheat/anti-sell-cheese/debug-spawn/post-loss resume rejection, Island 1 6-tower 3x flawless clear, fallback challenges for Islands 10+, mutator determinism & `SimWorld` physics/economy/cost-helper integration, daily challenge determinism & 120-day `scoreMultiplier`/Master fairness invariants, calendar streaks, build restriction queries, v1->v2 save migration, mid-Endless quit persistence, and `MetaSession` lifecycle.
+   - Comprehensive unit & `SimWorld` integration coverage (85 total tests passing across 12 suites): challenge conditions, live mid-run challenge status, Island 4 early-clearing wave counting (`minEarlyWaves: 6`), Endless story-snapshot freezing, anti-cheat/anti-sell-cheese/debug-spawn/mid-wave-skip/economy-tamper/post-loss resume rejection, Island 1 6-tower 3x flawless clear, fallback challenges for Islands 10+, mutator determinism, custom loadouts & presets, `SimWorld` physics/economy/cost-helper integration, daily challenge determinism & 365-day primary anti-air DPS + 120-day `scoreMultiplier`/Master fairness invariants, calendar streaks & recent daily archive, build restriction queries, v1->v2 save migration, mid-run achievement outcome preservation, Endless-after-win `gamesLost` guard, `getIslandMasteryStatus`/`getMetaCareerSummary`, mid-Endless quit persistence, and `MetaSession` lifecycle.
 
 ---
 
@@ -53,9 +56,9 @@ All 5 meta-progression & replayability backlog items + live in-run tracking, dai
 - `src/platform/gameSession.ts`:
   - Thin delegation to `MetaSession` (`src/platform/metaSession.ts`).
   - Prevents placement ghosting for banned tower types in `setPlacementMode`.
-  - Taints `meta.markDebugTainted()` when `pendingDebugSpawns` are active.
+  - Taints `meta.markDebugTainted()` when `pendingDebugSpawns` are active, and runs `meta.verifyWorldIntegrity(simWorld.gold, simWorld.lives)` in `syncUi()` / `fixedTick()` to catch `?debug` gold/lives cheats without editing `src/ui/**`.
   - Guards `recordWinProgress` on `onGameWon` so Daily Challenge runs don't unlock locked campaign islands.
-  - Exposes typed UI API methods directly on `GameSession`.
+  - Exposes typed UI API methods directly on `GameSession` (including `restartCurrentRun()`, `getIslandMasteryStatus()`, `getMetaCareerSummary()`, `getEndlessMutatorPresets()`, `buildEndlessMutatorLoadout()`, `getMutatorPresetRoll()`, `getRecentDailyChallenges()`).
 
 ---
 
@@ -81,8 +84,12 @@ UI files (`src/ui/**`, `src/style.css`) and render files (`src/render/**`) were 
   - For disabling/locking restricted tower cards in BuildBar / radial menu.
 - `session.getTowerBuildCost(type): number` & `session.getTowerUpgradeCost(towerId): number | null`
   - Effective build & upgrade gold costs accounting for `towerCostMultiplier` (`tight_budget`).
-- `session.rollEndlessMutators(seed?, count?): EndlessMutatorRoll` & `session.enterEndlessMode(seedOrModifiers)`
-  - Lets Outcome modal / Endless setup preview mutators + score multiplier and launch mutated Endless runs.
+- `session.rollEndlessMutators(seed?, count?): EndlessMutatorRoll`, `session.getEndlessMutatorPresets(): readonly MutatorPreset[]`, `session.getMutatorPresetRoll(presetId)`, `session.buildEndlessMutatorLoadout(ids)`, & `session.enterEndlessMode(seedOrModifiers)`
+  - Lets Outcome modal / Endless setup preview seeded rolls, curated presets, or custom mutator toggles + score multiplier and launch mutated Endless runs.
+- `session.getIslandMasteryStatus(levelIndex): IslandMasteryStatus | null` & `session.getMetaCareerSummary(dateStr?): MetaCareerSummary`
+  - Island completion/mastery summary (campaign ★ + challenge ★ + best Endless wave/score) and aggregate Career summary (stars, mastered islands, win rate, favorite tower, top defeated enemy, daily streaks).
+- `session.getRecentDailyChallenges(days?, endDateStr?): readonly DailyChallengeSpec[]` & `session.restartCurrentRun(): void`
+  - Recent Daily Watch calendar archive and daily-aware run restart preserving active daily modifiers/date.
 - `session.getLastRunMetaOutcome(): RunMetaOutcome | null`
   - Populated immediately on `gameWon` / `gameLost` with `{ won, isDaily, newlyCompletedChallengeIds, newlyUnlockedAchievementIds, endlessScore, dailyScore }`.
 

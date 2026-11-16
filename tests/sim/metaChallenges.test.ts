@@ -422,4 +422,123 @@ describe('RunObserver challenge condition tracking', () => {
     expect(obs2.getTelemetry().eligibleForChallenges).toBe(false);
     obs2.dispose();
   });
+
+  it('preserves challenge eligibility and accurate wave counts when calling waves early during clearing (Island 4)', () => {
+    const level4 = LEVELS[3]; // Emerald Stepping Stones: 14 waves, challenge requires 6 early waves
+    const events = new EventBus();
+    const world = new SimWorld(level4, events);
+    const observer = new RunObserver(level4, events);
+
+    const queue = [...(level4.scriptedBuildOrder ?? [])];
+    const tryStep = (): boolean => {
+      while (queue.length > 0) {
+        const a = queue[0];
+        if (a.action === 'build') {
+          const cost = getTowerTierStats(a.towerType!, 1).upgradeCost;
+          if (world.gold < cost) return false;
+          if (!world.placeTower(a.col, a.row, a.towerType!, a.targetingMode ?? 'first')) {
+            queue.shift();
+            continue;
+          }
+          queue.shift();
+          return true;
+        }
+        const tid = world.grid.getTowerIdAt(a.col, a.row);
+        const tw = tid === -1 ? null : world.getTowerById(tid);
+        if (!tw || tw.tier >= 3) {
+          queue.shift();
+          continue;
+        }
+        const cost = getTowerTierStats(tw.type, (tw.tier + 1) as 2 | 3).upgradeCost;
+        if (world.gold < cost) return false;
+        if (world.upgradeTower(tid)) {
+          queue.shift();
+          return true;
+        }
+        queue.shift();
+      }
+      return false;
+    };
+
+    while (tryStep()) {
+      // initial towers
+    }
+    world.startNextWave();
+
+    let clearingEarlyCalls = 0;
+    for (let tick = 0; tick < 60 * 1800 && world.outcome === 'ongoing'; tick++) {
+      if (world.waveSystem.state === 'betweenWaves') {
+        while (tryStep()) {
+          // build between waves
+        }
+      } else if (tick % (60 * 6) === 0) {
+        tryStep();
+      }
+      // Explicitly call next waves early during 'clearing' once few stragglers remain (realistic early-call pacing)
+      if (
+        world.waveSystem.state === 'clearing' &&
+        world.enemyPool.getActiveCount() <= 3 &&
+        clearingEarlyCalls < 7 &&
+        world.waveSystem.canStartNextWave()
+      ) {
+        while (tryStep()) {
+          // spend accumulated gold before rushing next wave
+        }
+        if (world.startNextWave()) clearingEarlyCalls++;
+      }
+      observer.onTick(BALANCE.fixedDt, 1);
+      world.fixedTick(BALANCE.fixedDt);
+    }
+
+    expect(clearingEarlyCalls).toBeGreaterThanOrEqual(6);
+    expect(world.outcome).toBe('won');
+    const telemetry = observer.getTelemetry();
+    expect(telemetry.eligibleForChallenges).toBe(true);
+    expect(telemetry.storyWavesCompleted).toBe(level4.waves.length);
+    expect(telemetry.wavesCompleted).toBe(level4.waves.length);
+    expect(telemetry.earlyWavesCalled).toBe(clearingEarlyCalls);
+    expect(observer.verifyEconomyIntegrity(world.gold, world.lives)).toBe(true);
+
+    const completed = observer.evaluateCompletedChallenges(true, world.lives);
+    expect(completed.some((c) => c.id === 'emerald-stepping-stones:early-waves')).toBe(true);
+    observer.dispose();
+  });
+
+  it('detects mid-wave debugSkipToWave and out-of-band gold/lives tampering via verifyEconomyIntegrity', () => {
+    const level = makeSimpleTestLevel();
+    const events1 = new EventBus();
+    const world1 = new SimWorld(level, events1);
+    const obs1 = new RunObserver(level, events1);
+    world1.startNextWave();
+    // Skip straight to next wave mid-wave (earlyBonus === 0 while inWavePhase === true)
+    world1.debugSkipToWave(2);
+    expect(obs1.getTelemetry().eligibleForChallenges).toBe(false);
+    obs1.dispose();
+
+    const events2 = new EventBus();
+    const world2 = new SimWorld(level, events2);
+    const meta = new MetaSession({ levels: [level], onSave: () => {} });
+    meta.startRun(level, events2);
+    expect(meta.verifyWorldIntegrity(world2.gold, world2.lives)).toBe(true);
+    // Simulate ?debug +500g cheat
+    world2.gold += 500;
+    expect(meta.verifyWorldIntegrity(world2.gold, world2.lives)).toBe(false);
+
+    // Simulate ?debug Lives=20 cheat on another run
+    const events3 = new EventBus();
+    const world3 = new SimWorld(level, events3);
+    meta.startRun(level, events3);
+    world3.lives = 15;
+    expect(meta.verifyWorldIntegrity(world3.gold, world3.lives)).toBe(false);
+    meta.dispose();
+  });
+
+  it('scales fallback minLives reasonably for Master vs Heroic islands 10+', () => {
+    const heroic10: LevelDef = { ...LEVELS[2], id: 'cloud-bastion', index: 9, difficulty: 'Heroic' };
+    const master11: LevelDef = { ...LEVELS[8], id: 'abyssal-spire', index: 10, difficulty: 'Master' };
+    const hCh = getChallengesForLevel(heroic10);
+    const mCh = getChallengesForLevel(master11);
+    expect(hCh[0].condition).toEqual({ kind: 'minLivesRemaining', minLives: 13 });
+    expect(mCh[0].condition).toEqual({ kind: 'minLivesRemaining', minLives: 10 });
+  });
 });

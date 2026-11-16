@@ -1,14 +1,17 @@
 import type { EventBus } from '../core/eventBus.ts';
 import type { ProgressData, SpeedMultiplier, TowerType } from '../core/types.ts';
+import { ENDLESS_MUTATOR_PRESETS } from '../data/challenges.ts';
 import { LEVELS } from '../data/levels/index.ts';
 import type { LevelDef } from '../data/levels/types.ts';
 import { TOWER_TYPES } from '../data/towers.ts';
-import { computeDailyStreaks, generateDailyChallenge } from '../sim/meta/daily.ts';
+import { computeDailyStreaks, generateDailyChallenge, getRecentDailySpecs } from '../sim/meta/daily.ts';
 import {
   applyTelemetryDeltaToStats,
   getAchievements,
   getAllChallengeProgress,
   getChallengeStatus,
+  getIslandMasteryStatus,
+  getMetaCareerSummary,
   getStats,
   recomputeAchievements,
   recordEndlessRunStats,
@@ -19,7 +22,11 @@ import {
   getAllowedTowerTypes,
   isTowerTypeAllowed,
 } from '../sim/meta/modifiers.ts';
-import { selectEndlessMutators } from '../sim/meta/mutators.ts';
+import {
+  buildEndlessMutatorLoadout,
+  getMutatorPresetRoll,
+  selectEndlessMutators,
+} from '../sim/meta/mutators.ts';
 import { evaluateLiveLevelChallenges, RunObserver } from '../sim/meta/runObserver.ts';
 import type {
   AchievementStatus,
@@ -27,11 +34,14 @@ import type {
   DailyChallengeSpec,
   DailyStatus,
   EndlessMutatorRoll,
+  IslandMasteryStatus,
   LevelChallengeStatus,
   LifetimeStats,
   LiveChallengeStatus,
+  MetaCareerSummary,
   MetaSaveData,
   ModifierBadgeInfo,
+  MutatorPreset,
   ResolvedRunModifiers,
   RunMetaOutcome,
   RunModifiers,
@@ -62,6 +72,7 @@ export class MetaSession {
   private countedGamePlayed = false;
   private activeDailyDate: string | null = null;
   private lastRunOutcome: RunMetaOutcome | null = null;
+  private runUnlockedAchievementIds: string[] = [];
 
   constructor(options?: MetaSessionOptions) {
     this.levels = options?.levels ?? LEVELS;
@@ -98,6 +109,7 @@ export class MetaSession {
     this.countedGamePlayed = false;
     this.activeDailyDate = options?.dailyDate ?? null;
     this.lastRunOutcome = null;
+    this.runUnlockedAchievementIds = [];
 
     this.unsubs.push(
       events.on('waveStarted', () => {
@@ -116,7 +128,7 @@ export class MetaSession {
         if (observer.getTelemetry().endlessEntered) return;
         this.flushStats(false);
         const telemetry = observer.getTelemetry();
-        this.lastRunOutcome = recordRunCompletion(this.save, {
+        const outcome = recordRunCompletion(this.save, {
           level,
           telemetry,
           won: true,
@@ -126,12 +138,18 @@ export class MetaSession {
           dailyDate: this.activeDailyDate,
           scoreMultiplier: observer.getModifiers().scoreMultiplier,
         });
+        this.collectRunAchievements(outcome.newlyUnlockedAchievementIds);
+        this.lastRunOutcome = {
+          ...outcome,
+          newlyUnlockedAchievementIds: [...this.runUnlockedAchievementIds],
+        };
+        this.runUnlockedAchievementIds = [];
         this.persist();
       }),
       events.on('gameLost', () => {
         this.flushStats(false);
         const telemetry = observer.getTelemetry();
-        this.lastRunOutcome = recordRunCompletion(this.save, {
+        const outcome = recordRunCompletion(this.save, {
           level,
           telemetry,
           won: false,
@@ -141,6 +159,12 @@ export class MetaSession {
           dailyDate: this.activeDailyDate,
           scoreMultiplier: observer.getModifiers().scoreMultiplier,
         });
+        this.collectRunAchievements(outcome.newlyUnlockedAchievementIds);
+        this.lastRunOutcome = {
+          ...outcome,
+          newlyUnlockedAchievementIds: [...this.runUnlockedAchievementIds],
+        };
+        this.runUnlockedAchievementIds = [];
         this.persist();
       }),
     );
@@ -162,8 +186,21 @@ export class MetaSession {
     this.observer?.recordSpeed(speed);
   }
 
+  private collectRunAchievements(ids: readonly string[]): void {
+    for (let i = 0; i < ids.length; i++) {
+      if (!this.runUnlockedAchievementIds.includes(ids[i])) {
+        this.runUnlockedAchievementIds.push(ids[i]);
+      }
+    }
+  }
+
   markDebugTainted(): void {
     this.observer?.markDebugTainted();
+  }
+
+  verifyWorldIntegrity(actualGold: number, actualLives: number): boolean {
+    if (!this.observer) return true;
+    return this.observer.verifyEconomyIntegrity(actualGold, actualLives);
   }
 
   flushStats(persistAfter = true): void {
@@ -181,7 +218,7 @@ export class MetaSession {
       );
     }
 
-    recomputeAchievements(this.save, this.levels);
+    this.collectRunAchievements(recomputeAchievements(this.save, this.levels));
     if (persistAfter) {
       this.persist();
     }
@@ -194,6 +231,7 @@ export class MetaSession {
       this.observer = null;
     }
     this.committedTelemetry = null;
+    this.runUnlockedAchievementIds = [];
     for (let i = 0; i < this.unsubs.length; i++) {
       this.unsubs[i]();
     }
@@ -294,6 +332,30 @@ export class MetaSession {
   rollEndlessMutators(seed?: number | string, count = 2): EndlessMutatorRoll {
     const resolvedSeed = seed ?? this.getTodayDateFn();
     return selectEndlessMutators(resolvedSeed, count);
+  }
+
+  getEndlessMutatorPresets(): readonly MutatorPreset[] {
+    return ENDLESS_MUTATOR_PRESETS;
+  }
+
+  buildEndlessMutatorLoadout(mutatorIds: readonly string[]): EndlessMutatorRoll {
+    return buildEndlessMutatorLoadout(mutatorIds);
+  }
+
+  getMutatorPresetRoll(presetId: string): EndlessMutatorRoll | null {
+    return getMutatorPresetRoll(presetId);
+  }
+
+  getIslandMasteryStatus(levelIndex: number): IslandMasteryStatus | null {
+    return getIslandMasteryStatus(this.save, levelIndex, this.levels);
+  }
+
+  getMetaCareerSummary(dateStr?: string): MetaCareerSummary {
+    return getMetaCareerSummary(this.save, dateStr ?? this.getTodayDateFn(), this.levels);
+  }
+
+  getRecentDailyChallenges(days = 7, endDateStr?: string): readonly DailyChallengeSpec[] {
+    return getRecentDailySpecs(endDateStr ?? this.getTodayDateFn(), days, this.levels);
   }
 
   getActiveRunModifiers(): ResolvedRunModifiers | null {

@@ -20,10 +20,13 @@ import type {
   DailyChallengeSpec,
   DailyStatus,
   EndlessMutatorRoll,
+  IslandMasteryStatus,
   LevelChallengeStatus,
   LifetimeStats,
   LiveChallengeStatus,
+  MetaCareerSummary,
   ModifierBadgeInfo,
+  MutatorPreset,
   RunMetaOutcome,
   RunModifiers,
 } from '../sim/meta/types.ts';
@@ -99,6 +102,8 @@ export class GameSession {
   private uiSyncAccumSec = 0;
   private unbindSound: (() => void) | null = null;
   private deps: SessionRuntimeDeps | null = null;
+  private lastRunOptions: { modifiers?: RunModifiers | null; dailyDate?: string | null } | undefined =
+    undefined;
 
   constructor(renderWorld: RenderWorld, soundManager: SoundManager) {
     this.renderWorld = renderWorld;
@@ -143,6 +148,7 @@ export class GameSession {
     overlays.setPlayVisibility(inPlay);
     setDebugVisible(inPlay);
     if (!inPlay) return;
+    this.meta.verifyWorldIntegrity(this.simWorld.gold, this.simWorld.lives);
 
     const selectedTower =
       this.selectedTowerId !== null ? this.simWorld.getTowerById(this.selectedTowerId) : null;
@@ -429,6 +435,7 @@ export class GameSession {
   ): void {
     const { overlays, loop } = this.d;
     this.recordEndlessIfActive();
+    this.lastRunOptions = options;
     this.currentLevelIndex = Math.max(0, Math.min(LEVELS.length - 1, levelIndex));
     const level = LEVELS[this.currentLevelIndex];
     this.clearTransientPlayState();
@@ -460,6 +467,10 @@ export class GameSession {
     const spec = this.meta.getDailyChallenge(dateStr);
     this.startLevel(spec.levelIndex, { modifiers: spec.modifiers, dailyDate: spec.date });
     return spec;
+  }
+
+  restartCurrentRun(): void {
+    this.startLevel(this.currentLevelIndex, this.lastRunOptions);
   }
 
   // --- Meta progression & replayability API for UI ---
@@ -522,6 +533,30 @@ export class GameSession {
 
   getActiveModifierBadges(): readonly ModifierBadgeInfo[] {
     return this.meta.getActiveModifierBadges();
+  }
+
+  getIslandMasteryStatus(levelIndex: number): IslandMasteryStatus | null {
+    return this.meta.getIslandMasteryStatus(levelIndex);
+  }
+
+  getMetaCareerSummary(dateStr?: string): MetaCareerSummary {
+    return this.meta.getMetaCareerSummary(dateStr);
+  }
+
+  getRecentDailyChallenges(days = 7, endDateStr?: string): readonly DailyChallengeSpec[] {
+    return this.meta.getRecentDailyChallenges(days, endDateStr);
+  }
+
+  getEndlessMutatorPresets(): readonly MutatorPreset[] {
+    return this.meta.getEndlessMutatorPresets();
+  }
+
+  buildEndlessMutatorLoadout(mutatorIds: readonly string[]): EndlessMutatorRoll {
+    return this.meta.buildEndlessMutatorLoadout(mutatorIds);
+  }
+
+  getMutatorPresetRoll(presetId: string): EndlessMutatorRoll | null {
+    return this.meta.getMutatorPresetRoll(presetId);
   }
 
   openSettingsModal(origin: SettingsOrigin): void {
@@ -752,6 +787,7 @@ export class GameSession {
     if (this.pendingDebugSpawns.length > 0) {
       this.meta.markDebugTainted();
     }
+    this.meta.verifyWorldIntegrity(this.simWorld.gold, this.simWorld.lives);
     stepPendingSpawns(this.pendingDebugSpawns, this.simWorld, dt);
     this.simWorld.fixedTick(dt);
   }

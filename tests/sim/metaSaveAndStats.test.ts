@@ -434,4 +434,87 @@ describe('MetaSession stats, achievements, challenges & daily persistence', () =
     expect(migrated.unlockedAchievements.daily_streak_3).toBe(true);
     meta.dispose();
   });
+
+  it('preserves mid-run achievement unlocks in lastRunOutcome and does not count Endless loss as gamesLost', () => {
+    installMockLocalStorage();
+    const save = createDefaultMetaSave(9);
+    // Seed 249 kills before run so killing enemy #1 in Wave 1 unlocks slayer_250 mid-run!
+    save.stats.enemiesDefeatedTotal = 249;
+
+    const twoWaveLevel: LevelDef = {
+      ...LEVELS[0],
+      startingGold: 1000,
+      waves: [
+        { clearBonus: 20, groups: [{ enemyType: 'grunt', count: 2, spawnInterval: 0.3, startDelay: 0 }] },
+        { clearBonus: 25, groups: [{ enemyType: 'grunt', count: 2, spawnInterval: 0.3, startDelay: 0 }] },
+      ],
+    };
+
+    const meta = new MetaSession({
+      levels: [twoWaveLevel, ...LEVELS.slice(1)],
+      saveData: save,
+      getTodayDate: () => '2026-11-17',
+    });
+
+    const events = new EventBus();
+    const world = new SimWorld(twoWaveLevel, events);
+    meta.startRun(twoWaveLevel, events, { speed: 3 });
+    const archer = world.placeTower(4, 2, 'archer')!;
+    world.upgradeTower(archer.id);
+    world.upgradeTower(archer.id);
+
+    // Wave 1 completes -> flushStats unlocks slayer_250 mid-run!
+    world.startNextWave();
+    for (let i = 0; i < 60 * 30 && world.waveSystem.state !== 'betweenWaves'; i++) {
+      meta.onTick(BALANCE.fixedDt, 3);
+      world.fixedTick(BALANCE.fixedDt);
+    }
+    expect(meta.getAchievements().find((a) => a.def.id === 'slayer_250')?.unlocked).toBe(true);
+
+    // Finish Wave 2 -> gameWon outcome must STILL report slayer_250 among newlyUnlockedAchievementIds
+    world.startNextWave();
+    for (let i = 0; i < 60 * 30 && world.outcome === 'ongoing'; i++) {
+      meta.onTick(BALANCE.fixedDt, 3);
+      world.fixedTick(BALANCE.fixedDt);
+    }
+    expect(world.outcome).toBe('won');
+    const storyOutcome = meta.getLastRunOutcome()!;
+    expect(storyOutcome.won).toBe(true);
+    expect(storyOutcome.newlyUnlockedAchievementIds).toContain('slayer_250');
+    expect(storyOutcome.newlyUnlockedAchievementIds).toContain('first_victory');
+
+    // Continue into Endless, clear 1 Endless wave, then lose -> gamesLost must stay 0!
+    const roll = meta.getMutatorPresetRoll('iron-skies')!;
+    expect(world.enterEndlessMode(roll.modifiers)).toBe(true);
+    meta.onEndlessEntered(roll.modifiers);
+    world.startNextWave();
+    for (let i = 0; i < 60 * 60 && world.waveSystem.state !== 'betweenWaves'; i++) {
+      meta.onTick(BALANCE.fixedDt, 3);
+      world.fixedTick(BALANCE.fixedDt);
+    }
+    // Force defeat in Endless
+    world.debugForceLose();
+
+    const statsAfterEndless = meta.getStats();
+    expect(statsAfterEndless.gamesWon).toBe(1);
+    expect(statsAfterEndless.gamesLost).toBe(0);
+
+    const endlessOutcome = meta.getLastRunOutcome()!;
+    expect(endlessOutcome.endlessScore).not.toBeNull();
+    expect(endlessOutcome.endlessScore!.totalScore).toBeGreaterThan(0);
+
+    // Check Island Mastery & Career Summary APIs
+    const mastery = meta.getIslandMasteryStatus(0)!;
+    expect(mastery.campaignStars).toBe(3);
+    expect(mastery.challengeStars).toBe(3);
+    expect(mastery.mastered).toBe(true);
+    expect(mastery.bestEndlessScore).toBeGreaterThan(0);
+
+    const summary = meta.getMetaCareerSummary();
+    expect(summary.islandsMastered).toBe(1);
+    expect(summary.winRatePct).toBe(100);
+    expect(summary.favoriteTowerType).toBe('archer');
+    expect(summary.mostDefeatedEnemyType).toBe('grunt');
+    meta.dispose();
+  });
 });

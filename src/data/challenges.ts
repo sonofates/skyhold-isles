@@ -1,5 +1,5 @@
 import type { LevelDef } from './levels/types.ts';
-import type { AchievementDef, ChallengeDef, MutatorDef } from '../sim/meta/types.ts';
+import type { AchievementDef, ChallengeDef, MutatorDef, MutatorPreset } from '../sim/meta/types.ts';
 
 /**
  * Hand-crafted optional challenges for the core islands (3 per island = 27 Challenge Stars).
@@ -235,7 +235,14 @@ export function getChallengesForLevel(level: LevelDef): readonly ChallengeDef[] 
   const h = hashLevelId(level.id);
   const bannedPool = ['frost', 'mortar', 'cannon', 'tesla'] as const;
   const bannedType = bannedPool[h % bannedPool.length];
-  const minLives = level.difficulty === 'Breezy' ? 20 : level.difficulty === 'Challenging' ? 16 : 14;
+  const minLives =
+    level.difficulty === 'Breezy'
+      ? 20
+      : level.difficulty === 'Challenging'
+        ? 16
+        : level.difficulty === 'Heroic'
+          ? 13
+          : 10;
   const maxTowers = Math.max(8, Math.min(20, Math.round(level.waves.length * 0.75)));
 
   const banLabels: Record<(typeof bannedPool)[number], string> = {
@@ -546,5 +553,33 @@ export const ENDLESS_MUTATORS: readonly MutatorDef[] = [
     modifiers: {
       forbiddenTowerTypes: ['tesla'],
     },
+  },
+];
+
+/** Curated non-conflicting Endless mutator presets for quick selection in Endless setup UI. */
+export const ENDLESS_MUTATOR_PRESETS: readonly MutatorPreset[] = [
+  {
+    id: 'iron-skies',
+    name: 'Iron Skies',
+    description: 'Armored legions paired with doubled aerial raids.',
+    mutatorIds: ['iron_clad', 'sky_swarm'],
+  },
+  {
+    id: 'blitz-tide',
+    name: 'Blitz Tide',
+    description: 'Faster, tougher enemies testing DPS and slowing defense.',
+    mutatorIds: ['swift_march', 'titan_tide'],
+  },
+  {
+    id: 'lean-siege',
+    name: 'Lean Siege',
+    description: 'Higher build costs without Frost Spires to stall the line.',
+    mutatorIds: ['tight_budget', 'no_frost'],
+  },
+  {
+    id: 'skyhold-gauntlet',
+    name: 'Skyhold Gauntlet',
+    description: 'High-stakes triad: fast enemies, extra armor, and lean gold rewards.',
+    mutatorIds: ['swift_march', 'iron_clad', 'gold_drought'],
   },
 ];

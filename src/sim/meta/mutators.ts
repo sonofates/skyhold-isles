@@ -1,7 +1,7 @@
 import { SeededRng } from '../../core/rng.ts';
-import { ENDLESS_MUTATORS } from '../../data/challenges.ts';
+import { ENDLESS_MUTATOR_PRESETS, ENDLESS_MUTATORS } from '../../data/challenges.ts';
 import { mergeRunModifiers } from './modifiers.ts';
-import type { EndlessMutatorRoll, EndlessScoreBreakdown, MutatorDef } from './types.ts';
+import type { EndlessMutatorRoll, EndlessScoreBreakdown, MutatorDef, MutatorPreset } from './types.ts';
 
 /** Deterministic 32-bit FNV-1a hash of a seed string. */
 export function hashSeedString(input: string): number {
@@ -20,6 +20,27 @@ export function normalizeSeed(seed: number | string): number {
   }
   if (!Number.isFinite(seed)) return 1;
   return Math.floor(seed) >>> 0;
+}
+
+function finalizeMutatorRoll(seed: number, selected: readonly MutatorDef[]): EndlessMutatorRoll {
+  let scoreBonusSum = 0;
+  const mutatorIds: string[] = [];
+  for (let i = 0; i < selected.length; i++) {
+    scoreBonusSum += selected[i].scoreMultiplierBonus;
+    mutatorIds.push(selected[i].id);
+  }
+  const scoreMultiplier = +(1 + scoreBonusSum).toFixed(2);
+  const modifiers = mergeRunModifiers(
+    ...selected.map((m) => m.modifiers),
+    { activeMutatorIds: mutatorIds, scoreMultiplier },
+  );
+
+  return {
+    seed,
+    mutators: selected,
+    modifiers,
+    scoreMultiplier,
+  };
 }
 
 /**
@@ -58,24 +79,48 @@ export function selectEndlessMutators(
     }
   }
 
-  let scoreBonusSum = 0;
-  const mutatorIds: string[] = [];
-  for (let i = 0; i < selected.length; i++) {
-    scoreBonusSum += selected[i].scoreMultiplierBonus;
-    mutatorIds.push(selected[i].id);
-  }
-  const scoreMultiplier = +(1 + scoreBonusSum).toFixed(2);
-  const modifiers = mergeRunModifiers(
-    ...selected.map((m) => m.modifiers),
-    { activeMutatorIds: mutatorIds, scoreMultiplier },
-  );
+  return finalizeMutatorRoll(normalizedSeed, selected);
+}
 
-  return {
-    seed: normalizedSeed,
-    mutators: selected,
-    modifiers,
-    scoreMultiplier,
-  };
+/**
+ * Builds a validated Endless mutator loadout from explicit mutator IDs,
+ * deduplicating and skipping conflicting groups cleanly in order.
+ */
+export function buildEndlessMutatorLoadout(
+  mutatorIds: readonly string[],
+  catalog: readonly MutatorDef[] = ENDLESS_MUTATORS,
+): EndlessMutatorRoll {
+  const byId = new Map<string, MutatorDef>();
+  for (let i = 0; i < catalog.length; i++) {
+    byId.set(catalog[i].id, catalog[i]);
+  }
+
+  const selected: MutatorDef[] = [];
+  const seenIds = new Set<string>();
+  const usedGroups = new Set<string>();
+
+  for (let i = 0; i < mutatorIds.length; i++) {
+    const def = byId.get(mutatorIds[i]);
+    if (!def || seenIds.has(def.id)) continue;
+    if (def.conflictGroup && usedGroups.has(def.conflictGroup)) continue;
+    seenIds.add(def.id);
+    if (def.conflictGroup) usedGroups.add(def.conflictGroup);
+    selected.push(def);
+  }
+
+  const seed = hashSeedString(selected.map((m) => m.id).join('+'));
+  return finalizeMutatorRoll(seed, selected);
+}
+
+/** Resolves a curated Endless mutator preset by ID into an EndlessMutatorRoll. */
+export function getMutatorPresetRoll(
+  presetId: string,
+  presets: readonly MutatorPreset[] = ENDLESS_MUTATOR_PRESETS,
+  catalog: readonly MutatorDef[] = ENDLESS_MUTATORS,
+): EndlessMutatorRoll | null {
+  const preset = presets.find((p) => p.id === presetId);
+  if (!preset) return null;
+  return buildEndlessMutatorLoadout(preset.mutatorIds, catalog);
 }
 
 /** Computes Endless Mode score factoring in cleared waves, kills, and active mutator multiplier. */
