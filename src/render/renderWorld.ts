@@ -125,6 +125,7 @@ export class RenderWorld {
         this.effectsRenderer.spawnFlash(e.x, 1.1, e.z, PALETTE_HEX.cream, 2.6, 0.14);
       }),
       events.on('towerSold', (e) => {
+        this.towerRenderer.addSoldGhost(e.type, e.tier, e.x, e.z);
         this.effectsRenderer.spawnParticles(e.x, 0.4, e.z, PALETTE_HEX.gold, this.fx(10), 2.6, 4.5);
         this.effectsRenderer.spawnBurst(e.x, 0.5, e.z, PALETTE_HEX.gold, this.fx(7), {
           speed: 1.8,

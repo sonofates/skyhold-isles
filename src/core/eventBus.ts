@@ -3,7 +3,7 @@ import type { AbilityId, EnemyType, TowerType, Vec3 } from './types.ts';
 export interface GameEventMap {
   towerBuilt: { towerId: number; type: TowerType; tier: number; x: number; z: number };
   towerUpgraded: { towerId: number; type: TowerType; tier: number; x: number; z: number };
-  towerSold: { towerId: number; type: TowerType; refund: number; x: number; z: number };
+  towerSold: { towerId: number; type: TowerType; tier: number; refund: number; x: number; z: number };
   towerFired: {
     towerId: number;
     type: TowerType;

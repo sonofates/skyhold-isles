@@ -24,12 +24,15 @@ const _baseDummy = new THREE.Object3D();
 const _turretLocalDummy = new THREE.Object3D();
 const _turretWorldMat = new THREE.Matrix4();
 const _fxDummy = new THREE.Object3D();
+const SELL_ANIM_SECONDS = 0.3;
 
 export class TowerRenderer {
   readonly group = new THREE.Group();
   readonly geometryCache: TowerGeometryCache;
   private readonly buckets = new Map<string, TowerInstancedBucket>();
   private readonly keyCounts = new Map<string, number>();
+  /** Sold towers shrinking away (render-only; the sim has already removed them). */
+  private readonly soldGhosts: { type: TowerType; tier: 1 | 2 | 3; x: number; z: number; start: number }[] = [];
 
   private readonly stunHaloGeo: THREE.BufferGeometry;
   private readonly stunHaloMat: THREE.MeshBasicMaterial;
@@ -112,6 +115,12 @@ export class TowerRenderer {
     this.group.add(this.buffRingMesh);
   }
 
+  /** Start the sell-out animation for a tower the sim just removed. */
+  addSoldGhost(type: TowerType, tier: number, x: number, z: number): void {
+    if (this.soldGhosts.length >= 12) this.soldGhosts.shift();
+    this.soldGhosts.push({ type, tier: (tier >= 3 ? 3 : tier <= 1 ? 1 : 2) as 1 | 2 | 3, x, z, start: -1 });
+  }
+
   syncTowers(
     towers: readonly TowerEntity[],
     materials: MaterialLibrary,
@@ -121,6 +130,16 @@ export class TowerRenderer {
     overchargeActive = false,
   ): void {
     this.keyCounts.clear();
+    for (let i = this.soldGhosts.length - 1; i >= 0; i--) {
+      const g = this.soldGhosts[i];
+      if (g.start < 0) g.start = elapsedTime;
+      if (elapsedTime - g.start >= SELL_ANIM_SECONDS || elapsedTime < g.start) {
+        this.soldGhosts.splice(i, 1);
+        continue;
+      }
+      const gk = `${g.type}_${g.tier}`;
+      this.keyCounts.set(gk, (this.keyCounts.get(gk) ?? 0) + 1);
+    }
     let stunnedCount = 0;
     let overchargedCount = 0;
     let buffedCount = 0;
@@ -261,6 +280,35 @@ export class TowerRenderer {
       }
     }
 
+    for (let i = 0; i < this.soldGhosts.length; i++) {
+      const g = this.soldGhosts[i];
+      const bucket = this.ensureBucket(
+        `${g.type}_${g.tier}`,
+        g.type,
+        g.tier,
+        materials,
+        this.keyCounts.get(`${g.type}_${g.tier}`) ?? 1,
+      );
+      const p = Math.min(1, (elapsedTime - g.start) / SELL_ANIM_SECONDS);
+      // Quick anticipation hop, then collapse into the ground.
+      const shrink = p < 0.18 ? 1 + p * 0.6 : Math.max(0.001, 1 - ((p - 0.18) / 0.82) ** 1.6);
+      const slot = bucket.baseMesh.count;
+      bucket.baseMesh.count = slot + 1;
+      bucket.turretMesh.count = slot + 1;
+      bucket.highlightArray[slot] = 0.9 * (1 - p);
+      _baseDummy.position.set(g.x, 0, g.z);
+      _baseDummy.rotation.set(0, p * 1.8, 0);
+      _baseDummy.scale.set(shrink, shrink, shrink);
+      _baseDummy.updateMatrix();
+      bucket.baseMesh.setMatrixAt(slot, _baseDummy.matrix);
+      _turretLocalDummy.position.set(0, bucket.turretAnchorY, 0);
+      _turretLocalDummy.rotation.set(0, 0, 0);
+      _turretLocalDummy.scale.setScalar(1);
+      _turretLocalDummy.updateMatrix();
+      _turretWorldMat.multiplyMatrices(_baseDummy.matrix, _turretLocalDummy.matrix);
+      bucket.turretMesh.setMatrixAt(slot, _turretWorldMat);
+    }
+
     this.buckets.forEach((bucket) => {
       if (bucket.baseMesh.count > 0) {
         bucket.baseMesh.visible = true;
@@ -394,6 +442,7 @@ export class TowerRenderer {
   }
 
   clearInstances(): void {
+    this.soldGhosts.length = 0;
     this.buckets.forEach((bucket) => {
       bucket.baseMesh.count = 0;
       bucket.turretMesh.count = 0;

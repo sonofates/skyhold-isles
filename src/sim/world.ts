@@ -289,6 +289,7 @@ export class SimWorld {
     this.events.emit('towerSold', {
       towerId: tower.id,
       type: tower.type,
+      tier: tower.tier,
       refund,
       x: tower.x,
       z: tower.z,
