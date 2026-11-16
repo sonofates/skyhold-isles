@@ -18,7 +18,7 @@ export class ProjectileRenderer {
 
   constructor(materials: MaterialLibrary, assets: KenneyAssetStore) {
     const cap = BALANCE.pools.maxProjectiles;
-    const types: TowerType[] = ['archer', 'cannon', 'frost', 'mortar'];
+    const types: TowerType[] = ['archer', 'cannon', 'frost', 'mortar', 'ballista'];
 
     for (let i = 0; i < types.length; i++) {
       const type = types[i];
@@ -91,6 +91,14 @@ export class ProjectileRenderer {
         const arrow = assets.cloneGeometry('weapon-ammo-arrow');
         const geo = mergeTexturedParts([
           { geometry: arrow, colorHex: PALETTE_HEX.gold, scale: [1.05, 1.05, 0.92] },
+        ]);
+        arrow.dispose();
+        return geo;
+      }
+      case 'ballista': {
+        const arrow = assets.cloneGeometry('weapon-ammo-arrow');
+        const geo = mergeTexturedParts([
+          { geometry: arrow, colorHex: 0xffd7b0, scale: [1.9, 1.9, 2.5] },
         ]);
         arrow.dispose();
         return geo;

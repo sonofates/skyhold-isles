@@ -7,6 +7,9 @@ import type { EnemySystem } from './enemySystem.ts';
 import type { SpatialHashGrid } from './spatialHash.ts';
 
 const _splashCandidates: number[] = [];
+const _pierceUsed = new Set<number>();
+/** Half-width of the corridor a piercing bolt can hit enemies in. */
+const PIERCE_HALF_WIDTH = 0.55;
 const _leadVec = { x: 0, y: 0, z: 0 };
 
 /** Fraction of full target lead applied to parabolic shells (1 = perfect aim). */
@@ -72,6 +75,10 @@ export class ProjectileSystem {
     p.parabolic = parabolic;
     p.arcHeight = stats.parabolicArcHeight;
     p.speed = Math.max(1, stats.projectileSpeed);
+    p.armorPierce = stats.armorPierce ?? 0;
+    p.pierceCount = stats.pierceCount ?? 0;
+    p.pierceLength = stats.pierceLength ?? 0;
+    p.pierceFalloff = stats.pierceFalloff ?? 1;
 
     p.startX = sx;
     p.startY = sy;
@@ -211,7 +218,7 @@ export class ProjectileSystem {
     } else if (p.targetPoolIndex >= 0) {
       const target = this.enemyPool.items[p.targetPoolIndex];
       if (target.active && target.uid === p.targetUid && target.hp > 0) {
-        const res = this.enemySystem.applyDamage(target, p.damage);
+        const res = this.enemySystem.applyDamage(target, p.damage + Math.min(target.armor, p.armorPierce));
         if (target.type === 'boss' && res.actualDamage > 0) hitBoss = true;
         if (p.slowRatio > 0) {
           this.enemySystem.applySlow(target, p.slowRatio, p.slowDuration);
@@ -219,6 +226,9 @@ export class ProjectileSystem {
         if (sourceTower) {
           sourceTower.totalDamageDealt += res.actualDamage;
           if (res.killed) sourceTower.kills++;
+        }
+        if (p.pierceCount > 0) {
+          this.resolvePierce(p, target, sourceTower, def.hitsFlyers);
         }
       }
     }
@@ -231,6 +241,62 @@ export class ProjectileSystem {
       radius: p.splashRadius,
       isBossHit: hitBoss,
     });
+  }
+
+  /**
+   * Bolt keeps flying: damages up to `pierceCount` further enemies standing in a narrow corridor behind
+   * the primary target (along the shot direction), nearest first, at `pierceFalloff` damage each.
+   */
+  private resolvePierce(
+    p: ProjectileEntity,
+    primary: EnemyEntity,
+    sourceTower: TowerEntity | null,
+    hitsFlyers: boolean,
+  ): void {
+    let dirX = p.endX - p.startX;
+    let dirZ = p.endZ - p.startZ;
+    const dirLen = Math.hypot(dirX, dirZ);
+    if (dirLen < 0.0001) return;
+    dirX /= dirLen;
+    dirZ /= dirLen;
+
+    const reach = p.pierceLength;
+    this.spatialHash.query(
+      primary.x + dirX * reach * 0.5,
+      primary.z + dirZ * reach * 0.5,
+      reach * 0.5 + 0.9,
+      _splashCandidates,
+    );
+    _pierceUsed.clear();
+    const dmg = Math.round(p.damage * p.pierceFalloff);
+    for (let n = 0; n < p.pierceCount; n++) {
+      let best: EnemyEntity | null = null;
+      let bestAlong = Infinity;
+      for (let i = 0; i < _splashCandidates.length; i++) {
+        const idx = _splashCandidates[i];
+        if (idx === primary.poolIndex || _pierceUsed.has(idx)) continue;
+        const e = this.enemyPool.items[idx];
+        if (!e.active || e.hp <= 0) continue;
+        if (e.flying && !hitsFlyers) continue;
+        const rx = e.x - primary.x;
+        const rz = e.z - primary.z;
+        const along = rx * dirX + rz * dirZ;
+        if (along < -0.2 || along > reach) continue;
+        const perp = Math.abs(rx * dirZ - rz * dirX);
+        if (perp > PIERCE_HALF_WIDTH + e.radius * 0.6) continue;
+        if (along < bestAlong) {
+          bestAlong = along;
+          best = e;
+        }
+      }
+      if (!best) break;
+      _pierceUsed.add(best.poolIndex);
+      const res = this.enemySystem.applyDamage(best, dmg + Math.min(best.armor, p.armorPierce));
+      if (sourceTower) {
+        sourceTower.totalDamageDealt += res.actualDamage;
+        if (res.killed) sourceTower.kills++;
+      }
+    }
   }
 
   private findTowerById(towers: readonly TowerEntity[], id: number): TowerEntity | null {

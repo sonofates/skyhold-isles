@@ -148,6 +148,14 @@ export class SoundManager {
         this.tone('sine', 110, 38, 0.28, 0.36);
         this.noiseBurst(620, 0.22, 0.25);
         break;
+      case 'ballista':
+        if (!this.canPlay('fire_ballista', 110)) return;
+        this.tone('triangle', 300, 90, 0.16, 0.26);
+        this.tone('sawtooth', 1400, 500, 0.06, 0.07);
+        this.noiseBurst(3200, 0.07, 0.1);
+        break;
+      case 'beacon':
+        break;
     }
   }
 
@@ -159,7 +167,17 @@ export class SoundManager {
     } else if (type === 'frost') {
       if (!this.canPlay('impact_frost', 110)) return;
       this.tone('sine', 1180, 1560, 0.09, 0.09);
+    } else if (type === 'ballista') {
+      if (!this.canPlay('impact_ballista', 90)) return;
+      this.tone('square', 220, 70, 0.07, 0.12);
+      this.noiseBurst(1800, 0.06, 0.12);
     }
+  }
+
+  playBeaconPulse(): void {
+    if (!this.canPlay('beacon_pulse', 700)) return;
+    this.tone('sine', 880, 1175, 0.18, 0.05);
+    this.tone('sine', 1320, 1568, 0.2, 0.03, 0.06);
   }
 
   playGoldCoin(): void {
@@ -236,6 +254,7 @@ export class SoundManager {
       events.on('towerBuilt', () => this.playTowerBuild()),
       events.on('towerUpgraded', () => this.playTowerUpgrade()),
       events.on('towerSold', () => this.playTowerSell()),
+      events.on('beaconPulse', () => this.playBeaconPulse()),
       events.on('towerFired', (e) => this.playFire(e.type)),
       events.on('projectileImpact', (e) => this.playImpact(e.towerType)),
       events.on('enemyKilled', () => this.playGoldCoin()),

@@ -224,7 +224,7 @@ export class InputManager {
         this.handlers.onTogglePause();
         return;
       }
-      if (!e.repeat && e.key >= '1' && e.key <= '5') {
+      if (!e.repeat && e.key >= '1' && e.key <= '7') {
         this.handlers.onHotkeyTower(Number(e.key) - 1);
         return;
       }

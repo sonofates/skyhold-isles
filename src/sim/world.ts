@@ -230,6 +230,8 @@ export class SimWorld {
       popAnimTimer: 0.32,
       totalDamageDealt: 0,
       kills: 0,
+      auraRate: 0,
+      auraRange: 0,
     };
 
     this.towers.push(tower);

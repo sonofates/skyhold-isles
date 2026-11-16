@@ -8,6 +8,9 @@ import type { ProjectileSystem } from './projectileSystem.ts';
 import type { SpatialHashGrid } from './spatialHash.ts';
 import { acquireTarget } from './targeting.ts';
 
+/** Seconds between Beacon aura pulse effects. */
+export const BEACON_PULSE_INTERVAL = 2.6;
+
 const _chainCandidates: number[] = [];
 const _hitPoolIndices = new Set<number>();
 
@@ -39,9 +42,44 @@ export class CombatSystem {
     this.events = events;
   }
 
+  /**
+   * Recomputes the support aura every tick: each non-beacon tower receives the best fire-rate / range
+   * bonus among the un-jammed Beacons covering it (bonuses from several Beacons do not stack).
+   */
+  private applyBeaconAuras(towers: readonly TowerEntity[]): void {
+    let anyBeacon = false;
+    for (let i = 0; i < towers.length; i++) {
+      const t = towers[i];
+      t.auraRate = 0;
+      t.auraRange = 0;
+      if (t.type === 'beacon') anyBeacon = true;
+    }
+    if (!anyBeacon) return;
+
+    for (let b = 0; b < towers.length; b++) {
+      const beacon = towers[b];
+      if (beacon.type !== 'beacon' || beacon.stunTimer > 0) continue;
+      const bs = getTowerTierStats('beacon', beacon.tier);
+      const rSq = bs.range * bs.range;
+      const rate = bs.auraRate ?? 0;
+      const rng = bs.auraRange ?? 0;
+      for (let i = 0; i < towers.length; i++) {
+        const t = towers[i];
+        if (t === beacon || t.type === 'beacon') continue;
+        const dx = t.x - beacon.x;
+        const dz = t.z - beacon.z;
+        if (dx * dx + dz * dz > rSq) continue;
+        if (rate > t.auraRate) t.auraRate = rate;
+        if (rng > t.auraRange) t.auraRange = rng;
+      }
+    }
+  }
+
   update(dt: number, towers: TowerEntity[], fireRateMultiplier = 1): void {
     const turnSpeed = 12.0;
     const rateMult = Math.max(0.01, fireRateMultiplier);
+
+    this.applyBeaconAuras(towers);
 
     for (let i = 0; i < towers.length; i++) {
       const tower = towers[i];
@@ -59,11 +97,32 @@ export class CombatSystem {
           continue;
         }
       }
-      if (tower.cooldownTimer > 0) {
-        tower.cooldownTimer = Math.max(0, tower.cooldownTimer - dt * rateMult);
-      }
 
       const stats = getTowerTierStats(tower.type, tower.tier);
+
+      if (TOWER_DEFS[tower.type].role === 'support') {
+        // Beacons only pulse (cosmetic event driving FX); their aura is applied above.
+        tower.cooldownTimer -= dt;
+        if (tower.cooldownTimer <= 0) {
+          tower.cooldownTimer = BEACON_PULSE_INTERVAL;
+          this.events.emit('beaconPulse', {
+            towerId: tower.id,
+            tier: tower.tier,
+            x: tower.x,
+            z: tower.z,
+            radius: stats.range,
+          });
+        }
+        continue;
+      }
+
+      if (tower.cooldownTimer > 0) {
+        tower.cooldownTimer = Math.max(
+          0,
+          tower.cooldownTimer - dt * rateMult * (1 + tower.auraRate),
+        );
+      }
+
       const target = acquireTarget(tower, stats, this.enemyPool, this.spatialHash);
 
       if (target) {

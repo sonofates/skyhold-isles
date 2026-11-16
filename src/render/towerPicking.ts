@@ -36,6 +36,16 @@ export const TOWER_PICK_BOUNDS: Record<TowerType, readonly [TowerPickBounds, Tow
     { halfWidth: DEFAULT_HALF_WIDTH, height: 1.95 },
     { halfWidth: DEFAULT_HALF_WIDTH, height: 2.45 },
   ],
+  ballista: [
+    { halfWidth: DEFAULT_HALF_WIDTH, height: 1.95 },
+    { halfWidth: DEFAULT_HALF_WIDTH, height: 2.45 },
+    { halfWidth: DEFAULT_HALF_WIDTH, height: 2.95 },
+  ],
+  beacon: [
+    { halfWidth: DEFAULT_HALF_WIDTH, height: 2.0 },
+    { halfWidth: DEFAULT_HALF_WIDTH, height: 2.55 },
+    { halfWidth: DEFAULT_HALF_WIDTH, height: 3.05 },
+  ],
 };
 
 export function getTowerPickBounds(type: TowerType, tier: 1 | 2 | 3): TowerPickBounds {

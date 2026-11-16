@@ -93,6 +93,10 @@ export interface TowerEntity {
   popAnimTimer: number;
   totalDamageDealt: number;
   kills: number;
+  /** Fire-rate bonus received from nearby Beacons this tick (0 = none). */
+  auraRate: number;
+  /** Range bonus received from nearby Beacons this tick (0 = none). */
+  auraRange: number;
 }
 
 export interface ProjectileEntity {
@@ -110,6 +114,10 @@ export interface ProjectileEntity {
   parabolic: boolean;
   arcHeight: number;
   speed: number;
+  armorPierce: number;
+  pierceCount: number;
+  pierceLength: number;
+  pierceFalloff: number;
 
   startX: number;
   startY: number;
@@ -146,6 +154,10 @@ export function createProjectileEntity(poolIndex: number): ProjectileEntity {
     parabolic: false,
     arcHeight: 0,
     speed: 10,
+    armorPierce: 0,
+    pierceCount: 0,
+    pierceLength: 0,
+    pierceFalloff: 1,
     startX: 0,
     startY: 0,
     startZ: 0,

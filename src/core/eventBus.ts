@@ -13,6 +13,7 @@ export interface GameEventMap {
     z: number;
     yaw: number;
   };
+  beaconPulse: { towerId: number; tier: number; x: number; z: number; radius: number };
   projectileImpact: {
     towerType: TowerType;
     x: number;

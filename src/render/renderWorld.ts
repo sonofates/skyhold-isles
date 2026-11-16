@@ -118,7 +118,9 @@ export class RenderWorld {
               ? PALETTE_HEX.cream
               : e.type === 'archer'
                 ? PALETTE_HEX.gold
-                : PALETTE_HEX.coral;
+                : e.type === 'ballista'
+                  ? PALETTE_HEX.cream
+                  : PALETTE_HEX.coral;
         const muzzleX = e.x + Math.sin(e.yaw) * 0.45;
         const muzzleZ = e.z + Math.cos(e.yaw) * 0.45;
         this.effectsRenderer.spawnParticles(muzzleX, e.y, muzzleZ, color, 4, 1.8, 1.5);
@@ -144,12 +146,18 @@ export class RenderWorld {
           if (e.towerType === 'mortar') {
             this.cameraController.addShake(BALANCE.camera.mortarImpactShake, shakeEnabled());
           }
+        } else if (e.towerType === 'ballista') {
+          this.effectsRenderer.spawnParticles(e.x, e.y, e.z, PALETTE_HEX.cream, 5, 2.4, 3.0);
+          this.effectsRenderer.spawnParticles(e.x, e.y, e.z, PALETTE_HEX.coral, 3, 1.8, 3.0);
         } else if (e.towerType === 'frost') {
           this.effectsRenderer.spawnPulseRing(e.x, 0.06, e.z, e.radius, PALETTE_HEX.water);
           this.effectsRenderer.spawnParticles(e.x, e.y, e.z, PALETTE_HEX.cream, 7, 2.2, 2.5);
         } else {
           this.effectsRenderer.spawnParticles(e.x, e.y, e.z, PALETTE_HEX.gold, 3, 1.8, 3.0);
         }
+      }),
+      events.on('beaconPulse', (e) => {
+        this.effectsRenderer.spawnPulseRing(e.x, 0.07, e.z, e.radius, PALETTE_HEX.gold);
       }),
       events.on('lightningChain', (e) => {
         this.effectsRenderer.spawnLightningArc(e.points);
