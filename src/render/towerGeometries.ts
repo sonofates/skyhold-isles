@@ -293,8 +293,8 @@ export class TowerGeometryCache {
 
       case 'ballista': {
         const bolt = (z: number, len: number, y = 0.2) => [
-          { geometry: box, colorHex: PALETTE_HEX.sand, position: [0, y, z] as [number, number, number], scale: [0.07, 0.07, len] as [number, number, number], forceWhiteUv: true },
-          { geometry: oct, colorHex: PALETTE_HEX.coral, position: [0, y, z + len * 0.5 + 0.06] as [number, number, number], scale: [0.09, 0.09, 0.2] as [number, number, number], forceWhiteUv: true },
+          { geometry: box, colorHex: PALETTE_HEX.cream, position: [0, y, z] as [number, number, number], scale: [0.1, 0.1, len] as [number, number, number], forceWhiteUv: true },
+          { geometry: oct, colorHex: PALETTE_HEX.coral, position: [0, y, z + len * 0.5 + 0.06] as [number, number, number], scale: [0.14, 0.14, 0.26] as [number, number, number], forceWhiteUv: true },
         ];
         if (tier === 1) {
           turretAnchorY = 0.94;
@@ -303,7 +303,7 @@ export class TowerGeometryCache {
             { geometry: grab('tower-square-top-b'), position: [0, 0.52, 0], scale: [1.3, 0.84, 1.3] },
           );
           turretParts.push(
-            { geometry: grab('weapon-ballista'), position: [0, 0, 0], scale: [1.62, 1.62, 1.62] },
+            { geometry: grab('weapon-ballista', [[[7, 3], [3, 3]]]), position: [0, 0, 0], scale: [1.62, 1.62, 1.62] },
             ...bolt(0.1, 0.8),
           );
         } else if (tier === 2) {
@@ -314,7 +314,7 @@ export class TowerGeometryCache {
             { geometry: grab('tower-square-top-b'), position: [0, 1.04, 0], scale: [1.32, 0.86, 1.32] },
           );
           turretParts.push(
-            { geometry: grab('weapon-ballista'), colorHex: 0xfff5e4, position: [0, 0, 0], scale: [1.76, 1.76, 1.76] },
+            { geometry: grab('weapon-ballista', [[[7, 3], [3, 3]]]), colorHex: 0xfff5e4, position: [0, 0, 0], scale: [1.76, 1.76, 1.76] },
             // Brass spyglass along the stock
             { geometry: cyl, colorHex: PALETTE_HEX.gold, position: [0, 0.34, -0.06], rotation: [Math.PI / 2, 0, 0], scale: [0.07, 0.5, 0.07], forceWhiteUv: true },
             ...bolt(0.12, 0.9, 0.2),
@@ -329,8 +329,8 @@ export class TowerGeometryCache {
             { geometry: cyl, colorHex: PALETTE_HEX.gold, position: [0, 1.72, 0], scale: [0.5, 0.14, 0.5], forceWhiteUv: true },
           );
           turretParts.push(
-            { geometry: grab('weapon-ballista'), position: [0, 0, 0], scale: [1.92, 1.92, 1.92] },
-            { geometry: grab('weapon-ballista'), position: [0, 0.34, -0.1], scale: [1.4, 1.1, 1.4] },
+            { geometry: grab('weapon-ballista', [[[7, 3], [3, 3]]]), position: [0, 0, 0], scale: [1.92, 1.92, 1.92] },
+            { geometry: grab('weapon-ballista', [[[7, 3], [3, 3]]]), position: [0, 0.34, -0.1], scale: [1.4, 1.1, 1.4] },
             { geometry: cyl, colorHex: PALETTE_HEX.gold, position: [0, 0.46, -0.1], rotation: [Math.PI / 2, 0, 0], scale: [0.08, 0.58, 0.08], forceWhiteUv: true },
             ...bolt(0.14, 1.0, 0.2),
           );
@@ -341,48 +341,52 @@ export class TowerGeometryCache {
       case 'beacon': {
         idleSpinTurret = true;
         bobTurret = true;
+        const warm = (name: KenneyModelName) => grab(name, [[[6, 2], [1, 2]]]);
         const lantern = PALETTE_HEX.gold;
         const glow = 0xfff0b8;
         if (tier === 1) {
           turretAnchorY = 1.12;
           baseParts.push(
-            { geometry: grab('tower-round-base'), position: [0, 0, 0], scale: [1.26, 0.96, 1.26] },
-            { geometry: grab('tower-round-bottom-b'), position: [0, 0.15, 0], scale: [1.16, 0.92, 1.16] },
+            { geometry: warm('tower-round-base'), position: [0, 0, 0], scale: [1.26, 0.96, 1.26] },
+            { geometry: warm('tower-round-bottom-b'), position: [0, 0.15, 0], scale: [1.16, 0.92, 1.16] },
             { geometry: cyl, colorHex: PALETTE_HEX.stone, position: [0, 0.78, 0], scale: [0.22, 0.4, 0.22], forceWhiteUv: true },
           );
           turretParts.push(
-            { geometry: oct, colorHex: lantern, position: [0, 0.18, 0], scale: [0.3, 0.38, 0.3], forceWhiteUv: true },
-            { geometry: oct, colorHex: glow, position: [0, 0.18, 0], scale: [0.16, 0.2, 0.16], forceWhiteUv: true },
-            { geometry: torus, colorHex: PALETTE_HEX.water, position: [0, 0.18, 0], rotation: [Math.PI / 2, 0, 0], scale: [0.34, 0.34, 0.34], forceWhiteUv: true },
+            { geometry: cyl, colorHex: PALETTE_HEX.gold, position: [0, 0.06, 0], scale: [0.07, 0.46, 0.07], forceWhiteUv: true },
+            { geometry: oct, colorHex: lantern, position: [0, 0.36, 0], scale: [0.42, 0.54, 0.42], forceWhiteUv: true },
+            { geometry: oct, colorHex: glow, position: [0, 0.36, 0], scale: [0.23, 0.3, 0.23], forceWhiteUv: true },
+            { geometry: torus, colorHex: PALETTE_HEX.water, position: [0, 0.36, 0], rotation: [Math.PI / 2, 0, 0], scale: [0.34, 0.34, 0.34], forceWhiteUv: true },
           );
         } else if (tier === 2) {
           turretAnchorY = 1.5;
           baseParts.push(
-            { geometry: grab('tower-round-base'), position: [0, 0, 0], scale: [1.38, 1.0, 1.38] },
-            { geometry: grab('tower-round-bottom-b'), position: [0, 0.16, 0], scale: [1.3, 1.04, 1.3] },
-            { geometry: grab('tower-round-middle-a'), position: [0, 0.78, 0], scale: [1.18, 0.9, 1.18] },
+            { geometry: warm('tower-round-base'), position: [0, 0, 0], scale: [1.38, 1.0, 1.38] },
+            { geometry: warm('tower-round-bottom-b'), position: [0, 0.16, 0], scale: [1.3, 1.04, 1.3] },
+            { geometry: warm('tower-round-middle-a'), position: [0, 0.78, 0], scale: [1.18, 0.9, 1.18] },
             { geometry: cyl, colorHex: PALETTE_HEX.stone, position: [0, 1.14, 0], scale: [0.2, 0.34, 0.2], forceWhiteUv: true },
           );
           turretParts.push(
-            { geometry: oct, colorHex: lantern, position: [0, 0.2, 0], scale: [0.36, 0.46, 0.36], forceWhiteUv: true },
-            { geometry: oct, colorHex: glow, position: [0, 0.2, 0], scale: [0.2, 0.26, 0.2], forceWhiteUv: true },
-            { geometry: torus, colorHex: PALETTE_HEX.water, position: [0, 0.2, 0], rotation: [Math.PI / 2, 0, 0], scale: [0.44, 0.44, 0.44], forceWhiteUv: true },
-            { geometry: torus, colorHex: PALETTE_HEX.gold, position: [0, 0.2, 0], rotation: [Math.PI / 2.8, 0.6, 0], scale: [0.56, 0.56, 0.56], forceWhiteUv: true },
+            { geometry: cyl, colorHex: PALETTE_HEX.gold, position: [0, 0.06, 0], scale: [0.08, 0.58, 0.08], forceWhiteUv: true },
+            { geometry: oct, colorHex: lantern, position: [0, 0.4, 0], scale: [0.5, 0.64, 0.5], forceWhiteUv: true },
+            { geometry: oct, colorHex: glow, position: [0, 0.4, 0], scale: [0.28, 0.36, 0.28], forceWhiteUv: true },
+            { geometry: torus, colorHex: PALETTE_HEX.water, position: [0, 0.4, 0], rotation: [Math.PI / 2, 0, 0], scale: [0.44, 0.44, 0.44], forceWhiteUv: true },
+            { geometry: torus, colorHex: PALETTE_HEX.gold, position: [0, 0.4, 0], rotation: [Math.PI / 2.4, 0.6, 0], scale: [0.46, 0.46, 0.46], forceWhiteUv: true },
           );
         } else {
           turretAnchorY = 2.0;
           baseParts.push(
-            { geometry: grab('tower-round-base'), position: [0, 0, 0], scale: [1.5, 1.04, 1.5] },
-            { geometry: grab('tower-round-bottom-b'), position: [0, 0.17, 0], scale: [1.42, 1.1, 1.42] },
-            { geometry: grab('tower-round-middle-a'), position: [0, 0.84, 0], scale: [1.32, 1.0, 1.32] },
-            { geometry: grab('tower-round-top-b'), position: [0, 1.36, 0], scale: [1.18, 0.82, 1.18] },
+            { geometry: warm('tower-round-base'), position: [0, 0, 0], scale: [1.5, 1.04, 1.5] },
+            { geometry: warm('tower-round-bottom-b'), position: [0, 0.17, 0], scale: [1.42, 1.1, 1.42] },
+            { geometry: warm('tower-round-middle-a'), position: [0, 0.84, 0], scale: [1.32, 1.0, 1.32] },
+            { geometry: warm('tower-round-top-b'), position: [0, 1.36, 0], scale: [1.18, 0.82, 1.18] },
             { geometry: cyl, colorHex: PALETTE_HEX.gold, position: [0, 1.5, 0], scale: [0.34, 0.12, 0.34], forceWhiteUv: true },
           );
           turretParts.push(
-            { geometry: oct, colorHex: lantern, position: [0, 0.22, 0], scale: [0.44, 0.58, 0.44], forceWhiteUv: true },
-            { geometry: oct, colorHex: glow, position: [0, 0.22, 0], scale: [0.25, 0.34, 0.25], forceWhiteUv: true },
-            { geometry: torus, colorHex: PALETTE_HEX.water, position: [0, 0.22, 0], rotation: [Math.PI / 2, 0, 0], scale: [0.54, 0.54, 0.54], forceWhiteUv: true },
-            { geometry: torus, colorHex: PALETTE_HEX.gold, position: [0, 0.22, 0], rotation: [Math.PI / 2.8, 0.6, 0], scale: [0.68, 0.68, 0.68], forceWhiteUv: true },
+            { geometry: cyl, colorHex: PALETTE_HEX.gold, position: [0, 0.06, 0], scale: [0.09, 0.7, 0.09], forceWhiteUv: true },
+            { geometry: oct, colorHex: lantern, position: [0, 0.44, 0], scale: [0.6, 0.78, 0.6], forceWhiteUv: true },
+            { geometry: oct, colorHex: glow, position: [0, 0.44, 0], scale: [0.34, 0.45, 0.34], forceWhiteUv: true },
+            { geometry: torus, colorHex: PALETTE_HEX.water, position: [0, 0.44, 0], rotation: [Math.PI / 2, 0, 0], scale: [0.54, 0.54, 0.54], forceWhiteUv: true },
+            { geometry: torus, colorHex: PALETTE_HEX.gold, position: [0, 0.44, 0], rotation: [Math.PI / 2.4, 0.6, 0], scale: [0.56, 0.56, 0.56], forceWhiteUv: true },
           );
           for (let i = 0; i < 4; i++) {
             const a = (i / 4) * Math.PI * 2 + Math.PI / 4;

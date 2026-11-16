@@ -42,9 +42,9 @@ export const TOWER_PICK_BOUNDS: Record<TowerType, readonly [TowerPickBounds, Tow
     { halfWidth: DEFAULT_HALF_WIDTH, height: 3.0 },
   ],
   beacon: [
-    { halfWidth: DEFAULT_HALF_WIDTH, height: 1.9 },
-    { halfWidth: DEFAULT_HALF_WIDTH, height: 2.35 },
-    { halfWidth: DEFAULT_HALF_WIDTH, height: 2.9 },
+    { halfWidth: DEFAULT_HALF_WIDTH, height: 2.05 },
+    { halfWidth: DEFAULT_HALF_WIDTH, height: 2.55 },
+    { halfWidth: DEFAULT_HALF_WIDTH, height: 3.1 },
   ],
 };
 
