@@ -13,6 +13,8 @@ interface WaveStatRow {
   livesStart: number;
   livesLost: number;
   leaksByType: Partial<Record<EnemyType, number>>;
+  /** Furthest path progress (0..1) any ground enemy reached during the wave: a continuous "how close was it" signal. */
+  peakGroundProgress: number;
 }
 
 export interface SimRunResult {
@@ -111,6 +113,7 @@ export function runLevelBalanceSim(
       livesStart: world.lives,
       livesLost: 0,
       leaksByType: {},
+      peakGroundProgress: 0,
     };
     waveRows.push(activeWaveRow);
   });
@@ -183,6 +186,15 @@ export function runLevelBalanceSim(
     }
 
     world.fixedTick(BALANCE.fixedDt);
+    if (activeWaveRow) {
+      const pool = world.enemyPool;
+      for (let p = 0; p < pool.getActiveCount(); p++) {
+        const e = pool.items[pool.getActiveIndex(p)];
+        if (e.flying || e.totalDist <= 0) continue;
+        const prog = e.dist / e.totalDist;
+        if (prog > activeWaveRow.peakGroundProgress) activeWaveRow.peakGroundProgress = prog;
+      }
+    }
   }
 
   const lastRow = waveRows[waveRows.length - 1];
@@ -225,7 +237,7 @@ function printResult(lvlIdx: number, res: SimRunResult, difficulty: string): voi
       `RemainingSteps: ${res.unspentScriptActions} | Invalid: ${res.invalidActions}`,
   );
   if (res.scriptKind === 'greedy' || res.outcome === 'lost' || res.finalLives < 20) {
-    console.log('           Wave | StartGold | LivesLost | Leaks');
+    console.log('           Wave | StartGold | LivesLost | PeakProgress | Leaks');
     for (let w = 0; w < res.waves.length; w++) {
       const row = res.waves[w];
       if (row.livesLost === 0 && res.waves.length > 12 && w > 0 && w < res.waves.length - 1) {
@@ -236,7 +248,7 @@ function printResult(lvlIdx: number, res: SimRunResult, difficulty: string): voi
         .join(', ');
       console.log(
         `           ${String(row.waveNumber).padStart(4)} | ${String(row.startGold).padStart(8)}g | ` +
-          `${String(row.livesLost).padStart(9)} | ${leakPairs || '-'}`,
+          `${String(row.livesLost).padStart(9)} | ${(row.peakGroundProgress * 100).toFixed(0).padStart(11)}% | ${leakPairs || '-'}`,
       );
     }
   }
@@ -289,6 +301,14 @@ function main(): void {
     const weakRes = runLevelBalanceSim(level, 'weak', level.weakBuildOrder ?? []);
     printResult(i, weakRes, level.difficulty);
     console.log('');
+
+    if (process.argv.includes('--peaks')) {
+      console.log(
+        `           peak ground progress per wave (greedy): ${greedyRes.waves
+          .map((w) => (w.peakGroundProgress * 100).toFixed(0))
+          .join(' ')}`,
+      );
+    }
 
     if (robust) {
       // Informational: greedy lives when every enemy HP is scaled by +-1.5% / +-3% (knife-edge detector).

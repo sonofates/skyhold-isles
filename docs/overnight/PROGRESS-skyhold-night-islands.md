@@ -81,6 +81,14 @@ greedy run has to leak "exactly one boss" to be in window, so +-2% HP flips most
 retune just moves the cliff). Suggestion for the lead: judge windows on min/median over +-2% neighbours (use
 `npm run sim:balance -- --robust`) or make the boss leak cost less of a cliff.
 
+### Pressure metric (new)
+`npm run sim:balance -- --peaks` prints, per wave, the furthest path progress (%) any ground enemy reached in the
+greedy run (0 = dies at the spawn, 100 = leaked). This is the only continuous difficulty signal the sim gives
+(lives only change on boss waves). Readings: L1 smooth ramp 30 -> 82; L2/L3 start tense (70-85% from wave 1);
+L4 stays 18-60% until the boss (loose mid-game); L8/L9 sit at 85-95% from wave 1 (Master). Careful: thinning
+early waves does NOT soften them, it starves the economy (kill rewards) and the island collapses later
+(tried on L2/L3: L2 greedy 15 -> 7 lives). Ramps have to be tuned together with rewards / clearBonus.
+
 ## Next (ideas, in rough priority)
 - Re-check greedy/weak stability at +-2% HP on the 9 islands (only cheap checks done so far).
 - More mid-run "moments" if the balance sim ever shows more than boss-wave leaks (the sim currently only leaks at
