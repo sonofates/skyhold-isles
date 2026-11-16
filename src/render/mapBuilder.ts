@@ -469,7 +469,7 @@ export class MapBuilder {
       [7, 0],
     );
     if (theme.pathStyle !== 'dirt') {
-      const to: [number, number] = theme.pathStyle === 'stone' ? [5, 3] : [1, 2];
+      const to: [number, number] = theme.pathStyle === 'stone' ? [3, 3] : [1, 2];
       for (const g of [geoStraight, geoCorner, geoEnd, geoSpawnEnd, geoSplit, geoCrossing]) {
         remapUvCell(g, [7, 3], to);
       }
