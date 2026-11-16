@@ -89,6 +89,15 @@ L4 stays 18-60% until the boss (loose mid-game); L8/L9 sit at 85-95% from wave 1
 early waves does NOT soften them, it starves the economy (kill rewards) and the island collapses later
 (tried on L2/L3: L2 greedy 15 -> 7 lives). Ramps have to be tuned together with rewards / clearBonus.
 
+## Merge notes for the lead
+- Expect small textual conflicts with the other night branches in: `src/render/mapBuilder.ts` (enemies branch changed
+  the path-mask loop for extra lanes, my `isRoute`/theme code sits a few lines above), `src/render/renderWorld.ts`
+  (one line each), `scripts/balanceSim.ts` (enemies added `livesByType`; I added `peakGroundProgress`, `--levels`,
+  `--robust`, `--peaks`), `src/data/levels/types.ts` (they add `lane`/`elite`/`extraGroundPaths`, I add `WaveDef.name`).
+- After merging run: `npx tsc --noEmit && npm run lint && npm test && npm run build && npm run sim:balance`, then
+  `npx tsx scripts/previewMap.ts all` to eyeball every island (incl. 10-12) and `npx vitest run tests/render`.
+- Islands without an authored theme get a deterministic biome preset derived from their id (no set pieces).
+
 ## Next (ideas, in rough priority)
 - Re-check greedy/weak stability at +-2% HP on the 9 islands (only cheap checks done so far).
 - More mid-run "moments" if the balance sim ever shows more than boss-wave leaks (the sim currently only leaks at
