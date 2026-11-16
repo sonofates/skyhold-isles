@@ -1,7 +1,7 @@
 import { EventBus } from '../src/core/eventBus.ts';
 import { FixedTimestepStepper } from '../src/core/gameLoop.ts';
 import { SeededRng } from '../src/core/rng.ts';
-import type { GridCoord, SpeedMultiplier, TargetingMode, TowerType } from '../core/types.ts';
+import type { GridCoord, SpeedMultiplier, TargetingMode, TowerType } from '../src/core/types.ts';
 import { BALANCE } from '../src/data/balance.ts';
 import { LEVELS, type LevelDef } from '../src/data/levels/index.ts';
 import { getTowerTierStats, TOWER_DEFS, TOWER_TYPES } from '../src/data/towers.ts';
@@ -758,7 +758,9 @@ export function runFuzzPlaythrough(
     if (endlessWaves > 0) {
       inEndless = true;
       const entered = world.enterEndlessMode();
-      if (!entered || tracker.endlessEnteredCount !== 1 || world.outcome !== 'ongoing') {
+      const getOutcome = (): SimWorld['outcome'] => world.outcome;
+      const getLostCount = (): number => tracker.gameLostCount;
+      if (!entered || tracker.endlessEnteredCount !== 1 || getOutcome() !== 'ongoing') {
         return makeFailure(
           level,
           seed,
@@ -772,20 +774,20 @@ export function runFuzzPlaythrough(
       }
       const endlessTickCap = tickCount + maxEndlessTicks;
       while (
-        world.outcome === 'ongoing' &&
+        getOutcome() === 'ongoing' &&
         tracker.endlessWaveCompletedCount < endlessWaves &&
         tickCount < endlessTickCap &&
         !fatalReason
       ) {
         stepOneFrame(
           endlessTickCap,
-          () => world.outcome !== 'ongoing' || tracker.endlessWaveCompletedCount >= endlessWaves,
+          () => getOutcome() !== 'ongoing' || tracker.endlessWaveCompletedCount >= endlessWaves,
         );
       }
       if (fatalReason) {
         return makeFailure(level, seed, profile, tickCount, world, tracker, storyOutcome, fatalReason);
       }
-      if (world.outcome === 'ongoing' && tracker.endlessWaveCompletedCount < endlessWaves) {
+      if (getOutcome() === 'ongoing' && tracker.endlessWaveCompletedCount < endlessWaves) {
         return makeFailure(
           level,
           seed,
@@ -809,7 +811,7 @@ export function runFuzzPlaythrough(
           `gameWon fired again during endless mode (count=${tracker.gameWonCount})`,
         );
       }
-      if (world.outcome === 'lost' && (tracker.gameLostCount !== 1 || tracker.lastLossEndless !== true)) {
+      if (getOutcome() === 'lost' && (getLostCount() !== 1 || tracker.lastLossEndless !== true)) {
         return makeFailure(
           level,
           seed,

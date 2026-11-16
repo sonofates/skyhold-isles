@@ -22,6 +22,11 @@ export const CI_STEPS: readonly CiStep[] = [
   { name: 'build', command: 'npm', args: ['run', 'build'] },
 ];
 
+export const EXTRA_QA_STEPS: readonly CiStep[] = [
+  { name: 'sim:fuzz', command: 'npm', args: ['run', 'sim:fuzz'] },
+  { name: 'sim:bench', command: 'npm', args: ['run', 'sim:bench'] },
+];
+
 function runStep(step: CiStep): CiStepResult {
   const displayCmd = `${step.command} ${step.args.join(' ')}`;
   const startMs = performance.now();
@@ -40,15 +45,17 @@ function runStep(step: CiStep): CiStepResult {
 
 function main(): void {
   const failFast = process.argv.includes('--fail-fast');
+  const full = process.argv.includes('--full');
+  const steps = full ? [...CI_STEPS, ...EXTRA_QA_STEPS] : CI_STEPS;
   const results: CiStepResult[] = [];
   const totalStartMs = performance.now();
 
-  console.log('=== Skyhold Isles CI ===\n');
+  console.log(`=== Skyhold Isles CI${full ? ' (full QA pass)' : ''} ===\n`);
 
-  for (let i = 0; i < CI_STEPS.length; i++) {
-    const step = CI_STEPS[i];
+  for (let i = 0; i < steps.length; i++) {
+    const step = steps[i];
     const displayCmd = `${step.command} ${step.args.join(' ')}`;
-    console.log(`\n>>> [${i + 1}/${CI_STEPS.length}] ${step.name}: ${displayCmd}`);
+    console.log(`\n>>> [${i + 1}/${steps.length}] ${step.name}: ${displayCmd}`);
     const res = runStep(step);
     results.push(res);
     if (!res.passed && failFast) {
@@ -59,7 +66,7 @@ function main(): void {
 
   const totalSec = (performance.now() - totalStartMs) / 1000;
   const passedCount = results.filter((r) => r.passed).length;
-  const allPassed = passedCount === results.length && results.length === CI_STEPS.length;
+  const allPassed = passedCount === results.length && results.length === steps.length;
 
   console.log('\n=== Skyhold Isles CI Summary ===');
   for (const r of results) {

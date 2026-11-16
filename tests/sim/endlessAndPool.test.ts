@@ -123,23 +123,23 @@ describe('endless wave generation and reward multiplier', () => {
 
     expect(world.enterEndlessMode()).toBe(false);
 
-    let enteredPayload: { startingWave: number } | null = null;
+    const enteredPayloads: Array<{ startingWave: number }> = [];
     let wonCount = 0;
-    let lostPayload: { waveIndex: number; endless?: boolean } | null = null;
+    const lostPayloads: Array<{ waveIndex: number; endless?: boolean }> = [];
     events.on('endlessEntered', (ev) => {
-      enteredPayload = ev;
+      enteredPayloads.push(ev);
     });
     events.on('gameWon', () => {
       wonCount++;
     });
     events.on('gameLost', (ev) => {
-      lostPayload = ev;
+      lostPayloads.push(ev);
     });
 
     world.debugForceWin();
     expect(wonCount).toBe(1);
     expect(world.enterEndlessMode()).toBe(true);
-    expect(enteredPayload).toEqual({ startingWave: LEVELS[0].waves.length + 1 });
+    expect(enteredPayloads).toEqual([{ startingWave: LEVELS[0].waves.length + 1 }]);
     expect(world.outcome).toBe('ongoing');
     expect(world.waveSystem.isEndless).toBe(true);
 
@@ -179,7 +179,8 @@ describe('endless wave generation and reward multiplier', () => {
     leaker.dist = leaker.totalDist - 0.01;
     world.fixedTick(BALANCE.fixedDt);
     expect(world.outcome).toBe('lost');
-    expect(lostPayload?.endless).toBe(true);
+    expect(lostPayloads).toHaveLength(1);
+    expect(lostPayloads[0]?.endless).toBe(true);
   });
 });
 
