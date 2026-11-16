@@ -225,7 +225,7 @@ export class EnemySystem {
         : type === 'blinker'
           ? (def.blinkInterval ?? 3.4)
           : type === 'warden'
-            ? (def.wardInterval ?? 3.2) * 0.35
+            ? (def.wardInterval ?? 4) * 0.3
             : 0;
 
     this.events.emit('enemySpawned', {
@@ -612,9 +612,9 @@ export class EnemySystem {
     const def = ENEMY_DEFS.warden;
     warden.abilityTimer -= dt;
     if (warden.abilityTimer > 0) return;
-    warden.abilityTimer += def.wardInterval ?? 3.2;
-    const radius = def.wardRadius ?? 3.6;
-    const shieldAmount = Math.max(1, Math.round((def.wardShield ?? 34) * this.hpScaleOf(warden)));
+    warden.abilityTimer += def.wardInterval ?? 4;
+    const radius = def.wardRadius ?? 3.4;
+    const shieldAmount = Math.max(1, Math.round((def.wardShield ?? 26) * this.hpScaleOf(warden)));
     this.spatialHash.query(warden.x, warden.z, radius, _healCandidates);
     const rSq = radius * radius;
     let shielded = 0;

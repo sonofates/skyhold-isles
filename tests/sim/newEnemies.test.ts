@@ -102,13 +102,14 @@ describe('Aegis Warden', () => {
     const broken: number[] = [];
     events.on('shieldBroken', (e) => broken.push(e.enemyId));
     const hpBefore = grunt.hp;
+    const shield0 = grunt.shield;
     const res1 = world.enemySystem.applyDamage(grunt, 20);
     expect(res1.actualDamage).toBe(0);
     expect(grunt.hp).toBe(hpBefore);
-    expect(grunt.shield).toBe(14);
+    expect(grunt.shield).toBe(shield0 - 20);
 
     const res2 = world.enemySystem.applyDamage(grunt, 20);
-    expect(res2.actualDamage).toBe(6);
+    expect(res2.actualDamage).toBe(40 - shield0);
     expect(grunt.shield).toBe(0);
     expect(broken).toEqual([grunt.uid]);
   });

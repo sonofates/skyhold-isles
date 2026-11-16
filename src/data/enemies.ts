@@ -151,9 +151,9 @@ export const ENEMY_DEFS: Record<EnemyType, EnemyDef> = {
     flying: false,
     radius: 0.5,
     height: 1.35,
-    wardRadius: 3.6,
-    wardInterval: 3.2,
-    wardShield: 34,
+    wardRadius: 3.4,
+    wardInterval: 4.0,
+    wardShield: 26,
   },
   burrower: {
     type: 'burrower',
