@@ -230,6 +230,7 @@ export class RunObserver {
   private netGoldSpent = 0;
   private goldEarned = 0;
   private enemiesKilledTotal = 0;
+  private endlessEnemiesKilled = 0;
   private readonly enemiesKilledByType: Record<string, number> = {};
   private flyingEnemiesKilled = 0;
   private livesLost = 0;
@@ -245,6 +246,9 @@ export class RunObserver {
   private currentSpeed: SpeedMultiplier = 1;
   private minCombatSpeed: SpeedMultiplier | null = null;
   private inCombat = false;
+  private inWavePhase = false;
+  private runEnded = false;
+  private storyWinSnapshot: { livesRemaining: number; telemetry: RunTelemetry } | null = null;
   private expectedNextWaveIndex = 0;
   private skippedWaves = false;
   private eligibleForChallenges = true;
@@ -294,12 +298,18 @@ export class RunObserver {
         this.netGoldSpent = Math.max(0, this.netGoldSpent - ev.refund);
       }),
       events.on('enemySpawned', (ev) => {
+        if (!this.inWavePhase) {
+          this.eligibleForChallenges = false;
+        }
         if (ev.flying) {
           this.spawnedFlyingIds.add(ev.enemyId);
         }
       }),
       events.on('enemyKilled', (ev) => {
         this.enemiesKilledTotal++;
+        if (this.endlessEntered) {
+          this.endlessEnemiesKilled++;
+        }
         this.enemiesKilledByType[ev.enemyType] =
           (this.enemiesKilledByType[ev.enemyType] ?? 0) + 1;
         if (this.spawnedFlyingIds.delete(ev.enemyId)) {
@@ -322,10 +332,14 @@ export class RunObserver {
         this.towersCleansed += ev.cleansedTowerIds.length;
       }),
       events.on('waveStarted', (ev) => {
+        if (this.runEnded && !this.endlessEntered) {
+          this.eligibleForChallenges = false;
+        }
         if (ev.waveIndex !== this.expectedNextWaveIndex) {
           this.skippedWaves = true;
           this.eligibleForChallenges = false;
         }
+        this.inWavePhase = true;
         this.expectedNextWaveIndex = ev.waveIndex + 1;
         if (ev.waveIndex + 1 > this.maxWaveReached) {
           this.maxWaveReached = ev.waveIndex + 1;
@@ -340,6 +354,7 @@ export class RunObserver {
         }
       }),
       events.on('waveCompleted', (ev) => {
+        this.inWavePhase = false;
         this.wavesCompleted++;
         if (ev.waveIndex < this.level.waves.length) {
           this.storyWavesCompleted++;
@@ -352,14 +367,29 @@ export class RunObserver {
         this.endlessEntered = true;
         this.inCombat = true;
       }),
-      events.on('gameWon', () => {
+      events.on('gameWon', (ev) => {
         this.inCombat = false;
-        if (this.skippedWaves || this.storyWavesCompleted < this.level.waves.length) {
+        this.inWavePhase = false;
+        this.runEnded = true;
+        if (
+          this.endlessEntered ||
+          this.storyWinSnapshot !== null ||
+          this.skippedWaves ||
+          this.storyWavesCompleted < this.level.waves.length
+        ) {
           this.eligibleForChallenges = false;
+        }
+        if (this.storyWinSnapshot === null && !this.endlessEntered) {
+          this.storyWinSnapshot = {
+            livesRemaining: ev.livesRemaining,
+            telemetry: this.getTelemetry(),
+          };
         }
       }),
       events.on('gameLost', (ev) => {
         this.inCombat = false;
+        this.inWavePhase = false;
+        this.runEnded = true;
         if (ev.waveIndex + 1 > this.maxWaveReached) {
           this.maxWaveReached = ev.waveIndex + 1;
         }
@@ -402,6 +432,11 @@ export class RunObserver {
     this.eligibleForChallenges = false;
   }
 
+  /** Returns frozen story-win telemetry/lives once campaign waves are won (prevents Endless mutations). */
+  getStoryWinSnapshot(): { livesRemaining: number; telemetry: RunTelemetry } | null {
+    return this.storyWinSnapshot;
+  }
+
   getTelemetry(): RunTelemetry {
     return {
       levelId: this.level.id,
@@ -420,6 +455,7 @@ export class RunObserver {
       netGoldSpent: this.netGoldSpent,
       goldEarned: this.goldEarned,
       enemiesKilledTotal: this.enemiesKilledTotal,
+      endlessEnemiesKilled: this.endlessEnemiesKilled,
       enemiesKilledByType: { ...this.enemiesKilledByType },
       flyingEnemiesKilled: this.flyingEnemiesKilled,
       livesLost: this.livesLost,
@@ -433,6 +469,7 @@ export class RunObserver {
       endlessEntered: this.endlessEntered,
       maxWaveReached: this.maxWaveReached,
       minCombatSpeed: this.minCombatSpeed,
+      activeMutatorIds: [...this.modifiers.activeMutatorIds],
       eligibleForChallenges: this.eligibleForChallenges,
     };
   }

@@ -289,7 +289,7 @@ export function getChallengeById(
   return undefined;
 }
 
-/** 22 data-driven achievements spanning campaign, challenges, combat, economy, and endless/daily. */
+/** 25 data-driven achievements spanning campaign, challenges, combat, economy, and endless/daily. */
 export const ACHIEVEMENTS: readonly AchievementDef[] = [
   {
     id: 'first_victory',
@@ -418,6 +418,13 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
     target: 25,
   },
   {
+    id: 'upgrade_specialist',
+    name: 'Grand Forge',
+    description: 'Upgrade towers 100 times across all runs.',
+    category: 'economy',
+    target: 100,
+  },
+  {
     id: 'gold_baron',
     name: 'Treasury of the Clouds',
     description: 'Earn 25,000 total gold from defeats and wave bonuses.',
@@ -439,11 +446,25 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
     target: 15,
   },
   {
+    id: 'mutated_endless',
+    name: 'Tempest Tactician',
+    description: 'Clear 5 Endless waves in one run with mutators active.',
+    category: 'endless',
+    target: 5,
+  },
+  {
     id: 'daily_victor',
     name: 'Daily Watch',
     description: 'Complete a Daily Challenge run.',
     category: 'endless',
     target: 1,
+  },
+  {
+    id: 'daily_streak_3',
+    name: 'Threefold Vigil',
+    description: 'Complete Daily Challenges on 3 consecutive days.',
+    category: 'endless',
+    target: 3,
   },
 ];
 

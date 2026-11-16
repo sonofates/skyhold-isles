@@ -11,9 +11,14 @@ import {
   getChallengeStatus,
   getStats,
   recomputeAchievements,
+  recordEndlessRunStats,
   recordRunCompletion,
 } from '../sim/meta/metaEngine.ts';
-import { getAllowedTowerTypes, isTowerTypeAllowed } from '../sim/meta/modifiers.ts';
+import {
+  describeActiveModifiers,
+  getAllowedTowerTypes,
+  isTowerTypeAllowed,
+} from '../sim/meta/modifiers.ts';
 import { selectEndlessMutators } from '../sim/meta/mutators.ts';
 import { evaluateLiveLevelChallenges, RunObserver } from '../sim/meta/runObserver.ts';
 import type {
@@ -26,6 +31,7 @@ import type {
   LifetimeStats,
   LiveChallengeStatus,
   MetaSaveData,
+  ModifierBadgeInfo,
   ResolvedRunModifiers,
   RunMetaOutcome,
   RunModifiers,
@@ -107,6 +113,7 @@ export class MetaSession {
         this.flushStats();
       }),
       events.on('gameWon', (ev) => {
+        if (observer.getTelemetry().endlessEntered) return;
         this.flushStats(false);
         const telemetry = observer.getTelemetry();
         this.lastRunOutcome = recordRunCompletion(this.save, {
@@ -155,20 +162,22 @@ export class MetaSession {
     this.observer?.recordSpeed(speed);
   }
 
+  markDebugTainted(): void {
+    this.observer?.markDebugTainted();
+  }
+
   flushStats(persistAfter = true): void {
     if (!this.observer) return;
     const current = this.observer.getTelemetry();
     applyTelemetryDeltaToStats(this.save, current, this.committedTelemetry);
     this.committedTelemetry = current;
 
-    if (current.endlessEntered && current.maxWaveReached > 0) {
-      const idx = current.levelIndex;
-      while (this.save.campaign.bestEndlessWaves.length <= idx) {
-        this.save.campaign.bestEndlessWaves.push(0);
-      }
-      this.save.campaign.bestEndlessWaves[idx] = Math.max(
-        this.save.campaign.bestEndlessWaves[idx] ?? 0,
-        current.maxWaveReached,
+    if (current.endlessEntered) {
+      recordEndlessRunStats(
+        this.save,
+        this.observer.level,
+        current,
+        this.observer.getModifiers().scoreMultiplier,
       );
     }
 
@@ -243,6 +252,16 @@ export class MetaSession {
     outcome: 'ongoing' | 'won' | 'lost' = 'ongoing',
   ): readonly LiveChallengeStatus[] {
     if (!this.observer || this.activeDailyDate !== null) return [];
+    const storySnapshot = this.observer.getStoryWinSnapshot();
+    if (storySnapshot) {
+      return evaluateLiveLevelChallenges(
+        this.observer.level,
+        storySnapshot.telemetry,
+        storySnapshot.livesRemaining,
+        'won',
+        this.save.completedChallenges,
+      );
+    }
     return evaluateLiveLevelChallenges(
       this.observer.level,
       this.observer.getTelemetry(),
@@ -250,6 +269,16 @@ export class MetaSession {
       outcome,
       this.save.completedChallenges,
     );
+  }
+
+  getActiveDailyChallenge(): DailyChallengeSpec | null {
+    if (!this.activeDailyDate) return null;
+    return generateDailyChallenge(this.activeDailyDate, this.levels);
+  }
+
+  getActiveModifierBadges(): readonly ModifierBadgeInfo[] {
+    if (!this.observer) return [];
+    return describeActiveModifiers(this.observer.getModifiers());
   }
 
   getAllowedTowerTypes(): readonly TowerType[] {

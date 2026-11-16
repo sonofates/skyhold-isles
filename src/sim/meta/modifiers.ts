@@ -1,7 +1,8 @@
 import type { TowerType } from '../../core/types.ts';
+import { ENDLESS_MUTATORS } from '../../data/challenges.ts';
 import type { LevelDef, WaveDef, WaveGroupDef } from '../../data/levels/types.ts';
-import { TOWER_TYPES } from '../../data/towers.ts';
-import type { ResolvedRunModifiers, RunModifiers } from './types.ts';
+import { TOWER_DEFS, TOWER_TYPES } from '../../data/towers.ts';
+import type { ModifierBadgeInfo, MutatorDef, ResolvedRunModifiers, RunModifiers } from './types.ts';
 
 export const NEUTRAL_RUN_MODIFIERS: ResolvedRunModifiers = {
   enemySpeedMultiplier: 1,
@@ -176,4 +177,55 @@ export function applyModifiersToLevel(level: LevelDef, modifiers?: RunModifiers 
     ...level,
     waves,
   };
+}
+
+/**
+ * Produces human-readable modifier badges for active mutators and tower restrictions
+ * (ready for HUD / Pause Menu / Endless Setup display).
+ */
+export function describeActiveModifiers(
+  modifiers: ResolvedRunModifiers,
+  mutatorCatalog: readonly MutatorDef[] = ENDLESS_MUTATORS,
+): readonly ModifierBadgeInfo[] {
+  const badges: ModifierBadgeInfo[] = [];
+  const mutatorById = new Map<string, MutatorDef>();
+  for (let i = 0; i < mutatorCatalog.length; i++) {
+    mutatorById.set(mutatorCatalog[i].id, mutatorCatalog[i]);
+  }
+
+  const mutatorForbidden = new Set<TowerType>();
+  for (let i = 0; i < modifiers.activeMutatorIds.length; i++) {
+    const id = modifiers.activeMutatorIds[i];
+    const def = mutatorById.get(id);
+    if (def) {
+      badges.push({ id: def.id, label: def.name, detail: def.description });
+      const banned = def.modifiers.forbiddenTowerTypes ?? [];
+      for (let j = 0; j < banned.length; j++) {
+        mutatorForbidden.add(banned[j]);
+      }
+    } else {
+      badges.push({ id, label: id, detail: 'Active run modifier' });
+    }
+  }
+
+  if (modifiers.allowedTowerTypes !== null && modifiers.allowedTowerTypes.length > 0) {
+    const names = modifiers.allowedTowerTypes.map((t) => TOWER_DEFS[t]?.name ?? t).join(', ');
+    badges.push({
+      id: 'allowed-arsenal',
+      label: 'Limited Arsenal',
+      detail: `Only ${names} can be built.`,
+    });
+  }
+
+  const extraBanned = modifiers.forbiddenTowerTypes.filter((t) => !mutatorForbidden.has(t));
+  if (extraBanned.length > 0) {
+    const names = extraBanned.map((t) => TOWER_DEFS[t]?.name ?? t).join(', ');
+    badges.push({
+      id: 'restricted-towers',
+      label: `No ${names}`,
+      detail: `${names} cannot be built.`,
+    });
+  }
+
+  return badges;
 }

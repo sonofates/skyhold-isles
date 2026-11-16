@@ -23,6 +23,7 @@ import type {
   LevelChallengeStatus,
   LifetimeStats,
   LiveChallengeStatus,
+  ModifierBadgeInfo,
   RunMetaOutcome,
   RunModifiers,
 } from '../sim/meta/types.ts';
@@ -507,6 +508,22 @@ export class GameSession {
     return this.meta.isTowerAllowed(type);
   }
 
+  getTowerBuildCost(type: TowerType): number {
+    return this.simWorld.getTowerBuildCost(type);
+  }
+
+  getTowerUpgradeCost(towerId: number): number | null {
+    return this.simWorld.getTowerUpgradeCost(towerId);
+  }
+
+  getActiveDailyChallenge(): DailyChallengeSpec | null {
+    return this.meta.getActiveDailyChallenge();
+  }
+
+  getActiveModifierBadges(): readonly ModifierBadgeInfo[] {
+    return this.meta.getActiveModifierBadges();
+  }
+
   openSettingsModal(origin: SettingsOrigin): void {
     const { overlays } = this.d;
     this.settingsOrigin = origin;
@@ -732,6 +749,9 @@ export class GameSession {
   fixedTick(dt: number): void {
     this.simClockSec += dt;
     this.meta.onTick(dt, this.deps?.loop.speed ?? 1);
+    if (this.pendingDebugSpawns.length > 0) {
+      this.meta.markDebugTainted();
+    }
     stepPendingSpawns(this.pendingDebugSpawns, this.simWorld, dt);
     this.simWorld.fixedTick(dt);
   }

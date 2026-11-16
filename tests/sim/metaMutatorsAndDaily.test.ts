@@ -6,7 +6,11 @@ import { ENEMY_DEFS } from '../../src/data/enemies.ts';
 import { LEVELS, type LevelDef } from '../../src/data/levels/index.ts';
 import { getTowerTierStats, TOWER_DEFS } from '../../src/data/towers.ts';
 import { computeDailyStreaks, generateDailyChallenge, isValidDateString } from '../../src/sim/meta/daily.ts';
-import { getAllowedTowerTypes, isTowerTypeAllowed } from '../../src/sim/meta/modifiers.ts';
+import {
+  describeActiveModifiers,
+  getAllowedTowerTypes,
+  isTowerTypeAllowed,
+} from '../../src/sim/meta/modifiers.ts';
 import { computeEndlessScore, hashSeedString, selectEndlessMutators } from '../../src/sim/meta/mutators.ts';
 import { RunObserver } from '../../src/sim/meta/runObserver.ts';
 import { SimWorld } from '../../src/sim/world.ts';
@@ -89,10 +93,13 @@ describe('SimWorld integration with RunModifiers', () => {
 
     // Forbidden tower is rejected
     expect(world.placeTower(4, 2, 'frost')).toBeNull();
+    // Cost helpers reflect towerCostMultiplier (50 * 1.2 = 60, T2 55 * 1.2 = 66)
+    expect(world.getTowerBuildCost('archer')).toBe(60);
     // Allowed tower pays scaled cost (50 * 1.2 = 60)
     const archer = world.placeTower(4, 2, 'archer');
     expect(archer).not.toBeNull();
     expect(archer!.totalInvested).toBe(Math.round(getTowerTierStats('archer', 1).upgradeCost * 1.2));
+    expect(world.getTowerUpgradeCost(archer!)).toBe(66);
     expect(world.gold).toBe(400 - 60);
 
     // Wave flyer count doubled (2 -> 4 flyers + 2 grunts = 6 total enemies)
@@ -162,6 +169,10 @@ describe('SimWorld integration with RunModifiers', () => {
       world.fixedTick(BALANCE.fixedDt);
     }
     expect(endlessFlyers).toBe(12);
+
+    // debugForceWin must be a no-op once inside Endless Mode
+    world.debugForceWin();
+    expect(world.outcome).toBe('ongoing');
   });
 });
 
@@ -244,6 +255,25 @@ describe('Daily challenge pure date-seeded generator', () => {
     for (const banned of spec.modifiers.forbiddenTowerTypes) {
       expect(isTowerTypeAllowed(banned, spec.modifiers)).toBe(false);
       expect(allowed).not.toContain(banned);
+    }
+  });
+
+  it('keeps spec.scoreMultiplier synced with modifiers and balances Master daily rules', () => {
+    const start = new Date('2026-01-01T00:00:00Z');
+    for (let i = 0; i < 120; i++) {
+      const ds = start.toISOString().slice(0, 10);
+      const spec = generateDailyChallenge(ds, LEVELS);
+      expect(spec.scoreMultiplier).toBe(spec.modifiers.scoreMultiplier);
+      const lvl = LEVELS[spec.levelIndex];
+      if (lvl.difficulty === 'Master') {
+        expect(spec.mutators).toHaveLength(1);
+        expect(spec.mutators.some((m) => m.id === 'gold_drought')).toBe(false);
+        expect(spec.towerRestriction.kind).not.toBe('limited_arsenal');
+        expect(spec.modifiers.forbiddenTowerTypes.length).toBeLessThanOrEqual(1);
+      }
+      const badges = describeActiveModifiers(spec.modifiers);
+      expect(badges.length).toBeGreaterThanOrEqual(spec.mutators.length);
+      start.setUTCDate(start.getUTCDate() + 1);
     }
   });
 });

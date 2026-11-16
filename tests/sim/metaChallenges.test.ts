@@ -9,6 +9,7 @@ import {
 } from '../../src/data/challenges.ts';
 import { LEVELS, type LevelDef } from '../../src/data/levels/index.ts';
 import { getTowerTierStats } from '../../src/data/towers.ts';
+import { MetaSession } from '../../src/platform/metaSession.ts';
 import {
   evaluateChallengeCondition,
   evaluateLiveLevelChallenges,
@@ -349,5 +350,76 @@ describe('RunObserver challenge condition tracking', () => {
 
     obs4.dispose();
     observer.dispose();
+  });
+
+  it('freezes story challenge completion snapshot once won and stays intact in endless mode', () => {
+    const level = makeSimpleTestLevel();
+    const events = new EventBus();
+    const world = new SimWorld(level, events);
+    const meta = new MetaSession({
+      levels: [level],
+      onSave: () => {},
+      getTodayDate: () => '2026-11-17',
+    });
+
+    meta.startRun(level, events, { speed: 3 });
+    const archer = world.placeTower(4, 2, 'archer')!;
+    world.upgradeTower(archer.id);
+    world.upgradeTower(archer.id);
+    world.startNextWave();
+    for (let i = 0; i < 60 * 30 && world.waveSystem.state !== 'betweenWaves'; i++) {
+      meta.onTick(BALANCE.fixedDt, 3);
+      world.fixedTick(BALANCE.fixedDt);
+    }
+    world.startNextWave();
+    for (let i = 0; i < 60 * 60 && world.outcome === 'ongoing'; i++) {
+      meta.onTick(BALANCE.fixedDt, 3);
+      world.fixedTick(BALANCE.fixedDt);
+    }
+    expect(world.outcome).toBe('won');
+
+    const postWinLive = meta.getLiveChallengeStates(world.lives, world.outcome);
+    expect(postWinLive.every((s) => s.state === 'completed')).toBe(true);
+
+    // Enter Endless Mode and break story constraints (build 7+ towers, drop speed to 1x)
+    expect(world.enterEndlessMode()).toBe(true);
+    meta.onEndlessEntered();
+    meta.onSpeedChanged(1);
+    const extraSpots: Array<[number, number]> = [
+      [4, 3],
+      [7, 5],
+      [8, 5],
+      [10, 4],
+      [5, 7],
+      [7, 3],
+    ];
+    for (const [c, r] of extraSpots) {
+      world.gold = 500;
+      expect(world.placeTower(c, r, 'archer')).not.toBeNull();
+    }
+
+    const duringEndlessLive = meta.getLiveChallengeStates(world.lives, world.outcome);
+    expect(duringEndlessLive.every((s) => s.state === 'completed')).toBe(true);
+    meta.dispose();
+  });
+
+  it('rejects challenges if enemies are debug-spawned outside wave phase or resumed after loss', () => {
+    const level = makeSimpleTestLevel();
+    const events1 = new EventBus();
+    const world1 = new SimWorld(level, events1);
+    const obs1 = new RunObserver(level, events1);
+    // Simulate debug enemy spawn during preFirstWave
+    world1.enemySystem.spawnEnemy('grunt');
+    expect(obs1.getTelemetry().eligibleForChallenges).toBe(false);
+    obs1.dispose();
+
+    const events2 = new EventBus();
+    const world2 = new SimWorld(level, events2);
+    const obs2 = new RunObserver(level, events2);
+    world2.startNextWave();
+    world2.debugForceLose();
+    world2.debugSkipToWave(1);
+    expect(obs2.getTelemetry().eligibleForChallenges).toBe(false);
+    obs2.dispose();
   });
 });

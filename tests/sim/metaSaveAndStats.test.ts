@@ -336,4 +336,102 @@ describe('MetaSession stats, achievements, challenges & daily persistence', () =
     expect(getAllChallengeProgress(save, LEVELS).totalStars).toBe(27);
     meta.dispose();
   });
+
+  it('tracks mutated endless waves, endless scores on quit, daily streaks, and rejects debug daily wins', () => {
+    installMockLocalStorage();
+    const tinyLevel: LevelDef = {
+      ...LEVELS[0],
+      startingGold: 1500,
+      waves: [
+        {
+          clearBonus: 30,
+          groups: [{ enemyType: 'grunt', count: 1, spawnInterval: 0.4, startDelay: 0 }],
+        },
+      ],
+    };
+    const meta = new MetaSession({
+      levels: [tinyLevel],
+      getTodayDate: () => '2026-11-17',
+    });
+
+    // 1. Debug-forced win on a Daily Challenge must NOT grant daily completion or daily_victor
+    const dailyEv = new EventBus();
+    const dailySpec = meta.getDailyChallenge('2026-11-17');
+    const dailyWorld = new SimWorld(tinyLevel, dailyEv, dailySpec.modifiers);
+    meta.startRun(tinyLevel, dailyEv, {
+      modifiers: dailySpec.modifiers,
+      dailyDate: '2026-11-17',
+    });
+    expect(meta.getActiveDailyChallenge()?.date).toBe('2026-11-17');
+    expect(meta.getActiveModifierBadges().length).toBeGreaterThanOrEqual(dailySpec.mutators.length);
+    dailyWorld.debugForceWin();
+    expect(meta.getDailyStatus('2026-11-17').completedToday).toBe(false);
+    expect(meta.getStats().gamesWon).toBe(0);
+
+    // 2. Story win followed by mutated Endless waves -> quitting mid-Endless still flushes score & achievement
+    const ev = new EventBus();
+    const world = new SimWorld(tinyLevel, ev);
+    meta.startRun(tinyLevel, ev);
+    world.placeTower(4, 2, 'archer');
+    world.upgradeTower(1);
+    world.upgradeTower(1);
+    world.startNextWave();
+    for (let i = 0; i < 60 * 30 && world.outcome === 'ongoing'; i++) {
+      meta.onTick(BALANCE.fixedDt, 1);
+      world.fixedTick(BALANCE.fixedDt);
+    }
+    expect(world.outcome).toBe('won');
+
+    const mutators = meta.rollEndlessMutators('season-test', 2);
+    expect(world.enterEndlessMode(mutators.modifiers)).toBe(true);
+    meta.onEndlessEntered(mutators.modifiers);
+    expect(meta.getActiveModifierBadges().length).toBe(2);
+
+    // Clear 5 endless waves cleanly by upgrading a full defense & letting combat play out
+    world.gold = 6000;
+    const placements: Array<[number, number, 'archer' | 'cannon' | 'frost' | 'tesla' | 'mortar']> = [
+      [4, 3, 'cannon'],
+      [7, 5, 'frost'],
+      [8, 5, 'archer'],
+      [10, 4, 'tesla'],
+      [5, 7, 'mortar'],
+      [7, 3, 'cannon'],
+      [6, 2, 'tesla'],
+    ];
+    for (const [col, row, type] of placements) {
+      const t = world.placeTower(col, row, type);
+      if (t) {
+        world.upgradeTower(t.id);
+        world.upgradeTower(t.id);
+      }
+    }
+
+    let endlessWavesCompleted = 0;
+    ev.on('waveCompleted', (w) => {
+      if (w.waveIndex >= tinyLevel.waves.length) endlessWavesCompleted++;
+    });
+    for (let i = 0; i < 60 * 180 && endlessWavesCompleted < 5 && world.outcome === 'ongoing'; i++) {
+      if (world.waveSystem.state === 'betweenWaves') {
+        world.startNextWave();
+      }
+      meta.onTick(BALANCE.fixedDt, 3);
+      world.fixedTick(BALANCE.fixedDt);
+    }
+    expect(endlessWavesCompleted).toBeGreaterThanOrEqual(5);
+
+    // Quit mid-run without dying -> endRun() flushes bestEndlessScoreOverall & mutated_endless
+    meta.endRun();
+    const stats = meta.getStats();
+    expect(stats.bestEndlessScoreOverall).toBeGreaterThan(0);
+    expect(stats.bestEndlessWaveOverall).toBeGreaterThanOrEqual(6);
+    const achs = meta.getAchievements();
+    expect(achs.find((a) => a.def.id === 'mutated_endless')?.unlocked).toBe(true);
+
+    // 3. Migrate a save with 3 consecutive daily dates -> unlocks daily_streak_3
+    const partialV2 = meta.getSaveSnapshot();
+    partialV2.completedDailyDates = ['2026-11-15', '2026-11-16', '2026-11-17'];
+    const migrated = migrateToMetaSave(partialV2, null, 9, LEVELS);
+    expect(migrated.unlockedAchievements.daily_streak_3).toBe(true);
+    meta.dispose();
+  });
 });

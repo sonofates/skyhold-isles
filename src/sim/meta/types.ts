@@ -81,6 +81,12 @@ export interface AllChallengeProgress {
   readonly byLevel: readonly LevelChallengeStatus[];
 }
 
+export interface ModifierBadgeInfo {
+  readonly id: string;
+  readonly label: string;
+  readonly detail: string;
+}
+
 /** Live run metrics observed purely via EventBus and tick/speed hooks. */
 export interface RunTelemetry {
   readonly levelId: string;
@@ -99,6 +105,7 @@ export interface RunTelemetry {
   readonly netGoldSpent: number;
   readonly goldEarned: number;
   readonly enemiesKilledTotal: number;
+  readonly endlessEnemiesKilled: number;
   readonly enemiesKilledByType: Record<string, number>;
   readonly flyingEnemiesKilled: number;
   readonly livesLost: number;
@@ -112,6 +119,7 @@ export interface RunTelemetry {
   readonly endlessEntered: boolean;
   readonly maxWaveReached: number;
   readonly minCombatSpeed: SpeedMultiplier | null;
+  readonly activeMutatorIds: readonly string[];
   readonly eligibleForChallenges: boolean;
 }
 
@@ -138,6 +146,7 @@ export interface LifetimeStats {
   towersCleansed: number;
   perfectClears: number;
   bestEndlessWaveOverall: number;
+  bestEndlessScoreOverall: number;
   dailyChallengesCompleted: number;
 }
 
@@ -231,6 +240,7 @@ export interface MetaSaveData {
     wonNoLivesLost: boolean;
     wonAt3xSpeed: boolean;
     wonMax6Towers: boolean;
+    bestMutatedEndlessWavesCleared: number;
   };
   stats: LifetimeStats;
   completedDailyDates: string[];

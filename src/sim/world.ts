@@ -197,7 +197,7 @@ export class SimWorld {
   }
 
   debugForceWin(): void {
-    if (this.outcome !== 'ongoing') return;
+    if (this.outcome !== 'ongoing' || this.waveSystem.isEndless) return;
     if (this.lives <= 0) this.lives = 1;
     this.outcome = 'won';
     this.events.emit('gameWon', {
@@ -214,6 +214,19 @@ export class SimWorld {
     this.events.emit('gameLost', { waveIndex: Math.max(0, this.waveSystem.currentWaveIndex) });
   }
 
+  /** Effective gold cost to build a Tier 1 tower of `type` under active run modifiers. */
+  getTowerBuildCost(type: TowerType): number {
+    return scaleGoldCost(getTowerTierStats(type, 1).upgradeCost, this.modifiers);
+  }
+
+  /** Effective gold cost to upgrade `towerOrId` to the next tier, or null if missing/maxed. */
+  getTowerUpgradeCost(towerOrId: TowerEntity | number): number | null {
+    const tower = typeof towerOrId === 'number' ? this.getTowerById(towerOrId) : towerOrId;
+    if (!tower || tower.tier >= 3) return null;
+    const nextTier = (tower.tier + 1) as 2 | 3;
+    return scaleGoldCost(getTowerTierStats(tower.type, nextTier).upgradeCost, this.modifiers);
+  }
+
   placeTower(
     col: number,
     row: number,
@@ -223,8 +236,7 @@ export class SimWorld {
     if (this.outcome !== 'ongoing') return null;
     if (!isTowerTypeAllowed(type, this.modifiers)) return null;
     if (!this.grid.canPlaceTower(col, row)) return null;
-    const stats = getTowerTierStats(type, 1);
-    const cost = scaleGoldCost(stats.upgradeCost, this.modifiers);
+    const cost = this.getTowerBuildCost(type);
     if (this.gold < cost) return null;
 
     this.gold -= cost;
@@ -271,9 +283,8 @@ export class SimWorld {
     if (!tower || tower.tier >= 3) return false;
 
     const nextTier = (tower.tier + 1) as 2 | 3;
-    const nextStats = getTowerTierStats(tower.type, nextTier);
-    const cost = scaleGoldCost(nextStats.upgradeCost, this.modifiers);
-    if (this.gold < cost) return false;
+    const cost = this.getTowerUpgradeCost(tower);
+    if (cost === null || this.gold < cost) return false;
 
     this.gold -= cost;
     tower.tier = nextTier;

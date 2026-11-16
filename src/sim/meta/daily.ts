@@ -34,11 +34,12 @@ function formatTowerNames(types: readonly TowerType[]): string {
 function pickTowerRestriction(
   rng: SeededRng,
   alreadyForbidden: readonly TowerType[],
-): { restriction: DailyTowerRestriction; scoreBonus: number; modifiers: RunModifiers } {
+  options?: { allowLimitedArsenal?: boolean; forceNone?: boolean; preserveAntiAir?: boolean },
+): { restriction: DailyTowerRestriction; modifiers: RunModifiers } {
   const available = TOWER_TYPES.filter((t) => !alreadyForbidden.includes(t));
   const antiAirAvailable = available.filter((t) => TOWER_DEFS[t].hitsFlyers);
 
-  if (available.length <= 2 || antiAirAvailable.length === 0) {
+  if (options?.forceNone || available.length <= 2 || antiAirAvailable.length === 0) {
     return {
       restriction: {
         kind: 'none',
@@ -46,7 +47,6 @@ function pickTowerRestriction(
         allowedTowerTypes: null,
         forbiddenTowerTypes: [],
       },
-      scoreBonus: 0,
       modifiers: {},
     };
   }
@@ -60,16 +60,17 @@ function pickTowerRestriction(
         allowedTowerTypes: null,
         forbiddenTowerTypes: [],
       },
-      scoreBonus: 0,
       modifiers: {},
     };
   }
 
   // Ban one tower while guaranteeing at least 1 anti-air tower remains legal
-  if (roll < 0.65 || available.length <= 3) {
-    const bannable = available.filter(
-      (t) => !TOWER_DEFS[t].hitsFlyers || antiAirAvailable.length > 1,
-    );
+  const allowLimited = options?.allowLimitedArsenal ?? true;
+  if (!allowLimited || roll < 0.65 || available.length <= 3) {
+    const bannable = available.filter((t) => {
+      if (options?.preserveAntiAir && TOWER_DEFS[t].hitsFlyers) return false;
+      return !TOWER_DEFS[t].hitsFlyers || antiAirAvailable.length > 1;
+    });
     if (bannable.length > 0) {
       const banned = rng.pick(bannable);
       return {
@@ -79,8 +80,7 @@ function pickTowerRestriction(
           allowedTowerTypes: null,
           forbiddenTowerTypes: [banned],
         },
-        scoreBonus: 0.2,
-        modifiers: { forbiddenTowerTypes: [banned] },
+        modifiers: { forbiddenTowerTypes: [banned], scoreMultiplier: 1.2 },
       };
     }
   }
@@ -104,14 +104,14 @@ function pickTowerRestriction(
       allowedTowerTypes: chosen,
       forbiddenTowerTypes: [],
     },
-    scoreBonus: 0.3,
-    modifiers: { allowedTowerTypes: chosen },
+    modifiers: { allowedTowerTypes: chosen, scoreMultiplier: 1.3 },
   };
 }
 
 /**
  * Pure deterministic generator for the Daily Challenge of a given `YYYY-MM-DD` date string.
- * Selects island, compatible mutators, and tower restrictions with at least 1 legal anti-air tower.
+ * Selects island, compatible mutators, and tower restrictions with at least 1 legal anti-air tower
+ * while scaling rule severity by island difficulty so Master dailies stay fair.
  */
 export function generateDailyChallenge(
   dateStr: string,
@@ -131,19 +131,39 @@ export function generateDailyChallenge(
 
   const levelIndex = rng.int(0, levels.length - 1);
   const level = levels[levelIndex];
-  const mutatorCount = rng.chance(0.55) ? 2 : 1;
-  const mutatorSeed = (seed ^ Math.imul(rng.int(1, 0x7fffffff), 2654435761)) >>> 0;
-  const mutatorRoll = selectEndlessMutators(mutatorSeed, mutatorCount, mutatorCatalog);
+  const isMaster = level.difficulty === 'Master';
+  const isHeroic = level.difficulty === 'Heroic';
 
-  const { restriction, scoreBonus, modifiers: restrictionMods } = pickTowerRestriction(
+  const mutatorCount = isMaster
+    ? 1
+    : isHeroic
+      ? rng.chance(0.35)
+        ? 2
+        : 1
+      : rng.chance(0.55)
+        ? 2
+        : 1;
+
+  const masterSafePool = isMaster
+    ? mutatorCatalog.filter((m) => m.id !== 'gold_drought')
+    : mutatorCatalog;
+  const effectivePool = masterSafePool.length > 0 ? masterSafePool : mutatorCatalog;
+
+  const mutatorSeed = (seed ^ Math.imul(rng.int(1, 0x7fffffff), 2654435761)) >>> 0;
+  const mutatorRoll = selectEndlessMutators(mutatorSeed, mutatorCount, effectivePool);
+
+  const { restriction, modifiers: restrictionMods } = pickTowerRestriction(
     rng,
     mutatorRoll.modifiers.forbiddenTowerTypes,
+    {
+      allowLimitedArsenal: !isMaster && (!isHeroic || mutatorRoll.mutators.length < 2),
+      forceNone: isMaster && mutatorRoll.modifiers.forbiddenTowerTypes.length > 0,
+      preserveAntiAir: isMaster && mutatorRoll.modifiers.flyerCountMultiplier > 1,
+    },
   );
 
-  const scoreMultiplier = +(mutatorRoll.scoreMultiplier + scoreBonus).toFixed(2);
-  const modifiers = mergeRunModifiers(mutatorRoll.modifiers, restrictionMods, {
-    scoreMultiplier,
-  });
+  const modifiers = mergeRunModifiers(mutatorRoll.modifiers, restrictionMods);
+  const scoreMultiplier = modifiers.scoreMultiplier;
 
   const parts: string[] = [];
   if (mutatorRoll.mutators.length > 0) {

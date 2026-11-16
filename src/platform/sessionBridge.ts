@@ -5,9 +5,9 @@ import type { AbilityId, EnemyType, GameSettings, ProgressData, TowerType } from
 import { ABILITY_DEFS } from '../data/abilities.ts';
 import { BALANCE } from '../data/balance.ts';
 import { LEVELS } from '../data/levels/index.ts';
-import { getTowerTierStats } from '../data/towers.ts';
 import type { RenderWorld } from '../render/renderWorld.ts';
 import { getTowerPickHeight } from '../render/towerPicking.ts';
+import { isTowerTypeAllowed } from '../sim/meta/modifiers.ts';
 import type { SimWorld } from '../sim/world.ts';
 import type { AbilityBarState } from '../ui/abilityBar.ts';
 import type { GameOverlays } from '../ui/gameOverlays.ts';
@@ -198,8 +198,11 @@ export function updatePlacementPreviewFromNdc(
   }
   const wx = simWorld.grid.gridToWorldX(coord.col);
   const wz = simWorld.grid.gridToWorldZ(coord.row);
-  const cost = getTowerTierStats(placementType, 1).upgradeCost;
-  const valid = simWorld.grid.canPlaceTower(coord.col, coord.row) && simWorld.gold >= cost;
+  const cost = simWorld.getTowerBuildCost(placementType);
+  const valid =
+    isTowerTypeAllowed(placementType, simWorld.modifiers) &&
+    simWorld.grid.canPlaceTower(coord.col, coord.row) &&
+    simWorld.gold >= cost;
   renderWorld.setPlacementPreview(true, placementType, wx, wz, valid);
 }
 
