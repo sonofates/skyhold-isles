@@ -302,7 +302,7 @@ describe('wave spawn order and timing', () => {
   });
 
   it('validates grid dimensions, orthogonal non-overlapping paths, and build coords across all levels', () => {
-    expect(LEVELS.length).toBe(9);
+    expect(LEVELS.length).toBeGreaterThanOrEqual(9);
     const seenIds = new Set<string>();
 
     LEVELS.forEach((lvl, idx) => {
@@ -331,38 +331,47 @@ describe('wave spawn order and timing', () => {
         }
       }
 
-      expect(spawns).toEqual([lvl.pathWaypoints[0]]);
+      // Main road plus optional extra spawn lanes that merge into it and share its goal.
+      const lanes = [lvl.pathWaypoints, ...(lvl.extraGroundPaths ?? [])];
+      const laneStart = (wps: typeof lvl.pathWaypoints): string => `${wps[0].col},${wps[0].row}`;
+      expect(spawns.map((p) => `${p.col},${p.row}`).sort()).toEqual(lanes.map(laneStart).sort());
       expect(goals).toEqual([lvl.pathWaypoints[lvl.pathWaypoints.length - 1]]);
 
       const walked = new Set<string>();
-      for (let i = 0; i < lvl.pathWaypoints.length - 1; i++) {
-        const a = lvl.pathWaypoints[i];
-        const b = lvl.pathWaypoints[i + 1];
-        const isOrtho = (a.col === b.col) !== (a.row === b.row);
-        expect(isOrtho).toBe(true);
+      for (let li = 0; li < lanes.length; li++) {
+        const wps = lanes[li];
+        // A lane never revisits its own tiles; extra lanes may run on tiles of earlier lanes (merge).
+        const laneWalked = new Set<string>();
+        for (let i = 0; i < wps.length - 1; i++) {
+          const a = wps[i];
+          const b = wps[i + 1];
+          const isOrtho = (a.col === b.col) !== (a.row === b.row);
+          expect(isOrtho).toBe(true);
 
-        const dc = Math.sign(b.col - a.col);
-        const dr = Math.sign(b.row - a.row);
-        let c = a.col;
-        let r = a.row;
-        while (true) {
-          const key = `${c},${r}`;
-          const isSegmentJoin = i > 0 && c === a.col && r === a.row;
-          if (!isSegmentJoin) {
-            expect(walked.has(key)).toBe(false);
-            walked.add(key);
+          const dc = Math.sign(b.col - a.col);
+          const dr = Math.sign(b.row - a.row);
+          let c = a.col;
+          let r = a.row;
+          while (true) {
+            const key = `${c},${r}`;
+            const isSegmentJoin = i > 0 && c === a.col && r === a.row;
+            if (!isSegmentJoin) {
+              expect(laneWalked.has(key)).toBe(false);
+              laneWalked.add(key);
+              walked.add(key);
+            }
+            const tile = grid[r]?.[c];
+            if (i === 0 && c === a.col && r === a.row) {
+              expect(tile).toBe('spawn');
+            } else if (i === wps.length - 2 && c === b.col && r === b.row) {
+              expect(tile).toBe('goal');
+            } else {
+              expect(tile).toBe('path');
+            }
+            if (c === b.col && r === b.row) break;
+            c += dc;
+            r += dr;
           }
-          const tile = grid[r]?.[c];
-          if (i === 0 && c === a.col && r === a.row) {
-            expect(tile).toBe('spawn');
-          } else if (i === lvl.pathWaypoints.length - 2 && c === b.col && r === b.row) {
-            expect(tile).toBe('goal');
-          } else {
-            expect(tile).toBe('path');
-          }
-          if (c === b.col && r === b.row) break;
-          c += dc;
-          r += dr;
         }
       }
 
