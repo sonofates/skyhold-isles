@@ -185,12 +185,16 @@ export class FloatingTextPool {
       const liftY = s.kind === 'upgrade' ? t * 1.4 : s.kind === 'gold' ? t * 1.15 : t * 0.75;
       projectWorldToScreen(s.worldX, s.worldY + liftY, s.worldZ, out);
 
-      const spreadX = s.enemyId > 0 ? ((s.enemyId * 29) % 21) - 10 : 0;
+      // Upgrade banners from towers placed close together would overlap exactly; fan them out
+      // over three lanes (left/centre/right, each a bit higher) keyed by spawn order.
+      const lane = s.kind === 'upgrade' ? s.createdSeq % 3 : 0;
+      const spreadX = s.kind === 'upgrade' ? (lane - 1) * 34 : s.enemyId > 0 ? ((s.enemyId * 29) % 21) - 10 : 0;
+      const laneY = s.kind === 'upgrade' ? -lane * 15 : 0;
       const popScale = t < 0.16 ? 0.75 + (t / 0.16) * 0.42 : 1.17 - t * 0.25;
       const opacity = t > 0.65 ? Math.max(0, 1 - (t - 0.65) / 0.35) : 1;
 
       s.el.style.opacity = opacity.toFixed(2);
-      s.el.style.transform = `translate3d(${Math.round(out.x + spreadX)}px, ${Math.round(out.y)}px, 0) translate(-50%, -100%) scale(${popScale.toFixed(2)})`;
+      s.el.style.transform = `translate3d(${Math.round(out.x + spreadX)}px, ${Math.round(out.y + laneY)}px, 0) translate(-50%, -100%) scale(${popScale.toFixed(2)})`;
     }
 
     this.activeCount = count;

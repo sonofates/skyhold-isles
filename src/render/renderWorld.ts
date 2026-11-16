@@ -281,6 +281,7 @@ export class RenderWorld {
         simWorld.gold,
         this.cameraController.camera.quaternion,
         elapsedVisualTime,
+        this.cameraController.camera.zoom,
       );
       this.enemyRenderer.update(
         simWorld.enemyPool,
