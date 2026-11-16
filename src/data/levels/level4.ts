@@ -54,13 +54,15 @@ export const LEVEL_4: LevelDef = {
   waveHpGrowth: 0.2,
   waves: [
     {
+      name: 'First Crossing',
       clearBonus: 18,
       groups: [
         { enemyType: 'grunt', count: 12, spawnInterval: 0.8, startDelay: 0 },
-        { enemyType: 'runner', count: 6, spawnInterval: 0.6, startDelay: 4.0 },
+        { enemyType: 'runner', count: 6, spawnInterval: 0.6, startDelay: 4 },
       ],
     },
     {
+      name: 'Stepping Stones',
       clearBonus: 20,
       groups: [
         { enemyType: 'runner', count: 14, spawnInterval: 0.52, startDelay: 0 },
@@ -68,28 +70,32 @@ export const LEVEL_4: LevelDef = {
       ],
     },
     {
+      name: 'Glimmerwing Flock',
       clearBonus: 22,
       groups: [
         { enemyType: 'flyer', count: 10, spawnInterval: 0.68, startDelay: 0 },
-        { enemyType: 'grunt', count: 14, spawnInterval: 0.65, startDelay: 2.0 },
+        { enemyType: 'grunt', count: 14, spawnInterval: 0.65, startDelay: 2 },
       ],
     },
     {
+      name: 'Mossback Brutes',
       clearBonus: 26,
       groups: [
         { enemyType: 'brute', count: 6, spawnInterval: 1.3, startDelay: 0 },
-        { enemyType: 'runner', count: 14, spawnInterval: 0.48, startDelay: 2.0 },
+        { enemyType: 'runner', count: 14, spawnInterval: 0.48, startDelay: 2 },
       ],
     },
     {
+      name: 'Crystal Raiders',
       clearBonus: 28,
       groups: [
         { enemyType: 'flyer', count: 14, spawnInterval: 0.58, startDelay: 0 },
         { enemyType: 'brute', count: 6, spawnInterval: 1.25, startDelay: 1.5 },
-        { enemyType: 'healer', count: 3, spawnInterval: 1.8, startDelay: 2.0 },
+        { enemyType: 'healer', count: 3, spawnInterval: 1.8, startDelay: 2 },
       ],
     },
     {
+      name: 'Spark Bloom',
       clearBonus: 32,
       groups: [
         { enemyType: 'grunt', count: 14, spawnInterval: 0.52, startDelay: 0 },
@@ -99,13 +105,15 @@ export const LEVEL_4: LevelDef = {
       ],
     },
     {
+      name: 'Crystal Flock',
       clearBonus: 36,
       groups: [
         { enemyType: 'flyer', count: 19, spawnInterval: 0.48, startDelay: 0 },
-        { enemyType: 'runner', count: 18, spawnInterval: 0.4, startDelay: 2.0 },
+        { enemyType: 'runner', count: 18, spawnInterval: 0.4, startDelay: 2 },
       ],
     },
     {
+      name: 'Heavy Footing',
       clearBonus: 40,
       groups: [
         { enemyType: 'brute', count: 11, spawnInterval: 0.95, startDelay: 0 },
@@ -114,6 +122,7 @@ export const LEVEL_4: LevelDef = {
       ],
     },
     {
+      name: 'Emberfall',
       clearBonus: 46,
       groups: [
         { enemyType: 'runner', count: 20, spawnInterval: 0.36, startDelay: 0 },
@@ -123,6 +132,7 @@ export const LEVEL_4: LevelDef = {
       ],
     },
     {
+      name: 'Moss and Iron',
       clearBonus: 52,
       groups: [
         { enemyType: 'brute', count: 13, spawnInterval: 0.85, startDelay: 0 },
@@ -131,15 +141,17 @@ export const LEVEL_4: LevelDef = {
       ],
     },
     {
+      name: 'Cinder Bloom',
       clearBonus: 58,
       groups: [
-        { enemyType: 'runner', count: 22, spawnInterval: 0.34, startDelay: 0 },
-        { enemyType: 'splitter', count: 8, spawnInterval: 0.88, startDelay: 1.2 },
-        { enemyType: 'brute', count: 11, spawnInterval: 0.88, startDelay: 2.0 },
-        { enemyType: 'flyer', count: 19, spawnInterval: 0.46, startDelay: 2.8 },
+        { enemyType: 'splitter', count: 14, spawnInterval: 0.8, startDelay: 0 },
+        { enemyType: 'brute', count: 9, spawnInterval: 0.95, startDelay: 2 },
+        { enemyType: 'flyer', count: 16, spawnInterval: 0.5, startDelay: 3 },
+        { enemyType: 'runner', count: 12, spawnInterval: 0.38, startDelay: 4 },
       ],
     },
     {
+      name: 'Shattering Skies',
       clearBonus: 64,
       groups: [
         { enemyType: 'brute', count: 15, spawnInterval: 0.78, startDelay: 0 },
@@ -148,23 +160,25 @@ export const LEVEL_4: LevelDef = {
       ],
     },
     {
+      name: 'Terrace Siege',
       clearBonus: 72,
       groups: [
         { enemyType: 'brute', count: 12, spawnInterval: 0.82, startDelay: 0 },
         { enemyType: 'splitter', count: 7, spawnInterval: 0.88, startDelay: 1.2 },
-        { enemyType: 'runner', count: 22, spawnInterval: 0.34, startDelay: 2.0 },
+        { enemyType: 'runner', count: 22, spawnInterval: 0.34, startDelay: 2 },
         { enemyType: 'flyer', count: 18, spawnInterval: 0.45, startDelay: 2.8 },
         { enemyType: 'healer', count: 5, spawnInterval: 1.25, startDelay: 3.4 },
       ],
     },
     {
+      name: 'Emerald Dreadnoughts',
       clearBonus: 95,
       groups: [
         { enemyType: 'brute', count: 13, spawnInterval: 0.88, startDelay: 0 },
-        { enemyType: 'splitter', count: 5, spawnInterval: 1.0, startDelay: 1.0 },
+        { enemyType: 'splitter', count: 5, spawnInterval: 1, startDelay: 1 },
         { enemyType: 'healer', count: 7, spawnInterval: 1.35, startDelay: 1.4 },
         { enemyType: 'flyer', count: 25, spawnInterval: 0.45, startDelay: 2.2 },
-        { enemyType: 'boss', count: 3, spawnInterval: 6.0, startDelay: 4.2 },
+        { enemyType: 'boss', count: 3, spawnInterval: 6, startDelay: 4.2 },
       ],
     },
   ],

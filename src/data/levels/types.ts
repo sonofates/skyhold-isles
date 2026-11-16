@@ -8,6 +8,8 @@ export interface WaveGroupDef {
 }
 
 export interface WaveDef {
+  /** Optional flavour name (shown by UIs that choose to, e.g. Gull Squadron). */
+  readonly name?: string;
   readonly groups: readonly WaveGroupDef[];
   readonly clearBonus: number;
 }

@@ -62,27 +62,31 @@ export const LEVEL_7: LevelDef = {
   waveHpGrowth: 0.2,
   waves: [
     {
+      name: 'Bridgehead',
       clearBonus: 22,
       groups: [
         { enemyType: 'grunt', count: 12, spawnInterval: 0.8, startDelay: 0 },
-        { enemyType: 'runner', count: 6, spawnInterval: 0.65, startDelay: 4.0 },
+        { enemyType: 'runner', count: 6, spawnInterval: 0.65, startDelay: 4 },
       ],
     },
     {
+      name: 'Gauntlet Run',
       clearBonus: 24,
       groups: [
         { enemyType: 'runner', count: 14, spawnInterval: 0.55, startDelay: 0 },
-        { enemyType: 'grunt', count: 10, spawnInterval: 0.75, startDelay: 3.0 },
+        { enemyType: 'grunt', count: 10, spawnInterval: 0.75, startDelay: 3 },
       ],
     },
     {
+      name: 'Wind Riders',
       clearBonus: 26,
       groups: [
         { enemyType: 'brute', count: 4, spawnInterval: 1.5, startDelay: 0 },
-        { enemyType: 'flyer', count: 6, spawnInterval: 0.8, startDelay: 2.0 },
+        { enemyType: 'flyer', count: 6, spawnInterval: 0.8, startDelay: 2 },
       ],
     },
     {
+      name: 'Fort Raiders',
       clearBonus: 28,
       groups: [
         { enemyType: 'grunt', count: 14, spawnInterval: 0.6, startDelay: 0 },
@@ -91,6 +95,7 @@ export const LEVEL_7: LevelDef = {
       ],
     },
     {
+      name: 'Skyward Push',
       clearBonus: 32,
       groups: [
         { enemyType: 'flyer', count: 10, spawnInterval: 0.6, startDelay: 0 },
@@ -98,15 +103,17 @@ export const LEVEL_7: LevelDef = {
       ],
     },
     {
+      name: 'Cinder Crossing',
       clearBonus: 36,
       groups: [
         { enemyType: 'brute', count: 6, spawnInterval: 1.15, startDelay: 0 },
         { enemyType: 'splitter', count: 5, spawnInterval: 1.05, startDelay: 1.2 },
-        { enemyType: 'healer', count: 3, spawnInterval: 1.8, startDelay: 2.0 },
+        { enemyType: 'healer', count: 3, spawnInterval: 1.8, startDelay: 2 },
         { enemyType: 'runner', count: 13, spawnInterval: 0.5, startDelay: 3.5 },
       ],
     },
     {
+      name: 'Updraft',
       clearBonus: 38,
       groups: [
         { enemyType: 'flyer', count: 10, spawnInterval: 0.6, startDelay: 0 },
@@ -115,32 +122,36 @@ export const LEVEL_7: LevelDef = {
       ],
     },
     {
+      name: 'Iron Span',
       clearBonus: 42,
       groups: [
-        { enemyType: 'brute', count: 10, spawnInterval: 1.0, startDelay: 0 },
+        { enemyType: 'brute', count: 10, spawnInterval: 1, startDelay: 0 },
         { enemyType: 'healer', count: 4, spawnInterval: 1.5, startDelay: 1.5 },
-        { enemyType: 'flyer', count: 11, spawnInterval: 0.52, startDelay: 3.0 },
+        { enemyType: 'flyer', count: 11, spawnInterval: 0.52, startDelay: 3 },
       ],
     },
     {
+      name: 'Bridge Stampede',
       clearBonus: 46,
       groups: [
         { enemyType: 'runner', count: 28, spawnInterval: 0.33, startDelay: 0 },
         { enemyType: 'brute', count: 11, spawnInterval: 0.85, startDelay: 2.2 },
-        { enemyType: 'flyer', count: 11, spawnInterval: 0.48, startDelay: 4.0 },
+        { enemyType: 'flyer', count: 11, spawnInterval: 0.48, startDelay: 4 },
       ],
     },
     {
+      name: 'The Gatekeeper',
       clearBonus: 50,
       groups: [
         { enemyType: 'brute', count: 10, spawnInterval: 0.9, startDelay: 0 },
-        { enemyType: 'splitter', count: 5, spawnInterval: 1.0, startDelay: 1.2 },
+        { enemyType: 'splitter', count: 5, spawnInterval: 1, startDelay: 1.2 },
         { enemyType: 'healer', count: 4, spawnInterval: 1.4, startDelay: 1.8 },
         { enemyType: 'runner', count: 15, spawnInterval: 0.45, startDelay: 3.5 },
-        { enemyType: 'boss', count: 1, spawnInterval: 1.0, startDelay: 5.0 },
+        { enemyType: 'boss', count: 1, spawnInterval: 1, startDelay: 5 },
       ],
     },
     {
+      name: 'Cloud Burst',
       clearBonus: 54,
       groups: [
         { enemyType: 'flyer', count: 19, spawnInterval: 0.4, startDelay: 0 },
@@ -149,23 +160,26 @@ export const LEVEL_7: LevelDef = {
       ],
     },
     {
+      name: 'Pincer',
       clearBonus: 58,
       groups: [
         { enemyType: 'brute', count: 15, spawnInterval: 0.78, startDelay: 0 },
         { enemyType: 'healer', count: 7, spawnInterval: 1.15, startDelay: 1.5 },
-        { enemyType: 'grunt', count: 22, spawnInterval: 0.4, startDelay: 3.0 },
-        { enemyType: 'flyer', count: 16, spawnInterval: 0.44, startDelay: 4.5 },
+        { enemyType: 'grunt', count: 22, spawnInterval: 0.4, startDelay: 9.5 },
+        { enemyType: 'flyer', count: 16, spawnInterval: 0.44, startDelay: 11 },
       ],
     },
     {
+      name: 'Hawk Eclipse',
       clearBonus: 62,
       groups: [
         { enemyType: 'flyer', count: 21, spawnInterval: 0.38, startDelay: 0 },
-        { enemyType: 'brute', count: 15, spawnInterval: 0.76, startDelay: 2.0 },
-        { enemyType: 'healer', count: 7, spawnInterval: 1.1, startDelay: 3.0 },
+        { enemyType: 'brute', count: 15, spawnInterval: 0.76, startDelay: 2 },
+        { enemyType: 'healer', count: 7, spawnInterval: 1.1, startDelay: 3 },
       ],
     },
     {
+      name: 'Chasm Rush',
       clearBonus: 68,
       groups: [
         { enemyType: 'runner', count: 32, spawnInterval: 0.29, startDelay: 0 },
@@ -175,40 +189,44 @@ export const LEVEL_7: LevelDef = {
       ],
     },
     {
+      name: 'Fortress Breaker',
       clearBonus: 72,
       groups: [
         { enemyType: 'brute', count: 17, spawnInterval: 0.72, startDelay: 0 },
         { enemyType: 'healer', count: 7, spawnInterval: 1.05, startDelay: 1.4 },
-        { enemyType: 'flyer', count: 21, spawnInterval: 0.38, startDelay: 3.0 },
-        { enemyType: 'boss', count: 1, spawnInterval: 1.0, startDelay: 4.5 },
+        { enemyType: 'flyer', count: 21, spawnInterval: 0.38, startDelay: 3 },
+        { enemyType: 'boss', count: 1, spawnInterval: 1, startDelay: 4.5 },
       ],
     },
     {
+      name: 'Hurricane',
       clearBonus: 78,
       groups: [
         { enemyType: 'flyer', count: 24, spawnInterval: 0.35, startDelay: 0 },
         { enemyType: 'runner', count: 34, spawnInterval: 0.27, startDelay: 1.8 },
-        { enemyType: 'brute', count: 18, spawnInterval: 0.68, startDelay: 3.0 },
-        { enemyType: 'healer', count: 8, spawnInterval: 1.0, startDelay: 3.6 },
+        { enemyType: 'brute', count: 18, spawnInterval: 0.68, startDelay: 3 },
+        { enemyType: 'healer', count: 8, spawnInterval: 1, startDelay: 3.6 },
       ],
     },
     {
+      name: 'Siege of Two Forts',
       clearBonus: 84,
       groups: [
         { enemyType: 'brute', count: 19, spawnInterval: 0.66, startDelay: 0 },
-        { enemyType: 'splitter', count: 10, spawnInterval: 0.8, startDelay: 1.0 },
+        { enemyType: 'splitter', count: 10, spawnInterval: 0.8, startDelay: 1 },
         { enemyType: 'healer', count: 8, spawnInterval: 0.98, startDelay: 1.6 },
         { enemyType: 'flyer', count: 21, spawnInterval: 0.36, startDelay: 2.5 },
         { enemyType: 'runner', count: 26, spawnInterval: 0.28, startDelay: 3.8 },
-        { enemyType: 'boss', count: 1, spawnInterval: 1.0, startDelay: 5.5 },
+        { enemyType: 'boss', count: 1, spawnInterval: 1, startDelay: 5.5 },
       ],
     },
     {
+      name: 'The Last Span',
       clearBonus: 95,
       groups: [
         { enemyType: 'brute', count: 28, spawnInterval: 0.62, startDelay: 0 },
         { enemyType: 'healer', count: 11, spawnInterval: 0.92, startDelay: 1.2 },
-        { enemyType: 'flyer', count: 30, spawnInterval: 0.34, startDelay: 2.0 },
+        { enemyType: 'flyer', count: 30, spawnInterval: 0.34, startDelay: 2 },
         { enemyType: 'runner', count: 30, spawnInterval: 0.28, startDelay: 3.6 },
         { enemyType: 'boss', count: 3, spawnInterval: 5.2, startDelay: 4.5 },
       ],

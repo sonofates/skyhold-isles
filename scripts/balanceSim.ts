@@ -246,9 +246,10 @@ function main(): void {
   console.log('=== Skyhold Isles Headless Balance Simulator (60 Hz Human-Paced) ===\n');
 
   // Optional filter for quicker iteration, e.g. `LEVELS=3,6 npm run sim:balance`.
-  const levelFilter = process.env.LEVELS
-    ? new Set(process.env.LEVELS.split(',').map((x) => Number(x.trim()) - 1))
-    : null;
+  // CLI alternative: `npm run sim:balance -- --levels=3,6`.
+  const levelsArg = process.argv.find((a) => a.startsWith('--levels='))?.slice('--levels='.length);
+  const levelsSpec = levelsArg ?? process.env.LEVELS;
+  const levelFilter = levelsSpec ? new Set(levelsSpec.split(',').map((x) => Number(x.trim()) - 1)) : null;
 
   /** Greedy (competent build script) lives-left window per difficulty label. */
   const GREEDY_LIVES: Record<LevelDef['difficulty'], readonly [number, number]> = {
