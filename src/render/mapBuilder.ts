@@ -708,7 +708,7 @@ export class MapBuilder {
           }
 
           // Fortress parapet along exposed coast edges (never beside the route, so units stay readable)
-          if (theme.parapet && edgeCount > 0 && hillH === 0) {
+          if (theme.parapet && edgeCount > 0 && hillH === 0 && !claimed.has(`${c},${r}`)) {
             const pp = theme.parapet;
             const dirs: Array<[number, number, boolean]> = [
               [0, -1, edgeN],
