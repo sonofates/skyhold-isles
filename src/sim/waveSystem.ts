@@ -43,6 +43,27 @@ export function computeEarlyCallBonus(
   return Math.max(1, Math.round(ratio * BALANCE.earlyWaveBonusMaxGold));
 }
 
+/** Endless spotlight rotation (one pair per endless wave, cycling). */
+export const ENDLESS_SPOTLIGHTS: readonly (readonly EnemyType[])[] = [
+  ['warden', 'golem'],
+  ['burrower', 'mite'],
+  ['carrier', 'blinker'],
+  ['golem', 'mite'],
+  ['warden', 'burrower'],
+  ['blinker', 'carrier'],
+];
+
+const ENDLESS_SPOTLIGHT_TUNING: Partial<
+  Record<EnemyType, { base: number; perWave: number; max: number; interval: number }>
+> = {
+  warden: { base: 2, perWave: 0.35, max: 8, interval: 1.3 },
+  golem: { base: 2, perWave: 0.45, max: 12, interval: 1.1 },
+  burrower: { base: 3, perWave: 0.6, max: 16, interval: 0.8 },
+  mite: { base: 12, perWave: 2.4, max: 48, interval: 0.2 },
+  carrier: { base: 2, perWave: 0.4, max: 10, interval: 1.2 },
+  blinker: { base: 4, perWave: 0.7, max: 18, interval: 0.6 },
+};
+
 /**
  * Deterministically generates an escalating wave definition for Endless Mode beyond `level.waves`.
  */
@@ -88,6 +109,22 @@ export function buildEndlessWaveDef(waveIndex: number, level: LevelDef): WaveDef
       startDelay: 2.6,
     },
   ];
+
+  // Rotating "spotlight" pair of newer archetypes so every endless wave plays differently.
+  const spotlight = ENDLESS_SPOTLIGHTS[offset % ENDLESS_SPOTLIGHTS.length];
+  for (let k = 0; k < spotlight.length; k++) {
+    const type = spotlight[k];
+    const tuning = ENDLESS_SPOTLIGHT_TUNING[type];
+    if (!tuning) continue;
+    groups.push({
+      enemyType: type,
+      count: Math.min(tuning.max, Math.round((tuning.base + offset * tuning.perWave) * scaleFactor)),
+      spawnInterval: Math.max(0.16, +(tuning.interval - offset * 0.02).toFixed(2)),
+      startDelay: 1.0 + k * 1.1,
+      // From the 4th endless wave on, the lead spotlight group arrives Empowered.
+      elite: offset >= 3 && k === 0 && type !== 'mite',
+    });
+  }
 
   if ((offset + 1) % 5 === 0) {
     const bossTier = Math.floor(offset / 5);

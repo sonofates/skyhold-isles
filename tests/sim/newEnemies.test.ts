@@ -7,6 +7,7 @@ import { LEVELS } from '../../src/data/levels/index.ts';
 import type { LevelDef } from '../../src/data/levels/index.ts';
 import type { EnemyEntity } from '../../src/sim/entities.ts';
 import { CompiledPath } from '../../src/sim/path.ts';
+import { buildEndlessWaveDef, ENDLESS_SPOTLIGHTS } from '../../src/sim/waveSystem.ts';
 import { SimWorld } from '../../src/sim/world.ts';
 import { ENEMY_BADGE_META } from '../../src/ui/icons.ts';
 
@@ -330,5 +331,25 @@ describe('Empowered elites', () => {
     expect(fresh.shield).toBe(0);
     expect(fresh.burrowed).toBe(false);
     expect(fresh.armor).toBe(0);
+  });
+});
+
+describe('endless spotlight variety', () => {
+  it('cycles every new archetype through endless waves deterministically, with elites later', () => {
+    const level = LEVELS[0];
+    const seen = new Set<EnemyType>();
+    let firstEliteOffset = -1;
+    for (let offset = 0; offset < ENDLESS_SPOTLIGHTS.length; offset++) {
+      const waveIndex = level.waves.length + offset;
+      const def = buildEndlessWaveDef(waveIndex, level);
+      expect(buildEndlessWaveDef(waveIndex, level)).toEqual(def);
+      for (const g of def.groups) {
+        seen.add(g.enemyType);
+        expect(g.count).toBeGreaterThan(0);
+        if (g.elite && firstEliteOffset < 0) firstEliteOffset = offset;
+      }
+    }
+    for (const t of NEW_TYPES) expect(seen.has(t)).toBe(true);
+    expect(firstEliteOffset).toBe(3);
   });
 });

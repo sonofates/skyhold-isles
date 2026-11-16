@@ -32,9 +32,14 @@ export class EnemyTooltip {
 
   show(enemy: EnemyEntity, clientX: number, clientY: number): void {
     const def = ENEMY_DEFS[enemy.type];
-    this.nameEl.textContent = def.name;
-    this.hpEl.textContent = `HP ${Math.ceil(enemy.hp)}/${enemy.maxHp}`;
-    this.armorEl.textContent = enemy.armor > 0 ? ` · Armor ${enemy.armor}` : '';
+    this.nameEl.textContent = enemy.elite ? `Empowered ${def.name}` : def.name;
+    this.hpEl.textContent =
+      `HP ${Math.ceil(enemy.hp)}/${enemy.maxHp}` +
+      (enemy.shield > 0 ? ` · Shield ${Math.ceil(enemy.shield)}` : '');
+    this.armorEl.textContent =
+      enemy.armor > 0
+        ? ` · Armor ${enemy.armor}${enemy.armorBreakTimer > 0 ? ' (cracked)' : ''}`
+        : '';
     this.statusEl.textContent =
       enemy.slowTimer > 0 ? ` · Slowed ${Math.round(enemy.slowRatio * 100)}%` : '';
 
