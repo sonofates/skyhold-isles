@@ -38,14 +38,18 @@ export const LEVEL_3: LevelDef = {
   ],
   flightPath: [
     { col: 0, row: 3 },
-    { col: 5, row: 4 },
-    { col: 9, row: 6 },
+    { col: 3, row: 5 },
+    { col: 7, row: 4 },
+    { col: 11, row: 5 },
+    { col: 10, row: 8 },
+    { col: 6, row: 9 },
+    { col: 4, row: 8 },
     { col: 6, row: 7 },
   ],
   decorationSeed: 381923,
   startingGold: 280,
-  enemyHpScale: 1.28,
-  waveHpGrowth: 0.195,
+  enemyHpScale: 1.45,
+  waveHpGrowth: 0.2,
   waves: [
     {
       clearBonus: 18,

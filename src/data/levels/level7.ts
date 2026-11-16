@@ -47,16 +47,19 @@ export const LEVEL_7: LevelDef = {
   ],
   flightPath: [
     { col: 0, row: 2 },
-    { col: 5, row: 3 },
-    { col: 10, row: 4 },
-    { col: 11, row: 7 },
-    { col: 7, row: 9 },
+    { col: 4, row: 4 },
+    { col: 8, row: 3 },
+    { col: 11, row: 5 },
+    { col: 12, row: 8 },
+    { col: 9, row: 10 },
+    { col: 6, row: 9 },
+    { col: 3, row: 10 },
     { col: 1, row: 9 },
   ],
   decorationSeed: 774203,
   startingGold: 290,
-  enemyHpScale: 1.28,
-  waveHpGrowth: 0.195,
+  enemyHpScale: 1.25,
+  waveHpGrowth: 0.2,
   waves: [
     {
       clearBonus: 22,
@@ -76,7 +79,7 @@ export const LEVEL_7: LevelDef = {
       clearBonus: 26,
       groups: [
         { enemyType: 'brute', count: 4, spawnInterval: 1.5, startDelay: 0 },
-        { enemyType: 'flyer', count: 8, spawnInterval: 0.8, startDelay: 2.0 },
+        { enemyType: 'flyer', count: 6, spawnInterval: 0.8, startDelay: 2.0 },
       ],
     },
     {
@@ -90,7 +93,7 @@ export const LEVEL_7: LevelDef = {
     {
       clearBonus: 32,
       groups: [
-        { enemyType: 'flyer', count: 12, spawnInterval: 0.6, startDelay: 0 },
+        { enemyType: 'flyer', count: 10, spawnInterval: 0.6, startDelay: 0 },
         { enemyType: 'brute', count: 6, spawnInterval: 1.2, startDelay: 1.8 },
       ],
     },
@@ -106,7 +109,7 @@ export const LEVEL_7: LevelDef = {
     {
       clearBonus: 38,
       groups: [
-        { enemyType: 'flyer', count: 12, spawnInterval: 0.6, startDelay: 0 },
+        { enemyType: 'flyer', count: 10, spawnInterval: 0.6, startDelay: 0 },
         { enemyType: 'grunt', count: 18, spawnInterval: 0.48, startDelay: 1.5 },
         { enemyType: 'healer', count: 3, spawnInterval: 1.6, startDelay: 3.5 },
       ],
@@ -116,7 +119,7 @@ export const LEVEL_7: LevelDef = {
       groups: [
         { enemyType: 'brute', count: 10, spawnInterval: 1.0, startDelay: 0 },
         { enemyType: 'healer', count: 4, spawnInterval: 1.5, startDelay: 1.5 },
-        { enemyType: 'flyer', count: 14, spawnInterval: 0.52, startDelay: 3.0 },
+        { enemyType: 'flyer', count: 11, spawnInterval: 0.52, startDelay: 3.0 },
       ],
     },
     {
@@ -124,7 +127,7 @@ export const LEVEL_7: LevelDef = {
       groups: [
         { enemyType: 'runner', count: 28, spawnInterval: 0.33, startDelay: 0 },
         { enemyType: 'brute', count: 11, spawnInterval: 0.85, startDelay: 2.2 },
-        { enemyType: 'flyer', count: 14, spawnInterval: 0.48, startDelay: 4.0 },
+        { enemyType: 'flyer', count: 11, spawnInterval: 0.48, startDelay: 4.0 },
       ],
     },
     {
@@ -140,7 +143,7 @@ export const LEVEL_7: LevelDef = {
     {
       clearBonus: 54,
       groups: [
-        { enemyType: 'flyer', count: 24, spawnInterval: 0.4, startDelay: 0 },
+        { enemyType: 'flyer', count: 19, spawnInterval: 0.4, startDelay: 0 },
         { enemyType: 'runner', count: 24, spawnInterval: 0.34, startDelay: 1.8 },
         { enemyType: 'healer', count: 6, spawnInterval: 1.15, startDelay: 3.2 },
       ],
@@ -151,13 +154,13 @@ export const LEVEL_7: LevelDef = {
         { enemyType: 'brute', count: 15, spawnInterval: 0.78, startDelay: 0 },
         { enemyType: 'healer', count: 7, spawnInterval: 1.15, startDelay: 1.5 },
         { enemyType: 'grunt', count: 22, spawnInterval: 0.4, startDelay: 3.0 },
-        { enemyType: 'flyer', count: 20, spawnInterval: 0.44, startDelay: 4.5 },
+        { enemyType: 'flyer', count: 16, spawnInterval: 0.44, startDelay: 4.5 },
       ],
     },
     {
       clearBonus: 62,
       groups: [
-        { enemyType: 'flyer', count: 26, spawnInterval: 0.38, startDelay: 0 },
+        { enemyType: 'flyer', count: 21, spawnInterval: 0.38, startDelay: 0 },
         { enemyType: 'brute', count: 15, spawnInterval: 0.76, startDelay: 2.0 },
         { enemyType: 'healer', count: 7, spawnInterval: 1.1, startDelay: 3.0 },
       ],
@@ -168,7 +171,7 @@ export const LEVEL_7: LevelDef = {
         { enemyType: 'runner', count: 32, spawnInterval: 0.29, startDelay: 0 },
         { enemyType: 'splitter', count: 9, spawnInterval: 0.85, startDelay: 1.2 },
         { enemyType: 'brute', count: 15, spawnInterval: 0.75, startDelay: 2.2 },
-        { enemyType: 'flyer', count: 24, spawnInterval: 0.38, startDelay: 3.4 },
+        { enemyType: 'flyer', count: 19, spawnInterval: 0.38, startDelay: 3.4 },
       ],
     },
     {
@@ -176,14 +179,14 @@ export const LEVEL_7: LevelDef = {
       groups: [
         { enemyType: 'brute', count: 17, spawnInterval: 0.72, startDelay: 0 },
         { enemyType: 'healer', count: 7, spawnInterval: 1.05, startDelay: 1.4 },
-        { enemyType: 'flyer', count: 26, spawnInterval: 0.38, startDelay: 3.0 },
+        { enemyType: 'flyer', count: 21, spawnInterval: 0.38, startDelay: 3.0 },
         { enemyType: 'boss', count: 1, spawnInterval: 1.0, startDelay: 4.5 },
       ],
     },
     {
       clearBonus: 78,
       groups: [
-        { enemyType: 'flyer', count: 30, spawnInterval: 0.35, startDelay: 0 },
+        { enemyType: 'flyer', count: 24, spawnInterval: 0.35, startDelay: 0 },
         { enemyType: 'runner', count: 34, spawnInterval: 0.27, startDelay: 1.8 },
         { enemyType: 'brute', count: 18, spawnInterval: 0.68, startDelay: 3.0 },
         { enemyType: 'healer', count: 8, spawnInterval: 1.0, startDelay: 3.6 },
@@ -195,7 +198,7 @@ export const LEVEL_7: LevelDef = {
         { enemyType: 'brute', count: 19, spawnInterval: 0.66, startDelay: 0 },
         { enemyType: 'splitter', count: 10, spawnInterval: 0.8, startDelay: 1.0 },
         { enemyType: 'healer', count: 8, spawnInterval: 0.98, startDelay: 1.6 },
-        { enemyType: 'flyer', count: 26, spawnInterval: 0.36, startDelay: 2.5 },
+        { enemyType: 'flyer', count: 21, spawnInterval: 0.36, startDelay: 2.5 },
         { enemyType: 'runner', count: 26, spawnInterval: 0.28, startDelay: 3.8 },
         { enemyType: 'boss', count: 1, spawnInterval: 1.0, startDelay: 5.5 },
       ],
@@ -205,7 +208,7 @@ export const LEVEL_7: LevelDef = {
       groups: [
         { enemyType: 'brute', count: 22, spawnInterval: 0.62, startDelay: 0 },
         { enemyType: 'healer', count: 9, spawnInterval: 0.92, startDelay: 1.2 },
-        { enemyType: 'flyer', count: 30, spawnInterval: 0.34, startDelay: 2.0 },
+        { enemyType: 'flyer', count: 24, spawnInterval: 0.34, startDelay: 2.0 },
         { enemyType: 'runner', count: 24, spawnInterval: 0.28, startDelay: 3.6 },
         { enemyType: 'boss', count: 2, spawnInterval: 5.2, startDelay: 4.5 },
       ],

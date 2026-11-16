@@ -48,12 +48,16 @@ export const LEVEL_6: LevelDef = {
     { col: 0, row: 7 },
     { col: 2, row: 3 },
     { col: 5, row: 2 },
+    { col: 9, row: 1 },
     { col: 12, row: 3 },
+    { col: 13, row: 6 },
+    { col: 11, row: 8 },
+    { col: 9, row: 6 },
     { col: 9, row: 5 },
   ],
   decorationSeed: 663419,
   startingGold: 280,
-  enemyHpScale: 1.24,
+  enemyHpScale: 1.2,
   waveHpGrowth: 0.18,
   waves: [
     {
@@ -291,7 +295,5 @@ export const LEVEL_6: LevelDef = {
     { waveIndex: 14, action: 'build', col: 11, row: 2, towerType: 'tesla' },
     { waveIndex: 14, action: 'upgrade', col: 11, row: 2 },
     { waveIndex: 15, action: 'build', col: 13, row: 5, towerType: 'mortar' },
-    { waveIndex: 15, action: 'upgrade', col: 13, row: 5 },
-    { waveIndex: 16, action: 'upgrade', col: 10, row: 8 },
   ],
 };
