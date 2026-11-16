@@ -167,7 +167,14 @@ const EMERALD_STEPPING_STONES = theme({
       [0x5be3ff, 0xf8f4e8],
     ],
   },
-  ambient: { isletStyle: 'crystal', birds: 2, butterflies: 8, islets: 5, clouds: 5 },
+  ambient: {
+    isletStyle: 'crystal',
+    birds: 2,
+    butterflies: 9,
+    butterflyColors: [0x7dffb8, 0x5be3ff, 0xc9a0ff, 0xc6ffe4],
+    islets: 5,
+    clouds: 5,
+  },
   setPieces: [
     { kind: 'crystalGrove', col: 11, row: 1, variant: 0 },
     { kind: 'crystalGrove', col: 11, row: 4, variant: 1 },
@@ -360,7 +367,15 @@ const SUNKEN_BASTION = theme({
       [0xb7d4f6, 0xf8f4e8],
     ],
   },
-  ambient: { isletStyle: 'ruin', birds: 3, butterflies: 0, islets: 4, clouds: 6 },
+  ambient: {
+    isletStyle: 'ruin',
+    birds: 3,
+    butterflies: 11,
+    butterflyColors: [0xfff3b0, 0xffe27a, 0xf6bd41],
+    butterflySize: 0.55,
+    islets: 4,
+    clouds: 6,
+  },
   setPieces: [
     { kind: 'arch', col: 7.5, row: 3, variant: 3 },
     { kind: 'pillars', col: 4, row: 6.5, variant: 2 },

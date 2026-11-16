@@ -291,20 +291,20 @@ export class AmbientDiorama {
           phase2: rng.range(0, Math.PI * 2),
           flapSpeed: rng.range(16, 22),
           flapAmp: 0.85,
-          size: rng.range(0.42, 0.58),
+          size: rng.range(0.42, 0.58) * (spec.butterflySize ?? 1),
           dir: 1,
         });
       }
       const bl = wingGeometry(1, 0.42, 0.34, 0x484573);
       const br = wingGeometry(-1, 0.42, 0.34, 0x484573);
       this.disposableGeometries.push(bl, br);
-      const swarm = new FlierSwarm(bl, br, materials.vertexColored, fliers, [
-        PALETTE_HEX.gold,
-        PALETTE_HEX.coral,
-        PALETTE_HEX.cream,
-        0x5be3ff,
-        0xbd82e1,
-      ]);
+      const swarm = new FlierSwarm(
+        bl,
+        br,
+        materials.vertexColored,
+        fliers,
+        spec.butterflyColors ?? [PALETTE_HEX.gold, PALETTE_HEX.coral, PALETTE_HEX.cream, 0x5be3ff, 0xbd82e1],
+      );
       this.swarms.push(swarm);
       this.group.add(swarm.left, swarm.right);
     }

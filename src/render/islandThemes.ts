@@ -80,6 +80,9 @@ export interface AmbientSpec {
   readonly isletStyle?: IsletStyle;
   readonly birds: number;
   readonly butterflies: number;
+  /** Optional wing colours / size multiplier for the butterfly swarm (fireflies, crystal moths...). */
+  readonly butterflyColors?: readonly number[];
+  readonly butterflySize?: number;
   readonly islets: number;
   readonly clouds: number;
   /** Colour of the extra floating "sky petals" / leaves (0 = none). */
