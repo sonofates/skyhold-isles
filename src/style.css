@@ -211,8 +211,8 @@ html.is-touch .desktop-only {
   --lip: 5px;
 }
 
-/* Buttons: reset + press behaviour */
-button.gx {
+/* Buttons: reset + press behaviour (zero specificity so components can override gap/display) */
+:where(button.gx) {
   appearance: none;
   -webkit-appearance: none;
   border: 0;
@@ -612,17 +612,12 @@ button.hud-wave-btn:disabled .hud-wave-btn-sub {
   color: var(--gx-cream);
 }
 
-.hud-speed-cycle {
+button.hud-speed-cycle {
   display: none;
 }
 
 .hud-pause-glyph {
   display: none;
-}
-
-.hud-menu-btn > span,
-.hud-menu-glyph {
-  display: inline-flex;
 }
 
 /* "Paused" tag */
@@ -2402,7 +2397,7 @@ html.is-touch .pause-toggles {
   height: 22px;
 }
 
-.level-nav {
+button.level-nav {
   --c: 12px;
   position: absolute;
   top: 50%;
@@ -2428,7 +2423,7 @@ html.is-touch .pause-toggles {
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .level-nav {
+  button.level-nav {
     display: inline-flex;
   }
 }
@@ -2567,10 +2562,10 @@ html.is-touch.has-radial {
     display: contents;
   }
 
-  .hud-toggle-pill,
+  button.hud-toggle-pill,
   .hud-speed-wrap,
-  .hud-pause-btn,
-  .hud-settings-btn {
+  button.hud-pause-btn,
+  button.hud-settings-btn {
     display: none;
   }
 
@@ -2642,7 +2637,7 @@ html.is-touch.has-radial {
     top: calc(var(--pad-t) + 64px + 52px);
   }
 
-  .hud-speed-cycle {
+  button.hud-speed-cycle {
     position: absolute;
     right: calc(var(--pad-r) + 98px);
     bottom: calc(var(--pad-b) + var(--bar-h) + 14px);
@@ -2848,13 +2843,36 @@ html.is-touch.has-radial {
     --lc-w: min(262px, 72vw);
   }
 
+  .level-card {
+    gap: 12px;
+    padding: 14px 16px 22px;
+  }
+
   .level-card-art {
-    height: 112px;
+    height: 150px;
   }
 
   .level-card-art > svg {
-    width: 160px;
-    height: 108px;
+    width: 206px;
+    height: 138px;
+  }
+
+  .level-card-name {
+    font-size: 26px;
+  }
+
+  .level-card .star-slot {
+    width: 40px;
+    height: 40px;
+  }
+
+  .level-card-meta {
+    font-size: 18px;
+  }
+
+  .level-play-btn {
+    min-height: 60px;
+    font-size: 24px;
   }
 }
 
@@ -2888,7 +2906,7 @@ html.is-touch.has-radial {
     height: 86px;
   }
 
-  .hud-speed-cycle {
+  button.hud-speed-cycle {
     right: calc(var(--pad-r) + 94px);
     bottom: calc(var(--pad-b) + 13px);
   }
