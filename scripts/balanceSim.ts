@@ -96,7 +96,7 @@ export function runLevelBalanceSim(
 
   const plannedTowers = scriptActions.filter((a) => a.action === 'build').length;
   const waveRows: WaveStatRow[] = [];
-  let activeWaveRow: WaveStatRow | null = null;
+  let activeWaveRow = null as WaveStatRow | null;
   let goldEarned = 0;
   let earnedBeforeLastWave = 0;
   let goldSpent = 0;

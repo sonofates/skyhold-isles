@@ -46,7 +46,7 @@ const KIND_SCALE: Record<SetPieceKind, number> = {
   boat: 1.2,
   gatehouse: 1.2,
   obelisk: 1.3,
-  pond: 1.3,
+  pond: 1.05,
   stall: 1.3,
   hut: 1.3,
   parasol: 1.3,
@@ -54,7 +54,7 @@ const KIND_SCALE: Record<SetPieceKind, number> = {
   statue: 1.25,
   cabin: 1.3,
   cairn: 1.3,
-  fountain: 1.3,
+  fountain: 1.05,
   sheep: 1.3,
   lamp: 1.25,
 };

@@ -95,7 +95,7 @@ export function tent(pb: PieceBuilder, variant: number): void {
   const a = variant === 1 ? PALETTE_HEX.indigo : CORAL;
   pb.cone(CREAM, 0.8, 1.0, [0, 0.5, 0], 4, [0, Math.PI / 4, 0], [1, 1, 0.8]);
   pb.cone(a, 0.81, 0.35, [0, 0.9, 0], 4, [0, Math.PI / 4, 0], [1, 0.9, 0.81]);
-  pb.box(0x484573, [0.28, 0.42, 0.05], [0, 0.22, 0.46], [0, 0, 0]);
+  pb.box(0x484573, [0.28, 0.42, 0.05], [0, 0.22, 0.4], [0.35, 0, 0]);
   pb.cyl(WOOD_DARK, 0.02, 0.025, 0.4, [0, 1.15, 0], 4);
   // campfire ring
   pb.ico(STONE_DARK, [0.1, 0.07, 0.1], [0.75, 0.04, 0.55]);
@@ -108,7 +108,7 @@ export function tent(pb: PieceBuilder, variant: number): void {
 export function statue(pb: PieceBuilder, variant: number): void {
   const waterY = BALANCE.waterPlaneY;
   if (variant >= 2) {
-    pb.box(STONE_DARK, [1.3, 1.15, 1.3], [0, waterY + 0.18, 0]);
+    pb.box(STONE_DARK, [1.3, 1.4, 1.3], [0, -0.75, 0]);
     pb.box(STONE_MID, [1.4, 0.1, 1.4], [0, -0.05, 0]);
     pb.ico(CREAM, [0.8, 0.07, 0.8], [0, waterY + 0.03, 0]);
   }
@@ -178,7 +178,7 @@ export function sheep(pb: PieceBuilder, variant: number): void {
     const c = Math.cos(yaw);
     const sn = Math.sin(yaw);
     pb.ico(wool, [0.2, 0.17, 0.15], [x, 0.24 + k * 0.02, z], [0, yaw, 0]);
-    pb.ico(0x4a4560, [0.07, 0.07, 0.07], [x + sn * 0.2, 0.3, z + c * 0.2]);
+    pb.ico(0x4a4560, [0.07, 0.07, 0.07], [x + c * 0.2, 0.3, z - sn * 0.2]);
     for (const [lx, lz] of [
       [0.08, 0.06],
       [-0.08, 0.06],

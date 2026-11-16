@@ -174,6 +174,7 @@ export class WaterDetails {
   }
 
   update(t: number): void {
+    if (!this.group.visible) return;
     const baseY = BALANCE.waterPlaneY + 0.03;
     for (let f = 0; f < this.families.length; f++) {
       const fam = this.families[f];
