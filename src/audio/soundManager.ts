@@ -131,6 +131,12 @@ export class SoundManager {
     }
   }
 
+  playBrittleCrack(): void {
+    if (!this.canPlay('brittle', 60)) return;
+    this.tone('triangle', 2100, 1500, 0.05, 0.1, 0);
+    this.noiseBurst(6500, 0.05, 0.07);
+  }
+
   playTowerSell(): void {
     if (!this.canPlay('sell', 50)) return;
     this.tone('sine', 980, 1280, 0.08, 0.18, 0);
@@ -317,6 +323,7 @@ export class SoundManager {
       events.on('towerUpgraded', (e) => this.playTowerUpgrade(e.tier)),
       events.on('towerSold', () => this.playTowerSell()),
       events.on('beaconPulse', () => this.playBeaconPulse()),
+      events.on('brittleCrack', () => this.playBrittleCrack()),
       events.on('groundZone', () => this.playIgnite()),
       events.on('towerFired', (e) => this.playFire(e.type, e.tier, e.special === true)),
       events.on('projectileImpact', (e) => this.playImpact(e.towerType)),

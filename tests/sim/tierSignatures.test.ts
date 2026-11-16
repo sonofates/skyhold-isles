@@ -177,7 +177,9 @@ describe('cannon T3 cluster shells', () => {
 
 describe('frost T3 brittle', () => {
   it('deals extra damage to already-chilled targets', () => {
-    const { world } = makeWorld();
+    const { world, events } = makeWorld();
+    const cracks: GameEventMap['brittleCrack'][] = [];
+    events.on('brittleCrack', (e) => cracks.push(e));
     const tower = maxed(world, 4, 2, 'frost');
     const stats = getTowerTierStats('frost', 3);
     expect(stats.brittle).toBeGreaterThan(0);
@@ -192,6 +194,9 @@ describe('frost T3 brittle', () => {
     const chilledDmg = chilled.maxHp - chilled.hp;
     expect(freshDmg).toBeGreaterThan(0);
     expect(chilledDmg).toBeGreaterThan(freshDmg * (1 + stats.brittle! * 0.5) * 0.9);
+    // Only the chilled target produces a crack effect event.
+    expect(cracks.length).toBe(1);
+    expect(cracks[0].bonus).toBeCloseTo(0.5, 5);
   });
 });
 

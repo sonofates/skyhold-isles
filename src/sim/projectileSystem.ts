@@ -395,6 +395,9 @@ export class ProjectileSystem {
       const dmg = Math.round(p.damage * damageScale * falloff * chill);
       const res = this.enemySystem.applyDamage(e, dmg);
       if (e.type === 'boss' && res.actualDamage > 0) hitBoss = true;
+      if (chill > 1.05 && res.actualDamage > 0) {
+        this.events.emit('brittleCrack', { x: e.x, y: e.flying ? e.y : 0.5, z: e.z, bonus: chill - 1 });
+      }
       if (p.slowRatio > 0) {
         this.enemySystem.applySlow(e, p.slowRatio, p.slowDuration);
       }

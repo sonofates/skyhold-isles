@@ -241,6 +241,11 @@ export class RenderWorld {
           });
         }
       }),
+      events.on('brittleCrack', (e) => {
+        const fx = this.effectsRenderer;
+        fx.spawnDebris(e.x, e.y, e.z, PALETTE_HEX.cream, this.fx(3), 2.6, 0.3);
+        fx.spawnFlash(e.x, e.y + 0.2, e.z, PALETTE_HEX.water, 1.0 + e.bonus * 0.8, 0.06);
+      }),
       events.on('groundZone', (e) => {
         this.effectsRenderer.spawnBurnZone(e.x, e.z, e.radius, e.duration);
       }),

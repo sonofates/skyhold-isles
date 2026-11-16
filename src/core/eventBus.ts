@@ -37,6 +37,8 @@ export interface GameEventMap {
     points: readonly Vec3[];
     overload?: boolean;
   };
+  /** Frost T3 Brittle: a frost bolt hit a chilled enemy for bonus damage (cap-limited by the emitter). */
+  brittleCrack: { x: number; y: number; z: number; bonus: number };
   enemySpawned: {
     enemyId: number;
     enemyType: EnemyType;
