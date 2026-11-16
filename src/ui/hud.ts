@@ -162,14 +162,14 @@ export class HudBar {
 
     const rotLeftBtn = document.createElement('button');
     rotLeftBtn.type = 'button';
-    rotLeftBtn.className = 'hud-icon-btn';
+    rotLeftBtn.className = 'hud-icon-btn hud-rot-btn hud-rot-left';
     rotLeftBtn.title = 'Rotate camera left (Q)';
     rotLeftBtn.innerHTML = UI_ICON_SVGS.rotateLeft;
     rotLeftBtn.addEventListener('click', () => callbacks.onRotateCamera(-1));
 
     const rotRightBtn = document.createElement('button');
     rotRightBtn.type = 'button';
-    rotRightBtn.className = 'hud-icon-btn';
+    rotRightBtn.className = 'hud-icon-btn hud-rot-btn hud-rot-right';
     rotRightBtn.title = 'Rotate camera right (E)';
     rotRightBtn.innerHTML = UI_ICON_SVGS.rotateRight;
     rotRightBtn.addEventListener('click', () => callbacks.onRotateCamera(1));
@@ -196,14 +196,14 @@ export class HudBar {
 
     const settingsBtn = document.createElement('button');
     settingsBtn.type = 'button';
-    settingsBtn.className = 'hud-icon-btn';
+    settingsBtn.className = 'hud-icon-btn hud-settings-btn';
     settingsBtn.title = 'Settings';
     settingsBtn.innerHTML = UI_ICON_SVGS.settings;
     settingsBtn.addEventListener('click', () => callbacks.onOpenSettings());
 
     const menuBtn = document.createElement('button');
     menuBtn.type = 'button';
-    menuBtn.className = 'hud-icon-btn';
+    menuBtn.className = 'hud-icon-btn hud-menu-btn';
     menuBtn.title = 'Pause Menu (Esc)';
     menuBtn.setAttribute('data-testid', 'btn-hud-menu');
     menuBtn.innerHTML = UI_ICON_SVGS.menu;

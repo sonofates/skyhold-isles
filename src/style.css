@@ -1322,9 +1322,26 @@ button {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
+  grid-auto-rows: 1fr;
   overflow-y: auto;
-  padding: 2px 4px 4px 2px;
+  overscroll-behavior: contain;
+  padding: 2px 4px 30px 2px;
   min-height: 0;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(72, 69, 115, 0.45) transparent;
+  /* Fade the bottom edge so a clipped last row reads as "scroll for more"; the extra bottom
+     padding keeps the final row fully clear of the fade once scrolled to the end. */
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 30px), transparent);
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 30px), transparent);
+}
+
+.level-grid::-webkit-scrollbar {
+  width: 8px;
+}
+
+.level-grid::-webkit-scrollbar-thumb {
+  background: rgba(72, 69, 115, 0.4);
+  border-radius: 999px;
 }
 
 .level-card {
@@ -1425,6 +1442,9 @@ button {
 
 .level-play-btn {
   width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   margin-top: 2px;
   padding: 9px 12px;
   border-radius: 11px;
@@ -1523,36 +1543,140 @@ button {
   }
 }
 
-@media (max-width: 768px) {
+/* ------------------------------------------------------------------ */
+/* Compact (phone) layouts. Ability-bar styles are injected at runtime  */
+/* after this sheet, so those rules are prefixed with #ui-root to win.  */
+/* ------------------------------------------------------------------ */
+:root {
+  --safe-t: env(safe-area-inset-top, 0px);
+  --safe-r: env(safe-area-inset-right, 0px);
+  --safe-b: env(safe-area-inset-bottom, 0px);
+  --safe-l: env(safe-area-inset-left, 0px);
+}
+
+/* Shared by portrait phones and short landscape phones */
+@media (max-width: 768px), (max-height: 500px) and (orientation: landscape) {
   .hud-top {
-    top: 8px;
-    left: 8px;
-    right: 8px;
+    top: calc(var(--safe-t) + 6px);
+    left: calc(var(--safe-l) + 8px);
+    right: calc(var(--safe-r) + 8px);
     gap: 6px;
   }
 
   .hud-group {
-    padding: 4px 6px;
+    padding: 3px 5px;
+    border-radius: 13px;
+    gap: 4px;
   }
 
   .hud-pill {
     font-size: 12px;
-    padding: 3px 6px;
+    padding: 3px 5px;
+    gap: 4px;
+  }
+
+  .hud-wave-counter .hud-icon {
+    display: none; /* "Wave 0/10" reads fine without the flag glyph */
+  }
+
+  .hud-icon {
+    width: 15px;
+    height: 15px;
+  }
+
+  .hud-icon-btn {
+    width: 30px;
+    height: 30px;
+    padding: 5px;
+  }
+
+  .hud-settings-btn {
+    display: none; /* Settings stays reachable from the pause menu */
+  }
+
+  .hud-speed-btn {
+    padding: 5px 6px;
   }
 
   .hud-wave-ctrl {
-    order: 3;
-    width: 100%;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    row-gap: 6px;
+    gap: 6px;
+    padding: 3px 5px;
+    flex-wrap: nowrap !important;
+    min-width: 0;
   }
 
+  .hud-wave-btn {
+    padding: 3px 10px;
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+
+  .hud-toggle-pill {
+    padding: 0 7px !important;
+    height: 30px;
+    flex-shrink: 0;
+  }
+
+  .hud-wave-preview {
+    flex: 1 1 0;
+    min-width: 0;
+    overflow: hidden;
+    flex-wrap: nowrap;
+    -webkit-mask-image: linear-gradient(to right, #000 80%, transparent);
+    mask-image: linear-gradient(to right, #000 80%, transparent);
+  }
+
+  .hud-preview-label {
+    display: none;
+  }
+
+  .hud-preview-chip {
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+
+  /* Ability bar: two small round buttons */
+  #ui-root .ability-bar {
+    padding: 4px;
+    gap: 6px;
+    border-radius: 999px;
+  }
+
+  #ui-root .ability-card {
+    min-width: 0;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    gap: 0;
+    border-radius: 50%;
+    justify-content: center;
+    flex-direction: column;
+  }
+
+  #ui-root .ability-name,
+  #ui-root .ability-status,
+  #ui-root .ability-hotkey {
+    display: none;
+  }
+
+  #ui-root .ability-icon {
+    width: 26px;
+    height: 26px;
+  }
+
+  #ui-root .ability-cd-badge {
+    top: 50%;
+    left: 50%;
+    right: auto;
+    transform: translate(-50%, -50%);
+    font-size: 11px;
+    padding: 1px 5px;
+  }
+
+  /* Build cards: icon + cost; coverage badge collapses to its icon */
   .build-bar {
-    bottom: 8px;
     padding: 5px;
     gap: 5px;
-    overflow-x: auto;
     scrollbar-width: none;
   }
 
@@ -1561,78 +1685,309 @@ button {
   }
 
   .build-card {
-    min-width: 72px;
-    flex-shrink: 0;
-    padding: 5px 5px 4px;
+    min-width: 0;
+    padding: 4px 3px 3px;
+    gap: 2px;
+    border-radius: 12px;
   }
 
-  .ability-bar {
-    bottom: 108px !important;
-    left: 8px !important;
-    padding: 5px !important;
-    gap: 6px !important;
-    border-radius: 16px !important;
+  .build-card.active,
+  .build-card:hover:not(.unaffordable) {
+    transform: none;
   }
 
-  .ability-card {
-    flex-direction: row !important;
-    min-width: 0 !important;
-    padding: 5px 9px 5px 20px !important;
-    gap: 6px !important;
-    border-radius: 11px !important;
+  .build-icon {
+    width: 26px;
+    height: 26px;
   }
 
-  .ability-hotkey {
-    top: 50% !important;
-    left: 6px !important;
-    transform: translateY(-50%);
+  .build-name {
+    font-size: 10.5px;
   }
 
-  .ability-icon {
-    width: 20px !important;
-    height: 20px !important;
+  .build-cost {
+    font-size: 10.5px;
+    padding: 1px 6px;
   }
 
-  .ability-cd-badge {
-    position: static !important;
+  .build-card .target-badge {
+    padding: 2px 7px;
+  }
+
+  .build-card .target-badge > span:last-child {
+    display: none;
   }
 
   .tower-panel {
-    left: 50%;
-    top: auto;
-    transform: translateX(-50%);
-    bottom: 164px;
-    width: calc(100vw - 20px);
-    max-width: 344px;
-    padding: 9px 10px;
+    padding: 8px 9px;
     gap: 6px;
+  }
+
+  .tower-panel-telemetry,
+  .tower-panel-kbd {
+    display: none;
   }
 
   .tower-panel[data-anchor-caret='1']::before {
     display: none;
   }
 
-  .pause-banner {
-    top: 176px;
+  .game-toast {
+    padding: 6px 8px 6px 10px;
+    gap: 6px;
   }
 
-  .game-toast {
-    top: 176px;
+  .game-toast-msg {
+    font-size: 11.5px;
   }
 
   .menu-card {
     padding: 20px 16px 16px;
   }
 
-  .level-grid {
-    grid-template-columns: 1fr;
+  .debug-panel {
+    right: 8px;
+    width: 220px;
+    max-height: 50%;
+    overflow: auto;
+  }
+}
+
+/* Portrait phones */
+@media (max-width: 768px) and (min-height: 501px) {
+  :root {
+    --build-h: 88px;
+    --dock-gap: 8px;
+  }
+
+  /* Row 1: resources + speed + pause + menu.  Row 2: wave controls. */
+  .hud-actions {
+    display: contents;
+  }
+
+  .hud-resources {
+    order: 1;
+  }
+
+  .hud-speed-wrap {
+    order: 2;
+    margin-left: auto;
+    padding: 3px;
+    background: var(--ui-bg);
+    border: 1px solid var(--ui-border);
+    border-radius: 13px;
+    box-shadow: var(--ui-shadow-sm);
+  }
+
+  .hud-pause-btn,
+  .hud-menu-btn {
+    order: 3;
+    width: 34px;
+    height: 34px;
+    border-radius: 12px;
+    box-shadow: var(--ui-shadow-sm);
+  }
+
+  .hud-wave-ctrl {
+    order: 5;
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  /* Camera rotate sits bottom-right, mirroring the ability buttons on the left */
+  .hud-rot-btn {
+    position: fixed;
+    bottom: calc(var(--safe-b) + var(--dock-gap) + var(--build-h) + var(--dock-gap));
+    width: 44px;
+    height: 44px;
+    padding: 10px;
+    border-radius: 50%;
+    background: var(--ui-bg);
+    box-shadow: var(--ui-shadow-sm);
+    z-index: 19;
+  }
+
+  .hud-rot-right {
+    right: calc(var(--safe-r) + 8px);
+  }
+
+  .hud-rot-left {
+    right: calc(var(--safe-r) + 58px);
+  }
+
+  .build-bar {
+    left: calc(var(--safe-l) + 8px);
+    right: calc(var(--safe-r) + 8px);
+    bottom: calc(var(--safe-b) + var(--dock-gap));
+    transform: none;
+    max-width: none;
+    height: var(--build-h);
+    overflow-x: auto;
+  }
+
+  .build-card {
+    flex: 1 0 60px;
+    overflow: hidden;
+  }
+
+  #ui-root .ability-bar {
+    left: calc(var(--safe-l) + 8px);
+    bottom: calc(var(--safe-b) + var(--dock-gap) + var(--build-h) + var(--dock-gap));
+  }
+
+  .tower-panel {
+    left: 50%;
+    top: auto;
+    transform: translateX(-50%);
+    bottom: calc(var(--safe-b) + var(--dock-gap) + var(--build-h) + var(--dock-gap) + 52px + var(--dock-gap));
+    width: calc(100vw - 16px);
+    max-width: 360px;
+  }
+
+  .pause-banner,
+  .game-toast {
+    top: calc(var(--safe-t) + 104px);
   }
 
   .debug-panel {
-    top: 148px;
+    top: calc(var(--safe-t) + 112px);
     bottom: auto;
-    right: 8px;
-    width: 240px;
+  }
+
+  .level-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Phones in landscape: single-row HUD, side rails, edge-anchored inspector */
+@media (max-height: 500px) and (orientation: landscape) {
+  :root {
+    --rail-top: calc(var(--safe-t) + 46px);
+  }
+
+  .hud-top {
+    flex-wrap: nowrap;
+    align-items: center;
+  }
+
+  .hud-wave-ctrl {
+    flex: 1 1 auto;
+  }
+
+  .hud-wave-btn-sub {
+    font-size: 9.5px;
+  }
+
+  .hud-wave-btn-title {
+    font-size: 12px;
+  }
+
+  .hud-resources,
+  .hud-actions {
+    flex-shrink: 0;
+  }
+
+  .hud-rot-btn,
+  .hud-icon-btn {
+    width: 28px;
+    height: 28px;
+    padding: 4px;
+  }
+
+  .hud-toggle-pill {
+    height: 28px;
+  }
+
+  .pause-banner,
+  .game-toast {
+    top: var(--rail-top);
+  }
+
+  .game-toast {
+    max-width: min(340px, calc(100vw - 180px));
+  }
+
+  /* Build cards become a left rail of icon + cost tiles */
+  .build-bar {
+    left: calc(var(--safe-l) + 6px);
+    top: var(--rail-top);
+    bottom: auto;
+    transform: none;
+    max-width: none;
+    flex-direction: column;
+    gap: 4px;
+    padding: 4px;
+    border-radius: 16px;
+    overflow: visible;
+  }
+
+  .build-card {
+    width: 54px;
+    padding: 4px 2px 3px;
+  }
+
+  .build-hotkey,
+  .build-name,
+  .build-card .target-badge {
+    display: none;
+  }
+
+  #ui-root .ability-bar {
+    left: auto;
+    right: calc(var(--safe-r) + 6px);
+    bottom: calc(var(--safe-b) + 6px);
+  }
+
+  /* Inspector docks to the screen half the tower is NOT in, leaving the playfield centre clear */
+  .tower-panel {
+    left: auto;
+    right: calc(var(--safe-r) + 6px);
+    top: calc(var(--safe-t) + 92px);
+    bottom: auto;
+    transform: none;
+    width: 232px;
+    max-width: none;
+    max-height: calc(100% - var(--safe-t) - 92px - var(--safe-b) - 60px);
+    overflow-y: auto;
+    padding: 7px 8px;
+    gap: 5px;
+  }
+
+  .tower-panel[data-anchor-side='edge-left'] {
+    right: auto;
+    left: calc(var(--safe-l) + 72px);
+  }
+
+  .tower-panel-icon {
+    width: 24px;
+    height: 24px;
+    padding: 3px;
+  }
+
+  .tower-upgrade-diff,
+  .tower-targeting-header {
+    display: none;
+  }
+
+  .tower-targeting {
+    padding-top: 4px;
+  }
+
+  .debug-panel {
+    top: var(--rail-top);
+    right: calc(var(--safe-r) + 6px);
+    width: 200px;
+  }
+}
+
+/* Very short phones (e.g. 667x375): icon-only toggles so the HUD row still fits */
+@media (max-height: 500px) and (orientation: landscape) and (max-width: 740px) {
+  .hud-toggle-label {
+    display: none;
+  }
+
+  .hud-toggle-pill {
+    padding: 0 6px !important;
   }
 }
 

@@ -24,7 +24,11 @@ const DESKTOP_BREAKPOINT = 768;
 const EDGE_MARGIN_X = 12;
 const TOP_SAFE_MARGIN = 72;
 const BOTTOM_SAFE_MARGIN = 128;
-const ANCHOR_HORIZONTAL_GAP = 40;
+const ANCHOR_HORIZONTAL_GAP = 56;
+/** Phone-landscape layouts (short viewports) pin the panel to a screen edge instead of floating it. */
+const COMPACT_LANDSCAPE_MAX_HEIGHT = 500;
+/** Dead zone around the viewport midline so the outward side doesn't flicker while panning. */
+const SIDE_HYSTERESIS_PX = 70;
 
 interface StatChip {
   value: string;
@@ -353,17 +357,18 @@ export class TowerPanel {
   setAnchorScreenPos(screenX: number, screenY: number, viewportW: number, viewportH: number): void {
     if (this.boundTowerId === null) return;
 
+    if (viewportH <= COMPACT_LANDSCAPE_MAX_HEIGHT && viewportW > viewportH) {
+      // Edge sheet on the half of the screen the tower is NOT in, so the tower stays visible.
+      const mid = viewportW * 0.5;
+      let side: string = this.lastAnchorSide === 'edge-left' ? 'edge-left' : 'edge-right';
+      if (screenX > mid + SIDE_HYSTERESIS_PX) side = 'edge-left';
+      else if (screenX < mid - SIDE_HYSTERESIS_PX) side = 'edge-right';
+      this.setStaticSide(side);
+      return;
+    }
+
     if (viewportW <= DESKTOP_BREAKPOINT) {
-      if (this.lastAnchorSide !== 'dock') {
-        this.lastAnchorSide = 'dock';
-        this.lastAnchorX = NaN;
-        this.lastAnchorY = NaN;
-        this.rootEl.dataset.anchorSide = 'dock';
-        this.rootEl.dataset.anchorCaret = '0';
-        this.rootEl.style.removeProperty('--tp-x');
-        this.rootEl.style.removeProperty('--tp-y');
-        this.rootEl.style.removeProperty('--tp-caret-y');
-      }
+      this.setStaticSide('dock');
       return;
     }
 
@@ -379,14 +384,24 @@ export class TowerPanel {
     const rightCandidateX = screenX + ANCHOR_HORIZONTAL_GAP;
     const leftCandidateX = screenX - ANCHOR_HORIZONTAL_GAP - panelW;
 
+    // Prefer the side facing away from the island centre so the panel doesn't sit on top of
+    // neighbouring towers and the path; fall back to whichever side actually fits.
+    const rightFits = rightCandidateX + panelW <= viewportW - EDGE_MARGIN_X;
+    const leftFits = leftCandidateX >= EDGE_MARGIN_X;
+    const mid = viewportW * 0.5;
+    let preferred: 'right' | 'left' =
+      this.lastAnchorSide === 'left' || this.lastAnchorSide === 'right' ? this.lastAnchorSide : 'right';
+    if (screenX < mid - SIDE_HYSTERESIS_PX) preferred = 'left';
+    else if (screenX > mid + SIDE_HYSTERESIS_PX) preferred = 'right';
+
     let side: 'right' | 'left';
     let targetX: number;
-    if (rightCandidateX + panelW <= viewportW - EDGE_MARGIN_X) {
-      side = 'right';
-      targetX = rightCandidateX;
-    } else if (leftCandidateX >= EDGE_MARGIN_X) {
+    if (preferred === 'left' ? leftFits : !rightFits && leftFits) {
       side = 'left';
       targetX = leftCandidateX;
+    } else if (rightFits) {
+      side = 'right';
+      targetX = rightCandidateX;
     } else if (viewportW - screenX >= screenX) {
       side = 'right';
       targetX = rightCandidateX;
@@ -428,6 +443,21 @@ export class TowerPanel {
       this.rootEl.style.setProperty('--tp-y', `${clampedY}px`);
       this.rootEl.style.setProperty('--tp-caret-y', `${caretY}px`);
     }
+  }
+
+  /** Mobile docks and landscape edge sheets are positioned purely by CSS (no --tp-* offsets). */
+  private setStaticSide(side: string): void {
+    if (this.lastAnchorSide === side) return;
+    this.lastAnchorSide = side;
+    this.lastAnchorX = NaN;
+    this.lastAnchorY = NaN;
+    this.lastCaretY = NaN;
+    this.lastCaretVisible = false;
+    this.rootEl.dataset.anchorSide = side;
+    this.rootEl.dataset.anchorCaret = '0';
+    this.rootEl.style.removeProperty('--tp-x');
+    this.rootEl.style.removeProperty('--tp-y');
+    this.rootEl.style.removeProperty('--tp-caret-y');
   }
 
   dispose(): void {
