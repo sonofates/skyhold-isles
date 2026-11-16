@@ -42,6 +42,7 @@ const KIND_SCALE: Record<SetPieceKind, number> = {
   scarecrow: 1.3,
   brazier: 1.3,
   seaStack: 1.2,
+  peak: 1.3,
   boat: 1.2,
   gatehouse: 1.2,
   obelisk: 1.3,

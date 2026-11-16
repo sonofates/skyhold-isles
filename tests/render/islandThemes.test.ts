@@ -31,7 +31,7 @@ function stubMaterials(): MaterialLibrary {
     solid: { get: () => mk() },
     vertexColored: mk(),
     kenneyTerrain: mk(),
-    goalCrystal: mk(),
+    goalCrystal: new THREE.MeshStandardMaterial(),
     waterMaterial: mk(),
     shoreFoamMaterial: mk(),
     waterUniforms: { uWaterTime: { value: 0 }, uLagoonRadius: { value: 22 } },

@@ -230,21 +230,34 @@ function lighthouse(pb: PieceBuilder): void {
 function waterfall(pb: PieceBuilder): void {
   const waterY = BALANCE.waterPlaneY;
   const blue = 0x86d6f2;
-  pb.box(blue, [0.6, 0.04, 1.0], [0, 0.015, 0.5]);
-  pb.box(0xc9f0fb, [0.18, 0.045, 0.7], [-0.12, 0.02, 0.45]);
-  pb.ico(STONE_DARK, [0.22, 0.16, 0.2], [-0.42, 0.1, 0.3]);
-  pb.ico(STONE_MID, [0.18, 0.14, 0.2], [0.42, 0.08, 0.6]);
-  pb.ico(STONE_DARK, [0.16, 0.12, 0.16], [0.46, 0.08, 0.1]);
+  pb.box(blue, [0.95, 0.04, 1.0], [0, 0.015, 0.5]);
+  pb.box(0xc9f0fb, [0.3, 0.045, 0.75], [-0.2, 0.02, 0.45]);
+  pb.ico(STONE_DARK, [0.26, 0.2, 0.24], [-0.62, 0.1, 0.3]);
+  pb.ico(STONE_MID, [0.22, 0.16, 0.22], [0.62, 0.08, 0.62]);
+  pb.ico(STONE_DARK, [0.2, 0.14, 0.2], [0.66, 0.08, 0.1]);
+  pb.ico(STONE_LIGHT, [0.18, 0.14, 0.2], [-0.5, 0.07, 0.85]);
   const fallTop = 0.0;
   const fallBot = waterY - 0.2;
   const hh = fallTop - fallBot;
-  pb.box(blue, [0.6, hh, 0.09], [0, fallTop - hh / 2, 1.04]);
-  pb.box(0xb4e8fa, [0.34, hh, 0.04], [0.05, fallTop - hh / 2, 1.1]);
-  pb.box(blue, [0.66, 0.07, 0.14], [0, 0.0, 1.0]);
-  for (const sx of [-0.18, 0, 0.18]) pb.anim('flow', sx, fallTop - 0.2, 1.13, 0, (sx + 0.3) * 1.7);
-  pb.ico(CREAM, [0.52, 0.1, 0.34], [0, waterY + 0.03, 1.28]);
-  pb.ico(CREAM, [0.3, 0.08, 0.22], [-0.4, waterY + 0.02, 1.4]);
-  pb.ico(CREAM, [0.26, 0.08, 0.2], [0.42, waterY + 0.02, 1.38]);
+  pb.box(blue, [0.95, hh, 0.1], [0, fallTop - hh / 2, 1.04]);
+  pb.box(0xb4e8fa, [0.55, hh, 0.045], [0.08, fallTop - hh / 2, 1.11]);
+  pb.box(blue, [1.0, 0.08, 0.16], [0, 0.0, 1.0]);
+  for (const sx of [-0.32, -0.1, 0.12, 0.34]) pb.anim('flow', sx, fallTop - 0.2, 1.15, 0, (sx + 0.4) * 1.9);
+  pb.ico(CREAM, [0.8, 0.12, 0.5], [0, waterY + 0.03, 1.3]);
+  pb.ico(CREAM, [0.45, 0.1, 0.3], [-0.6, waterY + 0.02, 1.5]);
+  pb.ico(CREAM, [0.4, 0.1, 0.28], [0.62, waterY + 0.02, 1.46]);
+}
+
+/** Tall snow-capped mountain rising from the sea (background silhouette). */
+function peak(pb: PieceBuilder, variant: number): void {
+  const waterY = BALANCE.waterPlaneY;
+  const k = variant === 1 ? 0.8 : 1;
+  pb.cone(0x7d8798, 1.9 * k, 5.4 * k, [0, waterY + 2.3 * k, 0], 6, [0, 0.3, 0]);
+  pb.cone(0x8e98a8, 1.2 * k, 3.6 * k, [1.0 * k, waterY + 1.4 * k, 0.5 * k], 5, [0, 1.0, 0]);
+  pb.cone(CREAM, 0.7 * k, 1.5 * k, [0, waterY + 4.35 * k, 0], 6, [0, 0.3, 0]);
+  pb.cone(CREAM, 0.38 * k, 0.8 * k, [1.0 * k, waterY + 2.6 * k, 0.5 * k], 5, [0, 1.0, 0]);
+  pb.cone(0x6e7889, 0.9 * k, 2.2 * k, [-1.2 * k, waterY + 0.9 * k, -0.4 * k], 5, [0, 0.4, 0]);
+  pb.ico(CREAM, [1.6 * k, 0.1, 1.3 * k], [0, waterY + 0.03, 0]);
 }
 
 /** Half-submerged stone foundation so ruins can stand in open water (variant >= 2 on water pieces). */
@@ -466,6 +479,7 @@ const BUILDERS: Record<SetPieceKind, (pb: PieceBuilder, variant: number) => void
   scarecrow: (pb) => scarecrow(pb),
   brazier: (pb) => brazier(pb),
   seaStack,
+  peak,
   boat,
   gatehouse,
   obelisk: (pb) => obelisk(pb),

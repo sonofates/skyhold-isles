@@ -312,7 +312,7 @@ function makeMaterials(): MaterialLibrary {
     vertexColored: tagged('vertexColored'),
     kenneyTerrain: tagged('kenneyTerrain'),
     kenneyTower: tagged('kenneyTerrain'),
-    goalCrystal: tagged('goalCrystal'),
+    goalCrystal: Object.assign(new THREE.MeshStandardMaterial(), { name: 'goalCrystal' }),
     waterMaterial: tagged('water'),
     shoreFoamMaterial: tagged('foam'),
     waterUniforms: { uWaterTime: { value: 0 }, uLagoonRadius: { value: 22 } },
@@ -596,6 +596,14 @@ function previewLevel(
   const f = focus
     ? { x: gridToWorldX(focus.col, level.cols), z: gridToWorldZ(focus.row, level.rows), half: focus.half }
     : null;
+  let draws = 0;
+  map.group.traverse((o) => {
+    if ((o as THREE.Mesh).isMesh) draws++;
+  });
+  decor.group.traverse((o) => {
+    if ((o as THREE.Mesh).isMesh) draws++;
+  });
+  console.log(`  ${level.name}: ${tris.length} triangles (instances expanded), ${draws} map+decor draw calls`);
   const { w, h, rgb } = render(tris, width, yawQuarter, f);
   const file = `${outDir}/L${level.index + 1}-${level.id}-r${yawQuarter}${focus ? '-focus' : ''}.png`;
   writeFileSync(file, encodePng(w, h, rgb));

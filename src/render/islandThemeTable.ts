@@ -6,9 +6,10 @@ import { DEFAULT_THEME, type IslandTheme } from './islandThemes.ts';
  * (enforced by tests/render/islandThemes.test.ts).
  */
 
-type ThemeInput = Partial<Omit<IslandTheme, 'cliff' | 'decorBake' | 'details' | 'ambient'>> & {
+type ThemeInput = Partial<Omit<IslandTheme, 'cliff' | 'decorBake' | 'details' | 'ambient' | 'hills'>> & {
   cliff?: Partial<IslandTheme['cliff']>;
   decorBake?: Partial<IslandTheme['decorBake']>;
+  hills?: Partial<IslandTheme['hills']>;
   details?: Partial<IslandTheme['details']>;
   ambient?: Partial<IslandTheme['ambient']>;
 };
@@ -20,6 +21,7 @@ function theme(overrides: ThemeInput): IslandTheme {
     cliff: { ...DEFAULT_THEME.cliff, ...overrides.cliff },
     trees: overrides.trees ?? DEFAULT_THEME.trees,
     decorBake: { ...DEFAULT_THEME.decorBake, ...overrides.decorBake },
+    hills: { ...DEFAULT_THEME.hills, ...overrides.hills },
     details: { ...DEFAULT_THEME.details, ...overrides.details },
     ambient: { ...DEFAULT_THEME.ambient, ...overrides.ambient },
   };
@@ -27,7 +29,9 @@ function theme(overrides: ThemeInput): IslandTheme {
 
 /** L1 — Sunlit Meadow: cosy wildflower meadow with a cottage; the friendly reference look. */
 const SUNLIT_MEADOW = theme({
+  goal: { color: 0x5be3ff, shard: 0xccf7ff, ring: 0xf6bd41, glow: 0x0b7cb8, deco: 'poles' },
   grassTint: [1.03, 1.05, 0.97],
+  hills: { chance: 0.5, minH: 0.22, maxH: 0.4 },
   trees: { density: 0.5, weights: { oak: 0.38, tree: 0.22, treeLarge: 0.2, blossom: 0.2 } },
   details: { flowerMul: 2.1, pebbleMul: 0.7, tuftMul: 1.1 },
   ambient: { birds: 3, butterflies: 7, islets: 4, clouds: 5 },
@@ -44,6 +48,8 @@ const SUNLIT_MEADOW = theme({
 
 /** L2 — Twin-Bridge Cay: sun-bleached harbour cay with docks, boats and sandy shores. */
 const TWIN_BRIDGE_CAY = theme({
+  spawnCrystalCell: [4, 2],
+  goal: { color: 0x4ff0d0, shard: 0xc9fff4, ring: 0xf6bd41, glow: 0x0b9c90, deco: 'poles' },
   bridge: 'timber',
   grassTint: [1.0, 1.06, 0.96],
   ground: [
@@ -77,6 +83,8 @@ const TWIN_BRIDGE_CAY = theme({
 
 /** L3 — Highland Citadel: cold alpine keep — pines, dark cobble courtyards, tall cliffs, waterfall, banners. */
 const HIGHLAND_CITADEL = theme({
+  spawnCrystalCell: [0, 3],
+  goal: { color: 0xbfe8ff, shard: 0xffffff, ring: 0xb4bbc7, glow: 0x3a78b8, deco: 'pillars' },
   pathStyle: 'stone',
   grassTint: [0.6, 0.92, 0.96],
   ground: [{ kind: 'cobble', where: 'zone', zone: { col: 6.5, row: 7, radius: 2.5 } }],
@@ -87,6 +95,7 @@ const HIGHLAND_CITADEL = theme({
     depthMul: 1.5,
     spireMul: 1.4,
   },
+  hills: { chance: 0.85, minH: 0.5, maxH: 1.0, cap: 'snow' },
   trees: { density: 0.55, weights: { pine: 0.62, treeLarge: 0.18, tree: 0.2 } },
   decorBake: { rockChance: 0.5, shrubChance: 0.2, crystalChance: 0.06, crystalTint: 0xb7d4f6 },
   details: {
@@ -108,12 +117,16 @@ const HIGHLAND_CITADEL = theme({
     { kind: 'waterfall', col: 14, row: 9, yaw: Math.PI / 2 },
     { kind: 'brazier', col: 2, row: 7 },
     { kind: 'brazier', col: 11, row: 8 },
-    { kind: 'seaStack', col: 0.2, row: 9.2, variant: 0 },
+    { kind: 'peak', col: -3.2, row: 2.5, variant: 0 },
+    { kind: 'peak', col: 4, row: -3.4, variant: 1 },
+    { kind: 'peak', col: 18.6, row: 0.5, variant: 1 },
   ],
 });
 
 /** L4 — Emerald Stepping Stones: mossy emerald terraces studded with glowing crystal groves. */
 const EMERALD_STEPPING_STONES = theme({
+  spawnCrystalCell: [3, 2],
+  goal: { color: 0x5bffa8, shard: 0xc6ffe4, ring: 0x7dffb8, glow: 0x0b9c5a, deco: 'shards' },
   bridge: 'rope',
   grassTint: [0.42, 1.02, 0.8],
   cliff: {
@@ -123,6 +136,7 @@ const EMERALD_STEPPING_STONES = theme({
     depthMul: 1.3,
     spireMul: 1.2,
   },
+  hills: { chance: 0.6, minH: 0.3, maxH: 0.55 },
   trees: { density: 0.4, weights: { treeLarge: 0.3, oak: 0.35, tree: 0.35 } },
   decorBake: { rockChance: 0.25, shrubChance: 0.3, crystalChance: 0.5, crystalTint: 0x7dffb8 },
   details: {
@@ -148,6 +162,8 @@ const EMERALD_STEPPING_STONES = theme({
 
 /** L5 — Windmill Switchback: golden harvest farmland with windmills, hay and autumn trees. */
 const WINDMILL_SWITCHBACK = theme({
+  spawnCrystalCell: [5, 2],
+  goal: { color: 0xffc355, shard: 0xffe9a8, ring: 0xe3b84a, glow: 0x9c6a0b, deco: 'sheaves' },
   grassTint: [1.12, 1.02, 0.7],
   grassZones: [
     { col: 8, row: 7, radius: 2.4, soft: 1.4, tint: [1.45, 0.92, 0.5] },
@@ -163,6 +179,7 @@ const WINDMILL_SWITCHBACK = theme({
     dirts: [0xa8723f, 0x8a5a33],
     depthMul: 1.0,
   },
+  hills: { chance: 0.6, minH: 0.25, maxH: 0.5 },
   trees: { density: 0.4, weights: { autumn: 0.5, oak: 0.2, treeLarge: 0.15, tree: 0.15 } },
   decorBake: { rockChance: 0.2, shrubChance: 0.34 },
   details: {
@@ -195,6 +212,8 @@ const WINDMILL_SWITCHBACK = theme({
 
 /** L6 — Crescent Lagoon: tropical atoll — pale sand ring, palms, lighthouse in the lagoon, coral flowers. */
 const CRESCENT_LAGOON = theme({
+  spawnCrystalCell: [4, 2],
+  goal: { color: 0x5be3ff, shard: 0xffd6cc, ring: 0xe85d5d, glow: 0x0b7cb8, deco: 'shells' },
   pathStyle: 'sand',
   grassTint: [0.86, 1.1, 0.92],
   ground: [
@@ -207,6 +226,7 @@ const CRESCENT_LAGOON = theme({
     depthMul: 0.8,
     spireMul: 0.7,
   },
+  hills: { chance: 0.7, minH: 0.25, maxH: 0.5 },
   trees: { density: 0.5, weights: { palm: 0.7, oak: 0.15, tree: 0.15 } },
   decorBake: { rockChance: 0.2, shrubChance: 0.28 },
   details: {
@@ -234,6 +254,8 @@ const CRESCENT_LAGOON = theme({
 
 /** L7 — Skybridge Gauntlet: wind-scoured cliffside forts, stone bridges, dizzying drops. */
 const SKYBRIDGE_GAUNTLET = theme({
+  spawnCrystalCell: [1, 3],
+  goal: { color: 0xb58cf2, shard: 0xe6d4ff, ring: 0xb4bbc7, glow: 0x5b2fb8, deco: 'pillars' },
   bridge: 'stone',
   pathStyle: 'stone',
   grassTint: [0.74, 0.94, 0.86],
@@ -248,6 +270,7 @@ const SKYBRIDGE_GAUNTLET = theme({
     depthMul: 1.9,
     spireMul: 1.6,
   },
+  hills: { chance: 0.8, minH: 0.45, maxH: 0.9, cap: 'stone' },
   trees: { density: 0.3, weights: { pine: 0.45, tree: 0.35, treeLarge: 0.2 } },
   decorBake: { rockChance: 0.5, shrubChance: 0.18, crystalChance: 0.08 },
   details: { flowerMul: 0.25, pebbleMul: 2.2, tuftMul: 0.7 },
@@ -270,6 +293,8 @@ const SKYBRIDGE_GAUNTLET = theme({
 
 /** L8 — Sunken Bastion: half-drowned ruined bastion, mossy cobbles, torches and indigo banners. */
 const SUNKEN_BASTION = theme({
+  spawnCrystalCell: [1, 1],
+  goal: { color: 0x7dffe0, shard: 0xd4fff3, ring: 0x9aa4b0, glow: 0x0b9c88, deco: 'pillars' },
   pathStyle: 'stone',
   grassTint: [0.58, 0.86, 0.7],
   ground: [
@@ -283,6 +308,7 @@ const SUNKEN_BASTION = theme({
     depthMul: 1.2,
     spireMul: 1.1,
   },
+  hills: { chance: 0.5, minH: 0.25, maxH: 0.5 },
   trees: { density: 0.4, weights: { oak: 0.3, tree: 0.3, treeLarge: 0.2, pine: 0.2 } },
   decorBake: { rockChance: 0.5, shrubChance: 0.3, crystalChance: 0.1 },
   details: {
@@ -316,6 +342,8 @@ const SUNKEN_BASTION = theme({
 
 /** L9 — Grand Skyhold: crown citadel — marble cobbles, golden banners, corner towers, regal blossoms. */
 const GRAND_SKYHOLD = theme({
+  spawnCrystalCell: [4, 2],
+  goal: { color: 0xffd45b, shard: 0xfff0b8, ring: 0xe85d5d, glow: 0xb87a0b, deco: 'goldPillars' },
   pathStyle: 'stone',
   grassTint: [0.96, 1.04, 0.96],
   ground: [
@@ -328,6 +356,7 @@ const GRAND_SKYHOLD = theme({
     depthMul: 1.5,
     spireMul: 1.3,
   },
+  hills: { chance: 0.4, minH: 0.2, maxH: 0.4 },
   trees: { density: 0.45, weights: { blossom: 0.3, oak: 0.3, pine: 0.1, tree: 0.15, treeLarge: 0.15 } },
   decorBake: { rockChance: 0.22, shrubChance: 0.3, crystalChance: 0.2 },
   details: {

@@ -7,7 +7,7 @@ import { PALETTE_HEX } from '../data/palette.ts';
 import { disposeInstancedMeshes, mergeTexturedParts } from './geometryHelpers.ts';
 import type { KenneyAssetStore } from './kenneyAssets.ts';
 import type { MaterialLibrary } from './materials.ts';
-import { claimedDecorTiles, type IslandTheme, type TreeKind } from './islandThemes.ts';
+import { claimedDecorTiles, decorHillHeight, type IslandTheme, type TreeKind } from './islandThemes.ts';
 import { getIslandTheme } from './islandThemeTable.ts';
 import { createPalmGeometry, createPineGeometry, createTintableBroadleafGeometry } from './treeGeometry.ts';
 
@@ -123,6 +123,7 @@ export class DecorBuilder {
 
         const wx = gridToWorldX(c, level.cols);
         const wz = gridToWorldZ(r, level.rows);
+        const hillH = decorHillHeight(theme, c, r, false);
 
         const count = rng.chance(theme.trees.density) ? 2 : 1;
         for (let t = 0; t < count; t++) {
@@ -130,7 +131,7 @@ export class DecorBuilder {
           const offsetZ = rng.range(-0.26, 0.26);
           const placement: SwayPlacement = {
             x: wx + offsetX,
-            y: -0.02,
+            y: -0.02 + hillH * 0.8,
             z: wz + offsetZ,
             rotY: rng.range(0, Math.PI * 2),
             scale: rng.range(2.25, 2.85),

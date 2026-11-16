@@ -27,6 +27,7 @@ export type SetPieceKind =
   | 'scarecrow'
   | 'brazier'
   | 'seaStack'
+  | 'peak'
   | 'boat'
   | 'gatehouse'
   | 'obelisk';
@@ -76,10 +77,21 @@ export interface AmbientSpec {
   readonly leafCount?: number;
 }
 
+export type GoalDeco = 'none' | 'pillars' | 'goldPillars' | 'shards' | 'sheaves' | 'shells' | 'poles';
+
 export type BridgeStyle = 'timber' | 'rope' | 'stone';
 
 export interface IslandTheme {
   readonly pathStyle: PathStyle;
+  /** Kenney colormap cell used for the spawn-gate crystals (coral by default). */
+  readonly spawnCrystalCell: readonly [number, number];
+  readonly goal: {
+    readonly color: number;
+    readonly shard: number;
+    readonly ring: number;
+    readonly glow: number;
+    readonly deco: GoalDeco;
+  };
   readonly bridge: BridgeStyle;
   /** Global multiplicative grass tint (1,1,1 = unchanged). */
   readonly grassTint: RGB;
@@ -96,6 +108,13 @@ export interface IslandTheme {
     /** Chance that a decor tile gets a second tree. */
     readonly density: number;
     readonly weights: Partial<Record<TreeKind, number>>;
+  };
+  /** Chance a free decor tile rises into a grassy/sandy hillock, and its max height (world units). */
+  readonly hills: {
+    readonly chance: number;
+    readonly minH: number;
+    readonly maxH: number;
+    readonly cap: 'grass' | 'stone' | 'snow';
   };
   readonly decorBake: {
     readonly rockChance: number;
@@ -121,6 +140,8 @@ export interface IslandTheme {
 
 export const DEFAULT_THEME: IslandTheme = {
   pathStyle: 'dirt',
+  spawnCrystalCell: [6, 2],
+  goal: { color: 0x5be3ff, shard: 0xccf7ff, ring: 0xf6bd41, glow: 0x0b7cb8, deco: 'none' },
   bridge: 'timber',
   grassTint: [1, 1, 1],
   grassZones: [],
@@ -133,6 +154,7 @@ export const DEFAULT_THEME: IslandTheme = {
     spireMul: 1,
   },
   trees: { density: 0.45, weights: { tree: 0.34, treeLarge: 0.38, oak: 0.28 } },
+  hills: { chance: 0, minH: 0.3, maxH: 0.5, cap: 'grass' },
   decorBake: { rockChance: 0.28, shrubChance: 0.32, crystalChance: 0.14, crystalTint: 0xffffff },
   details: {
     flowerMul: 1,
@@ -234,4 +256,11 @@ export function sampleZoneTint(
     out[1] *= 1 + (z.tint[1] - 1) * k;
     out[2] *= 1 + (z.tint[2] - 1) * k;
   }
+}
+
+/** Height of the hillock on a decor tile (0 = flat). Deterministic per tile so trees/decor can follow it. */
+export function decorHillHeight(theme: IslandTheme, c: number, r: number, claimed: boolean): number {
+  if (claimed || theme.hills.chance <= 0) return 0;
+  if (tileHash(c, r, 991) >= theme.hills.chance) return 0;
+  return theme.hills.minH + tileHash(c, r, 992) * (theme.hills.maxH - theme.hills.minH);
 }
