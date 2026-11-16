@@ -44,14 +44,20 @@ export class GameLoop {
     if (this.rafId !== null) return;
     this.lastTimestamp = performance.now();
     const tick = (now: number): void => {
+      // Schedule the next frame first so a single thrown frame cannot kill the loop forever.
+      // If stop() is called from inside a callback it cancels this pending request.
+      this.rafId = requestAnimationFrame(tick);
       const rawDt = Math.min((now - this.lastTimestamp) / 1000, 0.1);
       this.lastTimestamp = now;
-      const { alpha, elapsedVisualTime } = this.stepper.step(
-        rawDt,
-        this.callbacks.onFixedTick,
-      );
-      this.callbacks.onRender(rawDt, alpha, elapsedVisualTime);
-      this.rafId = requestAnimationFrame(tick);
+      try {
+        const { alpha, elapsedVisualTime } = this.stepper.step(
+          rawDt,
+          this.callbacks.onFixedTick,
+        );
+        this.callbacks.onRender(rawDt, alpha, elapsedVisualTime);
+      } catch (err) {
+        console.error('[GameLoop] frame threw:', err);
+      }
     };
     this.rafId = requestAnimationFrame(tick);
   }
