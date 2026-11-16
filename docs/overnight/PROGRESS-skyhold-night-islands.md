@@ -71,7 +71,9 @@ round except wave composition of a few waves, see below).
     route are capped low, `low` graphics quality hides fliers / leaves / water props.
 12. Tests added: `tests/render/islandThemes.test.ts` (placement rules, draw-call budget < 40 for map+decor, finite
     geometry, dispose, biome fallback), `tests/render/siteLines.test.ts`, `tests/sim/waveNames.test.ts`.
-13. Docs: `docs/island-themes.md` (theme authoring guide + preview workflow), README touch-ups.
+13. Themed bushes (hide under built towers), sheep pen, street lamps; two independent code-review passes (all
+    findings fixed: dock boats on the waterline, snow flag, bird orbits, sheep head, tent door, ...).
+14. Docs: `docs/island-themes.md` (theme authoring guide + preview workflow), README touch-ups.
 
 ## Audit (what was samey before)
 All 9 islands shared: one flat height, identical grass tint, same 3-tree mix on every `T` tile, same ambient
@@ -117,7 +119,7 @@ early waves does NOT soften them, it starves the economy (kill rewards) and the 
 
 ## Next (ideas, in rough priority)
 - Re-verify everything after the lead merges the towers/enemies branches (see Merge notes).
-- Ground details that hide when a tower is built (bushes/ferns/mushrooms) to add forest feel without blocking tiles.
+- More hide-on-build ground details (ferns, mushrooms, tiny stones circles); bushes are in.
 - More authored moments: a sailing ship in the L6 lagoon, floating lanterns on L9, kites on L1, animated scarecrow.
 - If wave pacing is to be tuned further, do it together with kill rewards / clearBonus (see Pressure metric).
 - Layout/path changes were deliberately NOT attempted: every grid tweak invalidates both scripted build orders and
