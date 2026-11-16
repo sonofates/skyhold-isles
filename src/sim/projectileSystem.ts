@@ -4,20 +4,10 @@ import type { TowerType } from '../core/types.ts';
 import { TOWER_DEFS, getTowerTierStats } from '../data/towers.ts';
 import type { EnemyEntity, ProjectileEntity, TowerEntity } from './entities.ts';
 import type { EnemySystem } from './enemySystem.ts';
-import type { CompiledPath } from './path.ts';
 import type { SpatialHashGrid } from './spatialHash.ts';
 
 const _splashCandidates: number[] = [];
 const _leadVec = { x: 0, y: 0, z: 0 };
-
-/**
- * EnemySystem keeps its compiled paths private (and is out of scope for balance
- * changes), so the aiming code reads them through a structural view.
- */
-interface EnemyPathView {
-  readonly groundPath: CompiledPath;
-  readonly flightPath: CompiledPath;
-}
 
 /** Fraction of full target lead applied to parabolic shells (1 = perfect aim). */
 const SHELL_LEAD_FACTOR = 0.8;
@@ -115,9 +105,7 @@ export class ProjectileSystem {
     sz: number,
     shellSpeed: number,
   ): { x: number; z: number } {
-    const paths = this.enemySystem as unknown as EnemyPathView;
-    const path = target.flying ? paths.flightPath : paths.groundPath;
-    if (!path) return { x: target.x, z: target.z };
+    const path = this.enemySystem.getPath(target.flying);
 
     const effSpeed = target.speed * (1 - target.slowRatio);
     // Lead = displacement of the path sample between "now" and "at impact", added to the

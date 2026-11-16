@@ -37,6 +37,11 @@ export class EnemySystem {
     this.events = events;
   }
 
+  /** Compiled path an enemy follows (flight lane for flyers), e.g. for shell target leading. */
+  getPath(flying: boolean): CompiledPath {
+    return flying ? this.flightPath : this.groundPath;
+  }
+
   spawnEnemy(type: EnemyType, hpScale = 1): EnemyEntity | null {
     const def = ENEMY_DEFS[type];
     return this.initEnemyAt(
