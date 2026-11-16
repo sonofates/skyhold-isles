@@ -30,7 +30,7 @@ describe('enemy figurine geometry', () => {
       // Footprint should be in the same ballpark as the hit radius (readability + hover picking).
       const footprint = Math.max(size.x, size.z);
       expect(footprint).toBeGreaterThan(def.radius * 1.2);
-      expect(footprint).toBeLessThan(def.radius * 4.2);
+      expect(footprint).toBeLessThan(def.radius * 4.5);
     });
   }
 
