@@ -577,22 +577,85 @@ export class MapBuilder {
 
         // 2. Sub-surface cliffs & bridge piers
         if (isBridge) {
-          // Slender bridge deck + Kenney timber trestle piers reaching into lagoon water
+          // Bridge deck + trestle/stone piers reaching into the water, with railings per theme style
           const alongX = !isLand(c, r - 1) && !isLand(c, r + 1);
+          const stoneBridge = theme.bridge === 'stone';
           parts.push({
             geometry: unitBox,
-            colorHex: PALETTE_HEX.dirt,
-            position: [wx, -0.26, wz],
-            scale: [ts, 0.14, ts],
+            colorHex: stoneBridge ? 0xa1aab8 : PALETTE_HEX.dirt,
+            position: [wx, stoneBridge ? -0.3 : -0.26, wz],
+            scale: [ts, stoneBridge ? 0.22 : 0.14, ts],
             forceWhiteUv: true,
           });
-          parts.push({
-            geometry: geoBridgePier,
-            colorHex: 0xd8c3aa,
-            position: [wx, -1.04, wz],
-            rotation: [0, alongX ? 0 : Math.PI / 2, 0],
-            scale: [1.55, 0.8, 1.55],
-          });
+          if (stoneBridge) {
+            // chunky masonry pier + arch spandrel under the deck
+            parts.push(
+              {
+                geometry: unitBox,
+                colorHex: 0x8b95a5,
+                position: [wx, -0.95, wz],
+                scale: [alongX ? ts * 0.34 : ts * 0.7, 1.35, alongX ? ts * 0.7 : ts * 0.34],
+                forceWhiteUv: true,
+              },
+              {
+                geometry: unitBox,
+                colorHex: 0xb4bbc7,
+                position: [wx, -0.42, wz],
+                scale: [alongX ? ts * 0.5 : ts * 0.84, 0.12, alongX ? ts * 0.84 : ts * 0.5],
+                forceWhiteUv: true,
+              },
+            );
+          } else {
+            parts.push({
+              geometry: geoBridgePier,
+              colorHex: 0xd8c3aa,
+              position: [wx, -1.04, wz],
+              rotation: [0, alongX ? 0 : Math.PI / 2, 0],
+              scale: [1.55, 0.8, 1.55],
+            });
+          }
+          // railings: two posts per side per tile, a rail between them
+          const side = ts * 0.5 - 0.1;
+          const lanternEvery = theme.bridge === 'rope' ? 1 : theme.bridge === 'timber' ? 2 : 0;
+          for (const sgn of [-1, 1]) {
+            if (stoneBridge) {
+              parts.push({
+                geometry: unitBox,
+                colorHex: sgn === 1 ? 0xc4cad4 : 0xb4bbc7,
+                position: [wx + (alongX ? 0 : sgn * side), 0.12, wz + (alongX ? sgn * side : 0)],
+                scale: [alongX ? ts : 0.2, 0.3, alongX ? 0.2 : ts],
+                forceWhiteUv: true,
+              });
+              continue;
+            }
+            for (const along of [-0.5, 0.5]) {
+              const px = wx + (alongX ? along : sgn * side);
+              const pz = wz + (alongX ? sgn * side : along);
+              parts.push({
+                geometry: unitBox,
+                colorHex: 0x7b5338,
+                position: [px, 0.17, pz],
+                scale: [0.08, 0.38, 0.08],
+                forceWhiteUv: true,
+              });
+              if (lanternEvery > 0 && (along > 0 || lanternEvery === 1) && (c + r + (along > 0 ? 1 : 0)) % lanternEvery === 0) {
+                parts.push({
+                  geometry: unitIco,
+                  colorHex: theme.bridge === 'rope' ? 0x7dffb8 : PALETTE_HEX.gold,
+                  position: [px, 0.46, pz],
+                  scale: [0.09, 0.1, 0.09],
+                  forceWhiteUv: true,
+                });
+              }
+            }
+            parts.push({
+              geometry: unitBox,
+              colorHex: theme.bridge === 'rope' ? 0xe9d3a6 : 0x9c6b49,
+              position: [wx + (alongX ? 0 : sgn * side), 0.3, wz + (alongX ? sgn * side : 0)],
+              scale: [alongX ? ts : 0.04, 0.04, alongX ? 0.04 : ts],
+              forceWhiteUv: true,
+            });
+          }
           continue;
         }
 
@@ -803,7 +866,7 @@ export class MapBuilder {
     waterMesh.castShadow = false;
     this.group.add(waterMesh);
 
-    this.ambient.build(dioramaRadius, rng, materials, unitBox, unitCone, unitIco);
+    this.ambient.build(dioramaRadius, rng, materials, unitBox, unitCone, unitIco, theme.ambient);
     this.groundDetails.build(level, materials);
     this.setPieces.build(level, materials, assets);
 

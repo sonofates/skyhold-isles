@@ -63,7 +63,10 @@ export interface GroundRule {
   readonly includeDecor?: boolean;
 }
 
+export type IsletStyle = 'meadow' | 'palm' | 'crystal' | 'pine' | 'ruin' | 'rock';
+
 export interface AmbientSpec {
+  readonly isletStyle?: IsletStyle;
   readonly birds: number;
   readonly butterflies: number;
   readonly islets: number;
@@ -73,8 +76,11 @@ export interface AmbientSpec {
   readonly leafCount?: number;
 }
 
+export type BridgeStyle = 'timber' | 'rope' | 'stone';
+
 export interface IslandTheme {
   readonly pathStyle: PathStyle;
+  readonly bridge: BridgeStyle;
   /** Global multiplicative grass tint (1,1,1 = unchanged). */
   readonly grassTint: RGB;
   readonly grassZones: readonly ZoneTint[];
@@ -115,6 +121,7 @@ export interface IslandTheme {
 
 export const DEFAULT_THEME: IslandTheme = {
   pathStyle: 'dirt',
+  bridge: 'timber',
   grassTint: [1, 1, 1],
   grassZones: [],
   ground: [],

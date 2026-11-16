@@ -1,7 +1,7 @@
 /**
  * Dev tool: headless software rasteriser for the island diorama (no browser/GL needed).
  *
- *   npx tsx scripts/previewMap.ts <levelNumber|all> [outDir=/tmp/skyhold-preview] [yawQuarter=0] [width=1400]
+ *   npx tsx scripts/previewMap.ts <levelNumber|all> [outDir=/tmp/skyhold-preview] [yawQuarter=0] [width=1400] [col,row,halfWidth]
  *
  * Runs the real MapBuilder + DecorBuilder in Node with stub materials, then flat-shades every triangle
  * (Kenney colormap sampled from the raw PNG, vertex colours, instance matrices/colours) into a PNG.
@@ -17,6 +17,7 @@ import { DecorBuilder } from '../src/render/decorBuilder.ts';
 import { KENNEY_MODEL_LIST, type KenneyAssetStore, type KenneyModelName } from '../src/render/kenneyAssets.ts';
 import type { MaterialLibrary } from '../src/render/materials.ts';
 import { BALANCE } from '../src/data/balance.ts';
+import { gridToWorldX, gridToWorldZ } from '../src/sim/grid.ts';
 
 const MODEL_DIR = new URL('../public/models/kenney/', import.meta.url).pathname;
 
@@ -419,7 +420,13 @@ function collectTris(root: THREE.Object3D, tris: Tri[]): void {
   });
 }
 
-function render(tris: Tri[], widthPx: number, yawQuarter: number, ss = 2): { w: number; h: number; rgb: Uint8Array } {
+function render(
+  tris: Tri[],
+  widthPx: number,
+  yawQuarter: number,
+  focus: { x: number; z: number; half: number } | null,
+  ss = 2,
+): { w: number; h: number; rgb: Uint8Array } {
   const yaw = Math.PI / 4 + (yawQuarter * Math.PI) / 2;
   const tilt = Math.asin(1 / Math.sqrt(3));
   const d = new THREE.Vector3(Math.sin(yaw) * Math.cos(tilt), Math.sin(tilt), Math.cos(yaw) * Math.cos(tilt)); // toward camera
@@ -446,6 +453,15 @@ function render(tris: Tri[], widthPx: number, yawQuarter: number, ss = 2): { w: 
     }
   }
   const pad = 1.5;
+  if (focus) {
+    const fx = new THREE.Vector3(focus.x, 0, focus.z);
+    const cx = fx.dot(right);
+    const cy = fx.dot(up);
+    minX = cx - focus.half;
+    maxX = cx + focus.half;
+    minY = cy - focus.half * 0.62;
+    maxY = cy + focus.half * 0.62;
+  }
   minX -= pad;
   maxX += pad;
   minY -= pad;
@@ -559,7 +575,14 @@ function render(tris: Tri[], widthPx: number, yawQuarter: number, ss = 2): { w: 
   return { w, h, rgb };
 }
 
-function previewLevel(level: LevelDef, outDir: string, yawQuarter: number, width: number, assets: KenneyAssetStore): string {
+function previewLevel(
+  level: LevelDef,
+  outDir: string,
+  yawQuarter: number,
+  width: number,
+  assets: KenneyAssetStore,
+  focus: { col: number; row: number; half: number } | null,
+): string {
   const materials = makeMaterials();
   const map = new MapBuilder();
   map.build(level, materials, assets);
@@ -570,8 +593,11 @@ function previewLevel(level: LevelDef, outDir: string, yawQuarter: number, width
   const tris: Tri[] = [];
   collectTris(map.group, tris);
   collectTris(decor.group, tris);
-  const { w, h, rgb } = render(tris, width, yawQuarter);
-  const file = `${outDir}/L${level.index + 1}-${level.id}-r${yawQuarter}.png`;
+  const f = focus
+    ? { x: gridToWorldX(focus.col, level.cols), z: gridToWorldZ(focus.row, level.rows), half: focus.half }
+    : null;
+  const { w, h, rgb } = render(tris, width, yawQuarter, f);
+  const file = `${outDir}/L${level.index + 1}-${level.id}-r${yawQuarter}${focus ? '-focus' : ''}.png`;
   writeFileSync(file, encodePng(w, h, rgb));
   map.dispose();
   decor.dispose();
@@ -583,12 +609,14 @@ function main(): void {
   const outDir = process.argv[3] ?? '/tmp/skyhold-preview';
   const yawQuarter = Number(process.argv[4] ?? 0);
   const width = Number(process.argv[5] ?? 1400);
+  const fArg = process.argv[6]; // "col,row,halfWidthWorldUnits"
+  const focus = fArg ? (() => { const [c, r, h] = fArg.split(',').map(Number); return { col: c, row: r, half: h }; })() : null;
   mkdirSync(outDir, { recursive: true });
   const assets = makeAssets();
   const list = which === 'all' ? LEVELS : [LEVELS[Number(which) - 1]];
   for (const lvl of list) {
     const t0 = Date.now();
-    const f = previewLevel(lvl, outDir, yawQuarter, width, assets);
+    const f = previewLevel(lvl, outDir, yawQuarter, width, assets, focus);
     console.log(`${f} (${Date.now() - t0} ms)`);
   }
 }

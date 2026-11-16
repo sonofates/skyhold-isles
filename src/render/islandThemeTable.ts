@@ -44,6 +44,7 @@ const SUNLIT_MEADOW = theme({
 
 /** L2 — Twin-Bridge Cay: sun-bleached harbour cay with docks, boats and sandy shores. */
 const TWIN_BRIDGE_CAY = theme({
+  bridge: 'timber',
   grassTint: [1.0, 1.06, 0.96],
   ground: [
     { kind: 'sand', where: 'zone', zone: { col: 9, row: 1, radius: 1.5 } },
@@ -59,7 +60,7 @@ const TWIN_BRIDGE_CAY = theme({
   },
   trees: { density: 0.4, weights: { palm: 0.3, oak: 0.25, tree: 0.22, treeLarge: 0.23 } },
   details: { flowerMul: 0.8, pebbleMul: 1.3, shells: true },
-  ambient: { birds: 6, butterflies: 0, islets: 4, clouds: 5 },
+  ambient: { isletStyle: 'palm', birds: 6, butterflies: 0, islets: 4, clouds: 5 },
   setPieces: [
     { kind: 'dock', col: 9, row: 1, yaw: -Math.PI / 2, variant: 0 },
     { kind: 'dock', col: 9, row: 6, yaw: -Math.PI / 2, variant: 1 },
@@ -98,7 +99,7 @@ const HIGHLAND_CITADEL = theme({
       [0xbd82e1, 0xf8f4e8],
     ],
   },
-  ambient: { birds: 4, butterflies: 0, islets: 4, clouds: 6 },
+  ambient: { isletStyle: 'pine', birds: 4, butterflies: 0, islets: 4, clouds: 6 },
   setPieces: [
     { kind: 'watchtower', col: 7, row: 3, variant: 0 },
     { kind: 'banner', col: 5, row: 4, variant: 1 },
@@ -113,6 +114,7 @@ const HIGHLAND_CITADEL = theme({
 
 /** L4 — Emerald Stepping Stones: mossy emerald terraces studded with glowing crystal groves. */
 const EMERALD_STEPPING_STONES = theme({
+  bridge: 'rope',
   grassTint: [0.42, 1.02, 0.8],
   cliff: {
     stones: [0x7c9a96, 0x8bab9f],
@@ -131,7 +133,7 @@ const EMERALD_STEPPING_STONES = theme({
       [0x5be3ff, 0xf8f4e8],
     ],
   },
-  ambient: { birds: 2, butterflies: 8, islets: 5, clouds: 5 },
+  ambient: { isletStyle: 'crystal', birds: 2, butterflies: 8, islets: 5, clouds: 5 },
   setPieces: [
     { kind: 'crystalGrove', col: 11, row: 1, variant: 0 },
     { kind: 'crystalGrove', col: 11, row: 4, variant: 1 },
@@ -217,7 +219,7 @@ const CRESCENT_LAGOON = theme({
       [0xf6bd41, 0xe85d5d],
     ],
   },
-  ambient: { birds: 7, butterflies: 0, islets: 5, clouds: 5 },
+  ambient: { isletStyle: 'palm', birds: 7, butterflies: 0, islets: 5, clouds: 5 },
   setPieces: [
     { kind: 'lighthouse', col: 6, row: 6.2 },
     { kind: 'boat', col: 5, row: 7.6, variant: 0 },
@@ -232,6 +234,7 @@ const CRESCENT_LAGOON = theme({
 
 /** L7 — Skybridge Gauntlet: wind-scoured cliffside forts, stone bridges, dizzying drops. */
 const SKYBRIDGE_GAUNTLET = theme({
+  bridge: 'stone',
   pathStyle: 'stone',
   grassTint: [0.74, 0.94, 0.86],
   ground: [
@@ -248,7 +251,7 @@ const SKYBRIDGE_GAUNTLET = theme({
   trees: { density: 0.3, weights: { pine: 0.45, tree: 0.35, treeLarge: 0.2 } },
   decorBake: { rockChance: 0.5, shrubChance: 0.18, crystalChance: 0.08 },
   details: { flowerMul: 0.25, pebbleMul: 2.2, tuftMul: 0.7 },
-  ambient: { birds: 4, butterflies: 0, islets: 5, clouds: 7 },
+  ambient: { isletStyle: 'rock', birds: 4, butterflies: 0, islets: 5, clouds: 7 },
   setPieces: [
     { kind: 'watchtower', col: 6, row: 5, yaw: Math.PI / 2, variant: 0 },
     { kind: 'watchtower', col: 12, row: 4, yaw: -Math.PI / 2, variant: 1 },
@@ -291,7 +294,7 @@ const SUNKEN_BASTION = theme({
       [0xb7d4f6, 0xf8f4e8],
     ],
   },
-  ambient: { birds: 3, butterflies: 0, islets: 4, clouds: 6 },
+  ambient: { isletStyle: 'ruin', birds: 3, butterflies: 0, islets: 4, clouds: 6 },
   setPieces: [
     { kind: 'arch', col: 7.5, row: 3, variant: 3 },
     { kind: 'pillars', col: 4, row: 6.5, variant: 2 },
@@ -334,7 +337,7 @@ const GRAND_SKYHOLD = theme({
       [0xe85d5d, 0xf8f4e8],
     ],
   },
-  ambient: { birds: 5, butterflies: 0, islets: 6, clouds: 8 },
+  ambient: { isletStyle: 'ruin', birds: 5, butterflies: 0, islets: 6, clouds: 8 },
   setPieces: [
     { kind: 'watchtower', col: 7, row: 1, variant: 0 },
     { kind: 'watchtower', col: 15, row: 1, variant: 1 },
