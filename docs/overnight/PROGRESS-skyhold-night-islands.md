@@ -66,6 +66,13 @@ round except wave composition of a few waves, see below).
 9. Wave identity tweaks on top of names: L4 splitter-led (crystal shards), L5 grunt-heavier, L8 healer-heavier.
 10. `balanceSim --robust` prints greedy lives at HP x0.97/0.985/1/1.015/1.03 (informational knife-edge detector).
 
+11. Quality/readability: stone paths use the darker slate swatch (grey brutes and light units stay readable), tall
+    landmarks are kept out of the route's sight lines for all 4 camera quarter-turns (test), hillocks beside the
+    route are capped low, `low` graphics quality hides fliers / leaves / water props.
+12. Tests added: `tests/render/islandThemes.test.ts` (placement rules, draw-call budget < 40 for map+decor, finite
+    geometry, dispose, biome fallback), `tests/render/siteLines.test.ts`, `tests/sim/waveNames.test.ts`.
+13. Docs: `docs/island-themes.md` (theme authoring guide + preview workflow), README touch-ups.
+
 ## Audit (what was samey before)
 All 9 islands shared: one flat height, identical grass tint, same 3-tree mix on every `T` tile, same ambient
 (4 islets + 5 clouds), same goal sanctuary and spawn gate, same sky/water. Only the grid shape differed.
@@ -99,11 +106,13 @@ early waves does NOT soften them, it starves the economy (kill rewards) and the 
 - Islands without an authored theme get a deterministic biome preset derived from their id (no set pieces).
 
 ## Next (ideas, in rough priority)
-- Re-check greedy/weak stability at +-2% HP on the 9 islands (only cheap checks done so far).
-- More mid-run "moments" if the balance sim ever shows more than boss-wave leaks (the sim currently only leaks at
-  boss waves, so mid-run changes are balance-neutral).
-- Water details (lily pads / buoys), more set-piece variety on L1/L2, optional second cottage on L1.
-- Cloud variety, drifting islet bridges.
+- Re-verify everything after the lead merges the towers/enemies branches (see Merge notes).
+- Ground details that hide when a tower is built (bushes/ferns/mushrooms) to add forest feel without blocking tiles.
+- More authored moments: a sailing ship in the L6 lagoon, floating lanterns on L9, kites on L1, animated scarecrow.
+- If wave pacing is to be tuned further, do it together with kill rewards / clearBonus (see Pressure metric).
+- Layout/path changes were deliberately NOT attempted: every grid tweak invalidates both scripted build orders and
+  the knife-edge windows; the themes make the existing layouts read very differently already.
+- Optional: surface `WaveDef.name` in the wave preview / start toast (UI owner).
 
 ## Decisions
 - Themes live in render code keyed by level id, not in LevelDef (avoids merge conflicts with other branches).
