@@ -150,6 +150,7 @@ export class AmbientDiorama {
   private islets: IsletPlacement[] = [];
   private clouds: CloudPlacement[] = [];
   private leaves: Leaf[] = [];
+  private lowQuality = false;
 
   build(
     lagoonRadius: number,
@@ -339,7 +340,18 @@ export class AmbientDiorama {
     }
 
     for (const g of owned) g.dispose();
+    this.setQuality(this.lowQuality);
     this.update(0);
+  }
+
+  /** 'low' quality drops the purely decorative fliers/leaves (islets and clouds stay). */
+  setQuality(low: boolean): void {
+    this.lowQuality = low;
+    for (const s of this.swarms) {
+      s.left.visible = !low;
+      s.right.visible = !low;
+    }
+    if (this.leafMesh) this.leafMesh.visible = !low;
   }
 
   update(elapsedTime: number): void {
@@ -371,9 +383,11 @@ export class AmbientDiorama {
       this.cloudMesh.instanceMatrix.needsUpdate = true;
     }
 
-    for (let s = 0; s < this.swarms.length; s++) this.swarms[s].update(elapsedTime);
+    if (!this.lowQuality) {
+      for (let s = 0; s < this.swarms.length; s++) this.swarms[s].update(elapsedTime);
+    }
 
-    if (this.leafMesh) {
+    if (this.leafMesh && !this.lowQuality) {
       for (let i = 0; i < this.leaves.length; i++) {
         const l = this.leaves[i];
         const frac = (elapsedTime * l.fall + l.phase) % 1;

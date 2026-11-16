@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import type { QualityLevel } from '../core/types.ts';
 import { BALANCE } from '../data/balance.ts';
 import { lerpHexColor, PALETTE_HEX } from '../data/palette.ts';
 import { SeededRng } from '../core/rng.ts';
@@ -412,6 +413,7 @@ export class MapBuilder {
   readonly groundDetails = new GroundDetails();
   private readonly setPieces = new SetPieces();
   private readonly waterDetails = new WaterDetails();
+  private lowQuality = false;
   private disposableGeometries: THREE.BufferGeometry[] = [];
   private materialsRef: MaterialLibrary | null = null;
   private goalPos: THREE.Vector3 | null = null;
@@ -1074,6 +1076,7 @@ export class MapBuilder {
     this.groundDetails.build(level, materials);
     this.setPieces.build(level, materials, assets);
     this.waterDetails.build(level, materials, waterRadius);
+    this.waterDetails.group.visible = !this.lowQuality;
 
     if (this.goalPos) {
       // Crisp faceted cyan sanctuary crystal spire flanked by Kenney crystal shards & gold halo ring
@@ -1222,6 +1225,13 @@ export class MapBuilder {
     this.ambient.update(elapsedTime);
     this.setPieces.update(elapsedTime);
     this.waterDetails.update(elapsedTime);
+  }
+
+  /** 'low' quality hides the decorative extras (fliers, falling leaves, floating water props). */
+  setQuality(quality: QualityLevel): void {
+    this.lowQuality = quality === 'low';
+    this.ambient.setQuality(this.lowQuality);
+    this.waterDetails.group.visible = !this.lowQuality;
   }
 
   syncOccupiedTiles(towers: readonly TowerEntity[]): void {

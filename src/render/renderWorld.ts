@@ -247,6 +247,7 @@ export class RenderWorld {
     this.sceneManager.setQuality(quality);
     this.materials.setOutlineAlphaEnabled(quality !== 'low');
     this.decorBuilder.setQuality(quality);
+    this.mapBuilder.setQuality(quality);
   }
 
   resize(width: number, height: number): void {
