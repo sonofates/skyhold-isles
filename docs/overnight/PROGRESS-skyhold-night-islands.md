@@ -100,6 +100,11 @@ L5 Challenging 20! 18! 14  14  14
 ```
 Lives come in 5-life steps because a leaking boss costs 5, hence the cliffs.
 
+Experiments (round 1): L2 startingGold 260 -> 300 (kept): calmer first waves (peak progress 16/24% instead of 72/82%) and
+the greedy window now survives HP x1.0..x1.03 (15/14/14 lives; before 15/12/10!). Sweeping the L4 final-wave boss
+spacing showed the sim is not smooth at all (3, 6, 6.5, 7, 7.5, 8, 9 s give unrelated outcomes), so I stopped trying
+to widen plateaus by hand.
+
 ### Pressure metric (new)
 `npm run sim:balance -- --peaks` prints, per wave, the furthest path progress (%) any ground enemy reached in the
 greedy run (0 = dies at the spawn, 100 = leaked). This is the only continuous difficulty signal the sim gives
