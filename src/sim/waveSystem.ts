@@ -143,12 +143,17 @@ export function buildEndlessWaveDef(waveIndex: number, level: LevelDef): WaveDef
     });
   }
 
+  // Islands with extra spawn lanes: deal the groups round-robin across every lane.
+  const laneCount = 1 + (level.extraGroundPaths?.length ?? 0);
+  const lanedGroups =
+    laneCount > 1 ? groups.map((g, i) => ({ ...g, lane: (i + offset) % laneCount })) : groups;
+
   const lastStoryBonus = level.waves[level.waves.length - 1]?.clearBonus ?? 40;
   const clearBonus = Math.round(
     Math.max(40, lastStoryBonus * 0.75) + offset * 5 + ((offset + 1) % 5 === 0 ? 25 : 0),
   );
 
-  return { groups, clearBonus };
+  return { groups: lanedGroups, clearBonus };
 }
 
 function buildWaveQueueFromDef(wave: WaveDef): QueuedSpawn[] {

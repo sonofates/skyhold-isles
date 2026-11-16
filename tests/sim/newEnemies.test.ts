@@ -375,6 +375,17 @@ describe('endless spotlight variety', () => {
     expect(firstEliteOffset).toBe(3);
   });
 
+  it('deals endless groups across every spawn lane on multi-lane islands', () => {
+    const multi = LEVELS.find((l) => (l.extraGroundPaths?.length ?? 0) > 0)!;
+    expect(multi).toBeDefined();
+    const lanes = new Set<number>();
+    for (const g of buildEndlessWaveDef(multi.waves.length, multi).groups) lanes.add(g.lane ?? 0);
+    expect([...lanes].sort()).toEqual([0, 1]);
+    for (const g of buildEndlessWaveDef(LEVELS[0].waves.length, LEVELS[0]).groups) {
+      expect(g.lane ?? 0).toBe(0);
+    }
+  });
+
   it('every second endless boss wave is led by a Tempest Colossus', () => {
     const level = LEVELS[0];
     const at = (offset: number): Map<EnemyType, number> => {
