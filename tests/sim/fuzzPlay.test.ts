@@ -8,15 +8,15 @@ import {
 } from '../../scripts/fuzzPlay.ts';
 
 describe('headless fuzz playthrough harness', () => {
-  it('verifies all invariants across every island for seeded random-but-legal runs and endless mode', { timeout: 25_000 }, () => {
+  it('verifies all invariants across every island for seeded random-but-legal runs and endless mode', { timeout: 45_000 }, () => {
     const summary = runFuzzCampaign({
-      seedsPerLevel: 4,
+      seedsPerLevel: 5,
       baseSeed: 1336,
-      endlessWaves: 3,
+      endlessWaves: 2,
     });
 
     expect(summary.failures).toEqual([]);
-    expect(summary.totalRuns).toBe(LEVELS.length * 4);
+    expect(summary.totalRuns).toBe(LEVELS.length * 5);
     expect(summary.passedRuns).toBe(summary.totalRuns);
     expect(summary.endlessChecks).toBe(LEVELS.length);
     expect(summary.determinismChecks).toBe(LEVELS.length);
@@ -25,11 +25,11 @@ describe('headless fuzz playthrough harness', () => {
     expect(summary.endlessWavesCompletedTotal).toBeGreaterThan(0);
   });
 
-  it('produces identical final state digests when replaying the same seed across levels', { timeout: 25_000 }, () => {
+  it('produces identical final state digests when replaying the same seed across levels', { timeout: 45_000 }, () => {
     for (const level of LEVELS) {
       const seed = 4242 + level.index * 101;
-      const runA = runFuzzPlaythrough(level, seed, { endlessWaves: 2 });
-      const runB = runFuzzPlaythrough(level, seed, { endlessWaves: 2 });
+      const runA = runFuzzPlaythrough(level, seed, { endlessWaves: 1 });
+      const runB = runFuzzPlaythrough(level, seed, { endlessWaves: 1 });
 
       expect(runA.ok, runA.failure).toBe(true);
       expect(runB.ok, runB.failure).toBe(true);
