@@ -9,12 +9,14 @@ A low-poly isometric **floating island diorama** tower defense game built with *
   - Stepped terrain slabs, dirt rims, cliff strata & upside-down rocky spires, drifting satellite islets and clouds, animated GPU-wave lagoon water (`onBeforeCompile`), and deterministic seeded-RNG flora (`trees`, `rocks`, `bushes`, `flowers`, goal sanctuary crystal).
   - Central 10-color flat-shaded palette (`src/data/palette.ts`) shared consistently across 3D materials, sky gradient, fog, and UI theme.
 - **Tactical Gameplay (`src/sim/`, `src/data/`)**:
-  - **5 Modular Towers (3 visual + stat tiers each)**:
-    1. **Archer Tower (`1`)**: Rapid single-target arrows; hits ground & aerial units.
-    2. **Cannon (`2`)**: Parabolic artillery shells with area splash falloff (ground only).
-    3. **Frost Tower (`3`)**: Chilling bolts applying stack-capped slow and icy tint; hits ground & aerial units.
-    4. **Tesla Tower (`4`)**: Flickering chain lightning jumping across up to `N` nearby targets with damage falloff; hits ground & aerial units.
-    5. **Mortar (`5`)**: Long-range siege shells with high splash damage and a minimum range deadzone (ground only).
+  - **7 Modular Towers (3 visual + stat tiers each, each with a Tier III signature)**:
+    1. **Archer Tower (`1`)**: Rapid single-target arrows; hits ground & aerial units. *T3 Volley*: every 6th shot adds an extra arrow.
+    2. **Cannon (`2`)**: Parabolic artillery shells with area splash falloff (ground only). *T3 Cluster Shells*: bomblets scatter around the crater.
+    3. **Frost Tower (`3`)**: Chilling bolts applying stack-capped slow and icy tint; hits ground & aerial units. *T3 Brittle*: chilled enemies take bonus frost damage.
+    4. **Tesla Tower (`4`)**: Flickering chain lightning jumping across up to `N` nearby targets with damage falloff; hits ground & aerial units. *T3 Overload*: every 6th discharge hits harder and jumps further.
+    5. **Mortar (`5`)**: Long-range siege shells with high splash damage and a minimum range deadzone (ground only). *T3 Incendiary*: leaves armor-ignoring burning ground.
+    6. **Skypiercer Ballista (`6`)**: Slow, very long-range bolts that pierce armor (flat, per tier); T2+ bolts run through enemies lined up behind the target (ground & air).
+    7. **Windcaller Beacon (`7`)**: Never attacks; speeds up the fire rate of towers inside its aura (best bonus wins, no stacking; boss jams switch it off). T3 also adds range.
   - Per-tower **First / Last / Strongest / Closest** targeting modes, upgrade stat diffs, and 70% sell refunds.
   - **7 Enemy Archetypes**: Raider Grunt, Zephyr Runner, Iron Brute (flat armor damage reduction), Sky Skimmer (dedicated `flightPath` aerial lane), Grove Mender (periodic AoE heal pulse), Cinder Splitling (splits into two fast hatchlings on death), and the Skyhold Dreadnought Boss (summons escorts, pulses to jam nearby towers).
   - **9 Islands**: *Sunlit Meadow*, *Crescent Lagoon*, *Twin-Bridge Cay*, *Sunken Bastion*, *Highland Citadel*, *Grand Skyhold*, *Emerald Stepping Stones*, *Skybridge Gauntlet*, and *Windmill Switchback* — star ratings (1–3★), unlock progression persisted in `localStorage`, wave composition previews, and early-call gold bonuses.
@@ -33,7 +35,7 @@ A low-poly isometric **floating island diorama** tower defense game built with *
 - **Pan Camera**: Left/Middle mouse drag, or `WASD` / Arrow keys
 - **Zoom**: Mouse wheel (zooms toward cursor)
 - **Rotate 90°**: `Q` / `E` or HUD rotation arrows
-- **Build Tower**: Click bottom bar card or press `1`–`5`, then click a valid grass tile
+- **Build Tower**: Click bottom bar card or press `1`–`7`, then click a valid grass tile
 - **Cancel / Deselect / Pause**: Right-click or `Esc`
 - **Pause / Speed**: `Space` (toggle pause) or HUD speed buttons (`1x`, `2x`, `3x`)
 - **Selected Tower**: `U` upgrade, `T` cycle targeting, `Delete` / `Backspace` sell (press twice to confirm)
