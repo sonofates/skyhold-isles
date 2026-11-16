@@ -88,6 +88,16 @@ greedy run has to leak "exactly one boss" to be in window, so +-2% HP flips most
 retune just moves the cliff). Suggestion for the lead: judge windows on min/median over +-2% neighbours (use
 `npm run sim:balance -- --robust`) or make the boss leak cost less of a cliff.
 
+Current `--robust` table (greedy lives at enemy HP x0.97 / 0.985 / 1.0 / 1.015 / 1.03, `!` = outside window):
+```
+L1 Breezy      20  20  20  20  13!      L6 Heroic      18! 18! 13  10  6!
+L2 Challenging 20! 15  15  12  10!      L7 Heroic      4!  10  10  10  8
+L3 Heroic      15! 15! 9   10  5!       L8 Master      9   7   7   8   10
+L4 Challenging 20! 20! 15  14  6!       L9 Master      13! 9   9   9   4!
+L5 Challenging 20! 18! 14  14  14
+```
+Lives come in 5-life steps because a leaking boss costs 5, hence the cliffs.
+
 ### Pressure metric (new)
 `npm run sim:balance -- --peaks` prints, per wave, the furthest path progress (%) any ground enemy reached in the
 greedy run (0 = dies at the spawn, 100 = leaked). This is the only continuous difficulty signal the sim gives
