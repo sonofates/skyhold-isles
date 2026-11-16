@@ -236,9 +236,40 @@ function printResult(lvlIdx: number, res: SimRunResult, difficulty: string): voi
 
 console.log('=== Skyhold Isles Headless Balance Simulator (60 Hz Human-Paced) ===\n');
 
+// Optional filter for quicker iteration, e.g. `LEVELS=3,6 npm run sim:balance`.
+const levelFilter = process.env.LEVELS
+  ? new Set(process.env.LEVELS.split(',').map((x) => Number(x.trim()) - 1))
+  : null;
+
+/** Greedy (competent build script) lives-left window per difficulty label. */
+const GREEDY_LIVES: Record<LevelDef['difficulty'], readonly [number, number]> = {
+  Breezy: [18, 20],
+  Challenging: [12, 16],
+  Heroic: [8, 13],
+  Master: [5, 10],
+};
+/** Max share of lives lost to flyers in a greedy run / a lost weak run. */
+const MAX_FLYER_SHARE_GREEDY = 0.55;
+const MAX_FLYER_SHARE_WEAK_LOSS = 0.7;
+
+function livesLostTotals(res: SimRunResult): { total: number; flyers: number; byType: Partial<Record<EnemyType, number>> } {
+  const byType: Partial<Record<EnemyType, number>> = {};
+  let total = 0;
+  for (const w of res.waves) {
+    total += w.livesLost;
+    for (const [k, v] of Object.entries(w.leaksByType)) {
+      byType[k as EnemyType] = (byType[k as EnemyType] ?? 0) + (v ?? 0);
+    }
+  }
+  const flyers = byType.flyer ?? 0;
+  return { total, flyers, byType };
+}
+
 const failures: string[] = [];
+const summary: string[] = [];
 
 for (let i = 0; i < LEVELS.length; i++) {
+  if (levelFilter && !levelFilter.has(i)) continue;
   const level = LEVELS[i];
   const greedyRes = runLevelBalanceSim(level, 'greedy', level.scriptedBuildOrder ?? []);
   printResult(i, greedyRes, level.difficulty);
@@ -247,8 +278,31 @@ for (let i = 0; i < LEVELS.length; i++) {
   printResult(i, weakRes, level.difficulty);
   console.log('');
 
+  const gT = livesLostTotals(greedyRes);
+  const wT = livesLostTotals(weakRes);
+  const fmt = (t: ReturnType<typeof livesLostTotals>): string =>
+    Object.entries(t.byType)
+      .map(([k, v]) => `${k}:${v}`)
+      .join(' ') || '-';
+  summary.push(
+    `L${i + 1} ${level.difficulty.padEnd(11)} greedy ${greedyRes.outcome === 'won' ? 'W' : greedyRes.outcome === 'lost' ? 'L' : '?'} ` +
+      `${String(greedyRes.finalLives).padStart(2)}L ${greedyRes.stars}* leaks[${fmt(gT)}] | ` +
+      `weak ${weakRes.outcome === 'won' ? 'W' : weakRes.outcome === 'lost' ? 'L' : '?'} ` +
+      `${String(weakRes.finalLives).padStart(2)}L ${weakRes.stars}* (reached wave ${weakRes.waves.length}/${level.waves.length}) leaks[${fmt(wT)}]`,
+  );
+
   if (greedyRes.outcome !== 'won') {
     failures.push(`L${i + 1} greedy did not win`);
+  }
+  const [gMin, gMax] = GREEDY_LIVES[level.difficulty];
+  if (greedyRes.finalLives < gMin || greedyRes.finalLives > gMax) {
+    failures.push(`L${i + 1} greedy lives ${greedyRes.finalLives} outside ${level.difficulty} window ${gMin}-${gMax}`);
+  }
+  if (gT.total >= 4 && gT.flyers / gT.total > MAX_FLYER_SHARE_GREEDY) {
+    failures.push(`L${i + 1} greedy flyer leaks dominate (${gT.flyers}/${gT.total} lives)`);
+  }
+  if (weakRes.outcome === 'lost' && wT.total >= 4 && wT.flyers / wT.total > MAX_FLYER_SHARE_WEAK_LOSS) {
+    failures.push(`L${i + 1} weak loss dominated by flyers (${wT.flyers}/${wT.total} lives)`);
   }
   if (greedyRes.endGoldPctOfEarned >= 15) {
     failures.push(`L${i + 1} greedy end gold ${greedyRes.endGoldPctOfEarned.toFixed(1)}% >= 15%`);
@@ -281,8 +335,12 @@ for (let i = 0; i < LEVELS.length; i++) {
     failures.push(`L${i + 1} greedy got ${greedyRes.stars} stars (expected 1-2)`);
   }
 
-  if (level.difficulty === 'Breezy' && weakRes.outcome !== 'won') {
-    failures.push(`L${i + 1} weak must still be winnable`);
+  if (level.difficulty === 'Breezy') {
+    if (weakRes.outcome !== 'won') {
+      failures.push(`L${i + 1} weak must still be winnable`);
+    } else if (weakRes.stars === 3) {
+      failures.push(`L${i + 1} weak won with 3 stars (${weakRes.finalLives} lives); expected 1-2 stars`);
+    }
   }
   if (level.difficulty === 'Challenging') {
     if (weakRes.outcome === 'won' && weakRes.finalLives > 8) {
@@ -297,10 +355,13 @@ for (let i = 0; i < LEVELS.length; i++) {
   }
 }
 
+console.log('=== Summary (lives left / stars / leaks by type over the whole run) ===');
+for (const line of summary) console.log(line);
+console.log('');
+
 if (failures.length > 0) {
   console.error('Balance check FAILED:');
   for (const f of failures) console.error(' - ' + f);
   process.exit(1);
 }
-console.log(`Balance check PASSED: Greedy & Weak targets met across all ${LEVELS.length} levels!`);
-
+console.log(`Balance check PASSED: Greedy & Weak targets met across ${summary.length} level(s)!`);

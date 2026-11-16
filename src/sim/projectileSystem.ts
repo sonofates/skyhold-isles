@@ -4,9 +4,24 @@ import type { TowerType } from '../core/types.ts';
 import { TOWER_DEFS, getTowerTierStats } from '../data/towers.ts';
 import type { EnemyEntity, ProjectileEntity, TowerEntity } from './entities.ts';
 import type { EnemySystem } from './enemySystem.ts';
+import type { CompiledPath } from './path.ts';
 import type { SpatialHashGrid } from './spatialHash.ts';
 
 const _splashCandidates: number[] = [];
+const _leadVec = { x: 0, y: 0, z: 0 };
+
+/**
+ * EnemySystem keeps its compiled paths private (and is out of scope for balance
+ * changes), so the aiming code reads them through a structural view.
+ */
+interface EnemyPathView {
+  readonly groundPath: CompiledPath;
+  readonly flightPath: CompiledPath;
+}
+
+/** Fraction of full target lead applied to parabolic shells (1 = perfect aim). */
+const SHELL_LEAD_FACTOR = 0.8;
+const SHELL_LEAD_ITERATIONS = 5;
 
 export class ProjectileSystem {
   private readonly projectilePool: ObjectPool<ProjectileEntity>;
@@ -42,9 +57,17 @@ export class ProjectileSystem {
     const sx = tower.x;
     const sy = def.turretHeight + 0.15;
     const sz = tower.z;
-    const tx = target.x;
+    let tx = target.x;
     const ty = target.y + target.height * 0.55;
-    const tz = target.z;
+    let tz = target.z;
+    const parabolic = stats.parabolicArcHeight > 0;
+    if (parabolic) {
+      // Lead the target along its waypoint path so lobbed shells land where it
+      // will be at impact time instead of where it was when the shell left.
+      const lead = this.predictImpactPoint(target, sx, sz, Math.max(1, stats.projectileSpeed));
+      tx = lead.x;
+      tz = lead.z;
+    }
     const dist = Math.hypot(tx - sx, tz - sz);
 
     p.towerType = tower.type;
@@ -56,7 +79,7 @@ export class ProjectileSystem {
     p.splashFalloffMin = splashFalloffMin;
     p.slowRatio = stats.slowRatio;
     p.slowDuration = stats.slowDuration;
-    p.parabolic = stats.parabolicArcHeight > 0;
+    p.parabolic = parabolic;
     p.arcHeight = stats.parabolicArcHeight;
     p.speed = Math.max(1, stats.projectileSpeed);
 
@@ -79,6 +102,35 @@ export class ProjectileSystem {
     p.prevYaw = p.yaw;
 
     return p;
+  }
+
+  /**
+   * Fixed-point iteration: flight time depends on where the shell lands, which
+   * depends on flight time. Converges in a few steps since enemy speed << shell
+   * speed. Uses the enemy's current (slowed) speed; later slows cause small misses.
+   */
+  private predictImpactPoint(
+    target: EnemyEntity,
+    sx: number,
+    sz: number,
+    shellSpeed: number,
+  ): { x: number; z: number } {
+    const paths = this.enemySystem as unknown as EnemyPathView;
+    const path = target.flying ? paths.flightPath : paths.groundPath;
+    if (!path) return { x: target.x, z: target.z };
+
+    const effSpeed = target.speed * (1 - target.slowRatio);
+    let t = Math.max(0.06, Math.hypot(target.x - sx, target.z - sz) / shellSpeed);
+    let px = target.x;
+    let pz = target.z;
+    for (let i = 0; i < SHELL_LEAD_ITERATIONS; i++) {
+      const d = Math.min(target.totalDist, target.dist + effSpeed * t * SHELL_LEAD_FACTOR);
+      path.sample(d, _leadVec);
+      px = _leadVec.x;
+      pz = _leadVec.z;
+      t = Math.max(0.06, Math.hypot(px - sx, pz - sz) / shellSpeed);
+    }
+    return { x: px, z: pz };
   }
 
   update(dt: number, towers: readonly TowerEntity[]): void {
