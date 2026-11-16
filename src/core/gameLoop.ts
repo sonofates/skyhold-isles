@@ -22,7 +22,8 @@ export class FixedTimestepStepper {
     rawDt: number,
     onFixedTick: (fixedDt: number) => void,
   ): { alpha: number; elapsedVisualTime: number; ticksExecuted: number } {
-    const clampedDt = Math.min(Math.max(0, rawDt), BALANCE.maxFrameDt);
+    const safeDt = Number.isNaN(rawDt) ? 0 : rawDt;
+    const clampedDt = Math.min(Math.max(0, safeDt), BALANCE.maxFrameDt);
     this.elapsedVisualTime += clampedDt;
 
     let ticksExecuted = 0;

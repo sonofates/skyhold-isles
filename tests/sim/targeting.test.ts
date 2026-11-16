@@ -149,6 +149,91 @@ describe('targeting modes', () => {
       expect([e1.uid, e2.uid]).toContain(target!.uid);
     }
   });
+
+  it('handles normalized progress ties across ground vs flying lanes and Euclidean distance ties deterministically', () => {
+    const world = makeWorld();
+    const archer = world.placeTower(7, 5, 'archer')!;
+    const stats = getTowerTierStats('archer', 1);
+
+    // Identical normalized ratio (0.5) on distinct lane lengths (ground vs flight)
+    const ground = world.enemySystem.spawnEnemy('grunt')!;
+    const flyer = world.enemySystem.spawnEnemy('flyer')!;
+    ground.dist = ground.totalDist * 0.5;
+    flyer.dist = flyer.totalDist * 0.5;
+    // Also place at identical Euclidean distance (3,4) vs (5,0) => d = 5.0
+    ground.x = archer.x + 3.0;
+    ground.z = archer.z + 4.0;
+    flyer.x = archer.x + 5.0;
+    flyer.z = archer.z;
+
+    const insertOrderA = (): void => {
+      world.spatialHash.clear();
+      world.spatialHash.insert(ground.poolIndex, ground.x, ground.z);
+      world.spatialHash.insert(flyer.poolIndex, flyer.x, flyer.z);
+    };
+    const insertOrderB = (): void => {
+      world.spatialHash.clear();
+      world.spatialHash.insert(flyer.poolIndex, flyer.x, flyer.z);
+      world.spatialHash.insert(ground.poolIndex, ground.x, ground.z);
+    };
+
+    for (const mode of ['first', 'last', 'closest'] as const) {
+      archer.targetingMode = mode;
+      insertOrderA();
+      const pickA1 = acquireTarget(archer, stats, world.enemyPool, world.spatialHash)?.uid;
+      const pickA2 = acquireTarget(archer, stats, world.enemyPool, world.spatialHash)?.uid;
+      expect(pickA1).toBe(pickA2);
+      expect([ground.uid, flyer.uid]).toContain(pickA1);
+
+      insertOrderB();
+      const pickB = acquireTarget(archer, stats, world.enemyPool, world.spatialHash)?.uid;
+      expect([ground.uid, flyer.uid]).toContain(pickB);
+    }
+
+    // Equal HP tie on strongest: higher dist (ground, since groundPath > flightPath) always wins regardless of insertion order
+    ground.hp = 100;
+    flyer.hp = 100;
+    archer.targetingMode = 'strongest';
+    insertOrderA();
+    expect(acquireTarget(archer, stats, world.enemyPool, world.spatialHash)?.uid).toBe(ground.uid);
+    insertOrderB();
+    expect(acquireTarget(archer, stats, world.enemyPool, world.spatialHash)?.uid).toBe(ground.uid);
+  });
+
+  it('includes targets on exact range and minRange boundaries and supports SimWorld.setTowerTargeting', () => {
+    const world = makeWorld();
+    const mortar = world.placeTower(7, 5, 'mortar')!;
+    const stats = getTowerTierStats('mortar', 1);
+
+    const onMin = world.enemySystem.spawnEnemy('grunt')!;
+    onMin.x = mortar.x + stats.minRange;
+    onMin.z = mortar.z;
+    onMin.dist = 10;
+
+    const onMax = world.enemySystem.spawnEnemy('grunt')!;
+    onMax.x = mortar.x + stats.range;
+    onMax.z = mortar.z;
+    onMax.dist = 20;
+
+    const outsideMax = world.enemySystem.spawnEnemy('grunt')!;
+    outsideMax.x = mortar.x + stats.range + 1e-4;
+    outsideMax.z = mortar.z;
+    outsideMax.dist = 99;
+
+    world.spatialHash.clear();
+    world.spatialHash.insert(onMin.poolIndex, onMin.x, onMin.z);
+    world.spatialHash.insert(onMax.poolIndex, onMax.x, onMax.z);
+    world.spatialHash.insert(outsideMax.poolIndex, outsideMax.x, outsideMax.z);
+
+    world.setTowerTargeting(mortar.id, 'first');
+    expect(acquireTarget(mortar, stats, world.enemyPool, world.spatialHash)?.uid).toBe(onMax.uid);
+
+    world.setTowerTargeting(mortar.id, 'closest');
+    expect(acquireTarget(mortar, stats, world.enemyPool, world.spatialHash)?.uid).toBe(onMin.uid);
+
+    // Invalid tower id is a safe no-op
+    expect(() => world.setTowerTargeting(99999, 'last')).not.toThrow();
+  });
 });
 
 describe('mortar min range', () => {
