@@ -632,6 +632,39 @@ const THEME_TABLE: Readonly<Record<string, IslandTheme>> = {
   'stormcrown-citadel': STORMCROWN_CITADEL,
 };
 
+/** Biome presets reused (without level-specific coordinates) for islands that have no authored theme yet. */
+const FALLBACK_BIOMES: readonly IslandTheme[] = [
+  SUNLIT_MEADOW,
+  HIGHLAND_CITADEL,
+  EMERALD_STEPPING_STONES,
+  WINDMILL_SWITCHBACK,
+  CRESCENT_LAGOON,
+  SUNKEN_BASTION,
+  GRAND_SKYHOLD,
+].map((t) => ({ ...t, setPieces: [], ground: [], grassZones: [] }));
+
+const derivedCache = new Map<string, IslandTheme>();
+
+function hashString(id: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < id.length; i++) {
+    h ^= id.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+
+/**
+ * Authored theme for the island, or (for ids without one, e.g. levels added later) a deterministic biome preset
+ * derived from the id so new islands still get their own palette, trees, sky and ambient life.
+ */
 export function getIslandTheme(levelId: string): IslandTheme {
-  return THEME_TABLE[levelId] ?? DEFAULT_THEME;
+  const authored = THEME_TABLE[levelId];
+  if (authored) return authored;
+  let derived = derivedCache.get(levelId);
+  if (!derived) {
+    derived = FALLBACK_BIOMES[hashString(levelId) % FALLBACK_BIOMES.length];
+    derivedCache.set(levelId, derived);
+  }
+  return derived;
 }

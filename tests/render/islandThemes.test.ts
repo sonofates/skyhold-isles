@@ -93,3 +93,14 @@ describe('island themes', () => {
     });
   }
 });
+
+describe('theme fallback', () => {
+  it('derives a deterministic position-free biome for levels without an authored theme', () => {
+    const a = getIslandTheme('brand-new-island');
+    const b = getIslandTheme('brand-new-island');
+    expect(a).toBe(b);
+    expect(a.setPieces).toHaveLength(0);
+    expect(a.ground).toHaveLength(0);
+    expect(a.grassZones).toHaveLength(0);
+  });
+});
