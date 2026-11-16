@@ -1,3 +1,5 @@
+import { readFileSync, statSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { ABILITY_DEFS, ABILITY_IDS, computeMeteorDamage } from '../../src/data/abilities.ts';
 import { BALANCE } from '../../src/data/balance.ts';
@@ -13,6 +15,7 @@ import {
   type PaletteKey,
 } from '../../src/data/palette.ts';
 import { getTowerTierStats, TOWER_DEFS, TOWER_TYPES } from '../../src/data/towers.ts';
+import { KENNEY_MODEL_LIST } from '../../src/render/kenneyAssets.ts';
 import { getTowerPickBounds, TOWER_PICK_BOUNDS } from '../../src/render/towerPicking.ts';
 import { CompiledPath } from '../../src/sim/path.ts';
 import { ENEMY_BADGE_META, TOWER_ICON_SVGS, UI_ICON_SVGS } from '../../src/ui/icons.ts';
@@ -177,6 +180,12 @@ describe('level data, flight paths, waves, and scripted build orders', () => {
 
       // Scripted build orders (greedy + weak) must build once per grass tile and upgrade <= tier 3
       const grid = parseLevelGrid(lvl);
+      const grassCount = grid.reduce(
+        (acc, row) => acc + row.filter((cell) => cell === 'grass').length,
+        0,
+      );
+      expect(grassCount).toBeGreaterThan(0);
+
       for (const order of [lvl.scriptedBuildOrder ?? [], lvl.weakBuildOrder ?? []]) {
         const tiersByTile = new Map<string, number>();
         for (const act of order) {
@@ -196,6 +205,37 @@ describe('level data, flight paths, waves, and scripted build orders', () => {
           }
         }
       }
+    }
+  });
+});
+
+describe('BALANCE constants and Kenney public asset contracts', () => {
+  it('enforces valid simulation, economy, and pool constants in BALANCE', () => {
+    expect(BALANCE.fixedDt).toBeCloseTo(1 / 60, 10);
+    expect(BALANCE.sellRefundRatio).toBeGreaterThan(0);
+    expect(BALANCE.sellRefundRatio).toBeLessThanOrEqual(1);
+    expect(BALANCE.starThresholds.twoStarsMinLives).toBeGreaterThan(0);
+    expect(BALANCE.starThresholds.threeStarsMinLives).toBeGreaterThan(
+      BALANCE.starThresholds.twoStarsMinLives,
+    );
+    expect(BALANCE.starThresholds.threeStarsMinLives).toBeLessThanOrEqual(BALANCE.startingLives);
+    expect(BALANCE.maxSlowRatio).toBeGreaterThan(0);
+    expect(BALANCE.maxSlowRatio).toBeLessThan(1);
+    expect(BALANCE.pools.maxEnemies).toBeGreaterThan(0);
+    expect(BALANCE.pools.maxProjectiles).toBeGreaterThan(0);
+    expect(BALANCE.pools.maxFloatingTexts).toBeGreaterThan(0);
+  });
+
+  it('verifies every KENNEY_MODEL_LIST GLB and colormap texture exists on disk with valid magic header', () => {
+    const kenneyRoot = resolve(process.cwd(), 'public/models/kenney');
+    const colormapStat = statSync(resolve(kenneyRoot, 'Textures/colormap.png'));
+    expect(colormapStat.size).toBeGreaterThan(100);
+
+    for (const modelName of KENNEY_MODEL_LIST) {
+      const filePath = resolve(kenneyRoot, `${modelName}.glb`);
+      const buf = readFileSync(filePath);
+      expect(buf.length, `${modelName}.glb empty`).toBeGreaterThan(12);
+      expect(buf.subarray(0, 4).toString('ascii'), `${modelName}.glb invalid GLB header`).toBe('glTF');
     }
   });
 });
