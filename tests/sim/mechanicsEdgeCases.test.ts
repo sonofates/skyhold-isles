@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { EventBus } from '../../src/core/eventBus.ts';
 import { BALANCE } from '../../src/data/balance.ts';
+import { ENEMY_DEFS } from '../../src/data/enemies.ts';
 import { LEVELS, type LevelDef } from '../../src/data/levels/index.ts';
 import { getTowerTierStats } from '../../src/data/towers.ts';
 import { CompiledPath } from '../../src/sim/path.ts';
@@ -345,6 +346,160 @@ describe('wave preview, empty wave, leak clamping, and beveled path edge cases',
     expect(tightZigZag.points.length).toBe(8);
     for (let i = 1; i < tightZigZag.points.length; i++) {
       expect(tightZigZag.points[i].cumDist).toBeGreaterThan(tightZigZag.points[i - 1].cumDist);
+    }
+  });
+});
+
+describe('overlapping waves, dead-target projectiles, boss tie-break, and healer/splitter interactions', () => {
+  it('accumulates clearBonus across waves when early-calling during clearing', () => {
+    const twoWaveLevel: LevelDef = {
+      ...LEVELS[0],
+      waves: [
+        {
+          clearBonus: 30,
+          groups: [{ enemyType: 'grunt', count: 1, spawnInterval: 0.5, startDelay: 0 }],
+        },
+        {
+          clearBonus: 45,
+          groups: [{ enemyType: 'grunt', count: 1, spawnInterval: 0.5, startDelay: 0 }],
+        },
+        {
+          clearBonus: 50,
+          groups: [{ enemyType: 'grunt', count: 1, spawnInterval: 0.5, startDelay: 0 }],
+        },
+      ],
+    };
+
+    const events = new EventBus();
+    const world = new SimWorld(twoWaveLevel, events);
+    const completed: Array<{ waveIndex: number; bonus: number }> = [];
+    events.on('waveCompleted', (ev) => completed.push(ev));
+
+    const startGold = world.gold;
+    world.startNextWave();
+    // Tick once -> wave 1 spawns 1 grunt and transitions to 'clearing' with pendingClearBonus = 30
+    world.fixedTick(BALANCE.fixedDt);
+    expect(world.waveSystem.state).toBe('clearing');
+    expect(world.waveSystem.pendingClearBonus).toBe(30);
+
+    // Early-call wave 2 while wave 1 grunt is still alive -> awards early bonus (30g)
+    const earlyBonus = world.waveSystem.getEarlyCallBonus();
+    expect(earlyBonus).toBe(BALANCE.earlyWaveBonusMaxGold);
+    expect(world.startNextWave()).toBe(true);
+    world.fixedTick(BALANCE.fixedDt); // wave 2 spawns and transitions to 'clearing'
+    expect(world.waveSystem.pendingClearBonus).toBe(75); // 30 + 45
+
+    // Kill both active grunts -> awards combined 75g clear bonus + their kill gold
+    let killRewards = 0;
+    for (let i = world.enemyPool.getActiveCount() - 1; i >= 0; i--) {
+      const e = world.enemyPool.items[world.enemyPool.getActiveIndex(i)];
+      killRewards += e.reward;
+      world.enemySystem.applyDamage(e, 9999, true);
+    }
+    world.fixedTick(BALANCE.fixedDt);
+    expect(world.waveSystem.pendingClearBonus).toBe(0);
+    expect(completed).toEqual([{ waveIndex: 1, bonus: 75 }]);
+    expect(world.gold).toBe(startGold + earlyBonus + killRewards + 75);
+  });
+
+  it('still splashes neighbors if splash target dies mid-flight, while single-target arrows fizzle', () => {
+    const { world } = makeWorld();
+    const cannon = world.placeTower(4, 3, 'cannon')!;
+    const archer = world.placeTower(4, 2, 'archer')!;
+    const cannonStats = getTowerTierStats('cannon', 1);
+
+    const deadTarget = world.enemySystem.spawnEnemy('grunt')!;
+    deadTarget.x = cannon.x + 2.0;
+    deadTarget.z = cannon.z;
+
+    const bystander = world.enemySystem.spawnEnemy('grunt')!;
+    bystander.x = deadTarget.x + 0.5;
+    bystander.z = deadTarget.z;
+    const bystanderHpBefore = bystander.hp;
+
+    const shell = world.projectileSystem.spawnProjectile(cannon, deadTarget, cannonStats.splashFalloffMin)!;
+    shell.progress = 0.99;
+
+    const arrow = world.projectileSystem.spawnProjectile(archer, deadTarget, 1)!;
+    arrow.progress = 0.99;
+
+    // Kill primary target before impact tick
+    deadTarget.hp = 0;
+    world.spatialHash.clear();
+    world.spatialHash.insert(bystander.poolIndex, bystander.x, bystander.z);
+
+    world.projectileSystem.update(0.1, [cannon, archer]);
+    expect(bystander.hp).toBeLessThan(bystanderHpBefore);
+    expect(archer.totalDamageDealt).toBe(0);
+    expect(cannon.totalDamageDealt).toBeGreaterThan(0);
+  });
+
+  it('breaks equidistant boss pulse ties by lowest tower id, clamps spawn escorts >= 0, heals wounded healer/flyer, and clears slow on split children', () => {
+    const { world, events } = makeWorld();
+
+    // Boss at dist = 0.25 with <= 50% HP clamps escort dist >= 0 and breaks equidistant tower ties by lower id
+    const boss = world.enemySystem.spawnEnemy('boss')!;
+    boss.dist = 0.25;
+    boss.hp = Math.floor(boss.maxHp * 0.45);
+    boss.bossPulseTimer = 0.01;
+
+    const t1 = world.placeTower(4, 2, 'archer')!;
+    const t2 = world.placeTower(4, 3, 'archer')!;
+    const t3 = world.placeTower(5, 5, 'archer')!;
+
+    // Update once to sync boss.x/z on path, then freeze boss & park all 3 towers at identical distance 3.0
+    world.enemySystem.update(BALANCE.fixedDt, () => {}, () => {}, undefined, 1);
+    boss.speed = 0;
+    (t1 as { x: number; z: number }).x = boss.x + 3.0;
+    (t1 as { x: number; z: number }).z = boss.z;
+    (t2 as { x: number; z: number }).x = boss.x - 3.0;
+    (t2 as { x: number; z: number }).z = boss.z;
+    (t3 as { x: number; z: number }).x = boss.x;
+    (t3 as { x: number; z: number }).z = boss.z + 3.0;
+
+    // Escorts spawned clamped to dist >= 0
+    for (let i = 0; i < world.enemyPool.getActiveCount(); i++) {
+      const e = world.enemyPool.items[world.enemyPool.getActiveIndex(i)];
+      expect(e.dist).toBeGreaterThanOrEqual(0);
+    }
+
+    const pulseIds: number[][] = [];
+    events.on('bossPulse', (ev) => pulseIds.push([...ev.stunnedTowerIds]));
+    boss.bossPulseTimer = 0.01;
+    world.enemySystem.update(0.02, () => {}, () => {}, [t3, t2, t1], 1);
+    // Even though t3 appeared first in array, tie-breaker picks lowest IDs (t1.id, t2.id)
+    expect(pulseIds).toEqual([[t1.id, t2.id]]);
+
+    // Healer self-heal when wounded (and unaffected flyer outside radius vs healed within radius when stationary)
+    world.enemyPool.clear();
+    const healer = world.enemySystem.spawnEnemy('healer')!;
+    healer.hp = 50;
+    healer.healTimer = 0.01;
+    const flyer = world.enemySystem.spawnEnemy('flyer')!;
+    flyer.hp = 10;
+    // Level 1 ground spawn (0, 2) and flight spawn (0, 2) start at the exact same XZ tile
+    healer.speed = 0;
+    flyer.speed = 0;
+    const healerHpBefore = healer.hp;
+    const flyerHpBefore = flyer.hp;
+    world.enemySystem.update(0.02, () => {}, () => {});
+    const healAmt = ENEMY_DEFS.healer.healAmount ?? 22;
+    expect(healer.hp).toBe(Math.min(healer.maxHp, healerHpBefore + healAmt));
+    expect(flyer.hp).toBe(Math.min(flyer.maxHp, flyerHpBefore + healAmt));
+
+    // Slowed splitter produces un-slowed split children
+    world.enemyPool.clear();
+    const splitter = world.enemySystem.spawnEnemy('splitter')!;
+    splitter.dist = 5;
+    world.enemySystem.applySlow(splitter, 0.4, 2.0);
+    expect(splitter.slowRatio).toBeCloseTo(0.4, 5);
+    world.enemySystem.applyDamage(splitter, 9999, true);
+    world.enemySystem.update(BALANCE.fixedDt, () => {}, () => {});
+    expect(world.enemyPool.getActiveCount()).toBe(2);
+    for (let i = 0; i < 2; i++) {
+      const child = world.enemyPool.items[world.enemyPool.getActiveIndex(i)];
+      expect(child.slowRatio).toBe(0);
+      expect(child.slowTimer).toBe(0);
     }
   });
 });
