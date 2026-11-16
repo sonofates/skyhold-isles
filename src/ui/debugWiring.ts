@@ -74,19 +74,35 @@ export function createDebugPanelIfEnabled(
       },
       getTelemetry: () => {
         const sim = ctx.getSimWorld();
-        const m = ctx.renderWorld.getRenderMetrics();
-        const mem = ctx.renderWorld.getMemoryStats();
         const perf = ctx.renderWorld.sceneManager.getPerfSnapshot();
+        const mem = ctx.renderWorld.getMemoryStats();
         const pacing = ctx.getPacingInfo?.();
+        let drawCalls: number;
+        let drawsWithShadows: number;
+        let drawsNoShadows: number;
+        let triangles: number;
+        if (mode === 'perf') {
+          const info = ctx.renderWorld.sceneManager.renderer.info.render;
+          drawCalls = info.calls;
+          drawsWithShadows = info.calls;
+          drawsNoShadows = info.calls;
+          triangles = info.triangles;
+        } else {
+          const m = ctx.renderWorld.getRenderMetrics();
+          drawCalls = m.drawCalls;
+          drawsWithShadows = m.drawsWithShadows;
+          drawsNoShadows = m.drawsNoShadows;
+          triangles = m.triangles;
+        }
         return {
           fps: perf.fps,
           frameTimeMs: perf.avgMs,
           p95FrameMs: perf.p95Ms,
           workAvgMs: perf.workAvgMs,
-          drawCalls: m.drawCalls,
-          drawsWithShadows: m.drawsWithShadows,
-          drawsNoShadows: m.drawsNoShadows,
-          triangles: m.triangles,
+          drawCalls,
+          drawsWithShadows,
+          drawsNoShadows,
+          triangles,
           geometries: mem.geometries,
           textures: mem.textures,
           dpr: perf.dpr,
@@ -96,9 +112,12 @@ export function createDebugPanelIfEnabled(
           composerEnabled: perf.composerEnabled,
           activePasses: perf.activePasses,
           shadowsEnabled: perf.shadowsEnabled,
+          shadowMapSize: perf.shadowMapSize,
           qualityMode: perf.qualityMode,
           activeTier: perf.activeTier,
           tierLabel: perf.tierLabel,
+          lockedCeilingTier: perf.lockedCeilingTier,
+          defaultMaxTier: perf.defaultMaxTier,
           pacingMode: pacing?.mode,
           pacingFps: pacing?.targetFps,
           startup: ctx.getStartupMetrics?.() ?? null,

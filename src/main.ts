@@ -45,7 +45,7 @@ async function bootstrap(loadingScreen: LoadingScreen): Promise<void> {
   });
   const assetsMs = performance.now() - assetsStartMs;
 
-  loadingScreen.setProgress(1, 1, 'island diorama…');
+  loadingScreen.setProgress(41, 43, 'island diorama…');
   await nextAnimationFrame();
 
   const sceneStartMs = performance.now();
@@ -139,6 +139,7 @@ async function bootstrap(loadingScreen: LoadingScreen): Promise<void> {
   let lastCamViewVersion = renderWorld.cameraController.getViewVersion();
   let lastSimWorld = session.simWorld;
   let lastViewMode = session.viewMode;
+  let wasPacingThrottled = true;
   let perfLogAccumSec = 0;
 
   const loop = new GameLoop({
@@ -147,8 +148,7 @@ async function bootstrap(loadingScreen: LoadingScreen): Promise<void> {
       if (session.simWorld !== lastSimWorld || session.viewMode !== lastViewMode) {
         lastSimWorld = session.simWorld;
         lastViewMode = session.viewMode;
-        renderWorld.sceneManager.resetGovernorWarmup();
-        loop.wakeRender(0.4);
+        renderWorld.sceneManager.resetGovernorWarmup(undefined, true);
       }
 
       session.renderFrame(frameDt, alpha, elapsedVisualTime);
@@ -169,6 +169,10 @@ async function bootstrap(loadingScreen: LoadingScreen): Promise<void> {
         menuView: session.viewMode,
         wakeActive: loop.isWakeActive(),
       });
+      if (wasPacingThrottled && pacing.mode === 'active') {
+        renderWorld.sceneManager.resetGovernorWarmup(0.4, true);
+      }
+      wasPacingThrottled = pacing.targetFps !== null;
       loop.setRenderPacing(pacing.targetFps, pacing.mode);
 
       if (hasPerf || session.viewMode === 'playing') {
@@ -216,7 +220,11 @@ async function bootstrap(loadingScreen: LoadingScreen): Promise<void> {
     renderWorld.resize(canvas.clientWidth || window.innerWidth, canvas.clientHeight || window.innerHeight);
   };
   const onFirstGesture = (): void => soundManager.unlock();
-  const onWakeActivity = (): void => loop.wakeRender(0.75);
+  const onWakeActivity = (): void => {
+    if (loop.simActive && loop.paused && !overlays.isModalOpen()) {
+      loop.wakeRender(0.75);
+    }
+  };
   window.addEventListener('pointerdown', onFirstGesture, { once: true });
   window.addEventListener('resize', onResize);
   window.addEventListener('pointerdown', onWakeActivity, { passive: true });
@@ -227,12 +235,13 @@ async function bootstrap(loadingScreen: LoadingScreen): Promise<void> {
   session.showMenuView('menu', true);
   const sceneSetupMs = performance.now() - sceneStartMs;
 
-  loadingScreen.setProgress(1, 1, 'shaders…');
+  loadingScreen.setProgress(42, 43, 'shaders…');
   await nextAnimationFrame();
 
   const warmStartMs = performance.now();
   await renderWorld.sceneManager.warmUp(renderWorld.cameraController.camera);
   const warmupMs = performance.now() - warmStartMs;
+  loadingScreen.setProgress(43, 43);
 
   startupMetrics = {
     assetsMs,

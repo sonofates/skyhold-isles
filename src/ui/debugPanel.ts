@@ -32,9 +32,12 @@ export interface DebugTelemetry {
   composerEnabled?: boolean;
   activePasses?: string;
   shadowsEnabled?: boolean;
+  shadowMapSize?: number;
   qualityMode?: QualityLevel;
   activeTier?: QualityTier;
   tierLabel?: string;
+  lockedCeilingTier?: QualityTier;
+  defaultMaxTier?: QualityTier;
   pacingMode?: string;
   pacingFps?: number | null;
   startup?: StartupTimingMetrics | null;
@@ -56,13 +59,25 @@ export function formatPerfLogLine(t: DebugTelemetry): string {
   const p95Str = typeof t.p95FrameMs === 'number' ? t.p95FrameMs.toFixed(1) : t.frameTimeMs.toFixed(1);
   const workStr = typeof t.workAvgMs === 'number' ? t.workAvgMs.toFixed(2) : '0.00';
   const dprStr = typeof t.dpr === 'number' ? t.dpr.toFixed(2) : '1.00';
+  const resStr =
+    typeof t.pixelWidth === 'number' && typeof t.pixelHeight === 'number'
+      ? `${t.pixelWidth}x${t.pixelHeight}`
+      : 'n/a';
   const composerStr = t.composerEnabled ? `ON[${t.activePasses ?? ''}]` : 'OFF';
+  const shadowStr =
+    t.shadowsEnabled === false ? 'OFF' : t.shadowMapSize ? `ON(${t.shadowMapSize})` : 'ON';
   const tierStr =
     typeof t.activeTier === 'number' ? `T${t.activeTier}(${t.tierLabel ?? ''})` : 'n/a';
+  const capStr =
+    typeof t.lockedCeilingTier === 'number' &&
+    typeof t.defaultMaxTier === 'number' &&
+    t.lockedCeilingTier < t.defaultMaxTier
+      ? ` cap=T${t.lockedCeilingTier}`
+      : '';
   return (
-    `[Skyhold Perf] fps=${fpsStr} p95=${p95Str}ms work=${workStr}ms ` +
+    `[Skyhold Perf] fps=${fpsStr} p95=${p95Str}ms work=${workStr}ms loop=${t.pacingMode ?? 'active'} ` +
     `draws=${t.drawCalls} tris=${t.triangles} tex=${t.textures ?? 0} geos=${t.geometries ?? 0} ` +
-    `dpr=${dprStr} composer=${composerStr} quality=${t.qualityMode ?? 'auto'}->${tierStr}`
+    `dpr=${dprStr}(${resStr}) composer=${composerStr} sh=${shadowStr} quality=${t.qualityMode ?? 'auto'}->${tierStr}${capStr}`
   );
 }
 
@@ -234,10 +249,17 @@ export class DebugPanel {
     const composerLabel = t.composerEnabled
       ? `ON [${t.activePasses ?? ''}]`
       : 'OFF [Direct]';
-    const shadowsLabel = t.shadowsEnabled === false ? 'OFF' : 'ON';
+    const shadowsLabel =
+      t.shadowsEnabled === false ? 'OFF' : t.shadowMapSize ? `ON (${t.shadowMapSize})` : 'ON';
+    const capSuffix =
+      typeof t.lockedCeilingTier === 'number' &&
+      typeof t.defaultMaxTier === 'number' &&
+      t.lockedCeilingTier < t.defaultMaxTier
+        ? ` [cap:T${t.lockedCeilingTier}]`
+        : '';
     const qualityLabel =
       typeof t.activeTier === 'number'
-        ? `${t.qualityMode ?? 'auto'} -> T${t.activeTier} ${t.tierLabel ?? ''}`
+        ? `${t.qualityMode ?? 'auto'} -> T${t.activeTier} ${t.tierLabel ?? ''}${capSuffix}`
         : `${t.qualityMode ?? 'auto'}`;
     const texStr = typeof t.textures === 'number' ? String(t.textures) : 'n/a';
     const geoStr = typeof t.geometries === 'number' ? String(t.geometries) : 'n/a';

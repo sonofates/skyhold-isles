@@ -212,6 +212,10 @@ export class KenneyAssetStore {
       const [colormapTexture] = await Promise.all([colormapPromise, Promise.all(workers)]);
       return new KenneyAssetStore(colormapTexture, geometries);
     } catch (err) {
+      void colormapPromise.then(
+        (tex) => tex.dispose(),
+        () => {},
+      );
       geometries.forEach((g) => g.dispose());
       geometries.clear();
       throw err;

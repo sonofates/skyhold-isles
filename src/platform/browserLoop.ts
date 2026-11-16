@@ -33,14 +33,14 @@ export function computeRenderPacingTarget(ctx: RenderPacingContext): RenderPacin
   if (ctx.simActive && !ctx.paused && !ctx.modalOpen) {
     return { targetFps: null, mode: 'active' };
   }
-  if (ctx.wakeActive) {
-    return { targetFps: null, mode: 'wake' };
-  }
   if (ctx.modalOpen || ctx.menuView === 'levelSelect') {
     return { targetFps: 15, mode: 'modal' };
   }
   if (ctx.menuView === 'menu') {
     return { targetFps: 30, mode: 'menu' };
+  }
+  if (ctx.wakeActive) {
+    return { targetFps: null, mode: 'wake' };
   }
   if (ctx.paused) {
     return { targetFps: 20, mode: 'paused' };
@@ -115,6 +115,7 @@ export class GameLoop {
     this.lastTimestamp = now;
     this.lastRenderTimestamp = now;
     const throttled = capFps !== null && capFps > 0;
+    const resumedFromThrottle = this.lastThrottled && !throttled;
     this.lastThrottled = throttled;
 
     const workStart = performance.now();
@@ -128,7 +129,7 @@ export class GameLoop {
       console.error('[GameLoop] frame threw:', err);
     }
     this.lastWorkMs = performance.now() - workStart;
-    this.callbacks.onAfterRender?.(rawDt, this.lastWorkMs, throttled);
+    this.callbacks.onAfterRender?.(rawDt, this.lastWorkMs, throttled || resumedFromThrottle);
   };
 
   constructor(callbacks: LoopCallbacks) {
