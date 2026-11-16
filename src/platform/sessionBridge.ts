@@ -4,6 +4,7 @@ import type { EventBus } from '../core/eventBus.ts';
 import type { AbilityId, EnemyType, GameSettings, ProgressData, TowerType } from '../core/types.ts';
 import { ABILITY_DEFS } from '../data/abilities.ts';
 import { BALANCE } from '../data/balance.ts';
+import { ENEMY_DEFS } from '../data/enemies.ts';
 import { LEVELS } from '../data/levels/index.ts';
 import { getTowerTierStats } from '../data/towers.ts';
 import type { RenderWorld } from '../render/renderWorld.ts';
@@ -13,7 +14,13 @@ import type { AbilityBarState } from '../ui/abilityBar.ts';
 import type { GameOverlays } from '../ui/gameOverlays.ts';
 import type { HudStateView } from '../ui/hud.ts';
 import type { GameLoop } from './browserLoop.ts';
-import { saveProgress, hasSeenFlyerToast, markFlyerToastSeen } from './storage.ts';
+import {
+  saveProgress,
+  hasSeenEnemyIntro,
+  hasSeenFlyerToast,
+  markEnemyIntroSeen,
+  markFlyerToastSeen,
+} from './storage.ts';
 
 export interface SimBridgeHandlers {
   bus: EventBus;
@@ -41,6 +48,13 @@ export function bindSimEventBridge(h: SimBridgeHandlers): () => void {
   });
   h.bus.on('towerSold', h.onSyncUi);
   h.bus.on('enemySpawned', (e) => {
+    // First encounter with a newer archetype: one-time counterplay hint.
+    const hint = ENEMY_DEFS[e.enemyType].counterHint;
+    if (hint && !hasSeenEnemyIntro(e.enemyType)) {
+      markEnemyIntroSeen(e.enemyType);
+      h.overlays.toast.show(`New foe — ${ENEMY_DEFS[e.enemyType].name}: ${hint}`, 7.0);
+      return;
+    }
     if (!e.flying || hasSeenFlyerToast()) return;
     markFlyerToastSeen();
     h.overlays.toast.show('Flyers incoming! Only Archer, Frost and Tesla can hit them.');

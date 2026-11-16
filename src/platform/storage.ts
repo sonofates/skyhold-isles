@@ -4,6 +4,40 @@ const SETTINGS_KEY = 'skyhold_isles_settings_v1';
 const PROGRESS_KEY = 'skyhold_isles_progress_v1';
 const FLYER_TOAST_SEEN_KEY = 'skyhold_isles_flyer_toast_seen_v1';
 const UPGRADE_TOAST_SEEN_KEY = 'skyhold_isles_upgrade_toast_seen_v1';
+const ENEMY_INTROS_SEEN_KEY = 'skyhold_isles_enemy_intros_seen_v1';
+
+let enemyIntrosSeen: Set<string> | null = null;
+
+function loadEnemyIntrosSeen(): Set<string> {
+  if (enemyIntrosSeen) return enemyIntrosSeen;
+  enemyIntrosSeen = new Set<string>();
+  try {
+    const raw = localStorage.getItem(ENEMY_INTROS_SEEN_KEY);
+    const parsed: unknown = raw ? JSON.parse(raw) : [];
+    if (Array.isArray(parsed)) {
+      for (const v of parsed) if (typeof v === 'string') enemyIntrosSeen.add(v);
+    }
+  } catch {
+    // ignore storage / parse errors
+  }
+  return enemyIntrosSeen;
+}
+
+/** First-encounter "new foe" hint per enemy type (cached in memory; persisted in localStorage). */
+export function hasSeenEnemyIntro(type: string): boolean {
+  return loadEnemyIntrosSeen().has(type);
+}
+
+export function markEnemyIntroSeen(type: string): void {
+  const seen = loadEnemyIntrosSeen();
+  if (seen.has(type)) return;
+  seen.add(type);
+  try {
+    localStorage.setItem(ENEMY_INTROS_SEEN_KEY, JSON.stringify([...seen]));
+  } catch {
+    // ignore storage errors
+  }
+}
 
 export function hasSeenUpgradeToast(): boolean {
   try {
