@@ -64,3 +64,8 @@ Started 2026-11-16 23:00 UTC (02:00 TR). Deadline 06:00 UTC (09:00 TR).
 - Balance response is noisy (deterministic sim + binary events like a hauler dying 1 tile earlier): L11 shows a 13-life spike at enemyHpScale 1.205 between passing neighbours. Chosen values sit in passing plateaus on both this branch and the dry-run merge.
 - Balance of L10+ assumes current tower stats; if the TOWERS branch changes tower numbers, re-run `npm run sim:balance` after merge (L10 window is ±2% HP wide).
 - Endless with full L9 build now ends ~1 wave earlier (spotlight groups add units).
+
+## README text for the lead (not edited on this branch to avoid 3-way README conflicts)
+Replace the enemy bullet with something like:
+> - **14 Enemy Archetypes**: Raider Grunt, Zephyr Runner, Iron Brute, Sky Skimmer, Grove Mender, Cinder Splitling, **Aegis Warden** (barrier pulses that soak damage for nearby allies), **Loam Burrower** (dives underground — untargetable — then resurfaces), **Cloud Hauler** (aerial barge that drops two raiders onto the road when shot down), **Rift Blinker** (charges and teleports forward; chill slows the charge), **Basalt Golem** (armor 12, cracked to 3 by chill), **Scuttle Mite** (tiny swarm unit), plus two bosses: the Skyhold Dreadnought and the **Tempest Colossus** (Stormwall barrier at 2/3 HP, enrage + mite swarm + tower jams at 1/3). Late waves can field **Empowered** elites (gold aura, +75% HP, +1 armor).
+And add the islands: *Confluence Terraces* (two spawn lanes merging), *Galewatch Spires* (sky-lane gauntlet), *Stormcrown Citadel* (spiral fortress finale). Endless now rotates spotlight pairs of the new archetypes, spreads groups across spawn lanes, and every 10th endless wave is led by a Tempest Colossus.
