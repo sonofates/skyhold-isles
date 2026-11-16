@@ -130,7 +130,9 @@ describe('splash falloff', () => {
     const cannon = world.placeTower(4, 3, 'cannon')!;
     const stats = getTowerTierStats('cannon', 1); // dmg: 38, splashRadius: 1.9, falloffMin: 0.45
 
+    // Frozen targets: lobbed shells lead moving enemies, so keep these stationary for exact numbers.
     const atCenter = world.enemySystem.spawnEnemy('grunt')!;
+    atCenter.speed = 0;
     atCenter.x = cannon.x + 2.0;
     atCenter.z = cannon.z;
 
@@ -293,5 +295,46 @@ describe('healer not healing above max HP', () => {
       () => {},
     );
     expect(pulseCount).toBe(1);
+  });
+});
+
+describe('lobbed shell target leading', () => {
+  it('aims mortar and cannon shells ahead of a moving enemy along its path', () => {
+    for (const type of ['mortar', 'cannon'] as const) {
+      const { world } = makeWorld();
+      const runner = world.enemySystem.spawnEnemy('runner')!;
+      for (let i = 0; i < 60 * 3; i++) world.fixedTick(BALANCE.fixedDt); // run a few seconds down the road
+      const tower = world.placeTower(7, 3, type)!;
+
+      const before = { x: runner.x, z: runner.z };
+      const proj = world.projectileSystem.spawnProjectile(
+        tower,
+        runner,
+        getTowerTierStats(type, 1).splashFalloffMin,
+      )!;
+      // Where the runner will actually be once the shell lands.
+      const travel = runner.speed * proj.duration;
+      const leadDist = Math.hypot(proj.endX - before.x, proj.endZ - before.z);
+
+      expect(leadDist).toBeGreaterThan(travel * 0.5);
+      expect(leadDist).toBeLessThan(travel * 1.1);
+
+      // Let the shell land and verify the runner actually took splash damage.
+      const hpBefore = runner.hp;
+      for (let i = 0; i < 60 * 3 && proj.progress < 1 && runner.active; i++) {
+        world.fixedTick(BALANCE.fixedDt);
+      }
+      expect(runner.hp).toBeLessThan(hpBefore);
+    }
+  });
+
+  it('does not lead stationary enemies', () => {
+    const { world } = makeWorld();
+    const tower = world.placeTower(7, 3, 'mortar')!;
+    const grunt = world.enemySystem.spawnEnemy('grunt')!;
+    grunt.speed = 0;
+    const proj = world.projectileSystem.spawnProjectile(tower, grunt, 0.45)!;
+    expect(proj.endX).toBeCloseTo(grunt.x, 6);
+    expect(proj.endZ).toBeCloseTo(grunt.z, 6);
   });
 });

@@ -120,14 +120,19 @@ export class ProjectileSystem {
     if (!path) return { x: target.x, z: target.z };
 
     const effSpeed = target.speed * (1 - target.slowRatio);
+    // Lead = displacement of the path sample between "now" and "at impact", added to the
+    // enemy's actual position (so an enemy that is not exactly on the path is not snapped to it).
+    path.sample(target.dist, _leadVec);
+    const baseX = _leadVec.x;
+    const baseZ = _leadVec.z;
     let t = Math.max(0.06, Math.hypot(target.x - sx, target.z - sz) / shellSpeed);
     let px = target.x;
     let pz = target.z;
     for (let i = 0; i < SHELL_LEAD_ITERATIONS; i++) {
       const d = Math.min(target.totalDist, target.dist + effSpeed * t * SHELL_LEAD_FACTOR);
       path.sample(d, _leadVec);
-      px = _leadVec.x;
-      pz = _leadVec.z;
+      px = target.x + (_leadVec.x - baseX);
+      pz = target.z + (_leadVec.z - baseZ);
       t = Math.max(0.06, Math.hypot(px - sx, pz - sz) / shellSpeed);
     }
     return { x: px, z: pz };
