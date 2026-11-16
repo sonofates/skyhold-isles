@@ -46,6 +46,15 @@ const KIND_SCALE: Record<SetPieceKind, number> = {
   boat: 1.2,
   gatehouse: 1.2,
   obelisk: 1.3,
+  pond: 1.3,
+  stall: 1.3,
+  hut: 1.3,
+  parasol: 1.3,
+  tent: 1.3,
+  statue: 1.25,
+  cabin: 1.3,
+  cairn: 1.3,
+  fountain: 1.3,
 };
 
 function familyGeometry(family: AnimFamily): THREE.BufferGeometry {

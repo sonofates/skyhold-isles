@@ -31,7 +31,16 @@ export type SetPieceKind =
   | 'peak'
   | 'boat'
   | 'gatehouse'
-  | 'obelisk';
+  | 'obelisk'
+  | 'pond'
+  | 'stall'
+  | 'hut'
+  | 'parasol'
+  | 'tent'
+  | 'statue'
+  | 'cabin'
+  | 'cairn'
+  | 'fountain';
 
 export interface SetPieceSpec {
   readonly kind: SetPieceKind;

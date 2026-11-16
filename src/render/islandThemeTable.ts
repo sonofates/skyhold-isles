@@ -40,6 +40,8 @@ const SUNLIT_MEADOW = theme({
   ambient: { birds: 3, butterflies: 7, islets: 4, clouds: 5 },
   setPieces: [
     { kind: 'cottage', col: 9, row: 2 },
+    { kind: 'pond', col: 5, row: 3, variant: 0 },
+    { kind: 'pond', col: 7, row: 8, variant: 1 },
     { kind: 'banner', col: 0, row: 1, variant: 0 },
     { kind: 'banner', col: 0, row: 3, variant: 0 },
     { kind: 'banner', col: 13, row: 7, variant: 2 },
@@ -82,6 +84,8 @@ const TWIN_BRIDGE_CAY = theme({
     { kind: 'banner', col: 1, row: 3, variant: 3 },
     { kind: 'banner', col: 1, row: 8, variant: 0 },
     { kind: 'seaStack', col: 7.6, row: 11, variant: 1 },
+    { kind: 'stall', col: 2, row: 6, variant: 0 },
+    { kind: 'stall', col: 3, row: 10, variant: 1 },
     { kind: 'boat', col: 7.5, row: 5.5, variant: 1 },
     { kind: 'cottage', col: 5, row: 2, yaw: 0.2, variant: 1 },
   ],
@@ -125,6 +129,10 @@ const HIGHLAND_CITADEL = theme({
     { kind: 'waterfall', col: 14, row: 9, yaw: Math.PI / 2 },
     { kind: 'brazier', col: 2, row: 7 },
     { kind: 'brazier', col: 11, row: 8 },
+    { kind: 'cabin', col: 13, row: 1, variant: 0 },
+    { kind: 'cabin', col: 2, row: 9, yaw: 0.6, variant: 1 },
+    { kind: 'cairn', col: 1, row: 5, variant: 0 },
+    { kind: 'cairn', col: 14, row: 6, variant: 2 },
     { kind: 'peak', col: -3.2, row: 2.5, variant: 0 },
     { kind: 'peak', col: 4, row: -3.4, variant: 1 },
     { kind: 'peak', col: 18.6, row: 0.5, variant: 1 },
@@ -167,6 +175,7 @@ const EMERALD_STEPPING_STONES = theme({
     { kind: 'crystalGrove', col: 12, row: 11, variant: 0 },
     { kind: 'crystalGrove', col: 1, row: 6, variant: 1 },
     { kind: 'seaStack', col: 4.6, row: 2.2, variant: 2 },
+    { kind: 'pond', col: 0, row: 4, variant: 1 },
     { kind: 'seaStack', col: 10.3, row: 6.4, variant: 2 },
   ],
 });
@@ -218,6 +227,7 @@ const WINDMILL_SWITCHBACK = theme({
     { kind: 'windmill', col: 1, row: 4, yaw: Math.PI / 2, variant: 1, scale: 0.85 },
     { kind: 'hayBales', col: 8, row: 10, yaw: 0.3 },
     { kind: 'scarecrow', col: 13, row: 4, yaw: -0.5 },
+    { kind: 'pond', col: 2, row: 10, variant: 0 },
   ],
 });
 
@@ -262,6 +272,10 @@ const CRESCENT_LAGOON = theme({
     { kind: 'dock', col: 15, row: 5, yaw: Math.PI / 2, variant: 1 },
     { kind: 'dock', col: 2, row: 8, yaw: 0, variant: 1 },
     { kind: 'seaStack', col: 3.4, row: 11, variant: 1 },
+    { kind: 'hut', col: 5, row: 10, variant: 0 },
+    { kind: 'parasol', col: 8, row: 10, variant: 0 },
+    { kind: 'parasol', col: 13, row: 10, variant: 1 },
+    { kind: 'hut', col: 12, row: 11, yaw: -0.5, variant: 1 },
     { kind: 'seaStack', col: 14.8, row: 11.4, variant: 0 },
   ],
 });
@@ -304,6 +318,9 @@ const SKYBRIDGE_GAUNTLET = theme({
     { kind: 'seaStack', col: 8, row: 6, variant: 0 },
     { kind: 'seaStack', col: 8.2, row: 11.6, variant: 1 },
     { kind: 'seaStack', col: 7.8, row: 0.6, variant: 0 },
+    { kind: 'tent', col: 3, row: 12, variant: 0 },
+    { kind: 'tent', col: 12, row: 12, variant: 1 },
+    { kind: 'cairn', col: 14, row: 11, variant: 1 },
   ],
 });
 
@@ -345,6 +362,8 @@ const SUNKEN_BASTION = theme({
     { kind: 'pillars', col: 4, row: 6.5, variant: 2 },
     { kind: 'ruinWall', col: 11, row: 5, yaw: Math.PI / 2, variant: 3 },
     { kind: 'ruinWall', col: 7.5, row: 8.6, variant: 2 },
+    { kind: 'statue', col: 11, row: 8, variant: 3 },
+    { kind: 'statue', col: 4, row: 3.6, variant: 2 },
     { kind: 'watchtower', col: 14, row: 3, yaw: -Math.PI / 2, variant: 1 },
     { kind: 'watchtower', col: 1, row: 9, yaw: Math.PI / 2, variant: 0 },
     { kind: 'watchtower', col: 7, row: 12, variant: 1, scale: 0.85 },
@@ -402,7 +421,7 @@ const GRAND_SKYHOLD = theme({
     { kind: 'banner', col: 16, row: 7, variant: 2 },
     { kind: 'brazier', col: 13, row: 9 },
     { kind: 'brazier', col: 2, row: 10 },
-    { kind: 'brazier', col: 3, row: 8 },
+    { kind: 'fountain', col: 3, row: 8, variant: 1 },
     { kind: 'pillars', col: 2, row: 1, variant: 0 },
     { kind: 'pillars', col: 1, row: 2, variant: 1 },
   ],

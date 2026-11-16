@@ -5,6 +5,7 @@ import type { TexturedPart } from './geometryHelpers.ts';
 import type { KenneyAssetStore } from './kenneyAssets.ts';
 import { multiplyVertexTint, remapUvCell } from './kenneyPalette.ts';
 import type { SetPieceKind } from './islandThemes.ts';
+import { cabin, cairn, fountain, hut, parasol, pond, stall, statue, tent } from './setPieceExtras.ts';
 
 /**
  * Procedural low-poly set pieces in piece-local space: origin = ground centre, +Y up, front = +Z.
@@ -483,6 +484,15 @@ const BUILDERS: Record<SetPieceKind, (pb: PieceBuilder, variant: number) => void
   boat,
   gatehouse,
   obelisk: (pb) => obelisk(pb),
+  pond,
+  stall,
+  hut,
+  parasol,
+  tent,
+  statue,
+  cabin,
+  cairn,
+  fountain,
 };
 
 export function buildSetPiece(pb: PieceBuilder, kind: SetPieceKind, variant: number): void {
