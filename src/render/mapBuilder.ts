@@ -13,6 +13,7 @@ import {
   claimedDecorTiles,
   decorHillHeight,
   resolveGroundKind,
+  tileHash,
   sampleZoneTint,
   type GoalDeco,
   type GroundKind,
@@ -476,6 +477,12 @@ export class MapBuilder {
     const geoCrystalSmall = remapUvCell(assets.cloneGeometry('detail-crystal'), [2, 1], [0, 3]);
     const shoreFoam: ShoreFoamCollector = { positions: [], uvs: [], indices: [] };
 
+    const isRoute = (c: number, r: number): boolean => {
+      if (c < 0 || c >= level.cols || r < 0 || r >= level.rows) return false;
+      const t = grid[r][c];
+      return t === 'path' || t === 'spawn' || t === 'goal';
+    };
+
     const isLand = (c: number, r: number): boolean => {
       if (c < 0 || c >= level.cols || r < 0 || r >= level.rows) return false;
       return grid[r][c] !== 'empty';
@@ -696,6 +703,47 @@ export class MapBuilder {
                 forceWhiteUv: true,
               });
             }
+          }
+
+          // Fortress parapet along exposed coast edges (never beside the route, so units stay readable)
+          if (theme.parapet && edgeCount > 0 && hillH === 0) {
+            const pp = theme.parapet;
+            const dirs: Array<[number, number, boolean]> = [
+              [0, -1, edgeN],
+              [1, 0, edgeE],
+              [0, 1, edgeS],
+              [-1, 0, edgeW],
+            ];
+            dirs.forEach(([ox, oz, exposed], k) => {
+              if (!exposed) return;
+              if (tileHash(c, r, 300 + k) < pp.gap) return;
+              const nearRoute =
+                isRoute(c - 1, r) || isRoute(c + 1, r) || isRoute(c, r - 1) || isRoute(c, r + 1);
+              if (nearRoute) return;
+              const hgt = pp.height * (pp.gap > 0 ? 0.55 + 0.45 * tileHash(c, r, 310 + k) : 1);
+              const alongX = oz !== 0;
+              const cx = wx + ox * (ts * 0.5 - 0.09);
+              const cz = wz + oz * (ts * 0.5 - 0.09);
+              parts.push({
+                geometry: unitBox,
+                colorHex: pp.color,
+                position: [cx, hgt / 2, cz],
+                scale: alongX ? [ts * 0.96, hgt, 0.18] : [0.18, hgt, ts * 0.96],
+                forceWhiteUv: true,
+              });
+              if (!pp.merlons) return;
+              for (let m = 0; m < 4; m++) {
+                if (pp.gap > 0 && tileHash(c, r, 320 + k * 4 + m) < pp.gap * 0.7) continue;
+                const t = -0.72 + m * 0.48;
+                parts.push({
+                  geometry: unitBox,
+                  colorHex: pp.merlon,
+                  position: [cx + (alongX ? t : 0), hgt + 0.05, cz + (alongX ? 0 : t)],
+                  scale: alongX ? [0.26, 0.1, 0.22] : [0.22, 0.1, 0.26],
+                  forceWhiteUv: true,
+                });
+              }
+            });
           }
 
           // Bake static rocks/shrubs/crystals directly into terrain mesh to keep draw calls minimal

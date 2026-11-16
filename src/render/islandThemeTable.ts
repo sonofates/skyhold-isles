@@ -93,6 +93,7 @@ const TWIN_BRIDGE_CAY = theme({
 
 /** L3 — Highland Citadel: cold alpine keep — pines, dark cobble courtyards, tall cliffs, waterfall, banners. */
 const HIGHLAND_CITADEL = theme({
+  parapet: { color: 0x8e98a8, merlon: 0x9aa4b4, height: 0.15, gap: 0.35, merlons: false },
   water: 0x2a8fcf,
   atmosphere: { horizon: 0xdbe7f3, zenith: 0x4a80bc, hemiSky: 0xcfe0f4, sun: 0xf0f5ff },
   spawnCrystalCell: [0, 3],
@@ -283,6 +284,7 @@ const CRESCENT_LAGOON = theme({
 
 /** L7 — Skybridge Gauntlet: wind-scoured cliffside forts, stone bridges, dizzying drops. */
 const SKYBRIDGE_GAUNTLET = theme({
+  parapet: { color: 0x8e98a8, merlon: 0xa1aab8, height: 0.24, gap: 0.12, merlons: true },
   water: 0x2a86c4,
   atmosphere: { horizon: 0xd0daee, zenith: 0x3a6fb4, hemiSky: 0xd4def2, sun: 0xf5f7ff },
   spawnCrystalCell: [1, 3],
@@ -327,6 +329,7 @@ const SKYBRIDGE_GAUNTLET = theme({
 
 /** L8 — Sunken Bastion: half-drowned ruined bastion, mossy cobbles, torches and indigo banners. */
 const SUNKEN_BASTION = theme({
+  parapet: { color: 0x8d9a8e, merlon: 0x9aa89a, height: 0.22, gap: 0.38, merlons: true },
   waterDetails: { lilies: 8, buoys: 0, driftwood: 3 },
   water: 0x1f7fa8,
   atmosphere: { horizon: 0xbcc8da, zenith: 0x2f5088, hemiSky: 0xaebfdc, sun: 0xffe6d0, sunIntensity: 1.5 },
@@ -381,6 +384,7 @@ const SUNKEN_BASTION = theme({
 
 /** L9 — Grand Skyhold: crown citadel — marble cobbles, golden banners, corner towers, regal blossoms. */
 const GRAND_SKYHOLD = theme({
+  parapet: { color: 0xcfd4dd, merlon: 0xe6e9ef, height: 0.26, gap: 0, merlons: true },
   water: 0x2a8fd8,
   atmosphere: { horizon: 0xffd8b4, zenith: 0x4a5fa8, hemiSky: 0xffe0c4, sun: 0xffdaa8, sunIntensity: 1.72 },
   spawnCrystalCell: [4, 2],

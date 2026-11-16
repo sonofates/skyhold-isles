@@ -157,6 +157,15 @@ export interface IslandTheme {
     /** shells/starfish on sand tiles. */
     readonly shells: boolean;
   };
+  /** Optional crenellated wall rim along exposed coast edges of non-route tiles. */
+  readonly parapet?: {
+    readonly color: number;
+    readonly merlon: number;
+    readonly height: number;
+    /** Probability that an edge segment is missing (ruin look). */
+    readonly gap: number;
+    readonly merlons: boolean;
+  };
   /** Small floating props on the sea near the coast. */
   readonly waterDetails: { readonly lilies: number; readonly buoys: number; readonly driftwood: number };
   readonly setPieces: readonly SetPieceSpec[];
