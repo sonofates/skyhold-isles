@@ -9,9 +9,12 @@ Started 2026-11-16 23:00 UTC (02:00 TR). Deadline 06:00 UTC (09:00 TR).
 - [x] 4. New boss `tempest` (Tempest Colossus) — sim/mesh/FX/tests (built before L12 so the island can use it)
 - [ ] 3. New islands
   - [x] L10 **Confluence Terraces** (`level10.ts`): two spawn lanes (west causeway = lane 0, northern switchback = lane 1) merge at a crossroads; introduces mites (w2), wardens (w3), burrowers (w4); Dreadnought at w10 and w20 with elite wardens/brutes. Greedy W 7 lives 1★ (passes for enemyHpScale 0.94–0.97), weak loses ~w14.
-  - [ ] L11 Galewatch Spires (sky-lane gauntlet: haulers/blinkers/golems) — being designed+balanced by a sub-agent in `.wt/l11/` (git-ignored scratch copy)
+  - [x] L11 **Galewatch Spires** (`level11.ts`, helper agent): road loops a central plateau and a void "gale chasm"; the sky lane is 87% of the road length and slaloms over buildable land. Haulers w3, blinkers w4, golems w6, elites from w16, Dreadnought w10 and w20 (bosses arrive last so haulers don't slip by under boss focus). Greedy W 7 lives 1★ (passes for enemyHpScale 1.19–1.24), weak loses w16–17. Leaks are mostly haulers + their dropped raiders (by design: ground defence isn't the limiter here).
   - [ ] L12 Stormcrown Citadel (spiral fortress, 2 lanes, Tempest Colossus finale) — sub-agent in `.wt/l12/`
 - [ ] 5. Polish: hit/death FX, readability, more tests
+  - [x] FX for every new mechanic (`enemyFx.ts`), blinker flicker + burrower mound bulge telegraphs, elite ring, shield bubble
+  - [x] geometry sanity test, determinism replay test, wave preview `eliteCount`, endless Tempest every 10th wave
+  - [x] first-encounter counterplay toasts
 
 ## Enemy design table
 
@@ -39,7 +42,8 @@ Started 2026-11-16 23:00 UTC (02:00 TR). Deadline 06:00 UTC (09:00 TR).
 - `src/sim/projectileSystem.ts`: shell leading uses `getPath(target.flying, target.lane)` (1 line).
 - `src/platform/gameSession.ts`: flight-lane highlight checks `ENEMY_DEFS[type].flying` instead of `=== 'flyer'` (so Cloud Hauler waves highlight the sky lane).
 - `tests/sim/waves.test.ts`: layout validation generalized for extra lanes and >9 islands.
-- `scripts/balanceSim.ts`: `--levels=N` flag (same as `LEVELS` env).
+- `scripts/balanceSim.ts`: `--levels=N` flag (same as `LEVELS` env); flyer-share checks now count *lives* lost to every flying type (haulers included) via a new per-wave `livesByType`.
+- `src/platform/sessionBridge.ts` + `storage.ts`: one-time "New foe — <name>: <counterHint>" toast on first spawn of each type that has a `counterHint` (only the new archetypes have one; the old flyer toast is unchanged).
 - `src/ui/icons.ts`: `ENEMY_BADGE_META` entries. `src/ui/tooltip.ts`: text only — "Empowered" name prefix, `Shield N`, `(cracked)` armor.
 
 ## UI needs (for the UI branch / lead)
