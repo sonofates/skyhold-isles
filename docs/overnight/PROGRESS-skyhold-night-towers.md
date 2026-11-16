@@ -28,14 +28,23 @@ tsc, lint, 52 vitest tests, sim:balance all green on `cfb9330`.
   - T3 base damage trimmed to compensate: archer 38->36, cannon 84->80, frost 19->17, tesla 55->47, mortar 176->160. Ballista T3 pierces 2, Beacon T3 +10% range.
 - [r1] Balance: `npm run sim:balance` PASSES on all 9 islands with the signatures (greedy lives L1..L9 = 20,15,10,13,14,11,10,6,7). The sim is chaotic (+-1 tower stat flips a level by 5-10 lives); the values above were found with a random/grid search using `scripts/tuneSweep.ts`. After the lead merges ISLANDS/ENEMIES level changes, re-run `npm run sim:balance`; if windows break, retune T3 stats with `scripts/tuneSweep.ts` (see header) rather than editing levels.
 
-## Next
-- Polish: signature feedback in render (brittle shatter on kill?), more tests, README update, perf check of particle counts
+## Next (ideas for later rounds)
+- Sell animation (tower currently vanishes instantly; coins + ring FX only).
+- Frost Brittle has no dedicated visual (chilled targets just take more damage); could tint damage numbers.
+- Beacon aura could preview coverage on attack-tower placement (needs overlay work in `overlayIndicators.ts`).
+- Re-run `npm run sim:balance` after the lead merges ENEMIES/ISLANDS; retune T3 stats with `scripts/tuneSweep.ts` if a window breaks.
+- Optional: new-tower greedy build scripts per island (currently no scripted build uses Ballista/Beacon; `scripts/towerExperiment.ts` swaps them in and shows they are viable but not dominant).
 
 ## Decisions
-- (none yet)
+- New tower stats are optional fields on `TowerTierStats` (not required on the five old towers) so enemy/island agents' code never needs touching them.
+- Armor pierce is done by adding `min(armor, pierce)` to the raw damage before `EnemySystem.applyDamage`, so no change to the enemy system (ENEMIES agent can add armor types freely).
+- Beacons do not stack (best aura wins) and are switched off while jammed by the boss pulse - a cheap interaction with the existing boss mechanic.
+- Burn patches tick on one global 0.5 s timer so overlapping patches can never double-damage; they ignore armor and skip flyers.
+- T3 signature trims were found by search (see Done). The windows were NOT touched.
 
 ## Known issues
-- (none yet)
+- Without a browser I could not eyeball in-game FX (flashes/embers/rings); the towers themselves were reviewed via `scripts/renderTowers.ts` contact sheets (`npx tsx scripts/renderTowers.ts out.png`).
+- Sim is chaotic: tiny tower stat changes swing greedy results by several lives (see Done).
 
 ## Cross-area changes
 - `src/platform/input.ts`: hotkey range `'1'..'5'` -> `'1'..'7'` (1 line) so keys 6/7 pick the new towers.
