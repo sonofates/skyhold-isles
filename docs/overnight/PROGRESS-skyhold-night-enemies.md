@@ -3,10 +3,11 @@
 Started 2026-11-16 23:00 UTC (02:00 TR). Deadline 06:00 UTC (09:00 TR).
 
 ## Status / task list
-- [ ] 1. New enemy archetypes (sim + data + mesh + badge + tests)
-- [ ] 2. Endless-mode variety (new types in `buildEndlessWaveDef`)
+- [x] 1. New enemy archetypes (sim + data + mesh + badge + tests) — warden, burrower, carrier, blinker, golem, mite + elite flag (`tests/sim/newEnemies.test.ts`)
+- [x] 2. Endless-mode variety — `ENDLESS_SPOTLIGHTS` rotation in `waveSystem.ts`, elites from 4th endless wave. Probe: `LVL=9 npx tsx scripts/endlessProbe.ts` (full L9 build: endless lasts to wave 25 vs 26 before — slightly harder, accepted).
+- [x] Sim extension: extra ground spawn lanes (`LevelDef.extraGroundPaths`, `WaveGroupDef.lane`) + render support (`tests/sim/lanes.test.ts`, incl. layout validation for every island)
+- [x] 4. New boss `tempest` (Tempest Colossus) — sim/mesh/FX/tests (built before L12 so the island can use it)
 - [ ] 3. New islands L10, L11, L12 (+ balance sim)
-- [ ] 4. New boss for L12
 - [ ] 5. Polish: hit/death FX, readability, more tests
 
 ## Enemy design table
@@ -28,7 +29,12 @@ Started 2026-11-16 23:00 UTC (02:00 TR). Deadline 06:00 UTC (09:00 TR).
 - Difficulty label for L10-12 stays `Master` (a `Legendary` label would need a new CSS class `diff-legendary` in style.css which we must not touch) → UI need noted below.
 
 ## Cross-area changes
-- (none yet)
+- `src/render/renderWorld.ts`: import + one spread line binding `bindEnemyArchetypeFx` (new file `src/render/enemyFx.ts`); boss kill shake also for `tempest`.
+- `src/render/effectsRenderer.ts`: `_enemyShardColors` entries for the new types (required by the `Record<EnemyType>` type).
+- `src/render/mapBuilder.ts`: road connectivity mask loops over all ground lanes (main + `extraGroundPaths`). Pure re-indent of the existing loop + outer lane loop.
+- `src/render/overlayIndicators.ts`: pinned ground-route ribbons/arrows drawn for every lane (same materials, loop).
+- `src/sim/projectileSystem.ts`: shell leading uses `getPath(target.flying, target.lane)` (1 line).
+- `src/ui/icons.ts`: `ENEMY_BADGE_META` entries. `src/ui/tooltip.ts`: text only — "Empowered" name prefix, `Shield N`, `(cracked)` armor.
 
 ## UI needs (for the UI branch / lead)
 - (none yet)
