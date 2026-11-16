@@ -353,3 +353,85 @@ describe('endless spotlight variety', () => {
     expect(firstEliteOffset).toBe(3);
   });
 });
+
+describe('Tempest Colossus (phase boss)', () => {
+  function placeTowersNear(world: SimWorld, boss: EnemyEntity, n: number): void {
+    world.gold = 99999;
+    let placed = 0;
+    for (let r = 0; r < world.level.rows && placed < n; r++) {
+      for (let c = 0; c < world.level.cols && placed < n; c++) {
+        if (!world.grid.canPlaceTower(c, r)) continue;
+        const dx = world.grid.gridToWorldX(c) - boss.x;
+        const dz = world.grid.gridToWorldZ(r) - boss.z;
+        if (dx * dx + dz * dz < 6 * 6 && world.placeTower(c, r, 'archer')) placed++;
+      }
+    }
+  }
+
+  it('raises a Stormwall at 66% (self + ally barrier, short channel), enrages at 33%', () => {
+    const { world, events } = makeWorld();
+    const boss = world.enemySystem.spawnEnemy('tempest')!;
+    const ally = world.enemySystem.spawnEnemy('grunt')!;
+    tick(world, 0.5);
+    const phases: number[] = [];
+    events.on('bossPhase', (e) => phases.push(e.phase));
+    const hits: boolean[] = [];
+    events.on('enemyHit', (e) => hits.push(e.isBoss));
+
+    world.enemySystem.applyDamage(boss, Math.ceil(boss.maxHp * 0.35), true);
+    expect(hits).toEqual([true]);
+    tick(world, DT);
+    expect(phases).toEqual([1]);
+    expect(boss.shield).toBe(Math.round(boss.maxHp * ENEMY_DEFS.tempest.stormwallSelfFrac!));
+    expect(ally.shield).toBe(Math.round(ally.maxHp * ENEMY_DEFS.tempest.stormwallAllyFrac!));
+
+    // Channelling: stands still for the channel duration.
+    const d0 = boss.dist;
+    tick(world, 1.0);
+    expect(boss.dist).toBe(d0);
+    tick(world, 0.6);
+    expect(boss.dist).toBeGreaterThan(d0);
+
+    const baseSpeed = boss.speed;
+    const before = world.enemyPool.getActiveCount();
+    world.enemySystem.applyDamage(boss, boss.shield + Math.ceil(boss.maxHp * 0.35), true);
+    tick(world, DT);
+    expect(phases).toEqual([1, 2]);
+    expect(boss.speed).toBeCloseTo(baseSpeed * ENEMY_DEFS.tempest.enrageSpeedMul!, 6);
+    expect(world.enemyPool.getActiveCount() - before).toBe(ENEMY_DEFS.tempest.enrageSummonCount);
+  });
+
+  it('a single huge hit runs both phases in order', () => {
+    const { world, events } = makeWorld();
+    const boss = world.enemySystem.spawnEnemy('tempest')!;
+    const phases: number[] = [];
+    events.on('bossPhase', (e) => phases.push(e.phase));
+    world.enemySystem.applyDamage(boss, Math.ceil(boss.maxHp * 0.8), true);
+    tick(world, DT);
+    expect(phases).toEqual([1, 2]);
+    expect(boss.hp).toBeGreaterThan(0);
+  });
+
+  it('jams nearby towers on a cadence once enraged', () => {
+    const { world, events } = makeWorld();
+    const boss = world.enemySystem.spawnEnemy('tempest')!;
+    for (let i = 0; i < 120; i++) world.enemySystem.update(DT, () => {}, () => {});
+    placeTowersNear(world, boss, 3);
+    expect(world.towers.length).toBeGreaterThanOrEqual(2);
+    const pulses: number[] = [];
+    events.on('bossPulse', (e) => pulses.push(e.stunnedTowerIds.length));
+    const step = (s: number): void => {
+      for (let i = 0; i < Math.round(s / DT); i++) {
+        world.enemySystem.update(DT, () => {}, () => {}, world.towers, 1);
+      }
+    };
+    step(3);
+    expect(pulses).toEqual([]);
+    world.enemySystem.applyDamage(boss, Math.ceil(boss.maxHp * 0.8), true);
+    step(1.5);
+    expect(pulses).toEqual([2]);
+    boss.speed = 0; // keep it parked within range of the test towers
+    step(ENEMY_DEFS.tempest.jamInterval! + 0.1);
+    expect(pulses).toEqual([2, 2]);
+  });
+});

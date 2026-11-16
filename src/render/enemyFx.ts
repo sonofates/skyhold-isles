@@ -41,6 +41,26 @@ export function bindEnemyArchetypeFx(
       fx.spawnPulseRing(e.groundX, e.groundY + 0.08, e.groundZ, 1.4, PALETTE_HEX.coral);
       fx.spawnParticles(e.groundX, e.groundY + 0.3, e.groundZ, PALETTE_HEX.cream, 6, 2.2, 5.0);
     }),
+    events.on('bossPhase', (e) => {
+      if (e.phase === 1) {
+        // Stormwall: double barrier ring + sparkling cloud burst
+        fx.spawnPulseRing(e.x, e.y, e.z, e.radius, WARD_BLUE);
+        fx.spawnPulseRing(e.x, e.y + 0.05, e.z, e.radius * 0.6, PALETTE_HEX.cream);
+        fx.spawnParticles(e.x, e.y + 1.8, e.z, WARD_BLUE, 16, 3.4, 1.5);
+      } else {
+        // Enrage: gold thunder burst
+        fx.spawnPulseRing(e.x, e.y, e.z, e.radius, PALETTE_HEX.gold);
+        fx.spawnStunSparks(e.x, e.y + 1.4, e.z, 12);
+        fx.spawnParticles(e.x, e.y + 1.6, e.z, PALETTE_HEX.gold, 16, 4.0, 3.0);
+      }
+    }),
+    events.on('enemyKilled', (e) => {
+      if (e.enemyType !== 'tempest') return;
+      fx.spawnDeathShards('tempest', e.x, e.y, e.z);
+      fx.spawnDeathShards('tempest', e.x, e.y + 0.6, e.z);
+      fx.spawnPulseRing(e.x, 0.12, e.z, 4.2, PALETTE_HEX.gold);
+      fx.spawnParticles(e.x, e.y + 1.0, e.z, 0xdfe7f2, 18, 4.2, 3.0);
+    }),
     events.on('armorCracked', (e) => {
       fx.spawnDeathShards('golem', e.x, e.y, e.z);
       fx.spawnParticles(e.x, e.y, e.z, FROST_CRACK, 8, 2.6, 4.0);

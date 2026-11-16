@@ -217,6 +217,8 @@ export class EnemySystem {
     entity.baseArmor = def.armor;
     entity.elite = false;
     entity.isDropped = false;
+    entity.bossPhase = 0;
+    entity.channelTimer = 0;
     entity.abilityTimer =
       type === 'burrower'
         ? BURROW_FIRST_SURFACE_SEC
@@ -275,7 +277,7 @@ export class EnemySystem {
       x: entity.x,
       y: entity.y + entity.height * 0.9,
       z: entity.z,
-      isBoss: entity.type === 'boss',
+      isBoss: ENEMY_DEFS[entity.type].isBoss === true,
     });
 
     if (entity.hp <= 0) {
@@ -384,7 +386,12 @@ export class EnemySystem {
       }
 
       const burrowMul = e.burrowed ? (ENEMY_DEFS.burrower.burrowSpeedMul ?? 1.6) : 1;
-      const effectiveSpeed = e.speed * (1 - e.slowRatio) * burrowMul;
+      let channelMul = 1;
+      if (e.channelTimer > 0) {
+        e.channelTimer = Math.max(0, e.channelTimer - dt);
+        channelMul = 0;
+      }
+      const effectiveSpeed = e.speed * (1 - e.slowRatio) * burrowMul * channelMul;
       e.dist += effectiveSpeed * dt;
       e.walkPhase += effectiveSpeed * dt * 3.4;
 
@@ -429,8 +436,122 @@ export class EnemySystem {
         this.updateHealerAura(actor, dt);
       } else if (actor.type === 'warden') {
         this.updateWardenPulse(actor, dt);
+      } else if (actor.type === 'tempest') {
+        this.updateTempest(actor, dt, towers, currentHpScale);
       } else if (actor.type === 'boss') {
         this.updateBossAbilities(actor, dt, towers, currentHpScale);
+      }
+    }
+  }
+
+  /**
+   * Tempest Colossus phases. Phase 1 (≤ 66% HP): stops to channel a Stormwall — a barrier on
+   * itself and on allies around it. Phase 2 (≤ 33% HP): enrages (faster), summons a mite swarm
+   * behind it and thunderclaps every few seconds, jamming the two nearest towers.
+   */
+  private updateTempest(
+    boss: EnemyEntity,
+    dt: number,
+    towers: readonly TowerEntity[] | undefined,
+    currentHpScale: number,
+  ): void {
+    const def = ENEMY_DEFS.tempest;
+    const [t1, t2] = def.phaseThresholds ?? [0.66, 0.33];
+    const radius = def.stormwallRadius ?? 5;
+
+    if (boss.bossPhase === 0 && boss.hp <= boss.maxHp * t1) {
+      boss.bossPhase = 1;
+      boss.channelTimer = def.stormwallChannelSec ?? 1.3;
+      const selfShield = Math.round(boss.maxHp * (def.stormwallSelfFrac ?? 0.2));
+      boss.shield = Math.max(boss.shield, selfShield);
+      boss.shieldMax = Math.max(boss.shieldMax, boss.shield);
+      this.spatialHash.query(boss.x, boss.z, radius, _healCandidates);
+      const rSq = radius * radius;
+      for (let k = 0; k < _healCandidates.length; k++) {
+        const ally = this.pool.items[_healCandidates[k]];
+        if (!ally.active || ally.hp <= 0 || ally === boss) continue;
+        const dx = ally.x - boss.x;
+        const dz = ally.z - boss.z;
+        if (dx * dx + dz * dz > rSq) continue;
+        const amount = Math.round(ally.maxHp * (def.stormwallAllyFrac ?? 0.6));
+        if (ally.shield < amount) {
+          ally.shield = amount;
+          ally.shieldMax = amount;
+        }
+      }
+      this.events.emit('bossPhase', {
+        enemyId: boss.uid,
+        enemyType: boss.type,
+        phase: 1,
+        x: boss.x,
+        y: boss.y + 0.2,
+        z: boss.z,
+        radius,
+      });
+    }
+
+    if (boss.bossPhase === 1 && boss.hp <= boss.maxHp * t2) {
+      boss.bossPhase = 2;
+      boss.speed *= def.enrageSpeedMul ?? 1.35;
+      boss.channelTimer = 0;
+      boss.abilityTimer = 1.2;
+      const miteDef = ENEMY_DEFS.mite;
+      const miteHp = Math.max(1, Math.round(miteDef.maxHp * currentHpScale));
+      const count = def.enrageSummonCount ?? 6;
+      let spawned = 0;
+      for (let k = 0; k < count; k++) {
+        const mite = this.initEnemyAt(
+          'mite',
+          boss.lane,
+          Math.max(0, boss.dist - 0.9 - k * 0.32),
+          miteHp,
+          miteDef.speed,
+          1,
+          miteDef.livesCost,
+          1,
+          false,
+        );
+        if (mite) {
+          this.spatialHash.insert(mite.poolIndex, mite.x, mite.z);
+          spawned++;
+        }
+      }
+      this.events.emit('bossPhase', {
+        enemyId: boss.uid,
+        enemyType: boss.type,
+        phase: 2,
+        x: boss.x,
+        y: boss.y + 0.2,
+        z: boss.z,
+        radius: def.jamRadius ?? 7.6,
+      });
+      if (spawned > 0) {
+        this.events.emit('bossSummon', {
+          x: boss.x,
+          y: boss.y + 0.8,
+          z: boss.z,
+          count: spawned,
+        });
+      }
+    }
+
+    if (boss.bossPhase === 2 && towers && towers.length > 0) {
+      boss.abilityTimer -= dt;
+      if (boss.abilityTimer <= 0) {
+        const jamRadius = def.jamRadius ?? 7.6;
+        const stunnedTowerIds = this.applyBossPulse(boss, towers, jamRadius);
+        if (stunnedTowerIds.length > 0) {
+          boss.abilityTimer = def.jamInterval ?? 6;
+          this.events.emit('bossPulse', {
+            x: boss.x,
+            y: boss.y + 0.45,
+            z: boss.z,
+            radius: jamRadius,
+            stunnedTowerIds,
+          });
+        } else {
+          boss.abilityTimer = BOSS_PULSE_RETRY_INTERVAL;
+        }
       }
     }
   }

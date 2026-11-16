@@ -29,6 +29,7 @@ const _blinkGlow = new THREE.Color(0xc8fff8);
 const BLINK_TELEGRAPH_SEC = 0.55;
 const GROUND_SHADOW_SCALE: Partial<Record<EnemyType, number>> = {
   boss: 1.95,
+  tempest: 2.1,
   brute: 1.48,
   golem: 1.62,
   splitter: 1.18,
@@ -40,6 +41,7 @@ const GROUND_SHADOW_SCALE: Partial<Record<EnemyType, number>> = {
 };
 const HP_BAR_WIDTH: Partial<Record<EnemyType, number>> = {
   boss: 1.75,
+  tempest: 1.9,
   brute: 1.2,
   golem: 1.3,
   carrier: 1.1,
@@ -141,7 +143,7 @@ export class EnemyRenderer {
 
       const mesh = new THREE.InstancedMesh(geo, materials.enemyInstancedMaterial, cap);
       mesh.count = 0;
-      mesh.castShadow = type === 'brute' || type === 'boss';
+      mesh.castShadow = type === 'brute' || type === 'boss' || type === 'tempest' || type === 'golem';
       mesh.receiveShadow = false;
       mesh.frustumCulled = false;
 
@@ -301,7 +303,7 @@ export class EnemyRenderer {
       }
 
       const scaleMul = e.scaleOverride || 1;
-      const enemyScale = (e.type === 'boss' ? 1.26 : 1.28) * scaleMul;
+      const enemyScale = (e.type === 'boss' || e.type === 'tempest' ? 1.26 : 1.28) * scaleMul;
       _dummy.position.set(ix, iy + bobY, iz);
       _dummy.rotation.set(tiltX, iyaw, tiltZ);
       _dummy.scale.setScalar(enemyScale);
@@ -365,7 +367,7 @@ export class EnemyRenderer {
       if (e.hp < e.maxHp && e.hp > 0) {
         const ratio = Math.max(0.02, Math.min(1, e.hp / e.maxHp));
         const barW = (HP_BAR_WIDTH[e.type] ?? 0.94) * (e.isSplitChild ? 0.8 : 1);
-        const barH = e.type === 'boss' ? 0.2 : 0.14;
+        const barH = e.type === 'boss' || e.type === 'tempest' ? 0.2 : 0.14;
 
         _barPos.set(ix, iy + bobY + e.height * enemyScale + 0.34, iz);
 
@@ -705,6 +707,32 @@ export class EnemyRenderer {
           { geometry: box, colorHex: 0x3a2418, position: [0.3, 0.08, -0.14], rotation: [0, 0, -0.6], scale: [0.18, 0.035, 0.04] },
         ];
         addEyes(parts, ico, 0.24, 0.38, 0.06, 0.03, 0xffe885);
+        break;
+      }
+
+      case 'tempest': {
+        // Storm-forged colossus: slate-blue stone titan, gold storm core, cloud pauldrons, bolt crown
+        parts = [
+          { geometry: chamfer, colorHex: 0x2a3550, position: [-0.34, 0.26, 0], scale: [0.36, 0.52, 0.4] },
+          { geometry: chamfer, colorHex: 0x2a3550, position: [0.34, 0.26, 0], scale: [0.36, 0.52, 0.4] },
+          { geometry: chamfer, colorHex: 0x3b5a8c, position: [0, 0.98, 0], scale: [1.12, 0.92, 0.8] },
+          { geometry: chamfer, colorHex: 0x324c78, position: [0, 0.6, 0.02], scale: [0.92, 0.2, 0.74] },
+          { geometry: ico, colorHex: 0xffd34d, position: [0, 1.02, 0.4], scale: [0.28, 0.28, 0.16] },
+          { geometry: ico, colorHex: 0xfff2b0, position: [0, 1.02, 0.47], scale: [0.14, 0.14, 0.08] },
+          { geometry: ico, colorHex: 0xdfe7f2, position: [-0.7, 1.32, 0], scale: [0.36, 0.28, 0.38] },
+          { geometry: ico, colorHex: 0xb8c4d6, position: [-0.86, 1.22, -0.1], scale: [0.24, 0.2, 0.26] },
+          { geometry: ico, colorHex: 0xdfe7f2, position: [0.7, 1.32, 0], scale: [0.36, 0.28, 0.38] },
+          { geometry: ico, colorHex: 0xb8c4d6, position: [0.86, 1.22, -0.1], scale: [0.24, 0.2, 0.26] },
+          { geometry: chamfer, colorHex: 0x2f4670, position: [-0.74, 0.7, 0.08], scale: [0.3, 0.6, 0.32] },
+          { geometry: chamfer, colorHex: 0x2f4670, position: [0.74, 0.7, 0.08], scale: [0.3, 0.6, 0.32] },
+          { geometry: ico, colorHex: 0x46689e, position: [-0.76, 0.34, 0.12], scale: [0.24, 0.22, 0.24] },
+          { geometry: ico, colorHex: 0x46689e, position: [0.76, 0.34, 0.12], scale: [0.24, 0.22, 0.24] },
+          { geometry: chamfer, colorHex: 0x46689e, position: [0, 1.62, 0.06], scale: [0.48, 0.4, 0.44] },
+          { geometry: cone, colorHex: PALETTE_HEX.gold, position: [-0.22, 1.98, 0.04], rotation: [0, 0, 0.32], scale: [0.09, 0.34, 0.09] },
+          { geometry: cone, colorHex: PALETTE_HEX.gold, position: [0, 2.04, 0.04], scale: [0.1, 0.4, 0.1] },
+          { geometry: cone, colorHex: PALETTE_HEX.gold, position: [0.22, 1.98, 0.04], rotation: [0, 0, -0.32], scale: [0.09, 0.34, 0.09] },
+        ];
+        addEyes(parts, ico, 1.64, 0.27, 0.11, 0.05, 0x9fdcff);
         break;
       }
 

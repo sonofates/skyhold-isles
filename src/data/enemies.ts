@@ -32,6 +32,18 @@ export interface EnemyDef {
   /** Golem: armor while chill-cracked and how long a chill keeps it cracked. */
   readonly brittleArmor?: number;
   readonly brittleDuration?: number;
+  /** Boss-class: bigger hit numbers, camera shake, boss HP bar. */
+  readonly isBoss?: boolean;
+  /** Tempest Colossus phase thresholds (fraction of max HP) and phase tuning. */
+  readonly phaseThresholds?: readonly [number, number];
+  readonly stormwallSelfFrac?: number;
+  readonly stormwallAllyFrac?: number;
+  readonly stormwallRadius?: number;
+  readonly stormwallChannelSec?: number;
+  readonly enrageSpeedMul?: number;
+  readonly enrageSummonCount?: number;
+  readonly jamInterval?: number;
+  readonly jamRadius?: number;
   /** Short counterplay hint shown in tooltips / codex. */
   readonly counterHint?: string;
 }
@@ -222,6 +234,31 @@ export const ENEMY_DEFS: Record<EnemyType, EnemyDef> = {
     radius: 0.26,
     height: 0.5,
   },
+  tempest: {
+    type: 'tempest',
+    name: 'Tempest Colossus',
+    description:
+      'Storm-forged titan. At two-thirds health it raises a Stormwall over itself and nearby allies; at one-third it enrages, striding faster and jamming towers with thunderclaps.',
+    counterHint: 'Save burst for each phase; Overcharge clears the jams.',
+    maxHp: 1500,
+    speed: 1.0,
+    armor: 8,
+    reward: 50,
+    livesCost: 6,
+    flying: false,
+    radius: 0.86,
+    height: 2.05,
+    isBoss: true,
+    phaseThresholds: [0.66, 0.33],
+    stormwallSelfFrac: 0.2,
+    stormwallAllyFrac: 0.6,
+    stormwallRadius: 5.0,
+    stormwallChannelSec: 1.3,
+    enrageSpeedMul: 1.35,
+    enrageSummonCount: 6,
+    jamInterval: 6.0,
+    jamRadius: 7.6,
+  },
   boss: {
     type: 'boss',
     name: 'Skyhold Dreadnought',
@@ -234,6 +271,7 @@ export const ENEMY_DEFS: Record<EnemyType, EnemyDef> = {
     flying: false,
     radius: 0.78,
     height: 1.85,
+    isBoss: true,
   },
 };
 
@@ -250,5 +288,6 @@ export const ENEMY_TYPES: readonly EnemyType[] = [
   'blinker',
   'golem',
   'mite',
+  'tempest',
   'boss',
 ];

@@ -161,7 +161,7 @@ export class RenderWorld {
       }),
       events.on('enemyKilled', (e) => {
         this.effectsRenderer.spawnDeathShards(e.enemyType, e.x, e.y, e.z);
-        if (e.enemyType === 'boss') {
+        if (e.enemyType === 'boss' || e.enemyType === 'tempest') {
           this.cameraController.addShake(BALANCE.camera.bossHitShake, shakeEnabled());
         }
       }),

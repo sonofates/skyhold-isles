@@ -20,6 +20,7 @@ export type EnemyType =
   | 'blinker'
   | 'golem'
   | 'mite'
+  | 'tempest'
   | 'boss';
 
 export type AbilityId = 'meteor' | 'overcharge';

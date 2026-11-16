@@ -117,6 +117,16 @@ export interface GameEventMap {
     y: number;
     z: number;
   };
+  bossPhase: {
+    enemyId: number;
+    enemyType: EnemyType;
+    /** 1 = Stormwall raised, 2 = enraged. */
+    phase: number;
+    x: number;
+    y: number;
+    z: number;
+    radius: number;
+  };
   bossSummon: {
     x: number;
     y: number;

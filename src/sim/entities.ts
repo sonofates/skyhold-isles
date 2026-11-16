@@ -53,6 +53,10 @@ export interface EnemyEntity {
   isDropped: boolean;
   /** Ground lane index (0 = main path, 1.. = level.extraGroundPaths). Flyers are always 0. */
   lane: number;
+  /** Phase-boss progress (Tempest Colossus: 0 → 1 Stormwall → 2 enraged). */
+  bossPhase: number;
+  /** Seconds the enemy stands still channelling (e.g. Stormwall). */
+  channelTimer: number;
 }
 
 export function createEnemyEntity(poolIndex: number): EnemyEntity {
@@ -98,6 +102,8 @@ export function createEnemyEntity(poolIndex: number): EnemyEntity {
     elite: false,
     isDropped: false,
     lane: 0,
+    bossPhase: 0,
+    channelTimer: 0,
   };
 }
 
