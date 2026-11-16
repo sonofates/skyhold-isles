@@ -38,6 +38,7 @@ export interface FrameStatsSnapshot {
   readonly sampleCount: number;
   readonly avgMs: number;
   readonly p95Ms: number;
+  readonly maxMs: number;
   readonly fps: number;
 }
 
@@ -228,6 +229,7 @@ export class RollingFrameMetrics {
   private count = 0;
   private sum = 0;
   private cachedP95 = 0;
+  private cachedMaxMs = 0;
   private p95Dirty = false;
 
   constructor(capacity: number = GOVERNOR_THRESHOLDS.windowSize) {
@@ -254,16 +256,18 @@ export class RollingFrameMetrics {
     this.count = 0;
     this.sum = 0;
     this.cachedP95 = 0;
+    this.cachedMaxMs = 0;
     this.p95Dirty = false;
   }
 
   getSnapshot(): FrameStatsSnapshot {
     if (this.count === 0) {
-      return { sampleCount: 0, avgMs: 0, p95Ms: 0, fps: 0 };
+      return { sampleCount: 0, avgMs: 0, p95Ms: 0, maxMs: 0, fps: 0 };
     }
     const avgMs = this.sum / this.count;
     if (this.p95Dirty) {
       this.cachedP95 = computeP95(this.buffer, this.count, this.scratch);
+      this.cachedMaxMs = this.scratch[this.count - 1];
       this.p95Dirty = false;
     }
     const fps = avgMs > 0 ? 1000 / avgMs : 0;
@@ -271,6 +275,7 @@ export class RollingFrameMetrics {
       sampleCount: this.count,
       avgMs,
       p95Ms: this.cachedP95,
+      maxMs: this.cachedMaxMs,
       fps,
     };
   }

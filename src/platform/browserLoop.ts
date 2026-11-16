@@ -75,6 +75,7 @@ export class GameLoop {
   private readonly onVisibilityChange = (): void => {
     if (typeof document === 'undefined') return;
     if (document.hidden) {
+      this.wakeUntilMs = 0;
       if (this.rafId !== null) {
         cancelAnimationFrame(this.rafId);
         this.rafId = null;
@@ -187,10 +188,10 @@ export class GameLoop {
     throttled: boolean;
     lastWorkMs: number;
   } {
-    const wakeFpsNull =
-      this.pacingMode === 'wake' || (this.pacingMode === 'paused' && this.isWakeActive());
+    const wakePaused = this.pacingMode === 'paused' && this.isWakeActive();
+    const wakeFpsNull = this.pacingMode === 'wake' || wakePaused;
     return {
-      mode: this.pacingMode,
+      mode: wakePaused ? 'wake' : this.pacingMode,
       targetFps: wakeFpsNull ? null : this.maxRenderFps,
       throttled: this.lastThrottled,
       lastWorkMs: this.lastWorkMs,

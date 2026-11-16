@@ -77,7 +77,16 @@ describe('computeP95 and RollingFrameMetrics', () => {
     expect(snap.sampleCount).toBe(20);
     expect(snap.avgMs).toBeCloseTo(10.5, 4);
     expect(snap.p95Ms).toBe(19);
+    expect(snap.maxMs).toBe(20);
     expect(snap.fps).toBeCloseTo(1000 / 10.5, 2);
+
+    // Sliding window drops old peak once evicted
+    metrics.record(50);
+    expect(metrics.getSnapshot().maxMs).toBe(50);
+    for (let i = 0; i < 20; i++) {
+      metrics.record(12);
+    }
+    expect(metrics.getSnapshot().maxMs).toBe(12);
   });
 });
 
@@ -234,13 +243,16 @@ describe('PerfGovernor', () => {
       fps: 58.4,
       frameTimeMs: 17.1,
       p95FrameMs: 19.8,
+      maxFrameMs: 22.4,
       workAvgMs: 2.34,
+      workP95Ms: 3.12,
       drawCalls: 48,
       drawsWithShadows: 48,
       drawsNoShadows: 31,
       triangles: 29410,
       textures: 7,
       geometries: 52,
+      programs: 14,
       dpr: 1.35,
       pixelWidth: 526,
       pixelHeight: 1139,
@@ -253,6 +265,7 @@ describe('PerfGovernor', () => {
       tierLabel: 'Medium',
       lockedCeilingTier: 3,
       defaultMaxTier: 4,
+      tierTransitions: 2,
       pacingMode: 'active',
       enemiesActive: 12,
       enemiesMax: 256,
@@ -267,12 +280,15 @@ describe('PerfGovernor', () => {
     expect(line).toContain('[Skyhold Perf]');
     expect(line).toContain('fps=58.4');
     expect(line).toContain('p95=19.8ms');
+    expect(line).toContain('max=22.4ms');
+    expect(line).toContain('work=2.34/3.12ms');
+    expect(line).toContain('progs=14');
     expect(line).toContain('loop=active');
     expect(line).toContain('draws=48');
     expect(line).toContain('dpr=1.35(526x1139)');
     expect(line).toContain('composer=ON[Out+Bloom]');
     expect(line).toContain('sh=ON(1024)');
-    expect(line).toContain('quality=auto->T3(Medium) cap=T3');
+    expect(line).toContain('quality=auto->T3(Medium) cap=T3 chg=2');
 
     const menuLine = formatPerfLogLine({
       fps: 30,

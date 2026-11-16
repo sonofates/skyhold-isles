@@ -1,7 +1,7 @@
 import './style.css';
 import { SoundManager } from './audio/soundManager.ts';
 import { LEVELS } from './data/levels/index.ts';
-import { GameLoop, computeRenderPacingTarget } from './platform/browserLoop.ts';
+import { GameLoop, computeRenderPacingTarget, type RenderPacingMode } from './platform/browserLoop.ts';
 import { GameSession } from './platform/gameSession.ts';
 import { InputManager } from './platform/input.ts';
 import { loadSettings } from './platform/storage.ts';
@@ -44,7 +44,8 @@ async function bootstrap(loadingScreen: LoadingScreen): Promise<void> {
 
   const assetsStartMs = performance.now();
   const assets = await KenneyAssetStore.preload((loaded, total, label) => {
-    loadingScreen.setProgress(loaded, total, label);
+    // Reserve 2 final steps (island diorama setup + shader warm-up) so progress never steps backward.
+    loadingScreen.setProgress(loaded, total + 2, label);
   });
   const assetsMs = performance.now() - assetsStartMs;
 
@@ -149,6 +150,7 @@ async function bootstrap(loadingScreen: LoadingScreen): Promise<void> {
   let lastCamViewVersion = renderWorld.cameraController.getViewVersion();
   let lastSimWorld = session.simWorld;
   let lastViewMode = session.viewMode;
+  let lastPacingMode: RenderPacingMode = 'menu';
   let wasPacingThrottled = true;
   let perfLogAccumSec = 0;
 
@@ -190,9 +192,14 @@ async function bootstrap(loadingScreen: LoadingScreen): Promise<void> {
         menuView: session.viewMode,
         wakeActive: loop.isWakeActive(),
       });
-      if (wasPacingThrottled && pacing.mode === 'active' && !levelOrViewChanged) {
-        renderWorld.sceneManager.resetGovernorWarmup(0.4, true);
+      if (!levelOrViewChanged) {
+        if (wasPacingThrottled && pacing.targetFps === null) {
+          renderWorld.sceneManager.resetGovernorWarmup(0.4, true);
+        } else if (pacing.mode !== lastPacingMode && pacing.targetFps !== null) {
+          renderWorld.sceneManager.resetDisplayMetrics();
+        }
       }
+      lastPacingMode = pacing.mode;
       wasPacingThrottled = pacing.targetFps !== null;
       loop.setRenderPacing(pacing.targetFps, pacing.mode);
 
@@ -278,10 +285,14 @@ async function bootstrap(loadingScreen: LoadingScreen): Promise<void> {
     debugPanel?.setVisible(true);
     debugPanel?.update(0.25);
     const snap = renderWorld.sceneManager.getPerfSnapshot();
+    const glInfo = renderWorld.sceneManager.getWebGLDiagnosticInfo();
+    const gpuSuffix = glInfo.gpuRenderer ? ` gpu="${glInfo.gpuRenderer}"` : '';
     console.info(
       `[Skyhold Perf] timeToMenu=${Math.round(startupMetrics.timeToMenuMs)}ms ` +
         `(assets=${Math.round(assetsMs)}ms, setup=${Math.round(sceneSetupMs)}ms, warmup=${Math.round(warmupMs)}ms) ` +
-        `quality=${snap.qualityMode}->T${snap.activeTier}(${snap.tierLabel}) dpr=${snap.dpr.toFixed(2)} composer=${snap.composerEnabled ? snap.activePasses : 'OFF'}`,
+        `quality=${snap.qualityMode}->T${snap.activeTier}(${snap.tierLabel}) dpr=${snap.dpr.toFixed(2)} ` +
+        `composer=${snap.composerEnabled ? snap.activePasses : 'OFF'} ` +
+        `gl=${glInfo.webgl2 ? 'WebGL2' : 'WebGL1'} progs=${glInfo.programs} maxTex=${glInfo.maxTextureSize} parallelCompile=${glInfo.parallelCompile}${gpuSuffix}`,
     );
   }
 

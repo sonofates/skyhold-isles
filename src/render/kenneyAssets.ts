@@ -52,6 +52,16 @@ export const KENNEY_MODEL_LIST = [
 
 export type KenneyModelName = (typeof KENNEY_MODEL_LIST)[number];
 
+function isIdentityMatrix(m: THREE.Matrix4): boolean {
+  const e = m.elements;
+  return (
+    e[0] === 1 && e[1] === 0 && e[2] === 0 && e[3] === 0 &&
+    e[4] === 0 && e[5] === 1 && e[6] === 0 && e[7] === 0 &&
+    e[8] === 0 && e[9] === 0 && e[10] === 1 && e[11] === 0 &&
+    e[12] === 0 && e[13] === 0 && e[14] === 0 && e[15] === 1
+  );
+}
+
 /**
  * Strips extra attributes/indexes so every normalized GLB shares identical attribute layout:
  * non-indexed position (vec3), normal (vec3), uv (vec2), color (vec3).
@@ -63,7 +73,9 @@ function normalizeMeshGeometry(src: THREE.BufferGeometry, worldMatrix: THREE.Mat
       geo.deleteAttribute(attrName);
     }
   }
-  geo.applyMatrix4(worldMatrix);
+  if (!isIdentityMatrix(worldMatrix)) {
+    geo.applyMatrix4(worldMatrix);
+  }
   if (!geo.hasAttribute('normal')) {
     geo.computeVertexNormals();
   }

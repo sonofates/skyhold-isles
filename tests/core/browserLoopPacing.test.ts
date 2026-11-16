@@ -217,10 +217,58 @@ describe('GameLoop throttle boundary and storage backward compatibility', () => 
     expect(loop.getPacingInfo().targetFps).toBe(30);
 
     loop.setRenderPacing(20, 'paused');
-    expect(loop.getPacingInfo().targetFps).toBeNull();
+    expect(loop.getPacingInfo()).toMatchObject({ mode: 'wake', targetFps: null });
     nowMs = 700;
-    expect(loop.getPacingInfo().targetFps).toBe(20);
+    expect(loop.getPacingInfo()).toMatchObject({ mode: 'paused', targetFps: 20 });
 
+    vi.unstubAllGlobals();
+  });
+
+  it('cancels RAF and clears stale wake timers when the tab becomes hidden, then restores cleanly', () => {
+    let hidden = false;
+    const listeners = new Map<string, () => void>();
+    const cancelledIds: number[] = [];
+    let rafCounter = 0;
+    let restores = 0;
+
+    vi.stubGlobal('document', {
+      get hidden() {
+        return hidden;
+      },
+      addEventListener: (type: string, cb: () => void) => listeners.set(type, cb),
+      removeEventListener: (type: string) => listeners.delete(type),
+    });
+    vi.stubGlobal('requestAnimationFrame', () => ++rafCounter);
+    vi.stubGlobal('cancelAnimationFrame', (id: number) => cancelledIds.push(id));
+    vi.stubGlobal('performance', { now: () => 100 });
+
+    const loop = new GameLoop({
+      onFixedTick: () => {},
+      onRender: () => {},
+      onVisibilityRestore: () => {
+        restores++;
+      },
+    });
+    loop.setRenderPacing(20, 'paused');
+    loop.start();
+    loop.wakeRender(1.0);
+    expect(loop.isWakeActive()).toBe(true);
+    expect(rafCounter).toBe(1);
+
+    // Tab hides -> cancels RAF and clears pending wake timer
+    hidden = true;
+    listeners.get('visibilitychange')?.();
+    expect(cancelledIds).toEqual([1]);
+    expect(loop.isWakeActive()).toBe(false);
+
+    // Tab returns -> restores and schedules a fresh RAF
+    hidden = false;
+    listeners.get('visibilitychange')?.();
+    expect(restores).toBe(1);
+    expect(rafCounter).toBe(2);
+
+    loop.stop();
+    expect(listeners.size).toBe(0);
     vi.unstubAllGlobals();
   });
 

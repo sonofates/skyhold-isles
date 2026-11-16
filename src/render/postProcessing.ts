@@ -94,6 +94,8 @@ interface DisposableLike {
 interface N8aoInternalResources {
   scene?: THREE.Scene;
   autoDetectTransparency?: boolean;
+  configuration?: { depthBufferType?: number };
+  configureEffectCompositer?: (depthBufferType: number, ortho: boolean) => void;
   writeTargetInternal?: DisposableLike | null;
   readTargetInternal?: DisposableLike | null;
   outputTargetInternal?: DisposableLike | null;
@@ -161,6 +163,11 @@ function createN8aoPass(
   internal.autoDetectTransparency = false;
   internal.scene = scene;
   configureN8aoPass(pass, mode);
+  // N8AOPostPass's constructor invokes configureEffectCompositer without ortho=true; when mode is
+  // 'full' (halfRes stays false) the proxy never re-invokes it for OrthographicCamera.
+  if (mode === 'full' && (camera as THREE.OrthographicCamera).isOrthographicCamera) {
+    internal.configureEffectCompositer?.(internal.configuration?.depthBufferType ?? 1, true);
+  }
   pass.configuration.aoRadius = 1.25;
   pass.configuration.distanceFalloff = 0.9;
   pass.configuration.intensity = 1.65;
@@ -235,6 +242,25 @@ export class PostProcessingPipeline {
     if (this.config.bloom) parts.push('Bloom');
     if (this.config.smaa) parts.push('SMAA');
     return parts.length > 0 ? parts.join('+') : 'Tone';
+  }
+
+  /**
+   * Drops passes that are turning off before resizing the composer so disabled render targets
+   * are never resized only to be immediately disposed.
+   */
+  releaseDisabledPasses(next: PostProcessingConfig): void {
+    if (next.n8ao === 'off' && this.n8aoPass) {
+      this.composer.removePass(this.n8aoPass);
+      disposeN8aoPass(this.n8aoPass);
+      this.n8aoPass = null;
+      this.config = { ...this.config, n8ao: 'off' };
+    }
+    if (!next.smaa && this.smaaPass) {
+      this.composer.removePass(this.smaaPass);
+      this.smaaPass.dispose();
+      this.smaaPass = null;
+      this.config = { ...this.config, smaa: false };
+    }
   }
 
   applyConfig(next: PostProcessingConfig, forceRebuild = false): void {

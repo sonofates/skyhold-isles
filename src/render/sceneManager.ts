@@ -30,8 +30,10 @@ export interface ScenePerfSnapshot {
   readonly fps: number;
   readonly avgMs: number;
   readonly p95Ms: number;
+  readonly maxMs: number;
   readonly workAvgMs: number;
   readonly workP95Ms: number;
+  readonly workMaxMs: number;
   readonly dpr: number;
   readonly nativeDpr: number;
   readonly pixelWidth: number;
@@ -45,6 +47,7 @@ export interface ScenePerfSnapshot {
   readonly tierLabel: string;
   readonly lockedCeilingTier: QualityTier;
   readonly defaultMaxTier: QualityTier;
+  readonly tierTransitions: number;
   readonly isTouch: boolean;
 }
 
@@ -101,6 +104,7 @@ export class SceneManager {
   private lastWidth: number;
   private lastHeight: number;
   private appliedDpr = -1;
+  private tierTransitions = 0;
 
   constructor(
     canvas: HTMLCanvasElement,
@@ -229,15 +233,20 @@ export class SceneManager {
 
   setQuality(quality: QualityLevel): void {
     if (quality === this.governor.getMode()) return;
+    this.tierTransitions = 0;
     this.governor.setMode(quality);
     this.applyPreset(this.governor.getPreset(), true);
+  }
+
+  resetDisplayMetrics(): void {
+    this.displayMetrics.reset();
+    this.workMetrics.reset();
   }
 
   resetGovernorWarmup(durationSec?: number, resetDisplayMetrics = false): void {
     this.governor.resetWarmup(durationSec);
     if (resetDisplayMetrics) {
-      this.displayMetrics.reset();
-      this.workMetrics.reset();
+      this.resetDisplayMetrics();
     }
   }
 
@@ -251,6 +260,23 @@ export class SceneManager {
       this.canvas.clientWidth || window.innerWidth,
       this.canvas.clientHeight || window.innerHeight,
     );
+
+    const preset = this.governor.getPreset();
+    if (preset.composer && !this.postProcessing) {
+      this.postProcessing = new PostProcessingPipeline(
+        this.renderer,
+        this.scene,
+        camera,
+        this.lastWidth,
+        this.lastHeight,
+        {
+          n8ao: preset.n8ao,
+          outline: preset.outline,
+          bloom: preset.bloom,
+          smaa: preset.smaa,
+        },
+      );
+    }
 
     const disposables: Array<{ dispose: () => void }> = [];
     let extraGroup: THREE.Group | null = null;
@@ -274,6 +300,12 @@ export class SceneManager {
       }
     }
 
+    // Compile scene + deferred gameplay shaders against EffectComposer's linear HalfFloat buffer
+    // when post-processing is enabled so RenderPass doesn't recompile srgb-linear variants on first draw.
+    const prevTarget = this.renderer.getRenderTarget();
+    if (this.postProcessing) {
+      this.renderer.setRenderTarget(this.postProcessing.composer.inputBuffer);
+    }
     try {
       if (typeof this.renderer.compileAsync === 'function') {
         try {
@@ -290,32 +322,15 @@ export class SceneManager {
         if (extraGroup) this.renderer.compile(extraGroup, camera, this.scene);
       }
     } finally {
+      this.renderer.setRenderTarget(prevTarget);
       for (let i = 0; i < disposables.length; i++) {
         disposables[i].dispose();
       }
     }
 
-    const preset = this.governor.getPreset();
-    if (preset.composer && !this.postProcessing) {
-      this.postProcessing = new PostProcessingPipeline(
-        this.renderer,
-        this.scene,
-        camera,
-        this.lastWidth,
-        this.lastHeight,
-        {
-          n8ao: preset.n8ao,
-          outline: preset.outline,
-          bloom: preset.bloom,
-          smaa: preset.smaa,
-        },
-      );
-    }
-
     this.render(camera);
     this.governor.resetWarmup();
-    this.displayMetrics.reset();
-    this.workMetrics.reset();
+    this.resetDisplayMetrics();
   }
 
   recordFrame(
@@ -334,6 +349,7 @@ export class SceneManager {
 
     const transition = this.governor.recordFrame(frameMs, options);
     if (transition) {
+      this.tierTransitions++;
       this.applyPreset(this.governor.getPreset(), false);
     }
     return transition;
@@ -414,8 +430,10 @@ export class SceneManager {
       fps: frameStats.fps,
       avgMs: frameStats.avgMs,
       p95Ms: frameStats.p95Ms,
+      maxMs: frameStats.maxMs,
       workAvgMs: workStats.avgMs,
       workP95Ms: workStats.p95Ms,
+      workMaxMs: workStats.maxMs,
       dpr,
       nativeDpr,
       pixelWidth,
@@ -429,7 +447,38 @@ export class SceneManager {
       tierLabel: preset.label,
       lockedCeilingTier: this.governor.getLockedCeilingTier(),
       defaultMaxTier: this.governor.getDefaultMaxTier(),
+      tierTransitions: this.tierTransitions,
       isTouch: this.isTouch,
+    };
+  }
+
+  getWebGLDiagnosticInfo(): {
+    webgl2: boolean;
+    maxTextureSize: number;
+    parallelCompile: boolean;
+    programs: number;
+    gpuRenderer: string | null;
+  } {
+    const programs = this.renderer.info.programs?.length ?? 0;
+    let gpuRenderer: string | null = null;
+    try {
+      const gl = this.renderer.getContext();
+      const dbg = gl.getExtension('WEBGL_debug_renderer_info');
+      if (dbg) {
+        const raw = gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL);
+        if (typeof raw === 'string' && raw.length > 0) {
+          gpuRenderer = raw;
+        }
+      }
+    } catch {
+      // Browser privacy settings may block unmasked GPU renderer info
+    }
+    return {
+      webgl2: this.renderer.capabilities.isWebGL2,
+      maxTextureSize: this.renderer.capabilities.maxTextureSize,
+      parallelCompile: this.renderer.extensions.has('KHR_parallel_shader_compile'),
+      programs,
+      gpuRenderer,
     };
   }
 
@@ -481,6 +530,13 @@ export class SceneManager {
     this.renderer.toneMapping = preset.composer ? THREE.NoToneMapping : THREE.NeutralToneMapping;
     this.renderer.toneMappingExposure = preset.composer ? 1.0 : 1.06;
 
+    const w = refreshSize
+      ? Math.max(1, this.canvas.clientWidth || window.innerWidth)
+      : this.lastWidth;
+    const h = refreshSize
+      ? Math.max(1, this.canvas.clientHeight || window.innerHeight)
+      : this.lastHeight;
+
     if (!preset.composer) {
       if (this.postProcessing) {
         // Free the composer render targets & N8AO buffers; recreated lazily if stepping back up.
@@ -489,22 +545,22 @@ export class SceneManager {
       }
       // EffectComposer sets renderer.autoClear = false; restore it for direct WebGL rendering.
       this.renderer.autoClear = true;
+      this.resize(w, h);
     } else if (this.postProcessing) {
-      this.postProcessing.applyConfig({
+      const postCfg = {
         n8ao: preset.n8ao,
         outline: preset.outline,
         bloom: preset.bloom,
         smaa: preset.smaa,
-      });
+      };
+      // Drop passes turning off before resize, then resize before creating newly enabled passes
+      // so new GPU targets allocate once at the final drawingBufferSize.
+      this.postProcessing.releaseDisabledPasses(postCfg);
+      this.resize(w, h);
+      this.postProcessing.applyConfig(postCfg);
+    } else {
+      this.resize(w, h);
     }
-
-    const w = refreshSize
-      ? Math.max(1, this.canvas.clientWidth || window.innerWidth)
-      : this.lastWidth;
-    const h = refreshSize
-      ? Math.max(1, this.canvas.clientHeight || window.innerHeight)
-      : this.lastHeight;
-    this.resize(w, h);
     this.effectiveStateListener?.(this.getEffectiveRenderState());
   }
 
