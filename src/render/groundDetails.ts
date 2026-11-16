@@ -7,7 +7,7 @@ import type { TowerEntity } from '../sim/entities.ts';
 import { gridToWorldX, gridToWorldZ } from '../sim/grid.ts';
 import { disposeInstancedMeshes, mergeColoredParts, type ColoredPart } from './geometryHelpers.ts';
 import type { MaterialLibrary } from './materials.ts';
-import { resolveGroundKind } from './islandThemes.ts';
+import { claimedDecorTiles, resolveGroundKind } from './islandThemes.ts';
 import { getIslandTheme } from './islandThemeTable.ts';
 
 interface BucketPlacement {
@@ -224,6 +224,7 @@ export class GroundDetails {
     const grid = parseLevelGrid(level);
     const rng = new SeededRng(level.decorationSeed + 3137);
     const theme = getIslandTheme(level.id);
+    const claimed = claimedDecorTiles(level, theme);
     const isLandTile = (c: number, r: number): boolean => c >= 0 && r >= 0 && c < level.cols && r < level.rows && grid[r][c] !== 'empty';
     const tileAt = (c: number, r: number) =>
       c >= 0 && r >= 0 && c < level.cols && r < level.rows ? grid[r][c] : 'water';
@@ -286,6 +287,7 @@ export class GroundDetails {
       for (let c = 0; c < level.cols; c++) {
         const tile = grid[r][c];
         if (tile !== 'grass' && tile !== 'decor') continue;
+        if (claimed.has(`${c},${r}`)) continue;
 
         const baseX = gridToWorldX(c, level.cols);
         const baseZ = gridToWorldZ(r, level.rows);
