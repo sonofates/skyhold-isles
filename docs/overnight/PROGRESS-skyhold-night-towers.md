@@ -30,6 +30,8 @@ tsc, lint, 52 vitest tests, sim:balance all green on `cfb9330`.
 
 - [r2] Sell animation: `TowerRenderer.addSoldGhost` (towerSold event now carries `tier`); sold tower hops then collapses over 0.3 s using the normal instanced buckets (no extra draw calls). Brittle feedback: new `brittleCrack` event (emitted per chilled hit in `applySplash`) -> ice debris + flash + crack sound. Per-frame bucket-key string allocation removed from `syncTowers`.
 
+- [r3] Verified all green on resume (tsc, lint, tests, build, sim:balance all 9 islands pass). Audio: soft DynamicsCompressor limiter on master output (no clipping in dense waves). New `tests/sim/determinism.test.ts` (two runs of full 7-tower T3 roster are identical).
+
 ## Next (ideas for later rounds)
 - Frost Brittle damage numbers could be tinted (needs sessionBridge/UI, outside my area).
 - Beacon aura could preview coverage on attack-tower placement (needs overlay work in `overlayIndicators.ts`).
