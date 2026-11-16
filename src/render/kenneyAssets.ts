@@ -162,6 +162,7 @@ export class KenneyAssetStore {
     const concurrency = 10;
     let cursor = 0;
     let lastYieldMs = typeof performance !== 'undefined' ? performance.now() : 0;
+    let pendingYield: Promise<void> | null = null;
 
     const worker = async (): Promise<void> => {
       while (cursor < models.length) {
@@ -197,8 +198,13 @@ export class KenneyAssetStore {
         onProgress?.(completed, total, name);
 
         if (typeof performance !== 'undefined' && performance.now() - lastYieldMs >= 10) {
-          await yieldMainThread();
-          lastYieldMs = performance.now();
+          if (!pendingYield) {
+            pendingYield = yieldMainThread().then(() => {
+              lastYieldMs = performance.now();
+              pendingYield = null;
+            });
+          }
+          await pendingYield;
         }
       }
     };

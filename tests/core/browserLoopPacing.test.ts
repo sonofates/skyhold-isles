@@ -152,6 +152,78 @@ describe('GameLoop throttle boundary and storage backward compatibility', () => 
     vi.unstubAllGlobals();
   });
 
+  it('uses resolveRenderPacing before gating so unpausing or closing a modal never drops a frame', () => {
+    let nextRaf: ((now: number) => void) | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: (now: number) => void) => {
+      nextRaf = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', () => {});
+    vi.stubGlobal('performance', { now: () => 0 });
+
+    let modalOpen = true;
+    let renderedCount = 0;
+    const observedThrottled: boolean[] = [];
+
+    const loop = new GameLoop({
+      resolveRenderPacing: (wakeActive) =>
+        computeRenderPacingTarget({
+          hidden: false,
+          simActive: true,
+          paused: modalOpen,
+          modalOpen,
+          menuView: 'playing',
+          wakeActive,
+        }),
+      onFixedTick: () => {},
+      onRender: () => {
+        renderedCount++;
+      },
+      onAfterRender: (_dt, _work, throttled) => {
+        observedThrottled.push(throttled);
+      },
+    });
+
+    loop.start();
+    nextRaf?.(100); // renders frame 1 in 15fps modal -> throttled=true
+    nextRaf?.(116); // still in modal (< 65ms) -> skipped
+    expect(renderedCount).toBe(1);
+
+    // User clicks Resume right before next RAF at 132ms (only 32ms since last render)
+    modalOpen = false;
+    nextRaf?.(132); // resolveRenderPacing uncaps BEFORE gate -> renders immediately!
+    nextRaf?.(148); // normal active frame -> throttled=false
+
+    expect(renderedCount).toBe(3);
+    expect(observedThrottled).toEqual([true, true, false]);
+    expect(loop.getPacingInfo().mode).toBe('active');
+    expect(loop.getPacingInfo().targetFps).toBeNull();
+
+    loop.stop();
+    vi.unstubAllGlobals();
+  });
+
+  it('reports wake targetFps accurately for paused gameplay vs menus', () => {
+    let nowMs = 100;
+    vi.stubGlobal('performance', { now: () => nowMs });
+
+    const loop = new GameLoop({
+      onFixedTick: () => {},
+      onRender: () => {},
+    });
+
+    loop.setRenderPacing(30, 'menu');
+    loop.wakeRender(0.5);
+    expect(loop.getPacingInfo().targetFps).toBe(30);
+
+    loop.setRenderPacing(20, 'paused');
+    expect(loop.getPacingInfo().targetFps).toBeNull();
+    nowMs = 700;
+    expect(loop.getPacingInfo().targetFps).toBe(20);
+
+    vi.unstubAllGlobals();
+  });
+
   it('defaults quality to auto while keeping legacy high/low settings backward compatible', () => {
     const store = new Map<string, string>();
     vi.stubGlobal('localStorage', {

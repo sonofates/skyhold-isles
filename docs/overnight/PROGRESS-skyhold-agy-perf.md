@@ -6,7 +6,7 @@ Branch: `hermes/skyhold-agy-perf` (base: `main`)
 
 ### 1. `?perf` Measurement Overlay & Telemetry Logging
 - Added `?perf` URL flag support (alongside existing `?debug`) in `src/ui/debugWiring.ts` and `src/ui/debugPanel.ts` using existing `.debug-panel` CSS classes (zero edits to `src/style.css`).
-- `?perf` stays visible across menus and gameplay and logs `[Skyhold Perf]` startup breakdown, quality tier transitions, and 5s periodic summaries (plus an interactive `Log Snapshot` button).
+- `?perf` stays visible across menus and gameplay and logs `[Skyhold Perf]` startup breakdown, quality tier transitions, and 5s periodic summaries (including `@<fps>fps` pacing suffixes when throttled, plus an interactive `Log Snapshot` button).
 - Reports: rolling **FPS**, avg + **p95 frame ms**, CPU **work ms**, **draw calls**, **triangles**, **textures**, **geometries** (`renderer.info`), applied/native **DPR** & exact framebuffer pixel size (`getDrawingBufferSize`), **composer ON/OFF** + active post passes, **shadows ON/OFF + shadow map resolution**, **quality mode -> active tier** (including `[cap:TX]` if bounce-locked), **loop pacing mode**, and **startup time-to-menu** breakdown (`assetsMs`, `sceneSetupMs`, `warmupMs`, `timeToMenuMs`).
 - Throttled `DebugPanel` DOM `textContent` updates to 5 Hz (`0.2s`), skipped updates while collapsed, and in `?perf` mode read `renderer.info.render` directly without calling `getRenderMetrics()` (`scene.traverseVisible`), eliminating measurement overhead.
 
@@ -27,6 +27,12 @@ Branch: `hermes/skyhold-agy-perf` (base: `main`)
   - Added replacement `compositePass` before removing the old one in `applyConfig` so `EffectComposer` preserves `depthRenderTarget` without destroying and reallocating 3 GPU depth textures on Bloom/Outline toggles.
   - Added `disposeN8aoPass()` to explicitly dispose N8AO's internal render targets, quads, materials, `depthCopyPass`, and blue-noise texture (`N8AOPostPass` does not override `Pass.dispose()`), preventing GPU memory leaks when disabling N8AO or composer.
 - Integrated `PerfGovernor` into `src/render/sceneManager.ts` and hooked `effectiveStateListener` in `src/main.ts` to keep `materials.setOutlineAlphaEnabled` and `decorBuilder.setQuality` synced without modifying `renderWorld.ts` or `decorBuilder.ts`.
+- Hardened `SceneManager` & `PostProcessingPipeline` transitions and device detection:
+  - Added `detectPrimaryTouchDevice()` in `src/render/sceneManager.ts` (`(pointer: coarse)` vs `(pointer: fine) and (hover: hover)`) so Windows touchscreen laptops with mice/trackpads preserve Desktop Tier 5 fidelity instead of falling back to Touch Tier 4.
+  - Guarded `SceneManager.setQuality(quality)` against unchanged quality modes and re-synced `eff.outlineEnabled` / `eff.decorLow` in `main.ts`'s `onSettingsChange` so dragging the volume slider or toggling audio/shake settings in `'auto'` mode never resets the learned governor tier, bounce lock, or Tier 0/1 flags.
+  - Restored `renderer.autoClear = true` in `SceneManager.applyPreset` whenever stepping down to direct rendering (`!preset.composer`, since `EffectComposer` sets `renderer.autoClear = false`).
+  - Passed an empty scratch `THREE.Scene` into `new N8AOPostPass(...)` before disabling `autoDetectTransparency` and assigning the real scene, avoiding N8AO's constructor scene traversal and transient allocation+disposal of two full-res HalfFloat transparency render targets + DepthTexture.
+  - Avoided reading `canvas.clientWidth/clientHeight` inside `SceneManager.render()` (uses cached `lastWidth`/`lastHeight`).
 
 ### 3. Battery-Saving Frame Pacing (`src/platform/browserLoop.ts`)
 - Tab hidden (`document.hidden`): stops scheduling `requestAnimationFrame` completely (`0 fps` / zero GPU work) and resets timestamps + governor warmup on visibility restore.
@@ -36,17 +42,18 @@ Branch: `hermes/skyhold-agy-perf` (base: `main`)
   - Level Select / Modals (Pause, Settings, Victory, Defeat): `15 fps` (keeps background alive at ~75% lower GPU cost).
   - Idle paused gameplay: `20 fps`, instantly waking (`wakeRender(0.75)`) to full native VSync on pointer move/down, wheel, keydown, or camera motion.
   - Pointer movement/scroll inside Main Menu, Level Select, or open Modals stays capped at `30 fps` / `15 fps` (wake applies strictly to paused gameplay).
-- Throttled frames and the single boundary frame emerging from a throttled sleep interval (`resumedFromThrottle`) are flagged and ignored by `PerfGovernor`, and `main.ts` resets display metrics + applies a short `0.4s` settle warmup when resuming active gameplay from a throttled state.
+- Throttled frames and the single boundary frame emerging from a throttled sleep interval (`resumedFromThrottle`) are flagged and ignored by `PerfGovernor`, and `main.ts` resets display metrics + applies a short `0.4s` settle warmup when resuming active gameplay from a throttled state (without overwriting the full `1.2s` warmup on level/view changes).
+- Added `resolveRenderPacing` callback on `GameLoop` evaluated before the frame-cap gate so unpausing, closing modals, or entering gameplay from menus renders on the very next RAF tick without a 1–4 frame (`33–66ms`) stale-cap drop.
 
 ### 4. Startup Optimization & Measurements
 - `src/render/kenneyAssets.ts`:
   - Fetches & harmonizes `Textures/colormap.png` in parallel with `.glb` model downloads instead of blocking all 40 model fetches on an initial RTT.
   - Disposes `colormapTexture` if parallel model preloading rejects after `colormap.png` resolves.
   - Registers a `SKYHOLD_GEOMETRY_ONLY` `GLTFLoader` plugin (`loadMaterial`) so parsing the 40 `.glb` files does not fetch/decode `Textures/colormap.png` 40 extra times or allocate 40 transient `THREE.Texture` + `MeshStandardMaterial` instances that are immediately disposed.
-  - Raised preload concurrency (`6 -> 10`) and added cooperative `setTimeout(0)` yields when synchronous parse/merge work reaches `10ms` to avoid long main-thread tasks.
+  - Raised preload concurrency (`6 -> 10`), added cooperative `setTimeout(0)` yields when synchronous parse/merge work reaches `10ms`, and coalesced concurrent worker yields into a single shared promise so parallel GLB workers never queue staggered redundant timer turns.
 - `src/render/sceneManager.ts` + `src/main.ts`:
-  - Added `SceneManager.warmUp(camera)` (syncs laid-out viewport size, `compileAsync` with `compile` fallback + initial composer/shadow frame) before `loadingScreen.hide()`, eliminating the first-frame shader compile hitch on menu reveal.
-  - Added `nextAnimationFrame()` yields and accurate `41/43` -> `42/43` -> `43/43` progress stages between preload -> diorama setup -> shader warm-up so `LoadingScreen` status text paints smoothly.
+  - Added `SceneManager.warmUp(camera, options?)` (syncs laid-out viewport size, `compileAsync` with `compile` fallback + initial composer/shadow frame) before `loadingScreen.hide()`, pre-compiling deferred gameplay-only materials (`materials.kenneyTower` instanced shader with `aHighlight` + `materials.ghostInvalidMaterial`) alongside the diorama scene to eliminate both menu-reveal and first-tower placement shader hitches.
+  - Added `nextAnimationFrame()` yields (bypassed cleanly if `document.hidden` so background-tab loads never stall) and accurate `41/43` -> `42/43` -> `43/43` progress stages between preload -> diorama setup -> shader warm-up so `LoadingScreen` status text paints smoothly.
 
 #### Measured Benchmark Numbers (Node v22 CPU/Load Simulation on Repo Assets)
 - **Kenney GLB assets**: `40` files (`1,328.6 KB` total, `14,076` triangles total).
@@ -57,8 +64,8 @@ Branch: `hermes/skyhold-agy-perf` (base: `main`)
 - Live browser `timeToMenuMs` (`assetsMs` / `sceneSetupMs` / `warmupMs`) is instrumented and printed in `?perf` overlay and `[Skyhold Perf]` console log.
 
 ### 5. Unit Tests
-- `tests/render/perfGovernor.test.ts`: 15 tests covering `computeTargetDpr`, `computeShadowMapSize`, `computeP95`, `RollingFrameMetrics`, `PerfGovernor` hysteresis, severe double-step, `<25fps` eval accumulation, `setTouch` ceiling updates, warmup/outlier/throttle ignoring, bounce ceiling lock, manual `high`/`low` overrides, and `formatPerfLogLine`.
-- `tests/core/browserLoopPacing.test.ts`: 6 tests covering `computeRenderPacingTarget` across hidden, active, wake, menu, levelSelect/modal (including wake suppression while in menus/modals), paused states, `GameLoop` throttle-boundary sleep-delta flagging, and backward-compatible `loadSettings` quality parsing.
+- `tests/render/perfGovernor.test.ts`: 16 tests covering `computeTargetDpr`, `computeShadowMapSize`, `computeP95`, `RollingFrameMetrics`, `PerfGovernor` hysteresis, severe double-step, `<25fps` eval accumulation, `setTouch` ceiling updates, warmup/outlier/throttle ignoring, bounce ceiling lock, manual `high`/`low` overrides, `detectPrimaryTouchDevice`, and `formatPerfLogLine`.
+- `tests/core/browserLoopPacing.test.ts`: 8 tests covering `computeRenderPacingTarget` across hidden, active, wake, menu, levelSelect/modal (including wake suppression while in menus/modals), paused states, `GameLoop` `resolveRenderPacing` zero-drop unpause/resume + throttle-boundary sleep-delta flagging, `getPacingInfo` wake reporting, and backward-compatible `loadSettings` quality parsing.
 
 ## Governor Thresholds (`GOVERNOR_THRESHOLDS` in `src/render/perfGovernor.ts`)
 - Rolling window: `90` unthrottled active frames (`minSamples = 20`, evaluated every `0.5s`, initial/upgrade warmup `1.2s`, post-downgrade warmup `0.65s`, outlier clamp `> 250ms` ignored).
@@ -82,6 +89,6 @@ Branch: `hermes/skyhold-agy-perf` (base: `main`)
 All checks passed after the final edit:
 - `npx tsc --noEmit`
 - `npm run lint`
-- `npm test` (11 test files, 73 tests)
+- `npm test` (11 test files, 76 tests)
 - `npm run build`
 - `npm run sim:balance` (9 levels, Greedy & Weak targets passed)

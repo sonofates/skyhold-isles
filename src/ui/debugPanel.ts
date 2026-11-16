@@ -74,8 +74,12 @@ export function formatPerfLogLine(t: DebugTelemetry): string {
     t.lockedCeilingTier < t.defaultMaxTier
       ? ` cap=T${t.lockedCeilingTier}`
       : '';
+  const loopLabel =
+    t.pacingFps && t.pacingFps > 0
+      ? `${t.pacingMode ?? 'cap'}@${t.pacingFps}fps`
+      : (t.pacingMode ?? 'active');
   return (
-    `[Skyhold Perf] fps=${fpsStr} p95=${p95Str}ms work=${workStr}ms loop=${t.pacingMode ?? 'active'} ` +
+    `[Skyhold Perf] fps=${fpsStr} p95=${p95Str}ms work=${workStr}ms loop=${loopLabel} ` +
     `draws=${t.drawCalls} tris=${t.triangles} tex=${t.textures ?? 0} geos=${t.geometries ?? 0} ` +
     `dpr=${dprStr}(${resStr}) composer=${composerStr} sh=${shadowStr} quality=${t.qualityMode ?? 'auto'}->${tierStr}${capStr}`
   );

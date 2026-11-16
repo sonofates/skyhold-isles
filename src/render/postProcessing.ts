@@ -88,9 +88,11 @@ class SilhouetteOutlineEffect extends Effect {
 interface DisposableLike {
   dispose?: () => void;
   material?: DisposableLike | null;
+  depthTexture?: DisposableLike | null;
 }
 
 interface N8aoInternalResources {
+  scene?: THREE.Scene;
   autoDetectTransparency?: boolean;
   writeTargetInternal?: DisposableLike | null;
   readTargetInternal?: DisposableLike | null;
@@ -111,6 +113,10 @@ interface N8aoInternalResources {
   neuralDenoiseMaterial?: DisposableLike | null;
 }
 
+// Empty scratch scene passed to N8AOPostPass's constructor so its initial detectTransparency()
+// scan finds no transparent meshes and never allocates+discards transient HalfFloat targets.
+const _n8aoEmptyInitScene = new THREE.Scene();
+
 function disposeN8aoPass(pass: N8AOPostPass): void {
   const internal = pass as unknown as N8aoInternalResources;
   internal.writeTargetInternal?.dispose?.();
@@ -119,6 +125,7 @@ function disposeN8aoPass(pass: N8AOPostPass): void {
   internal.accumulationRenderTarget?.dispose?.();
   internal.depthDownsampleTarget?.dispose?.();
   internal.transparencyRenderTargetDWFalse?.dispose?.();
+  internal.transparencyRenderTargetDWTrue?.depthTexture?.dispose?.();
   internal.transparencyRenderTargetDWTrue?.dispose?.();
   internal.bluenoise?.dispose?.();
   internal.standardDenoiseMaterial?.dispose?.();
@@ -147,16 +154,18 @@ function createN8aoPass(
   height: number,
   mode: Exclude<N8aoMode, 'off'>,
 ): N8AOPostPass {
-  const pass = new N8AOPostPass(scene, camera, width, height);
+  const pass = new N8AOPostPass(_n8aoEmptyInitScene, camera, width, height);
+  // Disable transparency auto-detection before attaching the real scene so N8AO never triggers
+  // 2 extra full-scene transparency render passes + 4 scene traversals per frame.
+  const internal = pass as unknown as N8aoInternalResources;
+  internal.autoDetectTransparency = false;
+  internal.scene = scene;
   configureN8aoPass(pass, mode);
   pass.configuration.aoRadius = 1.25;
   pass.configuration.distanceFalloff = 0.9;
   pass.configuration.intensity = 1.65;
   pass.configuration.color = new THREE.Color(0x282648);
   pass.configuration.gammaCorrection = false;
-  // Disable transparency-aware extra scene passes AND autoDetectTransparency (setting false when
-  // already false is ignored by N8AO's config Proxy, leaving autoDetectTransparency = true).
-  (pass as unknown as N8aoInternalResources).autoDetectTransparency = false;
   pass.configuration.transparencyAware = false;
   return pass;
 }

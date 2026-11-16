@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   GOVERNOR_THRESHOLDS,
   PerfGovernor,
@@ -8,6 +8,7 @@ import {
   computeShadowMapSize,
   computeTargetDpr,
 } from '../../src/render/perfGovernor.ts';
+import { detectPrimaryTouchDevice } from '../../src/render/sceneManager.ts';
 import { formatPerfLogLine } from '../../src/ui/debugPanel.ts';
 
 function feedFrames(
@@ -272,5 +273,46 @@ describe('PerfGovernor', () => {
     expect(line).toContain('composer=ON[Out+Bloom]');
     expect(line).toContain('sh=ON(1024)');
     expect(line).toContain('quality=auto->T3(Medium) cap=T3');
+
+    const menuLine = formatPerfLogLine({
+      fps: 30,
+      frameTimeMs: 33.3,
+      drawCalls: 22,
+      drawsWithShadows: 22,
+      drawsNoShadows: 16,
+      triangles: 14000,
+      pacingMode: 'menu',
+      pacingFps: 30,
+      enemiesActive: 0,
+      enemiesMax: 256,
+      towersCount: 0,
+      projectilesActive: 0,
+      projectilesMax: 256,
+      particlesActive: 0,
+      particlesMax: 512,
+      floatingTextsActive: 0,
+      floatingTextsMax: 60,
+    });
+    expect(menuLine).toContain('loop=menu@30fps');
+  });
+
+  it('distinguishes primary-touch mobile devices from touchscreen laptops', () => {
+    // Phone/tablet: (pointer: coarse) matches
+    vi.stubGlobal('window', {
+      matchMedia: (q: string) => ({ matches: q === '(pointer: coarse)' }),
+    });
+    vi.stubGlobal('navigator', { maxTouchPoints: 5 });
+    expect(detectPrimaryTouchDevice()).toBe(true);
+
+    // Touchscreen laptop with mouse/trackpad: maxTouchPoints > 0 but primary pointer is fine + hover
+    vi.stubGlobal('window', {
+      matchMedia: (q: string) => ({
+        matches: q === '(pointer: fine)' || q === '(hover: hover)',
+      }),
+    });
+    vi.stubGlobal('navigator', { maxTouchPoints: 10 });
+    expect(detectPrimaryTouchDevice()).toBe(false);
+
+    vi.unstubAllGlobals();
   });
 });

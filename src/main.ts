@@ -14,6 +14,9 @@ import { GameOverlays } from './ui/gameOverlays.ts';
 import { LoadingScreen } from './ui/loadingScreen.ts';
 
 function nextAnimationFrame(): Promise<void> {
+  if (typeof document !== 'undefined' && document.hidden) {
+    return Promise.resolve();
+  }
   return new Promise((resolve) => {
     if (typeof requestAnimationFrame === 'function') {
       requestAnimationFrame(() => resolve());
@@ -101,7 +104,14 @@ async function bootstrap(loadingScreen: LoadingScreen): Promise<void> {
     onMainMenuFromPause: () => session.showMenuView('menu', true),
     onNextLevel: () => session.startLevel(Math.min(LEVELS.length - 1, session.currentLevelIndex + 1)),
     onEndlessMode: () => session.enterEndlessMode(),
-    onSettingsChange: (next) => session.updateSettings(next),
+    onSettingsChange: (next) => {
+      session.updateSettings(next);
+      // Re-sync tier-driven outline & decor flags so changing non-quality settings in 'auto'
+      // mode cannot overwrite an adapted Tier 0/1 state via RenderWorld.setQuality.
+      const eff = renderWorld.sceneManager.getEffectiveRenderState();
+      renderWorld.materials.setOutlineAlphaEnabled(eff.outlineEnabled);
+      renderWorld.decorBuilder.setQuality(eff.decorLow ? 'low' : 'high');
+    },
     onSettingsClose: () => session.closeSettingsModal(),
   });
 
@@ -142,10 +152,21 @@ async function bootstrap(loadingScreen: LoadingScreen): Promise<void> {
   let wasPacingThrottled = true;
   let perfLogAccumSec = 0;
 
-  const loop = new GameLoop({
+  const loop: GameLoop = new GameLoop({
+    resolveRenderPacing: (wakeActive) =>
+      computeRenderPacingTarget({
+        hidden: document.hidden,
+        simActive: loop.simActive,
+        paused: loop.paused,
+        modalOpen: overlays.isModalOpen(),
+        menuView: session.viewMode,
+        wakeActive,
+      }),
     onFixedTick: (dt) => session.fixedTick(dt),
     onRender: (frameDt, alpha, elapsedVisualTime) => {
-      if (session.simWorld !== lastSimWorld || session.viewMode !== lastViewMode) {
+      const levelOrViewChanged =
+        session.simWorld !== lastSimWorld || session.viewMode !== lastViewMode;
+      if (levelOrViewChanged) {
         lastSimWorld = session.simWorld;
         lastViewMode = session.viewMode;
         renderWorld.sceneManager.resetGovernorWarmup(undefined, true);
@@ -169,7 +190,7 @@ async function bootstrap(loadingScreen: LoadingScreen): Promise<void> {
         menuView: session.viewMode,
         wakeActive: loop.isWakeActive(),
       });
-      if (wasPacingThrottled && pacing.mode === 'active') {
+      if (wasPacingThrottled && pacing.mode === 'active' && !levelOrViewChanged) {
         renderWorld.sceneManager.resetGovernorWarmup(0.4, true);
       }
       wasPacingThrottled = pacing.targetFps !== null;
@@ -239,7 +260,10 @@ async function bootstrap(loadingScreen: LoadingScreen): Promise<void> {
   await nextAnimationFrame();
 
   const warmStartMs = performance.now();
-  await renderWorld.sceneManager.warmUp(renderWorld.cameraController.camera);
+  await renderWorld.sceneManager.warmUp(renderWorld.cameraController.camera, {
+    instancedHighlightMaterial: renderWorld.materials.kenneyTower,
+    extraMaterials: [renderWorld.materials.ghostInvalidMaterial],
+  });
   const warmupMs = performance.now() - warmStartMs;
   loadingScreen.setProgress(43, 43);
 

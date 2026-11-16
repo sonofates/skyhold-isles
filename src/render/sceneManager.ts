@@ -48,6 +48,37 @@ export interface ScenePerfSnapshot {
   readonly isTouch: boolean;
 }
 
+export interface WarmUpOptions {
+  readonly instancedHighlightMaterial?: THREE.Material;
+  readonly extraMaterials?: readonly THREE.Material[];
+}
+
+/**
+ * Distinguishes primary-touch phones/tablets from touchscreen laptops with a mouse/trackpad
+ * so desktop touchscreen machines preserve full Tier 5 visuals.
+ */
+export function detectPrimaryTouchDevice(): boolean {
+  if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
+    if (window.matchMedia('(pointer: coarse)').matches) return true;
+    if (
+      window.matchMedia('(pointer: fine)').matches &&
+      window.matchMedia('(hover: hover)').matches
+    ) {
+      return false;
+    }
+  }
+  return isTouchDevice();
+}
+
+function createWarmUpTriangleGeometry(): THREE.BufferGeometry {
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute([0, 0, 0, 1, 0, 0, 0, 1, 0], 3));
+  geo.setAttribute('normal', new THREE.Float32BufferAttribute([0, 1, 0, 0, 1, 0, 0, 1, 0], 3));
+  geo.setAttribute('uv', new THREE.Float32BufferAttribute([0, 0, 1, 0, 0, 1], 2));
+  geo.setAttribute('color', new THREE.Float32BufferAttribute([1, 1, 1, 1, 1, 1, 1, 1, 1], 3));
+  return geo;
+}
+
 export class SceneManager {
   readonly renderer: THREE.WebGLRenderer;
   readonly scene: THREE.Scene;
@@ -76,7 +107,7 @@ export class SceneManager {
     options?: { isTouch?: boolean; initialQuality?: QualityLevel },
   ) {
     this.canvas = canvas;
-    this.isTouch = options?.isTouch ?? isTouchDevice();
+    this.isTouch = options?.isTouch ?? detectPrimaryTouchDevice();
     this.governor = new PerfGovernor({
       mode: options?.initialQuality ?? 'auto',
       isTouch: this.isTouch,
@@ -197,6 +228,7 @@ export class SceneManager {
   }
 
   setQuality(quality: QualityLevel): void {
+    if (quality === this.governor.getMode()) return;
     this.governor.setMode(quality);
     this.applyPreset(this.governor.getPreset(), true);
   }
@@ -210,23 +242,57 @@ export class SceneManager {
   }
 
   /**
-   * Compiles scene shaders and warms up the active post-processing chain before revealing the menu,
-   * avoiding a first-frame compile hitch when the loading overlay fades out.
+   * Compiles scene shaders (plus deferred gameplay-only materials like instanced towers) and
+   * warms up the active post-processing chain before revealing the menu, eliminating first-frame
+   * and first-build compile hitches.
    */
-  async warmUp(camera: THREE.Camera): Promise<void> {
+  async warmUp(camera: THREE.Camera, options?: WarmUpOptions): Promise<void> {
     this.resize(
       this.canvas.clientWidth || window.innerWidth,
       this.canvas.clientHeight || window.innerHeight,
     );
 
-    if (typeof this.renderer.compileAsync === 'function') {
-      try {
-        await this.renderer.compileAsync(this.scene, camera);
-      } catch {
-        this.renderer.compile(this.scene, camera);
+    const disposables: Array<{ dispose: () => void }> = [];
+    let extraGroup: THREE.Group | null = null;
+    if (options?.instancedHighlightMaterial || options?.extraMaterials?.length) {
+      extraGroup = new THREE.Group();
+      if (options.instancedHighlightMaterial) {
+        const instGeo = createWarmUpTriangleGeometry();
+        instGeo.setAttribute('aHighlight', new THREE.InstancedBufferAttribute(new Float32Array(1), 1));
+        const instMesh = new THREE.InstancedMesh(instGeo, options.instancedHighlightMaterial, 1);
+        instMesh.castShadow = true;
+        instMesh.receiveShadow = true;
+        extraGroup.add(instMesh);
+        disposables.push(instGeo, instMesh);
       }
-    } else {
-      this.renderer.compile(this.scene, camera);
+      if (options.extraMaterials?.length) {
+        const plainGeo = createWarmUpTriangleGeometry();
+        disposables.push(plainGeo);
+        for (let i = 0; i < options.extraMaterials.length; i++) {
+          extraGroup.add(new THREE.Mesh(plainGeo, options.extraMaterials[i]));
+        }
+      }
+    }
+
+    try {
+      if (typeof this.renderer.compileAsync === 'function') {
+        try {
+          await Promise.all([
+            this.renderer.compileAsync(this.scene, camera),
+            extraGroup ? this.renderer.compileAsync(extraGroup, camera, this.scene) : null,
+          ]);
+        } catch {
+          this.renderer.compile(this.scene, camera);
+          if (extraGroup) this.renderer.compile(extraGroup, camera, this.scene);
+        }
+      } else {
+        this.renderer.compile(this.scene, camera);
+        if (extraGroup) this.renderer.compile(extraGroup, camera, this.scene);
+      }
+    } finally {
+      for (let i = 0; i < disposables.length; i++) {
+        disposables[i].dispose();
+      }
     }
 
     const preset = this.governor.getPreset();
@@ -312,14 +378,12 @@ export class SceneManager {
     const preset = this.governor.getPreset();
     if (preset.composer) {
       if (!this.postProcessing) {
-        const w = Math.max(1, this.canvas.clientWidth || this.lastWidth);
-        const h = Math.max(1, this.canvas.clientHeight || this.lastHeight);
         this.postProcessing = new PostProcessingPipeline(
           this.renderer,
           this.scene,
           camera,
-          w,
-          h,
+          this.lastWidth,
+          this.lastHeight,
           {
             n8ao: preset.n8ao,
             outline: preset.outline,
@@ -423,6 +487,8 @@ export class SceneManager {
         this.postProcessing.dispose();
         this.postProcessing = null;
       }
+      // EffectComposer sets renderer.autoClear = false; restore it for direct WebGL rendering.
+      this.renderer.autoClear = true;
     } else if (this.postProcessing) {
       this.postProcessing.applyConfig({
         n8ao: preset.n8ao,

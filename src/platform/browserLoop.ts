@@ -53,6 +53,7 @@ export interface LoopCallbacks {
   onRender: (frameDt: number, alpha: number, elapsedVisualTime: number) => void;
   onAfterRender?: (frameDt: number, workMs: number, throttled: boolean) => void;
   onVisibilityRestore?: () => void;
+  resolveRenderPacing?: (wakeActive: boolean) => RenderPacingTarget;
 }
 
 const VSYNC_JITTER_TOLERANCE_MS = 1.5;
@@ -103,6 +104,11 @@ export class GameLoop {
     this.rafId = requestAnimationFrame(this.tick);
 
     const waking = now < this.wakeUntilMs;
+    if (this.callbacks.resolveRenderPacing) {
+      const nextPacing = this.callbacks.resolveRenderPacing(waking);
+      this.maxRenderFps = nextPacing.targetFps;
+      this.pacingMode = nextPacing.mode;
+    }
     const capFps = waking ? null : this.maxRenderFps;
     if (capFps !== null && capFps > 0 && this.lastRenderTimestamp > 0) {
       const minIntervalMs = 1000 / capFps - VSYNC_JITTER_TOLERANCE_MS;
@@ -181,9 +187,11 @@ export class GameLoop {
     throttled: boolean;
     lastWorkMs: number;
   } {
+    const wakeFpsNull =
+      this.pacingMode === 'wake' || (this.pacingMode === 'paused' && this.isWakeActive());
     return {
       mode: this.pacingMode,
-      targetFps: this.isWakeActive() ? null : this.maxRenderFps,
+      targetFps: wakeFpsNull ? null : this.maxRenderFps,
       throttled: this.lastThrottled,
       lastWorkMs: this.lastWorkMs,
     };
