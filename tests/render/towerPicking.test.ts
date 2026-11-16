@@ -19,9 +19,11 @@ function makeTower(id: number, type: TowerType, tier: 1 | 2 | 3, x: number, z: n
     yaw: 0,
     prevYaw: 0,
     targetYaw: 0,
-    recoilTimer: 0,
+    recoil: 0,
     popAnimTimer: 0,
+    stunTimer: 0,
     totalDamageDealt: 0,
+    kills: 0,
   };
 }
 
