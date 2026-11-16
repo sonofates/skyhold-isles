@@ -32,7 +32,7 @@ Started 2026-11-16 23:00 UTC (02:00 TR). Deadline 06:00 UTC (09:00 TR).
 ## Morning merge dry-run (done on this branch, repo untouched)
 `python3 .wt/trymerge.py .wt/m3 cfb9330 hermes/skyhold-night-islands hermes/skyhold-night-towers` (scratch copy via `git merge-file`; `.wt/` is git-ignored and only exists on hermes):
 - Only textual conflict: `scripts/balanceSim.ts` between ISLANDS (`--levels` flag) and TOWERS (`evaluateBalance` refactor) — not involving this branch. I removed my own `--levels` flag and moved the tempest camera-shake out of `renderWorld`'s boss branch to avoid conflicts.
-- Merged tree (re-run after the other branches' latest commits): tsc clean, **234/234 tests pass**, **balance passes for all 12 islands** (an earlier run had L6 failing from an ISLANDS×TOWERS interaction; gone in their later commits).
+- Merged tree (re-run after the other branches' latest commits): tsc clean, **234/234 tests pass**. Balance: L1–L5 and L7–L12 inside their windows; **L6 fails** (greedy 6 lives vs Heroic 8–13, weak wins with 3) — an ISLANDS×TOWERS interaction, not enemies. (When resolving the balanceSim conflict, keep TOWERS' `evaluateBalance` *and* its `robustLines` block in `main()` — my scratch resolution dropped it.)
 - L10–L12 numbers were picked so they pass both on this branch alone and in the merged tree.
 
 ## Decisions
