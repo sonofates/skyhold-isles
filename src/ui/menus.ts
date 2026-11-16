@@ -12,6 +12,30 @@ export function renderStarsHtml(earned: number): string {
   return out;
 }
 
+const DIFFICULTY_CLASS: Record<string, string> = {
+  Breezy: 'diff-breezy',
+  Challenging: 'diff-challenging',
+  Heroic: 'diff-heroic',
+  Master: 'diff-master',
+};
+
+const GEM_SVG = `<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.5L14 6L8 14.5L2 6L8 1.5Z" fill="currentColor" stroke="#1b1936" stroke-width="1.4" stroke-linejoin="round"/><path d="M2 6H14M8 1.5L5.5 6L8 14.5L10.5 6L8 1.5Z" stroke="#1b1936" stroke-opacity=".45" stroke-width="1" stroke-linejoin="round" fill="none"/></svg>`;
+
+/** Faceted floating-island token art; tint shifts slightly per island so the carousel isn't uniform. */
+function islandGlyphSvg(index: number): string {
+  const tops = ['#7ec850', '#8ccf4e', '#6fbf45', '#86c95a', '#78c24a'];
+  const top = tops[index % tops.length];
+  return `<svg viewBox="0 0 96 64" aria-hidden="true">
+    <path d="M10 26L48 8L86 26L48 44Z" fill="${top}" stroke="#1b1936" stroke-width="2.4" stroke-linejoin="round"/>
+    <path d="M10 26L48 44L48 58L22 40L10 26Z" fill="#9c6b49" stroke="#1b1936" stroke-width="2.4" stroke-linejoin="round"/>
+    <path d="M86 26L48 44L48 58L74 40L86 26Z" fill="#7a5238" stroke="#1b1936" stroke-width="2.4" stroke-linejoin="round"/>
+    <path d="M48 8L86 26L48 44L58 26Z" fill="#fff" fill-opacity=".14"/>
+    <path d="M44 28L50 14L56 28Z" fill="#4d9440" stroke="#1b1936" stroke-width="2" stroke-linejoin="round"/>
+    <path d="M26 26L30 19L34 26Z" fill="#4d9440" stroke="#1b1936" stroke-width="1.8" stroke-linejoin="round"/>
+    <path d="M30 29L48 38L66 29" stroke="#e6cfa3" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  </svg>`;
+}
+
 export interface MainMenuCallbacks {
   onPlay: (levelIndex: number) => void;
   onOpenLevelSelect: () => void;
@@ -29,59 +53,66 @@ export class MainMenuOverlay {
     this.rootEl.className = 'menu-screen hidden ui-interactive';
 
     const card = document.createElement('div');
-    card.className = 'menu-card';
+    card.className = 'menu-card menu-card-main';
+
+    const hero = document.createElement('div');
+    hero.className = 'menu-hero';
 
     const crest = document.createElement('div');
     crest.className = 'menu-crest';
-    crest.innerHTML = `${TOWER_ICON_SVGS.archer}${UI_ICON_SVGS.wave}${TOWER_ICON_SVGS.frost}`;
-
-    const badge = document.createElement('div');
-    badge.className = 'menu-badge';
-    badge.textContent = 'FLOATING ISLES DEFENSE';
+    crest.innerHTML = `<span>${TOWER_ICON_SVGS.archer}</span><span>${TOWER_ICON_SVGS.frost}</span><span>${TOWER_ICON_SVGS.tesla}</span>`;
 
     const title = document.createElement('h1');
     title.className = 'menu-title';
-    title.textContent = 'Skyhold Isles';
+    title.innerHTML = '<span class="menu-title-top">Skyhold</span><span class="menu-title-bottom">Isles</span>';
+    title.setAttribute('aria-label', 'Skyhold Isles');
 
     const subtitle = document.createElement('p');
     subtitle.className = 'menu-subtitle';
-    subtitle.textContent =
-      'Command modular spires across sunlit floating archipelagos and guard the ancient sanctuary.';
+    subtitle.textContent = 'Floating isles defense';
+
+    hero.append(crest, title, subtitle);
+
+    const actions = document.createElement('div');
+    actions.className = 'menu-actions';
 
     this.summaryEl = document.createElement('div');
-    this.summaryEl.className = 'menu-progress-pill';
+    this.summaryEl.className = 'menu-progress-pill gx gx-slate';
 
     const btnStack = document.createElement('div');
     btnStack.className = 'menu-btn-stack';
 
     this.playBtn = document.createElement('button');
     this.playBtn.type = 'button';
-    this.playBtn.className = 'btn-primary btn-lg';
+    this.playBtn.className = 'btn-primary btn-lg gx gx-green';
     this.playBtn.setAttribute('data-testid', 'btn-play');
     this.playBtn.addEventListener('click', () => callbacks.onPlay(this.targetLevelIndex));
 
     const levelSelectBtn = document.createElement('button');
     levelSelectBtn.type = 'button';
-    levelSelectBtn.className = 'btn-secondary btn-lg';
-    levelSelectBtn.textContent = 'Level Select';
+    levelSelectBtn.className = 'btn-secondary btn-lg gx gx-slate-btn';
+    levelSelectBtn.innerHTML = `<span class="btn-icon">${UI_ICON_SVGS.islands}</span><span class="btn-label">Islands</span>`;
     levelSelectBtn.setAttribute('data-testid', 'btn-level-select');
     levelSelectBtn.addEventListener('click', () => callbacks.onOpenLevelSelect());
 
     const settingsBtn = document.createElement('button');
     settingsBtn.type = 'button';
-    settingsBtn.className = 'btn-secondary btn-lg';
-    settingsBtn.textContent = 'Settings';
+    settingsBtn.className = 'btn-secondary btn-lg gx gx-slate-btn';
+    settingsBtn.innerHTML = `<span class="btn-icon">${UI_ICON_SVGS.settings}</span><span class="btn-label">Settings</span>`;
     settingsBtn.setAttribute('data-testid', 'btn-main-settings');
     settingsBtn.addEventListener('click', () => callbacks.onOpenSettings());
 
-    btnStack.append(this.playBtn, levelSelectBtn, settingsBtn);
+    const secondary = document.createElement('div');
+    secondary.className = 'menu-btn-row';
+    secondary.append(levelSelectBtn, settingsBtn);
+    btnStack.append(this.playBtn, secondary);
 
     const hints = document.createElement('div');
-    hints.className = 'menu-controls-hint';
-    hints.textContent =
-      'Drag / WASD: Pan · Wheel / Pinch: Zoom · Q/E: Rotate · 1–5: Build · Space: Pause';
+    hints.className = 'menu-controls-hint desktop-only';
+    hints.textContent = 'Drag / WASD pan · Wheel zoom · Q/E rotate · 1–5 build · Space pause';
 
-    card.append(crest, badge, title, subtitle, this.summaryEl, btnStack, hints);
+    actions.append(this.summaryEl, btnStack, hints);
+    card.append(hero, actions);
     this.rootEl.appendChild(card);
     parent.appendChild(this.rootEl);
   }
@@ -96,8 +127,9 @@ export class MainMenuOverlay {
     this.targetLevelIndex = frontierIdx;
     const frontierLevel = LEVELS[frontierIdx];
 
-    this.playBtn.textContent = `Play · ${frontierLevel.name}`;
-    this.summaryEl.innerHTML = `<span class="menu-star-inline">${UI_ICON_SVGS.star}</span><span>${totalStars} / ${maxStars} Stars · ${frontierIdx + 1}/${LEVELS.length} Islands Unlocked</span>`;
+    this.playBtn.innerHTML = `<span class="btn-icon">${UI_ICON_SVGS.play}</span><span class="btn-label-stack"><span class="btn-label">Play</span><span class="btn-sub">${frontierLevel.name}</span></span>`;
+    this.summaryEl.innerHTML = `<span class="menu-star-inline">${UI_ICON_SVGS.star}</span><b>${totalStars}</b><span class="menu-stars-of">/ ${maxStars}</span>`;
+    this.summaryEl.title = `${frontierIdx + 1}/${LEVELS.length} islands unlocked`;
   }
 
   dispose(): void {
@@ -119,7 +151,7 @@ export class LevelSelectOverlay {
   constructor(parent: HTMLElement, callbacks: LevelSelectCallbacks) {
     this.callbacks = callbacks;
     this.rootEl = document.createElement('div');
-    this.rootEl.className = 'menu-screen hidden ui-interactive';
+    this.rootEl.className = 'menu-screen menu-screen-levels hidden ui-interactive';
 
     const card = document.createElement('div');
     card.className = 'menu-card level-select-card';
@@ -127,34 +159,45 @@ export class LevelSelectOverlay {
     const header = document.createElement('div');
     header.className = 'level-select-header';
 
-    const titleWrap = document.createElement('div');
+    const backBtn = document.createElement('button');
+    backBtn.type = 'button';
+    backBtn.className = 'level-back-btn gx gx-slate-btn';
+    backBtn.innerHTML = `<span class="btn-icon">${UI_ICON_SVGS.home}</span>`;
+    backBtn.setAttribute('aria-label', 'Back to menu');
+    backBtn.setAttribute('data-testid', 'btn-level-back');
+    backBtn.addEventListener('click', () => callbacks.onBack());
+
     const title = document.createElement('h2');
     title.className = 'level-select-title';
-    title.textContent = 'Select Island';
-    const sub = document.createElement('div');
-    sub.className = 'level-select-sub';
-    sub.textContent = 'Clear each island to unlock the next skyward citadel';
-    titleWrap.append(title, sub);
+    title.textContent = 'Islands';
 
     this.starsBadgeEl = document.createElement('div');
-    this.starsBadgeEl.className = 'menu-progress-pill';
+    this.starsBadgeEl.className = 'menu-progress-pill gx gx-slate';
 
-    header.append(titleWrap, this.starsBadgeEl);
+    header.append(backBtn, title, this.starsBadgeEl);
 
     this.gridEl = document.createElement('div');
     this.gridEl.className = 'level-grid';
 
-    const footer = document.createElement('div');
-    footer.className = 'level-select-footer';
-    const backBtn = document.createElement('button');
-    backBtn.type = 'button';
-    backBtn.className = 'btn-secondary';
-    backBtn.textContent = 'Back to Menu';
-    backBtn.setAttribute('data-testid', 'btn-level-back');
-    backBtn.addEventListener('click', () => callbacks.onBack());
-    footer.appendChild(backBtn);
+    const makeNav = (dir: -1 | 1): HTMLButtonElement => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = `level-nav level-nav-${dir < 0 ? 'prev' : 'next'} gx gx-slate-btn`;
+      btn.setAttribute('aria-label', dir < 0 ? 'Previous islands' : 'Next islands');
+      btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="${
+        dir < 0 ? 'M15 5L8 12L15 19' : 'M9 5L16 12L9 19'
+      }" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+      btn.addEventListener('click', () => {
+        this.gridEl.scrollBy({ left: dir * Math.max(240, this.gridEl.clientWidth * 0.6), behavior: 'smooth' });
+      });
+      return btn;
+    };
 
-    card.append(header, this.gridEl, footer);
+    const stage = document.createElement('div');
+    stage.className = 'level-stage';
+    stage.append(makeNav(-1), this.gridEl, makeNav(1));
+
+    card.append(header, stage);
     this.rootEl.appendChild(card);
     parent.appendChild(this.rootEl);
   }
@@ -164,40 +207,46 @@ export class LevelSelectOverlay {
     if (!open || !progress) return;
 
     const totalStars = progress.bestStars.reduce((a, b) => a + b, 0);
-    this.starsBadgeEl.innerHTML = `<span class="menu-star-inline">${UI_ICON_SVGS.star}</span><span>${totalStars} / ${LEVELS.length * 3} Stars</span>`;
+    this.starsBadgeEl.innerHTML = `<span class="menu-star-inline">${UI_ICON_SVGS.star}</span><b>${totalStars}</b><span class="menu-stars-of">/ ${LEVELS.length * 3}</span>`;
 
     this.gridEl.innerHTML = '';
     for (let i = 0; i < LEVELS.length; i++) {
       const lvl = LEVELS[i];
       const unlocked = i <= progress.unlockedLevelIndex;
       const stars = progress.bestStars[i] ?? 0;
+      const diffClass = DIFFICULTY_CLASS[lvl.difficulty] ?? 'diff-breezy';
 
       const card = document.createElement('div');
-      card.className = `level-card${unlocked ? '' : ' locked'}`;
+      card.className = `level-card gx gx-slate${unlocked ? '' : ' locked'}`;
       card.setAttribute('data-level-index', String(i));
 
       const topRow = document.createElement('div');
       topRow.className = 'level-card-top';
       const numEl = document.createElement('span');
       numEl.className = 'level-index-tag';
-      numEl.textContent = `Island ${i + 1}`;
-
+      numEl.textContent = String(i + 1);
       const diffEl = document.createElement('span');
-      diffEl.className = `difficulty-badge diff-${lvl.difficulty.toLowerCase()}`;
-      diffEl.textContent = lvl.difficulty;
+      diffEl.className = `difficulty-badge ${diffClass}`;
+      diffEl.innerHTML = `${GEM_SVG}<span>${lvl.difficulty}</span>`;
       topRow.append(numEl, diffEl);
+
+      const art = document.createElement('div');
+      art.className = 'level-card-art';
+      art.innerHTML = islandGlyphSvg(i);
+      if (!unlocked) {
+        const lockEl = document.createElement('span');
+        lockEl.className = 'level-card-lock';
+        lockEl.innerHTML = UI_ICON_SVGS.lock;
+        art.appendChild(lockEl);
+      }
 
       const nameEl = document.createElement('div');
       nameEl.className = 'level-card-name';
       nameEl.textContent = lvl.name;
 
-      const descEl = document.createElement('div');
-      descEl.className = 'level-card-desc';
-      descEl.textContent = lvl.subtitle;
-
       const metaEl = document.createElement('div');
       metaEl.className = 'level-card-meta';
-      metaEl.textContent = `${lvl.waves.length} Waves · ${lvl.startingGold}g`;
+      metaEl.innerHTML = `<span class="level-meta-item">${UI_ICON_SVGS.wave}${lvl.waves.length}</span><span class="level-meta-item">${UI_ICON_SVGS.coin}${lvl.startingGold}</span>`;
 
       const starsRow = document.createElement('div');
       starsRow.className = 'star-row';
@@ -207,35 +256,34 @@ export class LevelSelectOverlay {
       if (bestEndless > 0) {
         const endlessChip = document.createElement('span');
         endlessChip.className = 'level-endless-chip';
-        endlessChip.textContent = `Endless: W${bestEndless}`;
-        endlessChip.style.marginLeft = 'auto';
-        endlessChip.style.padding = '2px 8px';
-        endlessChip.style.borderRadius = '999px';
-        endlessChip.style.fontSize = '10.5px';
-        endlessChip.style.fontWeight = '800';
-        endlessChip.style.fontFamily = 'var(--font-mono)';
-        endlessChip.style.background = 'rgba(79, 179, 217, 0.18)';
-        endlessChip.style.border = '1px solid rgba(79, 179, 217, 0.45)';
-        endlessChip.style.color = '#1e627e';
-        starsRow.appendChild(endlessChip);
+        endlessChip.innerHTML = `${UI_ICON_SVGS.autoWave}W${bestEndless}`;
+        endlessChip.title = `Endless best: wave ${bestEndless}`;
+        metaEl.appendChild(endlessChip);
       }
 
       const actionBtn = document.createElement('button');
       actionBtn.type = 'button';
-      actionBtn.className = unlocked ? 'btn-primary level-play-btn' : 'btn-secondary level-play-btn';
+      actionBtn.className = `level-play-btn gx ${unlocked ? 'gx-green' : 'gx-slate-btn'}`;
       actionBtn.disabled = !unlocked;
-      actionBtn.textContent = unlocked
-        ? stars > 0
-          ? 'Replay Island'
-          : 'Deploy'
-        : `Locked · Clear ${LEVELS[Math.max(0, i - 1)].name}`;
       if (unlocked) {
+        actionBtn.innerHTML = `<span class="btn-icon">${UI_ICON_SVGS.play}</span><span class="btn-label">${stars > 0 ? 'Replay' : 'Play'}</span>`;
         actionBtn.addEventListener('click', () => this.callbacks.onSelectLevel(i));
+      } else {
+        actionBtn.innerHTML = `<span class="btn-icon">${UI_ICON_SVGS.lock}</span><span class="btn-label">Clear ${i}</span>`;
+        actionBtn.title = `Clear ${LEVELS[Math.max(0, i - 1)].name} to unlock`;
       }
 
-      card.append(topRow, nameEl, descEl, metaEl, starsRow, actionBtn);
+      card.append(topRow, art, nameEl, starsRow, metaEl, actionBtn);
       this.gridEl.appendChild(card);
     }
+
+    // Center the frontier island in the carousel.
+    const target = Math.max(0, Math.min(LEVELS.length - 1, progress.unlockedLevelIndex));
+    window.requestAnimationFrame(() => {
+      const cardEl = this.gridEl.children[target] as HTMLElement | undefined;
+      if (!cardEl) return;
+      this.gridEl.scrollLeft = cardEl.offsetLeft - (this.gridEl.clientWidth - cardEl.offsetWidth) / 2;
+    });
   }
 
   dispose(): void {

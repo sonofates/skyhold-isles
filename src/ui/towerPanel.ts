@@ -18,7 +18,7 @@ const TARGET_MODES: readonly { mode: TargetingMode; label: string }[] = [
   { mode: 'closest', label: 'Closest' },
 ];
 
-const TIER_LABELS: readonly string[] = ['Tier I', 'Tier II', 'Tier III · Max'];
+
 
 const DESKTOP_BREAKPOINT = 768;
 const EDGE_MARGIN_X = 12;
@@ -81,7 +81,7 @@ export class TowerPanel {
 
   constructor(parent: HTMLElement, callbacks: TowerPanelCallbacks) {
     this.rootEl = document.createElement('div');
-    this.rootEl.className = 'tower-panel hidden ui-interactive';
+    this.rootEl.className = 'tower-panel gx gx-slate hidden ui-interactive';
     this.rootEl.setAttribute('role', 'region');
     this.rootEl.setAttribute('aria-label', 'Selected tower inspector');
 
@@ -108,8 +108,8 @@ export class TowerPanel {
 
     const closeBtn = document.createElement('button');
     closeBtn.type = 'button';
-    closeBtn.className = 'tower-panel-close';
-    closeBtn.textContent = '×';
+    closeBtn.className = 'tower-panel-close gx gx-slate-btn';
+    closeBtn.innerHTML = UI_ICON_SVGS.close;
     closeBtn.title = 'Close (Esc)';
     closeBtn.setAttribute('aria-label', 'Close tower panel');
     closeBtn.addEventListener('click', () => callbacks.onClose());
@@ -121,12 +121,9 @@ export class TowerPanel {
 
     this.telemetryEl = document.createElement('div');
     this.telemetryEl.className = 'tower-panel-stats tower-panel-telemetry';
-    this.telemetryEl.style.gap = '4px 6px';
-    this.telemetryEl.style.background = 'rgba(79, 179, 217, 0.1)';
 
     const killsChip = document.createElement('span');
     killsChip.className = 'tower-stat-chip';
-    killsChip.style.gap = '3px';
     const killsUnit = document.createElement('span');
     killsUnit.className = 'tower-stat-unit';
     killsUnit.textContent = 'Kills';
@@ -142,7 +139,6 @@ export class TowerPanel {
 
     const dmgChip = document.createElement('span');
     dmgChip.className = 'tower-stat-chip';
-    dmgChip.style.gap = '3px';
     const dmgUnit = document.createElement('span');
     dmgUnit.className = 'tower-stat-unit';
     dmgUnit.textContent = 'DMG';
@@ -158,7 +154,7 @@ export class TowerPanel {
 
     this.upgradeBtn = document.createElement('button');
     this.upgradeBtn.type = 'button';
-    this.upgradeBtn.className = 'tower-upgrade-btn';
+    this.upgradeBtn.className = 'tower-upgrade-btn gx gx-gold';
     const upgradeTop = document.createElement('span');
     upgradeTop.className = 'tower-upgrade-top';
     this.upgradeTitleEl = document.createElement('span');
@@ -178,7 +174,7 @@ export class TowerPanel {
 
     this.sellBtn = document.createElement('button');
     this.sellBtn.type = 'button';
-    this.sellBtn.className = 'tower-sell-btn';
+    this.sellBtn.className = 'tower-sell-btn gx gx-coral';
     this.sellLabelEl = document.createElement('span');
     this.sellLabelEl.className = 'tower-sell-label';
     this.sellValueEl = document.createElement('span');
@@ -200,7 +196,7 @@ export class TowerPanel {
     targetLabel.className = 'tower-targeting-label';
     targetLabel.textContent = 'Target';
     const targetKbd = document.createElement('kbd');
-    targetKbd.className = 'tower-panel-kbd';
+    targetKbd.className = 'tower-panel-kbd desktop-only';
     targetKbd.textContent = 'T';
     targetHeader.append(targetLabel, targetKbd);
 
@@ -209,7 +205,7 @@ export class TowerPanel {
     for (const item of TARGET_MODES) {
       const btn = document.createElement('button');
       btn.type = 'button';
-      btn.className = 'tower-target-btn';
+      btn.className = 'tower-target-btn gx gx-slate-btn';
       btn.textContent = item.label;
       btn.title = `Target ${item.label.toLowerCase()} (T to cycle)`;
       btn.addEventListener('click', () => {
@@ -272,7 +268,10 @@ export class TowerPanel {
 
     this.iconEl.innerHTML = TOWER_ICON_SVGS[tower.type];
     this.titleEl.textContent = def.name;
-    this.subtitleEl.textContent = TIER_LABELS[tower.tier - 1] ?? `Tier ${tower.tier}`;
+    this.subtitleEl.innerHTML = [1, 2, 3]
+      .map((n) => `<i class="tier-pip${n <= tower.tier ? ' on' : ''}"></i>`)
+      .join('');
+    this.subtitleEl.setAttribute('aria-label', `Tier ${tower.tier}`);
     this.subtitleEl.classList.toggle('is-max', tower.tier >= 3);
 
     this.coverageBadgeEl.innerHTML = `<span class="target-badge-icon">${
@@ -310,8 +309,8 @@ export class TowerPanel {
       this.upgradeBtn.disabled = !canUpgrade;
       this.upgradeBtn.classList.toggle('is-maxed', false);
       this.upgradeBtn.classList.toggle('is-affordable', canUpgrade);
-      this.upgradeTitleEl.innerHTML = `Upgrade T${nextStats.tier} <kbd class="tower-panel-kbd on-cta">U</kbd>`;
-      this.upgradeCostEl.textContent = `${nextStats.upgradeCost}g`;
+      this.upgradeTitleEl.innerHTML = `Upgrade <kbd class="tower-panel-kbd on-cta desktop-only">U</kbd>`;
+      this.upgradeCostEl.innerHTML = `<span class="cost-coin">${UI_ICON_SVGS.coin}</span>${nextStats.upgradeCost}`;
       this.upgradeCostEl.hidden = false;
 
       const diffs: string[] = [];
@@ -333,8 +332,8 @@ export class TowerPanel {
       this.upgradeBtn.disabled = true;
       this.upgradeBtn.classList.toggle('is-maxed', true);
       this.upgradeBtn.classList.toggle('is-affordable', false);
-      this.upgradeTitleEl.textContent = 'Max Tier III';
-      this.upgradeCostEl.textContent = '';
+      this.upgradeTitleEl.textContent = 'Max level';
+      this.upgradeCostEl.innerHTML = '';
       this.upgradeCostEl.hidden = true;
       this.upgradeDiffEl.textContent = '';
       this.upgradeDiffEl.hidden = true;
@@ -342,11 +341,11 @@ export class TowerPanel {
 
     this.sellBtn.classList.toggle('is-confirm', this.sellConfirmArmed);
     if (this.sellConfirmArmed) {
-      this.sellLabelEl.innerHTML = 'Confirm <kbd class="tower-panel-kbd on-danger">Del</kbd>';
-      this.sellValueEl.textContent = `+${refund}g`;
+      this.sellLabelEl.innerHTML = 'Confirm <kbd class="tower-panel-kbd on-danger desktop-only">Del</kbd>';
+      this.sellValueEl.innerHTML = `<span class="cost-coin">${UI_ICON_SVGS.coin}</span>+${refund}`;
     } else {
-      this.sellLabelEl.innerHTML = 'Sell <kbd class="tower-panel-kbd">Del</kbd>';
-      this.sellValueEl.textContent = `+${refund}g`;
+      this.sellLabelEl.innerHTML = 'Sell <kbd class="tower-panel-kbd desktop-only">Del</kbd>';
+      this.sellValueEl.innerHTML = `<span class="cost-coin">${UI_ICON_SVGS.coin}</span>+${refund}`;
     }
   }
 

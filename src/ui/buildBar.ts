@@ -14,6 +14,7 @@ export class BuildBar {
   constructor(parent: HTMLElement, onSelectTowerType: (type: TowerType) => void) {
     this.rootEl = document.createElement('div');
     this.rootEl.className = 'build-bar ui-interactive';
+    this.rootEl.setAttribute('role', 'toolbar');
 
     for (let i = 0; i < TOWER_TYPES.length; i++) {
       const type = TOWER_TYPES[i];
@@ -23,12 +24,12 @@ export class BuildBar {
 
       const btn = document.createElement('button');
       btn.type = 'button';
-      btn.className = 'build-card';
+      btn.className = 'build-card gx gx-slate-btn';
       btn.title = `${def.name} (${def.hotkey}) [${coverageLabel}] — ${def.shortDesc}`;
       btn.setAttribute('data-tower', type);
 
       const hotkeyEl = document.createElement('span');
-      hotkeyEl.className = 'build-hotkey';
+      hotkeyEl.className = 'build-hotkey desktop-only';
       hotkeyEl.textContent = String(def.hotkey);
 
       const iconEl = document.createElement('div');
@@ -48,15 +49,16 @@ export class BuildBar {
 
       const costEl = document.createElement('span');
       costEl.className = 'build-cost';
-      costEl.textContent = `${baseCost}g`;
+      costEl.innerHTML = `<span class="build-coin">${UI_ICON_SVGS.coin}</span>${baseCost}`;
 
       const coverageEl = document.createElement('span');
       coverageEl.className = `target-badge ${def.hitsFlyers ? 'air-ground' : 'ground-only'}`;
+      coverageEl.title = coverageLabel;
       coverageEl.innerHTML = `<span class="target-badge-icon">${
         def.hitsFlyers ? UI_ICON_SVGS.airGround : UI_ICON_SVGS.groundOnly
-      }</span><span>${coverageLabel}</span>`;
+      }</span>`;
 
-      btn.append(hotkeyEl, iconEl, nameEl, costEl, coverageEl);
+      btn.append(hotkeyEl, coverageEl, iconEl, nameEl, costEl);
       btn.addEventListener('click', () => onSelectTowerType(type));
 
       this.cards.set(type, { btn, costEl });

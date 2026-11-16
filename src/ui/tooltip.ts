@@ -12,7 +12,7 @@ export class EnemyTooltip {
 
   constructor(root: HTMLElement) {
     this.el = document.createElement('div');
-    this.el.className = 'enemy-tooltip hidden';
+    this.el.className = 'enemy-tooltip gx gx-slate hidden';
 
     this.nameEl = document.createElement('div');
     this.nameEl.className = 'enemy-tooltip-name';

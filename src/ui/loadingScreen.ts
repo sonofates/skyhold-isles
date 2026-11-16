@@ -11,14 +11,14 @@ export class LoadingScreen {
     this.element = document.createElement('div');
     this.element.className = 'loading-screen';
     this.element.innerHTML = `
-      <div class="loading-card">
-        <div class="loading-badge">SKYHOLD ISLES</div>
-        <h2 class="loading-title">Forging the Floating Isles…</h2>
+      <div class="loading-card gx gx-slate">
+        <div class="loading-badge">Skyhold</div>
+        <h2 class="loading-title">Isles</h2>
         <div class="loading-bar-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
           <div class="loading-bar-fill"></div>
         </div>
         <div class="loading-meta">
-          <span class="loading-detail">Initializing renderer…</span>
+          <span class="loading-detail">Starting…</span>
           <span class="loading-pct">0%</span>
         </div>
       </div>
@@ -38,7 +38,7 @@ export class LoadingScreen {
     const track = this.fillEl.parentElement;
     if (track) track.setAttribute('aria-valuenow', String(pct));
     if (detail) {
-      this.labelEl.textContent = `Loading ${detail}`;
+      this.labelEl.textContent = detail;
     }
   }
 
@@ -55,21 +55,19 @@ export class LoadingScreen {
 
     const badge = document.createElement('div');
     badge.className = 'loading-badge';
-    badge.textContent = 'SKYHOLD ISLES';
+    badge.textContent = 'Skyhold';
 
     const title = document.createElement('h2');
     title.className = 'loading-title';
-    title.textContent = 'The isles failed to load';
+    title.textContent = 'Load failed';
 
     const detail = document.createElement('p');
     detail.className = 'loading-detail';
-    detail.style.margin = '8px 0 16px';
-    detail.style.lineHeight = '1.4';
     detail.textContent = message;
 
     const reload = document.createElement('button');
     reload.type = 'button';
-    reload.className = 'btn-primary';
+    reload.className = 'btn-primary gx gx-green';
     reload.textContent = 'Reload';
     reload.addEventListener('click', () => window.location.reload());
 

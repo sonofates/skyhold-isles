@@ -1,7 +1,7 @@
 import type { TowerMvpSummary } from '../core/types.ts';
 import { BALANCE } from '../data/balance.ts';
 import type { LevelDef } from '../data/levels/index.ts';
-import { TOWER_ICON_SVGS } from './icons.ts';
+import { TOWER_ICON_SVGS, UI_ICON_SVGS } from './icons.ts';
 import { renderStarsHtml } from './menus.ts';
 
 function tierToRoman(tier: 1 | 2 | 3): string {
@@ -21,6 +21,8 @@ function formatMvpDamage(rawDamage: number): string {
 
 export interface PauseMenuCallbacks {
   onResume: () => void;
+  onToggleAutoWave?: () => void;
+  onToggleRoutes?: () => void;
   onRestart: () => void;
   onOpenSettings: () => void;
   onOpenLevelSelect: () => void;
@@ -30,6 +32,8 @@ export interface PauseMenuCallbacks {
 export class PauseMenuModal {
   private readonly backdrop: HTMLDivElement;
   private readonly subtitleEl: HTMLDivElement;
+  private readonly autoBtn: HTMLButtonElement;
+  private readonly lanesBtn: HTMLButtonElement;
   private open = false;
 
   constructor(parent: HTMLElement, callbacks: PauseMenuCallbacks) {
@@ -40,11 +44,11 @@ export class PauseMenuModal {
     });
 
     const card = document.createElement('div');
-    card.className = 'modal-card pause-card';
+    card.className = 'modal-card pause-card gx gx-slate';
 
     const title = document.createElement('div');
     title.className = 'modal-title';
-    title.textContent = 'Game Paused';
+    title.textContent = 'Paused';
 
     this.subtitleEl = document.createElement('div');
     this.subtitleEl.className = 'modal-subtitle';
@@ -52,23 +56,52 @@ export class PauseMenuModal {
     const stack = document.createElement('div');
     stack.className = 'pause-menu-stack';
 
-    const makeBtn = (label: string, primary: boolean, onClick: () => void, testId?: string) => {
+    const makeBtn = (
+      label: string,
+      icon: string,
+      variant: 'green' | 'slate',
+      onClick: () => void,
+      testId?: string,
+    ): HTMLButtonElement => {
       const btn = document.createElement('button');
       btn.type = 'button';
-      btn.className = primary ? 'btn-primary btn-lg' : 'btn-secondary btn-lg';
-      btn.textContent = label;
+      btn.className =
+        variant === 'green'
+          ? 'btn-primary btn-lg gx gx-green'
+          : 'btn-secondary gx gx-slate-btn pause-tile';
+      btn.innerHTML = `<span class="btn-icon">${icon}</span><span class="btn-label">${label}</span>`;
       if (testId) btn.setAttribute('data-testid', testId);
       btn.addEventListener('click', onClick);
       return btn;
     };
 
-    stack.append(
-      makeBtn('Resume Defense', true, callbacks.onResume, 'btn-pause-resume'),
-      makeBtn('Restart Island', false, callbacks.onRestart, 'btn-pause-restart'),
-      makeBtn('Settings', false, callbacks.onOpenSettings, 'btn-pause-settings'),
-      makeBtn('Level Select', false, callbacks.onOpenLevelSelect, 'btn-pause-levels'),
-      makeBtn('Main Menu', false, callbacks.onMainMenu, 'btn-pause-menu'),
+    const makeToggle = (label: string, icon: string, onClick: (() => void) | undefined, testId: string) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'pause-toggle gx gx-slate-btn';
+      btn.setAttribute('aria-pressed', 'false');
+      btn.setAttribute('data-testid', testId);
+      btn.innerHTML = `<span class="btn-icon">${icon}</span><span class="btn-label">${label}</span><span class="pause-switch" aria-hidden="true"></span>`;
+      btn.addEventListener('click', () => onClick?.());
+      return btn;
+    };
+
+    this.autoBtn = makeToggle('Auto wave', UI_ICON_SVGS.autoWave, callbacks.onToggleAutoWave, 'btn-pause-autowave');
+    this.lanesBtn = makeToggle('Lanes', UI_ICON_SVGS.lanes, callbacks.onToggleRoutes, 'btn-pause-lanes');
+    const toggles = document.createElement('div');
+    toggles.className = 'pause-toggles';
+    toggles.append(this.autoBtn, this.lanesBtn);
+
+    const tiles = document.createElement('div');
+    tiles.className = 'pause-tiles';
+    tiles.append(
+      makeBtn('Restart', UI_ICON_SVGS.restart, 'slate', callbacks.onRestart, 'btn-pause-restart'),
+      makeBtn('Settings', UI_ICON_SVGS.settings, 'slate', callbacks.onOpenSettings, 'btn-pause-settings'),
+      makeBtn('Islands', UI_ICON_SVGS.islands, 'slate', callbacks.onOpenLevelSelect, 'btn-pause-levels'),
+      makeBtn('Menu', UI_ICON_SVGS.home, 'slate', callbacks.onMainMenu, 'btn-pause-menu'),
     );
+
+    stack.append(makeBtn('Resume', UI_ICON_SVGS.play, 'green', callbacks.onResume, 'btn-pause-resume'), toggles, tiles);
 
     card.append(title, this.subtitleEl, stack);
     this.backdrop.appendChild(card);
@@ -81,6 +114,13 @@ export class PauseMenuModal {
       this.subtitleEl.textContent = levelLabel;
     }
     this.backdrop.classList.toggle('hidden', !open);
+  }
+
+  setToggles(autoWave: boolean, routesVisible: boolean): void {
+    this.autoBtn.classList.toggle('active', autoWave);
+    this.autoBtn.setAttribute('aria-pressed', autoWave ? 'true' : 'false');
+    this.lanesBtn.classList.toggle('active', routesVisible);
+    this.lanesBtn.setAttribute('aria-pressed', routesVisible ? 'true' : 'false');
   }
 
   isOpen(): boolean {
@@ -118,7 +158,7 @@ export class OutcomeOverlay {
     this.backdrop.className = 'modal-backdrop hidden ui-interactive';
 
     const card = document.createElement('div');
-    card.className = 'modal-card outcome-card';
+    card.className = 'modal-card outcome-card gx gx-slate';
 
     this.badgeEl = document.createElement('div');
     this.badgeEl.className = 'outcome-badge';
@@ -137,57 +177,63 @@ export class OutcomeOverlay {
 
     this.mvpEl = document.createElement('div');
     this.mvpEl.className = 'outcome-mvp hidden';
-    this.mvpEl.style.width = '100%';
-    this.mvpEl.style.display = 'flex';
-    this.mvpEl.style.alignItems = 'center';
-    this.mvpEl.style.gap = '10px';
-    this.mvpEl.style.padding = '8px 12px';
-    this.mvpEl.style.borderRadius = '12px';
-    this.mvpEl.style.background = 'rgba(246, 189, 65, 0.16)';
-    this.mvpEl.style.border = '1px solid rgba(246, 189, 65, 0.48)';
-    this.mvpEl.style.textAlign = 'left';
 
     const actions = document.createElement('div');
-    actions.className = 'pause-menu-stack';
+    actions.className = 'pause-menu-stack outcome-actions';
 
     this.nextBtn = document.createElement('button');
     this.nextBtn.type = 'button';
-    this.nextBtn.className = 'btn-primary btn-lg';
-    this.nextBtn.textContent = 'Next Island';
     this.nextBtn.setAttribute('data-testid', 'btn-outcome-next');
     this.nextBtn.addEventListener('click', () => callbacks.onNextLevel());
+    OutcomeOverlay.styleBtn(this.nextBtn, 'green', 'Next island', UI_ICON_SVGS.play);
 
     this.endlessBtn = document.createElement('button');
     this.endlessBtn.type = 'button';
-    this.endlessBtn.className = 'btn-secondary btn-lg';
-    this.endlessBtn.textContent = 'Continue Endless';
     this.endlessBtn.setAttribute('data-testid', 'btn-outcome-endless');
     this.endlessBtn.addEventListener('click', () => callbacks.onEndlessMode());
+    OutcomeOverlay.styleBtn(this.endlessBtn, 'sky', 'Endless', UI_ICON_SVGS.autoWave);
 
     this.replayBtn = document.createElement('button');
     this.replayBtn.type = 'button';
-    this.replayBtn.className = 'btn-secondary btn-lg';
     this.replayBtn.setAttribute('data-testid', 'btn-outcome-replay');
     this.replayBtn.addEventListener('click', () => callbacks.onReplay());
+    OutcomeOverlay.styleBtn(this.replayBtn, 'slate', 'Replay', UI_ICON_SVGS.restart);
 
     const levelsBtn = document.createElement('button');
     levelsBtn.type = 'button';
-    levelsBtn.className = 'btn-secondary btn-lg';
-    levelsBtn.textContent = 'Level Select';
     levelsBtn.setAttribute('data-testid', 'btn-outcome-levels');
     levelsBtn.addEventListener('click', () => callbacks.onLevelSelect());
+    OutcomeOverlay.styleBtn(levelsBtn, 'tile', 'Islands', UI_ICON_SVGS.islands);
 
     const menuBtn = document.createElement('button');
     menuBtn.type = 'button';
-    menuBtn.className = 'btn-secondary btn-lg';
-    menuBtn.textContent = 'Main Menu';
     menuBtn.setAttribute('data-testid', 'btn-outcome-menu');
     menuBtn.addEventListener('click', () => callbacks.onMainMenu());
+    OutcomeOverlay.styleBtn(menuBtn, 'tile', 'Menu', UI_ICON_SVGS.home);
 
-    actions.append(this.nextBtn, this.endlessBtn, this.replayBtn, levelsBtn, menuBtn);
+    const tileRow = document.createElement('div');
+    tileRow.className = 'pause-tiles';
+    tileRow.append(levelsBtn, menuBtn);
+    actions.append(this.nextBtn, this.endlessBtn, this.replayBtn, tileRow);
     card.append(this.badgeEl, this.titleEl, this.subEl, this.starsEl, this.statsEl, this.mvpEl, actions);
     this.backdrop.appendChild(card);
     parent.appendChild(this.backdrop);
+  }
+
+  private static styleBtn(
+    btn: HTMLButtonElement,
+    kind: 'green' | 'sky' | 'slate' | 'tile',
+    label: string,
+    icon: string,
+  ): void {
+    const cls = {
+      green: 'btn-primary btn-lg gx gx-green',
+      sky: 'btn-secondary btn-lg gx gx-sky',
+      slate: 'btn-secondary btn-lg gx gx-slate-btn',
+      tile: 'btn-secondary gx gx-slate-btn pause-tile',
+    }[kind];
+    btn.className = cls;
+    btn.innerHTML = `<span class="btn-icon">${icon}</span><span class="btn-label">${label}</span>`;
   }
 
   private renderMvp(mvp: TowerMvpSummary | null | undefined): void {
@@ -198,33 +244,19 @@ export class OutcomeOverlay {
     }
 
     const iconWrap = document.createElement('div');
-    iconWrap.style.width = '28px';
-    iconWrap.style.height = '28px';
-    iconWrap.style.padding = '3px';
-    iconWrap.style.borderRadius = '8px';
-    iconWrap.style.background = 'rgba(248, 244, 232, 0.85)';
-    iconWrap.style.flexShrink = '0';
+    iconWrap.className = 'outcome-mvp-icon';
     iconWrap.innerHTML = TOWER_ICON_SVGS[mvp.type];
 
     const textCol = document.createElement('div');
-    textCol.style.flex = '1';
-    textCol.style.minWidth = '0';
-    textCol.style.display = 'flex';
-    textCol.style.flexDirection = 'column';
-    textCol.style.gap = '1px';
+    textCol.className = 'outcome-mvp-text';
 
     const titleLine = document.createElement('div');
-    titleLine.style.fontSize = '11.5px';
-    titleLine.style.fontWeight = '800';
-    titleLine.style.color = 'var(--pal-indigo)';
+    titleLine.className = 'outcome-mvp-title';
     titleLine.textContent = `MVP · ${mvp.name} ${tierToRoman(mvp.tier)}`;
 
     const statsLine = document.createElement('div');
-    statsLine.style.fontSize = '11px';
-    statsLine.style.fontWeight = '700';
-    statsLine.style.fontFamily = 'var(--font-mono)';
-    statsLine.style.color = 'var(--ui-dark-soft)';
-    statsLine.textContent = `${formatMvpDamage(mvp.damageDealt)} DMG · ${mvp.kills} ${mvp.kills === 1 ? 'Kill' : 'Kills'}`;
+    statsLine.className = 'outcome-mvp-stats';
+    statsLine.textContent = `${formatMvpDamage(mvp.damageDealt)} DMG · ${mvp.kills} ${mvp.kills === 1 ? 'kill' : 'kills'}`;
 
     textCol.append(titleLine, statsLine);
     this.mvpEl.append(iconWrap, textCol);
@@ -241,22 +273,21 @@ export class OutcomeOverlay {
   ): void {
     this.open = true;
     this.badgeEl.className = 'outcome-badge outcome-badge-win';
-    this.badgeEl.textContent = 'ISLAND DEFENDED';
-    this.titleEl.textContent = 'Victory!';
-    this.subEl.textContent = `${level.name} secured from invaders.`;
+    this.badgeEl.textContent = 'Island defended';
+    this.titleEl.textContent = 'Victory';
+    this.subEl.textContent = level.name;
     this.starsEl.innerHTML = renderStarsHtml(stars);
     this.starsEl.classList.remove('hidden');
     this.statsEl.innerHTML = `
-      <div class="outcome-stat"><span>Lives Left</span><strong>${livesRemaining} / ${BALANCE.startingLives}</strong></div>
-      <div class="outcome-stat"><span>Waves Cleared</span><strong>${level.waves.length} / ${level.waves.length}</strong></div>
-      <div class="outcome-stat"><span>Foes Vanquished</span><strong>${enemiesKilled}</strong></div>
+      <div class="outcome-stat"><span>Lives</span><strong>${livesRemaining} / ${BALANCE.startingLives}</strong></div>
+      <div class="outcome-stat"><span>Waves</span><strong>${level.waves.length} / ${level.waves.length}</strong></div>
+      <div class="outcome-stat"><span>Foes</span><strong>${enemiesKilled}</strong></div>
     `;
     this.renderMvp(mvp);
     this.nextBtn.classList.toggle('hidden', !hasNext);
     this.endlessBtn.classList.remove('hidden');
-    this.endlessBtn.className = hasNext ? 'btn-secondary btn-lg' : 'btn-primary btn-lg';
-    this.replayBtn.className = 'btn-secondary btn-lg';
-    this.replayBtn.textContent = 'Replay Island';
+    OutcomeOverlay.styleBtn(this.endlessBtn, hasNext ? 'sky' : 'green', 'Endless', UI_ICON_SVGS.autoWave);
+    OutcomeOverlay.styleBtn(this.replayBtn, 'slate', 'Replay', UI_ICON_SVGS.restart);
     this.backdrop.classList.remove('hidden');
   }
 
@@ -277,35 +308,34 @@ export class OutcomeOverlay {
 
     if (isEndless) {
       this.badgeEl.className = 'outcome-badge outcome-badge-lose outcome-badge-endless';
-      this.badgeEl.textContent = 'ENDLESS CONCLUDED';
+      this.badgeEl.textContent = 'Endless over';
       this.titleEl.textContent = 'Endless Fallen';
-      this.subEl.textContent = `Held out until Wave ${waveReached} on ${level.name}!`;
+      this.subEl.textContent = `${level.name} · wave ${waveReached}`;
       this.starsEl.innerHTML = renderStarsHtml(earnedStars);
       this.starsEl.classList.remove('hidden');
       this.statsEl.innerHTML = `
-        <div class="outcome-stat"><span>Lives Left</span><strong>0 / ${BALANCE.startingLives}</strong></div>
-        <div class="outcome-stat"><span>Wave Reached</span><strong>Wave ${waveReached} ∞</strong></div>
-        <div class="outcome-stat"><span>Foes Vanquished</span><strong>${enemiesKilled}</strong></div>
+        <div class="outcome-stat"><span>Lives</span><strong>0 / ${BALANCE.startingLives}</strong></div>
+        <div class="outcome-stat"><span>Wave</span><strong>Wave ${waveReached} ∞</strong></div>
+        <div class="outcome-stat"><span>Foes</span><strong>${enemiesKilled}</strong></div>
       `;
     } else {
       this.badgeEl.className = 'outcome-badge outcome-badge-lose';
-      this.badgeEl.textContent = 'SANCTUARY BREACHED';
+      this.badgeEl.textContent = 'Sanctuary breached';
       this.titleEl.textContent = 'Defeat';
-      this.subEl.textContent = `${level.name} fell on Wave ${waveReached}.`;
+      this.subEl.textContent = `${level.name} fell on wave ${waveReached}`;
       this.starsEl.innerHTML = renderStarsHtml(earnedStars);
       this.starsEl.classList.remove('hidden');
       this.statsEl.innerHTML = `
-        <div class="outcome-stat"><span>Lives Left</span><strong>0 / ${BALANCE.startingLives}</strong></div>
-        <div class="outcome-stat"><span>Wave Reached</span><strong>${waveReached} / ${level.waves.length}</strong></div>
-        <div class="outcome-stat"><span>Foes Vanquished</span><strong>${enemiesKilled}</strong></div>
+        <div class="outcome-stat"><span>Lives</span><strong>0 / ${BALANCE.startingLives}</strong></div>
+        <div class="outcome-stat"><span>Wave</span><strong>${waveReached} / ${level.waves.length}</strong></div>
+        <div class="outcome-stat"><span>Foes</span><strong>${enemiesKilled}</strong></div>
       `;
     }
 
     this.renderMvp(options?.mvp);
     this.nextBtn.classList.add('hidden');
     this.endlessBtn.classList.add('hidden');
-    this.replayBtn.className = 'btn-primary btn-lg';
-    this.replayBtn.textContent = 'Retry Island';
+    OutcomeOverlay.styleBtn(this.replayBtn, 'green', 'Retry', UI_ICON_SVGS.restart);
     this.backdrop.classList.remove('hidden');
   }
 

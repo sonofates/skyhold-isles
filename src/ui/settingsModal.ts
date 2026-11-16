@@ -1,10 +1,18 @@
 import type { GameSettings, QualityLevel } from '../core/types.ts';
+import { UI_ICON_SVGS } from './icons.ts';
 
 export interface SettingsModalCallbacks {
   onChange: (next: GameSettings) => void;
   onRestart?: () => void;
   onQuitToMenu?: () => void;
   onClose: () => void;
+}
+
+function settingLabel(text: string): HTMLSpanElement {
+  const el = document.createElement('span');
+  el.className = 'setting-label';
+  el.textContent = text;
+  return el;
 }
 
 export class SettingsModal {
@@ -32,17 +40,18 @@ export class SettingsModal {
     });
 
     const card = document.createElement('div');
-    card.className = 'modal-card settings-card';
+    card.className = 'modal-card settings-card gx gx-slate';
 
     const title = document.createElement('div');
     title.className = 'modal-title';
-    title.textContent = 'Game Settings';
+    title.textContent = 'Settings';
 
     // Master volume slider
     const volRow = document.createElement('label');
     volRow.className = 'setting-row';
     const volLeft = document.createElement('span');
-    volLeft.textContent = 'Master Volume';
+    volLeft.className = 'setting-label';
+    volLeft.innerHTML = `<span class="setting-icon">${UI_ICON_SVGS.sound}</span>Volume`;
     this.volumeLabel = document.createElement('span');
     this.volumeLabel.className = 'setting-val';
     this.volumeInput = document.createElement('input');
@@ -69,7 +78,7 @@ export class SettingsModal {
       this.settings = { ...this.settings, muted: this.muteInput.checked };
       callbacks.onChange(this.settings);
     });
-    muteRow.append('Mute Audio', this.muteInput);
+    muteRow.append(settingLabel('Mute'), this.muteInput);
 
     // Camera Shake toggle
     const shakeRow = document.createElement('label');
@@ -80,7 +89,7 @@ export class SettingsModal {
       this.settings = { ...this.settings, cameraShake: this.shakeInput.checked };
       callbacks.onChange(this.settings);
     });
-    shakeRow.append('Camera Shake', this.shakeInput);
+    shakeRow.append(settingLabel('Camera shake'), this.shakeInput);
 
     // Floating Damage Numbers toggle
     const dmgRow = document.createElement('label');
@@ -91,12 +100,13 @@ export class SettingsModal {
       this.settings = { ...this.settings, damageNumbers: this.dmgInput.checked };
       callbacks.onChange(this.settings);
     });
-    dmgRow.append('Damage Numbers', this.dmgInput);
+    dmgRow.append(settingLabel('Damage numbers'), this.dmgInput);
 
     // Quality setting (High vs Low)
     const qualRow = document.createElement('div');
     qualRow.className = 'setting-row';
     const qualLabel = document.createElement('span');
+    qualLabel.className = 'setting-label';
     qualLabel.textContent = 'Quality';
     const qualWrap = document.createElement('div');
     qualWrap.className = 'setting-seg';
@@ -107,12 +117,12 @@ export class SettingsModal {
     };
     this.qualityHighBtn = document.createElement('button');
     this.qualityHighBtn.type = 'button';
-    this.qualityHighBtn.className = 'setting-seg-btn';
+    this.qualityHighBtn.className = 'setting-seg-btn gx gx-slate-btn';
     this.qualityHighBtn.textContent = 'High';
     this.qualityHighBtn.addEventListener('click', () => setQuality('high'));
     this.qualityLowBtn = document.createElement('button');
     this.qualityLowBtn.type = 'button';
-    this.qualityLowBtn.className = 'setting-seg-btn';
+    this.qualityLowBtn.className = 'setting-seg-btn gx gx-slate-btn';
     this.qualityLowBtn.textContent = 'Low';
     this.qualityLowBtn.addEventListener('click', () => setQuality('low'));
     qualWrap.append(this.qualityHighBtn, this.qualityLowBtn);
@@ -123,22 +133,22 @@ export class SettingsModal {
 
     this.restartBtn = document.createElement('button');
     this.restartBtn.type = 'button';
-    this.restartBtn.className = 'btn-secondary';
-    this.restartBtn.textContent = 'Restart Level';
+    this.restartBtn.className = 'btn-secondary gx gx-slate-btn';
+    this.restartBtn.innerHTML = `<span class="btn-icon">${UI_ICON_SVGS.restart}</span><span class="btn-label">Restart</span>`;
     this.restartBtn.addEventListener('click', () => callbacks.onRestart?.());
     if (!callbacks.onRestart) this.restartBtn.classList.add('hidden');
 
     this.quitBtn = document.createElement('button');
     this.quitBtn.type = 'button';
-    this.quitBtn.className = 'btn-secondary';
-    this.quitBtn.textContent = 'Main Menu';
+    this.quitBtn.className = 'btn-secondary gx gx-slate-btn';
+    this.quitBtn.innerHTML = `<span class="btn-icon">${UI_ICON_SVGS.home}</span><span class="btn-label">Menu</span>`;
     this.quitBtn.addEventListener('click', () => callbacks.onQuitToMenu?.());
     if (!callbacks.onQuitToMenu) this.quitBtn.classList.add('hidden');
 
     this.closeBtn = document.createElement('button');
     this.closeBtn.type = 'button';
-    this.closeBtn.className = 'btn-primary';
-    this.closeBtn.textContent = 'Resume';
+    this.closeBtn.className = 'btn-primary gx gx-green';
+    this.closeBtn.textContent = 'Back';
     this.closeBtn.addEventListener('click', () => callbacks.onClose());
 
     actions.append(this.restartBtn, this.quitBtn, this.closeBtn);
@@ -152,6 +162,7 @@ export class SettingsModal {
     const pct = Math.round(this.settings.masterVolume * 100);
     this.volumeInput.value = String(pct);
     this.volumeLabel.textContent = `${pct}%`;
+    this.volumeInput.style.setProperty('--pct', `${pct}%`);
     this.muteInput.checked = this.settings.muted;
     this.shakeInput.checked = this.settings.cameraShake;
     this.dmgInput.checked = this.settings.damageNumbers;

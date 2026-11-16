@@ -8,7 +8,7 @@ export class GameToast {
 
   constructor(parent: HTMLElement) {
     this.rootEl = document.createElement('div');
-    this.rootEl.className = 'game-toast hidden ui-interactive';
+    this.rootEl.className = 'game-toast gx gx-slate hidden ui-interactive';
     this.rootEl.setAttribute('role', 'status');
     this.rootEl.setAttribute('aria-live', 'polite');
     this.rootEl.setAttribute('data-testid', 'game-toast');
@@ -23,7 +23,7 @@ export class GameToast {
     const closeBtn = document.createElement('button');
     closeBtn.type = 'button';
     closeBtn.className = 'game-toast-close';
-    closeBtn.textContent = '×';
+    closeBtn.innerHTML = UI_ICON_SVGS.close;
     closeBtn.setAttribute('aria-label', 'Dismiss notice');
     closeBtn.addEventListener('click', () => this.hide());
 

@@ -70,8 +70,8 @@ export class GameOverlays {
     this.toast = new GameToast(uiRoot);
 
     this.pauseBanner = document.createElement('div');
-    this.pauseBanner.className = 'pause-banner hidden';
-    this.pauseBanner.textContent = 'PAUSED · Press Space to resume';
+    this.pauseBanner.className = 'pause-banner gx gx-slate hidden';
+    this.pauseBanner.innerHTML = 'Paused<span class="desktop-only"> · Space to resume</span>';
     uiRoot.appendChild(this.pauseBanner);
 
     this.hudBar = new HudBar(uiRoot, {
@@ -83,6 +83,7 @@ export class GameOverlays {
       onOpenSettings: cb.onOpenSettings,
       onOpenMenu: cb.onOpenMenu,
       onRotateCamera: cb.onRotateCamera,
+      onPreviewTap: (summary) => this.toast.show(summary, 4),
     });
 
     this.abilityBar = new AbilityBar(uiRoot, cb.onActivateAbility);
@@ -109,6 +110,8 @@ export class GameOverlays {
 
     this.pauseMenu = new PauseMenuModal(uiRoot, {
       onResume: cb.onResumeFromPause,
+      onToggleAutoWave: cb.onToggleAutoWave,
+      onToggleRoutes: cb.onToggleRoutes,
       onRestart: cb.onRestartLevel,
       onOpenSettings: cb.onOpenSettingsFromPause,
       onOpenLevelSelect: cb.onOpenLevelSelectFromPause,
@@ -164,6 +167,7 @@ export class GameOverlays {
     userPaused: boolean,
   ): void {
     this.hudBar.update(hudState);
+    this.pauseMenu.setToggles(hudState.autoWave, hudState.routesVisible);
     this.abilityBar.update(abilityState);
     this.buildBar.update(hudState.gold, activePlacementType);
     this.towerPanel.update(selectedTower, hudState.gold);

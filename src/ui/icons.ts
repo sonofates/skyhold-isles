@@ -87,6 +87,33 @@ export const UI_ICON_SVGS = {
     <circle cx="4" cy="17" r="2" fill="currentColor"/>
     <path d="M17.5 14.5L20 17L17.5 19.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
   </svg>`,
+  fast: `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <path d="M3.5 6L11 12L3.5 18V6Z" fill="currentColor" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>
+    <path d="M12.5 6L20 12L12.5 18V6Z" fill="currentColor" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>
+  </svg>`,
+  lock: `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <path d="M8 11V8.2C8 5.9 9.7 4.2 12 4.2C14.3 4.2 16 5.9 16 8.2V11" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+    <path d="M6 11H18L19 14V19L17.5 20.5H6.5L5 19V14L6 11Z" fill="currentColor" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>
+    <circle cx="12" cy="15.5" r="1.5" fill="${PALETTE.indigo}"/>
+  </svg>`,
+  close: `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <path d="M6.5 6.5L17.5 17.5M17.5 6.5L6.5 17.5" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+  </svg>`,
+  restart: `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <path d="M18.5 6.5V11.5H13.5" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M18.2 11.5C17.6 8 14.9 5.5 11.6 5.5C7.9 5.5 5 8.4 5 12C5 15.6 7.9 18.5 11.6 18.5C14.1 18.5 16.2 17.2 17.4 15.2" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>
+  </svg>`,
+  home: `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <path d="M3.5 12L12 4.5L20.5 12M6 10.5V19.5H10V14.5H14V19.5H18V10.5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>`,
+  islands: `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <path d="M12 3.5L21 8.5L12 13.5L3 8.5L12 3.5Z" fill="currentColor" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+    <path d="M3 13L12 18L21 13M3 17L12 22L21 17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>`,
+  sound: `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <path d="M4 9.5H8L13 5.5V18.5L8 14.5H4V9.5Z" fill="currentColor" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+    <path d="M16.5 9C18 10.6 18 13.4 16.5 15M19 6.5C21.7 9.5 21.7 14.5 19 17.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+  </svg>`,
   meteor: `<svg viewBox="0 0 32 32" fill="none" aria-hidden="true">
     <path d="M19.5 5.5L26.5 12.5M14 8L20 14M20.5 18.5C20.5 22.9 16.9 26.5 12.5 26.5C8.1 26.5 4.5 22.9 4.5 18.5C4.5 14.1 8.1 10.5 12.5 10.5C16.9 10.5 20.5 14.1 20.5 18.5Z" stroke="${PALETTE.indigo}" stroke-width="2" stroke-linecap="round"/>
     <circle cx="12.5" cy="18.5" r="6" fill="${PALETTE.coral}"/>
@@ -106,4 +133,37 @@ export const ENEMY_BADGE_META: Record<EnemyType, { label: string; color: string 
   healer: { label: 'Healer', color: PALETTE.grass },
   splitter: { label: 'Splitter', color: '#e84a7f' },
   boss: { label: 'Boss', color: PALETTE.indigo },
+};
+
+/** Tiny faceted enemy glyphs for the wave preview strip (24px grid, ink outline, flat fills). */
+export const ENEMY_ICON_SVGS: Record<EnemyType, string> = {
+  grunt: `<svg viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M12 3L19 7L21 14L17 20H7L3 14L5 7L12 3Z" fill="${PALETTE.coral}" stroke="${PALETTE.indigo}" stroke-width="1.8" stroke-linejoin="round"/>
+    <circle cx="9" cy="12" r="1.7" fill="${PALETTE.cream}"/><circle cx="15" cy="12" r="1.7" fill="${PALETTE.cream}"/>
+  </svg>`,
+  runner: `<svg viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M3 13L14 5L21 12L14 19L3 13Z" fill="${PALETTE.gold}" stroke="${PALETTE.indigo}" stroke-width="1.8" stroke-linejoin="round"/>
+    <path d="M8 13L14 9M8 13L14 16" stroke="${PALETTE.indigo}" stroke-width="1.6" stroke-linecap="round"/>
+  </svg>`,
+  brute: `<svg viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M3.5 8L7 4H17L20.5 8V18.5H3.5V8Z" fill="${PALETTE.stone}" stroke="${PALETTE.indigo}" stroke-width="1.8" stroke-linejoin="round"/>
+    <path d="M7.5 10.5H10.5M13.5 10.5H16.5" stroke="${PALETTE.indigo}" stroke-width="2.2" stroke-linecap="round"/>
+    <path d="M8 15H16" stroke="${PALETTE.indigo}" stroke-width="1.6" stroke-linecap="round"/>
+  </svg>`,
+  flyer: `<svg viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M2 9.5L8 6L12 11.5L16 6L22 9.5L17.5 15L12 19L6.5 15L2 9.5Z" fill="${PALETTE.water}" stroke="${PALETTE.indigo}" stroke-width="1.8" stroke-linejoin="round"/>
+    <circle cx="12" cy="12.5" r="1.6" fill="${PALETTE.cream}"/>
+  </svg>`,
+  healer: `<svg viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M8 3.5H16L20.5 8V16L16 20.5H8L3.5 16V8L8 3.5Z" fill="${PALETTE.grass}" stroke="${PALETTE.indigo}" stroke-width="1.8" stroke-linejoin="round"/>
+    <path d="M12 7.5V16.5M7.5 12H16.5" stroke="${PALETTE.cream}" stroke-width="2.6" stroke-linecap="round"/>
+  </svg>`,
+  splitter: `<svg viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M2.5 12L10.5 4V20L2.5 12Z" fill="#e84a7f" stroke="${PALETTE.indigo}" stroke-width="1.8" stroke-linejoin="round"/>
+    <path d="M13.5 4L21.5 12L13.5 20V4Z" fill="#e84a7f" stroke="${PALETTE.indigo}" stroke-width="1.8" stroke-linejoin="round"/>
+  </svg>`,
+  boss: `<svg viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M3 19L4.5 6L9 11L12 3.5L15 11L19.5 6L21 19H3Z" fill="${PALETTE.indigo}" stroke="${PALETTE.gold}" stroke-width="1.8" stroke-linejoin="round"/>
+    <circle cx="9.5" cy="14.5" r="1.5" fill="${PALETTE.gold}"/><circle cx="14.5" cy="14.5" r="1.5" fill="${PALETTE.gold}"/>
+  </svg>`,
 };

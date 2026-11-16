@@ -1,6 +1,6 @@
 import type { SpeedMultiplier } from '../core/types.ts';
 import type { WavePreview } from '../sim/waveSystem.ts';
-import { ENEMY_BADGE_META, UI_ICON_SVGS } from './icons.ts';
+import { ENEMY_BADGE_META, ENEMY_ICON_SVGS, UI_ICON_SVGS } from './icons.ts';
 
 export interface HudCallbacks {
   onStartWave: () => void;
@@ -11,6 +11,8 @@ export interface HudCallbacks {
   onOpenSettings: () => void;
   onOpenMenu: () => void;
   onRotateCamera: (dir: -1 | 1) => void;
+  /** Tap on the wave-preview strip: receives a short "10x Grunt, 6x Runner" summary. */
+  onPreviewTap?: (summary: string) => void;
 }
 
 export interface HudStateView {
@@ -30,6 +32,8 @@ export interface HudStateView {
   isEndless: boolean;
 }
 
+const SPEED_CYCLE: Record<SpeedMultiplier, SpeedMultiplier> = { 1: 2, 2: 3, 3: 1 };
+
 export class HudBar {
   private readonly rootEl: HTMLDivElement;
   private readonly goldValEl: HTMLSpanElement;
@@ -38,10 +42,14 @@ export class HudBar {
   private readonly waveBtn: HTMLButtonElement;
   private readonly waveBtnTitle: HTMLSpanElement;
   private readonly waveBtnSub: HTMLSpanElement;
+  private readonly waveBtnShort: HTMLSpanElement;
+  private readonly waveBtnBonus: HTMLSpanElement;
   private readonly autoWaveBtn: HTMLButtonElement;
   private readonly routesBtn: HTMLButtonElement;
-  private readonly previewEl: HTMLDivElement;
+  private readonly previewEl: HTMLButtonElement;
   private readonly speedBtns: Map<SpeedMultiplier, HTMLButtonElement> = new Map();
+  private readonly speedCycleBtn: HTMLButtonElement;
+  private readonly speedCycleVal: HTMLSpanElement;
   private readonly pauseBtn: HTMLButtonElement;
 
   private lastGold = -1;
@@ -52,54 +60,68 @@ export class HudBar {
   private lastPreviewRef: HudStateView['nextPreview'] | undefined = undefined;
   private lastPreviewEndless = false;
   private lastPausedIcon: boolean | null = null;
+  private currentSpeed: SpeedMultiplier = 1;
+  private previewSummary = '';
 
   constructor(parent: HTMLElement, callbacks: HudCallbacks) {
     this.rootEl = document.createElement('div');
     this.rootEl.className = 'hud-top ui-interactive';
 
-    // Left cluster: Gold, Lives, Wave counter
+    // Resource plate: lives, gold, wave counter on one slate slab.
     const leftGroup = document.createElement('div');
-    leftGroup.className = 'hud-group hud-resources';
+    leftGroup.className = 'hud-group hud-resources gx gx-slate';
 
-    const goldPill = document.createElement('div');
-    goldPill.className = 'hud-pill hud-gold';
-    goldPill.innerHTML = `<span class="hud-icon">${UI_ICON_SVGS.coin}</span>`;
-    this.goldValEl = document.createElement('span');
-    this.goldValEl.className = 'hud-val';
-    goldPill.appendChild(this.goldValEl);
+    const makeStat = (cls: string, icon: string): { el: HTMLDivElement; val: HTMLSpanElement } => {
+      const el = document.createElement('div');
+      el.className = `hud-pill ${cls}`;
+      el.innerHTML = `<span class="hud-icon">${icon}</span>`;
+      const val = document.createElement('span');
+      val.className = 'hud-val';
+      el.appendChild(val);
+      return { el, val };
+    };
+    const lives = makeStat('hud-lives', UI_ICON_SVGS.heart);
+    const gold = makeStat('hud-gold', UI_ICON_SVGS.coin);
+    const wave = makeStat('hud-wave-counter', UI_ICON_SVGS.wave);
+    this.livesValEl = lives.val;
+    this.goldValEl = gold.val;
+    this.waveValEl = wave.val;
+    leftGroup.append(lives.el, gold.el, wave.el);
 
-    const livesPill = document.createElement('div');
-    livesPill.className = 'hud-pill hud-lives';
-    livesPill.innerHTML = `<span class="hud-icon">${UI_ICON_SVGS.heart}</span>`;
-    this.livesValEl = document.createElement('span');
-    this.livesValEl.className = 'hud-val';
-    livesPill.appendChild(this.livesValEl);
+    // Next-wave preview: enemy tokens + counts, tap for names.
+    this.previewEl = document.createElement('button');
+    this.previewEl.type = 'button';
+    this.previewEl.className = 'hud-wave-preview gx gx-slate';
+    this.previewEl.setAttribute('aria-label', 'Next wave preview');
+    this.previewEl.addEventListener('click', () => {
+      if (this.previewSummary) callbacks.onPreviewTap?.(this.previewSummary);
+    });
 
-    const wavePill = document.createElement('div');
-    wavePill.className = 'hud-pill hud-wave-counter';
-    wavePill.innerHTML = `<span class="hud-icon">${UI_ICON_SVGS.wave}</span>`;
-    this.waveValEl = document.createElement('span');
-    this.waveValEl.className = 'hud-val';
-    wavePill.appendChild(this.waveValEl);
-
-    leftGroup.append(goldPill, livesPill, wavePill);
-
-    // Center cluster: Start / Next Wave CTA + Auto-Wave & Routes toggles + upcoming wave preview chips
+    // Wave controls: the big gem (bottom-right on touch) plus desktop toggles.
     const centerGroup = document.createElement('div');
     centerGroup.className = 'hud-group hud-wave-ctrl';
-    centerGroup.style.flexWrap = 'wrap';
 
     this.waveBtn = document.createElement('button');
     this.waveBtn.type = 'button';
-    this.waveBtn.className = 'hud-wave-btn';
+    this.waveBtn.className = 'hud-wave-btn gx gx-green';
+    const waveIcon = document.createElement('span');
+    waveIcon.className = 'hud-wave-btn-icon';
+    waveIcon.innerHTML = UI_ICON_SVGS.play;
+    const waveText = document.createElement('span');
+    waveText.className = 'hud-wave-btn-text';
     this.waveBtnTitle = document.createElement('span');
     this.waveBtnTitle.className = 'hud-wave-btn-title';
     this.waveBtnSub = document.createElement('span');
     this.waveBtnSub.className = 'hud-wave-btn-sub';
-    this.waveBtn.append(this.waveBtnTitle, this.waveBtnSub);
+    waveText.append(this.waveBtnTitle, this.waveBtnSub);
+    this.waveBtnShort = document.createElement('span');
+    this.waveBtnShort.className = 'hud-wave-btn-short';
+    this.waveBtnBonus = document.createElement('span');
+    this.waveBtnBonus.className = 'hud-wave-btn-bonus';
+    this.waveBtn.append(waveIcon, waveText, this.waveBtnShort, this.waveBtnBonus);
     this.waveBtn.addEventListener('click', () => callbacks.onStartWave());
 
-    const makeTogglePill = (
+    const makeToggle = (
       iconSvg: string,
       label: string,
       title: string,
@@ -108,45 +130,23 @@ export class HudBar {
     ): HTMLButtonElement => {
       const btn = document.createElement('button');
       btn.type = 'button';
-      btn.className = 'hud-icon-btn hud-toggle-pill';
+      btn.className = 'hud-toggle-pill gx gx-slate-btn';
       btn.title = title;
       btn.setAttribute('data-testid', testId);
       btn.setAttribute('aria-pressed', 'false');
-      btn.style.width = 'auto';
-      btn.style.padding = '0 8px';
-      btn.style.gap = '4px';
-      btn.style.fontSize = '11px';
-      btn.style.fontWeight = '800';
-      btn.style.whiteSpace = 'nowrap';
-
-      const iconSpan = document.createElement('span');
-      iconSpan.className = 'hud-toggle-icon';
-      iconSpan.style.width = '14px';
-      iconSpan.style.height = '14px';
-      iconSpan.style.display = 'inline-flex';
-      iconSpan.style.alignItems = 'center';
-      iconSpan.style.justifyContent = 'center';
-      iconSpan.style.flexShrink = '0';
-      iconSpan.innerHTML = iconSvg;
-
-      const labelSpan = document.createElement('span');
-      labelSpan.className = 'hud-toggle-label';
-      labelSpan.textContent = label;
-
-      btn.append(iconSpan, labelSpan);
+      btn.innerHTML = `<span class="hud-toggle-icon">${iconSvg}</span><span class="hud-toggle-label">${label}</span>`;
       btn.addEventListener('click', onClick);
       return btn;
     };
 
-    this.autoWaveBtn = makeTogglePill(
+    this.autoWaveBtn = makeToggle(
       UI_ICON_SVGS.autoWave,
       'Auto',
       'Auto-start next waves (X)',
       'btn-hud-autowave',
       () => callbacks.onToggleAutoWave(),
     );
-
-    this.routesBtn = makeTogglePill(
+    this.routesBtn = makeToggle(
       UI_ICON_SVGS.lanes,
       'Lanes',
       'Toggle ground & sky lane preview (R)',
@@ -154,31 +154,36 @@ export class HudBar {
       () => callbacks.onToggleRoutes(),
     );
 
-    this.previewEl = document.createElement('div');
-    this.previewEl.className = 'hud-wave-preview';
+    centerGroup.append(this.waveBtn, this.autoWaveBtn, this.routesBtn);
 
-    centerGroup.append(this.waveBtn, this.autoWaveBtn, this.routesBtn, this.previewEl);
-
-    // Right cluster: Camera Q/E rotate, Speed 1x/2x/3x, Pause, Settings
+    // Right cluster: camera, speed, pause / menu.
     const rightGroup = document.createElement('div');
     rightGroup.className = 'hud-group hud-actions';
 
-    const rotLeftBtn = document.createElement('button');
-    rotLeftBtn.type = 'button';
-    rotLeftBtn.className = 'hud-icon-btn hud-rot-btn hud-rot-left';
-    rotLeftBtn.title = 'Rotate camera left (Q)';
-    rotLeftBtn.innerHTML = UI_ICON_SVGS.rotateLeft;
-    rotLeftBtn.addEventListener('click', () => callbacks.onRotateCamera(-1));
+    const makeIconBtn = (cls: string, title: string, icon: string, onClick: () => void): HTMLButtonElement => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = `hud-icon-btn gx gx-slate-btn ${cls}`;
+      btn.title = title;
+      btn.setAttribute('aria-label', title);
+      btn.innerHTML = icon;
+      btn.addEventListener('click', onClick);
+      return btn;
+    };
 
-    const rotRightBtn = document.createElement('button');
-    rotRightBtn.type = 'button';
-    rotRightBtn.className = 'hud-icon-btn hud-rot-btn hud-rot-right';
-    rotRightBtn.title = 'Rotate camera right (E)';
-    rotRightBtn.innerHTML = UI_ICON_SVGS.rotateRight;
-    rotRightBtn.addEventListener('click', () => callbacks.onRotateCamera(1));
+    const rotLeftBtn = makeIconBtn('hud-rot-btn hud-rot-left', 'Rotate camera left (Q)', UI_ICON_SVGS.rotateLeft, () =>
+      callbacks.onRotateCamera(-1),
+    );
+    const rotRightBtn = makeIconBtn(
+      'hud-rot-btn hud-rot-right',
+      'Rotate camera right (E)',
+      UI_ICON_SVGS.rotateRight,
+      () => callbacks.onRotateCamera(1),
+    );
 
+    // Desktop: segmented 1x/2x/3x. Touch: single button that cycles.
     const speedWrap = document.createElement('div');
-    speedWrap.className = 'hud-speed-wrap';
+    speedWrap.className = 'hud-speed-wrap gx gx-slate';
     const speeds: readonly SpeedMultiplier[] = [1, 2, 3];
     for (let i = 0; i < speeds.length; i++) {
       const sp = speeds[i];
@@ -191,29 +196,37 @@ export class HudBar {
       speedWrap.appendChild(btn);
     }
 
-    this.pauseBtn = document.createElement('button');
-    this.pauseBtn.type = 'button';
-    this.pauseBtn.className = 'hud-icon-btn hud-pause-btn';
-    this.pauseBtn.title = 'Pause / Resume (Space)';
-    this.pauseBtn.addEventListener('click', () => callbacks.onTogglePause());
+    this.speedCycleBtn = document.createElement('button');
+    this.speedCycleBtn.type = 'button';
+    this.speedCycleBtn.className = 'hud-speed-cycle gx gx-slate-btn';
+    this.speedCycleBtn.title = 'Game speed';
+    this.speedCycleBtn.setAttribute('aria-label', 'Cycle game speed');
+    this.speedCycleBtn.setAttribute('data-testid', 'btn-hud-speed');
+    this.speedCycleBtn.innerHTML = `<span class="hud-speed-cycle-icon">${UI_ICON_SVGS.fast}</span>`;
+    this.speedCycleVal = document.createElement('span');
+    this.speedCycleVal.className = 'hud-speed-cycle-val';
+    this.speedCycleVal.textContent = '1x';
+    this.speedCycleBtn.appendChild(this.speedCycleVal);
+    this.speedCycleBtn.addEventListener('click', () => callbacks.onSetSpeed(SPEED_CYCLE[this.currentSpeed]));
 
-    const settingsBtn = document.createElement('button');
-    settingsBtn.type = 'button';
-    settingsBtn.className = 'hud-icon-btn hud-settings-btn';
-    settingsBtn.title = 'Settings';
-    settingsBtn.innerHTML = UI_ICON_SVGS.settings;
-    settingsBtn.addEventListener('click', () => callbacks.onOpenSettings());
-
-    const menuBtn = document.createElement('button');
-    menuBtn.type = 'button';
-    menuBtn.className = 'hud-icon-btn hud-menu-btn';
-    menuBtn.title = 'Pause Menu (Esc)';
+    this.pauseBtn = makeIconBtn('hud-pause-btn', 'Pause / Resume (Space)', UI_ICON_SVGS.pause, () =>
+      callbacks.onTogglePause(),
+    );
+    const settingsBtn = makeIconBtn('hud-settings-btn', 'Settings', UI_ICON_SVGS.settings, () =>
+      callbacks.onOpenSettings(),
+    );
+    // Menu button: hamburger on desktop, pause glyph on touch (opens the pause menu either way).
+    const menuBtn = makeIconBtn(
+      'hud-menu-btn',
+      'Pause menu (Esc)',
+      `<span class="hud-menu-glyph">${UI_ICON_SVGS.menu}</span><span class="hud-pause-glyph">${UI_ICON_SVGS.pause}</span>`,
+      () => callbacks.onOpenMenu(),
+    );
     menuBtn.setAttribute('data-testid', 'btn-hud-menu');
-    menuBtn.innerHTML = UI_ICON_SVGS.menu;
-    menuBtn.addEventListener('click', () => callbacks.onOpenMenu());
 
-    rightGroup.append(rotLeftBtn, rotRightBtn, speedWrap, this.pauseBtn, settingsBtn, menuBtn);
+    rightGroup.append(rotLeftBtn, rotRightBtn, speedWrap, this.speedCycleBtn, this.pauseBtn, settingsBtn, menuBtn);
 
+    centerGroup.append(this.previewEl);
     this.rootEl.append(leftGroup, centerGroup, rightGroup);
     parent.appendChild(this.rootEl);
   }
@@ -221,7 +234,7 @@ export class HudBar {
   update(view: HudStateView): void {
     if (view.gold !== this.lastGold) {
       this.lastGold = view.gold;
-      this.goldValEl.textContent = `${view.gold}g`;
+      this.goldValEl.textContent = String(view.gold);
     }
 
     if (view.lives !== this.lastLives) {
@@ -233,8 +246,8 @@ export class HudBar {
     if (waveBadgeKey !== this.lastWaveBadgeKey) {
       this.lastWaveBadgeKey = waveBadgeKey;
       this.waveValEl.textContent = view.isEndless
-        ? `Wave ${view.currentWave} ∞`
-        : `Wave ${view.currentWave}/${view.totalWaves}`;
+        ? `${view.currentWave} ∞`
+        : `${view.currentWave}/${view.totalWaves}`;
       this.waveValEl.classList.toggle('is-endless', view.isEndless);
     }
 
@@ -249,24 +262,31 @@ export class HudBar {
       this.lastWaveKey = waveKey;
       this.waveBtn.disabled = !view.canStartWave;
       this.waveBtn.classList.toggle('ready', view.canStartWave);
+      this.rootEl.classList.toggle('wave-locked', !view.canStartWave);
+      this.waveBtnBonus.textContent = '';
       if (view.isPreFirstWave) {
         this.waveBtnTitle.textContent = 'Start Wave 1';
-        this.waveBtnSub.textContent = 'Click when ready';
+        this.waveBtnSub.textContent = 'Tap when ready';
+        this.waveBtnShort.textContent = 'Start';
       } else if (view.canStartWave) {
         const nextNum = view.currentWave + 1;
         this.waveBtnTitle.textContent = `Next Wave ${nextNum}`;
         this.waveBtnSub.textContent =
           view.earlyBonus > 0
             ? countdownInt > 0
-              ? `Call Early +${view.earlyBonus}g (${countdownInt}s)`
-              : `Call Early +${view.earlyBonus}g`
+              ? `Call early +${view.earlyBonus}g (${countdownInt}s)`
+              : `Call early +${view.earlyBonus}g`
             : 'Send wave now';
+        this.waveBtnShort.textContent = 'Next';
+        this.waveBtnBonus.textContent = view.earlyBonus > 0 ? `+${view.earlyBonus}g` : '';
       } else if (!view.isEndless && view.currentWave >= view.totalWaves) {
         this.waveBtnTitle.textContent = 'Final Wave';
         this.waveBtnSub.textContent = 'Hold the Skyhold!';
+        this.waveBtnShort.textContent = 'Final';
       } else {
         this.waveBtnTitle.textContent = `Wave ${view.currentWave} Active`;
-        this.waveBtnSub.textContent = 'Deploying foes...';
+        this.waveBtnSub.textContent = 'Foes incoming';
+        this.waveBtnShort.textContent = 'Active';
       }
     }
 
@@ -285,9 +305,12 @@ export class HudBar {
       }
     }
 
+    this.currentSpeed = view.speed;
     this.speedBtns.forEach((btn, sp) => {
       btn.classList.toggle('active', !view.paused && view.speed === sp);
     });
+    this.speedCycleVal.textContent = `${view.speed}x`;
+    this.speedCycleBtn.classList.toggle('is-fast', view.speed > 1);
     if (view.paused !== this.lastPausedIcon) {
       this.lastPausedIcon = view.paused;
       this.pauseBtn.classList.toggle('active', view.paused);
@@ -297,30 +320,36 @@ export class HudBar {
 
   private renderPreview(view: HudStateView): void {
     this.previewEl.innerHTML = '';
+    this.previewSummary = '';
+    this.previewEl.classList.toggle('is-empty', !view.nextPreview);
     if (view.nextPreview) {
       const lbl = document.createElement('span');
       lbl.className = 'hud-preview-label';
-      lbl.textContent = `W${view.nextPreview.waveOneBased}:`;
+      lbl.textContent = `W${view.nextPreview.waveOneBased}`;
       this.previewEl.appendChild(lbl);
+      const names: string[] = [];
       for (let i = 0; i < view.nextPreview.items.length; i++) {
         const item = view.nextPreview.items[i];
         const meta = ENEMY_BADGE_META[item.enemyType];
         const chip = document.createElement('span');
-        if (item.enemyType === 'flyer' && item.count >= 3) {
-          chip.className = 'hud-preview-chip hud-preview-chip-flyer-warn';
-          chip.title = 'Aerial threat: only Archer, Frost, and Tesla can hit Flyers';
-          chip.innerHTML = `<span class="hud-preview-warn-icon">${UI_ICON_SVGS.flyerAlert}</span><span>${item.count} Flyers incoming</span>`;
-        } else {
-          chip.className = 'hud-preview-chip';
-          chip.innerHTML = `<i style="background:${meta.color}"></i>${item.count}× ${meta.label}`;
-        }
+        const air = item.enemyType === 'flyer';
+        chip.className = `hud-preview-chip${air ? ' is-air' : ''}${air && item.count >= 3 ? ' hud-preview-chip-flyer-warn' : ''}`;
+        chip.setAttribute('data-enemy', item.enemyType);
+        chip.innerHTML = `<span class="hud-preview-icon">${ENEMY_ICON_SVGS[item.enemyType]}</span><b>${item.count}</b>`;
         this.previewEl.appendChild(chip);
+        names.push(`${item.count}× ${meta.label}`);
       }
+      const hasAirWarn = view.nextPreview.items.some((x) => x.enemyType === 'flyer' && x.count >= 3);
+      this.previewSummary = `Wave ${view.nextPreview.waveOneBased}: ${names.join(', ')}${
+        hasAirWarn ? ' — only Archer, Frost and Tesla hit air' : ''
+      }`;
+      this.previewEl.title = this.previewSummary;
     } else {
       const lbl = document.createElement('span');
-      lbl.className = 'hud-preview-label';
-      lbl.textContent = view.isEndless ? 'Endless Surge' : 'Final Wave!';
+      lbl.className = 'hud-preview-label hud-preview-final';
+      lbl.textContent = view.isEndless ? 'Endless' : 'Final wave';
       this.previewEl.appendChild(lbl);
+      this.previewEl.title = '';
     }
   }
 
