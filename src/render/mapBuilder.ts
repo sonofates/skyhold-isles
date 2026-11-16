@@ -6,7 +6,7 @@ import { gridToWorldX, gridToWorldZ } from '../sim/grid.ts';
 import type { TowerEntity } from '../sim/entities.ts';
 import type { LevelDef } from '../data/levels/index.ts';
 import { parseLevelGrid } from '../data/levels/index.ts';
-import { mergeTexturedParts, type TexturedPart } from './geometryHelpers.ts';
+import { disposeInstancedMeshes, mergeTexturedParts, type TexturedPart } from './geometryHelpers.ts';
 import type { KenneyAssetStore } from './kenneyAssets.ts';
 import { remapUvCell } from './kenneyPalette.ts';
 import type { MaterialLibrary } from './materials.ts';
@@ -865,6 +865,7 @@ export class MapBuilder {
   dispose(): void {
     this.ambient.dispose();
     this.groundDetails.dispose();
+    disposeInstancedMeshes(this.group);
     this.group.clear();
     for (let i = 0; i < this.disposableGeometries.length; i++) {
       this.disposableGeometries[i].dispose();

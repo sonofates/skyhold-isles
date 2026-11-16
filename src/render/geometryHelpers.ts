@@ -176,3 +176,16 @@ export function mergeTexturedParts(parts: readonly TexturedPart[]): THREE.Buffer
   merged.computeBoundingBox();
   return merged;
 }
+
+/**
+ * Releases the GPU instance buffers (instanceMatrix / instanceColor) of every InstancedMesh under
+ * `root`. Geometries and materials are NOT disposed here; owners handle those separately.
+ * Call before `group.clear()` so the meshes are still reachable.
+ */
+export function disposeInstancedMeshes(root: THREE.Object3D): void {
+  root.traverse((obj) => {
+    if ((obj as THREE.InstancedMesh).isInstancedMesh) {
+      (obj as THREE.InstancedMesh).dispose();
+    }
+  });
+}

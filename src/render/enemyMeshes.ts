@@ -5,7 +5,7 @@ import { BALANCE } from '../data/balance.ts';
 import { ENEMY_TYPES } from '../data/enemies.ts';
 import { FROST_TINT_HEX, PALETTE_HEX } from '../data/palette.ts';
 import type { EnemyEntity } from '../sim/entities.ts';
-import { mergeColoredParts, type ColoredPart } from './geometryHelpers.ts';
+import { disposeInstancedMeshes, mergeColoredParts, type ColoredPart } from './geometryHelpers.ts';
 import type { MaterialLibrary } from './materials.ts';
 
 interface EnemyInstancedLayer {
@@ -473,6 +473,7 @@ export class EnemyRenderer {
   }
 
   dispose(): void {
+    disposeInstancedMeshes(this.group);
     this.group.clear();
     for (let i = 0; i < this.geometries.length; i++) {
       this.geometries[i].dispose();

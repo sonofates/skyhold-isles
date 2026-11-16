@@ -116,6 +116,11 @@ export class SceneManager {
     this.skyMaterial.uniforms.uDirectOutput.value = isLow ? 1 : 0;
     this.renderer.toneMapping = isLow ? THREE.NeutralToneMapping : THREE.NoToneMapping;
     this.renderer.toneMappingExposure = isLow ? 1.06 : 1.0;
+    if (isLow && this.postProcessing) {
+      // Free the composer render targets; render() recreates the pipeline lazily on High.
+      this.postProcessing.dispose();
+      this.postProcessing = null;
+    }
     const w = this.canvas.clientWidth || window.innerWidth;
     const h = this.canvas.clientHeight || window.innerHeight;
     this.resize(w, h);

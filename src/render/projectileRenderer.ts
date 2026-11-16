@@ -4,7 +4,7 @@ import type { TowerType } from '../core/types.ts';
 import { BALANCE } from '../data/balance.ts';
 import { PALETTE_HEX } from '../data/palette.ts';
 import type { ProjectileEntity } from '../sim/entities.ts';
-import { mergeTexturedParts } from './geometryHelpers.ts';
+import { disposeInstancedMeshes, mergeTexturedParts } from './geometryHelpers.ts';
 import type { KenneyAssetStore } from './kenneyAssets.ts';
 import { remapUvCell } from './kenneyPalette.ts';
 import type { MaterialLibrary } from './materials.ts';
@@ -124,6 +124,7 @@ export class ProjectileRenderer {
   }
 
   dispose(): void {
+    disposeInstancedMeshes(this.group);
     this.group.clear();
     for (let i = 0; i < this.geometries.length; i++) {
       this.geometries[i].dispose();

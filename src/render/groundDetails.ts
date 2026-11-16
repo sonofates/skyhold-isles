@@ -5,7 +5,7 @@ import { parseLevelGrid, type LevelDef } from '../data/levels/index.ts';
 import { PALETTE_HEX } from '../data/palette.ts';
 import type { TowerEntity } from '../sim/entities.ts';
 import { gridToWorldX, gridToWorldZ } from '../sim/grid.ts';
-import { mergeColoredParts, type ColoredPart } from './geometryHelpers.ts';
+import { disposeInstancedMeshes, mergeColoredParts, type ColoredPart } from './geometryHelpers.ts';
 import type { MaterialLibrary } from './materials.ts';
 
 interface BucketPlacement {
@@ -157,6 +157,9 @@ export class GroundDetails {
   private tileBindings = new Map<string, TileBinding[]>();
   private hiddenTiles = new Set<string>();
   private tempOccupied = new Set<string>();
+  /** Cheap tower-set signature (count + id sum); ids only grow, so any build/sell changes it. */
+  private lastTowerCount = -1;
+  private lastTowerIdSum = -1;
 
   build(level: LevelDef, materials: MaterialLibrary): void {
     this.dispose();
@@ -303,6 +306,12 @@ export class GroundDetails {
   syncOccupiedTiles(towers: readonly TowerEntity[]): void {
     if (this.meshes.length === 0) return;
 
+    let idSum = 0;
+    for (let i = 0; i < towers.length; i++) idSum += towers[i].id;
+    if (towers.length === this.lastTowerCount && idSum === this.lastTowerIdSum) return;
+    this.lastTowerCount = towers.length;
+    this.lastTowerIdSum = idSum;
+
     this.tempOccupied.clear();
     for (let i = 0; i < towers.length; i++) {
       const t = towers[i];
@@ -356,6 +365,7 @@ export class GroundDetails {
   }
 
   dispose(): void {
+    disposeInstancedMeshes(this.group);
     this.group.clear();
     for (let i = 0; i < this.disposableGeometries.length; i++) {
       this.disposableGeometries[i].dispose();
@@ -365,5 +375,7 @@ export class GroundDetails {
     this.tileBindings.clear();
     this.hiddenTiles.clear();
     this.tempOccupied.clear();
+    this.lastTowerCount = -1;
+    this.lastTowerIdSum = -1;
   }
 }

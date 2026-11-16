@@ -4,7 +4,7 @@ import { SeededRng } from '../core/rng.ts';
 import { gridToWorldX, gridToWorldZ } from '../sim/grid.ts';
 import { parseLevelGrid, type LevelDef } from '../data/levels/index.ts';
 import { PALETTE_HEX } from '../data/palette.ts';
-import { mergeTexturedParts } from './geometryHelpers.ts';
+import { disposeInstancedMeshes, mergeTexturedParts } from './geometryHelpers.ts';
 import type { KenneyAssetStore } from './kenneyAssets.ts';
 import type { MaterialLibrary } from './materials.ts';
 
@@ -194,6 +194,7 @@ export class DecorBuilder {
   }
 
   dispose(): void {
+    disposeInstancedMeshes(this.group);
     this.group.clear();
     for (let i = 0; i < this.disposableGeometries.length; i++) {
       this.disposableGeometries[i].dispose();
