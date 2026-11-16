@@ -1,11 +1,12 @@
 // Dev probe: builds a level's full greedy script with unlimited gold, then plays endless (auto-wave).
-// Usage: LVL=9 npx tsx scripts/endlessProbe.ts
+// Usage: npx tsx scripts/endlessProbe.ts --level=9   (or LVL=9)
 import { EventBus } from '../src/core/eventBus.ts';
 import { BALANCE } from '../src/data/balance.ts';
 import { LEVELS } from '../src/data/levels/index.ts';
 import { SimWorld } from '../src/sim/world.ts';
 
-const lvl = LEVELS[Number(process.env.LVL ?? 9) - 1];
+const lvlArg = process.argv.find((a) => a.startsWith('--level='))?.slice('--level='.length);
+const lvl = LEVELS[Number(lvlArg ?? process.env.LVL ?? 9) - 1];
 const ev = new EventBus();
 const w = new SimWorld(lvl, ev);
 w.gold = 99999;
