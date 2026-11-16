@@ -6,6 +6,7 @@ import { isTouchDevice } from '../platform/storage.ts';
 import {
   PerfGovernor,
   RollingFrameMetrics,
+  computeShadowMapSize,
   computeTargetDpr,
   type QualityPreset,
   type QualityTier,
@@ -38,10 +39,12 @@ export interface ScenePerfSnapshot {
   readonly composerEnabled: boolean;
   readonly activePasses: string;
   readonly shadowsEnabled: boolean;
+  readonly shadowMapSize: number;
   readonly qualityMode: QualityLevel;
   readonly activeTier: QualityTier;
   readonly tierLabel: string;
   readonly lockedCeilingTier: QualityTier;
+  readonly defaultMaxTier: QualityTier;
   readonly isTouch: boolean;
 }
 
@@ -56,6 +59,7 @@ export class SceneManager {
   private readonly governor: PerfGovernor;
   private readonly displayMetrics = new RollingFrameMetrics(120);
   private readonly workMetrics = new RollingFrameMetrics(120);
+  private readonly drawingSizeScratch = new THREE.Vector2();
 
   private skyMesh: THREE.Mesh;
   private skyGeometry: THREE.PlaneGeometry;
@@ -197,8 +201,12 @@ export class SceneManager {
     this.applyPreset(this.governor.getPreset(), true);
   }
 
-  resetGovernorWarmup(): void {
-    this.governor.resetWarmup();
+  resetGovernorWarmup(durationSec?: number, resetDisplayMetrics = false): void {
+    this.governor.resetWarmup(durationSec);
+    if (resetDisplayMetrics) {
+      this.displayMetrics.reset();
+      this.workMetrics.reset();
+    }
   }
 
   /**
@@ -206,6 +214,11 @@ export class SceneManager {
    * avoiding a first-frame compile hitch when the loading overlay fades out.
    */
   async warmUp(camera: THREE.Camera): Promise<void> {
+    this.resize(
+      this.canvas.clientWidth || window.innerWidth,
+      this.canvas.clientHeight || window.innerHeight,
+    );
+
     if (typeof this.renderer.compileAsync === 'function') {
       try {
         await this.renderer.compileAsync(this.scene, camera);
@@ -327,6 +340,12 @@ export class SceneManager {
     const workStats = this.workMetrics.getSnapshot();
     const nativeDpr = (typeof window !== 'undefined' ? window.devicePixelRatio : 1) || 1;
     const dpr = this.renderer.getPixelRatio();
+    this.renderer.getDrawingBufferSize(this.drawingSizeScratch);
+    const pixelWidth =
+      this.drawingSizeScratch.x > 0 ? this.drawingSizeScratch.x : Math.floor(this.lastWidth * dpr);
+    const pixelHeight =
+      this.drawingSizeScratch.y > 0 ? this.drawingSizeScratch.y : Math.floor(this.lastHeight * dpr);
+    const shadowsEnabled = this.shadowsEnabled;
     return {
       fps: frameStats.fps,
       avgMs: frameStats.avgMs,
@@ -335,17 +354,30 @@ export class SceneManager {
       workP95Ms: workStats.p95Ms,
       dpr,
       nativeDpr,
-      pixelWidth: Math.round(this.lastWidth * dpr),
-      pixelHeight: Math.round(this.lastHeight * dpr),
+      pixelWidth,
+      pixelHeight,
       composerEnabled: preset.composer,
       activePasses: this.getActivePassesLabel(preset),
-      shadowsEnabled: this.shadowsEnabled,
+      shadowsEnabled,
+      shadowMapSize: shadowsEnabled ? this.dirLight.shadow.mapSize.x : 0,
       qualityMode: this.governor.getMode(),
       activeTier: preset.tier,
       tierLabel: preset.label,
       lockedCeilingTier: this.governor.getLockedCeilingTier(),
+      defaultMaxTier: this.governor.getDefaultMaxTier(),
       isTouch: this.isTouch,
     };
+  }
+
+  private disposeShadowMap(): void {
+    const map = this.dirLight.shadow.map;
+    if (!map) return;
+    if (map.depthTexture) {
+      map.depthTexture.dispose();
+      map.depthTexture = null;
+    }
+    map.dispose();
+    this.dirLight.shadow.map = null;
   }
 
   private computePresetDpr(preset: QualityPreset): number {
@@ -366,8 +398,19 @@ export class SceneManager {
   }
 
   private applyPreset(preset: QualityPreset, refreshSize: boolean): void {
-    this.renderer.shadowMap.enabled = preset.shadows;
-    this.dirLight.castShadow = preset.shadows;
+    const shadowSize = computeShadowMapSize(preset.tier, this.isTouch);
+    const shadowsActive = preset.shadows && shadowSize > 0;
+    this.renderer.shadowMap.enabled = shadowsActive;
+    this.dirLight.castShadow = shadowsActive;
+    if (!shadowsActive) {
+      this.disposeShadowMap();
+    } else if (
+      this.dirLight.shadow.mapSize.x !== shadowSize ||
+      this.dirLight.shadow.mapSize.y !== shadowSize
+    ) {
+      this.dirLight.shadow.mapSize.set(shadowSize, shadowSize);
+      this.disposeShadowMap();
+    }
     this.renderer.shadowMap.needsUpdate = true;
 
     this.skyMaterial.uniforms.uDirectOutput.value = preset.composer ? 0 : 1;

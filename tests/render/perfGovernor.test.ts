@@ -5,8 +5,10 @@ import {
   QUALITY_PRESETS,
   RollingFrameMetrics,
   computeP95,
+  computeShadowMapSize,
   computeTargetDpr,
 } from '../../src/render/perfGovernor.ts';
+import { formatPerfLogLine } from '../../src/ui/debugPanel.ts';
 
 function feedFrames(
   gov: PerfGovernor,
@@ -194,5 +196,81 @@ describe('PerfGovernor', () => {
     expect(GOVERNOR_THRESHOLDS.baseUpgradeHoldSec).toBeGreaterThan(
       GOVERNOR_THRESHOLDS.mildDowngradeHoldSec,
     );
+    expect(GOVERNOR_THRESHOLDS.postDowngradeWarmupSec).toBeLessThanOrEqual(
+      GOVERNOR_THRESHOLDS.warmupSec,
+    );
+  });
+
+  it('scales shadow map sizes by tier and device class', () => {
+    expect(computeShadowMapSize(0, false)).toBe(0);
+    expect(computeShadowMapSize(0, true)).toBe(0);
+    expect(computeShadowMapSize(1, true)).toBe(512);
+    expect(computeShadowMapSize(1, false)).toBe(1024);
+    expect(computeShadowMapSize(2, false)).toBe(1024);
+    expect(computeShadowMapSize(3, true)).toBe(1024);
+    expect(computeShadowMapSize(4, true)).toBe(1024);
+    expect(computeShadowMapSize(4, false)).toBe(2048);
+    expect(computeShadowMapSize(5, false)).toBe(2048);
+  });
+
+  it('preserves eval accumulation on <25fps GPUs and updates ceiling on setTouch', () => {
+    const gov = new PerfGovernor({ mode: 'auto', isTouch: false });
+    expect(gov.getDefaultMaxTier()).toBe(5);
+    expect(gov.setTouch(true)).toBe(true);
+    expect(gov.getDefaultMaxTier()).toBe(4);
+    expect(gov.getTier()).toBe(4);
+    expect(gov.getLockedCeilingTier()).toBe(4);
+
+    // At 15fps (66ms frames), 20 samples take ~1.32s after 1.2s warmup (~38 frames total).
+    // Preserving evalAccumSec allows immediate severe double-step (T4 -> T2) once minSamples arrive.
+    const tr1 = feedFrames(gov, 45, 66);
+    expect(tr1.length).toBeGreaterThanOrEqual(1);
+    expect(tr1[0]).toMatchObject({ fromTier: 4, toTier: 2, direction: 'down' });
+  });
+
+  it('formats ?perf telemetry log lines cleanly with shadow, loop, and ceiling cap', () => {
+    const line = formatPerfLogLine({
+      fps: 58.4,
+      frameTimeMs: 17.1,
+      p95FrameMs: 19.8,
+      workAvgMs: 2.34,
+      drawCalls: 48,
+      drawsWithShadows: 48,
+      drawsNoShadows: 31,
+      triangles: 29410,
+      textures: 7,
+      geometries: 52,
+      dpr: 1.35,
+      pixelWidth: 526,
+      pixelHeight: 1139,
+      composerEnabled: true,
+      activePasses: 'Out+Bloom',
+      shadowsEnabled: true,
+      shadowMapSize: 1024,
+      qualityMode: 'auto',
+      activeTier: 3,
+      tierLabel: 'Medium',
+      lockedCeilingTier: 3,
+      defaultMaxTier: 4,
+      pacingMode: 'active',
+      enemiesActive: 12,
+      enemiesMax: 256,
+      towersCount: 8,
+      projectilesActive: 4,
+      projectilesMax: 256,
+      particlesActive: 20,
+      particlesMax: 512,
+      floatingTextsActive: 3,
+      floatingTextsMax: 60,
+    });
+    expect(line).toContain('[Skyhold Perf]');
+    expect(line).toContain('fps=58.4');
+    expect(line).toContain('p95=19.8ms');
+    expect(line).toContain('loop=active');
+    expect(line).toContain('draws=48');
+    expect(line).toContain('dpr=1.35(526x1139)');
+    expect(line).toContain('composer=ON[Out+Bloom]');
+    expect(line).toContain('sh=ON(1024)');
+    expect(line).toContain('quality=auto->T3(Medium) cap=T3');
   });
 });

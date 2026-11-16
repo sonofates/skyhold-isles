@@ -91,6 +91,7 @@ interface DisposableLike {
 }
 
 interface N8aoInternalResources {
+  autoDetectTransparency?: boolean;
   writeTargetInternal?: DisposableLike | null;
   readTargetInternal?: DisposableLike | null;
   outputTargetInternal?: DisposableLike | null;
@@ -105,6 +106,9 @@ interface N8aoInternalResources {
   effectCompositerQuad?: DisposableLike | null;
   copyQuad?: DisposableLike | null;
   depthDownsampleQuad?: DisposableLike | null;
+  depthCopyPass?: DisposableLike | null;
+  standardDenoiseMaterial?: DisposableLike | null;
+  neuralDenoiseMaterial?: DisposableLike | null;
 }
 
 function disposeN8aoPass(pass: N8AOPostPass): void {
@@ -117,6 +121,9 @@ function disposeN8aoPass(pass: N8AOPostPass): void {
   internal.transparencyRenderTargetDWFalse?.dispose?.();
   internal.transparencyRenderTargetDWTrue?.dispose?.();
   internal.bluenoise?.dispose?.();
+  internal.standardDenoiseMaterial?.dispose?.();
+  internal.neuralDenoiseMaterial?.dispose?.();
+  internal.depthCopyPass?.dispose?.();
   const quads = [
     internal.effectShaderQuad,
     internal.poissonBlurQuad,
@@ -147,6 +154,9 @@ function createN8aoPass(
   pass.configuration.intensity = 1.65;
   pass.configuration.color = new THREE.Color(0x282648);
   pass.configuration.gammaCorrection = false;
+  // Disable transparency-aware extra scene passes AND autoDetectTransparency (setting false when
+  // already false is ignored by N8AO's config Proxy, leaving autoDetectTransparency = true).
+  (pass as unknown as N8aoInternalResources).autoDetectTransparency = false;
   pass.configuration.transparencyAware = false;
   return pass;
 }
@@ -176,6 +186,7 @@ export class PostProcessingPipeline {
   private compositePass: EffectPass | null = null;
   private smaaPass: EffectPass | null = null;
   private config: PostProcessingConfig;
+  private readonly drawingSize = new THREE.Vector2();
 
   constructor(
     renderer: THREE.WebGLRenderer,
@@ -238,7 +249,10 @@ export class PostProcessingPipeline {
           this.n8aoPass = null;
         }
       } else if (!this.n8aoPass) {
-        this.n8aoPass = createN8aoPass(this.scene, this.camera, this.width, this.height, next.n8ao);
+        this.composer.getRenderer().getDrawingBufferSize(this.drawingSize);
+        const targetW = Math.max(1, this.drawingSize.width || this.width);
+        const targetH = Math.max(1, this.drawingSize.height || this.height);
+        this.n8aoPass = createN8aoPass(this.scene, this.camera, targetW, targetH, next.n8ao);
         this.composer.addPass(this.n8aoPass, 1);
       } else {
         configureN8aoPass(this.n8aoPass, next.n8ao);
@@ -250,11 +264,7 @@ export class PostProcessingPipeline {
       if (hadSmaa && this.smaaPass) {
         this.composer.removePass(this.smaaPass);
       }
-      if (this.compositePass) {
-        this.composer.removePass(this.compositePass);
-        this.compositePass.dispose();
-        this.compositePass = null;
-      }
+      const prevComposite = this.compositePass;
 
       const effects: Effect[] = [];
       if (next.outline) {
@@ -278,8 +288,16 @@ export class PostProcessingPipeline {
         new ToneMappingEffect({ mode: ToneMappingMode.NEUTRAL }),
       );
 
-      this.compositePass = new EffectPass(this.camera, ...effects);
-      this.composer.addPass(this.compositePass);
+      // Add replacement pass before removing the previous one so EffectComposer preserves its
+      // depth render targets without destroying and reallocating them on Bloom/Outline toggles.
+      const nextComposite = new EffectPass(this.camera, ...effects);
+      this.composer.addPass(nextComposite);
+      this.compositePass = nextComposite;
+
+      if (prevComposite) {
+        this.composer.removePass(prevComposite);
+        prevComposite.dispose();
+      }
 
       if (next.smaa && hadSmaa && this.smaaPass) {
         this.composer.addPass(this.smaaPass);

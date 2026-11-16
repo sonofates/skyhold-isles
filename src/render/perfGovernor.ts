@@ -138,6 +138,7 @@ export const GOVERNOR_THRESHOLDS = {
   minSamples: 20,
   evalIntervalSec: 0.5,
   warmupSec: 1.2,
+  postDowngradeWarmupSec: 0.65,
   maxValidFrameMs: 250,
   mildDowngradeAvgMs: 21.0,
   mildDowngradeP95Ms: 26.5,
@@ -154,6 +155,20 @@ export const GOVERNOR_THRESHOLDS = {
   bounceWindowSec: 25.0,
   maxBouncesBeforeLock: 2,
 } as const;
+
+export type ShadowMapSize = 0 | 512 | 1024 | 2048;
+
+/**
+ * Selects the directional shadow map resolution for a given tier and device class.
+ * Desktop Tier 4-5 keep crisp 2048px shadows; lower tiers step down to 1024px (or 512px on
+ * struggling touch GPUs at Tier 1) to cut shadow rasterization fillrate by 4x.
+ */
+export function computeShadowMapSize(tier: QualityTier, isTouch: boolean): ShadowMapSize {
+  if (tier === 0) return 0;
+  if (tier === 1) return isTouch ? 512 : 1024;
+  if (tier <= 3) return 1024;
+  return isTouch ? 1024 : 2048;
+}
 
 /**
  * Computes the effective devicePixelRatio for a quality mode, tier, and device class.
@@ -290,7 +305,7 @@ export class PerfGovernor {
     this.tier = this.getInitialTierForMode();
   }
 
-  private getDefaultMaxTier(): QualityTier {
+  getDefaultMaxTier(): QualityTier {
     return this.isTouch ? 4 : 5;
   }
 
@@ -385,13 +400,13 @@ export class PerfGovernor {
     if (this.evalAccumSec < GOVERNOR_THRESHOLDS.evalIntervalSec) {
       return null;
     }
-    const evalDt = this.evalAccumSec;
-    this.evalAccumSec = 0;
 
     const stats = this.rolling.getSnapshot();
     if (stats.sampleCount < GOVERNOR_THRESHOLDS.minSamples) {
       return null;
     }
+    const evalDt = this.evalAccumSec;
+    this.evalAccumSec = 0;
 
     const severeSlow =
       stats.avgMs >= GOVERNOR_THRESHOLDS.severeDowngradeAvgMs ||
@@ -465,7 +480,7 @@ export class PerfGovernor {
 
     this.tier = nextTier;
     this.lastChangeSec = this.clockSec;
-    this.resetWarmup();
+    this.resetWarmup(GOVERNOR_THRESHOLDS.postDowngradeWarmupSec);
     return {
       fromTier: prevTier,
       toTier: nextTier,
