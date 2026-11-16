@@ -376,3 +376,62 @@ describe('wave spawn order and timing', () => {
     });
   });
 });
+
+describe('auto-wave toggle', () => {
+  function worldBetweenWaves(): SimWorld {
+    const world = new SimWorld(LEVELS[0], new EventBus());
+    const ws = world.waveSystem;
+    ws.state = 'betweenWaves';
+    ws.currentWaveIndex = 0;
+    ws.interWaveTimer = BALANCE.interWaveCountdownSec;
+    return world;
+  }
+
+  it('restores the manual countdown and early-call bonus when auto-wave is turned off', () => {
+    const world = worldBetweenWaves();
+    const ws = world.waveSystem;
+    const fullBonus = ws.getEarlyCallBonus();
+
+    world.setAutoWave(true);
+    expect(ws.interWaveTimer).toBeCloseTo(0.75, 5);
+    world.setAutoWave(false);
+    expect(ws.interWaveTimer).toBeCloseTo(BALANCE.interWaveCountdownSec, 5);
+    expect(ws.getEarlyCallBonus()).toBe(fullBonus);
+  });
+
+  it('accounts for time elapsed while auto-wave was on', () => {
+    const world = worldBetweenWaves();
+    const ws = world.waveSystem;
+    world.setAutoWave(true);
+    ws.interWaveTimer -= 0.25; // countdown ticked while auto was enabled
+    world.setAutoWave(false);
+    expect(ws.interWaveTimer).toBeCloseTo(BALANCE.interWaveCountdownSec - 0.25, 5);
+  });
+
+  it('gives a full manual countdown when auto is disabled after a wave cleared under auto', () => {
+    const world = new SimWorld(LEVELS[0], new EventBus());
+    const ws = world.waveSystem;
+    world.setAutoWave(true);
+    ws.state = 'clearing';
+    ws.currentWaveIndex = 0;
+    ws.checkCompletion(
+      () => 0,
+      () => {},
+      () => {},
+    );
+    expect(ws.state).toBe('betweenWaves');
+    expect(ws.interWaveTimer).toBeCloseTo(0.75, 5);
+    world.setAutoWave(false);
+    expect(ws.interWaveTimer).toBeCloseTo(BALANCE.interWaveCountdownSec, 5);
+  });
+
+  it('repeated toggles do not shorten the countdown permanently', () => {
+    const world = worldBetweenWaves();
+    const ws = world.waveSystem;
+    for (let i = 0; i < 5; i++) {
+      world.setAutoWave(true);
+      world.setAutoWave(false);
+    }
+    expect(ws.interWaveTimer).toBeCloseTo(BALANCE.interWaveCountdownSec, 5);
+  });
+});

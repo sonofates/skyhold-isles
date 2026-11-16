@@ -421,3 +421,59 @@ describe('boss abilities, tower stun, and overcharge cleanse', () => {
     expect(abilities.getCooldown('overcharge')).toBe(0);
   });
 });
+
+describe('splitter near the goal', () => {
+  it('never spawns hatchlings ahead of the parent, so a kill at the goal leaks no lives', () => {
+    const { world } = makeHarness();
+    const splitter = world.enemySystem.spawnEnemy('splitter')!;
+    // Park the splitter just short of the goal, where the old +0.35 offset pushed a hatchling ahead.
+    splitter.dist = splitter.totalDist - 0.7;
+    const parentDist = splitter.dist;
+    world.enemySystem.applyDamage(splitter, 9999, true);
+
+    const leaks: number[] = [];
+    world.enemySystem.update(
+      BALANCE.fixedDt,
+      (leaked) => leaks.push(leaked.uid),
+      () => {},
+    );
+
+    expect(leaks).toEqual([]);
+    expect(world.enemyPool.getActiveCount()).toBe(2);
+    for (let i = 0; i < 2; i++) {
+      const child = world.enemyPool.items[world.enemyPool.getActiveIndex(i)];
+      expect(child.isSplitChild).toBe(true);
+      // Children may advance by one tick of movement, but start at or behind the parent.
+      expect(child.dist).toBeLessThanOrEqual(parentDist + child.speed * BALANCE.fixedDt + 1e-6);
+      expect(child.dist).toBeLessThan(child.totalDist);
+    }
+  });
+
+  it('clamps hatchlings to dist >= 0 when the parent dies at the spawn', () => {
+    const { world } = makeHarness();
+    const splitter = world.enemySystem.spawnEnemy('splitter')!;
+    splitter.dist = 0.1;
+    world.enemySystem.applyDamage(splitter, 9999, true);
+    world.enemySystem.update(
+      BALANCE.fixedDt,
+      () => {},
+      () => {},
+    );
+    expect(world.enemyPool.getActiveCount()).toBe(2);
+    for (let i = 0; i < 2; i++) {
+      const child = world.enemyPool.items[world.enemyPool.getActiveIndex(i)];
+      expect(child.dist).toBeGreaterThanOrEqual(0);
+    }
+  });
+});
+
+describe('ability guard outside combat', () => {
+  it('rejects meteor and overcharge at sim level before the first wave starts', () => {
+    const { world } = makeHarness();
+    expect(world.waveSystem.state).toBe('preFirstWave');
+    expect(world.castMeteor(0, 0)).toBe(false);
+    expect(world.castOvercharge()).toBe(false);
+    world.startNextWave();
+    expect(world.castOvercharge()).toBe(true);
+  });
+});

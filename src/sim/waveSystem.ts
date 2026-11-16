@@ -145,6 +145,9 @@ export function buildWaveSpawnQueue(
   return buildWaveQueueFromDef(wave);
 }
 
+/** Between-wave countdown while auto-wave is enabled. */
+const AUTO_WAVE_COUNTDOWN_SEC = 0.75;
+
 export class WaveSystem {
   private readonly level: LevelDef;
   private readonly events: EventBus;
@@ -160,6 +163,11 @@ export class WaveSystem {
   private spawnQueue: QueuedSpawn[] = [];
   private spawnCursor = 0;
   private currentWaveClearBonus = 0;
+  /**
+   * Seconds the between-wave countdown was cut short because auto-wave is on. Added back when
+   * auto-wave is switched off so the manual countdown (and early-call bonus) is not lost.
+   */
+  private autoShortenedBy = 0;
 
   constructor(level: LevelDef, events: EventBus) {
     this.level = level;
@@ -182,9 +190,28 @@ export class WaveSystem {
   }
 
   setAutoWave(enabled: boolean): void {
+    const wasEnabled = this.autoWave;
     this.autoWave = enabled;
-    if (enabled && this.state === 'betweenWaves') {
-      this.interWaveTimer = Math.min(this.interWaveTimer, 0.75);
+    if (this.state !== 'betweenWaves' || wasEnabled === enabled) return;
+    if (enabled) {
+      if (this.interWaveTimer > AUTO_WAVE_COUNTDOWN_SEC) {
+        this.autoShortenedBy += this.interWaveTimer - AUTO_WAVE_COUNTDOWN_SEC;
+        this.interWaveTimer = AUTO_WAVE_COUNTDOWN_SEC;
+      }
+    } else {
+      this.interWaveTimer += this.autoShortenedBy;
+      this.autoShortenedBy = 0;
+    }
+  }
+
+  /** Starts a between-wave countdown honouring auto-wave while remembering the manual length. */
+  private beginCountdown(manualSec: number, autoSec: number): void {
+    if (this.autoWave) {
+      this.interWaveTimer = autoSec;
+      this.autoShortenedBy = Math.max(0, manualSec - autoSec);
+    } else {
+      this.interWaveTimer = manualSec;
+      this.autoShortenedBy = 0;
     }
   }
 
@@ -200,7 +227,7 @@ export class WaveSystem {
     this.endlessMode = true;
     this.currentWaveIndex = Math.max(this.currentWaveIndex, this.level.waves.length - 1);
     this.state = 'betweenWaves';
-    this.interWaveTimer = this.autoWave ? 0.8 : 5.0;
+    this.beginCountdown(5.0, 0.8);
     const startingWave = this.currentWaveIndex + 2;
     this.events.emit('endlessEntered', { startingWave });
     return startingWave;
@@ -289,6 +316,7 @@ export class WaveSystem {
     this.spawnCursor = 0;
     this.waveElapsed = 0;
     this.interWaveTimer = 0;
+    this.autoShortenedBy = 0;
     this.state = 'spawning';
 
     this.events.emit('waveStarted', {
@@ -396,7 +424,7 @@ export class WaveSystem {
           bonus,
         });
         this.state = 'betweenWaves';
-        this.interWaveTimer = this.autoWave ? 0.75 : BALANCE.interWaveCountdownSec;
+        this.beginCountdown(BALANCE.interWaveCountdownSec, AUTO_WAVE_COUNTDOWN_SEC);
       }
       return;
     }
@@ -414,7 +442,7 @@ export class WaveSystem {
         });
         if (this.endlessMode) {
           this.state = 'betweenWaves';
-          this.interWaveTimer = this.autoWave ? 0.75 : BALANCE.interWaveCountdownSec;
+          this.beginCountdown(BALANCE.interWaveCountdownSec, AUTO_WAVE_COUNTDOWN_SEC);
         } else {
           this.state = 'finished';
           onAllClearedWin();

@@ -192,8 +192,10 @@ export class EnemySystem {
             z: e.z,
             count: 2,
           });
+          // Both hatchlings spawn at or behind the parent so a splitter killed next to the goal
+          // cannot push a child past it (which would leak extra lives instantly).
           this.spawnSplitChild(e, Math.max(0, e.dist - 0.35));
-          this.spawnSplitChild(e, Math.max(0, Math.min(e.totalDist - 0.5, e.dist + 0.35)));
+          this.spawnSplitChild(e, Math.max(0, e.dist));
         }
         this.pool.releaseAtActivePos(pos);
         continue;

@@ -115,13 +115,18 @@ export class SimWorld {
     this.waveSystem.setAutoWave(enabled);
   }
 
+  /** Abilities are only usable once the first wave has started (mirrors the HUD guard). */
+  private canUseAbilities(): boolean {
+    return this.outcome === 'ongoing' && this.waveSystem.state !== 'preFirstWave';
+  }
+
   castMeteor(x: number, z: number): boolean {
-    if (this.outcome !== 'ongoing') return false;
+    if (!this.canUseAbilities()) return false;
     return this.abilitySystem.castMeteor(x, z, Math.max(1, this.waveSystem.currentWaveOneBased));
   }
 
   castOvercharge(): boolean {
-    if (this.outcome !== 'ongoing') return false;
+    if (!this.canUseAbilities()) return false;
     return this.abilitySystem.castOvercharge(this.towers);
   }
 
