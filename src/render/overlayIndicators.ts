@@ -6,10 +6,13 @@ import { PALETTE_HEX } from '../data/palette.ts';
 import { getTowerTierStats } from '../data/towers.ts';
 import type { TowerEntity } from '../sim/entities.ts';
 import { gridToWorldX, gridToWorldZ } from '../sim/grid.ts';
+import { CompiledPath } from '../sim/path.ts';
 import { applyAlphaPreserveBlend, type MaterialLibrary } from './materials.ts';
 import type { TowerGeometryCache } from './towerGeometries.ts';
 
 const _ringDummy = new THREE.Object3D();
+
+function noopRaycast(): void {}
 
 function buildFlatRibbonGeometry(
   points: ReadonlyArray<{ x: number; z: number }>,
@@ -60,18 +63,26 @@ export class OverlayIndicators {
 
   private readonly selectedOuterRing: THREE.Mesh;
   private readonly selectedInnerRing: THREE.Mesh;
+  private readonly meteorTargetOuterRing: THREE.Mesh;
+  private readonly meteorTargetFillMesh: THREE.Mesh;
   private readonly ringGeo: THREE.BufferGeometry;
   private readonly rangeMat: THREE.MeshBasicMaterial;
   private debugRingsMesh: THREE.InstancedMesh;
   private debugRingsCapacity = 128;
 
   private readonly flightPathGroup = new THREE.Group();
+  private readonly groundPathGroup = new THREE.Group();
   private flightPathGeometries: THREE.BufferGeometry[] = [];
   private flightPathMaterials: THREE.Material[] = [];
+  private flightPathInstancedMeshes: THREE.InstancedMesh[] = [];
   private flightPathGroundMat: THREE.MeshBasicMaterial | null = null;
   private flightPathSkyMat: THREE.MeshBasicMaterial | null = null;
   private flightPathArrowMat: THREE.MeshBasicMaterial | null = null;
+  private groundPathMat: THREE.MeshBasicMaterial | null = null;
+  private groundPathArrowMat: THREE.MeshBasicMaterial | null = null;
+  private flightPathHighlighted = false;
   private flightPathSubtle = false;
+  private routesPinned = false;
 
   private readonly gridLineMat: THREE.LineBasicMaterial;
   private gridLinesMesh: THREE.LineSegments | null = null;
@@ -163,6 +174,27 @@ export class OverlayIndicators {
     this.selectedInnerRing.visible = false;
     this.group.add(this.selectedInnerRing);
 
+    const meteorFillGeo = new THREE.CircleGeometry(1, 36);
+    meteorFillGeo.rotateX(-Math.PI / 2);
+    this.geometries.push(meteorFillGeo);
+    const meteorFillMat = new THREE.MeshBasicMaterial({
+      color: PALETTE_HEX.coral,
+      transparent: true,
+      opacity: 0.2,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+    });
+    applyAlphaPreserveBlend(meteorFillMat);
+    this.ownMaterials.push(meteorFillMat);
+
+    this.meteorTargetOuterRing = new THREE.Mesh(this.ringGeo, deadzoneMat);
+    this.meteorTargetOuterRing.position.y = 0.055;
+    this.meteorTargetOuterRing.visible = false;
+    this.meteorTargetFillMesh = new THREE.Mesh(meteorFillGeo, meteorFillMat);
+    this.meteorTargetFillMesh.position.y = 0.048;
+    this.meteorTargetFillMesh.visible = false;
+    this.group.add(this.meteorTargetOuterRing, this.meteorTargetFillMesh);
+
     this.debugRingsMesh = new THREE.InstancedMesh(this.ringGeo, this.rangeMat, this.debugRingsCapacity);
     this.debugRingsMesh.count = 0;
     this.debugRingsMesh.visible = false;
@@ -170,100 +202,182 @@ export class OverlayIndicators {
     this.group.add(this.debugRingsMesh);
 
     this.flightPathGroup.visible = false;
-    this.group.add(this.flightPathGroup);
+    this.groundPathGroup.visible = false;
+    this.group.add(this.flightPathGroup, this.groundPathGroup);
   }
 
   setFlightPath(level: LevelDef): void {
     this.clearFlightPath();
-    if (level.flightPath.length < 2) return;
 
-    const worldPts = level.flightPath.map((wp) => ({
-      x: gridToWorldX(wp.col, level.cols),
-      z: gridToWorldZ(wp.row, level.rows),
-    }));
-
-    const skyY = BALANCE.flyerHeight - 0.14;
-    const groundY = 0.036;
-
-    const groundRibbonGeo = buildFlatRibbonGeometry(worldPts, groundY, 0.17);
-    const skyRibbonGeo = buildFlatRibbonGeometry(worldPts, skyY, 0.13);
     const arrowGeo = new THREE.ConeGeometry(0.21, 0.44, 4);
     arrowGeo.rotateX(Math.PI * 0.5);
     arrowGeo.scale(1.0, 0.24, 1.0);
-    this.flightPathGeometries.push(groundRibbonGeo, skyRibbonGeo, arrowGeo);
+    let usedArrowGeo = false;
 
-    const groundMat = new THREE.MeshBasicMaterial({
-      color: PALETTE_HEX.coral,
-      transparent: true,
-      opacity: 0.16,
-      depthWrite: false,
-      side: THREE.DoubleSide,
-    });
-    const skyMat = new THREE.MeshBasicMaterial({
-      color: PALETTE_HEX.coral,
-      transparent: true,
-      opacity: 0.28,
-      depthWrite: false,
-      side: THREE.DoubleSide,
-    });
-    const arrowMat = new THREE.MeshBasicMaterial({
-      color: PALETTE_HEX.coral,
-      transparent: true,
-      opacity: 0.52,
-      depthWrite: false,
-    });
-    applyAlphaPreserveBlend(groundMat);
-    applyAlphaPreserveBlend(skyMat);
-    applyAlphaPreserveBlend(arrowMat);
-    this.flightPathMaterials.push(groundMat, skyMat, arrowMat);
-    this.flightPathGroundMat = groundMat;
-    this.flightPathSkyMat = skyMat;
-    this.flightPathArrowMat = arrowMat;
+    if (level.flightPath.length >= 2) {
+      const worldPts = level.flightPath.map((wp) => ({
+        x: gridToWorldX(wp.col, level.cols),
+        z: gridToWorldZ(wp.row, level.rows),
+      }));
 
-    const groundRibbon = new THREE.Mesh(groundRibbonGeo, groundMat);
-    groundRibbon.castShadow = false;
-    groundRibbon.receiveShadow = false;
+      const skyY = BALANCE.flyerHeight - 0.14;
+      const groundY = 0.036;
 
-    const skyRibbon = new THREE.Mesh(skyRibbonGeo, skyMat);
-    skyRibbon.castShadow = false;
-    skyRibbon.receiveShadow = false;
+      const groundRibbonGeo = buildFlatRibbonGeometry(worldPts, groundY, 0.17);
+      const skyRibbonGeo = buildFlatRibbonGeometry(worldPts, skyY, 0.15);
+      this.flightPathGeometries.push(groundRibbonGeo, skyRibbonGeo);
 
-    const markerTransforms: Array<{ x: number; z: number; yaw: number }> = [];
-    const spacing = 1.45;
-    for (let i = 0; i < worldPts.length - 1; i++) {
-      const a = worldPts[i];
-      const b = worldPts[i + 1];
-      const dx = b.x - a.x;
-      const dz = b.z - a.z;
-      const len = Math.hypot(dx, dz);
-      if (len < 0.01) continue;
-      const yaw = Math.atan2(dx, dz);
-      const steps = Math.max(1, Math.floor(len / spacing));
-      for (let s = 0; s < steps; s++) {
-        const t = (s + 0.5) / steps;
-        markerTransforms.push({
-          x: a.x + dx * t,
-          z: a.z + dz * t,
-          yaw,
-        });
+      const groundMat = new THREE.MeshBasicMaterial({
+        color: PALETTE_HEX.coral,
+        transparent: true,
+        opacity: 0.16,
+        depthWrite: false,
+        side: THREE.DoubleSide,
+      });
+      const skyMat = new THREE.MeshBasicMaterial({
+        color: PALETTE_HEX.coral,
+        transparent: true,
+        opacity: 0.34,
+        depthWrite: false,
+        side: THREE.DoubleSide,
+      });
+      const arrowMat = new THREE.MeshBasicMaterial({
+        color: PALETTE_HEX.coral,
+        transparent: true,
+        opacity: 0.62,
+        depthWrite: false,
+      });
+      applyAlphaPreserveBlend(groundMat);
+      applyAlphaPreserveBlend(skyMat);
+      applyAlphaPreserveBlend(arrowMat);
+      this.flightPathMaterials.push(groundMat, skyMat, arrowMat);
+      this.flightPathGroundMat = groundMat;
+      this.flightPathSkyMat = skyMat;
+      this.flightPathArrowMat = arrowMat;
+
+      const groundRibbon = new THREE.Mesh(groundRibbonGeo, groundMat);
+      groundRibbon.castShadow = false;
+      groundRibbon.receiveShadow = false;
+      groundRibbon.renderOrder = 4;
+      groundRibbon.raycast = noopRaycast;
+
+      const skyRibbon = new THREE.Mesh(skyRibbonGeo, skyMat);
+      skyRibbon.castShadow = false;
+      skyRibbon.receiveShadow = false;
+      skyRibbon.renderOrder = 5;
+      skyRibbon.raycast = noopRaycast;
+
+      const markerTransforms: Array<{ x: number; z: number; yaw: number }> = [];
+      const spacing = 1.45;
+      for (let i = 0; i < worldPts.length - 1; i++) {
+        const a = worldPts[i];
+        const b = worldPts[i + 1];
+        const dx = b.x - a.x;
+        const dz = b.z - a.z;
+        const len = Math.hypot(dx, dz);
+        if (len < 0.01) continue;
+        const yaw = Math.atan2(dx, dz);
+        const steps = Math.max(1, Math.floor(len / spacing));
+        for (let s = 0; s < steps; s++) {
+          const t = (s + 0.5) / steps;
+          markerTransforms.push({
+            x: a.x + dx * t,
+            z: a.z + dz * t,
+            yaw,
+          });
+        }
       }
+
+      const arrowsMesh = new THREE.InstancedMesh(arrowGeo, arrowMat, Math.max(1, markerTransforms.length));
+      for (let i = 0; i < markerTransforms.length; i++) {
+        const m = markerTransforms[i];
+        _ringDummy.position.set(m.x, skyY + 0.03, m.z);
+        _ringDummy.rotation.set(0, m.yaw, 0);
+        _ringDummy.scale.setScalar(1);
+        _ringDummy.updateMatrix();
+        arrowsMesh.setMatrixAt(i, _ringDummy.matrix);
+      }
+      arrowsMesh.count = markerTransforms.length;
+      arrowsMesh.castShadow = false;
+      arrowsMesh.receiveShadow = false;
+      arrowsMesh.frustumCulled = false;
+      arrowsMesh.renderOrder = 6;
+      arrowsMesh.raycast = noopRaycast;
+      this.flightPathInstancedMeshes.push(arrowsMesh);
+
+      this.flightPathGroup.add(groundRibbon, skyRibbon, arrowsMesh);
+      usedArrowGeo = true;
     }
 
-    const arrowsMesh = new THREE.InstancedMesh(arrowGeo, arrowMat, Math.max(1, markerTransforms.length));
-    for (let i = 0; i < markerTransforms.length; i++) {
-      const m = markerTransforms[i];
-      _ringDummy.position.set(m.x, skyY + 0.03, m.z);
-      _ringDummy.rotation.set(0, m.yaw, 0);
-      _ringDummy.scale.setScalar(1);
-      _ringDummy.updateMatrix();
-      arrowsMesh.setMatrixAt(i, _ringDummy.matrix);
-    }
-    arrowsMesh.count = markerTransforms.length;
-    arrowsMesh.castShadow = false;
-    arrowsMesh.receiveShadow = false;
-    arrowsMesh.frustumCulled = false;
+    if (level.pathWaypoints.length >= 2) {
+      const laneY = BALANCE.tilePathTopY + 0.045;
+      const compiledGround = new CompiledPath(
+        level.pathWaypoints,
+        level.cols,
+        level.rows,
+        laneY,
+        true,
+      );
+      const laneRibbonGeo = buildFlatRibbonGeometry(compiledGround.points, laneY, 0.21);
+      this.flightPathGeometries.push(laneRibbonGeo);
 
-    this.flightPathGroup.add(groundRibbon, skyRibbon, arrowsMesh);
+      const laneMat = new THREE.MeshBasicMaterial({
+        color: PALETTE_HEX.gold,
+        transparent: true,
+        opacity: 0.34,
+        depthWrite: false,
+        side: THREE.DoubleSide,
+      });
+      const laneArrowMat = new THREE.MeshBasicMaterial({
+        color: PALETTE_HEX.gold,
+        transparent: true,
+        opacity: 0.72,
+        depthWrite: false,
+      });
+      applyAlphaPreserveBlend(laneMat);
+      applyAlphaPreserveBlend(laneArrowMat);
+      this.flightPathMaterials.push(laneMat, laneArrowMat);
+      this.groundPathMat = laneMat;
+      this.groundPathArrowMat = laneArrowMat;
+
+      const laneRibbon = new THREE.Mesh(laneRibbonGeo, laneMat);
+      laneRibbon.castShadow = false;
+      laneRibbon.receiveShadow = false;
+      laneRibbon.renderOrder = 4;
+      laneRibbon.raycast = noopRaycast;
+
+      const totalLen = compiledGround.totalLength;
+      const arrowCount = totalLen > 0.01 ? Math.max(1, Math.floor(totalLen / 1.8)) : 0;
+      const laneArrowsMesh = new THREE.InstancedMesh(arrowGeo, laneArrowMat, Math.max(1, arrowCount));
+      const samplePos = { x: 0, y: 0, z: 0 };
+      for (let i = 0; i < arrowCount; i++) {
+        const d = ((i + 0.5) / arrowCount) * totalLen;
+        const yaw = compiledGround.sample(d, samplePos);
+        _ringDummy.position.set(samplePos.x, laneY + 0.025, samplePos.z);
+        _ringDummy.rotation.set(0, yaw, 0);
+        _ringDummy.scale.setScalar(1);
+        _ringDummy.updateMatrix();
+        laneArrowsMesh.setMatrixAt(i, _ringDummy.matrix);
+      }
+      laneArrowsMesh.count = arrowCount;
+      laneArrowsMesh.castShadow = false;
+      laneArrowsMesh.receiveShadow = false;
+      laneArrowsMesh.frustumCulled = false;
+      laneArrowsMesh.renderOrder = 5;
+      laneArrowsMesh.raycast = noopRaycast;
+      this.flightPathInstancedMeshes.push(laneArrowsMesh);
+
+      this.groundPathGroup.add(laneRibbon, laneArrowsMesh);
+      usedArrowGeo = true;
+    }
+
+    if (usedArrowGeo) {
+      this.flightPathGeometries.push(arrowGeo);
+    } else {
+      arrowGeo.dispose();
+    }
+
+    this.syncRouteVisibility();
   }
 
   setBuildableGrid(level: LevelDef): void {
@@ -323,9 +437,20 @@ export class OverlayIndicators {
     }
   }
 
+  private syncRouteVisibility(): void {
+    this.flightPathGroup.visible = this.routesPinned || this.flightPathHighlighted;
+    this.groundPathGroup.visible = this.routesPinned;
+  }
+
   setFlightPathHighlight(visible: boolean, subtle = false): void {
-    this.flightPathGroup.visible = visible;
+    this.flightPathHighlighted = visible;
     this.flightPathSubtle = subtle;
+    this.syncRouteVisibility();
+  }
+
+  setRoutesPinned(pinned: boolean): void {
+    this.routesPinned = pinned;
+    this.syncRouteVisibility();
   }
 
   update(elapsedTime: number, frameDt = 0): void {
@@ -342,17 +467,27 @@ export class OverlayIndicators {
       this.gridLinesMesh.visible = this.placementGridAlpha > 0.005;
     }
 
-    if (!this.flightPathGroup.visible) return;
-    const mul = this.flightPathSubtle ? 0.58 : 1.0;
+    if (!this.flightPathGroup.visible && !this.groundPathGroup.visible) return;
     const pulse = 0.5 + 0.5 * Math.sin(elapsedTime * 3.8);
-    if (this.flightPathGroundMat) {
-      this.flightPathGroundMat.opacity = (0.14 + pulse * 0.08) * mul;
+    if (this.flightPathGroup.visible) {
+      const mul = this.routesPinned ? 1.0 : this.flightPathSubtle ? 0.58 : 1.0;
+      if (this.flightPathGroundMat) {
+        this.flightPathGroundMat.opacity = (0.14 + pulse * 0.08) * mul;
+      }
+      if (this.flightPathSkyMat) {
+        this.flightPathSkyMat.opacity = (0.28 + pulse * 0.14) * mul;
+      }
+      if (this.flightPathArrowMat) {
+        this.flightPathArrowMat.opacity = (0.54 + pulse * 0.22) * mul;
+      }
     }
-    if (this.flightPathSkyMat) {
-      this.flightPathSkyMat.opacity = (0.24 + pulse * 0.12) * mul;
-    }
-    if (this.flightPathArrowMat) {
-      this.flightPathArrowMat.opacity = (0.48 + pulse * 0.2) * mul;
+    if (this.groundPathGroup.visible) {
+      if (this.groundPathMat) {
+        this.groundPathMat.opacity = 0.28 + pulse * 0.12;
+      }
+      if (this.groundPathArrowMat) {
+        this.groundPathArrowMat.opacity = 0.62 + pulse * 0.22;
+      }
     }
   }
 
@@ -422,6 +557,20 @@ export class OverlayIndicators {
     }
   }
 
+  setMeteorTargetPreview(visible: boolean, wx: number, wz: number, radius: number): void {
+    if (!visible) {
+      this.meteorTargetOuterRing.visible = false;
+      this.meteorTargetFillMesh.visible = false;
+      return;
+    }
+    this.meteorTargetOuterRing.position.set(wx, 0.055, wz);
+    this.meteorTargetOuterRing.scale.setScalar(radius);
+    this.meteorTargetOuterRing.visible = true;
+    this.meteorTargetFillMesh.position.set(wx, 0.048, wz);
+    this.meteorTargetFillMesh.scale.setScalar(radius);
+    this.meteorTargetFillMesh.visible = true;
+  }
+
   syncDebugAllRanges(show: boolean, towers: readonly TowerEntity[]): void {
     if (!show || towers.length === 0) {
       this.debugRingsMesh.count = 0;
@@ -460,13 +609,25 @@ export class OverlayIndicators {
       this.gridLinesMesh.visible = false;
     }
     this.setSelectedTowerRing(null);
+    this.setMeteorTargetPreview(false, 0, 0, 1);
     this.syncDebugAllRanges(false, []);
-    this.setFlightPathHighlight(false);
+    this.clearBuildableGrid();
+    this.clearFlightPath();
+    this.routesPinned = false;
+    this.flightPathHighlighted = false;
+    this.flightPathSubtle = false;
+    this.syncRouteVisibility();
   }
 
   private clearFlightPath(): void {
     this.flightPathGroup.visible = false;
+    this.groundPathGroup.visible = false;
     this.flightPathGroup.clear();
+    this.groundPathGroup.clear();
+    for (let i = 0; i < this.flightPathInstancedMeshes.length; i++) {
+      this.flightPathInstancedMeshes[i].dispose();
+    }
+    this.flightPathInstancedMeshes.length = 0;
     for (let i = 0; i < this.flightPathGeometries.length; i++) {
       this.flightPathGeometries[i].dispose();
     }
@@ -478,6 +639,8 @@ export class OverlayIndicators {
     this.flightPathGroundMat = null;
     this.flightPathSkyMat = null;
     this.flightPathArrowMat = null;
+    this.groundPathMat = null;
+    this.groundPathArrowMat = null;
   }
 
   dispose(): void {

@@ -1,7 +1,7 @@
 import type { EventBus } from '../core/eventBus.ts';
 import type { EnemyType } from '../core/types.ts';
 import { BALANCE } from '../data/balance.ts';
-import type { LevelDef } from '../data/levels/index.ts';
+import type { LevelDef, WaveDef, WaveGroupDef } from '../data/levels/index.ts';
 
 export type WaveState =
   | 'preFirstWave'
@@ -42,10 +42,71 @@ export function computeEarlyCallBonus(
   return Math.max(1, Math.round(ratio * BALANCE.earlyWaveBonusMaxGold));
 }
 
-export function buildWaveSpawnQueue(level: LevelDef, waveIndex: number): QueuedSpawn[] {
-  const wave = level.waves[waveIndex];
-  if (!wave) return [];
+/**
+ * Deterministically generates an escalating wave definition for Endless Mode beyond `level.waves`.
+ */
+export function buildEndlessWaveDef(waveIndex: number, level: LevelDef): WaveDef {
+  const offset = Math.max(0, waveIndex - level.waves.length);
+  const scaleFactor = 1 + Math.max(0, level.waves.length - 10) * 0.05;
 
+  const groups: WaveGroupDef[] = [
+    {
+      enemyType: 'grunt',
+      count: Math.min(36, Math.round((9 + offset * 1.8) * scaleFactor) + (offset % 3 === 0 ? 4 : 0)),
+      spawnInterval: Math.max(0.18, +(0.58 - offset * 0.025).toFixed(2)),
+      startDelay: 0,
+    },
+    {
+      enemyType: 'runner',
+      count: Math.min(36, Math.round((7 + offset * 1.6) * scaleFactor) + (offset % 3 === 1 ? 5 : 0)),
+      spawnInterval: Math.max(0.18, +(0.42 - offset * 0.02).toFixed(2)),
+      startDelay: 0.8,
+    },
+    {
+      enemyType: 'splitter',
+      count: Math.min(24, Math.round((3 + offset * 1.1) * scaleFactor)),
+      spawnInterval: Math.max(0.18, +(0.72 - offset * 0.025).toFixed(2)),
+      startDelay: 1.4,
+    },
+    {
+      enemyType: 'flyer',
+      count: Math.min(34, Math.round((6 + offset * 1.5) * scaleFactor) + (offset % 2 === 1 ? 3 : 0)),
+      spawnInterval: Math.max(0.18, +(0.54 - offset * 0.022).toFixed(2)),
+      startDelay: 1.8,
+    },
+    {
+      enemyType: 'brute',
+      count: Math.min(26, Math.round((4 + offset * 1.0) * scaleFactor) + (offset % 3 === 2 ? 3 : 0)),
+      spawnInterval: Math.max(0.18, +(0.88 - offset * 0.035).toFixed(2)),
+      startDelay: 2.0,
+    },
+    {
+      enemyType: 'healer',
+      count: Math.min(12, Math.round((2 + offset * 0.55) * scaleFactor)),
+      spawnInterval: Math.max(0.18, +(1.2 - offset * 0.045).toFixed(2)),
+      startDelay: 2.6,
+    },
+  ];
+
+  if ((offset + 1) % 5 === 0) {
+    const bossTier = Math.floor(offset / 5);
+    groups.push({
+      enemyType: 'boss',
+      count: 1 + bossTier,
+      spawnInterval: Math.max(0.18, +(2.4 - bossTier * 0.25).toFixed(2)),
+      startDelay: 3.2,
+    });
+  }
+
+  const lastStoryBonus = level.waves[level.waves.length - 1]?.clearBonus ?? 40;
+  const clearBonus = Math.round(
+    Math.max(40, lastStoryBonus * 0.75) + offset * 5 + ((offset + 1) % 5 === 0 ? 25 : 0),
+  );
+
+  return { groups, clearBonus };
+}
+
+function buildWaveQueueFromDef(wave: WaveDef): QueuedSpawn[] {
   const queue: QueuedSpawn[] = [];
   for (let g = 0; g < wave.groups.length; g++) {
     const group = wave.groups[g];
@@ -68,6 +129,22 @@ export function buildWaveSpawnQueue(level: LevelDef, waveIndex: number): QueuedS
   return queue;
 }
 
+export function buildWaveSpawnQueue(
+  level: LevelDef,
+  waveIndex: number,
+  endless = false,
+): QueuedSpawn[] {
+  if (waveIndex < 0) return [];
+  const wave =
+    waveIndex < level.waves.length
+      ? level.waves[waveIndex]
+      : endless
+        ? buildEndlessWaveDef(waveIndex, level)
+        : undefined;
+  if (!wave) return [];
+  return buildWaveQueueFromDef(wave);
+}
+
 export class WaveSystem {
   private readonly level: LevelDef;
   private readonly events: EventBus;
@@ -77,16 +154,26 @@ export class WaveSystem {
   interWaveTimer = 0;
   waveElapsed = 0;
   pendingClearBonus = 0;
+  endlessMode = false;
+  autoWave = false;
 
   private spawnQueue: QueuedSpawn[] = [];
   private spawnCursor = 0;
+  private currentWaveClearBonus = 0;
 
   constructor(level: LevelDef, events: EventBus) {
     this.level = level;
     this.events = events;
   }
 
+  get isEndless(): boolean {
+    return this.endlessMode;
+  }
+
   get totalWaves(): number {
+    if (this.endlessMode) {
+      return Math.max(this.level.waves.length, this.currentWaveIndex + 1);
+    }
     return this.level.waves.length;
   }
 
@@ -94,7 +181,48 @@ export class WaveSystem {
     return Math.max(0, this.currentWaveIndex + 1);
   }
 
+  setAutoWave(enabled: boolean): void {
+    this.autoWave = enabled;
+    if (enabled && this.state === 'betweenWaves') {
+      this.interWaveTimer = Math.min(this.interWaveTimer, 0.75);
+    }
+  }
+
+  getRewardMultiplier(): number {
+    if (this.currentWaveIndex < this.level.waves.length) {
+      return 1;
+    }
+    const step = this.currentWaveIndex - this.level.waves.length + 1;
+    return Math.max(0.32, 1 / (1 + step * 0.14));
+  }
+
+  enterEndlessMode(): number {
+    this.endlessMode = true;
+    this.currentWaveIndex = Math.max(this.currentWaveIndex, this.level.waves.length - 1);
+    this.state = 'betweenWaves';
+    this.interWaveTimer = this.autoWave ? 0.8 : 5.0;
+    const startingWave = this.currentWaveIndex + 2;
+    this.events.emit('endlessEntered', { startingWave });
+    return startingWave;
+  }
+
+  private getWaveDef(waveIndex: number): WaveDef | null {
+    if (waveIndex < 0) return null;
+    if (waveIndex < this.level.waves.length) {
+      return this.level.waves[waveIndex];
+    }
+    return this.endlessMode ? buildEndlessWaveDef(waveIndex, this.level) : null;
+  }
+
   canStartNextWave(): boolean {
+    if (this.endlessMode) {
+      return (
+        this.state === 'preFirstWave' ||
+        this.state === 'betweenWaves' ||
+        this.state === 'clearing' ||
+        this.state === 'allSpawned'
+      );
+    }
     return (
       (this.state === 'preFirstWave' ||
         this.state === 'betweenWaves' ||
@@ -107,19 +235,20 @@ export class WaveSystem {
     if (this.state === 'betweenWaves') {
       return computeEarlyCallBonus(this.interWaveTimer, false);
     }
-    if (this.state === 'clearing') {
+    if (this.state === 'clearing' || (this.endlessMode && this.state === 'allSpawned')) {
       return computeEarlyCallBonus(BALANCE.interWaveCountdownSec, true);
     }
     return 0;
   }
 
   getNextWavePreview(): WavePreview | null {
+    if (this.state === 'finished') return null;
     const nextIdx = this.state === 'preFirstWave' ? 0 : this.currentWaveIndex + 1;
-    if (nextIdx < 0 || nextIdx >= this.level.waves.length) {
+    const wave = this.getWaveDef(nextIdx);
+    if (!wave) {
       return null;
     }
 
-    const wave = this.level.waves[nextIdx];
     const counts = new Map<EnemyType, number>();
     const order: EnemyType[] = [];
 
@@ -154,7 +283,9 @@ export class WaveSystem {
     }
 
     this.currentWaveIndex++;
-    this.spawnQueue = buildWaveSpawnQueue(this.level, this.currentWaveIndex);
+    const waveDef = this.getWaveDef(this.currentWaveIndex);
+    this.currentWaveClearBonus = waveDef?.clearBonus ?? 0;
+    this.spawnQueue = waveDef ? buildWaveQueueFromDef(waveDef) : [];
     this.spawnCursor = 0;
     this.waveElapsed = 0;
     this.interWaveTimer = 0;
@@ -164,13 +295,17 @@ export class WaveSystem {
       waveIndex: this.currentWaveIndex,
       totalWaves: this.totalWaves,
       earlyBonus,
+      endless: this.endlessMode,
     });
     return true;
   }
 
   skipToWave(waveOneBased: number): boolean {
-    if (this.totalWaves <= 0) return false;
-    const clampedIdx = Math.max(0, Math.min(this.totalWaves - 1, Math.floor(waveOneBased) - 1));
+    if (this.totalWaves <= 0 && !this.endlessMode) return false;
+    const requestedIdx = Math.max(0, Math.floor(waveOneBased) - 1);
+    const clampedIdx = this.endlessMode
+      ? requestedIdx
+      : Math.min(this.level.waves.length - 1, requestedIdx);
     this.pendingClearBonus = 0;
     this.interWaveTimer = 0;
     this.currentWaveIndex = clampedIdx - 1;
@@ -178,11 +313,26 @@ export class WaveSystem {
     return this.startNextWave(() => {});
   }
 
-  getCurrentWaveHpScale(): number {
+  private computeStoryWaveHpScale(waveIndex: number): number {
     const base = this.level.enemyHpScale ?? 1;
     const growth = this.level.waveHpGrowth ?? 0;
-    const w = Math.max(0, this.currentWaveIndex);
-    return base * (1 + w * growth);
+    const w = Math.max(0, waveIndex);
+    const linear = base * (1 + w * growth);
+    if (w <= 5) {
+      return linear;
+    }
+    return linear * Math.pow(1.032, w - 5);
+  }
+
+  getCurrentWaveHpScale(): number {
+    const storyCount = this.level.waves.length;
+    if (this.currentWaveIndex < storyCount) {
+      return this.computeStoryWaveHpScale(this.currentWaveIndex);
+    }
+    const finalStoryIndex = Math.max(0, storyCount - 1);
+    const finalStoryScale = this.computeStoryWaveHpScale(finalStoryIndex);
+    const offset = this.currentWaveIndex - storyCount;
+    return finalStoryScale * Math.pow(1.22, offset + 1);
   }
 
   update(
@@ -208,8 +358,8 @@ export class WaveSystem {
       }
 
       if (this.spawnCursor >= this.spawnQueue.length) {
-        const wave = this.level.waves[this.currentWaveIndex];
-        this.pendingClearBonus += wave.clearBonus;
+        this.pendingClearBonus += this.currentWaveClearBonus;
+        this.currentWaveClearBonus = 0;
         if (this.currentWaveIndex >= this.totalWaves - 1) {
           this.state = 'allSpawned';
         } else {
@@ -246,7 +396,7 @@ export class WaveSystem {
           bonus,
         });
         this.state = 'betweenWaves';
-        this.interWaveTimer = BALANCE.interWaveCountdownSec;
+        this.interWaveTimer = this.autoWave ? 0.75 : BALANCE.interWaveCountdownSec;
       }
       return;
     }
@@ -262,8 +412,13 @@ export class WaveSystem {
           waveIndex: this.currentWaveIndex,
           bonus,
         });
-        this.state = 'finished';
-        onAllClearedWin();
+        if (this.endlessMode) {
+          this.state = 'betweenWaves';
+          this.interWaveTimer = this.autoWave ? 0.75 : BALANCE.interWaveCountdownSec;
+        } else {
+          this.state = 'finished';
+          onAllClearedWin();
+        }
       }
     }
   }

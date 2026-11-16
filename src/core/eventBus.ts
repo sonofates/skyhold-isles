@@ -1,4 +1,4 @@
-import type { EnemyType, TowerType, Vec3 } from './types.ts';
+import type { AbilityId, EnemyType, TowerType, Vec3 } from './types.ts';
 
 export interface GameEventMap {
   towerBuilt: { towerId: number; type: TowerType; tier: number; x: number; z: number };
@@ -46,6 +46,13 @@ export interface GameEventMap {
     y: number;
     z: number;
   };
+  enemySplit: {
+    parentUid: number;
+    x: number;
+    y: number;
+    z: number;
+    count: number;
+  };
   enemyLeaked: {
     enemyType: EnemyType;
     livesLost: number;
@@ -59,10 +66,43 @@ export interface GameEventMap {
     z: number;
     radius: number;
   };
+  bossPulse: {
+    x: number;
+    y: number;
+    z: number;
+    radius: number;
+    stunnedTowerIds: readonly number[];
+  };
+  bossSummon: {
+    x: number;
+    y: number;
+    z: number;
+    count: number;
+  };
+  abilityTargeted: {
+    abilityId: AbilityId;
+    x: number;
+    z: number;
+    radius: number;
+  };
+  meteorImpact: {
+    x: number;
+    y: number;
+    z: number;
+    radius: number;
+  };
+  overchargeActivated: {
+    duration: number;
+    cleansedTowerIds: readonly number[];
+  };
+  endlessEntered: {
+    startingWave: number;
+  };
   waveStarted: {
     waveIndex: number;
     totalWaves: number;
     earlyBonus: number;
+    endless?: boolean;
   };
   waveCompleted: {
     waveIndex: number;
@@ -78,6 +118,7 @@ export interface GameEventMap {
   };
   gameLost: {
     waveIndex: number;
+    endless?: boolean;
   };
 }
 

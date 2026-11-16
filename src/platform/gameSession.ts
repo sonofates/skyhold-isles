@@ -1,6 +1,7 @@
 import type { SoundManager } from '../audio/soundManager.ts';
 import { EventBus } from '../core/eventBus.ts';
 import type {
+  AbilityId,
   EnemyType,
   GameSettings,
   ProgressData,
@@ -18,10 +19,13 @@ import type { GameLoop } from './browserLoop.ts';
 import type { InputManager } from './input.ts';
 import {
   bindSimEventBridge,
+  buildAbilityBarState,
   buildHudStateView,
+  recordEndlessProgress,
   recordWinProgress,
   stepPendingSpawns,
   updateHoverFeedback,
+  updateMeteorPreviewFromNdc,
   updatePlacementPreviewFromNdc,
 } from './sessionBridge.ts';
 import {
@@ -58,6 +62,9 @@ export class GameSession {
   private readonly towerPanelAnchorOut = { x: 0, y: 0 };
   private simClockSec = 0;
   private activePlacementType: TowerType | null = null;
+  private activeAbilityMode: AbilityId | null = null;
+  private autoWaveEnabled = false;
+  private routesPinned = false;
   private selectedTowerId: number | null = null;
   private sellConfirmTowerId: number | null = null;
   private sellConfirmDeadlineMs = 0;
@@ -92,7 +99,10 @@ export class GameSession {
 
   pauseSubtitle(): string {
     const ws = this.simWorld.waveSystem;
-    return `${LEVELS[this.currentLevelIndex].name} · Wave ${ws.currentWaveOneBased}/${ws.totalWaves}`;
+    const waveLabel = ws.isEndless
+      ? `Wave ${ws.currentWaveOneBased} ∞`
+      : `Wave ${ws.currentWaveOneBased}/${ws.totalWaves}`;
+    return `${LEVELS[this.currentLevelIndex].name} · ${waveLabel}`;
   }
 
   syncLoopAndInput(): void {
@@ -118,7 +128,8 @@ export class GameSession {
       this.renderWorld.overlayIndicators.setSelectedTowerRing(null);
     }
     overlays.syncInPlay(
-      buildHudStateView(this.simWorld, loop),
+      buildHudStateView(this.simWorld, loop, this.routesPinned),
+      buildAbilityBarState(this.simWorld, this.activeAbilityMode),
       this.activePlacementType,
       selectedTower,
       this.userPaused,
@@ -127,13 +138,21 @@ export class GameSession {
   };
 
   refreshPlacementPreview(): void {
+    const inPlayAndInside = this.viewMode === 'playing' && this.pointerInside;
     updatePlacementPreviewFromNdc(
-      this.viewMode === 'playing' && this.pointerInside,
+      inPlayAndInside,
       this.activePlacementType,
       this.lastNdcX,
       this.lastNdcY,
       this.renderWorld,
       this.simWorld,
+    );
+    updateMeteorPreviewFromNdc(
+      inPlayAndInside,
+      this.activeAbilityMode,
+      this.lastNdcX,
+      this.lastNdcY,
+      this.renderWorld,
     );
   }
 
@@ -146,11 +165,12 @@ export class GameSession {
 
   refreshHoverFeedback(): void {
     const { overlays, loop } = this.d;
+    const aimingMeteor = this.activeAbilityMode === 'meteor';
     updateHoverFeedback(
       this.viewMode === 'playing',
       this.pointerInside,
       loop.paused,
-      this.activePlacementType !== null,
+      this.activePlacementType !== null || aimingMeteor,
       this.lastNdcX,
       this.lastNdcY,
       this.lastClientX,
@@ -191,13 +211,18 @@ export class GameSession {
       ws.state === 'spawning' || ws.state === 'clearing'
         ? this.simWorld.level.waves[ws.currentWaveIndex]
         : undefined;
-    const currentHasFlyers = activeWave?.groups.some((g) => g.enemyType === 'flyer') ?? false;
+    const currentHasFlyers =
+      ws.isEndless || (activeWave?.groups.some((g) => g.enemyType === 'flyer') ?? false);
     this.renderWorld.setFlightPathHighlight(nextHasFlyers || currentHasFlyers, true);
+    this.renderWorld.setRoutesPinned(this.routesPinned);
   }
 
   setPlacementMode(type: TowerType | null): void {
     this.activePlacementType = type;
-    if (type !== null) this.selectTower(null);
+    if (type !== null) {
+      this.activeAbilityMode = null;
+      this.selectTower(null);
+    }
     const inPlay = this.viewMode === 'playing';
     this.renderWorld.setPlacementGridActive(inPlay && type !== null);
     this.syncFlightPathHighlight();
@@ -210,6 +235,56 @@ export class GameSession {
     this.setPlacementMode(this.activePlacementType === type ? null : type);
   }
 
+  toggleAutoWave(): void {
+    this.soundManager.unlock();
+    this.autoWaveEnabled = !this.autoWaveEnabled;
+    this.simWorld.setAutoWave(this.autoWaveEnabled);
+    this.syncUi();
+  }
+
+  toggleRoutesPinned(): void {
+    this.soundManager.unlock();
+    this.routesPinned = !this.routesPinned;
+    this.syncFlightPathHighlight();
+    this.syncUi();
+  }
+
+  activateAbility(id: AbilityId): void {
+    if (this.viewMode !== 'playing' || this.d.overlays.isModalOpen()) return;
+    if (this.simWorld.outcome !== 'ongoing' || this.simWorld.waveSystem.state === 'preFirstWave') {
+      return;
+    }
+    this.soundManager.unlock();
+    if (!this.simWorld.abilitySystem.canCast(id)) return;
+
+    if (id === 'overcharge') {
+      if (this.simWorld.castOvercharge()) {
+        this.activeAbilityMode = null;
+        this.refreshPlacementPreview();
+        this.refreshHoverFeedback();
+        this.syncUi();
+      }
+      return;
+    }
+
+    this.activeAbilityMode = this.activeAbilityMode === 'meteor' ? null : 'meteor';
+    if (this.activeAbilityMode === 'meteor') {
+      this.activePlacementType = null;
+      this.renderWorld.setPlacementGridActive(false);
+    }
+    this.refreshPlacementPreview();
+    this.refreshHoverFeedback();
+    this.syncUi();
+  }
+
+  enterEndlessMode(): void {
+    this.soundManager.unlock();
+    if (!this.simWorld.enterEndlessMode()) return;
+    this.d.overlays.outcomeOverlay.hide();
+    this.syncLoopAndInput();
+    this.syncUi();
+  }
+
   private clearTransientPlayState(): void {
     this.pendingDebugSpawns.length = 0;
     this.clearSellConfirm();
@@ -220,7 +295,10 @@ export class GameSession {
     this.renderWorld.setCanvasCursor('');
     this.renderWorld.setPlacementGridActive(false);
     this.renderWorld.setFlightPathHighlight(false);
+    this.renderWorld.setRoutesPinned(false);
+    this.renderWorld.setMeteorTargetPreview(false, 0, 0, 1);
     this.activePlacementType = null;
+    this.activeAbilityMode = null;
     this.selectedTowerId = null;
     this.simClockSec = 0;
   }
@@ -237,6 +315,7 @@ export class GameSession {
       onSyncUi: this.syncUi,
       onGameWon: (stars, livesRemaining) => {
         recordWinProgress(this.progress, this.currentLevelIndex, stars);
+        this.activeAbilityMode = null;
         this.setPlacementMode(null);
         overlays.tooltip.hide();
         overlays.closeModals();
@@ -246,18 +325,29 @@ export class GameSession {
           livesRemaining,
           this.simWorld.enemiesKilledTotal,
           this.currentLevelIndex + 1 < LEVELS.length,
+          this.simWorld.getMvpTowerSummary(),
         );
         this.syncLoopAndInput();
         this.syncUi();
       },
-      onGameLost: (waveIndex) => {
+      onGameLost: (waveIndex, endless) => {
+        this.activeAbilityMode = null;
         this.setPlacementMode(null);
         overlays.tooltip.hide();
         overlays.closeModals();
+        const isEndless = Boolean(endless ?? this.simWorld.waveSystem.isEndless);
+        if (isEndless) {
+          recordEndlessProgress(this.progress, this.currentLevelIndex, waveIndex + 1);
+        }
         overlays.outcomeOverlay.showLose(
           LEVELS[this.currentLevelIndex],
           waveIndex + 1,
           this.simWorld.enemiesKilledTotal,
+          {
+            isEndless,
+            mvp: this.simWorld.getMvpTowerSummary(),
+            earnedStars: isEndless ? (this.progress.bestStars[this.currentLevelIndex] ?? 0) : 0,
+          },
         );
         this.syncLoopAndInput();
         this.syncUi();
@@ -291,6 +381,7 @@ export class GameSession {
     this.events.clear();
     this.events = new EventBus();
     this.simWorld = new SimWorld(level, this.events);
+    this.simWorld.setAutoWave(this.autoWaveEnabled);
     this.bindSimEvents(this.events);
     this.renderWorld.cameraController.setShowcaseMode(false);
     this.renderWorld.loadLevel(level, this.events, () => this.settings);
@@ -399,8 +490,19 @@ export class GameSession {
     this.soundManager.unlock();
     this.lastNdcX = ndcX;
     this.lastNdcY = ndcY;
-    const pickedTower = this.renderWorld.pickTowerAtNdc(ndcX, ndcY, this.simWorld.towers);
     const hit = this.renderWorld.cameraController.screenNdcToPlane(ndcX, ndcY, 0);
+
+    if (this.activeAbilityMode === 'meteor') {
+      if (hit && this.simWorld.castMeteor(hit.x, hit.z)) {
+        this.activeAbilityMode = null;
+        this.refreshPlacementPreview();
+        this.refreshHoverFeedback();
+        this.syncUi();
+      }
+      return;
+    }
+
+    const pickedTower = this.renderWorld.pickTowerAtNdc(ndcX, ndcY, this.simWorld.towers);
     const coord = hit ? this.simWorld.grid.worldToGrid(hit.x, hit.z) : null;
 
     if (this.activePlacementType) {
@@ -486,6 +588,13 @@ export class GameSession {
     const { overlays } = this.d;
     if (overlays.settingsModal.isOpen()) return this.closeSettingsModal();
     if (overlays.pauseMenu.isOpen()) return this.closePauseMenu();
+    if (this.activeAbilityMode) {
+      this.activeAbilityMode = null;
+      this.refreshPlacementPreview();
+      this.refreshHoverFeedback();
+      this.syncUi();
+      return;
+    }
     if (this.activePlacementType) return this.setPlacementMode(null);
     if (this.selectedTowerId !== null) return this.selectTower(null);
     if (source === 'escape' && this.viewMode === 'playing' && !overlays.outcomeOverlay.isOpen()) {

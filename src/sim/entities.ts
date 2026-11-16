@@ -31,6 +31,10 @@ export interface EnemyEntity {
   hitFlashTimer: number;
   healTimer: number;
   walkPhase: number;
+  bossPulseTimer: number;
+  bossSummonedEscorts: boolean;
+  scaleOverride: number;
+  isSplitChild: boolean;
 }
 
 export function createEnemyEntity(poolIndex: number): EnemyEntity {
@@ -63,6 +67,10 @@ export function createEnemyEntity(poolIndex: number): EnemyEntity {
     hitFlashTimer: 0,
     healTimer: 0,
     walkPhase: 0,
+    bossPulseTimer: 0,
+    bossSummonedEscorts: false,
+    scaleOverride: 1,
+    isSplitChild: false,
   };
 }
 
@@ -77,6 +85,7 @@ export interface TowerEntity {
   totalInvested: number;
   targetingMode: TargetingMode;
   cooldownTimer: number;
+  stunTimer: number;
   yaw: number;
   prevYaw: number;
   targetYaw: number;

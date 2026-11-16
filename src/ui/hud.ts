@@ -4,6 +4,8 @@ import { ENEMY_BADGE_META, UI_ICON_SVGS } from './icons.ts';
 
 export interface HudCallbacks {
   onStartWave: () => void;
+  onToggleAutoWave: () => void;
+  onToggleRoutes: () => void;
   onSetSpeed: (speed: SpeedMultiplier) => void;
   onTogglePause: () => void;
   onOpenSettings: () => void;
@@ -23,6 +25,9 @@ export interface HudStateView {
   earlyBonus: number;
   countdownSec: number;
   nextPreview: WavePreview | null;
+  autoWave: boolean;
+  routesVisible: boolean;
+  isEndless: boolean;
 }
 
 export class HudBar {
@@ -33,12 +38,15 @@ export class HudBar {
   private readonly waveBtn: HTMLButtonElement;
   private readonly waveBtnTitle: HTMLSpanElement;
   private readonly waveBtnSub: HTMLSpanElement;
+  private readonly autoWaveBtn: HTMLButtonElement;
+  private readonly routesBtn: HTMLButtonElement;
   private readonly previewEl: HTMLDivElement;
   private readonly speedBtns: Map<SpeedMultiplier, HTMLButtonElement> = new Map();
   private readonly pauseBtn: HTMLButtonElement;
 
   private lastGold = -1;
   private lastLives = -1;
+  private lastWaveBadgeKey = '';
   private lastWaveKey = '';
   private lastPreviewKey = '';
 
@@ -73,9 +81,10 @@ export class HudBar {
 
     leftGroup.append(goldPill, livesPill, wavePill);
 
-    // Center cluster: Start / Next Wave CTA + upcoming wave preview chips
+    // Center cluster: Start / Next Wave CTA + Auto-Wave & Routes toggles + upcoming wave preview chips
     const centerGroup = document.createElement('div');
     centerGroup.className = 'hud-group hud-wave-ctrl';
+    centerGroup.style.flexWrap = 'wrap';
 
     this.waveBtn = document.createElement('button');
     this.waveBtn.type = 'button';
@@ -87,10 +96,65 @@ export class HudBar {
     this.waveBtn.append(this.waveBtnTitle, this.waveBtnSub);
     this.waveBtn.addEventListener('click', () => callbacks.onStartWave());
 
+    const makeTogglePill = (
+      iconSvg: string,
+      label: string,
+      title: string,
+      testId: string,
+      onClick: () => void,
+    ): HTMLButtonElement => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'hud-icon-btn hud-toggle-pill';
+      btn.title = title;
+      btn.setAttribute('data-testid', testId);
+      btn.setAttribute('aria-pressed', 'false');
+      btn.style.width = 'auto';
+      btn.style.padding = '0 8px';
+      btn.style.gap = '4px';
+      btn.style.fontSize = '11px';
+      btn.style.fontWeight = '800';
+      btn.style.whiteSpace = 'nowrap';
+
+      const iconSpan = document.createElement('span');
+      iconSpan.className = 'hud-toggle-icon';
+      iconSpan.style.width = '14px';
+      iconSpan.style.height = '14px';
+      iconSpan.style.display = 'inline-flex';
+      iconSpan.style.alignItems = 'center';
+      iconSpan.style.justifyContent = 'center';
+      iconSpan.style.flexShrink = '0';
+      iconSpan.innerHTML = iconSvg;
+
+      const labelSpan = document.createElement('span');
+      labelSpan.className = 'hud-toggle-label';
+      labelSpan.textContent = label;
+
+      btn.append(iconSpan, labelSpan);
+      btn.addEventListener('click', onClick);
+      return btn;
+    };
+
+    this.autoWaveBtn = makeTogglePill(
+      UI_ICON_SVGS.autoWave,
+      'Auto',
+      'Auto-start next waves (X)',
+      'btn-hud-autowave',
+      () => callbacks.onToggleAutoWave(),
+    );
+
+    this.routesBtn = makeTogglePill(
+      UI_ICON_SVGS.lanes,
+      'Lanes',
+      'Toggle ground & sky lane preview (R)',
+      'btn-hud-routes',
+      () => callbacks.onToggleRoutes(),
+    );
+
     this.previewEl = document.createElement('div');
     this.previewEl.className = 'hud-wave-preview';
 
-    centerGroup.append(this.waveBtn, this.previewEl);
+    centerGroup.append(this.waveBtn, this.autoWaveBtn, this.routesBtn, this.previewEl);
 
     // Right cluster: Camera Q/E rotate, Speed 1x/2x/3x, Pause, Settings
     const rightGroup = document.createElement('div');
@@ -162,10 +226,22 @@ export class HudBar {
       this.livesValEl.textContent = String(view.lives);
     }
 
-    this.waveValEl.textContent = `Wave ${view.currentWave}/${view.totalWaves}`;
+    const waveBadgeKey = `${view.currentWave}|${view.totalWaves}|${view.isEndless ? 1 : 0}`;
+    if (waveBadgeKey !== this.lastWaveBadgeKey) {
+      this.lastWaveBadgeKey = waveBadgeKey;
+      this.waveValEl.textContent = view.isEndless
+        ? `Wave ${view.currentWave} ∞`
+        : `Wave ${view.currentWave}/${view.totalWaves}`;
+      this.waveValEl.classList.toggle('is-endless', view.isEndless);
+    }
+
+    this.autoWaveBtn.classList.toggle('active', view.autoWave);
+    this.autoWaveBtn.setAttribute('aria-pressed', view.autoWave ? 'true' : 'false');
+    this.routesBtn.classList.toggle('active', view.routesVisible);
+    this.routesBtn.setAttribute('aria-pressed', view.routesVisible ? 'true' : 'false');
 
     const countdownInt = Math.ceil(view.countdownSec);
-    const waveKey = `${view.canStartWave}|${view.isPreFirstWave}|${view.earlyBonus}|${countdownInt}|${view.currentWave}`;
+    const waveKey = `${view.canStartWave}|${view.isPreFirstWave}|${view.earlyBonus}|${countdownInt}|${view.currentWave}|${view.totalWaves}|${view.isEndless ? 1 : 0}`;
     if (waveKey !== this.lastWaveKey) {
       this.lastWaveKey = waveKey;
       this.waveBtn.disabled = !view.canStartWave;
@@ -182,7 +258,7 @@ export class HudBar {
               ? `Call Early +${view.earlyBonus}g (${countdownInt}s)`
               : `Call Early +${view.earlyBonus}g`
             : 'Send wave now';
-      } else if (view.currentWave >= view.totalWaves) {
+      } else if (!view.isEndless && view.currentWave >= view.totalWaves) {
         this.waveBtnTitle.textContent = 'Final Wave';
         this.waveBtnSub.textContent = 'Hold the Skyhold!';
       } else {
@@ -193,7 +269,9 @@ export class HudBar {
 
     const previewKey = view.nextPreview
       ? `${view.nextPreview.waveOneBased}:${view.nextPreview.items.map((x) => `${x.enemyType}${x.count}`).join(',')}`
-      : 'none';
+      : view.isEndless
+        ? 'endless-none'
+        : 'none';
     if (previewKey !== this.lastPreviewKey) {
       this.lastPreviewKey = previewKey;
       this.previewEl.innerHTML = '';
@@ -219,7 +297,7 @@ export class HudBar {
       } else {
         const lbl = document.createElement('span');
         lbl.className = 'hud-preview-label';
-        lbl.textContent = 'Final Wave!';
+        lbl.textContent = view.isEndless ? 'Endless Surge' : 'Final Wave!';
         this.previewEl.appendChild(lbl);
       }
     }

@@ -19,6 +19,7 @@ const _color = new THREE.Color();
 const _barPos = new THREE.Vector3();
 const _white = new THREE.Color(0xffffff);
 const _frostTint = new THREE.Color(FROST_TINT_HEX);
+const _splitChildTint = new THREE.Color(0xff7898);
 const _hpGreen = new THREE.Color(PALETTE_HEX.grass);
 const _hpGold = new THREE.Color(PALETTE_HEX.gold);
 const _hpCoral = new THREE.Color(PALETTE_HEX.coral);
@@ -193,22 +194,29 @@ export class EnemyRenderer {
         bobY = Math.sin(elapsedTime * 4.5 + e.walkPhase) * 0.16;
         tiltZ = Math.sin(elapsedTime * 3.2 + e.walkPhase) * 0.12;
       } else {
-        bobY = Math.abs(Math.sin(e.walkPhase)) * 0.08;
-        tiltZ = Math.sin(e.walkPhase) * 0.08;
-        tiltX = e.type === 'runner' ? 0.18 : 0.04;
+        bobY = Math.abs(Math.sin(e.walkPhase)) * (e.isSplitChild ? 0.11 : 0.08);
+        tiltZ = Math.sin(e.walkPhase) * (e.isSplitChild ? 0.12 : 0.08);
+        tiltX =
+          e.type === 'runner'
+            ? e.isSplitChild
+              ? 0.24
+              : 0.18
+            : e.type === 'splitter'
+              ? 0.08
+              : 0.04;
       }
 
-      const enemyScale = e.type === 'boss' ? 1.26 : 1.28;
+      const scaleMul = e.scaleOverride || 1;
+      const enemyScale = (e.type === 'boss' ? 1.26 : 1.28) * scaleMul;
       _dummy.position.set(ix, iy + bobY, iz);
       _dummy.rotation.set(tiltX, iyaw, tiltZ);
       _dummy.scale.setScalar(enemyScale);
       _dummy.updateMatrix();
       layer.mesh.setMatrixAt(slot, _dummy.matrix);
 
+      _color.copy(e.isSplitChild ? _splitChildTint : _white);
       if (e.slowTimer > 0) {
-        _color.copy(_white).lerp(_frostTint, Math.min(1, 0.55 + e.slowRatio));
-      } else {
-        _color.copy(_white);
+        _color.lerp(_frostTint, Math.min(1, 0.55 + e.slowRatio));
       }
       layer.mesh.setColorAt(slot, _color);
 
@@ -217,29 +225,33 @@ export class EnemyRenderer {
       if (e.flying) {
         _dummy.position.set(ix, 0.024, iz);
         _dummy.rotation.set(0, 0, 0);
-        const s = 1.12 + Math.sin(elapsedTime * 4.5 + e.walkPhase) * 0.08;
+        const s = (1.12 + Math.sin(elapsedTime * 4.5 + e.walkPhase) * 0.08) * scaleMul;
         _dummy.scale.setScalar(s);
         _dummy.updateMatrix();
         this.shadowDecalMesh.setMatrixAt(shadowDecalCount++, _dummy.matrix);
       } else {
         _dummy.position.set(ix, iy + 0.018, iz);
         _dummy.rotation.set(0, 0, 0);
-        const s =
+        const baseShadowScale =
           e.type === 'boss'
             ? 1.95
             : e.type === 'brute'
               ? 1.48
-              : e.type === 'runner'
-                ? 0.94
-                : 1.08;
-        _dummy.scale.setScalar(s);
+              : e.type === 'splitter'
+                ? 1.18
+                : e.type === 'runner'
+                  ? 0.94
+                  : 1.08;
+        _dummy.scale.setScalar(baseShadowScale * scaleMul);
         _dummy.updateMatrix();
         this.shadowDecalMesh.setMatrixAt(shadowDecalCount++, _dummy.matrix);
       }
 
       if (e.hp < e.maxHp && e.hp > 0) {
         const ratio = Math.max(0.02, Math.min(1, e.hp / e.maxHp));
-        const barW = e.type === 'boss' ? 1.75 : e.type === 'brute' ? 1.2 : 0.94;
+        const barW =
+          (e.type === 'boss' ? 1.75 : e.type === 'brute' ? 1.2 : 0.94) *
+          (e.isSplitChild ? 0.8 : 1);
         const barH = e.type === 'boss' ? 0.2 : 0.14;
 
         _barPos.set(ix, iy + bobY + e.height * enemyScale + 0.34, iz);
@@ -401,6 +413,26 @@ export class EnemyRenderer {
           { geometry: ico, colorHex: 0x94ffb0, position: [0.31, 1.08, 0.12], scale: [0.12, 0.15, 0.12] },
         ];
         addEyes(parts, ico, 0.87, 0.2, 0.055, 0.028, eyeDark);
+        break;
+      }
+
+      case 'splitter': {
+        // Faceted crimson-magenta Cinder Splitling with twin glowing amber crystalline cores
+        parts = [
+          { geometry: chamfer, colorHex: 0x421e36, position: [-0.14, 0.14, 0], scale: [0.15, 0.28, 0.19] },
+          { geometry: chamfer, colorHex: 0x421e36, position: [0.14, 0.14, 0], scale: [0.15, 0.28, 0.19] },
+          { geometry: chamfer, colorHex: 0xd9386a, position: [-0.15, 0.5, 0], rotation: [0, 0, 0.12], scale: [0.25, 0.44, 0.38] },
+          { geometry: chamfer, colorHex: 0xe84a7f, position: [0.15, 0.5, 0], rotation: [0, 0, -0.12], scale: [0.25, 0.44, 0.38] },
+          { geometry: box, colorHex: 0xffb833, position: [0, 0.52, 0], scale: [0.12, 0.38, 0.3] },
+          { geometry: ico, colorHex: 0xffcf4d, position: [-0.19, 0.56, 0.16], scale: [0.11, 0.14, 0.09] },
+          { geometry: ico, colorHex: 0xffe885, position: [0.19, 0.56, 0.16], scale: [0.11, 0.14, 0.09] },
+          { geometry: cone, colorHex: 0xff9d2e, position: [-0.26, 0.8, -0.04], rotation: [0, 0, 0.38], scale: [0.09, 0.28, 0.09] },
+          { geometry: cone, colorHex: 0xff9d2e, position: [0.26, 0.8, -0.04], rotation: [0, 0, -0.38], scale: [0.09, 0.28, 0.09] },
+          { geometry: chamfer, colorHex: 0x5c2044, position: [0, 0.86, 0.04], scale: [0.32, 0.26, 0.28] },
+          { geometry: cone, colorHex: 0xff5c8a, position: [-0.08, 1.05, -0.02], rotation: [-0.12, 0, 0.18], scale: [0.075, 0.24, 0.075] },
+          { geometry: cone, colorHex: 0xffb833, position: [0.08, 1.05, -0.02], rotation: [-0.12, 0, -0.18], scale: [0.075, 0.24, 0.075] },
+        ];
+        addEyes(parts, ico, 0.86, 0.19, 0.075, 0.036, eyeGlowGold);
         break;
       }
 

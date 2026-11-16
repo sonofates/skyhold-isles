@@ -192,6 +192,45 @@ export class SoundManager {
     }
   }
 
+  playAbilityTarget(): void {
+    if (!this.canPlay('ability_target', 80)) return;
+    this.tone('triangle', 640, 220, 0.24, 0.16, 0);
+    this.noiseBurst(1600, 0.2, 0.12);
+  }
+
+  playMeteorImpact(): void {
+    if (!this.canPlay('meteor_impact', 150)) return;
+    this.tone('sine', 125, 32, 0.42, 0.4, 0);
+    this.tone('triangle', 220, 55, 0.28, 0.22, 0.02);
+    this.noiseBurst(850, 0.36, 0.32);
+  }
+
+  playOvercharge(): void {
+    if (!this.canPlay('overcharge', 200)) return;
+    this.tone('triangle', 330, 660, 0.16, 0.18, 0);
+    this.tone('sine', 495, 990, 0.2, 0.16, 0.05);
+    this.tone('sine', 660, 1320, 0.24, 0.15, 0.1);
+  }
+
+  playBossPulse(): void {
+    if (!this.canPlay('boss_pulse', 200)) return;
+    this.tone('sawtooth', 320, 72, 0.32, 0.18, 0);
+    this.tone('sine', 160, 48, 0.36, 0.24, 0.03);
+    this.noiseBurst(1200, 0.16, 0.14);
+  }
+
+  playBossSummon(): void {
+    if (!this.canPlay('boss_summon', 200)) return;
+    this.tone('sawtooth', 146, 196, 0.22, 0.16, 0);
+    this.tone('triangle', 220, 293, 0.28, 0.18, 0.1);
+  }
+
+  playEnemySplit(): void {
+    if (!this.canPlay('enemy_split', 75)) return;
+    this.tone('triangle', 480, 760, 0.08, 0.13, 0);
+    this.tone('sine', 720, 1080, 0.09, 0.11, 0.04);
+  }
+
   bindEvents(events: EventBus): () => void {
     const unsubs = [
       events.on('towerBuilt', () => this.playTowerBuild()),
@@ -201,6 +240,12 @@ export class SoundManager {
       events.on('projectileImpact', (e) => this.playImpact(e.towerType)),
       events.on('enemyKilled', () => this.playGoldCoin()),
       events.on('enemyLeaked', () => this.playEnemyLeak()),
+      events.on('enemySplit', () => this.playEnemySplit()),
+      events.on('bossPulse', () => this.playBossPulse()),
+      events.on('bossSummon', () => this.playBossSummon()),
+      events.on('abilityTargeted', () => this.playAbilityTarget()),
+      events.on('meteorImpact', () => this.playMeteorImpact()),
+      events.on('overchargeActivated', () => this.playOvercharge()),
       events.on('waveStarted', () => this.playWaveStart()),
       events.on('gameWon', () => this.playOutcome(true)),
       events.on('gameLost', () => this.playOutcome(false)),

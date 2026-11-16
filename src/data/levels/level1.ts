@@ -141,10 +141,7 @@ export const LEVEL_1: LevelDef = {
     { waveIndex: 7, action: 'upgrade', col: 4, row: 2 },
     { waveIndex: 7, action: 'build', col: 8, row: 7, towerType: 'frost', targetingMode: 'first' },
     { waveIndex: 8, action: 'upgrade', col: 5, row: 7 },
-    { waveIndex: 8, action: 'upgrade', col: 4, row: 3 },
-
-    { waveIndex: 9, action: 'upgrade', col: 5, row: 5 },
-    { waveIndex: 9, action: 'upgrade', col: 10, row: 5 },
+    { waveIndex: 9, action: 'upgrade', col: 4, row: 3 },
   ],
   weakBuildOrder: [
     { waveIndex: 0, action: 'build', col: 4, row: 2, towerType: 'archer' },

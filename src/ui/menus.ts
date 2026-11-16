@@ -204,6 +204,23 @@ export class LevelSelectOverlay {
       starsRow.className = 'star-row';
       starsRow.innerHTML = renderStarsHtml(stars);
 
+      const bestEndless = progress.bestEndlessWaves?.[i] ?? 0;
+      if (bestEndless > 0) {
+        const endlessChip = document.createElement('span');
+        endlessChip.className = 'level-endless-chip';
+        endlessChip.textContent = `Endless: W${bestEndless}`;
+        endlessChip.style.marginLeft = 'auto';
+        endlessChip.style.padding = '2px 8px';
+        endlessChip.style.borderRadius = '999px';
+        endlessChip.style.fontSize = '10.5px';
+        endlessChip.style.fontWeight = '800';
+        endlessChip.style.fontFamily = 'var(--font-mono)';
+        endlessChip.style.background = 'rgba(79, 179, 217, 0.18)';
+        endlessChip.style.border = '1px solid rgba(79, 179, 217, 0.45)';
+        endlessChip.style.color = '#1e627e';
+        starsRow.appendChild(endlessChip);
+      }
+
       const actionBtn = document.createElement('button');
       actionBtn.type = 'button';
       actionBtn.className = unlocked ? 'btn-primary level-play-btn' : 'btn-secondary level-play-btn';

@@ -1,9 +1,11 @@
 import * as THREE from 'three';
 import type { TowerType } from '../core/types.ts';
+import { PALETTE_HEX } from '../data/palette.ts';
 import type { TowerEntity } from '../sim/entities.ts';
 import type { KenneyAssetStore } from './kenneyAssets.ts';
-import type { MaterialLibrary } from './materials.ts';
+import { applyAlphaPreserveBlend, type MaterialLibrary } from './materials.ts';
 import { TowerGeometryCache } from './towerGeometries.ts';
+import { getTowerPickHeight } from './towerPicking.ts';
 
 interface TowerInstancedBucket {
   readonly type: TowerType;
@@ -21,6 +23,7 @@ interface TowerInstancedBucket {
 const _baseDummy = new THREE.Object3D();
 const _turretLocalDummy = new THREE.Object3D();
 const _turretWorldMat = new THREE.Matrix4();
+const _fxDummy = new THREE.Object3D();
 
 export class TowerRenderer {
   readonly group = new THREE.Group();
@@ -28,8 +31,61 @@ export class TowerRenderer {
   private readonly buckets = new Map<string, TowerInstancedBucket>();
   private readonly keyCounts = new Map<string, number>();
 
+  private readonly stunHaloGeo: THREE.BufferGeometry;
+  private readonly stunHaloMat: THREE.MeshBasicMaterial;
+  private stunHaloMesh: THREE.InstancedMesh;
+  private stunHaloCapacity = 64;
+
+  private readonly overchargeAuraGeo: THREE.BufferGeometry;
+  private readonly overchargeAuraMat: THREE.MeshBasicMaterial;
+  private overchargeAuraMesh: THREE.InstancedMesh;
+  private overchargeAuraCapacity = 64;
+
   constructor(assets: KenneyAssetStore) {
     this.geometryCache = new TowerGeometryCache(assets);
+
+    this.stunHaloGeo = new THREE.TorusGeometry(0.46, 0.065, 6, 12);
+    this.stunHaloGeo.rotateX(Math.PI / 2);
+    this.stunHaloMat = new THREE.MeshBasicMaterial({
+      color: 0xd94fff,
+      toneMapped: false,
+      transparent: true,
+      opacity: 0.92,
+      depthWrite: false,
+    });
+    applyAlphaPreserveBlend(this.stunHaloMat);
+    this.stunHaloMesh = new THREE.InstancedMesh(
+      this.stunHaloGeo,
+      this.stunHaloMat,
+      this.stunHaloCapacity,
+    );
+    this.stunHaloMesh.count = 0;
+    this.stunHaloMesh.visible = false;
+    this.stunHaloMesh.frustumCulled = false;
+    this.stunHaloMesh.renderOrder = 12;
+    this.group.add(this.stunHaloMesh);
+
+    this.overchargeAuraGeo = new THREE.RingGeometry(0.74, 0.94, 24);
+    this.overchargeAuraGeo.rotateX(-Math.PI / 2);
+    this.overchargeAuraMat = new THREE.MeshBasicMaterial({
+      color: PALETTE_HEX.gold,
+      toneMapped: false,
+      transparent: true,
+      opacity: 0.72,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+    });
+    applyAlphaPreserveBlend(this.overchargeAuraMat);
+    this.overchargeAuraMesh = new THREE.InstancedMesh(
+      this.overchargeAuraGeo,
+      this.overchargeAuraMat,
+      this.overchargeAuraCapacity,
+    );
+    this.overchargeAuraMesh.count = 0;
+    this.overchargeAuraMesh.visible = false;
+    this.overchargeAuraMesh.frustumCulled = false;
+    this.overchargeAuraMesh.renderOrder = 4;
+    this.group.add(this.overchargeAuraMesh);
   }
 
   syncTowers(
@@ -38,13 +94,20 @@ export class TowerRenderer {
     alpha: number,
     elapsedTime: number,
     hoveredTowerId: number | null = null,
+    overchargeActive = false,
   ): void {
     this.keyCounts.clear();
+    let stunnedCount = 0;
+    let overchargedCount = 0;
     for (let i = 0; i < towers.length; i++) {
       const t = towers[i];
       const key = `${t.type}_${t.tier}`;
       this.keyCounts.set(key, (this.keyCounts.get(key) ?? 0) + 1);
+      if (t.stunTimer > 0) stunnedCount++;
+      else if (overchargeActive) overchargedCount++;
     }
+
+    this.ensureFxCapacities(stunnedCount, overchargedCount);
 
     this.buckets.forEach((bucket) => {
       bucket.baseMesh.count = 0;
@@ -53,16 +116,28 @@ export class TowerRenderer {
       bucket.turretMesh.visible = false;
     });
 
+    let stunSlot = 0;
+    let overchargeSlot = 0;
+
     for (let i = 0; i < towers.length; i++) {
       const t = towers[i];
       const key = `${t.type}_${t.tier}`;
       const needed = this.keyCounts.get(key) ?? 1;
       const bucket = this.ensureBucket(key, t.type, t.tier, materials, needed);
 
+      const stunned = t.stunTimer > 0;
       const slot = bucket.baseMesh.count;
       bucket.baseMesh.count = slot + 1;
       bucket.turretMesh.count = slot + 1;
-      bucket.highlightArray[slot] = t.id === hoveredTowerId ? 1 : 0;
+
+      if (overchargeActive && !stunned) {
+        const pulseGlow = 0.72 + 0.28 * Math.sin(elapsedTime * 7.5 + t.id);
+        bucket.highlightArray[slot] = t.id === hoveredTowerId ? 1.45 : pulseGlow;
+      } else if (stunned) {
+        bucket.highlightArray[slot] = t.id === hoveredTowerId ? 0.5 : 0;
+      } else {
+        bucket.highlightArray[slot] = t.id === hoveredTowerId ? 1 : 0;
+      }
 
       // Squash-and-stretch pop animation on build & upgrade
       let sxz = 1;
@@ -80,26 +155,60 @@ export class TowerRenderer {
       _baseDummy.updateMatrix();
       bucket.baseMesh.setMatrixAt(slot, _baseDummy.matrix);
 
-      // Smoothly interpolate turret yaw + recoil kickback + idle bob/spin
+      // Smoothly interpolate turret yaw + recoil kickback + idle bob/spin (frozen/drooped when stunned)
       let dyaw = t.yaw - t.prevYaw;
       if (dyaw > Math.PI) dyaw -= Math.PI * 2;
       if (dyaw < -Math.PI) dyaw += Math.PI * 2;
       const interpYaw = t.prevYaw + dyaw * alpha;
-      const turretYaw = bucket.idleSpinTurret ? elapsedTime * 1.35 + t.id : interpYaw;
-      const bobOffset = bucket.bobTurret ? Math.sin(elapsedTime * 3.0 + t.id) * 0.09 : 0;
-      const recoilScale = 1 + t.recoil * 0.08;
+
+      let turretYaw: number;
+      let bobOffset: number;
+      let droopTiltX = 0;
+      let jamTiltZ = 0;
+
+      if (stunned) {
+        turretYaw = interpYaw;
+        bobOffset = -0.08;
+        droopTiltX = 0.22 + Math.cos(elapsedTime * 31 + t.id * 1.7) * 0.05;
+        jamTiltZ = Math.sin(elapsedTime * 38 + t.id * 3.1) * 0.08;
+      } else {
+        const spinRate = overchargeActive ? 2.5 : 1.35;
+        const bobRate = overchargeActive ? 5.4 : 3.0;
+        const bobAmp = overchargeActive ? 0.12 : 0.09;
+        turretYaw = bucket.idleSpinTurret ? elapsedTime * spinRate + t.id : interpYaw;
+        bobOffset = bucket.bobTurret ? Math.sin(elapsedTime * bobRate + t.id) * bobAmp : 0;
+      }
+
+      const recoilScale = 1 + t.recoil * 0.08 + (overchargeActive && !stunned ? 0.03 : 0);
 
       _turretLocalDummy.position.set(
         -Math.sin(interpYaw) * t.recoil * 0.1,
         bucket.turretAnchorY + bobOffset,
         -Math.cos(interpYaw) * t.recoil * 0.1,
       );
-      _turretLocalDummy.rotation.set(0, turretYaw, 0);
+      _turretLocalDummy.rotation.set(droopTiltX, turretYaw, jamTiltZ);
       _turretLocalDummy.scale.setScalar(recoilScale);
       _turretLocalDummy.updateMatrix();
 
       _turretWorldMat.multiplyMatrices(_baseDummy.matrix, _turretLocalDummy.matrix);
       bucket.turretMesh.setMatrixAt(slot, _turretWorldMat);
+
+      if (stunned) {
+        const topY = getTowerPickHeight(t.type, t.tier);
+        const wobble = Math.sin(elapsedTime * 7.0 + t.id) * 0.16;
+        _fxDummy.position.set(t.x, topY + 0.08 + Math.sin(elapsedTime * 5.0 + t.id) * 0.05, t.z);
+        _fxDummy.rotation.set(wobble, elapsedTime * 2.8 + t.id, -wobble);
+        _fxDummy.scale.setScalar(0.95 + Math.sin(elapsedTime * 9.0 + t.id) * 0.08);
+        _fxDummy.updateMatrix();
+        this.stunHaloMesh.setMatrixAt(stunSlot++, _fxDummy.matrix);
+      } else if (overchargeActive) {
+        const pulse = 0.96 + Math.sin(elapsedTime * 6.5 + t.id * 0.9) * 0.12;
+        _fxDummy.position.set(t.x, 0.06, t.z);
+        _fxDummy.rotation.set(0, elapsedTime * 1.4, 0);
+        _fxDummy.scale.setScalar(pulse);
+        _fxDummy.updateMatrix();
+        this.overchargeAuraMesh.setMatrixAt(overchargeSlot++, _fxDummy.matrix);
+      }
     }
 
     this.buckets.forEach((bucket) => {
@@ -111,6 +220,48 @@ export class TowerRenderer {
         bucket.highlightAttr.needsUpdate = true;
       }
     });
+
+    this.stunHaloMesh.count = stunSlot;
+    this.stunHaloMesh.visible = stunSlot > 0;
+    if (stunSlot > 0) {
+      this.stunHaloMesh.instanceMatrix.needsUpdate = true;
+    }
+
+    this.overchargeAuraMesh.count = overchargeSlot;
+    this.overchargeAuraMesh.visible = overchargeSlot > 0;
+    if (overchargeSlot > 0) {
+      this.overchargeAuraMesh.instanceMatrix.needsUpdate = true;
+    }
+  }
+
+  private ensureFxCapacities(stunNeeded: number, overchargeNeeded: number): void {
+    if (stunNeeded > this.stunHaloCapacity) {
+      this.group.remove(this.stunHaloMesh);
+      this.stunHaloMesh.dispose();
+      this.stunHaloCapacity = stunNeeded + 32;
+      this.stunHaloMesh = new THREE.InstancedMesh(
+        this.stunHaloGeo,
+        this.stunHaloMat,
+        this.stunHaloCapacity,
+      );
+      this.stunHaloMesh.frustumCulled = false;
+      this.stunHaloMesh.renderOrder = 12;
+      this.group.add(this.stunHaloMesh);
+    }
+
+    if (overchargeNeeded > this.overchargeAuraCapacity) {
+      this.group.remove(this.overchargeAuraMesh);
+      this.overchargeAuraMesh.dispose();
+      this.overchargeAuraCapacity = overchargeNeeded + 32;
+      this.overchargeAuraMesh = new THREE.InstancedMesh(
+        this.overchargeAuraGeo,
+        this.overchargeAuraMat,
+        this.overchargeAuraCapacity,
+      );
+      this.overchargeAuraMesh.frustumCulled = false;
+      this.overchargeAuraMesh.renderOrder = 4;
+      this.group.add(this.overchargeAuraMesh);
+    }
   }
 
   private ensureBucket(
@@ -193,6 +344,10 @@ export class TowerRenderer {
       bucket.baseMesh.visible = false;
       bucket.turretMesh.visible = false;
     });
+    this.stunHaloMesh.count = 0;
+    this.stunHaloMesh.visible = false;
+    this.overchargeAuraMesh.count = 0;
+    this.overchargeAuraMesh.visible = false;
   }
 
   dispose(): void {
@@ -200,6 +355,12 @@ export class TowerRenderer {
       bucket.baseMesh.dispose();
       bucket.turretMesh.dispose();
     });
+    this.stunHaloMesh.dispose();
+    this.overchargeAuraMesh.dispose();
+    this.stunHaloGeo.dispose();
+    this.stunHaloMat.dispose();
+    this.overchargeAuraGeo.dispose();
+    this.overchargeAuraMat.dispose();
     this.group.clear();
     this.buckets.clear();
     this.geometryCache.dispose();

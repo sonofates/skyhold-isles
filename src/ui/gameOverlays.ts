@@ -1,10 +1,12 @@
 import type {
+  AbilityId,
   GameSettings,
   SpeedMultiplier,
   TargetingMode,
   TowerType,
 } from '../core/types.ts';
 import type { TowerEntity } from '../sim/entities.ts';
+import { AbilityBar, type AbilityBarState } from './abilityBar.ts';
 import { BuildBar } from './buildBar.ts';
 import { FloatingTextPool } from './floatingText.ts';
 import { OutcomeOverlay, PauseMenuModal } from './gameModals.ts';
@@ -18,12 +20,15 @@ import { TowerPanel } from './towerPanel.ts';
 export interface GameOverlayCallbacks {
   initialSettings: GameSettings;
   onStartWave: () => void;
+  onToggleAutoWave: () => void;
+  onToggleRoutes: () => void;
   onSetSpeed: (speed: SpeedMultiplier) => void;
   onTogglePause: () => void;
   onOpenSettings: () => void;
   onOpenMenu: () => void;
   onRotateCamera: (dir: -1 | 1) => void;
   onSelectBuildType: (type: TowerType) => void;
+  onActivateAbility: (id: AbilityId) => void;
   onUpgradeTower: (id: number) => void;
   onSellTower: (id: number) => void;
   onSetTargeting: (id: number, mode: TargetingMode) => void;
@@ -39,6 +44,7 @@ export interface GameOverlayCallbacks {
   onOpenLevelSelectFromPause: () => void;
   onMainMenuFromPause: () => void;
   onNextLevel: () => void;
+  onEndlessMode: () => void;
   onSettingsChange: (next: GameSettings) => void;
   onSettingsClose: () => void;
 }
@@ -48,6 +54,7 @@ export class GameOverlays {
   readonly tooltip: EnemyTooltip;
   readonly toast: GameToast;
   readonly hudBar: HudBar;
+  readonly abilityBar: AbilityBar;
   readonly buildBar: BuildBar;
   readonly towerPanel: TowerPanel;
   readonly mainMenu: MainMenuOverlay;
@@ -69,12 +76,16 @@ export class GameOverlays {
 
     this.hudBar = new HudBar(uiRoot, {
       onStartWave: cb.onStartWave,
+      onToggleAutoWave: cb.onToggleAutoWave,
+      onToggleRoutes: cb.onToggleRoutes,
       onSetSpeed: cb.onSetSpeed,
       onTogglePause: cb.onTogglePause,
       onOpenSettings: cb.onOpenSettings,
       onOpenMenu: cb.onOpenMenu,
       onRotateCamera: cb.onRotateCamera,
     });
+
+    this.abilityBar = new AbilityBar(uiRoot, cb.onActivateAbility);
 
     this.buildBar = new BuildBar(uiRoot, cb.onSelectBuildType);
 
@@ -106,6 +117,7 @@ export class GameOverlays {
 
     this.outcomeOverlay = new OutcomeOverlay(uiRoot, {
       onNextLevel: cb.onNextLevel,
+      onEndlessMode: cb.onEndlessMode,
       onReplay: cb.onRestartLevel,
       onLevelSelect: cb.onOpenLevelSelectFromPause,
       onMainMenu: cb.onMainMenuFromPause,
@@ -135,6 +147,7 @@ export class GameOverlays {
 
   setPlayVisibility(inPlay: boolean): void {
     this.hudBar.setVisible(inPlay);
+    this.abilityBar.setVisible(inPlay);
     this.buildBar.setVisible(inPlay);
     if (!inPlay) {
       this.towerPanel.update(null, 0);
@@ -145,11 +158,13 @@ export class GameOverlays {
 
   syncInPlay(
     hudState: HudStateView,
+    abilityState: AbilityBarState,
     activePlacementType: TowerType | null,
     selectedTower: TowerEntity | null,
     userPaused: boolean,
   ): void {
     this.hudBar.update(hudState);
+    this.abilityBar.update(abilityState);
     this.buildBar.update(hudState.gold, activePlacementType);
     this.towerPanel.update(selectedTower, hudState.gold);
     this.pauseBanner.classList.toggle('hidden', !userPaused || this.isModalOpen());
@@ -157,6 +172,7 @@ export class GameOverlays {
 
   dispose(): void {
     this.hudBar.dispose();
+    this.abilityBar.dispose();
     this.buildBar.dispose();
     this.towerPanel.dispose();
     this.mainMenu.dispose();

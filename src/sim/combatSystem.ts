@@ -39,8 +39,9 @@ export class CombatSystem {
     this.events = events;
   }
 
-  update(dt: number, towers: TowerEntity[]): void {
+  update(dt: number, towers: TowerEntity[], fireRateMultiplier = 1): void {
     const turnSpeed = 12.0;
+    const rateMult = Math.max(0.01, fireRateMultiplier);
 
     for (let i = 0; i < towers.length; i++) {
       const tower = towers[i];
@@ -52,8 +53,14 @@ export class CombatSystem {
       if (tower.popAnimTimer > 0) {
         tower.popAnimTimer = Math.max(0, tower.popAnimTimer - dt);
       }
+      if (tower.stunTimer > 0) {
+        tower.stunTimer = Math.max(0, tower.stunTimer - dt);
+        if (tower.stunTimer > 0) {
+          continue;
+        }
+      }
       if (tower.cooldownTimer > 0) {
-        tower.cooldownTimer = Math.max(0, tower.cooldownTimer - dt);
+        tower.cooldownTimer = Math.max(0, tower.cooldownTimer - dt * rateMult);
       }
 
       const stats = getTowerTierStats(tower.type, tower.tier);

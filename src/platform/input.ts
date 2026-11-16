@@ -1,3 +1,4 @@
+import type { AbilityId } from '../core/types.ts';
 import { BALANCE } from '../data/balance.ts';
 
 export interface InputHandlers {
@@ -8,6 +9,9 @@ export interface InputHandlers {
   onPrimaryTapNdc: (ndcX: number, ndcY: number, shiftKey: boolean) => void;
   onSecondaryAction: (source: 'escape' | 'rightClick') => void;
   onHotkeyTower: (index: number) => void;
+  onHotkeyAbility: (abilityId: AbilityId) => void;
+  onToggleAutoWave: () => void;
+  onToggleRoutes: () => void;
   onTowerActionHotkey: (action: 'upgrade' | 'sell' | 'target') => boolean;
   onTogglePause: () => void;
   onKeyPanState: (panX: number, panZ: number) => void;
@@ -217,6 +221,22 @@ export class InputManager {
       }
       if (!e.repeat && e.key >= '1' && e.key <= '5') {
         this.handlers.onHotkeyTower(Number(e.key) - 1);
+        return;
+      }
+      if (!e.repeat && e.code === 'KeyF') {
+        this.handlers.onHotkeyAbility('meteor');
+        return;
+      }
+      if (!e.repeat && e.code === 'KeyG') {
+        this.handlers.onHotkeyAbility('overcharge');
+        return;
+      }
+      if (!e.repeat && e.code === 'KeyX') {
+        this.handlers.onToggleAutoWave();
+        return;
+      }
+      if (!e.repeat && e.code === 'KeyR') {
+        this.handlers.onToggleRoutes();
         return;
       }
       if (!e.repeat && e.code === 'KeyU' && this.handlers.onTowerActionHotkey('upgrade')) {

@@ -279,6 +279,28 @@ button {
   border-color: var(--ui-dark);
 }
 
+.hud-toggle-pill {
+  color: var(--ui-dark);
+}
+
+.hud-toggle-pill.active {
+  background: var(--pal-gold);
+  border-color: var(--ui-dark);
+  color: var(--ui-dark);
+}
+
+.hud-wave-counter.is-endless {
+  background: rgba(72, 69, 115, 0.14);
+  border: 1px solid rgba(72, 69, 115, 0.28);
+  color: var(--pal-indigo);
+}
+
+.level-endless-chip {
+  background: rgba(79, 179, 217, 0.2);
+  border: 1px solid rgba(79, 179, 217, 0.45);
+  color: #1e627e;
+}
+
 .pause-banner {
   position: absolute;
   top: 68px;
@@ -1495,6 +1517,12 @@ button {
   font-family: var(--font-mono);
 }
 
+@media (min-width: 769px) and (max-width: 1280px) {
+  .pause-banner {
+    top: 112px;
+  }
+}
+
 @media (max-width: 768px) {
   .hud-top {
     top: 8px;
@@ -1516,24 +1544,64 @@ button {
     order: 3;
     width: 100%;
     justify-content: space-between;
+    flex-wrap: wrap;
+    row-gap: 6px;
   }
 
   .build-bar {
     bottom: 8px;
-    padding: 6px;
-    gap: 6px;
+    padding: 5px;
+    gap: 5px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .build-bar::-webkit-scrollbar {
+    display: none;
   }
 
   .build-card {
-    min-width: 82px;
-    padding: 6px 6px 5px;
+    min-width: 72px;
+    flex-shrink: 0;
+    padding: 5px 5px 4px;
+  }
+
+  .ability-bar {
+    bottom: 108px !important;
+    left: 8px !important;
+    padding: 5px !important;
+    gap: 6px !important;
+    border-radius: 16px !important;
+  }
+
+  .ability-card {
+    flex-direction: row !important;
+    min-width: 0 !important;
+    padding: 5px 9px 5px 20px !important;
+    gap: 6px !important;
+    border-radius: 11px !important;
+  }
+
+  .ability-hotkey {
+    top: 50% !important;
+    left: 6px !important;
+    transform: translateY(-50%);
+  }
+
+  .ability-icon {
+    width: 20px !important;
+    height: 20px !important;
+  }
+
+  .ability-cd-badge {
+    position: static !important;
   }
 
   .tower-panel {
     left: 50%;
     top: auto;
     transform: translateX(-50%);
-    bottom: 144px;
+    bottom: 164px;
     width: calc(100vw - 20px);
     max-width: 344px;
     padding: 9px 10px;
@@ -1544,8 +1612,12 @@ button {
     display: none;
   }
 
+  .pause-banner {
+    top: 176px;
+  }
+
   .game-toast {
-    top: 108px;
+    top: 176px;
   }
 
   .menu-card {

@@ -78,6 +78,24 @@ export const UI_ICON_SVGS = {
     <path d="M1.8 9.2C4.2 4.6 6.8 5 8 7.8C9.2 5 11.8 4.6 14.2 9.2" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>
     <path d="M8 10.5V13.2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
   </svg>`,
+  autoWave: `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <path d="M5 6L12 12L5 18V6Z" fill="currentColor" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>
+    <path d="M13 6L20 12L13 18V6Z" fill="currentColor" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>
+  </svg>`,
+  lanes: `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <path d="M4 17C8 17 8 7 12 7C16 7 16 17 20 17" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+    <circle cx="4" cy="17" r="2" fill="currentColor"/>
+    <path d="M17.5 14.5L20 17L17.5 19.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>`,
+  meteor: `<svg viewBox="0 0 32 32" fill="none" aria-hidden="true">
+    <path d="M19.5 5.5L26.5 12.5M14 8L20 14M20.5 18.5C20.5 22.9 16.9 26.5 12.5 26.5C8.1 26.5 4.5 22.9 4.5 18.5C4.5 14.1 8.1 10.5 12.5 10.5C16.9 10.5 20.5 14.1 20.5 18.5Z" stroke="${PALETTE.indigo}" stroke-width="2" stroke-linecap="round"/>
+    <circle cx="12.5" cy="18.5" r="6" fill="${PALETTE.coral}"/>
+    <circle cx="11.5" cy="19.5" r="3" fill="${PALETTE.gold}"/>
+  </svg>`,
+  overcharge: `<svg viewBox="0 0 32 32" fill="none" aria-hidden="true">
+    <path d="M17.5 4L9.5 17H16L13.5 28L23 14.5H16.5L17.5 4Z" fill="${PALETTE.gold}" stroke="${PALETTE.indigo}" stroke-width="2" stroke-linejoin="round"/>
+    <path d="M5 10L7.5 12.5M26.5 9L24 11.5M25.5 22.5L23 20" stroke="${PALETTE.coral}" stroke-width="2" stroke-linecap="round"/>
+  </svg>`,
 };
 
 export const ENEMY_BADGE_META: Record<EnemyType, { label: string; color: string }> = {
@@ -86,5 +104,6 @@ export const ENEMY_BADGE_META: Record<EnemyType, { label: string; color: string 
   brute: { label: 'Brute', color: PALETTE.stone },
   flyer: { label: 'Flyer', color: PALETTE.water },
   healer: { label: 'Healer', color: PALETTE.grass },
+  splitter: { label: 'Splitter', color: '#e84a7f' },
   boss: { label: 'Boss', color: PALETTE.indigo },
 };

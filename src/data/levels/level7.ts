@@ -54,33 +54,33 @@ export const LEVEL_7: LevelDef = {
     { col: 1, row: 9 },
   ],
   decorationSeed: 774203,
-  startingGold: 280,
-  enemyHpScale: 1.40,
-  waveHpGrowth: 0.315,
+  startingGold: 290,
+  enemyHpScale: 1.28,
+  waveHpGrowth: 0.195,
   waves: [
     {
-      clearBonus: 18,
+      clearBonus: 22,
       groups: [
         { enemyType: 'grunt', count: 12, spawnInterval: 0.8, startDelay: 0 },
         { enemyType: 'runner', count: 6, spawnInterval: 0.65, startDelay: 4.0 },
       ],
     },
     {
-      clearBonus: 20,
+      clearBonus: 24,
       groups: [
         { enemyType: 'runner', count: 14, spawnInterval: 0.55, startDelay: 0 },
         { enemyType: 'grunt', count: 10, spawnInterval: 0.75, startDelay: 3.0 },
       ],
     },
     {
-      clearBonus: 22,
+      clearBonus: 26,
       groups: [
         { enemyType: 'brute', count: 4, spawnInterval: 1.5, startDelay: 0 },
         { enemyType: 'flyer', count: 8, spawnInterval: 0.8, startDelay: 2.0 },
       ],
     },
     {
-      clearBonus: 24,
+      clearBonus: 28,
       groups: [
         { enemyType: 'grunt', count: 14, spawnInterval: 0.6, startDelay: 0 },
         { enemyType: 'healer', count: 2, spawnInterval: 2.2, startDelay: 2.5 },
@@ -88,22 +88,23 @@ export const LEVEL_7: LevelDef = {
       ],
     },
     {
-      clearBonus: 26,
+      clearBonus: 32,
       groups: [
         { enemyType: 'flyer', count: 12, spawnInterval: 0.6, startDelay: 0 },
         { enemyType: 'brute', count: 6, spawnInterval: 1.2, startDelay: 1.8 },
       ],
     },
     {
-      clearBonus: 28,
+      clearBonus: 36,
       groups: [
-        { enemyType: 'brute', count: 7, spawnInterval: 1.15, startDelay: 0 },
-        { enemyType: 'healer', count: 3, spawnInterval: 1.8, startDelay: 1.8 },
-        { enemyType: 'runner', count: 14, spawnInterval: 0.48, startDelay: 3.5 },
+        { enemyType: 'brute', count: 6, spawnInterval: 1.15, startDelay: 0 },
+        { enemyType: 'splitter', count: 5, spawnInterval: 1.05, startDelay: 1.2 },
+        { enemyType: 'healer', count: 3, spawnInterval: 1.8, startDelay: 2.0 },
+        { enemyType: 'runner', count: 13, spawnInterval: 0.5, startDelay: 3.5 },
       ],
     },
     {
-      clearBonus: 30,
+      clearBonus: 38,
       groups: [
         { enemyType: 'flyer', count: 12, spawnInterval: 0.6, startDelay: 0 },
         { enemyType: 'grunt', count: 18, spawnInterval: 0.48, startDelay: 1.5 },
@@ -111,7 +112,7 @@ export const LEVEL_7: LevelDef = {
       ],
     },
     {
-      clearBonus: 32,
+      clearBonus: 42,
       groups: [
         { enemyType: 'brute', count: 10, spawnInterval: 1.0, startDelay: 0 },
         { enemyType: 'healer', count: 4, spawnInterval: 1.5, startDelay: 1.5 },
@@ -119,91 +120,94 @@ export const LEVEL_7: LevelDef = {
       ],
     },
     {
-      clearBonus: 34,
+      clearBonus: 46,
       groups: [
-        { enemyType: 'runner', count: 30, spawnInterval: 0.31, startDelay: 0 },
+        { enemyType: 'runner', count: 28, spawnInterval: 0.33, startDelay: 0 },
         { enemyType: 'brute', count: 11, spawnInterval: 0.85, startDelay: 2.2 },
         { enemyType: 'flyer', count: 14, spawnInterval: 0.48, startDelay: 4.0 },
       ],
     },
     {
-      clearBonus: 38,
+      clearBonus: 50,
       groups: [
-        { enemyType: 'brute', count: 11, spawnInterval: 0.88, startDelay: 0 },
-        { enemyType: 'healer', count: 5, spawnInterval: 1.3, startDelay: 1.5 },
-        { enemyType: 'runner', count: 18, spawnInterval: 0.42, startDelay: 3.5 },
+        { enemyType: 'brute', count: 10, spawnInterval: 0.9, startDelay: 0 },
+        { enemyType: 'splitter', count: 5, spawnInterval: 1.0, startDelay: 1.2 },
+        { enemyType: 'healer', count: 4, spawnInterval: 1.4, startDelay: 1.8 },
+        { enemyType: 'runner', count: 15, spawnInterval: 0.45, startDelay: 3.5 },
         { enemyType: 'boss', count: 1, spawnInterval: 1.0, startDelay: 5.0 },
       ],
     },
     {
-      clearBonus: 40,
+      clearBonus: 54,
       groups: [
-        { enemyType: 'flyer', count: 26, spawnInterval: 0.38, startDelay: 0 },
-        { enemyType: 'runner', count: 28, spawnInterval: 0.32, startDelay: 1.8 },
+        { enemyType: 'flyer', count: 24, spawnInterval: 0.4, startDelay: 0 },
+        { enemyType: 'runner', count: 24, spawnInterval: 0.34, startDelay: 1.8 },
         { enemyType: 'healer', count: 6, spawnInterval: 1.15, startDelay: 3.2 },
       ],
     },
     {
-      clearBonus: 44,
+      clearBonus: 58,
       groups: [
         { enemyType: 'brute', count: 15, spawnInterval: 0.78, startDelay: 0 },
         { enemyType: 'healer', count: 7, spawnInterval: 1.15, startDelay: 1.5 },
-        { enemyType: 'grunt', count: 24, spawnInterval: 0.4, startDelay: 3.0 },
-        { enemyType: 'flyer', count: 22, spawnInterval: 0.42, startDelay: 4.5 },
+        { enemyType: 'grunt', count: 22, spawnInterval: 0.4, startDelay: 3.0 },
+        { enemyType: 'flyer', count: 20, spawnInterval: 0.44, startDelay: 4.5 },
       ],
     },
     {
-      clearBonus: 48,
+      clearBonus: 62,
       groups: [
-        { enemyType: 'flyer', count: 28, spawnInterval: 0.36, startDelay: 0 },
-        { enemyType: 'brute', count: 16, spawnInterval: 0.74, startDelay: 2.0 },
+        { enemyType: 'flyer', count: 26, spawnInterval: 0.38, startDelay: 0 },
+        { enemyType: 'brute', count: 15, spawnInterval: 0.76, startDelay: 2.0 },
         { enemyType: 'healer', count: 7, spawnInterval: 1.1, startDelay: 3.0 },
       ],
     },
     {
-      clearBonus: 52,
+      clearBonus: 68,
       groups: [
-        { enemyType: 'runner', count: 38, spawnInterval: 0.26, startDelay: 0 },
-        { enemyType: 'brute', count: 17, spawnInterval: 0.72, startDelay: 1.8 },
-        { enemyType: 'flyer', count: 26, spawnInterval: 0.36, startDelay: 3.2 },
+        { enemyType: 'runner', count: 32, spawnInterval: 0.29, startDelay: 0 },
+        { enemyType: 'splitter', count: 9, spawnInterval: 0.85, startDelay: 1.2 },
+        { enemyType: 'brute', count: 15, spawnInterval: 0.75, startDelay: 2.2 },
+        { enemyType: 'flyer', count: 24, spawnInterval: 0.38, startDelay: 3.4 },
       ],
     },
     {
-      clearBonus: 56,
+      clearBonus: 72,
       groups: [
-        { enemyType: 'brute', count: 18, spawnInterval: 0.72, startDelay: 0 },
-        { enemyType: 'healer', count: 8, spawnInterval: 1.0, startDelay: 1.4 },
-        { enemyType: 'flyer', count: 28, spawnInterval: 0.36, startDelay: 3.0 },
+        { enemyType: 'brute', count: 17, spawnInterval: 0.72, startDelay: 0 },
+        { enemyType: 'healer', count: 7, spawnInterval: 1.05, startDelay: 1.4 },
+        { enemyType: 'flyer', count: 26, spawnInterval: 0.38, startDelay: 3.0 },
         { enemyType: 'boss', count: 1, spawnInterval: 1.0, startDelay: 4.5 },
       ],
     },
     {
-      clearBonus: 60,
+      clearBonus: 78,
       groups: [
-        { enemyType: 'flyer', count: 34, spawnInterval: 0.32, startDelay: 0 },
-        { enemyType: 'runner', count: 40, spawnInterval: 0.25, startDelay: 1.8 },
-        { enemyType: 'brute', count: 20, spawnInterval: 0.64, startDelay: 3.0 },
-        { enemyType: 'healer', count: 9, spawnInterval: 0.98, startDelay: 3.6 },
+        { enemyType: 'flyer', count: 30, spawnInterval: 0.35, startDelay: 0 },
+        { enemyType: 'runner', count: 34, spawnInterval: 0.27, startDelay: 1.8 },
+        { enemyType: 'brute', count: 18, spawnInterval: 0.68, startDelay: 3.0 },
+        { enemyType: 'healer', count: 8, spawnInterval: 1.0, startDelay: 3.6 },
       ],
     },
     {
-      clearBonus: 66,
+      clearBonus: 84,
       groups: [
-        { enemyType: 'brute', count: 22, spawnInterval: 0.62, startDelay: 0 },
-        { enemyType: 'healer', count: 10, spawnInterval: 0.94, startDelay: 1.4 },
-        { enemyType: 'flyer', count: 30, spawnInterval: 0.34, startDelay: 2.2 },
-        { enemyType: 'runner', count: 30, spawnInterval: 0.26, startDelay: 3.8 },
+        { enemyType: 'brute', count: 19, spawnInterval: 0.66, startDelay: 0 },
+        { enemyType: 'splitter', count: 10, spawnInterval: 0.8, startDelay: 1.0 },
+        { enemyType: 'healer', count: 8, spawnInterval: 0.98, startDelay: 1.6 },
+        { enemyType: 'flyer', count: 26, spawnInterval: 0.36, startDelay: 2.5 },
+        { enemyType: 'runner', count: 26, spawnInterval: 0.28, startDelay: 3.8 },
         { enemyType: 'boss', count: 1, spawnInterval: 1.0, startDelay: 5.5 },
       ],
     },
     {
-      clearBonus: 80,
+      clearBonus: 95,
       groups: [
-        { enemyType: 'brute', count: 26, spawnInterval: 0.56, startDelay: 0 },
-        { enemyType: 'healer', count: 11, spawnInterval: 0.86, startDelay: 1.2 },
-        { enemyType: 'flyer', count: 34, spawnInterval: 0.32, startDelay: 2.0 },
-        { enemyType: 'runner', count: 28, spawnInterval: 0.27, startDelay: 3.6 },
-        { enemyType: 'boss', count: 2, spawnInterval: 4.0, startDelay: 4.5 },
+        { enemyType: 'brute', count: 22, spawnInterval: 0.62, startDelay: 0 },
+        { enemyType: 'healer', count: 9, spawnInterval: 0.92, startDelay: 1.2 },
+        { enemyType: 'flyer', count: 30, spawnInterval: 0.34, startDelay: 2.0 },
+        { enemyType: 'runner', count: 24, spawnInterval: 0.28, startDelay: 3.6 },
+        { enemyType: 'boss', count: 2, spawnInterval: 5.2, startDelay: 4.5 },
       ],
     },
   ],
@@ -213,10 +217,10 @@ export const LEVEL_7: LevelDef = {
     { waveIndex: 0, action: 'build', col: 11, row: 4, towerType: 'archer', targetingMode: 'first' },
     { waveIndex: 0, action: 'build', col: 11, row: 9, towerType: 'cannon', targetingMode: 'first' },
 
-    { waveIndex: 1, action: 'build', col: 12, row: 6, towerType: 'tesla', targetingMode: 'first' },
-    { waveIndex: 1, action: 'build', col: 3, row: 9, towerType: 'archer', targetingMode: 'first' },
-    { waveIndex: 2, action: 'upgrade', col: 3, row: 3 },
-    { waveIndex: 2, action: 'upgrade', col: 11, row: 4 },
+    { waveIndex: 1, action: 'upgrade', col: 3, row: 3 },
+    { waveIndex: 1, action: 'upgrade', col: 11, row: 4 },
+    { waveIndex: 2, action: 'build', col: 12, row: 6, towerType: 'tesla', targetingMode: 'first' },
+    { waveIndex: 2, action: 'build', col: 3, row: 9, towerType: 'archer', targetingMode: 'first' },
 
     { waveIndex: 3, action: 'upgrade', col: 11, row: 9 },
     { waveIndex: 3, action: 'upgrade', col: 3, row: 9 },
@@ -230,11 +234,11 @@ export const LEVEL_7: LevelDef = {
 
     { waveIndex: 7, action: 'upgrade', col: 4, row: 8 },
     { waveIndex: 7, action: 'upgrade', col: 11, row: 9 },
-    { waveIndex: 8, action: 'upgrade', col: 6, row: 6 },
     { waveIndex: 8, action: 'upgrade', col: 5, row: 8 },
+    { waveIndex: 8, action: 'upgrade', col: 11, row: 4 },
 
-    { waveIndex: 9, action: 'upgrade', col: 11, row: 4 },
     { waveIndex: 9, action: 'upgrade', col: 3, row: 9 },
+    { waveIndex: 9, action: 'upgrade', col: 6, row: 6 },
     { waveIndex: 10, action: 'build', col: 10, row: 4, towerType: 'tesla', targetingMode: 'first' },
     { waveIndex: 10, action: 'upgrade', col: 10, row: 4 },
 
@@ -268,10 +272,7 @@ export const LEVEL_7: LevelDef = {
     { waveIndex: 16, action: 'upgrade', col: 11, row: 10 },
     { waveIndex: 17, action: 'upgrade', col: 11, row: 10 },
     { waveIndex: 17, action: 'upgrade', col: 3, row: 4 },
-    { waveIndex: 17, action: 'upgrade', col: 3, row: 4 },
-    { waveIndex: 17, action: 'upgrade', col: 4, row: 8 },
     { waveIndex: 17, action: 'build', col: 12, row: 3, towerType: 'tesla', targetingMode: 'first' },
-    { waveIndex: 17, action: 'upgrade', col: 12, row: 3 },
     { waveIndex: 17, action: 'upgrade', col: 12, row: 3 },
   ],
   weakBuildOrder: [

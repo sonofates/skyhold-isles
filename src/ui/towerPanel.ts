@@ -31,6 +31,17 @@ interface StatChip {
   unit: string;
 }
 
+function formatDamageDealt(rawDamage: number): string {
+  const rounded = Math.max(0, Math.round(rawDamage));
+  if (rounded >= 1_000_000) {
+    return `${(rounded / 1_000_000).toFixed(1)}M`;
+  }
+  if (rounded >= 1000) {
+    return `${(rounded / 1000).toFixed(1)}k`;
+  }
+  return String(rounded);
+}
+
 export class TowerPanel {
   private readonly rootEl: HTMLDivElement;
   private readonly iconEl: HTMLDivElement;
@@ -38,6 +49,9 @@ export class TowerPanel {
   private readonly subtitleEl: HTMLSpanElement;
   private readonly coverageBadgeEl: HTMLSpanElement;
   private readonly statsEl: HTMLDivElement;
+  private readonly telemetryEl: HTMLDivElement;
+  private readonly killsValEl: HTMLElement;
+  private readonly dmgDealtValEl: HTMLElement;
   private readonly targetBtns: Map<TargetingMode, HTMLButtonElement> = new Map();
   private readonly upgradeBtn: HTMLButtonElement;
   private readonly upgradeTitleEl: HTMLSpanElement;
@@ -50,6 +64,7 @@ export class TowerPanel {
   private sellConfirmArmed = false;
   private boundTowerId: number | null = null;
   private lastSignature = '';
+  private lastBaseSignature = '';
   private cachedPanelW = 288;
   private cachedPanelH = 178;
   private metricsDirty = true;
@@ -99,6 +114,40 @@ export class TowerPanel {
 
     this.statsEl = document.createElement('div');
     this.statsEl.className = 'tower-panel-stats';
+
+    this.telemetryEl = document.createElement('div');
+    this.telemetryEl.className = 'tower-panel-stats tower-panel-telemetry';
+    this.telemetryEl.style.gap = '4px 6px';
+    this.telemetryEl.style.background = 'rgba(79, 179, 217, 0.1)';
+
+    const killsChip = document.createElement('span');
+    killsChip.className = 'tower-stat-chip';
+    killsChip.style.gap = '3px';
+    const killsUnit = document.createElement('span');
+    killsUnit.className = 'tower-stat-unit';
+    killsUnit.textContent = 'Kills';
+    this.killsValEl = document.createElement('strong');
+    this.killsValEl.className = 'tower-stat-val';
+    this.killsValEl.textContent = '0';
+    killsChip.append(killsUnit, this.killsValEl);
+
+    const telemetryDot = document.createElement('span');
+    telemetryDot.className = 'tower-stat-dot';
+    telemetryDot.setAttribute('aria-hidden', 'true');
+    telemetryDot.textContent = '·';
+
+    const dmgChip = document.createElement('span');
+    dmgChip.className = 'tower-stat-chip';
+    dmgChip.style.gap = '3px';
+    const dmgUnit = document.createElement('span');
+    dmgUnit.className = 'tower-stat-unit';
+    dmgUnit.textContent = 'DMG';
+    this.dmgDealtValEl = document.createElement('strong');
+    this.dmgDealtValEl.className = 'tower-stat-val';
+    this.dmgDealtValEl.textContent = '0';
+    dmgChip.append(dmgUnit, this.dmgDealtValEl);
+
+    this.telemetryEl.append(killsChip, telemetryDot, dmgChip);
 
     const actions = document.createElement('div');
     actions.className = 'tower-panel-actions';
@@ -169,7 +218,7 @@ export class TowerPanel {
     }
     targetWrap.append(targetHeader, targetGrid);
 
-    this.rootEl.append(header, this.statsEl, actions, targetWrap);
+    this.rootEl.append(header, this.statsEl, this.telemetryEl, actions, targetWrap);
     parent.appendChild(this.rootEl);
   }
 
@@ -182,6 +231,7 @@ export class TowerPanel {
       if (this.boundTowerId !== null) {
         this.boundTowerId = null;
         this.lastSignature = '';
+        this.lastBaseSignature = '';
         this.rootEl.classList.add('hidden');
       }
       return;
@@ -196,13 +246,24 @@ export class TowerPanel {
     const nextStats = tower.tier < 3 ? getTowerTierStats(tower.type, (tower.tier + 1) as 2 | 3) : null;
     const canUpgrade = nextStats !== null && currentGold >= nextStats.upgradeCost;
     const refund = computeSellRefund(tower.totalInvested);
+    const kills = Math.max(0, Math.round(tower.kills));
+    const dmgFloor = Math.max(0, Math.floor(tower.totalDamageDealt));
 
-    const sig = `${tower.id}:${tower.tier}:${tower.targetingMode}:${canUpgrade ? 1 : 0}:${refund}:${this.sellConfirmArmed ? 1 : 0}`;
+    const baseSig = `${tower.id}:${tower.tier}:${tower.targetingMode}:${canUpgrade ? 1 : 0}:${refund}:${this.sellConfirmArmed ? 1 : 0}`;
+    const sig = `${baseSig}:${kills}:${dmgFloor}`;
     if (sig === this.lastSignature) {
       if (wasHidden) this.metricsDirty = true;
       return;
     }
     this.lastSignature = sig;
+
+    this.killsValEl.textContent = String(kills);
+    this.dmgDealtValEl.textContent = formatDamageDealt(tower.totalDamageDealt);
+
+    if (!wasHidden && baseSig === this.lastBaseSignature) {
+      return;
+    }
+    this.lastBaseSignature = baseSig;
     this.metricsDirty = true;
 
     this.iconEl.innerHTML = TOWER_ICON_SVGS[tower.type];

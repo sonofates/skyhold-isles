@@ -167,6 +167,27 @@ export class RenderWorld {
       events.on('healerPulse', (e) => {
         this.effectsRenderer.spawnPulseRing(e.x, e.y, e.z, e.radius, PALETTE_HEX.grass);
       }),
+      events.on('enemySplit', (e) => {
+        this.effectsRenderer.spawnPulseRing(e.x, 0.15, e.z, 1.1, 0xe84a7f);
+        this.effectsRenderer.spawnParticles(e.x, e.y, e.z, 0xe84a7f, 10, 3.0, 4.0);
+      }),
+      events.on('bossPulse', (e) => {
+        this.effectsRenderer.spawnPulseRing(e.x, 0.14, e.z, e.radius, PALETTE_HEX.indigo);
+        this.effectsRenderer.spawnStunSparks(e.x, e.y + 0.5, e.z, 10);
+      }),
+      events.on('bossSummon', (e) => {
+        this.effectsRenderer.spawnPulseRing(e.x, 0.14, e.z, 2.2, PALETTE_HEX.coral);
+        this.effectsRenderer.spawnParticles(e.x, e.y, e.z, PALETTE_HEX.gold, 12, 3.2, 3.5);
+      }),
+      events.on('abilityTargeted', (e) => {
+        if (e.abilityId === 'meteor') {
+          this.effectsRenderer.spawnMeteorTelegraph(e.x, e.z, e.radius, 0.32);
+        }
+      }),
+      events.on('meteorImpact', (e) => {
+        this.effectsRenderer.spawnMeteorVisual(e.x, e.y, e.z, e.radius);
+        this.cameraController.addShake(BALANCE.camera.bossHitShake * 0.9, shakeEnabled());
+      }),
     );
   }
 
@@ -187,12 +208,20 @@ export class RenderWorld {
     );
   }
 
+  setMeteorTargetPreview(visible: boolean, wx: number, wz: number, radius: number): void {
+    this.overlayIndicators.setMeteorTargetPreview(visible, wx, wz, radius);
+  }
+
   setShowAllRanges(show: boolean): void {
     this.showAllRanges = show;
   }
 
   setFlightPathHighlight(visible: boolean, subtle = false): void {
     this.overlayIndicators.setFlightPathHighlight(visible, subtle);
+  }
+
+  setRoutesPinned(pinned: boolean): void {
+    this.overlayIndicators.setRoutesPinned(pinned);
   }
 
   setPlacementGridActive(active: boolean): void {
@@ -245,6 +274,7 @@ export class RenderWorld {
         alpha,
         elapsedVisualTime,
         this.hoveredTowerId,
+        simWorld.abilitySystem.isOverchargeActive(),
       );
       this.towerBadges.sync(
         simWorld.towers,

@@ -186,6 +186,37 @@ describe('wave spawn order and timing', () => {
     expect(computeStarRating(5)).toBe(1);
   });
 
+  it('keeps linear HP scaling through wave 6 (w <= 5), compounds from wave 7+ (w >= 6), and continues seamlessly into endless mode', () => {
+    const tenWaveLevel: LevelDef = {
+      ...TEST_LEVEL,
+      waves: Array.from({ length: 10 }, () => TEST_LEVEL.waves[0]),
+    };
+    const world = new SimWorld(tenWaveLevel, new EventBus());
+    const base = tenWaveLevel.enemyHpScale ?? 1;
+    const growth = tenWaveLevel.waveHpGrowth ?? 0;
+
+    // Waves 1..6 (0-based indices 0..5) match exact linear formula
+    for (let w = 0; w <= 5; w++) {
+      world.debugSkipToWave(w + 1);
+      expect(world.waveSystem.getCurrentWaveHpScale()).toBeCloseTo(base * (1 + w * growth), 8);
+    }
+
+    // Waves 7..10 (0-based indices 6..9) apply nonlinear late-wave compounding
+    for (let w = 6; w < 10; w++) {
+      world.debugSkipToWave(w + 1);
+      expect(world.waveSystem.getCurrentWaveHpScale()).toBeCloseTo(
+        base * (1 + w * growth) * Math.pow(1.032, w - 5),
+        8,
+      );
+    }
+
+    const finalStoryScale = world.waveSystem.getCurrentWaveHpScale();
+    world.debugForceWin();
+    expect(world.enterEndlessMode()).toBe(true);
+    expect(world.startNextWave()).toBe(true);
+    expect(world.waveSystem.getCurrentWaveHpScale()).toBeCloseTo(finalStoryScale * 1.22, 8);
+  });
+
   it('emits enemySpawned with flying=true when flyers spawn and reports flyer counts in wave preview', () => {
     const flyerLevel: LevelDef = {
       ...TEST_LEVEL,

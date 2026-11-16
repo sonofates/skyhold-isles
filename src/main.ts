@@ -35,12 +35,15 @@ async function bootstrap(): Promise<void> {
       session.simWorld.startNextWave();
       session.syncUi();
     },
+    onToggleAutoWave: () => session.toggleAutoWave(),
+    onToggleRoutes: () => session.toggleRoutesPinned(),
     onSetSpeed: (sp) => session.setSpeed(sp),
     onTogglePause: () => session.toggleUserPause(),
     onOpenSettings: () => session.openSettingsModal('hud'),
     onOpenMenu: () => session.openPauseMenu(),
     onRotateCamera: (dir) => renderWorld.cameraController.rotate90(dir),
     onSelectBuildType: (type) => session.toggleBuildType(type),
+    onActivateAbility: (id) => session.activateAbility(id),
     onUpgradeTower: (id) => session.upgradeTower(id),
     onSellTower: (id) => session.sellTower(id),
     onSetTargeting: (id, mode) => session.setTowerTargeting(id, mode),
@@ -71,6 +74,7 @@ async function bootstrap(): Promise<void> {
     onOpenLevelSelectFromPause: () => session.showMenuView('levelSelect', true),
     onMainMenuFromPause: () => session.showMenuView('menu', true),
     onNextLevel: () => session.startLevel(Math.min(LEVELS.length - 1, session.currentLevelIndex + 1)),
+    onEndlessMode: () => session.enterEndlessMode(),
     onSettingsChange: (next) => session.updateSettings(next),
     onSettingsClose: () => session.closeSettingsModal(),
   });
@@ -91,6 +95,9 @@ async function bootstrap(): Promise<void> {
     onPrimaryTapNdc: (ndcX, ndcY, shiftKey) => session.onPrimaryTap(ndcX, ndcY, shiftKey),
     onSecondaryAction: (source) => session.onSecondaryAction(source),
     onHotkeyTower: (index) => session.onHotkeyTower(index),
+    onHotkeyAbility: (id) => session.activateAbility(id),
+    onToggleAutoWave: () => session.toggleAutoWave(),
+    onToggleRoutes: () => session.toggleRoutesPinned(),
     onTowerActionHotkey: (action) => session.onTowerActionHotkey(action),
     onTogglePause: () => session.toggleUserPause(),
     onKeyPanState: (x, z) => renderWorld.cameraController.setKeyPan(x, z),

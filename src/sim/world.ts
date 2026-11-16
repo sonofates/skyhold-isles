@@ -1,9 +1,10 @@
 import type { EventBus } from '../core/eventBus.ts';
 import { ObjectPool } from '../core/pool.ts';
-import type { TargetingMode, TowerType } from '../core/types.ts';
+import type { TargetingMode, TowerMvpSummary, TowerType } from '../core/types.ts';
 import { BALANCE } from '../data/balance.ts';
 import type { LevelDef } from '../data/levels/index.ts';
-import { getTowerTierStats } from '../data/towers.ts';
+import { getTowerTierStats, TOWER_DEFS } from '../data/towers.ts';
+import { AbilitySystem } from './abilitySystem.ts';
 import { CombatSystem } from './combatSystem.ts';
 import {
   createEnemyEntity,
@@ -43,6 +44,7 @@ export class SimWorld {
   readonly projectileSystem: ProjectileSystem;
   readonly combatSystem: CombatSystem;
   readonly waveSystem: WaveSystem;
+  readonly abilitySystem: AbilitySystem;
   readonly events: EventBus;
 
   readonly towers: TowerEntity[] = [];
@@ -103,9 +105,52 @@ export class SimWorld {
       events,
     );
     this.waveSystem = new WaveSystem(level, events);
+    this.abilitySystem = new AbilitySystem(events);
 
     this.gold = level.startingGold;
     this.lives = BALANCE.startingLives;
+  }
+
+  setAutoWave(enabled: boolean): void {
+    this.waveSystem.setAutoWave(enabled);
+  }
+
+  castMeteor(x: number, z: number): boolean {
+    if (this.outcome !== 'ongoing') return false;
+    return this.abilitySystem.castMeteor(x, z, Math.max(1, this.waveSystem.currentWaveOneBased));
+  }
+
+  castOvercharge(): boolean {
+    if (this.outcome !== 'ongoing') return false;
+    return this.abilitySystem.castOvercharge(this.towers);
+  }
+
+  enterEndlessMode(): boolean {
+    if (this.outcome !== 'won') return false;
+    this.outcome = 'ongoing';
+    this.waveSystem.enterEndlessMode();
+    return true;
+  }
+
+  getMvpTowerSummary(): TowerMvpSummary | null {
+    if (this.towers.length === 0) return null;
+    let best = this.towers[0];
+    for (let i = 1; i < this.towers.length; i++) {
+      const candidate = this.towers[i];
+      if (
+        candidate.totalDamageDealt > best.totalDamageDealt ||
+        (candidate.totalDamageDealt === best.totalDamageDealt && candidate.kills > best.kills)
+      ) {
+        best = candidate;
+      }
+    }
+    return {
+      name: TOWER_DEFS[best.type].name,
+      type: best.type,
+      tier: best.tier,
+      damageDealt: Math.round(best.totalDamageDealt),
+      kills: best.kills,
+    };
   }
 
   startNextWave(): boolean {
@@ -172,6 +217,7 @@ export class SimWorld {
       totalInvested: stats.upgradeCost,
       targetingMode,
       cooldownTimer: 0.15,
+      stunTimer: 0,
       yaw: 0,
       prevYaw: 0,
       targetYaw: 0,
@@ -263,14 +309,20 @@ export class SimWorld {
       dt,
       () => this.enemyPool.getActiveCount(),
       (enemyType, hpScale) => {
-        this.enemySystem.spawnEnemy(enemyType, hpScale);
+        const spawned = this.enemySystem.spawnEnemy(enemyType, hpScale);
+        if (spawned) {
+          spawned.reward = Math.max(
+            1,
+            Math.round(spawned.reward * this.waveSystem.getRewardMultiplier()),
+          );
+        }
       },
       (bonus) => {
         this.gold += bonus;
         this.events.emit('economyChanged', { gold: this.gold, lives: this.lives });
       },
       () => {
-        if (this.outcome === 'ongoing' && this.lives > 0) {
+        if (this.outcome === 'ongoing' && this.lives > 0 && !this.waveSystem.isEndless) {
           this.outcome = 'won';
           this.events.emit('gameWon', {
             stars: computeStarRating(this.lives),
@@ -282,6 +334,17 @@ export class SimWorld {
 
     if (this.outcome !== 'ongoing') return;
 
+    const wsState = this.waveSystem.state;
+    const isCombatActive =
+      wsState === 'spawning' || wsState === 'clearing' || wsState === 'allSpawned';
+    this.abilitySystem.update(
+      dt,
+      isCombatActive,
+      this.enemyPool,
+      this.spatialHash,
+      this.enemySystem,
+    );
+
     this.enemySystem.update(
       dt,
       (leaked) => {
@@ -291,6 +354,7 @@ export class SimWorld {
           this.outcome = 'lost';
           this.events.emit('gameLost', {
             waveIndex: Math.max(0, this.waveSystem.currentWaveIndex),
+            endless: this.waveSystem.isEndless,
           });
         }
       },
@@ -299,6 +363,8 @@ export class SimWorld {
         this.gold += killed.reward;
         this.events.emit('economyChanged', { gold: this.gold, lives: this.lives });
       },
+      this.towers,
+      this.waveSystem.getCurrentWaveHpScale(),
     );
 
     if (this.outcome !== 'ongoing') return;
@@ -310,7 +376,7 @@ export class SimWorld {
         this.events.emit('economyChanged', { gold: this.gold, lives: this.lives });
       },
       () => {
-        if (this.outcome === 'ongoing' && this.lives > 0) {
+        if (this.outcome === 'ongoing' && this.lives > 0 && !this.waveSystem.isEndless) {
           this.outcome = 'won';
           this.events.emit('gameWon', {
             stars: computeStarRating(this.lives),
@@ -322,7 +388,7 @@ export class SimWorld {
 
     if (this.outcome !== 'ongoing') return;
 
-    this.combatSystem.update(dt, this.towers);
+    this.combatSystem.update(dt, this.towers, this.abilitySystem.getFireRateMultiplier());
     this.projectileSystem.update(dt, this.towers);
   }
 

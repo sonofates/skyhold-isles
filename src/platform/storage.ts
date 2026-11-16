@@ -62,6 +62,7 @@ export function createDefaultProgress(levelCount: number): ProgressData {
   return {
     unlockedLevelIndex: 0,
     bestStars: new Array<number>(levelCount).fill(0),
+    bestEndlessWaves: new Array<number>(levelCount).fill(0),
   };
 }
 
@@ -116,11 +117,20 @@ export function loadProgress(levelCount: number): ProgressData {
         }
       }
     }
+    const bestEndlessWaves = new Array<number>(levelCount).fill(0);
+    if (Array.isArray(parsed.bestEndlessWaves)) {
+      for (let i = 0; i < levelCount; i++) {
+        const val = parsed.bestEndlessWaves[i];
+        if (typeof val === 'number' && Number.isFinite(val)) {
+          bestEndlessWaves[i] = Math.max(0, Math.floor(val));
+        }
+      }
+    }
     const unlockedLevelIndex =
       typeof parsed.unlockedLevelIndex === 'number'
         ? Math.max(0, Math.min(levelCount - 1, Math.floor(parsed.unlockedLevelIndex)))
         : 0;
-    return { unlockedLevelIndex, bestStars };
+    return { unlockedLevelIndex, bestStars, bestEndlessWaves };
   } catch {
     return createDefaultProgress(levelCount);
   }

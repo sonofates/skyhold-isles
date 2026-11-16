@@ -1,12 +1,14 @@
 import type { SoundManager } from '../audio/soundManager.ts';
 import type { EventBus } from '../core/eventBus.ts';
-import type { EnemyType, GameSettings, ProgressData, TowerType } from '../core/types.ts';
+import type { AbilityId, EnemyType, GameSettings, ProgressData, TowerType } from '../core/types.ts';
+import { ABILITY_DEFS } from '../data/abilities.ts';
 import { BALANCE } from '../data/balance.ts';
 import { LEVELS } from '../data/levels/index.ts';
 import { getTowerTierStats } from '../data/towers.ts';
 import type { RenderWorld } from '../render/renderWorld.ts';
 import { getTowerPickHeight } from '../render/towerPicking.ts';
 import type { SimWorld } from '../sim/world.ts';
+import type { AbilityBarState } from '../ui/abilityBar.ts';
 import type { GameOverlays } from '../ui/gameOverlays.ts';
 import type { HudStateView } from '../ui/hud.ts';
 import type { GameLoop } from './browserLoop.ts';
@@ -20,7 +22,7 @@ export interface SimBridgeHandlers {
   getSimClock: () => number;
   onSyncUi: () => void;
   onGameWon: (stars: 1 | 2 | 3, livesRemaining: number) => void;
-  onGameLost: (waveIndex: number) => void;
+  onGameLost: (waveIndex: number, endless?: boolean) => void;
 }
 
 export function bindSimEventBridge(h: SimBridgeHandlers): () => void {
@@ -58,7 +60,7 @@ export function bindSimEventBridge(h: SimBridgeHandlers): () => void {
     h.overlays.floatingTextPool.spawnGold(e.reward, e.x, e.y + 0.35, e.z, h.getSimClock());
   });
   h.bus.on('gameWon', (ev) => h.onGameWon(ev.stars, ev.livesRemaining));
-  h.bus.on('gameLost', (ev) => h.onGameLost(ev.waveIndex));
+  h.bus.on('gameLost', (ev) => h.onGameLost(ev.waveIndex, ev.endless));
   return unbindSound;
 }
 
@@ -74,7 +76,26 @@ export function recordWinProgress(
   saveProgress(progress);
 }
 
-export function buildHudStateView(simWorld: SimWorld, loop: GameLoop): HudStateView {
+export function recordEndlessProgress(
+  progress: ProgressData,
+  levelIndex: number,
+  waveReached: number,
+): void {
+  if (!progress.bestEndlessWaves) {
+    progress.bestEndlessWaves = new Array<number>(LEVELS.length).fill(0);
+  }
+  progress.bestEndlessWaves[levelIndex] = Math.max(
+    progress.bestEndlessWaves[levelIndex] ?? 0,
+    Math.max(0, Math.floor(waveReached)),
+  );
+  saveProgress(progress);
+}
+
+export function buildHudStateView(
+  simWorld: SimWorld,
+  loop: GameLoop,
+  routesVisible = false,
+): HudStateView {
   const ws = simWorld.waveSystem;
   return {
     gold: simWorld.gold,
@@ -88,7 +109,47 @@ export function buildHudStateView(simWorld: SimWorld, loop: GameLoop): HudStateV
     earlyBonus: ws.getEarlyCallBonus(),
     countdownSec: ws.interWaveTimer,
     nextPreview: ws.getNextWavePreview(),
+    autoWave: ws.autoWave,
+    routesVisible,
+    isEndless: ws.isEndless,
   };
+}
+
+export function buildAbilityBarState(
+  simWorld: SimWorld,
+  activeAbility: AbilityId | null,
+): AbilityBarState {
+  const ab = simWorld.abilitySystem;
+  const ws = simWorld.waveSystem;
+  return {
+    activeAbility,
+    meteorCooldown: ab.getCooldown('meteor'),
+    meteorMaxCooldown: ab.getMaxCooldown('meteor'),
+    overchargeCooldown: ab.getCooldown('overcharge'),
+    overchargeMaxCooldown: ab.getMaxCooldown('overcharge'),
+    overchargeRemaining: ab.getOverchargeRemaining(),
+    overchargeDuration: ABILITY_DEFS.overcharge.durationSec,
+    disabled: simWorld.outcome !== 'ongoing' || ws.state === 'preFirstWave',
+  };
+}
+
+export function updateMeteorPreviewFromNdc(
+  active: boolean,
+  activeAbility: AbilityId | null,
+  ndcX: number,
+  ndcY: number,
+  renderWorld: RenderWorld,
+): void {
+  if (!active || activeAbility !== 'meteor') {
+    renderWorld.setMeteorTargetPreview(false, 0, 0, 1);
+    return;
+  }
+  const hit = renderWorld.cameraController.screenNdcToPlane(ndcX, ndcY, 0);
+  if (!hit) {
+    renderWorld.setMeteorTargetPreview(false, 0, 0, 1);
+    return;
+  }
+  renderWorld.setMeteorTargetPreview(true, hit.x, hit.z, ABILITY_DEFS.meteor.radius);
 }
 
 export function updatePlacementPreviewFromNdc(
