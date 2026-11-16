@@ -123,7 +123,7 @@ export class DecorBuilder {
 
         const wx = gridToWorldX(c, level.cols);
         const wz = gridToWorldZ(r, level.rows);
-        const hillH = decorHillHeight(theme, c, r, false);
+        const hillH = decorHillHeight(theme, grid, c, r, claimed.has(`${c},${r}`));
 
         const count = rng.chance(theme.trees.density) ? 2 : 1;
         for (let t = 0; t < count; t++) {

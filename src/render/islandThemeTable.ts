@@ -114,7 +114,7 @@ const HIGHLAND_CITADEL = theme({
   },
   ambient: { isletStyle: 'pine', birds: 4, butterflies: 0, islets: 4, clouds: 6 },
   setPieces: [
-    { kind: 'watchtower', col: 7, row: 3, variant: 0 },
+    { kind: 'ruinWall', col: 7, row: 3, variant: 0 },
     { kind: 'banner', col: 5, row: 4, variant: 1 },
     { kind: 'banner', col: 10, row: 4, variant: 1 },
     { kind: 'waterfall', col: 15, row: 5, yaw: Math.PI / 2 },
@@ -342,7 +342,7 @@ const SUNKEN_BASTION = theme({
     { kind: 'ruinWall', col: 7.5, row: 8.6, variant: 2 },
     { kind: 'watchtower', col: 14, row: 3, yaw: -Math.PI / 2, variant: 1 },
     { kind: 'watchtower', col: 1, row: 9, yaw: Math.PI / 2, variant: 0 },
-    { kind: 'watchtower', col: 14, row: 9, yaw: -Math.PI / 2, variant: 1 },
+    { kind: 'watchtower', col: 7, row: 12, variant: 1, scale: 0.85 },
     { kind: 'banner', col: 13, row: 0, variant: 1 },
     { kind: 'banner', col: 10, row: 0, variant: 1 },
     { kind: 'banner', col: 5, row: 0, variant: 1 },
@@ -386,8 +386,8 @@ const GRAND_SKYHOLD = theme({
   setPieces: [
     { kind: 'watchtower', col: 7, row: 1, variant: 0 },
     { kind: 'watchtower', col: 15, row: 1, variant: 1 },
-    { kind: 'watchtower', col: 13, row: 11, variant: 1 },
-    { kind: 'watchtower', col: 8, row: 11, variant: 0 },
+    { kind: 'watchtower', col: 12, row: 12, variant: 1, scale: 0.85 },
+    { kind: 'watchtower', col: 9, row: 12, variant: 0, scale: 0.85 },
     { kind: 'obelisk', col: 12, row: 6 },
     { kind: 'banner', col: 8, row: 0, variant: 2 },
     { kind: 'banner', col: 11, row: 0, variant: 2 },

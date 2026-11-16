@@ -1,4 +1,5 @@
 import type { LevelDef } from '../data/levels/index.ts';
+import type { TileType } from '../core/types.ts';
 import { parseLevelGrid } from '../data/levels/index.ts';
 
 /**
@@ -272,8 +273,22 @@ export function sampleZoneTint(
 }
 
 /** Height of the hillock on a decor tile (0 = flat). Deterministic per tile so trees/decor can follow it. */
-export function decorHillHeight(theme: IslandTheme, c: number, r: number, claimed: boolean): number {
+export function decorHillHeight(
+  theme: IslandTheme,
+  grid: readonly (readonly TileType[])[],
+  c: number,
+  r: number,
+  claimed: boolean,
+): number {
   if (claimed || theme.hills.chance <= 0) return 0;
   if (tileHash(c, r, 991) >= theme.hills.chance) return 0;
-  return theme.hills.minH + tileHash(c, r, 992) * (theme.hills.maxH - theme.hills.minH);
+  const h = theme.hills.minH + tileHash(c, r, 992) * (theme.hills.maxH - theme.hills.minH);
+  // Keep hills beside the enemy route low so they never hide walking units from the iso camera.
+  for (let dr = -1; dr <= 1; dr++) {
+    for (let dc = -1; dc <= 1; dc++) {
+      const t = grid[r + dr]?.[c + dc];
+      if (t === 'path' || t === 'spawn' || t === 'goal') return Math.min(h, 0.28);
+    }
+  }
+  return h;
 }

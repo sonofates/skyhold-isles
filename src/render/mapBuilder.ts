@@ -651,7 +651,7 @@ export class MapBuilder {
           });
 
           // Hillock: low-poly dome (grass/sand) with a stone outcrop; trees & baked decor ride on top
-          const hillH = tile === 'decor' ? decorHillHeight(theme, c, r, claimed.has(`${c},${r}`)) : 0;
+          const hillH = tile === 'decor' ? decorHillHeight(theme, grid, c, r, claimed.has(`${c},${r}`)) : 0;
           if (hillH > 0) {
             const rocky = theme.hills.cap !== 'grass' && groundKind === 'grass';
             const capHex = rocky
