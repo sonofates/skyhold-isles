@@ -60,7 +60,7 @@ export const LEVEL_10: LevelDef = {
   ],
   decorationSeed: 1010337,
   startingGold: 360,
-  enemyHpScale: 0.965,
+  enemyHpScale: 1.01,
   waveHpGrowth: 0.2,
   waves: [
     {
@@ -141,7 +141,7 @@ export const LEVEL_10: LevelDef = {
       ],
     },
     {
-      clearBonus: 68,
+      clearBonus: 48,
       groups: [
         { enemyType: 'boss', count: 1, spawnInterval: 1, startDelay: 0 },
         { enemyType: 'warden', count: 2, spawnInterval: 1.2, startDelay: 0.6 },
@@ -150,7 +150,7 @@ export const LEVEL_10: LevelDef = {
       ],
     },
     {
-      clearBonus: 56,
+      clearBonus: 36,
       groups: [
         { enemyType: 'splitter', count: 8, spawnInterval: 0.8, startDelay: 0, lane: 1 },
         { enemyType: 'brute', count: 8, spawnInterval: 0.75, startDelay: 0.5 },
@@ -159,7 +159,7 @@ export const LEVEL_10: LevelDef = {
       ],
     },
     {
-      clearBonus: 60,
+      clearBonus: 40,
       groups: [
         { enemyType: 'mite', count: 30, spawnInterval: 0.16, startDelay: 0 },
         { enemyType: 'mite', count: 30, spawnInterval: 0.16, startDelay: 0.3, lane: 1 },
@@ -168,7 +168,7 @@ export const LEVEL_10: LevelDef = {
       ],
     },
     {
-      clearBonus: 64,
+      clearBonus: 44,
       groups: [
         { enemyType: 'burrower', count: 9, spawnInterval: 0.7, startDelay: 0, lane: 1 },
         { enemyType: 'warden', count: 3, spawnInterval: 1.8, startDelay: 0.5 },
@@ -177,7 +177,7 @@ export const LEVEL_10: LevelDef = {
       ],
     },
     {
-      clearBonus: 68,
+      clearBonus: 48,
       groups: [
         { enemyType: 'brute', count: 7, spawnInterval: 1.0, startDelay: 0, elite: true },
         { enemyType: 'healer', count: 5, spawnInterval: 1.0, startDelay: 1.0 },
@@ -186,7 +186,7 @@ export const LEVEL_10: LevelDef = {
       ],
     },
     {
-      clearBonus: 72,
+      clearBonus: 52,
       groups: [
         { enemyType: 'mite', count: 39, spawnInterval: 0.15, startDelay: 0, lane: 1 },
         { enemyType: 'warden', count: 5, spawnInterval: 1.4, startDelay: 0.6, lane: 1 },
@@ -195,7 +195,7 @@ export const LEVEL_10: LevelDef = {
       ],
     },
     {
-      clearBonus: 76,
+      clearBonus: 56,
       groups: [
         { enemyType: 'burrower', count: 12, spawnInterval: 0.6, startDelay: 0 },
         { enemyType: 'brute', count: 14, spawnInterval: 0.6, startDelay: 0.5, lane: 1 },
@@ -204,7 +204,7 @@ export const LEVEL_10: LevelDef = {
       ],
     },
     {
-      clearBonus: 80,
+      clearBonus: 60,
       groups: [
         { enemyType: 'brute', count: 7, spawnInterval: 0.9, startDelay: 0, elite: true, lane: 1 },
         { enemyType: 'mite', count: 37, spawnInterval: 0.15, startDelay: 0.5 },
@@ -213,7 +213,7 @@ export const LEVEL_10: LevelDef = {
       ],
     },
     {
-      clearBonus: 84,
+      clearBonus: 64,
       groups: [
         { enemyType: 'splitter', count: 14, spawnInterval: 0.6, startDelay: 0 },
         { enemyType: 'warden', count: 5, spawnInterval: 1.3, startDelay: 0.8 },
@@ -222,20 +222,20 @@ export const LEVEL_10: LevelDef = {
       ],
     },
     {
-      clearBonus: 90,
+      clearBonus: 70,
       groups: [
         { enemyType: 'burrower', count: 14, spawnInterval: 0.55, startDelay: 0, lane: 1 },
-        { enemyType: 'warden', count: 2, spawnInterval: 2.0, startDelay: 1.0, elite: true },
+        { enemyType: 'warden', count: 3, spawnInterval: 1.8, startDelay: 1.0, elite: true },
         { enemyType: 'brute', count: 16, spawnInterval: 0.55, startDelay: 0.4 },
         { enemyType: 'flyer', count: 18, spawnInterval: 0.34, startDelay: 1.8 },
       ],
     },
     {
-      clearBonus: 118,
+      clearBonus: 98,
       groups: [
         { enemyType: 'boss', count: 1, spawnInterval: 1.0, startDelay: 0 },
         { enemyType: 'warden', count: 3, spawnInterval: 1.4, startDelay: 0.6, elite: true },
-        { enemyType: 'brute', count: 5, spawnInterval: 0.8, startDelay: 1.0, elite: true },
+        { enemyType: 'brute', count: 8, spawnInterval: 0.75, startDelay: 1.0, elite: true },
         { enemyType: 'mite', count: 40, spawnInterval: 0.14, startDelay: 0.3, lane: 1 },
         { enemyType: 'burrower', count: 10, spawnInterval: 0.6, startDelay: 1.2, lane: 1 },
         { enemyType: 'flyer', count: 16, spawnInterval: 0.34, startDelay: 2.0 },

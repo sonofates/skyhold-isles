@@ -172,6 +172,36 @@ describe('Loam Burrower', () => {
     tick(world, 0.2);
     expect(b.burrowed).toBe(false);
   });
+
+  it('never reaches the goal underground, whatever its dive phase (incl. slowed dives)', () => {
+    for (const level of LEVELS) {
+      for (let phase = 0; phase < 24; phase++) {
+        const { world } = makeWorld(level);
+        const b = world.enemySystem.spawnEnemy('burrower', 1, false, level.extraGroundPaths ? 1 : 0)!;
+        b.dist = Math.max(0, b.totalDist - 14 - phase * 0.37);
+        b.abilityTimer = (phase % 6) * 0.3 + 0.01;
+        let leakedBurrowed: boolean | null = null;
+        for (let i = 0; i < 60 * 30 && leakedBurrowed === null; i++) {
+          if (phase % 3 === 0 && i < 90 && !b.burrowed) world.enemySystem.applySlow(b, 0.55, 1.5);
+          world.enemySystem.update(DT, (l) => (leakedBurrowed = l.burrowed), () => {});
+        }
+        expect(leakedBurrowed).toBe(false);
+      }
+    }
+  });
+
+  it('pops up at once if it is still underground near the goal', () => {
+    const { world, events } = makeWorld();
+    const b = world.enemySystem.spawnEnemy('burrower')!;
+    const ev: boolean[] = [];
+    events.on('enemyBurrow', (e) => ev.push(e.burrowed));
+    b.burrowed = true;
+    b.abilityTimer = 1.0;
+    b.dist = b.totalDist - 2.5;
+    tick(world, DT);
+    expect(b.burrowed).toBe(false);
+    expect(ev).toEqual([false]);
+  });
 });
 
 describe('Cloud Hauler', () => {

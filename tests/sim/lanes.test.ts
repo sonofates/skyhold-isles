@@ -6,6 +6,8 @@ import { LEVELS, parseLevelGrid, type LevelDef } from '../../src/data/levels/ind
 import type { EnemyEntity } from '../../src/sim/entities.ts';
 import { SimWorld } from '../../src/sim/world.ts';
 import { runLevelBalanceSim } from '../../scripts/balanceSim.ts';
+import { getTowerTierStats } from '../../src/data/towers.ts';
+import { acquireTarget } from '../../src/sim/targeting.ts';
 
 const DT = BALANCE.fixedDt;
 
@@ -179,5 +181,38 @@ describe('determinism with new archetypes', () => {
     const b = runLevelBalanceSim(level, 'greedy', level.scriptedBuildOrder ?? []);
     expect(b).toEqual(a);
     expect(a.outcome).toBe('won');
+  });
+});
+
+describe('targeting across lanes of different length', () => {
+  it('"first" prefers the enemy closest to the shared goal, "last" the farthest', () => {
+    const level = LEVELS.find((l) => l.id === 'stormcrown-citadel')!;
+    const world = new SimWorld(level, new EventBus());
+    const main = world.enemySystem.spawnEnemy('grunt', 1, false, 0)!;
+    const side = world.enemySystem.spawnEnemy('grunt', 1, false, 1)!;
+    expect(Math.abs(main.totalDist - side.totalDist)).toBeGreaterThan(20);
+    // Both on the shared final stretch: the side-lane grunt is 5 from the goal, the main one 10.
+    main.dist = main.totalDist - 10;
+    side.dist = side.totalDist - 5;
+    world.enemySystem.update(DT, () => {}, () => {});
+    // By raw per-lane fraction the main-lane grunt would look further along.
+    expect(main.dist / main.totalDist).toBeGreaterThan(side.dist / side.totalDist);
+
+    world.gold = 1e6;
+    let tower = null;
+    for (let r = 0; r < level.rows && !tower; r++) {
+      for (let c = 0; c < level.cols && !tower; c++) {
+        if (!world.grid.canPlaceTower(c, r)) continue;
+        const x = world.grid.gridToWorldX(c);
+        const z = world.grid.gridToWorldZ(r);
+        const reach = (e: { x: number; z: number }): number => Math.hypot(e.x - x, e.z - z);
+        if (reach(main) < 5 && reach(side) < 5) tower = world.placeTower(c, r, 'archer', 'first');
+      }
+    }
+    expect(tower).not.toBeNull();
+    const stats = getTowerTierStats('archer', 1);
+    expect(acquireTarget(tower!, stats, world.enemyPool, world.spatialHash)).toBe(side);
+    tower!.targetingMode = 'last';
+    expect(acquireTarget(tower!, stats, world.enemyPool, world.spatialHash)).toBe(main);
   });
 });

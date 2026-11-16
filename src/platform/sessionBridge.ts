@@ -33,6 +33,9 @@ export interface SimBridgeHandlers {
   onGameLost: (waveIndex: number, endless?: boolean) => void;
 }
 
+/** Minimum sim seconds between two first-encounter hints (toast shows for 7 s). */
+const INTRO_TOAST_MIN_GAP_SEC = 6;
+
 export function bindSimEventBridge(h: SimBridgeHandlers): () => void {
   const unbindSound = h.soundManager.bindEvents(h.bus);
   h.bus.on('economyChanged', h.onSyncUi);
@@ -47,12 +50,19 @@ export function bindSimEventBridge(h: SimBridgeHandlers): () => void {
     }
   });
   h.bus.on('towerSold', h.onSyncUi);
+  // Sim time of the last "New foe" hint: a second new type arriving while it is still on screen
+  // waits for a later spawn instead of wiping the first hint (it is only marked seen once shown).
+  let lastIntroAt = -Infinity;
   h.bus.on('enemySpawned', (e) => {
     // First encounter with a newer archetype: one-time counterplay hint.
     const hint = ENEMY_DEFS[e.enemyType].counterHint;
     if (hint && !hasSeenEnemyIntro(e.enemyType)) {
-      markEnemyIntroSeen(e.enemyType);
-      h.overlays.toast.show(`New foe — ${ENEMY_DEFS[e.enemyType].name}: ${hint}`, 7.0);
+      const now = h.getSimClock();
+      if (now - lastIntroAt >= INTRO_TOAST_MIN_GAP_SEC) {
+        lastIntroAt = now;
+        markEnemyIntroSeen(e.enemyType);
+        h.overlays.toast.show(`New foe — ${ENEMY_DEFS[e.enemyType].name}: ${hint}`, 7.0);
+      }
       return;
     }
     if (!e.flying || hasSeenFlyerToast()) return;

@@ -63,7 +63,7 @@ export const LEVEL_12: LevelDef = {
   ],
   decorationSeed: 1212977,
   startingGold: 360,
-  enemyHpScale: 1.64,
+  enemyHpScale: 1.65,
   waveHpGrowth: 0.205,
   waves: [
     {

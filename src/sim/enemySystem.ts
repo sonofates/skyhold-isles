@@ -14,8 +14,11 @@ const _blinkFrom = { x: 0, y: 0, z: 0 };
 const BLINK_GOAL_MARGIN = 2.0;
 /** Hauler raiders never land closer than this to the goal. */
 const DROP_GOAL_MARGIN = 3.0;
-/** Burrowers never start a dive this close to the goal (they must resurface to be shot). */
-const BURROW_GOAL_MARGIN = 4.0;
+/**
+ * Burrowers must be surfaced for at least this last stretch before the goal: a dive that would end
+ * inside it is not started, and a burrower that still reaches it underground pops up at once.
+ */
+const BURROW_GOAL_MARGIN = 3.0;
 /** First burrow dive happens this long after spawning (so it's seen surfaced at the spawn). */
 const BURROW_FIRST_SURFACE_SEC = 1.6;
 const BOSS_PULSE_RADIUS = 7.6;
@@ -179,6 +182,8 @@ export class EnemySystem {
 
     entity.uid = this.nextUid++;
     entity.lane = def.flying ? 0 : lane;
+    entity.laneProgressOffset =
+      def.flying || entity.lane === 0 ? 0 : this.groundPath.totalLength - path.totalLength;
     entity.type = type;
     entity.maxHp = maxHp;
     entity.hp = maxHp;
@@ -566,12 +571,21 @@ export class EnemySystem {
   /** Burrower phase machine: surfaced (abilityTimer counts down) ⇄ burrowed. */
   private updateBurrow(e: EnemyEntity, dt: number): void {
     const def = ENEMY_DEFS.burrower;
+    const surfaceLimit = e.totalDist - BURROW_GOAL_MARGIN;
     e.abilityTimer -= dt;
-    if (e.abilityTimer > 0) return;
-    if (!e.burrowed && e.dist > e.totalDist - BURROW_GOAL_MARGIN) {
-      e.abilityTimer = 0.5;
-      return;
+    // Never reach the sanctuary underground (e.g. a dive started while slowed, then the slow ended).
+    const forceSurface = e.burrowed && e.dist >= surfaceLimit;
+    if (e.abilityTimer > 0 && !forceSurface) return;
+    if (!e.burrowed) {
+      // Only dive if the whole dive (at full underground speed) ends before the surface limit.
+      const diveSec = def.burrowDiveSec ?? 1.6;
+      const diveReach = e.speed * (def.burrowSpeedMul ?? 1.6) * diveSec;
+      if (e.dist + diveReach > surfaceLimit) {
+        e.abilityTimer = 0.5;
+        return;
+      }
     }
+    if (forceSurface) e.abilityTimer = 0;
     e.burrowed = !e.burrowed;
     e.abilityTimer += e.burrowed ? (def.burrowDiveSec ?? 1.6) : (def.burrowSurfaceSec ?? 2.8);
     if (e.burrowed) {

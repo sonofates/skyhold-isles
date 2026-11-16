@@ -36,14 +36,15 @@ export function acquireTarget(
     let score: number;
     switch (mode) {
       case 'first':
-        score = e.dist / e.totalDist;
+        // Progress toward the goal; the lane offset makes unequal spawn lanes comparable.
+        score = (e.dist + e.laneProgressOffset) / (e.totalDist + e.laneProgressOffset);
         if (score > bestScore) {
           bestScore = score;
           best = e;
         }
         break;
       case 'last':
-        score = e.dist / e.totalDist;
+        score = (e.dist + e.laneProgressOffset) / (e.totalDist + e.laneProgressOffset);
         if (score < bestScore) {
           bestScore = score;
           best = e;
