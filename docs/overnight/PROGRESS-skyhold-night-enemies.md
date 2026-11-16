@@ -41,7 +41,8 @@ New tests: `tests/sim/newEnemies.test.ts`, `tests/sim/lanes.test.ts`, `tests/sim
 ## Morning merge dry-run (done on this branch, repo untouched)
 `python3 .wt/trymerge.py .wt/m3 cfb9330 hermes/skyhold-night-islands hermes/skyhold-night-towers` (scratch copy via `git merge-file`; `.wt/` is git-ignored and only exists on hermes):
 - Only textual conflict: `scripts/balanceSim.ts` between ISLANDS (`--levels` flag) and TOWERS (`evaluateBalance` refactor) — not involving this branch. I removed my own `--levels` flag and moved the tempest camera-shake out of `renderWorld`'s boss branch to avoid conflicts.
-- Merged tree (re-run after the other branches' latest commits): tsc clean, **234/234 tests pass**. Balance: L1–L5 and L7–L12 inside their windows; **L6 fails** (greedy 6 lives vs Heroic 8–13, weak wins with 3) — an ISLANDS×TOWERS interaction, not enemies. (When resolving the balanceSim conflict, keep TOWERS' `evaluateBalance` *and* its `robustLines` block in `main()` — my scratch resolution dropped it.)
+- Merged tree (re-run at 23:45 UTC with both branches' latest commits): tsc clean, **253/253 tests pass**. Balance: L1–L5 and L7–L12 inside their windows (L10/L11/L12 greedy 8/8/8 lives); **L6 fails** (greedy 6 lives vs Heroic 8–13, weak wins with 3) — an ISLANDS×TOWERS interaction, not enemies.
+- Heads-up for resolving that balanceSim conflict: ISLANDS added a `--robust` HP-sweep table (`robustLines`, declared inside the per-level loop, printed in `main()`), while TOWERS moved the loop into `evaluateBalance()`. Taking TOWERS' side leaves `robustLines` undeclared in `main()` → ReferenceError at the end of the run. Needs manual stitching (return `robustLines` from `evaluateBalance` or move the sweep into `main`).
 - L10–L12 numbers were picked so they pass both on this branch alone and in the merged tree.
 
 ## Decisions
