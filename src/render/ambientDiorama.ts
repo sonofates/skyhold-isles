@@ -146,6 +146,7 @@ export class AmbientDiorama {
   private isletMesh: THREE.InstancedMesh | null = null;
   private cloudMesh: THREE.InstancedMesh | null = null;
   private leafMesh: THREE.InstancedMesh | null = null;
+  private leafRise = false;
   private swarms: FlierSwarm[] = [];
   private islets: IsletPlacement[] = [];
   private clouds: CloudPlacement[] = [];
@@ -312,7 +313,9 @@ export class AmbientDiorama {
 
     // Drifting leaves / petals
     if (spec.leafColors && spec.leafColors.length > 0 && (spec.leafCount ?? 0) > 0) {
-      const leafGeo = new THREE.BoxGeometry(0.13, 0.012, 0.08);
+      const rise = spec.leafRise === true;
+      this.leafRise = rise;
+      const leafGeo = rise ? new THREE.BoxGeometry(0.1, 0.14, 0.1) : new THREE.BoxGeometry(0.13, 0.012, 0.08);
       const merged = mergeColoredParts([{ geometry: leafGeo, colorHex: 0xffffff }]);
       leafGeo.dispose();
       this.disposableGeometries.push(merged);
@@ -391,12 +394,21 @@ export class AmbientDiorama {
       for (let i = 0; i < this.leaves.length; i++) {
         const l = this.leaves[i];
         const frac = (elapsedTime * l.fall + l.phase) % 1;
-        _dummy.position.set(
-          l.x + Math.sin(elapsedTime * 0.7 * l.sway + l.phase * 9) * 1.2 + frac * 1.6,
-          4.2 - frac * 5.0,
-          l.z + Math.cos(elapsedTime * 0.55 * l.sway + l.phase * 5) * 0.9,
-        );
-        _dummy.rotation.set(elapsedTime * l.spin, elapsedTime * l.spin * 0.7, elapsedTime * l.spin * 0.4);
+        if (this.leafRise) {
+          _dummy.position.set(
+            l.x + Math.sin(elapsedTime * 0.35 * l.sway + l.phase * 9) * 0.8 + frac * 0.8,
+            -0.6 + frac * 5.2,
+            l.z + Math.cos(elapsedTime * 0.3 * l.sway + l.phase * 5) * 0.6,
+          );
+          _dummy.rotation.set(0, elapsedTime * 0.4 * l.sway, 0);
+        } else {
+          _dummy.position.set(
+            l.x + Math.sin(elapsedTime * 0.7 * l.sway + l.phase * 9) * 1.2 + frac * 1.6,
+            4.2 - frac * 5.0,
+            l.z + Math.cos(elapsedTime * 0.55 * l.sway + l.phase * 5) * 0.9,
+          );
+          _dummy.rotation.set(elapsedTime * l.spin, elapsedTime * l.spin * 0.7, elapsedTime * l.spin * 0.4);
+        }
         _dummy.scale.setScalar(frac < 0.06 ? frac / 0.06 : frac > 0.92 ? (1 - frac) / 0.08 : 1);
         _dummy.updateMatrix();
         this.leafMesh.setMatrixAt(i, _dummy.matrix);

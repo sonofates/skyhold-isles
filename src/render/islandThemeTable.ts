@@ -431,7 +431,16 @@ const GRAND_SKYHOLD = theme({
       [0xe85d5d, 0xf8f4e8],
     ],
   },
-  ambient: { isletStyle: 'ruin', birds: 5, butterflies: 0, islets: 6, clouds: 8 },
+  ambient: {
+    isletStyle: 'ruin',
+    birds: 5,
+    butterflies: 0,
+    islets: 6,
+    clouds: 8,
+    leafColors: [0xf6bd41, 0xffd98a, 0xf28729],
+    leafCount: 12,
+    leafRise: true,
+  },
   setPieces: [
     { kind: 'watchtower', col: 8, row: 0, variant: 0, scale: 0.9 },
     { kind: 'watchtower', col: 14, row: 0, variant: 1, scale: 0.9 },

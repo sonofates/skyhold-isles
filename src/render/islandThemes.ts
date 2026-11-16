@@ -90,6 +90,8 @@ export interface AmbientSpec {
   /** Colour of the extra floating "sky petals" / leaves (0 = none). */
   readonly leafColors?: readonly number[];
   readonly leafCount?: number;
+  /** Leaves float UP as small glowing lanterns (box shape, slower sway) instead of falling. */
+  readonly leafRise?: boolean;
 }
 
 export type GoalDeco = 'none' | 'pillars' | 'goldPillars' | 'shards' | 'sheaves' | 'shells' | 'poles';
