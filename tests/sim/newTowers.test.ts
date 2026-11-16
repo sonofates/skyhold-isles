@@ -162,6 +162,32 @@ describe('beacon', () => {
     expect(acquireTarget(tower, stats, world.enemyPool, world.spatialHash)?.uid).toBe(g.uid);
   });
 
+  it('selling the beacon removes its buff on the next tick and refunds like any tower', () => {
+    const { world } = makeWorld();
+    const archer = world.placeTower(4, 2, 'archer')!;
+    const beacon = world.placeTower(5, 2, 'beacon')!;
+    world.combatSystem.update(BALANCE.fixedDt, world.towers);
+    expect(archer.auraRate).toBeGreaterThan(0);
+    const before = world.gold;
+    const refund = world.sellTower(beacon.id);
+    expect(refund).toBeGreaterThan(0);
+    expect(world.gold).toBe(before + refund);
+    world.combatSystem.update(BALANCE.fixedDt, world.towers);
+    expect(archer.auraRate).toBe(0);
+    expect(archer.auraRange).toBe(0);
+  });
+
+  it('upgrading the beacon strengthens the aura immediately', () => {
+    const { world } = makeWorld();
+    const archer = world.placeTower(4, 2, 'archer')!;
+    const beacon = world.placeTower(5, 2, 'beacon')!;
+    world.combatSystem.update(BALANCE.fixedDt, world.towers);
+    const t1 = archer.auraRate;
+    world.upgradeTower(beacon.id);
+    world.combatSystem.update(BALANCE.fixedDt, world.towers);
+    expect(archer.auraRate).toBeGreaterThan(t1);
+  });
+
   it('emits beaconPulse events and never towerFired', () => {
     const { world, events } = makeWorld();
     world.placeTower(5, 2, 'beacon');

@@ -32,6 +32,8 @@ tsc, lint, 52 vitest tests, sim:balance all green on `cfb9330`.
 
 - [r3] Verified all green on resume (tsc, lint, tests, build, sim:balance all 9 islands pass). Audio: soft DynamicsCompressor limiter on master output (no clipping in dense waves). New `tests/sim/determinism.test.ts` (two runs of full 7-tower T3 roster are identical).
 
+- [r4] Verified all green on resume (tsc, lint, 95 tests, build-free check, sim:balance all 9 islands pass; greedy lives L1..L9 = 20,15,10,13,14,10... see sim summary). Added beacon sell/upgrade aura tests. Enemy hit-flash already existed (`aFlash` attribute in enemyMeshes), so no extra work needed there.
+
 ## Next (ideas for later rounds)
 - Frost Brittle damage numbers could be tinted (needs sessionBridge/UI, outside my area).
 - Beacon aura could preview coverage on attack-tower placement (needs overlay work in `overlayIndicators.ts`).
