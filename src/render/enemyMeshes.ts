@@ -133,7 +133,7 @@ export class EnemyRenderer {
 
     for (let i = 0; i < ENEMY_TYPES.length; i++) {
       const type = ENEMY_TYPES[i];
-      const geo = this.buildEnemyGeometry(type);
+      const geo = EnemyRenderer.buildEnemyGeometry(type);
       this.geometries.push(geo);
 
       const flashArray = new Float32Array(cap);
@@ -455,7 +455,8 @@ export class EnemyRenderer {
     this.eliteRingMesh.visible = false;
   }
 
-  private buildEnemyGeometry(type: EnemyType): THREE.BufferGeometry {
+  /** Merged flat-shaded figurine geometry for one enemy type (static so tests can inspect it). */
+  static buildEnemyGeometry(type: EnemyType): THREE.BufferGeometry {
     const chamfer = createChamferedBoxGeometry();
     const box = new THREE.BoxGeometry(1, 1, 1);
     const cone = new THREE.ConeGeometry(1, 1, 5);
