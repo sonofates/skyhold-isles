@@ -11,6 +11,7 @@
     "test": "vitest run",
     "sim:balance": "tsx scripts/balanceSim.ts",
     "sim:fuzz": "tsx scripts/fuzzPlay.ts",
+    "sim:bench": "tsx scripts/simBench.ts",
     "ci": "tsx scripts/ci.ts"
   },
   "devDependencies": {
