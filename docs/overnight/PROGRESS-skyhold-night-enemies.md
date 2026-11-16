@@ -8,9 +8,9 @@ Started 2026-11-16 23:00 UTC (02:00 TR). Deadline 06:00 UTC (09:00 TR).
 - [x] Sim extension: extra ground spawn lanes (`LevelDef.extraGroundPaths`, `WaveGroupDef.lane`) + render support (`tests/sim/lanes.test.ts`, incl. layout validation for every island)
 - [x] 4. New boss `tempest` (Tempest Colossus) — sim/mesh/FX/tests (built before L12 so the island can use it)
 - [x] 3. New islands
-  - [x] L10 **Confluence Terraces** (`level10.ts`): two spawn lanes (west causeway = lane 0, northern switchback = lane 1) merge at a crossroads; introduces mites (w2), wardens (w3), burrowers (w4); Dreadnought at w10 and w20 with elite wardens/brutes. enemyHpScale 0.965 → greedy W 6 lives here / 8 lives in the 3-branch dry-run merge; weak loses ~w10.
+  - [x] L10 **Confluence Terraces** (`level10.ts`): two spawn lanes (west causeway = lane 0, northern switchback = lane 1) merge at a crossroads; introduces mites (w2), wardens (w3), burrowers (w4); Dreadnought at w10 and w20 with elite wardens/brutes. enemyHpScale 1.01 (late clearBonus trimmed, heavier w19/w20 elites after the targeting fix) → greedy W 5 lives here / 9 in the 3-branch dry-run merge (merged plateau 1.005–1.03, here 0.96–1.015); weak loses ~w8.
   - [x] L11 **Galewatch Spires** (`level11.ts`, helper agent): road loops a central plateau and a void "gale chasm"; the sky lane is 87% of the road length and slaloms over buildable land. Haulers w3, blinkers w4, golems w6, elites from w16, Dreadnought w10 and w20 (bosses arrive last so haulers don't slip by under boss focus). Greedy W 7 lives 1★ here (passes 1.19–1.24 except a 13-life spike at 1.205) / 8 lives merged (passes 1.20–1.22), weak loses w16–17. Leaks are mostly haulers + their dropped raiders (by design: ground defence isn't the limiter here).
-  - [x] L12 **Stormcrown Citadel** (`level12.ts`, helper agent): 18x14 spiral fortress; main road coils inward through 3 rings to a central storm altar, northern war-road (lane 1) joins the inner ring at (13,7); every new archetype, lane-1 pressure in 16/22 waves, 6 elite groups (w18–22), Dreadnought w11, Tempest Colossus walks the whole spiral in w22 (Stormwall on the outer ring, enrages ~inner court; greedy kills it with 2–9% HP to spare). enemyHpScale 1.64 → greedy W 7 here / 8 merged; weak loses ~w16.
+  - [x] L12 **Stormcrown Citadel** (`level12.ts`, helper agent): 18x14 spiral fortress; main road coils inward through 3 rings to a central storm altar, northern war-road (lane 1) joins the inner ring at (13,7); every new archetype, lane-1 pressure in 16/22 waves, 6 elite groups (w18–22), Dreadnought w11, Tempest Colossus walks the whole spiral in w22 (Stormwall on the outer ring, enrages ~inner court; greedy kills it with 2–9% HP to spare). enemyHpScale 1.65 → greedy W 7 here / 9 merged; weak loses ~w15.
 - [x] 5. Polish: hit/death FX, readability, more tests
   - [x] FX for every new mechanic (`enemyFx.ts`), blinker flicker + burrower mound bulge telegraphs, elite ring, shield bubble, blue glint when a barrier soaks a hit (`shieldAbsorb`)
   - [x] mesh polish after a rasterised preview (rounder burrower, striped balloon)
@@ -41,7 +41,7 @@ New tests: `tests/sim/newEnemies.test.ts`, `tests/sim/lanes.test.ts`, `tests/sim
 ## Morning merge dry-run (done on this branch, repo untouched)
 `python3 .wt/trymerge.py .wt/m3 cfb9330 hermes/skyhold-night-islands hermes/skyhold-night-towers` (scratch copy via `git merge-file`; `.wt/` is git-ignored and only exists on hermes):
 - Only textual conflict: `scripts/balanceSim.ts` between ISLANDS (`--levels` flag) and TOWERS (`evaluateBalance` refactor) — not involving this branch. I removed my own `--levels` flag and moved the tempest camera-shake out of `renderWorld`'s boss branch to avoid conflicts.
-- Merged tree (re-run at 23:45 UTC with both branches' latest commits): tsc clean, **253/253 tests pass**. Balance: L1–L5 and L7–L12 inside their windows (L10/L11/L12 greedy 8/8/8 lives); **L6 fails** (greedy 6 lives vs Heroic 8–13, weak wins with 3) — an ISLANDS×TOWERS interaction, not enemies.
+- Merged tree (re-run after the review fixes with both branches' latest commits): tsc clean, **256/256 tests pass**. Balance: L1–L5 and L7–L12 inside their windows (L10/L11/L12 greedy 9/8/9 lives); **L6 fails** (greedy 6 lives vs Heroic 8–13, weak wins with 3) — an ISLANDS×TOWERS interaction, not enemies.
 - Heads-up for resolving that balanceSim conflict: ISLANDS added a `--robust` HP-sweep table (`robustLines`, declared inside the per-level loop, printed in `main()`), while TOWERS moved the loop into `evaluateBalance()`. Taking TOWERS' side leaves `robustLines` undeclared in `main()` → ReferenceError at the end of the run. Needs manual stitching (return `robustLines` from `evaluateBalance` or move the sweep into `main`).
 - L10–L12 numbers were picked so they pass both on this branch alone and in the merged tree.
 
@@ -49,6 +49,11 @@ New tests: `tests/sim/newEnemies.test.ts`, `tests/sim/lanes.test.ts`, `tests/sim
 - Sim cost: full greedy runs (Node, whole level incl. build script) — L9 683 ms, L10 257 ms, L11 332 ms, L12 557 ms → the new archetypes/levels are not heavier than L9.
 - Render: +3 instanced layers (burrow mound, shield bubble 80 tris, elite ring) + one layer per new type (hidden when count 0); no per-frame allocations in `EnemyRenderer.update`; FX reuse the pooled particle/ring/shard buckets.
 - A wider local fuzz (192 seeded runs over all 12 islands, not committed) found no invariant violations.
+
+## Independent review (sub-agent, read-only) — fixed
+1. Burrower could reach the goal while underground (dive started 4.0–4.9 from the goal; 8.5% of arrivals). Now a dive only starts if it ends ≥3 before the goal, and a burrower still underground inside that stretch pops up at once. Test sweeps 24 phases × 12 islands incl. slowed dives.
+2. First/Last targeting compared `dist/totalDist` across lanes of different length (L12: 118 vs 57) → wrong order on the shared stretch. Now uses `(dist + laneProgressOffset) / (totalDist + laneProgressOffset)`; offset is 0 on the main road and for flyers, so L1–L9 results are bit-identical (verified). Cross-area: 2 lines in `src/sim/targeting.ts` (merges cleanly with TOWERS' `auraRange` line).
+3. Two new types spawning <7 s apart (endless) overwrote the first 'New foe' toast yet marked it seen. Now 6 s min gap; a type is marked seen only when its hint is shown.
 
 ## Decisions
 - New enemies only appear in L10+ and endless → L1-L9 balance untouched.
