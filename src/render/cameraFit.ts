@@ -177,8 +177,8 @@ export function computePlayableFit(
   const spanY = Math.max(1e-3, play.maxY - play.minY);
   let zPlay: number;
   if (o.kind === 'portrait') zPlay = (freeW * 1.05) / (spanX * ppu1);
-  else if (o.kind === 'landscape-phone') zPlay = freeH / (spanY * ppu1);
-  else zPlay = Math.min((freeW * 1.0) / (spanX * ppu1), (freeH * 1.0) / (spanY * ppu1));
+  else if (o.kind === 'landscape-phone') zPlay = (freeH * 0.95) / (spanY * ppu1);
+  else zPlay = Math.min((freeW * 0.92) / (spanX * ppu1), (freeH * 0.9) / (spanY * ppu1));
   const zoom = Math.max(whole, zPlay);
   const placed = computeFit(play, { ...o, fill: 1, minZoom: zoom, maxZoom: zoom });
   return { ...placed, zoom, minZoom: whole, maxZoom: zoom * o.maxZoomFactor };
