@@ -1,4 +1,4 @@
-import { DEFAULT_THEME, type IslandTheme, type SetPieceSpec } from './islandThemes.ts';
+import { DEFAULT_THEME, type IslandTheme } from './islandThemes.ts';
 
 /**
  * Authored visual identity for each island (keyed by level id). Everything here is render-only.
@@ -25,21 +25,31 @@ function theme(overrides: ThemeInput): IslandTheme {
   };
 }
 
-const NO_PIECES: readonly SetPieceSpec[] = [];
-
 /** L1 — Sunlit Meadow: cosy wildflower meadow with a cottage; the friendly reference look. */
 const SUNLIT_MEADOW = theme({
   grassTint: [1.03, 1.05, 0.97],
   trees: { density: 0.5, weights: { oak: 0.38, tree: 0.22, treeLarge: 0.2, blossom: 0.2 } },
   details: { flowerMul: 2.1, pebbleMul: 0.7, tuftMul: 1.1 },
   ambient: { birds: 3, butterflies: 7, islets: 4, clouds: 5 },
-  setPieces: NO_PIECES,
+  setPieces: [
+    { kind: 'cottage', col: 9, row: 2 },
+    { kind: 'banner', col: 0, row: 1, variant: 0 },
+    { kind: 'banner', col: 0, row: 3, variant: 0 },
+    { kind: 'banner', col: 13, row: 7, variant: 2 },
+    { kind: 'banner', col: 13, row: 9, variant: 2 },
+    { kind: 'hayBales', col: 4, row: 7, yaw: 0.4 },
+    { kind: 'boat', col: 9.5, row: 10.7, variant: 0 },
+  ],
 });
 
 /** L2 — Twin-Bridge Cay: sun-bleached harbour cay with docks, boats and sandy shores. */
 const TWIN_BRIDGE_CAY = theme({
   grassTint: [1.0, 1.06, 0.96],
-  ground: [{ kind: 'sand', where: 'shore', chance: 0.6 }],
+  ground: [
+    { kind: 'sand', where: 'zone', zone: { col: 9, row: 1, radius: 1.5 } },
+    { kind: 'sand', where: 'zone', zone: { col: 9, row: 6, radius: 1.5 } },
+    { kind: 'sand', where: 'zone', zone: { col: 10, row: 9, radius: 1.6 } },
+  ],
   cliff: {
     stones: [0xb7b09a, 0xc6bea6],
     bedrocks: [0x8c8d8f, 0x7b7e84],
@@ -50,7 +60,18 @@ const TWIN_BRIDGE_CAY = theme({
   trees: { density: 0.4, weights: { palm: 0.3, oak: 0.25, tree: 0.22, treeLarge: 0.23 } },
   details: { flowerMul: 0.8, pebbleMul: 1.3, shells: true },
   ambient: { birds: 6, butterflies: 0, islets: 4, clouds: 5 },
-  setPieces: NO_PIECES,
+  setPieces: [
+    { kind: 'dock', col: 9, row: 1, yaw: -Math.PI / 2, variant: 0 },
+    { kind: 'dock', col: 9, row: 6, yaw: -Math.PI / 2, variant: 1 },
+    { kind: 'dock', col: 10, row: 9, yaw: 0, variant: 0 },
+    { kind: 'brazier', col: 14, row: 3 },
+    { kind: 'brazier', col: 14, row: 6 },
+    { kind: 'banner', col: 1, row: 3, variant: 3 },
+    { kind: 'banner', col: 1, row: 8, variant: 0 },
+    { kind: 'seaStack', col: 7.6, row: 11, variant: 1 },
+    { kind: 'boat', col: 7.5, row: 5.5, variant: 1 },
+    { kind: 'cottage', col: 5, row: 2, yaw: 0.2, variant: 1 },
+  ],
 });
 
 /** L3 — Highland Citadel: cold alpine keep — pines, dark cobble courtyards, tall cliffs, waterfall, banners. */
@@ -78,7 +99,16 @@ const HIGHLAND_CITADEL = theme({
     ],
   },
   ambient: { birds: 4, butterflies: 0, islets: 4, clouds: 6 },
-  setPieces: NO_PIECES,
+  setPieces: [
+    { kind: 'watchtower', col: 7, row: 3, variant: 0 },
+    { kind: 'banner', col: 5, row: 4, variant: 1 },
+    { kind: 'banner', col: 10, row: 4, variant: 1 },
+    { kind: 'waterfall', col: 15, row: 5, yaw: Math.PI / 2 },
+    { kind: 'waterfall', col: 14, row: 9, yaw: Math.PI / 2 },
+    { kind: 'brazier', col: 2, row: 7 },
+    { kind: 'brazier', col: 11, row: 8 },
+    { kind: 'seaStack', col: 0.2, row: 9.2, variant: 0 },
+  ],
 });
 
 /** L4 — Emerald Stepping Stones: mossy emerald terraces studded with glowing crystal groves. */
@@ -102,7 +132,16 @@ const EMERALD_STEPPING_STONES = theme({
     ],
   },
   ambient: { birds: 2, butterflies: 8, islets: 5, clouds: 5 },
-  setPieces: NO_PIECES,
+  setPieces: [
+    { kind: 'crystalGrove', col: 11, row: 1, variant: 0 },
+    { kind: 'crystalGrove', col: 11, row: 4, variant: 1 },
+    { kind: 'crystalGrove', col: 7, row: 9, variant: 0 },
+    { kind: 'crystalGrove', col: 14, row: 7, variant: 1 },
+    { kind: 'crystalGrove', col: 12, row: 11, variant: 0 },
+    { kind: 'crystalGrove', col: 1, row: 6, variant: 1 },
+    { kind: 'seaStack', col: 4.6, row: 2.2, variant: 2 },
+    { kind: 'seaStack', col: 10.3, row: 6.4, variant: 2 },
+  ],
 });
 
 /** L5 — Windmill Switchback: golden harvest farmland with windmills, hay and autumn trees. */
@@ -141,7 +180,15 @@ const WINDMILL_SWITCHBACK = theme({
     leafColors: [0xf28729, 0xf6bd41, 0xe85d5d],
     leafCount: 14,
   },
-  setPieces: NO_PIECES,
+  setPieces: [
+    { kind: 'windmill', col: 8, row: 4, yaw: 0, variant: 0 },
+    { kind: 'windmill', col: 1, row: 4, yaw: Math.PI / 2, variant: 1, scale: 0.85 },
+    { kind: 'hayBales', col: 8, row: 10, yaw: 0.3 },
+    { kind: 'hayBales', col: 12, row: 0, yaw: -0.4 },
+    { kind: 'hayBales', col: 1, row: 0, yaw: 0.8 },
+    { kind: 'scarecrow', col: 13, row: 4, yaw: -0.5 },
+    { kind: 'scarecrow', col: 2, row: 10, yaw: 0.3 },
+  ],
 });
 
 /** L6 — Crescent Lagoon: tropical atoll — pale sand ring, palms, lighthouse in the lagoon, coral flowers. */
@@ -171,7 +218,16 @@ const CRESCENT_LAGOON = theme({
     ],
   },
   ambient: { birds: 7, butterflies: 0, islets: 5, clouds: 5 },
-  setPieces: NO_PIECES,
+  setPieces: [
+    { kind: 'lighthouse', col: 6, row: 6.2 },
+    { kind: 'boat', col: 5, row: 7.6, variant: 0 },
+    { kind: 'boat', col: 7.4, row: 4.5, variant: 1 },
+    { kind: 'dock', col: 1, row: 5, yaw: -Math.PI / 2, variant: 0 },
+    { kind: 'dock', col: 15, row: 5, yaw: Math.PI / 2, variant: 1 },
+    { kind: 'dock', col: 2, row: 8, yaw: 0, variant: 1 },
+    { kind: 'seaStack', col: 3.4, row: 11, variant: 1 },
+    { kind: 'seaStack', col: 14.8, row: 11.4, variant: 0 },
+  ],
 });
 
 /** L7 — Skybridge Gauntlet: wind-scoured cliffside forts, stone bridges, dizzying drops. */
@@ -193,7 +249,20 @@ const SKYBRIDGE_GAUNTLET = theme({
   decorBake: { rockChance: 0.5, shrubChance: 0.18, crystalChance: 0.08 },
   details: { flowerMul: 0.25, pebbleMul: 2.2, tuftMul: 0.7 },
   ambient: { birds: 4, butterflies: 0, islets: 5, clouds: 7 },
-  setPieces: NO_PIECES,
+  setPieces: [
+    { kind: 'watchtower', col: 6, row: 5, yaw: Math.PI / 2, variant: 0 },
+    { kind: 'watchtower', col: 12, row: 4, yaw: -Math.PI / 2, variant: 1 },
+    { kind: 'watchtower', col: 3, row: 7, variant: 0 },
+    { kind: 'watchtower', col: 13, row: 7, variant: 1 },
+    { kind: 'banner', col: 1, row: 5, variant: 1 },
+    { kind: 'banner', col: 15, row: 4, variant: 1 },
+    { kind: 'banner', col: 14, row: 1, variant: 0 },
+    { kind: 'banner', col: 1, row: 11, variant: 0 },
+    { kind: 'arch', col: 15, row: 9, yaw: Math.PI / 2, variant: 1 },
+    { kind: 'seaStack', col: 8, row: 6, variant: 0 },
+    { kind: 'seaStack', col: 8.2, row: 11.6, variant: 1 },
+    { kind: 'seaStack', col: 7.8, row: 0.6, variant: 0 },
+  ],
 });
 
 /** L8 — Sunken Bastion: half-drowned ruined bastion, mossy cobbles, torches and indigo banners. */
@@ -223,7 +292,23 @@ const SUNKEN_BASTION = theme({
     ],
   },
   ambient: { birds: 3, butterflies: 0, islets: 4, clouds: 6 },
-  setPieces: NO_PIECES,
+  setPieces: [
+    { kind: 'arch', col: 7.5, row: 3, variant: 3 },
+    { kind: 'pillars', col: 4, row: 6.5, variant: 2 },
+    { kind: 'ruinWall', col: 11, row: 5, yaw: Math.PI / 2, variant: 3 },
+    { kind: 'ruinWall', col: 7.5, row: 8.6, variant: 2 },
+    { kind: 'watchtower', col: 14, row: 3, yaw: -Math.PI / 2, variant: 1 },
+    { kind: 'watchtower', col: 1, row: 9, yaw: Math.PI / 2, variant: 0 },
+    { kind: 'watchtower', col: 14, row: 9, yaw: -Math.PI / 2, variant: 1 },
+    { kind: 'banner', col: 13, row: 0, variant: 1 },
+    { kind: 'banner', col: 10, row: 0, variant: 1 },
+    { kind: 'banner', col: 5, row: 0, variant: 1 },
+    { kind: 'banner', col: 2, row: 0, variant: 1 },
+    { kind: 'brazier', col: 1, row: 6 },
+    { kind: 'brazier', col: 15, row: 5 },
+    { kind: 'brazier', col: 2, row: 11 },
+    { kind: 'brazier', col: 6, row: 11 },
+  ],
 });
 
 /** L9 — Grand Skyhold: crown citadel — marble cobbles, golden banners, corner towers, regal blossoms. */
@@ -250,7 +335,24 @@ const GRAND_SKYHOLD = theme({
     ],
   },
   ambient: { birds: 5, butterflies: 0, islets: 6, clouds: 8 },
-  setPieces: NO_PIECES,
+  setPieces: [
+    { kind: 'watchtower', col: 7, row: 1, variant: 0 },
+    { kind: 'watchtower', col: 15, row: 1, variant: 1 },
+    { kind: 'watchtower', col: 13, row: 11, variant: 1 },
+    { kind: 'watchtower', col: 8, row: 11, variant: 0 },
+    { kind: 'obelisk', col: 12, row: 6 },
+    { kind: 'banner', col: 8, row: 0, variant: 2 },
+    { kind: 'banner', col: 11, row: 0, variant: 2 },
+    { kind: 'banner', col: 14, row: 0, variant: 2 },
+    { kind: 'banner', col: 6, row: 2, variant: 1 },
+    { kind: 'banner', col: 16, row: 4, variant: 2 },
+    { kind: 'banner', col: 16, row: 7, variant: 2 },
+    { kind: 'brazier', col: 13, row: 9 },
+    { kind: 'brazier', col: 2, row: 10 },
+    { kind: 'brazier', col: 3, row: 8 },
+    { kind: 'pillars', col: 2, row: 1, variant: 0 },
+    { kind: 'pillars', col: 1, row: 2, variant: 1 },
+  ],
 });
 
 const THEME_TABLE: Readonly<Record<string, IslandTheme>> = {
