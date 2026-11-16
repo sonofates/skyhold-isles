@@ -25,10 +25,21 @@ for (const L of LEVELS) {
       cov.add(`${Math.round(a.col + ((b.col - a.col) * k) / n)},${Math.round(a.row + ((b.row - a.row) * k) / n)}`);
     }
   }
+  const towerMark: Record<string, string> = { archer: 'A', cannon: 'C', frost: 'F', tesla: 'Z', mortar: 'M' };
+  const towers = new Map<string, string>();
+  for (const a of L.scriptedBuildOrder ?? []) {
+    if (a.action === 'build' && a.towerType) towers.set(`${a.col},${a.row}`, towerMark[a.towerType]);
+  }
   console.log(
     rows
       .map((r, ri) =>
-        r.map((c, ci) => (cov.has(`${ci},${ri}`) ? (c === '.' || c === 'T' ? '*' : c.toLowerCase()) : c)).join(' '),
+        r
+          .map((c, ci) => {
+            const t = towers.get(`${ci},${ri}`);
+            if (t) return t;
+            return cov.has(`${ci},${ri}`) ? (c === '.' || c === 'T' ? '*' : c.toLowerCase()) : c;
+          })
+          .join(' '),
       )
       .join('\n'),
   );

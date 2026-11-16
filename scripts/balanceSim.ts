@@ -15,7 +15,7 @@ interface WaveStatRow {
   leaksByType: Partial<Record<EnemyType, number>>;
 }
 
-interface SimRunResult {
+export interface SimRunResult {
   levelId: string;
   name: string;
   scriptKind: ScriptKind;
@@ -27,6 +27,8 @@ interface SimRunResult {
   goldSpent: number;
   finalGold: number;
   endGoldPctOfEarned: number;
+  /** Unspent gold when the final wave starts, as % of gold earned before it (the final wave's own income can't be spent). */
+  lastWaveHoardPct: number;
   towersBuilt: number;
   plannedTowers: number;
   targetingChanges: number;
@@ -82,7 +84,7 @@ function tryExecuteAction(
   return { executed: true, invalid: false, cost, isBuild: false, changedTargeting: false };
 }
 
-function runLevelBalanceSim(
+export function runLevelBalanceSim(
   level: LevelDef,
   scriptKind: ScriptKind,
   scriptActions: readonly ScriptedBuildAction[],
@@ -94,6 +96,7 @@ function runLevelBalanceSim(
   const waveRows: WaveStatRow[] = [];
   let activeWaveRow: WaveStatRow | null = null;
   let goldEarned = 0;
+  let earnedBeforeLastWave = 0;
   let goldSpent = 0;
   let towersBuilt = 0;
   let targetingChanges = 0;
@@ -101,6 +104,7 @@ function runLevelBalanceSim(
 
   events.on('waveStarted', (ev) => {
     goldEarned += ev.earlyBonus;
+    if (ev.waveIndex === level.waves.length - 1) earnedBeforeLastWave = goldEarned;
     activeWaveRow = {
       waveNumber: ev.waveIndex + 1,
       startGold: world.gold,
@@ -157,7 +161,7 @@ function runLevelBalanceSim(
   let combatCooldown = COMBAT_COOLDOWN_SEC;
   let wasBetweenWaves = false;
 
-  const maxTicks = 60 * 1400;
+  const maxTicks = 60 * 2600;
   for (let tick = 0; tick < maxTicks && world.outcome === 'ongoing'; tick++) {
     const state = world.waveSystem.state;
     if (state === 'betweenWaves') {
@@ -181,6 +185,9 @@ function runLevelBalanceSim(
     world.fixedTick(BALANCE.fixedDt);
   }
 
+  const lastRow = waveRows[waveRows.length - 1];
+  const lastWaveHoardPct =
+    lastRow && earnedBeforeLastWave > 0 ? (lastRow.startGold / earnedBeforeLastWave) * 100 : 0;
   const endGoldPctOfEarned = goldEarned > 0 ? (world.gold / goldEarned) * 100 : 0;
 
   return {
@@ -195,6 +202,7 @@ function runLevelBalanceSim(
     goldSpent,
     finalGold: world.gold,
     endGoldPctOfEarned,
+    lastWaveHoardPct,
     towersBuilt,
     plannedTowers,
     targetingChanges,
@@ -213,7 +221,7 @@ function printResult(lvlIdx: number, res: SimRunResult, difficulty: string): voi
   );
   console.log(
     `           Start: ${res.startingGold}g | Earned: ${res.goldEarned}g | Spent: ${res.goldSpent}g | ` +
-      `End Gold: ${res.finalGold}g (${res.endGoldPctOfEarned.toFixed(1)}% of earned) | ` +
+      `End Gold: ${res.finalGold}g (${res.endGoldPctOfEarned.toFixed(1)}% of earned; ${res.lastWaveHoardPct.toFixed(1)}% hoarded at final wave start) | ` +
       `RemainingSteps: ${res.unspentScriptActions} | Invalid: ${res.invalidActions}`,
   );
   if (res.scriptKind === 'greedy' || res.outcome === 'lost' || res.finalLives < 20) {
@@ -234,134 +242,138 @@ function printResult(lvlIdx: number, res: SimRunResult, difficulty: string): voi
   }
 }
 
-console.log('=== Skyhold Isles Headless Balance Simulator (60 Hz Human-Paced) ===\n');
+function main(): void {
+  console.log('=== Skyhold Isles Headless Balance Simulator (60 Hz Human-Paced) ===\n');
 
-// Optional filter for quicker iteration, e.g. `LEVELS=3,6 npm run sim:balance`.
-const levelFilter = process.env.LEVELS
-  ? new Set(process.env.LEVELS.split(',').map((x) => Number(x.trim()) - 1))
-  : null;
+  // Optional filter for quicker iteration, e.g. `LEVELS=3,6 npm run sim:balance`.
+  const levelFilter = process.env.LEVELS
+    ? new Set(process.env.LEVELS.split(',').map((x) => Number(x.trim()) - 1))
+    : null;
 
-/** Greedy (competent build script) lives-left window per difficulty label. */
-const GREEDY_LIVES: Record<LevelDef['difficulty'], readonly [number, number]> = {
-  Breezy: [18, 20],
-  Challenging: [12, 16],
-  Heroic: [8, 13],
-  Master: [5, 10],
-};
-/** Max share of lives lost to flyers in a greedy run / a lost weak run. */
-const MAX_FLYER_SHARE_GREEDY = 0.55;
-const MAX_FLYER_SHARE_WEAK_LOSS = 0.7;
+  /** Greedy (competent build script) lives-left window per difficulty label. */
+  const GREEDY_LIVES: Record<LevelDef['difficulty'], readonly [number, number]> = {
+    Breezy: [18, 20],
+    Challenging: [12, 16],
+    Heroic: [8, 13],
+    Master: [5, 10],
+  };
+  /** Max share of lives lost to flyers in a greedy run / a lost weak run. */
+  const MAX_FLYER_SHARE_GREEDY = 0.55;
+  const MAX_FLYER_SHARE_WEAK_LOSS = 0.7;
 
-function livesLostTotals(res: SimRunResult): { total: number; flyers: number; byType: Partial<Record<EnemyType, number>> } {
-  const byType: Partial<Record<EnemyType, number>> = {};
-  let total = 0;
-  for (const w of res.waves) {
-    total += w.livesLost;
-    for (const [k, v] of Object.entries(w.leaksByType)) {
-      byType[k as EnemyType] = (byType[k as EnemyType] ?? 0) + (v ?? 0);
+  function livesLostTotals(res: SimRunResult): { total: number; flyers: number; byType: Partial<Record<EnemyType, number>> } {
+    const byType: Partial<Record<EnemyType, number>> = {};
+    let total = 0;
+    for (const w of res.waves) {
+      total += w.livesLost;
+      for (const [k, v] of Object.entries(w.leaksByType)) {
+        byType[k as EnemyType] = (byType[k as EnemyType] ?? 0) + (v ?? 0);
+      }
+    }
+    const flyers = byType.flyer ?? 0;
+    return { total, flyers, byType };
+  }
+
+  const failures: string[] = [];
+  const summary: string[] = [];
+
+  for (let i = 0; i < LEVELS.length; i++) {
+    if (levelFilter && !levelFilter.has(i)) continue;
+    const level = LEVELS[i];
+    const greedyRes = runLevelBalanceSim(level, 'greedy', level.scriptedBuildOrder ?? []);
+    printResult(i, greedyRes, level.difficulty);
+
+    const weakRes = runLevelBalanceSim(level, 'weak', level.weakBuildOrder ?? []);
+    printResult(i, weakRes, level.difficulty);
+    console.log('');
+
+    const gT = livesLostTotals(greedyRes);
+    const wT = livesLostTotals(weakRes);
+    const fmt = (t: ReturnType<typeof livesLostTotals>): string =>
+      Object.entries(t.byType)
+        .map(([k, v]) => `${k}:${v}`)
+        .join(' ') || '-';
+    summary.push(
+      `L${i + 1} ${level.difficulty.padEnd(11)} greedy ${greedyRes.outcome === 'won' ? 'W' : greedyRes.outcome === 'lost' ? 'L' : '?'} ` +
+        `${String(greedyRes.finalLives).padStart(2)}L ${greedyRes.stars}* leaks[${fmt(gT)}] | ` +
+        `weak ${weakRes.outcome === 'won' ? 'W' : weakRes.outcome === 'lost' ? 'L' : '?'} ` +
+        `${String(weakRes.finalLives).padStart(2)}L ${weakRes.stars}* (reached wave ${weakRes.waves.length}/${level.waves.length}) leaks[${fmt(wT)}]`,
+    );
+
+    if (greedyRes.outcome !== 'won') {
+      failures.push(`L${i + 1} greedy did not win`);
+    }
+    const [gMin, gMax] = GREEDY_LIVES[level.difficulty];
+    if (greedyRes.finalLives < gMin || greedyRes.finalLives > gMax) {
+      failures.push(`L${i + 1} greedy lives ${greedyRes.finalLives} outside ${level.difficulty} window ${gMin}-${gMax}`);
+    }
+    if (gT.total >= 4 && gT.flyers / gT.total > MAX_FLYER_SHARE_GREEDY) {
+      failures.push(`L${i + 1} greedy flyer leaks dominate (${gT.flyers}/${gT.total} lives)`);
+    }
+    if (weakRes.outcome === 'lost' && wT.total >= 4 && wT.flyers / wT.total > MAX_FLYER_SHARE_WEAK_LOSS) {
+      failures.push(`L${i + 1} weak loss dominated by flyers (${wT.flyers}/${wT.total} lives)`);
+    }
+    if (greedyRes.lastWaveHoardPct >= 15) {
+      failures.push(`L${i + 1} greedy hoards ${greedyRes.lastWaveHoardPct.toFixed(1)}% of earned gold at final wave start (>= 15%)`);
+    }
+    if (greedyRes.invalidActions > 0) {
+      failures.push(`L${i + 1} greedy has ${greedyRes.invalidActions} invalid actions`);
+    }
+    if (weakRes.invalidActions > 0) {
+      failures.push(`L${i + 1} weak has ${weakRes.invalidActions} invalid actions`);
+    }
+    if (weakRes.targetingChanges > 0) {
+      failures.push(`L${i + 1} weak used ${weakRes.targetingChanges} targeting mode changes (expected 0)`);
+    }
+
+    const weakPlanRatio =
+      greedyRes.plannedTowers > 0 ? weakRes.plannedTowers / greedyRes.plannedTowers : 1;
+    if (weakPlanRatio > 0.74 || weakPlanRatio < 0.64) {
+      failures.push(
+        `L${i + 1} weak planned towers (${weakRes.plannedTowers}/${greedyRes.plannedTowers} = ${(weakPlanRatio * 100).toFixed(0)}%) should be ~70%`,
+      );
+    }
+
+    if (level.difficulty === 'Breezy' && greedyRes.stars !== 3) {
+      failures.push(`L${i + 1} greedy got ${greedyRes.stars} stars (expected 3)`);
+    }
+    if (level.difficulty === 'Challenging' && greedyRes.stars !== 2) {
+      failures.push(`L${i + 1} greedy got ${greedyRes.stars} stars (expected 2)`);
+    }
+    if ((level.difficulty === 'Heroic' || level.difficulty === 'Master') && (greedyRes.stars < 1 || greedyRes.stars > 2)) {
+      failures.push(`L${i + 1} greedy got ${greedyRes.stars} stars (expected 1-2)`);
+    }
+
+    if (level.difficulty === 'Breezy') {
+      if (weakRes.outcome !== 'won') {
+        failures.push(`L${i + 1} weak must still be winnable`);
+      } else if (weakRes.stars === 3) {
+        failures.push(`L${i + 1} weak won with 3 stars (${weakRes.finalLives} lives); expected 1-2 stars`);
+      }
+    }
+    if (level.difficulty === 'Challenging') {
+      if (weakRes.outcome === 'won' && weakRes.finalLives > 8) {
+        failures.push(`L${i + 1} weak too comfortable (${weakRes.finalLives} lives left; expected borderline <= 8)`);
+      }
+      if (weakRes.outcome === 'lost' && weakRes.waves.length < Math.ceil(level.waves.length * 0.75)) {
+        failures.push(`L${i + 1} weak lost too early on wave ${weakRes.waves.length}/${level.waves.length}`);
+      }
+    }
+    if ((level.difficulty === 'Heroic' || level.difficulty === 'Master') && weakRes.outcome !== 'lost') {
+      failures.push(`L${i + 1} weak must lose (got ${weakRes.outcome} with ${weakRes.finalLives} lives)`);
     }
   }
-  const flyers = byType.flyer ?? 0;
-  return { total, flyers, byType };
-}
 
-const failures: string[] = [];
-const summary: string[] = [];
-
-for (let i = 0; i < LEVELS.length; i++) {
-  if (levelFilter && !levelFilter.has(i)) continue;
-  const level = LEVELS[i];
-  const greedyRes = runLevelBalanceSim(level, 'greedy', level.scriptedBuildOrder ?? []);
-  printResult(i, greedyRes, level.difficulty);
-
-  const weakRes = runLevelBalanceSim(level, 'weak', level.weakBuildOrder ?? []);
-  printResult(i, weakRes, level.difficulty);
+  console.log('=== Summary (lives left / stars / leaks by type over the whole run) ===');
+  for (const line of summary) console.log(line);
   console.log('');
 
-  const gT = livesLostTotals(greedyRes);
-  const wT = livesLostTotals(weakRes);
-  const fmt = (t: ReturnType<typeof livesLostTotals>): string =>
-    Object.entries(t.byType)
-      .map(([k, v]) => `${k}:${v}`)
-      .join(' ') || '-';
-  summary.push(
-    `L${i + 1} ${level.difficulty.padEnd(11)} greedy ${greedyRes.outcome === 'won' ? 'W' : greedyRes.outcome === 'lost' ? 'L' : '?'} ` +
-      `${String(greedyRes.finalLives).padStart(2)}L ${greedyRes.stars}* leaks[${fmt(gT)}] | ` +
-      `weak ${weakRes.outcome === 'won' ? 'W' : weakRes.outcome === 'lost' ? 'L' : '?'} ` +
-      `${String(weakRes.finalLives).padStart(2)}L ${weakRes.stars}* (reached wave ${weakRes.waves.length}/${level.waves.length}) leaks[${fmt(wT)}]`,
-  );
-
-  if (greedyRes.outcome !== 'won') {
-    failures.push(`L${i + 1} greedy did not win`);
+  if (failures.length > 0) {
+    console.error('Balance check FAILED:');
+    for (const f of failures) console.error(' - ' + f);
+    process.exit(1);
   }
-  const [gMin, gMax] = GREEDY_LIVES[level.difficulty];
-  if (greedyRes.finalLives < gMin || greedyRes.finalLives > gMax) {
-    failures.push(`L${i + 1} greedy lives ${greedyRes.finalLives} outside ${level.difficulty} window ${gMin}-${gMax}`);
-  }
-  if (gT.total >= 4 && gT.flyers / gT.total > MAX_FLYER_SHARE_GREEDY) {
-    failures.push(`L${i + 1} greedy flyer leaks dominate (${gT.flyers}/${gT.total} lives)`);
-  }
-  if (weakRes.outcome === 'lost' && wT.total >= 4 && wT.flyers / wT.total > MAX_FLYER_SHARE_WEAK_LOSS) {
-    failures.push(`L${i + 1} weak loss dominated by flyers (${wT.flyers}/${wT.total} lives)`);
-  }
-  if (greedyRes.endGoldPctOfEarned >= 15) {
-    failures.push(`L${i + 1} greedy end gold ${greedyRes.endGoldPctOfEarned.toFixed(1)}% >= 15%`);
-  }
-  if (greedyRes.invalidActions > 0) {
-    failures.push(`L${i + 1} greedy has ${greedyRes.invalidActions} invalid actions`);
-  }
-  if (weakRes.invalidActions > 0) {
-    failures.push(`L${i + 1} weak has ${weakRes.invalidActions} invalid actions`);
-  }
-  if (weakRes.targetingChanges > 0) {
-    failures.push(`L${i + 1} weak used ${weakRes.targetingChanges} targeting mode changes (expected 0)`);
-  }
-
-  const weakPlanRatio =
-    greedyRes.plannedTowers > 0 ? weakRes.plannedTowers / greedyRes.plannedTowers : 1;
-  if (weakPlanRatio > 0.74 || weakPlanRatio < 0.64) {
-    failures.push(
-      `L${i + 1} weak planned towers (${weakRes.plannedTowers}/${greedyRes.plannedTowers} = ${(weakPlanRatio * 100).toFixed(0)}%) should be ~70%`,
-    );
-  }
-
-  if (level.difficulty === 'Breezy' && greedyRes.stars !== 3) {
-    failures.push(`L${i + 1} greedy got ${greedyRes.stars} stars (expected 3)`);
-  }
-  if (level.difficulty === 'Challenging' && greedyRes.stars !== 2) {
-    failures.push(`L${i + 1} greedy got ${greedyRes.stars} stars (expected 2)`);
-  }
-  if ((level.difficulty === 'Heroic' || level.difficulty === 'Master') && (greedyRes.stars < 1 || greedyRes.stars > 2)) {
-    failures.push(`L${i + 1} greedy got ${greedyRes.stars} stars (expected 1-2)`);
-  }
-
-  if (level.difficulty === 'Breezy') {
-    if (weakRes.outcome !== 'won') {
-      failures.push(`L${i + 1} weak must still be winnable`);
-    } else if (weakRes.stars === 3) {
-      failures.push(`L${i + 1} weak won with 3 stars (${weakRes.finalLives} lives); expected 1-2 stars`);
-    }
-  }
-  if (level.difficulty === 'Challenging') {
-    if (weakRes.outcome === 'won' && weakRes.finalLives > 8) {
-      failures.push(`L${i + 1} weak too comfortable (${weakRes.finalLives} lives left; expected borderline <= 8)`);
-    }
-    if (weakRes.outcome === 'lost' && weakRes.waves.length < Math.ceil(level.waves.length * 0.75)) {
-      failures.push(`L${i + 1} weak lost too early on wave ${weakRes.waves.length}/${level.waves.length}`);
-    }
-  }
-  if ((level.difficulty === 'Heroic' || level.difficulty === 'Master') && weakRes.outcome !== 'lost') {
-    failures.push(`L${i + 1} weak must lose (got ${weakRes.outcome} with ${weakRes.finalLives} lives)`);
-  }
+  console.log(`Balance check PASSED: Greedy & Weak targets met across ${summary.length} level(s)!`);
 }
 
-console.log('=== Summary (lives left / stars / leaks by type over the whole run) ===');
-for (const line of summary) console.log(line);
-console.log('');
-
-if (failures.length > 0) {
-  console.error('Balance check FAILED:');
-  for (const f of failures) console.error(' - ' + f);
-  process.exit(1);
-}
-console.log(`Balance check PASSED: Greedy & Weak targets met across ${summary.length} level(s)!`);
+if (process.argv[1]?.endsWith('balanceSim.ts')) main();
