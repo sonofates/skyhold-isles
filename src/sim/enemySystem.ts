@@ -2,13 +2,22 @@ import type { EventBus } from '../core/eventBus.ts';
 import type { ObjectPool } from '../core/pool.ts';
 import type { EnemyType } from '../core/types.ts';
 import { BALANCE } from '../data/balance.ts';
-import { ENEMY_DEFS } from '../data/enemies.ts';
+import { ELITE_MODIFIERS, ENEMY_DEFS } from '../data/enemies.ts';
 import type { EnemyEntity, TowerEntity } from './entities.ts';
 import type { CompiledPath } from './path.ts';
 import type { SpatialHashGrid } from './spatialHash.ts';
 
 const _sampleVec = { x: 0, y: 0, z: 0 };
 const _healCandidates: number[] = [];
+const _blinkFrom = { x: 0, y: 0, z: 0 };
+/** Blinkers never teleport to within this path distance of the goal. */
+const BLINK_GOAL_MARGIN = 2.0;
+/** Hauler raiders never land closer than this to the goal. */
+const DROP_GOAL_MARGIN = 3.0;
+/** Burrowers never start a dive this close to the goal (they must resurface to be shot). */
+const BURROW_GOAL_MARGIN = 4.0;
+/** First burrow dive happens this long after spawning (so it's seen surfaced at the spawn). */
+const BURROW_FIRST_SURFACE_SEC = 1.6;
 const BOSS_PULSE_RADIUS = 7.6;
 const BOSS_PULSE_INTERVAL = 7.0;
 const BOSS_PULSE_RETRY_INTERVAL = 0.75;
@@ -42,18 +51,78 @@ export class EnemySystem {
     return flying ? this.flightPath : this.groundPath;
   }
 
-  spawnEnemy(type: EnemyType, hpScale = 1): EnemyEntity | null {
+  spawnEnemy(type: EnemyType, hpScale = 1, elite = false): EnemyEntity | null {
     const def = ENEMY_DEFS[type];
-    return this.initEnemyAt(
+    const hpMul = elite ? ELITE_MODIFIERS.hpMul : 1;
+    const entity = this.initEnemyAt(
       type,
       0,
-      Math.round(def.maxHp * hpScale),
+      Math.round(def.maxHp * hpScale * hpMul),
       def.speed,
-      def.reward,
+      elite ? Math.round(def.reward * ELITE_MODIFIERS.rewardMul) : def.reward,
       def.livesCost,
-      1,
+      elite ? ELITE_MODIFIERS.scaleMul : 1,
       false,
     );
+    if (entity && elite) {
+      entity.elite = true;
+      entity.armor += ELITE_MODIFIERS.armorBonus;
+      entity.baseArmor = entity.armor;
+    }
+    return entity;
+  }
+
+  /** HP scale an enemy was spawned with (wave scale × elite), used to scale its abilities. */
+  private hpScaleOf(e: EnemyEntity): number {
+    return e.maxHp / ENEMY_DEFS[e.type].maxHp;
+  }
+
+  /** Cloud Hauler death: raiders land on the ground path point nearest to the wreck. */
+  private spawnDroppedRaiders(carrier: EnemyEntity): number {
+    const def = ENEMY_DEFS[carrier.type];
+    const count = def.dropCount ?? 0;
+    if (count <= 0) return 0;
+    const gruntDef = ENEMY_DEFS.grunt;
+    const nearest = this.groundPath.nearestDist(carrier.x, carrier.z);
+    const landDist = Math.max(
+      0,
+      Math.min(this.groundPath.totalLength - DROP_GOAL_MARGIN, nearest),
+    );
+    const hp = Math.max(
+      1,
+      Math.round(gruntDef.maxHp * (def.dropHpFrac ?? 0.6) * this.hpScaleOf(carrier)),
+    );
+    let spawned = 0;
+    for (let k = 0; k < count; k++) {
+      // Spread raiders out behind the landing point so none spawns further ahead.
+      const raider = this.initEnemyAt(
+        'grunt',
+        Math.max(0, landDist - k * 0.45),
+        hp,
+        gruntDef.speed,
+        2,
+        gruntDef.livesCost,
+        0.86,
+        false,
+      );
+      if (raider) {
+        raider.isDropped = true;
+        spawned++;
+      }
+    }
+    if (spawned > 0) {
+      this.groundPath.sample(landDist, _sampleVec);
+      this.events.emit('carrierDrop', {
+        x: carrier.x,
+        y: carrier.y,
+        z: carrier.z,
+        groundX: _sampleVec.x,
+        groundY: _sampleVec.y,
+        groundZ: _sampleVec.z,
+        count: spawned,
+      });
+    }
+    return spawned;
   }
 
   private spawnSplitChild(parent: EnemyEntity, dist: number): EnemyEntity | null {
@@ -113,6 +182,21 @@ export class EnemySystem {
     entity.bossSummonedEscorts = false;
     entity.scaleOverride = scaleOverride;
     entity.isSplitChild = isSplitChild;
+    entity.shield = 0;
+    entity.shieldMax = 0;
+    entity.burrowed = false;
+    entity.armorBreakTimer = 0;
+    entity.baseArmor = def.armor;
+    entity.elite = false;
+    entity.isDropped = false;
+    entity.abilityTimer =
+      type === 'burrower'
+        ? BURROW_FIRST_SURFACE_SEC
+        : type === 'blinker'
+          ? (def.blinkInterval ?? 3.4)
+          : type === 'warden'
+            ? (def.wardInterval ?? 3.2) * 0.35
+            : 0;
 
     this.events.emit('enemySpawned', {
       enemyId: entity.uid,
@@ -128,15 +212,33 @@ export class EnemySystem {
     rawDamage: number,
     ignoreArmor = false,
   ): { actualDamage: number; killed: boolean } {
-    if (!entity.active || entity.hp <= 0) {
+    if (!entity.active || entity.hp <= 0 || entity.burrowed) {
+      // Burrowed enemies are immune: shots already in flight thud into the dirt.
       return { actualDamage: 0, killed: false };
     }
-    const reduced = ignoreArmor
-      ? rawDamage
-      : Math.max(BALANCE.minArmorDamage, rawDamage - entity.armor);
-    const actualDamage = Math.min(entity.hp, Math.round(reduced));
-    entity.hp -= actualDamage;
+    let reduced = Math.round(
+      ignoreArmor ? rawDamage : Math.max(BALANCE.minArmorDamage, rawDamage - entity.armor),
+    );
     entity.hitFlashTimer = 0.12;
+    if (entity.shield > 0) {
+      const absorbed = Math.min(entity.shield, reduced);
+      entity.shield -= absorbed;
+      reduced -= absorbed;
+      if (entity.shield <= 0) {
+        entity.shield = 0;
+        this.events.emit('shieldBroken', {
+          enemyId: entity.uid,
+          x: entity.x,
+          y: entity.y + entity.height * 0.6,
+          z: entity.z,
+        });
+      }
+      if (reduced <= 0) {
+        return { actualDamage: 0, killed: false };
+      }
+    }
+    const actualDamage = Math.min(entity.hp, reduced);
+    entity.hp -= actualDamage;
 
     this.events.emit('enemyHit', {
       enemyId: entity.uid,
@@ -156,7 +258,23 @@ export class EnemySystem {
   }
 
   applySlow(entity: EnemyEntity, slowRatio: number, duration: number): void {
-    if (!entity.active) return;
+    if (!entity.active || entity.burrowed) return;
+    const brittleArmor = ENEMY_DEFS[entity.type].brittleArmor;
+    if (brittleArmor !== undefined) {
+      if (entity.armorBreakTimer <= 0 && entity.armor > brittleArmor) {
+        this.events.emit('armorCracked', {
+          enemyId: entity.uid,
+          x: entity.x,
+          y: entity.y + entity.height * 0.7,
+          z: entity.z,
+        });
+      }
+      entity.armor = Math.min(entity.baseArmor, brittleArmor);
+      entity.armorBreakTimer = Math.max(
+        entity.armorBreakTimer,
+        ENEMY_DEFS[entity.type].brittleDuration ?? 2.5,
+      );
+    }
     const combined = Math.min(BALANCE.maxSlowRatio, Math.max(entity.slowRatio, slowRatio));
     // Stacking slightly increases slow up to cap
     const stacked = Math.min(BALANCE.maxSlowRatio, entity.slowRatio + slowRatio * 0.5);
@@ -201,6 +319,8 @@ export class EnemySystem {
           // cannot push a child past it (which would leak extra lives instantly).
           this.spawnSplitChild(e, Math.max(0, e.dist - 0.35));
           this.spawnSplitChild(e, Math.max(0, e.dist));
+        } else if (e.type === 'carrier') {
+          this.spawnDroppedRaiders(e);
         }
         this.pool.releaseAtActivePos(pos);
         continue;
@@ -223,9 +343,26 @@ export class EnemySystem {
         }
       }
 
-      const effectiveSpeed = e.speed * (1 - e.slowRatio);
+      if (e.armorBreakTimer > 0) {
+        e.armorBreakTimer -= dt;
+        if (e.armorBreakTimer <= 0) {
+          e.armorBreakTimer = 0;
+          e.armor = e.baseArmor;
+        }
+      }
+
+      if (e.type === 'burrower') {
+        this.updateBurrow(e, dt);
+      }
+
+      const burrowMul = e.burrowed ? (ENEMY_DEFS.burrower.burrowSpeedMul ?? 1.6) : 1;
+      const effectiveSpeed = e.speed * (1 - e.slowRatio) * burrowMul;
       e.dist += effectiveSpeed * dt;
       e.walkPhase += effectiveSpeed * dt * 3.4;
+
+      if (e.type === 'blinker') {
+        this.updateBlink(e, dt);
+      }
 
       if (e.dist >= e.totalDist) {
         onLeak(e);
@@ -246,7 +383,10 @@ export class EnemySystem {
       e.y = _sampleVec.y;
       e.z = _sampleVec.z;
 
-      this.spatialHash.insert(e.poolIndex, e.x, e.z);
+      if (!e.burrowed) {
+        // Burrowed enemies stay out of the hash: no targeting, splash, chains, meteors or heals.
+        this.spatialHash.insert(e.poolIndex, e.x, e.z);
+      }
       pos++;
     }
 
@@ -259,9 +399,96 @@ export class EnemySystem {
 
       if (actor.type === 'healer') {
         this.updateHealerAura(actor, dt);
+      } else if (actor.type === 'warden') {
+        this.updateWardenPulse(actor, dt);
       } else if (actor.type === 'boss') {
         this.updateBossAbilities(actor, dt, towers, currentHpScale);
       }
+    }
+  }
+
+  /** Burrower phase machine: surfaced (abilityTimer counts down) ⇄ burrowed. */
+  private updateBurrow(e: EnemyEntity, dt: number): void {
+    const def = ENEMY_DEFS.burrower;
+    e.abilityTimer -= dt;
+    if (e.abilityTimer > 0) return;
+    if (!e.burrowed && e.dist > e.totalDist - BURROW_GOAL_MARGIN) {
+      e.abilityTimer = 0.5;
+      return;
+    }
+    e.burrowed = !e.burrowed;
+    e.abilityTimer += e.burrowed ? (def.burrowDiveSec ?? 1.6) : (def.burrowSurfaceSec ?? 2.8);
+    if (e.burrowed) {
+      // Barriers don't survive the dig.
+      e.shield = 0;
+    }
+    this.events.emit('enemyBurrow', {
+      enemyId: e.uid,
+      burrowed: e.burrowed,
+      x: e.x,
+      y: e.y,
+      z: e.z,
+    });
+  }
+
+  /** Blinker: charge (slowed by chill) then teleport forward along the path. */
+  private updateBlink(e: EnemyEntity, dt: number): void {
+    const def = ENEMY_DEFS.blinker;
+    e.abilityTimer -= dt * (1 - e.slowRatio);
+    if (e.abilityTimer > 0) return;
+    e.abilityTimer += def.blinkInterval ?? 3.4;
+    const target = Math.min(e.totalDist - BLINK_GOAL_MARGIN, e.dist + (def.blinkDistance ?? 4.5));
+    if (target <= e.dist + 0.25) return;
+    const path = e.flying ? this.flightPath : this.groundPath;
+    path.sample(e.dist, _blinkFrom);
+    e.dist = target;
+    path.sample(e.dist, _sampleVec);
+    // Teleports must not interpolate across the gap in the renderer.
+    e.prevX = _sampleVec.x;
+    e.prevY = _sampleVec.y;
+    e.prevZ = _sampleVec.z;
+    this.events.emit('enemyBlink', {
+      enemyId: e.uid,
+      fromX: _blinkFrom.x,
+      fromY: _blinkFrom.y,
+      fromZ: _blinkFrom.z,
+      toX: _sampleVec.x,
+      toY: _sampleVec.y,
+      toZ: _sampleVec.z,
+    });
+  }
+
+  /** Aegis Warden: periodically tops up a shield on nearby allies (never itself or other wardens). */
+  private updateWardenPulse(warden: EnemyEntity, dt: number): void {
+    const def = ENEMY_DEFS.warden;
+    warden.abilityTimer -= dt;
+    if (warden.abilityTimer > 0) return;
+    warden.abilityTimer += def.wardInterval ?? 3.2;
+    const radius = def.wardRadius ?? 3.6;
+    const shieldAmount = Math.max(1, Math.round((def.wardShield ?? 34) * this.hpScaleOf(warden)));
+    this.spatialHash.query(warden.x, warden.z, radius, _healCandidates);
+    const rSq = radius * radius;
+    let shielded = 0;
+    for (let k = 0; k < _healCandidates.length; k++) {
+      const ally = this.pool.items[_healCandidates[k]];
+      if (!ally.active || ally.hp <= 0 || ally === warden || ally.type === 'warden') continue;
+      const dx = ally.x - warden.x;
+      const dz = ally.z - warden.z;
+      if (dx * dx + dz * dz > rSq) continue;
+      if (ally.shield < shieldAmount) {
+        ally.shield = shieldAmount;
+        ally.shieldMax = shieldAmount;
+        shielded++;
+      }
+    }
+    if (shielded > 0) {
+      this.events.emit('wardPulse', {
+        x: warden.x,
+        y: warden.y + 0.12,
+        z: warden.z,
+        radius,
+        shieldedCount: shielded,
+      });
     }
   }
 

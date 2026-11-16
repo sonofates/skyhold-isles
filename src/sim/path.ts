@@ -88,6 +88,34 @@ export class CompiledPath {
   }
 
   /**
+   * Path distance of the point on the path closest to (x, z) in the ground plane. Zero-alloc.
+   * Ties resolve to the earliest segment so results are deterministic.
+   */
+  nearestDist(x: number, z: number): number {
+    const pts = this.points;
+    if (pts.length < 2) return 0;
+    let bestDistSq = Infinity;
+    let bestCum = 0;
+    for (let i = 0; i < pts.length - 1; i++) {
+      const a = pts[i];
+      const b = pts[i + 1];
+      const abx = b.x - a.x;
+      const abz = b.z - a.z;
+      const lenSq = abx * abx + abz * abz;
+      let t = lenSq > 1e-9 ? ((x - a.x) * abx + (z - a.z) * abz) / lenSq : 0;
+      t = t < 0 ? 0 : t > 1 ? 1 : t;
+      const px = a.x + abx * t;
+      const pz = a.z + abz * t;
+      const dSq = (x - px) * (x - px) + (z - pz) * (z - pz);
+      if (dSq < bestDistSq - 1e-9) {
+        bestDistSq = dSq;
+        bestCum = a.cumDist + (b.cumDist - a.cumDist) * t;
+      }
+    }
+    return bestCum;
+  }
+
+  /**
    * Zero-alloc sample of world position & yaw along path distance.
    */
   sample(distance: number, outPos: Vec3): number {

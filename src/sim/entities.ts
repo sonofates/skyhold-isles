@@ -35,6 +35,22 @@ export interface EnemyEntity {
   bossSummonedEscorts: boolean;
   scaleOverride: number;
   isSplitChild: boolean;
+
+  /** Damage-absorbing barrier (Aegis Warden ward). Absorbs post-armor damage before HP. */
+  shield: number;
+  shieldMax: number;
+  /** Burrower: underground (left out of the spatial hash → untargetable & immune). */
+  burrowed: boolean;
+  /** Generic per-archetype timer: burrow phase, blink charge, ward pulse. */
+  abilityTimer: number;
+  /** Golem: seconds left of chill-cracked (brittle) armor. */
+  armorBreakTimer: number;
+  /** Armor to restore when brittleness wears off (includes elite bonus). */
+  baseArmor: number;
+  /** Empowered elite variant (more HP/armor/reward, gold aura). */
+  elite: boolean;
+  /** Raider dropped by a Cloud Hauler. */
+  isDropped: boolean;
 }
 
 export function createEnemyEntity(poolIndex: number): EnemyEntity {
@@ -71,6 +87,14 @@ export function createEnemyEntity(poolIndex: number): EnemyEntity {
     bossSummonedEscorts: false,
     scaleOverride: 1,
     isSplitChild: false,
+    shield: 0,
+    shieldMax: 0,
+    burrowed: false,
+    abilityTimer: 0,
+    armorBreakTimer: 0,
+    baseArmor: 0,
+    elite: false,
+    isDropped: false,
   };
 }
 

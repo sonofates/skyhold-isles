@@ -5,6 +5,8 @@ export interface WaveGroupDef {
   readonly count: number;
   readonly spawnInterval: number;
   readonly startDelay: number;
+  /** Spawn the group as Empowered elites (more HP/armor/reward, gold aura). */
+  readonly elite?: boolean;
 }
 
 export interface WaveDef {

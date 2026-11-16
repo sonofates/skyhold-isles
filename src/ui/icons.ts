@@ -105,5 +105,11 @@ export const ENEMY_BADGE_META: Record<EnemyType, { label: string; color: string 
   flyer: { label: 'Flyer', color: PALETTE.water },
   healer: { label: 'Healer', color: PALETTE.grass },
   splitter: { label: 'Splitter', color: '#e84a7f' },
+  warden: { label: 'Warden', color: '#3d5bd9' },
+  burrower: { label: 'Burrower', color: PALETTE.dirt },
+  carrier: { label: 'Hauler', color: PALETTE.sand },
+  blinker: { label: 'Blinker', color: '#2fc9be' },
+  golem: { label: 'Golem', color: '#5a5560' },
+  mite: { label: 'Mite', color: '#ff8a1f' },
   boss: { label: 'Boss', color: PALETTE.indigo },
 };

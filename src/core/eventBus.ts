@@ -73,6 +73,50 @@ export interface GameEventMap {
     radius: number;
     stunnedTowerIds: readonly number[];
   };
+  wardPulse: {
+    x: number;
+    y: number;
+    z: number;
+    radius: number;
+    shieldedCount: number;
+  };
+  shieldBroken: {
+    enemyId: number;
+    x: number;
+    y: number;
+    z: number;
+  };
+  enemyBurrow: {
+    enemyId: number;
+    burrowed: boolean;
+    x: number;
+    y: number;
+    z: number;
+  };
+  enemyBlink: {
+    enemyId: number;
+    fromX: number;
+    fromY: number;
+    fromZ: number;
+    toX: number;
+    toY: number;
+    toZ: number;
+  };
+  carrierDrop: {
+    x: number;
+    y: number;
+    z: number;
+    groundX: number;
+    groundY: number;
+    groundZ: number;
+    count: number;
+  };
+  armorCracked: {
+    enemyId: number;
+    x: number;
+    y: number;
+    z: number;
+  };
   bossSummon: {
     x: number;
     y: number;

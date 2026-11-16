@@ -313,8 +313,8 @@ export class SimWorld {
     this.waveSystem.update(
       dt,
       () => this.enemyPool.getActiveCount(),
-      (enemyType, hpScale) => {
-        const spawned = this.enemySystem.spawnEnemy(enemyType, hpScale);
+      (enemyType, hpScale, elite) => {
+        const spawned = this.enemySystem.spawnEnemy(enemyType, hpScale, elite);
         if (spawned) {
           spawned.reward = Math.max(
             1,

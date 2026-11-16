@@ -15,7 +15,34 @@ export interface EnemyDef {
   readonly healAmount?: number;
   readonly healRadius?: number;
   readonly healInterval?: number;
+  /** Aegis Warden: barrier pulse radius / interval (s) / shield HP per ally at hp scale 1. */
+  readonly wardRadius?: number;
+  readonly wardInterval?: number;
+  readonly wardShield?: number;
+  /** Burrower: seconds surfaced, seconds underground, speed multiplier while underground. */
+  readonly burrowSurfaceSec?: number;
+  readonly burrowDiveSec?: number;
+  readonly burrowSpeedMul?: number;
+  /** Cloud Hauler: raiders dropped on death and their HP fraction of a scaled grunt. */
+  readonly dropCount?: number;
+  readonly dropHpFrac?: number;
+  /** Rift Blinker: charge time (s) and forward teleport distance (world units). */
+  readonly blinkInterval?: number;
+  readonly blinkDistance?: number;
+  /** Golem: armor while chill-cracked and how long a chill keeps it cracked. */
+  readonly brittleArmor?: number;
+  readonly brittleDuration?: number;
+  /** Short counterplay hint shown in tooltips / codex. */
+  readonly counterHint?: string;
 }
+
+/** Empowered elite variant multipliers (wave groups with `elite: true`). */
+export const ELITE_MODIFIERS = {
+  hpMul: 1.75,
+  armorBonus: 1,
+  rewardMul: 1.6,
+  scaleMul: 1.14,
+} as const;
 
 export const ENEMY_DEFS: Record<EnemyType, EnemyDef> = {
   grunt: {
@@ -99,6 +126,102 @@ export const ENEMY_DEFS: Record<EnemyType, EnemyDef> = {
     radius: 0.46,
     height: 1.08,
   },
+  warden: {
+    type: 'warden',
+    name: 'Aegis Warden',
+    description: 'Raises a shimmering barrier on nearby allies every few seconds. Shields soak damage before health.',
+    counterHint: 'Focus it first; splash and chains pop many shields at once.',
+    maxHp: 150,
+    speed: 1.8,
+    armor: 2,
+    reward: 8,
+    livesCost: 2,
+    flying: false,
+    radius: 0.5,
+    height: 1.35,
+    wardRadius: 3.6,
+    wardInterval: 3.2,
+    wardShield: 34,
+  },
+  burrower: {
+    type: 'burrower',
+    name: 'Loam Burrower',
+    description: 'Tunnels beneath the road in bursts — untargetable and faster while underground.',
+    counterHint: 'Cover the whole road; splash where it resurfaces.',
+    maxHp: 140,
+    speed: 1.9,
+    armor: 2,
+    reward: 6,
+    livesCost: 1,
+    flying: false,
+    radius: 0.48,
+    height: 0.95,
+    burrowSurfaceSec: 2.8,
+    burrowDiveSec: 1.6,
+    burrowSpeedMul: 1.6,
+  },
+  carrier: {
+    type: 'carrier',
+    name: 'Cloud Hauler',
+    description: 'Lumbering sky barge on the aerial lane. Drops two raiders onto the road when shot down.',
+    counterHint: 'Down it early — late kills drop raiders near the sanctuary.',
+    maxHp: 150,
+    speed: 1.55,
+    armor: 1,
+    reward: 8,
+    livesCost: 2,
+    flying: true,
+    radius: 0.6,
+    height: 1.1,
+    dropCount: 2,
+    dropHpFrac: 0.6,
+  },
+  blinker: {
+    type: 'blinker',
+    name: 'Rift Blinker',
+    description: 'Charges a rift and blinks forward along the road. Chill slows its charge.',
+    counterHint: 'Frost delays every blink; burst it before the jump.',
+    maxHp: 95,
+    speed: 2.1,
+    armor: 0,
+    reward: 6,
+    livesCost: 1,
+    flying: false,
+    radius: 0.4,
+    height: 1.05,
+    blinkInterval: 3.4,
+    blinkDistance: 4.5,
+  },
+  golem: {
+    type: 'golem',
+    name: 'Basalt Golem',
+    description: 'Walking basalt with immense armor. Chilling hits crack its shell for a few seconds.',
+    counterHint: 'Pair Frost with fast hitters — cracked armor drops to 3.',
+    maxHp: 340,
+    speed: 1.25,
+    armor: 12,
+    reward: 10,
+    livesCost: 3,
+    flying: false,
+    radius: 0.62,
+    height: 1.45,
+    brittleArmor: 3,
+    brittleDuration: 2.6,
+  },
+  mite: {
+    type: 'mite',
+    name: 'Scuttle Mite',
+    description: 'Tiny skittering pest that arrives in dense swarms.',
+    counterHint: 'Splash and chain lightning shred swarms.',
+    maxHp: 22,
+    speed: 3.5,
+    armor: 0,
+    reward: 1,
+    livesCost: 1,
+    flying: false,
+    radius: 0.26,
+    height: 0.5,
+  },
   boss: {
     type: 'boss',
     name: 'Skyhold Dreadnought',
@@ -121,5 +244,11 @@ export const ENEMY_TYPES: readonly EnemyType[] = [
   'flyer',
   'healer',
   'splitter',
+  'warden',
+  'burrower',
+  'carrier',
+  'blinker',
+  'golem',
+  'mite',
   'boss',
 ];
