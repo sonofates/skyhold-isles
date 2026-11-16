@@ -197,14 +197,17 @@ export class InputManager {
     };
 
     const onKeyDown = (e: KeyboardEvent): void => {
-      if (!this.enabled) return;
+      // Leave browser/OS shortcuts (Cmd+R, Ctrl+1..5, Cmd+S, Alt+…) untouched.
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
 
-      if (e.code === 'Escape' && !e.repeat) {
+      // Escape must close an open modal even when gameplay input is disabled
+      // (e.g. Settings opened from the main menu).
+      if (e.code === 'Escape' && !e.repeat && (this.enabled || this.modalOpen)) {
         this.handlers.onSecondaryAction('escape');
         return;
       }
-      if (this.modalOpen) return;
+      if (!this.enabled || this.modalOpen) return;
 
       if (e.code === 'KeyQ' && !e.repeat) {
         this.handlers.onRotateCamera(-1);
@@ -247,10 +250,12 @@ export class InputManager {
         e.preventDefault();
         return;
       }
-      if (!e.repeat && e.code === 'KeyS' && this.handlers.onTowerActionHotkey('sell')) {
+      if (
+        !e.repeat &&
+        (e.code === 'Delete' || e.code === 'Backspace') &&
+        this.handlers.onTowerActionHotkey('sell')
+      ) {
         e.preventDefault();
-        this.keysDown.delete('KeyS');
-        updateKeyPan();
         return;
       }
 

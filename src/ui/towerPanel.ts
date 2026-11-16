@@ -338,10 +338,10 @@ export class TowerPanel {
 
     this.sellBtn.classList.toggle('is-confirm', this.sellConfirmArmed);
     if (this.sellConfirmArmed) {
-      this.sellLabelEl.innerHTML = 'Confirm <kbd class="tower-panel-kbd on-danger">S</kbd>';
+      this.sellLabelEl.innerHTML = 'Confirm <kbd class="tower-panel-kbd on-danger">Del</kbd>';
       this.sellValueEl.textContent = `+${refund}g`;
     } else {
-      this.sellLabelEl.innerHTML = 'Sell <kbd class="tower-panel-kbd">S</kbd>';
+      this.sellLabelEl.innerHTML = 'Sell <kbd class="tower-panel-kbd">Del</kbd>';
       this.sellValueEl.textContent = `+${refund}g`;
     }
   }
