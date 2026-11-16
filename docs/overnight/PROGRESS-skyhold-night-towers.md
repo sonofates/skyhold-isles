@@ -44,6 +44,8 @@ tsc, lint, 52 vitest tests, sim:balance all green on `cfb9330`.
 
 - [r9] Verified all green on resume (tsc, lint, 95 tests, sim:balance 9/9; greedy lives L1..L9 = 20,15,10,13,14,11,10,6,7). Checked that the placement range ring (`overlayIndicators.ts`) already shows Beacon's aura radius (it uses `stats.range`), so no separate preview is needed. No code changes; handoff unchanged.
 
+- [r10] Verified all green on resume (tsc, lint, tests, build, sim:balance 9/9; greedy lives unchanged). No code changes; handoff unchanged.
+
 ## Next (ideas for later rounds)
 - Frost Brittle damage numbers could be tinted (needs sessionBridge/UI, outside my area).
 - Beacon aura could preview coverage on attack-tower placement (needs overlay work in `overlayIndicators.ts`).
