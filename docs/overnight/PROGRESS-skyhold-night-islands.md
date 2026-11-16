@@ -75,6 +75,12 @@ round except wave composition of a few waves, see below).
     findings fixed: dock boats on the waterline, snow flag, bird orbits, sheep head, tent door, ...).
 14. Docs: `docs/island-themes.md` (theme authoring guide + preview workflow), README touch-ups.
 
+### Round 2 (render-only polish; sim/data untouched, sim:balance unchanged and green)
+- L9: rising golden sky lanterns (`AmbientSpec.leafRise`), L3: drifting snowflakes (leaf mode, white).
+- L6: `sailboat` set piece (new `sail` anim family) circles the lighthouse; test keeps its orbit over open water.
+- L1: two tethered `kite` set pieces (new `kite` anim family, string + swaying diamond); added to the sight-line test.
+- New instanced families each cost 1 extra draw call (budget test still < 40).
+
 ## Audit (what was samey before)
 All 9 islands shared: one flat height, identical grass tint, same 3-tree mix on every `T` tile, same ambient
 (4 islets + 5 clouds), same goal sanctuary and spawn gate, same sky/water. Only the grid shape differed.
@@ -125,7 +131,7 @@ early waves does NOT soften them, it starves the economy (kill rewards) and the 
 ## Next (ideas, in rough priority)
 - Re-verify everything after the lead merges the towers/enemies branches (see Merge notes).
 - More hide-on-build ground details (ferns, mushrooms, tiny stones circles); bushes are in.
-- More authored moments: a sailing ship in the L6 lagoon, floating lanterns on L9, kites on L1, animated scarecrow.
+- More authored moments: animated scarecrow, windsocks on L7, ember sparks above L8 braziers.
 - If wave pacing is to be tuned further, do it together with kill rewards / clearBonus (see Pressure metric).
 - Layout/path changes were deliberately NOT attempted: every grid tweak invalidates both scripted build orders and
   the knife-edge windows; the themes make the existing layouts read very differently already.

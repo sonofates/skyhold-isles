@@ -128,7 +128,15 @@ const HIGHLAND_CITADEL = theme({
       [0xbd82e1, 0xf8f4e8],
     ],
   },
-  ambient: { isletStyle: 'pine', birds: 4, butterflies: 0, islets: 4, clouds: 6 },
+  ambient: {
+    isletStyle: 'pine',
+    birds: 4,
+    butterflies: 0,
+    islets: 4,
+    clouds: 6,
+    leafColors: [0xffffff, 0xe6f4ff, 0xf4fbff],
+    leafCount: 26,
+  },
   setPieces: [
     { kind: 'ruinWall', col: 7, row: 3, variant: 0 },
     { kind: 'banner', col: 5, row: 4, variant: 1 },
