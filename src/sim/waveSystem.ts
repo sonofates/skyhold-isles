@@ -131,9 +131,13 @@ export function buildEndlessWaveDef(waveIndex: number, level: LevelDef): WaveDef
 
   if ((offset + 1) % 5 === 0) {
     const bossTier = Math.floor(offset / 5);
+    // Every second boss wave brings a Tempest Colossus to lead the Dreadnoughts.
+    if ((offset + 1) % 10 === 0) {
+      groups.push({ enemyType: 'tempest', count: 1, spawnInterval: 1, startDelay: 2.6 });
+    }
     groups.push({
       enemyType: 'boss',
-      count: 1 + bossTier,
+      count: (offset + 1) % 10 === 0 ? bossTier : 1 + bossTier,
       spawnInterval: Math.max(0.18, +(2.4 - bossTier * 0.25).toFixed(2)),
       startDelay: 3.2,
     });

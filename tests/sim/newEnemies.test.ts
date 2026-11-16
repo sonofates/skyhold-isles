@@ -374,6 +374,24 @@ describe('endless spotlight variety', () => {
     for (const t of NEW_TYPES) expect(seen.has(t)).toBe(true);
     expect(firstEliteOffset).toBe(3);
   });
+
+  it('every second endless boss wave is led by a Tempest Colossus', () => {
+    const level = LEVELS[0];
+    const at = (offset: number): Map<EnemyType, number> => {
+      const m = new Map<EnemyType, number>();
+      for (const g of buildEndlessWaveDef(level.waves.length + offset, level).groups) {
+        m.set(g.enemyType, (m.get(g.enemyType) ?? 0) + g.count);
+      }
+      return m;
+    };
+    expect(at(4).get('boss')).toBe(1);
+    expect(at(4).has('tempest')).toBe(false);
+    expect(at(9).get('tempest')).toBe(1);
+    expect(at(9).get('boss')).toBe(1);
+    expect(at(14).get('boss')).toBe(3);
+    expect(at(19).get('tempest')).toBe(1);
+    expect(at(19).get('boss')).toBe(3);
+  });
 });
 
 describe('Tempest Colossus (phase boss)', () => {
