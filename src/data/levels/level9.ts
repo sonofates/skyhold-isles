@@ -41,16 +41,19 @@ export const LEVEL_9: LevelDef = {
   ],
   flightPath: [
     { col: 0, row: 8 },
-    { col: 2, row: 6 },
-    { col: 5, row: 6 },
+    { col: 3, row: 6 },
+    { col: 6, row: 8 },
     { col: 9, row: 9 },
-    { col: 13, row: 8 },
+    { col: 13, row: 9 },
+    { col: 14, row: 6 },
+    { col: 10, row: 6 },
+    { col: 10, row: 3 },
     { col: 12, row: 4 },
   ],
   decorationSeed: 996721,
   startingGold: 340,
-  enemyHpScale: 1.36,
-  waveHpGrowth: 0.195,
+  enemyHpScale: 1.8,
+  waveHpGrowth: 0.205,
   waves: [
     {
       clearBonus: 24,
@@ -70,7 +73,7 @@ export const LEVEL_9: LevelDef = {
       clearBonus: 28,
       groups: [
         { enemyType: 'brute', count: 4, spawnInterval: 0.95, startDelay: 0 },
-        { enemyType: 'flyer', count: 8, spawnInterval: 0.54, startDelay: 1.4 },
+        { enemyType: 'flyer', count: 6, spawnInterval: 0.54, startDelay: 1.4 },
         { enemyType: 'grunt', count: 10, spawnInterval: 0.48, startDelay: 2.6 },
       ],
     },
@@ -85,7 +88,7 @@ export const LEVEL_9: LevelDef = {
     {
       clearBonus: 34,
       groups: [
-        { enemyType: 'flyer', count: 16, spawnInterval: 0.45, startDelay: 0 },
+        { enemyType: 'flyer', count: 11, spawnInterval: 0.45, startDelay: 0 },
         { enemyType: 'brute', count: 6, spawnInterval: 0.85, startDelay: 1.4 },
         { enemyType: 'grunt', count: 12, spawnInterval: 0.4, startDelay: 2.6 },
       ],
@@ -101,7 +104,7 @@ export const LEVEL_9: LevelDef = {
     {
       clearBonus: 42,
       groups: [
-        { enemyType: 'flyer', count: 16, spawnInterval: 0.45, startDelay: 0 },
+        { enemyType: 'flyer', count: 11, spawnInterval: 0.45, startDelay: 0 },
         { enemyType: 'splitter', count: 6, spawnInterval: 0.95, startDelay: 0.9 },
         { enemyType: 'grunt', count: 16, spawnInterval: 0.36, startDelay: 1.5 },
         { enemyType: 'healer', count: 3, spawnInterval: 1.15, startDelay: 2.4 },
@@ -112,7 +115,7 @@ export const LEVEL_9: LevelDef = {
       groups: [
         { enemyType: 'brute', count: 10, spawnInterval: 0.68, startDelay: 0 },
         { enemyType: 'healer', count: 4, spawnInterval: 1.05, startDelay: 1.0 },
-        { enemyType: 'flyer', count: 17, spawnInterval: 0.44, startDelay: 1.8 },
+        { enemyType: 'flyer', count: 12, spawnInterval: 0.44, startDelay: 1.8 },
       ],
     },
     {
@@ -128,14 +131,14 @@ export const LEVEL_9: LevelDef = {
       groups: [
         { enemyType: 'brute', count: 12, spawnInterval: 0.62, startDelay: 0 },
         { enemyType: 'healer', count: 5, spawnInterval: 0.95, startDelay: 0.9 },
-        { enemyType: 'flyer', count: 19, spawnInterval: 0.4, startDelay: 1.6 },
+        { enemyType: 'flyer', count: 13, spawnInterval: 0.4, startDelay: 1.6 },
         { enemyType: 'runner', count: 16, spawnInterval: 0.28, startDelay: 2.8 },
       ],
     },
     {
       clearBonus: 56,
       groups: [
-        { enemyType: 'flyer', count: 21, spawnInterval: 0.38, startDelay: 0 },
+        { enemyType: 'flyer', count: 15, spawnInterval: 0.38, startDelay: 0 },
         { enemyType: 'splitter', count: 8, spawnInterval: 0.85, startDelay: 0.9 },
         { enemyType: 'runner', count: 20, spawnInterval: 0.26, startDelay: 1.6 },
         { enemyType: 'healer', count: 5, spawnInterval: 0.95, startDelay: 2.4 },
@@ -152,7 +155,7 @@ export const LEVEL_9: LevelDef = {
     {
       clearBonus: 68,
       groups: [
-        { enemyType: 'flyer', count: 23, spawnInterval: 0.35, startDelay: 0 },
+        { enemyType: 'flyer', count: 16, spawnInterval: 0.35, startDelay: 0 },
         { enemyType: 'brute', count: 15, spawnInterval: 0.56, startDelay: 1.2 },
         { enemyType: 'runner', count: 24, spawnInterval: 0.24, startDelay: 2.2 },
       ],
@@ -162,7 +165,7 @@ export const LEVEL_9: LevelDef = {
       groups: [
         { enemyType: 'brute', count: 14, spawnInterval: 0.56, startDelay: 0 },
         { enemyType: 'healer', count: 6, spawnInterval: 0.88, startDelay: 0.9 },
-        { enemyType: 'flyer', count: 23, spawnInterval: 0.35, startDelay: 1.6 },
+        { enemyType: 'flyer', count: 16, spawnInterval: 0.35, startDelay: 1.6 },
         { enemyType: 'boss', count: 1, spawnInterval: 1.0, startDelay: 2.6 },
       ],
     },
@@ -171,7 +174,7 @@ export const LEVEL_9: LevelDef = {
       groups: [
         { enemyType: 'runner', count: 30, spawnInterval: 0.21, startDelay: 0 },
         { enemyType: 'splitter', count: 10, spawnInterval: 0.72, startDelay: 0.4 },
-        { enemyType: 'flyer', count: 25, spawnInterval: 0.3, startDelay: 0.8 },
+        { enemyType: 'flyer', count: 18, spawnInterval: 0.3, startDelay: 0.8 },
         { enemyType: 'healer', count: 6, spawnInterval: 0.8, startDelay: 1.2 },
         { enemyType: 'grunt', count: 18, spawnInterval: 0.28, startDelay: 1.6 },
       ],
@@ -181,7 +184,7 @@ export const LEVEL_9: LevelDef = {
       groups: [
         { enemyType: 'brute', count: 19, spawnInterval: 0.46, startDelay: 0 },
         { enemyType: 'healer', count: 7, spawnInterval: 0.74, startDelay: 0.6 },
-        { enemyType: 'flyer', count: 28, spawnInterval: 0.29, startDelay: 1.0 },
+        { enemyType: 'flyer', count: 20, spawnInterval: 0.29, startDelay: 1.0 },
       ],
     },
     {
@@ -190,7 +193,7 @@ export const LEVEL_9: LevelDef = {
         { enemyType: 'runner', count: 34, spawnInterval: 0.19, startDelay: 0 },
         { enemyType: 'brute', count: 19, spawnInterval: 0.46, startDelay: 0.6 },
         { enemyType: 'healer', count: 8, spawnInterval: 0.72, startDelay: 1.1 },
-        { enemyType: 'flyer', count: 29, spawnInterval: 0.29, startDelay: 1.5 },
+        { enemyType: 'flyer', count: 20, spawnInterval: 0.29, startDelay: 1.5 },
       ],
     },
     {
@@ -198,7 +201,7 @@ export const LEVEL_9: LevelDef = {
       groups: [
         { enemyType: 'brute', count: 18, spawnInterval: 0.46, startDelay: 0 },
         { enemyType: 'healer', count: 7, spawnInterval: 0.76, startDelay: 0.5 },
-        { enemyType: 'flyer', count: 31, spawnInterval: 0.28, startDelay: 1.0 },
+        { enemyType: 'flyer', count: 22, spawnInterval: 0.28, startDelay: 1.0 },
         { enemyType: 'boss', count: 2, spawnInterval: 4.0, startDelay: 1.6 },
       ],
     },
@@ -207,7 +210,7 @@ export const LEVEL_9: LevelDef = {
       groups: [
         { enemyType: 'runner', count: 34, spawnInterval: 0.2, startDelay: 0 },
         { enemyType: 'splitter', count: 11, spawnInterval: 0.68, startDelay: 0.5 },
-        { enemyType: 'flyer', count: 30, spawnInterval: 0.28, startDelay: 0.8 },
+        { enemyType: 'flyer', count: 21, spawnInterval: 0.28, startDelay: 0.8 },
         { enemyType: 'brute', count: 19, spawnInterval: 0.44, startDelay: 1.2 },
       ],
     },
@@ -216,7 +219,7 @@ export const LEVEL_9: LevelDef = {
       groups: [
         { enemyType: 'brute', count: 22, spawnInterval: 0.42, startDelay: 0 },
         { enemyType: 'healer', count: 8, spawnInterval: 0.7, startDelay: 0.5 },
-        { enemyType: 'flyer', count: 32, spawnInterval: 0.28, startDelay: 1.0 },
+        { enemyType: 'flyer', count: 22, spawnInterval: 0.28, startDelay: 1.0 },
       ],
     },
     {
@@ -226,7 +229,7 @@ export const LEVEL_9: LevelDef = {
         { enemyType: 'splitter', count: 12, spawnInterval: 0.66, startDelay: 0.5 },
         { enemyType: 'brute', count: 22, spawnInterval: 0.4, startDelay: 0.8 },
         { enemyType: 'healer', count: 9, spawnInterval: 0.68, startDelay: 1.2 },
-        { enemyType: 'flyer', count: 31, spawnInterval: 0.28, startDelay: 1.5 },
+        { enemyType: 'flyer', count: 22, spawnInterval: 0.28, startDelay: 1.5 },
       ],
     },
     {
@@ -235,7 +238,7 @@ export const LEVEL_9: LevelDef = {
         { enemyType: 'brute', count: 20, spawnInterval: 0.42, startDelay: 0 },
         { enemyType: 'healer', count: 8, spawnInterval: 0.72, startDelay: 0.5 },
         { enemyType: 'runner', count: 30, spawnInterval: 0.2, startDelay: 0.9 },
-        { enemyType: 'flyer', count: 34, spawnInterval: 0.27, startDelay: 1.2 },
+        { enemyType: 'flyer', count: 24, spawnInterval: 0.27, startDelay: 1.2 },
         { enemyType: 'boss', count: 2, spawnInterval: 4.2, startDelay: 1.8 },
       ],
     },

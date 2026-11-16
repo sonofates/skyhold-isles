@@ -35,8 +35,11 @@ export const LEVEL_5: LevelDef = {
   ],
   flightPath: [
     { col: 0, row: 9 },
-    { col: 5, row: 8 },
-    { col: 8, row: 5 },
+    { col: 4, row: 7 },
+    { col: 7, row: 8 },
+    { col: 9, row: 6 },
+    { col: 8, row: 4 },
+    { col: 11, row: 5 },
     { col: 11, row: 3 },
     { col: 13, row: 1 },
   ],
