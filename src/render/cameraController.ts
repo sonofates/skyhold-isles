@@ -3,17 +3,26 @@ import { BALANCE } from '../data/balance.ts';
 import { parseTileChar } from '../data/levels/types.ts';
 import { gridToWorldX, gridToWorldZ } from '../sim/grid.ts';
 import {
-  computeFit,
+  computePlayableFit,
   pickFitProfile,
   projectExtents,
   type FitInsets,
 } from './cameraFit.ts';
 
-const ISO_TILT_RAD = Math.asin(1 / Math.sqrt(3)); // ~35.26439 deg true isometric elevation
+/** Camera elevation above the horizon. Steeper than true isometric (35.26 deg) so tall towers cover
+ *  fewer tiles behind them. `?pitch=NN` overrides it for A/B screenshots. */
+export const CAMERA_PITCH_DEG = 50;
+function resolvePitchRad(): number {
+  let deg = CAMERA_PITCH_DEG;
+  if (typeof location !== 'undefined') {
+    const q = Number(new URLSearchParams(location.search).get('pitch'));
+    if (q >= 30 && q <= 70) deg = q;
+  }
+  return (deg * Math.PI) / 180;
+}
+const ISO_TILT_RAD = resolvePitchRad();
 const BASE_YAW_RAD = Math.PI / 4; // 45 deg
 const CAMERA_DISTANCE = 54;
-const CAMERA_MIN_ZOOM = 0.72;
-const CAMERA_MAX_ZOOM = 3.6;
 
 export class CameraController {
   readonly camera: THREE.OrthographicCamera;
@@ -39,9 +48,10 @@ export class CameraController {
   private showcaseMode = false;
 
   private fitPoints: Float32Array | null = null;
+  private fitPlayPoints: Float32Array | null = null;
+  private maxZoom = 3;
   private fitKind = '';
-  private fitZoom = 1;
-  private minZoom = CAMERA_MIN_ZOOM;
+  private minZoom = 0.3;
   private userAdjusted = false;
   private safeInsets: FitInsets = { top: 0, right: 0, bottom: 0, left: 0 };
 
@@ -77,8 +87,8 @@ export class CameraController {
   }
 
   configureForMap(cols: number, rows: number, layout?: readonly string[]): void {
-    const halfW = cols * BALANCE.tileSize * 0.5 + BALANCE.camera.panBoundsPadding;
-    const halfH = rows * BALANCE.tileSize * 0.5 + BALANCE.camera.panBoundsPadding;
+    const halfW = cols * BALANCE.tileSize * 0.5 + 1.5;
+    const halfH = rows * BALANCE.tileSize * 0.5 + 1.5;
     this.minBoundX = -halfW;
     this.maxBoundX = halfW;
     this.minBoundZ = -halfH;
@@ -94,13 +104,16 @@ export class CameraController {
 
     // World-space corner points (top + bottom of every land tile) used to frame the island.
     const pts: number[] = [];
+    const playPts: number[] = [];
     const ts = BALANCE.tileSize;
     const halfTile = ts * 0.5;
-    const addTile = (wx: number, wz: number, topY: number): void => {
+    const addTile = (wx: number, wz: number, topY: number, playable = true): void => {
       const botY = -0.85;
       for (const sx of [-halfTile, halfTile]) {
         for (const sz of [-halfTile, halfTile]) {
           pts.push(wx + sx, topY, wz + sz, wx + sx, botY, wz + sz);
+          // Playable footprint: tile tops only (cliff undersides do not need to fill the screen).
+          if (playable) playPts.push(wx + sx, 0.5, wz + sz, wx + sx, 0.0, wz + sz);
         }
       }
     };
@@ -111,7 +124,7 @@ export class CameraController {
           const tile = parseTileChar(tokens[c] ?? '~');
           if (tile === 'empty') continue;
           const topY = tile === 'spawn' || tile === 'goal' || tile === 'decor' ? 1.85 : 0.5;
-          addTile(gridToWorldX(c, cols), gridToWorldZ(r, rows), topY);
+          addTile(gridToWorldX(c, cols), gridToWorldZ(r, rows), topY, tile !== 'decor');
         }
       }
     }
@@ -121,7 +134,9 @@ export class CameraController {
       addTile(gridToWorldX(0, cols), gridToWorldZ(rows - 1, rows), 0.5);
       addTile(gridToWorldX(cols - 1, cols), gridToWorldZ(0, rows), 0.5);
     }
+    if (playPts.length === 0) playPts.push(...pts);
     this.fitPoints = Float32Array.from(pts);
+    this.fitPlayPoints = Float32Array.from(playPts);
     this.userAdjusted = false;
     this.applyFit(false);
   }
@@ -143,23 +158,22 @@ export class CameraController {
     if (!this.fitPoints) return;
     const profile = pickFitProfile(this.viewportWidth, this.viewportHeight, this.safeInsets);
     const yaw = this.rotTargetYaw;
-    const ext = projectExtents(this.fitPoints, yaw, ISO_TILT_RAD);
-    if (!ext) return;
-    const desktop = profile.kind === 'desktop';
-    const fit = computeFit(ext, {
+    const all = projectExtents(this.fitPoints, yaw, ISO_TILT_RAD);
+    const play = projectExtents(this.fitPlayPoints ?? this.fitPoints, yaw, ISO_TILT_RAD);
+    if (!all || !play) return;
+    const fit = computePlayableFit(play, all, {
       viewportW: this.viewportWidth,
       viewportH: this.viewportHeight,
       insets: profile.insets,
       halfHeight: BALANCE.camera.defaultFrustumHalfHeight,
       yaw,
       tilt: ISO_TILT_RAD,
-      fill: profile.fill,
-      minZoom: profile.minFitZoom,
-      maxZoom: desktop ? 1.55 : 1.9,
+      kind: profile.kind,
+      maxZoomFactor: 2.2,
     });
     this.fitKind = profile.kind;
-    this.fitZoom = fit.zoom;
-    this.minZoom = Math.min(CAMERA_MIN_ZOOM, fit.zoom * 0.8);
+    this.minZoom = fit.minZoom;
+    this.maxZoom = fit.maxZoom;
     this.desiredTarget.set(fit.targetX, 0, fit.targetZ);
     this.desiredZoom = fit.zoom;
     if (!smooth) {
@@ -239,7 +253,7 @@ export class CameraController {
     const minAllowedZoom = this.minZoom;
     this.desiredZoom = Math.max(
       minAllowedZoom,
-      Math.min(Math.max(CAMERA_MAX_ZOOM, this.fitZoom * 2.5), this.desiredZoom + delta * this.desiredZoom),
+      Math.min(this.maxZoom, this.desiredZoom + delta * this.desiredZoom),
     );
 
     if (before) {

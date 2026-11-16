@@ -14,6 +14,8 @@ interface TowerInstancedBucket {
   turretMesh: THREE.InstancedMesh;
   highlightArray: Float32Array;
   highlightAttr: THREE.InstancedBufferAttribute;
+  fadeArray: Float32Array;
+  fadeAttr: THREE.InstancedBufferAttribute;
   capacity: number;
   readonly turretAnchorY: number;
   readonly idleSpinTurret: boolean;
@@ -30,6 +32,8 @@ export class TowerRenderer {
   readonly geometryCache: TowerGeometryCache;
   private readonly buckets = new Map<string, TowerInstancedBucket>();
   private readonly keyCounts = new Map<string, number>();
+  /** Per-tower opacity (1 = solid). Written by the x-ray pass, read while syncing instances. */
+  readonly fadeById = new Map<number, number>();
 
   private readonly stunHaloGeo: THREE.BufferGeometry;
   private readonly stunHaloMat: THREE.MeshBasicMaterial;
@@ -127,6 +131,7 @@ export class TowerRenderer {
 
       const stunned = t.stunTimer > 0;
       const slot = bucket.baseMesh.count;
+      bucket.fadeArray[slot] = this.fadeById.get(t.id) ?? 1;
       bucket.baseMesh.count = slot + 1;
       bucket.turretMesh.count = slot + 1;
 
@@ -218,6 +223,7 @@ export class TowerRenderer {
         bucket.baseMesh.instanceMatrix.needsUpdate = true;
         bucket.turretMesh.instanceMatrix.needsUpdate = true;
         bucket.highlightAttr.needsUpdate = true;
+        bucket.fadeAttr.needsUpdate = true;
       }
     });
 
@@ -299,6 +305,11 @@ export class TowerRenderer {
     highlightAttr.setUsage(THREE.DynamicDrawUsage);
     pair.base.setAttribute('aHighlight', highlightAttr);
     pair.turret.setAttribute('aHighlight', highlightAttr);
+    const fadeArray = new Float32Array(capacity).fill(1);
+    const fadeAttr = new THREE.InstancedBufferAttribute(fadeArray, 1);
+    fadeAttr.setUsage(THREE.DynamicDrawUsage);
+    pair.base.setAttribute('aFade', fadeAttr);
+    pair.turret.setAttribute('aFade', fadeAttr);
 
     if (bucket) {
       highlightArray.set(bucket.highlightArray.subarray(0, prevCount));
@@ -315,6 +326,8 @@ export class TowerRenderer {
       bucket.turretMesh = newTurret;
       bucket.highlightArray = highlightArray;
       bucket.highlightAttr = highlightAttr;
+      bucket.fadeArray = fadeArray;
+      bucket.fadeAttr = fadeAttr;
       bucket.capacity = capacity;
       this.group.add(newBase, newTurret);
       return bucket;
@@ -328,6 +341,8 @@ export class TowerRenderer {
       turretMesh: newTurret,
       highlightArray,
       highlightAttr,
+      fadeArray,
+      fadeAttr,
       capacity,
       turretAnchorY: pair.turretAnchorY,
       idleSpinTurret: pair.idleSpinTurret,

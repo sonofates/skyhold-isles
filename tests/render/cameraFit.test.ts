@@ -1,9 +1,9 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
-import { CameraController } from '../../src/render/cameraController.ts';
-import { computeFit, pickFitProfile, projectExtents } from '../../src/render/cameraFit.ts';
+import { CAMERA_PITCH_DEG, CameraController } from '../../src/render/cameraController.ts';
+import { computeFit, computePlayableFit, pickFitProfile, projectExtents } from '../../src/render/cameraFit.ts';
 
-const TILT = Math.asin(1 / Math.sqrt(3));
+const TILT = (CAMERA_PITCH_DEG * Math.PI) / 180;
 const YAW = Math.PI / 4;
 const ZERO = { top: 0, right: 0, bottom: 0, left: 0 };
 
@@ -113,5 +113,28 @@ describe('cameraFit', () => {
     cam.resize(900, 360);
     cam.update(0);
     expect(cam.camera.zoom).toBeCloseTo(adjusted, 3);
+  });
+
+  it('playable fit: portrait fills ~105% width, whole island is the pinch-out limit', () => {
+    const play = projectExtents([-8, 0.5, -6, 8, 0.5, -6, -8, 0, 6, 8, 0, 6], YAW, TILT)!;
+    const all = projectExtents([-14, 1.85, -10, 14, 1.85, -10, -14, -0.85, 10, 14, -0.85, 10], YAW, TILT)!;
+    const insets = { top: 76, bottom: 112, left: 6, right: 6 };
+    const fit = computePlayableFit(play, all, {
+      viewportW: 430,
+      viewportH: 739,
+      insets,
+      halfHeight: 13.5,
+      yaw: YAW,
+      tilt: TILT,
+      kind: 'portrait',
+      maxZoomFactor: 2.2,
+    });
+    const ppu = (739 / 2 / 13.5) * fit.zoom;
+    const widthPx = (play.maxX - play.minX) * ppu;
+    expect(widthPx / (430 - 12)).toBeGreaterThan(0.99);
+    expect(fit.minZoom).toBeLessThanOrEqual(fit.zoom);
+    expect(fit.maxZoom).toBeCloseTo(fit.zoom * 2.2, 5);
+    const wholePx = (all.maxX - all.minX) * (739 / 2 / 13.5) * fit.minZoom;
+    expect(wholePx).toBeLessThanOrEqual(430 - 12 + 1);
   });
 });

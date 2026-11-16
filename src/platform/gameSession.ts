@@ -18,6 +18,7 @@ import type { GameOverlays } from '../ui/gameOverlays.ts';
 import type { RadialMenu } from '../ui/radialMenu.ts';
 import type { GameLoop } from './browserLoop.ts';
 import { isRadialActive } from './deviceClass.ts';
+import { resolveTap, type GroundTileInfo, type TapTarget } from './tapResolution.ts';
 import type { InputManager } from './input.ts';
 import {
   bindSimEventBridge,
@@ -563,31 +564,33 @@ export class GameSession {
       return;
     }
 
-    const pickedTower = this.renderWorld.pickTowerAtNdc(ndcX, ndcY, this.simWorld.towers);
+    const silhouette = this.renderWorld.pickTowerAtNdc(ndcX, ndcY, this.simWorld.towers);
     const coord = hit ? this.simWorld.grid.worldToGrid(hit.x, hit.z) : null;
+    const ground: GroundTileInfo | null = coord
+      ? {
+          col: coord.col,
+          row: coord.row,
+          towerId: this.simWorld.grid.getTowerIdAt(coord.col, coord.row),
+          buildable: this.simWorld.grid.canPlaceTower(coord.col, coord.row),
+        }
+      : null;
+    const target = resolveTap(ground, silhouette?.id ?? null);
 
     const radial = this.deps?.radial;
     if (radial && isRadialActive() && !this.activePlacementType) {
-      this.onRadialTap(radial, pickedTower?.id ?? null, coord);
+      this.onRadialTap(radial, target);
       return;
     }
 
     if (this.activePlacementType) {
-      if (pickedTower) {
+      if (target.kind === 'tower') {
         this.setPlacementMode(null);
-        this.selectTower(pickedTower.id);
+        this.selectTower(target.id);
         this.refreshHoverFeedback();
         return;
       }
-      if (!coord) return;
-      const existingTowerId = this.simWorld.grid.getTowerIdAt(coord.col, coord.row);
-      if (existingTowerId !== -1) {
-        this.setPlacementMode(null);
-        this.selectTower(existingTowerId);
-        this.refreshHoverFeedback();
-        return;
-      }
-      if (this.simWorld.placeTower(coord.col, coord.row, this.activePlacementType)) {
+      if (target.kind !== 'build') return;
+      if (this.simWorld.placeTower(target.col, target.row, this.activePlacementType)) {
         if (!hasSeenUpgradeToast()) {
           markUpgradeToastSeen();
           this.d.overlays.toast.show('Click a tower to upgrade or sell it');
@@ -603,45 +606,23 @@ export class GameSession {
       return;
     }
 
-    if (pickedTower) {
-      this.selectTower(pickedTower.id);
-      this.refreshHoverFeedback();
-      return;
-    }
-    if (!coord) {
-      this.selectTower(null);
-      this.refreshHoverFeedback();
-      return;
-    }
-    const towerId = this.simWorld.grid.getTowerIdAt(coord.col, coord.row);
-    this.selectTower(towerId !== -1 ? towerId : null);
+    this.selectTower(target.kind === 'tower' ? target.id : null);
     this.refreshHoverFeedback();
   }
 
   /** Touch flow: tapping a tower / buildable tile opens the radial menu around it. */
-  private onRadialTap(
-    radial: RadialMenu,
-    pickedTowerId: number | null,
-    coord: { col: number; row: number } | null,
-  ): void {
-    const grid = this.simWorld.grid;
-    const towerId =
-      pickedTowerId ?? (coord ? grid.getTowerIdAt(coord.col, coord.row) : -1);
-    if (towerId !== null && towerId !== -1) {
-      const open = radial.openedFor();
-      if (open?.kind === 'tower' && open.id === towerId) {
-        radial.close();
-      } else {
-        radial.openTower(towerId);
-      }
+  private onRadialTap(radial: RadialMenu, target: TapTarget): void {
+    const open = radial.openedFor();
+    if (target.kind === 'tower') {
+      if (open?.kind === 'tower' && open.id === target.id) radial.close();
+      else radial.openTower(target.id);
       return;
     }
-    if (coord && grid.canPlaceTower(coord.col, coord.row)) {
-      const o = radial.openedFor();
-      if (o?.kind === 'build' && o.col === coord.col && o.row === coord.row) {
+    if (target.kind === 'build') {
+      if (open?.kind === 'build' && open.col === target.col && open.row === target.row) {
         radial.close();
       } else {
-        radial.openBuild(coord.col, coord.row);
+        radial.openBuild(target.col, target.row);
       }
       return;
     }

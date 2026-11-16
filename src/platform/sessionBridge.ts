@@ -182,17 +182,18 @@ export function updatePlacementPreviewFromNdc(
     renderWorld.setPlacementPreview(false, null, 0, 0, false);
     return;
   }
-  if (renderWorld.pickTowerAtNdc(ndcX, ndcY, simWorld.towers)) {
-    renderWorld.setPlacementPreview(false, null, 0, 0, false);
-    return;
-  }
+  // Ground-plane hit only: a tower silhouette drawn over an empty tile must not hide its ghost.
   const hit = renderWorld.cameraController.screenNdcToPlane(ndcX, ndcY, 0);
   if (!hit) {
     renderWorld.setPlacementPreview(false, null, 0, 0, false);
     return;
   }
   const coord = simWorld.grid.worldToGrid(hit.x, hit.z);
-  if (!coord || simWorld.grid.getTile(coord.col, coord.row) === 'empty') {
+  if (
+    !coord ||
+    simWorld.grid.getTile(coord.col, coord.row) === 'empty' ||
+    simWorld.grid.getTowerIdAt(coord.col, coord.row) !== -1
+  ) {
     renderWorld.setPlacementPreview(false, null, 0, 0, false);
     return;
   }

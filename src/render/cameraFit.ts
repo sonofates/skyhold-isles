@@ -145,3 +145,41 @@ export function pickFitProfile(w: number, h: number, safe: FitInsets): FitProfil
     insets: { top: 50 + safe.top, bottom: 22 + safe.bottom, left: 10 + safe.left, right: 10 + safe.right },
   };
 }
+
+export interface PlayableFitOptions extends Omit<FitOptions, 'fill' | 'minZoom' | 'maxZoom'> {
+  kind: FitProfile['kind'];
+  /** Zoom ceiling relative to the default zoom. */
+  maxZoomFactor: number;
+}
+
+export interface PlayableFitResult extends FitResult {
+  /** Zoom at which the whole island fits (pinch-out limit). */
+  minZoom: number;
+  maxZoom: number;
+}
+
+/**
+ * Default framing: the *playable* area (path + buildable tiles) fills the free rect —
+ * portrait: ~105% of the free width, landscape: the free height, desktop: both. The whole island
+ * (incl. decor) fitting is the pinch-out limit; max zoom is a multiple of the default.
+ */
+export function computePlayableFit(
+  play: ScreenExtents,
+  all: ScreenExtents,
+  o: PlayableFitOptions,
+): PlayableFitResult {
+  const { viewportW: W, viewportH: H, insets } = o;
+  const freeW = Math.max(40, W - insets.left - insets.right);
+  const freeH = Math.max(40, H - insets.top - insets.bottom);
+  const ppu1 = H / 2 / o.halfHeight;
+  const whole = computeFit(all, { ...o, fill: 0.98, minZoom: 0.05, maxZoom: 6 }).zoom;
+  const spanX = Math.max(1e-3, play.maxX - play.minX);
+  const spanY = Math.max(1e-3, play.maxY - play.minY);
+  let zPlay: number;
+  if (o.kind === 'portrait') zPlay = (freeW * 1.05) / (spanX * ppu1);
+  else if (o.kind === 'landscape-phone') zPlay = freeH / (spanY * ppu1);
+  else zPlay = Math.min((freeW * 1.0) / (spanX * ppu1), (freeH * 1.0) / (spanY * ppu1));
+  const zoom = Math.max(whole, zPlay);
+  const placed = computeFit(play, { ...o, fill: 1, minZoom: zoom, maxZoom: zoom });
+  return { ...placed, zoom, minZoom: whole, maxZoom: zoom * o.maxZoomFactor };
+}

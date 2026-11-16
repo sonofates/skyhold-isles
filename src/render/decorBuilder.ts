@@ -22,6 +22,8 @@ interface DecorLayer {
   mesh: THREE.InstancedMesh;
   placements: SwayPlacement[];
   sway: boolean;
+  fadeArray: Float32Array;
+  fadeAttr: THREE.InstancedBufferAttribute;
 }
 
 function interleavePlacements(list: SwayPlacement[]): SwayPlacement[] {
@@ -134,7 +136,11 @@ export class DecorBuilder {
       }
       const ordered = interleavePlacements(placements);
       this.disposableGeometries.push(geo);
-      const mesh = new THREE.InstancedMesh(geo, materials.kenneyTerrain, ordered.length);
+      const mesh = new THREE.InstancedMesh(geo, materials.kenneyDecor, ordered.length);
+      const fadeArray = new Float32Array(ordered.length).fill(1);
+      const fadeAttr = new THREE.InstancedBufferAttribute(fadeArray, 1);
+      fadeAttr.setUsage(THREE.DynamicDrawUsage);
+      geo.setAttribute('aFade', fadeAttr);
       mesh.castShadow = castShadow;
       mesh.receiveShadow = true;
       for (let i = 0; i < ordered.length; i++) {
@@ -150,7 +156,7 @@ export class DecorBuilder {
       mesh.instanceMatrix.needsUpdate = true;
       if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
       this.group.add(mesh);
-      this.layers.push({ mesh, placements: ordered, sway });
+      this.layers.push({ mesh, placements: ordered, sway, fadeArray, fadeAttr });
     };
 
     createLayer(assets.cloneGeometry('detail-tree'), smallTreePlacements, true, true);
@@ -170,6 +176,39 @@ export class DecorBuilder {
       const full = layer.placements.length;
       layer.mesh.count = this.quality === 'low' ? Math.max(1, Math.ceil(full * 0.5)) : full;
     }
+  }
+
+  /** True while any tree is (partly) faded; lets the caller skip the x-ray pass otherwise. */
+  private anyFaded = false;
+
+  isFaded(): boolean {
+    return this.anyFaded;
+  }
+
+  /**
+   * Eases each tree's opacity toward `targetFor(placement)` (1 = solid). Trees are small in
+   * number, so this is a plain loop; the attribute is only re-uploaded when a value moved.
+   */
+  stepFade(dt: number, targetFor: (p: { x: number; z: number; scale: number }) => number): void {
+    const k = Math.min(1, dt * 14);
+    let any = false;
+    for (let l = 0; l < this.layers.length; l++) {
+      const layer = this.layers[l];
+      let changed = false;
+      for (let i = 0; i < layer.placements.length; i++) {
+        const target = targetFor(layer.placements[i]);
+        const cur = layer.fadeArray[i];
+        let next = cur + (target - cur) * k;
+        if (Math.abs(next - target) < 0.01) next = target;
+        if (next !== cur) {
+          layer.fadeArray[i] = next;
+          changed = true;
+        }
+        if (next < 0.999) any = true;
+      }
+      if (changed) layer.fadeAttr.needsUpdate = true;
+    }
+    this.anyFaded = any;
   }
 
   update(elapsedTime: number): void {

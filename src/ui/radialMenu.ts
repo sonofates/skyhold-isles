@@ -159,6 +159,7 @@ export class RadialMenu {
     this.lastSig = '';
     this.lastLayoutSig = '';
     this.session.setRadialPlacementPreview(null);
+    if (wasTower) this.renderWorld.setXrayTarget(null);
     if (wasTower && deselect && this.session.getSelectedTowerId() === id) {
       this.session.selectTower(null);
     }
@@ -342,6 +343,13 @@ export class RadialMenu {
       wx = tower.x;
       wz = tower.z;
       wy = getTowerPickHeight(tower.type, tower.tier) * 0.52;
+      // Keep the selected tower readable: whatever is drawn in front of it fades.
+      this.renderWorld.setXrayTarget({
+        x: tower.x,
+        z: tower.z,
+        height: getTowerPickHeight(tower.type, tower.tier),
+        excludeTowerId: tower.id,
+      });
     }
 
     this.syncState(tower);
