@@ -32,7 +32,7 @@ Started 2026-11-16 23:00 UTC (02:00 TR). Deadline 06:00 UTC (09:00 TR).
 ## Morning merge dry-run (done on this branch, repo untouched)
 `python3 .wt/trymerge.py .wt/m3 cfb9330 hermes/skyhold-night-islands hermes/skyhold-night-towers` (scratch copy via `git merge-file`; `.wt/` is git-ignored and only exists on hermes):
 - Only textual conflict: `scripts/balanceSim.ts` between ISLANDS (`--levels` flag) and TOWERS (`evaluateBalance` refactor) — not involving this branch. I removed my own `--levels` flag and moved the tempest camera-shake out of `renderWorld`'s boss branch to avoid conflicts.
-- Merged tree: tsc clean, **231/231 tests pass**, balance: L1–L5, L7–L12 pass; **L6 fails** (greedy 6 lives vs Heroic 8–13, weak wins with 3) — an ISLANDS×TOWERS interaction, not enemies.
+- Merged tree (re-run after the other branches' latest commits): tsc clean, **234/234 tests pass**, **balance passes for all 12 islands** (an earlier run had L6 failing from an ISLANDS×TOWERS interaction; gone in their later commits).
 - L10–L12 numbers were picked so they pass both on this branch alone and in the merged tree.
 
 ## Decisions
@@ -60,7 +60,7 @@ Started 2026-11-16 23:00 UTC (02:00 TR). Deadline 06:00 UTC (09:00 TR).
 
 ## Known issues
 - New meshes were not checked in a real browser (no browser on hermes). They WERE checked with a software-rasterised lineup (a copy of the ISLANDS branch's `scripts/previewMap.ts` rasteriser, run in the git-ignored `.wt/` scratch area) — silhouettes/colours read well against grass. Also `tests/render/enemyGeometry.test.ts` (size vs sim height/radius, footprint, ≤900 tris, size classes). Not checkable that way (transparent/animated): shield bubble, elite ring, burrow mound bulge, blinker flicker — please eyeball in-game.
-- Islands 10–12 use the ISLANDS branch's DEFAULT theme after merge (`getIslandTheme` falls back). Suggest adding THEME_TABLE entries for `confluence-terraces`, `galewatch-spires`, `stormcrown-citadel`.
+- The ISLANDS branch already ships themes for `confluence-terraces`, `galewatch-spires`, `stormcrown-citadel`; their placement/sight-line tests pass against my final level files in the dry-run merge (incl. 7 decor tiles I added to L12's terraces).
 - Balance response is noisy (deterministic sim + binary events like a hauler dying 1 tile earlier): L11 shows a 13-life spike at enemyHpScale 1.205 between passing neighbours. Chosen values sit in passing plateaus on both this branch and the dry-run merge.
 - Balance of L10+ assumes current tower stats; if the TOWERS branch changes tower numbers, re-run `npm run sim:balance` after merge (L10 window is ±2% HP wide).
 - Endless with full L9 build now ends ~1 wave earlier (spotlight groups add units).
