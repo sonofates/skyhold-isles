@@ -4,7 +4,7 @@ export const LEVEL_9: LevelDef = {
   id: 'grand-skyhold',
   index: 8,
   name: 'Grand Skyhold',
-  subtitle: 'The crown citadel above the clouds — endure the full siege',
+  subtitle: 'The crown citadel above the clouds: marble courts and golden banners',
   difficulty: 'Master',
   cols: 17,
   rows: 13,

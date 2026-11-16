@@ -4,7 +4,7 @@ export const LEVEL_8: LevelDef = {
   id: 'sunken-bastion',
   index: 7,
   name: 'Sunken Bastion',
-  subtitle: 'Outer terraced ramparts feeding a moated inner keep',
+  subtitle: 'A half-drowned bastion of mossy ruins, torches and a moated inner keep',
   difficulty: 'Master',
   cols: 16,
   rows: 13,

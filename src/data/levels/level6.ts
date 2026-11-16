@@ -4,7 +4,7 @@ export const LEVEL_6: LevelDef = {
   id: 'crescent-lagoon',
   index: 5,
   name: 'Crescent Lagoon',
-  subtitle: 'An enclosing atoll ring flanking a sunlit inner sea basin',
+  subtitle: 'A palm-fringed atoll ringing a lighthouse lagoon of sandy shores',
   difficulty: 'Heroic',
   cols: 16,
   rows: 12,

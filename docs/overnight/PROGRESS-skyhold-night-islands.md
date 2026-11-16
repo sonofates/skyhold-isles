@@ -2,38 +2,91 @@
 
 Branch `hermes/skyhold-night-islands`. Deadline 09:00 TR. Updated each round.
 
-## Status (round 1)
-- Baseline verified green: tsc, lint, tests, sim:balance all pass on `cfb9330`.
-- NOTE: level order in code is L1 Sunlit Meadow, L2 Twin-Bridge Cay, L3 Highland Citadel, L4 Emerald
-  Stepping Stones, L5 Windmill Switchback, L6 Crescent Lagoon, L7 Skybridge Gauntlet, L8 Sunken Bastion,
-  L9 Grand Skyhold (README lists a different order; ignore it).
+NOTE: level order in code is L1 Sunlit Meadow, L2 Twin-Bridge Cay, L3 Highland Citadel, L4 Emerald Stepping
+Stones, L5 Windmill Switchback, L6 Crescent Lagoon, L7 Skybridge Gauntlet, L8 Sunken Bastion, L9 Grand Skyhold
+(README lists a different order; ignore it).
 
-## Audit (what is samey today)
-All 9 islands share: one flat height, identical grass tint, identical tree mix (3 kinds, random), same
-decor on every `T` tile, same ambient (4 islets + 5 clouds), same goal sanctuary, same spawn gate. The only
-difference between levels is the grid shape. `Windmill Switchback` has no windmill, `Crescent Lagoon` has no
-beach/palms, `Skybridge Gauntlet` has no bridges in the visual sense, `Sunken Bastion` has no ruins/moat feel,
-`Highland Citadel` has no mountain/pine feel.
+## How to look at the art without a browser
+`npx tsx scripts/previewMap.ts <1-9|all> [outDir=/tmp/skyhold-preview] [yawQuarter=0] [width=1400] [col,row,halfWidth]`
+Headless software rasteriser: runs the real MapBuilder/DecorBuilder in Node with the raw Kenney GLBs and writes PNGs
+(flat shading, no AO/shadows/water shader; sky/water colours from the theme). Open PNGs with the Read tool.
+`[col,row,halfWidth]` crops/zooms onto a grid point. It prints triangle + draw-call counts per island
+(~34-50k tris, 17-22 map+decor draw calls per island).
 
-## Plan
-1. Dev tool `scripts/previewMap.ts`: headless software rasteriser that renders MapBuilder/DecorBuilder output to
-   PNG (no browser on this box), so art can be checked visually.
-2. `src/render/islandThemes.ts`: per-level theme table keyed by level id (render-side, so `LevelDef` is untouched
-   and new levels from other branches fall back to a default theme).
-3. Per-theme: grass tint/sand patches, tree mix (pine/palm/autumn/blossom), cliff stone colors, ambient (birds,
-   islets), signature set piece (windmill, lighthouse, ruins, waterfall, banners, bridges...).
-4. Waves, layout, rebalance (after visuals).
+## Status (end of round 1)
+All checks green on the last commit: `npx tsc --noEmit`, `npm run lint`, `npm test` (79 tests), `npm run build`,
+`npm run sim:balance` (all 9 islands inside their windows; nothing in the sim/data balance numbers changed this
+round except wave composition of a few waves, see below).
 
-## Done
-(nothing yet)
+### Done
+1. Audit (below) + preview tool.
+2. **Theme system** (render-only, keyed by `LevelDef.id`, so new levels from other branches fall back to
+   `DEFAULT_THEME` and `LevelDef` is untouched): `src/render/islandThemes.ts` (types/helpers),
+   `islandThemeTable.ts` (the 9 authored themes). Per theme: path style (dirt/stone/sand via colormap cell remap),
+   grass tint + soft tint zones, ground kinds (sand / cobble / golden furrowed field / moss), cliff colours + depth,
+   tree mix (new: pine w/ snow caps, palm, autumn, blossom), decor-bake odds, detail palettes (wheat tufts, shells,
+   starfish, flower colours), hillocks on free decor tiles (rocky/snow-capped on highland/skybridge), bridge style
+   (timber w/ lanterns, rope w/ emerald lanterns, stone parapets + masonry piers), spawn-gate crystal colour, goal
+   crystal colour/glow + goal trimmings (pillars, gold pillars, shards, sheaves, shells, pennant poles), water
+   colour, sky/sun mood (`SceneManager.setAtmosphere`), ambient (birds, butterflies, falling leaves, themed islets).
+3. **Set pieces** (`setPieceGeometry.ts`, `setPieces.ts`): windmill (rotating blades), cottage, lighthouse, waterfall
+   (animated streaks), arch/ruin wall/pillars (optional half-sunk plinth for water placement), banners (swaying cloth),
+   crystal grove (emissive), dock + bobbing boats, watchtower, hay bales, scarecrow, brazier (flame), sea stack
+   (+crystal variant), snow peak, obelisk, gatehouse (unused). Static parts merged into 1 mesh (+1 emissive mesh);
+   animated parts are instanced per family (blades/cloth/flow/boat/flame) -> ~7 extra draw calls max.
+   Placement rule (tested): set pieces only sit on decor (`T`) tiles or open water, never on buildable/path tiles.
+4. Islands now each read differently:
+   - L1 meadow: flower-heavy, blossom/oak trees, cottage, hay, welcome banners, butterflies, boat.
+   - L2 cay: sandy beaches around 3 timber docks with boats, palms, harbour braziers, lantern bridges.
+   - L3 highland: cool pine/snow hillocks, stone path, cobble keep court, watchtower + banners, 2 waterfalls off the
+     south/east cliffs, 3 snow peaks in the background, tall cliffs.
+   - L4 emerald: deep emerald grass, 6 glowing crystal groves + 2 crystal sea stacks, rope viaducts w/ lanterns,
+     crystal islets, butterflies.
+   - L5 windmill: golden furrowed fields (2), 2 windmills, hay bales, scarecrows, autumn trees, falling leaves,
+     warm golden-hour sky.
+   - L6 lagoon: sand ring + sand paths, palms, lighthouse in the lagoon, 3 docks, boats, sea stacks, turquoise sea.
+   - L7 skybridge: stone paths/parapet bridges, cobble fort courts, 4 watchtowers, banners, broken arch, sea stacks
+     in the chasm, tall dark cliffs, high-altitude sky.
+   - L8 bastion: dusky sky, mossy cobbles, ruined arch/walls/pillars standing in the moat on half-sunk plinths,
+     torches, indigo banners, watchtowers.
+   - L9 skyhold: marble cliffs, big cobble court, obelisk, 4 corner towers, gold banners, gold goal crystal,
+     sunset sky, ruin islets.
+5. **Waves**: every wave of every island has a flavour `name` (new optional `WaveDef.name`, data only - see UI notes).
+   One "two-front surge" wave per island (second group arrives after a long gap): L2 W9 Twin-Bridge Rush, L3 W9
+   Avalanche, L5 W10 Scarecrow's Gambit, L6 W9 Riptide, L7 W12 Pincer, L8 W9 The Drowned March, L9 W13 Pincer of the
+   Crown; L1 W7 became the flyer-led "Gull Squadron"; L4 W11 "Cinder Bloom" is splitter-led. Sim windows unchanged.
+6. Level subtitles rewritten to describe the new identity (short enough for the menu cards).
 
-## Next
-see Plan.
+## Audit (what was samey before)
+All 9 islands shared: one flat height, identical grass tint, same 3-tree mix on every `T` tile, same ambient
+(4 islets + 5 clouds), same goal sanctuary and spawn gate, same sky/water. Only the grid shape differed.
+`Windmill Switchback` had no windmill, `Crescent Lagoon` no beach/palms, `Skybridge Gauntlet` no real bridges,
+`Sunken Bastion` no ruins/moat feel, `Highland Citadel` no mountain feel. Layouts themselves are decent (snake,
+twin bridges, spiral, stepping stones, double hairpin, atoll ring, chasm, moat keep, citadel loop) -> I left grids
+and path waypoints alone (the scripted greedy/weak builds depend on tile coords, and the sim is fragile).
+
+## Next (ideas, in rough priority)
+- Re-check greedy/weak stability at +-2% HP on the 9 islands (only cheap checks done so far).
+- More mid-run "moments" if the balance sim ever shows more than boss-wave leaks (the sim currently only leaks at
+  boss waves, so mid-run changes are balance-neutral).
+- Water details (lily pads / buoys), more set-piece variety on L1/L2, optional second cottage on L1.
+- Cloud variety, drifting islet bridges.
 
 ## Decisions
 - Themes live in render code keyed by level id, not in LevelDef (avoids merge conflicts with other branches).
+- No grid / waypoint changes: scripted builds + balance windows stay valid.
+- `scripts/balanceSim.ts` accepts `--levels=3,6` (the harness here forbids env-var prefixes).
+
+## UI needs (not done: ui is off limits)
+- `WaveDef.name` exists for all L1-L9 waves; the wave preview / "wave started" toast could show it.
+- Nothing else.
 
 ## Known issues
+- Preview rasteriser ignores shadows/AO/post-processing: judge composition and colour relations, not final shading.
+- The `peak` set pieces on L3 sit outside the grid; if the camera pan bounds clip them it is only cosmetic.
 
 ## Cross-area changes
-(none yet)
+- `src/render/sceneManager.ts`: added `setAtmosphere()` (sky gradient/fog/hemi/sun colours per island); default
+  call with `{}` reproduces the old look. Called from `RenderWorld.loadLevel` (one line + import).
+- `src/data/levels/types.ts`: `WaveDef.name?: string` (optional, data only).
+- `materials.ts` is untouched; per-level water colour and goal glow are set on the shared materials at map build.

@@ -4,7 +4,7 @@ export const LEVEL_3: LevelDef = {
   id: 'highland-citadel',
   index: 2,
   name: 'Highland Citadel',
-  subtitle: 'A spiraling mountain keep beset by armored sieges and sky raids',
+  subtitle: 'A snow-pine mountain keep spiralling round its courtyard, waterfalls off the cliffs',
   difficulty: 'Heroic',
   cols: 16,
   rows: 12,

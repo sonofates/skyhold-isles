@@ -10,6 +10,7 @@ import { DecorBuilder } from './decorBuilder.ts';
 import { EffectsRenderer } from './effectsRenderer.ts';
 import { EnemyRenderer } from './enemyMeshes.ts';
 import type { KenneyAssetStore } from './kenneyAssets.ts';
+import { getIslandTheme } from './islandThemeTable.ts';
 import { MapBuilder } from './mapBuilder.ts';
 import { MaterialLibrary } from './materials.ts';
 import type { TowerEntity } from '../sim/entities.ts';
@@ -82,6 +83,7 @@ export class RenderWorld {
     this.towerBadges.clear();
     this.hoveredTowerId = null;
 
+    this.sceneManager.setAtmosphere(getIslandTheme(level.id).atmosphere);
     this.mapBuilder.build(level, this.materials, this.assets);
     this.decorBuilder.build(level, this.materials, this.assets);
     this.overlayIndicators.setBuildableGrid(level);

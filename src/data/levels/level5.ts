@@ -4,7 +4,7 @@ export const LEVEL_5: LevelDef = {
   id: 'windmill-switchback',
   index: 4,
   name: 'Windmill Switchback',
-  subtitle: 'Deep sea coves carve twin hairpins around a central ridge',
+  subtitle: 'Twin hairpins around golden wheat fields, creaking windmills and autumn orchards',
   difficulty: 'Challenging',
   cols: 15,
   rows: 12,

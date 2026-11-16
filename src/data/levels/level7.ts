@@ -4,7 +4,7 @@ export const LEVEL_7: LevelDef = {
   id: 'skybridge-gauntlet',
   index: 6,
   name: 'Skybridge Gauntlet',
-  subtitle: 'Twin cliffside forts crossed twice across a central sky-chasm',
+  subtitle: 'Twin cliffside forts joined by stone sky-bridges across a windswept chasm',
   difficulty: 'Heroic',
   cols: 16,
   rows: 13,

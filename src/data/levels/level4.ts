@@ -4,7 +4,7 @@ export const LEVEL_4: LevelDef = {
   id: 'emerald-stepping-stones',
   index: 3,
   name: 'Emerald Stepping Stones',
-  subtitle: 'Three terraced sky-islets joined by narrow timber viaducts',
+  subtitle: 'Mossy emerald terraces, glowing crystal groves and lantern-lit rope viaducts',
   difficulty: 'Challenging',
   cols: 15,
   rows: 12,

@@ -13,6 +13,7 @@ import * as THREE from 'three';
 import { LEVELS } from '../src/data/levels/index.ts';
 import type { LevelDef } from '../src/data/levels/index.ts';
 import { MapBuilder } from '../src/render/mapBuilder.ts';
+import { getIslandTheme } from '../src/render/islandThemeTable.ts';
 import { DecorBuilder } from '../src/render/decorBuilder.ts';
 import { KENNEY_MODEL_LIST, type KenneyAssetStore, type KenneyModelName } from '../src/render/kenneyAssets.ts';
 import type { MaterialLibrary } from '../src/render/materials.ts';
@@ -425,6 +426,7 @@ function render(
   widthPx: number,
   yawQuarter: number,
   focus: { x: number; z: number; half: number } | null,
+  look: { water: number; horizon: number; zenith: number },
   ss = 2,
 ): { w: number; h: number; rgb: Uint8Array } {
   const yaw = Math.PI / 4 + (yawQuarter * Math.PI) / 2;
@@ -469,6 +471,8 @@ function render(
   const W = widthPx * ss;
   const scale = W / (maxX - minX);
   const H = Math.ceil((maxY - minY) * scale);
+  const hz = new THREE.Color(look.horizon);
+  const zn = new THREE.Color(look.zenith);
   const zbuf = new Float32Array(W * H).fill(-1e9);
   const img = new Float32Array(W * H * 3);
   // sky + water background (water plane at y=waterPlaneY covers everything below horizon)
@@ -476,9 +480,9 @@ function render(
     const tY = y / H;
     for (let x = 0; x < W; x++) {
       const i = (y * W + x) * 3;
-      img[i] = 0.42 - 0.12 * tY;
-      img[i + 1] = 0.68 - 0.1 * tY;
-      img[i + 2] = 0.86 - 0.04 * tY;
+      img[i] = hz.r + (zn.r - hz.r) * tY;
+      img[i + 1] = hz.g + (zn.g - hz.g) * tY;
+      img[i + 2] = hz.b + (zn.b - hz.b) * tY;
     }
   }
 
@@ -526,7 +530,8 @@ function render(
     [R, wy, R],
     [-R, wy, R],
   ];
-  const waterCol: [number, number, number] = [0.07, 0.4, 0.6];
+  const wc = new THREE.Color(look.water);
+  const waterCol: [number, number, number] = [wc.r * 0.62, wc.g * 0.78, wc.b * 0.8];
   for (const idx of [
     [0, 1, 2],
     [0, 2, 3],
@@ -604,7 +609,13 @@ function previewLevel(
     if ((o as THREE.Mesh).isMesh) draws++;
   });
   console.log(`  ${level.name}: ${tris.length} triangles (instances expanded), ${draws} map+decor draw calls`);
-  const { w, h, rgb } = render(tris, width, yawQuarter, f);
+  const theme = getIslandTheme(level.id);
+  const look = {
+    water: theme.water,
+    horizon: theme.atmosphere.horizon ?? 0x9fd0e6,
+    zenith: theme.atmosphere.zenith ?? 0x3d93c8,
+  };
+  const { w, h, rgb } = render(tris, width, yawQuarter, f, look);
   const file = `${outDir}/L${level.index + 1}-${level.id}-r${yawQuarter}${focus ? '-focus' : ''}.png`;
   writeFileSync(file, encodePng(w, h, rgb));
   map.dispose();

@@ -48,6 +48,8 @@ const SUNLIT_MEADOW = theme({
 
 /** L2 — Twin-Bridge Cay: sun-bleached harbour cay with docks, boats and sandy shores. */
 const TWIN_BRIDGE_CAY = theme({
+  water: 0x2cc0dd,
+  atmosphere: { horizon: 0xd2f0f0, zenith: 0x2f9fd8, sun: 0xfffbea },
   spawnCrystalCell: [4, 2],
   goal: { color: 0x4ff0d0, shard: 0xc9fff4, ring: 0xf6bd41, glow: 0x0b9c90, deco: 'poles' },
   bridge: 'timber',
@@ -83,6 +85,8 @@ const TWIN_BRIDGE_CAY = theme({
 
 /** L3 — Highland Citadel: cold alpine keep — pines, dark cobble courtyards, tall cliffs, waterfall, banners. */
 const HIGHLAND_CITADEL = theme({
+  water: 0x2a8fcf,
+  atmosphere: { horizon: 0xdbe7f3, zenith: 0x4a80bc, hemiSky: 0xcfe0f4, sun: 0xf0f5ff },
   spawnCrystalCell: [0, 3],
   goal: { color: 0xbfe8ff, shard: 0xffffff, ring: 0xb4bbc7, glow: 0x3a78b8, deco: 'pillars' },
   pathStyle: 'stone',
@@ -125,6 +129,8 @@ const HIGHLAND_CITADEL = theme({
 
 /** L4 — Emerald Stepping Stones: mossy emerald terraces studded with glowing crystal groves. */
 const EMERALD_STEPPING_STONES = theme({
+  water: 0x1fb8b0,
+  atmosphere: { horizon: 0xc2eee0, zenith: 0x2d9bb2, hemiSky: 0xc8f0e4, sun: 0xf3fff6 },
   spawnCrystalCell: [3, 2],
   goal: { color: 0x5bffa8, shard: 0xc6ffe4, ring: 0x7dffb8, glow: 0x0b9c5a, deco: 'shards' },
   bridge: 'rope',
@@ -162,6 +168,8 @@ const EMERALD_STEPPING_STONES = theme({
 
 /** L5 — Windmill Switchback: golden harvest farmland with windmills, hay and autumn trees. */
 const WINDMILL_SWITCHBACK = theme({
+  water: 0x2aa8c8,
+  atmosphere: { horizon: 0xffe4b8, zenith: 0x5a9ccc, hemiSky: 0xffeccc, sun: 0xffe2b8, sunIntensity: 1.7 },
   spawnCrystalCell: [5, 2],
   goal: { color: 0xffc355, shard: 0xffe9a8, ring: 0xe3b84a, glow: 0x9c6a0b, deco: 'sheaves' },
   grassTint: [1.12, 1.02, 0.7],
@@ -212,6 +220,8 @@ const WINDMILL_SWITCHBACK = theme({
 
 /** L6 — Crescent Lagoon: tropical atoll — pale sand ring, palms, lighthouse in the lagoon, coral flowers. */
 const CRESCENT_LAGOON = theme({
+  water: 0x1fc4c8,
+  atmosphere: { horizon: 0xcbf4ee, zenith: 0x1fa6d8, sun: 0xfffbe8 },
   spawnCrystalCell: [4, 2],
   goal: { color: 0x5be3ff, shard: 0xffd6cc, ring: 0xe85d5d, glow: 0x0b7cb8, deco: 'shells' },
   pathStyle: 'sand',
@@ -254,6 +264,8 @@ const CRESCENT_LAGOON = theme({
 
 /** L7 — Skybridge Gauntlet: wind-scoured cliffside forts, stone bridges, dizzying drops. */
 const SKYBRIDGE_GAUNTLET = theme({
+  water: 0x2a86c4,
+  atmosphere: { horizon: 0xd0daee, zenith: 0x3a6fb4, hemiSky: 0xd4def2, sun: 0xf5f7ff },
   spawnCrystalCell: [1, 3],
   goal: { color: 0xb58cf2, shard: 0xe6d4ff, ring: 0xb4bbc7, glow: 0x5b2fb8, deco: 'pillars' },
   bridge: 'stone',
@@ -293,6 +305,8 @@ const SKYBRIDGE_GAUNTLET = theme({
 
 /** L8 — Sunken Bastion: half-drowned ruined bastion, mossy cobbles, torches and indigo banners. */
 const SUNKEN_BASTION = theme({
+  water: 0x1f7fa8,
+  atmosphere: { horizon: 0xbcc8da, zenith: 0x2f5088, hemiSky: 0xaebfdc, sun: 0xffe6d0, sunIntensity: 1.5 },
   spawnCrystalCell: [1, 1],
   goal: { color: 0x7dffe0, shard: 0xd4fff3, ring: 0x9aa4b0, glow: 0x0b9c88, deco: 'pillars' },
   pathStyle: 'stone',
@@ -342,6 +356,8 @@ const SUNKEN_BASTION = theme({
 
 /** L9 — Grand Skyhold: crown citadel — marble cobbles, golden banners, corner towers, regal blossoms. */
 const GRAND_SKYHOLD = theme({
+  water: 0x2a8fd8,
+  atmosphere: { horizon: 0xffd8b4, zenith: 0x4a5fa8, hemiSky: 0xffe0c4, sun: 0xffdaa8, sunIntensity: 1.72 },
   spawnCrystalCell: [4, 2],
   goal: { color: 0xffd45b, shard: 0xfff0b8, ring: 0xe85d5d, glow: 0xb87a0b, deco: 'goldPillars' },
   pathStyle: 'stone',

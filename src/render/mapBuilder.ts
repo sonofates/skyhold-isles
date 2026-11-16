@@ -1011,6 +1011,7 @@ export class MapBuilder {
     const waterGeo = this.createWaterDiscGeometry(waterRadius, 24, 56);
     this.disposableGeometries.push(waterGeo);
 
+    materials.waterMaterial.color.setHex(theme.water);
     const waterMesh = new THREE.Mesh(waterGeo, materials.waterMaterial);
     waterMesh.position.y = BALANCE.waterPlaneY;
     waterMesh.receiveShadow = true;

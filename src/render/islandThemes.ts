@@ -81,8 +81,19 @@ export type GoalDeco = 'none' | 'pillars' | 'goldPillars' | 'shards' | 'sheaves'
 
 export type BridgeStyle = 'timber' | 'rope' | 'stone';
 
+export interface Atmosphere {
+  readonly horizon?: number;
+  readonly zenith?: number;
+  readonly hemiSky?: number;
+  readonly sun?: number;
+  readonly sunIntensity?: number;
+}
+
 export interface IslandTheme {
   readonly pathStyle: PathStyle;
+  /** Sea colour (water material base colour) and sky mood. */
+  readonly water: number;
+  readonly atmosphere: Atmosphere;
   /** Kenney colormap cell used for the spawn-gate crystals (coral by default). */
   readonly spawnCrystalCell: readonly [number, number];
   readonly goal: {
@@ -140,6 +151,8 @@ export interface IslandTheme {
 
 export const DEFAULT_THEME: IslandTheme = {
   pathStyle: 'dirt',
+  water: 0x26aadf,
+  atmosphere: {},
   spawnCrystalCell: [6, 2],
   goal: { color: 0x5be3ff, shard: 0xccf7ff, ring: 0xf6bd41, glow: 0x0b7cb8, deco: 'none' },
   bridge: 'timber',
