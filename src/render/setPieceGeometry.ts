@@ -364,7 +364,7 @@ function dock(pb: PieceBuilder, variant: number): void {
   pb.cyl(WOOD_DARK, 0.15, 0.15, 0.32, [0.22, 0.2, 2.0], 7);
   pb.cyl(0x8b95a5, 0.155, 0.155, 0.03, [0.22, 0.12, 2.0], 7);
   pb.cyl(0x8b95a5, 0.155, 0.155, 0.03, [0.22, 0.28, 2.0], 7);
-  pb.anim('boat', variant === 1 ? 1.05 : -1.05, 0, 2.5, variant === 1 ? 0.1 : -0.08, variant * 2);
+  pb.anim('boat', variant === 1 ? 1.05 : -1.05, waterY + 0.02, 2.5, variant === 1 ? 0.1 : -0.08, variant * 2);
   // coiled rope
   pb.cyl(0xe9d3a6, 0.1, 0.1, 0.05, [0.2, 0.06, 0.95], 8);
 }

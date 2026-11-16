@@ -129,6 +129,8 @@ export interface IslandTheme {
     /** Chance that a decor tile gets a second tree. */
     readonly density: number;
     readonly weights: Partial<Record<TreeKind, number>>;
+    /** Pines get cream snow caps. */
+    readonly snow?: boolean;
   };
   /** Chance a free decor tile rises into a grassy/sandy hillock, and its max height (world units). */
   readonly hills: {

@@ -178,11 +178,13 @@ function smoothValueNoise2D(wx: number, wz: number, wavelength: number, seed: nu
 }
 
 /** Approximate flat colour of tinted grass (for hillock caps, which carry no grass texture). */
-function tintedGrassHex(theme: IslandTheme): number {
+const _capTint: [number, number, number] = [1, 1, 1];
+function tintedGrassHex(theme: IslandTheme, col: number, row: number): number {
   const base = new THREE.Color(0x58b83c);
-  base.r = Math.min(1, base.r * theme.grassTint[0]);
-  base.g = Math.min(1, base.g * theme.grassTint[1]);
-  base.b = Math.min(1, base.b * theme.grassTint[2]);
+  sampleZoneTint(theme, col, row, _capTint);
+  base.r = Math.min(1, base.r * _capTint[0]);
+  base.g = Math.min(1, base.g * _capTint[1]);
+  base.b = Math.min(1, base.b * _capTint[2]);
   return base.getHex();
 }
 
@@ -426,7 +428,6 @@ export class MapBuilder {
     const rng = new SeededRng(level.decorationSeed + 7919);
     const theme = getIslandTheme(level.id);
     const claimed = claimedDecorTiles(level, theme);
-    const grassHillHex = tintedGrassHex(theme);
     const ts = BALANCE.tileSize;
     const parts: TexturedPart[] = [];
 
@@ -665,7 +666,7 @@ export class MapBuilder {
                   ? 0x9aa4b0
                   : groundKind === 'moss'
                     ? 0x6f9a45
-                    : grassHillHex;
+                    : tintedGrassHex(theme, c, r);
             parts.push({
               geometry: unitIco,
               colorHex: capHex,

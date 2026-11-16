@@ -16,8 +16,8 @@ const TALL: Record<string, readonly [number, number]> = {
 };
 const KIND_SCALE: Record<string, number> = { windmill: 1, watchtower: 1, lighthouse: 1, obelisk: 1 };
 
-describe('landmark sight lines (default camera)', () => {
-  const yaw = Math.PI / 4;
+describe.each([0, 1, 2, 3])('landmark sight lines (camera quarter-turn %i)', (quarter) => {
+  const yaw = Math.PI / 4 + (quarter * Math.PI) / 2;
   const tilt = Math.asin(1 / Math.sqrt(3));
   // direction towards the camera
   const d = [Math.sin(yaw) * Math.cos(tilt), Math.sin(tilt), Math.cos(yaw) * Math.cos(tilt)];

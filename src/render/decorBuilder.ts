@@ -88,7 +88,7 @@ const TREE_SPECS: Record<TreeKind, TreeSpec> = {
   pine: {
     scale: [2.2, 3.0],
     tints: [0xffffff, 0xeaf3ea, 0xdfeede, 0xf2f8ee],
-    geometry: (_a, theme) => createPineGeometry(theme.cliff.depthMul >= 1.5 && theme.pathStyle === 'stone'),
+    geometry: (_a, theme) => createPineGeometry(theme.trees.snow === true),
   },
   palm: { scale: [2.3, 3.0], tints: [0xffffff, 0xf4fbe8, 0xe8f6dd], geometry: () => createPalmGeometry() },
   autumn: { scale: [1.8, 2.4], tints: AUTUMN_TINTS, geometry: () => createTintableBroadleafGeometry(1.1) },

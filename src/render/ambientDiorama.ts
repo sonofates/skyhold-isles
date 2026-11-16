@@ -256,14 +256,14 @@ export class AmbientDiorama {
           orbit: true,
           cx: rng.range(-2, 2),
           cz: rng.range(-2, 2),
-          radius: lagoonRadius * rng.range(0.5, 0.95),
-          height: rng.range(4.2, 7.5),
+          radius: lagoonRadius * rng.range(0.8, 1.1),
+          height: rng.range(4.5, 8),
           speed: rng.range(0.07, 0.13),
           phase: rng.range(0, Math.PI * 2),
           phase2: rng.range(0, Math.PI * 2),
           flapSpeed: rng.range(5.5, 7.5),
           flapAmp: 0.5,
-          size: rng.range(1.25, 1.7),
+          size: rng.range(1.0, 1.4),
           dir: rng.chance(0.5) ? 1 : -1,
         });
       }
