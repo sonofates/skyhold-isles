@@ -9,6 +9,7 @@ import type {
   TargetingMode,
   TowerType,
 } from '../core/types.ts';
+import { ENEMY_DEFS } from '../data/enemies.ts';
 import { LEVELS } from '../data/levels/index.ts';
 import { TOWER_DEFS, TOWER_TYPES } from '../data/towers.ts';
 import type { RenderWorld } from '../render/renderWorld.ts';
@@ -215,13 +216,13 @@ export class GameSession {
     }
     const ws = this.simWorld.waveSystem;
     const nextHasFlyers =
-      ws.getNextWavePreview()?.items.some((item) => item.enemyType === 'flyer') ?? false;
+      ws.getNextWavePreview()?.items.some((item) => ENEMY_DEFS[item.enemyType].flying) ?? false;
     const activeWave =
       ws.state === 'spawning' || ws.state === 'clearing'
         ? this.simWorld.level.waves[ws.currentWaveIndex]
         : undefined;
     const currentHasFlyers =
-      ws.isEndless || (activeWave?.groups.some((g) => g.enemyType === 'flyer') ?? false);
+      ws.isEndless || (activeWave?.groups.some((g) => ENEMY_DEFS[g.enemyType].flying) ?? false);
     this.renderWorld.setFlightPathHighlight(nextHasFlyers || currentHasFlyers, true);
   }
 
