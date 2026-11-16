@@ -46,6 +46,7 @@ const KIND_SCALE: Record<SetPieceKind, number> = {
   peak: 1.3,
   boat: 1.2,
   sailboat: 1.2,
+  kite: 1.3,
   gatehouse: 1.2,
   obelisk: 1.3,
   pond: 1.05,
@@ -131,6 +132,16 @@ function familyGeometry(family: AnimFamily): THREE.BufferGeometry {
         },
       ];
       owned.push(parts[2].geometry, parts[4].geometry);
+      break;
+    case 'kite':
+      parts = [
+        { geometry: box(0.3, 0.3, 0.02), colorHex: 0xffffff, rotation: [0, 0, Math.PI / 4], forceWhiteUv: true },
+        { geometry: box(0.025, 0.46, 0.03), colorHex: 0x7b5338, forceWhiteUv: true },
+        { geometry: box(0.46, 0.025, 0.03), colorHex: 0x7b5338, forceWhiteUv: true },
+        { geometry: box(0.1, 0.06, 0.02), colorHex: 0xf8f4e8, position: [0, -0.4, 0], rotation: [0, 0, 0.5], forceWhiteUv: true },
+        { geometry: box(0.1, 0.06, 0.02), colorHex: 0xf8f4e8, position: [0.03, -0.55, 0], rotation: [0, 0, -0.5], forceWhiteUv: true },
+        { geometry: box(0.1, 0.06, 0.02), colorHex: 0xf8f4e8, position: [0, -0.7, 0], rotation: [0, 0, 0.5], forceWhiteUv: true },
+      ];
       break;
     case 'flame':
       parts = [
@@ -288,6 +299,15 @@ export class SetPieces {
               _q.setFromEuler(
                 _e.set(Math.sin(t * 0.9 + ph) * 0.03, a + (dir > 0 ? Math.PI : 0), Math.sin(t * 1.1 + ph) * 0.05),
               ),
+              _s.set(1, 1, 1),
+            );
+            _m.multiplyMatrices(base, _m2);
+            break;
+          }
+          case 'kite': {
+            _m2.compose(
+              _p.set(Math.sin(t * 0.8 + ph) * 0.06, Math.sin(t * 1.1 + ph * 2) * 0.08, 0),
+              _q.setFromEuler(_e.set(0, Math.sin(t * 0.7 + ph) * 0.25, Math.sin(t * 1.4 + ph) * 0.14)),
               _s.set(1, 1, 1),
             );
             _m.multiplyMatrices(base, _m2);

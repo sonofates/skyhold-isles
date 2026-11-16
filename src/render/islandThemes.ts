@@ -31,6 +31,7 @@ export type SetPieceKind =
   | 'peak'
   | 'boat'
   | 'sailboat'
+  | 'kite'
   | 'gatehouse'
   | 'obelisk'
   | 'pond'

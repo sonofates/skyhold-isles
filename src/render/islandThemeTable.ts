@@ -50,6 +50,8 @@ const SUNLIT_MEADOW = theme({
     { kind: 'banner', col: 13, row: 9, variant: 2 },
     { kind: 'hayBales', col: 4, row: 7, yaw: 0.4 },
     { kind: 'boat', col: 9.5, row: 10.7, variant: 0 },
+    { kind: 'kite', col: 7, row: 1, variant: 0 },
+    { kind: 'kite', col: 2, row: 8, variant: 2, yaw: 0.8 },
   ],
 });
 
