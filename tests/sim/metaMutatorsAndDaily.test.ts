@@ -5,7 +5,8 @@ import { ENDLESS_MUTATORS } from '../../src/data/challenges.ts';
 import { ENEMY_DEFS } from '../../src/data/enemies.ts';
 import { LEVELS, type LevelDef } from '../../src/data/levels/index.ts';
 import { getTowerTierStats, TOWER_DEFS } from '../../src/data/towers.ts';
-import { generateDailyChallenge, isValidDateString } from '../../src/sim/meta/daily.ts';
+import { computeDailyStreaks, generateDailyChallenge, isValidDateString } from '../../src/sim/meta/daily.ts';
+import { getAllowedTowerTypes, isTowerTypeAllowed } from '../../src/sim/meta/modifiers.ts';
 import { computeEndlessScore, hashSeedString, selectEndlessMutators } from '../../src/sim/meta/mutators.ts';
 import { RunObserver } from '../../src/sim/meta/runObserver.ts';
 import { SimWorld } from '../../src/sim/world.ts';
@@ -203,5 +204,46 @@ describe('Daily challenge pure date-seeded generator', () => {
       }
     }
     expect(islandsSeen.size).toBeGreaterThanOrEqual(6);
+  });
+
+  it('computes daily calendar streaks accurately across month boundaries and pending today', () => {
+    const completed = [
+      '2026-01-29',
+      '2026-01-30',
+      '2026-01-31',
+      '2026-02-01',
+      // gap
+      '2026-02-27',
+      '2026-02-28',
+      '2026-03-01',
+    ];
+    // On 2026-03-02 (yesterday completed, today not yet played): current streak stays alive at 3
+    expect(computeDailyStreaks(completed, '2026-03-02')).toEqual({
+      currentStreak: 3,
+      bestStreak: 4,
+    });
+    // Completing 2026-03-02 bumps current streak to 4
+    expect(computeDailyStreaks([...completed, '2026-03-02'], '2026-03-02')).toEqual({
+      currentStreak: 4,
+      bestStreak: 4,
+    });
+    // Missing two days resets currentStreak to 0 while preserving bestStreak
+    expect(computeDailyStreaks(completed, '2026-03-03')).toEqual({
+      currentStreak: 0,
+      bestStreak: 4,
+    });
+  });
+
+  it('resolves allowed and forbidden towers cleanly for build bar restrictions', () => {
+    const spec = generateDailyChallenge('2026-11-17', LEVELS);
+    const allowed = getAllowedTowerTypes(spec.modifiers);
+    expect(allowed.length).toBeGreaterThanOrEqual(1);
+    for (const t of allowed) {
+      expect(isTowerTypeAllowed(t, spec.modifiers)).toBe(true);
+    }
+    for (const banned of spec.modifiers.forbiddenTowerTypes) {
+      expect(isTowerTypeAllowed(banned, spec.modifiers)).toBe(false);
+      expect(allowed).not.toContain(banned);
+    }
   });
 });

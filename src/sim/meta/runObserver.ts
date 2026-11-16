@@ -8,6 +8,8 @@ import { resolveRunModifiers, scaleGoldCost, scaleGoldReward } from './modifiers
 import type {
   ChallengeCondition,
   ChallengeDef,
+  LiveChallengeState,
+  LiveChallengeStatus,
   ResolvedRunModifiers,
   RunModifiers,
   RunTelemetry,
@@ -74,6 +76,135 @@ export function evaluateLevelChallenges(
     }
   }
   return completed;
+}
+
+/** Evaluates live mid-run status & human-readable progress label for one challenge. */
+export function evaluateLiveChallengeState(
+  def: ChallengeDef,
+  telemetry: RunTelemetry,
+  livesRemaining: number,
+  outcome: 'ongoing' | 'won' | 'lost',
+  previouslyCompleted: boolean,
+): LiveChallengeStatus {
+  const cond = def.condition;
+  if (!telemetry.eligibleForChallenges || outcome === 'lost') {
+    return {
+      def,
+      state: 'failed',
+      previouslyCompleted,
+      progressLabel: !telemetry.eligibleForChallenges ? 'Debug/Skip ineligible' : 'Defeat',
+    };
+  }
+  if (outcome === 'won') {
+    const passed = evaluateChallengeCondition(cond, telemetry, true, livesRemaining);
+    return {
+      def,
+      state: passed ? 'completed' : 'failed',
+      previouslyCompleted,
+      progressLabel: passed ? 'Completed' : 'Not met',
+    };
+  }
+
+  let failed = false;
+  let progressLabel = '';
+
+  switch (cond.kind) {
+    case 'noLivesLost':
+      failed = telemetry.livesLost > 0 || livesRemaining < BALANCE.startingLives;
+      progressLabel = failed ? `${telemetry.livesLost} lost` : `${livesRemaining}/${BALANCE.startingLives} lives`;
+      break;
+    case 'minLivesRemaining':
+      failed = livesRemaining < cond.minLives;
+      progressLabel = `${livesRemaining}/${cond.minLives}+ lives`;
+      break;
+    case 'forbiddenTowerTypes': {
+      const builtForbidden = cond.forbidden.reduce(
+        (sum, type) => sum + (telemetry.towersBuiltByType[type] ?? 0),
+        0,
+      );
+      failed = builtForbidden > 0;
+      progressLabel = failed ? 'Banned tower built' : 'Clean';
+      break;
+    }
+    case 'allowedTowerTypes': {
+      const hasDisallowed = Object.entries(telemetry.towersBuiltByType).some(
+        ([type, count]) => count > 0 && !cond.allowed.includes(type as TowerType),
+      );
+      failed = hasDisallowed;
+      progressLabel = failed ? 'Disallowed tower built' : 'Arsenal intact';
+      break;
+    }
+    case 'maxTowersBuilt':
+      failed = telemetry.towersBuilt > cond.maxCount;
+      progressLabel = `${telemetry.towersBuilt}/${cond.maxCount} towers`;
+      break;
+    case 'maxPeakTowers':
+      failed = telemetry.peakTowersActive > cond.maxCount;
+      progressLabel = `${telemetry.activeTowers}/${cond.maxCount} active`;
+      break;
+    case 'maxTowerTier':
+      failed = telemetry.maxTowerTierBuilt > cond.maxTier;
+      progressLabel = `Max T${telemetry.maxTowerTierBuilt}/T${cond.maxTier}`;
+      break;
+    case 'maxGoldSpent':
+      failed = telemetry.grossGoldSpent > cond.maxGold;
+      progressLabel = `${telemetry.grossGoldSpent}/${cond.maxGold}g`;
+      break;
+    case 'noAbilities':
+      failed = telemetry.abilitiesCastTotal > 0;
+      progressLabel = failed ? `${telemetry.abilitiesCastTotal} cast` : '0 abilities';
+      break;
+    case 'noTowerSelling':
+      failed = telemetry.towersSold > 0;
+      progressLabel = failed ? `${telemetry.towersSold} sold` : '0 sold';
+      break;
+    case 'combatSpeedOnly':
+      failed =
+        telemetry.minCombatSpeed !== null && telemetry.minCombatSpeed < cond.requiredSpeed;
+      progressLabel = failed
+        ? `Dropped to ${telemetry.minCombatSpeed}x`
+        : telemetry.minCombatSpeed === null
+          ? `Set ${cond.requiredSpeed}x before W1`
+          : `${cond.requiredSpeed}x locked`;
+      break;
+    case 'minEarlyWaves': {
+      const maxRemaining =
+        telemetry.maxWaveReached === 0
+          ? Math.max(0, telemetry.storyWaveCount - 1)
+          : Math.max(0, telemetry.storyWaveCount - telemetry.maxWaveReached);
+      failed = telemetry.earlyWavesCalled + maxRemaining < cond.minCount;
+      progressLabel = `${telemetry.earlyWavesCalled}/${cond.minCount} early`;
+      break;
+    }
+  }
+
+  const state: LiveChallengeState = failed ? 'failed' : 'on_track';
+  return {
+    def,
+    state,
+    previouslyCompleted,
+    progressLabel,
+  };
+}
+
+/** Evaluates live mid-run challenge status for all challenges on `level`. */
+export function evaluateLiveLevelChallenges(
+  level: LevelDef,
+  telemetry: RunTelemetry,
+  livesRemaining: number,
+  outcome: 'ongoing' | 'won' | 'lost',
+  completedMap: Readonly<Record<string, boolean>>,
+): readonly LiveChallengeStatus[] {
+  const defs = getChallengesForLevel(level);
+  return defs.map((def) =>
+    evaluateLiveChallengeState(
+      def,
+      telemetry,
+      livesRemaining,
+      outcome,
+      completedMap[def.id] === true,
+    ),
+  );
 }
 
 /**

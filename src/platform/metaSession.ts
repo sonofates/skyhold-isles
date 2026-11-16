@@ -1,8 +1,9 @@
 import type { EventBus } from '../core/eventBus.ts';
-import type { ProgressData, SpeedMultiplier } from '../core/types.ts';
+import type { ProgressData, SpeedMultiplier, TowerType } from '../core/types.ts';
 import { LEVELS } from '../data/levels/index.ts';
 import type { LevelDef } from '../data/levels/types.ts';
-import { generateDailyChallenge } from '../sim/meta/daily.ts';
+import { TOWER_TYPES } from '../data/towers.ts';
+import { computeDailyStreaks, generateDailyChallenge } from '../sim/meta/daily.ts';
 import {
   applyTelemetryDeltaToStats,
   getAchievements,
@@ -12,8 +13,9 @@ import {
   recomputeAchievements,
   recordRunCompletion,
 } from '../sim/meta/metaEngine.ts';
+import { getAllowedTowerTypes, isTowerTypeAllowed } from '../sim/meta/modifiers.ts';
 import { selectEndlessMutators } from '../sim/meta/mutators.ts';
-import { RunObserver } from '../sim/meta/runObserver.ts';
+import { evaluateLiveLevelChallenges, RunObserver } from '../sim/meta/runObserver.ts';
 import type {
   AchievementStatus,
   AllChallengeProgress,
@@ -22,6 +24,7 @@ import type {
   EndlessMutatorRoll,
   LevelChallengeStatus,
   LifetimeStats,
+  LiveChallengeStatus,
   MetaSaveData,
   ResolvedRunModifiers,
   RunMetaOutcome,
@@ -221,12 +224,42 @@ export class MetaSession {
   getDailyStatus(dateStr?: string): DailyStatus {
     const date = dateStr ?? this.getTodayDateFn();
     const spec = generateDailyChallenge(date, this.levels);
+    const { currentStreak, bestStreak } = computeDailyStreaks(
+      this.save.completedDailyDates,
+      spec.date,
+    );
     return {
       spec,
       completedToday: this.save.completedDailyDates.includes(spec.date),
       bestScoreToday: this.save.dailyBestScores[spec.date] ?? 0,
       totalDailyCompleted: this.save.completedDailyDates.length,
+      currentStreak,
+      bestStreak,
     };
+  }
+
+  getLiveChallengeStates(
+    livesRemaining: number,
+    outcome: 'ongoing' | 'won' | 'lost' = 'ongoing',
+  ): readonly LiveChallengeStatus[] {
+    if (!this.observer || this.activeDailyDate !== null) return [];
+    return evaluateLiveLevelChallenges(
+      this.observer.level,
+      this.observer.getTelemetry(),
+      livesRemaining,
+      outcome,
+      this.save.completedChallenges,
+    );
+  }
+
+  getAllowedTowerTypes(): readonly TowerType[] {
+    if (!this.observer) return TOWER_TYPES;
+    return getAllowedTowerTypes(this.observer.getModifiers());
+  }
+
+  isTowerAllowed(type: TowerType): boolean {
+    if (!this.observer) return true;
+    return isTowerTypeAllowed(type, this.observer.getModifiers());
   }
 
   rollEndlessMutators(seed?: number | string, count = 2): EndlessMutatorRoll {

@@ -1,5 +1,6 @@
 import type { TowerType } from '../../core/types.ts';
 import type { LevelDef, WaveDef, WaveGroupDef } from '../../data/levels/types.ts';
+import { TOWER_TYPES } from '../../data/towers.ts';
 import type { ResolvedRunModifiers, RunModifiers } from './types.ts';
 
 export const NEUTRAL_RUN_MODIFIERS: ResolvedRunModifiers = {
@@ -125,6 +126,11 @@ export function isTowerTypeAllowed(type: TowerType, modifiers: ResolvedRunModifi
     return false;
   }
   return true;
+}
+
+/** Returns all tower types allowed under the active run modifiers in canonical order. */
+export function getAllowedTowerTypes(modifiers: ResolvedRunModifiers): readonly TowerType[] {
+  return TOWER_TYPES.filter((type) => isTowerTypeAllowed(type, modifiers));
 }
 
 /** Scales a tower build or upgrade cost by towerCostMultiplier (no-op when 1). */

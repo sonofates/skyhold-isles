@@ -22,6 +22,7 @@ import type {
   EndlessMutatorRoll,
   LevelChallengeStatus,
   LifetimeStats,
+  LiveChallengeStatus,
   RunMetaOutcome,
   RunModifiers,
 } from '../sim/meta/types.ts';
@@ -492,6 +493,18 @@ export class GameSession {
 
   getLastRunMetaOutcome(): RunMetaOutcome | null {
     return this.meta.getLastRunOutcome();
+  }
+
+  getLiveChallengeStates(): readonly LiveChallengeStatus[] {
+    return this.meta.getLiveChallengeStates(this.simWorld.lives, this.simWorld.outcome);
+  }
+
+  getAllowedTowerTypes(): readonly TowerType[] {
+    return this.meta.getAllowedTowerTypes();
+  }
+
+  isTowerAllowed(type: TowerType): boolean {
+    return this.meta.isTowerAllowed(type);
   }
 
   openSettingsModal(origin: SettingsOrigin): void {

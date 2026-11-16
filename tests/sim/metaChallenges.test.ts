@@ -11,6 +11,7 @@ import { LEVELS, type LevelDef } from '../../src/data/levels/index.ts';
 import { getTowerTierStats } from '../../src/data/towers.ts';
 import {
   evaluateChallengeCondition,
+  evaluateLiveLevelChallenges,
   RunObserver,
 } from '../../src/sim/meta/runObserver.ts';
 import { SimWorld } from '../../src/sim/world.ts';
@@ -291,6 +292,62 @@ describe('RunObserver challenge condition tracking', () => {
     expect(ids).toContain('sunlit-meadow:perfect');
     expect(ids).toContain('sunlit-meadow:lean');
     expect(ids).toContain('sunlit-meadow:rush3x');
+    observer.dispose();
+  });
+
+  it('tracks live mid-run challenge states (on_track -> failed / completed)', () => {
+    const level = LEVELS[0]; // Sunlit Meadow: perfect, lean (<=6), rush3x
+    const events = new EventBus();
+    const world = new SimWorld(level, events);
+    const observer = new RunObserver(level, events);
+    observer.recordSpeed(3);
+
+    // Pre-wave 1: all 3 challenges are on_track
+    const initial = evaluateLiveLevelChallenges(level, observer.getTelemetry(), world.lives, 'ongoing', {
+      'sunlit-meadow:perfect': true,
+    });
+    expect(initial.every((s) => s.state === 'on_track')).toBe(true);
+    expect(initial[0].previouslyCompleted).toBe(true);
+    expect(initial[1].progressLabel).toBe('0/6 towers');
+
+    // Place 7 towers -> lean (<=6) transitions immediately to 'failed'
+    const spots: Array<[number, number]> = [
+      [4, 2],
+      [4, 3],
+      [7, 5],
+      [8, 5],
+      [10, 4],
+      [5, 7],
+      [7, 3],
+    ];
+    for (const [c, r] of spots) {
+      world.gold = 500;
+      expect(world.placeTower(c, r, 'archer')).not.toBeNull();
+    }
+    const after7 = evaluateLiveLevelChallenges(level, observer.getTelemetry(), world.lives, 'ongoing', {});
+    expect(after7.find((s) => s.def.id === 'sunlit-meadow:lean')?.state).toBe('failed');
+    expect(after7.find((s) => s.def.id === 'sunlit-meadow:perfect')?.state).toBe('on_track');
+
+    // Start wave at 3x then drop to 1x -> rush3x transitions immediately to 'failed'
+    world.startNextWave();
+    observer.onTick(BALANCE.fixedDt, 1);
+    const afterSlow = evaluateLiveLevelChallenges(level, observer.getTelemetry(), world.lives, 'ongoing', {});
+    expect(afterSlow.find((s) => s.def.id === 'sunlit-meadow:rush3x')?.state).toBe('failed');
+
+    // Test minEarlyWaves impossibility detection (L4 requires 6 early waves out of 14 waves)
+    const l4 = LEVELS[3];
+    const ev4 = new EventBus();
+    const w4 = new SimWorld(l4, ev4);
+    const obs4 = new RunObserver(l4, ev4);
+    // Skip straight to wave 10 normally? No, simulate starting waves without early bonus (countdown expire)
+    for (let w = 0; w < 10; w++) {
+      ev4.emit('waveStarted', { waveIndex: w, totalWaves: l4.waves.length, earlyBonus: 0 });
+    }
+    // Only 4 waves left (11..14) and 0 early calls so far -> 0 + 4 < 6 -> mathematically failed!
+    const l4Live = evaluateLiveLevelChallenges(l4, obs4.getTelemetry(), w4.lives, 'ongoing', {});
+    expect(l4Live.find((s) => s.def.id === 'emerald-stepping-stones:early-waves')?.state).toBe('failed');
+
+    obs4.dispose();
     observer.dispose();
   });
 });

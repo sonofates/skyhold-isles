@@ -57,6 +57,15 @@ export interface ChallengeItemStatus {
   readonly completed: boolean;
 }
 
+export type LiveChallengeState = 'on_track' | 'failed' | 'completed';
+
+export interface LiveChallengeStatus {
+  readonly def: ChallengeDef;
+  readonly state: LiveChallengeState;
+  readonly previouslyCompleted: boolean;
+  readonly progressLabel: string;
+}
+
 export interface LevelChallengeStatus {
   readonly levelId: string;
   readonly levelIndex: number;
@@ -198,6 +207,8 @@ export interface DailyStatus {
   readonly completedToday: boolean;
   readonly bestScoreToday: number;
   readonly totalDailyCompleted: number;
+  readonly currentStreak: number;
+  readonly bestStreak: number;
 }
 
 export interface RunMetaOutcome {

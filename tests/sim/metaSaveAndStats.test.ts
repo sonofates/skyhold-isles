@@ -215,6 +215,9 @@ describe('MetaSession stats, achievements, challenges & daily persistence', () =
     const chStatus = meta.getChallengeStatus(0)!;
     expect(chStatus.earnedStars).toBe(3);
     expect(chStatus.totalStars).toBe(3);
+    expect(meta.getLiveChallengeStates(world.lives, world.outcome).every((s) => s.state === 'completed')).toBe(true);
+    expect(meta.getAllowedTowerTypes()).toHaveLength(5);
+    expect(meta.isTowerAllowed('archer')).toBe(true);
     expect(meta.getAllChallengeProgress().earnedStars).toBe(3);
     expect(meta.getChallengeStatus(99)).toBeNull();
 
@@ -297,6 +300,8 @@ describe('MetaSession stats, achievements, challenges & daily persistence', () =
     expect(dailyStatus.completedToday).toBe(true);
     expect(dailyStatus.bestScoreToday).toBeGreaterThan(0);
     expect(dailyStatus.totalDailyCompleted).toBe(1);
+    expect(dailyStatus.currentStreak).toBe(1);
+    expect(dailyStatus.bestStreak).toBe(1);
     // Campaign progress remains untouched so daily doesn't bypass campaign progression
     expect(probe.getCampaignProgress().unlockedLevelIndex).toBe(0);
     expect(probe.getAchievements().find((a) => a.def.id === 'daily_victor')?.unlocked).toBe(true);

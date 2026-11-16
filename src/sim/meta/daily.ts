@@ -167,3 +167,57 @@ export function generateDailyChallenge(
     summary: parts.length > 0 ? parts.join(' · ') : 'Standard Rules',
   };
 }
+
+/** Pure UTC epoch-day index for a validated `YYYY-MM-DD` string. */
+function dateStringToEpochDay(dateStr: string): number | null {
+  const match = DATE_PATTERN.exec(dateStr.trim());
+  if (!match || !isValidDateString(dateStr)) return null;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  return Math.floor(Date.UTC(year, month - 1, day) / 86_400_000);
+}
+
+/**
+ * Pure calendar calculation of current and best consecutive-day Daily Challenge streaks.
+ * Current streak stays alive if either `referenceDate` or the immediately preceding day is completed.
+ */
+export function computeDailyStreaks(
+  completedDates: readonly string[],
+  referenceDate: string,
+): { currentStreak: number; bestStreak: number } {
+  const dayNumbers = new Set<number>();
+  for (let i = 0; i < completedDates.length; i++) {
+    const day = dateStringToEpochDay(completedDates[i]);
+    if (day !== null) dayNumbers.add(day);
+  }
+  if (dayNumbers.size === 0) {
+    return { currentStreak: 0, bestStreak: 0 };
+  }
+
+  const sorted = [...dayNumbers].sort((a, b) => a - b);
+  let bestStreak = 1;
+  let run = 1;
+  for (let i = 1; i < sorted.length; i++) {
+    if (sorted[i] === sorted[i - 1] + 1) {
+      run++;
+      if (run > bestStreak) bestStreak = run;
+    } else {
+      run = 1;
+    }
+  }
+
+  const refDay = dateStringToEpochDay(referenceDate);
+  if (refDay === null) {
+    return { currentStreak: 0, bestStreak };
+  }
+
+  let cursor = dayNumbers.has(refDay) ? refDay : dayNumbers.has(refDay - 1) ? refDay - 1 : null;
+  let currentStreak = 0;
+  while (cursor !== null && dayNumbers.has(cursor)) {
+    currentStreak++;
+    cursor--;
+  }
+
+  return { currentStreak, bestStreak };
+}
