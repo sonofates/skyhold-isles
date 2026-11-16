@@ -13,7 +13,7 @@ Headless software rasteriser: runs the real MapBuilder/DecorBuilder in Node with
 `[col,row,halfWidth]` crops/zooms onto a grid point. It prints triangle + draw-call counts per island
 (~34-50k tris, 17-22 map+decor draw calls per island).
 
-## Status (end of round 1)
+## Status (round 1, running)
 All checks green on the last commit: `npx tsc --noEmit`, `npm run lint`, `npm test` (79 tests), `npm run build`,
 `npm run sim:balance` (all 9 islands inside their windows; nothing in the sim/data balance numbers changed this
 round except wave composition of a few waves, see below).
@@ -56,6 +56,15 @@ round except wave composition of a few waves, see below).
    Avalanche, L5 W10 Scarecrow's Gambit, L6 W9 Riptide, L7 W12 Pincer, L8 W9 The Drowned March, L9 W13 Pincer of the
    Crown; L1 W7 became the flyer-led "Gull Squadron"; L4 W11 "Cinder Bloom" is splitter-led. Sim windows unchanged.
 6. Level subtitles rewritten to describe the new identity (short enough for the menu cards).
+7. More landmarks (ponds, harbour stalls, beach huts/parasols, tents + campfire, cabins, cairns with prayer flags,
+   statues, fountain), fortress parapets (low crenellated wall rims on L3/L7/L8/L9, never beside the route), water
+   details (lily pads, buoys, driftwood bobbing on the shader's wave field), fireflies (L8) / crystal moths (L4).
+8. **Themes for the enemies branch's islands 10-12 are already in `islandThemeTable.ts`** (ids `confluence-terraces`,
+   `galewatch-spires`, `stormcrown-citadel`). I verified placement + sight-line tests against their level files by
+   temporarily copying them into the tree (not committed). After merging, run `npx vitest run tests/render`: if a
+   layout changed, the tests tell which set piece now sits on a buildable/route tile or hides the route.
+9. Wave identity tweaks on top of names: L4 splitter-led (crystal shards), L5 grunt-heavier, L8 healer-heavier.
+10. `balanceSim --robust` prints greedy lives at HP x0.97/0.985/1/1.015/1.03 (informational knife-edge detector).
 
 ## Audit (what was samey before)
 All 9 islands shared: one flat height, identical grass tint, same 3-tree mix on every `T` tile, same ambient
@@ -64,6 +73,13 @@ All 9 islands shared: one flat height, identical grass tint, same 3-tree mix on 
 `Sunken Bastion` no ruins/moat feel, `Highland Citadel` no mountain feel. Layouts themselves are decent (snake,
 twin bridges, spiral, stepping stones, double hairpin, atoll ring, chasm, moat keep, citadel loop) -> I left grids
 and path waypoints alone (the scripted greedy/weak builds depend on tile coords, and the sim is fragile).
+
+## Balance stability analysis
+The sim is chaotic around the boss waves: with the lives windows (Challenging 12-16, Heroic 8-13, Master 5-10) a
+greedy run has to leak "exactly one boss" to be in window, so +-2% HP flips most islands (e.g. L1 20 -> 13 lives at
++3%, L4 15 -> 9 at +2%). Only L7/L8 stay in window across +-4%. I did not try to hide this by retuning (every
+retune just moves the cliff). Suggestion for the lead: judge windows on min/median over +-2% neighbours (use
+`npm run sim:balance -- --robust`) or make the boss leak cost less of a cliff.
 
 ## Next (ideas, in rough priority)
 - Re-check greedy/weak stability at +-2% HP on the 9 islands (only cheap checks done so far).
