@@ -6,6 +6,8 @@ export interface InputHandlers {
   onZoomDelta: (delta: number, ndcX: number, ndcY: number) => void;
   onRotateCamera: (dir: -1 | 1) => void;
   onPointerMoveNdc: (ndcX: number, ndcY: number, clientX: number, clientY: number) => void;
+  /** Pointer left the canvas or the window lost focus: clear hover / ghost / tooltip. */
+  onPointerLeave: () => void;
   onPrimaryTapNdc: (ndcX: number, ndcY: number, shiftKey: boolean) => void;
   onSecondaryAction: (source: 'escape' | 'rightClick') => void;
   onHotkeyTower: (index: number) => void;
@@ -285,6 +287,13 @@ export class InputManager {
       this.pointers.clear();
       this.isDragging = false;
       updateKeyPan();
+      this.handlers.onPointerLeave();
+    };
+
+    const onPointerLeave = (e: PointerEvent): void => {
+      // While a drag holds pointer capture the pointer is still logically "on" the canvas.
+      if (this.pointers.has(e.pointerId)) return;
+      this.handlers.onPointerLeave();
     };
 
     this.canvas.addEventListener('pointerdown', onPointerDown);
@@ -293,6 +302,7 @@ export class InputManager {
     window.addEventListener('pointercancel', onPointerUp);
     this.canvas.addEventListener('wheel', onWheel, { passive: false });
     this.canvas.addEventListener('contextmenu', onContextMenu);
+    this.canvas.addEventListener('pointerleave', onPointerLeave);
     window.addEventListener('keydown', onKeyDown);
     window.addEventListener('keyup', onKeyUp);
     window.addEventListener('blur', onBlur);
@@ -304,6 +314,7 @@ export class InputManager {
       () => window.removeEventListener('pointercancel', onPointerUp),
       () => this.canvas.removeEventListener('wheel', onWheel),
       () => this.canvas.removeEventListener('contextmenu', onContextMenu),
+      () => this.canvas.removeEventListener('pointerleave', onPointerLeave),
       () => window.removeEventListener('keydown', onKeyDown),
       () => window.removeEventListener('keyup', onKeyUp),
       () => window.removeEventListener('blur', onBlur),

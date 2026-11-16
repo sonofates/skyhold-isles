@@ -49,6 +49,9 @@ export class HudBar {
   private lastWaveBadgeKey = '';
   private lastWaveKey = '';
   private lastPreviewKey = '';
+  private lastPreviewRef: HudStateView['nextPreview'] | undefined = undefined;
+  private lastPreviewEndless = false;
+  private lastPausedIcon: boolean | null = null;
 
   constructor(parent: HTMLElement, callbacks: HudCallbacks) {
     this.rootEl = document.createElement('div');
@@ -267,46 +270,58 @@ export class HudBar {
       }
     }
 
-    const previewKey = view.nextPreview
-      ? `${view.nextPreview.waveOneBased}:${view.nextPreview.items.map((x) => `${x.enemyType}${x.count}`).join(',')}`
-      : view.isEndless
-        ? 'endless-none'
-        : 'none';
-    if (previewKey !== this.lastPreviewKey) {
-      this.lastPreviewKey = previewKey;
-      this.previewEl.innerHTML = '';
-      if (view.nextPreview) {
-        const lbl = document.createElement('span');
-        lbl.className = 'hud-preview-label';
-        lbl.textContent = `W${view.nextPreview.waveOneBased}:`;
-        this.previewEl.appendChild(lbl);
-        for (let i = 0; i < view.nextPreview.items.length; i++) {
-          const item = view.nextPreview.items[i];
-          const meta = ENEMY_BADGE_META[item.enemyType];
-          const chip = document.createElement('span');
-          if (item.enemyType === 'flyer' && item.count >= 3) {
-            chip.className = 'hud-preview-chip hud-preview-chip-flyer-warn';
-            chip.title = 'Aerial threat: only Archer, Frost, and Tesla can hit Flyers';
-            chip.innerHTML = `<span class="hud-preview-warn-icon">${UI_ICON_SVGS.flyerAlert}</span><span>${item.count} Flyers incoming</span>`;
-          } else {
-            chip.className = 'hud-preview-chip';
-            chip.innerHTML = `<i style="background:${meta.color}"></i>${item.count}× ${meta.label}`;
-          }
-          this.previewEl.appendChild(chip);
-        }
-      } else {
-        const lbl = document.createElement('span');
-        lbl.className = 'hud-preview-label';
-        lbl.textContent = view.isEndless ? 'Endless Surge' : 'Final Wave!';
-        this.previewEl.appendChild(lbl);
+    // Only build the content key when the preview object changed (it is cached per wave upstream).
+    if (view.nextPreview !== this.lastPreviewRef || view.isEndless !== this.lastPreviewEndless) {
+      this.lastPreviewRef = view.nextPreview;
+      this.lastPreviewEndless = view.isEndless;
+      const previewKey = view.nextPreview
+        ? `${view.nextPreview.waveOneBased}:${view.nextPreview.items.map((x) => `${x.enemyType}${x.count}`).join(',')}`
+        : view.isEndless
+          ? 'endless-none'
+          : 'none';
+      if (previewKey !== this.lastPreviewKey) {
+        this.lastPreviewKey = previewKey;
+        this.renderPreview(view);
       }
     }
 
     this.speedBtns.forEach((btn, sp) => {
       btn.classList.toggle('active', !view.paused && view.speed === sp);
     });
-    this.pauseBtn.classList.toggle('active', view.paused);
-    this.pauseBtn.innerHTML = view.paused ? UI_ICON_SVGS.play : UI_ICON_SVGS.pause;
+    if (view.paused !== this.lastPausedIcon) {
+      this.lastPausedIcon = view.paused;
+      this.pauseBtn.classList.toggle('active', view.paused);
+      this.pauseBtn.innerHTML = view.paused ? UI_ICON_SVGS.play : UI_ICON_SVGS.pause;
+    }
+  }
+
+  private renderPreview(view: HudStateView): void {
+    this.previewEl.innerHTML = '';
+    if (view.nextPreview) {
+      const lbl = document.createElement('span');
+      lbl.className = 'hud-preview-label';
+      lbl.textContent = `W${view.nextPreview.waveOneBased}:`;
+      this.previewEl.appendChild(lbl);
+      for (let i = 0; i < view.nextPreview.items.length; i++) {
+        const item = view.nextPreview.items[i];
+        const meta = ENEMY_BADGE_META[item.enemyType];
+        const chip = document.createElement('span');
+        if (item.enemyType === 'flyer' && item.count >= 3) {
+          chip.className = 'hud-preview-chip hud-preview-chip-flyer-warn';
+          chip.title = 'Aerial threat: only Archer, Frost, and Tesla can hit Flyers';
+          chip.innerHTML = `<span class="hud-preview-warn-icon">${UI_ICON_SVGS.flyerAlert}</span><span>${item.count} Flyers incoming</span>`;
+        } else {
+          chip.className = 'hud-preview-chip';
+          chip.innerHTML = `<i style="background:${meta.color}"></i>${item.count}× ${meta.label}`;
+        }
+        this.previewEl.appendChild(chip);
+      }
+    } else {
+      const lbl = document.createElement('span');
+      lbl.className = 'hud-preview-label';
+      lbl.textContent = view.isEndless ? 'Endless Surge' : 'Final Wave!';
+      this.previewEl.appendChild(lbl);
+    }
   }
 
   setVisible(visible: boolean): void {

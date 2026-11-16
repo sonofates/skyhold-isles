@@ -99,6 +99,7 @@ async function bootstrap(loadingScreen: LoadingScreen): Promise<void> {
     onZoomDelta: (delta, ndcX, ndcY) => renderWorld.cameraController.zoomByDelta(delta, ndcX, ndcY),
     onRotateCamera: (dir) => renderWorld.cameraController.rotate90(dir),
     onPointerMoveNdc: (ndcX, ndcY, cx, cy) => session.onPointerMove(ndcX, ndcY, cx, cy),
+    onPointerLeave: () => session.onPointerLeave(),
     onPrimaryTapNdc: (ndcX, ndcY, shiftKey) => session.onPrimaryTap(ndcX, ndcY, shiftKey),
     onSecondaryAction: (source) => session.onSecondaryAction(source),
     onHotkeyTower: (index) => session.onHotkeyTower(index),

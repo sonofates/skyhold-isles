@@ -36,6 +36,9 @@ import {
   saveSettings,
 } from './storage.ts';
 
+/** Countdown / cooldown HUD refresh cadence when no event triggered a sync. */
+const UI_SYNC_INTERVAL_SEC = 0.2;
+
 export type ViewMode = 'menu' | 'levelSelect' | 'playing';
 export type SettingsOrigin = 'menu' | 'hud' | 'pause';
 
@@ -74,6 +77,11 @@ export class GameSession {
   private lastNdcY = 0;
   private pointerInside = false;
   private userPaused = false;
+  /** Bumped on pointer movement/leave so hover refresh only runs when inputs changed. */
+  private pointerVersion = 0;
+  private lastHoverKey = '';
+  /** Throttle for the per-frame HUD sync (countdowns / cooldowns); events sync immediately. */
+  private uiSyncAccumSec = 0;
   private unbindSound: (() => void) | null = null;
   private deps: SessionRuntimeDeps | null = null;
 
@@ -199,6 +207,7 @@ export class GameSession {
       this.renderWorld.setFlightPathHighlight(false);
       return;
     }
+    this.renderWorld.setRoutesPinned(this.routesPinned);
     if (this.activePlacementType !== null) {
       // Bright when positioning anti-air towers, soft warning when placing ground-only towers
       this.renderWorld.setFlightPathHighlight(true, !TOWER_DEFS[this.activePlacementType].hitsFlyers);
@@ -214,7 +223,14 @@ export class GameSession {
     const currentHasFlyers =
       ws.isEndless || (activeWave?.groups.some((g) => g.enemyType === 'flyer') ?? false);
     this.renderWorld.setFlightPathHighlight(nextHasFlyers || currentHasFlyers, true);
-    this.renderWorld.setRoutesPinned(this.routesPinned);
+  }
+
+  /** Records the current endless run (if any) so leaving/restarting mid-run keeps the best wave. */
+  private recordEndlessIfActive(): void {
+    if (this.viewMode !== 'playing') return;
+    const ws = this.simWorld.waveSystem;
+    if (!ws.isEndless) return;
+    recordEndlessProgress(this.progress, this.currentLevelIndex, ws.currentWaveOneBased);
   }
 
   setPlacementMode(type: TowerType | null): void {
@@ -280,7 +296,14 @@ export class GameSession {
   enterEndlessMode(): void {
     this.soundManager.unlock();
     if (!this.simWorld.enterEndlessMode()) return;
-    this.d.overlays.outcomeOverlay.hide();
+    const { overlays, loop } = this.d;
+    // The win path pauses the loop via the outcome modal. Close every modal (a HUD-opened
+    // Settings or the pause menu could still be stacked under the outcome card), drop any
+    // stale user pause and restart the accumulator so play resumes at the chosen speed.
+    overlays.closeModals();
+    overlays.tooltip.hide();
+    this.userPaused = false;
+    loop.resetAccumulator();
     this.syncLoopAndInput();
     this.syncUi();
   }
@@ -358,6 +381,7 @@ export class GameSession {
   showMenuView(target: 'menu' | 'levelSelect', reloadShowcase = false): void {
     const { overlays } = this.d;
     if (reloadShowcase) {
+      this.recordEndlessIfActive();
       this.clearTransientPlayState();
       this.events.clear();
       this.events = new EventBus();
@@ -375,6 +399,7 @@ export class GameSession {
 
   startLevel(levelIndex: number): void {
     const { overlays, loop } = this.d;
+    this.recordEndlessIfActive();
     this.currentLevelIndex = Math.max(0, Math.min(LEVELS.length - 1, levelIndex));
     const level = LEVELS[this.currentLevelIndex];
     this.clearTransientPlayState();
@@ -482,6 +507,16 @@ export class GameSession {
     this.lastClientX = clientX;
     this.lastClientY = clientY;
     this.pointerInside = true;
+    this.pointerVersion++;
+    this.refreshPlacementPreview();
+    this.refreshHoverFeedback();
+  }
+
+  /** Pointer left the canvas (or the window lost focus): drop hover, ghost tower and tooltip. */
+  onPointerLeave(): void {
+    if (!this.pointerInside) return;
+    this.pointerInside = false;
+    this.pointerVersion++;
     this.refreshPlacementPreview();
     this.refreshHoverFeedback();
   }
@@ -647,10 +682,22 @@ export class GameSession {
       this.clearSellConfirm();
       this.syncUi();
     }
-    this.refreshHoverFeedback();
+    // Raycast-based hover only when something it depends on changed: pointer, camera view,
+    // sim time (enemies moved) or pause state. Explicit state changes call it directly.
+    const hoverKey = `${this.pointerVersion}|${this.renderWorld.cameraController.getViewVersion()}|${this.simClockSec}|${loop.paused ? 1 : 0}|${inPlay ? 1 : 0}`;
+    if (hoverKey !== this.lastHoverKey) {
+      this.lastHoverKey = hoverKey;
+      this.refreshHoverFeedback();
+    }
     if (inPlay) {
       overlays.toast.update(frameDt);
-      this.syncUi();
+      // Discrete changes (gold, waves, towers, pause, speed…) sync via events/actions; this
+      // throttled pass only keeps countdowns and ability cooldowns ticking.
+      this.uiSyncAccumSec += frameDt;
+      if (this.uiSyncAccumSec >= UI_SYNC_INTERVAL_SEC) {
+        this.uiSyncAccumSec = 0;
+        this.syncUi();
+      }
       this.syncTowerPanelAnchor();
     }
   }

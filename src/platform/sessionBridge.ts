@@ -92,6 +92,23 @@ export function recordEndlessProgress(
   saveProgress(progress);
 }
 
+type WavePreview = ReturnType<SimWorld['waveSystem']['getNextWavePreview']>;
+const previewCache = new WeakMap<SimWorld, { key: string; preview: WavePreview }>();
+
+/**
+ * Returns the next-wave preview, recomputed only when the wave index/state changes. The stable
+ * object identity lets the HUD skip rebuilding its preview chips on every sync.
+ */
+function getCachedNextWavePreview(simWorld: SimWorld): WavePreview {
+  const ws = simWorld.waveSystem;
+  const key = `${ws.state}|${ws.currentWaveIndex}|${ws.isEndless ? 1 : 0}`;
+  const cached = previewCache.get(simWorld);
+  if (cached && cached.key === key) return cached.preview;
+  const preview = ws.getNextWavePreview();
+  previewCache.set(simWorld, { key, preview });
+  return preview;
+}
+
 export function buildHudStateView(
   simWorld: SimWorld,
   loop: GameLoop,
@@ -109,7 +126,7 @@ export function buildHudStateView(
     isPreFirstWave: ws.state === 'preFirstWave',
     earlyBonus: ws.getEarlyCallBonus(),
     countdownSec: ws.interWaveTimer,
-    nextPreview: ws.getNextWavePreview(),
+    nextPreview: getCachedNextWavePreview(simWorld),
     autoWave: ws.autoWave,
     routesVisible,
     isEndless: ws.isEndless,

@@ -45,6 +45,9 @@ export class CameraController {
   private readonly ndcVec = new THREE.Vector2();
   private readonly hitPoint = new THREE.Vector3();
   private readonly projectScratch = new THREE.Vector3();
+  private readonly lastViewPos = new THREE.Vector3(NaN, NaN, NaN);
+  private lastViewZoom = NaN;
+  private viewVersion = 0;
 
   constructor(width: number, height: number) {
     this.viewportWidth = Math.max(1, width);
@@ -174,6 +177,7 @@ export class CameraController {
     this.camera.top = hh;
     this.camera.bottom = -hh;
     this.camera.updateProjectionMatrix();
+    this.viewVersion++;
   }
 
   rotate90(dir: -1 | 1): void {
@@ -300,6 +304,24 @@ export class CameraController {
     }
 
     this.updateCameraTransform();
+    this.bumpViewVersionIfMoved();
+  }
+
+  /**
+   * Monotonic counter that increments whenever the rendered view (position, zoom, viewport)
+   * changes. Lets callers skip per-frame raycasts while the camera is still.
+   */
+  getViewVersion(): number {
+    return this.viewVersion;
+  }
+
+  private bumpViewVersionIfMoved(): void {
+    const pos = this.camera.position;
+    if (!pos.equals(this.lastViewPos) || this.camera.zoom !== this.lastViewZoom) {
+      this.lastViewPos.copy(pos);
+      this.lastViewZoom = this.camera.zoom;
+      this.viewVersion++;
+    }
   }
 
   /**
