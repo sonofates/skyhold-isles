@@ -473,6 +473,7 @@ export class EnemyRenderer {
     const box = new THREE.BoxGeometry(1, 1, 1);
     const cone = new THREE.ConeGeometry(1, 1, 5);
     const ico = new THREE.IcosahedronGeometry(1, 0);
+    const icoSmooth = new THREE.IcosahedronGeometry(1, 1);
     const cyl = new THREE.CylinderGeometry(1, 1, 1, 6);
     const wing = createWingGeometry();
 
@@ -626,8 +627,8 @@ export class EnemyRenderer {
         parts = [
           { geometry: chamfer, colorHex: 0x6b4423, position: [-0.2, 0.12, 0.05], scale: [0.18, 0.22, 0.24] },
           { geometry: chamfer, colorHex: 0x6b4423, position: [0.2, 0.12, 0.05], scale: [0.18, 0.22, 0.24] },
-          { geometry: chamfer, colorHex: 0xc2832f, position: [0, 0.42, -0.04], scale: [0.7, 0.5, 0.78] },
-          { geometry: chamfer, colorHex: PALETTE_HEX.sand, position: [0, 0.32, 0.12], scale: [0.5, 0.28, 0.52] },
+          { geometry: icoSmooth, colorHex: 0xc2832f, position: [0, 0.42, -0.04], scale: [0.4, 0.32, 0.46] },
+          { geometry: icoSmooth, colorHex: PALETTE_HEX.sand, position: [0, 0.32, 0.12], scale: [0.3, 0.2, 0.32] },
           { geometry: chamfer, colorHex: 0xd6953d, position: [0, 0.56, 0.36], scale: [0.42, 0.34, 0.3] },
           { geometry: cone, colorHex: 0xa2b0c4, position: [0, 0.52, 0.64], rotation: [Math.PI / 2, 0, 0], scale: [0.13, 0.32, 0.13] },
           { geometry: cyl, colorHex: steelMid, position: [0, 0.52, 0.5], rotation: [Math.PI / 2, 0, 0], scale: [0.16, 0.06, 0.16] },
@@ -647,9 +648,9 @@ export class EnemyRenderer {
       case 'carrier': {
         // Striped cream sky-balloon with a wicker gondola, coral pennants and a little rear propeller
         parts = [
-          { geometry: ico, colorHex: PALETTE_HEX.cream, position: [0, 0.82, 0], scale: [0.6, 0.5, 0.74] },
-          { geometry: cyl, colorHex: PALETTE_HEX.coral, position: [0, 0.82, 0], scale: [0.63, 0.12, 0.77] },
-          { geometry: cyl, colorHex: PALETTE_HEX.coral, position: [0, 1.08, 0], scale: [0.42, 0.08, 0.52] },
+          { geometry: icoSmooth, colorHex: PALETTE_HEX.cream, position: [0, 0.82, 0], scale: [0.6, 0.5, 0.74] },
+          { geometry: cyl, colorHex: PALETTE_HEX.coral, position: [0, 0.82, 0], scale: [0.65, 0.12, 0.79] },
+          { geometry: cyl, colorHex: PALETTE_HEX.coral, position: [0, 1.08, 0], scale: [0.53, 0.08, 0.65] },
           { geometry: cone, colorHex: PALETTE_HEX.gold, position: [0, 1.36, 0], scale: [0.08, 0.16, 0.08] },
           { geometry: box, colorHex: leatherDark, position: [-0.2, 0.36, 0], scale: [0.03, 0.4, 0.03] },
           { geometry: box, colorHex: leatherDark, position: [0.2, 0.36, 0], scale: [0.03, 0.4, 0.03] },
@@ -710,7 +711,7 @@ export class EnemyRenderer {
         // Tiny hot-orange scuttling beetle with a cream back stripe and dark head (sized for swarms)
         parts = [
           { geometry: ico, colorHex: 0xff8a1f, position: [0, 0.2, -0.04], scale: [0.3, 0.2, 0.38] },
-          { geometry: box, colorHex: PALETTE_HEX.cream, position: [0, 0.37, -0.04], scale: [0.08, 0.04, 0.5] },
+          { geometry: box, colorHex: PALETTE_HEX.cream, position: [0, 0.37, -0.06], scale: [0.07, 0.04, 0.3] },
           { geometry: chamfer, colorHex: 0x3a2418, position: [0, 0.2, 0.3], scale: [0.22, 0.16, 0.16] },
           { geometry: box, colorHex: 0x3a2418, position: [-0.06, 0.34, 0.4], rotation: [-0.7, 0, 0.3], scale: [0.025, 0.22, 0.025] },
           { geometry: box, colorHex: 0x3a2418, position: [0.06, 0.34, 0.4], rotation: [-0.7, 0, -0.3], scale: [0.025, 0.22, 0.025] },
@@ -780,6 +781,7 @@ export class EnemyRenderer {
     box.dispose();
     cone.dispose();
     ico.dispose();
+    icoSmooth.dispose();
     cyl.dispose();
     wing.dispose();
     return merged;
