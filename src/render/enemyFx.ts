@@ -14,6 +14,7 @@ const FROST_CRACK = 0xcfefff;
 export function bindEnemyArchetypeFx(
   events: EventBus,
   fx: EffectsRenderer,
+  shake: (strength: number) => void = () => {},
 ): Array<() => void> {
   return [
     events.on('wardPulse', (e) => {
@@ -42,6 +43,7 @@ export function bindEnemyArchetypeFx(
       fx.spawnParticles(e.groundX, e.groundY + 0.3, e.groundZ, PALETTE_HEX.cream, 6, 2.2, 5.0);
     }),
     events.on('bossPhase', (e) => {
+      shake(0.6);
       if (e.phase === 1) {
         // Stormwall: double barrier ring + sparkling cloud burst
         fx.spawnPulseRing(e.x, e.y, e.z, e.radius, WARD_BLUE);
@@ -56,6 +58,7 @@ export function bindEnemyArchetypeFx(
     }),
     events.on('enemyKilled', (e) => {
       if (e.enemyType !== 'tempest') return;
+      shake(1.2);
       fx.spawnDeathShards('tempest', e.x, e.y, e.z);
       fx.spawnDeathShards('tempest', e.x, e.y + 0.6, e.z);
       fx.spawnPulseRing(e.x, 0.12, e.z, 4.2, PALETTE_HEX.gold);

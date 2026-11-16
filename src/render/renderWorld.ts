@@ -161,7 +161,7 @@ export class RenderWorld {
       }),
       events.on('enemyKilled', (e) => {
         this.effectsRenderer.spawnDeathShards(e.enemyType, e.x, e.y, e.z);
-        if (e.enemyType === 'boss' || e.enemyType === 'tempest') {
+        if (e.enemyType === 'boss') {
           this.cameraController.addShake(BALANCE.camera.bossHitShake, shakeEnabled());
         }
       }),
@@ -189,7 +189,9 @@ export class RenderWorld {
         this.effectsRenderer.spawnMeteorVisual(e.x, e.y, e.z, e.radius);
         this.cameraController.addShake(BALANCE.camera.bossHitShake * 0.9, shakeEnabled());
       }),
-      ...bindEnemyArchetypeFx(events, this.effectsRenderer),
+      ...bindEnemyArchetypeFx(events, this.effectsRenderer, (strength) =>
+        this.cameraController.addShake(BALANCE.camera.bossHitShake * strength, shakeEnabled()),
+      ),
     );
   }
 
