@@ -151,6 +151,7 @@ html.is-touch .desktop-only {
   );
   position: relative;
   isolation: isolate;
+  font-family: var(--font-display);
   color: var(--gx-cream);
   filter: drop-shadow(0 3px 0 rgba(20, 18, 45, 0.5));
 }
