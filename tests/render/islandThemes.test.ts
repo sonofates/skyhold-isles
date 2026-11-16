@@ -86,6 +86,17 @@ describe('island themes', () => {
         decor.update(1.7);
         const draws = countDraws(map.group) + countDraws(decor.group);
         expect(draws).toBeLessThan(40);
+        for (const root of [map.group, decor.group]) {
+          root.traverse((o) => {
+            const mesh = o as THREE.Mesh;
+            if (!mesh.isMesh) return;
+            const pos = mesh.geometry.getAttribute('position');
+            expect(pos.count).toBeGreaterThan(0);
+            mesh.geometry.computeBoundingSphere();
+            const r = mesh.geometry.boundingSphere?.radius ?? NaN;
+            expect(Number.isFinite(r), `non-finite geometry in ${mesh.name || mesh.type}`).toBe(true);
+          });
+        }
         map.dispose();
         decor.dispose();
         expect(countDraws(map.group)).toBe(0);
