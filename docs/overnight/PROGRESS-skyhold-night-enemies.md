@@ -7,7 +7,10 @@ Started 2026-11-16 23:00 UTC (02:00 TR). Deadline 06:00 UTC (09:00 TR).
 - [x] 2. Endless-mode variety — `ENDLESS_SPOTLIGHTS` rotation in `waveSystem.ts`, elites from 4th endless wave. Probe: `LVL=9 npx tsx scripts/endlessProbe.ts` (full L9 build: endless lasts to wave 25 vs 26 before — slightly harder, accepted).
 - [x] Sim extension: extra ground spawn lanes (`LevelDef.extraGroundPaths`, `WaveGroupDef.lane`) + render support (`tests/sim/lanes.test.ts`, incl. layout validation for every island)
 - [x] 4. New boss `tempest` (Tempest Colossus) — sim/mesh/FX/tests (built before L12 so the island can use it)
-- [ ] 3. New islands L10, L11, L12 (+ balance sim)
+- [ ] 3. New islands
+  - [x] L10 **Confluence Terraces** (`level10.ts`): two spawn lanes (west causeway = lane 0, northern switchback = lane 1) merge at a crossroads; introduces mites (w2), wardens (w3), burrowers (w4); Dreadnought at w10 and w20 with elite wardens/brutes. Greedy W 7 lives 1★ (passes for enemyHpScale 0.94–0.97), weak loses ~w14.
+  - [ ] L11 Galewatch Spires (sky-lane gauntlet: haulers/blinkers/golems) — being designed+balanced by a sub-agent in `.wt/l11/` (git-ignored scratch copy)
+  - [ ] L12 Stormcrown Citadel (spiral fortress, 2 lanes, Tempest Colossus finale) — sub-agent in `.wt/l12/`
 - [ ] 5. Polish: hit/death FX, readability, more tests
 
 ## Enemy design table
@@ -34,10 +37,18 @@ Started 2026-11-16 23:00 UTC (02:00 TR). Deadline 06:00 UTC (09:00 TR).
 - `src/render/mapBuilder.ts`: road connectivity mask loops over all ground lanes (main + `extraGroundPaths`). Pure re-indent of the existing loop + outer lane loop.
 - `src/render/overlayIndicators.ts`: pinned ground-route ribbons/arrows drawn for every lane (same materials, loop).
 - `src/sim/projectileSystem.ts`: shell leading uses `getPath(target.flying, target.lane)` (1 line).
+- `src/platform/gameSession.ts`: flight-lane highlight checks `ENEMY_DEFS[type].flying` instead of `=== 'flyer'` (so Cloud Hauler waves highlight the sky lane).
+- `tests/sim/waves.test.ts`: layout validation generalized for extra lanes and >9 islands.
+- `scripts/balanceSim.ts`: `--levels=N` flag (same as `LEVELS` env).
 - `src/ui/icons.ts`: `ENEMY_BADGE_META` entries. `src/ui/tooltip.ts`: text only — "Empowered" name prefix, `Shield N`, `(cracked)` armor.
 
 ## UI needs (for the UI branch / lead)
-- (none yet)
+- Difficulty label: a `Legendary` tier for L11/L12 would need a `diff-legendary` class in style.css (not touched). Levels currently say `Master`.
+- HUD wave preview (`hud.ts`): elite groups are not flagged (data is there: `WaveGroupDef.elite`); the "N Flyers incoming" warning chip only triggers for `flyer`, not `carrier` (use `ENEMY_DEFS[type].flying`).
+- Enemy tooltip could show `counterHint` (new field on every new def) — a second line would need styling, so not added.
+- Audio (TOWERS agent area): no sounds yet for `wardPulse`, `shieldBroken`, `enemyBurrow`, `enemyBlink`, `carrierDrop`, `armorCracked`, `bossPhase` events (all on the EventBus).
 
 ## Known issues
-- (none yet)
+- New meshes were not checked in a real browser (no browser on hermes). Sanity covered by `tests/render/enemyGeometry.test.ts` (size vs sim height/radius, footprint, ≤900 tris, size classes). Please eyeball: warden shield, burrower mound, hauler balloon, blinker flicker, golem cracks, mite size, tempest.
+- Balance of L10+ assumes current tower stats; if the TOWERS branch changes tower numbers, re-run `npm run sim:balance` after merge (L10 window is ±2% HP wide).
+- Endless with full L9 build now ends ~1 wave earlier (spotlight groups add units).
