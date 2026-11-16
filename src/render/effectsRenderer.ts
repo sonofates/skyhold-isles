@@ -363,6 +363,125 @@ export class EffectsRenderer {
     }
   }
 
+  /**
+   * Extended particle emitter: directional bursts (`dirX/dirZ`, `spread` 0..1), custom lifetime and size.
+   * Cheap (shares the pooled particle mesh); used for muzzle sparks, smoke puffs, coin pops.
+   */
+  spawnBurst(
+    x: number,
+    y: number,
+    z: number,
+    colorHex: number,
+    count: number,
+    opts: {
+      speed: number;
+      gravity?: number;
+      life?: number;
+      scale?: number;
+      /** Unit horizontal direction the burst favours (muzzle sparks); omit for a radial burst. */
+      dirX?: number;
+      dirZ?: number;
+      /** 0 = all particles along dir, 1 = fully radial. */
+      spread?: number;
+      /** Extra upward velocity fraction of speed. */
+      lift?: number;
+    },
+  ): void {
+    const gravity = opts.gravity ?? 5.5;
+    const lifeBase = opts.life ?? 0.4;
+    const scaleBase = opts.scale ?? 1;
+    const hasDir = opts.dirX !== undefined && opts.dirZ !== undefined;
+    const spread = opts.spread ?? 0.35;
+    const lift = opts.lift ?? 0.4;
+    let spawned = 0;
+    for (let i = 0; i < this.particles.length && spawned < count; i++) {
+      const p = this.particles[i];
+      if (p.active) continue;
+      p.active = true;
+      p.x = x;
+      p.y = y;
+      p.z = z;
+      const rnd = Math.random();
+      const spd = opts.speed * (0.55 + Math.random() * 0.6);
+      if (hasDir) {
+        const ang = (rnd - 0.5) * Math.PI * 2 * spread;
+        const cs = Math.cos(ang);
+        const sn = Math.sin(ang);
+        const dx = opts.dirX! * cs - opts.dirZ! * sn;
+        const dz = opts.dirX! * sn + opts.dirZ! * cs;
+        p.vx = dx * spd;
+        p.vz = dz * spd;
+      } else {
+        const ang = rnd * Math.PI * 2;
+        p.vx = Math.cos(ang) * spd;
+        p.vz = Math.sin(ang) * spd;
+      }
+      p.vy = (0.2 + Math.random() * 0.8) * opts.speed * lift;
+      p.scale = scaleBase * (0.75 + Math.random() * 0.5);
+      p.maxLife = lifeBase * (0.75 + Math.random() * 0.5);
+      p.life = p.maxLife;
+      p.gravity = gravity;
+      p.color.setHex(colorHex);
+      spawned++;
+    }
+  }
+
+  /** One short-lived oversized glow particle (muzzle flash / impact flash). */
+  spawnFlash(x: number, y: number, z: number, colorHex: number, scale = 2.4, life = 0.09): void {
+    for (let i = 0; i < this.particles.length; i++) {
+      const p = this.particles[i];
+      if (p.active) continue;
+      p.active = true;
+      p.x = x;
+      p.y = y;
+      p.z = z;
+      p.vx = 0;
+      p.vy = 0;
+      p.vz = 0;
+      p.scale = scale;
+      p.maxLife = life;
+      p.life = life;
+      p.gravity = 0;
+      p.color.setHex(colorHex);
+      return;
+    }
+  }
+
+  /** Tumbling debris shards (frost shatter, cannon rubble) using the shard pool. */
+  spawnDebris(
+    x: number,
+    y: number,
+    z: number,
+    colorHex: number,
+    count: number,
+    speed = 2.6,
+    scale = 0.6,
+  ): void {
+    let spawned = 0;
+    for (let i = 0; i < this.shards.length && spawned < count; i++) {
+      const s = this.shards[i];
+      if (s.active) continue;
+      s.active = true;
+      s.x = x + (Math.random() - 0.5) * 0.25;
+      s.y = Math.max(0.15, y);
+      s.z = z + (Math.random() - 0.5) * 0.25;
+      const ang = Math.random() * Math.PI * 2;
+      const spd = speed * (0.5 + Math.random() * 0.7);
+      s.vx = Math.cos(ang) * spd;
+      s.vy = 1.6 + Math.random() * 2.2;
+      s.vz = Math.sin(ang) * spd;
+      s.rx = Math.random() * Math.PI;
+      s.ry = Math.random() * Math.PI;
+      s.vrx = (Math.random() - 0.5) * 12;
+      s.vry = (Math.random() - 0.5) * 12;
+      s.scale = scale * (0.7 + Math.random() * 0.6);
+      s.maxLife = 0.45 + Math.random() * 0.2;
+      s.life = s.maxLife;
+      s.color.setHex(colorHex);
+      spawned++;
+    }
+  }
+
   spawnTrailParticle(x: number, y: number, z: number, colorHex: number, scale = 0.46): void {
     for (let i = 0; i < this.particles.length; i++) {
       const p = this.particles[i];

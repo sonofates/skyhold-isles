@@ -41,6 +41,11 @@ export class TowerRenderer {
   private overchargeAuraMesh: THREE.InstancedMesh;
   private overchargeAuraCapacity = 64;
 
+  private readonly buffRingGeo: THREE.BufferGeometry;
+  private readonly buffRingMat: THREE.MeshBasicMaterial;
+  private buffRingMesh: THREE.InstancedMesh;
+  private buffRingCapacity = 64;
+
   constructor(assets: KenneyAssetStore) {
     this.geometryCache = new TowerGeometryCache(assets);
 
@@ -86,6 +91,25 @@ export class TowerRenderer {
     this.overchargeAuraMesh.frustumCulled = false;
     this.overchargeAuraMesh.renderOrder = 4;
     this.group.add(this.overchargeAuraMesh);
+
+    // Beacon buff marker: a thin cyan ring under every tower currently receiving a Beacon aura.
+    this.buffRingGeo = new THREE.RingGeometry(0.62, 0.7, 24);
+    this.buffRingGeo.rotateX(-Math.PI / 2);
+    this.buffRingMat = new THREE.MeshBasicMaterial({
+      color: PALETTE_HEX.water,
+      toneMapped: false,
+      transparent: true,
+      opacity: 0.6,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+    });
+    applyAlphaPreserveBlend(this.buffRingMat);
+    this.buffRingMesh = new THREE.InstancedMesh(this.buffRingGeo, this.buffRingMat, this.buffRingCapacity);
+    this.buffRingMesh.count = 0;
+    this.buffRingMesh.visible = false;
+    this.buffRingMesh.frustumCulled = false;
+    this.buffRingMesh.renderOrder = 4;
+    this.group.add(this.buffRingMesh);
   }
 
   syncTowers(
@@ -99,15 +123,27 @@ export class TowerRenderer {
     this.keyCounts.clear();
     let stunnedCount = 0;
     let overchargedCount = 0;
+    let buffedCount = 0;
     for (let i = 0; i < towers.length; i++) {
       const t = towers[i];
       const key = `${t.type}_${t.tier}`;
       this.keyCounts.set(key, (this.keyCounts.get(key) ?? 0) + 1);
       if (t.stunTimer > 0) stunnedCount++;
       else if (overchargeActive) overchargedCount++;
+      if (t.auraRate > 0 && t.stunTimer <= 0) buffedCount++;
     }
 
     this.ensureFxCapacities(stunnedCount, overchargedCount);
+    if (buffedCount > this.buffRingCapacity) {
+      this.group.remove(this.buffRingMesh);
+      this.buffRingMesh.dispose();
+      this.buffRingCapacity = buffedCount + 32;
+      this.buffRingMesh = new THREE.InstancedMesh(this.buffRingGeo, this.buffRingMat, this.buffRingCapacity);
+      this.buffRingMesh.frustumCulled = false;
+      this.buffRingMesh.renderOrder = 4;
+      this.group.add(this.buffRingMesh);
+    }
+    let buffSlot = 0;
 
     this.buckets.forEach((bucket) => {
       bucket.baseMesh.count = 0;
@@ -193,6 +229,15 @@ export class TowerRenderer {
       _turretWorldMat.multiplyMatrices(_baseDummy.matrix, _turretLocalDummy.matrix);
       bucket.turretMesh.setMatrixAt(slot, _turretWorldMat);
 
+      if (t.auraRate > 0 && !stunned) {
+        const pulse = 1 + Math.sin(elapsedTime * 3.2 + t.id * 1.3) * 0.06;
+        _fxDummy.position.set(t.x, 0.05, t.z);
+        _fxDummy.rotation.set(0, -elapsedTime * 0.9 + t.id, 0);
+        _fxDummy.scale.setScalar(pulse);
+        _fxDummy.updateMatrix();
+        this.buffRingMesh.setMatrixAt(buffSlot++, _fxDummy.matrix);
+      }
+
       if (stunned) {
         const topY = getTowerPickHeight(t.type, t.tier);
         const wobble = Math.sin(elapsedTime * 7.0 + t.id) * 0.16;
@@ -225,6 +270,12 @@ export class TowerRenderer {
     this.stunHaloMesh.visible = stunSlot > 0;
     if (stunSlot > 0) {
       this.stunHaloMesh.instanceMatrix.needsUpdate = true;
+    }
+
+    this.buffRingMesh.count = buffSlot;
+    this.buffRingMesh.visible = buffSlot > 0;
+    if (buffSlot > 0) {
+      this.buffRingMesh.instanceMatrix.needsUpdate = true;
     }
 
     this.overchargeAuraMesh.count = overchargeSlot;
@@ -348,6 +399,8 @@ export class TowerRenderer {
     this.stunHaloMesh.visible = false;
     this.overchargeAuraMesh.count = 0;
     this.overchargeAuraMesh.visible = false;
+    this.buffRingMesh.count = 0;
+    this.buffRingMesh.visible = false;
   }
 
   dispose(): void {
@@ -357,6 +410,9 @@ export class TowerRenderer {
     });
     this.stunHaloMesh.dispose();
     this.overchargeAuraMesh.dispose();
+    this.buffRingMesh.dispose();
+    this.buffRingGeo.dispose();
+    this.buffRingMat.dispose();
     this.stunHaloGeo.dispose();
     this.stunHaloMat.dispose();
     this.overchargeAuraGeo.dispose();
