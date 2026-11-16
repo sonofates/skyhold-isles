@@ -17,7 +17,7 @@ A low-poly isometric **floating island diorama** tower defense game built with *
     5. **Mortar (`5`)**: Long-range siege shells with high splash damage and a minimum range deadzone (ground only).
   - Per-tower **First / Last / Strongest / Closest** targeting modes, upgrade stat diffs, and 70% sell refunds.
   - **7 Enemy Archetypes**: Raider Grunt, Zephyr Runner, Iron Brute (flat armor damage reduction), Sky Skimmer (dedicated `flightPath` aerial lane), Grove Mender (periodic AoE heal pulse), Cinder Splitling (splits into two fast hatchlings on death), and the Skyhold Dreadnought Boss (summons escorts, pulses to jam nearby towers).
-  - **9 Islands**: *Sunlit Meadow*, *Crescent Lagoon*, *Twin-Bridge Cay*, *Sunken Bastion*, *Highland Citadel*, *Grand Skyhold*, *Emerald Stepping Stones*, *Skybridge Gauntlet*, and *Windmill Switchback* — star ratings (1–3★), unlock progression persisted in `localStorage`, wave composition previews, and early-call gold bonuses.
+  - **9 Islands**, each with its own look (palette, tree mix, landmarks, sky, ambient life): *Sunlit Meadow* (cottage & wildflowers), *Twin-Bridge Cay* (harbour docks), *Highland Citadel* (snow pines, waterfalls, peaks), *Emerald Stepping Stones* (crystal groves), *Windmill Switchback* (golden fields & windmills), *Crescent Lagoon* (atoll with a lighthouse), *Skybridge Gauntlet* (stone sky-bridges & forts), *Sunken Bastion* (half-drowned ruins), and *Grand Skyhold* (marble citadel) — star ratings (1–3★), unlock progression persisted in `localStorage`, named waves, wave composition previews, and early-call gold bonuses.
   - **Abilities**: *Meteor Strike* (`F`, targeted armor-piercing AoE + slow) and *Overcharge* (`G`, cleanses jammed towers and boosts fire rate), on cooldowns that tick during combat.
   - **Auto-wave, Endless & MVP**: optional auto-wave (`X`), *Continue Endless* after a victory with best-wave tracking, and an end-of-run MVP tower summary.
 - **Decoupled Architecture & High-Scale Performance**:
@@ -79,7 +79,8 @@ npm run dev          # Start Vite dev server
 npm run build        # Typecheck (tsc) + production bundle (vite build)
 npm run test         # Run Vitest unit & headless Node smoke tests
 npm run lint         # Run ESLint (enforces strict Three/DOM isolation in sim/data/core)
-npm run sim:balance  # Run headless simulation for all 9 levels and print per-wave balance stats
+npm run sim:balance  # Run headless simulation for all 9 levels and print per-wave balance stats (`-- --levels=3,6` to filter)
+npx tsx scripts/previewMap.ts all   # Headless PNG previews of every island (no browser needed; see docs/overnight/)
 ```
 
 ---
@@ -90,6 +91,7 @@ npm run sim:balance  # Run headless simulation for all 9 levels and print per-wa
 1. Copy `src/data/levels/level1.ts` into a new file (e.g. `src/data/levels/level4.ts`).
 2. Define `cols`, `rows`, ASCII `layout` (`~` empty void, `.` buildable grass, `T` tree/decor blocked, `S` spawn, `P` road, `G` goal), `pathWaypoints`, `flightPath`, `waves`, and optional `scriptedBuildOrder`.
 3. Register the level in `src/data/levels/index.ts`.
+   Optionally give it a visual identity in `src/render/islandThemeTable.ts` (keyed by level `id`; unknown ids use the default look). Set pieces may only sit on `T` tiles or open water.
 4. Run `npm run sim:balance` to verify win/loss tuning and gold curves.
 
 ### Adding a New Tower

@@ -33,11 +33,13 @@ function waveHeight(x: number, z: number, t: number, lagoonRadius: number): numb
 }
 
 function lilyGeometry(): THREE.BufferGeometry {
-  const pad = new THREE.CylinderGeometry(0.24, 0.24, 0.025, 7);
-  const bud = new THREE.IcosahedronGeometry(0.05, 0);
+  const pad = new THREE.CylinderGeometry(0.34, 0.34, 0.03, 7);
+  const bud = new THREE.IcosahedronGeometry(0.07, 0);
   const parts: ColoredPart[] = [
     { geometry: pad, colorHex: 0x4fae45, position: [0, 0, 0], scale: [1, 1, 1] },
-    { geometry: pad, colorHex: 0x6cc455, position: [0.28, -0.005, 0.12], rotation: [0, 0.6, 0], scale: [0.62, 1, 0.62] },
+    { geometry: pad, colorHex: 0x6cc455, position: [0.42, -0.005, 0.16], rotation: [0, 0.6, 0], scale: [0.62, 1, 0.62] },
+    { geometry: pad, colorHex: 0x3f9a3c, position: [-0.34, -0.008, -0.3], rotation: [0, 1.4, 0], scale: [0.5, 1, 0.5] },
+    { geometry: pad, colorHex: 0x5fb94c, position: [0.1, -0.006, -0.46], rotation: [0, 2.2, 0], scale: [0.42, 1, 0.42] },
     { geometry: bud, colorHex: PALETTE_HEX.cream, position: [0.02, 0.05, 0.02], scale: [1, 0.8, 1] },
     { geometry: bud, colorHex: 0xf7a9bb, position: [0.02, 0.075, 0.02], scale: [0.55, 0.7, 0.55] },
   ];
