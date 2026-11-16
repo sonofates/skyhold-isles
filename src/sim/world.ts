@@ -15,6 +15,14 @@ import {
 } from './entities.ts';
 import { EnemySystem } from './enemySystem.ts';
 import { MapGrid } from './grid.ts';
+import {
+  applyModifiersToLevel,
+  isTowerTypeAllowed,
+  resolveRunModifiers,
+  scaleGoldCost,
+  scaleGoldReward,
+} from './meta/modifiers.ts';
+import type { ResolvedRunModifiers, RunModifiers } from './meta/types.ts';
 import { CompiledPath } from './path.ts';
 import { ProjectileSystem } from './projectileSystem.ts';
 import { SpatialHashGrid } from './spatialHash.ts';
@@ -48,35 +56,40 @@ export class SimWorld {
   readonly events: EventBus;
 
   readonly towers: TowerEntity[] = [];
+  modifiers: ResolvedRunModifiers;
   private nextTowerId = 1;
+  private readonly pendingExtraFlyers: Array<{ delay: number; hpScale: number }> = [];
 
   gold: number;
   lives: number;
   enemiesKilledTotal = 0;
   outcome: 'ongoing' | 'won' | 'lost' = 'ongoing';
 
-  constructor(level: LevelDef, events: EventBus) {
-    this.level = level;
+  constructor(level: LevelDef, events: EventBus, modifiers?: RunModifiers | null) {
+    const resolvedModifiers = resolveRunModifiers(modifiers);
+    const effectiveLevel = applyModifiersToLevel(level, resolvedModifiers);
+    this.level = effectiveLevel;
+    this.modifiers = resolvedModifiers;
     this.events = events;
-    this.grid = new MapGrid(level);
+    this.grid = new MapGrid(effectiveLevel);
 
     this.groundPath = new CompiledPath(
-      level.pathWaypoints,
-      level.cols,
-      level.rows,
+      effectiveLevel.pathWaypoints,
+      effectiveLevel.cols,
+      effectiveLevel.rows,
       BALANCE.tilePathTopY,
       true,
     );
     this.flightPath = new CompiledPath(
-      level.flightPath,
-      level.cols,
-      level.rows,
+      effectiveLevel.flightPath,
+      effectiveLevel.cols,
+      effectiveLevel.rows,
       BALANCE.flyerHeight,
       false,
     );
 
-    const worldW = level.cols * BALANCE.tileSize;
-    const worldD = level.rows * BALANCE.tileSize;
+    const worldW = effectiveLevel.cols * BALANCE.tileSize;
+    const worldD = effectiveLevel.rows * BALANCE.tileSize;
     this.spatialHash = new SpatialHashGrid(worldW, worldD, BALANCE.pools.maxEnemies);
     this.enemyPool = new ObjectPool<EnemyEntity>(BALANCE.pools.maxEnemies, createEnemyEntity);
     this.projectilePool = new ObjectPool<ProjectileEntity>(
@@ -104,10 +117,10 @@ export class SimWorld {
       this.projectileSystem,
       events,
     );
-    this.waveSystem = new WaveSystem(level, events);
+    this.waveSystem = new WaveSystem(effectiveLevel, events);
     this.abilitySystem = new AbilitySystem(events);
 
-    this.gold = level.startingGold;
+    this.gold = Math.round(effectiveLevel.startingGold * resolvedModifiers.startingGoldMultiplier);
     this.lives = BALANCE.startingLives;
   }
 
@@ -130,8 +143,11 @@ export class SimWorld {
     return this.abilitySystem.castOvercharge(this.towers);
   }
 
-  enterEndlessMode(): boolean {
+  enterEndlessMode(modifiers?: RunModifiers | null): boolean {
     if (this.outcome !== 'won') return false;
+    if (modifiers !== undefined) {
+      this.modifiers = resolveRunModifiers(modifiers);
+    }
     this.outcome = 'ongoing';
     this.waveSystem.enterEndlessMode();
     return true;
@@ -161,12 +177,13 @@ export class SimWorld {
   startNextWave(): boolean {
     if (this.outcome !== 'ongoing') return false;
     return this.waveSystem.startNextWave((bonus) => {
-      this.gold += bonus;
+      this.gold += scaleGoldReward(bonus, this.modifiers);
       this.events.emit('economyChanged', { gold: this.gold, lives: this.lives });
     });
   }
 
   debugSkipToWave(waveOneBased: number): boolean {
+    this.pendingExtraFlyers.length = 0;
     this.enemyPool.clear();
     this.projectilePool.clear();
     this.spatialHash.clear();
@@ -204,11 +221,13 @@ export class SimWorld {
     targetingMode: TargetingMode = 'first',
   ): TowerEntity | null {
     if (this.outcome !== 'ongoing') return null;
+    if (!isTowerTypeAllowed(type, this.modifiers)) return null;
     if (!this.grid.canPlaceTower(col, row)) return null;
     const stats = getTowerTierStats(type, 1);
-    if (this.gold < stats.upgradeCost) return null;
+    const cost = scaleGoldCost(stats.upgradeCost, this.modifiers);
+    if (this.gold < cost) return null;
 
-    this.gold -= stats.upgradeCost;
+    this.gold -= cost;
     const x = this.grid.gridToWorldX(col);
     const z = this.grid.gridToWorldZ(row);
     const tower: TowerEntity = {
@@ -219,7 +238,7 @@ export class SimWorld {
       z,
       type,
       tier: 1,
-      totalInvested: stats.upgradeCost,
+      totalInvested: cost,
       targetingMode,
       cooldownTimer: 0.15,
       stunTimer: 0,
@@ -253,11 +272,12 @@ export class SimWorld {
 
     const nextTier = (tower.tier + 1) as 2 | 3;
     const nextStats = getTowerTierStats(tower.type, nextTier);
-    if (this.gold < nextStats.upgradeCost) return false;
+    const cost = scaleGoldCost(nextStats.upgradeCost, this.modifiers);
+    if (this.gold < cost) return false;
 
-    this.gold -= nextStats.upgradeCost;
+    this.gold -= cost;
     tower.tier = nextTier;
-    tower.totalInvested += nextStats.upgradeCost;
+    tower.totalInvested += cost;
     tower.popAnimTimer = 0.32;
 
     this.events.emit('towerUpgraded', {
@@ -307,23 +327,61 @@ export class SimWorld {
     return null;
   }
 
+  private spawnConfiguredEnemy(enemyType: EnemyEntity['type'], hpScale: number): void {
+    const spawned = this.enemySystem.spawnEnemy(enemyType, hpScale);
+    if (!spawned) return;
+    const mod = this.modifiers;
+    if (mod.enemyHpMultiplier !== 1) {
+      spawned.maxHp = Math.max(1, Math.round(spawned.maxHp * mod.enemyHpMultiplier));
+      spawned.hp = spawned.maxHp;
+    }
+    if (mod.enemySpeedMultiplier !== 1) {
+      spawned.speed *= mod.enemySpeedMultiplier;
+    }
+    if (mod.enemyArmorBonus !== 0) {
+      spawned.armor += mod.enemyArmorBonus;
+    }
+    const waveScaledReward = Math.max(
+      1,
+      Math.round(spawned.reward * this.waveSystem.getRewardMultiplier()),
+    );
+    spawned.reward = scaleGoldReward(waveScaledReward, mod);
+  }
+
   fixedTick(dt: number): void {
     if (this.outcome !== 'ongoing') return;
 
+    if (this.pendingExtraFlyers.length > 0) {
+      let idx = 0;
+      while (idx < this.pendingExtraFlyers.length) {
+        this.pendingExtraFlyers[idx].delay -= dt;
+        if (this.pendingExtraFlyers[idx].delay <= 0) {
+          this.spawnConfiguredEnemy('flyer', this.pendingExtraFlyers[idx].hpScale);
+          this.pendingExtraFlyers.splice(idx, 1);
+        } else {
+          idx++;
+        }
+      }
+    }
+
     this.waveSystem.update(
       dt,
-      () => this.enemyPool.getActiveCount(),
+      () => this.enemyPool.getActiveCount() + this.pendingExtraFlyers.length,
       (enemyType, hpScale) => {
-        const spawned = this.enemySystem.spawnEnemy(enemyType, hpScale);
-        if (spawned) {
-          spawned.reward = Math.max(
-            1,
-            Math.round(spawned.reward * this.waveSystem.getRewardMultiplier()),
-          );
+        this.spawnConfiguredEnemy(enemyType, hpScale);
+        if (
+          this.waveSystem.isEndless &&
+          enemyType === 'flyer' &&
+          this.modifiers.flyerCountMultiplier > 1
+        ) {
+          const extras = Math.max(0, Math.round(this.modifiers.flyerCountMultiplier) - 1);
+          for (let k = 1; k <= extras; k++) {
+            this.pendingExtraFlyers.push({ delay: k * 0.28, hpScale });
+          }
         }
       },
       (bonus) => {
-        this.gold += bonus;
+        this.gold += scaleGoldReward(bonus, this.modifiers);
         this.events.emit('economyChanged', { gold: this.gold, lives: this.lives });
       },
       () => {
@@ -375,9 +433,9 @@ export class SimWorld {
     if (this.outcome !== 'ongoing') return;
 
     this.waveSystem.checkCompletion(
-      () => this.enemyPool.getActiveCount(),
+      () => this.enemyPool.getActiveCount() + this.pendingExtraFlyers.length,
       (bonus) => {
-        this.gold += bonus;
+        this.gold += scaleGoldReward(bonus, this.modifiers);
         this.events.emit('economyChanged', { gold: this.gold, lives: this.lives });
       },
       () => {

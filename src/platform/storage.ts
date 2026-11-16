@@ -1,7 +1,15 @@
 import type { GameSettings, ProgressData, QualityLevel } from '../core/types.ts';
+import type { LevelDef } from '../data/levels/types.ts';
+import {
+  createDefaultMetaSave,
+  mergeCampaignProgress,
+  migrateToMetaSave,
+} from '../sim/meta/metaEngine.ts';
+import type { MetaSaveData } from '../sim/meta/types.ts';
 
 const SETTINGS_KEY = 'skyhold_isles_settings_v1';
-const PROGRESS_KEY = 'skyhold_isles_progress_v1';
+export const PROGRESS_KEY = 'skyhold_isles_progress_v1';
+export const META_PROGRESS_KEY = 'skyhold_isles_meta_v2';
 const FLYER_TOAST_SEEN_KEY = 'skyhold_isles_flyer_toast_seen_v1';
 const UPGRADE_TOAST_SEEN_KEY = 'skyhold_isles_upgrade_toast_seen_v1';
 
@@ -139,6 +147,56 @@ export function loadProgress(levelCount: number): ProgressData {
 export function saveProgress(progress: ProgressData): void {
   try {
     localStorage.setItem(PROGRESS_KEY, JSON.stringify(progress));
+  } catch {
+    // Ignore storage quota / private mode failures
+  }
+}
+
+export function getTodayUtcDateString(now: Date = new Date()): string {
+  const y = now.getUTCFullYear();
+  const m = String(now.getUTCMonth() + 1).padStart(2, '0');
+  const d = String(now.getUTCDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+function readJsonSafely(key: string): unknown {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+    return JSON.parse(raw) as unknown;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Loads versioned v2 meta save, transparently migrating any existing v1 progress
+ * (`skyhold_isles_progress_v1`) without ever wiping stars, unlocks, or endless records.
+ */
+export function loadMetaSave(levelCount: number, levels?: readonly LevelDef[]): MetaSaveData {
+  try {
+    const rawV2 = readJsonSafely(META_PROGRESS_KEY);
+    const rawV1 = readJsonSafely(PROGRESS_KEY);
+    return migrateToMetaSave(rawV2, rawV1, levelCount, levels);
+  } catch {
+    return createDefaultMetaSave(levelCount);
+  }
+}
+
+/**
+ * Persists versioned v2 meta save and mirrors campaign progress back to `skyhold_isles_progress_v1`
+ * monotonically so legacy/v1 readers always stay synced and never lose progress.
+ */
+export function saveMetaSave(save: MetaSaveData): void {
+  try {
+    localStorage.setItem(META_PROGRESS_KEY, JSON.stringify(save));
+    const existingV1 = loadProgress(save.campaign.bestStars.length);
+    const mergedV1 = mergeCampaignProgress(
+      existingV1,
+      save.campaign,
+      save.campaign.bestStars.length,
+    );
+    localStorage.setItem(PROGRESS_KEY, JSON.stringify(mergedV1));
   } catch {
     // Ignore storage quota / private mode failures
   }

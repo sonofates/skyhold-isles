@@ -1,0 +1,322 @@
+import type { EventBus } from '../../core/eventBus.ts';
+import type { SpeedMultiplier, TowerType } from '../../core/types.ts';
+import { BALANCE } from '../../data/balance.ts';
+import { getChallengesForLevel } from '../../data/challenges.ts';
+import type { LevelDef } from '../../data/levels/types.ts';
+import { getTowerTierStats } from '../../data/towers.ts';
+import { resolveRunModifiers, scaleGoldCost, scaleGoldReward } from './modifiers.ts';
+import type {
+  ChallengeCondition,
+  ChallengeDef,
+  ResolvedRunModifiers,
+  RunModifiers,
+  RunTelemetry,
+} from './types.ts';
+
+/** Evaluates a single challenge condition against a completed run telemetry snapshot. */
+export function evaluateChallengeCondition(
+  condition: ChallengeCondition,
+  telemetry: RunTelemetry,
+  won: boolean,
+  livesRemaining: number,
+): boolean {
+  if (!won || !telemetry.eligibleForChallenges) return false;
+
+  switch (condition.kind) {
+    case 'noLivesLost':
+      return telemetry.livesLost === 0 && livesRemaining >= BALANCE.startingLives;
+    case 'minLivesRemaining':
+      return livesRemaining >= condition.minLives;
+    case 'forbiddenTowerTypes':
+      return condition.forbidden.every((type) => (telemetry.towersBuiltByType[type] ?? 0) === 0);
+    case 'allowedTowerTypes': {
+      for (const [type, count] of Object.entries(telemetry.towersBuiltByType)) {
+        if (count > 0 && !condition.allowed.includes(type as TowerType)) {
+          return false;
+        }
+      }
+      return true;
+    }
+    case 'maxTowersBuilt':
+      return telemetry.towersBuilt <= condition.maxCount;
+    case 'maxPeakTowers':
+      return telemetry.peakTowersActive <= condition.maxCount;
+    case 'maxTowerTier':
+      return telemetry.maxTowerTierBuilt <= condition.maxTier;
+    case 'maxGoldSpent':
+      return telemetry.grossGoldSpent <= condition.maxGold;
+    case 'noAbilities':
+      return telemetry.abilitiesCastTotal === 0;
+    case 'noTowerSelling':
+      return telemetry.towersSold === 0;
+    case 'combatSpeedOnly':
+      return (
+        telemetry.minCombatSpeed !== null && telemetry.minCombatSpeed >= condition.requiredSpeed
+      );
+    case 'minEarlyWaves':
+      return telemetry.earlyWavesCalled >= condition.minCount;
+  }
+}
+
+/** Returns all challenges for `level` that were satisfied on this winning run. */
+export function evaluateLevelChallenges(
+  level: LevelDef,
+  telemetry: RunTelemetry,
+  won: boolean,
+  livesRemaining: number,
+): readonly ChallengeDef[] {
+  if (!won || !telemetry.eligibleForChallenges) return [];
+  const defs = getChallengesForLevel(level);
+  const completed: ChallengeDef[] = [];
+  for (let i = 0; i < defs.length; i++) {
+    if (evaluateChallengeCondition(defs[i].condition, telemetry, won, livesRemaining)) {
+      completed.push(defs[i]);
+    }
+  }
+  return completed;
+}
+
+/**
+ * Pure EventBus observer for a single SimWorld run.
+ * Tracks telemetry for lifetime stats, achievements, and per-island optional challenges.
+ */
+export class RunObserver {
+  readonly level: LevelDef;
+  private modifiers: ResolvedRunModifiers;
+  private readonly unsubs: Array<() => void> = [];
+  private readonly spawnedFlyingIds = new Set<number>();
+
+  private simTimeSec = 0;
+  private towersBuilt = 0;
+  private activeTowers = 0;
+  private peakTowersActive = 0;
+  private readonly towersBuiltByType: Record<string, number> = {};
+  private towersUpgraded = 0;
+  private towersUpgradedToTier3 = 0;
+  private maxTowerTierBuilt = 0;
+  private towersSold = 0;
+  private grossGoldSpent = 0;
+  private netGoldSpent = 0;
+  private goldEarned = 0;
+  private enemiesKilledTotal = 0;
+  private readonly enemiesKilledByType: Record<string, number> = {};
+  private flyingEnemiesKilled = 0;
+  private livesLost = 0;
+  private earlyWavesCalled = 0;
+  private abilitiesCastTotal = 0;
+  private meteorsCast = 0;
+  private overchargesCast = 0;
+  private towersCleansed = 0;
+  private wavesCompleted = 0;
+  private storyWavesCompleted = 0;
+  private endlessEntered = false;
+  private maxWaveReached = 0;
+  private currentSpeed: SpeedMultiplier = 1;
+  private minCombatSpeed: SpeedMultiplier | null = null;
+  private inCombat = false;
+  private expectedNextWaveIndex = 0;
+  private skippedWaves = false;
+  private eligibleForChallenges = true;
+  private disposed = false;
+
+  constructor(level: LevelDef, events: EventBus, modifiers?: RunModifiers | null) {
+    this.level = level;
+    this.modifiers = resolveRunModifiers(modifiers);
+    this.bind(events);
+  }
+
+  private bind(events: EventBus): void {
+    this.unsubs.push(
+      events.on('towerBuilt', (ev) => {
+        this.towersBuilt++;
+        this.activeTowers++;
+        if (this.activeTowers > this.peakTowersActive) {
+          this.peakTowersActive = this.activeTowers;
+        }
+        this.towersBuiltByType[ev.type] = (this.towersBuiltByType[ev.type] ?? 0) + 1;
+        if (ev.tier > this.maxTowerTierBuilt) {
+          this.maxTowerTierBuilt = ev.tier;
+        }
+        const tier = (ev.tier === 1 || ev.tier === 2 || ev.tier === 3 ? ev.tier : 1) as 1 | 2 | 3;
+        const baseCost = getTowerTierStats(ev.type, tier).upgradeCost;
+        const paid = scaleGoldCost(baseCost, this.modifiers);
+        this.grossGoldSpent += paid;
+        this.netGoldSpent += paid;
+      }),
+      events.on('towerUpgraded', (ev) => {
+        this.towersUpgraded++;
+        if (ev.tier === 3) {
+          this.towersUpgradedToTier3++;
+        }
+        if (ev.tier > this.maxTowerTierBuilt) {
+          this.maxTowerTierBuilt = ev.tier;
+        }
+        const tier = (ev.tier === 1 || ev.tier === 2 || ev.tier === 3 ? ev.tier : 2) as 1 | 2 | 3;
+        const baseCost = getTowerTierStats(ev.type, tier).upgradeCost;
+        const paid = scaleGoldCost(baseCost, this.modifiers);
+        this.grossGoldSpent += paid;
+        this.netGoldSpent += paid;
+      }),
+      events.on('towerSold', (ev) => {
+        this.activeTowers = Math.max(0, this.activeTowers - 1);
+        this.towersSold++;
+        this.netGoldSpent = Math.max(0, this.netGoldSpent - ev.refund);
+      }),
+      events.on('enemySpawned', (ev) => {
+        if (ev.flying) {
+          this.spawnedFlyingIds.add(ev.enemyId);
+        }
+      }),
+      events.on('enemyKilled', (ev) => {
+        this.enemiesKilledTotal++;
+        this.enemiesKilledByType[ev.enemyType] =
+          (this.enemiesKilledByType[ev.enemyType] ?? 0) + 1;
+        if (this.spawnedFlyingIds.delete(ev.enemyId)) {
+          this.flyingEnemiesKilled++;
+        }
+        this.goldEarned += ev.reward;
+      }),
+      events.on('enemyLeaked', (ev) => {
+        this.livesLost += ev.livesLost;
+      }),
+      events.on('abilityTargeted', (ev) => {
+        this.abilitiesCastTotal++;
+        if (ev.abilityId === 'meteor') {
+          this.meteorsCast++;
+        }
+      }),
+      events.on('overchargeActivated', (ev) => {
+        this.abilitiesCastTotal++;
+        this.overchargesCast++;
+        this.towersCleansed += ev.cleansedTowerIds.length;
+      }),
+      events.on('waveStarted', (ev) => {
+        if (ev.waveIndex !== this.expectedNextWaveIndex) {
+          this.skippedWaves = true;
+          this.eligibleForChallenges = false;
+        }
+        this.expectedNextWaveIndex = ev.waveIndex + 1;
+        if (ev.waveIndex + 1 > this.maxWaveReached) {
+          this.maxWaveReached = ev.waveIndex + 1;
+        }
+        if (ev.earlyBonus > 0) {
+          this.earlyWavesCalled++;
+          this.goldEarned += scaleGoldReward(ev.earlyBonus, this.modifiers);
+        }
+        if (!this.inCombat) {
+          this.inCombat = true;
+          this.minCombatSpeed = this.currentSpeed;
+        }
+      }),
+      events.on('waveCompleted', (ev) => {
+        this.wavesCompleted++;
+        if (ev.waveIndex < this.level.waves.length) {
+          this.storyWavesCompleted++;
+        }
+        if (ev.bonus > 0) {
+          this.goldEarned += scaleGoldReward(ev.bonus, this.modifiers);
+        }
+      }),
+      events.on('endlessEntered', () => {
+        this.endlessEntered = true;
+        this.inCombat = true;
+      }),
+      events.on('gameWon', () => {
+        this.inCombat = false;
+        if (this.skippedWaves || this.storyWavesCompleted < this.level.waves.length) {
+          this.eligibleForChallenges = false;
+        }
+      }),
+      events.on('gameLost', (ev) => {
+        this.inCombat = false;
+        if (ev.waveIndex + 1 > this.maxWaveReached) {
+          this.maxWaveReached = ev.waveIndex + 1;
+        }
+      }),
+    );
+  }
+
+  /** Records a speed setting change (call pre-wave and whenever loop speed changes). */
+  recordSpeed(speed: SpeedMultiplier): void {
+    this.currentSpeed = speed;
+    if (this.inCombat) {
+      if (this.minCombatSpeed === null || speed < this.minCombatSpeed) {
+        this.minCombatSpeed = speed;
+      }
+    }
+  }
+
+  /** Advances observed simulation play time and optionally checks speed. */
+  onTick(dt: number, speed?: SpeedMultiplier): void {
+    if (dt > 0 && Number.isFinite(dt)) {
+      this.simTimeSec += dt;
+    }
+    if (speed !== undefined) {
+      this.recordSpeed(speed);
+    }
+  }
+
+  /** Returns the currently active resolved run modifiers. */
+  getModifiers(): ResolvedRunModifiers {
+    return this.modifiers;
+  }
+
+  /** Updates active modifiers mid-run (e.g. when entering Endless Mode with mutators). */
+  setModifiers(modifiers: RunModifiers | null | undefined): void {
+    this.modifiers = resolveRunModifiers(modifiers);
+  }
+
+  /** Marks this run ineligible for challenges (e.g., if debug tools manipulated gold/lives). */
+  markDebugTainted(): void {
+    this.eligibleForChallenges = false;
+  }
+
+  getTelemetry(): RunTelemetry {
+    return {
+      levelId: this.level.id,
+      levelIndex: this.level.index,
+      storyWaveCount: this.level.waves.length,
+      simTimeSec: this.simTimeSec,
+      towersBuilt: this.towersBuilt,
+      activeTowers: this.activeTowers,
+      peakTowersActive: this.peakTowersActive,
+      towersBuiltByType: { ...this.towersBuiltByType },
+      towersUpgraded: this.towersUpgraded,
+      towersUpgradedToTier3: this.towersUpgradedToTier3,
+      maxTowerTierBuilt: this.maxTowerTierBuilt,
+      towersSold: this.towersSold,
+      grossGoldSpent: this.grossGoldSpent,
+      netGoldSpent: this.netGoldSpent,
+      goldEarned: this.goldEarned,
+      enemiesKilledTotal: this.enemiesKilledTotal,
+      enemiesKilledByType: { ...this.enemiesKilledByType },
+      flyingEnemiesKilled: this.flyingEnemiesKilled,
+      livesLost: this.livesLost,
+      earlyWavesCalled: this.earlyWavesCalled,
+      abilitiesCastTotal: this.abilitiesCastTotal,
+      meteorsCast: this.meteorsCast,
+      overchargesCast: this.overchargesCast,
+      towersCleansed: this.towersCleansed,
+      wavesCompleted: this.wavesCompleted,
+      storyWavesCompleted: this.storyWavesCompleted,
+      endlessEntered: this.endlessEntered,
+      maxWaveReached: this.maxWaveReached,
+      minCombatSpeed: this.minCombatSpeed,
+      eligibleForChallenges: this.eligibleForChallenges,
+    };
+  }
+
+  evaluateCompletedChallenges(won: boolean, livesRemaining: number): readonly ChallengeDef[] {
+    return evaluateLevelChallenges(this.level, this.getTelemetry(), won, livesRemaining);
+  }
+
+  dispose(): void {
+    if (this.disposed) return;
+    this.disposed = true;
+    for (let i = 0; i < this.unsubs.length; i++) {
+      this.unsubs[i]();
+    }
+    this.unsubs.length = 0;
+    this.spawnedFlyingIds.clear();
+  }
+}

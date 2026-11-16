@@ -13,10 +13,23 @@ import { LEVELS } from '../data/levels/index.ts';
 import { TOWER_DEFS, TOWER_TYPES } from '../data/towers.ts';
 import type { RenderWorld } from '../render/renderWorld.ts';
 import { getTowerPickHeight } from '../render/towerPicking.ts';
+import { isTowerTypeAllowed } from '../sim/meta/modifiers.ts';
+import type {
+  AchievementStatus,
+  AllChallengeProgress,
+  DailyChallengeSpec,
+  DailyStatus,
+  EndlessMutatorRoll,
+  LevelChallengeStatus,
+  LifetimeStats,
+  RunMetaOutcome,
+  RunModifiers,
+} from '../sim/meta/types.ts';
 import { SimWorld } from '../sim/world.ts';
 import type { GameOverlays } from '../ui/gameOverlays.ts';
 import type { GameLoop } from './browserLoop.ts';
 import type { InputManager } from './input.ts';
+import { MetaSession } from './metaSession.ts';
 import {
   bindSimEventBridge,
   buildAbilityBarState,
@@ -30,7 +43,6 @@ import {
 } from './sessionBridge.ts';
 import {
   hasSeenUpgradeToast,
-  loadProgress,
   loadSettings,
   markUpgradeToastSeen,
   saveSettings,
@@ -51,7 +63,8 @@ export interface SessionRuntimeDeps {
 
 export class GameSession {
   settings: GameSettings = loadSettings();
-  readonly progress: ProgressData = loadProgress(LEVELS.length);
+  readonly meta: MetaSession = new MetaSession();
+  readonly progress: ProgressData = this.meta.getCampaignProgress();
   currentLevelIndex: number;
   viewMode: ViewMode = 'menu';
   settingsOrigin: SettingsOrigin = 'hud';
@@ -234,6 +247,9 @@ export class GameSession {
   }
 
   setPlacementMode(type: TowerType | null): void {
+    if (type !== null && !isTowerTypeAllowed(type, this.simWorld.modifiers)) {
+      return;
+    }
     this.activePlacementType = type;
     if (type !== null) {
       this.activeAbilityMode = null;
@@ -293,9 +309,14 @@ export class GameSession {
     this.syncUi();
   }
 
-  enterEndlessMode(): void {
+  enterEndlessMode(mutatorSeedOrModifiers?: number | string | RunModifiers): void {
     this.soundManager.unlock();
-    if (!this.simWorld.enterEndlessMode()) return;
+    const modifiers: RunModifiers | undefined =
+      typeof mutatorSeedOrModifiers === 'number' || typeof mutatorSeedOrModifiers === 'string'
+        ? this.meta.rollEndlessMutators(mutatorSeedOrModifiers).modifiers
+        : mutatorSeedOrModifiers;
+    if (!this.simWorld.enterEndlessMode(modifiers)) return;
+    this.meta.onEndlessEntered(modifiers);
     const { overlays, loop } = this.d;
     // The win path pauses the loop via the outcome modal. Close every modal (a HUD-opened
     // Settings or the pause menu could still be stacked under the outcome card), drop any
@@ -337,7 +358,9 @@ export class GameSession {
       getSimClock: () => this.simClockSec,
       onSyncUi: this.syncUi,
       onGameWon: (stars, livesRemaining) => {
-        recordWinProgress(this.progress, this.currentLevelIndex, stars);
+        if (!this.meta.getActiveDailyDate()) {
+          recordWinProgress(this.progress, this.currentLevelIndex, stars);
+        }
         this.activeAbilityMode = null;
         this.setPlacementMode(null);
         overlays.tooltip.hide();
@@ -382,6 +405,7 @@ export class GameSession {
     const { overlays } = this.d;
     if (reloadShowcase) {
       this.recordEndlessIfActive();
+      this.meta.endRun();
       this.clearTransientPlayState();
       this.events.clear();
       this.events = new EventBus();
@@ -397,7 +421,10 @@ export class GameSession {
     this.syncUi();
   }
 
-  startLevel(levelIndex: number): void {
+  startLevel(
+    levelIndex: number,
+    options?: { modifiers?: RunModifiers | null; dailyDate?: string | null },
+  ): void {
     const { overlays, loop } = this.d;
     this.recordEndlessIfActive();
     this.currentLevelIndex = Math.max(0, Math.min(LEVELS.length - 1, levelIndex));
@@ -405,11 +432,16 @@ export class GameSession {
     this.clearTransientPlayState();
     this.events.clear();
     this.events = new EventBus();
-    this.simWorld = new SimWorld(level, this.events);
+    this.simWorld = new SimWorld(level, this.events, options?.modifiers);
     this.simWorld.setAutoWave(this.autoWaveEnabled);
+    this.meta.startRun(this.simWorld.level, this.events, {
+      modifiers: options?.modifiers,
+      dailyDate: options?.dailyDate,
+      speed: 1,
+    });
     this.bindSimEvents(this.events);
     this.renderWorld.cameraController.setShowcaseMode(false);
-    this.renderWorld.loadLevel(level, this.events, () => this.settings);
+    this.renderWorld.loadLevel(this.simWorld.level, this.events, () => this.settings);
 
     this.viewMode = 'playing';
     this.userPaused = false;
@@ -420,6 +452,46 @@ export class GameSession {
     this.refreshPlacementPreview();
     this.syncLoopAndInput();
     this.syncUi();
+  }
+
+  startDailyChallenge(dateStr?: string): DailyChallengeSpec {
+    const spec = this.meta.getDailyChallenge(dateStr);
+    this.startLevel(spec.levelIndex, { modifiers: spec.modifiers, dailyDate: spec.date });
+    return spec;
+  }
+
+  // --- Meta progression & replayability API for UI ---
+
+  getChallengeStatus(levelIndex: number): LevelChallengeStatus | null {
+    return this.meta.getChallengeStatus(levelIndex);
+  }
+
+  getAllChallengeProgress(): AllChallengeProgress {
+    return this.meta.getAllChallengeProgress();
+  }
+
+  getAchievements(): readonly AchievementStatus[] {
+    return this.meta.getAchievements();
+  }
+
+  getStats(): LifetimeStats {
+    return this.meta.getStats();
+  }
+
+  getDailyChallenge(dateStr?: string): DailyChallengeSpec {
+    return this.meta.getDailyChallenge(dateStr);
+  }
+
+  getDailyStatus(dateStr?: string): DailyStatus {
+    return this.meta.getDailyStatus(dateStr);
+  }
+
+  rollEndlessMutators(seed?: number | string, count = 2): EndlessMutatorRoll {
+    return this.meta.rollEndlessMutators(seed, count);
+  }
+
+  getLastRunMetaOutcome(): RunMetaOutcome | null {
+    return this.meta.getLastRunOutcome();
   }
 
   openSettingsModal(origin: SettingsOrigin): void {
@@ -460,6 +532,7 @@ export class GameSession {
   setSpeed(sp: SpeedMultiplier): void {
     this.soundManager.unlock();
     this.d.loop.speed = sp;
+    this.meta.onSpeedChanged(sp);
     if (this.userPaused) this.userPaused = false;
     this.syncLoopAndInput();
     this.syncUi();
@@ -645,6 +718,7 @@ export class GameSession {
 
   fixedTick(dt: number): void {
     this.simClockSec += dt;
+    this.meta.onTick(dt, this.deps?.loop.speed ?? 1);
     stepPendingSpawns(this.pendingDebugSpawns, this.simWorld, dt);
     this.simWorld.fixedTick(dt);
   }
@@ -703,6 +777,7 @@ export class GameSession {
   }
 
   dispose(): void {
+    this.meta.dispose();
     this.unbindSound?.();
     this.unbindSound = null;
   }

@@ -1,0 +1,589 @@
+import type { ProgressData } from '../../core/types.ts';
+import { BALANCE } from '../../data/balance.ts';
+import { ACHIEVEMENTS, getChallengesForLevel } from '../../data/challenges.ts';
+import { LEVELS } from '../../data/levels/index.ts';
+import type { LevelDef } from '../../data/levels/types.ts';
+import { isValidDateString } from './daily.ts';
+import { computeEndlessScore } from './mutators.ts';
+import type {
+  AchievementDef,
+  AchievementStatus,
+  AllChallengeProgress,
+  ChallengeItemStatus,
+  EndlessScoreBreakdown,
+  LevelChallengeStatus,
+  LifetimeStats,
+  MetaSaveData,
+  RunMetaOutcome,
+  RunTelemetry,
+} from './types.ts';
+import { evaluateLevelChallenges } from './runObserver.ts';
+
+export const META_SAVE_VERSION = 2 as const;
+
+export function createEmptyLifetimeStats(): LifetimeStats {
+  return {
+    totalPlayTimeSec: 0,
+    gamesPlayed: 0,
+    gamesWon: 0,
+    gamesLost: 0,
+    wavesCleared: 0,
+    earlyWavesCalled: 0,
+    enemiesDefeatedTotal: 0,
+    enemiesDefeatedByType: {},
+    flyingEnemiesDefeated: 0,
+    towersBuiltTotal: 0,
+    towersBuiltByType: {},
+    towersUpgradedToTier3: 0,
+    towersUpgradedTotal: 0,
+    towersSoldTotal: 0,
+    goldEarnedTotal: 0,
+    goldSpentTotal: 0,
+    abilitiesCastTotal: 0,
+    meteorsCast: 0,
+    overchargesCast: 0,
+    towersCleansed: 0,
+    perfectClears: 0,
+    bestEndlessWaveOverall: 0,
+    dailyChallengesCompleted: 0,
+  };
+}
+
+export function createDefaultMetaSave(levelCount: number): MetaSaveData {
+  return {
+    version: META_SAVE_VERSION,
+    campaign: {
+      unlockedLevelIndex: 0,
+      bestStars: new Array<number>(levelCount).fill(0),
+      bestEndlessWaves: new Array<number>(levelCount).fill(0),
+    },
+    completedChallenges: {},
+    unlockedAchievements: {},
+    achievementMilestones: {
+      wonNoLivesLost: false,
+      wonAt3xSpeed: false,
+      wonMax6Towers: false,
+    },
+    stats: createEmptyLifetimeStats(),
+    completedDailyDates: [],
+    dailyBestScores: {},
+  };
+}
+
+function asNonNegInt(value: unknown, fallback = 0): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return fallback;
+  return Math.max(0, Math.floor(value));
+}
+
+function asNonNegFloat(value: unknown, fallback = 0): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return fallback;
+  return Math.max(0, value);
+}
+
+function sanitizeCountRecord(raw: unknown): Record<string, number> {
+  const out: Record<string, number> = {};
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return out;
+  for (const [key, val] of Object.entries(raw as Record<string, unknown>)) {
+    const n = asNonNegInt(val, 0);
+    if (n > 0) out[key] = n;
+  }
+  return out;
+}
+
+function sanitizeBoolRecord(raw: unknown): Record<string, boolean> {
+  const out: Record<string, boolean> = {};
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return out;
+  for (const [key, val] of Object.entries(raw as Record<string, unknown>)) {
+    if (val === true) out[key] = true;
+  }
+  return out;
+}
+
+function sanitizeCampaign(raw: unknown, levelCount: number): ProgressData {
+  const safeCount = Math.max(1, levelCount);
+  const bestStars = new Array<number>(safeCount).fill(0);
+  const bestEndlessWaves = new Array<number>(safeCount).fill(0);
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+    return { unlockedLevelIndex: 0, bestStars, bestEndlessWaves };
+  }
+  const obj = raw as Partial<ProgressData>;
+  const starLen = Array.isArray(obj.bestStars) ? obj.bestStars.length : 0;
+  const maxStarLen = Math.max(safeCount, starLen);
+  while (bestStars.length < maxStarLen) bestStars.push(0);
+  if (Array.isArray(obj.bestStars)) {
+    for (let i = 0; i < obj.bestStars.length; i++) {
+      const val = obj.bestStars[i];
+      if (typeof val === 'number' && Number.isFinite(val)) {
+        bestStars[i] = Math.max(0, Math.min(3, Math.floor(val)));
+      }
+    }
+  }
+
+  const endLen = Array.isArray(obj.bestEndlessWaves) ? obj.bestEndlessWaves.length : 0;
+  const maxEndLen = Math.max(safeCount, endLen);
+  while (bestEndlessWaves.length < maxEndLen) bestEndlessWaves.push(0);
+  if (Array.isArray(obj.bestEndlessWaves)) {
+    for (let i = 0; i < obj.bestEndlessWaves.length; i++) {
+      const val = obj.bestEndlessWaves[i];
+      if (typeof val === 'number' && Number.isFinite(val)) {
+        bestEndlessWaves[i] = Math.max(0, Math.floor(val));
+      }
+    }
+  }
+
+  const unlockedLevelIndex =
+    typeof obj.unlockedLevelIndex === 'number' && Number.isFinite(obj.unlockedLevelIndex)
+      ? Math.max(0, Math.min(safeCount - 1, Math.floor(obj.unlockedLevelIndex)))
+      : 0;
+
+  return { unlockedLevelIndex, bestStars, bestEndlessWaves };
+}
+
+/** Merges two ProgressData records monotonically (never wiping higher stars/unlocks/endless waves). */
+export function mergeCampaignProgress(
+  a: ProgressData,
+  b: ProgressData,
+  levelCount: number,
+): ProgressData {
+  const len = Math.max(
+    levelCount,
+    a.bestStars.length,
+    b.bestStars.length,
+    a.bestEndlessWaves.length,
+    b.bestEndlessWaves.length,
+  );
+  const bestStars = new Array<number>(len).fill(0);
+  const bestEndlessWaves = new Array<number>(len).fill(0);
+  for (let i = 0; i < len; i++) {
+    bestStars[i] = Math.max(a.bestStars[i] ?? 0, b.bestStars[i] ?? 0);
+    bestEndlessWaves[i] = Math.max(a.bestEndlessWaves[i] ?? 0, b.bestEndlessWaves[i] ?? 0);
+  }
+  const unlockedLevelIndex = Math.max(
+    0,
+    Math.min(Math.max(0, levelCount - 1), Math.max(a.unlockedLevelIndex, b.unlockedLevelIndex)),
+  );
+  return { unlockedLevelIndex, bestStars, bestEndlessWaves };
+}
+
+/**
+ * Pure migration from `skyhold_isles_progress_v1` and/or `skyhold_isles_meta_v2` JSON payloads.
+ * Preserves all v1 stars, unlocked islands, and endless records without ever wiping progress.
+ */
+export function migrateToMetaSave(
+  rawV2: unknown,
+  rawV1: unknown,
+  levelCount: number,
+  levels: readonly LevelDef[] = LEVELS,
+): MetaSaveData {
+  const base = createDefaultMetaSave(levelCount);
+  const v1Campaign = sanitizeCampaign(rawV1, levelCount);
+
+  if (rawV2 && typeof rawV2 === 'object' && !Array.isArray(rawV2)) {
+    const obj = rawV2 as Partial<MetaSaveData> & { campaign?: unknown };
+    // Support accidentally passing a v1 shape directly into rawV2
+    const looksLikeV1Only =
+      obj.version === undefined && ('bestStars' in obj || 'unlockedLevelIndex' in obj);
+    const v2Campaign = looksLikeV1Only
+      ? sanitizeCampaign(rawV2, levelCount)
+      : sanitizeCampaign(obj.campaign, levelCount);
+    base.campaign = mergeCampaignProgress(v2Campaign, v1Campaign, levelCount);
+
+    base.completedChallenges = sanitizeBoolRecord(obj.completedChallenges);
+    base.unlockedAchievements = sanitizeBoolRecord(obj.unlockedAchievements);
+
+    if (obj.achievementMilestones && typeof obj.achievementMilestones === 'object') {
+      const m = obj.achievementMilestones;
+      base.achievementMilestones = {
+        wonNoLivesLost: m.wonNoLivesLost === true,
+        wonAt3xSpeed: m.wonAt3xSpeed === true,
+        wonMax6Towers: m.wonMax6Towers === true,
+      };
+    }
+
+    if (obj.stats && typeof obj.stats === 'object' && !Array.isArray(obj.stats)) {
+      const s = obj.stats as Partial<LifetimeStats>;
+      base.stats = {
+        totalPlayTimeSec: asNonNegFloat(s.totalPlayTimeSec),
+        gamesPlayed: asNonNegInt(s.gamesPlayed),
+        gamesWon: asNonNegInt(s.gamesWon),
+        gamesLost: asNonNegInt(s.gamesLost),
+        wavesCleared: asNonNegInt(s.wavesCleared),
+        earlyWavesCalled: asNonNegInt(s.earlyWavesCalled),
+        enemiesDefeatedTotal: asNonNegInt(s.enemiesDefeatedTotal),
+        enemiesDefeatedByType: sanitizeCountRecord(s.enemiesDefeatedByType),
+        flyingEnemiesDefeated: asNonNegInt(s.flyingEnemiesDefeated),
+        towersBuiltTotal: asNonNegInt(s.towersBuiltTotal),
+        towersBuiltByType: sanitizeCountRecord(s.towersBuiltByType),
+        towersUpgradedToTier3: asNonNegInt(s.towersUpgradedToTier3),
+        towersUpgradedTotal: asNonNegInt(s.towersUpgradedTotal),
+        towersSoldTotal: asNonNegInt(s.towersSoldTotal),
+        goldEarnedTotal: asNonNegInt(s.goldEarnedTotal),
+        goldSpentTotal: asNonNegInt(s.goldSpentTotal),
+        abilitiesCastTotal: asNonNegInt(s.abilitiesCastTotal),
+        meteorsCast: asNonNegInt(s.meteorsCast),
+        overchargesCast: asNonNegInt(s.overchargesCast),
+        towersCleansed: asNonNegInt(s.towersCleansed),
+        perfectClears: asNonNegInt(s.perfectClears),
+        bestEndlessWaveOverall: asNonNegInt(s.bestEndlessWaveOverall),
+        dailyChallengesCompleted: asNonNegInt(s.dailyChallengesCompleted),
+      };
+    }
+
+    if (Array.isArray(obj.completedDailyDates)) {
+      const uniqueDates = new Set<string>();
+      for (const d of obj.completedDailyDates) {
+        if (typeof d === 'string' && isValidDateString(d)) {
+          uniqueDates.add(d);
+        }
+      }
+      base.completedDailyDates = [...uniqueDates].sort();
+    }
+
+    base.dailyBestScores = sanitizeCountRecord(obj.dailyBestScores);
+  } else {
+    base.campaign = v1Campaign;
+  }
+
+  // Keep stats consistent with migrated v1 endless waves and wins
+  let maxEndless = base.stats.bestEndlessWaveOverall;
+  for (let i = 0; i < base.campaign.bestEndlessWaves.length; i++) {
+    if (base.campaign.bestEndlessWaves[i] > maxEndless) {
+      maxEndless = base.campaign.bestEndlessWaves[i];
+    }
+  }
+  base.stats.bestEndlessWaveOverall = maxEndless;
+
+  const clearedIslandsCount = base.campaign.bestStars.filter((s) => s > 0).length;
+  if (base.stats.gamesWon < clearedIslandsCount) {
+    base.stats.gamesWon = clearedIslandsCount;
+  }
+  if (base.stats.dailyChallengesCompleted < base.completedDailyDates.length) {
+    base.stats.dailyChallengesCompleted = base.completedDailyDates.length;
+  }
+
+  recomputeAchievements(base, levels);
+  return base;
+}
+
+/**
+ * Applies incremental telemetry delta from an ongoing or ended run into `save.stats`.
+ * Pass the difference `(currentTelemetry - alreadyCommittedTelemetry)` so multiple flushes
+ * during a long endless run never double-count.
+ */
+export function applyTelemetryDeltaToStats(
+  save: MetaSaveData,
+  current: RunTelemetry,
+  committed: RunTelemetry | null,
+): void {
+  const prev = committed;
+  const d = (curr: number, old: number | undefined): number => Math.max(0, curr - (old ?? 0));
+
+  save.stats.totalPlayTimeSec = +(
+    save.stats.totalPlayTimeSec + d(current.simTimeSec, prev?.simTimeSec)
+  ).toFixed(3);
+  save.stats.wavesCleared += d(current.wavesCompleted, prev?.wavesCompleted);
+  save.stats.earlyWavesCalled += d(current.earlyWavesCalled, prev?.earlyWavesCalled);
+  save.stats.enemiesDefeatedTotal += d(current.enemiesKilledTotal, prev?.enemiesKilledTotal);
+  save.stats.flyingEnemiesDefeated += d(
+    current.flyingEnemiesKilled,
+    prev?.flyingEnemiesKilled,
+  );
+  save.stats.towersBuiltTotal += d(current.towersBuilt, prev?.towersBuilt);
+  save.stats.towersSoldTotal += d(current.towersSold, prev?.towersSold);
+  save.stats.goldEarnedTotal += d(current.goldEarned, prev?.goldEarned);
+  save.stats.goldSpentTotal += d(current.grossGoldSpent, prev?.grossGoldSpent);
+  save.stats.abilitiesCastTotal += d(current.abilitiesCastTotal, prev?.abilitiesCastTotal);
+  save.stats.meteorsCast += d(current.meteorsCast, prev?.meteorsCast);
+  save.stats.overchargesCast += d(current.overchargesCast, prev?.overchargesCast);
+  save.stats.towersCleansed += d(current.towersCleansed, prev?.towersCleansed);
+  save.stats.towersUpgradedToTier3 += d(
+    current.towersUpgradedToTier3,
+    prev?.towersUpgradedToTier3,
+  );
+  save.stats.towersUpgradedTotal += d(current.towersUpgraded, prev?.towersUpgraded);
+
+  for (const [enemyType, count] of Object.entries(current.enemiesKilledByType)) {
+    const delta = d(count, prev?.enemiesKilledByType[enemyType]);
+    if (delta > 0) {
+      save.stats.enemiesDefeatedByType[enemyType] =
+        (save.stats.enemiesDefeatedByType[enemyType] ?? 0) + delta;
+    }
+  }
+
+  for (const [towerType, count] of Object.entries(current.towersBuiltByType)) {
+    const delta = d(count, prev?.towersBuiltByType[towerType]);
+    if (delta > 0) {
+      save.stats.towersBuiltByType[towerType] =
+        (save.stats.towersBuiltByType[towerType] ?? 0) + delta;
+    }
+  }
+
+  if (current.endlessEntered && current.maxWaveReached > save.stats.bestEndlessWaveOverall) {
+    save.stats.bestEndlessWaveOverall = current.maxWaveReached;
+  }
+}
+
+function getAchievementCurrentValue(
+  def: AchievementDef,
+  save: MetaSaveData,
+): number {
+  const bestStars = save.campaign.bestStars;
+  const islandsWithStars = bestStars.filter((s) => s > 0).length;
+  const totalStars = bestStars.reduce((sum, s) => sum + s, 0);
+  const completedChallengeCount = Object.values(save.completedChallenges).filter(Boolean).length;
+
+  switch (def.id) {
+    case 'first_victory':
+      return Math.max(save.stats.gamesWon, islandsWithStars > 0 ? 1 : 0);
+    case 'island_explorer':
+      return islandsWithStars;
+    case 'campaign_champion':
+      return islandsWithStars;
+    case 'star_collector_15':
+    case 'star_collector_27':
+      return totalStars;
+    case 'challenger_5':
+    case 'challenger_15':
+      return completedChallengeCount;
+    case 'flawless_defense':
+      return save.achievementMilestones.wonNoLivesLost || save.stats.perfectClears > 0 ? 1 : 0;
+    case 'speed_demon':
+      return save.achievementMilestones.wonAt3xSpeed ? 1 : 0;
+    case 'minimalist':
+      return save.achievementMilestones.wonMax6Towers ? 1 : 0;
+    case 'slayer_250':
+    case 'slayer_2500':
+      return save.stats.enemiesDefeatedTotal;
+    case 'boss_slayer_10':
+      return save.stats.enemiesDefeatedByType.boss ?? 0;
+    case 'anti_air_ace':
+      return save.stats.flyingEnemiesDefeated;
+    case 'overcharge_cleanse':
+      return save.stats.towersCleansed;
+    case 'meteor_caller':
+      return save.stats.meteorsCast;
+    case 'master_architect':
+      return save.stats.towersBuiltTotal;
+    case 'tier3_forge':
+      return save.stats.towersUpgradedToTier3;
+    case 'gold_baron':
+      return save.stats.goldEarnedTotal;
+    case 'early_bird':
+      return save.stats.earlyWavesCalled;
+    case 'endless_survivor':
+      return save.stats.bestEndlessWaveOverall;
+    case 'daily_victor':
+      return Math.max(save.stats.dailyChallengesCompleted, save.completedDailyDates.length);
+    default:
+      return 0;
+  }
+}
+
+/** Updates unlockedAchievements monotonically and returns newly unlocked achievement IDs. */
+export function recomputeAchievements(
+  save: MetaSaveData,
+  _levels: readonly LevelDef[] = LEVELS,
+): readonly string[] {
+  void _levels;
+  const newlyUnlocked: string[] = [];
+  for (let i = 0; i < ACHIEVEMENTS.length; i++) {
+    const def = ACHIEVEMENTS[i];
+    if (save.unlockedAchievements[def.id]) continue;
+    const current = getAchievementCurrentValue(def, save);
+    if (current >= def.target) {
+      save.unlockedAchievements[def.id] = true;
+      newlyUnlocked.push(def.id);
+    }
+  }
+  return newlyUnlocked;
+}
+
+/** Records a completed campaign win, daily win, or endless/campaign loss into `save`. */
+export function recordRunCompletion(
+  save: MetaSaveData,
+  params: {
+    level: LevelDef;
+    telemetry: RunTelemetry;
+    won: boolean;
+    stars: 0 | 1 | 2 | 3;
+    livesRemaining: number;
+    levels?: readonly LevelDef[];
+    dailyDate?: string | null;
+    scoreMultiplier?: number;
+  },
+): RunMetaOutcome {
+  const levels = params.levels ?? LEVELS;
+  const { level, telemetry, won, stars, livesRemaining } = params;
+  const isDaily = Boolean(params.dailyDate && isValidDateString(params.dailyDate));
+  const newlyCompletedChallengeIds: string[] = [];
+
+  if (won) {
+    save.stats.gamesWon++;
+    if (!isDaily && stars > 0) {
+      while (save.campaign.bestStars.length <= level.index) {
+        save.campaign.bestStars.push(0);
+      }
+      save.campaign.bestStars[level.index] = Math.max(
+        save.campaign.bestStars[level.index] ?? 0,
+        stars,
+      );
+      if (level.index + 1 < levels.length) {
+        save.campaign.unlockedLevelIndex = Math.max(
+          save.campaign.unlockedLevelIndex,
+          level.index + 1,
+        );
+      }
+    }
+
+    if (telemetry.eligibleForChallenges) {
+      if (telemetry.livesLost === 0 && livesRemaining >= BALANCE.startingLives) {
+        save.stats.perfectClears++;
+        save.achievementMilestones.wonNoLivesLost = true;
+      }
+      if (telemetry.minCombatSpeed === 3) {
+        save.achievementMilestones.wonAt3xSpeed = true;
+      }
+      if (telemetry.towersBuilt <= 6) {
+        save.achievementMilestones.wonMax6Towers = true;
+      }
+
+      if (!isDaily) {
+        const satisfied = evaluateLevelChallenges(level, telemetry, true, livesRemaining);
+        for (let i = 0; i < satisfied.length; i++) {
+          const cid = satisfied[i].id;
+          if (!save.completedChallenges[cid]) {
+            save.completedChallenges[cid] = true;
+            newlyCompletedChallengeIds.push(cid);
+          }
+        }
+      }
+    }
+  } else {
+    save.stats.gamesLost++;
+  }
+
+  let endlessScore: EndlessScoreBreakdown | null = null;
+  if (telemetry.endlessEntered) {
+    while (save.campaign.bestEndlessWaves.length <= level.index) {
+      save.campaign.bestEndlessWaves.push(0);
+    }
+    save.campaign.bestEndlessWaves[level.index] = Math.max(
+      save.campaign.bestEndlessWaves[level.index] ?? 0,
+      telemetry.maxWaveReached,
+    );
+    if (telemetry.maxWaveReached > save.stats.bestEndlessWaveOverall) {
+      save.stats.bestEndlessWaveOverall = telemetry.maxWaveReached;
+    }
+    const endlessWavesCleared = Math.max(0, telemetry.wavesCompleted - level.waves.length);
+    endlessScore = computeEndlessScore(
+      endlessWavesCleared,
+      telemetry.enemiesKilledTotal,
+      params.scoreMultiplier ?? 1,
+    );
+  }
+
+  let dailyScore: number | null = null;
+  if (isDaily && won && params.dailyDate) {
+    const score = computeEndlessScore(
+      telemetry.wavesCompleted,
+      telemetry.enemiesKilledTotal,
+      params.scoreMultiplier ?? 1,
+    ).totalScore + livesRemaining * 25;
+    dailyScore = score;
+    if (!save.completedDailyDates.includes(params.dailyDate)) {
+      save.completedDailyDates.push(params.dailyDate);
+      save.completedDailyDates.sort();
+      save.stats.dailyChallengesCompleted++;
+    }
+    save.dailyBestScores[params.dailyDate] = Math.max(
+      save.dailyBestScores[params.dailyDate] ?? 0,
+      score,
+    );
+  }
+
+  const newlyUnlockedAchievementIds = recomputeAchievements(save, levels);
+
+  return {
+    won,
+    isDaily,
+    newlyCompletedChallengeIds,
+    newlyUnlockedAchievementIds,
+    endlessScore,
+    dailyScore,
+  };
+}
+
+/** Typed UI query: challenge status & challenge stars for a single island index. */
+export function getChallengeStatus(
+  save: MetaSaveData,
+  levelIndex: number,
+  levels: readonly LevelDef[] = LEVELS,
+): LevelChallengeStatus | null {
+  const level = levels[levelIndex];
+  if (!level) return null;
+  const defs = getChallengesForLevel(level);
+  const challenges: ChallengeItemStatus[] = [];
+  let earnedStars = 0;
+
+  for (let i = 0; i < defs.length; i++) {
+    const def = defs[i];
+    const completed = save.completedChallenges[def.id] === true;
+    if (completed) earnedStars++;
+    challenges.push({ def, completed });
+  }
+
+  return {
+    levelId: level.id,
+    levelIndex,
+    levelName: level.name,
+    earnedStars,
+    totalStars: defs.length,
+    challenges,
+  };
+}
+
+/** Typed UI query: challenge stars aggregated across all registered islands. */
+export function getAllChallengeProgress(
+  save: MetaSaveData,
+  levels: readonly LevelDef[] = LEVELS,
+): AllChallengeProgress {
+  const byLevel: LevelChallengeStatus[] = [];
+  let earnedStars = 0;
+  let totalStars = 0;
+
+  for (let i = 0; i < levels.length; i++) {
+    const status = getChallengeStatus(save, i, levels);
+    if (status) {
+      byLevel.push(status);
+      earnedStars += status.earnedStars;
+      totalStars += status.totalStars;
+    }
+  }
+
+  return { earnedStars, totalStars, byLevel };
+}
+
+/** Typed UI query: all achievements with unlock status and progress ratio. */
+export function getAchievements(save: MetaSaveData): readonly AchievementStatus[] {
+  return ACHIEVEMENTS.map((def) => {
+    const unlocked = save.unlockedAchievements[def.id] === true;
+    const rawCurrent = getAchievementCurrentValue(def, save);
+    const current = unlocked ? Math.max(def.target, rawCurrent) : Math.min(def.target, rawCurrent);
+    return {
+      def,
+      unlocked,
+      current,
+      target: def.target,
+      progressRatio: def.target > 0 ? Math.min(1, current / def.target) : unlocked ? 1 : 0,
+    };
+  });
+}
+
+/** Typed UI query: cloned snapshot of lifetime player stats. */
+export function getStats(save: MetaSaveData): LifetimeStats {
+  return {
+    ...save.stats,
+    enemiesDefeatedByType: { ...save.stats.enemiesDefeatedByType },
+    towersBuiltByType: { ...save.stats.towersBuiltByType },
+  };
+}
