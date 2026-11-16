@@ -157,6 +157,10 @@ export interface IslandTheme {
     readonly tuftMul: number;
     /** petal/centre colours for the three flower buckets. */
     readonly flowers: readonly [readonly [number, number], readonly [number, number], readonly [number, number]];
+    /** Density multiplier for small bushes on buildable/decor grass (hidden when a tower is built). */
+    readonly bushMul: number;
+    /** Main / highlight foliage colours of the bushes. */
+    readonly bushColors: readonly [number, number];
     /** 0..1 share of tufts replaced by golden wheat tufts. */
     readonly wheat: number;
     /** shells/starfish on sand tiles. */
@@ -201,6 +205,8 @@ export const DEFAULT_THEME: IslandTheme = {
     flowerMul: 1,
     pebbleMul: 1,
     tuftMul: 1,
+    bushMul: 1,
+    bushColors: [0x4d9440, 0x6ac74a],
     flowers: [
       [0xf8f4e8, 0xf6bd41],
       [0xf6bd41, 0xf28729],

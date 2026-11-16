@@ -173,6 +173,19 @@ function createStarfishGeometry(): THREE.BufferGeometry {
   return merged;
 }
 
+function createBushGeometry(main: number, light: number): THREE.BufferGeometry {
+  const blob = new THREE.IcosahedronGeometry(1, 0);
+  const parts: ColoredPart[] = [
+    { geometry: blob, colorHex: main, position: [0, 0.07, 0], scale: [0.13, 0.095, 0.12] },
+    { geometry: blob, colorHex: light, position: [0.1, 0.06, 0.05], scale: [0.085, 0.07, 0.085] },
+    { geometry: blob, colorHex: main, position: [-0.09, 0.05, -0.06], scale: [0.075, 0.06, 0.075] },
+    { geometry: blob, colorHex: light, position: [0.02, 0.13, -0.01], scale: [0.05, 0.04, 0.05] },
+  ];
+  const merged = mergeColoredParts(parts);
+  blob.dispose();
+  return merged;
+}
+
 function createPebbleGeometry(): THREE.BufferGeometry {
   const stoneGeo = new THREE.DodecahedronGeometry(0.062, 0);
   const parts: ColoredPart[] = [
@@ -233,8 +246,8 @@ export class GroundDetails {
       return t === 'path' || t === 'spawn' || t === 'goal';
     };
 
-    // 0: grass tufts, 1-3: flowers, 4: pebbles, 5: wheat tufts, 6: shells, 7: starfish
-    const placements: BucketPlacement[][] = [[], [], [], [], [], [], [], []];
+    // 0: grass tufts, 1-3: flowers, 4: pebbles, 5: wheat tufts, 6: shells, 7: starfish, 8: bushes
+    const placements: BucketPlacement[][] = [[], [], [], [], [], [], [], [], []];
     const dummy = new THREE.Object3D();
 
     const pickOffset = (
@@ -320,6 +333,14 @@ export class GroundDetails {
           }
         }
 
+        // Small bushes (hide beneath towers like every other detail)
+        if (ground === 'grass' || ground === 'moss') {
+          if (rng.chance((isBuildable ? 0.12 : 0.3) * d.bushMul)) {
+            const offset = pickOffset(c, r, isBuildable);
+            if (offset) pushItem(8, c, r, baseX + offset[0], baseZ + offset[1], 0.9, 1.5);
+          }
+        }
+
         // Small pebbles
         const pebbleChance = (isBuildable ? 0.22 : 0.36) * d.pebbleMul * (ground === 'field' ? 0.3 : 1);
         if (rng.chance(pebbleChance)) {
@@ -352,6 +373,7 @@ export class GroundDetails {
       createWheatTuftGeometry(),
       createShellGeometry(),
       createStarfishGeometry(),
+      createBushGeometry(theme.details.bushColors[0], theme.details.bushColors[1]),
     ];
 
     for (let b = 0; b < geometries.length; b++) {

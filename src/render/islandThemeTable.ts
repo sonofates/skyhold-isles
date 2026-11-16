@@ -116,7 +116,7 @@ const HIGHLAND_CITADEL = theme({
   hills: { chance: 0.85, minH: 0.5, maxH: 1.0, cap: 'snow' },
   trees: { density: 0.55, snow: true, weights: { pine: 0.62, treeLarge: 0.18, tree: 0.2 } },
   decorBake: { rockChance: 0.5, shrubChance: 0.2, crystalChance: 0.06, crystalTint: 0xb7d4f6 },
-  details: {
+  details: { bushMul: 0.5, bushColors: [0x2f6f46, 0x3f8a58],
     flowerMul: 0.4,
     pebbleMul: 2.0,
     tuftMul: 0.7,
@@ -164,7 +164,7 @@ const EMERALD_STEPPING_STONES = theme({
   hills: { chance: 0.6, minH: 0.3, maxH: 0.55 },
   trees: { density: 0.4, weights: { treeLarge: 0.3, oak: 0.35, tree: 0.35 } },
   decorBake: { rockChance: 0.25, shrubChance: 0.3, crystalChance: 0.5, crystalTint: 0x7dffb8 },
-  details: {
+  details: { bushMul: 1.3, bushColors: [0x2fa077, 0x5fd0a0],
     flowerMul: 1.3,
     flowers: [
       [0xc3ecfa, 0xf8f4e8],
@@ -218,7 +218,7 @@ const WINDMILL_SWITCHBACK = theme({
   hills: { chance: 0.6, minH: 0.25, maxH: 0.5 },
   trees: { density: 0.4, weights: { autumn: 0.5, oak: 0.2, treeLarge: 0.15, tree: 0.15 } },
   decorBake: { rockChance: 0.2, shrubChance: 0.34 },
-  details: {
+  details: { bushMul: 0.7, bushColors: [0xc9742a, 0xe0a23a],
     flowerMul: 0.9,
     wheat: 0.55,
     flowers: [
@@ -267,7 +267,7 @@ const CRESCENT_LAGOON = theme({
   hills: { chance: 0.7, minH: 0.25, maxH: 0.5 },
   trees: { density: 0.5, weights: { palm: 0.7, oak: 0.15, tree: 0.15 } },
   decorBake: { rockChance: 0.2, shrubChance: 0.28 },
-  details: {
+  details: { bushMul: 0.4, bushColors: [0x4fae45, 0x7bd860],
     flowerMul: 1.2,
     tuftMul: 0.7,
     shells: true,
@@ -318,7 +318,7 @@ const SKYBRIDGE_GAUNTLET = theme({
   hills: { chance: 0.8, minH: 0.45, maxH: 0.9, cap: 'stone' },
   trees: { density: 0.3, snow: true, weights: { pine: 0.45, tree: 0.35, treeLarge: 0.2 } },
   decorBake: { rockChance: 0.5, shrubChance: 0.18, crystalChance: 0.08 },
-  details: { flowerMul: 0.25, pebbleMul: 2.2, tuftMul: 0.7 },
+  details: { bushMul: 0.4, bushColors: [0x3f6f4a, 0x56875c], flowerMul: 0.25, pebbleMul: 2.2, tuftMul: 0.7 },
   ambient: { isletStyle: 'rock', birds: 4, butterflies: 0, islets: 5, clouds: 7 },
   setPieces: [
     { kind: 'watchtower', col: 6, row: 5, yaw: Math.PI / 2, variant: 0 },
@@ -363,7 +363,7 @@ const SUNKEN_BASTION = theme({
   hills: { chance: 0.5, minH: 0.25, maxH: 0.5 },
   trees: { density: 0.4, weights: { oak: 0.3, tree: 0.3, treeLarge: 0.2, pine: 0.2 } },
   decorBake: { rockChance: 0.5, shrubChance: 0.3, crystalChance: 0.1 },
-  details: {
+  details: { bushMul: 1.4, bushColors: [0x4a7a55, 0x6a9a6a],
     flowerMul: 0.4,
     pebbleMul: 1.8,
     flowers: [
