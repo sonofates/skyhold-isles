@@ -297,27 +297,27 @@ export class TowerGeometryCache {
           { geometry: oct, colorHex: PALETTE_HEX.coral, position: [0, y, z + len * 0.5 + 0.06] as [number, number, number], scale: [0.09, 0.09, 0.2] as [number, number, number], forceWhiteUv: true },
         ];
         if (tier === 1) {
-          turretAnchorY = 1.1;
+          turretAnchorY = 0.94;
           baseParts.push(
             { geometry: grab('tower-square-bottom-b'), position: [0, 0, 0], scale: [1.38, 1.02, 1.38] },
             { geometry: grab('tower-square-top-b'), position: [0, 0.52, 0], scale: [1.3, 0.84, 1.3] },
           );
           turretParts.push(
             { geometry: grab('weapon-ballista'), position: [0, 0, 0], scale: [1.62, 1.62, 1.62] },
-            ...bolt(0.28, 0.9),
+            ...bolt(0.1, 0.8),
           );
         } else if (tier === 2) {
-          turretAnchorY = 1.56;
+          turretAnchorY = 1.47;
           baseParts.push(
             { geometry: grab('tower-square-bottom-b'), position: [0, 0, 0], scale: [1.46, 1.08, 1.46] },
             { geometry: grab('tower-square-middle-b'), position: [0, 0.55, 0], scale: [1.38, 1.0, 1.38] },
             { geometry: grab('tower-square-top-b'), position: [0, 1.04, 0], scale: [1.32, 0.86, 1.32] },
           );
           turretParts.push(
-            { geometry: grab('weapon-ballista'), colorHex: 0xfff5e4, position: [0, 0, 0], scale: [1.84, 1.84, 1.84] },
+            { geometry: grab('weapon-ballista'), colorHex: 0xfff5e4, position: [0, 0, 0], scale: [1.76, 1.76, 1.76] },
             // Brass spyglass along the stock
             { geometry: cyl, colorHex: PALETTE_HEX.gold, position: [0, 0.34, -0.06], rotation: [Math.PI / 2, 0, 0], scale: [0.07, 0.5, 0.07], forceWhiteUv: true },
-            ...bolt(0.32, 1.05, 0.2),
+            ...bolt(0.12, 0.9, 0.2),
           );
         } else {
           turretAnchorY = 2.0;
@@ -329,10 +329,10 @@ export class TowerGeometryCache {
             { geometry: cyl, colorHex: PALETTE_HEX.gold, position: [0, 1.72, 0], scale: [0.5, 0.14, 0.5], forceWhiteUv: true },
           );
           turretParts.push(
-            { geometry: grab('weapon-ballista'), position: [0, 0, 0], scale: [2.1, 2.1, 2.1] },
-            { geometry: grab('weapon-ballista'), position: [0, 0.34, -0.1], scale: [1.5, 1.2, 1.5] },
+            { geometry: grab('weapon-ballista'), position: [0, 0, 0], scale: [1.92, 1.92, 1.92] },
+            { geometry: grab('weapon-ballista'), position: [0, 0.34, -0.1], scale: [1.4, 1.1, 1.4] },
             { geometry: cyl, colorHex: PALETTE_HEX.gold, position: [0, 0.46, -0.1], rotation: [Math.PI / 2, 0, 0], scale: [0.08, 0.58, 0.08], forceWhiteUv: true },
-            ...bolt(0.36, 1.2, 0.2),
+            ...bolt(0.14, 1.0, 0.2),
           );
         }
         break;
@@ -370,7 +370,7 @@ export class TowerGeometryCache {
             { geometry: torus, colorHex: PALETTE_HEX.gold, position: [0, 0.2, 0], rotation: [Math.PI / 2.8, 0.6, 0], scale: [0.56, 0.56, 0.56], forceWhiteUv: true },
           );
         } else {
-          turretAnchorY = 1.9;
+          turretAnchorY = 2.0;
           baseParts.push(
             { geometry: grab('tower-round-base'), position: [0, 0, 0], scale: [1.5, 1.04, 1.5] },
             { geometry: grab('tower-round-bottom-b'), position: [0, 0.17, 0], scale: [1.42, 1.1, 1.42] },
