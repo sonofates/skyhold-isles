@@ -21,6 +21,10 @@ export function bindEnemyArchetypeFx(
       fx.spawnPulseRing(e.x, e.y, e.z, e.radius, WARD_BLUE);
       fx.spawnParticles(e.x, e.y + 1.2, e.z, PALETTE_HEX.gold, 5, 1.6, 1.0);
     }),
+    events.on('shieldAbsorb', (e) => {
+      // Small blue glint so soaked hits read as "pinging off the barrier".
+      fx.spawnParticles(e.x, e.y, e.z, WARD_BLUE, e.amount >= 20 ? 3 : 2, 1.8, 2.0);
+    }),
     events.on('shieldBroken', (e) => {
       fx.spawnParticles(e.x, e.y, e.z, WARD_BLUE, 9, 3.0, 3.5);
       fx.spawnParticles(e.x, e.y, e.z, PALETTE_HEX.cream, 4, 2.4, 3.5);

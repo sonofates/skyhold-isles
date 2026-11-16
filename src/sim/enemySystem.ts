@@ -254,6 +254,13 @@ export class EnemySystem {
       const absorbed = Math.min(entity.shield, reduced);
       entity.shield -= absorbed;
       reduced -= absorbed;
+      this.events.emit('shieldAbsorb', {
+        enemyId: entity.uid,
+        amount: absorbed,
+        x: entity.x,
+        y: entity.y + entity.height * 0.6,
+        z: entity.z,
+      });
       if (entity.shield <= 0) {
         entity.shield = 0;
         this.events.emit('shieldBroken', {

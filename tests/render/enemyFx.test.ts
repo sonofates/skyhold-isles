@@ -28,6 +28,7 @@ describe('enemy archetype FX bindings', () => {
     const p = { x: 1, y: 0, z: 2 };
 
     events.emit('wardPulse', { ...p, radius: 3, shieldedCount: 2 });
+    events.emit('shieldAbsorb', { enemyId: 1, amount: 12, ...p });
     events.emit('shieldBroken', { enemyId: 1, ...p });
     events.emit('enemyBurrow', { enemyId: 1, burrowed: true, ...p });
     events.emit('enemyBurrow', { enemyId: 1, burrowed: false, ...p });

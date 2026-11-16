@@ -80,6 +80,14 @@ export interface GameEventMap {
     radius: number;
     shieldedCount: number;
   };
+  /** A hit was (partly) soaked by a barrier. */
+  shieldAbsorb: {
+    enemyId: number;
+    amount: number;
+    x: number;
+    y: number;
+    z: number;
+  };
   shieldBroken: {
     enemyId: number;
     x: number;

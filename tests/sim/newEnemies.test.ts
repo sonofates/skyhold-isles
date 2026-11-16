@@ -100,7 +100,9 @@ describe('Aegis Warden', () => {
     expect(grunt.shieldMax).toBe(grunt.shield);
 
     const broken: number[] = [];
+    const absorbs: number[] = [];
     events.on('shieldBroken', (e) => broken.push(e.enemyId));
+    events.on('shieldAbsorb', (e) => absorbs.push(e.amount));
     const hpBefore = grunt.hp;
     const shield0 = grunt.shield;
     const res1 = world.enemySystem.applyDamage(grunt, 20);
@@ -112,6 +114,7 @@ describe('Aegis Warden', () => {
     expect(res2.actualDamage).toBe(40 - shield0);
     expect(grunt.shield).toBe(0);
     expect(broken).toEqual([grunt.uid]);
+    expect(absorbs).toEqual([20, shield0 - 20]);
   });
 
   it('scales the barrier with the warden HP scale and does not stack beyond it', () => {
