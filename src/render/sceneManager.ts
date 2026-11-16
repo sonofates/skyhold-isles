@@ -2,22 +2,85 @@ import * as THREE from 'three';
 import type { QualityLevel } from '../core/types.ts';
 import { BALANCE } from '../data/balance.ts';
 import { PALETTE_HEX, SKY_HORIZON_HEX, SKY_ZENITH_HEX } from '../data/palette.ts';
+import { isTouchDevice } from '../platform/storage.ts';
+import {
+  PerfGovernor,
+  RollingFrameMetrics,
+  computeTargetDpr,
+  type QualityPreset,
+  type QualityTier,
+  type TierTransition,
+} from './perfGovernor.ts';
 import { PostProcessingPipeline } from './postProcessing.ts';
+
+export interface EffectiveQualityState {
+  readonly mode: QualityLevel;
+  readonly tier: QualityTier;
+  readonly tierLabel: string;
+  readonly dpr: number;
+  readonly shadowsEnabled: boolean;
+  readonly composerEnabled: boolean;
+  readonly outlineEnabled: boolean;
+  readonly decorLow: boolean;
+  readonly activePasses: string;
+}
+
+export interface ScenePerfSnapshot {
+  readonly fps: number;
+  readonly avgMs: number;
+  readonly p95Ms: number;
+  readonly workAvgMs: number;
+  readonly workP95Ms: number;
+  readonly dpr: number;
+  readonly nativeDpr: number;
+  readonly pixelWidth: number;
+  readonly pixelHeight: number;
+  readonly composerEnabled: boolean;
+  readonly activePasses: string;
+  readonly shadowsEnabled: boolean;
+  readonly qualityMode: QualityLevel;
+  readonly activeTier: QualityTier;
+  readonly tierLabel: string;
+  readonly lockedCeilingTier: QualityTier;
+  readonly isTouch: boolean;
+}
 
 export class SceneManager {
   readonly renderer: THREE.WebGLRenderer;
   readonly scene: THREE.Scene;
   readonly hemiLight: THREE.HemisphereLight;
   readonly dirLight: THREE.DirectionalLight;
+
   private readonly canvas: HTMLCanvasElement;
-  private quality: QualityLevel = 'high';
+  private readonly isTouch: boolean;
+  private readonly governor: PerfGovernor;
+  private readonly displayMetrics = new RollingFrameMetrics(120);
+  private readonly workMetrics = new RollingFrameMetrics(120);
+
   private skyMesh: THREE.Mesh;
   private skyGeometry: THREE.PlaneGeometry;
   private skyMaterial: THREE.ShaderMaterial;
   private postProcessing: PostProcessingPipeline | null = null;
+  private effectiveStateListener: ((state: EffectiveQualityState) => void) | null = null;
 
-  constructor(canvas: HTMLCanvasElement) {
+  private lastWidth: number;
+  private lastHeight: number;
+  private appliedDpr = -1;
+
+  constructor(
+    canvas: HTMLCanvasElement,
+    options?: { isTouch?: boolean; initialQuality?: QualityLevel },
+  ) {
     this.canvas = canvas;
+    this.isTouch = options?.isTouch ?? isTouchDevice();
+    this.governor = new PerfGovernor({
+      mode: options?.initialQuality ?? 'auto',
+      isTouch: this.isTouch,
+    });
+
+    this.lastWidth = Math.max(1, canvas.clientWidth || window.innerWidth);
+    this.lastHeight = Math.max(1, canvas.clientHeight || window.innerHeight);
+
     this.renderer = new THREE.WebGLRenderer({
       canvas,
       antialias: true,
@@ -26,12 +89,9 @@ export class SceneManager {
     });
     // Track full multi-pass WebGL draw calls accurately across EffectComposer frames
     this.renderer.info.autoReset = false;
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-    this.renderer.setSize(canvas.clientWidth || window.innerWidth, canvas.clientHeight || window.innerHeight, false);
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
-    // High quality lets EffectComposer apply ACES Filmic once at the end of the pipeline
     this.renderer.toneMapping = THREE.NoToneMapping;
     this.renderer.toneMappingExposure = 1.0;
 
@@ -39,7 +99,7 @@ export class SceneManager {
     this.scene.fog = new THREE.Fog(SKY_HORIZON_HEX, 125, 260);
 
     // Full-screen vertical gradient sky quad rendered first without depth writes.
-    // On High quality EffectComposer performs tone mapping & sRGB encoding once at the end,
+    // When EffectComposer is active it performs tone mapping & sRGB encoding once at the end,
     // so uDirectOutput = 0 prevents washed-out double-gamma sky colors.
     this.skyGeometry = new THREE.PlaneGeometry(2, 2);
     this.skyMaterial = new THREE.ShaderMaterial({
@@ -92,11 +152,14 @@ export class SceneManager {
     this.dirLight = new THREE.DirectionalLight(0xfffaf0, 1.64);
     this.dirLight.position.set(22, 34, 18);
     this.dirLight.castShadow = true;
-    this.dirLight.shadow.mapSize.set(2048, 2048);
+    const shadowSize = this.isTouch ? 1024 : 2048;
+    this.dirLight.shadow.mapSize.set(shadowSize, shadowSize);
     this.dirLight.shadow.bias = -0.0004;
     this.dirLight.shadow.normalBias = 0.025;
     this.scene.add(this.dirLight);
     this.scene.add(this.dirLight.target);
+
+    this.applyPreset(this.governor.getPreset(), true);
   }
 
   get shadowsEnabled(): boolean {
@@ -104,26 +167,97 @@ export class SceneManager {
   }
 
   get postProcessingEnabled(): boolean {
-    return this.quality !== 'low';
+    return this.governor.getPreset().composer;
+  }
+
+  setEffectiveStateListener(listener: ((state: EffectiveQualityState) => void) | null): void {
+    this.effectiveStateListener = listener;
+    if (listener) {
+      listener(this.getEffectiveRenderState());
+    }
+  }
+
+  getEffectiveRenderState(): EffectiveQualityState {
+    const preset = this.governor.getPreset();
+    return {
+      mode: this.governor.getMode(),
+      tier: preset.tier,
+      tierLabel: preset.label,
+      dpr: this.appliedDpr > 0 ? this.appliedDpr : this.computePresetDpr(preset),
+      shadowsEnabled: this.shadowsEnabled,
+      composerEnabled: preset.composer,
+      outlineEnabled: preset.outline,
+      decorLow: preset.decorLow,
+      activePasses: this.getActivePassesLabel(preset),
+    };
   }
 
   setQuality(quality: QualityLevel): void {
-    this.quality = quality;
-    const isLow = quality === 'low';
-    this.renderer.shadowMap.enabled = !isLow;
-    this.dirLight.castShadow = !isLow;
-    this.renderer.shadowMap.needsUpdate = true;
-    this.skyMaterial.uniforms.uDirectOutput.value = isLow ? 1 : 0;
-    this.renderer.toneMapping = isLow ? THREE.NeutralToneMapping : THREE.NoToneMapping;
-    this.renderer.toneMappingExposure = isLow ? 1.06 : 1.0;
-    if (isLow && this.postProcessing) {
-      // Free the composer render targets; render() recreates the pipeline lazily on High.
-      this.postProcessing.dispose();
-      this.postProcessing = null;
+    this.governor.setMode(quality);
+    this.applyPreset(this.governor.getPreset(), true);
+  }
+
+  resetGovernorWarmup(): void {
+    this.governor.resetWarmup();
+  }
+
+  /**
+   * Compiles scene shaders and warms up the active post-processing chain before revealing the menu,
+   * avoiding a first-frame compile hitch when the loading overlay fades out.
+   */
+  async warmUp(camera: THREE.Camera): Promise<void> {
+    if (typeof this.renderer.compileAsync === 'function') {
+      try {
+        await this.renderer.compileAsync(this.scene, camera);
+      } catch {
+        this.renderer.compile(this.scene, camera);
+      }
+    } else {
+      this.renderer.compile(this.scene, camera);
     }
-    const w = this.canvas.clientWidth || window.innerWidth;
-    const h = this.canvas.clientHeight || window.innerHeight;
-    this.resize(w, h);
+
+    const preset = this.governor.getPreset();
+    if (preset.composer && !this.postProcessing) {
+      this.postProcessing = new PostProcessingPipeline(
+        this.renderer,
+        this.scene,
+        camera,
+        this.lastWidth,
+        this.lastHeight,
+        {
+          n8ao: preset.n8ao,
+          outline: preset.outline,
+          bloom: preset.bloom,
+          smaa: preset.smaa,
+        },
+      );
+    }
+
+    this.render(camera);
+    this.governor.resetWarmup();
+    this.displayMetrics.reset();
+    this.workMetrics.reset();
+  }
+
+  recordFrame(
+    frameDtSec: number,
+    workMs: number,
+    options?: { throttled?: boolean; hidden?: boolean },
+  ): TierTransition | null {
+    if (options?.hidden) return null;
+    const frameMs = frameDtSec * 1000;
+    if (frameMs > 0 && Number.isFinite(frameMs)) {
+      this.displayMetrics.record(frameMs);
+    }
+    if (workMs > 0 && Number.isFinite(workMs)) {
+      this.workMetrics.record(workMs);
+    }
+
+    const transition = this.governor.recordFrame(frameMs, options);
+    if (transition) {
+      this.applyPreset(this.governor.getPreset(), false);
+    }
+    return transition;
   }
 
   fitShadowToMap(cols: number, rows: number): void {
@@ -142,19 +276,44 @@ export class SceneManager {
   }
 
   resize(width: number, height: number): void {
-    const maxDpr = this.quality === 'low' ? 1 : 2;
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, maxDpr));
-    this.renderer.setSize(width, height, false);
-    this.postProcessing?.setSize(width, height);
+    const w = Math.max(1, Math.round(width));
+    const h = Math.max(1, Math.round(height));
+    const targetDpr = this.computePresetDpr(this.governor.getPreset());
+    if (
+      w === this.lastWidth &&
+      h === this.lastHeight &&
+      Math.abs(targetDpr - this.appliedDpr) <= 0.001
+    ) {
+      return;
+    }
+    this.lastWidth = w;
+    this.lastHeight = h;
+    this.appliedDpr = targetDpr;
+    this.renderer.setPixelRatio(targetDpr);
+    this.renderer.setSize(w, h, false);
+    this.postProcessing?.setSize(w, h);
   }
 
   render(camera: THREE.Camera): void {
     this.renderer.info.reset();
-    if (this.quality !== 'low') {
+    const preset = this.governor.getPreset();
+    if (preset.composer) {
       if (!this.postProcessing) {
-        const w = this.canvas.clientWidth || window.innerWidth;
-        const h = this.canvas.clientHeight || window.innerHeight;
-        this.postProcessing = new PostProcessingPipeline(this.renderer, this.scene, camera, w, h);
+        const w = Math.max(1, this.canvas.clientWidth || this.lastWidth);
+        const h = Math.max(1, this.canvas.clientHeight || this.lastHeight);
+        this.postProcessing = new PostProcessingPipeline(
+          this.renderer,
+          this.scene,
+          camera,
+          w,
+          h,
+          {
+            n8ao: preset.n8ao,
+            outline: preset.outline,
+            bloom: preset.bloom,
+            smaa: preset.smaa,
+          },
+        );
       }
       this.postProcessing.render();
     } else {
@@ -162,7 +321,86 @@ export class SceneManager {
     }
   }
 
+  getPerfSnapshot(): ScenePerfSnapshot {
+    const preset = this.governor.getPreset();
+    const frameStats = this.displayMetrics.getSnapshot();
+    const workStats = this.workMetrics.getSnapshot();
+    const nativeDpr = (typeof window !== 'undefined' ? window.devicePixelRatio : 1) || 1;
+    const dpr = this.renderer.getPixelRatio();
+    return {
+      fps: frameStats.fps,
+      avgMs: frameStats.avgMs,
+      p95Ms: frameStats.p95Ms,
+      workAvgMs: workStats.avgMs,
+      workP95Ms: workStats.p95Ms,
+      dpr,
+      nativeDpr,
+      pixelWidth: Math.round(this.lastWidth * dpr),
+      pixelHeight: Math.round(this.lastHeight * dpr),
+      composerEnabled: preset.composer,
+      activePasses: this.getActivePassesLabel(preset),
+      shadowsEnabled: this.shadowsEnabled,
+      qualityMode: this.governor.getMode(),
+      activeTier: preset.tier,
+      tierLabel: preset.label,
+      lockedCeilingTier: this.governor.getLockedCeilingTier(),
+      isTouch: this.isTouch,
+    };
+  }
+
+  private computePresetDpr(preset: QualityPreset): number {
+    const nativeDpr = (typeof window !== 'undefined' ? window.devicePixelRatio : 1) || 1;
+    return computeTargetDpr(nativeDpr, preset.tier, this.isTouch, this.governor.getMode());
+  }
+
+  private getActivePassesLabel(preset: QualityPreset): string {
+    if (!preset.composer) return 'Direct';
+    if (this.postProcessing) return this.postProcessing.getActivePassSummary();
+    const parts: string[] = [];
+    if (preset.n8ao === 'full') parts.push('AO');
+    else if (preset.n8ao === 'half') parts.push('AO½');
+    if (preset.outline) parts.push('Out');
+    if (preset.bloom) parts.push('Bloom');
+    if (preset.smaa) parts.push('SMAA');
+    return parts.length > 0 ? parts.join('+') : 'Tone';
+  }
+
+  private applyPreset(preset: QualityPreset, refreshSize: boolean): void {
+    this.renderer.shadowMap.enabled = preset.shadows;
+    this.dirLight.castShadow = preset.shadows;
+    this.renderer.shadowMap.needsUpdate = true;
+
+    this.skyMaterial.uniforms.uDirectOutput.value = preset.composer ? 0 : 1;
+    this.renderer.toneMapping = preset.composer ? THREE.NoToneMapping : THREE.NeutralToneMapping;
+    this.renderer.toneMappingExposure = preset.composer ? 1.0 : 1.06;
+
+    if (!preset.composer) {
+      if (this.postProcessing) {
+        // Free the composer render targets & N8AO buffers; recreated lazily if stepping back up.
+        this.postProcessing.dispose();
+        this.postProcessing = null;
+      }
+    } else if (this.postProcessing) {
+      this.postProcessing.applyConfig({
+        n8ao: preset.n8ao,
+        outline: preset.outline,
+        bloom: preset.bloom,
+        smaa: preset.smaa,
+      });
+    }
+
+    const w = refreshSize
+      ? Math.max(1, this.canvas.clientWidth || window.innerWidth)
+      : this.lastWidth;
+    const h = refreshSize
+      ? Math.max(1, this.canvas.clientHeight || window.innerHeight)
+      : this.lastHeight;
+    this.resize(w, h);
+    this.effectiveStateListener?.(this.getEffectiveRenderState());
+  }
+
   dispose(): void {
+    this.effectiveStateListener = null;
     this.postProcessing?.dispose();
     this.postProcessing = null;
     this.skyGeometry.dispose();

@@ -215,7 +215,7 @@ export class RollingFrameMetrics {
   private cachedP95 = 0;
   private p95Dirty = false;
 
-  constructor(capacity = GOVERNOR_THRESHOLDS.windowSize) {
+  constructor(capacity: number = GOVERNOR_THRESHOLDS.windowSize) {
     this.capacity = Math.max(1, capacity);
     this.buffer = new Float64Array(this.capacity);
     this.scratch = new Float64Array(this.capacity);
