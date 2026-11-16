@@ -79,7 +79,7 @@ npm run dev          # Start Vite dev server
 npm run build        # Typecheck (tsc) + production bundle (vite build)
 npm run test         # Run Vitest unit & headless Node smoke tests
 npm run lint         # Run ESLint (enforces strict Three/DOM isolation in sim/data/core)
-npm run sim:balance  # Run headless simulation for all 9 levels and print per-wave balance stats (`-- --levels=3,6` to filter)
+npm run sim:balance  # Run headless simulation for all 9 levels and print per-wave balance stats (`-- --levels=3,6` to filter, `-- --robust` for an HP-scale sensitivity table)
 npx tsx scripts/previewMap.ts all   # Headless PNG previews of every island (no browser needed; see docs/overnight/)
 ```
 

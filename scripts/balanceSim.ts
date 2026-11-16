@@ -275,8 +275,10 @@ function main(): void {
     return { total, flyers, byType };
   }
 
+  const robust = process.argv.includes('--robust');
   const failures: string[] = [];
   const summary: string[] = [];
+  const robustLines: string[] = [];
 
   for (let i = 0; i < LEVELS.length; i++) {
     if (levelFilter && !levelFilter.has(i)) continue;
@@ -287,6 +289,19 @@ function main(): void {
     const weakRes = runLevelBalanceSim(level, 'weak', level.weakBuildOrder ?? []);
     printResult(i, weakRes, level.difficulty);
     console.log('');
+
+    if (robust) {
+      // Informational: greedy lives when every enemy HP is scaled by +-1.5% / +-3% (knife-edge detector).
+      const [lo, hi] = GREEDY_LIVES[level.difficulty];
+      const cells: string[] = [];
+      for (const k of [0.97, 0.985, 1.0, 1.015, 1.03]) {
+        const scaled: LevelDef = { ...level, enemyHpScale: (level.enemyHpScale ?? 1) * k };
+        const r = runLevelBalanceSim(scaled, 'greedy', level.scriptedBuildOrder ?? []);
+        const ok = r.outcome === 'won' && r.finalLives >= lo && r.finalLives <= hi;
+        cells.push(`x${k.toFixed(3)}:${r.outcome === 'won' ? r.finalLives : 'LOST'}${ok ? '' : '!'}`);
+      }
+      robustLines.push(`L${i + 1} ${level.difficulty.padEnd(11)} ${cells.join('  ')}   (window ${lo}-${hi}, ! = outside)`);
+    }
 
     const gT = livesLostTotals(greedyRes);
     const wT = livesLostTotals(weakRes);
@@ -368,6 +383,11 @@ function main(): void {
   console.log('=== Summary (lives left / stars / leaks by type over the whole run) ===');
   for (const line of summary) console.log(line);
   console.log('');
+  if (robustLines.length > 0) {
+    console.log('=== Robustness (greedy lives vs enemy HP scale; informational) ===');
+    for (const line of robustLines) console.log(line);
+    console.log('');
+  }
 
   if (failures.length > 0) {
     console.error('Balance check FAILED:');

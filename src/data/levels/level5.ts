@@ -102,7 +102,8 @@ export const LEVEL_5: LevelDef = {
       name: 'Gale Force',
       clearBonus: 32,
       groups: [
-        { enemyType: 'runner', count: 20, spawnInterval: 0.32, startDelay: 0 },
+        { enemyType: 'grunt', count: 10, spawnInterval: 0.34, startDelay: 0 },
+        { enemyType: 'runner', count: 12, spawnInterval: 0.32, startDelay: 0.5 },
         { enemyType: 'flyer', count: 18, spawnInterval: 0.36, startDelay: 1.2 },
       ],
     },
@@ -138,7 +139,8 @@ export const LEVEL_5: LevelDef = {
       name: 'Harvest Storm',
       clearBonus: 48,
       groups: [
-        { enemyType: 'runner', count: 20, spawnInterval: 0.28, startDelay: 0 },
+        { enemyType: 'runner', count: 12, spawnInterval: 0.28, startDelay: 0 },
+        { enemyType: 'grunt', count: 8, spawnInterval: 0.4, startDelay: 0.8 },
         { enemyType: 'splitter', count: 8, spawnInterval: 0.85, startDelay: 1.2 },
         { enemyType: 'brute', count: 10, spawnInterval: 0.78, startDelay: 2 },
         { enemyType: 'healer', count: 5, spawnInterval: 1.15, startDelay: 2.8 },

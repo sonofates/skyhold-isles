@@ -112,8 +112,8 @@ export const LEVEL_8: LevelDef = {
       clearBonus: 38,
       groups: [
         { enemyType: 'brute', count: 10, spawnInterval: 0.78, startDelay: 0 },
-        { enemyType: 'healer', count: 4, spawnInterval: 1.35, startDelay: 1 },
-        { enemyType: 'grunt', count: 18, spawnInterval: 0.38, startDelay: 2 },
+        { enemyType: 'healer', count: 5, spawnInterval: 1.3, startDelay: 1 },
+        { enemyType: 'grunt', count: 15, spawnInterval: 0.38, startDelay: 2 },
       ],
     },
     {

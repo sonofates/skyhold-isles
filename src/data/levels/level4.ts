@@ -99,8 +99,8 @@ export const LEVEL_4: LevelDef = {
       clearBonus: 32,
       groups: [
         { enemyType: 'grunt', count: 14, spawnInterval: 0.52, startDelay: 0 },
-        { enemyType: 'splitter', count: 5, spawnInterval: 1.05, startDelay: 1.2 },
-        { enemyType: 'runner', count: 14, spawnInterval: 0.44, startDelay: 2.4 },
+        { enemyType: 'splitter', count: 8, spawnInterval: 0.95, startDelay: 1.2 },
+        { enemyType: 'runner', count: 8, spawnInterval: 0.44, startDelay: 2.4 },
         { enemyType: 'healer', count: 3, spawnInterval: 1.65, startDelay: 3.2 },
       ],
     },
@@ -125,8 +125,8 @@ export const LEVEL_4: LevelDef = {
       name: 'Emberfall',
       clearBonus: 46,
       groups: [
-        { enemyType: 'runner', count: 20, spawnInterval: 0.36, startDelay: 0 },
-        { enemyType: 'splitter', count: 7, spawnInterval: 0.92, startDelay: 1.2 },
+        { enemyType: 'runner', count: 12, spawnInterval: 0.36, startDelay: 0 },
+        { enemyType: 'splitter', count: 10, spawnInterval: 0.88, startDelay: 1.2 },
         { enemyType: 'grunt', count: 16, spawnInterval: 0.45, startDelay: 2.4 },
         { enemyType: 'healer', count: 4, spawnInterval: 1.45, startDelay: 3.2 },
       ],
@@ -164,8 +164,8 @@ export const LEVEL_4: LevelDef = {
       clearBonus: 72,
       groups: [
         { enemyType: 'brute', count: 12, spawnInterval: 0.82, startDelay: 0 },
-        { enemyType: 'splitter', count: 7, spawnInterval: 0.88, startDelay: 1.2 },
-        { enemyType: 'runner', count: 22, spawnInterval: 0.34, startDelay: 2 },
+        { enemyType: 'splitter', count: 10, spawnInterval: 0.82, startDelay: 1.2 },
+        { enemyType: 'runner', count: 14, spawnInterval: 0.34, startDelay: 2 },
         { enemyType: 'flyer', count: 18, spawnInterval: 0.45, startDelay: 2.8 },
         { enemyType: 'healer', count: 5, spawnInterval: 1.25, startDelay: 3.4 },
       ],
