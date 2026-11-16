@@ -5,6 +5,7 @@ import { BALANCE } from '../../src/data/balance.ts';
 import { LEVELS, parseLevelGrid, type LevelDef } from '../../src/data/levels/index.ts';
 import type { EnemyEntity } from '../../src/sim/entities.ts';
 import { SimWorld } from '../../src/sim/world.ts';
+import { runLevelBalanceSim } from '../../scripts/balanceSim.ts';
 
 const DT = BALANCE.fixedDt;
 
@@ -168,4 +169,15 @@ describe('level layouts (all islands)', () => {
       }
     });
   }
+});
+
+describe('determinism with new archetypes', () => {
+  it('replays Confluence Terraces (lanes, wardens, burrowers, mites, elites, boss) identically', () => {
+    const level = LEVELS.find((l) => l.id === 'confluence-terraces')!;
+    expect(level).toBeDefined();
+    const a = runLevelBalanceSim(level, 'greedy', level.scriptedBuildOrder ?? []);
+    const b = runLevelBalanceSim(level, 'greedy', level.scriptedBuildOrder ?? []);
+    expect(b).toEqual(a);
+    expect(a.outcome).toBe('won');
+  });
 });
