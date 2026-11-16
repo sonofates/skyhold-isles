@@ -7,6 +7,8 @@ export interface WaveGroupDef {
   readonly startDelay: number;
   /** Spawn the group as Empowered elites (more HP/armor/reward, gold aura). */
   readonly elite?: boolean;
+  /** Ground lane to spawn on: 0 = `pathWaypoints` (default), n = `extraGroundPaths[n - 1]`. */
+  readonly lane?: number;
 }
 
 export interface WaveDef {
@@ -33,6 +35,11 @@ export interface LevelDef {
   readonly rows: number;
   readonly layout: readonly string[];
   readonly pathWaypoints: readonly GridCoord[];
+  /**
+   * Optional extra spawn lanes. Each must end on the same goal tile as `pathWaypoints`
+   * (lanes typically merge into the main road partway).
+   */
+  readonly extraGroundPaths?: readonly (readonly GridCoord[])[];
   readonly flightPath: readonly GridCoord[];
   readonly decorationSeed: number;
   readonly startingGold: number;

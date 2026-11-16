@@ -27,7 +27,10 @@ const BOSS_STUN_DURATION = 2.65;
 export class EnemySystem {
   private nextUid = 1;
   private readonly pool: ObjectPool<EnemyEntity>;
+  /** Main ground lane (lane 0). */
   private readonly groundPath: CompiledPath;
+  /** All ground lanes: [main, ...extra spawn lanes]. Every lane ends at the same goal. */
+  private readonly groundPaths: readonly CompiledPath[];
   private readonly flightPath: CompiledPath;
   private readonly spatialHash: SpatialHashGrid;
   private readonly events: EventBus;
@@ -38,24 +41,34 @@ export class EnemySystem {
     flightPath: CompiledPath,
     spatialHash: SpatialHashGrid,
     events: EventBus,
+    extraGroundPaths: readonly CompiledPath[] = [],
   ) {
     this.pool = pool;
     this.groundPath = groundPath;
+    this.groundPaths = [groundPath, ...extraGroundPaths];
     this.flightPath = flightPath;
     this.spatialHash = spatialHash;
     this.events = events;
   }
 
   /** Compiled path an enemy follows (flight lane for flyers), e.g. for shell target leading. */
-  getPath(flying: boolean): CompiledPath {
-    return flying ? this.flightPath : this.groundPath;
+  getPath(flying: boolean, lane = 0): CompiledPath {
+    return flying ? this.flightPath : (this.groundPaths[lane] ?? this.groundPath);
   }
 
-  spawnEnemy(type: EnemyType, hpScale = 1, elite = false): EnemyEntity | null {
+  /** Number of ground lanes (1 + extra spawn lanes). */
+  get groundLaneCount(): number {
+    return this.groundPaths.length;
+  }
+
+  spawnEnemy(type: EnemyType, hpScale = 1, elite = false, lane = 0): EnemyEntity | null {
     const def = ENEMY_DEFS[type];
     const hpMul = elite ? ELITE_MODIFIERS.hpMul : 1;
+    const validLane =
+      def.flying || lane < 0 || lane >= this.groundPaths.length ? 0 : Math.floor(lane);
     const entity = this.initEnemyAt(
       type,
+      validLane,
       0,
       Math.round(def.maxHp * hpScale * hpMul),
       def.speed,
@@ -83,11 +96,23 @@ export class EnemySystem {
     const count = def.dropCount ?? 0;
     if (count <= 0) return 0;
     const gruntDef = ENEMY_DEFS.grunt;
-    const nearest = this.groundPath.nearestDist(carrier.x, carrier.z);
-    const landDist = Math.max(
-      0,
-      Math.min(this.groundPath.totalLength - DROP_GOAL_MARGIN, nearest),
-    );
+    // Land on whichever ground lane passes closest beneath the wreck.
+    let lane = 0;
+    let bestSq = Infinity;
+    let nearest = 0;
+    for (let l = 0; l < this.groundPaths.length; l++) {
+      const d = this.groundPaths[l].nearestDist(carrier.x, carrier.z);
+      this.groundPaths[l].sample(d, _sampleVec);
+      const dx = _sampleVec.x - carrier.x;
+      const dz = _sampleVec.z - carrier.z;
+      if (dx * dx + dz * dz < bestSq - 1e-9) {
+        bestSq = dx * dx + dz * dz;
+        lane = l;
+        nearest = d;
+      }
+    }
+    const landPath = this.groundPaths[lane];
+    const landDist = Math.max(0, Math.min(landPath.totalLength - DROP_GOAL_MARGIN, nearest));
     const hp = Math.max(
       1,
       Math.round(gruntDef.maxHp * (def.dropHpFrac ?? 0.6) * this.hpScaleOf(carrier)),
@@ -97,6 +122,7 @@ export class EnemySystem {
       // Spread raiders out behind the landing point so none spawns further ahead.
       const raider = this.initEnemyAt(
         'grunt',
+        lane,
         Math.max(0, landDist - k * 0.45),
         hp,
         gruntDef.speed,
@@ -111,7 +137,7 @@ export class EnemySystem {
       }
     }
     if (spawned > 0) {
-      this.groundPath.sample(landDist, _sampleVec);
+      landPath.sample(landDist, _sampleVec);
       this.events.emit('carrierDrop', {
         x: carrier.x,
         y: carrier.y,
@@ -128,11 +154,12 @@ export class EnemySystem {
   private spawnSplitChild(parent: EnemyEntity, dist: number): EnemyEntity | null {
     const maxHp = Math.max(18, Math.round(parent.maxHp * 0.34));
     const speed = parent.speed * 1.45;
-    return this.initEnemyAt('runner', dist, maxHp, speed, 1, 1, 0.72, true);
+    return this.initEnemyAt('runner', parent.lane, dist, maxHp, speed, 1, 1, 0.72, true);
   }
 
   private initEnemyAt(
     type: EnemyType,
+    lane: number,
     dist: number,
     maxHp: number,
     speed: number,
@@ -145,12 +172,13 @@ export class EnemySystem {
     if (!entity) return null;
 
     const def = ENEMY_DEFS[type];
-    const path = def.flying ? this.flightPath : this.groundPath;
+    const path = this.getPath(def.flying, lane);
     const totalDist = Math.max(0.01, path.totalLength);
     const clampedDist = Math.max(0, Math.min(totalDist, dist));
     const yaw = path.sample(clampedDist, _sampleVec);
 
     entity.uid = this.nextUid++;
+    entity.lane = def.flying ? 0 : lane;
     entity.type = type;
     entity.maxHp = maxHp;
     entity.hp = maxHp;
@@ -377,7 +405,7 @@ export class EnemySystem {
         continue;
       }
 
-      const path = e.flying ? this.flightPath : this.groundPath;
+      const path = this.getPath(e.flying, e.lane);
       e.yaw = path.sample(e.dist, _sampleVec);
       e.x = _sampleVec.x;
       e.y = _sampleVec.y;
@@ -439,7 +467,7 @@ export class EnemySystem {
     e.abilityTimer += def.blinkInterval ?? 3.4;
     const target = Math.min(e.totalDist - BLINK_GOAL_MARGIN, e.dist + (def.blinkDistance ?? 4.5));
     if (target <= e.dist + 0.25) return;
-    const path = e.flying ? this.flightPath : this.groundPath;
+    const path = this.getPath(e.flying, e.lane);
     path.sample(e.dist, _blinkFrom);
     e.dist = target;
     path.sample(e.dist, _sampleVec);
@@ -540,6 +568,7 @@ export class EnemySystem {
       for (let k = 0; k < offsets.length; k++) {
         const escort = this.initEnemyAt(
           'runner',
+          boss.lane,
           Math.max(0, boss.dist - offsets[k]),
           escortMaxHp,
           runnerDef.speed,

@@ -36,6 +36,8 @@ export class SimWorld {
   readonly level: LevelDef;
   readonly grid: MapGrid;
   readonly groundPath: CompiledPath;
+  /** Extra spawn lanes (level.extraGroundPaths), compiled like the main road. */
+  readonly extraGroundPaths: readonly CompiledPath[];
   readonly flightPath: CompiledPath;
   readonly spatialHash: SpatialHashGrid;
   readonly enemyPool: ObjectPool<EnemyEntity>;
@@ -67,6 +69,9 @@ export class SimWorld {
       BALANCE.tilePathTopY,
       true,
     );
+    this.extraGroundPaths = (level.extraGroundPaths ?? []).map(
+      (wps) => new CompiledPath(wps, level.cols, level.rows, BALANCE.tilePathTopY, true),
+    );
     this.flightPath = new CompiledPath(
       level.flightPath,
       level.cols,
@@ -89,6 +94,7 @@ export class SimWorld {
       this.flightPath,
       this.spatialHash,
       events,
+      this.extraGroundPaths,
     );
     this.projectileSystem = new ProjectileSystem(
       this.projectilePool,
@@ -313,8 +319,8 @@ export class SimWorld {
     this.waveSystem.update(
       dt,
       () => this.enemyPool.getActiveCount(),
-      (enemyType, hpScale, elite) => {
-        const spawned = this.enemySystem.spawnEnemy(enemyType, hpScale, elite);
+      (enemyType, hpScale, elite, lane) => {
+        const spawned = this.enemySystem.spawnEnemy(enemyType, hpScale, elite, lane);
         if (spawned) {
           spawned.reward = Math.max(
             1,

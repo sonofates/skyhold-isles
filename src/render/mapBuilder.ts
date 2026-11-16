@@ -298,24 +298,28 @@ export class MapBuilder {
 
     // Derive exact waypoint-order path connectivity per tile (immune to parallel road proximity)
     const pathMask = Array.from({ length: level.rows }, () => new Uint8Array(level.cols));
-    for (let i = 0; i < level.pathWaypoints.length - 1; i++) {
-      const a = level.pathWaypoints[i];
-      const b = level.pathWaypoints[i + 1];
-      const stepC = Math.sign(b.col - a.col);
-      const stepR = Math.sign(b.row - a.row);
-      let c = a.col;
-      let r = a.row;
-      while (c !== b.col || r !== b.row) {
-        const nc = c + stepC;
-        const nr = r + stepR;
-        if (r >= 0 && r < level.rows && c >= 0 && c < level.cols) {
-          pathMask[r][c] |= dirToMask(stepC, stepR);
+    const lanes = [level.pathWaypoints, ...(level.extraGroundPaths ?? [])];
+    for (let li = 0; li < lanes.length; li++) {
+      const lane = lanes[li];
+      for (let i = 0; i < lane.length - 1; i++) {
+        const a = lane[i];
+        const b = lane[i + 1];
+        const stepC = Math.sign(b.col - a.col);
+        const stepR = Math.sign(b.row - a.row);
+        let c = a.col;
+        let r = a.row;
+        while (c !== b.col || r !== b.row) {
+          const nc = c + stepC;
+          const nr = r + stepR;
+          if (r >= 0 && r < level.rows && c >= 0 && c < level.cols) {
+            pathMask[r][c] |= dirToMask(stepC, stepR);
+          }
+          if (nr >= 0 && nr < level.rows && nc >= 0 && nc < level.cols) {
+            pathMask[nr][nc] |= dirToMask(-stepC, -stepR);
+          }
+          c = nc;
+          r = nr;
         }
-        if (nr >= 0 && nr < level.rows && nc >= 0 && nc < level.cols) {
-          pathMask[nr][nc] |= dirToMask(-stepC, -stepR);
-        }
-        c = nc;
-        r = nr;
       }
     }
 

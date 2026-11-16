@@ -51,6 +51,8 @@ export interface EnemyEntity {
   elite: boolean;
   /** Raider dropped by a Cloud Hauler. */
   isDropped: boolean;
+  /** Ground lane index (0 = main path, 1.. = level.extraGroundPaths). Flyers are always 0. */
+  lane: number;
 }
 
 export function createEnemyEntity(poolIndex: number): EnemyEntity {
@@ -95,6 +97,7 @@ export function createEnemyEntity(poolIndex: number): EnemyEntity {
     baseArmor: 0,
     elite: false,
     isDropped: false,
+    lane: 0,
   };
 }
 

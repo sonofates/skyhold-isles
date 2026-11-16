@@ -309,18 +309,11 @@ export class OverlayIndicators {
       usedArrowGeo = true;
     }
 
-    if (level.pathWaypoints.length >= 2) {
+    const groundLanes = [level.pathWaypoints, ...(level.extraGroundPaths ?? [])].filter(
+      (wps) => wps.length >= 2,
+    );
+    if (groundLanes.length > 0) {
       const laneY = BALANCE.tilePathTopY + 0.045;
-      const compiledGround = new CompiledPath(
-        level.pathWaypoints,
-        level.cols,
-        level.rows,
-        laneY,
-        true,
-      );
-      const laneRibbonGeo = buildFlatRibbonGeometry(compiledGround.points, laneY, 0.21);
-      this.flightPathGeometries.push(laneRibbonGeo);
-
       const laneMat = new THREE.MeshBasicMaterial({
         color: PALETTE_HEX.gold,
         transparent: true,
@@ -340,34 +333,44 @@ export class OverlayIndicators {
       this.groundPathMat = laneMat;
       this.groundPathArrowMat = laneArrowMat;
 
-      const laneRibbon = new THREE.Mesh(laneRibbonGeo, laneMat);
-      laneRibbon.castShadow = false;
-      laneRibbon.receiveShadow = false;
-      laneRibbon.renderOrder = 4;
-      laneRibbon.raycast = noopRaycast;
+      for (let li = 0; li < groundLanes.length; li++) {
+        const compiledGround = new CompiledPath(groundLanes[li], level.cols, level.rows, laneY, true);
+        const laneRibbonGeo = buildFlatRibbonGeometry(compiledGround.points, laneY, 0.21);
+        this.flightPathGeometries.push(laneRibbonGeo);
 
-      const totalLen = compiledGround.totalLength;
-      const arrowCount = totalLen > 0.01 ? Math.max(1, Math.floor(totalLen / 1.8)) : 0;
-      const laneArrowsMesh = new THREE.InstancedMesh(arrowGeo, laneArrowMat, Math.max(1, arrowCount));
-      const samplePos = { x: 0, y: 0, z: 0 };
-      for (let i = 0; i < arrowCount; i++) {
-        const d = ((i + 0.5) / arrowCount) * totalLen;
-        const yaw = compiledGround.sample(d, samplePos);
-        _ringDummy.position.set(samplePos.x, laneY + 0.025, samplePos.z);
-        _ringDummy.rotation.set(0, yaw, 0);
-        _ringDummy.scale.setScalar(1);
-        _ringDummy.updateMatrix();
-        laneArrowsMesh.setMatrixAt(i, _ringDummy.matrix);
+        const laneRibbon = new THREE.Mesh(laneRibbonGeo, laneMat);
+        laneRibbon.castShadow = false;
+        laneRibbon.receiveShadow = false;
+        laneRibbon.renderOrder = 4;
+        laneRibbon.raycast = noopRaycast;
+
+        const totalLen = compiledGround.totalLength;
+        const arrowCount = totalLen > 0.01 ? Math.max(1, Math.floor(totalLen / 1.8)) : 0;
+        const laneArrowsMesh = new THREE.InstancedMesh(
+          arrowGeo,
+          laneArrowMat,
+          Math.max(1, arrowCount),
+        );
+        const samplePos = { x: 0, y: 0, z: 0 };
+        for (let i = 0; i < arrowCount; i++) {
+          const d = ((i + 0.5) / arrowCount) * totalLen;
+          const yaw = compiledGround.sample(d, samplePos);
+          _ringDummy.position.set(samplePos.x, laneY + 0.025, samplePos.z);
+          _ringDummy.rotation.set(0, yaw, 0);
+          _ringDummy.scale.setScalar(1);
+          _ringDummy.updateMatrix();
+          laneArrowsMesh.setMatrixAt(i, _ringDummy.matrix);
+        }
+        laneArrowsMesh.count = arrowCount;
+        laneArrowsMesh.castShadow = false;
+        laneArrowsMesh.receiveShadow = false;
+        laneArrowsMesh.frustumCulled = false;
+        laneArrowsMesh.renderOrder = 5;
+        laneArrowsMesh.raycast = noopRaycast;
+        this.flightPathInstancedMeshes.push(laneArrowsMesh);
+
+        this.groundPathGroup.add(laneRibbon, laneArrowsMesh);
       }
-      laneArrowsMesh.count = arrowCount;
-      laneArrowsMesh.castShadow = false;
-      laneArrowsMesh.receiveShadow = false;
-      laneArrowsMesh.frustumCulled = false;
-      laneArrowsMesh.renderOrder = 5;
-      laneArrowsMesh.raycast = noopRaycast;
-      this.flightPathInstancedMeshes.push(laneArrowsMesh);
-
-      this.groundPathGroup.add(laneRibbon, laneArrowsMesh);
       usedArrowGeo = true;
     }
 

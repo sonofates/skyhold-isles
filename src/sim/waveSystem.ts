@@ -27,6 +27,7 @@ export interface QueuedSpawn {
   readonly groupOrder: number;
   readonly seqInGroup: number;
   readonly elite: boolean;
+  readonly lane: number;
 }
 
 export function computeEarlyCallBonus(
@@ -152,6 +153,7 @@ function buildWaveQueueFromDef(wave: WaveDef): QueuedSpawn[] {
       queue.push({
         enemyType: group.enemyType,
         elite: group.elite === true,
+        lane: group.lane ?? 0,
         spawnTime: group.startDelay + i * group.spawnInterval,
         groupOrder: g,
         seqInGroup: i,
@@ -405,7 +407,7 @@ export class WaveSystem {
   update(
     dt: number,
     getActiveEnemiesCount: () => number,
-    onSpawn: (type: EnemyType, hpScale: number, elite: boolean) => void,
+    onSpawn: (type: EnemyType, hpScale: number, elite: boolean, lane: number) => void,
     onAwardGold: (amount: number) => void,
     onAllClearedWin: () => void,
   ): void {
@@ -421,7 +423,7 @@ export class WaveSystem {
         this.spawnQueue[this.spawnCursor].spawnTime <= this.waveElapsed
       ) {
         const queued = this.spawnQueue[this.spawnCursor];
-        onSpawn(queued.enemyType, hpScale, queued.elite);
+        onSpawn(queued.enemyType, hpScale, queued.elite, queued.lane);
         this.spawnCursor++;
       }
 
