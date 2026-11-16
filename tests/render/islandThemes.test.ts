@@ -75,6 +75,20 @@ describe('island themes', () => {
         expect(claimedDecorTiles(level, theme).size).toBe(seen.size);
       });
 
+      it('keeps sailboat orbits over open water', () => {
+        for (const p of theme.setPieces) {
+          if (p.kind !== 'sailboat') continue;
+          const radiusTiles = (2.4 * (p.scale ?? 1) * 1.2) / 2 + 0.3; // orbit + hull half-length margin
+          for (let k = 0; k < 24; k++) {
+            const a = (k / 24) * Math.PI * 2;
+            const c = Math.round(p.col + Math.cos(a) * radiusTiles);
+            const r = Math.round(p.row + Math.sin(a) * radiusTiles);
+            const tile = grid[r]?.[c];
+            expect(tile === undefined || tile === 'empty', `sailboat orbit crosses ${tile} at ${c},${r}`).toBe(true);
+          }
+        }
+      });
+
       it('builds within the draw-call budget and disposes cleanly', () => {
         const materials = stubMaterials();
         const assets = stubAssets();

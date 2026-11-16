@@ -12,7 +12,7 @@ import { cabin, cairn, fountain, hut, lamp, parasol, pond, sheep, stall, statue,
  * 1 tile = BALANCE.tileSize (2) units. Builders only append parts; SetPieces merges and instances them.
  */
 
-export type AnimFamily = 'blades' | 'cloth' | 'flow' | 'boat' | 'flame';
+export type AnimFamily = 'blades' | 'cloth' | 'flow' | 'boat' | 'sail' | 'flame';
 
 export interface AnimInstance {
   readonly family: AnimFamily;
@@ -20,6 +20,8 @@ export interface AnimInstance {
   readonly local: THREE.Matrix4;
   readonly phase: number;
   readonly color?: number;
+  /** Family specific parameter (sail: orbit radius in piece-local units, sign = direction). */
+  readonly param?: number;
 }
 
 const STONE_LIGHT = 0xb4bbc7;
@@ -139,13 +141,13 @@ export class PieceBuilder {
     return this;
   }
 
-  anim(family: AnimFamily, x: number, y: number, z: number, rotY = 0, phase = 0, color?: number): this {
+  anim(family: AnimFamily, x: number, y: number, z: number, rotY = 0, phase = 0, color?: number, param?: number): this {
     const m = new THREE.Matrix4().compose(
       new THREE.Vector3(x, y, z),
       new THREE.Quaternion().setFromEuler(new THREE.Euler(0, rotY, 0)),
       new THREE.Vector3(1, 1, 1),
     );
-    this.anims.push({ family, local: m, phase, color });
+    this.anims.push({ family, local: m, phase, color, param });
     return this;
   }
 
@@ -373,6 +375,11 @@ function boat(pb: PieceBuilder, variant: number): void {
   pb.anim('boat', 0, BALANCE.waterPlaneY + 0.02, 0, 0, variant * 2.1);
 }
 
+/** A sailboat that circles its placement point on the water (orbit radius 2.4 piece units, variant 1 = reverse). */
+function sailboat(pb: PieceBuilder, variant: number): void {
+  pb.anim('sail', 0, BALANCE.waterPlaneY + 0.02, 0, 0, variant * 2.7, undefined, variant === 1 ? -2.4 : 2.4);
+}
+
 function seaStack(pb: PieceBuilder, variant: number): void {
   const waterY = BALANCE.waterPlaneY;
   pb.cone(0x7d8798, 0.95, 2.4, [0, waterY + 0.85, 0], 6, [0, 0.4, 0]);
@@ -482,6 +489,7 @@ const BUILDERS: Record<SetPieceKind, (pb: PieceBuilder, variant: number) => void
   seaStack,
   peak,
   boat,
+  sailboat,
   gatehouse,
   obelisk: (pb) => obelisk(pb),
   pond,

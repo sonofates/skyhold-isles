@@ -16,6 +16,7 @@ interface FamilyState {
   readonly mesh: THREE.InstancedMesh;
   readonly bases: THREE.Matrix4[];
   readonly phases: number[];
+  readonly params: number[];
 }
 
 const _m = new THREE.Matrix4();
@@ -44,6 +45,7 @@ const KIND_SCALE: Record<SetPieceKind, number> = {
   seaStack: 1.2,
   peak: 1.3,
   boat: 1.2,
+  sailboat: 1.2,
   gatehouse: 1.2,
   obelisk: 1.3,
   pond: 1.05,
@@ -106,6 +108,7 @@ function familyGeometry(family: AnimFamily): THREE.BufferGeometry {
       ];
       break;
     case 'boat':
+    case 'sail':
       parts = [
         { geometry: box(0.5, 0.16, 1.0), colorHex: 0xb98a6a, position: [0, 0.08, 0], forceWhiteUv: true },
         { geometry: box(0.54, 0.05, 1.04), colorHex: PALETTE_HEX.coral, position: [0, 0.18, 0], forceWhiteUv: true },
@@ -169,7 +172,7 @@ export class SetPieces {
 
     const mainGeos: THREE.BufferGeometry[] = [];
     const glowGeos: THREE.BufferGeometry[] = [];
-    const famBases = new Map<AnimFamily, { bases: THREE.Matrix4[]; phases: number[]; colors: Array<number | undefined> }>();
+    const famBases = new Map<AnimFamily, { bases: THREE.Matrix4[]; phases: number[]; colors: Array<number | undefined>; params: number[] }>();
     const placement = new THREE.Matrix4();
 
     for (const spec of theme.setPieces) {
@@ -196,12 +199,13 @@ export class SetPieces {
       for (const a of pb.anims) {
         let entry = famBases.get(a.family);
         if (!entry) {
-          entry = { bases: [], phases: [], colors: [] };
+          entry = { bases: [], phases: [], colors: [], params: [] };
           famBases.set(a.family, entry);
         }
         entry.bases.push(new THREE.Matrix4().multiplyMatrices(placement, a.local));
         entry.phases.push(a.phase);
         entry.colors.push(a.color);
+        entry.params.push(a.param ?? 0);
       }
       pb.free();
     }
@@ -238,7 +242,7 @@ export class SetPieces {
       mesh.instanceMatrix.needsUpdate = true;
       if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
       this.group.add(mesh);
-      this.families.push({ family, mesh, bases: entry.bases, phases: entry.phases });
+      this.families.push({ family, mesh, bases: entry.bases, phases: entry.phases, params: entry.params });
     }
     this.update(0);
   }
@@ -269,6 +273,21 @@ export class SetPieces {
             _m2.compose(
               _p.set(0, Math.sin(t * 1.3 + ph) * 0.035, 0),
               _q.setFromEuler(_e.set(Math.sin(t * 0.9 + ph) * 0.03, Math.sin(t * 0.6 + ph) * 0.05, Math.sin(t * 1.1 + ph) * 0.04)),
+              _s.set(1, 1, 1),
+            );
+            _m.multiplyMatrices(base, _m2);
+            break;
+          }
+          case 'sail': {
+            // Slow lap around the piece origin; bow follows the tangent, gentle roll like the moored boats.
+            const r = fam.params[i];
+            const dir = r < 0 ? -1 : 1;
+            const a = dir * (t * 0.16) + ph;
+            _m2.compose(
+              _p.set(Math.abs(r) * Math.cos(a), Math.sin(t * 1.3 + ph) * 0.035, -Math.abs(r) * Math.sin(a)),
+              _q.setFromEuler(
+                _e.set(Math.sin(t * 0.9 + ph) * 0.03, a + (dir > 0 ? Math.PI : 0), Math.sin(t * 1.1 + ph) * 0.05),
+              ),
               _s.set(1, 1, 1),
             );
             _m.multiplyMatrices(base, _m2);

@@ -280,7 +280,7 @@ const CRESCENT_LAGOON = theme({
   ambient: { isletStyle: 'palm', birds: 7, butterflies: 0, islets: 5, clouds: 5 },
   setPieces: [
     { kind: 'lighthouse', col: 5.2, row: 5.6 },
-    { kind: 'boat', col: 5, row: 7.6, variant: 0 },
+    { kind: 'sailboat', col: 5.6, row: 6, variant: 0 },
     { kind: 'boat', col: 7.4, row: 4.5, variant: 1 },
     { kind: 'dock', col: 1, row: 5, yaw: -Math.PI / 2, variant: 0 },
     { kind: 'dock', col: 15, row: 5, yaw: Math.PI / 2, variant: 1 },
