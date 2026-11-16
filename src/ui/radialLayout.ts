@@ -95,7 +95,7 @@ export function layoutRing(o: RingLayoutOptions): RingLayout {
       let radius = o.radius;
       if (n > 1 && step > 0) {
         // chord between neighbours must clear the footprint (slightly overlapping is OK)
-        const needed = (o.footprint * 0.94) / (2 * Math.sin(toRad(Math.min(step, 179)) / 2));
+        const needed = (o.footprint * 1.0) / (2 * Math.sin(toRad(Math.min(step, 179)) / 2));
         radius = Math.max(radius, needed);
       }
       for (const dir of dirs) {

@@ -17,8 +17,9 @@ export type RadialTarget =
 
 const TOKEN_SIZE = 56;
 /** Token plus the cost plate that hangs off its bottom edge. */
-const FOOTPRINT = 66;
+const FOOTPRINT = 70;
 const BASE_RADIUS = 78;
+const CLICK_GUARD_MS = 280;
 const TARGET_LABELS: Record<TargetingMode, string> = {
   first: 'First',
   last: 'Last',
@@ -81,6 +82,8 @@ export class RadialMenu {
   private safe: Insets = { top: 0, right: 0, bottom: 0, left: 0 };
   private lastSig = '';
   private lastLayoutSig = '';
+  /** Taps that opened the ring are followed by a synthetic click under the finger; ignore it. */
+  private openedAt = 0;
   private infoSize = { w: 250, h: 150 };
   private readonly scratch = { x: 0, y: 0 };
   private readonly onResize = (): void => {
@@ -177,7 +180,10 @@ export class RadialMenu {
     this.infoEl.classList.toggle('hidden', mode !== 'info');
     this.ringEl.classList.toggle('hidden', mode === 'info');
     if (mode !== prev || mode === 'build') {
-      if (mode === 'build' || mode === 'tower') this.buildSlots();
+      if (mode === 'build' || mode === 'tower') {
+        this.buildSlots();
+        this.openedAt = performance.now();
+      }
     }
     this.lastSig = '';
     this.lastLayoutSig = '';
@@ -199,7 +205,9 @@ export class RadialMenu {
         s.token.setAttribute('aria-label', `${def.name}, ${def.tiers[0].upgradeCost} gold`);
         s.token.dataset.tower = type;
         s.iconEl.innerHTML = TOWER_ICON_SVGS[type];
-        s.token.addEventListener('pointerdown', () => this.setPreview(type));
+        s.token.addEventListener('pointerdown', () => {
+          if (!this.tooSoon()) this.setPreview(type);
+        });
         s.token.addEventListener('pointerenter', (e) => {
           if (e.pointerType === 'mouse') this.setPreview(type);
         });
@@ -210,7 +218,7 @@ export class RadialMenu {
         { key: 'upgrade', cls: 'is-gold', label: 'Upgrade', run: () => this.onUpgrade() },
         { key: 'sell', cls: 'is-coral', label: 'Sell', run: () => this.onSell() },
         { key: 'target', cls: 'is-sky', label: 'Target', run: () => this.onTarget() },
-        { key: 'info', cls: 'is-slate', label: 'Info', run: () => this.setMode('info') },
+        { key: 'info', cls: 'is-slate', label: 'Info', run: () => this.onInfo() },
       ];
       for (const d of defs) {
         const s = this.makeSlot(`act:${d.key}`, `radial-token is-action ${d.cls}`);
@@ -247,7 +255,12 @@ export class RadialMenu {
     this.session.setRadialPlacementPreview({ type: this.previewType, col: this.col, row: this.row });
   }
 
+  private tooSoon(): boolean {
+    return performance.now() - this.openedAt < CLICK_GUARD_MS;
+  }
+
   private onBuildClick(type: TowerType, token: HTMLElement): void {
+    if (this.tooSoon()) return;
     const cost = TOWER_DEFS[type].tiers[0].upgradeCost;
     if (this.session.simWorld.gold < cost) {
       this.shake(token);
@@ -262,6 +275,7 @@ export class RadialMenu {
   }
 
   private onUpgrade(): void {
+    if (this.tooSoon()) return;
     const tower = this.session.simWorld.getTowerById(this.towerId);
     if (!tower || tower.tier >= 3) return;
     const next = getTowerTierStats(tower.type, (tower.tier + 1) as 2 | 3);
@@ -274,12 +288,19 @@ export class RadialMenu {
   }
 
   private onSell(): void {
+    if (this.tooSoon()) return;
     // First tap arms (3.5s window), second tap confirms: same logic as the Delete hotkey.
     this.session.onTowerActionHotkey('sell');
     this.lastSig = '';
   }
 
+  private onInfo(): void {
+    if (this.tooSoon()) return;
+    this.setMode('info');
+  }
+
   private onTarget(): void {
+    if (this.tooSoon()) return;
     this.session.onTowerActionHotkey('target');
     this.lastSig = '';
   }

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { clampPoint, layoutRing, placeBox, ringBounds } from '../../src/ui/radialLayout.ts';
 
 const bounds = { left: 6, top: 70, right: 424, bottom: 640 };
-const FOOT = 64;
+const FOOT = 70;
 
 function inside(p: { x: number; y: number }, b = bounds): boolean {
   const h = FOOT / 2;
@@ -44,7 +44,7 @@ describe('layoutRing', () => {
         const r = layoutRing({ cx, cy, count, radius: 82, footprint: FOOT, bounds });
         expect(r.positions).toHaveLength(count);
         for (const p of r.positions) expect(inside(p)).toBe(true);
-        expect(minGap(r.positions)).toBeGreaterThan(FOOT * 0.8);
+        expect(minGap(r.positions)).toBeGreaterThan(FOOT * 0.9);
       }
     }
   });
