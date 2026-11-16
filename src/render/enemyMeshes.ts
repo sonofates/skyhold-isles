@@ -27,6 +27,8 @@ const _eliteTint = new THREE.Color(PALETTE_HEX.gold);
 const _blinkGlow = new THREE.Color(0xc8fff8);
 /** Seconds before a Rift Blinker's jump during which it flickers as a telegraph. */
 const BLINK_TELEGRAPH_SEC = 0.55;
+/** Seconds before a Loam Burrower resurfaces during which its mound bulges. */
+const BURROW_TELEGRAPH_SEC = 0.45;
 const GROUND_SHADOW_SCALE: Partial<Record<EnemyType, number>> = {
   boss: 1.95,
   tempest: 2.1,
@@ -264,9 +266,19 @@ export class EnemyRenderer {
       if (e.burrowed) {
         // Underground: only a wobbling dirt mound travels along the road (no body, no HP bar).
         const wob = Math.sin(e.walkPhase * 1.6);
+        // Resurfacing telegraph: the mound bulges and shivers in the last moments underground.
+        const bulge =
+          e.abilityTimer < BURROW_TELEGRAPH_SEC
+            ? 1 - e.abilityTimer / BURROW_TELEGRAPH_SEC
+            : 0;
+        const shiver = bulge * Math.sin(elapsedTime * 38) * 0.08;
         _dummy.position.set(ix, iy + 0.02, iz);
-        _dummy.rotation.set(0, iyaw, wob * 0.06);
-        _dummy.scale.set(1 + wob * 0.06, 1 - wob * 0.08, 1 + wob * 0.04);
+        _dummy.rotation.set(0, iyaw, wob * 0.06 + shiver);
+        _dummy.scale.set(
+          1 + wob * 0.06 + bulge * 0.25,
+          1 - wob * 0.08 + bulge * 0.9,
+          1 + wob * 0.04 + bulge * 0.25,
+        );
         _dummy.updateMatrix();
         this.moundMesh.setMatrixAt(moundCount, _dummy.matrix);
         moundCount++;
