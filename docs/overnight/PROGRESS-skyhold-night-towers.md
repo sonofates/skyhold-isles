@@ -28,9 +28,10 @@ tsc, lint, 52 vitest tests, sim:balance all green on `cfb9330`.
   - T3 base damage trimmed to compensate: archer 38->36, cannon 84->80, frost 19->17, tesla 55->47, mortar 176->160. Ballista T3 pierces 2, Beacon T3 +10% range.
 - [r1] Balance: `npm run sim:balance` PASSES on all 9 islands with the signatures (greedy lives L1..L9 = 20,15,10,13,14,11,10,6,7). The sim is chaotic (+-1 tower stat flips a level by 5-10 lives); the values above were found with a random/grid search using `scripts/tuneSweep.ts`. After the lead merges ISLANDS/ENEMIES level changes, re-run `npm run sim:balance`; if windows break, retune T3 stats with `scripts/tuneSweep.ts` (see header) rather than editing levels.
 
+- [r2] Sell animation: `TowerRenderer.addSoldGhost` (towerSold event now carries `tier`); sold tower hops then collapses over 0.3 s using the normal instanced buckets (no extra draw calls). Brittle feedback: new `brittleCrack` event (emitted per chilled hit in `applySplash`) -> ice debris + flash + crack sound. Per-frame bucket-key string allocation removed from `syncTowers`.
+
 ## Next (ideas for later rounds)
-- Sell animation (tower currently vanishes instantly; coins + ring FX only).
-- Frost Brittle has no dedicated visual (chilled targets just take more damage); could tint damage numbers.
+- Frost Brittle damage numbers could be tinted (needs sessionBridge/UI, outside my area).
 - Beacon aura could preview coverage on attack-tower placement (needs overlay work in `overlayIndicators.ts`).
 - Re-run `npm run sim:balance` after the lead merges ENEMIES/ISLANDS; retune T3 stats with `scripts/tuneSweep.ts` if a window breaks.
 - Optional: new-tower greedy build scripts per island (currently no scripted build uses Ballista/Beacon; `scripts/towerExperiment.ts` swaps them in and shows they are viable but not dominant).
@@ -49,7 +50,7 @@ tsc, lint, 52 vitest tests, sim:balance all green on `cfb9330`.
 ## Cross-area changes
 - `src/platform/input.ts`: hotkey range `'1'..'5'` -> `'1'..'7'` (1 line) so keys 6/7 pick the new towers.
 - `src/ui/buildBar.ts`: added `ballista`/`beacon` entries to the `shortNames` record (data-only; required by tsc).
-- `src/core/eventBus.ts`: new `beaconPulse` event.
+- `src/core/eventBus.ts`: new `beaconPulse` and `brittleCrack` events; `towerSold` gained `tier`.
 
 ## UI needs (not implemented — UI is frozen for this branch)
 - Build bar now has 7 cards (was 5): check the phone layout fits / scrolls.

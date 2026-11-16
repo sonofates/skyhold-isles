@@ -26,6 +26,17 @@ const _turretWorldMat = new THREE.Matrix4();
 const _fxDummy = new THREE.Object3D();
 const SELL_ANIM_SECONDS = 0.3;
 
+// Bucket keys are looked up per tower per frame; cache the strings so the hot path allocates nothing.
+const _keyCache = new Map<string, string[]>();
+function towerKey(type: TowerType, tier: number): string {
+  let row = _keyCache.get(type);
+  if (!row) {
+    row = [`${type}_0`, `${type}_1`, `${type}_2`, `${type}_3`];
+    _keyCache.set(type, row);
+  }
+  return row[tier] ?? `${type}_${tier}`;
+}
+
 export class TowerRenderer {
   readonly group = new THREE.Group();
   readonly geometryCache: TowerGeometryCache;
@@ -137,7 +148,7 @@ export class TowerRenderer {
         this.soldGhosts.splice(i, 1);
         continue;
       }
-      const gk = `${g.type}_${g.tier}`;
+      const gk = towerKey(g.type, g.tier);
       this.keyCounts.set(gk, (this.keyCounts.get(gk) ?? 0) + 1);
     }
     let stunnedCount = 0;
@@ -145,7 +156,7 @@ export class TowerRenderer {
     let buffedCount = 0;
     for (let i = 0; i < towers.length; i++) {
       const t = towers[i];
-      const key = `${t.type}_${t.tier}`;
+      const key = towerKey(t.type, t.tier);
       this.keyCounts.set(key, (this.keyCounts.get(key) ?? 0) + 1);
       if (t.stunTimer > 0) stunnedCount++;
       else if (overchargeActive) overchargedCount++;
@@ -176,7 +187,7 @@ export class TowerRenderer {
 
     for (let i = 0; i < towers.length; i++) {
       const t = towers[i];
-      const key = `${t.type}_${t.tier}`;
+      const key = towerKey(t.type, t.tier);
       const needed = this.keyCounts.get(key) ?? 1;
       const bucket = this.ensureBucket(key, t.type, t.tier, materials, needed);
 
@@ -283,11 +294,11 @@ export class TowerRenderer {
     for (let i = 0; i < this.soldGhosts.length; i++) {
       const g = this.soldGhosts[i];
       const bucket = this.ensureBucket(
-        `${g.type}_${g.tier}`,
+        towerKey(g.type, g.tier),
         g.type,
         g.tier,
         materials,
-        this.keyCounts.get(`${g.type}_${g.tier}`) ?? 1,
+        this.keyCounts.get(towerKey(g.type, g.tier)) ?? 1,
       );
       const p = Math.min(1, (elapsedTime - g.start) / SELL_ANIM_SECONDS);
       // Quick anticipation hop, then collapse into the ground.
