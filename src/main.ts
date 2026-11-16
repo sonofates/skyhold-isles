@@ -1,15 +1,27 @@
 import './style.css';
 import { SoundManager } from './audio/soundManager.ts';
 import { LEVELS } from './data/levels/index.ts';
-import { GameLoop } from './platform/browserLoop.ts';
+import { GameLoop, computeRenderPacingTarget } from './platform/browserLoop.ts';
 import { GameSession } from './platform/gameSession.ts';
 import { InputManager } from './platform/input.ts';
 import { loadSettings } from './platform/storage.ts';
 import { KenneyAssetStore } from './render/kenneyAssets.ts';
+import type { StartupTimingMetrics } from './render/perfGovernor.ts';
 import { RenderWorld } from './render/renderWorld.ts';
-import { createDebugPanelIfEnabled } from './ui/debugWiring.ts';
+import { formatPerfLogLine } from './ui/debugPanel.ts';
+import { createDebugPanelIfEnabled, readDebugPanelFlags } from './ui/debugWiring.ts';
 import { GameOverlays } from './ui/gameOverlays.ts';
 import { LoadingScreen } from './ui/loadingScreen.ts';
+
+function nextAnimationFrame(): Promise<void> {
+  return new Promise((resolve) => {
+    if (typeof requestAnimationFrame === 'function') {
+      requestAnimationFrame(() => resolve());
+    } else {
+      resolve();
+    }
+  });
+}
 
 function describeBootError(err: unknown): string {
   const raw = err instanceof Error ? err.message : String(err);
@@ -20,16 +32,23 @@ function describeBootError(err: unknown): string {
 }
 
 async function bootstrap(loadingScreen: LoadingScreen): Promise<void> {
+  const bootStartMs = performance.now();
   const canvas = document.getElementById('game-canvas') as HTMLCanvasElement | null;
   const uiRoot = document.getElementById('ui-root') as HTMLDivElement | null;
   if (!canvas || !uiRoot) {
     throw new Error('Missing #game-canvas or #ui-root');
   }
 
+  const assetsStartMs = performance.now();
   const assets = await KenneyAssetStore.preload((loaded, total, label) => {
     loadingScreen.setProgress(loaded, total, label);
   });
+  const assetsMs = performance.now() - assetsStartMs;
 
+  loadingScreen.setProgress(1, 1, 'island diorama…');
+  await nextAnimationFrame();
+
+  const sceneStartMs = performance.now();
   const initialSettings = loadSettings();
   const soundManager = new SoundManager(initialSettings);
   const renderWorld = new RenderWorld(canvas, assets);
@@ -86,12 +105,18 @@ async function bootstrap(loadingScreen: LoadingScreen): Promise<void> {
     onSettingsClose: () => session.closeSettingsModal(),
   });
 
+  let startupMetrics: StartupTimingMetrics | null = null;
+  let loopRef: GameLoop | null = null;
+
+  const { hasPerf } = readDebugPanelFlags();
   const debugPanel = createDebugPanelIfEnabled(uiRoot, {
     getSimWorld: () => session.simWorld,
     renderWorld,
     floatingTextPool: overlays.floatingTextPool,
     pendingDebugSpawns: session.pendingDebugSpawns,
     syncUi: session.syncUi,
+    getPacingInfo: () => loopRef?.getPacingInfo() ?? { mode: 'active', targetFps: null },
+    getStartupMetrics: () => startupMetrics,
   });
 
   const inputManager = new InputManager(canvas, {
@@ -111,29 +136,122 @@ async function bootstrap(loadingScreen: LoadingScreen): Promise<void> {
     onKeyPanState: (x, z) => renderWorld.cameraController.setKeyPan(x, z),
   });
 
+  let lastCamViewVersion = renderWorld.cameraController.getViewVersion();
+  let lastSimWorld = session.simWorld;
+  let lastViewMode = session.viewMode;
+  let perfLogAccumSec = 0;
+
   const loop = new GameLoop({
     onFixedTick: (dt) => session.fixedTick(dt),
     onRender: (frameDt, alpha, elapsedVisualTime) => {
+      if (session.simWorld !== lastSimWorld || session.viewMode !== lastViewMode) {
+        lastSimWorld = session.simWorld;
+        lastViewMode = session.viewMode;
+        renderWorld.sceneManager.resetGovernorWarmup();
+        loop.wakeRender(0.4);
+      }
+
       session.renderFrame(frameDt, alpha, elapsedVisualTime);
-      if (session.viewMode === 'playing') debugPanel?.update(frameDt);
+
+      const camVer = renderWorld.cameraController.getViewVersion();
+      if (camVer !== lastCamViewVersion) {
+        lastCamViewVersion = camVer;
+        if (loop.paused && loop.simActive) {
+          loop.wakeRender(0.35);
+        }
+      }
+
+      const pacing = computeRenderPacingTarget({
+        hidden: document.hidden,
+        simActive: loop.simActive,
+        paused: loop.paused,
+        modalOpen: overlays.isModalOpen(),
+        menuView: session.viewMode,
+        wakeActive: loop.isWakeActive(),
+      });
+      loop.setRenderPacing(pacing.targetFps, pacing.mode);
+
+      if (hasPerf || session.viewMode === 'playing') {
+        debugPanel?.update(frameDt);
+      }
     },
+    onAfterRender: (frameDt, workMs, throttled) => {
+      const transition = renderWorld.sceneManager.recordFrame(frameDt, workMs, {
+        throttled,
+        hidden: document.hidden,
+      });
+      if (hasPerf && transition) {
+        console.info(
+          `[Skyhold Perf] tier T${transition.fromTier}->T${transition.toTier} (${transition.reason}, avg=${transition.avgMs.toFixed(1)}ms, p95=${transition.p95Ms.toFixed(1)}ms)`,
+        );
+      }
+      if (hasPerf && debugPanel) {
+        perfLogAccumSec += frameDt;
+        if (perfLogAccumSec >= 5) {
+          perfLogAccumSec = 0;
+          console.info(formatPerfLogLine(debugPanel.getTelemetrySnapshot()));
+        }
+      }
+    },
+    onVisibilityRestore: () => {
+      renderWorld.sceneManager.resetGovernorWarmup();
+    },
+  });
+
+  loopRef = loop;
+
+  renderWorld.sceneManager.setEffectiveStateListener((eff) => {
+    renderWorld.materials.setOutlineAlphaEnabled(eff.outlineEnabled);
+    renderWorld.decorBuilder.setQuality(eff.decorLow ? 'low' : 'high');
   });
 
   session.attachRuntime({
     overlays,
     inputManager,
     loop,
-    setDebugVisible: (v) => debugPanel?.setVisible(v),
+    setDebugVisible: (v) => debugPanel?.setVisible(hasPerf ? true : v),
   });
 
   const onResize = (): void => {
     renderWorld.resize(canvas.clientWidth || window.innerWidth, canvas.clientHeight || window.innerHeight);
   };
   const onFirstGesture = (): void => soundManager.unlock();
+  const onWakeActivity = (): void => loop.wakeRender(0.75);
   window.addEventListener('pointerdown', onFirstGesture, { once: true });
   window.addEventListener('resize', onResize);
+  window.addEventListener('pointerdown', onWakeActivity, { passive: true });
+  window.addEventListener('pointermove', onWakeActivity, { passive: true });
+  window.addEventListener('wheel', onWakeActivity, { passive: true });
+  window.addEventListener('keydown', onWakeActivity, { passive: true });
 
   session.showMenuView('menu', true);
+  const sceneSetupMs = performance.now() - sceneStartMs;
+
+  loadingScreen.setProgress(1, 1, 'shaders…');
+  await nextAnimationFrame();
+
+  const warmStartMs = performance.now();
+  await renderWorld.sceneManager.warmUp(renderWorld.cameraController.camera);
+  const warmupMs = performance.now() - warmStartMs;
+
+  startupMetrics = {
+    assetsMs,
+    sceneSetupMs,
+    warmupMs,
+    timeToMenuMs: performance.now() - bootStartMs,
+  };
+
+  if (hasPerf) {
+    debugPanel?.setVisible(true);
+    debugPanel?.update(0.25);
+    const snap = renderWorld.sceneManager.getPerfSnapshot();
+    console.info(
+      `[Skyhold Perf] timeToMenu=${Math.round(startupMetrics.timeToMenuMs)}ms ` +
+        `(assets=${Math.round(assetsMs)}ms, setup=${Math.round(sceneSetupMs)}ms, warmup=${Math.round(warmupMs)}ms) ` +
+        `quality=${snap.qualityMode}->T${snap.activeTier}(${snap.tierLabel}) dpr=${snap.dpr.toFixed(2)} composer=${snap.composerEnabled ? snap.activePasses : 'OFF'}`,
+    );
+  }
+
   loadingScreen.hide();
   loop.start();
 
@@ -141,6 +259,10 @@ async function bootstrap(loadingScreen: LoadingScreen): Promise<void> {
     import.meta.hot.dispose(() => {
       window.removeEventListener('pointerdown', onFirstGesture);
       window.removeEventListener('resize', onResize);
+      window.removeEventListener('pointerdown', onWakeActivity);
+      window.removeEventListener('pointermove', onWakeActivity);
+      window.removeEventListener('wheel', onWakeActivity);
+      window.removeEventListener('keydown', onWakeActivity);
       session.dispose();
       soundManager.dispose();
       loop.stop();

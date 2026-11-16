@@ -79,16 +79,17 @@ function normalizeMeshGeometry(src: THREE.BufferGeometry, worldMatrix: THREE.Mat
   return geo;
 }
 
-function disposeSceneResources(root: THREE.Object3D): void {
+function disposeSceneResources(root: THREE.Object3D, sharedDummyMaterial?: THREE.Material): void {
   root.traverse((obj) => {
     const mesh = obj as THREE.Mesh;
     if (!mesh.isMesh) return;
     mesh.geometry?.dispose();
     const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
     for (let i = 0; i < mats.length; i++) {
-      const m = mats[i] as THREE.Material & { map?: THREE.Texture | null };
-      m?.map?.dispose();
-      m?.dispose();
+      const m = mats[i] as (THREE.Material & { map?: THREE.Texture | null }) | undefined;
+      if (!m || m === sharedDummyMaterial) continue;
+      m.map?.dispose();
+      m.dispose();
     }
   });
 }
@@ -100,6 +101,16 @@ function loadImage(url: string): Promise<HTMLImageElement> {
     img.onload = () => resolve(img);
     img.onerror = () => reject(new Error(`Failed to load texture: ${url}`));
     img.src = url;
+  });
+}
+
+function yieldMainThread(): Promise<void> {
+  return new Promise((resolve) => {
+    if (typeof setTimeout === 'function') {
+      setTimeout(resolve, 0);
+    } else {
+      resolve();
+    }
   });
 }
 
@@ -127,18 +138,31 @@ export class KenneyAssetStore {
     const total = models.length + 1;
     let completed = 0;
 
-    onProgress?.(0, total, 'Loading colormap palette...');
-    const img = await loadImage(`${base}Textures/colormap.png`);
-    const colormapTexture = createHarmonizedColormapTexture(img);
-    completed++;
-    onProgress?.(completed, total, 'Loading modular models...');
+    onProgress?.(0, total, 'colormap & modular models…');
 
+    // Fetch colormap.png in parallel with GLB models instead of blocking model requests on an RTT.
+    const colormapPromise = loadImage(`${base}Textures/colormap.png`).then((img) => {
+      const tex = createHarmonizedColormapTexture(img);
+      completed++;
+      onProgress?.(completed, total, 'colormap palette');
+      return tex;
+    });
+
+    // Every Kenney GLB references Textures/colormap.png; skipping GLTF material/texture loads avoids
+    // 40 redundant PNG fetches/ImageBitmap decodes and material allocations that are immediately disposed.
+    const dummyMaterial = new THREE.MeshBasicMaterial();
     const loader = new GLTFLoader();
+    loader.register(() => ({
+      name: 'SKYHOLD_GEOMETRY_ONLY',
+      loadMaterial: () => Promise.resolve(dummyMaterial),
+    }));
+
     const geometries = new Map<KenneyModelName, THREE.BufferGeometry>();
 
-    // Load in bounded concurrent waves to avoid saturating browser/GPU memory
-    const concurrency = 6;
+    const concurrency = 10;
     let cursor = 0;
+    let lastYieldMs = typeof performance !== 'undefined' ? performance.now() : 0;
+
     const worker = async (): Promise<void> => {
       while (cursor < models.length) {
         const idx = cursor++;
@@ -152,7 +176,7 @@ export class KenneyAssetStore {
             parts.push(normalizeMeshGeometry(mesh.geometry, mesh.matrixWorld));
           }
         });
-        disposeSceneResources(gltf.scene);
+        disposeSceneResources(gltf.scene, dummyMaterial);
 
         let merged: THREE.BufferGeometry;
         if (parts.length === 0) {
@@ -171,6 +195,11 @@ export class KenneyAssetStore {
 
         completed++;
         onProgress?.(completed, total, name);
+
+        if (typeof performance !== 'undefined' && performance.now() - lastYieldMs >= 10) {
+          await yieldMainThread();
+          lastYieldMs = performance.now();
+        }
       }
     };
 
@@ -178,9 +207,17 @@ export class KenneyAssetStore {
     for (let w = 0; w < Math.min(concurrency, models.length); w++) {
       workers.push(worker());
     }
-    await Promise.all(workers);
 
-    return new KenneyAssetStore(colormapTexture, geometries);
+    try {
+      const [colormapTexture] = await Promise.all([colormapPromise, Promise.all(workers)]);
+      return new KenneyAssetStore(colormapTexture, geometries);
+    } catch (err) {
+      geometries.forEach((g) => g.dispose());
+      geometries.clear();
+      throw err;
+    } finally {
+      dummyMaterial.dispose();
+    }
   }
 
   /**

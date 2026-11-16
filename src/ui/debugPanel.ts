@@ -1,10 +1,15 @@
-import type { EnemyType } from '../core/types.ts';
+import type { EnemyType, QualityLevel } from '../core/types.ts';
 import { BALANCE } from '../data/balance.ts';
 import { ENEMY_TYPES } from '../data/enemies.ts';
+import type { QualityTier, StartupTimingMetrics } from '../render/perfGovernor.ts';
+
+export type DebugPanelMode = 'debug' | 'perf';
 
 export interface DebugTelemetry {
   fps: number;
   frameTimeMs: number;
+  p95FrameMs?: number;
+  workAvgMs?: number;
   drawCalls: number;
   drawsWithShadows: number;
   drawsNoShadows: number;
@@ -19,6 +24,20 @@ export interface DebugTelemetry {
   floatingTextsActive: number;
   floatingTextsMax: number;
   geometries?: number;
+  textures?: number;
+  dpr?: number;
+  nativeDpr?: number;
+  pixelWidth?: number;
+  pixelHeight?: number;
+  composerEnabled?: boolean;
+  activePasses?: string;
+  shadowsEnabled?: boolean;
+  qualityMode?: QualityLevel;
+  activeTier?: QualityTier;
+  tierLabel?: string;
+  pacingMode?: string;
+  pacingFps?: number | null;
+  startup?: StartupTimingMetrics | null;
 }
 
 export interface DebugActions {
@@ -32,20 +51,38 @@ export interface DebugActions {
   getTelemetry: () => DebugTelemetry;
 }
 
+export function formatPerfLogLine(t: DebugTelemetry): string {
+  const fpsStr = t.fps > 0 ? t.fps.toFixed(1) : '0.0';
+  const p95Str = typeof t.p95FrameMs === 'number' ? t.p95FrameMs.toFixed(1) : t.frameTimeMs.toFixed(1);
+  const workStr = typeof t.workAvgMs === 'number' ? t.workAvgMs.toFixed(2) : '0.00';
+  const dprStr = typeof t.dpr === 'number' ? t.dpr.toFixed(2) : '1.00';
+  const composerStr = t.composerEnabled ? `ON[${t.activePasses ?? ''}]` : 'OFF';
+  const tierStr =
+    typeof t.activeTier === 'number' ? `T${t.activeTier}(${t.tierLabel ?? ''})` : 'n/a';
+  return (
+    `[Skyhold Perf] fps=${fpsStr} p95=${p95Str}ms work=${workStr}ms ` +
+    `draws=${t.drawCalls} tris=${t.triangles} tex=${t.textures ?? 0} geos=${t.geometries ?? 0} ` +
+    `dpr=${dprStr} composer=${composerStr} quality=${t.qualityMode ?? 'auto'}->${tierStr}`
+  );
+}
+
 export class DebugPanel {
   private readonly rootEl: HTMLDivElement;
   private readonly bodyEl: HTMLDivElement;
   private readonly telemetryEl: HTMLPreElement;
   private readonly actions: DebugActions;
+  private readonly mode: DebugPanelMode;
   private collapsed = false;
   private showAllRanges = false;
   private frameDtAccum = 0;
   private frameCount = 0;
   private smoothedFps = 60;
   private smoothedMs = 16.7;
+  private uiRefreshAccum = 0.2;
 
-  constructor(parent: HTMLElement, actions: DebugActions) {
+  constructor(parent: HTMLElement, actions: DebugActions, mode: DebugPanelMode = 'debug') {
     this.actions = actions;
+    this.mode = mode;
 
     this.rootEl = document.createElement('div');
     this.rootEl.id = 'debug-panel';
@@ -54,7 +91,7 @@ export class DebugPanel {
     const header = document.createElement('div');
     header.className = 'debug-header';
     const title = document.createElement('span');
-    title.textContent = 'DEV DEBUG (?debug)';
+    title.textContent = mode === 'perf' ? 'PERF (?perf)' : 'DEV DEBUG (?debug)';
     const toggleBtn = document.createElement('button');
     toggleBtn.type = 'button';
     toggleBtn.className = 'debug-btn debug-btn-mini';
@@ -72,74 +109,86 @@ export class DebugPanel {
     this.telemetryEl = document.createElement('pre');
     this.telemetryEl.className = 'debug-telemetry';
 
-    // Gold & Lives row
-    const ecoRow = document.createElement('div');
-    ecoRow.className = 'debug-row';
-    ecoRow.append(
-      this.makeButton('+100g', () => this.actions.onAddGold(100)),
-      this.makeButton('+500g', () => this.actions.onAddGold(500)),
-      this.makeButton('Lives=20', () => this.actions.onSetLives(20)),
-      this.makeButton('Lives=1', () => this.actions.onSetLives(1)),
-    );
+    if (mode === 'perf') {
+      const perfRow = document.createElement('div');
+      perfRow.className = 'debug-row';
+      perfRow.append(
+        this.makeButton('Log Snapshot', () => {
+          console.info(formatPerfLogLine(this.actions.getTelemetry()));
+        }),
+      );
+      this.bodyEl.append(this.telemetryEl, perfRow);
+    } else {
+      // Gold & Lives row
+      const ecoRow = document.createElement('div');
+      ecoRow.className = 'debug-row';
+      ecoRow.append(
+        this.makeButton('+100g', () => this.actions.onAddGold(100)),
+        this.makeButton('+500g', () => this.actions.onAddGold(500)),
+        this.makeButton('Lives=20', () => this.actions.onSetLives(20)),
+        this.makeButton('Lives=1', () => this.actions.onSetLives(1)),
+      );
 
-    // Wave skip row
-    const waveRow = document.createElement('div');
-    waveRow.className = 'debug-row';
-    const waveInput = document.createElement('input');
-    waveInput.type = 'number';
-    waveInput.min = '1';
-    waveInput.max = '25';
-    waveInput.value = '1';
-    waveInput.className = 'debug-input';
-    waveInput.setAttribute('aria-label', 'Wave number');
-    const skipBtn = this.makeButton('Skip Wave', () => {
-      const n = Math.max(1, Math.floor(Number(waveInput.value) || 1));
-      this.actions.onSkipToWave(n);
-    });
-    waveRow.append(waveInput, skipBtn);
+      // Wave skip row
+      const waveRow = document.createElement('div');
+      waveRow.className = 'debug-row';
+      const waveInput = document.createElement('input');
+      waveInput.type = 'number';
+      waveInput.min = '1';
+      waveInput.max = '25';
+      waveInput.value = '1';
+      waveInput.className = 'debug-input';
+      waveInput.setAttribute('aria-label', 'Wave number');
+      const skipBtn = this.makeButton('Skip Wave', () => {
+        const n = Math.max(1, Math.floor(Number(waveInput.value) || 1));
+        this.actions.onSkipToWave(n);
+      });
+      waveRow.append(waveInput, skipBtn);
 
-    // Spawn enemies row
-    const spawnRow = document.createElement('div');
-    spawnRow.className = 'debug-row';
-    const typeSelect = document.createElement('select');
-    typeSelect.className = 'debug-select';
-    typeSelect.setAttribute('aria-label', 'Enemy type');
-    for (let i = 0; i < ENEMY_TYPES.length; i++) {
-      const opt = document.createElement('option');
-      opt.value = ENEMY_TYPES[i];
-      opt.textContent = ENEMY_TYPES[i];
-      typeSelect.appendChild(opt);
+      // Spawn enemies row
+      const spawnRow = document.createElement('div');
+      spawnRow.className = 'debug-row';
+      const typeSelect = document.createElement('select');
+      typeSelect.className = 'debug-select';
+      typeSelect.setAttribute('aria-label', 'Enemy type');
+      for (let i = 0; i < ENEMY_TYPES.length; i++) {
+        const opt = document.createElement('option');
+        opt.value = ENEMY_TYPES[i];
+        opt.textContent = ENEMY_TYPES[i];
+        typeSelect.appendChild(opt);
+      }
+      const countInput = document.createElement('input');
+      countInput.type = 'number';
+      countInput.min = '1';
+      countInput.max = String(BALANCE.pools.maxEnemies);
+      countInput.value = '10';
+      countInput.className = 'debug-input';
+      countInput.setAttribute('aria-label', 'Enemy spawn count');
+      const spawnBtn = this.makeButton('Spawn', () => {
+        const type = typeSelect.value as EnemyType;
+        const count = Math.max(1, Math.min(BALANCE.pools.maxEnemies, Math.floor(Number(countInput.value) || 1)));
+        this.actions.onSpawnEnemies(type, count);
+      });
+      spawnRow.append(typeSelect, countInput, spawnBtn);
+
+      // Instant outcome & ranges row
+      const stateRow = document.createElement('div');
+      stateRow.className = 'debug-row';
+      const rangeBtn = this.makeButton('Ranges: OFF', () => {
+        this.showAllRanges = !this.showAllRanges;
+        rangeBtn.textContent = this.showAllRanges ? 'Ranges: ON' : 'Ranges: OFF';
+        rangeBtn.classList.toggle('active', this.showAllRanges);
+        this.actions.onToggleAllRangeRings(this.showAllRanges);
+      });
+      stateRow.append(
+        this.makeButton('Win', () => this.actions.onInstantWin()),
+        this.makeButton('Lose', () => this.actions.onInstantLose()),
+        rangeBtn,
+      );
+
+      this.bodyEl.append(this.telemetryEl, ecoRow, waveRow, spawnRow, stateRow);
     }
-    const countInput = document.createElement('input');
-    countInput.type = 'number';
-    countInput.min = '1';
-    countInput.max = String(BALANCE.pools.maxEnemies);
-    countInput.value = '10';
-    countInput.className = 'debug-input';
-    countInput.setAttribute('aria-label', 'Enemy spawn count');
-    const spawnBtn = this.makeButton('Spawn', () => {
-      const type = typeSelect.value as EnemyType;
-      const count = Math.max(1, Math.min(BALANCE.pools.maxEnemies, Math.floor(Number(countInput.value) || 1)));
-      this.actions.onSpawnEnemies(type, count);
-    });
-    spawnRow.append(typeSelect, countInput, spawnBtn);
 
-    // Instant outcome & ranges row
-    const stateRow = document.createElement('div');
-    stateRow.className = 'debug-row';
-    const rangeBtn = this.makeButton('Ranges: OFF', () => {
-      this.showAllRanges = !this.showAllRanges;
-      rangeBtn.textContent = this.showAllRanges ? 'Ranges: ON' : 'Ranges: OFF';
-      rangeBtn.classList.toggle('active', this.showAllRanges);
-      this.actions.onToggleAllRangeRings(this.showAllRanges);
-    });
-    stateRow.append(
-      this.makeButton('Win', () => this.actions.onInstantWin()),
-      this.makeButton('Lose', () => this.actions.onInstantLose()),
-      rangeBtn,
-    );
-
-    this.bodyEl.append(this.telemetryEl, ecoRow, waveRow, spawnRow, stateRow);
     this.rootEl.append(header, this.bodyEl);
     parent.appendChild(this.rootEl);
   }
@@ -156,6 +205,7 @@ export class DebugPanel {
   update(frameDt: number): void {
     this.frameDtAccum += frameDt;
     this.frameCount++;
+    this.uiRefreshAccum += frameDt;
     if (this.frameDtAccum >= 0.2) {
       this.smoothedMs = (this.frameDtAccum / this.frameCount) * 1000;
       this.smoothedFps = this.frameCount / this.frameDtAccum;
@@ -163,15 +213,66 @@ export class DebugPanel {
       this.frameCount = 0;
     }
 
+    if (this.collapsed || this.uiRefreshAccum < 0.2) {
+      return;
+    }
+    this.uiRefreshAccum = 0;
+
     const t = this.actions.getTelemetry();
-    const geoSuffix = typeof t.geometries === 'number' ? ` · Geos: ${t.geometries}` : '';
+    const displayFps = t.fps > 0 ? t.fps : this.smoothedFps;
+    const displayMs = t.frameTimeMs > 0 ? t.frameTimeMs : this.smoothedMs;
+    const p95Ms = typeof t.p95FrameMs === 'number' && t.p95FrameMs > 0 ? t.p95FrameMs : displayMs;
+    const workMs = typeof t.workAvgMs === 'number' ? t.workAvgMs : 0;
+    const dprStr =
+      typeof t.dpr === 'number'
+        ? `${t.dpr.toFixed(2)}/${(t.nativeDpr ?? t.dpr).toFixed(2)}`
+        : '1.00';
+    const resStr =
+      typeof t.pixelWidth === 'number' && typeof t.pixelHeight === 'number'
+        ? ` (${t.pixelWidth}x${t.pixelHeight})`
+        : '';
+    const composerLabel = t.composerEnabled
+      ? `ON [${t.activePasses ?? ''}]`
+      : 'OFF [Direct]';
+    const shadowsLabel = t.shadowsEnabled === false ? 'OFF' : 'ON';
+    const qualityLabel =
+      typeof t.activeTier === 'number'
+        ? `${t.qualityMode ?? 'auto'} -> T${t.activeTier} ${t.tierLabel ?? ''}`
+        : `${t.qualityMode ?? 'auto'}`;
+    const texStr = typeof t.textures === 'number' ? String(t.textures) : 'n/a';
+    const geoStr = typeof t.geometries === 'number' ? String(t.geometries) : 'n/a';
+    const pacingSuffix = t.pacingFps
+      ? `${t.pacingMode ?? 'cap'} ${t.pacingFps}fps`
+      : (t.pacingMode ?? 'active');
+
+    if (this.mode === 'perf') {
+      const bootLine = t.startup
+        ? `\nBoot: ${Math.round(t.startup.timeToMenuMs)}ms (A:${Math.round(t.startup.assetsMs)} S:${Math.round(t.startup.sceneSetupMs)} W:${Math.round(t.startup.warmupMs)})`
+        : '';
+      this.telemetryEl.textContent =
+        `FPS: ${displayFps.toFixed(1)} (${displayMs.toFixed(1)}ms | p95 ${p95Ms.toFixed(1)}ms)\n` +
+        `Work: ${workMs.toFixed(2)}ms · Loop: ${pacingSuffix}\n` +
+        `Draws: ${t.drawCalls} · Tris: ${t.triangles.toLocaleString()}\n` +
+        `Tex: ${texStr} · Geos: ${geoStr}\n` +
+        `DPR: ${dprStr}${resStr}\n` +
+        `Composer: ${composerLabel} · Sh: ${shadowsLabel}\n` +
+        `Quality: ${qualityLabel}${bootLine}`;
+      return;
+    }
+
     this.telemetryEl.textContent =
-      `FPS: ${this.smoothedFps.toFixed(1)} (${this.smoothedMs.toFixed(1)} ms)\n` +
+      `FPS: ${displayFps.toFixed(1)} (${displayMs.toFixed(1)}ms | p95 ${p95Ms.toFixed(1)}ms)\n` +
       `Draws: ${t.drawsWithShadows} w/sh | ${t.drawsNoShadows} no-sh\n` +
-      `Tris: ${t.triangles.toLocaleString()}${geoSuffix}\n` +
+      `Tris: ${t.triangles.toLocaleString()} · Tex: ${texStr} · Geos: ${geoStr}\n` +
+      `DPR: ${dprStr} · Post: ${composerLabel}\n` +
+      `Qual: ${qualityLabel} (${pacingSuffix})\n` +
       `Enemies: ${t.enemiesActive}/${t.enemiesMax} · Towers: ${t.towersCount}\n` +
       `Proj: ${t.projectilesActive}/${t.projectilesMax} · FX: ${t.particlesActive}/${t.particlesMax}\n` +
       `FloatTxt: ${t.floatingTextsActive}/${t.floatingTextsMax}`;
+  }
+
+  getTelemetrySnapshot(): DebugTelemetry {
+    return this.actions.getTelemetry();
   }
 
   setVisible(visible: boolean): void {
