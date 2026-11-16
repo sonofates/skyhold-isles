@@ -16,8 +16,14 @@ tsc, lint, 52 vitest tests, sim:balance all green on `cfb9330`.
 ## Done
 - [r1] **Ballista** (hotkey 6) + **Beacon** (hotkey 7) full stack: data (`TowerDef.role`, optional tier fields `armorPierce/pierceCount/pierceLength/pierceFalloff/auraRate/auraRange`), sim (armor pierce, corridor pierce in `ProjectileSystem.resolvePierce`, Beacon aura in `CombatSystem.applyBeaconAuras`, `beaconPulse` event), Kenney-module T1-T3 geometry, picking bounds, projectile mesh, fire/impact/pulse sounds, icons, build-bar short names. Tests in `tests/sim/newTowers.test.ts`.
 
+- [r1] Juice pass: muzzle flashes per tower type, impact flashes/dust/debris, frost shatter, coin pops on kill, upgrade sparkle column + sell coins, tier-aware + pitch-jittered fire sounds, volley/overload sound layers, 3-pass crackling lightning (overload = fatter bolt), camera nudges (cannon/mortar/ballista/overload, respects shake setting), `fx()` halves particle counts on Low quality. Beacon buff ring under buffed towers (`towerMeshes.ts`).
+- [r1] Dev tools: `scripts/renderTowers.ts` (software contact-sheet of all towers/tiers from the real GLBs -> PNG, used to review new towers w/o a browser), `scripts/towerExperiment.ts`, `scripts/tuneTowers.ts` + `scripts/tuneSweep.ts` (runtime TOWER_DEFS overrides + balance windows, for retuning after merges), `tests/render/towerGeometries.test.ts` (tower fits tile / anchors / pick height for all 7x3 towers).
+
+## IN FLIGHT (r1, uncommitted in working tree if you see this)
+T3 signatures: archer volley, cannon cluster shells, frost brittle, tesla overload, mortar incendiary burn patches. Code + tests exist (`tests/sim/tierSignatures.test.ts`); the stats are being tuned so that `npm run sim:balance` passes again (the archer/tesla signatures shift L1/L3/L6/L8/L9 results by +-5 lives because the sim is chaotic). Do NOT commit a state where sim:balance fails.
+
 ## Next
-- Balance check of new towers (script comparing builds with/without), juice pass, T3 signatures
+- Finish T3 signature balance (random search with `scripts/tuneSweep.ts`), commit, then polish
 
 ## Decisions
 - (none yet)
