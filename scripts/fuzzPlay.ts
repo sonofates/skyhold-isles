@@ -10,6 +10,10 @@ import { computeSellRefund, computeStarRating, SimWorld } from '../src/sim/world
 const TARGETING_MODES: readonly TargetingMode[] = ['first', 'last', 'strongest', 'closest'];
 const SPEEDS: readonly SpeedMultiplier[] = [1, 2, 3];
 const FRAME_DTS: readonly number[] = [1 / 60, 1 / 30, 0.05, 0.1];
+const _hashProbe: number[] = [];
+const _hashSeen = new Set<number>();
+const _seenTowerIds = new Set<number>();
+const _seenTowerCoords = new Set<number>();
 
 export type FuzzProfile = 'competent' | 'balanced' | 'chaotic' | 'minimal';
 
@@ -84,6 +88,8 @@ interface FuzzTracker {
   seenSpawnUids: Set<number>;
   killedUids: Set<number>;
   endlessWaveCompletedCount: number;
+  expectedGold: number;
+  soldTowerKills: number;
 }
 
 function buildScoredGrassTiles(world: SimWorld): ScoredTile[] {
@@ -161,6 +167,7 @@ function attachEventTracker(events: EventBus, tracker: FuzzTracker, inEndless: (
     }
     tracker.killedUids.add(ev.enemyId);
     tracker.killedCount++;
+    tracker.expectedGold += ev.reward;
   });
 
   events.on('enemyLeaked', () => {
@@ -181,16 +188,31 @@ function attachEventTracker(events: EventBus, tracker: FuzzTracker, inEndless: (
     tracker.endlessEnteredCount++;
   });
 
-  events.on('waveCompleted', () => {
+  events.on('waveStarted', (ev) => {
+    tracker.expectedGold += ev.earlyBonus;
+  });
+
+  events.on('waveCompleted', (ev) => {
+    tracker.expectedGold += ev.bonus;
     if (inEndless()) {
       tracker.endlessWaveCompletedCount++;
     }
   });
 }
 
-function assertTickInvariants(world: SimWorld, tracker: FuzzTracker): string | null {
+function expectedTowerInvestment(type: TowerType, tier: 1 | 2 | 3): number {
+  let sum = getTowerTierStats(type, 1).upgradeCost;
+  if (tier >= 2) sum += getTowerTierStats(type, 2).upgradeCost;
+  if (tier >= 3) sum += getTowerTierStats(type, 3).upgradeCost;
+  return sum;
+}
+
+function assertTickInvariants(world: SimWorld, tracker: FuzzTracker, tick: number): string | null {
   if (!Number.isFinite(world.gold) || !Number.isInteger(world.gold) || world.gold < 0) {
     return `Invalid gold value: ${world.gold}`;
+  }
+  if (world.gold !== tracker.expectedGold) {
+    return `Gold ledger mismatch: world.gold=${world.gold} != expected=${tracker.expectedGold}`;
   }
   if (
     !Number.isFinite(world.lives) ||
@@ -221,9 +243,11 @@ function assertTickInvariants(world: SimWorld, tracker: FuzzTracker): string | n
     return `world.enemiesKilledTotal (${world.enemiesKilledTotal}) !== killedCount (${tracker.killedCount})`;
   }
 
+  let pendingDeaths = 0;
   for (let i = 0; i < activeEnemies; i++) {
     const e = world.enemyPool.items[world.enemyPool.getActiveIndex(i)];
     if (!e.active) return `Inactive enemy at active index pos=${i}`;
+    if (e.hp === 0) pendingDeaths++;
     if (
       !Number.isFinite(e.x) ||
       !Number.isFinite(e.y) ||
@@ -269,6 +293,9 @@ function assertTickInvariants(world: SimWorld, tracker: FuzzTracker): string | n
     }
   }
 
+  _seenTowerIds.clear();
+  _seenTowerCoords.clear();
+  let activeTowerKills = 0;
   for (let i = 0; i < world.towers.length; i++) {
     const t = world.towers[i];
     if (
@@ -285,6 +312,61 @@ function assertTickInvariants(world: SimWorld, tracker: FuzzTracker): string | n
       t.kills < 0
     ) {
       return `Invalid tower state for id=${t.id} type=${t.type}`;
+    }
+    if (_seenTowerIds.has(t.id)) {
+      return `Duplicate tower id=${t.id}`;
+    }
+    _seenTowerIds.add(t.id);
+    const coordKey = t.row * world.grid.cols + t.col;
+    if (_seenTowerCoords.has(coordKey)) {
+      return `Multiple towers on tile (${t.col},${t.row})`;
+    }
+    _seenTowerCoords.add(coordKey);
+    if (world.grid.getTile(t.col, t.row) !== 'grass') {
+      return `Tower id=${t.id} placed on non-grass tile (${t.col},${t.row})`;
+    }
+    if (world.grid.getTowerIdAt(t.col, t.row) !== t.id) {
+      return `Grid occupancy mismatch at (${t.col},${t.row}): grid=${world.grid.getTowerIdAt(t.col, t.row)}, tower=${t.id}`;
+    }
+    const expInvested = expectedTowerInvestment(t.type, t.tier);
+    if (t.totalInvested !== expInvested) {
+      return `Tower id=${t.id} totalInvested=${t.totalInvested} != expected=${expInvested}`;
+    }
+    activeTowerKills += t.kills;
+  }
+
+  if (activeTowerKills + tracker.soldTowerKills > tracker.killedCount + pendingDeaths) {
+    return `Tower kills (${activeTowerKills}+${tracker.soldTowerKills}) exceeded killedCount+pendingDeaths (${tracker.killedCount}+${pendingDeaths})`;
+  }
+
+  if (tick % 30 === 0) {
+    let gridOccupiedCount = 0;
+    for (let r = 0; r < world.grid.rows; r++) {
+      for (let c = 0; c < world.grid.cols; c++) {
+        if (world.grid.getTowerIdAt(c, r) !== -1) gridOccupiedCount++;
+      }
+    }
+    if (gridOccupiedCount !== world.towers.length) {
+      return `Grid occupied count (${gridOccupiedCount}) != towers.length (${world.towers.length})`;
+    }
+
+    world.spatialHash.query(0, 0, 1000, _hashProbe);
+    _hashSeen.clear();
+    for (let i = 0; i < _hashProbe.length; i++) {
+      const idx = _hashProbe[i];
+      if (_hashSeen.has(idx)) {
+        return `Duplicate poolIndex=${idx} in SpatialHashGrid`;
+      }
+      _hashSeen.add(idx);
+    }
+    if (_hashSeen.size !== activeEnemies) {
+      return `SpatialHash count (${_hashSeen.size}) != activeEnemies (${activeEnemies})`;
+    }
+    for (let i = 0; i < activeEnemies; i++) {
+      const poolIdx = world.enemyPool.getActiveIndex(i);
+      if (!_hashSeen.has(poolIdx)) {
+        return `Active enemy poolIndex=${poolIdx} missing from SpatialHashGrid`;
+      }
     }
   }
 
@@ -350,8 +432,28 @@ function performLegalAction(
   rng: SeededRng,
   tiles: readonly ScoredTile[],
   profile: FuzzProfile,
+  tracker: FuzzTracker,
 ): string | null {
   if (world.outcome !== 'ongoing') return null;
+
+  // Occasionally probe illegal calls to verify they fail safely with zero state mutation
+  if (rng.chance(0.06)) {
+    const goldSnap = world.gold;
+    const countSnap = world.towers.length;
+    const spawn = world.level.pathWaypoints[0];
+    if (
+      world.placeTower(-1, -1, 'archer') !== null ||
+      (spawn && world.placeTower(spawn.col, spawn.row, 'archer') !== null) ||
+      world.upgradeTower(999_999) !== false ||
+      world.sellTower(999_999) !== 0 ||
+      world.enterEndlessMode() !== false
+    ) {
+      return 'Illegal action succeeded unexpectedly during ongoing play';
+    }
+    if (world.gold !== goldSnap || world.towers.length !== countSnap) {
+      return 'Illegal action mutated gold or tower count';
+    }
+  }
 
   // Toggle auto-wave occasionally
   if (rng.chance(0.1)) {
@@ -424,10 +526,13 @@ function performLegalAction(
     const victim = rng.pick(world.towers);
     const goldBefore = world.gold;
     const expectedRefund = computeSellRefund(victim.totalInvested);
+    const victimKills = victim.kills;
     const refund = world.sellTower(victim.id);
     if (refund !== expectedRefund || world.gold !== goldBefore + expectedRefund) {
       return `Sell refund mismatch: got ${refund}, expected ${expectedRefund}`;
     }
+    tracker.expectedGold += refund;
+    tracker.soldTowerKills += victimKills;
     if (!world.grid.canPlaceTower(victim.col, victim.row)) {
       return `Tile (${victim.col},${victim.row}) remained blocked after sellTower`;
     }
@@ -449,6 +554,7 @@ function performLegalAction(
       if (!world.upgradeTower(target.id)) {
         return `upgradeTower failed despite sufficient gold (${goldBefore} >= ${cost})`;
       }
+      tracker.expectedGold -= cost;
       if (
         world.gold !== goldBefore - cost ||
         target.totalInvested !== investedBefore + cost ||
@@ -484,6 +590,7 @@ function performLegalAction(
         if (!placed) {
           return `placeTower failed on legal grass tile (${coord.col},${coord.row}) for ${type}`;
         }
+        tracker.expectedGold -= cost;
         if (world.gold !== goldBefore - cost || placed.totalInvested !== cost) {
           return `placeTower gold mismatch after building ${type}`;
         }
@@ -600,6 +707,8 @@ export function runFuzzPlaythrough(
     seenSpawnUids: new Set<number>(),
     killedUids: new Set<number>(),
     endlessWaveCompletedCount: 0,
+    expectedGold: level.startingGold,
+    soldTowerKills: 0,
   };
 
   let inEndless = false;
@@ -615,7 +724,7 @@ export function runFuzzPlaythrough(
 
   // Pre-wave 1 setup: build initial affordable towers and start wave 1
   for (let i = 0; i < 6 && world.outcome === 'ongoing'; i++) {
-    const err = performLegalAction(world, rng, tiles, profile);
+    const err = performLegalAction(world, rng, tiles, profile, tracker);
     if (err) return makeFailure(level, seed, profile, tickCount, world, tracker, storyOutcome, err);
     if (world.waveSystem.state !== 'preFirstWave') break;
   }
@@ -653,14 +762,14 @@ export function runFuzzPlaythrough(
         return;
       }
 
-      const invErr = assertTickInvariants(world, tracker);
+      const invErr = assertTickInvariants(world, tracker, tickCount);
       if (invErr) {
         fatalReason = invErr;
         return;
       }
 
       if (tickCount >= nextActionTick && world.outcome === 'ongoing') {
-        const actErr = performLegalAction(world, rng, tiles, profile);
+        const actErr = performLegalAction(world, rng, tiles, profile, tracker);
         if (actErr) {
           fatalReason = actErr;
           return;
@@ -886,6 +995,8 @@ export function runEndlessFuzz(level: LevelDef, seed: number, wavesTarget = 5): 
     seenSpawnUids: new Set<number>(),
     killedUids: new Set<number>(),
     endlessWaveCompletedCount: 0,
+    expectedGold: level.startingGold,
+    soldTowerKills: 0,
   };
 
   let inEndless = false;
@@ -918,6 +1029,7 @@ export function runEndlessFuzz(level: LevelDef, seed: number, wavesTarget = 5): 
     }
   }
 
+  tracker.expectedGold = world.gold;
   world.debugForceWin();
   inEndless = true;
   if (!world.enterEndlessMode()) {
@@ -945,13 +1057,13 @@ export function runEndlessFuzz(level: LevelDef, seed: number, wavesTarget = 5): 
         fatalReason = `Uncaught error in endless fixedTick: ${err instanceof Error ? err.message : String(err)}`;
         return;
       }
-      const invErr = assertTickInvariants(world, tracker);
+      const invErr = assertTickInvariants(world, tracker, tickCount);
       if (invErr) {
         fatalReason = invErr;
         return;
       }
       if (tickCount >= nextActionTick && world.outcome === 'ongoing') {
-        const actErr = performLegalAction(world, rng, tiles, 'competent');
+        const actErr = performLegalAction(world, rng, tiles, 'competent', tracker);
         if (actErr) {
           fatalReason = actErr;
           return;
