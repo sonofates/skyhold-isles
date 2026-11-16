@@ -81,6 +81,11 @@ round except wave composition of a few waves, see below).
 - L1: two tethered `kite` set pieces (new `kite` anim family, string + swaying diamond); added to the sight-line test.
 - New instanced families each cost 1 extra draw call (budget test still < 40).
 
+### Round 3 (render-only)
+- Braziers (L2, L8, ...) now emit 3 rising ember sparks each (new `ember` anim family, +1 draw call on islands with braziers,
+  no shadow casting). Re-checked previews of all islands at several camera yaws: nothing overlaps routes. Hide-on-build for
+  ground details already existed (flowers/tufts/bushes/pebbles hide under towers). Sim/data untouched.
+
 ## Audit (what was samey before)
 All 9 islands shared: one flat height, identical grass tint, same 3-tree mix on every `T` tile, same ambient
 (4 islets + 5 clouds), same goal sanctuary and spawn gate, same sky/water. Only the grid shape differed.
@@ -130,8 +135,7 @@ early waves does NOT soften them, it starves the economy (kill rewards) and the 
 
 ## Next (ideas, in rough priority)
 - Re-verify everything after the lead merges the towers/enemies branches (see Merge notes).
-- More hide-on-build ground details (ferns, mushrooms, tiny stones circles); bushes are in.
-- More authored moments: animated scarecrow, windsocks on L7, ember sparks above L8 braziers.
+- More authored moments: animated scarecrow, windsocks on L7, (ember sparks done in round 3).
 - If wave pacing is to be tuned further, do it together with kill rewards / clearBonus (see Pressure metric).
 - Layout/path changes were deliberately NOT attempted: every grid tweak invalidates both scripted build orders and
   the knife-edge windows; the themes make the existing layouts read very differently already.
