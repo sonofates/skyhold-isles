@@ -35,6 +35,9 @@ Started 2026-11-16 23:00 UTC (02:00 TR). Deadline 06:00 UTC (09:00 TR).
 `npx tsc --noEmit && npm run lint && npm test && npm run build && npm run sim:balance` — 12 islands pass; `LEVELS=10,11,12 npm run sim:balance` for just the new ones.
 New tests: `tests/sim/newEnemies.test.ts`, `tests/sim/lanes.test.ts`, `tests/sim/enemyStress.test.ts`, `tests/render/enemyGeometry.test.ts`, `tests/render/enemyRenderer.test.ts`, `tests/render/enemyFx.test.ts`.
 
+## Scratch tools (git-ignored `.wt/`, hermes only — for the next round of this agent)
+`.wt/gate.py [--no-build]` full green gate · `.wt/sweep.py <root> <levelFile> <N> enemyHpScale v1 v2…` balance robustness sweep · `.wt/trymerge.py <dest> cfb9330 <branches…>` scratch 3-way merge · `.wt/mkpreview.py` + `npx tsx .wt/m3/scripts/previewEnemies.ts .wt/preview 1400 <types>` rasterised enemy lineup (needs a trymerge'd `.wt/m3` with the ISLANDS rasteriser) · `npx tsx .wt/buildmap.ts <N>` layout with build tiles marked.
+
 ## Morning merge dry-run (done on this branch, repo untouched)
 `python3 .wt/trymerge.py .wt/m3 cfb9330 hermes/skyhold-night-islands hermes/skyhold-night-towers` (scratch copy via `git merge-file`; `.wt/` is git-ignored and only exists on hermes):
 - Only textual conflict: `scripts/balanceSim.ts` between ISLANDS (`--levels` flag) and TOWERS (`evaluateBalance` refactor) — not involving this branch. I removed my own `--levels` flag and moved the tempest camera-shake out of `renderWorld`'s boss branch to avoid conflicts.
