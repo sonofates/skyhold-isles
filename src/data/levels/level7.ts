@@ -58,7 +58,7 @@ export const LEVEL_7: LevelDef = {
   ],
   decorationSeed: 774203,
   startingGold: 290,
-  enemyHpScale: 1.25,
+  enemyHpScale: 1.15,
   waveHpGrowth: 0.2,
   waves: [
     {
@@ -206,11 +206,11 @@ export const LEVEL_7: LevelDef = {
     {
       clearBonus: 95,
       groups: [
-        { enemyType: 'brute', count: 22, spawnInterval: 0.62, startDelay: 0 },
-        { enemyType: 'healer', count: 9, spawnInterval: 0.92, startDelay: 1.2 },
-        { enemyType: 'flyer', count: 24, spawnInterval: 0.34, startDelay: 2.0 },
-        { enemyType: 'runner', count: 24, spawnInterval: 0.28, startDelay: 3.6 },
-        { enemyType: 'boss', count: 2, spawnInterval: 5.2, startDelay: 4.5 },
+        { enemyType: 'brute', count: 28, spawnInterval: 0.62, startDelay: 0 },
+        { enemyType: 'healer', count: 11, spawnInterval: 0.92, startDelay: 1.2 },
+        { enemyType: 'flyer', count: 30, spawnInterval: 0.34, startDelay: 2.0 },
+        { enemyType: 'runner', count: 30, spawnInterval: 0.28, startDelay: 3.6 },
+        { enemyType: 'boss', count: 3, spawnInterval: 5.2, startDelay: 4.5 },
       ],
     },
   ],

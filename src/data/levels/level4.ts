@@ -50,7 +50,7 @@ export const LEVEL_4: LevelDef = {
   ],
   decorationSeed: 441907,
   startingGold: 265,
-  enemyHpScale: 1.26,
+  enemyHpScale: 1.06,
   waveHpGrowth: 0.2,
   waves: [
     {
@@ -160,11 +160,11 @@ export const LEVEL_4: LevelDef = {
     {
       clearBonus: 95,
       groups: [
-        { enemyType: 'brute', count: 10, spawnInterval: 0.88, startDelay: 0 },
-        { enemyType: 'splitter', count: 4, spawnInterval: 1.0, startDelay: 1.0 },
-        { enemyType: 'healer', count: 5, spawnInterval: 1.35, startDelay: 1.4 },
-        { enemyType: 'flyer', count: 19, spawnInterval: 0.45, startDelay: 2.2 },
-        { enemyType: 'boss', count: 2, spawnInterval: 6.0, startDelay: 4.2 },
+        { enemyType: 'brute', count: 13, spawnInterval: 0.88, startDelay: 0 },
+        { enemyType: 'splitter', count: 5, spawnInterval: 1.0, startDelay: 1.0 },
+        { enemyType: 'healer', count: 7, spawnInterval: 1.35, startDelay: 1.4 },
+        { enemyType: 'flyer', count: 25, spawnInterval: 0.45, startDelay: 2.2 },
+        { enemyType: 'boss', count: 3, spawnInterval: 6.0, startDelay: 4.2 },
       ],
     },
   ],
