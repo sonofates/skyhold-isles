@@ -10,6 +10,7 @@
     "lint": "eslint src tests scripts",
     "test": "vitest run",
     "sim:balance": "tsx scripts/balanceSim.ts",
+    "sim:fuzz": "tsx scripts/fuzzPlay.ts",
     "ci": "tsx scripts/ci.ts"
   },
   "devDependencies": {
