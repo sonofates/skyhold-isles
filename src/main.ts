@@ -11,14 +11,21 @@ import { createDebugPanelIfEnabled } from './ui/debugWiring.ts';
 import { GameOverlays } from './ui/gameOverlays.ts';
 import { LoadingScreen } from './ui/loadingScreen.ts';
 
-async function bootstrap(): Promise<void> {
+function describeBootError(err: unknown): string {
+  const raw = err instanceof Error ? err.message : String(err);
+  if (/webgl|context/i.test(raw)) {
+    return 'Your browser could not start WebGL. Try enabling hardware acceleration or another browser, then reload.';
+  }
+  return 'Some game assets could not be loaded. Check your connection and reload the page.';
+}
+
+async function bootstrap(loadingScreen: LoadingScreen): Promise<void> {
   const canvas = document.getElementById('game-canvas') as HTMLCanvasElement | null;
   const uiRoot = document.getElementById('ui-root') as HTMLDivElement | null;
   if (!canvas || !uiRoot) {
     throw new Error('Missing #game-canvas or #ui-root');
   }
 
-  const loadingScreen = new LoadingScreen(uiRoot);
   const assets = await KenneyAssetStore.preload((loaded, total, label) => {
     loadingScreen.setProgress(loaded, total, label);
   });
@@ -144,4 +151,9 @@ async function bootstrap(): Promise<void> {
   }
 }
 
-void bootstrap();
+const bootUiRoot = document.getElementById('ui-root');
+const bootLoadingScreen = new LoadingScreen(bootUiRoot ?? document.body);
+bootstrap(bootLoadingScreen).catch((err: unknown) => {
+  console.error('[Skyhold] bootstrap failed:', err);
+  bootLoadingScreen.showError(describeBootError(err));
+});

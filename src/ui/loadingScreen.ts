@@ -42,6 +42,41 @@ export class LoadingScreen {
     }
   }
 
+  /**
+   * Replaces the progress bar with a friendly failure state and a Reload button.
+   * Uses existing button classes + inline styles so it works without extra CSS.
+   */
+  showError(message: string): void {
+    const card = this.element.querySelector('.loading-card') as HTMLDivElement | null;
+    if (!card) return;
+    this.element.classList.remove('loading-screen-done');
+    card.setAttribute('role', 'alert');
+    card.replaceChildren();
+
+    const badge = document.createElement('div');
+    badge.className = 'loading-badge';
+    badge.textContent = 'SKYHOLD ISLES';
+
+    const title = document.createElement('h2');
+    title.className = 'loading-title';
+    title.textContent = 'The isles failed to load';
+
+    const detail = document.createElement('p');
+    detail.className = 'loading-detail';
+    detail.style.margin = '8px 0 16px';
+    detail.style.lineHeight = '1.4';
+    detail.textContent = message;
+
+    const reload = document.createElement('button');
+    reload.type = 'button';
+    reload.className = 'btn-primary';
+    reload.textContent = 'Reload';
+    reload.addEventListener('click', () => window.location.reload());
+
+    card.append(badge, title, detail, reload);
+    reload.focus();
+  }
+
   hide(): void {
     this.element.classList.add('loading-screen-done');
     window.setTimeout(() => {
