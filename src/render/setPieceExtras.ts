@@ -166,3 +166,41 @@ export function fountain(pb: PieceBuilder, variant: number): void {
   pb.cone(gold ? PALETTE_HEX.gold : 0xc9f0fb, 0.1, 0.34, [0, 1.12, 0], 5);
   pb.ico(gold ? PALETTE_HEX.coral : CREAM, [0.06, 0.06, 0.06], [0, 1.32, 0]);
 }
+
+export function sheep(pb: PieceBuilder, variant: number): void {
+  const wool = variant === 1 ? 0xf1e4d0 : 0xfaf6ee;
+  const spots: Array<[number, number, number, number]> = [
+    [-0.35, 0.1, 0.5, 0.0],
+    [0.3, -0.25, 2.3, 0.2],
+    [0.25, 0.42, 4.0, -0.1],
+  ];
+  for (const [x, z, yaw, k] of spots) {
+    const c = Math.cos(yaw);
+    const sn = Math.sin(yaw);
+    pb.ico(wool, [0.2, 0.17, 0.15], [x, 0.24 + k * 0.02, z], [0, yaw, 0]);
+    pb.ico(0x4a4560, [0.07, 0.07, 0.07], [x + sn * 0.2, 0.3, z + c * 0.2]);
+    for (const [lx, lz] of [
+      [0.08, 0.06],
+      [-0.08, 0.06],
+      [0.08, -0.06],
+      [-0.08, -0.06],
+    ] as const) {
+      pb.cyl(0x4a4560, 0.016, 0.016, 0.12, [x + lx * c + lz * sn, 0.06, z - lx * sn + lz * c], 4);
+    }
+  }
+  // little pen
+  for (let i = 0; i < 4; i++) {
+    pb.cyl(WOOD, 0.02, 0.02, 0.2, [-0.8 + i * 0.5, 0.1, 0.85], 4);
+  }
+  pb.box(WOOD, [1.6, 0.03, 0.03], [0.0, 0.16, 0.85]);
+}
+
+export function lamp(pb: PieceBuilder, variant: number): void {
+  const frame = variant === 1 ? PALETTE_HEX.gold : 0x484573;
+  pb.cyl(STONE_DARK, 0.14, 0.17, 0.16, [0, 0.08, 0], 6);
+  pb.cyl(frame, 0.03, 0.045, 1.25, [0, 0.78, 0], 5);
+  pb.box(frame, [0.2, 0.04, 0.2], [0, 1.4, 0]);
+  pb.cyl(0xfff3b0, 0.1, 0.1, 0.2, [0, 1.52, 0], 6);
+  pb.cone(frame, 0.16, 0.14, [0, 1.69, 0], 6);
+  pb.ico(PALETTE_HEX.gold, [0.04, 0.04, 0.04], [0, 1.8, 0]);
+}

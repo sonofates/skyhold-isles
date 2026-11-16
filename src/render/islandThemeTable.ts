@@ -41,6 +41,8 @@ const SUNLIT_MEADOW = theme({
   setPieces: [
     { kind: 'cottage', col: 9, row: 2 },
     { kind: 'pond', col: 5, row: 3, variant: 0 },
+    { kind: 'sheep', col: 12, row: 1, variant: 0 },
+    { kind: 'sheep', col: 2, row: 6, variant: 1 },
     { kind: 'pond', col: 7, row: 8, variant: 1 },
     { kind: 'banner', col: 0, row: 1, variant: 0 },
     { kind: 'banner', col: 0, row: 3, variant: 0 },
@@ -85,6 +87,9 @@ const TWIN_BRIDGE_CAY = theme({
     { kind: 'banner', col: 1, row: 8, variant: 0 },
     { kind: 'seaStack', col: 7.6, row: 11, variant: 1 },
     { kind: 'stall', col: 2, row: 6, variant: 0 },
+    { kind: 'lamp', col: 6, row: 0, variant: 1 },
+    { kind: 'lamp', col: 10, row: 0, variant: 1 },
+    { kind: 'lamp', col: 11, row: 2, variant: 1 },
     { kind: 'stall', col: 3, row: 10, variant: 1 },
     { kind: 'boat', col: 7.5, row: 5.5, variant: 1 },
     { kind: 'cottage', col: 5, row: 2, yaw: 0.2, variant: 1 },
@@ -443,6 +448,8 @@ const GRAND_SKYHOLD = theme({
     { kind: 'brazier', col: 2, row: 10 },
     { kind: 'fountain', col: 3, row: 8, variant: 1 },
     { kind: 'pillars', col: 2, row: 1, variant: 0 },
+    { kind: 'lamp', col: 8, row: 11, variant: 1 },
+    { kind: 'lamp', col: 13, row: 11, variant: 1 },
     { kind: 'pillars', col: 1, row: 2, variant: 1 },
   ],
 });

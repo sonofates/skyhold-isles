@@ -40,7 +40,9 @@ export type SetPieceKind =
   | 'statue'
   | 'cabin'
   | 'cairn'
-  | 'fountain';
+  | 'fountain'
+  | 'sheep'
+  | 'lamp';
 
 export interface SetPieceSpec {
   readonly kind: SetPieceKind;
