@@ -23,6 +23,7 @@ import type { MaterialLibrary } from './materials.ts';
 import { AmbientDiorama } from './ambientDiorama.ts';
 import { GroundDetails } from './groundDetails.ts';
 import { SetPieces } from './setPieces.ts';
+import { WaterDetails } from './waterDetails.ts';
 
 // Cardinal neighbor bitmask for auto-tiling path geometry
 const DIR_N = 1; // row - 1 (-Z)
@@ -407,6 +408,7 @@ export class MapBuilder {
   private readonly ambient = new AmbientDiorama();
   readonly groundDetails = new GroundDetails();
   private readonly setPieces = new SetPieces();
+  private readonly waterDetails = new WaterDetails();
   private disposableGeometries: THREE.BufferGeometry[] = [];
   private materialsRef: MaterialLibrary | null = null;
   private goalPos: THREE.Vector3 | null = null;
@@ -418,6 +420,7 @@ export class MapBuilder {
     this.group.add(this.ambient.group);
     this.group.add(this.groundDetails.group);
     this.group.add(this.setPieces.group);
+    this.group.add(this.waterDetails.group);
 
     const grid = parseLevelGrid(level);
     const rng = new SeededRng(level.decorationSeed + 7919);
@@ -1021,6 +1024,7 @@ export class MapBuilder {
     this.ambient.build(dioramaRadius, rng, materials, unitBox, unitCone, unitIco, theme.ambient);
     this.groundDetails.build(level, materials);
     this.setPieces.build(level, materials, assets);
+    this.waterDetails.build(level, materials, waterRadius);
 
     if (this.goalPos) {
       // Crisp faceted cyan sanctuary crystal spire flanked by Kenney crystal shards & gold halo ring
@@ -1168,6 +1172,7 @@ export class MapBuilder {
 
     this.ambient.update(elapsedTime);
     this.setPieces.update(elapsedTime);
+    this.waterDetails.update(elapsedTime);
   }
 
   syncOccupiedTiles(towers: readonly TowerEntity[]): void {
@@ -1178,6 +1183,7 @@ export class MapBuilder {
     this.ambient.dispose();
     this.groundDetails.dispose();
     this.setPieces.dispose();
+    this.waterDetails.dispose();
     disposeInstancedMeshes(this.group);
     this.group.clear();
     for (let i = 0; i < this.disposableGeometries.length; i++) {

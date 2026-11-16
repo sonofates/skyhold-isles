@@ -146,6 +146,8 @@ export interface IslandTheme {
     /** shells/starfish on sand tiles. */
     readonly shells: boolean;
   };
+  /** Small floating props on the sea near the coast. */
+  readonly waterDetails: { readonly lilies: number; readonly buoys: number; readonly driftwood: number };
   readonly setPieces: readonly SetPieceSpec[];
   readonly ambient: AmbientSpec;
 }
@@ -182,6 +184,7 @@ export const DEFAULT_THEME: IslandTheme = {
     wheat: 0,
     shells: false,
   },
+  waterDetails: { lilies: 0, buoys: 0, driftwood: 0 },
   setPieces: [],
   ambient: { birds: 3, butterflies: 0, islets: 4, clouds: 5 },
 };

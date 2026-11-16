@@ -6,12 +6,13 @@ import { DEFAULT_THEME, type IslandTheme } from './islandThemes.ts';
  * (enforced by tests/render/islandThemes.test.ts).
  */
 
-type ThemeInput = Partial<Omit<IslandTheme, 'cliff' | 'decorBake' | 'details' | 'ambient' | 'hills'>> & {
+type ThemeInput = Partial<Omit<IslandTheme, 'cliff' | 'decorBake' | 'details' | 'ambient' | 'hills' | 'waterDetails'>> & {
   cliff?: Partial<IslandTheme['cliff']>;
   decorBake?: Partial<IslandTheme['decorBake']>;
   hills?: Partial<IslandTheme['hills']>;
   details?: Partial<IslandTheme['details']>;
   ambient?: Partial<IslandTheme['ambient']>;
+  waterDetails?: Partial<IslandTheme['waterDetails']>;
 };
 
 function theme(overrides: ThemeInput): IslandTheme {
@@ -22,6 +23,7 @@ function theme(overrides: ThemeInput): IslandTheme {
     trees: overrides.trees ?? DEFAULT_THEME.trees,
     decorBake: { ...DEFAULT_THEME.decorBake, ...overrides.decorBake },
     hills: { ...DEFAULT_THEME.hills, ...overrides.hills },
+    waterDetails: { ...DEFAULT_THEME.waterDetails, ...overrides.waterDetails },
     details: { ...DEFAULT_THEME.details, ...overrides.details },
     ambient: { ...DEFAULT_THEME.ambient, ...overrides.ambient },
   };
@@ -29,6 +31,7 @@ function theme(overrides: ThemeInput): IslandTheme {
 
 /** L1 — Sunlit Meadow: cosy wildflower meadow with a cottage; the friendly reference look. */
 const SUNLIT_MEADOW = theme({
+  waterDetails: { lilies: 3, buoys: 0, driftwood: 1 },
   goal: { color: 0x5be3ff, shard: 0xccf7ff, ring: 0xf6bd41, glow: 0x0b7cb8, deco: 'poles' },
   grassTint: [1.03, 1.05, 0.97],
   hills: { chance: 0.5, minH: 0.22, maxH: 0.4 },
@@ -48,6 +51,7 @@ const SUNLIT_MEADOW = theme({
 
 /** L2 — Twin-Bridge Cay: sun-bleached harbour cay with docks, boats and sandy shores. */
 const TWIN_BRIDGE_CAY = theme({
+  waterDetails: { lilies: 0, buoys: 6, driftwood: 2 },
   water: 0x2cc0dd,
   atmosphere: { horizon: 0xd2f0f0, zenith: 0x2f9fd8, sun: 0xfffbea },
   spawnCrystalCell: [4, 2],
@@ -129,6 +133,7 @@ const HIGHLAND_CITADEL = theme({
 
 /** L4 — Emerald Stepping Stones: mossy emerald terraces studded with glowing crystal groves. */
 const EMERALD_STEPPING_STONES = theme({
+  waterDetails: { lilies: 12, buoys: 0, driftwood: 0 },
   water: 0x1fb8b0,
   atmosphere: { horizon: 0xc2eee0, zenith: 0x2d9bb2, hemiSky: 0xc8f0e4, sun: 0xf3fff6 },
   spawnCrystalCell: [3, 2],
@@ -168,6 +173,7 @@ const EMERALD_STEPPING_STONES = theme({
 
 /** L5 — Windmill Switchback: golden harvest farmland with windmills, hay and autumn trees. */
 const WINDMILL_SWITCHBACK = theme({
+  waterDetails: { lilies: 4, buoys: 0, driftwood: 1 },
   water: 0x2aa8c8,
   atmosphere: { horizon: 0xffe4b8, zenith: 0x5a9ccc, hemiSky: 0xffeccc, sun: 0xffe2b8, sunIntensity: 1.7 },
   spawnCrystalCell: [5, 2],
@@ -217,6 +223,7 @@ const WINDMILL_SWITCHBACK = theme({
 
 /** L6 — Crescent Lagoon: tropical atoll — pale sand ring, palms, lighthouse in the lagoon, coral flowers. */
 const CRESCENT_LAGOON = theme({
+  waterDetails: { lilies: 5, buoys: 3, driftwood: 4 },
   water: 0x1fc4c8,
   atmosphere: { horizon: 0xcbf4ee, zenith: 0x1fa6d8, sun: 0xfffbe8 },
   spawnCrystalCell: [4, 2],
@@ -302,6 +309,7 @@ const SKYBRIDGE_GAUNTLET = theme({
 
 /** L8 — Sunken Bastion: half-drowned ruined bastion, mossy cobbles, torches and indigo banners. */
 const SUNKEN_BASTION = theme({
+  waterDetails: { lilies: 8, buoys: 0, driftwood: 3 },
   water: 0x1f7fa8,
   atmosphere: { horizon: 0xbcc8da, zenith: 0x2f5088, hemiSky: 0xaebfdc, sun: 0xffe6d0, sunIntensity: 1.5 },
   spawnCrystalCell: [1, 1],
