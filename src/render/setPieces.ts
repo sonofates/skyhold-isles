@@ -143,6 +143,9 @@ function familyGeometry(family: AnimFamily): THREE.BufferGeometry {
         { geometry: box(0.1, 0.06, 0.02), colorHex: 0xf8f4e8, position: [0, -0.7, 0], rotation: [0, 0, 0.5], forceWhiteUv: true },
       ];
       break;
+    case 'ember':
+      parts = [{ geometry: box(0.045, 0.045, 0.045), colorHex: 0xffffff, forceWhiteUv: true }];
+      break;
     case 'flame':
       parts = [
         {
@@ -241,7 +244,7 @@ export class SetPieces {
       const geo = familyGeometry(family);
       this.disposableGeometries.push(geo);
       const mesh = new THREE.InstancedMesh(geo, materials.kenneyTerrain, entry.bases.length);
-      mesh.castShadow = family !== 'flow';
+      mesh.castShadow = family !== 'flow' && family !== 'ember';
       mesh.receiveShadow = false;
       mesh.frustumCulled = false;
       for (let i = 0; i < entry.bases.length; i++) {
@@ -309,6 +312,18 @@ export class SetPieces {
               _p.set(Math.sin(t * 0.8 + ph) * 0.06, Math.sin(t * 1.1 + ph * 2) * 0.08, 0),
               _q.setFromEuler(_e.set(0, Math.sin(t * 0.7 + ph) * 0.25, Math.sin(t * 1.4 + ph) * 0.14)),
               _s.set(1, 1, 1),
+            );
+            _m.multiplyMatrices(base, _m2);
+            break;
+          }
+          case 'ember': {
+            // Spark drifts up and sideways, shrinking to nothing; phase offsets decorrelate the three per brazier.
+            const frac = (t * 0.45 + ph) % 1;
+            const sc = frac < 0.1 ? frac / 0.1 : 1 - (frac - 0.1) / 0.9;
+            _m2.compose(
+              _p.set(Math.sin(t * 1.7 + ph * 11) * 0.1 * frac, frac * 0.85, Math.cos(t * 1.3 + ph * 7) * 0.08 * frac),
+              _q.setFromEuler(_e.set(frac * 4, frac * 6, 0)),
+              _s.set(sc, sc, sc),
             );
             _m.multiplyMatrices(base, _m2);
             break;

@@ -12,7 +12,7 @@ import { cabin, cairn, fountain, hut, lamp, parasol, pond, sheep, stall, statue,
  * 1 tile = BALANCE.tileSize (2) units. Builders only append parts; SetPieces merges and instances them.
  */
 
-export type AnimFamily = 'blades' | 'cloth' | 'flow' | 'boat' | 'sail' | 'kite' | 'flame';
+export type AnimFamily = 'blades' | 'cloth' | 'flow' | 'boat' | 'sail' | 'kite' | 'flame' | 'ember';
 
 export interface AnimInstance {
   readonly family: AnimFamily;
@@ -459,6 +459,7 @@ function brazier(pb: PieceBuilder): void {
   pb.cyl(STONE_MID, 0.05, 0.07, 0.6, [0, 0.4, 0], 6);
   pb.cyl(0x484573, 0.28, 0.16, 0.22, [0, 0.8, 0], 8);
   pb.anim('flame', 0, 0.92, 0, 0, 0);
+  for (let k = 0; k < 3; k++) pb.anim('ember', 0, 1.1, 0, 0, k / 3 + 0.11 * k, 0xffd27a);
 }
 
 function obelisk(pb: PieceBuilder): void {
