@@ -1,3 +1,4 @@
+import '@fontsource-variable/fredoka';
 import './style.css';
 import { SoundManager } from './audio/soundManager.ts';
 import { LEVELS } from './data/levels/index.ts';
