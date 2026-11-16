@@ -169,6 +169,7 @@ export class SimWorld {
   debugSkipToWave(waveOneBased: number): boolean {
     this.enemyPool.clear();
     this.projectilePool.clear();
+    this.projectileSystem.clearBurnZones();
     this.spatialHash.clear();
     if (this.lives <= 0) {
       this.lives = BALANCE.startingLives;
@@ -232,6 +233,7 @@ export class SimWorld {
       kills: 0,
       auraRate: 0,
       auraRange: 0,
+      shotCount: 0,
     };
 
     this.towers.push(tower);

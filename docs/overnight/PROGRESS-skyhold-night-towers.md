@@ -19,11 +19,17 @@ tsc, lint, 52 vitest tests, sim:balance all green on `cfb9330`.
 - [r1] Juice pass: muzzle flashes per tower type, impact flashes/dust/debris, frost shatter, coin pops on kill, upgrade sparkle column + sell coins, tier-aware + pitch-jittered fire sounds, volley/overload sound layers, 3-pass crackling lightning (overload = fatter bolt), camera nudges (cannon/mortar/ballista/overload, respects shake setting), `fx()` halves particle counts on Low quality. Beacon buff ring under buffed towers (`towerMeshes.ts`).
 - [r1] Dev tools: `scripts/renderTowers.ts` (software contact-sheet of all towers/tiers from the real GLBs -> PNG, used to review new towers w/o a browser), `scripts/towerExperiment.ts`, `scripts/tuneTowers.ts` + `scripts/tuneSweep.ts` (runtime TOWER_DEFS overrides + balance windows, for retuning after merges), `tests/render/towerGeometries.test.ts` (tower fits tile / anchors / pick height for all 7x3 towers).
 
-## IN FLIGHT (r1, uncommitted in working tree if you see this)
-T3 signatures: archer volley, cannon cluster shells, frost brittle, tesla overload, mortar incendiary burn patches. Code + tests exist (`tests/sim/tierSignatures.test.ts`); the stats are being tuned so that `npm run sim:balance` passes again (the archer/tesla signatures shift L1/L3/L6/L8/L9 results by +-5 lives because the sim is chaotic). Do NOT commit a state where sim:balance fails.
+- [r1] **T3 signatures** (data `TowerDef.signature` for UI text + optional tier fields), all tested in `tests/sim/tierSignatures.test.ts`:
+  - Archer **Volley**: every 6th shot an extra arrow (50% dmg) at the nearest other enemy (`CombatSystem.fireVolley`).
+  - Cannon **Cluster Shells**: 3 bomblets (35% dmg, r1.5) land 2.7 from the blast centre (`ProjectileSystem.resolveCluster`).
+  - Frost **Brittle**: damage x (1 + slowRatio) vs chilled targets.
+  - Tesla **Overload**: every 6th discharge x1.8 damage and +1 chain jump (`lightningChain.overload` drives a fatter 3-pass bolt + flash).
+  - Mortar **Incendiary**: impact leaves a 3 s burning patch r2.0, 5 dmg per 0.5 s tick, armor-ignoring, ground only; patches tick together so overlaps never double-hit (`ProjectileSystem.updateBurnZones`, `groundZone` event, `render/burnZoneFx.ts`).
+  - T3 base damage trimmed to compensate: archer 38->36, cannon 84->80, frost 19->17, tesla 55->47, mortar 176->160. Ballista T3 pierces 2, Beacon T3 +10% range.
+- [r1] Balance: `npm run sim:balance` PASSES on all 9 islands with the signatures (greedy lives L1..L9 = 20,15,10,13,14,11,10,6,7). The sim is chaotic (+-1 tower stat flips a level by 5-10 lives); the values above were found with a random/grid search using `scripts/tuneSweep.ts`. After the lead merges ISLANDS/ENEMIES level changes, re-run `npm run sim:balance`; if windows break, retune T3 stats with `scripts/tuneSweep.ts` (see header) rather than editing levels.
 
 ## Next
-- Finish T3 signature balance (random search with `scripts/tuneSweep.ts`), commit, then polish
+- Polish: signature feedback in render (brittle shatter on kill?), more tests, README update, perf check of particle counts
 
 ## Decisions
 - (none yet)

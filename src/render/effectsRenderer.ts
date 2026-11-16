@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import type { EnemyType, Vec3 } from '../core/types.ts';
 import { BALANCE } from '../data/balance.ts';
 import { PALETTE_HEX } from '../data/palette.ts';
+import { BurnZoneFx } from './burnZoneFx.ts';
 import { LightningArcPool } from './lightningPool.ts';
 import { applyAlphaPreserveBlend } from './materials.ts';
 
@@ -106,6 +107,8 @@ export class EffectsRenderer {
   private readonly scorchDiscMesh: THREE.InstancedMesh;
   private readonly telegraphRingMesh: THREE.InstancedMesh;
   private readonly lightning = new LightningArcPool();
+  private readonly burnZones = new BurnZoneFx();
+  private fxClock = 0;
 
   private readonly shards: Shard[] = [];
   private readonly particles: Particle[] = [];
@@ -302,6 +305,7 @@ export class EffectsRenderer {
     }
 
     this.group.add(this.lightning.group);
+    this.group.add(this.burnZones.group);
   }
 
   spawnDeathShards(enemyType: EnemyType, x: number, y: number, z: number): void {
@@ -518,8 +522,13 @@ export class EffectsRenderer {
     }
   }
 
-  spawnLightningArc(points: readonly Vec3[]): void {
-    this.lightning.spawn(points);
+  /** Mortar T3 incendiary ground fire (glow patch, rim and rising embers) lasting `duration` seconds. */
+  spawnBurnZone(x: number, z: number, radius: number, duration: number): void {
+    this.burnZones.spawn(x, z, radius, duration);
+  }
+
+  spawnLightningArc(points: readonly Vec3[], overload = false): void {
+    this.lightning.spawn(points, overload);
   }
 
   spawnMeteorTelegraph(x: number, z: number, radius: number, delaySec = 0.32): void {
@@ -821,6 +830,17 @@ export class EffectsRenderer {
     }
 
     this.lightning.update(dt);
+    this.fxClock += dt;
+    this.burnZones.update(dt, this.fxClock, (ex, ez, color) => {
+      this.spawnBurst(ex, 0.12, ez, color, 1, {
+        speed: 0.7,
+        lift: 2.6,
+        gravity: -1.2,
+        life: 0.55,
+        scale: 0.5,
+        spread: 1,
+      });
+    });
   }
 
   getActiveFxCount(): number {
@@ -830,7 +850,8 @@ export class EffectsRenderer {
       this.pulseRingMesh.count +
       this.meteorOrbMesh.count +
       this.scorchDiscMesh.count +
-      this.telegraphRingMesh.count
+      this.telegraphRingMesh.count +
+      this.burnZones.getActiveCount()
     );
   }
 
@@ -842,6 +863,7 @@ export class EffectsRenderer {
     for (let i = 0; i < this.scorchCraters.length; i++) this.scorchCraters[i].active = false;
     for (let i = 0; i < this.telegraphRings.length; i++) this.telegraphRings[i].active = false;
     this.lightning.clear();
+    this.burnZones.clear();
     this.shardMesh.count = 0;
     this.particleMesh.count = 0;
     this.pulseRingMesh.count = 0;
@@ -858,6 +880,7 @@ export class EffectsRenderer {
 
   dispose(): void {
     this.lightning.dispose();
+    this.burnZones.dispose();
     this.shardMesh.dispose();
     this.particleMesh.dispose();
     this.pulseRingMesh.dispose();

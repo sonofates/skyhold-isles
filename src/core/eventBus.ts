@@ -12,6 +12,15 @@ export interface GameEventMap {
     y: number;
     z: number;
     yaw: number;
+    /** True on tier-signature shots (archer volley, tesla overload). */
+    special?: boolean;
+  };
+  groundZone: {
+    kind: 'fire';
+    x: number;
+    z: number;
+    radius: number;
+    duration: number;
   };
   beaconPulse: { towerId: number; tier: number; x: number; z: number; radius: number };
   projectileImpact: {
@@ -24,6 +33,7 @@ export interface GameEventMap {
   };
   lightningChain: {
     points: readonly Vec3[];
+    overload?: boolean;
   };
   enemySpawned: {
     enemyId: number;

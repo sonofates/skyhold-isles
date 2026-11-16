@@ -143,6 +143,13 @@ export class RenderWorld {
         const mz = e.z + dirZ * 0.5;
         switch (e.type) {
           case 'archer':
+            if (e.special) {
+              // Volley: fan of sparks + brighter flash
+              fx.spawnFlash(mx, e.y, mz, PALETTE_HEX.cream, 1.9, 0.1);
+              fx.spawnBurst(mx, e.y, mz, PALETTE_HEX.gold, this.fx(5), {
+                speed: 4.2, dirX, dirZ, spread: 0.6, life: 0.26, scale: 0.55, lift: 0.3,
+              });
+            }
             fx.spawnFlash(mx, e.y, mz, PALETTE_HEX.gold, 0.9, 0.06);
             fx.spawnBurst(mx, e.y, mz, PALETTE_HEX.gold, this.fx(2), {
               speed: 3.4, dirX, dirZ, spread: 0.25, life: 0.2, scale: 0.5, lift: 0.25,
@@ -223,6 +230,9 @@ export class RenderWorld {
           });
         }
       }),
+      events.on('groundZone', (e) => {
+        this.effectsRenderer.spawnBurnZone(e.x, e.z, e.radius, e.duration);
+      }),
       events.on('beaconPulse', (e) => {
         this.effectsRenderer.spawnPulseRing(e.x, 0.07, e.z, e.radius, PALETTE_HEX.gold);
         this.effectsRenderer.spawnBurst(e.x, 1.6 + e.tier * 0.2, e.z, PALETTE_HEX.gold, this.fx(3), {
@@ -230,7 +240,16 @@ export class RenderWorld {
         });
       }),
       events.on('lightningChain', (e) => {
-        this.effectsRenderer.spawnLightningArc(e.points);
+        this.effectsRenderer.spawnLightningArc(e.points, e.overload === true);
+        if (e.overload && e.points.length > 0) {
+          const o = e.points[0];
+          this.effectsRenderer.spawnFlash(o.x, o.y, o.z, PALETTE_HEX.cream, 3.2, 0.14);
+          this.effectsRenderer.spawnPulseRing(o.x, 0.2, o.z, 2.4, PALETTE_HEX.water);
+          this.effectsRenderer.spawnBurst(o.x, o.y, o.z, PALETTE_HEX.water, this.fx(8), {
+            speed: 3.6, life: 0.3, scale: 0.6, gravity: 2, lift: 1.2,
+          });
+          this.cameraController.addShake(0.014, shakeEnabled());
+        }
         for (let i = 1; i < e.points.length; i++) {
           const pt = e.points[i];
           this.effectsRenderer.spawnParticles(pt.x, pt.y, pt.z, PALETTE_HEX.water, this.fx(5), 2.6, 2.0);

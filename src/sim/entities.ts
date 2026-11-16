@@ -97,6 +97,8 @@ export interface TowerEntity {
   auraRate: number;
   /** Range bonus received from nearby Beacons this tick (0 = none). */
   auraRange: number;
+  /** Shots fired so far; drives every-Nth-shot tier signatures (volley, overload). */
+  shotCount: number;
 }
 
 export interface ProjectileEntity {
@@ -118,6 +120,15 @@ export interface ProjectileEntity {
   pierceCount: number;
   pierceLength: number;
   pierceFalloff: number;
+  brittle: number;
+  clusterCount: number;
+  clusterDamage: number;
+  clusterRadius: number;
+  clusterOffset: number;
+  clusterSeed: number;
+  burnDamage: number;
+  burnRadius: number;
+  burnDuration: number;
 
   startX: number;
   startY: number;
@@ -158,6 +169,15 @@ export function createProjectileEntity(poolIndex: number): ProjectileEntity {
     pierceCount: 0,
     pierceLength: 0,
     pierceFalloff: 1,
+    brittle: 0,
+    clusterCount: 0,
+    clusterDamage: 0,
+    clusterRadius: 0,
+    clusterOffset: 0,
+    clusterSeed: 0,
+    burnDamage: 0,
+    burnRadius: 0,
+    burnDuration: 0,
     startX: 0,
     startY: 0,
     startZ: 0,

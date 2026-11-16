@@ -28,6 +28,25 @@ export interface TowerTierStats {
   readonly auraRate?: number;
   /** Support aura: range bonus (0.1 = +10%) granted to other towers inside `range`. */
   readonly auraRange?: number;
+  /** Archer T3 volley: every Nth shot also looses `volleyExtra` extra arrows at `volleyDamage` x damage. */
+  readonly volleyEvery?: number;
+  readonly volleyExtra?: number;
+  readonly volleyDamage?: number;
+  /** Cannon T3 cluster shells: `clusterCount` bomblets land `clusterOffset` away from the main blast. */
+  readonly clusterCount?: number;
+  readonly clusterDamage?: number;
+  readonly clusterRadius?: number;
+  readonly clusterOffset?: number;
+  /** Frost T3 brittle: damage x (1 + brittle * target's current slow ratio). */
+  readonly brittle?: number;
+  /** Tesla T3 overload: every Nth discharge deals `overloadDamage` x and jumps `overloadChain` extra times. */
+  readonly overloadEvery?: number;
+  readonly overloadDamage?: number;
+  readonly overloadChain?: number;
+  /** Mortar T3 incendiary: each impact leaves a burning patch (ground only) ticking `burnDamage` (armor-ignoring). */
+  readonly burnDamage?: number;
+  readonly burnRadius?: number;
+  readonly burnDuration?: number;
 }
 
 export interface TowerDef {
@@ -39,6 +58,8 @@ export interface TowerDef {
   readonly turretHeight: number;
   /** 'support' towers never shoot; their `range` is the aura radius. */
   readonly role: 'attack' | 'support';
+  /** Tier III signature, for UI text (tower panel / build tooltips). */
+  readonly signature: { readonly name: string; readonly desc: string };
   readonly tiers: readonly [TowerTierStats, TowerTierStats, TowerTierStats];
 }
 
@@ -61,6 +82,7 @@ export const TOWER_DEFS: Record<TowerType, TowerDef> = {
     hitsFlyers: true,
     turretHeight: 1.55,
     role: 'attack',
+    signature: { name: 'Volley', desc: 'Every 6th shot also looses an extra arrow at a nearby foe.' },
     tiers: [
       {
         tier: 1,
@@ -99,7 +121,7 @@ export const TOWER_DEFS: Record<TowerType, TowerDef> = {
       {
         tier: 3,
         upgradeCost: 95,
-        damage: 38,
+        damage: 36,
         fireRate: 2.32,
         range: 6.9,
         minRange: 0,
@@ -112,6 +134,9 @@ export const TOWER_DEFS: Record<TowerType, TowerDef> = {
         chainCount: 0,
         chainRange: 0,
         chainFalloff: 1,
+        volleyEvery: 6,
+        volleyExtra: 1,
+        volleyDamage: 0.5,
       },
     ],
   },
@@ -123,6 +148,7 @@ export const TOWER_DEFS: Record<TowerType, TowerDef> = {
     hitsFlyers: false,
     turretHeight: 1.05,
     role: 'attack',
+    signature: { name: 'Cluster Shells', desc: 'Each blast scatters bomblets that hit enemies around the crater.' },
     tiers: [
       {
         tier: 1,
@@ -161,7 +187,7 @@ export const TOWER_DEFS: Record<TowerType, TowerDef> = {
       {
         tier: 3,
         upgradeCost: 140,
-        damage: 84,
+        damage: 80,
         fireRate: 0.95,
         range: 5.8,
         minRange: 0,
@@ -174,6 +200,10 @@ export const TOWER_DEFS: Record<TowerType, TowerDef> = {
         chainCount: 0,
         chainRange: 0,
         chainFalloff: 1,
+        clusterCount: 3,
+        clusterDamage: 0.35,
+        clusterRadius: 1.5,
+        clusterOffset: 2.7,
       },
     ],
   },
@@ -185,6 +215,7 @@ export const TOWER_DEFS: Record<TowerType, TowerDef> = {
     hitsFlyers: true,
     turretHeight: 1.45,
     role: 'attack',
+    signature: { name: 'Brittle', desc: 'Chilled enemies take bonus damage from frost bolts - the colder, the harder.' },
     tiers: [
       {
         tier: 1,
@@ -223,7 +254,7 @@ export const TOWER_DEFS: Record<TowerType, TowerDef> = {
       {
         tier: 3,
         upgradeCost: 120,
-        damage: 19,
+        damage: 17,
         fireRate: 1.45,
         range: 5.6,
         minRange: 0,
@@ -236,6 +267,7 @@ export const TOWER_DEFS: Record<TowerType, TowerDef> = {
         chainCount: 0,
         chainRange: 0,
         chainFalloff: 1,
+        brittle: 1.0,
       },
     ],
   },
@@ -247,6 +279,7 @@ export const TOWER_DEFS: Record<TowerType, TowerDef> = {
     hitsFlyers: true,
     turretHeight: 1.65,
     role: 'attack',
+    signature: { name: 'Overload', desc: 'Every 6th discharge hits much harder and arcs one jump further.' },
     tiers: [
       {
         tier: 1,
@@ -285,7 +318,7 @@ export const TOWER_DEFS: Record<TowerType, TowerDef> = {
       {
         tier: 3,
         upgradeCost: 160,
-        damage: 55,
+        damage: 47,
         fireRate: 1.18,
         range: 5.7,
         minRange: 0,
@@ -298,6 +331,9 @@ export const TOWER_DEFS: Record<TowerType, TowerDef> = {
         chainCount: 5,
         chainRange: 4.0,
         chainFalloff: 0.78,
+        overloadEvery: 6,
+        overloadDamage: 1.8,
+        overloadChain: 1,
       },
     ],
   },
@@ -309,6 +345,7 @@ export const TOWER_DEFS: Record<TowerType, TowerDef> = {
     hitsFlyers: false,
     turretHeight: 1.15,
     role: 'attack',
+    signature: { name: 'Incendiary', desc: 'Shells leave burning ground that scorches enemies, ignoring armor.' },
     tiers: [
       {
         tier: 1,
@@ -347,7 +384,7 @@ export const TOWER_DEFS: Record<TowerType, TowerDef> = {
       {
         tier: 3,
         upgradeCost: 195,
-        damage: 176,
+        damage: 160,
         fireRate: 0.5,
         range: 12.6,
         minRange: 3.2,
@@ -360,6 +397,9 @@ export const TOWER_DEFS: Record<TowerType, TowerDef> = {
         chainCount: 0,
         chainRange: 0,
         chainFalloff: 1,
+        burnDamage: 5,
+        burnRadius: 2.0,
+        burnDuration: 3.0,
       },
     ],
   },
@@ -371,6 +411,7 @@ export const TOWER_DEFS: Record<TowerType, TowerDef> = {
     hitsFlyers: true,
     turretHeight: 1.7,
     role: 'attack',
+    signature: { name: 'Skewer', desc: 'Bolts run through up to two more enemies lined up behind the target.' },
     tiers: [
       {
         tier: 1,
@@ -442,6 +483,7 @@ export const TOWER_DEFS: Record<TowerType, TowerDef> = {
     hitsFlyers: true,
     turretHeight: 1.5,
     role: 'support',
+    signature: { name: 'Far Sight', desc: 'Also extends the range of towers inside its aura.' },
     tiers: [
       {
         tier: 1,

@@ -150,10 +150,23 @@ export class SoundManager {
     this.volMul = 1;
   }
 
-  playFire(type: TowerType, tier = 1): void {
+  playFire(type: TowerType, tier = 1, special = false): void {
     this.voice(tier, 0.07);
     this.fireSound(type);
+    if (special) this.specialLayer(type);
     this.resetVoice();
+  }
+
+  /** Extra layer on tier-signature shots (archer volley, tesla overload). */
+  private specialLayer(type: TowerType): void {
+    if (type === 'archer') {
+      this.tone('triangle', 600, 230, 0.07, 0.12, 0.045);
+      this.tone('triangle', 660, 250, 0.07, 0.1, 0.09);
+    } else if (type === 'tesla') {
+      this.tone('sawtooth', 220, 90, 0.2, 0.16);
+      this.tone('sine', 1500, 400, 0.14, 0.1, 0.02);
+      this.noiseBurst(4200, 0.14, 0.14);
+    }
   }
 
   private fireSound(type: TowerType): void {
@@ -296,7 +309,7 @@ export class SoundManager {
       events.on('towerUpgraded', (e) => this.playTowerUpgrade(e.tier)),
       events.on('towerSold', () => this.playTowerSell()),
       events.on('beaconPulse', () => this.playBeaconPulse()),
-      events.on('towerFired', (e) => this.playFire(e.type, e.tier)),
+      events.on('towerFired', (e) => this.playFire(e.type, e.tier, e.special === true)),
       events.on('projectileImpact', (e) => this.playImpact(e.towerType)),
       events.on('enemyKilled', () => this.playGoldCoin()),
       events.on('enemyLeaked', () => this.playEnemyLeak()),

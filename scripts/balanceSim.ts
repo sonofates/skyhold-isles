@@ -242,14 +242,11 @@ function printResult(lvlIdx: number, res: SimRunResult, difficulty: string): voi
   }
 }
 
-function main(): void {
-  console.log('=== Skyhold Isles Headless Balance Simulator (60 Hz Human-Paced) ===\n');
-
-  // Optional filter for quicker iteration, e.g. `LEVELS=3,6 npm run sim:balance`.
-  const levelFilter = process.env.LEVELS
-    ? new Set(process.env.LEVELS.split(',').map((x) => Number(x.trim()) - 1))
-    : null;
-
+/** Runs every (filtered) level's greedy + weak script and applies the balance windows/asserts. */
+export function evaluateBalance(
+  levelFilter: ReadonlySet<number> | null,
+  verbose: boolean,
+): { summary: string[]; failures: string[] } {
   /** Greedy (competent build script) lives-left window per difficulty label. */
   const GREEDY_LIVES: Record<LevelDef['difficulty'], readonly [number, number]> = {
     Breezy: [18, 20],
@@ -281,11 +278,11 @@ function main(): void {
     if (levelFilter && !levelFilter.has(i)) continue;
     const level = LEVELS[i];
     const greedyRes = runLevelBalanceSim(level, 'greedy', level.scriptedBuildOrder ?? []);
-    printResult(i, greedyRes, level.difficulty);
+    if (verbose) printResult(i, greedyRes, level.difficulty);
 
     const weakRes = runLevelBalanceSim(level, 'weak', level.weakBuildOrder ?? []);
-    printResult(i, weakRes, level.difficulty);
-    console.log('');
+    if (verbose) printResult(i, weakRes, level.difficulty);
+    if (verbose) console.log('');
 
     const gT = livesLostTotals(greedyRes);
     const wT = livesLostTotals(weakRes);
@@ -363,6 +360,18 @@ function main(): void {
       failures.push(`L${i + 1} weak must lose (got ${weakRes.outcome} with ${weakRes.finalLives} lives)`);
     }
   }
+
+  return { summary, failures };
+}
+
+function main(): void {
+  console.log('=== Skyhold Isles Headless Balance Simulator (60 Hz Human-Paced) ===\n');
+
+  // Optional filter for quicker iteration, e.g. `LEVELS=3,6 npm run sim:balance`.
+  const levelFilter = process.env.LEVELS
+    ? new Set(process.env.LEVELS.split(',').map((x) => Number(x.trim()) - 1))
+    : null;
+  const { summary, failures } = evaluateBalance(levelFilter, true);
 
   console.log('=== Summary (lives left / stars / leaks by type over the whole run) ===');
   for (const line of summary) console.log(line);
