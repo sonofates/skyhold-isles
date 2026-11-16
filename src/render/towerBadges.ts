@@ -7,6 +7,11 @@ const MAX_TOWERS = 96;
 const ATLAS_WIDTH = 128;
 const ATLAS_HEIGHT = 256; // 4 cells x 64px height: [I, II, III, UpArrow]
 
+/** Badge world scale at orthographic camera zoom 1; scaled by 1/zoom to hold a constant on-screen size. */
+const BADGE_BASE_SCALE = 0.85;
+const BADGE_MIN_SCALE = 0.4;
+const BADGE_MAX_SCALE = 1.7;
+
 function createSlicedPlane(rowIndex: number, totalRows: number): THREE.PlaneGeometry {
   const geo = new THREE.PlaneGeometry(1, 1);
   const uv = geo.attributes.uv;
@@ -150,7 +155,14 @@ export class TowerBadgeRenderer {
     gold: number,
     cameraQuaternion: THREE.Quaternion,
     elapsedTime: number,
+    cameraZoom = 1,
   ): void {
+    // Orthographic zoom magnifies everything in screen space, so divide it out to keep the
+    // pill/arrow a roughly constant pixel size no matter how far the player zooms.
+    const k = Math.min(
+      BADGE_MAX_SCALE,
+      Math.max(BADGE_MIN_SCALE, (BADGE_BASE_SCALE / Math.max(0.1, cameraZoom))),
+    );
     const tierCounts = [0, 0, 0];
     let arrowCount = 0;
 
@@ -161,9 +173,9 @@ export class TowerBadgeRenderer {
       const tierSlot = tierCounts[tierIdx];
 
       if (tierSlot < MAX_TOWERS) {
-        _dummy.position.set(tower.x, topY + 0.30, tower.z);
+        _dummy.position.set(tower.x, topY + 0.2 + 0.1 * k, tower.z);
         _dummy.quaternion.copy(cameraQuaternion);
-        _dummy.scale.set(0.92, 0.46, 1);
+        _dummy.scale.set(0.92 * k, 0.46 * k, 1);
         _dummy.updateMatrix();
         this.tierMeshes[tierIdx].setMatrixAt(tierSlot, _dummy.matrix);
         tierCounts[tierIdx] = tierSlot + 1;
@@ -173,10 +185,10 @@ export class TowerBadgeRenderer {
         const nextTier = (tower.tier + 1) as 2 | 3;
         const upgradeCost = getTowerTierStats(tower.type, nextTier).upgradeCost;
         if (gold >= upgradeCost) {
-          const bounce = Math.abs(Math.sin(elapsedTime * 4.2 + tower.id * 0.7)) * 0.18;
-          _dummy.position.set(tower.x, topY + 0.80 + bounce, tower.z);
+          const bounce = Math.abs(Math.sin(elapsedTime * 4.2 + tower.id * 0.7)) * 0.18 * k;
+          _dummy.position.set(tower.x, topY + 0.2 + 0.1 * k + 0.62 * k + bounce, tower.z);
           _dummy.quaternion.copy(cameraQuaternion);
-          _dummy.scale.set(0.68, 0.68, 1);
+          _dummy.scale.set(0.68 * k, 0.68 * k, 1);
           _dummy.updateMatrix();
           this.arrowMesh.setMatrixAt(arrowCount, _dummy.matrix);
           arrowCount++;
