@@ -23,7 +23,15 @@ export class SoundManager {
       this.ctx = new AudioCtx();
       this.masterGain = this.ctx.createGain();
       this.applyVolume();
-      this.masterGain.connect(this.ctx.destination);
+      // Soft limiter so dense late waves (many towers + impacts at once) never clip.
+      const limiter = this.ctx.createDynamicsCompressor();
+      limiter.threshold.value = -14;
+      limiter.knee.value = 12;
+      limiter.ratio.value = 6;
+      limiter.attack.value = 0.003;
+      limiter.release.value = 0.15;
+      this.masterGain.connect(limiter);
+      limiter.connect(this.ctx.destination);
       this.noiseBuffer = this.createNoiseBuffer(this.ctx);
     }
     if (this.ctx && this.ctx.state === 'suspended') {
