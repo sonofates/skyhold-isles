@@ -470,7 +470,7 @@ export class OverlayIndicators {
     if (!this.flightPathGroup.visible && !this.groundPathGroup.visible) return;
     const pulse = 0.5 + 0.5 * Math.sin(elapsedTime * 3.8);
     if (this.flightPathGroup.visible) {
-      const mul = this.routesPinned ? 1.0 : this.flightPathSubtle ? 0.58 : 1.0;
+      const mul = this.flightPathSubtle && !this.routesPinned ? 0.58 : 1.0;
       if (this.flightPathGroundMat) {
         this.flightPathGroundMat.opacity = (0.14 + pulse * 0.08) * mul;
       }

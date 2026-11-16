@@ -96,8 +96,7 @@ export class MainMenuOverlay {
     this.targetLevelIndex = frontierIdx;
     const frontierLevel = LEVELS[frontierIdx];
 
-    this.playBtn.textContent =
-      totalStars > 0 ? `Play · ${frontierLevel.name}` : `Play · ${frontierLevel.name}`;
+    this.playBtn.textContent = `Play · ${frontierLevel.name}`;
     this.summaryEl.innerHTML = `<span class="menu-star-inline">${UI_ICON_SVGS.star}</span><span>${totalStars} / ${maxStars} Stars · ${frontierIdx + 1}/${LEVELS.length} Islands Unlocked</span>`;
   }
 

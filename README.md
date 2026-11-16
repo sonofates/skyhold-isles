@@ -16,8 +16,10 @@ A low-poly isometric **floating island diorama** tower defense game built with *
     4. **Tesla Tower (`4`)**: Flickering chain lightning jumping across up to `N` nearby targets with damage falloff; hits ground & aerial units.
     5. **Mortar (`5`)**: Long-range siege shells with high splash damage and a minimum range deadzone (ground only).
   - Per-tower **First / Last / Strongest / Closest** targeting modes, upgrade stat diffs, and 70% sell refunds.
-  - **6 Enemy Archetypes**: Raider Grunt, Zephyr Runner, Iron Brute (flat armor damage reduction), Sky Skimmer (dedicated `flightPath` aerial lane), Grove Mender (periodic AoE heal pulse), and Skyhold Dreadnought Boss.
-  - **3 Islands**: *Sunlit Meadow*, *Twin-Bridge Cay*, and *Highland Citadel*, with star ratings (1–3★), unlock progression persisted in `localStorage`, wave composition previews, and early-call gold bonuses.
+  - **7 Enemy Archetypes**: Raider Grunt, Zephyr Runner, Iron Brute (flat armor damage reduction), Sky Skimmer (dedicated `flightPath` aerial lane), Grove Mender (periodic AoE heal pulse), Cinder Splitling (splits into two fast hatchlings on death), and the Skyhold Dreadnought Boss (summons escorts, pulses to jam nearby towers).
+  - **9 Islands**: *Sunlit Meadow*, *Crescent Lagoon*, *Twin-Bridge Cay*, *Sunken Bastion*, *Highland Citadel*, *Grand Skyhold*, *Emerald Stepping Stones*, *Skybridge Gauntlet*, and *Windmill Switchback* — star ratings (1–3★), unlock progression persisted in `localStorage`, wave composition previews, and early-call gold bonuses.
+  - **Abilities**: *Meteor Strike* (`F`, targeted armor-piercing AoE + slow) and *Overcharge* (`G`, cleanses jammed towers and boosts fire rate), on cooldowns that tick during combat.
+  - **Auto-wave, Endless & MVP**: optional auto-wave (`X`), *Continue Endless* after a victory with best-wave tracking, and an end-of-run MVP tower summary.
 - **Decoupled Architecture & High-Scale Performance**:
   - **Zero-Three/DOM Core**: `src/core/`, `src/sim/`, and `src/data/` never import `three`, `window`, or `document` (enforced by ESLint `no-restricted-imports` / `no-restricted-globals` and verified in Node via Vitest + the headless balance simulator).
   - **Fixed 60 Hz Simulation + Render Interpolation**: Game speed (`1x` / `2x` / `3x`) steps more fixed ticks per frame while renderers interpolate between `prevX/Y/Z/Yaw` and current state.
@@ -34,6 +36,8 @@ A low-poly isometric **floating island diorama** tower defense game built with *
 - **Build Tower**: Click bottom bar card or press `1`–`5`, then click a valid grass tile
 - **Cancel / Deselect / Pause**: Right-click or `Esc`
 - **Pause / Speed**: `Space` (toggle pause) or HUD speed buttons (`1x`, `2x`, `3x`)
+- **Selected Tower**: `U` upgrade, `T` cycle targeting, `Delete` / `Backspace` sell (press twice to confirm)
+- **Abilities / Waves / Routes**: `F` Meteor, `G` Overcharge, `X` auto-wave, `R` pin enemy routes
 - **Inspect Enemy**: Hover over any ground or flying enemy
 
 ### Touch / Mobile & Tablet
@@ -60,7 +64,9 @@ src/
 scripts/
 └── balanceSim.ts # Headless Node balance runner executing scripted build orders per island
 tests/
-└── sim/          # Vitest suite covering targeting, combat math, wave order, & Node smoke test
+├── core/         # Fixed-step loop accumulator tests
+├── render/       # Tower picking & camera raycast tests (Three.js in Node)
+└── sim/          # Vitest suite covering targeting, combat math, waves, abilities, & Node smoke test
 ```
 
 ---
@@ -73,7 +79,7 @@ npm run dev          # Start Vite dev server
 npm run build        # Typecheck (tsc) + production bundle (vite build)
 npm run test         # Run Vitest unit & headless Node smoke tests
 npm run lint         # Run ESLint (enforces strict Three/DOM isolation in sim/data/core)
-npm run sim:balance  # Run headless simulation for all 3 levels and print per-wave balance stats
+npm run sim:balance  # Run headless simulation for all 9 levels and print per-wave balance stats
 ```
 
 ---
