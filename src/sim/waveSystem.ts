@@ -14,6 +14,8 @@ export type WaveState =
 export interface WavePreviewItem {
   readonly enemyType: EnemyType;
   readonly count: number;
+  /** How many of `count` are Empowered elites (omitted when none). */
+  readonly eliteCount?: number;
 }
 
 export interface WavePreview {
@@ -318,10 +320,14 @@ export class WaveSystem {
     }
 
     const counts = new Map<EnemyType, number>();
+    const eliteCounts = new Map<EnemyType, number>();
     const order: EnemyType[] = [];
 
     for (let g = 0; g < wave.groups.length; g++) {
       const grp = wave.groups[g];
+      if (grp.elite) {
+        eliteCounts.set(grp.enemyType, (eliteCounts.get(grp.enemyType) ?? 0) + grp.count);
+      }
       if (!counts.has(grp.enemyType)) {
         order.push(grp.enemyType);
         counts.set(grp.enemyType, grp.count);
@@ -333,7 +339,12 @@ export class WaveSystem {
     const items: WavePreviewItem[] = [];
     for (let i = 0; i < order.length; i++) {
       const type = order[i];
-      items.push({ enemyType: type, count: counts.get(type) ?? 0 });
+      const eliteCount = eliteCounts.get(type) ?? 0;
+      items.push(
+        eliteCount > 0
+          ? { enemyType: type, count: counts.get(type) ?? 0, eliteCount }
+          : { enemyType: type, count: counts.get(type) ?? 0 },
+      );
     }
 
     return {

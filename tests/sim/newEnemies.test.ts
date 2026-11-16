@@ -318,6 +318,27 @@ describe('Empowered elites', () => {
     expect(spawned.every((e) => e.elite)).toBe(true);
   });
 
+  it('wave preview reports how many of each type are elites', () => {
+    const level: LevelDef = {
+      ...LEVELS[0],
+      waves: [
+        {
+          clearBonus: 0,
+          groups: [
+            { enemyType: 'brute', count: 3, spawnInterval: 1, startDelay: 0 },
+            { enemyType: 'brute', count: 2, spawnInterval: 1, startDelay: 0, elite: true },
+            { enemyType: 'grunt', count: 4, spawnInterval: 1, startDelay: 0 },
+          ],
+        },
+      ],
+    };
+    const { world } = makeWorld(level);
+    expect(world.waveSystem.getNextWavePreview()?.items).toEqual([
+      { enemyType: 'brute', count: 5, eliteCount: 2 },
+      { enemyType: 'grunt', count: 4 },
+    ]);
+  });
+
   it('a freshly re-used pool slot does not inherit elite/shield/burrow state', () => {
     const { world } = makeWorld();
     const e = world.enemySystem.spawnEnemy('burrower', 1, true)!;
