@@ -2,6 +2,7 @@ import { EventBus } from '../src/core/eventBus.ts';
 import { SeededRng } from '../src/core/rng.ts';
 import type { EnemyType } from '../src/core/types.ts';
 import { BALANCE } from '../src/data/balance.ts';
+import { ENEMY_TYPES } from '../src/data/enemies.ts';
 import { LEVELS, type LevelDef } from '../src/data/levels/index.ts';
 import { TOWER_TYPES } from '../src/data/towers.ts';
 import { SimWorld } from '../src/sim/world.ts';
@@ -38,7 +39,7 @@ export const BENCH_SCENARIOS: readonly BenchScenarioConfig[] = [
 /** Hard safety floor: desktop host must at least sustain 3x speed (180 ticks/sec). */
 const HARD_FLOOR_TICKS_PER_SEC = 180;
 
-function pickBenchLevel(): LevelDef {
+export function pickBenchLevel(): LevelDef {
   let best = LEVELS[LEVELS.length - 1];
   let bestLen = -1;
   for (const level of LEVELS) {
@@ -141,7 +142,7 @@ export function runSimBenchScenario(
   world.waveSystem.state = 'clearing';
   world.waveSystem.currentWaveIndex = 0;
 
-  const mix: readonly EnemyType[] = ['grunt', 'runner', 'brute', 'flyer', 'healer', 'splitter'];
+  const mix: readonly EnemyType[] = ENEMY_TYPES.filter((t) => t !== 'boss');
   for (let i = 0; i < config.enemyCount; i++) {
     const type: EnemyType = i % 60 === 59 ? 'boss' : mix[i % mix.length];
     const enemy = world.enemySystem.spawnEnemy(type, 100_000);
