@@ -1,6 +1,7 @@
 import { EventBus } from '../src/core/eventBus.ts';
 import type { EnemyType } from '../src/core/types.ts';
 import { BALANCE } from '../src/data/balance.ts';
+import { ENEMY_DEFS } from '../src/data/enemies.ts';
 import { LEVELS, type LevelDef, type ScriptedBuildAction } from '../src/data/levels/index.ts';
 import { getTowerTierStats } from '../src/data/towers.ts';
 import { computeStarRating, SimWorld } from '../src/sim/world.ts';
@@ -13,6 +14,8 @@ interface WaveStatRow {
   livesStart: number;
   livesLost: number;
   leaksByType: Partial<Record<EnemyType, number>>;
+  /** Lives lost per enemy type (a leaking brute/boss/hauler costs more than 1). */
+  livesByType: Partial<Record<EnemyType, number>>;
 }
 
 export interface SimRunResult {
@@ -111,6 +114,7 @@ export function runLevelBalanceSim(
       livesStart: world.lives,
       livesLost: 0,
       leaksByType: {},
+      livesByType: {},
     };
     waveRows.push(activeWaveRow);
   });
@@ -128,6 +132,8 @@ export function runLevelBalanceSim(
     activeWaveRow.livesLost += ev.livesLost;
     activeWaveRow.leaksByType[ev.enemyType] =
       (activeWaveRow.leaksByType[ev.enemyType] ?? 0) + 1;
+    activeWaveRow.livesByType[ev.enemyType] =
+      (activeWaveRow.livesByType[ev.enemyType] ?? 0) + ev.livesLost;
   });
 
   const queue = [...scriptActions];
@@ -273,7 +279,13 @@ function main(): void {
         byType[k as EnemyType] = (byType[k as EnemyType] ?? 0) + (v ?? 0);
       }
     }
-    const flyers = byType.flyer ?? 0;
+    // Lives lost to every flying type (Sky Skimmers and Cloud Haulers alike).
+    let flyers = 0;
+    for (const w of res.waves) {
+      for (const [k, v] of Object.entries(w.livesByType)) {
+        if (ENEMY_DEFS[k as EnemyType].flying) flyers += v ?? 0;
+      }
+    }
     return { total, flyers, byType };
   }
 
