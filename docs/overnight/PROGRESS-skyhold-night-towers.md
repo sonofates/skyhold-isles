@@ -34,6 +34,8 @@ tsc, lint, 52 vitest tests, sim:balance all green on `cfb9330`.
 
 - [r4] Verified all green on resume (tsc, lint, 95 tests, sim:balance all 9 islands pass; greedy lives L1..L9 = 20,15,10,13,14,11,10,6,7). Added beacon sell/upgrade aura tests. Enemy hit-flash already existed (`aFlash` attribute in enemyMeshes), so no extra work needed there.
 
+- [r5] Verified all green on resume (tsc, lint, 95 tests, build, sim:balance 9/9). Audited perf: no per-frame allocations in `effectsRenderer`/`projectileRenderer`/`burnZoneFx`/`lightningPool` (all `new THREE.*` are constructor-time), sim hot paths use module-level pooled Sets. No code changes needed.
+
 ## Next (ideas for later rounds)
 - Frost Brittle damage numbers could be tinted (needs sessionBridge/UI, outside my area).
 - Beacon aura could preview coverage on attack-tower placement (needs overlay work in `overlayIndicators.ts`).
