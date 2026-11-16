@@ -11,10 +11,10 @@ interface WaveStatRow {
   waveNumber: number;
   startGold: number;
   livesStart: number;
-  livesLost: number;
-  leaksByType: Partial<Record<EnemyType, number>>;
   /** Furthest path progress (0..1) any ground enemy reached during the wave: a continuous "how close was it" signal. */
   peakGroundProgress: number;
+  livesLost: number;
+  leaksByType: Partial<Record<EnemyType, number>>;
 }
 
 export interface SimRunResult {
@@ -111,9 +111,9 @@ export function runLevelBalanceSim(
       waveNumber: ev.waveIndex + 1,
       startGold: world.gold,
       livesStart: world.lives,
+      peakGroundProgress: 0,
       livesLost: 0,
       leaksByType: {},
-      peakGroundProgress: 0,
     };
     waveRows.push(activeWaveRow);
   });
