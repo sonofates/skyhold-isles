@@ -17,7 +17,7 @@ export type GameScreen = 'menu' | 'levelSelect' | 'playing' | 'won' | 'lost';
 
 export type SpeedMultiplier = 1 | 2 | 3;
 
-export type QualityLevel = 'high' | 'low';
+export type QualityLevel = 'auto' | 'high' | 'low';
 
 export interface TowerMvpSummary {
   readonly name: string;

@@ -52,7 +52,7 @@ export function getDefaultSettings(): GameSettings {
     muted: false,
     cameraShake: true,
     damageNumbers: true,
-    quality: isTouchDevice() ? 'low' : 'high',
+    quality: 'auto',
   };
 }
 
@@ -67,7 +67,7 @@ export function createDefaultProgress(levelCount: number): ProgressData {
 }
 
 function parseQuality(val: unknown, fallback: QualityLevel): QualityLevel {
-  return val === 'high' || val === 'low' ? val : fallback;
+  return val === 'auto' || val === 'high' || val === 'low' ? val : fallback;
 }
 
 export function loadSettings(): GameSettings {
