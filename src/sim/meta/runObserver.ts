@@ -164,7 +164,9 @@ export function evaluateLiveChallengeState(
       progressLabel = failed
         ? `Dropped to ${telemetry.minCombatSpeed}x`
         : telemetry.minCombatSpeed === null
-          ? `Set ${cond.requiredSpeed}x before W1`
+          ? telemetry.currentSpeed >= cond.requiredSpeed
+            ? `${cond.requiredSpeed}x armed`
+            : `Set ${cond.requiredSpeed}x before W1`
           : `${cond.requiredSpeed}x locked`;
       break;
     case 'minEarlyWaves': {
@@ -519,6 +521,7 @@ export class RunObserver {
       endlessWavesCompleted: this.endlessWavesCompleted,
       endlessEntered: this.endlessEntered,
       maxWaveReached: this.maxWaveReached,
+      currentSpeed: this.currentSpeed,
       minCombatSpeed: this.minCombatSpeed,
       activeMutatorIds: [...this.modifiers.activeMutatorIds],
       eligibleForChallenges: this.eligibleForChallenges,

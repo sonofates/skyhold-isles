@@ -3,7 +3,7 @@ import { BALANCE } from '../../data/balance.ts';
 import { ACHIEVEMENTS, getChallengesForLevel } from '../../data/challenges.ts';
 import { LEVELS } from '../../data/levels/index.ts';
 import type { LevelDef } from '../../data/levels/types.ts';
-import { computeDailyStreaks, isValidDateString } from './daily.ts';
+import { computeDailyStreaks, generateDailyChallenge, isValidDateString } from './daily.ts';
 import { computeEndlessScore } from './mutators.ts';
 import type {
   AchievementDef,
@@ -14,8 +14,10 @@ import type {
   IslandMasteryStatus,
   LevelChallengeStatus,
   LifetimeStats,
+  MetaCareerRank,
   MetaCareerSummary,
   MetaSaveData,
+  RecommendedGoal,
   RunMetaOutcome,
   RunTelemetry,
 } from './types.ts';
@@ -70,9 +72,22 @@ export function createDefaultMetaSave(levelCount: number): MetaSaveData {
     },
     stats: createEmptyLifetimeStats(),
     bestEndlessScoresByLevelId: {},
+    bestLivesByLevelId: {},
+    fastestWinSecByLevelId: {},
     completedDailyDates: [],
     dailyBestScores: {},
   };
+}
+
+function sanitizePositiveFloatRecord(raw: unknown): Record<string, number> {
+  const out: Record<string, number> = {};
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return out;
+  for (const [key, val] of Object.entries(raw as Record<string, unknown>)) {
+    if (typeof val === 'number' && Number.isFinite(val) && val > 0) {
+      out[key] = +val.toFixed(1);
+    }
+  }
+  return out;
 }
 
 function asNonNegInt(value: unknown, fallback = 0): number {
@@ -247,9 +262,26 @@ export function migrateToMetaSave(
     }
 
     base.bestEndlessScoresByLevelId = sanitizeCountRecord(obj.bestEndlessScoresByLevelId);
+    const rawBestLives = sanitizeCountRecord(obj.bestLivesByLevelId);
+    for (const [lid, lives] of Object.entries(rawBestLives)) {
+      base.bestLivesByLevelId[lid] = Math.min(BALANCE.startingLives, lives);
+    }
+    base.fastestWinSecByLevelId = sanitizePositiveFloatRecord(obj.fastestWinSecByLevelId);
     base.dailyBestScores = sanitizeCountRecord(obj.dailyBestScores);
   } else {
     base.campaign = v1Campaign;
+  }
+
+  // Unlock the next island if a cleared final island predated newly added levels (e.g. Islands 10+)
+  let highestClearedIndex = -1;
+  for (let i = 0; i < base.campaign.bestStars.length; i++) {
+    if (base.campaign.bestStars[i] > 0) highestClearedIndex = i;
+  }
+  if (highestClearedIndex >= 0) {
+    base.campaign.unlockedLevelIndex = Math.max(
+      base.campaign.unlockedLevelIndex,
+      Math.min(Math.max(0, levelCount - 1), highestClearedIndex + 1),
+    );
   }
 
   for (const score of Object.values(base.bestEndlessScoresByLevelId)) {
@@ -332,7 +364,11 @@ export function applyTelemetryDeltaToStats(
     }
   }
 
-  if (current.endlessEntered && current.maxWaveReached > save.stats.bestEndlessWaveOverall) {
+  if (
+    current.endlessEntered &&
+    current.maxWaveReached > current.storyWaveCount &&
+    current.maxWaveReached > save.stats.bestEndlessWaveOverall
+  ) {
     save.stats.bestEndlessWaveOverall = current.maxWaveReached;
   }
 }
@@ -427,7 +463,12 @@ export function recordEndlessRunStats(
   telemetry: RunTelemetry,
   scoreMultiplier = 1,
 ): EndlessScoreBreakdown | null {
-  if (!telemetry.endlessEntered) return null;
+  if (
+    !telemetry.endlessEntered ||
+    (telemetry.maxWaveReached <= telemetry.storyWaveCount && telemetry.endlessWavesCompleted === 0)
+  ) {
+    return null;
+  }
   while (save.campaign.bestEndlessWaves.length <= level.index) {
     save.campaign.bestEndlessWaves.push(0);
   }
@@ -472,12 +513,20 @@ export function recordRunCompletion(
     levels?: readonly LevelDef[];
     dailyDate?: string | null;
     scoreMultiplier?: number;
+    previousBestEndlessWave?: number;
+    previousBestEndlessScore?: number;
   },
 ): RunMetaOutcome {
   const levels = params.levels ?? LEVELS;
   const { level, telemetry, won, stars, livesRemaining } = params;
   const isDaily = Boolean(params.dailyDate && isValidDateString(params.dailyDate));
   const newlyCompletedChallengeIds: string[] = [];
+  let isNewFastestWin = false;
+
+  const prevEndlessWave =
+    params.previousBestEndlessWave ?? (save.campaign.bestEndlessWaves[level.index] ?? 0);
+  const prevEndlessScore =
+    params.previousBestEndlessScore ?? (save.bestEndlessScoresByLevelId[level.id] ?? 0);
 
   if (won) {
     if (telemetry.eligibleForChallenges) {
@@ -495,6 +544,18 @@ export function recordRunCompletion(
             save.campaign.unlockedLevelIndex,
             level.index + 1,
           );
+        }
+
+        if (livesRemaining > (save.bestLivesByLevelId[level.id] ?? 0)) {
+          save.bestLivesByLevelId[level.id] = Math.min(BALANCE.startingLives, livesRemaining);
+        }
+        if (telemetry.simTimeSec > 0) {
+          const clearSec = Math.max(0.1, +telemetry.simTimeSec.toFixed(1));
+          const prevFastest = save.fastestWinSecByLevelId[level.id];
+          if (prevFastest === undefined || clearSec < prevFastest) {
+            save.fastestWinSecByLevelId[level.id] = clearSec;
+            isNewFastestWin = true;
+          }
         }
       }
 
@@ -530,8 +591,13 @@ export function recordRunCompletion(
     telemetry,
     params.scoreMultiplier ?? 1,
   );
+  const isNewBestEndlessWave =
+    endlessScore !== null && telemetry.maxWaveReached > prevEndlessWave;
+  const isNewBestEndlessScore =
+    endlessScore !== null && endlessScore.totalScore > prevEndlessScore;
 
   let dailyScore: number | null = null;
+  let isNewBestDailyScore = false;
   if (isDaily && won && params.dailyDate && telemetry.eligibleForChallenges) {
     const score =
       computeEndlessScore(
@@ -541,15 +607,16 @@ export function recordRunCompletion(
       ).totalScore +
       livesRemaining * 25;
     dailyScore = score;
+    const prevDailyBest = save.dailyBestScores[params.dailyDate] ?? 0;
+    if (score > prevDailyBest) {
+      isNewBestDailyScore = true;
+    }
     if (!save.completedDailyDates.includes(params.dailyDate)) {
       save.completedDailyDates.push(params.dailyDate);
       save.completedDailyDates.sort();
       save.stats.dailyChallengesCompleted++;
     }
-    save.dailyBestScores[params.dailyDate] = Math.max(
-      save.dailyBestScores[params.dailyDate] ?? 0,
-      score,
-    );
+    save.dailyBestScores[params.dailyDate] = Math.max(prevDailyBest, score);
   }
 
   const newlyUnlockedAchievementIds = recomputeAchievements(save, levels);
@@ -561,6 +628,10 @@ export function recordRunCompletion(
     newlyUnlockedAchievementIds,
     endlessScore,
     dailyScore,
+    isNewFastestWin,
+    isNewBestEndlessWave,
+    isNewBestEndlessScore,
+    isNewBestDailyScore,
   };
 }
 
@@ -639,7 +710,7 @@ export function getStats(save: MetaSaveData): LifetimeStats {
   };
 }
 
-/** Typed UI query: combined campaign stars, challenge stars, endless records, and mastery flag for one island. */
+/** Typed UI query: combined campaign stars, challenge stars, endless records, personal bests, and mastery flag for one island. */
 export function getIslandMasteryStatus(
   save: MetaSaveData,
   levelIndex: number,
@@ -650,6 +721,8 @@ export function getIslandMasteryStatus(
   const campaignStars = save.campaign.bestStars[levelIndex] ?? 0;
   const bestEndlessWave = save.campaign.bestEndlessWaves[levelIndex] ?? 0;
   const bestEndlessScore = save.bestEndlessScoresByLevelId[challengeStatus.levelId] ?? 0;
+  const bestLivesRemaining = save.bestLivesByLevelId[challengeStatus.levelId] ?? 0;
+  const fastestWinSec = save.fastestWinSecByLevelId[challengeStatus.levelId] ?? null;
   return {
     levelId: challengeStatus.levelId,
     levelIndex,
@@ -659,10 +732,156 @@ export function getIslandMasteryStatus(
     challengeTotal: challengeStatus.totalStars,
     bestEndlessWave,
     bestEndlessScore,
+    bestLivesRemaining,
+    fastestWinSec,
     mastered:
       campaignStars >= 3 &&
       challengeStatus.totalStars > 0 &&
       challengeStatus.earnedStars >= challengeStatus.totalStars,
+  };
+}
+
+const CAREER_RANK_TIERS: readonly { minPoints: number; title: string }[] = [
+  { minPoints: 0, title: 'Sky Recruit' },
+  { minPoints: 12, title: 'Cloud Warden' },
+  { minPoints: 30, title: 'Gale Tactician' },
+  { minPoints: 60, title: 'Bastion Commander' },
+  { minPoints: 95, title: 'Tempest Marshal' },
+  { minPoints: 130, title: 'Sovereign of the Skies' },
+];
+
+/** Computes the player's Archipelago Career Rank from campaign stars, challenge stars, achievements, and dailies. */
+export function getMetaCareerRank(
+  save: MetaSaveData,
+  levels: readonly LevelDef[] = LEVELS,
+): MetaCareerRank {
+  let campaignStars = 0;
+  for (let i = 0; i < levels.length; i++) {
+    campaignStars += save.campaign.bestStars[i] ?? 0;
+  }
+  const challengeStars = getAllChallengeProgress(save, levels).earnedStars;
+  let achievementsUnlocked = 0;
+  for (let i = 0; i < ACHIEVEMENTS.length; i++) {
+    if (save.unlockedAchievements[ACHIEVEMENTS[i].id]) achievementsUnlocked++;
+  }
+  const dailyBonus = Math.min(20, save.completedDailyDates.length * 2);
+  const points = campaignStars + challengeStars * 2 + achievementsUnlocked * 2 + dailyBonus;
+
+  let rankIndex = 0;
+  for (let i = 0; i < CAREER_RANK_TIERS.length; i++) {
+    if (points >= CAREER_RANK_TIERS[i].minPoints) {
+      rankIndex = i;
+    }
+  }
+  const currentTier = CAREER_RANK_TIERS[rankIndex];
+  const nextTier = rankIndex + 1 < CAREER_RANK_TIERS.length ? CAREER_RANK_TIERS[rankIndex + 1] : null;
+  const progressRatio = nextTier
+    ? Math.min(1, Math.max(0, (points - currentTier.minPoints) / (nextTier.minPoints - currentTier.minPoints)))
+    : 1;
+
+  return {
+    rankIndex,
+    title: currentTier.title,
+    points,
+    nextRankTitle: nextTier ? nextTier.title : null,
+    nextRankPoints: nextTier ? nextTier.minPoints : null,
+    progressRatio: +progressRatio.toFixed(3),
+  };
+}
+
+/** Suggests the next highest-value goal (Daily Watch, new island, challenge star, 3-star, achievement, or Endless). */
+export function getRecommendedNextGoal(
+  save: MetaSaveData,
+  todayDateStr: string,
+  levels: readonly LevelDef[] = LEVELS,
+): RecommendedGoal | null {
+  if (levels.length === 0) return null;
+
+  if (isValidDateString(todayDateStr) && !save.completedDailyDates.includes(todayDateStr)) {
+    const daily = generateDailyChallenge(todayDateStr, levels);
+    return {
+      kind: 'daily',
+      title: daily.title,
+      detail: `${daily.summary} (${daily.scoreMultiplier}x Score)`,
+      levelIndex: daily.levelIndex,
+      levelId: daily.levelId,
+      dailyDate: daily.date,
+    };
+  }
+
+  const maxUnlocked = Math.min(levels.length - 1, Math.max(0, save.campaign.unlockedLevelIndex));
+
+  for (let i = 0; i <= maxUnlocked; i++) {
+    if ((save.campaign.bestStars[i] ?? 0) === 0) {
+      const lvl = levels[i];
+      return {
+        kind: 'campaign',
+        title: `Secure ${lvl.name}`,
+        detail: `${lvl.difficulty} · Island ${i + 1}`,
+        levelIndex: i,
+        levelId: lvl.id,
+      };
+    }
+  }
+
+  for (let i = 0; i <= maxUnlocked; i++) {
+    const chStatus = getChallengeStatus(save, i, levels);
+    const missing = chStatus?.challenges.find((c) => !c.completed);
+    if (missing) {
+      return {
+        kind: 'challenge',
+        title: missing.def.title,
+        detail: `${levels[i].name}: ${missing.def.description}`,
+        levelIndex: i,
+        levelId: levels[i].id,
+        challengeId: missing.def.id,
+      };
+    }
+  }
+
+  for (let i = 0; i <= maxUnlocked; i++) {
+    if ((save.campaign.bestStars[i] ?? 0) < 3) {
+      const lvl = levels[i];
+      return {
+        kind: 'campaign',
+        title: `3-Star ${lvl.name}`,
+        detail: `Finish with ${BALANCE.starThresholds.threeStarsMinLives}+ lives to master this island.`,
+        levelIndex: i,
+        levelId: lvl.id,
+      };
+    }
+  }
+
+  const achs = getAchievements(save);
+  let closestAch = null as (typeof achs)[number] | null;
+  for (let i = 0; i < achs.length; i++) {
+    const a = achs[i];
+    if (!a.unlocked && a.progressRatio >= 0.4) {
+      if (!closestAch || a.progressRatio > closestAch.progressRatio) {
+        closestAch = a;
+      }
+    }
+  }
+  if (closestAch) {
+    return {
+      kind: 'achievement',
+      title: closestAch.def.name,
+      detail: `${closestAch.def.description} (${closestAch.current}/${closestAch.target})`,
+      achievementId: closestAch.def.id,
+    };
+  }
+
+  const focusLevel = levels[maxUnlocked];
+  const bestWave = Math.max(
+    focusLevel.waves.length,
+    save.campaign.bestEndlessWaves[maxUnlocked] ?? 0,
+  );
+  return {
+    kind: 'endless',
+    title: `Endless Watch · ${focusLevel.name}`,
+    detail: `Push beyond Wave ${bestWave} with Endless Mutators.`,
+    levelIndex: maxUnlocked,
+    levelId: focusLevel.id,
   };
 }
 
@@ -725,5 +944,6 @@ export function getMetaCareerSummary(
     winRatePct,
     favoriteTowerType: getTopKey(save.stats.towersBuiltByType) as TowerType | null,
     mostDefeatedEnemyType: getTopKey(save.stats.enemiesDefeatedByType) as EnemyType | null,
+    rank: getMetaCareerRank(save, levels),
   };
 }

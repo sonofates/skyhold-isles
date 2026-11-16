@@ -24,9 +24,12 @@ import type {
   LevelChallengeStatus,
   LifetimeStats,
   LiveChallengeStatus,
+  MetaCareerRank,
   MetaCareerSummary,
   ModifierBadgeInfo,
+  MutatorDef,
   MutatorPreset,
+  RecommendedGoal,
   RunMetaOutcome,
   RunModifiers,
 } from '../sim/meta/types.ts';
@@ -250,7 +253,7 @@ export class GameSession {
   private recordEndlessIfActive(): void {
     if (this.viewMode !== 'playing') return;
     const ws = this.simWorld.waveSystem;
-    if (!ws.isEndless) return;
+    if (!ws.isEndless || ws.currentWaveOneBased <= this.simWorld.level.waves.length) return;
     recordEndlessProgress(this.progress, this.currentLevelIndex, ws.currentWaveOneBased);
   }
 
@@ -539,12 +542,24 @@ export class GameSession {
     return this.meta.getIslandMasteryStatus(levelIndex);
   }
 
+  getMetaCareerRank(): MetaCareerRank {
+    return this.meta.getMetaCareerRank();
+  }
+
   getMetaCareerSummary(dateStr?: string): MetaCareerSummary {
     return this.meta.getMetaCareerSummary(dateStr);
   }
 
+  getRecommendedNextGoal(dateStr?: string): RecommendedGoal | null {
+    return this.meta.getRecommendedNextGoal(dateStr);
+  }
+
   getRecentDailyChallenges(days = 7, endDateStr?: string): readonly DailyChallengeSpec[] {
     return this.meta.getRecentDailyChallenges(days, endDateStr);
+  }
+
+  getEndlessMutators(): readonly MutatorDef[] {
+    return this.meta.getEndlessMutators();
   }
 
   getEndlessMutatorPresets(): readonly MutatorPreset[] {

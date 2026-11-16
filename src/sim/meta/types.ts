@@ -119,6 +119,7 @@ export interface RunTelemetry {
   readonly endlessWavesCompleted: number;
   readonly endlessEntered: boolean;
   readonly maxWaveReached: number;
+  readonly currentSpeed: SpeedMultiplier;
   readonly minCombatSpeed: SpeedMultiplier | null;
   readonly activeMutatorIds: readonly string[];
   readonly eligibleForChallenges: boolean;
@@ -194,7 +195,31 @@ export interface IslandMasteryStatus {
   readonly challengeTotal: number;
   readonly bestEndlessWave: number;
   readonly bestEndlessScore: number;
+  readonly bestLivesRemaining: number;
+  readonly fastestWinSec: number | null;
   readonly mastered: boolean;
+}
+
+export interface MetaCareerRank {
+  readonly rankIndex: number;
+  readonly title: string;
+  readonly points: number;
+  readonly nextRankTitle: string | null;
+  readonly nextRankPoints: number | null;
+  readonly progressRatio: number;
+}
+
+export type RecommendedGoalKind = 'daily' | 'campaign' | 'challenge' | 'achievement' | 'endless';
+
+export interface RecommendedGoal {
+  readonly kind: RecommendedGoalKind;
+  readonly title: string;
+  readonly detail: string;
+  readonly levelIndex?: number;
+  readonly levelId?: string;
+  readonly challengeId?: string;
+  readonly achievementId?: string;
+  readonly dailyDate?: string;
 }
 
 export interface MetaCareerSummary {
@@ -213,6 +238,7 @@ export interface MetaCareerSummary {
   readonly winRatePct: number;
   readonly favoriteTowerType: TowerType | null;
   readonly mostDefeatedEnemyType: EnemyType | null;
+  readonly rank: MetaCareerRank;
 }
 
 export interface EndlessMutatorRoll {
@@ -265,6 +291,10 @@ export interface RunMetaOutcome {
   readonly newlyUnlockedAchievementIds: readonly string[];
   readonly endlessScore: EndlessScoreBreakdown | null;
   readonly dailyScore: number | null;
+  readonly isNewFastestWin: boolean;
+  readonly isNewBestEndlessWave: boolean;
+  readonly isNewBestEndlessScore: boolean;
+  readonly isNewBestDailyScore: boolean;
 }
 
 /** Versioned persisted meta save format (v2), backward-compatible with v1 ProgressData. */
@@ -282,6 +312,8 @@ export interface MetaSaveData {
   };
   stats: LifetimeStats;
   bestEndlessScoresByLevelId: Record<string, number>;
+  bestLivesByLevelId: Record<string, number>;
+  fastestWinSecByLevelId: Record<string, number>;
   completedDailyDates: string[];
   dailyBestScores: Record<string, number>;
 }

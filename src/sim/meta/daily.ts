@@ -34,7 +34,12 @@ function formatTowerNames(types: readonly TowerType[]): string {
 function pickTowerRestriction(
   rng: SeededRng,
   alreadyForbidden: readonly TowerType[],
-  options?: { allowLimitedArsenal?: boolean; forceNone?: boolean; preserveAntiAir?: boolean },
+  options?: {
+    allowLimitedArsenal?: boolean;
+    forceNone?: boolean;
+    preserveAntiAir?: boolean;
+    requireArmorBreaker?: boolean;
+  },
 ): { restriction: DailyTowerRestriction; modifiers: RunModifiers } {
   const available = TOWER_TYPES.filter((t) => !alreadyForbidden.includes(t));
   const antiAirAvailable = available.filter((t) => TOWER_DEFS[t].hitsFlyers);
@@ -90,9 +95,18 @@ function pickTowerRestriction(
   }
 
   // Limited arsenal: pick 3 available towers including at least 1 primary anti-air DPS tower
+  // and (when armored/heroic waves demand it) at least 1 heavy anti-armor/splash tower.
   const targetSize = Math.min(3, available.length);
   const chosen: TowerType[] = [rng.pick(primaryAntiAirPool)];
-  const remaining = available.filter((t) => t !== chosen[0]);
+  if (options?.requireArmorBreaker && chosen.length < targetSize) {
+    const armorBreakers = available.filter(
+      (t) => !chosen.includes(t) && TOWER_DEFS[t].tiers[0].damage >= 35,
+    );
+    if (armorBreakers.length > 0) {
+      chosen.push(rng.pick(armorBreakers));
+    }
+  }
+  const remaining = available.filter((t) => !chosen.includes(t));
   while (chosen.length < targetSize && remaining.length > 0) {
     const idx = rng.int(0, remaining.length - 1);
     chosen.push(remaining[idx]);
@@ -160,9 +174,18 @@ export function generateDailyChallenge(
     rng,
     mutatorRoll.modifiers.forbiddenTowerTypes,
     {
-      allowLimitedArsenal: !isMaster && (!isHeroic || mutatorRoll.mutators.length < 2),
-      forceNone: isMaster && mutatorRoll.modifiers.forbiddenTowerTypes.length > 0,
-      preserveAntiAir: isMaster && mutatorRoll.modifiers.flyerCountMultiplier > 1,
+      allowLimitedArsenal:
+        !isMaster &&
+        (!isHeroic ||
+          (mutatorRoll.mutators.length < 2 && mutatorRoll.modifiers.goldRewardMultiplier >= 1)),
+      forceNone:
+        mutatorRoll.modifiers.forbiddenTowerTypes.length > 0 ||
+        (isHeroic && mutatorRoll.mutators.length >= 2 && mutatorRoll.modifiers.goldRewardMultiplier < 1),
+      preserveAntiAir: mutatorRoll.modifiers.flyerCountMultiplier > 1,
+      requireArmorBreaker:
+        isHeroic ||
+        mutatorRoll.modifiers.enemyArmorBonus > 0 ||
+        mutatorRoll.modifiers.enemyHpMultiplier > 1,
     },
   );
 

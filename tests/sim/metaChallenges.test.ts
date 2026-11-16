@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { EventBus } from '../../src/core/eventBus.ts';
-import type { SpeedMultiplier } from '../../src/core/types.ts';
+import type { SpeedMultiplier, TowerType } from '../../src/core/types.ts';
 import { BALANCE } from '../../src/data/balance.ts';
 import {
   CHALLENGES_BY_LEVEL_ID,
   getChallengeById,
   getChallengesForLevel,
 } from '../../src/data/challenges.ts';
-import { LEVELS, type LevelDef } from '../../src/data/levels/index.ts';
+import { LEVELS, type LevelDef, type ScriptedBuildAction } from '../../src/data/levels/index.ts';
 import { getTowerTierStats } from '../../src/data/towers.ts';
 import { MetaSession } from '../../src/platform/metaSession.ts';
 import {
@@ -540,5 +540,166 @@ describe('RunObserver challenge condition tracking', () => {
     const mCh = getChallengesForLevel(master11);
     expect(hCh[0].condition).toEqual({ kind: 'minLivesRemaining', minLives: 13 });
     expect(mCh[0].condition).toEqual({ kind: 'minLivesRemaining', minLives: 10 });
+  });
+
+  it('shows armed vs Set-before-W1 labels accurately on combatSpeedOnly live tracker', () => {
+    const level = LEVELS[0];
+    const events = new EventBus();
+    const world = new SimWorld(level, events);
+    const obs = new RunObserver(level, events);
+
+    const at1x = evaluateLiveLevelChallenges(level, obs.getTelemetry(), world.lives, 'ongoing', {});
+    expect(at1x.find((s) => s.def.id === 'sunlit-meadow:rush3x')?.progressLabel).toBe(
+      'Set 3x before W1',
+    );
+
+    obs.recordSpeed(3);
+    const armed = evaluateLiveLevelChallenges(level, obs.getTelemetry(), world.lives, 'ongoing', {});
+    expect(armed.find((s) => s.def.id === 'sunlit-meadow:rush3x')?.progressLabel).toBe('3x armed');
+
+    world.startNextWave();
+    const locked = evaluateLiveLevelChallenges(level, obs.getTelemetry(), world.lives, 'ongoing', {});
+    expect(locked.find((s) => s.def.id === 'sunlit-meadow:rush3x')?.progressLabel).toBe('3x locked');
+    obs.dispose();
+  });
+
+  it('confirms tight curated challenges across Islands 2-9 are winnable in SimWorld', () => {
+    const runScenario = (
+      levelIdx: number,
+      opts: {
+        ban?: TowerType;
+        sub?: TowerType;
+        maxTier?: 2 | 3;
+        maxGold?: number;
+        maxTowers?: number;
+      },
+    ): readonly string[] => {
+      const level = LEVELS[levelIdx];
+      const events = new EventBus();
+      const world = new SimWorld(level, events);
+      const obs = new RunObserver(level, events);
+      obs.recordSpeed(3);
+
+      const queue: ScriptedBuildAction[] = (level.scriptedBuildOrder ?? []).map((a) =>
+        a.action === 'build' && opts.ban && a.towerType === opts.ban
+          ? { ...a, towerType: opts.sub ?? 'archer' }
+          : a,
+      );
+      let builtCount = 0;
+      let spentGold = 0;
+      const tryStep = (): boolean => {
+        while (queue.length > 0) {
+          const a = queue[0];
+          if (a.action === 'build') {
+            if (opts.maxTowers !== undefined && builtCount >= opts.maxTowers) {
+              queue.shift();
+              continue;
+            }
+            const cost = getTowerTierStats(a.towerType!, 1).upgradeCost;
+            if (opts.maxGold !== undefined && spentGold + cost > opts.maxGold) {
+              queue.shift();
+              continue;
+            }
+            if (world.gold < cost) return false;
+            if (!world.placeTower(a.col, a.row, a.towerType!, a.targetingMode ?? 'first')) {
+              queue.shift();
+              continue;
+            }
+            builtCount++;
+            spentGold += cost;
+            queue.shift();
+            return true;
+          }
+          const tid = world.grid.getTowerIdAt(a.col, a.row);
+          const tw = tid === -1 ? null : world.getTowerById(tid);
+          if (!tw || tw.tier >= (opts.maxTier ?? 3)) {
+            queue.shift();
+            continue;
+          }
+          const cost = getTowerTierStats(tw.type, (tw.tier + 1) as 2 | 3).upgradeCost;
+          if (opts.maxGold !== undefined && spentGold + cost > opts.maxGold) {
+            queue.shift();
+            continue;
+          }
+          if (world.gold < cost) return false;
+          if (world.upgradeTower(tid)) {
+            spentGold += cost;
+            queue.shift();
+            return true;
+          }
+          queue.shift();
+        }
+        return false;
+      };
+
+      while (tryStep()) {
+        // pre-wave build
+      }
+      world.startNextWave();
+
+      let combatCd = 8.0;
+      let wasBetween = false;
+      for (let t = 0; t < 60 * 2200 && world.outcome === 'ongoing'; t++) {
+        const st = world.waveSystem.state;
+        if (st === 'betweenWaves') {
+          wasBetween = true;
+          while (tryStep()) {
+            // between-wave build
+          }
+        } else {
+          if (wasBetween) {
+            combatCd = 8.0;
+            wasBetween = false;
+          }
+          combatCd = Math.max(0, combatCd - BALANCE.fixedDt);
+          if (combatCd <= 0 && tryStep()) combatCd = 8.0;
+        }
+        if (
+          st !== 'preFirstWave' &&
+          world.abilitySystem.canCast('overcharge') &&
+          (world.towers.some((tw) => tw.stunTimer > 0) || world.enemyPool.getActiveCount() >= 10)
+        ) {
+          world.castOvercharge();
+        }
+        if (
+          st !== 'preFirstWave' &&
+          world.abilitySystem.canCast('meteor') &&
+          world.enemyPool.getActiveCount() > 0
+        ) {
+          let target = null;
+          for (let i = 0; i < world.enemyPool.getActiveCount(); i++) {
+            const e = world.enemyPool.items[world.enemyPool.getActiveIndex(i)];
+            if (!e.flying && (!target || e.dist > target.dist)) target = e;
+          }
+          if (target && (target.type === 'boss' || target.type === 'brute' || target.dist / target.totalDist > 0.5)) {
+            world.castMeteor(target.x, target.z);
+          }
+        }
+        obs.onTick(BALANCE.fixedDt, 3);
+        world.fixedTick(BALANCE.fixedDt);
+      }
+
+      expect(world.outcome).toBe('won');
+      expect(obs.verifyEconomyIntegrity(world.gold, world.lives)).toBe(true);
+      const ids = obs.evaluateCompletedChallenges(true, world.lives).map((c) => c.id);
+      obs.dispose();
+      return ids;
+    };
+
+    expect(runScenario(1, { maxTier: 2 })).toContain('twin-bridge-cay:max-t2');
+    expect(runScenario(2, { ban: 'mortar', sub: 'cannon' })).toEqual(
+      expect.arrayContaining(['highland-citadel:no-mortar', 'highland-citadel:no-sell', 'highland-citadel:sturdy']),
+    );
+    expect(runScenario(4, { ban: 'cannon', sub: 'mortar' })).toEqual(
+      expect.arrayContaining(['windmill-switchback:no-cannon', 'windmill-switchback:perfect', 'windmill-switchback:rush3x']),
+    );
+    expect(runScenario(5, { maxGold: 3100 })).toContain('crescent-lagoon:frugal');
+    expect(runScenario(6, { maxTowers: 15 })).toContain('skybridge-gauntlet:lean');
+    expect(runScenario(7, { maxGold: 5200 })).toEqual(
+      expect.arrayContaining(['sunken-bastion:frugal', 'sunken-bastion:rush3x']),
+    );
+    expect(runScenario(8, { ban: 'mortar', sub: 'cannon' })).toEqual(
+      expect.arrayContaining(['grand-skyhold:no-mortar', 'grand-skyhold:no-sell']),
+    );
   });
 });

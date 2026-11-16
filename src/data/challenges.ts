@@ -582,4 +582,16 @@ export const ENDLESS_MUTATOR_PRESETS: readonly MutatorPreset[] = [
     description: 'High-stakes triad: fast enemies, extra armor, and lean gold rewards.',
     mutatorIds: ['swift_march', 'iron_clad', 'gold_drought'],
   },
+  {
+    id: 'storm-front',
+    name: 'Storm Front',
+    description: 'Swifter raiders paired with doubled aerial squadrons.',
+    mutatorIds: ['swift_march', 'sky_swarm'],
+  },
+  {
+    id: 'ember-crucible',
+    name: 'Ember Crucible',
+    description: 'Reinforced, armored waves with Frost Spires banned.',
+    mutatorIds: ['titan_tide', 'iron_clad', 'no_frost'],
+  },
 ];

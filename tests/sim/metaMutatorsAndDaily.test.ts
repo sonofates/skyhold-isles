@@ -288,15 +288,39 @@ describe('Daily challenge pure date-seeded generator', () => {
     }
   });
 
-  it('always retains at least 1 primary anti-air DPS tower across 365 daily challenges and builds recent calendar history', () => {
+  it('always retains primary anti-air DPS, anti-armor coverage, and never stacks bans across 365 dailies', () => {
     const start = new Date('2026-01-01T00:00:00Z');
     for (let i = 0; i < 365; i++) {
       const ds = start.toISOString().slice(0, 10);
       const spec = generateDailyChallenge(ds, LEVELS);
+      const lvl = LEVELS[spec.levelIndex];
       const legalTowers = getAllowedTowerTypes(spec.modifiers);
       expect(
         legalTowers.some((t) => TOWER_DEFS[t].hitsFlyers && TOWER_DEFS[t].tiers[0].damage >= 15),
       ).toBe(true);
+
+      // Never stack multiple tower bans or mix ban_one + limited_arsenal
+      expect(spec.modifiers.forbiddenTowerTypes.length).toBeLessThanOrEqual(1);
+      if (spec.modifiers.allowedTowerTypes !== null) {
+        expect(spec.modifiers.forbiddenTowerTypes).toHaveLength(0);
+      }
+
+      // Never ban anti-air towers when Sky Swarm (2x flyers) is active
+      if (spec.modifiers.flyerCountMultiplier > 1) {
+        expect(spec.modifiers.forbiddenTowerTypes.some((t) => TOWER_DEFS[t].hitsFlyers)).toBe(false);
+      }
+
+      // Heroic dailies never combine gold_drought with limited_arsenal, and armored limited_arsenal retains splash/heavy damage
+      if (lvl.difficulty === 'Heroic' && spec.modifiers.goldRewardMultiplier < 1) {
+        expect(spec.towerRestriction.kind).not.toBe('limited_arsenal');
+      }
+      if (
+        spec.towerRestriction.kind === 'limited_arsenal' &&
+        (lvl.difficulty === 'Heroic' || spec.modifiers.enemyArmorBonus > 0)
+      ) {
+        expect(legalTowers.some((t) => TOWER_DEFS[t].tiers[0].damage >= 35)).toBe(true);
+      }
+
       start.setUTCDate(start.getUTCDate() + 1);
     }
 
@@ -316,6 +340,7 @@ describe('Daily challenge pure date-seeded generator', () => {
     expect(custom.mutators.map((m) => m.id)).toEqual(['gold_drought', 'swift_march']);
     expect(custom.scoreMultiplier).toBe(1.6);
 
+    expect(ENDLESS_MUTATOR_PRESETS.length).toBeGreaterThanOrEqual(6);
     for (const preset of ENDLESS_MUTATOR_PRESETS) {
       const roll = getMutatorPresetRoll(preset.id);
       expect(roll).not.toBeNull();

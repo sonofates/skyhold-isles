@@ -503,18 +503,105 @@ describe('MetaSession stats, achievements, challenges & daily persistence', () =
     expect(endlessOutcome.endlessScore).not.toBeNull();
     expect(endlessOutcome.endlessScore!.totalScore).toBeGreaterThan(0);
 
-    // Check Island Mastery & Career Summary APIs
+    // Check Island Mastery, Personal Bests, Rank & Career Summary APIs
     const mastery = meta.getIslandMasteryStatus(0)!;
     expect(mastery.campaignStars).toBe(3);
     expect(mastery.challengeStars).toBe(3);
     expect(mastery.mastered).toBe(true);
     expect(mastery.bestEndlessScore).toBeGreaterThan(0);
+    expect(mastery.bestLivesRemaining).toBe(20);
+    expect(mastery.fastestWinSec).toBeGreaterThan(0);
+
+    expect(storyOutcome.isNewFastestWin).toBe(true);
+    expect(endlessOutcome.isNewBestEndlessWave).toBe(true);
+    expect(endlessOutcome.isNewBestEndlessScore).toBe(true);
 
     const summary = meta.getMetaCareerSummary();
     expect(summary.islandsMastered).toBe(1);
     expect(summary.winRatePct).toBe(100);
     expect(summary.favoriteTowerType).toBe('archer');
     expect(summary.mostDefeatedEnemyType).toBe('grunt');
+    expect(summary.rank.points).toBeGreaterThan(0);
+    expect(meta.getEndlessMutators().length).toBeGreaterThanOrEqual(8);
+    meta.dispose();
+  });
+
+  it('guards premature endless quit, clears active daily on endRun, unlocks Island 10+ on migration, and recommends next goals', () => {
+    installMockLocalStorage();
+    const nineClearedSave = createDefaultMetaSave(9);
+    nineClearedSave.campaign.unlockedLevelIndex = 8;
+    nineClearedSave.campaign.bestStars = [3, 3, 3, 3, 3, 3, 3, 3, 2];
+    const expanded10 = migrateToMetaSave(nineClearedSave, null, 10, LEVELS);
+    expect(expanded10.campaign.unlockedLevelIndex).toBe(9);
+
+    const miniLevel: LevelDef = {
+      ...LEVELS[0],
+      waves: [
+        { clearBonus: 20, groups: [{ enemyType: 'grunt', count: 1, spawnInterval: 0.3, startDelay: 0 }] },
+      ],
+    };
+    const meta = new MetaSession({
+      levels: [miniLevel, ...LEVELS.slice(1)],
+      getTodayDate: () => '2026-11-17',
+    });
+
+    // Next goal starts by recommending today's Daily Watch
+    const g1 = meta.getRecommendedNextGoal()!;
+    expect(g1.kind).toBe('daily');
+    expect(g1.dailyDate).toBe('2026-11-17');
+
+    // Start a daily run, verify getActiveDailyChallenge() is set, then endRun() -> must clear!
+    const dailyEv = new EventBus();
+    const dailySpec = meta.getDailyChallenge('2026-11-17');
+    meta.startRun(LEVELS[dailySpec.levelIndex], dailyEv, {
+      modifiers: dailySpec.modifiers,
+      dailyDate: dailySpec.date,
+    });
+    expect(meta.getActiveDailyChallenge()?.date).toBe('2026-11-17');
+    meta.endRun();
+    expect(meta.getActiveDailyChallenge()).toBeNull();
+
+    // Story win on Island 9-length test or miniLevel followed by entering Endless and quitting BEFORE Endless wave starts
+    const bigStoryLevel: LevelDef = {
+      ...LEVELS[0],
+      id: 'big-story',
+      waves: new Array(16).fill(0).map(() => ({
+        clearBonus: 10,
+        groups: [{ enemyType: 'grunt' as const, count: 1, spawnInterval: 0.3, startDelay: 0 }],
+      })),
+    };
+    const evBig = new EventBus();
+    const wBig = new SimWorld(bigStoryLevel, evBig);
+    const bigMeta = new MetaSession({
+      levels: [bigStoryLevel],
+      onSave: () => {},
+      getTodayDate: () => '2026-11-17',
+    });
+    bigMeta.startRun(bigStoryLevel, evBig, { speed: 3 });
+    const archer = wBig.placeTower(4, 2, 'archer')!;
+    wBig.upgradeTower(archer.id);
+    wBig.startNextWave();
+    for (let i = 0; i < 60 * 600 && wBig.outcome === 'ongoing'; i++) {
+      if (wBig.waveSystem.state === 'betweenWaves') wBig.startNextWave();
+      bigMeta.onTick(BALANCE.fixedDt, 3);
+      wBig.fixedTick(BALANCE.fixedDt);
+    }
+    expect(wBig.outcome).toBe('won');
+    // Enter Endless and immediately quit without starting Wave 17
+    expect(wBig.enterEndlessMode()).toBe(true);
+    bigMeta.onEndlessEntered();
+    bigMeta.endRun();
+
+    expect(bigMeta.getStats().bestEndlessWaveOverall).toBe(0);
+    expect(bigMeta.getAchievements().find((a) => a.def.id === 'endless_survivor')?.unlocked).toBe(false);
+
+    // Goal progression after marking daily complete -> recommends clearing/mastering Island 1
+    const progSave = bigMeta.getSaveSnapshot();
+    progSave.completedDailyDates.push('2026-11-17');
+    const g2 = bigMeta.getRecommendedNextGoal('2026-11-17')!;
+    expect(['challenge', 'campaign', 'achievement', 'endless']).toContain(g2.kind);
+
+    bigMeta.dispose();
     meta.dispose();
   });
 });

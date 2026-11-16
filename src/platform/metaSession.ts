@@ -1,6 +1,6 @@
 import type { EventBus } from '../core/eventBus.ts';
 import type { ProgressData, SpeedMultiplier, TowerType } from '../core/types.ts';
-import { ENDLESS_MUTATOR_PRESETS } from '../data/challenges.ts';
+import { ENDLESS_MUTATORS, ENDLESS_MUTATOR_PRESETS } from '../data/challenges.ts';
 import { LEVELS } from '../data/levels/index.ts';
 import type { LevelDef } from '../data/levels/types.ts';
 import { TOWER_TYPES } from '../data/towers.ts';
@@ -11,7 +11,9 @@ import {
   getAllChallengeProgress,
   getChallengeStatus,
   getIslandMasteryStatus,
+  getMetaCareerRank,
   getMetaCareerSummary,
+  getRecommendedNextGoal,
   getStats,
   recomputeAchievements,
   recordEndlessRunStats,
@@ -38,10 +40,13 @@ import type {
   LevelChallengeStatus,
   LifetimeStats,
   LiveChallengeStatus,
+  MetaCareerRank,
   MetaCareerSummary,
   MetaSaveData,
   ModifierBadgeInfo,
+  MutatorDef,
   MutatorPreset,
+  RecommendedGoal,
   ResolvedRunModifiers,
   RunMetaOutcome,
   RunModifiers,
@@ -73,6 +78,8 @@ export class MetaSession {
   private activeDailyDate: string | null = null;
   private lastRunOutcome: RunMetaOutcome | null = null;
   private runUnlockedAchievementIds: string[] = [];
+  private runStartBestEndlessWave = 0;
+  private runStartBestEndlessScore = 0;
 
   constructor(options?: MetaSessionOptions) {
     this.levels = options?.levels ?? LEVELS;
@@ -110,6 +117,8 @@ export class MetaSession {
     this.activeDailyDate = options?.dailyDate ?? null;
     this.lastRunOutcome = null;
     this.runUnlockedAchievementIds = [];
+    this.runStartBestEndlessWave = this.save.campaign.bestEndlessWaves[level.index] ?? 0;
+    this.runStartBestEndlessScore = this.save.bestEndlessScoresByLevelId[level.id] ?? 0;
 
     this.unsubs.push(
       events.on('waveStarted', () => {
@@ -137,6 +146,8 @@ export class MetaSession {
           levels: this.levels,
           dailyDate: this.activeDailyDate,
           scoreMultiplier: observer.getModifiers().scoreMultiplier,
+          previousBestEndlessWave: this.runStartBestEndlessWave,
+          previousBestEndlessScore: this.runStartBestEndlessScore,
         });
         this.collectRunAchievements(outcome.newlyUnlockedAchievementIds);
         this.lastRunOutcome = {
@@ -158,6 +169,8 @@ export class MetaSession {
           levels: this.levels,
           dailyDate: this.activeDailyDate,
           scoreMultiplier: observer.getModifiers().scoreMultiplier,
+          previousBestEndlessWave: this.runStartBestEndlessWave,
+          previousBestEndlessScore: this.runStartBestEndlessScore,
         });
         this.collectRunAchievements(outcome.newlyUnlockedAchievementIds);
         this.lastRunOutcome = {
@@ -172,6 +185,9 @@ export class MetaSession {
 
   onEndlessEntered(modifiers?: RunModifiers | null): void {
     if (!this.observer) return;
+    this.runStartBestEndlessWave = this.save.campaign.bestEndlessWaves[this.observer.level.index] ?? 0;
+    this.runStartBestEndlessScore =
+      this.save.bestEndlessScoresByLevelId[this.observer.level.id] ?? 0;
     if (modifiers !== undefined) {
       this.observer.setModifiers(modifiers);
     }
@@ -231,7 +247,11 @@ export class MetaSession {
       this.observer = null;
     }
     this.committedTelemetry = null;
+    this.countedGamePlayed = false;
+    this.activeDailyDate = null;
     this.runUnlockedAchievementIds = [];
+    this.runStartBestEndlessWave = 0;
+    this.runStartBestEndlessScore = 0;
     for (let i = 0; i < this.unsubs.length; i++) {
       this.unsubs[i]();
     }
@@ -334,6 +354,10 @@ export class MetaSession {
     return selectEndlessMutators(resolvedSeed, count);
   }
 
+  getEndlessMutators(): readonly MutatorDef[] {
+    return ENDLESS_MUTATORS;
+  }
+
   getEndlessMutatorPresets(): readonly MutatorPreset[] {
     return ENDLESS_MUTATOR_PRESETS;
   }
@@ -350,8 +374,16 @@ export class MetaSession {
     return getIslandMasteryStatus(this.save, levelIndex, this.levels);
   }
 
+  getMetaCareerRank(): MetaCareerRank {
+    return getMetaCareerRank(this.save, this.levels);
+  }
+
   getMetaCareerSummary(dateStr?: string): MetaCareerSummary {
     return getMetaCareerSummary(this.save, dateStr ?? this.getTodayDateFn(), this.levels);
+  }
+
+  getRecommendedNextGoal(dateStr?: string): RecommendedGoal | null {
+    return getRecommendedNextGoal(this.save, dateStr ?? this.getTodayDateFn(), this.levels);
   }
 
   getRecentDailyChallenges(days = 7, endDateStr?: string): readonly DailyChallengeSpec[] {
