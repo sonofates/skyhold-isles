@@ -44,6 +44,7 @@ export class CameraController {
   private readonly groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
   private readonly ndcVec = new THREE.Vector2();
   private readonly hitPoint = new THREE.Vector3();
+  private readonly projectScratch = new THREE.Vector3();
 
   constructor(width: number, height: number) {
     this.viewportWidth = Math.max(1, width);
@@ -301,24 +302,33 @@ export class CameraController {
     this.updateCameraTransform();
   }
 
-  screenNdcToPlane(ndcX: number, ndcY: number, planeY: number): THREE.Vector3 | null {
+  /**
+   * Intersects the pointer ray with the horizontal plane `y = planeY`.
+   * Without `out` the result lives in a shared scratch vector that the next call overwrites —
+   * pass your own `out` when you need to keep more than one hit alive at the same time.
+   */
+  screenNdcToPlane(
+    ndcX: number,
+    ndcY: number,
+    planeY: number,
+    out: THREE.Vector3 = this.hitPoint,
+  ): THREE.Vector3 | null {
     this.ndcVec.set(ndcX, ndcY);
     this.raycaster.setFromCamera(this.ndcVec, this.camera);
     this.groundPlane.constant = -planeY;
-    const hit = this.raycaster.ray.intersectPlane(this.groundPlane, this.hitPoint);
-    return hit;
+    return this.raycaster.ray.intersectPlane(this.groundPlane, out);
   }
 
   worldToScreen(worldPos: THREE.Vector3, out: { x: number; y: number }): void {
-    const projected = this.hitPoint.copy(worldPos).project(this.camera);
+    const projected = this.projectScratch.copy(worldPos).project(this.camera);
     out.x = (projected.x * 0.5 + 0.5) * this.viewportWidth;
     out.y = (-projected.y * 0.5 + 0.5) * this.viewportHeight;
   }
 
   worldCoordsToScreen(x: number, y: number, z: number, out: { x: number; y: number }): void {
-    this.hitPoint.set(x, y, z).project(this.camera);
-    out.x = (this.hitPoint.x * 0.5 + 0.5) * this.viewportWidth;
-    out.y = (-this.hitPoint.y * 0.5 + 0.5) * this.viewportHeight;
+    const projected = this.projectScratch.set(x, y, z).project(this.camera);
+    out.x = (projected.x * 0.5 + 0.5) * this.viewportWidth;
+    out.y = (-projected.y * 0.5 + 0.5) * this.viewportHeight;
   }
 
   getRay(): THREE.Ray {

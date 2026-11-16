@@ -1,3 +1,4 @@
+import { Vector3 } from 'three';
 import type { SoundManager } from '../audio/soundManager.ts';
 import type { EventBus } from '../core/eventBus.ts';
 import type { AbilityId, EnemyType, GameSettings, ProgressData, TowerType } from '../core/types.ts';
@@ -202,6 +203,9 @@ export function stepPendingSpawns(
   }
 }
 
+const groundHitScratch = new Vector3();
+const flyerHitScratch = new Vector3();
+
 export function updateHoverFeedback(
   inPlay: boolean,
   pointerInside: boolean,
@@ -243,8 +247,9 @@ export function updateHoverFeedback(
     return;
   }
 
-  const groundHit = renderWorld.cameraController.screenNdcToPlane(ndcX, ndcY, 0);
-  const flyerHit = renderWorld.cameraController.screenNdcToPlane(ndcX, ndcY, BALANCE.flyerHeight);
+  const cam = renderWorld.cameraController;
+  const groundHit = cam.screenNdcToPlane(ndcX, ndcY, 0, groundHitScratch);
+  const flyerHit = cam.screenNdcToPlane(ndcX, ndcY, BALANCE.flyerHeight, flyerHitScratch);
   if (!groundHit || !flyerHit) {
     overlays.tooltip.hide();
     return;
