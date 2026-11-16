@@ -30,6 +30,8 @@ export interface GameEventMap {
     z: number;
     radius: number;
     isBossHit: boolean;
+    /** Ballista bolts that keep flying: unit direction (xz) and corridor length, for the pierce streak. */
+    pierce?: { dx: number; dz: number; length: number };
   };
   lightningChain: {
     points: readonly Vec3[];

@@ -174,6 +174,11 @@ export class TowerRenderer {
       } else {
         bucket.highlightArray[slot] = t.id === hoveredTowerId ? 1 : 0;
       }
+      if (t.popAnimTimer > 0 && !stunned) {
+        // Build / upgrade flash: bright at the start of the pop, fading as it settles.
+        const flash = (t.popAnimTimer / 0.32) * 0.95;
+        if (flash > bucket.highlightArray[slot]) bucket.highlightArray[slot] = flash;
+      }
 
       // Squash-and-stretch pop animation on build & upgrade
       let sxz = 1;

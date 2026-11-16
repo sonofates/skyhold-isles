@@ -226,6 +226,14 @@ export class SoundManager {
     }
   }
 
+  playIgnite(): void {
+    if (!this.canPlay('ignite', 150)) return;
+    this.jitter = 0.08;
+    this.noiseBurst(2400, 0.28, 0.1);
+    this.tone('sawtooth', 180, 90, 0.18, 0.06);
+    this.resetVoice();
+  }
+
   playBeaconPulse(): void {
     if (!this.canPlay('beacon_pulse', 700)) return;
     this.tone('sine', 880, 1175, 0.18, 0.05);
@@ -309,6 +317,7 @@ export class SoundManager {
       events.on('towerUpgraded', (e) => this.playTowerUpgrade(e.tier)),
       events.on('towerSold', () => this.playTowerSell()),
       events.on('beaconPulse', () => this.playBeaconPulse()),
+      events.on('groundZone', () => this.playIgnite()),
       events.on('towerFired', (e) => this.playFire(e.type, e.tier, e.special === true)),
       events.on('projectileImpact', (e) => this.playImpact(e.towerType)),
       events.on('enemyKilled', () => this.playGoldCoin()),

@@ -346,6 +346,14 @@ export class ProjectileSystem {
       }
     }
 
+    const pierceLen = p.pierceCount > 0 ? p.pierceLength : 0;
+    let pierce: { dx: number; dz: number; length: number } | undefined;
+    if (pierceLen > 0) {
+      const dx = p.endX - p.startX;
+      const dz = p.endZ - p.startZ;
+      const l = Math.hypot(dx, dz);
+      if (l > 0.0001) pierce = { dx: dx / l, dz: dz / l, length: pierceLen };
+    }
     this.events.emit('projectileImpact', {
       towerType: p.towerType as TowerType,
       x: p.endX,
@@ -353,6 +361,7 @@ export class ProjectileSystem {
       z: p.endZ,
       radius: p.splashRadius,
       isBossHit: hitBoss,
+      pierce,
     });
   }
 

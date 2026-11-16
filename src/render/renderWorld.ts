@@ -216,6 +216,16 @@ export class RenderWorld {
           fx.spawnFlash(e.x, e.y, e.z, PALETTE_HEX.cream, 1.7, 0.08);
           fx.spawnParticles(e.x, e.y, e.z, PALETTE_HEX.cream, this.fx(5), 2.4, 3.0);
           fx.spawnParticles(e.x, e.y, e.z, PALETTE_HEX.coral, this.fx(3), 1.8, 3.0);
+          if (e.pierce) {
+            // Streak of embers along the corridor the bolt keeps flying through
+            const steps = this.fx(6);
+            for (let k = 1; k <= steps; k++) {
+              const d = (k / steps) * e.pierce.length;
+              fx.spawnBurst(e.x + e.pierce.dx * d, e.y, e.z + e.pierce.dz * d, PALETTE_HEX.cream, 1, {
+                speed: 0.6, life: 0.28, scale: 0.55, gravity: 0.4, lift: 0.3,
+              });
+            }
+          }
         } else if (e.towerType === 'frost') {
           fx.spawnPulseRing(e.x, 0.06, e.z, e.radius, PALETTE_HEX.water);
           fx.spawnParticles(e.x, e.y, e.z, PALETTE_HEX.cream, this.fx(7), 2.2, 2.5);
