@@ -1,3 +1,4 @@
+/** Dev tool: prints each island's wave table (HP estimate, duration). Usage: npx tsx scripts/waveTable.ts [levelNumber] */
 import { LEVELS } from '../src/data/levels/index.ts';
 import { ENEMY_DEFS } from '../src/data/enemies.ts';
 

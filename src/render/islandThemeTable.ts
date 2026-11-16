@@ -211,10 +211,7 @@ const WINDMILL_SWITCHBACK = theme({
     { kind: 'windmill', col: 8, row: 4, yaw: 0, variant: 0 },
     { kind: 'windmill', col: 1, row: 4, yaw: Math.PI / 2, variant: 1, scale: 0.85 },
     { kind: 'hayBales', col: 8, row: 10, yaw: 0.3 },
-    { kind: 'hayBales', col: 12, row: 0, yaw: -0.4 },
-    { kind: 'hayBales', col: 1, row: 0, yaw: 0.8 },
     { kind: 'scarecrow', col: 13, row: 4, yaw: -0.5 },
-    { kind: 'scarecrow', col: 2, row: 10, yaw: 0.3 },
   ],
 });
 
