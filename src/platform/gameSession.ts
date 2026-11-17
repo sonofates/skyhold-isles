@@ -615,7 +615,9 @@ export class GameSession {
     this.events.on('waveStarted', (ev) => {
       if (!ev.endless) return;
       const mut = newEndlessMutatorAt(ev.waveIndex - level.waves.length, level.index);
-      if (mut) this.d.overlays.toast.show(`Mutator: ${mut.name} — ${mut.description}`, 4);
+      if (!mut) return;
+      this.d.overlays.toast.show(`Mutator: ${mut.name} — ${mut.description}`, 4);
+      this.soundManager.playBossPulse();
     });
     this.renderWorld.cameraController.setShowcaseMode(false);
     this.renderWorld.loadLevel(level, this.events, () => this.settings);

@@ -469,3 +469,53 @@
     animation: none;
   }
 }
+
+/* Screen entrance */
+.ws-screen:not(.hidden) .ws-card {
+  animation: wsScreenIn 0.24s cubic-bezier(0.2, 0.9, 0.3, 1) both;
+}
+
+.ws-body.ws-entering .ws-node {
+  animation: wsNodeIn 0.3s cubic-bezier(0.2, 0.9, 0.3, 1) both;
+}
+
+.ws-body.ws-entering .ws-branch-economy .ws-node {
+  animation-delay: 40ms;
+}
+
+.ws-body.ws-entering .ws-branch-defense .ws-node {
+  animation-delay: 90ms;
+}
+
+.ws-body.ws-entering .ws-branch-towers .ws-node {
+  animation-delay: 140ms;
+}
+
+@keyframes wsScreenIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes wsNodeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ws-screen:not(.hidden) .ws-card,
+  .ws-body.ws-entering .ws-node {
+    animation: none;
+  }
+}

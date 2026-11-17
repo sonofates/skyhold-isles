@@ -55,6 +55,7 @@ export class WorkshopOverlay {
   private progress: ProgressData | null = null;
   private refundArmedUntil = 0;
   private refundTimer = 0;
+  private enterTimer = 0;
   private lastBought: WorkshopUpgradeId | null = null;
 
   constructor(parent: HTMLElement, callbacks: WorkshopCallbacks) {
@@ -126,6 +127,10 @@ export class WorkshopOverlay {
     if (progress) this.progress = progress;
     this.render();
     this.bodyEl.scrollTop = 0;
+    // Staggered entrance only when the screen opens, not on every purchase re-render.
+    this.bodyEl.classList.add('ws-entering');
+    window.clearTimeout(this.enterTimer);
+    this.enterTimer = window.setTimeout(() => this.bodyEl.classList.remove('ws-entering'), 500);
   }
 
   private onRefundClick(): void {
@@ -264,6 +269,7 @@ export class WorkshopOverlay {
 
   dispose(): void {
     window.clearTimeout(this.refundTimer);
+    window.clearTimeout(this.enterTimer);
     this.rootEl.remove();
   }
 }
