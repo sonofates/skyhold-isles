@@ -3,6 +3,7 @@ import * as path from 'node:path';
 import { N8AOPostPass } from 'n8ao';
 import { EffectPass } from 'postprocessing';
 import * as THREE from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { describe, expect, it, vi } from 'vitest';
 import { KenneyAssetStore, yieldMainThread } from '../../src/render/kenneyAssets.ts';
 import {
@@ -24,6 +25,7 @@ import {
   installN8aoDirectOutputPass,
 } from '../../src/render/postProcessing.ts';
 import {
+  SceneManager,
   collectInstancedMaterialsNeedingColor,
   collectMissingInstancedShadowWarmTargets,
   compileWarmUpGroups,
@@ -2078,5 +2080,163 @@ describe('PerfGovernor', () => {
     towerMat.dispose();
     enemyMat.dispose();
     fxMat.dispose();
+  });
+
+  it('patches N8AO EffectCompositer for background depth early-out and removes duplicate getWorldPos across full/half transitions', () => {
+    vi.stubGlobal('Image', undefined);
+    const { renderer: mockRenderer } = createMockPostRenderer(800, 600);
+    const scene = new THREE.Scene();
+    const camera = new THREE.OrthographicCamera();
+
+    const pipeline = new PostProcessingPipeline(mockRenderer, scene, camera, 800, 600, {
+      n8ao: 'full',
+      outline: true,
+      bloom: true,
+      smaa: false,
+    });
+
+    type N8aoPipelineInternals = {
+      n8aoPass: {
+        effectCompositerQuad: { material: THREE.ShaderMaterial };
+      } | null;
+    };
+
+    const getCompositerFrag = (): string =>
+      (pipeline as unknown as N8aoPipelineInternals).n8aoPass!.effectCompositerQuad.material.fragmentShader;
+
+    try {
+      for (const mode of ['full', 'half', 'full'] as const) {
+        if (mode !== 'full' || pipeline.getActivePassSummary().includes('half')) {
+          pipeline.applyConfig({ n8ao: mode, outline: true, bloom: true, smaa: false });
+        }
+        const frag = getCompositerFrag();
+        expect(frag).toContain('if (isBackgroundDepth(depth) && renderMode == 0.0 && !transparencyAware)');
+        expect(frag).toContain('vec3 normal = computeNormal(worldPos, vUv);');
+        expect(frag).not.toContain('computeNormal(getWorldPos(depth, vUv), vUv)');
+      }
+    } finally {
+      pipeline.dispose();
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('yields mid-burst before launching further concurrent GLB parses once active parses cross the 10ms slice', async () => {
+    const crystalBuf = fs.readFileSync(
+      path.resolve(process.cwd(), 'public/models/kenney/detail-crystal.glb'),
+    );
+    const models = [
+      'tile-straight',
+      'tile-corner-round',
+      'tile-end-round',
+      'detail-crystal',
+    ] as const;
+
+    const events: string[] = [];
+    vi.stubGlobal('scheduler', {
+      yield: () => {
+        events.push('yield');
+        return new Promise<void>((resolve) => setTimeout(resolve, 0));
+      },
+    });
+    vi.stubGlobal(
+      'Image',
+      class FakeImage {
+        width = 64;
+        height = 64;
+        crossOrigin = '';
+        onload: (() => void) | null = null;
+        set src(_v: string) {
+          queueMicrotask(() => this.onload?.());
+        }
+      },
+    );
+    vi.stubGlobal('document', {
+      createElement: () => ({
+        width: 64,
+        height: 64,
+        getContext: () => ({
+          drawImage: () => {},
+          getImageData: () => ({ data: new Uint8ClampedArray(64 * 64 * 4) }),
+          putImageData: () => {},
+          fillRect: () => {},
+          fillStyle: '',
+        }),
+      }),
+    });
+    vi.stubGlobal('fetch', () =>
+      Promise.resolve({
+        ok: true,
+        status: 200,
+        arrayBuffer: () =>
+          Promise.resolve(
+            crystalBuf.buffer.slice(crystalBuf.byteOffset, crystalBuf.byteOffset + crystalBuf.byteLength),
+          ),
+      } as unknown as Response),
+    );
+
+    let fakeClockMs = 0;
+    const nowSpy = vi.spyOn(performance, 'now').mockImplementation(() => fakeClockMs);
+    const origParseAsync = GLTFLoader.prototype.parseAsync;
+    const parseSpy = vi
+      .spyOn(GLTFLoader.prototype, 'parseAsync')
+      .mockImplementation(function (this: GLTFLoader, data: ArrayBuffer | string, pathArg: string) {
+        events.push('parse');
+        fakeClockMs += 6;
+        return origParseAsync.call(this, data, pathArg);
+      });
+
+    try {
+      const store = await KenneyAssetStore.preload(undefined, models);
+      expect(events.filter((e) => e === 'parse')).toHaveLength(4);
+      expect(events.slice(0, 3)).toEqual(['parse', 'parse', 'yield']);
+      store.dispose();
+    } finally {
+      parseSpy.mockRestore();
+      nowSpy.mockRestore();
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('skips workMetrics and displayMetrics recording on boundary frames while keeping 0ms and positive samples', () => {
+    const displayMetrics = new RollingFrameMetrics(30);
+    const workMetrics = new RollingFrameMetrics(30);
+    const governor = new PerfGovernor(false, 'auto');
+    const stub = {
+      contextLost: false,
+      disposed: false,
+      displayMetrics,
+      workMetrics,
+      governor,
+      tierTransitions: 0,
+      resetDisplayMetrics: () => {
+        displayMetrics.reset();
+        workMetrics.reset();
+      },
+      applyPreset: vi.fn(),
+    };
+
+    SceneManager.prototype.recordFrame.call(stub as unknown as SceneManager, 0.25, 250, {
+      skipDisplayFrameSample: true,
+      throttled: true,
+      allowUpgrade: false,
+    });
+    expect(displayMetrics.getSnapshot().sampleCount).toBe(0);
+    expect(workMetrics.getSnapshot().sampleCount).toBe(0);
+
+    SceneManager.prototype.recordFrame.call(stub as unknown as SceneManager, 0.016, 0);
+    expect(displayMetrics.getSnapshot().sampleCount).toBe(1);
+    expect(workMetrics.getSnapshot().sampleCount).toBe(1);
+    expect(workMetrics.getSnapshot().maxMs).toBe(0);
+
+    SceneManager.prototype.recordFrame.call(stub as unknown as SceneManager, 0.016, 4.5);
+    expect(workMetrics.getSnapshot().sampleCount).toBe(2);
+    expect(workMetrics.getSnapshot().maxMs).toBe(4.5);
+
+    SceneManager.prototype.recordFrame.call(stub as unknown as SceneManager, 0.5, 480, {
+      skipDisplayFrameSample: true,
+    });
+    expect(displayMetrics.getSnapshot().sampleCount).toBe(2);
+    expect(workMetrics.getSnapshot().sampleCount).toBe(2);
+    expect(workMetrics.getSnapshot().maxMs).toBe(4.5);
   });
 });

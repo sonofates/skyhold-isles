@@ -350,6 +350,43 @@ function disposeN8aoPass(pass: N8AOPostPass): void {
   pass.dispose();
 }
 
+function optimizeN8aoCompositerShader(pass: N8AOPostPass): void {
+  const internal = pass as unknown as N8aoInternalResources;
+  const mat = internal.effectCompositerQuad?.material as THREE.ShaderMaterial | null | undefined;
+  if (!mat || typeof mat.fragmentShader !== 'string') return;
+
+  let frag = mat.fragmentShader;
+  let changed = false;
+
+  const depthLine = 'float depth = texture2D(sceneDepth, vUv).x;';
+  if (!frag.includes('if (isBackgroundDepth(depth) && renderMode == 0.0 && !transparencyAware)') && frag.includes(depthLine)) {
+    frag = frag.replace(
+      depthLine,
+      `${depthLine}
+        if (isBackgroundDepth(depth) && renderMode == 0.0 && !transparencyAware) {
+            gl_FragColor = sceneTexel;
+            #include <dithering_fragment>
+            if (gammaCorrection) {
+                gl_FragColor = sRGBTransferOETF(gl_FragColor);
+            }
+            return;
+        }`,
+    );
+    changed = true;
+  }
+
+  const dupNormalCall = 'vec3 normal = computeNormal(getWorldPos(depth, vUv), vUv);';
+  if (frag.includes(dupNormalCall)) {
+    frag = frag.replace(dupNormalCall, 'vec3 normal = computeNormal(worldPos, vUv);');
+    changed = true;
+  }
+
+  if (changed) {
+    mat.fragmentShader = frag;
+    mat.needsUpdate = true;
+  }
+}
+
 function createN8aoPass(
   scene: THREE.Scene,
   camera: THREE.Camera,
@@ -370,6 +407,7 @@ function createN8aoPass(
   // never re-invokes configureEffectCompositer with ortho=true.
   if (!pass.configuration.halfRes && (camera as THREE.OrthographicCamera).isOrthographicCamera) {
     internal.configureEffectCompositer?.(internal.configuration?.depthBufferType ?? 1, true);
+    optimizeN8aoCompositerShader(pass);
   }
   pass.configuration.aoRadius = 1.25;
   pass.configuration.distanceFalloff = 0.9;
@@ -431,6 +469,7 @@ function configureN8aoPass(
   const settings = getN8aoQualitySettings(mode, allowHalfRes);
   pass.setQualityMode(settings.qualityMode);
   pass.configuration.halfRes = settings.halfRes;
+  optimizeN8aoCompositerShader(pass);
 }
 
 export interface PostProcessingPipelineOptions {

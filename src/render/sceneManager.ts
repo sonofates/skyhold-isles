@@ -797,7 +797,7 @@ export class SceneManager {
     ) {
       this.displayMetrics.record(frameMs);
     }
-    if (workMs >= 0 && Number.isFinite(workMs)) {
+    if (!options?.skipDisplayFrameSample && workMs >= 0 && Number.isFinite(workMs)) {
       this.workMetrics.record(workMs, true);
     }
 

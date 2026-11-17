@@ -196,9 +196,20 @@ export class KenneyAssetStore {
     let cursor = 0;
     let syncCpuMs = 0;
     let accountedUntilMs = 0;
+    let activeParses = 0;
     let pendingYield: Promise<void> | null = null;
     let aborted = false;
     const abortController = typeof AbortController === 'function' ? new AbortController() : null;
+
+    const scheduleFrameYield = (): Promise<void> => {
+      if (!pendingYield) {
+        pendingYield = yieldMainThread().then(() => {
+          syncCpuMs = 0;
+          pendingYield = null;
+        });
+      }
+      return pendingYield;
+    };
 
     const worker = async (): Promise<void> => {
       while (!aborted && cursor < models.length) {
@@ -206,7 +217,7 @@ export class KenneyAssetStore {
         const name = models[idx];
         const url = `${base}${name}.glb`;
         let gltf: GLTF;
-        let cpuStartMs: number;
+        let cpuStartMs = 0;
         if (typeof fetch === 'function') {
           const res = abortController
             ? await fetch(url, { signal: abortController.signal })
@@ -221,8 +232,29 @@ export class KenneyAssetStore {
             await pendingYield;
             if (aborted) return;
           }
-          cpuStartMs = typeof performance !== 'undefined' ? performance.now() : 0;
-          gltf = await loader.parseAsync(buf, base);
+          if (typeof performance !== 'undefined') {
+            cpuStartMs = performance.now();
+            // Account synchronous GLTFLoader.parseAsync work already performed by concurrent
+            // workers in this microtask burst so 10 cached GLBs never pile onto one frame.
+            if (activeParses > 0 && cpuStartMs > accountedUntilMs) {
+              syncCpuMs += cpuStartMs - accountedUntilMs;
+              accountedUntilMs = cpuStartMs;
+              if (syncCpuMs >= 10) {
+                await scheduleFrameYield();
+                if (aborted) return;
+                cpuStartMs = performance.now();
+                accountedUntilMs = Math.max(accountedUntilMs, cpuStartMs);
+              }
+            } else if (cpuStartMs > accountedUntilMs) {
+              accountedUntilMs = cpuStartMs;
+            }
+          }
+          activeParses++;
+          try {
+            gltf = await loader.parseAsync(buf, base);
+          } finally {
+            activeParses--;
+          }
         } else {
           gltf = await loader.loadAsync(url);
           cpuStartMs = typeof performance !== 'undefined' ? performance.now() : 0;
@@ -277,13 +309,7 @@ export class KenneyAssetStore {
             accountedUntilMs = cpuEndMs;
           }
           if (syncCpuMs >= 10) {
-            if (!pendingYield) {
-              pendingYield = yieldMainThread().then(() => {
-                syncCpuMs = 0;
-                pendingYield = null;
-              });
-            }
-            await pendingYield;
+            await scheduleFrameYield();
           }
         }
       }

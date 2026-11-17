@@ -109,10 +109,17 @@ Branch: `hermes/skyhold-agy-perf` (base: `main`)
   - **ENEMIES (`src/render/enemyMeshes.ts`)**: `EnemyRenderer` constructor takes `~74.7 ms` synchronously during boot (`ExtrudeGeometry` bevel triangulation + `setColorAt` across 7 `InstancedMesh` layers); pre-merging/simplifying or reducing `curveSegments`/bevels would cut mobile startup `sceneSetupMs` significantly.
   - **MOBILE / RENDER (`src/render/renderWorld.ts`, `src/render/cameraController.ts`, `src/render/overlayIndicators.ts`)**: Projectile trail particles in `render()` (`Math.random() > trailChance`) could skip/halve emission on Tier `<= 1` (or when `sceneManager.getPerfSnapshot().activeTier <= 1`), `getRenderMetrics()` runs `scene.traverseVisible` which could cache shadow-caster counts per level load instead of walking the scene graph on every `?debug` telemetry poll, `CameraController.bumpViewVersionIfMoved` uses exact `pos.equals(lastViewPos)` so exponential pan lerp keeps waking paused frames for ~3s after visible motion settles (a small epsilon check like `distanceToSquared > 1e-8` avoids trailing 60Hz wake), and `OverlayIndicators` `ghostBaseMesh`/`ghostTurretMesh` start with an empty attribute-less `BufferGeometry` (`compile(scene)` compiles an unused no-attribute variant of `ghostValidMaterial` before `warmUp` compiles the `HAS_NORMAL` variant).
 
+### Turn 28
+- **`src/render/kenneyAssets.ts` (`KenneyAssetStore.preload`)**: Added `activeParses > 0` pre-parse accounting so a burst of concurrent `fetch` responses does not run synchronous `GLTFLoader.parseAsync` back-to-back past the 10ms frame slice before yielding via `scheduleFrameYield()`. Node 40-GLB benchmark dropped max single burst slice from `24.65ms` down to `14.29ms` cold JIT (`52.9ms` total, 3 yields) and `10.57–11.39ms` on warm runs 2–4 (`14.08–19.65ms` total, 1 yield; run 1 `16.44ms`).
+- **`src/render/postProcessing.ts` (`optimizeN8aoCompositerShader`)**: Patched `N8AOPostPass.effectCompositerQuad` during `createN8aoPass` and `configureN8aoPass` (preserving across `full`/`half` switches) to early-return sky/background depth pixels (`isBackgroundDepth(depth) && renderMode == 0.0 && !transparencyAware`) without `pow`/fog `getWorldPos`/`aoApplied` work, and removed the duplicate `getWorldPos(depth, vUv)` inside `#ifdef HALFRES` (`computeNormal(worldPos, vUv)`).
+- **`src/render/sceneManager.ts` (`SceneManager.recordFrame`)**: Guarded `workMetrics.record(workMs, true)` with `!options?.skipDisplayFrameSample` so boundary/level-load/visibility/sleep catch-up frames cannot pollute `workAvgMs`, `workP95Ms`, or `workMaxMs`.
+- **`tests/render/perfGovernor.test.ts`**: Added 3 unit tests covering N8AO compositer patching across `full`/`half` transitions, mid-burst GLB parse yielding, and `recordFrame` `workMetrics` boundary filtering (`47` tests in `perfGovernor.test.ts`).
+- **Node measurement suggestion for TOWERS (not edited by PERF)**: First-time geometry generation across all 15 tower variants (`TowerGeometryCache.get`) measured `54.82ms` total in Node, with `frost_2` taking `15.55ms` alone; slicing or simplifying `frost_2` geometry merges would prevent first-preview/first-build hitches.
+
 ## Verification
 All checks passed after the final edit:
 - `npx tsc --noEmit`
 - `npm run lint`
-- `npm test` (11 test files, 114 tests)
+- `npm test` (11 test files, 117 tests)
 - `npm run build`
 - `npm run sim:balance` (9 levels, Greedy & Weak targets passed)
