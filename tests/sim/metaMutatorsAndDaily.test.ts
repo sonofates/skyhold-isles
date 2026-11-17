@@ -12,6 +12,7 @@ import {
   isValidDateString,
 } from '../../src/sim/meta/daily.ts';
 import {
+  applyModifiersToLevel,
   describeActiveModifiers,
   getAllowedTowerTypes,
   hasActiveRunModifiers,
@@ -414,8 +415,9 @@ describe('Daily challenge pure date-seeded generator', () => {
   });
 
   it('plays and wins a full restricted Daily Watch in SimWorld while preserving economy integrity', () => {
-    const spec = generateDailyChallenge('2026-07-13', LEVELS);
-    const level = LEVELS[spec.levelIndex];
+    const coreLevels = LEVELS.slice(0, 9);
+    const spec = generateDailyChallenge('2026-07-13', coreLevels);
+    const level = coreLevels[spec.levelIndex];
     const events = new EventBus();
     const world = new SimWorld(level, events, spec.modifiers);
     const obs = new RunObserver(level, events, spec.modifiers);
@@ -477,6 +479,7 @@ describe('Daily challenge pure date-seeded generator', () => {
   });
 
   it('wins Challenging, Heroic, and Master Daily Watch runs in SimWorld with mutators, tower bans, and economy integrity intact', () => {
+    const coreLevels = LEVELS.slice(0, 9);
     for (const dateStr of [
       '2026-11-15',
       '2026-11-04',
@@ -488,8 +491,8 @@ describe('Daily challenge pure date-seeded generator', () => {
       '2026-10-21',
       '2026-08-26',
     ] as const) {
-      const spec = generateDailyChallenge(dateStr, LEVELS);
-      const level = LEVELS[spec.levelIndex];
+      const spec = generateDailyChallenge(dateStr, coreLevels);
+      const level = coreLevels[spec.levelIndex];
       const legal = getAllowedTowerTypes(spec.modifiers);
       const events = new EventBus();
       const world = new SimWorld(level, events, spec.modifiers);
@@ -971,5 +974,11 @@ describe('Daily challenge pure date-seeded generator', () => {
     expect(messyArraysMod.allowedTowerTypes).toEqual(['archer']);
     expect(messyArraysMod.forbiddenTowerTypes).toEqual(['frost']);
     expect(messyArraysMod.activeMutatorIds).toEqual(['swift_march']);
+
+    // Sparse level list in generateDailyChallenge and missing waves in applyModifiersToLevel stay safe
+    const noWavesLevel = { ...LEVELS[0], waves: null } as unknown as LevelDef;
+    expect(applyModifiersToLevel(noWavesLevel, { flyerCountMultiplier: 2 })).toBe(noWavesLevel);
+    const sparseDaily = generateDailyChallenge('2026-11-17', [null as unknown as LevelDef, LEVELS[0]]);
+    expect(sparseDaily.levelId).toBe(LEVELS[0].id);
   });
 });

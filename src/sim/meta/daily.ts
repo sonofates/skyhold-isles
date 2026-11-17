@@ -85,23 +85,26 @@ function pickTowerRestriction(
   const allowLimited = options?.allowLimitedArsenal ?? true;
   if (!allowLimited || roll < 0.65 || available.length <= 3) {
     const bannable = available.filter((t) => {
-      if (options?.preserveAntiAir && TOWER_DEFS[t].hitsFlyers) return false;
+      const def = TOWER_DEFS[t];
+      const t1Damage = def?.tiers?.[0]?.damage ?? 0;
+      const hitsFlyers = def?.hitsFlyers === true;
+      if (options?.preserveAntiAir && hitsFlyers) return false;
       if (primaryAntiAirPool.includes(t) && primaryAntiAirPool.length <= 1) return false;
       if (
         options?.requireArmorBreaker &&
-        TOWER_DEFS[t].tiers[0].damage >= 35 &&
+        t1Damage >= 35 &&
         armorBreakersAvailable.length <= 1
       ) {
         return false;
       }
-      return !TOWER_DEFS[t].hitsFlyers || antiAirAvailable.length > 1;
+      return !hitsFlyers || antiAirAvailable.length > 1;
     });
     if (bannable.length > 0) {
       const banned = rng.pick(bannable);
       return {
         restriction: {
           kind: 'ban_one',
-          label: `No ${TOWER_DEFS[banned].name}`,
+          label: `No ${TOWER_DEFS[banned]?.name ?? banned}`,
           allowedTowerTypes: null,
           forbiddenTowerTypes: [banned],
         },
@@ -128,10 +131,10 @@ function pickTowerRestriction(
   if (
     options?.requireArmorBreaker &&
     chosen.length < targetSize &&
-    !chosen.some((t) => TOWER_DEFS[t].tiers[0].damage >= 35)
+    !chosen.some((t) => (TOWER_DEFS[t]?.tiers?.[0]?.damage ?? 0) >= 35)
   ) {
     const armorBreakers = available.filter(
-      (t) => !chosen.includes(t) && TOWER_DEFS[t].tiers[0].damage >= 35,
+      (t) => !chosen.includes(t) && (TOWER_DEFS[t]?.tiers?.[0]?.damage ?? 0) >= 35,
     );
     if (armorBreakers.length > 0) {
       chosen.push(rng.pick(armorBreakers));
@@ -140,9 +143,11 @@ function pickTowerRestriction(
   if (
     options?.preserveAntiAir &&
     chosen.length < targetSize &&
-    chosen.filter((t) => TOWER_DEFS[t].hitsFlyers).length < 2
+    chosen.filter((t) => TOWER_DEFS[t]?.hitsFlyers === true).length < 2
   ) {
-    const extraAntiAir = available.filter((t) => !chosen.includes(t) && TOWER_DEFS[t].hitsFlyers);
+    const extraAntiAir = available.filter(
+      (t) => !chosen.includes(t) && TOWER_DEFS[t]?.hitsFlyers === true,
+    );
     if (extraAntiAir.length > 0) {
       chosen.push(rng.pick(extraAntiAir));
     }
@@ -194,7 +199,15 @@ export function generateDailyChallenge(
   const rng = new SeededRng(seed);
 
   const levelIndex = rng.int(0, safeLevels.length - 1);
-  const level = safeLevels[levelIndex];
+  const rawLevel = safeLevels[levelIndex];
+  const level =
+    rawLevel && typeof rawLevel.id === 'string'
+      ? rawLevel
+      : safeLevels.find((l): l is LevelDef => Boolean(l) && typeof l.id === 'string');
+  if (!level) {
+    throw new Error('Cannot generate daily challenge without any valid level definitions.');
+  }
+  const resolvedLevelIndex = safeLevels.indexOf(level);
   const isMaster = level.difficulty === 'Master';
   const isHeroic = level.difficulty === 'Heroic';
   const isChallenging = level.difficulty === 'Challenging';
@@ -307,7 +320,7 @@ export function generateDailyChallenge(
   return {
     date: normalizedDate,
     seed,
-    levelIndex,
+    levelIndex: resolvedLevelIndex,
     levelId: level.id,
     levelName: level.name,
     mutators: mutatorRoll.mutators,

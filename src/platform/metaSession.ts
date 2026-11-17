@@ -13,6 +13,7 @@ import {
 import {
   applyTelemetryDeltaToStats,
   createEmptyLifetimeStats,
+  ensureWritableSaveContainers,
   exportMetaSaveJson,
   getAchievementById,
   getAchievements,
@@ -119,10 +120,16 @@ export class MetaSession {
   private getEconomyStateFn: (() => { gold: number; lives: number }) | null = null;
 
   constructor(options?: MetaSessionOptions) {
-    this.levels = options?.levels ?? LEVELS;
+    this.levels = Array.isArray(options?.levels) ? options.levels : LEVELS;
     this.persistFn = options?.onSave ?? saveMetaSave;
     this.getTodayDateFn = options?.getTodayDate ?? getTodayUtcDateString;
-    this.save = options?.saveData ?? loadMetaSave(this.levels.length, this.levels);
+    const rawSave = options?.saveData;
+    const hasPlainSave =
+      Boolean(rawSave) && typeof rawSave === 'object' && !Array.isArray(rawSave);
+    this.save = hasPlainSave
+      ? (rawSave as MetaSaveData)
+      : loadMetaSave(this.levels.length, this.levels);
+    ensureWritableSaveContainers(this.save, this.levels.length);
   }
 
   getCampaignProgress(): ProgressData {

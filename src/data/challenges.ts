@@ -230,6 +230,9 @@ function hashLevelId(id: string): number {
  * and deterministically generates 3 level-id-keyed challenges for any new islands added later.
  */
 export function getChallengesForLevel(level: LevelDef): readonly ChallengeDef[] {
+  if (!level || typeof level.id !== 'string') {
+    return [];
+  }
   if (Object.hasOwn(CHALLENGES_BY_LEVEL_ID, level.id)) {
     return CHALLENGES_BY_LEVEL_ID[level.id];
   }

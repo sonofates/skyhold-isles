@@ -425,7 +425,7 @@ function isPlainRecord(value: unknown): value is Record<string, unknown> {
 }
 
 /** Ensures nested objects/arrays exist before mutating a potentially partial save object. */
-function ensureWritableSaveContainers(save: MetaSaveData, minLevelCount = 1): void {
+export function ensureWritableSaveContainers(save: MetaSaveData, minLevelCount = 1): void {
   const safeLen = normalizeLevelCount(minLevelCount);
   if (!isPlainRecord(save.campaign)) {
     save.campaign = {
@@ -717,6 +717,7 @@ export function getAchievementById(achievementId: string): AchievementDef | null
 
 /** Resolves an array of achievement IDs into their definitions in order. */
 export function resolveAchievementDefs(ids: readonly string[]): readonly AchievementDef[] {
+  if (!Array.isArray(ids)) return [];
   const out: AchievementDef[] = [];
   for (let i = 0; i < ids.length; i++) {
     const def = ACHIEVEMENT_BY_ID.get(ids[i]);
@@ -897,6 +898,11 @@ export function recordRunCompletion(
         asNonNegInt(save.stats.dailyChallengesCompleted) + 1,
         completedDateSet.size,
       );
+    } else {
+      save.stats.dailyChallengesCompleted = Math.max(
+        asNonNegInt(save.stats.dailyChallengesCompleted),
+        completedDateSet.size,
+      );
     }
     save.dailyBestScores[normalizedDailyDate] = Math.max(prevDailyBest, score);
   }
@@ -937,7 +943,7 @@ export function getChallengeStatus(
 ): LevelChallengeStatus | null {
   if (!Array.isArray(levels) || !Number.isInteger(levelIndex)) return null;
   const level = levels[levelIndex];
-  if (!level) return null;
+  if (!level || typeof level.id !== 'string') return null;
   const defs = getChallengesForLevel(level);
   const completedMap = getPlainRecord(save?.completedChallenges);
   const challenges: ChallengeItemStatus[] = [];
@@ -1092,6 +1098,9 @@ export function getAllIslandMasteryStatuses(
 ): AllIslandMastery {
   const islands: IslandMasteryStatus[] = [];
   let masteredCount = 0;
+  if (!Array.isArray(levels)) {
+    return { masteredCount, totalIslands: 0, islands };
+  }
   for (let i = 0; i < levels.length; i++) {
     const status = getIslandMasteryStatus(save, i, levels);
     if (status) {
@@ -1297,8 +1306,10 @@ export function getRecommendedNextGoal(
   }
 
   const focusLevel = levels[maxUnlocked];
+  if (!focusLevel || typeof focusLevel.id !== 'string') return null;
+  const waveLen = Array.isArray(focusLevel.waves) ? focusLevel.waves.length : 0;
   const bestWave = Math.max(
-    focusLevel.waves.length,
+    waveLen,
     asNonNegInt(bestEndlessArr[maxUnlocked]),
   );
   return {
@@ -1424,10 +1435,10 @@ export function getTowerMasteryStats(save: MetaSaveData): readonly TowerMasteryS
       : 1;
     return {
       type,
-      name: def.name,
-      shortDesc: def.shortDesc,
-      hitsFlyers: def.hitsFlyers,
-      buildCost: def.tiers[0]?.upgradeCost ?? 0,
+      name: def?.name ?? type,
+      shortDesc: def?.shortDesc ?? '',
+      hitsFlyers: def?.hitsFlyers === true,
+      buildCost: def?.tiers?.[0]?.upgradeCost ?? 0,
       builtCount,
       sharePct: totalBuilt > 0 ? Math.round((builtCount / totalBuilt) * 100) : 0,
       rank: current.rank,
@@ -1445,16 +1456,16 @@ export function getEnemyIntelStats(save: MetaSaveData): readonly EnemyIntelEntry
     const defeatedCount = byType ? asNonNegInt(byType[type]) : 0;
     return {
       type,
-      name: def.name,
-      description: def.description,
+      name: def?.name ?? type,
+      description: def?.description ?? '',
       defeatedCount,
       discovered: defeatedCount > 0,
-      maxHp: def.maxHp,
-      speed: def.speed,
-      flying: def.flying,
-      armor: def.armor,
-      reward: def.reward,
-      livesCost: def.livesCost,
+      maxHp: def?.maxHp ?? 0,
+      speed: def?.speed ?? 0,
+      flying: def?.flying === true,
+      armor: def?.armor ?? 0,
+      reward: def?.reward ?? 0,
+      livesCost: def?.livesCost ?? 1,
     };
   });
 }

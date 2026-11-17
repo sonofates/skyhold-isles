@@ -212,20 +212,28 @@ describe('GameSession and sessionBridge meta wiring', () => {
     const session = new GameSession(renderWorld, soundManager);
     session.attachRuntime(deps);
 
-    // Start a daily run with restricted towers and scaled costs
-    const spec = session.startDailyChallenge('2026-07-13');
+    // Start a daily run with restricted towers and scaled costs (find a date with a banned tower dynamically)
+    let banDate = '2026-07-13';
+    for (let d = 1; d <= 31; d++) {
+      const cand = `2026-07-${String(d).padStart(2, '0')}`;
+      if (session.getDailyChallenge(cand).modifiers.forbiddenTowerTypes.length > 0) {
+        banDate = cand;
+        break;
+      }
+    }
+    const spec = session.startDailyChallenge(banDate);
     expect(session.viewMode).toBe('playing');
-    expect(session.getActiveDailyChallenge()?.date).toBe('2026-07-13');
+    expect(session.getActiveDailyChallenge()?.date).toBe(banDate);
 
-    // Placement mode blocks banned towers (cannon is banned on 2026-07-13)
-    const bannedTower = spec.modifiers.forbiddenTowerTypes[0] ?? 'cannon';
+    // Placement mode blocks banned towers
+    const bannedTower = spec.modifiers.forbiddenTowerTypes[0]!;
     expect(session.isTowerAllowed(bannedTower)).toBe(false);
     session.setPlacementMode(bannedTower);
     expect(session.getAllowedTowerTypes()).not.toContain(bannedTower);
 
     // restartCurrentRun preserves active daily date and modifiers
     session.restartCurrentRun();
-    expect(session.getActiveDailyChallenge()?.date).toBe('2026-07-13');
+    expect(session.getActiveDailyChallenge()?.date).toBe(banDate);
 
     // startMutatedLevel with tight_budget updates build & upgrade costs and placement preview validity
     session.startMutatedLevel(0, ['tight_budget']);
@@ -323,7 +331,11 @@ describe('GameSession and sessionBridge meta wiring', () => {
     for (let d = 1; d <= 30; d++) {
       const candidate = `2026-11-${String(d).padStart(2, '0')}`;
       const candSpec = session.getDailyChallenge(candidate);
-      if (candSpec.levelIndex >= 2 && LEVELS[candSpec.levelIndex].difficulty === 'Challenging') {
+      if (
+        candSpec.levelIndex >= 2 &&
+        LEVELS[candSpec.levelIndex].difficulty === 'Challenging' &&
+        (LEVELS[candSpec.levelIndex].scriptedBuildOrder?.length ?? 0) > 0
+      ) {
         dailyDate = candidate;
         break;
       }

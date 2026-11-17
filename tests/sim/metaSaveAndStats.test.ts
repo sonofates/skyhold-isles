@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { EventBus } from '../../src/core/eventBus.ts';
 import type { ProgressData } from '../../src/core/types.ts';
 import { BALANCE } from '../../src/data/balance.ts';
-import { ACHIEVEMENTS } from '../../src/data/challenges.ts';
+import { ACHIEVEMENTS, getChallengesForLevel } from '../../src/data/challenges.ts';
 import { LEVELS, type LevelDef } from '../../src/data/levels/index.ts';
 import { TOWER_TYPES } from '../../src/data/towers.ts';
 import { MetaSession } from '../../src/platform/metaSession.ts';
@@ -21,6 +21,7 @@ import {
   getAchievements,
   getAchievementSummary,
   getAllChallengeProgress,
+  getAllIslandMasteryStatuses,
   getChallengeStatus,
   getDailyBestScore,
   getEnemyIntelStats,
@@ -38,8 +39,9 @@ import {
   recomputeAchievements,
   recordEndlessRunStats,
   recordRunCompletion,
+  resolveAchievementDefs,
 } from '../../src/sim/meta/metaEngine.ts';
-import { RunObserver } from '../../src/sim/meta/runObserver.ts';
+import { evaluateLevelChallenges, evaluateLiveLevelChallenges, RunObserver } from '../../src/sim/meta/runObserver.ts';
 import { SimWorld } from '../../src/sim/world.ts';
 
 function installMockLocalStorage(initial?: Record<string, string>): Map<string, string> {
@@ -1852,6 +1854,7 @@ describe('MetaSession stats, achievements, challenges & daily persistence', () =
       saveData: partialSessionSave,
       onSave: () => {},
     });
+    expect(partialMeta.getCampaignProgress().bestStars).toHaveLength(LEVELS.length);
     const pmEv = new EventBus();
     partialMeta.startRun(LEVELS[0], pmEv);
     pmEv.emit('waveStarted', { waveIndex: 0, totalWaves: 10, earlyBonus: 0 });
@@ -1934,5 +1937,35 @@ describe('MetaSession stats, achievements, challenges & daily persistence', () =
     });
     lossObs.dispose();
     expect(nanUnlockedSave.campaign.unlockedLevelIndex).toBe(0);
+
+    // Repeat daily completion reconciles stats.dailyChallengesCompleted >= completedDailyDates.length,
+    // and sparse/malformed levels & non-array resolveAchievementDefs/getAllIslandMasteryStatuses stay safe
+    const repeatDailySave = createDefaultMetaSave(LEVELS.length);
+    repeatDailySave.completedDailyDates = ['2026-11-17'];
+    repeatDailySave.stats.dailyChallengesCompleted = 0;
+    const repEv = new EventBus();
+    const repObs = new RunObserver(LEVELS[0], repEv);
+    recordRunCompletion(repeatDailySave, {
+      level: LEVELS[0],
+      telemetry: { ...repObs.getTelemetry(), storyWavesCompleted: 10 },
+      won: true,
+      stars: 3,
+      livesRemaining: 20,
+      levels: LEVELS,
+      dailyDate: '2026-11-17',
+    });
+    expect(repeatDailySave.stats.dailyChallengesCompleted).toBe(1);
+    expect(resolveAchievementDefs(null as unknown as readonly string[])).toEqual([]);
+    expect(getAllIslandMasteryStatuses(repeatDailySave, null as unknown as typeof LEVELS)).toEqual({
+      masteredCount: 0,
+      totalIslands: 0,
+      islands: [],
+    });
+    expect(getChallengeStatus(repeatDailySave, 0, [null as unknown as LevelDef])).toBeNull();
+    expect(getRecommendedNextGoal(repeatDailySave, '2026-11-17', [null as unknown as LevelDef])).toBeNull();
+    expect(getChallengesForLevel(null as unknown as LevelDef)).toEqual([]);
+    expect(evaluateLevelChallenges(null as unknown as LevelDef, repObs.getTelemetry(), true, 20)).toEqual([]);
+    expect(evaluateLiveLevelChallenges(null as unknown as LevelDef, repObs.getTelemetry(), 20, 'ongoing', {})).toEqual([]);
+    repObs.dispose();
   });
 });

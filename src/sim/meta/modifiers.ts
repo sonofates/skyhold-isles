@@ -202,7 +202,7 @@ export function scaleGoldReward(baseReward: number, modifiers: ResolvedRunModifi
  */
 export function applyModifiersToLevel(level: LevelDef, modifiers?: RunModifiers | null): LevelDef {
   const mod = resolveRunModifiers(modifiers);
-  if (mod.flyerCountMultiplier <= 1) {
+  if (mod.flyerCountMultiplier <= 1 || !level || !Array.isArray(level.waves as unknown)) {
     return level;
   }
 
