@@ -62,6 +62,8 @@ export interface EnemyEntity {
   bossPhase: number;
   /** Seconds the enemy stands still channelling (e.g. Stormwall). */
   channelTimer: number;
+  /** Gloam Hexer: tower id being hexed while channelling (-1 = none). */
+  hexTargetId: number;
 }
 
 export function createEnemyEntity(poolIndex: number): EnemyEntity {
@@ -110,6 +112,7 @@ export function createEnemyEntity(poolIndex: number): EnemyEntity {
     laneProgressOffset: 0,
     bossPhase: 0,
     channelTimer: 0,
+    hexTargetId: -1,
   };
 }
 

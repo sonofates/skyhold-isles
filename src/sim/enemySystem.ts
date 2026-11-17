@@ -26,6 +26,11 @@ const BOSS_PULSE_INTERVAL = 7.0;
 const BOSS_PULSE_RETRY_INTERVAL = 0.75;
 const BOSS_PULSE_INITIAL_DELAY = 4.2;
 const BOSS_STUN_DURATION = 2.65;
+/** Gloam Hexer: first hex can start this soon after spawning; retry cadence when nothing is in reach. */
+const HEX_FIRST_DELAY = 1.0;
+const HEX_RETRY_INTERVAL = 0.4;
+/** A locked hex still lands if the tower is within reach × this when the channel ends. */
+const HEX_LEASH = 1.25;
 
 export class EnemySystem {
   private nextUid = 1;
@@ -231,7 +236,10 @@ export class EnemySystem {
           ? (def.blinkInterval ?? 3.4)
           : type === 'warden'
             ? (def.wardInterval ?? 4) * 0.3
-            : 0;
+            : type === 'hexer'
+              ? HEX_FIRST_DELAY
+              : 0;
+    entity.hexTargetId = -1;
 
     this.events.emit('enemySpawned', {
       enemyId: entity.uid,
@@ -448,6 +456,8 @@ export class EnemySystem {
         this.updateHealerAura(actor, dt);
       } else if (actor.type === 'warden') {
         this.updateWardenPulse(actor, dt);
+      } else if (actor.type === 'hexer') {
+        this.updateHex(actor, dt, towers);
       } else if (actor.type === 'tempest') {
         this.updateTempest(actor, dt, towers, currentHpScale);
       } else if (actor.type === 'boss') {
@@ -566,6 +576,88 @@ export class EnemySystem {
         }
       }
     }
+  }
+
+  /**
+   * Gloam Hexer: when an un-hexed tower stands within reach it stops and channels (telegraph), then
+   * stuns the locked tower — or, if that tower was sold / is out of reach, the nearest other one.
+   * Killing the hexer mid-channel cancels the hex.
+   */
+  private updateHex(e: EnemyEntity, dt: number, towers: readonly TowerEntity[] | undefined): void {
+    const def = ENEMY_DEFS.hexer;
+    const radius = def.hexRadius ?? 3.6;
+    if (e.hexTargetId >= 0) {
+      if (e.channelTimer > 0) return;
+      let target: TowerEntity | null = null;
+      if (towers) {
+        for (let i = 0; i < towers.length; i++) {
+          if (towers[i].id === e.hexTargetId) {
+            target = towers[i];
+            break;
+          }
+        }
+      }
+      e.hexTargetId = -1;
+      e.abilityTimer = def.hexInterval ?? 5.5;
+      if (!target || Math.hypot(target.x - e.x, target.z - e.z) > radius * HEX_LEASH) {
+        target = towers ? this.nearestUnstunnedTower(e, towers, radius) : null;
+      }
+      if (!target) {
+        e.abilityTimer = HEX_RETRY_INTERVAL;
+        return;
+      }
+      const duration = def.hexStunSec ?? 2.4;
+      target.stunTimer = Math.max(target.stunTimer, duration);
+      this.events.emit('towerHexed', {
+        enemyId: e.uid,
+        towerId: target.id,
+        x: e.x,
+        y: e.y + e.height,
+        z: e.z,
+        towerX: target.x,
+        towerZ: target.z,
+        duration,
+      });
+      return;
+    }
+    e.abilityTimer -= dt;
+    if (e.abilityTimer > 0 || !towers) return;
+    const target = this.nearestUnstunnedTower(e, towers, radius);
+    if (!target) {
+      e.abilityTimer = HEX_RETRY_INTERVAL;
+      return;
+    }
+    e.hexTargetId = target.id;
+    e.channelTimer = def.hexChannelSec ?? 0.7;
+    this.events.emit('hexCharge', {
+      enemyId: e.uid,
+      towerId: target.id,
+      x: e.x,
+      y: e.y + e.height,
+      z: e.z,
+      towerX: target.x,
+      towerZ: target.z,
+    });
+  }
+
+  private nearestUnstunnedTower(
+    e: EnemyEntity,
+    towers: readonly TowerEntity[],
+    radius: number,
+  ): TowerEntity | null {
+    let best: TowerEntity | null = null;
+    let bestDist = Infinity;
+    for (let i = 0; i < towers.length; i++) {
+      const t = towers[i];
+      if (t.stunTimer > 0) continue;
+      const d = Math.hypot(t.x - e.x, t.z - e.z);
+      if (d > radius) continue;
+      if (d < bestDist || (d === bestDist && best !== null && t.id < best.id)) {
+        best = t;
+        bestDist = d;
+      }
+    }
+    return best;
   }
 
   /** Burrower phase machine: surfaced (abilityTimer counts down) ⇄ burrowed. */

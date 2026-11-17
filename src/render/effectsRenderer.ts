@@ -99,6 +99,7 @@ const _enemyShardColors: Record<EnemyType, number> = {
   blinker: 0x3fe0d0,
   golem: 0x4a4550,
   mite: 0xff8a1f,
+  hexer: 0x8a2f62,
   tempest: 0x3b5a8c,
   boss: PALETTE_HEX.indigo,
 };

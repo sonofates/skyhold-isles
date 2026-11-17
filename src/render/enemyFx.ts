@@ -5,9 +5,12 @@ import type { EffectsRenderer } from './effectsRenderer.ts';
 const WARD_BLUE = 0x9fdcff;
 const BLINK_AQUA = 0x3fe0d0;
 const FROST_CRACK = 0xcfefff;
+const HEX_MAGENTA = 0xd45cff;
+/** Height above the tile where hex sparks burst on a tower (turret level). */
+const HEX_TOWER_Y = 1.1;
 
 /**
- * Hit / ability FX for the newer enemy archetypes (warden, burrower, hauler, blinker, golem).
+ * Hit / ability FX for the newer enemy archetypes (warden, burrower, hauler, blinker, golem, hexer).
  * Reuses the pooled particle / pulse-ring / shard buckets of EffectsRenderer — no new draw calls.
  * Returns unsubscribe callbacks so the caller can drop them on level change.
  */
@@ -67,6 +70,16 @@ export function bindEnemyArchetypeFx(
       fx.spawnDeathShards('tempest', e.x, e.y + 0.6, e.z);
       fx.spawnPulseRing(e.x, 0.12, e.z, 4.2, PALETTE_HEX.gold);
       fx.spawnParticles(e.x, e.y + 1.0, e.z, 0xdfe7f2, 18, 4.2, 3.0);
+    }),
+    events.on('hexCharge', (e) => {
+      // Telegraph on both ends: the lantern flares and the doomed tower starts to fizz.
+      fx.spawnParticles(e.x, e.y, e.z, HEX_MAGENTA, 6, 1.4, 0.8);
+      fx.spawnParticles(e.towerX, HEX_TOWER_Y, e.towerZ, HEX_MAGENTA, 4, 1.0, 0.6);
+    }),
+    events.on('towerHexed', (e) => {
+      fx.spawnPulseRing(e.towerX, 0.12, e.towerZ, 1.3, HEX_MAGENTA);
+      fx.spawnStunSparks(e.towerX, HEX_TOWER_Y, e.towerZ, 9);
+      fx.spawnParticles(e.x, e.y, e.z, PALETTE_HEX.cream, 4, 1.8, 1.0);
     }),
     events.on('armorCracked', (e) => {
       fx.spawnDeathShards('golem', e.x, e.y, e.z);

@@ -111,6 +111,7 @@ export const ENEMY_BADGE_META: Record<EnemyType, { label: string; color: string 
   blinker: { label: 'Blinker', color: '#2fc9be' },
   golem: { label: 'Golem', color: '#5a5560' },
   mite: { label: 'Mite', color: '#ff8a1f' },
+  hexer: { label: 'Hexer', color: '#a63d8f' },
   tempest: { label: 'Colossus', color: '#2f4f86' },
   boss: { label: 'Boss', color: PALETTE.indigo },
 };

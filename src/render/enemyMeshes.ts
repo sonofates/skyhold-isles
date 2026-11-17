@@ -25,6 +25,7 @@ const _hpGold = new THREE.Color(PALETTE_HEX.gold);
 const _hpCoral = new THREE.Color(PALETTE_HEX.coral);
 const _eliteTint = new THREE.Color(PALETTE_HEX.gold);
 const _blinkGlow = new THREE.Color(0xc8fff8);
+const _hexGlow = new THREE.Color(0xf2a6ff);
 /** Seconds before a Rift Blinker's jump during which it flickers as a telegraph. */
 const BLINK_TELEGRAPH_SEC = 0.55;
 /** Seconds before a Loam Burrower resurfaces during which its mound bulges. */
@@ -40,6 +41,7 @@ const GROUND_SHADOW_SCALE: Partial<Record<EnemyType, number>> = {
   runner: 0.94,
   blinker: 0.92,
   mite: 0.62,
+  hexer: 1.0,
 };
 const HP_BAR_WIDTH: Partial<Record<EnemyType, number>> = {
   boss: 1.75,
@@ -335,6 +337,10 @@ export class EnemyRenderer {
         // Rift charge telegraph: flicker toward bright aqua right before the jump
         const k = 1 - e.abilityTimer / BLINK_TELEGRAPH_SEC;
         _color.lerp(_blinkGlow, k * (0.55 + 0.45 * Math.abs(Math.sin(elapsedTime * 30))));
+      }
+      if (e.type === 'hexer' && e.hexTargetId >= 0) {
+        // Hex channel telegraph: the hexcaster glows and throbs magenta until the hex lands.
+        _color.lerp(_hexGlow, 0.45 + 0.35 * Math.abs(Math.sin(elapsedTime * 14)));
       }
       layer.mesh.setColorAt(slot, _color);
 
@@ -721,6 +727,33 @@ export class EnemyRenderer {
           { geometry: box, colorHex: 0x3a2418, position: [0.3, 0.08, -0.14], rotation: [0, 0, -0.6], scale: [0.18, 0.035, 0.04] },
         ];
         addEyes(parts, ico, 0.24, 0.38, 0.06, 0.03, 0xffe885);
+        break;
+      }
+
+      case 'hexer': {
+        // Hunched lantern hexcaster: burgundy robe, drooping pointed hood, shadowed face with magenta
+        // eyes, gold rune patches, crooked staff with a hanging magenta lantern held out front
+        const robe = 0x7a2a52;
+        const hexMagenta = 0xd45cff;
+        parts = [
+          { geometry: chamfer, colorHex: 0x3a1a2c, position: [-0.1, 0.07, 0.04], scale: [0.12, 0.14, 0.18] },
+          { geometry: chamfer, colorHex: 0x3a1a2c, position: [0.1, 0.07, 0.04], scale: [0.12, 0.14, 0.18] },
+          { geometry: cone, colorHex: robe, position: [0, 0.5, 0], scale: [0.34, 0.9, 0.32] },
+          { geometry: box, colorHex: PALETTE_HEX.gold, position: [-0.09, 0.34, 0.21], rotation: [-0.3, 0, 0.6], scale: [0.07, 0.07, 0.03] },
+          { geometry: box, colorHex: PALETTE_HEX.gold, position: [0.08, 0.24, 0.24], rotation: [-0.3, 0, 0.6], scale: [0.07, 0.07, 0.03] },
+          { geometry: cyl, colorHex: PALETTE_HEX.cream, position: [0, 0.79, 0.01], scale: [0.21, 0.07, 0.2] },
+          { geometry: chamfer, colorHex: 0x2a1424, position: [0, 0.93, 0.05], scale: [0.25, 0.22, 0.22] },
+          { geometry: cyl, colorHex: 0x5e1f3f, position: [0, 1.0, 0.02], scale: [0.25, 0.07, 0.25] },
+          { geometry: cone, colorHex: 0x8f3563, position: [0, 1.15, -0.03], rotation: [-0.4, 0, 0], scale: [0.21, 0.36, 0.21] },
+          { geometry: box, colorHex: robe, position: [0.2, 0.62, 0.08], rotation: [0.3, 0, -0.55], scale: [0.09, 0.28, 0.1] },
+          { geometry: cyl, colorHex: leatherDark, position: [0.31, 0.62, 0.12], scale: [0.035, 1.12, 0.035] },
+          { geometry: box, colorHex: leatherDark, position: [0.31, 1.17, 0.23], scale: [0.035, 0.035, 0.24] },
+          { geometry: box, colorHex: PALETTE_HEX.gold, position: [0.31, 1.11, 0.33], scale: [0.015, 0.1, 0.015] },
+          { geometry: cyl, colorHex: PALETTE_HEX.gold, position: [0.31, 1.05, 0.33], scale: [0.12, 0.04, 0.12] },
+          { geometry: ico, colorHex: hexMagenta, position: [0.31, 0.94, 0.33], scale: [0.13, 0.15, 0.13] },
+          { geometry: cyl, colorHex: PALETTE_HEX.gold, position: [0.31, 0.82, 0.33], scale: [0.1, 0.035, 0.1] },
+        ];
+        addEyes(parts, ico, 0.93, 0.16, 0.065, 0.034, 0xf08cff);
         break;
       }
 

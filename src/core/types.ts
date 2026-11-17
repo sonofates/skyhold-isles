@@ -20,6 +20,7 @@ export type EnemyType =
   | 'blinker'
   | 'golem'
   | 'mite'
+  | 'hexer'
   | 'tempest'
   | 'boss';
 

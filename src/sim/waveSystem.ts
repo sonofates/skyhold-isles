@@ -54,6 +54,8 @@ export const ENDLESS_SPOTLIGHTS: readonly (readonly EnemyType[])[] = [
   ['golem', 'mite'],
   ['warden', 'burrower'],
   ['blinker', 'carrier'],
+  ['hexer', 'mite'],
+  ['golem', 'hexer'],
 ];
 
 const ENDLESS_SPOTLIGHT_TUNING: Partial<
@@ -65,6 +67,7 @@ const ENDLESS_SPOTLIGHT_TUNING: Partial<
   mite: { base: 12, perWave: 2.4, max: 48, interval: 0.2 },
   carrier: { base: 2, perWave: 0.4, max: 10, interval: 1.2 },
   blinker: { base: 4, perWave: 0.7, max: 18, interval: 0.6 },
+  hexer: { base: 2, perWave: 0.35, max: 9, interval: 1.4 },
 };
 
 /**

@@ -12,7 +12,7 @@ import { SimWorld } from '../../src/sim/world.ts';
 import { ENEMY_BADGE_META } from '../../src/ui/icons.ts';
 
 const DT = BALANCE.fixedDt;
-const NEW_TYPES: EnemyType[] = ['warden', 'burrower', 'carrier', 'blinker', 'golem', 'mite'];
+const NEW_TYPES: EnemyType[] = ['warden', 'burrower', 'carrier', 'blinker', 'golem', 'mite', 'hexer'];
 
 function makeWorld(level: LevelDef = LEVELS[0]): { world: SimWorld; events: EventBus } {
   const events = new EventBus();

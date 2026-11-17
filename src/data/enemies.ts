@@ -32,6 +32,11 @@ export interface EnemyDef {
   /** Golem: armor while chill-cracked and how long a chill keeps it cracked. */
   readonly brittleArmor?: number;
   readonly brittleDuration?: number;
+  /** Gloam Hexer: hex reach (world units), seconds between hexes, telegraph channel, tower stun. */
+  readonly hexRadius?: number;
+  readonly hexInterval?: number;
+  readonly hexChannelSec?: number;
+  readonly hexStunSec?: number;
   /** Boss-class: bigger hit numbers, camera shake, boss HP bar. */
   readonly isBoss?: boolean;
   /** Tempest Colossus phase thresholds (fraction of max HP) and phase tuning. */
@@ -234,6 +239,25 @@ export const ENEMY_DEFS: Record<EnemyType, EnemyDef> = {
     radius: 0.26,
     height: 0.5,
   },
+  hexer: {
+    type: 'hexer',
+    name: 'Gloam Hexer',
+    description:
+      'Lantern-bearing hexcaster. When a tower stands close to the road it stops, raises its lantern and hexes that tower silent for a moment.',
+    counterHint: 'Kill it before it reaches your towers — towers 2 tiles off the road are out of its reach; Overcharge lifts hexes.',
+    maxHp: 120,
+    speed: 1.9,
+    armor: 1,
+    reward: 7,
+    livesCost: 2,
+    flying: false,
+    radius: 0.42,
+    height: 1.3,
+    hexRadius: 3.6,
+    hexInterval: 5.5,
+    hexChannelSec: 0.7,
+    hexStunSec: 2.4,
+  },
   tempest: {
     type: 'tempest',
     name: 'Tempest Colossus',
@@ -288,6 +312,7 @@ export const ENEMY_TYPES: readonly EnemyType[] = [
   'blinker',
   'golem',
   'mite',
+  'hexer',
   'tempest',
   'boss',
 ];

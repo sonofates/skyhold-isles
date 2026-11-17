@@ -135,6 +135,27 @@ export interface GameEventMap {
     z: number;
     radius: number;
   };
+  /** Gloam Hexer starts channelling a hex on a tower (telegraph). */
+  hexCharge: {
+    enemyId: number;
+    towerId: number;
+    x: number;
+    y: number;
+    z: number;
+    towerX: number;
+    towerZ: number;
+  };
+  /** A Gloam Hexer's hex landed: the tower is stunned for `duration` seconds. */
+  towerHexed: {
+    enemyId: number;
+    towerId: number;
+    x: number;
+    y: number;
+    z: number;
+    towerX: number;
+    towerZ: number;
+    duration: number;
+  };
   bossSummon: {
     x: number;
     y: number;
