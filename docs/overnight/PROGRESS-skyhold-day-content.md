@@ -114,3 +114,6 @@ Clean tree, `main` merged (no new main commits). tsc / 430 tests green. No code 
 
 ## Round 12 (verification)
 Clean tree, `main` merged (no new main commits). tsc / 430 tests green. No code changes; backlog 1–5 complete, nothing pending.
+
+## Round 13 (verification)
+Clean tree, `main` merged (no new main commits). tsc / lint / tests / sim:balance (16 islands in window) green. No code changes; backlog 1–5 complete, nothing pending.
