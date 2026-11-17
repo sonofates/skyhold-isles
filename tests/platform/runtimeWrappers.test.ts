@@ -268,6 +268,17 @@ describe('SoundManager with mocked Web Audio', () => {
     expect(oscAfterEvents).toBeGreaterThan(20);
     expect(bufSrcCount).toBeGreaterThan(3);
 
+    // Play cannon impact (tone + noiseBurst) and verify idempotent unlock() when ctx.state === 'running'
+    perfMs += 1000;
+    const oscBeforeCannon = oscCount;
+    const bufBeforeCannon = bufSrcCount;
+    sm.playImpact('cannon');
+    expect(oscCount).toBe(oscBeforeCannon + 1);
+    expect(bufSrcCount).toBe(bufBeforeCannon + 1);
+    const resumedBeforeIdleUnlock = resumedCount;
+    sm.unlock();
+    expect(resumedCount).toBe(resumedBeforeIdleUnlock);
+
     // Mute + zero volume suppression, playTowerSell, and playImpact('archer') no-op
     perfMs += 1000;
     sm.playTowerSell();

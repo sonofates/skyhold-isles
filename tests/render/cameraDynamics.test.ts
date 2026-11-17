@@ -177,4 +177,44 @@ describe('CameraController framing, pan/zoom/rotate, shake, and viewVersion', ()
     const afterPan = cam.screenNdcToPlane(0, 0, 0)!;
     expect(afterPan.distanceTo(beforePan)).toBeGreaterThan(0.5);
   });
+
+  it('normalizes diagonal key pan, clamps zero viewport dimensions, and returns null for parallel ray casts', () => {
+    // Diagonal setKeyPan(1, 1) normalizes displacement distance to match cardinal setKeyPan(1, 0)
+    const cardinal = new CameraController(1280, 720);
+    cardinal.configureForMap(LEVELS[0].cols, LEVELS[0].rows, LEVELS[0].layout);
+    const cStart = cardinal.screenNdcToPlane(0, 0, 0, new THREE.Vector3())!;
+    cardinal.setKeyPan(1, 0);
+    for (let t = 0; t < 30; t++) cardinal.update(1 / 60);
+    cardinal.setKeyPan(0, 0);
+    for (let t = 0; t < 60; t++) cardinal.update(1 / 60);
+    const cEnd = cardinal.screenNdcToPlane(0, 0, 0, new THREE.Vector3())!;
+    const cardinalDist = cEnd.distanceTo(cStart);
+
+    const diagonal = new CameraController(1280, 720);
+    diagonal.configureForMap(LEVELS[0].cols, LEVELS[0].rows, LEVELS[0].layout);
+    const dStart = diagonal.screenNdcToPlane(0, 0, 0, new THREE.Vector3())!;
+    diagonal.setKeyPan(1, 1);
+    for (let t = 0; t < 30; t++) diagonal.update(1 / 60);
+    diagonal.setKeyPan(0, 0);
+    for (let t = 0; t < 60; t++) diagonal.update(1 / 60);
+    const dEnd = diagonal.screenNdcToPlane(0, 0, 0, new THREE.Vector3())!;
+    const diagonalDist = dEnd.distanceTo(dStart);
+    expect(diagonalDist).toBeGreaterThan(0.5);
+    expect(diagonalDist).toBeCloseTo(cardinalDist, 2);
+
+    // Constructor and resize clamp 0x0 viewports safely without NaN
+    const zeroCam = new CameraController(0, 0);
+    expect(Number.isFinite(zeroCam.camera.left)).toBe(true);
+    expect(Number.isFinite(zeroCam.camera.right)).toBe(true);
+    zeroCam.resize(0, -10);
+    zeroCam.update(0);
+    expect(Number.isFinite(zeroCam.camera.top)).toBe(true);
+    expect(zeroCam.screenNdcToPlane(0, 0, 0)).not.toBeNull();
+
+    // Parallel horizontal camera ray produces null from screenNdcToPlane
+    zeroCam.camera.position.set(0, 5, 10);
+    zeroCam.camera.lookAt(0, 5, 0);
+    zeroCam.camera.updateMatrixWorld(true);
+    expect(zeroCam.screenNdcToPlane(0, 0, 0)).toBeNull();
+  });
 });

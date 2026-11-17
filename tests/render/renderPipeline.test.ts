@@ -442,6 +442,15 @@ describe('RenderWorld subsystems headless verification', () => {
     overlays.setFlightPathHighlight(true, true);
     overlays.setPlacementGridActive(true);
     overlays.update(0.5, 0.05);
+    const overlayGroups = overlays.group.children.filter((c): c is THREE.Group => c instanceof THREE.Group);
+    const flightPathGroup = overlayGroups[1];
+    const groundPathGroup = overlayGroups[2];
+    const flightSkyMesh = flightPathGroup.children.find(
+      (c): c is THREE.Mesh => c instanceof THREE.Mesh && c.renderOrder === 5,
+    )!;
+    const flightSkyMat = flightSkyMesh.material as THREE.MeshBasicMaterial;
+    const pinnedSubtleOpacity = flightSkyMat.opacity;
+
     const gridLines = overlays.group.children.find((c) => (c as THREE.LineSegments).isLineSegments) as THREE.LineSegments;
     expect(gridLines.visible).toBe(true);
     const gridMat = gridLines.material as THREE.LineBasicMaterial;
@@ -452,11 +461,15 @@ describe('RenderWorld subsystems headless verification', () => {
     expect(gridMat.opacity).toBeCloseTo(0.3, 5);
 
     // Unpinning routes hides ground path while flightPathHighlight keeps flight group visible,
-    // and deactivating placement grid fades gridLines back to hidden
+    // subtle unpinned flight opacity scales by 0.58 vs bright/pinned, and placement grid fades to hidden
     overlays.setRoutesPinned(false);
-    const overlayGroups = overlays.group.children.filter((c): c is THREE.Group => c instanceof THREE.Group);
-    const flightPathGroup = overlayGroups[1];
-    const groundPathGroup = overlayGroups[2];
+    overlays.update(0.5, 0);
+    const unpinnedSubtleOpacity = flightSkyMat.opacity;
+    expect(unpinnedSubtleOpacity).toBeCloseTo(pinnedSubtleOpacity * 0.58, 5);
+    overlays.setFlightPathHighlight(true, false);
+    overlays.update(0.5, 0);
+    expect(flightSkyMat.opacity).toBeCloseTo(pinnedSubtleOpacity, 5);
+
     expect(groundPathGroup.visible).toBe(false);
     expect(flightPathGroup.visible).toBe(true);
 
@@ -465,12 +478,21 @@ describe('RenderWorld subsystems headless verification', () => {
     expect(gridMat.opacity).toBe(0);
     expect(gridLines.visible).toBe(false);
 
+    // TowerGeometryCache memoizes identical instances across repeat .get() calls
+    expect(towerRenderer.geometryCache.get('archer', 1)).toBe(
+      towerRenderer.geometryCache.get('archer', 1),
+    );
+
     const mortar = makeTower(1, 'mortar', 1, 2, 2);
     const archer = makeTower(2, 'archer', 2, -2, -2);
     overlays.setPlacementPreview(true, 'mortar', 2, 2, true, towerRenderer.geometryCache);
-    // Ghost group + placement inner/outer rings reflect mortar deadzone and valid material
-    const placementInnerRing = overlays.group.children[3] as THREE.Mesh;
+    // Ghost group + tile highlight + placement inner/outer rings reflect mortar deadzone and valid material
+    const tileHighlight = overlays.group.children[0] as THREE.Mesh;
     const ghostGroup = overlays.group.children[1] as THREE.Group;
+    const placementOuterRing = overlays.group.children[2] as THREE.Mesh;
+    const placementInnerRing = overlays.group.children[3] as THREE.Mesh;
+    expect(tileHighlight.visible).toBe(true);
+    expect(placementOuterRing.visible).toBe(true);
     expect(placementInnerRing.visible).toBe(true);
     expect((ghostGroup.children[0] as THREE.Mesh).material).toBe(mats.ghostValidMaterial);
 
@@ -478,9 +500,32 @@ describe('RenderWorld subsystems headless verification', () => {
     expect(placementInnerRing.visible).toBe(false);
     expect((ghostGroup.children[0] as THREE.Mesh).material).toBe(mats.ghostInvalidMaterial);
 
+    overlays.setPlacementPreview(false, null, 0, 0, false, null);
+    expect(ghostGroup.visible).toBe(false);
+    expect(tileHighlight.visible).toBe(false);
+    expect(placementOuterRing.visible).toBe(false);
+    expect(placementInnerRing.visible).toBe(false);
+
+    const selectedOuterRing = overlays.group.children[4] as THREE.Mesh;
+    const selectedInnerRing = overlays.group.children[5] as THREE.Mesh;
     overlays.setSelectedTowerRing(mortar);
+    expect(selectedOuterRing.visible).toBe(true);
+    expect(selectedInnerRing.visible).toBe(true);
     overlays.setSelectedTowerRing(archer);
+    expect(selectedOuterRing.visible).toBe(true);
+    expect(selectedInnerRing.visible).toBe(false);
+    overlays.setSelectedTowerRing(null);
+    expect(selectedOuterRing.visible).toBe(false);
+    expect(selectedInnerRing.visible).toBe(false);
+
+    const meteorOuterRing = overlays.group.children[6] as THREE.Mesh;
+    const meteorFillMesh = overlays.group.children[7] as THREE.Mesh;
     overlays.setMeteorTargetPreview(true, 0, 0, 3.4);
+    expect(meteorOuterRing.visible).toBe(true);
+    expect(meteorFillMesh.visible).toBe(true);
+    overlays.setMeteorTargetPreview(false, 0, 0, 1);
+    expect(meteorOuterRing.visible).toBe(false);
+    expect(meteorFillMesh.visible).toBe(false);
 
     // Grow debugRingsMesh past initial 128 capacity
     const manyTowers = Array.from({ length: 140 }, (_, i) =>
@@ -642,6 +687,35 @@ describe('RenderWorld subsystems headless verification', () => {
       ],
     };
     expect(() => mapBuilder.build(junctionLevel, mats, assets)).not.toThrow();
+
+    // MapBuilder.update rotates & bobs goalCrystalMesh, and handles levels without a goal tile safely
+    mapBuilder.build(LEVELS[0], mats, assets);
+    const crystalMesh = mapBuilder.group.children.find(
+      (c): c is THREE.Mesh =>
+        c instanceof THREE.Mesh && !(c instanceof THREE.InstancedMesh) && c.material === mats.goalCrystal,
+    )!;
+    expect(crystalMesh).toBeDefined();
+    mapBuilder.update(0);
+    const baseCrystalY = crystalMesh.position.y;
+    mapBuilder.update(0.7);
+    expect(crystalMesh.rotation.y).toBeCloseTo(0.7 * 1.1, 5);
+    expect(crystalMesh.position.y).toBeCloseTo(baseCrystalY + Math.sin(0.7 * 2.2) * 0.14, 5);
+
+    const noGoalLevel = {
+      ...junctionLevel,
+      layout: ['~ ~ S ~ ~', '~ . P . ~', '. P P P .', '~ . P . ~', '~ ~ ~ ~ ~'],
+    };
+    expect(() => {
+      mapBuilder.build(noGoalLevel, mats, assets);
+      mapBuilder.update(1.2);
+    }).not.toThrow();
+
+    // DecorBuilder handles a zero-decor level safely through build/update/dispose
+    expect(() => {
+      decorBuilder.build(noGoalLevel, mats, assets);
+      decorBuilder.update(1.2);
+      decorBuilder.dispose();
+    }).not.toThrow();
 
     mapBuilder.dispose();
     decorBuilder.dispose();

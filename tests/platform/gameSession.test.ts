@@ -567,4 +567,99 @@ describe('GameSession state machine, input, and lifecycle', () => {
     expect(h.renderWorld.render).toHaveBeenLastCalledWith(null, 0.5, 0.25, 2.0, 0);
     expect((h.overlays.syncInPlay as ReturnType<typeof vi.fn>).mock.calls.length).toBe(syncCallsBefore);
   });
+
+  it('handles grid tower selection fallback, modal unwind on secondary action, hotkey guards, flyer highlights, and paused frame sync', () => {
+    const h = createHarness();
+    h.session.startLevel(0);
+    h.session.simWorld.gold = 2000;
+    h.setPickedTower(null);
+
+    const tower = h.session.simWorld.placeTower(4, 2, 'archer')!;
+    const towerNdc = projectTileNdc(h.cam, h.session, 4, 2);
+
+    // Find an unoccupied grass tile distinct from (4, 2)
+    let emptyCoord: { col: number; row: number } | null = null;
+    for (let r = 0; r < h.session.simWorld.grid.rows && !emptyCoord; r++) {
+      for (let c = 0; c < h.session.simWorld.grid.cols; c++) {
+        if ((c !== 4 || r !== 2) && h.session.simWorld.grid.canPlaceTower(c, r)) {
+          emptyCoord = { col: c, row: r };
+          break;
+        }
+      }
+    }
+    expect(emptyCoord).not.toBeNull();
+    const emptyNdc = projectTileNdc(h.cam, h.session, emptyCoord!.col, emptyCoord!.row);
+
+    // 1. Grid lookup fallback when pickTowerAtNdc returns null:
+    // In placement mode: clicking a tile occupied via grid.getTowerIdAt exits placement & selects that tower
+    h.session.toggleBuildType('cannon');
+    expect(h.renderWorld.setPlacementGridActive).toHaveBeenLastCalledWith(true);
+    h.session.onPrimaryTap(towerNdc.x, towerNdc.y, false);
+    expect(h.renderWorld.setPlacementGridActive).toHaveBeenLastCalledWith(false);
+    expect(h.renderWorld.overlayIndicators.setSelectedTowerRing).toHaveBeenLastCalledWith(tower);
+
+    // Clicking an empty grass tile in idle mode deselects the current tower
+    h.session.onPrimaryTap(emptyNdc.x, emptyNdc.y, false);
+    expect(h.renderWorld.overlayIndicators.setSelectedTowerRing).toHaveBeenLastCalledWith(null);
+
+    // In idle mode: clicking an occupied tower tile without mesh pick still selects via grid.getTowerIdAt
+    h.session.onPrimaryTap(towerNdc.x, towerNdc.y, false);
+    expect(h.renderWorld.overlayIndicators.setSelectedTowerRing).toHaveBeenLastCalledWith(tower);
+
+    // 2. onTowerActionHotkey returns false if selectedTowerId was removed externally or viewMode !== 'playing'
+    h.session.simWorld.sellTower(tower.id);
+    expect(h.session.onTowerActionHotkey('upgrade')).toBe(false);
+    expect(h.renderWorld.overlayIndicators.setSelectedTowerRing).toHaveBeenLastCalledWith(null);
+
+    const tower2 = h.session.simWorld.placeTower(4, 2, 'archer')!;
+    h.session.selectTower(tower2.id);
+    h.session.showMenuView('menu');
+    expect(h.session.onTowerActionHotkey('target')).toBe(false);
+
+    // Restore playing view
+    h.session.startLevel(0);
+    h.session.simWorld.gold = 2000;
+
+    // 3. onSecondaryAction closes settingsModal (restoring pauseMenu for 'pause' origin), then closes pauseMenu
+    h.session.openPauseMenu();
+    expect(h.overlays.pauseMenu.isOpen()).toBe(true);
+    h.session.openSettingsModal('pause');
+    expect(h.overlays.settingsModal.isOpen()).toBe(true);
+    expect(h.overlays.pauseMenu.isOpen()).toBe(false);
+
+    h.session.onSecondaryAction('rightClick');
+    expect(h.overlays.settingsModal.isOpen()).toBe(false);
+    expect(h.overlays.pauseMenu.isOpen()).toBe(true);
+
+    h.session.onSecondaryAction('escape');
+    expect(h.overlays.pauseMenu.isOpen()).toBe(false);
+
+    // 4. syncFlightPathHighlight during active story waves with vs without flyers
+    const lvl0 = LEVELS[0];
+    const noFlyerWaveIdx = lvl0.waves.findIndex(
+      (w, idx) =>
+        !w.groups.some((g) => g.enemyType === 'flyer') &&
+        !(lvl0.waves[idx + 1]?.groups.some((g) => g.enemyType === 'flyer') ?? false),
+    );
+    const flyerWaveIdx = lvl0.waves.findIndex((w) => w.groups.some((g) => g.enemyType === 'flyer'));
+    if (noFlyerWaveIdx >= 0) {
+      h.session.simWorld.debugSkipToWave(noFlyerWaveIdx + 1);
+      h.session.syncUi();
+      expect(h.renderWorld.setFlightPathHighlight).toHaveBeenLastCalledWith(false, true);
+    }
+    expect(flyerWaveIdx).toBeGreaterThanOrEqual(0);
+    h.session.simWorld.debugSkipToWave(flyerWaveIdx + 1);
+    h.session.syncUi();
+    expect(h.renderWorld.setFlightPathHighlight).toHaveBeenLastCalledWith(true, true);
+
+    // 5. Paused playing renderFrame passes non-null simWorld with fxDt=0 and hides hover tooltip
+    h.session.onPointerMove(emptyNdc.x, emptyNdc.y, 200, 200);
+    const tooltipHide = h.overlays.tooltip.hide as ReturnType<typeof vi.fn>;
+    const hideCallsBefore = tooltipHide.mock.calls.length;
+    h.session.toggleUserPause();
+    expect(h.loop.paused).toBe(true);
+    h.session.renderFrame(0.05, 0.5, 4.0);
+    expect(h.renderWorld.render).toHaveBeenLastCalledWith(h.session.simWorld, 0.05, 0.5, 4.0, 0);
+    expect(tooltipHide.mock.calls.length).toBeGreaterThan(hideCallsBefore);
+  });
 });

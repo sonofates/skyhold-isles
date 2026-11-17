@@ -151,4 +151,67 @@ describe('sessionBridge pure state helpers', () => {
     expect(world.enemyPool.getActiveCount()).toBe(2);
     expect(queue).toHaveLength(0);
   });
+
+  it('chooses closest among overlapping same-layer enemies and handles invalid tower lookups/coords', () => {
+    const world = new SimWorld(LEVELS[0], new EventBus());
+    world.gold = 1000;
+
+    // Two overlapping flyers within hover radius -> closer wins
+    const farFlyer = world.enemySystem.spawnEnemy('flyer')!;
+    farFlyer.x = 4.6;
+    farFlyer.z = 4.0;
+    const nearFlyer = world.enemySystem.spawnEnemy('flyer')!;
+    nearFlyer.x = 4.15;
+    nearFlyer.z = 4.0;
+
+    // Two overlapping ground grunts within hover radius -> closer wins when no flyer matches
+    const farGround = world.enemySystem.spawnEnemy('grunt')!;
+    farGround.x = 2.45;
+    farGround.z = 2.0;
+    const nearGround = world.enemySystem.spawnEnemy('grunt')!;
+    nearGround.x = 2.08;
+    nearGround.z = 2.0;
+
+    world.spatialHash.clear();
+    world.spatialHash.insert(farFlyer.poolIndex, farFlyer.x, farFlyer.z);
+    world.spatialHash.insert(nearFlyer.poolIndex, nearFlyer.x, nearFlyer.z);
+    world.spatialHash.insert(farGround.poolIndex, farGround.x, farGround.z);
+    world.spatialHash.insert(nearGround.poolIndex, nearGround.x, nearGround.z);
+
+    expect(world.findHoveredEnemy(2.0, 2.0, 4.0, 4.0)?.uid).toBe(nearFlyer.uid);
+    expect(world.findHoveredEnemy(2.0, 2.0, 12.0, 12.0)?.uid).toBe(nearGround.uid);
+
+    // Unknown tower ID & negative/out-of-bounds coordinates
+    expect(world.getTowerById(99999)).toBeNull();
+    const goldBefore = world.gold;
+    expect(world.placeTower(-1, 2, 'archer')).toBeNull();
+    expect(world.placeTower(2, -1, 'archer')).toBeNull();
+    expect(world.placeTower(world.grid.cols, 0, 'archer')).toBeNull();
+    expect(world.placeTower(0, world.grid.rows, 'archer')).toBeNull();
+    expect(world.gold).toBe(goldBefore);
+    expect(world.towers).toHaveLength(0);
+  });
+
+  it('preserves buildHudStateView nextPreview object identity until wave state/endless flips', () => {
+    const world = new SimWorld(LEVELS[0], new EventBus());
+    const loop = new GameLoop();
+
+    // Advance to final story wave ('spawning'/'allSpawned') where story nextPreview is null
+    world.debugSkipToWave(LEVELS[0].waves.length);
+    const storyView1 = buildHudStateView(world, loop, false);
+    const storyView2 = buildHudStateView(world, loop, true);
+    expect(storyView1.isEndless).toBe(false);
+    expect(storyView1.nextPreview).toBeNull();
+    expect(storyView2.nextPreview).toBe(storyView1.nextPreview);
+
+    // Win story -> enter Endless -> cache invalidates via isEndless=1 and exposes next endless wave
+    world.debugForceWin();
+    expect(world.enterEndlessMode()).toBe(true);
+    const endlessView1 = buildHudStateView(world, loop, false);
+    const endlessView2 = buildHudStateView(world, loop, false);
+    expect(endlessView1.isEndless).toBe(true);
+    expect(endlessView1.nextPreview).not.toBeNull();
+    expect(endlessView1.nextPreview?.waveOneBased).toBe(LEVELS[0].waves.length + 1);
+    expect(endlessView2.nextPreview).toBe(endlessView1.nextPreview);
+  });
 });

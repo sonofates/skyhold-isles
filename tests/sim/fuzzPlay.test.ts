@@ -35,6 +35,7 @@ describe('headless fuzz playthrough harness', () => {
     expect(summary.coverage.towersSold).toBeGreaterThan(0);
     expect(summary.coverage.meteorCasts).toBeGreaterThan(0);
     expect(summary.coverage.overchargeCasts).toBeGreaterThan(0);
+    expect([...summary.coverage.targetingModesUsed].sort()).toEqual(['closest', 'first', 'last', 'strongest']);
   });
 
   it('produces identical final state digests when replaying the same seed across levels', { timeout: 45_000 }, () => {

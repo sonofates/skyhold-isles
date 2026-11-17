@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { EventBus } from '../../src/core/eventBus.ts';
+import { ABILITY_DEFS } from '../../src/data/abilities.ts';
 import { BALANCE } from '../../src/data/balance.ts';
 import { ENEMY_DEFS } from '../../src/data/enemies.ts';
 import { LEVELS, type LevelDef } from '../../src/data/levels/index.ts';
@@ -772,5 +773,180 @@ describe('overlapping waves, dead-target projectiles, boss tie-break, and healer
     tesla.cooldownTimer = 0;
     world.combatSystem.update(BALANCE.fixedDt, [tesla]);
     expect(replacement.hp).toBeLessThan(replacement.maxHp);
+  });
+});
+
+describe('upgrade snapshot, killed aura suppression, boss pulse ties, and combat timer clamps', () => {
+  it('mid-flight projectiles retain launch-time T1 damage while crediting the live upgraded tower', () => {
+    const { world } = makeWorld();
+    const t1Stats = getTowerTierStats('archer', 1);
+    const t2Stats = getTowerTierStats('archer', 2);
+    expect(t2Stats.damage).toBeGreaterThan(t1Stats.damage);
+
+    const archer = world.placeTower(4, 2, 'archer')!;
+
+    // Target 1: survives T1 damage (takes exact T1 damage, NOT upgraded T2 damage)
+    const tankTarget = world.enemySystem.spawnEnemy('grunt')!;
+    tankTarget.x = archer.x + 3.0;
+    tankTarget.z = archer.z;
+    const initialTankHp = t2Stats.damage + 20;
+    tankTarget.maxHp = initialTankHp;
+    tankTarget.hp = initialTankHp;
+
+    const proj1 = world.projectileSystem.spawnProjectile(archer, tankTarget, 1)!;
+    proj1.duration = 0.2;
+
+    // Target 2: killed by T1 launch stats -> credits kill to the live upgraded tower
+    const fragileTarget = world.enemySystem.spawnEnemy('grunt')!;
+    fragileTarget.x = archer.x + 3.0;
+    fragileTarget.z = archer.z + 1.0;
+    fragileTarget.maxHp = t1Stats.damage;
+    fragileTarget.hp = t1Stats.damage;
+
+    const proj2 = world.projectileSystem.spawnProjectile(archer, fragileTarget, 1)!;
+    proj2.duration = 0.2;
+
+    // Upgrade tower while both projectiles are already in flight
+    expect(world.upgradeTower(archer.id)).toBe(true);
+    expect(archer.tier).toBe(2);
+
+    world.projectileSystem.update(0.25, [archer]);
+    expect(world.projectilePool.getActiveCount()).toBe(0);
+    expect(tankTarget.hp).toBe(initialTankHp - t1Stats.damage);
+    expect(fragileTarget.hp).toBe(0);
+    expect(archer.totalDamageDealt).toBe(t1Stats.damage * 2);
+    expect(archer.kills).toBe(1);
+  });
+
+  it('suppresses healerPulse, bossPulse, and bossSummon when hp <= 0 or killed by meteor before update', () => {
+    const { world, events } = makeWorld();
+    const healer = world.enemySystem.spawnEnemy('healer')!;
+    const ally = world.enemySystem.spawnEnemy('grunt')!;
+    ally.hp = Math.max(1, ally.maxHp - 10);
+    ally.x = healer.x;
+    ally.z = healer.z;
+    healer.healTimer = 0.001;
+    healer.hp = 0;
+
+    let healerPulses = 0;
+    let bossPulses = 0;
+    let bossSummons = 0;
+    const killedIds: number[] = [];
+    events.on('healerPulse', () => healerPulses++);
+    events.on('bossPulse', () => bossPulses++);
+    events.on('bossSummon', () => bossSummons++);
+    events.on('enemyKilled', (ev) => killedIds.push(ev.enemyId));
+
+    const tower = world.placeTower(4, 2, 'archer')!;
+    const directBoss = world.enemySystem.spawnEnemy('boss')!;
+    directBoss.x = tower.x + 1.0;
+    directBoss.z = tower.z;
+    directBoss.bossPulseTimer = 0.001;
+    directBoss.hp = 0; // <= 50% threshold too, yet already dead before EnemySystem.update
+
+    world.enemySystem.update(BALANCE.fixedDt, () => {}, () => {}, [tower], 1);
+    expect(healerPulses).toBe(0);
+    expect(bossPulses).toBe(0);
+    expect(bossSummons).toBe(0);
+    expect(killedIds).toContain(healer.uid);
+    expect(killedIds).toContain(directBoss.uid);
+
+    // Meteor-killed boss inside SimWorld.fixedTick on exact bossPulseTimer expiry tick
+    world.waveSystem.startNextWave(() => {});
+    tower.cooldownTimer = 999;
+    const meteorBoss = world.enemySystem.spawnEnemy('boss')!;
+    meteorBoss.bossPulseTimer = 10;
+    let meteorHit = false;
+    events.on('meteorImpact', () => {
+      meteorHit = true;
+    });
+    expect(world.castMeteor(meteorBoss.x, meteorBoss.z)).toBe(true);
+
+    const ticksBeforeImpact =
+      Math.ceil((ABILITY_DEFS.meteor.impactDelaySec ?? 0.32) / BALANCE.fixedDt - 1e-6) - 1;
+    for (let i = 0; i < ticksBeforeImpact; i++) {
+      world.fixedTick(BALANCE.fixedDt);
+    }
+    expect(meteorHit).toBe(false);
+
+    // Put boss into lethal range of meteor AND on the exact expiry tick for bossPulse + bossSummon
+    meteorBoss.hp = 10;
+    meteorBoss.bossPulseTimer = BALANCE.fixedDt * 0.5;
+    world.fixedTick(BALANCE.fixedDt);
+
+    expect(meteorHit).toBe(true);
+    expect(killedIds).toContain(meteorBoss.uid);
+    expect(bossPulses).toBe(0);
+    expect(bossSummons).toBe(0);
+  });
+
+  it('bossPulse returns 1 ID with one tower in range and refreshes an already-stunned second tower to 2.65s', () => {
+    const { world, events } = makeWorld();
+    const pulses: number[][] = [];
+    events.on('bossPulse', (ev) => pulses.push(ev.stunnedTowerIds));
+
+    // Only one tower in range (col 4, row 2) -> emits [towerA.id]
+    const boss = world.enemySystem.spawnEnemy('boss')!;
+    const towerA = world.placeTower(4, 2, 'archer')!;
+    const path = world.enemySystem.getPath(false);
+    const pathProbe = { x: 0, y: 0, z: 0 };
+    let pulseDist = 0;
+    let bestSq = Infinity;
+    for (let d = 0; d <= path.totalLength; d += 0.25) {
+      path.sample(d, pathProbe);
+      const dSq = (pathProbe.x - towerA.x) ** 2 + (pathProbe.z - towerA.z) ** 2;
+      if (dSq < bestSq) {
+        bestSq = dSq;
+        pulseDist = d;
+      }
+    }
+    expect(Math.sqrt(bestSq)).toBeLessThan(7.0);
+
+    boss.dist = Math.max(0, pulseDist - boss.speed * BALANCE.fixedDt);
+    boss.bossPulseTimer = BALANCE.fixedDt * 0.5;
+
+    world.enemySystem.update(BALANCE.fixedDt, () => {}, () => {}, [towerA], 1);
+    expect(pulses).toEqual([[towerA.id]]);
+    expect(towerA.stunTimer).toBeCloseTo(2.65, 5);
+
+    // Mixed pair: 1 unstunned towerB + 1 already-stunned towerC (0.4s remaining) -> both become 2.65s
+    const nearbyGrass: Array<{ col: number; row: number }> = [];
+    for (let r = 0; r < world.grid.rows; r++) {
+      for (let c = 0; c < world.grid.cols; c++) {
+        if ((c === 4 && r === 2) || !world.grid.canPlaceTower(c, r)) continue;
+        const wx = world.grid.gridToWorldX(c);
+        const wz = world.grid.gridToWorldZ(r);
+        if (Math.hypot(wx - boss.x, wz - boss.z) < 5.5) {
+          nearbyGrass.push({ col: c, row: r });
+        }
+      }
+    }
+    expect(nearbyGrass.length).toBeGreaterThanOrEqual(2);
+    const towerB = world.placeTower(nearbyGrass[0].col, nearbyGrass[0].row, 'cannon')!;
+    const towerC = world.placeTower(nearbyGrass[1].col, nearbyGrass[1].row, 'frost')!;
+    towerB.stunTimer = 0;
+    towerC.stunTimer = 0.4;
+    boss.dist = Math.max(0, pulseDist - boss.speed * BALANCE.fixedDt);
+    boss.bossPulseTimer = BALANCE.fixedDt * 0.5;
+
+    world.enemySystem.update(BALANCE.fixedDt, () => {}, () => {}, [towerB, towerC], 1);
+    expect(pulses[1]).toEqual([towerB.id, towerC.id]);
+    expect(towerB.stunTimer).toBeCloseTo(2.65, 5);
+    expect(towerC.stunTimer).toBeCloseTo(2.65, 5);
+  });
+
+  it('clamps tower recoil, popAnimTimer, and cooldownTimer cleanly at 0 in CombatSystem', () => {
+    const { world } = makeWorld();
+    const archer = world.placeTower(4, 2, 'archer')!;
+    archer.recoil = 0.02;
+    archer.popAnimTimer = 0.01;
+    archer.cooldownTimer = 0.015;
+    archer.stunTimer = 0;
+
+    // No enemies present -> timers advance without firing and clamp at exact 0
+    world.combatSystem.update(0.1, [archer], 1);
+    expect(archer.recoil).toBe(0);
+    expect(archer.popAnimTimer).toBe(0);
+    expect(archer.cooldownTimer).toBe(0);
   });
 });

@@ -87,6 +87,7 @@ export interface FuzzCoverageStats {
   readonly towersSold: number;
   readonly meteorCasts: number;
   readonly overchargeCasts: number;
+  readonly targetingModesUsed: readonly TargetingMode[];
 }
 
 export interface FuzzRunResult {
@@ -134,6 +135,7 @@ interface FuzzTracker {
   everBuiltTowerIds: Set<number>;
   maxEverTowerId: number;
   builtTowerTypes: Set<TowerType>;
+  usedTargetingModes: Set<TargetingMode>;
   maxTierReached: number;
   soldTowerCount: number;
   meteorCastCount: number;
@@ -739,8 +741,12 @@ function assertTickInvariants(world: SimWorld, tracker: FuzzTracker, tick: numbe
       return `Invalid enemy HP (${e.hp}/${e.maxHp}) for uid=${e.uid} type=${e.type}`;
     }
     const expectedLaneY = e.flying ? BALANCE.flyerHeight : BALANCE.tilePathTopY;
-    if (Math.abs(e.y - expectedLaneY) > 1e-5) {
-      return `Invalid enemy lane altitude y=${e.y} (expected ${expectedLaneY}) for ${e.type} uid=${e.uid}`;
+    if (Math.abs(e.y - expectedLaneY) > 1e-5 || e.y !== e.prevY) {
+      return `Invalid enemy lane altitude y=${e.y} (prevY=${e.prevY}, expected ${expectedLaneY}) for ${e.type} uid=${e.uid}`;
+    }
+    const stepMoved = Math.hypot(e.x - e.prevX, e.z - e.prevZ);
+    if (stepMoved > e.speed * BALANCE.fixedDt + 1e-4) {
+      return `Enemy uid=${e.uid} (${e.type}) moved ${stepMoved} > max ${e.speed * BALANCE.fixedDt} in one tick`;
     }
     if (!Number.isFinite(e.dist) || !Number.isFinite(e.totalDist) || e.dist < 0 || e.dist > e.totalDist) {
       return `Invalid enemy dist (${e.dist}/${e.totalDist}) for uid=${e.uid}`;
@@ -776,7 +782,7 @@ function assertTickInvariants(world: SimWorld, tracker: FuzzTracker, tick: numbe
       !Number.isFinite(e.armor) ||
       e.armor < 0 ||
       !Number.isFinite(e.speed) ||
-      e.speed < 0
+      e.speed <= 0
     ) {
       return `Invalid status/stat state for uid=${e.uid} type=${e.type}`;
     }
@@ -821,7 +827,7 @@ function assertTickInvariants(world: SimWorld, tracker: FuzzTracker, tick: numbe
       !Number.isInteger(p.targetPoolIndex) ||
       p.targetPoolIndex < 0 ||
       p.targetPoolIndex >= BALANCE.pools.maxEnemies ||
-      p.duration <= 0 ||
+      p.duration < 0.06 - 1e-9 ||
       p.progress < 0 ||
       p.progress >= 1 ||
       p.arcHeight < 0 ||
@@ -982,6 +988,15 @@ function assertTickInvariants(world: SimWorld, tracker: FuzzTracker, tick: numbe
         ws.getEarlyCallBonus() !== (ws.isEndless ? BALANCE.earlyWaveBonusMaxGold : 0)))
   ) {
     return `Inconsistent waveSystem action/bonus state in ${ws.state} (endless=${ws.isEndless})`;
+  }
+  const clearBonusInvalid =
+    ws.state === 'preFirstWave' || ws.state === 'betweenWaves' || ws.state === 'finished'
+      ? ws.pendingClearBonus !== 0 || tracker.pendingExpectedWaveBonus !== 0
+      : ws.state === 'spawning'
+        ? ws.pendingClearBonus < 0 || ws.pendingClearBonus > tracker.pendingExpectedWaveBonus
+        : ws.pendingClearBonus !== tracker.pendingExpectedWaveBonus;
+  if (clearBonusInvalid) {
+    return `Pending clear bonus ledger mismatch in ${ws.state}: sim=${ws.pendingClearBonus}, tracker=${tracker.pendingExpectedWaveBonus}`;
   }
 
   if (tick % 30 === 0) {
@@ -1360,6 +1375,7 @@ function performLegalAction(
     if (tower.targetingMode !== mode) {
       return `setTowerTargeting failed on tower ${tower.id}`;
     }
+    tracker.usedTargetingModes.add(mode);
     return null;
   }
 
@@ -1377,6 +1393,7 @@ function performLegalAction(
         if (!placed) {
           return `placeTower failed on legal grass tile (${coord.col},${coord.row}) for ${type}`;
         }
+        tracker.usedTargetingModes.add(mode);
         tracker.expectedGold -= cost;
         if (world.gold !== goldBefore - cost || placed.totalInvested !== cost) {
           return `placeTower gold mismatch after building ${type}`;
@@ -1449,6 +1466,7 @@ function createFuzzTracker(startingGold: number, endlessWavesConfig: number): Fu
     everBuiltTowerIds: new Set<number>(),
     maxEverTowerId: 0,
     builtTowerTypes: new Set<TowerType>(),
+    usedTargetingModes: new Set<TargetingMode>(),
     maxTierReached: 0,
     soldTowerCount: 0,
     meteorCastCount: 0,
@@ -1568,6 +1586,7 @@ function buildCoverageStats(tracker: FuzzTracker): FuzzCoverageStats {
     towersSold: tracker.soldTowerCount,
     meteorCasts: tracker.meteorCastCount,
     overchargeCasts: tracker.overchargeCastCount,
+    targetingModesUsed: [...tracker.usedTargetingModes],
   };
 }
 
@@ -1940,7 +1959,10 @@ export function runEndlessFuzz(
   if (level.scriptedBuildOrder && level.scriptedBuildOrder.length > 0) {
     for (const act of level.scriptedBuildOrder) {
       if (act.action === 'build' && act.towerType) {
-        world.placeTower(act.col, act.row, act.towerType, act.targetingMode ?? 'first');
+        const mode = act.targetingMode ?? 'first';
+        if (world.placeTower(act.col, act.row, act.towerType, mode)) {
+          tracker.usedTargetingModes.add(mode);
+        }
       } else if (act.action === 'upgrade') {
         const tid = world.grid.getTowerIdAt(act.col, act.row);
         if (tid !== -1) world.upgradeTower(tid);
@@ -1951,7 +1973,12 @@ export function runEndlessFuzz(
       const type = chooseTowerType(world, rng, profile);
       if (!type) break;
       const coord = chooseTileForBuild(world, rng, tiles, type, profile);
-      if (coord) world.placeTower(coord.col, coord.row, type, rng.pick(TARGETING_MODES));
+      if (coord) {
+        const mode = rng.pick(TARGETING_MODES);
+        if (world.placeTower(coord.col, coord.row, type, mode)) {
+          tracker.usedTargetingModes.add(mode);
+        }
+      }
     }
   }
 
@@ -2127,6 +2154,7 @@ export function runFuzzCampaign(config: {
   let maxPeakEnemies = 0;
   let maxPeakProjectiles = 0;
   const towerTypesBuilt = new Set<TowerType>();
+  const targetingModesUsed = new Set<TargetingMode>();
   let maxTierReached = 0;
   let towersSold = 0;
   let meteorCasts = 0;
@@ -2135,6 +2163,7 @@ export function runFuzzCampaign(config: {
   const mergeCoverage = (cov?: FuzzCoverageStats): void => {
     if (!cov) return;
     for (const t of cov.towerTypesBuilt) towerTypesBuilt.add(t);
+    for (const m of cov.targetingModesUsed) targetingModesUsed.add(m);
     if (cov.maxTierReached > maxTierReached) maxTierReached = cov.maxTierReached;
     towersSold += cov.towersSold;
     meteorCasts += cov.meteorCasts;
@@ -2228,6 +2257,7 @@ export function runFuzzCampaign(config: {
       towersSold,
       meteorCasts,
       overchargeCasts,
+      targetingModesUsed: [...targetingModesUsed],
     },
   };
 }

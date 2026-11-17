@@ -5,6 +5,7 @@ import { ABILITY_DEFS, ABILITY_IDS, computeMeteorDamage } from '../../src/data/a
 import { BALANCE } from '../../src/data/balance.ts';
 import { ENEMY_DEFS, ENEMY_TYPES } from '../../src/data/enemies.ts';
 import { LEVELS, parseLevelGrid } from '../../src/data/levels/index.ts';
+import { parseTileChar } from '../../src/data/levels/types.ts';
 import {
   FROST_TINT_HEX,
   lerpHexColor,
@@ -66,6 +67,7 @@ describe('tower, enemy, ability, and UI metadata contracts', () => {
       for (const tier of [1, 2, 3] as const) {
         const stats = getTowerTierStats(type, tier);
         expect(stats.tier).toBe(tier);
+        expect(Number.isInteger(stats.upgradeCost)).toBe(true);
         expect(stats.upgradeCost).toBeGreaterThan(0);
         expect(stats.damage).toBeGreaterThanOrEqual(0);
         expect(stats.fireRate).toBeGreaterThan(0);
@@ -89,6 +91,7 @@ describe('tower, enemy, ability, and UI metadata contracts', () => {
         expect(bounds.height).toBeGreaterThan(0);
       }
 
+      expect(TOWER_PICK_BOUNDS[type][0].height).toBeGreaterThanOrEqual(def.turretHeight);
       expect(TOWER_PICK_BOUNDS[type][1].height).toBeGreaterThanOrEqual(TOWER_PICK_BOUNDS[type][0].height);
       expect(TOWER_PICK_BOUNDS[type][2].height).toBeGreaterThanOrEqual(TOWER_PICK_BOUNDS[type][1].height);
 
@@ -127,6 +130,14 @@ describe('tower, enemy, ability, and UI metadata contracts', () => {
       const badge = ENEMY_BADGE_META[type];
       expect(badge.label.trim().length).toBeGreaterThan(0);
       expect(badge.color).toMatch(/^#[0-9a-f]{6}$/i);
+
+      const hasHealField =
+        def.healAmount !== undefined || def.healRadius !== undefined || def.healInterval !== undefined;
+      if (hasHealField) {
+        expect(def.healAmount).toBeGreaterThan(0);
+        expect(def.healRadius).toBeGreaterThan(0);
+        expect(def.healInterval).toBeGreaterThan(0);
+      }
     }
 
     expect(ENEMY_DEFS.healer.healAmount).toBeGreaterThan(0);
@@ -524,7 +535,33 @@ describe('simulation determinism and endless scaling safety contracts', () => {
         if (act.targetingMode !== undefined) {
           expect(validTargets.has(act.targetingMode)).toBe(true);
         }
+        if (act.action === 'upgrade') {
+          expect(act.targetingMode).toBeUndefined();
+        }
       }
     }
+  });
+
+  it('parseTileChar falls back to empty and parseLevelGrid pads short/missing rows with empty', () => {
+    expect(parseTileChar('.')).toBe('grass');
+    expect(parseTileChar('T')).toBe('decor');
+    expect(parseTileChar('P')).toBe('path');
+    expect(parseTileChar('S')).toBe('spawn');
+    expect(parseTileChar('G')).toBe('goal');
+    expect(parseTileChar('~')).toBe('empty');
+    expect(parseTileChar('?')).toBe('empty');
+    expect(parseTileChar('')).toBe('empty');
+
+    const grid = parseLevelGrid({
+      ...LEVELS[0],
+      cols: 4,
+      rows: 3,
+      layout: ['S .', 'P ? G'],
+    });
+    expect(grid).toEqual([
+      ['spawn', 'grass', 'empty', 'empty'],
+      ['path', 'empty', 'goal', 'empty'],
+      ['empty', 'empty', 'empty', 'empty'],
+    ]);
   });
 });

@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { BALANCE } from '../../src/data/balance.ts';
 import {
   disposeInstancedMeshes,
@@ -7,7 +7,12 @@ import {
   mergePlainGeometries,
   mergeTexturedParts,
 } from '../../src/render/geometryHelpers.ts';
-import { multiplyVertexTint, remapUvCell, WHITE_SWATCH_UV } from '../../src/render/kenneyPalette.ts';
+import {
+  createHarmonizedColormapTexture,
+  multiplyVertexTint,
+  remapUvCell,
+  WHITE_SWATCH_UV,
+} from '../../src/render/kenneyPalette.ts';
 import { LightningArcPool } from '../../src/render/lightningPool.ts';
 
 describe('geometryHelpers', () => {
@@ -152,7 +157,36 @@ describe('kenneyPalette UV and vertex tint helpers', () => {
     expect(col.getX(1)).toBeCloseTo(1, 4);
     expect(col.getY(1)).toBeCloseTo(0, 4);
 
+    // remapUvCell on geometry missing 'uv' is a safe no-op
+    const noUvGeo = new THREE.BufferGeometry();
+    noUvGeo.setAttribute('position', new THREE.Float32BufferAttribute([0, 0, 0, 1, 0, 0, 0, 1, 0], 3));
+    expect(remapUvCell(noUvGeo, [0, 0], [1, 1])).toBe(noUvGeo);
+    expect(noUvGeo.hasAttribute('uv')).toBe(false);
+
+    // multiplyVertexTint creates a 'color' attribute when missing
+    expect(noUvGeo.hasAttribute('color')).toBe(false);
+    multiplyVertexTint(noUvGeo, 0x00ff00);
+    const createdCol = noUvGeo.getAttribute('color') as THREE.BufferAttribute;
+    expect(createdCol).toBeDefined();
+    expect(createdCol.getX(0)).toBeCloseTo(0, 4);
+    expect(createdCol.getY(0)).toBeCloseTo(1, 4);
+    expect(createdCol.getZ(0)).toBeCloseTo(0, 4);
+
+    noUvGeo.dispose();
     geo.dispose();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('createHarmonizedColormapTexture throws when 2D canvas context is unavailable', () => {
+    vi.stubGlobal('document', {
+      createElement: () => ({ width: 64, height: 32, getContext: () => null }),
+    });
+    expect(() =>
+      createHarmonizedColormapTexture({ width: 64, height: 32 } as unknown as HTMLCanvasElement),
+    ).toThrow('Could not create 2D canvas context');
   });
 });
 
