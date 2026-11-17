@@ -53,6 +53,24 @@ describe('codex data', () => {
     expect(enemyEntry('flyer').counter).toMatch(/Archer, Frost, Tesla and Ballista/);
   });
 
+  it('counter text never recommends a ground-only tower against a flying foe', () => {
+    const groundOnly = TOWER_TYPES.filter((t) => TOWER_DEFS[t].role === 'attack' && !towerEntry(t).hitsFlyers);
+    for (const t of ENEMY_TYPES) {
+      const e = enemyEntry(t);
+      if (!e.flying) continue;
+      for (const g of groundOnly) {
+        expect(e.counter.toLowerCase(), `${t} counter mentions ${g}`).not.toContain(g);
+      }
+    }
+  });
+
+  it('every tower or ability name used in lore text is a real one', () => {
+    const known = new Set([...TOWER_TYPES.map((t) => t[0].toUpperCase() + t.slice(1)), 'Overcharge', 'Meteor', 'Incendiary']);
+    const names = /\b(Archer|Cannon|Frost|Tesla|Mortar|Ballista|Beacon|Overcharge|Meteor|Incendiary)\b/g;
+    const texts = [...ENEMY_TYPES.map((t) => enemyEntry(t).counter), ...TOWER_TYPES.map((t) => towerEntry(t).strong)];
+    for (const text of texts) for (const m of text.matchAll(names)) expect(known.has(m[1])).toBe(true);
+  });
+
   it('classifies speeds', () => {
     expect(speedClass(1.0)).toBe('slow');
     expect(speedClass(2.3)).toBe('steady');
