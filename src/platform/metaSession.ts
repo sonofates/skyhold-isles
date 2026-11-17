@@ -32,6 +32,7 @@ import {
   getTowerMasteryStats,
   getValidDailyDateSet,
   importMetaSaveJson,
+  isPlainRecord,
   recomputeAchievements,
   recordEndlessRunStats,
   recordRunCompletion,
@@ -86,6 +87,8 @@ import type {
 } from '../sim/meta/types.ts';
 import { getTodayUtcDateString, loadMetaSave, saveMetaSave } from './storage.ts';
 
+const IGNORED_BASELINE_KEYS = new Set<string>(['__proto__', 'constructor', 'prototype']);
+
 function nonNegIntOrZero(value: unknown): number {
   return typeof value === 'number' && Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0;
 }
@@ -124,10 +127,8 @@ export class MetaSession {
     this.persistFn = options?.onSave ?? saveMetaSave;
     this.getTodayDateFn = options?.getTodayDate ?? getTodayUtcDateString;
     const rawSave = options?.saveData;
-    const hasPlainSave =
-      Boolean(rawSave) && typeof rawSave === 'object' && !Array.isArray(rawSave);
-    this.save = hasPlainSave
-      ? (rawSave as MetaSaveData)
+    this.save = isPlainRecord(rawSave)
+      ? (rawSave as unknown as MetaSaveData)
       : loadMetaSave(this.levels.length, this.levels);
     ensureWritableSaveContainers(this.save, this.levels.length);
   }
@@ -199,7 +200,7 @@ export class MetaSession {
 
   private markGamePlayed(): void {
     this.countedGamePlayed = true;
-    if (!this.save.stats || typeof this.save.stats !== 'object' || Array.isArray(this.save.stats)) {
+    if (!isPlainRecord(this.save.stats)) {
       this.save.stats = createEmptyLifetimeStats();
     }
     this.save.stats.gamesPlayed = nonNegIntOrZero(this.save.stats.gamesPlayed) + 1;
@@ -209,17 +210,21 @@ export class MetaSession {
     const bestEndlessWaves = Array.isArray(this.save?.campaign?.bestEndlessWaves)
       ? this.save.campaign.bestEndlessWaves
       : null;
-    const scoresMap =
-      this.save?.bestEndlessScoresByLevelId &&
-      typeof this.save.bestEndlessScoresByLevelId === 'object' &&
-      !Array.isArray(this.save.bestEndlessScoresByLevelId)
-        ? this.save.bestEndlessScoresByLevelId
-        : null;
-    this.runStartBestEndlessWave = bestEndlessWaves
-      ? nonNegIntOrZero(bestEndlessWaves[level.index])
-      : 0;
+    const scoresMap = isPlainRecord(this.save?.bestEndlessScoresByLevelId)
+      ? this.save.bestEndlessScoresByLevelId
+      : null;
+    const idx =
+      typeof level?.index === 'number' && Number.isFinite(level.index)
+        ? Math.max(0, Math.floor(level.index))
+        : -1;
+    this.runStartBestEndlessWave =
+      bestEndlessWaves && idx >= 0 ? nonNegIntOrZero(bestEndlessWaves[idx]) : 0;
+    const levelId = typeof level?.id === 'string' ? level.id : '';
+    const isSafeId = levelId.length > 0 && !IGNORED_BASELINE_KEYS.has(levelId);
     this.runStartBestEndlessScore =
-      scoresMap && Object.hasOwn(scoresMap, level.id) ? nonNegIntOrZero(scoresMap[level.id]) : 0;
+      isSafeId && scoresMap && Object.hasOwn(scoresMap, levelId)
+        ? nonNegIntOrZero(scoresMap[levelId])
+        : 0;
   }
 
   private finalizeRunOutcome(
@@ -407,12 +412,9 @@ export class MetaSession {
     outcome: 'ongoing' | 'won' | 'lost' = 'ongoing',
   ): readonly LiveChallengeStatus[] {
     if (!this.observer || this.activeDailyDate !== null) return [];
-    const completedMap =
-      this.save?.completedChallenges &&
-      typeof this.save.completedChallenges === 'object' &&
-      !Array.isArray(this.save.completedChallenges)
-        ? this.save.completedChallenges
-        : {};
+    const completedMap = isPlainRecord(this.save?.completedChallenges)
+      ? (this.save.completedChallenges as Readonly<Record<string, boolean>>)
+      : {};
     const storySnapshot = this.observer.getStoryWinSnapshot();
     if (storySnapshot) {
       return evaluateLiveLevelChallenges(
@@ -576,7 +578,7 @@ export class MetaSession {
 
     const next = res.save;
     // Preserve campaign object/array references held by GameSession.progress
-    if (!this.save.campaign || typeof this.save.campaign !== 'object' || Array.isArray(this.save.campaign)) {
+    if (!isPlainRecord(this.save.campaign)) {
       this.save.campaign = {
         unlockedLevelIndex: next.campaign.unlockedLevelIndex,
         bestStars: [...next.campaign.bestStars],

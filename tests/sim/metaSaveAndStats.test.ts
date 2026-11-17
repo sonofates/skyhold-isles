@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { EventBus } from '../../src/core/eventBus.ts';
-import type { ProgressData } from '../../src/core/types.ts';
+import type { ProgressData, SpeedMultiplier } from '../../src/core/types.ts';
 import { BALANCE } from '../../src/data/balance.ts';
 import { ACHIEVEMENTS, getChallengesForLevel } from '../../src/data/challenges.ts';
 import { LEVELS, type LevelDef } from '../../src/data/levels/index.ts';
@@ -2230,5 +2230,59 @@ describe('MetaSession stats, achievements, challenges & daily persistence', () =
     expect(cleanProgress.bestEndlessWaves.slice(0, 4)).toEqual([12, 0, 0, 0]);
     expect(cleanProgress.bestStars.reduce((a, b) => a + b, 0)).toBe(6);
     dirtyArraySession.dispose();
+
+    // Non-numeric / Infinity minCombatSpeed never grants wonAt3xSpeed, and MetaSession baseline ignores prototype-polluting level IDs
+    const speedGuardSave = createDefaultMetaSave(LEVELS.length);
+    const speedEv = new EventBus();
+    const speedObs = new RunObserver(LEVELS[0], speedEv);
+    const speedBaseTel = speedObs.getTelemetry();
+    speedObs.dispose();
+    recordRunCompletion(speedGuardSave, {
+      level: LEVELS[0],
+      telemetry: { ...speedBaseTel, minCombatSpeed: '3' as unknown as SpeedMultiplier, storyWavesCompleted: 10 },
+      won: true,
+      stars: 2,
+      livesRemaining: 14,
+      levels: LEVELS,
+    });
+    recordRunCompletion(speedGuardSave, {
+      level: LEVELS[0],
+      telemetry: { ...speedBaseTel, minCombatSpeed: Number.POSITIVE_INFINITY as unknown as SpeedMultiplier, storyWavesCompleted: 10 },
+      won: true,
+      stars: 2,
+      livesRemaining: 14,
+      levels: LEVELS,
+    });
+    expect(speedGuardSave.achievementMilestones.wonAt3xSpeed).toBe(false);
+    recordRunCompletion(speedGuardSave, {
+      level: LEVELS[0],
+      telemetry: { ...speedBaseTel, minCombatSpeed: 3, storyWavesCompleted: 10 },
+      won: true,
+      stars: 2,
+      livesRemaining: 14,
+      levels: LEVELS,
+    });
+    expect(speedGuardSave.achievementMilestones.wonAt3xSpeed).toBe(true);
+
+    const protoBaselineSave = createDefaultMetaSave(LEVELS.length);
+    protoBaselineSave.bestEndlessScoresByLevelId = JSON.parse('{"__proto__":9999}');
+    const protoSession = new MetaSession({
+      levels: LEVELS,
+      saveData: protoBaselineSave,
+      onSave: () => {},
+    });
+    const protoLvl = { ...LEVELS[0], id: '__proto__', index: -1, waves: [LEVELS[0].waves[0]] };
+    const protoBus = new EventBus();
+    protoSession.startRun(protoLvl, protoBus);
+    protoBus.emit('waveStarted', { waveIndex: 0, totalWaves: 1, earlyBonus: 0 });
+    protoBus.emit('waveCompleted', { waveIndex: 0, bonus: 10 });
+    protoBus.emit('gameWon', { stars: 3, livesRemaining: 20 });
+    protoBus.emit('endlessEntered', { startingWave: 2 });
+    protoBus.emit('waveStarted', { waveIndex: 1, totalWaves: 2, earlyBonus: 0, endless: true });
+    protoBus.emit('waveCompleted', { waveIndex: 1, bonus: 10 });
+    protoBus.emit('gameLost', { waveIndex: 1, endless: true });
+    expect(protoSession.getLastRunOutcome()?.isNewBestEndlessScore).toBe(true);
+    expect(protoSession.getLastRunOutcome()?.isNewBestEndlessWave).toBe(true);
+    protoSession.dispose();
   });
 });

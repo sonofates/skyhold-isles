@@ -70,7 +70,7 @@ export function createEmptyLifetimeStats(): LifetimeStats {
   };
 }
 
-function normalizeLevelCount(levelCount: number): number {
+export function normalizeLevelCount(levelCount: number): number {
   return typeof levelCount === 'number' && Number.isFinite(levelCount)
     ? Math.max(1, Math.floor(levelCount))
     : 1;
@@ -423,7 +423,7 @@ export function migrateToMetaSave(
   return base;
 }
 
-function isPlainRecord(value: unknown): value is Record<string, unknown> {
+export function isPlainRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 }
 
@@ -606,14 +606,11 @@ function getAchievementCurrentValue(
     if (s > 0) islandsWithStars++;
     totalStars += s;
   }
-  const completedChallengeCount =
-    save?.completedChallenges &&
-    typeof save.completedChallenges === 'object' &&
-    !Array.isArray(save.completedChallenges)
-      ? Object.entries(save.completedChallenges).filter(
-          ([k, v]) => !IGNORED_RECORD_KEYS.has(k) && v === true,
-        ).length
-      : 0;
+  const completedChallengeCount = isPlainRecord(save?.completedChallenges)
+    ? Object.entries(save.completedChallenges).filter(
+        ([k, v]) => !IGNORED_RECORD_KEYS.has(k) && v === true,
+      ).length
+    : 0;
 
   switch (def.id) {
     case 'first_victory':
@@ -895,7 +892,11 @@ export function recordRunCompletion(
         save.stats.perfectClears = asNonNegInt(save.stats.perfectClears) + 1;
         save.achievementMilestones.wonNoLivesLost = true;
       }
-      if (telemetry.minCombatSpeed !== null && telemetry.minCombatSpeed >= 3) {
+      if (
+        typeof telemetry.minCombatSpeed === 'number' &&
+        Number.isFinite(telemetry.minCombatSpeed) &&
+        telemetry.minCombatSpeed >= 3
+      ) {
         save.achievementMilestones.wonAt3xSpeed = true;
       }
       if (

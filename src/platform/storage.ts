@@ -2,8 +2,10 @@ import type { GameSettings, ProgressData, QualityLevel } from '../core/types.ts'
 import type { LevelDef } from '../data/levels/types.ts';
 import {
   createDefaultMetaSave,
+  isPlainRecord,
   mergeCampaignProgress,
   migrateToMetaSave,
+  normalizeLevelCount,
 } from '../sim/meta/metaEngine.ts';
 import type { MetaSaveData } from '../sim/meta/types.ts';
 
@@ -66,12 +68,6 @@ export function getDefaultSettings(): GameSettings {
 
 export const DEFAULT_SETTINGS: GameSettings = getDefaultSettings();
 
-function normalizeLevelCount(levelCount: number): number {
-  return typeof levelCount === 'number' && Number.isFinite(levelCount)
-    ? Math.max(1, Math.floor(levelCount))
-    : 1;
-}
-
 export function createDefaultProgress(levelCount: number): ProgressData {
   const safeCount = normalizeLevelCount(levelCount);
   return {
@@ -91,7 +87,7 @@ export function loadSettings(): GameSettings {
     const raw = localStorage.getItem(SETTINGS_KEY);
     if (!raw) return defaults;
     const rawParsed: unknown = JSON.parse(raw);
-    if (!rawParsed || typeof rawParsed !== 'object' || Array.isArray(rawParsed)) {
+    if (!isPlainRecord(rawParsed)) {
       return defaults;
     }
     const parsed = rawParsed as Partial<GameSettings>;
@@ -128,7 +124,7 @@ export function loadProgress(levelCount: number): ProgressData {
     const raw = localStorage.getItem(PROGRESS_KEY);
     if (!raw) return createDefaultProgress(safeCount);
     const rawParsed: unknown = JSON.parse(raw);
-    if (!rawParsed || typeof rawParsed !== 'object' || Array.isArray(rawParsed)) {
+    if (!isPlainRecord(rawParsed)) {
       return createDefaultProgress(safeCount);
     }
     const parsed = rawParsed as Partial<ProgressData>;
@@ -205,11 +201,10 @@ export function loadMetaSave(levelCount: number, levels?: readonly LevelDef[]): 
  * monotonically by default (or directly when `overwriteV1` is true for explicit restore).
  */
 export function saveMetaSave(save: MetaSaveData, overwriteV1 = false): void {
-  if (!save || typeof save !== 'object' || Array.isArray(save)) return;
+  if (!isPlainRecord(save)) return;
   try {
     localStorage.setItem(META_PROGRESS_KEY, JSON.stringify(save));
-    const hasCampaign =
-      Boolean(save?.campaign) && typeof save.campaign === 'object' && !Array.isArray(save.campaign);
+    const hasCampaign = isPlainRecord(save.campaign);
     const starsLen =
       hasCampaign && Array.isArray(save.campaign.bestStars) ? save.campaign.bestStars.length : 0;
     const endlessLen =
@@ -224,10 +219,9 @@ export function saveMetaSave(save: MetaSaveData, overwriteV1 = false): void {
       return;
     }
     const existingV1Raw = readJsonSafely(PROGRESS_KEY);
-    const existingV1Obj =
-      existingV1Raw && typeof existingV1Raw === 'object' && !Array.isArray(existingV1Raw)
-        ? (existingV1Raw as Partial<ProgressData>)
-        : null;
+    const existingV1Obj = isPlainRecord(existingV1Raw)
+      ? (existingV1Raw as Partial<ProgressData>)
+      : null;
     const existingStarsLen = Array.isArray(existingV1Obj?.bestStars)
       ? existingV1Obj.bestStars.length
       : 0;
