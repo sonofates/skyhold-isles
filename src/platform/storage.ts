@@ -160,10 +160,19 @@ export function loadProgress(levelCount: number): ProgressData {
         }
       }
     }
-    const unlockedLevelIndex =
-      typeof parsed.unlockedLevelIndex === 'number'
+    let unlockedLevelIndex =
+      typeof parsed.unlockedLevelIndex === 'number' && Number.isFinite(parsed.unlockedLevelIndex)
         ? Math.max(0, Math.min(levelCount - 1, Math.floor(parsed.unlockedLevelIndex)))
         : 0;
+    // A cleared island always unlocks the next one. Saves from a build with fewer islands never
+    // recorded an unlock past their last island (there was none), so new islands appended later
+    // would otherwise stay locked for players who had already finished the campaign.
+    for (let i = levelCount - 2; i >= 0; i--) {
+      if (bestStars[i] > 0) {
+        unlockedLevelIndex = Math.max(unlockedLevelIndex, i + 1);
+        break;
+      }
+    }
     return { unlockedLevelIndex, bestStars, bestEndlessWaves };
   } catch {
     return createDefaultProgress(levelCount);
