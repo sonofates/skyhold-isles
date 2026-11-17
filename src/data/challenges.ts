@@ -115,8 +115,8 @@ const ISLAND_CHALLENGES: Readonly<Record<string, readonly ChallengeId[]>> = {
   'galewatch-spires': ['bowless', 'silentSkies'],
   'lanternfall-hollow': ['thaw', 'ironTide'],
   'stormcrown-citadel': ['quietGuns', 'thinPurse'],
-  // Islands 14-16 live on the CONTENT branch (by id, so these apply once it is merged). Picked
-  // from a per-challenge greedy sweep on the merged levels (see PROGRESS-skyhold-day-campaign).
+  // Islands 14-16 (CONTENT branch, merged on integration-day). Picked from a per-challenge greedy
+  // sweep on the merged levels (see PROGRESS-skyhold-day-campaign).
   'amberstone-mesa': ['bowless', 'galeForce'],
   'moonwell-crossing': ['silentSkies', 'glassSanctuary'],
   'emberglass-sanctum': ['thaw', 'ironTide'],

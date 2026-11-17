@@ -27,14 +27,11 @@ describe('challenge data', () => {
     }
   });
 
-  it('every island has a hand-picked pair; extra ids are only the known CONTENT islands', () => {
+  it('every island has a hand-picked pair and every pair belongs to a real island', () => {
     const known = new Set(LEVELS.map((l) => l.id));
     for (const level of LEVELS) expect(HAND_PICKED_CHALLENGE_ISLANDS, level.id).toContain(level.id);
-    const pending = HAND_PICKED_CHALLENGE_ISLANDS.filter((id) => !known.has(id));
-    // Islands authored on the CONTENT branch; once merged they are real levels (pending shrinks).
-    for (const id of pending) {
-      expect(['amberstone-mesa', 'moonwell-crossing', 'emberglass-sanctum']).toContain(id);
-    }
+    // L14-16 (CONTENT branch) are merged now: no pending ids may remain.
+    expect(HAND_PICKED_CHALLENGE_ISLANDS.filter((id) => !known.has(id))).toEqual([]);
   });
 
   it('islands added later fall back to a pair by difficulty', () => {

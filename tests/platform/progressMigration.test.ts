@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { loadProgress, resetProgressSave, saveProgress } from '../../src/platform/storage.ts';
+import { ContentStore, type StorageLike } from '../../src/platform/contentStorage.ts';
+import { LEVELS } from '../../src/data/levels/index.ts';
 
 const KEY = 'skyhold_isles_progress_v1';
 const BACKUP_KEY = 'skyhold_isles_progress_backup_v1';
@@ -82,5 +84,46 @@ describe('progress save versioning', () => {
     // Resetting the now-empty save again must not overwrite the backup of the real progress.
     resetProgressSave(13);
     expect(store.get('skyhold_isles_progress_reset_backup')).toBe(before);
+  });
+  it('a v2 save from the 13-island build opens islands 14-16 and keeps Workshop / challenge data', () => {
+    save({
+      version: 2,
+      unlockedLevelIndex: 12,
+      bestStars: new Array<number>(13).fill(3),
+      bestEndlessWaves: [],
+      bestLives: new Array<number>(13).fill(18),
+      clears: new Array<number>(13).fill(2),
+      workshop: { bastion: 2 },
+      challengeClears: [['bowless']],
+    });
+    const p = loadProgress(16);
+    expect(p.unlockedLevelIndex).toBe(13);
+    expect(p.bestStars).toHaveLength(16);
+    expect(p.bestStars.slice(13)).toEqual([0, 0, 0]);
+    expect(p.clears.slice(13)).toEqual([0, 0, 0]);
+    expect(p.workshop).toEqual({ bastion: 2 });
+    expect(p.challengeClears[0]).toEqual(['bowless']);
+  });
+
+  it('onboarding (CONTENT) reads the v2 progress: veterans skip it, fresh saves get it', () => {
+    const mem = (): StorageLike => {
+      const m = new Map<string, string>();
+      return { getItem: (k) => m.get(k) ?? null, setItem: (k, v) => void m.set(k, v) };
+    };
+    save({ version: 2, unlockedLevelIndex: 4, bestStars: [3, 2, 2, 1], workshop: {}, clears: [1, 1, 1, 1] });
+    const veteran = new ContentStore(mem());
+    veteran.migrate(LEVELS, loadProgress(LEVELS.length));
+    expect(veteran.getOnboardingStatus()).toBe('done');
+
+    // An old v1 save migrated on the same load is still a veteran.
+    save({ unlockedLevelIndex: 2, bestStars: [3, 1], bestEndlessWaves: [] });
+    const v1Veteran = new ContentStore(mem());
+    v1Veteran.migrate(LEVELS, loadProgress(LEVELS.length));
+    expect(v1Veteran.getOnboardingStatus()).toBe('done');
+
+    store.clear();
+    const fresh = new ContentStore(mem());
+    fresh.migrate(LEVELS, loadProgress(LEVELS.length));
+    expect(fresh.getOnboardingStatus()).toBe('pending');
   });
 });
