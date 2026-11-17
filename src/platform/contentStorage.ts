@@ -144,6 +144,13 @@ export class ContentStore {
     return true;
   }
 
+  /** Takes back a `markSeen` (an introduction that was queued but never actually shown). */
+  unmarkSeen(id: SeenId): void {
+    if (!this.seen.delete(id)) return;
+    this.viewed.delete(id);
+    this.saveSeen();
+  }
+
   /** Seen but never opened in the codex. */
   isNew(id: SeenId): boolean {
     return this.seen.has(id) && !this.viewed.has(id);

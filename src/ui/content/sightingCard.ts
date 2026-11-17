@@ -6,6 +6,8 @@ export interface SightingCardCallbacks {
   /** Called whenever the card opens or closes (so the session can pause / resume). */
   onVisibilityChange: () => void;
   onOpenCodex: (tab: 'enemies' | 'towers', id: string) => void;
+  /** Another overlay (the codex) sits on top: ignore the keyboard. */
+  isCoveredByOverlay?: () => boolean;
 }
 
 /** Compact "you just met something new" card. Holds a list; the player steps through it. */
@@ -27,11 +29,12 @@ export class SightingCard {
   private open = false;
   private readonly cb: SightingCardCallbacks;
   private readonly keyHandler = (e: KeyboardEvent): void => {
-    if (!this.open) return;
+    if (!this.open || this.cb.isCoveredByOverlay?.()) return;
     if (e.key === 'Enter' || e.key === ' ' || e.key === 'Escape') {
       e.preventDefault();
       e.stopImmediatePropagation();
-      if (e.type === 'keydown') this.advance();
+      // Auto-repeat (a key held down when the card popped up) must not skip through the whole stack.
+      if (e.type === 'keydown' && !e.repeat) this.advance();
     }
   };
 
@@ -126,6 +129,13 @@ export class SightingCard {
       return;
     }
     this.close();
+  }
+
+  /** Closes the card and returns the refs after the one on screen (never shown to the player). */
+  closeKeepingUnshown(): CardRef[] {
+    const rest = this.open ? this.refs.slice(this.index + 1) : [];
+    this.close();
+    return rest;
   }
 
   close(): void {

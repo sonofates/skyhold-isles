@@ -5,7 +5,7 @@ import type { ContentStore } from '../../platform/contentStorage.ts';
 import { allEnemyEntries, allTowerEntries, eliteEntry } from './codexData.ts';
 import { CodexScreen, type CodexTab } from './codexScreen.ts';
 import { CoachMark } from './coachMark.ts';
-import { SightingQueue, waveHasElite } from './firstSighting.ts';
+import { seenIdOf, SightingQueue, waveHasElite } from './firstSighting.ts';
 import { coachMessage, OnboardingMachine, TOUR_TILE, type OnboardingObs } from './onboardingMachine.ts';
 import { SightingCard } from './sightingCard.ts';
 
@@ -42,6 +42,7 @@ export class ContentDirector {
     this.card = new SightingCard(uiRoot, {
       onVisibilityChange: () => this.host.onBlockingChange(),
       onOpenCodex: (tab, id) => this.codex.open(tab, id),
+      isCoveredByOverlay: () => this.codex.isOpen(),
     });
     this.codex = new CodexScreen(uiRoot, {
       isSeen: (id) => store.hasSeen(id),
@@ -81,7 +82,7 @@ export class ContentDirector {
 
   /** Subscribe to the new level's sim events. Listeners die with the bus on the next level load. */
   bindLevel(bus: EventBus, level: LevelDef, levelIndex: number): void {
-    this.card.close();
+    this.dismissCard();
     this.machine.onLevelStart(levelIndex);
     this.coach.resetDoneStyle();
     bus.on('enemySpawned', (e) => {
@@ -116,6 +117,7 @@ export class ContentDirector {
   observe(obs: OnboardingObs): void {
     if (!this.machine.active) return;
     if (!obs.inPlay || obs.levelIndex !== 0) {
+      this.wantMarker = false;
       this.coach.hide();
       return;
     }
@@ -125,6 +127,7 @@ export class ContentDirector {
       return;
     }
     if (obs.modalOpen || this.card.isOpen() || this.codex.isOpen()) {
+      this.wantMarker = false;
       this.coach.hide();
       return;
     }
@@ -140,7 +143,7 @@ export class ContentDirector {
    * position into `out` and returns whether it is on screen.
    */
   updateMarker(project: (col: number, row: number, out: { x: number; y: number }) => boolean): void {
-    if (!this.wantMarker || !this.machine.active) return;
+    if (!this.wantMarker || !this.machine.active || this.card.isOpen() || this.codex.isOpen()) return;
     if (project(TOUR_TILE.col, TOUR_TILE.row, this.markerOut)) this.coach.setMarker(this.markerOut);
     else this.coach.setMarker(null);
   }
@@ -149,7 +152,15 @@ export class ContentDirector {
   onLeavePlay(): void {
     this.wantMarker = false;
     this.coach.hide();
-    this.card.close();
+    this.dismissCard();
+  }
+
+  /** Closes the card; foes queued behind the one on screen were never shown, so they stay "unseen". */
+  private dismissCard(): void {
+    for (const ref of this.card.closeKeepingUnshown()) {
+      this.store.unmarkSeen(seenIdOf(ref));
+    }
+    this.refreshNewBadge();
   }
 
   onLevelWon(levelIndex: number): void {

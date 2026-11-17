@@ -7,6 +7,10 @@ export type CardRef =
   | { readonly kind: 'elite' }
   | { readonly kind: 'tower'; readonly type: TowerType };
 
+export function seenIdOf(ref: CardRef): SeenId {
+  return ref.kind === 'enemy' ? enemySeenId(ref.type) : ref.kind === 'tower' ? towerSeenId(ref.type) : ELITE_SEEN_ID;
+}
+
 interface SeenStore {
   hasSeen(id: SeenId): boolean;
   markSeen(id: SeenId): boolean;

@@ -148,6 +148,61 @@ describe.skipIf(!hasDom)('content UI (DOM)', () => {
     card.dispose();
   });
 
+  it('sighting card: held keys do not skip the stack; Escape belongs to the codex when it is on top', async () => {
+    const { SightingCard } = await import('../../src/ui/content/sightingCard.ts');
+    let covered = false;
+    const card = new SightingCard(fresh(), {
+      onVisibilityChange: () => undefined,
+      onOpenCodex: () => undefined,
+      isCoveredByOverlay: () => covered,
+    });
+    card.show([
+      { kind: 'enemy', type: 'golem' },
+      { kind: 'enemy', type: 'mite' },
+      { kind: 'enemy', type: 'hexer' },
+    ]);
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', repeat: true }));
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', repeat: true }));
+    expect(root.querySelector('.sc-count')?.textContent).toBe('1/3');
+    covered = true;
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    expect(root.querySelector('.sc-count')?.textContent).toBe('1/3');
+    covered = false;
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+    expect(root.querySelector('.sc-count')?.textContent).toBe('2/3');
+    // Closing early hands back what was never shown.
+    expect(card.closeKeepingUnshown()).toEqual([{ kind: 'enemy', type: 'hexer' }]);
+    expect(card.isOpen()).toBe(false);
+    card.dispose();
+  });
+
+  it('director: foes queued behind a card that is cut short get another chance; the marker never outlives its step', async () => {
+    const { ContentDirector } = await import('../../src/ui/content/contentDirector.ts');
+    const store = new ContentStore(mem());
+    store.migrate(LEVELS, { unlockedLevelIndex: 0, bestStars: new Array<number>(LEVELS.length).fill(0) });
+    const dir = new ContentDirector(fresh(), store, { onBlockingChange: vi.fn(), startTutorialIsland: vi.fn() });
+    const bus = new EventBus();
+    dir.bindLevel(bus, LEVELS[0], 0);
+    bus.emit('enemySpawned', { enemyId: 1, enemyType: 'grunt', flying: false });
+    bus.emit('enemySpawned', { enemyId: 2, enemyType: 'runner', flying: false });
+    expect(store.hasSeen('enemy:runner')).toBe(true);
+    dir.onLeavePlay(); // cut short while the grunt card is up
+    expect(store.hasSeen('enemy:grunt')).toBe(true);
+    expect(store.hasSeen('enemy:runner')).toBe(false);
+
+    // Marker: shown on the build step, gone once a card or the codex covers the screen.
+    const project = (): boolean => true;
+    const obs: OnboardingObs = { ...obsBase, touch: true };
+    dir.observe(obs);
+    dir.updateMarker(project);
+    expect(root.querySelector('.onb-marker')?.classList.contains('hidden')).toBe(false);
+    dir.openCodex();
+    dir.observe(obs);
+    dir.updateMarker(project);
+    expect(root.querySelector('.onb-marker')?.classList.contains('hidden')).toBe(true);
+    dir.dispose();
+  });
+
   it('coach: glows the target control and removes the glow on hide', async () => {
     const { CoachMark } = await import('../../src/ui/content/coachMark.ts');
     const { coachMessage } = await import('../../src/ui/content/onboardingMachine.ts');
