@@ -66,6 +66,7 @@ const _affordableTypes: TowerType[] = [];
 const _aaAffordableTypes: TowerType[] = [];
 const _upgradableTowers: TowerEntity[] = [];
 const _towerTypeCounts = new Map<TowerType, number>();
+const _bossesBelowHalfScratch = new Set<number>();
 
 export type FuzzProfile = 'tactical' | 'competent' | 'balanced' | 'chaotic' | 'minimal';
 export const FUZZ_PROFILES: readonly FuzzProfile[] = ['tactical', 'competent', 'balanced', 'chaotic', 'minimal'];
@@ -189,7 +190,22 @@ interface FuzzTracker {
   expectedNextWaveIndex: number;
   lastWaveHpScale: number;
   endlessWavesConfig: number;
-  prevTowerStats: Map<number, { kills: number; dmg: number }>;
+  pendingSplitChildrenExpected: number;
+  newlyStunnedTowerIds: Set<number>;
+  bossSummonedUids: Set<number>;
+  bossesBelowHalfLastTick: Set<number>;
+  prevTowerStats: Map<
+    number,
+    {
+      kills: number;
+      dmg: number;
+      cooldownTimer: number;
+      stunTimer: number;
+      tier: 1 | 2 | 3;
+      totalInvested: number;
+      recoil: number;
+    }
+  >;
   stateHash: number;
   eventInvariantError: string | null;
 }
@@ -296,6 +312,16 @@ function attachEventTracker(
     if (ev.flying !== ENEMY_DEFS[ev.enemyType].flying) {
       recordEventError(tracker, `enemySpawned flying=${ev.flying} mismatch for type=${ev.enemyType}`);
       return;
+    }
+    if (tracker.pendingSplitChildrenExpected > 0) {
+      if (ev.enemyType !== 'runner' || ev.flying) {
+        recordEventError(
+          tracker,
+          `Expected split child runner spawn, got type=${ev.enemyType} flying=${ev.flying}`,
+        );
+        return;
+      }
+      tracker.pendingSplitChildrenExpected--;
     }
     tracker.seenSpawnUids.add(ev.enemyId);
     tracker.spawnedTypes.set(ev.enemyId, ev.enemyType);
@@ -410,6 +436,7 @@ function attachEventTracker(
         `Invalid enemySplit coordinates/y=${ev.y} (expected=${expectedSplitY}) for parentUid=${ev.parentUid}`,
       );
     }
+    tracker.pendingSplitChildrenExpected += ev.count;
     tracker.splitterSplitCount++;
     tracker.stateHash = mixHash(mixHash(tracker.stateHash, 4), ev.parentUid);
   });
@@ -448,6 +475,7 @@ function attachEventTracker(
         break;
       }
       _seenEventTowerIds.add(tid);
+      tracker.newlyStunnedTowerIds.add(tid);
       const t = tracker.towerById.get(tid);
       if (!t || Math.abs(t.stunTimer - 2.65) > 1e-6) {
         recordEventError(tracker, `bossPulse stunnedTowerId=${tid} not stunned at 2.65s`);
@@ -1076,6 +1104,29 @@ function expectedTowerInvestment(type: TowerType, tier: 1 | 2 | 3): number {
   return sum;
 }
 
+function expectedWaveHpScale(level: LevelDef, waveIndex: number): number {
+  const base = level.enemyHpScale ?? 1;
+  const growth = level.waveHpGrowth ?? 0;
+  const storyCount = level.waves.length;
+  const storyScale = (idx: number): number => {
+    const w = Math.max(0, idx);
+    const linear = base * (1 + w * growth);
+    return w <= 5 ? linear : linear * Math.pow(1.032, w - 5);
+  };
+  if (waveIndex < storyCount) {
+    return storyScale(waveIndex);
+  }
+  const finalStoryScale = storyScale(Math.max(0, storyCount - 1));
+  const offset = waveIndex - storyCount;
+  return finalStoryScale * Math.pow(1.22, offset + 1);
+}
+
+function expectedWaveRewardMultiplier(level: LevelDef, waveIndex: number): number {
+  if (waveIndex < level.waves.length) return 1;
+  const step = waveIndex - level.waves.length + 1;
+  return Math.max(0.32, 1 / (1 + step * 0.14));
+}
+
 function assertTickInvariants(world: SimWorld, tracker: FuzzTracker, tick: number): string | null {
   if (tracker.eventInvariantError) {
     return tracker.eventInvariantError;
@@ -1125,6 +1176,13 @@ function assertTickInvariants(world: SimWorld, tracker: FuzzTracker, tick: numbe
   }
   tracker.pendingDeathUids.clear();
 
+  if (tracker.pendingSplitChildrenExpected !== 0) {
+    if (tracker.enemyPoolOverflows === 0) {
+      return `enemySplit expected ${tracker.pendingSplitChildrenExpected} more split hatchling spawn(s)`;
+    }
+    tracker.pendingSplitChildrenExpected = 0;
+  }
+
   const groundPath = world.enemySystem.getPath(false);
   const flightPath = world.enemySystem.getPath(true);
   const groundPathLen = Math.max(0.01, groundPath.totalLength);
@@ -1132,6 +1190,7 @@ function assertTickInvariants(world: SimWorld, tracker: FuzzTracker, tick: numbe
 
   let pendingDeaths = 0;
   _seenEnemyUids.clear();
+  _bossesBelowHalfScratch.clear();
   for (let i = 0; i < activeEnemies; i++) {
     const e = world.enemyPool.items[world.enemyPool.getActiveIndex(i)];
     if (!e.active) return `Inactive enemy at active index pos=${i}`;
@@ -1150,6 +1209,18 @@ function assertTickInvariants(world: SimWorld, tracker: FuzzTracker, tick: numbe
     }
     if (e.type !== 'boss' && e.bossSummonedEscorts) {
       return `Non-boss enemy uid=${e.uid} (${e.type}) has stale bossSummonedEscorts=true`;
+    }
+    if (e.type === 'boss') {
+      if (e.bossSummonedEscorts) {
+        tracker.bossSummonedUids.add(e.uid);
+      } else if (tracker.bossSummonedUids.has(e.uid)) {
+        return `Boss uid=${e.uid} reset bossSummonedEscorts from true to false`;
+      } else if (world.outcome === 'ongoing' && tracker.bossesBelowHalfLastTick.has(e.uid)) {
+        return `Boss uid=${e.uid} remained <= 50% HP across two ticks without triggering bossSummonedEscorts`;
+      }
+      if (e.hp > 0 && e.hp <= e.maxHp * 0.5) {
+        _bossesBelowHalfScratch.add(e.uid);
+      }
     }
     const def = ENEMY_DEFS[e.type];
     if (
@@ -1453,16 +1524,52 @@ function assertTickInvariants(world: SimWorld, tracker: FuzzTracker, tick: numbe
     }
     const prevStats = tracker.prevTowerStats.get(t.id);
     if (prevStats) {
-      if (t.kills < prevStats.kills || t.totalDamageDealt + 1e-9 < prevStats.dmg) {
-        return `Tower id=${t.id} stats regressed (kills ${prevStats.kills}->${t.kills}, dmg ${prevStats.dmg}->${t.totalDamageDealt})`;
+      if (
+        t.kills < prevStats.kills ||
+        t.totalDamageDealt + 1e-9 < prevStats.dmg ||
+        t.tier < prevStats.tier ||
+        t.totalInvested < prevStats.totalInvested
+      ) {
+        return `Tower id=${t.id} stats/tier regressed (kills ${prevStats.kills}->${t.kills}, dmg ${prevStats.dmg}->${t.totalDamageDealt}, tier ${prevStats.tier}->${t.tier})`;
+      }
+      if (
+        prevStats.stunTimer > BALANCE.fixedDt + 1e-6 &&
+        t.stunTimer > 0 &&
+        !tracker.newlyStunnedTowerIds.has(t.id)
+      ) {
+        if (
+          t.stunTimer > prevStats.stunTimer + 1e-9 ||
+          t.cooldownTimer !== prevStats.cooldownTimer ||
+          t.recoil > prevStats.recoil + 1e-9
+        ) {
+          return `Continuously stunned tower id=${t.id} mutated cooldown (${prevStats.cooldownTimer}->${t.cooldownTimer}), stun (${prevStats.stunTimer}->${t.stunTimer}), or recoil`;
+        }
       }
       prevStats.kills = t.kills;
       prevStats.dmg = t.totalDamageDealt;
+      prevStats.cooldownTimer = t.cooldownTimer;
+      prevStats.stunTimer = t.stunTimer;
+      prevStats.tier = t.tier;
+      prevStats.totalInvested = t.totalInvested;
+      prevStats.recoil = t.recoil;
     } else {
-      tracker.prevTowerStats.set(t.id, { kills: t.kills, dmg: t.totalDamageDealt });
+      tracker.prevTowerStats.set(t.id, {
+        kills: t.kills,
+        dmg: t.totalDamageDealt,
+        cooldownTimer: t.cooldownTimer,
+        stunTimer: t.stunTimer,
+        tier: t.tier,
+        totalInvested: t.totalInvested,
+        recoil: t.recoil,
+      });
     }
     activeTowerKills += t.kills;
     activeTowerDamage += t.totalDamageDealt;
+  }
+  tracker.newlyStunnedTowerIds.clear();
+  tracker.bossesBelowHalfLastTick.clear();
+  for (const bossUid of _bossesBelowHalfScratch) {
+    tracker.bossesBelowHalfLastTick.add(bossUid);
   }
 
   if (activeTowerKills + tracker.soldTowerKills > tracker.killedCount + pendingDeaths) {
@@ -1535,6 +1642,18 @@ function assertTickInvariants(world: SimWorld, tracker: FuzzTracker, tick: numbe
         : ws.pendingClearBonus !== tracker.pendingExpectedWaveBonus;
   if (clearBonusInvalid) {
     return `Pending clear bonus ledger mismatch in ${ws.state}: sim=${ws.pendingClearBonus}, tracker=${tracker.pendingExpectedWaveBonus}`;
+  }
+  if (ws.currentWaveIndex >= 0) {
+    const expHpScale = expectedWaveHpScale(world.level, ws.currentWaveIndex);
+    const actHpScale = ws.getCurrentWaveHpScale();
+    if (Math.abs(actHpScale - expHpScale) > 1e-9 || actHpScale < tracker.lastWaveHpScale - 1e-9) {
+      return `Wave HP scale mismatch at wave=${ws.currentWaveOneBased}: got=${actHpScale}, expected=${expHpScale}`;
+    }
+    const expRewardMult = expectedWaveRewardMultiplier(world.level, ws.currentWaveIndex);
+    const actRewardMult = ws.getRewardMultiplier();
+    if (Math.abs(actRewardMult - expRewardMult) > 1e-9) {
+      return `Wave rewardMultiplier mismatch at wave=${ws.currentWaveOneBased}: got=${actRewardMult}, expected=${expRewardMult}`;
+    }
   }
 
   if (tick % 30 === 0) {
@@ -2153,7 +2272,11 @@ function createFuzzTracker(startingGold: number, endlessWavesConfig: number): Fu
     expectedNextWaveIndex: 0,
     lastWaveHpScale: 0,
     endlessWavesConfig,
-    prevTowerStats: new Map<number, { kills: number; dmg: number }>(),
+    pendingSplitChildrenExpected: 0,
+    newlyStunnedTowerIds: new Set<number>(),
+    bossSummonedUids: new Set<number>(),
+    bossesBelowHalfLastTick: new Set<number>(),
+    prevTowerStats: new Map(),
     stateHash: 2166136261,
     eventInvariantError: null,
   };
@@ -2229,6 +2352,8 @@ function verifyPostEndImmutability(
   if (outcomeSnap === 'lost' && world.enterEndlessMode()) {
     return `enterEndlessMode succeeded after outcome=lost`;
   }
+  world.debugForceWin();
+  world.debugForceLose();
 
   world.fixedTick(BALANCE.fixedDt);
   if (

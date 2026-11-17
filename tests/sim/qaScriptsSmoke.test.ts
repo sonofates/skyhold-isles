@@ -148,6 +148,7 @@ describe('QA scripts smoke verification', () => {
     });
     expect(parseCiCliArgs(['-h'])).toEqual({ help: true, failFast: false, full: false });
     expect(parseCiCliArgs(['--help'])).toEqual({ help: true, failFast: false, full: false });
+    expect(parseCiCliArgs(['-h', '--fail-fast'])).toEqual({ help: true, failFast: true, full: false });
     expect(() => parseCiCliArgs(['--fial-fast'])).toThrow(/Unknown CI argument/);
     expect(() => parseCiCliArgs(['extra'])).toThrow(/Unknown CI argument/);
 
@@ -159,6 +160,7 @@ describe('QA scripts smoke verification', () => {
     });
     expect(parseSimBenchCliArgs(['--help'])).toEqual({ help: true, strict: false, json: false });
     expect(parseSimBenchCliArgs(['-h'])).toEqual({ help: true, strict: false, json: false });
+    expect(parseSimBenchCliArgs(['--json', '--help'])).toEqual({ help: true, strict: false, json: true });
     expect(() => parseSimBenchCliArgs(['--strct'])).toThrow(/Unknown sim:bench argument/);
     expect(() => parseSimBenchCliArgs(['extra'])).toThrow(/Unknown sim:bench argument/);
 
@@ -362,5 +364,17 @@ describe('QA scripts smoke verification', () => {
         (r) => r.towerCount === 40 && r.ticksPerSec > 180 && typeof r.meetsSoftBudget === 'boolean',
       ),
     ).toBe(true);
+  });
+
+  it('executes balanceSim CLI entrypoint cleanly under LEVELS=1 filter', { timeout: 30_000 }, () => {
+    const balanceProc = spawnSync(tsxBin, ['scripts/balanceSim.ts'], {
+      encoding: 'utf8',
+      shell: process.platform === 'win32',
+      env: { ...process.env, LEVELS: '1' },
+    });
+    expect(balanceProc.status, balanceProc.stderr).toBe(0);
+    expect(balanceProc.stdout).toContain('[L1 GREEDY]');
+    expect(balanceProc.stdout).toContain('[L1 WEAK  ]');
+    expect(balanceProc.stdout).toContain('Balance check PASSED: Greedy & Weak targets met across 1 level(s)!');
   });
 });

@@ -1,13 +1,26 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { KenneyAssetStore } from '../../src/render/kenneyAssets.ts';
+import { LEVELS, type LevelDef } from '../../src/data/levels/index.ts';
+import { TOWER_TYPES } from '../../src/data/towers.ts';
+import { DecorBuilder } from '../../src/render/decorBuilder.ts';
+import { KENNEY_MODEL_LIST, KenneyAssetStore } from '../../src/render/kenneyAssets.ts';
+import { MapBuilder } from '../../src/render/mapBuilder.ts';
+import { MaterialLibrary } from '../../src/render/materials.ts';
+import { ProjectileRenderer } from '../../src/render/projectileRenderer.ts';
+import { TowerGeometryCache } from '../../src/render/towerGeometries.ts';
+import { getTowerPickHeight } from '../../src/render/towerPicking.ts';
 
 function installCanvasAndImageMock(failImage = false) {
+  const fakeGrad = { addColorStop: () => {} };
   const fakeCtx = {
     clearRect: () => {},
     fillRect: () => {},
     drawImage: () => {},
+    createRadialGradient: () => fakeGrad,
+    createLinearGradient: () => fakeGrad,
     getImageData: (_x: number, _y: number, w: number, h: number) => ({
       data: new Uint8ClampedArray(w * h * 4).fill(128),
     }),
@@ -164,5 +177,129 @@ describe('KenneyAssetStore preload, normalization, and disposal', () => {
     await expect(KenneyAssetStore.preload(undefined, ['tile-straight'])).rejects.toThrow(
       /Failed to load texture/,
     );
+  });
+
+  it('loads all real Kenney GLBs and builds TowerGeometryCache, ProjectileRenderer, MapBuilder, and DecorBuilder cleanly', async () => {
+    vi.stubGlobal('self', globalThis);
+    vi.spyOn(THREE.TextureLoader.prototype, 'load').mockImplementation(
+      (_url, onLoad) => {
+        const tex = new THREE.Texture();
+        onLoad?.(tex);
+        return tex;
+      },
+    );
+
+    const kenneyDir = resolve(process.cwd(), 'public/models/kenney');
+    vi.spyOn(GLTFLoader.prototype, 'loadAsync').mockImplementation(async (url: string) => {
+      const fileName = url.split('/').pop()!;
+      const buf = readFileSync(resolve(kenneyDir, fileName));
+      const ab = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
+      const loader = new GLTFLoader();
+      return await new Promise<Awaited<ReturnType<GLTFLoader['loadAsync']>>>((res, rej) => {
+        loader.parse(ab, '', res, rej);
+      });
+    });
+
+    const assertFiniteGeometry = (geo: THREE.BufferGeometry, label: string, requireUvAndColor: boolean): void => {
+      const pos = geo.getAttribute('position') as THREE.BufferAttribute | undefined;
+      expect(pos, `${label} missing position`).toBeDefined();
+      expect(pos!.count, `${label} empty position`).toBeGreaterThan(0);
+      expect(pos!.count % 3, `${label} non-triangle vertex count`).toBe(0);
+      expect(geo.hasAttribute('normal'), `${label} missing normal`).toBe(true);
+      if (requireUvAndColor) {
+        expect(geo.index, `${label} must be non-indexed`).toBeNull();
+        expect(geo.hasAttribute('uv'), `${label} missing uv`).toBe(true);
+        expect(geo.hasAttribute('color'), `${label} missing color`).toBe(true);
+      }
+      for (const attrName of ['position', 'normal', 'uv', 'color']) {
+        const attr = geo.getAttribute(attrName) as THREE.BufferAttribute | undefined;
+        if (!attr) continue;
+        const arr = attr.array as ArrayLike<number>;
+        for (let i = 0; i < arr.length; i++) {
+          if (!Number.isFinite(arr[i])) {
+            throw new Error(`${label} has non-finite ${attrName} value at ${i}: ${arr[i]}`);
+          }
+        }
+      }
+      if (!geo.boundingBox) geo.computeBoundingBox();
+      expect(geo.boundingBox!.isEmpty(), `${label} empty boundingBox`).toBe(false);
+    };
+
+    const store = await KenneyAssetStore.preload(undefined, KENNEY_MODEL_LIST);
+    for (const modelName of KENNEY_MODEL_LIST) {
+      expect(store.has(modelName), `Missing preloaded model ${modelName}`).toBe(true);
+      const g = store.cloneGeometry(modelName);
+      assertFiniteGeometry(g, `model:${modelName}`, true);
+      g.dispose();
+    }
+
+    const mats = new MaterialLibrary(store.colormapTexture);
+    const towerCache = new TowerGeometryCache(store);
+    for (const type of TOWER_TYPES) {
+      let prevAnchorY = 0;
+      for (const tier of [1, 2, 3] as const) {
+        const pair = towerCache.get(type, tier);
+        assertFiniteGeometry(pair.base, `tower:${type}:T${tier}:base`, true);
+        assertFiniteGeometry(pair.turret, `tower:${type}:T${tier}:turret`, true);
+        expect(pair.turretAnchorY).toBeGreaterThan(prevAnchorY);
+        expect(pair.turretAnchorY).toBeLessThanOrEqual(getTowerPickHeight(type, tier));
+        prevAnchorY = pair.turretAnchorY;
+      }
+    }
+
+    const projRenderer = new ProjectileRenderer(mats, store);
+    expect(projRenderer.group.children.length).toBeGreaterThanOrEqual(4);
+    for (const child of projRenderer.group.children) {
+      const inst = child as THREE.InstancedMesh;
+      if (inst.isInstancedMesh) {
+        assertFiniteGeometry(inst.geometry, 'projectileRenderer', true);
+      }
+    }
+
+    const mapBuilder = new MapBuilder();
+    const decorBuilder = new DecorBuilder();
+    const junctionLevel: LevelDef = {
+      ...LEVELS[0],
+      cols: 5,
+      rows: 5,
+      layout: [
+        '~ ~ S ~ ~',
+        '~ . P . ~',
+        '. P P P G',
+        '~ . P . ~',
+        '~ ~ ~ ~ ~',
+      ],
+      pathWaypoints: [
+        { col: 2, row: 0 },
+        { col: 2, row: 3 },
+        { col: 2, row: 2 },
+        { col: 0, row: 2 },
+        { col: 4, row: 2 },
+      ],
+      flightPath: [
+        { col: 2, row: 0 },
+        { col: 4, row: 2 },
+      ],
+    };
+
+    for (const lvl of [...LEVELS, junctionLevel]) {
+      mapBuilder.build(lvl, mats, store);
+      decorBuilder.build(lvl, mats, store);
+      for (const rootGroup of [mapBuilder.group, decorBuilder.group]) {
+        rootGroup.traverse((obj) => {
+          const mesh = obj as THREE.Mesh;
+          if (mesh.isMesh && mesh.geometry) {
+            assertFiniteGeometry(mesh.geometry, `level:${lvl.id}`, false);
+          }
+        });
+      }
+    }
+
+    mapBuilder.dispose();
+    decorBuilder.dispose();
+    projRenderer.dispose();
+    towerCache.dispose();
+    mats.dispose();
+    store.dispose();
   });
 });

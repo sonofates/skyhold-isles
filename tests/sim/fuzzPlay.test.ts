@@ -91,6 +91,34 @@ describe('headless fuzz playthrough harness', () => {
           finalOutcome: runB.digest.finalOutcome === 'won' ? 'lost' : 'won',
         }),
       ).toBe(false);
+      expect(digestsEqual(runA.digest, { ...runB.digest, levelId: 'other-level' })).toBe(false);
+      expect(digestsEqual(runA.digest, { ...runB.digest, seed: runB.digest.seed + 1 })).toBe(false);
+      expect(
+        digestsEqual(runA.digest, {
+          ...runB.digest,
+          profile: runB.digest.profile === 'minimal' ? 'tactical' : 'minimal',
+        }),
+      ).toBe(false);
+      expect(
+        digestsEqual(runA.digest, {
+          ...runB.digest,
+          storyOutcome: runB.digest.storyOutcome === 'won' ? 'lost' : 'won',
+        }),
+      ).toBe(false);
+      expect(
+        digestsEqual(runA.digest, { ...runB.digest, currentWaveOneBased: runB.digest.currentWaveOneBased + 1 }),
+      ).toBe(false);
+      expect(digestsEqual(runA.digest, { ...runB.digest, waveState: 'preFirstWave' })).toBe(false);
+      expect(
+        digestsEqual(runA.digest, { ...runB.digest, activeEnemiesAtEnd: runB.digest.activeEnemiesAtEnd + 1 }),
+      ).toBe(false);
+      expect(
+        digestsEqual(runA.digest, { ...runB.digest, totalDamageDealtSum: runB.digest.totalDamageDealtSum + 1 }),
+      ).toBe(false);
+      expect(digestsEqual(runA.digest, { ...runB.digest, peakEnemies: runB.digest.peakEnemies + 1 })).toBe(false);
+      expect(
+        digestsEqual(runA.digest, { ...runB.digest, peakProjectiles: runB.digest.peakProjectiles + 1 }),
+      ).toBe(false);
     }
 
     expect(parseFuzzCliArgs([])).toEqual({
@@ -285,6 +313,19 @@ describe('headless fuzz playthrough harness', () => {
     expect(noEndlessCampaign.totalRuns).toBe(1);
     expect(noEndlessCampaign.endlessChecks).toBe(0);
     expect(noEndlessCampaign.endlessWavesCompletedTotal).toBe(0);
+
+    // runFuzzCampaign honors multi-level subset levelIndices cleanly
+    const subsetCampaign = runFuzzCampaign({
+      seedsPerLevel: 1,
+      baseSeed: 3030,
+      endlessWaves: 0,
+      levelIndices: [1, 4],
+      profile: 'tactical',
+    });
+    expect(subsetCampaign.failures).toEqual([]);
+    expect(subsetCampaign.totalRuns).toBe(2);
+    expect(subsetCampaign.passedRuns).toBe(2);
+    expect(subsetCampaign.determinismChecks).toBe(2);
 
     expect(() => parseFuzzCliArgs(['--profile', 'unknown'])).toThrow(/Invalid --profile/);
     expect(() => parseFuzzCliArgs(['--seed'])).toThrow(/requires a value/);

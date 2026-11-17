@@ -88,16 +88,31 @@ describe('FloatingTextPool', () => {
     expect(activeDmgEls[0].textContent).toBe('60');
     expect(activeDmgEls[0].className).toContain('float-heavy');
 
-    // Hit after 150ms window allocates a second slot
-    pool.spawnDamage(7, 15, 2, 1, 2, 2.3, false);
+    // Hit at exact 150ms merge window boundary still merges into same active popup
+    pool.spawnDamage(7, 10, 2, 1, 2, 2.1 + BALANCE.floatingTextMergeWindowSec, false);
+    expect(activeDmgEls[0].textContent).toBe('70');
+
+    // Hit after 150ms window allocates a second slot; explicit isHeavy=true marks low damage (<55) heavy
+    pool.spawnDamage(7, 15, 2, 1, 2, 2.5, true);
     pool.update(0.01, (_x, _y, _z, out) => {
       out.x = 320;
       out.y = 240;
     });
     expect(pool.getActiveCount()).toBe(2);
+    const secondDmgEl = layer.children.find(
+      (el) => el.textContent === '15' && !el.classList.contains('hidden'),
+    )!;
+    expect(secondDmgEl.className).toContain('float-heavy');
+
+    // Advancing into final 35% of lifetime (t > 0.65) fades opacity cleanly below 1.0
+    pool.update(0.55, (_x, _y, _z, out) => {
+      out.x = 320;
+      out.y = 240;
+    });
+    expect(Number(secondDmgEl.style.opacity)).toBeLessThan(1);
 
     // Advancing past duration (0.72s) expires and hides slots cleanly
-    pool.update(0.8, (_x, _y, _z, out) => {
+    pool.update(0.3, (_x, _y, _z, out) => {
       out.x = 320;
       out.y = 240;
     });
