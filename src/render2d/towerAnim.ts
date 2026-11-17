@@ -71,6 +71,16 @@ export function onShot(armed: boolean, elapsed: number, releaseDelay: number): {
   return { elapsed: 0, shotDelay: releaseDelay };
 }
 
+/**
+ * Playback time to set when a pre-roll starts this frame. The renderer advances the sheet by `simDt`
+ * right after (same frame), so start one frame back, but never below 0: a negative time reads as
+ * "not playing" and would freeze the sheet until the shot (it then restarts from frame 0, delayed).
+ * The release frame lands at most one frame early.
+ */
+export function prerollStart(releaseDelay: number, eta: number, simDt: number): number {
+  return Math.max(0, releaseDelay - Math.max(0, eta) - simDt);
+}
+
 /** Cooldown seconds left → sim seconds to the shot, from the observed cooldown drain rate (per sim s). */
 export function shotEta(cooldown: number, drainPerSec: number): number {
   if (cooldown <= 0) return 0;

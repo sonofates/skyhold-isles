@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { ManifestError, parseManifest, parseSheetJson } from '../../src/render2d/manifest.ts';
-import { attackFrame, attackPlan, CATCH_UP, idleFrame, onShot, PREROLL_GRACE, projectileReveal, shotEta, shouldPreroll } from '../../src/render2d/towerAnim.ts';
+import { attackFrame, attackPlan, CATCH_UP, idleFrame, onShot, PREROLL_GRACE, prerollStart, projectileReveal, shotEta, shouldPreroll } from '../../src/render2d/towerAnim.ts';
 import { drawnRing, fitOnRing, measureRing, plotRing, plotSpriteRect, ringMuzzle, type RingSpec } from '../../src/render2d/towerFit.ts';
 
 const ROOT = resolve(import.meta.dirname, '../..');
@@ -215,6 +215,20 @@ describe('attack animation timing (render-only)', () => {
     expect(shotEta(0.5, 2)).toBeCloseTo(0.25, 9);
     expect(shotEta(0, 1)).toBe(0);
     expect(shotEta(0.5, 0)).toBe(Number.POSITIVE_INFINITY);
+  });
+
+  it('pre-roll start is never negative (a negative time would freeze the sheet until the shot)', () => {
+    // First qualifying frame: eta just under the release delay, less than one frame of lead.
+    expect(prerollStart(0.25, 0.24, 1 / 60)).toBe(0);
+    expect(prerollStart(0.25, 0.1, 1 / 60)).toBeCloseTo(0.15 - 1 / 60, 9);
+    expect(prerollStart(0.25, 0, 1 / 60)).toBeCloseTo(0.25 - 1 / 60, 9);
+    // After the same-frame advance the release lands on the shot (or at most one frame early).
+    const dt = 1 / 60;
+    for (const eta of [0.249, 0.2, 0.12, 0.05, 0.001]) {
+      const atShot = prerollStart(0.25, eta, dt) + dt + eta;
+      expect(atShot).toBeGreaterThanOrEqual(0.25 - 1e-9);
+      expect(atShot).toBeLessThanOrEqual(0.25 + dt + 1e-9);
+    }
   });
 
   it('shot: a pre-rolled sheet keeps playing (release on the shot); otherwise it restarts from frame 0', () => {

@@ -9,7 +9,7 @@ import { HEIGHT_TO_SCREEN, type WorldLayers } from './layers.ts';
 import type { MapView } from './mapView.ts';
 import type { PlotGeometry } from './plotLayer.ts';
 import type { ProcTextures } from './procTextures.ts';
-import { attackFrame, attackPlan, idleFrame, onShot, PREROLL_GRACE, shotEta, shouldPreroll, type AttackPlan } from './towerAnim.ts';
+import { attackFrame, attackPlan, idleFrame, onShot, PREROLL_GRACE, prerollStart, shotEta, shouldPreroll, type AttackPlan } from './towerAnim.ts';
 import { drawnRing, fitOnRing, ringMuzzle, type RingPlacement, type RingSpec } from './towerFit.ts';
 
 /** Procedural attack animation of one tower type (lookup with a default, so new towers just work). */
@@ -377,7 +377,7 @@ export class TowerLayer {
       ) {
         v.attackSheet = sheetNow;
         v.attackPlan = plan;
-        v.attackT = Math.max(0, plan.releaseDelay - shotEta(t.cooldownTimer, v.drain)) - simDt;
+        v.attackT = prerollStart(plan.releaseDelay, shotEta(t.cooldownTimer, v.drain), simDt);
         v.armed = true;
       }
     }
