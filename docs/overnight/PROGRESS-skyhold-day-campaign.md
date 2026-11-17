@@ -136,7 +136,7 @@ Currency = best campaign stars + 1 per completed challenge; spending is refundab
 | Fletcher's Kit | towers  | 2, 3          | archer+ballista +2% rate |
 | Powder Works   | towers  | 2, 3          | cannon+mortar +2% rate   |
 | Storm Lore     | towers  | 2, 3          | frost+tesla +2% rate     |
-Total cost 33★ (campaign max 39★).
+Total cost 33★ (campaign max 48★ with 16 islands; was 39★ with 13).
 - Power: deliberately ~5% effective, NOT 10-12%: the level balance is knife-edge — a +6% fire-rate
   test took Master greedy from ~11 lives lost to 0 (L8). `npm run sim:balance` now prints a
   "Workshop max" section; it FAILS if a maxed greedy run loses 0 lives on any Master island.
@@ -288,3 +288,21 @@ Read-only diff comparison (merge-tree not permitted here). Shared files and expe
 - `src/ui/settingsModal.ts`: optional Reset-progress row (menu only). `src/ui/menus.ts`: main menu
   row gets Workshop (+ settings icon-only), level cards get medals/crown, header Workshop button.
 - `README.md`: "Campaign & Replayability" section appended.
+
+## Integration (integration-day, 2026-11-17)
+- Merged into `integration-day` (main + MOBILE + CONTENT). Only gameSession.ts conflicted (3 hunks,
+  both sides kept: win recording + `content.onLevelWon`, banned markers + `content.onLeavePlay`,
+  endless toasts + `content.bindLevel`).
+- L14-16 are real now: hand-picked challenge pairs apply (test tightened: no pending ids), star
+  table is per difficulty so it covers them, Workshop max on Master L14/15/16 = 7/11/9 lives lost
+  (base 13/12/11), sim 16/16 PASS, endless sanity samples L16.
+- Save v2 + CONTENT onboarding: `ContentStore.migrate` reads `unlockedLevelIndex`/`bestStars` from
+  the migrated v2 object → veterans (v1 or v2) skip onboarding, fresh saves get it (tested). A v2
+  13-island full clear opens L14 (tested).
+- Screenshot QA (`qa/campaignInteg.mjs`, gitignored dev script, 390x844 touch + 1440x900): level select L14-16 stars +
+  medals + 32/48, Workshop buy, briefing + Bowless greys the archer card, Codex from menu / level
+  select / pause, ?debug victory star reveal + Workshop chip, fresh save → coach on island 1;
+  0 console errors.
+- Not merged: `hermes/skyhold-day-campaign-wip` (endless storm choice). Needs tests and a way to
+  reach the modal in QA (debug Skip Wave starts the wave without a `waveCompleted`).
+- Open: Reset progress does not reset the Codex/onboarding keys (by design of the separate keys).
