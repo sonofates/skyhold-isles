@@ -55,7 +55,10 @@ export function mountCodex2D(art: LoadedArt, onToggle: (open: boolean) => void):
       document.body.appendChild(root);
       const cx = new CodexScreen(root, {
         isSeen: () => true,
-        onClose: () => onToggle(false),
+        onClose: () => {
+          btn.style.display = '';
+          onToggle(false);
+        },
       });
       screen = { open: () => cx.open('enemies') };
     })();
@@ -64,6 +67,7 @@ export function mountCodex2D(art: LoadedArt, onToggle: (open: boolean) => void):
   const open = (): void => {
     void load().then(() => {
       onToggle(true);
+      btn.style.display = 'none';
       screen?.open();
     });
   };
