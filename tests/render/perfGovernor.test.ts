@@ -25,11 +25,13 @@ import {
 } from '../../src/render/postProcessing.ts';
 import {
   collectInstancedMaterialsNeedingColor,
+  collectMissingInstancedShadowWarmTargets,
   compileWarmUpGroups,
   computeSafeRenderDimensions,
   createInstancedShadowWarmMesh,
   detectPrimaryTouchDevice,
   findHiddenInstancedColorShadowCasterMaterial,
+  getInstancedShadowDepthKey,
   hasVisibleInstancedColorShadowCaster,
   shouldUseAsyncShaderCompile,
 } from '../../src/render/sceneManager.ts';
@@ -2005,5 +2007,76 @@ describe('PerfGovernor', () => {
       accumMat.dispose();
       vi.unstubAllGlobals();
     }
+  });
+
+  it('collects distinct shadow-depth variants so textured visible trees do not mask untextured enemy shadow casters', () => {
+    const scene = new THREE.Scene();
+    const geo = new THREE.BufferGeometry();
+    const colormap = new THREE.Texture();
+    const treeMat = new THREE.MeshStandardMaterial({ map: colormap, vertexColors: true });
+    const towerMat = new THREE.MeshStandardMaterial({ map: colormap, vertexColors: true });
+    const enemyMat = new THREE.MeshStandardMaterial({ vertexColors: true });
+    const fxMat = new THREE.MeshBasicMaterial();
+
+    // Visible active tree layer (map != null + instanceColor != null)
+    const treeInst = new THREE.InstancedMesh(geo, treeMat, 2);
+    treeInst.castShadow = true;
+    treeInst.receiveShadow = true;
+    treeInst.count = 2;
+    treeInst.setColorAt(0, new THREE.Color(1, 1, 1));
+
+    // Another hidden tree layer sharing the same variant should be skipped as already covered
+    const hiddenTreeInst = new THREE.InstancedMesh(geo, treeMat, 2);
+    hiddenTreeInst.castShadow = true;
+    hiddenTreeInst.count = 0;
+    hiddenTreeInst.setColorAt(0, new THREE.Color(1, 1, 1));
+
+    // Two empty enemy layers (brute + boss: map == null + instanceColor != null) -> deduplicated to 1
+    const bruteInst = new THREE.InstancedMesh(geo, enemyMat, 2);
+    bruteInst.castShadow = true;
+    bruteInst.receiveShadow = false;
+    bruteInst.count = 0;
+    bruteInst.setColorAt(0, new THREE.Color(1, 1, 1));
+
+    const bossInst = new THREE.InstancedMesh(geo, enemyMat, 2);
+    bossInst.castShadow = true;
+    bossInst.receiveShadow = false;
+    bossInst.count = 0;
+    bossInst.setColorAt(0, new THREE.Color(1, 1, 1));
+
+    // Non-shadow-casting mesh is ignored
+    const fxInst = new THREE.InstancedMesh(geo, fxMat, 2);
+    fxInst.castShadow = false;
+    fxInst.setColorAt(0, new THREE.Color(1, 1, 1));
+
+    scene.add(treeInst, hiddenTreeInst, bruteInst, bossInst, fxInst);
+
+    expect(getInstancedShadowDepthKey(treeMat, true)).not.toBe(
+      getInstancedShadowDepthKey(enemyMat, true),
+    );
+    expect(getInstancedShadowDepthKey(towerMat, false)).not.toBe(
+      getInstancedShadowDepthKey(treeMat, true),
+    );
+
+    const targets = collectMissingInstancedShadowWarmTargets(scene, [
+      { material: towerMat, withColor: false, withHighlight: true, receiveShadow: true },
+    ]);
+
+    expect(targets).toEqual([
+      { material: towerMat, withColor: false, withHighlight: true, receiveShadow: true },
+      { material: enemyMat, withColor: true, receiveShadow: false },
+    ]);
+
+    treeInst.dispose();
+    hiddenTreeInst.dispose();
+    bruteInst.dispose();
+    bossInst.dispose();
+    fxInst.dispose();
+    geo.dispose();
+    colormap.dispose();
+    treeMat.dispose();
+    towerMat.dispose();
+    enemyMat.dispose();
+    fxMat.dispose();
   });
 });

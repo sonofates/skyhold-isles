@@ -274,6 +274,101 @@ export function createInstancedShadowWarmMesh(
   return { mesh, geometry };
 }
 
+export interface WarmUpShadowTarget {
+  readonly material: THREE.Material;
+  readonly withColor: boolean;
+  readonly withHighlight?: boolean;
+  readonly receiveShadow: boolean;
+}
+
+type ShadowMaterialProps = THREE.Material & {
+  map?: THREE.Texture | null;
+  alphaMap?: THREE.Texture | null;
+  displacementMap?: THREE.Texture | null;
+  displacementScale?: number;
+};
+
+/**
+ * Computes the Three.js WebGLShadowMap depth-shader cache key axes for an InstancedMesh caster
+ * so warmUp matches map/alpha/color/side variants (e.g. untextured EnemyRenderer vs textured DecorBuilder).
+ */
+export function getInstancedShadowDepthKey(
+  material: THREE.Material,
+  hasInstanceColor: boolean,
+): string {
+  const mat = material as ShadowMaterialProps;
+  const mapKey = mat.map ? `1:${mat.map.channel ?? 0}` : '0';
+  const alphaMapKey = mat.alphaMap ? `1:${mat.alphaMap.channel ?? 0}` : '0';
+  const alphaTest = mat.alphaToCoverage === true ? 0.5 : mat.alphaTest > 0 ? 1 : 0;
+  const dispKey = mat.displacementMap && (mat.displacementScale ?? 1) !== 0 ? '1' : '0';
+  const effectiveSide =
+    mat.shadowSide != null
+      ? mat.shadowSide
+      : mat.side === THREE.FrontSide
+        ? THREE.BackSide
+        : mat.side === THREE.BackSide
+          ? THREE.FrontSide
+          : THREE.DoubleSide;
+  const wireframe = (mat as THREE.MeshBasicMaterial).wireframe ? 1 : 0;
+  return `c${hasInstanceColor ? 1 : 0}|m${mapKey}|a${alphaMapKey}|t${alphaTest}|d${dispKey}|s${effectiveSide}|w${wireframe}`;
+}
+
+function visitInstancedShadowMaterials(
+  inst: THREE.InstancedMesh,
+  cb: (mat: THREE.Material, hasColor: boolean, receiveShadow: boolean) => void,
+): void {
+  if (!inst.isInstancedMesh || !inst.castShadow) return;
+  const mats = Array.isArray(inst.material) ? inst.material : [inst.material];
+  const hasColor = inst.instanceColor !== null;
+  for (let i = 0; i < mats.length; i++) {
+    const mat = mats[i];
+    if (mat && mat.visible !== false) {
+      cb(mat, hasColor, inst.receiveShadow);
+    }
+  }
+}
+
+/**
+ * Collects unique shadow-depth shader targets for hidden/empty or deferred shadow-casting
+ * InstancedMeshes whose Three.js depth-program variant is not already covered by visible casters.
+ */
+export function collectMissingInstancedShadowWarmTargets(
+  root: THREE.Object3D,
+  extraCandidates?: readonly WarmUpShadowTarget[],
+): WarmUpShadowTarget[] {
+  const coveredKeys = new Set<string>();
+  root.traverseVisible((obj) => {
+    const inst = obj as THREE.InstancedMesh;
+    if (inst.count <= 0) return;
+    visitInstancedShadowMaterials(inst, (mat, hasColor) => {
+      coveredKeys.add(getInstancedShadowDepthKey(mat, hasColor));
+    });
+  });
+
+  const missing: WarmUpShadowTarget[] = [];
+  const addIfUncovered = (candidate: WarmUpShadowTarget): void => {
+    if (!candidate.material || candidate.material.visible === false) return;
+    const key = getInstancedShadowDepthKey(candidate.material, candidate.withColor);
+    if (coveredKeys.has(key)) return;
+    coveredKeys.add(key);
+    missing.push(candidate);
+  };
+
+  if (extraCandidates) {
+    for (let i = 0; i < extraCandidates.length; i++) {
+      addIfUncovered(extraCandidates[i]);
+    }
+  }
+
+  root.traverse((obj) => {
+    visitInstancedShadowMaterials(obj as THREE.InstancedMesh, (mat, hasColor, receiveShadow) => {
+      addIfUncovered({ material: mat, withColor: hasColor, receiveShadow });
+    });
+  });
+
+  return missing;
+}
+
 /**
  * Checks whether any currently visible InstancedMesh casts shadows with an instanceColor buffer,
  * allowing warmUp to skip redundant shadow depth shader precompilation when decor already covers it.
@@ -636,28 +731,37 @@ export class SceneManager {
     if (this.disposed || this.contextLost) return;
     const shadowWarmMeshes: Array<{ mesh: THREE.InstancedMesh; geometry: THREE.BufferGeometry }> = [];
     if (this.shadowsEnabled) {
+      const extraShadowTargets: WarmUpShadowTarget[] = [];
       if (options?.instancedHighlightMaterial) {
-        shadowWarmMeshes.push(
-          createInstancedShadowWarmMesh(options.instancedHighlightMaterial, {
-            withHighlight: true,
-            receiveShadow: true,
-          }),
-        );
+        extraShadowTargets.push({
+          material: options.instancedHighlightMaterial,
+          withColor: false,
+          withHighlight: true,
+          receiveShadow: true,
+        });
       }
-      if (!hasVisibleInstancedColorShadowCaster(this.scene)) {
-        const colorShadow =
-          findHiddenInstancedColorShadowCasterMaterial(this.scene) ?? instancedColorVariants[0];
-        if (colorShadow) {
-          shadowWarmMeshes.push(
-            createInstancedShadowWarmMesh(colorShadow.material, {
-              withColor: true,
-              receiveShadow: colorShadow.receiveShadow,
-            }),
-          );
-        }
+      for (let i = 0; i < instancedColorVariants.length; i++) {
+        const v = instancedColorVariants[i];
+        if (!v.castShadow) continue;
+        extraShadowTargets.push({
+          material: v.material,
+          withColor: true,
+          receiveShadow: v.receiveShadow,
+        });
       }
-      for (let i = 0; i < shadowWarmMeshes.length; i++) {
-        this.scene.add(shadowWarmMeshes[i].mesh);
+      const missingShadowTargets = collectMissingInstancedShadowWarmTargets(
+        this.scene,
+        extraShadowTargets,
+      );
+      for (let i = 0; i < missingShadowTargets.length; i++) {
+        const t = missingShadowTargets[i];
+        const warm = createInstancedShadowWarmMesh(t.material, {
+          withColor: t.withColor,
+          withHighlight: t.withHighlight,
+          receiveShadow: t.receiveShadow,
+        });
+        shadowWarmMeshes.push(warm);
+        this.scene.add(warm.mesh);
       }
     }
     try {
