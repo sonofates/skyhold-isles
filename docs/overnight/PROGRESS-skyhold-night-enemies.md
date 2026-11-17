@@ -164,6 +164,8 @@ New tests: `tests/sim/newEnemies.test.ts`, `tests/sim/hexer.test.ts`, `tests/sim
 ## Performance notes
 - Sim cost: full greedy runs (Node, whole level incl. build script) — L9 683 ms, L10 257 ms, L11 332 ms, Stormcrown (now L13) 557 ms → the new archetypes/levels are not heavier than L9. Hexer adds one O(towers) scan per hexer every 0.4–5.5 s.
 - Boot: `EnemyRenderer` constructor ~81 ms CPU cold / ~16 ms warm in Node after the round-12 fix (was ~129 / ~31).
+- Per frame: `EnemyRenderer.update` with 350 live enemies of all 15 types (every 4th shielded, every 7th elite, both lanes) = **0.089 ms/frame** in Node on a loaded box (`.wt/perf/update.ts`) → no CPU hotspot; the GPU side is the instanced draw count above.
+- Shader warm-up (agy-perf): its hidden-shadow-caster scan already finds the enemy body material. The shield-bubble and elite-ring materials (instanced, no instance colour, hidden while empty) still compile on first sight, i.e. a one-time small hitch at the first warden pulse / first elite on L10+. Fix after the merge if wanted: add both meshes (made visible, `count` 0) to agy-perf's warm-up `extraGroup`.
 - Render: +3 instanced layers (added after the HP bar + shadow in the group since round 10) (burrow mound, shield bubble 80 tris, elite ring) + one layer per new type (hidden when count 0); no per-frame allocations in `EnemyRenderer.update`; FX reuse the pooled particle/ring/shard buckets.
 - A wider local fuzz (192 seeded runs over all 12 islands, not committed) found no invariant violations.
 
