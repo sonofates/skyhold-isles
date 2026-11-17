@@ -290,6 +290,28 @@ export function hasVisibleInstancedColorShadowCaster(root: THREE.Object3D): bool
   return found;
 }
 
+/**
+ * Finds a hidden/empty shadow-casting InstancedMesh with an instanceColor buffer (such as deferred
+ * Brute/Boss enemy pools before Wave 1) so warmUp precompiles USE_INSTANCING_COLOR shadow depth
+ * shaders even on levels without visible tree shadow casters.
+ */
+export function findHiddenInstancedColorShadowCasterMaterial(
+  root: THREE.Object3D,
+): { material: THREE.Material; receiveShadow: boolean } | null {
+  let match: { material: THREE.Material; receiveShadow: boolean } | null = null;
+  root.traverse((obj) => {
+    if (match) return;
+    const inst = obj as THREE.InstancedMesh;
+    if (inst.isInstancedMesh && inst.castShadow && inst.instanceColor !== null) {
+      const mat = Array.isArray(inst.material) ? inst.material[0] : inst.material;
+      if (mat) {
+        match = { material: mat, receiveShadow: inst.receiveShadow };
+      }
+    }
+  });
+  return match;
+}
+
 function createFullscreenWarmUpGeometry(): THREE.BufferGeometry {
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.Float32BufferAttribute([-1, -1, 0, 3, -1, 0, -1, 3, 0], 3));
@@ -622,14 +644,17 @@ export class SceneManager {
           }),
         );
       }
-      if (!hasVisibleInstancedColorShadowCaster(this.scene) && instancedColorVariants.length > 0) {
-        const v = instancedColorVariants[0];
-        shadowWarmMeshes.push(
-          createInstancedShadowWarmMesh(v.material, {
-            withColor: true,
-            receiveShadow: v.receiveShadow,
-          }),
-        );
+      if (!hasVisibleInstancedColorShadowCaster(this.scene)) {
+        const colorShadow =
+          findHiddenInstancedColorShadowCasterMaterial(this.scene) ?? instancedColorVariants[0];
+        if (colorShadow) {
+          shadowWarmMeshes.push(
+            createInstancedShadowWarmMesh(colorShadow.material, {
+              withColor: true,
+              receiveShadow: colorShadow.receiveShadow,
+            }),
+          );
+        }
       }
       for (let i = 0; i < shadowWarmMeshes.length; i++) {
         this.scene.add(shadowWarmMeshes[i].mesh);

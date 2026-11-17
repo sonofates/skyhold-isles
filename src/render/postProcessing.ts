@@ -446,6 +446,53 @@ export class PostProcessingPipeline {
       this.removeAndDisposeSmaa();
       this.config = { ...this.config, smaa: false };
     }
+    if (this.compositePass && this.config.bloom && !next.bloom) {
+      this.rebuildCompositePass(next);
+      this.config = { ...this.config, outline: next.outline, bloom: false };
+    }
+  }
+
+  private rebuildCompositePass(next: PostProcessingConfig): void {
+    const prevComposite = this.compositePass;
+    const insertIdx = prevComposite
+      ? this.composer.passes.indexOf(prevComposite)
+      : this.smaaPass && this.composer.passes.includes(this.smaaPass)
+        ? this.composer.passes.indexOf(this.smaaPass)
+        : -1;
+
+    const effects: Effect[] = [];
+    if (next.outline) {
+      effects.push(new SilhouetteOutlineEffect(1.06, 0x181628, 0.72));
+    }
+    let nextBloom: BloomEffect | null = null;
+    if (next.bloom) {
+      nextBloom = new BloomEffect({
+        blendFunction: BlendFunction.ADD,
+        luminanceThreshold: 1.05,
+        luminanceSmoothing: 0.14,
+        intensity: 0.34,
+        mipmapBlur: true,
+        radius: 0.58,
+        levels: 4,
+      });
+      effects.push(nextBloom);
+    }
+    effects.push(
+      new HueSaturationEffect({ saturation: 0.17 }),
+      new ToneMappingEffect({ mode: ToneMappingMode.NEUTRAL }),
+    );
+
+    // Insert replacement pass in-place before removing the previous one so EffectComposer preserves
+    // its depth render targets and leaves any trailing smaaPass attached without re-initializing it.
+    const nextComposite = new EffectPass(this.camera, ...effects);
+    this.composer.addPass(nextComposite, insertIdx >= 0 ? insertIdx : undefined);
+    this.compositePass = nextComposite;
+    this.bloomEffect = nextBloom;
+
+    if (prevComposite) {
+      this.composer.removePass(prevComposite);
+      prevComposite.dispose();
+    }
   }
 
   private createSmaaReadyPromise(effect: SMAAEffect, onLoaded?: () => void): Promise<void> {
@@ -544,46 +591,7 @@ export class PostProcessingPipeline {
     }
 
     if (compositeChanged) {
-      const prevComposite = this.compositePass;
-      const insertIdx = prevComposite
-        ? this.composer.passes.indexOf(prevComposite)
-        : this.smaaPass && this.composer.passes.includes(this.smaaPass)
-          ? this.composer.passes.indexOf(this.smaaPass)
-          : -1;
-
-      const effects: Effect[] = [];
-      if (next.outline) {
-        effects.push(new SilhouetteOutlineEffect(1.06, 0x181628, 0.72));
-      }
-      let nextBloom: BloomEffect | null = null;
-      if (next.bloom) {
-        nextBloom = new BloomEffect({
-          blendFunction: BlendFunction.ADD,
-          luminanceThreshold: 1.05,
-          luminanceSmoothing: 0.14,
-          intensity: 0.34,
-          mipmapBlur: true,
-          radius: 0.58,
-          levels: 4,
-        });
-        effects.push(nextBloom);
-      }
-      effects.push(
-        new HueSaturationEffect({ saturation: 0.17 }),
-        new ToneMappingEffect({ mode: ToneMappingMode.NEUTRAL }),
-      );
-
-      // Insert replacement pass in-place before removing the previous one so EffectComposer preserves
-      // its depth render targets and leaves any trailing smaaPass attached without re-initializing it.
-      const nextComposite = new EffectPass(this.camera, ...effects);
-      this.composer.addPass(nextComposite, insertIdx >= 0 ? insertIdx : undefined);
-      this.compositePass = nextComposite;
-      this.bloomEffect = nextBloom;
-
-      if (prevComposite) {
-        this.composer.removePass(prevComposite);
-        prevComposite.dispose();
-      }
+      this.rebuildCompositePass(next);
     }
 
     this.config = { ...next };

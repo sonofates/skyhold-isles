@@ -27,6 +27,7 @@ import {
   computeSafeRenderDimensions,
   createInstancedShadowWarmMesh,
   detectPrimaryTouchDevice,
+  findHiddenInstancedColorShadowCasterMaterial,
   hasVisibleInstancedColorShadowCaster,
   shouldUseAsyncShaderCompile,
 } from '../../src/render/sceneManager.ts';
@@ -1555,5 +1556,96 @@ describe('PerfGovernor', () => {
     } finally {
       vi.unstubAllGlobals();
     }
+  });
+
+  it('drops BloomEffect inside releaseDisabledPasses before resize and avoids duplicate composite rebuild', () => {
+    vi.stubGlobal('Image', undefined);
+    const { renderer: mockRenderer } = createMockPostRenderer(800, 600);
+    const scene = new THREE.Scene();
+    const camera = new THREE.OrthographicCamera();
+
+    const pipeline = new PostProcessingPipeline(mockRenderer, scene, camera, 800, 600, {
+      n8ao: 'off',
+      outline: true,
+      bloom: true,
+      smaa: true,
+    });
+
+    try {
+      type ComposerInternals = {
+        depthRenderTarget: THREE.WebGLRenderTarget | null;
+        passes: Array<{ renderToScreen: boolean }>;
+      };
+      type PipelineInternals = {
+        bloomEffect: { setSize: (w: number, h: number) => void } | null;
+        compositePass: EffectPass | null;
+      };
+      const composer = pipeline.composer as unknown as ComposerInternals;
+      const internals = pipeline as unknown as PipelineInternals;
+      const initialDepthTarget = composer.depthRenderTarget;
+      const initialBloom = internals.bloomEffect;
+      expect(initialBloom).not.toBeNull();
+      const bloomSetSizeSpy = vi.spyOn(initialBloom!, 'setSize');
+
+      // Tier 3/5 -> Tier 2: releaseDisabledPasses drops Bloom & SMAA before resize so Bloom's
+      // mipmap targets are never resized at the new resolution right before disposal.
+      const tier2 = { n8ao: 'off' as const, outline: true, bloom: false, smaa: false };
+      pipeline.releaseDisabledPasses(tier2);
+      const compositeAfterRelease = internals.compositePass;
+      expect(internals.bloomEffect).toBeNull();
+      expect(composer.depthRenderTarget).toBe(initialDepthTarget);
+      expect(composer.passes).toHaveLength(2); // RenderPass, Composite
+      expect(composer.passes[1].renderToScreen).toBe(true);
+
+      pipeline.setSize(640, 480);
+      expect(bloomSetSizeSpy).not.toHaveBeenCalled();
+
+      // Subsequent applyConfig recognizes compositePass is already up to date
+      pipeline.applyConfig(tier2);
+      expect(internals.compositePass).toBe(compositeAfterRelease);
+      expect(pipeline.getActivePassSummary()).toBe('Out');
+    } finally {
+      pipeline.dispose();
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('finds hidden/empty instanceColor shadow casters for shadow depth warm-up fallback', () => {
+    const scene = new THREE.Scene();
+    const geo = new THREE.BufferGeometry();
+    const nonShadowMat = new THREE.MeshBasicMaterial();
+    const uncoloredMat = new THREE.MeshBasicMaterial();
+    const enemyShadowMat = new THREE.MeshStandardMaterial();
+
+    const nonShadowInst = new THREE.InstancedMesh(geo, nonShadowMat, 2);
+    nonShadowInst.setColorAt(0, new THREE.Color(1, 1, 1));
+    nonShadowInst.castShadow = false;
+    nonShadowInst.count = 0;
+
+    const uncoloredInst = new THREE.InstancedMesh(geo, uncoloredMat, 2);
+    uncoloredInst.castShadow = true;
+    uncoloredInst.count = 0;
+
+    const hiddenEnemyInst = new THREE.InstancedMesh(geo, enemyShadowMat, 2);
+    hiddenEnemyInst.setColorAt(0, new THREE.Color(1, 1, 1));
+    hiddenEnemyInst.castShadow = true;
+    hiddenEnemyInst.receiveShadow = false;
+    hiddenEnemyInst.count = 0;
+    hiddenEnemyInst.visible = false;
+
+    scene.add(nonShadowInst, uncoloredInst, hiddenEnemyInst);
+    expect(hasVisibleInstancedColorShadowCaster(scene)).toBe(false);
+    expect(findHiddenInstancedColorShadowCasterMaterial(scene)).toEqual({
+      material: enemyShadowMat,
+      receiveShadow: false,
+    });
+
+    nonShadowInst.dispose();
+    uncoloredInst.dispose();
+    hiddenEnemyInst.dispose();
+    geo.dispose();
+    nonShadowMat.dispose();
+    uncoloredMat.dispose();
+    enemyShadowMat.dispose();
   });
 });
