@@ -1,0 +1,147 @@
+import '@fontsource-variable/fredoka';
+import { Application } from 'pixi.js';
+import { getLevelById } from '../data/levels2d/index.ts';
+import { AbScene } from './abScene.ts';
+import { loadArt } from './assets2d.ts';
+import { autoplayHooks, benchHooks } from './benchScene.ts';
+import { FrameStats } from './frameStats.ts';
+import { Game2D, type Game2DHooks } from './game2d.ts';
+import { HUD_FONT } from './hudText.ts';
+
+/**
+ * 2d.html entry — P0 vertical slice of the painted 2D renderer (Pixi v8) on the real sim.
+ *   ?level=l1c        island id (2D layouts only; default l1c)
+ *   ?ab=1             enemy-animation A/B showcase (no combat)
+ *   ?bench=150        stress scene: ~N enemies, towers on every plot, window.__bench stats
+ *   ?autoplay=1       plays the greedy build script and auto-calls waves
+ *   ?raider=veo31q    raider walk-cycle variant (default omni12; `cheap` = procedural)
+ */
+interface BenchStats {
+  readonly fps: number;
+  readonly p50: number;
+  readonly p95: number;
+  readonly enemies: number;
+  readonly drawCalls: number | null;
+  readonly samples: number;
+  readonly renderer: string;
+}
+
+declare global {
+  interface Window {
+    __bench?: BenchStats;
+    __p0?: { mode: string; state: () => Record<string, unknown>; plotScreen?: (i: number) => { x: number; y: number } };
+  }
+}
+
+/** Counts WebGL draw calls per frame by wrapping the context's draw entry points. */
+function countDrawCalls(gl: WebGLRenderingContext | WebGL2RenderingContext | undefined): { take: () => number } | null {
+  if (!gl) return null;
+  let n = 0;
+  const g = gl as unknown as Record<string, unknown>;
+  for (const name of ['drawElements', 'drawArrays', 'drawElementsInstanced', 'drawArraysInstanced']) {
+    const fn = g[name];
+    if (typeof fn !== 'function') continue;
+    g[name] = function (this: unknown, ...args: unknown[]) {
+      n++;
+      return (fn as (...a: unknown[]) => unknown).apply(this, args);
+    };
+  }
+  return {
+    take: () => {
+      const v = n;
+      n = 0;
+      return v;
+    },
+  };
+}
+
+function showError(msg: string): void {
+  const el = document.getElementById('boot');
+  if (el) el.textContent = msg;
+}
+
+async function main(): Promise<void> {
+  const q = new URLSearchParams(location.search);
+  const levelId = q.get('level') ?? 'l1c';
+  const level = getLevelById(levelId);
+  if (!level?.layout2d) {
+    showError(`Unknown 2D island: ${levelId}`);
+    return;
+  }
+  const ab = q.get('ab') === '1';
+  const bench = Math.max(0, Math.min(340, Number(q.get('bench') ?? 0) || 0));
+
+  const app = new Application();
+  await app.init({
+    resizeTo: window,
+    background: '#5b8f3a',
+    antialias: true,
+    autoDensity: true,
+    resolution: Math.min(window.devicePixelRatio || 1, 2),
+    preference: 'webgl',
+  });
+  document.getElementById('stage')!.appendChild(app.canvas);
+
+  await Promise.all([
+    document.fonts.load(`700 32px ${HUD_FONT}`).catch(() => undefined),
+  ]);
+  const art = await loadArt('/art2d/manifest.json', level.layout2d.image, { raider: q.get('raider') });
+  if (art.notes.length > 0) console.info('[art2d] fallbacks:\n  ' + art.notes.join('\n  '));
+  document.getElementById('boot')?.remove();
+
+  const draws = countDrawCalls((app.renderer as unknown as { gl?: WebGL2RenderingContext }).gl);
+  const stats = new FrameStats();
+  let lastDraws = 0;
+  const rendererName = (app.renderer as unknown as { name?: string }).name ?? 'unknown';
+
+  if (ab) {
+    const scene = new AbScene(app, art, level);
+    const onResize = (): void => scene.resize(app.screen.width, app.screen.height);
+    onResize();
+    app.renderer.on('resize', onResize);
+    app.ticker.add((t) => scene.frame(Math.min(0.1, t.deltaMS / 1000)));
+    window.__p0 = { mode: 'ab', state: () => scene.debugState() };
+    return;
+  }
+
+  let hooks: Game2DHooks = {};
+  if (bench > 0) hooks = benchHooks(bench);
+  else if (q.get('autoplay') === '1') hooks = autoplayHooks(level.scriptedBuildOrder ?? []);
+  const game = new Game2D(app, art, level, hooks);
+  game.attachInput(app.canvas);
+  const onResize = (): void => game.resize(app.screen.width, app.screen.height);
+  onResize();
+  app.renderer.on('resize', onResize);
+  app.ticker.add((t) => {
+    if (draws) lastDraws = draws.take();
+    stats.record(t.deltaMS, performance.now());
+    game.frame(t.deltaMS / 1000);
+  });
+  window.__p0 = {
+    mode: bench > 0 ? 'bench' : 'play',
+    state: () => game.debugState(),
+    plotScreen: (i) => game.plotScreen(i),
+  };
+  if (bench > 0) {
+    Object.defineProperty(window, '__bench', {
+      configurable: true,
+      get: (): BenchStats => {
+        const s = stats.snapshot(performance.now());
+        return {
+          fps: Math.round(s.fps * 10) / 10,
+          p50: Math.round(s.p50 * 100) / 100,
+          p95: Math.round(s.p95 * 100) / 100,
+          samples: s.samples,
+          enemies: game.world.enemyPool.getActiveCount(),
+          drawCalls: draws ? lastDraws : null,
+          renderer: rendererName,
+        };
+      },
+    });
+  }
+}
+
+main().catch((err: unknown) => {
+  console.error(err);
+  showError(`Failed to start: ${err instanceof Error ? err.message : String(err)}`);
+});

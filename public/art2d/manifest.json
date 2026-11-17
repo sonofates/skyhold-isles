@@ -1,0 +1,98 @@
+{
+  "version": 1,
+  "maps": {
+    "map-L1c-wide": "map-L1c-wide.png"
+  },
+  "ui": {
+    "plaque": "ui-plaque.png",
+    "banner": "ui-banner.png",
+    "button": "ui-button.png",
+    "horn": "ui-horn.png",
+    "heart": "icon-heart.png",
+    "gold": "icon-gold.png"
+  },
+  "towers": {
+    "archer": {
+      "tiers": ["tower-archer.png", "tower-archer-t2.png", "tower-archer-t3.png"],
+      "height": 3.0,
+      "anchor": [0.5, 0.9],
+      "flipToTarget": true,
+      "facing": "left",
+      "muzzle": 2.0
+    },
+    "cannon": {
+      "tiers": ["tower-cannon.png", "tower-cannon-t2.png", "tower-cannon-t3.png"],
+      "height": 2.35,
+      "anchor": [0.5, 0.86],
+      "flipToTarget": false,
+      "muzzle": 1.3
+    },
+    "tesla": {
+      "tiers": ["tower-mage.png", "tower-mage-t2.png", "tower-mage-t3.png"],
+      "height": 3.0,
+      "anchor": [0.5, 0.9],
+      "flipToTarget": false,
+      "muzzle": 2.4
+    }
+  },
+  "buildRing": ["archer", "cannon", "tesla"],
+  "enemies": {
+    "raider": {
+      "mode": "sheet",
+      "file": "enemy-raider.png",
+      "sheet": { "down": "anim/raider-omni12-front.json", "up": "anim/raider-omni12-back.json", "facing": "right" },
+      "height": 1.3,
+      "anchor": [0.5, 0.95],
+      "facing": "right",
+      "shadow": 0.42,
+      "cheap": { "bob": 0.07, "squash": 0.06, "lean": 0.14, "stride": 1.0, "rock": 0.07 }
+    },
+    "raider-veo31q": {
+      "mode": "sheet",
+      "file": "enemy-raider.png",
+      "sheet": { "down": "anim/raider-veo31q-front.json", "up": "anim/raider-veo31q-back.json", "facing": "right" },
+      "height": 1.3,
+      "anchor": [0.5, 0.95],
+      "facing": "right",
+      "shadow": 0.42,
+      "cheap": { "bob": 0.07, "squash": 0.06, "lean": 0.14, "stride": 1.0, "rock": 0.07 }
+    },
+    "brute": {
+      "mode": "cheap",
+      "file": "enemy-brute.png",
+      "frames": ["enemy-brute.png", "enemy-brute-f2.png", "enemy-brute.png", "enemy-brute-f3.png"],
+      "height": 1.7,
+      "anchor": [0.5, 0.95],
+      "facing": "right",
+      "shadow": 0.6,
+      "cheap": { "bob": 0.05, "squash": 0.05, "lean": 0.08, "stride": 1.3, "rock": 0.05 }
+    },
+    "kite": {
+      "mode": "cheap",
+      "file": "enemy-kite.png",
+      "frames": ["enemy-kite.png", "enemy-kite-f2.png", "enemy-kite.png", "enemy-kite-f3.png"],
+      "height": 1.45,
+      "anchor": [0.5, 0.9],
+      "facing": "right",
+      "shadow": 0.45,
+      "cheap": { "bob": 0.12, "squash": 0.04, "lean": 0.16, "stride": 2.6, "rock": 0.05 }
+    },
+    "placeholder": {
+      "mode": "sheet",
+      "file": "enemy-raider.png",
+      "sheet": { "down": "anim/placeholder-walk-down.json", "up": "anim/placeholder-walk-up.json", "facing": "right" },
+      "height": 1.25,
+      "anchor": [0.5, 0.95],
+      "facing": "right",
+      "shadow": 0.42
+    }
+  },
+  "enemyMap": {
+    "grunt": "raider",
+    "runner": { "art": "raider", "tint": "#ffe0b0", "scale": 0.88 },
+    "brute": "brute",
+    "flyer": "kite",
+    "*Flying": { "art": "kite", "tint": "#c8b0ff" },
+    "*": { "art": "raider", "tint": "#c8b0ff" }
+  }
+}
