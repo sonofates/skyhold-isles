@@ -129,4 +129,29 @@ describe('ContentStore', () => {
     expect(vet.seenIds().length).toBeGreaterThan(3);
     for (const id of vet.seenIds()) expect(vet.isNew(id)).toBe(false);
   });
+
+  it('resetAll forgets sightings and brings the tour back', () => {
+    const s = memStorage();
+    const store = new ContentStore(s);
+    store.migrate(LEVELS, { unlockedLevelIndex: 5, bestStars: [3, 3, 3, 3, 3, ...new Array<number>(LEVELS.length - 5).fill(0)] });
+    expect(store.getOnboardingStatus()).toBe('done');
+    store.resetAll();
+    expect(store.seenIds().length).toBe(0);
+    expect(store.getOnboardingStatus()).toBe('pending');
+    const reloaded = new ContentStore(s);
+    reloaded.migrate(LEVELS, freshProgress);
+    expect(reloaded.seenIds().length).toBe(0);
+    expect(reloaded.getOnboardingStatus()).toBe('pending');
+  });
+
+  it('adoptProgress after a save-code load skips the tour for a player with progress, not for an empty code', () => {
+    const store = new ContentStore(memStorage());
+    store.migrate(LEVELS, freshProgress);
+    store.adoptProgress(LEVELS, freshProgress);
+    expect(store.getOnboardingStatus()).toBe('pending');
+    store.adoptProgress(LEVELS, { unlockedLevelIndex: 4, bestStars: [3, 2, 2, 1, ...new Array<number>(LEVELS.length - 4).fill(0)] });
+    expect(store.getOnboardingStatus()).toBe('done');
+    expect(store.seenIds().length).toBeGreaterThan(3);
+    for (const id of store.seenIds()) expect(store.isNew(id)).toBe(false);
+  });
 });

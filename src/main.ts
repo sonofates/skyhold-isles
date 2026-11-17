@@ -112,10 +112,17 @@ async function bootstrap(loadingScreen: LoadingScreen): Promise<void> {
       soundManager.unlock();
       session.startLevel(idx, config);
     },
-    onResetProgress: () => session.resetProgress(),
+    onResetProgress: () => {
+      session.resetProgress();
+      content?.onProgressReset();
+    },
     saveCode: {
       getCode: () => session.exportSaveCode(),
-      load: (code) => session.importSaveCode(code),
+      load: (code) => {
+        const res = session.importSaveCode(code);
+        if (res.ok) content?.onProgressImported(LEVELS, session.progress);
+        return res;
+      },
     },
     onOpenLogbook: () => session.openLogbook(),
     onOpenDaily: () => session.openDaily(),

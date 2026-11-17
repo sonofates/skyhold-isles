@@ -203,6 +203,26 @@ export class ContentDirector {
     }
   }
 
+  /** Settings → Reset progress. */
+  onProgressReset(): void {
+    if (this.doneTimer !== null) {
+      window.clearTimeout(this.doneTimer);
+      this.doneTimer = null;
+    }
+    this.store.resetAll();
+    this.machine.start();
+    this.coach.hide();
+    this.coach.resetDoneStyle();
+    this.refreshNewBadge();
+  }
+
+  /** Settings → Save code → Load (successful). */
+  onProgressImported(levels: Parameters<ContentStore['adoptProgress']>[0], progress: Parameters<ContentStore['adoptProgress']>[1]): void {
+    this.store.adoptProgress(levels, progress);
+    if (this.store.getOnboardingStatus() !== 'pending' && this.machine.active) this.machine.stop();
+    this.refreshNewBadge();
+  }
+
   /** Settings → "Replay tutorial". */
   replayTutorial(): void {
     if (this.doneTimer !== null) {

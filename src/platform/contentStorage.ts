@@ -162,6 +162,32 @@ export class ContentStore {
     this.saveSeen();
   }
 
+  /** Settings → Reset progress: forget sightings/codex and run the tutorial again on island 1. */
+  resetAll(): void {
+    this.seen.clear();
+    this.viewed.clear();
+    this.codexKnown = true;
+    this.saveSeen();
+    this.setOnboardingStatus('pending');
+  }
+
+  /** After a save code is loaded: a player who now has progress skips the tutorial and keeps no "new" backlog. */
+  adoptProgress(
+    levels: readonly Pick<LevelDef, 'waves'>[],
+    progress: Pick<ProgressData, 'unlockedLevelIndex' | 'bestStars'>,
+  ): void {
+    const veteran = progress.unlockedLevelIndex > 0 || progress.bestStars.some((n) => n > 0);
+    if (!veteran) return;
+    for (const id of inferSeenFromProgress(levels, progress)) {
+      if (!this.seen.has(id)) {
+        this.seen.add(id);
+        this.viewed.add(id);
+      }
+    }
+    this.saveSeen();
+    if (this.status === 'pending') this.setOnboardingStatus('done');
+  }
+
   seenIds(): readonly SeenId[] {
     return [...this.seen];
   }
