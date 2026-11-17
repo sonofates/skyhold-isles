@@ -138,6 +138,17 @@ Start. Toggles are remembered per island for the session. Restart/Retry reuse th
 4. Mid-wave spawns skipped speed/armor modifiers → moved into EnemySystem.initEnemyAt.
 5. Second reset overwrote the reset backup → backup only when the save has progress.
 
+## Second review fixes (Daily / Logbook / pause info)
+1. Clock set ahead → lastDay in the future locked the Daily → `normalizeDailyRecord` repairs it.
+2. Retry kept an old day's Daily alive for a star → a daily only pays for today or yesterday
+   (midnight grace); `applyDailyWin(rec, day, today)` now requires `today`.
+3. Daily card open across midnight started a different daily → the shown DailyChallenge is passed
+   to `startDaily`.
+4. `pauseRunInfo` STAR_RULES fallback; Daily toast wording.
+- Run config logic is now pure: `src/game/runConfig.ts` (resolveRunConfig, badgesForWin), tested.
+- Not fixed (by design): a save from this build opened in an older build of *this* branch could
+  refund Workshop ranks if Daily stars were spent — only relevant across dev builds on one origin.
+
 ## Known issues
 - Fire-rate perk is invisible in the tower panel stats (panel reads TOWER_DEFS). Small (+2%), OK for now.
 - Carrier raiders / boss escorts / mites use hard-coded rewards, so kill-gold modifiers (Bounty,

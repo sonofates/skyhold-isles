@@ -57,17 +57,36 @@ export function createDailyRecord(): DailyRecord {
   return { lastDay: -1, streak: 0, bestStreak: 0, total: 0 };
 }
 
+/**
+ * Repairs a record written with a clock that ran ahead (lastDay in the future): otherwise the
+ * Daily would stay "won" and unpaid until that date. Returns the same object.
+ */
+export function normalizeDailyRecord(rec: DailyRecord, today: number): DailyRecord {
+  if (rec.lastDay > today) {
+    rec.lastDay = today - 2;
+    rec.streak = 0;
+  }
+  return rec;
+}
+
 /** Streak still alive today? (completed yesterday or today) */
 export function liveStreak(rec: DailyRecord, today: number): number {
+  if (rec.lastDay > today) return 0;
   return rec.lastDay === today || rec.lastDay === today - 1 ? rec.streak : 0;
 }
 
 /**
- * Records a daily win for `day`. Only counts once per day; a win for an older day (e.g. a run
- * started before midnight) still counts if that day was not completed yet, without breaking order.
+ * Records a daily win for `day`, judged at `today`. Counts once per day, and only for today's
+ * daily or yesterday's (grace for a run that crossed midnight) — an old daily kept alive with
+ * Retry pays nothing.
  */
-export function applyDailyWin(rec: DailyRecord, day: number): { counted: boolean; streak: number } {
-  if (day <= rec.lastDay) return { counted: false, streak: rec.streak };
+export function applyDailyWin(
+  rec: DailyRecord,
+  day: number,
+  today: number,
+): { counted: boolean; streak: number } {
+  normalizeDailyRecord(rec, today);
+  if (day > today || day < today - 1 || day <= rec.lastDay) return { counted: false, streak: rec.streak };
   rec.streak = rec.lastDay === day - 1 ? rec.streak + 1 : 1;
   rec.lastDay = day;
   rec.bestStreak = Math.max(rec.bestStreak, rec.streak);

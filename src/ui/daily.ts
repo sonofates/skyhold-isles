@@ -10,7 +10,8 @@ import './styles/daily.css';
 export const DAILY_ICON_SVG = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="9" cy="9" r="4.6" fill="#f6bd41" stroke="#1b1936" stroke-width="1.8"/><path d="M7 19.5H17.5C19.7 19.5 21 18 21 16.3C21 14.5 19.6 13.1 17.8 13.2C17.2 11.2 15.4 10 13.4 10.2C11.3 10.4 9.7 12 9.6 14C8 13.9 6.2 15.1 6.2 16.9C6.2 18.2 6.6 19.5 7 19.5Z" fill="#f8f4e8" stroke="#1b1936" stroke-width="1.8" stroke-linejoin="round"/></svg>`;
 
 export interface DailyCallbacks {
-  onStart: () => void;
+  /** Starts exactly the daily the card shows (even if UTC midnight passed meanwhile). */
+  onStart: (daily: DailyChallenge) => void;
 }
 
 function formatUtcDay(day: number): string {
@@ -87,7 +88,7 @@ export class DailyModal {
 
     const level = LEVELS[daily.levelIndex];
     const today = daily.day;
-    const doneToday = progress.daily.lastDay >= today;
+    const doneToday = progress.daily.lastDay === today;
     const streak = liveStreak(progress.daily, today);
 
     const island = document.createElement('div');
@@ -121,7 +122,7 @@ export class DailyModal {
     }</span><span class="ib-start-sub">${doneToday ? 'No reward until tomorrow' : 'Win once today for +1★'}</span></span>`;
     start.addEventListener('click', () => {
       this.hide();
-      this.callbacks.onStart();
+      this.callbacks.onStart(daily);
     });
 
     this.card.append(top, title, island, stats, list, start);
@@ -135,5 +136,5 @@ export class DailyModal {
 /** Main menu pill state: is today's daily still open? */
 export function dailyPillState(progress: ProgressData, nowMs: number): { open: boolean; streak: number } {
   const today = utcDayNumber(nowMs);
-  return { open: progress.daily.lastDay < today, streak: liveStreak(progress.daily, today) };
+  return { open: progress.daily.lastDay !== today, streak: liveStreak(progress.daily, today) };
 }

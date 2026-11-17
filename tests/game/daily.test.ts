@@ -47,20 +47,37 @@ describe('daily squall selection', () => {
 describe('daily record', () => {
   it('counts once per day and builds a streak on consecutive days', () => {
     const r = createDailyRecord();
-    expect(applyDailyWin(r, 100)).toEqual({ counted: true, streak: 1 });
-    expect(applyDailyWin(r, 100).counted).toBe(false);
-    expect(applyDailyWin(r, 101).streak).toBe(2);
-    expect(applyDailyWin(r, 103).streak).toBe(1);
+    expect(applyDailyWin(r, 100, 100)).toEqual({ counted: true, streak: 1 });
+    expect(applyDailyWin(r, 100, 100).counted).toBe(false);
+    expect(applyDailyWin(r, 101, 101).streak).toBe(2);
+    expect(applyDailyWin(r, 103, 103).streak).toBe(1);
     expect(r.total).toBe(3);
     expect(r.bestStreak).toBe(2);
-    // An older day (run started before midnight) never double-counts or rewinds.
-    expect(applyDailyWin(r, 102).counted).toBe(false);
+    // An older day never double-counts or rewinds.
+    expect(applyDailyWin(r, 102, 103).counted).toBe(false);
+  });
+
+  it("yesterday's daily still counts right after midnight, older ones never (Retry exploit)", () => {
+    const r = createDailyRecord();
+    expect(applyDailyWin(r, 200, 201).counted).toBe(true);
+    expect(applyDailyWin(r, 201, 201).streak).toBe(2);
+    const q = createDailyRecord();
+    expect(applyDailyWin(q, 198, 201).counted).toBe(false);
+    expect(applyDailyWin(q, 202, 201).counted).toBe(false);
+  });
+
+  it('a record from a clock that ran ahead is repaired instead of locking the daily', () => {
+    const r = createDailyRecord();
+    applyDailyWin(r, 500, 500); // clock was set to day 500
+    expect(liveStreak(r, 300)).toBe(0);
+    expect(applyDailyWin(r, 300, 300)).toEqual({ counted: true, streak: 1 });
+    expect(r.lastDay).toBe(300);
   });
 
   it('a streak is only live if yesterday or today was won', () => {
     const r = createDailyRecord();
-    applyDailyWin(r, 50);
-    applyDailyWin(r, 51);
+    applyDailyWin(r, 50, 50);
+    applyDailyWin(r, 51, 51);
     expect(liveStreak(r, 51)).toBe(2);
     expect(liveStreak(r, 52)).toBe(2);
     expect(liveStreak(r, 53)).toBe(0);
@@ -68,8 +85,8 @@ describe('daily record', () => {
 
   it('daily wins are Workshop stars and survive save migration', () => {
     const p = createDefaultProgress(5);
-    applyDailyWin(p.daily, 10);
-    applyDailyWin(p.daily, 11);
+    applyDailyWin(p.daily, 10, 10);
+    applyDailyWin(p.daily, 11, 11);
     expect(starWallet(p).challenge).toBe(2);
     const back = migrateProgress(JSON.parse(JSON.stringify(p)), 5);
     expect(back.daily).toEqual(p.daily);

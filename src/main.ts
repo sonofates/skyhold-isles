@@ -100,9 +100,9 @@ async function bootstrap(loadingScreen: LoadingScreen): Promise<void> {
     onResetProgress: () => session.resetProgress(),
     onOpenLogbook: () => session.openLogbook(),
     onOpenDaily: () => session.openDaily(),
-    onStartDaily: () => {
+    onStartDaily: (daily) => {
       soundManager.unlock();
-      session.startDaily();
+      session.startDaily(daily);
     },
     onBriefingToggle: (on) => (on ? soundManager.playUiConfirm() : soundManager.playUiBack()),
   });

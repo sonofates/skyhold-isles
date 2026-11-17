@@ -20,6 +20,7 @@ import { WorkshopOverlay } from './workshop.ts';
 import { IslandBriefingModal, type BriefingStartConfig } from './islandBriefing.ts';
 import { LogbookModal } from './logbook.ts';
 import { DailyModal } from './daily.ts';
+import type { DailyChallenge } from '../data/daily.ts';
 import type { WorkshopUpgradeId } from '../data/workshop.ts';
 
 export interface GameOverlayCallbacks {
@@ -61,7 +62,7 @@ export interface GameOverlayCallbacks {
   onResetProgress?: () => void;
   onOpenLogbook?: () => void;
   onOpenDaily?: () => void;
-  onStartDaily?: () => void;
+  onStartDaily?: (daily: DailyChallenge) => void;
 }
 
 export class GameOverlays {
@@ -144,7 +145,7 @@ export class GameOverlays {
     });
 
     this.logbook = new LogbookModal(uiRoot);
-    this.daily = new DailyModal(uiRoot, { onStart: () => cb.onStartDaily?.() });
+    this.daily = new DailyModal(uiRoot, { onStart: (d) => cb.onStartDaily?.(d) });
 
     this.pauseMenu = new PauseMenuModal(uiRoot, {
       onResume: cb.onResumeFromPause,
