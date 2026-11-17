@@ -637,7 +637,7 @@ export function recomputeAchievements(
   const newlyUnlocked: string[] = [];
   for (let i = 0; i < ACHIEVEMENTS.length; i++) {
     const def = ACHIEVEMENTS[i];
-    if (save.unlockedAchievements[def.id]) continue;
+    if (save.unlockedAchievements[def.id] === true) continue;
     const current = getAchievementCurrentValue(def, save);
     if (current >= def.target) {
       save.unlockedAchievements[def.id] = true;
@@ -838,7 +838,7 @@ export function recordRunCompletion(
           const chDef = satisfied[i];
           const cid = chDef.id;
           completedChallengeIds.push(cid);
-          if (!save.completedChallenges[cid]) {
+          if (save.completedChallenges[cid] !== true) {
             save.completedChallenges[cid] = true;
             newlyCompletedChallengeIds.push(cid);
             newlyCompletedChallenges.push(chDef);
@@ -885,7 +885,10 @@ export function recordRunCompletion(
     if (!completedDateSet.has(normalizedDailyDate)) {
       completedDateSet.add(normalizedDailyDate);
       save.completedDailyDates = [...completedDateSet].sort();
-      save.stats.dailyChallengesCompleted = asNonNegInt(save.stats.dailyChallengesCompleted) + 1;
+      save.stats.dailyChallengesCompleted = Math.max(
+        asNonNegInt(save.stats.dailyChallengesCompleted) + 1,
+        completedDateSet.size,
+      );
     }
     save.dailyBestScores[normalizedDailyDate] = Math.max(prevDailyBest, score);
   }
@@ -991,7 +994,7 @@ export function getAchievements(save: MetaSaveData): readonly AchievementStatus[
 
 /** Typed UI query: cloned snapshot of lifetime player stats. */
 export function getStats(save: MetaSaveData): LifetimeStats {
-  const s = save?.stats ?? ({} as Partial<LifetimeStats>);
+  const s = (getPlainRecord(save?.stats) ?? {}) as Partial<LifetimeStats>;
   return {
     totalPlayTimeSec: asNonNegFloat(s.totalPlayTimeSec),
     gamesPlayed: asNonNegInt(s.gamesPlayed),

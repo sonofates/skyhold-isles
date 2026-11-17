@@ -72,14 +72,15 @@ export function selectEndlessMutators(
   count = 2,
   catalog: readonly MutatorDef[] = ENDLESS_MUTATORS,
 ): EndlessMutatorRoll {
+  const safeCatalog = Array.isArray(catalog) ? catalog : [];
   const normalizedSeed = normalizeSeed(seed);
   const targetCount = Number.isFinite(count)
-    ? Math.max(0, Math.min(catalog.length, Math.floor(count)))
-    : Math.min(2, catalog.length);
+    ? Math.max(0, Math.min(safeCatalog.length, Math.floor(count)))
+    : Math.min(2, safeCatalog.length);
   const rng = new SeededRng(normalizedSeed);
 
   // Fisher-Yates shuffle on a shallow copy so selection is uniform and deterministic
-  const pool = [...catalog];
+  const pool = [...safeCatalog];
   for (let i = pool.length - 1; i > 0; i--) {
     const j = rng.int(0, i);
     const tmp = pool[i];
@@ -112,7 +113,7 @@ export function buildEndlessMutatorLoadout(
   mutatorIds: readonly string[],
   catalog: readonly MutatorDef[] = ENDLESS_MUTATORS,
 ): EndlessMutatorRoll {
-  if (!Array.isArray(mutatorIds)) {
+  if (!Array.isArray(mutatorIds) || !Array.isArray(catalog)) {
     return finalizeMutatorRoll(hashSeedString(''), []);
   }
   const byId = new Map<string, MutatorDef>();
@@ -143,6 +144,7 @@ export function getMutatorPresetRoll(
   presets: readonly MutatorPreset[] = ENDLESS_MUTATOR_PRESETS,
   catalog: readonly MutatorDef[] = ENDLESS_MUTATORS,
 ): EndlessMutatorRoll | null {
+  if (!Array.isArray(presets)) return null;
   const preset = presets.find((p) => p.id === presetId);
   if (!preset) return null;
   return buildEndlessMutatorLoadout(preset.mutatorIds, catalog);
@@ -218,7 +220,7 @@ export function getConflictingMutatorIds(
   selectedIds: readonly string[],
   catalog: readonly MutatorDef[] = ENDLESS_MUTATORS,
 ): readonly string[] {
-  if (!Array.isArray(selectedIds)) return [];
+  if (!Array.isArray(selectedIds) || !Array.isArray(catalog)) return [];
   const selectedSet = new Set(selectedIds);
   const usedGroups = new Set<string>();
   for (let i = 0; i < catalog.length; i++) {

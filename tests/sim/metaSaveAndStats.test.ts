@@ -1856,5 +1856,56 @@ describe('MetaSession stats, achievements, challenges & daily persistence', () =
     ).toBe(true);
     expect(partialMeta.getCampaignProgress().bestStars).toHaveLength(LEVELS.length);
     partialMeta.dispose();
+
+    // Non-boolean truthy unlockedAchievements/completedChallenges upgrade cleanly to boolean true,
+    // array-corrupted save.stats safely normalizes in getStats, and overwriteV1 sanitizes campaign
+    const dirtyBoolSave = createDefaultMetaSave(9);
+    dirtyBoolSave.unlockedAchievements = { first_victory: 'yes' as unknown as boolean };
+    dirtyBoolSave.completedChallenges = { 'sunlit-meadow:perfect': 'yes' as unknown as boolean };
+    dirtyBoolSave.completedDailyDates = ['2026-11-15', '2026-11-16'];
+    dirtyBoolSave.stats.dailyChallengesCompleted = 0;
+    const dirtyEv = new EventBus();
+    const dirtyObs = new RunObserver(LEVELS[0], dirtyEv);
+    dirtyObs.onTick(5, 3);
+    const dirtyOutcome = recordRunCompletion(dirtyBoolSave, {
+      level: LEVELS[0],
+      telemetry: { ...dirtyObs.getTelemetry(), storyWavesCompleted: 10, enemiesKilledTotal: 12 },
+      won: true,
+      stars: 3,
+      livesRemaining: 20,
+      levels: LEVELS,
+    });
+    const dirtyDailyOutcome = recordRunCompletion(dirtyBoolSave, {
+      level: LEVELS[0],
+      telemetry: { ...dirtyObs.getTelemetry(), storyWavesCompleted: 10, enemiesKilledTotal: 12 },
+      won: true,
+      stars: 3,
+      livesRemaining: 20,
+      levels: LEVELS,
+      dailyDate: '2026-11-17',
+    });
+    dirtyObs.dispose();
+    expect(dirtyOutcome.newlyUnlockedAchievementIds).toContain('first_victory');
+    expect(dirtyOutcome.newlyCompletedChallengeIds).toContain('sunlit-meadow:perfect');
+    expect(dirtyBoolSave.unlockedAchievements.first_victory).toBe(true);
+    expect(dirtyBoolSave.completedChallenges['sunlit-meadow:perfect']).toBe(true);
+    expect(dirtyDailyOutcome.isNewBestDailyScore).toBe(true);
+    expect(dirtyBoolSave.stats.dailyChallengesCompleted).toBe(3);
+
+    const arrStatsSave = {
+      ...createDefaultMetaSave(9),
+      stats: [42] as unknown as ReturnType<typeof createDefaultMetaSave>['stats'],
+      campaign: [] as unknown as ProgressData,
+    };
+    expect(getStats(arrStatsSave).enemiesDefeatedTotal).toBe(0);
+    const overwriteStore = installMockLocalStorage();
+    saveMetaSave(arrStatsSave, true);
+    const parsedV1 = JSON.parse(overwriteStore.get(PROGRESS_KEY) ?? 'null');
+    expect(Array.isArray(parsedV1)).toBe(false);
+    expect(parsedV1).toEqual({
+      unlockedLevelIndex: 0,
+      bestStars: [0],
+      bestEndlessWaves: [0],
+    });
   });
 });

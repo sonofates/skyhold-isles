@@ -1134,6 +1134,22 @@ describe('RunObserver challenge condition tracking', () => {
     postSnapEv.emit('endlessEntered', { startingWave: 2 });
     postSnapObs.markDebugTainted();
     expect(postSnapObs.getStoryWinSnapshot()?.telemetry.eligibleForChallenges).toBe(true);
+    expect(
+      evaluateChallengeCondition(
+        { kind: 'noLivesLost' },
+        postSnapObs.getStoryWinSnapshot()!.telemetry,
+        true,
+        Number.POSITIVE_INFINITY,
+      ),
+    ).toBe(false);
+    expect(
+      evaluateChallengeCondition(
+        { kind: 'minLivesRemaining', minLives: 10 },
+        postSnapObs.getStoryWinSnapshot()!.telemetry,
+        true,
+        Number.POSITIVE_INFINITY,
+      ),
+    ).toBe(false);
     preSnapObs.dispose();
     postSnapObs.dispose();
 

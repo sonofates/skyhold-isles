@@ -29,12 +29,13 @@ export function evaluateChallengeCondition(
   livesRemaining: number,
 ): boolean {
   if (!won || !telemetry.eligibleForChallenges) return false;
+  const safeLives = Number.isFinite(livesRemaining) ? Math.max(0, Math.floor(livesRemaining)) : 0;
 
   switch (condition.kind) {
     case 'noLivesLost':
-      return telemetry.livesLost === 0 && livesRemaining >= BALANCE.startingLives;
+      return telemetry.livesLost === 0 && safeLives >= BALANCE.startingLives;
     case 'minLivesRemaining':
-      return livesRemaining >= condition.minLives;
+      return safeLives >= condition.minLives;
     case 'forbiddenTowerTypes':
       return condition.forbidden.every((type) => (telemetry.towersBuiltByType[type] ?? 0) === 0);
     case 'allowedTowerTypes': {

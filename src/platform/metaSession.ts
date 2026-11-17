@@ -199,12 +199,19 @@ export class MetaSession {
   }
 
   private syncRunEndlessBaseline(level: LevelDef): void {
-    this.runStartBestEndlessWave = nonNegIntOrZero(
-      this.save?.campaign?.bestEndlessWaves?.[level.index],
-    );
-    this.runStartBestEndlessScore = nonNegIntOrZero(
-      this.save?.bestEndlessScoresByLevelId?.[level.id],
-    );
+    const bestEndlessWaves = Array.isArray(this.save?.campaign?.bestEndlessWaves)
+      ? this.save.campaign.bestEndlessWaves
+      : null;
+    const scoresMap =
+      this.save?.bestEndlessScoresByLevelId &&
+      typeof this.save.bestEndlessScoresByLevelId === 'object' &&
+      !Array.isArray(this.save.bestEndlessScoresByLevelId)
+        ? this.save.bestEndlessScoresByLevelId
+        : null;
+    this.runStartBestEndlessWave = bestEndlessWaves
+      ? nonNegIntOrZero(bestEndlessWaves[level.index])
+      : 0;
+    this.runStartBestEndlessScore = scoresMap ? nonNegIntOrZero(scoresMap[level.id]) : 0;
   }
 
   private finalizeRunOutcome(

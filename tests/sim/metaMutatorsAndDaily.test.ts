@@ -923,5 +923,19 @@ describe('Daily challenge pure date-seeded generator', () => {
       '0000-01-02',
       '0000-01-03',
     ]);
+
+    // Non-array catalog/preset inputs to mutator/modifier helpers fail safely
+    const badCatalog = null as unknown as typeof ENDLESS_MUTATORS;
+    const badPresets = null as unknown as typeof ENDLESS_MUTATOR_PRESETS;
+    expect(selectEndlessMutators('safe', 2, badCatalog).mutators).toEqual([]);
+    expect(buildEndlessMutatorLoadout(['swift_march'], badCatalog).mutators).toEqual([]);
+    expect(getMutatorPresetRoll('iron-skies', badPresets, badCatalog)).toBeNull();
+    expect(getConflictingMutatorIds(['swift_march'], badCatalog)).toEqual([]);
+    expect(
+      describeActiveModifiers(
+        resolveRunModifiers({ activeMutatorIds: ['swift_march'] }),
+        badCatalog,
+      )[0]?.id,
+    ).toBe('swift_march');
   });
 });

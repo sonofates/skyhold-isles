@@ -226,9 +226,10 @@ export function describeActiveModifiers(
   mutatorCatalog: readonly MutatorDef[] = ENDLESS_MUTATORS,
 ): readonly ModifierBadgeInfo[] {
   const badges: ModifierBadgeInfo[] = [];
+  const safeCatalog = Array.isArray(mutatorCatalog) ? mutatorCatalog : [];
   const mutatorById = new Map<string, MutatorDef>();
-  for (let i = 0; i < mutatorCatalog.length; i++) {
-    mutatorById.set(mutatorCatalog[i].id, mutatorCatalog[i]);
+  for (let i = 0; i < safeCatalog.length; i++) {
+    mutatorById.set(safeCatalog[i].id, safeCatalog[i]);
   }
 
   const mutatorForbidden = new Set<TowerType>();

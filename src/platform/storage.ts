@@ -198,10 +198,14 @@ export function loadMetaSave(levelCount: number, levels?: readonly LevelDef[]): 
 export function saveMetaSave(save: MetaSaveData, overwriteV1 = false): void {
   try {
     localStorage.setItem(META_PROGRESS_KEY, JSON.stringify(save));
-    const levelCount = Array.isArray(save?.campaign?.bestStars) ? save.campaign.bestStars.length : 1;
-    const campaign = save?.campaign ?? createDefaultProgress(levelCount);
+    const hasCampaign =
+      Boolean(save?.campaign) && typeof save.campaign === 'object' && !Array.isArray(save.campaign);
+    const levelCount =
+      hasCampaign && Array.isArray(save.campaign.bestStars) ? save.campaign.bestStars.length : 1;
+    const campaign = hasCampaign ? save.campaign : createDefaultProgress(levelCount);
     if (overwriteV1) {
-      localStorage.setItem(PROGRESS_KEY, JSON.stringify(campaign));
+      const sanitizedV1 = mergeCampaignProgress(createDefaultProgress(levelCount), campaign, levelCount);
+      localStorage.setItem(PROGRESS_KEY, JSON.stringify(sanitizedV1));
       return;
     }
     const existingV1 = loadProgress(levelCount);
