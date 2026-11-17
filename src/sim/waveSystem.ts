@@ -143,6 +143,9 @@ export function buildEndlessWaveDef(waveIndex: number, level: LevelDef): WaveDef
     });
   }
 
+  // Boss / Tempest groups below are not spotlights (Vanguard must not empower them).
+  const spotlightEnd = groups.length;
+
   if ((offset + 1) % 5 === 0) {
     const bossTier = Math.floor(offset / 5);
     // Every second boss wave brings a Tempest Colossus to lead the Dreadnoughts.
@@ -186,7 +189,10 @@ export function buildEndlessWaveDef(waveIndex: number, level: LevelDef): WaveDef
       const count = counts[i];
       const elite =
         g.elite === true ||
-        (fx.allSpotlightElite && i >= spotlightStart && g.enemyType !== 'mite');
+        (fx.allSpotlightElite &&
+          i >= spotlightStart &&
+          i < spotlightEnd &&
+          g.enemyType !== 'mite');
       return count === g.count && elite === (g.elite === true) ? g : { ...g, count, elite };
     });
   }

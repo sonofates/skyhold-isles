@@ -369,6 +369,11 @@ export class SimWorld {
   fixedTick(dt: number): void {
     if (this.outcome !== 'ongoing') return;
 
+    // Run + endless-wave modifiers for everything spawned this tick (incl. escorts, raiders, mites).
+    const waveFx = this.waveSystem.getEndlessMutatorEffects();
+    this.enemySystem.speedMul = this.mods.enemySpeedMul * waveFx.speedMul;
+    this.enemySystem.armorBonus = waveFx.armorBonus;
+
     this.waveSystem.update(
       dt,
       () => this.enemyPool.getActiveCount(),
@@ -390,11 +395,6 @@ export class SimWorld {
                 fx.killGoldMul,
             ),
           );
-          if (fx.speedMul !== 1) spawned.speed *= fx.speedMul;
-          if (fx.armorBonus !== 0) {
-            spawned.armor += fx.armorBonus;
-            spawned.baseArmor = spawned.armor;
-          }
         }
       },
       (bonus) => {
@@ -444,7 +444,7 @@ export class SimWorld {
         this.events.emit('economyChanged', { gold: this.gold, lives: this.lives });
       },
       this.towers,
-      this.waveSystem.getCurrentWaveHpScale() * this.mods.enemyHpMul,
+      this.waveSystem.getCurrentWaveHpScale() * this.mods.enemyHpMul * waveFx.hpMul,
     );
 
     if (this.outcome !== 'ongoing') return;

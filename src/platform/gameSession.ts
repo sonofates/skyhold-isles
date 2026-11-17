@@ -281,7 +281,8 @@ export class GameSession {
   private recordEndlessIfActive(): void {
     if (this.viewMode !== 'playing') return;
     const ws = this.simWorld.waveSystem;
-    if (!ws.isEndless) return;
+    // Endless started from the island card: story waves never count as an endless record.
+    if (!ws.isEndless || ws.currentWaveIndex < this.simWorld.level.waves.length) return;
     recordEndlessProgress(this.progress, this.currentLevelIndex, ws.currentWaveOneBased);
   }
 
@@ -322,6 +323,10 @@ export class GameSession {
   activateAbility(id: AbilityId): void {
     if (this.viewMode !== 'playing' || this.d.overlays.isModalOpen()) return;
     if (this.simWorld.outcome !== 'ongoing' || this.simWorld.waveSystem.state === 'preFirstWave') {
+      return;
+    }
+    if (this.simWorld.mods.abilitiesDisabled) {
+      this.d.overlays.toast.show('Abilities are off in this challenge', 2.5);
       return;
     }
     this.soundManager.unlock();
@@ -453,15 +458,29 @@ export class GameSession {
         const level = LEVELS[this.currentLevelIndex];
         let endlessResult: EndlessResultView | undefined;
         if (isEndless) {
-          const rec = recordEndlessProgress(this.progress, this.currentLevelIndex, waveIndex + 1);
           const offset = waveIndex - level.waves.length;
-          endlessResult = {
-            best: rec.best,
-            previousBest: rec.previousBest,
-            isNewBest: rec.isNewBest,
-            endlessWavesCleared: Math.max(0, offset),
-            mutators: endlessMutatorsAt(Math.max(0, offset), level.index).map((m) => m.name),
-          };
+          if (offset >= 0) {
+            const rec = recordEndlessProgress(this.progress, this.currentLevelIndex, waveIndex + 1);
+            endlessResult = {
+              best: rec.best,
+              previousBest: rec.previousBest,
+              isNewBest: rec.isNewBest,
+              reachedEndless: true,
+              endlessWavesCleared: offset,
+              mutators: endlessMutatorsAt(offset, level.index).map((m) => m.name),
+            };
+          } else {
+            // Fell during the story waves of an island-card Endless run: no record.
+            const best = this.progress.bestEndlessWaves[this.currentLevelIndex] ?? 0;
+            endlessResult = {
+              best,
+              previousBest: best,
+              isNewBest: false,
+              reachedEndless: false,
+              endlessWavesCleared: 0,
+              mutators: [],
+            };
+          }
         }
         overlays.outcomeOverlay.showLose(level, waveIndex + 1, this.simWorld.enemiesKilledTotal, {
           isEndless,

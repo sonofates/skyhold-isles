@@ -4,7 +4,8 @@ import { ENDLESS_MUTATOR_INTERVAL } from '../data/endlessMutators.ts';
 import { LEVELS } from '../data/levels/index.ts';
 import { describeStarGoals } from '../data/stars.ts';
 import { TOWER_ICON_SVGS, UI_ICON_SVGS } from './icons.ts';
-import { renderStarsHtml } from './menus.ts';
+import { MASTERED_CROWN_SVG, renderStarsHtml } from './menus.ts';
+import { isIslandMastered } from '../game/progression.ts';
 import './styles/islandBriefing.css';
 
 export interface BriefingStartConfig {
@@ -112,7 +113,10 @@ export class IslandBriefingModal {
 
     const top = document.createElement('div');
     top.className = 'ib-top';
-    top.innerHTML = `<span class="level-index-tag">${i + 1}</span><span class="ib-diff">${level.difficulty}</span>`;
+    const mastered = isIslandMastered(progress, i, offered);
+    top.innerHTML = `<span class="level-index-tag">${i + 1}</span><span class="ib-diff">${level.difficulty}${
+      mastered ? ` <span class="ib-mastered">${MASTERED_CROWN_SVG}Mastered</span>` : ''
+    }</span>`;
     const closeBtn = document.createElement('button');
     closeBtn.type = 'button';
     closeBtn.className = 'ib-close gx gx-slate-btn';

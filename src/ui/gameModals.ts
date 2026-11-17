@@ -34,6 +34,8 @@ export interface EndlessResultView {
   readonly best: number;
   readonly previousBest: number;
   readonly isNewBest: boolean;
+  /** False when the run fell during the island's story waves (no endless record then). */
+  readonly reachedEndless: boolean;
   readonly endlessWavesCleared: number;
   readonly mutators: readonly string[];
 }
@@ -426,7 +428,9 @@ export class OutcomeOverlay {
       this.badgeEl.textContent = `Endless · ${level.name}`;
       this.titleEl.textContent = `Wave ${waveReached}`;
       this.subEl.textContent = res
-        ? res.isNewBest
+        ? !res.reachedEndless
+          ? `Fell on story wave ${waveReached}/${level.waves.length}${res.best > 0 ? ` · best W${res.best}` : ''}`
+          : res.isNewBest
           ? res.previousBest > 0
             ? `New personal best (was wave ${res.previousBest})`
             : 'First endless record on this island'
@@ -443,7 +447,7 @@ export class OutcomeOverlay {
       }
       this.statsEl.innerHTML = `
         <div class="outcome-stat"><span>Endless waves</span><strong>${res?.endlessWavesCleared ?? 0}</strong></div>
-        <div class="outcome-stat"><span>Best</span><strong>W${res?.best ?? waveReached}</strong></div>
+        <div class="outcome-stat"><span>Best</span><strong>${res && res.best > 0 ? `W${res.best}` : '–'}</strong></div>
         <div class="outcome-stat"><span>Foes</span><strong>${enemiesKilled}</strong></div>
       `;
     } else {

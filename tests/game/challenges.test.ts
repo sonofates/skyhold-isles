@@ -12,7 +12,7 @@ import {
 import { ENEMY_DEFS } from '../../src/data/enemies.ts';
 import { LEVELS } from '../../src/data/levels/index.ts';
 import { workshopModifiers } from '../../src/data/workshop.ts';
-import { applyWin, starWallet } from '../../src/game/progression.ts';
+import { applyWin, isIslandMastered, starWallet } from '../../src/game/progression.ts';
 import { createDefaultProgress } from '../../src/platform/storage.ts';
 import { SimWorld } from '../../src/sim/world.ts';
 
@@ -102,5 +102,19 @@ describe('challenge progression', () => {
     applyWin(p, 3, LEVELS.length, 1, 2, ['thaw']);
     expect(p.unlockedLevelIndex).toBe(4);
     expect(p.challengeClears[3]).toEqual(['thaw']);
+  });
+});
+
+describe('mastery', () => {
+  it('needs 3 stars and every offered challenge', () => {
+    const p = createDefaultProgress(LEVELS.length);
+    const offered = challengesForLevel(LEVELS[0]);
+    applyWin(p, 0, LEVELS.length, 3, 20, [offered[0]]);
+    expect(isIslandMastered(p, 0, offered)).toBe(false);
+    applyWin(p, 0, LEVELS.length, 1, 3, [offered[1]]);
+    expect(isIslandMastered(p, 0, offered)).toBe(true);
+    const q = createDefaultProgress(LEVELS.length);
+    applyWin(q, 0, LEVELS.length, 2, 12, [...offered]);
+    expect(isIslandMastered(q, 0, offered)).toBe(false);
   });
 });

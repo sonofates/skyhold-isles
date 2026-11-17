@@ -264,11 +264,26 @@ const PROGRESS_RESET_BACKUP_KEY = 'skyhold_isles_progress_reset_backup';
 export function resetProgressSave(levelCount: number): ProgressData {
   try {
     const raw = localStorage.getItem(PROGRESS_KEY);
-    if (raw) localStorage.setItem(PROGRESS_RESET_BACKUP_KEY, raw);
+    // Never let a reset of an already-empty save overwrite the backup of real progress.
+    if (raw && hasAnyProgress(migrateProgress(JSON.parse(raw), levelCount))) {
+      localStorage.setItem(PROGRESS_RESET_BACKUP_KEY, raw);
+    }
   } catch {
     // ignore storage errors
   }
   const fresh = createDefaultProgress(levelCount);
   saveProgress(fresh);
   return fresh;
+}
+
+/** True when a save holds anything worth backing up. */
+export function hasAnyProgress(p: ProgressData): boolean {
+  return (
+    p.unlockedLevelIndex > 0 ||
+    p.bestStars.some((v) => v > 0) ||
+    p.clears.some((v) => v > 0) ||
+    p.bestEndlessWaves.some((v) => v > 0) ||
+    p.challengeClears.some((l) => l.length > 0) ||
+    Object.keys(p.workshop).length > 0
+  );
 }

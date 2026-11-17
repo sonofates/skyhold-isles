@@ -3,6 +3,10 @@ import { CHALLENGES, challengesForLevel, type ChallengeId } from '../data/challe
 import { LEVELS } from '../data/levels/index.ts';
 import { TOWER_ICON_SVGS, UI_ICON_SVGS } from './icons.ts';
 import { affordableUpgradeCount, WORKSHOP_ICON_SVG } from './workshop.ts';
+import { isIslandMastered } from '../game/progression.ts';
+
+/** Small crown for islands with 3 stars and every challenge won. */
+export const MASTERED_CROWN_SVG = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8L7.5 12L12 5L16.5 12L21 8L19 18H5L3 8Z" fill="#f6bd41" stroke="#1b1936" stroke-width="2" stroke-linejoin="round"/><rect x="5" y="18" width="14" height="2.6" fill="#b8801c" stroke="#1b1936" stroke-width="1.6"/></svg>`;
 
 /** Gold count bubble on a Workshop entry button when an upgrade is affordable. */
 function setWorkshopBadge(btn: HTMLButtonElement, progress: ProgressData): void {
@@ -267,7 +271,18 @@ export class LevelSelectOverlay {
       const diffEl = document.createElement('span');
       diffEl.className = `difficulty-badge ${diffClass}`;
       diffEl.innerHTML = `${GEM_SVG}<span>${lvl.difficulty}</span>`;
-      topRow.append(numEl, diffEl);
+      const offeredHere = challengesForLevel(lvl);
+      const mastered = unlocked && isIslandMastered(progress, i, offeredHere);
+      if (mastered) {
+        card.classList.add('mastered');
+        const crown = document.createElement('span');
+        crown.className = 'level-mastered-crown';
+        crown.title = 'Mastered: 3 stars and every challenge';
+        crown.innerHTML = MASTERED_CROWN_SVG;
+        topRow.append(numEl, crown, diffEl);
+      } else {
+        topRow.append(numEl, diffEl);
+      }
 
       const art = document.createElement('div');
       art.className = 'level-card-art';
@@ -312,7 +327,7 @@ export class LevelSelectOverlay {
         actionBtn.title = `Clear ${LEVELS[Math.max(0, i - 1)].name} to unlock`;
       }
 
-      const offered = challengesForLevel(lvl);
+      const offered = offeredHere;
       const medals = document.createElement('div');
       medals.className = 'level-card-medals';
       const doneChallenges = progress.challengeClears?.[i] ?? [];

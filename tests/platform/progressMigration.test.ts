@@ -79,5 +79,8 @@ describe('progress save versioning', () => {
     expect(store.get('skyhold_isles_progress_reset_backup')).toBe(before);
     expect(loadProgress(13).bestStars.every((s) => s === 0)).toBe(true);
     expect(store.get('skyhold_isles_settings_v1')).toBe('{"muted":true}');
+    // Resetting the now-empty save again must not overwrite the backup of the real progress.
+    resetProgressSave(13);
+    expect(store.get('skyhold_isles_progress_reset_backup')).toBe(before);
   });
 });

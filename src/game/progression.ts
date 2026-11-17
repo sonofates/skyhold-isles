@@ -106,3 +106,17 @@ export function starWallet(progress: ProgressData): StarWallet {
   const spent = workshopStarsSpent(progress.workshop ?? {});
   return { campaign, challenge, earned: campaign + challenge, spent, available: campaign + challenge - spent };
 }
+
+/**
+ * An island is Mastered with 3 stars and every one of its offered challenges won. `offered` comes
+ * from the challenge data so the rule follows any retuned challenge list.
+ */
+export function isIslandMastered(
+  progress: ProgressData,
+  levelIndex: number,
+  offered: readonly string[],
+): boolean {
+  if ((progress.bestStars[levelIndex] ?? 0) < 3) return false;
+  const done = progress.challengeClears[levelIndex] ?? [];
+  return offered.every((id) => done.includes(id));
+}

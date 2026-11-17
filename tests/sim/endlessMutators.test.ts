@@ -98,6 +98,50 @@ describe('mutated endless waves', () => {
   });
 });
 
+describe('mutator scope', () => {
+  it('Vanguard never empowers bosses or Tempests', () => {
+    let checked = 0;
+    for (const level of LEVELS) {
+      for (let off = 0; off <= 40; off++) {
+        const idx = level.waves.length + off;
+        if (!endlessMutatorEffectsAt(idx, level).allSpotlightElite) continue;
+        for (const g of buildEndlessWaveDef(idx, level).groups) {
+          if (g.enemyType === 'boss' || g.enemyType === 'tempest') {
+            expect(g.elite === true, `${level.id} +${off} ${g.enemyType}`).toBe(false);
+            checked++;
+          }
+        }
+      }
+    }
+    expect(checked).toBeGreaterThan(0);
+  });
+
+  it('Ironbark armor applies to every endless spawn and is the armor baseline', () => {
+    const level = LEVELS.find((l) => endlessMutatorsAt(ENDLESS_MUTATOR_INTERVAL, l.index)[0].id === 'ironbark')!;
+    const world = new SimWorld(level, new EventBus());
+    world.startEndlessFromStart();
+    world.debugSkipToWave(level.waves.length + ENDLESS_MUTATOR_INTERVAL + 1);
+    for (let i = 0; i < 60 * 3; i++) world.fixedTick(1 / 60);
+    const pool = world.enemyPool;
+    let checked = 0;
+    for (let p = 0; p < pool.getActiveCount(); p++) {
+      const e = pool.items[pool.getActiveIndex(p)];
+      if (e.type === 'grunt' && !e.elite) {
+        expect(e.baseArmor).toBe(ENEMY_DEFS.grunt.armor + 2);
+        checked++;
+      }
+    }
+    expect(checked).toBeGreaterThan(0);
+  });
+
+  it('split children inherit the parent speed without a second multiplier', () => {
+    const world = new SimWorld(LEVELS[0], new EventBus());
+    world.enemySystem.speedMul = 1.5;
+    const parent = world.enemySystem.spawnEnemy('splitter')!;
+    expect(parent.speed).toBeCloseTo(ENEMY_DEFS.splitter.speed * 1.5, 6);
+  });
+});
+
 describe('endless from the island card', () => {
   it('plays through the story waves without a victory and keeps going', () => {
     const level = LEVELS[0];
