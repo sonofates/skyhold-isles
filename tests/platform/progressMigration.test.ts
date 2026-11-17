@@ -40,8 +40,11 @@ describe('progress load across island-count changes', () => {
   it('clamps to the last island and ignores junk', () => {
     save({ unlockedLevelIndex: 40, bestStars: new Array(13).fill(3) });
     expect(loadProgress(13).unlockedLevelIndex).toBe(12);
+    // A corrupted stored index is not walked forward, even across islands with stars.
     save({ unlockedLevelIndex: 'x', bestStars: [1, 'a', null] });
-    expect(loadProgress(13).unlockedLevelIndex).toBe(1);
+    expect(loadProgress(13).unlockedLevelIndex).toBe(0);
+    store.set(KEY, '{"unlockedLevelIndex":1e500,"bestStars":[2],"bestEndlessWaves":[5]}');
+    expect(loadProgress(13).unlockedLevelIndex).not.toBe(1);
     store.set(KEY, '{not json');
     expect(loadProgress(13).unlockedLevelIndex).toBe(0);
   });
