@@ -213,7 +213,7 @@ export const ENEMY_DEFS: Record<EnemyType, EnemyDef> = {
     type: 'golem',
     name: 'Basalt Golem',
     description: 'Walking basalt with immense armor. Chilling hits crack its shell for a few seconds.',
-    counterHint: 'Pair Frost with fast hitters — cracked armor drops to 3.',
+    counterHint: 'Frost cracks its armor to 3 — then fast or armor-piercing hits finish it.',
     maxHp: 340,
     speed: 1.25,
     armor: 12,
