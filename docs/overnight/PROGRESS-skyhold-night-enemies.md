@@ -4,7 +4,8 @@ Started 2026-11-16 23:00 UTC (02:00 TR). Deadline 06:00 UTC (09:00 TR).
 
 ## TL;DR for the lead (morning)
 - **What's in:** 7 new enemy archetypes (warden, burrower, carrier, blinker, golem, mite, hexer) + Empowered elites + a 2nd boss (Tempest Colossus); 4 new islands L10–L13 (multi-lane Confluence Terraces, sky-lane Galewatch Spires, hexer switchbacks Lanternfall Hollow, spiral finale Stormcrown Citadel); endless spotlight rotation; FX, enemy sound cues, badges, counter-hint toasts; progress-unlock fix so L9 finishers get L10; 141 tests on this branch.
-- **Branch state:** all green (`tsc`, lint, 141 tests, build, `sim:balance` 13/13 islands).
+- **Branch state:** all green (`tsc`, lint, 142 tests, build, `sim:balance` 13/13 islands).
+- **agy-* branches (meta/perf/qa):** checked too (Round 10). One unavoidable conflict, `src/sim/world.ts` spawn callback vs agy-meta — resolution snippet in Round 10; their 18 extra test failures with this branch are 9-island/6-enemy assumptions in their tests, not bugs (table in Round 10).
 - **3-way merge (dry-run with latest heads):** one textual conflict, `scripts/balanceSim.ts`, ISLANDS × TOWERS (not this branch) — see "Morning merge dry-run" for how to stitch it (`robustLines`). Merged tree: tsc clean, 308/308 tests, every island in its window **except L6** (ISLANDS × TOWERS; sweep + suggestion in the Round 9 log).
 - **After merging, always re-run** `npm run sim:balance`: L10 sits at greedy 5 lives on this branch alone (window 5–10) and 7 merged; it's tuned so both pass.
 - **UI follow-ups** (not done, UI branch's area): see "UI needs" — Legendary difficulty label, elite flag + `carrier` in the HUD wave preview/flyer warning, counter hints in tooltips, a theme for `lanternfall-hollow`.
@@ -47,6 +48,37 @@ Started 2026-11-16 23:00 UTC (02:00 TR). Deadline 06:00 UTC (09:00 TR).
 - Camera auto-fit per island (`npx tsx .wt/camfit.ts`, uses the real `CameraController.configureForMap`): portrait phone 390×844 — L5 and L7–L13 all sit on the 0.34 mobile zoom floor (pre-existing for L5/L7–L9; player pans). Landscape/desktop — L10/L11 0.937, L12 0.867 (= L9), **L13 0.730** (smallest of all; L4/L7 are 0.836): the spiral fills the 18×14 grid corner to corner with tall spawn tiles in two corners. Units read ~13% smaller there than on L7. Left as is (layout change would need a rebalance + ISLANDS decor re-check); flag for the in-browser check.
 - Progress migration fix (see Cross-area changes): finishing the old 9-island campaign now unlocks L10.
 - Enemy sound cues (was an open "UI/TOWERS need"): `soundManager.ts` + `tests/audio/enemySounds.test.ts`; merges cleanly with TOWERS (scratch merge: tsc clean, 308/308 tests). Branch gate green (138 tests, 13 islands).
+
+## Round 10 (2026-11-17 ~02:45 UTC) — merge check against the `agy-*` branches
+Three more branches appeared since round 9, all forked from the same `cfb9330`: `hermes/skyhold-agy-meta` (meta progression, Daily Watch, mutators, achievements), `-agy-perf` (render perf), `-agy-qa` (fuzz harness + contract tests). Scratch merges (`.wt/m4` = this branch + the three agy; `.wt/m6` = + islands + towers; baseline `.wt/b0` = the three agy on `cfb9330` without this branch).
+
+Done on this branch to make that merge easier:
+- `tests/platform/sessionBridge.test.ts` → renamed `tests/platform/newFoeHints.test.ts` (agy-qa adds its own `sessionBridge.test.ts`; was an add/add conflict).
+- `storage.ts` progress fix rewritten as "walk forward from the stored unlock across cleared islands" → now merges **cleanly** with agy-meta's `safeCount` change, and agy-meta's corrupted-save sanitize test passes (the old "furthest island with stars" rule unlocked island 4 for a save that said 0).
+- Endless spotlight spawn-interval floor 0.16 → 0.18 (agy-qa contract: every endless group ≥ 0.18). New test: worst-case endless pool use incl. hauler raiders / tempest mites stays ≤ 360 on every island (worst today: 340, Sunlit Meadow +99).
+
+Still a textual conflict (unavoidable, both sides rewrote the same callback): **`src/sim/world.ts`, the `waveSystem.update` spawn callback vs agy-meta**. Resolution (tsc-clean in the scratch merge): give agy-meta's helper the two new params and carry them through the extra-flyer queue:
+```ts
+private spawnConfiguredEnemy(enemyType: EnemyEntity['type'], hpScale: number, elite = false, lane = 0): void {
+  const spawned = this.enemySystem.spawnEnemy(enemyType, hpScale, elite, lane);
+  ...                                   // rest = agy-meta's version
+// pendingExtraFlyers item type gets `elite: boolean; lane: number;`
+// the queue drain calls spawnConfiguredEnemy(item.enemyType, item.hpScale, item.elite, item.lane)
+// callback: (enemyType, hpScale, elite, lane) => { this.spawnConfiguredEnemy(enemyType, hpScale, elite, lane); ...agy's extra-flyer block, pushing { enemyType, delay, hpScale, elite, lane } }
+```
+(`.wt/resolve_agy.py <tree>` applies exactly this.)
+
+Tests after that merge (mine + 3 agy): **352 pass / 31 fail; 13 of those 31 already fail with the three agy branches alone** (baseline, unrelated to enemies: debug panel, post-processing, scene manager, CLI smoke…). The 18 that only fail with this branch are all agy tests pinning 9-island / 6-enemy / single-spawn assumptions — none is a bug in the new content (checked each):
+| agy test | why it fails with this branch | suggested fix (agy side) |
+|---|---|---|
+| `scripts/fuzzPlay.ts` invariants (3 fuzzPlay tests) | "def mismatch golem armor=3" (chill cracks golem armor 12→3 by design), "totalDist ≠ path.totalLength" (lane-1 enemies use their own lane path), "stale scaleOverride=0.86" (hauler-dropped raiders are drawn at 0.86, `isDropped`), "burrower moved > speed·dt" (×1.6 underground) | compare armor with `e.baseArmor` / allow `armorBreakTimer > 0`; use `enemySystem.getPath(e.flying, e.lane).totalLength`; accept `isDropped && scaleOverride === 0.86`; max step `speed·dt·(burrowed ? burrowSpeedMul : 1)`; blink teleports also exceed one step (exempt `blinkFlash`-tick / allow ≤ 4.5) |
+| `contentContracts` spawn tiles | L10/L13 have a 2nd spawn (`extraGroundPaths`) | collect expected spawns from `pathWaypoints[0]` + each `extraGroundPaths[i][0]` |
+| `endlessAndPool` "offset 9 → 2 bosses" | every 10th endless wave is now 1 Dreadnought + 1 Tempest Colossus (design) | expect `boss` 1 + `tempest` 1 at offset 9 |
+| `renderPipeline` EnemyRenderer (`children[ENEMY_TYPES.length]` = HP bar) | the enemy renderer has extra instanced layers now (mound, shield bubble, elite ring, per-type extras) | look the HP-bar/shadow meshes up by name/reference instead of child index |
+| `metaSaveAndStats` totals 27 / 151 / career points, `metaMutatorsAndDaily` "Islands 10+" (`seenExpanded` 2), daily fixtures on 2026-07-13 / 11-17 (banned tower, 'won' within 40 s) | `LEVELS.length` is 13 (3 stars × 13 = 39, Daily picks different islands, L10+ are Master) | derive totals from `LEVELS.length`; append fake islands to `LEVELS.slice(0, 9)` or count `levelIndex >= LEVELS.length`; pin fixtures with an explicit level |
+| `metaSaveAndStats` endless "≥ 5 endless waves in 180 s" | endless spotlight groups add units → slower clears | raise the tick budget or use a stronger build |
+- With islands + towers also merged (`.wt/m6`): same picture plus the known balanceSim stitch; 39 failures total, nothing new from this branch.
+- agy branches are still moving (agy-qa committed again at ~02:55 UTC) → re-check in the morning.
 
 ## Enemy design table
 
