@@ -3,6 +3,7 @@ import { ObjectPool } from '../core/pool.ts';
 import type { TargetingMode, TowerMvpSummary, TowerType } from '../core/types.ts';
 import { BALANCE } from '../data/balance.ts';
 import type { LevelDef } from '../data/levels/index.ts';
+import { computeStarsForLivesLost, type Difficulty } from '../data/stars.ts';
 import { getTowerTierStats, TOWER_DEFS } from '../data/towers.ts';
 import { AbilitySystem } from './abilitySystem.ts';
 import { CombatSystem } from './combatSystem.ts';
@@ -26,10 +27,16 @@ export function computeSellRefund(totalInvested: number): number {
   return Math.round(totalInvested * BALANCE.sellRefundRatio);
 }
 
-export function computeStarRating(livesRemaining: number): 1 | 2 | 3 {
-  if (livesRemaining >= BALANCE.starThresholds.threeStarsMinLives) return 3;
-  if (livesRemaining >= BALANCE.starThresholds.twoStarsMinLives) return 2;
-  return 1;
+/**
+ * Star rating for a win: based on lives LOST against the island's difficulty table
+ * (`src/data/stars.ts`). Defaults reproduce the classic 20-life Breezy rule (18+ left = 3★, 10+ = 2★).
+ */
+export function computeStarRating(
+  livesRemaining: number,
+  difficulty: Difficulty = 'Breezy',
+  startingLives: number = BALANCE.startingLives,
+): 1 | 2 | 3 {
+  return computeStarsForLivesLost(startingLives - livesRemaining, difficulty);
 }
 
 export class SimWorld {
@@ -54,6 +61,8 @@ export class SimWorld {
 
   gold: number;
   lives: number;
+  /** Lives this run started with (stars are rated on lives lost from here). */
+  readonly startingLives: number;
   enemiesKilledTotal = 0;
   outcome: 'ongoing' | 'won' | 'lost' = 'ongoing';
 
@@ -114,7 +123,13 @@ export class SimWorld {
     this.abilitySystem = new AbilitySystem(events);
 
     this.gold = level.startingGold;
-    this.lives = BALANCE.startingLives;
+    this.startingLives = BALANCE.startingLives;
+    this.lives = this.startingLives;
+  }
+
+  /** Star rating the run would earn if it were won right now. */
+  computeStars(): 1 | 2 | 3 {
+    return computeStarRating(this.lives, this.level.difficulty, this.startingLives);
   }
 
   setAutoWave(enabled: boolean): void {
@@ -178,7 +193,7 @@ export class SimWorld {
     this.projectileSystem.clearBurnZones();
     this.spatialHash.clear();
     if (this.lives <= 0) {
-      this.lives = BALANCE.startingLives;
+      this.lives = this.startingLives;
     }
     this.outcome = 'ongoing';
     const ok = this.waveSystem.skipToWave(waveOneBased);
@@ -191,7 +206,7 @@ export class SimWorld {
     if (this.lives <= 0) this.lives = 1;
     this.outcome = 'won';
     this.events.emit('gameWon', {
-      stars: computeStarRating(this.lives),
+      stars: this.computeStars(),
       livesRemaining: this.lives,
     });
   }
@@ -341,7 +356,7 @@ export class SimWorld {
         if (this.outcome === 'ongoing' && this.lives > 0 && !this.waveSystem.isEndless) {
           this.outcome = 'won';
           this.events.emit('gameWon', {
-            stars: computeStarRating(this.lives),
+            stars: this.computeStars(),
             livesRemaining: this.lives,
           });
         }
@@ -395,7 +410,7 @@ export class SimWorld {
         if (this.outcome === 'ongoing' && this.lives > 0 && !this.waveSystem.isEndless) {
           this.outcome = 'won';
           this.events.emit('gameWon', {
-            stars: computeStarRating(this.lives),
+            stars: this.computeStars(),
             livesRemaining: this.lives,
           });
         }

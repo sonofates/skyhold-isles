@@ -3,6 +3,7 @@ import type { SoundManager } from '../audio/soundManager.ts';
 import type { EventBus } from '../core/eventBus.ts';
 import type { AbilityId, EnemyType, GameSettings, ProgressData, TowerType } from '../core/types.ts';
 import { ABILITY_DEFS } from '../data/abilities.ts';
+import { applyEndlessRecord, applyWin, type WinRecord } from '../game/progression.ts';
 import { BALANCE } from '../data/balance.ts';
 import { ENEMY_DEFS } from '../data/enemies.ts';
 import { LEVELS } from '../data/levels/index.ts';
@@ -97,27 +98,21 @@ export function recordWinProgress(
   progress: ProgressData,
   levelIndex: number,
   stars: 1 | 2 | 3,
-): void {
-  progress.bestStars[levelIndex] = Math.max(progress.bestStars[levelIndex] ?? 0, stars);
-  if (levelIndex + 1 < LEVELS.length) {
-    progress.unlockedLevelIndex = Math.max(progress.unlockedLevelIndex, levelIndex + 1);
-  }
+  livesRemaining = 0,
+): WinRecord {
+  const record = applyWin(progress, levelIndex, LEVELS.length, stars, livesRemaining);
   saveProgress(progress);
+  return record;
 }
 
 export function recordEndlessProgress(
   progress: ProgressData,
   levelIndex: number,
   waveReached: number,
-): void {
-  if (!progress.bestEndlessWaves) {
-    progress.bestEndlessWaves = new Array<number>(LEVELS.length).fill(0);
-  }
-  progress.bestEndlessWaves[levelIndex] = Math.max(
-    progress.bestEndlessWaves[levelIndex] ?? 0,
-    Math.max(0, Math.floor(waveReached)),
-  );
+): ReturnType<typeof applyEndlessRecord> {
+  const result = applyEndlessRecord(progress, levelIndex, waveReached);
   saveProgress(progress);
+  return result;
 }
 
 type WavePreview = ReturnType<SimWorld['waveSystem']['getNextWavePreview']>;

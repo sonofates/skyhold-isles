@@ -440,6 +440,28 @@ export class SoundManager {
     };
   }
 
+  /** Victory star stamp: a rising bell per star (index 0..2), the third one brighter. */
+  playStarChime(index: number): void {
+    if (!this.canPlay(`star${index}`, 120)) return;
+    const base = [659, 784, 988][Math.max(0, Math.min(2, index))];
+    this.tone('triangle', base, base * 1.02, 0.22, 0.24);
+    this.tone('sine', base * 2, base * 2, 0.32, 0.1, 0.03);
+    if (index >= 2) this.tone('sine', base * 1.5, base * 2, 0.4, 0.12, 0.08);
+  }
+
+  /** Meta screens (Workshop / challenge toggles): soft confirm blip. */
+  playUiConfirm(): void {
+    if (!this.canPlay('ui_confirm', 60)) return;
+    this.tone('triangle', 523, 784, 0.12, 0.18);
+    this.tone('sine', 1046, 1046, 0.14, 0.08, 0.05);
+  }
+
+  /** Meta screens: refund / toggle-off. */
+  playUiBack(): void {
+    if (!this.canPlay('ui_back', 60)) return;
+    this.tone('triangle', 523, 349, 0.14, 0.16);
+  }
+
   dispose(): void {
     if (this.ctx) {
       void this.ctx.close();

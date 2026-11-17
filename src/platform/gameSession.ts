@@ -15,6 +15,7 @@ import { TOWER_DEFS, TOWER_TYPES } from '../data/towers.ts';
 import type { RenderWorld } from '../render/renderWorld.ts';
 import { getTowerPickHeight } from '../render/towerPicking.ts';
 import { SimWorld } from '../sim/world.ts';
+import { STAR_REVEAL_DELAYS_MS } from '../ui/gameModals.ts';
 import type { GameOverlays } from '../ui/gameOverlays.ts';
 import type { RadialMenu } from '../ui/radialMenu.ts';
 import type { GameLoop } from './browserLoop.ts';
@@ -92,6 +93,7 @@ export class GameSession {
   private deps: SessionRuntimeDeps | null = null;
   /** Tile whose ghost tower the radial build ring is previewing (survives pointer-leave refreshes). */
   private radialPreview: { type: TowerType; col: number; row: number } | null = null;
+  private readonly starChimeTimers: number[] = [];
 
   constructor(renderWorld: RenderWorld, soundManager: SoundManager) {
     this.renderWorld = renderWorld;
@@ -333,6 +335,7 @@ export class GameSession {
   }
 
   private clearTransientPlayState(): void {
+    this.cancelStarChimes();
     this.pendingDebugSpawns.length = 0;
     this.deps?.radial?.close(false);
     this.radialPreview = null;
@@ -352,6 +355,20 @@ export class GameSession {
     this.simClockSec = 0;
   }
 
+  /** Chimes in sync with the victory star stamps; cancelled when the run is left early. */
+  private scheduleStarChimes(stars: number): void {
+    this.cancelStarChimes();
+    for (let i = 0; i < stars; i++) {
+      const delay = STAR_REVEAL_DELAYS_MS[i] ?? 0;
+      this.starChimeTimers.push(window.setTimeout(() => this.soundManager.playStarChime(i), delay));
+    }
+  }
+
+  private cancelStarChimes(): void {
+    for (const t of this.starChimeTimers) window.clearTimeout(t);
+    this.starChimeTimers.length = 0;
+  }
+
   private bindSimEvents(bus: EventBus): void {
     const { overlays } = this.d;
     this.unbindSound?.();
@@ -363,7 +380,7 @@ export class GameSession {
       getSimClock: () => this.simClockSec,
       onSyncUi: this.syncUi,
       onGameWon: (stars, livesRemaining) => {
-        recordWinProgress(this.progress, this.currentLevelIndex, stars);
+        const record = recordWinProgress(this.progress, this.currentLevelIndex, stars, livesRemaining);
         this.deps?.radial?.close();
         this.activeAbilityMode = null;
         this.setPlacementMode(null);
@@ -376,7 +393,13 @@ export class GameSession {
           this.simWorld.enemiesKilledTotal,
           this.currentLevelIndex + 1 < LEVELS.length,
           this.simWorld.getMvpTowerSummary(),
+          {
+            record,
+            startingLives: this.simWorld.startingLives,
+            unlockedName: record.unlockedIndex !== null ? LEVELS[record.unlockedIndex]?.name : undefined,
+          },
         );
+        this.scheduleStarChimes(stars);
         this.syncLoopAndInput();
         this.syncUi();
       },

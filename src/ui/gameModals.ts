@@ -1,8 +1,36 @@
 import type { TowerMvpSummary } from '../core/types.ts';
 import { BALANCE } from '../data/balance.ts';
 import type { LevelDef } from '../data/levels/index.ts';
+import { describeStarGoals } from '../data/stars.ts';
+import type { WinRecord } from '../game/progression.ts';
 import { TOWER_ICON_SVGS, UI_ICON_SVGS } from './icons.ts';
 import { renderStarsHtml } from './menus.ts';
+import './styles/starReveal.css';
+
+/** When each victory star stamps in (ms after the card opens); the session plays chimes in sync. */
+export const STAR_REVEAL_DELAYS_MS: readonly number[] = [650, 1000, 1350];
+
+/** Victory stars: empty slots first, then each earned star stamps in; stars beyond the old best get a NEW tag. */
+export function renderStarRevealHtml(stars: number, previousBest: number): string {
+  let out = '';
+  for (let i = 1; i <= 3; i++) {
+    const earned = i <= stars;
+    const isNew = earned && i > previousBest;
+    const delay = STAR_REVEAL_DELAYS_MS[i - 1] ?? 0;
+    out += `<span class="star-slot${earned ? ' earned' : ' empty'}${isNew ? ' star-new' : ''}" style="--reveal-delay:${delay}ms">`;
+    out += `<span class="star-layer star-layer-empty">${UI_ICON_SVGS.starEmpty}</span>`;
+    if (earned) {
+      out += `<span class="star-burst"></span><span class="star-layer star-layer-fill">${UI_ICON_SVGS.star}</span>`;
+      if (isNew && previousBest > 0) out += `<span class="star-new-tag">NEW</span>`;
+    }
+    out += '</span>';
+  }
+  return out;
+}
+
+function escapeHtml(text: string): string {
+  return text.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+}
 
 function tierToRoman(tier: 1 | 2 | 3): string {
   return tier === 3 ? 'III' : tier === 2 ? 'II' : 'I';
@@ -146,6 +174,8 @@ export class OutcomeOverlay {
   private readonly titleEl: HTMLDivElement;
   private readonly subEl: HTMLDivElement;
   private readonly starsEl: HTMLDivElement;
+  private readonly calloutsEl: HTMLDivElement;
+  private readonly goalsEl: HTMLDivElement;
   private readonly statsEl: HTMLDivElement;
   private readonly mvpEl: HTMLDivElement;
   private readonly nextBtn: HTMLButtonElement;
@@ -171,6 +201,12 @@ export class OutcomeOverlay {
 
     this.starsEl = document.createElement('div');
     this.starsEl.className = 'outcome-stars';
+
+    this.calloutsEl = document.createElement('div');
+    this.calloutsEl.className = 'outcome-callouts';
+
+    this.goalsEl = document.createElement('div');
+    this.goalsEl.className = 'outcome-star-goals hidden';
 
     this.statsEl = document.createElement('div');
     this.statsEl.className = 'outcome-stats';
@@ -215,7 +251,17 @@ export class OutcomeOverlay {
     tileRow.className = 'pause-tiles';
     tileRow.append(levelsBtn, menuBtn);
     actions.append(this.nextBtn, this.endlessBtn, this.replayBtn, tileRow);
-    card.append(this.badgeEl, this.titleEl, this.subEl, this.starsEl, this.statsEl, this.mvpEl, actions);
+    card.append(
+      this.badgeEl,
+      this.titleEl,
+      this.subEl,
+      this.starsEl,
+      this.calloutsEl,
+      this.goalsEl,
+      this.statsEl,
+      this.mvpEl,
+      actions,
+    );
     this.backdrop.appendChild(card);
     parent.appendChild(this.backdrop);
   }
@@ -270,16 +316,32 @@ export class OutcomeOverlay {
     enemiesKilled: number,
     hasNext: boolean,
     mvp?: TowerMvpSummary | null,
+    extras?: {
+      record?: WinRecord;
+      startingLives?: number;
+      unlockedName?: string;
+    },
   ): void {
     this.open = true;
+    const record = extras?.record;
+    const startingLives = extras?.startingLives ?? BALANCE.startingLives;
     this.badgeEl.className = 'outcome-badge outcome-badge-win';
     this.badgeEl.textContent = 'Island defended';
     this.titleEl.textContent = 'Victory';
     this.subEl.textContent = level.name;
-    this.starsEl.innerHTML = renderStarsHtml(stars);
+    this.starsEl.className = 'outcome-stars star-reveal';
+    this.starsEl.innerHTML = renderStarRevealHtml(stars, record?.previousBestStars ?? 0);
     this.starsEl.classList.remove('hidden');
+    this.renderCallouts(stars, record, extras?.unlockedName);
+    if (stars < 3) {
+      const goals = describeStarGoals(level.difficulty);
+      this.goalsEl.innerHTML = `${level.difficulty}: <b>3★</b> ${goals.three} · <b>2★</b> ${goals.two}`;
+      this.goalsEl.classList.remove('hidden');
+    } else {
+      this.goalsEl.classList.add('hidden');
+    }
     this.statsEl.innerHTML = `
-      <div class="outcome-stat"><span>Lives</span><strong>${livesRemaining} / ${BALANCE.startingLives}</strong></div>
+      <div class="outcome-stat"><span>Lives</span><strong>${livesRemaining} / ${startingLives}</strong></div>
       <div class="outcome-stat"><span>Waves</span><strong>${level.waves.length} / ${level.waves.length}</strong></div>
       <div class="outcome-stat"><span>Foes</span><strong>${enemiesKilled}</strong></div>
     `;
@@ -289,6 +351,24 @@ export class OutcomeOverlay {
     OutcomeOverlay.styleBtn(this.endlessBtn, hasNext ? 'sky' : 'green', 'Endless', UI_ICON_SVGS.autoWave);
     OutcomeOverlay.styleBtn(this.replayBtn, 'slate', 'Replay', UI_ICON_SVGS.restart);
     this.backdrop.classList.remove('hidden');
+  }
+
+  private renderCallouts(stars: number, record: WinRecord | undefined, unlockedName: string | undefined): void {
+    const chips: string[] = [];
+    let delay = (STAR_REVEAL_DELAYS_MS[Math.max(0, stars - 1)] ?? 0) + 380;
+    const chip = (cls: string, icon: string, text: string): void => {
+      chips.push(
+        `<span class="outcome-callout ${cls}" style="--reveal-delay:${delay}ms">${icon}<span>${escapeHtml(text)}</span></span>`,
+      );
+      delay += 160;
+    };
+    if (record) {
+      if (record.firstClear) chip('callout-first', UI_ICON_SVGS.star, 'First clear!');
+      else if (record.starsGained > 0) chip('callout-best', UI_ICON_SVGS.star, `+${record.starsGained}★ new best`);
+      else if (record.newBestLives) chip('callout-best', UI_ICON_SVGS.heart, 'Best defence yet');
+    }
+    if (unlockedName) chip('callout-unlock', UI_ICON_SVGS.islands, `${unlockedName} unlocked`);
+    this.calloutsEl.innerHTML = chips.join('');
   }
 
   showLose(
@@ -305,6 +385,9 @@ export class OutcomeOverlay {
     const waveReached = Math.max(1, waveOneBased);
     const isEndless = Boolean(options?.isEndless);
     const earnedStars = options?.earnedStars ?? 0;
+    this.starsEl.className = 'outcome-stars';
+    this.calloutsEl.innerHTML = '';
+    this.goalsEl.classList.add('hidden');
 
     if (isEndless) {
       this.badgeEl.className = 'outcome-badge outcome-badge-lose outcome-badge-endless';

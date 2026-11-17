@@ -1,0 +1,68 @@
+import type { ProgressData } from '../core/types.ts';
+
+/** What a recorded win changed — drives the victory screen's "new best" / unlock callouts. */
+export interface WinRecord {
+  readonly stars: 1 | 2 | 3;
+  readonly previousBestStars: number;
+  readonly firstClear: boolean;
+  /** Stars added to the island's best (0 when the run did not beat it). */
+  readonly starsGained: number;
+  readonly newBestLives: boolean;
+  /** Island index newly unlocked by this win (null when nothing new opened). */
+  readonly unlockedIndex: number | null;
+}
+
+/**
+ * Applies a campaign win to the save (pure; caller persists). A win ALWAYS unlocks the next
+ * island, whatever modifiers the run used.
+ */
+export function applyWin(
+  progress: ProgressData,
+  levelIndex: number,
+  levelCount: number,
+  stars: 1 | 2 | 3,
+  livesRemaining: number,
+): WinRecord {
+  const previousBestStars = progress.bestStars[levelIndex] ?? 0;
+  const previousClears = progress.clears[levelIndex] ?? 0;
+  const previousBestLives = progress.bestLives[levelIndex] ?? 0;
+  const lives = Math.max(0, Math.floor(livesRemaining));
+
+  progress.bestStars[levelIndex] = Math.max(previousBestStars, stars);
+  progress.clears[levelIndex] = previousClears + 1;
+  progress.bestLives[levelIndex] = Math.max(previousBestLives, lives);
+
+  let unlockedIndex: number | null = null;
+  if (levelIndex + 1 < levelCount && progress.unlockedLevelIndex < levelIndex + 1) {
+    progress.unlockedLevelIndex = levelIndex + 1;
+    unlockedIndex = levelIndex + 1;
+  }
+  return {
+    stars,
+    previousBestStars,
+    firstClear: previousClears === 0 && previousBestStars === 0,
+    starsGained: Math.max(0, stars - previousBestStars),
+    newBestLives: previousClears > 0 && lives > previousBestLives,
+    unlockedIndex,
+  };
+}
+
+/** Records an endless run's furthest wave; returns whether it beat the island's personal best. */
+export function applyEndlessRecord(
+  progress: ProgressData,
+  levelIndex: number,
+  waveReached: number,
+): { best: number; previousBest: number; isNewBest: boolean } {
+  const previousBest = progress.bestEndlessWaves[levelIndex] ?? 0;
+  const wave = Math.max(0, Math.floor(Number.isFinite(waveReached) ? waveReached : 0));
+  const best = Math.max(previousBest, wave);
+  progress.bestEndlessWaves[levelIndex] = best;
+  return { best, previousBest, isNewBest: wave > previousBest };
+}
+
+/** Sum of best campaign stars across islands. */
+export function totalCampaignStars(progress: ProgressData): number {
+  let total = 0;
+  for (const s of progress.bestStars) total += Math.max(0, Math.min(3, s | 0));
+  return total;
+}

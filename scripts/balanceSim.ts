@@ -4,7 +4,7 @@ import { BALANCE } from '../src/data/balance.ts';
 import { ENEMY_DEFS } from '../src/data/enemies.ts';
 import { LEVELS, type LevelDef, type ScriptedBuildAction } from '../src/data/levels/index.ts';
 import { getTowerTierStats } from '../src/data/towers.ts';
-import { computeStarRating, SimWorld } from '../src/sim/world.ts';
+import { SimWorld } from '../src/sim/world.ts';
 
 type ScriptKind = 'greedy' | 'weak';
 
@@ -214,7 +214,7 @@ export function runLevelBalanceSim(
     scriptKind,
     outcome: world.outcome,
     finalLives: world.lives,
-    stars: world.outcome === 'won' ? computeStarRating(world.lives) : 0,
+    stars: world.outcome === 'won' ? world.computeStars() : 0,
     startingGold: level.startingGold,
     goldEarned,
     goldSpent,
