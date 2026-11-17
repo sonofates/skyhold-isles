@@ -314,4 +314,73 @@ describe('WaveSystem & SimWorld boundary edge cases', () => {
     expect(world.waveSystem.currentWaveOneBased).toBe(1);
     expect(world.waveSystem.getCurrentWaveHpScale()).toBe(1);
   });
+
+  it('defers final-wave victory until meteor-killed splitter hatchlings resolve, handles multi-leak clamping, and enforces minArmorDamage', () => {
+    const events = new EventBus();
+    const singleSplitterLevel: LevelDef = {
+      ...LEVELS[0],
+      waves: [
+        {
+          clearBonus: 40,
+          groups: [{ enemyType: 'splitter', count: 1, spawnInterval: 0.5, startDelay: 0 }],
+        },
+      ],
+    };
+    const world = new SimWorld(singleSplitterLevel, events);
+    let wonCount = 0;
+    let splitCount = 0;
+    events.on('gameWon', () => wonCount++);
+    events.on('enemySplit', () => splitCount++);
+
+    world.startNextWave();
+    world.fixedTick(BALANCE.fixedDt); // spawns splitter and transitions to allSpawned
+    expect(world.waveSystem.state).toBe('allSpawned');
+    expect(world.enemyPool.getActiveCount()).toBe(1);
+
+    const parent = world.enemyPool.items[world.enemyPool.getActiveIndex(0)];
+    expect(world.castMeteor(parent.x, parent.z)).toBe(true);
+    // Advance until meteor impacts (~0.32s) -> kills splitter, spawns 2 hatchlings -> NOT won yet!
+    for (let i = 0; i < 25; i++) {
+      world.fixedTick(BALANCE.fixedDt);
+    }
+    expect(splitCount).toBe(1);
+    expect(world.enemyPool.getActiveCount()).toBe(2);
+    expect(wonCount).toBe(0);
+    expect(world.outcome).toBe('ongoing');
+
+    // Defeat both hatchlings -> gameWon emits cleanly on the completion tick
+    for (let i = 0; i < 2; i++) {
+      const child = world.enemyPool.items[world.enemyPool.getActiveIndex(i)];
+      world.enemySystem.applyDamage(child, 999, true);
+    }
+    world.fixedTick(BALANCE.fixedDt);
+    expect(wonCount).toBe(1);
+    expect(world.outcome).toBe('won');
+
+    // Same-tick multi-enemy leak when lives === 1 emits gameLost once, clamps lives to 0, and emits both enemyLeaked events
+    const leakEvents = new EventBus();
+    const leakWorld = new SimWorld(LEVELS[0], leakEvents);
+    let lostCount = 0;
+    let leakedCount = 0;
+    leakEvents.on('gameLost', () => lostCount++);
+    leakEvents.on('enemyLeaked', () => leakedCount++);
+
+    leakWorld.lives = 1;
+    const b1 = leakWorld.enemySystem.spawnEnemy('brute')!;
+    const b2 = leakWorld.enemySystem.spawnEnemy('brute')!;
+    b1.dist = b1.totalDist - 0.001;
+    b2.dist = b2.totalDist - 0.001;
+    leakWorld.fixedTick(BALANCE.fixedDt);
+    expect(leakWorld.lives).toBe(0);
+    expect(leakWorld.outcome).toBe('lost');
+    expect(lostCount).toBe(1);
+    expect(leakedCount).toBe(2);
+
+    // Armor exceeding raw damage still deals BALANCE.minArmorDamage (1)
+    const boss = leakWorld.enemySystem.spawnEnemy('boss')!;
+    const hpBefore = boss.hp;
+    const dmgRes = leakWorld.enemySystem.applyDamage(boss, 3, false); // 3 - 8 armor -> clamped to 1
+    expect(dmgRes).toEqual({ actualDamage: BALANCE.minArmorDamage, killed: false });
+    expect(boss.hp).toBe(hpBefore - BALANCE.minArmorDamage);
+  });
 });

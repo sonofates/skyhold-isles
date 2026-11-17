@@ -23,7 +23,21 @@ const VALID_WAVE_STATES = new Set<WaveState>([
 const SPEEDS: readonly SpeedMultiplier[] = [1, 2, 3];
 const FRAME_DTS: readonly number[] = [1 / 60, 1 / 30, 0.05, 0.1];
 const MAX_CHAIN_POINTS = 1 + Math.max(1, ...TOWER_TYPES.map((t) => getTowerTierStats(t, 3).chainCount));
+const CHEAPEST_TOWER_COST = Math.min(...TOWER_TYPES.map((t) => getTowerTierStats(t, 1).upgradeCost));
+const MAX_COOLDOWN_BY_TYPE: Record<TowerType, number> = Object.fromEntries(
+  TOWER_TYPES.map((type) => [
+    type,
+    Math.max(
+      0.15,
+      1 / getTowerTierStats(type, 1).fireRate,
+      1 / getTowerTierStats(type, 2).fireRate,
+      1 / getTowerTierStats(type, 3).fireRate,
+    ),
+  ]),
+) as Record<TowerType, number>;
 const _hashProbe: number[] = [];
+const _localHashProbe: number[] = [];
+const _pathCheckVec = { x: 0, y: 0, z: 0 };
 const _hashSeen = new Set<number>();
 const _seenEnemyUids = new Set<number>();
 const _seenTowerIds = new Set<number>();
@@ -114,6 +128,7 @@ interface FuzzTracker {
   peakProjectiles: number;
   seenSpawnUids: Set<number>;
   killedUids: Set<number>;
+  killedSplitterUids: Set<number>;
   builtTowerIds: Set<number>;
   builtTowerTypes: Set<TowerType>;
   maxTierReached: number;
@@ -258,6 +273,9 @@ function attachEventTracker(
       return;
     }
     tracker.killedUids.add(ev.enemyId);
+    if (ev.enemyType === 'splitter') {
+      tracker.killedSplitterUids.add(ev.enemyId);
+    }
     tracker.killedCount++;
     tracker.expectedGold += ev.reward;
     tracker.stateHash = mixHash(mixHash(mixHash(tracker.stateHash, 2), ev.enemyId), ev.reward);
@@ -283,8 +301,8 @@ function attachEventTracker(
     if (ev.count !== 2) {
       recordEventError(tracker, `enemySplit count=${ev.count} != 2 for parentUid=${ev.parentUid}`);
     }
-    if (!tracker.killedUids.has(ev.parentUid)) {
-      recordEventError(tracker, `enemySplit fired before enemyKilled for parentUid=${ev.parentUid}`);
+    if (!tracker.killedSplitterUids.has(ev.parentUid)) {
+      recordEventError(tracker, `enemySplit fired before splitter enemyKilled for parentUid=${ev.parentUid}`);
     }
     if (!Number.isFinite(ev.x) || !Number.isFinite(ev.y) || !Number.isFinite(ev.z)) {
       recordEventError(tracker, `Non-finite enemySplit coordinates for parentUid=${ev.parentUid}`);
@@ -310,6 +328,10 @@ function attachEventTracker(
       const t = world.getTowerById(tid);
       if (!t || Math.abs(t.stunTimer - 2.65) > 1e-6) {
         recordEventError(tracker, `bossPulse stunnedTowerId=${tid} not stunned at 2.65s`);
+        break;
+      }
+      if (Math.hypot(t.x - ev.x, t.z - ev.z) > ev.radius + 1e-6) {
+        recordEventError(tracker, `bossPulse stunnedTowerId=${tid} outside pulse radius ${ev.radius}`);
         break;
       }
     }
@@ -700,6 +722,12 @@ function assertTickInvariants(world: SimWorld, tracker: FuzzTracker, tick: numbe
     if (!Number.isFinite(e.dist) || !Number.isFinite(e.totalDist) || e.dist < 0 || e.dist > e.totalDist) {
       return `Invalid enemy dist (${e.dist}/${e.totalDist}) for uid=${e.uid}`;
     }
+    const expectedYaw = world.enemySystem.getPath(e.flying).sample(e.dist, _pathCheckVec);
+    let yawDiff = Math.abs(e.yaw - expectedYaw) % (Math.PI * 2);
+    if (yawDiff > Math.PI) yawDiff = Math.PI * 2 - yawDiff;
+    if (Math.hypot(e.x - _pathCheckVec.x, e.z - _pathCheckVec.z) > 1e-4 || yawDiff > 1e-4) {
+      return `Enemy uid=${e.uid} (${e.type}) drifted from compiled path (dist=${e.dist})`;
+    }
     if (
       !Number.isFinite(e.slowRatio) ||
       e.slowRatio < 0 ||
@@ -802,6 +830,7 @@ function assertTickInvariants(world: SimWorld, tracker: FuzzTracker, tick: numbe
       !TARGETING_MODE_SET.has(t.targetingMode) ||
       !Number.isFinite(t.cooldownTimer) ||
       t.cooldownTimer < 0 ||
+      t.cooldownTimer > MAX_COOLDOWN_BY_TYPE[t.type] + 1e-6 ||
       !Number.isFinite(t.stunTimer) ||
       t.stunTimer < 0 ||
       t.stunTimer > 2.65 + 1e-6 ||
@@ -938,6 +967,15 @@ function assertTickInvariants(world: SimWorld, tracker: FuzzTracker, tick: numbe
       const poolIdx = world.enemyPool.getActiveIndex(i);
       if (!_hashSeen.has(poolIdx)) {
         return `Active enemy poolIndex=${poolIdx} missing from SpatialHashGrid`;
+      }
+    }
+    const probeSampleCount = Math.min(8, activeEnemies);
+    for (let s = 0; s < probeSampleCount; s++) {
+      const eIdx = world.enemyPool.getActiveIndex(Math.floor((s * activeEnemies) / probeSampleCount));
+      const enemy = world.enemyPool.items[eIdx];
+      world.spatialHash.query(enemy.x, enemy.z, 0.01, _localHashProbe);
+      if (!_localHashProbe.includes(eIdx)) {
+        return `Active enemy poolIndex=${eIdx} missing from localized SpatialHashGrid cell at (${enemy.x},${enemy.z})`;
       }
     }
 
@@ -1102,15 +1140,20 @@ function performLegalAction(
     const goldSnap = world.gold;
     const countSnap = world.towers.length;
     const spawn = world.level.pathWaypoints[0];
+    const maxTierTower = world.towers.find((t) => t.tier >= 3);
+    const freeTile = world.gold < CHEAPEST_TOWER_COST ? tiles.find((t) => world.grid.canPlaceTower(t.col, t.row)) : undefined;
     if (
       world.placeTower(-1, -1, 'archer') !== null ||
       (spawn && world.placeTower(spawn.col, spawn.row, 'archer') !== null) ||
+      (freeTile && world.placeTower(freeTile.col, freeTile.row, 'archer') !== null) ||
       world.upgradeTower(999_999) !== false ||
+      (maxTierTower && world.upgradeTower(maxTierTower.id) !== false) ||
       world.sellTower(999_999) !== 0 ||
       world.enterEndlessMode() !== false
     ) {
       return 'Illegal action succeeded unexpectedly during ongoing play';
     }
+    world.setTowerTargeting(999_999, 'last');
     if (world.gold !== goldSnap || world.towers.length !== countSnap) {
       return 'Illegal action mutated gold or tower count';
     }
@@ -1356,6 +1399,7 @@ function createFuzzTracker(startingGold: number, endlessWavesConfig: number): Fu
     peakProjectiles: 0,
     seenSpawnUids: new Set<number>(),
     killedUids: new Set<number>(),
+    killedSplitterUids: new Set<number>(),
     builtTowerIds: new Set<number>(),
     builtTowerTypes: new Set<TowerType>(),
     maxTierReached: 0,

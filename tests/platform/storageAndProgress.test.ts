@@ -171,6 +171,12 @@ describe('platform storage and progression', () => {
 
     storage.setItem('skyhold_isles_progress_v1', 'not-json');
     expect(loadProgress(4)).toEqual(createDefaultProgress(4));
+    storage.setItem('skyhold_isles_progress_v1', 'null');
+    expect(loadProgress(4)).toEqual(createDefaultProgress(4));
+    storage.setItem('skyhold_isles_progress_v1', '[]');
+    expect(loadProgress(4)).toEqual(createDefaultProgress(4));
+    storage.setItem('skyhold_isles_progress_v1', JSON.stringify({ unlockedLevelIndex: 999 }));
+    expect(loadProgress(4).unlockedLevelIndex).toBe(3);
   });
 
   it('updates bestStars and unlockedLevelIndex monotonically in recordWinProgress and persists', () => {

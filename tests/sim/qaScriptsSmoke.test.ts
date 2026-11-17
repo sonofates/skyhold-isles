@@ -1,3 +1,4 @@
+import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -168,5 +169,79 @@ describe('QA scripts smoke verification', () => {
     expect(() =>
       runSimBenchScenario(tinyLevel, { enemyCount: 10, towerCount: 5, softBudgetTicksPerSec: 180 }, 1, 5),
     ).toThrow(/placed only 2\/5 towers/);
+  });
+
+  it('executes CI, simBench, and fuzzPlay CLI entrypoints (--help, --json repro/campaign, invalid flags)', { timeout: 15_000 }, () => {
+    const tsxBin = resolve(process.cwd(), 'node_modules/.bin/tsx');
+    const runTsx = (args: readonly string[]) =>
+      spawnSync(tsxBin, [...args], {
+        encoding: 'utf8',
+        shell: process.platform === 'win32',
+      });
+
+    const ciHelp = runTsx(['scripts/ci.ts', '--help']);
+    expect(ciHelp.status).toBe(0);
+    expect(ciHelp.stdout).toContain('Usage: npm run ci');
+
+    const benchHelp = runTsx(['scripts/simBench.ts', '--help']);
+    expect(benchHelp.status).toBe(0);
+    expect(benchHelp.stdout).toContain('Usage: npm run sim:bench');
+
+    const fuzzHelp = runTsx(['scripts/fuzzPlay.ts', '--help']);
+    expect(fuzzHelp.status).toBe(0);
+    expect(fuzzHelp.stdout).toContain('Usage: npm run sim:fuzz');
+
+    const ciBad = runTsx(['scripts/ci.ts', '--unknown-flag']);
+    expect(ciBad.status).not.toBe(0);
+
+    const fuzzRepro = runTsx([
+      'scripts/fuzzPlay.ts',
+      '--level',
+      '1',
+      '--seed',
+      '1',
+      '--endless-waves',
+      '1',
+      '--json',
+    ]);
+    expect(fuzzRepro.status, fuzzRepro.stderr).toBe(0);
+    const reproJson = JSON.parse(fuzzRepro.stdout) as {
+      mode: string;
+      passed: boolean;
+      deterministic: boolean;
+      digest: { levelId: string; seed: number; stateHash: number };
+    };
+    expect(reproJson.mode).toBe('repro');
+    expect(reproJson.passed).toBe(true);
+    expect(reproJson.deterministic).toBe(true);
+    expect(reproJson.digest.levelId).toBe(LEVELS[0].id);
+    expect(reproJson.digest.seed).toBe(1);
+    expect(reproJson.digest.stateHash).toBeGreaterThan(0);
+
+    const fuzzCampaign = runTsx([
+      'scripts/fuzzPlay.ts',
+      '--level',
+      '1',
+      '--seeds',
+      '1',
+      '--endless-waves',
+      '1',
+      '--json',
+    ]);
+    expect(fuzzCampaign.status, fuzzCampaign.stderr).toBe(0);
+    const campaignJson = JSON.parse(fuzzCampaign.stdout) as {
+      mode: string;
+      passed: boolean;
+      totalRuns: number;
+      passedRuns: number;
+      endlessChecks: number;
+      failures: unknown[];
+    };
+    expect(campaignJson.mode).toBe('campaign');
+    expect(campaignJson.passed).toBe(true);
+    expect(campaignJson.totalRuns).toBe(1);
+    expect(campaignJson.passedRuns).toBe(1);
+    expect(campaignJson.endlessChecks).toBe(1);
+    expect(campaignJson.failures).toEqual([]);
   });
 });

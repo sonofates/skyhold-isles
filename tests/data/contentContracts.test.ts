@@ -17,6 +17,7 @@ import {
 import { getTowerTierStats, TOWER_DEFS, TOWER_TYPES } from '../../src/data/towers.ts';
 import { KENNEY_MODEL_LIST } from '../../src/render/kenneyAssets.ts';
 import { getTowerPickBounds, TOWER_PICK_BOUNDS } from '../../src/render/towerPicking.ts';
+import { gridToWorldX, gridToWorldZ } from '../../src/sim/grid.ts';
 import { CompiledPath } from '../../src/sim/path.ts';
 import { buildEndlessWaveDef } from '../../src/sim/waveSystem.ts';
 import { ENEMY_BADGE_META, TOWER_ICON_SVGS, UI_ICON_SVGS } from '../../src/ui/icons.ts';
@@ -165,6 +166,13 @@ describe('level data, flight paths, waves, and scripted build orders', () => {
     const seenLevelIds = new Set<string>();
 
     const cheapestTowerCost = Math.min(...TOWER_TYPES.map((t) => getTowerTierStats(t, 1).upgradeCost));
+    const maxAntiAirRange = Math.max(
+      ...TOWER_TYPES.filter((t) => TOWER_DEFS[t].hitsFlyers).map((t) => getTowerTierStats(t, 1).range),
+    );
+    const maxGroundRange = Math.max(...TOWER_TYPES.map((t) => getTowerTierStats(t, 1).range));
+    const validTokens = new Set(['.', 'T', 'P', 'S', 'G', '~']);
+    const campaignEnemiesSeen = new Set<string>();
+    const sampleVec = { x: 0, y: 0, z: 0 };
 
     LEVELS.forEach((lvl, idx) => {
       expect(lvl.index).toBe(idx);
@@ -177,6 +185,14 @@ describe('level data, flight paths, waves, and scripted build orders', () => {
       expect(lvl.enemyHpScale ?? 1).toBeGreaterThan(0);
       expect(lvl.waveHpGrowth ?? 0).toBeGreaterThanOrEqual(0);
       expect(Number.isInteger(lvl.decorationSeed)).toBe(true);
+      expect(lvl.layout).toHaveLength(lvl.rows);
+      for (const rowStr of lvl.layout) {
+        const tokens = rowStr.trim().split(/\s+/);
+        expect(tokens).toHaveLength(lvl.cols);
+        for (const tok of tokens) {
+          expect(validTokens.has(tok), `Invalid layout token "${tok}" in ${lvl.id}`).toBe(true);
+        }
+      }
 
       // Ground path coordinates must sit inside grid with non-degenerate segments
       expect(lvl.pathWaypoints.length).toBeGreaterThanOrEqual(2);
@@ -220,6 +236,7 @@ describe('level data, flight paths, waves, and scripted build orders', () => {
         let worstCaseSpawns = 0;
         for (const grp of wave.groups) {
           expect(enemyTypeSet.has(grp.enemyType)).toBe(true);
+          campaignEnemiesSeen.add(grp.enemyType);
           expect(Number.isInteger(grp.count) && grp.count > 0).toBe(true);
           expect(grp.spawnInterval).toBeGreaterThan(0);
           expect(grp.startDelay).toBeGreaterThanOrEqual(0);
@@ -279,6 +296,29 @@ describe('level data, flight paths, waves, and scripted build orders', () => {
       );
       expect(grassCount).toBeGreaterThanOrEqual(10);
 
+      // Every island must have buildable tiles within Tier-1 ground and anti-air tower reach
+      const samplePathDist = (path: CompiledPath, wx: number, wz: number): number => {
+        let best = Infinity;
+        for (let d = 0; d <= path.totalLength; d += 0.5) {
+          path.sample(d, sampleVec);
+          best = Math.min(best, Math.hypot(sampleVec.x - wx, sampleVec.z - wz));
+        }
+        return best;
+      };
+      let groundReachableGrass = 0;
+      let airReachableGrass = 0;
+      for (let r = 0; r < lvl.rows; r++) {
+        for (let c = 0; c < lvl.cols; c++) {
+          if (grid[r][c] !== 'grass') continue;
+          const wx = gridToWorldX(c, lvl.cols);
+          const wz = gridToWorldZ(r, lvl.rows);
+          if (samplePathDist(ground, wx, wz) <= maxGroundRange) groundReachableGrass++;
+          if (samplePathDist(flight, wx, wz) <= maxAntiAirRange) airReachableGrass++;
+        }
+      }
+      expect(groundReachableGrass).toBeGreaterThanOrEqual(1);
+      expect(airReachableGrass).toBeGreaterThanOrEqual(1);
+
       for (const order of [lvl.scriptedBuildOrder ?? [], lvl.weakBuildOrder ?? []]) {
         const tiersByTile = new Map<string, number>();
         let prevWaveIndex = 0;
@@ -301,6 +341,10 @@ describe('level data, flight paths, waves, and scripted build orders', () => {
         }
       }
     });
+
+    for (const type of ENEMY_TYPES) {
+      expect(campaignEnemiesSeen.has(type), `EnemyType "${type}" never spawned in campaign`).toBe(true);
+    }
   });
 });
 
