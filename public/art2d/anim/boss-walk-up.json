@@ -1,0 +1,18 @@
+{
+ "frameW": 212,
+ "frameH": 256,
+ "count": 10,
+ "cols": 8,
+ "fps": 12.0,
+ "anchor": [
+  106,
+  251
+ ],
+ "source": "enemy-boss-back.mp4",
+ "loop": [
+  16,
+  35
+ ],
+ "loopScore": 15.37,
+ "image": "boss-walk-up.webp"
+}

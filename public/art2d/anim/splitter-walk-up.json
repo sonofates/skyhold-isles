@@ -1,0 +1,18 @@
+{
+ "frameW": 229,
+ "frameH": 256,
+ "count": 13,
+ "cols": 8,
+ "fps": 12.0,
+ "anchor": [
+  115,
+  251
+ ],
+ "source": "enemy-splitter-back.mp4",
+ "loop": [
+  12,
+  37
+ ],
+ "loopScore": 5.49,
+ "image": "splitter-walk-up.webp"
+}

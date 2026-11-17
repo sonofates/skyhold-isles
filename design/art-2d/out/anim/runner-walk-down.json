@@ -1,0 +1,17 @@
+{
+ "frameW": 252,
+ "frameH": 256,
+ "count": 11,
+ "cols": 8,
+ "fps": 12.0,
+ "anchor": [
+  126,
+  251
+ ],
+ "source": "enemy-runner.mp4",
+ "loop": [
+  22,
+  43
+ ],
+ "loopScore": 11.73
+}

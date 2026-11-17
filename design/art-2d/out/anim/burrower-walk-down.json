@@ -1,0 +1,17 @@
+{
+ "frameW": 305,
+ "frameH": 256,
+ "count": 12,
+ "cols": 8,
+ "fps": 12.0,
+ "anchor": [
+  153,
+  251
+ ],
+ "source": "enemy-burrower.mp4",
+ "loop": [
+  18,
+  41
+ ],
+ "loopScore": 6.05
+}

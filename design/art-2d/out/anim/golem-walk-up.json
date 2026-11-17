@@ -1,0 +1,17 @@
+{
+ "frameW": 281,
+ "frameH": 256,
+ "count": 19,
+ "cols": 8,
+ "fps": 12.0,
+ "anchor": [
+  141,
+  251
+ ],
+ "source": "enemy-golem-back.mp4",
+ "loop": [
+  23,
+  61
+ ],
+ "loopScore": 21.51
+}

@@ -1,0 +1,17 @@
+{
+ "frameW": 200,
+ "frameH": 256,
+ "count": 17,
+ "cols": 8,
+ "fps": 12.0,
+ "anchor": [
+  100,
+  251
+ ],
+ "source": "enemy-blinker-back.mp4",
+ "loop": [
+  14,
+  48
+ ],
+ "loopScore": 4.35
+}

@@ -1,0 +1,18 @@
+{
+ "frameW": 258,
+ "frameH": 256,
+ "count": 16,
+ "cols": 8,
+ "fps": 12.0,
+ "anchor": [
+  129,
+  250
+ ],
+ "source": "enemy-runner-back.mp4",
+ "loop": [
+  18,
+  50
+ ],
+ "loopScore": 7.48,
+ "image": "runner-walk-up.webp"
+}

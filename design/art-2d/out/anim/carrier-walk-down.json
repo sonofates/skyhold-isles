@@ -1,0 +1,17 @@
+{
+ "frameW": 224,
+ "frameH": 256,
+ "count": 18,
+ "cols": 8,
+ "fps": 12.0,
+ "anchor": [
+  112,
+  250
+ ],
+ "source": "enemy-carrier.mp4",
+ "loop": [
+  23,
+  58
+ ],
+ "loopScore": 5.12
+}

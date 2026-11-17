@@ -1,0 +1,17 @@
+{
+ "frameW": 232,
+ "frameH": 256,
+ "count": 11,
+ "cols": 8,
+ "fps": 12.0,
+ "anchor": [
+  116,
+  251
+ ],
+ "source": "enemy-splitter.mp4",
+ "loop": [
+  5,
+  26
+ ],
+ "loopScore": 13.42
+}

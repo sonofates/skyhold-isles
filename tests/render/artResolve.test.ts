@@ -39,18 +39,18 @@ describe('manifest covers the full roster', () => {
     const fresh = ENEMY_TYPES.filter((t) => !['grunt', 'brute', 'flyer'].includes(t));
     for (const t of fresh) {
       const e = M.enemies[t];
-      expect(e.file).toBe(`enemy-${t}.png`);
-      expect(e.back).toBe(`enemy-${t}-back.png`);
+      expect(e.file).toBe(`enemy-${t}.webp`);
+      expect(e.back).toBe(`enemy-${t}-back.webp`);
       expect(e.sheet?.down).toBe(`anim/${t}-walk-down.json`);
       expect(e.sheet?.up).toBe(`anim/${t}-walk-up.json`);
       expect(e.mode).toBe('sheet');
     }
-    expect(M.enemies.burrower.mound).toBe('enemy-burrower-mound.png');
-    expect(M.towers.archer?.tiers[0]).toBe('tower-archer.png');
-    expect(M.towers.cannon?.tiers[0]).toBe('tower-cannon.png');
-    expect(M.towers.tesla?.tiers).toEqual(['tower-mage.png', 'tower-mage-t2.png', 'tower-mage-t3.png']);
+    expect(M.enemies.burrower.mound).toBe('enemy-burrower-mound.webp');
+    expect(M.towers.archer?.tiers[0]).toBe('tower-archer.webp');
+    expect(M.towers.cannon?.tiers[0]).toBe('tower-cannon.webp');
+    expect(M.towers.tesla?.tiers).toEqual(['tower-mage.webp', 'tower-mage-t2.webp', 'tower-mage-t3.webp']);
     for (const t of ['frost', 'mortar', 'ballista', 'beacon'] as const) {
-      expect(M.towers[t]?.tiers).toEqual([1, 2, 3].map((n) => `tower-${t}-t${n}.png`));
+      expect(M.towers[t]?.tiers).toEqual([1, 2, 3].map((n) => `tower-${t}-t${n}.webp`));
     }
   });
 
@@ -86,7 +86,7 @@ describe('fallback resolution with the art that is on disk today', () => {
   });
 
   it('own art wins as soon as one file lands (sheet pair or sprite)', () => {
-    const sprite = (p: string): boolean => p === 'enemy-runner.png';
+    const sprite = (p: string): boolean => p === 'enemy-runner.webp';
     expect(resolveEnemyArt(M, 'runner', sprite).own).toBe(true);
     const sheets = (p: string): boolean => p.startsWith('anim/runner-walk-');
     expect(resolveEnemyArt(M, 'runner', sheets).own).toBe(true);
@@ -99,13 +99,13 @@ describe('fallback resolution with the art that is on disk today', () => {
     expect(pickTier([true, true, false], 3)).toBe(1);
     expect(pickTier([false, true, true], 1)).toBe(1);
     expect(pickTier([false, false, false], 2)).toBe(-1);
-    const t2only = (p: string): boolean => p === 'tower-frost-t2.png';
-    expect(resolveTowerTiers(M, 'frost', t2only).tierFiles).toEqual(Array(3).fill('tower-frost-t2.png'));
+    const t2only = (p: string): boolean => p === 'tower-frost-t2.webp';
+    expect(resolveTowerTiers(M, 'frost', t2only).tierFiles).toEqual(Array(3).fill('tower-frost-t2.webp'));
     const nothing = resolveTowerTiers(M, 'frost', (p) => p.startsWith('tower-archer'));
     expect(nothing.source).toBe('archer');
     expect(nothing.own).toBe(false);
     expect(nothing.tint).not.toBe(0xffffff);
-    expect(nothing.tierFiles).toEqual(['tower-archer.png', 'tower-archer-t2.png', 'tower-archer-t3.png']);
+    expect(nothing.tierFiles).toEqual(['tower-archer.webp', 'tower-archer-t2.webp', 'tower-archer-t3.webp']);
     expect(resolveTowerTiers(M, 'mortar', (p) => p.startsWith('tower-cannon')).source).toBe('cannon');
   });
 
@@ -129,7 +129,7 @@ describe('fallback resolution with the art that is on disk today', () => {
 
 describe('artcheck matrix', () => {
   it('reports present vs missing per slot and what is drawn instead', () => {
-    const rows = buildArtMatrix(M, (p) => p === 'enemy-raider.png' || p === 'tower-archer.png');
+    const rows = buildArtMatrix(M, (p) => p === 'enemy-raider.webp' || p === 'tower-archer.webp');
     const raider = rows.find((r) => r.id === 'raider')!;
     expect(raider.cells.front).toBe(true);
     expect(raider.cells.back).toBe(false);

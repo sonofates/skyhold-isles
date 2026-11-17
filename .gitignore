@@ -45,3 +45,6 @@ design/art-2d/*.log
 design/art-direction/*.log
 design/art-2d/proto-*.mp4
 design/art-2d/proto-*.png
+design/art-2d/out/anim/*-walk-*.png
+design/art-2d/out/anim/*-preview.gif
+design/art-2d/veo/p1-clips/

@@ -1,0 +1,17 @@
+{
+ "frameW": 208,
+ "frameH": 256,
+ "count": 8,
+ "cols": 8,
+ "fps": 12.0,
+ "anchor": [
+  104,
+  251
+ ],
+ "source": "enemy-hexer.mp4",
+ "loop": [
+  13,
+  29
+ ],
+ "loopScore": 14.25
+}

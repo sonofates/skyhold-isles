@@ -1,0 +1,18 @@
+{
+ "frameW": 188,
+ "frameH": 256,
+ "count": 13,
+ "cols": 8,
+ "fps": 12.0,
+ "anchor": [
+  94,
+  251
+ ],
+ "source": "enemy-tempest-back.mp4",
+ "loop": [
+  17,
+  43
+ ],
+ "loopScore": 22.33,
+ "image": "tempest-walk-up.webp"
+}

@@ -1,0 +1,17 @@
+{
+ "frameW": 208,
+ "frameH": 256,
+ "count": 19,
+ "cols": 8,
+ "fps": 12.0,
+ "anchor": [
+  104,
+  251
+ ],
+ "source": "enemy-tempest.mp4",
+ "loop": [
+  15,
+  52
+ ],
+ "loopScore": 24.06
+}

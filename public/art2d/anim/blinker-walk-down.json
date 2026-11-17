@@ -1,0 +1,18 @@
+{
+ "frameW": 235,
+ "frameH": 256,
+ "count": 18,
+ "cols": 8,
+ "fps": 12.0,
+ "anchor": [
+  117,
+  251
+ ],
+ "source": "enemy-blinker.mp4",
+ "loop": [
+  23,
+  59
+ ],
+ "loopScore": 13.79,
+ "image": "blinker-walk-down.webp"
+}

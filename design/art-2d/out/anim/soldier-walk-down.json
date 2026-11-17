@@ -1,0 +1,17 @@
+{
+ "frameW": 207,
+ "frameH": 256,
+ "count": 13,
+ "cols": 8,
+ "fps": 12.0,
+ "anchor": [
+  104,
+  250
+ ],
+ "source": "unit-soldier.mp4",
+ "loop": [
+  22,
+  48
+ ],
+ "loopScore": 2.4
+}

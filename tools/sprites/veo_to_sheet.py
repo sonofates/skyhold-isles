@@ -5,7 +5,7 @@ usage: /usr/bin/python3 tools/sprites/veo_to_sheet.py <clip.mp4> <out_prefix> [-
 
 Steps: ffmpeg frames → chroma key (magenta-ness, soft edge, despill) → per-frame feet anchor
 (bottom-centre of the alpha bbox) → best loop (frames i..j with the smallest difference between
-frame i and frame j, cycle length 0.35–1.5 s) → align on the feet anchor → crop to the union box →
+frame i and frame j, cycle length --min-seconds (0.6)–1.6 s) → align on the feet anchor → crop to the union box →
 scale to --height → grid PNG + JSON {frameW, frameH, count, fps, cols, anchor:[x,y]}.
 Writes <out_prefix>.png, <out_prefix>.json and <out_prefix>-preview.gif.
 """
@@ -15,7 +15,7 @@ from PIL import Image, ImageChops
 
 args = sys.argv[1:]
 clip, prefix = Path(args[0]), Path(args[1])
-opt = {'--fps': 12, '--height': 256, '--max-seconds': 4.0}
+opt = {'--fps': 12, '--height': 256, '--max-seconds': 4.0, '--min-seconds': 0.6}
 for k in opt:
     if k in args:
         opt[k] = type(opt[k])(args[args.index(k) + 1])
@@ -67,7 +67,7 @@ def diff(i, j):
     return sum(sum(p) for p in d.getdata()) / (60 * 58 * 4)
 
 best = None
-lo, hi = int(0.35 * SRC_FPS), int(1.5 * SRC_FPS)
+lo, hi = int(opt['--min-seconds'] * SRC_FPS), int(1.6 * SRC_FPS)
 for i in range(0, min(len(frames) - lo, SRC_FPS)):
     for j in range(i + lo, min(len(frames), i + hi + 1)):
         s = diff(i, j)

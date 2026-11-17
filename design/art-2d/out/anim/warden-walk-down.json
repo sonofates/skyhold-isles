@@ -1,0 +1,17 @@
+{
+ "frameW": 243,
+ "frameH": 256,
+ "count": 15,
+ "cols": 8,
+ "fps": 12.0,
+ "anchor": [
+  122,
+  251
+ ],
+ "source": "enemy-warden.mp4",
+ "loop": [
+  8,
+  38
+ ],
+ "loopScore": 3.65
+}

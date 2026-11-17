@@ -58,7 +58,7 @@ describe('art manifest', () => {
 
   it('parses the shipped manifest with the P0 mapping', () => {
     expect(m.buildRing).toEqual(expect.arrayContaining(['archer', 'cannon', 'tesla']));
-    expect(m.towers.tesla?.tiers[0]).toBe('tower-mage.png');
+    expect(m.towers.tesla?.tiers[0]).toBe('tower-mage.webp');
     expect(enemyArtFor(m, 'grunt', false).art).toBe('raider');
     expect(enemyArtFor(m, 'runner', false).art).toBe('runner');
     expect(enemyArtFor(m, 'brute', false).art).toBe('brute');
@@ -68,7 +68,7 @@ describe('art manifest', () => {
     expect(m.enemies.raider.mode).toBe('sheet');
     expect(m.enemies.raider.sheet?.facing).toBe('right');
     expect(m.enemies.raider.sheet?.facingUp).toBe('left');
-    expect(m.enemies.brute.mode).toBe('cheap');
+    expect(m.enemies.brute.mode).toBe('sheet'); // P1: Omni walk sheets for the whole roster
   });
 
   it('switches the raider variant by URL value and can force cheap mode', () => {

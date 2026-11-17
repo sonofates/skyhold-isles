@@ -1,0 +1,17 @@
+{
+ "frameW": 219,
+ "frameH": 256,
+ "count": 14,
+ "cols": 8,
+ "fps": 12.0,
+ "anchor": [
+  110,
+  251
+ ],
+ "source": "enemy-healer-back.mp4",
+ "loop": [
+  19,
+  47
+ ],
+ "loopScore": 5.1
+}

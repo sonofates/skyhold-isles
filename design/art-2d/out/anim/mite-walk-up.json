@@ -1,0 +1,17 @@
+{
+ "frameW": 306,
+ "frameH": 256,
+ "count": 11,
+ "cols": 8,
+ "fps": 12.0,
+ "anchor": [
+  153,
+  250
+ ],
+ "source": "enemy-mite-back.mp4",
+ "loop": [
+  0,
+  22
+ ],
+ "loopScore": 1.88
+}

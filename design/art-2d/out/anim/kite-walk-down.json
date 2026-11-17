@@ -1,0 +1,17 @@
+{
+ "frameW": 287,
+ "frameH": 256,
+ "count": 18,
+ "cols": 8,
+ "fps": 12.0,
+ "anchor": [
+  143,
+  250
+ ],
+ "source": "enemy-kite.mp4",
+ "loop": [
+  14,
+  50
+ ],
+ "loopScore": 9.86
+}
