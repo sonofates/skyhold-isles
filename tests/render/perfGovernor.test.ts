@@ -1,5 +1,9 @@
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import { EffectPass } from 'postprocessing';
 import * as THREE from 'three';
 import { describe, expect, it, vi } from 'vitest';
+import { KenneyAssetStore } from '../../src/render/kenneyAssets.ts';
 import {
   GOVERNOR_THRESHOLDS,
   PerfGovernor,
@@ -10,6 +14,7 @@ import {
   computeTargetDpr,
 } from '../../src/render/perfGovernor.ts';
 import {
+  SilhouetteOutlineEffect,
   canUseHalfFloatComposer,
   canUseHalfResN8ao,
   collectPostWarmUpMaterials,
@@ -555,5 +560,116 @@ describe('PerfGovernor', () => {
 
     for (const m of mats) m.dispose();
     mSmaaFinal.dispose();
+  });
+
+  it('skips unconditional fullscreen depth reads in SilhouetteOutlineEffect while preserving depth attachment', () => {
+    const cam = new THREE.OrthographicCamera();
+    const outline = new SilhouetteOutlineEffect(1.06, 0x181628, 0.72);
+    const pass = new EffectPass(cam, outline);
+    pass.recompile();
+
+    const frag = (pass.fullscreenMaterial as THREE.ShaderMaterial).fragmentShader;
+    expect(pass.needsDepthTexture).toBe(true);
+    expect(frag).not.toContain('float depth = readDepth(UV);');
+    expect(frag).toContain('if (isUnit > 0.0)');
+    expect(frag).toContain('readDepth(uv)');
+
+    pass.dispose();
+  });
+
+  it('aborts and disposes parsed geometries and delayed colormap texture when parallel GLB preload fails', async () => {
+    const glbBytes = fs.readFileSync(
+      path.resolve(process.cwd(), 'public/models/kenney/detail-crystal.glb'),
+    );
+    const glbBuf = glbBytes.buffer.slice(
+      glbBytes.byteOffset,
+      glbBytes.byteOffset + glbBytes.byteLength,
+    );
+
+    const disposedGeos: THREE.BufferGeometry[] = [];
+    const origGeoDispose = THREE.BufferGeometry.prototype.dispose;
+    const geoDisposeSpy = vi
+      .spyOn(THREE.BufferGeometry.prototype, 'dispose')
+      .mockImplementation(function (this: THREE.BufferGeometry) {
+        disposedGeos.push(this);
+        return origGeoDispose.call(this);
+      });
+
+    const disposedTexs: THREE.Texture[] = [];
+    const origTexDispose = THREE.Texture.prototype.dispose;
+    const texDisposeSpy = vi
+      .spyOn(THREE.Texture.prototype, 'dispose')
+      .mockImplementation(function (this: THREE.Texture) {
+        disposedTexs.push(this);
+        return origTexDispose.call(this);
+      });
+
+    vi.stubGlobal(
+      'Image',
+      class FakeImage {
+        width = 64;
+        height = 64;
+        crossOrigin = '';
+        onload: (() => void) | null = null;
+        onerror: (() => void) | null = null;
+        set src(_v: string) {
+          setTimeout(() => this.onload?.(), 15);
+        }
+      },
+    );
+    vi.stubGlobal('document', {
+      createElement: () => ({
+        width: 64,
+        height: 64,
+        getContext: () => ({
+          drawImage: () => {},
+          getImageData: () => ({ data: new Uint8ClampedArray(64 * 64 * 4) }),
+          putImageData: () => {},
+          fillRect: () => {},
+          fillStyle: '',
+        }),
+      }),
+    });
+
+    let treeArrayBufferCalled = false;
+    vi.stubGlobal('fetch', (url: string) => {
+      if (url.includes('detail-crystal')) {
+        // Completes immediately before detail-rocks rejects, so its geometry is parsed and must be disposed on catch.
+        return Promise.resolve({
+          ok: true,
+          arrayBuffer: () => Promise.resolve(glbBuf.slice(0)),
+        } as unknown as Response);
+      }
+      if (url.includes('detail-rocks')) {
+        return new Promise<Response>((resolve) => {
+          setTimeout(() => resolve({ ok: false, status: 404 } as Response), 5);
+        });
+      }
+      return new Promise<Response>((resolve) => {
+        setTimeout(() => {
+          resolve({
+            ok: true,
+            arrayBuffer: () => {
+              treeArrayBufferCalled = true;
+              return Promise.resolve(glbBuf.slice(0));
+            },
+          } as unknown as Response);
+        }, 12);
+      });
+    });
+
+    try {
+      await expect(
+        KenneyAssetStore.preload(undefined, ['detail-crystal', 'detail-rocks', 'detail-tree']),
+      ).rejects.toThrow('Failed to load model "detail-rocks" (404)');
+      expect(disposedGeos.length).toBeGreaterThanOrEqual(1);
+      await new Promise((resolve) => setTimeout(resolve, 25));
+      expect(disposedTexs.length).toBe(1);
+      expect(treeArrayBufferCalled).toBe(false);
+    } finally {
+      geoDisposeSpy.mockRestore();
+      texDisposeSpy.mockRestore();
+      vi.unstubAllGlobals();
+    }
   });
 });

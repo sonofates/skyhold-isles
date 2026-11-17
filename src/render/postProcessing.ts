@@ -35,7 +35,7 @@ uniform float uExposure;
 uniform vec3 uOutlineColor;
 uniform float uOutlineStrength;
 
-void mainImage(const in vec4 inputColor, const in vec2 uv, const in float depth, out vec4 outputColor) {
+void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor) {
   float centerId = inputColor.a;
   float isUnit = 1.0 - smoothstep(0.68, 0.88, centerId);
 
@@ -45,33 +45,41 @@ void mainImage(const in vec4 inputColor, const in vec2 uv, const in float depth,
   float idT = texture2D(inputBuffer, uv + vec2(0.0, t.y)).a;
   float idB = texture2D(inputBuffer, uv - vec2(0.0, t.y)).a;
 
-  float dL = readDepth(uv - vec2(t.x, 0.0));
-  float dR = readDepth(uv + vec2(t.x, 0.0));
-  float dT = readDepth(uv + vec2(0.0, t.y));
-  float dB = readDepth(uv - vec2(0.0, t.y));
-
   float minNeighborId = min(min(idL, idR), min(idT, idB));
   float hasUnitNeighbor = 1.0 - smoothstep(0.68, 0.88, minNeighborId);
-  float maxDiffId = max(
-    max(abs(centerId - idL), abs(centerId - idR)),
-    max(abs(centerId - idT), abs(centerId - idB))
-  );
 
-  // Outer 1px silhouette on background bordering a tower/enemy, plus enemy-vs-tower boundary
-  float outerBgEdge = step(0.72, centerId) * hasUnitNeighbor * smoothstep(0.14, 0.34, maxDiffId);
-  float crossClassEdge = isUnit * smoothstep(0.16, 0.28, maxDiffId);
-  // Subtle depth separation when adjacent towers overlap one another
-  float depthJump = max(max(dL - depth, dR - depth), max(dT - depth, dB - depth));
-  float overlapEdge = isUnit * smoothstep(0.003, 0.0065, depthJump);
-
-  float edge = clamp(max(outerBgEdge, max(crossClassEdge, overlapEdge)), 0.0, 1.0);
   vec3 exposed = inputColor.rgb * uExposure;
+  float edge = 0.0;
+  if (isUnit > 0.0 || hasUnitNeighbor > 0.0) {
+    float maxDiffId = max(
+      max(abs(centerId - idL), abs(centerId - idR)),
+      max(abs(centerId - idT), abs(centerId - idB))
+    );
+
+    // Outer 1px silhouette on background bordering a tower/enemy, plus enemy-vs-tower boundary
+    float outerBgEdge = step(0.72, centerId) * hasUnitNeighbor * smoothstep(0.14, 0.34, maxDiffId);
+    float crossClassEdge = isUnit * smoothstep(0.16, 0.28, maxDiffId);
+    // Subtle depth separation when adjacent towers overlap one another
+    float overlapEdge = 0.0;
+    if (isUnit > 0.0) {
+      float depth = readDepth(uv);
+      float dL = readDepth(uv - vec2(t.x, 0.0));
+      float dR = readDepth(uv + vec2(t.x, 0.0));
+      float dT = readDepth(uv + vec2(0.0, t.y));
+      float dB = readDepth(uv - vec2(0.0, t.y));
+      float depthJump = max(max(dL - depth, dR - depth), max(dT - depth, dB - depth));
+      overlapEdge = isUnit * smoothstep(0.003, 0.0065, depthJump);
+    }
+
+    edge = clamp(max(outerBgEdge, max(crossClassEdge, overlapEdge)), 0.0, 1.0);
+  }
+
   vec3 outlined = mix(exposed, uOutlineColor, edge * uOutlineStrength);
   outputColor = vec4(outlined, 1.0);
 }
 `;
 
-class SilhouetteOutlineEffect extends Effect {
+export class SilhouetteOutlineEffect extends Effect {
   constructor(exposure: number, outlineColorHex: number, strength: number) {
     super('SilhouetteOutlineEffect', SILHOUETTE_OUTLINE_FRAG, {
       attributes: EffectAttribute.CONVOLUTION | EffectAttribute.DEPTH,
@@ -374,25 +382,47 @@ export class PostProcessingPipeline {
     return parts.length > 0 ? parts.join('+') : 'Tone';
   }
 
+  private removeAndDisposeN8ao(): void {
+    if (!this.n8aoPass) return;
+    this.composer.removePass(this.n8aoPass);
+    disposeN8aoPass(this.n8aoPass);
+    this.n8aoPass = null;
+  }
+
+  private removeAndDisposeSmaa(): void {
+    this.smaaReadyCancel?.();
+    this.smaaReadyCancel = null;
+    if (this.smaaPass) {
+      this.composer.removePass(this.smaaPass);
+      this.smaaPass.dispose();
+    }
+    this.smaaPass = null;
+    this.smaaEffect = null;
+    this.smaaReadyPromise = null;
+  }
+
+  private clampHalfResN8aoTarget(mode: N8aoMode): void {
+    if (!this.n8aoPass || mode !== 'half' || !this.allowHalfResN8ao) return;
+    this.composer.getRenderer().getDrawingBufferSize(this.drawingSize);
+    if (this.drawingSize.width < 2 || this.drawingSize.height < 2) {
+      this.n8aoPass.setSize(
+        Math.max(2, this.drawingSize.width),
+        Math.max(2, this.drawingSize.height),
+      );
+    }
+  }
+
   /**
    * Drops passes that are turning off before resizing the composer so disabled render targets
    * are never resized only to be immediately disposed.
    */
   releaseDisabledPasses(next: PostProcessingConfig): void {
     if (next.n8ao === 'off' && this.n8aoPass) {
-      this.composer.removePass(this.n8aoPass);
-      disposeN8aoPass(this.n8aoPass);
-      this.n8aoPass = null;
+      this.removeAndDisposeN8ao();
       this.config = { ...this.config, n8ao: 'off' };
     }
     if (!next.smaa && this.smaaPass) {
-      this.smaaReadyCancel?.();
-      this.smaaReadyCancel = null;
-      this.composer.removePass(this.smaaPass);
-      this.smaaPass.dispose();
-      this.smaaPass = null;
-      this.smaaEffect = null;
-      this.smaaReadyPromise = null;
+      this.removeAndDisposeSmaa();
       this.config = { ...this.config, smaa: false };
     }
   }
@@ -455,11 +485,7 @@ export class PostProcessingPipeline {
 
     if (n8aoChanged) {
       if (next.n8ao === 'off') {
-        if (this.n8aoPass) {
-          this.composer.removePass(this.n8aoPass);
-          disposeN8aoPass(this.n8aoPass);
-          this.n8aoPass = null;
-        }
+        this.removeAndDisposeN8ao();
       } else if (!this.n8aoPass) {
         this.composer.getRenderer().getDrawingBufferSize(this.drawingSize);
         const minDim = next.n8ao === 'half' && this.allowHalfResN8ao ? 2 : 1;
@@ -474,15 +500,10 @@ export class PostProcessingPipeline {
           this.allowHalfResN8ao,
         );
         this.composer.addPass(this.n8aoPass, 1);
-        if (
-          next.n8ao === 'half' &&
-          this.allowHalfResN8ao &&
-          (this.drawingSize.width < 2 || this.drawingSize.height < 2)
-        ) {
-          this.n8aoPass.setSize(targetW, targetH);
-        }
+        this.clampHalfResN8aoTarget(next.n8ao);
       } else {
         configureN8aoPass(this.n8aoPass, next.n8ao, this.allowHalfResN8ao);
+        this.clampHalfResN8aoTarget(next.n8ao);
       }
     }
 
@@ -540,13 +561,7 @@ export class PostProcessingPipeline {
           this.composer.addPass(this.smaaPass);
         }
       } else if (this.smaaPass) {
-        this.smaaReadyCancel?.();
-        this.smaaReadyCancel = null;
-        this.composer.removePass(this.smaaPass);
-        this.smaaPass.dispose();
-        this.smaaPass = null;
-        this.smaaEffect = null;
-        this.smaaReadyPromise = null;
+        this.removeAndDisposeSmaa();
       }
     }
 
@@ -557,15 +572,7 @@ export class PostProcessingPipeline {
     this.width = Math.max(1, width);
     this.height = Math.max(1, height);
     this.composer.setSize(this.width, this.height, false);
-    if (this.n8aoPass && this.config.n8ao === 'half' && this.allowHalfResN8ao) {
-      this.composer.getRenderer().getDrawingBufferSize(this.drawingSize);
-      if (this.drawingSize.width < 2 || this.drawingSize.height < 2) {
-        this.n8aoPass.setSize(
-          Math.max(2, this.drawingSize.width),
-          Math.max(2, this.drawingSize.height),
-        );
-      }
-    }
+    this.clampHalfResN8aoTarget(this.config.n8ao);
   }
 
   render(): void {
@@ -575,11 +582,7 @@ export class PostProcessingPipeline {
   dispose(): void {
     this.smaaReadyCancel?.();
     this.smaaReadyCancel = null;
-    if (this.n8aoPass) {
-      this.composer.removePass(this.n8aoPass);
-      disposeN8aoPass(this.n8aoPass);
-      this.n8aoPass = null;
-    }
+    this.removeAndDisposeN8ao();
     this.composer.dispose();
     this.bloomEffect = null;
     this.compositePass = null;

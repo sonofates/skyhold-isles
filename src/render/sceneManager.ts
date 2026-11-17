@@ -332,6 +332,7 @@ export class SceneManager {
    * and first-build compile hitches.
    */
   async warmUp(camera: THREE.Camera, options?: WarmUpOptions): Promise<void> {
+    if (this.contextLost) return;
     this.resize(
       this.canvas.clientWidth || window.innerWidth,
       this.canvas.clientHeight || window.innerHeight,

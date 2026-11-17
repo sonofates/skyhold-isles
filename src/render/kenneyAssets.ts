@@ -180,9 +180,10 @@ export class KenneyAssetStore {
     let cursor = 0;
     let syncCpuMs = 0;
     let pendingYield: Promise<void> | null = null;
+    let aborted = false;
 
     const worker = async (): Promise<void> => {
-      while (cursor < models.length) {
+      while (!aborted && cursor < models.length) {
         const idx = cursor++;
         const name = models[idx];
         const url = `${base}${name}.glb`;
@@ -190,15 +191,21 @@ export class KenneyAssetStore {
         let cpuStartMs: number;
         if (typeof fetch === 'function') {
           const res = await fetch(url);
+          if (aborted) return;
           if (!res.ok) {
             throw new Error(`Failed to load model "${name}" (${res.status})`);
           }
           const buf = await res.arrayBuffer();
+          if (aborted) return;
           cpuStartMs = typeof performance !== 'undefined' ? performance.now() : 0;
           gltf = await loader.parseAsync(buf, base);
         } else {
           gltf = await loader.loadAsync(url);
           cpuStartMs = typeof performance !== 'undefined' ? performance.now() : 0;
+        }
+        if (aborted) {
+          disposeSceneResources(gltf.scene, dummyMaterial);
+          return;
         }
         gltf.scene.updateMatrixWorld(true);
         const parts: THREE.BufferGeometry[] = [];
@@ -252,6 +259,7 @@ export class KenneyAssetStore {
       const [colormapTexture] = await Promise.all([colormapPromise, Promise.all(workers)]);
       return new KenneyAssetStore(colormapTexture, geometries);
     } catch (err) {
+      aborted = true;
       void colormapPromise.then(
         (tex) => tex.dispose(),
         () => {},
