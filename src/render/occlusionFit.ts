@@ -154,8 +154,8 @@ function bestTargetAt(
   const uc = (box.uMin + box.uMax) / 2;
   const rSpan = Math.max(0.2 * halfViewR, (box.rMax - box.rMin) / 2 + 0.25 * halfViewR);
   const uSpan = Math.max(0.2 * halfViewU, (box.uMax - box.uMin) / 2 + 0.25 * halfViewU);
-  let dr = (2 * rSpan) / 16;
-  let du = (2 * uSpan) / 16;
+  let dr = (2 * rSpan) / 12;
+  let du = (2 * uSpan) / 12;
   let bestR = o.prefR;
   let bestU = o.prefU;
   let bestCov = -1;
@@ -173,8 +173,8 @@ function bestTargetAt(
     }
   };
   consider(o.prefR, o.prefU);
-  for (let i = 0; i <= 16; i++) {
-    for (let j = 0; j <= 16; j++) consider(rc - rSpan + i * dr, uc - uSpan + j * du);
+  for (let i = 0; i <= 12; i++) {
+    for (let j = 0; j <= 12; j++) consider(rc - rSpan + i * dr, uc - uSpan + j * du);
   }
   const r0 = bestR - dr;
   const u0 = bestU - du;
@@ -211,7 +211,7 @@ export function computeOcclusionFit(pts: PlanePoints, o: OcclusionFitOptions): O
     return { zoom: lo, targetR: loBest.r, targetU: loBest.u, coverage: loBest.cov };
   }
   let hiZ = hi;
-  for (let it = 0; it < 9; it++) {
+  for (let it = 0; it < 7; it++) {
     const mid = Math.sqrt(lo * hiZ);
     const b = bestTargetAt(pts, mid, o, box);
     if (b.cov >= o.coverage) {
