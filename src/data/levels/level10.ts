@@ -60,7 +60,7 @@ export const LEVEL_10: LevelDef = {
   ],
   decorationSeed: 1010337,
   startingGold: 360,
-  enemyHpScale: 1.01,
+  enemyHpScale: 1.02,
   waveHpGrowth: 0.2,
   waves: [
     {
