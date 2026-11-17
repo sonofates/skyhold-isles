@@ -941,4 +941,104 @@ describe('GameSession state machine, input, and lifecycle', () => {
     expect(h.session.simWorld.getTowerById(t2.id)).toBe(t2);
     expect(h.overlays.towerPanel.setSellConfirmArmed).toHaveBeenLastCalledWith(true);
   });
+
+  it('guards pause flows, formats endless pauseSubtitle, and preserves autoWave across startLevel', () => {
+    const h = createHarness();
+
+    // openPauseMenu is a no-op outside playing viewMode
+    h.session.openPauseMenu();
+    expect(h.overlays.pauseMenu.isOpen()).toBe(false);
+
+    h.session.startLevel(0);
+    h.session.toggleAutoWave();
+    expect(h.session.simWorld.waveSystem.autoWave).toBe(true);
+
+    // toggleUserPause is suppressed while any modal is open
+    h.session.openPauseMenu();
+    expect(h.overlays.pauseMenu.isOpen()).toBe(true);
+    h.session.toggleUserPause();
+    expect(h.session.userPaused).toBe(false);
+    h.session.closePauseMenu();
+
+    // openPauseMenu is suppressed when outcome overlay is already open
+    h.setOutcomeOpen(true);
+    h.session.openPauseMenu();
+    expect(h.overlays.pauseMenu.isOpen()).toBe(false);
+    h.setOutcomeOpen(false);
+
+    // Endless pauseSubtitle includes ∞ marker
+    h.session.simWorld.debugForceWin();
+    h.session.enterEndlessMode();
+    expect(h.session.simWorld.waveSystem.isEndless).toBe(true);
+    expect(h.session.pauseSubtitle()).toBe(
+      `${LEVELS[0].name} · Wave ${h.session.simWorld.waveSystem.currentWaveOneBased} ∞`,
+    );
+
+    // startLevel preserves autoWaveEnabled preference on the newly created SimWorld
+    h.session.startLevel(1);
+    expect(h.session.simWorld.waveSystem.autoWave).toBe(true);
+  });
+
+  it('covers placement grid-fallback selection, failed meteor keeping mode armed, target cycle, renderFrame sell-confirm expiry, and outcome cleanup', () => {
+    const h = createHarness();
+    h.session.startLevel(0);
+    h.session.simWorld.gold = 500;
+    const t = h.session.simWorld.placeTower(4, 2, 'archer')!;
+    const ndc = projectTileNdc(h.cam, h.session, 4, 2);
+
+    // During placement mode with pickTowerAtNdc returning null, tapping an occupied tile selects it via grid fallback
+    h.session.setPlacementMode('cannon');
+    expect(h.session.activePlacementType).toBe('cannon');
+    h.session.onPrimaryTap(ndc.x, ndc.y);
+    expect(h.session.activePlacementType).toBeNull();
+    expect(h.session.selectedTowerId).toBe(t.id);
+
+    // Full 4-mode targeting hotkey cycle
+    expect(t.targetingMode).toBe('first');
+    expect(h.session.onTowerActionHotkey('target')).toBe(true);
+    expect(t.targetingMode).toBe('last');
+    expect(h.session.onTowerActionHotkey('target')).toBe(true);
+    expect(t.targetingMode).toBe('strongest');
+    expect(h.session.onTowerActionHotkey('target')).toBe(true);
+    expect(t.targetingMode).toBe('closest');
+    expect(h.session.onTowerActionHotkey('target')).toBe(true);
+    expect(t.targetingMode).toBe('first');
+
+    // Failed meteor cast (on cooldown) keeps meteor aiming mode armed, and gameLost clears it
+    h.session.simWorld.startNextWave();
+    h.session.activateAbility('meteor');
+    expect(h.session.activeAbilityMode).toBe('meteor');
+    expect(h.session.simWorld.castMeteor(0, 0)).toBe(true);
+    h.session.onPrimaryTap(0, 0);
+    expect(h.session.activeAbilityMode).toBe('meteor');
+
+    // renderFrame clears sell-confirm automatically once performance.now() exceeds deadline
+    const nowSpy = vi.spyOn(performance, 'now');
+    nowSpy.mockReturnValue(1000);
+    expect(h.session.onTowerActionHotkey('sell')).toBe(true);
+    nowSpy.mockReturnValue(4501);
+    h.session.renderFrame(1 / 60, 0, 1);
+    expect(h.overlays.towerPanel.setSellConfirmArmed).toHaveBeenLastCalledWith(false);
+    // Subsequent sell hotkey re-arms rather than selling immediately
+    nowSpy.mockReturnValue(4600);
+    expect(h.session.onTowerActionHotkey('sell')).toBe(true);
+    expect(h.session.simWorld.getTowerById(t.id)).toBe(t);
+
+    h.session.simWorld.events.emit('gameLost', {
+      waveIndex: 0,
+      endless: false,
+    });
+    expect(h.session.activeAbilityMode).toBeNull();
+
+    // onGameWon clears active placement mode
+    h.session.startLevel(0);
+    h.session.setPlacementMode('frost');
+    expect(h.session.activePlacementType).toBe('frost');
+    h.session.simWorld.lives = 15;
+    h.session.simWorld.events.emit('gameWon', {
+      stars: 3,
+      livesRemaining: 15,
+    });
+    expect(h.session.activePlacementType).toBeNull();
+  });
 });

@@ -269,4 +269,28 @@ describe('platform storage and progression', () => {
     expect(hasSeenUpgradeToast()).toBe(false);
     expect(() => markUpgradeToastSeen()).not.toThrow();
   });
+
+  it('handles empty-string payloads, non-numeric volume strings, zero-wave endless saves, and higher existing unlocks', () => {
+    storage.setItem('skyhold_isles_settings_v1', '');
+    storage.setItem('skyhold_isles_progress_v1', '');
+    expect(loadSettings()).toEqual(getDefaultSettings());
+    expect(loadProgress(LEVELS.length)).toEqual(createDefaultProgress(LEVELS.length));
+
+    storage.setItem(
+      'skyhold_isles_settings_v1',
+      JSON.stringify({ masterVolume: '0.25', muted: true }),
+    );
+    expect(loadSettings().masterVolume).toBe(getDefaultSettings().masterVolume);
+    expect(loadSettings().muted).toBe(true);
+
+    const progress = createDefaultProgress(LEVELS.length);
+    progress.unlockedLevelIndex = Math.min(4, LEVELS.length - 1);
+    recordWinProgress(progress, 1, 3);
+    expect(progress.unlockedLevelIndex).toBe(Math.min(4, LEVELS.length - 1));
+    expect(progress.bestStars[1]).toBe(3);
+
+    recordEndlessProgress(progress, 0, 0);
+    expect(progress.bestEndlessWaves[0]).toBe(0);
+    expect(loadProgress(LEVELS.length).bestEndlessWaves[0]).toBe(0);
+  });
 });

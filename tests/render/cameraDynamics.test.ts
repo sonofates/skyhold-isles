@@ -222,4 +222,51 @@ describe('CameraController framing, pan/zoom/rotate, shake, and viewVersion', ()
     zeroCam.update(1 / 60);
     expect(Number.isFinite(zeroCam.camera.zoom)).toBe(true);
   });
+
+  it('preserves stronger shake during cooldown, refreshes after expiry, and anchors zoomByDelta under rotated yaw', () => {
+    const camBaseline = new CameraController(1280, 720);
+    camBaseline.configureForMap(LEVELS[0].cols, LEVELS[0].rows, LEVELS[0].layout);
+    const camDownIgnore = new CameraController(1280, 720);
+    camDownIgnore.configureForMap(LEVELS[0].cols, LEVELS[0].rows, LEVELS[0].layout);
+    const camCap = new CameraController(1280, 720);
+    camCap.configureForMap(LEVELS[0].cols, LEVELS[0].rows, LEVELS[0].layout);
+    const camRaise = new CameraController(1280, 720);
+    camRaise.configureForMap(LEVELS[0].cols, LEVELS[0].rows, LEVELS[0].layout);
+
+    camBaseline.addShake(0.08, true);
+    camDownIgnore.addShake(0.08, true);
+    camDownIgnore.addShake(0.02, true); // smaller impact during cooldown must not downgrade
+
+    camCap.addShake(0.15, true);
+    camRaise.addShake(0.08, true);
+    camRaise.addShake(0.25, true); // heavier impact during cooldown raises and clamps at 0.15
+
+    camBaseline.update(1 / 60);
+    camDownIgnore.update(1 / 60);
+    camCap.update(1 / 60);
+    camRaise.update(1 / 60);
+
+    expect(camDownIgnore.camera.position.distanceTo(camBaseline.camera.position)).toBeCloseTo(0, 6);
+    expect(camRaise.camera.position.distanceTo(camCap.camera.position)).toBeCloseTo(0, 6);
+    expect(camRaise.camera.position.distanceTo(camBaseline.camera.position)).toBeGreaterThan(0.01);
+
+    // Let cooldown (>0.22s) and active shake settle, then verify fresh shake triggers cleanly
+    for (let i = 0; i < 180; i++) camBaseline.update(1 / 60);
+    const restedPos = camBaseline.camera.position.clone();
+    camBaseline.addShake(0.06, true);
+    camBaseline.update(1 / 60);
+    expect(camBaseline.camera.position.distanceTo(restedPos)).toBeGreaterThan(0.01);
+
+    // Cursor-anchored zoomByDelta after rotating yaw by +90 degrees
+    const rotated = new CameraController(1280, 720);
+    rotated.configureForMap(LEVELS[0].cols, LEVELS[0].rows, LEVELS[0].layout);
+    rotated.rotate90(1);
+    for (let i = 0; i < 60; i++) rotated.update(1 / 60);
+
+    const anchorBefore = rotated.screenNdcToPlane(0.35, -0.25, 0)!.clone();
+    rotated.zoomByDelta(0.35, 0.35, -0.25);
+    for (let i = 0; i < 180; i++) rotated.update(1 / 60);
+    const anchorAfter = rotated.screenNdcToPlane(0.35, -0.25, 0)!;
+    expect(anchorAfter.distanceTo(anchorBefore)).toBeLessThan(0.05);
+  });
 });

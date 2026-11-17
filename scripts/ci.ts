@@ -68,6 +68,66 @@ export function parseCiCliArgs(argv: readonly string[]): ParsedCiCliArgs {
   return { help, failFast, full };
 }
 
+export interface CiSuiteSummary {
+  readonly results: readonly CiStepResult[];
+  readonly totalSteps: number;
+  readonly passedCount: number;
+  readonly allPassed: boolean;
+  readonly totalSec: number;
+}
+
+/** Format human-readable summary lines for a completed CI run. */
+export function formatCiSummaryLines(summary: CiSuiteSummary): string[] {
+  const lines: string[] = ['\n=== Skyhold Isles CI Summary ==='];
+  for (const r of summary.results) {
+    const badge = r.passed ? 'PASS' : 'FAIL';
+    const timeStr = `${r.durationSec.toFixed(2)}s`.padStart(6);
+    const exitNote = r.passed ? '' : ` (exit ${r.exitCode})`;
+    lines.push(`[${badge}] ${r.name.padEnd(12)} ${timeStr}  ${r.displayCmd}${exitNote}`);
+  }
+  lines.push(
+    `Result: ${summary.allPassed ? 'PASSED' : 'FAILED'} (${summary.passedCount}/${summary.results.length} steps ran, ${summary.totalSec.toFixed(2)}s total)`,
+  );
+  return lines;
+}
+
+/** Execute a sequence of CI steps, honoring fail-fast early exit on failures. */
+export function executeCiSuite(
+  steps: readonly CiStep[],
+  failFast: boolean,
+  stepRunner: (step: CiStep) => CiStepResult = runStep,
+  logger: { log: (msg: string) => void; error: (msg: string) => void } = console,
+): CiSuiteSummary {
+  const results: CiStepResult[] = [];
+  const totalStartMs = performance.now();
+
+  for (let i = 0; i < steps.length; i++) {
+    const step = steps[i];
+    const displayCmd = `${step.command} ${step.args.join(' ')}`;
+    logger.log(`\n>>> [${i + 1}/${steps.length}] ${step.name}: ${displayCmd}`);
+    const res = stepRunner(step);
+    results.push(res);
+    if (!res.passed && failFast) {
+      logger.error(
+        `\n[ci] Stopping early (--fail-fast) after "${step.name}" failed (exit ${res.exitCode}).`,
+      );
+      break;
+    }
+  }
+
+  const totalSec = (performance.now() - totalStartMs) / 1000;
+  const passedCount = results.filter((r) => r.passed).length;
+  const allPassed = passedCount === results.length && results.length === steps.length;
+
+  return {
+    results,
+    totalSteps: steps.length,
+    passedCount,
+    allPassed,
+    totalSec,
+  };
+}
+
 function main(): void {
   const parsed = parseCiCliArgs(process.argv.slice(2));
   if (parsed.help) {
@@ -79,39 +139,15 @@ function main(): void {
 
   const { failFast, full } = parsed;
   const steps = full ? [...CI_STEPS, ...EXTRA_QA_STEPS] : CI_STEPS;
-  const results: CiStepResult[] = [];
-  const totalStartMs = performance.now();
 
   console.log(`=== Skyhold Isles CI${full ? ' (full QA pass)' : ''} ===\n`);
+  const summary = executeCiSuite(steps, failFast);
 
-  for (let i = 0; i < steps.length; i++) {
-    const step = steps[i];
-    const displayCmd = `${step.command} ${step.args.join(' ')}`;
-    console.log(`\n>>> [${i + 1}/${steps.length}] ${step.name}: ${displayCmd}`);
-    const res = runStep(step);
-    results.push(res);
-    if (!res.passed && failFast) {
-      console.error(`\n[ci] Stopping early (--fail-fast) after "${step.name}" failed (exit ${res.exitCode}).`);
-      break;
-    }
+  for (const line of formatCiSummaryLines(summary)) {
+    console.log(line);
   }
 
-  const totalSec = (performance.now() - totalStartMs) / 1000;
-  const passedCount = results.filter((r) => r.passed).length;
-  const allPassed = passedCount === results.length && results.length === steps.length;
-
-  console.log('\n=== Skyhold Isles CI Summary ===');
-  for (const r of results) {
-    const badge = r.passed ? 'PASS' : 'FAIL';
-    const timeStr = `${r.durationSec.toFixed(2)}s`.padStart(6);
-    const exitNote = r.passed ? '' : ` (exit ${r.exitCode})`;
-    console.log(`[${badge}] ${r.name.padEnd(12)} ${timeStr}  ${r.displayCmd}${exitNote}`);
-  }
-  console.log(
-    `Result: ${allPassed ? 'PASSED' : 'FAILED'} (${passedCount}/${results.length} steps ran, ${totalSec.toFixed(2)}s total)`,
-  );
-
-  if (!allPassed) {
+  if (!summary.allPassed) {
     process.exit(1);
   }
 }

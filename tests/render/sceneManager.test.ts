@@ -148,4 +148,39 @@ describe('SceneManager quality, shadow frustum, render pipeline, and disposal', 
 
     mgr.dispose();
   });
+
+  it('clamps devicePixelRatio by quality/device and resizes safely before composer creation', () => {
+    vi.stubGlobal('window', {
+      devicePixelRatio: 1.5,
+      innerWidth: 1024,
+      innerHeight: 768,
+    });
+    const canvas = { clientWidth: 900, clientHeight: 600 } as unknown as HTMLCanvasElement;
+    const mgr = new SceneManager(canvas);
+    const mockRenderer = pipelineState.rendererInstances[0];
+
+    expect(mockRenderer.setPixelRatio).toHaveBeenCalledWith(1.5);
+
+    // 0/NaN devicePixelRatio falls back to 1
+    vi.stubGlobal('window', {
+      devicePixelRatio: 0,
+      innerWidth: 1024,
+      innerHeight: 768,
+    });
+    mgr.resize(640, 480);
+    expect(mockRenderer.setPixelRatio).toHaveBeenLastCalledWith(1);
+    expect(mockRenderer.setSize).toHaveBeenLastCalledWith(640, 480, false);
+    expect(pipelineState.instances).toHaveLength(0);
+
+    // Quality 'low' clamps high DPR (3) down to 1
+    vi.stubGlobal('window', {
+      devicePixelRatio: 3,
+      innerWidth: 1024,
+      innerHeight: 768,
+    });
+    mgr.setQuality('low');
+    expect(mockRenderer.setPixelRatio).toHaveBeenLastCalledWith(1);
+
+    mgr.dispose();
+  });
 });

@@ -158,10 +158,10 @@ interface FuzzTracker {
   projectilePoolOverflows: number;
   peakEnemies: number;
   peakProjectiles: number;
-  seenSpawnUids: Set<number>;
-  spawnedTypes: Map<number, EnemyType>;
-  killedUids: Set<number>;
-  killedSplitterUids: Set<number>;
+  seenSpawnUidsCount?: never;
+  spawnedTypesByUid: Array<EnemyType | undefined>;
+  killedByUid: boolean[];
+  killedSplitterByUid: boolean[];
   pendingDeathUids: Set<number>;
   builtTowerIds: Set<number>;
   towerById: Map<number, TowerEntity>;
@@ -191,6 +191,7 @@ interface FuzzTracker {
   lastWaveHpScale: number;
   endlessWavesConfig: number;
   pendingSplitChildrenExpected: number;
+  runnerSpawnsThisTick: number;
   currentTick: number;
   pendingMeteors: Array<{ x: number; z: number; radius: number; castTick: number }>;
   newlyStunnedTowerIds: Set<number>;
@@ -200,6 +201,9 @@ interface FuzzTracker {
   prevEnemyHitFlash: Float64Array;
   prevEnemyHealTimer: Float64Array;
   prevEnemyWalkPhase: Float64Array;
+  prevEnemyDist: Float64Array;
+  prevEnemySlowTimer: Float64Array;
+  prevEnemySlowRatio: Float64Array;
   bossSummonedUids: Set<number>;
   bossesBelowHalfLastTick: Set<number>;
   prevTowerStats: Map<
@@ -217,6 +221,10 @@ interface FuzzTracker {
   >;
   stateHash: number;
   eventInvariantError: string | null;
+}
+
+function isCombatWaveState(s: string): boolean {
+  return s === 'spawning' || s === 'clearing' || s === 'allSpawned';
 }
 
 function mixHash(hash: number, value: number): number {
@@ -314,7 +322,7 @@ function attachEventTracker(
   inEndless: () => boolean,
 ): void {
   events.on('enemySpawned', (ev) => {
-    if (ev.enemyId <= 0 || tracker.seenSpawnUids.has(ev.enemyId)) {
+    if (ev.enemyId <= 0 || tracker.spawnedTypesByUid[ev.enemyId] !== undefined) {
       recordEventError(tracker, `Duplicate or invalid enemySpawned uid: ${ev.enemyId}`);
       return;
     }
@@ -329,6 +337,7 @@ function attachEventTracker(
       recordEventError(tracker, `enemySpawned flying=${ev.flying} mismatch for type=${ev.enemyType}`);
       return;
     }
+    let wasSplitChild = false;
     if (tracker.pendingSplitChildrenExpected > 0) {
       if (ev.enemyType !== 'runner' || ev.flying) {
         recordEventError(
@@ -338,27 +347,31 @@ function attachEventTracker(
         return;
       }
       tracker.pendingSplitChildrenExpected--;
+      wasSplitChild = true;
     }
-    tracker.seenSpawnUids.add(ev.enemyId);
-    tracker.spawnedTypes.set(ev.enemyId, ev.enemyType);
+    if (!wasSplitChild && ev.enemyType === 'runner' && !ev.flying) {
+      tracker.runnerSpawnsThisTick++;
+    }
+    tracker.spawnedTypesByUid[ev.enemyId] = ev.enemyType;
     tracker.spawnedEnemyTypes.add(ev.enemyType);
     tracker.spawnedCount++;
     tracker.stateHash = mixStringHash(mixHash(mixHash(tracker.stateHash, 1), ev.enemyId), ev.enemyType);
   });
 
   events.on('enemyKilled', (ev) => {
-    if (!tracker.seenSpawnUids.has(ev.enemyId)) {
+    const spawnedType = tracker.spawnedTypesByUid[ev.enemyId];
+    if (spawnedType === undefined) {
       recordEventError(tracker, `enemyKilled for unknown uid: ${ev.enemyId}`);
       return;
     }
-    if (tracker.spawnedTypes.get(ev.enemyId) !== ev.enemyType) {
+    if (spawnedType !== ev.enemyType) {
       recordEventError(
         tracker,
-        `enemyKilled type mismatch for uid=${ev.enemyId}: expected ${tracker.spawnedTypes.get(ev.enemyId)}, got ${ev.enemyType}`,
+        `enemyKilled type mismatch for uid=${ev.enemyId}: expected ${spawnedType}, got ${ev.enemyType}`,
       );
       return;
     }
-    if (tracker.killedUids.has(ev.enemyId)) {
+    if (tracker.killedByUid[ev.enemyId]) {
       recordEventError(tracker, `enemyKilled fired twice for uid: ${ev.enemyId}`);
       return;
     }
@@ -384,10 +397,10 @@ function attachEventTracker(
       );
       return;
     }
-    tracker.killedUids.add(ev.enemyId);
+    tracker.killedByUid[ev.enemyId] = true;
     tracker.killedEnemyTypes.add(ev.enemyType);
     if (ev.enemyType === 'splitter') {
-      tracker.killedSplitterUids.add(ev.enemyId);
+      tracker.killedSplitterByUid[ev.enemyId] = true;
     }
     tracker.killedCount++;
     tracker.expectedGold += ev.reward;
@@ -431,13 +444,13 @@ function attachEventTracker(
     if (ev.count !== 2) {
       recordEventError(tracker, `enemySplit count=${ev.count} != 2 for parentUid=${ev.parentUid}`);
     }
-    if (tracker.spawnedTypes.get(ev.parentUid) !== 'splitter') {
+    if (tracker.spawnedTypesByUid[ev.parentUid] !== 'splitter') {
       recordEventError(
         tracker,
-        `enemySplit parentUid=${ev.parentUid} was spawned as ${tracker.spawnedTypes.get(ev.parentUid)}, not splitter`,
+        `enemySplit parentUid=${ev.parentUid} was spawned as ${tracker.spawnedTypesByUid[ev.parentUid]}, not splitter`,
       );
     }
-    if (!tracker.killedSplitterUids.has(ev.parentUid)) {
+    if (!tracker.killedSplitterByUid[ev.parentUid]) {
       recordEventError(tracker, `enemySplit fired before splitter enemyKilled for parentUid=${ev.parentUid}`);
     }
     const expectedSplitY = (ENEMY_DEFS.splitter.flying ? BALANCE.flyerHeight : BALANCE.tilePathTopY) + 0.4;
@@ -564,19 +577,28 @@ function attachEventTracker(
     if (!hasBossAtSource) {
       recordEventError(tracker, `bossSummon emitted without eligible active boss at (${ev.x},${ev.y},${ev.z})`);
     }
+    if (tracker.runnerSpawnsThisTick < ev.count) {
+      recordEventError(
+        tracker,
+        `bossSummon emitted count=${ev.count} but only ${tracker.runnerSpawnsThisTick} escort runner(s) spawned this tick`,
+      );
+    } else {
+      tracker.runnerSpawnsThisTick -= ev.count;
+    }
     tracker.bossSummonCount++;
     tracker.stateHash = mixHash(mixHash(tracker.stateHash, 6), ev.count);
   });
 
   events.on('enemyHit', (ev) => {
-    if (!tracker.seenSpawnUids.has(ev.enemyId) || tracker.killedUids.has(ev.enemyId)) {
+    const hitSpawnedType = tracker.spawnedTypesByUid[ev.enemyId];
+    if (hitSpawnedType === undefined || tracker.killedByUid[ev.enemyId]) {
       recordEventError(tracker, `enemyHit for unknown or already-killed uid=${ev.enemyId}`);
       return;
     }
-    if (tracker.spawnedTypes.get(ev.enemyId) !== ev.enemyType) {
+    if (hitSpawnedType !== ev.enemyType) {
       recordEventError(
         tracker,
-        `enemyHit type mismatch for uid=${ev.enemyId}: expected ${tracker.spawnedTypes.get(ev.enemyId)}, got ${ev.enemyType}`,
+        `enemyHit type mismatch for uid=${ev.enemyId}: expected ${hitSpawnedType}, got ${ev.enemyType}`,
       );
       return;
     }
@@ -1253,12 +1275,14 @@ function assertTickInvariants(world: SimWorld, tracker: FuzzTracker, tick: numbe
     return `world.enemiesKilledTotal (${world.enemiesKilledTotal}) !== killedCount (${tracker.killedCount})`;
   }
 
-  for (const prevDeadUid of tracker.pendingDeathUids) {
-    if (!tracker.killedUids.has(prevDeadUid)) {
-      return `Pending-death enemy uid=${prevDeadUid} failed to settle into enemyKilled on the following tick`;
+  if (tracker.pendingDeathUids.size > 0) {
+    for (const prevDeadUid of tracker.pendingDeathUids) {
+      if (!tracker.killedByUid[prevDeadUid]) {
+        return `Pending-death enemy uid=${prevDeadUid} failed to settle into enemyKilled on the following tick`;
+      }
     }
+    tracker.pendingDeathUids.clear();
   }
-  tracker.pendingDeathUids.clear();
 
   if (tracker.pendingSplitChildrenExpected !== 0) {
     if (tracker.enemyPoolOverflows === 0) {
@@ -1274,7 +1298,9 @@ function assertTickInvariants(world: SimWorld, tracker: FuzzTracker, tick: numbe
 
   let pendingDeaths = 0;
   _seenEnemyUids.clear();
-  _bossesBelowHalfScratch.clear();
+  if (_bossesBelowHalfScratch.size > 0) {
+    _bossesBelowHalfScratch.clear();
+  }
   for (let i = 0; i < activeEnemies; i++) {
     const e = world.enemyPool.items[world.enemyPool.getActiveIndex(i)];
     if (!e.active) return `Inactive enemy at active index pos=${i}`;
@@ -1282,8 +1308,9 @@ function assertTickInvariants(world: SimWorld, tracker: FuzzTracker, tick: numbe
       return `Invalid or duplicate active enemy uid=${e.uid} at pos=${i}`;
     }
     _seenEnemyUids.add(e.uid);
-    if (tracker.spawnedTypes.get(e.uid) !== e.type) {
-      return `Active enemy uid=${e.uid} type mismatch: spawned=${tracker.spawnedTypes.get(e.uid)}, actual=${e.type}`;
+    const spawnedType = tracker.spawnedTypesByUid[e.uid];
+    if (spawnedType !== e.type) {
+      return `Active enemy uid=${e.uid} type mismatch: spawned=${spawnedType}, actual=${e.type}`;
     }
     if (e.isSplitChild && (e.type !== 'runner' || e.scaleOverride !== 0.72 || e.reward !== 1 || e.maxHp < 18)) {
       return `Invalid split child state for uid=${e.uid} (type=${e.type}, scale=${e.scaleOverride}, reward=${e.reward}, maxHp=${e.maxHp})`;
@@ -1432,18 +1459,41 @@ function assertTickInvariants(world: SimWorld, tracker: FuzzTracker, tick: numbe
             return `Healer uid=${e.uid} healTimer step mismatch: got=${e.healTimer}, expected=${expectedHeal}`;
           }
         }
+        const prevDist = tracker.prevEnemyDist[e.poolIndex];
+        const prevSlowTimer = tracker.prevEnemySlowTimer[e.poolIndex];
+        const prevSlowRatio = tracker.prevEnemySlowRatio[e.poolIndex];
+        const stepDist = e.dist - prevDist;
+        const minStep = e.speed * (1 - BALANCE.maxSlowRatio) * BALANCE.fixedDt - 1e-8;
+        const maxStep = e.speed * BALANCE.fixedDt + 1e-8;
+        if (stepDist < minStep || stepDist > maxStep) {
+          return `Enemy uid=${e.uid} dist step out of bounds: stepDist=${stepDist} (expected [${minStep}, ${maxStep}])`;
+        }
         const walkDelta = e.walkPhase - tracker.prevEnemyWalkPhase[e.poolIndex];
-        if (walkDelta < -1e-9 || walkDelta > e.speed * BALANCE.fixedDt * 3.4 + 1e-6) {
-          return `Enemy uid=${e.uid} walkPhase step out of bounds: delta=${walkDelta} (max=${e.speed * BALANCE.fixedDt * 3.4})`;
+        if (Math.abs(walkDelta - stepDist * 3.4) > 1e-8) {
+          return `Enemy uid=${e.uid} walkPhase/dist coupling mismatch: walkDelta=${walkDelta}, stepDist*3.4=${stepDist * 3.4}`;
+        }
+        const minSlowTimer = Math.max(0, prevSlowTimer - BALANCE.fixedDt) - 1e-9;
+        if (e.slowTimer < minSlowTimer) {
+          return `Enemy uid=${e.uid} slowTimer dropped faster than dt: got=${e.slowTimer}, min=${minSlowTimer}`;
+        }
+        if (prevSlowTimer > BALANCE.fixedDt + 1e-9) {
+          if (e.slowTimer <= 0 || e.slowRatio < prevSlowRatio - 1e-9) {
+            return `Enemy uid=${e.uid} slowRatio weakened while slow still active: prev=${prevSlowRatio}, got=${e.slowRatio}, slowTimer=${e.slowTimer}`;
+          }
         }
       }
       tracker.prevEnemyUid[e.poolIndex] = e.uid;
       tracker.prevEnemyHitFlash[e.poolIndex] = e.hitFlashTimer;
       tracker.prevEnemyHealTimer[e.poolIndex] = e.healTimer;
       tracker.prevEnemyWalkPhase[e.poolIndex] = e.walkPhase;
+      tracker.prevEnemyDist[e.poolIndex] = e.dist;
+      tracker.prevEnemySlowTimer[e.poolIndex] = e.slowTimer;
+      tracker.prevEnemySlowRatio[e.poolIndex] = e.slowRatio;
     }
   }
-  tracker.hitEnemyUidsThisTick.clear();
+  if (tracker.hitEnemyUidsThisTick.size > 0) {
+    tracker.hitEnemyUidsThisTick.clear();
+  }
 
   for (let i = 0; i < activeProj; i++) {
     const p = world.projectilePool.items[world.projectilePool.getActiveIndex(i)];
@@ -1482,7 +1532,7 @@ function assertTickInvariants(world: SimWorld, tracker: FuzzTracker, tick: numbe
       !Number.isInteger(p.targetUid) ||
       p.targetUid <= 0 ||
       p.targetUid > tracker.spawnedCount ||
-      !tracker.seenSpawnUids.has(p.targetUid) ||
+      tracker.spawnedTypesByUid[p.targetUid] === undefined ||
       !Number.isInteger(p.targetPoolIndex) ||
       p.targetPoolIndex < 0 ||
       p.targetPoolIndex >= BALANCE.pools.maxEnemies ||
@@ -1726,11 +1776,19 @@ function assertTickInvariants(world: SimWorld, tracker: FuzzTracker, tick: numbe
     activeTowerKills += t.kills;
     activeTowerDamage += t.totalDamageDealt;
   }
-  tracker.newlyStunnedTowerIds.clear();
-  tracker.firedTowerIdsThisTick.clear();
-  tracker.bossesBelowHalfLastTick.clear();
-  for (const bossUid of _bossesBelowHalfScratch) {
-    tracker.bossesBelowHalfLastTick.add(bossUid);
+  if (tracker.newlyStunnedTowerIds.size > 0) {
+    tracker.newlyStunnedTowerIds.clear();
+  }
+  if (tracker.firedTowerIdsThisTick.size > 0) {
+    tracker.firedTowerIdsThisTick.clear();
+  }
+  if (tracker.bossesBelowHalfLastTick.size > 0) {
+    tracker.bossesBelowHalfLastTick.clear();
+  }
+  if (_bossesBelowHalfScratch.size > 0) {
+    for (const bossUid of _bossesBelowHalfScratch) {
+      tracker.bossesBelowHalfLastTick.add(bossUid);
+    }
   }
 
   if (activeTowerKills + tracker.soldTowerKills > tracker.killedCount + pendingDeaths) {
@@ -1740,7 +1798,8 @@ function assertTickInvariants(world: SimWorld, tracker: FuzzTracker, tick: numbe
     return `Tower damage (${activeTowerDamage}+${tracker.soldTowerDamage}) exceeded total enemyHit damage (${tracker.totalEnemyHitDamage})`;
   }
 
-  for (const id of ABILITY_IDS) {
+  for (let i = 0; i < ABILITY_IDS.length; i++) {
+    const id = ABILITY_IDS[i];
     const cd = world.abilitySystem.getCooldown(id);
     const maxCd = world.abilitySystem.getMaxCooldown(id);
     if (!Number.isFinite(cd) || cd < 0 || cd > maxCd + 1e-6) {
@@ -2089,6 +2148,7 @@ function performLegalAction(
     const goldSnap = world.gold;
     const countSnap = world.towers.length;
     const spawn = world.level.pathWaypoints[0];
+    const goal = world.level.pathWaypoints[world.level.pathWaypoints.length - 1];
     const existingTower = world.towers[0];
     let maxTierTower: TowerEntity | undefined;
     let unaffordableUpgrade: TowerEntity | undefined;
@@ -2114,9 +2174,21 @@ function performLegalAction(
         }
       }
     }
+    let decorTile: { col: number; row: number } | undefined;
+    for (let r = 0; r < world.level.rows && !decorTile; r++) {
+      for (let c = 0; c < world.level.cols; c++) {
+        const cell = world.level.layout[r][c];
+        if (cell === 'decor' || cell === 'blocked') {
+          decorTile = { col: c, row: r };
+          break;
+        }
+      }
+    }
     if (
       world.placeTower(-1, -1, 'archer') !== null ||
       (spawn && world.placeTower(spawn.col, spawn.row, 'archer') !== null) ||
+      (goal && world.placeTower(goal.col, goal.row, 'archer') !== null) ||
+      (decorTile && world.placeTower(decorTile.col, decorTile.row, 'archer') !== null) ||
       (existingTower && world.placeTower(existingTower.col, existingTower.row, 'archer') !== null) ||
       (freeTile && world.placeTower(freeTile.col, freeTile.row, 'archer') !== null) ||
       world.upgradeTower(999_999) !== false ||
@@ -2401,10 +2473,9 @@ function createFuzzTracker(startingGold: number, endlessWavesConfig: number): Fu
     projectilePoolOverflows: 0,
     peakEnemies: 0,
     peakProjectiles: 0,
-    seenSpawnUids: new Set<number>(),
-    spawnedTypes: new Map<number, EnemyType>(),
-    killedUids: new Set<number>(),
-    killedSplitterUids: new Set<number>(),
+    spawnedTypesByUid: [],
+    killedByUid: [],
+    killedSplitterByUid: [],
     pendingDeathUids: new Set<number>(),
     builtTowerIds: new Set<number>(),
     towerById: new Map<number, TowerEntity>(),
@@ -2434,6 +2505,7 @@ function createFuzzTracker(startingGold: number, endlessWavesConfig: number): Fu
     lastWaveHpScale: 0,
     endlessWavesConfig,
     pendingSplitChildrenExpected: 0,
+    runnerSpawnsThisTick: 0,
     currentTick: 0,
     pendingMeteors: [],
     newlyStunnedTowerIds: new Set<number>(),
@@ -2443,6 +2515,9 @@ function createFuzzTracker(startingGold: number, endlessWavesConfig: number): Fu
     prevEnemyHitFlash: new Float64Array(BALANCE.pools.maxEnemies),
     prevEnemyHealTimer: new Float64Array(BALANCE.pools.maxEnemies),
     prevEnemyWalkPhase: new Float64Array(BALANCE.pools.maxEnemies),
+    prevEnemyDist: new Float64Array(BALANCE.pools.maxEnemies),
+    prevEnemySlowTimer: new Float64Array(BALANCE.pools.maxEnemies),
+    prevEnemySlowRatio: new Float64Array(BALANCE.pools.maxEnemies),
     bossSummonedUids: new Set<number>(),
     bossesBelowHalfLastTick: new Set<number>(),
     prevTowerStats: new Map(),
@@ -2591,6 +2666,7 @@ function createFuzzStepContext(
       }
       ctx.tickCount++;
       tracker.currentTick = ctx.tickCount;
+      tracker.runnerSpawnsThisTick = 0;
       const prevWaveState = world.waveSystem.state;
       const prevMeteorCd = world.abilitySystem.getCooldown('meteor');
       const prevOverchargeCd = world.abilitySystem.getCooldown('overcharge');
@@ -2610,8 +2686,7 @@ function createFuzzStepContext(
         }
       }
 
-      const isCombatState = (s: string): boolean => s === 'spawning' || s === 'clearing' || s === 'allSpawned';
-      if (world.outcome === 'ongoing' && isCombatState(prevWaveState) && isCombatState(world.waveSystem.state)) {
+      if (world.outcome === 'ongoing' && isCombatWaveState(prevWaveState) && isCombatWaveState(world.waveSystem.state)) {
         const expectedMeteorCd = Math.max(0, prevMeteorCd - fixedDt);
         const expectedOverchargeCd = Math.max(0, prevOverchargeCd - fixedDt);
         if (

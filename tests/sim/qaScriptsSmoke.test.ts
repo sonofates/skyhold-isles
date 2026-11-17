@@ -3,7 +3,14 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { runLevelBalanceSim } from '../../scripts/balanceSim.ts';
-import { CI_STEPS, EXTRA_QA_STEPS, parseCiCliArgs } from '../../scripts/ci.ts';
+import {
+  CI_STEPS,
+  EXTRA_QA_STEPS,
+  executeCiSuite,
+  formatCiSummaryLines,
+  parseCiCliArgs,
+  type CiStepResult,
+} from '../../scripts/ci.ts';
 import {
   BENCH_SCENARIOS,
   parseSimBenchCliArgs,
@@ -376,5 +383,86 @@ describe('QA scripts smoke verification', () => {
     expect(balanceProc.stdout).toContain('[L1 GREEDY]');
     expect(balanceProc.stdout).toContain('[L1 WEAK  ]');
     expect(balanceProc.stdout).toContain('Balance check PASSED: Greedy & Weak targets met across 1 level(s)!');
+  });
+
+  it('executes CI steps with executeCiSuite honoring --fail-fast, failure summaries, and full counts', () => {
+    const sampleSteps = [
+      { name: 'typecheck', command: 'npx', args: ['tsc', '--noEmit'] },
+      { name: 'lint', command: 'npm', args: ['run', 'lint'] },
+      { name: 'test', command: 'npm', args: ['test'] },
+    ] as const;
+
+    const logs: string[] = [];
+    const errors: string[] = [];
+    const logger = {
+      log: (msg: string) => logs.push(msg),
+      error: (msg: string) => errors.push(msg),
+    };
+
+    const nonFailFastSummary = executeCiSuite(
+      sampleSteps,
+      false,
+      (step): CiStepResult => ({
+        name: step.name,
+        displayCmd: `${step.command} ${step.args.join(' ')}`,
+        passed: step.name !== 'lint',
+        exitCode: step.name === 'lint' ? 2 : 0,
+        durationSec: step.name === 'test' ? 1.25 : 0.4,
+      }),
+      logger,
+    );
+    expect(nonFailFastSummary.results).toHaveLength(3);
+    expect(nonFailFastSummary.passedCount).toBe(2);
+    expect(nonFailFastSummary.allPassed).toBe(false);
+    expect(logs).toHaveLength(3);
+    expect(errors).toHaveLength(0);
+    const failLines = formatCiSummaryLines(nonFailFastSummary).join('\n');
+    expect(failLines).toContain('[PASS] typecheck');
+    expect(failLines).toContain('[FAIL] lint');
+    expect(failLines).toContain('(exit 2)');
+    expect(failLines).toContain('Result: FAILED (2/3 steps ran,');
+
+    const ffExecuted: string[] = [];
+    const ffErrors: string[] = [];
+    const ffSummary = executeCiSuite(
+      sampleSteps,
+      true,
+      (step): CiStepResult => {
+        ffExecuted.push(step.name);
+        return {
+          name: step.name,
+          displayCmd: `${step.command} ${step.args.join(' ')}`,
+          passed: step.name !== 'lint',
+          exitCode: step.name === 'lint' ? 7 : 0,
+          durationSec: 0.1,
+        };
+      },
+      { log: () => {}, error: (msg: string) => ffErrors.push(msg) },
+    );
+    expect(ffExecuted).toEqual(['typecheck', 'lint']);
+    expect(ffSummary.results).toHaveLength(2);
+    expect(ffSummary.passedCount).toBe(1);
+    expect(ffSummary.allPassed).toBe(false);
+    expect(ffErrors).toHaveLength(1);
+    expect(ffErrors[0]).toContain('Stopping early (--fail-fast) after "lint" failed (exit 7)');
+
+    const fullSteps = [...CI_STEPS, ...EXTRA_QA_STEPS];
+    const fullSummary = executeCiSuite(
+      fullSteps,
+      true,
+      (step): CiStepResult => ({
+        name: step.name,
+        displayCmd: `${step.command} ${step.args.join(' ')}`,
+        passed: true,
+        exitCode: 0,
+        durationSec: 0.5,
+      }),
+      { log: () => {}, error: () => {} },
+    );
+    expect(fullSummary.allPassed).toBe(true);
+    expect(fullSummary.passedCount).toBe(fullSteps.length);
+    expect(formatCiSummaryLines(fullSummary).join('\n')).toContain(
+      `Result: PASSED (${fullSteps.length}/${fullSteps.length} steps ran,`,
+    );
   });
 });
