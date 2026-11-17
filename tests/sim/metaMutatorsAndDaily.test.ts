@@ -975,10 +975,32 @@ describe('Daily challenge pure date-seeded generator', () => {
     expect(messyArraysMod.forbiddenTowerTypes).toEqual(['frost']);
     expect(messyArraysMod.activeMutatorIds).toEqual(['swift_march']);
 
-    // Sparse level list in generateDailyChallenge and missing waves in applyModifiersToLevel stay safe
+    // Sparse level list & sparse mutator catalog on Master level in generateDailyChallenge,
+    // missing waves in applyModifiersToLevel, and NaN unresolved scalar badges in describeActiveModifiers stay safe
     const noWavesLevel = { ...LEVELS[0], waves: null } as unknown as LevelDef;
     expect(applyModifiersToLevel(noWavesLevel, { flyerCountMultiplier: 2 })).toBe(noWavesLevel);
     const sparseDaily = generateDailyChallenge('2026-11-17', [null as unknown as LevelDef, LEVELS[0]]);
     expect(sparseDaily.levelId).toBe(LEVELS[0].id);
+
+    const masterSparseDaily = generateDailyChallenge(
+      '2026-11-17',
+      [bosslessMaster],
+      sparseCatalog,
+    );
+    expect(masterSparseDaily.levelId).toBe('bossless-master-isle');
+
+    const namelessLevel = { ...LEVELS[0], name: undefined as unknown as string };
+    expect(generateDailyChallenge('2026-11-17', [namelessLevel]).title).toBe(`Daily Watch · ${LEVELS[0].id}`);
+
+    expect(
+      describeActiveModifiers({
+        ...resolveRunModifiers(null),
+        enemyHpMultiplier: Number.NaN,
+        enemySpeedMultiplier: Number.POSITIVE_INFINITY,
+        enemyArmorBonus: Number.NaN,
+        flyerCountMultiplier: Number.NaN,
+        goldRewardMultiplier: -1,
+      }),
+    ).toEqual([]);
   });
 });

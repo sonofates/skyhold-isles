@@ -1963,6 +1963,48 @@ describe('MetaSession stats, achievements, challenges & daily persistence', () =
     });
     expect(getChallengeStatus(repeatDailySave, 0, [null as unknown as LevelDef])).toBeNull();
     expect(getRecommendedNextGoal(repeatDailySave, '2026-11-17', [null as unknown as LevelDef])).toBeNull();
+    expect(
+      getRecommendedNextGoal(createDefaultMetaSave(1), '2026-11-17', [null as unknown as LevelDef]),
+    ).toBeNull();
+
+    // Sparse levels skip invalid slots uniformly in rank, career summary, and fallback endless recommender
+    const sparseCareerSave = createDefaultMetaSave(2);
+    sparseCareerSave.campaign.unlockedLevelIndex = 1;
+    sparseCareerSave.campaign.bestStars = [3, 3];
+    sparseCareerSave.completedChallenges['sunlit-meadow:perfect'] = true;
+    sparseCareerSave.completedChallenges['sunlit-meadow:lean'] = true;
+    sparseCareerSave.completedChallenges['sunlit-meadow:rush3x'] = true;
+    sparseCareerSave.completedDailyDates = ['2026-11-17'];
+    const sparseLevels = [LEVELS[0], null as unknown as LevelDef];
+    expect(getMetaCareerRank(sparseCareerSave, sparseLevels).points).toBe(11);
+    expect(getMetaCareerSummary(sparseCareerSave, '2026-11-17', sparseLevels)).toMatchObject({
+      campaignStarsEarned: 3,
+      campaignStarsTotal: 3,
+      totalIslands: 1,
+    });
+    for (const ach of ACHIEVEMENTS) {
+      sparseCareerSave.unlockedAchievements[ach.id] = true;
+    }
+    expect(getRecommendedNextGoal(sparseCareerSave, '2026-11-17', sparseLevels)).toMatchObject({
+      kind: 'endless',
+      levelIndex: 0,
+      levelId: LEVELS[0].id,
+    });
+
+    // saveMetaSave(!overwriteV1) preserves existing multi-island v1 progress even if called with a partial/shorter save
+    const v1PreserveStore = installMockLocalStorage({
+      [PROGRESS_KEY]: JSON.stringify({
+        unlockedLevelIndex: 4,
+        bestStars: [3, 2, 1, 2, 0, 0, 0, 0, 0],
+        bestEndlessWaves: [0, 15, 0, 0, 0, 0, 0, 0, 0],
+      }),
+    });
+    saveMetaSave({ version: 2 } as unknown as ReturnType<typeof createDefaultMetaSave>);
+    const preservedV1 = JSON.parse(v1PreserveStore.get(PROGRESS_KEY) ?? 'null') as ProgressData;
+    expect(preservedV1.unlockedLevelIndex).toBe(4);
+    expect(preservedV1.bestStars).toEqual([3, 2, 1, 2, 0, 0, 0, 0, 0]);
+    expect(preservedV1.bestEndlessWaves[1]).toBe(15);
+
     expect(getChallengesForLevel(null as unknown as LevelDef)).toEqual([]);
     expect(evaluateLevelChallenges(null as unknown as LevelDef, repObs.getTelemetry(), true, 20)).toEqual([]);
     expect(evaluateLiveLevelChallenges(null as unknown as LevelDef, repObs.getTelemetry(), 20, 'ongoing', {})).toEqual([]);

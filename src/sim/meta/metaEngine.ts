@@ -1179,6 +1179,8 @@ export function getMetaCareerRank(
   const unlockedMap = getPlainRecord(save?.unlockedAchievements);
   let campaignStars = 0;
   for (let i = 0; i < safeLevels.length; i++) {
+    const lvl = safeLevels[i];
+    if (!lvl || typeof lvl.id !== 'string') continue;
     campaignStars += Math.min(3, asNonNegInt(bestStarsArr[i]));
   }
   const challengeStars = getAllChallengeProgress(save, safeLevels).earnedStars;
@@ -1217,7 +1219,9 @@ export function getRecommendedNextGoal(
   todayDateStr: string,
   levels: readonly LevelDef[] = LEVELS,
 ): RecommendedGoal | null {
-  if (!Array.isArray(levels) || levels.length === 0) return null;
+  if (!Array.isArray(levels) || !levels.some((l) => Boolean(l) && typeof l.id === 'string')) {
+    return null;
+  }
 
   const normalizedToday = typeof todayDateStr === 'string' ? todayDateStr.trim() : '';
   if (
@@ -1243,7 +1247,7 @@ export function getRecommendedNextGoal(
 
   for (let i = 0; i <= maxUnlocked; i++) {
     const lvl = levels[i];
-    if (!lvl) continue;
+    if (!lvl || typeof lvl.id !== 'string') continue;
     if (Math.min(3, asNonNegInt(bestStarsArr[i])) === 0) {
       return {
         kind: 'campaign',
@@ -1257,7 +1261,7 @@ export function getRecommendedNextGoal(
 
   for (let i = 0; i <= maxUnlocked; i++) {
     const lvl = levels[i];
-    if (!lvl) continue;
+    if (!lvl || typeof lvl.id !== 'string') continue;
     const chStatus = getChallengeStatus(save, i, levels);
     const missing = chStatus?.challenges.find((c) => !c.completed);
     if (missing) {
@@ -1274,7 +1278,7 @@ export function getRecommendedNextGoal(
 
   for (let i = 0; i <= maxUnlocked; i++) {
     const lvl = levels[i];
-    if (!lvl) continue;
+    if (!lvl || typeof lvl.id !== 'string') continue;
     if (Math.min(3, asNonNegInt(bestStarsArr[i])) < 3) {
       return {
         kind: 'campaign',
@@ -1305,18 +1309,29 @@ export function getRecommendedNextGoal(
     };
   }
 
-  const focusLevel = levels[maxUnlocked];
+  let focusIndex = maxUnlocked;
+  let focusLevel = levels[focusIndex];
+  if (!focusLevel || typeof focusLevel.id !== 'string') {
+    for (let i = maxUnlocked; i >= 0; i--) {
+      const cand = levels[i];
+      if (cand && typeof cand.id === 'string') {
+        focusIndex = i;
+        focusLevel = cand;
+        break;
+      }
+    }
+  }
   if (!focusLevel || typeof focusLevel.id !== 'string') return null;
   const waveLen = Array.isArray(focusLevel.waves) ? focusLevel.waves.length : 0;
   const bestWave = Math.max(
     waveLen,
-    asNonNegInt(bestEndlessArr[maxUnlocked]),
+    asNonNegInt(bestEndlessArr[focusIndex]),
   );
   return {
     kind: 'endless',
     title: `Endless Watch · ${focusLevel.name}`,
     detail: `Push beyond Wave ${bestWave} with Endless Mutators.`,
-    levelIndex: maxUnlocked,
+    levelIndex: focusIndex,
     levelId: focusLevel.id,
   };
 }
@@ -1357,7 +1372,12 @@ export function getMetaCareerSummary(
   let islandsCleared = 0;
   let islandsMastered = 0;
 
+  let validIslands = 0;
+
   for (let i = 0; i < safeLevels.length; i++) {
+    const lvl = safeLevels[i];
+    if (!lvl || typeof lvl.id !== 'string') continue;
+    validIslands++;
     const stars = Math.min(3, asNonNegInt(bestStarsArr[i]));
     campaignStarsEarned += stars;
     if (stars > 0) islandsCleared++;
@@ -1383,12 +1403,12 @@ export function getMetaCareerSummary(
 
   return {
     campaignStarsEarned,
-    campaignStarsTotal: safeLevels.length * 3,
+    campaignStarsTotal: validIslands * 3,
     challengeStarsEarned: challengeProg.earnedStars,
     challengeStarsTotal: challengeProg.totalStars,
     islandsCleared,
     islandsMastered,
-    totalIslands: safeLevels.length,
+    totalIslands: validIslands,
     achievementsUnlocked,
     achievementsTotal: ACHIEVEMENTS.length,
     dailyCompletedTotal: validDailyDates.size,

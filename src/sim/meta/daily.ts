@@ -193,7 +193,11 @@ export function generateDailyChallenge(
     throw new Error('Cannot generate daily challenge with an empty level list.');
   }
   const safeLevels: readonly LevelDef[] = levels;
-  const safeCatalog: readonly MutatorDef[] = Array.isArray(mutatorCatalog) ? mutatorCatalog : [];
+  const safeCatalog: readonly MutatorDef[] = Array.isArray(mutatorCatalog)
+    ? mutatorCatalog.filter(
+        (m): m is MutatorDef => Boolean(m) && typeof m === 'object' && typeof m.id === 'string' && m.id.length > 0,
+      )
+    : [];
 
   const seed = hashSeedString(`skyhold-daily:${normalizedDate}`);
   const rng = new SeededRng(seed);
@@ -317,17 +321,18 @@ export function generateDailyChallenge(
     parts.push(restriction.label);
   }
 
+  const levelName = typeof level.name === 'string' && level.name.length > 0 ? level.name : level.id;
   return {
     date: normalizedDate,
     seed,
     levelIndex: resolvedLevelIndex,
     levelId: level.id,
-    levelName: level.name,
+    levelName,
     mutators: mutatorRoll.mutators,
     towerRestriction: restriction,
     modifiers,
     scoreMultiplier,
-    title: `Daily Watch · ${level.name}`,
+    title: `Daily Watch · ${levelName}`,
     summary: parts.length > 0 ? parts.join(' · ') : 'Standard Rules',
   };
 }

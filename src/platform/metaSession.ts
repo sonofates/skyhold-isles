@@ -218,7 +218,8 @@ export class MetaSession {
     this.runStartBestEndlessWave = bestEndlessWaves
       ? nonNegIntOrZero(bestEndlessWaves[level.index])
       : 0;
-    this.runStartBestEndlessScore = scoresMap ? nonNegIntOrZero(scoresMap[level.id]) : 0;
+    this.runStartBestEndlessScore =
+      scoresMap && Object.hasOwn(scoresMap, level.id) ? nonNegIntOrZero(scoresMap[level.id]) : 0;
   }
 
   private finalizeRunOutcome(

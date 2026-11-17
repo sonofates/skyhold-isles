@@ -276,6 +276,7 @@ export function describeActiveModifiers(
     expectedMult: number,
     detail: string,
   ) => {
+    if (!Number.isFinite(mult) || mult <= 0) return;
     if (Math.abs(mult - expectedMult) <= 1e-3 || mult === 1) return;
     const pct = Math.round((mult - 1) * 100);
     if (pct === 0) return;
@@ -295,14 +296,20 @@ export function describeActiveModifiers(
     baseline.enemySpeedMultiplier,
     `Enemies move at ${modifiers.enemySpeedMultiplier}x speed.`,
   );
-  if (modifiers.enemyArmorBonus !== baseline.enemyArmorBonus && modifiers.enemyArmorBonus > 0) {
+  if (
+    Number.isFinite(modifiers.enemyArmorBonus) &&
+    modifiers.enemyArmorBonus !== baseline.enemyArmorBonus &&
+    modifiers.enemyArmorBonus > 0
+  ) {
     badges.push({
       id: 'custom-enemy-armor',
       label: `Enemy Armor +${modifiers.enemyArmorBonus}`,
       detail: `All enemies gain +${modifiers.enemyArmorBonus} flat armor.`,
     });
   }
-  const flyerMult = Math.round(modifiers.flyerCountMultiplier);
+  const flyerMult = Number.isFinite(modifiers.flyerCountMultiplier)
+    ? Math.round(modifiers.flyerCountMultiplier)
+    : 1;
   if (flyerMult !== baseline.flyerCountMultiplier && flyerMult > 1) {
     badges.push({
       id: 'custom-flyer-count',

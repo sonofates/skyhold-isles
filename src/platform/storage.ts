@@ -216,8 +216,20 @@ export function saveMetaSave(save: MetaSaveData, overwriteV1 = false): void {
       localStorage.setItem(PROGRESS_KEY, JSON.stringify(sanitizedV1));
       return;
     }
-    const existingV1 = loadProgress(levelCount);
-    const mergedV1 = mergeCampaignProgress(existingV1, campaign, levelCount);
+    const existingV1Raw = readJsonSafely(PROGRESS_KEY);
+    const existingV1Obj =
+      existingV1Raw && typeof existingV1Raw === 'object' && !Array.isArray(existingV1Raw)
+        ? (existingV1Raw as Partial<ProgressData>)
+        : null;
+    const existingStarsLen = Array.isArray(existingV1Obj?.bestStars)
+      ? existingV1Obj.bestStars.length
+      : 0;
+    const existingEndlessLen = Array.isArray(existingV1Obj?.bestEndlessWaves)
+      ? existingV1Obj.bestEndlessWaves.length
+      : 0;
+    const mergeCount = Math.max(levelCount, existingStarsLen, existingEndlessLen);
+    const existingV1 = loadProgress(mergeCount);
+    const mergedV1 = mergeCampaignProgress(existingV1, campaign, mergeCount);
     localStorage.setItem(PROGRESS_KEY, JSON.stringify(mergedV1));
   } catch {
     // Ignore storage quota / private mode failures
