@@ -1,6 +1,6 @@
 import type { EnemyType, ProgressData, TowerType } from '../../core/types.ts';
 import { BALANCE } from '../../data/balance.ts';
-import { ACHIEVEMENTS, getChallengesForLevel } from '../../data/challenges.ts';
+import { ACHIEVEMENTS, getChallengeById, getChallengesForLevel } from '../../data/challenges.ts';
 import { LEVELS } from '../../data/levels/index.ts';
 import type { LevelDef } from '../../data/levels/types.ts';
 import {
@@ -9,7 +9,7 @@ import {
   getRecentDailySpecs,
   isValidDateString,
 } from './daily.ts';
-import { computeEndlessScore } from './mutators.ts';
+import { computeCampaignRunScore, computeEndlessScore } from './mutators.ts';
 import type {
   AchievementCategory,
   AchievementCategorySummary,
@@ -18,6 +18,7 @@ import type {
   AchievementSummary,
   AllChallengeProgress,
   AllIslandMastery,
+  ChallengeDef,
   ChallengeItemStatus,
   DailyHistoryEntry,
   EndlessScoreBreakdown,
@@ -82,6 +83,7 @@ export function createDefaultMetaSave(levelCount: number): MetaSaveData {
     },
     stats: createEmptyLifetimeStats(),
     bestEndlessScoresByLevelId: {},
+    bestMutatedScoresByLevelId: {},
     bestLivesByLevelId: {},
     fastestWinSecByLevelId: {},
     completedDailyDates: [],
@@ -116,6 +118,20 @@ function sanitizeCountRecord(raw: unknown): Record<string, number> {
   for (const [key, val] of Object.entries(raw as Record<string, unknown>)) {
     const n = asNonNegInt(val, 0);
     if (n > 0) out[key] = n;
+  }
+  return out;
+}
+
+function sanitizeDailyScoreRecord(raw: unknown): Record<string, number> {
+  const out: Record<string, number> = {};
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return out;
+  for (const [key, val] of Object.entries(raw as Record<string, unknown>)) {
+    const trimmed = key.trim();
+    if (!isValidDateString(trimmed)) continue;
+    const n = asNonNegInt(val, 0);
+    if (n > (out[trimmed] ?? 0)) {
+      out[trimmed] = n;
+    }
   }
   return out;
 }
@@ -272,12 +288,13 @@ export function migrateToMetaSave(
     }
 
     base.bestEndlessScoresByLevelId = sanitizeCountRecord(obj.bestEndlessScoresByLevelId);
+    base.bestMutatedScoresByLevelId = sanitizeCountRecord(obj.bestMutatedScoresByLevelId);
     const rawBestLives = sanitizeCountRecord(obj.bestLivesByLevelId);
     for (const [lid, lives] of Object.entries(rawBestLives)) {
       base.bestLivesByLevelId[lid] = Math.min(BALANCE.startingLives, lives);
     }
     base.fastestWinSecByLevelId = sanitizePositiveFloatRecord(obj.fastestWinSecByLevelId);
-    base.dailyBestScores = sanitizeCountRecord(obj.dailyBestScores);
+    base.dailyBestScores = sanitizeDailyScoreRecord(obj.dailyBestScores);
   } else {
     base.campaign = v1Campaign;
   }
@@ -312,6 +329,9 @@ export function migrateToMetaSave(
   const clearedIslandsCount = base.campaign.bestStars.filter((s) => s > 0).length;
   if (base.stats.gamesWon < clearedIslandsCount) {
     base.stats.gamesWon = clearedIslandsCount;
+  }
+  if (base.stats.gamesPlayed < base.stats.gamesWon + base.stats.gamesLost) {
+    base.stats.gamesPlayed = base.stats.gamesWon + base.stats.gamesLost;
   }
   if (base.stats.dailyChallengesCompleted < base.completedDailyDates.length) {
     base.stats.dailyChallengesCompleted = base.completedDailyDates.length;
@@ -513,6 +533,25 @@ export function recordEndlessRunStats(
   return endlessScore;
 }
 
+const ACHIEVEMENT_BY_ID = new Map<string, AchievementDef>(
+  ACHIEVEMENTS.map((def) => [def.id, def]),
+);
+
+/** Looks up an achievement definition by ID (returns null if unknown). */
+export function getAchievementById(achievementId: string): AchievementDef | null {
+  return ACHIEVEMENT_BY_ID.get(achievementId) ?? null;
+}
+
+/** Resolves an array of achievement IDs into their definitions in order. */
+export function resolveAchievementDefs(ids: readonly string[]): readonly AchievementDef[] {
+  const out: AchievementDef[] = [];
+  for (let i = 0; i < ids.length; i++) {
+    const def = ACHIEVEMENT_BY_ID.get(ids[i]);
+    if (def) out.push(def);
+  }
+  return out;
+}
+
 /** Records a completed campaign win, daily win, or endless/campaign loss into `save`. */
 export function recordRunCompletion(
   save: MetaSaveData,
@@ -536,8 +575,11 @@ export function recordRunCompletion(
   const isDaily = normalizedDailyDate !== null;
   const newlyCompletedChallengeIds: string[] = [];
   const completedChallengeIds: string[] = [];
+  const newlyCompletedChallenges: ChallengeDef[] = [];
   let isNewBestLives = false;
   let isNewFastestWin = false;
+  let mutatedScore: number | null = null;
+  let isNewBestMutatedScore = false;
 
   const prevEndlessWave =
     params.previousBestEndlessWave ?? (save.campaign.bestEndlessWaves[level.index] ?? 0);
@@ -563,18 +605,33 @@ export function recordRunCompletion(
           );
         }
 
-        const clampedLives = Math.min(BALANCE.startingLives, livesRemaining);
-        if (clampedLives > (save.bestLivesByLevelId[level.id] ?? 0)) {
-          save.bestLivesByLevelId[level.id] = clampedLives;
-          isNewBestLives = true;
-        }
-        if (telemetry.simTimeSec > 0) {
-          const clearSec = Math.max(0.1, +telemetry.simTimeSec.toFixed(1));
-          const prevFastest = save.fastestWinSecByLevelId[level.id];
-          if (prevFastest === undefined || clearSec < prevFastest) {
-            save.fastestWinSecByLevelId[level.id] = clearSec;
-            isNewFastestWin = true;
+        if (telemetry.activeMutatorIds.length === 0) {
+          const clampedLives = Math.min(BALANCE.startingLives, livesRemaining);
+          if (clampedLives > (save.bestLivesByLevelId[level.id] ?? 0)) {
+            save.bestLivesByLevelId[level.id] = clampedLives;
+            isNewBestLives = true;
           }
+          if (telemetry.simTimeSec > 0) {
+            const clearSec = Math.max(0.1, +telemetry.simTimeSec.toFixed(1));
+            const prevFastest = save.fastestWinSecByLevelId[level.id];
+            if (prevFastest === undefined || clearSec < prevFastest) {
+              save.fastestWinSecByLevelId[level.id] = clearSec;
+              isNewFastestWin = true;
+            }
+          }
+        } else {
+          const score = computeCampaignRunScore(
+            telemetry.storyWavesCompleted,
+            telemetry.enemiesKilledTotal,
+            livesRemaining,
+            params.scoreMultiplier ?? 1,
+          );
+          mutatedScore = score;
+          const prevMutatedBest = save.bestMutatedScoresByLevelId[level.id] ?? 0;
+          if (score > prevMutatedBest) {
+            isNewBestMutatedScore = true;
+          }
+          save.bestMutatedScoresByLevelId[level.id] = Math.max(prevMutatedBest, score);
         }
       }
 
@@ -592,11 +649,13 @@ export function recordRunCompletion(
       if (!isDaily) {
         const satisfied = evaluateLevelChallenges(level, telemetry, true, livesRemaining);
         for (let i = 0; i < satisfied.length; i++) {
-          const cid = satisfied[i].id;
+          const chDef = satisfied[i];
+          const cid = chDef.id;
           completedChallengeIds.push(cid);
           if (!save.completedChallenges[cid]) {
             save.completedChallenges[cid] = true;
             newlyCompletedChallengeIds.push(cid);
+            newlyCompletedChallenges.push(chDef);
           }
         }
       }
@@ -619,13 +678,12 @@ export function recordRunCompletion(
   let dailyScore: number | null = null;
   let isNewBestDailyScore = false;
   if (isDaily && won && normalizedDailyDate && telemetry.eligibleForChallenges) {
-    const score =
-      computeEndlessScore(
-        telemetry.wavesCompleted,
-        telemetry.enemiesKilledTotal,
-        params.scoreMultiplier ?? 1,
-      ).totalScore +
-      livesRemaining * 25;
+    const score = computeCampaignRunScore(
+      telemetry.wavesCompleted,
+      telemetry.enemiesKilledTotal,
+      livesRemaining,
+      params.scoreMultiplier ?? 1,
+    );
     dailyScore = score;
     const prevDailyBest = save.dailyBestScores[normalizedDailyDate] ?? 0;
     if (score > prevDailyBest) {
@@ -640,21 +698,26 @@ export function recordRunCompletion(
   }
 
   const newlyUnlockedAchievementIds = recomputeAchievements(save, levels);
+  const newlyUnlockedAchievements = resolveAchievementDefs(newlyUnlockedAchievementIds);
 
   return {
     won,
     isDaily,
     newlyCompletedChallengeIds,
     completedChallengeIds,
+    newlyCompletedChallenges,
     newlyUnlockedAchievementIds,
+    newlyUnlockedAchievements,
     endlessScore,
     dailyScore,
+    mutatedScore,
     runDurationSec,
     isNewBestLives,
     isNewFastestWin,
     isNewBestEndlessWave,
     isNewBestEndlessScore,
     isNewBestDailyScore,
+    isNewBestMutatedScore,
   };
 }
 
@@ -733,6 +796,14 @@ export function getStats(save: MetaSaveData): LifetimeStats {
   };
 }
 
+/** Looks up a challenge definition across registered islands (returns null if unknown). */
+export function resolveChallengeDef(
+  challengeId: string,
+  levels: readonly LevelDef[] = LEVELS,
+): ChallengeDef | null {
+  return getChallengeById(challengeId, levels) ?? null;
+}
+
 /** Typed UI query: combined campaign stars, challenge stars, endless records, personal bests, and mastery flag for one island. */
 export function getIslandMasteryStatus(
   save: MetaSaveData,
@@ -744,6 +815,7 @@ export function getIslandMasteryStatus(
   const campaignStars = save.campaign.bestStars[levelIndex] ?? 0;
   const bestEndlessWave = save.campaign.bestEndlessWaves[levelIndex] ?? 0;
   const bestEndlessScore = save.bestEndlessScoresByLevelId[challengeStatus.levelId] ?? 0;
+  const bestMutatedScore = save.bestMutatedScoresByLevelId[challengeStatus.levelId] ?? 0;
   const bestLivesRemaining = save.bestLivesByLevelId[challengeStatus.levelId] ?? 0;
   const fastestWinSec = save.fastestWinSecByLevelId[challengeStatus.levelId] ?? null;
   return {
@@ -755,6 +827,7 @@ export function getIslandMasteryStatus(
     challengeTotal: challengeStatus.totalStars,
     bestEndlessWave,
     bestEndlessScore,
+    bestMutatedScore,
     bestLivesRemaining,
     fastestWinSec,
     mastered:
@@ -1177,6 +1250,10 @@ export function mergeMetaSaves(
     bestEndlessScoresByLevelId: mergeMaxCountRecords(
       base.bestEndlessScoresByLevelId,
       incoming.bestEndlessScoresByLevelId,
+    ),
+    bestMutatedScoresByLevelId: mergeMaxCountRecords(
+      base.bestMutatedScoresByLevelId,
+      incoming.bestMutatedScoresByLevelId,
     ),
     bestLivesByLevelId: mergeMaxCountRecords(base.bestLivesByLevelId, incoming.bestLivesByLevelId),
     fastestWinSecByLevelId: mergeMinPositiveRecords(

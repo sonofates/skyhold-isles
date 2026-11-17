@@ -4,7 +4,7 @@ import { BALANCE } from '../../data/balance.ts';
 import { getChallengesForLevel } from '../../data/challenges.ts';
 import type { LevelDef } from '../../data/levels/types.ts';
 import { TOWER_DEFS } from '../../data/towers.ts';
-import { resolveRunModifiers, scaleGoldCost, scaleGoldReward } from './modifiers.ts';
+import { isAdvantageousModifiers, resolveRunModifiers, scaleGoldCost, scaleGoldReward } from './modifiers.ts';
 import type {
   ChallengeCondition,
   ChallengeDef,
@@ -254,6 +254,7 @@ export class RunObserver {
   private inCombat = false;
   private inWavePhase = false;
   private runEnded = false;
+  private hasLost = false;
   private storyWinSnapshot: { livesRemaining: number; telemetry: RunTelemetry } | null = null;
   private expectedNextWaveIndex = 0;
   private skippedWaves = false;
@@ -265,6 +266,9 @@ export class RunObserver {
   constructor(level: LevelDef, events: EventBus, modifiers?: RunModifiers | null) {
     this.level = level;
     this.modifiers = resolveRunModifiers(modifiers);
+    if (isAdvantageousModifiers(this.modifiers)) {
+      this.eligibleForChallenges = false;
+    }
     this.expectedGold = Math.round(level.startingGold * this.modifiers.startingGoldMultiplier);
     this.expectedLives = BALANCE.startingLives;
     this.bind(events);
@@ -347,7 +351,7 @@ export class RunObserver {
         this.towersCleansed += ev.cleansedTowerIds.length;
       }),
       events.on('waveStarted', (ev) => {
-        if (this.runEnded && !this.endlessEntered) {
+        if (this.hasLost || (this.runEnded && !this.endlessEntered)) {
           this.eligibleForChallenges = false;
         }
         if (ev.waveIndex !== this.expectedNextWaveIndex) {
@@ -403,6 +407,9 @@ export class RunObserver {
         }
       }),
       events.on('endlessEntered', () => {
+        if (this.hasLost) {
+          this.eligibleForChallenges = false;
+        }
         this.endlessEntered = true;
         this.inCombat = true;
       }),
@@ -430,6 +437,7 @@ export class RunObserver {
         this.inCombat = false;
         this.inWavePhase = false;
         this.runEnded = true;
+        this.hasLost = true;
         if (ev.waveIndex + 1 > this.maxWaveReached) {
           this.maxWaveReached = ev.waveIndex + 1;
         }
@@ -465,6 +473,9 @@ export class RunObserver {
   /** Updates active modifiers mid-run (e.g. when entering Endless Mode with mutators). */
   setModifiers(modifiers: RunModifiers | null | undefined): void {
     this.modifiers = resolveRunModifiers(modifiers);
+    if (isAdvantageousModifiers(this.modifiers)) {
+      this.eligibleForChallenges = false;
+    }
   }
 
   /** Marks this run ineligible for challenges (e.g., if debug tools manipulated gold/lives). */

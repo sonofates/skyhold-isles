@@ -10,6 +10,7 @@ import {
 import { LEVELS, type LevelDef, type ScriptedBuildAction } from '../../src/data/levels/index.ts';
 import { getTowerTierStats } from '../../src/data/towers.ts';
 import { MetaSession } from '../../src/platform/metaSession.ts';
+import { isAdvantageousModifiers } from '../../src/sim/meta/modifiers.ts';
 import {
   evaluateChallengeCondition,
   evaluateLiveLevelChallenges,
@@ -812,5 +813,40 @@ describe('RunObserver challenge condition tracking', () => {
     expect(telemetry.earlyWavesCalled).toBe(2);
     expect(obs.verifyEconomyIntegrity(world.gold, world.lives)).toBe(true);
     obs.dispose();
+  });
+
+  it('taints post-loss Endless debugSkipToWave and rejects advantageous custom modifiers on challenges', () => {
+    const level = makeSimpleTestLevel({
+      waves: [{ clearBonus: 20, groups: [{ enemyType: 'grunt', count: 1, spawnInterval: 0.3, startDelay: 0 }] }],
+    });
+
+    // 1. Lose in Endless then debugSkipToWave to next wave -> must taint eligibility
+    const ev1 = new EventBus();
+    const w1 = new SimWorld(level, ev1);
+    const obs1 = new RunObserver(level, ev1);
+    w1.placeTower(4, 2, 'archer');
+    w1.startNextWave();
+    runTicksUntilSettled(w1, obs1, 3);
+    expect(w1.outcome).toBe('won');
+    expect(w1.enterEndlessMode()).toBe(true);
+    w1.startNextWave();
+    w1.debugForceLose();
+    // Skip straight to the next endless wave index after losing in Endless
+    w1.debugSkipToWave(3);
+    expect(obs1.getTelemetry().eligibleForChallenges).toBe(false);
+    obs1.dispose();
+
+    // 2. Advantageous custom modifiers (e.g. weaker enemies or bonus starting gold) must not award challenges
+    const ev2 = new EventBus();
+    const w2 = new SimWorld(level, ev2, { enemyHpMultiplier: 0.5, startingGoldMultiplier: 1.5 });
+    const obs2 = new RunObserver(level, ev2, { enemyHpMultiplier: 0.5, startingGoldMultiplier: 1.5 });
+    expect(isAdvantageousModifiers(obs2.getModifiers())).toBe(true);
+    w2.placeTower(4, 2, 'archer');
+    w2.startNextWave();
+    runTicksUntilSettled(w2, obs2, 3);
+    expect(w2.outcome).toBe('won');
+    expect(obs2.getTelemetry().eligibleForChallenges).toBe(false);
+    expect(obs2.evaluateCompletedChallenges(true, w2.lives)).toHaveLength(0);
+    obs2.dispose();
   });
 });

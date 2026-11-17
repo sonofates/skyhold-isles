@@ -29,10 +29,9 @@ function clampPositive(value: number | undefined, fallback: number, min = 0.1): 
 /** Normalizes partial RunModifiers into concrete defaults. */
 export function resolveRunModifiers(modifiers?: RunModifiers | null): ResolvedRunModifiers {
   if (!modifiers) return NEUTRAL_RUN_MODIFIERS;
-  const allowed =
-    modifiers.allowedTowerTypes && modifiers.allowedTowerTypes.length > 0
-      ? [...new Set(modifiers.allowedTowerTypes)]
-      : null;
+  const allowed = Array.isArray(modifiers.allowedTowerTypes)
+    ? [...new Set(modifiers.allowedTowerTypes)]
+    : null;
   const forbidden = modifiers.forbiddenTowerTypes
     ? [...new Set(modifiers.forbiddenTowerTypes)]
     : [];
@@ -117,6 +116,20 @@ export function mergeRunModifiers(...layers: Array<RunModifiers | undefined | nu
     activeMutatorIds: [...mutatorIdSet],
     scoreMultiplier: +(1 + Math.max(0, extraScoreBonus)).toFixed(2),
   };
+}
+
+/**
+ * Returns true if any modifier eases baseline difficulty (e.g. weaker enemies or bonus gold),
+ * used to prevent custom beneficial modifiers from counting toward campaign challenges or records.
+ */
+export function isAdvantageousModifiers(modifiers: ResolvedRunModifiers): boolean {
+  return (
+    modifiers.enemyHpMultiplier < 1 ||
+    modifiers.enemySpeedMultiplier < 1 ||
+    modifiers.goldRewardMultiplier > 1 ||
+    modifiers.startingGoldMultiplier > 1 ||
+    modifiers.towerCostMultiplier < 1
+  );
 }
 
 /** Checks whether a tower type can be built under the active run modifiers. */
@@ -209,13 +222,21 @@ export function describeActiveModifiers(
     }
   }
 
-  if (modifiers.allowedTowerTypes !== null && modifiers.allowedTowerTypes.length > 0) {
-    const names = modifiers.allowedTowerTypes.map((t) => TOWER_DEFS[t]?.name ?? t).join(', ');
-    badges.push({
-      id: 'allowed-arsenal',
-      label: 'Limited Arsenal',
-      detail: `Only ${names} can be built.`,
-    });
+  if (modifiers.allowedTowerTypes !== null) {
+    if (modifiers.allowedTowerTypes.length === 0) {
+      badges.push({
+        id: 'allowed-arsenal',
+        label: 'No Towers Allowed',
+        detail: 'No tower types are permitted under these modifiers.',
+      });
+    } else {
+      const names = modifiers.allowedTowerTypes.map((t) => TOWER_DEFS[t]?.name ?? t).join(', ');
+      badges.push({
+        id: 'allowed-arsenal',
+        label: 'Limited Arsenal',
+        detail: `Only ${names} can be built.`,
+      });
+    }
   }
 
   const extraBanned = modifiers.forbiddenTowerTypes.filter((t) => !mutatorForbidden.has(t));

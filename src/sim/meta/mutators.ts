@@ -1,7 +1,20 @@
 import { SeededRng } from '../../core/rng.ts';
 import { ENDLESS_MUTATOR_PRESETS, ENDLESS_MUTATORS } from '../../data/challenges.ts';
-import { mergeRunModifiers } from './modifiers.ts';
-import type { EndlessMutatorRoll, EndlessScoreBreakdown, MutatorDef, MutatorPreset } from './types.ts';
+import { mergeRunModifiers, resolveRunModifiers } from './modifiers.ts';
+import type {
+  EndlessMutatorRoll,
+  EndlessScoreBreakdown,
+  MutatorDef,
+  MutatorPreset,
+  ResolvedRunModifiers,
+  RunModifiers,
+} from './types.ts';
+
+export type MutatorSelectionInput =
+  | { readonly presetId: string }
+  | { readonly seed: number | string; readonly count?: number }
+  | readonly string[]
+  | RunModifiers;
 
 /** Deterministic 32-bit FNV-1a hash of a seed string. */
 export function hashSeedString(input: string): number {
@@ -138,4 +151,40 @@ export function computeEndlessScore(
     scoreMultiplier: +mult.toFixed(2),
     totalScore: Math.round(baseScore * mult),
   };
+}
+
+/** Shared campaign score formula for Daily Watch and Mutated Island replays (includes lives bonus). */
+export function computeCampaignRunScore(
+  wavesCleared: number,
+  enemiesKilled: number,
+  livesRemaining: number,
+  scoreMultiplier = 1,
+): number {
+  const safeLives = Math.max(0, Math.floor(livesRemaining));
+  return computeEndlessScore(wavesCleared, enemiesKilled, scoreMultiplier).totalScore + safeLives * 25;
+}
+
+/**
+ * Resolves a preset ID, seeded roll, mutator ID list, or explicit RunModifiers object
+ * into concrete ResolvedRunModifiers for mutated replays or Endless Mode.
+ */
+export function resolveMutatorSelection(
+  input: MutatorSelectionInput,
+  presets: readonly MutatorPreset[] = ENDLESS_MUTATOR_PRESETS,
+  catalog: readonly MutatorDef[] = ENDLESS_MUTATORS,
+): ResolvedRunModifiers {
+  if (Array.isArray(input)) {
+    return buildEndlessMutatorLoadout(input, catalog).modifiers;
+  }
+  if ('presetId' in input) {
+    const presetRoll = getMutatorPresetRoll(input.presetId, presets, catalog);
+    if (!presetRoll) {
+      throw new RangeError(`Unknown Endless mutator preset "${input.presetId}".`);
+    }
+    return presetRoll.modifiers;
+  }
+  if ('seed' in input) {
+    return selectEndlessMutators(input.seed, input.count ?? 2, catalog).modifiers;
+  }
+  return resolveRunModifiers(input as RunModifiers);
 }

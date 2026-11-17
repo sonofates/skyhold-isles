@@ -790,4 +790,75 @@ describe('MetaSession stats, achievements, challenges & daily persistence', () =
     expect(meta.getCampaignProgress().bestEndlessWaves[0]).toBe(25);
     meta.dispose();
   });
+
+  it('tracks mutated story replay scores, hydrated outcome definitions, daily score sanitization, and v1 gamesPlayed consistency', () => {
+    installMockLocalStorage();
+
+    // 1. v1 migration keeps gamesPlayed >= gamesWon and sanitizes whitespace-padded dailyBestScores
+    const v1: ProgressData = {
+      unlockedLevelIndex: 2,
+      bestStars: [3, 2, 0, 0, 0, 0, 0, 0, 0],
+      bestEndlessWaves: [0, 0, 0, 0, 0, 0, 0, 0, 0],
+    };
+    const migratedV1 = migrateToMetaSave(null, v1, 9, LEVELS);
+    expect(migratedV1.stats.gamesWon).toBeGreaterThanOrEqual(2);
+    expect(migratedV1.stats.gamesPlayed).toBeGreaterThanOrEqual(migratedV1.stats.gamesWon);
+
+    const messyV2 = createDefaultMetaSave(9);
+    messyV2.dailyBestScores = {
+      ' 2026-11-16 ': 1200,
+      '2026-11-16': 900,
+      'not-a-date': 9999,
+    };
+    messyV2.bestMutatedScoresByLevelId = { 'sunlit-meadow': 420 };
+    const cleaned = migrateToMetaSave(messyV2, null, 9, LEVELS);
+    expect(cleaned.dailyBestScores).toEqual({ '2026-11-16': 1200 });
+    expect(cleaned.bestMutatedScoresByLevelId['sunlit-meadow']).toBe(420);
+
+    // 2. Mutated non-daily story win records mutatedScore & preserves fastestWinSec fairness
+    const tinyLevel: LevelDef = {
+      ...LEVELS[0],
+      startingGold: 1000,
+      waves: [{ clearBonus: 25, groups: [{ enemyType: 'grunt', count: 2, spawnInterval: 0.3, startDelay: 0 }] }],
+    };
+    const meta = new MetaSession({
+      levels: [tinyLevel, ...LEVELS.slice(1)],
+      getTodayDate: () => '2026-11-17',
+    });
+
+    expect(meta.getTodayDailyDate()).toBe('2026-11-17');
+    expect(meta.getChallengeDef('sunlit-meadow:perfect')?.title).toBe('Flawless Meadow');
+    expect(meta.getChallengeDef('unknown')).toBeNull();
+    expect(meta.getAchievementDef('first_victory')?.name).toBe('First Skyhold Secured');
+    expect(meta.getAchievementDef('unknown')).toBeNull();
+
+    const presetMods = meta.resolveMutatorSelection({ presetId: 'blitz-tide' });
+    const ev = new EventBus();
+    const world = new SimWorld(tinyLevel, ev, presetMods);
+    meta.startRun(tinyLevel, ev, { modifiers: presetMods, speed: 3 });
+    const archer = world.placeTower(4, 2, 'archer')!;
+    world.upgradeTower(archer.id);
+    world.startNextWave();
+    for (let i = 0; i < 60 * 30 && world.outcome === 'ongoing'; i++) {
+      meta.onTick(BALANCE.fixedDt, 3);
+      world.fixedTick(BALANCE.fixedDt);
+    }
+    expect(world.outcome).toBe('won');
+
+    const outcome = meta.getLastRunOutcome()!;
+    expect(outcome.mutatedScore).toBeGreaterThan(0);
+    expect(outcome.isNewBestMutatedScore).toBe(true);
+    expect(outcome.isNewFastestWin).toBe(false); // Mutated speed runs don't overwrite standard speedrun bests
+    expect(outcome.newlyCompletedChallenges.map((c) => c.id)).toEqual(outcome.newlyCompletedChallengeIds);
+    expect(outcome.newlyUnlockedAchievements.map((a) => a.id)).toEqual(outcome.newlyUnlockedAchievementIds);
+    expect(meta.getIslandMasteryStatus(0)?.bestMutatedScore).toBe(outcome.mutatedScore);
+    expect(meta.getIslandMasteryStatus(0)?.fastestWinSec).toBeNull();
+
+    // 3. Export & merge preserves bestMutatedScoresByLevelId
+    const otherSave = createDefaultMetaSave(9);
+    otherSave.bestMutatedScoresByLevelId['sunlit-meadow'] = 99999;
+    expect(meta.importSaveJson(JSON.stringify(otherSave), 'merge').ok).toBe(true);
+    expect(meta.getIslandMasteryStatus(0)?.bestMutatedScore).toBe(99999);
+    meta.dispose();
+  });
 });

@@ -14,11 +14,14 @@ import { TOWER_DEFS, TOWER_TYPES } from '../data/towers.ts';
 import type { RenderWorld } from '../render/renderWorld.ts';
 import { getTowerPickHeight } from '../render/towerPicking.ts';
 import { isTowerTypeAllowed } from '../sim/meta/modifiers.ts';
+import type { MutatorSelectionInput } from '../sim/meta/mutators.ts';
 import type {
+  AchievementDef,
   AchievementStatus,
   AchievementSummary,
   AllChallengeProgress,
   AllIslandMastery,
+  ChallengeDef,
   DailyChallengeSpec,
   DailyHistoryEntry,
   DailyStatus,
@@ -33,6 +36,7 @@ import type {
   MutatorDef,
   MutatorPreset,
   RecommendedGoal,
+  ResolvedRunModifiers,
   RunMetaOutcome,
   RunModifiers,
 } from '../sim/meta/types.ts';
@@ -478,6 +482,15 @@ export class GameSession {
     return spec;
   }
 
+  startMutatedLevel(
+    levelIndex: number,
+    mutatorInput: MutatorSelectionInput,
+  ): ResolvedRunModifiers {
+    const modifiers = this.meta.resolveMutatorSelection(mutatorInput);
+    this.startLevel(levelIndex, { modifiers });
+    return modifiers;
+  }
+
   restartCurrentRun(): void {
     this.startLevel(this.currentLevelIndex, this.lastRunOptions);
   }
@@ -590,6 +603,18 @@ export class GameSession {
 
   getMutatorPresetRoll(presetId: string): EndlessMutatorRoll | null {
     return this.meta.getMutatorPresetRoll(presetId);
+  }
+
+  getTodayDailyDate(): string {
+    return this.meta.getTodayDailyDate();
+  }
+
+  getChallengeDef(challengeId: string): ChallengeDef | null {
+    return this.meta.getChallengeDef(challengeId);
+  }
+
+  getAchievementDef(achievementId: string): AchievementDef | null {
+    return this.meta.getAchievementDef(achievementId);
   }
 
   exportMetaSaveJson(): string {

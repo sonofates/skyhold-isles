@@ -13,6 +13,7 @@ import {
 import {
   applyTelemetryDeltaToStats,
   exportMetaSaveJson,
+  getAchievementById,
   getAchievements,
   getAchievementSummary,
   getAllChallengeProgress,
@@ -28,6 +29,8 @@ import {
   recomputeAchievements,
   recordEndlessRunStats,
   recordRunCompletion,
+  resolveAchievementDefs,
+  resolveChallengeDef,
 } from '../sim/meta/metaEngine.ts';
 import {
   describeActiveModifiers,
@@ -37,14 +40,18 @@ import {
 import {
   buildEndlessMutatorLoadout,
   getMutatorPresetRoll,
+  resolveMutatorSelection,
   selectEndlessMutators,
+  type MutatorSelectionInput,
 } from '../sim/meta/mutators.ts';
 import { evaluateLiveLevelChallenges, RunObserver } from '../sim/meta/runObserver.ts';
 import type {
+  AchievementDef,
   AchievementStatus,
   AchievementSummary,
   AllChallengeProgress,
   AllIslandMastery,
+  ChallengeDef,
   DailyChallengeSpec,
   DailyHistoryEntry,
   DailyStatus,
@@ -166,9 +173,11 @@ export class MetaSession {
           previousBestEndlessScore: this.runStartBestEndlessScore,
         });
         this.collectRunAchievements(outcome.newlyUnlockedAchievementIds);
+        const unlockedIds = [...this.runUnlockedAchievementIds];
         this.lastRunOutcome = {
           ...outcome,
-          newlyUnlockedAchievementIds: [...this.runUnlockedAchievementIds],
+          newlyUnlockedAchievementIds: unlockedIds,
+          newlyUnlockedAchievements: resolveAchievementDefs(unlockedIds),
         };
         this.runUnlockedAchievementIds = [];
         this.persist();
@@ -189,9 +198,11 @@ export class MetaSession {
           previousBestEndlessScore: this.runStartBestEndlessScore,
         });
         this.collectRunAchievements(outcome.newlyUnlockedAchievementIds);
+        const unlockedIds = [...this.runUnlockedAchievementIds];
         this.lastRunOutcome = {
           ...outcome,
-          newlyUnlockedAchievementIds: [...this.runUnlockedAchievementIds],
+          newlyUnlockedAchievementIds: unlockedIds,
+          newlyUnlockedAchievements: resolveAchievementDefs(unlockedIds),
         };
         this.runUnlockedAchievementIds = [];
         this.persist();
@@ -423,6 +434,22 @@ export class MetaSession {
     return getRecentDailyHistory(this.save, today, days, endDateStr ?? today, this.levels);
   }
 
+  getChallengeDef(challengeId: string): ChallengeDef | null {
+    return resolveChallengeDef(challengeId, this.levels);
+  }
+
+  getAchievementDef(achievementId: string): AchievementDef | null {
+    return getAchievementById(achievementId);
+  }
+
+  getTodayDailyDate(): string {
+    return this.getTodayDateFn();
+  }
+
+  resolveMutatorSelection(input: MutatorSelectionInput): ResolvedRunModifiers {
+    return resolveMutatorSelection(input);
+  }
+
   getActiveRunModifiers(): ResolvedRunModifiers | null {
     return this.observer ? this.observer.getModifiers() : null;
   }
@@ -470,6 +497,7 @@ export class MetaSession {
     this.save.achievementMilestones = next.achievementMilestones;
     this.save.stats = next.stats;
     this.save.bestEndlessScoresByLevelId = next.bestEndlessScoresByLevelId;
+    this.save.bestMutatedScoresByLevelId = next.bestMutatedScoresByLevelId;
     this.save.bestLivesByLevelId = next.bestLivesByLevelId;
     this.save.fastestWinSecByLevelId = next.fastestWinSecByLevelId;
     this.save.completedDailyDates = next.completedDailyDates;

@@ -14,13 +14,18 @@ import {
 import {
   describeActiveModifiers,
   getAllowedTowerTypes,
+  isAdvantageousModifiers,
   isTowerTypeAllowed,
+  mergeRunModifiers,
+  resolveRunModifiers,
 } from '../../src/sim/meta/modifiers.ts';
 import {
   buildEndlessMutatorLoadout,
+  computeCampaignRunScore,
   computeEndlessScore,
   getMutatorPresetRoll,
   hashSeedString,
+  resolveMutatorSelection,
   selectEndlessMutators,
 } from '../../src/sim/meta/mutators.ts';
 import { RunObserver } from '../../src/sim/meta/runObserver.ts';
@@ -461,5 +466,40 @@ describe('Daily challenge pure date-seeded generator', () => {
     expect(world.outcome).toBe('won');
     expect(obs.verifyEconomyIntegrity(world.gold, world.lives)).toBe(true);
     obs.dispose();
+  });
+
+  it('resolves mutator selections uniformly, preserves disjoint empty arsenals, and computes campaign scores', () => {
+    // Disjoint allowedTowerTypes intersection stays empty even after re-resolving
+    const disjoint = mergeRunModifiers(
+      { allowedTowerTypes: ['archer'] },
+      { allowedTowerTypes: ['cannon'] },
+    );
+    expect(disjoint.allowedTowerTypes).toEqual([]);
+    const reResolved = resolveRunModifiers(disjoint);
+    expect(reResolved.allowedTowerTypes).toEqual([]);
+    expect(getAllowedTowerTypes(reResolved)).toEqual([]);
+    expect(isTowerTypeAllowed('archer', reResolved)).toBe(false);
+    expect(describeActiveModifiers(reResolved)[0]?.label).toBe('No Towers Allowed');
+
+    // resolveMutatorSelection supports presetId, seed, mutator ID list, and raw modifiers
+    const fromPreset = resolveMutatorSelection({ presetId: 'iron-skies' });
+    expect(fromPreset.activeMutatorIds).toEqual(['iron_clad', 'sky_swarm']);
+    expect(fromPreset.scoreMultiplier).toBe(1.6);
+
+    const fromIds = resolveMutatorSelection(['swift_march', 'titan_tide']);
+    expect(fromIds.activeMutatorIds).toEqual(['swift_march', 'titan_tide']);
+
+    const fromSeed1 = resolveMutatorSelection({ seed: 'weekly-alpha', count: 2 });
+    const fromSeed2 = resolveMutatorSelection({ seed: 'weekly-alpha', count: 2 });
+    expect(fromSeed1).toEqual(fromSeed2);
+    expect(() => resolveMutatorSelection({ presetId: 'does-not-exist' })).toThrow(RangeError);
+
+    expect(isAdvantageousModifiers(fromPreset)).toBe(false);
+    expect(isAdvantageousModifiers(resolveRunModifiers({ towerCostMultiplier: 0.8 }))).toBe(true);
+
+    // Campaign score combines wave/kill base * multiplier + 25 per remaining life
+    expect(computeCampaignRunScore(10, 80, 18, 1.5)).toBe(
+      Math.round((10 * 150 + 80 * 2) * 1.5) + 18 * 25,
+    );
   });
 });

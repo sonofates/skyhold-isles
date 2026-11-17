@@ -44,7 +44,10 @@ function pickTowerRestriction(
 ): { restriction: DailyTowerRestriction; modifiers: RunModifiers } {
   const available = TOWER_TYPES.filter((t) => !alreadyForbidden.includes(t));
   const antiAirAvailable = available.filter((t) => TOWER_DEFS[t].hitsFlyers);
-  const antiAirDpsAvailable = antiAirAvailable.filter((t) => TOWER_DEFS[t].tiers[0].damage >= 15);
+  const antiAirDpsAvailable = antiAirAvailable.filter((t) => {
+    const t1 = TOWER_DEFS[t].tiers[0];
+    return t1.damage >= 15 || t1.damage * t1.fireRate >= 20;
+  });
   const primaryAntiAirPool =
     antiAirDpsAvailable.length > 0 ? antiAirDpsAvailable : antiAirAvailable;
 
@@ -99,7 +102,11 @@ function pickTowerRestriction(
   // and (when armored/heroic waves demand it) at least 1 heavy anti-armor/splash tower.
   const targetSize = Math.min(3, available.length);
   const chosen: TowerType[] = [rng.pick(primaryAntiAirPool)];
-  if (options?.requireArmorBreaker && chosen.length < targetSize) {
+  if (
+    options?.requireArmorBreaker &&
+    chosen.length < targetSize &&
+    !chosen.some((t) => TOWER_DEFS[t].tiers[0].damage >= 35)
+  ) {
     const armorBreakers = available.filter(
       (t) => !chosen.includes(t) && TOWER_DEFS[t].tiers[0].damage >= 35,
     );
@@ -156,7 +163,11 @@ export function generateDailyChallenge(
     wave.groups.some((grp) => {
       const def = ENEMY_DEFS[grp.enemyType];
       if (!def) return false;
-      return def.livesCost >= 4 || (def.armor >= 5 && grp.count >= 5);
+      return (
+        def.livesCost >= 3 ||
+        (def.armor >= 5 && grp.count >= 5) ||
+        (def.armor >= 4 && def.maxHp >= 400)
+      );
     }),
   );
 

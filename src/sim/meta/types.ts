@@ -195,6 +195,7 @@ export interface IslandMasteryStatus {
   readonly challengeTotal: number;
   readonly bestEndlessWave: number;
   readonly bestEndlessScore: number;
+  readonly bestMutatedScore: number;
   readonly bestLivesRemaining: number;
   readonly fastestWinSec: number | null;
   readonly mastered: boolean;
@@ -315,15 +316,19 @@ export interface RunMetaOutcome {
   readonly isDaily: boolean;
   readonly newlyCompletedChallengeIds: readonly string[];
   readonly completedChallengeIds: readonly string[];
+  readonly newlyCompletedChallenges: readonly ChallengeDef[];
   readonly newlyUnlockedAchievementIds: readonly string[];
+  readonly newlyUnlockedAchievements: readonly AchievementDef[];
   readonly endlessScore: EndlessScoreBreakdown | null;
   readonly dailyScore: number | null;
+  readonly mutatedScore: number | null;
   readonly runDurationSec: number;
   readonly isNewBestLives: boolean;
   readonly isNewFastestWin: boolean;
   readonly isNewBestEndlessWave: boolean;
   readonly isNewBestEndlessScore: boolean;
   readonly isNewBestDailyScore: boolean;
+  readonly isNewBestMutatedScore: boolean;
 }
 
 /** Versioned persisted meta save format (v2), backward-compatible with v1 ProgressData. */
@@ -341,6 +346,7 @@ export interface MetaSaveData {
   };
   stats: LifetimeStats;
   bestEndlessScoresByLevelId: Record<string, number>;
+  bestMutatedScoresByLevelId: Record<string, number>;
   bestLivesByLevelId: Record<string, number>;
   fastestWinSecByLevelId: Record<string, number>;
   completedDailyDates: string[];
