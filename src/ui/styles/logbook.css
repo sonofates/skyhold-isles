@@ -239,6 +239,29 @@
   outline-offset: 2px;
 }
 
+/* Narrow phones: the island-select header holds back, title, Workshop, this pill (and, after the
+   CONTENT merge, a Codex chip) — drop the "/ 39" and tighten gaps so nothing is pushed off-screen. */
+@media (max-width: 520px) {
+  .level-select-header {
+    gap: 8px;
+  }
+
+  .level-select-header .level-select-title {
+    min-width: 0;
+    font-size: 32px;
+  }
+
+  .level-select-header .lb-open-pill {
+    flex: none;
+    padding: 5px 12px 9px 10px;
+    white-space: nowrap;
+  }
+
+  .level-select-header .lb-open-pill .menu-stars-of {
+    display: none;
+  }
+}
+
 @media (max-width: 420px) {
   .lb-row {
     grid-template-columns: 22px minmax(0, 1fr) auto 30px 36px;
