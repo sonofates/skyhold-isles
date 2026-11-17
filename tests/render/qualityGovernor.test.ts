@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { QualityGovernor } from '../../src/render/qualityGovernor.ts';
+import { DEFAULT_GOVERNOR_OPTIONS, QualityGovernor } from '../../src/render/qualityGovernor.ts';
+
+const W = DEFAULT_GOVERNOR_OPTIONS.windowFrames;
+const WARM = DEFAULT_GOVERNOR_OPTIONS.warmupFrames;
 
 /** Feed `n` frames of `ms` each; returns the tier changes seen (in order). */
 function feed(g: QualityGovernor, n: number, ms: number, jitter = 0): string[] {
@@ -22,17 +25,17 @@ describe('QualityGovernor', () => {
   it('steps down after two consecutive slow windows, one tier at a time', () => {
     const g = new QualityGovernor('high');
     // warmup 45 + 2 windows of 90 frames at 26 ms
-    const ch = feed(g, 45 + 90 * 2, 26, 4);
+    const ch = feed(g, WARM + W * 2, 26, 4);
     expect(ch).toEqual(['medium']);
     // keeps being slow -> next step down after another two windows
-    expect(feed(g, 45 + 90 * 2, 26, 4)).toEqual(['low']);
+    expect(feed(g, WARM + W * 2, 26, 4)).toEqual(['low']);
     expect(feed(g, 2000, 26, 4)).toEqual([]);
     expect(g.tier).toBe('low');
   });
 
   it('steps down immediately on a very slow window', () => {
     const g = new QualityGovernor('high');
-    expect(feed(g, 45 + 90, 55, 6)).toEqual(['medium']);
+    expect(feed(g, WARM + W, 55, 6)).toEqual(['medium']);
   });
 
   it('does not react to isolated spikes', () => {
@@ -54,15 +57,15 @@ describe('QualityGovernor', () => {
   it('steps up after sustained smooth play', () => {
     const g = new QualityGovernor('low');
     // 20 s of 16.7 ms frames = 1200 frames (+ warmup + window rounding)
-    const ch = feed(g, 45 + 90 * 16, 16.7);
+    const ch = feed(g, WARM + W * 24, 16.7);
     expect(ch).toEqual(['medium']);
   });
 
   it('locks out a tier after a bounce (up then back down within the window)', () => {
     const g = new QualityGovernor('medium');
-    expect(feed(g, 45 + 90 * 16, 16.7)).toEqual(['high']);
+    expect(feed(g, WARM + W * 24, 16.7)).toEqual(['high']);
     // high is too heavy: slow again right away
-    expect(feed(g, 45 + 90 * 2, 28, 4)).toEqual(['medium']);
+    expect(feed(g, WARM + W * 2, 28, 4)).toEqual(['medium']);
     expect(g.maxTier).toBe('medium');
     // long smooth stretch must never climb back to high
     expect(feed(g, 20000, 16.7)).toEqual([]);
@@ -71,7 +74,7 @@ describe('QualityGovernor', () => {
 
   it('only climbs while below the ceiling and limits retry attempts', () => {
     const g = new QualityGovernor('low', { maxUpAttempts: 1 });
-    expect(feed(g, 45 + 90 * 16, 16.7)).toEqual(['medium']);
+    expect(feed(g, WARM + W * 24, 16.7)).toEqual(['medium']);
     expect(feed(g, 20000, 16.7)).toEqual([]);
   });
 
@@ -80,12 +83,12 @@ describe('QualityGovernor', () => {
     g.setActive(false);
     expect(feed(g, 3000, 60)).toEqual([]);
     g.setActive(true);
-    expect(feed(g, 45 + 90, 60)).toEqual(['medium']);
+    expect(feed(g, WARM + W, 60)).toEqual(['medium']);
   });
 
   it('reset() re-arms the warm-up so a resume hitch is ignored', () => {
     const g = new QualityGovernor('high');
-    feed(g, 45 + 80, 16.7);
+    feed(g, WARM + 50, 16.7);
     g.reset();
     expect(feed(g, 40, 90)).toEqual([]);
   });

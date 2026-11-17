@@ -35,14 +35,14 @@ export interface GovernorOptions {
 }
 
 export const DEFAULT_GOVERNOR_OPTIONS: GovernorOptions = {
-  windowFrames: 90,
+  windowFrames: 60,
   slowMs: 22,
   verySlowMs: 40,
   downWindows: 2,
   smoothMs: 18.5,
   upStableSec: 20,
   bounceSec: 25,
-  warmupFrames: 45,
+  warmupFrames: 40,
   clipMs: 60,
   maxUpAttempts: 3,
 };
