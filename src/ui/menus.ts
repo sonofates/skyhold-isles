@@ -7,6 +7,7 @@ import { TOWER_ICON_SVGS, UI_ICON_SVGS } from './icons.ts';
 import { affordableUpgradeCount, WORKSHOP_ICON_SVG } from './workshop.ts';
 import { isIslandMastered } from '../game/progression.ts';
 import { DAILY_ICON_SVG, dailyPillState } from './daily.ts';
+import './styles/levelSelect.css';
 
 /** Small crown for islands with 3 stars and every challenge won. */
 export const MASTERED_CROWN_SVG = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8L7.5 12L12 5L16.5 12L21 8L19 18H5L3 8Z" fill="#f6bd41" stroke="#1b1936" stroke-width="2" stroke-linejoin="round"/><rect x="5" y="18" width="14" height="2.6" fill="#b8801c" stroke="#1b1936" stroke-width="1.6"/></svg>`;
@@ -295,7 +296,14 @@ export class LevelSelectOverlay {
   }
 
   setOpen(open: boolean, progress?: ProgressData): void {
+    const wasHidden = this.rootEl.classList.contains('hidden');
     this.rootEl.classList.toggle('hidden', !open);
+    // Entrance only when the screen appears, not on refreshes while it is already open.
+    if (open && wasHidden) {
+      this.rootEl.classList.remove('ls-enter');
+      void this.rootEl.offsetWidth;
+      this.rootEl.classList.add('ls-enter');
+    }
     if (!open || !progress) return;
 
     const totalStars = progress.bestStars.reduce((a, b) => a + b, 0);

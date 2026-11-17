@@ -100,6 +100,9 @@ Machine load from the other agents can make desktop shots slow (timeout raised t
       (`.tune/pairs.ts`, greedy + MAXED Workshop): strong+strong pairs lost on L3/L7/L9/L13 almost
       always (e.g. L9 ironTide+galeForce L@12, ironTide+championHost L@8), while strong+mild
       (silentSkies+ironTide) still won L9 W-20 / L5 W-0. Tested over 400 days.
+- [x] Island-select entrance (styles/levelSelect.css): header drops in, card row rises — only when
+      the screen opens (not on refreshes); off under prefers-reduced-motion. Logbook tabs: roving
+      tabindex + arrow keys. Champion Host gets a rank-chevron icon.
 - [x] Round-2 review (subagent, read-only) → 3 findings, all fixed:
       1. Save-code merge dropped a running Daily streak continued on another device →
          `mergeDaily` chains overlapping/adjacent runs (symmetric, idempotent; total stays max —
