@@ -99,3 +99,6 @@ Clean tree, `main` still merged. Checked the campaign branch's v2 `ProgressData`
 
 ## Round 7 (verification)
 Clean tree, `main` merged. tsc / lint / 430 tests / sim:balance (16 islands, all in window) green. No code changes; backlog 1–5 complete.
+
+## Round 8 (verification)
+Clean tree, `main` merged (no new main commits). tsc / lint / 430 tests green. No code changes; backlog 1–5 complete, nothing pending.
