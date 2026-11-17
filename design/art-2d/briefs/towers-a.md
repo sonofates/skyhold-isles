@@ -1,0 +1,4 @@
+TOWERS (batch A). Each tower stands on the SAME round stone base/footprint as the attached tower-archer.png (so all towers fit the same round build plot), same 3/4 view and scale. Tier 1 = modest, tier 2 = taller/reinforced, tier 3 = impressive fortress version with gold trim; tiers must be clearly distinguishable at a glance.
+- ../raw/tower-frost-t1.png, ../raw/tower-frost-t2.png, ../raw/tower-frost-t3.png — FROST tower: pale stone and ice, a glowing ice crystal core, snowflake sigils, frosty mist (blue-white).
+- ../raw/tower-mortar-t1.png, ../raw/tower-mortar-t2.png, ../raw/tower-mortar-t3.png — MORTAR tower: squat stone pit with a huge upward-angled iron mortar, ammo crates, smoke.
+- ../raw/tower-ballista-t1.png, ../raw/tower-ballista-t2.png, ../raw/tower-ballista-t3.png — BALLISTA tower: wooden siege platform with a giant crossbow launcher loaded with a long iron-tipped bolt.

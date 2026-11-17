@@ -1,0 +1,5 @@
+ENEMIES (batch A). Each is ONE full-body character in a mid-stride WALKING pose facing DOWN-RIGHT toward the camera (3/4 front view). Silhouettes must read clearly at 40 px tall, and each enemy must look different from the others (shape, colour accent). Faction: scrappy goblin-like sky raiders and their beasts and constructs (the attached raider and brute belong to the same faction).
+- ../raw/enemy-runner.png — "Zephyr Runner": lean, fast goblin scout leaning forward, wind-blue scarf streaming back, flight goggles, light leather, short spear.
+- ../raw/enemy-healer.png — "Grove Mender": small hooded goblin druid in a leafy green cloak, holding a staff topped with a glowing green lantern.
+- ../raw/enemy-splitter.png — "Cinder Splitling": stocky ember construct made of cracked charcoal plates with glowing orange lava seams, clearly made of two halves joined down the middle.
+- ../raw/enemy-warden.png — "Aegis Warden": armoured goblin shieldbearer carrying a tall tower shield with a glowing blue rune.
