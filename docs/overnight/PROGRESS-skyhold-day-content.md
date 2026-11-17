@@ -102,3 +102,6 @@ Clean tree, `main` merged. tsc / lint / 430 tests / sim:balance (16 islands, all
 
 ## Round 8 (verification)
 Clean tree, `main` merged (no new main commits). tsc / lint / 430 tests green. No code changes; backlog 1–5 complete, nothing pending.
+
+## Round 9 (verification)
+Clean tree, `main` merged (no new main commits). tsc / 430 tests green. No code changes; backlog 1–5 complete, nothing pending.
