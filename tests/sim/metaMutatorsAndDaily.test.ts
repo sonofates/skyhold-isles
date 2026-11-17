@@ -804,5 +804,15 @@ describe('Daily challenge pure date-seeded generator', () => {
       currentStreak: 2,
       bestStreak: 3,
     });
+
+    // Fractional flyerCountMultiplier rounds cleanly to an integer >= 1
+    const smallFlyerMod = resolveRunModifiers({ flyerCountMultiplier: 1.2 });
+    expect(smallFlyerMod.flyerCountMultiplier).toBe(1);
+    expect(hasActiveRunModifiers(smallFlyerMod)).toBe(false);
+    expect(describeActiveModifiers(smallFlyerMod)).toEqual([]);
+
+    const roundedFlyerMod = resolveRunModifiers({ flyerCountMultiplier: 2.4 });
+    expect(roundedFlyerMod.flyerCountMultiplier).toBe(2);
+    expect(describeActiveModifiers(roundedFlyerMod)[0]?.label).toBe('2x Flyers');
   });
 });

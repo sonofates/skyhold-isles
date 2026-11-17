@@ -101,8 +101,9 @@ export function evaluateLiveChallengeState(
       progressLabel: !telemetry.eligibleForChallenges ? 'Modifier/Debug ineligible' : 'Defeat',
     };
   }
+  const safeLives = Number.isFinite(livesRemaining) ? Math.max(0, Math.floor(livesRemaining)) : 0;
   if (outcome === 'won') {
-    const passed = evaluateChallengeCondition(cond, telemetry, true, livesRemaining);
+    const passed = evaluateChallengeCondition(cond, telemetry, true, safeLives);
     return {
       def,
       state: passed ? 'completed' : 'failed',
@@ -116,12 +117,12 @@ export function evaluateLiveChallengeState(
 
   switch (cond.kind) {
     case 'noLivesLost':
-      failed = telemetry.livesLost > 0 || livesRemaining < BALANCE.startingLives;
-      progressLabel = failed ? `${telemetry.livesLost} lost` : `${livesRemaining}/${BALANCE.startingLives} lives`;
+      failed = telemetry.livesLost > 0 || safeLives < BALANCE.startingLives;
+      progressLabel = failed ? `${telemetry.livesLost} lost` : `${safeLives}/${BALANCE.startingLives} lives`;
       break;
     case 'minLivesRemaining':
-      failed = livesRemaining < cond.minLives;
-      progressLabel = `${livesRemaining}/${cond.minLives}+ lives`;
+      failed = safeLives < cond.minLives;
+      progressLabel = `${safeLives}/${cond.minLives}+ lives`;
       break;
     case 'forbiddenTowerTypes': {
       const builtForbidden = cond.forbidden.reduce(

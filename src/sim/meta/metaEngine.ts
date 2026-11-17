@@ -145,6 +145,35 @@ function sanitizeDailyScoreRecord(raw: unknown): Record<string, number> {
   return out;
 }
 
+/** Extracts trimmed valid `YYYY-MM-DD` strings from a date array cleanly. */
+export function getValidDailyDateSet(dates: unknown): Set<string> {
+  const uniqueDates = new Set<string>();
+  if (!Array.isArray(dates)) return uniqueDates;
+  for (let i = 0; i < dates.length; i++) {
+    const d = dates[i];
+    if (typeof d === 'string' && isValidDateString(d)) {
+      uniqueDates.add(d.trim());
+    }
+  }
+  return uniqueDates;
+}
+
+/** Looks up the personal-best score for a canonical daily date, handling padded keys safely. */
+export function getDailyBestScore(
+  scores: Readonly<Record<string, number>> | undefined,
+  dateStr: string,
+): number {
+  const target = dateStr.trim();
+  if (!scores || !isValidDateString(target)) return 0;
+  let best = asNonNegInt(scores[target], 0);
+  for (const [key, val] of Object.entries(scores)) {
+    if (key.trim() === target) {
+      best = Math.max(best, asNonNegInt(val, 0));
+    }
+  }
+  return best;
+}
+
 function sanitizeBoolRecord(raw: unknown): Record<string, boolean> {
   const out: Record<string, boolean> = {};
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return out;
@@ -300,15 +329,7 @@ export function migrateToMetaSave(
       };
     }
 
-    if (Array.isArray(obj.completedDailyDates)) {
-      const uniqueDates = new Set<string>();
-      for (const d of obj.completedDailyDates) {
-        if (typeof d === 'string' && isValidDateString(d)) {
-          uniqueDates.add(d.trim());
-        }
-      }
-      base.completedDailyDates = [...uniqueDates].sort();
-    }
+    base.completedDailyDates = [...getValidDailyDateSet(obj.completedDailyDates)].sort();
 
     base.bestEndlessScoresByLevelId = sanitizeCountRecord(obj.bestEndlessScoresByLevelId);
     base.bestMutatedScoresByLevelId = sanitizeCountRecord(obj.bestMutatedScoresByLevelId);
@@ -399,34 +420,44 @@ export function applyTelemetryDeltaToStats(
   const d = (curr: number, old: number | undefined): number => Math.max(0, curr - (old ?? 0));
 
   save.stats.totalPlayTimeSec = +(
-    save.stats.totalPlayTimeSec + d(current.simTimeSec, prev?.simTimeSec)
+    asNonNegFloat(save.stats.totalPlayTimeSec) + d(current.simTimeSec, prev?.simTimeSec)
   ).toFixed(3);
-  save.stats.wavesCleared += d(current.wavesCompleted, prev?.wavesCompleted);
-  save.stats.earlyWavesCalled += d(current.earlyWavesCalled, prev?.earlyWavesCalled);
-  save.stats.enemiesDefeatedTotal += d(current.enemiesKilledTotal, prev?.enemiesKilledTotal);
-  save.stats.flyingEnemiesDefeated += d(
-    current.flyingEnemiesKilled,
-    prev?.flyingEnemiesKilled,
-  );
-  save.stats.towersBuiltTotal += d(current.towersBuilt, prev?.towersBuilt);
-  save.stats.towersSoldTotal += d(current.towersSold, prev?.towersSold);
-  save.stats.goldEarnedTotal += d(current.goldEarned, prev?.goldEarned);
-  save.stats.goldSpentTotal += d(current.grossGoldSpent, prev?.grossGoldSpent);
-  save.stats.abilitiesCastTotal += d(current.abilitiesCastTotal, prev?.abilitiesCastTotal);
-  save.stats.meteorsCast += d(current.meteorsCast, prev?.meteorsCast);
-  save.stats.overchargesCast += d(current.overchargesCast, prev?.overchargesCast);
-  save.stats.towersCleansed += d(current.towersCleansed, prev?.towersCleansed);
-  save.stats.towersUpgradedToTier3 += d(
-    current.towersUpgradedToTier3,
-    prev?.towersUpgradedToTier3,
-  );
-  save.stats.towersUpgradedTotal += d(current.towersUpgraded, prev?.towersUpgraded);
+  save.stats.wavesCleared = asNonNegInt(save.stats.wavesCleared) + d(current.wavesCompleted, prev?.wavesCompleted);
+  save.stats.earlyWavesCalled =
+    asNonNegInt(save.stats.earlyWavesCalled) + d(current.earlyWavesCalled, prev?.earlyWavesCalled);
+  save.stats.enemiesDefeatedTotal =
+    asNonNegInt(save.stats.enemiesDefeatedTotal) +
+    d(current.enemiesKilledTotal, prev?.enemiesKilledTotal);
+  save.stats.flyingEnemiesDefeated =
+    asNonNegInt(save.stats.flyingEnemiesDefeated) +
+    d(current.flyingEnemiesKilled, prev?.flyingEnemiesKilled);
+  save.stats.towersBuiltTotal =
+    asNonNegInt(save.stats.towersBuiltTotal) + d(current.towersBuilt, prev?.towersBuilt);
+  save.stats.towersSoldTotal =
+    asNonNegInt(save.stats.towersSoldTotal) + d(current.towersSold, prev?.towersSold);
+  save.stats.goldEarnedTotal =
+    asNonNegInt(save.stats.goldEarnedTotal) + d(current.goldEarned, prev?.goldEarned);
+  save.stats.goldSpentTotal =
+    asNonNegInt(save.stats.goldSpentTotal) + d(current.grossGoldSpent, prev?.grossGoldSpent);
+  save.stats.abilitiesCastTotal =
+    asNonNegInt(save.stats.abilitiesCastTotal) +
+    d(current.abilitiesCastTotal, prev?.abilitiesCastTotal);
+  save.stats.meteorsCast = asNonNegInt(save.stats.meteorsCast) + d(current.meteorsCast, prev?.meteorsCast);
+  save.stats.overchargesCast =
+    asNonNegInt(save.stats.overchargesCast) + d(current.overchargesCast, prev?.overchargesCast);
+  save.stats.towersCleansed =
+    asNonNegInt(save.stats.towersCleansed) + d(current.towersCleansed, prev?.towersCleansed);
+  save.stats.towersUpgradedToTier3 =
+    asNonNegInt(save.stats.towersUpgradedToTier3) +
+    d(current.towersUpgradedToTier3, prev?.towersUpgradedToTier3);
+  save.stats.towersUpgradedTotal =
+    asNonNegInt(save.stats.towersUpgradedTotal) + d(current.towersUpgraded, prev?.towersUpgraded);
 
   for (const [enemyType, count] of Object.entries(current.enemiesKilledByType)) {
     const delta = d(count, prev?.enemiesKilledByType[enemyType]);
     if (delta > 0) {
       save.stats.enemiesDefeatedByType[enemyType] =
-        (save.stats.enemiesDefeatedByType[enemyType] ?? 0) + delta;
+        asNonNegInt(save.stats.enemiesDefeatedByType[enemyType]) + delta;
     }
   }
 
@@ -434,7 +465,7 @@ export function applyTelemetryDeltaToStats(
     const delta = d(count, prev?.towersBuiltByType[towerType]);
     if (delta > 0) {
       save.stats.towersBuiltByType[towerType] =
-        (save.stats.towersBuiltByType[towerType] ?? 0) + delta;
+        asNonNegInt(save.stats.towersBuiltByType[towerType]) + delta;
     }
   }
 
@@ -442,7 +473,7 @@ export function applyTelemetryDeltaToStats(
     current.eligibleForChallenges &&
     current.endlessEntered &&
     current.maxWaveReached > current.storyWaveCount &&
-    current.maxWaveReached > save.stats.bestEndlessWaveOverall
+    current.maxWaveReached > asNonNegInt(save.stats.bestEndlessWaveOverall)
   ) {
     save.stats.bestEndlessWaveOverall = current.maxWaveReached;
   }
@@ -513,11 +544,12 @@ function getAchievementCurrentValue(
     case 'daily_victor':
       return Math.max(
         asNonNegInt(save.stats.dailyChallengesCompleted),
-        save.completedDailyDates.length,
+        getValidDailyDateSet(save.completedDailyDates).size,
       );
     case 'daily_streak_3': {
-      const refDate = save.completedDailyDates[save.completedDailyDates.length - 1] ?? '1970-01-01';
-      return computeDailyStreaks(save.completedDailyDates, refDate).bestStreak;
+      const validDates = [...getValidDailyDateSet(save.completedDailyDates)].sort();
+      const refDate = validDates[validDates.length - 1] ?? '1970-01-01';
+      return computeDailyStreaks(validDates, refDate).bestStreak;
     }
     default:
       return 0;
@@ -561,16 +593,16 @@ export function recordEndlessRunStats(
     save.campaign.bestEndlessWaves.push(0);
   }
   save.campaign.bestEndlessWaves[level.index] = Math.max(
-    save.campaign.bestEndlessWaves[level.index] ?? 0,
+    asNonNegInt(save.campaign.bestEndlessWaves[level.index]),
     telemetry.maxWaveReached,
   );
-  if (telemetry.maxWaveReached > save.stats.bestEndlessWaveOverall) {
+  if (telemetry.maxWaveReached > asNonNegInt(save.stats.bestEndlessWaveOverall)) {
     save.stats.bestEndlessWaveOverall = telemetry.maxWaveReached;
   }
   const endlessWavesCleared = telemetry.endlessWavesCompleted;
   if (
     (telemetry.hasRunModifiers || telemetry.activeMutatorIds.length > 0) &&
-    endlessWavesCleared > save.achievementMilestones.bestMutatedEndlessWavesCleared
+    endlessWavesCleared > asNonNegInt(save.achievementMilestones.bestMutatedEndlessWavesCleared)
   ) {
     save.achievementMilestones.bestMutatedEndlessWavesCleared = endlessWavesCleared;
   }
@@ -580,10 +612,10 @@ export function recordEndlessRunStats(
     scoreMultiplier,
   );
   save.bestEndlessScoresByLevelId[level.id] = Math.max(
-    save.bestEndlessScoresByLevelId[level.id] ?? 0,
+    asNonNegInt(save.bestEndlessScoresByLevelId[level.id]),
     endlessScore.totalScore,
   );
-  if (endlessScore.totalScore > save.stats.bestEndlessScoreOverall) {
+  if (endlessScore.totalScore > asNonNegInt(save.stats.bestEndlessScoreOverall)) {
     save.stats.bestEndlessScoreOverall = endlessScore.totalScore;
   }
   return endlessScore;
@@ -637,28 +669,30 @@ export function recordRunCompletion(
   let mutatedScore: number | null = null;
   let isNewBestMutatedScore = false;
 
-  const prevEndlessWave =
-    params.previousBestEndlessWave ?? (save.campaign.bestEndlessWaves[level.index] ?? 0);
-  const prevEndlessScore =
-    params.previousBestEndlessScore ?? (save.bestEndlessScoresByLevelId[level.id] ?? 0);
+  const prevEndlessWave = asNonNegInt(
+    params.previousBestEndlessWave ?? save.campaign.bestEndlessWaves[level.index],
+  );
+  const prevEndlessScore = asNonNegInt(
+    params.previousBestEndlessScore ?? save.bestEndlessScoresByLevelId[level.id],
+  );
   const runDurationSec = Number.isFinite(telemetry.simTimeSec)
     ? +Math.max(0, telemetry.simTimeSec).toFixed(1)
     : 0;
 
   if (won) {
     if (telemetry.eligibleForChallenges) {
-      save.stats.gamesWon++;
+      save.stats.gamesWon = asNonNegInt(save.stats.gamesWon) + 1;
       if (!isDaily && stars > 0) {
         while (save.campaign.bestStars.length <= level.index) {
           save.campaign.bestStars.push(0);
         }
         save.campaign.bestStars[level.index] = Math.max(
-          save.campaign.bestStars[level.index] ?? 0,
+          Math.min(3, asNonNegInt(save.campaign.bestStars[level.index])),
           stars,
         );
         if (level.index + 1 < levels.length) {
           save.campaign.unlockedLevelIndex = Math.max(
-            save.campaign.unlockedLevelIndex,
+            asNonNegInt(save.campaign.unlockedLevelIndex),
             level.index + 1,
           );
         }
@@ -667,13 +701,23 @@ export function recordRunCompletion(
         if (!hasModifiers) {
           const safeLives = Number.isFinite(livesRemaining) ? Math.floor(livesRemaining) : 0;
           const clampedLives = Math.max(0, Math.min(BALANCE.startingLives, safeLives));
-          if (clampedLives > (save.bestLivesByLevelId[level.id] ?? 0)) {
+          const prevBestLives = Math.min(
+            BALANCE.startingLives,
+            asNonNegInt(save.bestLivesByLevelId[level.id]),
+          );
+          if (clampedLives > prevBestLives) {
             save.bestLivesByLevelId[level.id] = clampedLives;
             isNewBestLives = true;
           }
           if (Number.isFinite(telemetry.simTimeSec) && telemetry.simTimeSec > 0) {
             const clearSec = Math.max(0.1, +telemetry.simTimeSec.toFixed(1));
-            const prevFastest = save.fastestWinSecByLevelId[level.id];
+            const rawPrevFastest = save.fastestWinSecByLevelId[level.id];
+            const prevFastest =
+              typeof rawPrevFastest === 'number' &&
+              Number.isFinite(rawPrevFastest) &&
+              rawPrevFastest > 0
+                ? rawPrevFastest
+                : undefined;
             if (prevFastest === undefined || clearSec < prevFastest) {
               save.fastestWinSecByLevelId[level.id] = clearSec;
               isNewFastestWin = true;
@@ -687,7 +731,7 @@ export function recordRunCompletion(
             params.scoreMultiplier ?? 1,
           );
           mutatedScore = score;
-          const prevMutatedBest = save.bestMutatedScoresByLevelId[level.id] ?? 0;
+          const prevMutatedBest = asNonNegInt(save.bestMutatedScoresByLevelId[level.id]);
           if (score > prevMutatedBest) {
             isNewBestMutatedScore = true;
           }
@@ -696,7 +740,7 @@ export function recordRunCompletion(
       }
 
       if (telemetry.livesLost === 0 && livesRemaining >= BALANCE.startingLives) {
-        save.stats.perfectClears++;
+        save.stats.perfectClears = asNonNegInt(save.stats.perfectClears) + 1;
         save.achievementMilestones.wonNoLivesLost = true;
       }
       if (telemetry.minCombatSpeed !== null && telemetry.minCombatSpeed >= 3) {
@@ -721,7 +765,7 @@ export function recordRunCompletion(
       }
     }
   } else if (!telemetry.endlessEntered && telemetry.eligibleForChallenges) {
-    save.stats.gamesLost++;
+    save.stats.gamesLost = asNonNegInt(save.stats.gamesLost) + 1;
   }
   const safeWon = asNonNegInt(save.stats.gamesWon);
   const safeLost = asNonNegInt(save.stats.gamesLost);
@@ -751,14 +795,15 @@ export function recordRunCompletion(
       params.scoreMultiplier ?? 1,
     );
     dailyScore = score;
-    const prevDailyBest = save.dailyBestScores[normalizedDailyDate] ?? 0;
+    const prevDailyBest = getDailyBestScore(save.dailyBestScores, normalizedDailyDate);
     if (score > prevDailyBest) {
       isNewBestDailyScore = true;
     }
-    if (!save.completedDailyDates.includes(normalizedDailyDate)) {
-      save.completedDailyDates.push(normalizedDailyDate);
-      save.completedDailyDates.sort();
-      save.stats.dailyChallengesCompleted++;
+    const completedDateSet = getValidDailyDateSet(save.completedDailyDates);
+    if (!completedDateSet.has(normalizedDailyDate)) {
+      completedDateSet.add(normalizedDailyDate);
+      save.completedDailyDates = [...completedDateSet].sort();
+      save.stats.dailyChallengesCompleted = asNonNegInt(save.stats.dailyChallengesCompleted) + 1;
     }
     save.dailyBestScores[normalizedDailyDate] = Math.max(prevDailyBest, score);
   }
@@ -996,7 +1041,7 @@ export function getMetaCareerRank(
   for (let i = 0; i < ACHIEVEMENTS.length; i++) {
     if (save.unlockedAchievements[ACHIEVEMENTS[i].id] === true) achievementsUnlocked++;
   }
-  const dailyBonus = Math.min(20, save.completedDailyDates.length * 2);
+  const dailyBonus = Math.min(20, getValidDailyDateSet(save.completedDailyDates).size * 2);
   const points = campaignStars + challengeStars * 2 + achievementsUnlocked * 2 + dailyBonus;
 
   let rankIndex = 0;
@@ -1169,7 +1214,8 @@ export function getMetaCareerSummary(
     }
   }
 
-  const streaks = computeDailyStreaks(save.completedDailyDates, todayDateStr);
+  const validDailyDates = getValidDailyDateSet(save.completedDailyDates);
+  const streaks = computeDailyStreaks([...validDailyDates], todayDateStr);
   const won = asNonNegInt(save.stats.gamesWon);
   const lost = asNonNegInt(save.stats.gamesLost);
   const completedOutcomes = won + lost;
@@ -1186,7 +1232,7 @@ export function getMetaCareerSummary(
     totalIslands: levels.length,
     achievementsUnlocked,
     achievementsTotal: ACHIEVEMENTS.length,
-    dailyCompletedTotal: save.completedDailyDates.length,
+    dailyCompletedTotal: validDailyDates.size,
     dailyCurrentStreak: streaks.currentStreak,
     dailyBestStreak: streaks.bestStreak,
     winRatePct,
@@ -1271,9 +1317,7 @@ export function getRecentDailyHistory(
   endDateStr: string = todayDateStr,
   levels: readonly LevelDef[] = LEVELS,
 ): readonly DailyHistoryEntry[] {
-  const completedSet = new Set(
-    save.completedDailyDates.map((d) => (typeof d === 'string' ? d.trim() : '')).filter(Boolean),
-  );
+  const completedSet = getValidDailyDateSet(save.completedDailyDates);
   const normalizedToday = todayDateStr.trim();
   const scoreByDate = sanitizeDailyScoreRecord(save.dailyBestScores);
   return getRecentDailySpecs(endDateStr, days, levels).map((spec) => ({
@@ -1336,11 +1380,10 @@ export function mergeMetaSaves(
     if (v === true && !IGNORED_RECORD_KEYS.has(k)) unlockedAchievements[k] = true;
   }
   const completedDailyDates = [
-    ...new Set(
-      [...base.completedDailyDates, ...incoming.completedDailyDates]
-        .filter((d): d is string => typeof d === 'string' && isValidDateString(d))
-        .map((d) => d.trim()),
-    ),
+    ...getValidDailyDateSet([
+      ...(Array.isArray(base.completedDailyDates) ? base.completedDailyDates : []),
+      ...(Array.isArray(incoming.completedDailyDates) ? incoming.completedDailyDates : []),
+    ]),
   ].sort();
 
   const merged: MetaSaveData = {

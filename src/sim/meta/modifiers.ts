@@ -44,7 +44,11 @@ export function resolveRunModifiers(modifiers?: RunModifiers | null): ResolvedRu
       typeof modifiers.enemyArmorBonus === 'number' && Number.isFinite(modifiers.enemyArmorBonus)
         ? Math.max(0, Math.round(modifiers.enemyArmorBonus))
         : 0,
-    flyerCountMultiplier: clampPositive(modifiers.flyerCountMultiplier, 1, 1),
+    flyerCountMultiplier:
+      typeof modifiers.flyerCountMultiplier === 'number' &&
+      Number.isFinite(modifiers.flyerCountMultiplier)
+        ? Math.max(1, Math.round(modifiers.flyerCountMultiplier))
+        : 1,
     goldRewardMultiplier: clampPositive(modifiers.goldRewardMultiplier, 1),
     startingGoldMultiplier: clampPositive(modifiers.startingGoldMultiplier, 1),
     towerCostMultiplier: clampPositive(modifiers.towerCostMultiplier, 1),

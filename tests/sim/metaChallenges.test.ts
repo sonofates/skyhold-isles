@@ -1028,6 +1028,23 @@ describe('RunObserver challenge condition tracking', () => {
     expect(speedDropLive.state).toBe('failed');
     expect(speedDropLive.progressLabel).toBe('Dropped to 2x');
 
+    // Non-finite livesRemaining sanitizes cleanly in live challenge evaluation
+    const nanLivesLive = evaluateLiveChallengeState(
+      {
+        id: 'test:sturdy',
+        levelId: level.id,
+        title: 'Sturdy',
+        description: 'Finish with 15+ lives.',
+        condition: { kind: 'minLivesRemaining', minLives: 15 },
+      },
+      peakObs.getTelemetry(),
+      Number.NaN,
+      'ongoing',
+      false,
+    );
+    expect(nanLivesLive.state).toBe('failed');
+    expect(nanLivesLive.progressLabel).toBe('0/15+ lives');
+
     peakObs.dispose();
     meta.dispose();
   });

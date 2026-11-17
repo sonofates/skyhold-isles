@@ -14,12 +14,14 @@ import {
   saveMetaSave,
 } from '../../src/platform/storage.ts';
 import {
+  applyTelemetryDeltaToStats,
   createDefaultMetaSave,
   getAchievements,
   getAllChallengeProgress,
   getChallengeStatus,
   getEnemyIntelStats,
   getIslandMasteryStatus,
+  getMetaCareerRank,
   getMetaCareerSummary,
   getRecentDailyHistory,
   getRecommendedNextGoal,
@@ -1308,6 +1310,20 @@ describe('MetaSession stats, achievements, challenges & daily persistence', () =
       completed: true,
       bestScore: 1450,
     });
+    expect(getMetaCareerSummary(dirtyCodexSave, '2026-11-17', LEVELS).dailyCompletedTotal).toBe(1);
+    expect(getMetaCareerRank(dirtyCodexSave, LEVELS).points).toBe(4);
+    const paddedDailyMeta = new MetaSession({
+      levels: LEVELS,
+      saveData: dirtyCodexSave,
+      onSave: () => {},
+      getTodayDate: () => '2026-11-16',
+    });
+    expect(paddedDailyMeta.getDailyStatus('2026-11-16')).toMatchObject({
+      completedToday: true,
+      bestScoreToday: 1450,
+      totalDailyCompleted: 1,
+    });
+    paddedDailyMeta.dispose();
     const mergedPadded = mergeMetaSaves(dirtyCodexSave, createDefaultMetaSave(9), 9, LEVELS);
     expect(mergedPadded.completedDailyDates).toEqual(['2026-11-16']);
     expect(mergedPadded.stats.dailyChallengesCompleted).toBe(1);
@@ -1453,6 +1469,50 @@ describe('MetaSession stats, achievements, challenges & daily persistence', () =
     expect(
       mutEndlessMeta.getAchievements().find((a) => a.def.id === 'mutated_endless')?.unlocked,
     ).toBe(true);
+
+    // Pre-existing NaN fields in an unsanitized save recover cleanly on applyTelemetryDeltaToStats & recordRunCompletion
+    const nanRecSave = createDefaultMetaSave(9);
+    nanRecSave.stats.gamesWon = Number.NaN;
+    nanRecSave.stats.enemiesDefeatedTotal = Number.NaN;
+    nanRecSave.stats.totalPlayTimeSec = Number.NaN;
+    nanRecSave.campaign.bestStars[0] = Number.NaN;
+    nanRecSave.bestLivesByLevelId[LEVELS[0].id] = Number.NaN;
+    nanRecSave.fastestWinSecByLevelId[LEVELS[0].id] = Number.NaN;
+    nanRecSave.dailyBestScores['2026-11-17'] = Number.NaN;
+    const nanEv = new EventBus();
+    const nanObs = new RunObserver(LEVELS[0], nanEv);
+    nanObs.onTick(12.3, 3);
+    const nanTelemetry = { ...nanObs.getTelemetry(), enemiesKilledTotal: 8, storyWavesCompleted: 10 };
+    applyTelemetryDeltaToStats(nanRecSave, nanTelemetry, null);
+    const nanCampaignOutcome = recordRunCompletion(nanRecSave, {
+      level: LEVELS[0],
+      telemetry: nanTelemetry,
+      won: true,
+      stars: 3,
+      livesRemaining: 20,
+      levels: LEVELS,
+    });
+    const nanRecOutcome = recordRunCompletion(nanRecSave, {
+      level: LEVELS[0],
+      telemetry: nanTelemetry,
+      won: true,
+      stars: 3,
+      livesRemaining: 20,
+      levels: LEVELS,
+      dailyDate: '2026-11-17',
+      scoreMultiplier: 1.2,
+    });
+    nanObs.dispose();
+    expect(nanRecSave.stats.gamesWon).toBe(2);
+    expect(nanRecSave.stats.enemiesDefeatedTotal).toBe(8);
+    expect(nanRecSave.stats.totalPlayTimeSec).toBe(12.3);
+    expect(nanRecSave.campaign.bestStars[0]).toBe(3);
+    expect(nanRecSave.bestLivesByLevelId[LEVELS[0].id]).toBe(20);
+    expect(nanRecSave.fastestWinSecByLevelId[LEVELS[0].id]).toBe(12.3);
+    expect(nanCampaignOutcome.isNewBestLives).toBe(true);
+    expect(nanCampaignOutcome.isNewFastestWin).toBe(true);
+    expect(nanRecOutcome.isNewBestDailyScore).toBe(true);
+    expect(nanRecSave.dailyBestScores['2026-11-17']).toBe(nanRecOutcome.dailyScore);
 
     mutEndlessMeta.dispose();
     quitMeta.dispose();

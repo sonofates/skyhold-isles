@@ -19,6 +19,7 @@ import {
   getAllChallengeProgress,
   getAllIslandMasteryStatuses,
   getChallengeStatus,
+  getDailyBestScore,
   getEnemyIntelStats,
   getIslandMasteryStatus,
   getMetaCareerRank,
@@ -27,6 +28,7 @@ import {
   getRecommendedNextGoal,
   getStats,
   getTowerMasteryStats,
+  getValidDailyDateSet,
   importMetaSaveJson,
   recomputeAchievements,
   recordEndlessRunStats,
@@ -336,15 +338,13 @@ export class MetaSession {
   getDailyStatus(dateStr?: string): DailyStatus {
     const date = dateStr ?? this.getTodayDateFn();
     const spec = generateDailyChallenge(date, this.levels);
-    const { currentStreak, bestStreak } = computeDailyStreaks(
-      this.save.completedDailyDates,
-      spec.date,
-    );
+    const validDates = getValidDailyDateSet(this.save.completedDailyDates);
+    const { currentStreak, bestStreak } = computeDailyStreaks([...validDates], spec.date);
     return {
       spec,
-      completedToday: this.save.completedDailyDates.includes(spec.date),
-      bestScoreToday: nonNegIntOrZero(this.save.dailyBestScores[spec.date]),
-      totalDailyCompleted: this.save.completedDailyDates.length,
+      completedToday: validDates.has(spec.date),
+      bestScoreToday: getDailyBestScore(this.save.dailyBestScores, spec.date),
+      totalDailyCompleted: validDates.size,
       currentStreak,
       bestStreak,
     };
