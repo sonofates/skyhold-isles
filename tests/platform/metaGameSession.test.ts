@@ -83,7 +83,12 @@ function createStubEnv() {
     setPlayVisibility: () => {},
     syncInPlay: () => {},
     closeModals: () => {},
-    floatingTextPool: { clear: () => {} },
+    floatingTextPool: {
+      clear: () => {},
+      spawnDamage: () => {},
+      spawnGold: () => {},
+      spawnUpgradeTier: () => {},
+    },
     tooltip: { hide: () => {} },
     toast: { hide: () => {}, show: () => {} },
     towerPanel: { setSellConfirmArmed: () => {} },
@@ -115,6 +120,87 @@ function createStubEnv() {
   };
 
   return { renderWorld, soundManager, deps, placementCalls, menuCalls, hitPos };
+}
+
+function runScriptedLevelThroughSession(
+  session: GameSession,
+  levelIndex: number,
+  maxSeconds = 1200,
+): void {
+  const level = LEVELS[levelIndex];
+  const legal = session.getAllowedTowerTypes();
+  const queue = (level.scriptedBuildOrder ?? []).map((a) => {
+    if (a.action !== 'build' || !a.towerType || legal.includes(a.towerType)) return a;
+    const sub =
+      legal.find((t) => t === 'archer' || t === 'tesla') ??
+      legal[0];
+    return { ...a, towerType: sub };
+  });
+
+  const stepBuild = (): boolean => {
+    while (queue.length > 0) {
+      const a = queue[0];
+      if (a.action === 'build' && a.towerType) {
+        if (session.simWorld.gold < session.getTowerBuildCost(a.towerType)) return false;
+        if (session.simWorld.placeTower(a.col, a.row, a.towerType, a.targetingMode ?? 'first')) {
+          queue.shift();
+          return true;
+        }
+        queue.shift();
+        continue;
+      }
+      const tid = session.simWorld.grid.getTowerIdAt(a.col, a.row);
+      const tw = tid === -1 ? null : session.simWorld.getTowerById(tid);
+      if (!tw || tw.tier >= 3) {
+        queue.shift();
+        continue;
+      }
+      const uc = session.getTowerUpgradeCost(tw.id);
+      if (uc === null || session.simWorld.gold < uc) return false;
+      if (session.simWorld.upgradeTower(tw.id)) {
+        queue.shift();
+        return true;
+      }
+      queue.shift();
+    }
+    for (const tw of session.simWorld.towers) {
+      const uc = session.getTowerUpgradeCost(tw.id);
+      if (uc !== null && session.simWorld.gold >= uc) {
+        session.simWorld.upgradeTower(tw.id);
+        return true;
+      }
+    }
+    return false;
+  };
+
+  while (stepBuild()) {
+    // initial pre-wave setup
+  }
+  session.simWorld.startNextWave();
+  for (let t = 0; t < 60 * maxSeconds && session.simWorld.outcome === 'ongoing'; t++) {
+    if (session.simWorld.waveSystem.state === 'betweenWaves' && session.simWorld.waveSystem.canStartNextWave()) {
+      while (stepBuild()) {
+        // between-wave build/upgrade
+      }
+      session.simWorld.startNextWave();
+    } else if (t % (60 * 3) === 0) {
+      stepBuild();
+    }
+    if (session.simWorld.waveSystem.state !== 'preFirstWave') {
+      if (
+        session.simWorld.abilitySystem.canCast('overcharge') &&
+        (session.simWorld.towers.some((tw) => tw.stunTimer > 0) || session.simWorld.enemyPool.getActiveCount() >= 8)
+      ) {
+        session.simWorld.castOvercharge();
+      }
+      if (session.simWorld.abilitySystem.canCast('meteor') && session.simWorld.enemyPool.getActiveCount() > 0) {
+        const idx0 = session.simWorld.enemyPool.getActiveIndex(0);
+        const target = session.simWorld.enemyPool.items[idx0];
+        session.simWorld.castMeteor(target.x, target.z);
+      }
+    }
+    session.fixedTick(BALANCE.fixedDt);
+  }
 }
 
 describe('GameSession and sessionBridge meta wiring', () => {
@@ -184,4 +270,105 @@ describe('GameSession and sessionBridge meta wiring', () => {
 
     session.dispose();
   });
+
+  it('completes campaign + endless, isolates daily -> endless outcomes, and blocks debug tampering end-to-end', () => {
+    installMockLocalStorage();
+    const { renderWorld, soundManager, deps } = createStubEnv();
+    const session = new GameSession(renderWorld, soundManager);
+    session.attachRuntime(deps);
+
+    // Non-finite / out-of-range startLevel clamps cleanly
+    session.startLevel(Number.NaN);
+    expect(session.currentLevelIndex).toBe(0);
+    session.startLevel(999);
+    expect(session.currentLevelIndex).toBe(LEVELS.length - 1);
+
+    // 1. Clean campaign win on Island 1 -> awards campaign stars, unlocks Island 2, populates outcome & live states,
+    //    and allows mutated Endless continuation with banned tower placement cleared
+    session.startLevel(0);
+    session.setSpeed(3);
+    runScriptedLevelThroughSession(session, 0, 600);
+    expect(session.simWorld.outcome).toBe('won');
+    expect(session.progress.bestStars[0]).toBeGreaterThanOrEqual(1);
+    expect(session.progress.unlockedLevelIndex).toBeGreaterThanOrEqual(1);
+    const winOutcome = session.getLastRunMetaOutcome()!;
+    expect(winOutcome.won).toBe(true);
+    expect(winOutcome.isDaily).toBe(false);
+    expect(session.getChallengeStatus(0)!.earnedStars).toBeGreaterThanOrEqual(1);
+    expect(session.getLiveChallengeStates().length).toBe(3);
+
+    // Arm frost placement before entering Lean Siege Endless (which bans frost) -> cleared cleanly
+    session.setPlacementMode('frost');
+    session.enterEndlessMode({ presetId: 'lean-siege' });
+    expect(session.getAllowedTowerTypes()).not.toContain('frost');
+    expect(session.getActiveModifierBadges().map((b) => b.id)).toEqual(['tight_budget', 'no_frost']);
+    session.simWorld.startNextWave();
+    for (let t = 0; t < 60 * 120 && session.simWorld.waveSystem.currentWaveOneBased <= LEVELS[0].waves.length; t++) {
+      session.fixedTick(BALANCE.fixedDt);
+    }
+    expect(session.getLiveEndlessScore()).not.toBeNull();
+    // Simulate quitting Endless after reaching Endless wave -> preserves bestEndlessWaves without gamesLost
+    session.showMenuView('menu', true);
+    expect(session.progress.bestEndlessWaves[0]).toBeGreaterThan(LEVELS[0].waves.length);
+    expect(session.getStats().gamesLost).toBe(0);
+
+    // 2. Daily Watch win on a locked high island does NOT unlock locked islands, and Endless continuation clears active daily
+    let dailyDate = '2026-11-17';
+    for (let d = 1; d <= 30; d++) {
+      const candidate = `2026-11-${String(d).padStart(2, '0')}`;
+      const candSpec = session.getDailyChallenge(candidate);
+      if (candSpec.levelIndex >= 2 && LEVELS[candSpec.levelIndex].difficulty === 'Challenging') {
+        dailyDate = candidate;
+        break;
+      }
+    }
+    const lockedBeforeDaily = session.progress.unlockedLevelIndex;
+    const spec = session.startDailyChallenge(dailyDate);
+    expect(spec.levelIndex).toBeGreaterThanOrEqual(2);
+    expect(session.getActiveDailyChallenge()?.date).toBe(dailyDate);
+    runScriptedLevelThroughSession(session, spec.levelIndex, 1800);
+    expect(session.simWorld.outcome).toBe('won');
+    expect(session.progress.unlockedLevelIndex).toBe(lockedBeforeDaily);
+    expect(session.getDailyStatus(dailyDate).completedToday).toBe(true);
+    expect(session.getLastRunMetaOutcome()?.isDaily).toBe(true);
+
+    // Continuing Endless from a Daily win clears active daily banner & isolates Endless loss
+    session.enterEndlessMode();
+    expect(session.getActiveDailyChallenge()).toBeNull();
+    session.simWorld.startNextWave();
+    session.showMenuView('menu', true);
+    expect(session.progress.unlockedLevelIndex).toBe(lockedBeforeDaily);
+
+    // 3. Verify debug cheats (?debug gold, debugSkipToWave, debugForceWin, debugForceLose) never taint progress
+    session.startLevel(2); // locked/uncleared Island 3
+    session.simWorld.gold += 500;
+    session.fixedTick(BALANCE.fixedDt);
+    expect(session.meta.isCurrentRunEligible()).toBe(false);
+    session.simWorld.debugForceWin();
+    expect(session.progress.bestStars[2]).toBe(0);
+    expect(session.progress.unlockedLevelIndex).toBe(lockedBeforeDaily);
+
+    session.startLevel(2);
+    session.simWorld.debugSkipToWave(2);
+    session.fixedTick(BALANCE.fixedDt);
+    expect(session.meta.isCurrentRunEligible()).toBe(false);
+    session.simWorld.debugForceLose();
+    expect(session.getStats().gamesLost).toBe(0);
+
+    // Post-win gold cheat before Endless Mode blocks Endless wave records
+    session.startLevel(0);
+    runScriptedLevelThroughSession(session, 0, 600);
+    expect(session.simWorld.outcome).toBe('won');
+    const prevBestEndlessL0 = session.progress.bestEndlessWaves[0];
+    session.simWorld.gold += 9999;
+    session.enterEndlessMode();
+    expect(session.meta.isCurrentRunEligible()).toBe(false);
+    session.simWorld.startNextWave();
+    for (let t = 0; t < 60 * 400 && session.simWorld.outcome === 'ongoing'; t++) {
+      session.fixedTick(BALANCE.fixedDt);
+    }
+    expect(session.progress.bestEndlessWaves[0]).toBe(prevBestEndlessL0);
+
+    session.dispose();
+  }, 15_000);
 });

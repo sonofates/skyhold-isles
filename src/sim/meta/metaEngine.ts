@@ -283,8 +283,9 @@ export function migrateToMetaSave(
   levelCount: number,
   levels: readonly LevelDef[] = LEVELS,
 ): MetaSaveData {
-  const base = createDefaultMetaSave(levelCount);
-  const v1Campaign = sanitizeCampaign(rawV1, levelCount);
+  const safeCount = normalizeLevelCount(levelCount);
+  const base = createDefaultMetaSave(safeCount);
+  const v1Campaign = sanitizeCampaign(rawV1, safeCount);
 
   if (rawV2 && typeof rawV2 === 'object' && !Array.isArray(rawV2)) {
     const obj = rawV2 as Partial<MetaSaveData> & { campaign?: unknown };
@@ -292,9 +293,9 @@ export function migrateToMetaSave(
     const looksLikeV1Only =
       obj.version === undefined && ('bestStars' in obj || 'unlockedLevelIndex' in obj);
     const v2Campaign = looksLikeV1Only
-      ? sanitizeCampaign(rawV2, levelCount)
-      : sanitizeCampaign(obj.campaign, levelCount);
-    base.campaign = mergeCampaignProgress(v2Campaign, v1Campaign, levelCount);
+      ? sanitizeCampaign(rawV2, safeCount)
+      : sanitizeCampaign(obj.campaign, safeCount);
+    base.campaign = mergeCampaignProgress(v2Campaign, v1Campaign, safeCount);
 
     base.completedChallenges = sanitizeBoolRecord(obj.completedChallenges);
     base.unlockedAchievements = sanitizeBoolRecord(obj.unlockedAchievements);
@@ -365,7 +366,7 @@ export function migrateToMetaSave(
   if (highestClearedIndex >= 0) {
     base.campaign.unlockedLevelIndex = Math.max(
       base.campaign.unlockedLevelIndex,
-      Math.min(Math.max(0, levelCount - 1), highestClearedIndex + 1),
+      Math.min(Math.max(0, safeCount - 1), highestClearedIndex + 1),
     );
   }
 
@@ -419,6 +420,47 @@ export function migrateToMetaSave(
   return base;
 }
 
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+/** Ensures nested objects/arrays exist before mutating a potentially partial save object. */
+function ensureWritableSaveContainers(save: MetaSaveData, minLevelCount = 1): void {
+  const safeLen = normalizeLevelCount(minLevelCount);
+  if (!isPlainRecord(save.campaign)) {
+    save.campaign = {
+      unlockedLevelIndex: 0,
+      bestStars: new Array<number>(safeLen).fill(0),
+      bestEndlessWaves: new Array<number>(safeLen).fill(0),
+    };
+  }
+  if (!Array.isArray(save.campaign.bestStars)) {
+    save.campaign.bestStars = new Array<number>(safeLen).fill(0);
+  }
+  if (!Array.isArray(save.campaign.bestEndlessWaves)) {
+    save.campaign.bestEndlessWaves = new Array<number>(safeLen).fill(0);
+  }
+  if (!isPlainRecord(save.completedChallenges)) save.completedChallenges = {};
+  if (!isPlainRecord(save.unlockedAchievements)) save.unlockedAchievements = {};
+  if (!isPlainRecord(save.achievementMilestones)) {
+    save.achievementMilestones = {
+      wonNoLivesLost: false,
+      wonAt3xSpeed: false,
+      wonMax6Towers: false,
+      bestMutatedEndlessWavesCleared: 0,
+    };
+  }
+  if (!isPlainRecord(save.stats)) save.stats = createEmptyLifetimeStats();
+  if (!isPlainRecord(save.stats.enemiesDefeatedByType)) save.stats.enemiesDefeatedByType = {};
+  if (!isPlainRecord(save.stats.towersBuiltByType)) save.stats.towersBuiltByType = {};
+  if (!isPlainRecord(save.bestEndlessScoresByLevelId)) save.bestEndlessScoresByLevelId = {};
+  if (!isPlainRecord(save.bestMutatedScoresByLevelId)) save.bestMutatedScoresByLevelId = {};
+  if (!isPlainRecord(save.bestLivesByLevelId)) save.bestLivesByLevelId = {};
+  if (!isPlainRecord(save.fastestWinSecByLevelId)) save.fastestWinSecByLevelId = {};
+  if (!Array.isArray(save.completedDailyDates)) save.completedDailyDates = [];
+  if (!isPlainRecord(save.dailyBestScores)) save.dailyBestScores = {};
+}
+
 /**
  * Applies incremental telemetry delta from an ongoing or ended run into `save.stats`.
  * Pass the difference `(currentTelemetry - alreadyCommittedTelemetry)` so multiple flushes
@@ -430,6 +472,7 @@ export function applyTelemetryDeltaToStats(
   committed: RunTelemetry | null,
 ): void {
   if (!current.eligibleForChallenges) return;
+  ensureWritableSaveContainers(save);
   const prev = committed;
   const d = (curr: number, old: number | undefined): number => {
     const c = typeof curr === 'number' && Number.isFinite(curr) ? curr : 0;
@@ -590,6 +633,7 @@ export function recomputeAchievements(
   _levels: readonly LevelDef[] = LEVELS,
 ): readonly string[] {
   void _levels;
+  ensureWritableSaveContainers(save);
   const newlyUnlocked: string[] = [];
   for (let i = 0; i < ACHIEVEMENTS.length; i++) {
     const def = ACHIEVEMENTS[i];
@@ -610,24 +654,27 @@ export function recordEndlessRunStats(
   telemetry: RunTelemetry,
   scoreMultiplier = 1,
 ): EndlessScoreBreakdown | null {
+  const safeLevelIndex = Number.isFinite(level.index) ? Math.max(0, Math.floor(level.index)) : 0;
+  const maxWaveReached = asNonNegInt(telemetry.maxWaveReached);
+  const endlessWavesCleared = asNonNegInt(telemetry.endlessWavesCompleted);
   if (
     !telemetry.eligibleForChallenges ||
     !telemetry.endlessEntered ||
-    (telemetry.maxWaveReached <= telemetry.storyWaveCount && telemetry.endlessWavesCompleted === 0)
+    (maxWaveReached <= asNonNegInt(telemetry.storyWaveCount) && endlessWavesCleared === 0)
   ) {
     return null;
   }
-  while (save.campaign.bestEndlessWaves.length <= level.index) {
+  ensureWritableSaveContainers(save, safeLevelIndex + 1);
+  while (save.campaign.bestEndlessWaves.length <= safeLevelIndex) {
     save.campaign.bestEndlessWaves.push(0);
   }
-  save.campaign.bestEndlessWaves[level.index] = Math.max(
-    asNonNegInt(save.campaign.bestEndlessWaves[level.index]),
-    telemetry.maxWaveReached,
+  save.campaign.bestEndlessWaves[safeLevelIndex] = Math.max(
+    asNonNegInt(save.campaign.bestEndlessWaves[safeLevelIndex]),
+    maxWaveReached,
   );
-  if (telemetry.maxWaveReached > asNonNegInt(save.stats.bestEndlessWaveOverall)) {
-    save.stats.bestEndlessWaveOverall = telemetry.maxWaveReached;
+  if (maxWaveReached > asNonNegInt(save.stats.bestEndlessWaveOverall)) {
+    save.stats.bestEndlessWaveOverall = maxWaveReached;
   }
-  const endlessWavesCleared = telemetry.endlessWavesCompleted;
   if (
     (telemetry.hasRunModifiers || telemetry.activeMutatorIds.length > 0) &&
     endlessWavesCleared > asNonNegInt(save.achievementMilestones.bestMutatedEndlessWavesCleared)
@@ -686,6 +733,9 @@ export function recordRunCompletion(
 ): RunMetaOutcome {
   const levels = params.levels ?? LEVELS;
   const { level, telemetry, won, stars, livesRemaining } = params;
+  const safeLevelIndex = Number.isFinite(level.index) ? Math.max(0, Math.floor(level.index)) : 0;
+  const clampedStars = Math.max(0, Math.min(3, asNonNegInt(stars)));
+  ensureWritableSaveContainers(save, safeLevelIndex + 1);
   const normalizedDailyDate =
     params.dailyDate && isValidDateString(params.dailyDate) ? params.dailyDate.trim() : null;
   const isDaily = normalizedDailyDate !== null && !telemetry.endlessEntered;
@@ -698,7 +748,7 @@ export function recordRunCompletion(
   let isNewBestMutatedScore = false;
 
   const prevEndlessWave = asNonNegInt(
-    params.previousBestEndlessWave ?? save.campaign.bestEndlessWaves[level.index],
+    params.previousBestEndlessWave ?? save.campaign.bestEndlessWaves[safeLevelIndex],
   );
   const prevEndlessScore = asNonNegInt(
     params.previousBestEndlessScore ?? save.bestEndlessScoresByLevelId[level.id],
@@ -710,18 +760,18 @@ export function recordRunCompletion(
   if (won) {
     if (telemetry.eligibleForChallenges) {
       save.stats.gamesWon = asNonNegInt(save.stats.gamesWon) + 1;
-      if (!isDaily && stars > 0) {
-        while (save.campaign.bestStars.length <= level.index) {
+      if (!isDaily && clampedStars > 0) {
+        while (save.campaign.bestStars.length <= safeLevelIndex) {
           save.campaign.bestStars.push(0);
         }
-        save.campaign.bestStars[level.index] = Math.max(
-          Math.min(3, asNonNegInt(save.campaign.bestStars[level.index])),
-          stars,
+        save.campaign.bestStars[safeLevelIndex] = Math.max(
+          Math.min(3, asNonNegInt(save.campaign.bestStars[safeLevelIndex])),
+          clampedStars,
         );
-        if (level.index + 1 < levels.length) {
+        if (safeLevelIndex + 1 < levels.length) {
           save.campaign.unlockedLevelIndex = Math.max(
             asNonNegInt(save.campaign.unlockedLevelIndex),
-            level.index + 1,
+            safeLevelIndex + 1,
           );
         }
 
@@ -1307,7 +1357,7 @@ const TOWER_MASTERY_THRESHOLDS: readonly { minBuilt: number; rank: TowerMasteryR
 
 /** Typed UI query: per-tower lifetime build counts, share percentages, and mastery tiers. */
 export function getTowerMasteryStats(save: MetaSaveData): readonly TowerMasteryStat[] {
-  const byType = save.stats?.towersBuiltByType;
+  const byType = save?.stats?.towersBuiltByType;
   const totalBuilt = TOWER_TYPES.reduce(
     (sum, type) => sum + asNonNegInt(byType?.[type]),
     0,
@@ -1332,7 +1382,7 @@ export function getTowerMasteryStats(save: MetaSaveData): readonly TowerMasteryS
       name: def.name,
       shortDesc: def.shortDesc,
       hitsFlyers: def.hitsFlyers,
-      buildCost: def.tiers[0].upgradeCost,
+      buildCost: def.tiers[0]?.upgradeCost ?? 0,
       builtCount,
       sharePct: totalBuilt > 0 ? Math.round((builtCount / totalBuilt) * 100) : 0,
       rank: current.rank,
@@ -1344,7 +1394,7 @@ export function getTowerMasteryStats(save: MetaSaveData): readonly TowerMasteryS
 
 /** Typed UI query: per-enemy bestiary/intel status derived from lifetime defeats. */
 export function getEnemyIntelStats(save: MetaSaveData): readonly EnemyIntelEntry[] {
-  const byType = save.stats?.enemiesDefeatedByType;
+  const byType = save?.stats?.enemiesDefeatedByType;
   return ENEMY_TYPES.map((type) => {
     const def = ENEMY_DEFS[type];
     const defeatedCount = asNonNegInt(byType?.[type]);

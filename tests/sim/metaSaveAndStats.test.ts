@@ -35,6 +35,7 @@ import {
   mergeMetaSaves,
   migrateToMetaSave,
   recomputeAchievements,
+  recordEndlessRunStats,
   recordRunCompletion,
 } from '../../src/sim/meta/metaEngine.ts';
 import { RunObserver } from '../../src/sim/meta/runObserver.ts';
@@ -1737,5 +1738,59 @@ describe('MetaSession stats, achievements, challenges & daily persistence', () =
     expect(Object.keys(mergedArraySafe.unlockedAchievements)).toEqual([]);
     expect(Object.keys(mergedArraySafe.bestEndlessScoresByLevelId)).toEqual([]);
     expect(Object.keys(mergedArraySafe.fastestWinSecByLevelId)).toEqual([]);
+
+    // migrateToMetaSave with cleared stars and NaN levelCount never leaks NaN into unlockedLevelIndex
+    const nanLevelMigrate = migrateToMetaSave(
+      { version: 2, campaign: { unlockedLevelIndex: 0, bestStars: [3] } },
+      null,
+      Number.NaN,
+      LEVELS,
+    );
+    expect(nanLevelMigrate.campaign.unlockedLevelIndex).toBe(0);
+
+    // Write-path resilience on partial/corrupted saves & out-of-range stars
+    const writePartial = { version: 2 } as unknown as ReturnType<typeof createDefaultMetaSave>;
+    const wpEv = new EventBus();
+    const wpObs = new RunObserver(LEVELS[0], wpEv);
+    wpObs.onTick(5, 3);
+    const wpTel = {
+      ...wpObs.getTelemetry(),
+      enemiesKilledTotal: 4,
+      enemiesKilledByType: { grunt: 4 },
+      towersBuilt: 2,
+      towersBuiltByType: { archer: 2 },
+      storyWavesCompleted: 10,
+      endlessEntered: true,
+      maxWaveReached: 12,
+      endlessWavesCompleted: 2,
+      endlessEnemiesKilled: 10,
+    };
+    applyTelemetryDeltaToStats(writePartial, wpTel, null);
+    const wpEnd = recordEndlessRunStats(writePartial, LEVELS[0], wpTel, 1.5);
+    const wpOutcome = recordRunCompletion(writePartial, {
+      level: LEVELS[0],
+      telemetry: { ...wpTel, endlessEntered: false },
+      won: true,
+      stars: 99 as 3,
+      livesRemaining: 20,
+      levels: LEVELS,
+      dailyDate: '2026-11-17',
+    });
+    wpObs.dispose();
+    expect(wpEnd?.totalScore).toBeGreaterThan(0);
+    expect(writePartial.campaign.bestStars[0]).toBe(0); // daily win didn't write campaign stars
+    const wpCampaignPartial = { version: 2 } as unknown as ReturnType<typeof createDefaultMetaSave>;
+    recordRunCompletion(wpCampaignPartial, {
+      level: LEVELS[0],
+      telemetry: { ...wpTel, endlessEntered: false },
+      won: true,
+      stars: 99 as 3,
+      livesRemaining: 20,
+      levels: LEVELS,
+    });
+    expect(wpCampaignPartial.campaign.bestStars[0]).toBe(3); // clamped to 3
+    expect(wpOutcome.dailyScore).toBeGreaterThan(0);
+    expect(getTowerMasteryStats(null as unknown as ReturnType<typeof createDefaultMetaSave>).every((t) => t.builtCount === 0)).toBe(true);
+    expect(getEnemyIntelStats(null as unknown as ReturnType<typeof createDefaultMetaSave>).every((e) => !e.discovered)).toBe(true);
   });
 });
