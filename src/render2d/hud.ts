@@ -102,7 +102,7 @@ export class Hud {
   layout(w: number, h: number, hornAt: { x: number; y: number }): void {
     const u = Math.max(0.5, Math.min(1.15, Math.min(w / 1400, h / 760)));
     const pad = Math.max(8, 14 * u);
-    const pw = Math.max(190, 300 * u);
+    const pw = Math.max(180, 260 * u);
     const ph = (pw * this.plaque.texture.height) / this.plaque.texture.width;
     this.plaque.position.set(pad, pad);
     this.plaque.width = pw;
@@ -131,13 +131,14 @@ export class Hud {
       setFontSize(b.label, Math.round(r * 0.72));
     }
 
-    const bw = Math.max(170, 280 * u);
+    // Wave banner: top-right under the round buttons (the painted maps keep a road along the top edge).
+    const bw = Math.max(150, 230 * u);
     const bh = (bw * this.banner.texture.height) / this.banner.texture.width;
-    const bannerX = Math.min(w / 2, w - pad - r * 4.4 - bw / 2);
-    this.banner.position.set(Math.max(pad + pw + bw / 2 + pad, bannerX), pad * 0.5);
+    const bannerY = pad + r * 2 + pad * 0.3;
+    this.banner.position.set(w - pad - bw / 2, bannerY);
     this.banner.width = bw;
     this.banner.height = bh;
-    this.waveText.position.set(this.banner.x, pad * 0.5 + bh * 0.5);
+    this.waveText.position.set(this.banner.x, bannerY + bh * 0.5);
     setFontSize(this.waveText, Math.round(Math.max(16, bh * 0.4)));
 
     this.hornR = Math.max(MIN_TOUCH / 2 + 4, 44 * u);

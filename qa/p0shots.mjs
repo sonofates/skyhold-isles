@@ -84,7 +84,9 @@ async function playFlow(browser, view) {
 
 async function autoplay(browser, view) {
   const { ctx, page } = await open(browser, view, '?autoplay=1');
-  await page.waitForTimeout(14000);
+  await page.waitForTimeout(9000);
+  await page.screenshot({ path: `${OUT}/${view}-autoplay-early.png` });
+  await page.waitForTimeout(13000);
   await page.screenshot({ path: `${OUT}/${view}-autoplay.png` });
   report.runs[`${view}-autoplay`] = await state(page);
   await ctx.close();

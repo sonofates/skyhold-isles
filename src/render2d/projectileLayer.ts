@@ -84,7 +84,7 @@ export class ProjectileLayer {
         const dx = sx - psx;
         const dy = sy - psy;
         if (dx * dx + dy * dy > 1e-4) s.rotation = Math.atan2(dy, dx);
-        s.scale.set(p.towerType === 'ballista' ? 0.75 : 0.5);
+        s.scale.set(p.towerType === 'ballista' ? 0.9 : 0.7);
         s.tint = 0xffffff;
       } else if (ball) {
         if (s.texture !== this.tex.ball) s.texture = this.tex.ball;

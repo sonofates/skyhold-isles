@@ -1,5 +1,5 @@
 import '@fontsource-variable/fredoka';
-import { Application } from 'pixi.js';
+import { Application, UPDATE_PRIORITY } from 'pixi.js';
 import { getLevelById } from '../data/levels2d/index.ts';
 import { AbScene } from './abScene.ts';
 import { loadArt } from './assets2d.ts';
@@ -23,6 +23,9 @@ interface BenchStats {
   readonly enemies: number;
   readonly drawCalls: number | null;
   readonly samples: number;
+  /** CPU ms per frame for sim + layer sync (p50/p95), and for Pixi's render submission. */
+  readonly updateMs: readonly [number, number];
+  readonly renderCpuMs: readonly [number, number];
   readonly renderer: string;
 }
 
@@ -91,6 +94,9 @@ async function main(): Promise<void> {
 
   const draws = countDrawCalls((app.renderer as unknown as { gl?: WebGL2RenderingContext }).gl);
   const stats = new FrameStats();
+  const updateStats = new FrameStats();
+  const renderStats = new FrameStats();
+  let renderStart = 0;
   let lastDraws = 0;
   const rendererName = (app.renderer as unknown as { name?: string }).name ?? 'unknown';
 
@@ -114,9 +120,17 @@ async function main(): Promise<void> {
   app.renderer.on('resize', onResize);
   app.ticker.add((t) => {
     if (draws) lastDraws = draws.take();
-    stats.record(t.deltaMS, performance.now());
+    const t0 = performance.now();
+    stats.record(t.deltaMS, t0);
     game.frame(t.deltaMS / 1000);
+    renderStart = performance.now();
+    updateStats.record(renderStart - t0, renderStart);
   });
+  // Runs after the app's own render listener (LOW priority): CPU time spent submitting the frame.
+  app.ticker.add(() => {
+    const now = performance.now();
+    renderStats.record(now - renderStart, now);
+  }, null, UPDATE_PRIORITY.UTILITY);
   window.__p0 = {
     mode: bench > 0 ? 'bench' : 'play',
     state: () => game.debugState(),
@@ -126,8 +140,14 @@ async function main(): Promise<void> {
     Object.defineProperty(window, '__bench', {
       configurable: true,
       get: (): BenchStats => {
-        const s = stats.snapshot(performance.now());
+        const now = performance.now();
+        const s = stats.snapshot(now);
+        const u = updateStats.snapshot(now);
+        const r = renderStats.snapshot(now);
+        const r2 = (v: number): number => Math.round(v * 100) / 100;
         return {
+          updateMs: [r2(u.p50), r2(u.p95)],
+          renderCpuMs: [r2(r.p50), r2(r.p95)],
           fps: Math.round(s.fps * 10) / 10,
           p50: Math.round(s.p50 * 100) / 100,
           p95: Math.round(s.p95 * 100) / 100,

@@ -31,8 +31,9 @@ export function benchHooks(target: number): Game2DHooks {
         setup = true;
         fillPlots(world);
       }
-      world.lives = 1e6;
-      world.gold = 1e9;
+      // No lose condition: lives are topped up every tick (and the HUD stays readable).
+      world.lives = 999;
+      world.gold = 9999;
       const pool = world.enemyPool;
       const lanes = world.enemySystem.groundLaneCount;
       for (let guard = 0; guard < 10 && pool.getActiveCount() < target; guard++) {

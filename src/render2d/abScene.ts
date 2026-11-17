@@ -72,12 +72,12 @@ export class AbScene {
       return a.mode === 'sheet' ? 'sheet' : a.frames.length > 1 ? 'cheap + leg frames' : 'cheap';
     };
     this.lanes = [
-      { art: 'raider', type: 'grunt', label: `raider · ${modeOf('raider')} (omni12)` },
-      { art: 'brute', type: 'brute', label: `brute · ${modeOf('brute')}` },
-      { art: 'kite', type: 'flyer', label: `kite · ${modeOf('kite')}` },
+      { art: 'raider', type: 'grunt', label: `raider\n${modeOf('raider')} · omni12` },
+      { art: 'brute', type: 'brute', label: `brute\n${modeOf('brute')}` },
+      { art: 'kite', type: 'flyer', label: `kite\n${modeOf('kite')}` },
     ];
     if (art.enemies['raider-veo31q']) {
-      this.lanes.push({ art: 'raider-veo31q', type: 'grunt', label: `raider · ${modeOf('raider-veo31q')} (veo31q)` });
+      this.lanes.push({ art: 'raider-veo31q', type: 'grunt', label: `raider\n${modeOf('raider-veo31q')} · veo31q` });
     }
     const [sx, sy, sw, sh] = layout.safeArea;
     this.centreX = (sx + sw / 2 - layout.imageSize[0] / 2) / layout.pxPerUnit;
@@ -128,7 +128,7 @@ export class AbScene {
   resize(w: number, h: number): void {
     this.map.resize(w, h);
     const ppu = this.map.layout.pxPerUnit;
-    const size = Math.max(11, Math.round(14 * Math.min(1.2, Math.max(0.7, w / 1400))));
+    const size = Math.max(10, Math.round(14 * Math.min(1.2, Math.max(0.7, w / 1400))));
     this.labels.forEach((t, i) => {
       const c = this.laneCentre(i);
       setFontSize(t, size);
