@@ -41,12 +41,20 @@ Branch `hermes/skyhold-day-mobile`. Preview port 4302. Deadline 21:00 TR.
     "New version ready / Reload" pill (`ui/updatePrompt.ts`, CSS in `ui/styles/updatePrompt.css`) -> SKIP_WAITING -> reload).
     `vercel.json` sends `no-cache` for `/sw.js`. Verified offline reload in Chromium.
 
+  - **Backlog 4 (HUD)**: toasts were shrinking to half width (abs-positioned at left:50%) and covering the rotate buttons on
+    portrait phones -> `width:max-content` + left-aligned, clear of the right column; toast close target 44px; settings modal
+    with 4 quality buttons checked at 390/844x390/360 (fits, 44px targets). Wave preview (many chips, L13 w16) fits at 360 and 667x375.
+  - Before/after contact sheets for all 13 islands: `docs/overnight/mobile-shots/{before,after}-*.jpg` (portrait 390x844,
+    phone 360x640, landscape 844x390, tablet 820x1180; desktop 1440x900 after only). Software-GL, Low quality, all unlocked.
+  - README: touch controls / quality / PWA notes. Debug overlay shows `auto→medium @1.50x`.
+  - Checks at end of round 1: tsc, lint, 461 vitest tests, build, `sim:balance` all green (no gameplay/data change).
+
 ## Next
-- Backlog 4: HUD polish on phones (wave preview / ability buttons / toasts overlaps at 360x640, 844x390; safe-area), settings
-  modal at 390 wide with 4 quality buttons (check screenshot), tablet HUD.
-- Save before/after screenshots of all islands into docs/overnight/mobile-shots/ (< 5 MB total).
-- Pinch-zoom feel check, `?perf`-style frame-time readout (optional), Lighthouse-style sanity check.
-- Run `npm run sim:balance` once at the end (no gameplay/data changes were made).
+- Real-device verification is impossible here: governor thresholds (22 ms slow / 18.5 ms smooth, 60-frame windows) and the
+  Auto start tier (medium on touch) are educated guesses -> a later round could add an opt-in `?perf` log or tune from reports.
+- Optional: portrait could crop big islands (L13 frames at zoom 0.38 = whole island) if the lead prefers bigger tiles.
+- Optional: Lighthouse-style audit if a Lighthouse binary becomes available (manifest/SW/theme-color/viewport are in place).
+- Landscape: bottom tip of some islands still sits under the ability gems (spawn/goal/coverage are guaranteed, edges are not).
 
 ## Decisions
 - Did not change camera yaw for portrait (tried `yaw=0`: flat, ugly); islands stay at the 45 deg diamond view.
