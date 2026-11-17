@@ -177,14 +177,19 @@ function createN8aoPass(
   return pass;
 }
 
+export function getN8aoQualitySettings(mode: Exclude<N8aoMode, 'off'>): {
+  qualityMode: 'Performance' | 'Medium';
+  halfRes: boolean;
+} {
+  return mode === 'half'
+    ? { qualityMode: 'Performance', halfRes: true }
+    : { qualityMode: 'Medium', halfRes: false };
+}
+
 function configureN8aoPass(pass: N8AOPostPass, mode: Exclude<N8aoMode, 'off'>): void {
-  if (mode === 'half') {
-    pass.setQualityMode('Low');
-    pass.configuration.halfRes = true;
-  } else {
-    pass.setQualityMode('Medium');
-    pass.configuration.halfRes = false;
-  }
+  const settings = getN8aoQualitySettings(mode);
+  pass.setQualityMode(settings.qualityMode);
+  pass.configuration.halfRes = settings.halfRes;
 }
 
 /**
@@ -201,6 +206,8 @@ export class PostProcessingPipeline {
   private n8aoPass: N8AOPostPass | null = null;
   private compositePass: EffectPass | null = null;
   private smaaPass: EffectPass | null = null;
+  private smaaEffect: SMAAEffect | null = null;
+  private smaaReadyPromise: Promise<void> | null = null;
   private config: PostProcessingConfig;
   private readonly drawingSize = new THREE.Vector2();
 
@@ -259,8 +266,36 @@ export class PostProcessingPipeline {
       this.composer.removePass(this.smaaPass);
       this.smaaPass.dispose();
       this.smaaPass = null;
+      this.smaaEffect = null;
+      this.smaaReadyPromise = null;
       this.config = { ...this.config, smaa: false };
     }
+  }
+
+  private createSmaaReadyPromise(effect: SMAAEffect): Promise<void> {
+    if (effect.weightsMaterial.searchTexture && effect.weightsMaterial.areaTexture) {
+      return Promise.resolve();
+    }
+    return new Promise((resolve) => {
+      let settled = false;
+      const finish = (): void => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        dispatcher.removeEventListener('load', finish);
+        resolve();
+      };
+      const dispatcher = effect as unknown as {
+        addEventListener: (type: string, cb: () => void) => void;
+        removeEventListener: (type: string, cb: () => void) => void;
+      };
+      dispatcher.addEventListener('load', finish);
+      const timer = setTimeout(finish, 50);
+    });
+  }
+
+  whenReady(): Promise<void> {
+    return this.smaaReadyPromise ?? Promise.resolve();
   }
 
   applyConfig(next: PostProcessingConfig, forceRebuild = false): void {
@@ -295,11 +330,12 @@ export class PostProcessingPipeline {
     }
 
     if (compositeChanged) {
-      const hadSmaa = this.smaaPass !== null && this.composer.passes.includes(this.smaaPass);
-      if (hadSmaa && this.smaaPass) {
-        this.composer.removePass(this.smaaPass);
-      }
       const prevComposite = this.compositePass;
+      const insertIdx = prevComposite
+        ? this.composer.passes.indexOf(prevComposite)
+        : this.smaaPass
+          ? this.composer.passes.indexOf(this.smaaPass)
+          : -1;
 
       const effects: Effect[] = [];
       if (next.outline) {
@@ -323,26 +359,24 @@ export class PostProcessingPipeline {
         new ToneMappingEffect({ mode: ToneMappingMode.NEUTRAL }),
       );
 
-      // Add replacement pass before removing the previous one so EffectComposer preserves its
-      // depth render targets without destroying and reallocating them on Bloom/Outline toggles.
+      // Insert replacement pass in-place before removing the previous one so EffectComposer preserves
+      // its depth render targets and leaves any trailing smaaPass attached without re-initializing it.
       const nextComposite = new EffectPass(this.camera, ...effects);
-      this.composer.addPass(nextComposite);
+      this.composer.addPass(nextComposite, insertIdx >= 0 ? insertIdx : undefined);
       this.compositePass = nextComposite;
 
       if (prevComposite) {
         this.composer.removePass(prevComposite);
         prevComposite.dispose();
       }
-
-      if (next.smaa && hadSmaa && this.smaaPass) {
-        this.composer.addPass(this.smaaPass);
-      }
     }
 
     if (smaaChanged || (next.smaa && !this.smaaPass)) {
       if (next.smaa) {
         if (!this.smaaPass) {
-          this.smaaPass = new EffectPass(this.camera, new SMAAEffect({ preset: SMAAPreset.MEDIUM }));
+          this.smaaEffect = new SMAAEffect({ preset: SMAAPreset.MEDIUM });
+          this.smaaReadyPromise = this.createSmaaReadyPromise(this.smaaEffect);
+          this.smaaPass = new EffectPass(this.camera, this.smaaEffect);
         }
         if (!this.composer.passes.includes(this.smaaPass)) {
           this.composer.addPass(this.smaaPass);
@@ -351,6 +385,8 @@ export class PostProcessingPipeline {
         this.composer.removePass(this.smaaPass);
         this.smaaPass.dispose();
         this.smaaPass = null;
+        this.smaaEffect = null;
+        this.smaaReadyPromise = null;
       }
     }
 
@@ -376,5 +412,7 @@ export class PostProcessingPipeline {
     this.composer.dispose();
     this.compositePass = null;
     this.smaaPass = null;
+    this.smaaEffect = null;
+    this.smaaReadyPromise = null;
   }
 }

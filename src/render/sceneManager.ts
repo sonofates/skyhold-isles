@@ -106,6 +106,16 @@ export class SceneManager {
   private appliedDpr = -1;
   private tierTransitions = 0;
 
+  private readonly onContextLost = (event: Event): void => {
+    event.preventDefault();
+  };
+
+  private readonly onContextRestored = (): void => {
+    this.renderer.shadowMap.needsUpdate = true;
+    this.governor.resetWarmup();
+    this.resetDisplayMetrics();
+  };
+
   constructor(
     canvas: HTMLCanvasElement,
     options?: { isTouch?: boolean; initialQuality?: QualityLevel },
@@ -199,6 +209,11 @@ export class SceneManager {
     this.scene.add(this.dirLight.target);
 
     this.applyPreset(this.governor.getPreset(), true);
+
+    if (typeof canvas.addEventListener === 'function') {
+      canvas.addEventListener('webglcontextlost', this.onContextLost);
+      canvas.addEventListener('webglcontextrestored', this.onContextRestored);
+    }
   }
 
   get shadowsEnabled(): boolean {
@@ -312,14 +327,17 @@ export class SceneManager {
           await Promise.all([
             this.renderer.compileAsync(this.scene, camera),
             extraGroup ? this.renderer.compileAsync(extraGroup, camera, this.scene) : null,
+            this.postProcessing?.whenReady() ?? null,
           ]);
         } catch {
           this.renderer.compile(this.scene, camera);
           if (extraGroup) this.renderer.compile(extraGroup, camera, this.scene);
+          await (this.postProcessing?.whenReady() ?? Promise.resolve());
         }
       } else {
         this.renderer.compile(this.scene, camera);
         if (extraGroup) this.renderer.compile(extraGroup, camera, this.scene);
+        await (this.postProcessing?.whenReady() ?? Promise.resolve());
       }
     } finally {
       this.renderer.setRenderTarget(prevTarget);
@@ -336,11 +354,11 @@ export class SceneManager {
   recordFrame(
     frameDtSec: number,
     workMs: number,
-    options?: { throttled?: boolean; hidden?: boolean },
+    options?: { throttled?: boolean; hidden?: boolean; skipDisplayFrameSample?: boolean },
   ): TierTransition | null {
     if (options?.hidden) return null;
     const frameMs = frameDtSec * 1000;
-    if (frameMs > 0 && Number.isFinite(frameMs)) {
+    if (!options?.skipDisplayFrameSample && frameMs > 0 && Number.isFinite(frameMs)) {
       this.displayMetrics.record(frameMs);
     }
     if (workMs > 0 && Number.isFinite(workMs)) {
@@ -565,6 +583,10 @@ export class SceneManager {
   }
 
   dispose(): void {
+    if (typeof this.canvas.removeEventListener === 'function') {
+      this.canvas.removeEventListener('webglcontextlost', this.onContextLost);
+      this.canvas.removeEventListener('webglcontextrestored', this.onContextRestored);
+    }
     this.effectiveStateListener = null;
     this.postProcessing?.dispose();
     this.postProcessing = null;

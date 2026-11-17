@@ -5,7 +5,7 @@ import { GameLoop, computeRenderPacingTarget, type RenderPacingMode } from './pl
 import { GameSession } from './platform/gameSession.ts';
 import { InputManager } from './platform/input.ts';
 import { loadSettings } from './platform/storage.ts';
-import { KenneyAssetStore } from './render/kenneyAssets.ts';
+import { KENNEY_MODEL_LIST, KenneyAssetStore } from './render/kenneyAssets.ts';
 import type { StartupTimingMetrics } from './render/perfGovernor.ts';
 import { RenderWorld } from './render/renderWorld.ts';
 import { formatPerfLogLine } from './ui/debugPanel.ts';
@@ -42,6 +42,7 @@ async function bootstrap(loadingScreen: LoadingScreen): Promise<void> {
     throw new Error('Missing #game-canvas or #ui-root');
   }
 
+  const bootStepTotal = KENNEY_MODEL_LIST.length + 3;
   const assetsStartMs = performance.now();
   const assets = await KenneyAssetStore.preload((loaded, total, label) => {
     // Reserve 2 final steps (island diorama setup + shader warm-up) so progress never steps backward.
@@ -49,7 +50,7 @@ async function bootstrap(loadingScreen: LoadingScreen): Promise<void> {
   });
   const assetsMs = performance.now() - assetsStartMs;
 
-  loadingScreen.setProgress(41, 43, 'island diorama…');
+  loadingScreen.setProgress(bootStepTotal - 2, bootStepTotal, 'island diorama…');
   await nextAnimationFrame();
 
   const sceneStartMs = performance.now();
@@ -152,6 +153,7 @@ async function bootstrap(loadingScreen: LoadingScreen): Promise<void> {
   let lastViewMode = session.viewMode;
   let lastPacingMode: RenderPacingMode = 'menu';
   let wasPacingThrottled = true;
+  let skipNextDisplayFrame = false;
   let perfLogAccumSec = 0;
 
   const loop: GameLoop = new GameLoop({
@@ -171,6 +173,7 @@ async function bootstrap(loadingScreen: LoadingScreen): Promise<void> {
       if (levelOrViewChanged) {
         lastSimWorld = session.simWorld;
         lastViewMode = session.viewMode;
+        skipNextDisplayFrame = true;
         renderWorld.sceneManager.resetGovernorWarmup(undefined, true);
       }
 
@@ -207,10 +210,13 @@ async function bootstrap(loadingScreen: LoadingScreen): Promise<void> {
         debugPanel?.update(frameDt);
       }
     },
-    onAfterRender: (frameDt, workMs, throttled) => {
+    onAfterRender: (frameDt, workMs, throttled, sleepBoundary) => {
+      const skipDisplayFrameSample = Boolean(sleepBoundary) || skipNextDisplayFrame;
+      skipNextDisplayFrame = false;
       const transition = renderWorld.sceneManager.recordFrame(frameDt, workMs, {
         throttled,
         hidden: document.hidden,
+        skipDisplayFrameSample,
       });
       if (hasPerf && transition) {
         console.info(
@@ -246,6 +252,7 @@ async function bootstrap(loadingScreen: LoadingScreen): Promise<void> {
 
   const onResize = (): void => {
     renderWorld.resize(canvas.clientWidth || window.innerWidth, canvas.clientHeight || window.innerHeight);
+    renderWorld.sceneManager.resetGovernorWarmup(0.65, false);
   };
   const onFirstGesture = (): void => soundManager.unlock();
   const onWakeActivity = (): void => {
@@ -263,16 +270,17 @@ async function bootstrap(loadingScreen: LoadingScreen): Promise<void> {
   session.showMenuView('menu', true);
   const sceneSetupMs = performance.now() - sceneStartMs;
 
-  loadingScreen.setProgress(42, 43, 'shaders…');
+  loadingScreen.setProgress(bootStepTotal - 1, bootStepTotal, 'shaders…');
   await nextAnimationFrame();
 
   const warmStartMs = performance.now();
+  renderWorld.resize(canvas.clientWidth || window.innerWidth, canvas.clientHeight || window.innerHeight);
   await renderWorld.sceneManager.warmUp(renderWorld.cameraController.camera, {
     instancedHighlightMaterial: renderWorld.materials.kenneyTower,
     extraMaterials: [renderWorld.materials.ghostInvalidMaterial],
   });
   const warmupMs = performance.now() - warmStartMs;
-  loadingScreen.setProgress(43, 43);
+  loadingScreen.setProgress(bootStepTotal, bootStepTotal);
 
   startupMetrics = {
     assetsMs,
@@ -290,7 +298,7 @@ async function bootstrap(loadingScreen: LoadingScreen): Promise<void> {
     console.info(
       `[Skyhold Perf] timeToMenu=${Math.round(startupMetrics.timeToMenuMs)}ms ` +
         `(assets=${Math.round(assetsMs)}ms, setup=${Math.round(sceneSetupMs)}ms, warmup=${Math.round(warmupMs)}ms) ` +
-        `quality=${snap.qualityMode}->T${snap.activeTier}(${snap.tierLabel}) dpr=${snap.dpr.toFixed(2)} ` +
+        `quality=${snap.qualityMode}->T${snap.activeTier}(${snap.tierLabel}) dpr=${snap.dpr.toFixed(2)}(${snap.pixelWidth}x${snap.pixelHeight}) ` +
         `composer=${snap.composerEnabled ? snap.activePasses : 'OFF'} ` +
         `gl=${glInfo.webgl2 ? 'WebGL2' : 'WebGL1'} progs=${glInfo.programs} maxTex=${glInfo.maxTextureSize} parallelCompile=${glInfo.parallelCompile}${gpuSuffix}`,
     );

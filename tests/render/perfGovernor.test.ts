@@ -8,6 +8,7 @@ import {
   computeShadowMapSize,
   computeTargetDpr,
 } from '../../src/render/perfGovernor.ts';
+import { getN8aoQualitySettings } from '../../src/render/postProcessing.ts';
 import { detectPrimaryTouchDevice } from '../../src/render/sceneManager.ts';
 import { formatPerfLogLine } from '../../src/ui/debugPanel.ts';
 
@@ -330,5 +331,16 @@ describe('PerfGovernor', () => {
     expect(detectPrimaryTouchDevice()).toBe(false);
 
     vi.unstubAllGlobals();
+  });
+
+  it('uses lightweight Performance+halfRes N8AO on Tier 4 half mode and Medium+full on Tier 5', () => {
+    expect(getN8aoQualitySettings('half')).toEqual({
+      qualityMode: 'Performance',
+      halfRes: true,
+    });
+    expect(getN8aoQualitySettings('full')).toEqual({
+      qualityMode: 'Medium',
+      halfRes: false,
+    });
   });
 });

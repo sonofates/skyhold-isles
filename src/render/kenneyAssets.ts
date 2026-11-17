@@ -67,12 +67,13 @@ function isIdentityMatrix(m: THREE.Matrix4): boolean {
  * non-indexed position (vec3), normal (vec3), uv (vec2), color (vec3).
  */
 function normalizeMeshGeometry(src: THREE.BufferGeometry, worldMatrix: THREE.Matrix4): THREE.BufferGeometry {
-  const geo = src.index ? src.toNonIndexed() : src.clone();
-  for (const attrName of Object.keys(geo.attributes)) {
+  // Strip unused attributes (e.g. tangents) before toNonIndexed() so de-indexing never expands them.
+  for (const attrName of Object.keys(src.attributes)) {
     if (attrName !== 'position' && attrName !== 'normal' && attrName !== 'uv' && attrName !== 'color') {
-      geo.deleteAttribute(attrName);
+      src.deleteAttribute(attrName);
     }
   }
+  const geo = src.index ? src.toNonIndexed() : src.clone();
   if (!isIdentityMatrix(worldMatrix)) {
     geo.applyMatrix4(worldMatrix);
   }

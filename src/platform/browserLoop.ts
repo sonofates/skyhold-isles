@@ -17,6 +17,13 @@ export interface RenderPacingTarget {
   readonly mode: RenderPacingMode;
 }
 
+const PACING_HIDDEN: RenderPacingTarget = Object.freeze({ targetFps: 0, mode: 'hidden' });
+const PACING_ACTIVE: RenderPacingTarget = Object.freeze({ targetFps: null, mode: 'active' });
+const PACING_WAKE: RenderPacingTarget = Object.freeze({ targetFps: null, mode: 'wake' });
+const PACING_MODAL: RenderPacingTarget = Object.freeze({ targetFps: 15, mode: 'modal' });
+const PACING_MENU: RenderPacingTarget = Object.freeze({ targetFps: 30, mode: 'menu' });
+const PACING_PAUSED: RenderPacingTarget = Object.freeze({ targetFps: 20, mode: 'paused' });
+
 /**
  * Pure frame-pacing policy for battery savings:
  * - Tab hidden -> skip rendering (0 fps)
@@ -28,30 +35,35 @@ export interface RenderPacingTarget {
  */
 export function computeRenderPacingTarget(ctx: RenderPacingContext): RenderPacingTarget {
   if (ctx.hidden) {
-    return { targetFps: 0, mode: 'hidden' };
+    return PACING_HIDDEN;
   }
   if (ctx.simActive && !ctx.paused && !ctx.modalOpen) {
-    return { targetFps: null, mode: 'active' };
+    return PACING_ACTIVE;
   }
   if (ctx.modalOpen || ctx.menuView === 'levelSelect') {
-    return { targetFps: 15, mode: 'modal' };
+    return PACING_MODAL;
   }
   if (ctx.menuView === 'menu') {
-    return { targetFps: 30, mode: 'menu' };
+    return PACING_MENU;
   }
   if (ctx.wakeActive) {
-    return { targetFps: null, mode: 'wake' };
+    return PACING_WAKE;
   }
   if (ctx.paused) {
-    return { targetFps: 20, mode: 'paused' };
+    return PACING_PAUSED;
   }
-  return { targetFps: null, mode: 'active' };
+  return PACING_ACTIVE;
 }
 
 export interface LoopCallbacks {
   onFixedTick: (fixedDt: number) => void;
   onRender: (frameDt: number, alpha: number, elapsedVisualTime: number) => void;
-  onAfterRender?: (frameDt: number, workMs: number, throttled: boolean) => void;
+  onAfterRender?: (
+    frameDt: number,
+    workMs: number,
+    throttled: boolean,
+    sleepBoundary?: boolean,
+  ) => void;
   onVisibilityRestore?: () => void;
   resolveRenderPacing?: (wakeActive: boolean) => RenderPacingTarget;
 }
@@ -110,7 +122,11 @@ export class GameLoop {
       this.maxRenderFps = nextPacing.targetFps;
       this.pacingMode = nextPacing.mode;
     }
-    const capFps = waking ? null : this.maxRenderFps;
+    const capFps = this.callbacks.resolveRenderPacing
+      ? this.maxRenderFps
+      : waking && (this.pacingMode === 'paused' || this.pacingMode === 'wake')
+        ? null
+        : this.maxRenderFps;
     if (capFps !== null && capFps > 0 && this.lastRenderTimestamp > 0) {
       const minIntervalMs = 1000 / capFps - VSYNC_JITTER_TOLERANCE_MS;
       if (now - this.lastRenderTimestamp < minIntervalMs) {
@@ -136,7 +152,12 @@ export class GameLoop {
       console.error('[GameLoop] frame threw:', err);
     }
     this.lastWorkMs = performance.now() - workStart;
-    this.callbacks.onAfterRender?.(rawDt, this.lastWorkMs, throttled || resumedFromThrottle);
+    this.callbacks.onAfterRender?.(
+      rawDt,
+      this.lastWorkMs,
+      throttled || resumedFromThrottle,
+      resumedFromThrottle,
+    );
   };
 
   constructor(callbacks: LoopCallbacks) {

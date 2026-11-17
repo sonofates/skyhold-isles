@@ -164,6 +164,7 @@ describe('GameLoop throttle boundary and storage backward compatibility', () => 
     let modalOpen = true;
     let renderedCount = 0;
     const observedThrottled: boolean[] = [];
+    const observedSleepBoundaries: boolean[] = [];
 
     const loop = new GameLoop({
       resolveRenderPacing: (wakeActive) =>
@@ -179,13 +180,14 @@ describe('GameLoop throttle boundary and storage backward compatibility', () => 
       onRender: () => {
         renderedCount++;
       },
-      onAfterRender: (_dt, _work, throttled) => {
+      onAfterRender: (_dt, _work, throttled, sleepBoundary) => {
         observedThrottled.push(throttled);
+        observedSleepBoundaries.push(Boolean(sleepBoundary));
       },
     });
 
     loop.start();
-    nextRaf?.(100); // renders frame 1 in 15fps modal -> throttled=true
+    nextRaf?.(100); // renders frame 1 in 15fps modal -> throttled=true, sleepBoundary=false
     nextRaf?.(116); // still in modal (< 65ms) -> skipped
     expect(renderedCount).toBe(1);
 
@@ -196,8 +198,54 @@ describe('GameLoop throttle boundary and storage backward compatibility', () => 
 
     expect(renderedCount).toBe(3);
     expect(observedThrottled).toEqual([true, true, false]);
+    expect(observedSleepBoundaries).toEqual([false, true, false]);
     expect(loop.getPacingInfo().mode).toBe('active');
     expect(loop.getPacingInfo().targetFps).toBeNull();
+
+    loop.stop();
+    vi.unstubAllGlobals();
+  });
+
+  it('keeps modals capped at 15fps even if wakeRender was triggered right before opening the modal', () => {
+    let nextRaf: ((now: number) => void) | null = null;
+    let nowMs = 0;
+    vi.stubGlobal('requestAnimationFrame', (cb: (now: number) => void) => {
+      nextRaf = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', () => {});
+    vi.stubGlobal('performance', { now: () => nowMs });
+
+    let renderedCount = 0;
+    const loop = new GameLoop({
+      resolveRenderPacing: (wakeActive) =>
+        computeRenderPacingTarget({
+          hidden: false,
+          simActive: true,
+          paused: true,
+          modalOpen: true,
+          menuView: 'playing',
+          wakeActive,
+        }),
+      onFixedTick: () => {},
+      onRender: () => {
+        renderedCount++;
+      },
+    });
+
+    loop.start();
+    loop.wakeRender(1.0); // still active for 1000ms
+    nowMs = 100;
+    nextRaf?.(100); // renders frame 1 in modal
+    nowMs = 116;
+    nextRaf?.(116); // < 65ms -> must STILL be skipped at 15fps despite active wake timer!
+    nowMs = 133;
+    nextRaf?.(133); // still < 65ms -> skipped
+    nowMs = 170;
+    nextRaf?.(170); // >= 65ms -> renders frame 2
+
+    expect(renderedCount).toBe(2);
+    expect(loop.getPacingInfo()).toMatchObject({ mode: 'modal', targetFps: 15 });
 
     loop.stop();
     vi.unstubAllGlobals();
