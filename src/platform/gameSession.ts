@@ -69,6 +69,7 @@ import { affordableUpgradeCount } from '../ui/workshop.ts';
 import { buyRank, workshopModifiers, type WorkshopUpgradeId } from '../data/workshop.ts';
 import { isIslandMastered, starWallet } from '../game/progression.ts';
 import { badgesForWin, resolveRunConfig, type RunConfig } from '../game/runConfig.ts';
+import { earnedFeatIds, newlyEarnedFeats } from '../game/feats.ts';
 
 /** Countdown / cooldown HUD refresh cadence when no event triggered a sync. */
 const UI_SYNC_INTERVAL_SEC = 0.2;
@@ -448,6 +449,7 @@ export class GameSession {
         // Island badges only for the island's own challenges (a Daily may use others).
         const offered = challengesForLevel(LEVELS[this.currentLevelIndex]);
         const masteredBefore = isIslandMastered(this.progress, this.currentLevelIndex, offered);
+        const featsBefore = earnedFeatIds(this.progress);
         const record = recordWinProgress(
           this.progress,
           this.currentLevelIndex,
@@ -491,6 +493,7 @@ export class GameSession {
             dailyStreak,
             newlyMastered:
               !masteredBefore && isIslandMastered(this.progress, this.currentLevelIndex, offered),
+            newFeats: newlyEarnedFeats(featsBefore, this.progress),
           },
         );
         this.scheduleStarChimes(stars);
@@ -509,6 +512,7 @@ export class GameSession {
         if (isEndless) {
           const offset = waveIndex - level.waves.length;
           if (offset >= 0) {
+            const featsBefore = earnedFeatIds(this.progress);
             const rec = recordEndlessProgress(this.progress, this.currentLevelIndex, waveIndex + 1);
             const tierBefore = endlessTier(rec.previousBest, level.waves.length);
             const tierNow = endlessTier(rec.best, level.waves.length);
@@ -520,6 +524,7 @@ export class GameSession {
               reachedEndless: true,
               endlessWavesCleared: offset,
               mutators: endlessMutatorsAt(offset, level.index).map((m) => m.name),
+              newFeats: newlyEarnedFeats(featsBefore, this.progress),
             };
           } else {
             // Fell during the story waves of an island-card Endless run: no record.

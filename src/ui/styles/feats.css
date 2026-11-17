@@ -1,0 +1,183 @@
+/* Logbook tabs (Islands | Feats) and the Feats list. */
+
+.lb-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 3px;
+  background: var(--gx-ink);
+  clip-path: polygon(7px 0, calc(100% - 7px) 0, 100% 7px, 100% calc(100% - 7px), calc(100% - 7px) 100%, 7px 100%, 0 calc(100% - 7px), 0 7px);
+}
+
+.lb-tab {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 10px;
+  border: 0;
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--gx-muted);
+  background: transparent;
+  cursor: pointer;
+  touch-action: manipulation;
+  clip-path: polygon(5px 0, calc(100% - 5px) 0, 100% 5px, 100% calc(100% - 5px), calc(100% - 5px) 100%, 5px 100%, 0 calc(100% - 5px), 0 5px);
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.lb-tab small {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 700;
+  color: inherit;
+  opacity: 0.85;
+}
+
+.lb-tab.active {
+  color: var(--gx-cream);
+  background: var(--gx-slate-hi);
+  box-shadow: inset 0 -3px 0 var(--gx-gold);
+}
+
+.lb-tab:focus-visible {
+  outline: 3px solid var(--gx-gold);
+  outline-offset: -3px;
+}
+
+.ft-row {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 52px;
+  padding: 6px 10px 6px 8px;
+  color: var(--gx-cream);
+  background: var(--gx-slate-lo);
+  clip-path: polygon(6px 0, calc(100% - 6px) 0, 100% 6px, 100% calc(100% - 6px), calc(100% - 6px) 100%, 6px 100%, 0 calc(100% - 6px), 0 6px);
+}
+
+.ft-row.earned {
+  background: #3d356f;
+  box-shadow: inset 3px 0 0 var(--gx-gold);
+}
+
+.ft-icon {
+  width: 38px;
+  height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 7px;
+  color: var(--gx-cream);
+  background: var(--gx-ink);
+  clip-path: polygon(30% 0, 70% 0, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0 70%, 0 30%);
+}
+
+.ft-row:not(.earned) .ft-icon {
+  opacity: 0.55;
+  filter: grayscale(0.85);
+}
+
+.ft-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.ft-medal {
+  width: 18px;
+  height: 18px;
+  background: #e7a6ff;
+  box-shadow: inset 0 -4px 0 #a26ac0;
+  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+}
+
+.ft-text {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.ft-text strong {
+  font-family: var(--font-display);
+  font-size: 15.5px;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.ft-text small {
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--gx-muted);
+}
+
+.ft-done {
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+}
+
+.ft-done svg {
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 2px 0 var(--gx-ink));
+}
+
+.ft-progress {
+  position: relative;
+  min-width: 46px;
+  padding-bottom: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--gx-muted);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.ft-progress b {
+  font-size: 14px;
+  color: var(--gx-cream);
+}
+
+.ft-progress i {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 4px;
+  background: var(--gx-ink);
+}
+
+.ft-progress i::after {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: var(--p, 0%);
+  background: var(--gx-gold);
+}
+
+.ft-progress-todo {
+  padding-bottom: 0;
+  font-size: 16px;
+}
+
+/* Feat callout on the results cards */
+.outcome-callout.callout-feat {
+  color: var(--gx-cream);
+  background: var(--gx-ink);
+  box-shadow: inset 0 0 0 2px var(--gx-gold);
+}
+
+.outcome-callout.callout-feat .ft-medal {
+  width: 13px;
+  height: 13px;
+}
+
+.outcome-callout.callout-feat b {
+  color: var(--gx-gold);
+  font-weight: 700;
+}

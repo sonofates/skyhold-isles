@@ -5,13 +5,17 @@ import { LEVELS } from '../data/levels/index.ts';
 import { isIslandMastered, summarizeProgress } from '../game/progression.ts';
 import { UI_ICON_SVGS } from './icons.ts';
 import { MASTERED_CROWN_SVG, renderStarsHtml } from './menus.ts';
+import { renderFeatsList } from './feats.ts';
 import './styles/logbook.css';
 
-/** Island select → tap the star total: completion summary and every island's records. */
+type LogbookTab = 'islands' | 'feats';
+
+/** Island select → tap the star total: completion summary, every island's records and feats. */
 export class LogbookModal {
   private readonly backdrop: HTMLDivElement;
   private readonly card: HTMLDivElement;
   private open = false;
+  private tab: LogbookTab = 'islands';
 
   constructor(parent: HTMLElement) {
     this.backdrop = document.createElement('div');
@@ -33,8 +37,9 @@ export class LogbookModal {
     return this.open;
   }
 
-  show(progress: ProgressData): void {
+  show(progress: ProgressData, tab: LogbookTab = 'islands'): void {
     this.open = true;
+    this.tab = tab;
     this.render(progress);
     this.backdrop.classList.remove('hidden');
     // Keyboard users land on the main action (no scroll jump on touch).
@@ -73,6 +78,31 @@ export class LogbookModal {
       <div class="lb-total"><span class="lb-total-icon">${MASTERED_CROWN_SVG}</span><strong>${sum.mastered}<small>/${sum.islands}</small></strong><span>mastered</span><i style="--p:${pct(sum.mastered, sum.islands)}%"></i></div>
       <div class="lb-total"><span class="lb-total-icon">${UI_ICON_SVGS.autoWave}</span><strong>${sum.bestEndless > 0 ? `W${sum.bestEndless}` : '–'}</strong><span>${sum.bestEndlessIsland ? 'best endless' : 'no endless yet'}</span></div>`;
 
+    const feats = renderFeatsList(progress);
+    const tabs = document.createElement('div');
+    tabs.className = 'lb-tabs';
+    tabs.setAttribute('role', 'tablist');
+    const makeTab = (tab: LogbookTab, html: string): HTMLButtonElement => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = `lb-tab${this.tab === tab ? ' active' : ''}`;
+      b.setAttribute('role', 'tab');
+      b.setAttribute('aria-selected', String(this.tab === tab));
+      b.setAttribute('data-testid', `logbook-tab-${tab}`);
+      b.innerHTML = html;
+      b.addEventListener('click', () => {
+        if (this.tab === tab) return;
+        this.tab = tab;
+        this.render(progress);
+        this.card.querySelector<HTMLElement>(`[data-testid="logbook-tab-${tab}"]`)?.focus({ preventScroll: true });
+      });
+      return b;
+    };
+    tabs.append(
+      makeTab('islands', 'Islands'),
+      makeTab('feats', `Feats <small>${feats.earned}/${feats.total}</small>`),
+    );
+
     const list = document.createElement('div');
     list.className = 'lb-list';
     for (let i = 0; i < LEVELS.length; i++) {
@@ -108,7 +138,13 @@ export class LogbookModal {
         ? 'Your victories, badges and records will be written here.'
         : `${sum.cleared}/${sum.islands} islands cleared · ${sum.totalWins} victories in total`;
 
-    this.card.append(head, totals, list, foot);
+    if (this.tab === 'feats') {
+      foot.textContent =
+        feats.earned === 0
+          ? 'Feats are long-term goals — they unlock as your records grow.'
+          : `${feats.earned} of ${feats.total} feats earned`;
+    }
+    this.card.append(head, tabs, totals, this.tab === 'feats' ? feats.el : list, foot);
   }
 
   dispose(): void {

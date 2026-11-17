@@ -2,7 +2,9 @@ import type { TowerMvpSummary } from '../core/types.ts';
 import { BALANCE } from '../data/balance.ts';
 import type { LevelDef } from '../data/levels/index.ts';
 import { describeStarGoals } from '../data/stars.ts';
+import type { FeatDef } from '../game/feats.ts';
 import type { WinRecord } from '../game/progression.ts';
+import { featCalloutChips } from './feats.ts';
 import { TOWER_ICON_SVGS, UI_ICON_SVGS } from './icons.ts';
 import { MASTERED_CROWN_SVG, renderStarsHtml } from './menus.ts';
 import './styles/starReveal.css';
@@ -40,6 +42,8 @@ export interface EndlessResultView {
   readonly mutators: readonly string[];
   /** Endless medal tier reached for the first time by this run (e.g. "Silver"). */
   readonly newTierName?: string;
+  /** Feats this run earned (endless medals can complete Storm Chaser). */
+  readonly newFeats?: readonly FeatDef[];
 }
 
 function escapeHtml(text: string): string {
@@ -353,6 +357,8 @@ export class OutcomeOverlay {
       dailyStreak?: number;
       /** This win completed the island (3 stars + every challenge). */
       newlyMastered?: boolean;
+      /** Feats this win earned (shown last, after the unlock / Workshop chips). */
+      newFeats?: readonly FeatDef[];
     },
   ): void {
     this.open = true;
@@ -373,6 +379,7 @@ export class OutcomeOverlay {
       extras?.workshopStars ?? 0,
       extras?.dailyStreak ?? 0,
       extras?.newlyMastered === true,
+      extras?.newFeats ?? [],
     );
     if (stars < 3) {
       const goals = describeStarGoals(level.difficulty);
@@ -402,6 +409,7 @@ export class OutcomeOverlay {
     workshopStars: number,
     dailyStreak: number,
     newlyMastered: boolean,
+    newFeats: readonly FeatDef[],
   ): void {
     const chips: string[] = [];
     let delay = (STAR_REVEAL_DELAYS_MS[Math.max(0, stars - 1)] ?? 0) + 380;
@@ -423,6 +431,7 @@ export class OutcomeOverlay {
     for (const name of challengeNames) chip('callout-challenge', UI_ICON_SVGS.star, `${name} +1★`);
     if (unlockedName) chip('callout-unlock', UI_ICON_SVGS.islands, `${unlockedName} unlocked`);
     if (workshopStars > 0) chip('callout-workshop', WORKSHOP_ICON_SVG, `Workshop: ${workshopStars}★ to spend`);
+    chips.push(...featCalloutChips(newFeats, delay));
     this.calloutsEl.innerHTML = chips.join('');
   }
 
@@ -471,6 +480,7 @@ export class OutcomeOverlay {
           `<span class="outcome-callout callout-tier tier-${escapeHtml(res.newTierName.toLowerCase())}" style="--reveal-delay:520ms">${UI_ICON_SVGS.autoWave}<span>${escapeHtml(res.newTierName)} endless medal</span></span>`,
         );
       }
+      chips.push(...featCalloutChips(res?.newFeats ?? [], 690));
       this.calloutsEl.innerHTML = chips.join('');
       if (res && res.mutators.length > 0) {
         const chips = res.mutators.map((m) => `<span class="endless-mutator-chip">${escapeHtml(m)}</span>`).join('');

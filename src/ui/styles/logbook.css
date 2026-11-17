@@ -282,7 +282,7 @@
     width: min(720px, 100%);
     display: grid;
     grid-template-columns: 200px minmax(0, 1fr);
-    grid-template-rows: auto 1fr auto;
+    grid-template-rows: auto auto 1fr auto;
     column-gap: 12px;
     row-gap: 8px;
   }
@@ -292,21 +292,26 @@
     grid-row: 1;
   }
 
-  .lb-totals {
+  .lb-tabs {
     grid-column: 1;
     grid-row: 2;
+  }
+
+  .lb-totals {
+    grid-column: 1;
+    grid-row: 3;
     grid-template-columns: 1fr 1fr;
     align-content: start;
   }
 
   .lb-foot {
     grid-column: 1;
-    grid-row: 3;
+    grid-row: 4;
   }
 
   .lb-list {
     grid-column: 2;
-    grid-row: 1 / 4;
+    grid-row: 1 / 5;
     max-height: calc(100vh - 60px);
   }
 }

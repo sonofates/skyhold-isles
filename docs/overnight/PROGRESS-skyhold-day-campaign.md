@@ -54,6 +54,21 @@ Machine load from the other agents can make desktop shots slow (timeout raised t
       re-plan); one "doable" + one "hard" each, like L9-13. Glass Sanctuary on L15 and both of L16's
       die on the final wave only → hard but fair for a player. Revisit if playtests disagree.
 
+- [x] Island-select header fits CONTENT's Codex chip at 390 px (logbook.css), merge-order tweaks in
+      gameOverlays.ts (see merge notes below).
+- [x] Kill-gold modifiers on raiders/escorts/mites: closed as "no effect" — those rewards are
+      1-2 g and Math.round(2 × 0.85..1.04) = 2, so wiring the multiplier would change nothing.
+- [x] Feats (src/game/feats.ts, src/ui/feats.ts, styles/feats.css): 13 cosmetic long-term goals
+      derived purely from the save (no new save data → no migration; old saves light up at once;
+      all inputs are monotonic "best" records so a feat never un-earns, except via Reset progress).
+      Logbook has tabs Islands | Feats (n/13) with progress bars; victory and endless results
+      cards show "Feat: <name>" chips for feats earned by that run (before/after diff in session).
+      Feats grant no stars/power. List: First Landing, Island Hopper (5 clears), The Skies Charted
+      (all), Starcatcher (any 3★), Stargazer (½ of campaign stars), Full Firmament (all stars),
+      Master Stroke (3★ on Master), Badge Hunter (6 badges), Crowned (master an island), Storm
+      Chaser (Gold endless medal), Squall Rider (7 Dailies), Steady Winds (3-day streak),
+      Seasoned Warden (30 wins).
+
 ## Next ideas (not started) — for a later round
 - HUD chip for active challenge / live star rating (MOBILE's HUD area — coordinate via the lead).
 - Show challenge/daily star total next to the campaign star pill on the main menu.
