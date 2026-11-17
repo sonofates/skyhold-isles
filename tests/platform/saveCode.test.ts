@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { LEVELS } from '../../src/data/levels/index.ts';
 import { starWallet } from '../../src/game/progression.ts';
-import { decodeSaveCode, describeMergeGain, encodeSaveCode, mergeProgress } from '../../src/platform/saveCode.ts';
+import {
+  decodeSaveCode,
+  describeMergeGain,
+  encodeSaveCode,
+  mergeDaily,
+  mergeProgress,
+} from '../../src/platform/saveCode.ts';
 import { createDefaultProgress } from '../../src/platform/storage.ts';
 
 const N = LEVELS.length;
@@ -107,5 +113,51 @@ describe('mergeProgress', () => {
     const b = sample();
     expect(describeMergeGain(a, mergeProgress(a, b, N))).toContain('+8★');
     expect(describeMergeGain(b, mergeProgress(b, a, N))).toMatch(/nothing new/);
+  });
+});
+
+describe('save code hardening (review fixes)', () => {
+  it('a hand-made code with unknown / non-Latin challenge ids loads without them, and re-encodes', () => {
+    const p = sample();
+    p.challengeClears[1] = ['\u4e2d\u6587', 'notAChallenge', 'galeForce'];
+    const code = encodeSaveCode(p); // UTF-8 safe: must not throw
+    const res = decodeSaveCode(code, N);
+    expect(res.ok).toBe(true);
+    if (!res.ok) return;
+    expect(res.progress.challengeClears[1]).toEqual(['galeForce']);
+    expect(() => encodeSaveCode(mergeProgress(sample(), res.progress, N))).not.toThrow();
+  });
+});
+
+describe('mergeDaily', () => {
+  it('chains a streak continued on another device', () => {
+    // A won days 96..100 (streak 5); B won day 101 (streak 1).
+    const m = mergeDaily(
+      { lastDay: 100, streak: 5, bestStreak: 5, total: 10 },
+      { lastDay: 101, streak: 1, bestStreak: 1, total: 1 },
+    );
+    expect(m).toEqual({ lastDay: 101, streak: 6, bestStreak: 6, total: 10 });
+  });
+
+  it('overlapping runs count each day once; a gap keeps only the latest run', () => {
+    const overlap = mergeDaily(
+      { lastDay: 100, streak: 3, bestStreak: 3, total: 3 },
+      { lastDay: 101, streak: 3, bestStreak: 3, total: 3 },
+    );
+    expect(overlap.streak).toBe(4); // days 98..101
+    const gap = mergeDaily(
+      { lastDay: 100, streak: 4, bestStreak: 4, total: 4 },
+      { lastDay: 103, streak: 2, bestStreak: 2, total: 2 },
+    );
+    expect(gap).toEqual({ lastDay: 103, streak: 2, bestStreak: 4, total: 4 });
+  });
+
+  it('is symmetric and idempotent', () => {
+    const a = { lastDay: 100, streak: 5, bestStreak: 7, total: 12 };
+    const b = { lastDay: 101, streak: 2, bestStreak: 2, total: 2 };
+    expect(mergeDaily(a, b)).toEqual(mergeDaily(b, a));
+    const m = mergeDaily(a, b);
+    expect(mergeDaily(m, m)).toEqual(m);
+    expect(mergeDaily(m, a)).toEqual(m);
   });
 });

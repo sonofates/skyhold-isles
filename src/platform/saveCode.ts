@@ -1,4 +1,6 @@
 import type { ProgressData } from '../core/types.ts';
+import { isChallengeId } from '../data/challenges.ts';
+import type { DailyRecord } from '../data/daily.ts';
 import { starWallet } from '../game/progression.ts';
 import { migrateProgress } from './storage.ts';
 
@@ -20,13 +22,18 @@ function checksum(text: string): string {
   return h.toString(36).padStart(7, '0');
 }
 
-function toBase64Url(ascii: string): string {
-  return btoa(ascii).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+/** UTF-8 safe (btoa alone throws on characters above U+00FF). */
+function toBase64Url(text: string): string {
+  let bin = '';
+  for (const byte of new TextEncoder().encode(text)) bin += String.fromCharCode(byte);
+  return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
 function fromBase64Url(b64: string): string {
   const std = b64.replace(/-/g, '+').replace(/_/g, '/');
-  return atob(std + '='.repeat((4 - (std.length % 4)) % 4));
+  const bin = atob(std + '='.repeat((4 - (std.length % 4)) % 4));
+  const bytes = Uint8Array.from(bin, (c) => c.charCodeAt(0));
+  return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
 }
 
 /** Trailing zeros carry no information: trim them to keep codes short. */
@@ -54,7 +61,6 @@ export function encodeSaveCode(progress: ProgressData): string {
     b: trimLists(progress.challengeClears),
     d: progress.daily,
   };
-  // Challenge ids and upgrade ids are ASCII; the JSON is plain ASCII, safe for btoa.
   const body = toBase64Url(JSON.stringify(payload));
   return `${PREFIX}${body}-${checksum(body)}`;
 }
@@ -95,7 +101,29 @@ export function decodeSaveCode(code: string, levelCount: number): SaveCodeResult
     },
     levelCount,
   );
+  // Only real challenge ids travel between saves (a hand-made code could carry anything).
+  progress.challengeClears = progress.challengeClears.map((list) => list.filter((id) => isChallengeId(id)));
   return { ok: true, progress };
+}
+
+/**
+ * Daily records from two devices. The current streak chains when one save's run of wins starts no
+ * later than the day after the other's last win (wins on both devices count as one run of days).
+ * The total is the larger of the two, not the sum: without per-day history a sum would count the
+ * same wins twice when a code is loaded again (merging must stay idempotent).
+ */
+export function mergeDaily(a: DailyRecord, b: DailyRecord): DailyRecord {
+  const [early, late] = a.lastDay <= b.lastDay ? [a, b] : [b, a];
+  const lateStart = late.lastDay - Math.max(0, late.streak) + 1;
+  const earlyStart = early.lastDay - Math.max(0, early.streak) + 1;
+  const chains = early.streak > 0 && late.streak > 0 && lateStart <= early.lastDay + 1;
+  const streak = chains ? late.lastDay - Math.min(lateStart, earlyStart) + 1 : late.streak;
+  return {
+    lastDay: late.lastDay,
+    streak,
+    bestStreak: Math.max(a.bestStreak, b.bestStreak, streak),
+    total: Math.max(a.total, b.total),
+  };
 }
 
 /**
@@ -105,12 +133,7 @@ export function decodeSaveCode(code: string, levelCount: number): SaveCodeResult
 export function mergeProgress(a: ProgressData, b: ProgressData, levelCount: number): ProgressData {
   const maxList = (x: readonly number[], y: readonly number[]): number[] =>
     Array.from({ length: levelCount }, (_, i) => Math.max(x[i] ?? 0, y[i] ?? 0));
-  const daily =
-    b.daily.lastDay > a.daily.lastDay
-      ? { ...b.daily }
-      : { ...a.daily };
-  daily.total = Math.max(a.daily.total, b.daily.total);
-  daily.bestStreak = Math.max(a.daily.bestStreak, b.daily.bestStreak, daily.streak);
+  const daily = mergeDaily(a.daily, b.daily);
   const spentA = starWallet(a).spent;
   const spentB = starWallet(b).spent;
   const merged: ProgressData = {

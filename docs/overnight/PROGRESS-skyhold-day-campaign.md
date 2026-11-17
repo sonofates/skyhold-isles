@@ -82,6 +82,16 @@ Machine load from the other agents can make desktop shots slow (timeout raised t
       `skyhold_isles_progress_import_backup` first. Settings are not in the code. Whitespace in
       pasted codes is ignored; damaged/truncated codes give a readable error. Card scrolls while the
       panel is open (`:has()` scoped to the open panel); landscape lays copy/load side by side.
+- [x] Daily Squall "Copy result" chip on a won daily (src/game/share.ts, tested): 3 spoiler-free
+      lines (date, island + challenges, ★★☆ · lives lost · streak) to the clipboard only.
+- [x] Round-2 review (subagent, read-only) → 3 findings, all fixed:
+      1. Save-code merge dropped a running Daily streak continued on another device →
+         `mergeDaily` chains overlapping/adjacent runs (symmetric, idempotent; total stays max —
+         a sum would double-count when the same code is loaded twice).
+      2. A hand-made code with a non-Latin challenge id made `btoa` throw forever after →
+         decode keeps only real challenge ids; base64 is now UTF-8 safe.
+      3. Endless feats earned by quitting/restarting mid-run were never announced →
+         `recordEndlessIfActive` returns new feats; a "Feat earned" toast after the view change.
 
 ## Next ideas (not started) — for a later round
 - HUD chip for active challenge / live star rating (MOBILE's HUD area — coordinate via the lead).

@@ -70,7 +70,7 @@ import { affordableUpgradeCount } from '../ui/workshop.ts';
 import { buyRank, workshopModifiers, type WorkshopUpgradeId } from '../data/workshop.ts';
 import { isEndlessBestCrossing, isIslandMastered, starWallet } from '../game/progression.ts';
 import { badgesForWin, resolveRunConfig, type RunConfig } from '../game/runConfig.ts';
-import { earnedFeatIds, newlyEarnedFeats } from '../game/feats.ts';
+import { earnedFeatIds, newlyEarnedFeats, type FeatDef } from '../game/feats.ts';
 import { dailyShareText } from '../game/share.ts';
 import { decodeSaveCode, describeMergeGain, encodeSaveCode, mergeProgress } from './saveCode.ts';
 
@@ -312,13 +312,24 @@ export class GameSession {
     this.renderWorld.setFlightPathHighlight(nextHasFlyers || currentHasFlyers, true);
   }
 
-  /** Records the current endless run (if any) so leaving/restarting mid-run keeps the best wave. */
-  private recordEndlessIfActive(): void {
-    if (this.viewMode !== 'playing') return;
+  /**
+   * Records the current endless run (if any) so leaving/restarting mid-run keeps the best wave.
+   * Returns feats that record just earned (announced by the caller once the view has changed).
+   */
+  private recordEndlessIfActive(): FeatDef[] {
+    if (this.viewMode !== 'playing') return [];
     const ws = this.simWorld.waveSystem;
     // Endless started from the island card: story waves never count as an endless record.
-    if (!ws.isEndless || ws.currentWaveIndex < this.simWorld.level.waves.length) return;
+    if (!ws.isEndless || ws.currentWaveIndex < this.simWorld.level.waves.length) return [];
+    const featsBefore = earnedFeatIds(this.progress);
     recordEndlessProgress(this.progress, this.currentLevelIndex, ws.currentWaveOneBased);
+    return newlyEarnedFeats(featsBefore, this.progress);
+  }
+
+  private announceFeats(feats: readonly FeatDef[]): void {
+    if (feats.length === 0) return;
+    this.d.overlays.toast.show(`Feat earned: ${feats.map((f) => f.name).join(', ')}`, 4);
+    this.soundManager.playStarChime(2);
   }
 
   setPlacementMode(type: TowerType | null): void {
@@ -741,8 +752,9 @@ export class GameSession {
 
   showMenuView(target: 'menu' | 'levelSelect' | 'workshop', reloadShowcase = false): void {
     const { overlays } = this.d;
+    let feats: FeatDef[] = [];
     if (reloadShowcase) {
-      this.recordEndlessIfActive();
+      feats = this.recordEndlessIfActive();
       this.clearTransientPlayState();
       this.events.clear();
       this.events = new EventBus();
@@ -758,11 +770,12 @@ export class GameSession {
     this.renderWorld.cameraController.setShowcaseMode(true);
     this.syncLoopAndInput();
     this.syncUi();
+    this.announceFeats(feats);
   }
 
   startLevel(levelIndex: number, config: Partial<RunConfig> = {}): void {
     const { overlays, loop } = this.d;
-    this.recordEndlessIfActive();
+    const feats = this.recordEndlessIfActive();
     this.currentLevelIndex = Math.max(0, Math.min(LEVELS.length - 1, levelIndex));
     const level = LEVELS[this.currentLevelIndex];
     // Challenges and island-card Endless unlock after the first clear.
@@ -802,6 +815,7 @@ export class GameSession {
     overlays.closeModals();
     this.applyBannedTowerMarkers();
     this.announceRun();
+    this.announceFeats(feats);
     this.refreshPlacementPreview();
     this.syncLoopAndInput();
     this.syncUi();
