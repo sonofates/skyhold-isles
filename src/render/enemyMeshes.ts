@@ -530,7 +530,7 @@ export class EnemyRenderer {
       }
 
       case 'brute': {
-        // Steel-grey armored siege juggernaut with bold crimson belt/pauldrons, horns, and glowing amber eyes
+        // Polished-silver armored siege juggernaut with bold crimson belt/pauldrons, horns, and glowing amber eyes
         parts = [
           { geometry: chamfer, colorHex: 0x5a6476, position: [-0.2, 0.18, 0], scale: [0.24, 0.36, 0.28] },
           { geometry: chamfer, colorHex: 0x5a6476, position: [0.2, 0.18, 0], scale: [0.24, 0.36, 0.28] },
