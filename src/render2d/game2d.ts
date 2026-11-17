@@ -1,5 +1,5 @@
 import { Container, Sprite, type Application } from 'pixi.js';
-import { EventBus } from '../core/eventBus.ts';
+import { EventBus, type GameEventMap } from '../core/eventBus.ts';
 import { FixedTimestepStepper } from '../core/gameLoop.ts';
 import type { SpeedMultiplier, TowerType } from '../core/types.ts';
 import type { LevelDef } from '../data/levels/types.ts';
@@ -12,6 +12,7 @@ import { FxLayer } from './fxLayer.ts';
 import { Hud, type HudState } from './hud.ts';
 import { WorldLayers } from './layers.ts';
 import { MapView } from './mapView.ts';
+import { PlotLayer, type PlotState } from './plotLayer.ts';
 import { createProcTextures, type ProcTextures } from './procTextures.ts';
 import { ProjectileLayer } from './projectileLayer.ts';
 import { bindSpecialFx, createSpecialFxStats } from './specialFx.ts';
@@ -43,6 +44,7 @@ export class Game2D {
   readonly layers: WorldLayers;
   readonly enemies: EnemyLayer;
   readonly towers: TowerLayer;
+  readonly plots: PlotLayer;
   readonly projectiles: ProjectileLayer;
   readonly fx: FxLayer;
   readonly soldiers: SoldierLayer;
@@ -61,6 +63,11 @@ export class Game2D {
   /** Barracks waiting for a road tap to move its rally point (-1 = none). */
   private rallyTower = -1;
   private down: { x: number; y: number; t: number } | null = null;
+  /** Free plot under the mouse (desktop hover glow), or -1. */
+  private hoverPlot = -1;
+  private minCost = 0;
+  /** Tesla bolts waiting for their tower's painted release frame (sim seconds left). */
+  private readonly boltQueue: { t: number; points: GameEventMap['lightningChain']['points']; overload: boolean; muzzle: number }[] = [];
   private hudState: {
     lives: number;
     gold: number;
@@ -100,14 +107,20 @@ export class Game2D {
       orb: this.tex.orb,
     });
     this.enemies = new EnemyLayer(art, this.map, this.layers, this.tex, this.fx);
-    this.towers = new TowerLayer(art, this.map, this.layers, this.tex, this.fx);
+    this.plots = new PlotLayer(level.layout2d, art.plot, this.tex);
+    this.layers.plots.addChild(this.plots.root);
+    this.towers = new TowerLayer(art, this.map, this.layers, this.tex, this.fx, this.plots.geometry);
     this.projectiles = new ProjectileLayer(
       this.map,
       this.layers.projectiles,
       this.layers.shadows,
       this.tex,
-      (t) => this.towers.muzzleHeight(t),
+      (p) => this.towers.muzzleOf(p.towerId, p.towerType),
       this.fx,
+      (p) => {
+        const t = this.world.getTowerById(p.towerId);
+        return t ? this.towers.releaseDelay(t.type, t.tier) : 0;
+      },
     );
     this.soldiers = new SoldierLayer(art, this.map, this.layers, this.tex, this.fx);
     this.hud = new Hud(art);
@@ -115,6 +128,7 @@ export class Game2D {
     this.screen.addChild(this.hud.root, this.ring.root);
     app.stage.addChild(this.map.root, this.screen);
     for (const t of art.manifest.buildRing) this.costs.set(t, getTowerTierStats(t, 1).upgradeCost);
+    this.minCost = Math.min(...this.costs.values());
     this.newRun();
   }
 
@@ -132,6 +146,7 @@ export class Game2D {
     this.fx.clear();
     this.soldiers.reset();
     this.rallyTower = -1;
+    this.boltQueue.length = 0;
     this.wireEvents();
   }
 
@@ -151,7 +166,15 @@ export class Game2D {
       this.fxStats,
     );
     this.soldiers.wire(ev);
-    ev.on('lightningChain', (e) => this.fx.bolt(e.points, e.overload === true, this.towers.muzzleHeight('tesla')));
+    ev.on('lightningChain', (e) => {
+      // points[0] is the firing tower: draw the bolt at its painted release frame, from its muzzle.
+      const p0 = e.points[0];
+      const t = this.world.towers.find((x) => Math.abs(x.x - p0.x) < 1e-6 && Math.abs(x.z - p0.z) < 1e-6);
+      const muzzle = t ? this.towers.muzzleOf(t.id, t.type) : this.towers.muzzleHeight('tesla');
+      const delay = t ? this.towers.releaseDelay(t.type, t.tier) : 0;
+      if (delay > 0) this.boltQueue.push({ t: delay, points: e.points.map((q) => ({ ...q })), overload: e.overload === true, muzzle });
+      else this.fx.bolt(e.points, e.overload === true, muzzle);
+    });
     ev.on('enemyKilled', (e) => {
       const px = m.pxX(e.x);
       const py = m.pxY(e.z) - e.y * 0.9 * ppu;
@@ -195,7 +218,23 @@ export class Game2D {
     });
     const alpha = res.alpha;
     const simDt = this.stepper.paused ? 0 : dtSec * this.stepper.speed;
-    this.towers.sync(world.towers, dtSec);
+    this.towers.sync(world.towers, dtSec, simDt);
+    for (let i = this.boltQueue.length - 1; i >= 0; i--) {
+      const b = this.boltQueue[i];
+      b.t -= simDt;
+      if (b.t <= 0) {
+        this.fx.bolt(b.points, b.overload, b.muzzle);
+        this.boltQueue.splice(i, 1);
+      }
+    }
+    const grid = world.grid;
+    const plotState = (i: number): PlotState => {
+      const id = grid.getTowerIdAt(i, 0);
+      if (id === -1) return 'free';
+      const t = world.getTowerById(id);
+      return t && this.towers.ringOf(t.type, t.tier) ? 'covered' : 'legacy';
+    };
+    this.plots.sync(plotState, this.hoverPlot, this.ring.isOpen ? this.ring.plot : -1, world.gold < this.minCost, dtSec);
     this.enemies.syncPool(world.enemyPool, alpha, simDt);
     this.projectiles.sync(world.projectilePool, alpha);
     this.soldiers.sync(world.soldierSystem, alpha, simDt, dtSec, this.selectedTower, this.rallyTower);
@@ -331,9 +370,10 @@ export class Game2D {
     }
     let plot = world.grid.findPlotAt(wx, wz, 1.25);
     if (plot === -1) {
-      // Tapping a tower's body (drawn above its plot) selects it too.
-      const p2 = world.grid.findPlotAt(wx, wz + 1.2, 1.4);
-      if (p2 !== -1 && world.grid.getTowerIdAt(p2, 0) !== -1) plot = p2;
+      // Tapping a tower's body (drawn above its plot, up to its top) selects it too.
+      const mx = (x - this.map.fit.offsetX) / this.map.fit.scale;
+      const my = (y - this.map.fit.offsetY) / this.map.fit.scale;
+      plot = this.towers.plotAtSprite(mx, my, world.towers);
     }
     if (plot === -1 || (this.ring.isOpen && this.ring.plot === plot)) {
       this.closeRing();
@@ -358,6 +398,18 @@ export class Game2D {
     });
     canvas.addEventListener('pointercancel', () => {
       this.down = null;
+    });
+    // Desktop hover: glow the free plot under the mouse (touch has no hover).
+    canvas.addEventListener('pointermove', (e) => {
+      if (e.pointerType !== 'mouse') return;
+      const r = canvas.getBoundingClientRect();
+      const mx = (e.clientX - r.left - this.map.fit.offsetX) / this.map.fit.scale;
+      const my = (e.clientY - r.top - this.map.fit.offsetY) / this.map.fit.scale;
+      this.hoverPlot = this.plots.plotAtPx(mx, my);
+      canvas.style.cursor = this.hoverPlot !== -1 && this.world.grid.getTowerIdAt(this.hoverPlot, 0) === -1 ? 'pointer' : '';
+    });
+    canvas.addEventListener('pointerleave', () => {
+      this.hoverPlot = -1;
     });
     window.addEventListener('keydown', (e) => {
       if (e.key === ' ') this.stepper.paused = !this.stepper.paused;
@@ -400,6 +452,19 @@ export class Game2D {
         extras: this.enemies.specials.extrasCreated,
       },
       barracks: { ...this.soldiers.debug(w.soldierSystem), rallyMode: this.rallyTower },
+      plots: {
+        count: this.plots.geometry.rects.length,
+        visible: this.plots.visibleCount,
+        hover: this.hoverPlot,
+        rings: this.plots.geometry.rings,
+        towerRings: this.towers.ringReport(w.towers),
+        attacksPlayed: this.towers.attacksPlayed,
+      },
+      mips: {
+        map: this.art.map.source.mipLevelCount,
+        plot: this.art.plot?.texture.source.mipLevelCount ?? null,
+        tower: this.art.towers.archer?.tiers[0].source.mipLevelCount ?? null,
+      },
       artNotes: this.art.notes,
     };
   }

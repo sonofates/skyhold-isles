@@ -2,6 +2,7 @@ import { Assets, Rectangle, Texture } from 'pixi.js';
 import type { TowerType } from '../core/types.ts';
 import { alphaFeetAnchor } from './alphaBox.ts';
 import { enemyHasArt, mulTint, pickTier, resolveEnemyArt, resolveTowerTiers } from './artResolve.ts';
+import { measureRing, type RingSpec } from './towerFit.ts';
 import {
   parseManifest,
   parseSheetJson,
@@ -9,6 +10,7 @@ import {
   type AnimMode,
   type ArtManifest,
   type EnemyArt,
+  type TierRing,
   type TowerArt,
   type UiArt,
 } from './manifest.ts';
@@ -24,6 +26,28 @@ export interface TowerArtRuntime {
   readonly tint: number;
   /** Tower whose sprites stand in while this tower's own art is pending. */
   readonly fallbackOf: string | null;
+  /** Per tier 1..3: the drawn file's stone ring (ring-convention art), or null (legacy placement). */
+  readonly rings: readonly (RingSpec | null)[];
+  /** Per tier 1..3: painted attack sheet (played once per shot), or null. */
+  readonly attack: readonly (TowerSheetRuntime | null)[];
+  /** Per tier 1..3: painted idle loop, or null. */
+  readonly idle: readonly (TowerSheetRuntime | null)[];
+}
+
+/** A tower animation sheet, ring-measured in its own frame px (so frames fit the plot like statics). */
+export interface TowerSheetRuntime {
+  readonly frames: readonly Texture[];
+  readonly fps: number;
+  readonly release: number | null;
+  readonly ring: RingSpec;
+  readonly frameW: number;
+  readonly frameH: number;
+}
+
+export interface PlotArtRuntime {
+  readonly texture: Texture;
+  /** Ring in texture px (null = the whole sprite). */
+  readonly ring: RingSpec | null;
 }
 
 export interface SheetRuntime {
@@ -61,6 +85,8 @@ export interface EnemyArtRuntime {
 export interface LoadedArt {
   readonly manifest: ArtManifest;
   readonly map: Texture;
+  /** Empty build plot sprite (null when the manifest has none / it failed to load). */
+  readonly plot: PlotArtRuntime | null;
   readonly ui: Readonly<Record<keyof UiArt, Texture>>;
   readonly towers: Readonly<Partial<Record<TowerType, TowerArtRuntime>>>;
   readonly enemies: Readonly<Record<string, EnemyArtRuntime>>;
@@ -74,8 +100,12 @@ export interface LoadedArt {
 
 const textureCache = new Map<string, Promise<Texture | null>>();
 
-/** Loads a texture, or null when the file is missing / not an image (never throws). */
-function tryTexture(url: string): Promise<Texture | null> {
+/**
+ * Loads a texture, or null when the file is missing / not an image (never throws). `mips`: build a
+ * mip chain (sprites drawn much smaller than their file — map, plots, towers — stay crisp instead
+ * of shimmering).
+ */
+function tryTexture(url: string, mips = false): Promise<Texture | null> {
   let p = textureCache.get(url);
   if (!p) {
     p = (async () => {
@@ -88,7 +118,7 @@ function tryTexture(url: string): Promise<Texture | null> {
           const type = head.headers.get('content-type') ?? '';
           if (head.status === 404 || type.includes('text/html')) return null;
           if (!head.ok) throw new Error(`HTTP ${head.status}`);
-          const tex = await Assets.load<Texture>(url);
+          const tex = await Assets.load<Texture>(mips ? { src: url, data: { autoGenerateMipmaps: true } } : url);
           if (tex) return tex;
         } catch {
           // transient: fall through to the retry
@@ -128,22 +158,76 @@ function dirOf(url: string): string {
   return i >= 0 ? url.slice(0, i + 1) : '';
 }
 
-async function loadSheetSeq(base: string, jsonPath: string): Promise<{ frames: Texture[]; fps: number; anchor: readonly [number, number] | null } | null> {
+interface LoadedSeq {
+  frames: Texture[];
+  fps: number;
+  anchor: readonly [number, number] | null;
+  release: number | null;
+  ringW: number | null;
+  frameW: number;
+  frameH: number;
+}
+
+async function loadSheetSeq(base: string, jsonPath: string, mips = false): Promise<LoadedSeq | null> {
   const jsonUrl = base + jsonPath;
   const raw = await tryJson(jsonUrl);
   if (!raw) return null;
   try {
     const sheet = parseSheetJson(raw, jsonPath.slice(jsonPath.lastIndexOf('/') + 1).replace(/\.json$/, '.png'));
-    const tex = await tryTexture(dirOf(jsonUrl) + sheet.image);
+    const tex = await tryTexture(dirOf(jsonUrl) + sheet.image, mips);
     if (!tex) return null;
     const frames = sheet.frames.map(
       (f) => new Texture({ source: tex.source, frame: new Rectangle(f.x, f.y, f.w, f.h) }),
     );
-    return { frames, fps: sheet.fps, anchor: sheet.anchor };
+    return {
+      frames,
+      fps: sheet.fps,
+      anchor: sheet.anchor,
+      release: sheet.release,
+      ringW: sheet.ringW,
+      frameW: sheet.frames[0].w,
+      frameH: sheet.frames[0].h,
+    };
   } catch (err) {
     console.warn(`[art2d] bad sheet ${jsonUrl}:`, err);
     return null;
   }
+}
+
+/** RGBA pixels of a texture's source (null when unreadable). */
+function texturePixels(tex: Texture): { data: Uint8ClampedArray; w: number; h: number } | null {
+  try {
+    const res = tex.source.resource as CanvasImageSource | undefined;
+    const w = tex.source.pixelWidth;
+    const h = tex.source.pixelHeight;
+    if (!res || w <= 0 || h <= 0) return null;
+    const c = document.createElement('canvas');
+    c.width = w;
+    c.height = h;
+    const ctx = c.getContext('2d', { willReadFrequently: true });
+    if (!ctx) return null;
+    ctx.drawImage(res, 0, 0);
+    return { data: ctx.getImageData(0, 0, w, h).data, w, h };
+  } catch {
+    return null;
+  }
+}
+
+/** A tier's ring: the manifest measurement, or measured from the pixels for "auto". */
+function resolveRing(spec: TierRing, tex: Texture | null): RingSpec | null {
+  if (spec === null || !tex) return null;
+  if (spec !== 'auto') return spec;
+  const px = texturePixels(tex);
+  return px ? measureRing(px.data, px.w, px.h) : null;
+}
+
+/** Ring of a tower sheet in frame px: its anchor (+ ringW), else the tier sprite's ring scaled to the frame. */
+function sheetRing(seq: LoadedSeq, tierRing: RingSpec | null, tierTex: Texture | null): RingSpec {
+  const k = tierTex && tierTex.width > 0 ? seq.frameW / tierTex.width : 1;
+  const width = seq.ringW ?? (tierRing ? tierRing.ringWidthPx * k : seq.frameW);
+  if (seq.anchor) return { ringWidthPx: width, ringCenterXPx: seq.anchor[0] * seq.frameW, ringBottomPx: seq.anchor[1] * seq.frameH };
+  if (tierRing) return { ringWidthPx: width, ringCenterXPx: tierRing.ringCenterXPx * k, ringBottomPx: tierRing.ringBottomPx * k };
+  return { ringWidthPx: width, ringCenterXPx: seq.frameW / 2, ringBottomPx: seq.frameH };
 }
 
 /** Feet anchor from the texture's pixels (falls back to the manifest anchor if unreadable). */
@@ -239,8 +323,9 @@ async function loadTower(
   present: Set<string>,
 ): Promise<TowerArtRuntime & { hasArt: boolean }> {
   const loaded = await Promise.all(
-    spec.tiers.map(async (f) => {
-      const t = await tryTexture(base + f);
+    spec.tiers.map(async (f, i) => {
+      // Ring-convention art is drawn much smaller than its file: mipmapped.
+      const t = await tryTexture(base + f, spec.ring[i] !== null);
       if (t) present.add(f);
       return t;
     }),
@@ -248,12 +333,29 @@ async function loadTower(
   const has = loaded.map((t) => t !== null);
   const tiers: Texture[] = [];
   const tierFiles: (string | null)[] = [];
+  const rings: (RingSpec | null)[] = [];
   for (let tier = 1; tier <= 3; tier++) {
     const idx = pickTier(has, tier);
-    tiers.push(idx >= 0 ? (loaded[idx] ?? Texture.WHITE) : Texture.WHITE);
+    const tex = idx >= 0 ? loaded[idx] : null;
+    tiers.push(tex ?? Texture.WHITE);
     tierFiles.push(idx >= 0 ? spec.tiers[idx] : null);
+    rings.push(idx >= 0 ? resolveRing(spec.ring[idx] ?? null, tex) : null);
   }
-  return { spec, tiers, tierFiles, tint: 0xffffff, fallbackOf: null, hasArt: has.some(Boolean) };
+  // Painted attack / idle sheets per tier (optional; absent → static sprite + procedural kick).
+  const sheets = async (paths: readonly (string | null)[]): Promise<(TowerSheetRuntime | null)[]> =>
+    Promise.all(
+      [0, 1, 2].map(async (i) => {
+        const p = paths[i];
+        if (!p) return null;
+        const seq = await loadSheetSeq(base, p, true);
+        if (!seq) return null;
+        present.add(p);
+        const ring = sheetRing(seq, rings[i], tiers[i] === Texture.WHITE ? null : tiers[i]);
+        return { frames: seq.frames, fps: seq.fps, release: seq.release, ring, frameW: seq.frameW, frameH: seq.frameH };
+      }),
+    );
+  const [attack, idle] = await Promise.all([sheets(spec.attack), sheets(spec.idle)]);
+  return { spec, tiers, tierFiles, tint: 0xffffff, fallbackOf: null, rings, attack, idle, hasArt: has.some(Boolean) };
 }
 
 /**
@@ -276,8 +378,10 @@ export async function loadArt(
   if (!mapFile) throw new Error(`map ${mapKey} is not in the art manifest`);
 
   const uiKeys = Object.keys(manifest.ui) as (keyof UiArt)[];
-  const [map, uiTex, towerList, enemyList] = await Promise.all([
-    tryTexture(base + mapFile),
+  const plotSpec = manifest.plot;
+  const [map, plotTex, uiTex, towerList, enemyList] = await Promise.all([
+    tryTexture(base + mapFile, true),
+    plotSpec ? tryTexture(base + plotSpec.file, true) : Promise.resolve(null),
     Promise.all(uiKeys.map((k) => tryTexture(base + manifest.ui[k]))),
     Promise.all(
       Object.entries(manifest.towers).map(
@@ -291,6 +395,9 @@ export async function loadArt(
     ),
   ]);
   if (!map) throw new Error(`map image failed to load: ${mapFile}`);
+  if (plotSpec && plotTex) present.add(plotSpec.file);
+  else if (plotSpec) notes.push(`plot sprite ${plotSpec.file} missing → plots not drawn`);
+  const plot: PlotArtRuntime | null = plotSpec && plotTex ? { texture: plotTex, ring: plotSpec.ring } : null;
   const ui = Object.fromEntries(uiKeys.map((k, i) => [k, uiTex[i] ?? Texture.WHITE])) as Record<keyof UiArt, Texture>;
   const has = (p: string): boolean => present.has(p);
 
@@ -322,7 +429,16 @@ export async function loadArt(
       const res = resolveTowerTiers(manifest, type, has);
       const src = ownTowers[res.source];
       if (!res.own && src) {
-        out = { spec: rt.spec, tiers: src.tiers, tierFiles: res.tierFiles, tint: mulTint(src.tint, res.tint), fallbackOf: res.source };
+        out = {
+          spec: rt.spec,
+          tiers: src.tiers,
+          tierFiles: res.tierFiles,
+          tint: mulTint(src.tint, res.tint),
+          fallbackOf: res.source,
+          rings: src.rings,
+          attack: [null, null, null],
+          idle: [null, null, null],
+        };
         notes.push(`tower ${type}: art pending → tinted ${res.source}`);
       } else {
         notes.push(`tower ${type}: art missing`);
@@ -334,5 +450,5 @@ export async function loadArt(
     }
     towers[type as TowerType] = out;
   }
-  return { manifest, map, ui, towers, enemies, notes, present, baseUrl: base };
+  return { manifest, map, plot, ui, towers, enemies, notes, present, baseUrl: base };
 }

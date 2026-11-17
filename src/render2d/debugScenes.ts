@@ -13,15 +13,16 @@ import { enemyArtFor } from './manifest.ts';
  * Both keep lives/gold topped up and never end.
  */
 
-/** Plots near the lanes, clustered so the Beacon (11) buffs its neighbours. */
+/** Plots near the lanes, one per tower type, around the Beacon (10) so it buffs a neighbour. */
 export const DEMO_PLOTS: ReadonlyArray<readonly [number, TowerType]> = [
-  [11, 'beacon'],
-  [10, 'archer'],
-  [6, 'cannon'],
-  [13, 'mortar'],
-  [12, 'frost'],
-  [7, 'tesla'],
-  [14, 'ballista'],
+  [10, 'beacon'],
+  [9, 'archer'],
+  [12, 'cannon'],
+  [16, 'mortar'],
+  [11, 'frost'],
+  [6, 'tesla'],
+  [18, 'ballista'],
+  [20, 'barracks'],
 ];
 
 interface ZooSlot {

@@ -187,5 +187,6 @@ export function listArtFiles(manifest: ArtManifest): string[] {
     for (const f of e.frames ?? []) out.add(f);
   }
   for (const t of Object.values(manifest.towers)) for (const f of t?.tiers ?? []) out.add(f);
+  if (manifest.plot) out.add(manifest.plot.file);
   return [...out];
 }

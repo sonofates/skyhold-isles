@@ -58,7 +58,7 @@ describe('art manifest', () => {
 
   it('parses the shipped manifest with the P0 mapping', () => {
     expect(m.buildRing).toEqual(expect.arrayContaining(['archer', 'cannon', 'tesla']));
-    expect(m.towers.tesla?.tiers[0]).toBe('tower-mage.webp');
+    expect(m.towers.tesla?.tiers[0]).toBe('tower-tesla-t1.webp');
     expect(enemyArtFor(m, 'grunt', false).art).toBe('raider');
     expect(enemyArtFor(m, 'runner', false).art).toBe('runner');
     expect(enemyArtFor(m, 'brute', false).art).toBe('brute');

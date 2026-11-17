@@ -328,6 +328,11 @@ const PLACEHOLDER_BARRACKS_SPEC: TowerArt = {
   flipToTarget: false,
   muzzle: 1.2,
   facing: 'left',
+  ring: [],
+  ringScale: 1,
+  muzzleFrac: 0.5,
+  attack: [null, null, null],
+  idle: [null, null, null],
 };
 
 /**
@@ -338,7 +343,7 @@ export function withBarracksArt(art: LoadedArt): LoadedArt {
   const loaded = art.towers.barracks;
   const ok = loaded && loaded.tiers.length > 0 && loaded.tiers[0] !== Texture.WHITE;
   // Placeholder textures always go with the placeholder spec (a manifest anchor/height is for its own PNGs).
-  const barracks: TowerArtRuntime = ok ? loaded : { spec: PLACEHOLDER_BARRACKS_SPEC, tiers: placeholders().barracks, tierFiles: [null, null, null], tint: 0xffffff, fallbackOf: null };
+  const barracks: TowerArtRuntime = ok ? loaded : { spec: PLACEHOLDER_BARRACKS_SPEC, tiers: placeholders().barracks, tierFiles: [null, null, null], tint: 0xffffff, fallbackOf: null, rings: [null, null, null], attack: [null, null, null], idle: [null, null, null] };
   const ring = art.manifest.buildRing.includes('barracks') ? art.manifest.buildRing : [...art.manifest.buildRing, 'barracks' as const];
   return {
     ...art,

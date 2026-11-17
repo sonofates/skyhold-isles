@@ -5,6 +5,7 @@ import type { FxLayer } from './fxLayer.ts';
 import { HEIGHT_TO_SCREEN } from './layers.ts';
 import type { MapView } from './mapView.ts';
 import type { ProcTextures } from './procTextures.ts';
+import { projectileReveal } from './towerAnim.ts';
 
 interface ProjView {
   readonly sprite: Sprite;
@@ -40,7 +41,8 @@ const SHELL = 0x9a8f80;
  * heavy ballista bolts with a spark trail, cannonballs and mortar shells on their arcs (ground
  * shadow, smoke trail), frost shards (rotated, sparkle trail) and glowing crystal bolts. The
  * launch height blends from the 2D tower art's muzzle to the sim's own height so shots leave the
- * painted tower top.
+ * painted tower top. With a painted attack sheet the view stays hidden until the sheet's release
+ * frame and then catches up with the sim projectile (towerAnim.ts; render-only, the sim is untouched).
  */
 export class ProjectileLayer {
   private readonly views: (ProjView | undefined)[] = [];
@@ -49,7 +51,8 @@ export class ProjectileLayer {
   private readonly parent: Container;
   private readonly shadows: Container;
   private readonly tex: ProcTextures;
-  private readonly muzzle: (type: ProjectileEntity['towerType']) => number;
+  private readonly muzzle: (p: ProjectileEntity) => number;
+  private readonly release: (p: ProjectileEntity) => number;
   private readonly fx: FxLayer | null;
   /** Lifetime counter (QA): trail particles requested. */
   trailsRequested = 0;
@@ -59,14 +62,16 @@ export class ProjectileLayer {
     parent: Container,
     shadows: Container,
     tex: ProcTextures,
-    muzzle: (type: ProjectileEntity['towerType']) => number,
+    muzzle: (p: ProjectileEntity) => number,
     fx: FxLayer | null = null,
+    release: (p: ProjectileEntity) => number = () => 0,
   ) {
     this.map = map;
     this.parent = parent;
     this.shadows = shadows;
     this.tex = tex;
     this.muzzle = muzzle;
+    this.release = release;
     this.fx = fx;
   }
 
@@ -87,7 +92,7 @@ export class ProjectileLayer {
 
   private screenY(p: ProjectileEntity, z: number, y: number): number {
     const t = Math.min(1, p.progress);
-    const h = y + (this.muzzle(p.towerType) - p.startY) * (1 - t);
+    const h = y + (this.muzzle(p) - p.startY) * (1 - t);
     return this.map.pxY(z) - Math.max(0, h) * HEIGHT_TO_SCREEN * this.map.layout.pxPerUnit;
   }
 
@@ -103,9 +108,25 @@ export class ProjectileLayer {
       const x = p.prevX + (p.x - p.prevX) * alpha;
       const y = p.prevY + (p.y - p.prevY) * alpha;
       const z = p.prevZ + (p.z - p.prevZ) * alpha;
-      const sx = this.map.pxX(x);
-      const sy = this.screenY(p, z, y);
+      let sx = this.map.pxX(x);
+      let sy = this.screenY(p, z, y);
       const s = v.sprite;
+      const reveal = projectileReveal(p.progress * p.duration, this.release(p));
+      if (reveal < 0) {
+        // Still in the tower's wind-up: not drawn yet.
+        s.visible = false;
+        v.shadow.visible = false;
+        v.lastX = sx;
+        v.lastY = sy;
+        v.trail = 0;
+        continue;
+      }
+      if (reveal < 1) {
+        const mx = this.map.pxX(p.startX);
+        const my = this.map.pxY(p.startZ) - this.muzzle(p) * HEIGHT_TO_SCREEN * this.map.layout.pxPerUnit;
+        sx = mx + (sx - mx) * reveal;
+        sy = my + (sy - my) * reveal;
+      }
       s.visible = true;
       s.position.set(sx, sy);
       if (fresh) {

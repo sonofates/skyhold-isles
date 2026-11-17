@@ -3,11 +3,14 @@ import type { EventBus, GameEventMap } from '../core/eventBus.ts';
 import type { TowerType } from '../core/types.ts';
 import type { TowerEntity } from '../sim/entities.ts';
 import { mixTint } from './artResolve.ts';
-import type { LoadedArt, TowerArtRuntime } from './assets2d.ts';
+import type { LoadedArt, TowerArtRuntime, TowerSheetRuntime } from './assets2d.ts';
 import type { FxLayer } from './fxLayer.ts';
 import { HEIGHT_TO_SCREEN, type WorldLayers } from './layers.ts';
 import type { MapView } from './mapView.ts';
+import type { PlotGeometry } from './plotLayer.ts';
 import type { ProcTextures } from './procTextures.ts';
+import { attackFrame, attackPlan, idleFrame, type AttackPlan } from './towerAnim.ts';
+import { drawnRing, fitOnRing, ringMuzzle, type RingPlacement, type RingSpec } from './towerFit.ts';
 
 /** Procedural attack animation of one tower type (lookup with a default, so new towers just work). */
 export interface FireProfile {
@@ -45,6 +48,11 @@ export function fireProfile(type: string): FireProfile {
 }
 
 const JAM_TINT = 0xb9a0d8;
+/**
+ * Ring-convention art without an attack sheet keeps only a gentle vertical squash of the kick
+ * (anchored at the ring bottom, so the ring stays on the plot): this share of the profile's squash.
+ */
+const RING_SQUASH = 0.35;
 
 interface TowerView {
   readonly sprite: Sprite;
@@ -62,13 +70,29 @@ interface TowerView {
   px: number;
   py: number;
   seen: number;
+  /** Painted attack playback: sim seconds since the shot (-1 = not playing). */
+  attackT: number;
+  attackSheet: TowerSheetRuntime | null;
+  attackPlan: AttackPlan | null;
+  /** Muzzle FX waiting for the release frame. */
+  pending: GameEventMap['towerFired'] | null;
+  /** Muzzle height (world units) of the art currently drawn. */
+  muzzle: number;
+  /** Top / middle of the drawn tower (map px), for markers. */
+  topY: number;
+  midY: number;
+  /** Ring as drawn this frame (ring-convention art), for QA. */
+  ring: RingPlacement | null;
 }
 
 /**
- * Tower sprites on plots: tier art from the manifest (fallbacks applied at load, fallback art
- * tinted), per-type procedural attack animation (recoil / squash / pulse / wobble + muzzle FX),
- * aim flip, the sim's build / upgrade pop, the jammed-tower marker (hexer / boss / tempest) and
- * the Beacon buff glow. Views are created lazily per tower id and removed when the tower is sold.
+ * Tower sprites on plots. Ring-convention art (manifest `ring`) is fitted onto its plot by
+ * towerFit.ts: ring width = plot ring width, ring bottom-centre on the plot ring's bottom-centre,
+ * with no recoil / flip / wobble / tier growth (which would lift the ring off the plot); a painted
+ * attack sheet plays once per shot (projectile and muzzle FX wait for its release frame), an idle
+ * sheet loops. Legacy art keeps the old height + anchor placement and procedural kick. Also: aim
+ * flip (legacy), build / upgrade pop, the jammed-tower marker and the Beacon buff glow. Views are
+ * created lazily per tower id and removed when the tower is sold.
  */
 export class TowerLayer {
   private readonly views = new Map<number, TowerView>();
@@ -79,16 +103,19 @@ export class TowerLayer {
   private readonly layers: WorldLayers;
   private readonly tex: ProcTextures;
   private readonly fx: FxLayer | null;
+  private readonly plots: PlotGeometry | null;
   /** Lifetime counters (QA). */
   firedSeen = 0;
   specialSeen = 0;
+  attacksPlayed = 0;
 
-  constructor(art: LoadedArt, map: MapView, layers: WorldLayers, tex: ProcTextures, fx: FxLayer | null = null) {
+  constructor(art: LoadedArt, map: MapView, layers: WorldLayers, tex: ProcTextures, fx: FxLayer | null = null, plots: PlotGeometry | null = null) {
     this.art = art;
     this.map = map;
     this.layers = layers;
     this.tex = tex;
     this.fx = fx;
+    this.plots = plots;
   }
 
   /** Wires the tower events this layer animates. */
@@ -103,7 +130,23 @@ export class TowerLayer {
     });
   }
 
-  /** Tower fired (event): attack animation, muzzle flash and the tier signature flourish. */
+  /** Stone ring (texture px) of the tier art a tower draws, or null for legacy art. */
+  ringOf(type: TowerType, tier: number): RingSpec | null {
+    return this.art.towers[type]?.rings[Math.max(1, Math.min(3, tier)) - 1] ?? null;
+  }
+
+  /** Painted attack sheet of a tower tier, or null. */
+  private attackOf(type: TowerType, tier: number): TowerSheetRuntime | null {
+    return this.art.towers[type]?.attack[Math.max(1, Math.min(3, tier)) - 1] ?? null;
+  }
+
+  /** Sim seconds between a shot and its painted release (0 = show the shot at once). */
+  releaseDelay(type: TowerType, tier: number): number {
+    const s = this.attackOf(type, tier);
+    return s ? attackPlan({ count: s.frames.length, fps: s.fps, release: s.release }).releaseDelay : 0;
+  }
+
+  /** Tower fired (event): painted attack / procedural kick, muzzle flash and the tier flourish. */
   onFired(e: GameEventMap['towerFired']): void {
     const v = this.views.get(e.towerId);
     if (!v) return;
@@ -112,15 +155,32 @@ export class TowerLayer {
     v.kick = 1;
     v.prof = prof;
     const dx = Math.sin(e.yaw);
-    const dy = Math.cos(e.yaw);
     v.dirX = Math.abs(dx) > 0.05 ? Math.sign(dx) : v.dirX;
     if (Math.abs(dx) > 0.15) v.aim = dx > 0 ? 1 : -1;
+    const sheet = this.attackOf(e.type, e.tier);
+    if (sheet) {
+      // A new shot mid-animation restarts it (towerAnim.ts).
+      v.attackSheet = sheet;
+      v.attackPlan = attackPlan({ count: sheet.frames.length, fps: sheet.fps, release: sheet.release });
+      v.attackT = 0;
+      this.attacksPlayed++;
+      if (v.attackPlan.releaseDelay > 0) {
+        v.pending = e;
+        return;
+      }
+    }
+    this.muzzleFx(v, e);
+  }
+
+  private muzzleFx(v: TowerView, e: GameEventMap['towerFired']): void {
     const fx = this.fx;
     if (!fx) return;
+    const prof = fireProfile(e.type);
+    const dx = Math.sin(e.yaw);
+    const dy = Math.cos(e.yaw);
     const ppu = this.map.layout.pxPerUnit;
-    const muzzleH = this.art.towers[e.type]?.spec.muzzle ?? 2;
     const mx = v.px + dx * 12;
-    const my = v.py - muzzleH * HEIGHT_TO_SCREEN * ppu + dy * 6;
+    const my = v.py - v.muzzle * HEIGHT_TO_SCREEN * ppu + dy * 6;
     const big = e.tier >= 3 ? 1.3 : e.tier === 2 ? 1.12 : 1;
     switch (prof.flash) {
       case 'arrow':
@@ -188,6 +248,14 @@ export class TowerLayer {
       px: 0,
       py: 0,
       seen: 0,
+      attackT: -1,
+      attackSheet: null,
+      attackPlan: null,
+      pending: null,
+      muzzle: art ? art.spec.muzzle : 2,
+      topY: 0,
+      midY: 0,
+      ring: null,
     };
     this.views.set(t.id, v);
     return v;
@@ -210,7 +278,69 @@ export class TowerLayer {
     return s;
   }
 
-  sync(towers: readonly TowerEntity[], dt: number): void {
+  /** Places a ring-convention tower; returns false when it cannot (no plot geometry). */
+  private syncRing(v: TowerView, t: TowerEntity, ring: RingSpec, art: TowerArtRuntime, simDt: number, py: number): boolean {
+    const target = this.plots?.rings[t.col];
+    if (!target) return false;
+    const ppu = this.map.layout.pxPerUnit;
+    const tierIdx = Math.max(1, Math.min(3, t.tier)) - 1;
+    const stat = art.tiers[tierIdx];
+    // Static fit (also the muzzle reference, so shots leave the same spot with or without sheets).
+    const fit = fitOnRing(target, ring, stat.width, stat.height, art.spec.ringScale);
+    v.muzzle = ringMuzzle(fit, ring, py, art.spec.muzzleFrac, HEIGHT_TO_SCREEN * ppu);
+    let tex: Texture = stat;
+    let texRing = ring;
+    let texW = stat.width;
+    let texH = stat.height;
+    let painted = false;
+    if (v.attackT >= 0 && v.attackSheet && v.attackPlan) {
+      const sheet = v.attackSheet;
+      v.attackT += simDt;
+      if (v.pending && v.attackT >= v.attackPlan.releaseDelay) {
+        this.muzzleFx(v, v.pending);
+        v.pending = null;
+      }
+      const f = attackFrame(v.attackPlan, { count: sheet.frames.length, fps: sheet.fps, release: sheet.release }, v.attackT);
+      if (f === null) {
+        v.attackT = -1;
+      } else {
+        tex = sheet.frames[f];
+        texRing = sheet.ring;
+        texW = sheet.frameW;
+        texH = sheet.frameH;
+        painted = true;
+      }
+    }
+    const idle = art.idle[tierIdx];
+    if (!painted && idle) {
+      tex = idle.frames[idleFrame(idle.frames.length, idle.fps, this.time + t.id * 0.37)];
+      texRing = idle.ring;
+      texW = idle.frameW;
+      texH = idle.frameH;
+      painted = true;
+    }
+    const f2 = tex === stat ? fit : fitOnRing(target, texRing, texW, texH, art.spec.ringScale);
+    if (v.sprite.texture !== tex) v.sprite.texture = tex;
+    v.sprite.anchor.set(f2.anchorX, f2.anchorY);
+    const pop = t.popAnimTimer > 0 ? Math.sin((t.popAnimTimer / 0.32) * Math.PI) * 0.1 : 0;
+    // Painted sheets carry their own motion; a static sprite keeps a gentle squash on the ring bottom.
+    const squash = painted || v.attackSheet ? 0 : v.prof.squashY * RING_SQUASH * v.kick;
+    const pulse = painted ? 0 : v.prof.pulse * 0.5 * Math.sin(v.kick * Math.PI);
+    v.sprite.scale.set(f2.scale * (1 + pop * 0.5 + pulse), f2.scale * (1 + pop - squash + pulse));
+    v.sprite.rotation = 0;
+    v.sprite.position.set(f2.x, f2.y);
+    v.sprite.zIndex = f2.y;
+    v.ring = drawnRing(f2, texRing);
+    const h = ring.ringBottomPx * fit.scale;
+    v.topY = fit.y - h;
+    v.midY = fit.y - h * 0.55;
+    // The plot layer draws the contact shadow under every plot (covered or not).
+    v.shadow.visible = false;
+    return true;
+  }
+
+  /** `dt`: real seconds (idle effects); `simDt`: sim seconds (attack playback, in step with shots). */
+  sync(towers: readonly TowerEntity[], dt: number, simDt = dt): void {
     this.frameNo++;
     this.time += dt;
     const time = this.time;
@@ -223,48 +353,67 @@ export class TowerLayer {
       if (v.tier !== t.tier && art) {
         v.tier = t.tier;
         v.sprite.texture = art.tiers[Math.min(art.tiers.length, t.tier) - 1];
+        v.attackT = -1;
+        v.attackSheet = null;
+        v.pending = null;
       }
       const px = this.map.pxX(t.x);
       const py = this.map.pxY(t.z);
       v.px = px;
       v.py = py;
-      const height = (art ? art.spec.height : 3) * ppu * (1 + (t.tier - 1) * 0.04);
-      const base = height / Math.max(1, v.sprite.texture.height);
       v.kick = Math.max(0, v.kick - dt / v.prof.dur);
-      const pop = t.popAnimTimer > 0 ? Math.sin((t.popAnimTimer / 0.32) * Math.PI) * 0.12 : 0;
-      const k = v.kick;
-      const p = v.prof;
-      const pulse = p.pulse * Math.sin(k * Math.PI);
-      let sx = 1 + p.stretchX * k + pulse;
-      let sy = 1 - p.squashY * k + pulse;
-      const recoil = -v.dirX * p.recoilPx * k * k;
-      const press = p.press * k;
-      let rot = Math.sin(k * 16) * p.wobble * k * v.dirX;
-      if (t.type === 'beacon') {
-        const idle = 0.025 * Math.sin(time * 2.4 + t.id);
-        sx += idle;
-        sy += idle;
-      }
+      const ring = art ? art.rings[Math.max(1, Math.min(3, t.tier)) - 1] : null;
       const jammed = t.stunTimer > 0;
       const buffed = t.auraRate > 0 || t.auraRange > 0;
-      const flip = art && art.spec.flipToTarget ? (art.spec.facing === 'left' ? v.aim > 0 : v.aim < 0) : false;
-      v.sprite.scale.set(base * (sx + pop * 0.5) * (flip ? -1 : 1), base * (sy + pop));
-      if (jammed) rot += Math.sin(time * 31) * 0.02;
-      v.sprite.rotation = rot;
-      v.sprite.position.set(px + recoil, py + press);
-      v.sprite.zIndex = py;
+      if (!(art && ring && this.syncRing(v, t, ring, art, simDt, py))) {
+        // Legacy art: height + anchor placement and the full procedural kick.
+        v.ring = null;
+        const height = (art ? art.spec.height : 3) * ppu * (1 + (t.tier - 1) * 0.04);
+        const base = height / Math.max(1, v.sprite.texture.height);
+        const pop = t.popAnimTimer > 0 ? Math.sin((t.popAnimTimer / 0.32) * Math.PI) * 0.12 : 0;
+        const k = v.kick;
+        const p = v.prof;
+        const pulse = p.pulse * Math.sin(k * Math.PI);
+        let sx = 1 + p.stretchX * k + pulse;
+        let sy = 1 - p.squashY * k + pulse;
+        const recoil = -v.dirX * p.recoilPx * k * k;
+        const press = p.press * k;
+        let rot = Math.sin(k * 16) * p.wobble * k * v.dirX;
+        if (t.type === 'beacon') {
+          const idle = 0.025 * Math.sin(time * 2.4 + t.id);
+          sx += idle;
+          sy += idle;
+        }
+        const flip = art && art.spec.flipToTarget ? (art.spec.facing === 'left' ? v.aim > 0 : v.aim < 0) : false;
+        if (art) v.sprite.anchor.set(art.spec.anchor[0], art.spec.anchor[1]);
+        v.sprite.scale.set(base * (sx + pop * 0.5) * (flip ? -1 : 1), base * (sy + pop));
+        if (jammed) rot += Math.sin(time * 31) * 0.02;
+        v.sprite.rotation = rot;
+        v.sprite.position.set(px + recoil, py + press);
+        v.sprite.zIndex = py;
+        v.shadow.visible = true;
+        v.shadow.position.set(px, py + 4);
+        v.shadow.scale.set((ppu * 2.2) / 128, (ppu * 1.0) / 128);
+        v.shadow.alpha = 0.5;
+        v.muzzle = art ? art.spec.muzzle : 2;
+        v.topY = py - height * 0.98;
+        v.midY = py - height * 0.55;
+        if (v.pending) {
+          this.muzzleFx(v, v.pending);
+          v.pending = null;
+        }
+      } else if (jammed) {
+        v.sprite.rotation = Math.sin(time * 31) * 0.012;
+      }
       let tint = art ? art.tint : 0xffffff;
       if (jammed) tint = mixTint(tint, JAM_TINT, 0.45 + 0.1 * Math.sin(time * 12));
       v.sprite.tint = tint;
-      v.shadow.position.set(px, py + 4);
-      v.shadow.scale.set((ppu * 2.2) / 128, (ppu * 1.0) / 128);
-      v.shadow.alpha = 0.5;
 
       // Jam marker: a spinning magenta ring with a bolt over the silenced tower.
       const jam = this.overlay(v, 'jam', jammed);
       if (jam) {
         const fade = Math.min(1, t.stunTimer / 0.4);
-        jam.position.set(px, py - height * 0.98 - 16 + Math.sin(time * 5) * 2);
+        jam.position.set(px, v.topY - 16 + Math.sin(time * 5) * 2);
         jam.scale.set(((34 + 3 * Math.sin(time * 9)) / 64) * (0.7 + 0.3 * fade));
         jam.alpha = fade * (0.8 + 0.2 * Math.sin(time * 16));
         jam.rotation = Math.sin(time * 3) * 0.2;
@@ -282,7 +431,7 @@ export class TowerLayer {
       if (star) {
         const a = time * 2.2 + t.id * 1.7;
         star.tint = 0xffe27a;
-        star.position.set(px + Math.cos(a) * ppu * 0.55, py - height * 0.55 + Math.sin(a * 1.3) * ppu * 0.3);
+        star.position.set(px + Math.cos(a) * ppu * 0.55, v.midY + Math.sin(a * 1.3) * ppu * 0.3);
         star.scale.set((9 + 4 * Math.sin(time * 7 + t.id)) / 32);
         star.alpha = 0.8;
         star.zIndex = py + 1;
@@ -302,12 +451,39 @@ export class TowerLayer {
 
   /** Screen-independent top of a tower sprite in map px (for panels / labels). */
   topPx(t: TowerEntity): number {
+    const v = this.views.get(t.id);
+    if (v) return v.topY;
     const art = this.art.towers[t.type];
     return this.map.pxY(t.z) - (art ? art.spec.height : 3) * this.map.layout.pxPerUnit * 0.9;
   }
 
+  /** Muzzle height (world units) of a tower type's T1 art (projectiles without a known tower). */
   muzzleHeight(type: TowerEntity['type']): number {
+    for (const v of this.views.values()) if (v.art && v.art.spec === this.art.towers[type]?.spec) return v.muzzle;
     return this.art.towers[type]?.spec.muzzle ?? 2;
+  }
+
+  /** Muzzle height (world units) of a specific tower as drawn now. */
+  muzzleOf(towerId: number, type: TowerEntity['type']): number {
+    return this.views.get(towerId)?.muzzle ?? this.muzzleHeight(type);
+  }
+
+  /** Plot index of a built tower whose drawn sprite (ring up to its top) contains a map-px point, or -1. */
+  plotAtSprite(x: number, y: number, towers: readonly TowerEntity[]): number {
+    let best = -1;
+    let bestY = -Infinity;
+    for (const t of towers) {
+      const v = this.views.get(t.id);
+      if (!v) continue;
+      const half = v.ring ? v.ring.width * 0.42 : this.map.layout.pxPerUnit * 0.9;
+      const bottom = v.ring ? v.ring.bottom : v.py + 10;
+      // Front-most (largest ground y) wins where sprites overlap.
+      if (Math.abs(x - v.px) <= half && y >= v.topY && y <= bottom && v.py > bestY) {
+        best = t.col;
+        bestY = v.py;
+      }
+    }
+    return best;
   }
 
   /** QA: towers currently drawn with the jam marker / buff glow. */
@@ -319,5 +495,25 @@ export class TowerLayer {
       if (v.aura?.visible) buffed++;
     }
     return { jammed, buffed };
+  }
+
+  /** QA: ring-convention towers' drawn ring vs their plot ring (layout px), by tower id. */
+  ringReport(towers: readonly TowerEntity[]): { id: number; plot: number; type: string; tier: number; dx: number; dy: number; dw: number }[] {
+    const out: { id: number; plot: number; type: string; tier: number; dx: number; dy: number; dw: number }[] = [];
+    for (const t of towers) {
+      const v = this.views.get(t.id);
+      const target = this.plots?.rings[t.col];
+      if (!v?.ring || !target) continue;
+      out.push({
+        id: t.id,
+        plot: t.col,
+        type: t.type,
+        tier: t.tier,
+        dx: v.ring.cx - target.cx,
+        dy: v.ring.bottom - target.bottom,
+        dw: v.ring.width - target.width,
+      });
+    }
+    return out;
   }
 }

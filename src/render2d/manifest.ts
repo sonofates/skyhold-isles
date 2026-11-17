@@ -1,4 +1,5 @@
 import type { EnemyType, TowerType } from '../core/types.ts';
+import type { RingSpec } from './towerFit.ts';
 
 /**
  * public/art2d/manifest.json — drives every sprite the 2D renderer draws (pure types + parsing; no
@@ -10,6 +11,8 @@ export interface ArtManifest {
   readonly version: number;
   /** Map art key (Level2DLayout.image) → file. */
   readonly maps: Readonly<Record<string, string>>;
+  /** Empty build plot sprite (drawn by the renderer on every free plot) and its stone ring. */
+  readonly plot: PlotArt | null;
   readonly ui: UiArt;
   readonly towers: Readonly<Partial<Record<TowerType, TowerArt>>>;
   /** Tower types offered in the build ring, in ring order. */
@@ -18,6 +21,18 @@ export interface ArtManifest {
   /** Sim enemy type → art (+ optional tint / scale); `*` is the fallback for unmapped types. */
   readonly enemyMap: Readonly<Record<string, EnemyMapEntry>>;
 }
+
+export interface PlotArt {
+  readonly file: string;
+  /** Ring in the plot texture's px (null = the whole sprite is the ring). */
+  readonly ring: RingSpec | null;
+}
+
+/**
+ * Per tier file: its stone ring (ring convention, see towerFit.ts), "auto" (ring convention,
+ * measured from the pixels at load) or null (legacy art: `height` + `anchor` placement).
+ */
+export type TierRing = RingSpec | 'auto' | null;
 
 export interface UiArt {
   readonly plaque: string;
@@ -43,6 +58,16 @@ export interface TowerArt {
   readonly facing: 'left' | 'right';
   /** When none of the tier files exist yet: draw this tower's sprite, tinted (art still on its way). */
   readonly fallback?: TowerFallback;
+  /** Per tier file (parallel to `tiers`): ring measurement; missing entries = legacy art. */
+  readonly ring: readonly TierRing[];
+  /** Per-tower tweak of the ring fit (1 = ring exactly as wide as the plot's ring). */
+  readonly ringScale: number;
+  /** Ring-convention art: shots leave at this fraction of the drawn height above the ring bottom. */
+  readonly muzzleFrac: number;
+  /** Per tier: attack sheet JSON (played once per shot), or null. See towerAnim.ts / SheetJson. */
+  readonly attack: readonly (string | null)[];
+  /** Per tier: idle sheet JSON (looped while not attacking), or null. */
+  readonly idle: readonly (string | null)[];
 }
 
 export interface TowerFallback {
@@ -125,8 +150,12 @@ export interface GridSheetJson {
   readonly count: number;
   readonly fps: number;
   readonly cols?: number;
-  /** Feet point: frame px, or normalised when both values are <= 1. */
+  /** Feet point: frame px, or normalised when both values are <= 1. Tower sheets: ring bottom-centre. */
   readonly anchor?: readonly [number, number];
+  /** Tower attack sheets: frame index where the shot leaves (projectile / bolt shown from there). */
+  readonly release?: number;
+  /** Tower sheets: stone ring width in frame px (default: the tier sprite's ring width). */
+  readonly ringW?: number;
 }
 
 export interface FrameRect {
@@ -141,6 +170,10 @@ export interface ParsedSheet {
   readonly frames: readonly FrameRect[];
   readonly fps: number;
   readonly anchor: readonly [number, number] | null;
+  /** Tower attack sheets: release frame, or null. */
+  readonly release: number | null;
+  /** Tower sheets: ring width in frame px, or null. */
+  readonly ringW: number | null;
 }
 
 const DEFAULT_CHEAP: CheapWalkSpec = { bob: 0.07, squash: 0.06, lean: 0.12, stride: 1.1, rock: 0.06 };
@@ -175,6 +208,31 @@ function tint(v: unknown): number | undefined {
 
 type Json = Record<string, unknown>;
 
+function ringSpec(v: unknown, what: string): RingSpec {
+  const o = obj(v, what);
+  const n = (k: string): number => {
+    const x = o[k];
+    if (typeof x !== 'number' || !Number.isFinite(x) || x < 0) throw new ManifestError(`${what}.${k} must be a number >= 0`);
+    return x;
+  };
+  const r = { ringWidthPx: n('ringWidthPx'), ringBottomPx: n('ringBottomPx'), ringCenterXPx: n('ringCenterXPx') };
+  if (r.ringWidthPx <= 0) throw new ManifestError(`${what}.ringWidthPx must be > 0`);
+  return r;
+}
+
+function tierRing(v: unknown, what: string): TierRing {
+  if (v === null || v === undefined) return null;
+  if (v === 'auto') return 'auto';
+  return ringSpec(v, what);
+}
+
+function perTier(v: unknown, n: number, what: string): (string | null)[] {
+  if (v === undefined || v === null) return new Array<string | null>(n).fill(null);
+  if (typeof v === 'string') return new Array<string | null>(n).fill(v);
+  if (!Array.isArray(v)) throw new ManifestError(`${what} must be a string or an array`);
+  return Array.from({ length: n }, (_, i) => (v[i] === null || v[i] === undefined ? null : str(v[i], `${what}[${i}]`)));
+}
+
 function obj(v: unknown, what: string): Json {
   if (!v || typeof v !== 'object' || Array.isArray(v)) throw new ManifestError(`${what} must be an object`);
   return v as Json;
@@ -189,7 +247,14 @@ export function parseManifest(raw: unknown): ArtManifest {
     const t = obj(v, `towers.${type}`);
     const tiers = Array.isArray(t.tiers) ? t.tiers.map((f, i) => str(f, `towers.${type}.tiers[${i}]`)) : [];
     if (tiers.length === 0) throw new ManifestError(`towers.${type}.tiers needs at least T1`);
+    if (t.ring !== undefined && !Array.isArray(t.ring)) throw new ManifestError(`towers.${type}.ring must be an array`);
+    const rings = tiers.map((_, i) => tierRing(Array.isArray(t.ring) ? t.ring[i] : null, `towers.${type}.ring[${i}]`));
     towers[type as TowerType] = {
+      ring: rings,
+      ringScale: numOr(t.ringScale, 1),
+      muzzleFrac: numOr(t.muzzleFrac, 0.75),
+      attack: perTier(t.attack, 3, `towers.${type}.attack`),
+      idle: perTier(t.idle, 3, `towers.${type}.idle`),
       tiers,
       height: numOr(t.height, 3),
       anchor: pair(t.anchor, [0.5, 0.88]),
@@ -286,8 +351,14 @@ export function parseManifest(raw: unknown): ArtManifest {
   if (!enemyMap['*']) throw new ManifestError('enemyMap needs a "*" fallback');
   const maps = obj(m.maps, 'maps');
   const buildRing = Array.isArray(m.buildRing) ? (m.buildRing as TowerType[]).filter((t) => towers[t]) : [];
+  let plot: PlotArt | null = null;
+  if (m.plot !== undefined && m.plot !== null) {
+    const p = obj(m.plot, 'plot');
+    plot = { file: str(p.file, 'plot.file'), ring: p.ringWidthPx === undefined ? null : ringSpec(p, 'plot') };
+  }
   return {
     version: numOr(m.version, 1),
+    plot,
     maps: Object.fromEntries(Object.entries(maps).map(([k, f]) => [k, str(f, `maps.${k}`)])),
     ui: {
       plaque: str(ui.plaque, 'ui.plaque'),
@@ -342,7 +413,9 @@ export function parseSheetJson(raw: unknown, defaultImage = ''): ParsedSheet {
       anchor = ax > 1 || ay > 1 ? [ax / g.frameW, ay / g.frameH] : [ax, ay];
     }
     const image = typeof g.image === 'string' && g.image.length > 0 ? g.image : defaultImage;
-    return { image: str(image, 'sheet.image'), frames, fps: numOr(g.fps, 12), anchor };
+    const release = typeof g.release === 'number' && Number.isFinite(g.release) ? Math.max(0, Math.min(frames.length - 1, Math.floor(g.release))) : null;
+    const ringW = typeof g.ringW === 'number' && g.ringW > 0 ? g.ringW : null;
+    return { image: str(image, 'sheet.image'), frames, fps: numOr(g.fps, 12), anchor, release, ringW };
   }
   // Pixi / TexturePacker JSON-hash or JSON-array.
   const meta = obj(j.meta, 'sheet.meta');
@@ -364,7 +437,7 @@ export function parseSheetJson(raw: unknown, defaultImage = ''): ParsedSheet {
     return { x: numOr(r.x, 0), y: numOr(r.y, 0), w: numOr(r.w, 1), h: numOr(r.h, 1) };
   });
   if (frames.length === 0) throw new ManifestError('sheet has no frames');
-  return { image: str(meta.image, 'sheet.meta.image'), frames, fps: numOr(j.fps, 12), anchor: null };
+  return { image: str(meta.image, 'sheet.meta.image'), frames, fps: numOr(j.fps, 12), anchor: null, release: null, ringW: null };
 }
 
 /**
