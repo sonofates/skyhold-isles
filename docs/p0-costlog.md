@@ -17,3 +17,11 @@ Earlier, pre-P0 runs for reference (2026-11-17, same pipeline):
 | Tower | Archer T2 + T3 (Codex image_gen, T1 as reference), same run as 4 leg-swap frames | 18:37:45 | 18:53:48 | 16 | 1 run, 90.5k tokens for 6 images | T2/T3 usable on the first try. Per tower (3 tiers) with T1 from the first set: about 8 min generation + 1 min keying (6-image run split pro rata) |
 | Enemy (cheap) | Brute + kite leg-swap frames, 2 each (same Codex run as above) | — | — | (in the 16) | (in the 90.5k) | Upper body stays consistent; usable for a 3-frame cycle |
 | Enemy (Veo) | Loop extraction: tools/sprites/veo_to_sheet.py (key, feet anchor, loop search, sheet + JSON + GIF), 4 clips | 19:00:52 | 19:01:12 | 1 | — | Writing the tool took about 10 min (one-time). Per clip it is under 30 s, fully automatic |
+
+## P1 runs
+
+| Family | Step | Min | Tokens | Notes |
+|---|---|---|---|---|
+| Enemies | 13 front designs in 3 parallel Codex runs (4/4/5) | 9–12 (wall-clock, parallel) | 70k + 56k + 51k | All usable; the splitter was redone because it read too close to the golem |
+| Towers | 16 tower tiers + barracks T1–T3 + soldier in 2 parallel runs (9 / 10 images) | 16–18 (parallel) | 110k + 89k | All usable on the first pass; tiers read clearly |
+| (lost) | First launch of the same 5 runs wrote nothing: Codex's workspace-write sandbox only covers its -C folder | 1 | 159k | Fixed by running with -C design/art-2d |
