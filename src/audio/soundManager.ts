@@ -283,7 +283,8 @@ export class SoundManager {
 
   /** Tempest Colossus phase change: 1 = Stormwall (rising swell), 2 = enrage (heavy roar). */
   playBossPhase(phase: number): void {
-    if (!this.canPlay('boss_phase', 400)) return;
+    // One slot per phase: a single burst tick can cross both thresholds, and the enrage roar must not be dropped.
+    if (!this.canPlay(phase >= 2 ? 'boss_phase_2' : 'boss_phase_1', 400)) return;
     if (phase >= 2) {
       this.tone('sawtooth', 260, 60, 0.5, 0.2, 0);
       this.tone('sine', 130, 40, 0.55, 0.24, 0.04);

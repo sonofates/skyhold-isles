@@ -44,7 +44,7 @@ describe('progress load across island-count changes', () => {
     save({ unlockedLevelIndex: 'x', bestStars: [1, 'a', null] });
     expect(loadProgress(13).unlockedLevelIndex).toBe(0);
     store.set(KEY, '{"unlockedLevelIndex":1e500,"bestStars":[2],"bestEndlessWaves":[5]}');
-    expect(loadProgress(13).unlockedLevelIndex).not.toBe(1);
+    expect(loadProgress(13).unlockedLevelIndex).toBe(0);
     store.set(KEY, '{not json');
     expect(loadProgress(13).unlockedLevelIndex).toBe(0);
   });

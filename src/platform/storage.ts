@@ -169,9 +169,9 @@ export function loadProgress(levelCount: number): ProgressData {
     // from a build with fewer islands never recorded an unlock past their last island (there was
     // none), so islands appended later would otherwise stay locked for players who had finished
     // the campaign. Starting from the stored index keeps corrupted saves conservative.
-    // A non-finite stored index (corrupted save) is not walked at all.
-    let unlocked = unlockedLevelIndex;
+    // A non-finite stored index (corrupted save, e.g. 1e500 -> Infinity) starts at island 0 and is not walked.
     const storedIndexOk = Number.isFinite(parsed.unlockedLevelIndex);
+    let unlocked = storedIndexOk ? unlockedLevelIndex : 0;
     while (storedIndexOk && unlocked < bestStars.length - 1 && bestStars[unlocked] > 0) unlocked++;
     return { unlockedLevelIndex: unlocked, bestStars, bestEndlessWaves };
   } catch {

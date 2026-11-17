@@ -117,6 +117,8 @@ describe('enemy archetype sound cues', () => {
         () => sm.playCarrierDrop(),
         () => sm.playArmorCracked(),
         () => sm.playBossPhase(1),
+        // Same instant as phase 1: one burst tick can cross both Tempest thresholds; the enrage roar must play.
+        () => sm.playBossPhase(2),
         () => sm.playHexCharge(),
         () => sm.playTowerHexed(),
       ];
