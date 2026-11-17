@@ -12,6 +12,8 @@ import { LEVEL_11 } from './level11.ts';
 import { LEVEL_12 } from './level12.ts';
 import { LEVEL_13 } from './level13.ts';
 import { LEVEL_14 } from './level14.ts';
+import { LEVEL_15 } from './level15.ts';
+import { LEVEL_16 } from './level16.ts';
 import type { LevelDef } from './types.ts';
 
 export const LEVELS: readonly LevelDef[] = [
@@ -29,6 +31,8 @@ export const LEVELS: readonly LevelDef[] = [
   LEVEL_12,
   LEVEL_13,
   LEVEL_14,
+  LEVEL_15,
+  LEVEL_16,
 ];
 export type { LevelDef, WaveDef, WaveGroupDef } from './types.ts';
 export { parseLevelGrid } from './types.ts';

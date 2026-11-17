@@ -1,6 +1,9 @@
 # PROGRESS — skyhold-day-content (CONTENT agent, day pass 2)
 
 Branch `hermes/skyhold-day-content`. Deadline 21:00 TR. Rounds = fresh sessions; this file + git log are the only memory.
+No browser/Playwright was available on hermes in round 1 → all UI was verified by tsc/lint/vitest (+ happy-dom smoke
+tests) only, **never visually**. The lead should eyeball: coach card, sighting card, codex (portrait/landscape/desktop),
+the injected Codex buttons (main menu row, island-select header chip, pause tiles) and the Settings "Replay tutorial" row.
 
 ## Architecture (what exists)
 - `src/platform/contentStorage.ts` — `ContentStore`: own versioned localStorage keys `skyhold_isles_codex_v1`
@@ -11,23 +14,51 @@ Branch `hermes/skyhold-day-content`. Deadline 21:00 TR. Rounds = fresh sessions;
 - `src/ui/content/onboardingMachine.ts` — pure state machine (build → startWave → upgrade → ability → done),
   driven by observations of the game; `coachMessage()` picks touch/desktop text + highlight target.
 - `src/ui/content/codexData.ts` — pure text/stat data for codex + cards (`ENEMY_LORE`, `TOWER_LORE`, entries).
-- `src/ui/content/firstSighting.ts` — `SightingQueue` (dedupe + order), `waveHasElite`.
+  **This is where counters/blurbs live** (enemies.ts / towers.ts were not touched except the boss description).
+- `src/ui/content/firstSighting.ts` — `SightingQueue` (dedupe + order), `waveHasElite`. `cardContent.ts` maps a ref to card text/icon.
+- DOM: `coachMark.ts`, `sightingCard.ts`, `codexScreen.ts`, `entryPoints.ts` (decorates the existing menus' DOM with
+  Codex buttons so menus.ts/gameModals.ts stay untouched), `contentDirector.ts` (glue; owns everything above).
+- CSS: `src/ui/styles/{onboarding,sighting,codex}.css` (imported from their TS modules).
+- Session hooks (small): `GameSession.deps.content` (`ContentDirector`): `observe()` from `syncUi`, `bindLevel()` from
+  `startLevel`, `onLeavePlay()` from `showMenuView`, `onLevelWon()`, `isBlocking()` folded into `syncLoopAndInput` +
+  `fixedTick`; `buildOnboardingObs()` in GameSession. `sessionBridge` got `suppressIntroToasts` (cards replace the old
+  "New foe" / flyer toasts when the director exists).
+- API for the CAMPAIGN agent: `ContentDirector.towerUnlocked(type)` shows the first-sighting card for a tower once
+  (nothing calls it yet — all 7 towers are available from the start in this branch). `openCodex(tab?, id?)`.
+- Authoring tool: `scripts/levelTool.ts` (layout renderer, road-coverage site ranker, template re-targeting).
+  Untracked scratch helpers (not committed): `scripts/_opt.ts` hill-climbs a greedy build order against the sim.
 
 ## Done
 1. Pure logic + tests: storage/migration, onboarding machine, codex data, sighting queue.
+2. Onboarding tour (island 1 only, skippable, replayable from Settings → "Replay tutorial"), first-sighting cards
+   (enemy / flyer / boss / elite / tower, pauses the game, Enter/Space/Esc dismiss), Codex screen (Foes + Towers tabs,
+   silhouettes for unmet foes, tier table + T3 signature, reachable from main menu, island select, pause menu, and from
+   a card's "Codex" link). DOM smoke tests via happy-dom (skipped automatically when it is not installed).
+3. L14 Amberstone Mesa (3 gates), L15 Moonwell Crossing (self-crossing road + late gate), L16 Emberglass Sanctum (ring,
+   counter-rotating lanes + north gate): layouts, waves (22/22/24, named), themes in `islandThemeTable.ts`, optimised
+   greedy + derived weak build orders, all inside the Master window. `tests/sim/dayIslands.test.ts`.
+4. Text: README feature blurbs, boss description, HUD air-tower list no longer names the Beacon (it never shoots),
+   flyer toast names the Ballista.
 
 ## Next
-- DOM layer: coach mark, sighting card, codex screen (+ CSS in `src/ui/styles/`), director glue, entry points.
-- Hook into GameSession/main (minimal), settings "Replay tutorial".
-- L14–L16 islands + theme table + balanceSim entries.
-- Description text pass.
+- Round 2+: visual QA if a browser becomes available; description/tooltips polish; more tests; tower-unlock card wiring if
+  CAMPAIGN adds unlocks; maybe a "NEW" dot on codex entries.
 
 ## Decisions
 - Veterans never see the tour; cards only for foes they have not fought (inferred from progress).
-- Tour runs on island 1 only; level restart resets it to step 1; give-up after 5 waves without upgrading.
+- Tour runs on island 1 only; level restart resets it to step 1; gives up waiting for an upgrade after 5 waves.
+- Difficulty label for L14–L16 stays `Master` (no "Legendary": the union type, menu CSS and sim windows are CAMPAIGN's).
+- Balance of new islands: lowering `waveHpGrowth` (0.06–0.08) + raising `enemyHpScale` removed the final-wave cliff
+  (greedy used to go 13 → 2 lives for +2% HP). All three are now stable across ±1.5% HP in `sim:balance --robust`.
+- Elite card is queued at `waveStarted` of a wave with an elite group (the spawn event carries no elite flag); not in endless.
 
 ## Known issues
-(none yet)
+- UI never seen in a browser (see top).
+- `HudBar` air-tower text and `sessionBridge` toast edited minimally (cross-area, below).
 
 ## Cross-area changes
-(none yet)
+- `src/ui/settingsModal.ts` + `gameOverlays.ts`: optional `onReplayTutorial` callback + one button row.
+- `src/platform/gameSession.ts`: content hooks listed above (+ `buildOnboardingObs`). `src/main.ts`: creates the
+  `ContentStore`/`ContentDirector`, wires replay, mounts Codex entry points.
+- `src/platform/sessionBridge.ts`: `suppressIntroToasts` option; flyer toast text. `src/ui/hud.ts`: air-tower name list filter.
+- `src/data/enemies.ts`: boss description text only.

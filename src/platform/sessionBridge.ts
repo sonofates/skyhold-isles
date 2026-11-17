@@ -74,7 +74,7 @@ export function bindSimEventBridge(h: SimBridgeHandlers): () => void {
     }
     if (!e.flying || hasSeenFlyerToast() || introOnScreen()) return;
     markFlyerToastSeen();
-    h.overlays.toast.show('Flyers incoming! Only Archer, Frost and Tesla can hit them.');
+    h.overlays.toast.show('Flyers incoming! Only Archer, Frost, Tesla and Ballista can hit them.');
   });
   h.bus.on('enemyHit', (e) => {
     if (!h.getSettings().damageNumbers) return;
