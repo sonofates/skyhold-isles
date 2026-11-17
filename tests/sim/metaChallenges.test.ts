@@ -1162,6 +1162,14 @@ describe('RunObserver challenge condition tracking', () => {
     preSnapObs.dispose();
     postSnapObs.dispose();
 
+    const sparseBuildLvl: LevelDef = {
+      ...LEVELS[0],
+      id: 'sparse-script-isle',
+      index: 12,
+      scriptedBuildOrder: [null as unknown as ScriptedBuildAction],
+    };
+    expect(getChallengesForLevel(sparseBuildLvl)).toHaveLength(3);
+
     guardMeta.dispose();
     peakObs.dispose();
     meta.dispose();

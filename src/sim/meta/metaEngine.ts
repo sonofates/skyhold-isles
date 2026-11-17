@@ -669,6 +669,9 @@ export function recordEndlessRunStats(
   telemetry: RunTelemetry,
   scoreMultiplier = 1,
 ): EndlessScoreBreakdown | null {
+  if (!level || typeof level.id !== 'string') {
+    return null;
+  }
   const safeLevelIndex = Number.isFinite(level.index) ? Math.max(0, Math.floor(level.index)) : 0;
   const maxWaveReached = asNonNegInt(telemetry.maxWaveReached);
   const endlessWavesCleared = asNonNegInt(telemetry.endlessWavesCompleted);
@@ -749,11 +752,12 @@ export function recordRunCompletion(
     previousBestEndlessScore?: number;
   },
 ): RunMetaOutcome {
-  const levels = params.levels ?? LEVELS;
+  const levels = Array.isArray(params.levels) ? params.levels : LEVELS;
   const { level, telemetry, won, stars, livesRemaining } = params;
-  const safeLevelIndex = Number.isFinite(level.index) ? Math.max(0, Math.floor(level.index)) : 0;
+  const safeLevelIndex =
+    level && Number.isFinite(level.index) ? Math.max(0, Math.floor(level.index)) : 0;
   const clampedStars = Math.max(0, Math.min(3, asNonNegInt(stars)));
-  ensureWritableSaveContainers(save, safeLevelIndex + 1);
+  ensureWritableSaveContainers(save, Math.max(safeLevelIndex + 1, levels.length));
   const normalizedDailyDate =
     params.dailyDate && isValidDateString(params.dailyDate) ? params.dailyDate.trim() : null;
   const isDaily = normalizedDailyDate !== null && !telemetry.endlessEntered;
@@ -768,7 +772,8 @@ export function recordRunCompletion(
   const prevEndlessWave = asNonNegInt(
     params.previousBestEndlessWave ?? save.campaign.bestEndlessWaves[safeLevelIndex],
   );
-  const safeLevelId = !IGNORED_RECORD_KEYS.has(level.id) ? level.id : '';
+  const safeLevelId =
+    level && typeof level.id === 'string' && !IGNORED_RECORD_KEYS.has(level.id) ? level.id : '';
   const safeLives = Number.isFinite(livesRemaining)
     ? Math.max(0, Math.min(BALANCE.startingLives, Math.floor(livesRemaining)))
     : 0;
@@ -1718,6 +1723,9 @@ export function mergeMetaSaves(
 export function exportMetaSaveJson(save: MetaSaveData): string {
   if (!save || typeof save !== 'object' || Array.isArray(save)) {
     return JSON.stringify(createDefaultMetaSave(1));
+  }
+  if (!isPlainRecord(save.campaign) || !Array.isArray(save.campaign.bestStars)) {
+    return JSON.stringify(migrateToMetaSave(save, null, 1));
   }
   return JSON.stringify(
     save.version === META_SAVE_VERSION ? save : { ...save, version: META_SAVE_VERSION },

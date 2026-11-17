@@ -1799,6 +1799,9 @@ describe('MetaSession stats, achievements, challenges & daily persistence', () =
       levels: LEVELS,
     });
     expect(wpCampaignPartial.campaign.bestStars[0]).toBe(3); // clamped to 3
+    expect(wpCampaignPartial.campaign.bestStars).toHaveLength(LEVELS.length);
+    expect(wpCampaignPartial.campaign.unlockedLevelIndex).toBe(1);
+    expect(recordEndlessRunStats(wpCampaignPartial, null as unknown as LevelDef, wpTel)).toBeNull();
     expect(wpOutcome.dailyScore).toBeGreaterThan(0);
     expect(getTowerMasteryStats(null as unknown as ReturnType<typeof createDefaultMetaSave>).every((t) => t.builtCount === 0)).toBe(true);
     expect(getEnemyIntelStats(null as unknown as ReturnType<typeof createDefaultMetaSave>).every((e) => !e.discovered)).toBe(true);
@@ -2028,6 +2031,7 @@ describe('MetaSession stats, achievements, challenges & daily persistence', () =
       campaign: { unlockedLevelIndex: 0, bestStars: [2], bestEndlessWaves: [0] },
     } as unknown as ReturnType<typeof createDefaultMetaSave>);
     expect(importMetaSaveJson(exportedPartial, null, LEVELS.length, LEVELS).ok).toBe(true);
+    expect(importMetaSaveJson(exportMetaSaveJson({ version: 2 } as unknown as ReturnType<typeof createDefaultMetaSave>), null, 1, LEVELS).ok).toBe(true);
     expect(importMetaSaveJson(exportMetaSaveJson(null as unknown as ReturnType<typeof createDefaultMetaSave>), null, 1, LEVELS).ok).toBe(true);
 
     const overwriteEmptyStarsStore = installMockLocalStorage();

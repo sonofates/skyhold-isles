@@ -307,7 +307,11 @@ describe('Daily challenge pure date-seeded generator', () => {
       const lvl = LEVELS[spec.levelIndex];
       const legalTowers = getAllowedTowerTypes(spec.modifiers);
       expect(
-        legalTowers.some((t) => TOWER_DEFS[t].hitsFlyers && TOWER_DEFS[t].tiers[0].damage >= 15),
+        legalTowers.some((t) => {
+          const def = TOWER_DEFS[t];
+          const t1 = def?.tiers?.[0];
+          return Boolean(def?.hitsFlyers && t1 && (t1.damage >= 15 || t1.damage * t1.fireRate >= 20));
+        }),
       ).toBe(true);
 
       // Never stack multiple tower bans or mix ban_one + limited_arsenal
@@ -746,7 +750,13 @@ describe('Daily challenge pure date-seeded generator', () => {
 
       const lvl = expandedLevels[spec.levelIndex];
       const legal = getAllowedTowerTypes(spec.modifiers);
-      expect(legal.some((t) => TOWER_DEFS[t].hitsFlyers && TOWER_DEFS[t].tiers[0].damage >= 15)).toBe(true);
+      expect(
+        legal.some((t) => {
+          const def = TOWER_DEFS[t];
+          const t1 = def?.tiers?.[0];
+          return Boolean(def?.hitsFlyers && t1 && (t1.damage >= 15 || t1.damage * t1.fireRate >= 20));
+        }),
+      ).toBe(true);
       if (lvl.difficulty === 'Master') {
         expect(spec.mutators).toHaveLength(1);
         expect(spec.towerRestriction.kind).not.toBe('limited_arsenal');

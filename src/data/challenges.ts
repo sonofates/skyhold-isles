@@ -103,7 +103,7 @@ export const CHALLENGES_BY_LEVEL_ID: Record<string, readonly ChallengeDef[]> = {
     {
       id: 'windmill-switchback:no-cannon',
       levelId: 'windmill-switchback',
-      title: 'Light Ordinance',
+      title: 'Light Ordnance',
       description: 'Win without building any Cannon Bastions.',
       condition: { kind: 'forbiddenTowerTypes', forbidden: ['cannon'] },
     },
@@ -249,7 +249,7 @@ export function getChallengesForLevel(level: LevelDef): readonly ChallengeDef[] 
           ? 13
           : 10;
   const plannedTowers = Array.isArray(level.scriptedBuildOrder)
-    ? level.scriptedBuildOrder.filter((a) => a.action === 'build').length
+    ? level.scriptedBuildOrder.filter((a) => Boolean(a) && a.action === 'build').length
     : 0;
   const waveCount = Array.isArray(level.waves) ? level.waves.length : 10;
   const waveBasedCap = Math.max(8, Math.min(20, Math.round(waveCount * 0.75)));
