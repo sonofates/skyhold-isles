@@ -43,9 +43,15 @@ A low-poly isometric **floating island diorama** tower defense game built with *
 - **Inspect Enemy**: Hover over any ground or flying enemy
 
 ### Touch / Mobile & Tablet
-- **Place / Select**: Tap tower card then tap tile; tap placed tower for upgrade/sell/targeting panel
-- **Pan & Zoom**: Two-finger drag to pan, pinch gesture to zoom
+- **Place / Select**: Tap a free tile for the radial build ring; tap a placed tower for upgrade/sell/target/info
+- **Tower info**: Long-press a tower
+- **Pan & Zoom**: One-finger drag pans (with inertia, limited to the island), pinch zooms
+- **Recentre**: Double-tap empty map (desktop: `C`) returns to the default framing
 - **Rotate**: HUD rotation arrow buttons
+- **Haptics**: vibration on build / upgrade / sell / leaks where supported (Settings → Haptics)
+- **Quality**: Settings → Quality: Auto (adaptive frame-time governor), High, Medium, Low. Auto is the default on touch
+- **Install**: the game is a PWA (fullscreen manifest, offline cache). A "New version ready" pill appears after a deploy
+- Camera framing keeps spawn/goal and ≥88% of buildable tiles clear of the HUD (`src/render/occlusionFit.ts`)
 
 ### Developer Debug Overlay (`?debug`)
 Append `?debug` to the URL (e.g., `http://localhost:5173/?debug`) to open live telemetry (FPS, frame time, draw calls, triangles, geometry count, active pools) and debug controls (add gold, set lives, skip to wave, spawn N enemies of any type, instant win/lose, toggle all tower range rings).
