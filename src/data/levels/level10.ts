@@ -64,6 +64,7 @@ export const LEVEL_10: LevelDef = {
   waveHpGrowth: 0.2,
   waves: [
     {
+      name: 'Twin Trails',
       clearBonus: 24,
       groups: [
         { enemyType: 'grunt', count: 10, spawnInterval: 0.6, startDelay: 0 },
@@ -71,6 +72,7 @@ export const LEVEL_10: LevelDef = {
       ],
     },
     {
+      name: 'Scuttle Tide',
       clearBonus: 26,
       groups: [
         { enemyType: 'mite', count: 18, spawnInterval: 0.22, startDelay: 0, lane: 1 },
@@ -78,6 +80,7 @@ export const LEVEL_10: LevelDef = {
       ],
     },
     {
+      name: 'First Ward',
       clearBonus: 28,
       groups: [
         { enemyType: 'grunt', count: 12, spawnInterval: 0.5, startDelay: 0 },
@@ -87,6 +90,7 @@ export const LEVEL_10: LevelDef = {
       ],
     },
     {
+      name: 'Undermining',
       clearBonus: 30,
       groups: [
         { enemyType: 'burrower', count: 4, spawnInterval: 1.2, startDelay: 0, lane: 1 },
@@ -95,6 +99,7 @@ export const LEVEL_10: LevelDef = {
       ],
     },
     {
+      name: 'Swarm and Shield',
       clearBonus: 32,
       groups: [
         { enemyType: 'brute', count: 4, spawnInterval: 1.0, startDelay: 0 },
@@ -104,6 +109,7 @@ export const LEVEL_10: LevelDef = {
       ],
     },
     {
+      name: 'Deep Diggers',
       clearBonus: 34,
       groups: [
         { enemyType: 'brute', count: 5, spawnInterval: 0.9, startDelay: 0, lane: 1 },
@@ -113,6 +119,7 @@ export const LEVEL_10: LevelDef = {
       ],
     },
     {
+      name: 'Skitter Flood',
       clearBonus: 38,
       groups: [
         { enemyType: 'flyer', count: 10, spawnInterval: 0.45, startDelay: 0 },
@@ -122,6 +129,7 @@ export const LEVEL_10: LevelDef = {
       ],
     },
     {
+      name: 'Converging Columns',
       clearBonus: 48,
       groups: [
         { enemyType: 'grunt', count: 14, spawnInterval: 0.4, startDelay: 0 },
@@ -132,6 +140,7 @@ export const LEVEL_10: LevelDef = {
       ],
     },
     {
+      name: 'Tunnel Rush',
       clearBonus: 52,
       groups: [
         { enemyType: 'burrower', count: 6, spawnInterval: 0.8, startDelay: 0 },
@@ -141,6 +150,7 @@ export const LEVEL_10: LevelDef = {
       ],
     },
     {
+      name: 'The Dreadnought Descends',
       clearBonus: 48,
       groups: [
         { enemyType: 'boss', count: 1, spawnInterval: 1, startDelay: 0 },
@@ -150,6 +160,7 @@ export const LEVEL_10: LevelDef = {
       ],
     },
     {
+      name: 'Splinter Ford',
       clearBonus: 36,
       groups: [
         { enemyType: 'splitter', count: 8, spawnInterval: 0.8, startDelay: 0, lane: 1 },
@@ -159,6 +170,7 @@ export const LEVEL_10: LevelDef = {
       ],
     },
     {
+      name: 'Mite Monsoon',
       clearBonus: 40,
       groups: [
         { enemyType: 'mite', count: 30, spawnInterval: 0.16, startDelay: 0 },
@@ -168,6 +180,7 @@ export const LEVEL_10: LevelDef = {
       ],
     },
     {
+      name: 'Burrowed Vanguard',
       clearBonus: 44,
       groups: [
         { enemyType: 'burrower', count: 9, spawnInterval: 0.7, startDelay: 0, lane: 1 },
@@ -177,6 +190,7 @@ export const LEVEL_10: LevelDef = {
       ],
     },
     {
+      name: 'Gilded Brutes',
       clearBonus: 48,
       groups: [
         { enemyType: 'brute', count: 7, spawnInterval: 1.0, startDelay: 0, elite: true },
@@ -186,6 +200,7 @@ export const LEVEL_10: LevelDef = {
       ],
     },
     {
+      name: 'Torrent of Mites',
       clearBonus: 52,
       groups: [
         { enemyType: 'mite', count: 39, spawnInterval: 0.15, startDelay: 0, lane: 1 },
@@ -195,6 +210,7 @@ export const LEVEL_10: LevelDef = {
       ],
     },
     {
+      name: 'Earthshaker',
       clearBonus: 56,
       groups: [
         { enemyType: 'burrower', count: 12, spawnInterval: 0.6, startDelay: 0 },
@@ -204,6 +220,7 @@ export const LEVEL_10: LevelDef = {
       ],
     },
     {
+      name: 'Golden Stampede',
       clearBonus: 60,
       groups: [
         { enemyType: 'brute', count: 7, spawnInterval: 0.9, startDelay: 0, elite: true, lane: 1 },
@@ -213,6 +230,7 @@ export const LEVEL_10: LevelDef = {
       ],
     },
     {
+      name: 'Many Rivers',
       clearBonus: 64,
       groups: [
         { enemyType: 'splitter', count: 14, spawnInterval: 0.6, startDelay: 0 },
@@ -222,6 +240,7 @@ export const LEVEL_10: LevelDef = {
       ],
     },
     {
+      name: 'Aegis Phalanx',
       clearBonus: 70,
       groups: [
         { enemyType: 'burrower', count: 14, spawnInterval: 0.55, startDelay: 0, lane: 1 },
@@ -231,6 +250,7 @@ export const LEVEL_10: LevelDef = {
       ],
     },
     {
+      name: 'The Confluence',
       clearBonus: 98,
       groups: [
         { enemyType: 'boss', count: 1, spawnInterval: 1.0, startDelay: 0 },

@@ -56,6 +56,7 @@ export const LEVEL_12: LevelDef = {
   waveHpGrowth: 0.21,
   waves: [
     {
+      name: 'Dusk Patrol',
       clearBonus: 24,
       groups: [
         { enemyType: 'grunt', count: 14, spawnInterval: 0.55, startDelay: 0 },
@@ -63,6 +64,7 @@ export const LEVEL_12: LevelDef = {
       ],
     },
     {
+      name: 'Gathering Gloom',
       clearBonus: 26,
       groups: [
         { enemyType: 'grunt', count: 12, spawnInterval: 0.5, startDelay: 0 },
@@ -71,6 +73,7 @@ export const LEVEL_12: LevelDef = {
       ],
     },
     {
+      name: 'First Lanterns',
       // First hexers: a pair walking in a grunt column
       clearBonus: 30,
       groups: [
@@ -80,6 +83,7 @@ export const LEVEL_12: LevelDef = {
       ],
     },
     {
+      name: 'Hex and Iron',
       clearBonus: 32,
       groups: [
         { enemyType: 'hexer', count: 3, spawnInterval: 1.8, startDelay: 0 },
@@ -88,6 +92,7 @@ export const LEVEL_12: LevelDef = {
       ],
     },
     {
+      name: 'Mites in the Gloaming',
       clearBonus: 36,
       groups: [
         { enemyType: 'mite', count: 20, spawnInterval: 0.2, startDelay: 0 },
@@ -96,6 +101,7 @@ export const LEVEL_12: LevelDef = {
       ],
     },
     {
+      name: 'Stone Vigil',
       clearBonus: 40,
       groups: [
         { enemyType: 'golem', count: 3, spawnInterval: 2.0, startDelay: 0 },
@@ -105,6 +111,7 @@ export const LEVEL_12: LevelDef = {
       ],
     },
     {
+      name: 'Flickering Lights',
       clearBonus: 44,
       groups: [
         { enemyType: 'flyer', count: 5, spawnInterval: 0.45, startDelay: 0 },
@@ -114,6 +121,7 @@ export const LEVEL_12: LevelDef = {
       ],
     },
     {
+      name: 'Shielded Coven',
       clearBonus: 48,
       groups: [
         { enemyType: 'brute', count: 8, spawnInterval: 0.75, startDelay: 0 },
@@ -123,6 +131,7 @@ export const LEVEL_12: LevelDef = {
       ],
     },
     {
+      name: 'Swarm by Lanternlight',
       clearBonus: 52,
       groups: [
         { enemyType: 'mite', count: 30, spawnInterval: 0.16, startDelay: 0 },
@@ -132,6 +141,7 @@ export const LEVEL_12: LevelDef = {
       ],
     },
     {
+      name: 'Dreadnought Choir',
       // Dreadnought, escorted by a hex choir that silences the towers around it
       clearBonus: 66,
       groups: [
@@ -142,6 +152,7 @@ export const LEVEL_12: LevelDef = {
       ],
     },
     {
+      name: 'Running Shadows',
       clearBonus: 60,
       groups: [
         { enemyType: 'runner', count: 22, spawnInterval: 0.26, startDelay: 0 },
@@ -150,6 +161,7 @@ export const LEVEL_12: LevelDef = {
       ],
     },
     {
+      name: 'Basalt Procession',
       clearBonus: 64,
       groups: [
         { enemyType: 'golem', count: 6, spawnInterval: 1.3, startDelay: 0 },
@@ -159,6 +171,7 @@ export const LEVEL_12: LevelDef = {
       ],
     },
     {
+      name: 'Midnight Swarm',
       clearBonus: 70,
       groups: [
         { enemyType: 'mite', count: 40, spawnInterval: 0.14, startDelay: 0 },
@@ -168,6 +181,7 @@ export const LEVEL_12: LevelDef = {
       ],
     },
     {
+      name: 'Rift Lanterns',
       clearBonus: 74,
       groups: [
         { enemyType: 'blinker', count: 14, spawnInterval: 0.5, startDelay: 0 },
@@ -176,6 +190,7 @@ export const LEVEL_12: LevelDef = {
       ],
     },
     {
+      name: 'Iron Vespers',
       clearBonus: 80,
       groups: [
         { enemyType: 'brute', count: 14, spawnInterval: 0.5, startDelay: 0 },
@@ -185,6 +200,7 @@ export const LEVEL_12: LevelDef = {
       ],
     },
     {
+      name: 'Gilded Hexes',
       clearBonus: 86,
       groups: [
         { enemyType: 'hexer', count: 5, spawnInterval: 1.0, startDelay: 0, elite: true },
@@ -194,6 +210,7 @@ export const LEVEL_12: LevelDef = {
       ],
     },
     {
+      name: 'Witching Hour',
       clearBonus: 92,
       groups: [
         { enemyType: 'golem', count: 6, spawnInterval: 1.2, startDelay: 0, elite: true },
@@ -203,6 +220,7 @@ export const LEVEL_12: LevelDef = {
       ],
     },
     {
+      name: 'Blinking Dark',
       clearBonus: 98,
       groups: [
         { enemyType: 'blinker', count: 14, spawnInterval: 0.5, startDelay: 0, elite: true },
@@ -212,6 +230,7 @@ export const LEVEL_12: LevelDef = {
       ],
     },
     {
+      name: 'Hexfire Legion',
       clearBonus: 106,
       groups: [
         { enemyType: 'brute', count: 12, spawnInterval: 0.5, startDelay: 0, elite: true },
@@ -222,6 +241,7 @@ export const LEVEL_12: LevelDef = {
       ],
     },
     {
+      name: 'Lanternfall',
       clearBonus: 125,
       groups: [
         { enemyType: 'hexer', count: 10, spawnInterval: 0.7, startDelay: 0 },

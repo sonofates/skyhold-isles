@@ -67,6 +67,7 @@ export const LEVEL_13: LevelDef = {
   waveHpGrowth: 0.205,
   waves: [
     {
+      name: 'Outer Ring',
       clearBonus: 24,
       groups: [
         { enemyType: 'grunt', count: 14, spawnInterval: 0.56, startDelay: 0 },
@@ -74,6 +75,7 @@ export const LEVEL_13: LevelDef = {
       ],
     },
     {
+      name: 'North Road',
       clearBonus: 26,
       groups: [
         { enemyType: 'runner', count: 12, spawnInterval: 0.4, startDelay: 0 },
@@ -82,6 +84,7 @@ export const LEVEL_13: LevelDef = {
       ],
     },
     {
+      name: 'Static Sparks',
       clearBonus: 28,
       groups: [
         { enemyType: 'brute', count: 4, spawnInterval: 0.95, startDelay: 0 },
@@ -90,6 +93,7 @@ export const LEVEL_13: LevelDef = {
       ],
     },
     {
+      name: 'Sappers',
       clearBonus: 32,
       groups: [
         { enemyType: 'grunt', count: 14, spawnInterval: 0.42, startDelay: 0 },
@@ -99,6 +103,7 @@ export const LEVEL_13: LevelDef = {
       ],
     },
     {
+      name: 'Storm Freight',
       clearBonus: 34,
       groups: [
         { enemyType: 'flyer', count: 10, spawnInterval: 0.45, startDelay: 0 },
@@ -108,6 +113,7 @@ export const LEVEL_13: LevelDef = {
       ],
     },
     {
+      name: 'Rampart Golems',
       clearBonus: 38,
       groups: [
         { enemyType: 'golem', count: 3, spawnInterval: 1.4, startDelay: 0 },
@@ -117,6 +123,7 @@ export const LEVEL_13: LevelDef = {
       ],
     },
     {
+      name: 'Lightning Raid',
       clearBonus: 42,
       groups: [
         { enemyType: 'flyer', count: 11, spawnInterval: 0.45, startDelay: 0 },
@@ -126,6 +133,7 @@ export const LEVEL_13: LevelDef = {
       ],
     },
     {
+      name: 'Cloud Barges',
       clearBonus: 46,
       groups: [
         { enemyType: 'brute', count: 9, spawnInterval: 0.7, startDelay: 0 },
@@ -135,6 +143,7 @@ export const LEVEL_13: LevelDef = {
       ],
     },
     {
+      name: 'Undertow',
       clearBonus: 48,
       groups: [
         { enemyType: 'mite', count: 30, spawnInterval: 0.16, startDelay: 0 },
@@ -144,6 +153,7 @@ export const LEVEL_13: LevelDef = {
       ],
     },
     {
+      name: 'Basalt Gale',
       clearBonus: 54,
       groups: [
         { enemyType: 'golem', count: 6, spawnInterval: 1.1, startDelay: 0 },
@@ -153,6 +163,7 @@ export const LEVEL_13: LevelDef = {
       ],
     },
     {
+      name: 'The Dreadnought',
       clearBonus: 80,
       groups: [
         { enemyType: 'brute', count: 10, spawnInterval: 0.65, startDelay: 0 },
@@ -162,6 +173,7 @@ export const LEVEL_13: LevelDef = {
       ],
     },
     {
+      name: 'Spiral Rush',
       clearBonus: 60,
       groups: [
         { enemyType: 'carrier', count: 4, spawnInterval: 1.1, startDelay: 0 },
@@ -171,6 +183,7 @@ export const LEVEL_13: LevelDef = {
       ],
     },
     {
+      name: 'Inner Ward',
       clearBonus: 66,
       groups: [
         { enemyType: 'golem', count: 8, spawnInterval: 0.95, startDelay: 0 },
@@ -180,6 +193,7 @@ export const LEVEL_13: LevelDef = {
       ],
     },
     {
+      name: 'Rift Rampart',
       clearBonus: 70,
       groups: [
         { enemyType: 'brute', count: 14, spawnInterval: 0.56, startDelay: 0 },
@@ -189,6 +203,7 @@ export const LEVEL_13: LevelDef = {
       ],
     },
     {
+      name: 'Downpour',
       clearBonus: 72,
       groups: [
         { enemyType: 'runner', count: 30, spawnInterval: 0.21, startDelay: 0 },
@@ -199,6 +214,7 @@ export const LEVEL_13: LevelDef = {
       ],
     },
     {
+      name: 'Thunder Ring',
       clearBonus: 78,
       groups: [
         { enemyType: 'golem', count: 10, spawnInterval: 0.85, startDelay: 0 },
@@ -209,6 +225,7 @@ export const LEVEL_13: LevelDef = {
       ],
     },
     {
+      name: 'Tremors',
       clearBonus: 84,
       groups: [
         { enemyType: 'brute', count: 16, spawnInterval: 0.48, startDelay: 0 },
@@ -218,6 +235,7 @@ export const LEVEL_13: LevelDef = {
       ],
     },
     {
+      name: 'Gilded Storm',
       clearBonus: 90,
       groups: [
         { enemyType: 'brute', count: 8, spawnInterval: 0.6, startDelay: 0, elite: true },
@@ -227,6 +245,7 @@ export const LEVEL_13: LevelDef = {
       ],
     },
     {
+      name: 'Stonefall',
       clearBonus: 96,
       groups: [
         { enemyType: 'golem', count: 6, spawnInterval: 0.9, startDelay: 0, elite: true },
@@ -237,6 +256,7 @@ export const LEVEL_13: LevelDef = {
       ],
     },
     {
+      name: 'Aegis Crown',
       clearBonus: 100,
       groups: [
         { enemyType: 'warden', count: 5, spawnInterval: 0.9, startDelay: 0, elite: true },
@@ -247,6 +267,7 @@ export const LEVEL_13: LevelDef = {
       ],
     },
     {
+      name: 'Hurricane Wall',
       clearBonus: 108,
       groups: [
         { enemyType: 'runner', count: 24, spawnInterval: 0.22, startDelay: 0 },
@@ -258,6 +279,7 @@ export const LEVEL_13: LevelDef = {
       ],
     },
     {
+      name: 'Crown of Storms',
       clearBonus: 125,
       groups: [
         { enemyType: 'brute', count: 8, spawnInterval: 0.6, startDelay: 0, elite: true },

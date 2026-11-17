@@ -54,6 +54,7 @@ export const LEVEL_11: LevelDef = {
   waveHpGrowth: 0.21,
   waves: [
     {
+      name: 'Gate Wind',
       clearBonus: 24,
       groups: [
         { enemyType: 'grunt', count: 14, spawnInterval: 0.56, startDelay: 0 },
@@ -61,6 +62,7 @@ export const LEVEL_11: LevelDef = {
       ],
     },
     {
+      name: 'Updraft',
       clearBonus: 26,
       groups: [
         { enemyType: 'runner', count: 12, spawnInterval: 0.4, startDelay: 0 },
@@ -69,6 +71,7 @@ export const LEVEL_11: LevelDef = {
       ],
     },
     {
+      name: 'Cargo Clouds',
       clearBonus: 28,
       groups: [
         { enemyType: 'carrier', count: 3, spawnInterval: 1.6, startDelay: 0 },
@@ -77,6 +80,7 @@ export const LEVEL_11: LevelDef = {
       ],
     },
     {
+      name: 'Rift Sparks',
       clearBonus: 32,
       groups: [
         { enemyType: 'blinker', count: 6, spawnInterval: 0.9, startDelay: 0 },
@@ -85,6 +89,7 @@ export const LEVEL_11: LevelDef = {
       ],
     },
     {
+      name: 'Crosswinds',
       clearBonus: 34,
       groups: [
         { enemyType: 'flyer', count: 8, spawnInterval: 0.5, startDelay: 0 },
@@ -94,6 +99,7 @@ export const LEVEL_11: LevelDef = {
       ],
     },
     {
+      name: 'Basalt Footfalls',
       clearBonus: 38,
       groups: [
         { enemyType: 'golem', count: 2, spawnInterval: 2.2, startDelay: 0 },
@@ -103,6 +109,7 @@ export const LEVEL_11: LevelDef = {
       ],
     },
     {
+      name: 'Flicker Squall',
       clearBonus: 42,
       groups: [
         { enemyType: 'blinker', count: 10, spawnInterval: 0.7, startDelay: 0 },
@@ -111,6 +118,7 @@ export const LEVEL_11: LevelDef = {
       ],
     },
     {
+      name: 'Heavy Haulage',
       clearBonus: 46,
       groups: [
         { enemyType: 'golem', count: 4, spawnInterval: 1.8, startDelay: 0 },
@@ -120,6 +128,7 @@ export const LEVEL_11: LevelDef = {
       ],
     },
     {
+      name: 'Swarm Front',
       clearBonus: 50,
       groups: [
         { enemyType: 'mite', count: 24, spawnInterval: 0.18, startDelay: 0 },
@@ -129,6 +138,7 @@ export const LEVEL_11: LevelDef = {
       ],
     },
     {
+      name: 'Dreadnought Gale',
       clearBonus: 64,
       groups: [
         { enemyType: 'boss', count: 1, spawnInterval: 1.0, startDelay: 0 },
@@ -139,6 +149,7 @@ export const LEVEL_11: LevelDef = {
       ],
     },
     {
+      name: 'Blink Storm',
       clearBonus: 58,
       groups: [
         { enemyType: 'runner', count: 24, spawnInterval: 0.26, startDelay: 0 },
@@ -147,6 +158,7 @@ export const LEVEL_11: LevelDef = {
       ],
     },
     {
+      name: 'Stone and Steel',
       clearBonus: 62,
       groups: [
         { enemyType: 'golem', count: 6, spawnInterval: 1.4, startDelay: 0 },
@@ -156,6 +168,7 @@ export const LEVEL_11: LevelDef = {
       ],
     },
     {
+      name: 'Skitter Cloudburst',
       clearBonus: 68,
       groups: [
         { enemyType: 'mite', count: 40, spawnInterval: 0.14, startDelay: 0 },
@@ -165,6 +178,7 @@ export const LEVEL_11: LevelDef = {
       ],
     },
     {
+      name: 'Rift Convoy',
       clearBonus: 72,
       groups: [
         { enemyType: 'blinker', count: 16, spawnInterval: 0.5, startDelay: 0 },
@@ -173,6 +187,7 @@ export const LEVEL_11: LevelDef = {
       ],
     },
     {
+      name: 'Iron Monsoon',
       clearBonus: 78,
       groups: [
         { enemyType: 'brute', count: 16, spawnInterval: 0.5, startDelay: 0 },
@@ -182,6 +197,7 @@ export const LEVEL_11: LevelDef = {
       ],
     },
     {
+      name: 'Golden Freight',
       clearBonus: 84,
       groups: [
         { enemyType: 'golem', count: 8, spawnInterval: 1.1, startDelay: 0 },
@@ -192,6 +208,7 @@ export const LEVEL_11: LevelDef = {
       ],
     },
     {
+      name: 'Gilded Basalt',
       clearBonus: 90,
       groups: [
         { enemyType: 'golem', count: 5, spawnInterval: 1.3, startDelay: 0, elite: true },
@@ -203,6 +220,7 @@ export const LEVEL_11: LevelDef = {
       ],
     },
     {
+      name: 'Jetstream',
       clearBonus: 96,
       groups: [
         { enemyType: 'runner', count: 30, spawnInterval: 0.2, startDelay: 0 },
@@ -214,6 +232,7 @@ export const LEVEL_11: LevelDef = {
       ],
     },
     {
+      name: 'Thunderhead',
       clearBonus: 104,
       groups: [
         { enemyType: 'brute', count: 12, spawnInterval: 0.5, startDelay: 0, elite: true },
@@ -224,6 +243,7 @@ export const LEVEL_11: LevelDef = {
       ],
     },
     {
+      name: 'Eye of the Gale',
       clearBonus: 125,
       groups: [
         { enemyType: 'carrier', count: 9, spawnInterval: 0.85, startDelay: 0 },
