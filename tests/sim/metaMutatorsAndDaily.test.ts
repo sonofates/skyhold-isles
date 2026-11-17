@@ -324,9 +324,15 @@ describe('Daily challenge pure date-seeded generator', () => {
         }
       }
 
-      // Heroic dailies never combine gold_drought with limited_arsenal, and heavy-armored limited_arsenal retains splash/heavy damage
-      if (lvl.difficulty === 'Heroic' && spec.modifiers.goldRewardMultiplier < 1) {
+      // Heroic dailies never combine economy-squeeze mutators (gold_drought/tight_budget) with limited_arsenal,
+      // nor 2 mutators + economy squeeze with any tower ban; heavy-armored limited_arsenal retains splash/heavy damage
+      const hasEconomySqueeze =
+        spec.modifiers.goldRewardMultiplier < 1 || spec.modifiers.towerCostMultiplier > 1;
+      if (lvl.difficulty === 'Heroic' && hasEconomySqueeze) {
         expect(spec.towerRestriction.kind).not.toBe('limited_arsenal');
+        if (spec.mutators.length >= 2 && spec.modifiers.forbiddenTowerTypes.length === 0) {
+          expect(spec.towerRestriction.kind).toBe('none');
+        }
       }
       // Never contradict a mutator tower ban with 'Full Arsenal' label
       if (spec.modifiers.forbiddenTowerTypes.length > 0 && spec.towerRestriction.kind === 'none') {
@@ -433,6 +439,105 @@ describe('Daily challenge pure date-seeded generator', () => {
     expect(world.outcome).toBe('won');
     expect(obs.verifyEconomyIntegrity(world.gold, world.lives)).toBe(true);
     obs.dispose();
+  });
+
+  it('wins both Heroic and Master Daily Watch runs in SimWorld with tower bans and economy integrity intact', () => {
+    for (const dateStr of ['2026-11-15', '2026-11-04'] as const) {
+      const spec = generateDailyChallenge(dateStr, LEVELS);
+      const level = LEVELS[spec.levelIndex];
+      const legal = getAllowedTowerTypes(spec.modifiers);
+      const events = new EventBus();
+      const world = new SimWorld(level, events, spec.modifiers);
+      const obs = new RunObserver(level, events, spec.modifiers);
+
+      const substituteTower = (type: keyof typeof TOWER_DEFS) => {
+        if (legal.includes(type)) return type;
+        if (TOWER_DEFS[type].hitsFlyers) {
+          return legal.find((c) => TOWER_DEFS[c].hitsFlyers) ?? legal[0];
+        }
+        return legal.find((c) => TOWER_DEFS[c].tiers[0].damage >= 35) ?? legal[0];
+      };
+
+      const queue = (level.scriptedBuildOrder ?? []).map((a) =>
+        a.action === 'build' && a.towerType
+          ? { ...a, towerType: substituteTower(a.towerType) }
+          : a,
+      );
+      const tryStep = (): boolean => {
+        while (queue.length > 0) {
+          const a = queue[0];
+          if (a.action === 'build') {
+            const cost = world.getTowerBuildCost(a.towerType!);
+            if (world.gold < cost) return false;
+            if (!world.placeTower(a.col, a.row, a.towerType!, a.targetingMode ?? 'first')) {
+              queue.shift();
+              continue;
+            }
+            queue.shift();
+            return true;
+          }
+          const tid = world.grid.getTowerIdAt(a.col, a.row);
+          const tw = tid === -1 ? null : world.getTowerById(tid);
+          if (!tw || tw.tier >= 3) {
+            queue.shift();
+            continue;
+          }
+          const uc = world.getTowerUpgradeCost(tw);
+          if (uc === null || world.gold < uc) return false;
+          if (world.upgradeTower(tid)) {
+            queue.shift();
+            return true;
+          }
+          queue.shift();
+        }
+        for (const tw of world.towers) {
+          const uc = world.getTowerUpgradeCost(tw);
+          if (uc !== null && world.gold >= uc) {
+            world.upgradeTower(tw.id);
+            return true;
+          }
+        }
+        return false;
+      };
+
+      while (tryStep()) {
+        // pre-wave setup
+      }
+      world.startNextWave();
+
+      for (let t = 0; t < 60 * 2400 && world.outcome === 'ongoing'; t++) {
+        if (world.waveSystem.state === 'betweenWaves') {
+          while (tryStep()) {
+            // between-wave build/upgrade
+          }
+        } else if (t % (60 * 4) === 0) {
+          tryStep();
+        }
+        if (world.waveSystem.state !== 'preFirstWave') {
+          if (
+            world.abilitySystem.canCast('overcharge') &&
+            (world.towers.some((tw) => tw.stunTimer > 0) || world.enemyPool.getActiveCount() >= 8)
+          ) {
+            world.castOvercharge();
+          }
+          if (world.abilitySystem.canCast('meteor') && world.enemyPool.getActiveCount() > 0) {
+            let best = null;
+            for (let i = 0; i < world.enemyPool.getActiveCount(); i++) {
+              const e = world.enemyPool.items[world.enemyPool.getActiveIndex(i)];
+              if (!e.flying && (!best || e.dist > best.dist)) best = e;
+            }
+            if (best) world.castMeteor(best.x, best.z);
+          }
+        }
+        obs.onTick(BALANCE.fixedDt, 3);
+        world.fixedTick(BALANCE.fixedDt);
+      }
+
+      expect(world.outcome).toBe('won');
+      expect(obs.verifyEconomyIntegrity(world.gold, world.lives)).toBe(true);
+      expect(obs.getTelemetry().eligibleForChallenges).toBe(true);
+      obs.dispose();
+    }
   });
 
   it('keeps RunObserver economy integrity exact across builds, upgrades, sells, early calls, and clear bonuses under tight_budget + gold_drought', () => {
@@ -597,6 +702,28 @@ describe('Daily challenge pure date-seeded generator', () => {
     expect(scaleGoldReward(-10, costMod)).toBe(0);
     expect(scaleGoldReward(Number.NaN, costMod)).toBe(0);
     expect(scaleGoldReward(Number.POSITIVE_INFINITY, costMod)).toBe(0);
+
+    // Split-group heavy armored waves on Challenging islands also retain armor-breakers (>=35 dmg)
+    const splitArmorChallenging: LevelDef = {
+      ...LEVELS[1],
+      id: 'split-armor-isle',
+      difficulty: 'Challenging',
+      waves: [
+        {
+          clearBonus: 30,
+          groups: [
+            { enemyType: 'brute', count: 3, spawnInterval: 0.9, startDelay: 0 },
+            { enemyType: 'brute', count: 2, spawnInterval: 0.9, startDelay: 1.5 },
+          ],
+        },
+      ],
+    };
+    for (let i = 1; i <= 30; i++) {
+      const ds = `2026-09-${String(i).padStart(2, '0')}`;
+      const spec = generateDailyChallenge(ds, [splitArmorChallenging]);
+      const legal = getAllowedTowerTypes(spec.modifiers);
+      expect(legal.some((t) => TOWER_DEFS[t].tiers[0].damage >= 35)).toBe(true);
+    }
 
     // Leap-day and year-boundary daily calendar streak continuity
     expect(

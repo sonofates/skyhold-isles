@@ -196,23 +196,36 @@ export function mergeCampaignProgress(
   b: ProgressData,
   levelCount: number,
 ): ProgressData {
+  const safeCount = Math.max(1, levelCount);
+  const aStars = Array.isArray(a.bestStars) ? a.bestStars : [];
+  const bStars = Array.isArray(b.bestStars) ? b.bestStars : [];
+  const aEndless = Array.isArray(a.bestEndlessWaves) ? a.bestEndlessWaves : [];
+  const bEndless = Array.isArray(b.bestEndlessWaves) ? b.bestEndlessWaves : [];
   const len = Math.max(
-    levelCount,
-    a.bestStars.length,
-    b.bestStars.length,
-    a.bestEndlessWaves.length,
-    b.bestEndlessWaves.length,
+    safeCount,
+    aStars.length,
+    bStars.length,
+    aEndless.length,
+    bEndless.length,
   );
   const bestStars = new Array<number>(len).fill(0);
   const bestEndlessWaves = new Array<number>(len).fill(0);
   for (let i = 0; i < len; i++) {
-    bestStars[i] = Math.max(a.bestStars[i] ?? 0, b.bestStars[i] ?? 0);
-    bestEndlessWaves[i] = Math.max(a.bestEndlessWaves[i] ?? 0, b.bestEndlessWaves[i] ?? 0);
+    const sa = typeof aStars[i] === 'number' && Number.isFinite(aStars[i])
+      ? Math.max(0, Math.min(3, Math.floor(aStars[i])))
+      : 0;
+    const sb = typeof bStars[i] === 'number' && Number.isFinite(bStars[i])
+      ? Math.max(0, Math.min(3, Math.floor(bStars[i])))
+      : 0;
+    bestStars[i] = Math.max(sa, sb);
+
+    const ea = asNonNegInt(aEndless[i], 0);
+    const eb = asNonNegInt(bEndless[i], 0);
+    bestEndlessWaves[i] = Math.max(ea, eb);
   }
-  const unlockedLevelIndex = Math.max(
-    0,
-    Math.min(Math.max(0, levelCount - 1), Math.max(a.unlockedLevelIndex, b.unlockedLevelIndex)),
-  );
+  const ua = asNonNegInt(a.unlockedLevelIndex, 0);
+  const ub = asNonNegInt(b.unlockedLevelIndex, 0);
+  const unlockedLevelIndex = Math.max(0, Math.min(safeCount - 1, Math.max(ua, ub)));
   return { unlockedLevelIndex, bestStars, bestEndlessWaves };
 }
 
@@ -1080,10 +1093,17 @@ export function getRecommendedNextGoal(
   };
 }
 
-function getTopKey(record: Readonly<Record<string, number>>): string | null {
+const KNOWN_TOWER_TYPES = new Set<string>(TOWER_TYPES);
+const KNOWN_ENEMY_TYPES = new Set<string>(ENEMY_TYPES);
+
+function getTopKey(
+  record: Readonly<Record<string, number>>,
+  allowedKeys?: ReadonlySet<string>,
+): string | null {
   let bestKey: string | null = null;
   let bestCount = 0;
   for (const [key, count] of Object.entries(record)) {
+    if (allowedKeys && !allowedKeys.has(key)) continue;
     if (
       Number.isFinite(count) &&
       (count > bestCount || (count === bestCount && count > 0 && (bestKey === null || key < bestKey)))
@@ -1122,9 +1142,11 @@ export function getMetaCareerSummary(
   }
 
   const streaks = computeDailyStreaks(save.completedDailyDates, todayDateStr);
-  const completedOutcomes = save.stats.gamesWon + save.stats.gamesLost;
+  const won = asNonNegInt(save.stats.gamesWon);
+  const lost = asNonNegInt(save.stats.gamesLost);
+  const completedOutcomes = won + lost;
   const winRatePct =
-    completedOutcomes > 0 ? Math.round((save.stats.gamesWon / completedOutcomes) * 100) : 0;
+    completedOutcomes > 0 ? Math.round((won / completedOutcomes) * 100) : 0;
 
   return {
     campaignStarsEarned,
@@ -1140,8 +1162,11 @@ export function getMetaCareerSummary(
     dailyCurrentStreak: streaks.currentStreak,
     dailyBestStreak: streaks.bestStreak,
     winRatePct,
-    favoriteTowerType: getTopKey(save.stats.towersBuiltByType) as TowerType | null,
-    mostDefeatedEnemyType: getTopKey(save.stats.enemiesDefeatedByType) as EnemyType | null,
+    favoriteTowerType: getTopKey(save.stats.towersBuiltByType, KNOWN_TOWER_TYPES) as TowerType | null,
+    mostDefeatedEnemyType: getTopKey(
+      save.stats.enemiesDefeatedByType,
+      KNOWN_ENEMY_TYPES,
+    ) as EnemyType | null,
     rank: getMetaCareerRank(save, levels),
   };
 }
@@ -1258,6 +1283,12 @@ function mergeMinPositiveRecords(
   return out;
 }
 
+function maxFiniteNonNeg(a: number, b: number): number {
+  const va = typeof a === 'number' && Number.isFinite(a) && a > 0 ? a : 0;
+  const vb = typeof b === 'number' && Number.isFinite(b) && b > 0 ? b : 0;
+  return Math.max(va, vb);
+}
+
 /** Monotonically merges two MetaSaveData objects, preserving highest stars, records, and unlocks. */
 export function mergeMetaSaves(
   base: MetaSaveData,
@@ -1289,19 +1320,25 @@ export function mergeMetaSaves(
         base.achievementMilestones.wonAt3xSpeed || incoming.achievementMilestones.wonAt3xSpeed,
       wonMax6Towers:
         base.achievementMilestones.wonMax6Towers || incoming.achievementMilestones.wonMax6Towers,
-      bestMutatedEndlessWavesCleared: Math.max(
+      bestMutatedEndlessWavesCleared: maxFiniteNonNeg(
         base.achievementMilestones.bestMutatedEndlessWavesCleared,
         incoming.achievementMilestones.bestMutatedEndlessWavesCleared,
       ),
     },
     stats: {
-      totalPlayTimeSec: Math.max(base.stats.totalPlayTimeSec, incoming.stats.totalPlayTimeSec),
-      gamesPlayed: Math.max(base.stats.gamesPlayed, incoming.stats.gamesPlayed),
-      gamesWon: Math.max(base.stats.gamesWon, incoming.stats.gamesWon),
-      gamesLost: Math.max(base.stats.gamesLost, incoming.stats.gamesLost),
-      wavesCleared: Math.max(base.stats.wavesCleared, incoming.stats.wavesCleared),
-      earlyWavesCalled: Math.max(base.stats.earlyWavesCalled, incoming.stats.earlyWavesCalled),
-      enemiesDefeatedTotal: Math.max(
+      totalPlayTimeSec: maxFiniteNonNeg(
+        base.stats.totalPlayTimeSec,
+        incoming.stats.totalPlayTimeSec,
+      ),
+      gamesPlayed: maxFiniteNonNeg(base.stats.gamesPlayed, incoming.stats.gamesPlayed),
+      gamesWon: maxFiniteNonNeg(base.stats.gamesWon, incoming.stats.gamesWon),
+      gamesLost: maxFiniteNonNeg(base.stats.gamesLost, incoming.stats.gamesLost),
+      wavesCleared: maxFiniteNonNeg(base.stats.wavesCleared, incoming.stats.wavesCleared),
+      earlyWavesCalled: maxFiniteNonNeg(
+        base.stats.earlyWavesCalled,
+        incoming.stats.earlyWavesCalled,
+      ),
+      enemiesDefeatedTotal: maxFiniteNonNeg(
         base.stats.enemiesDefeatedTotal,
         incoming.stats.enemiesDefeatedTotal,
       ),
@@ -1309,42 +1346,47 @@ export function mergeMetaSaves(
         base.stats.enemiesDefeatedByType,
         incoming.stats.enemiesDefeatedByType,
       ),
-      flyingEnemiesDefeated: Math.max(
+      flyingEnemiesDefeated: maxFiniteNonNeg(
         base.stats.flyingEnemiesDefeated,
         incoming.stats.flyingEnemiesDefeated,
       ),
-      towersBuiltTotal: Math.max(base.stats.towersBuiltTotal, incoming.stats.towersBuiltTotal),
+      towersBuiltTotal: maxFiniteNonNeg(
+        base.stats.towersBuiltTotal,
+        incoming.stats.towersBuiltTotal,
+      ),
       towersBuiltByType: mergeMaxCountRecords(
         base.stats.towersBuiltByType,
         incoming.stats.towersBuiltByType,
       ),
-      towersUpgradedToTier3: Math.max(
+      towersUpgradedToTier3: maxFiniteNonNeg(
         base.stats.towersUpgradedToTier3,
         incoming.stats.towersUpgradedToTier3,
       ),
-      towersUpgradedTotal: Math.max(
+      towersUpgradedTotal: maxFiniteNonNeg(
         base.stats.towersUpgradedTotal,
         incoming.stats.towersUpgradedTotal,
       ),
-      towersSoldTotal: Math.max(base.stats.towersSoldTotal, incoming.stats.towersSoldTotal),
-      goldEarnedTotal: Math.max(base.stats.goldEarnedTotal, incoming.stats.goldEarnedTotal),
-      goldSpentTotal: Math.max(base.stats.goldSpentTotal, incoming.stats.goldSpentTotal),
-      abilitiesCastTotal: Math.max(base.stats.abilitiesCastTotal, incoming.stats.abilitiesCastTotal),
-      meteorsCast: Math.max(base.stats.meteorsCast, incoming.stats.meteorsCast),
-      overchargesCast: Math.max(base.stats.overchargesCast, incoming.stats.overchargesCast),
-      towersCleansed: Math.max(base.stats.towersCleansed, incoming.stats.towersCleansed),
-      perfectClears: Math.max(base.stats.perfectClears, incoming.stats.perfectClears),
-      bestEndlessWaveOverall: Math.max(
+      towersSoldTotal: maxFiniteNonNeg(base.stats.towersSoldTotal, incoming.stats.towersSoldTotal),
+      goldEarnedTotal: maxFiniteNonNeg(base.stats.goldEarnedTotal, incoming.stats.goldEarnedTotal),
+      goldSpentTotal: maxFiniteNonNeg(base.stats.goldSpentTotal, incoming.stats.goldSpentTotal),
+      abilitiesCastTotal: maxFiniteNonNeg(
+        base.stats.abilitiesCastTotal,
+        incoming.stats.abilitiesCastTotal,
+      ),
+      meteorsCast: maxFiniteNonNeg(base.stats.meteorsCast, incoming.stats.meteorsCast),
+      overchargesCast: maxFiniteNonNeg(base.stats.overchargesCast, incoming.stats.overchargesCast),
+      towersCleansed: maxFiniteNonNeg(base.stats.towersCleansed, incoming.stats.towersCleansed),
+      perfectClears: maxFiniteNonNeg(base.stats.perfectClears, incoming.stats.perfectClears),
+      bestEndlessWaveOverall: maxFiniteNonNeg(
         base.stats.bestEndlessWaveOverall,
         incoming.stats.bestEndlessWaveOverall,
       ),
-      bestEndlessScoreOverall: Math.max(
+      bestEndlessScoreOverall: maxFiniteNonNeg(
         base.stats.bestEndlessScoreOverall,
         incoming.stats.bestEndlessScoreOverall,
       ),
       dailyChallengesCompleted: Math.max(
-        base.stats.dailyChallengesCompleted,
-        incoming.stats.dailyChallengesCompleted,
+        maxFiniteNonNeg(base.stats.dailyChallengesCompleted, incoming.stats.dailyChallengesCompleted),
         completedDailyDates.length,
       ),
     },

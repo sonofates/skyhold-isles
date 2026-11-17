@@ -98,7 +98,7 @@ export function evaluateLiveChallengeState(
       def,
       state: 'failed',
       previouslyCompleted,
-      progressLabel: !telemetry.eligibleForChallenges ? 'Debug/Skip ineligible' : 'Defeat',
+      progressLabel: !telemetry.eligibleForChallenges ? 'Modifier/Debug ineligible' : 'Defeat',
     };
   }
   if (outcome === 'won') {

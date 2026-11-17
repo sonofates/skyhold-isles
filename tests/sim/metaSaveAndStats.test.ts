@@ -18,10 +18,12 @@ import {
   getAllChallengeProgress,
   getChallengeStatus,
   getEnemyIntelStats,
+  getMetaCareerSummary,
   getRecentDailyHistory,
   getStats,
   getTowerMasteryStats,
   importMetaSaveJson,
+  mergeCampaignProgress,
   mergeMetaSaves,
   migrateToMetaSave,
   recordRunCompletion,
@@ -1211,20 +1213,52 @@ describe('MetaSession stats, achievements, challenges & daily persistence', () =
     expect(replaySave.bestLivesByLevelId[LEVELS[0].id]).toBeUndefined();
     replayObs.dispose();
 
-    // mergeMetaSaves ignores non-finite outlier records so valid finite records survive
+    // mergeCampaignProgress & mergeMetaSaves ignore non-finite outlier records/stats so valid finite data survives
+    const mergedCampaign = mergeCampaignProgress(
+      { unlockedLevelIndex: Number.NaN, bestStars: [Number.POSITIVE_INFINITY, Number.NaN], bestEndlessWaves: [Number.NaN, 12] },
+      { unlockedLevelIndex: 4, bestStars: [2, 3], bestEndlessWaves: [8, Number.POSITIVE_INFINITY] },
+      9,
+    );
+    expect(mergedCampaign.unlockedLevelIndex).toBe(4);
+    expect(mergedCampaign.bestStars.slice(0, 2)).toEqual([2, 3]);
+    expect(mergedCampaign.bestEndlessWaves.slice(0, 2)).toEqual([8, 12]);
+
     const corruptBase = createDefaultMetaSave(9);
     corruptBase.bestEndlessScoresByLevelId[LEVELS[0].id] = Number.POSITIVE_INFINITY;
     corruptBase.fastestWinSecByLevelId[LEVELS[0].id] = Number.NaN;
     corruptBase.stats.towersBuiltByType.archer = Number.POSITIVE_INFINITY;
+    corruptBase.stats.totalPlayTimeSec = Number.POSITIVE_INFINITY;
+    corruptBase.stats.gamesPlayed = Number.NaN;
+    corruptBase.stats.enemiesDefeatedTotal = Number.POSITIVE_INFINITY;
+    corruptBase.achievementMilestones.bestMutatedEndlessWavesCleared = Number.NaN;
     const validIncoming = createDefaultMetaSave(9);
     validIncoming.bestEndlessScoresByLevelId[LEVELS[0].id] = 480;
     validIncoming.fastestWinSecByLevelId[LEVELS[0].id] = 55.4;
     validIncoming.stats.towersBuiltByType.cannon = 12;
+    validIncoming.stats.totalPlayTimeSec = 142.5;
+    validIncoming.stats.gamesPlayed = 7;
+    validIncoming.stats.gamesWon = 5;
+    validIncoming.stats.gamesLost = 2;
+    validIncoming.stats.enemiesDefeatedTotal = 310;
+    validIncoming.achievementMilestones.bestMutatedEndlessWavesCleared = 6;
     const mergedClean = mergeMetaSaves(corruptBase, validIncoming, 9, LEVELS);
     expect(mergedClean.bestEndlessScoresByLevelId[LEVELS[0].id]).toBe(480);
     expect(mergedClean.fastestWinSecByLevelId[LEVELS[0].id]).toBe(55.4);
     expect(mergedClean.stats.towersBuiltByType.cannon).toBe(12);
     expect(mergedClean.stats.towersBuiltByType.archer).toBeUndefined();
+    expect(mergedClean.stats.totalPlayTimeSec).toBe(142.5);
+    expect(mergedClean.stats.gamesPlayed).toBe(7);
+    expect(mergedClean.stats.enemiesDefeatedTotal).toBe(310);
+    expect(mergedClean.achievementMilestones.bestMutatedEndlessWavesCleared).toBe(6);
+
+    // getMetaCareerSummary filters obsolete/unknown tower or enemy keys and handles non-finite win/loss counts safely
+    mergedClean.stats.towersBuiltByType.unknown_tower = 999;
+    mergedClean.stats.enemiesDefeatedByType.unknown_enemy = 999;
+    mergedClean.stats.enemiesDefeatedByType.grunt = 45;
+    const careerSummary = getMetaCareerSummary(mergedClean, '2026-11-17', LEVELS);
+    expect(careerSummary.favoriteTowerType).toBe('cannon');
+    expect(careerSummary.mostDefeatedEnemyType).toBe('grunt');
+    expect(careerSummary.winRatePct).toBe(71);
 
     const testLevels = [tinyLevel, ...LEVELS.slice(1)];
     // Pre-wave quit does not bump gamesPlayed, whereas mid-Wave-1 quit flushes stats & increments gamesPlayed

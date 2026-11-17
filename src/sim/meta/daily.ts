@@ -178,17 +178,22 @@ export function generateDailyChallenge(
   const level = levels[levelIndex];
   const isMaster = level.difficulty === 'Master';
   const isHeroic = level.difficulty === 'Heroic';
-  const hasHeavyArmoredWaves = level.waves.some((wave) =>
-    wave.groups.some((grp) => {
+  const hasHeavyArmoredWaves = level.waves.some((wave) => {
+    let armoredSwarmCount = 0;
+    for (let g = 0; g < wave.groups.length; g++) {
+      const grp = wave.groups[g];
       const def = ENEMY_DEFS[grp.enemyType];
-      if (!def) return false;
-      return (
-        def.livesCost >= 3 ||
-        (def.armor >= 5 && grp.count >= 5) ||
-        (def.armor >= 4 && def.maxHp >= 400)
-      );
-    }),
-  );
+      if (!def) continue;
+      if (def.livesCost >= 3 || (def.armor >= 4 && def.maxHp >= 400)) {
+        return true;
+      }
+      if (def.armor >= 5) {
+        armoredSwarmCount += grp.count;
+        if (armoredSwarmCount >= 5) return true;
+      }
+    }
+    return false;
+  });
 
   const mutatorCount = isMaster
     ? 1
@@ -208,17 +213,18 @@ export function generateDailyChallenge(
   const mutatorSeed = (seed ^ Math.imul(rng.int(1, 0x7fffffff), 2654435761)) >>> 0;
   const mutatorRoll = selectEndlessMutators(mutatorSeed, mutatorCount, effectivePool);
 
+  const hasEconomySqueeze =
+    mutatorRoll.modifiers.goldRewardMultiplier < 1 || mutatorRoll.modifiers.towerCostMultiplier > 1;
+
   const { restriction, modifiers: restrictionMods } = pickTowerRestriction(
     rng,
     mutatorRoll.modifiers.forbiddenTowerTypes,
     {
       allowLimitedArsenal:
-        !isMaster &&
-        (!isHeroic ||
-          (mutatorRoll.mutators.length < 2 && mutatorRoll.modifiers.goldRewardMultiplier >= 1)),
+        !isMaster && (!isHeroic || (mutatorRoll.mutators.length < 2 && !hasEconomySqueeze)),
       forceNone:
         mutatorRoll.modifiers.forbiddenTowerTypes.length > 0 ||
-        (isHeroic && mutatorRoll.mutators.length >= 2 && mutatorRoll.modifiers.goldRewardMultiplier < 1),
+        (isHeroic && mutatorRoll.mutators.length >= 2 && hasEconomySqueeze),
       preserveAntiAir: mutatorRoll.modifiers.flyerCountMultiplier > 1,
       requireArmorBreaker:
         isHeroic ||

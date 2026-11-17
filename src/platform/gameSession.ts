@@ -267,7 +267,11 @@ export class GameSession {
 
   /** Records the current endless run (if any) so leaving/restarting mid-run keeps the best wave. */
   private recordEndlessIfActive(): void {
-    if (this.viewMode !== 'playing' || !this.meta.isCurrentRunEligible()) return;
+    if (this.viewMode !== 'playing') return;
+    if (this.pendingDebugSpawns.length > 0 || this.simWorld.debugTainted) {
+      this.meta.markDebugTainted();
+    }
+    if (!this.meta.isCurrentRunEligible()) return;
     const ws = this.simWorld.waveSystem;
     if (!ws.isEndless || ws.currentWaveOneBased <= this.simWorld.level.waves.length) return;
     recordEndlessProgress(this.progress, this.currentLevelIndex, ws.currentWaveOneBased);

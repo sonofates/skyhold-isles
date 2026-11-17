@@ -848,6 +848,10 @@ describe('RunObserver challenge condition tracking', () => {
     expect(w2.outcome).toBe('won');
     expect(obs2.getTelemetry().eligibleForChallenges).toBe(false);
     expect(obs2.evaluateCompletedChallenges(true, w2.lives)).toHaveLength(0);
+    const liveIneligible = evaluateLiveLevelChallenges(level, obs2.getTelemetry(), w2.lives, 'won', {});
+    expect(liveIneligible.every((s) => s.state === 'failed' && s.progressLabel === 'Modifier/Debug ineligible')).toBe(
+      true,
+    );
     obs2.dispose();
   });
 
