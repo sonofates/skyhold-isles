@@ -16,6 +16,7 @@ export class CoachMark {
   private readonly titleEl: HTMLDivElement;
   private readonly textEl: HTMLDivElement;
   private readonly skipBtn: HTMLButtonElement;
+  private readonly markerEl: HTMLDivElement;
   private spotEl: Element | null = null;
   private target: CoachTarget = 'none';
   private lastKey = '';
@@ -47,6 +48,14 @@ export class CoachMark {
 
     this.rootEl.append(this.badgeEl, body, this.skipBtn);
     parent.appendChild(this.rootEl);
+
+    // Bobbing "build here" arrow, positioned in screen space by the director every frame.
+    this.markerEl = document.createElement('div');
+    this.markerEl.className = 'onb-marker hidden';
+    this.markerEl.setAttribute('aria-hidden', 'true');
+    this.markerEl.innerHTML =
+      '<span class="onb-marker-ring"></span><svg class="onb-marker-arrow" viewBox="0 0 24 24"><path d="M12 21 3.5 9.5h5.2V3h6.6v6.5h5.2z" fill="#f6bd41" stroke="#1b1936" stroke-width="2" stroke-linejoin="round"/></svg>';
+    parent.appendChild(this.markerEl);
   }
 
   show(msg: CoachMessage): void {
@@ -75,7 +84,18 @@ export class CoachMark {
     next?.classList.add('onb-spot');
   }
 
+  /** Place the marker at a screen position (CSS px), or hide it with null. */
+  setMarker(pos: { x: number; y: number } | null): void {
+    if (!pos) {
+      this.markerEl.classList.add('hidden');
+      return;
+    }
+    this.markerEl.classList.remove('hidden');
+    this.markerEl.style.transform = `translate3d(${Math.round(pos.x)}px, ${Math.round(pos.y)}px, 0)`;
+  }
+
   hide(): void {
+    this.setMarker(null);
     this.lastKey = '';
     this.target = 'none';
     this.spotEl?.classList.remove('onb-spot');
@@ -105,5 +125,6 @@ export class CoachMark {
   dispose(): void {
     this.hide();
     this.rootEl.remove();
+    this.markerEl.remove();
   }
 }

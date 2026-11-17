@@ -39,6 +39,9 @@ export interface OnboardingObs {
 
 export type CoachTarget = 'none' | 'buildBar' | 'ring' | 'waveBtn' | 'towerUi' | 'meteor';
 
+/** Island 1's suggested first tower tile: the road passes it on two sides (best road coverage on that map). */
+export const TOUR_TILE = { col: 8, row: 4 } as const;
+
 export interface CoachMessage {
   /** 1-based step number shown as "2/5". */
   index: number;
@@ -46,6 +49,8 @@ export interface CoachMessage {
   title: string;
   text: string;
   target: CoachTarget;
+  /** Show the bobbing "build here" marker over {@link TOUR_TILE}. */
+  marker?: boolean;
 }
 
 /** Waves after which a player who ignores the upgrade/ability steps is considered to have the hang of it. */
@@ -133,15 +138,17 @@ export function coachMessage(step: OnboardingStep, obs: OnboardingObs): CoachMes
         }
         return {
           index: 1, total: TOTAL, title: 'Build a tower',
-          text: 'Tap any green tile beside the road to open the build ring.',
+          text: 'Tap the glowing tile beside the road to open the build ring.',
           target: 'none',
+          marker: true,
         };
       }
       if (obs.placementActive) {
         return {
           index: 1, total: TOTAL, title: 'Place it',
-          text: 'Click a green tile beside the road. Shift-click keeps building.',
+          text: 'Click the glowing tile beside the road. Shift-click keeps building.',
           target: 'none',
+          marker: true,
         };
       }
       return {

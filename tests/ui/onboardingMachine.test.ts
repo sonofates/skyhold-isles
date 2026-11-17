@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
+import { LEVELS, parseLevelGrid } from '../../src/data/levels/index.ts';
 import {
   GIVE_UP_AFTER_WAVES,
+  TOUR_TILE,
   OnboardingMachine,
   coachMessage,
   type OnboardingObs,
@@ -132,5 +134,29 @@ describe('coachMessage', () => {
       expect(m!.index).toBeGreaterThanOrEqual(1);
       expect(m!.index).toBeLessThanOrEqual(m!.total);
     }
+  });
+});
+
+describe('tour tile marker', () => {
+  it('points at a buildable tile next to the road on island 1', () => {
+    const lvl = LEVELS[0];
+    const grid = parseLevelGrid(lvl);
+    expect(grid[TOUR_TILE.row][TOUR_TILE.col]).toBe('grass');
+    // At least three road tiles within two tiles, so a tower there actually shoots something.
+    let road = 0;
+    for (let r = TOUR_TILE.row - 2; r <= TOUR_TILE.row + 2; r++) {
+      for (let c = TOUR_TILE.col - 2; c <= TOUR_TILE.col + 2; c++) {
+        if (grid[r]?.[c] === 'path') road++;
+      }
+    }
+    expect(road).toBeGreaterThanOrEqual(3);
+  });
+
+  it('shows the marker while the player still has to pick a tile, not once the ring is open', () => {
+    expect(coachMessage('build', obs({ touch: true }))?.marker).toBe(true);
+    expect(coachMessage('build', obs({ touch: true, radialMode: 'build' }))?.marker).toBeFalsy();
+    expect(coachMessage('build', obs({ placementActive: true }))?.marker).toBe(true);
+    expect(coachMessage('build', obs())?.marker).toBeFalsy();
+    expect(coachMessage('startWave', obs())?.marker).toBeFalsy();
   });
 });

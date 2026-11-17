@@ -824,6 +824,11 @@ export class GameSession {
       }
       this.syncTowerPanelAnchor();
       this.deps?.radial?.update();
+      this.deps?.content?.updateMarker((col, row, out) => {
+        const cam = this.renderWorld.cameraController;
+        cam.worldCoordsToScreen(this.simWorld.grid.gridToWorldX(col), 0.35, this.simWorld.grid.gridToWorldZ(row), out);
+        return out.x > 8 && out.y > 8 && out.x < window.innerWidth - 8 && out.y < window.innerHeight - 8;
+      });
     }
   }
 

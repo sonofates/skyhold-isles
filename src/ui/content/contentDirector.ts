@@ -5,7 +5,7 @@ import type { ContentStore } from '../../platform/contentStorage.ts';
 import { CodexScreen, type CodexTab } from './codexScreen.ts';
 import { CoachMark } from './coachMark.ts';
 import { SightingQueue, waveHasElite } from './firstSighting.ts';
-import { coachMessage, OnboardingMachine, type OnboardingObs } from './onboardingMachine.ts';
+import { coachMessage, OnboardingMachine, TOUR_TILE, type OnboardingObs } from './onboardingMachine.ts';
 import { SightingCard } from './sightingCard.ts';
 
 export interface ContentHost {
@@ -28,6 +28,8 @@ export class ContentDirector {
   private readonly machine: OnboardingMachine;
   private readonly queue: SightingQueue;
   private doneTimer: number | null = null;
+  private wantMarker = false;
+  private readonly markerOut = { x: 0, y: 0 };
 
   constructor(uiRoot: HTMLElement, store: ContentStore, host: ContentHost) {
     this.store = store;
@@ -105,12 +107,25 @@ export class ContentDirector {
       return;
     }
     const msg = coachMessage(this.machine.step, obs);
+    this.wantMarker = msg?.marker === true;
     if (msg) this.coach.show(msg);
     else this.coach.hide();
+    if (!this.wantMarker) this.coach.setMarker(null);
+  }
+
+  /**
+   * Per-frame: keep the "build here" marker on the suggested tile. `project` writes the tile's screen
+   * position into `out` and returns whether it is on screen.
+   */
+  updateMarker(project: (col: number, row: number, out: { x: number; y: number }) => boolean): void {
+    if (!this.wantMarker || !this.machine.active) return;
+    if (project(TOUR_TILE.col, TOUR_TILE.row, this.markerOut)) this.coach.setMarker(this.markerOut);
+    else this.coach.setMarker(null);
   }
 
   /** Left the play screen (menu / level select). */
   onLeavePlay(): void {
+    this.wantMarker = false;
     this.coach.hide();
     this.card.close();
   }
