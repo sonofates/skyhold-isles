@@ -98,6 +98,7 @@ async function bootstrap(loadingScreen: LoadingScreen): Promise<void> {
       session.startLevel(idx, config);
     },
     onResetProgress: () => session.resetProgress(),
+    onOpenLogbook: () => session.openLogbook(),
     onBriefingToggle: (on) => (on ? soundManager.playUiConfirm() : soundManager.playUiBack()),
   });
 

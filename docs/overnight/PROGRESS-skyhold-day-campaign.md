@@ -19,8 +19,10 @@ Machine load from the other agents can make desktop shots slow (timeout raised t
       briefing/Workshop, README section
 - [x] Independent code review (subagent) → 5 findings, all fixed in 66a0a60 (see below)
 
+- [x] Logbook (src/ui/logbook.ts): tap the star pill on island select → completion totals (stars,
+      badges, mastered, best endless) + per-island row (stars, medals, best lives, wins, endless).
+
 ## Next ideas (not started)
-- Logbook/records screen (per-island table, completion %), maybe as a Workshop tab.
 - Show challenge-star total next to the campaign star pill.
 - HUD chip for active challenge (MOBILE's HUD area — left to lead/mobile; pause subtitle shows it now).
 

@@ -18,6 +18,7 @@ import { EnemyTooltip } from './tooltip.ts';
 import { TowerPanel } from './towerPanel.ts';
 import { WorkshopOverlay } from './workshop.ts';
 import { IslandBriefingModal, type BriefingStartConfig } from './islandBriefing.ts';
+import { LogbookModal } from './logbook.ts';
 import type { WorkshopUpgradeId } from '../data/workshop.ts';
 
 export interface GameOverlayCallbacks {
@@ -57,6 +58,7 @@ export interface GameOverlayCallbacks {
   onBriefingStart: (levelIndex: number, config: BriefingStartConfig) => void;
   onBriefingToggle?: (on: boolean) => void;
   onResetProgress?: () => void;
+  onOpenLogbook?: () => void;
 }
 
 export class GameOverlays {
@@ -74,6 +76,7 @@ export class GameOverlays {
   readonly settingsModal: SettingsModal;
   readonly workshop: WorkshopOverlay;
   readonly islandBriefing: IslandBriefingModal;
+  readonly logbook: LogbookModal;
   private readonly pauseBanner: HTMLDivElement;
 
   constructor(uiRoot: HTMLElement, cb: GameOverlayCallbacks) {
@@ -120,6 +123,7 @@ export class GameOverlays {
       onSelectLevel: cb.onSelectLevel,
       onBack: cb.onBackFromLevelSelect,
       onOpenWorkshop: () => cb.onOpenWorkshop('levelSelect'),
+      onOpenLogbook: () => cb.onOpenLogbook?.(),
     });
 
     this.workshop = new WorkshopOverlay(uiRoot, {
@@ -133,6 +137,8 @@ export class GameOverlays {
       onClose: () => {},
       onToggleSound: cb.onBriefingToggle,
     });
+
+    this.logbook = new LogbookModal(uiRoot);
 
     this.pauseMenu = new PauseMenuModal(uiRoot, {
       onResume: cb.onResumeFromPause,
@@ -171,6 +177,7 @@ export class GameOverlays {
 
   closeModals(): void {
     this.islandBriefing.hide();
+    this.logbook.hide();
     this.pauseMenu.setOpen(false);
     this.settingsModal.setOpen(false);
     this.outcomeOverlay.hide();
@@ -211,6 +218,7 @@ export class GameOverlays {
     this.levelSelect.dispose();
     this.workshop.dispose();
     this.islandBriefing.dispose();
+    this.logbook.dispose();
     this.pauseMenu.dispose();
     this.outcomeOverlay.dispose();
     this.settingsModal.dispose();

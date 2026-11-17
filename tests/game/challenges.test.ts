@@ -12,7 +12,7 @@ import {
 import { ENEMY_DEFS } from '../../src/data/enemies.ts';
 import { LEVELS } from '../../src/data/levels/index.ts';
 import { workshopModifiers } from '../../src/data/workshop.ts';
-import { applyWin, isIslandMastered, starWallet } from '../../src/game/progression.ts';
+import { applyWin, isIslandMastered, starWallet, summarizeProgress } from '../../src/game/progression.ts';
 import { createDefaultProgress } from '../../src/platform/storage.ts';
 import { SimWorld } from '../../src/sim/world.ts';
 
@@ -116,5 +116,25 @@ describe('mastery', () => {
     const q = createDefaultProgress(LEVELS.length);
     applyWin(q, 0, LEVELS.length, 2, 12, [...offered]);
     expect(isIslandMastered(q, 0, offered)).toBe(false);
+  });
+});
+
+describe('logbook summary', () => {
+  it('counts stars, badges, mastery, clears and the best endless island', () => {
+    const p = createDefaultProgress(LEVELS.length);
+    expect(summarizeProgress(p)).toMatchObject({ campaignStars: 0, badges: 0, mastered: 0, cleared: 0, bestEndless: 0, bestEndlessIsland: null });
+    const offered = challengesForLevel(LEVELS[0]);
+    applyWin(p, 0, LEVELS.length, 3, 20, [...offered]);
+    applyWin(p, 1, LEVELS.length, 2, 12);
+    p.bestEndlessWaves[1] = 21;
+    const sum = summarizeProgress(p);
+    expect(sum.campaignStars).toBe(5);
+    expect(sum.badges).toBe(2);
+    expect(sum.badgesMax).toBe(LEVELS.length * 2);
+    expect(sum.mastered).toBe(1);
+    expect(sum.cleared).toBe(2);
+    expect(sum.totalWins).toBe(2);
+    expect(sum.bestEndless).toBe(21);
+    expect(sum.bestEndlessIsland).toBe(LEVELS[1].name);
   });
 });

@@ -1,4 +1,6 @@
 import type { ProgressData } from '../core/types.ts';
+import { challengesForLevel } from '../data/challenges.ts';
+import { LEVELS } from '../data/levels/index.ts';
 import { workshopStarsSpent } from '../data/workshop.ts';
 
 /** What a recorded win changed — drives the victory screen's "new best" / unlock callouts. */
@@ -119,4 +121,55 @@ export function isIslandMastered(
   if ((progress.bestStars[levelIndex] ?? 0) < 3) return false;
   const done = progress.challengeClears[levelIndex] ?? [];
   return offered.every((id) => done.includes(id));
+}
+
+export interface LogbookSummary {
+  readonly campaignStars: number;
+  readonly campaignMax: number;
+  readonly badges: number;
+  readonly badgesMax: number;
+  readonly cleared: number;
+  readonly mastered: number;
+  readonly islands: number;
+  readonly bestEndless: number;
+  readonly bestEndlessIsland: string | null;
+  readonly totalWins: number;
+}
+
+/** Completion numbers for the Logbook header (pure apart from reading the level list). */
+export function summarizeProgress(progress: ProgressData): LogbookSummary {
+  const wallet = starWallet(progress);
+  let badgesMax = 0;
+  let badges = 0;
+  let cleared = 0;
+  let mastered = 0;
+  let bestEndless = 0;
+  let bestEndlessIsland: string | null = null;
+  let totalWins = 0;
+  for (let i = 0; i < LEVELS.length; i++) {
+    const offered = challengesForLevel(LEVELS[i]);
+    badgesMax += offered.length;
+    const done = progress.challengeClears[i] ?? [];
+    badges += offered.filter((id) => done.includes(id)).length;
+    if ((progress.clears[i] ?? 0) > 0) cleared++;
+    if (isIslandMastered(progress, i, offered)) mastered++;
+    totalWins += progress.clears[i] ?? 0;
+    const e = progress.bestEndlessWaves[i] ?? 0;
+    if (e > bestEndless) {
+      bestEndless = e;
+      bestEndlessIsland = LEVELS[i].name;
+    }
+  }
+  return {
+    campaignStars: wallet.campaign,
+    campaignMax: LEVELS.length * 3,
+    badges,
+    badgesMax,
+    cleared,
+    mastered,
+    islands: LEVELS.length,
+    bestEndless,
+    bestEndlessIsland,
+    totalWins,
+  };
 }

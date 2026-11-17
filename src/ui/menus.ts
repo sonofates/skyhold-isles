@@ -173,6 +173,7 @@ export interface LevelSelectCallbacks {
   onSelectLevel: (levelIndex: number) => void;
   onBack: () => void;
   onOpenWorkshop?: () => void;
+  onOpenLogbook?: () => void;
 }
 
 export class LevelSelectOverlay {
@@ -206,7 +207,18 @@ export class LevelSelectOverlay {
     title.textContent = 'Islands';
 
     this.starsBadgeEl = document.createElement('div');
-    this.starsBadgeEl.className = 'menu-progress-pill gx gx-slate';
+    this.starsBadgeEl.className = 'menu-progress-pill gx gx-slate lb-open-pill';
+    this.starsBadgeEl.setAttribute('role', 'button');
+    this.starsBadgeEl.tabIndex = 0;
+    this.starsBadgeEl.setAttribute('aria-label', 'Open the Logbook');
+    this.starsBadgeEl.setAttribute('data-testid', 'btn-logbook');
+    this.starsBadgeEl.addEventListener('click', () => callbacks.onOpenLogbook?.());
+    this.starsBadgeEl.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        callbacks.onOpenLogbook?.();
+      }
+    });
 
     this.workshopBtn = document.createElement('button');
     this.workshopBtn.type = 'button';
