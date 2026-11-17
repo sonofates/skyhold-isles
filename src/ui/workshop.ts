@@ -173,7 +173,7 @@ export class WorkshopOverlay {
     if (!progress) return;
     const wallet = starWallet(progress);
     this.walletEl.innerHTML = `<span class="menu-star-inline">${UI_ICON_SVGS.star}</span><b>${wallet.available}</b><span class="menu-stars-of">to spend</span>`;
-    this.walletEl.title = `${wallet.earned} stars earned (${wallet.campaign} campaign + ${wallet.challenge} challenge), ${wallet.spent} in upgrades`;
+    this.walletEl.title = `${wallet.earned} stars earned (${wallet.campaign} campaign + ${wallet.challenge} badges & dailies), ${wallet.spent} in upgrades`;
 
     this.bodyEl.innerHTML = '';
     for (const branch of WORKSHOP_BRANCHES) {
@@ -195,7 +195,7 @@ export class WorkshopOverlay {
       wallet.earned === 0
         ? 'Win islands to earn stars. Each island gives up to 3★, challenges add bonus ★.'
         : `<b>${wallet.spent}</b>/${total}★ invested · earned ${wallet.earned}★${
-            wallet.challenge > 0 ? ` (${wallet.challenge} from challenges)` : ''
+            wallet.challenge > 0 ? ` (${wallet.challenge} from badges & dailies)` : ''
           } · applies on every island`;
     this.renderRefundLabel();
   }
