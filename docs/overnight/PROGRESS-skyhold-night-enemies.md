@@ -85,6 +85,8 @@ Tests after that merge (mine + 3 agy): **352 pass / 31 fail; 13 of those 31 alre
 - With islands + towers also merged (`.wt/m6`): same picture plus the known balanceSim stitch; 39 failures total, nothing new from this branch.
 - agy branches are still moving (agy-qa committed again at ~02:55 UTC) → re-check in the morning.
 
+- Islands + towers dry-run re-run after all round-10 commits (islands `c4864a4`, towers `fef1e60`): same single balanceSim stitch, tsc clean, **313/313 tests**, balance unchanged — all pass except the known L6 (6 lives); new islands L10 7 / L11 8 / L12 8 / L13 9.
+
 ## Round 10 — readability vs roads
 - New test (`tests/render/enemyGeometry.test.ts`): every new archetype's camera-facing surface is >85 % colour-distinct (CIELAB ΔE > 25, area-weighted) from grass and dark foliage. All pass with margin (golem 93 % — its moss tufts are the intended accent).
 - Enemies walk on the **road**, not the grass, so I measured that too (`.wt/contrast.ts`; road colours are the Kenney colormap cells the path tiles use: dirt `#e08961` default, ISLANDS' themed `stone` `#797e95` and `sand` `#e7af88`). After the merge, L10/L11/L13 (and L3, L7–L9) get **stone** roads from the ISLANDS themes.
