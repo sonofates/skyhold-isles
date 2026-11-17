@@ -198,16 +198,14 @@ export function loadMetaSave(levelCount: number, levels?: readonly LevelDef[]): 
 export function saveMetaSave(save: MetaSaveData, overwriteV1 = false): void {
   try {
     localStorage.setItem(META_PROGRESS_KEY, JSON.stringify(save));
+    const levelCount = Array.isArray(save?.campaign?.bestStars) ? save.campaign.bestStars.length : 1;
+    const campaign = save?.campaign ?? createDefaultProgress(levelCount);
     if (overwriteV1) {
-      localStorage.setItem(PROGRESS_KEY, JSON.stringify(save.campaign));
+      localStorage.setItem(PROGRESS_KEY, JSON.stringify(campaign));
       return;
     }
-    const existingV1 = loadProgress(save.campaign.bestStars.length);
-    const mergedV1 = mergeCampaignProgress(
-      existingV1,
-      save.campaign,
-      save.campaign.bestStars.length,
-    );
+    const existingV1 = loadProgress(levelCount);
+    const mergedV1 = mergeCampaignProgress(existingV1, campaign, levelCount);
     localStorage.setItem(PROGRESS_KEY, JSON.stringify(mergedV1));
   } catch {
     // Ignore storage quota / private mode failures

@@ -182,15 +182,17 @@ export function generateDailyChallenge(
   if (!isValidDateString(normalizedDate)) {
     throw new RangeError(`Invalid daily challenge date "${dateStr}": expected YYYY-MM-DD.`);
   }
-  if (levels.length === 0) {
+  if (!Array.isArray(levels) || levels.length === 0) {
     throw new Error('Cannot generate daily challenge with an empty level list.');
   }
+  const safeLevels: readonly LevelDef[] = levels;
+  const safeCatalog: readonly MutatorDef[] = Array.isArray(mutatorCatalog) ? mutatorCatalog : [];
 
   const seed = hashSeedString(`skyhold-daily:${normalizedDate}`);
   const rng = new SeededRng(seed);
 
-  const levelIndex = rng.int(0, levels.length - 1);
-  const level = levels[levelIndex];
+  const levelIndex = rng.int(0, safeLevels.length - 1);
+  const level = safeLevels[levelIndex];
   const isMaster = level.difficulty === 'Master';
   const isHeroic = level.difficulty === 'Heroic';
   const isChallenging = level.difficulty === 'Challenging';
@@ -222,9 +224,9 @@ export function generateDailyChallenge(
         : 1;
 
   const masterSafePool = isMaster
-    ? mutatorCatalog.filter((m) => m.id !== 'gold_drought')
-    : mutatorCatalog;
-  const effectivePool = masterSafePool.length > 0 ? masterSafePool : mutatorCatalog;
+    ? safeCatalog.filter((m) => m.id !== 'gold_drought')
+    : safeCatalog;
+  const effectivePool = masterSafePool.length > 0 ? masterSafePool : safeCatalog;
 
   const mutatorSeed = (seed ^ Math.imul(rng.int(1, 0x7fffffff), 2654435761)) >>> 0;
   let mutatorRoll = selectEndlessMutators(mutatorSeed, mutatorCount, effectivePool);
@@ -364,6 +366,9 @@ export function computeDailyStreaks(
   completedDates: readonly string[],
   referenceDate: string,
 ): { currentStreak: number; bestStreak: number } {
+  if (!Array.isArray(completedDates)) {
+    return { currentStreak: 0, bestStreak: 0 };
+  }
   const dayNumbers = new Set<number>();
   for (let i = 0; i < completedDates.length; i++) {
     const day = dateStringToEpochDay(completedDates[i]);

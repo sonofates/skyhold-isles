@@ -7,7 +7,8 @@ import {
   getChallengeById,
   getChallengesForLevel,
 } from '../../src/data/challenges.ts';
-import { LEVELS, type LevelDef, type ScriptedBuildAction } from '../../src/data/levels/index.ts';
+import { LEVELS, type LevelDef } from '../../src/data/levels/index.ts';
+import type { ScriptedBuildAction } from '../../src/data/levels/types.ts';
 import { getTowerTierStats } from '../../src/data/towers.ts';
 import { MetaSession } from '../../src/platform/metaSession.ts';
 import { isAdvantageousModifiers } from '../../src/sim/meta/modifiers.ts';

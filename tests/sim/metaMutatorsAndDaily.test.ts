@@ -884,6 +884,11 @@ describe('Daily challenge pure date-seeded generator', () => {
     // Non-string/non-array runtime inputs fail safely without TypeError
     expect(isValidDateString(null as unknown as string)).toBe(false);
     expect(() => generateDailyChallenge(null as unknown as string)).toThrow(RangeError);
+    expect(() => generateDailyChallenge('2026-11-17', null as unknown as readonly LevelDef[])).toThrow(Error);
+    expect(computeDailyStreaks(null as unknown as readonly string[], '2026-11-17')).toEqual({
+      currentStreak: 0,
+      bestStreak: 0,
+    });
     expect(buildEndlessMutatorLoadout(null as unknown as readonly string[]).mutators).toEqual([]);
     expect(getConflictingMutatorIds(null as unknown as readonly string[])).toEqual([]);
   });

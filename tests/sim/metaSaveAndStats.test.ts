@@ -1792,5 +1792,24 @@ describe('MetaSession stats, achievements, challenges & daily persistence', () =
     expect(wpOutcome.dailyScore).toBeGreaterThan(0);
     expect(getTowerMasteryStats(null as unknown as ReturnType<typeof createDefaultMetaSave>).every((t) => t.builtCount === 0)).toBe(true);
     expect(getEnemyIntelStats(null as unknown as ReturnType<typeof createDefaultMetaSave>).every((e) => !e.discovered)).toBe(true);
+
+    // Null/non-integer query & merge & saveMetaSave inputs never throw TypeError
+    const nullSave = null as unknown as ReturnType<typeof createDefaultMetaSave>;
+    expect(getChallengeStatus(nullSave, 0, LEVELS)?.earnedStars).toBe(0);
+    expect(getChallengeStatus(nullSave, 1.5, LEVELS)).toBeNull();
+    expect(getAchievements(nullSave)).toHaveLength(ACHIEVEMENTS.length);
+    expect(getStats(nullSave).enemiesDefeatedTotal).toBe(0);
+    expect(getAchievementSummary(nullSave).unlockedCount).toBe(0);
+    expect(getIslandMasteryStatus(nullSave, 0, LEVELS)?.campaignStars).toBe(0);
+    expect(getMetaCareerRank(nullSave, LEVELS).title).toBe('Sky Recruit');
+    expect(getMetaCareerSummary(nullSave, '2026-11-17', LEVELS).rank.title).toBe('Sky Recruit');
+    expect(getRecommendedNextGoal(nullSave, '2026-11-17', LEVELS)?.kind).toBe('daily');
+    expect(getRecentDailyHistory(nullSave, '2026-11-17', 2, '2026-11-17', LEVELS)).toHaveLength(2);
+    expect(mergeMetaSaves(nullSave, nullSave, 9, LEVELS).version).toBe(2);
+
+    const storeForPartial = installMockLocalStorage();
+    saveMetaSave({ version: 2 } as unknown as ReturnType<typeof createDefaultMetaSave>);
+    expect(storeForPartial.has(META_PROGRESS_KEY)).toBe(true);
+    expect(storeForPartial.has(PROGRESS_KEY)).toBe(true);
   });
 });

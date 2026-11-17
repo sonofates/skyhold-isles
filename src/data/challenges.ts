@@ -295,6 +295,7 @@ export function getChallengeById(
   challengeId: string,
   levels: readonly LevelDef[],
 ): ChallengeDef | undefined {
+  if (typeof challengeId !== 'string' || !challengeId || !Array.isArray(levels)) return undefined;
   for (let i = 0; i < levels.length; i++) {
     const list = getChallengesForLevel(levels[i]);
     for (let j = 0; j < list.length; j++) {
