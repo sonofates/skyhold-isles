@@ -418,5 +418,46 @@ describe('GameSession state machine, input, and lifecycle', () => {
     h.session.onPointerLeave();
     expect(h.renderWorld.setHoveredTowerId).toHaveBeenLastCalledWith(null);
     expect(h.overlays.tooltip.hide).toHaveBeenCalled();
+
+    // Redundant onPointerLeave when already outside is a no-op
+    const hideCount = (h.overlays.tooltip.hide as ReturnType<typeof vi.fn>).mock.calls.length;
+    h.session.onPointerLeave();
+    expect((h.overlays.tooltip.hide as ReturnType<typeof vi.fn>).mock.calls.length).toBe(hideCount);
+  });
+
+  it('ignores unaffordable or out-of-bounds taps cleanly and restores settings origins from menu and hud', () => {
+    const h = createHarness();
+    h.session.showMenuView('menu');
+    h.session.openSettingsModal('menu');
+    expect(h.session.settingsOrigin).toBe('menu');
+    expect(h.overlays.settingsModal.isOpen()).toBe(true);
+    h.session.closeSettingsModal();
+    expect(h.overlays.settingsModal.isOpen()).toBe(false);
+    expect(h.overlays.pauseMenu.isOpen()).toBe(false);
+
+    h.session.startLevel(0);
+    h.session.openSettingsModal('hud');
+    expect(h.overlays.settingsModal.isOpen()).toBe(true);
+    h.session.closeSettingsModal();
+    expect(h.overlays.pauseMenu.isOpen()).toBe(false);
+
+    // Unaffordable build tap keeps placement mode active and places zero towers
+    h.session.simWorld.gold = 10;
+    h.session.toggleBuildType('mortar');
+    const grassTile = projectTileNdc(h.cam, h.session, 4, 2);
+    h.session.onPrimaryTap(grassTile.x, grassTile.y, false);
+    expect(h.session.simWorld.towers).toHaveLength(0);
+
+    // Out-of-bounds tap while selecting clears selection
+    h.session.setPlacementMode(null);
+    h.session.simWorld.gold = 500;
+    const placed = h.session.simWorld.placeTower(4, 2, 'archer')!;
+    h.session.selectTower(placed.id);
+    h.session.onPrimaryTap(0.99, 0.99, false);
+    expect(h.renderWorld.overlayIndicators.setSelectedTowerRing).toHaveBeenLastCalledWith(null);
+
+    // Starting another level unbinds the previous SoundManager subscription
+    h.session.startLevel(1);
+    expect(h.unbindSoundSpy).toHaveBeenCalledTimes(1);
   });
 });

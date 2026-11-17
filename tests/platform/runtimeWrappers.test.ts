@@ -276,6 +276,33 @@ describe('SoundManager with mocked Web Audio', () => {
 
     sm.dispose();
     expect(closedCount).toBe(1);
+
+    // Safe no-op when window lacks AudioContext, and webkitAudioContext fallback works cleanly
+    vi.stubGlobal('window', {});
+    const noAudioSm = new SoundManager({
+      masterVolume: 0.7,
+      muted: false,
+      cameraShake: true,
+      damageNumbers: true,
+      quality: 'high',
+    });
+    expect(() => {
+      noAudioSm.unlock();
+      noAudioSm.playTowerBuild();
+      noAudioSm.dispose();
+    }).not.toThrow();
+
+    vi.stubGlobal('window', { webkitAudioContext: FakeAudioContext });
+    const webkitSm = new SoundManager({
+      masterVolume: 0.7,
+      muted: false,
+      cameraShake: true,
+      damageNumbers: true,
+      quality: 'high',
+    });
+    webkitSm.unlock();
+    expect(resumedCount).toBe(2);
+    webkitSm.dispose();
   });
 });
 
@@ -450,5 +477,81 @@ describe('InputManager pointer, pinch, wheel, keyboard, and cleanup', () => {
     expect(canvas.listenerCount('pointerdown')).toBe(0);
     expect(mockWin.listenerCount('keydown')).toBe(0);
     expect(mockWin.listenerCount('blur')).toBe(0);
+  });
+
+  it('handles pointercancel, contextmenu prevention, key repeat filtering, arrow panning, and middle-mouse drag', () => {
+    const { handlers, log } = createHandlers();
+    const mgr = new InputManager(canvas as unknown as HTMLCanvasElement, handlers);
+
+    // pointercancel during an active drag cleans up pointer & resets drag state so next tap works cleanly
+    canvas.dispatch('pointerdown', { pointerId: 20, target: canvas, clientX: 150, clientY: 80, button: 0 });
+    mockWin.dispatch('pointermove', { pointerId: 20, target: canvas, clientX: 170, clientY: 80 });
+    mockWin.dispatch('pointercancel', { pointerId: 20, clientX: 170, clientY: 80, button: 0 });
+    expect(log.some((e) => e[0] === 'tap')).toBe(false);
+
+    canvas.dispatch('pointerdown', { pointerId: 22, target: canvas, clientX: 200, clientY: 100, button: 0 });
+    mockWin.dispatch('pointerup', { pointerId: 22, clientX: 200, clientY: 100, button: 0 });
+    expect(log.filter((e) => e[0] === 'tap')).toHaveLength(1);
+
+    // middle-mouse drag (button === 1) pans immediately even on 1px move
+    log.length = 0;
+    canvas.dispatch('pointerdown', { pointerId: 21, target: canvas, clientX: 150, clientY: 80, button: 1 });
+    mockWin.dispatch('pointermove', { pointerId: 21, target: canvas, clientX: 151, clientY: 80 });
+    mockWin.dispatch('pointerup', { pointerId: 21, clientX: 151, clientY: 80, button: 1 });
+    expect(log).toContainEqual(['pan', 1, 0]);
+    expect(log.some((e) => e[0] === 'tap')).toBe(false);
+
+    // contextmenu calls preventDefault only on canvas
+    let canvasCtxPrevented = false;
+    canvas.dispatch('contextmenu', {
+      target: canvas,
+      preventDefault: () => {
+        canvasCtxPrevented = true;
+      },
+    });
+    let otherCtxPrevented = false;
+    canvas.dispatch('contextmenu', {
+      target: {},
+      preventDefault: () => {
+        otherCtxPrevented = true;
+      },
+    });
+    expect(canvasCtxPrevented).toBe(true);
+    expect(otherCtxPrevented).toBe(false);
+
+    // Key repeat ignored; Arrow keys pan and keyup clears
+    log.length = 0;
+    mockWin.dispatch('keydown', {
+      code: 'KeyQ',
+      key: 'q',
+      repeat: true,
+      metaKey: false,
+      ctrlKey: false,
+      altKey: false,
+      target: canvas,
+      preventDefault: () => {},
+    });
+    expect(log).toEqual([]);
+
+    const dispatchArrow = (type: 'keydown' | 'keyup', code: string): void => {
+      mockWin.dispatch(type, {
+        code,
+        key: code,
+        repeat: false,
+        metaKey: false,
+        ctrlKey: false,
+        altKey: false,
+        target: canvas,
+        preventDefault: () => {},
+      });
+    };
+    dispatchArrow('keydown', 'ArrowUp');
+    dispatchArrow('keydown', 'ArrowLeft');
+    expect(log).toContainEqual(['keyPan', -1, -1]);
+    dispatchArrow('keyup', 'ArrowUp');
+    dispatchArrow('keyup', 'ArrowLeft');
+    expect(log[log.length - 1]).toEqual(['keyPan', 0, 0]);
+
+    mgr.dispose();
   });
 });

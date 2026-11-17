@@ -72,11 +72,22 @@ describe('tower, enemy, ability, and UI metadata contracts', () => {
         expect(stats.splashFalloffMin).toBeLessThanOrEqual(1);
         expect(stats.slowRatio).toBeGreaterThanOrEqual(0);
         expect(stats.slowRatio).toBeLessThanOrEqual(1);
+        expect(stats.projectileSpeed).toBeGreaterThanOrEqual(0);
+        expect(stats.splashRadius).toBeGreaterThanOrEqual(0);
+        expect(stats.chainCount).toBeGreaterThanOrEqual(0);
+        if (stats.chainCount > 1) {
+          expect(stats.chainRange).toBeGreaterThan(0);
+          expect(stats.chainFalloff).toBeGreaterThan(0);
+          expect(stats.chainFalloff).toBeLessThanOrEqual(1);
+        }
 
         const bounds = getTowerPickBounds(type, tier);
         expect(bounds.halfWidth).toBeGreaterThan(0);
         expect(bounds.height).toBeGreaterThan(0);
       }
+
+      expect(TOWER_PICK_BOUNDS[type][1].height).toBeGreaterThanOrEqual(TOWER_PICK_BOUNDS[type][0].height);
+      expect(TOWER_PICK_BOUNDS[type][2].height).toBeGreaterThanOrEqual(TOWER_PICK_BOUNDS[type][1].height);
 
       const t1 = getTowerTierStats(type, 1);
       const t2 = getTowerTierStats(type, 2);
@@ -153,6 +164,20 @@ describe('level data, flight paths, waves, and scripted build orders', () => {
       expect(lvl.enemyHpScale ?? 1).toBeGreaterThan(0);
       expect(lvl.waveHpGrowth ?? 0).toBeGreaterThanOrEqual(0);
       expect(Number.isInteger(lvl.decorationSeed)).toBe(true);
+
+      // Ground path coordinates must sit inside grid with non-degenerate segments
+      expect(lvl.pathWaypoints.length).toBeGreaterThanOrEqual(2);
+      for (let i = 0; i < lvl.pathWaypoints.length; i++) {
+        const pt = lvl.pathWaypoints[i];
+        expect(pt.col).toBeGreaterThanOrEqual(0);
+        expect(pt.col).toBeLessThan(lvl.cols);
+        expect(pt.row).toBeGreaterThanOrEqual(0);
+        expect(pt.row).toBeLessThan(lvl.rows);
+        if (i > 0) {
+          const prev = lvl.pathWaypoints[i - 1];
+          expect(Math.hypot(pt.col - prev.col, pt.row - prev.row)).toBeGreaterThan(0);
+        }
+      }
 
       // Flight path coordinates must sit inside grid and form non-degenerate segments
       expect(lvl.flightPath.length).toBeGreaterThanOrEqual(2);
@@ -280,18 +305,32 @@ describe('simulation determinism and endless scaling safety contracts', () => {
     const files = dirs.flatMap(collectTsFiles);
     expect(files.length).toBeGreaterThan(10);
 
-    const forbiddenPatterns: Array<{ name: string; regex: RegExp }> = [
+    const importForbiddenPatterns: Array<{ name: string; regex: RegExp }> = [
+      { name: 'three import', regex: /from\s+['"]three(?:\/[^'"]*)?['"]/ },
+      {
+        name: 'browser layer import',
+        regex: /from\s+['"][^'"]*\/(?:render|ui|platform|audio)\/[^'"]*['"]/,
+      },
+    ];
+    const codeForbiddenPatterns: Array<{ name: string; regex: RegExp }> = [
       { name: 'Math.random', regex: /\bMath\.random\b/ },
       { name: 'Date.now', regex: /\bDate\.now\b/ },
       { name: 'performance.now', regex: /\bperformance\.now\b/ },
       { name: 'crypto randomness', regex: /\bcrypto\.(randomUUID|getRandomValues)\b/ },
-      { name: 'three import', regex: /from\s+['"]three(?:\/[^'"]*)?['"]/ },
+      {
+        name: 'browser global (window/document/localStorage/rAF)',
+        regex: /\b(?:window|document|localStorage|requestAnimationFrame)\b/,
+      },
     ];
 
     for (const filePath of files) {
       const code = stripComments(readFileSync(filePath, 'utf8'));
-      for (const { name, regex } of forbiddenPatterns) {
+      const codeNoStrings = code.replace(/(['"`])(?:\\.|(?!\1)[^\\\r\n])*\1/g, '""');
+      for (const { name, regex } of importForbiddenPatterns) {
         expect(regex.test(code), `${filePath} must not use ${name}`).toBe(false);
+      }
+      for (const { name, regex } of codeForbiddenPatterns) {
+        expect(regex.test(codeNoStrings), `${filePath} must not use ${name}`).toBe(false);
       }
     }
   });

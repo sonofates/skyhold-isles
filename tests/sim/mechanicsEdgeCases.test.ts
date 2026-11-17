@@ -502,4 +502,72 @@ describe('overlapping waves, dead-target projectiles, boss tie-break, and healer
       expect(child.slowTimer).toBe(0);
     }
   });
+
+  it('leaks splitters without splitting, deduplicates same-tick overkill kills, and resolves overlapping meteors cleanly', () => {
+    const { world, events } = makeWorld();
+
+    // 1. Splitter leaking at goal deducts 1 life and emits zero enemySplit
+    let splitEvents = 0;
+    let killEvents = 0;
+    let leakEvents = 0;
+    events.on('enemySplit', () => splitEvents++);
+    events.on('enemyKilled', () => killEvents++);
+    events.on('enemyLeaked', () => leakEvents++);
+
+    const leaker = world.enemySystem.spawnEnemy('splitter')!;
+    leaker.dist = leaker.totalDist - 0.001;
+    const livesBefore = world.lives;
+    world.fixedTick(BALANCE.fixedDt);
+    expect(world.lives).toBe(livesBefore - 1);
+    expect(leakEvents).toBe(1);
+    expect(splitEvents).toBe(0);
+    expect(world.enemyPool.getActiveCount()).toBe(0);
+
+    // 2. Two lethal arrows hitting the exact same splitter in one tick award only 1 kill & 1 split
+    const t1 = world.placeTower(4, 2, 'archer')!;
+    const t2 = world.placeTower(4, 3, 'archer')!;
+    const victim = world.enemySystem.spawnEnemy('splitter')!;
+    victim.dist = 10;
+    victim.hp = 5;
+    const p1 = world.projectileSystem.spawnProjectile(t1, victim, 1)!;
+    const p2 = world.projectileSystem.spawnProjectile(t2, victim, 1)!;
+    p1.progress = 0.99;
+    p2.progress = 0.99;
+
+    const goldBefore = world.gold;
+    world.projectileSystem.update(0.1, world.towers);
+    expect(t1.kills + t2.kills).toBe(1);
+    expect(t1.totalDamageDealt + t2.totalDamageDealt).toBe(5);
+    world.enemySystem.update(BALANCE.fixedDt, () => {}, (k) => {
+      world.gold += k.reward;
+    });
+    expect(killEvents).toBe(1);
+    expect(splitEvents).toBe(1);
+    expect(world.gold).toBe(goldBefore + ENEMY_DEFS.splitter.reward);
+    expect(world.enemyPool.getActiveCount()).toBe(2);
+
+    // 3. Double meteor hitting a target killed by the first meteor does not emit a second enemyHit or negative HP,
+    // and pending meteor resolves during betweenWaves while cooldown remains frozen
+    world.enemyPool.clear();
+    const hitEvents: number[] = [];
+    events.on('enemyHit', (ev) => hitEvents.push(ev.damage));
+
+    const grunt = world.enemySystem.spawnEnemy('grunt')!;
+    grunt.x = 0;
+    grunt.z = 0;
+    world.spatialHash.clear();
+    world.spatialHash.insert(grunt.poolIndex, grunt.x, grunt.z);
+
+    world.abilitySystem.castMeteor(0, 0, 1);
+    // Bypass cooldown to schedule a second overlapping meteor in the same window
+    (world.abilitySystem as unknown as { cooldowns: { meteor: number } }).cooldowns.meteor = 0;
+    world.abilitySystem.castMeteor(0, 0, 1);
+
+    const cdBefore = world.abilitySystem.getCooldown('meteor');
+    // Resolve while isCombatActive = false -> cooldown stays frozen, grunt hit once for remaining HP
+    world.abilitySystem.update(0.35, false, world.enemyPool, world.spatialHash, world.enemySystem);
+    expect(world.abilitySystem.getCooldown('meteor')).toBe(cdBefore);
+    expect(grunt.hp).toBe(0);
+    expect(hitEvents).toEqual([grunt.maxHp]);
+  });
 });

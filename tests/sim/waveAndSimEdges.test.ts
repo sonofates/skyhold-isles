@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { EventBus } from '../../src/core/eventBus.ts';
 import { BALANCE } from '../../src/data/balance.ts';
 import { LEVELS, type LevelDef } from '../../src/data/levels/index.ts';
-import { WaveSystem } from '../../src/sim/waveSystem.ts';
+import { CompiledPath } from '../../src/sim/path.ts';
+import { buildEndlessWaveDef, WaveSystem } from '../../src/sim/waveSystem.ts';
 import { computeStarRating, SimWorld } from '../../src/sim/world.ts';
 
 describe('WaveSystem & SimWorld boundary edge cases', () => {
@@ -164,5 +165,56 @@ describe('WaveSystem & SimWorld boundary edge cases', () => {
     world.enemySystem.update(0.02, () => {}, () => {}, [t], 1);
     expect(pulses).toBe(1);
     expect(t.stunTimer).toBeCloseTo(2.65, 5);
+  });
+
+  it('preserves short remaining countdown on setAutoWave(true), restores 5s endless countdown, and handles duplicate waypoints & deep endless bosses', () => {
+    const world = new SimWorld(LEVELS[0], new EventBus());
+    const ws = world.waveSystem;
+    ws.state = 'betweenWaves';
+    ws.currentWaveIndex = 0;
+    ws.interWaveTimer = 0.3;
+
+    // Turning autoWave on when < 0.75s left must NOT lengthen the countdown
+    world.setAutoWave(true);
+    expect(ws.interWaveTimer).toBeCloseTo(0.3, 6);
+    world.setAutoWave(false);
+    expect(ws.interWaveTimer).toBeCloseTo(0.3, 6);
+
+    // Entering endless with autoWave enabled starts at 0.8s, disabling autoWave restores full 5.0s
+    world.setAutoWave(true);
+    world.debugForceWin();
+    expect(world.enterEndlessMode()).toBe(true);
+    expect(ws.interWaveTimer).toBeCloseTo(0.8, 6);
+    world.setAutoWave(false);
+    expect(ws.interWaveTimer).toBeCloseTo(5.0, 6);
+
+    // Deep endless offset +14 (waveIndex = waves.length + 14) -> 3 bosses & 1.22^15 scaling
+    const wave15 = buildEndlessWaveDef(LEVELS[0].waves.length + 14, LEVELS[0]);
+    const bossGroup = wave15.groups.find((g) => g.enemyType === 'boss');
+    expect(bossGroup?.count).toBe(3);
+
+    world.debugSkipToWave(LEVELS[0].waves.length);
+    const lastStoryScale = ws.getCurrentWaveHpScale();
+    world.debugSkipToWave(LEVELS[0].waves.length + 15);
+    expect(ws.getCurrentWaveHpScale()).toBeCloseTo(lastStoryScale * Math.pow(1.22, 15), 4);
+
+    // Duplicate consecutive waypoints in CompiledPath produce finite length and valid sampling
+    const dupPath = new CompiledPath(
+      [
+        { col: 1, row: 1 },
+        { col: 1, row: 1 },
+        { col: 4, row: 1 },
+      ],
+      6,
+      4,
+      0,
+      true,
+    );
+    const out = { x: 0, y: 0, z: 0 };
+    expect(Number.isFinite(dupPath.totalLength)).toBe(true);
+    expect(dupPath.totalLength).toBeCloseTo(3 * BALANCE.tileSize, 5);
+    const yaw = dupPath.sample(dupPath.totalLength * 0.5, out);
+    expect(Number.isFinite(yaw)).toBe(true);
+    expect(Number.isFinite(out.x) && Number.isFinite(out.z)).toBe(true);
   });
 });

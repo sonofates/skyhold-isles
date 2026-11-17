@@ -3,8 +3,8 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { runLevelBalanceSim } from '../../scripts/balanceSim.ts';
 import { CI_STEPS, EXTRA_QA_STEPS } from '../../scripts/ci.ts';
-import { pickBenchLevel, runSimBenchScenario } from '../../scripts/simBench.ts';
-import { LEVELS } from '../../src/data/levels/index.ts';
+import { BENCH_SCENARIOS, pickBenchLevel, runSimBenchScenario } from '../../scripts/simBench.ts';
+import { LEVELS, type LevelDef } from '../../src/data/levels/index.ts';
 
 describe('QA scripts smoke verification', () => {
   it('verifies CI_STEPS and EXTRA_QA_STEPS reference valid package.json scripts', () => {
@@ -56,5 +56,41 @@ describe('QA scripts smoke verification', () => {
     expect(res.invalidActions).toBe(0);
     expect(res.finalLives).toBeGreaterThanOrEqual(18);
     expect(res.stars).toBe(3);
+    expect(res.startingGold + res.goldEarned - res.goldSpent).toBe(res.finalGold);
+  });
+
+  it('tracks invalid actions, targeting changes, gold conservation, and losses in runLevelBalanceSim and validates BENCH_SCENARIOS', () => {
+    expect(BENCH_SCENARIOS.map((s) => s.enemyCount)).toEqual([100, 250, 360]);
+    for (const s of BENCH_SCENARIOS) {
+      expect(s.towerCount).toBe(40);
+      expect(s.softBudgetTicksPerSec).toBeGreaterThanOrEqual(180);
+    }
+
+    const customLevel: LevelDef = {
+      ...LEVELS[0],
+      id: 'qa-smoke-loss',
+      startingGold: 60,
+      waves: [
+        {
+          clearBonus: 10,
+          groups: [{ enemyType: 'boss', count: 5, spawnInterval: 0.2, startDelay: 0 }],
+        },
+      ],
+    };
+    const res = runLevelBalanceSim(customLevel, 'weak', [
+      { waveIndex: 0, action: 'build', col: 4, row: 2, towerType: 'archer', targetingMode: 'strongest' },
+      { waveIndex: 0, action: 'build', col: 0, row: 0, towerType: 'archer' }, // invalid void tile
+      { waveIndex: 0, action: 'upgrade', col: 4, row: 3 }, // invalid missing tower
+      { waveIndex: 0, action: 'upgrade', col: 4, row: 2 }, // unaffordable at 10g
+    ]);
+
+    expect(res.outcome).toBe('lost');
+    expect(res.finalLives).toBe(0);
+    expect(res.stars).toBe(0);
+    expect(res.towersBuilt).toBe(1);
+    expect(res.targetingChanges).toBe(1);
+    expect(res.invalidActions).toBe(2);
+    expect(res.unspentScriptActions).toBe(1);
+    expect(res.startingGold + res.goldEarned - res.goldSpent).toBe(res.finalGold);
   });
 });

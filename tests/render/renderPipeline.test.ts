@@ -228,7 +228,9 @@ describe('RenderWorld subsystems headless verification', () => {
     expect(shadowMesh.count).toBe(ENEMY_TYPES.length);
     expect(shadowMesh.visible).toBe(true);
 
-    // Every EnemyType layer has count === 1 and valid bounding box
+    // Every EnemyType layer has count === 1, valid bounding box, and accurate aFlash/interpolation
+    const mat = new THREE.Matrix4();
+    const pos = new THREE.Vector3();
     for (let i = 0; i < ENEMY_TYPES.length; i++) {
       const layerMesh = renderer.group.children[i] as THREE.InstancedMesh;
       expect(layerMesh.count).toBe(1);
@@ -236,6 +238,28 @@ describe('RenderWorld subsystems headless verification', () => {
       expect(layerMesh.geometry.boundingBox).not.toBeNull();
       expect(layerMesh.geometry.hasAttribute('aFlash')).toBe(true);
     }
+
+    const gruntLayer = renderer.group.children[0] as THREE.InstancedMesh;
+    gruntLayer.getMatrixAt(0, mat);
+    pos.setFromMatrixPosition(mat);
+    // spawnedByType[0] has prevX = -0.5, x = 0, alpha = 0.5 -> interpolated x = -0.25
+    expect(pos.x).toBeCloseTo(-0.25, 4);
+
+    // aFlash is > 0 only on hit-flashing enemy (index 4)
+    const flashHit = (renderer.group.children[4] as THREE.InstancedMesh).geometry.getAttribute(
+      'aFlash',
+    ) as THREE.InstancedBufferAttribute;
+    const flashCalm = gruntLayer.geometry.getAttribute('aFlash') as THREE.InstancedBufferAttribute;
+    expect(flashHit.getX(0)).toBeGreaterThan(0);
+    expect(flashCalm.getX(0)).toBe(0);
+
+    // Alpha = 0 renders exact prevX; alpha = 1 renders exact x
+    renderer.update(world.enemyPool, 0, 1.25, camera);
+    gruntLayer.getMatrixAt(0, mat);
+    expect(pos.setFromMatrixPosition(mat).x).toBeCloseTo(-0.5, 4);
+    renderer.update(world.enemyPool, 1, 1.25, camera);
+    gruntLayer.getMatrixAt(0, mat);
+    expect(pos.setFromMatrixPosition(mat).x).toBeCloseTo(0, 4);
 
     renderer.clear();
     expect(hpBarMesh.count).toBe(0);
