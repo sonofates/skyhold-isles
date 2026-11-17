@@ -1141,9 +1141,18 @@ function assertTickInvariants(world: SimWorld, tracker: FuzzTracker, tick: numbe
       e.livesCost !== def.livesCost ||
       e.flying !== def.flying ||
       e.radius !== def.radius ||
-      e.height !== def.height
+      e.height !== def.height ||
+      !Number.isInteger(e.reward) ||
+      e.reward < 1 ||
+      e.reward > def.reward
     ) {
-      return `Enemy def mismatch for ${e.type} uid=${e.uid} (armor=${e.armor}, livesCost=${e.livesCost}, flying=${e.flying})`;
+      return `Enemy def/reward mismatch for ${e.type} uid=${e.uid} (armor=${e.armor}, livesCost=${e.livesCost}, flying=${e.flying}, reward=${e.reward})`;
+    }
+    if (
+      (e.isSplitChild && Math.abs(e.speed - ENEMY_DEFS.splitter.speed * 1.45) > 1e-6) ||
+      (!e.isSplitChild && e.speed !== def.speed)
+    ) {
+      return `Enemy speed mismatch for ${e.type} uid=${e.uid} (isSplitChild=${e.isSplitChild}, speed=${e.speed})`;
     }
     if ((e.slowTimer === 0) !== (e.slowRatio === 0)) {
       return `Enemy slow state mismatch for uid=${e.uid}: slowTimer=${e.slowTimer}, slowRatio=${e.slowRatio}`;
@@ -1213,11 +1222,11 @@ function assertTickInvariants(world: SimWorld, tracker: FuzzTracker, tick: numbe
       e.hitFlashTimer > 0.12 + 1e-6 ||
       !Number.isFinite(e.healTimer) ||
       e.healTimer < 0 ||
-      (e.type === 'healer' && e.healTimer > (def.healInterval ?? 2.6) + 1e-6) ||
+      (e.type === 'healer' ? e.healTimer > (def.healInterval ?? 2.6) + 1e-6 : e.healTimer !== 0) ||
       !Number.isFinite(e.walkPhase) ||
       !Number.isFinite(e.bossPulseTimer) ||
       e.bossPulseTimer < 0 ||
-      (e.type === 'boss' && e.bossPulseTimer > 7.0 + 1e-6) ||
+      (e.type === 'boss' ? e.bossPulseTimer > 7.0 + 1e-6 : e.bossPulseTimer !== 0) ||
       !Number.isFinite(e.scaleOverride) ||
       e.scaleOverride <= 0 ||
       !Number.isFinite(e.armor) ||
@@ -1454,6 +1463,8 @@ function assertTickInvariants(world: SimWorld, tracker: FuzzTracker, tick: numbe
   const maxInterWave = ws.autoWave ? 0.8 : BALANCE.interWaveCountdownSec;
   if (
     !VALID_WAVE_STATES.has(ws.state) ||
+    ws.currentWaveIndex < -1 ||
+    (ws.state === 'preFirstWave') !== (ws.currentWaveIndex === -1) ||
     (!ws.isEndless && ws.totalWaves !== world.level.waves.length) ||
     (ws.isEndless && ws.totalWaves !== Math.max(world.level.waves.length, ws.currentWaveOneBased)) ||
     ws.currentWaveOneBased !== Math.max(0, ws.currentWaveIndex + 1) ||
