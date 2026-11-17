@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { alphaFeetAnchor } from '../../src/render2d/alphaBox.ts';
@@ -11,7 +11,7 @@ import {
   towerTierIndex,
   withArtVariant,
 } from '../../src/render2d/manifest.ts';
-import { layoutRing, type RingPoint } from '../../src/render2d/ringLayout.ts';
+import { gridCols, layoutGrid, layoutRing, type RingPoint } from '../../src/render2d/ringLayout.ts';
 import { computeMapFit } from '../../src/render2d/viewFit.ts';
 import { cheapWalk, createAnimState, createPose, sheetSequence, sheetWalk } from '../../src/render2d/walkAnim.ts';
 
@@ -57,16 +57,14 @@ describe('art manifest', () => {
   const m = parseManifest(MANIFEST);
 
   it('parses the shipped manifest with the P0 mapping', () => {
-    expect(m.buildRing).toEqual(['archer', 'cannon', 'tesla']);
+    expect(m.buildRing).toEqual(expect.arrayContaining(['archer', 'cannon', 'tesla']));
     expect(m.towers.tesla?.tiers[0]).toBe('tower-mage.png');
     expect(enemyArtFor(m, 'grunt', false).art).toBe('raider');
-    expect(enemyArtFor(m, 'runner', false).art).toBe('raider');
+    expect(enemyArtFor(m, 'runner', false).art).toBe('runner');
     expect(enemyArtFor(m, 'brute', false).art).toBe('brute');
     expect(enemyArtFor(m, 'flyer', true).art).toBe('kite');
-    const other = enemyArtFor(m, 'golem', false);
-    expect(other.art).toBe('raider');
-    expect(other.tint).toBeDefined();
-    expect(enemyArtFor(m, 'carrier', true).art).toBe('kite');
+    expect(enemyArtFor(m, 'golem', false).art).toBe('golem');
+    expect(enemyArtFor(m, 'carrier', true).art).toBe('carrier');
     expect(m.enemies.raider.mode).toBe('sheet');
     expect(m.enemies.raider.sheet?.facing).toBe('right');
     expect(m.enemies.raider.sheet?.facingUp).toBe('left');
@@ -113,6 +111,7 @@ describe('art manifest', () => {
     for (const art of Object.values(m.enemies)) {
       if (!art.sheet) continue;
       for (const p of [art.sheet.down, art.sheet.up]) {
+        if (!existsSync(resolve(ROOT, 'public/art2d', p))) continue; // art still on its way
         const raw = JSON.parse(readFileSync(resolve(ROOT, 'public/art2d', p), 'utf8')) as unknown;
         const sheet = parseSheetJson(raw, p.split('/').pop()!.replace('.json', '.png'));
         expect(sheet.frames.length).toBeGreaterThan(1);
@@ -192,6 +191,56 @@ describe('build ring layout', () => {
     const out: RingPoint[] = [];
     layoutRing(500, 700, 2, 40, 1600, 900, 80, out);
     expect(out.every((p) => p.y < 700)).toBe(true);
+  });
+});
+
+describe('build ring grid (7 towers now, 8 with the barracks)', () => {
+  const check = (count: number, W: number, H: number, R: number, topBand: number): void => {
+    for (let cy = 20; cy <= H - 20; cy += 29) {
+      for (let cx = 20; cx <= W - 20; cx += 41) {
+        const out: RingPoint[] = [];
+        const box = layoutGrid(cx, cy, count, R, R, W, H, topBand, out);
+        expect(out).toHaveLength(count);
+        for (const p of out) {
+          expect(p.x - R).toBeGreaterThanOrEqual(0);
+          expect(p.x + R).toBeLessThanOrEqual(W);
+          expect(p.y - R).toBeGreaterThanOrEqual(topBand);
+          expect(p.y + R + R).toBeLessThanOrEqual(H + 1e-6); // token + its label stay on screen
+          expect(p.x).toBeGreaterThanOrEqual(box.x);
+          expect(p.x).toBeLessThanOrEqual(box.x + box.w);
+        }
+        for (let i = 0; i < count; i++) {
+          for (let j = i + 1; j < count; j++) {
+            // Touch discs (radius R·1.08) never overlap.
+            expect(Math.hypot(out[i].x - out[j].x, out[i].y - out[j].y)).toBeGreaterThan(R * 2 * 1.08);
+          }
+        }
+      }
+    }
+  };
+
+  it('uses two rows for 5..8 towers', () => {
+    expect([gridCols(3), gridCols(4), gridCols(5), gridCols(7), gridCols(8)]).toEqual([3, 4, 3, 4, 4]);
+  });
+
+  it('fits 7 and 8 tokens on a 915x412 phone with 26 px (52 px) discs, wherever the plot is', () => {
+    check(7, 915, 412, 26, 64);
+    check(8, 915, 412, 26, 64);
+  });
+
+  it('fits on a 1600x900 desktop', () => {
+    check(7, 1600, 900, 46, 80);
+    check(8, 1600, 900, 46, 80);
+  });
+
+  it('keeps token order left-to-right, top-to-bottom, and centres a short last row', () => {
+    const out: RingPoint[] = [];
+    layoutGrid(700, 600, 7, 30, 30, 1600, 900, 80, out);
+    expect(out[0].x).toBeLessThan(out[3].x);
+    expect(out[3].y).toBe(out[0].y);
+    expect(out[4].y).toBeGreaterThan(out[0].y);
+    const rowMid = (out[0].x + out[3].x) / 2;
+    expect((out[4].x + out[6].x) / 2).toBeCloseTo(rowMid, 6);
   });
 });
 

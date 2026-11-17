@@ -52,3 +52,68 @@ export function layoutRing(
     out[i].y += dy;
   }
 }
+
+/** Columns of the compact grid for `count` tokens (2 rows once there are more than 4). */
+export function gridCols(count: number): number {
+  return count <= 4 ? Math.max(1, count) : Math.ceil(count / 2);
+}
+
+export interface GridBox {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+/**
+ * Compact grid for rings with more than 4 towers (7 now, 8 with the barracks): rows of up to
+ * `gridCols(count)` tokens in reading order, centred above the tapped plot (below it when the
+ * plot is in the upper part of the screen), then shifted to stay inside the viewport and under the
+ * HUD band. Each cell is a token disc plus its two-line label (`labelH`), so touch targets never
+ * overlap. Writes the token centres to `out` and returns the panel rectangle (backdrop).
+ */
+export function layoutGrid(
+  cx: number,
+  cy: number,
+  count: number,
+  tokenR: number,
+  labelH: number,
+  screenW: number,
+  screenH: number,
+  topBand: number,
+  out: RingPoint[],
+  box: GridBox = { x: 0, y: 0, w: 0, h: 0 },
+): GridBox {
+  const cols = gridCols(count);
+  const rows = Math.ceil(count / cols);
+  const gap = Math.max(6, tokenR * 0.18);
+  const pitchX = tokenR * 2 + gap;
+  const pitchY = tokenR * 2 + labelH + gap;
+  const pad = 8;
+  const w = (cols - 1) * pitchX + tokenR * 2 + pad * 2;
+  const h = (rows - 1) * pitchY + tokenR * 2 + labelH + pad * 2;
+  // The plot's tower stands above its centre; leave its base uncovered.
+  const reach = tokenR * 1.1;
+  const below = cy - reach - h < topBand + 4 || cy < screenH * 0.38;
+  let top = below ? cy + reach : cy - reach - h;
+  let left = cx - w / 2;
+  const margin = 4;
+  left = Math.max(margin, Math.min(screenW - margin - w, left));
+  top = Math.max(topBand + margin, Math.min(screenH - margin - h, top));
+  for (let i = 0; i < count; i++) {
+    const r = Math.floor(i / cols);
+    const rowCount = Math.min(cols, count - r * cols);
+    const c = i - r * cols;
+    // Short last rows are centred under the full ones.
+    const rowOffset = ((cols - rowCount) * pitchX) / 2;
+    const p = out[i] ?? (out[i] = { x: 0, y: 0 });
+    p.x = left + pad + tokenR + rowOffset + c * pitchX;
+    p.y = top + pad + tokenR + r * pitchY;
+  }
+  out.length = count;
+  box.x = left;
+  box.y = top;
+  box.w = w;
+  box.h = h;
+  return box;
+}

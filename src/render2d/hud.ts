@@ -225,7 +225,8 @@ export class Hud {
 
   /** Screen rect the HUD occupies at the top (ring placement keeps clear of it). */
   get topBand(): number {
-    return this.plaque.y + this.plaque.height;
+    // The plaque / banner live in the bottom scenery band; only the round buttons sit at the top.
+    return Math.max(this.pauseBtn.root.y + this.pauseBtn.r, this.speedBtn.root.y + this.speedBtn.r);
   }
 
   /** Centres of the round buttons (QA hooks). */

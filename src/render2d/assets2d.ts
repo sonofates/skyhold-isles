@@ -1,10 +1,10 @@
 import { Assets, Rectangle, Texture } from 'pixi.js';
 import type { TowerType } from '../core/types.ts';
 import { alphaFeetAnchor } from './alphaBox.ts';
+import { enemyHasArt, mulTint, pickTier, resolveEnemyArt, resolveTowerTiers } from './artResolve.ts';
 import {
   parseManifest,
   parseSheetJson,
-  towerTierIndex,
   withArtVariant,
   type AnimMode,
   type ArtManifest,
@@ -18,6 +18,12 @@ export interface TowerArtRuntime {
   readonly spec: TowerArt;
   /** Texture per tier 1..3 (index 0..2), missing tiers reuse the highest loaded earlier tier. */
   readonly tiers: readonly Texture[];
+  /** Per tier: file (manifest-relative) drawn, or null. */
+  readonly tierFiles: readonly (string | null)[];
+  /** Multiply tint (fallback art is tinted so it reads as a different tower). */
+  readonly tint: number;
+  /** Tower whose sprites stand in while this tower's own art is pending. */
+  readonly fallbackOf: string | null;
 }
 
 export interface SheetRuntime {
@@ -38,6 +44,18 @@ export interface EnemyArtRuntime {
   /** Per cheap frame: feet anchor (bottom-centre of the alpha bbox), so leg swaps don't jump. */
   readonly frameAnchors: readonly (readonly [number, number])[];
   readonly sheet: SheetRuntime | null;
+  /** Back view (walking away) for cheap mode, when the file exists. */
+  readonly back: Texture | null;
+  readonly backAnchor: readonly [number, number];
+  /** Burrower underground mound texture, when the file exists. */
+  readonly mound: Texture | null;
+  /** Fallback art: multiply tint / scale applied on top of the enemyMap entry. */
+  readonly tintMul: number;
+  readonly scaleMul: number;
+  /** Art key that stands in while this art is pending (null = own art). */
+  readonly fallbackOf: string | null;
+  /** Manifest-relative file of the front sprite actually shown (for DOM use, e.g. the codex). */
+  readonly frontFile: string;
 }
 
 export interface LoadedArt {
@@ -48,6 +66,10 @@ export interface LoadedArt {
   readonly enemies: Readonly<Record<string, EnemyArtRuntime>>;
   /** Human-readable fallback notes (missing tiers, frames, sheets). */
   readonly notes: readonly string[];
+  /** Manifest-relative paths of every file that loaded (artcheck overlay, tests). */
+  readonly present: ReadonlySet<string>;
+  /** Directory URL of the manifest (with trailing slash). */
+  readonly baseUrl: string;
 }
 
 const textureCache = new Map<string, Promise<Texture | null>>();
@@ -125,12 +147,39 @@ function feetAnchor(tex: Texture, fallback: readonly [number, number]): readonly
   }
 }
 
-async function loadEnemy(base: string, key: string, spec: EnemyArt, notes: string[]): Promise<EnemyArtRuntime> {
-  const baseTex = (await tryTexture(base + spec.file)) ?? Texture.WHITE;
-  if (baseTex === Texture.WHITE) notes.push(`enemy ${key}: ${spec.file} missing`);
+async function loadEnemy(
+  base: string,
+  key: string,
+  spec: EnemyArt,
+  notes: string[],
+  present: Set<string>,
+): Promise<EnemyArtRuntime> {
+  const tex = async (path: string): Promise<Texture | null> => {
+    const t = await tryTexture(base + path);
+    if (t) present.add(path);
+    return t;
+  };
+  const [frontTex, backTex, moundTex] = await Promise.all([
+    tex(spec.file),
+    spec.back ? tex(spec.back) : Promise.resolve(null),
+    spec.mound ? tex(spec.mound) : Promise.resolve(null),
+  ]);
+  let sheet: SheetRuntime | null = null;
+  if (spec.sheet) {
+    const [down, up] = await Promise.all([loadSheetSeq(base, spec.sheet.down), loadSheetSeq(base, spec.sheet.up)]);
+    if (down) present.add(spec.sheet.down);
+    if (up) present.add(spec.sheet.up);
+    if (down && up) {
+      sheet = { seqs: [down.frames, up.frames], fps: down.fps, anchor: down.anchor };
+    } else if (spec.mode === 'sheet' && (frontTex || down || up)) {
+      notes.push(`enemy ${key}: walk sheets pending (${spec.sheet.down}, ${spec.sheet.up}) → cheap mode`);
+    }
+  }
+  // A sheet-only enemy (no front file yet) still needs a base sprite: its first walk frame.
+  const baseTex = frontTex ?? sheet?.seqs[0]?.[0] ?? Texture.WHITE;
   const frames: Texture[] = [];
-  if (spec.frames && spec.frames.length > 0) {
-    const loaded = await Promise.all(spec.frames.map((f) => tryTexture(base + f)));
+  if (spec.frames && spec.frames.length > 0 && frontTex) {
+    const loaded = await Promise.all(spec.frames.map((f) => tex(f)));
     const missing = spec.frames.filter((_, i) => !loaded[i]);
     if (missing.length > 0) notes.push(`enemy ${key}: frames pending (${[...new Set(missing)].join(', ')}) → base sprite`);
     for (const t of loaded) frames.push(t ?? baseTex);
@@ -138,37 +187,55 @@ async function loadEnemy(base: string, key: string, spec: EnemyArt, notes: strin
     frames.push(baseTex);
   }
   const anchorCache = new Map<Texture, readonly [number, number]>();
-  const frameAnchors = frames.map((t) => {
+  const anchorOf = (t: Texture): readonly [number, number] => {
     let a = anchorCache.get(t);
     if (!a) {
       a = t === Texture.WHITE ? spec.anchor : feetAnchor(t, spec.anchor);
       anchorCache.set(t, a);
     }
     return a;
-  });
-  let sheet: SheetRuntime | null = null;
-  if (spec.sheet) {
-    const [down, up] = await Promise.all([loadSheetSeq(base, spec.sheet.down), loadSheetSeq(base, spec.sheet.up)]);
-    if (down && up) {
-      sheet = { seqs: [down.frames, up.frames], fps: down.fps, anchor: down.anchor };
-    } else if (spec.mode === 'sheet') {
-      notes.push(`enemy ${key}: walk sheets pending (${spec.sheet.down}, ${spec.sheet.up}) → cheap mode`);
-    }
-  }
+  };
+  const frameAnchors = frames.map(anchorOf);
   const mode: AnimMode = spec.mode === 'sheet' && sheet ? 'sheet' : 'cheap';
-  return { key, spec, mode, base: baseTex, frames, frameAnchors, sheet };
+  return {
+    key,
+    spec,
+    mode,
+    base: baseTex,
+    frames,
+    frameAnchors,
+    sheet,
+    back: backTex,
+    backAnchor: backTex ? anchorOf(backTex) : spec.anchor,
+    mound: moundTex,
+    tintMul: 0xffffff,
+    scaleMul: 1,
+    fallbackOf: null,
+    frontFile: spec.file,
+  };
 }
 
-async function loadTower(base: string, type: string, spec: TowerArt, notes: string[]): Promise<TowerArtRuntime> {
-  const loaded = await Promise.all(spec.tiers.map((f) => tryTexture(base + f)));
-  const ok = loaded.map((t) => t !== null);
+async function loadTower(
+  base: string,
+  spec: TowerArt,
+  present: Set<string>,
+): Promise<TowerArtRuntime & { hasArt: boolean }> {
+  const loaded = await Promise.all(
+    spec.tiers.map(async (f) => {
+      const t = await tryTexture(base + f);
+      if (t) present.add(f);
+      return t;
+    }),
+  );
+  const has = loaded.map((t) => t !== null);
   const tiers: Texture[] = [];
+  const tierFiles: (string | null)[] = [];
   for (let tier = 1; tier <= 3; tier++) {
-    const idx = towerTierIndex(ok, tier);
-    tiers.push(loaded[idx] ?? Texture.WHITE);
-    if (tier > 1 && idx < tier - 1) notes.push(`tower ${type}: T${tier} art pending → T${idx + 1}`);
+    const idx = pickTier(has, tier);
+    tiers.push(idx >= 0 ? (loaded[idx] ?? Texture.WHITE) : Texture.WHITE);
+    tierFiles.push(idx >= 0 ? spec.tiers[idx] : null);
   }
-  return { spec, tiers };
+  return { spec, tiers, tierFiles, tint: 0xffffff, fallbackOf: null, hasArt: has.some(Boolean) };
 }
 
 /**
@@ -186,6 +253,7 @@ export async function loadArt(
   for (const [base, variant] of Object.entries(variants)) manifest = withArtVariant(manifest, base, variant);
   const base = dirOf(manifestUrl);
   const notes: string[] = [];
+  const present = new Set<string>();
   const mapFile = manifest.maps[mapKey];
   if (!mapFile) throw new Error(`map ${mapKey} is not in the art manifest`);
 
@@ -195,21 +263,58 @@ export async function loadArt(
     Promise.all(uiKeys.map((k) => tryTexture(base + manifest.ui[k]))),
     Promise.all(
       Object.entries(manifest.towers).map(
-        async ([type, spec]) => [type, await loadTower(base, type, spec as TowerArt, notes)] as const,
+        async ([type, spec]) => [type, await loadTower(base, spec as TowerArt, present)] as const,
       ),
     ),
     Promise.all(
-      Object.entries(manifest.enemies).map(async ([key, spec]) => [key, await loadEnemy(base, key, spec, notes)] as const),
+      Object.entries(manifest.enemies).map(
+        async ([key, spec]) => [key, await loadEnemy(base, key, spec, notes, present)] as const,
+      ),
     ),
   ]);
   if (!map) throw new Error(`map image failed to load: ${mapFile}`);
   const ui = Object.fromEntries(uiKeys.map((k, i) => [k, uiTex[i] ?? Texture.WHITE])) as Record<keyof UiArt, Texture>;
-  return {
-    manifest,
-    map,
-    ui,
-    towers: Object.fromEntries(towerList) as Partial<Record<TowerType, TowerArtRuntime>>,
-    enemies: Object.fromEntries(enemyList),
-    notes,
-  };
+  const has = (p: string): boolean => present.has(p);
+
+  // Enemies whose art has not landed yet draw a tinted raider / brute / kite (manifest fallback).
+  const ownEnemies = Object.fromEntries(enemyList) as Record<string, EnemyArtRuntime>;
+  const enemies: Record<string, EnemyArtRuntime> = {};
+  for (const [key, rt] of Object.entries(ownEnemies)) {
+    if (enemyHasArt(rt.spec, has)) {
+      enemies[key] = rt;
+      continue;
+    }
+    const res = resolveEnemyArt(manifest, key, has);
+    const target = ownEnemies[res.key];
+    if (!res.own && target) {
+      enemies[key] = { ...target, key, tintMul: res.tint, scaleMul: res.scale, fallbackOf: res.key };
+      notes.push(`enemy ${key}: art pending → tinted ${res.key}`);
+    } else {
+      enemies[key] = rt;
+      notes.push(`enemy ${key}: ${rt.spec.file} missing`);
+    }
+  }
+
+  // Towers with no tier file yet draw a tinted similar tower.
+  const ownTowers = Object.fromEntries(towerList) as Record<string, TowerArtRuntime & { hasArt: boolean }>;
+  const towers: Partial<Record<TowerType, TowerArtRuntime>> = {};
+  for (const [type, rt] of Object.entries(ownTowers)) {
+    let out: TowerArtRuntime = rt;
+    if (!rt.hasArt) {
+      const res = resolveTowerTiers(manifest, type, has);
+      const src = ownTowers[res.source];
+      if (!res.own && src) {
+        out = { spec: rt.spec, tiers: src.tiers, tierFiles: res.tierFiles, tint: mulTint(src.tint, res.tint), fallbackOf: res.source };
+        notes.push(`tower ${type}: art pending → tinted ${res.source}`);
+      } else {
+        notes.push(`tower ${type}: art missing`);
+      }
+    } else {
+      rt.tierFiles.forEach((f, i) => {
+        if (i > 0 && f !== rt.spec.tiers[i]) notes.push(`tower ${type}: T${i + 1} art pending → ${f ?? 'none'}`);
+      });
+    }
+    towers[type as TowerType] = out;
+  }
+  return { manifest, map, ui, towers, enemies, notes, present, baseUrl: base };
 }

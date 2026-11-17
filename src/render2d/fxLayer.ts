@@ -2,10 +2,14 @@ import { Graphics, Sprite, Texture, type Container } from 'pixi.js';
 import type { Vec3 } from '../core/types.ts';
 import { HEIGHT_TO_SCREEN } from './layers.ts';
 import type { MapView } from './mapView.ts';
+import { SlotPool } from './slotPool.ts';
 
-export type FxKind = 'puff' | 'ring' | 'coin' | 'spark' | 'glow' | 'flash';
+export type FxKind = 'puff' | 'ring' | 'coin' | 'spark' | 'glow' | 'flash' | 'wring' | 'crater' | 'shard' | 'orb';
 
-interface Particle {
+const GROUND_KINDS: ReadonlySet<FxKind> = new Set<FxKind>(['ring', 'wring', 'crater']);
+const ADDITIVE_KINDS: ReadonlySet<FxKind> = new Set<FxKind>(['glow', 'spark', 'flash', 'orb']);
+
+export interface Particle {
   readonly sprite: Sprite;
   kind: FxKind;
   t: number;
@@ -15,6 +19,10 @@ interface Particle {
   vx: number;
   vy: number;
   size: number;
+  /** Rotation (rad), spin (rad/s) and gravity (px/s², +down); reset on every spawn. */
+  rot: number;
+  vr: number;
+  gy: number;
   active: boolean;
 }
 
@@ -25,27 +33,51 @@ interface Bolt {
   active: boolean;
 }
 
-const MAX_PARTICLES = 320;
+interface Zone {
+  readonly scorch: Sprite;
+  readonly flame: Sprite;
+  x: number;
+  y: number;
+  r: number;
+  t: number;
+  life: number;
+  ember: number;
+  active: boolean;
+}
+
+const MAX_PARTICLES = 360;
 const MAX_BOLTS = 16;
+const MAX_BEAMS = 24;
+const MAX_ZONES = 6;
 
 /**
- * Pooled painted-looking FX in map px: smoke puffs, explosion rings (ground), coin pops, sparks,
- * crystal glows and lightning bolts. Nothing is allocated after construction; when the pool is
- * full new particles are dropped.
+ * Pooled painted-looking FX in map px: smoke puffs, rings, coin pops, sparks, glows, shards,
+ * ground craters, lightning bolts, light beams and burning-ground zones. Nothing is allocated
+ * after construction; when a pool is full the newest FX is dropped (counted in `stats()`).
  */
 export class FxLayer {
   private readonly particles: Particle[] = [];
+  private readonly pool = new SlotPool(MAX_PARTICLES);
   private readonly bolts: Bolt[] = [];
+  private readonly beams: Bolt[] = [];
+  private readonly beamPool = new SlotPool(MAX_BEAMS);
+  private readonly zones: Zone[] = [];
+  private readonly zonePool = new SlotPool(MAX_ZONES);
   private readonly textures: Record<FxKind, Texture>;
   private readonly ground: Container;
   private readonly top: Container;
   private readonly map: MapView;
   private seed = 1;
-  /** Lifetime counters (QA): bolts drawn, particles spawned. */
+  /** Lifetime counters (QA): bolts / beams / zones drawn. */
   boltsDrawn = 0;
-  particlesSpawned = 0;
+  beamsDrawn = 0;
+  zonesSpawned = 0;
   /** Bolt zigzag offsets, shared by the glow and core strokes so both trace the same line. */
   private readonly jitter = new Float32Array(256);
+
+  get particlesSpawned(): number {
+    return this.pool.spawned;
+  }
 
   constructor(map: MapView, ground: Container, top: Container, textures: Record<FxKind, Texture>) {
     this.map = map;
@@ -56,7 +88,7 @@ export class FxLayer {
       const sprite = new Sprite(Texture.EMPTY);
       sprite.anchor.set(0.5);
       sprite.visible = false;
-      this.particles.push({ sprite, kind: 'puff', t: 0, life: 1, x: 0, y: 0, vx: 0, vy: 0, size: 1, active: false });
+      this.particles.push({ sprite, kind: 'puff', t: 0, life: 1, x: 0, y: 0, vx: 0, vy: 0, size: 1, rot: 0, vr: 0, gy: 0, active: false });
     }
     for (let i = 0; i < MAX_BOLTS; i++) {
       const g = new Graphics();
@@ -64,6 +96,25 @@ export class FxLayer {
       g.blendMode = 'add';
       top.addChild(g);
       this.bolts.push({ g, t: 0, life: 0.18, active: false });
+    }
+    for (let i = 0; i < MAX_BEAMS; i++) {
+      const g = new Graphics();
+      g.visible = false;
+      g.blendMode = 'add';
+      top.addChild(g);
+      this.beams.push({ g, t: 0, life: 0.3, active: false });
+    }
+    for (let i = 0; i < MAX_ZONES; i++) {
+      const scorch = new Sprite(textures.crater);
+      const flame = new Sprite(textures.orb);
+      scorch.anchor.set(0.5);
+      flame.anchor.set(0.5);
+      flame.blendMode = 'add';
+      flame.tint = 0xff8a2a;
+      scorch.visible = false;
+      flame.visible = false;
+      ground.addChild(scorch, flame);
+      this.zones.push({ scorch, flame, x: 0, y: 0, r: 1, t: 0, life: 1, ember: 0, active: false });
     }
   }
 
@@ -77,34 +128,39 @@ export class FxLayer {
     return (this.seed % 10000) / 10000;
   }
 
-  /** Spawns one particle at map px. */
+  /** Render-only random in [0,1) for the callers that scatter FX. */
+  random(): number {
+    return this.rand();
+  }
+
+  /** Spawns one particle at map px (null when the pool is full: the newest particle is dropped). */
   spawn(kind: FxKind, px: number, py: number, size: number, vx = 0, vy = 0, life = 0.5, tint = 0xffffff): Particle | null {
-    for (let i = 0; i < this.particles.length; i++) {
-      const p = this.particles[i];
-      if (p.active) continue;
-      p.active = true;
-      this.particlesSpawned++;
-      p.kind = kind;
-      p.t = 0;
-      p.life = life;
-      p.x = px;
-      p.y = py;
-      p.vx = vx;
-      p.vy = vy;
-      p.size = size;
-      const s = p.sprite;
-      s.texture = this.textures[kind];
-      s.visible = true;
-      s.alpha = 1;
-      s.rotation = 0;
-      s.tint = tint;
-      s.blendMode = (kind === 'glow' || kind === 'spark' || kind === 'flash' ? 'add' : 'normal');
-      const parent = kind === 'ring' ? this.ground : this.top;
-      if (s.parent !== parent) parent.addChild(s);
-      this.place(p);
-      return p;
-    }
-    return null;
+    const i = this.pool.acquire();
+    if (i < 0) return null;
+    const p = this.particles[i];
+    p.active = true;
+    p.kind = kind;
+    p.t = 0;
+    p.life = life;
+    p.x = px;
+    p.y = py;
+    p.vx = vx;
+    p.vy = vy;
+    p.size = size;
+    p.rot = 0;
+    p.vr = 0;
+    p.gy = 0;
+    const s = p.sprite;
+    s.texture = this.textures[kind];
+    s.visible = true;
+    s.alpha = 1;
+    s.rotation = 0;
+    s.tint = tint;
+    s.blendMode = ADDITIVE_KINDS.has(kind) ? 'add' : 'normal';
+    const parent = GROUND_KINDS.has(kind) ? this.ground : this.top;
+    if (s.parent !== parent) parent.addChild(s);
+    this.place(p);
+    return p;
   }
 
   /** A burst of `n` puffs around a point (kill smoke, build dust, cannon blast). */
@@ -123,6 +179,102 @@ export class FxLayer {
         tint,
       );
     }
+  }
+
+  /** A radial burst of `n` particles of `kind` (shards fly out, spin and fall under `gravity`). */
+  burst(kind: FxKind, px: number, py: number, n: number, size: number, speed: number, life: number, tint = 0xffffff, gravity = 0): void {
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2 + this.rand() * 0.8;
+      const sp = speed * (0.55 + this.rand() * 0.6);
+      const p = this.spawn(
+        kind,
+        px,
+        py,
+        size * (0.7 + this.rand() * 0.6),
+        Math.cos(a) * sp,
+        Math.sin(a) * sp * 0.8 - speed * 0.25,
+        life * (0.75 + this.rand() * 0.5),
+        tint,
+      );
+      if (p) {
+        p.gy = gravity;
+        p.vr = (this.rand() - 0.5) * 12;
+        if (kind === 'shard') p.rot = Math.atan2(p.vy, p.vx) + Math.PI / 2;
+      }
+    }
+  }
+
+  /** A straight fading light beam in map px (blink trail, hex tether, buff link, pierce streak). */
+  beam(x1: number, y1: number, x2: number, y2: number, color: number, width: number, life: number, dotted = false): void {
+    const i = this.beamPool.acquire();
+    if (i < 0) return;
+    const b = this.beams[i];
+    const g = b.g;
+    g.clear();
+    if (dotted) {
+      const len = Math.hypot(x2 - x1, y2 - y1);
+      const n = Math.max(2, Math.floor(len / (width * 3.2)));
+      for (let k = 0; k <= n; k++) {
+        const t = k / n;
+        const r = width * (0.55 + 0.45 * Math.sin(k * 1.7) ** 2);
+        g.circle(x1 + (x2 - x1) * t, y1 + (y2 - y1) * t, r).fill({ color, alpha: 0.9 });
+      }
+    } else {
+      g.moveTo(x1, y1).lineTo(x2, y2).stroke({ width: width * 2.4, color, alpha: 0.32 });
+      g.moveTo(x1, y1).lineTo(x2, y2).stroke({ width, color: 0xffffff, alpha: 0.9 });
+    }
+    b.t = 0;
+    b.life = life;
+    b.active = true;
+    g.visible = true;
+    g.alpha = 1;
+    this.beamsDrawn++;
+  }
+
+  /** Burning ground (incendiary shells): a scorch decal with licking flames and embers. */
+  zone(px: number, py: number, radiusPx: number, life: number): void {
+    const i = this.zonePool.acquire();
+    if (i < 0) return;
+    const z = this.zones[i];
+    z.x = px;
+    z.y = py;
+    z.r = radiusPx;
+    z.t = 0;
+    z.life = life;
+    z.ember = 0;
+    z.active = true;
+    z.scorch.position.set(px, py);
+    z.flame.position.set(px, py);
+    const tw = Math.max(1, z.scorch.texture.width);
+    z.scorch.scale.set((radiusPx * 2.1) / tw, (radiusPx * 1.2) / tw);
+    z.scorch.visible = true;
+    z.flame.visible = true;
+    this.zonesSpawned++;
+  }
+
+  /** Pool counters for QA overlays / tests. */
+  stats(): { particles: ReturnType<SlotPool['snapshot']>; beams: ReturnType<SlotPool['snapshot']>; zones: ReturnType<SlotPool['snapshot']> } {
+    return { particles: this.pool.snapshot(), beams: this.beamPool.snapshot(), zones: this.zonePool.snapshot() };
+  }
+
+  /** Clears everything (new run). */
+  clear(): void {
+    for (const p of this.particles) {
+      p.active = false;
+      p.sprite.visible = false;
+    }
+    for (const b of this.beams) {
+      b.active = false;
+      b.g.visible = false;
+    }
+    for (const z of this.zones) {
+      z.active = false;
+      z.scorch.visible = false;
+      z.flame.visible = false;
+    }
+    this.pool.releaseAll();
+    this.beamPool.releaseAll();
+    this.zonePool.releaseAll();
   }
 
   /** Lightning between sim points (copied at event time; drawn immediately into a pooled Graphics). */
@@ -177,14 +329,27 @@ export class FxLayer {
     switch (p.kind) {
       case 'puff': {
         const size = p.size * (1 + k * 1.4);
-        s.scale.set(size / texW * 2);
+        s.scale.set((size / texW) * 2);
         s.alpha = (1 - k) * 0.9;
         break;
       }
-      case 'ring': {
+      case 'ring':
+      case 'wring': {
         const size = p.size * (0.35 + k * 1.1);
         s.scale.set((size * 2) / texW, (size * 0.9) / texW);
         s.alpha = 1 - k;
+        break;
+      }
+      case 'crater': {
+        const size = p.size * (1 + k * 0.12);
+        s.scale.set((size * 2) / texW, (size * 1.1) / texW);
+        s.alpha = k < 0.55 ? 1 : Math.max(0, (1 - k) / 0.45);
+        break;
+      }
+      case 'shard': {
+        s.scale.set(p.size / Math.max(1, s.texture.height));
+        s.rotation = p.rot;
+        s.alpha = k < 0.55 ? 1 : Math.max(0, (1 - k) / 0.45);
         break;
       }
       case 'coin': {
@@ -195,9 +360,10 @@ export class FxLayer {
       }
       case 'spark':
       case 'glow':
+      case 'orb':
       case 'flash': {
         const size = p.size * (1 + k * 0.6);
-        s.scale.set(size / texW * 2);
+        s.scale.set((size / texW) * 2);
         s.alpha = 1 - k;
         break;
       }
@@ -212,10 +378,13 @@ export class FxLayer {
       if (p.t >= p.life) {
         p.active = false;
         p.sprite.visible = false;
+        this.pool.release(i);
         continue;
       }
+      p.vy += p.gy * dt;
       p.x += p.vx * dt;
       p.y += p.vy * dt;
+      p.rot += p.vr * dt;
       if (p.kind === 'coin') p.vy *= 1 - dt * 2.5;
       this.place(p);
     }
@@ -229,6 +398,45 @@ export class FxLayer {
         continue;
       }
       b.g.alpha = 1 - b.t / b.life;
+    }
+    for (let i = 0; i < this.beams.length; i++) {
+      const b = this.beams[i];
+      if (!b.active) continue;
+      b.t += dt;
+      if (b.t >= b.life) {
+        b.active = false;
+        b.g.visible = false;
+        this.beamPool.release(i);
+        continue;
+      }
+      const k = b.t / b.life;
+      b.g.alpha = 1 - k * k;
+    }
+    for (let i = 0; i < this.zones.length; i++) {
+      const z = this.zones[i];
+      if (!z.active) continue;
+      z.t += dt;
+      if (z.t >= z.life) {
+        z.active = false;
+        z.scorch.visible = false;
+        z.flame.visible = false;
+        this.zonePool.release(i);
+        continue;
+      }
+      const k = z.t / z.life;
+      const fade = k < 0.1 ? k / 0.1 : k > 0.8 ? Math.max(0, (1 - k) / 0.2) : 1;
+      const flick = 0.72 + 0.28 * Math.sin(z.t * 17 + i * 2.1) * Math.sin(z.t * 9.3 + i);
+      z.scorch.alpha = 0.85 * fade;
+      z.flame.alpha = 0.55 * fade * flick;
+      const fw = (z.r * 1.8 * (0.92 + 0.08 * flick)) / Math.max(1, z.flame.texture.width);
+      z.flame.scale.set(fw, fw * 0.55);
+      z.ember -= dt;
+      if (z.ember <= 0 && fade > 0.3) {
+        z.ember = 0.09 + this.rand() * 0.08;
+        const a = this.rand() * Math.PI * 2;
+        const r = Math.sqrt(this.rand()) * z.r * 0.8;
+        this.spawn('spark', z.x + Math.cos(a) * r, z.y + Math.sin(a) * r * 0.5, 7 + this.rand() * 5, (this.rand() - 0.5) * 8, -26 - this.rand() * 20, 0.5 + this.rand() * 0.3, 0xff9a40);
+      }
     }
   }
 }

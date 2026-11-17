@@ -41,6 +41,20 @@ export interface TowerArt {
   readonly muzzle: number;
   /** Art faces this way in the file. */
   readonly facing: 'left' | 'right';
+  /** When none of the tier files exist yet: draw this tower's sprite, tinted (art still on its way). */
+  readonly fallback?: TowerFallback;
+}
+
+export interface TowerFallback {
+  readonly tower: string;
+  /** 0xRRGGBB multiply tint. */
+  readonly tint?: number;
+}
+
+export interface EnemyFallback {
+  readonly art: string;
+  readonly tint?: number;
+  readonly scale?: number;
 }
 
 export type AnimMode = 'cheap' | 'sheet';
@@ -77,6 +91,12 @@ export interface EnemyArt {
   /** Optional extra leg-swap frames for cheap mode, cycled with the stride (base sprite first). */
   readonly frames?: readonly string[];
   readonly sheet?: SheetSpec;
+  /** Back view (walking away); used by cheap mode when the enemy moves up the screen. */
+  readonly back?: string;
+  /** Burrower only: the dirt mound drawn while it is underground. */
+  readonly mound?: string;
+  /** Used while neither the front sprite nor a full walk sheet exists yet (art still on its way). */
+  readonly fallback?: EnemyFallback;
   readonly height: number;
   readonly anchor: readonly [number, number];
   readonly facing: 'left' | 'right';
@@ -176,7 +196,19 @@ export function parseManifest(raw: unknown): ArtManifest {
       flipToTarget: t.flipToTarget === true,
       muzzle: numOr(t.muzzle, 2.2),
       facing: facing(t.facing),
+      ...(t.fallback && typeof t.fallback === 'object'
+        ? (() => {
+            const f = t.fallback as Json;
+            const ft = tint(f.tint);
+            return { fallback: { tower: str(f.tower, `towers.${type}.fallback.tower`), ...(ft !== undefined ? { tint: ft } : {}) } };
+          })()
+        : {}),
     };
+  }
+  for (const [type, t] of Object.entries(towers)) {
+    if (t?.fallback && !towers[t.fallback.tower as TowerType]) {
+      throw new ManifestError(`towers.${type}.fallback → unknown tower "${t.fallback.tower}"`);
+    }
   }
   const enemiesIn = obj(m.enemies, 'enemies');
   const enemies: Record<string, EnemyArt> = {};
@@ -200,6 +232,21 @@ export function parseManifest(raw: unknown): ArtManifest {
       file: str(e.file, `enemies.${key}.file`),
       ...(Array.isArray(e.frames) ? { frames: e.frames.map((f, i) => str(f, `enemies.${key}.frames[${i}]`)) } : {}),
       ...(sheet ? { sheet } : {}),
+      ...(typeof e.back === 'string' && e.back ? { back: e.back } : {}),
+      ...(typeof e.mound === 'string' && e.mound ? { mound: e.mound } : {}),
+      ...(e.fallback && typeof e.fallback === 'object'
+        ? (() => {
+            const f = e.fallback as Json;
+            const ft = tint(f.tint);
+            return {
+              fallback: {
+                art: str(f.art, `enemies.${key}.fallback.art`),
+                ...(ft !== undefined ? { tint: ft } : {}),
+                ...(typeof f.scale === 'number' ? { scale: f.scale } : {}),
+              },
+            };
+          })()
+        : {}),
       height: numOr(e.height, 1.3),
       anchor: pair(e.anchor, [0.5, 0.94]),
       facing: facing(e.facing),
@@ -212,6 +259,11 @@ export function parseManifest(raw: unknown): ArtManifest {
       },
       shadow: numOr(e.shadow, 0.45),
     };
+  }
+  for (const [key, e] of Object.entries(enemies)) {
+    if (e.fallback && !enemies[e.fallback.art]) {
+      throw new ManifestError(`enemies.${key}.fallback → unknown art "${e.fallback.art}"`);
+    }
   }
   const mapIn = obj(m.enemyMap, 'enemyMap');
   const enemyMap: Record<string, EnemyMapEntry> = {};
