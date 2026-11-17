@@ -244,3 +244,7 @@ early waves does NOT soften them, it starves the economy (kill rewards) and the 
 ### Round 28 (render-only: leaping fish)
 - New `fish` set piece + `leap` anim family (instanced, no shadow, +1 draw call on islands that use it): a small fish arcs out of the water about every 6 s (per-fish period/offset), hidden under the surface in between. Placed on L2 Twin-Bridge Cay (2) and L6 Crescent Lagoon (3). Test `keeps leaping fish over open water` guards placement (footprint ~0.7 tile, must be water/off-grid).
 - tsc, lint, 143 tests, build, `sim:balance` green (sim/data untouched; greedy L1 20 / L2 15 / L3 9 / L4 15 / L5 14 / L6 13 / L7 10 / L8 7 / L9 9).
+
+### Round 29 (verification only, no code changes)
+- Clean tree. tsc, lint, 143 tests, `sim:balance` all green (greedy L1 20 / L2 15 / L3 9 / L4 15 / L5 14 / L6 13 / L7 10 / L8 7 / L9 9 lives; every weak script loses L2+). Build not re-run (no source changes since round 28).
+- Handoff state unchanged; see "Merge notes for the lead".
