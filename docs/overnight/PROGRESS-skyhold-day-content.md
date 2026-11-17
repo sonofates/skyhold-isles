@@ -31,9 +31,12 @@ menu/pause/island-select Codex buttons, settings Replay row, L14–L16 (+ lane o
   `fixedTick`; `buildOnboardingObs()` in GameSession. `sessionBridge` got `suppressIntroToasts` (cards replace the old
   "New foe" / flyer toasts when the director exists).
 - API for the CAMPAIGN agent: `ContentDirector.towerUnlocked(type)` shows the first-sighting card for a tower once
-  (nothing calls it yet — all 7 towers are available from the start in this branch). `openCodex(tab?, id?)`.
-- Authoring tool: `scripts/levelTool.ts` (layout renderer, road-coverage site ranker, template re-targeting).
-  Untracked scratch helpers (not committed): `scripts/_opt.ts` hill-climbs a greedy build order against the sim.
+  (nothing calls it yet — all 7 towers are available from the start in this branch; if CAMPAIGN adds tower unlocks it
+  should call this on unlock and decide whether `inferSeenFromProgress` should pre-seed `tower:*` ids for veterans).
+  `openCodex(tab?, id?)`. Foes queued behind a card that was cut short are un-marked again (`unmarkSeen`).
+- Authoring tools (see `docs/island-authoring.md`): `scripts/levelTool.ts` (layout renderer, road-coverage site ranker,
+  `--seed-from`), `scripts/tuneBuildOrder.ts` (hill-climb the greedy build order for robustness, derive the weak order),
+  `scripts/hpSweep.ts` (HP scale / growth sweeps).
 
 ## Done
 1. Pure logic + tests: storage/migration, onboarding machine, codex data, sighting queue.
