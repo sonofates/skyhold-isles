@@ -2,6 +2,7 @@ import type { EventBus } from '../../core/eventBus.ts';
 import type { TowerType } from '../../core/types.ts';
 import type { LevelDef } from '../../data/levels/types.ts';
 import type { ContentStore } from '../../platform/contentStorage.ts';
+import { allEnemyEntries, allTowerEntries, eliteEntry } from './codexData.ts';
 import { CodexScreen, type CodexTab } from './codexScreen.ts';
 import { CoachMark } from './coachMark.ts';
 import { SightingQueue, waveHasElite } from './firstSighting.ts';
@@ -28,6 +29,7 @@ export class ContentDirector {
   private readonly machine: OnboardingMachine;
   private readonly queue: SightingQueue;
   private doneTimer: number | null = null;
+  private setHasNew: ((has: boolean) => void) | null = null;
   private wantMarker = false;
   private readonly markerOut = { x: 0, y: 0 };
 
@@ -43,8 +45,25 @@ export class ContentDirector {
     });
     this.codex = new CodexScreen(uiRoot, {
       isSeen: (id) => store.hasSeen(id),
-      onClose: () => undefined,
+      isNew: (id) => store.isNew(id),
+      onView: (id) => {
+        store.markViewed(id);
+        this.refreshNewBadge();
+      },
+      onClose: () => this.refreshNewBadge(),
     });
+  }
+
+  /** Connects the Codex menu buttons' "new" dot. */
+  attachEntryHandle(handle: { setHasNew: (has: boolean) => void }): void {
+    this.setHasNew = handle.setHasNew;
+    this.refreshNewBadge();
+  }
+
+  private refreshNewBadge(): void {
+    if (!this.setHasNew) return;
+    const ids = [...allEnemyEntries(), eliteEntry(), ...allTowerEntries()].map((e) => e.seenId);
+    this.setHasNew(ids.some((id) => this.store.isNew(id)));
   }
 
   /** True while the first-sighting card holds the game paused. */
@@ -87,7 +106,10 @@ export class ContentDirector {
 
   private flush(): void {
     const refs = this.queue.drain();
-    if (refs.length > 0) this.card.show(refs);
+    if (refs.length > 0) {
+      this.card.show(refs);
+      this.refreshNewBadge();
+    }
   }
 
   /** Called with every UI sync while playing. */

@@ -19,23 +19,36 @@ function makeButton(className: string, label: string, testId: string, onClick: (
   return btn;
 }
 
-export function mountCodexEntryPoints(uiRoot: HTMLElement, openCodex: () => void): void {
+export interface CodexEntryHandle {
+  /** Show / hide the "new entries" dot on every Codex button. */
+  setHasNew: (has: boolean) => void;
+}
+
+export function mountCodexEntryPoints(uiRoot: HTMLElement, openCodex: () => void): CodexEntryHandle {
+  const buttons: HTMLButtonElement[] = [];
   const mainRow = uiRoot.querySelector('.menu-card-main .menu-btn-row');
   if (mainRow) {
-    mainRow.appendChild(
-      makeButton('btn-secondary btn-lg gx gx-slate-btn cx-entry cx-entry-wide', 'Codex', 'btn-codex', openCodex),
-    );
+    const b = makeButton('btn-secondary btn-lg gx gx-slate-btn cx-entry cx-entry-wide', 'Codex', 'btn-codex', openCodex);
+    buttons.push(b);
+    mainRow.appendChild(b);
   }
 
   const levelHeader = uiRoot.querySelector('.level-select-header');
   if (levelHeader) {
-    levelHeader.appendChild(makeButton('cx-entry cx-entry-chip gx gx-slate-btn', 'Codex', 'btn-codex-levels', openCodex));
+    const b = makeButton('cx-entry cx-entry-chip gx gx-slate-btn', 'Codex', 'btn-codex-levels', openCodex);
+    buttons.push(b);
+    levelHeader.appendChild(b);
   }
 
   const pauseTiles = uiRoot.querySelector('.pause-tiles');
   if (pauseTiles) {
-    pauseTiles.appendChild(
-      makeButton('btn-secondary gx gx-slate-btn pause-tile cx-entry cx-entry-wide', 'Codex', 'btn-pause-codex', openCodex),
-    );
+    const b = makeButton('btn-secondary gx gx-slate-btn pause-tile cx-entry cx-entry-wide', 'Codex', 'btn-pause-codex', openCodex);
+    buttons.push(b);
+    pauseTiles.appendChild(b);
   }
+  return {
+    setHasNew: (has) => {
+      for (const b of buttons) b.classList.toggle('has-new', has);
+    },
+  };
 }

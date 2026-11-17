@@ -92,6 +92,26 @@ describe.skipIf(!hasDom)('content UI (DOM)', () => {
     codex.dispose();
   });
 
+  it('codex: new dots show for met-but-unopened entries and clear when opened', async () => {
+    const { CodexScreen } = await import('../../src/ui/content/codexScreen.ts');
+    const seen = new Set<string>(['enemy:grunt', 'enemy:runner']);
+    const viewed = new Set<string>(['enemy:grunt']);
+    const codex = new CodexScreen(fresh(), {
+      isSeen: (id) => seen.has(id),
+      isNew: (id) => seen.has(id) && !viewed.has(id),
+      onView: (id) => void viewed.add(id),
+      onClose: () => undefined,
+    });
+    codex.open('enemies');
+    // Wide layout in happy-dom: the first entry (grunt) is on screen already.
+    expect(root.querySelectorAll('.cx-tile.is-new')).toHaveLength(1);
+    expect(root.querySelector('[data-testid="codex-tile-runner"]')?.classList.contains('is-new')).toBe(true);
+    (root.querySelector('[data-testid="codex-tile-runner"]') as HTMLElement).click();
+    expect(viewed.has('enemy:runner')).toBe(true);
+    expect(root.querySelectorAll('.cx-tile.is-new')).toHaveLength(0);
+    codex.dispose();
+  });
+
   it('codex: close button closes and calls back', async () => {
     const { CodexScreen } = await import('../../src/ui/content/codexScreen.ts');
     const onClose = vi.fn();
@@ -223,10 +243,14 @@ describe.skipIf(!hasDom)('content UI (DOM)', () => {
     r.innerHTML =
       '<div class="menu-card-main"><div class="menu-btn-row"></div></div><div class="pause-tiles"></div>';
     const open = vi.fn();
-    mountCodexEntryPoints(r, open);
+    const handle = mountCodexEntryPoints(r, open);
     (r.querySelector('[data-testid="btn-codex"]') as HTMLElement).click();
     (r.querySelector('[data-testid="btn-pause-codex"]') as HTMLElement).click();
     expect(open).toHaveBeenCalledTimes(2);
     expect(r.querySelector('[data-testid="btn-codex-levels"]')).toBeNull();
+    handle.setHasNew(true);
+    expect(r.querySelector('[data-testid="btn-codex"]')?.classList.contains('has-new')).toBe(true);
+    handle.setHasNew(false);
+    expect(r.querySelector('[data-testid="btn-codex"]')?.classList.contains('has-new')).toBe(false);
   });
 });

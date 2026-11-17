@@ -56,10 +56,13 @@ export function inferSeenFromProgress(
 interface CodexSave {
   v: 1;
   seen: SeenId[];
+  /** Entries the player has opened in the codex (drives the "new" dots). Absent in older saves. */
+  viewed?: SeenId[];
 }
 
 export class ContentStore {
   private seen = new Set<SeenId>();
+  private viewed = new Set<SeenId>();
   private status: OnboardingStatus = 'pending';
   /** False until the onboarding key has been written once (a brand-new player or a pre-tutorial save). */
   private statusKnown = false;
@@ -81,6 +84,12 @@ export class ContentStore {
         const parsed = JSON.parse(raw) as Partial<CodexSave>;
         if (parsed && Array.isArray(parsed.seen)) {
           for (const v of parsed.seen) if (typeof v === 'string') this.seen.add(v);
+          if (Array.isArray(parsed.viewed)) {
+            for (const v of parsed.viewed) if (typeof v === 'string') this.viewed.add(v);
+          } else {
+            // Saved before "viewed" existed: nothing counts as new.
+            for (const v of this.seen) this.viewed.add(v);
+          }
           this.codexKnown = true;
         }
       }
@@ -109,7 +118,10 @@ export class ContentStore {
   ): void {
     const veteran = progress.unlockedLevelIndex > 0 || progress.bestStars.some((n) => n > 0);
     if (!this.codexKnown) {
-      for (const id of inferSeenFromProgress(levels, progress, legacyEnemyIntroSeen)) this.seen.add(id);
+      for (const id of inferSeenFromProgress(levels, progress, legacyEnemyIntroSeen)) {
+        this.seen.add(id);
+        this.viewed.add(id); // a veteran's backlog is not "new"
+      }
       this.codexKnown = true;
       this.saveSeen();
     }
@@ -132,6 +144,17 @@ export class ContentStore {
     return true;
   }
 
+  /** Seen but never opened in the codex. */
+  isNew(id: SeenId): boolean {
+    return this.seen.has(id) && !this.viewed.has(id);
+  }
+
+  markViewed(id: SeenId): void {
+    if (this.viewed.has(id) || !this.seen.has(id)) return;
+    this.viewed.add(id);
+    this.saveSeen();
+  }
+
   seenIds(): readonly SeenId[] {
     return [...this.seen];
   }
@@ -148,7 +171,7 @@ export class ContentStore {
 
   private saveSeen(): void {
     try {
-      this.storage?.setItem(CODEX_KEY, JSON.stringify({ v: 1, seen: [...this.seen] } satisfies CodexSave));
+      this.storage?.setItem(CODEX_KEY, JSON.stringify({ v: 1, seen: [...this.seen], viewed: [...this.viewed] } satisfies CodexSave));
     } catch {
       // quota / private mode
     }

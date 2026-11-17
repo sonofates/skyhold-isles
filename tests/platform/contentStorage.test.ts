@@ -30,7 +30,7 @@ describe('ContentStore', () => {
     expect(store.markSeen(enemySeenId('grunt'))).toBe(true);
     expect(store.markSeen(enemySeenId('grunt'))).toBe(false);
     const raw = JSON.parse(s.data.get(CODEX_KEY) ?? 'null') as { v: number; seen: string[] };
-    expect(raw).toEqual({ v: 1, seen: ['enemy:grunt'] });
+    expect(raw).toEqual({ v: 1, seen: ['enemy:grunt'], viewed: [] });
     // A second instance (page reload) sees the same state.
     expect(new ContentStore(s).hasSeen('enemy:grunt')).toBe(true);
   });
@@ -102,5 +102,31 @@ describe('ContentStore', () => {
     const stars = new Array<number>(LEVELS.length).fill(0);
     stars[withElite] = 1;
     expect(inferSeenFromProgress(LEVELS, { unlockedLevelIndex: 0, bestStars: stars })).toContain(ELITE_SEEN_ID);
+  });
+
+  it('tracks which seen entries were opened in the codex ("new" dots)', () => {
+    const st = memStorage();
+    const store = new ContentStore(st);
+    store.markSeen('enemy:golem');
+    expect(store.isNew('enemy:golem')).toBe(true);
+    expect(store.isNew('enemy:mite')).toBe(false); // not seen: silhouette, not new
+    store.markViewed('enemy:mite'); // unseen entries cannot be "viewed"
+    expect(store.isNew('enemy:mite')).toBe(false);
+    store.markViewed('enemy:golem');
+    expect(store.isNew('enemy:golem')).toBe(false);
+    expect(new ContentStore(st).isNew('enemy:golem')).toBe(false);
+  });
+
+  it('saves from before "viewed" existed treat everything as already viewed; veterans get no backlog dots', () => {
+    const old = memStorage({ [CODEX_KEY]: JSON.stringify({ v: 1, seen: ['enemy:grunt', 'enemy:runner'] }) });
+    const store = new ContentStore(old);
+    expect(store.isNew('enemy:grunt')).toBe(false);
+    store.markSeen('enemy:brute');
+    expect(store.isNew('enemy:brute')).toBe(true);
+
+    const vet = new ContentStore(memStorage());
+    vet.migrate(LEVELS, { unlockedLevelIndex: 3, bestStars: [3, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] });
+    expect(vet.seenIds().length).toBeGreaterThan(3);
+    for (const id of vet.seenIds()) expect(vet.isNew(id)).toBe(false);
   });
 });

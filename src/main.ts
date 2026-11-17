@@ -106,7 +106,7 @@ async function bootstrap(loadingScreen: LoadingScreen): Promise<void> {
     onBlockingChange: () => session.syncLoopAndInput(),
     startTutorialIsland: () => session.startLevel(0),
   });
-  mountCodexEntryPoints(uiRoot, () => content?.openCodex());
+  content.attachEntryHandle(mountCodexEntryPoints(uiRoot, () => content?.openCodex()));
 
   const debugPanel = createDebugPanelIfEnabled(uiRoot, {
     getSimWorld: () => session.simWorld,

@@ -1,4 +1,5 @@
 import '../styles/codex.css';
+import type { TowerType } from '../../core/types.ts';
 import { ENEMY_ICON_SVGS, TOWER_ICON_SVGS, UI_ICON_SVGS } from '../icons.ts';
 import {
   allEnemyEntries,
@@ -14,10 +15,25 @@ export type CodexTab = 'enemies' | 'towers';
 
 export interface CodexCallbacks {
   isSeen: (seenId: string) => boolean;
+  /** Seen in play but never opened here: the tile gets a "new" dot. Optional. */
+  isNew?: (seenId: string) => boolean;
+  /** An entry was opened (clears its dot). Optional. */
+  onView?: (seenId: string) => void;
   onClose: () => void;
 }
 
 type EnemyLikeEntry = CodexEnemyEntry | CodexEliteEntry;
+
+/** Same short names as the build bar, so a tile reads like the tower the player builds. */
+const TOWER_TILE_LABELS: Record<TowerType, string> = {
+  archer: 'Archer',
+  cannon: 'Cannon',
+  frost: 'Frost',
+  tesla: 'Tesla',
+  mortar: 'Mortar',
+  ballista: 'Ballista',
+  beacon: 'Beacon',
+};
 
 function h<K extends keyof HTMLElementTagNameMap>(
   tag: K,
@@ -131,9 +147,9 @@ export class CodexScreen {
     this.rootEl.classList.remove('hidden');
     this.tab = tab;
     this.selectedId = id ?? this.defaultId(tab);
-    this.rebuild();
     // Phones: jump straight to the detail view when a specific entry was asked for.
     this.rootEl.dataset.view = id ? 'detail' : 'grid';
+    this.rebuild();
   }
 
   close(): void {
@@ -190,19 +206,32 @@ export class CodexScreen {
     this.renderDetail();
   }
 
-  private tile(id: string, iconSvg: string, label: string, locked: boolean, boss = false): HTMLButtonElement {
-    const b = h('button', `cx-tile gx gx-slate-btn${id === this.selectedId ? ' active' : ''}${locked ? ' is-locked' : ''}${boss ? ' is-boss' : ''}`);
+  private tile(
+    id: string,
+    seenId: string,
+    iconSvg: string,
+    label: string,
+    locked: boolean,
+    boss = false,
+  ): HTMLButtonElement {
+    const isNew = !locked && (this.cb.isNew?.(seenId) ?? false);
+    const b = h(
+      'button',
+      `cx-tile gx gx-slate-btn${id === this.selectedId ? ' active' : ''}${locked ? ' is-locked' : ''}${boss ? ' is-boss' : ''}${isNew ? ' is-new' : ''}`,
+    );
     b.type = 'button';
     b.dataset.id = id;
     b.setAttribute('data-testid', `codex-tile-${id}`);
     const icon = h('span', 'cx-tile-icon');
     icon.innerHTML = iconSvg;
-    b.append(icon, h('span', 'cx-tile-name', label));
+    b.append(icon, h('span', 'cx-tile-name', label), h('span', 'cx-new-dot'));
     b.addEventListener('click', () => {
       this.selectedId = id;
       for (const el of Array.from(this.gridEl.children)) {
         el.classList.toggle('active', (el as HTMLElement).dataset.id === id);
       }
+      b.classList.remove('is-new');
+      this.cb.onView?.(seenId);
       this.renderDetail();
       this.rootEl.dataset.view = 'detail';
     });
@@ -212,14 +241,15 @@ export class CodexScreen {
   private enemyTile(e: EnemyLikeEntry): HTMLButtonElement {
     const seen = this.cb.isSeen(e.seenId);
     const icon = e.kind === 'enemy' ? ENEMY_ICON_SVGS[e.id] : UI_ICON_SVGS.star;
-    return this.tile(e.id, icon, seen ? e.name.replace('Empowered ', '') : '???', !seen, e.kind === 'enemy' && e.isBoss);
+    return this.tile(e.id, e.seenId, icon, seen ? e.name.replace('Empowered ', '') : '???', !seen, e.kind === 'enemy' && e.isBoss);
   }
 
   private towerTile(t: CodexTowerEntry): HTMLButtonElement {
-    return this.tile(t.id, TOWER_ICON_SVGS[t.id], t.name.split(' ')[0], false);
+    return this.tile(t.id, t.seenId, TOWER_ICON_SVGS[t.id], TOWER_TILE_LABELS[t.id], false);
   }
 
   private renderDetail(): void {
+    this.markSelectedViewed();
     const body = this.detailBodyEl;
     body.replaceChildren();
     if (this.tab === 'enemies') {
@@ -230,6 +260,18 @@ export class CodexScreen {
       if (t) this.renderTowerDetail(body, t);
     }
     this.detailEl.scrollTop = 0;
+  }
+
+  private markSelectedViewed(): void {
+    if (!this.cb.onView) return;
+    const e =
+      this.tab === 'enemies'
+        ? this.enemyEntries().find((x) => x.id === this.selectedId)
+        : allTowerEntries().find((x) => x.id === this.selectedId);
+    if (e && (this.rootEl.dataset.view === 'detail' || !this.isNarrow())) {
+      this.cb.onView(e.seenId);
+      this.gridEl.querySelector('.cx-tile.active')?.classList.remove('is-new');
+    }
   }
 
   private head(iconSvg: string, name: string, kicker: string, locked: boolean): HTMLDivElement {

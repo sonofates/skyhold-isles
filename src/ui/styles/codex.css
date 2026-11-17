@@ -458,3 +458,36 @@
     display: none;
   }
 }
+
+/* "New" dot: met in play but not opened in the codex yet. */
+.cx-new-dot {
+  display: none;
+  position: absolute;
+  top: 6px;
+  right: 7px;
+  width: 11px;
+  height: 11px;
+  background: var(--gx-coral);
+  border: 2px solid var(--gx-ink);
+  border-radius: 50%;
+}
+
+.cx-tile.is-new .cx-new-dot {
+  display: block;
+}
+
+.cx-entry.has-new .btn-icon::after {
+  content: '';
+  position: absolute;
+  top: -3px;
+  right: -4px;
+  width: 11px;
+  height: 11px;
+  background: var(--gx-coral);
+  border: 2px solid var(--gx-ink);
+  border-radius: 50%;
+}
+
+.cx-entry .btn-icon {
+  position: relative;
+}
