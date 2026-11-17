@@ -34,7 +34,7 @@ Measurements:
     --mount X,Y (raw body px) overrides it (only with a single --only entry).
   * turret foot: bottom-centre of the piece's CHUNKY part: the panel mask is eroded by ~2.5 % of the
     panel (bow limbs, strings, a bolt aimed at the camera, thin barrel lips vanish; the carriage /
-    stand stays); x = centre of the eroded mask's lowest 6 %, y = the silhouette bottom under it.
+    stand stays); x = centre of the eroded mask's lowest 15 %, y = the silhouette bottom under it.
     All 5 panels are aligned on that foot and trimmed to one common box, symmetric about the foot
     (so mirroring about the pivot is exact).
   * muzzle (per direction): over opaque pixels (alpha > 128), seen from their centroid: the pixels
@@ -154,7 +154,7 @@ def foot_of(mask):
 
     Thin parts (bow limbs, strings, a bolt or arrow pointing at the camera, a barrel lip) can hang
     below the stand in some views, so the mask is first eroded by ~2.5 % of the panel: what is left
-    is the carriage / stand / body. Foot x = centre of the eroded mask's bottom band (its lowest 6 %),
+    is the carriage / stand / body. Foot x = centre of the eroded mask's bottom band (its lowest 15 %: both feet of a pair),
     foot y = the original silhouette's bottom under that band.
     """
     if not mask.any():
@@ -168,7 +168,7 @@ def foot_of(mask):
         core = mask
     ys = np.flatnonzero(core.any(axis=1))
     top, bottom = ys[0], ys[-1]
-    band = core[max(top, bottom - max(2, int((bottom - top) * 0.06))):bottom + 1]
+    band = core[max(top, bottom - max(2, int((bottom - top) * 0.15))):bottom + 1]
     cols = np.flatnonzero(band.any(axis=0))
     lo, hi = cols[0], cols[-1]
     x = (lo + hi + 1) / 2
@@ -210,7 +210,7 @@ def pack(raw, out, name, args):
     ov = args.overrides_by_name.get(name, {})
     mount = parse_xy(args.mount) if args.mount else ov.get('mount')
     if mount:
-        mx, my = mount[0] - l, mount[1] - t
+        mx, my = float(mount[0] - l), float(mount[1] - t)
     f = min(1.0, BODY_MAX / max(body.size))
 
     sheet = key_rgba(Image.open(raw / f'{name}-turret.png'))

@@ -1,15 +1,20 @@
+import { Graphics } from 'pixi.js';
 import type { EnemyType, TowerType } from '../core/types.ts';
 import { ENEMY_DEFS, ENEMY_TYPES } from '../data/enemies.ts';
+import { getTowerTierStats, TOWER_DEFS } from '../data/towers.ts';
 import type { EnemyEntity } from '../sim/entities.ts';
 import type { SimWorld } from '../sim/world.ts';
 import type { Game2D, Game2DHooks } from './game2d.ts';
 import { enemyArtFor } from './manifest.ts';
+import { sectorOf, yawToScreenAngle } from './turret.ts';
 
 /**
  * QA / recording scenes on the real SimWorld (no fakes, so the event wiring is exercised):
  *   ?zoo=1               all 15 enemy types (+ elites) walking L1c, specials triggered periodically
  *   ?towers=1[&tier=N]   every tower type built and firing at a stream of tough enemies; without
  *                        `tier` the whole set cycles T1 → T2 → T3 every 9 s
+ *   ?towers=aim&type=T[&tier=N]  one directional tower, one immortal target hopping around it by
+ *                        compass sector (turret aim QA; AimOverlay marks the sim's aim + muzzle)
  * Both keep lives/gold topped up and never end.
  */
 
@@ -171,6 +176,154 @@ export function towersHooks(fixedTier: number | null): Game2DHooks {
       }
     },
   };
+}
+
+/** One standing spot for the aim scene's target: a path point at a known screen sector from the tower. */
+interface AimSpot {
+  readonly flying: boolean;
+  readonly lane: number;
+  readonly dist: number;
+  readonly sector: number;
+}
+
+/** QA state of `?towers=aim` (exposed on window.__aim by main2d). */
+export interface AimSceneState {
+  type: TowerType;
+  tier: number;
+  plot: number;
+  /** Sectors (turret.ts SECTORS index) the scene can put a target in, in visiting order. */
+  sectors: number[];
+  /** Sector the target stands in now (-1 = none yet) and since when (sim s). */
+  current: number;
+  since: number;
+}
+
+const AIM_HOLD_SEC = 1.6;
+
+/**
+ * `?towers=aim&type=cannon[&tier=N]`: ONE directional tower and ONE immortal target that is moved,
+ * every 1.6 s, to a path point in the next compass sector around it (real sim targeting, so the
+ * turret must follow the sim's target). The tower goes on the plot whose surroundings cover the
+ * most sectors. Path points come from the sim's own lanes (ground, plus the flight lane for towers
+ * that hit flyers), at 35-90 % of the tower's range.
+ */
+export function aimHooks(type: TowerType, tier: number, state: AimSceneState): Game2DHooks {
+  let setup = false;
+  let tick = 0;
+  let spots: AimSpot[] = [];
+  let order: number[] = [];
+  let towerId = -1;
+  let dummy: { uid: number; flying: boolean; lane: number } | null = null;
+  const spotsFor = (world: SimWorld, x: number, z: number): AimSpot[] => {
+    const st = getTowerTierStats(type, Math.max(1, Math.min(3, tier)) as 1 | 2 | 3);
+    const best = new Map<number, AimSpot & { err: number }>();
+    const lanes: { flying: boolean; lane: number }[] = [];
+    for (let l = 0; l < world.enemySystem.groundLaneCount; l++) lanes.push({ flying: false, lane: l });
+    if (TOWER_DEFS[type].hitsFlyers) lanes.push({ flying: true, lane: 0 });
+    const v = { x: 0, y: 0, z: 0 };
+    for (const ln of lanes) {
+      const path = world.enemySystem.getPath(ln.flying, ln.lane);
+      for (let d = 0.5; d < path.totalLength - 0.5; d += 0.15) {
+        path.sample(d, v);
+        const r = Math.hypot(v.x - x, v.z - z);
+        if (r < st.range * 0.35 || r > st.range * 0.9 || r < st.minRange * 1.2) continue;
+        const sector = sectorOf(Math.atan2(v.z - z, v.x - x));
+        const err = Math.abs(r - st.range * 0.62) + Math.abs(Math.atan2(v.z - z, v.x - x) - sector * (Math.PI / 4)) * 0.01;
+        const prev = best.get(sector);
+        if (!prev || err < prev.err) best.set(sector, { ...ln, dist: d, sector, err });
+      }
+    }
+    return [...best.values()].map((s) => ({ flying: s.flying, lane: s.lane, dist: s.dist, sector: s.sector }));
+  };
+  return {
+    endless: true,
+    beforeTick(world: SimWorld): void {
+      tick++;
+      world.lives = 999;
+      world.gold = 99999;
+      if (!setup) {
+        setup = true;
+        // Pick the plot with the widest sector coverage.
+        let bestPlot = -1;
+        let bestSpots: AimSpot[] = [];
+        (world.level.layout2d?.plots ?? []).forEach((p, i) => {
+          const s = spotsFor(world, p.x, p.z);
+          if (s.length > bestSpots.length) {
+            bestSpots = s;
+            bestPlot = i;
+          }
+        });
+        const t = bestPlot >= 0 ? world.placeTowerOnPlot(bestPlot, type) : null;
+        if (!t) return;
+        towerId = t.id;
+        while (t.tier < tier) if (!world.upgradeTower(t.id)) break;
+        spots = bestSpots;
+        // Visit clockwise from E so neighbouring frames (and the mirrored ones) all show up.
+        order = spots.map((s) => s.sector).sort((a, b) => a - b);
+        state.plot = bestPlot;
+        state.sectors = order;
+      }
+      if (towerId < 0 || order.length === 0) return;
+      const sec = tick / TICKS_PER_SEC;
+      const slot = Math.floor(sec / AIM_HOLD_SEC) % order.length;
+      const spot = spots.find((s) => s.sector === order[slot])!;
+      if (state.current !== spot.sector) {
+        state.current = spot.sector;
+        state.since = sec;
+      }
+      const pool = world.enemyPool;
+      let e: EnemyEntity | null = null;
+      for (let i = 0; i < pool.getActiveCount(); i++) {
+        const c = pool.items[pool.getActiveIndex(i)];
+        if (dummy && c.uid === dummy.uid) e = c;
+      }
+      if (e && (e.flying !== spot.flying || e.lane !== spot.lane)) {
+        // Wrong lane: retire it at the goal (lives are topped up).
+        e.dist = e.totalDist;
+        e = null;
+      }
+      if (!e) {
+        e = world.enemySystem.spawnEnemy(spot.flying ? 'flyer' : 'brute', 1e6, false, spot.lane);
+        if (!e) return;
+        dummy = { uid: e.uid, flying: spot.flying, lane: spot.lane };
+      }
+      // Stand still on the spot (the sim then samples its position from dist), never die.
+      e.dist = spot.dist - e.speed / TICKS_PER_SEC;
+      e.hp = e.maxHp;
+    },
+  };
+}
+
+/**
+ * Aim QA overlay (map px): per aimable turret, a red line along the sim's aim (targetYaw), a line
+ * from the drawn muzzle to the sim's target direction, and a yellow ring on the drawn muzzle.
+ */
+export class AimOverlay {
+  private readonly g = new Graphics();
+  private readonly game: Game2D;
+
+  constructor(game: Game2D) {
+    this.game = game;
+    game.map.world.addChild(this.g);
+  }
+
+  update(): void {
+    const g = this.g;
+    g.clear();
+    const ppu = this.game.map.layout.pxPerUnit;
+    for (const r of this.game.towers.turretReport()) {
+      if (!r.aimed) continue;
+      const a = yawToScreenAngle(r.targetYaw);
+      const len = ppu * 1.6;
+      g.moveTo(r.px, r.py).lineTo(r.px + Math.cos(a) * len, r.py + Math.sin(a) * len).stroke({ width: 3, color: 0xff3030, alpha: 0.9 });
+      if (r.muzzle) {
+        g.circle(r.muzzle.x, r.muzzle.y, 5).stroke({ width: 2, color: 0xffff40 });
+        g.moveTo(r.muzzle.x, r.muzzle.y).lineTo(r.muzzle.x + Math.cos(a) * len * 0.6, r.muzzle.y + Math.sin(a) * len * 0.6).stroke({ width: 1.5, color: 0xffff40, alpha: 0.8 });
+      }
+      // Agreement check for QA: the drawn sector vs the nearest sector to the sim's aim.
+      if (sectorOf(a) !== r.sector) g.circle(r.mount.x, r.mount.y - 10, 8).fill({ color: 0xff00ff, alpha: 0.8 });
+    }
+  }
 }
 
 /** Floating DOM labels over zoo walkers: art key and, while art is pending, the stand-in. */

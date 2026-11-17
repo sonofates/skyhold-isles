@@ -6,7 +6,7 @@ import { artCheckSummary, mountArtCheck } from './artCheck.ts';
 import { loadArt } from './assets2d.ts';
 import { autoplayHooks, benchHooks } from './benchScene.ts';
 import { mountCodex2D } from './codex2d.ts';
-import { towersHooks, zooHooks, ZooLabels } from './debugScenes.ts';
+import { AimOverlay, aimHooks, towersHooks, zooHooks, ZooLabels, type AimSceneState } from './debugScenes.ts';
 import { FrameStats } from './frameStats.ts';
 import { Game2D, type Game2DHooks } from './game2d.ts';
 import { HUD_FONT } from './hudText.ts';
@@ -22,6 +22,7 @@ import { HUD_FONT } from './hudText.ts';
  *   ?artcheck=1       overlay: which manifest art files are present / missing (and the stand-ins)
  *   ?zoo=1            all 15 enemy types walking, specials triggered periodically (labelled)
  *   ?towers=1[&tier=N] every tower type built and firing (cycles T1-T3 unless tier is given)
+ *   ?towers=aim&type=cannon|archer|ballista[&tier=N]  turret aim QA (window.__aim, aim overlay)
  *   ?speed=2|3        start at 2× / 3× sim speed (QA recordings)
  */
 interface BenchStats {
@@ -40,6 +41,7 @@ interface BenchStats {
 declare global {
   interface Window {
     __bench?: BenchStats;
+    __aim?: AimSceneState;
     __p0?: {
       mode: string;
       state: () => Record<string, unknown>;
@@ -125,9 +127,15 @@ async function main(): Promise<void> {
   }
 
   let hooks: Game2DHooks = {};
+  let aimState: AimSceneState | null = null;
   if (bench > 0) hooks = benchHooks(bench);
   else if (q.get('zoo') === '1') hooks = zooHooks();
-  else if (q.get('towers') === '1') hooks = towersHooks(Math.max(0, Math.min(3, Number(q.get('tier') ?? 0) || 0)) || null);
+  else if (q.get('towers') === 'aim') {
+    const type = (['archer', 'cannon', 'ballista'] as const).find((x) => x === q.get('type')) ?? 'cannon';
+    const tier = Math.max(1, Math.min(3, Number(q.get('tier') ?? 1) || 1));
+    aimState = { type, tier, plot: -1, sectors: [], current: -1, since: 0 };
+    hooks = aimHooks(type, tier, aimState);
+  } else if (q.get('towers') === '1') hooks = towersHooks(Math.max(0, Math.min(3, Number(q.get('tier') ?? 0) || 0)) || null);
   else if (q.get('autoplay') === '1') hooks = autoplayHooks(level.scriptedBuildOrder ?? []);
   const game = new Game2D(app, art, level, hooks);
   game.attachInput(app.canvas);
@@ -147,12 +155,14 @@ async function main(): Promise<void> {
     if (q.get('codex') === '1') codex.open();
   }
   const zooLabels = q.get('zoo') === '1' ? new ZooLabels(game) : null;
+  const aimOverlay = aimState && q.get('overlay') !== '0' ? new AimOverlay(game) : null;
   app.ticker.add((t) => {
     if (draws) lastDraws = draws.take();
     const t0 = performance.now();
     stats.record(t.deltaMS, t0);
     game.frame(t.deltaMS / 1000);
     zooLabels?.update();
+    aimOverlay?.update();
     renderStart = performance.now();
     updateStats.record(renderStart - t0, renderStart);
   });
@@ -167,6 +177,7 @@ async function main(): Promise<void> {
     plotScreen: (i) => game.plotScreen(i),
     artcheck: () => artCheckSummary(art),
   };
+  if (aimState) window.__aim = aimState;
   if (bench > 0) {
     Object.defineProperty(window, '__bench', {
       configurable: true,

@@ -1,7 +1,7 @@
 {
  "image": "archer-1-turret.webp",
- "frameW": 249,
- "frameH": 203,
+ "frameW": 216,
+ "frameH": 224,
  "count": 5,
  "dirs": [
   "S",
@@ -11,41 +11,40 @@
   "N"
  ],
  "pivot": [
-  124.5,
-  197.28
+  108.0,
+  204.43
  ],
  "muzzle": [
   [
-   -0.38,
-   -1.38
+   6.75,
+   -54.64
   ],
   [
-   82.24,
-   -45.43
+   81.04,
+   -66.92
   ],
   [
-   116.22,
-   -105.44
+   99.73,
+   -127.32
   ],
   [
-   82.09,
-   -165.34
+   75.39,
+   -160.49
   ],
   [
-   -0.45,
-   -189.84
+   -4.29,
+   -197.07
   ]
  ],
  "body": "archer-1-body.webp",
  "bodyMount": [
-  256.0,
-  62.68
+  200.75,
+  64.46
  ],
  "bodyRing": {
-  "ringWidthPx": 502.0,
-  "ringBottomPx": 462.0,
-  "ringCenterXPx": 256.0
+  "ringWidthPx": 397.0,
+  "ringBottomPx": 507.0,
+  "ringCenterXPx": 203.5
  },
- "scale": 1.0,
- "placeholder": true
+ "scale": 1.0
 }
