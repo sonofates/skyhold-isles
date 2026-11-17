@@ -51,6 +51,11 @@ menu/pause/island-select Codex buttons, settings Replay row, L14–L16 (+ lane o
 5. Text: README feature blurbs, boss description, HUD air-tower list no longer names the Beacon (it never shoots),
    flyer toast names the Ballista.
 
+## Round 2 (verification)
+Re-verified tsc/lint/428 tests/build/sim:balance (all 16 islands in window) and happy-dom DOM tests. Re-checked codex in
+portrait + landscape screenshots (fine; landscape grid scrolls). Added lore-vs-data consistency tests (no ground-only tower
+recommended against flyers; every tower/ability name in lore is real).
+
 ## Next
 - Round 2+: visual QA if a browser becomes available; description/tooltips polish; more tests; tower-unlock card wiring if
   CAMPAIGN adds unlocks; maybe a "NEW" dot on codex entries.
