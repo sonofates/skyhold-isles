@@ -108,7 +108,7 @@
        opts: {
 --- a/tests/sim/metaMutatorsAndDaily.test.ts
 +++ b/tests/sim/metaMutatorsAndDaily.test.ts
-@@ -478,7 +478,7 @@
+@@ -482,7 +482,7 @@
      obs.dispose();
    });
  
@@ -117,7 +117,7 @@
      const coreLevels = LEVELS.slice(0, 9);
      for (const dateStr of [
        '2026-11-15',
-@@ -733,7 +733,8 @@
+@@ -737,7 +737,8 @@
        name: 'Storm Crown',
        difficulty: 'Master',
      };
