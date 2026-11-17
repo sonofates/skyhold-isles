@@ -19,6 +19,7 @@ const TALL: Record<string, readonly [number, number]> = {
   cabin: [1.9, 0.95],
   hut: [1.9, 0.8],
   kite: [3.3, 0.5],
+  windsock: [2.6, 0.3],
 };
 const KIND_SCALE: Record<string, number> = { windmill: 1, watchtower: 1, lighthouse: 1, obelisk: 1 };
 

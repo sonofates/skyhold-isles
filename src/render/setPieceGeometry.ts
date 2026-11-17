@@ -12,7 +12,7 @@ import { cabin, cairn, fountain, hut, lamp, parasol, pond, sheep, stall, statue,
  * 1 tile = BALANCE.tileSize (2) units. Builders only append parts; SetPieces merges and instances them.
  */
 
-export type AnimFamily = 'blades' | 'cloth' | 'flow' | 'boat' | 'sail' | 'kite' | 'flame' | 'ember';
+export type AnimFamily = 'blades' | 'cloth' | 'flow' | 'boat' | 'sail' | 'kite' | 'sock' | 'flame' | 'ember';
 
 export interface AnimInstance {
   readonly family: AnimFamily;
@@ -391,6 +391,15 @@ function kite(pb: PieceBuilder, variant: number): void {
   pb.anim('kite', dx, 0.1 + dy, 0, 0, variant * 1.9, colors[variant % colors.length]);
 }
 
+/** A pole with a striped wind sock that swings about the pole (variant picks the stripe colour). */
+function windsock(pb: PieceBuilder, variant: number): void {
+  const colors = [PALETTE_HEX.coral, PALETTE_HEX.gold, 0x5be3ff];
+  pb.cyl(STONE_DARK, 0.12, 0.15, 0.14, [0, 0.07, 0], 6);
+  pb.cyl(WOOD_DARK, 0.03, 0.04, 1.9, [0, 0.95, 0], 5);
+  pb.ico(PALETTE_HEX.gold, [0.06, 0.06, 0.06], [0, 1.93, 0]);
+  pb.anim('sock', 0, 1.78, 0, 0, variant * 1.7, colors[variant % colors.length]);
+}
+
 function seaStack(pb: PieceBuilder, variant: number): void {
   const waterY = BALANCE.waterPlaneY;
   pb.cone(0x7d8798, 0.95, 2.4, [0, waterY + 0.85, 0], 6, [0, 0.4, 0]);
@@ -503,6 +512,7 @@ const BUILDERS: Record<SetPieceKind, (pb: PieceBuilder, variant: number) => void
   boat,
   sailboat,
   kite,
+  windsock,
   gatehouse,
   obelisk: (pb) => obelisk(pb),
   pond,

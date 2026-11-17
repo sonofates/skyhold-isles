@@ -346,6 +346,9 @@ const SKYBRIDGE_GAUNTLET = theme({
     { kind: 'tent', col: 3, row: 12, variant: 0 },
     { kind: 'tent', col: 12, row: 12, variant: 1 },
     { kind: 'cairn', col: 14, row: 11, variant: 1 },
+    { kind: 'windsock', col: 2, row: 0, variant: 0 },
+    { kind: 'windsock', col: 11, row: 0, variant: 1 },
+    { kind: 'windsock', col: 5, row: 0, variant: 2 },
   ],
 });
 

@@ -47,6 +47,7 @@ const KIND_SCALE: Record<SetPieceKind, number> = {
   boat: 1.2,
   sailboat: 1.2,
   kite: 1.3,
+  windsock: 1.3,
   gatehouse: 1.2,
   obelisk: 1.3,
   pond: 1.05,
@@ -142,6 +143,26 @@ function familyGeometry(family: AnimFamily): THREE.BufferGeometry {
         { geometry: box(0.1, 0.06, 0.02), colorHex: 0xf8f4e8, position: [0.03, -0.55, 0], rotation: [0, 0, -0.5], forceWhiteUv: true },
         { geometry: box(0.1, 0.06, 0.02), colorHex: 0xf8f4e8, position: [0, -0.7, 0], rotation: [0, 0, 0.5], forceWhiteUv: true },
       ];
+      break;
+    case 'sock':
+      // Tapered horizontal sleeve (cone along +X, wide end at the pole) with a white band.
+      parts = [
+        {
+          geometry: new THREE.CylinderGeometry(0.17, 0.08, 0.34, 7, 1),
+          colorHex: 0xffffff,
+          position: [0.17, 0, 0],
+          rotation: [0, 0, -Math.PI / 2],
+          forceWhiteUv: true,
+        },
+        {
+          geometry: new THREE.CylinderGeometry(0.125, 0.1, 0.12, 7, 1),
+          colorHex: 0xf8f4e8,
+          position: [0.17, 0, 0],
+          rotation: [0, 0, -Math.PI / 2],
+          forceWhiteUv: true,
+        },
+      ];
+      owned.push(parts[0].geometry, parts[1].geometry);
       break;
     case 'ember':
       parts = [{ geometry: box(0.045, 0.045, 0.045), colorHex: 0xffffff, forceWhiteUv: true }];
@@ -311,6 +332,16 @@ export class SetPieces {
             _m2.compose(
               _p.set(Math.sin(t * 0.8 + ph) * 0.06, Math.sin(t * 1.1 + ph * 2) * 0.08, 0),
               _q.setFromEuler(_e.set(0, Math.sin(t * 0.7 + ph) * 0.25, Math.sin(t * 1.4 + ph) * 0.14)),
+              _s.set(1, 1, 1),
+            );
+            _m.multiplyMatrices(base, _m2);
+            break;
+          }
+          case 'sock': {
+            // Swings about the pole, drooping and lifting with gusts.
+            _m2.compose(
+              _p.set(0, 0, 0),
+              _q.setFromEuler(_e.set(0, Math.sin(t * 0.55 + ph) * 0.5 + Math.sin(t * 1.3 + ph * 2) * 0.12, Math.sin(t * 2.2 + ph) * 0.12 - 0.12)),
               _s.set(1, 1, 1),
             );
             _m.multiplyMatrices(base, _m2);
