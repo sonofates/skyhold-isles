@@ -61,6 +61,7 @@ describe('headless fuzz playthrough harness', () => {
     expect(parseFuzzCliArgs([])).toEqual({
       seedsPerLevel: 8,
       singleSeedMode: false,
+      endlessOnly: false,
       baseSeed: 1336,
       endlessWaves: 5,
       levelIndices: undefined,
@@ -68,10 +69,20 @@ describe('headless fuzz playthrough harness', () => {
     });
 
     expect(
-      parseFuzzCliArgs(['--seed', '42', '--level', '2', '--profile', 'tactical', '--endless-waves=3']),
+      parseFuzzCliArgs([
+        '--seed',
+        '42',
+        '--level',
+        '2',
+        '--profile',
+        'tactical',
+        '--endless-waves=3',
+        '--endless-only',
+      ]),
     ).toEqual({
       seedsPerLevel: 1,
       singleSeedMode: true,
+      endlessOnly: true,
       baseSeed: 42,
       endlessWaves: 3,
       levelIndices: [1],
@@ -81,6 +92,7 @@ describe('headless fuzz playthrough harness', () => {
     expect(parseFuzzCliArgs(['--seeds=4', '--levels=1,3', '--profile=chaotic'])).toEqual({
       seedsPerLevel: 4,
       singleSeedMode: false,
+      endlessOnly: false,
       baseSeed: 1336,
       endlessWaves: 5,
       levelIndices: [0, 2],
@@ -89,8 +101,14 @@ describe('headless fuzz playthrough harness', () => {
 
     expect(() => parseFuzzCliArgs(['--profile', 'unknown'])).toThrow(/Invalid --profile/);
     expect(() => parseFuzzCliArgs(['--seed', 'abc'])).toThrow(/Invalid --seed/);
+    expect(() => parseFuzzCliArgs(['--seed', ''])).toThrow(/Invalid --seed/);
+    expect(() => parseFuzzCliArgs(['--seeds', '0'])).toThrow(/Invalid --seeds/);
     expect(() => parseFuzzCliArgs(['--seeds', 'abc'])).toThrow(/Invalid --seeds/);
     expect(() => parseFuzzCliArgs(['--endless-waves', 'xyz'])).toThrow(/Invalid --endless-waves/);
+    expect(() => parseFuzzCliArgs(['--endless-waves', '-1'])).toThrow(/Invalid --endless-waves/);
     expect(() => parseFuzzCliArgs(['--level', '999'])).toThrow(/No valid levels/);
+    expect(() => parseFuzzCliArgs(['--level', '1,999'])).toThrow(/No valid levels/);
+    expect(() => parseFuzzCliArgs(['--unknown-flag'])).toThrow(/Unknown flag/);
+    expect(() => parseFuzzCliArgs(['positional'])).toThrow(/Unexpected positional/);
   });
 });

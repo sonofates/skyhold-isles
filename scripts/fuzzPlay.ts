@@ -7,15 +7,24 @@ import { BALANCE } from '../src/data/balance.ts';
 import { ENEMY_DEFS } from '../src/data/enemies.ts';
 import { LEVELS, type LevelDef } from '../src/data/levels/index.ts';
 import { getTowerTierStats, TOWER_DEFS, TOWER_TYPES } from '../src/data/towers.ts';
-import { buildEndlessWaveDef } from '../src/sim/waveSystem.ts';
+import { buildEndlessWaveDef, type WaveState } from '../src/sim/waveSystem.ts';
 import { computeSellRefund, computeStarRating, SimWorld } from '../src/sim/world.ts';
 
 const TARGETING_MODES: readonly TargetingMode[] = ['first', 'last', 'strongest', 'closest'];
 const TARGETING_MODE_SET = new Set<TargetingMode>(TARGETING_MODES);
+const VALID_WAVE_STATES = new Set<WaveState>([
+  'preFirstWave',
+  'spawning',
+  'clearing',
+  'betweenWaves',
+  'allSpawned',
+  'finished',
+]);
 const SPEEDS: readonly SpeedMultiplier[] = [1, 2, 3];
 const FRAME_DTS: readonly number[] = [1 / 60, 1 / 30, 0.05, 0.1];
 const _hashProbe: number[] = [];
 const _hashSeen = new Set<number>();
+const _seenEnemyUids = new Set<number>();
 const _seenTowerIds = new Set<number>();
 const _seenTowerCoords = new Set<number>();
 
@@ -102,6 +111,7 @@ interface FuzzTracker {
   expectedNextWaveIndex: number;
   lastWaveHpScale: number;
   endlessWavesConfig: number;
+  prevTowerStats: Map<number, { kills: number; dmg: number }>;
   stateHash: number;
   eventInvariantError: string | null;
 }
@@ -212,8 +222,12 @@ function attachEventTracker(
       recordEventError(tracker, `enemyKilled fired twice for uid: ${ev.enemyId}`);
       return;
     }
-    if (!Number.isInteger(ev.reward) || ev.reward < 1) {
-      recordEventError(tracker, `Invalid enemyKilled reward=${ev.reward} for uid=${ev.enemyId}`);
+    const maxAllowedReward = Math.max(ENEMY_DEFS[ev.enemyType].reward, 2);
+    if (!Number.isInteger(ev.reward) || ev.reward < 1 || ev.reward > maxAllowedReward) {
+      recordEventError(
+        tracker,
+        `Invalid enemyKilled reward=${ev.reward} for ${ev.enemyType} uid=${ev.enemyId} (expected 1..${maxAllowedReward})`,
+      );
       return;
     }
     tracker.killedUids.add(ev.enemyId);
@@ -385,9 +399,23 @@ function assertTickInvariants(world: SimWorld, tracker: FuzzTracker, tick: numbe
   }
 
   let pendingDeaths = 0;
+  _seenEnemyUids.clear();
   for (let i = 0; i < activeEnemies; i++) {
     const e = world.enemyPool.items[world.enemyPool.getActiveIndex(i)];
     if (!e.active) return `Inactive enemy at active index pos=${i}`;
+    if (e.uid <= 0 || _seenEnemyUids.has(e.uid)) {
+      return `Invalid or duplicate active enemy uid=${e.uid} at pos=${i}`;
+    }
+    _seenEnemyUids.add(e.uid);
+    if (e.isSplitChild && e.type !== 'runner') {
+      return `Invalid split child enemy type=${e.type} (uid=${e.uid})`;
+    }
+    if (e.armor !== ENEMY_DEFS[e.type].armor) {
+      return `Enemy armor mismatch for ${e.type} uid=${e.uid}: ${e.armor} != ${ENEMY_DEFS[e.type].armor}`;
+    }
+    if ((e.slowTimer === 0) !== (e.slowRatio === 0)) {
+      return `Enemy slow state mismatch for uid=${e.uid}: slowTimer=${e.slowTimer}, slowRatio=${e.slowRatio}`;
+    }
     if (e.hp === 0) pendingDeaths++;
     if (
       !Number.isFinite(e.x) ||
@@ -482,6 +510,7 @@ function assertTickInvariants(world: SimWorld, tracker: FuzzTracker, tick: numbe
       t.cooldownTimer < 0 ||
       !Number.isFinite(t.stunTimer) ||
       t.stunTimer < 0 ||
+      t.stunTimer > 2.65 + 1e-6 ||
       !Number.isFinite(t.recoil) ||
       t.recoil < 0 ||
       t.recoil > 1.0001 ||
@@ -514,6 +543,16 @@ function assertTickInvariants(world: SimWorld, tracker: FuzzTracker, tick: numbe
     if (t.totalInvested !== expInvested) {
       return `Tower id=${t.id} totalInvested=${t.totalInvested} != expected=${expInvested}`;
     }
+    const prevStats = tracker.prevTowerStats.get(t.id);
+    if (prevStats) {
+      if (t.kills < prevStats.kills || t.totalDamageDealt + 1e-9 < prevStats.dmg) {
+        return `Tower id=${t.id} stats regressed (kills ${prevStats.kills}->${t.kills}, dmg ${prevStats.dmg}->${t.totalDamageDealt})`;
+      }
+      prevStats.kills = t.kills;
+      prevStats.dmg = t.totalDamageDealt;
+    } else {
+      tracker.prevTowerStats.set(t.id, { kills: t.kills, dmg: t.totalDamageDealt });
+    }
     activeTowerKills += t.kills;
   }
 
@@ -545,6 +584,8 @@ function assertTickInvariants(world: SimWorld, tracker: FuzzTracker, tick: numbe
 
   const ws = world.waveSystem;
   if (
+    !VALID_WAVE_STATES.has(ws.state) ||
+    (!ws.isEndless && ws.totalWaves !== world.level.waves.length) ||
     ws.currentWaveOneBased !== Math.max(0, ws.currentWaveIndex + 1) ||
     ws.totalWaves < world.level.waves.length ||
     !Number.isFinite(ws.interWaveTimer) ||
@@ -972,6 +1013,36 @@ function buildDigest(
   };
 }
 
+function createFuzzTracker(startingGold: number, endlessWavesConfig: number): FuzzTracker {
+  return {
+    spawnedCount: 0,
+    killedCount: 0,
+    leakedCount: 0,
+    gameWonCount: 0,
+    gameLostCount: 0,
+    endlessEnteredCount: 0,
+    lastWinStars: 0,
+    lastLossEndless: undefined,
+    enemyPoolOverflows: 0,
+    projectilePoolOverflows: 0,
+    peakEnemies: 0,
+    peakProjectiles: 0,
+    seenSpawnUids: new Set<number>(),
+    killedUids: new Set<number>(),
+    endlessWaveCompletedCount: 0,
+    expectedGold: startingGold,
+    expectedLives: BALANCE.startingLives,
+    pendingExpectedWaveBonus: 0,
+    soldTowerKills: 0,
+    expectedNextWaveIndex: 0,
+    lastWaveHpScale: 0,
+    endlessWavesConfig,
+    prevTowerStats: new Map<number, { kills: number; dmg: number }>(),
+    stateHash: 2166136261,
+    eventInvariantError: null,
+  };
+}
+
 function makeFailure(
   level: LevelDef,
   seed: number,
@@ -981,8 +1052,11 @@ function makeFailure(
   tracker: FuzzTracker,
   storyOutcome: 'won' | 'lost' | 'timeout',
   reason: string,
+  endlessOnly = false,
 ): FuzzRunResult {
-  const reproCmd = `npx tsx scripts/fuzzPlay.ts --level ${level.index + 1} --seed ${seed} --profile ${profile} --endless-waves ${tracker.endlessWavesConfig}`;
+  const reproCmd =
+    `npx tsx scripts/fuzzPlay.ts --level ${level.index + 1} --seed ${seed} --profile ${profile} --endless-waves ${tracker.endlessWavesConfig}` +
+    (endlessOnly ? ' --endless-only' : '');
   return {
     ok: false,
     failure: `[L${level.index + 1} ${level.id} seed=${seed} profile=${profile} tick=${tick} wave=${world.waveSystem.currentWaveOneBased}] ${reason} (repro: ${reproCmd})`,
@@ -1073,32 +1147,7 @@ export function runFuzzPlaythrough(
   stepper.simActive = true;
   const tiles = buildScoredGrassTiles(world);
 
-  const tracker: FuzzTracker = {
-    spawnedCount: 0,
-    killedCount: 0,
-    leakedCount: 0,
-    gameWonCount: 0,
-    gameLostCount: 0,
-    endlessEnteredCount: 0,
-    lastWinStars: 0,
-    lastLossEndless: undefined,
-    enemyPoolOverflows: 0,
-    projectilePoolOverflows: 0,
-    peakEnemies: 0,
-    peakProjectiles: 0,
-    seenSpawnUids: new Set<number>(),
-    killedUids: new Set<number>(),
-    endlessWaveCompletedCount: 0,
-    expectedGold: level.startingGold,
-    expectedLives: BALANCE.startingLives,
-    pendingExpectedWaveBonus: 0,
-    soldTowerKills: 0,
-    expectedNextWaveIndex: 0,
-    lastWaveHpScale: 0,
-    endlessWavesConfig: endlessWaves,
-    stateHash: 2166136261,
-    eventInvariantError: null,
-  };
+  const tracker = createFuzzTracker(level.startingGold, endlessWaves);
 
   let inEndless = false;
   let tickCount = 0;
@@ -1411,32 +1460,7 @@ export function runEndlessFuzz(level: LevelDef, seed: number, wavesTarget = 5): 
   stepper.simActive = true;
   const tiles = buildScoredGrassTiles(world);
 
-  const tracker: FuzzTracker = {
-    spawnedCount: 0,
-    killedCount: 0,
-    leakedCount: 0,
-    gameWonCount: 0,
-    gameLostCount: 0,
-    endlessEnteredCount: 0,
-    lastWinStars: 0,
-    lastLossEndless: undefined,
-    enemyPoolOverflows: 0,
-    projectilePoolOverflows: 0,
-    peakEnemies: 0,
-    peakProjectiles: 0,
-    seenSpawnUids: new Set<number>(),
-    killedUids: new Set<number>(),
-    endlessWaveCompletedCount: 0,
-    expectedGold: level.startingGold,
-    expectedLives: BALANCE.startingLives,
-    pendingExpectedWaveBonus: 0,
-    soldTowerKills: 0,
-    expectedNextWaveIndex: 0,
-    lastWaveHpScale: 0,
-    endlessWavesConfig: wavesTarget,
-    stateHash: 2166136261,
-    eventInvariantError: null,
-  };
+  const tracker = createFuzzTracker(level.startingGold, wavesTarget);
 
   let inEndless = false;
   let tickCount = 0;
@@ -1468,7 +1492,17 @@ export function runEndlessFuzz(level: LevelDef, seed: number, wavesTarget = 5): 
   world.debugForceWin();
   inEndless = true;
   if (!world.enterEndlessMode()) {
-    return makeFailure(level, seed, 'competent', tickCount, world, tracker, 'won', 'enterEndlessMode() failed');
+    return makeFailure(
+      level,
+      seed,
+      'competent',
+      tickCount,
+      world,
+      tracker,
+      'won',
+      'enterEndlessMode() failed',
+      true,
+    );
   }
   world.startNextWave();
 
@@ -1518,7 +1552,7 @@ export function runEndlessFuzz(level: LevelDef, seed: number, wavesTarget = 5): 
   }
 
   if (fatalReason) {
-    return makeFailure(level, seed, 'competent', tickCount, world, tracker, 'won', fatalReason);
+    return makeFailure(level, seed, 'competent', tickCount, world, tracker, 'won', fatalReason, true);
   }
   if (world.outcome === 'ongoing' && tracker.endlessWaveCompletedCount < wavesTarget) {
     return makeFailure(
@@ -1530,6 +1564,7 @@ export function runEndlessFuzz(level: LevelDef, seed: number, wavesTarget = 5): 
       tracker,
       'won',
       `Endless mode stalled at wave ${world.waveSystem.currentWaveOneBased} (${tracker.endlessWaveCompletedCount}/${wavesTarget} endless waves completed)`,
+      true,
     );
   }
   if (tracker.enemyPoolOverflows > 0 || tracker.projectilePoolOverflows > 0) {
@@ -1542,6 +1577,7 @@ export function runEndlessFuzz(level: LevelDef, seed: number, wavesTarget = 5): 
       tracker,
       'won',
       `Pool overflow during endless run: enemy=${tracker.enemyPoolOverflows}, projectile=${tracker.projectilePoolOverflows}`,
+      true,
     );
   }
   if (tracker.gameWonCount !== 1) {
@@ -1554,7 +1590,27 @@ export function runEndlessFuzz(level: LevelDef, seed: number, wavesTarget = 5): 
       tracker,
       'won',
       `gameWon fired ${tracker.gameWonCount} times (expected 1)`,
+      true,
     );
+  }
+  if (world.outcome === 'lost') {
+    if (tracker.gameLostCount !== 1 || tracker.lastLossEndless !== true) {
+      return makeFailure(
+        level,
+        seed,
+        'competent',
+        tickCount,
+        world,
+        tracker,
+        'won',
+        `Endless loss did not emit gameLost once with endless=true`,
+        true,
+      );
+    }
+    const postLossErr = verifyPostEndImmutability(world, tiles, tracker);
+    if (postLossErr) {
+      return makeFailure(level, seed, 'competent', tickCount, world, tracker, 'won', postLossErr, true);
+    }
   }
 
   return {
@@ -1684,6 +1740,36 @@ export function runFuzzCampaign(config: {
   };
 }
 
+const VALUE_FLAGS = new Set(['seeds', 'seed', 'level', 'levels', 'endless-waves', 'profile']);
+const BOOLEAN_FLAGS = new Set(['endless-only', 'help']);
+
+function validateCliFlags(argv: readonly string[]): void {
+  for (let i = 0; i < argv.length; i++) {
+    const arg = argv[i];
+    if (arg === '-h') continue;
+    if (!arg.startsWith('--')) {
+      throw new Error(`Unexpected positional argument "${arg}". Run with --help for usage.`);
+    }
+    const eqIdx = arg.indexOf('=');
+    const flagName = eqIdx === -1 ? arg.slice(2) : arg.slice(2, eqIdx);
+    if (BOOLEAN_FLAGS.has(flagName)) {
+      if (eqIdx !== -1) {
+        throw new Error(`Flag --${flagName} does not take a value`);
+      }
+      continue;
+    }
+    if (!VALUE_FLAGS.has(flagName)) {
+      throw new Error(`Unknown flag "--${flagName}". Run with --help for usage.`);
+    }
+    if (eqIdx === -1) {
+      if (i + 1 >= argv.length) {
+        throw new Error(`Flag --${flagName} requires a value`);
+      }
+      i++;
+    }
+  }
+}
+
 function parseArgValue(argv: readonly string[], name: string): string | null {
   const prefix = `--${name}=`;
   for (let i = 0; i < argv.length; i++) {
@@ -1697,6 +1783,7 @@ function parseArgValue(argv: readonly string[], name: string): string | null {
 export interface ParsedFuzzCliArgs {
   readonly seedsPerLevel: number;
   readonly singleSeedMode: boolean;
+  readonly endlessOnly: boolean;
   readonly baseSeed: number;
   readonly endlessWaves: number;
   readonly levelIndices?: readonly number[];
@@ -1704,11 +1791,14 @@ export interface ParsedFuzzCliArgs {
 }
 
 export function parseFuzzCliArgs(argv: readonly string[]): ParsedFuzzCliArgs {
+  validateCliFlags(argv);
+
   const seedsArg = parseArgValue(argv, 'seeds');
   const singleSeedArg = parseArgValue(argv, 'seed');
   const levelArg = parseArgValue(argv, 'level') ?? parseArgValue(argv, 'levels');
   const endlessArg = parseArgValue(argv, 'endless-waves');
   const profileArg = parseArgValue(argv, 'profile');
+  const endlessOnly = argv.includes('--endless-only');
 
   let profile: FuzzProfile | undefined;
   if (profileArg !== null) {
@@ -1720,35 +1810,62 @@ export function parseFuzzCliArgs(argv: readonly string[]): ParsedFuzzCliArgs {
     profile = profileArg as FuzzProfile;
   }
 
-  const baseSeed = Number(singleSeedArg ?? 1336);
-  if (!Number.isFinite(baseSeed)) {
-    throw new Error(`Invalid --seed value: "${singleSeedArg}"`);
+  let baseSeed = 1336;
+  if (singleSeedArg !== null) {
+    if (singleSeedArg.trim() === '') {
+      throw new Error(`Invalid --seed value: "${singleSeedArg}"`);
+    }
+    baseSeed = Number(singleSeedArg);
+    if (!Number.isInteger(baseSeed)) {
+      throw new Error(`Invalid --seed value: "${singleSeedArg}"`);
+    }
   }
 
-  const seedsPerLevel = singleSeedArg ? 1 : Math.max(1, Math.floor(Number(seedsArg ?? 8)));
-  if (!Number.isFinite(seedsPerLevel)) {
-    throw new Error(`Invalid --seeds value: "${seedsArg}"`);
+  let seedsPerLevel = 1;
+  if (!singleSeedArg) {
+    if (seedsArg !== null) {
+      if (seedsArg.trim() === '') {
+        throw new Error(`Invalid --seeds value: "${seedsArg}"`);
+      }
+      const parsedSeeds = Number(seedsArg);
+      if (!Number.isInteger(parsedSeeds) || parsedSeeds < 1) {
+        throw new Error(`Invalid --seeds value: "${seedsArg}" (expected integer >= 1)`);
+      }
+      seedsPerLevel = parsedSeeds;
+    } else {
+      seedsPerLevel = 8;
+    }
   }
 
-  const endlessWaves = Math.max(0, Math.floor(Number(endlessArg ?? 5)));
-  if (!Number.isFinite(endlessWaves)) {
-    throw new Error(`Invalid --endless-waves value: "${endlessArg}"`);
+  let endlessWaves = 5;
+  if (endlessArg !== null) {
+    if (endlessArg.trim() === '') {
+      throw new Error(`Invalid --endless-waves value: "${endlessArg}"`);
+    }
+    const parsedEndless = Number(endlessArg);
+    if (!Number.isInteger(parsedEndless) || parsedEndless < 0) {
+      throw new Error(`Invalid --endless-waves value: "${endlessArg}" (expected integer >= 0)`);
+    }
+    endlessWaves = parsedEndless;
   }
 
   let levelIndices: number[] | undefined;
   if (levelArg !== null) {
-    levelIndices = levelArg
-      .split(',')
-      .map((x) => Number(x.trim()) - 1)
-      .filter((idx) => Number.isInteger(idx) && idx >= 0 && idx < LEVELS.length);
-    if (levelIndices.length === 0) {
-      throw new Error(`No valid levels matched --level="${levelArg}" (1..${LEVELS.length})`);
+    const tokens = levelArg.split(',').map((x) => x.trim());
+    levelIndices = [];
+    for (const token of tokens) {
+      const idx = token === '' ? NaN : Number(token) - 1;
+      if (!Number.isInteger(idx) || idx < 0 || idx >= LEVELS.length) {
+        throw new Error(`No valid levels matched --level="${levelArg}" (1..${LEVELS.length})`);
+      }
+      levelIndices.push(idx);
     }
   }
 
   return {
     seedsPerLevel,
     singleSeedMode: singleSeedArg !== null,
+    endlessOnly,
     baseSeed,
     endlessWaves,
     levelIndices,
@@ -1760,7 +1877,7 @@ function main(): void {
   const argv = process.argv.slice(2);
   if (argv.includes('--help') || argv.includes('-h')) {
     console.log(
-      'Usage: npm run sim:fuzz [-- --seeds N] [--seed S] [--level L] [--profile P] [--endless-waves W]',
+      'Usage: npm run sim:fuzz [-- --seeds N] [--seed S] [--level L] [--profile P] [--endless-waves W] [--endless-only]',
     );
     console.log(`  Profiles: ${FUZZ_PROFILES.join(', ')}`);
     return;
@@ -1772,18 +1889,23 @@ function main(): void {
     const level = LEVELS[parsed.levelIndices[0]];
     const resolvedProfile =
       parsed.profile ?? FUZZ_PROFILES[Math.abs(parsed.baseSeed) % FUZZ_PROFILES.length];
+    const modeLabel = parsed.endlessOnly ? 'endless-only' : `profile=${resolvedProfile}`;
     console.log(
-      `=== Skyhold Isles Fuzz Repro: L${level.index + 1} ${level.name}, seed=${parsed.baseSeed}, profile=${resolvedProfile} ===`,
+      `=== Skyhold Isles Fuzz Repro: L${level.index + 1} ${level.name}, seed=${parsed.baseSeed}, ${modeLabel} ===`,
     );
     const t0 = performance.now();
-    const res = runFuzzPlaythrough(level, parsed.baseSeed, {
-      endlessWaves: parsed.endlessWaves,
-      profile: resolvedProfile,
-    });
-    const replay = runFuzzPlaythrough(level, parsed.baseSeed, {
-      endlessWaves: parsed.endlessWaves,
-      profile: resolvedProfile,
-    });
+    const res = parsed.endlessOnly
+      ? runEndlessFuzz(level, parsed.baseSeed, parsed.endlessWaves)
+      : runFuzzPlaythrough(level, parsed.baseSeed, {
+          endlessWaves: parsed.endlessWaves,
+          profile: resolvedProfile,
+        });
+    const replay = parsed.endlessOnly
+      ? runEndlessFuzz(level, parsed.baseSeed, parsed.endlessWaves)
+      : runFuzzPlaythrough(level, parsed.baseSeed, {
+          endlessWaves: parsed.endlessWaves,
+          profile: resolvedProfile,
+        });
     const dt = (performance.now() - t0) / 1000;
     console.log('Digest:', res.digest);
     if (!res.ok) {
