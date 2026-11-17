@@ -185,3 +185,4 @@ early waves does NOT soften them, it starves the economy (kill rewards) and the 
 - Rounds 82-139: tsc, lint, 143 tests, build, `sim:balance` re-run on clean tree every round: unchanged, green (greedy L1 20 / L2 15 / L3 9 / L4 15 / L5 14 / L6 13 / L7 10 / L8 7 / L9 9; every weak script loses L2+). Handoff state final.
 - Round 140: tsc, lint, 143 tests, build, `sim:balance` re-run on clean tree: unchanged, green. Handoff state final.
 - Round 141: tsc, lint, 143 tests, build, `sim:balance` re-run on clean tree: unchanged, green (greedy L1 20 / L2 15 / L3 9 / L4 15 / L5 14 / L6 13 / L7 10 / L8 7 / L9 9; every weak script loses L2+). Handoff state final.
+- Round 142: tsc, lint, 143 tests, build, `sim:balance` re-run on clean tree: unchanged, green (same greedy lives; every weak script loses L2+). Handoff state final.
