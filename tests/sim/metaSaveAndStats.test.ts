@@ -18,6 +18,8 @@ import {
 import {
   applyTelemetryDeltaToStats,
   createDefaultMetaSave,
+  ensureWritableSaveContainers,
+  exportMetaSaveJson,
   getAchievements,
   getAchievementSummary,
   getAllChallengeProgress,
@@ -2009,5 +2011,68 @@ describe('MetaSession stats, achievements, challenges & daily persistence', () =
     expect(evaluateLevelChallenges(null as unknown as LevelDef, repObs.getTelemetry(), true, 20)).toEqual([]);
     expect(evaluateLiveLevelChallenges(null as unknown as LevelDef, repObs.getTelemetry(), 20, 'ongoing', {})).toEqual([]);
     repObs.dispose();
+
+    // ensureWritableSaveContainers restores version: 2 and pads shorter campaign arrays;
+    // exportMetaSaveJson round-trips cleanly even on partial/non-object inputs;
+    // saveMetaSave(overwriteV1=true) respects bestEndlessWaves length when bestStars is empty;
+    // recordRunCompletion clamps Infinity lives and ignores negative towersBuilt & prototype level IDs
+    const shortSave = {
+      campaign: { unlockedLevelIndex: 1, bestStars: [3], bestEndlessWaves: [0] },
+    } as unknown as ReturnType<typeof createDefaultMetaSave>;
+    ensureWritableSaveContainers(shortSave, 4);
+    expect(shortSave.version).toBe(2);
+    expect(shortSave.campaign.bestStars).toEqual([3, 0, 0, 0]);
+    expect(shortSave.campaign.bestEndlessWaves).toEqual([0, 0, 0, 0]);
+
+    const exportedPartial = exportMetaSaveJson({
+      campaign: { unlockedLevelIndex: 0, bestStars: [2], bestEndlessWaves: [0] },
+    } as unknown as ReturnType<typeof createDefaultMetaSave>);
+    expect(importMetaSaveJson(exportedPartial, null, LEVELS.length, LEVELS).ok).toBe(true);
+    expect(importMetaSaveJson(exportMetaSaveJson(null as unknown as ReturnType<typeof createDefaultMetaSave>), null, 1, LEVELS).ok).toBe(true);
+
+    const overwriteEmptyStarsStore = installMockLocalStorage();
+    saveMetaSave(
+      {
+        version: 2,
+        campaign: { unlockedLevelIndex: 2, bestStars: [], bestEndlessWaves: [0, 0, 14] },
+      } as unknown as ReturnType<typeof createDefaultMetaSave>,
+      true,
+    );
+    const parsedEmptyStarsV1 = JSON.parse(overwriteEmptyStarsStore.get(PROGRESS_KEY) ?? 'null') as ProgressData;
+    expect(parsedEmptyStarsV1.unlockedLevelIndex).toBe(2);
+    expect(parsedEmptyStarsV1.bestEndlessWaves).toEqual([0, 0, 14]);
+
+    const infLivesSave = createDefaultMetaSave(LEVELS.length);
+    const infEv = new EventBus();
+    const protoLevel = { ...LEVELS[0], id: '__proto__' };
+    const infObs = new RunObserver(protoLevel, infEv);
+    recordRunCompletion(infLivesSave, {
+      level: protoLevel,
+      telemetry: { ...infObs.getTelemetry(), towersBuilt: -1, livesLost: 0, storyWavesCompleted: 10 },
+      won: true,
+      stars: 3,
+      livesRemaining: Number.POSITIVE_INFINITY,
+      levels: LEVELS,
+    });
+    infObs.dispose();
+    expect(infLivesSave.stats.perfectClears).toBe(0);
+    expect(infLivesSave.achievementMilestones.wonNoLivesLost).toBe(false);
+    expect(infLivesSave.achievementMilestones.wonMax6Towers).toBe(false);
+    expect(Object.hasOwn(infLivesSave.bestLivesByLevelId, '__proto__')).toBe(false);
+
+    const toStringEv = new EventBus();
+    const toStringLevel = { ...LEVELS[0], id: 'toString' };
+    const toStringObs = new RunObserver(toStringLevel, toStringEv);
+    const toStringOutcome = recordRunCompletion(infLivesSave, {
+      level: toStringLevel,
+      telemetry: { ...toStringObs.getTelemetry(), simTimeSec: 12, storyWavesCompleted: 10 },
+      won: true,
+      stars: 3,
+      livesRemaining: 19,
+      levels: LEVELS,
+    });
+    toStringObs.dispose();
+    expect(toStringOutcome.isNewFastestWin).toBe(true);
+    expect(Object.hasOwn(infLivesSave.fastestWinSecByLevelId, 'toString')).toBe(true);
   });
 });

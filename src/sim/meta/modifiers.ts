@@ -208,8 +208,9 @@ export function applyModifiersToLevel(level: LevelDef, modifiers?: RunModifiers 
 
   const mult = Math.max(1, Math.round(mod.flyerCountMultiplier));
   const waves: WaveDef[] = level.waves.map((wave) => {
-    const groups: WaveGroupDef[] = wave.groups.map((grp) => {
-      if (!ENEMY_DEFS[grp.enemyType]?.flying) return grp;
+    const rawGroups = wave && Array.isArray(wave.groups as unknown) ? wave.groups : [];
+    const groups: WaveGroupDef[] = rawGroups.map((grp) => {
+      if (!grp || !ENEMY_DEFS[grp.enemyType]?.flying) return grp;
       return {
         enemyType: grp.enemyType,
         count: grp.count * mult,
@@ -218,7 +219,7 @@ export function applyModifiersToLevel(level: LevelDef, modifiers?: RunModifiers 
       };
     });
     return {
-      clearBonus: wave.clearBonus,
+      clearBonus: wave?.clearBonus ?? 0,
       groups,
     };
   });
@@ -249,15 +250,20 @@ export function describeActiveModifiers(
 
   const mutatorForbidden = new Set<TowerType>();
   const recognizedMutatorLayers: RunModifiers[] = [];
-  for (let i = 0; i < modifiers.activeMutatorIds.length; i++) {
-    const id = modifiers.activeMutatorIds[i];
+  const activeIds = Array.isArray(modifiers?.activeMutatorIds) ? modifiers.activeMutatorIds : [];
+  for (let i = 0; i < activeIds.length; i++) {
+    const id = activeIds[i];
     const def = mutatorById.get(id);
     if (def) {
       badges.push({ id: def.id, label: def.name, detail: def.description });
-      recognizedMutatorLayers.push(def.modifiers);
-      const banned = def.modifiers.forbiddenTowerTypes ?? [];
-      for (let j = 0; j < banned.length; j++) {
-        mutatorForbidden.add(banned[j]);
+      if (def.modifiers && typeof def.modifiers === 'object') {
+        recognizedMutatorLayers.push(def.modifiers);
+        const banned = Array.isArray(def.modifiers.forbiddenTowerTypes)
+          ? def.modifiers.forbiddenTowerTypes
+          : [];
+        for (let j = 0; j < banned.length; j++) {
+          mutatorForbidden.add(banned[j]);
+        }
       }
     } else {
       badges.push({ id, label: id, detail: 'Active run modifier' });
@@ -339,9 +345,15 @@ export function describeActiveModifiers(
     `Tower builds and upgrades cost ${modifiers.towerCostMultiplier}x gold.`,
   );
 
-  if (modifiers.allowedTowerTypes !== null) {
-    const effectiveAllowed = modifiers.allowedTowerTypes.filter(
-      (t) => !modifiers.forbiddenTowerTypes.includes(t),
+  const forbiddenList: readonly TowerType[] = Array.isArray(modifiers?.forbiddenTowerTypes)
+    ? modifiers.forbiddenTowerTypes
+    : [];
+  const allowedList: readonly TowerType[] | null = Array.isArray(modifiers?.allowedTowerTypes)
+    ? modifiers.allowedTowerTypes
+    : null;
+  if (allowedList !== null) {
+    const effectiveAllowed = allowedList.filter(
+      (t) => !forbiddenList.includes(t),
     );
     if (effectiveAllowed.length === 0) {
       badges.push({
@@ -359,7 +371,7 @@ export function describeActiveModifiers(
     }
   }
 
-  const extraBanned = modifiers.forbiddenTowerTypes.filter((t) => !mutatorForbidden.has(t));
+  const extraBanned = forbiddenList.filter((t) => !mutatorForbidden.has(t));
   if (extraBanned.length > 0) {
     const names = extraBanned.map((t) => TOWER_DEFS[t]?.name ?? t).join(', ');
     badges.push({

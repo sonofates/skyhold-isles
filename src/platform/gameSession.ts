@@ -609,6 +609,10 @@ export class GameSession {
     return this.meta.getActiveDailyChallenge();
   }
 
+  getActiveRunModifiers(): ResolvedRunModifiers | null {
+    return this.meta.getActiveRunModifiers();
+  }
+
   getActiveModifierBadges(): readonly ModifierBadgeInfo[] {
     return this.meta.getActiveModifierBadges();
   }

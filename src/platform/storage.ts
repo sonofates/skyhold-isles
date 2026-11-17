@@ -208,8 +208,13 @@ export function saveMetaSave(save: MetaSaveData, overwriteV1 = false): void {
     localStorage.setItem(META_PROGRESS_KEY, JSON.stringify(save));
     const hasCampaign =
       Boolean(save?.campaign) && typeof save.campaign === 'object' && !Array.isArray(save.campaign);
-    const levelCount =
-      hasCampaign && Array.isArray(save.campaign.bestStars) ? save.campaign.bestStars.length : 1;
+    const starsLen =
+      hasCampaign && Array.isArray(save.campaign.bestStars) ? save.campaign.bestStars.length : 0;
+    const endlessLen =
+      hasCampaign && Array.isArray(save.campaign.bestEndlessWaves)
+        ? save.campaign.bestEndlessWaves.length
+        : 0;
+    const levelCount = Math.max(1, starsLen, endlessLen);
     const campaign = hasCampaign ? save.campaign : createDefaultProgress(levelCount);
     if (overwriteV1) {
       const sanitizedV1 = mergeCampaignProgress(createDefaultProgress(levelCount), campaign, levelCount);

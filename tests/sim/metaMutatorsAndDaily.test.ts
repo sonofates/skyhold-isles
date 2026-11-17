@@ -1002,5 +1002,34 @@ describe('Daily challenge pure date-seeded generator', () => {
         goldRewardMultiplier: -1,
       }),
     ).toEqual([]);
+
+    // Partial custom mutator catalog entry without `modifiers`, malformed wave groups in applyModifiersToLevel,
+    // and NaN wave group counts in generateDailyChallenge stay safe
+    const partialMutatorCatalog = [
+      { id: 'story_flavor', name: 'Story Flavor', description: 'Cosmetic.', scoreMultiplierBonus: 0 },
+    ] as unknown as typeof ENDLESS_MUTATORS;
+    expect(
+      describeActiveModifiers(
+        resolveRunModifiers({ activeMutatorIds: ['story_flavor'] }),
+        partialMutatorCatalog,
+      ),
+    ).toEqual([{ id: 'story_flavor', label: 'Story Flavor', detail: 'Cosmetic.' }]);
+
+    const badWaveGroupsLvl = {
+      ...LEVELS[0],
+      waves: [{ clearBonus: 10, groups: null }],
+    } as unknown as LevelDef;
+    expect(applyModifiersToLevel(badWaveGroupsLvl, { flyerCountMultiplier: 2 }).waves[0].groups).toEqual([]);
+
+    const nanBruteMaster = {
+      ...bosslessMaster,
+      waves: [
+        {
+          clearBonus: 30,
+          groups: [{ enemyType: 'brute', count: Number.NaN, spawnInterval: 0.5, startDelay: 0 }],
+        },
+      ],
+    } as LevelDef;
+    expect(generateDailyChallenge('2026-11-17', [nanBruteMaster]).levelId).toBe(nanBruteMaster.id);
   });
 });

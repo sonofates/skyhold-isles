@@ -427,6 +427,9 @@ function isPlainRecord(value: unknown): value is Record<string, unknown> {
 /** Ensures nested objects/arrays exist before mutating a potentially partial save object. */
 export function ensureWritableSaveContainers(save: MetaSaveData, minLevelCount = 1): void {
   const safeLen = normalizeLevelCount(minLevelCount);
+  if (save.version !== META_SAVE_VERSION) {
+    save.version = META_SAVE_VERSION;
+  }
   if (!isPlainRecord(save.campaign)) {
     save.campaign = {
       unlockedLevelIndex: 0,
@@ -444,9 +447,13 @@ export function ensureWritableSaveContainers(save: MetaSaveData, minLevelCount =
   }
   if (!Array.isArray(save.campaign.bestStars)) {
     save.campaign.bestStars = new Array<number>(safeLen).fill(0);
+  } else {
+    while (save.campaign.bestStars.length < safeLen) save.campaign.bestStars.push(0);
   }
   if (!Array.isArray(save.campaign.bestEndlessWaves)) {
     save.campaign.bestEndlessWaves = new Array<number>(safeLen).fill(0);
+  } else {
+    while (save.campaign.bestEndlessWaves.length < safeLen) save.campaign.bestEndlessWaves.push(0);
   }
   if (!isPlainRecord(save.completedChallenges)) save.completedChallenges = {};
   if (!isPlainRecord(save.unlockedAchievements)) save.unlockedAchievements = {};
@@ -761,8 +768,15 @@ export function recordRunCompletion(
   const prevEndlessWave = asNonNegInt(
     params.previousBestEndlessWave ?? save.campaign.bestEndlessWaves[safeLevelIndex],
   );
+  const safeLevelId = !IGNORED_RECORD_KEYS.has(level.id) ? level.id : '';
+  const safeLives = Number.isFinite(livesRemaining)
+    ? Math.max(0, Math.min(BALANCE.startingLives, Math.floor(livesRemaining)))
+    : 0;
   const prevEndlessScore = asNonNegInt(
-    params.previousBestEndlessScore ?? save.bestEndlessScoresByLevelId[level.id],
+    params.previousBestEndlessScore ??
+      (safeLevelId && Object.hasOwn(save.bestEndlessScoresByLevelId, safeLevelId)
+        ? save.bestEndlessScoresByLevelId[safeLevelId]
+        : 0),
   );
   const runDurationSec = Number.isFinite(telemetry.simTimeSec)
     ? +Math.max(0, telemetry.simTimeSec).toFixed(1)
@@ -787,20 +801,19 @@ export function recordRunCompletion(
         }
 
         const hasModifiers = telemetry.hasRunModifiers || telemetry.activeMutatorIds.length > 0;
-        const safeLevelId = IGNORED_RECORD_KEYS.has(level.id) ? '' : level.id;
         if (!hasModifiers) {
-          const safeLives = Number.isFinite(livesRemaining) ? Math.floor(livesRemaining) : 0;
-          const clampedLives = Math.max(0, Math.min(BALANCE.startingLives, safeLives));
           const prevBestLives = safeLevelId
             ? Math.min(BALANCE.startingLives, asNonNegInt(save.bestLivesByLevelId[safeLevelId]))
             : 0;
-          if (safeLevelId && clampedLives > prevBestLives) {
-            save.bestLivesByLevelId[safeLevelId] = clampedLives;
+          if (safeLevelId && safeLives > prevBestLives) {
+            save.bestLivesByLevelId[safeLevelId] = safeLives;
             isNewBestLives = true;
           }
           if (safeLevelId && Number.isFinite(telemetry.simTimeSec) && telemetry.simTimeSec > 0) {
             const clearSec = Math.max(0.1, +telemetry.simTimeSec.toFixed(1));
-            const rawPrevFastest = save.fastestWinSecByLevelId[safeLevelId];
+            const rawPrevFastest = Object.hasOwn(save.fastestWinSecByLevelId, safeLevelId)
+              ? save.fastestWinSecByLevelId[safeLevelId]
+              : undefined;
             const prevFastest =
               typeof rawPrevFastest === 'number' &&
               Number.isFinite(rawPrevFastest) &&
@@ -816,7 +829,7 @@ export function recordRunCompletion(
           const score = computeCampaignRunScore(
             telemetry.storyWavesCompleted,
             telemetry.enemiesKilledTotal,
-            livesRemaining,
+            safeLives,
             params.scoreMultiplier ?? 1,
           );
           mutatedScore = score;
@@ -830,19 +843,23 @@ export function recordRunCompletion(
         }
       }
 
-      if (telemetry.livesLost === 0 && livesRemaining >= BALANCE.startingLives) {
+      if (telemetry.livesLost === 0 && safeLives >= BALANCE.startingLives) {
         save.stats.perfectClears = asNonNegInt(save.stats.perfectClears) + 1;
         save.achievementMilestones.wonNoLivesLost = true;
       }
       if (telemetry.minCombatSpeed !== null && telemetry.minCombatSpeed >= 3) {
         save.achievementMilestones.wonAt3xSpeed = true;
       }
-      if (telemetry.towersBuilt <= 6) {
+      if (
+        Number.isFinite(telemetry.towersBuilt) &&
+        telemetry.towersBuilt >= 0 &&
+        telemetry.towersBuilt <= 6
+      ) {
         save.achievementMilestones.wonMax6Towers = true;
       }
 
       if (!isDaily) {
-        const satisfied = evaluateLevelChallenges(level, telemetry, true, livesRemaining);
+        const satisfied = evaluateLevelChallenges(level, telemetry, true, safeLives);
         for (let i = 0; i < satisfied.length; i++) {
           const chDef = satisfied[i];
           const cid = chDef.id;
@@ -882,7 +899,7 @@ export function recordRunCompletion(
     const score = computeCampaignRunScore(
       telemetry.storyWavesCompleted,
       telemetry.enemiesKilledTotal,
-      livesRemaining,
+      safeLives,
       params.scoreMultiplier ?? 1,
     );
     dailyScore = score;
@@ -1699,7 +1716,12 @@ export function mergeMetaSaves(
 
 /** Serializes a MetaSaveData snapshot to portable JSON for user backup. */
 export function exportMetaSaveJson(save: MetaSaveData): string {
-  return JSON.stringify(save);
+  if (!save || typeof save !== 'object' || Array.isArray(save)) {
+    return JSON.stringify(createDefaultMetaSave(1));
+  }
+  return JSON.stringify(
+    save.version === META_SAVE_VERSION ? save : { ...save, version: META_SAVE_VERSION },
+  );
 }
 
 /**

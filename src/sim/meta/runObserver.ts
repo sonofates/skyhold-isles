@@ -37,7 +37,12 @@ export function evaluateChallengeCondition(
     case 'minLivesRemaining':
       return safeLives >= condition.minLives;
     case 'forbiddenTowerTypes':
-      return condition.forbidden.every((type) => (telemetry.towersBuiltByType[type] ?? 0) === 0);
+      return condition.forbidden.every(
+        (type) =>
+          (Object.hasOwn(telemetry.towersBuiltByType, type)
+            ? (telemetry.towersBuiltByType[type] ?? 0)
+            : 0) === 0,
+      );
     case 'allowedTowerTypes': {
       for (const [type, count] of Object.entries(telemetry.towersBuiltByType)) {
         if (count > 0 && !condition.allowed.includes(type as TowerType)) {
@@ -130,7 +135,11 @@ export function evaluateLiveChallengeState(
       break;
     case 'forbiddenTowerTypes': {
       const builtForbidden = cond.forbidden.reduce(
-        (sum, type) => sum + (telemetry.towersBuiltByType[type] ?? 0),
+        (sum, type) =>
+          sum +
+          (Object.hasOwn(telemetry.towersBuiltByType, type)
+            ? (telemetry.towersBuiltByType[type] ?? 0)
+            : 0),
         0,
       );
       failed = builtForbidden > 0;

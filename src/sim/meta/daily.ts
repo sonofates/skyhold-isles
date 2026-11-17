@@ -229,7 +229,7 @@ export function generateDailyChallenge(
         return true;
       }
       if (def.armor >= 5) {
-        armoredSwarmCount += grp.count;
+        armoredSwarmCount += Number.isFinite(grp.count) ? Math.max(0, grp.count) : 0;
         if (armoredSwarmCount >= 5) return true;
       }
     }

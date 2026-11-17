@@ -238,6 +238,7 @@ describe('GameSession and sessionBridge meta wiring', () => {
     // startMutatedLevel with tight_budget updates build & upgrade costs and placement preview validity
     session.startMutatedLevel(0, ['tight_budget']);
     expect(session.getActiveDailyChallenge()).toBeNull();
+    expect(session.getActiveRunModifiers()?.towerCostMultiplier).toBe(1.15);
     const scaledBuildCost = Math.round(50 * 1.15);
     expect(session.getTowerBuildCost('archer')).toBe(scaledBuildCost);
     const archer = session.simWorld.placeTower(4, 2, 'archer')!;
