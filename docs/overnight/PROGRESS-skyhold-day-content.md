@@ -1,9 +1,16 @@
 # PROGRESS — skyhold-day-content (CONTENT agent, day pass 2)
 
 Branch `hermes/skyhold-day-content`. Deadline 21:00 TR. Rounds = fresh sessions; this file + git log are the only memory.
-No browser/Playwright was available on hermes in round 1 → all UI was verified by tsc/lint/vitest (+ happy-dom smoke
-tests) only, **never visually**. The lead should eyeball: coach card, sighting card, codex (portrait/landscape/desktop),
-the injected Codex buttons (main menu row, island-select header chip, pause tiles) and the Settings "Replay tutorial" row.
+## Visual QA how-to (works on hermes)
+`npm i --no-save playwright-core happy-dom` (no-save: installing one prunes the other, reinstall both), `npm run build &&
+npx vite preview --port 4303 --host 127.0.0.1` (background), then a small node script with
+`chromium.launch({executablePath:'/home/claude/.cache/ms-playwright/chromium_headless_shell-1234/chrome-headless-shell-linux64/chrome-headless-shell', args:['--use-angle=swiftshader','--enable-unsafe-swiftshader','--ignore-gpu-blocklist']})`
+(Bash may not `ls ~/.cache`, node can read it). Seed saves with `page.addInitScript(localStorage.setItem(...))`
+(e.g. `skyhold_isles_progress_v1` with `unlockedLevelIndex:13` then Play = L14). `?touch=1` = low quality/no postprocessing.
+**Known software-GL artefact:** with `?touch=0` (n8ao postprocessing under SwiftShader) a white rectangle sometimes covers
+part of the map in certain camera yaws — not a game bug (gone with `?touch=1` / after rotating the camera).
+Round-1 screenshots reviewed: codex (portrait/landscape/desktop), sighting card, coach (touch portrait/landscape, desktop),
+menu/pause/island-select Codex buttons, settings Replay row, L14–L16 (+ lane overlay). Scratch helpers live untracked in `scripts/_*`.
 
 ## Architecture (what exists)
 - `src/platform/contentStorage.ts` — `ContentStore`: own versioned localStorage keys `skyhold_isles_codex_v1`
@@ -37,7 +44,8 @@ the injected Codex buttons (main menu row, island-select header chip, pause tile
 3. L14 Amberstone Mesa (3 gates), L15 Moonwell Crossing (self-crossing road + late gate), L16 Emberglass Sanctum (ring,
    counter-rotating lanes + north gate): layouts, waves (22/22/24, named), themes in `islandThemeTable.ts`, optimised
    greedy + derived weak build orders, all inside the Master window. `tests/sim/dayIslands.test.ts`.
-4. Text: README feature blurbs, boss description, HUD air-tower list no longer names the Beacon (it never shoots),
+4. Onboarding polish: bobbing "build here" marker (screen-space, follows the camera) over island 1's best first tile.
+5. Text: README feature blurbs, boss description, HUD air-tower list no longer names the Beacon (it never shoots),
    flyer toast names the Ballista.
 
 ## Next
@@ -53,7 +61,7 @@ the injected Codex buttons (main menu row, island-select header chip, pause tile
 - Elite card is queued at `waveStarted` of a wave with an elite group (the spawn event carries no elite flag); not in endless.
 
 ## Known issues
-- UI never seen in a browser (see top).
+- Landscape-phone codex: tabs + tile grid leave little room (scrolls); fine but cramped.
 - `HudBar` air-tower text and `sessionBridge` toast edited minimally (cross-area, below).
 
 ## Cross-area changes
