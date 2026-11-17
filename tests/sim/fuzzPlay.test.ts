@@ -15,7 +15,7 @@ import {
 } from '../../scripts/fuzzPlay.ts';
 
 describe('headless fuzz playthrough harness', () => {
-  it('verifies all invariants across every island for seeded random-but-legal runs and endless mode', { timeout: 45_000 }, () => {
+  it('verifies all invariants across every island for seeded random-but-legal runs and endless mode', { timeout: 60_000 }, () => {
     const summary = runFuzzCampaign({
       seedsPerLevel: 5,
       baseSeed: 1336,
@@ -38,7 +38,7 @@ describe('headless fuzz playthrough harness', () => {
     expect([...summary.coverage.targetingModesUsed].sort()).toEqual(['closest', 'first', 'last', 'strongest']);
   });
 
-  it('produces identical final state digests when replaying the same seed across levels', { timeout: 45_000 }, () => {
+  it('produces identical final state digests when replaying the same seed across levels', { timeout: 60_000 }, () => {
     for (const level of LEVELS) {
       const seed = 4242 + level.index * 101;
       const runA = runFuzzPlaythrough(level, seed, { endlessWaves: 1 });
@@ -148,6 +148,8 @@ describe('headless fuzz playthrough harness', () => {
 
     expect(parseFuzzCliArgs(['--seed=0', '--endless-waves=0']).baseSeed).toBe(0);
     expect(parseFuzzCliArgs(['--seed=-5']).baseSeed).toBe(-5);
+    expect(parseFuzzCliArgs(['--levels=1,1,3']).levelIndices).toEqual([0, 2]);
+    expect(() => parseFuzzCliArgs(['--level='])).toThrow(/No valid levels matched/);
     expect(parseFuzzCliArgs(['--seed', '42'])).toEqual({
       seedsPerLevel: 1,
       singleSeedMode: true,

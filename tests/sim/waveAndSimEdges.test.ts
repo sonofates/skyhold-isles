@@ -440,4 +440,224 @@ describe('WaveSystem & SimWorld boundary edge cases', () => {
     expect(abWorld.castOvercharge()).toBe(false);
     expect(abWorld.castMeteor(0, 0)).toBe(false);
   });
+
+  it('survives 360/360 enemy pool saturation during WaveSystem spawning without stalling wave completion', () => {
+    const satLevel: LevelDef = {
+      ...LEVELS[0],
+      id: 'qa-pool-saturation',
+      waves: [
+        {
+          groups: [{ enemyType: 'grunt', count: 3, spawnInterval: 0.25, startDelay: 0.05 }],
+          clearBonus: 40,
+        },
+      ],
+    };
+    const bus = new EventBus();
+    let spawnedEvents = 0;
+    let wonEvents = 0;
+    bus.on('enemySpawned', () => {
+      spawnedEvents++;
+    });
+    bus.on('gameWon', () => {
+      wonEvents++;
+    });
+
+    const world = new SimWorld(satLevel, bus);
+    world.lives = 1000;
+
+    // Fill every enemy pool slot before starting wave 1
+    for (let i = 0; i < BALANCE.pools.maxEnemies; i++) {
+      expect(world.enemySystem.spawnEnemy('grunt')).not.toBeNull();
+    }
+    expect(world.enemyPool.getActiveCount()).toBe(BALANCE.pools.maxEnemies);
+    expect(world.enemySystem.spawnEnemy('grunt')).toBeNull();
+    const goldBeforeWave = world.gold;
+    const spawnsBeforeWave = spawnedEvents;
+
+    expect(world.startNextWave()).toBe(true);
+
+    // Step past all 3 scheduled wave spawns while pool remains 360/360 saturated:
+    // onSpawn receives null, cursor advances cleanly to 'allSpawned'
+    for (let t = 0; t < 40; t++) {
+      world.fixedTick(BALANCE.fixedDt);
+    }
+    expect(world.waveSystem.state).toBe('allSpawned');
+    expect(spawnedEvents).toBe(spawnsBeforeWave);
+    expect(world.enemyPool.getActiveCount()).toBe(BALANCE.pools.maxEnemies);
+
+    // Let active enemies walk off the path; wave still drains to victory
+    let guard = 0;
+    while (world.outcome === 'ongoing' && guard < 10_000) {
+      world.fixedTick(BALANCE.fixedDt);
+      guard++;
+    }
+    expect(world.outcome).toBe('won');
+    expect(wonEvents).toBe(1);
+    expect(world.enemyPool.getActiveCount()).toBe(0);
+    expect(world.lives).toBe(1000 - BALANCE.pools.maxEnemies);
+    expect(world.gold).toBe(goldBeforeWave + 40);
+  });
+
+  it('orders final-wave last-enemy leak races between 1-star victory (lives=2) and defeat (lives=1)', () => {
+    const lastWaveLevel: LevelDef = {
+      ...LEVELS[0],
+      id: 'qa-final-leak-race',
+      waves: [
+        {
+          groups: [{ enemyType: 'grunt', count: 1, spawnInterval: 0.2, startDelay: 0.05 }],
+          clearBonus: 35,
+        },
+      ],
+    };
+
+    const runLeakScenario = (startingLives: number) => {
+      const bus = new EventBus();
+      const order: string[] = [];
+      bus.on('enemyLeaked', () => order.push('enemyLeaked'));
+      bus.on('waveCompleted', () => order.push('waveCompleted'));
+      bus.on('gameWon', (ev) => order.push(`gameWon:${ev.stars}:${ev.livesRemaining}`));
+      bus.on('gameLost', () => order.push('gameLost'));
+
+      const world = new SimWorld(lastWaveLevel, bus);
+      world.lives = startingLives;
+      const startGold = world.gold;
+      expect(world.startNextWave()).toBe(true);
+
+      let ticks = 0;
+      while (world.outcome === 'ongoing' && ticks < 10_000) {
+        world.fixedTick(BALANCE.fixedDt);
+        ticks++;
+      }
+      return { world, order, startGold };
+    };
+
+    const winCase = runLeakScenario(2);
+    expect(winCase.world.outcome).toBe('won');
+    expect(winCase.world.lives).toBe(1);
+    expect(winCase.world.gold).toBe(winCase.startGold + 35);
+    expect(winCase.order).toEqual(['enemyLeaked', 'waveCompleted', 'gameWon:1:1']);
+
+    const lossCase = runLeakScenario(1);
+    expect(lossCase.world.outcome).toBe('lost');
+    expect(lossCase.world.lives).toBe(0);
+    expect(lossCase.world.gold).toBe(lossCase.startGold);
+    // onLeak callback runs before enemyLeaked emits, so gameLost fires first and waveCompleted/gameWon stay suppressed
+    expect(lossCase.order).toEqual(['gameLost', 'enemyLeaked']);
+  });
+
+  it('resolves frost linear-homing splash at last position when primary target dies and pool slot recycles', () => {
+    const bus = new EventBus();
+    const impacts: Array<{ x: number; y: number; z: number; radius: number }> = [];
+    bus.on('projectileImpact', (ev) => {
+      impacts.push({ x: ev.x, y: ev.y, z: ev.z, radius: ev.radius });
+    });
+
+    const world = new SimWorld(LEVELS[0], bus);
+    world.gold = 500;
+
+    // Pick a buildable tile with comfortable flight time (~3..4.5 units) from the mid-map crossover
+    const groundPath = world.enemySystem.getPath(false);
+    const flightPath = world.enemySystem.getPath(true);
+    const gProbe = { x: 0, y: 0, z: 0 };
+    const fProbe = { x: 0, y: 0, z: 0 };
+    let targetGroundDist = 0;
+    let targetFlightDist = 0;
+    for (let fd = 6; fd < flightPath.totalLength - 4; fd += 0.25) {
+      flightPath.sample(fd, fProbe);
+      for (let gd = 12; gd < groundPath.totalLength - 4; gd += 0.25) {
+        groundPath.sample(gd, gProbe);
+        if (Math.hypot(gProbe.x - fProbe.x, gProbe.z - fProbe.z) < 0.9) {
+          targetGroundDist = gd;
+          targetFlightDist = fd;
+          break;
+        }
+      }
+      if (targetGroundDist > 0) break;
+    }
+    expect(targetGroundDist).toBeGreaterThan(12);
+    groundPath.sample(targetGroundDist, gProbe);
+
+    let bestTile: { col: number; row: number } | null = null;
+    for (let r = 0; r < world.grid.rows; r++) {
+      for (let c = 0; c < world.grid.cols; c++) {
+        if (!world.grid.canPlaceTower(c, r)) continue;
+        const px = world.grid.gridToWorldX(c);
+        const pz = world.grid.gridToWorldZ(r);
+        const d = Math.hypot(px - gProbe.x, pz - gProbe.z);
+        if (d >= 3.0 && d <= 4.5) {
+          bestTile = { col: c, row: r };
+          break;
+        }
+      }
+      if (bestTile) break;
+    }
+    expect(bestTile).not.toBeNull();
+    const frostTower = world.placeTower(bestTile!.col, bestTile!.row, 'frost')!;
+    expect(frostTower).not.toBeNull();
+
+    // Advance primary grunt + bystander grunt together along groundPath, launching flyer to converge cleanly
+    const noop = () => {};
+    const targetA = world.enemySystem.spawnEnemy('grunt')!;
+    const bystanderGround = world.enemySystem.spawnEnemy('grunt')!;
+    const flyerLaunchDist = targetGroundDist - targetFlightDist;
+    expect(flyerLaunchDist).toBeGreaterThan(2);
+
+    while (targetA.dist < flyerLaunchDist) {
+      world.enemySystem.update(BALANCE.fixedDt, noop, noop, world.towers, 1);
+    }
+    const bystanderFlyer = world.enemySystem.spawnEnemy('flyer')!;
+    while (targetA.dist < targetGroundDist) {
+      world.enemySystem.update(BALANCE.fixedDt, noop, noop, world.towers, 1);
+    }
+    expect(Math.hypot(bystanderFlyer.x - targetA.x, bystanderFlyer.z - targetA.z)).toBeLessThan(1.2);
+    expect(Math.hypot(bystanderGround.x - targetA.x, bystanderGround.z - targetA.z)).toBeLessThan(0.2);
+
+    const origPoolIndex = targetA.poolIndex;
+    const origUid = targetA.uid;
+    const bolt = world.projectileSystem.spawnProjectile(frostTower, targetA, 0.45)!;
+    expect(bolt).not.toBeNull();
+    expect(bolt.parabolic).toBe(false);
+    expect(bolt.splashRadius).toBeGreaterThan(0);
+
+    // One tick of homing records live coordinates before primary dies
+    world.projectileSystem.update(BALANCE.fixedDt, world.towers);
+    expect(world.projectilePool.getActiveCount()).toBe(1);
+    const lastX = bolt.endX;
+    const lastZ = bolt.endZ;
+
+    // Kill targetA and settle death so its exact pool slot releases, then recycle into decoyC at path start
+    const kills: number[] = [];
+    world.enemySystem.applyDamage(targetA, targetA.maxHp + 100, true);
+    world.enemySystem.update(BALANCE.fixedDt, noop, (killed) => kills.push(killed.uid), world.towers, 1);
+    expect(kills).toEqual([origUid]);
+    expect(targetA.active).toBe(false);
+
+    const decoyC = world.enemySystem.spawnEnemy('grunt')!;
+    expect(decoyC.poolIndex).toBe(origPoolIndex);
+    expect(decoyC.uid).not.toBe(origUid);
+    // Keep enemy spatialHash synced with bystanders at their current positions while decoyC sits at path start
+    world.enemySystem.update(0.001, noop, noop, world.towers, 1);
+    expect(Math.hypot(decoyC.x - lastX, decoyC.z - lastZ)).toBeGreaterThan(bolt.splashRadius + 1);
+
+    const decoyHpBefore = decoyC.hp;
+    const groundHpBefore = bystanderGround.hp;
+    const flyerHpBefore = bystanderFlyer.hp;
+
+    // Let bolt finish flight without further enemy homing
+    for (let i = 0; i < 60 && world.projectilePool.getActiveCount() > 0; i++) {
+      world.projectileSystem.update(BALANCE.fixedDt, world.towers);
+    }
+    expect(world.projectilePool.getActiveCount()).toBe(0);
+    expect(impacts.length).toBe(1);
+    expect(Math.hypot(impacts[0].x - lastX, impacts[0].z - lastZ)).toBeLessThan(1e-5);
+
+    // Recycled pool slot is untouched (uid guard stopped homing), while ground & flyer bystanders took splash + slow
+    expect(decoyC.hp).toBe(decoyHpBefore);
+    expect(decoyC.slowTimer).toBe(0);
+    expect(bystanderGround.hp).toBeLessThan(groundHpBefore);
+    expect(bystanderGround.slowTimer).toBeGreaterThan(0);
+    expect(bystanderFlyer.hp).toBeLessThan(flyerHpBefore);
+    expect(bystanderFlyer.slowTimer).toBeGreaterThan(0);
+    expect(frostTower.totalDamageDealt).toBeGreaterThan(0);
+  });
 });

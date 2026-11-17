@@ -152,11 +152,25 @@ describe('tower, enemy, ability, and UI metadata contracts', () => {
       const def = ABILITY_DEFS[id];
       expect(def.id).toBe(id);
       expect(def.name.trim().length).toBeGreaterThan(0);
+      expect(def.shortDesc.trim().length).toBeGreaterThan(0);
       expect(def.cooldownSec).toBeGreaterThan(0);
       expect(seenHotkeys.has(def.hotkey)).toBe(false);
       seenHotkeys.add(def.hotkey);
       expect(UI_ICON_SVGS[id]).toContain('<svg');
     }
+
+    expect(ABILITY_DEFS.meteor.requiresTarget).toBe(true);
+    expect(ABILITY_DEFS.meteor.radius).toBeGreaterThan(0);
+    expect(ABILITY_DEFS.meteor.impactDelaySec).toBeGreaterThan(0);
+    expect(ABILITY_DEFS.meteor.baseDamage).toBeGreaterThan(0);
+    expect(ABILITY_DEFS.meteor.waveDamageScale).toBeGreaterThanOrEqual(0);
+    expect(ABILITY_DEFS.meteor.slowRatio).toBeGreaterThanOrEqual(0);
+    expect(ABILITY_DEFS.meteor.slowRatio).toBeLessThan(1);
+    expect(ABILITY_DEFS.meteor.slowDuration).toBeGreaterThanOrEqual(0);
+
+    expect(ABILITY_DEFS.overcharge.requiresTarget).toBe(false);
+    expect(ABILITY_DEFS.overcharge.durationSec).toBeGreaterThan(0);
+    expect(ABILITY_DEFS.overcharge.fireRateMultiplier).toBeGreaterThan(1);
 
     let prev = 0;
     for (let wave = 1; wave <= 30; wave++) {
@@ -489,8 +503,8 @@ describe('simulation determinism and endless scaling safety contracts', () => {
       { name: 'crypto randomness', regex: /\bcrypto\.(randomUUID|getRandomValues)\b/ },
       { name: 'non-deterministic timers or Date', regex: /\b(?:setTimeout|setInterval)\b|\bnew\s+Date\b/ },
       {
-        name: 'browser global (window/document/navigator/localStorage/rAF/DOM/AudioContext)',
-        regex: /\b(?:window|document|navigator|localStorage|requestAnimationFrame|cancelAnimationFrame|HTMLElement|HTMLCanvasElement|PointerEvent|KeyboardEvent|WheelEvent|AudioContext)\b/,
+        name: 'browser or network global (window/document/navigator/storage/rAF/DOM/AudioContext/fetch/WS)',
+        regex: /\b(?:window|document|navigator|globalThis|localStorage|sessionStorage|indexedDB|fetch|WebSocket|XMLHttpRequest|requestAnimationFrame|cancelAnimationFrame|HTMLElement|HTMLCanvasElement|PointerEvent|KeyboardEvent|WheelEvent|AudioContext)\b/,
       },
     ];
 
