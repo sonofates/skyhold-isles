@@ -70,13 +70,20 @@ export function createEmptyLifetimeStats(): LifetimeStats {
   };
 }
 
+function normalizeLevelCount(levelCount: number): number {
+  return typeof levelCount === 'number' && Number.isFinite(levelCount)
+    ? Math.max(1, Math.floor(levelCount))
+    : 1;
+}
+
 export function createDefaultMetaSave(levelCount: number): MetaSaveData {
+  const safeCount = normalizeLevelCount(levelCount);
   return {
     version: META_SAVE_VERSION,
     campaign: {
       unlockedLevelIndex: 0,
-      bestStars: new Array<number>(levelCount).fill(0),
-      bestEndlessWaves: new Array<number>(levelCount).fill(0),
+      bestStars: new Array<number>(safeCount).fill(0),
+      bestEndlessWaves: new Array<number>(safeCount).fill(0),
     },
     completedChallenges: {},
     unlockedAchievements: {},
@@ -163,6 +170,7 @@ export function getDailyBestScore(
   scores: Readonly<Record<string, number>> | undefined,
   dateStr: string,
 ): number {
+  if (typeof dateStr !== 'string') return 0;
   const target = dateStr.trim();
   if (!scores || typeof scores !== 'object' || Array.isArray(scores) || !isValidDateString(target)) {
     return 0;
@@ -187,7 +195,7 @@ function sanitizeBoolRecord(raw: unknown): Record<string, boolean> {
 }
 
 function sanitizeCampaign(raw: unknown, levelCount: number): ProgressData {
-  const safeCount = Math.max(1, levelCount);
+  const safeCount = normalizeLevelCount(levelCount);
   const bestStars = new Array<number>(safeCount).fill(0);
   const bestEndlessWaves = new Array<number>(safeCount).fill(0);
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
@@ -232,7 +240,7 @@ export function mergeCampaignProgress(
   b: ProgressData,
   levelCount: number,
 ): ProgressData {
-  const safeCount = Math.max(1, levelCount);
+  const safeCount = normalizeLevelCount(levelCount);
   const aStars = a && Array.isArray(a.bestStars) ? a.bestStars : [];
   const bStars = b && Array.isArray(b.bestStars) ? b.bestStars : [];
   const aEndless = a && Array.isArray(a.bestEndlessWaves) ? a.bestEndlessWaves : [];
@@ -291,7 +299,11 @@ export function migrateToMetaSave(
     base.completedChallenges = sanitizeBoolRecord(obj.completedChallenges);
     base.unlockedAchievements = sanitizeBoolRecord(obj.unlockedAchievements);
 
-    if (obj.achievementMilestones && typeof obj.achievementMilestones === 'object') {
+    if (
+      obj.achievementMilestones &&
+      typeof obj.achievementMilestones === 'object' &&
+      !Array.isArray(obj.achievementMilestones)
+    ) {
       const m = obj.achievementMilestones as Partial<MetaSaveData['achievementMilestones']>;
       base.achievementMilestones = {
         wonNoLivesLost: m.wonNoLivesLost === true,
@@ -502,7 +514,9 @@ function getAchievementCurrentValue(
     totalStars += s;
   }
   const completedChallengeCount =
-    save.completedChallenges && typeof save.completedChallenges === 'object'
+    save.completedChallenges &&
+    typeof save.completedChallenges === 'object' &&
+    !Array.isArray(save.completedChallenges)
       ? Object.entries(save.completedChallenges).filter(
           ([k, v]) => !IGNORED_RECORD_KEYS.has(k) && v === true,
         ).length
@@ -1110,7 +1124,7 @@ export function getRecommendedNextGoal(
 ): RecommendedGoal | null {
   if (levels.length === 0) return null;
 
-  const normalizedToday = todayDateStr.trim();
+  const normalizedToday = typeof todayDateStr === 'string' ? todayDateStr.trim() : '';
   if (
     isValidDateString(normalizedToday) &&
     !getValidDailyDateSet(save.completedDailyDates).has(normalizedToday)
@@ -1209,7 +1223,7 @@ function getTopKey(
   record: Readonly<Record<string, number>> | undefined | null,
   allowedKeys?: ReadonlySet<string>,
 ): string | null {
-  if (!record || typeof record !== 'object') return null;
+  if (!record || typeof record !== 'object' || Array.isArray(record)) return null;
   let bestKey: string | null = null;
   let bestCount = 0;
   for (const [key, count] of Object.entries(record)) {
@@ -1359,7 +1373,7 @@ export function getRecentDailyHistory(
   levels: readonly LevelDef[] = LEVELS,
 ): readonly DailyHistoryEntry[] {
   const completedSet = getValidDailyDateSet(save.completedDailyDates);
-  const normalizedToday = todayDateStr.trim();
+  const normalizedToday = typeof todayDateStr === 'string' ? todayDateStr.trim() : '';
   const scoreByDate = sanitizeDailyScoreRecord(save.dailyBestScores);
   return getRecentDailySpecs(endDateStr, days, levels).map((spec) => ({
     spec,
@@ -1374,14 +1388,14 @@ function mergeMaxCountRecords(
   b: Readonly<Record<string, number>> | undefined | null,
 ): Record<string, number> {
   const out: Record<string, number> = {};
-  if (a && typeof a === 'object') {
+  if (a && typeof a === 'object' && !Array.isArray(a)) {
     for (const [k, v] of Object.entries(a)) {
       if (!IGNORED_RECORD_KEYS.has(k) && typeof v === 'number' && Number.isFinite(v) && v > 0) {
         out[k] = v;
       }
     }
   }
-  if (b && typeof b === 'object') {
+  if (b && typeof b === 'object' && !Array.isArray(b)) {
     for (const [k, v] of Object.entries(b)) {
       if (
         !IGNORED_RECORD_KEYS.has(k) &&
@@ -1401,14 +1415,14 @@ function mergeMinPositiveRecords(
   b: Readonly<Record<string, number>> | undefined | null,
 ): Record<string, number> {
   const out: Record<string, number> = {};
-  if (a && typeof a === 'object') {
+  if (a && typeof a === 'object' && !Array.isArray(a)) {
     for (const [k, v] of Object.entries(a)) {
       if (!IGNORED_RECORD_KEYS.has(k) && typeof v === 'number' && Number.isFinite(v) && v > 0) {
         out[k] = v;
       }
     }
   }
-  if (b && typeof b === 'object') {
+  if (b && typeof b === 'object' && !Array.isArray(b)) {
     for (const [k, v] of Object.entries(b)) {
       if (
         !IGNORED_RECORD_KEYS.has(k) &&
@@ -1438,16 +1452,12 @@ export function mergeMetaSaves(
   levels: readonly LevelDef[] = LEVELS,
 ): MetaSaveData {
   const completedChallenges: Record<string, boolean> = sanitizeBoolRecord(base.completedChallenges);
-  if (incoming.completedChallenges && typeof incoming.completedChallenges === 'object') {
-    for (const [k, v] of Object.entries(incoming.completedChallenges)) {
-      if (v === true && !IGNORED_RECORD_KEYS.has(k)) completedChallenges[k] = true;
-    }
+  for (const k of Object.keys(sanitizeBoolRecord(incoming.completedChallenges))) {
+    completedChallenges[k] = true;
   }
   const unlockedAchievements: Record<string, boolean> = sanitizeBoolRecord(base.unlockedAchievements);
-  if (incoming.unlockedAchievements && typeof incoming.unlockedAchievements === 'object') {
-    for (const [k, v] of Object.entries(incoming.unlockedAchievements)) {
-      if (v === true && !IGNORED_RECORD_KEYS.has(k)) unlockedAchievements[k] = true;
-    }
+  for (const k of Object.keys(sanitizeBoolRecord(incoming.unlockedAchievements))) {
+    unlockedAchievements[k] = true;
   }
   const completedDailyDates = [
     ...getValidDailyDateSet([
@@ -1577,6 +1587,9 @@ export function importMetaSaveJson(
   levels: readonly LevelDef[] = LEVELS,
   mode: 'merge' | 'replace' = 'merge',
 ): { ok: true; save: MetaSaveData } | { ok: false; error: string } {
+  if (typeof rawJson !== 'string') {
+    return { ok: false, error: 'Invalid JSON syntax.' };
+  }
   let parsed: unknown;
   try {
     parsed = JSON.parse(rawJson);

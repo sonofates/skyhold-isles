@@ -112,6 +112,9 @@ export function buildEndlessMutatorLoadout(
   mutatorIds: readonly string[],
   catalog: readonly MutatorDef[] = ENDLESS_MUTATORS,
 ): EndlessMutatorRoll {
+  if (!Array.isArray(mutatorIds)) {
+    return finalizeMutatorRoll(hashSeedString(''), []);
+  }
   const byId = new Map<string, MutatorDef>();
   for (let i = 0; i < catalog.length; i++) {
     byId.set(catalog[i].id, catalog[i]);
@@ -215,6 +218,7 @@ export function getConflictingMutatorIds(
   selectedIds: readonly string[],
   catalog: readonly MutatorDef[] = ENDLESS_MUTATORS,
 ): readonly string[] {
+  if (!Array.isArray(selectedIds)) return [];
   const selectedSet = new Set(selectedIds);
   const usedGroups = new Set<string>();
   for (let i = 0; i < catalog.length; i++) {

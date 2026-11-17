@@ -221,6 +221,14 @@ export function evaluateLiveLevelChallenges(
   );
 }
 
+/** Looks up the upgrade/build gold cost for a tower tier cleanly (supports future extra tiers). */
+function getTowerTierBaseCost(type: TowerType, tier: number, fallbackTier: number): number {
+  const tiers = TOWER_DEFS[type]?.tiers as readonly { readonly upgradeCost: number }[] | undefined;
+  if (!tiers || tiers.length === 0) return 0;
+  const resolvedTier = Number.isFinite(tier) ? Math.max(1, Math.floor(tier)) : fallbackTier;
+  return tiers[resolvedTier - 1]?.upgradeCost ?? 0;
+}
+
 /**
  * Pure EventBus observer for a single SimWorld run.
  * Tracks telemetry for lifetime stats, achievements, and per-island optional challenges.
@@ -298,9 +306,7 @@ export class RunObserver {
         if (ev.tier > this.maxTowerTierBuilt) {
           this.maxTowerTierBuilt = ev.tier;
         }
-        const tier = (ev.tier === 1 || ev.tier === 2 || ev.tier === 3 ? ev.tier : 1) as 1 | 2 | 3;
-        const baseCost = TOWER_DEFS[ev.type]?.tiers[tier - 1]?.upgradeCost ?? 0;
-        const paid = scaleGoldCost(baseCost, this.modifiers);
+        const paid = scaleGoldCost(getTowerTierBaseCost(ev.type, ev.tier, 1), this.modifiers);
         this.grossGoldSpent += paid;
         this.netGoldSpent += paid;
         this.expectedGold -= paid;
@@ -313,9 +319,7 @@ export class RunObserver {
         if (ev.tier > this.maxTowerTierBuilt) {
           this.maxTowerTierBuilt = ev.tier;
         }
-        const tier = (ev.tier === 1 || ev.tier === 2 || ev.tier === 3 ? ev.tier : 2) as 1 | 2 | 3;
-        const baseCost = TOWER_DEFS[ev.type]?.tiers[tier - 1]?.upgradeCost ?? 0;
-        const paid = scaleGoldCost(baseCost, this.modifiers);
+        const paid = scaleGoldCost(getTowerTierBaseCost(ev.type, ev.tier, 2), this.modifiers);
         this.grossGoldSpent += paid;
         this.netGoldSpent += paid;
         this.expectedGold -= paid;
@@ -493,6 +497,12 @@ export class RunObserver {
   /** Marks this run ineligible for challenges (e.g., if debug tools manipulated gold/lives). */
   markDebugTainted(): void {
     this.eligibleForChallenges = false;
+    if (this.storyWinSnapshot && !this.endlessEntered) {
+      this.storyWinSnapshot = {
+        ...this.storyWinSnapshot,
+        telemetry: { ...this.storyWinSnapshot.telemetry, eligibleForChallenges: false },
+      };
+    }
   }
 
   /** Returns false if debug cheats, skipped waves, or economy tampering tainted this run. */
@@ -506,7 +516,7 @@ export class RunObserver {
    */
   verifyEconomyIntegrity(actualGold: number, actualLives: number): boolean {
     if (actualGold !== this.expectedGold || actualLives !== this.expectedLives) {
-      this.eligibleForChallenges = false;
+      this.markDebugTainted();
       return false;
     }
     return true;

@@ -867,5 +867,24 @@ describe('Daily challenge pure date-seeded generator', () => {
       const legal = getAllowedTowerTypes(spec.modifiers);
       expect(legal.some((t) => TOWER_DEFS[t].tiers[0].damage >= 35)).toBe(true);
     }
+
+    // Hybrid mutators (catalog ID + extra custom scalar) surface custom scalar badges without duplicating catalog mutators
+    const hybridMods = mergeRunModifiers(
+      resolveMutatorSelection(['swift_march']),
+      { enemyHpMultiplier: 1.5, enemyArmorBonus: 2 },
+    );
+    const hybridBadges = describeActiveModifiers(hybridMods);
+    expect(hybridBadges.map((b) => b.id)).toEqual([
+      'swift_march',
+      'custom-enemy-hp',
+      'custom-enemy-armor',
+    ]);
+    expect(hybridBadges[1].label).toBe('Enemy HP +50%');
+
+    // Non-string/non-array runtime inputs fail safely without TypeError
+    expect(isValidDateString(null as unknown as string)).toBe(false);
+    expect(() => generateDailyChallenge(null as unknown as string)).toThrow(RangeError);
+    expect(buildEndlessMutatorLoadout(null as unknown as readonly string[]).mutators).toEqual([]);
+    expect(getConflictingMutatorIds(null as unknown as readonly string[])).toEqual([]);
   });
 });

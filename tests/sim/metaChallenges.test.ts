@@ -1115,6 +1115,27 @@ describe('RunObserver challenge condition tracking', () => {
     expect(guardMeta.isCurrentRunEligible()).toBe(false);
     expect(guardMeta.getStats().gamesPlayed).toBe(playedBeforeSkip);
 
+    // RunObserver.markDebugTainted syncs storyWinSnapshot before Endless, while preserving storyWinSnapshot after Endless
+    const preSnapEv = new EventBus();
+    const preSnapObs = new RunObserver(tinyLvl, preSnapEv);
+    preSnapEv.emit('waveStarted', { waveIndex: 0, totalWaves: 1, earlyBonus: 0 });
+    preSnapEv.emit('waveCompleted', { waveIndex: 0, bonus: 20 });
+    preSnapEv.emit('gameWon', { stars: 3, livesRemaining: 20 });
+    expect(preSnapObs.getStoryWinSnapshot()?.telemetry.eligibleForChallenges).toBe(true);
+    preSnapObs.markDebugTainted();
+    expect(preSnapObs.getStoryWinSnapshot()?.telemetry.eligibleForChallenges).toBe(false);
+
+    const postSnapEv = new EventBus();
+    const postSnapObs = new RunObserver(tinyLvl, postSnapEv);
+    postSnapEv.emit('waveStarted', { waveIndex: 0, totalWaves: 1, earlyBonus: 0 });
+    postSnapEv.emit('waveCompleted', { waveIndex: 0, bonus: 20 });
+    postSnapEv.emit('gameWon', { stars: 3, livesRemaining: 20 });
+    postSnapEv.emit('endlessEntered', { startingWave: 2 });
+    postSnapObs.markDebugTainted();
+    expect(postSnapObs.getStoryWinSnapshot()?.telemetry.eligibleForChallenges).toBe(true);
+    preSnapObs.dispose();
+    postSnapObs.dispose();
+
     guardMeta.dispose();
     peakObs.dispose();
     meta.dispose();

@@ -1708,6 +1708,34 @@ describe('MetaSession stats, achievements, challenges & daily persistence', () =
     expect(mergeMetaSaves(partialObj, partialObj, 9, LEVELS).version).toBe(2);
     expect(getDailyBestScore(null as unknown as Record<string, number>, '2026-11-17')).toBe(0);
     expect(getDailyBestScore([] as unknown as Record<string, number>, '2026-11-17')).toBe(0);
+    expect(getDailyBestScore({ '2026-11-17': 100 }, null as unknown as string)).toBe(0);
     expect(getTodayUtcDateString(new Date('0920-03-04T00:00:00Z'))).toBe('0920-03-04');
+
+    // Non-positive/NaN levelCount & non-string/array runtime save inputs never throw or leak NaN/array indices
+    expect(createDefaultMetaSave(0).campaign.bestStars).toHaveLength(1);
+    expect(createDefaultMetaSave(Number.NaN).campaign.bestStars).toHaveLength(1);
+    const nanCampaign = mergeCampaignProgress(
+      { unlockedLevelIndex: 0, bestStars: [1], bestEndlessWaves: [0] },
+      { unlockedLevelIndex: 0, bestStars: [2], bestEndlessWaves: [0] },
+      Number.NaN,
+    );
+    expect(nanCampaign.unlockedLevelIndex).toBe(0);
+    expect(loadProgress(Number.NaN).bestStars).toHaveLength(1);
+    expect(importMetaSaveJson(null as unknown as string, null, 9, LEVELS).ok).toBe(false);
+    expect(getRecommendedNextGoal(partialObj, null as unknown as string, LEVELS)?.kind).toBe('campaign');
+    expect(getRecentDailyHistory(partialObj, null as unknown as string, 2, '2026-11-17', LEVELS)).toHaveLength(2);
+
+    const arrayCorrupt = {
+      ...createDefaultMetaSave(9),
+      completedChallenges: [true] as unknown as Record<string, boolean>,
+      unlockedAchievements: [true] as unknown as Record<string, boolean>,
+      bestEndlessScoresByLevelId: [999] as unknown as Record<string, number>,
+      fastestWinSecByLevelId: [1.5] as unknown as Record<string, number>,
+    };
+    const mergedArraySafe = mergeMetaSaves(createDefaultMetaSave(9), arrayCorrupt, 9, LEVELS);
+    expect(Object.keys(mergedArraySafe.completedChallenges)).toEqual([]);
+    expect(Object.keys(mergedArraySafe.unlockedAchievements)).toEqual([]);
+    expect(Object.keys(mergedArraySafe.bestEndlessScoresByLevelId)).toEqual([]);
+    expect(Object.keys(mergedArraySafe.fastestWinSecByLevelId)).toEqual([]);
   });
 });

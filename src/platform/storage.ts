@@ -66,11 +66,18 @@ export function getDefaultSettings(): GameSettings {
 
 export const DEFAULT_SETTINGS: GameSettings = getDefaultSettings();
 
+function normalizeLevelCount(levelCount: number): number {
+  return typeof levelCount === 'number' && Number.isFinite(levelCount)
+    ? Math.max(1, Math.floor(levelCount))
+    : 1;
+}
+
 export function createDefaultProgress(levelCount: number): ProgressData {
+  const safeCount = normalizeLevelCount(levelCount);
   return {
     unlockedLevelIndex: 0,
-    bestStars: new Array<number>(levelCount).fill(0),
-    bestEndlessWaves: new Array<number>(levelCount).fill(0),
+    bestStars: new Array<number>(safeCount).fill(0),
+    bestEndlessWaves: new Array<number>(safeCount).fill(0),
   };
 }
 
@@ -112,7 +119,7 @@ export function saveSettings(settings: GameSettings): void {
 }
 
 export function loadProgress(levelCount: number): ProgressData {
-  const safeCount = Math.max(1, levelCount);
+  const safeCount = normalizeLevelCount(levelCount);
   try {
     const raw = localStorage.getItem(PROGRESS_KEY);
     if (!raw) return createDefaultProgress(safeCount);

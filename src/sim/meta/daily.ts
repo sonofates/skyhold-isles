@@ -18,6 +18,7 @@ function isLeapYear(year: number): boolean {
 
 /** Validates a strict `YYYY-MM-DD` calendar date string without timezone dependencies. */
 export function isValidDateString(dateStr: string): boolean {
+  if (typeof dateStr !== 'string') return false;
   const match = DATE_PATTERN.exec(dateStr.trim());
   if (!match) return false;
   const year = Number(match[1]);
@@ -174,6 +175,9 @@ export function generateDailyChallenge(
   levels: readonly LevelDef[] = LEVELS,
   mutatorCatalog: readonly MutatorDef[] = ENDLESS_MUTATORS,
 ): DailyChallengeSpec {
+  if (typeof dateStr !== 'string') {
+    throw new RangeError(`Invalid daily challenge date "${String(dateStr)}": expected YYYY-MM-DD.`);
+  }
   const normalizedDate = dateStr.trim();
   if (!isValidDateString(normalizedDate)) {
     throw new RangeError(`Invalid daily challenge date "${dateStr}": expected YYYY-MM-DD.`);
@@ -309,8 +313,10 @@ export function generateDailyChallenge(
 
 /** Pure UTC epoch-day index for a validated `YYYY-MM-DD` string. */
 function dateStringToEpochDay(dateStr: string): number | null {
-  const match = DATE_PATTERN.exec(dateStr.trim());
-  if (!match || !isValidDateString(dateStr)) return null;
+  if (typeof dateStr !== 'string') return null;
+  const trimmed = dateStr.trim();
+  const match = DATE_PATTERN.exec(trimmed);
+  if (!match || !isValidDateString(trimmed)) return null;
   const year = Number(match[1]);
   const month = Number(match[2]);
   const day = Number(match[3]);
