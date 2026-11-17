@@ -85,6 +85,13 @@ Tests after that merge (mine + 3 agy): **352 pass / 31 fail; 13 of those 31 alre
 - With islands + towers also merged (`.wt/m6`): same picture plus the known balanceSim stitch; 39 failures total, nothing new from this branch.
 - agy branches are still moving (agy-qa committed again at ~02:55 UTC) → re-check in the morning.
 
+## Round 10 — readability vs roads
+- New test (`tests/render/enemyGeometry.test.ts`): every new archetype's camera-facing surface is >85 % colour-distinct (CIELAB ΔE > 25, area-weighted) from grass and dark foliage. All pass with margin (golem 93 % — its moss tufts are the intended accent).
+- Enemies walk on the **road**, not the grass, so I measured that too (`.wt/contrast.ts`; road colours are the Kenney colormap cells the path tiles use: dirt `#e08961` default, ISLANDS' themed `stone` `#797e95` and `sand` `#e7af88`). After the merge, L10/L11/L13 (and L3, L7–L9) get **stone** roads from the ISLANDS themes.
+  - Fixed: the **Loam Burrower** (ochre) was only 49 % distinct on the default dirt road → now dark umber with ochre back spines (100 % on dirt, still 100 % on grass); checked in the software rasteriser on dirt and stone roads.
+  - Golem (dark basalt) 40 % and Tempest (slate blue) 57 % by the metric on stone roads, but the rasterised lineup shows both read clearly (much darker / bluer + coral cracks / gold core, and both are huge) — the ΔE>25 bar is strict for dark-on-mid-grey. Left as is.
+  - **For the lead / ISLANDS:** the base **Iron Brute** (grey steel) is the one that really blends on stone roads (21 % distinct; visibly grey-on-grey in the rasteriser). Not changed here (base enemy look, affects L3/L7–L9 feel) — options: warmer/darker plate tint, or a brighter red belt/pauldrons.
+
 ## Enemy design table
 
 | type key | Name | Role / mechanic | Counterplay | Silhouette / color |
