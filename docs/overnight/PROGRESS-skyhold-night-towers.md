@@ -68,6 +68,7 @@ tsc, lint, 52 vitest tests, sim:balance all green on `cfb9330`.
 - [r31] Verified all green on resume (tsc, lint, 95 tests, sim:balance 9/9; greedy lives unchanged). No code changes; handoff unchanged.
 - [r32] Verified all green on resume (tsc, lint, 95 tests, sim:balance 9/9; greedy lives unchanged). No code changes; handoff unchanged.
 - [r33] Verified all green on resume (tsc, lint, 95 tests, sim:balance 9/9; greedy lives unchanged). No code changes; handoff unchanged.
+- [r34] Verified all green on resume (tsc, lint, tests, sim:balance 9/9; greedy lives unchanged). No code changes; handoff unchanged.
 
 ## Next (ideas for later rounds)
 - Frost Brittle damage numbers could be tinted (needs sessionBridge/UI, outside my area).
