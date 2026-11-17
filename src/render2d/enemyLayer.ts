@@ -240,7 +240,7 @@ export class EnemyLayer {
     const shR = art.spec.shadow * ppu * v.scale * (w.flying ? 0.85 : 1);
     sh.position.set(px, py);
     sh.scale.set((shR * 2) / 128, (shR * 0.9) / 128);
-    sh.alpha = w.flying ? 0.45 : 0.85 - Math.min(0.3, pose.lift * 2);
+    sh.alpha = w.flying ? 0.8 : 0.85 - Math.min(0.3, pose.lift * 2);
 
     const damaged = w.hp < w.maxHp && w.hp > 0 && !w.burrowed;
     v.barBg.visible = damaged;

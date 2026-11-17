@@ -343,6 +343,7 @@ export class Game2D {
       fit: this.map.fit,
       horn: this.hud.hornPosition,
       buttons: this.hud.buttonPositions,
+      fx: { boltsDrawn: this.fx.boltsDrawn, particlesSpawned: this.fx.particlesSpawned },
       artNotes: this.art.notes,
     };
   }

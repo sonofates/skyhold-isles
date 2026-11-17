@@ -41,6 +41,9 @@ export class FxLayer {
   private readonly top: Container;
   private readonly map: MapView;
   private seed = 1;
+  /** Lifetime counters (QA): bolts drawn, particles spawned. */
+  boltsDrawn = 0;
+  particlesSpawned = 0;
   /** Bolt zigzag offsets, shared by the glow and core strokes so both trace the same line. */
   private readonly jitter = new Float32Array(256);
 
@@ -80,6 +83,7 @@ export class FxLayer {
       const p = this.particles[i];
       if (p.active) continue;
       p.active = true;
+      this.particlesSpawned++;
       p.kind = kind;
       p.t = 0;
       p.life = life;
@@ -153,6 +157,7 @@ export class FxLayer {
       g.stroke(pass === 0 ? { width: 9, color: glow, alpha: 0.45 } : { width: 3, color: core, alpha: 1 });
     }
     b.active = true;
+    this.boltsDrawn++;
     b.t = 0;
     b.life = overload ? 0.26 : 0.18;
     g.visible = true;

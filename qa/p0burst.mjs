@@ -23,4 +23,21 @@ for (let i = 0; i < 400 && shots < 6; i++) {
     await page.waitForTimeout(400);
   }
 }
+// Bench close-ups until a lightning bolt and a cannonball are on screen.
+const bp = await (await browser.newContext({ viewport: { width: 1600, height: 900 }, deviceScaleFactor: 2 })).newPage();
+await bp.goto(`${BASE}/2d.html?bench=150`);
+await bp.waitForFunction(() => !!window.__p0, null, { timeout: 30000 });
+await bp.waitForTimeout(3000);
+let lastBolts = 0;
+let n = 0;
+for (let i = 0; i < 200 && n < 4; i++) {
+  const s = await bp.evaluate(() => window.__p0.state());
+  if (s.fx.boltsDrawn > lastBolts) {
+    lastBolts = s.fx.boltsDrawn;
+    await bp.screenshot({ path: `${OUT}/bolt-${n}.png` });
+    console.log(`bolt-${n}: bolts drawn ${s.fx.boltsDrawn}, particles ${s.fx.particlesSpawned}, projectiles ${s.projectiles}`);
+    n++;
+  }
+  await bp.waitForTimeout(40);
+}
 await browser.close();
