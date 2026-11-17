@@ -160,7 +160,7 @@ export interface PlayableFitResult extends FitResult {
 
 /**
  * Default framing: the *playable* area (path + buildable tiles) fills the free rect —
- * portrait: ~105% of the free width, landscape: the free height, desktop: both. The whole island
+ * portrait: ~130% of the free width, landscape: ~115% of the free height (players pan), desktop: both. The whole island
  * (incl. decor) fitting is the pinch-out limit; max zoom is a multiple of the default.
  */
 export function computePlayableFit(
@@ -176,9 +176,9 @@ export function computePlayableFit(
   const spanX = Math.max(1e-3, play.maxX - play.minX);
   const spanY = Math.max(1e-3, play.maxY - play.minY);
   let zPlay: number;
-  if (o.kind === 'portrait') zPlay = (freeW * 1.05) / (spanX * ppu1);
-  else if (o.kind === 'landscape-phone') zPlay = (freeH * 0.95) / (spanY * ppu1);
-  else zPlay = Math.min((freeW * 0.92) / (spanX * ppu1), (freeH * 0.9) / (spanY * ppu1));
+  if (o.kind === 'portrait') zPlay = (freeW * 1.3) / (spanX * ppu1);
+  else if (o.kind === 'landscape-phone') zPlay = (freeH * 1.15) / (spanY * ppu1);
+  else zPlay = Math.min((freeW * 1.0) / (spanX * ppu1), (freeH * 1.0) / (spanY * ppu1));
   const zoom = Math.max(whole, zPlay);
   const placed = computeFit(play, { ...o, fill: 1, minZoom: zoom, maxZoom: zoom });
   return { ...placed, zoom, minZoom: whole, maxZoom: zoom * o.maxZoomFactor };

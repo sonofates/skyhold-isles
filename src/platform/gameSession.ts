@@ -593,7 +593,7 @@ export class GameSession {
       if (this.simWorld.placeTower(target.col, target.row, this.activePlacementType)) {
         if (!hasSeenUpgradeToast()) {
           markUpgradeToastSeen();
-          this.d.overlays.toast.show('Click a tower to upgrade or sell it');
+          this.d.overlays.toast.show(document.documentElement.classList.contains('is-touch') ? 'Tap a tower to upgrade or sell it' : 'Click a tower to upgrade or sell it');
         }
         if (!shiftKey) {
           this.setPlacementMode(null);

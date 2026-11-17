@@ -52,7 +52,7 @@ export class EnemyTooltip {
 
   showTower(tower: TowerEntity, clientX: number, clientY: number): void {
     const def = TOWER_DEFS[tower.type];
-    const hint = tower.tier < 3 ? 'Click to upgrade' : 'Max tier';
+    const hint = tower.tier < 3 ? (document.documentElement.classList.contains('is-touch') ? 'Tap to upgrade' : 'Click to upgrade') : 'Max tier';
     this.nameEl.textContent = `${def.name} T${tower.tier} · ${hint}`;
     this.hpEl.textContent = '';
     this.armorEl.textContent = '';
