@@ -249,10 +249,6 @@ async function bootstrap(loadingScreen: LoadingScreen): Promise<void> {
       lastPacingMode = pacing.mode;
       wasPacingThrottled = pacing.targetFps !== null;
       loop.setRenderPacing(pacing.targetFps, pacing.mode);
-
-      if (hasPerf || session.viewMode === 'playing') {
-        debugPanel?.update(frameDt);
-      }
     },
     onAfterRender: (frameDt, workMs, throttled, sleepBoundary, actualFrameDt) => {
       const skipDisplayFrameSample = Boolean(sleepBoundary) || skipNextDisplayFrame;
@@ -271,11 +267,17 @@ async function bootstrap(loadingScreen: LoadingScreen): Promise<void> {
           );
         }
       }
+      if (hasPerf || session.viewMode === 'playing') {
+        debugPanel?.update(frameDt);
+      }
       if (hasPerf && debugPanel) {
         perfLogAccumSec += frameDt;
-        if (perfLogAccumSec >= 5) {
-          perfLogAccumSec = 0;
-          console.info(formatPerfLogLine(debugPanel.getTelemetrySnapshot()));
+        if (perfLogAccumSec >= 5 && !skipDisplayFrameSample) {
+          const snap = debugPanel.getTelemetrySnapshot();
+          if (snap.fps > 0) {
+            perfLogAccumSec = 0;
+            console.info(formatPerfLogLine(snap));
+          }
         }
       }
     },
