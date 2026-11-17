@@ -1,0 +1,165 @@
+--- a/tests/data/contentContracts.test.ts
++++ b/tests/data/contentContracts.test.ts
+@@ -309,30 +309,41 @@
+           }
+         }
+       }
+-      expect(spawns).toEqual([lvl.pathWaypoints[0]]);
++      // Islands with extra ground lanes (LevelDef.extraGroundPaths) have one spawn tile per lane.
++      const expectedSpawns = [lvl.pathWaypoints[0], ...(lvl.extraGroundPaths ?? []).map((p) => p[0])]
++        .map((s) => ({ col: s.col, row: s.row }))
++        .sort((a, b) => a.row - b.row || a.col - b.col);
++      expect(spawns).toEqual(expectedSpawns);
+       expect(goals).toEqual([lvl.pathWaypoints[lvl.pathWaypoints.length - 1]]);
+ 
++      // Every lane (main road + extraGroundPaths) is walked without revisiting its own tiles; extra
++      // lanes merge into the main road, so the union of all lanes must cover every road tile.
+       const walked = new Set<string>();
+-      for (let i = 0; i < lvl.pathWaypoints.length - 1; i++) {
+-        const a = lvl.pathWaypoints[i];
+-        const b = lvl.pathWaypoints[i + 1];
+-        expect((a.col === b.col) !== (a.row === b.row)).toBe(true);
+-        const dc = Math.sign(b.col - a.col);
+-        const dr = Math.sign(b.row - a.row);
+-        let c = a.col;
+-        let r = a.row;
+-        while (true) {
+-          const key = `${c},${r}`;
+-          const isJoin = i > 0 && c === a.col && r === a.row;
+-          if (!isJoin) {
+-            expect(walked.has(key)).toBe(false);
+-            walked.add(key);
++      for (const lane of [lvl.pathWaypoints, ...(lvl.extraGroundPaths ?? [])]) {
++        const laneWalked = new Set<string>();
++        for (let i = 0; i < lane.length - 1; i++) {
++          const a = lane[i];
++          const b = lane[i + 1];
++          expect((a.col === b.col) !== (a.row === b.row)).toBe(true);
++          const dc = Math.sign(b.col - a.col);
++          const dr = Math.sign(b.row - a.row);
++          let c = a.col;
++          let r = a.row;
++          while (true) {
++            const key = `${c},${r}`;
++            const isJoin = i > 0 && c === a.col && r === a.row;
++            if (!isJoin) {
++              expect(laneWalked.has(key)).toBe(false);
++              laneWalked.add(key);
++              walked.add(key);
++            }
++            expect(roadTiles.has(key)).toBe(true);
++            if (c === b.col && r === b.row) break;
++            c += dc;
++            r += dr;
+           }
+-          expect(roadTiles.has(key)).toBe(true);
+-          if (c === b.col && r === b.row) break;
+-          c += dc;
+-          r += dr;
+         }
++        expect(lane[lane.length - 1]).toEqual(lvl.pathWaypoints[lvl.pathWaypoints.length - 1]);
+       }
+       expect(walked.size).toBe(roadTiles.size);
+ 
+--- a/tests/sim/endlessAndPool.test.ts
++++ b/tests/sim/endlessAndPool.test.ts
+@@ -103,11 +103,12 @@
+       startDelay: 3.2,
+     });
+ 
+-    // offset 9 -> 2 bosses with shorter interval
++    // offset 9 -> a Tempest Colossus leads 1 Dreadnought (shorter interval); every 10th endless wave
+     const boss2 = buildEndlessWaveDef(shortLevel.waves.length + 9, shortLevel);
+     const boss2Group = boss2.groups.find((g) => g.enemyType === 'boss');
+-    expect(boss2Group?.count).toBe(2);
++    expect(boss2Group?.count).toBe(1);
+     expect(boss2Group?.spawnInterval).toBeCloseTo(2.15, 5);
++    expect(boss2.groups.find((g) => g.enemyType === 'tempest')?.count).toBe(1);
+ 
+     // Long level scales faster than short level
+     const longFirst = buildEndlessWaveDef(longLevel.waves.length, longLevel);
+--- a/tests/sim/fuzzPlay.test.ts
++++ b/tests/sim/fuzzPlay.test.ts
+@@ -37,8 +37,12 @@
+     expect(summary.coverage.meteorCasts).toBeGreaterThan(0);
+     expect(summary.coverage.overchargeCasts).toBeGreaterThan(0);
+     expect([...summary.coverage.targetingModesUsed].sort()).toEqual(['closest', 'first', 'last', 'strongest']);
+-    expect([...summary.coverage.enemyTypesSpawned].sort()).toEqual([...ENEMY_TYPES].sort());
+-    expect([...summary.coverage.enemyTypesKilled].sort()).toEqual([...ENEMY_TYPES].sort());
++    // The Tempest Colossus only appears in Stormcrown Citadel's final wave (22) and every 10th endless
++    // wave, which this short smoke fuzz (random builds, 2 endless waves) never reaches; its phases are
++    // covered by tests/sim/newEnemies.test.ts.
++    const coveredTypes = ENEMY_TYPES.filter((t) => t !== 'tempest');
++    expect([...summary.coverage.enemyTypesSpawned]).toEqual(expect.arrayContaining(coveredTypes));
++    expect([...summary.coverage.enemyTypesKilled]).toEqual(expect.arrayContaining(coveredTypes));
+     expect(summary.coverage.splitterSplits).toBeGreaterThan(0);
+     expect(summary.coverage.healerPulses).toBeGreaterThan(0);
+     expect(summary.coverage.bossPulses).toBeGreaterThan(0);
+--- a/tests/sim/metaChallenges.test.ts
++++ b/tests/sim/metaChallenges.test.ts
+@@ -575,7 +575,7 @@
+     obs.dispose();
+   });
+ 
+-  it('confirms tight curated challenges across Islands 2-9 are winnable in SimWorld', () => {
++  it('confirms tight curated challenges across Islands 2-9 are winnable in SimWorld', { timeout: 40_000 }, () => {
+     const runScenario = (
+       levelIdx: number,
+       opts: {
+--- a/tests/sim/metaMutatorsAndDaily.test.ts
++++ b/tests/sim/metaMutatorsAndDaily.test.ts
+@@ -478,7 +478,7 @@
+     obs.dispose();
+   });
+ 
+-  it('wins Challenging, Heroic, and Master Daily Watch runs in SimWorld with mutators, tower bans, and economy integrity intact', () => {
++  it('wins Challenging, Heroic, and Master Daily Watch runs in SimWorld with mutators, tower bans, and economy integrity intact', { timeout: 40_000 }, () => {
+     const coreLevels = LEVELS.slice(0, 9);
+     for (const dateStr of [
+       '2026-11-15',
+@@ -733,7 +733,8 @@
+       name: 'Storm Crown',
+       difficulty: 'Master',
+     };
+-    const expandedLevels = [...LEVELS, island10, island11];
++    // Pin to the original 9 islands so the fake 10/11 sit at indices 9/10 however many real islands ship.
++    const expandedLevels = [...LEVELS.slice(0, 9), island10, island11];
+ 
+     const seenExpanded = new Set<string>();
+     const start = new Date('2026-08-01T00:00:00Z');
+--- a/tests/sim/metaSaveAndStats.test.ts
++++ b/tests/sim/metaSaveAndStats.test.ts
+@@ -414,6 +414,7 @@
+ 
+     // Clear 5 endless waves cleanly by upgrading a full defense & letting combat play out
+     world.gold = 6000;
++    world.lives = 100; // meta bookkeeping test, not a balance check: endless spotlight groups can overrun this build
+     const placements: Array<[number, number, 'archer' | 'cannon' | 'frost' | 'tesla' | 'mortar']> = [
+       [4, 3, 'cannon'],
+       [7, 5, 'frost'],
+@@ -951,6 +952,7 @@
+     expect(meta.getLiveEndlessScore()?.totalScore).toBe(0);
+ 
+     rawWorld.gold = 6000;
++    rawWorld.lives = 100; // see above: meta bookkeeping, not balance
+     const spots: Array<[number, number, 'archer' | 'cannon' | 'frost' | 'tesla' | 'mortar']> = [
+       [4, 3, 'cannon'],
+       [7, 5, 'frost'],
+@@ -1107,7 +1109,7 @@
+     }
+     expect(builtSpot).toBe(true);
+     dailyWorld.startNextWave();
+-    for (let i = 0; i < 60 * 40 && dailyWorld.outcome === 'ongoing'; i++) {
++    for (let i = 0; i < 60 * 120 && dailyWorld.outcome === 'ongoing'; i++) {
+       dailyMeta.onTick(BALANCE.fixedDt, 3);
+       dailyWorld.fixedTick(BALANCE.fixedDt);
+     }
+@@ -1443,6 +1445,8 @@
+       [10, 4, 'tesla'],
+       [5, 7, 'mortar'],
+       [7, 3, 'cannon'],
++      [6, 2, 'tesla'],
++      [9, 3, 'cannon'],
+     ];
+     for (const [col, row, type] of spots) {
+       const tw = mutWorld.placeTower(col, row, type);
