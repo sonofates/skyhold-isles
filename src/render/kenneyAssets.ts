@@ -151,7 +151,8 @@ export class KenneyAssetStore {
     onProgress?: (loaded: number, total: number, label: string) => void,
     models: readonly KenneyModelName[] = KENNEY_MODEL_LIST,
   ): Promise<KenneyAssetStore> {
-    const base = `${import.meta.env.BASE_URL}models/kenney/`;
+    const envBase = (import.meta as { env?: { BASE_URL?: string } }).env?.BASE_URL ?? '/';
+    const base = `${envBase}models/kenney/`;
     const total = models.length + 1;
     let completed = 0;
 
@@ -223,9 +224,17 @@ export class KenneyAssetStore {
         } else if (parts.length === 1) {
           merged = parts[0];
         } else {
-          merged = mergeGeometries(parts, false) ?? parts[0];
-          for (let p = 0; p < parts.length; p++) {
-            parts[p].dispose();
+          const combined = mergeGeometries(parts, false);
+          if (combined) {
+            merged = combined;
+            for (let p = 0; p < parts.length; p++) {
+              parts[p].dispose();
+            }
+          } else {
+            merged = parts[0];
+            for (let p = 1; p < parts.length; p++) {
+              parts[p].dispose();
+            }
           }
         }
         merged.computeBoundingBox();

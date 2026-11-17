@@ -78,6 +78,7 @@ export class GameLoop {
   private running = false;
   private lastTimestamp = 0;
   private lastRenderTimestamp = 0;
+  private hasRendered = false;
   private maxRenderFps: number | null = null;
   private pacingMode: RenderPacingMode = 'active';
   private wakeUntilMs = 0;
@@ -98,6 +99,7 @@ export class GameLoop {
     if (this.running && this.rafId === null) {
       this.lastTimestamp = performance.now();
       this.lastRenderTimestamp = 0;
+      this.hasRendered = false;
       this.callbacks.onVisibilityRestore?.();
       this.rafId = requestAnimationFrame(this.tick);
     }
@@ -131,7 +133,7 @@ export class GameLoop {
     if (capFps !== null && capFps <= 0) {
       return;
     }
-    if (capFps !== null && capFps > 0 && this.lastRenderTimestamp > 0) {
+    if (capFps !== null && capFps > 0 && this.hasRendered) {
       const minIntervalMs = 1000 / capFps - VSYNC_JITTER_TOLERANCE_MS;
       if (now - this.lastRenderTimestamp < minIntervalMs) {
         return;
@@ -142,6 +144,7 @@ export class GameLoop {
     const rawDt = Math.min(actualFrameDt, 0.1);
     this.lastTimestamp = now;
     this.lastRenderTimestamp = now;
+    this.hasRendered = true;
     const throttled = capFps !== null && capFps > 0;
     const resumedFromThrottle = this.lastThrottled && !throttled;
     this.lastThrottled = throttled;
@@ -200,9 +203,9 @@ export class GameLoop {
   }
 
   wakeRender(durationSec = 0.75): void {
-    const safeSec = Number.isFinite(durationSec) && durationSec > 0 ? durationSec : 0;
+    if (!Number.isFinite(durationSec) || durationSec <= 0) return;
     const now = typeof performance !== 'undefined' ? performance.now() : 0;
-    this.wakeUntilMs = Math.max(this.wakeUntilMs, now + safeSec * 1000);
+    this.wakeUntilMs = Math.max(this.wakeUntilMs, now + durationSec * 1000);
   }
 
   isWakeActive(): boolean {
@@ -231,6 +234,7 @@ export class GameLoop {
     this.running = true;
     this.lastTimestamp = performance.now();
     this.lastRenderTimestamp = 0;
+    this.hasRendered = false;
 
     if (typeof document !== 'undefined' && !this.visibilityBound) {
       document.addEventListener('visibilitychange', this.onVisibilityChange);
@@ -247,6 +251,7 @@ export class GameLoop {
     this.running = false;
     this.wakeUntilMs = 0;
     this.lastThrottled = false;
+    this.hasRendered = false;
     if (this.rafId !== null) {
       cancelAnimationFrame(this.rafId);
       this.rafId = null;

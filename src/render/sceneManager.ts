@@ -157,6 +157,7 @@ export class SceneManager {
   private appliedDpr = -1;
   private tierTransitions = 0;
   private contextLost = false;
+  private disposed = false;
 
   private readonly onContextLost = (event: Event): void => {
     event.preventDefault();
@@ -474,6 +475,7 @@ export class SceneManager {
       }
     }
 
+    if (this.disposed || this.contextLost) return;
     this.render(camera);
     this.governor.resetWarmup();
     this.resetDisplayMetrics();
@@ -489,7 +491,7 @@ export class SceneManager {
       allowUpgrade?: boolean;
     },
   ): TierTransition | null {
-    if (options?.hidden || this.contextLost) return null;
+    if (options?.hidden || this.contextLost || this.disposed) return null;
     const frameMs = frameDtSec * 1000;
     if (
       !options?.skipDisplayFrameSample &&
@@ -527,8 +529,10 @@ export class SceneManager {
   }
 
   resize(width: number, height: number): void {
-    const w = Math.max(1, Math.round(width));
-    const h = Math.max(1, Math.round(height));
+    const safeW = Number.isFinite(width) ? width : this.lastWidth;
+    const safeH = Number.isFinite(height) ? height : this.lastHeight;
+    const w = Math.max(1, Math.round(safeW));
+    const h = Math.max(1, Math.round(safeH));
     const targetDpr = this.computePresetDpr(this.governor.getPreset());
     if (
       w === this.lastWidth &&
@@ -546,7 +550,7 @@ export class SceneManager {
   }
 
   render(camera: THREE.Camera): void {
-    if (this.contextLost) return;
+    if (this.contextLost || this.disposed) return;
     this.renderer.info.reset();
     const preset = this.governor.getPreset();
     if (this.isComposerActive(preset)) {
@@ -724,6 +728,8 @@ export class SceneManager {
   }
 
   dispose(): void {
+    if (this.disposed) return;
+    this.disposed = true;
     if (typeof this.canvas.removeEventListener === 'function') {
       this.canvas.removeEventListener('webglcontextlost', this.onContextLost);
       this.canvas.removeEventListener('webglcontextrestored', this.onContextRestored);

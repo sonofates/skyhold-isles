@@ -463,4 +463,35 @@ describe('GameLoop throttle boundary and storage backward compatibility', () => 
     loop.stop();
     vi.unstubAllGlobals();
   });
+
+  it('enforces frame-rate capping even when the first RAF timestamp is 0 and ignores zero wake duration', () => {
+    let nextRaf: ((now: number) => void) | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: (now: number) => void) => {
+      nextRaf = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', () => {});
+    vi.stubGlobal('performance', { now: () => 0 });
+
+    let rendered = 0;
+    const loop = new GameLoop({
+      onFixedTick: () => {},
+      onRender: () => {
+        rendered++;
+      },
+    });
+
+    loop.wakeRender(0);
+    expect(loop.isWakeActive()).toBe(false);
+
+    loop.setRenderPacing(30, 'menu');
+    loop.start();
+    nextRaf?.(0); // renders first frame at timestamp 0
+    nextRaf?.(16); // < 31.83ms since 0 -> must be skipped!
+    nextRaf?.(34); // >= 31.83ms -> renders second frame
+    expect(rendered).toBe(2);
+
+    loop.stop();
+    vi.unstubAllGlobals();
+  });
 });

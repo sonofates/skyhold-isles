@@ -299,6 +299,18 @@ async function bootstrap(loadingScreen: LoadingScreen): Promise<void> {
     timeToMenuMs: performance.now() - bootStartMs,
   };
 
+  const initialPacing = computeRenderPacingTarget({
+    hidden: document.hidden,
+    simActive: loop.simActive,
+    paused: loop.paused,
+    modalOpen: overlays.isModalOpen(),
+    menuView: session.viewMode,
+    wakeActive: false,
+  });
+  lastPacingMode = initialPacing.mode;
+  wasPacingThrottled = initialPacing.targetFps !== null;
+  loop.setRenderPacing(initialPacing.targetFps, initialPacing.mode);
+
   if (hasPerf) {
     debugPanel?.setVisible(true);
     debugPanel?.update(0);
