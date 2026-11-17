@@ -195,6 +195,7 @@ export class KenneyAssetStore {
     const concurrency = 10;
     let cursor = 0;
     let syncCpuMs = 0;
+    let accountedUntilMs = 0;
     let pendingYield: Promise<void> | null = null;
     let aborted = false;
 
@@ -260,7 +261,14 @@ export class KenneyAssetStore {
         onProgress?.(completed, total, name);
 
         if (typeof performance !== 'undefined') {
-          syncCpuMs += Math.max(0, performance.now() - cpuStartMs);
+          const cpuEndMs = performance.now();
+          // Integrate only non-overlapping main-thread parse/merge work across concurrent
+          // workers so overlapping async parseAsync spans never multiply syncCpuMs by N.
+          const effectiveStartMs = Math.max(cpuStartMs, accountedUntilMs);
+          if (cpuEndMs > effectiveStartMs) {
+            syncCpuMs += cpuEndMs - effectiveStartMs;
+            accountedUntilMs = cpuEndMs;
+          }
           if (syncCpuMs >= 10) {
             if (!pendingYield) {
               pendingYield = yieldMainThread().then(() => {

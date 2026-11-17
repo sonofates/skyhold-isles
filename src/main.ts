@@ -5,7 +5,7 @@ import { GameLoop, computeRenderPacingTarget, type RenderPacingMode } from './pl
 import { GameSession } from './platform/gameSession.ts';
 import { InputManager } from './platform/input.ts';
 import { loadSettings } from './platform/storage.ts';
-import { KENNEY_MODEL_LIST, KenneyAssetStore } from './render/kenneyAssets.ts';
+import { KENNEY_MODEL_LIST, KenneyAssetStore, yieldMainThread } from './render/kenneyAssets.ts';
 import type { StartupTimingMetrics } from './render/perfGovernor.ts';
 import { RenderWorld } from './render/renderWorld.ts';
 import { formatPerfLogLine } from './ui/debugPanel.ts';
@@ -153,7 +153,9 @@ async function bootstrap(loadingScreen: LoadingScreen): Promise<void> {
   let lastViewMode = session.viewMode;
   let lastPacingMode: RenderPacingMode = 'menu';
   let wasPacingThrottled = true;
-  let skipNextDisplayFrame = false;
+  // First RAF timestamp delta after loop.start() is a partial startup fraction rather than a
+  // real frame-to-frame interval, so skip it from displayMetrics just like visibility restores.
+  let skipNextDisplayFrame = true;
   let perfLogAccumSec = 0;
 
   const loop: GameLoop = new GameLoop({
@@ -282,6 +284,10 @@ async function bootstrap(loadingScreen: LoadingScreen): Promise<void> {
   window.addEventListener('pointerup', onWakeActivity, { passive: true });
   window.addEventListener('wheel', onWakeActivity, { passive: true });
   window.addEventListener('keydown', onWakeActivity, { passive: true });
+
+  // Yield briefly between EnemyRenderer setup and MapBuilder diorama generation so mobile
+  // browsers can service input/compositor turns rather than locking in one ~400ms+ boot slice.
+  await yieldMainThread();
 
   session.showMenuView('menu', true);
   const sceneSetupMs = performance.now() - sceneStartMs;

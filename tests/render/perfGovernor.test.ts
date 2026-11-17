@@ -907,4 +907,92 @@ describe('PerfGovernor', () => {
 
     vi.unstubAllGlobals();
   });
+
+  it('accounts non-overlapping parse CPU across concurrent preload workers without spurious yields', async () => {
+    const crystalBuf = fs.readFileSync(
+      path.resolve(process.cwd(), 'public/models/kenney/detail-crystal.glb'),
+    );
+    const models = [
+      'tile-straight',
+      'tile-corner-round',
+      'tile-end-round',
+      'tile-spawn-end-round',
+      'tile-crossing',
+      'tile-split',
+      'spawn-square',
+      'wood-structure-high',
+      'wood-structure',
+      'detail-tree',
+    ] as const;
+
+    let yieldCount = 0;
+    vi.stubGlobal('scheduler', {
+      yield: () => {
+        yieldCount++;
+        return Promise.resolve();
+      },
+    });
+    vi.stubGlobal(
+      'Image',
+      class FakeImage {
+        width = 64;
+        height = 64;
+        crossOrigin = '';
+        onload: (() => void) | null = null;
+        set src(_v: string) {
+          queueMicrotask(() => this.onload?.());
+        }
+      },
+    );
+    vi.stubGlobal('document', {
+      createElement: () => ({
+        width: 64,
+        height: 64,
+        getContext: () => ({
+          drawImage: () => {},
+          getImageData: () => ({ data: new Uint8ClampedArray(64 * 64 * 4) }),
+          putImageData: () => {},
+          fillRect: () => {},
+          fillStyle: '',
+        }),
+      }),
+    });
+    vi.stubGlobal('fetch', () =>
+      Promise.resolve({
+        ok: true,
+        status: 200,
+        arrayBuffer: () =>
+          Promise.resolve(
+            crystalBuf.buffer.slice(crystalBuf.byteOffset, crystalBuf.byteOffset + crystalBuf.byteLength),
+          ),
+      } as unknown as Response),
+    );
+
+    let fakeClockMs = 0;
+    const nowSpy = vi.spyOn(performance, 'now').mockImplementation(() => {
+      fakeClockMs += 0.4;
+      return fakeClockMs;
+    });
+
+    try {
+      // 10 concurrent workers start at 0.4..4.0ms and finish at 4.4..8.0ms (< 10ms total span):
+      // overlapping spans would sum to 40ms if summed naively, but non-overlapping accounting yields 0 times.
+      const storeFast = await KenneyAssetStore.preload(undefined, models);
+      expect(yieldCount).toBe(0);
+      storeFast.dispose();
+
+      // When actual non-overlapping CPU time crosses >= 10ms, a cooperative yield fires once.
+      fakeClockMs = 0;
+      nowSpy.mockImplementation(() => {
+        fakeClockMs += 1.0;
+        return fakeClockMs;
+      });
+      const storeSlow = await KenneyAssetStore.preload(undefined, models);
+      expect(yieldCount).toBe(1);
+      storeSlow.dispose();
+    } finally {
+      nowSpy.mockRestore();
+      vi.unstubAllGlobals();
+    }
+  });
 });
