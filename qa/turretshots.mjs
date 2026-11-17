@@ -39,7 +39,7 @@ async function open(browser, query) {
 
 async function aimRun(browser, type, tier) {
   const key = `${type}-t${tier}`;
-  const { ctx, page } = await open(browser, `?towers=aim&type=${type}&tier=${tier}`);
+  const { ctx, page } = await open(browser, `?towers=aim&type=${type}&tier=${tier}&hold=3.5`);
   const rec = { plot: -1, sectors: [], samples: [], shots: 0, mismatches: 0 };
   report.aim[key] = rec;
   try {
@@ -55,7 +55,10 @@ async function aimRun(browser, type, tier) {
       const cur = await page.evaluate(() => window.__aim.current);
       last = cur;
       await page.waitForFunction(() => window.__p0.state().turrets.views.length > 0 && Date.now() > 0, null, { timeout: 10000 });
-      await page.waitForTimeout(900);
+      await page.waitForTimeout(1400);
+      // Freeze the frame so the state, the overlay and the screenshot agree.
+      await page.keyboard.press(' ');
+      await page.waitForTimeout(250);
       const s = await page.evaluate(() => window.__p0.state());
       const v = s.turrets.views[0];
       if (!v) {
@@ -72,6 +75,7 @@ async function aimRun(browser, type, tier) {
       const cx = Math.round(plot.x);
       const cy = Math.round(plot.y);
       await page.screenshot({ path: `${name}-crop.png`, clip: { x: Math.max(0, cx - 200), y: Math.max(0, cy - 260), width: 400, height: 360 } });
+      await page.keyboard.press(' ');
     }
     const distinct = new Set(rec.samples.map((x) => x.drawn));
     if (distinct.size < 3) report.errors.push(`${key}: only ${distinct.size} distinct directions drawn`);

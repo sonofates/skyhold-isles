@@ -134,7 +134,7 @@ async function main(): Promise<void> {
     const type = (['archer', 'cannon', 'ballista'] as const).find((x) => x === q.get('type')) ?? 'cannon';
     const tier = Math.max(1, Math.min(3, Number(q.get('tier') ?? 1) || 1));
     aimState = { type, tier, plot: -1, sectors: [], current: -1, since: 0 };
-    hooks = aimHooks(type, tier, aimState);
+    hooks = aimHooks(type, tier, aimState, Math.max(0.5, Number(q.get('hold') ?? 1.6) || 1.6));
   } else if (q.get('towers') === '1') hooks = towersHooks(Math.max(0, Math.min(3, Number(q.get('tier') ?? 0) || 0)) || null);
   else if (q.get('autoplay') === '1') hooks = autoplayHooks(level.scriptedBuildOrder ?? []);
   const game = new Game2D(app, art, level, hooks);

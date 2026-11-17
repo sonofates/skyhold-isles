@@ -201,13 +201,14 @@ export interface AimSceneState {
 const AIM_HOLD_SEC = 1.6;
 
 /**
- * `?towers=aim&type=cannon[&tier=N]`: ONE directional tower and ONE immortal target that is moved,
- * every 1.6 s, to a path point in the next compass sector around it (real sim targeting, so the
+ * `?towers=aim&type=cannon[&tier=N][&hold=S]`: ONE directional tower and ONE immortal target that
+ * is moved, every `hold` s (default 1.6, sim time), to a path point in the next compass sector around it (real sim targeting, so the
  * turret must follow the sim's target). The tower goes on the plot whose surroundings cover the
  * most sectors. Path points come from the sim's own lanes (ground, plus the flight lane for towers
- * that hit flyers), at 35-90 % of the tower's range.
+ * that hit flyers), at 35-90 % of the tower's range. The level's own wave enemies are retired at
+ * the goal as they appear, so the tower can only aim at the scene's target.
  */
-export function aimHooks(type: TowerType, tier: number, state: AimSceneState): Game2DHooks {
+export function aimHooks(type: TowerType, tier: number, state: AimSceneState, holdSec = AIM_HOLD_SEC): Game2DHooks {
   let setup = false;
   let tick = 0;
   let spots: AimSpot[] = [];
@@ -265,7 +266,7 @@ export function aimHooks(type: TowerType, tier: number, state: AimSceneState): G
       }
       if (towerId < 0 || order.length === 0) return;
       const sec = tick / TICKS_PER_SEC;
-      const slot = Math.floor(sec / AIM_HOLD_SEC) % order.length;
+      const slot = Math.floor(sec / holdSec) % order.length;
       const spot = spots.find((s) => s.sector === order[slot])!;
       if (state.current !== spot.sector) {
         state.current = spot.sector;
@@ -276,6 +277,8 @@ export function aimHooks(type: TowerType, tier: number, state: AimSceneState): G
       for (let i = 0; i < pool.getActiveCount(); i++) {
         const c = pool.items[pool.getActiveIndex(i)];
         if (dummy && c.uid === dummy.uid) e = c;
+        // Anything else (the level's own waves) is retired at the goal: one target only.
+        else c.dist = c.totalDist;
       }
       if (e && (e.flying !== spot.flying || e.lane !== spot.lane)) {
         // Wrong lane: retire it at the goal (lives are topped up).
