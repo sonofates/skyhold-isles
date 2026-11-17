@@ -1,4 +1,5 @@
 import type { ProgressData } from '../core/types.ts';
+import { CHALLENGES, challengesForLevel, type ChallengeId } from '../data/challenges.ts';
 import { LEVELS } from '../data/levels/index.ts';
 import { TOWER_ICON_SVGS, UI_ICON_SVGS } from './icons.ts';
 import { affordableUpgradeCount, WORKSHOP_ICON_SVG } from './workshop.ts';
@@ -311,7 +312,22 @@ export class LevelSelectOverlay {
         actionBtn.title = `Clear ${LEVELS[Math.max(0, i - 1)].name} to unlock`;
       }
 
-      card.append(topRow, art, nameEl, starsRow, metaEl, actionBtn);
+      const offered = challengesForLevel(lvl);
+      const medals = document.createElement('div');
+      medals.className = 'level-card-medals';
+      const doneChallenges = progress.challengeClears?.[i] ?? [];
+      if (unlocked && stars > 0) {
+        for (const id of offered) {
+          const m = document.createElement('span');
+          const earned = doneChallenges.includes(id);
+          m.className = `level-medal${earned ? ' earned' : ''}`;
+          m.title = `${CHALLENGES[id].name}${earned ? ' — earned' : ''}`;
+          medals.appendChild(m);
+        }
+        medals.title = `Challenges ${doneChallenges.filter((id) => offered.includes(id as ChallengeId)).length}/${offered.length}`;
+      }
+
+      card.append(topRow, art, nameEl, starsRow, medals, metaEl, actionBtn);
       this.gridEl.appendChild(card);
     }
 

@@ -17,6 +17,7 @@ import { GameToast } from './toast.ts';
 import { EnemyTooltip } from './tooltip.ts';
 import { TowerPanel } from './towerPanel.ts';
 import { WorkshopOverlay } from './workshop.ts';
+import { IslandBriefingModal, type BriefingStartConfig } from './islandBriefing.ts';
 import type { WorkshopUpgradeId } from '../data/workshop.ts';
 
 export interface GameOverlayCallbacks {
@@ -53,6 +54,8 @@ export interface GameOverlayCallbacks {
   onWorkshopBuy: (id: WorkshopUpgradeId) => boolean;
   onWorkshopRefundAll: () => void;
   onWorkshopBack: () => void;
+  onBriefingStart: (levelIndex: number, config: BriefingStartConfig) => void;
+  onBriefingToggle?: (on: boolean) => void;
 }
 
 export class GameOverlays {
@@ -69,6 +72,7 @@ export class GameOverlays {
   readonly outcomeOverlay: OutcomeOverlay;
   readonly settingsModal: SettingsModal;
   readonly workshop: WorkshopOverlay;
+  readonly islandBriefing: IslandBriefingModal;
   private readonly pauseBanner: HTMLDivElement;
 
   constructor(uiRoot: HTMLElement, cb: GameOverlayCallbacks) {
@@ -123,6 +127,12 @@ export class GameOverlays {
       onBack: cb.onWorkshopBack,
     });
 
+    this.islandBriefing = new IslandBriefingModal(uiRoot, {
+      onStart: cb.onBriefingStart,
+      onClose: () => {},
+      onToggleSound: cb.onBriefingToggle,
+    });
+
     this.pauseMenu = new PauseMenuModal(uiRoot, {
       onResume: cb.onResumeFromPause,
       onToggleAutoWave: cb.onToggleAutoWave,
@@ -158,6 +168,7 @@ export class GameOverlays {
   }
 
   closeModals(): void {
+    this.islandBriefing.hide();
     this.pauseMenu.setOpen(false);
     this.settingsModal.setOpen(false);
     this.outcomeOverlay.hide();
@@ -197,6 +208,7 @@ export class GameOverlays {
     this.mainMenu.dispose();
     this.levelSelect.dispose();
     this.workshop.dispose();
+    this.islandBriefing.dispose();
     this.pauseMenu.dispose();
     this.outcomeOverlay.dispose();
     this.settingsModal.dispose();

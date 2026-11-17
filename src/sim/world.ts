@@ -171,6 +171,13 @@ export class SimWorld {
     return this.abilitySystem.castOvercharge(this.towers);
   }
 
+  /** Island card → Endless: the whole run is endless from wave 1 (no victory, no stars). */
+  startEndlessFromStart(): boolean {
+    if (this.outcome !== 'ongoing' || this.waveSystem.state !== 'preFirstWave') return false;
+    this.waveSystem.startEndlessFromStart();
+    return true;
+  }
+
   enterEndlessMode(): boolean {
     if (this.outcome !== 'won') return false;
     this.outcome = 'ongoing';
@@ -366,9 +373,10 @@ export class SimWorld {
       dt,
       () => this.enemyPool.getActiveCount(),
       (enemyType, hpScale, elite, lane) => {
+        const fx = this.waveSystem.getEndlessMutatorEffects();
         const spawned = this.enemySystem.spawnEnemy(
           enemyType,
-          hpScale * this.mods.enemyHpMul,
+          hpScale * this.mods.enemyHpMul * fx.hpMul,
           elite,
           lane,
         );
@@ -376,9 +384,17 @@ export class SimWorld {
           spawned.reward = Math.max(
             1,
             Math.round(
-              spawned.reward * this.waveSystem.getRewardMultiplier() * this.mods.killGoldMul,
+              spawned.reward *
+                this.waveSystem.getRewardMultiplier() *
+                this.mods.killGoldMul *
+                fx.killGoldMul,
             ),
           );
+          if (fx.speedMul !== 1) spawned.speed *= fx.speedMul;
+          if (fx.armorBonus !== 0) {
+            spawned.armor += fx.armorBonus;
+            spawned.baseArmor = spawned.armor;
+          }
         }
       },
       (bonus) => {

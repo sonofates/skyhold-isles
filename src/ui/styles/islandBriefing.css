@@ -1,0 +1,431 @@
+/* Island briefing (mode + challenges), level-card medals and challenge-banned tower markers. */
+
+.ib-card.modal-card {
+  width: min(440px, 100%);
+  max-height: 100%;
+  padding: 16px 16px 20px;
+  gap: 10px;
+  text-align: left;
+}
+
+.ib-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ib-diff {
+  flex: 1;
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--gx-muted);
+}
+
+.ib-close {
+  --c: 10px;
+  width: 44px;
+  height: 44px;
+  padding: 0 0 4px;
+  flex: none;
+}
+
+.ib-close .btn-icon {
+  width: 20px;
+  height: 20px;
+}
+
+.ib-title {
+  margin-top: -4px;
+  font-family: var(--font-display);
+  font-size: 30px;
+  font-weight: 700;
+  line-height: 1.02;
+  color: var(--gx-cream);
+  -webkit-text-stroke: 5px var(--gx-ink);
+  paint-order: stroke fill;
+  text-shadow: 0 3px 0 var(--gx-ink);
+}
+
+.ib-records {
+  display: grid;
+  grid-template-columns: 1.7fr 1fr 1fr 1fr;
+  gap: 6px;
+}
+
+.ib-rec {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 6px 4px 7px;
+  background: var(--gx-slate-lo);
+  clip-path: polygon(7px 0, calc(100% - 7px) 0, 100% 7px, 100% calc(100% - 7px), calc(100% - 7px) 100%, 7px 100%, 0 calc(100% - 7px), 0 7px);
+  text-align: center;
+}
+
+.ib-rec strong {
+  font-family: var(--font-display);
+  font-size: 19px;
+  font-weight: 700;
+  color: var(--gx-cream);
+  line-height: 1;
+}
+
+.ib-rec span {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--gx-muted);
+  line-height: 1.15;
+}
+
+.ib-rec-stars .star-row {
+  display: flex;
+  gap: 1px;
+}
+
+.ib-rec-stars .star-slot {
+  width: 22px;
+  height: 22px;
+}
+
+.ib-modes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.ib-mode {
+  --c: 9px;
+  --lip: 4px;
+  min-height: 46px;
+  padding: 0 10px 4px;
+  font-size: 17px;
+}
+
+.ib-body {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.ib-section-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 0 2px;
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #e7a6ff;
+}
+
+.ib-section-head b {
+  color: var(--gx-cream);
+  letter-spacing: 0.02em;
+}
+
+.ib-challenge {
+  appearance: none;
+  -webkit-appearance: none;
+  border: 0;
+  width: 100%;
+  min-height: 56px;
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) 36px;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  text-align: left;
+  font-family: inherit;
+  color: var(--gx-cream);
+  background: var(--gx-slate-lo);
+  cursor: pointer;
+  touch-action: manipulation;
+  clip-path: polygon(9px 0, calc(100% - 9px) 0, 100% 9px, 100% calc(100% - 9px), calc(100% - 9px) 100%, 9px 100%, 0 calc(100% - 9px), 0 9px);
+  transition: background 0.12s ease;
+}
+
+.ib-challenge.on {
+  background: #5a3a78;
+}
+
+.ib-challenge:focus-visible {
+  outline: 3px solid var(--gx-gold);
+  outline-offset: -3px;
+}
+
+.ib-ch-icon {
+  width: 40px;
+  height: 40px;
+  padding: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--gx-slate-hi);
+  clip-path: polygon(8px 0, calc(100% - 8px) 0, 100% 8px, 100% calc(100% - 8px), calc(100% - 8px) 100%, 8px 100%, 0 calc(100% - 8px), 0 8px);
+}
+
+.ib-ch-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.ib-ban {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.ib-ban-slash {
+  position: absolute;
+  left: -2px;
+  right: -2px;
+  top: 50%;
+  height: 4px;
+  margin-top: -2px;
+  background: var(--gx-coral);
+  border: 1px solid var(--gx-ink);
+  transform: rotate(-40deg);
+}
+
+.ib-ch-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.ib-ch-name {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.ib-ch-desc {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--gx-muted);
+  line-height: 1.2;
+}
+
+.ib-ch-reward,
+.ib-ch-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: 4px;
+  padding: 0 6px 1px;
+  font-size: 12px;
+  font-weight: 700;
+  vertical-align: 2px;
+  color: var(--gx-ink);
+  background: var(--gx-gold);
+  clip-path: polygon(4px 0, calc(100% - 4px) 0, 100% 4px, 100% calc(100% - 4px), calc(100% - 4px) 100%, 4px 100%, 0 calc(100% - 4px), 0 4px);
+}
+
+.ib-ch-badge {
+  background: #b8ec95;
+}
+
+.ib-ch-badge svg {
+  width: 11px;
+  height: 11px;
+}
+
+.ib-switch {
+  justify-self: end;
+  width: 34px;
+  height: 20px;
+  position: relative;
+  background: var(--gx-ink);
+  clip-path: polygon(5px 0, calc(100% - 5px) 0, 100% 5px, 100% calc(100% - 5px), calc(100% - 5px) 100%, 5px 100%, 0 calc(100% - 5px), 0 5px);
+}
+
+.ib-switch::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 14px;
+  height: 14px;
+  background: var(--gx-muted);
+  clip-path: polygon(3px 0, calc(100% - 3px) 0, 100% 3px, 100% calc(100% - 3px), calc(100% - 3px) 100%, 3px 100%, 0 calc(100% - 3px), 0 3px);
+  transition: left 0.12s ease;
+}
+
+.ib-challenge.on .ib-switch::after {
+  left: 17px;
+  background: #e7a6ff;
+}
+
+.ib-note {
+  padding: 0 2px;
+  font-size: 12px;
+  color: var(--gx-muted);
+  line-height: 1.3;
+}
+
+.ib-endless-info {
+  padding: 10px 12px;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--gx-cream);
+  background: var(--gx-slate-lo);
+  clip-path: polygon(9px 0, calc(100% - 9px) 0, 100% 9px, 100% calc(100% - 9px), calc(100% - 9px) 100%, 9px 100%, 0 calc(100% - 9px), 0 9px);
+}
+
+.ib-endless-info p {
+  margin: 0 0 6px;
+}
+
+.ib-endless-info p:last-child {
+  margin: 0;
+  color: var(--gx-muted);
+}
+
+.ib-endless-info b {
+  color: #8fd5ee;
+}
+
+.ib-start {
+  min-height: 60px;
+  margin-top: 2px;
+}
+
+.ib-start-stack {
+  align-items: center;
+}
+
+.ib-start .btn-label-stack .btn-label {
+  font-size: 26px;
+}
+
+.ib-start-sub {
+  font-size: 13px;
+  font-weight: 600;
+  color: #e4f6d2;
+}
+
+/* Short landscape: records collapse, tighter rows */
+@media (max-height: 500px) {
+  .ib-card.modal-card {
+    width: min(620px, 100%);
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+    grid-template-rows: auto auto auto 1fr;
+    column-gap: 14px;
+    row-gap: 8px;
+    padding: 12px 14px 16px;
+  }
+
+  .ib-top,
+  .ib-title,
+  .ib-records,
+  .ib-start {
+    grid-column: 1;
+  }
+
+  .ib-modes,
+  .ib-body {
+    grid-column: 2;
+  }
+
+  .ib-top {
+    grid-row: 1;
+  }
+
+  .ib-title {
+    grid-row: 2;
+    font-size: 24px;
+  }
+
+  .ib-records {
+    grid-row: 3;
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+
+  .ib-rec-stars {
+    grid-column: 1 / -1;
+    flex-direction: row;
+    gap: 8px;
+  }
+
+  .ib-start {
+    grid-row: 4;
+    align-self: end;
+  }
+
+  .ib-modes {
+    grid-row: 1;
+  }
+
+  .ib-body {
+    grid-row: 2 / 5;
+    max-height: calc(100vh - 110px);
+  }
+
+  .ib-challenge {
+    min-height: 48px;
+    padding: 5px 8px;
+  }
+}
+
+/* Level card: challenge medals */
+.level-card-medals {
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+  min-height: 16px;
+  margin-top: -4px;
+}
+
+.level-medal {
+  width: 14px;
+  height: 14px;
+  background: var(--gx-ink);
+  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+}
+
+.level-medal.earned {
+  background: #e7a6ff;
+  box-shadow: inset 0 -3px 0 #a26ac0;
+}
+
+/* Challenge runs: banned towers greyed out in the build bar and the touch ring. */
+html[data-banned-towers~='archer'] [data-tower='archer'],
+html[data-banned-towers~='cannon'] [data-tower='cannon'],
+html[data-banned-towers~='frost'] [data-tower='frost'],
+html[data-banned-towers~='tesla'] [data-tower='tesla'],
+html[data-banned-towers~='mortar'] [data-tower='mortar'],
+html[data-banned-towers~='ballista'] [data-tower='ballista'],
+html[data-banned-towers~='beacon'] [data-tower='beacon'] {
+  opacity: 0.38;
+  filter: grayscale(1) brightness(0.8);
+}
+
+html[data-banned-towers~='archer'] .radial-root [data-tower='archer'],
+html[data-banned-towers~='cannon'] .radial-root [data-tower='cannon'],
+html[data-banned-towers~='frost'] .radial-root [data-tower='frost'],
+html[data-banned-towers~='tesla'] .radial-root [data-tower='tesla'],
+html[data-banned-towers~='mortar'] .radial-root [data-tower='mortar'],
+html[data-banned-towers~='ballista'] .radial-root [data-tower='ballista'],
+html[data-banned-towers~='beacon'] .radial-root [data-tower='beacon'] {
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ib-switch::after {
+    transition: none;
+  }
+}

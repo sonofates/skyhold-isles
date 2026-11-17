@@ -11,6 +11,8 @@ export interface WinRecord {
   readonly newBestLives: boolean;
   /** Island index newly unlocked by this win (null when nothing new opened). */
   readonly unlockedIndex: number | null;
+  /** Challenge ids completed for the first time by this win (each = +1 bonus star). */
+  readonly newChallenges: readonly string[];
 }
 
 /**
@@ -23,6 +25,7 @@ export function applyWin(
   levelCount: number,
   stars: 1 | 2 | 3,
   livesRemaining: number,
+  challenges: readonly string[] = [],
 ): WinRecord {
   const previousBestStars = progress.bestStars[levelIndex] ?? 0;
   const previousClears = progress.clears[levelIndex] ?? 0;
@@ -32,6 +35,18 @@ export function applyWin(
   progress.bestStars[levelIndex] = Math.max(previousBestStars, stars);
   progress.clears[levelIndex] = previousClears + 1;
   progress.bestLives[levelIndex] = Math.max(previousBestLives, lives);
+
+  const newChallenges: string[] = [];
+  if (challenges.length > 0) {
+    while (progress.challengeClears.length <= levelIndex) progress.challengeClears.push([]);
+    const done = progress.challengeClears[levelIndex];
+    for (const id of challenges) {
+      if (!done.includes(id)) {
+        done.push(id);
+        newChallenges.push(id);
+      }
+    }
+  }
 
   let unlockedIndex: number | null = null;
   if (levelIndex + 1 < levelCount && progress.unlockedLevelIndex < levelIndex + 1) {
@@ -45,6 +60,7 @@ export function applyWin(
     starsGained: Math.max(0, stars - previousBestStars),
     newBestLives: previousClears > 0 && lives > previousBestLives,
     unlockedIndex,
+    newChallenges,
   };
 }
 

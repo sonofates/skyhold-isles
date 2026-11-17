@@ -99,8 +99,9 @@ export function recordWinProgress(
   levelIndex: number,
   stars: 1 | 2 | 3,
   livesRemaining = 0,
+  challenges: readonly string[] = [],
 ): WinRecord {
-  const record = applyWin(progress, levelIndex, LEVELS.length, stars, livesRemaining);
+  const record = applyWin(progress, levelIndex, LEVELS.length, stars, livesRemaining, challenges);
   saveProgress(progress);
   return record;
 }

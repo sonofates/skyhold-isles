@@ -72,16 +72,13 @@ async function bootstrap(loadingScreen: LoadingScreen): Promise<void> {
       soundManager.unlock();
       session.openSettingsModal('menu');
     },
-    onSelectLevel: (idx) => {
-      soundManager.unlock();
-      session.startLevel(idx);
-    },
+    onSelectLevel: (idx) => session.selectIsland(idx),
     onBackFromLevelSelect: () => {
       soundManager.unlock();
       session.showMenuView('menu', false);
     },
     onResumeFromPause: () => session.closePauseMenu(),
-    onRestartLevel: () => session.startLevel(session.currentLevelIndex),
+    onRestartLevel: () => session.restartLevel(),
     onOpenSettingsFromPause: () => session.openSettingsModal('pause'),
     onOpenLevelSelectFromPause: () => session.showMenuView('levelSelect', true),
     onMainMenuFromPause: () => session.showMenuView('menu', true),
@@ -96,6 +93,11 @@ async function bootstrap(loadingScreen: LoadingScreen): Promise<void> {
     onWorkshopBuy: (id) => session.buyWorkshopUpgrade(id),
     onWorkshopRefundAll: () => session.refundWorkshop(),
     onWorkshopBack: () => session.closeWorkshop(),
+    onBriefingStart: (idx, config) => {
+      soundManager.unlock();
+      session.startLevel(idx, config);
+    },
+    onBriefingToggle: (on) => (on ? soundManager.playUiConfirm() : soundManager.playUiBack()),
   });
 
   const debugPanel = createDebugPanelIfEnabled(uiRoot, {

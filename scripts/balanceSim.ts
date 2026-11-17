@@ -6,7 +6,8 @@ import { LEVELS, type LevelDef, type ScriptedBuildAction } from '../src/data/lev
 import { NEUTRAL_RUN_MODIFIERS, type RunModifiers } from '../src/data/runModifiers.ts';
 import { getTowerTierStats } from '../src/data/towers.ts';
 import { maxedWorkshopRanks, workshopModifiers } from '../src/data/workshop.ts';
-import { SimWorld } from '../src/sim/world.ts';
+import { endlessMutatorsAt } from '../src/data/endlessMutators.ts';
+import { computeStarRating, SimWorld } from '../src/sim/world.ts';
 
 type ScriptKind = 'greedy' | 'weak';
 
@@ -42,6 +43,10 @@ export interface SimRunResult {
   waves: WaveStatRow[];
   unspentScriptActions: number;
   invalidActions: number;
+  /** Endless continuation (only when requested): furthest wave reached and peak live enemies. */
+  endlessReachedWave?: number;
+  endlessPeakEnemies?: number;
+  endlessOutcome?: 'lost' | 'capped' | 'skipped';
 }
 
 function tryExecuteAction(
@@ -91,11 +96,49 @@ function tryExecuteAction(
   return { executed: true, invalid: false, cost, isBuild: false, changedTargeting: false };
 }
 
+/**
+ * Endless sanity spender (script exhausted): upgrade the cheapest tower below T3, otherwise build
+ * alternating archers/cannons on the free tiles closest to the road. Crude, but it keeps a late
+ * Endless run investing like a player would, so the stacked mutators actually get exercised.
+ */
+function spendEndlessGold(world: SimWorld): void {
+  for (let guard = 0; guard < 40; guard++) {
+    let best: { id: number; cost: number } | null = null;
+    for (const t of world.towers) {
+      if (t.tier >= 3 || t.type === 'beacon') continue;
+      const cost = getTowerTierStats(t.type, (t.tier + 1) as 2 | 3).upgradeCost;
+      if (!best || cost < best.cost) best = { id: t.id, cost };
+    }
+    if (best && world.gold >= best.cost) {
+      world.upgradeTower(best.id);
+      continue;
+    }
+    if (best) return;
+    const type = world.towers.length % 2 === 0 ? 'archer' : 'cannon';
+    if (world.gold < getTowerTierStats(type, 1).upgradeCost) return;
+    let placed = false;
+    for (let r = 0; r < world.level.rows && !placed; r++) {
+      for (let c = 0; c < world.level.cols && !placed; c++) {
+        if (!world.grid.canPlaceTower(c, r)) continue;
+        const nearRoad =
+          world.grid.getTile(c + 1, r) === 'path' ||
+          world.grid.getTile(c - 1, r) === 'path' ||
+          world.grid.getTile(c, r + 1) === 'path' ||
+          world.grid.getTile(c, r - 1) === 'path';
+        if (nearRoad && world.placeTower(c, r, type)) placed = true;
+      }
+    }
+    if (!placed) return;
+  }
+}
+
 export function runLevelBalanceSim(
   level: LevelDef,
   scriptKind: ScriptKind,
   scriptActions: readonly ScriptedBuildAction[],
   mods: RunModifiers = NEUTRAL_RUN_MODIFIERS,
+  /** After a win, keep going in Endless for up to this many generated waves (0 = stop at the win). */
+  endlessWaves = 0,
 ): SimRunResult {
   const events = new EventBus();
   const world = new SimWorld(level, events, mods);
@@ -210,26 +253,59 @@ export function runLevelBalanceSim(
   const lastWaveHoardPct =
     lastRow && earnedBeforeLastWave > 0 ? (lastRow.startGold / earnedBeforeLastWave) * 100 : 0;
   const endGoldPctOfEarned = goldEarned > 0 ? (world.gold / goldEarned) * 100 : 0;
+  const storyOutcome = world.outcome;
+  const storyLives = world.lives;
+  const storyGold = world.gold;
+  const storyWaves = [...waveRows];
+
+  let endlessReachedWave: number | undefined;
+  let endlessPeakEnemies: number | undefined;
+  let endlessOutcome: SimRunResult['endlessOutcome'];
+  if (endlessWaves > 0) {
+    endlessOutcome = 'skipped';
+    if (world.outcome === 'won' && world.enterEndlessMode()) {
+      // Endless sanity run: keep spending leftover script steps between waves; waves auto-start.
+      endlessPeakEnemies = 0;
+      const lastIdx = level.waves.length - 1 + endlessWaves;
+      const endlessTicks = 60 * 60 * 90;
+      for (let tick = 0; tick < endlessTicks && world.outcome === 'ongoing'; tick++) {
+        if (world.waveSystem.state === 'betweenWaves') {
+          while (executeStep()) {
+            // spend between waves greedily
+          }
+          if (queue.length === 0) spendEndlessGold(world);
+        }
+        world.fixedTick(BALANCE.fixedDt);
+        endlessPeakEnemies = Math.max(endlessPeakEnemies, world.enemyPool.getActiveCount());
+        if (world.waveSystem.currentWaveIndex > lastIdx) break;
+      }
+      endlessReachedWave = world.waveSystem.currentWaveOneBased;
+      endlessOutcome = world.outcome === 'lost' ? 'lost' : 'capped';
+    }
+  }
 
   return {
     levelId: level.id,
     name: level.name,
     scriptKind,
-    outcome: world.outcome,
-    finalLives: world.lives,
-    stars: world.outcome === 'won' ? world.computeStars() : 0,
+    outcome: storyOutcome,
+    finalLives: storyLives,
+    stars: storyOutcome === 'won' ? computeStarRating(storyLives, level.difficulty, world.startingLives) : 0,
     startingGold: level.startingGold,
     goldEarned,
     goldSpent,
-    finalGold: world.gold,
+    finalGold: storyGold,
     endGoldPctOfEarned,
     lastWaveHoardPct,
     towersBuilt,
     plannedTowers,
     targetingChanges,
-    waves: waveRows,
+    waves: storyWaves,
     unspentScriptActions: queue.length,
     invalidActions,
+    endlessReachedWave,
+    endlessPeakEnemies,
+    endlessOutcome,
   };
 }
 
@@ -415,6 +491,39 @@ export function evaluateBalance(
 }
 
 /**
+ * Endless sanity: a few islands continue into Endless after the greedy win. Escalation (HP growth,
+ * bosses, stacking mutators) must end every run well before the cap, and the live enemy count
+ * must stay inside the pool.
+ */
+export function evaluateEndlessSanity(
+  levelFilter: ReadonlySet<number> | null,
+): { lines: string[]; failures: string[] } {
+  const CAP = 40;
+  const sample = [0, 6, LEVELS.length - 1];
+  const lines: string[] = [];
+  const failures: string[] = [];
+  for (const i of sample) {
+    if (levelFilter && !levelFilter.has(i)) continue;
+    const level = LEVELS[i];
+    const r = runLevelBalanceSim(level, 'greedy', level.scriptedBuildOrder ?? [], NEUTRAL_RUN_MODIFIERS, CAP);
+    const reached = r.endlessReachedWave ?? 0;
+    const cleared = Math.max(0, reached - 1 - level.waves.length);
+    const mutators = endlessMutatorsAt(cleared, level.index).map((m) => m.name);
+    lines.push(
+      `L${i + 1} ${level.difficulty.padEnd(11)} endless ${r.endlessOutcome} at wave ${reached} ` +
+        `(${cleared} endless waves cleared, peak ${r.endlessPeakEnemies ?? 0} foes; mutators: ${mutators.join(', ') || '-'})`,
+    );
+    if (r.endlessOutcome === 'capped') {
+      failures.push(`L${i + 1} endless greedy survived ${CAP} generated waves (escalation too weak)`);
+    }
+    if ((r.endlessPeakEnemies ?? 0) >= BALANCE.pools.maxEnemies) {
+      failures.push(`L${i + 1} endless filled the enemy pool (${r.endlessPeakEnemies})`);
+    }
+  }
+  return { lines, failures };
+}
+
+/**
  * Meta-progression guard: the same greedy scripts with every Workshop upgrade at max rank.
  * Upgrades must help (never hurt) but not trivialise the hardest islands: a maxed greedy run must
  * still lose lives on every Master island (and on average gain only a few lives anywhere).
@@ -458,9 +567,14 @@ function main(): void {
   const { summary, failures, robustLines } = evaluateBalance(levelFilter, true);
   const workshop = evaluateWorkshopMax(levelFilter);
   failures.push(...workshop.failures);
+  const endless = evaluateEndlessSanity(levelFilter);
+  failures.push(...endless.failures);
 
   console.log('=== Summary (lives left / stars / leaks by type over the whole run) ===');
   for (const line of summary) console.log(line);
+  console.log('');
+  console.log('=== Endless sanity (greedy continues after the win; informational unless capped/pool-full) ===');
+  for (const line of endless.lines) console.log(line);
   console.log('');
   console.log('=== Workshop max (all upgrades, greedy script; baseline above uses none) ===');
   for (const line of workshop.lines) console.log(line);
