@@ -81,3 +81,7 @@ Clean tree at start. Re-ran tsc / lint / 430 tests / build / sim:balance: all gr
   `ContentStore`/`ContentDirector`, wires replay, mounts Codex entry points.
 - `src/platform/sessionBridge.ts`: `suppressIntroToasts` option; flyer toast text. `src/ui/hud.ts`: air-tower name list filter.
 - `src/data/enemies.ts`: boss description text only.
+
+## Round 4 (verification)
+Clean tree at start, `main` already merged into the branch. tsc / lint / tests green; no code changes (backlog 1–5 complete; the
+remaining ideas — tower-unlock card wiring, landscape codex density — depend on CAMPAIGN/MOBILE merges and are listed under Next).
