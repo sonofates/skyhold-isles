@@ -1648,4 +1648,127 @@ describe('PerfGovernor', () => {
     uncoloredMat.dispose();
     enemyShadowMat.dispose();
   });
+
+  it('cancels pending deferred SMAA cleanly on T4->T5->T4 downgrade before Image load and lets a later T4->T5 attach', async () => {
+    const loadCallbacks: Array<() => void> = [];
+    vi.stubGlobal(
+      'Image',
+      class FakeSmaaImage {
+        width = 16;
+        height = 16;
+        addEventListener(type: string, cb: () => void): void {
+          if (type === 'load') loadCallbacks.push(cb);
+        }
+        set src(_v: string) {}
+      },
+    );
+
+    const disposedTexNames: string[] = [];
+    const origTexDispose = THREE.Texture.prototype.dispose;
+    const texDisposeSpy = vi
+      .spyOn(THREE.Texture.prototype, 'dispose')
+      .mockImplementation(function (this: THREE.Texture) {
+        if (this.name.startsWith('SMAA.')) {
+          disposedTexNames.push(this.name);
+        }
+        return origTexDispose.call(this);
+      });
+
+    const { renderer: mockRenderer } = createMockPostRenderer(800, 600);
+    const scene = new THREE.Scene();
+    const camera = new THREE.OrthographicCamera();
+    const tier4 = { n8ao: 'off' as const, outline: true, bloom: true, smaa: false };
+    const tier5 = { n8ao: 'off' as const, outline: true, bloom: true, smaa: true };
+
+    const pipeline = new PostProcessingPipeline(mockRenderer, scene, camera, 800, 600, tier4);
+
+    try {
+      type ComposerInternals = { passes: Array<{ renderToScreen: boolean }> };
+      const composer = pipeline.composer as unknown as ComposerInternals;
+
+      // Upgrade T4 -> T5 (pending Image load) then immediately downgrade T5 -> T4 before load completes
+      pipeline.applyConfig(tier5);
+      expect(loadCallbacks).toHaveLength(2);
+      const staleReady = pipeline.whenReady();
+
+      pipeline.releaseDisabledPasses(tier4);
+      pipeline.applyConfig(tier4);
+      await staleReady;
+      expect(composer.passes).toHaveLength(2); // RenderPass, Composite
+
+      // Upgrade T4 -> T5 a second time while first batch's Images are still pending
+      pipeline.applyConfig(tier5);
+      expect(loadCallbacks).toHaveLength(4);
+
+      // Stale first batch finishes loading -> disposes SMAA.Search & SMAA.Area without attaching
+      loadCallbacks[0]();
+      loadCallbacks[1]();
+      expect(disposedTexNames).toEqual(['SMAA.Search', 'SMAA.Area']);
+      expect(composer.passes).toHaveLength(2);
+      expect(composer.passes[1].renderToScreen).toBe(true);
+
+      // Second batch finishes loading -> attaches active smaaPass and switches renderToScreen
+      loadCallbacks[2]();
+      loadCallbacks[3]();
+      await pipeline.whenReady();
+      expect(composer.passes).toHaveLength(3);
+      expect(composer.passes.map((p) => p.renderToScreen)).toEqual([false, false, true]);
+      expect(pipeline.getActivePassSummary()).toBe('Out+Bloom+SMAA');
+    } finally {
+      pipeline.dispose();
+      texDisposeSpy.mockRestore();
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('drops N8AO and SMAA before resize on T5->T3 double-step while keeping compositePass and depthRenderTarget intact', () => {
+    vi.stubGlobal('Image', undefined);
+    const { renderer: mockRenderer } = createMockPostRenderer(800, 600);
+    const scene = new THREE.Scene();
+    const camera = new THREE.OrthographicCamera();
+
+    const pipeline = new PostProcessingPipeline(mockRenderer, scene, camera, 800, 600, {
+      n8ao: 'full',
+      outline: true,
+      bloom: true,
+      smaa: true,
+    });
+
+    try {
+      type ComposerInternals = {
+        depthRenderTarget: THREE.WebGLRenderTarget | null;
+        passes: Array<{ renderToScreen: boolean }>;
+      };
+      type PipelineInternals = {
+        n8aoPass: { setSize: (w: number, h: number) => void } | null;
+        smaaPass: { setSize: (w: number, h: number) => void } | null;
+        compositePass: EffectPass | null;
+      };
+      const composer = pipeline.composer as unknown as ComposerInternals;
+      const internals = pipeline as unknown as PipelineInternals;
+      const initialDepthTarget = composer.depthRenderTarget;
+      const initialComposite = internals.compositePass;
+      const n8aoSetSizeSpy = vi.spyOn(internals.n8aoPass!, 'setSize');
+      const smaaSetSizeSpy = vi.spyOn(internals.smaaPass!, 'setSize');
+
+      const tier3 = { n8ao: 'off' as const, outline: true, bloom: true, smaa: false };
+      pipeline.releaseDisabledPasses(tier3);
+      expect(internals.n8aoPass).toBeNull();
+      expect(internals.smaaPass).toBeNull();
+      expect(composer.passes).toHaveLength(2);
+      expect(composer.passes[1].renderToScreen).toBe(true);
+
+      pipeline.setSize(640, 480);
+      expect(n8aoSetSizeSpy).not.toHaveBeenCalled();
+      expect(smaaSetSizeSpy).not.toHaveBeenCalled();
+
+      pipeline.applyConfig(tier3);
+      expect(internals.compositePass).toBe(initialComposite);
+      expect(composer.depthRenderTarget).toBe(initialDepthTarget);
+      expect(pipeline.getActivePassSummary()).toBe('Out+Bloom');
+    } finally {
+      pipeline.dispose();
+      vi.unstubAllGlobals();
+    }
+  });
 });
