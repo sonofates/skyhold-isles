@@ -832,5 +832,71 @@ describe('GameSession state machine, input, and lifecycle', () => {
     // Double dispose is idempotent
     h.session.dispose();
     h.session.dispose();
+
+    // Unattached GameSession throws descriptive error when runtime-dependent methods run
+    const unattached = new GameSession(h.renderWorld, h.soundManager);
+    expect(() => unattached.syncLoopAndInput()).toThrow('GameSession runtime deps not attached');
+    expect(() => unattached.startLevel(0)).toThrow('GameSession runtime deps not attached');
+  });
+
+  it('handles sell-confirm clear on tower switch, cooldown/maxed no-ops, shift-build affordability update, and non-reloading endless exit', () => {
+    const h = createHarness();
+    h.session.startLevel(0);
+    h.session.simWorld.gold = 2000;
+
+    // Build two towers, arm sell confirm on tA, then select tB -> disarms sell confirm
+    const tA = h.session.simWorld.placeTower(4, 2, 'archer')!;
+    const tB = h.session.simWorld.placeTower(4, 3, 'archer')!;
+    h.session.selectTower(tA.id);
+    expect(h.session.onTowerActionHotkey('sell')).toBe(true);
+    expect(h.overlays.towerPanel.setSellConfirmArmed).toHaveBeenLastCalledWith(true);
+    h.session.selectTower(tB.id);
+    expect(h.overlays.towerPanel.setSellConfirmArmed).toHaveBeenLastCalledWith(false);
+
+    // Upgrade to T3 -> subsequent upgradeTower is a safe no-op; missing sellTower(999) is a no-op
+    h.session.upgradeTower(tB.id);
+    h.session.upgradeTower(tB.id);
+    expect(tB.tier).toBe(3);
+    const ringSpy = h.renderWorld.overlayIndicators.setSelectedTowerRing as ReturnType<typeof vi.fn>;
+    const ringCallsBeforeNoops = ringSpy.mock.calls.length;
+    h.session.upgradeTower(tB.id);
+    h.session.upgradeTower(99999);
+    h.session.sellTower(99999);
+    expect(ringSpy.mock.calls.length).toBe(ringCallsBeforeNoops);
+
+    // Meteor activation during cooldown is a safe no-op
+    h.session.simWorld.startNextWave();
+    h.session.activateAbility('meteor');
+    const center = projectTileNdc(h.cam, h.session, 4, 2);
+    h.session.onPrimaryTap(center.x, center.y);
+    expect(h.session.simWorld.abilitySystem.canCast('meteor')).toBe(false);
+    h.session.activateAbility('meteor');
+    expect(h.renderWorld.setMeteorTargetPreview).toHaveBeenLastCalledWith(false, 0, 0, 1);
+
+    // Shift-build keeps placement mode and updates placement preview to valid=false once gold drops below cost
+    h.session.simWorld.gold = 55; // archer costs 50 -> 5g left afterwards
+    h.session.setPlacementMode('archer');
+    h.session.onPointerMove(0, 0, 400, 300);
+    const freeCoord = { col: 5, row: 2 };
+    const freeNdc = projectTileNdc(h.cam, h.session, freeCoord.col, freeCoord.row);
+    h.setPickedTower(null);
+    h.session.onPrimaryTap(freeNdc.x, freeNdc.y, true);
+    expect(h.session.simWorld.gold).toBe(5);
+    expect(h.renderWorld.setPlacementPreview).toHaveBeenLastCalledWith(
+      true,
+      'archer',
+      h.session.simWorld.grid.gridToWorldX(freeCoord.col),
+      h.session.simWorld.grid.gridToWorldZ(freeCoord.row),
+      false,
+    );
+
+    // Leaving Endless via showMenuView('levelSelect', false) defers bestEndlessWaves recording until reload/startLevel
+    h.session.simWorld.debugForceWin();
+    h.session.enterEndlessMode();
+    h.session.simWorld.debugSkipToWave(LEVELS[0].waves.length + 7);
+    h.session.showMenuView('levelSelect', false);
+    expect(loadProgress(LEVELS.length).bestEndlessWaves[0]).toBe(0);
+    h.session.showMenuView('menu', true);
+    expect(loadProgress(LEVELS.length).bestEndlessWaves[0]).toBe(0);
   });
 });

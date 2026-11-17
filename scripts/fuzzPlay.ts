@@ -325,22 +325,39 @@ function attachEventTracker(
     }
     tracker.killedCount++;
     tracker.expectedGold += ev.reward;
+    if (world.gold !== tracker.expectedGold || world.enemiesKilledTotal !== tracker.killedCount) {
+      recordEventError(
+        tracker,
+        `enemyKilled live counter mismatch: gold=${world.gold}/${tracker.expectedGold}, kills=${world.enemiesKilledTotal}/${tracker.killedCount}`,
+      );
+      return;
+    }
     tracker.stateHash = mixHash(mixHash(mixHash(tracker.stateHash, 2), ev.enemyId), ev.reward);
   });
 
   events.on('enemyLeaked', (ev) => {
-    const expectedCost = ENEMY_DEFS[ev.enemyType].livesCost;
+    const def = ENEMY_DEFS[ev.enemyType];
+    const expectedCost = def.livesCost;
+    const expectedLaneY = def.flying ? BALANCE.flyerHeight : BALANCE.tilePathTopY;
     if (ev.livesLost !== expectedCost || ev.livesLost < 1) {
       recordEventError(
         tracker,
         `enemyLeaked livesLost=${ev.livesLost} != ENEMY_DEFS[${ev.enemyType}].livesCost=${expectedCost}`,
       );
     }
-    if (!Number.isFinite(ev.x) || !Number.isFinite(ev.y) || !Number.isFinite(ev.z)) {
-      recordEventError(tracker, `Non-finite enemyLeaked coordinates for ${ev.enemyType}`);
+    if (
+      !Number.isFinite(ev.x) ||
+      !Number.isFinite(ev.y) ||
+      !Number.isFinite(ev.z) ||
+      Math.abs(ev.y - expectedLaneY) > 1e-5
+    ) {
+      recordEventError(tracker, `Invalid enemyLeaked coordinates/laneY=${ev.y} for ${ev.enemyType}`);
     }
     tracker.leakedCount++;
     tracker.expectedLives = Math.max(0, tracker.expectedLives - ev.livesLost);
+    if (world.lives !== tracker.expectedLives) {
+      recordEventError(tracker, `enemyLeaked live lives mismatch: world=${world.lives}, expected=${tracker.expectedLives}`);
+    }
     tracker.stateHash = mixStringHash(mixHash(mixHash(tracker.stateHash, 3), ev.livesLost), ev.enemyType);
   });
 
@@ -489,6 +506,26 @@ function attachEventTracker(
     }
     if (!Number.isFinite(ev.x) || !Number.isFinite(ev.y) || !Number.isFinite(ev.z)) {
       recordEventError(tracker, `Non-finite enemyHit coordinates for uid=${ev.enemyId}`);
+      return;
+    }
+    world.spatialHash.query(ev.x, ev.z, 0.05, _localHashProbe);
+    let matchedTarget = false;
+    for (let i = 0; i < _localHashProbe.length; i++) {
+      const e = world.enemyPool.items[_localHashProbe[i]];
+      if (
+        e.active &&
+        e.uid === ev.enemyId &&
+        Math.hypot(e.x - ev.x, e.z - ev.z) <= 1e-5 &&
+        Math.abs(ev.y - (e.y + e.height * 0.9)) <= 1e-5 &&
+        e.hitFlashTimer === 0.12 &&
+        e.hp + ev.damage <= e.maxHp
+      ) {
+        matchedTarget = true;
+        break;
+      }
+    }
+    if (!matchedTarget) {
+      recordEventError(tracker, `enemyHit uid=${ev.enemyId} failed spatialHash/entity state parity`);
       return;
     }
     tracker.totalEnemyHitDamage += ev.damage;
@@ -905,6 +942,12 @@ function attachEventTracker(
     }
     tracker.pendingExpectedWaveBonus = 0;
     tracker.expectedGold += ev.bonus;
+    if (world.gold !== tracker.expectedGold) {
+      recordEventError(
+        tracker,
+        `waveCompleted live gold mismatch: world=${world.gold}, expected=${tracker.expectedGold}`,
+      );
+    }
     if (inEndless()) {
       tracker.endlessWaveCompletedCount++;
     }
@@ -1282,6 +1325,10 @@ function assertTickInvariants(world: SimWorld, tracker: FuzzTracker, tick: numbe
   }
 
   const ws = world.waveSystem;
+  if (world.towers.length !== tracker.builtTowerIds.size) {
+    return `Tower ledger mismatch: world=${world.towers.length}, builtTowerIds=${tracker.builtTowerIds.size}`;
+  }
+  const maxInterWave = ws.autoWave ? 0.8 : BALANCE.interWaveCountdownSec;
   if (
     !VALID_WAVE_STATES.has(ws.state) ||
     (!ws.isEndless && ws.totalWaves !== world.level.waves.length) ||
@@ -1289,7 +1336,7 @@ function assertTickInvariants(world: SimWorld, tracker: FuzzTracker, tick: numbe
     ws.currentWaveOneBased !== Math.max(0, ws.currentWaveIndex + 1) ||
     ws.totalWaves < world.level.waves.length ||
     !Number.isFinite(ws.interWaveTimer) ||
-    (ws.state === 'betweenWaves' && ws.interWaveTimer < -BALANCE.fixedDt) ||
+    (ws.state === 'betweenWaves' && (ws.interWaveTimer < -BALANCE.fixedDt || ws.interWaveTimer > maxInterWave + 1e-6)) ||
     !Number.isFinite(ws.waveElapsed) ||
     ws.waveElapsed < 0
   ) {
@@ -2483,7 +2530,7 @@ export function runEndlessFuzz(
   tracker.expectedGold = world.gold;
   world.debugForceWin();
   inEndless = true;
-  if (!world.enterEndlessMode()) {
+  if (!world.enterEndlessMode() || tracker.endlessEnteredCount !== 1 || world.outcome !== 'ongoing') {
     return makeFailure(
       level,
       seed,
@@ -2496,7 +2543,9 @@ export function runEndlessFuzz(
       true,
     );
   }
-  world.startNextWave();
+  if (wavesTarget > 0) {
+    world.startNextWave();
+  }
 
   const maxTicks = 60 * 1500;
   const stepCtx = createFuzzStepContext(
@@ -2707,9 +2756,19 @@ export function runFuzzCampaign(config: {
           if (!replay.ok) {
             failures.push(replay);
           } else if (!digestsEqual(res.digest, replay.digest)) {
+            const reproCmd = `npx tsx scripts/fuzzPlay.ts --level ${level.index + 1} --seed ${seed} --profile ${profile} --endless-waves ${config.endlessWaves}`;
             failures.push({
               ok: false,
-              failure: `[L${level.index + 1} ${level.id} seed=${seed} profile=${profile}] Determinism failure: replay digest differed`,
+              failure: `[L${level.index + 1} ${level.id} seed=${seed} profile=${profile}] Determinism failure: replay digest differed (repro: ${reproCmd})`,
+              failureDetail: {
+                levelId: level.id,
+                levelIndex: level.index,
+                seed,
+                tick: replay.digest.ticks,
+                waveOneBased: replay.digest.currentWaveOneBased,
+                reason: 'Determinism failure: replay digest differed',
+                reproCmd,
+              },
               digest: replay.digest,
             });
           }
@@ -2738,9 +2797,19 @@ export function runFuzzCampaign(config: {
           if (!replay.ok) {
             failures.push(replay);
           } else if (!digestsEqual(eRes.digest, replay.digest)) {
+            const reproCmd = `npx tsx scripts/fuzzPlay.ts --level ${level.index + 1} --seed ${endlessSeed} --profile ${endlessProfile} --endless-waves ${config.endlessWaves} --endless-only`;
             failures.push({
               ok: false,
-              failure: `[L${level.index + 1} ${level.id} seed=${endlessSeed} profile=${endlessProfile}] Endless determinism failure: replay digest differed`,
+              failure: `[L${level.index + 1} ${level.id} seed=${endlessSeed} profile=${endlessProfile}] Endless determinism failure: replay digest differed (repro: ${reproCmd})`,
+              failureDetail: {
+                levelId: level.id,
+                levelIndex: level.index,
+                seed: endlessSeed,
+                tick: replay.digest.ticks,
+                waveOneBased: replay.digest.currentWaveOneBased,
+                reason: 'Endless determinism failure: replay digest differed',
+                reproCmd,
+              },
               digest: replay.digest,
             });
           }

@@ -99,11 +99,24 @@ describe('platform storage and progression', () => {
     expect(loadSettings().masterVolume).toBe(0);
     expect(loadSettings().quality).toBe('low');
 
-    // Corrupt JSON and JSON null safely return defaults
+    // Corrupt JSON, JSON null, and JSON array safely return defaults; explicit 0/1 bounds & quality preserved
     storage.setItem('skyhold_isles_settings_v1', '{not valid json');
     expect(loadSettings()).toEqual(getDefaultSettings());
     storage.setItem('skyhold_isles_settings_v1', 'null');
     expect(loadSettings()).toEqual(getDefaultSettings());
+    storage.setItem('skyhold_isles_settings_v1', '[]');
+    expect(loadSettings()).toEqual(getDefaultSettings());
+    storage.setItem(
+      'skyhold_isles_settings_v1',
+      JSON.stringify({ masterVolume: 0, muted: false, cameraShake: true, damageNumbers: true, quality: 'high' }),
+    );
+    expect(loadSettings()).toEqual({
+      masterVolume: 0,
+      muted: false,
+      cameraShake: true,
+      damageNumbers: true,
+      quality: 'high',
+    });
   });
 
   it('handles storage read/write exceptions gracefully without throwing', () => {
@@ -123,11 +136,14 @@ describe('platform storage and progression', () => {
   });
 
   it('persists one-time toast flags cleanly', () => {
+    storage.setItem('skyhold_isles_flyer_toast_seen_v1', '0');
+    storage.setItem('skyhold_isles_upgrade_toast_seen_v1', 'true');
     expect(hasSeenFlyerToast()).toBe(false);
+    expect(hasSeenUpgradeToast()).toBe(false);
+
     markFlyerToastSeen();
     expect(hasSeenFlyerToast()).toBe(true);
 
-    expect(hasSeenUpgradeToast()).toBe(false);
     markUpgradeToastSeen();
     expect(hasSeenUpgradeToast()).toBe(true);
   });

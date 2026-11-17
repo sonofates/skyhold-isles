@@ -50,6 +50,10 @@ describe('tower, enemy, ability, and UI metadata contracts', () => {
   it('ensures every tower archetype has complete stats, picking bounds, unique hotkeys, and SVG icons', () => {
     expect(TOWER_TYPES.length).toBeGreaterThanOrEqual(5);
     expect(new Set(TOWER_TYPES).size).toBe(TOWER_TYPES.length);
+    const sortedTowerTypes = [...TOWER_TYPES].sort();
+    expect(Object.keys(TOWER_DEFS).sort()).toEqual(sortedTowerTypes);
+    expect(Object.keys(TOWER_PICK_BOUNDS).sort()).toEqual(sortedTowerTypes);
+    expect(Object.keys(TOWER_ICON_SVGS).sort()).toEqual(sortedTowerTypes);
     const seenHotkeys = new Set<number>();
 
     TOWER_TYPES.forEach((type, idx) => {
@@ -114,6 +118,9 @@ describe('tower, enemy, ability, and UI metadata contracts', () => {
   it('ensures every enemy archetype has valid combat parameters and UI badge metadata', () => {
     expect(ENEMY_TYPES.length).toBeGreaterThanOrEqual(7);
     expect(new Set(ENEMY_TYPES).size).toBe(ENEMY_TYPES.length);
+    const sortedEnemyTypes = [...ENEMY_TYPES].sort();
+    expect(Object.keys(ENEMY_DEFS).sort()).toEqual(sortedEnemyTypes);
+    expect(Object.keys(ENEMY_BADGE_META).sort()).toEqual(sortedEnemyTypes);
 
     for (const type of ENEMY_TYPES) {
       const def = ENEMY_DEFS[type];
@@ -148,6 +155,7 @@ describe('tower, enemy, ability, and UI metadata contracts', () => {
 
   it('ensures every ability has valid definitions, icons, and monotonic meteor scaling', () => {
     expect(new Set(ABILITY_IDS).size).toBe(ABILITY_IDS.length);
+    expect(Object.keys(ABILITY_DEFS).sort()).toEqual([...ABILITY_IDS].sort());
     const seenHotkeys = new Set<string>();
     for (const id of ABILITY_IDS) {
       const def = ABILITY_DEFS[id];
@@ -407,6 +415,21 @@ describe('BALANCE constants and Kenney public asset contracts', () => {
     expect(BALANCE.pools.maxLightningArcs).toBeGreaterThan(0);
     expect(BALANCE.pools.maxPulseRings).toBeGreaterThan(0);
     expect(BALANCE.pools.maxFloatingTexts).toBeGreaterThan(0);
+    expect(BALANCE.floatingTextMergeWindowSec).toBeGreaterThan(0);
+    expect([...BALANCE.speedMultipliers]).toEqual([1, 2, 3]);
+    expect(BALANCE.camera.defaultFrustumHalfHeight).toBeGreaterThan(0);
+    expect(BALANCE.camera.minZoom).toBeGreaterThan(0);
+    expect(BALANCE.camera.maxZoom).toBeGreaterThan(BALANCE.camera.minZoom);
+    expect(BALANCE.camera.zoomStep).toBeGreaterThan(0);
+    expect(BALANCE.camera.zoomLerpSpeed).toBeGreaterThan(0);
+    expect(BALANCE.camera.panSpeed).toBeGreaterThan(0);
+    expect(BALANCE.camera.panLerpSpeed).toBeGreaterThan(0);
+    expect(BALANCE.camera.rotationDurationSec).toBeGreaterThan(0);
+    expect(BALANCE.camera.dragThresholdPx).toBeGreaterThan(0);
+    expect(BALANCE.camera.panBoundsPadding).toBeGreaterThanOrEqual(0);
+    expect(BALANCE.camera.shakeDecay).toBeGreaterThan(0);
+    expect(BALANCE.camera.bossHitShake).toBeGreaterThan(0);
+    expect(BALANCE.camera.mortarImpactShake).toBeGreaterThan(0);
   });
 
   it('verifies every KENNEY_MODEL_LIST GLB binary/JSON mesh structure, render references, and colormap texture', () => {

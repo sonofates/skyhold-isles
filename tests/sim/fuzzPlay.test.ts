@@ -250,6 +250,26 @@ describe('headless fuzz playthrough harness', () => {
     expect(storyOnlyWin.digest.waveState).toBe('finished');
     expect(storyOnlyWin.digest.endlessWavesCompleted).toBe(0);
 
+    // runEndlessFuzz with wavesTarget = 0 settles immediately in betweenWaves without spawning a wave
+    const zeroEndless = runEndlessFuzz(LEVELS[0], 42, 0, 'competent');
+    expect(zeroEndless.ok, zeroEndless.failure).toBe(true);
+    expect(zeroEndless.digest.waveState).toBe('betweenWaves');
+    expect(zeroEndless.digest.endlessWavesCompleted).toBe(0);
+    expect(zeroEndless.digest.ticks).toBe(0);
+
+    // runFuzzCampaign with endlessWaves = 0 skips dedicated endless checks cleanly
+    const noEndlessCampaign = runFuzzCampaign({
+      seedsPerLevel: 1,
+      baseSeed: 909,
+      endlessWaves: 0,
+      levelIndices: [0],
+      profile: 'minimal',
+    });
+    expect(noEndlessCampaign.failures).toEqual([]);
+    expect(noEndlessCampaign.totalRuns).toBe(1);
+    expect(noEndlessCampaign.endlessChecks).toBe(0);
+    expect(noEndlessCampaign.endlessWavesCompletedTotal).toBe(0);
+
     expect(() => parseFuzzCliArgs(['--profile', 'unknown'])).toThrow(/Invalid --profile/);
     expect(() => parseFuzzCliArgs(['--seed'])).toThrow(/requires a value/);
     expect(() => parseFuzzCliArgs(['--seed', 'abc'])).toThrow(/Invalid --seed/);

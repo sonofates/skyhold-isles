@@ -10,6 +10,7 @@ import type { RenderWorld } from '../../src/render/renderWorld.ts';
 import { getTowerPickHeight } from '../../src/render/towerPicking.ts';
 import {
   bindSimEventBridge,
+  stepPendingSpawns,
   updateHoverFeedback,
   updateMeteorPreviewFromNdc,
   updatePlacementPreviewFromNdc,
@@ -233,5 +234,90 @@ describe('platform touch detection and sessionBridge event/preview wiring', () =
     world.spatialHash.insert(grunt.poolIndex, grunt.x, grunt.z);
     updateHoverFeedback(true, true, false, false, proj.x, proj.y, 10, 10, renderWorld, world, overlays);
     expect(tooltipCalls[tooltipCalls.length - 1]).toEqual({ kind: 'enemy', id: grunt.uid });
+
+    // Hovering a flyer projects against flyerHeight and shows flyer tooltip
+    const flyer = world.enemySystem.spawnEnemy('flyer')!;
+    flyer.x = wx;
+    flyer.z = wz;
+    world.spatialHash.insert(flyer.poolIndex, flyer.x, flyer.z);
+    const flyerProj = new THREE.Vector3(wx, flyer.y, wz).project(cam.camera);
+    updateHoverFeedback(true, true, false, false, flyerProj.x, flyerProj.y, 22, 33, renderWorld, world, overlays);
+    expect(tooltipCalls[tooltipCalls.length - 1]).toEqual({ kind: 'enemy', id: flyer.uid });
+
+    // Hovering empty off-lane ground hides tooltip
+    updateHoverFeedback(true, true, false, false, 0.99, 0.99, 10, 10, renderWorld, world, overlays);
+    expect(tooltipCalls[tooltipCalls.length - 1]).toEqual({ kind: 'hide' });
+
+    // Placement active sets crosshair cursor & suppresses tooltip; paused clears tooltip; inPlay=false resets hover
+    updateHoverFeedback(true, true, false, true, proj.x, proj.y, 10, 10, renderWorld, world, overlays);
+    expect(cursors[cursors.length - 1]).toBe('crosshair');
+    expect(tooltipCalls[tooltipCalls.length - 1]).toEqual({ kind: 'hide' });
+
+    updateHoverFeedback(true, true, true, false, proj.x, proj.y, 10, 10, renderWorld, world, overlays);
+    expect(cursors[cursors.length - 1]).toBe('');
+    expect(tooltipCalls[tooltipCalls.length - 1]).toEqual({ kind: 'hide' });
+
+    updateHoverFeedback(false, true, false, false, proj.x, proj.y, 10, 10, renderWorld, world, overlays);
+    expect(hoveredTowerIds[hoveredTowerIds.length - 1]).toBeNull();
+    expect(tooltipCalls[tooltipCalls.length - 1]).toEqual({ kind: 'hide' });
+
+    // Meteor preview hides on non-meteor ability or null plane hit
+    updateMeteorPreviewFromNdc(true, 'overcharge', 0, 0, renderWorld);
+    expect(meteorPreviewCalls[meteorPreviewCalls.length - 1]).toEqual([false, 0, 0, 1]);
+
+    const origScreenToPlane = cam.screenNdcToPlane.bind(cam);
+    vi.spyOn(cam, 'screenNdcToPlane').mockReturnValueOnce(null);
+    updateMeteorPreviewFromNdc(true, 'meteor', 0, 0, renderWorld);
+    expect(meteorPreviewCalls[meteorPreviewCalls.length - 1]).toEqual([false, 0, 0, 1]);
+
+    // Placement preview hides when inactive, null type, null plane hit, off-grid, or empty void tile
+    updatePlacementPreviewFromNdc(false, 'archer', proj.x, proj.y, renderWorld, world);
+    expect(placementPreviewCalls[placementPreviewCalls.length - 1]).toEqual([false, null, 0, 0, false]);
+    updatePlacementPreviewFromNdc(true, null, proj.x, proj.y, renderWorld, world);
+    expect(placementPreviewCalls[placementPreviewCalls.length - 1]).toEqual([false, null, 0, 0, false]);
+    vi.spyOn(cam, 'screenNdcToPlane').mockReturnValueOnce(null);
+    updatePlacementPreviewFromNdc(true, 'archer', proj.x, proj.y, renderWorld, world);
+    expect(placementPreviewCalls[placementPreviewCalls.length - 1]).toEqual([false, null, 0, 0, false]);
+    vi.spyOn(cam, 'screenNdcToPlane').mockReturnValueOnce(new THREE.Vector3(999, 0, 999));
+    updatePlacementPreviewFromNdc(true, 'archer', 0, 0, renderWorld, world);
+    expect(placementPreviewCalls[placementPreviewCalls.length - 1]).toEqual([false, null, 0, 0, false]);
+
+    // Empty ('~') tile (0, 0) hides placement preview; path tile shows invalid preview; unaffordable grass shows invalid
+    const emptyWx = world.grid.gridToWorldX(0);
+    const emptyWz = world.grid.gridToWorldZ(0);
+    const emptyProj = new THREE.Vector3(emptyWx, 0, emptyWz).project(cam.camera);
+    updatePlacementPreviewFromNdc(true, 'archer', emptyProj.x, emptyProj.y, renderWorld, world);
+    expect(placementPreviewCalls[placementPreviewCalls.length - 1]).toEqual([false, null, 0, 0, false]);
+
+    const pathCol = LEVELS[0].pathWaypoints[0].col;
+    const pathRow = LEVELS[0].pathWaypoints[0].row;
+    const pathWx = world.grid.gridToWorldX(pathCol);
+    const pathWz = world.grid.gridToWorldZ(pathRow);
+    const pathProj = new THREE.Vector3(pathWx, 0, pathWz).project(cam.camera);
+    updatePlacementPreviewFromNdc(true, 'archer', pathProj.x, pathProj.y, renderWorld, world);
+    expect(placementPreviewCalls[placementPreviewCalls.length - 1]).toEqual([true, 'archer', pathWx, pathWz, false]);
+
+    world.gold = 10;
+    updatePlacementPreviewFromNdc(true, 'archer', proj.x, proj.y, renderWorld, world);
+    expect(placementPreviewCalls[placementPreviewCalls.length - 1]).toEqual([true, 'archer', wx, wz, false]);
+
+    // Null groundHit / flyerHit in updateHoverFeedback hides tooltip safely
+    vi.spyOn(cam, 'screenNdcToPlane').mockReturnValueOnce(null);
+    updateHoverFeedback(true, true, false, false, proj.x, proj.y, 10, 10, renderWorld, world, overlays);
+    expect(tooltipCalls[tooltipCalls.length - 1]).toEqual({ kind: 'hide' });
+    cam.screenNdcToPlane = origScreenToPlane;
+
+    // stepPendingSpawns handles dt=0 and simultaneous expirations cleanly
+    world.enemyPool.clear();
+    const spawnQueue = [
+      { type: 'grunt' as const, delay: 0.05 },
+      { type: 'runner' as const, delay: 0.05 },
+      { type: 'brute' as const, delay: 0.2 },
+    ];
+    stepPendingSpawns(spawnQueue, world, 0);
+    expect(spawnQueue).toHaveLength(3);
+    stepPendingSpawns(spawnQueue, world, 0.05);
+    expect(spawnQueue).toHaveLength(1);
+    expect(world.enemyPool.getActiveCount()).toBe(2);
   });
 });
