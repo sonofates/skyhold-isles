@@ -17,9 +17,13 @@ import {
   getAchievements,
   getAllChallengeProgress,
   getChallengeStatus,
+  getRecentDailyHistory,
   getStats,
+  importMetaSaveJson,
   migrateToMetaSave,
+  recordRunCompletion,
 } from '../../src/sim/meta/metaEngine.ts';
+import { RunObserver } from '../../src/sim/meta/runObserver.ts';
 import { SimWorld } from '../../src/sim/world.ts';
 
 function installMockLocalStorage(initial?: Record<string, string>): Map<string, string> {
@@ -719,6 +723,71 @@ describe('MetaSession stats, achievements, challenges & daily persistence', () =
     expect(loadProgress(testLevels.length).bestStars[2]).toBe(0);
     expect(store.has(META_PROGRESS_KEY)).toBe(true);
 
+    meta.dispose();
+  });
+
+  it('builds Daily Watch history calendar, trims daily dates cleanly, and tightens v2 import validation', () => {
+    installMockLocalStorage();
+    const save = createDefaultMetaSave(9);
+    const events = new EventBus();
+    const obs = new RunObserver(LEVELS[0], events);
+
+    // Padded dailyDate is trimmed cleanly without duplicating completedDailyDates
+    recordRunCompletion(save, {
+      level: LEVELS[0],
+      telemetry: obs.getTelemetry(),
+      won: true,
+      stars: 3,
+      livesRemaining: 20,
+      levels: LEVELS,
+      dailyDate: ' 2026-11-16 ',
+      scoreMultiplier: 1.5,
+    });
+    recordRunCompletion(save, {
+      level: LEVELS[0],
+      telemetry: obs.getTelemetry(),
+      won: true,
+      stars: 3,
+      livesRemaining: 20,
+      levels: LEVELS,
+      dailyDate: '2026-11-17',
+      scoreMultiplier: 1.2,
+    });
+    obs.dispose();
+
+    expect(save.completedDailyDates).toEqual(['2026-11-16', '2026-11-17']);
+    expect(save.stats.dailyChallengesCompleted).toBe(2);
+
+    const history = getRecentDailyHistory(save, '2026-11-17', 3, '2026-11-17', LEVELS);
+    expect(history).toHaveLength(3);
+    expect(history.map((h) => [h.spec.date, h.completed, h.isToday])).toEqual([
+      ['2026-11-15', false, false],
+      ['2026-11-16', true, false],
+      ['2026-11-17', true, true],
+    ]);
+    expect(history[1].bestScore).toBeGreaterThan(0);
+
+    // Reject malformed v2 save object missing campaign.bestStars array
+    expect(importMetaSaveJson('{"version":2,"campaign":{}}', save, 9, LEVELS).ok).toBe(false);
+    expect(ACHIEVEMENTS).toHaveLength(25);
+    expect(new Set(ACHIEVEMENTS.map((a) => a.id)).size).toBe(25);
+
+    // MetaSession.getRecentDailyHistory and mid-run importSaveJson baseline refresh
+    const meta = new MetaSession({
+      levels: LEVELS,
+      saveData: save,
+      getTodayDate: () => '2026-11-17',
+    });
+    expect(meta.getRecentDailyHistory(3)).toHaveLength(3);
+    expect(meta.getRecentDailyHistory(3)[2].isToday).toBe(true);
+
+    const activeEv = new EventBus();
+    meta.startRun(LEVELS[0], activeEv);
+    const highSave = createDefaultMetaSave(9);
+    highSave.campaign.bestEndlessWaves[0] = 25;
+    highSave.bestEndlessScoresByLevelId['sunlit-meadow'] = 9999;
+    expect(meta.importSaveJson(JSON.stringify(highSave), 'merge').ok).toBe(true);
+    expect(meta.getCampaignProgress().bestEndlessWaves[0]).toBe(25);
     meta.dispose();
   });
 });

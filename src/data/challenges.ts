@@ -243,7 +243,13 @@ export function getChallengesForLevel(level: LevelDef): readonly ChallengeDef[] 
         : level.difficulty === 'Heroic'
           ? 13
           : 10;
-  const maxTowers = Math.max(8, Math.min(20, Math.round(level.waves.length * 0.75)));
+  const plannedTowers =
+    level.scriptedBuildOrder?.filter((a) => a.action === 'build').length ?? 0;
+  const waveBasedCap = Math.max(8, Math.min(20, Math.round(level.waves.length * 0.75)));
+  const maxTowers =
+    plannedTowers > 0
+      ? Math.max(8, Math.min(22, Math.round(plannedTowers * 0.85)))
+      : waveBasedCap;
 
   const banLabels: Record<(typeof bannedPool)[number], string> = {
     frost: 'Frost Spires',

@@ -21,6 +21,7 @@ import {
   getIslandMasteryStatus,
   getMetaCareerRank,
   getMetaCareerSummary,
+  getRecentDailyHistory,
   getRecommendedNextGoal,
   getStats,
   importMetaSaveJson,
@@ -45,6 +46,7 @@ import type {
   AllChallengeProgress,
   AllIslandMastery,
   DailyChallengeSpec,
+  DailyHistoryEntry,
   DailyStatus,
   EndlessMutatorRoll,
   IslandMasteryStatus,
@@ -416,6 +418,11 @@ export class MetaSession {
     return getRecentDailySpecs(endDateStr ?? this.getTodayDateFn(), days, this.levels);
   }
 
+  getRecentDailyHistory(days = 7, endDateStr?: string): readonly DailyHistoryEntry[] {
+    const today = this.getTodayDateFn();
+    return getRecentDailyHistory(this.save, today, days, endDateStr ?? today, this.levels);
+  }
+
   getActiveRunModifiers(): ResolvedRunModifiers | null {
     return this.observer ? this.observer.getModifiers() : null;
   }
@@ -467,6 +474,16 @@ export class MetaSession {
     this.save.fastestWinSecByLevelId = next.fastestWinSecByLevelId;
     this.save.completedDailyDates = next.completedDailyDates;
     this.save.dailyBestScores = next.dailyBestScores;
+
+    if (this.observer) {
+      this.runStartBestEndlessWave =
+        this.save.campaign.bestEndlessWaves[this.observer.level.index] ?? 0;
+      this.runStartBestEndlessScore =
+        this.save.bestEndlessScoresByLevelId[this.observer.level.id] ?? 0;
+      if (mode === 'replace') {
+        this.lastRunOutcome = null;
+      }
+    }
 
     this.persist(mode === 'replace');
     return { ok: true };

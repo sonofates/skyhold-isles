@@ -2,6 +2,7 @@ import type { EventBus } from '../core/eventBus.ts';
 import { ObjectPool } from '../core/pool.ts';
 import type { TargetingMode, TowerMvpSummary, TowerType } from '../core/types.ts';
 import { BALANCE } from '../data/balance.ts';
+import { ENEMY_DEFS } from '../data/enemies.ts';
 import type { LevelDef } from '../data/levels/index.ts';
 import { getTowerTierStats, TOWER_DEFS } from '../data/towers.ts';
 import { AbilitySystem } from './abilitySystem.ts';
@@ -58,7 +59,11 @@ export class SimWorld {
   readonly towers: TowerEntity[] = [];
   modifiers: ResolvedRunModifiers;
   private nextTowerId = 1;
-  private readonly pendingExtraFlyers: Array<{ delay: number; hpScale: number }> = [];
+  private readonly pendingExtraFlyers: Array<{
+    enemyType: EnemyEntity['type'];
+    delay: number;
+    hpScale: number;
+  }> = [];
 
   gold: number;
   lives: number;
@@ -367,7 +372,8 @@ export class SimWorld {
       while (idx < this.pendingExtraFlyers.length) {
         this.pendingExtraFlyers[idx].delay -= dt;
         if (this.pendingExtraFlyers[idx].delay <= 0) {
-          this.spawnConfiguredEnemy('flyer', this.pendingExtraFlyers[idx].hpScale);
+          const item = this.pendingExtraFlyers[idx];
+          this.spawnConfiguredEnemy(item.enemyType, item.hpScale);
           this.pendingExtraFlyers.splice(idx, 1);
         } else {
           idx++;
@@ -382,12 +388,12 @@ export class SimWorld {
         this.spawnConfiguredEnemy(enemyType, hpScale);
         if (
           this.waveSystem.isEndless &&
-          enemyType === 'flyer' &&
+          ENEMY_DEFS[enemyType]?.flying &&
           this.modifiers.flyerCountMultiplier > 1
         ) {
           const extras = Math.max(0, Math.round(this.modifiers.flyerCountMultiplier) - 1);
           for (let k = 1; k <= extras; k++) {
-            this.pendingExtraFlyers.push({ delay: k * 0.28, hpScale });
+            this.pendingExtraFlyers.push({ enemyType, delay: k * 0.28, hpScale });
           }
         }
       },

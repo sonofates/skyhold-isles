@@ -3,7 +3,12 @@ import { BALANCE } from '../../data/balance.ts';
 import { ACHIEVEMENTS, getChallengesForLevel } from '../../data/challenges.ts';
 import { LEVELS } from '../../data/levels/index.ts';
 import type { LevelDef } from '../../data/levels/types.ts';
-import { computeDailyStreaks, generateDailyChallenge, isValidDateString } from './daily.ts';
+import {
+  computeDailyStreaks,
+  generateDailyChallenge,
+  getRecentDailySpecs,
+  isValidDateString,
+} from './daily.ts';
 import { computeEndlessScore } from './mutators.ts';
 import type {
   AchievementCategory,
@@ -14,6 +19,7 @@ import type {
   AllChallengeProgress,
   AllIslandMastery,
   ChallengeItemStatus,
+  DailyHistoryEntry,
   EndlessScoreBreakdown,
   IslandMasteryStatus,
   LevelChallengeStatus,
@@ -259,7 +265,7 @@ export function migrateToMetaSave(
       const uniqueDates = new Set<string>();
       for (const d of obj.completedDailyDates) {
         if (typeof d === 'string' && isValidDateString(d)) {
-          uniqueDates.add(d);
+          uniqueDates.add(d.trim());
         }
       }
       base.completedDailyDates = [...uniqueDates].sort();
@@ -525,7 +531,9 @@ export function recordRunCompletion(
 ): RunMetaOutcome {
   const levels = params.levels ?? LEVELS;
   const { level, telemetry, won, stars, livesRemaining } = params;
-  const isDaily = Boolean(params.dailyDate && isValidDateString(params.dailyDate));
+  const normalizedDailyDate =
+    params.dailyDate && isValidDateString(params.dailyDate) ? params.dailyDate.trim() : null;
+  const isDaily = normalizedDailyDate !== null;
   const newlyCompletedChallengeIds: string[] = [];
   const completedChallengeIds: string[] = [];
   let isNewBestLives = false;
@@ -610,7 +618,7 @@ export function recordRunCompletion(
 
   let dailyScore: number | null = null;
   let isNewBestDailyScore = false;
-  if (isDaily && won && params.dailyDate && telemetry.eligibleForChallenges) {
+  if (isDaily && won && normalizedDailyDate && telemetry.eligibleForChallenges) {
     const score =
       computeEndlessScore(
         telemetry.wavesCompleted,
@@ -619,16 +627,16 @@ export function recordRunCompletion(
       ).totalScore +
       livesRemaining * 25;
     dailyScore = score;
-    const prevDailyBest = save.dailyBestScores[params.dailyDate] ?? 0;
+    const prevDailyBest = save.dailyBestScores[normalizedDailyDate] ?? 0;
     if (score > prevDailyBest) {
       isNewBestDailyScore = true;
     }
-    if (!save.completedDailyDates.includes(params.dailyDate)) {
-      save.completedDailyDates.push(params.dailyDate);
+    if (!save.completedDailyDates.includes(normalizedDailyDate)) {
+      save.completedDailyDates.push(normalizedDailyDate);
       save.completedDailyDates.sort();
       save.stats.dailyChallengesCompleted++;
     }
-    save.dailyBestScores[params.dailyDate] = Math.max(prevDailyBest, score);
+    save.dailyBestScores[normalizedDailyDate] = Math.max(prevDailyBest, score);
   }
 
   const newlyUnlockedAchievementIds = recomputeAchievements(save, levels);
@@ -1028,6 +1036,24 @@ export function getMetaCareerSummary(
   };
 }
 
+/** Typed UI query: recent Daily Watch history entries with completion & personal-best score status. */
+export function getRecentDailyHistory(
+  save: MetaSaveData,
+  todayDateStr: string,
+  days = 7,
+  endDateStr: string = todayDateStr,
+  levels: readonly LevelDef[] = LEVELS,
+): readonly DailyHistoryEntry[] {
+  const completedSet = new Set(save.completedDailyDates);
+  const normalizedToday = todayDateStr.trim();
+  return getRecentDailySpecs(endDateStr, days, levels).map((spec) => ({
+    spec,
+    completed: completedSet.has(spec.date),
+    bestScore: save.dailyBestScores[spec.date] ?? 0,
+    isToday: spec.date === normalizedToday,
+  }));
+}
+
 function mergeMaxCountRecords(
   a: Readonly<Record<string, number>>,
   b: Readonly<Record<string, number>>,
@@ -1192,11 +1218,14 @@ export function importMetaSaveJson(
   }
 
   const obj = parsed as Record<string, unknown>;
+  const campaignObj =
+    obj.campaign && typeof obj.campaign === 'object' && !Array.isArray(obj.campaign)
+      ? (obj.campaign as Record<string, unknown>)
+      : null;
   const isValidV2 =
     obj.version === META_SAVE_VERSION &&
-    Boolean(obj.campaign) &&
-    typeof obj.campaign === 'object' &&
-    !Array.isArray(obj.campaign);
+    campaignObj !== null &&
+    Array.isArray(campaignObj.bestStars);
   const isValidV1 = obj.version === undefined && Array.isArray(obj.bestStars);
 
   if (!isValidV2 && !isValidV1) {

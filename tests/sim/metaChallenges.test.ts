@@ -732,4 +732,85 @@ describe('RunObserver challenge condition tracking', () => {
     );
     expect(runScenario(8, {})).toContain('grand-skyhold:sturdy');
   });
+
+  it('scales Islands 10+ fallback tower cap from scriptedBuildOrder and tracks early Endless waves accurately', () => {
+    const scripted20 = Array.from({ length: 20 }, (_, idx) => ({
+      waveIndex: idx,
+      action: 'build' as const,
+      col: 4 + (idx % 4),
+      row: 2 + Math.floor(idx / 4),
+      towerType: 'archer' as const,
+    }));
+    const futureWithScript: LevelDef = {
+      ...LEVELS[7],
+      id: 'tempest-citadel',
+      index: 9,
+      scriptedBuildOrder: scripted20,
+    };
+    const futureWithoutScript: LevelDef = {
+      ...LEVELS[7],
+      id: 'unscripted-isle',
+      index: 10,
+      scriptedBuildOrder: undefined,
+    };
+
+    const withScriptCh = getChallengesForLevel(futureWithScript).find((c) => c.condition.kind === 'maxTowersBuilt');
+    const noScriptCh = getChallengesForLevel(futureWithoutScript).find((c) => c.condition.kind === 'maxTowersBuilt');
+    expect(withScriptCh?.condition).toEqual({ kind: 'maxTowersBuilt', maxCount: 17 });
+    expect(noScriptCh?.condition).toEqual({ kind: 'maxTowersBuilt', maxCount: 15 });
+
+    // Endless Mode early-wave calling during 'allSpawned' must absorb & count every Endless wave and preserve gold integrity
+    const miniLevel = makeSimpleTestLevel({
+      startingGold: 4000,
+      waves: [{ clearBonus: 20, groups: [{ enemyType: 'grunt', count: 1, spawnInterval: 0.3, startDelay: 0 }] }],
+    });
+    const events = new EventBus();
+    const world = new SimWorld(miniLevel, events);
+    const obs = new RunObserver(miniLevel, events);
+
+    const spots: Array<[number, number, TowerType]> = [
+      [4, 2, 'archer'],
+      [4, 3, 'cannon'],
+      [7, 5, 'frost'],
+      [8, 5, 'tesla'],
+      [10, 4, 'tesla'],
+      [5, 7, 'mortar'],
+    ];
+    for (const [c, r, t] of spots) {
+      const tw = world.placeTower(c, r, t);
+      if (tw) {
+        world.upgradeTower(tw.id);
+        world.upgradeTower(tw.id);
+      }
+    }
+    world.startNextWave();
+    runTicksUntilSettled(world, obs, 3);
+    expect(world.outcome).toBe('won');
+
+    expect(world.enterEndlessMode({ goldRewardMultiplier: 0.75, activeMutatorIds: ['gold_drought'] })).toBe(true);
+    obs.setModifiers({ goldRewardMultiplier: 0.75, activeMutatorIds: ['gold_drought'] });
+
+    // Start Endless Wave 2 during the 5s endless betweenWaves countdown (early call #1),
+    // wait until 'allSpawned', then immediately early-call Endless Wave 3 (early call #2)
+    world.startNextWave();
+    expect(obs.getTelemetry().earlyWavesCalled).toBe(1);
+    for (let i = 0; i < 60 * 30 && world.waveSystem.state !== 'allSpawned'; i++) {
+      obs.onTick(BALANCE.fixedDt, 3);
+      world.fixedTick(BALANCE.fixedDt);
+    }
+    expect(world.waveSystem.state).toBe('allSpawned');
+    expect(world.startNextWave()).toBe(true);
+
+    // Let both overlapping Endless waves clear completely
+    for (let i = 0; i < 60 * 120 && world.waveSystem.state !== 'betweenWaves'; i++) {
+      obs.onTick(BALANCE.fixedDt, 3);
+      world.fixedTick(BALANCE.fixedDt);
+    }
+
+    const telemetry = obs.getTelemetry();
+    expect(telemetry.endlessWavesCompleted).toBe(2);
+    expect(telemetry.earlyWavesCalled).toBe(2);
+    expect(obs.verifyEconomyIntegrity(world.gold, world.lives)).toBe(true);
+    obs.dispose();
+  });
 });

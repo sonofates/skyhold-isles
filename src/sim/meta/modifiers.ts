@@ -1,5 +1,6 @@
 import type { TowerType } from '../../core/types.ts';
 import { ENDLESS_MUTATORS } from '../../data/challenges.ts';
+import { ENEMY_DEFS } from '../../data/enemies.ts';
 import type { LevelDef, WaveDef, WaveGroupDef } from '../../data/levels/types.ts';
 import { TOWER_DEFS, TOWER_TYPES } from '../../data/towers.ts';
 import type { ModifierBadgeInfo, MutatorDef, ResolvedRunModifiers, RunModifiers } from './types.ts';
@@ -159,7 +160,7 @@ export function applyModifiersToLevel(level: LevelDef, modifiers?: RunModifiers 
   const mult = Math.max(1, Math.round(mod.flyerCountMultiplier));
   const waves: WaveDef[] = level.waves.map((wave) => {
     const groups: WaveGroupDef[] = wave.groups.map((grp) => {
-      if (grp.enemyType !== 'flyer') return grp;
+      if (!ENEMY_DEFS[grp.enemyType]?.flying) return grp;
       return {
         enemyType: grp.enemyType,
         count: grp.count * mult,

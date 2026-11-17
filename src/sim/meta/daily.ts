@@ -1,6 +1,7 @@
 import { SeededRng } from '../../core/rng.ts';
 import type { TowerType } from '../../core/types.ts';
 import { ENDLESS_MUTATORS } from '../../data/challenges.ts';
+import { ENEMY_DEFS } from '../../data/enemies.ts';
 import { LEVELS } from '../../data/levels/index.ts';
 import type { LevelDef } from '../../data/levels/types.ts';
 import { TOWER_DEFS, TOWER_TYPES } from '../../data/towers.ts';
@@ -152,9 +153,11 @@ export function generateDailyChallenge(
   const isMaster = level.difficulty === 'Master';
   const isHeroic = level.difficulty === 'Heroic';
   const hasHeavyArmoredWaves = level.waves.some((wave) =>
-    wave.groups.some(
-      (grp) => (grp.enemyType === 'brute' && grp.count >= 6) || grp.enemyType === 'boss',
-    ),
+    wave.groups.some((grp) => {
+      const def = ENEMY_DEFS[grp.enemyType];
+      if (!def) return false;
+      return def.livesCost >= 4 || (def.armor >= 5 && grp.count >= 5);
+    }),
   );
 
   const mutatorCount = isMaster

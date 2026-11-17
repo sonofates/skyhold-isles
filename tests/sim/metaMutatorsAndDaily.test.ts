@@ -417,4 +417,49 @@ describe('Daily challenge pure date-seeded generator', () => {
     expect(obs.verifyEconomyIntegrity(world.gold, world.lives)).toBe(true);
     obs.dispose();
   });
+
+  it('keeps RunObserver economy integrity exact across builds, upgrades, sells, early calls, and clear bonuses under tight_budget + gold_drought', () => {
+    const level: LevelDef = {
+      ...LEVELS[0],
+      startingGold: 1000,
+      waves: [
+        { clearBonus: 31, groups: [{ enemyType: 'grunt', count: 3, spawnInterval: 0.3, startDelay: 0 }] },
+        { clearBonus: 43, groups: [{ enemyType: 'flyer', count: 2, spawnInterval: 0.3, startDelay: 0 }] },
+      ],
+    };
+    const combinedMods = {
+      towerCostMultiplier: 1.15,
+      goldRewardMultiplier: 0.75,
+      flyerCountMultiplier: 2,
+      activeMutatorIds: ['tight_budget', 'gold_drought', 'sky_swarm'],
+      scoreMultiplier: 1.9,
+    };
+
+    const events = new EventBus();
+    const world = new SimWorld(level, events, combinedMods);
+    const obs = new RunObserver(level, events, combinedMods);
+
+    const a = world.placeTower(4, 2, 'archer')!;
+    const b = world.placeTower(4, 3, 'cannon')!;
+    expect(world.upgradeTower(a.id)).toBe(true);
+    expect(world.upgradeTower(a.id)).toBe(true);
+    expect(world.sellTower(b.id)).toBeGreaterThan(0);
+
+    world.startNextWave();
+    for (let i = 0; i < 60 * 30 && world.waveSystem.state !== 'betweenWaves'; i++) {
+      obs.onTick(BALANCE.fixedDt, 3);
+      world.fixedTick(BALANCE.fixedDt);
+    }
+    expect(obs.verifyEconomyIntegrity(world.gold, world.lives)).toBe(true);
+
+    // Call Wave 2 early with scaled earlyBonus and finish run
+    expect(world.startNextWave()).toBe(true);
+    for (let i = 0; i < 60 * 60 && world.outcome === 'ongoing'; i++) {
+      obs.onTick(BALANCE.fixedDt, 3);
+      world.fixedTick(BALANCE.fixedDt);
+    }
+    expect(world.outcome).toBe('won');
+    expect(obs.verifyEconomyIntegrity(world.gold, world.lives)).toBe(true);
+    obs.dispose();
+  });
 });

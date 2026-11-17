@@ -303,6 +303,13 @@ export interface DailyStatus {
   readonly bestStreak: number;
 }
 
+export interface DailyHistoryEntry {
+  readonly spec: DailyChallengeSpec;
+  readonly completed: boolean;
+  readonly bestScore: number;
+  readonly isToday: boolean;
+}
+
 export interface RunMetaOutcome {
   readonly won: boolean;
   readonly isDaily: boolean;

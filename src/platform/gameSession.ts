@@ -20,6 +20,7 @@ import type {
   AllChallengeProgress,
   AllIslandMastery,
   DailyChallengeSpec,
+  DailyHistoryEntry,
   DailyStatus,
   EndlessMutatorRoll,
   IslandMasteryStatus,
@@ -420,6 +421,7 @@ export class GameSession {
     const { overlays } = this.d;
     if (reloadShowcase) {
       this.recordEndlessIfActive();
+      this.lastRunOptions = undefined;
       this.meta.endRun();
       this.clearTransientPlayState();
       this.events.clear();
@@ -568,6 +570,10 @@ export class GameSession {
 
   getRecentDailyChallenges(days = 7, endDateStr?: string): readonly DailyChallengeSpec[] {
     return this.meta.getRecentDailyChallenges(days, endDateStr);
+  }
+
+  getRecentDailyHistory(days = 7, endDateStr?: string): readonly DailyHistoryEntry[] {
+    return this.meta.getRecentDailyHistory(days, endDateStr);
   }
 
   getEndlessMutators(): readonly MutatorDef[] {
