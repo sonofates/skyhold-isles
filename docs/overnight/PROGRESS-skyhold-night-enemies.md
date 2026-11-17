@@ -4,7 +4,7 @@ Started 2026-11-16 23:00 UTC (02:00 TR). Deadline 06:00 UTC (09:00 TR).
 
 ## TL;DR for the lead (morning)
 - **What's in:** 7 new enemy archetypes (warden, burrower, carrier, blinker, golem, mite, hexer) + Empowered elites + a 2nd boss (Tempest Colossus); 4 new islands L10–L13 (multi-lane Confluence Terraces, sky-lane Galewatch Spires, hexer switchbacks Lanternfall Hollow, spiral finale Stormcrown Citadel); endless spotlight rotation; FX, enemy sound cues, badges, counter-hint toasts; progress-unlock fix so L9 finishers get L10.
-- **Branch state:** all green (`tsc`, lint, 148 tests, build, `sim:balance` 13/13 islands) — re-checked round 11, 03:55 UTC.
+- **Branch state:** all green (`tsc`, lint, 149 tests, build, `sim:balance` 13/13 islands) — re-checked round 12, 04:35 UTC. Merge dry-runs re-run against every branch's 04:15 UTC head: nothing new (see Round 12).
 - **UI follow-ups** (not done, UI branch's area): see "UI needs" — Legendary difficulty label, elite flag + `carrier` in the HUD wave preview/flyer warning, counter hints in tooltips. Lanternfall Hollow theme: patch ready (merge step 6).
 - **Look changes to eyeball in the browser:** Loam Burrower (now dark umber) and Iron Brute (now silver + crimson pauldrons) — both recoloured for road readability in round 10; Cloud Hauler balloon bands now indigo (round 11, colour-blind readability). Easy to revert if unwanted.
 
@@ -120,6 +120,8 @@ Tests after that merge (mine + 3 agy): **352 pass / 31 fail; 13 of those 31 alre
 - 3-way dry-run with the newest heads (islands `7233567`, towers `9084104`): same single balanceSim stitch, tsc clean, **318/318**, balance unchanged (only the known L6; L10 7 / L11 8 / L12 8 / L13 9).
 - agy dry-run with the newest heads (meta `109061b`, perf `87041b6`, qa `5419321`): only the world.ts conflict (`resolve_agy.py` still resolves it); **both merge-tool scripts still apply** (`docs/overnight/merge-tools/*.py`); tsc + eslint clean; **399 pass / 17 fail — the identical 17 fail in the agy-only baseline** → still zero added failures. agy-qa fuzz on that tree (`--seeds 20 --endless-waves 12`): **260/260 runs pass**, all 15 enemy types spawned *and* killed, 13 determinism checks OK.
 - `docs/overnight/islands-lanternfall-theme.patch` context still matches ISLANDS' newest `islandThemeTable.ts`.
+- **Boot perf (agy-perf flagged "`EnemyRenderer` constructor ~75 ms at boot", measured on the 6-type base — with 15 types it was worse).** Profile: most of it was three's `clone()` = `new this.constructor().copy(this)`. `mergeColoredParts` clones every non-indexed part, so each Icosahedron/Extrude part first built a throwaway *default* IcosahedronGeometry / 12-segment bevelled ExtrudeGeometry. On top of that, the 7 source primitives were rebuilt for each of the 15 types. Fix (`716525b`, `enemyMeshes.ts` only): build them once, module-level, stored as plain `BufferGeometry` copies. Output **byte-identical** for all 15 types (sha1 over every attribute, `.wt/perf/fingerprint.ts`). Interleaved A/B on a loaded box (`.wt/perf/ab.ts`, process CPU time, 6 runs each): **cold ~129 → ~81 ms, warm ~31 → ~16 ms**. Test: every figurine builds identically on a 2nd, reverse-order pass (`enemyGeometry.test.ts`). Gate green, 149 tests. No other branch touches `enemyMeshes.ts`/`geometryHelpers.ts`.
+  - Same trap, for the lead / agy-perf: a one-line change in `geometryHelpers.ts` `mergeColoredParts`/`mergePlainGeometries` (`part.geometry.index ? toNonIndexed() : new THREE.BufferGeometry().copy(part.geometry)`) would fix it for every caller. Today the only other callers are ISLANDS' `groundDetails.ts` (two small DodecahedronGeometry parts) and `ambientDiorama.ts`, so the gain there is small. Not done here (shared file).
 
 ## Round 10 — readability vs roads
 - New test (`tests/render/enemyGeometry.test.ts`): every new archetype's camera-facing surface is >85 % colour-distinct (CIELAB ΔE > 25, area-weighted) from grass and dark foliage. All pass with margin (golem 93 % — its moss tufts are the intended accent).
@@ -159,6 +161,7 @@ New tests: `tests/sim/newEnemies.test.ts`, `tests/sim/hexer.test.ts`, `tests/sim
 
 ## Performance notes
 - Sim cost: full greedy runs (Node, whole level incl. build script) — L9 683 ms, L10 257 ms, L11 332 ms, Stormcrown (now L13) 557 ms → the new archetypes/levels are not heavier than L9. Hexer adds one O(towers) scan per hexer every 0.4–5.5 s.
+- Boot: `EnemyRenderer` constructor ~81 ms CPU cold / ~16 ms warm in Node after the round-12 fix (was ~129 / ~31).
 - Render: +3 instanced layers (added after the HP bar + shadow in the group since round 10) (burrow mound, shield bubble 80 tris, elite ring) + one layer per new type (hidden when count 0); no per-frame allocations in `EnemyRenderer.update`; FX reuse the pooled particle/ring/shard buckets.
 - A wider local fuzz (192 seeded runs over all 12 islands, not committed) found no invariant violations.
 
