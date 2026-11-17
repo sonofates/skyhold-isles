@@ -24,10 +24,10 @@ import { cheapWalk, createAnimState, createPose, sheetSequence, sheetWalk, type 
  * barracks in the build ring when the manifest does not list it.
  */
 
-const SOLDIER_HEIGHT = 1.05;
-const SOLDIER_SHADOW = 0.32;
+const SOLDIER_HEIGHT = 1.3;
+const SOLDIER_SHADOW = 0.38;
 const SOLDIER_CHEAP: CheapWalkSpec = { bob: 0.06, squash: 0.05, lean: 0.12, stride: 0.75, rock: 0.07 };
-const BAR_W = 24;
+const BAR_W = 28;
 const BAR_H = 4;
 const HP_FRIEND = 0x6cc8ff;
 const HP_BG = 0x3a2412;
@@ -323,7 +323,7 @@ function placeholders(): NonNullable<typeof _placeholders> {
 
 const PLACEHOLDER_BARRACKS_SPEC: TowerArt = {
   tiers: [],
-  height: 2.5,
+  height: 2.7,
   anchor: [0.5, 236 / 256],
   flipToTarget: false,
   muzzle: 1.2,
@@ -771,7 +771,7 @@ export class SoldierLayer {
     const ppu = this.map.layout.pxPerUnit;
     const focus = b.towerId === rallyTower ? 2 : b.towerId === selectedTower ? 1 : 0;
     f.pop = Math.max(0, f.pop - dt * 3);
-    const base = ((focus > 0 ? 1.0 : 0.72) * ppu) / 96;
+    const base = ((focus > 0 ? 1.35 : 1.05) * ppu) / 96;
     const pop = 1 + Math.sin(f.pop * Math.PI) * 0.35;
     f.flag.scale.set(base * pop);
     f.flag.position.set(px, py);
