@@ -57,7 +57,7 @@ export const LEVEL_6: LevelDef = {
   ],
   decorationSeed: 663419,
   startingGold: 280,
-  enemyHpScale: 1.2,
+  enemyHpScale: 1.18,
   waveHpGrowth: 0.18,
   waves: [
     {
@@ -152,7 +152,7 @@ export const LEVEL_6: LevelDef = {
       clearBonus: 54,
       groups: [
         { enemyType: 'flyer', count: 18, spawnInterval: 0.48, startDelay: 0 },
-        { enemyType: 'runner', count: 20, spawnInterval: 0.38, startDelay: 2 },
+        { enemyType: 'runner', count: 15, spawnInterval: 0.38, startDelay: 2 },
         { enemyType: 'healer', count: 5, spawnInterval: 1.25, startDelay: 3.5 },
       ],
     },
