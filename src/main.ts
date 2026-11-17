@@ -7,11 +7,14 @@ import { GameSession } from './platform/gameSession.ts';
 import { InputManager } from './platform/input.ts';
 import { initDeviceClass, isTouchDevice } from './platform/deviceClass.ts';
 import { readSafeArea } from './platform/safeArea.ts';
-import { loadSettings } from './platform/storage.ts';
+import { ContentStore } from './platform/contentStorage.ts';
+import { hasSeenEnemyIntro, loadSettings, markUpgradeToastSeen } from './platform/storage.ts';
 import { KenneyAssetStore } from './render/kenneyAssets.ts';
 import { RenderWorld } from './render/renderWorld.ts';
 import { collectHudRects } from './ui/hudRects.ts';
 import { createDebugPanelIfEnabled } from './ui/debugWiring.ts';
+import { ContentDirector } from './ui/content/contentDirector.ts';
+import { mountCodexEntryPoints } from './ui/content/entryPoints.ts';
 import { GameOverlays } from './ui/gameOverlays.ts';
 import { LoadingScreen } from './ui/loadingScreen.ts';
 import { RadialMenu } from './ui/radialMenu.ts';
@@ -43,8 +46,16 @@ async function bootstrap(loadingScreen: LoadingScreen): Promise<void> {
   const renderWorld = new RenderWorld(canvas, assets);
   const session = new GameSession(renderWorld, soundManager);
 
+  // Onboarding / first-sighting cards / codex (own localStorage keys; veterans are migrated silently).
+  const contentStore = new ContentStore();
+  contentStore.migrate(LEVELS, session.progress, hasSeenEnemyIntro);
+  // The tour's own coach card replaces the "tap a tower to upgrade" toast.
+  if (contentStore.getOnboardingStatus() === 'pending') markUpgradeToastSeen();
+  let content: ContentDirector | null = null;
+
   const overlays = new GameOverlays(uiRoot, {
     initialSettings,
+    onReplayTutorial: () => content?.replayTutorial(),
     onStartWave: () => {
       soundManager.unlock();
       session.simWorld.startNextWave();
@@ -94,6 +105,12 @@ async function bootstrap(loadingScreen: LoadingScreen): Promise<void> {
     onSettingsClose: () => session.closeSettingsModal(),
   });
 
+  content = new ContentDirector(uiRoot, contentStore, {
+    onBlockingChange: () => session.syncLoopAndInput(),
+    startTutorialIsland: () => session.startLevel(0),
+  });
+  content.attachEntryHandle(mountCodexEntryPoints(uiRoot, () => content?.openCodex()));
+
   const debugPanel = createDebugPanelIfEnabled(uiRoot, {
     getSimWorld: () => session.simWorld,
     renderWorld,
@@ -142,6 +159,7 @@ async function bootstrap(loadingScreen: LoadingScreen): Promise<void> {
     loop,
     setDebugVisible: (v) => debugPanel?.setVisible(v),
     radial,
+    content,
   });
 
   const onResize = (): void => {
@@ -203,6 +221,7 @@ async function bootstrap(loadingScreen: LoadingScreen): Promise<void> {
       window.removeEventListener('orientationchange', onOrientation);
       window.visualViewport?.removeEventListener('resize', onResize);
       radial.dispose();
+      content?.dispose();
       session.dispose();
       soundManager.dispose();
       loop.stop();

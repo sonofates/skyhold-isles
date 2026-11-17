@@ -286,7 +286,7 @@ export const ENEMY_DEFS: Record<EnemyType, EnemyDef> = {
   boss: {
     type: 'boss',
     name: 'Skyhold Dreadnought',
-    description: 'Colossal armored warlord. Costs 5 lives if it reaches the sanctuary.',
+    description: 'Colossal armored warlord. Calls escorts at half health and pulses to jam nearby towers. Costs 5 lives if it reaches the sanctuary.',
     maxHp: 1150,
     speed: 1.15,
     armor: 8,

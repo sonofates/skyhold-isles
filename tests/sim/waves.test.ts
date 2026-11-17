@@ -340,8 +340,9 @@ describe('wave spawn order and timing', () => {
       const walked = new Set<string>();
       for (let li = 0; li < lanes.length; li++) {
         const wps = lanes[li];
-        // A lane never revisits its own tiles; extra lanes may run on tiles of earlier lanes (merge).
-        const laneWalked = new Set<string>();
+        // A lane never revisits its own tiles, except crossing itself at right angles (a 4-way junction,
+        // e.g. Moonwell Crossing); extra lanes may run on tiles of earlier lanes (merge).
+        const laneWalked = new Map<string, 'h' | 'v'>();
         for (let i = 0; i < wps.length - 1; i++) {
           const a = wps[i];
           const b = wps[i + 1];
@@ -356,8 +357,10 @@ describe('wave spawn order and timing', () => {
             const key = `${c},${r}`;
             const isSegmentJoin = i > 0 && c === a.col && r === a.row;
             if (!isSegmentJoin) {
-              expect(laneWalked.has(key)).toBe(false);
-              laneWalked.add(key);
+              const axis = a.row === b.row ? 'h' : 'v';
+              const earlier = laneWalked.get(key);
+              if (earlier !== undefined) expect(earlier, `lane ${li} re-walks ${key} along the same axis`).not.toBe(axis);
+              laneWalked.set(key, axis);
               walked.add(key);
             }
             const tile = grid[r]?.[c];

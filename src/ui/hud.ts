@@ -38,7 +38,7 @@ const SPEED_CYCLE: Record<SpeedMultiplier, SpeedMultiplier> = { 1: 2, 2: 3, 3: 1
 
 /** Display names of the towers that can hit flyers, e.g. "Archer, Frost, Tesla and Ballista". */
 const AIR_TOWER_NAMES = ((): string => {
-  const names = TOWER_TYPES.filter((t) => TOWER_DEFS[t].hitsFlyers).map((t) => t.charAt(0).toUpperCase() + t.slice(1));
+  const names = TOWER_TYPES.filter((t) => TOWER_DEFS[t].hitsFlyers && TOWER_DEFS[t].role === 'attack').map((t) => t.charAt(0).toUpperCase() + t.slice(1));
   return names.length > 1 ? `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}` : names.join('');
 })();
 
