@@ -146,6 +146,12 @@ export class RadialMenu {
     this.setMode('tower');
   }
 
+  /** Long-press entry: the tower ring opens directly on its info card. */
+  openTowerInfo(towerId: number): void {
+    this.openTower(towerId);
+    this.setMode('info');
+  }
+
   /** Closes the menu. `deselect` also clears the tower selection when a tower ring was open. */
   close(deselect = true): void {
     if (this.mode === 'closed') return;

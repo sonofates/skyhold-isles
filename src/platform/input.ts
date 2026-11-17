@@ -1,5 +1,6 @@
 import type { AbilityId } from '../core/types.ts';
 import { BALANCE } from '../data/balance.ts';
+import { DoubleTapDetector, FLING_MIN_SPEED, LONG_PRESS_MS, VelocityTracker } from './gestures.ts';
 
 export interface InputHandlers {
   onPanScreenDelta: (dx: number, dy: number) => void;
@@ -19,6 +20,16 @@ export interface InputHandlers {
   onKeyPanState: (panX: number, panZ: number) => void;
   /** A one-pointer drag crossed the drag threshold (camera pan starts). */
   onDragStart?: () => void;
+  /** A finger is down again (cancels a running camera fling). */
+  onGestureStart?: () => void;
+  /** Finger held still on the map for LONG_PRESS_MS. */
+  onLongPressNdc?: (ndcX: number, ndcY: number) => void;
+  /** Second quick tap. Return true when handled (the tap is then not delivered as a normal tap). */
+  onDoubleTapNdc?: (ndcX: number, ndcY: number) => boolean;
+  /** One-finger drag released with speed (px/s): camera inertia. */
+  onFling?: (vx: number, vy: number) => void;
+  /** Re-centre / re-fit the camera (C key). */
+  onRecenter?: () => void;
 }
 
 interface ActivePointer {
@@ -42,6 +53,11 @@ export class InputManager {
   private prevMidX = 0;
   private prevMidY = 0;
   private keysDown = new Set<string>();
+  private readonly velocity = new VelocityTracker();
+  private readonly doubleTap = new DoubleTapDetector();
+  private longPressTimer: ReturnType<typeof setTimeout> | null = null;
+  private longPressFired = false;
+  private pinched = false;
   private enabled = true;
   private modalOpen = false;
   private cleanupFns: Array<() => void> = [];
@@ -66,7 +82,17 @@ export class InputManager {
     }
   }
 
+  private clearLongPress(): void {
+    if (this.longPressTimer !== null) {
+      clearTimeout(this.longPressTimer);
+      this.longPressTimer = null;
+    }
+  }
+
   private resetTransientState(): void {
+    this.clearLongPress();
+    this.longPressFired = false;
+    this.pinched = false;
     this.keysDown.clear();
     this.pointers.clear();
     this.isDragging = false;
@@ -96,10 +122,29 @@ export class InputManager {
         startY: e.clientY,
       });
 
+      this.handlers.onGestureStart?.();
       if (this.pointers.size === 1) {
         this.isDragging = false;
         this.dragButton = e.button;
+        this.longPressFired = false;
+        this.pinched = false;
+        this.velocity.reset();
+        this.velocity.add(e.clientX, e.clientY, e.timeStamp);
+        this.clearLongPress();
+        if (e.pointerType === 'touch' && e.button === 0 && this.handlers.onLongPressNdc) {
+          const px = e.clientX;
+          const py = e.clientY;
+          this.longPressTimer = setTimeout(() => {
+            this.longPressTimer = null;
+            if (this.pointers.size !== 1 || this.isDragging || !this.enabled || this.modalOpen) return;
+            this.longPressFired = true;
+            const ndc = this.toNdc(px, py);
+            this.handlers.onLongPressNdc?.(ndc.ndcX, ndc.ndcY);
+          }, LONG_PRESS_MS);
+        }
       } else if (this.pointers.size === 2) {
+        this.clearLongPress();
+        this.pinched = true;
         this.isDragging = true;
         const pts = Array.from(this.pointers.values());
         this.prevPinchDist = Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y);
@@ -127,9 +172,11 @@ export class InputManager {
               : BALANCE.camera.dragThresholdPx;
           if (!this.isDragging && (totalMoved > slop || this.dragButton === 1)) {
             this.isDragging = true;
+            this.clearLongPress();
             this.handlers.onDragStart?.();
           }
-          if (this.isDragging && (this.dragButton === 0 || this.dragButton === 1 || this.dragButton === 2)) {
+          if (this.isDragging && !this.longPressFired && (this.dragButton === 0 || this.dragButton === 1 || this.dragButton === 2)) {
+            this.velocity.add(e.clientX, e.clientY, e.timeStamp);
             this.handlers.onPanScreenDelta(dx, dy);
           }
         } else if (this.pointers.size === 2) {
@@ -165,18 +212,39 @@ export class InputManager {
 
     const onPointerUp = (e: PointerEvent): void => {
       const tracked = this.pointers.get(e.pointerId);
+      this.clearLongPress();
+      const live = this.enabled && !this.modalOpen && e.type === 'pointerup';
       if (tracked && this.pointers.size === 1 && !this.isDragging && this.enabled && !this.modalOpen) {
         const ndc = this.toNdc(e.clientX, e.clientY);
-        if (e.button === 0) {
-          this.handlers.onPrimaryTapNdc(ndc.ndcX, ndc.ndcY, e.shiftKey);
+        if (this.longPressFired) {
+          // The long press already acted; lifting the finger is not a tap.
+        } else if (e.button === 0) {
+          const dbl =
+            e.pointerType === 'touch' && this.doubleTap.register(e.clientX, e.clientY, e.timeStamp);
+          if (!(dbl && this.handlers.onDoubleTapNdc?.(ndc.ndcX, ndc.ndcY))) {
+            this.handlers.onPrimaryTapNdc(ndc.ndcX, ndc.ndcY, e.shiftKey);
+          }
         } else if (e.button === 2) {
           this.handlers.onSecondaryAction('rightClick');
         }
+      } else if (
+        tracked &&
+        live &&
+        this.pointers.size === 1 &&
+        this.isDragging &&
+        !this.pinched &&
+        e.pointerType === 'touch'
+      ) {
+        this.velocity.add(e.clientX, e.clientY, e.timeStamp);
+        const { vx, vy } = this.velocity.velocity();
+        if (Math.hypot(vx, vy) >= FLING_MIN_SPEED) this.handlers.onFling?.(vx, vy);
       }
       this.pointers.delete(e.pointerId);
       if (this.pointers.size === 0) {
         this.isDragging = false;
         this.dragButton = -1;
+        this.longPressFired = false;
+        this.pinched = false;
       }
     };
 
@@ -219,6 +287,10 @@ export class InputManager {
       }
       if (!this.enabled || this.modalOpen) return;
 
+      if (e.code === 'KeyC' && !e.repeat) {
+        this.handlers.onRecenter?.();
+        return;
+      }
       if (e.code === 'KeyQ' && !e.repeat) {
         this.handlers.onRotateCamera(-1);
         return;
@@ -330,6 +402,7 @@ export class InputManager {
   }
 
   dispose(): void {
+    this.clearLongPress();
     for (let i = 0; i < this.cleanupFns.length; i++) {
       this.cleanupFns[i]();
     }

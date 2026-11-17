@@ -10,6 +10,7 @@ import { readSafeArea } from './platform/safeArea.ts';
 import { loadSettings } from './platform/storage.ts';
 import { KenneyAssetStore } from './render/kenneyAssets.ts';
 import { RenderWorld } from './render/renderWorld.ts';
+import { collectHudRects } from './ui/hudRects.ts';
 import { createDebugPanelIfEnabled } from './ui/debugWiring.ts';
 import { GameOverlays } from './ui/gameOverlays.ts';
 import { LoadingScreen } from './ui/loadingScreen.ts';
@@ -115,6 +116,11 @@ async function bootstrap(loadingScreen: LoadingScreen): Promise<void> {
     onTogglePause: () => session.toggleUserPause(),
     onKeyPanState: (x, z) => renderWorld.cameraController.setKeyPan(x, z),
     onDragStart: () => session.onUserPanStart(),
+    onGestureStart: () => renderWorld.cameraController.cancelFling(),
+    onFling: (vx, vy) => renderWorld.cameraController.fling(vx, vy),
+    onLongPressNdc: (ndcX, ndcY) => session.onLongPress(ndcX, ndcY),
+    onDoubleTapNdc: (ndcX, ndcY) => session.onDoubleTap(ndcX, ndcY),
+    onRecenter: () => renderWorld.cameraController.recenter(),
   });
 
   const radial = new RadialMenu(uiRoot, session, renderWorld);
@@ -137,6 +143,7 @@ async function bootstrap(loadingScreen: LoadingScreen): Promise<void> {
 
   const onResize = (): void => {
     renderWorld.cameraController.setSafeInsets(readSafeArea());
+    renderWorld.cameraController.setHudRects(collectHudRects());
     renderWorld.resize(canvas.clientWidth || window.innerWidth, canvas.clientHeight || window.innerHeight);
   };
   // iOS reports the new size a beat after `orientationchange`; the visual viewport also moves

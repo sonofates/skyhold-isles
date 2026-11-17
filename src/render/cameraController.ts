@@ -8,6 +8,18 @@ import {
   projectExtents,
   type FitInsets,
 } from './cameraFit.ts';
+import { clampPlaneTarget, FLING_STOP_SPEED, stepFling, type PlaneExtents } from './panLimits.ts';
+import {
+  computeOcclusionFit,
+  planeTargetToGround,
+  projectPlanePoints,
+  type PxRect,
+} from './occlusionFit.ts';
+
+/** Share (by weight) of playable tiles that must be visible and clear of the HUD at default zoom. */
+const OCCLUSION_COVERAGE = 0.88;
+/** Keep the occlusion search cheap: at most this many tile samples. */
+const MAX_FIT_SAMPLES = 160;
 
 /** Camera elevation above the horizon. Steeper than true isometric (35.26 deg) so tall towers cover
  *  fewer tiles behind them. `?pitch=NN` overrides it for A/B screenshots. */
@@ -49,6 +61,16 @@ export class CameraController {
 
   private fitPoints: Float32Array | null = null;
   private fitPlayPoints: Float32Array | null = null;
+  /** Playable tile centres (xyz triples) + weights for the HUD-occlusion fit. */
+  private fitTileXyz: Float32Array | null = null;
+  private fitTileWeight: Float32Array | null = null;
+  private hudRects: PxRect[] = [];
+  /** Auto-fit target in camera-plane coords: always reachable by panning (no snap-back). */
+  private fitPlane = { r: 0, u: 0 };
+  private planeExtYaw = NaN;
+  private planeExt: PlaneExtents | null = null;
+  private flingVx = 0;
+  private flingVy = 0;
   private maxZoom = 3;
   private fitKind = '';
   private minZoom = 0.3;
@@ -86,6 +108,15 @@ export class CameraController {
     this.safeInsets = { ...insets };
   }
 
+  /**
+   * Measured HUD control rectangles (CSS px). When set, the default framing keeps the playable
+   * tiles clear of them. Re-frames immediately unless the player has moved the camera.
+   */
+  setHudRects(rects: readonly PxRect[]): void {
+    this.hudRects = rects.map((r) => ({ ...r }));
+    if (this.fitPoints && !this.userAdjusted) this.applyFit(false);
+  }
+
   configureForMap(cols: number, rows: number, layout?: readonly string[]): void {
     const halfW = cols * BALANCE.tileSize * 0.5 + 1.5;
     const halfH = rows * BALANCE.tileSize * 0.5 + 1.5;
@@ -105,6 +136,8 @@ export class CameraController {
     // World-space corner points (top + bottom of every land tile) used to frame the island.
     const pts: number[] = [];
     const playPts: number[] = [];
+    const tileXyz: number[] = [];
+    const tileWeight: number[] = [];
     const ts = BALANCE.tileSize;
     const halfTile = ts * 0.5;
     const addTile = (wx: number, wz: number, topY: number, playable = true): void => {
@@ -125,6 +158,10 @@ export class CameraController {
           if (tile === 'empty') continue;
           const topY = tile === 'spawn' || tile === 'goal' || tile === 'decor' ? 1.85 : 0.5;
           addTile(gridToWorldX(c, cols), gridToWorldZ(r, rows), topY, tile !== 'decor');
+          if (tile !== 'decor') {
+            tileXyz.push(gridToWorldX(c, cols), topY, gridToWorldZ(r, rows));
+            tileWeight.push(tile === 'spawn' || tile === 'goal' ? 6 : tile === 'path' ? 0.7 : 1);
+          }
         }
       }
     }
@@ -137,6 +174,17 @@ export class CameraController {
     if (playPts.length === 0) playPts.push(...pts);
     this.fitPoints = Float32Array.from(pts);
     this.fitPlayPoints = Float32Array.from(playPts);
+    const stride = Math.max(1, Math.ceil(tileWeight.length / MAX_FIT_SAMPLES));
+    const sx: number[] = [];
+    const sw: number[] = [];
+    for (let i = 0; i < tileWeight.length; i++) {
+      // Always keep spawn / goal; thin out the rest on very large islands.
+      if (i % stride !== 0 && tileWeight[i] < 6) continue;
+      sx.push(tileXyz[i * 3], tileXyz[i * 3 + 1], tileXyz[i * 3 + 2]);
+      sw.push(tileWeight[i]);
+    }
+    this.fitTileXyz = Float32Array.from(sx);
+    this.fitTileWeight = Float32Array.from(sw);
     this.userAdjusted = false;
     this.applyFit(false);
   }
@@ -171,15 +219,44 @@ export class CameraController {
       kind: profile.kind,
       maxZoomFactor: 2.2,
     });
+    let zoom = fit.zoom;
+    let tx = fit.targetX;
+    let tz = fit.targetZ;
+    if (this.hudRects.length > 0 && this.fitTileXyz && this.fitTileWeight && !this.showcaseMode) {
+      const st = Math.sin(ISO_TILT_RAD);
+      const pts = projectPlanePoints(this.fitTileXyz, this.fitTileWeight, yaw, ISO_TILT_RAD);
+      const occ = computeOcclusionFit(pts, {
+        viewportW: this.viewportWidth,
+        viewportH: this.viewportHeight,
+        halfHeight: BALANCE.camera.defaultFrustumHalfHeight,
+        tileWorld: BALANCE.tileSize,
+        hudRects: this.hudRects,
+        zoomCeil: fit.zoom,
+        zoomFloor: fit.minZoom,
+        coverage: OCCLUSION_COVERAGE,
+        prefR: fit.targetX * Math.cos(yaw) - fit.targetZ * Math.sin(yaw),
+        prefU: -(fit.targetX * Math.sin(yaw) + fit.targetZ * Math.cos(yaw)) * st,
+      });
+      const g = planeTargetToGround(occ.targetR, occ.targetU, yaw, ISO_TILT_RAD);
+      zoom = occ.zoom;
+      tx = g.x;
+      tz = g.z;
+    }
+    this.fitPlane = {
+      r: tx * Math.cos(yaw) - tz * Math.sin(yaw),
+      u: -(tx * Math.sin(yaw) + tz * Math.cos(yaw)) * Math.sin(ISO_TILT_RAD),
+    };
+    this.planeExtYaw = NaN;
+    this.cancelFling();
     this.fitKind = profile.kind;
     this.minZoom = fit.minZoom;
-    this.maxZoom = fit.maxZoom;
-    this.desiredTarget.set(fit.targetX, 0, fit.targetZ);
-    this.desiredZoom = fit.zoom;
+    this.maxZoom = Math.max(fit.maxZoom, zoom * 2.2);
+    this.desiredTarget.set(tx, 0, tz);
+    this.desiredZoom = zoom;
     if (!smooth) {
       this.target.copy(this.desiredTarget);
-      this.zoom = fit.zoom;
-      this.camera.zoom = fit.zoom;
+      this.zoom = zoom;
+      this.camera.zoom = zoom;
       this.camera.updateProjectionMatrix();
       this.updateCameraTransform();
     }
@@ -225,7 +302,32 @@ export class CameraController {
     this.keyPanZ = z;
   }
 
+  /** Pointer / finger driven pan: also stops any inertia. */
   panByScreenDelta(dx: number, dy: number): void {
+    this.cancelFling();
+    this.applyScreenPan(dx, dy);
+  }
+
+  /** Starts camera inertia from a release velocity in screen px/s (same direction as the drag). */
+  fling(vx: number, vy: number): void {
+    this.flingVx = vx;
+    this.flingVy = vy;
+  }
+
+  cancelFling(): void {
+    this.flingVx = 0;
+    this.flingVy = 0;
+  }
+
+  /** Smoothly returns to the default framing (double-tap / C key). */
+  recenter(): void {
+    if (!this.fitPoints) return;
+    this.cancelFling();
+    this.userAdjusted = false;
+    this.applyFit(true);
+  }
+
+  private applyScreenPan(dx: number, dy: number): void {
     this.userAdjusted = true;
     const worldHeight = (this.camera.top - this.camera.bottom) / this.camera.zoom;
     const worldWidth = (this.camera.right - this.camera.left) / this.camera.zoom;
@@ -256,6 +358,7 @@ export class CameraController {
       Math.min(this.maxZoom, this.desiredZoom + delta * this.desiredZoom),
     );
 
+    this.clampDesiredTarget();
     if (before) {
       // Shift target slightly toward zoom focal point for natural wheel-zoom feel
       const oldZoom = this.camera.zoom;
@@ -297,6 +400,19 @@ export class CameraController {
       this.desiredTarget.x += (cosY * nx + sinY * nz) * speed;
       this.desiredTarget.z += (-sinY * nx + cosY * nz) * speed;
       this.clampDesiredTarget();
+    }
+
+    if (this.flingVx !== 0 || this.flingVy !== 0) {
+      const f = stepFling(this.flingVx, this.flingVy, dt);
+      const bx = this.desiredTarget.x;
+      const bz = this.desiredTarget.z;
+      this.applyScreenPan(f.dx, f.dy);
+      const moved = Math.hypot(this.desiredTarget.x - bx, this.desiredTarget.z - bz);
+      // Hit a pan limit: bleed off the remaining momentum quickly.
+      const k = moved < 1e-4 && Math.hypot(f.dx, f.dy) > 0.5 ? 0.6 : 1;
+      this.flingVx = f.vx * k;
+      this.flingVy = f.vy * k;
+      if (Math.hypot(this.flingVx, this.flingVy) < FLING_STOP_SPEED) this.cancelFling();
     }
 
     // Eased 90deg camera rotation or slow menu diorama showcase orbit
@@ -402,6 +518,28 @@ export class CameraController {
   private clampDesiredTarget(): void {
     this.desiredTarget.x = Math.max(this.minBoundX, Math.min(this.maxBoundX, this.desiredTarget.x));
     this.desiredTarget.z = Math.max(this.minBoundZ, Math.min(this.maxBoundZ, this.desiredTarget.z));
+    if (this.showcaseMode || !this.fitPlayPoints) return;
+    const yaw = this.currentYaw;
+    if (this.planeExt === null || Math.abs(yaw - this.planeExtYaw) > 1e-3) {
+      const e = projectExtents(this.fitPlayPoints, yaw, ISO_TILT_RAD);
+      if (!e) return;
+      const pad = BALANCE.tileSize * 0.8;
+      this.planeExt = { rMin: e.minX - pad, rMax: e.maxX + pad, uMin: e.minY - pad, uMax: e.maxY + pad };
+      this.planeExtYaw = yaw;
+    }
+    const st = Math.sin(ISO_TILT_RAD);
+    const cy = Math.cos(yaw);
+    const sy = Math.sin(yaw);
+    const zoom = Math.max(0.01, this.desiredZoom);
+    const halfR = (this.camera.right - this.camera.left) / 2 / zoom;
+    const halfU = (this.camera.top - this.camera.bottom) / 2 / zoom;
+    const tr = this.desiredTarget.x * cy - this.desiredTarget.z * sy;
+    const tu = -(this.desiredTarget.x * sy + this.desiredTarget.z * cy) * st;
+    const c = clampPlaneTarget(tr, tu, this.planeExt, halfR, halfU, 0.35, this.fitPlane);
+    if (c.r === tr && c.u === tu) return;
+    const g = planeTargetToGround(c.r, c.u, yaw, ISO_TILT_RAD);
+    this.desiredTarget.x = g.x;
+    this.desiredTarget.z = g.z;
   }
 
   private updateCameraTransform(): void {

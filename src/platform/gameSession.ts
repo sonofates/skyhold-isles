@@ -16,9 +16,11 @@ import type { RenderWorld } from '../render/renderWorld.ts';
 import { getTowerPickHeight } from '../render/towerPicking.ts';
 import { SimWorld } from '../sim/world.ts';
 import type { GameOverlays } from '../ui/gameOverlays.ts';
+import { collectHudRects } from '../ui/hudRects.ts';
 import type { RadialMenu } from '../ui/radialMenu.ts';
 import type { GameLoop } from './browserLoop.ts';
 import { isRadialActive, isTouchDevice } from './deviceClass.ts';
+import { bindHaptics, haptics } from './haptics.ts';
 import { QualityController } from './qualityController.ts';
 import { resolveTap, type GroundTileInfo, type TapTarget } from './tapResolution.ts';
 import type { InputManager } from './input.ts';
@@ -90,6 +92,7 @@ export class GameSession {
   /** Throttle for the per-frame HUD sync (countdowns / cooldowns); events sync immediately. */
   private uiSyncAccumSec = 0;
   private unbindSound: (() => void) | null = null;
+  private unbindHaptics: (() => void) | null = null;
   private deps: SessionRuntimeDeps | null = null;
   private readonly quality: QualityController;
   /** Tile whose ghost tower the radial build ring is previewing (survives pointer-leave refreshes). */
@@ -103,6 +106,7 @@ export class GameSession {
       isTouchDevice,
     );
     this.quality.setSetting(this.settings.quality);
+    haptics.setEnabled(this.settings.haptics && isTouchDevice());
     this.currentLevelIndex = Math.max(
       0,
       Math.min(LEVELS.length - 1, this.progress.unlockedLevelIndex),
@@ -361,6 +365,8 @@ export class GameSession {
   private bindSimEvents(bus: EventBus): void {
     const { overlays } = this.d;
     this.unbindSound?.();
+    this.unbindHaptics?.();
+    this.unbindHaptics = bindHaptics(bus);
     this.unbindSound = bindSimEventBridge({
       bus,
       soundManager: this.soundManager,
@@ -455,6 +461,8 @@ export class GameSession {
     this.refreshPlacementPreview();
     this.syncLoopAndInput();
     this.syncUi();
+    // The HUD is laid out now: frame the island clear of its controls.
+    this.renderWorld.cameraController.setHudRects(collectHudRects());
   }
 
   openSettingsModal(origin: SettingsOrigin): void {
@@ -532,6 +540,7 @@ export class GameSession {
     saveSettings(next);
     this.soundManager.updateSettings(next);
     this.quality.setSetting(next.quality);
+    haptics.setEnabled(next.haptics && isTouchDevice());
   }
 
   upgradeTower(id: number): void {
@@ -576,6 +585,46 @@ export class GameSession {
     this.refreshHoverFeedback();
   }
 
+  /** What a tap at this screen position means (ground tile first, tower silhouette as fallback). */
+  private tapTargetAt(ndcX: number, ndcY: number, hit: { x: number; z: number } | null): TapTarget {
+    const silhouette = this.renderWorld.pickTowerAtNdc(ndcX, ndcY, this.simWorld.towers);
+    const coord = hit ? this.simWorld.grid.worldToGrid(hit.x, hit.z) : null;
+    const ground: GroundTileInfo | null = coord
+      ? {
+          col: coord.col,
+          row: coord.row,
+          towerId: this.simWorld.grid.getTowerIdAt(coord.col, coord.row),
+          buildable: this.simWorld.grid.canPlaceTower(coord.col, coord.row),
+        }
+      : null;
+    return resolveTap(ground, silhouette?.id ?? null);
+  }
+
+  /** Long press (touch): a tower opens straight into its info card. */
+  onLongPress(ndcX: number, ndcY: number): void {
+    const radial = this.deps?.radial;
+    if (this.viewMode !== 'playing' || !radial || !isRadialActive()) return;
+    if (this.activeAbilityMode || this.activePlacementType) return;
+    const hit = this.renderWorld.cameraController.screenNdcToPlane(ndcX, ndcY, 0);
+    const target = this.tapTargetAt(ndcX, ndcY, hit);
+    if (target.kind !== 'tower') return;
+    haptics.pulse('longPress');
+    radial.openTowerInfo(target.id);
+  }
+
+  /**
+   * Double tap (touch): on empty map (nothing to select or build) the camera returns to its default
+   * framing. Returns true when handled, so the tap is not also treated as a normal tap.
+   */
+  onDoubleTap(ndcX: number, ndcY: number): boolean {
+    if (this.viewMode !== 'playing' || this.activeAbilityMode) return false;
+    const hit = this.renderWorld.cameraController.screenNdcToPlane(ndcX, ndcY, 0);
+    if (this.tapTargetAt(ndcX, ndcY, hit).kind !== 'none') return false;
+    haptics.pulse('tap');
+    this.renderWorld.cameraController.recenter();
+    return true;
+  }
+
   onPrimaryTap(ndcX: number, ndcY: number, shiftKey = false): void {
     this.soundManager.unlock();
     this.lastNdcX = ndcX;
@@ -592,17 +641,7 @@ export class GameSession {
       return;
     }
 
-    const silhouette = this.renderWorld.pickTowerAtNdc(ndcX, ndcY, this.simWorld.towers);
-    const coord = hit ? this.simWorld.grid.worldToGrid(hit.x, hit.z) : null;
-    const ground: GroundTileInfo | null = coord
-      ? {
-          col: coord.col,
-          row: coord.row,
-          towerId: this.simWorld.grid.getTowerIdAt(coord.col, coord.row),
-          buildable: this.simWorld.grid.canPlaceTower(coord.col, coord.row),
-        }
-      : null;
-    const target = resolveTap(ground, silhouette?.id ?? null);
+    const target = this.tapTargetAt(ndcX, ndcY, hit);
 
     const radial = this.deps?.radial;
     if (radial && isRadialActive() && !this.activePlacementType) {
@@ -643,13 +682,17 @@ export class GameSession {
     const open = radial.openedFor();
     if (target.kind === 'tower') {
       if (open?.kind === 'tower' && open.id === target.id) radial.close();
-      else radial.openTower(target.id);
+      else {
+        haptics.pulse('tap');
+        radial.openTower(target.id);
+      }
       return;
     }
     if (target.kind === 'build') {
       if (open?.kind === 'build' && open.col === target.col && open.row === target.row) {
         radial.close();
       } else {
+        haptics.pulse('tap');
         radial.openBuild(target.col, target.row);
       }
       return;
@@ -814,5 +857,7 @@ export class GameSession {
   dispose(): void {
     this.unbindSound?.();
     this.unbindSound = null;
+    this.unbindHaptics?.();
+    this.unbindHaptics = null;
   }
 }
