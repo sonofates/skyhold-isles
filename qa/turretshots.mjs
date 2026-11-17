@@ -65,11 +65,17 @@ async function aimRun(browser, type, tier) {
         report.errors.push(`${key}: no turret view`);
         continue;
       }
-      const expect = sectorOf(yawToScreen(v.targetYaw));
-      const ok = expect === v.sector;
+      const simA = yawToScreen(v.targetYaw);
+      const expect = sectorOf(simA);
+      // Hysteresis: a turret may hold its sector up to 8° past the border (no flicker).
+      let off = Math.abs(simA - v.sector * (Math.PI / 4)) % (2 * Math.PI);
+      if (off > Math.PI) off = 2 * Math.PI - off;
+      const held = expect !== v.sector && off <= Math.PI / 8 + (8 * Math.PI) / 180 + 1e-6;
+      const ok = expect === v.sector || held;
       if (!ok) rec.mismatches++;
+      if (held) rec.held = (rec.held ?? 0) + 1;
       rec.shots = s.turrets.shots;
-      rec.samples.push({ target: SECTORS[cur], simAim: SECTORS[expect], drawn: SECTORS[v.sector], frame: v.frame, mirror: v.mirror, ok, muzzle: v.muzzle && [Math.round(v.muzzle.x), Math.round(v.muzzle.y)] });
+      rec.samples.push({ target: SECTORS[cur], simAim: SECTORS[expect], simDeg: Math.round((simA * 180) / Math.PI), drawn: SECTORS[v.sector], frame: v.frame, mirror: v.mirror, ok, held, muzzle: v.muzzle && [Math.round(v.muzzle.x), Math.round(v.muzzle.y)] });
       const name = `${OUT}/${key}-${n}-${SECTORS[v.sector]}`;
       await page.screenshot({ path: `${name}.png` });
       const cx = Math.round(plot.x);
@@ -79,7 +85,7 @@ async function aimRun(browser, type, tier) {
     }
     const distinct = new Set(rec.samples.map((x) => x.drawn));
     if (distinct.size < 3) report.errors.push(`${key}: only ${distinct.size} distinct directions drawn`);
-    if (rec.mismatches > 0) report.errors.push(`${key}: ${rec.mismatches} samples where the drawn sector != the sim's aim sector`);
+    if (rec.mismatches > 0) report.errors.push(`${key}: ${rec.mismatches} samples where the drawn sector is outside the sim's aim sector (+ hysteresis)`);
     if (rec.shots === 0) report.errors.push(`${key}: no turret shots seen`);
   } catch (e) {
     report.errors.push(`${key}: ${e.message}`);
@@ -110,4 +116,4 @@ if (!only || only === 'scenes') {
 }
 await browser.close();
 writeFileSync(`${OUT}/report.json`, JSON.stringify(report, null, 1));
-console.log(JSON.stringify({ errors: report.errors, aim: Object.fromEntries(Object.entries(report.aim).map(([k, r]) => [k, `${r.samples.map((x) => x.drawn + (x.ok ? '' : '!')).join(' ')} shots=${r.shots}`])), scenes: report.scenes }, null, 1));
+console.log(JSON.stringify({ errors: report.errors, aim: Object.fromEntries(Object.entries(report.aim).map(([k, r]) => [k, `${r.samples.map((x) => x.drawn + (x.held ? '~' : x.ok ? '' : '!')).join(' ')} shots=${r.shots}`])), scenes: report.scenes }, null, 1));

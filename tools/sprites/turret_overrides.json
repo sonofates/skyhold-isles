@@ -1,9 +1,80 @@
 {
- "_note": "Per-asset fixes read by turret_pack.py (raw px: mount in the 1024 body, muzzle within the 512 panel). S views aim at the camera, so the farthest-pixel rule finds the feet / carriage; their muzzle is the bore centre (cannon) or the arrow / bolt head (archer), read off the raw panel; the archers' SE arrow sits above their boots, which the rule would pick. Pairs (cannon-2 bores, archer-2 archers) use the midpoint. archer-2: its body has a roof, so the archers stand on the balcony floor (not the roof) at 0.8 scale to fit under the eave.",
- "archer-1": { "muzzle": { "S": [268, 247], "SE": [379, 235] } },
- "archer-2": { "mount": [512, 356], "scale": 0.8, "muzzle": { "S": [260, 253], "SE": [341, 255] } },
- "archer-3": { "muzzle": { "S": [256, 320], "SE": [411, 304] } },
- "cannon-1": { "muzzle": { "S": [252, 236] } },
- "cannon-2": { "muzzle": { "S": [250, 216] } },
- "cannon-3": { "muzzle": { "S": [256, 200] } }
+ "_note": "Per-asset fixes read by turret_pack.py (raw px: mount in the 1024 body, muzzle within the 512 panel). S views aim at the camera, so the farthest-pixel rule finds the feet / carriage; their muzzle is the bore centre (cannon) or the arrow / bolt head (archer), read off the raw panel; in SE views the carriage corner / boots stick out further toward lower-right than the bore / arrow head, so cannon and archer SE muzzles are read off the panel too. Pairs (cannon-2 bores, archer-2 archers) use the midpoint. archer-2: its body has a roof, so the archers stand on the balcony floor (not the roof) at 0.8 scale to fit under the eave.",
+ "archer-1": {
+  "muzzle": {
+   "S": [
+    268,
+    247
+   ],
+   "SE": [
+    379,
+    235
+   ]
+  }
+ },
+ "archer-2": {
+  "mount": [
+   512,
+   356
+  ],
+  "scale": 0.8,
+  "muzzle": {
+   "S": [
+    260,
+    253
+   ],
+   "SE": [
+    341,
+    255
+   ]
+  }
+ },
+ "archer-3": {
+  "muzzle": {
+   "S": [
+    256,
+    320
+   ],
+   "SE": [
+    411,
+    304
+   ]
+  }
+ },
+ "cannon-1": {
+  "muzzle": {
+   "S": [
+    252,
+    236
+   ],
+   "SE": [
+    400,
+    277
+   ]
+  }
+ },
+ "cannon-2": {
+  "muzzle": {
+   "S": [
+    250,
+    216
+   ],
+   "SE": [
+    388,
+    276
+   ]
+  }
+ },
+ "cannon-3": {
+  "muzzle": {
+   "S": [
+    256,
+    200
+   ],
+   "SE": [
+    416,
+    253
+   ]
+  }
+ }
 }
