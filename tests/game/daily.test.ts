@@ -4,6 +4,7 @@ import {
   applyDailyWin,
   createDailyRecord,
   dailyChallengeFor,
+  isStrongRule,
   liveStreak,
   sanitizeDailyRecord,
   utcDayNumber,
@@ -22,7 +23,7 @@ describe('daily squall selection', () => {
     expect(dailyChallengeFor(20000, cleared)).toEqual(a);
     const islands = new Set<number>();
     const firsts = new Set<string>();
-    for (let d = 20000; d < 20060; d++) {
+    for (let d = 20000; d < 20400; d++) {
       const c = dailyChallengeFor(d, cleared)!;
       expect(cleared).toContain(c.levelIndex);
       expect(c.challenges).toHaveLength(2);
@@ -30,6 +31,7 @@ describe('daily squall selection', () => {
       for (const id of c.challenges) expect(isChallengeId(id)).toBe(true);
       const bans = c.challenges.filter((id) => (CHALLENGES[id].patch.bannedTowers?.length ?? 0) > 0);
       expect(bans.length).toBeLessThanOrEqual(1);
+      expect(c.challenges.filter((id) => isStrongRule(id)).length).toBeLessThanOrEqual(1);
       islands.add(c.levelIndex);
       firsts.add(c.challenges[0]);
     }

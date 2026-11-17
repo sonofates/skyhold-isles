@@ -30,15 +30,29 @@ function hashDay(day: number, salt: number): number {
 const isBan = (id: ChallengeId): boolean => (CHALLENGES[id].patch.bannedTowers?.length ?? 0) > 0;
 
 /**
+ * Challenges that make every foe (or every coin) count against you. Two of them stacked lost almost
+ * every scripted Heroic/Master run even with a maxed Workshop (PROGRESS round 2), so a daily takes
+ * at most one.
+ */
+const STRONG_RULES: ReadonlySet<ChallengeId> = new Set<ChallengeId>(['ironTide', 'galeForce', 'thinPurse', 'championHost']);
+export const isStrongRule = (id: ChallengeId): boolean => STRONG_RULES.has(id);
+
+/** Two challenges that may share a daily: different, ≤ 1 tower ban, ≤ 1 strong rule. */
+export function dailyPairAllowed(a: ChallengeId, b: ChallengeId): boolean {
+  return a !== b && !(isBan(a) && isBan(b)) && !(isStrongRule(a) && isStrongRule(b));
+}
+
+/**
  * Today's challenge among the first `clearedIslands` islands (the player must have won them, so a
- * daily is always on familiar ground). Two different challenges, at most one tower ban.
+ * daily is always on familiar ground). Two different challenges, at most one tower ban and at most
+ * one strong rule (see STRONG_RULES).
  * Returns null until at least one island is cleared.
  */
 export function dailyChallengeFor(day: number, clearedIslands: readonly number[]): DailyChallenge | null {
   if (clearedIslands.length === 0) return null;
   const levelIndex = clearedIslands[hashDay(day, 1) % clearedIslands.length];
   const first = CHALLENGE_IDS[hashDay(day, 2) % CHALLENGE_IDS.length];
-  const pool = CHALLENGE_IDS.filter((id) => id !== first && !(isBan(first) && isBan(id)));
+  const pool = CHALLENGE_IDS.filter((id) => dailyPairAllowed(first, id));
   const second = pool[hashDay(day, 3) % pool.length];
   return { day, levelIndex, challenges: [first, second] };
 }

@@ -95,6 +95,11 @@ Machine load from the other agents can make desktop shots slow (timeout raised t
 - [x] Results-card Workshop shortcut: the "Workshop: N★ to spend ›" chip is a button (victory and
       now also campaign DEFEAT when an upgrade is affordable) → `openWorkshopFromRun()` tears the
       finished run down, opens the Workshop, Back returns to the island select.
+- [x] Daily fairness: at most one "strong" rule per daily (Iron Tide, Gale Force, Thin Purse,
+      Champion Host — `dailyPairAllowed`), alongside the existing ≤ 1 tower ban. Evidence
+      (`.tune/pairs.ts`, greedy + MAXED Workshop): strong+strong pairs lost on L3/L7/L9/L13 almost
+      always (e.g. L9 ironTide+galeForce L@12, ironTide+championHost L@8), while strong+mild
+      (silentSkies+ironTide) still won L9 W-20 / L5 W-0. Tested over 400 days.
 - [x] Round-2 review (subagent, read-only) → 3 findings, all fixed:
       1. Save-code merge dropped a running Daily streak continued on another device →
          `mergeDaily` chains overlapping/adjacent runs (symmetric, idempotent; total stays max —
