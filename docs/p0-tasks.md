@@ -8,9 +8,13 @@ Branch: `art-2d`. Spec: `docs/2d-transition-plan.md` (P0 row + gate). Costs are 
 - [ ] Sim: `LevelDef` gains plots, polyline paths (world units) and entrances; plot-based `canPlaceTower`; polyline path following; tests
 - [ ] L1c level (waves, difficulty) + balance sim entry (greedy/weak windows)
 - [ ] Pixi v8 renderer (separate entry, `2d.html`) on the real `SimWorld`: map (cover/contain with safe area), depth-sorted sprites, projectiles/FX, painted HUD, build ring, tower panel
-- [ ] Assets: archer T1/T2/T3 (cost measured), mage + cannon T1 (exist)
+- [x] Assets: archer T1/T2/T3 (cost measured), mage + cannon T1 (exist)
 - [ ] Enemy A/B: raider with the Veo walk-cycle pipeline; brute + kite with the cheap method (sprite + bob/squash/lean + 2–3 frame leg swap)
 - [ ] A/B scene: all three side by side at in-game scale (screenshot + recording)
 - [ ] FPS: desktop (real Chrome) and throttled mobile profile, 150 enemies
 - [ ] Screenshots + recording: desktop 1600x900 and mid-range phone (e.g. 915x412 at DPR 2.6, CPU 4x)
 - [ ] `docs/p0-gate.md` written → STOP and wait for the owner
+
+## Notes as of 19:05
+- Raider sheets: Omni 1.2 Flash (default) and Veo 3.1 Quality, front and back, in design/art-2d/out/anim/. Brute and kite have 2 leg-swap frames each.
+- Engine (sim plots + Pixi renderer + bench) is being built by a subagent in a worktree; it merges into art-2d.
