@@ -60,6 +60,10 @@ Branch `hermes/skyhold-day-mobile`. Preview port 4302. Deadline 21:00 TR.
   (`autoYaw=false`); reset per level. `viewYawIndex` getter + 3 tests in `tests/render/cameraController.test.ts`.
   Screenshot checked (`L05` portrait: spawn + goal visible, left edge of the island cropped, HUD clear).
 
+- Round 5: tree green (tsc, lint, tests, build). Notch check: overrode `--safe-t/b/l/r` (portrait 47/34/0/0, landscape 0/21/47/47)
+  on L13 at 390x844 and 844x390 (`.shots-tool/notch.mjs`): top bar, wave chip, rotate/pause column, ability gems and Start
+  button all stay inside the insets, nothing clipped. No code change needed.
+
 ## Next
 - Real-device verification is impossible here: governor thresholds (22 ms slow / 18.5 ms smooth, 60-frame windows) and the
   Auto start tier (medium on touch) are educated guesses -> a later round could add an opt-in `?perf` log or tune from reports.
