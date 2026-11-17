@@ -238,8 +238,8 @@ export class RollingFrameMetrics {
     this.scratch = new Float64Array(this.capacity);
   }
 
-  record(ms: number): void {
-    if (!Number.isFinite(ms) || ms <= 0) return;
+  record(ms: number, allowZero = false): void {
+    if (!Number.isFinite(ms) || (allowZero ? ms < 0 : ms <= 0)) return;
     if (this.count === this.capacity) {
       this.sum -= this.buffer[this.head];
     } else {

@@ -59,6 +59,9 @@ async function bootstrap(loadingScreen: LoadingScreen): Promise<void> {
   const renderWorld = new RenderWorld(canvas, assets);
   const session = new GameSession(renderWorld, soundManager);
 
+  let lastQuality = initialSettings.quality;
+  let debugPanelRef: ReturnType<typeof createDebugPanelIfEnabled> = null;
+
   const overlays = new GameOverlays(uiRoot, {
     initialSettings,
     onStartWave: () => {
@@ -113,6 +116,10 @@ async function bootstrap(loadingScreen: LoadingScreen): Promise<void> {
       const eff = renderWorld.sceneManager.getEffectiveRenderState();
       renderWorld.materials.setOutlineAlphaEnabled(eff.outlineEnabled);
       renderWorld.decorBuilder.setQuality(eff.decorLow ? 'low' : 'high');
+      if (next.quality !== lastQuality) {
+        lastQuality = next.quality;
+        debugPanelRef?.resetDisplaySmoothing();
+      }
     },
     onSettingsClose: () => session.closeSettingsModal(),
   });
@@ -130,6 +137,7 @@ async function bootstrap(loadingScreen: LoadingScreen): Promise<void> {
     getPacingInfo: () => loopRef?.getPacingInfo() ?? { mode: 'active', targetFps: null },
     getStartupMetrics: () => startupMetrics,
   });
+  debugPanelRef = debugPanel;
 
   const inputManager = new InputManager(canvas, {
     onPanScreenDelta: (dx, dy) => renderWorld.cameraController.panByScreenDelta(dx, dy),
@@ -200,6 +208,7 @@ async function bootstrap(loadingScreen: LoadingScreen): Promise<void> {
       });
       if (!levelOrViewChanged) {
         if (wasPacingThrottled && pacing.targetFps === null) {
+          skipNextDisplayFrame = true;
           renderWorld.sceneManager.resetGovernorWarmup(0.4, true);
           debugPanel?.resetDisplaySmoothing();
         } else if (pacing.mode !== lastPacingMode && pacing.targetFps !== null) {
@@ -225,10 +234,13 @@ async function bootstrap(loadingScreen: LoadingScreen): Promise<void> {
         skipDisplayFrameSample,
         allowUpgrade: !loop.paused,
       });
-      if (hasPerf && transition) {
-        console.info(
-          `[Skyhold Perf] tier T${transition.fromTier}->T${transition.toTier} (${transition.reason}, avg=${transition.avgMs.toFixed(1)}ms, p95=${transition.p95Ms.toFixed(1)}ms)`,
-        );
+      if (transition) {
+        debugPanel?.resetDisplaySmoothing();
+        if (hasPerf) {
+          console.info(
+            `[Skyhold Perf] tier T${transition.fromTier}->T${transition.toTier} (${transition.reason}, avg=${transition.avgMs.toFixed(1)}ms, p95=${transition.p95Ms.toFixed(1)}ms)`,
+          );
+        }
       }
       if (hasPerf && debugPanel) {
         perfLogAccumSec += frameDt;
@@ -261,13 +273,16 @@ async function bootstrap(loadingScreen: LoadingScreen): Promise<void> {
 
   let lastViewportW = Math.max(1, Math.round(canvas.clientWidth || window.innerWidth));
   let lastViewportH = Math.max(1, Math.round(canvas.clientHeight || window.innerHeight));
+  let lastNativeDpr = window.devicePixelRatio || 1;
 
   const onResize = (): void => {
     const w = Math.max(1, Math.round(canvas.clientWidth || window.innerWidth));
     const h = Math.max(1, Math.round(canvas.clientHeight || window.innerHeight));
-    if (w === lastViewportW && h === lastViewportH) return;
+    const dpr = window.devicePixelRatio || 1;
+    if (w === lastViewportW && h === lastViewportH && dpr === lastNativeDpr) return;
     lastViewportW = w;
     lastViewportH = h;
+    lastNativeDpr = dpr;
     renderWorld.resize(w, h);
     renderWorld.sceneManager.resetGovernorWarmup(0.65, false);
   };
@@ -298,6 +313,7 @@ async function bootstrap(loadingScreen: LoadingScreen): Promise<void> {
   const warmStartMs = performance.now();
   lastViewportW = Math.max(1, Math.round(canvas.clientWidth || window.innerWidth));
   lastViewportH = Math.max(1, Math.round(canvas.clientHeight || window.innerHeight));
+  lastNativeDpr = window.devicePixelRatio || 1;
   renderWorld.resize(lastViewportW, lastViewportH);
   await renderWorld.sceneManager.warmUp(renderWorld.cameraController.camera, {
     instancedHighlightMaterial: renderWorld.materials.kenneyTower,

@@ -14,6 +14,7 @@ import {
   computeTargetDpr,
 } from '../../src/render/perfGovernor.ts';
 import {
+  PostProcessingPipeline,
   SilhouetteOutlineEffect,
   canUseHalfFloatComposer,
   canUseHalfResN8ao,
@@ -103,6 +104,23 @@ describe('computeP95 and RollingFrameMetrics', () => {
       metrics.record(12);
     }
     expect(metrics.getSnapshot().maxMs).toBe(12);
+  });
+
+  it('rejects 0ms frame intervals by default while accurately recording 0ms CPU work samples when allowZero is true', () => {
+    const frameMetrics = new RollingFrameMetrics(10);
+    frameMetrics.record(0);
+    frameMetrics.record(16);
+    expect(frameMetrics.getSnapshot().sampleCount).toBe(1);
+    expect(frameMetrics.getSnapshot().avgMs).toBe(16);
+
+    const workMetrics = new RollingFrameMetrics(10);
+    workMetrics.record(0, true);
+    workMetrics.record(1, true);
+    workMetrics.record(-0.5, true);
+    const snap = workMetrics.getSnapshot();
+    expect(snap.sampleCount).toBe(2);
+    expect(snap.avgMs).toBeCloseTo(0.5, 6);
+    expect(snap.p95Ms).toBe(1);
   });
 });
 
@@ -992,6 +1010,68 @@ describe('PerfGovernor', () => {
       storeSlow.dispose();
     } finally {
       nowSpy.mockRestore();
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('disposes late-loaded SMAA LUT textures when PostProcessingPipeline is disposed before Image load', async () => {
+    const loadCallbacks: Array<() => void> = [];
+    vi.stubGlobal(
+      'Image',
+      class FakeSmaaImage {
+        width = 16;
+        height = 16;
+        addEventListener(type: string, cb: () => void): void {
+          if (type === 'load') loadCallbacks.push(cb);
+        }
+        set src(_v: string) {}
+      },
+    );
+
+    const disposedTexNames: string[] = [];
+    const origTexDispose = THREE.Texture.prototype.dispose;
+    const texDisposeSpy = vi
+      .spyOn(THREE.Texture.prototype, 'dispose')
+      .mockImplementation(function (this: THREE.Texture) {
+        if (this.name.startsWith('SMAA.')) {
+          disposedTexNames.push(this.name);
+        }
+        return origTexDispose.call(this);
+      });
+
+    const mockRenderer = {
+      outputColorSpace: THREE.SRGBColorSpace,
+      autoClear: true,
+      capabilities: { isWebGL2: true, maxSamples: 4 },
+      extensions: { has: () => true },
+      getContext: () => ({ getContextAttributes: () => ({ alpha: false }) }),
+      getSize: (t: THREE.Vector2) => t.set(800, 600),
+      getDrawingBufferSize: (t: THREE.Vector2) => t.set(800, 600),
+      setSize: () => {},
+    } as unknown as THREE.WebGLRenderer;
+
+    try {
+      const pipeline = new PostProcessingPipeline(
+        mockRenderer,
+        new THREE.Scene(),
+        new THREE.OrthographicCamera(),
+        800,
+        600,
+        { n8ao: 'off', outline: false, bloom: false, smaa: true },
+      );
+      expect(loadCallbacks).toHaveLength(2);
+
+      // Dispose before SMAA's embedded data-URL images finish decoding -> whenReady resolves promptly
+      const ready = pipeline.whenReady();
+      pipeline.dispose();
+      await ready;
+      expect(disposedTexNames).toEqual([]);
+
+      // When late async Image load fires after disposal, SMAA.Search & SMAA.Area are disposed cleanly
+      for (const cb of loadCallbacks) cb();
+      expect(disposedTexNames).toEqual(['SMAA.Search', 'SMAA.Area']);
+    } finally {
+      texDisposeSpy.mockRestore();
       vi.unstubAllGlobals();
     }
   });

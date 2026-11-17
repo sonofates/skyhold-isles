@@ -436,23 +436,38 @@ export class PostProcessingPipeline {
     }
     return new Promise((resolve) => {
       let settled = false;
-      const finish = (): void => {
-        if (settled) return;
-        settled = true;
-        clearTimeout(timer);
-        dispatcher.removeEventListener('load', finish);
-        if (this.smaaReadyCancel === finish) {
-          this.smaaReadyCancel = null;
-        }
-        resolve();
-      };
+      let disposed = false;
       const dispatcher = effect as unknown as {
         addEventListener: (type: string, cb: () => void) => void;
         removeEventListener: (type: string, cb: () => void) => void;
       };
-      this.smaaReadyCancel = finish;
-      dispatcher.addEventListener('load', finish);
-      const timer = setTimeout(finish, 50);
+      const settle = (): void => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        resolve();
+      };
+      const onLoad = (): void => {
+        dispatcher.removeEventListener('load', onLoad);
+        if (this.smaaReadyCancel === cancel) {
+          this.smaaReadyCancel = null;
+        }
+        if (disposed) {
+          effect.weightsMaterial.searchTexture?.dispose();
+          effect.weightsMaterial.areaTexture?.dispose();
+        }
+        settle();
+      };
+      const cancel = (): void => {
+        disposed = true;
+        if (this.smaaReadyCancel === cancel) {
+          this.smaaReadyCancel = null;
+        }
+        settle();
+      };
+      this.smaaReadyCancel = cancel;
+      dispatcher.addEventListener('load', onLoad);
+      const timer = setTimeout(settle, 50);
     });
   }
 
@@ -580,14 +595,10 @@ export class PostProcessingPipeline {
   }
 
   dispose(): void {
-    this.smaaReadyCancel?.();
-    this.smaaReadyCancel = null;
     this.removeAndDisposeN8ao();
+    this.removeAndDisposeSmaa();
     this.composer.dispose();
     this.bloomEffect = null;
     this.compositePass = null;
-    this.smaaPass = null;
-    this.smaaEffect = null;
-    this.smaaReadyPromise = null;
   }
 }

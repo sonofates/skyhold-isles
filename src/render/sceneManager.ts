@@ -491,7 +491,9 @@ export class SceneManager {
         await (this.postProcessing?.whenReady() ?? Promise.resolve());
       }
     } finally {
-      this.renderer.setRenderTarget(prevTarget);
+      if (!this.disposed && !this.contextLost) {
+        this.renderer.setRenderTarget(prevTarget);
+      }
       for (let i = 0; i < disposables.length; i++) {
         disposables[i].dispose();
       }
@@ -523,13 +525,14 @@ export class SceneManager {
     ) {
       this.displayMetrics.record(frameMs);
     }
-    if (workMs > 0 && Number.isFinite(workMs)) {
-      this.workMetrics.record(workMs);
+    if (workMs >= 0 && Number.isFinite(workMs)) {
+      this.workMetrics.record(workMs, true);
     }
 
     const transition = this.governor.recordFrame(frameMs, options);
     if (transition) {
       this.tierTransitions++;
+      this.resetDisplayMetrics();
       this.applyPreset(this.governor.getPreset(), false);
     }
     return transition;
