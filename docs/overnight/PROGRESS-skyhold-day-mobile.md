@@ -81,3 +81,5 @@ Branch `hermes/skyhold-day-mobile`. Preview port 4302. Deadline 21:00 TR.
 - `src/core/types.ts`: `QualityLevel` widened, `QualityTier`, `GameSettings.haptics`.
 - `src/platform/gameSession.ts` / `main.ts` / `settingsModal.ts` / `radialMenu.ts` (`openTowerInfo`): wiring only.
 - `src/style.css`: `.setting-seg*` sizes (4 quality buttons, 44px touch target).
+
+- Round 4: re-verified everything green (tsc, lint, 464 tests, build, sim:balance PASSED 13 levels). Re-reviewed landscape contact sheet: all 13 islands fill the frame, spawn/goal visible, ability gems only clip island tips. No code change needed; backlog 1-5 complete. Remaining items are the optional ones under "Next" (real-device tuning, Lighthouse).
