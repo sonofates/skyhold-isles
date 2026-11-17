@@ -1,4 +1,5 @@
 import type { GameSettings, ProgressData, QualityLevel } from '../core/types.ts';
+import { createDailyRecord, sanitizeDailyRecord } from '../data/daily.ts';
 import { sanitizeRanks } from '../data/workshop.ts';
 import { starWallet } from '../game/progression.ts';
 
@@ -112,6 +113,7 @@ export function createDefaultProgress(levelCount: number): ProgressData {
     clears: new Array<number>(levelCount).fill(0),
     workshop: {},
     challengeClears: Array.from({ length: levelCount }, () => []),
+    daily: createDailyRecord(),
   };
 }
 
@@ -218,6 +220,7 @@ export function migrateProgress(parsed: unknown, levelCount: number): ProgressDa
     clears,
     workshop: sanitizeRanks(raw.workshop),
     challengeClears: parseIslandIdLists(raw.challengeClears, levelCount),
+    daily: sanitizeDailyRecord(raw.daily),
   };
   // Upgrades are always refundable: if a save somehow spends more stars than it has earned
   // (edited save, retuned costs), refund everything instead of keeping an impossible state.
@@ -284,6 +287,7 @@ export function hasAnyProgress(p: ProgressData): boolean {
     p.clears.some((v) => v > 0) ||
     p.bestEndlessWaves.some((v) => v > 0) ||
     p.challengeClears.some((l) => l.length > 0) ||
+    p.daily.total > 0 ||
     Object.keys(p.workshop).length > 0
   );
 }

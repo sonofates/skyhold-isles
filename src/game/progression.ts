@@ -96,6 +96,7 @@ export function totalChallengeStars(progress: ProgressData): number {
 /** Star currency for the Workshop: everything earned minus what upgrades currently hold. */
 export interface StarWallet {
   readonly campaign: number;
+  /** Island challenge badges + Daily Squall wins (one star each). */
   readonly challenge: number;
   readonly earned: number;
   readonly spent: number;
@@ -104,7 +105,7 @@ export interface StarWallet {
 
 export function starWallet(progress: ProgressData): StarWallet {
   const campaign = totalCampaignStars(progress);
-  const challenge = totalChallengeStars(progress);
+  const challenge = totalChallengeStars(progress) + Math.max(0, progress.daily?.total ?? 0);
   const spent = workshopStarsSpent(progress.workshop ?? {});
   return { campaign, challenge, earned: campaign + challenge, spent, available: campaign + challenge - spent };
 }

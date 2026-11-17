@@ -5,6 +5,7 @@ import { describeStarGoals } from '../data/stars.ts';
 import { TOWER_ICON_SVGS, UI_ICON_SVGS } from './icons.ts';
 import { affordableUpgradeCount, WORKSHOP_ICON_SVG } from './workshop.ts';
 import { isIslandMastered } from '../game/progression.ts';
+import { DAILY_ICON_SVG, dailyPillState } from './daily.ts';
 
 /** Small crown for islands with 3 stars and every challenge won. */
 export const MASTERED_CROWN_SVG = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8L7.5 12L12 5L16.5 12L21 8L19 18H5L3 8Z" fill="#f6bd41" stroke="#1b1936" stroke-width="2" stroke-linejoin="round"/><rect x="5" y="18" width="14" height="2.6" fill="#b8801c" stroke="#1b1936" stroke-width="1.6"/></svg>`;
@@ -61,6 +62,7 @@ export interface MainMenuCallbacks {
   onOpenLevelSelect: () => void;
   onOpenSettings: () => void;
   onOpenWorkshop?: () => void;
+  onOpenDaily?: () => void;
 }
 
 export class MainMenuOverlay {
@@ -68,6 +70,7 @@ export class MainMenuOverlay {
   private readonly summaryEl: HTMLDivElement;
   private readonly playBtn: HTMLButtonElement;
   private readonly workshopBtn: HTMLButtonElement;
+  private readonly dailyBtn: HTMLButtonElement;
   private targetLevelIndex = 0;
 
   constructor(parent: HTMLElement, callbacks: MainMenuCallbacks) {
@@ -143,7 +146,16 @@ export class MainMenuOverlay {
     hints.className = 'menu-controls-hint desktop-only';
     hints.textContent = 'Drag / WASD pan · Wheel zoom · Q/E rotate · 1–5 build · Space pause';
 
-    actions.append(this.summaryEl, btnStack, hints);
+    this.dailyBtn = document.createElement('button');
+    this.dailyBtn.type = 'button';
+    this.dailyBtn.className = 'daily-pill gx gx-slate-btn';
+    this.dailyBtn.setAttribute('data-testid', 'btn-daily');
+    this.dailyBtn.addEventListener('click', () => callbacks.onOpenDaily?.());
+    const pillRow = document.createElement('div');
+    pillRow.className = 'menu-pill-row';
+    pillRow.append(this.summaryEl, this.dailyBtn);
+
+    actions.append(pillRow, btnStack, hints);
     card.append(hero, actions);
     this.rootEl.appendChild(card);
     parent.appendChild(this.rootEl);
@@ -163,6 +175,18 @@ export class MainMenuOverlay {
     this.summaryEl.innerHTML = `<span class="menu-star-inline">${UI_ICON_SVGS.star}</span><b>${totalStars}</b><span class="menu-stars-of">/ ${maxStars}</span>`;
     this.summaryEl.title = `${frontierIdx + 1}/${LEVELS.length} islands unlocked`;
     setWorkshopBadge(this.workshopBtn, progress);
+    const daily = dailyPillState(progress, Date.now());
+    const anyCleared = progress.clears.some((c) => c > 0);
+    this.dailyBtn.classList.toggle('hidden', !anyCleared);
+    this.dailyBtn.classList.toggle('is-open', daily.open);
+    this.dailyBtn.classList.toggle('is-done', !daily.open);
+    this.dailyBtn.innerHTML = `<span class="btn-icon">${DAILY_ICON_SVG}</span><span class="btn-label">Daily</span>${
+      daily.streak > 1 ? `<span class="daily-streak">×${daily.streak}</span>` : ''
+    }${daily.open ? '<span class="daily-dot" aria-hidden="true"></span>' : ''}`;
+    this.dailyBtn.setAttribute(
+      'aria-label',
+      daily.open ? 'Daily Squall — not won today' : 'Daily Squall — won today',
+    );
   }
 
   dispose(): void {

@@ -347,6 +347,8 @@ export class OutcomeOverlay {
       newChallengeNames?: readonly string[];
       /** Stars available in the Workshop when at least one upgrade is affordable (0 = no chip). */
       workshopStars?: number;
+      /** Daily Squall streak after this win (0 = not a counted daily). */
+      dailyStreak?: number;
     },
   ): void {
     this.open = true;
@@ -365,6 +367,7 @@ export class OutcomeOverlay {
       extras?.unlockedName,
       extras?.newChallengeNames ?? [],
       extras?.workshopStars ?? 0,
+      extras?.dailyStreak ?? 0,
     );
     if (stars < 3) {
       const goals = describeStarGoals(level.difficulty);
@@ -392,6 +395,7 @@ export class OutcomeOverlay {
     unlockedName: string | undefined,
     challengeNames: readonly string[],
     workshopStars: number,
+    dailyStreak: number,
   ): void {
     const chips: string[] = [];
     let delay = (STAR_REVEAL_DELAYS_MS[Math.max(0, stars - 1)] ?? 0) + 380;
@@ -405,6 +409,9 @@ export class OutcomeOverlay {
       if (record.firstClear) chip('callout-first', UI_ICON_SVGS.star, 'First clear!');
       else if (record.starsGained > 0) chip('callout-best', UI_ICON_SVGS.star, `+${record.starsGained}★ new best`);
       else if (record.newBestLives) chip('callout-best', UI_ICON_SVGS.heart, 'Best defence yet');
+    }
+    if (dailyStreak > 0) {
+      chip('callout-daily', UI_ICON_SVGS.star, `Daily Squall +1★${dailyStreak > 1 ? ` · ${dailyStreak}-day streak` : ''}`);
     }
     for (const name of challengeNames) chip('callout-challenge', UI_ICON_SVGS.star, `${name} +1★`);
     if (unlockedName) chip('callout-unlock', UI_ICON_SVGS.islands, `${unlockedName} unlocked`);

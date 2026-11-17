@@ -27,7 +27,8 @@ const RULE_ICONS: Partial<Record<ChallengeId, string>> = {
   silentSkies: UI_ICON_SVGS.meteor,
 };
 
-function challengeIcon(def: ChallengeDef): string {
+/** Icon for a challenge row: banned tower with a slash, or a rule glyph. */
+export function challengeIcon(def: ChallengeDef): string {
   if (def.bannedIcon) {
     return `<span class="ib-ban">${TOWER_ICON_SVGS[def.bannedIcon]}<span class="ib-ban-slash"></span></span>`;
   }

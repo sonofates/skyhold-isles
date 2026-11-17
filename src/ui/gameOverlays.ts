@@ -19,6 +19,7 @@ import { TowerPanel } from './towerPanel.ts';
 import { WorkshopOverlay } from './workshop.ts';
 import { IslandBriefingModal, type BriefingStartConfig } from './islandBriefing.ts';
 import { LogbookModal } from './logbook.ts';
+import { DailyModal } from './daily.ts';
 import type { WorkshopUpgradeId } from '../data/workshop.ts';
 
 export interface GameOverlayCallbacks {
@@ -59,6 +60,8 @@ export interface GameOverlayCallbacks {
   onBriefingToggle?: (on: boolean) => void;
   onResetProgress?: () => void;
   onOpenLogbook?: () => void;
+  onOpenDaily?: () => void;
+  onStartDaily?: () => void;
 }
 
 export class GameOverlays {
@@ -77,6 +80,7 @@ export class GameOverlays {
   readonly workshop: WorkshopOverlay;
   readonly islandBriefing: IslandBriefingModal;
   readonly logbook: LogbookModal;
+  readonly daily: DailyModal;
   private readonly pauseBanner: HTMLDivElement;
 
   constructor(uiRoot: HTMLElement, cb: GameOverlayCallbacks) {
@@ -117,6 +121,7 @@ export class GameOverlays {
       onOpenLevelSelect: cb.onOpenLevelSelectFromMenu,
       onOpenSettings: cb.onOpenSettingsFromMenu,
       onOpenWorkshop: () => cb.onOpenWorkshop('menu'),
+      onOpenDaily: () => cb.onOpenDaily?.(),
     });
 
     this.levelSelect = new LevelSelectOverlay(uiRoot, {
@@ -139,6 +144,7 @@ export class GameOverlays {
     });
 
     this.logbook = new LogbookModal(uiRoot);
+    this.daily = new DailyModal(uiRoot, { onStart: () => cb.onStartDaily?.() });
 
     this.pauseMenu = new PauseMenuModal(uiRoot, {
       onResume: cb.onResumeFromPause,
@@ -178,6 +184,7 @@ export class GameOverlays {
   closeModals(): void {
     this.islandBriefing.hide();
     this.logbook.hide();
+    this.daily.hide();
     this.pauseMenu.setOpen(false);
     this.settingsModal.setOpen(false);
     this.outcomeOverlay.hide();
@@ -219,6 +226,7 @@ export class GameOverlays {
     this.workshop.dispose();
     this.islandBriefing.dispose();
     this.logbook.dispose();
+    this.daily.dispose();
     this.pauseMenu.dispose();
     this.outcomeOverlay.dispose();
     this.settingsModal.dispose();

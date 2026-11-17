@@ -22,6 +22,15 @@ Machine load from the other agents can make desktop shots slow (timeout raised t
 - [x] Logbook (src/ui/logbook.ts): tap the star pill on island select → completion totals (stars,
       badges, mastered, best endless) + per-island row (stars, medals, best lives, wins, endless).
 
+- [x] Pause card run info: lives lost vs the current star goal, or the endless mutators in play.
+- [x] Daily Squall (src/data/daily.ts, src/ui/daily.ts): main-menu "Daily" pill (gold dot until won
+      today, ×streak). Each UTC day picks one *cleared* island + two challenges (any challenge ids,
+      at most one tower ban) via a pure hash of the day number. First win of the day: +1★ (Workshop
+      currency, counted in starWallet().challenge), streak +1 if yesterday was won. Island badges
+      are only granted for the island's own challenges. Save: `progress.daily` {lastDay, streak,
+      bestStreak, total}; v1/v2 saves without it get an empty record. Date.now() is read only in
+      the UI/session layer.
+
 ## Next ideas (not started)
 - Show challenge-star total next to the campaign star pill.
 - HUD chip for active challenge (MOBILE's HUD area — left to lead/mobile; pause subtitle shows it now).

@@ -44,7 +44,14 @@ import {
 } from './storage.ts';
 import type { RunModifiers } from '../data/runModifiers.ts';
 import {
+  applyDailyWin,
+  dailyChallengeFor,
+  utcDayNumber,
+  type DailyChallenge,
+} from '../data/daily.ts';
+import {
   CHALLENGES,
+  challengesForLevel,
   isChallengeId,
   runModifiersFor,
   sanitizeChallengeSelection,
@@ -72,6 +79,8 @@ export interface RunConfig {
   /** Endless from wave 1 (no victory / stars). */
   endless: boolean;
   challenges: ChallengeId[];
+  /** UTC day number when this run is that day's Daily Squall (null otherwise). */
+  daily: number | null;
 }
 
 export interface SessionRuntimeDeps {
@@ -148,7 +157,8 @@ export class GameSession {
       ? `Wave ${ws.currentWaveOneBased} ∞`
       : `Wave ${ws.currentWaveOneBased}/${ws.totalWaves}`;
     const challenges = this.runConfig.challenges.map((id) => CHALLENGES[id].name);
-    const tag = challenges.length > 0 ? ` · ${challenges.join(' + ')}` : '';
+    const daily = this.runConfig.daily !== null ? 'Daily: ' : '';
+    const tag = challenges.length > 0 ? ` · ${daily}${challenges.join(' + ')}` : '';
     return `${LEVELS[this.currentLevelIndex].name} · ${waveLabel}${tag}`;
   }
 
@@ -440,13 +450,23 @@ export class GameSession {
       getSimClock: () => this.simClockSec,
       onSyncUi: this.syncUi,
       onGameWon: (stars, livesRemaining) => {
+        // Island badges only for the island's own challenges (a Daily may use others).
+        const offered = challengesForLevel(LEVELS[this.currentLevelIndex]);
         const record = recordWinProgress(
           this.progress,
           this.currentLevelIndex,
           stars,
           livesRemaining,
-          this.runConfig.challenges,
+          this.runConfig.challenges.filter((id) => offered.includes(id)),
         );
+        let dailyStreak = 0;
+        if (this.runConfig.daily !== null) {
+          const res = applyDailyWin(this.progress.daily, this.runConfig.daily);
+          if (res.counted) {
+            dailyStreak = res.streak;
+            saveProgress(this.progress);
+          }
+        }
         this.deps?.radial?.close();
         this.activeAbilityMode = null;
         this.setPlacementMode(null);
@@ -468,6 +488,7 @@ export class GameSession {
             ),
             workshopStars:
               affordableUpgradeCount(this.progress) > 0 ? starWallet(this.progress).available : 0,
+            dailyStreak,
           },
         );
         this.scheduleStarChimes(stars);
@@ -525,7 +546,7 @@ export class GameSession {
   private workshopReturn: 'menu' | 'levelSelect' = 'menu';
 
   /** How the current run was started (kept for Restart / Retry). */
-  private runConfig: RunConfig = { endless: false, challenges: [] };
+  private runConfig: RunConfig = { endless: false, challenges: [], daily: null };
 
   /** Modifiers for a run: Workshop upgrades + the run's challenge toggles. */
   buildRunModifiers(challenges: readonly ChallengeId[] = []): RunModifiers {
@@ -553,10 +574,28 @@ export class GameSession {
     const fresh = resetProgressSave(LEVELS.length);
     Object.assign(this.progress, fresh);
     this.currentLevelIndex = 0;
-    this.runConfig = { endless: false, challenges: [] };
+    this.runConfig = { endless: false, challenges: [], daily: null };
     this.soundManager.playUiBack();
     this.d.overlays.mainMenu.setOpen(this.viewMode === 'menu', this.progress);
     this.d.overlays.toast.show('Progress reset — a backup of the old save was kept.', 3);
+  }
+
+  /** Today's Daily Squall (UTC day), or null until an island has been cleared. */
+  todaysDaily(): DailyChallenge | null {
+    const cleared: number[] = [];
+    for (let i = 0; i < LEVELS.length; i++) if ((this.progress.clears[i] ?? 0) > 0) cleared.push(i);
+    return dailyChallengeFor(utcDayNumber(Date.now()), cleared);
+  }
+
+  openDaily(): void {
+    this.soundManager.unlock();
+    this.d.overlays.daily.show(this.todaysDaily(), this.progress);
+  }
+
+  startDaily(): void {
+    const d = this.todaysDaily();
+    if (!d) return;
+    this.startLevel(d.levelIndex, { challenges: [...d.challenges], daily: d.day });
   }
 
   openLogbook(): void {
@@ -575,6 +614,10 @@ export class GameSession {
     }
     if (overlays.logbook.isOpen()) {
       overlays.logbook.hide();
+      return true;
+    }
+    if (overlays.daily.isOpen()) {
+      overlays.daily.hide();
       return true;
     }
     if (this.viewMode === 'workshop') {
@@ -604,8 +647,15 @@ export class GameSession {
 
   private announceRun(): void {
     const level = LEVELS[this.currentLevelIndex];
-    const { challenges, endless } = this.runConfig;
-    if (challenges.length > 0) {
+    const { challenges, endless, daily } = this.runConfig;
+    if (daily !== null) {
+      const names = challenges.map((id) => CHALLENGES[id].name).join(' + ');
+      const done = this.progress.daily.lastDay >= daily;
+      this.d.overlays.toast.show(
+        `Daily Squall: ${names}${done ? ' — already won today' : ' — win for +1★'}`,
+        5,
+      );
+    } else if (challenges.length > 0) {
       const names = challenges.map((id) => CHALLENGES[id].name).join(' + ');
       this.d.overlays.toast.show(`Challenge: ${names} — win for +${challenges.length}★`, 5);
     } else if (endless) {
@@ -671,13 +721,22 @@ export class GameSession {
     const level = LEVELS[this.currentLevelIndex];
     // Challenges and island-card Endless unlock after the first clear.
     const cleared = (this.progress.clears[this.currentLevelIndex] ?? 0) > 0;
-    this.runConfig = {
-      endless: cleared && config.endless === true,
-      challenges:
-        cleared && config.endless !== true
-          ? sanitizeChallengeSelection(level, config.challenges ?? [])
-          : [],
-    };
+    const isDaily = cleared && typeof config.daily === 'number' && config.endless !== true;
+    this.runConfig = isDaily
+      ? {
+          endless: false,
+          // The Daily Squall uses any challenges (not only the island's own pair).
+          challenges: (config.challenges ?? []).filter(isChallengeId),
+          daily: config.daily ?? null,
+        }
+      : {
+          endless: cleared && config.endless === true,
+          challenges:
+            cleared && config.endless !== true
+              ? sanitizeChallengeSelection(level, config.challenges ?? [])
+              : [],
+          daily: null,
+        };
     this.clearTransientPlayState();
     this.events.clear();
     this.events = new EventBus();

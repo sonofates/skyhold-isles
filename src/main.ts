@@ -99,6 +99,11 @@ async function bootstrap(loadingScreen: LoadingScreen): Promise<void> {
     },
     onResetProgress: () => session.resetProgress(),
     onOpenLogbook: () => session.openLogbook(),
+    onOpenDaily: () => session.openDaily(),
+    onStartDaily: () => {
+      soundManager.unlock();
+      session.startDaily();
+    },
     onBriefingToggle: (on) => (on ? soundManager.playUiConfirm() : soundManager.playUiBack()),
   });
 

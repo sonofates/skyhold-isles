@@ -69,6 +69,8 @@ export interface ProgressData {
   workshop: Record<string, number>;
   /** Challenge ids completed per island (each one is worth a bonus star). */
   challengeClears: string[][];
+  /** Daily Squall record (see src/data/daily.ts). */
+  daily: { lastDay: number; streak: number; bestStreak: number; total: number };
 }
 
 export interface Vec3 {
