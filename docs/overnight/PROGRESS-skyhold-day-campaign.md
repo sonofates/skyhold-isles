@@ -68,11 +68,10 @@ Machine load from the other agents can make desktop shots slow (timeout raised t
       Master Stroke (3★ on Master), Badge Hunter (6 badges), Crowned (master an island), Storm
       Chaser (Gold endless medal), Squall Rider (7 Dailies), Steady Winds (3-day streak),
       Seasoned Warden (30 wins).
+- [x] Main-menu star pill opens the Logbook too (role=button, Enter/Space, aria-label).
 
 ## Next ideas (not started) — for a later round
 - HUD chip for active challenge / live star rating (MOBILE's HUD area — coordinate via the lead).
-- Show challenge/daily star total next to the campaign star pill on the main menu.
-- Kill-gold modifiers for carrier raiders / escorts / mites (hard-coded rewards in enemySystem).
 
 ## Star table (src/data/stars.ts) — rated on lives LOST (win always ≥ 1★)
 | Difficulty  | 3★ if lost ≤ | 2★ if lost ≤ | greedy sim (lives left) → stars |
@@ -190,8 +189,8 @@ Start. Toggles are remembered per island for the session. Restart/Retry reuse th
 
 ## Known issues
 - Fire-rate perk is invisible in the tower panel stats (panel reads TOWER_DEFS). Small (+2%), OK for now.
-- Carrier raiders / boss escorts / mites use hard-coded rewards, so kill-gold modifiers (Bounty,
-  Thin Purse, Lean Pickings) skip them. Minor.
+- Carrier raiders / boss escorts / mites use hard-coded 1-2 g rewards that kill-gold modifiers
+  skip — moot: rounding would keep them at 1-2 g anyway (closed in round 2).
 - Merge note: if CONTENT's new Master islands fail "Workshop max" (maxed greedy loses 0 lives),
   retune the island, not the check. New islands get fallback challenges until added to
   ISLAND_CHALLENGES. MOBILE may restyle `.menu-btn-row`; the Workshop row override lives in

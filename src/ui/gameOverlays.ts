@@ -124,6 +124,7 @@ export class GameOverlays {
       onOpenSettings: cb.onOpenSettingsFromMenu,
       onOpenWorkshop: () => cb.onOpenWorkshop('menu'),
       onOpenDaily: () => cb.onOpenDaily?.(),
+      onOpenLogbook: () => cb.onOpenLogbook?.(),
     });
 
     this.levelSelect = new LevelSelectOverlay(uiRoot, {

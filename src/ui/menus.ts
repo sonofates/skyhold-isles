@@ -64,6 +64,7 @@ export interface MainMenuCallbacks {
   onOpenSettings: () => void;
   onOpenWorkshop?: () => void;
   onOpenDaily?: () => void;
+  onOpenLogbook?: () => void;
 }
 
 export class MainMenuOverlay {
@@ -103,7 +104,17 @@ export class MainMenuOverlay {
     actions.className = 'menu-actions';
 
     this.summaryEl = document.createElement('div');
-    this.summaryEl.className = 'menu-progress-pill gx gx-slate';
+    this.summaryEl.className = 'menu-progress-pill gx gx-slate lb-open-pill';
+    this.summaryEl.setAttribute('role', 'button');
+    this.summaryEl.tabIndex = 0;
+    this.summaryEl.setAttribute('data-testid', 'btn-menu-logbook');
+    this.summaryEl.addEventListener('click', () => callbacks.onOpenLogbook?.());
+    this.summaryEl.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        callbacks.onOpenLogbook?.();
+      }
+    });
 
     const btnStack = document.createElement('div');
     btnStack.className = 'menu-btn-stack';
@@ -174,7 +185,8 @@ export class MainMenuOverlay {
 
     this.playBtn.innerHTML = `<span class="btn-icon">${UI_ICON_SVGS.play}</span><span class="btn-label-stack"><span class="btn-label">Play</span><span class="btn-sub">${frontierLevel.name}</span></span>`;
     this.summaryEl.innerHTML = `<span class="menu-star-inline">${UI_ICON_SVGS.star}</span><b>${totalStars}</b><span class="menu-stars-of">/ ${maxStars}</span>`;
-    this.summaryEl.title = `${frontierIdx + 1}/${LEVELS.length} islands unlocked`;
+    this.summaryEl.title = `${frontierIdx + 1}/${LEVELS.length} islands unlocked · open the Logbook`;
+    this.summaryEl.setAttribute('aria-label', `${totalStars} of ${maxStars} stars — open the Logbook`);
     setWorkshopBadge(this.workshopBtn, progress);
     const daily = dailyPillState(progress, Date.now());
     const anyCleared = progress.clears.some((c) => c > 0);
