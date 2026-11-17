@@ -10,5 +10,6 @@
  ],
  "release": 3,
  "image": "t3-frost-1-attack.webp",
- "ringW": 153.0
+ "ringW": 153.0,
+ "stripped": true
 }

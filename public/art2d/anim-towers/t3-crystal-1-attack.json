@@ -10,5 +10,6 @@
  ],
  "release": 3,
  "image": "t3-crystal-1-attack.webp",
- "ringW": 150.0
+ "ringW": 150.0,
+ "stripped": true
 }
