@@ -90,13 +90,21 @@ export class LogbookModal {
       b.setAttribute('aria-selected', String(this.tab === tab));
       b.setAttribute('data-testid', `logbook-tab-${tab}`);
       b.innerHTML = html;
-      b.addEventListener('click', () => {
-        if (this.tab === tab) return;
-        this.tab = tab;
-        this.render(progress);
-        this.card.querySelector<HTMLElement>(`[data-testid="logbook-tab-${tab}"]`)?.focus({ preventScroll: true });
+      b.tabIndex = this.tab === tab ? 0 : -1;
+      b.addEventListener('click', () => select(tab));
+      b.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+          e.preventDefault();
+          select(this.tab === 'islands' ? 'feats' : 'islands');
+        }
       });
       return b;
+    };
+    const select = (tab: LogbookTab): void => {
+      if (this.tab === tab) return;
+      this.tab = tab;
+      this.render(progress);
+      this.card.querySelector<HTMLElement>(`[data-testid="logbook-tab-${tab}"]`)?.focus({ preventScroll: true });
     };
     tabs.append(
       makeTab('islands', 'Islands'),
