@@ -193,3 +193,8 @@ early waves does NOT soften them, it starves the economy (kill rewards) and the 
 - Clean tree. tsc, lint, 134 tests, build, `sim:balance` all green (greedy L1 20 / L2 15 / L3 9 / L4 15 / L5 14 / L6 13 / L7 10 / L8 7 / L9 9 lives; every weak script loses L2+).
 - Tried to do a trial merge of the enemies/towers branches in a scratch worktree to pre-detect conflicts; the sandbox did not allow creating the extra worktree, so it was skipped. The lead should follow "Merge notes for the lead" above.
 - Handoff state unchanged. Remaining backlog (layout/path changes, wave-ramp retuning) stays untouched because of the knife-edge balance windows.
+
+### Round 10 (verification only, no code changes)
+- Clean tree. tsc, lint, 134 tests, `sim:balance` all green (greedy L1 20 / L2 15 / L3 9 / L4 15 / L5 14 / L6 13 / L7 10 / L8 7 / L9 9 lives; every weak script loses L2+).
+- Previews re-rendered (18-26 draw calls, 34-51k tris); L2 and L4 re-inspected, no overlaps, distinct identities.
+- No new features: layout/path and wave-ramp changes remain deliberately untouched (knife-edge windows, see "Balance stability analysis"); handoff state unchanged.
