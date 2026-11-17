@@ -144,7 +144,7 @@ export class MainMenuOverlay {
 
     const hints = document.createElement('div');
     hints.className = 'menu-controls-hint desktop-only';
-    hints.textContent = 'Drag / WASD pan · Wheel zoom · Q/E rotate · 1–5 build · Space pause';
+    hints.textContent = 'Drag / WASD pan · Wheel zoom · Q/E rotate · 1–7 build · Space pause';
 
     this.dailyBtn = document.createElement('button');
     this.dailyBtn.type = 'button';
@@ -379,6 +379,10 @@ export class LevelSelectOverlay {
           medals.appendChild(m);
         }
         medals.title = `Challenges ${doneChallenges.filter((id) => offered.includes(id as ChallengeId)).length}/${offered.length}`;
+      } else if (unlocked) {
+        // No stars yet: show the 3-star goal instead (touch players get no hover tooltip).
+        medals.classList.add('level-card-goal');
+        medals.textContent = `3★ · ${goals.three}`;
       }
 
       card.append(topRow, art, nameEl, starsRow, medals, metaEl, actionBtn);
