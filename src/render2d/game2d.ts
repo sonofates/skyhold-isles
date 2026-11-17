@@ -14,6 +14,7 @@ import { WorldLayers } from './layers.ts';
 import { MapView } from './mapView.ts';
 import { createProcTextures, type ProcTextures } from './procTextures.ts';
 import { ProjectileLayer } from './projectileLayer.ts';
+import { bindSpecialFx, createSpecialFxStats } from './specialFx.ts';
 import { TowerLayer } from './towerLayer.ts';
 
 /** Tap = pointer released within this distance (css px) and time of the press. */
@@ -45,6 +46,8 @@ export class Game2D {
   readonly fx: FxLayer;
   readonly hud: Hud;
   readonly ring: BuildRing;
+  /** Event-FX counters (QA). */
+  readonly fxStats = createSpecialFxStats();
   readonly stepper = new FixedTimestepStepper();
   private readonly rangeDisc: Sprite;
   private readonly screen = new Container();
@@ -79,11 +82,6 @@ export class Game2D {
     this.rangeDisc.anchor.set(0.5);
     this.rangeDisc.visible = false;
     this.layers.groundFx.addChild(this.rangeDisc);
-    this.enemies = new EnemyLayer(art, this.map, this.layers, this.tex);
-    this.towers = new TowerLayer(art, this.map, this.layers, this.tex);
-    this.projectiles = new ProjectileLayer(this.map, this.layers.projectiles, this.layers.shadows, this.tex, (t) =>
-      this.towers.muzzleHeight(t),
-    );
     this.fx = new FxLayer(this.map, this.layers.groundFx, this.layers.fx, {
       puff: this.tex.puff,
       ring: this.tex.ring,
@@ -91,7 +89,21 @@ export class Game2D {
       spark: this.tex.spark,
       glow: this.tex.glow,
       flash: this.tex.spark,
+      wring: this.tex.wring,
+      crater: this.tex.crater,
+      shard: this.tex.shard,
+      orb: this.tex.orb,
     });
+    this.enemies = new EnemyLayer(art, this.map, this.layers, this.tex, this.fx);
+    this.towers = new TowerLayer(art, this.map, this.layers, this.tex, this.fx);
+    this.projectiles = new ProjectileLayer(
+      this.map,
+      this.layers.projectiles,
+      this.layers.shadows,
+      this.tex,
+      (t) => this.towers.muzzleHeight(t),
+      this.fx,
+    );
     this.hud = new Hud(art);
     this.ring = new BuildRing(art);
     this.screen.addChild(this.hud.root, this.ring.root);
@@ -111,6 +123,7 @@ export class Game2D {
     this.selectedTower = -1;
     this.rangeDisc.visible = false;
     this.enemies.reset();
+    this.fx.clear();
     this.wireEvents();
   }
 
@@ -118,19 +131,18 @@ export class Game2D {
     const ev = this.events;
     const m = this.map;
     const ppu = this.level.layout2d!.pxPerUnit;
-    ev.on('towerFired', (e) => this.towers.onFired(e.towerId, e.yaw));
+    this.towers.bind(ev);
+    bindSpecialFx(
+      ev,
+      {
+        fx: this.fx,
+        map: m,
+        towerById: (id) => this.world.getTowerById(id) ?? undefined,
+        towers: () => this.world.towers,
+      },
+      this.fxStats,
+    );
     ev.on('lightningChain', (e) => this.fx.bolt(e.points, e.overload === true, this.towers.muzzleHeight('tesla')));
-    ev.on('projectileImpact', (e) => {
-      const px = m.pxX(e.x);
-      const py = m.pxY(e.z);
-      if (e.towerType === 'cannon' || e.towerType === 'mortar') {
-        this.fx.spawn('ring', px, py, Math.max(28, e.radius * ppu), 0, 0, 0.38);
-        this.fx.puffs(px, py, 6, 14, 0xf2c27a);
-        this.fx.spawn('flash', px, py - 6, 26, 0, 0, 0.16);
-      } else {
-        this.fx.spawn('spark', px, py - 0.6 * ppu, 9, 0, 0, 0.18);
-      }
-    });
     ev.on('enemyKilled', (e) => {
       const px = m.pxX(e.x);
       const py = m.pxY(e.z) - e.y * 0.9 * ppu;
@@ -343,7 +355,19 @@ export class Game2D {
       fit: this.map.fit,
       horn: this.hud.hornPosition,
       buttons: this.hud.buttonPositions,
-      fx: { boltsDrawn: this.fx.boltsDrawn, particlesSpawned: this.fx.particlesSpawned },
+      fx: {
+        boltsDrawn: this.fx.boltsDrawn,
+        particlesSpawned: this.fx.particlesSpawned,
+        beamsDrawn: this.fx.beamsDrawn,
+        zonesSpawned: this.fx.zonesSpawned,
+        pools: this.fx.stats(),
+        events: this.fxStats,
+        towerFired: this.towers.firedSeen,
+        towerSpecial: this.towers.specialSeen,
+        trails: this.projectiles.trailsRequested,
+        markers: this.towers.markers(),
+        extras: this.enemies.specials.extrasCreated,
+      },
       artNotes: this.art.notes,
     };
   }

@@ -14,11 +14,11 @@
   "towers": {
     "archer": {
       "tiers": ["tower-archer.png", "tower-archer-t2.png", "tower-archer-t3.png"],
-      "height": 3.0,
+      "height": 3,
       "anchor": [0.5, 0.9],
       "flipToTarget": true,
       "facing": "left",
-      "muzzle": 2.0
+      "muzzle": 2
     },
     "cannon": {
       "tiers": ["tower-cannon.png", "tower-cannon-t2.png", "tower-cannon-t3.png"],
@@ -29,33 +29,101 @@
     },
     "tesla": {
       "tiers": ["tower-mage.png", "tower-mage-t2.png", "tower-mage-t3.png"],
-      "height": 3.0,
+      "height": 3,
       "anchor": [0.5, 0.9],
       "flipToTarget": false,
       "muzzle": 2.4
+    },
+    "frost": {
+      "tiers": ["tower-frost-t1.png", "tower-frost-t2.png", "tower-frost-t3.png"],
+      "height": 2.9,
+      "anchor": [0.5, 0.9],
+      "flipToTarget": false,
+      "muzzle": 2.3,
+      "fallback": {
+        "tower": "archer",
+        "tint": "#bfe6ff"
+      }
+    },
+    "mortar": {
+      "tiers": ["tower-mortar-t1.png", "tower-mortar-t2.png", "tower-mortar-t3.png"],
+      "height": 2.3,
+      "anchor": [0.5, 0.86],
+      "flipToTarget": false,
+      "muzzle": 1.5,
+      "fallback": {
+        "tower": "cannon",
+        "tint": "#c9b7a4"
+      }
+    },
+    "ballista": {
+      "tiers": ["tower-ballista-t1.png", "tower-ballista-t2.png", "tower-ballista-t3.png"],
+      "height": 2.9,
+      "anchor": [0.5, 0.9],
+      "flipToTarget": true,
+      "facing": "left",
+      "muzzle": 1.9,
+      "fallback": {
+        "tower": "archer",
+        "tint": "#e8c890"
+      }
+    },
+    "beacon": {
+      "tiers": ["tower-beacon-t1.png", "tower-beacon-t2.png", "tower-beacon-t3.png"],
+      "height": 3.1,
+      "anchor": [0.5, 0.9],
+      "flipToTarget": false,
+      "muzzle": 2.6,
+      "fallback": {
+        "tower": "tesla",
+        "tint": "#ffe08a"
+      }
     }
   },
-  "buildRing": ["archer", "cannon", "tesla"],
+  "buildRing": ["archer", "cannon", "frost", "tesla", "mortar", "ballista", "beacon"],
   "enemies": {
     "raider": {
       "mode": "sheet",
       "file": "enemy-raider.png",
-      "sheet": { "down": "anim/raider-omni12-front.json", "up": "anim/raider-omni12-back.json", "facing": "right", "facingUp": "left" },
+      "sheet": {
+        "down": "anim/raider-omni12-front.json",
+        "up": "anim/raider-omni12-back.json",
+        "facing": "right",
+        "facingUp": "left"
+      },
       "height": 1.3,
       "anchor": [0.5, 0.95],
       "facing": "right",
       "shadow": 0.42,
-      "cheap": { "bob": 0.07, "squash": 0.06, "lean": 0.14, "stride": 1.0, "rock": 0.07 }
+      "cheap": {
+        "bob": 0.07,
+        "squash": 0.06,
+        "lean": 0.14,
+        "stride": 1,
+        "rock": 0.07
+      },
+      "back": "enemy-raider-back.png"
     },
     "raider-veo31q": {
       "mode": "sheet",
       "file": "enemy-raider.png",
-      "sheet": { "down": "anim/raider-veo31q-front.json", "up": "anim/raider-veo31q-back.json", "facing": "right", "facingUp": "left" },
+      "sheet": {
+        "down": "anim/raider-veo31q-front.json",
+        "up": "anim/raider-veo31q-back.json",
+        "facing": "right",
+        "facingUp": "left"
+      },
       "height": 1.3,
       "anchor": [0.5, 0.95],
       "facing": "right",
       "shadow": 0.42,
-      "cheap": { "bob": 0.07, "squash": 0.06, "lean": 0.14, "stride": 1.0, "rock": 0.07 }
+      "cheap": {
+        "bob": 0.07,
+        "squash": 0.06,
+        "lean": 0.14,
+        "stride": 1,
+        "rock": 0.07
+      }
     },
     "brute": {
       "mode": "cheap",
@@ -65,7 +133,14 @@
       "anchor": [0.5, 0.95],
       "facing": "right",
       "shadow": 0.6,
-      "cheap": { "bob": 0.05, "squash": 0.05, "lean": 0.08, "stride": 1.3, "rock": 0.05 }
+      "cheap": {
+        "bob": 0.05,
+        "squash": 0.05,
+        "lean": 0.08,
+        "stride": 1.3,
+        "rock": 0.05
+      },
+      "back": "enemy-brute-back.png"
     },
     "kite": {
       "mode": "cheap",
@@ -75,24 +150,377 @@
       "anchor": [0.5, 0.9],
       "facing": "right",
       "shadow": 0.45,
-      "cheap": { "bob": 0.12, "squash": 0.04, "lean": 0.16, "stride": 2.6, "rock": 0.05 }
+      "cheap": {
+        "bob": 0.12,
+        "squash": 0.04,
+        "lean": 0.16,
+        "stride": 2.6,
+        "rock": 0.05
+      },
+      "back": "enemy-kite-back.png"
     },
     "placeholder": {
       "mode": "sheet",
       "file": "enemy-raider.png",
-      "sheet": { "down": "anim/placeholder-walk-down.json", "up": "anim/placeholder-walk-up.json", "facing": "right" },
+      "sheet": {
+        "down": "anim/placeholder-walk-down.json",
+        "up": "anim/placeholder-walk-up.json",
+        "facing": "right"
+      },
       "height": 1.25,
       "anchor": [0.5, 0.95],
       "facing": "right",
       "shadow": 0.42
+    },
+    "runner": {
+      "mode": "sheet",
+      "file": "enemy-runner.png",
+      "back": "enemy-runner-back.png",
+      "sheet": {
+        "down": "anim/runner-walk-down.json",
+        "up": "anim/runner-walk-up.json",
+        "facing": "right",
+        "facingUp": "left"
+      },
+      "height": 1.2,
+      "anchor": [0.5, 0.95],
+      "facing": "right",
+      "shadow": 0.36,
+      "cheap": {
+        "bob": 0.08,
+        "squash": 0.07,
+        "lean": 0.2,
+        "stride": 1.3,
+        "rock": 0.08
+      },
+      "fallback": {
+        "art": "raider",
+        "tint": "#ffe0b0",
+        "scale": 0.88
+      }
+    },
+    "healer": {
+      "mode": "sheet",
+      "file": "enemy-healer.png",
+      "back": "enemy-healer-back.png",
+      "sheet": {
+        "down": "anim/healer-walk-down.json",
+        "up": "anim/healer-walk-up.json",
+        "facing": "right",
+        "facingUp": "left"
+      },
+      "height": 1.5,
+      "anchor": [0.5, 0.95],
+      "facing": "right",
+      "shadow": 0.45,
+      "cheap": {
+        "bob": 0.06,
+        "squash": 0.05,
+        "lean": 0.1,
+        "stride": 1,
+        "rock": 0.06
+      },
+      "fallback": {
+        "art": "raider",
+        "tint": "#b8f0a0",
+        "scale": 1.08
+      }
+    },
+    "splitter": {
+      "mode": "sheet",
+      "file": "enemy-splitter.png",
+      "back": "enemy-splitter-back.png",
+      "sheet": {
+        "down": "anim/splitter-walk-down.json",
+        "up": "anim/splitter-walk-up.json",
+        "facing": "right",
+        "facingUp": "left"
+      },
+      "height": 1.35,
+      "anchor": [0.5, 0.95],
+      "facing": "right",
+      "shadow": 0.46,
+      "cheap": {
+        "bob": 0.07,
+        "squash": 0.07,
+        "lean": 0.1,
+        "stride": 1,
+        "rock": 0.07
+      },
+      "fallback": {
+        "art": "brute",
+        "tint": "#ff9a7a",
+        "scale": 0.78
+      }
+    },
+    "warden": {
+      "mode": "sheet",
+      "file": "enemy-warden.png",
+      "back": "enemy-warden-back.png",
+      "sheet": {
+        "down": "anim/warden-walk-down.json",
+        "up": "anim/warden-walk-up.json",
+        "facing": "right",
+        "facingUp": "left"
+      },
+      "height": 1.7,
+      "anchor": [0.5, 0.95],
+      "facing": "right",
+      "shadow": 0.5,
+      "cheap": {
+        "bob": 0.05,
+        "squash": 0.04,
+        "lean": 0.08,
+        "stride": 1.2,
+        "rock": 0.05
+      },
+      "fallback": {
+        "art": "brute",
+        "tint": "#a8d8ff",
+        "scale": 0.98
+      }
+    },
+    "burrower": {
+      "mode": "sheet",
+      "file": "enemy-burrower.png",
+      "back": "enemy-burrower-back.png",
+      "mound": "enemy-burrower-mound.png",
+      "sheet": {
+        "down": "anim/burrower-walk-down.json",
+        "up": "anim/burrower-walk-up.json",
+        "facing": "right",
+        "facingUp": "left"
+      },
+      "height": 1.2,
+      "anchor": [0.5, 0.95],
+      "facing": "right",
+      "shadow": 0.48,
+      "cheap": {
+        "bob": 0.05,
+        "squash": 0.08,
+        "lean": 0.1,
+        "stride": 0.9,
+        "rock": 0.08
+      },
+      "fallback": {
+        "art": "raider",
+        "tint": "#d8b890",
+        "scale": 0.92
+      }
+    },
+    "carrier": {
+      "mode": "sheet",
+      "file": "enemy-carrier.png",
+      "back": "enemy-carrier-back.png",
+      "sheet": {
+        "down": "anim/carrier-walk-down.json",
+        "up": "anim/carrier-walk-up.json",
+        "facing": "right",
+        "facingUp": "left"
+      },
+      "height": 1.9,
+      "anchor": [0.5, 0.9],
+      "facing": "right",
+      "shadow": 0.6,
+      "cheap": {
+        "bob": 0.1,
+        "squash": 0.03,
+        "lean": 0.08,
+        "stride": 2.4,
+        "rock": 0.04
+      },
+      "fallback": {
+        "art": "kite",
+        "tint": "#ffd9a0",
+        "scale": 1.45
+      }
+    },
+    "blinker": {
+      "mode": "sheet",
+      "file": "enemy-blinker.png",
+      "back": "enemy-blinker-back.png",
+      "sheet": {
+        "down": "anim/blinker-walk-down.json",
+        "up": "anim/blinker-walk-up.json",
+        "facing": "right",
+        "facingUp": "left"
+      },
+      "height": 1.3,
+      "anchor": [0.5, 0.95],
+      "facing": "right",
+      "shadow": 0.4,
+      "cheap": {
+        "bob": 0.07,
+        "squash": 0.06,
+        "lean": 0.14,
+        "stride": 1,
+        "rock": 0.07
+      },
+      "fallback": {
+        "art": "raider",
+        "tint": "#9ff0e6",
+        "scale": 1
+      }
+    },
+    "golem": {
+      "mode": "sheet",
+      "file": "enemy-golem.png",
+      "back": "enemy-golem-back.png",
+      "sheet": {
+        "down": "anim/golem-walk-down.json",
+        "up": "anim/golem-walk-up.json",
+        "facing": "right",
+        "facingUp": "left"
+      },
+      "height": 1.85,
+      "anchor": [0.5, 0.95],
+      "facing": "right",
+      "shadow": 0.62,
+      "cheap": {
+        "bob": 0.04,
+        "squash": 0.04,
+        "lean": 0.05,
+        "stride": 1.5,
+        "rock": 0.04
+      },
+      "fallback": {
+        "art": "brute",
+        "tint": "#b0b0c0",
+        "scale": 1.14
+      }
+    },
+    "mite": {
+      "mode": "sheet",
+      "file": "enemy-mite.png",
+      "back": "enemy-mite-back.png",
+      "sheet": {
+        "down": "anim/mite-walk-down.json",
+        "up": "anim/mite-walk-up.json",
+        "facing": "right",
+        "facingUp": "left"
+      },
+      "height": 0.7,
+      "anchor": [0.5, 0.95],
+      "facing": "right",
+      "shadow": 0.26,
+      "cheap": {
+        "bob": 0.1,
+        "squash": 0.1,
+        "lean": 0.18,
+        "stride": 0.6,
+        "rock": 0.12
+      },
+      "fallback": {
+        "art": "raider",
+        "tint": "#c8a8ff",
+        "scale": 0.5
+      }
+    },
+    "hexer": {
+      "mode": "sheet",
+      "file": "enemy-hexer.png",
+      "back": "enemy-hexer-back.png",
+      "sheet": {
+        "down": "anim/hexer-walk-down.json",
+        "up": "anim/hexer-walk-up.json",
+        "facing": "right",
+        "facingUp": "left"
+      },
+      "height": 1.6,
+      "anchor": [0.5, 0.95],
+      "facing": "right",
+      "shadow": 0.42,
+      "cheap": {
+        "bob": 0.06,
+        "squash": 0.05,
+        "lean": 0.1,
+        "stride": 1,
+        "rock": 0.06
+      },
+      "fallback": {
+        "art": "raider",
+        "tint": "#e0a0ff",
+        "scale": 1.12
+      }
+    },
+    "tempest": {
+      "mode": "sheet",
+      "file": "enemy-tempest.png",
+      "back": "enemy-tempest-back.png",
+      "sheet": {
+        "down": "anim/tempest-walk-down.json",
+        "up": "anim/tempest-walk-up.json",
+        "facing": "right",
+        "facingUp": "left"
+      },
+      "height": 2.8,
+      "anchor": [0.5, 0.95],
+      "facing": "right",
+      "shadow": 0.86,
+      "cheap": {
+        "bob": 0.03,
+        "squash": 0.03,
+        "lean": 0.04,
+        "stride": 1.8,
+        "rock": 0.03
+      },
+      "fallback": {
+        "art": "brute",
+        "tint": "#9fc8ff",
+        "scale": 1.6
+      }
+    },
+    "boss": {
+      "mode": "sheet",
+      "file": "enemy-boss.png",
+      "back": "enemy-boss-back.png",
+      "sheet": {
+        "down": "anim/boss-walk-down.json",
+        "up": "anim/boss-walk-up.json",
+        "facing": "right",
+        "facingUp": "left"
+      },
+      "height": 2.5,
+      "anchor": [0.5, 0.95],
+      "facing": "right",
+      "shadow": 0.78,
+      "cheap": {
+        "bob": 0.03,
+        "squash": 0.03,
+        "lean": 0.04,
+        "stride": 1.7,
+        "rock": 0.03
+      },
+      "fallback": {
+        "art": "brute",
+        "tint": "#ff9090",
+        "scale": 1.45
+      }
     }
   },
   "enemyMap": {
     "grunt": "raider",
-    "runner": { "art": "raider", "tint": "#ffe0b0", "scale": 0.88 },
+    "runner": "runner",
     "brute": "brute",
     "flyer": "kite",
-    "*Flying": { "art": "kite", "tint": "#c8b0ff" },
-    "*": { "art": "raider", "tint": "#c8b0ff" }
+    "*Flying": {
+      "art": "kite",
+      "tint": "#c8b0ff"
+    },
+    "*": {
+      "art": "raider",
+      "tint": "#c8b0ff"
+    },
+    "healer": "healer",
+    "splitter": "splitter",
+    "warden": "warden",
+    "burrower": "burrower",
+    "carrier": "carrier",
+    "blinker": "blinker",
+    "golem": "golem",
+    "mite": "mite",
+    "hexer": "hexer",
+    "tempest": "tempest",
+    "boss": "boss"
   }
 }
