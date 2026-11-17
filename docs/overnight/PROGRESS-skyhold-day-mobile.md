@@ -49,6 +49,11 @@ Branch `hermes/skyhold-day-mobile`. Preview port 4302. Deadline 21:00 TR.
   - README: touch controls / quality / PWA notes. Debug overlay shows `auto→medium @1.50x`.
   - Checks at end of round 1: tsc, lint, 461 vitest tests, build, `sim:balance` all green (no gameplay/data change).
 
+- Round 2: re-verified tree is green (tsc, lint, 461 tests, build). Draw-call check on L13 landscape (`?debug=1`, 300 enemies
+  active via debug spawn, Medium tier): **45 draws (w/ shadows) + 38 (no shadows), ~227k tris** — well under the ~100 budget;
+  draws stay flat as enemy count grows (instanced buckets). No code change needed. Reviewed the after-portrait / after-landscape
+  contact sheets again: all 13 islands fill the screen, spawn/goal visible, HUD clear.
+
 ## Next
 - Real-device verification is impossible here: governor thresholds (22 ms slow / 18.5 ms smooth, 60-frame windows) and the
   Auto start tier (medium on touch) are educated guesses -> a later round could add an opt-in `?perf` log or tune from reports.
