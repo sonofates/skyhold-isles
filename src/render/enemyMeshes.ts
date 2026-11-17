@@ -630,23 +630,23 @@ export class EnemyRenderer {
       }
 
       case 'burrower': {
-        // Squat ochre mole-beast: steel drill snout, cream digging claws, dark spiny back ridge
+        // Squat umber mole-beast: steel drill snout, cream digging claws, ochre spiny back ridge
         parts = [
-          { geometry: chamfer, colorHex: 0x6b4423, position: [-0.2, 0.12, 0.05], scale: [0.18, 0.22, 0.24] },
-          { geometry: chamfer, colorHex: 0x6b4423, position: [0.2, 0.12, 0.05], scale: [0.18, 0.22, 0.24] },
-          { geometry: icoSmooth, colorHex: 0xc2832f, position: [0, 0.42, -0.04], scale: [0.4, 0.32, 0.46] },
+          { geometry: chamfer, colorHex: 0x4e321c, position: [-0.2, 0.12, 0.05], scale: [0.18, 0.22, 0.24] },
+          { geometry: chamfer, colorHex: 0x4e321c, position: [0.2, 0.12, 0.05], scale: [0.18, 0.22, 0.24] },
+          { geometry: icoSmooth, colorHex: 0x6e4a2c, position: [0, 0.42, -0.04], scale: [0.4, 0.32, 0.46] },
           { geometry: icoSmooth, colorHex: PALETTE_HEX.sand, position: [0, 0.32, 0.12], scale: [0.3, 0.2, 0.32] },
-          { geometry: chamfer, colorHex: 0xd6953d, position: [0, 0.56, 0.36], scale: [0.42, 0.34, 0.3] },
+          { geometry: chamfer, colorHex: 0x8a5d36, position: [0, 0.56, 0.36], scale: [0.42, 0.34, 0.3] },
           { geometry: cone, colorHex: 0xa2b0c4, position: [0, 0.52, 0.64], rotation: [Math.PI / 2, 0, 0], scale: [0.13, 0.32, 0.13] },
           { geometry: cyl, colorHex: steelMid, position: [0, 0.52, 0.5], rotation: [Math.PI / 2, 0, 0], scale: [0.16, 0.06, 0.16] },
           { geometry: cone, colorHex: PALETTE_HEX.cream, position: [-0.34, 0.24, 0.42], rotation: [1.25, 0, 0.3], scale: [0.07, 0.24, 0.07] },
           { geometry: cone, colorHex: PALETTE_HEX.cream, position: [-0.24, 0.22, 0.46], rotation: [1.25, 0, 0.1], scale: [0.07, 0.24, 0.07] },
           { geometry: cone, colorHex: PALETTE_HEX.cream, position: [0.34, 0.24, 0.42], rotation: [1.25, 0, -0.3], scale: [0.07, 0.24, 0.07] },
           { geometry: cone, colorHex: PALETTE_HEX.cream, position: [0.24, 0.22, 0.46], rotation: [1.25, 0, -0.1], scale: [0.07, 0.24, 0.07] },
-          { geometry: cone, colorHex: 0x5c3a1e, position: [0, 0.76, -0.1], rotation: [-0.3, 0, 0], scale: [0.08, 0.22, 0.08] },
-          { geometry: cone, colorHex: 0x5c3a1e, position: [0, 0.72, -0.34], rotation: [-0.5, 0, 0], scale: [0.08, 0.22, 0.08] },
-          { geometry: cone, colorHex: 0x5c3a1e, position: [-0.2, 0.7, -0.22], rotation: [-0.4, 0, 0.35], scale: [0.07, 0.2, 0.07] },
-          { geometry: cone, colorHex: 0x5c3a1e, position: [0.2, 0.7, -0.22], rotation: [-0.4, 0, -0.35], scale: [0.07, 0.2, 0.07] },
+          { geometry: cone, colorHex: 0xe0a640, position: [0, 0.76, -0.1], rotation: [-0.3, 0, 0], scale: [0.08, 0.22, 0.08] },
+          { geometry: cone, colorHex: 0xe0a640, position: [0, 0.72, -0.34], rotation: [-0.5, 0, 0], scale: [0.08, 0.22, 0.08] },
+          { geometry: cone, colorHex: 0xe0a640, position: [-0.2, 0.7, -0.22], rotation: [-0.4, 0, 0.35], scale: [0.07, 0.2, 0.07] },
+          { geometry: cone, colorHex: 0xe0a640, position: [0.2, 0.7, -0.22], rotation: [-0.4, 0, -0.35], scale: [0.07, 0.2, 0.07] },
         ];
         addEyes(parts, ico, 0.66, 0.5, 0.13, 0.034, eyeDark);
         break;
