@@ -572,6 +572,7 @@ describe('RunObserver challenge condition tracking', () => {
         maxTier?: 2 | 3;
         maxGold?: number;
         maxTowers?: number;
+        useAbilities?: boolean;
       },
     ): readonly string[] => {
       const level = LEVELS[levelIdx];
@@ -639,7 +640,7 @@ describe('RunObserver challenge condition tracking', () => {
 
       let combatCd = 8.0;
       let wasBetween = false;
-      for (let t = 0; t < 60 * 2200 && world.outcome === 'ongoing'; t++) {
+      for (let t = 0; t < 60 * 2400 && world.outcome === 'ongoing'; t++) {
         const st = world.waveSystem.state;
         if (st === 'betweenWaves') {
           wasBetween = true;
@@ -654,25 +655,27 @@ describe('RunObserver challenge condition tracking', () => {
           combatCd = Math.max(0, combatCd - BALANCE.fixedDt);
           if (combatCd <= 0 && tryStep()) combatCd = 8.0;
         }
-        if (
-          st !== 'preFirstWave' &&
-          world.abilitySystem.canCast('overcharge') &&
-          (world.towers.some((tw) => tw.stunTimer > 0) || world.enemyPool.getActiveCount() >= 10)
-        ) {
-          world.castOvercharge();
-        }
-        if (
-          st !== 'preFirstWave' &&
-          world.abilitySystem.canCast('meteor') &&
-          world.enemyPool.getActiveCount() > 0
-        ) {
-          let target = null;
-          for (let i = 0; i < world.enemyPool.getActiveCount(); i++) {
-            const e = world.enemyPool.items[world.enemyPool.getActiveIndex(i)];
-            if (!e.flying && (!target || e.dist > target.dist)) target = e;
+        if (opts.useAbilities !== false) {
+          if (
+            st !== 'preFirstWave' &&
+            world.abilitySystem.canCast('overcharge') &&
+            (world.towers.some((tw) => tw.stunTimer > 0) || world.enemyPool.getActiveCount() >= 10)
+          ) {
+            world.castOvercharge();
           }
-          if (target && (target.type === 'boss' || target.type === 'brute' || target.dist / target.totalDist > 0.5)) {
-            world.castMeteor(target.x, target.z);
+          if (
+            st !== 'preFirstWave' &&
+            world.abilitySystem.canCast('meteor') &&
+            world.enemyPool.getActiveCount() > 0
+          ) {
+            let target = null;
+            for (let i = 0; i < world.enemyPool.getActiveCount(); i++) {
+              const e = world.enemyPool.items[world.enemyPool.getActiveIndex(i)];
+              if (!e.flying && (!target || e.dist > target.dist)) target = e;
+            }
+            if (target && (target.type === 'boss' || target.type === 'brute' || target.dist / target.totalDist > 0.5)) {
+              world.castMeteor(target.x, target.z);
+            }
           }
         }
         obs.onTick(BALANCE.fixedDt, 3);
@@ -686,20 +689,47 @@ describe('RunObserver challenge condition tracking', () => {
       return ids;
     };
 
+    // Island 2 (Twin-Bridge Cay): all 3 curated challenges
     expect(runScenario(1, { maxTier: 2 })).toContain('twin-bridge-cay:max-t2');
+    expect(runScenario(1, { ban: 'frost', sub: 'archer' })).toContain('twin-bridge-cay:no-frost');
+    expect(runScenario(1, { useAbilities: false })).toContain('twin-bridge-cay:no-abilities');
+
+    // Island 3 (Highland Citadel): all 3 curated challenges
     expect(runScenario(2, { ban: 'mortar', sub: 'cannon' })).toEqual(
       expect.arrayContaining(['highland-citadel:no-mortar', 'highland-citadel:no-sell', 'highland-citadel:sturdy']),
     );
+
+    // Island 4 (Emerald Stepping Stones): no-tesla & frugal (early-waves covered in dedicated test)
+    expect(runScenario(3, { ban: 'tesla', sub: 'archer' })).toEqual(
+      expect.arrayContaining(['emerald-stepping-stones:no-tesla', 'emerald-stepping-stones:frugal']),
+    );
+
+    // Island 5 (Windmill Switchback): all 3 curated challenges
     expect(runScenario(4, { ban: 'cannon', sub: 'mortar' })).toEqual(
       expect.arrayContaining(['windmill-switchback:no-cannon', 'windmill-switchback:perfect', 'windmill-switchback:rush3x']),
     );
+
+    // Island 6 (Crescent Lagoon): all 3 curated challenges
     expect(runScenario(5, { maxGold: 3100 })).toContain('crescent-lagoon:frugal');
+    expect(runScenario(5, { ban: 'frost', sub: 'archer' })).toContain('crescent-lagoon:no-frost');
+    expect(runScenario(5, { useAbilities: false })).toContain('crescent-lagoon:no-abilities');
+
+    // Island 7 (Skybridge Gauntlet): all 3 curated challenges
     expect(runScenario(6, { maxTowers: 15 })).toContain('skybridge-gauntlet:lean');
+    expect(runScenario(6, { ban: 'cannon', sub: 'mortar' })).toEqual(
+      expect.arrayContaining(['skybridge-gauntlet:no-cannon', 'skybridge-gauntlet:sturdy']),
+    );
+
+    // Island 8 (Sunken Bastion): all 3 curated challenges
     expect(runScenario(7, { maxGold: 5200 })).toEqual(
       expect.arrayContaining(['sunken-bastion:frugal', 'sunken-bastion:rush3x']),
     );
+    expect(runScenario(7, { ban: 'tesla', sub: 'archer' })).toContain('sunken-bastion:no-tesla');
+
+    // Island 9 (Grand Skyhold): all 3 curated challenges
     expect(runScenario(8, { ban: 'mortar', sub: 'cannon' })).toEqual(
       expect.arrayContaining(['grand-skyhold:no-mortar', 'grand-skyhold:no-sell']),
     );
+    expect(runScenario(8, {})).toContain('grand-skyhold:sturdy');
   });
 });

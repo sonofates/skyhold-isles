@@ -310,13 +310,18 @@ describe('Daily challenge pure date-seeded generator', () => {
         expect(spec.modifiers.forbiddenTowerTypes.some((t) => TOWER_DEFS[t].hitsFlyers)).toBe(false);
       }
 
-      // Heroic dailies never combine gold_drought with limited_arsenal, and armored limited_arsenal retains splash/heavy damage
+      // Heroic dailies never combine gold_drought with limited_arsenal, and heavy-armored limited_arsenal retains splash/heavy damage
       if (lvl.difficulty === 'Heroic' && spec.modifiers.goldRewardMultiplier < 1) {
         expect(spec.towerRestriction.kind).not.toBe('limited_arsenal');
       }
+      const hasHeavyArmored = lvl.waves.some((w) =>
+        w.groups.some((g) => (g.enemyType === 'brute' && g.count >= 6) || g.enemyType === 'boss'),
+      );
       if (
         spec.towerRestriction.kind === 'limited_arsenal' &&
-        (lvl.difficulty === 'Heroic' || spec.modifiers.enemyArmorBonus > 0)
+        (lvl.difficulty === 'Heroic' ||
+          (lvl.difficulty !== 'Breezy' && hasHeavyArmored) ||
+          spec.modifiers.enemyArmorBonus > 0)
       ) {
         expect(legalTowers.some((t) => TOWER_DEFS[t].tiers[0].damage >= 35)).toBe(true);
       }
@@ -348,5 +353,68 @@ describe('Daily challenge pure date-seeded generator', () => {
       expect(roll!.scoreMultiplier).toBeGreaterThan(1);
     }
     expect(getMutatorPresetRoll('non-existent')).toBeNull();
+  });
+
+  it('plays and wins a full restricted Daily Watch in SimWorld while preserving economy integrity', () => {
+    const spec = generateDailyChallenge('2026-07-13', LEVELS);
+    const level = LEVELS[spec.levelIndex];
+    const events = new EventBus();
+    const world = new SimWorld(level, events, spec.modifiers);
+    const obs = new RunObserver(level, events, spec.modifiers);
+
+    // Banned towers cannot be built under this Daily Watch's limited arsenal
+    expect(world.placeTower(4, 2, 'cannon')).toBeNull();
+
+    const spots: Array<[number, number, 'archer' | 'frost' | 'tesla']> = [
+      [4, 2, 'archer'],
+      [7, 5, 'frost'],
+      [4, 3, 'tesla'],
+      [8, 5, 'archer'],
+      [10, 4, 'tesla'],
+      [5, 7, 'tesla'],
+    ];
+    let idx = 0;
+    world.startNextWave();
+    for (let t = 0; t < 60 * 1200 && world.outcome === 'ongoing'; t++) {
+      while (idx < spots.length) {
+        const [c, r, type] = spots[idx];
+        if (world.gold < world.getTowerBuildCost(type)) break;
+        world.placeTower(c, r, type);
+        idx++;
+      }
+      if (idx >= spots.length) {
+        for (const tw of world.towers) {
+          const uc = world.getTowerUpgradeCost(tw);
+          if (uc !== null && world.gold >= uc) {
+            world.upgradeTower(tw.id);
+            break;
+          }
+        }
+      }
+      if (world.waveSystem.state !== 'preFirstWave') {
+        if (
+          world.abilitySystem.canCast('overcharge') &&
+          (world.towers.some((tw) => tw.stunTimer > 0) || world.enemyPool.getActiveCount() >= 10)
+        ) {
+          world.castOvercharge();
+        }
+        if (world.abilitySystem.canCast('meteor') && world.enemyPool.getActiveCount() > 0) {
+          let best = null;
+          for (let i = 0; i < world.enemyPool.getActiveCount(); i++) {
+            const e = world.enemyPool.items[world.enemyPool.getActiveIndex(i)];
+            if (!e.flying && (!best || e.dist > best.dist)) best = e;
+          }
+          if (best && (best.type === 'boss' || best.type === 'brute' || best.dist / best.totalDist > 0.5)) {
+            world.castMeteor(best.x, best.z);
+          }
+        }
+      }
+      obs.onTick(BALANCE.fixedDt, 3);
+      world.fixedTick(BALANCE.fixedDt);
+    }
+
+    expect(world.outcome).toBe('won');
+    expect(obs.verifyEconomyIntegrity(world.gold, world.lives)).toBe(true);
+    obs.dispose();
   });
 });

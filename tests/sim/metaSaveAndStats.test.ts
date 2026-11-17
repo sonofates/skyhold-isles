@@ -604,4 +604,121 @@ describe('MetaSession stats, achievements, challenges & daily persistence', () =
     bigMeta.dispose();
     meta.dispose();
   });
+
+  it('blocks debug-tainted endless runs, normalizes invalid daily dates, summarizes mastery/achievements, and exports/imports saves', () => {
+    const store = installMockLocalStorage();
+    const miniLevel: LevelDef = {
+      ...LEVELS[0],
+      waves: [
+        { clearBonus: 20, groups: [{ enemyType: 'grunt', count: 1, spawnInterval: 0.3, startDelay: 0 }] },
+      ],
+    };
+    const testLevels = [miniLevel, ...LEVELS.slice(1)];
+    const meta = new MetaSession({
+      levels: testLevels,
+      getTodayDate: () => '2026-11-17',
+    });
+
+    // 1. Invalid dailyDate passed to startRun normalizes safely without throwing
+    const badDailyEv = new EventBus();
+    meta.startRun(miniLevel, badDailyEv, { dailyDate: 'invalid-date' });
+    expect(meta.getActiveDailyChallenge()).toBeNull();
+    meta.endRun();
+
+    // 2. debugForceWin followed by entering Endless + skipping waves must NOT record Endless wave/score or achievements
+    const cheatEv = new EventBus();
+    const cheatWorld = new SimWorld(miniLevel, cheatEv);
+    meta.startRun(miniLevel, cheatEv);
+    cheatWorld.debugForceWin();
+    expect(cheatWorld.enterEndlessMode({ activeMutatorIds: ['swift_march'], scoreMultiplier: 1.25 })).toBe(true);
+    meta.onEndlessEntered({ activeMutatorIds: ['swift_march'], scoreMultiplier: 1.25 });
+    cheatWorld.debugSkipToWave(20);
+    meta.endRun();
+
+    expect(meta.getStats().bestEndlessWaveOverall).toBe(0);
+    expect(meta.getStats().bestEndlessScoreOverall).toBe(0);
+    expect(meta.getCampaignProgress().bestEndlessWaves[0]).toBe(0);
+    expect(meta.getAchievements().find((a) => a.def.id === 'endless_survivor')?.unlocked).toBe(false);
+    expect(meta.getAchievements().find((a) => a.def.id === 'mutated_endless')?.unlocked).toBe(false);
+
+    // 3. Honest win checks enriched RunMetaOutcome + AllIslandMastery + AchievementSummary
+    const legEv = new EventBus();
+    const legWorld = new SimWorld(miniLevel, legEv);
+    meta.startRun(miniLevel, legEv, { speed: 3 });
+    const archer = legWorld.placeTower(4, 2, 'archer')!;
+    legWorld.upgradeTower(archer.id);
+    legWorld.startNextWave();
+    for (let i = 0; i < 60 * 30 && legWorld.outcome === 'ongoing'; i++) {
+      meta.onTick(BALANCE.fixedDt, 3);
+      legWorld.fixedTick(BALANCE.fixedDt);
+    }
+    expect(legWorld.outcome).toBe('won');
+
+    const outcome = meta.getLastRunOutcome()!;
+    expect(outcome.completedChallengeIds).toEqual([
+      'sunlit-meadow:perfect',
+      'sunlit-meadow:lean',
+      'sunlit-meadow:rush3x',
+    ]);
+    expect(outcome.isNewBestLives).toBe(true);
+    expect(outcome.isNewFastestWin).toBe(true);
+    expect(outcome.runDurationSec).toBeGreaterThan(0);
+
+    // Replay same island cleanly -> newlyCompletedChallengeIds is empty, completedChallengeIds still lists cleared challenges
+    const repEv = new EventBus();
+    const repWorld = new SimWorld(miniLevel, repEv);
+    meta.startRun(miniLevel, repEv, { speed: 3 });
+    const archer2 = repWorld.placeTower(4, 2, 'archer')!;
+    repWorld.upgradeTower(archer2.id);
+    repWorld.startNextWave();
+    for (let i = 0; i < 60 * 30 && repWorld.outcome === 'ongoing'; i++) {
+      meta.onTick(BALANCE.fixedDt, 3);
+      repWorld.fixedTick(BALANCE.fixedDt);
+    }
+    const repeatOutcome = meta.getLastRunOutcome()!;
+    expect(repeatOutcome.newlyCompletedChallengeIds).toHaveLength(0);
+    expect(repeatOutcome.completedChallengeIds).toHaveLength(3);
+    expect(repeatOutcome.isNewBestLives).toBe(false);
+
+    const allMastery = meta.getAllIslandMasteryStatuses();
+    expect(allMastery.totalIslands).toBe(testLevels.length);
+    expect(allMastery.masteredCount).toBe(1);
+    expect(allMastery.islands[0].mastered).toBe(true);
+
+    const achSummary = meta.getAchievementSummary();
+    expect(achSummary.totalCount).toBe(ACHIEVEMENTS.length);
+    expect(achSummary.unlockedCount).toBeGreaterThanOrEqual(4);
+    expect(achSummary.byCategory.reduce((s, c) => s + c.total, 0)).toBe(ACHIEVEMENTS.length);
+
+    // 4. Export & import save JSON (preserves campaign ref identity, merges monotonically, rejects garbage)
+    const exportedJson = meta.exportSaveJson();
+    expect(meta.importSaveJson('not-json').ok).toBe(false);
+    expect(meta.importSaveJson('{"hello":"world"}').ok).toBe(false);
+    expect(meta.importSaveJson('[1,2,3]').ok).toBe(false);
+
+    const progressRef = meta.getCampaignProgress();
+    const freshSave = createDefaultMetaSave(testLevels.length);
+    freshSave.campaign.bestStars[2] = 3;
+    freshSave.completedChallenges['highland-citadel:no-mortar'] = true;
+    freshSave.fastestWinSecByLevelId['sunlit-meadow'] = 0.5;
+    freshSave.completedDailyDates = ['2026-11-16'];
+
+    const mergedRes = meta.importSaveJson(JSON.stringify(freshSave), 'merge');
+    expect(mergedRes.ok).toBe(true);
+    expect(meta.getCampaignProgress()).toBe(progressRef);
+    expect(progressRef.bestStars[0]).toBe(3); // Kept local star
+    expect(progressRef.bestStars[2]).toBe(3); // Merged imported star
+    expect(meta.getChallengeStatus(2)?.earnedStars).toBe(1);
+    expect(meta.getIslandMasteryStatus(0)?.fastestWinSec).toBe(0.5); // Kept faster time via Math.min
+
+    // Replace mode cleanly resets back to exported snapshot and syncs v1 storage
+    const replacedRes = meta.importSaveJson(exportedJson, 'replace');
+    expect(replacedRes.ok).toBe(true);
+    expect(meta.getCampaignProgress()).toBe(progressRef);
+    expect(progressRef.bestStars[2]).toBe(0);
+    expect(loadProgress(testLevels.length).bestStars[2]).toBe(0);
+    expect(store.has(META_PROGRESS_KEY)).toBe(true);
+
+    meta.dispose();
+  });
 });
