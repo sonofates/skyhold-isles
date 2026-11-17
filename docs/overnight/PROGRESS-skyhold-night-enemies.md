@@ -3,12 +3,16 @@
 Started 2026-11-16 23:00 UTC (02:00 TR). Deadline 06:00 UTC (09:00 TR).
 
 ## TL;DR for the lead (morning)
-- **What's in:** 7 new enemy archetypes (warden, burrower, carrier, blinker, golem, mite, hexer) + Empowered elites + a 2nd boss (Tempest Colossus); 4 new islands L10–L13 (multi-lane Confluence Terraces, sky-lane Galewatch Spires, hexer switchbacks Lanternfall Hollow, spiral finale Stormcrown Citadel); endless spotlight rotation; FX, enemy sound cues, badges, counter-hint toasts; progress-unlock fix so L9 finishers get L10; 141 tests on this branch.
-- **Branch state:** all green (`tsc`, lint, 142 tests, build, `sim:balance` 13/13 islands).
-- **agy-* branches (meta/perf/qa):** checked too (Round 10). One unavoidable conflict, `src/sim/world.ts` spawn callback vs agy-meta — resolution snippet in Round 10; their 18 extra test failures with this branch are 9-island/6-enemy assumptions in their tests, not bugs (table in Round 10).
-- **3-way merge (dry-run with latest heads):** one textual conflict, `scripts/balanceSim.ts`, ISLANDS × TOWERS (not this branch) — see "Morning merge dry-run" for how to stitch it (`robustLines`). Merged tree: tsc clean, 308/308 tests, every island in its window **except L6** (ISLANDS × TOWERS; sweep + suggestion in the Round 9 log).
-- **After merging, always re-run** `npm run sim:balance`: L10 sits at greedy 5 lives on this branch alone (window 5–10) and 7 merged; it's tuned so both pass.
+- **What's in:** 7 new enemy archetypes (warden, burrower, carrier, blinker, golem, mite, hexer) + Empowered elites + a 2nd boss (Tempest Colossus); 4 new islands L10–L13 (multi-lane Confluence Terraces, sky-lane Galewatch Spires, hexer switchbacks Lanternfall Hollow, spiral finale Stormcrown Citadel); endless spotlight rotation; FX, enemy sound cues, badges, counter-hint toasts; progress-unlock fix so L9 finishers get L10.
+- **Branch state:** all green (`tsc`, lint, 143 tests, build, `sim:balance` 13/13 islands).
 - **UI follow-ups** (not done, UI branch's area): see "UI needs" — Legendary difficulty label, elite flag + `carrier` in the HUD wave preview/flyer warning, counter hints in tooltips, a theme for `lanternfall-hollow`.
+
+### Merge recipe (all checked in scratch merges, repo untouched)
+1. **ISLANDS + TOWERS + this branch:** the only textual conflict is `scripts/balanceSim.ts` (ISLANDS × TOWERS, not this branch). Take TOWERS' `evaluateBalance()` refactor and re-home ISLANDS' `robustLines` (return it from `evaluateBalance` or move the `--robust` sweep into `main()`), otherwise `--robust` throws a ReferenceError at the end. Result: tsc clean, 313/313 tests, every island in its window **except L6** (ISLANDS × TOWERS; sweep in the Round 9 log).
+2. **+ agy-meta:** one conflict, `src/sim/world.ts` `waveSystem.update` spawn callback — keep agy-meta's `spawnConfiguredEnemy` and thread `elite`/`lane` through it and the extra-flyer queue (exact code in Round 10). `storage.ts` now merges cleanly.
+3. **+ agy-qa:** apply `docs/overnight/agy-qa-fuzzPlay-new-enemies.patch` to its `scripts/fuzzPlay.ts` (teaches the fuzz invariants about cracked golem armor, lanes, burrowing, dropped raiders, elites, tempest-as-boss). The remaining agy test failures pin 9 islands / one spawn / "offset 9 = 2 Dreadnoughts" — table with suggested fixes in Round 10. None is a bug in the new content (agy-qa's own fuzzer, patched, ran 312 campaign + 104 endless runs clean).
+4. **Then always** `npm run sim:balance` (L10 is 5 lives here / 7 merged, window 5–10) and `npm test`.
+5. Optional, semantic: agy-meta's `boss_slayer_10` only counts `boss` kills, not `tempest`.
 
 ## Status / task list
 - [x] 1. New enemy archetypes (sim + data + mesh + badge + tests) — warden, burrower, carrier, blinker, golem, mite + elite flag (`tests/sim/newEnemies.test.ts`)
