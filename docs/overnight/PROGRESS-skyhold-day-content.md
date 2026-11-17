@@ -96,3 +96,6 @@ reads the right fields from the v2 progress shape.
 Clean tree, `main` still merged. Checked the campaign branch's v2 `ProgressData` (read-only, `git show`): `unlockedLevelIndex` and
 `bestStars` still exist with the same meaning, so `ContentStore.migrate()` veteran inference works unchanged after that merge
 (resolves the round-5 note). No code changes.
+
+## Round 7 (verification)
+Clean tree, `main` merged. tsc / lint / 430 tests / sim:balance (16 islands, all in window) green. No code changes; backlog 1–5 complete.
