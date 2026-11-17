@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Skyhold map editor</title>
+<style>
+  :root { color-scheme: dark; font: 13px/1.4 system-ui, sans-serif; }
+  body { margin: 0; display: grid; grid-template-columns: 300px 1fr; height: 100vh; background: #1d1f24; color: #e8e6e0; }
+  aside { padding: 12px; overflow: auto; border-right: 1px solid #333; }
+  h1 { font-size: 15px; margin: 0 0 8px; }
+  fieldset { border: 1px solid #3a3d44; margin: 0 0 10px; padding: 8px; }
+  legend { padding: 0 4px; color: #b9b5aa; }
+  button, select, input { font: inherit; }
+  button { margin: 2px 2px 2px 0; padding: 4px 8px; background: #2c3038; color: #eee; border: 1px solid #454a54; border-radius: 4px; cursor: pointer; }
+  button.on { background: #6b4f1d; border-color: #c9953c; }
+  textarea { width: 100%; height: 160px; background: #111; color: #cfe; border: 1px solid #333; font: 11px/1.3 ui-monospace, monospace; }
+  #wrap { position: relative; overflow: auto; }
+  canvas { display: block; cursor: crosshair; }
+  .warn { color: #ff9b7a; }
+  .ok { color: #9be38a; }
+  kbd { background: #333; padding: 0 4px; border-radius: 3px; }
+</style>
+</head>
+<body>
+<aside>
+  <h1>Skyhold map editor</h1>
+  <fieldset><legend>Image</legend>
+    <input id="imgPath" style="width:100%" />
+    <button id="loadImg">Load image</button>
+    <div id="imgInfo"></div>
+  </fieldset>
+  <fieldset><legend>Mode</legend>
+    <button data-mode="path" class="on">Path points</button>
+    <button data-mode="plot">Plots</button>
+    <button data-mode="goal">Goal</button>
+    <div>Path: <select id="pathSel"></select> <button id="addPath">+ path</button> <button id="delPath">− path</button></div>
+    <div><label><input type="checkbox" id="insertMode" /> insert on nearest segment</label></div>
+    <div><label>Plot radius px <input type="number" id="plotR" value="48" style="width:60px" /></label></div>
+  </fieldset>
+  <fieldset><legend>Safe area (centred 16:9)</legend>
+    <div id="safeInfo"></div>
+    <label><input type="checkbox" id="showSafe" checked /> show overlay</label>
+    <div id="checks"></div>
+  </fieldset>
+  <fieldset><legend>Preview</legend>
+    <button id="walk">Walk test</button>
+    <label><input type="checkbox" id="thick" checked /> road-width lines</label>
+  </fieldset>
+  <fieldset><legend>JSON</legend>
+    <button id="export">Export →</button> <button id="import">← Import</button> <button id="download">Download</button>
+    <textarea id="json"></textarea>
+  </fieldset>
+  <div>Click = add · drag = move · <kbd>Alt</kbd>+click = delete · <kbd>Ctrl/⌘ Z</kbd> undo · wheel = zoom</div>
+  <div id="timer"></div>
+</aside>
+<div id="wrap"><canvas id="cv"></canvas></div>
+<script src="editor.js"></script>
+</body>
+</html>

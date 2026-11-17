@@ -9,3 +9,5 @@ Earlier, pre-P0 runs for reference (2026-11-17, same pipeline):
 
 | Family | Step | Start | End | Min | Credits / tokens | Notes |
 |---|---|---|---|---|---|---|
+| Map | Generate L1c at 19.5:9 (Codex image_gen, 2 style refs) | 18:36:33 | 18:40:02 | 3.5 | 1 run, 37.8k tokens | First try usable: 1846x852 (2.17:1), all gameplay inside the centred 16:9 |
+| Map | Trace in the map editor + overlay check + 1 fix pass | 18:40:40 | 18:42:05 | 1.4 | — | Agent-assisted: points estimated from the image, then the overlay check moved 4 top-lane points by 8–17 px. Estimate for a person clicking by hand in the editor: about 10–15 min. Editor bug (negative zoom in a hidden pane) fixed first, not counted |

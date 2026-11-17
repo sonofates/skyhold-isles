@@ -1,0 +1,7 @@
+Produce ONE game-ready level background for "Skyhold Isles", an original 2D hand-painted tower defense, and save it (you can write files) as ./raw/map-L1c-wide.png. Verify the file exists and print its pixel size at the end.
+
+Attached: (1) mockup-A = the approved STYLE (storybook painterly, saturated warm colors, thick dark outlines, soft cel shading); (2) map-L1c = the APPROVED LAYOUT. Keep L1c's layout, camera and painting as close as possible: a near top-down gameplay plane (no camera tilt; depth only from 3/4-view buildings, trees and props), two raider gates on the left side (top-left and mid-left) whose roads merge in the middle and wind to the walled town gate on the right, 16 round stone build plots, almost no dead space.
+
+NEW REQUIREMENT — aspect ratio about 19.5:9 (target 2048x945; any size with width/height between 2.1 and 2.2 is fine). The CENTRAL 16:9 part of the image (for 2048x945 that is the middle 1680x945, i.e. x from 184 to 1864) must contain ALL gameplay: both raider gates, the entire road, all 16 build plots and the town gate. The extra strips on the left and right (about 9% of the width each) are scenery only (trees, rocks, fences, cliff edge, a windmill on the right is fine) and must contain no road, no plots and no gates.
+
+If your tool cannot output that aspect ratio directly, generate the 16:9 gameplay image first and then widen it by extending the scenery on both sides (outpainting/edit) so the result is ~19.5:9, keeping the centre unchanged. No towers, no characters, no HUD, no text.

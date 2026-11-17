@@ -2,9 +2,9 @@
 
 Branch: `art-2d`. Spec: `docs/2d-transition-plan.md` (P0 row + gate). Costs are logged in `docs/p0-costlog.md` as the work happens.
 
-- [ ] Map: L1c repainted at ~19.5:9 (2048x945), all gameplay inside the centred 16:9 safe area
-- [ ] Map editor page (`tools/map-editor/`): place path points, plots and entrances on the image; 16:9 safe-area overlay; export JSON; overlay check
-- [ ] L1c traced with the editor → `src/data/levels2d/l1c.json`
+- [x] Map: L1c repainted at ~19.5:9 (2048x945), all gameplay inside the centred 16:9 safe area
+- [x] Map editor page (`tools/map-editor/`): place path points, plots and entrances on the image; 16:9 safe-area overlay; export JSON; overlay check
+- [x] L1c traced with the editor → `src/data/levels2d/l1c.json`
 - [ ] Sim: `LevelDef` gains plots, polyline paths (world units) and entrances; plot-based `canPlaceTower`; polyline path following; tests
 - [ ] L1c level (waves, difficulty) + balance sim entry (greedy/weak windows)
 - [ ] Pixi v8 renderer (separate entry, `2d.html`) on the real `SimWorld`: map (cover/contain with safe area), depth-sorted sprites, projectiles/FX, painted HUD, build ring, tower panel
