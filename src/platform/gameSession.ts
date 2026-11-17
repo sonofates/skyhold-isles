@@ -27,6 +27,7 @@ import type {
   DailyStatus,
   EndlessMutatorRoll,
   EndlessScoreBreakdown,
+  EnemyIntelEntry,
   IslandMasteryStatus,
   LevelChallengeStatus,
   LifetimeStats,
@@ -42,6 +43,7 @@ import type {
   RunMetaOutcome,
   RunModifiers,
   RunTelemetry,
+  TowerMasteryStat,
 } from '../sim/meta/types.ts';
 import { SimWorld } from '../sim/world.ts';
 import type { GameOverlays } from '../ui/gameOverlays.ts';
@@ -625,6 +627,14 @@ export class GameSession {
 
   getMetaCareerSummary(dateStr?: string): MetaCareerSummary {
     return this.meta.getMetaCareerSummary(dateStr);
+  }
+
+  getTowerMasteryStats(): readonly TowerMasteryStat[] {
+    return this.meta.getTowerMasteryStats();
+  }
+
+  getEnemyIntelStats(): readonly EnemyIntelEntry[] {
+    return this.meta.getEnemyIntelStats();
   }
 
   getRecommendedNextGoal(dateStr?: string): RecommendedGoal | null {

@@ -230,8 +230,9 @@ function hashLevelId(id: string): number {
  * and deterministically generates 3 level-id-keyed challenges for any new islands added later.
  */
 export function getChallengesForLevel(level: LevelDef): readonly ChallengeDef[] {
-  const existing = CHALLENGES_BY_LEVEL_ID[level.id];
-  if (existing) return existing;
+  if (Object.hasOwn(CHALLENGES_BY_LEVEL_ID, level.id)) {
+    return CHALLENGES_BY_LEVEL_ID[level.id];
+  }
 
   const h = hashLevelId(level.id);
   const bannedPool = ['frost', 'mortar', 'cannon', 'tesla'] as const;
@@ -244,9 +245,11 @@ export function getChallengesForLevel(level: LevelDef): readonly ChallengeDef[] 
         : level.difficulty === 'Heroic'
           ? 13
           : 10;
-  const plannedTowers =
-    level.scriptedBuildOrder?.filter((a) => a.action === 'build').length ?? 0;
-  const waveBasedCap = Math.max(8, Math.min(20, Math.round(level.waves.length * 0.75)));
+  const plannedTowers = Array.isArray(level.scriptedBuildOrder)
+    ? level.scriptedBuildOrder.filter((a) => a.action === 'build').length
+    : 0;
+  const waveCount = Array.isArray(level.waves) ? level.waves.length : 10;
+  const waveBasedCap = Math.max(8, Math.min(20, Math.round(waveCount * 0.75)));
   const maxTowers =
     plannedTowers > 0
       ? Math.max(8, Math.min(22, Math.round(plannedTowers * 0.85)))
@@ -258,7 +261,7 @@ export function getChallengesForLevel(level: LevelDef): readonly ChallengeDef[] 
     cannon: 'Cannon Bastions',
     tesla: 'Tesla Coils',
   };
-  const bannedLabel = banLabels[bannedType] ?? `${TOWER_DEFS[bannedType].name}s`;
+  const bannedLabel = banLabels[bannedType] ?? `${TOWER_DEFS[bannedType]?.name ?? bannedType}s`;
 
   return [
     {
@@ -297,7 +300,9 @@ export function getChallengeById(
 ): ChallengeDef | undefined {
   if (typeof challengeId !== 'string' || !challengeId || !Array.isArray(levels)) return undefined;
   for (let i = 0; i < levels.length; i++) {
-    const list = getChallengesForLevel(levels[i]);
+    const level = levels[i];
+    if (!level || typeof level.id !== 'string') continue;
+    const list = getChallengesForLevel(level);
     for (let j = 0; j < list.length; j++) {
       if (list[j].id === challengeId) return list[j];
     }

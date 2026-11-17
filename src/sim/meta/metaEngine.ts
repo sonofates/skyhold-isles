@@ -433,6 +433,14 @@ function ensureWritableSaveContainers(save: MetaSaveData, minLevelCount = 1): vo
       bestStars: new Array<number>(safeLen).fill(0),
       bestEndlessWaves: new Array<number>(safeLen).fill(0),
     };
+  } else if (
+    typeof save.campaign.unlockedLevelIndex !== 'number' ||
+    !Number.isFinite(save.campaign.unlockedLevelIndex) ||
+    save.campaign.unlockedLevelIndex < 0
+  ) {
+    save.campaign.unlockedLevelIndex = 0;
+  } else {
+    save.campaign.unlockedLevelIndex = Math.floor(save.campaign.unlockedLevelIndex);
   }
   if (!Array.isArray(save.campaign.bestStars)) {
     save.campaign.bestStars = new Array<number>(safeLen).fill(0);
@@ -1225,8 +1233,9 @@ export function getRecommendedNextGoal(
   const maxUnlocked = Math.min(levels.length - 1, asNonNegInt(save?.campaign?.unlockedLevelIndex));
 
   for (let i = 0; i <= maxUnlocked; i++) {
+    const lvl = levels[i];
+    if (!lvl) continue;
     if (Math.min(3, asNonNegInt(bestStarsArr[i])) === 0) {
-      const lvl = levels[i];
       return {
         kind: 'campaign',
         title: `Secure ${lvl.name}`,
@@ -1238,23 +1247,26 @@ export function getRecommendedNextGoal(
   }
 
   for (let i = 0; i <= maxUnlocked; i++) {
+    const lvl = levels[i];
+    if (!lvl) continue;
     const chStatus = getChallengeStatus(save, i, levels);
     const missing = chStatus?.challenges.find((c) => !c.completed);
     if (missing) {
       return {
         kind: 'challenge',
         title: missing.def.title,
-        detail: `${levels[i].name}: ${missing.def.description}`,
+        detail: `${lvl.name}: ${missing.def.description}`,
         levelIndex: i,
-        levelId: levels[i].id,
+        levelId: lvl.id,
         challengeId: missing.def.id,
       };
     }
   }
 
   for (let i = 0; i <= maxUnlocked; i++) {
+    const lvl = levels[i];
+    if (!lvl) continue;
     if (Math.min(3, asNonNegInt(bestStarsArr[i])) < 3) {
-      const lvl = levels[i];
       return {
         kind: 'campaign',
         title: `3-Star ${lvl.name}`,

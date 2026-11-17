@@ -42,24 +42,45 @@ export function normalizeSeed(seed: number | string): number {
   return Math.floor(seed) >>> 0;
 }
 
+function sanitizeMutatorCatalog(catalog: readonly MutatorDef[]): MutatorDef[] {
+  if (!Array.isArray(catalog)) return [];
+  const valid: MutatorDef[] = [];
+  for (let i = 0; i < catalog.length; i++) {
+    const def = catalog[i];
+    if (def && typeof def === 'object' && typeof def.id === 'string' && def.id.length > 0) {
+      valid.push(def);
+    }
+  }
+  return valid;
+}
+
 function finalizeMutatorRoll(seed: number, selected: readonly MutatorDef[]): EndlessMutatorRoll {
   let scoreBonusSum = 0;
   const mutatorIds: string[] = [];
+  const modifierLayers: RunModifiers[] = [];
   for (let i = 0; i < selected.length; i++) {
-    scoreBonusSum += selected[i].scoreMultiplierBonus;
-    mutatorIds.push(selected[i].id);
+    const def = selected[i];
+    const bonus =
+      typeof def.scoreMultiplierBonus === 'number' && Number.isFinite(def.scoreMultiplierBonus)
+        ? def.scoreMultiplierBonus
+        : 0;
+    scoreBonusSum += bonus;
+    mutatorIds.push(def.id);
+    if (def.modifiers && typeof def.modifiers === 'object') {
+      modifierLayers.push({ ...def.modifiers, scoreMultiplier: undefined });
+    }
   }
-  const scoreMultiplier = +(1 + scoreBonusSum).toFixed(2);
-  const modifiers = mergeRunModifiers(
-    ...selected.map((m) => m.modifiers),
-    { activeMutatorIds: mutatorIds, scoreMultiplier },
-  );
+  const scoreMultiplier = +(1 + Math.max(0, scoreBonusSum)).toFixed(2);
+  const modifiers = mergeRunModifiers(...modifierLayers, {
+    activeMutatorIds: mutatorIds,
+    scoreMultiplier,
+  });
 
   return {
     seed,
     mutators: selected,
     modifiers,
-    scoreMultiplier,
+    scoreMultiplier: modifiers.scoreMultiplier,
   };
 }
 
@@ -72,7 +93,7 @@ export function selectEndlessMutators(
   count = 2,
   catalog: readonly MutatorDef[] = ENDLESS_MUTATORS,
 ): EndlessMutatorRoll {
-  const safeCatalog = Array.isArray(catalog) ? catalog : [];
+  const safeCatalog = sanitizeMutatorCatalog(catalog);
   const normalizedSeed = normalizeSeed(seed);
   const targetCount = Number.isFinite(count)
     ? Math.max(0, Math.min(safeCatalog.length, Math.floor(count)))
@@ -113,12 +134,13 @@ export function buildEndlessMutatorLoadout(
   mutatorIds: readonly string[],
   catalog: readonly MutatorDef[] = ENDLESS_MUTATORS,
 ): EndlessMutatorRoll {
-  if (!Array.isArray(mutatorIds) || !Array.isArray(catalog)) {
+  const safeCatalog = sanitizeMutatorCatalog(catalog);
+  if (!Array.isArray(mutatorIds) || safeCatalog.length === 0) {
     return finalizeMutatorRoll(hashSeedString(''), []);
   }
   const byId = new Map<string, MutatorDef>();
-  for (let i = 0; i < catalog.length; i++) {
-    byId.set(catalog[i].id, catalog[i]);
+  for (let i = 0; i < safeCatalog.length; i++) {
+    byId.set(safeCatalog[i].id, safeCatalog[i]);
   }
 
   const selected: MutatorDef[] = [];
@@ -126,7 +148,9 @@ export function buildEndlessMutatorLoadout(
   const usedGroups = new Set<string>();
 
   for (let i = 0; i < mutatorIds.length; i++) {
-    const def = byId.get(mutatorIds[i]);
+    const id = mutatorIds[i];
+    if (typeof id !== 'string') continue;
+    const def = byId.get(id);
     if (!def || seenIds.has(def.id)) continue;
     if (def.conflictGroup && usedGroups.has(def.conflictGroup)) continue;
     seenIds.add(def.id);
@@ -144,8 +168,8 @@ export function getMutatorPresetRoll(
   presets: readonly MutatorPreset[] = ENDLESS_MUTATOR_PRESETS,
   catalog: readonly MutatorDef[] = ENDLESS_MUTATORS,
 ): EndlessMutatorRoll | null {
-  if (!Array.isArray(presets)) return null;
-  const preset = presets.find((p) => p.id === presetId);
+  if (typeof presetId !== 'string' || !Array.isArray(presets)) return null;
+  const preset = presets.find((p) => Boolean(p) && p.id === presetId);
   if (!preset) return null;
   return buildEndlessMutatorLoadout(preset.mutatorIds, catalog);
 }
@@ -220,19 +244,20 @@ export function getConflictingMutatorIds(
   selectedIds: readonly string[],
   catalog: readonly MutatorDef[] = ENDLESS_MUTATORS,
 ): readonly string[] {
-  if (!Array.isArray(selectedIds) || !Array.isArray(catalog)) return [];
-  const selectedSet = new Set(selectedIds);
+  const safeCatalog = sanitizeMutatorCatalog(catalog);
+  if (!Array.isArray(selectedIds) || safeCatalog.length === 0) return [];
+  const selectedSet = new Set(selectedIds.filter((id): id is string => typeof id === 'string'));
   const usedGroups = new Set<string>();
-  for (let i = 0; i < catalog.length; i++) {
-    const def = catalog[i];
+  for (let i = 0; i < safeCatalog.length; i++) {
+    const def = safeCatalog[i];
     if (selectedSet.has(def.id) && def.conflictGroup) {
       usedGroups.add(def.conflictGroup);
     }
   }
   if (usedGroups.size === 0) return [];
   const conflicting: string[] = [];
-  for (let i = 0; i < catalog.length; i++) {
-    const def = catalog[i];
+  for (let i = 0; i < safeCatalog.length; i++) {
+    const def = safeCatalog[i];
     if (!selectedSet.has(def.id) && def.conflictGroup && usedGroups.has(def.conflictGroup)) {
       conflicting.push(def.id);
     }

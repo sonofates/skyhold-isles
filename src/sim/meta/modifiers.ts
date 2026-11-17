@@ -26,18 +26,30 @@ function clampPositive(value: number | undefined, fallback: number, min = 0.1): 
   return Math.max(min, value);
 }
 
+function dedupeStrings<T extends string>(raw: unknown): T[] {
+  if (!Array.isArray(raw)) return [];
+  const out: T[] = [];
+  const seen = new Set<string>();
+  for (let i = 0; i < raw.length; i++) {
+    const item = raw[i];
+    if (typeof item === 'string' && item.length > 0 && !seen.has(item)) {
+      seen.add(item);
+      out.push(item as T);
+    }
+  }
+  return out;
+}
+
 /** Normalizes partial RunModifiers into concrete defaults. */
 export function resolveRunModifiers(modifiers?: RunModifiers | null): ResolvedRunModifiers {
-  if (!modifiers) return NEUTRAL_RUN_MODIFIERS;
+  if (!modifiers || typeof modifiers !== 'object' || Array.isArray(modifiers)) {
+    return NEUTRAL_RUN_MODIFIERS;
+  }
   const allowed = Array.isArray(modifiers.allowedTowerTypes)
-    ? [...new Set(modifiers.allowedTowerTypes)]
+    ? dedupeStrings<TowerType>(modifiers.allowedTowerTypes)
     : null;
-  const forbidden = Array.isArray(modifiers.forbiddenTowerTypes)
-    ? [...new Set(modifiers.forbiddenTowerTypes)]
-    : [];
-  const mutatorIds = Array.isArray(modifiers.activeMutatorIds)
-    ? [...new Set(modifiers.activeMutatorIds)]
-    : [];
+  const forbidden = dedupeStrings<TowerType>(modifiers.forbiddenTowerTypes);
+  const mutatorIds = dedupeStrings<string>(modifiers.activeMutatorIds);
 
   return {
     enemySpeedMultiplier: clampPositive(modifiers.enemySpeedMultiplier, 1),
@@ -229,7 +241,10 @@ export function describeActiveModifiers(
   const safeCatalog = Array.isArray(mutatorCatalog) ? mutatorCatalog : [];
   const mutatorById = new Map<string, MutatorDef>();
   for (let i = 0; i < safeCatalog.length; i++) {
-    mutatorById.set(safeCatalog[i].id, safeCatalog[i]);
+    const entry = safeCatalog[i];
+    if (entry && typeof entry.id === 'string') {
+      mutatorById.set(entry.id, entry);
+    }
   }
 
   const mutatorForbidden = new Set<TowerType>();

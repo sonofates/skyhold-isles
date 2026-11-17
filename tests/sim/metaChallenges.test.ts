@@ -102,6 +102,15 @@ describe('Per-island challenges catalog and fallback generation', () => {
     expect(b[0].levelId).toBe('storm-spire');
     expect(new Set(a1.map((c) => c.id)).size).toBe(3);
     expect(a1[0].id).not.toBe(b[0].id);
+
+    // Prototype property names as level.id never collide with Object.prototype in CHALLENGES_BY_LEVEL_ID
+    const protoIdIsland: LevelDef = { ...LEVELS[0], id: 'toString', index: 11, name: 'Proto Isles' };
+    const protoChallenges = getChallengesForLevel(protoIdIsland);
+    expect(protoChallenges).toHaveLength(3);
+    expect(protoChallenges[0].levelId).toBe('toString');
+    expect(
+      getChallengeById(protoChallenges[0].id, [null as unknown as LevelDef, protoIdIsland]),
+    ).toEqual(protoChallenges[0]);
   });
 });
 

@@ -4,7 +4,7 @@ import { BALANCE } from '../../src/data/balance.ts';
 import { ENDLESS_MUTATOR_PRESETS, ENDLESS_MUTATORS } from '../../src/data/challenges.ts';
 import { ENEMY_DEFS } from '../../src/data/enemies.ts';
 import { LEVELS, type LevelDef } from '../../src/data/levels/index.ts';
-import { getTowerTierStats, TOWER_DEFS } from '../../src/data/towers.ts';
+import { getTowerTierStats, TOWER_DEFS, TOWER_TYPES } from '../../src/data/towers.ts';
 import {
   computeDailyStreaks,
   generateDailyChallenge,
@@ -678,7 +678,7 @@ describe('Daily challenge pure date-seeded generator', () => {
     const presetPreview = previewMutatorSelection({ presetId: 'iron-skies' });
     expect(presetPreview.scoreMultiplier).toBe(1.6);
     expect(presetPreview.badges.map((b) => b.id)).toEqual(['iron_clad', 'sky_swarm']);
-    expect(presetPreview.allowedTowerTypes).toHaveLength(5);
+    expect(presetPreview.allowedTowerTypes).toEqual(TOWER_TYPES);
     expect(presetPreview.conflictingMutatorIds).toEqual(['no_frost', 'no_tesla']);
 
     const customPreview = previewMutatorSelection(['gold_drought', 'tight_budget', 'no_frost']);
@@ -937,5 +937,39 @@ describe('Daily challenge pure date-seeded generator', () => {
         badCatalog,
       )[0]?.id,
     ).toBe('swift_march');
+
+    // Catalogs containing null/malformed entries, NaN/negative scoreMultiplierBonus, and non-string modifier arrays stay consistent
+    const sparseCatalog = [
+      null,
+      {
+        id: 'nan_bonus',
+        name: 'NaN Bonus',
+        description: 'Custom test mutator.',
+        scoreMultiplierBonus: Number.NaN,
+        modifiers: { enemyArmorBonus: 1, scoreMultiplier: 1.5 },
+      },
+      {
+        id: 'neg_bonus',
+        name: 'Negative Bonus',
+        description: 'Custom negative bonus mutator.',
+        scoreMultiplierBonus: -0.8,
+        modifiers: { enemyHpMultiplier: 1.1 },
+      },
+    ] as unknown as typeof ENDLESS_MUTATORS;
+    const sparseRoll = selectEndlessMutators('sparse', 2, sparseCatalog);
+    expect(sparseRoll.scoreMultiplier).toBe(sparseRoll.modifiers.scoreMultiplier);
+    expect(sparseRoll.scoreMultiplier).toBe(1);
+    expect(buildEndlessMutatorLoadout(['nan_bonus', 123 as unknown as string], sparseCatalog).mutators).toHaveLength(1);
+    expect(getConflictingMutatorIds(['nan_bonus'], sparseCatalog)).toEqual([]);
+    expect(describeActiveModifiers(sparseRoll.modifiers, sparseCatalog).length).toBeGreaterThanOrEqual(1);
+
+    const messyArraysMod = resolveRunModifiers({
+      allowedTowerTypes: ['archer', 42 as unknown as 'archer', ''] as unknown as typeof TOWER_TYPES,
+      forbiddenTowerTypes: [null as unknown as 'frost', 'frost'],
+      activeMutatorIds: [undefined as unknown as string, 'swift_march'],
+    });
+    expect(messyArraysMod.allowedTowerTypes).toEqual(['archer']);
+    expect(messyArraysMod.forbiddenTowerTypes).toEqual(['frost']);
+    expect(messyArraysMod.activeMutatorIds).toEqual(['swift_march']);
   });
 });

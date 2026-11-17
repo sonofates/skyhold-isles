@@ -4,6 +4,7 @@ import type { ProgressData } from '../../src/core/types.ts';
 import { BALANCE } from '../../src/data/balance.ts';
 import { ACHIEVEMENTS } from '../../src/data/challenges.ts';
 import { LEVELS, type LevelDef } from '../../src/data/levels/index.ts';
+import { TOWER_TYPES } from '../../src/data/towers.ts';
 import { MetaSession } from '../../src/platform/metaSession.ts';
 import {
   getTodayUtcDateString,
@@ -235,7 +236,7 @@ describe('MetaSession stats, achievements, challenges & daily persistence', () =
     expect(chStatus.earnedStars).toBe(3);
     expect(chStatus.totalStars).toBe(3);
     expect(meta.getLiveChallengeStates(world.lives, world.outcome).every((s) => s.state === 'completed')).toBe(true);
-    expect(meta.getAllowedTowerTypes()).toHaveLength(5);
+    expect(meta.getAllowedTowerTypes()).toHaveLength(TOWER_TYPES.length);
     expect(meta.isTowerAllowed('archer')).toBe(true);
     expect(meta.getAllChallengeProgress().earnedStars).toBe(3);
     expect(meta.getChallengeStatus(99)).toBeNull();
@@ -352,7 +353,8 @@ describe('MetaSession stats, achievements, challenges & daily persistence', () =
     expect(achs.find((a) => a.def.id === 'boss_slayer_10')?.unlocked).toBe(true);
     expect(getStats(save).enemiesDefeatedByType.boss).toBe(10);
     expect(getChallengeStatus(save, 0, LEVELS)?.totalStars).toBe(3);
-    expect(getAllChallengeProgress(save, LEVELS).totalStars).toBe(27);
+    expect(getAllChallengeProgress(save, LEVELS.slice(0, 9)).totalStars).toBe(27);
+    expect(getAllChallengeProgress(save, LEVELS).totalStars).toBe(LEVELS.length * 3);
     meta.dispose();
   });
 
@@ -1131,13 +1133,15 @@ describe('MetaSession stats, achievements, challenges & daily persistence', () =
     codexSave.stats.towersBuiltByType = { archer: 65, cannon: 25, frost: 10, tesla: 0, mortar: 0 };
     codexSave.stats.enemiesDefeatedByType = { grunt: 120, boss: 3 };
     const towerMastery = getTowerMasteryStats(codexSave);
-    expect(towerMastery.map((t) => [t.type, t.rank, t.sharePct])).toEqual([
+    expect(towerMastery).toHaveLength(TOWER_TYPES.length);
+    expect(towerMastery.slice(0, 5).map((t) => [t.type, t.rank, t.sharePct])).toEqual([
       ['archer', 'Grandmaster', 65],
       ['cannon', 'Artificer', 25],
       ['frost', 'Apprentice', 10],
       ['tesla', 'Recruit', 0],
       ['mortar', 'Recruit', 0],
     ]);
+    expect(towerMastery.slice(5).every((t) => t.rank === 'Recruit' && t.sharePct === 0)).toBe(true);
     expect(towerMastery.find((t) => t.type === 'archer')?.nextTarget).toBeNull();
     expect(towerMastery.find((t) => t.type === 'frost')?.nextTarget).toBe(25);
 
@@ -1668,7 +1672,9 @@ describe('MetaSession stats, achievements, challenges & daily persistence', () =
     expect(sovereign.title).toBe('Sovereign of the Skies');
     expect(sovereign.nextRankTitle).toBeNull();
     expect(sovereign.progressRatio).toBe(1);
-    expect(sovereign.points).toBe(151);
+    const expectedSovereignPoints =
+      LEVELS.length * 3 + LEVELS.length * 6 + ACHIEVEMENTS.length * 2 + 20;
+    expect(sovereign.points).toBe(expectedSovereignPoints);
 
     // Check all intermediate rank tiers too (Cloud Warden -> Gale Tactician -> Bastion Commander -> Tempest Marshal)
     const rankProgressSave = createDefaultMetaSave(LEVELS.length);
@@ -1907,5 +1913,26 @@ describe('MetaSession stats, achievements, challenges & daily persistence', () =
       bestStars: [0],
       bestEndlessWaves: [0],
     });
+
+    // Primitive/array JSON in settings & progress storage falls back cleanly, and partial NaN unlockedLevelIndex recovers on loss
+    overwriteStore.set('skyhold_isles_settings_v1', 'null');
+    overwriteStore.set(PROGRESS_KEY, '[]');
+    expect(loadSettings().masterVolume).toBeGreaterThan(0);
+    expect(loadProgress(LEVELS.length).bestStars).toHaveLength(LEVELS.length);
+
+    const nanUnlockedSave = createDefaultMetaSave(LEVELS.length);
+    nanUnlockedSave.campaign.unlockedLevelIndex = Number.NaN;
+    const lossEv = new EventBus();
+    const lossObs = new RunObserver(LEVELS[0], lossEv);
+    recordRunCompletion(nanUnlockedSave, {
+      level: LEVELS[0],
+      telemetry: lossObs.getTelemetry(),
+      won: false,
+      stars: 0,
+      livesRemaining: 0,
+      levels: LEVELS,
+    });
+    lossObs.dispose();
+    expect(nanUnlockedSave.campaign.unlockedLevelIndex).toBe(0);
   });
 });

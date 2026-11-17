@@ -2,7 +2,9 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { Vector3 } from 'three';
 import type { SoundManager } from '../../src/audio/soundManager.ts';
 import { BALANCE } from '../../src/data/balance.ts';
+import { ENEMY_TYPES } from '../../src/data/enemies.ts';
 import { LEVELS } from '../../src/data/levels/index.ts';
+import { TOWER_TYPES } from '../../src/data/towers.ts';
 import type { GameLoop } from '../../src/platform/browserLoop.ts';
 import { GameSession, type SessionRuntimeDeps } from '../../src/platform/gameSession.ts';
 import type { InputManager } from '../../src/platform/input.ts';
@@ -296,6 +298,10 @@ describe('GameSession and sessionBridge meta wiring', () => {
     expect(winOutcome.isDaily).toBe(false);
     expect(session.getChallengeStatus(0)!.earnedStars).toBeGreaterThanOrEqual(1);
     expect(session.getLiveChallengeStates().length).toBe(3);
+    expect(session.getTowerMasteryStats()).toHaveLength(TOWER_TYPES.length);
+    expect(session.getTowerMasteryStats().some((t) => t.builtCount > 0)).toBe(true);
+    expect(session.getEnemyIntelStats()).toHaveLength(ENEMY_TYPES.length);
+    expect(session.getEnemyIntelStats().some((e) => e.discovered)).toBe(true);
 
     // Arm frost placement before entering Lean Siege Endless (which bans frost) -> cleared cleanly
     session.setPlacementMode('frost');

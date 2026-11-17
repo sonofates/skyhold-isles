@@ -90,7 +90,11 @@ export function loadSettings(): GameSettings {
   try {
     const raw = localStorage.getItem(SETTINGS_KEY);
     if (!raw) return defaults;
-    const parsed = JSON.parse(raw) as Partial<GameSettings>;
+    const rawParsed: unknown = JSON.parse(raw);
+    if (!rawParsed || typeof rawParsed !== 'object' || Array.isArray(rawParsed)) {
+      return defaults;
+    }
+    const parsed = rawParsed as Partial<GameSettings>;
     return {
       masterVolume:
         typeof parsed.masterVolume === 'number' && Number.isFinite(parsed.masterVolume)
@@ -123,7 +127,11 @@ export function loadProgress(levelCount: number): ProgressData {
   try {
     const raw = localStorage.getItem(PROGRESS_KEY);
     if (!raw) return createDefaultProgress(safeCount);
-    const parsed = JSON.parse(raw) as Partial<ProgressData>;
+    const rawParsed: unknown = JSON.parse(raw);
+    if (!rawParsed || typeof rawParsed !== 'object' || Array.isArray(rawParsed)) {
+      return createDefaultProgress(safeCount);
+    }
+    const parsed = rawParsed as Partial<ProgressData>;
     const bestStars = new Array<number>(safeCount).fill(0);
     if (Array.isArray(parsed.bestStars)) {
       for (let i = 0; i < safeCount; i++) {

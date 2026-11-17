@@ -3,7 +3,7 @@ import type { TowerType } from '../../core/types.ts';
 import { ENDLESS_MUTATORS } from '../../data/challenges.ts';
 import { ENEMY_DEFS } from '../../data/enemies.ts';
 import { LEVELS } from '../../data/levels/index.ts';
-import type { LevelDef } from '../../data/levels/types.ts';
+import type { LevelDef, WaveDef, WaveGroupDef } from '../../data/levels/types.ts';
 import { TOWER_DEFS, TOWER_TYPES } from '../../data/towers.ts';
 import { mergeRunModifiers } from './modifiers.ts';
 import { hashSeedString, selectEndlessMutators } from './mutators.ts';
@@ -43,15 +43,17 @@ function pickTowerRestriction(
     requireArmorBreaker?: boolean;
   },
 ): { restriction: DailyTowerRestriction; modifiers: RunModifiers } {
-  const available = TOWER_TYPES.filter((t) => !alreadyForbidden.includes(t));
-  const antiAirAvailable = available.filter((t) => TOWER_DEFS[t].hitsFlyers);
+  const available = TOWER_TYPES.filter((t) => Boolean(TOWER_DEFS[t]) && !alreadyForbidden.includes(t));
+  const antiAirAvailable = available.filter((t) => TOWER_DEFS[t]?.hitsFlyers === true);
   const antiAirDpsAvailable = antiAirAvailable.filter((t) => {
-    const t1 = TOWER_DEFS[t].tiers[0];
-    return t1.damage >= 15 || t1.damage * t1.fireRate >= 20;
+    const t1 = TOWER_DEFS[t]?.tiers?.[0];
+    return Boolean(t1) && (t1.damage >= 15 || t1.damage * t1.fireRate >= 20);
   });
   const primaryAntiAirPool =
     antiAirDpsAvailable.length > 0 ? antiAirDpsAvailable : antiAirAvailable;
-  const armorBreakersAvailable = available.filter((t) => TOWER_DEFS[t].tiers[0].damage >= 35);
+  const armorBreakersAvailable = available.filter(
+    (t) => (TOWER_DEFS[t]?.tiers?.[0]?.damage ?? 0) >= 35,
+  );
 
   const noneLabel = alreadyForbidden.length > 0 ? 'No Extra Ban' : 'Full Arsenal';
   if (options?.forceNone || available.length <= 2 || antiAirAvailable.length === 0) {
@@ -196,11 +198,15 @@ export function generateDailyChallenge(
   const isMaster = level.difficulty === 'Master';
   const isHeroic = level.difficulty === 'Heroic';
   const isChallenging = level.difficulty === 'Challenging';
-  const hasHeavyArmoredWaves = level.waves.some((wave) => {
+  const waves: readonly WaveDef[] = Array.isArray(level.waves) ? level.waves : [];
+  const hasHeavyArmoredWaves = waves.some((wave) => {
+    const groups: readonly WaveGroupDef[] | null =
+      wave && Array.isArray(wave.groups) ? wave.groups : null;
+    if (!groups) return false;
     let armoredSwarmCount = 0;
-    for (let g = 0; g < wave.groups.length; g++) {
-      const grp = wave.groups[g];
-      const def = ENEMY_DEFS[grp.enemyType];
+    for (let g = 0; g < groups.length; g++) {
+      const grp = groups[g];
+      const def = grp ? ENEMY_DEFS[grp.enemyType] : undefined;
       if (!def) continue;
       if (def.livesCost >= 3 || (def.armor >= 4 && def.maxHp >= 400)) {
         return true;
