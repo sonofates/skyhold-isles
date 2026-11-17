@@ -157,6 +157,33 @@ describe('Gloam Hexer', () => {
     expect(t.stunTimer).toBeLessThan(HEX.hexStunSec! - 0.9);
   });
 
+  it('Lanternfall Hollow: hedgerows are in hex reach, the middle band and SW pocket are not', () => {
+    const level = LEVELS.find((l) => l.id === 'lanternfall-hollow')!;
+    const world = new SimWorld(level, new EventBus());
+    const p = { x: 0, y: 0, z: 0 };
+    const minRoadDist = (c: number, r: number): number => {
+      const x = world.grid.gridToWorldX(c);
+      const z = world.grid.gridToWorldZ(r);
+      let best = Infinity;
+      for (let d = 0; d <= world.groundPath.totalLength; d += 0.05) {
+        world.groundPath.sample(d, p);
+        best = Math.min(best, Math.hypot(p.x - x, p.z - z));
+      }
+      return best;
+    };
+    const safe: [number, number][] = [[15, 5], [2, 9], [2, 10], [2, 11]];
+    for (let c = 4; c <= 14; c++) safe.push([c, 5]);
+    for (const [c, r] of safe) {
+      if (!world.grid.canPlaceTower(c, r)) continue; // decor tiles
+      expect(minRoadDist(c, r), `(${c},${r})`).toBeGreaterThan(R);
+    }
+    for (let c = 2; c <= 13; c++) {
+      if (!world.grid.canPlaceTower(c, 2)) continue;
+      expect(minRoadDist(c, 2), `(${c},2)`).toBeLessThan(R);
+      expect(minRoadDist(c, 8), `(${c},8)`).toBeLessThan(R);
+    }
+  });
+
   it('shows up in the endless spotlight rotation', () => {
     const level = LEVELS[0];
     let found = 0;
