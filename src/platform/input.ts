@@ -113,7 +113,11 @@ export class InputManager {
     const onPointerDown = (e: PointerEvent): void => {
       if (!this.enabled || this.modalOpen) return;
       if (e.target !== this.canvas) return;
-      this.canvas.setPointerCapture(e.pointerId);
+      try {
+        this.canvas.setPointerCapture(e.pointerId);
+      } catch {
+        // Capture can fail for already-released pointers; dragging still works via window listeners.
+      }
       this.pointers.set(e.pointerId, {
         id: e.pointerId,
         x: e.clientX,
