@@ -191,6 +191,8 @@ interface FuzzTracker {
   lastWaveHpScale: number;
   endlessWavesConfig: number;
   pendingSplitChildrenExpected: number;
+  currentTick: number;
+  pendingMeteors: Array<{ x: number; z: number; radius: number; castTick: number }>;
   newlyStunnedTowerIds: Set<number>;
   bossSummonedUids: Set<number>;
   bossesBelowHalfLastTick: Set<number>;
@@ -915,6 +917,12 @@ function attachEventTracker(
       return;
     }
     tracker.meteorCastCount++;
+    tracker.pendingMeteors.push({
+      x: ev.x,
+      z: ev.z,
+      radius: ev.radius,
+      castTick: tracker.currentTick,
+    });
   });
 
   events.on('meteorImpact', (ev) => {
@@ -926,6 +934,27 @@ function attachEventTracker(
       Math.abs(ev.radius - ABILITY_DEFS.meteor.radius) > 1e-6
     ) {
       recordEventError(tracker, `Invalid meteorImpact payload y=${ev.y}, r=${ev.radius}`);
+      return;
+    }
+    const pendingMeteor = tracker.pendingMeteors.shift();
+    if (!pendingMeteor) {
+      recordEventError(tracker, `meteorImpact emitted at (${ev.x},${ev.z}) with no queued abilityTargeted`);
+      return;
+    }
+    const elapsedTicks = tracker.currentTick - pendingMeteor.castTick;
+    const minDelayTicks = Math.floor(ABILITY_DEFS.meteor.impactDelaySec / BALANCE.fixedDt - 1e-9);
+    const maxDelayTicks = Math.ceil(ABILITY_DEFS.meteor.impactDelaySec / BALANCE.fixedDt + 1e-9);
+    if (
+      Math.abs(ev.x - pendingMeteor.x) > 1e-6 ||
+      Math.abs(ev.z - pendingMeteor.z) > 1e-6 ||
+      Math.abs(ev.radius - pendingMeteor.radius) > 1e-6 ||
+      elapsedTicks < minDelayTicks ||
+      elapsedTicks > maxDelayTicks
+    ) {
+      recordEventError(
+        tracker,
+        `meteorImpact FIFO/timing mismatch: got (${ev.x},${ev.z}) after ${elapsedTicks} ticks, expected (${pendingMeteor.x},${pendingMeteor.z}) in [${minDelayTicks},${maxDelayTicks}] ticks`,
+      );
       return;
     }
     tracker.stateHash = mixHash(mixHash(tracker.stateHash, 16), Math.round(ev.x * 100));
@@ -1543,6 +1572,24 @@ function assertTickInvariants(world: SimWorld, tracker: FuzzTracker, tick: numbe
           t.recoil > prevStats.recoil + 1e-9
         ) {
           return `Continuously stunned tower id=${t.id} mutated cooldown (${prevStats.cooldownTimer}->${t.cooldownTimer}), stun (${prevStats.stunTimer}->${t.stunTimer}), or recoil`;
+        }
+      } else if (
+        world.outcome === 'ongoing' &&
+        prevStats.stunTimer === 0 &&
+        t.stunTimer === 0 &&
+        !tracker.newlyStunnedTowerIds.has(t.id) &&
+        prevStats.cooldownTimer > 0 &&
+        t.cooldownTimer > 0 &&
+        t.recoil < 1 - 1e-6
+      ) {
+        const expectedCooldownStep =
+          BALANCE.fixedDt *
+          (world.abilitySystem.isOverchargeActive()
+            ? ABILITY_DEFS.overcharge.fireRateMultiplier
+            : 1);
+        const actualCooldownStep = prevStats.cooldownTimer - t.cooldownTimer;
+        if (Math.abs(actualCooldownStep - expectedCooldownStep) > 1e-9) {
+          return `Tower id=${t.id} cooldown decay mismatch: got=${actualCooldownStep}, expected=${expectedCooldownStep} (overcharge=${world.abilitySystem.isOverchargeActive()})`;
         }
       }
       prevStats.kills = t.kills;
@@ -2273,6 +2320,8 @@ function createFuzzTracker(startingGold: number, endlessWavesConfig: number): Fu
     lastWaveHpScale: 0,
     endlessWavesConfig,
     pendingSplitChildrenExpected: 0,
+    currentTick: 0,
+    pendingMeteors: [],
     newlyStunnedTowerIds: new Set<number>(),
     bossSummonedUids: new Set<number>(),
     bossesBelowHalfLastTick: new Set<number>(),
@@ -2421,6 +2470,7 @@ function createFuzzStepContext(
         return;
       }
       ctx.tickCount++;
+      tracker.currentTick = ctx.tickCount;
       const prevWaveState = world.waveSystem.state;
       const prevMeteorCd = world.abilitySystem.getCooldown('meteor');
       const prevOverchargeCd = world.abilitySystem.getCooldown('overcharge');

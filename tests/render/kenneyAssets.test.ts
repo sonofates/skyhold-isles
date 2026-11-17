@@ -3,15 +3,20 @@ import { resolve } from 'node:path';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { EventBus } from '../../src/core/eventBus.ts';
+import { ENEMY_TYPES } from '../../src/data/enemies.ts';
 import { LEVELS, type LevelDef } from '../../src/data/levels/index.ts';
 import { TOWER_TYPES } from '../../src/data/towers.ts';
 import { DecorBuilder } from '../../src/render/decorBuilder.ts';
+import { EnemyRenderer } from '../../src/render/enemyMeshes.ts';
 import { KENNEY_MODEL_LIST, KenneyAssetStore } from '../../src/render/kenneyAssets.ts';
 import { MapBuilder } from '../../src/render/mapBuilder.ts';
 import { MaterialLibrary } from '../../src/render/materials.ts';
 import { ProjectileRenderer } from '../../src/render/projectileRenderer.ts';
 import { TowerGeometryCache } from '../../src/render/towerGeometries.ts';
+import { TowerRenderer } from '../../src/render/towerMeshes.ts';
 import { getTowerPickHeight } from '../../src/render/towerPicking.ts';
+import { SimWorld } from '../../src/sim/world.ts';
 
 function installCanvasAndImageMock(failImage = false) {
   const fakeGrad = { addColorStop: () => {} };
@@ -200,11 +205,26 @@ describe('KenneyAssetStore preload, normalization, and disposal', () => {
       });
     });
 
+    const countTriangles = (geo: THREE.BufferGeometry): number =>
+      geo.index ? geo.index.count / 3 : geo.getAttribute('position').count / 3;
+
     const assertFiniteGeometry = (geo: THREE.BufferGeometry, label: string, requireUvAndColor: boolean): void => {
       const pos = geo.getAttribute('position') as THREE.BufferAttribute | undefined;
       expect(pos, `${label} missing position`).toBeDefined();
       expect(pos!.count, `${label} empty position`).toBeGreaterThan(0);
-      expect(pos!.count % 3, `${label} non-triangle vertex count`).toBe(0);
+      if (geo.index) {
+        expect(geo.index.count, `${label} empty index`).toBeGreaterThan(0);
+        expect(geo.index.count % 3, `${label} non-triangle index count`).toBe(0);
+        const idxArr = geo.index.array as ArrayLike<number>;
+        for (let i = 0; i < idxArr.length; i++) {
+          const idx = idxArr[i];
+          if (!Number.isInteger(idx) || idx < 0 || idx >= pos!.count) {
+            throw new Error(`${label} out-of-bounds index ${idx} at ${i} (posCount=${pos!.count})`);
+          }
+        }
+      } else {
+        expect(pos!.count % 3, `${label} non-triangle vertex count`).toBe(0);
+      }
       expect(geo.hasAttribute('normal'), `${label} missing normal`).toBe(true);
       if (requireUvAndColor) {
         expect(geo.index, `${label} must be non-indexed`).toBeNull();
@@ -223,6 +243,18 @@ describe('KenneyAssetStore preload, normalization, and disposal', () => {
       }
       if (!geo.boundingBox) geo.computeBoundingBox();
       expect(geo.boundingBox!.isEmpty(), `${label} empty boundingBox`).toBe(false);
+      expect(
+        Number.isFinite(geo.boundingBox!.min.lengthSq()) && Number.isFinite(geo.boundingBox!.max.lengthSq()),
+        `${label} non-finite boundingBox`,
+      ).toBe(true);
+      if (!geo.boundingSphere) geo.computeBoundingSphere();
+      expect(geo.boundingSphere, `${label} missing boundingSphere`).toBeDefined();
+      expect(
+        Number.isFinite(geo.boundingSphere!.radius) &&
+          geo.boundingSphere!.radius > 0 &&
+          Number.isFinite(geo.boundingSphere!.center.lengthSq()),
+        `${label} non-finite boundingSphere`,
+      ).toBe(true);
     };
 
     const store = await KenneyAssetStore.preload(undefined, KENNEY_MODEL_LIST);
@@ -241,6 +273,7 @@ describe('KenneyAssetStore preload, normalization, and disposal', () => {
         const pair = towerCache.get(type, tier);
         assertFiniteGeometry(pair.base, `tower:${type}:T${tier}:base`, true);
         assertFiniteGeometry(pair.turret, `tower:${type}:T${tier}:turret`, true);
+        expect(countTriangles(pair.base) + countTriangles(pair.turret)).toBeLessThan(4000);
         expect(pair.turretAnchorY).toBeGreaterThan(prevAnchorY);
         expect(pair.turretAnchorY).toBeLessThanOrEqual(getTowerPickHeight(type, tier));
         prevAnchorY = pair.turretAnchorY;
@@ -295,6 +328,101 @@ describe('KenneyAssetStore preload, normalization, and disposal', () => {
       }
     }
 
+    // Sync real-GLB TowerRenderer + EnemyRenderer + ProjectileRenderer + MapBuilder + DecorBuilder under heavy load
+    const heavyLevel = LEVELS[LEVELS.length - 1];
+    mapBuilder.build(heavyLevel, mats, store);
+    decorBuilder.build(heavyLevel, mats, store);
+
+    const bus = new EventBus();
+    const world = new SimWorld(heavyLevel, bus);
+    world.gold = 100_000;
+    let placed = 0;
+    for (let r = 0; r < world.grid.rows && placed < 40; r++) {
+      for (let c = 0; c < world.grid.cols && placed < 40; c++) {
+        if (!world.grid.canPlaceTower(c, r)) continue;
+        const type = TOWER_TYPES[placed % TOWER_TYPES.length];
+        const tierTarget = (Math.floor(placed / TOWER_TYPES.length) % 3) + 1;
+        const tower = world.placeTower(c, r, type)!;
+        if (tierTarget >= 2) world.upgradeTower(tower.id);
+        if (tierTarget >= 3) world.upgradeTower(tower.id);
+        if (placed < 2) tower.stunTimer = 2.0;
+        placed++;
+      }
+    }
+    expect(placed).toBe(40);
+
+    for (let i = 0; i < 250; i++) {
+      const enemy = world.enemySystem.spawnEnemy(ENEMY_TYPES[i % ENEMY_TYPES.length])!;
+      enemy.dist = (i % 20) * 1.2;
+      if (i % 2 === 0) enemy.hp = Math.max(1, Math.floor(enemy.maxHp * 0.55));
+      if (i % 5 === 0) enemy.slowTimer = 1.5;
+      if (i % 7 === 0) enemy.hitFlashTimer = 0.08;
+      if (i % 11 === 0) enemy.isSplitChild = true;
+    }
+
+    const sampleEnemy = world.enemyPool.items[world.enemyPool.getActiveIndex(0)];
+    for (let i = 0; i < 48; i++) {
+      const tower = world.towers[i % world.towers.length];
+      if (tower.type !== 'tesla') {
+        world.projectileSystem.spawnProjectile(tower, sampleEnemy, 0.5);
+      }
+    }
+    world.startNextWave();
+    world.castOvercharge();
+
+    const towerRenderer = new TowerRenderer(store);
+    const enemyRenderer = new EnemyRenderer(mats);
+    const cam = new THREE.PerspectiveCamera(45, 16 / 9, 0.1, 200);
+    cam.position.set(10, 14, 14);
+    cam.lookAt(0, 0, 0);
+    cam.updateMatrixWorld();
+
+    towerRenderer.syncTowers(
+      world.towers,
+      mats,
+      0.5,
+      1.0,
+      world.towers[0].id,
+      world.abilitySystem.isOverchargeActive(),
+    );
+    enemyRenderer.update(world.enemyPool, 0.5, 1.0, cam);
+    projRenderer.update(world.projectilePool, 0.5);
+
+    let heavyVisibleDraws = 0;
+    let heavyTriangles = 0;
+    const countGroupStats = (group: THREE.Object3D): void => {
+      group.traverseVisible((obj) => {
+        const inst = obj as THREE.InstancedMesh;
+        if (inst.isInstancedMesh) {
+          if (inst.count <= 0) return;
+          heavyVisibleDraws++;
+          heavyTriangles += countTriangles(inst.geometry) * inst.count;
+          return;
+        }
+        const mesh = obj as THREE.Mesh;
+        if (mesh.isMesh && mesh.geometry) {
+          heavyVisibleDraws++;
+          heavyTriangles += countTriangles(mesh.geometry);
+        }
+      });
+    };
+
+    for (const root of [
+      mapBuilder.group,
+      decorBuilder.group,
+      towerRenderer.group,
+      enemyRenderer.group,
+      projRenderer.group,
+    ]) {
+      countGroupStats(root);
+    }
+
+    expect(heavyVisibleDraws).toBeLessThan(85);
+    expect(heavyTriangles).toBeGreaterThan(50_000);
+    expect(heavyTriangles).toBeLessThan(320_000);
+
+    towerRenderer.dispose();
+    enemyRenderer.dispose();
     mapBuilder.dispose();
     decorBuilder.dispose();
     projRenderer.dispose();

@@ -414,11 +414,32 @@ describe('boss abilities, tower stun, and overcharge cleanse', () => {
     expect(abilities.isOverchargeActive()).toBe(false);
     expect(abilities.getFireRateMultiplier()).toBe(1);
 
-    // Reset clears cooldowns and active state
+    // Reset clears cooldowns, active overcharge, and in-flight pending meteors
     abilities.reset();
     expect(abilities.canCast('meteor')).toBe(true);
     expect(abilities.canCast('overcharge')).toBe(true);
     expect(abilities.getCooldown('overcharge')).toBe(0);
+
+    const bossHpBeforeCancelledMeteor = boss.hp;
+    let impactAfterReset = 0;
+    events.on('meteorImpact', () => {
+      impactAfterReset++;
+    });
+    expect(abilities.castMeteor(boss.x, boss.z, 1)).toBe(true);
+    expect(abilities.castOvercharge([farTower])).toBe(true);
+    expect(abilities.isOverchargeActive()).toBe(true);
+    expect(abilities.getOverchargeRemaining()).toBeGreaterThan(0);
+
+    abilities.reset();
+    expect(abilities.isOverchargeActive()).toBe(false);
+    expect(abilities.getOverchargeRemaining()).toBe(0);
+    expect(abilities.getFireRateMultiplier()).toBe(1);
+    expect(abilities.getCooldown('meteor')).toBe(0);
+    expect(abilities.getCooldown('overcharge')).toBe(0);
+
+    abilities.update(1.0, true, world.enemyPool, world.spatialHash, world.enemySystem);
+    expect(impactAfterReset).toBe(0);
+    expect(boss.hp).toBe(bossHpBeforeCancelledMeteor);
   });
 });
 

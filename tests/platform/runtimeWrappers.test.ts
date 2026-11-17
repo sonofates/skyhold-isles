@@ -151,6 +151,38 @@ describe('GameLoop (browserLoop)', () => {
     expect(fixedCalls).toHaveLength(prevFixed);
     expect(renderCalls).toHaveLength(prevRender + 1);
     expect(pending.size).toBe(0);
+
+    // Throwing inside onRender is caught cleanly, keeps next frame scheduled, and recovers once clear
+    errSpy.mockClear();
+    let throwInRender = true;
+    const renderThrowLoop = new GameLoop({
+      onFixedTick: (dt) => fixedCalls.push(dt),
+      onRender: (dt, alpha, vis) => {
+        if (throwInRender) throw new Error('render boom');
+        renderCalls.push({ dt, alpha, vis });
+      },
+    });
+    renderThrowLoop.simActive = true;
+    fakeNow = 2500;
+    renderThrowLoop.start();
+    expect(pending.size).toBe(1);
+    const rThrowId = [...pending.keys()][0];
+    const rThrowCb = pending.get(rThrowId)!;
+    pending.delete(rThrowId);
+    expect(() => rThrowCb(2520)).not.toThrow();
+    expect(errSpy).toHaveBeenCalledTimes(1);
+    expect(pending.size).toBe(1);
+
+    throwInRender = false;
+    const rRecoverId = [...pending.keys()][0];
+    const rRecoverCb = pending.get(rRecoverId)!;
+    pending.delete(rRecoverId);
+    const beforeRecoverRender = renderCalls.length;
+    expect(() => rRecoverCb(2540)).not.toThrow();
+    expect(renderCalls).toHaveLength(beforeRecoverRender + 1);
+    renderThrowLoop.stop();
+    expect(pending.size).toBe(0);
+    errSpy.mockRestore();
   });
 });
 
