@@ -25,6 +25,8 @@ export interface RunModifiers {
   /** Tower types that cannot be built this run. */
   readonly bannedTowers: readonly TowerType[];
   readonly abilitiesDisabled: boolean;
+  /** Story waves: the largest ordinary group of every wave spawns Empowered (see champions.ts). */
+  readonly championWaves: boolean;
 }
 
 export const NEUTRAL_RUN_MODIFIERS: RunModifiers = Object.freeze({
@@ -40,6 +42,7 @@ export const NEUTRAL_RUN_MODIFIERS: RunModifiers = Object.freeze({
   enemyHpMul: 1,
   bannedTowers: Object.freeze([]) as readonly TowerType[],
   abilitiesDisabled: false,
+  championWaves: false,
 });
 
 /** Partial description used by data tables; missing fields are neutral. */
@@ -47,7 +50,7 @@ export type RunModifierPatch = Partial<RunModifiers>;
 
 /**
  * Stacks modifier patches: flat values add, multipliers multiply, `maxLives` takes the lowest,
- * bans union, `abilitiesDisabled` ORs.
+ * bans union, `abilitiesDisabled` / `championWaves` OR.
  */
 export function combineRunModifiers(...patches: readonly RunModifierPatch[]): RunModifiers {
   let startGoldBonus = 0;
@@ -62,6 +65,7 @@ export function combineRunModifiers(...patches: readonly RunModifierPatch[]): Ru
   let enemyHpMul = 1;
   const banned = new Set<TowerType>();
   let abilitiesDisabled = false;
+  let championWaves = false;
   for (const p of patches) {
     startGoldBonus += p.startGoldBonus ?? 0;
     startGoldMul *= p.startGoldMul ?? 1;
@@ -81,6 +85,7 @@ export function combineRunModifiers(...patches: readonly RunModifierPatch[]): Ru
     enemyHpMul *= p.enemyHpMul ?? 1;
     for (const t of p.bannedTowers ?? []) banned.add(t);
     abilitiesDisabled = abilitiesDisabled || p.abilitiesDisabled === true;
+    championWaves = championWaves || p.championWaves === true;
   }
   return {
     startGoldBonus,
@@ -95,6 +100,7 @@ export function combineRunModifiers(...patches: readonly RunModifierPatch[]): Ru
     enemyHpMul,
     bannedTowers: [...banned],
     abilitiesDisabled,
+    championWaves,
   };
 }
 

@@ -84,6 +84,14 @@ Machine load from the other agents can make desktop shots slow (timeout raised t
       panel is open (`:has()` scoped to the open panel); landscape lays copy/load side by side.
 - [x] Daily Squall "Copy result" chip on a won daily (src/game/share.ts, tested): 3 spoiler-free
       lines (date, island + challenges, ★★☆ · lives lost · streak) to the clipboard only.
+- [x] New challenge "Champion Host" (src/data/champions.ts, RunModifiers.championWaves): the
+      largest ordinary group of every story wave spawns Empowered (bosses/colossi never; waves that
+      already have elites unchanged). SimWorld swaps in a rewritten level copy, so spawning AND the
+      HUD wave preview agree. Greedy sweep (0 / maxed Workshop) is on par with Iron Tide (+12% HP):
+      e.g. L1 W-3/W-0, L5 W-10/W-9, L8 L@4/L@10, L9 W-18/W-10, L13 L@17/L@17. Not added to any
+      island's hand-picked pair (changing pairs would orphan earned badges) → it appears through the
+      Daily Squall rotation (CHALLENGE_IDS) and is available for future islands.
+      NOTE: adding an id reshuffles which daily each future day picks (hash mod CHALLENGE_IDS.length).
 - [x] Round-2 review (subagent, read-only) → 3 findings, all fixed:
       1. Save-code merge dropped a running Daily streak continued on another device →
          `mergeDaily` chains overlapping/adjacent runs (symmetric, idempotent; total stays max —

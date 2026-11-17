@@ -2,6 +2,7 @@ import type { EventBus } from '../core/eventBus.ts';
 import { ObjectPool } from '../core/pool.ts';
 import type { TargetingMode, TowerMvpSummary, TowerType } from '../core/types.ts';
 import { BALANCE } from '../data/balance.ts';
+import { championLevel } from '../data/champions.ts';
 import type { LevelDef } from '../data/levels/index.ts';
 import { NEUTRAL_RUN_MODIFIERS, type RunModifiers } from '../data/runModifiers.ts';
 import { computeStarsForLivesLost, type Difficulty } from '../data/stars.ts';
@@ -69,7 +70,9 @@ export class SimWorld {
   enemiesKilledTotal = 0;
   outcome: 'ongoing' | 'won' | 'lost' = 'ongoing';
 
-  constructor(level: LevelDef, events: EventBus, mods: RunModifiers = NEUTRAL_RUN_MODIFIERS) {
+  constructor(baseLevel: LevelDef, events: EventBus, mods: RunModifiers = NEUTRAL_RUN_MODIFIERS) {
+    // Champion Host rewrites the story waves (a copy; the shared level data stays untouched).
+    const level = mods.championWaves ? championLevel(baseLevel) : baseLevel;
     this.level = level;
     this.events = events;
     this.mods = mods;

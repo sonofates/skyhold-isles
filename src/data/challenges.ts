@@ -16,7 +16,8 @@ export type ChallengeId =
   | 'ironTide'
   | 'thinPurse'
   | 'glassSanctuary'
-  | 'silentSkies';
+  | 'silentSkies'
+  | 'championHost';
 
 export interface ChallengeDef {
   readonly id: ChallengeId;
@@ -85,6 +86,12 @@ export const CHALLENGES: Readonly<Record<ChallengeId, ChallengeDef>> = {
     name: 'Silent Skies',
     description: 'Meteor Strike and Overcharge are disabled',
     patch: { abilitiesDisabled: true },
+  },
+  championHost: {
+    id: 'championHost',
+    name: 'Champion Host',
+    description: 'The largest group of every wave arrives Empowered',
+    patch: { championWaves: true },
   },
 };
 
