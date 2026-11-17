@@ -26,6 +26,11 @@ Started 2026-11-16 23:00 UTC (02:00 TR). Deadline 06:00 UTC (09:00 TR).
 - Second independent review (sub-agent, read-only) → fixed: (1) "Strongest" tie-break compared raw `dist` across lanes → now `dist + laneProgressOffset` (bit-identical on single-lane islands); (2) a downed hauler dropped no raiders when the enemy pool was full (it spawned them before freeing its own slot) → slot freed first, wreck copied to a scratch object; (3) "New foe" toasts were gated on SIM time (6 s) while the toast lives 7 REAL seconds → at 2x/3x a second hint wiped the first; now gated on wall-clock time (`getRealClock` handler, defaults to `performance.now()`), and the old flyer hint waits too. Tests: `tests/sim/lanes.test.ts` (strongest), `tests/sim/newEnemies.test.ts` (full pool), `tests/platform/sessionBridge.test.ts` (toasts).
 - Not fixed (TOWERS area, harmless today): `projectileSystem.ts` flags `isBossHit` only for `type === 'boss'`, not the Tempest Colossus; nothing reads it yet.
 
+## Round 9 (2026-11-17 02:36 UTC) log
+- Rounds 3–8 left no commits (sessions apparently cut short). Found one uncommitted tweak in `level10.ts` (w15 elite brutes 7@1.0 s → 6@1.2 s). Swept both versions over enemyHpScale 0.98–1.04: identical greedy lives at every value (5 lives on 1.00–1.025, fails at 1.03) → no gain, discarded; L10 stays as committed.
+- Merge dry-run re-run with the latest local heads (islands `54b721d`, towers `f5f71fc`): same single balanceSim conflict (stitch script resolves it), tsc clean, **291/291 tests**, balance: everything passes except the known **L6**; new islands merged L10 7 / L11 8 / L12 8 / L13 9 greedy lives.
+- **L6 (merged) diagnosis for the lead** — scratch sweep of `level6.ts` enemyHpScale in the merged tree: 1.14→20L/weak W6, 1.16→19/weak W4, 1.17→11/weak W1, 1.18→12/weak W3, **1.19→10 PASS (weak loses)**, 1.20 (current)→6/weak W3, 1.21→5, 1.22→3, 1.24→7/weak L. Only 1.19 passes and the weak script survives at most values, so an HP-scale nudge alone is a knife-edge fix; L6 needs a wave-side change (ISLANDS) or a T3 retune (TOWERS `scripts/tuneSweep.ts`). Leaks are runners + healers.
+
 ## Enemy design table
 
 | type key | Name | Role / mechanic | Counterplay | Silhouette / color |
