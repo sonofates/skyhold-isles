@@ -125,7 +125,7 @@ const previewCache = new WeakMap<SimWorld, { key: string; preview: WavePreview }
  */
 function getCachedNextWavePreview(simWorld: SimWorld): WavePreview {
   const ws = simWorld.waveSystem;
-  const key = `${ws.state}|${ws.currentWaveIndex}|${ws.isEndless ? 1 : 0}`;
+  const key = `${ws.state}|${ws.currentWaveIndex}|${ws.isEndless ? 1 : 0}|${ws.mutatorPickVersion}`;
   const cached = previewCache.get(simWorld);
   if (cached && cached.key === key) return cached.preview;
   const preview = ws.getNextWavePreview();

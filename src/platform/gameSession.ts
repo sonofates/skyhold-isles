@@ -62,8 +62,10 @@ import {
   ENDLESS_TIERS,
   endlessTier,
   ENDLESS_MUTATOR_INTERVAL,
+  endlessMutatorOffer,
   endlessMutatorsAt,
   newEndlessMutatorAt,
+  type EndlessMutatorId,
 } from '../data/endlessMutators.ts';
 import type { EndlessResultView } from '../ui/gameModals.ts';
 import { affordableUpgradeCount } from '../ui/workshop.ts';
@@ -169,7 +171,7 @@ export class GameSession {
     if (ws.isEndless) {
       const offset = ws.currentWaveIndex - level.waves.length;
       if (offset < 0) return null;
-      const muts = endlessMutatorsAt(offset, level.index).map((m) => m.name);
+      const muts = endlessMutatorsAt(offset, level.index, ws.endlessMutatorPicks).map((m) => m.name);
       return muts.length > 0
         ? `<span class="pri-label">Mutators</span> ${muts.join(' · ')}`
         : `<span class="pri-label">Mutators</span> first one at endless wave ${ENDLESS_MUTATOR_INTERVAL + 1}`;
@@ -548,7 +550,7 @@ export class GameSession {
               isNewBest: rec.isNewBest,
               reachedEndless: true,
               endlessWavesCleared: offset,
-              mutators: endlessMutatorsAt(offset, level.index).map((m) => m.name),
+              mutators: endlessMutatorsAt(offset, level.index, this.simWorld.waveSystem.endlessMutatorPicks).map((m) => m.name),
               newFeats: newlyEarnedFeats(featsBefore, this.progress),
             };
           } else {
@@ -731,6 +733,32 @@ export class GameSession {
     this.showMenuView('workshop');
   }
 
+  /** Endless: "Choose the next storm" between waves when the next wave brings a new mutator. */
+  private offerStormChoice(): void {
+    if (this.viewMode !== 'playing') return;
+    const { overlays } = this.d;
+    if (overlays.stormChoice.isOpen() || overlays.isModalOpen()) return;
+    const ws = this.simWorld.waveSystem;
+    const slot = ws.pendingMutatorSlot();
+    if (slot < 0) return;
+    const level = this.simWorld.level;
+    const slotOffset = (slot + 1) * ENDLESS_MUTATOR_INTERVAL;
+    const active = endlessMutatorsAt(slotOffset - 1, level.index, ws.endlessMutatorPicks);
+    this.deps?.radial?.close();
+    this.activeAbilityMode = null;
+    this.setPlacementMode(null);
+    overlays.stormChoice.show(slot, slotOffset + 1, endlessMutatorOffer(slot, level.index), active);
+    this.soundManager.playBossPulse();
+    this.syncLoopAndInput();
+    this.syncUi();
+  }
+
+  pickStorm(slot: number, id: EndlessMutatorId): void {
+    if (this.simWorld.waveSystem.pickEndlessMutator(slot, id)) this.soundManager.playUiConfirm();
+    this.syncLoopAndInput();
+    this.syncUi();
+  }
+
   /** From a results card: tear the finished run down and open the Workshop (Back → islands). */
   openWorkshopFromRun(): void {
     this.soundManager.unlock();
@@ -797,11 +825,13 @@ export class GameSession {
     if (this.runConfig.endless) this.simWorld.startEndlessFromStart();
     this.simWorld.setAutoWave(this.autoWaveEnabled);
     this.bindSimEvents(this.events);
+    // Endless: offer the next mutator choice once the wave before it is cleared.
+    this.events.on('waveCompleted', () => this.offerStormChoice());
     // Read once per run: the record only changes when this run ends.
     const endlessBest = this.progress.bestEndlessWaves[this.currentLevelIndex] ?? 0;
     this.events.on('waveStarted', (ev) => {
       if (!ev.endless) return;
-      const mut = newEndlessMutatorAt(ev.waveIndex - level.waves.length, level.index);
+      const mut = newEndlessMutatorAt(ev.waveIndex - level.waves.length, level.index, this.simWorld.waveSystem.endlessMutatorPicks);
       const best = isEndlessBestCrossing(endlessBest, ev.waveIndex + 1);
       if (best) this.soundManager.playStarChime(2);
       else if (mut) this.soundManager.playBossPulse();

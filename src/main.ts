@@ -109,6 +109,7 @@ async function bootstrap(loadingScreen: LoadingScreen): Promise<void> {
       soundManager.unlock();
       session.startDaily(daily);
     },
+    onPickStorm: (slot, id) => session.pickStorm(slot, id),
     onBriefingToggle: (on) => (on ? soundManager.playUiConfirm() : soundManager.playUiBack()),
   });
 

@@ -21,6 +21,8 @@ import { WorkshopOverlay } from './workshop.ts';
 import { IslandBriefingModal, type BriefingStartConfig } from './islandBriefing.ts';
 import { LogbookModal } from './logbook.ts';
 import { DailyModal } from './daily.ts';
+import { StormChoiceModal } from './stormChoice.ts';
+import type { EndlessMutatorId } from '../data/endlessMutators.ts';
 import type { DailyChallenge } from '../data/daily.ts';
 import type { WorkshopUpgradeId } from '../data/workshop.ts';
 
@@ -66,6 +68,7 @@ export interface GameOverlayCallbacks {
   onOpenLogbook?: () => void;
   onOpenDaily?: () => void;
   onStartDaily?: (daily: DailyChallenge) => void;
+  onPickStorm?: (slot: number, id: EndlessMutatorId) => void;
   onSettingsChange: (next: GameSettings) => void;
   onSettingsClose: () => void;
 }
@@ -87,6 +90,7 @@ export class GameOverlays {
   readonly islandBriefing: IslandBriefingModal;
   readonly logbook: LogbookModal;
   readonly daily: DailyModal;
+  readonly stormChoice: StormChoiceModal;
   private readonly pauseBanner: HTMLDivElement;
 
   constructor(uiRoot: HTMLElement, cb: GameOverlayCallbacks) {
@@ -152,6 +156,7 @@ export class GameOverlays {
 
     this.logbook = new LogbookModal(uiRoot);
     this.daily = new DailyModal(uiRoot, { onStart: (d) => cb.onStartDaily?.(d) });
+    this.stormChoice = new StormChoiceModal(uiRoot, { onPick: (slot, id) => cb.onPickStorm?.(slot, id) });
 
     this.pauseMenu = new PauseMenuModal(uiRoot, {
       onResume: cb.onResumeFromPause,
@@ -186,7 +191,8 @@ export class GameOverlays {
     return (
       this.pauseMenu.isOpen() ||
       this.settingsModal.isOpen() ||
-      this.outcomeOverlay.isOpen()
+      this.outcomeOverlay.isOpen() ||
+      this.stormChoice.isOpen()
     );
   }
 
@@ -194,6 +200,7 @@ export class GameOverlays {
     this.islandBriefing.hide();
     this.logbook.hide();
     this.daily.hide();
+    this.stormChoice.hide();
     this.pauseMenu.setOpen(false);
     this.settingsModal.setOpen(false);
     this.outcomeOverlay.hide();
@@ -236,6 +243,7 @@ export class GameOverlays {
     this.islandBriefing.dispose();
     this.logbook.dispose();
     this.daily.dispose();
+    this.stormChoice.dispose();
     this.pauseMenu.dispose();
     this.outcomeOverlay.dispose();
     this.settingsModal.dispose();

@@ -3,12 +3,17 @@ import type { EnemyType } from '../core/types.ts';
 import { BALANCE } from '../data/balance.ts';
 import {
   combineEndlessMutators,
+  ENDLESS_MUTATOR_INTERVAL,
   ENDLESS_UNSCALED_TYPES,
+  endlessMutatorOffer,
   endlessMutatorsAt,
   mutatedGroupCount,
+  mutatorSlotForOffset,
   NO_ENDLESS_MUTATORS,
   poolWeight,
   type EndlessMutatorEffects,
+  type EndlessMutatorId,
+  type EndlessMutatorPicks,
 } from '../data/endlessMutators.ts';
 import { ENEMY_DEFS } from '../data/enemies.ts';
 import type { LevelDef, WaveDef, WaveGroupDef } from '../data/levels/index.ts';
@@ -83,7 +88,11 @@ const ENDLESS_SPOTLIGHT_TUNING: Partial<
 /**
  * Deterministically generates an escalating wave definition for Endless Mode beyond `level.waves`.
  */
-export function buildEndlessWaveDef(waveIndex: number, level: LevelDef): WaveDef {
+export function buildEndlessWaveDef(
+  waveIndex: number,
+  level: LevelDef,
+  picks: EndlessMutatorPicks = [],
+): WaveDef {
   const offset = Math.max(0, waveIndex - level.waves.length);
   const scaleFactor = 1 + Math.max(0, level.waves.length - 10) * 0.05;
 
@@ -161,7 +170,7 @@ export function buildEndlessWaveDef(waveIndex: number, level: LevelDef): WaveDef
   }
 
   // Escalating mutators (every ENDLESS_MUTATOR_INTERVAL endless waves) reshape the groups.
-  const fx = endlessMutatorEffectsAt(waveIndex, level);
+  const fx = endlessMutatorEffectsAt(waveIndex, level, picks);
   let mutatedGroups = groups;
   if (fx !== NO_ENDLESS_MUTATORS) {
     const counts = groups.map((g) =>
@@ -213,10 +222,14 @@ export function buildEndlessWaveDef(waveIndex: number, level: LevelDef): WaveDef
 }
 
 /** Aggregated endless mutator effects for wave `waveIndex` (neutral for story waves). */
-export function endlessMutatorEffectsAt(waveIndex: number, level: LevelDef): EndlessMutatorEffects {
+export function endlessMutatorEffectsAt(
+  waveIndex: number,
+  level: LevelDef,
+  picks: EndlessMutatorPicks = [],
+): EndlessMutatorEffects {
   const offset = waveIndex - level.waves.length;
   if (offset < 0) return NO_ENDLESS_MUTATORS;
-  const list = endlessMutatorsAt(offset, level.index);
+  const list = endlessMutatorsAt(offset, level.index, picks);
   return list.length === 0 ? NO_ENDLESS_MUTATORS : combineEndlessMutators(list);
 }
 
@@ -277,6 +290,10 @@ export class WaveSystem {
   autoWave = false;
 
   private spawnQueue: QueuedSpawn[] = [];
+  /** Endless mutator slots the player chose (see endlessMutatorOffer); empty = island rotation. */
+  private readonly mutatorPicks: (EndlessMutatorId | undefined)[] = [];
+  /** Bumped on every pick so cached previews know to rebuild. */
+  mutatorPickVersion = 0;
   private mutatorCacheIndex = -1;
   private mutatorCache: EndlessMutatorEffects = NO_ENDLESS_MUTATORS;
   private spawnCursor = 0;
@@ -338,9 +355,41 @@ export class WaveSystem {
     if (!this.endlessMode || this.currentWaveIndex < this.level.waves.length) return NO_ENDLESS_MUTATORS;
     if (this.mutatorCacheIndex !== this.currentWaveIndex) {
       this.mutatorCacheIndex = this.currentWaveIndex;
-      this.mutatorCache = endlessMutatorEffectsAt(this.currentWaveIndex, this.level);
+      this.mutatorCache = endlessMutatorEffectsAt(this.currentWaveIndex, this.level, this.mutatorPicks);
     }
     return this.mutatorCache;
+  }
+
+  get endlessMutatorPicks(): EndlessMutatorPicks {
+    return this.mutatorPicks;
+  }
+
+  /** Wave index on which a mutator slot's pick joins. */
+  private slotWaveIndex(slot: number): number {
+    return this.level.waves.length + (slot + 1) * ENDLESS_MUTATOR_INTERVAL;
+  }
+
+  /**
+   * Slot the player may choose right now: the next wave brings a new mutator and nothing was
+   * picked for it yet. -1 otherwise (story, no new mutator next, or already chosen).
+   */
+  pendingMutatorSlot(): number {
+    if (!this.endlessMode || this.state === 'finished') return -1;
+    const nextIdx = this.state === 'preFirstWave' ? 0 : this.currentWaveIndex + 1;
+    const slot = mutatorSlotForOffset(nextIdx - this.level.waves.length);
+    if (slot < 0 || this.mutatorPicks[slot] !== undefined) return -1;
+    return slot;
+  }
+
+  /** Chooses a slot's mutator (one of its two offers) before that wave starts. */
+  pickEndlessMutator(slot: number, id: EndlessMutatorId): boolean {
+    if (!this.endlessMode || !Number.isInteger(slot) || slot < 0) return false;
+    if (this.currentWaveIndex >= this.slotWaveIndex(slot)) return false;
+    if (!endlessMutatorOffer(slot, this.level.index).some((m) => m.id === id)) return false;
+    this.mutatorPicks[slot] = id;
+    this.mutatorPickVersion++;
+    this.mutatorCacheIndex = -1;
+    return true;
   }
 
   /**
@@ -375,7 +424,7 @@ export class WaveSystem {
     if (waveIndex < this.level.waves.length) {
       return this.level.waves[waveIndex];
     }
-    return this.endlessMode ? buildEndlessWaveDef(waveIndex, this.level) : null;
+    return this.endlessMode ? buildEndlessWaveDef(waveIndex, this.level, this.mutatorPicks) : null;
   }
 
   canStartNextWave(): boolean {

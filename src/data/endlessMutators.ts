@@ -64,23 +64,71 @@ export const NO_ENDLESS_MUTATORS: EndlessMutatorEffects = Object.freeze({
 });
 
 /**
+ * Player choices per mutator slot (slot 0 joins on endless wave 3, slot 1 on wave 6, ...). A
+ * missing entry means "the island's rotation" - the balance sim and anyone who never chooses get
+ * exactly the old fixed escalation.
+ */
+export type EndlessMutatorPicks = readonly (EndlessMutatorId | undefined)[];
+
+const MUTATOR_BY_ID: ReadonlyMap<EndlessMutatorId, EndlessMutatorDef> = new Map(
+  ENDLESS_MUTATORS.map((m) => [m.id, m]),
+);
+
+function rotationStart(islandIndex: number): number {
+  const n = ENDLESS_MUTATORS.length;
+  return ((Math.floor(islandIndex) * 3) % n + n) % n;
+}
+
+/** The island rotation's mutator for a slot (the default when the player does not choose). */
+export function defaultMutatorForSlot(slot: number, islandIndex: number): EndlessMutatorDef {
+  const n = ENDLESS_MUTATORS.length;
+  return ENDLESS_MUTATORS[(rotationStart(islandIndex) + Math.max(0, Math.floor(slot))) % n];
+}
+
+/**
+ * The two mutators offered for a slot: the rotation's default first, then an alternative three
+ * steps further along the rotation (7 mutators, so the pair is always two different ones).
+ */
+export function endlessMutatorOffer(slot: number, islandIndex: number): [EndlessMutatorDef, EndlessMutatorDef] {
+  const n = ENDLESS_MUTATORS.length;
+  const a = defaultMutatorForSlot(slot, islandIndex);
+  const b = ENDLESS_MUTATORS[(rotationStart(islandIndex) + Math.max(0, Math.floor(slot)) + 3) % n];
+  return [a, b];
+}
+
+/** Slot whose mutator joins on this endless wave, or -1 when none does. */
+export function mutatorSlotForOffset(endlessOffset: number): number {
+  if (endlessOffset <= 0 || endlessOffset % ENDLESS_MUTATOR_INTERVAL !== 0) return -1;
+  return endlessOffset / ENDLESS_MUTATOR_INTERVAL - 1;
+}
+
+/**
  * Mutators active on the endless wave `endlessOffset` (0 = first wave after the story) of the
  * island with index `islandIndex`. One more every ENDLESS_MUTATOR_INTERVAL waves; past the end of
- * the list the rotation repeats and copies stack.
+ * the list the rotation repeats and copies stack. `picks` overrides slots the player chose.
  */
-export function endlessMutatorsAt(endlessOffset: number, islandIndex: number): EndlessMutatorDef[] {
+export function endlessMutatorsAt(
+  endlessOffset: number,
+  islandIndex: number,
+  picks: EndlessMutatorPicks = [],
+): EndlessMutatorDef[] {
   const count = Math.max(0, Math.floor(endlessOffset / ENDLESS_MUTATOR_INTERVAL));
-  const n = ENDLESS_MUTATORS.length;
-  const start = ((Math.floor(islandIndex) * 3) % n + n) % n;
   const out: EndlessMutatorDef[] = [];
-  for (let k = 0; k < count; k++) out.push(ENDLESS_MUTATORS[(start + k) % n]);
+  for (let k = 0; k < count; k++) {
+    const picked = picks[k];
+    out.push((picked && MUTATOR_BY_ID.get(picked)) || defaultMutatorForSlot(k, islandIndex));
+  }
   return out;
 }
 
 /** The mutator that joins on this endless wave (null when none does). */
-export function newEndlessMutatorAt(endlessOffset: number, islandIndex: number): EndlessMutatorDef | null {
-  if (endlessOffset <= 0 || endlessOffset % ENDLESS_MUTATOR_INTERVAL !== 0) return null;
-  const list = endlessMutatorsAt(endlessOffset, islandIndex);
+export function newEndlessMutatorAt(
+  endlessOffset: number,
+  islandIndex: number,
+  picks: EndlessMutatorPicks = [],
+): EndlessMutatorDef | null {
+  if (mutatorSlotForOffset(endlessOffset) < 0) return null;
+  const list = endlessMutatorsAt(endlessOffset, islandIndex, picks);
   return list[list.length - 1] ?? null;
 }
 
