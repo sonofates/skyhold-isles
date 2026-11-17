@@ -49,7 +49,7 @@ void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor)
   float hasUnitNeighbor = 1.0 - smoothstep(0.68, 0.88, minNeighborId);
 
   vec3 exposed = inputColor.rgb * uExposure;
-  float edge = 0.0;
+  vec3 outlined = exposed;
   if (isUnit > 0.0 || hasUnitNeighbor > 0.0) {
     float maxDiffId = max(
       max(abs(centerId - idL), abs(centerId - idR)),
@@ -71,10 +71,12 @@ void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor)
       overlapEdge = isUnit * smoothstep(0.003, 0.0065, depthJump);
     }
 
-    edge = clamp(max(outerBgEdge, max(crossClassEdge, overlapEdge)), 0.0, 1.0);
+    float edge = clamp(max(outerBgEdge, max(crossClassEdge, overlapEdge)), 0.0, 1.0);
+    if (edge > 0.0) {
+      outlined = mix(exposed, uOutlineColor, edge * uOutlineStrength);
+    }
   }
 
-  vec3 outlined = mix(exposed, uOutlineColor, edge * uOutlineStrength);
   outputColor = vec4(outlined, 1.0);
 }
 `;

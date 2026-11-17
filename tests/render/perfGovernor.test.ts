@@ -23,7 +23,10 @@ import {
 } from '../../src/render/postProcessing.ts';
 import {
   collectInstancedMaterialsNeedingColor,
+  computeSafeRenderDimensions,
+  createInstancedShadowWarmMesh,
   detectPrimaryTouchDevice,
+  hasVisibleInstancedColorShadowCaster,
   shouldUseAsyncShaderCompile,
 } from '../../src/render/sceneManager.ts';
 import { DebugPanel, formatPerfLogLine } from '../../src/ui/debugPanel.ts';
@@ -149,6 +152,18 @@ describe('computeP95 and RollingFrameMetrics', () => {
     expect(snap.sampleCount).toBe(2);
     expect(snap.avgMs).toBeCloseTo(0.5, 6);
     expect(snap.p95Ms).toBe(1);
+
+    // Floating-point drift guard: evicting fractional values with zeros never yields negative avgMs
+    const driftMetrics = new RollingFrameMetrics(4);
+    for (let i = 0; i < 40; i++) {
+      driftMetrics.record(0.1 + (i % 3) * 0.2, true);
+    }
+    for (let i = 0; i < 4; i++) {
+      driftMetrics.record(0, true);
+    }
+    const zeroSnap = driftMetrics.getSnapshot();
+    expect(zeroSnap.avgMs).toBe(0);
+    expect(Object.is(zeroSnap.avgMs, -0)).toBe(false);
   });
 });
 
@@ -619,6 +634,7 @@ describe('PerfGovernor', () => {
     expect(pass.needsDepthTexture).toBe(true);
     expect(frag).not.toContain('float depth = readDepth(UV);');
     expect(frag).toContain('if (isUnit > 0.0)');
+    expect(frag).toContain('if (edge > 0.0)');
     expect(frag).toContain('readDepth(uv)');
 
     pass.dispose();
@@ -679,7 +695,9 @@ describe('PerfGovernor', () => {
     });
 
     let treeArrayBufferCalled = false;
-    vi.stubGlobal('fetch', (url: string) => {
+    const observedSignals: AbortSignal[] = [];
+    vi.stubGlobal('fetch', (url: string, init?: RequestInit) => {
+      if (init?.signal) observedSignals.push(init.signal);
       if (url.includes('detail-crystal')) {
         // Completes immediately before detail-rocks rejects, so its geometry is parsed and must be disposed on catch.
         return Promise.resolve({
@@ -710,6 +728,8 @@ describe('PerfGovernor', () => {
         KenneyAssetStore.preload(undefined, ['detail-crystal', 'detail-rocks', 'detail-tree']),
       ).rejects.toThrow('Failed to load model "detail-rocks" (404)');
       expect(disposedGeos.length).toBeGreaterThanOrEqual(1);
+      expect(observedSignals.length).toBe(3);
+      expect(observedSignals.every((s) => s.aborted)).toBe(true);
       await new Promise((resolve) => setTimeout(resolve, 25));
       expect(disposedTexs.length).toBe(1);
       expect(treeArrayBufferCalled).toBe(false);
@@ -1195,5 +1215,41 @@ describe('PerfGovernor', () => {
       pipeline.dispose();
       vi.unstubAllGlobals();
     }
+  });
+
+  it('clamps sub-1.0 DPR render dimensions to keep >=1px WebGL framebuffers and creates zero-area instanced shadow warm meshes', () => {
+    expect(computeSafeRenderDimensions(1, 1, 0.85)).toEqual({ width: 2, height: 2 });
+    expect(computeSafeRenderDimensions(1, 1, 0.5)).toEqual({ width: 2, height: 2 });
+    expect(computeSafeRenderDimensions(800, 600, 0.85)).toEqual({ width: 800, height: 600 });
+    expect(computeSafeRenderDimensions(800, 600, 1.5)).toEqual({ width: 800, height: 600 });
+
+    const mat = new THREE.MeshBasicMaterial();
+    const warmNoColor = createInstancedShadowWarmMesh(mat, { withHighlight: true, receiveShadow: true });
+    expect(warmNoColor.mesh.castShadow).toBe(true);
+    expect(warmNoColor.mesh.receiveShadow).toBe(true);
+    expect(warmNoColor.mesh.frustumCulled).toBe(false);
+    expect(warmNoColor.mesh.count).toBe(1);
+    expect(warmNoColor.mesh.instanceColor).toBeNull();
+    expect(warmNoColor.geometry.hasAttribute('aHighlight')).toBe(true);
+    const pos = warmNoColor.geometry.getAttribute('position');
+    expect(Array.from(pos.array)).toEqual([0, 0, 0, 0, 0, 0, 0, 0, 0]);
+
+    const scene = new THREE.Scene();
+    scene.add(warmNoColor.mesh);
+    expect(hasVisibleInstancedColorShadowCaster(scene)).toBe(false);
+
+    const warmWithColor = createInstancedShadowWarmMesh(mat, { withColor: true });
+    warmWithColor.mesh.visible = false;
+    scene.add(warmWithColor.mesh);
+    expect(hasVisibleInstancedColorShadowCaster(scene)).toBe(false);
+
+    warmWithColor.mesh.visible = true;
+    expect(hasVisibleInstancedColorShadowCaster(scene)).toBe(true);
+
+    warmNoColor.mesh.dispose();
+    warmNoColor.geometry.dispose();
+    warmWithColor.mesh.dispose();
+    warmWithColor.geometry.dispose();
+    mat.dispose();
   });
 });

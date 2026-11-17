@@ -128,14 +128,76 @@ export function detectPrimaryTouchDevice(): boolean {
 }
 
 const MAX_VALID_DISPLAY_FRAME_MS = 1000;
+const _identityMatrix = new THREE.Matrix4();
 
-function createWarmUpTriangleGeometry(): THREE.BufferGeometry {
+/**
+ * Ensures Three.js `Math.floor(dim * dpr)` never collapses to 0px under sub-1.0 DPR
+ * during transient 1x1 layout states (preventing 0x0 incomplete WebGL framebuffers).
+ */
+export function computeSafeRenderDimensions(
+  width: number,
+  height: number,
+  dpr: number,
+): { width: number; height: number } {
+  const safeW = Math.max(1, Math.round(width));
+  const safeH = Math.max(1, Math.round(height));
+  const safeDpr = Number.isFinite(dpr) && dpr > 0 ? dpr : 1;
+  const minDim = safeDpr < 1 ? Math.ceil(1 / safeDpr) : 1;
+  return {
+    width: Math.max(safeW, minDim),
+    height: Math.max(safeH, minDim),
+  };
+}
+
+function createWarmUpTriangleGeometry(zeroArea = false): THREE.BufferGeometry {
   const geo = new THREE.BufferGeometry();
-  geo.setAttribute('position', new THREE.Float32BufferAttribute([0, 0, 0, 1, 0, 0, 0, 1, 0], 3));
+  const positions = zeroArea
+    ? [0, 0, 0, 0, 0, 0, 0, 0, 0]
+    : [0, 0, 0, 1, 0, 0, 0, 1, 0];
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
   geo.setAttribute('normal', new THREE.Float32BufferAttribute([0, 1, 0, 0, 1, 0, 0, 1, 0], 3));
   geo.setAttribute('uv', new THREE.Float32BufferAttribute([0, 0, 1, 0, 0, 1], 2));
   geo.setAttribute('color', new THREE.Float32BufferAttribute([1, 1, 1, 1, 1, 1, 1, 1, 1], 3));
   return geo;
+}
+
+/**
+ * Creates a degenerate 1-triangle shadow-casting InstancedMesh (0 rasterized pixels) so
+ * warmUp's shadow pass compiles MeshDepthMaterial's instancing variant before first tower build.
+ */
+export function createInstancedShadowWarmMesh(
+  material: THREE.Material,
+  options?: { withHighlight?: boolean; withColor?: boolean; receiveShadow?: boolean },
+): { mesh: THREE.InstancedMesh; geometry: THREE.BufferGeometry } {
+  const geometry = createWarmUpTriangleGeometry(true);
+  if (options?.withHighlight) {
+    geometry.setAttribute('aHighlight', new THREE.InstancedBufferAttribute(new Float32Array(1), 1));
+  }
+  const mesh = new THREE.InstancedMesh(geometry, material, 1);
+  mesh.setMatrixAt(0, _identityMatrix);
+  if (options?.withColor) {
+    mesh.setColorAt(0, new THREE.Color(1, 1, 1));
+  }
+  mesh.castShadow = true;
+  mesh.receiveShadow = options?.receiveShadow ?? true;
+  mesh.frustumCulled = false;
+  return { mesh, geometry };
+}
+
+/**
+ * Checks whether any currently visible InstancedMesh casts shadows with an instanceColor buffer,
+ * allowing warmUp to skip redundant shadow depth shader precompilation when decor already covers it.
+ */
+export function hasVisibleInstancedColorShadowCaster(root: THREE.Object3D): boolean {
+  let found = false;
+  root.traverseVisible((obj) => {
+    if (found) return;
+    const inst = obj as THREE.InstancedMesh;
+    if (inst.isInstancedMesh && inst.castShadow && inst.count > 0 && inst.instanceColor !== null) {
+      found = true;
+    }
+  });
+  return found;
 }
 
 function createFullscreenWarmUpGeometry(): THREE.BufferGeometry {
@@ -363,19 +425,7 @@ export class SceneManager {
 
     const preset = this.governor.getPreset();
     if (this.isComposerActive(preset) && !this.postProcessing) {
-      this.postProcessing = new PostProcessingPipeline(
-        this.renderer,
-        this.scene,
-        camera,
-        this.lastWidth,
-        this.lastHeight,
-        {
-          n8ao: preset.n8ao,
-          outline: preset.outline,
-          bloom: preset.bloom,
-          smaa: preset.smaa,
-        },
-      );
+      this.postProcessing = this.createPostProcessingPipeline(camera, preset);
     }
 
     const instancedColorVariants = options?.instancedColorRoots?.length
@@ -500,7 +550,38 @@ export class SceneManager {
     }
 
     if (this.disposed || this.contextLost) return;
-    this.render(camera);
+    const shadowWarmMeshes: Array<{ mesh: THREE.InstancedMesh; geometry: THREE.BufferGeometry }> = [];
+    if (this.shadowsEnabled) {
+      if (options?.instancedHighlightMaterial) {
+        shadowWarmMeshes.push(
+          createInstancedShadowWarmMesh(options.instancedHighlightMaterial, {
+            withHighlight: true,
+            receiveShadow: true,
+          }),
+        );
+      }
+      if (!hasVisibleInstancedColorShadowCaster(this.scene) && instancedColorVariants.length > 0) {
+        const v = instancedColorVariants[0];
+        shadowWarmMeshes.push(
+          createInstancedShadowWarmMesh(v.material, {
+            withColor: true,
+            receiveShadow: v.receiveShadow,
+          }),
+        );
+      }
+      for (let i = 0; i < shadowWarmMeshes.length; i++) {
+        this.scene.add(shadowWarmMeshes[i].mesh);
+      }
+    }
+    try {
+      this.render(camera);
+    } finally {
+      for (let i = 0; i < shadowWarmMeshes.length; i++) {
+        this.scene.remove(shadowWarmMeshes[i].mesh);
+        shadowWarmMeshes[i].mesh.dispose();
+        shadowWarmMeshes[i].geometry.dispose();
+      }
+    }
     this.governor.resetWarmup();
     this.resetDisplayMetrics();
   }
@@ -570,9 +651,31 @@ export class SceneManager {
     this.lastWidth = w;
     this.lastHeight = h;
     this.appliedDpr = targetDpr;
+    const renderDims = computeSafeRenderDimensions(w, h, targetDpr);
     this.renderer.setPixelRatio(targetDpr);
-    this.renderer.setSize(w, h, false);
-    this.postProcessing?.setSize(w, h);
+    this.renderer.setSize(renderDims.width, renderDims.height, false);
+    this.postProcessing?.setSize(renderDims.width, renderDims.height);
+  }
+
+  private createPostProcessingPipeline(
+    camera: THREE.Camera,
+    preset: QualityPreset,
+  ): PostProcessingPipeline {
+    const dpr = this.appliedDpr > 0 ? this.appliedDpr : this.computePresetDpr(preset);
+    const renderDims = computeSafeRenderDimensions(this.lastWidth, this.lastHeight, dpr);
+    return new PostProcessingPipeline(
+      this.renderer,
+      this.scene,
+      camera,
+      renderDims.width,
+      renderDims.height,
+      {
+        n8ao: preset.n8ao,
+        outline: preset.outline,
+        bloom: preset.bloom,
+        smaa: preset.smaa,
+      },
+    );
   }
 
   render(camera: THREE.Camera): void {
@@ -581,19 +684,7 @@ export class SceneManager {
     const preset = this.governor.getPreset();
     if (this.isComposerActive(preset)) {
       if (!this.postProcessing) {
-        this.postProcessing = new PostProcessingPipeline(
-          this.renderer,
-          this.scene,
-          camera,
-          this.lastWidth,
-          this.lastHeight,
-          {
-            n8ao: preset.n8ao,
-            outline: preset.outline,
-            bloom: preset.bloom,
-            smaa: preset.smaa,
-          },
-        );
+        this.postProcessing = this.createPostProcessingPipeline(camera, preset);
       }
       this.postProcessing.render();
     } else {

@@ -198,6 +198,7 @@ export class KenneyAssetStore {
     let accountedUntilMs = 0;
     let pendingYield: Promise<void> | null = null;
     let aborted = false;
+    const abortController = typeof AbortController === 'function' ? new AbortController() : null;
 
     const worker = async (): Promise<void> => {
       while (!aborted && cursor < models.length) {
@@ -207,7 +208,9 @@ export class KenneyAssetStore {
         let gltf: GLTF;
         let cpuStartMs: number;
         if (typeof fetch === 'function') {
-          const res = await fetch(url);
+          const res = abortController
+            ? await fetch(url, { signal: abortController.signal })
+            : await fetch(url);
           if (aborted) return;
           if (!res.ok) {
             throw new Error(`Failed to load model "${name}" (${res.status})`);
@@ -292,6 +295,7 @@ export class KenneyAssetStore {
       return new KenneyAssetStore(colormapTexture, geometries);
     } catch (err) {
       aborted = true;
+      abortController?.abort();
       void colormapPromise.then(
         (tex) => tex.dispose(),
         () => {},

@@ -264,12 +264,18 @@ export class RollingFrameMetrics {
     if (this.count === 0) {
       return { sampleCount: 0, avgMs: 0, p95Ms: 0, maxMs: 0, fps: 0 };
     }
-    const avgMs = this.sum / this.count;
     if (this.p95Dirty) {
       this.cachedP95 = computeP95(this.buffer, this.count, this.scratch);
       this.cachedMaxMs = this.scratch[this.count - 1];
+      // Re-sum on dirty reads to prevent long-session sliding-window IEEE-754 drift (e.g. -0.00ms).
+      let exactSum = 0;
+      for (let i = 0; i < this.count; i++) {
+        exactSum += this.buffer[i];
+      }
+      this.sum = exactSum;
       this.p95Dirty = false;
     }
+    const avgMs = Math.max(0, this.sum / this.count);
     const fps = avgMs > 0 ? 1000 / avgMs : 0;
     return {
       sampleCount: this.count,
