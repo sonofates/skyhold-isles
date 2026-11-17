@@ -18,6 +18,8 @@ import {
 
 /** Share (by weight) of playable tiles that must be visible and clear of the HUD at default zoom. */
 const OCCLUSION_COVERAGE = 0.88;
+/** A quarter-turn must frame the island at least this much larger before it replaces the default angle. */
+const AUTO_YAW_MIN_GAIN = 1.2;
 /** Keep the occlusion search cheap: at most this many tile samples. */
 const MAX_FIT_SAMPLES = 160;
 
@@ -53,6 +55,8 @@ export class CameraController {
   private desiredZoom = 1;
 
   private yawIndex = 0;
+  /** True until the player rotates the view by hand. */
+  private autoYaw = true;
   private currentYaw = BASE_YAW_RAD;
   private rotStartYaw = BASE_YAW_RAD;
   private rotTargetYaw = BASE_YAW_RAD;
@@ -128,6 +132,7 @@ export class CameraController {
     this.target.set(0, 0, 0);
     this.desiredTarget.set(0, 0, 0);
     this.yawIndex = 0;
+    this.autoYaw = true;
     this.currentYaw = BASE_YAW_RAD;
     this.rotStartYaw = BASE_YAW_RAD;
     this.rotTargetYaw = BASE_YAW_RAD;
@@ -202,13 +207,15 @@ export class CameraController {
     this.applyFit(false);
   }
 
-  private applyFit(smooth: boolean): void {
-    if (!this.fitPoints) return;
-    const profile = pickFitProfile(this.viewportWidth, this.viewportHeight, this.safeInsets);
-    const yaw = this.rotTargetYaw;
+  /** Zoom + target for one candidate yaw (HUD-occlusion aware when rects are known). */
+  private computeFitFor(
+    yaw: number,
+    profile: ReturnType<typeof pickFitProfile>,
+  ): { zoom: number; tx: number; tz: number; fit: ReturnType<typeof computePlayableFit> } | null {
+    if (!this.fitPoints) return null;
     const all = projectExtents(this.fitPoints, yaw, ISO_TILT_RAD);
     const play = projectExtents(this.fitPlayPoints ?? this.fitPoints, yaw, ISO_TILT_RAD);
-    if (!all || !play) return;
+    if (!all || !play) return null;
     const fit = computePlayableFit(play, all, {
       viewportW: this.viewportWidth,
       viewportH: this.viewportHeight,
@@ -243,6 +250,45 @@ export class CameraController {
       tx = g.x;
       tz = g.z;
     }
+    return { zoom, tx, tz, fit };
+  }
+
+  /**
+   * Portrait phones only: an elongated island can be much larger on screen when turned a quarter
+   * turn. Picks the best of the four yaws, but only when it beats the default view by a clear
+   * margin (so most islands keep their designed angle). Skipped once the player rotated by hand.
+   */
+  private pickAutoYaw(profile: ReturnType<typeof pickFitProfile>): void {
+    if (!this.autoYaw || this.showcaseMode) return;
+    let best = 0;
+    if (profile.kind === 'portrait') {
+      const base = this.computeFitFor(BASE_YAW_RAD, profile);
+      if (base) {
+        let bestZoom = base.zoom * AUTO_YAW_MIN_GAIN;
+        for (let k = 1; k < 4; k++) {
+          const c = this.computeFitFor(BASE_YAW_RAD + k * (Math.PI * 0.5), profile);
+          if (c && c.zoom > bestZoom) {
+            bestZoom = c.zoom;
+            best = k;
+          }
+        }
+      }
+    }
+    if (best === this.yawIndex && this.rotProgress >= 1) return;
+    this.yawIndex = best;
+    this.currentYaw = this.rotStartYaw = this.rotTargetYaw = BASE_YAW_RAD + best * (Math.PI * 0.5);
+    this.rotProgress = 1;
+    this.planeExtYaw = NaN;
+  }
+
+  private applyFit(smooth: boolean): void {
+    if (!this.fitPoints) return;
+    const profile = pickFitProfile(this.viewportWidth, this.viewportHeight, this.safeInsets);
+    this.pickAutoYaw(profile);
+    const yaw = this.rotTargetYaw;
+    const res = this.computeFitFor(yaw, profile);
+    if (!res) return;
+    const { fit, zoom, tx, tz } = res;
     this.fitPlane = {
       r: tx * Math.cos(yaw) - tz * Math.sin(yaw),
       u: -(tx * Math.sin(yaw) + tz * Math.cos(yaw)) * Math.sin(ISO_TILT_RAD),
@@ -290,7 +336,13 @@ export class CameraController {
     this.refit();
   }
 
+  /** Quarter turns from the designed view (0 = default). */
+  get viewYawIndex(): number {
+    return this.yawIndex;
+  }
+
   rotate90(dir: -1 | 1): void {
+    this.autoYaw = false;
     this.yawIndex += dir;
     this.rotStartYaw = this.currentYaw;
     this.rotTargetYaw = BASE_YAW_RAD + this.yawIndex * (Math.PI * 0.5);

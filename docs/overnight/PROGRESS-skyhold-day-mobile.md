@@ -54,6 +54,12 @@ Branch `hermes/skyhold-day-mobile`. Preview port 4302. Deadline 21:00 TR.
   draws stay flat as enemy count grows (instanced buckets). No code change needed. Reviewed the after-portrait / after-landscape
   contact sheets again: all 13 islands fill the screen, spawn/goal visible, HUD clear.
 
+- Round 3: **auto yaw on portrait phones** (`CameraController.pickAutoYaw`): evaluates the 4 quarter-turn views and uses
+  another one only when it frames the island >=1.2x larger (HUD-aware). Today only L5 qualifies (zoom 0.39 -> 0.56; all other
+  islands keep the designed angle; landscape/tablet/desktop never rotate). Stops once the player presses rotate
+  (`autoYaw=false`); reset per level. `viewYawIndex` getter + 3 tests in `tests/render/cameraController.test.ts`.
+  Screenshot checked (`L05` portrait: spawn + goal visible, left edge of the island cropped, HUD clear).
+
 ## Next
 - Real-device verification is impossible here: governor thresholds (22 ms slow / 18.5 ms smooth, 60-frame windows) and the
   Auto start tier (medium on touch) are educated guesses -> a later round could add an opt-in `?perf` log or tune from reports.

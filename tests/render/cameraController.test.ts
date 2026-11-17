@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import { CameraController } from '../../src/render/cameraController.ts';
+import { LEVELS } from '../../src/data/levels/index.ts';
 
 describe('CameraController.screenNdcToPlane', () => {
   it('keeps ground and flyer-plane hits independent when an out vector is passed', () => {
@@ -28,5 +29,42 @@ describe('CameraController.screenNdcToPlane', () => {
     cam.worldCoordsToScreen(5, 2, -3, out);
     cam.worldToScreen(new THREE.Vector3(1, 1, 1), out);
     expect(hit!.equals(before)).toBe(true);
+  });
+});
+
+describe('auto yaw on portrait phones', () => {
+  const portraitHud = [
+    { x0: 12, y0: 10, x1: 260, y1: 47 },
+    { x0: 288, y0: 742, x1: 378, y1: 832 },
+    { x0: 330, y0: 74, x1: 374, y1: 170 },
+    { x0: 12, y0: 766, x1: 146, y1: 828 },
+  ];
+  const frame = (w: number, h: number, level: number, hud = portraitHud): CameraController => {
+    const cam = new CameraController(w, h);
+    cam.setHudRects(hud);
+    const l = LEVELS[level];
+    cam.configureForMap(l.cols, l.rows, l.layout);
+    return cam;
+  };
+
+  it('turns an elongated island a quarter turn when that frames it much larger (L5)', () => {
+    const cam = frame(390, 844, 4);
+    expect(cam.viewYawIndex).not.toBe(0);
+    expect(cam.camera.zoom).toBeGreaterThan(0.5);
+  });
+
+  it('keeps the designed angle where the gain is small (L1) and on landscape / desktop', () => {
+    expect(frame(390, 844, 0).viewYawIndex).toBe(0);
+    expect(frame(844, 390, 4, []).viewYawIndex).toBe(0);
+    expect(frame(1440, 900, 4, []).viewYawIndex).toBe(0);
+  });
+
+  it('stops auto-picking once the player rotates by hand', () => {
+    const cam = frame(390, 844, 4);
+    cam.rotate90(1);
+    const idx = cam.viewYawIndex;
+    cam.setHudRects(portraitHud);
+    cam.resize(390, 844);
+    expect(cam.viewYawIndex).toBe(idx);
   });
 });
