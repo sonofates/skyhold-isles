@@ -162,3 +162,6 @@ Clean tree, `main` merged (unchanged). tsc / tests green. No code changes; backl
 
 ## Round 28 (verification)
 Clean tree, `main` merged (unchanged). tsc / lint / tests green. No code changes; backlog 1–5 complete, nothing pending.
+
+## Round 29 (verification)
+Clean tree, `main` merged (unchanged). tsc / lint / tests green. No code changes; backlog 1–5 complete, nothing pending.
