@@ -710,4 +710,67 @@ describe('overlapping waves, dead-target projectiles, boss tie-break, and healer
       { x: 5, z: -3 },
     ]);
   });
+
+  it('scales parabolic shell lead proportionally with slowRatio, preserves off-path offset, and supports tesla flyer targeting', () => {
+    const { world, events } = makeWorld();
+    const mortar = world.placeTower(4, 3, 'mortar')!;
+    const gruntFast = world.enemySystem.spawnEnemy('grunt')!;
+    const gruntSlow = world.enemySystem.spawnEnemy('grunt')!;
+
+    // Advance 1s along the straight +X opening segment and keep gruntSlow slowed at 50%
+    for (let i = 0; i < 60; i++) {
+      world.enemySystem.update(BALANCE.fixedDt, () => {}, () => {});
+    }
+    gruntSlow.dist = gruntFast.dist;
+    gruntSlow.x = gruntFast.x;
+    gruntSlow.z = gruntFast.z;
+    world.enemySystem.applySlow(gruntSlow, 0.5, 5.0);
+
+    const fastProj = world.projectileSystem.spawnProjectile(mortar, gruntFast, 0.45)!;
+    const slowProj = world.projectileSystem.spawnProjectile(mortar, gruntSlow, 0.45)!;
+    const fastLead = Math.hypot(fastProj.endX - gruntFast.x, fastProj.endZ - gruntFast.z);
+    const slowLead = Math.hypot(slowProj.endX - gruntSlow.x, slowProj.endZ - gruntSlow.z);
+    expect(slowLead).toBeGreaterThan(0);
+    expect(slowLead).toBeLessThan(fastLead * 0.65);
+
+    // Off-path enemy retains its lateral offset when shell leads along path tangent
+    const offPath = world.enemySystem.spawnEnemy('grunt')!;
+    offPath.dist = gruntFast.dist;
+    offPath.x = gruntFast.x;
+    offPath.z = gruntFast.z + 1.25;
+    const offProj = world.projectileSystem.spawnProjectile(mortar, offPath, 0.45)!;
+    expect(offProj.endZ - fastProj.endZ).toBeCloseTo(1.25, 4);
+
+    // Tesla coil targets a lone flyer directly and retargets cleanly when first target leaves range
+    world.sellTower(mortar.id);
+    world.enemyPool.clear();
+    world.projectilePool.clear();
+    const tesla = world.placeTower(4, 3, 'tesla')!;
+    tesla.cooldownTimer = 0;
+    const flyer = world.enemySystem.spawnEnemy('flyer')!;
+    flyer.x = tesla.x + 2.5;
+    flyer.z = tesla.z;
+    world.spatialHash.clear();
+    world.spatialHash.insert(flyer.poolIndex, flyer.x, flyer.z);
+
+    let chainVertices = 0;
+    events.on('lightningChain', (ev) => {
+      chainVertices = ev.points.length;
+    });
+    world.combatSystem.update(BALANCE.fixedDt, [tesla]);
+    expect(chainVertices).toBe(2);
+    expect(flyer.hp).toBe(flyer.maxHp - getTowerTierStats('tesla', 1).damage);
+
+    // Move flyer outside range and place a new grunt -> tesla switches target cleanly
+    flyer.x = tesla.x + 25;
+    const replacement = world.enemySystem.spawnEnemy('grunt')!;
+    replacement.x = tesla.x - 2.0;
+    replacement.z = tesla.z;
+    world.spatialHash.clear();
+    world.spatialHash.insert(flyer.poolIndex, flyer.x, flyer.z);
+    world.spatialHash.insert(replacement.poolIndex, replacement.x, replacement.z);
+    tesla.cooldownTimer = 0;
+    world.combatSystem.update(BALANCE.fixedDt, [tesla]);
+    expect(replacement.hp).toBeLessThan(replacement.maxHp);
+  });
 });

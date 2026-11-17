@@ -67,6 +67,14 @@ export interface FuzzStateDigest {
   readonly stateHash: number;
 }
 
+export interface FuzzCoverageStats {
+  readonly towerTypesBuilt: readonly TowerType[];
+  readonly maxTierReached: number;
+  readonly towersSold: number;
+  readonly meteorCasts: number;
+  readonly overchargeCasts: number;
+}
+
 export interface FuzzRunResult {
   readonly ok: boolean;
   readonly failure?: string;
@@ -80,6 +88,7 @@ export interface FuzzRunResult {
     readonly reproCmd: string;
   };
   readonly digest: FuzzStateDigest;
+  readonly coverage?: FuzzCoverageStats;
 }
 
 interface ScoredTile {
@@ -106,6 +115,11 @@ interface FuzzTracker {
   seenSpawnUids: Set<number>;
   killedUids: Set<number>;
   builtTowerIds: Set<number>;
+  builtTowerTypes: Set<TowerType>;
+  maxTierReached: number;
+  soldTowerCount: number;
+  meteorCastCount: number;
+  overchargeCastCount: number;
   endlessWaveCompletedCount: number;
   expectedGold: number;
   expectedLives: number;
@@ -213,6 +227,10 @@ function attachEventTracker(
       recordEventError(tracker, `Duplicate or invalid enemySpawned uid: ${ev.enemyId}`);
       return;
     }
+    if (ev.flying !== ENEMY_DEFS[ev.enemyType].flying) {
+      recordEventError(tracker, `enemySpawned flying=${ev.flying} mismatch for type=${ev.enemyType}`);
+      return;
+    }
     tracker.seenSpawnUids.add(ev.enemyId);
     tracker.spawnedCount++;
     tracker.stateHash = mixStringHash(mixHash(mixHash(tracker.stateHash, 1), ev.enemyId), ev.enemyType);
@@ -225,6 +243,10 @@ function attachEventTracker(
     }
     if (tracker.killedUids.has(ev.enemyId)) {
       recordEventError(tracker, `enemyKilled fired twice for uid: ${ev.enemyId}`);
+      return;
+    }
+    if (!Number.isFinite(ev.x) || !Number.isFinite(ev.y) || !Number.isFinite(ev.z)) {
+      recordEventError(tracker, `Non-finite enemyKilled coordinates for uid=${ev.enemyId}`);
       return;
     }
     const maxAllowedReward = Math.max(ENEMY_DEFS[ev.enemyType].reward, 2);
@@ -243,11 +265,14 @@ function attachEventTracker(
 
   events.on('enemyLeaked', (ev) => {
     const expectedCost = ENEMY_DEFS[ev.enemyType].livesCost;
-    if (ev.livesLost !== expectedCost) {
+    if (ev.livesLost !== expectedCost || ev.livesLost < 1) {
       recordEventError(
         tracker,
         `enemyLeaked livesLost=${ev.livesLost} != ENEMY_DEFS[${ev.enemyType}].livesCost=${expectedCost}`,
       );
+    }
+    if (!Number.isFinite(ev.x) || !Number.isFinite(ev.y) || !Number.isFinite(ev.z)) {
+      recordEventError(tracker, `Non-finite enemyLeaked coordinates for ${ev.enemyType}`);
     }
     tracker.leakedCount++;
     tracker.expectedLives = Math.max(0, tracker.expectedLives - ev.livesLost);
@@ -257,6 +282,12 @@ function attachEventTracker(
   events.on('enemySplit', (ev) => {
     if (ev.count !== 2) {
       recordEventError(tracker, `enemySplit count=${ev.count} != 2 for parentUid=${ev.parentUid}`);
+    }
+    if (!tracker.killedUids.has(ev.parentUid)) {
+      recordEventError(tracker, `enemySplit fired before enemyKilled for parentUid=${ev.parentUid}`);
+    }
+    if (!Number.isFinite(ev.x) || !Number.isFinite(ev.y) || !Number.isFinite(ev.z)) {
+      recordEventError(tracker, `Non-finite enemySplit coordinates for parentUid=${ev.parentUid}`);
     }
     tracker.stateHash = mixHash(mixHash(tracker.stateHash, 4), ev.parentUid);
   });
@@ -331,6 +362,8 @@ function attachEventTracker(
       return;
     }
     tracker.builtTowerIds.add(ev.towerId);
+    tracker.builtTowerTypes.add(ev.type);
+    tracker.maxTierReached = Math.max(tracker.maxTierReached, ev.tier);
     tracker.stateHash = mixStringHash(mixHash(mixHash(tracker.stateHash, 12), ev.towerId), ev.type);
   });
 
@@ -343,6 +376,7 @@ function attachEventTracker(
       recordEventError(tracker, `Non-finite towerUpgraded coordinates for id=${ev.towerId}`);
       return;
     }
+    tracker.maxTierReached = Math.max(tracker.maxTierReached, ev.tier);
     tracker.stateHash = mixHash(mixHash(mixHash(tracker.stateHash, 13), ev.towerId), ev.tier);
   });
 
@@ -356,6 +390,7 @@ function attachEventTracker(
       return;
     }
     tracker.builtTowerIds.delete(ev.towerId);
+    tracker.soldTowerCount++;
     tracker.stateHash = mixHash(mixHash(mixHash(tracker.stateHash, 14), ev.towerId), ev.refund);
   });
 
@@ -409,7 +444,9 @@ function attachEventTracker(
   events.on('abilityTargeted', (ev) => {
     if (ev.abilityId !== 'meteor' || !Number.isFinite(ev.x) || !Number.isFinite(ev.z) || ev.radius <= 0) {
       recordEventError(tracker, `Invalid abilityTargeted payload for ${ev.abilityId}`);
+      return;
     }
+    tracker.meteorCastCount++;
   });
 
   events.on('meteorImpact', (ev) => {
@@ -434,6 +471,7 @@ function attachEventTracker(
       }
       _seenEventTowerIds.add(tid);
     }
+    tracker.overchargeCastCount++;
     tracker.stateHash = mixHash(mixHash(tracker.stateHash, 17), ev.cleansedTowerIds.length);
   });
 
@@ -455,18 +493,36 @@ function attachEventTracker(
   });
 
   events.on('gameWon', (ev) => {
+    if (ev.livesRemaining !== world.lives || ev.stars !== computeStarRating(world.lives)) {
+      recordEventError(
+        tracker,
+        `gameWon payload mismatch: lives=${ev.livesRemaining}/${world.lives}, stars=${ev.stars}/${computeStarRating(world.lives)}`,
+      );
+    }
     tracker.gameWonCount++;
     tracker.lastWinStars = ev.stars;
     tracker.stateHash = mixHash(mixHash(tracker.stateHash, 9), ev.stars);
   });
 
   events.on('gameLost', (ev) => {
+    if (world.lives !== 0 || ev.waveIndex !== Math.max(0, world.waveSystem.currentWaveIndex)) {
+      recordEventError(
+        tracker,
+        `gameLost payload mismatch: lives=${world.lives}, waveIndex=${ev.waveIndex} vs ${Math.max(0, world.waveSystem.currentWaveIndex)}`,
+      );
+    }
     tracker.gameLostCount++;
     tracker.lastLossEndless = ev.endless;
     tracker.stateHash = mixHash(mixHash(tracker.stateHash, 10), ev.waveIndex);
   });
 
-  events.on('endlessEntered', () => {
+  events.on('endlessEntered', (ev) => {
+    if (ev.startingWave !== world.level.waves.length + 1) {
+      recordEventError(
+        tracker,
+        `endlessEntered startingWave=${ev.startingWave} != ${world.level.waves.length + 1}`,
+      );
+    }
     tracker.endlessEnteredCount++;
     tracker.expectedNextWaveIndex = world.level.waves.length;
     tracker.stateHash = mixHash(tracker.stateHash, 11);
@@ -518,6 +574,12 @@ function attachEventTracker(
   });
 
   events.on('waveCompleted', (ev) => {
+    if (ev.waveIndex !== tracker.expectedNextWaveIndex - 1) {
+      recordEventError(
+        tracker,
+        `waveCompleted waveIndex=${ev.waveIndex} != expected ${tracker.expectedNextWaveIndex - 1}`,
+      );
+    }
     if (ev.bonus !== tracker.pendingExpectedWaveBonus) {
       recordEventError(
         tracker,
@@ -594,6 +656,12 @@ function assertTickInvariants(world: SimWorld, tracker: FuzzTracker, tick: numbe
     if (e.isSplitChild && (e.type !== 'runner' || e.scaleOverride !== 0.72 || e.reward !== 1)) {
       return `Invalid split child state for uid=${e.uid} (type=${e.type}, scale=${e.scaleOverride}, reward=${e.reward})`;
     }
+    if (!e.isSplitChild && e.scaleOverride !== 1) {
+      return `Non-split enemy uid=${e.uid} has stale scaleOverride=${e.scaleOverride}`;
+    }
+    if (e.type !== 'boss' && e.bossSummonedEscorts) {
+      return `Non-boss enemy uid=${e.uid} (${e.type}) has stale bossSummonedEscorts=true`;
+    }
     const def = ENEMY_DEFS[e.type];
     if (e.armor !== def.armor || e.livesCost !== def.livesCost || e.flying !== def.flying) {
       return `Enemy def mismatch for ${e.type} uid=${e.uid} (armor=${e.armor}, livesCost=${e.livesCost}, flying=${e.flying})`;
@@ -610,9 +678,11 @@ function assertTickInvariants(world: SimWorld, tracker: FuzzTracker, tick: numbe
       !Number.isFinite(e.prevY) ||
       !Number.isFinite(e.prevZ) ||
       !Number.isFinite(e.yaw) ||
-      !Number.isFinite(e.prevYaw)
+      !Number.isFinite(e.prevYaw) ||
+      Math.abs(e.x) > world.grid.cols * BALANCE.tileSize ||
+      Math.abs(e.z) > world.grid.rows * BALANCE.tileSize
     ) {
-      return `Non-finite enemy position/yaw for uid=${e.uid} type=${e.type}`;
+      return `Non-finite or out-of-bounds enemy position/yaw for uid=${e.uid} type=${e.type}`;
     }
     if (
       !Number.isInteger(e.hp) ||
@@ -641,9 +711,11 @@ function assertTickInvariants(world: SimWorld, tracker: FuzzTracker, tick: numbe
       e.hitFlashTimer > 0.12 + 1e-6 ||
       !Number.isFinite(e.healTimer) ||
       e.healTimer < 0 ||
+      (e.type === 'healer' && e.healTimer > (def.healInterval ?? 2.6) + 1e-6) ||
       !Number.isFinite(e.walkPhase) ||
       !Number.isFinite(e.bossPulseTimer) ||
       e.bossPulseTimer < 0 ||
+      (e.type === 'boss' && e.bossPulseTimer > 7.0 + 1e-6) ||
       !Number.isFinite(e.scaleOverride) ||
       e.scaleOverride <= 0 ||
       !Number.isFinite(e.armor) ||
@@ -662,6 +734,8 @@ function assertTickInvariants(world: SimWorld, tracker: FuzzTracker, tick: numbe
       return `Invalid projectile towerType=${p.towerType}`;
     }
     if (
+      !Number.isInteger(p.towerId) ||
+      p.towerId <= 0 ||
       !Number.isFinite(p.x) ||
       !Number.isFinite(p.y) ||
       !Number.isFinite(p.z) ||
@@ -694,6 +768,11 @@ function assertTickInvariants(world: SimWorld, tracker: FuzzTracker, tick: numbe
       p.progress < 0 ||
       p.progress >= 1 ||
       p.arcHeight < 0 ||
+      (p.parabolic
+        ? p.arcHeight <= 0 ||
+          p.y < Math.min(p.startY, p.endY) - 1e-5 ||
+          p.y > Math.max(p.startY, p.endY) + p.arcHeight + 1e-5
+        : p.arcHeight !== 0) ||
       p.damage < 0 ||
       p.splashRadius < 0 ||
       p.splashFalloffMin <= 0 ||
@@ -1278,6 +1357,11 @@ function createFuzzTracker(startingGold: number, endlessWavesConfig: number): Fu
     seenSpawnUids: new Set<number>(),
     killedUids: new Set<number>(),
     builtTowerIds: new Set<number>(),
+    builtTowerTypes: new Set<TowerType>(),
+    maxTierReached: 0,
+    soldTowerCount: 0,
+    meteorCastCount: 0,
+    overchargeCastCount: 0,
     endlessWaveCompletedCount: 0,
     expectedGold: startingGold,
     expectedLives: BALANCE.startingLives,
@@ -1374,6 +1458,99 @@ function verifyPostEndImmutability(
   return null;
 }
 
+interface FuzzStepContext {
+  readonly world: SimWorld;
+  readonly stepper: FixedTimestepStepper;
+  readonly rng: SeededRng;
+  readonly tiles: readonly ScoredTile[];
+  readonly profile: FuzzProfile;
+  readonly tracker: FuzzTracker;
+  tickCount: number;
+  nextActionTick: number;
+  fatalReason: string | null;
+}
+
+function buildCoverageStats(tracker: FuzzTracker): FuzzCoverageStats {
+  return {
+    towerTypesBuilt: [...tracker.builtTowerTypes],
+    maxTierReached: tracker.maxTierReached,
+    towersSold: tracker.soldTowerCount,
+    meteorCasts: tracker.meteorCastCount,
+    overchargeCasts: tracker.overchargeCastCount,
+  };
+}
+
+function stepFuzzFrame(
+  ctx: FuzzStepContext,
+  maxTicksLimit: number,
+  stopPredicate: () => boolean,
+): void {
+  const { world, stepper, rng, tiles, profile, tracker } = ctx;
+  if (rng.chance(0.08)) {
+    stepper.speed = rng.pick(SPEEDS);
+  }
+  if (rng.chance(0.02)) {
+    stepper.paused = true;
+    const pausedStep = stepper.step(rng.pick(FRAME_DTS), () => {
+      ctx.fatalReason = 'FixedTimestepStepper ticked while paused';
+    });
+    if (pausedStep.ticksExecuted !== 0) {
+      ctx.fatalReason = `Expected 0 ticks while paused, got ${pausedStep.ticksExecuted}`;
+    }
+    stepper.paused = false;
+    if (ctx.fatalReason) return;
+  }
+
+  const frameDt = rng.pick(FRAME_DTS);
+  const stepRes = stepper.step(frameDt, (fixedDt) => {
+    if (ctx.fatalReason || stopPredicate() || ctx.tickCount >= maxTicksLimit) return;
+    ctx.tickCount++;
+    const prevWaveState = world.waveSystem.state;
+    const prevMeteorCd = world.abilitySystem.getCooldown('meteor');
+    const prevOverchargeCd = world.abilitySystem.getCooldown('overcharge');
+    try {
+      world.fixedTick(fixedDt);
+    } catch (err) {
+      ctx.fatalReason = `Uncaught error in fixedTick: ${err instanceof Error ? err.message : String(err)}`;
+      return;
+    }
+
+    if (prevWaveState === 'betweenWaves' && world.waveSystem.state === 'betweenWaves') {
+      if (
+        world.abilitySystem.getCooldown('meteor') !== prevMeteorCd ||
+        world.abilitySystem.getCooldown('overcharge') !== prevOverchargeCd
+      ) {
+        ctx.fatalReason = 'Ability cooldown changed during betweenWaves idle countdown';
+        return;
+      }
+    }
+
+    const invErr = assertTickInvariants(world, tracker, ctx.tickCount);
+    if (invErr) {
+      ctx.fatalReason = invErr;
+      return;
+    }
+
+    if (ctx.tickCount >= ctx.nextActionTick && world.outcome === 'ongoing') {
+      const actErr = performLegalAction(world, rng, tiles, profile, tracker);
+      if (actErr) {
+        ctx.fatalReason = actErr;
+        return;
+      }
+      ctx.nextActionTick = ctx.tickCount + rng.int(18, 65);
+    }
+  });
+  if (
+    !ctx.fatalReason &&
+    (!Number.isFinite(stepRes.alpha) ||
+      stepRes.alpha < 0 ||
+      stepRes.alpha > 1 ||
+      !Number.isFinite(stepRes.elapsedVisualTime))
+  ) {
+    ctx.fatalReason = `Invalid FixedTimestepStepper state: alpha=${stepRes.alpha}, visualTime=${stepRes.elapsedVisualTime}`;
+  }
+}
+
 /**
  * Runs a single deterministic seeded fuzz playthrough for `level`:
  * drives SimWorld via FixedTimestepStepper (varying speeds/pauses/auto-wave),
@@ -1401,7 +1578,6 @@ export function runFuzzPlaythrough(
   const tracker = createFuzzTracker(level.startingGold, endlessWaves);
 
   let inEndless = false;
-  let tickCount = 0;
   let storyOutcome: 'won' | 'lost' | 'timeout' = 'timeout';
 
   instrumentPools(world, tracker);
@@ -1410,88 +1586,31 @@ export function runFuzzPlaythrough(
   // Pre-wave 1 setup: build initial affordable towers and start wave 1
   for (let i = 0; i < 6 && world.outcome === 'ongoing'; i++) {
     const err = performLegalAction(world, rng, tiles, profile, tracker);
-    if (err) return makeFailure(level, seed, profile, tickCount, world, tracker, storyOutcome, err);
+    if (err) return makeFailure(level, seed, profile, 0, world, tracker, storyOutcome, err);
     if (world.waveSystem.state !== 'preFirstWave') break;
   }
   if (world.waveSystem.state === 'preFirstWave') {
     world.startNextWave();
   }
 
-  let nextActionTick = rng.int(20, 75);
-  let fatalReason: string | null = null;
-
-  const stepOneFrame = (maxTicksLimit: number, stopPredicate: () => boolean): void => {
-    if (rng.chance(0.08)) {
-      stepper.speed = rng.pick(SPEEDS);
-    }
-    if (rng.chance(0.02)) {
-      stepper.paused = true;
-      const pausedStep = stepper.step(rng.pick(FRAME_DTS), () => {
-        fatalReason = 'FixedTimestepStepper ticked while paused';
-      });
-      if (pausedStep.ticksExecuted !== 0) {
-        fatalReason = `Expected 0 ticks while paused, got ${pausedStep.ticksExecuted}`;
-      }
-      stepper.paused = false;
-      if (fatalReason) return;
-    }
-
-    const frameDt = rng.pick(FRAME_DTS);
-    const stepRes = stepper.step(frameDt, (fixedDt) => {
-      if (fatalReason || stopPredicate() || tickCount >= maxTicksLimit) return;
-      tickCount++;
-      const prevWaveState = world.waveSystem.state;
-      const prevMeteorCd = world.abilitySystem.getCooldown('meteor');
-      const prevOverchargeCd = world.abilitySystem.getCooldown('overcharge');
-      try {
-        world.fixedTick(fixedDt);
-      } catch (err) {
-        fatalReason = `Uncaught error in fixedTick: ${err instanceof Error ? err.message : String(err)}`;
-        return;
-      }
-
-      if (prevWaveState === 'betweenWaves' && world.waveSystem.state === 'betweenWaves') {
-        if (
-          world.abilitySystem.getCooldown('meteor') !== prevMeteorCd ||
-          world.abilitySystem.getCooldown('overcharge') !== prevOverchargeCd
-        ) {
-          fatalReason = 'Ability cooldown changed during betweenWaves idle countdown';
-          return;
-        }
-      }
-
-      const invErr = assertTickInvariants(world, tracker, tickCount);
-      if (invErr) {
-        fatalReason = invErr;
-        return;
-      }
-
-      if (tickCount >= nextActionTick && world.outcome === 'ongoing') {
-        const actErr = performLegalAction(world, rng, tiles, profile, tracker);
-        if (actErr) {
-          fatalReason = actErr;
-          return;
-        }
-        nextActionTick = tickCount + rng.int(18, 65);
-      }
-    });
-    if (
-      !fatalReason &&
-      (!Number.isFinite(stepRes.alpha) ||
-        stepRes.alpha < 0 ||
-        stepRes.alpha > 1 ||
-        !Number.isFinite(stepRes.elapsedVisualTime))
-    ) {
-      fatalReason = `Invalid FixedTimestepStepper state: alpha=${stepRes.alpha}, visualTime=${stepRes.elapsedVisualTime}`;
-    }
+  const stepCtx: FuzzStepContext = {
+    world,
+    stepper,
+    rng,
+    tiles,
+    profile,
+    tracker,
+    tickCount: 0,
+    nextActionTick: rng.int(20, 75),
+    fatalReason: null,
   };
 
-  while (world.outcome === 'ongoing' && tickCount < maxStoryTicks && !fatalReason) {
-    stepOneFrame(maxStoryTicks, () => world.outcome !== 'ongoing');
+  while (world.outcome === 'ongoing' && stepCtx.tickCount < maxStoryTicks && !stepCtx.fatalReason) {
+    stepFuzzFrame(stepCtx, maxStoryTicks, () => world.outcome !== 'ongoing');
   }
 
-  if (fatalReason) {
-    return makeFailure(level, seed, profile, tickCount, world, tracker, storyOutcome, fatalReason);
+  if (stepCtx.fatalReason) {
+    return makeFailure(level, seed, profile, stepCtx.tickCount, world, tracker, storyOutcome, stepCtx.fatalReason);
   }
 
   if (world.outcome === 'ongoing') {
@@ -1499,7 +1618,7 @@ export function runFuzzPlaythrough(
       level,
       seed,
       profile,
-      tickCount,
+      stepCtx.tickCount,
       world,
       tracker,
       'timeout',
@@ -1515,7 +1634,7 @@ export function runFuzzPlaythrough(
         level,
         seed,
         profile,
-        tickCount,
+        stepCtx.tickCount,
         world,
         tracker,
         storyOutcome,
@@ -1527,7 +1646,7 @@ export function runFuzzPlaythrough(
         level,
         seed,
         profile,
-        tickCount,
+        stepCtx.tickCount,
         world,
         tracker,
         storyOutcome,
@@ -1539,7 +1658,7 @@ export function runFuzzPlaythrough(
         level,
         seed,
         profile,
-        tickCount,
+        stepCtx.tickCount,
         world,
         tracker,
         storyOutcome,
@@ -1551,7 +1670,7 @@ export function runFuzzPlaythrough(
         level,
         seed,
         profile,
-        tickCount,
+        stepCtx.tickCount,
         world,
         tracker,
         storyOutcome,
@@ -1563,7 +1682,7 @@ export function runFuzzPlaythrough(
         level,
         seed,
         profile,
-        tickCount,
+        stepCtx.tickCount,
         world,
         tracker,
         storyOutcome,
@@ -1573,7 +1692,7 @@ export function runFuzzPlaythrough(
 
     const postWinErr = verifyPostEndImmutability(world, tiles, tracker);
     if (postWinErr) {
-      return makeFailure(level, seed, profile, tickCount, world, tracker, storyOutcome, postWinErr);
+      return makeFailure(level, seed, profile, stepCtx.tickCount, world, tracker, storyOutcome, postWinErr);
     }
 
     if (endlessWaves > 0) {
@@ -1586,34 +1705,35 @@ export function runFuzzPlaythrough(
           level,
           seed,
           profile,
-          tickCount,
+          stepCtx.tickCount,
           world,
           tracker,
           storyOutcome,
           `enterEndlessMode() failed after story victory`,
         );
       }
-      const endlessTickCap = tickCount + maxEndlessTicks;
+      const endlessTickCap = stepCtx.tickCount + maxEndlessTicks;
       while (
         getOutcome() === 'ongoing' &&
         tracker.endlessWaveCompletedCount < endlessWaves &&
-        tickCount < endlessTickCap &&
-        !fatalReason
+        stepCtx.tickCount < endlessTickCap &&
+        !stepCtx.fatalReason
       ) {
-        stepOneFrame(
+        stepFuzzFrame(
+          stepCtx,
           endlessTickCap,
           () => getOutcome() !== 'ongoing' || tracker.endlessWaveCompletedCount >= endlessWaves,
         );
       }
-      if (fatalReason) {
-        return makeFailure(level, seed, profile, tickCount, world, tracker, storyOutcome, fatalReason);
+      if (stepCtx.fatalReason) {
+        return makeFailure(level, seed, profile, stepCtx.tickCount, world, tracker, storyOutcome, stepCtx.fatalReason);
       }
       if (getOutcome() === 'ongoing' && tracker.endlessWaveCompletedCount < endlessWaves) {
         return makeFailure(
           level,
           seed,
           profile,
-          tickCount,
+          stepCtx.tickCount,
           world,
           tracker,
           storyOutcome,
@@ -1625,7 +1745,7 @@ export function runFuzzPlaythrough(
           level,
           seed,
           profile,
-          tickCount,
+          stepCtx.tickCount,
           world,
           tracker,
           storyOutcome,
@@ -1638,7 +1758,7 @@ export function runFuzzPlaythrough(
             level,
             seed,
             profile,
-            tickCount,
+            stepCtx.tickCount,
             world,
             tracker,
             storyOutcome,
@@ -1651,7 +1771,7 @@ export function runFuzzPlaythrough(
             level,
             seed,
             profile,
-            tickCount,
+            stepCtx.tickCount,
             world,
             tracker,
             storyOutcome,
@@ -1666,7 +1786,7 @@ export function runFuzzPlaythrough(
         level,
         seed,
         profile,
-        tickCount,
+        stepCtx.tickCount,
         world,
         tracker,
         storyOutcome,
@@ -1678,7 +1798,7 @@ export function runFuzzPlaythrough(
         level,
         seed,
         profile,
-        tickCount,
+        stepCtx.tickCount,
         world,
         tracker,
         storyOutcome,
@@ -1688,13 +1808,14 @@ export function runFuzzPlaythrough(
 
     const postLossErr = verifyPostEndImmutability(world, tiles, tracker);
     if (postLossErr) {
-      return makeFailure(level, seed, profile, tickCount, world, tracker, storyOutcome, postLossErr);
+      return makeFailure(level, seed, profile, stepCtx.tickCount, world, tracker, storyOutcome, postLossErr);
     }
   }
 
   return {
     ok: true,
-    digest: buildDigest(level, seed, profile, storyOutcome, world, tracker, tickCount),
+    digest: buildDigest(level, seed, profile, storyOutcome, world, tracker, stepCtx.tickCount),
+    coverage: buildCoverageStats(tracker),
   };
 }
 
@@ -1719,7 +1840,6 @@ export function runEndlessFuzz(
   const tracker = createFuzzTracker(level.startingGold, wavesTarget);
 
   let inEndless = false;
-  let tickCount = 0;
 
   instrumentPools(world, tracker);
   attachEventTracker(world, events, tracker, () => inEndless);
@@ -1752,7 +1872,7 @@ export function runEndlessFuzz(
       level,
       seed,
       profile,
-      tickCount,
+      0,
       world,
       tracker,
       'won',
@@ -1763,59 +1883,40 @@ export function runEndlessFuzz(
   world.startNextWave();
 
   const maxTicks = 60 * 1500;
-  let nextActionTick = rng.int(20, 60);
-  let fatalReason: string | null = null;
+  const stepCtx: FuzzStepContext = {
+    world,
+    stepper,
+    rng,
+    tiles,
+    profile,
+    tracker,
+    tickCount: 0,
+    nextActionTick: rng.int(20, 60),
+    fatalReason: null,
+  };
 
   while (
     world.outcome === 'ongoing' &&
     tracker.endlessWaveCompletedCount < wavesTarget &&
-    tickCount < maxTicks &&
-    !fatalReason
+    stepCtx.tickCount < maxTicks &&
+    !stepCtx.fatalReason
   ) {
-    if (rng.chance(0.1)) stepper.speed = rng.pick(SPEEDS);
-    const stepRes = stepper.step(rng.pick(FRAME_DTS), (dt) => {
-      if (fatalReason || world.outcome !== 'ongoing' || tracker.endlessWaveCompletedCount >= wavesTarget) return;
-      tickCount++;
-      try {
-        world.fixedTick(dt);
-      } catch (err) {
-        fatalReason = `Uncaught error in endless fixedTick: ${err instanceof Error ? err.message : String(err)}`;
-        return;
-      }
-      const invErr = assertTickInvariants(world, tracker, tickCount);
-      if (invErr) {
-        fatalReason = invErr;
-        return;
-      }
-      if (tickCount >= nextActionTick && world.outcome === 'ongoing') {
-        const actErr = performLegalAction(world, rng, tiles, profile, tracker);
-        if (actErr) {
-          fatalReason = actErr;
-          return;
-        }
-        nextActionTick = tickCount + rng.int(20, 65);
-      }
-    });
-    if (
-      !fatalReason &&
-      (!Number.isFinite(stepRes.alpha) ||
-        stepRes.alpha < 0 ||
-        stepRes.alpha > 1 ||
-        !Number.isFinite(stepRes.elapsedVisualTime))
-    ) {
-      fatalReason = `Invalid FixedTimestepStepper state: alpha=${stepRes.alpha}, visualTime=${stepRes.elapsedVisualTime}`;
-    }
+    stepFuzzFrame(
+      stepCtx,
+      maxTicks,
+      () => world.outcome !== 'ongoing' || tracker.endlessWaveCompletedCount >= wavesTarget,
+    );
   }
 
-  if (fatalReason) {
-    return makeFailure(level, seed, profile, tickCount, world, tracker, 'won', fatalReason, true);
+  if (stepCtx.fatalReason) {
+    return makeFailure(level, seed, profile, stepCtx.tickCount, world, tracker, 'won', stepCtx.fatalReason, true);
   }
   if (world.outcome === 'ongoing' && tracker.endlessWaveCompletedCount < wavesTarget) {
     return makeFailure(
       level,
       seed,
       profile,
-      tickCount,
+      stepCtx.tickCount,
       world,
       tracker,
       'won',
@@ -1828,7 +1929,7 @@ export function runEndlessFuzz(
       level,
       seed,
       profile,
-      tickCount,
+      stepCtx.tickCount,
       world,
       tracker,
       'won',
@@ -1841,7 +1942,7 @@ export function runEndlessFuzz(
       level,
       seed,
       profile,
-      tickCount,
+      stepCtx.tickCount,
       world,
       tracker,
       'won',
@@ -1855,7 +1956,7 @@ export function runEndlessFuzz(
         level,
         seed,
         profile,
-        tickCount,
+        stepCtx.tickCount,
         world,
         tracker,
         'won',
@@ -1865,13 +1966,14 @@ export function runEndlessFuzz(
     }
     const postLossErr = verifyPostEndImmutability(world, tiles, tracker);
     if (postLossErr) {
-      return makeFailure(level, seed, profile, tickCount, world, tracker, 'won', postLossErr, true);
+      return makeFailure(level, seed, profile, stepCtx.tickCount, world, tracker, 'won', postLossErr, true);
     }
   }
 
   return {
     ok: true,
-    digest: buildDigest(level, seed, profile, 'won', world, tracker, tickCount),
+    digest: buildDigest(level, seed, profile, 'won', world, tracker, stepCtx.tickCount),
+    coverage: buildCoverageStats(tracker),
   };
 }
 
@@ -1911,6 +2013,7 @@ export interface FuzzCampaignSummary {
   readonly failures: readonly FuzzRunResult[];
   readonly maxPeakEnemies: number;
   readonly maxPeakProjectiles: number;
+  readonly coverage: FuzzCoverageStats;
 }
 
 export function runFuzzCampaign(config: {
@@ -1932,6 +2035,20 @@ export function runFuzzCampaign(config: {
   let determinismChecks = 0;
   let maxPeakEnemies = 0;
   let maxPeakProjectiles = 0;
+  const towerTypesBuilt = new Set<TowerType>();
+  let maxTierReached = 0;
+  let towersSold = 0;
+  let meteorCasts = 0;
+  let overchargeCasts = 0;
+
+  const mergeCoverage = (cov?: FuzzCoverageStats): void => {
+    if (!cov) return;
+    for (const t of cov.towerTypesBuilt) towerTypesBuilt.add(t);
+    if (cov.maxTierReached > maxTierReached) maxTierReached = cov.maxTierReached;
+    towersSold += cov.towersSold;
+    meteorCasts += cov.meteorCasts;
+    overchargeCasts += cov.overchargeCasts;
+  };
 
   for (const li of indices) {
     const level = LEVELS[li];
@@ -1945,6 +2062,7 @@ export function runFuzzCampaign(config: {
         totalRuns++;
         maxPeakEnemies = Math.max(maxPeakEnemies, res.digest.peakEnemies);
         maxPeakProjectiles = Math.max(maxPeakProjectiles, res.digest.peakProjectiles);
+        mergeCoverage(res.coverage);
 
         if (!res.ok) {
           failures.push(res);
@@ -1982,6 +2100,7 @@ export function runFuzzCampaign(config: {
         endlessWavesCompletedTotal += eRes.digest.endlessWavesCompleted;
         maxPeakEnemies = Math.max(maxPeakEnemies, eRes.digest.peakEnemies);
         maxPeakProjectiles = Math.max(maxPeakProjectiles, eRes.digest.peakProjectiles);
+        mergeCoverage(eRes.coverage);
         if (!eRes.ok) {
           failures.push(eRes);
         } else if (config.endlessOnly && s === 0) {
@@ -2012,6 +2131,13 @@ export function runFuzzCampaign(config: {
     failures,
     maxPeakEnemies,
     maxPeakProjectiles,
+    coverage: {
+      towerTypesBuilt: [...towerTypesBuilt],
+      maxTierReached,
+      towersSold,
+      meteorCasts,
+      overchargeCasts,
+    },
   };
 }
 
@@ -2260,6 +2386,7 @@ function main(): void {
           maxPeakProjectiles: summary.maxPeakProjectiles,
           maxPoolEnemies: BALANCE.pools.maxEnemies,
           maxPoolProjectiles: BALANCE.pools.maxProjectiles,
+          coverage: summary.coverage,
           failures: summary.failures.map((f) => f.failure ?? 'Unknown failure'),
         },
         null,

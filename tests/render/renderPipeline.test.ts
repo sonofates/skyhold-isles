@@ -205,9 +205,11 @@ describe('RenderWorld subsystems headless verification', () => {
       fx.spawnPulseRing(0, 0.1, 0, 2.5, PALETTE_HEX.coral);
     }
 
-    // Meteor telegraph followed by dt=0 (paused) advances zero trail particles, then active dt spawns trail particles
+    // Meteor telegraph followed by dt=0 (paused) advances zero trail particles, then active dt spawns trail particles;
+    // Two staggered telegraphs >1 unit apart resolve independently
     fx.clearEffects();
     fx.spawnMeteorTelegraph(3, -4, 3.4, 0.32);
+    fx.spawnMeteorTelegraph(-6, 5, 3.4, 0.32);
     fx.update(0);
     fx.update(0);
     const particleMesh = fx.group.children[1] as THREE.InstancedMesh;
@@ -217,6 +219,9 @@ describe('RenderWorld subsystems headless verification', () => {
     expect(particleMesh.count).toBeGreaterThan(0);
     expect(fx.getActiveFxCount()).toBeGreaterThan(0);
     fx.spawnMeteorVisual(3, 0.25, -4, 3.4);
+    const telegraphMesh = fx.group.children[5] as THREE.InstancedMesh;
+    fx.update(0.01);
+    expect(telegraphMesh.count).toBe(1); // (-6, 5) telegraph still active while (3, -4) resolved
 
     // Impact without telegraph triggers sky streak fallback
     fx.spawnMeteorVisual(-3, 0.25, 4, 3.4);
@@ -313,6 +318,17 @@ describe('RenderWorld subsystems headless verification', () => {
     gruntLayer.getMatrixAt(0, mat);
     expect(pos.setFromMatrixPosition(mat).x).toBeCloseTo(0, 4);
 
+    // Reverse yaw wrap (-PI+0.1 -> PI-0.1) & flyer shadow decal altitude (y = 0.024)
+    spawnedByType[0].prevYaw = -Math.PI + 0.1;
+    spawnedByType[0].yaw = Math.PI - 0.1;
+    renderer.update(world.enemyPool, 0.5, 1.25, camera);
+    gruntLayer.getMatrixAt(0, mat);
+    const forward = new THREE.Vector3(0, 0, 1).transformDirection(mat);
+    expect(forward.z).toBeLessThan(-0.9); // Facing -Z (~±PI), not +Z (~0)
+    const flyerIdx = ENEMY_TYPES.indexOf('flyer');
+    shadowMesh.getMatrixAt(flyerIdx, mat);
+    expect(pos.setFromMatrixPosition(mat).y).toBeCloseTo(0.024, 4);
+
     renderer.clear();
     expect(hpBarMesh.count).toBe(0);
     expect(hpBarMesh.visible).toBe(false);
@@ -399,7 +415,29 @@ describe('RenderWorld subsystems headless verification', () => {
     overlays.setRoutesPinned(true);
     overlays.setFlightPathHighlight(true, true);
     overlays.setPlacementGridActive(true);
+    overlays.update(0.5, 0.05);
+    const gridLines = overlays.group.children.find((c) => (c as THREE.LineSegments).isLineSegments) as THREE.LineSegments;
+    expect(gridLines.visible).toBe(true);
+    const gridMat = gridLines.material as THREE.LineBasicMaterial;
+    expect(gridMat.opacity).toBeGreaterThan(0);
+    expect(gridMat.opacity).toBeLessThan(0.3);
+
     overlays.update(1.5, 0.5);
+    expect(gridMat.opacity).toBeCloseTo(0.3, 5);
+
+    // Unpinning routes hides ground path while flightPathHighlight keeps flight group visible,
+    // and deactivating placement grid fades gridLines back to hidden
+    overlays.setRoutesPinned(false);
+    const overlayGroups = overlays.group.children.filter((c): c is THREE.Group => c instanceof THREE.Group);
+    const flightPathGroup = overlayGroups[1];
+    const groundPathGroup = overlayGroups[2];
+    expect(groundPathGroup.visible).toBe(false);
+    expect(flightPathGroup.visible).toBe(true);
+
+    overlays.setPlacementGridActive(false);
+    for (let i = 0; i < 20; i++) overlays.update(2.0 + i * 0.1, 0.1);
+    expect(gridMat.opacity).toBe(0);
+    expect(gridLines.visible).toBe(false);
 
     const mortar = makeTower(1, 'mortar', 1, 2, 2);
     const archer = makeTower(2, 'archer', 2, -2, -2);

@@ -97,6 +97,31 @@ describe('QA scripts smoke verification', () => {
     expect(res.invalidActions).toBe(2);
     expect(res.unspentScriptActions).toBe(1);
     expect(res.startingGold + res.goldEarned - res.goldSpent).toBe(res.finalGold);
+
+    // Verify full T1 -> T2 -> T3 upgrades + T4 over-upgrade rejection & hoard % tracking
+    const richLevel: LevelDef = {
+      ...LEVELS[0],
+      id: 'qa-smoke-t3',
+      startingGold: 500,
+      waves: [
+        {
+          clearBonus: 20,
+          groups: [{ enemyType: 'grunt', count: 1, spawnInterval: 0.5, startDelay: 0 }],
+        },
+      ],
+    };
+    const t3Res = runLevelBalanceSim(richLevel, 'greedy', [
+      { waveIndex: 0, action: 'build', col: 4, row: 2, towerType: 'archer' },
+      { waveIndex: 0, action: 'upgrade', col: 4, row: 2 },
+      { waveIndex: 0, action: 'upgrade', col: 4, row: 2 },
+      { waveIndex: 0, action: 'upgrade', col: 4, row: 2 }, // invalid T4 attempt
+    ]);
+    expect(t3Res.outcome).toBe('won');
+    expect(t3Res.goldSpent).toBe(50 + 55 + 95);
+    expect(t3Res.invalidActions).toBe(1);
+    expect(Number.isFinite(t3Res.endGoldPctOfEarned)).toBe(true);
+    expect(Number.isFinite(t3Res.lastWaveHoardPct)).toBe(true);
+    expect(t3Res.startingGold + t3Res.goldEarned - t3Res.goldSpent).toBe(t3Res.finalGold);
   });
 
   it('validates CI and simBench CLI arguments strictly and rejects under-sized bench levels', () => {
@@ -107,6 +132,7 @@ describe('QA scripts smoke verification', () => {
       full: true,
     });
     expect(parseCiCliArgs(['-h'])).toEqual({ help: true, failFast: false, full: false });
+    expect(parseCiCliArgs(['--help'])).toEqual({ help: true, failFast: false, full: false });
     expect(() => parseCiCliArgs(['--fial-fast'])).toThrow(/Unknown CI argument/);
     expect(() => parseCiCliArgs(['extra'])).toThrow(/Unknown CI argument/);
 
@@ -117,6 +143,7 @@ describe('QA scripts smoke verification', () => {
       json: true,
     });
     expect(parseSimBenchCliArgs(['--help'])).toEqual({ help: true, strict: false, json: false });
+    expect(parseSimBenchCliArgs(['-h'])).toEqual({ help: true, strict: false, json: false });
     expect(() => parseSimBenchCliArgs(['--strct'])).toThrow(/Unknown sim:bench argument/);
     expect(() => parseSimBenchCliArgs(['extra'])).toThrow(/Unknown sim:bench argument/);
 

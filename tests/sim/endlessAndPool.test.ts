@@ -38,6 +38,21 @@ describe('ObjectPool exhaustion and lifecycle', () => {
     expect(pool.getActiveCount()).toBe(0);
     expect(a.active || b.active || c.active).toBe(false);
     expect(pool.acquire()).not.toBeNull();
+
+    // Release at last active position (no swap needed) and drain forward
+    const second = pool.acquire()!;
+    expect(pool.getActiveCount()).toBe(2);
+    pool.releaseAtActivePos(1);
+    expect(second.active).toBe(false);
+    expect(pool.getActiveCount()).toBe(1);
+    pool.releaseAtActivePos(0);
+    expect(pool.getActiveCount()).toBe(0);
+
+    // Zero-capacity pool rejects acquires and clears cleanly
+    const zeroPool = new ObjectPool(0, (id) => ({ id, active: false }));
+    expect(zeroPool.acquire()).toBeNull();
+    expect(zeroPool.getActiveCount()).toBe(0);
+    expect(() => zeroPool.clear()).not.toThrow();
   });
 });
 

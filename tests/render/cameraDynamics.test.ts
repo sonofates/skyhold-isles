@@ -133,6 +133,10 @@ describe('CameraController framing, pan/zoom/rotate, shake, and viewVersion', ()
 
     const screenOut = { x: 0, y: 0 };
     cam.worldCoordsToScreen(3, 0, -2, screenOut);
+    const vecScreenOut = { x: 0, y: 0 };
+    cam.worldToScreen(new THREE.Vector3(3, 0, -2), vecScreenOut);
+    expect(vecScreenOut.x).toBeCloseTo(screenOut.x, 5);
+    expect(vecScreenOut.y).toBeCloseTo(screenOut.y, 5);
     const rtNdcX = (screenOut.x / 1280) * 2 - 1;
     const rtNdcY = -(screenOut.y / 720) * 2 + 1;
     const recovered = cam.screenNdcToPlane(rtNdcX, rtNdcY, 0)!;
@@ -145,5 +149,32 @@ describe('CameraController framing, pan/zoom/rotate, shake, and viewVersion', ()
     expect(ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), planeHit)).not.toBeNull();
     expect(planeHit.x).toBeCloseTo(3, 3);
     expect(planeHit.z).toBeCloseTo(-2, 3);
+  });
+
+  it('pans relative to rotated yaw, returns to start after 4x rotate90(-1), and handles mismatched layout fallback', () => {
+    const cam = new CameraController(1280, 720);
+    cam.configureForMap(10, 10, ['bad']); // mismatched length -> falls back cleanly
+    expect(Number.isFinite(cam.camera.zoom)).toBe(true);
+
+    const initialScreen = { x: 0, y: 0 };
+    cam.worldCoordsToScreen(2, 0, -1, initialScreen);
+
+    for (let i = 0; i < 4; i++) {
+      cam.rotate90(-1);
+      for (let t = 0; t < 40; t++) cam.update(1 / 60);
+    }
+    const fullCircleScreen = { x: 0, y: 0 };
+    cam.worldCoordsToScreen(2, 0, -1, fullCircleScreen);
+    expect(fullCircleScreen.x).toBeCloseTo(initialScreen.x, 1);
+    expect(fullCircleScreen.y).toBeCloseTo(initialScreen.y, 1);
+
+    // Rotate 90 degrees and verify horizontal screen pan moves center ground point in rotated screen space
+    cam.rotate90(1);
+    for (let t = 0; t < 40; t++) cam.update(1 / 60);
+    const beforePan = cam.screenNdcToPlane(0, 0, 0)!.clone();
+    cam.panByScreenDelta(-120, 0);
+    for (let t = 0; t < 60; t++) cam.update(1 / 60);
+    const afterPan = cam.screenNdcToPlane(0, 0, 0)!;
+    expect(afterPan.distanceTo(beforePan)).toBeGreaterThan(0.5);
   });
 });

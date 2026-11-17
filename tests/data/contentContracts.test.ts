@@ -36,6 +36,7 @@ describe('palette and color math contracts', () => {
 
     expect(lerpHexColor(0x000000, 0xffffff, 0)).toBe(0x000000);
     expect(lerpHexColor(0x000000, 0xffffff, 1)).toBe(0xffffff);
+    expect(lerpHexColor(0x102030, 0x304050, 0.25)).toBe(0x182838);
     expect(lerpHexColor(0x102030, 0x304050, 0.5)).toBe(0x203040);
     expect(SKY_HORIZON_HEX).toBeGreaterThanOrEqual(0);
     expect(SKY_ZENITH_HEX).toBeGreaterThanOrEqual(0);
@@ -100,6 +101,9 @@ describe('tower, enemy, ability, and UI metadata contracts', () => {
       expect(t2.range).toBeGreaterThanOrEqual(t1.range);
       expect(t3.range).toBeGreaterThanOrEqual(t2.range);
     }
+
+    expect(TOWER_TYPES.some((t) => TOWER_DEFS[t].hitsFlyers)).toBe(true);
+    expect(TOWER_TYPES.some((t) => getTowerTierStats(t, 1).splashRadius > 0)).toBe(true);
   });
 
   it('ensures every enemy archetype has valid combat parameters and UI badge metadata', () => {
@@ -114,7 +118,7 @@ describe('tower, enemy, ability, and UI metadata contracts', () => {
       expect(def.maxHp).toBeGreaterThan(0);
       expect(def.speed).toBeGreaterThan(0);
       expect(def.armor).toBeGreaterThanOrEqual(0);
-      expect(def.reward).toBeGreaterThanOrEqual(0);
+      expect(def.reward).toBeGreaterThan(0);
       expect(def.livesCost).toBeGreaterThanOrEqual(1);
       expect(def.radius).toBeGreaterThan(0);
       expect(def.height).toBeGreaterThan(0);
@@ -160,6 +164,8 @@ describe('level data, flight paths, waves, and scripted build orders', () => {
     const validDifficulties = new Set(['Breezy', 'Challenging', 'Heroic', 'Master']);
     const seenLevelIds = new Set<string>();
 
+    const cheapestTowerCost = Math.min(...TOWER_TYPES.map((t) => getTowerTierStats(t, 1).upgradeCost));
+
     LEVELS.forEach((lvl, idx) => {
       expect(lvl.index).toBe(idx);
       expect(seenLevelIds.has(lvl.id)).toBe(false);
@@ -167,7 +173,7 @@ describe('level data, flight paths, waves, and scripted build orders', () => {
       expect(lvl.name.trim().length).toBeGreaterThan(0);
       expect(lvl.subtitle.trim().length).toBeGreaterThan(0);
       expect(validDifficulties.has(lvl.difficulty)).toBe(true);
-      expect(lvl.startingGold).toBeGreaterThan(0);
+      expect(lvl.startingGold).toBeGreaterThanOrEqual(cheapestTowerCost);
       expect(lvl.enemyHpScale ?? 1).toBeGreaterThan(0);
       expect(lvl.waveHpGrowth ?? 0).toBeGreaterThanOrEqual(0);
       expect(Number.isInteger(lvl.decorationSeed)).toBe(true);

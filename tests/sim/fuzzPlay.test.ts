@@ -3,6 +3,7 @@ import { EventBus } from '../../src/core/eventBus.ts';
 import { FixedTimestepStepper } from '../../src/core/gameLoop.ts';
 import { BALANCE } from '../../src/data/balance.ts';
 import { LEVELS } from '../../src/data/levels/index.ts';
+import { TOWER_TYPES } from '../../src/data/towers.ts';
 import { SimWorld } from '../../src/sim/world.ts';
 import {
   digestsEqual,
@@ -29,6 +30,11 @@ describe('headless fuzz playthrough harness', () => {
     expect(summary.storyWins).toBeGreaterThan(0);
     expect(summary.storyLosses).toBeGreaterThan(0);
     expect(summary.endlessWavesCompletedTotal).toBeGreaterThan(0);
+    expect([...summary.coverage.towerTypesBuilt].sort()).toEqual([...TOWER_TYPES].sort());
+    expect(summary.coverage.maxTierReached).toBe(3);
+    expect(summary.coverage.towersSold).toBeGreaterThan(0);
+    expect(summary.coverage.meteorCasts).toBeGreaterThan(0);
+    expect(summary.coverage.overchargeCasts).toBeGreaterThan(0);
   });
 
   it('produces identical final state digests when replaying the same seed across levels', { timeout: 45_000 }, () => {
@@ -139,13 +145,19 @@ describe('headless fuzz playthrough harness', () => {
       'npx tsx scripts/fuzzPlay.ts --level 1 --seed 777 --profile balanced --endless-waves 3',
     );
 
+    expect(parseFuzzCliArgs(['--seed=0', '--endless-waves=0']).baseSeed).toBe(0);
+    expect(parseFuzzCliArgs(['--seed=-5']).baseSeed).toBe(-5);
+
     expect(() => parseFuzzCliArgs(['--profile', 'unknown'])).toThrow(/Invalid --profile/);
+    expect(() => parseFuzzCliArgs(['--seed'])).toThrow(/requires a value/);
     expect(() => parseFuzzCliArgs(['--seed', 'abc'])).toThrow(/Invalid --seed/);
     expect(() => parseFuzzCliArgs(['--seed', ''])).toThrow(/Invalid --seed/);
     expect(() => parseFuzzCliArgs(['--seeds', '0'])).toThrow(/Invalid --seeds/);
+    expect(() => parseFuzzCliArgs(['--seeds', '-2'])).toThrow(/Invalid --seeds/);
     expect(() => parseFuzzCliArgs(['--seeds', 'abc'])).toThrow(/Invalid --seeds/);
     expect(() => parseFuzzCliArgs(['--endless-waves', 'xyz'])).toThrow(/Invalid --endless-waves/);
     expect(() => parseFuzzCliArgs(['--endless-waves', '-1'])).toThrow(/Invalid --endless-waves/);
+    expect(() => parseFuzzCliArgs(['--level', '0'])).toThrow(/No valid levels/);
     expect(() => parseFuzzCliArgs(['--level', '999'])).toThrow(/No valid levels/);
     expect(() => parseFuzzCliArgs(['--level', '1,999'])).toThrow(/No valid levels/);
     expect(() => parseFuzzCliArgs(['--json=true'])).toThrow(/does not take a value/);

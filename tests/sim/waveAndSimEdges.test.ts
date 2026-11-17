@@ -276,4 +276,42 @@ describe('WaveSystem & SimWorld boundary edge cases', () => {
     expect(world.waveSystem.state).toBe('betweenWaves');
     expect(world.waveSystem.pendingClearBonus).toBe(0);
   });
+
+  it('merges duplicate enemyType groups in getNextWavePreview preserving first-seen order and defaults omitted HP scaling', () => {
+    const levelWithDupGroups: LevelDef = {
+      ...LEVELS[0],
+      enemyHpScale: undefined,
+      waveHpGrowth: undefined,
+      waves: [
+        {
+          clearBonus: 30,
+          groups: [
+            { enemyType: 'runner', count: 3, spawnInterval: 0.5, startDelay: 0 },
+            { enemyType: 'grunt', count: 4, spawnInterval: 0.5, startDelay: 0.5 },
+            { enemyType: 'runner', count: 5, spawnInterval: 0.4, startDelay: 2.0 },
+            { enemyType: 'flyer', count: 2, spawnInterval: 0.8, startDelay: 3.0 },
+            { enemyType: 'grunt', count: 2, spawnInterval: 0.5, startDelay: 4.0 },
+          ],
+        },
+      ],
+    };
+
+    const world = new SimWorld(levelWithDupGroups, new EventBus());
+    expect(world.waveSystem.getCurrentWaveHpScale()).toBe(1);
+    expect(world.waveSystem.getNextWavePreview()).toEqual({
+      waveOneBased: 1,
+      items: [
+        { enemyType: 'runner', count: 8 },
+        { enemyType: 'grunt', count: 6 },
+        { enemyType: 'flyer', count: 2 },
+      ],
+    });
+
+    // Endless skipToWave with waveOneBased <= 0 clamps cleanly to wave 1
+    world.debugForceWin();
+    expect(world.enterEndlessMode()).toBe(true);
+    expect(world.debugSkipToWave(0)).toBe(true);
+    expect(world.waveSystem.currentWaveOneBased).toBe(1);
+    expect(world.waveSystem.getCurrentWaveHpScale()).toBe(1);
+  });
 });
