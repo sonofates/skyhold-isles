@@ -15,7 +15,10 @@ import type { RenderWorld } from '../render/renderWorld.ts';
 import { getTowerPickHeight } from '../render/towerPicking.ts';
 import { SimWorld } from '../sim/world.ts';
 import type { GameOverlays } from '../ui/gameOverlays.ts';
+import type { RadialMenu } from '../ui/radialMenu.ts';
 import type { GameLoop } from './browserLoop.ts';
+import { isRadialActive } from './deviceClass.ts';
+import { resolveTap, type GroundTileInfo, type TapTarget } from './tapResolution.ts';
 import type { InputManager } from './input.ts';
 import {
   bindSimEventBridge,
@@ -47,6 +50,8 @@ export interface SessionRuntimeDeps {
   inputManager: InputManager;
   loop: GameLoop;
   setDebugVisible: (visible: boolean) => void;
+  /** Touch build / tower menu; absent in tests. */
+  radial?: RadialMenu;
 }
 
 export class GameSession {
@@ -84,6 +89,8 @@ export class GameSession {
   private uiSyncAccumSec = 0;
   private unbindSound: (() => void) | null = null;
   private deps: SessionRuntimeDeps | null = null;
+  /** Tile whose ghost tower the radial build ring is previewing (survives pointer-leave refreshes). */
+  private radialPreview: { type: TowerType; col: number; row: number } | null = null;
 
   constructor(renderWorld: RenderWorld, soundManager: SoundManager) {
     this.renderWorld = renderWorld;
@@ -116,6 +123,7 @@ export class GameSession {
   syncLoopAndInput(): void {
     const { overlays, loop, inputManager } = this.d;
     const modalOpen = overlays.isModalOpen();
+    if (modalOpen) this.deps?.radial?.close();
     loop.simActive = this.viewMode === 'playing';
     loop.paused = this.userPaused || modalOpen;
     inputManager.setEnabled(this.viewMode === 'playing');
@@ -147,6 +155,19 @@ export class GameSession {
 
   refreshPlacementPreview(): void {
     const inPlayAndInside = this.viewMode === 'playing' && this.pointerInside;
+    if (this.radialPreview && this.viewMode === 'playing') {
+      const rp = this.radialPreview;
+      const cost = TOWER_DEFS[rp.type].tiers[0].upgradeCost;
+      const valid = this.simWorld.grid.canPlaceTower(rp.col, rp.row) && this.simWorld.gold >= cost;
+      this.renderWorld.setPlacementPreview(
+        true,
+        rp.type,
+        this.simWorld.grid.gridToWorldX(rp.col),
+        this.simWorld.grid.gridToWorldZ(rp.row),
+        valid,
+      );
+      return;
+    }
     updatePlacementPreviewFromNdc(
       inPlayAndInside,
       this.activePlacementType,
@@ -236,6 +257,7 @@ export class GameSession {
   setPlacementMode(type: TowerType | null): void {
     this.activePlacementType = type;
     if (type !== null) {
+      this.deps?.radial?.close(false);
       this.activeAbilityMode = null;
       this.selectTower(null);
     }
@@ -272,6 +294,7 @@ export class GameSession {
     }
     this.soundManager.unlock();
     if (!this.simWorld.abilitySystem.canCast(id)) return;
+    this.deps?.radial?.close();
 
     if (id === 'overcharge') {
       if (this.simWorld.castOvercharge()) {
@@ -310,6 +333,8 @@ export class GameSession {
 
   private clearTransientPlayState(): void {
     this.pendingDebugSpawns.length = 0;
+    this.deps?.radial?.close(false);
+    this.radialPreview = null;
     this.clearSellConfirm();
     this.d.overlays.floatingTextPool.clear();
     this.d.overlays.tooltip.hide();
@@ -338,6 +363,7 @@ export class GameSession {
       onSyncUi: this.syncUi,
       onGameWon: (stars, livesRemaining) => {
         recordWinProgress(this.progress, this.currentLevelIndex, stars);
+        this.deps?.radial?.close();
         this.activeAbilityMode = null;
         this.setPlacementMode(null);
         overlays.tooltip.hide();
@@ -354,6 +380,7 @@ export class GameSession {
         this.syncUi();
       },
       onGameLost: (waveIndex, endless) => {
+        this.deps?.radial?.close();
         this.activeAbilityMode = null;
         this.setPlacementMode(null);
         overlays.tooltip.hide();
@@ -537,25 +564,33 @@ export class GameSession {
       return;
     }
 
-    const pickedTower = this.renderWorld.pickTowerAtNdc(ndcX, ndcY, this.simWorld.towers);
+    const silhouette = this.renderWorld.pickTowerAtNdc(ndcX, ndcY, this.simWorld.towers);
     const coord = hit ? this.simWorld.grid.worldToGrid(hit.x, hit.z) : null;
+    const ground: GroundTileInfo | null = coord
+      ? {
+          col: coord.col,
+          row: coord.row,
+          towerId: this.simWorld.grid.getTowerIdAt(coord.col, coord.row),
+          buildable: this.simWorld.grid.canPlaceTower(coord.col, coord.row),
+        }
+      : null;
+    const target = resolveTap(ground, silhouette?.id ?? null);
+
+    const radial = this.deps?.radial;
+    if (radial && isRadialActive() && !this.activePlacementType) {
+      this.onRadialTap(radial, target);
+      return;
+    }
 
     if (this.activePlacementType) {
-      if (pickedTower) {
+      if (target.kind === 'tower') {
         this.setPlacementMode(null);
-        this.selectTower(pickedTower.id);
+        this.selectTower(target.id);
         this.refreshHoverFeedback();
         return;
       }
-      if (!coord) return;
-      const existingTowerId = this.simWorld.grid.getTowerIdAt(coord.col, coord.row);
-      if (existingTowerId !== -1) {
-        this.setPlacementMode(null);
-        this.selectTower(existingTowerId);
-        this.refreshHoverFeedback();
-        return;
-      }
-      if (this.simWorld.placeTower(coord.col, coord.row, this.activePlacementType)) {
+      if (target.kind !== 'build') return;
+      if (this.simWorld.placeTower(target.col, target.row, this.activePlacementType)) {
         if (!hasSeenUpgradeToast()) {
           markUpgradeToastSeen();
           this.d.overlays.toast.show('Click a tower to upgrade or sell it');
@@ -571,19 +606,62 @@ export class GameSession {
       return;
     }
 
-    if (pickedTower) {
-      this.selectTower(pickedTower.id);
-      this.refreshHoverFeedback();
-      return;
-    }
-    if (!coord) {
-      this.selectTower(null);
-      this.refreshHoverFeedback();
-      return;
-    }
-    const towerId = this.simWorld.grid.getTowerIdAt(coord.col, coord.row);
-    this.selectTower(towerId !== -1 ? towerId : null);
+    this.selectTower(target.kind === 'tower' ? target.id : null);
     this.refreshHoverFeedback();
+  }
+
+  /** Touch flow: tapping a tower / buildable tile opens the radial menu around it. */
+  private onRadialTap(radial: RadialMenu, target: TapTarget): void {
+    const open = radial.openedFor();
+    if (target.kind === 'tower') {
+      if (open?.kind === 'tower' && open.id === target.id) radial.close();
+      else radial.openTower(target.id);
+      return;
+    }
+    if (target.kind === 'build') {
+      if (open?.kind === 'build' && open.col === target.col && open.row === target.row) {
+        radial.close();
+      } else {
+        radial.openBuild(target.col, target.row);
+      }
+      return;
+    }
+    radial.close();
+    this.selectTower(null);
+  }
+
+  /** The radial ring shows a ghost tower (and its range) on this tile; null clears it. */
+  setRadialPlacementPreview(preview: { type: TowerType; col: number; row: number } | null): void {
+    this.radialPreview = preview;
+    this.renderWorld.setPlacementGridActive(this.viewMode === 'playing' && preview !== null);
+    this.refreshPlacementPreview();
+  }
+
+  getSelectedTowerId(): number | null {
+    return this.selectedTowerId;
+  }
+
+  isSellArmedFor(towerId: number): boolean {
+    return this.sellConfirmTowerId === towerId && performance.now() <= this.sellConfirmDeadlineMs;
+  }
+
+  /** Builds `type` on a tile from the radial menu. Returns whether it was placed. */
+  buildTowerAt(col: number, row: number, type: TowerType): boolean {
+    this.soundManager.unlock();
+    if (this.viewMode !== 'playing') return false;
+    if (!this.simWorld.placeTower(col, row, type)) return false;
+    if (!hasSeenUpgradeToast()) {
+      markUpgradeToastSeen();
+      this.d.overlays.toast.show('Tap a tower to upgrade or sell it');
+    }
+    this.refreshPlacementPreview();
+    this.syncUi();
+    return true;
+  }
+
+  /** Camera pan started: the radial build ring cancels (the tower ring just follows its anchor). */
+  onUserPanStart(): void {
+    this.deps?.radial?.onUserPan();
   }
 
   onTowerActionHotkey(action: 'upgrade' | 'sell' | 'target'): boolean {
@@ -623,6 +701,7 @@ export class GameSession {
     const { overlays } = this.d;
     if (overlays.settingsModal.isOpen()) return this.closeSettingsModal();
     if (overlays.pauseMenu.isOpen()) return this.closePauseMenu();
+    if (this.deps?.radial?.isOpen()) return this.deps.radial.close();
     if (this.activeAbilityMode) {
       this.activeAbilityMode = null;
       this.refreshPlacementPreview();
@@ -699,6 +778,7 @@ export class GameSession {
         this.syncUi();
       }
       this.syncTowerPanelAnchor();
+      this.deps?.radial?.update();
     }
   }
 

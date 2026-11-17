@@ -1,4 +1,4 @@
-import type * as THREE from 'three';
+import * as THREE from 'three';
 import type { EventBus } from '../core/eventBus.ts';
 import type { GameSettings, QualityLevel, TowerType } from '../core/types.ts';
 import { BALANCE } from '../data/balance.ts';
@@ -15,7 +15,8 @@ import { MaterialLibrary } from './materials.ts';
 import type { TowerEntity } from '../sim/entities.ts';
 import { OverlayIndicators } from './overlayIndicators.ts';
 import { TowerBadgeRenderer } from './towerBadges.ts';
-import { pickTowerByRay } from './towerPicking.ts';
+import { getTowerPickHeight, pickTowerByRay } from './towerPicking.ts';
+import { emptyRect, growRect, occludes, shrinkRect, type ScreenRect } from './xray.ts';
 import { ProjectileRenderer } from './projectileRenderer.ts';
 import { SceneManager } from './sceneManager.ts';
 import { TowerRenderer } from './towerMeshes.ts';
@@ -42,6 +43,10 @@ export class RenderWorld {
   private hoveredTowerId: number | null = null;
   readonly assets: KenneyAssetStore;
 
+  private xrayTarget: { x: number; z: number; height: number; excludeTowerId: number } | null = null;
+  private xrayDir = new THREE.Vector3();
+  private readonly xrayScreen = { x: 0, y: 0 };
+  private readonly xrayTargetRect: ScreenRect = emptyRect();
   private eventUnsubs: Array<() => void> = [];
   private showAllRanges = false;
 
@@ -206,6 +211,77 @@ export class RenderWorld {
       valid,
       this.towerRenderer.geometryCache,
     );
+    // Towers / trees drawn over the previewed tile fade out so the ghost and tile stay readable.
+    this.setXrayTarget(visible ? { x: wx, z: wz, height: 1.6, excludeTowerId: -1 } : null);
+  }
+
+  /** Tile (and the height above it) that must stay visible; occluders in front of it fade. */
+  setXrayTarget(target: { x: number; z: number; height: number; excludeTowerId: number } | null): void {
+    this.xrayTarget = target;
+  }
+
+  private updateXray(dt: number, simWorld: SimWorld | null): void {
+    const fades = this.towerRenderer.fadeById;
+    const t = this.xrayTarget;
+    if (!t && fades.size === 0 && !this.decorBuilder.isFaded()) return;
+
+    const cam = this.cameraController;
+    cam.camera.getWorldDirection(this.xrayDir);
+    const dir = this.xrayDir;
+    const sc = this.xrayScreen;
+    const proj = (x: number, y: number, z: number, r: ScreenRect): void => {
+      cam.worldCoordsToScreen(x, y, z, sc);
+      growRect(r, sc.x, sc.y);
+    };
+
+    let targetDepth = 0;
+    if (t) {
+      const r = this.xrayTargetRect;
+      r.minX = r.minY = Infinity;
+      r.maxX = r.maxY = -Infinity;
+      for (const sx of [-0.9, 0.9]) for (const sz of [-0.9, 0.9]) proj(t.x + sx, 0, t.z + sz, r);
+      proj(t.x, t.height, t.z, r);
+      const shrunk = shrinkRect(r, 0.12);
+      Object.assign(r, shrunk);
+      targetDepth = t.x * dir.x + t.z * dir.z;
+    }
+
+    const k = Math.min(1, dt * 14);
+    const rect = emptyRect();
+    if (simWorld) {
+      const towers = simWorld.towers;
+      for (let i = 0; i < towers.length; i++) {
+        const tw = towers[i];
+        let target = 1;
+        if (t && tw.id !== t.excludeTowerId) {
+          rect.minX = rect.minY = Infinity;
+          rect.maxX = rect.maxY = -Infinity;
+          const h = getTowerPickHeight(tw.type, tw.tier);
+          for (const sx of [-0.8, 0.8]) for (const sz of [-0.8, 0.8]) proj(tw.x + sx, 0, tw.z + sz, rect);
+          for (const sx of [-0.5, 0.5]) for (const sz of [-0.5, 0.5]) proj(tw.x + sx, h, tw.z + sz, rect);
+          if (occludes(rect, tw.x * dir.x + tw.z * dir.z, this.xrayTargetRect, targetDepth)) target = 0.3;
+        }
+        const cur = fades.get(tw.id) ?? 1;
+        let next = cur + (target - cur) * k;
+        if (Math.abs(next - target) < 0.01) next = target;
+        if (next >= 0.999) fades.delete(tw.id);
+        else fades.set(tw.id, next);
+      }
+      if (towers.length === 0) fades.clear();
+    } else {
+      fades.clear();
+    }
+
+    this.decorBuilder.stepFade(dt, (p) => {
+      if (!t) return 1;
+      rect.minX = rect.minY = Infinity;
+      rect.maxX = rect.maxY = -Infinity;
+      const top = p.scale * 0.6;
+      const rad = p.scale * 0.2;
+      for (const sx of [-rad, rad]) for (const sz of [-rad, rad]) proj(p.x + sx, top, p.z + sz, rect);
+      proj(p.x, 0, p.z, rect);
+      return occludes(rect, p.x * dir.x + p.z * dir.z, this.xrayTargetRect, targetDepth) ? 0.3 : 1;
+    });
   }
 
   setMeteorTargetPreview(visible: boolean, wx: number, wz: number, radius: number): void {
@@ -260,6 +336,7 @@ export class RenderWorld {
     fxDt?: number,
   ): void {
     this.cameraController.update(frameDt);
+    this.updateXray(frameDt, simWorld);
     this.mapBuilder.update(elapsedVisualTime);
     this.decorBuilder.update(elapsedVisualTime);
     this.overlayIndicators.update(elapsedVisualTime, frameDt);
@@ -313,6 +390,7 @@ export class RenderWorld {
         }
       }
 
+      this.overlayIndicators.syncFreeTiles(simWorld.towers);
       this.overlayIndicators.syncDebugAllRanges(this.showAllRanges, simWorld.towers);
     }
 

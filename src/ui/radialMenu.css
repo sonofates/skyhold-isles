@@ -1,0 +1,422 @@
+/* Radial build / tower menu (touch). Faceted slate language; --gx-* tokens come from style.css,
+   every use carries a fallback so this file also works on its own. */
+
+/* The ring replaces the bottom build bar and the anchored tower panel on touch devices. */
+html.is-touch.has-radial .build-bar,
+html.is-touch.has-radial .tower-panel {
+  display: none !important;
+}
+
+.radial-root {
+  --rm-ink: var(--gx-ink, #1b1936);
+  --rm-slate: var(--gx-slate, #3b3866);
+  --rm-slate-hi: var(--gx-slate-hi, #4a4680);
+  --rm-slate-lo: var(--gx-slate-lo, #262347);
+  --rm-cream: var(--gx-cream, #f8f4e8);
+  --rm-muted: var(--gx-muted, #b9b4dc);
+  --rm-gold: var(--gx-gold, #f6bd41);
+  --rm-gold-lo: var(--gx-gold-lo, #b8801c);
+  --rm-coral: var(--gx-coral, #e85d5d);
+  --rm-coral-lo: var(--gx-coral-lo, #9e3434);
+  --rm-sky: var(--gx-sky, #4fb3d9);
+  --rm-sky-lo: var(--gx-sky-lo, #2a7da3);
+  --rm-green: var(--gx-green, #6fbf45);
+  --rm-display: var(--gx-display, 'Fredoka Variable', 'Fredoka', ui-rounded, 'Arial Rounded MT Bold', system-ui, sans-serif);
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  pointer-events: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.radial-ring {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.radial-slot {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 56px;
+  height: 56px;
+  pointer-events: none;
+  filter: drop-shadow(0 3px 0 rgba(20, 18, 45, 0.55));
+}
+
+/* ---- tokens ------------------------------------------------------------------------------ */
+
+.radial-token {
+  --rm-face-hi: var(--rm-slate-hi);
+  --rm-face: var(--rm-slate);
+  --rm-lip: var(--rm-slate-lo);
+  position: relative;
+  display: block;
+  width: 56px;
+  height: 56px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: var(--rm-ink);
+  color: var(--rm-cream);
+  clip-path: polygon(28% 0, 72% 0, 100% 28%, 100% 72%, 72% 100%, 28% 100%, 0 72%, 0 28%);
+  cursor: pointer;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+  pointer-events: auto;
+  transition: transform 90ms ease-out;
+}
+
+.radial-face {
+  position: absolute;
+  inset: 2.5px;
+  display: grid;
+  place-items: center;
+  background: var(--rm-face);
+  background: linear-gradient(180deg, var(--rm-face-hi) 0 50%, var(--rm-face) 50% 100%);
+  box-shadow: inset 0 -5px 0 var(--rm-lip);
+  clip-path: polygon(28% 0, 72% 0, 100% 28%, 100% 72%, 72% 100%, 28% 100%, 0 72%, 0 28%);
+}
+
+.radial-icon {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  margin-top: -3px;
+  transition: transform 90ms ease-out;
+}
+
+.radial-icon svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.radial-token.is-tower .radial-icon svg {
+  width: 30px;
+  height: 30px;
+  filter: drop-shadow(0 0 0.6px var(--rm-cream)) drop-shadow(0 0 0.8px var(--rm-cream))
+    drop-shadow(0 1px 0 rgba(248, 244, 232, 0.5));
+}
+
+.radial-token.is-action .radial-icon svg {
+  width: 28px;
+  height: 28px;
+}
+
+.radial-token:active .radial-face {
+  box-shadow: inset 0 -1px 0 var(--rm-lip);
+}
+
+.radial-token:active .radial-icon {
+  transform: translateY(3px);
+}
+
+.radial-token.is-focus {
+  transform: scale(1.1);
+}
+
+.radial-token.is-focus .radial-face {
+  box-shadow: inset 0 -5px 0 var(--rm-lip), inset 0 0 0 3px var(--rm-gold);
+}
+
+.radial-token.is-gold {
+  --rm-face-hi: color-mix(in srgb, var(--rm-gold) 72%, #fff);
+  --rm-face: var(--rm-gold);
+  --rm-lip: var(--rm-gold-lo);
+  color: var(--rm-ink);
+}
+
+.radial-token.is-coral {
+  --rm-face-hi: color-mix(in srgb, var(--rm-coral) 78%, #fff);
+  --rm-face: var(--rm-coral);
+  --rm-lip: var(--rm-coral-lo);
+  color: var(--rm-cream);
+}
+
+.radial-token.is-sky {
+  --rm-face-hi: color-mix(in srgb, var(--rm-sky) 75%, #fff);
+  --rm-face: var(--rm-sky);
+  --rm-lip: var(--rm-sky-lo);
+  color: var(--rm-cream);
+}
+
+.radial-token.is-poor {
+  filter: saturate(0.3) brightness(0.72);
+  cursor: default;
+}
+
+.radial-token.is-poor.is-focus {
+  transform: scale(1.04);
+}
+
+.radial-token.is-armed {
+  --rm-face-hi: color-mix(in srgb, var(--rm-green) 72%, #fff);
+  --rm-face: var(--rm-green);
+  --rm-lip: var(--gx-green-lo, #3f7f2a);
+  color: var(--rm-cream);
+  animation: radial-armed 520ms ease-in-out infinite alternate;
+}
+
+/* ---- cost / label plate ------------------------------------------------------------------ */
+
+.radial-plate {
+  position: absolute;
+  left: 50%;
+  bottom: -12px;
+  translate: -50% 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-width: 38px;
+  height: 21px;
+  padding: 0 8px;
+  background: var(--rm-ink);
+  color: var(--rm-gold);
+  font: 700 13px/1 var(--rm-display);
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  clip-path: polygon(5px 0, calc(100% - 5px) 0, 100% 5px, 100% calc(100% - 5px), calc(100% - 5px) 100%, 5px 100%, 0 calc(100% - 5px), 0 5px);
+  pointer-events: none;
+}
+
+.radial-plate svg {
+  width: 13px;
+  height: 13px;
+  flex: none;
+}
+
+.radial-plate b {
+  font-weight: 700;
+}
+
+.radial-plate .plus {
+  color: var(--rm-gold);
+}
+
+.radial-plate.is-poor {
+  color: var(--rm-coral);
+}
+
+.radial-plate .is-max {
+  color: var(--rm-muted);
+}
+
+/* ---- motion ------------------------------------------------------------------------------ */
+
+.radial-ring.is-open .radial-token,
+.radial-ring.is-open .radial-plate {
+  animation: radial-pop 150ms cubic-bezier(0.2, 0.9, 0.3, 1.15) both;
+}
+
+.radial-ring.is-open .radial-token.is-armed {
+  animation: radial-armed 520ms ease-in-out infinite alternate;
+}
+
+@keyframes radial-pop {
+  from {
+    transform: translate(var(--pop-x, 0px), var(--pop-y, 0px)) scale(0.2);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+@keyframes radial-armed {
+  from {
+    transform: scale(1);
+  }
+  to {
+    transform: scale(1.1);
+  }
+}
+
+@keyframes radial-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-4px);
+  }
+  75% {
+    transform: translateX(4px);
+  }
+}
+
+.radial-token.is-shake {
+  animation: radial-shake 150ms ease-in-out 1;
+}
+
+/* ---- info sheet -------------------------------------------------------------------------- */
+
+.radial-info {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: min(252px, calc(100vw - 20px));
+  pointer-events: auto;
+  filter: drop-shadow(0 4px 0 rgba(20, 18, 45, 0.55));
+  color: var(--rm-cream);
+  animation: radial-sheet 150ms ease-out both;
+}
+
+@keyframes radial-sheet {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.radial-info-body {
+  position: relative;
+  padding: 14px 16px 12px;
+  background: var(--rm-ink);
+  clip-path: polygon(10px 0, calc(100% - 10px) 0, 100% 10px, 100% calc(100% - 10px), calc(100% - 10px) 100%, 10px 100%, 0 calc(100% - 10px), 0 10px);
+}
+
+.radial-info-body::before {
+  content: '';
+  position: absolute;
+  inset: 2.5px;
+  background: var(--rm-slate);
+  background: linear-gradient(180deg, var(--rm-slate-hi) 0 38%, var(--rm-slate) 38% 100%);
+  box-shadow: inset 0 -5px 0 var(--rm-slate-lo);
+  clip-path: polygon(8px 0, calc(100% - 8px) 0, 100% 8px, 100% calc(100% - 8px), calc(100% - 8px) 100%, 8px 100%, 0 calc(100% - 8px), 0 8px);
+}
+
+.radial-info-body > * {
+  position: relative;
+}
+
+.radial-info-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-right: 34px;
+}
+
+.radial-info-icon {
+  flex: none;
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  background: var(--rm-slate-lo);
+  clip-path: polygon(28% 0, 72% 0, 100% 28%, 100% 72%, 72% 100%, 28% 100%, 0 72%, 0 28%);
+}
+
+.radial-info-icon svg {
+  width: 28px;
+  height: 28px;
+  filter: drop-shadow(0 0 0.6px var(--rm-cream)) drop-shadow(0 0 0.8px var(--rm-cream));
+}
+
+.radial-info-titles {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.radial-info-name {
+  font: 700 17px/1.1 var(--rm-display);
+  text-shadow: 0 2px 0 var(--rm-ink);
+}
+
+.radial-info-sub {
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--rm-muted);
+}
+
+.radial-info-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  margin-top: 16px;
+}
+
+.radial-info-stats span,
+.radial-info-foot span {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.radial-info-stats b {
+  font: 700 18px/1 var(--rm-display);
+  text-shadow: 0 2px 0 var(--rm-ink);
+}
+
+.radial-info-stats i,
+.radial-info-foot i {
+  font-style: normal;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--rm-muted);
+}
+
+.radial-info-foot {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 2px solid rgba(27, 25, 54, 0.55);
+}
+
+.radial-info-foot b {
+  font: 700 14px/1 var(--rm-display);
+  color: var(--rm-gold);
+}
+
+.radial-info-close {
+  position: absolute;
+  right: -8px;
+  top: -10px;
+  width: 44px;
+  height: 44px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: var(--rm-ink);
+  color: var(--rm-cream);
+  clip-path: polygon(28% 0, 72% 0, 100% 28%, 100% 72%, 72% 100%, 28% 100%, 0 72%, 0 28%);
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.radial-info-close .radial-face {
+  background: var(--rm-coral);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--rm-coral) 78%, #fff) 0 50%, var(--rm-coral) 50% 100%);
+  box-shadow: inset 0 -4px 0 var(--rm-coral-lo);
+}
+
+.radial-info-close svg {
+  width: 20px;
+  height: 20px;
+  margin-top: -2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .radial-ring.is-open .radial-token,
+  .radial-ring.is-open .radial-plate,
+  .radial-info,
+  .radial-token.is-shake,
+  .radial-token.is-armed {
+    animation: none !important;
+  }
+  .radial-token,
+  .radial-icon {
+    transition: none;
+  }
+}

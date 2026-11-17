@@ -5,12 +5,15 @@ import { LEVELS } from './data/levels/index.ts';
 import { GameLoop } from './platform/browserLoop.ts';
 import { GameSession } from './platform/gameSession.ts';
 import { InputManager } from './platform/input.ts';
+import { initDeviceClass } from './platform/deviceClass.ts';
+import { readSafeArea } from './platform/safeArea.ts';
 import { loadSettings } from './platform/storage.ts';
 import { KenneyAssetStore } from './render/kenneyAssets.ts';
 import { RenderWorld } from './render/renderWorld.ts';
 import { createDebugPanelIfEnabled } from './ui/debugWiring.ts';
 import { GameOverlays } from './ui/gameOverlays.ts';
 import { LoadingScreen } from './ui/loadingScreen.ts';
+import { RadialMenu } from './ui/radialMenu.ts';
 
 function describeBootError(err: unknown): string {
   const raw = err instanceof Error ? err.message : String(err);
@@ -21,6 +24,7 @@ function describeBootError(err: unknown): string {
 }
 
 async function bootstrap(loadingScreen: LoadingScreen): Promise<void> {
+  initDeviceClass();
   const canvas = document.getElementById('game-canvas') as HTMLCanvasElement | null;
   const uiRoot = document.getElementById('ui-root') as HTMLDivElement | null;
   if (!canvas || !uiRoot) {
@@ -110,7 +114,10 @@ async function bootstrap(loadingScreen: LoadingScreen): Promise<void> {
     onTowerActionHotkey: (action) => session.onTowerActionHotkey(action),
     onTogglePause: () => session.toggleUserPause(),
     onKeyPanState: (x, z) => renderWorld.cameraController.setKeyPan(x, z),
+    onDragStart: () => session.onUserPanStart(),
   });
+
+  const radial = new RadialMenu(uiRoot, session, renderWorld);
 
   const loop = new GameLoop({
     onFixedTick: (dt) => session.fixedTick(dt),
@@ -125,14 +132,26 @@ async function bootstrap(loadingScreen: LoadingScreen): Promise<void> {
     inputManager,
     loop,
     setDebugVisible: (v) => debugPanel?.setVisible(v),
+    radial,
   });
 
   const onResize = (): void => {
+    renderWorld.cameraController.setSafeInsets(readSafeArea());
     renderWorld.resize(canvas.clientWidth || window.innerWidth, canvas.clientHeight || window.innerHeight);
   };
+  // iOS reports the new size a beat after `orientationchange`; the visual viewport also moves
+  // when the browser toolbar collapses.
+  const onOrientation = (): void => {
+    onResize();
+    window.setTimeout(onResize, 180);
+    window.setTimeout(onResize, 500);
+  };
+  renderWorld.cameraController.setSafeInsets(readSafeArea());
   const onFirstGesture = (): void => soundManager.unlock();
   window.addEventListener('pointerdown', onFirstGesture, { once: true });
   window.addEventListener('resize', onResize);
+  window.addEventListener('orientationchange', onOrientation);
+  window.visualViewport?.addEventListener('resize', onResize);
 
   session.showMenuView('menu', true);
   loadingScreen.hide();
@@ -142,6 +161,9 @@ async function bootstrap(loadingScreen: LoadingScreen): Promise<void> {
     import.meta.hot.dispose(() => {
       window.removeEventListener('pointerdown', onFirstGesture);
       window.removeEventListener('resize', onResize);
+      window.removeEventListener('orientationchange', onOrientation);
+      window.visualViewport?.removeEventListener('resize', onResize);
+      radial.dispose();
       session.dispose();
       soundManager.dispose();
       loop.stop();

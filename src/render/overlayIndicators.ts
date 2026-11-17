@@ -87,6 +87,10 @@ export class OverlayIndicators {
   private readonly gridLineMat: THREE.LineBasicMaterial;
   private gridLinesMesh: THREE.LineSegments | null = null;
   private gridGeometry: THREE.BufferGeometry | null = null;
+  private freeTileMat: THREE.MeshBasicMaterial | null = null;
+  private freeTileMesh: THREE.InstancedMesh | null = null;
+  private freeTileCells: Array<{ col: number; row: number; x: number; z: number }> = [];
+  private freeTileSig = '';
   private placementGridActive = false;
   private placementGridAlpha = 0;
 
@@ -410,6 +414,7 @@ export class OverlayIndicators {
       }
     }
 
+    this.buildFreeTiles(level, grid);
     if (positions.length === 0) return;
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
@@ -420,6 +425,72 @@ export class OverlayIndicators {
     lines.frustumCulled = false;
     this.gridLinesMesh = lines;
     this.group.add(lines);
+  }
+
+  private buildFreeTiles(level: LevelDef, grid: ReturnType<typeof parseLevelGrid>): void {
+    this.clearFreeTiles();
+    const cells: Array<{ col: number; row: number; x: number; z: number }> = [];
+    for (let r = 0; r < level.rows; r++) {
+      for (let c = 0; c < level.cols; c++) {
+        if (grid[r][c] !== 'grass') continue;
+        cells.push({ col: c, row: r, x: gridToWorldX(c, level.cols), z: gridToWorldZ(r, level.rows) });
+      }
+    }
+    if (cells.length === 0) return;
+    const geo = new THREE.PlaneGeometry(BALANCE.tileSize * 0.86, BALANCE.tileSize * 0.86);
+    geo.rotateX(-Math.PI / 2);
+    this.geometries.push(geo);
+    const mat = new THREE.MeshBasicMaterial({
+      color: 0xd8ffb0,
+      transparent: true,
+      opacity: 0,
+      depthWrite: false,
+      polygonOffset: true,
+      polygonOffsetFactor: -2,
+      polygonOffsetUnits: -2,
+    });
+    applyAlphaPreserveBlend(mat);
+    this.ownMaterials.push(mat);
+    this.freeTileMat = mat;
+    const mesh = new THREE.InstancedMesh(geo, mat, cells.length);
+    mesh.frustumCulled = false;
+    mesh.renderOrder = 2;
+    mesh.visible = false;
+    this.freeTileMesh = mesh;
+    this.freeTileCells = cells;
+    this.freeTileSig = '';
+    this.group.add(mesh);
+  }
+
+  private clearFreeTiles(): void {
+    if (this.freeTileMesh) {
+      this.group.remove(this.freeTileMesh);
+      this.freeTileMesh.dispose();
+      this.freeTileMesh = null;
+    }
+    this.freeTileCells = [];
+    this.freeTileSig = '';
+  }
+
+  /** Subtle fill on every empty buildable tile while the placement grid is shown. */
+  syncFreeTiles(towers: readonly TowerEntity[]): void {
+    const mesh = this.freeTileMesh;
+    if (!mesh || this.placementGridAlpha < 0.005) return;
+    let sum = 0;
+    for (let i = 0; i < towers.length; i++) sum += towers[i].id + 1;
+    const sig = `${towers.length}:${sum}`;
+    if (sig === this.freeTileSig) return;
+    this.freeTileSig = sig;
+    const taken = new Set<number>();
+    for (let i = 0; i < towers.length; i++) taken.add(towers[i].row * 4096 + towers[i].col);
+    const m = new THREE.Matrix4();
+    const hide = new THREE.Matrix4().makeScale(0, 0, 0);
+    for (let i = 0; i < this.freeTileCells.length; i++) {
+      const c = this.freeTileCells[i];
+      if (taken.has(c.row * 4096 + c.col)) mesh.setMatrixAt(i, hide);
+      else mesh.setMatrixAt(i, m.makeTranslation(c.x, 0.022, c.z));
+    }
+    mesh.instanceMatrix.needsUpdate = true;
   }
 
   setPlacementGridActive(active: boolean): void {
@@ -465,6 +536,13 @@ export class OverlayIndicators {
     }
     if (this.gridLinesMesh) {
       this.gridLinesMesh.visible = this.placementGridAlpha > 0.005;
+    }
+    if (this.freeTileMesh && this.freeTileMat) {
+      const pulse = 0.85 + 0.15 * Math.sin(elapsedTime * 3.2);
+      this.freeTileMat.opacity = this.placementGridAlpha * 0.2 * pulse;
+      const vis = this.placementGridAlpha > 0.005;
+      if (vis && !this.freeTileMesh.visible) this.freeTileSig = '';
+      this.freeTileMesh.visible = vis;
     }
 
     if (!this.flightPathGroup.visible && !this.groundPathGroup.visible) return;
@@ -612,6 +690,7 @@ export class OverlayIndicators {
     this.setMeteorTargetPreview(false, 0, 0, 1);
     this.syncDebugAllRanges(false, []);
     this.clearBuildableGrid();
+    this.clearFreeTiles();
     this.clearFlightPath();
     this.routesPinned = false;
     this.flightPathHighlighted = false;

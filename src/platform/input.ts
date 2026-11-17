@@ -17,6 +17,8 @@ export interface InputHandlers {
   onTowerActionHotkey: (action: 'upgrade' | 'sell' | 'target') => boolean;
   onTogglePause: () => void;
   onKeyPanState: (panX: number, panZ: number) => void;
+  /** A one-pointer drag crossed the drag threshold (camera pan starts). */
+  onDragStart?: () => void;
 }
 
 interface ActivePointer {
@@ -118,8 +120,14 @@ export class InputManager {
 
         if (this.pointers.size === 1) {
           const totalMoved = Math.hypot(e.clientX - tracked.startX, e.clientY - tracked.startY);
-          if (totalMoved > BALANCE.camera.dragThresholdPx || this.dragButton === 1) {
+          // Fingers wobble more than mice: give touch taps a little extra slop.
+          const slop =
+            e.pointerType === 'touch'
+              ? Math.max(BALANCE.camera.dragThresholdPx, 10)
+              : BALANCE.camera.dragThresholdPx;
+          if (!this.isDragging && (totalMoved > slop || this.dragButton === 1)) {
             this.isDragging = true;
+            this.handlers.onDragStart?.();
           }
           if (this.isDragging && (this.dragButton === 0 || this.dragButton === 1 || this.dragButton === 2)) {
             this.handlers.onPanScreenDelta(dx, dy);

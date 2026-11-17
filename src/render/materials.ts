@@ -15,6 +15,16 @@ export function applyAlphaPreserveBlend(mat: THREE.Material): void {
   mat.blendDstAlpha = THREE.OneFactor;
 }
 
+/** Screen-door fade: per-instance `vFade` in 0..1 keeps that fraction of pixels (4x4 Bayer). */
+const DITHER_FADE_GLSL = `
+float bayerFade4(vec2 p) {
+  vec2 a = mod(p, 2.0);
+  vec2 c = floor(mod(p, 4.0) / 2.0);
+  return (4.0 * mod(2.0 * a.x + 3.0 * a.y, 4.0) + mod(2.0 * c.x + 3.0 * c.y, 4.0) + 0.5) / 16.0;
+}`;
+const DITHER_FADE_DISCARD = `
+if (vFade < 0.999 && bayerFade4(gl_FragCoord.xy) >= vFade) discard;`;
+
 /**
  * Shared palette & Kenney-textured materials with disposal tracker.
  */
@@ -22,6 +32,8 @@ export class MaterialLibrary {
   readonly solid = new Map<PaletteKey, THREE.MeshStandardMaterial>();
   readonly vertexColored: THREE.MeshStandardMaterial;
   readonly kenneyTerrain: THREE.MeshStandardMaterial;
+  /** Terrain material clone for decor trees: adds the per-instance x-ray fade. */
+  readonly kenneyDecor: THREE.MeshStandardMaterial;
   readonly kenneyTower: THREE.MeshStandardMaterial;
   readonly kenneyProjectile: THREE.MeshStandardMaterial;
   readonly frostProjectile: THREE.MeshStandardMaterial;
@@ -66,6 +78,27 @@ export class MaterialLibrary {
       metalness: 0.03,
     });
 
+    this.kenneyDecor = this.kenneyTerrain.clone();
+    this.kenneyDecor.onBeforeCompile = (shader) => {
+      shader.vertexShader = shader.vertexShader
+        .replace(
+          '#include <common>',
+          `#include <common>
+attribute float aFade;
+varying float vFade;`,
+        )
+        .replace('#include <begin_vertex>', `#include <begin_vertex>\nvFade = aFade;`);
+      shader.fragmentShader = shader.fragmentShader
+        .replace(
+          '#include <common>',
+          `#include <common>
+varying float vFade;
+${DITHER_FADE_GLSL}`,
+        )
+        .replace('#include <clipping_planes_fragment>', `#include <clipping_planes_fragment>\n${DITHER_FADE_DISCARD}`);
+    };
+    this.kenneyDecor.customProgramCacheKey = () => 'kenney-decor-fade-v1';
+
     // Towers encode outline ID 0.25 into framebuffer alpha so ScreenSpaceOutline Pass
     // draws thin ink silhouettes selectively on towers & enemies with zero extra scene draws.
     this.kenneyTower = new THREE.MeshStandardMaterial({
@@ -82,20 +115,27 @@ export class MaterialLibrary {
           '#include <common>',
           `#include <common>
 attribute float aHighlight;
-varying float vHighlight;`,
+attribute float aFade;
+varying float vHighlight;
+varying float vFade;`,
         )
         .replace(
           '#include <begin_vertex>',
           `#include <begin_vertex>
-vHighlight = aHighlight;`,
+vHighlight = aHighlight;
+vFade = aFade;`,
         );
       shader.fragmentShader = shader.fragmentShader
         .replace(
           '#include <common>',
           `#include <common>
 uniform float uOutlineAlpha;
-varying float vHighlight;`,
+varying float vHighlight;
+varying float vFade;
+${DITHER_FADE_GLSL}`,
         )
+        .replace('#include <clipping_planes_fragment>', `#include <clipping_planes_fragment>
+${DITHER_FADE_DISCARD}`)
         .replace(
           '#include <emissivemap_fragment>',
           `#include <emissivemap_fragment>
@@ -107,7 +147,7 @@ totalEmissiveRadiance += vec3(0.28, 0.24, 0.12) * vHighlight;`,
 gl_FragColor.a = mix(1.0, 0.25, uOutlineAlpha);`,
         );
     };
-    this.kenneyTower.customProgramCacheKey = () => 'kenney-tower-outline-v3';
+    this.kenneyTower.customProgramCacheKey = () => 'kenney-tower-outline-v4-fade';
 
     this.kenneyProjectile = new THREE.MeshStandardMaterial({
       map: colormapTexture ?? null,
@@ -380,6 +420,7 @@ if (vBarUv.y < padY || vBarUv.y > (1.0 - padY) || innerX < 0.0 || innerX > vHpRa
     this.solid.clear();
     this.vertexColored.dispose();
     this.kenneyTerrain.dispose();
+    this.kenneyDecor.dispose();
     this.kenneyTower.dispose();
     this.kenneyProjectile.dispose();
     this.frostProjectile.dispose();
