@@ -224,6 +224,28 @@ describe('RenderWorld integration, event FX wiring, metrics, and disposal', () =
     rw.resize(800, 600);
     expect(mgr.resize).toHaveBeenCalledWith(800, 600);
 
+    // cameraShake=false suppresses shake on mortar, boss death, and meteor; high random suppresses trails;
+    // unexpected 'tesla' projectile slot skips safely; loadLevel without events binds zero listeners
+    settings.cameraShake = false;
+    const addShakeSpy = vi.spyOn(rw.cameraController, 'addShake');
+    bus2.emit('projectileImpact', { towerType: 'mortar', x: 0, y: 0, z: 0, radius: 2.2, isBossHit: true });
+    bus2.emit('enemyKilled', { enemyId: 99, enemyType: 'boss', reward: 35, x: 0, y: 0.5, z: 0 });
+    bus2.emit('meteorImpact', { x: 0, y: 0.25, z: 0, radius: 3.4 });
+    expect(addShakeSpy).toHaveBeenCalledTimes(3);
+    expect(addShakeSpy.mock.calls.every((call) => call[1] === false)).toBe(true);
+
+    const teslaProj = world.projectilePool.acquire()!;
+    teslaProj.towerType = 'tesla';
+    vi.spyOn(Math, 'random').mockReturnValue(0.99);
+    rw.effectsRenderer.clearEffects();
+    rw.render(world, 1 / 60, 0.5, 1.1, 0.05);
+    expect(rw.effectsRenderer.getActiveFxCount()).toBe(0);
+
+    rw.loadLevel(LEVELS[0]);
+    bus2.emit('towerBuilt', { towerId: 50, type: 'archer', tier: 1, x: 0, z: 0 });
+    rw.render(null, 1 / 60, 0, 1.2, 0.02);
+    expect(rw.effectsRenderer.getActiveFxCount()).toBe(0);
+
     rw.dispose();
     expect(mgr.dispose).toHaveBeenCalledTimes(1);
     expect((assets.dispose as unknown as ReturnType<typeof vi.fn>)).toHaveBeenCalledTimes(1);

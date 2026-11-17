@@ -72,6 +72,19 @@ describe('SimWorld inspection, MVP, and debug helpers', () => {
       damageDealt: 301,
       kills: 4,
     });
+
+    // When both totalDamageDealt and kills tie, earlier tower (t1) stays MVP and .5 rounds up
+    t1.totalDamageDealt = 250.5;
+    t2.totalDamageDealt = 250.5;
+    t1.kills = 7;
+    t2.kills = 7;
+    expect(world.getMvpTowerSummary()).toEqual({
+      name: 'Archer Tower',
+      type: 'archer',
+      tier: 2,
+      damageDealt: 251,
+      kills: 7,
+    });
   });
 
   it('resets pools, restores lives on debugSkipToWave, and guards debugForceWin/Lose idempotency', () => {
@@ -104,7 +117,12 @@ describe('SimWorld inspection, MVP, and debug helpers', () => {
     expect(world.waveSystem.currentWaveOneBased).toBe(3);
     expect(world.enemyPool.getActiveCount()).toBe(0);
 
-    // Clamp overly large wave number in story mode
+    // Fractional & negative wave skips floor/clamp cleanly, and overly large wave clamps in story mode
+    expect(world.debugSkipToWave(2.9)).toBe(true);
+    expect(world.waveSystem.currentWaveOneBased).toBe(2);
+    expect(world.debugSkipToWave(-5)).toBe(true);
+    expect(world.waveSystem.currentWaveOneBased).toBe(1);
+
     expect(world.debugSkipToWave(999)).toBe(true);
     expect(world.waveSystem.currentWaveOneBased).toBe(LEVELS[0].waves.length);
 

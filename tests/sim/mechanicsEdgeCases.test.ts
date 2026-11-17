@@ -949,4 +949,68 @@ describe('upgrade snapshot, killed aura suppression, boss pulse ties, and combat
     expect(archer.popAnimTimer).toBe(0);
     expect(archer.cooldownTimer).toBe(0);
   });
+
+  it('breaks 3-way equidistant boss pulse ties by lowest ID regardless of order, floors tiny escort HP to 1, and handles dead single-target / sold splash boss hits', () => {
+    const { world, events } = makeWorld();
+    const pulses: number[][] = [];
+    const impacts: Array<{ towerType: string; isBossHit: boolean }> = [];
+    events.on('bossPulse', (ev) => pulses.push([...ev.stunnedTowerIds]));
+    events.on('projectileImpact', (ev) => impacts.push({ towerType: ev.towerType, isBossHit: ev.isBossHit }));
+
+    // Place 3 towers at exact integer-offset Euclidean distance 2.0 around boss spawn (-13, -6)
+    const boss = world.enemySystem.spawnEnemy('boss')!;
+    boss.speed = 0;
+    boss.dist = 0;
+    world.enemySystem.update(BALANCE.fixedDt, () => {}, () => {});
+
+    const t1 = world.placeTower(4, 2, 'archer')!;
+    const t2 = world.placeTower(4, 3, 'cannon')!;
+    const t3 = world.placeTower(5, 2, 'frost')!;
+    (t1 as { x: number; z: number }).x = boss.x + 2.0;
+    (t1 as { x: number; z: number }).z = boss.z;
+    (t2 as { x: number; z: number }).x = boss.x - 2.0;
+    (t2 as { x: number; z: number }).z = boss.z;
+    (t3 as { x: number; z: number }).x = boss.x;
+    (t3 as { x: number; z: number }).z = boss.z + 2.0;
+
+    // Order [t3, t2, t1] still selects lowest IDs [t1.id, t2.id]
+    boss.bossPulseTimer = BALANCE.fixedDt * 0.5;
+    world.enemySystem.update(BALANCE.fixedDt, () => {}, () => {}, [t3, t2, t1], 1);
+    expect(pulses[0]).toEqual([t1.id, t2.id]);
+
+    // Tiny currentHpScale (0.01) clamps summoned runner escort maxHp to 1 instead of 0
+    boss.hp = Math.floor(boss.maxHp * 0.4);
+    boss.bossSummonedEscorts = false;
+    world.enemySystem.update(BALANCE.fixedDt, () => {}, () => {}, [], 0.01);
+    const escorts: number[] = [];
+    for (let i = 0; i < world.enemyPool.getActiveCount(); i++) {
+      const e = world.enemyPool.items[world.enemyPool.getActiveIndex(i)];
+      if (e.type === 'runner') escorts.push(e.maxHp);
+    }
+    expect(escorts).toEqual([1, 1]);
+
+    // Sold cannon splash hitting live boss emits isBossHit: true and damages boss without throwing
+    const cannon = world.placeTower(6, 2, 'cannon')!;
+    expect(cannon).not.toBeNull();
+    const cannonShell = world.projectileSystem.spawnProjectile(cannon, boss, 0.45)!;
+    cannonShell.endX = boss.x;
+    cannonShell.endZ = boss.z;
+    cannonShell.progress = 0.99;
+    world.sellTower(cannon.id);
+    const bossHpBeforeCannon = boss.hp;
+    world.projectileSystem.update(0.1, world.towers);
+    expect(boss.hp).toBeLessThan(bossHpBeforeCannon);
+    expect(impacts[0]).toEqual({ towerType: 'cannon', isBossHit: true });
+
+    // Single-target archer arriving after target hp dropped to 0 skips credit and emits isBossHit: false
+    boss.hp = 0;
+    const dmgBefore = t1.totalDamageDealt;
+    const killsBefore = t1.kills;
+    const arrow = world.projectileSystem.spawnProjectile(t1, boss, 1)!;
+    arrow.progress = 0.99;
+    world.projectileSystem.update(0.1, world.towers);
+    expect(t1.totalDamageDealt).toBe(dmgBefore);
+    expect(t1.kills).toBe(killsBefore);
+    expect(impacts[1]).toEqual({ towerType: 'archer', isBossHit: false });
+  });
 });

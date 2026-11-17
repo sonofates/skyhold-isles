@@ -233,15 +233,23 @@ describe('RenderWorld subsystems headless verification', () => {
     fx.update(0.01);
     expect(telegraphMesh.count).toBe(1); // (-6, 5) telegraph still active while (3, -4) resolved
 
-    // Impact without telegraph triggers sky streak fallback
+    // Impact without telegraph triggers sky streak fallback; overflow meteor/scorch pools & 0/1 stun sparks safely
     fx.spawnMeteorVisual(-3, 0.25, 4, 3.4);
+    fx.spawnStunSparks(0, 1, 0, 0);
+    fx.spawnStunSparks(0, 1, 0, 1);
     fx.spawnStunSparks(0, 1, 0, 10);
     fx.spawnLightningArc([
       { x: 0, y: 1, z: 0 },
       { x: 2, y: 1, z: 1 },
     ]);
 
+    for (let i = 0; i < 14; i++) {
+      fx.spawnMeteorTelegraph(i * 3, 10, 3.4, 0.32);
+      fx.spawnMeteorVisual(i * 3, 0.25, 10, 3.4);
+    }
     fx.update(0.05);
+    const scorchDiscMesh = fx.group.children[4] as THREE.InstancedMesh;
+    expect(scorchDiscMesh.count).toBe(12);
     expect(fx.getActiveFxCount()).toBeGreaterThan(0);
 
     // Advance beyond longest FX lifetime (scorch crater ~1.55s) -> all FX expire
@@ -452,12 +460,29 @@ describe('RenderWorld subsystems headless verification', () => {
         pathWaypoints: [],
         flightPath: [{ col: 0, row: 0 }],
       });
+      overlays.setFlightPath({
+        ...LEVELS[0],
+        pathWaypoints: [
+          { col: 1, row: 1 },
+          { col: 1, row: 1 },
+          { col: 3, row: 1 },
+        ],
+        flightPath: [
+          { col: 0, row: 0 },
+          { col: 0, row: 0 },
+          { col: 2, row: 0 },
+        ],
+      });
       overlays.setBuildableGrid({
         ...LEVELS[0],
         cols: 2,
         rows: 1,
         layout: ['S G'],
       });
+      overlays.setPlacementGridActive(true);
+      overlays.update(0.5, 0.05);
+      overlays.setPlacementGridActive(false);
+      overlays.update(0.5, 1.0);
     }).not.toThrow();
     overlays.setFlightPath(LEVELS[0]);
     overlays.setBuildableGrid(LEVELS[0]);
@@ -578,9 +603,15 @@ describe('RenderWorld subsystems headless verification', () => {
     badges.sync(badgeTowers, 200, camQuat, 2.0, 20.0);
     expect(badgeArrowMesh.count).toBe(2);
 
-    const overCapTowers = Array.from({ length: 110 }, (_, i) => makeTower(i + 1, 'archer', 1, i, 0));
+    const overCapTowers = [
+      ...Array.from({ length: 98 }, (_, i) => makeTower(i + 1, 'archer', 1, i, 0)),
+      makeTower(201, 'cannon', 2, 0, 2),
+      makeTower(202, 'cannon', 2, 2, 2),
+      makeTower(203, 'frost', 3, 4, 2),
+      makeTower(204, 'frost', 3, 6, 2),
+    ];
     expect(() => badges.sync(overCapTowers, 500, camQuat, 3.0, 1.0)).not.toThrow();
-    expect(badgeTierMeshes[0].count).toBe(96);
+    expect(badgeTierMeshes.map((m) => m.count)).toEqual([96, 2, 2]);
     expect(badgeArrowMesh.count).toBe(96);
     badges.clear();
     expect(badgeTierMeshes.every((m) => m.count === 0 && !m.visible)).toBe(true);

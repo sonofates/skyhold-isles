@@ -163,7 +163,7 @@ describe('kenneyPalette UV and vertex tint helpers', () => {
     expect(remapUvCell(noUvGeo, [0, 0], [1, 1])).toBe(noUvGeo);
     expect(noUvGeo.hasAttribute('uv')).toBe(false);
 
-    // multiplyVertexTint creates a 'color' attribute when missing
+    // multiplyVertexTint creates a 'color' attribute when missing and ignores onlyCell filter without uv
     expect(noUvGeo.hasAttribute('color')).toBe(false);
     multiplyVertexTint(noUvGeo, 0x00ff00);
     const createdCol = noUvGeo.getAttribute('color') as THREE.BufferAttribute;
@@ -171,6 +171,8 @@ describe('kenneyPalette UV and vertex tint helpers', () => {
     expect(createdCol.getX(0)).toBeCloseTo(0, 4);
     expect(createdCol.getY(0)).toBeCloseTo(1, 4);
     expect(createdCol.getZ(0)).toBeCloseTo(0, 4);
+    multiplyVertexTint(noUvGeo, 0x0000ff, [1, 1]);
+    expect(createdCol.getY(0)).toBeCloseTo(0, 4);
 
     noUvGeo.dispose();
     geo.dispose();
@@ -180,7 +182,33 @@ describe('kenneyPalette UV and vertex tint helpers', () => {
     vi.unstubAllGlobals();
   });
 
-  it('createHarmonizedColormapTexture throws when 2D canvas context is unavailable', () => {
+  it('createHarmonizedColormapTexture falls back to 512x512 on zero source size and throws without 2D context', () => {
+    const createdSizes: Array<[number, number]> = [];
+    const fakeCtx = {
+      drawImage: () => {},
+      getImageData: (_x: number, _y: number, w: number, h: number) => ({
+        data: new Uint8ClampedArray(w * h * 4).fill(128),
+      }),
+      putImageData: () => {},
+      fillRect: () => {},
+      fillStyle: '',
+    };
+    vi.stubGlobal('document', {
+      createElement: () => {
+        const canvas = { width: 0, height: 0, getContext: () => fakeCtx };
+        return new Proxy(canvas, {
+          set(target, prop, value) {
+            (target as Record<string | symbol, unknown>)[prop] = value;
+            if (prop === 'height') createdSizes.push([target.width, target.height]);
+            return true;
+          },
+        });
+      },
+    });
+    const tex = createHarmonizedColormapTexture({ width: 0, height: 0 } as unknown as HTMLCanvasElement);
+    expect(createdSizes[0]).toEqual([512, 512]);
+    tex.dispose();
+
     vi.stubGlobal('document', {
       createElement: () => ({ width: 64, height: 32, getContext: () => null }),
     });

@@ -811,4 +811,45 @@ describe('WaveSystem & SimWorld boundary edge cases', () => {
     expect(wClamp.waveSystem.currentWaveOneBased).toBe(LEVELS[0].waves.length);
     expect(wClamp.waveSystem.getNextWavePreview()?.waveOneBased).toBe(LEVELS[0].waves.length + 1);
   });
+
+  it('transitions betweenWaves to spawning at interWaveTimer <= 0 with earlyBonus=0 and spawns on next tick', () => {
+    const bus = new EventBus();
+    const started: Array<{ waveIndex: number; earlyBonus: number }> = [];
+    const spawned: number[] = [];
+    bus.on('waveStarted', (ev) => started.push({ waveIndex: ev.waveIndex, earlyBonus: ev.earlyBonus }));
+    bus.on('enemySpawned', (ev) => spawned.push(ev.enemyId));
+
+    const twoWaveLevel: LevelDef = {
+      ...LEVELS[0],
+      id: 'qa-between-waves-transition',
+      waves: [
+        { clearBonus: 25, groups: [{ enemyType: 'grunt', count: 1, spawnInterval: 1, startDelay: 0 }] },
+        { clearBonus: 35, groups: [{ enemyType: 'runner', count: 1, spawnInterval: 1, startDelay: 0 }] },
+      ],
+    };
+    const world = new SimWorld(twoWaveLevel, bus);
+    world.startNextWave();
+
+    // Advance until Wave 1 spawns and clear it to reach betweenWaves
+    world.fixedTick(BALANCE.fixedDt);
+    expect(spawned).toHaveLength(1);
+    const w1Enemy = world.enemyPool.items[world.enemyPool.getActiveIndex(0)];
+    world.enemySystem.applyDamage(w1Enemy, w1Enemy.maxHp + 100, true);
+    world.fixedTick(BALANCE.fixedDt);
+    expect(world.waveSystem.state).toBe('betweenWaves');
+    const goldBeforeAutoStart = world.gold;
+
+    // Tick down to exact last frame before countdown expiry
+    world.waveSystem.interWaveTimer = BALANCE.fixedDt * 0.5;
+    world.fixedTick(BALANCE.fixedDt);
+    expect(world.waveSystem.state).toBe('spawning');
+    expect(world.waveSystem.currentWaveOneBased).toBe(2);
+    expect(world.waveSystem.waveElapsed).toBe(0);
+    expect(world.gold).toBe(goldBeforeAutoStart);
+    expect(started[started.length - 1]).toEqual({ waveIndex: 1, earlyBonus: 0 });
+    expect(spawned).toHaveLength(1); // Wave 2 startDelay=0 enemy spawns on the following tick
+
+    world.fixedTick(BALANCE.fixedDt);
+    expect(spawned).toHaveLength(2);
+  });
 });

@@ -25,6 +25,11 @@ const SPEEDS: readonly SpeedMultiplier[] = [1, 2, 3];
 const FRAME_DTS: readonly number[] = [1 / 60, 1 / 30, 0.05, 0.1];
 const MAX_CHAIN_POINTS = 1 + Math.max(1, ...TOWER_TYPES.map((t) => getTowerTierStats(t, 3).chainCount));
 const CHEAPEST_TOWER_COST = Math.min(...TOWER_TYPES.map((t) => getTowerTierStats(t, 1).upgradeCost));
+const MAX_GROUND_IMPACT_Y =
+  BALANCE.tilePathTopY +
+  Math.max(...ENEMY_TYPES.filter((t) => !ENEMY_DEFS[t].flying).map((t) => ENEMY_DEFS[t].height)) * 0.55;
+const MAX_ANY_IMPACT_Y =
+  BALANCE.flyerHeight + Math.max(...ENEMY_TYPES.map((t) => ENEMY_DEFS[t].height)) * 0.55;
 const MAX_COOLDOWN_BY_TYPE: Record<TowerType, number> = Object.fromEntries(
   TOWER_TYPES.map((type) => [
     type,
@@ -670,20 +675,58 @@ function attachEventTracker(
   });
 
   events.on('projectileImpact', (ev) => {
-    if (!TOWER_DEFS[ev.towerType] || ev.towerType === 'tesla') {
+    const towerDef = TOWER_DEFS[ev.towerType];
+    if (!towerDef || ev.towerType === 'tesla') {
       recordEventError(tracker, `Invalid projectileImpact towerType=${ev.towerType}`);
       return;
     }
-    const validRadius = TOWER_DEFS[ev.towerType].tiers.some((st) => st.splashRadius === ev.radius);
+    const validRadius = towerDef.tiers.some((st) => st.splashRadius === ev.radius);
+    const maxImpactY = towerDef.hitsFlyers ? MAX_ANY_IMPACT_Y : MAX_GROUND_IMPACT_Y;
     if (
       !Number.isFinite(ev.x) ||
       !Number.isFinite(ev.y) ||
       !Number.isFinite(ev.z) ||
       !Number.isFinite(ev.radius) ||
       ev.radius < 0 ||
+      ev.y < BALANCE.tilePathTopY - 1e-5 ||
+      ev.y > maxImpactY + 1e-4 ||
       !validRadius
     ) {
-      recordEventError(tracker, `Invalid projectileImpact coordinates/radius for ${ev.towerType}: ${ev.radius}`);
+      recordEventError(tracker, `Invalid projectileImpact coordinates/radius for ${ev.towerType}: y=${ev.y}, r=${ev.radius}`);
+      return;
+    }
+    const probeR = Math.max(ev.radius, 0.05);
+    world.spatialHash.query(ev.x, ev.z, probeR, _localHashProbe);
+    if (ev.isBossHit) {
+      let matchedBoss = false;
+      for (let i = 0; i < _localHashProbe.length; i++) {
+        const e = world.enemyPool.items[_localHashProbe[i]];
+        if (
+          e.active &&
+          e.type === 'boss' &&
+          e.hitFlashTimer === 0.12 &&
+          Math.hypot(e.x - ev.x, e.z - ev.z) <= probeR + 1e-4
+        ) {
+          matchedBoss = true;
+          break;
+        }
+      }
+      if (!matchedBoss) {
+        recordEventError(tracker, `projectileImpact isBossHit=true without freshly-hit boss near (${ev.x},${ev.z})`);
+      }
+    } else if (ev.radius > 0 && (!ENEMY_DEFS.boss.flying || towerDef.hitsFlyers)) {
+      for (let i = 0; i < _localHashProbe.length; i++) {
+        const e = world.enemyPool.items[_localHashProbe[i]];
+        if (
+          e.active &&
+          e.type === 'boss' &&
+          e.hp > 0 &&
+          Math.hypot(e.x - ev.x, e.z - ev.z) <= ev.radius - 1e-5
+        ) {
+          recordEventError(tracker, `projectileImpact isBossHit=false despite live boss inside radius ${ev.radius}`);
+          break;
+        }
+      }
     }
   });
 
@@ -2545,6 +2588,10 @@ export function runEndlessFuzz(
   }
   if (wavesTarget > 0) {
     world.startNextWave();
+  }
+  const initialInvErr = assertTickInvariants(world, tracker, 0);
+  if (initialInvErr) {
+    return makeFailure(level, seed, profile, 0, world, tracker, 'won', initialInvErr, true);
   }
 
   const maxTicks = 60 * 1500;
