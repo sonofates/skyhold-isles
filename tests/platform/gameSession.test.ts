@@ -662,4 +662,117 @@ describe('GameSession state machine, input, and lifecycle', () => {
     expect(h.renderWorld.render).toHaveBeenLastCalledWith(h.session.simWorld, 0.05, 0.5, 4.0, 0);
     expect(tooltipHide.mock.calls.length).toBeGreaterThan(hideCallsBefore);
   });
+
+  it('handles final-level win, story/endless loss payloads, hotkey/meteor edge guards, modal-paused speed, and idempotent dispose', () => {
+    const lastIdx = LEVELS.length - 1;
+    saveProgress({
+      unlockedLevelIndex: lastIdx,
+      bestStars: new Array<number>(LEVELS.length).fill(0),
+      bestEndlessWaves: new Array<number>(LEVELS.length).fill(0),
+    });
+    const h = createHarness();
+    h.session.startLevel(lastIdx);
+    h.session.simWorld.gold = 2000;
+
+    // Out-of-range tower hotkey leaves active placement intact; pressing same hotkey toggles OFF
+    h.session.onHotkeyTower(0);
+    expect(h.renderWorld.setPlacementGridActive).toHaveBeenLastCalledWith(true);
+    h.session.onHotkeyTower(99);
+    h.session.onHotkeyTower(-1);
+    expect(h.renderWorld.setPlacementGridActive).toHaveBeenLastCalledWith(true);
+    h.session.onHotkeyTower(0);
+    expect(h.renderWorld.setPlacementGridActive).toHaveBeenLastCalledWith(false);
+
+    // Place & upgrade tower, then verify setSelectedTowerRing refreshes and sellTower clears preview
+    const t = h.session.simWorld.placeTower(
+      LEVELS[lastIdx].scriptedBuildOrder?.[0]?.col ?? 4,
+      LEVELS[lastIdx].scriptedBuildOrder?.[0]?.row ?? 2,
+      'archer',
+    );
+    // Find any valid grass tile if scriptedBuildOrder[0] wasn't grass or wasn't present
+    let tower = t;
+    if (!tower) {
+      for (let r = 0; r < h.session.simWorld.grid.rows && !tower; r++) {
+        for (let c = 0; c < h.session.simWorld.grid.cols; c++) {
+          if (h.session.simWorld.grid.canPlaceTower(c, r)) {
+            tower = h.session.simWorld.placeTower(c, r, 'archer');
+            break;
+          }
+        }
+      }
+    }
+    expect(tower).not.toBeNull();
+    h.session.selectTower(tower!.id);
+    h.session.upgradeTower(tower!.id);
+    expect(tower!.tier).toBe(2);
+    expect(h.renderWorld.overlayIndicators.setSelectedTowerRing).toHaveBeenLastCalledWith(tower);
+    h.session.sellTower(tower!.id);
+    expect(h.renderWorld.overlayIndicators.setSelectedTowerRing).toHaveBeenLastCalledWith(null);
+
+    // Meteor aim with null ground hit keeps meteor targeting active until a valid tap succeeds
+    h.session.simWorld.startNextWave();
+    h.session.activateAbility('meteor');
+    const origScreenToPlane = h.cam.screenNdcToPlane.bind(h.cam);
+    const screenSpy = vi.spyOn(h.cam, 'screenNdcToPlane').mockReturnValueOnce(null);
+    h.session.onPrimaryTap(0, 0);
+    expect(h.session.simWorld.abilitySystem.canCast('meteor')).toBe(true);
+    screenSpy.mockImplementation(origScreenToPlane);
+
+    // Final-level win passes hasNextLevel=false, closes stacked modals, clears placement/meteor, and clamps unlock
+    h.session.openPauseMenu();
+    h.session.simWorld.debugForceWin();
+    expect(h.overlays.pauseMenu.isOpen()).toBe(false);
+    expect(h.overlays.outcomeOverlay.showWin).toHaveBeenLastCalledWith(
+      LEVELS[lastIdx],
+      3,
+      BALANCE.startingLives,
+      expect.any(Number),
+      false,
+      null,
+    );
+    expect(loadProgress(LEVELS.length).unlockedLevelIndex).toBe(lastIdx);
+
+    // enterEndlessMode while user-paused & with outcome modal open resumes play cleanly
+    h.session.enterEndlessMode();
+    expect(h.overlays.outcomeOverlay.isOpen()).toBe(false);
+    expect(h.loop.paused).toBe(false);
+
+    // Endless loss on a level with existing bestStars passes earnedStars and isEndless=true
+    h.session.simWorld.lives = 1;
+    const leaker = h.session.simWorld.enemySystem.spawnEnemy('grunt')!;
+    leaker.dist = leaker.totalDist - 0.001;
+    h.session.fixedTick(BALANCE.fixedDt);
+    expect(h.overlays.outcomeOverlay.showLose).toHaveBeenLastCalledWith(
+      LEVELS[lastIdx],
+      expect.any(Number),
+      expect.any(Number),
+      expect.objectContaining({ isEndless: true, earnedStars: 3 }),
+    );
+
+    // Story loss emits showLose with isEndless=false and earnedStars=0
+    h.session.startLevel(0);
+    h.session.simWorld.debugForceLose();
+    expect(h.overlays.outcomeOverlay.showLose).toHaveBeenLastCalledWith(
+      LEVELS[0],
+      1,
+      0,
+      { isEndless: false, mvp: null, earnedStars: 0 },
+    );
+
+    // setSpeed while modal is open updates speed yet keeps loop paused; showMenuView(..., false) preserves simWorld
+    h.session.startLevel(0);
+    const simRef = h.session.simWorld;
+    const loadCallsBeforeMenu = (h.renderWorld.loadLevel as ReturnType<typeof vi.fn>).mock.calls.length;
+    h.session.openPauseMenu();
+    h.session.setSpeed(2);
+    expect(h.loop.speed).toBe(2);
+    expect(h.loop.paused).toBe(true);
+    h.session.showMenuView('levelSelect', false);
+    expect(h.session.simWorld).toBe(simRef);
+    expect((h.renderWorld.loadLevel as ReturnType<typeof vi.fn>).mock.calls.length).toBe(loadCallsBeforeMenu);
+
+    // Double dispose is idempotent
+    h.session.dispose();
+    h.session.dispose();
+  });
 });

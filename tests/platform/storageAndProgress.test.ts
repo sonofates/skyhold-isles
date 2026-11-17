@@ -236,4 +236,21 @@ describe('platform storage and progression', () => {
     expect(legacyShape.bestEndlessWaves[1]).toBe(27);
     expect(loadProgress(LEVELS.length).bestEndlessWaves[1]).toBe(27);
   });
+
+  it('handles missing global localStorage and zero-level counts without throwing', () => {
+    vi.unstubAllGlobals();
+    expect(() => saveSettings(getDefaultSettings())).not.toThrow();
+    expect(loadSettings()).toEqual(getDefaultSettings());
+    expect(() => saveProgress(createDefaultProgress(LEVELS.length))).not.toThrow();
+    expect(loadProgress(LEVELS.length)).toEqual(createDefaultProgress(LEVELS.length));
+    expect(loadProgress(0)).toEqual({
+      unlockedLevelIndex: 0,
+      bestStars: [],
+      bestEndlessWaves: [],
+    });
+    expect(hasSeenFlyerToast()).toBe(false);
+    expect(() => markFlyerToastSeen()).not.toThrow();
+    expect(hasSeenUpgradeToast()).toBe(false);
+    expect(() => markUpgradeToastSeen()).not.toThrow();
+  });
 });

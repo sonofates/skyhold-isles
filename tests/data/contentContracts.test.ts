@@ -361,9 +361,18 @@ describe('level data, flight paths, waves, and scripted build orders', () => {
 
 describe('BALANCE constants and Kenney public asset contracts', () => {
   it('enforces valid simulation, economy, and pool constants in BALANCE', () => {
+    expect(BALANCE.tileSize).toBeGreaterThan(0);
+    expect(BALANCE.flyerHeight).toBeGreaterThan(BALANCE.tileGrassTopY);
+    expect(BALANCE.tileGrassTopY).toBeGreaterThan(BALANCE.tilePathTopY);
+    expect(BALANCE.tilePathTopY).toBeGreaterThan(BALANCE.waterPlaneY);
     expect(BALANCE.fixedDt).toBeCloseTo(1 / 60, 10);
+    expect(BALANCE.maxFrameDt).toBeGreaterThanOrEqual(BALANCE.fixedDt);
+    expect(BALANCE.startingLives).toBeGreaterThan(0);
     expect(BALANCE.sellRefundRatio).toBeGreaterThan(0);
     expect(BALANCE.sellRefundRatio).toBeLessThanOrEqual(1);
+    expect(BALANCE.earlyWaveBonusMaxGold).toBeGreaterThan(0);
+    expect(BALANCE.interWaveCountdownSec).toBeGreaterThan(0);
+    expect(BALANCE.minArmorDamage).toBeGreaterThanOrEqual(1);
     expect(BALANCE.starThresholds.twoStarsMinLives).toBeGreaterThan(0);
     expect(BALANCE.starThresholds.threeStarsMinLives).toBeGreaterThan(
       BALANCE.starThresholds.twoStarsMinLives,
@@ -371,8 +380,13 @@ describe('BALANCE constants and Kenney public asset contracts', () => {
     expect(BALANCE.starThresholds.threeStarsMinLives).toBeLessThanOrEqual(BALANCE.startingLives);
     expect(BALANCE.maxSlowRatio).toBeGreaterThan(0);
     expect(BALANCE.maxSlowRatio).toBeLessThan(1);
+    expect(BALANCE.spatialHashCellSize).toBeGreaterThan(0);
     expect(BALANCE.pools.maxEnemies).toBeGreaterThan(0);
     expect(BALANCE.pools.maxProjectiles).toBeGreaterThan(0);
+    expect(BALANCE.pools.maxShards).toBeGreaterThan(0);
+    expect(BALANCE.pools.maxParticles).toBeGreaterThan(0);
+    expect(BALANCE.pools.maxLightningArcs).toBeGreaterThan(0);
+    expect(BALANCE.pools.maxPulseRings).toBeGreaterThan(0);
     expect(BALANCE.pools.maxFloatingTexts).toBeGreaterThan(0);
   });
 

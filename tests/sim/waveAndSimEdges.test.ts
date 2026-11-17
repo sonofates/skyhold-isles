@@ -415,5 +415,29 @@ describe('WaveSystem & SimWorld boundary edge cases', () => {
       expect(spawned).not.toBeNull();
       expect(spawned.maxHp).toBe(Math.round(ENEMY_DEFS[type].maxHp * 12.34));
     }
+
+    // Non-positive dt in AbilitySystem.update is a complete no-op (preserves cooldown, overcharge, and pending meteors)
+    const abWorld = new SimWorld(LEVELS[0], new EventBus());
+    abWorld.startNextWave();
+    expect(abWorld.castOvercharge()).toBe(true);
+    expect(abWorld.castMeteor(0, 0)).toBe(true);
+    const overBefore = abWorld.abilitySystem.getOverchargeRemaining();
+    const meteorCdBefore = abWorld.abilitySystem.getCooldown('meteor');
+    abWorld.abilitySystem.update(0, true, abWorld.enemyPool, abWorld.spatialHash, abWorld.enemySystem);
+    abWorld.abilitySystem.update(-0.5, true, abWorld.enemyPool, abWorld.spatialHash, abWorld.enemySystem);
+    expect(abWorld.abilitySystem.getOverchargeRemaining()).toBe(overBefore);
+    expect(abWorld.abilitySystem.getCooldown('meteor')).toBe(meteorCdBefore);
+
+    // debugSkipToWave preserves positive lives (> 0) and post-outcome abilities stay blocked
+    abWorld.lives = 12;
+    expect(abWorld.debugSkipToWave(2)).toBe(true);
+    expect(abWorld.lives).toBe(12);
+    abWorld.debugForceWin();
+    expect(abWorld.castOvercharge()).toBe(false);
+    expect(abWorld.castMeteor(0, 0)).toBe(false);
+    abWorld.debugSkipToWave(1);
+    abWorld.debugForceLose();
+    expect(abWorld.castOvercharge()).toBe(false);
+    expect(abWorld.castMeteor(0, 0)).toBe(false);
   });
 });

@@ -114,13 +114,41 @@ describe('GameLoop (browserLoop)', () => {
     expect(errSpy).toHaveBeenCalledTimes(1);
     expect(pending.size).toBe(1);
 
-    // Pause + resetAccumulator + stop
+    // Pause + resetAccumulator + stop + self-stopping callback + restart
     loop.paused = true;
     expect(loop.paused).toBe(true);
     loop.resetAccumulator();
     const activeBeforeStop = [...pending.keys()][0];
     loop.stop();
+    loop.stop(); // idempotent stop when already stopped
     expect(cancelled).toEqual([activeBeforeStop]);
+    expect(pending.size).toBe(0);
+
+    // Negative frame dt clamps stepper ticks to 0 while stopping inside onRender cancels next frame
+    shouldThrow = false;
+    loop.paused = false;
+    loop.speed = 1;
+    let stopInsideRender = false;
+    const prevFixed = fixedCalls.length;
+    const prevRender = renderCalls.length;
+    const renderPatchLoop = new GameLoop({
+      onFixedTick: (dt) => fixedCalls.push(dt),
+      onRender: (dt, alpha, vis) => {
+        renderCalls.push({ dt, alpha, vis });
+        if (stopInsideRender) renderPatchLoop.stop();
+      },
+    });
+    renderPatchLoop.simActive = true;
+    renderPatchLoop.stop(); // no-op before start
+    fakeNow = 2000;
+    renderPatchLoop.start();
+    const negId = [...pending.keys()][0];
+    const negCb = pending.get(negId)!;
+    pending.delete(negId);
+    stopInsideRender = true;
+    negCb(1950); // negative dt (-0.05s) relative to lastTimestamp=2000
+    expect(fixedCalls).toHaveLength(prevFixed);
+    expect(renderCalls).toHaveLength(prevRender + 1);
     expect(pending.size).toBe(0);
   });
 });
@@ -307,6 +335,40 @@ describe('SoundManager with mocked Web Audio', () => {
     sm.dispose();
     expect(closedCount).toBe(1);
 
+    // Safe no-op while AudioContext remains suspended, and playback resumes after throttle window expires
+    const suspendedSm = new SoundManager({
+      masterVolume: 2.0, // clamped to 1 -> gain 0.45
+      muted: false,
+      cameraShake: true,
+      damageNumbers: true,
+      quality: 'high',
+    });
+    suspendedSm.unlock();
+    const smCtx = (suspendedSm as unknown as { ctx: FakeAudioContext }).ctx;
+    smCtx.state = 'suspended';
+    const oscBeforeSuspended = oscCount;
+    suspendedSm.playTowerBuild();
+    expect(oscCount).toBe(oscBeforeSuspended);
+    expect(gainValues[gainValues.length - 1]).toBeCloseTo(0.45, 5);
+    smCtx.state = 'running';
+    perfMs += 1000;
+    suspendedSm.playFire('archer');
+    const oscAfterFirstShot = oscCount;
+    expect(oscAfterFirstShot).toBeGreaterThan(oscBeforeSuspended);
+    perfMs += 100; // > 65ms archer throttle
+    suspendedSm.playFire('archer');
+    expect(oscCount).toBe(oscAfterFirstShot + 1);
+    suspendedSm.updateSettings({
+      masterVolume: -0.5,
+      muted: false,
+      cameraShake: true,
+      damageNumbers: true,
+      quality: 'low',
+    });
+    expect(gainValues[gainValues.length - 1]).toBe(0);
+    suspendedSm.dispose();
+    suspendedSm.dispose(); // idempotent double-dispose
+
     // Safe no-op when window lacks AudioContext, and webkitAudioContext fallback works cleanly
     vi.stubGlobal('window', {});
     const noAudioSm = new SoundManager({
@@ -330,8 +392,9 @@ describe('SoundManager with mocked Web Audio', () => {
       damageNumbers: true,
       quality: 'high',
     });
+    const beforeWebkitResume = resumedCount;
     webkitSm.unlock();
-    expect(resumedCount).toBe(2);
+    expect(resumedCount).toBe(beforeWebkitResume + 1);
     webkitSm.dispose();
   });
 });
@@ -651,6 +714,61 @@ describe('InputManager pointer, pinch, wheel, keyboard, and cleanup', () => {
       },
     });
     expect(preventedFalseHotkey).toBe(false);
+
+    // Non-canvas targets, disabled/modal pointer/wheel guards, right-drag pan without secondary,
+    // sub-threshold pinch suppression, wheel clamping & zoom-out, zero-rect canvas, and unused keyup
+    log.length = 0;
+    canvas.dispatch('pointerdown', { pointerId: 50, target: {}, clientX: 200, clientY: 100, button: 0 });
+    canvas.dispatch('wheel', { target: {}, clientX: 200, clientY: 100, deltaY: 120, preventDefault: () => {} });
+    expect(log).toEqual([]);
+
+    // Right-click drag (button=2) pans instead of emitting secondary
+    canvas.dispatch('pointerdown', { pointerId: 51, target: canvas, clientX: 150, clientY: 80, button: 2 });
+    mockWin.dispatch('pointermove', { pointerId: 51, target: canvas, clientX: 170, clientY: 95 });
+    mockWin.dispatch('pointerup', { pointerId: 51, clientX: 170, clientY: 95, button: 2 });
+    expect(log.some((e) => e[0] === 'pan')).toBe(true);
+    expect(log.some((e) => e[0] === 'secondary')).toBe(false);
+
+    // Close two-finger pinch (prevPinchDist <= 4) suppresses zoom delta
+    log.length = 0;
+    canvas.dispatch('pointerdown', { pointerId: 52, target: canvas, clientX: 200, clientY: 100, button: 0 });
+    canvas.dispatch('pointerdown', { pointerId: 53, target: canvas, clientX: 202, clientY: 100, button: 0 });
+    mockWin.dispatch('pointermove', { pointerId: 53, target: canvas, clientX: 210, clientY: 100 });
+    expect(log.some((e) => e[0] === 'zoom')).toBe(false);
+    mockWin.dispatch('pointerup', { pointerId: 52, clientX: 200, clientY: 100, button: 0 });
+    mockWin.dispatch('pointerup', { pointerId: 53, clientX: 210, clientY: 100, button: 0 });
+
+    // Wheel zoom-out clamps magnitude to [0.4, 1.6]
+    log.length = 0;
+    canvas.dispatch('wheel', { target: canvas, clientX: 200, clientY: 100, deltaY: 500, preventDefault: () => {} });
+    canvas.dispatch('wheel', { target: canvas, clientX: 200, clientY: 100, deltaY: 5, preventDefault: () => {} });
+    expect(log[0][1]).toBeCloseTo(-BALANCE.camera.zoomStep * 1.6, 5);
+    expect(log[1][1]).toBeCloseTo(-BALANCE.camera.zoomStep * 0.4, 5);
+
+    // Zero-size canvas rect clamps denominator cleanly without NaN
+    vi.spyOn(canvas, 'getBoundingClientRect').mockReturnValue({ left: 0, top: 0, width: 0, height: 0 });
+    log.length = 0;
+    canvas.dispatch('pointerdown', { pointerId: 54, target: canvas, clientX: 0, clientY: 0, button: 0 });
+    mockWin.dispatch('pointerup', { pointerId: 54, clientX: 0, clientY: 0, button: 0 });
+    expect(Number.isFinite(log[0][1] as number)).toBe(true);
+    expect(Number.isFinite(log[0][2] as number)).toBe(true);
+
+    // Keyup for unpressed key is a no-op; metaKey/altKey ignored; KeyS/KeyA/Delete work
+    log.length = 0;
+    mockWin.dispatch('keyup', { code: 'KeyZ' });
+    mockWin.dispatch('keydown', { code: 'KeyF', key: 'f', metaKey: true, ctrlKey: false, altKey: false, repeat: false, target: canvas, preventDefault: () => {} });
+    mockWin.dispatch('keydown', { code: 'KeyG', key: 'g', metaKey: false, ctrlKey: false, altKey: true, repeat: false, target: canvas, preventDefault: () => {} });
+    expect(log).toEqual([]);
+    handlers.onTowerActionHotkey = (act) => {
+      log.push(['towerAction', act]);
+      return true;
+    };
+    mockWin.dispatch('keydown', { code: 'KeyS', key: 's', metaKey: false, ctrlKey: false, altKey: false, repeat: false, target: canvas, preventDefault: () => {} });
+    mockWin.dispatch('keydown', { code: 'KeyA', key: 'a', metaKey: false, ctrlKey: false, altKey: false, repeat: false, target: canvas, preventDefault: () => {} });
+    mockWin.dispatch('keydown', { code: 'Delete', key: 'Delete', metaKey: false, ctrlKey: false, altKey: false, repeat: false, target: canvas, preventDefault: () => {} });
+    expect(log).toContainEqual(['keyPan', 0, 1]);
+    expect(log).toContainEqual(['keyPan', -1, 1]);
+    expect(log).toContainEqual(['towerAction', 'sell']);
 
     mgr.dispose();
   });

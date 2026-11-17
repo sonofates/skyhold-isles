@@ -374,8 +374,24 @@ function attachEventTracker(
   });
 
   events.on('healerPulse', (ev) => {
-    if (!Number.isFinite(ev.x) || !Number.isFinite(ev.y) || !Number.isFinite(ev.z) || ev.radius <= 0) {
+    const expectedRadius = ENEMY_DEFS.healer.healRadius ?? 3.8;
+    if (
+      !Number.isFinite(ev.x) ||
+      !Number.isFinite(ev.y) ||
+      !Number.isFinite(ev.z) ||
+      Math.abs(ev.radius - expectedRadius) > 1e-6 ||
+      Math.abs(ev.y - (BALANCE.tilePathTopY + 0.12)) > 1e-6
+    ) {
       recordEventError(tracker, `Invalid healerPulse payload`);
+      return;
+    }
+    world.spatialHash.query(ev.x, ev.z, 0.05, _localHashProbe);
+    const hasHealerAtSource = _localHashProbe.some((idx) => {
+      const e = world.enemyPool.items[idx];
+      return e.active && e.type === 'healer' && Math.hypot(e.x - ev.x, e.z - ev.z) <= 1e-5;
+    });
+    if (!hasHealerAtSource) {
+      recordEventError(tracker, `healerPulse emitted without active healer at (${ev.x},${ev.z})`);
     }
   });
 
@@ -432,12 +448,16 @@ function attachEventTracker(
       return;
     }
     if (
-      !Number.isFinite(ev.x) ||
-      !Number.isFinite(ev.y) ||
-      !Number.isFinite(ev.z) ||
+      ev.type !== tower.type ||
+      ev.tier !== tower.tier ||
+      ev.x !== tower.x ||
+      ev.z !== tower.z ||
+      Math.abs(ev.y - (TOWER_DEFS[ev.type].turretHeight + 0.15)) > 1e-6 ||
+      tower.recoil !== 1 ||
+      Math.abs(tower.cooldownTimer - 1 / getTowerTierStats(ev.type, ev.tier).fireRate) > 1e-6 ||
       !Number.isFinite(ev.yaw)
     ) {
-      recordEventError(tracker, `Non-finite towerFired coordinates/yaw for id=${ev.towerId}`);
+      recordEventError(tracker, `towerFired payload/state mismatch for id=${ev.towerId}`);
     }
   });
 
@@ -446,14 +466,16 @@ function attachEventTracker(
       recordEventError(tracker, `Invalid projectileImpact towerType=${ev.towerType}`);
       return;
     }
+    const validRadius = TOWER_DEFS[ev.towerType].tiers.some((st) => st.splashRadius === ev.radius);
     if (
       !Number.isFinite(ev.x) ||
       !Number.isFinite(ev.y) ||
       !Number.isFinite(ev.z) ||
       !Number.isFinite(ev.radius) ||
-      ev.radius < 0
+      ev.radius < 0 ||
+      !validRadius
     ) {
-      recordEventError(tracker, `Invalid projectileImpact coordinates/radius`);
+      recordEventError(tracker, `Invalid projectileImpact coordinates/radius for ${ev.towerType}: ${ev.radius}`);
     }
   });
 
@@ -466,6 +488,34 @@ function attachEventTracker(
       const pt = ev.points[i];
       if (!Number.isFinite(pt.x) || !Number.isFinite(pt.y) || !Number.isFinite(pt.z)) {
         recordEventError(tracker, `Non-finite lightningChain point at index ${i}`);
+        return;
+      }
+    }
+    const origin = ev.points[0];
+    const sourceTesla = world.towers.find(
+      (t) =>
+        t.type === 'tesla' &&
+        t.x === origin.x &&
+        t.z === origin.z &&
+        Math.abs(origin.y - (TOWER_DEFS.tesla.turretHeight + 0.35)) <= 1e-6,
+    );
+    if (!sourceTesla) {
+      recordEventError(tracker, `lightningChain origin (${origin.x},${origin.y},${origin.z}) matches no live tesla tower`);
+      return;
+    }
+    const stats = getTowerTierStats('tesla', sourceTesla.tier);
+    if (ev.points.length > 1 + Math.max(1, stats.chainCount)) {
+      recordEventError(tracker, `lightningChain length ${ev.points.length} exceeded tier ${sourceTesla.tier} limit`);
+      return;
+    }
+    if (Math.hypot(ev.points[1].x - origin.x, ev.points[1].z - origin.z) > stats.range + 1e-4) {
+      recordEventError(tracker, `lightningChain first target exceeded tesla range ${stats.range}`);
+      return;
+    }
+    for (let i = 1; i < ev.points.length - 1; i++) {
+      const hop = Math.hypot(ev.points[i + 1].x - ev.points[i].x, ev.points[i + 1].z - ev.points[i].z);
+      if (hop > stats.chainRange + 1e-4) {
+        recordEventError(tracker, `lightningChain hop ${i} dist=${hop} exceeded chainRange=${stats.chainRange}`);
         return;
       }
     }
@@ -866,10 +916,18 @@ function assertTickInvariants(world: SimWorld, tracker: FuzzTracker, tick: numbe
 
   _seenTowerIds.clear();
   _seenTowerCoords.clear();
+  let prevTowerId = 0;
   let activeTowerKills = 0;
   let activeTowerDamage = 0;
   for (let i = 0; i < world.towers.length; i++) {
     const t = world.towers[i];
+    if (t.id <= prevTowerId || t.id > tracker.maxEverTowerId) {
+      return `Non-monotonic or out-of-range tower id=${t.id} (prev=${prevTowerId}, max=${tracker.maxEverTowerId})`;
+    }
+    prevTowerId = t.id;
+    if (t.stunTimer > 0 && t.yaw !== t.prevYaw) {
+      return `Stunned tower id=${t.id} rotated yaw (${t.prevYaw} -> ${t.yaw}) while stunTimer=${t.stunTimer}`;
+    }
     if (
       !Number.isFinite(t.x) ||
       !Number.isFinite(t.z) ||
@@ -1224,8 +1282,13 @@ function performLegalAction(
     const prevAuto = world.waveSystem.autoWave;
     const prevTimer = world.waveSystem.interWaveTimer;
     world.setAutoWave(!prevAuto);
-    if (wasBetween && prevAuto && world.waveSystem.interWaveTimer + 1e-9 < prevTimer) {
-      return `Turning off autoWave shrank interWaveTimer (${prevTimer} -> ${world.waveSystem.interWaveTimer})`;
+    if (wasBetween) {
+      if (prevAuto && world.waveSystem.interWaveTimer + 1e-9 < prevTimer) {
+        return `Turning off autoWave shrank interWaveTimer (${prevTimer} -> ${world.waveSystem.interWaveTimer})`;
+      }
+      if (!prevAuto && world.waveSystem.interWaveTimer > Math.min(prevTimer, 0.75) + 1e-9) {
+        return `Turning on autoWave failed to cap interWaveTimer (${prevTimer} -> ${world.waveSystem.interWaveTimer})`;
+      }
     }
   }
 
