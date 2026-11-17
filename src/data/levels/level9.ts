@@ -4,7 +4,7 @@ export const LEVEL_9: LevelDef = {
   id: 'grand-skyhold',
   index: 8,
   name: 'Grand Skyhold',
-  subtitle: 'The crown citadel above the clouds — endure the full siege',
+  subtitle: 'The crown citadel above the clouds: marble courts and golden banners',
   difficulty: 'Master',
   cols: 17,
   rows: 13,
@@ -56,6 +56,7 @@ export const LEVEL_9: LevelDef = {
   waveHpGrowth: 0.205,
   waves: [
     {
+      name: 'Vanguard',
       clearBonus: 24,
       groups: [
         { enemyType: 'grunt', count: 14, spawnInterval: 0.56, startDelay: 0 },
@@ -63,6 +64,7 @@ export const LEVEL_9: LevelDef = {
       ],
     },
     {
+      name: 'Heralds',
       clearBonus: 26,
       groups: [
         { enemyType: 'runner', count: 14, spawnInterval: 0.38, startDelay: 0 },
@@ -70,6 +72,7 @@ export const LEVEL_9: LevelDef = {
       ],
     },
     {
+      name: 'Crown Scouts',
       clearBonus: 28,
       groups: [
         { enemyType: 'brute', count: 4, spawnInterval: 0.95, startDelay: 0 },
@@ -78,6 +81,7 @@ export const LEVEL_9: LevelDef = {
       ],
     },
     {
+      name: 'Palace Guard',
       clearBonus: 32,
       groups: [
         { enemyType: 'grunt', count: 16, spawnInterval: 0.4, startDelay: 0 },
@@ -86,6 +90,7 @@ export const LEVEL_9: LevelDef = {
       ],
     },
     {
+      name: 'Winged Legion',
       clearBonus: 34,
       groups: [
         { enemyType: 'flyer', count: 11, spawnInterval: 0.45, startDelay: 0 },
@@ -94,6 +99,7 @@ export const LEVEL_9: LevelDef = {
       ],
     },
     {
+      name: 'Iron Procession',
       clearBonus: 38,
       groups: [
         { enemyType: 'brute', count: 8, spawnInterval: 0.78, startDelay: 0 },
@@ -102,6 +108,7 @@ export const LEVEL_9: LevelDef = {
       ],
     },
     {
+      name: 'Ashen Banners',
       clearBonus: 42,
       groups: [
         { enemyType: 'flyer', count: 11, spawnInterval: 0.45, startDelay: 0 },
@@ -111,14 +118,16 @@ export const LEVEL_9: LevelDef = {
       ],
     },
     {
+      name: 'Royal Convoy',
       clearBonus: 46,
       groups: [
         { enemyType: 'brute', count: 10, spawnInterval: 0.68, startDelay: 0 },
-        { enemyType: 'healer', count: 4, spawnInterval: 1.05, startDelay: 1.0 },
+        { enemyType: 'healer', count: 4, spawnInterval: 1.05, startDelay: 1 },
         { enemyType: 'flyer', count: 12, spawnInterval: 0.44, startDelay: 1.8 },
       ],
     },
     {
+      name: 'Stampede',
       clearBonus: 48,
       groups: [
         { enemyType: 'runner', count: 28, spawnInterval: 0.24, startDelay: 0 },
@@ -127,6 +136,7 @@ export const LEVEL_9: LevelDef = {
       ],
     },
     {
+      name: 'The Marshal',
       clearBonus: 54,
       groups: [
         { enemyType: 'brute', count: 12, spawnInterval: 0.62, startDelay: 0 },
@@ -136,6 +146,7 @@ export const LEVEL_9: LevelDef = {
       ],
     },
     {
+      name: 'Cinder Court',
       clearBonus: 56,
       groups: [
         { enemyType: 'flyer', count: 15, spawnInterval: 0.38, startDelay: 0 },
@@ -145,31 +156,35 @@ export const LEVEL_9: LevelDef = {
       ],
     },
     {
+      name: 'Wall of Shields',
       clearBonus: 62,
       groups: [
         { enemyType: 'brute', count: 14, spawnInterval: 0.58, startDelay: 0 },
         { enemyType: 'healer', count: 6, spawnInterval: 0.88, startDelay: 0.9 },
-        { enemyType: 'grunt', count: 26, spawnInterval: 0.28, startDelay: 2.0 },
+        { enemyType: 'grunt', count: 26, spawnInterval: 0.28, startDelay: 2 },
       ],
     },
     {
+      name: 'Pincer of the Crown',
       clearBonus: 68,
       groups: [
-        { enemyType: 'flyer', count: 16, spawnInterval: 0.35, startDelay: 0 },
-        { enemyType: 'brute', count: 15, spawnInterval: 0.56, startDelay: 1.2 },
-        { enemyType: 'runner', count: 24, spawnInterval: 0.24, startDelay: 2.2 },
+        { enemyType: 'brute', count: 15, spawnInterval: 0.56, startDelay: 0 },
+        { enemyType: 'flyer', count: 16, spawnInterval: 0.35, startDelay: 1.2 },
+        { enemyType: 'runner', count: 24, spawnInterval: 0.24, startDelay: 8.5 },
       ],
     },
     {
+      name: 'The Warlord',
       clearBonus: 80,
       groups: [
         { enemyType: 'brute', count: 14, spawnInterval: 0.56, startDelay: 0 },
         { enemyType: 'healer', count: 6, spawnInterval: 0.88, startDelay: 0.9 },
         { enemyType: 'flyer', count: 16, spawnInterval: 0.35, startDelay: 1.6 },
-        { enemyType: 'boss', count: 1, spawnInterval: 1.0, startDelay: 2.6 },
+        { enemyType: 'boss', count: 1, spawnInterval: 1, startDelay: 2.6 },
       ],
     },
     {
+      name: 'Ember Legion',
       clearBonus: 72,
       groups: [
         { enemyType: 'runner', count: 30, spawnInterval: 0.21, startDelay: 0 },
@@ -180,14 +195,16 @@ export const LEVEL_9: LevelDef = {
       ],
     },
     {
+      name: 'Gilded Siege',
       clearBonus: 78,
       groups: [
         { enemyType: 'brute', count: 19, spawnInterval: 0.46, startDelay: 0 },
         { enemyType: 'healer', count: 7, spawnInterval: 0.74, startDelay: 0.6 },
-        { enemyType: 'flyer', count: 20, spawnInterval: 0.29, startDelay: 1.0 },
+        { enemyType: 'flyer', count: 20, spawnInterval: 0.29, startDelay: 1 },
       ],
     },
     {
+      name: 'Thunder March',
       clearBonus: 84,
       groups: [
         { enemyType: 'runner', count: 34, spawnInterval: 0.19, startDelay: 0 },
@@ -197,15 +214,17 @@ export const LEVEL_9: LevelDef = {
       ],
     },
     {
+      name: 'Twin Warlords',
       clearBonus: 98,
       groups: [
         { enemyType: 'brute', count: 18, spawnInterval: 0.46, startDelay: 0 },
         { enemyType: 'healer', count: 7, spawnInterval: 0.76, startDelay: 0.5 },
-        { enemyType: 'flyer', count: 22, spawnInterval: 0.28, startDelay: 1.0 },
-        { enemyType: 'boss', count: 2, spawnInterval: 4.0, startDelay: 1.6 },
+        { enemyType: 'flyer', count: 22, spawnInterval: 0.28, startDelay: 1 },
+        { enemyType: 'boss', count: 2, spawnInterval: 4, startDelay: 1.6 },
       ],
     },
     {
+      name: 'Fire and Wing',
       clearBonus: 90,
       groups: [
         { enemyType: 'runner', count: 34, spawnInterval: 0.2, startDelay: 0 },
@@ -215,14 +234,16 @@ export const LEVEL_9: LevelDef = {
       ],
     },
     {
+      name: 'Last Bastion',
       clearBonus: 96,
       groups: [
         { enemyType: 'brute', count: 22, spawnInterval: 0.42, startDelay: 0 },
         { enemyType: 'healer', count: 8, spawnInterval: 0.7, startDelay: 0.5 },
-        { enemyType: 'flyer', count: 22, spawnInterval: 0.28, startDelay: 1.0 },
+        { enemyType: 'flyer', count: 22, spawnInterval: 0.28, startDelay: 1 },
       ],
     },
     {
+      name: 'The Great Assault',
       clearBonus: 105,
       groups: [
         { enemyType: 'runner', count: 34, spawnInterval: 0.2, startDelay: 0 },
@@ -233,6 +254,7 @@ export const LEVEL_9: LevelDef = {
       ],
     },
     {
+      name: 'The Crown Falls',
       clearBonus: 125,
       groups: [
         { enemyType: 'brute', count: 20, spawnInterval: 0.42, startDelay: 0 },

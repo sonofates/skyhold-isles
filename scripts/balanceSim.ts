@@ -12,6 +12,8 @@ interface WaveStatRow {
   waveNumber: number;
   startGold: number;
   livesStart: number;
+  /** Furthest path progress (0..1) any ground enemy reached during the wave: a continuous "how close was it" signal. */
+  peakGroundProgress: number;
   livesLost: number;
   leaksByType: Partial<Record<EnemyType, number>>;
   /** Lives lost per enemy type (a leaking brute/boss/hauler costs more than 1). */
@@ -97,7 +99,7 @@ export function runLevelBalanceSim(
 
   const plannedTowers = scriptActions.filter((a) => a.action === 'build').length;
   const waveRows: WaveStatRow[] = [];
-  let activeWaveRow: WaveStatRow | null = null;
+  let activeWaveRow = null as WaveStatRow | null;
   let goldEarned = 0;
   let earnedBeforeLastWave = 0;
   let goldSpent = 0;
@@ -112,6 +114,7 @@ export function runLevelBalanceSim(
       waveNumber: ev.waveIndex + 1,
       startGold: world.gold,
       livesStart: world.lives,
+      peakGroundProgress: 0,
       livesLost: 0,
       leaksByType: {},
       livesByType: {},
@@ -189,6 +192,15 @@ export function runLevelBalanceSim(
     }
 
     world.fixedTick(BALANCE.fixedDt);
+    if (activeWaveRow) {
+      const pool = world.enemyPool;
+      for (let p = 0; p < pool.getActiveCount(); p++) {
+        const e = pool.items[pool.getActiveIndex(p)];
+        if (e.flying || e.totalDist <= 0) continue;
+        const prog = e.dist / e.totalDist;
+        if (prog > activeWaveRow.peakGroundProgress) activeWaveRow.peakGroundProgress = prog;
+      }
+    }
   }
 
   const lastRow = waveRows[waveRows.length - 1];
@@ -231,7 +243,7 @@ function printResult(lvlIdx: number, res: SimRunResult, difficulty: string): voi
       `RemainingSteps: ${res.unspentScriptActions} | Invalid: ${res.invalidActions}`,
   );
   if (res.scriptKind === 'greedy' || res.outcome === 'lost' || res.finalLives < 20) {
-    console.log('           Wave | StartGold | LivesLost | Leaks');
+    console.log('           Wave | StartGold | LivesLost | PeakProgress | Leaks');
     for (let w = 0; w < res.waves.length; w++) {
       const row = res.waves[w];
       if (row.livesLost === 0 && res.waves.length > 12 && w > 0 && w < res.waves.length - 1) {
@@ -242,7 +254,7 @@ function printResult(lvlIdx: number, res: SimRunResult, difficulty: string): voi
         .join(', ');
       console.log(
         `           ${String(row.waveNumber).padStart(4)} | ${String(row.startGold).padStart(8)}g | ` +
-          `${String(row.livesLost).padStart(9)} | ${leakPairs || '-'}`,
+          `${String(row.livesLost).padStart(9)} | ${(row.peakGroundProgress * 100).toFixed(0).padStart(11)}% | ${leakPairs || '-'}`,
       );
     }
   }
@@ -252,9 +264,10 @@ function main(): void {
   console.log('=== Skyhold Isles Headless Balance Simulator (60 Hz Human-Paced) ===\n');
 
   // Optional filter for quicker iteration, e.g. `LEVELS=3,6 npm run sim:balance`.
-  const levelFilter = process.env.LEVELS
-    ? new Set(process.env.LEVELS.split(',').map((x) => Number(x.trim()) - 1))
-    : null;
+  // CLI alternative: `npm run sim:balance -- --levels=3,6`.
+  const levelsArg = process.argv.find((a) => a.startsWith('--levels='))?.slice('--levels='.length);
+  const levelsSpec = levelsArg ?? process.env.LEVELS;
+  const levelFilter = levelsSpec ? new Set(levelsSpec.split(',').map((x) => Number(x.trim()) - 1)) : null;
 
   /** Greedy (competent build script) lives-left window per difficulty label. */
   const GREEDY_LIVES: Record<LevelDef['difficulty'], readonly [number, number]> = {
@@ -286,8 +299,10 @@ function main(): void {
     return { total, flyers, byType };
   }
 
+  const robust = process.argv.includes('--robust');
   const failures: string[] = [];
   const summary: string[] = [];
+  const robustLines: string[] = [];
 
   for (let i = 0; i < LEVELS.length; i++) {
     if (levelFilter && !levelFilter.has(i)) continue;
@@ -298,6 +313,27 @@ function main(): void {
     const weakRes = runLevelBalanceSim(level, 'weak', level.weakBuildOrder ?? []);
     printResult(i, weakRes, level.difficulty);
     console.log('');
+
+    if (process.argv.includes('--peaks')) {
+      console.log(
+        `           peak ground progress per wave (greedy): ${greedyRes.waves
+          .map((w) => (w.peakGroundProgress * 100).toFixed(0))
+          .join(' ')}`,
+      );
+    }
+
+    if (robust) {
+      // Informational: greedy lives when every enemy HP is scaled by +-1.5% / +-3% (knife-edge detector).
+      const [lo, hi] = GREEDY_LIVES[level.difficulty];
+      const cells: string[] = [];
+      for (const k of [0.97, 0.985, 1.0, 1.015, 1.03]) {
+        const scaled: LevelDef = { ...level, enemyHpScale: (level.enemyHpScale ?? 1) * k };
+        const r = runLevelBalanceSim(scaled, 'greedy', level.scriptedBuildOrder ?? []);
+        const ok = r.outcome === 'won' && r.finalLives >= lo && r.finalLives <= hi;
+        cells.push(`x${k.toFixed(3)}:${r.outcome === 'won' ? r.finalLives : 'LOST'}${ok ? '' : '!'}`);
+      }
+      robustLines.push(`L${i + 1} ${level.difficulty.padEnd(11)} ${cells.join('  ')}   (window ${lo}-${hi}, ! = outside)`);
+    }
 
     const gT = livesLostTotals(greedyRes);
     const wT = livesLostTotals(weakRes);
@@ -379,6 +415,11 @@ function main(): void {
   console.log('=== Summary (lives left / stars / leaks by type over the whole run) ===');
   for (const line of summary) console.log(line);
   console.log('');
+  if (robustLines.length > 0) {
+    console.log('=== Robustness (greedy lives vs enemy HP scale; informational) ===');
+    for (const line of robustLines) console.log(line);
+    console.log('');
+  }
 
   if (failures.length > 0) {
     console.error('Balance check FAILED:');

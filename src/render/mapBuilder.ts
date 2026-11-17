@@ -1,6 +1,7 @@
 import * as THREE from 'three';
+import type { QualityLevel } from '../core/types.ts';
 import { BALANCE } from '../data/balance.ts';
-import { PALETTE_HEX } from '../data/palette.ts';
+import { lerpHexColor, PALETTE_HEX } from '../data/palette.ts';
 import { SeededRng } from '../core/rng.ts';
 import { gridToWorldX, gridToWorldZ } from '../sim/grid.ts';
 import type { TowerEntity } from '../sim/entities.ts';
@@ -8,10 +9,23 @@ import type { LevelDef } from '../data/levels/index.ts';
 import { parseLevelGrid } from '../data/levels/index.ts';
 import { disposeInstancedMeshes, mergeTexturedParts, type TexturedPart } from './geometryHelpers.ts';
 import type { KenneyAssetStore } from './kenneyAssets.ts';
-import { remapUvCell } from './kenneyPalette.ts';
+import { remapUvCell, WHITE_SWATCH_UV } from './kenneyPalette.ts';
+import {
+  claimedDecorTiles,
+  decorHillHeight,
+  resolveGroundKind,
+  tileHash,
+  sampleZoneTint,
+  type GoalDeco,
+  type GroundKind,
+  type IslandTheme,
+} from './islandThemes.ts';
+import { getIslandTheme } from './islandThemeTable.ts';
 import type { MaterialLibrary } from './materials.ts';
 import { AmbientDiorama } from './ambientDiorama.ts';
 import { GroundDetails } from './groundDetails.ts';
+import { SetPieces } from './setPieces.ts';
+import { WaterDetails } from './waterDetails.ts';
 
 // Cardinal neighbor bitmask for auto-tiling path geometry
 const DIR_N = 1; // row - 1 (-Z)
@@ -165,12 +179,78 @@ function smoothValueNoise2D(wx: number, wz: number, wavelength: number, seed: nu
   return a + (b - a) * ux + (c - a) * uz + (a - b - c + d) * ux * uz;
 }
 
-function applyContinuousGrassVariation(geo: THREE.BufferGeometry, seed: number, ts: number): void {
+/** Approximate flat colour of tinted grass (for hillock caps, which carry no grass texture). */
+const _capTint: [number, number, number] = [1, 1, 1];
+function tintedGrassHex(theme: IslandTheme, col: number, row: number): number {
+  const base = new THREE.Color(0x58b83c);
+  sampleZoneTint(theme, col, row, _capTint);
+  base.r = Math.min(1, base.r * _capTint[0]);
+  base.g = Math.min(1, base.g * _capTint[1]);
+  base.b = Math.min(1, base.b * _capTint[2]);
+  return base.getHex();
+}
+
+const GROUND_BASE: Record<Exclude<GroundKind, 'grass'>, readonly number[]> = {
+  sand: [0xe9d3a6, 0xe2c898, 0xf0dcb2],
+  cobble: [0x98a2b0, 0xa7b0bc, 0x8d97a6],
+  field: [0xd6bd4e, 0xb8a23f],
+  moss: [0x6f9a45, 0x5f8a3e, 0x7aa84c],
+};
+
+/** Paints a flat-coloured tile patch (white swatch UVs + per-vertex colours with soft world-space variation). */
+function paintFlatTile(
+  geo: THREE.BufferGeometry,
+  kind: Exclude<GroundKind, 'grass'>,
+  seed: number,
+  wx: number,
+  wz: number,
+): void {
+  const pos = geo.getAttribute('position') as THREE.BufferAttribute;
+  const uv = geo.getAttribute('uv') as THREE.BufferAttribute;
+  const colors = new Float32Array(pos.count * 3);
+  const palette = GROUND_BASE[kind];
+  const c = new THREE.Color();
+  for (let i = 0; i < pos.count; i++) {
+    uv.setXY(i, WHITE_SWATCH_UV[0], WHITE_SWATCH_UV[1]);
+    const px = pos.getX(i) + wx;
+    const pz = pos.getZ(i) + wz;
+    const py = pos.getY(i);
+    const n = smoothValueNoise2D(px, pz, 3.2, seed);
+    const n2 = smoothValueNoise2D(px + 17.3, pz - 9.1, 1.4, seed + 71);
+    let base: number;
+    if (kind === 'field') {
+      // furrows: alternate bands along world X
+      base = Math.floor((px + 400) / 0.5) % 2 === 0 ? palette[0] : palette[1];
+    } else if (kind === 'cobble') {
+      const cell = (Math.floor((px + 400) / 0.5) + Math.floor((pz + 400) / 0.5)) % 2 === 0 ? 0 : 1;
+      base = palette[cell === 0 ? 0 : 2];
+      if (n2 > 0.7) base = palette[1];
+    } else {
+      base = palette[Math.min(palette.length - 1, Math.floor(n * palette.length))];
+    }
+    c.setHex(base);
+    const bright = 0.94 + n2 * 0.12;
+    const skirt = py < -0.01 ? 0.74 : 1;
+    colors[i * 3] = c.r * bright * skirt;
+    colors[i * 3 + 1] = c.g * bright * skirt;
+    colors[i * 3 + 2] = c.b * bright * skirt;
+  }
+  geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+}
+
+function applyContinuousGrassVariation(
+  geo: THREE.BufferGeometry,
+  seed: number,
+  ts: number,
+  theme: IslandTheme,
+  level: LevelDef,
+): void {
   const pos = geo.getAttribute('position') as THREE.BufferAttribute | undefined;
   const norm = geo.getAttribute('normal') as THREE.BufferAttribute | undefined;
   const uv = geo.getAttribute('uv') as THREE.BufferAttribute | undefined;
   const col = geo.getAttribute('color') as THREE.BufferAttribute | undefined;
   if (!pos || !norm || !uv || !col) return;
+  const zoneTint: [number, number, number] = [1, 1, 1];
 
   for (let i = 0; i < pos.count; i++) {
     const py = pos.getY(i);
@@ -195,12 +275,103 @@ function applyContinuousGrassVariation(geo: THREE.BufferGeometry, seed: number, 
 
     const warm = Math.max(0, hueSigned);
     const cool = Math.max(0, -hueSigned);
-    const rMul = brightMul * (1.0 + warm * 0.3 - cool * 0.26);
-    const gMul = brightMul * (1.0 + warm * 0.055 - cool * 0.015);
-    const bMul = brightMul * (1.0 - warm * 0.28 + cool * 0.72);
+    sampleZoneTint(theme, px / ts + (level.cols - 1) * 0.5, pz / ts + (level.rows - 1) * 0.5, zoneTint);
+    const rMul = brightMul * (1.0 + warm * 0.3 - cool * 0.26) * zoneTint[0];
+    const gMul = brightMul * (1.0 + warm * 0.055 - cool * 0.015) * zoneTint[1];
+    const bMul = brightMul * (1.0 - warm * 0.28 + cool * 0.72) * zoneTint[2];
     col.setXYZ(i, col.getX(i) * rMul, col.getY(i) * gMul, col.getZ(i) * bMul);
   }
   col.needsUpdate = true;
+}
+
+
+/** Small themed trimmings around the goal sanctuary tile (static, merged into the terrain mesh). */
+function pushGoalDeco(
+  parts: TexturedPart[],
+  deco: GoalDeco,
+  wx: number,
+  wz: number,
+  box: THREE.BufferGeometry,
+  cone: THREE.BufferGeometry,
+  ico: THREE.BufferGeometry,
+  crystal: THREE.BufferGeometry,
+  accent: number,
+): void {
+  if (deco === 'none') return;
+  const corners: Array<[number, number]> = [
+    [-0.78, -0.78],
+    [0.78, -0.78],
+    [0.78, 0.78],
+    [-0.78, 0.78],
+  ];
+  corners.forEach(([ox, oz], i) => {
+    const x = wx + ox;
+    const z = wz + oz;
+    switch (deco) {
+      case 'pillars':
+      case 'goldPillars':
+        parts.push(
+          { geometry: box, colorHex: 0xa1aab8, position: [x, 0.06, z], scale: [0.26, 0.12, 0.26], forceWhiteUv: true },
+          { geometry: box, colorHex: 0xc4cad4, position: [x, 0.42, z], scale: [0.16, 0.66, 0.16], forceWhiteUv: true },
+          {
+            geometry: box,
+            colorHex: deco === 'goldPillars' ? PALETTE_HEX.gold : 0xb4bbc7,
+            position: [x, 0.8, z],
+            scale: [0.24, 0.08, 0.24],
+            forceWhiteUv: true,
+          },
+        );
+        if (deco === 'goldPillars') {
+          parts.push({
+            geometry: ico,
+            colorHex: PALETTE_HEX.coral,
+            position: [x, 0.92, z],
+            scale: [0.07, 0.08, 0.07],
+            forceWhiteUv: true,
+          });
+        }
+        break;
+      case 'shards':
+        parts.push({
+          geometry: crystal,
+          colorHex: accent,
+          position: [x, 0, z],
+          rotation: [0, i * 1.7, 0],
+          scale: [1.5, 1.9, 1.5],
+        });
+        break;
+      case 'sheaves':
+        parts.push(
+          { geometry: cone, colorHex: 0xe3b84a, position: [x, 0.26, z], scale: [0.26, 0.55, 0.26], forceWhiteUv: true },
+          { geometry: box, colorHex: PALETTE_HEX.coral, position: [x, 0.2, z], scale: [0.3, 0.05, 0.3], forceWhiteUv: true },
+        );
+        break;
+      case 'shells':
+        parts.push(
+          { geometry: ico, colorHex: PALETTE_HEX.cream, position: [x, 0.1, z], scale: [0.2, 0.12, 0.17], forceWhiteUv: true },
+          {
+            geometry: ico,
+            colorHex: i % 2 === 0 ? PALETTE_HEX.coral : 0xf4b8b0,
+            position: [x + 0.12, 0.07, z + 0.05],
+            scale: [0.11, 0.08, 0.1],
+            forceWhiteUv: true,
+          },
+        );
+        break;
+      case 'poles':
+        parts.push(
+          { geometry: box, colorHex: 0x7b5338, position: [x, 0.4, z], scale: [0.06, 0.8, 0.06], forceWhiteUv: true },
+          {
+            geometry: box,
+            colorHex: i % 2 === 0 ? PALETTE_HEX.coral : PALETTE_HEX.gold,
+            position: [x + 0.12, 0.7, z],
+            scale: [0.22, 0.14, 0.02],
+            forceWhiteUv: true,
+          },
+        );
+        break;
+    }
+  });
 }
 
 interface ShoreFoamCollector {
@@ -240,6 +411,9 @@ export class MapBuilder {
   readonly group = new THREE.Group();
   private readonly ambient = new AmbientDiorama();
   readonly groundDetails = new GroundDetails();
+  private readonly setPieces = new SetPieces();
+  private readonly waterDetails = new WaterDetails();
+  private lowQuality = false;
   private disposableGeometries: THREE.BufferGeometry[] = [];
   private materialsRef: MaterialLibrary | null = null;
   private goalPos: THREE.Vector3 | null = null;
@@ -250,9 +424,13 @@ export class MapBuilder {
     this.materialsRef = materials;
     this.group.add(this.ambient.group);
     this.group.add(this.groundDetails.group);
+    this.group.add(this.setPieces.group);
+    this.group.add(this.waterDetails.group);
 
     const grid = parseLevelGrid(level);
     const rng = new SeededRng(level.decorationSeed + 7919);
+    const theme = getIslandTheme(level.id);
+    const claimed = claimedDecorTiles(level, theme);
     const ts = BALANCE.tileSize;
     const parts: TexturedPart[] = [];
 
@@ -280,16 +458,32 @@ export class MapBuilder {
     const geoSpawnPillar = assets.cloneGeometry('tower-square-bottom-c');
     const geoSpawnCap = assets.cloneGeometry('tower-square-top-a');
     const geoSpawnBeam = assets.cloneGeometry('wood-structure');
-    const geoSpawnCrystal = remapUvCell(assets.cloneGeometry('detail-crystal'), [2, 1], [6, 2]);
+    const geoSpawnCrystal = remapUvCell(
+      assets.cloneGeometry('detail-crystal'),
+      [2, 1],
+      [theme.spawnCrystalCell[0], theme.spawnCrystalCell[1]],
+    );
     const geoGoalPad = remapUvCell(
       remapUvCell(assets.cloneGeometry('spawn-square'), [3, 3], [7, 0]),
       [5, 3],
       [7, 0],
     );
+    if (theme.pathStyle !== 'dirt') {
+      const to: [number, number] = theme.pathStyle === 'stone' ? [3, 3] : [1, 2];
+      for (const g of [geoStraight, geoCorner, geoEnd, geoSpawnEnd, geoSplit, geoCrossing]) {
+        remapUvCell(g, [7, 3], to);
+      }
+    }
     const geoRocks = assets.cloneGeometry('detail-rocks');
     const geoShrub = assets.cloneGeometry('detail-rocks-large');
     const geoCrystalSmall = remapUvCell(assets.cloneGeometry('detail-crystal'), [2, 1], [0, 3]);
     const shoreFoam: ShoreFoamCollector = { positions: [], uvs: [], indices: [] };
+
+    const isRoute = (c: number, r: number): boolean => {
+      if (c < 0 || c >= level.cols || r < 0 || r >= level.rows) return false;
+      const t = grid[r][c];
+      return t === 'path' || t === 'spawn' || t === 'goal';
+    };
 
     const isLand = (c: number, r: number): boolean => {
       if (c < 0 || c >= level.cols || r < 0 || r >= level.rows) return false;
@@ -427,6 +621,7 @@ export class MapBuilder {
             },
           );
           this.goalPos = new THREE.Vector3(wx, 0.82, wz);
+          pushGoalDeco(parts, theme.goal.deco, wx, wz, unitBox, unitCone, unitIco, geoCrystalSmall, theme.goal.color);
         } else if (tile === 'path') {
           const { model, rotY } = resolvePathPiece(mask);
           const geoMap = {
@@ -449,7 +644,20 @@ export class MapBuilder {
           const edgeS = !isLand(c, r + 1);
           const edgeW = !isLand(c - 1, r);
           let patchGeo = geoGrassInterior;
-          if (edgeN || edgeE || edgeS || edgeW) {
+          const groundKind = resolveGroundKind(theme, c, r, isLand, tile === 'decor');
+          if (groundKind !== 'grass') {
+            patchGeo = buildGrassTilePatchGeometry(
+              ts,
+              WHITE_SWATCH_UV[0],
+              WHITE_SWATCH_UV[1],
+              edgeN,
+              edgeE,
+              edgeS,
+              edgeW,
+            );
+            paintFlatTile(patchGeo, groundKind, level.decorationSeed + 17, wx, wz);
+            edgeGrassPatches.push(patchGeo);
+          } else if (edgeN || edgeE || edgeS || edgeW) {
             patchGeo = buildGrassTilePatchGeometry(ts, grassU, grassV, edgeN, edgeE, edgeS, edgeW);
             edgeGrassPatches.push(patchGeo);
           }
@@ -459,30 +667,116 @@ export class MapBuilder {
             position: [wx, 0, wz],
           });
 
+          // Hillock: low-poly dome (grass/sand) with a stone outcrop; trees & baked decor ride on top
+          const hillH = tile === 'decor' ? decorHillHeight(theme, grid, c, r, claimed.has(`${c},${r}`)) : 0;
+          if (hillH > 0) {
+            const rocky = theme.hills.cap !== 'grass' && groundKind === 'grass';
+            const capHex = rocky
+              ? theme.cliff.stones[0]
+              : groundKind === 'sand'
+                ? 0xe9d3a6
+                : groundKind === 'cobble'
+                  ? 0x9aa4b0
+                  : groundKind === 'moss'
+                    ? 0x6f9a45
+                    : tintedGrassHex(theme, c, r);
+            parts.push({
+              geometry: unitIco,
+              colorHex: capHex,
+              position: [wx, 0.02, wz],
+              rotation: [0, rng.range(0, Math.PI), 0],
+              scale: [ts * 0.46, hillH * 1.15, ts * 0.46],
+              forceWhiteUv: true,
+            });
+            if (rocky && theme.hills.cap === 'snow') {
+              parts.push({
+                geometry: unitIco,
+                colorHex: PALETTE_HEX.cream,
+                position: [wx, hillH * 0.62, wz],
+                rotation: [0, rng.range(0, Math.PI), 0],
+                scale: [ts * 0.3, hillH * 0.5, ts * 0.3],
+                forceWhiteUv: true,
+              });
+            }
+            if (rng.chance(0.7)) {
+              const ang = rng.range(0, Math.PI * 2);
+              parts.push({
+                geometry: unitIco,
+                colorHex: theme.cliff.stones[rng.int(0, 1)],
+                position: [wx + Math.cos(ang) * ts * 0.34, hillH * 0.12, wz + Math.sin(ang) * ts * 0.34],
+                rotation: [rng.range(-0.3, 0.3), rng.range(0, Math.PI), rng.range(-0.3, 0.3)],
+                scale: [rng.range(0.24, 0.36), hillH * rng.range(0.45, 0.8), rng.range(0.22, 0.34)],
+                forceWhiteUv: true,
+              });
+            }
+          }
+
+          // Fortress parapet along exposed coast edges (never beside the route, so units stay readable)
+          if (theme.parapet && edgeCount > 0 && hillH === 0 && !claimed.has(`${c},${r}`)) {
+            const pp = theme.parapet;
+            const dirs: Array<[number, number, boolean]> = [
+              [0, -1, edgeN],
+              [1, 0, edgeE],
+              [0, 1, edgeS],
+              [-1, 0, edgeW],
+            ];
+            dirs.forEach(([ox, oz, exposed], k) => {
+              if (!exposed) return;
+              if (tileHash(c, r, 300 + k) < pp.gap) return;
+              const nearRoute =
+                isRoute(c - 1, r) || isRoute(c + 1, r) || isRoute(c, r - 1) || isRoute(c, r + 1);
+              if (nearRoute) return;
+              const hgt = pp.height * (pp.gap > 0 ? 0.55 + 0.45 * tileHash(c, r, 310 + k) : 1);
+              const alongX = oz !== 0;
+              const cx = wx + ox * (ts * 0.5 - 0.09);
+              const cz = wz + oz * (ts * 0.5 - 0.09);
+              parts.push({
+                geometry: unitBox,
+                colorHex: pp.color,
+                position: [cx, hgt / 2, cz],
+                scale: alongX ? [ts * 0.96, hgt, 0.18] : [0.18, hgt, ts * 0.96],
+                forceWhiteUv: true,
+              });
+              if (!pp.merlons) return;
+              for (let m = 0; m < 4; m++) {
+                if (pp.gap > 0 && tileHash(c, r, 320 + k * 4 + m) < pp.gap * 0.7) continue;
+                const t = -0.72 + m * 0.48;
+                parts.push({
+                  geometry: unitBox,
+                  colorHex: pp.merlon,
+                  position: [cx + (alongX ? t : 0), hgt + 0.05, cz + (alongX ? 0 : t)],
+                  scale: alongX ? [0.26, 0.1, 0.22] : [0.22, 0.1, 0.26],
+                  forceWhiteUv: true,
+                });
+              }
+            });
+          }
+
           // Bake static rocks/shrubs/crystals directly into terrain mesh to keep draw calls minimal
-          if (tile === 'decor') {
-            if (rng.chance(0.28)) {
+          if (tile === 'decor' && !claimed.has(`${c},${r}`)) {
+            if (rng.chance(theme.decorBake.rockChance)) {
               parts.push({
                 geometry: geoRocks,
-                position: [wx + rng.range(-0.42, 0.42), -0.02, wz + rng.range(-0.42, 0.42)],
+                position: [wx + rng.range(-0.42, 0.42), -0.02 + hillH * 0.8, wz + rng.range(-0.42, 0.42)],
                 rotation: [0, rng.range(0, Math.PI * 2), 0],
                 scale: [1.65, 1.65, 1.65],
               });
             }
-            if (rng.chance(0.32)) {
+            if (rng.chance(theme.decorBake.shrubChance)) {
               const sScale = rng.range(1.35, 1.8);
               parts.push({
                 geometry: geoShrub,
                 colorHex: rng.chance(0.5) ? 0xf2faea : 0xe4f1d8,
-                position: [wx + rng.range(-0.38, 0.38), -0.01, wz + rng.range(-0.38, 0.38)],
+                position: [wx + rng.range(-0.38, 0.38), -0.01 + hillH * 0.8, wz + rng.range(-0.38, 0.38)],
                 rotation: [0, rng.range(0, Math.PI * 2), 0],
                 scale: [sScale, sScale, sScale],
               });
             }
-            if (rng.chance(0.14)) {
+            if (rng.chance(theme.decorBake.crystalChance)) {
               parts.push({
                 geometry: geoCrystalSmall,
-                position: [wx + rng.range(-0.4, 0.4), 0, wz + rng.range(-0.4, 0.4)],
+                colorHex: theme.decorBake.crystalTint,
+                position: [wx + rng.range(-0.4, 0.4), hillH * 0.8, wz + rng.range(-0.4, 0.4)],
                 rotation: [0, rng.range(0, Math.PI * 2), 0],
                 scale: [1.35, 1.35, 1.35],
               });
@@ -492,27 +786,90 @@ export class MapBuilder {
 
         // 2. Sub-surface cliffs & bridge piers
         if (isBridge) {
-          // Slender bridge deck + Kenney timber trestle piers reaching into lagoon water
+          // Bridge deck + trestle/stone piers reaching into the water, with railings per theme style
           const alongX = !isLand(c, r - 1) && !isLand(c, r + 1);
+          const stoneBridge = theme.bridge === 'stone';
           parts.push({
             geometry: unitBox,
-            colorHex: PALETTE_HEX.dirt,
-            position: [wx, -0.26, wz],
-            scale: [ts, 0.14, ts],
+            colorHex: stoneBridge ? 0xa1aab8 : PALETTE_HEX.dirt,
+            position: [wx, stoneBridge ? -0.3 : -0.26, wz],
+            scale: [ts, stoneBridge ? 0.22 : 0.14, ts],
             forceWhiteUv: true,
           });
-          parts.push({
-            geometry: geoBridgePier,
-            colorHex: 0xd8c3aa,
-            position: [wx, -1.04, wz],
-            rotation: [0, alongX ? 0 : Math.PI / 2, 0],
-            scale: [1.55, 0.8, 1.55],
-          });
+          if (stoneBridge) {
+            // chunky masonry pier + arch spandrel under the deck
+            parts.push(
+              {
+                geometry: unitBox,
+                colorHex: 0x8b95a5,
+                position: [wx, -0.95, wz],
+                scale: [alongX ? ts * 0.34 : ts * 0.7, 1.35, alongX ? ts * 0.7 : ts * 0.34],
+                forceWhiteUv: true,
+              },
+              {
+                geometry: unitBox,
+                colorHex: 0xb4bbc7,
+                position: [wx, -0.42, wz],
+                scale: [alongX ? ts * 0.5 : ts * 0.84, 0.12, alongX ? ts * 0.84 : ts * 0.5],
+                forceWhiteUv: true,
+              },
+            );
+          } else {
+            parts.push({
+              geometry: geoBridgePier,
+              colorHex: 0xd8c3aa,
+              position: [wx, -1.04, wz],
+              rotation: [0, alongX ? 0 : Math.PI / 2, 0],
+              scale: [1.55, 0.8, 1.55],
+            });
+          }
+          // railings: two posts per side per tile, a rail between them
+          const side = ts * 0.5 - 0.1;
+          const lanternEvery = theme.bridge === 'rope' ? 1 : theme.bridge === 'timber' ? 2 : 0;
+          for (const sgn of [-1, 1]) {
+            if (stoneBridge) {
+              parts.push({
+                geometry: unitBox,
+                colorHex: sgn === 1 ? 0xc4cad4 : 0xb4bbc7,
+                position: [wx + (alongX ? 0 : sgn * side), 0.12, wz + (alongX ? sgn * side : 0)],
+                scale: [alongX ? ts : 0.2, 0.3, alongX ? 0.2 : ts],
+                forceWhiteUv: true,
+              });
+              continue;
+            }
+            for (const along of [-0.5, 0.5]) {
+              const px = wx + (alongX ? along : sgn * side);
+              const pz = wz + (alongX ? sgn * side : along);
+              parts.push({
+                geometry: unitBox,
+                colorHex: 0x7b5338,
+                position: [px, 0.17, pz],
+                scale: [0.08, 0.38, 0.08],
+                forceWhiteUv: true,
+              });
+              if (lanternEvery > 0 && (along > 0 || lanternEvery === 1) && (c + r + (along > 0 ? 1 : 0)) % lanternEvery === 0) {
+                parts.push({
+                  geometry: unitIco,
+                  colorHex: theme.bridge === 'rope' ? 0x7dffb8 : PALETTE_HEX.gold,
+                  position: [px, 0.46, pz],
+                  scale: [0.09, 0.1, 0.09],
+                  forceWhiteUv: true,
+                });
+              }
+            }
+            parts.push({
+              geometry: unitBox,
+              colorHex: theme.bridge === 'rope' ? 0xe9d3a6 : 0x9c6b49,
+              position: [wx + (alongX ? 0 : sgn * side), 0.3, wz + (alongX ? sgn * side : 0)],
+              scale: [alongX ? ts : 0.04, 0.04, alongX ? 0.04 : ts],
+              forceWhiteUv: true,
+            });
+          }
           continue;
         }
 
         // 3-stratum stepped floating-island underside (dirt band -> prominent stone -> inset craggy bedrock)
-        const dirtWarmHex = rng.chance(0.45) ? 0x7b5338 : PALETTE_HEX.dirt;
+        const dirtWarmHex = rng.chance(0.45) ? theme.cliff.dirts[1] : theme.cliff.dirts[0];
         parts.push({
           geometry: unitBox,
           colorHex: dirtWarmHex,
@@ -521,7 +878,7 @@ export class MapBuilder {
           forceWhiteUv: true,
         });
 
-        const upperStoneHex = edgeCount > 0 && rng.chance(0.45) ? 0x9aa4b0 : PALETTE_HEX.stone;
+        const upperStoneHex = edgeCount > 0 && rng.chance(0.45) ? theme.cliff.stones[1] : theme.cliff.stones[0];
         const stoneDrop = edgeCount > 0 ? rng.range(0.54, 0.62) : 0.56;
         parts.push({
           geometry: unitBox,
@@ -535,8 +892,13 @@ export class MapBuilder {
           forceWhiteUv: true,
         });
 
-        const cliffDepth = edgeCount > 0 ? rng.range(1.45, 2.3) : rng.range(2.3, 3.8);
-        const bedrockHex = edgeCount > 0 ? (rng.chance(0.5) ? 0x768393 : 0x677484) : 0x5c6878;
+        const cliffDepth = (edgeCount > 0 ? rng.range(1.45, 2.3) : rng.range(2.3, 3.8)) * theme.cliff.depthMul;
+        const bedrockHex =
+          edgeCount > 0
+            ? rng.chance(0.5)
+              ? theme.cliff.bedrocks[0]
+              : theme.cliff.bedrocks[1]
+            : lerpHexColor(theme.cliff.bedrocks[1], 0x000000, 0.08);
         const bedrockTopY = -0.36 - stoneDrop;
         parts.push({
           geometry: unitBox,
@@ -573,7 +935,7 @@ export class MapBuilder {
 
         // Hanging faceted rock spires & crags beneath the island base
         if (edgeCount <= 2 && rng.chance(edgeCount === 0 ? 0.92 : edgeCount === 1 ? 0.8 : 0.62)) {
-          const spireH = rng.range(1.65, 3.25);
+          const spireH = rng.range(1.65, 3.25) * theme.cliff.spireMul;
           const spireR = rng.range(0.75, 1.24);
           const pullIn = edgeCount > 0 ? 0.16 : 0;
           const inX = (!isLand(c + 1, r) ? -1 : !isLand(c - 1, r) ? 1 : 0) * pullIn;
@@ -679,7 +1041,7 @@ export class MapBuilder {
     }
 
     const islandGeo = mergeTexturedParts(parts);
-    applyContinuousGrassVariation(islandGeo, level.decorationSeed + 7919, ts);
+    applyContinuousGrassVariation(islandGeo, level.decorationSeed + 7919, ts, theme, level);
     this.disposableGeometries.push(islandGeo);
     const islandMesh = new THREE.Mesh(islandGeo, materials.kenneyTerrain);
     islandMesh.castShadow = true;
@@ -707,14 +1069,18 @@ export class MapBuilder {
     const waterGeo = this.createWaterDiscGeometry(waterRadius, 24, 56);
     this.disposableGeometries.push(waterGeo);
 
+    materials.waterMaterial.color.setHex(theme.water);
     const waterMesh = new THREE.Mesh(waterGeo, materials.waterMaterial);
     waterMesh.position.y = BALANCE.waterPlaneY;
     waterMesh.receiveShadow = true;
     waterMesh.castShadow = false;
     this.group.add(waterMesh);
 
-    this.ambient.build(dioramaRadius, rng, materials, unitBox, unitCone, unitIco);
+    this.ambient.build(dioramaRadius, rng, materials, unitBox, unitCone, unitIco, theme.ambient);
     this.groundDetails.build(level, materials);
+    this.setPieces.build(level, materials, assets);
+    this.waterDetails.build(level, materials, waterRadius);
+    this.waterDetails.group.visible = !this.lowQuality;
 
     if (this.goalPos) {
       // Crisp faceted cyan sanctuary crystal spire flanked by Kenney crystal shards & gold halo ring
@@ -724,28 +1090,28 @@ export class MapBuilder {
       const crystalGeo = mergeTexturedParts([
         {
           geometry: spireGeo,
-          colorHex: 0x5be3ff,
+          colorHex: theme.goal.color,
           position: [0, 0.12, 0],
           scale: [0.88, 1.55, 0.88],
           forceWhiteUv: true,
         },
         {
           geometry: miniShard,
-          colorHex: 0xccf7ff,
+          colorHex: theme.goal.shard,
           position: [-0.26, -0.32, 0.14],
           rotation: [0.18, 0.4, 0.28],
           scale: [0.95, 1.15, 0.95],
         },
         {
           geometry: miniShard,
-          colorHex: 0xccf7ff,
+          colorHex: theme.goal.shard,
           position: [0.25, -0.32, -0.14],
           rotation: [-0.15, 2.1, -0.26],
           scale: [0.85, 1.05, 0.85],
         },
         {
           geometry: crystalRing,
-          colorHex: PALETTE_HEX.gold,
+          colorHex: theme.goal.ring,
           position: [0, -0.4, 0],
           forceWhiteUv: true,
         },
@@ -755,6 +1121,7 @@ export class MapBuilder {
       crystalRing.dispose();
       this.disposableGeometries.push(crystalGeo);
 
+      materials.goalCrystal.emissive.setHex(theme.goal.glow);
       const crystalMesh = new THREE.Mesh(crystalGeo, materials.goalCrystal);
       crystalMesh.position.copy(this.goalPos);
       crystalMesh.castShadow = false;
@@ -860,6 +1227,15 @@ export class MapBuilder {
     }
 
     this.ambient.update(elapsedTime);
+    this.setPieces.update(elapsedTime);
+    this.waterDetails.update(elapsedTime);
+  }
+
+  /** 'low' quality hides the decorative extras (fliers, falling leaves, floating water props). */
+  setQuality(quality: QualityLevel): void {
+    this.lowQuality = quality === 'low';
+    this.ambient.setQuality(this.lowQuality);
+    this.waterDetails.group.visible = !this.lowQuality;
   }
 
   syncOccupiedTiles(towers: readonly TowerEntity[]): void {
@@ -869,6 +1245,8 @@ export class MapBuilder {
   dispose(): void {
     this.ambient.dispose();
     this.groundDetails.dispose();
+    this.setPieces.dispose();
+    this.waterDetails.dispose();
     disposeInstancedMeshes(this.group);
     this.group.clear();
     for (let i = 0; i < this.disposableGeometries.length; i++) {

@@ -7,6 +7,8 @@ import type { TowerEntity } from '../sim/entities.ts';
 import { gridToWorldX, gridToWorldZ } from '../sim/grid.ts';
 import { disposeInstancedMeshes, mergeColoredParts, type ColoredPart } from './geometryHelpers.ts';
 import type { MaterialLibrary } from './materials.ts';
+import { claimedDecorTiles, resolveGroundKind } from './islandThemes.ts';
+import { getIslandTheme } from './islandThemeTable.ts';
 
 interface BucketPlacement {
   col: number;
@@ -116,6 +118,74 @@ function createFlowerGeometry(petalHex: number, centerHex: number): THREE.Buffer
   return merged;
 }
 
+function createWheatTuftGeometry(): THREE.BufferGeometry {
+  const stalk = new THREE.ConeGeometry(0.02, 0.26, 4, 1);
+  const cols = [0xe3b84a, 0xf1cf6a, 0xc99a35, 0xe9c25a, 0xd4a53c];
+  const parts: ColoredPart[] = [];
+  for (let i = 0; i < 5; i++) {
+    const a = (i / 5) * Math.PI * 2;
+    parts.push({
+      geometry: stalk,
+      colorHex: cols[i],
+      position: [Math.cos(a) * 0.035, 0.12, Math.sin(a) * 0.035],
+      rotation: [Math.sin(a) * 0.28, a, -Math.cos(a) * 0.28],
+      scale: [1, 0.9 + (i % 3) * 0.12, 1],
+    });
+  }
+  const merged = mergeColoredParts(parts);
+  stalk.dispose();
+  return merged;
+}
+
+function createShellGeometry(): THREE.BufferGeometry {
+  const body = new THREE.DodecahedronGeometry(0.05, 0);
+  const parts: ColoredPart[] = [
+    {
+      geometry: body,
+      colorHex: PALETTE_HEX.cream,
+      position: [0, 0.02, 0],
+      rotation: [0.2, 0.5, 0],
+      scale: [1.15, 0.55, 0.9],
+    },
+    {
+      geometry: body,
+      colorHex: 0xf4b8b0,
+      position: [0.07, 0.015, 0.03],
+      rotation: [0, 1.1, 0.1],
+      scale: [0.7, 0.42, 0.6],
+    },
+  ];
+  const merged = mergeColoredParts(parts);
+  body.dispose();
+  return merged;
+}
+
+function createStarfishGeometry(): THREE.BufferGeometry {
+  const arm = new THREE.BoxGeometry(0.11, 0.022, 0.034);
+  const parts: ColoredPart[] = [];
+  for (let i = 0; i < 5; i++) {
+    const a = (i / 5) * Math.PI;
+    parts.push({ geometry: arm, colorHex: i === 0 ? 0xf08a5d : PALETTE_HEX.coral, position: [0, 0.012, 0], rotation: [0, a, 0] });
+  }
+  parts.push({ geometry: arm, colorHex: 0xf6bd41, position: [0, 0.026, 0], rotation: [0, 0.3, 0], scale: [0.3, 1, 1.4] });
+  const merged = mergeColoredParts(parts);
+  arm.dispose();
+  return merged;
+}
+
+function createBushGeometry(main: number, light: number): THREE.BufferGeometry {
+  const blob = new THREE.IcosahedronGeometry(1, 0);
+  const parts: ColoredPart[] = [
+    { geometry: blob, colorHex: main, position: [0, 0.07, 0], scale: [0.13, 0.095, 0.12] },
+    { geometry: blob, colorHex: light, position: [0.1, 0.06, 0.05], scale: [0.085, 0.07, 0.085] },
+    { geometry: blob, colorHex: main, position: [-0.09, 0.05, -0.06], scale: [0.075, 0.06, 0.075] },
+    { geometry: blob, colorHex: light, position: [0.02, 0.13, -0.01], scale: [0.05, 0.04, 0.05] },
+  ];
+  const merged = mergeColoredParts(parts);
+  blob.dispose();
+  return merged;
+}
+
 function createPebbleGeometry(): THREE.BufferGeometry {
   const stoneGeo = new THREE.DodecahedronGeometry(0.062, 0);
   const parts: ColoredPart[] = [
@@ -166,6 +236,9 @@ export class GroundDetails {
 
     const grid = parseLevelGrid(level);
     const rng = new SeededRng(level.decorationSeed + 3137);
+    const theme = getIslandTheme(level.id);
+    const claimed = claimedDecorTiles(level, theme);
+    const isLandTile = (c: number, r: number): boolean => c >= 0 && r >= 0 && c < level.cols && r < level.rows && grid[r][c] !== 'empty';
     const tileAt = (c: number, r: number) =>
       c >= 0 && r >= 0 && c < level.cols && r < level.rows ? grid[r][c] : 'water';
     const isPathNeighbor = (c: number, r: number) => {
@@ -173,8 +246,8 @@ export class GroundDetails {
       return t === 'path' || t === 'spawn' || t === 'goal';
     };
 
-    // 0: grass tufts, 1: cream flowers, 2: gold flowers, 3: coral flowers, 4: pebbles
-    const placements: BucketPlacement[][] = [[], [], [], [], []];
+    // 0: grass tufts, 1-3: flowers, 4: pebbles, 5: wheat tufts, 6: shells, 7: starfish, 8: bushes
+    const placements: BucketPlacement[][] = [[], [], [], [], [], [], [], [], []];
     const dummy = new THREE.Object3D();
 
     const pickOffset = (
@@ -227,36 +300,65 @@ export class GroundDetails {
       for (let c = 0; c < level.cols; c++) {
         const tile = grid[r][c];
         if (tile !== 'grass' && tile !== 'decor') continue;
+        if (claimed.has(`${c},${r}`)) continue;
 
         const baseX = gridToWorldX(c, level.cols);
         const baseZ = gridToWorldZ(r, level.rows);
         const isBuildable = tile === 'grass';
+        const ground = resolveGroundKind(theme, c, r, isLandTile, tile === 'decor');
+        const d = theme.details;
 
-        // Grass tufts (outer border only on buildable tiles)
-        const tuftCount = isBuildable ? (rng.chance(0.58) ? 1 : 0) : rng.chance(0.75) ? 2 : 1;
-        for (let i = 0; i < tuftCount; i++) {
-          const offset = pickOffset(c, r, isBuildable);
-          if (!offset) continue;
-          pushItem(0, c, r, baseX + offset[0], baseZ + offset[1], 0.85, 1.25);
+        // Grass tufts (outer border only on buildable tiles); sand/cobble stay bare, fields get wheat
+        if (ground === 'grass' || ground === 'moss' || ground === 'field') {
+          const baseTufts = isBuildable ? (rng.chance(0.58 * d.tuftMul) ? 1 : 0) : rng.chance(0.75 * d.tuftMul) ? 2 : 1;
+          const tuftCount = ground === 'field' ? (rng.chance(0.85) ? 2 : 1) : baseTufts;
+          for (let i = 0; i < tuftCount; i++) {
+            const offset = pickOffset(c, r, isBuildable);
+            if (!offset) continue;
+            const wheatBucket = ground === 'field' || (d.wheat > 0 && rng.chance(d.wheat));
+            pushItem(wheatBucket ? 5 : 0, c, r, baseX + offset[0], baseZ + offset[1], 0.85, 1.25);
+          }
         }
 
         // Tiny wildflowers in 3 palette accents
-        const flowerChance = isBuildable ? 0.34 : 0.52;
-        if (rng.chance(flowerChance)) {
-          const offset = pickOffset(c, r, isBuildable);
-          if (offset) {
-            const roll = rng.next();
-            const bucket = roll < 0.36 ? 1 : roll < 0.72 ? 2 : 3;
-            pushItem(bucket, c, r, baseX + offset[0], baseZ + offset[1], 0.9, 1.28);
+        if (ground === 'grass' || ground === 'moss') {
+          const flowerChance = (isBuildable ? 0.34 : 0.52) * d.flowerMul;
+          if (rng.chance(flowerChance)) {
+            const offset = pickOffset(c, r, isBuildable);
+            if (offset) {
+              const roll = rng.next();
+              const bucket = roll < 0.36 ? 1 : roll < 0.72 ? 2 : 3;
+              pushItem(bucket, c, r, baseX + offset[0], baseZ + offset[1], 0.9, 1.28);
+            }
+          }
+        }
+
+        // Small bushes (hide beneath towers like every other detail)
+        if (ground === 'grass' || ground === 'moss') {
+          if (rng.chance((isBuildable ? 0.12 : 0.3) * d.bushMul)) {
+            const offset = pickOffset(c, r, isBuildable);
+            if (offset) pushItem(8, c, r, baseX + offset[0], baseZ + offset[1], 0.9, 1.5);
           }
         }
 
         // Small pebbles
-        const pebbleChance = isBuildable ? 0.22 : 0.36;
+        const pebbleChance = (isBuildable ? 0.22 : 0.36) * d.pebbleMul * (ground === 'field' ? 0.3 : 1);
         if (rng.chance(pebbleChance)) {
           const offset = pickOffset(c, r, isBuildable);
           if (offset) {
             pushItem(4, c, r, baseX + offset[0], baseZ + offset[1], 0.82, 1.22);
+          }
+        }
+
+        // Beach finds on sand tiles
+        if (d.shells && ground === 'sand') {
+          if (rng.chance(0.3)) {
+            const offset = pickOffset(c, r, isBuildable);
+            if (offset) pushItem(6, c, r, baseX + offset[0], baseZ + offset[1], 0.9, 1.3);
+          }
+          if (rng.chance(0.14)) {
+            const offset = pickOffset(c, r, isBuildable);
+            if (offset) pushItem(7, c, r, baseX + offset[0], baseZ + offset[1], 0.9, 1.25);
           }
         }
       }
@@ -264,10 +366,14 @@ export class GroundDetails {
 
     const geometries = [
       createGrassTuftGeometry(),
-      createFlowerGeometry(PALETTE_HEX.cream, PALETTE_HEX.gold),
-      createFlowerGeometry(PALETTE_HEX.gold, 0xf28729),
-      createFlowerGeometry(PALETTE_HEX.coral, PALETTE_HEX.cream),
+      createFlowerGeometry(theme.details.flowers[0][0], theme.details.flowers[0][1]),
+      createFlowerGeometry(theme.details.flowers[1][0], theme.details.flowers[1][1]),
+      createFlowerGeometry(theme.details.flowers[2][0], theme.details.flowers[2][1]),
       createPebbleGeometry(),
+      createWheatTuftGeometry(),
+      createShellGeometry(),
+      createStarfishGeometry(),
+      createBushGeometry(theme.details.bushColors[0], theme.details.bushColors[1]),
     ];
 
     for (let b = 0; b < geometries.length; b++) {

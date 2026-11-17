@@ -4,7 +4,7 @@ export const LEVEL_5: LevelDef = {
   id: 'windmill-switchback',
   index: 4,
   name: 'Windmill Switchback',
-  subtitle: 'Deep sea coves carve twin hairpins around a central ridge',
+  subtitle: 'Twin hairpins around golden wheat fields, creaking windmills and autumn orchards',
   difficulty: 'Challenging',
   cols: 15,
   rows: 12,
@@ -49,10 +49,14 @@ export const LEVEL_5: LevelDef = {
   waveHpGrowth: 0.185,
   waves: [
     {
+      name: 'Early Harvest',
       clearBonus: 16,
-      groups: [{ enemyType: 'grunt', count: 9, spawnInterval: 0.85, startDelay: 0 }],
+      groups: [
+        { enemyType: 'grunt', count: 9, spawnInterval: 0.85, startDelay: 0 },
+      ],
     },
     {
+      name: 'Field Hands',
       clearBonus: 18,
       groups: [
         { enemyType: 'grunt', count: 8, spawnInterval: 0.78, startDelay: 0 },
@@ -60,6 +64,7 @@ export const LEVEL_5: LevelDef = {
       ],
     },
     {
+      name: 'Whirlwind',
       clearBonus: 20,
       groups: [
         { enemyType: 'runner', count: 12, spawnInterval: 0.45, startDelay: 0 },
@@ -67,6 +72,7 @@ export const LEVEL_5: LevelDef = {
       ],
     },
     {
+      name: 'Iron Plough',
       clearBonus: 22,
       groups: [
         { enemyType: 'brute', count: 5, spawnInterval: 1.25, startDelay: 0 },
@@ -74,64 +80,74 @@ export const LEVEL_5: LevelDef = {
       ],
     },
     {
+      name: 'Crow Flock',
       clearBonus: 24,
       groups: [
         { enemyType: 'flyer', count: 16, spawnInterval: 0.42, startDelay: 0 },
         { enemyType: 'healer', count: 2, spawnInterval: 1.6, startDelay: 1.8 },
-        { enemyType: 'runner', count: 10, spawnInterval: 0.4, startDelay: 3.0 },
+        { enemyType: 'runner', count: 10, spawnInterval: 0.4, startDelay: 3 },
       ],
     },
     {
+      name: 'Hay Fire',
       clearBonus: 28,
       groups: [
         { enemyType: 'brute', count: 6, spawnInterval: 1.05, startDelay: 0 },
-        { enemyType: 'splitter', count: 5, spawnInterval: 1.0, startDelay: 1.2 },
+        { enemyType: 'splitter', count: 5, spawnInterval: 1, startDelay: 1.2 },
         { enemyType: 'healer', count: 3, spawnInterval: 1.5, startDelay: 1.5 },
         { enemyType: 'grunt', count: 10, spawnInterval: 0.48, startDelay: 2.8 },
       ],
     },
     {
+      name: 'Gale Force',
       clearBonus: 32,
       groups: [
-        { enemyType: 'runner', count: 20, spawnInterval: 0.32, startDelay: 0 },
+        { enemyType: 'grunt', count: 10, spawnInterval: 0.34, startDelay: 0 },
+        { enemyType: 'runner', count: 12, spawnInterval: 0.32, startDelay: 0.5 },
         { enemyType: 'flyer', count: 18, spawnInterval: 0.36, startDelay: 1.2 },
       ],
     },
     {
+      name: 'Threshing Day',
       clearBonus: 36,
       groups: [
         { enemyType: 'brute', count: 9, spawnInterval: 0.88, startDelay: 0 },
-        { enemyType: 'healer', count: 4, spawnInterval: 1.3, startDelay: 1.0 },
-        { enemyType: 'flyer', count: 18, spawnInterval: 0.38, startDelay: 2.0 },
+        { enemyType: 'healer', count: 4, spawnInterval: 1.3, startDelay: 1 },
+        { enemyType: 'flyer', count: 18, spawnInterval: 0.38, startDelay: 2 },
       ],
     },
     {
+      name: 'Cinder Chaff',
       clearBonus: 40,
       groups: [
         { enemyType: 'grunt', count: 14, spawnInterval: 0.38, startDelay: 0 },
         { enemyType: 'splitter', count: 7, spawnInterval: 0.9, startDelay: 1.2 },
         { enemyType: 'runner', count: 16, spawnInterval: 0.3, startDelay: 2.2 },
-        { enemyType: 'healer', count: 4, spawnInterval: 1.25, startDelay: 3.0 },
+        { enemyType: 'healer', count: 4, spawnInterval: 1.25, startDelay: 3 },
       ],
     },
     {
+      name: "Scarecrow's Gambit",
       clearBonus: 44,
       groups: [
         { enemyType: 'brute', count: 10, spawnInterval: 0.8, startDelay: 0 },
-        { enemyType: 'flyer', count: 23, spawnInterval: 0.32, startDelay: 1.0 },
-        { enemyType: 'healer', count: 5, spawnInterval: 1.2, startDelay: 2.0 },
+        { enemyType: 'healer', count: 5, spawnInterval: 1.2, startDelay: 2 },
+        { enemyType: 'flyer', count: 23, spawnInterval: 0.32, startDelay: 8.5 },
       ],
     },
     {
+      name: 'Harvest Storm',
       clearBonus: 48,
       groups: [
-        { enemyType: 'runner', count: 20, spawnInterval: 0.28, startDelay: 0 },
+        { enemyType: 'runner', count: 12, spawnInterval: 0.28, startDelay: 0 },
+        { enemyType: 'grunt', count: 8, spawnInterval: 0.4, startDelay: 0.8 },
         { enemyType: 'splitter', count: 8, spawnInterval: 0.85, startDelay: 1.2 },
-        { enemyType: 'brute', count: 10, spawnInterval: 0.78, startDelay: 2.0 },
+        { enemyType: 'brute', count: 10, spawnInterval: 0.78, startDelay: 2 },
         { enemyType: 'healer', count: 5, spawnInterval: 1.15, startDelay: 2.8 },
       ],
     },
     {
+      name: 'Hailstorm',
       clearBonus: 54,
       groups: [
         { enemyType: 'flyer', count: 25, spawnInterval: 0.3, startDelay: 0 },
@@ -140,25 +156,28 @@ export const LEVEL_5: LevelDef = {
       ],
     },
     {
+      name: 'Windmill Siege',
       clearBonus: 60,
       groups: [
         { enemyType: 'brute', count: 13, spawnInterval: 0.68, startDelay: 0 },
-        { enemyType: 'splitter', count: 9, spawnInterval: 0.8, startDelay: 1.0 },
+        { enemyType: 'splitter', count: 9, spawnInterval: 0.8, startDelay: 1 },
         { enemyType: 'runner', count: 20, spawnInterval: 0.28, startDelay: 1.8 },
         { enemyType: 'flyer', count: 23, spawnInterval: 0.32, startDelay: 2.4 },
-        { enemyType: 'healer', count: 5, spawnInterval: 1.05, startDelay: 3.0 },
+        { enemyType: 'healer', count: 5, spawnInterval: 1.05, startDelay: 3 },
       ],
     },
     {
+      name: 'Locust Cloud',
       clearBonus: 68,
       groups: [
         { enemyType: 'flyer', count: 26, spawnInterval: 0.28, startDelay: 0 },
-        { enemyType: 'brute', count: 16, spawnInterval: 0.62, startDelay: 1.0 },
+        { enemyType: 'brute', count: 16, spawnInterval: 0.62, startDelay: 1 },
         { enemyType: 'healer', count: 7, spawnInterval: 0.95, startDelay: 1.8 },
         { enemyType: 'grunt', count: 16, spawnInterval: 0.34, startDelay: 2.8 },
       ],
     },
     {
+      name: 'Harvest Dreadnought',
       clearBonus: 90,
       groups: [
         { enemyType: 'brute', count: 14, spawnInterval: 0.65, startDelay: 0 },

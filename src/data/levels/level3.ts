@@ -4,7 +4,7 @@ export const LEVEL_3: LevelDef = {
   id: 'highland-citadel',
   index: 2,
   name: 'Highland Citadel',
-  subtitle: 'A spiraling mountain keep beset by armored sieges and sky raids',
+  subtitle: 'A snow-pine mountain keep spiralling round its courtyard, waterfalls off the cliffs',
   difficulty: 'Heroic',
   cols: 16,
   rows: 12,
@@ -52,42 +52,48 @@ export const LEVEL_3: LevelDef = {
   waveHpGrowth: 0.2,
   waves: [
     {
+      name: 'Gate Patrol',
       clearBonus: 18,
       groups: [
         { enemyType: 'grunt', count: 12, spawnInterval: 0.8, startDelay: 0 },
-        { enemyType: 'runner', count: 6, spawnInterval: 0.65, startDelay: 4.0 },
+        { enemyType: 'runner', count: 6, spawnInterval: 0.65, startDelay: 4 },
       ],
     },
     {
+      name: 'Mountain Scouts',
       clearBonus: 20,
       groups: [
         { enemyType: 'runner', count: 14, spawnInterval: 0.55, startDelay: 0 },
-        { enemyType: 'grunt', count: 10, spawnInterval: 0.75, startDelay: 3.0 },
+        { enemyType: 'grunt', count: 10, spawnInterval: 0.75, startDelay: 3 },
       ],
     },
     {
+      name: 'Eagle Hunt',
       clearBonus: 22,
       groups: [
         { enemyType: 'brute', count: 5, spawnInterval: 1.4, startDelay: 0 },
-        { enemyType: 'flyer', count: 8, spawnInterval: 0.78, startDelay: 2.0 },
+        { enemyType: 'flyer', count: 8, spawnInterval: 0.78, startDelay: 2 },
       ],
     },
     {
+      name: 'Foothill Raid',
       clearBonus: 24,
       groups: [
         { enemyType: 'grunt', count: 16, spawnInterval: 0.55, startDelay: 0 },
-        { enemyType: 'healer', count: 3, spawnInterval: 1.9, startDelay: 2.0 },
+        { enemyType: 'healer', count: 3, spawnInterval: 1.9, startDelay: 2 },
         { enemyType: 'runner', count: 12, spawnInterval: 0.5, startDelay: 4.5 },
       ],
     },
     {
+      name: 'Talon Storm',
       clearBonus: 26,
       groups: [
         { enemyType: 'flyer', count: 14, spawnInterval: 0.62, startDelay: 0 },
-        { enemyType: 'brute', count: 7, spawnInterval: 1.2, startDelay: 2.0 },
+        { enemyType: 'brute', count: 7, spawnInterval: 1.2, startDelay: 2 },
       ],
     },
     {
+      name: 'Cinder Pass',
       clearBonus: 30,
       groups: [
         { enemyType: 'brute', count: 7, spawnInterval: 1.15, startDelay: 0 },
@@ -97,6 +103,7 @@ export const LEVEL_3: LevelDef = {
       ],
     },
     {
+      name: 'Wind Walkers',
       clearBonus: 32,
       groups: [
         { enemyType: 'flyer', count: 16, spawnInterval: 0.56, startDelay: 0 },
@@ -105,6 +112,7 @@ export const LEVEL_3: LevelDef = {
       ],
     },
     {
+      name: 'Siege Engines',
       clearBonus: 36,
       groups: [
         { enemyType: 'brute', count: 11, spawnInterval: 0.95, startDelay: 0 },
@@ -113,21 +121,24 @@ export const LEVEL_3: LevelDef = {
       ],
     },
     {
+      name: 'Avalanche',
       clearBonus: 40,
       groups: [
         { enemyType: 'runner', count: 26, spawnInterval: 0.36, startDelay: 0 },
-        { enemyType: 'brute', count: 10, spawnInterval: 0.9, startDelay: 2.5 },
+        { enemyType: 'brute', count: 10, spawnInterval: 0.9, startDelay: 10 },
       ],
     },
     {
+      name: 'The Warden',
       clearBonus: 44,
       groups: [
         { enemyType: 'brute', count: 12, spawnInterval: 0.85, startDelay: 0 },
         { enemyType: 'healer', count: 6, spawnInterval: 1.25, startDelay: 1.5 },
-        { enemyType: 'boss', count: 1, spawnInterval: 1.0, startDelay: 5.0 },
+        { enemyType: 'boss', count: 1, spawnInterval: 1, startDelay: 5 },
       ],
     },
     {
+      name: 'Ember Skies',
       clearBonus: 48,
       groups: [
         { enemyType: 'flyer', count: 21, spawnInterval: 0.48, startDelay: 0 },
@@ -137,22 +148,25 @@ export const LEVEL_3: LevelDef = {
       ],
     },
     {
+      name: 'Granite Wall',
       clearBonus: 52,
       groups: [
         { enemyType: 'brute', count: 16, spawnInterval: 0.78, startDelay: 0 },
         { enemyType: 'healer', count: 7, spawnInterval: 1.15, startDelay: 1.5 },
-        { enemyType: 'grunt', count: 24, spawnInterval: 0.4, startDelay: 3.0 },
+        { enemyType: 'grunt', count: 24, spawnInterval: 0.4, startDelay: 3 },
       ],
     },
     {
+      name: 'Raptor Swarm',
       clearBonus: 56,
       groups: [
         { enemyType: 'flyer', count: 24, spawnInterval: 0.44, startDelay: 0 },
-        { enemyType: 'brute', count: 14, spawnInterval: 0.8, startDelay: 2.0 },
-        { enemyType: 'healer', count: 7, spawnInterval: 1.1, startDelay: 3.0 },
+        { enemyType: 'brute', count: 14, spawnInterval: 0.8, startDelay: 2 },
+        { enemyType: 'healer', count: 7, spawnInterval: 1.1, startDelay: 3 },
       ],
     },
     {
+      name: 'Landslide',
       clearBonus: 60,
       groups: [
         { enemyType: 'runner', count: 28, spawnInterval: 0.32, startDelay: 0 },
@@ -162,6 +176,7 @@ export const LEVEL_3: LevelDef = {
       ],
     },
     {
+      name: 'Twin Wardens',
       clearBonus: 66,
       groups: [
         { enemyType: 'brute', count: 16, spawnInterval: 0.74, startDelay: 0 },
@@ -170,29 +185,32 @@ export const LEVEL_3: LevelDef = {
       ],
     },
     {
+      name: 'Blizzard of Wings',
       clearBonus: 72,
       groups: [
         { enemyType: 'flyer', count: 28, spawnInterval: 0.4, startDelay: 0 },
         { enemyType: 'splitter', count: 10, spawnInterval: 0.8, startDelay: 1.4 },
         { enemyType: 'runner', count: 32, spawnInterval: 0.3, startDelay: 2.4 },
         { enemyType: 'brute', count: 16, spawnInterval: 0.74, startDelay: 3.5 },
-        { enemyType: 'healer', count: 8, spawnInterval: 1.1, startDelay: 4.0 },
+        { enemyType: 'healer', count: 8, spawnInterval: 1.1, startDelay: 4 },
       ],
     },
     {
+      name: 'The Long Siege',
       clearBonus: 78,
       groups: [
         { enemyType: 'brute', count: 18, spawnInterval: 0.72, startDelay: 0 },
         { enemyType: 'healer', count: 8, spawnInterval: 1.05, startDelay: 1.5 },
         { enemyType: 'flyer', count: 26, spawnInterval: 0.4, startDelay: 2.5 },
-        { enemyType: 'boss', count: 2, spawnInterval: 5.8, startDelay: 5.0 },
+        { enemyType: 'boss', count: 2, spawnInterval: 5.8, startDelay: 5 },
       ],
     },
     {
+      name: 'Fall of the Citadel',
       clearBonus: 95,
       groups: [
         { enemyType: 'brute', count: 18, spawnInterval: 0.68, startDelay: 0 },
-        { enemyType: 'splitter', count: 7, spawnInterval: 0.85, startDelay: 1.0 },
+        { enemyType: 'splitter', count: 7, spawnInterval: 0.85, startDelay: 1 },
         { enemyType: 'healer', count: 7, spawnInterval: 1.05, startDelay: 1.4 },
         { enemyType: 'flyer', count: 27, spawnInterval: 0.38, startDelay: 2.2 },
         { enemyType: 'boss', count: 2, spawnInterval: 5.5, startDelay: 4.5 },

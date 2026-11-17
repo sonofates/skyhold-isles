@@ -4,7 +4,7 @@ export const LEVEL_8: LevelDef = {
   id: 'sunken-bastion',
   index: 7,
   name: 'Sunken Bastion',
-  subtitle: 'Outer terraced ramparts feeding a moated inner keep',
+  subtitle: 'A half-drowned bastion of mossy ruins, torches and a moated inner keep',
   difficulty: 'Master',
   cols: 16,
   rows: 13,
@@ -65,13 +65,15 @@ export const LEVEL_8: LevelDef = {
   waveHpGrowth: 0.23,
   waves: [
     {
+      name: 'Outer Ramparts',
       clearBonus: 24,
       groups: [
         { enemyType: 'grunt', count: 16, spawnInterval: 0.52, startDelay: 0 },
-        { enemyType: 'runner', count: 8, spawnInterval: 0.42, startDelay: 2.0 },
+        { enemyType: 'runner', count: 8, spawnInterval: 0.42, startDelay: 2 },
       ],
     },
     {
+      name: 'Moat Runners',
       clearBonus: 26,
       groups: [
         { enemyType: 'runner', count: 18, spawnInterval: 0.38, startDelay: 0 },
@@ -79,6 +81,7 @@ export const LEVEL_8: LevelDef = {
       ],
     },
     {
+      name: 'Drawbridge Raid',
       clearBonus: 28,
       groups: [
         { enemyType: 'brute', count: 5, spawnInterval: 1.05, startDelay: 0 },
@@ -87,6 +90,7 @@ export const LEVEL_8: LevelDef = {
       ],
     },
     {
+      name: 'Tidewater Mend',
       clearBonus: 32,
       groups: [
         { enemyType: 'grunt', count: 18, spawnInterval: 0.42, startDelay: 0 },
@@ -95,6 +99,7 @@ export const LEVEL_8: LevelDef = {
       ],
     },
     {
+      name: 'Breach',
       clearBonus: 34,
       groups: [
         { enemyType: 'flyer', count: 10, spawnInterval: 0.48, startDelay: 0 },
@@ -103,14 +108,16 @@ export const LEVEL_8: LevelDef = {
       ],
     },
     {
+      name: 'Ironclad Tide',
       clearBonus: 38,
       groups: [
         { enemyType: 'brute', count: 10, spawnInterval: 0.78, startDelay: 0 },
-        { enemyType: 'healer', count: 4, spawnInterval: 1.35, startDelay: 1.0 },
-        { enemyType: 'grunt', count: 18, spawnInterval: 0.38, startDelay: 2.0 },
+        { enemyType: 'healer', count: 5, spawnInterval: 1.3, startDelay: 1 },
+        { enemyType: 'grunt', count: 15, spawnInterval: 0.38, startDelay: 2 },
       ],
     },
     {
+      name: 'Spark Flood',
       clearBonus: 42,
       groups: [
         { enemyType: 'runner', count: 24, spawnInterval: 0.28, startDelay: 0 },
@@ -120,6 +127,7 @@ export const LEVEL_8: LevelDef = {
       ],
     },
     {
+      name: 'Battering Rams',
       clearBonus: 44,
       groups: [
         { enemyType: 'brute', count: 13, spawnInterval: 0.68, startDelay: 0 },
@@ -128,33 +136,37 @@ export const LEVEL_8: LevelDef = {
       ],
     },
     {
+      name: 'The Drowned March',
       clearBonus: 48,
       groups: [
-        { enemyType: 'runner', count: 32, spawnInterval: 0.25, startDelay: 0 },
-        { enemyType: 'brute', count: 13, spawnInterval: 0.68, startDelay: 1.0 },
-        { enemyType: 'healer', count: 5, spawnInterval: 1.08, startDelay: 1.6 },
+        { enemyType: 'brute', count: 13, spawnInterval: 0.68, startDelay: 0 },
+        { enemyType: 'healer', count: 5, spawnInterval: 1.08, startDelay: 1 },
+        { enemyType: 'runner', count: 32, spawnInterval: 0.25, startDelay: 7 },
       ],
     },
     {
+      name: 'The Warden of Depths',
       clearBonus: 54,
       groups: [
         { enemyType: 'brute', count: 15, spawnInterval: 0.62, startDelay: 0 },
         { enemyType: 'healer', count: 6, spawnInterval: 0.98, startDelay: 0.7 },
         { enemyType: 'flyer', count: 12, spawnInterval: 0.38, startDelay: 1.4 },
-        { enemyType: 'boss', count: 1, spawnInterval: 1.0, startDelay: 1.8 },
+        { enemyType: 'boss', count: 1, spawnInterval: 1, startDelay: 1.8 },
       ],
     },
     {
+      name: 'Keep Assault',
       clearBonus: 58,
       groups: [
         { enemyType: 'grunt', count: 20, spawnInterval: 0.32, startDelay: 0 },
         { enemyType: 'splitter', count: 6, spawnInterval: 0.85, startDelay: 0.8 },
         { enemyType: 'brute', count: 12, spawnInterval: 0.68, startDelay: 1.2 },
-        { enemyType: 'healer', count: 5, spawnInterval: 1.0, startDelay: 1.6 },
-        { enemyType: 'flyer', count: 14, spawnInterval: 0.34, startDelay: 2.0 },
+        { enemyType: 'healer', count: 5, spawnInterval: 1, startDelay: 1.6 },
+        { enemyType: 'flyer', count: 14, spawnInterval: 0.34, startDelay: 2 },
       ],
     },
     {
+      name: 'Tidefall',
       clearBonus: 62,
       groups: [
         { enemyType: 'flyer', count: 20, spawnInterval: 0.3, startDelay: 0 },
@@ -163,6 +175,7 @@ export const LEVEL_8: LevelDef = {
       ],
     },
     {
+      name: 'Wall of Iron',
       clearBonus: 68,
       groups: [
         { enemyType: 'brute', count: 20, spawnInterval: 0.56, startDelay: 0 },
@@ -171,6 +184,7 @@ export const LEVEL_8: LevelDef = {
       ],
     },
     {
+      name: 'Moat Storm',
       clearBonus: 72,
       groups: [
         { enemyType: 'flyer', count: 18, spawnInterval: 0.32, startDelay: 0 },
@@ -180,16 +194,18 @@ export const LEVEL_8: LevelDef = {
       ],
     },
     {
+      name: 'Twin Sentinels',
       clearBonus: 78,
       groups: [
         { enemyType: 'brute', count: 16, spawnInterval: 0.55, startDelay: 0 },
         { enemyType: 'splitter', count: 6, spawnInterval: 0.85, startDelay: 0.6 },
-        { enemyType: 'healer', count: 6, spawnInterval: 0.88, startDelay: 1.0 },
+        { enemyType: 'healer', count: 6, spawnInterval: 0.88, startDelay: 1 },
         { enemyType: 'flyer', count: 18, spawnInterval: 0.32, startDelay: 1.4 },
-        { enemyType: 'boss', count: 2, spawnInterval: 4.5, startDelay: 2.0 },
+        { enemyType: 'boss', count: 2, spawnInterval: 4.5, startDelay: 2 },
       ],
     },
     {
+      name: 'Skyfall',
       clearBonus: 82,
       groups: [
         { enemyType: 'flyer', count: 21, spawnInterval: 0.29, startDelay: 0 },
@@ -198,14 +214,16 @@ export const LEVEL_8: LevelDef = {
       ],
     },
     {
+      name: 'Siege Train',
       clearBonus: 88,
       groups: [
         { enemyType: 'brute', count: 24, spawnInterval: 0.48, startDelay: 0 },
         { enemyType: 'healer', count: 10, spawnInterval: 0.76, startDelay: 0.5 },
-        { enemyType: 'flyer', count: 18, spawnInterval: 0.33, startDelay: 1.0 },
+        { enemyType: 'flyer', count: 18, spawnInterval: 0.33, startDelay: 1 },
       ],
     },
     {
+      name: 'Breaking the Keep',
       clearBonus: 94,
       groups: [
         { enemyType: 'flyer', count: 18, spawnInterval: 0.32, startDelay: 0 },
@@ -215,6 +233,7 @@ export const LEVEL_8: LevelDef = {
       ],
     },
     {
+      name: 'Ember Tide',
       clearBonus: 100,
       groups: [
         { enemyType: 'runner', count: 38, spawnInterval: 0.21, startDelay: 0 },
@@ -225,11 +244,12 @@ export const LEVEL_8: LevelDef = {
       ],
     },
     {
+      name: 'The Sunken King',
       clearBonus: 120,
       groups: [
         { enemyType: 'brute', count: 24, spawnInterval: 0.45, startDelay: 0 },
         { enemyType: 'healer', count: 10, spawnInterval: 0.72, startDelay: 0.5 },
-        { enemyType: 'flyer', count: 20, spawnInterval: 0.3, startDelay: 1.0 },
+        { enemyType: 'flyer', count: 20, spawnInterval: 0.3, startDelay: 1 },
         { enemyType: 'boss', count: 2, spawnInterval: 4.2, startDelay: 1.6 },
       ],
     },

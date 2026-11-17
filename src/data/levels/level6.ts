@@ -4,7 +4,7 @@ export const LEVEL_6: LevelDef = {
   id: 'crescent-lagoon',
   index: 5,
   name: 'Crescent Lagoon',
-  subtitle: 'An enclosing atoll ring flanking a sunlit inner sea basin',
+  subtitle: 'A palm-fringed atoll ringing a lighthouse lagoon of sandy shores',
   difficulty: 'Heroic',
   cols: 16,
   rows: 12,
@@ -61,27 +61,31 @@ export const LEVEL_6: LevelDef = {
   waveHpGrowth: 0.18,
   waves: [
     {
+      name: 'Beach Landing',
       clearBonus: 22,
       groups: [
         { enemyType: 'grunt', count: 10, spawnInterval: 0.85, startDelay: 0 },
-        { enemyType: 'runner', count: 5, spawnInterval: 0.7, startDelay: 4.0 },
+        { enemyType: 'runner', count: 5, spawnInterval: 0.7, startDelay: 4 },
       ],
     },
     {
+      name: 'Surf Runners',
       clearBonus: 24,
       groups: [
         { enemyType: 'runner', count: 12, spawnInterval: 0.6, startDelay: 0 },
-        { enemyType: 'grunt', count: 10, spawnInterval: 0.75, startDelay: 3.0 },
+        { enemyType: 'grunt', count: 10, spawnInterval: 0.75, startDelay: 3 },
       ],
     },
     {
+      name: 'Gull Dash',
       clearBonus: 26,
       groups: [
         { enemyType: 'runner', count: 12, spawnInterval: 0.55, startDelay: 0 },
-        { enemyType: 'flyer', count: 7, spawnInterval: 0.8, startDelay: 2.0 },
+        { enemyType: 'flyer', count: 7, spawnInterval: 0.8, startDelay: 2 },
       ],
     },
     {
+      name: 'Driftwood Brutes',
       clearBonus: 28,
       groups: [
         { enemyType: 'brute', count: 4, spawnInterval: 1.5, startDelay: 0 },
@@ -89,14 +93,16 @@ export const LEVEL_6: LevelDef = {
       ],
     },
     {
+      name: 'Sea Skimmers',
       clearBonus: 32,
       groups: [
         { enemyType: 'flyer', count: 12, spawnInterval: 0.65, startDelay: 0 },
-        { enemyType: 'healer', count: 2, spawnInterval: 2.0, startDelay: 2.0 },
-        { enemyType: 'runner', count: 11, spawnInterval: 0.52, startDelay: 4.0 },
+        { enemyType: 'healer', count: 2, spawnInterval: 2, startDelay: 2 },
+        { enemyType: 'runner', count: 11, spawnInterval: 0.52, startDelay: 4 },
       ],
     },
     {
+      name: 'Cinder Reef',
       clearBonus: 36,
       groups: [
         { enemyType: 'brute', count: 6, spawnInterval: 1.25, startDelay: 0 },
@@ -106,6 +112,7 @@ export const LEVEL_6: LevelDef = {
       ],
     },
     {
+      name: 'Trade Winds',
       clearBonus: 38,
       groups: [
         { enemyType: 'flyer', count: 15, spawnInterval: 0.56, startDelay: 0 },
@@ -114,6 +121,7 @@ export const LEVEL_6: LevelDef = {
       ],
     },
     {
+      name: 'Iron Tide',
       clearBonus: 42,
       groups: [
         { enemyType: 'brute', count: 9, spawnInterval: 1.05, startDelay: 0 },
@@ -122,56 +130,63 @@ export const LEVEL_6: LevelDef = {
       ],
     },
     {
+      name: 'Riptide',
       clearBonus: 46,
       groups: [
-        { enemyType: 'runner', count: 22, spawnInterval: 0.38, startDelay: 0 },
-        { enemyType: 'brute', count: 9, spawnInterval: 0.95, startDelay: 2.5 },
+        { enemyType: 'brute', count: 9, spawnInterval: 0.95, startDelay: 0 },
+        { enemyType: 'runner', count: 22, spawnInterval: 0.38, startDelay: 8 },
       ],
     },
     {
+      name: 'Ember Shoals',
       clearBonus: 50,
       groups: [
         { enemyType: 'brute', count: 8, spawnInterval: 0.98, startDelay: 0 },
         { enemyType: 'splitter', count: 4, spawnInterval: 1.1, startDelay: 1.2 },
         { enemyType: 'healer', count: 3, spawnInterval: 1.6, startDelay: 1.8 },
-        { enemyType: 'flyer', count: 14, spawnInterval: 0.56, startDelay: 3.0 },
+        { enemyType: 'flyer', count: 14, spawnInterval: 0.56, startDelay: 3 },
       ],
     },
     {
+      name: 'Squall Line',
       clearBonus: 54,
       groups: [
         { enemyType: 'flyer', count: 18, spawnInterval: 0.48, startDelay: 0 },
-        { enemyType: 'runner', count: 20, spawnInterval: 0.38, startDelay: 2.0 },
+        { enemyType: 'runner', count: 20, spawnInterval: 0.38, startDelay: 2 },
         { enemyType: 'healer', count: 5, spawnInterval: 1.25, startDelay: 3.5 },
       ],
     },
     {
+      name: 'Tidal Wall',
       clearBonus: 68,
       groups: [
         { enemyType: 'brute', count: 14, spawnInterval: 0.82, startDelay: 0 },
         { enemyType: 'healer', count: 6, spawnInterval: 1.2, startDelay: 1.5 },
-        { enemyType: 'grunt', count: 22, spawnInterval: 0.4, startDelay: 3.0 },
+        { enemyType: 'grunt', count: 22, spawnInterval: 0.4, startDelay: 3 },
       ],
     },
     {
+      name: 'The Leviathan',
       clearBonus: 75,
       groups: [
         { enemyType: 'brute', count: 8, spawnInterval: 0.92, startDelay: 0 },
-        { enemyType: 'splitter', count: 4, spawnInterval: 1.0, startDelay: 1.0 },
+        { enemyType: 'splitter', count: 4, spawnInterval: 1, startDelay: 1 },
         { enemyType: 'healer', count: 3, spawnInterval: 1.4, startDelay: 1.6 },
         { enemyType: 'flyer', count: 14, spawnInterval: 0.54, startDelay: 2.5 },
-        { enemyType: 'boss', count: 1, spawnInterval: 1.0, startDelay: 5.0 },
+        { enemyType: 'boss', count: 1, spawnInterval: 1, startDelay: 5 },
       ],
     },
     {
+      name: 'Stormbreak',
       clearBonus: 80,
       groups: [
         { enemyType: 'runner', count: 24, spawnInterval: 0.36, startDelay: 0 },
-        { enemyType: 'brute', count: 14, spawnInterval: 0.78, startDelay: 2.0 },
+        { enemyType: 'brute', count: 14, spawnInterval: 0.78, startDelay: 2 },
         { enemyType: 'flyer', count: 20, spawnInterval: 0.46, startDelay: 3.5 },
       ],
     },
     {
+      name: 'Ironclad Lagoon',
       clearBonus: 98,
       groups: [
         { enemyType: 'brute', count: 16, spawnInterval: 0.75, startDelay: 0 },
@@ -180,16 +195,18 @@ export const LEVEL_6: LevelDef = {
       ],
     },
     {
+      name: 'Maelstrom',
       clearBonus: 108,
       groups: [
         { enemyType: 'flyer', count: 21, spawnInterval: 0.44, startDelay: 0 },
-        { enemyType: 'splitter', count: 8, spawnInterval: 0.85, startDelay: 1.0 },
+        { enemyType: 'splitter', count: 8, spawnInterval: 0.85, startDelay: 1 },
         { enemyType: 'runner', count: 20, spawnInterval: 0.36, startDelay: 2.2 },
         { enemyType: 'brute', count: 14, spawnInterval: 0.78, startDelay: 3.5 },
-        { enemyType: 'healer', count: 6, spawnInterval: 1.2, startDelay: 4.0 },
+        { enemyType: 'healer', count: 6, spawnInterval: 1.2, startDelay: 4 },
       ],
     },
     {
+      name: 'Fall of the Atoll',
       clearBonus: 105,
       groups: [
         { enemyType: 'brute', count: 10, spawnInterval: 0.82, startDelay: 0 },

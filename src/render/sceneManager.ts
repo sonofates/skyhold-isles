@@ -99,6 +99,27 @@ export class SceneManager {
     this.scene.add(this.dirLight.target);
   }
 
+  /**
+   * Per-island sky/light mood. Colours are sRGB hex; omitted fields keep the default look.
+   * Called by RenderWorld.loadLevel (cross-area: islands branch).
+   */
+  setAtmosphere(a: {
+    horizon?: number;
+    zenith?: number;
+    hemiSky?: number;
+    sun?: number;
+    sunIntensity?: number;
+  }): void {
+    const horizon = a.horizon ?? new THREE.Color(SKY_HORIZON_HEX).lerp(new THREE.Color(PALETTE_HEX.water), 0.36).getHex();
+    const zenith = a.zenith ?? new THREE.Color(PALETTE_HEX.water).lerp(new THREE.Color(0x2888c4), 0.32).getHex();
+    (this.skyMaterial.uniforms.uHorizon.value as THREE.Color).setHex(horizon);
+    (this.skyMaterial.uniforms.uZenith.value as THREE.Color).setHex(zenith);
+    this.scene.fog = new THREE.Fog(a.horizon ?? SKY_HORIZON_HEX, 125, 260);
+    this.hemiLight.color.setHex(a.hemiSky ?? SKY_ZENITH_HEX);
+    this.dirLight.color.setHex(a.sun ?? 0xfffaf0);
+    this.dirLight.intensity = a.sunIntensity ?? 1.64;
+  }
+
   get shadowsEnabled(): boolean {
     return this.renderer.shadowMap.enabled && this.dirLight.castShadow;
   }

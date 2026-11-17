@@ -7,6 +7,9 @@ import { PALETTE_HEX } from '../data/palette.ts';
 import { disposeInstancedMeshes, mergeTexturedParts } from './geometryHelpers.ts';
 import type { KenneyAssetStore } from './kenneyAssets.ts';
 import type { MaterialLibrary } from './materials.ts';
+import { claimedDecorTiles, decorHillHeight, type IslandTheme, type TreeKind } from './islandThemes.ts';
+import { getIslandTheme } from './islandThemeTable.ts';
+import { createPalmGeometry, createPineGeometry, createTintableBroadleafGeometry } from './treeGeometry.ts';
 
 interface SwayPlacement {
   x: number;
@@ -70,6 +73,30 @@ function createBroadleafTreeGeometry(): THREE.BufferGeometry {
   return merged;
 }
 
+
+interface TreeSpec {
+  readonly scale: readonly [number, number];
+  readonly tints: readonly number[];
+  readonly geometry: (assets: KenneyAssetStore, theme: IslandTheme) => THREE.BufferGeometry;
+}
+
+const AUTUMN_TINTS = [0xf28729, 0xf6bd41, 0xe0603a, 0xd9a52e, 0xf0a13a] as const;
+const BLOSSOM_TINTS = [0xf7a9bb, 0xf4c6d0, 0xffe3e8, 0xf290a8] as const;
+
+const TREE_SPECS: Record<TreeKind, TreeSpec> = {
+  tree: { scale: [2.25, 2.85], tints: TREE_COLOR_TINTS, geometry: (a) => a.cloneGeometry('detail-tree') },
+  treeLarge: { scale: [2.25, 2.85], tints: TREE_COLOR_TINTS, geometry: (a) => a.cloneGeometry('detail-tree-large') },
+  oak: { scale: [1.65, 2.2], tints: TREE_COLOR_TINTS, geometry: () => createBroadleafTreeGeometry() },
+  pine: {
+    scale: [2.2, 3.0],
+    tints: [0xffffff, 0xeaf3ea, 0xdfeede, 0xf2f8ee],
+    geometry: (_a, theme) => createPineGeometry(theme.trees.snow === true),
+  },
+  palm: { scale: [2.3, 3.0], tints: [0xffffff, 0xf4fbe8, 0xe8f6dd], geometry: () => createPalmGeometry() },
+  autumn: { scale: [1.8, 2.4], tints: AUTUMN_TINTS, geometry: () => createTintableBroadleafGeometry(1.1) },
+  blossom: { scale: [1.7, 2.2], tints: BLOSSOM_TINTS, geometry: () => createTintableBroadleafGeometry(0.95) },
+};
+
 export class DecorBuilder {
   readonly group = new THREE.Group();
   private disposableGeometries: THREE.BufferGeometry[] = [];
@@ -82,43 +109,54 @@ export class DecorBuilder {
 
     const grid = parseLevelGrid(level);
     const rng = new SeededRng(level.decorationSeed);
+    const theme = getIslandTheme(level.id);
+    const claimed = claimedDecorTiles(level, theme);
 
-    const smallTreePlacements: SwayPlacement[] = [];
-    const largeTreePlacements: SwayPlacement[] = [];
-    const broadleafPlacements: SwayPlacement[] = [];
+    const kinds = Object.keys(theme.trees.weights) as TreeKind[];
+    let totalWeight = 0;
+    for (const k of kinds) totalWeight += theme.trees.weights[k] ?? 0;
+    const placementsByKind = new Map<TreeKind, SwayPlacement[]>();
 
     for (let r = 0; r < level.rows; r++) {
       for (let c = 0; c < level.cols; c++) {
         const tile = grid[r][c];
         if (tile !== 'decor') continue;
+        if (claimed.has(`${c},${r}`)) continue;
 
         const wx = gridToWorldX(c, level.cols);
         const wz = gridToWorldZ(r, level.rows);
+        const hillH = decorHillHeight(theme, grid, c, r, claimed.has(`${c},${r}`));
 
-        const count = rng.chance(0.45) ? 2 : 1;
+        const count = rng.chance(theme.trees.density) ? 2 : 1;
         for (let t = 0; t < count; t++) {
           const offsetX = count === 1 ? rng.range(-0.22, 0.22) : t === 0 ? -0.34 : 0.34;
           const offsetZ = rng.range(-0.26, 0.26);
           const placement: SwayPlacement = {
             x: wx + offsetX,
-            y: -0.02,
+            y: -0.02 + hillH * 0.8,
             z: wz + offsetZ,
             rotY: rng.range(0, Math.PI * 2),
             scale: rng.range(2.25, 2.85),
             phase: rng.range(0, Math.PI * 2),
             swayAmp: rng.range(0.024, 0.042),
           };
-          const roll = rng.next();
-          if (roll < 0.38) {
-            largeTreePlacements.push(placement);
-          } else if (roll < 0.72) {
-            smallTreePlacements.push(placement);
-          } else {
-            broadleafPlacements.push({
-              ...placement,
-              scale: rng.range(1.65, 2.2),
-            });
+          let roll = rng.next() * totalWeight;
+          let kind: TreeKind = kinds[kinds.length - 1];
+          for (const k of kinds) {
+            roll -= theme.trees.weights[k] ?? 0;
+            if (roll <= 0) {
+              kind = k;
+              break;
+            }
           }
+          const spec = TREE_SPECS[kind];
+          placement.scale = rng.range(spec.scale[0], spec.scale[1]);
+          let list = placementsByKind.get(kind);
+          if (!list) {
+            list = [];
+            placementsByKind.set(kind, list);
+          }
+          list.push(placement);
         }
       }
     }
@@ -129,6 +167,7 @@ export class DecorBuilder {
       placements: SwayPlacement[],
       castShadow: boolean,
       sway: boolean,
+      tints: readonly number[],
     ): void => {
       if (placements.length === 0) {
         geo.dispose();
@@ -150,7 +189,7 @@ export class DecorBuilder {
         this.dummy.scale.setScalar(p.scale);
         this.dummy.updateMatrix();
         mesh.setMatrixAt(i, this.dummy.matrix);
-        colorTmp.setHex(TREE_COLOR_TINTS[i % TREE_COLOR_TINTS.length]);
+        colorTmp.setHex(tints[i % tints.length]);
         mesh.setColorAt(i, colorTmp);
       }
       mesh.instanceMatrix.needsUpdate = true;
@@ -159,9 +198,12 @@ export class DecorBuilder {
       this.layers.push({ mesh, placements: ordered, sway, fadeArray, fadeAttr });
     };
 
-    createLayer(assets.cloneGeometry('detail-tree'), smallTreePlacements, true, true);
-    createLayer(assets.cloneGeometry('detail-tree-large'), largeTreePlacements, true, true);
-    createLayer(createBroadleafTreeGeometry(), broadleafPlacements, true, true);
+    for (const kind of kinds) {
+      const list = placementsByKind.get(kind);
+      if (!list || list.length === 0) continue;
+      const spec = TREE_SPECS[kind];
+      createLayer(spec.geometry(assets, theme), list, true, true, spec.tints);
+    }
     this.applyQualityCounts();
   }
 
