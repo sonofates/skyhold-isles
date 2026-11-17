@@ -264,6 +264,10 @@ Read-only diff comparison (merge-tree not permitted here). Shared files and expe
   the "/ 39" and tighten gaps). Landscape/desktop show the labelled chip, fits.
 
 ## Cross-area changes
+- Round 2: `src/sim/world.ts` constructor swaps in `championLevel(level)` when
+  `mods.championWaves` (neutral default → identical sim); `src/data/endlessMutators.ts` gained the
+  pure helper `endlessWavesCleared`; `src/ui/gameModals.ts` feat + "Copy result" chips;
+  `src/ui/styles/logbook.css` narrow-phone island-select header rule (`.level-select-header`).
 - `src/sim/{world,abilitySystem,combatSystem,enemySystem}.ts`: optional modifier hooks (neutral default, sim results identical).
 - `src/data/balance.ts`: removed `starThresholds` (moved to src/data/stars.ts).
 - `src/audio/soundManager.ts`: added playStarChime / playUiConfirm / playUiBack.
