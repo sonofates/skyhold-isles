@@ -232,3 +232,7 @@ early waves does NOT soften them, it starves the economy (kill rewards) and the 
 ### Round 18 (verification only, no code changes)
 - Clean tree. `tsc` and `sim:balance` re-run: green (greedy L1 20 / L2 15 / L3 9 / L4 15 / L5 14 / L6 13 / L7 10 / L8 7 / L9 9 lives; every weak script loses L2+). Previews re-rendered (18-26 draw calls, 34-51k tris); L2 re-inspected, no overlaps.
 - Lint / tests / build were not re-run this round (not touched since round 17). Handoff state unchanged; see "Merge notes for the lead".
+
+### Round 19 (verification only, no code changes)
+- Clean tree. tsc, lint, 134 tests, `sim:balance` all green (greedy L1 20 / L2 15 / L3 9 / L4 15 / L5 14 / L6 13 / L7 10 / L8 7 / L9 9 lives; every weak script loses L2+). Build not re-run (no source changes since round 17).
+- Handoff state unchanged; layout/path and wave-ramp changes remain untouched (knife-edge windows). See "Merge notes for the lead".
