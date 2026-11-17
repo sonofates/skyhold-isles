@@ -1765,16 +1765,16 @@ html.is-touch .pause-toggles {
 
 .setting-seg {
   display: flex;
-  gap: 8px;
+  gap: 6px;
 }
 
 .setting-seg-btn {
   --c: 7px;
   --lip: 3px;
-  min-width: 68px;
-  height: 38px;
-  padding: 0 14px 3px;
-  font-size: 16px;
+  min-width: 52px;
+  height: 44px;
+  padding: 0 10px 3px;
+  font-size: 15px;
 }
 
 .modal-actions {

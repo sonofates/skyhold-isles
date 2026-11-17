@@ -76,14 +76,18 @@ class SilhouetteOutlineEffect extends Effect {
  */
 export class PostProcessingPipeline {
   readonly composer: EffectComposer;
-  private readonly n8aoPass: N8AOPostPass;
 
+  /**
+   * `level` 'medium' drops the two heaviest passes (ambient occlusion + SMAA); outline, bloom and
+   * tone mapping stay so the look is close to 'high' on a much lower GPU budget.
+   */
   constructor(
     renderer: THREE.WebGLRenderer,
     scene: THREE.Scene,
     camera: THREE.Camera,
     width: number,
     height: number,
+    level: 'high' | 'medium' = 'high',
   ) {
     this.composer = new EffectComposer(renderer, {
       frameBufferType: THREE.HalfFloatType,
@@ -94,16 +98,18 @@ export class PostProcessingPipeline {
     const renderPass = new RenderPass(scene, camera);
     this.composer.addPass(renderPass);
 
-    this.n8aoPass = new N8AOPostPass(scene, camera, width, height);
-    this.n8aoPass.setQualityMode('Medium');
-    this.n8aoPass.configuration.aoRadius = 1.25;
-    this.n8aoPass.configuration.distanceFalloff = 0.9;
-    this.n8aoPass.configuration.intensity = 1.65;
-    this.n8aoPass.configuration.color = new THREE.Color(0x282648);
-    this.n8aoPass.configuration.gammaCorrection = false;
-    this.n8aoPass.configuration.transparencyAware = false;
-    this.n8aoPass.configuration.halfRes = false;
-    this.composer.addPass(this.n8aoPass);
+    if (level === 'high') {
+      const ao = new N8AOPostPass(scene, camera, width, height);
+      ao.setQualityMode('Medium');
+      ao.configuration.aoRadius = 1.25;
+      ao.configuration.distanceFalloff = 0.9;
+      ao.configuration.intensity = 1.65;
+      ao.configuration.color = new THREE.Color(0x282648);
+      ao.configuration.gammaCorrection = false;
+      ao.configuration.transparencyAware = false;
+      ao.configuration.halfRes = false;
+      this.composer.addPass(ao);
+    }
 
     const outlineEffect = new SilhouetteOutlineEffect(1.06, 0x181628, 0.72);
     const bloomEffect = new BloomEffect({
@@ -131,9 +137,11 @@ export class PostProcessingPipeline {
     );
     this.composer.addPass(compositePass);
 
-    const smaaEffect = new SMAAEffect({ preset: SMAAPreset.MEDIUM });
-    const smaaPass = new EffectPass(camera, smaaEffect);
-    this.composer.addPass(smaaPass);
+    if (level === 'high') {
+      const smaaEffect = new SMAAEffect({ preset: SMAAPreset.MEDIUM });
+      const smaaPass = new EffectPass(camera, smaaEffect);
+      this.composer.addPass(smaaPass);
+    }
   }
 
   setSize(width: number, height: number): void {

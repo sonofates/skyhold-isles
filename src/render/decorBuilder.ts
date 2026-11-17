@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import type { QualityLevel } from '../core/types.ts';
+import type { QualityTier } from '../core/types.ts';
 import { SeededRng } from '../core/rng.ts';
 import { gridToWorldX, gridToWorldZ } from '../sim/grid.ts';
 import { parseLevelGrid, type LevelDef } from '../data/levels/index.ts';
@@ -101,7 +101,7 @@ export class DecorBuilder {
   readonly group = new THREE.Group();
   private disposableGeometries: THREE.BufferGeometry[] = [];
   private layers: DecorLayer[] = [];
-  private quality: QualityLevel = 'high';
+  private quality: QualityTier = 'high';
   private readonly dummy = new THREE.Object3D();
 
   build(level: LevelDef, materials: MaterialLibrary, assets: KenneyAssetStore): void {
@@ -207,7 +207,7 @@ export class DecorBuilder {
     this.applyQualityCounts();
   }
 
-  setQuality(quality: QualityLevel): void {
+  setQuality(quality: QualityTier): void {
     this.quality = quality;
     this.applyQualityCounts();
   }

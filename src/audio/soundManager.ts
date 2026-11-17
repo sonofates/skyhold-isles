@@ -39,6 +39,15 @@ export class SoundManager {
     }
   }
 
+  /** Silence audio while the page is hidden (phone locked / tab switched). */
+  suspendForBackground(): void {
+    if (this.ctx && this.ctx.state === 'running') void this.ctx.suspend();
+  }
+
+  resumeFromBackground(): void {
+    if (this.ctx && this.ctx.state === 'suspended') void this.ctx.resume();
+  }
+
   updateSettings(next: GameSettings): void {
     this.settings = { ...next };
     this.applyVolume();

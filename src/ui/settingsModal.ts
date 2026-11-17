@@ -22,8 +22,8 @@ export class SettingsModal {
   private readonly muteInput: HTMLInputElement;
   private readonly shakeInput: HTMLInputElement;
   private readonly dmgInput: HTMLInputElement;
-  private readonly qualityHighBtn: HTMLButtonElement;
-  private readonly qualityLowBtn: HTMLButtonElement;
+  private readonly hapticsInput: HTMLInputElement;
+  private readonly qualityBtns = new Map<QualityLevel, HTMLButtonElement>();
   private readonly restartBtn: HTMLButtonElement;
   private readonly quitBtn: HTMLButtonElement;
   private readonly closeBtn: HTMLButtonElement;
@@ -102,7 +102,7 @@ export class SettingsModal {
     });
     dmgRow.append(settingLabel('Damage numbers'), this.dmgInput);
 
-    // Quality setting (High vs Low)
+    // Quality setting (Auto / High / Medium / Low)
     const qualRow = document.createElement('div');
     qualRow.className = 'setting-row';
     const qualLabel = document.createElement('span');
@@ -115,18 +115,37 @@ export class SettingsModal {
       this.syncInputs();
       callbacks.onChange(this.settings);
     };
-    this.qualityHighBtn = document.createElement('button');
-    this.qualityHighBtn.type = 'button';
-    this.qualityHighBtn.className = 'setting-seg-btn gx gx-slate-btn';
-    this.qualityHighBtn.textContent = 'High';
-    this.qualityHighBtn.addEventListener('click', () => setQuality('high'));
-    this.qualityLowBtn = document.createElement('button');
-    this.qualityLowBtn.type = 'button';
-    this.qualityLowBtn.className = 'setting-seg-btn gx gx-slate-btn';
-    this.qualityLowBtn.textContent = 'Low';
-    this.qualityLowBtn.addEventListener('click', () => setQuality('low'));
-    qualWrap.append(this.qualityHighBtn, this.qualityLowBtn);
+    const qualityChoices: Array<[QualityLevel, string]> = [
+      ['auto', 'Auto'],
+      ['high', 'High'],
+      ['medium', 'Med'],
+      ['low', 'Low'],
+    ];
+    for (const [value, text] of qualityChoices) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'setting-seg-btn gx gx-slate-btn';
+      btn.textContent = text;
+      btn.setAttribute('data-quality', value);
+      btn.addEventListener('click', () => setQuality(value));
+      this.qualityBtns.set(value, btn);
+      qualWrap.append(btn);
+    }
     qualRow.append(qualLabel, qualWrap);
+
+    // Haptics toggle (only where the Vibration API exists)
+    const hapticsRow = document.createElement('label');
+    hapticsRow.className = 'setting-row setting-toggle';
+    this.hapticsInput = document.createElement('input');
+    this.hapticsInput.type = 'checkbox';
+    this.hapticsInput.addEventListener('change', () => {
+      this.settings = { ...this.settings, haptics: this.hapticsInput.checked };
+      callbacks.onChange(this.settings);
+    });
+    hapticsRow.append(settingLabel('Haptics'), this.hapticsInput);
+    if (typeof navigator === 'undefined' || typeof navigator.vibrate !== 'function') {
+      hapticsRow.classList.add('hidden');
+    }
 
     const actions = document.createElement('div');
     actions.className = 'modal-actions';
@@ -152,7 +171,7 @@ export class SettingsModal {
     this.closeBtn.addEventListener('click', () => callbacks.onClose());
 
     actions.append(this.restartBtn, this.quitBtn, this.closeBtn);
-    card.append(title, volRow, muteRow, shakeRow, dmgRow, qualRow, actions);
+    card.append(title, volRow, muteRow, shakeRow, dmgRow, hapticsRow, qualRow, actions);
     this.backdrop.appendChild(card);
     parent.appendChild(this.backdrop);
     this.syncInputs();
@@ -166,8 +185,10 @@ export class SettingsModal {
     this.muteInput.checked = this.settings.muted;
     this.shakeInput.checked = this.settings.cameraShake;
     this.dmgInput.checked = this.settings.damageNumbers;
-    this.qualityHighBtn.classList.toggle('active', this.settings.quality === 'high');
-    this.qualityLowBtn.classList.toggle('active', this.settings.quality === 'low');
+    this.hapticsInput.checked = this.settings.haptics;
+    for (const [value, btn] of this.qualityBtns) {
+      btn.classList.toggle('active', this.settings.quality === value);
+    }
   }
 
   setOpen(open: boolean, settings?: GameSettings, inGame = true): void {

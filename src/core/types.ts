@@ -32,7 +32,10 @@ export type GameScreen = 'menu' | 'levelSelect' | 'playing' | 'won' | 'lost';
 
 export type SpeedMultiplier = 1 | 2 | 3;
 
-export type QualityLevel = 'high' | 'low';
+/** Quality setting chosen by the player; 'auto' lets the frame-time governor pick a tier. */
+export type QualityLevel = 'auto' | 'high' | 'medium' | 'low';
+/** Concrete rendering tier applied to the renderer. */
+export type QualityTier = Exclude<QualityLevel, 'auto'>;
 
 export interface TowerMvpSummary {
   readonly name: string;
@@ -48,6 +51,8 @@ export interface GameSettings {
   cameraShake: boolean;
   damageNumbers: boolean;
   quality: QualityLevel;
+  /** Vibrate on touch devices for taps, placement and hits (navigator.vibrate). */
+  haptics: boolean;
 }
 
 export interface ProgressData {

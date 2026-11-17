@@ -1,8 +1,9 @@
 import * as THREE from 'three';
-import type { QualityLevel } from '../core/types.ts';
+import type { QualityTier } from '../core/types.ts';
 import { BALANCE } from '../data/balance.ts';
 import { PALETTE_HEX, SKY_HORIZON_HEX, SKY_ZENITH_HEX } from '../data/palette.ts';
 import { PostProcessingPipeline } from './postProcessing.ts';
+import { effectivePixelRatio, TIER_SPECS } from './qualityTiers.ts';
 
 export class SceneManager {
   readonly renderer: THREE.WebGLRenderer;
@@ -10,7 +11,7 @@ export class SceneManager {
   readonly hemiLight: THREE.HemisphereLight;
   readonly dirLight: THREE.DirectionalLight;
   private readonly canvas: HTMLCanvasElement;
-  private quality: QualityLevel = 'high';
+  private quality: QualityTier = 'high';
   private skyMesh: THREE.Mesh;
   private skyGeometry: THREE.PlaneGeometry;
   private skyMaterial: THREE.ShaderMaterial;
@@ -26,7 +27,7 @@ export class SceneManager {
     });
     // Track full multi-pass WebGL draw calls accurately across EffectComposer frames
     this.renderer.info.autoReset = false;
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    this.renderer.setPixelRatio(effectivePixelRatio('high', window.devicePixelRatio));
     this.renderer.setSize(canvas.clientWidth || window.innerWidth, canvas.clientHeight || window.innerHeight, false);
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
@@ -128,17 +129,30 @@ export class SceneManager {
     return this.quality !== 'low';
   }
 
-  setQuality(quality: QualityLevel): void {
+  get currentTier(): QualityTier {
+    return this.quality;
+  }
+
+  setQuality(quality: QualityTier): void {
+    const prev = this.quality;
+    const spec = TIER_SPECS[quality];
     this.quality = quality;
     const isLow = quality === 'low';
-    this.renderer.shadowMap.enabled = !isLow;
-    this.dirLight.castShadow = !isLow;
+    this.renderer.shadowMap.enabled = spec.shadows;
+    this.dirLight.castShadow = spec.shadows;
+    const shadow = this.dirLight.shadow;
+    if (shadow.mapSize.x !== spec.shadowMapSize) {
+      shadow.mapSize.set(spec.shadowMapSize, spec.shadowMapSize);
+      // The shadow map texture is allocated lazily: drop the old one so it is rebuilt at the new size.
+      shadow.map?.dispose();
+      shadow.map = null;
+    }
     this.renderer.shadowMap.needsUpdate = true;
     this.skyMaterial.uniforms.uDirectOutput.value = isLow ? 1 : 0;
     this.renderer.toneMapping = isLow ? THREE.NeutralToneMapping : THREE.NoToneMapping;
     this.renderer.toneMappingExposure = isLow ? 1.06 : 1.0;
-    if (isLow && this.postProcessing) {
-      // Free the composer render targets; render() recreates the pipeline lazily on High.
+    if (this.postProcessing && TIER_SPECS[prev].composer !== spec.composer) {
+      // Free the composer render targets; render() recreates the pipeline lazily for the new tier.
       this.postProcessing.dispose();
       this.postProcessing = null;
     }
@@ -163,19 +177,19 @@ export class SceneManager {
   }
 
   resize(width: number, height: number): void {
-    const maxDpr = this.quality === 'low' ? 1 : 2;
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, maxDpr));
+    this.renderer.setPixelRatio(effectivePixelRatio(this.quality, window.devicePixelRatio));
     this.renderer.setSize(width, height, false);
     this.postProcessing?.setSize(width, height);
   }
 
   render(camera: THREE.Camera): void {
     this.renderer.info.reset();
-    if (this.quality !== 'low') {
+    const composerLevel = TIER_SPECS[this.quality].composer;
+    if (composerLevel) {
       if (!this.postProcessing) {
         const w = this.canvas.clientWidth || window.innerWidth;
         const h = this.canvas.clientHeight || window.innerHeight;
-        this.postProcessing = new PostProcessingPipeline(this.renderer, this.scene, camera, w, h);
+        this.postProcessing = new PostProcessingPipeline(this.renderer, this.scene, camera, w, h, composerLevel);
       }
       this.postProcessing.render();
     } else {

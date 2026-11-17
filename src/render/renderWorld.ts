@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { EventBus } from '../core/eventBus.ts';
-import type { GameSettings, QualityLevel, TowerType } from '../core/types.ts';
+import type { GameSettings, QualityTier, TowerType } from '../core/types.ts';
 import { BALANCE } from '../data/balance.ts';
 import type { LevelDef } from '../data/levels/index.ts';
 import { PALETTE_HEX } from '../data/palette.ts';
@@ -20,6 +20,7 @@ import { TowerBadgeRenderer } from './towerBadges.ts';
 import { getTowerPickHeight, pickTowerByRay } from './towerPicking.ts';
 import { emptyRect, growRect, occludes, shrinkRect, type ScreenRect } from './xray.ts';
 import { ProjectileRenderer } from './projectileRenderer.ts';
+import { TIER_SPECS } from './qualityTiers.ts';
 import { SceneManager } from './sceneManager.ts';
 import { TowerRenderer } from './towerMeshes.ts';
 
@@ -441,8 +442,8 @@ export class RenderWorld {
     return pickTowerByRay(ray, towers);
   }
 
-  setQuality(quality: QualityLevel): void {
-    this.fxScale = quality === 'low' ? 0.5 : 1;
+  setQuality(quality: QualityTier): void {
+    this.fxScale = TIER_SPECS[quality].fxScale;
     this.sceneManager.setQuality(quality);
     this.materials.setOutlineAlphaEnabled(quality !== 'low');
     this.decorBuilder.setQuality(quality);

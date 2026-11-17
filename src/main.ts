@@ -153,12 +153,25 @@ async function bootstrap(loadingScreen: LoadingScreen): Promise<void> {
   window.addEventListener('orientationchange', onOrientation);
   window.visualViewport?.addEventListener('resize', onResize);
 
+  // Background handling: stop rendering + sim while hidden (battery, no unattended waves).
+  const onVisibility = (): void => {
+    if (document.hidden) {
+      session.enterBackground();
+      loop.stop();
+    } else {
+      loop.start();
+      session.returnFromBackground();
+    }
+  };
+  document.addEventListener('visibilitychange', onVisibility);
+
   session.showMenuView('menu', true);
   loadingScreen.hide();
   loop.start();
 
   if (import.meta.hot) {
     import.meta.hot.dispose(() => {
+      document.removeEventListener('visibilitychange', onVisibility);
       window.removeEventListener('pointerdown', onFirstGesture);
       window.removeEventListener('resize', onResize);
       window.removeEventListener('orientationchange', onOrientation);

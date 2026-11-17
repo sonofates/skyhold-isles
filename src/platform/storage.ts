@@ -86,7 +86,9 @@ export function getDefaultSettings(): GameSettings {
     muted: false,
     cameraShake: true,
     damageNumbers: true,
-    quality: isTouchDevice() ? 'low' : 'high',
+    // Phones/tablets start in Auto (frame-time governor); desktop keeps the full High look.
+    quality: isTouchDevice() ? 'auto' : 'high',
+    haptics: true,
   };
 }
 
@@ -101,15 +103,23 @@ export function createDefaultProgress(levelCount: number): ProgressData {
 }
 
 function parseQuality(val: unknown, fallback: QualityLevel): QualityLevel {
-  return val === 'high' || val === 'low' ? val : fallback;
+  return val === 'auto' || val === 'high' || val === 'medium' || val === 'low' ? val : fallback;
 }
+
+/** Bump when the stored settings shape changes; see loadSettings for the migration notes. */
+const SETTINGS_VERSION = 2;
 
 export function loadSettings(): GameSettings {
   const defaults = getDefaultSettings();
   try {
     const raw = localStorage.getItem(SETTINGS_KEY);
     if (!raw) return defaults;
-    const parsed = JSON.parse(raw) as Partial<GameSettings>;
+    const parsed = JSON.parse(raw) as Partial<GameSettings> & { v?: number };
+    let quality = parseQuality(parsed.quality, defaults.quality);
+    // v1 (pre-Auto) defaulted touch devices to 'low', so a stored 'low' on a touch device is
+    // almost always that old default rather than a choice: move it to Auto. Explicit choices
+    // made on desktop (or any v2 save) are kept as they are.
+    if (parsed.v === undefined && quality === 'low' && isTouchDevice()) quality = 'auto';
     return {
       masterVolume:
         typeof parsed.masterVolume === 'number'
@@ -122,7 +132,8 @@ export function loadSettings(): GameSettings {
         typeof parsed.damageNumbers === 'boolean'
           ? parsed.damageNumbers
           : defaults.damageNumbers,
-      quality: parseQuality(parsed.quality, defaults.quality),
+      quality,
+      haptics: typeof parsed.haptics === 'boolean' ? parsed.haptics : defaults.haptics,
     };
   } catch {
     return defaults;
@@ -131,7 +142,7 @@ export function loadSettings(): GameSettings {
 
 export function saveSettings(settings: GameSettings): void {
   try {
-    localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify({ ...settings, v: SETTINGS_VERSION }));
   } catch {
     // Ignore storage quota / private mode failures
   }

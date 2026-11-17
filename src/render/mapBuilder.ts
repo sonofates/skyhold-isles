@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import type { QualityLevel } from '../core/types.ts';
+import type { QualityTier } from '../core/types.ts';
 import { BALANCE } from '../data/balance.ts';
 import { lerpHexColor, PALETTE_HEX } from '../data/palette.ts';
 import { SeededRng } from '../core/rng.ts';
@@ -1232,7 +1232,7 @@ export class MapBuilder {
   }
 
   /** 'low' quality hides the decorative extras (fliers, falling leaves, floating water props). */
-  setQuality(quality: QualityLevel): void {
+  setQuality(quality: QualityTier): void {
     this.lowQuality = quality === 'low';
     this.ambient.setQuality(this.lowQuality);
     this.waterDetails.group.visible = !this.lowQuality;

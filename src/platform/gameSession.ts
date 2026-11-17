@@ -18,7 +18,8 @@ import { SimWorld } from '../sim/world.ts';
 import type { GameOverlays } from '../ui/gameOverlays.ts';
 import type { RadialMenu } from '../ui/radialMenu.ts';
 import type { GameLoop } from './browserLoop.ts';
-import { isRadialActive } from './deviceClass.ts';
+import { isRadialActive, isTouchDevice } from './deviceClass.ts';
+import { QualityController } from './qualityController.ts';
 import { resolveTap, type GroundTileInfo, type TapTarget } from './tapResolution.ts';
 import type { InputManager } from './input.ts';
 import {
@@ -90,13 +91,18 @@ export class GameSession {
   private uiSyncAccumSec = 0;
   private unbindSound: (() => void) | null = null;
   private deps: SessionRuntimeDeps | null = null;
+  private readonly quality: QualityController;
   /** Tile whose ghost tower the radial build ring is previewing (survives pointer-leave refreshes). */
   private radialPreview: { type: TowerType; col: number; row: number } | null = null;
 
   constructor(renderWorld: RenderWorld, soundManager: SoundManager) {
     this.renderWorld = renderWorld;
     this.soundManager = soundManager;
-    this.renderWorld.setQuality(this.settings.quality);
+    this.quality = new QualityController(
+      (tier) => this.renderWorld.setQuality(tier),
+      isTouchDevice,
+    );
+    this.quality.setSetting(this.settings.quality);
     this.currentLevelIndex = Math.max(
       0,
       Math.min(LEVELS.length - 1, this.progress.unlockedLevelIndex),
@@ -438,6 +444,7 @@ export class GameSession {
     this.bindSimEvents(this.events);
     this.renderWorld.cameraController.setShowcaseMode(false);
     this.renderWorld.loadLevel(level, this.events, () => this.settings);
+    this.quality.rearm();
 
     this.viewMode = 'playing';
     this.userPaused = false;
@@ -493,6 +500,26 @@ export class GameSession {
     this.syncUi();
   }
 
+  /**
+   * The page went to the background (tab hidden, phone locked, app switched): freeze play so the
+   * player does not come back to a lost wave, and re-arm the quality governor for the resume hitch.
+   */
+  enterBackground(): void {
+    const overlays = this.deps?.overlays;
+    if (overlays && this.viewMode === 'playing' && !this.userPaused && !overlays.isModalOpen()) {
+      this.userPaused = true;
+      this.syncLoopAndInput();
+      this.syncUi();
+    }
+    this.soundManager.suspendForBackground();
+    this.quality.rearm();
+  }
+
+  returnFromBackground(): void {
+    this.soundManager.resumeFromBackground();
+    this.quality.rearm();
+  }
+
   toggleUserPause(): void {
     if (this.d.overlays.isModalOpen()) return;
     this.userPaused = !this.userPaused;
@@ -504,7 +531,7 @@ export class GameSession {
     this.settings = next;
     saveSettings(next);
     this.soundManager.updateSettings(next);
-    this.renderWorld.setQuality(next.quality);
+    this.quality.setSetting(next.quality);
   }
 
   upgradeTower(id: number): void {
@@ -753,6 +780,7 @@ export class GameSession {
     const inPlay = this.viewMode === 'playing';
     const fxDt = !inPlay || loop.paused ? 0 : frameDt * loop.speed;
     this.renderWorld.render(inPlay ? this.simWorld : null, frameDt, alpha, elapsedVisualTime, fxDt);
+    this.quality.frame(frameDt * 1000);
     overlays.floatingTextPool.update(
       fxDt > 0 ? frameDt : 0,
       (wx, wy, wz, out) => this.renderWorld.cameraController.worldCoordsToScreen(wx, wy, wz, out),
