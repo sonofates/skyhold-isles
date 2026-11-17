@@ -108,3 +108,6 @@ Clean tree, `main` merged (no new main commits). tsc / 430 tests green. No code 
 
 ## Round 10 (verification)
 Clean tree, `main` merged (no new main commits). tsc / lint / tests green. No code changes; backlog 1–5 complete, nothing pending.
+
+## Round 11 (verification)
+Clean tree, `main` merged (no new main commits). tsc / 430 tests green. No code changes; backlog 1–5 complete, nothing pending.
