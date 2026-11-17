@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { clampPoint, layoutRing, placeBox, ringBounds } from '../../src/ui/radialLayout.ts';
+import {
+  clampPoint,
+  FOOTPRINT,
+  layoutRing,
+  MIN_TOUCH_TARGET,
+  placeBox,
+  ringBounds,
+  TOKEN_SIZE,
+} from '../../src/ui/radialLayout.ts';
 
 const bounds = { left: 6, top: 70, right: 424, bottom: 640 };
 const FOOT = 70;
@@ -79,9 +87,31 @@ describe('helpers', () => {
     expect(c).toEqual({ x: bounds.right - 32, y: bounds.top + 32 });
   });
 
+  it('ringBounds keeps the ring below a top-pinned coach card, within limits', () => {
+    const safe = { top: 0, right: 0, bottom: 0, left: 0 };
+    const plain = ringBounds({ width: 390, height: 844, safe });
+    const withCoach = ringBounds({ width: 390, height: 844, safe }, 6, 180);
+    expect(withCoach.top).toBeGreaterThanOrEqual(188);
+    expect(withCoach.top).toBeGreaterThan(plain.top);
+    // absurdly tall card: never eats more than 40% of the height
+    expect(ringBounds({ width: 390, height: 844, safe }, 6, 700).top).toBeLessThanOrEqual(844 * 0.4);
+  });
+
   it('ringBounds respects safe areas', () => {
     const b = ringBounds({ width: 430, height: 739, safe: { top: 47, right: 0, bottom: 34, left: 0 } });
     expect(b.top).toBeGreaterThanOrEqual(47 + 60);
     expect(b.bottom).toBeLessThanOrEqual(739 - 34);
+  });
+});
+
+describe('touch targets', () => {
+  it('radial tokens meet the 44px minimum and the footprint contains token + cost plate', () => {
+    expect(TOKEN_SIZE).toBeGreaterThanOrEqual(MIN_TOUCH_TARGET);
+    expect(FOOTPRINT).toBeGreaterThanOrEqual(TOKEN_SIZE);
+  });
+
+  it('a 5-token ring around a mid-screen anchor keeps neighbouring tokens at least 44px apart', () => {
+    const r = layoutRing({ cx: 215, cy: 350, count: 5, radius: 82, footprint: FOOTPRINT, bounds });
+    expect(minGap(r.positions)).toBeGreaterThanOrEqual(MIN_TOUCH_TARGET);
   });
 });

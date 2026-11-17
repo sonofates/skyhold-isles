@@ -80,10 +80,25 @@ function ppuAt(o: OcclusionFitOptions, zoom: number): number {
   return (o.viewportH / 2 / o.halfHeight) * zoom;
 }
 
-/** Margin (px) around a tile centre that must stay clear: ~0.3 of the tile's on-screen size. */
+/** Margin (px) kept between a tile centre and the viewport edge: ~0.3 of the tile's on-screen size. */
 function tileMarginPx(o: OcclusionFitOptions, zoom: number): number {
   return Math.max(6, o.tileWorld * ppuAt(o, zoom) * 0.3);
 }
+
+/**
+ * Margin (px) kept between a tile centre and a HUD control: half a tile, so the whole tile (not just
+ * its centre) is clear of the control. Island edges and decor tiles are sampled too, which keeps
+ * the island from sliding under corner clusters such as the landscape ability / start buttons.
+ */
+function hudMarginPx(o: OcclusionFitOptions, zoom: number): number {
+  return Math.max(8, o.tileWorld * ppuAt(o, zoom) * 0.5);
+}
+
+/** Coverage beyond `coverage + COVERAGE_SLACK` does not improve a candidate's score (centring wins). */
+export const COVERAGE_SLACK = 0.0;
+
+/** When the coverage target forces a zoom below the ceiling, back off by this factor to allow centring. */
+const HEADROOM = 0.97;
 
 /** Points with at least this weight (spawn / goal) must be visible, not merely counted. */
 export const KEY_POINT_WEIGHT = 5;
@@ -101,6 +116,7 @@ export function visibleFraction(
 ): number {
   const ppu = ppuAt(o, zoom);
   const m = tileMarginPx(o, zoom);
+  const hm = hudMarginPx(o, zoom);
   const W = o.viewportW;
   const H = o.viewportH;
   const rects = o.hudRects;
@@ -113,7 +129,9 @@ export function visibleFraction(
     const px = W / 2 + (pts.r[i] - tr) * ppu;
     const py = H / 2 - (pts.u[i] - tu) * ppu;
     // Key tiles (spawn / goal) get a roomier margin so they never hug the screen edge.
-    const mm = wgt >= KEY_POINT_WEIGHT ? m * 1.8 : m;
+    const key = wgt >= KEY_POINT_WEIGHT;
+    const mm = key ? m * 1.8 : m;
+    const hmm = key ? hm * 1.5 : hm;
     if (px < mm || px > W - mm || py < mm || py > H - mm) {
       if (wgt >= KEY_POINT_WEIGHT) keyHidden = true;
       continue;
@@ -121,7 +139,7 @@ export function visibleFraction(
     let blocked = false;
     for (let k = 0; k < rects.length; k++) {
       const rc = rects[k];
-      if (px > rc.x0 - mm && px < rc.x1 + mm && py > rc.y0 - mm && py < rc.y1 + mm) {
+      if (px > rc.x0 - hmm && px < rc.x1 + hmm && py > rc.y0 - hmm && py < rc.y1 + hmm) {
         blocked = true;
         break;
       }
@@ -164,7 +182,9 @@ function bestTargetAt(
     const cov = visibleFraction(pts, zoom, r, u, o);
     // Tie-break toward the legacy centred framing (distance in view widths, tiny weight).
     const dist = Math.hypot((r - o.prefR) / (2 * halfViewR), (u - o.prefU) / (2 * halfViewU));
-    const score = cov - 0.02 * dist;
+    // Coverage above the target (plus a little slack) is worth nothing more: among those targets
+    // the one closest to the centred legacy framing wins, so the island is not pushed to one side.
+    const score = Math.min(cov, o.coverage + COVERAGE_SLACK) - 0.02 * dist;
     if (score > bestScore) {
       bestScore = score;
       bestR = r;
@@ -220,6 +240,13 @@ export function computeOcclusionFit(pts: PlanePoints, o: OcclusionFitOptions): O
     } else {
       hiZ = mid;
     }
+  }
+  // Right at the boundary only one lopsided target reaches the coverage; a hair of headroom lets
+  // the centring tie-break pick a balanced framing instead.
+  const z = Math.max(o.zoomFloor, lo * HEADROOM);
+  if (z < lo) {
+    const b = bestTargetAt(pts, z, o, box);
+    if (b.cov >= o.coverage) return { zoom: z, targetR: b.r, targetU: b.u, coverage: b.cov };
   }
   return { zoom: lo, targetR: loBest.r, targetU: loBest.u, coverage: loBest.cov };
 }

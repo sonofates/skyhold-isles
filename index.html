@@ -14,8 +14,28 @@
     <meta name="format-detection" content="telephone=no" />
     <meta name="description" content="Skyhold Isles — A cozy low-poly isometric floating island tower defense game built with Three.js and TypeScript." />
     <title>Skyhold Isles — Low-Poly Tower Defense</title>
+    <style>
+      /* Boot splash: painted before the JS bundle arrives; removed by LoadingScreen. */
+      html,
+      body {
+        margin: 0;
+        background: #1b1936;
+      }
+      #boot-splash {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        display: grid;
+        place-items: center;
+        background: #1b1936;
+        color: #f8f4e8;
+        font: 700 28px/1.1 ui-rounded, 'Arial Rounded MT Bold', system-ui, sans-serif;
+        letter-spacing: 0.04em;
+      }
+    </style>
   </head>
   <body>
+    <div id="boot-splash" aria-hidden="true">Skyhold Isles</div>
     <div id="game-viewport">
       <canvas id="game-canvas" aria-label="Isometric Tower Defense Game World"></canvas>
       <div id="ui-root"></div>

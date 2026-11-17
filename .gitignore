@@ -37,3 +37,4 @@ playwright/.cache/
 
 # local screenshot tooling
 .shots-tool/
+qa-out/

@@ -96,6 +96,28 @@ describe('computeOcclusionFit', () => {
     expect(fit.zoom).toBeCloseTo(0.8, 5);
   });
 
+  it('keeps a whole tile (not just its centre) clear of a HUD control', () => {
+    // A rect 0.4 tile from the tile centre leaves the centre clear but overlaps the tile itself.
+    const one = projectPlanePoints([0, 0.5, 0], [1], YAW, TILT);
+    const o = opts({ viewportW: 400, viewportH: 400, zoomCeil: 1, zoomFloor: 1 });
+    const ppu = (400 / 2 / 13) * 1;
+    const tilePx = 2 * ppu;
+    const cx = 200;
+    const near: PxRect = { x0: cx + 0.4 * tilePx, y0: 0, x1: 400, y1: 400 };
+    const far: PxRect = { x0: cx + 0.7 * tilePx, y0: 0, x1: 400, y1: 400 };
+    expect(visibleFraction(one, 1, 0, 0, { ...o, hudRects: [near] })).toBe(0);
+    expect(visibleFraction(one, 1, 0, 0, { ...o, hudRects: [far] })).toBe(1);
+  });
+
+  it('centres the island when several targets reach the coverage target', () => {
+    // A small control in one corner: the target must not drift toward the opposite side.
+    const hud: PxRect[] = [{ x0: 800, y0: 0, x1: 844, y1: 40 }];
+    const o = opts({ hudRects: hud, zoomCeil: 0.8, zoomFloor: 0.3, prefR: 0, prefU: 0 });
+    const fit = computeOcclusionFit(pts, o);
+    const halfViewR = o.viewportW / 2 / ((o.viewportH / 2 / o.halfHeight) * fit.zoom);
+    expect(Math.abs(fit.targetR)).toBeLessThan(0.1 * halfViewR);
+  });
+
   it('is deterministic', () => {
     const hud: PxRect[] = [{ x0: 600, y0: 250, x1: 844, y1: 390 }];
     const a = computeOcclusionFit(pts, opts({ hudRects: hud }));

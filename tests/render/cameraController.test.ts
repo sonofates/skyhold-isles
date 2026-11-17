@@ -50,7 +50,7 @@ describe('auto yaw on portrait phones', () => {
   it('turns an elongated island a quarter turn when that frames it much larger (L5)', () => {
     const cam = frame(390, 844, 4);
     expect(cam.viewYawIndex).not.toBe(0);
-    expect(cam.camera.zoom).toBeGreaterThan(0.5);
+    expect(cam.camera.zoom).toBeGreaterThan(0.45);
   });
 
   it('keeps the designed angle where the gain is small (L1) and on landscape / desktop', () => {
