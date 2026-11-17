@@ -404,10 +404,43 @@
 
 /* Landscape phones are short: tighter chrome, tab buttons beside the title. */
 @media (max-height: 460px) {
+  /* Title, tabs and count share one row so the lists get the height. */
   .cx-card {
     height: 100%;
-    gap: 6px;
+    display: grid;
+    grid-template-columns: auto auto minmax(0, 1fr) auto;
+    grid-template-rows: auto minmax(0, 1fr);
+    align-items: center;
+    column-gap: 10px;
+    row-gap: 6px;
     padding: 8px 12px 14px;
+  }
+  .cx-header {
+    display: contents;
+  }
+  .cx-back {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .cx-title {
+    grid-column: 2;
+    grid-row: 1;
+    flex: none;
+  }
+  .cx-tabs {
+    grid-column: 3;
+    grid-row: 1;
+    justify-self: center;
+    width: min(320px, 100%);
+  }
+  .cx-count {
+    grid-column: 4;
+    grid-row: 1;
+  }
+  .cx-body {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    align-self: stretch;
   }
   .cx-title {
     font-size: 24px;
