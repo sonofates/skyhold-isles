@@ -204,6 +204,11 @@ early waves does NOT soften them, it starves the economy (kill rewards) and the 
 - Previews re-rendered (18-26 draw calls, 34-51k tris); L3 and L5 re-inspected, nothing overlaps routes.
 - Handoff state unchanged; layout/path and wave-ramp changes remain deliberately untouched (knife-edge windows). See "Merge notes for the lead".
 
+### Round 13 (verification only, no code changes)
+- Clean tree. tsc, lint, 134 tests, `sim:balance` all green (greedy L1 20 / L2 15 / L3 9 / L4 15 / L5 14 / L6 13 / L7 10 / L8 7 / L9 9 lives; every weak script loses L2+).
+- Previews re-rendered (18-26 draw calls, 34-51k tris); L1 and L6 re-inspected, no overlaps, distinct identities.
+- Handoff state unchanged; layout/path and wave-ramp changes remain untouched (knife-edge windows). See "Merge notes for the lead".
+
 ### Round 12 (verification only, no code changes)
 - Clean tree. tsc, lint, 134 tests, `sim:balance` all green (greedy L1 20 / L2 15 / L3 9 / L4 15 / L5 14 / L6 13 / L7 10 / L8 7 / L9 9 lives; every weak script loses L2+).
 - Handoff state unchanged; see "Merge notes for the lead". Layout/path and wave-ramp changes remain untouched (knife-edge windows).
