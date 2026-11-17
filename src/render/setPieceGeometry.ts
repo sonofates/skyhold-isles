@@ -12,7 +12,7 @@ import { cabin, cairn, fountain, hut, lamp, parasol, pond, sheep, stall, statue,
  * 1 tile = BALANCE.tileSize (2) units. Builders only append parts; SetPieces merges and instances them.
  */
 
-export type AnimFamily = 'blades' | 'cloth' | 'flow' | 'boat' | 'sail' | 'kite' | 'sock' | 'flame' | 'ember' | 'leap';
+export type AnimFamily = 'blades' | 'cloth' | 'flow' | 'boat' | 'sail' | 'kite' | 'sock' | 'flame' | 'ember' | 'leap' | 'smoke' | 'mote';
 
 export interface AnimInstance {
   readonly family: AnimFamily;
@@ -350,6 +350,7 @@ function crystalGrove(pb: PieceBuilder, variant: number): void {
   pb.crystal(col, [0, 3], false, [-0.3, 0.05, -0.22], 3.4, 1.9, -0.12);
   pb.crystal(col, [0, 3], false, [0.62, 0.05, -0.1], 0.2, 1.6, 0.18);
   pb.ico(MOSS, [0.26, 0.06, 0.22], [-0.55, 0.04, 0.35]);
+  addMotes(pb, 0.85, 0.55, 3, variant === 1 ? 0xe6d0ff : 0xc4ffe0);
 }
 
 function dock(pb: PieceBuilder, variant: number): void {
@@ -481,12 +482,21 @@ function brazier(pb: PieceBuilder): void {
   for (let k = 0; k < 3; k++) pb.anim('ember', 0, 1.1, 0, 0, k / 3 + 0.11 * k, 0xffd27a);
 }
 
+/** Fireflies / sparks circling a point: `radius` tiles around the piece axis at height `y`. */
+export function addMotes(pb: PieceBuilder, y: number, radius: number, count: number, color: number): void {
+  for (let k = 0; k < count; k++) {
+    // Alternate the orbit direction (sign of param) so the motes cross each other instead of marching in line.
+    pb.anim('mote', 0, y, 0, 0, k / count + 0.07 * k, color, (k % 2 === 0 ? 1 : -1) * radius);
+  }
+}
+
 function obelisk(pb: PieceBuilder): void {
   pb.box(STONE_DARK, [0.8, 0.16, 0.8], [0, 0.08, 0]);
   pb.box(STONE_MID, [0.6, 0.14, 0.6], [0, 0.23, 0]);
   pb.cone(CREAM, 0.34, 1.7, [0, 1.15, 0], 4, [0, Math.PI / 4, 0]);
   pb.cone(PALETTE_HEX.gold, 0.09, 0.22, [0, 2.1, 0], 4, [0, Math.PI / 4, 0]);
   pb.box(PALETTE_HEX.gold, [0.48, 0.04, 0.48], [0, 0.34, 0], [0, 0.78, 0]);
+  addMotes(pb, 1.95, 0.3, 2, 0xffe27a);
 }
 
 function gatehouse(pb: PieceBuilder, variant: number): void {

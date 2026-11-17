@@ -176,6 +176,12 @@ function familyGeometry(family: AnimFamily): THREE.BufferGeometry {
         { geometry: box(0.025, 0.14, 0.1), colorHex: 0xffffff, position: [0, 0, -0.2], rotation: [0.3, 0, 0], forceWhiteUv: true },
       ];
       break;
+    case 'smoke':
+      parts = [{ geometry: box(0.1, 0.1, 0.1), colorHex: 0xffffff, forceWhiteUv: true }];
+      break;
+    case 'mote':
+      parts = [{ geometry: box(0.055, 0.055, 0.055), colorHex: 0xffffff, forceWhiteUv: true }];
+      break;
     case 'flame':
       parts = [
         {
@@ -274,7 +280,7 @@ export class SetPieces {
       const geo = familyGeometry(family);
       this.disposableGeometries.push(geo);
       const mesh = new THREE.InstancedMesh(geo, materials.kenneyTerrain, entry.bases.length);
-      mesh.castShadow = family !== 'flow' && family !== 'ember' && family !== 'leap';
+      mesh.castShadow = family !== 'flow' && family !== 'ember' && family !== 'leap' && family !== 'smoke' && family !== 'mote';
       mesh.receiveShadow = false;
       mesh.frustumCulled = false;
       for (let i = 0; i < entry.bases.length; i++) {
@@ -383,6 +389,32 @@ export class SetPieces {
                 _s.set(1, 1, 1),
               );
             }
+            _m.multiplyMatrices(base, _m2);
+            break;
+          }
+          case 'smoke': {
+            // Puff rises and drifts downwind while it swells, then thins out (scale to zero) near the top.
+            const frac = (t * 0.2 + ph) % 1;
+            const sc = (0.5 + frac * 1.5) * (frac > 0.7 ? (1 - frac) / 0.3 : 1);
+            _m2.compose(
+              _p.set(frac * 0.22 + Math.sin(t * 0.9 + ph * 9) * 0.03, frac * 0.95, Math.cos(t * 0.7 + ph * 5) * 0.03),
+              _q.setFromEuler(_e.set(frac * 2, frac * 3, 0)),
+              _s.set(sc, sc, sc),
+            );
+            _m.multiplyMatrices(base, _m2);
+            break;
+          }
+          case 'mote': {
+            // Firefly: slow orbit (direction from the sign of `param`), bobbing and twinkling in size.
+            const r = Math.abs(fam.params[i]);
+            const dir = fam.params[i] < 0 ? -1 : 1;
+            const a = dir * (t * 0.75 + ph * 6.28);
+            const tw = 0.75 + 0.45 * Math.sin(t * 4.3 + ph * 17);
+            _m2.compose(
+              _p.set(Math.cos(a) * r, Math.sin(t * 1.6 + ph * 9) * 0.1, Math.sin(a) * r),
+              _q.identity(),
+              _s.set(tw, tw, tw),
+            );
             _m.multiplyMatrices(base, _m2);
             break;
           }
