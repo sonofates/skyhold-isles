@@ -93,11 +93,14 @@
 @keyframes onbSpot {
   0%,
   100% {
-    filter: drop-shadow(0 3px 0 rgba(20, 18, 45, 0.5)) drop-shadow(0 0 3px rgba(246, 189, 65, 0.9));
+    scale: 1;
+    filter: drop-shadow(0 3px 0 rgba(20, 18, 45, 0.5)) drop-shadow(0 0 6px rgba(246, 189, 65, 1))
+      drop-shadow(0 0 2px rgba(255, 240, 180, 1));
   }
   50% {
-    filter: drop-shadow(0 3px 0 rgba(20, 18, 45, 0.5)) drop-shadow(0 0 11px rgba(246, 189, 65, 1))
-      drop-shadow(0 0 4px rgba(255, 240, 180, 1));
+    scale: 1.07;
+    filter: drop-shadow(0 3px 0 rgba(20, 18, 45, 0.5)) drop-shadow(0 0 14px rgba(246, 189, 65, 1))
+      drop-shadow(0 0 5px rgba(255, 240, 180, 1));
   }
 }
 
@@ -109,6 +112,17 @@
   to {
     opacity: 1;
     translate: 0 0;
+  }
+}
+
+/* Phone portrait: the HUD has two rows, keep the card below both. */
+@media (max-width: 520px) and (orientation: portrait) {
+  .onb-coach {
+    top: calc(var(--pad-t) + 100px);
+    left: var(--pad-l);
+    transform: none;
+    /* leave the right-hand HUD column (rotate buttons) uncovered */
+    width: calc(100vw - var(--pad-l) - 68px);
   }
 }
 
@@ -130,4 +144,15 @@
   .onb-coach {
     animation: none;
   }
+}
+
+/* Settings -> Replay tutorial */
+.setting-tutorial-btn {
+  flex: none;
+  grid-column: 1 / -1;
+  --c: 9px;
+  --lip: 4px;
+  min-height: 48px;
+  padding: 0 14px 4px;
+  font-size: 17px;
 }
