@@ -8,7 +8,7 @@ import { HEIGHT_TO_SCREEN, type WorldLayers } from './layers.ts';
 import { enemyArtFor } from './manifest.ts';
 import type { MapView } from './mapView.ts';
 import type { ProcTextures } from './procTextures.ts';
-import { cheapWalk, createAnimState, createPose, sheetWalk, type AnimState, type WalkPose } from './walkAnim.ts';
+import { cheapWalk, createAnimState, createPose, sheetSequence, sheetWalk, type AnimState, type WalkPose } from './walkAnim.ts';
 
 /** Anything that walks like an enemy: the sim's EnemyEntity, or the A/B showcase walkers. */
 export interface Walker {
@@ -202,9 +202,13 @@ export class EnemyLayer {
     const facesRight = art.spec.facing === 'right';
     if (art.mode === 'sheet' && art.sheet) {
       const sheet = art.sheet;
-      const seq0 = sheet.seqs[0];
-      sheetWalk(v.anim, seq0.length, sheet.fps, art.spec.sheet?.stride, moved, speedRatio, dxImg, dyImg, dt, art.spec.sheet?.facing !== 'left', pose);
-      const seq = sheet.seqs[pose.seq] ?? seq0;
+      // Each sequence has its own length and may face its own way (front clips walk down-right,
+      // back clips often walk up-left).
+      const seqIdx = sheetSequence(v.anim.seq, dxImg, dyImg);
+      const seq = sheet.seqs[seqIdx] ?? sheet.seqs[0];
+      const spec = art.spec.sheet;
+      const facing = seqIdx === 1 ? (spec?.facingUp ?? spec?.facing) : spec?.facing;
+      sheetWalk(v.anim, seq.length, sheet.fps, spec?.stride, moved, speedRatio, dxImg, dyImg, dt, facing !== 'left', pose);
       tex = seq[pose.frame % seq.length];
     } else {
       cheapWalk(v.anim, art.spec.cheap, moved, speedRatio, dxImg, dyImg, dt, art.frames.length, facesRight, pose);

@@ -41,6 +41,8 @@ export class FxLayer {
   private readonly top: Container;
   private readonly map: MapView;
   private seed = 1;
+  /** Bolt zigzag offsets, shared by the glow and core strokes so both trace the same line. */
+  private readonly jitter = new Float32Array(256);
 
   constructor(map: MapView, ground: Container, top: Container, textures: Record<FxKind, Texture>) {
     this.map = map;
@@ -126,9 +128,12 @@ export class FxLayer {
     const ppu = this.map.layout.pxPerUnit;
     const g = b.g;
     g.clear();
+    const segs = 6;
+    const jn = Math.min(this.jitter.length, (points.length - 1) * segs);
+    for (let k = 0; k < jn; k++) this.jitter[k] = (this.rand() - 0.5) * 18;
     const core = overload ? 0xfff6c8 : 0xeafcff;
     const glow = overload ? 0xffc94a : 0x6cc8ff;
-    for (const pass of [0, 1]) {
+    for (let pass = 0; pass < 2; pass++) {
       for (let i = 0; i < points.length - 1; i++) {
         const a = points[i];
         const c = points[i + 1];
@@ -137,11 +142,10 @@ export class FxLayer {
         const ay = this.map.pxY(a.z) - ah * HEIGHT_TO_SCREEN * ppu;
         const cx = this.map.pxX(c.x);
         const cy = this.map.pxY(c.z) - c.y * HEIGHT_TO_SCREEN * ppu;
-        const segs = 6;
         g.moveTo(ax, ay);
         for (let k = 1; k < segs; k++) {
           const t = k / segs;
-          const j = (this.rand() - 0.5) * 18;
+          const j = this.jitter[Math.min(jn - 1, i * segs + k)] ?? 0;
           g.lineTo(ax + (cx - ax) * t + j, ay + (cy - ay) * t + j * 0.6);
         }
         g.lineTo(cx, cy);

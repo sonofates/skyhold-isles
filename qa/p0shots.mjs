@@ -53,6 +53,26 @@ async function playFlow(browser, view) {
   await tapAt(page, view, s.ring.tokens[1].x, s.ring.tokens[1].y);
   s = await state(page);
   log.push({ step: 'built', towers: s.towers, gold: s.gold });
+  // Ring with too little gold: tesla (90) must be greyed at 75 gold.
+  p = await plot(6);
+  await tapAt(page, view, p.x, p.y);
+  s = await state(page);
+  log.push({ step: 'ring at 75 gold', tokens: s.ring.tokens });
+  await page.screenshot({ path: `${OUT}/${view}-ring-greyed.png` });
+  await tapAt(page, view, p.x, p.y);
+  // Pause / speed by tap.
+  s = await state(page);
+  await tapAt(page, view, s.buttons.pause.x, s.buttons.pause.y);
+  const paused = (await state(page)).paused;
+  await page.screenshot({ path: `${OUT}/${view}-paused.png` });
+  await tapAt(page, view, s.buttons.pause.x, s.buttons.pause.y);
+  const resumed = !(await state(page)).paused;
+  await tapAt(page, view, s.buttons.speed.x, s.buttons.speed.y);
+  const speed2 = (await state(page)).speed;
+  await tapAt(page, view, s.buttons.speed.x, s.buttons.speed.y);
+  const speed1 = (await state(page)).speed;
+  log.push({ step: 'pause/speed taps', paused, resumed, speed2, speed1 });
+  s = await state(page);
   // Horn → wave 1.
   await tapAt(page, view, s.horn.x, s.horn.y);
   await page.waitForTimeout(8000);
@@ -96,9 +116,47 @@ async function ab(browser, view) {
   const { ctx, page } = await open(browser, view, '?ab=1');
   await page.waitForTimeout(2500);
   await page.screenshot({ path: `${OUT}/${view}-ab.png` });
-  await page.waitForTimeout(1300);
-  await page.screenshot({ path: `${OUT}/${view}-ab2.png` });
   report.runs[`${view}-ab`] = await state(page);
+  await ctx.close();
+}
+
+/** Zoomed A/B frames over a full loop (every facing, both sheet sequences), desktop at DPR 2. */
+async function abZoom(browser) {
+  const ctx = await browser.newContext({ viewport: { width: 1600, height: 900 }, deviceScaleFactor: 2 });
+  const page = await ctx.newPage();
+  await page.goto(`${BASE}/2d.html?ab=1`);
+  await page.waitForFunction(() => !!window.__p0, null, { timeout: 30000 });
+  for (let i = 0; i < 8; i++) {
+    await page.waitForTimeout(i === 0 ? 1500 : 900);
+    await page.screenshot({ path: `${OUT}/ab-zoom-${i}.png`, clip: { x: 300, y: 300, width: 1000, height: 330 } });
+  }
+  await ctx.close();
+}
+
+/** Combat close-ups in the bench scene (bolts, cannonballs, blast rings). */
+async function benchZoom(browser) {
+  const ctx = await browser.newContext({ viewport: { width: 1600, height: 900 }, deviceScaleFactor: 2 });
+  const page = await ctx.newPage();
+  await page.goto(`${BASE}/2d.html?bench=150`);
+  await page.waitForFunction(() => !!window.__p0, null, { timeout: 30000 });
+  await page.waitForTimeout(4000);
+  for (let i = 0; i < 4; i++) {
+    await page.screenshot({ path: `${OUT}/bench-zoom-${i}.png`, clip: { x: 450, y: 250, width: 800, height: 450 } });
+    await page.waitForTimeout(170);
+  }
+  await ctx.close();
+}
+
+/** The Three.js game (index.html) still boots after the multi-entry build change. */
+async function game3d(browser) {
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 720 } });
+  const page = await ctx.newPage();
+  const errs = [];
+  page.on('pageerror', (e) => errs.push(e.message));
+  await page.goto(`${BASE}/`);
+  await page.waitForTimeout(9000);
+  await page.screenshot({ path: `${OUT}/index-3d.png` });
+  report.runs['index-3d'] = { pageErrors: errs, title: await page.title() };
   await ctx.close();
 }
 
@@ -124,6 +182,9 @@ try {
     await ab(browser, view);
     await autoplay(browser, view);
   }
+  await abZoom(browser);
+  await benchZoom(browser);
+  await game3d(browser);
   await bench(browser, 'desktop', 0);
   await bench(browser, 'phone', 0);
   await bench(browser, 'phone', 4);

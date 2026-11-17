@@ -64,6 +64,8 @@ export interface SheetSpec {
   readonly up: string;
   /** Direction the walk faces in the sheet; the other side is mirrored. */
   readonly facing: 'left' | 'right';
+  /** Facing of the "up" (away) sequence when it differs from `facing`. */
+  readonly facingUp?: 'left' | 'right';
   /** World units per animation loop (keeps feet planted); falls back to the sheet's fps. */
   readonly stride?: number;
 }
@@ -188,6 +190,7 @@ export function parseManifest(raw: unknown): ArtManifest {
         down: str(s.down, `enemies.${key}.sheet.down`),
         up: str(s.up, `enemies.${key}.sheet.up`),
         facing: facing(s.facing),
+        ...(s.facingUp === 'left' || s.facingUp === 'right' ? { facingUp: s.facingUp } : {}),
         ...(typeof s.stride === 'number' ? { stride: s.stride } : {}),
       };
     }

@@ -40,7 +40,7 @@
     "raider": {
       "mode": "sheet",
       "file": "enemy-raider.png",
-      "sheet": { "down": "anim/raider-omni12-front.json", "up": "anim/raider-omni12-back.json", "facing": "right" },
+      "sheet": { "down": "anim/raider-omni12-front.json", "up": "anim/raider-omni12-back.json", "facing": "right", "facingUp": "left" },
       "height": 1.3,
       "anchor": [0.5, 0.95],
       "facing": "right",
@@ -50,7 +50,7 @@
     "raider-veo31q": {
       "mode": "sheet",
       "file": "enemy-raider.png",
-      "sheet": { "down": "anim/raider-veo31q-front.json", "up": "anim/raider-veo31q-back.json", "facing": "right" },
+      "sheet": { "down": "anim/raider-veo31q-front.json", "up": "anim/raider-veo31q-back.json", "facing": "right", "facingUp": "left" },
       "height": 1.3,
       "anchor": [0.5, 0.95],
       "facing": "right",

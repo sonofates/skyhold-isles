@@ -225,6 +225,14 @@ export class Hud {
     return this.plaque.y + this.plaque.height;
   }
 
+  /** Centres of the round buttons (QA hooks). */
+  get buttonPositions(): { pause: { x: number; y: number }; speed: { x: number; y: number } } {
+    return {
+      pause: { x: this.pauseBtn.root.x, y: this.pauseBtn.root.y },
+      speed: { x: this.speedBtn.root.x, y: this.speedBtn.root.y },
+    };
+  }
+
   get hornPosition(): { x: number; y: number } {
     return { x: this.hornX, y: this.hornY };
   }

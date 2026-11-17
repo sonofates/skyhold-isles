@@ -68,6 +68,8 @@ describe('art manifest', () => {
     expect(other.tint).toBeDefined();
     expect(enemyArtFor(m, 'carrier', true).art).toBe('kite');
     expect(m.enemies.raider.mode).toBe('sheet');
+    expect(m.enemies.raider.sheet?.facing).toBe('right');
+    expect(m.enemies.raider.sheet?.facingUp).toBe('left');
     expect(m.enemies.brute.mode).toBe('cheap');
   });
 

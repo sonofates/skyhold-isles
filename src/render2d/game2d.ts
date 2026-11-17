@@ -342,6 +342,7 @@ export class Game2D {
       ring: { open: this.ring.isOpen, mode: this.ring.mode, plot: this.ring.plot, tokens: this.ring.tokenPositions() },
       fit: this.map.fit,
       horn: this.hud.hornPosition,
+      buttons: this.hud.buttonPositions,
       artNotes: this.art.notes,
     };
   }

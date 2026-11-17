@@ -28,7 +28,7 @@ export class MapView {
     for (let i = 0; i < 4; i++) {
       const s = new Sprite(Texture.EMPTY);
       s.visible = false;
-      s.tint = 0xd8d2c4;
+      s.tint = 0xf2efe8; // barely dimmed: hints the edge without a visible seam
       this.bandSprites.push(s);
       this.bands.addChild(s);
     }
