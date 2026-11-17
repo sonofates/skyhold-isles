@@ -118,7 +118,10 @@ export function evaluateLiveChallengeState(
   switch (cond.kind) {
     case 'noLivesLost':
       failed = telemetry.livesLost > 0 || safeLives < BALANCE.startingLives;
-      progressLabel = failed ? `${telemetry.livesLost} lost` : `${safeLives}/${BALANCE.startingLives} lives`;
+      progressLabel =
+        telemetry.livesLost > 0
+          ? `${telemetry.livesLost} lost`
+          : `${safeLives}/${BALANCE.startingLives} lives`;
       break;
     case 'minLivesRemaining':
       failed = safeLives < cond.minLives;

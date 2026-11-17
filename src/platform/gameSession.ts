@@ -486,6 +486,7 @@ export class GameSession {
   ): void {
     const { overlays, loop } = this.d;
     this.recordEndlessIfActive();
+    this.meta.endRun();
     this.lastRunOptions = options;
     const safeLevelIndex = Number.isFinite(levelIndex) ? Math.floor(levelIndex) : 0;
     this.currentLevelIndex = Math.max(0, Math.min(LEVELS.length - 1, safeLevelIndex));
@@ -499,6 +500,8 @@ export class GameSession {
       modifiers: options?.modifiers,
       dailyDate: options?.dailyDate,
       speed: 1,
+      isDebugTainted: () => this.pendingDebugSpawns.length > 0 || this.simWorld.debugTainted,
+      getEconomyState: () => ({ gold: this.simWorld.gold, lives: this.simWorld.lives }),
     });
     this.bindSimEvents(this.events);
     this.renderWorld.cameraController.setShowcaseMode(false);

@@ -847,5 +847,25 @@ describe('Daily challenge pure date-seeded generator', () => {
     });
     loseWorld.debugForceLose();
     expect(lostPayload).toEqual({ waveIndex: 0, endless: true });
+    expect(loseWorld.debugTainted).toBe(true);
+
+    // Future Master islands without bosses still preserve an armor-breaker tower in Daily Watch
+    const bosslessMaster: LevelDef = {
+      ...LEVELS[1],
+      id: 'bossless-master-isle',
+      difficulty: 'Master',
+      waves: [
+        {
+          clearBonus: 30,
+          groups: [{ enemyType: 'grunt', count: 5, spawnInterval: 0.5, startDelay: 0 }],
+        },
+      ],
+    };
+    for (let i = 1; i <= 30; i++) {
+      const ds = `2026-10-${String(i).padStart(2, '0')}`;
+      const spec = generateDailyChallenge(ds, [bosslessMaster]);
+      const legal = getAllowedTowerTypes(spec.modifiers);
+      expect(legal.some((t) => TOWER_DEFS[t].tiers[0].damage >= 35)).toBe(true);
+    }
   });
 });

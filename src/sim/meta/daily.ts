@@ -273,6 +273,7 @@ export function generateDailyChallenge(
         (isChallenging && mutatorRoll.mutators.length >= 2 && hasEconomySqueeze),
       preserveAntiAir: mutatorRoll.modifiers.flyerCountMultiplier > 1,
       requireArmorBreaker:
+        isMaster ||
         isHeroic ||
         (level.difficulty !== 'Breezy' && hasHeavyArmoredWaves) ||
         mutatorRoll.modifiers.enemyArmorBonus > 0 ||

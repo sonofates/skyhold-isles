@@ -1045,6 +1045,77 @@ describe('RunObserver challenge condition tracking', () => {
     expect(nanLivesLive.state).toBe('failed');
     expect(nanLivesLive.progressLabel).toBe('0/15+ lives');
 
+    const noLivesLowLive = evaluateLiveChallengeState(
+      {
+        id: 'test:nolives',
+        levelId: level.id,
+        title: 'Flawless',
+        description: 'No lives lost.',
+        condition: { kind: 'noLivesLost' },
+      },
+      peakObs.getTelemetry(),
+      10,
+      'ongoing',
+      false,
+    );
+    expect(noLivesLowLive.state).toBe('failed');
+    expect(noLivesLowLive.progressLabel).toBe('10/20 lives');
+
+    // debugForceLose & Wave-1 debugSkipToWave(1) & post-win gold tamper with isDebugTainted/getEconomyState callbacks
+    const tinyLvl = makeSimpleTestLevel({
+      startingGold: 500,
+      waves: [{ clearBonus: 20, groups: [{ enemyType: 'grunt', count: 1, spawnInterval: 0.3, startDelay: 0 }] }],
+    });
+    const guardMeta = new MetaSession({ levels: [tinyLvl], onSave: () => {} });
+
+    const loseEv = new EventBus();
+    const loseWorld = new SimWorld(tinyLvl, loseEv);
+    guardMeta.startRun(tinyLvl, loseEv, {
+      isDebugTainted: () => loseWorld.debugTainted,
+      getEconomyState: () => ({ gold: loseWorld.gold, lives: loseWorld.lives }),
+    });
+    loseWorld.placeTower(4, 2, 'archer');
+    loseWorld.startNextWave();
+    loseWorld.debugForceLose();
+    expect(loseWorld.debugTainted).toBe(true);
+    expect(guardMeta.isCurrentRunEligible()).toBe(false);
+    expect(guardMeta.getStats().gamesLost).toBe(0);
+
+    // debugForceLose inside Endless Mode must not record Endless waves/scores
+    const endLoseEv = new EventBus();
+    const endLoseWorld = new SimWorld(tinyLvl, endLoseEv);
+    guardMeta.startRun(tinyLvl, endLoseEv, {
+      isDebugTainted: () => endLoseWorld.debugTainted,
+      getEconomyState: () => ({ gold: endLoseWorld.gold, lives: endLoseWorld.lives }),
+    });
+    endLoseWorld.placeTower(4, 2, 'archer');
+    endLoseWorld.startNextWave();
+    for (let i = 0; i < 60 * 30 && endLoseWorld.outcome === 'ongoing'; i++) {
+      guardMeta.onTick(BALANCE.fixedDt, 3);
+      endLoseWorld.fixedTick(BALANCE.fixedDt);
+    }
+    expect(endLoseWorld.outcome).toBe('won');
+    expect(endLoseWorld.enterEndlessMode()).toBe(true);
+    guardMeta.onEndlessEntered();
+    endLoseWorld.startNextWave();
+    endLoseWorld.debugForceLose();
+    expect(endLoseWorld.debugTainted).toBe(true);
+    expect(guardMeta.isCurrentRunEligible()).toBe(false);
+    expect(guardMeta.getStats().bestEndlessWaveOverall).toBe(0);
+
+    // debugSkipToWave(1) from preFirstWave must taint before gamesPlayed increments
+    const playedBeforeSkip = guardMeta.getStats().gamesPlayed;
+    const skip1Ev = new EventBus();
+    const skip1World = new SimWorld(tinyLvl, skip1Ev);
+    guardMeta.startRun(tinyLvl, skip1Ev, {
+      isDebugTainted: () => skip1World.debugTainted,
+      getEconomyState: () => ({ gold: skip1World.gold, lives: skip1World.lives }),
+    });
+    skip1World.debugSkipToWave(1);
+    expect(guardMeta.isCurrentRunEligible()).toBe(false);
+    expect(guardMeta.getStats().gamesPlayed).toBe(playedBeforeSkip);
+
+    guardMeta.dispose();
     peakObs.dispose();
     meta.dispose();
   });

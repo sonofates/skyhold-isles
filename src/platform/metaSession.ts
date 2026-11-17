@@ -114,6 +114,8 @@ export class MetaSession {
   private runUnlockedAchievementIds: string[] = [];
   private runStartBestEndlessWave = 0;
   private runStartBestEndlessScore = 0;
+  private isDebugTaintedFn: (() => boolean) | null = null;
+  private getEconomyStateFn: (() => { gold: number; lives: number }) | null = null;
 
   constructor(options?: MetaSessionOptions) {
     this.levels = options?.levels ?? LEVELS;
@@ -137,6 +139,8 @@ export class MetaSession {
       modifiers?: RunModifiers | null;
       dailyDate?: string | null;
       speed?: SpeedMultiplier;
+      isDebugTainted?: () => boolean;
+      getEconomyState?: () => { gold: number; lives: number };
     },
   ): void {
     this.endRun();
@@ -156,25 +160,32 @@ export class MetaSession {
     this.runUnlockedAchievementIds = [];
     this.runStartBestEndlessWave = nonNegIntOrZero(this.save.campaign.bestEndlessWaves[level.index]);
     this.runStartBestEndlessScore = nonNegIntOrZero(this.save.bestEndlessScoresByLevelId[level.id]);
+    this.isDebugTaintedFn = options?.isDebugTainted ?? null;
+    this.getEconomyStateFn = options?.getEconomyState ?? null;
 
     this.unsubs.push(
       events.on('waveStarted', () => {
+        this.syncWorldTaint(true);
         if (!this.countedGamePlayed && observer.isEligibleForChallenges()) {
           this.countedGamePlayed = true;
           this.save.stats.gamesPlayed = nonNegIntOrZero(this.save.stats.gamesPlayed) + 1;
         }
       }),
       events.on('waveCompleted', () => {
+        this.syncWorldTaint(true);
         this.flushStats();
       }),
       events.on('endlessEntered', () => {
+        this.syncWorldTaint(true);
         this.flushStats();
       }),
       events.on('gameWon', (ev) => {
         if (observer.getTelemetry().endlessEntered) return;
+        this.syncWorldTaint(true);
         this.finalizeRunOutcome(level, observer, true, ev.stars, ev.livesRemaining);
       }),
       events.on('gameLost', () => {
+        this.syncWorldTaint(false);
         this.finalizeRunOutcome(level, observer, false, 0, 0);
       }),
     );
@@ -247,6 +258,17 @@ export class MetaSession {
     }
   }
 
+  private syncWorldTaint(checkEconomy: boolean): void {
+    if (!this.observer) return;
+    if (this.isDebugTaintedFn?.()) {
+      this.observer.markDebugTainted();
+    }
+    if (checkEconomy && this.getEconomyStateFn) {
+      const econ = this.getEconomyStateFn();
+      this.observer.verifyEconomyIntegrity(econ.gold, econ.lives);
+    }
+  }
+
   markDebugTainted(): void {
     this.observer?.markDebugTainted();
   }
@@ -262,6 +284,7 @@ export class MetaSession {
 
   flushStats(persistAfter = true): void {
     if (!this.observer) return;
+    this.syncWorldTaint(false);
     const current = this.observer.getTelemetry();
     applyTelemetryDeltaToStats(this.save, current, this.committedTelemetry);
     if (current.eligibleForChallenges) {
@@ -295,6 +318,8 @@ export class MetaSession {
     this.runUnlockedAchievementIds = [];
     this.runStartBestEndlessWave = 0;
     this.runStartBestEndlessScore = 0;
+    this.isDebugTaintedFn = null;
+    this.getEconomyStateFn = null;
     for (let i = 0; i < this.unsubs.length; i++) {
       this.unsubs[i]();
     }

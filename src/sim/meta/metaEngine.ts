@@ -164,7 +164,9 @@ export function getDailyBestScore(
   dateStr: string,
 ): number {
   const target = dateStr.trim();
-  if (!scores || !isValidDateString(target)) return 0;
+  if (!scores || typeof scores !== 'object' || Array.isArray(scores) || !isValidDateString(target)) {
+    return 0;
+  }
   let best = asNonNegInt(scores[target], 0);
   for (const [key, val] of Object.entries(scores)) {
     if (key.trim() === target) {

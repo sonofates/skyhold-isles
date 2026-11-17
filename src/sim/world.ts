@@ -216,6 +216,7 @@ export class SimWorld {
 
   debugForceLose(): void {
     if (this.outcome !== 'ongoing') return;
+    this.debugTainted = true;
     this.lives = 0;
     this.outcome = 'lost';
     this.events.emit('economyChanged', { gold: this.gold, lives: this.lives });

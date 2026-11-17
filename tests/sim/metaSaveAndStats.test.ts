@@ -6,6 +6,7 @@ import { ACHIEVEMENTS } from '../../src/data/challenges.ts';
 import { LEVELS, type LevelDef } from '../../src/data/levels/index.ts';
 import { MetaSession } from '../../src/platform/metaSession.ts';
 import {
+  getTodayUtcDateString,
   loadMetaSave,
   loadProgress,
   loadSettings,
@@ -20,6 +21,7 @@ import {
   getAchievementSummary,
   getAllChallengeProgress,
   getChallengeStatus,
+  getDailyBestScore,
   getEnemyIntelStats,
   getIslandMasteryStatus,
   getMetaCareerRank,
@@ -1704,5 +1706,8 @@ describe('MetaSession stats, achievements, challenges & daily persistence', () =
     expect(getIslandMasteryStatus(partialObj, 0, LEVELS)?.campaignStars).toBe(0);
     expect(getMetaCareerSummary(partialObj, '2026-11-17', LEVELS).rank.title).toBe('Sky Recruit');
     expect(mergeMetaSaves(partialObj, partialObj, 9, LEVELS).version).toBe(2);
+    expect(getDailyBestScore(null as unknown as Record<string, number>, '2026-11-17')).toBe(0);
+    expect(getDailyBestScore([] as unknown as Record<string, number>, '2026-11-17')).toBe(0);
+    expect(getTodayUtcDateString(new Date('0920-03-04T00:00:00Z'))).toBe('0920-03-04');
   });
 });

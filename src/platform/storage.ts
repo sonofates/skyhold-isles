@@ -154,7 +154,7 @@ export function saveProgress(progress: ProgressData): void {
 }
 
 export function getTodayUtcDateString(now: Date = new Date()): string {
-  const y = now.getUTCFullYear();
+  const y = String(now.getUTCFullYear()).padStart(4, '0');
   const m = String(now.getUTCMonth() + 1).padStart(2, '0');
   const d = String(now.getUTCDate()).padStart(2, '0');
   return `${y}-${m}-${d}`;
