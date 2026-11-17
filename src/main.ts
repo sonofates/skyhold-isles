@@ -1,7 +1,13 @@
 import './style.css';
 import { SoundManager } from './audio/soundManager.ts';
 import { LEVELS } from './data/levels/index.ts';
-import { GameLoop, computeRenderPacingTarget, type RenderPacingMode } from './platform/browserLoop.ts';
+import {
+  GameLoop,
+  computeRenderPacingTarget,
+  hasVisibleCameraMotion,
+  type CameraPoseSnapshot,
+  type RenderPacingMode,
+} from './platform/browserLoop.ts';
 import { GameSession } from './platform/gameSession.ts';
 import { InputManager } from './platform/input.ts';
 import { loadSettings } from './platform/storage.ts';
@@ -156,7 +162,14 @@ async function bootstrap(loadingScreen: LoadingScreen): Promise<void> {
     onKeyPanState: (x, z) => renderWorld.cameraController.setKeyPan(x, z),
   });
 
+  const cam = renderWorld.cameraController.camera;
   let lastCamViewVersion = renderWorld.cameraController.getViewVersion();
+  const lastWakeCamPose: CameraPoseSnapshot = {
+    x: cam.position.x,
+    y: cam.position.y,
+    z: cam.position.z,
+    zoom: cam.zoom,
+  };
   let lastSimWorld = session.simWorld;
   let lastViewMode = session.viewMode;
   let lastPacingMode: RenderPacingMode = 'menu';
@@ -191,9 +204,25 @@ async function bootstrap(loadingScreen: LoadingScreen): Promise<void> {
       session.renderFrame(frameDt, alpha, elapsedVisualTime);
 
       const camVer = renderWorld.cameraController.getViewVersion();
-      if (camVer !== lastCamViewVersion) {
+      if (levelOrViewChanged) {
         lastCamViewVersion = camVer;
-        if (loop.paused && loop.simActive && !overlays.isModalOpen()) {
+        lastWakeCamPose.x = cam.position.x;
+        lastWakeCamPose.y = cam.position.y;
+        lastWakeCamPose.z = cam.position.z;
+        lastWakeCamPose.zoom = cam.zoom;
+      } else if (camVer !== lastCamViewVersion) {
+        lastCamViewVersion = camVer;
+        const pos = cam.position;
+        if (!loop.paused || !loop.simActive || overlays.isModalOpen()) {
+          lastWakeCamPose.x = pos.x;
+          lastWakeCamPose.y = pos.y;
+          lastWakeCamPose.z = pos.z;
+          lastWakeCamPose.zoom = cam.zoom;
+        } else if (hasVisibleCameraMotion(lastWakeCamPose, pos.x, pos.y, pos.z, cam.zoom)) {
+          lastWakeCamPose.x = pos.x;
+          lastWakeCamPose.y = pos.y;
+          lastWakeCamPose.z = pos.z;
+          lastWakeCamPose.zoom = cam.zoom;
           loop.wakeRender(0.35);
         }
       }

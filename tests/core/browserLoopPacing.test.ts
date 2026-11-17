@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { GameLoop, computeRenderPacingTarget } from '../../src/platform/browserLoop.ts';
+import { GameLoop, computeRenderPacingTarget, hasVisibleCameraMotion } from '../../src/platform/browserLoop.ts';
 import { loadSettings } from '../../src/platform/storage.ts';
 import { PerfGovernor } from '../../src/render/perfGovernor.ts';
 
@@ -619,5 +619,14 @@ describe('GameLoop throttle boundary and storage backward compatibility', () => 
 
     loop.stop();
     vi.unstubAllGlobals();
+  });
+
+  it('ignores sub-pixel asymptotic camera lerp tails while still waking on visible pan or zoom motion', () => {
+    const base = { x: 10, y: 30, z: 12, zoom: 1.2 };
+    expect(hasVisibleCameraMotion(base, 10.001, 30, 12.0015, 1.2002)).toBe(false);
+    expect(hasVisibleCameraMotion(base, 10.0025, 30, 12, 1.2)).toBe(true);
+    expect(hasVisibleCameraMotion(base, 10, 30.0025, 12, 1.2)).toBe(true);
+    expect(hasVisibleCameraMotion(base, 10, 30, 12.0025, 1.2)).toBe(true);
+    expect(hasVisibleCameraMotion(base, 10, 30, 12, 1.2006)).toBe(true);
   });
 });

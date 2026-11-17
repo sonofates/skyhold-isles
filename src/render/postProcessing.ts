@@ -534,7 +534,7 @@ export class PostProcessingPipeline {
       };
       this.smaaReadyCancel = cancel;
       dispatcher.addEventListener('load', onLoad);
-      const timer = setTimeout(settle, 50);
+      const timer = setTimeout(settle, 150);
     });
   }
 

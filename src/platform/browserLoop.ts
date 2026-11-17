@@ -69,6 +69,35 @@ export interface LoopCallbacks {
   resolveRenderPacing?: (wakeActive: boolean) => RenderPacingTarget;
 }
 
+export interface CameraPoseSnapshot {
+  x: number;
+  y: number;
+  z: number;
+  zoom: number;
+}
+
+const CAMERA_WAKE_POS_EPSILON = 0.002;
+const CAMERA_WAKE_ZOOM_EPSILON = 0.0005;
+
+/**
+ * Returns true only when camera position or zoom moved past a sub-pixel threshold (~0.05-0.15px),
+ * preventing asymptotic exponential pan/zoom lerps from keeping paused rendering awake at 60Hz.
+ */
+export function hasVisibleCameraMotion(
+  prev: Readonly<CameraPoseSnapshot>,
+  x: number,
+  y: number,
+  z: number,
+  zoom: number,
+): boolean {
+  return (
+    Math.abs(x - prev.x) > CAMERA_WAKE_POS_EPSILON ||
+    Math.abs(y - prev.y) > CAMERA_WAKE_POS_EPSILON ||
+    Math.abs(z - prev.z) > CAMERA_WAKE_POS_EPSILON ||
+    Math.abs(zoom - prev.zoom) > CAMERA_WAKE_ZOOM_EPSILON
+  );
+}
+
 const VSYNC_JITTER_TOLERANCE_MS = 1.5;
 
 export class GameLoop {
