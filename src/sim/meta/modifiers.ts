@@ -166,13 +166,15 @@ export function getAllowedTowerTypes(modifiers: ResolvedRunModifiers): readonly 
 
 /** Scales a tower build or upgrade cost by towerCostMultiplier (no-op when 1). */
 export function scaleGoldCost(baseCost: number, modifiers: ResolvedRunModifiers): number {
-  if (baseCost <= 0 || modifiers.towerCostMultiplier === 1) return baseCost;
+  if (!Number.isFinite(baseCost) || baseCost <= 0) return 0;
+  if (modifiers.towerCostMultiplier === 1) return baseCost;
   return Math.max(1, Math.round(baseCost * modifiers.towerCostMultiplier));
 }
 
 /** Scales gold rewards (early/clear/kill) by goldRewardMultiplier (no-op when 1). */
 export function scaleGoldReward(baseReward: number, modifiers: ResolvedRunModifiers): number {
-  if (baseReward <= 0 || modifiers.goldRewardMultiplier === 1) return baseReward;
+  if (!Number.isFinite(baseReward) || baseReward <= 0) return 0;
+  if (modifiers.goldRewardMultiplier === 1) return baseReward;
   return Math.max(1, Math.round(baseReward * modifiers.goldRewardMultiplier));
 }
 

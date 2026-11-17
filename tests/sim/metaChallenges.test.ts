@@ -975,6 +975,55 @@ describe('RunObserver challenge condition tracking', () => {
     );
     expect(peakLive.state).toBe('failed');
     expect(peakLive.progressLabel).toBe('Peak 3/2');
+
+    // allowedTowerTypes & combatSpeedOnly mid-combat drop live labels
+    const allowedDef = {
+      id: 'test:allowed',
+      levelId: level.id,
+      title: 'Bow & Frost',
+      description: 'Only build Archer or Frost.',
+      condition: { kind: 'allowedTowerTypes' as const, allowed: ['archer' as const, 'frost' as const] },
+    };
+    const intactLive = evaluateLiveChallengeState(
+      allowedDef,
+      peakObs.getTelemetry(),
+      peakWorld.lives,
+      'ongoing',
+      false,
+    );
+    expect(intactLive.state).toBe('on_track');
+    expect(intactLive.progressLabel).toBe('Arsenal intact');
+
+    expect(peakWorld.placeTower(8, 5, 'cannon')).not.toBeNull();
+    const violatedLive = evaluateLiveChallengeState(
+      allowedDef,
+      peakObs.getTelemetry(),
+      peakWorld.lives,
+      'ongoing',
+      false,
+    );
+    expect(violatedLive.state).toBe('failed');
+    expect(violatedLive.progressLabel).toBe('Disallowed tower built');
+
+    peakObs.recordSpeed(3);
+    peakWorld.startNextWave();
+    peakObs.recordSpeed(2);
+    const speedDropLive = evaluateLiveChallengeState(
+      {
+        id: 'test:speed',
+        levelId: level.id,
+        title: 'Blitz 3x',
+        description: 'All combat at 3x.',
+        condition: { kind: 'combatSpeedOnly', requiredSpeed: 3 },
+      },
+      peakObs.getTelemetry(),
+      peakWorld.lives,
+      'ongoing',
+      false,
+    );
+    expect(speedDropLive.state).toBe('failed');
+    expect(speedDropLive.progressLabel).toBe('Dropped to 2x');
+
     peakObs.dispose();
     meta.dispose();
   });

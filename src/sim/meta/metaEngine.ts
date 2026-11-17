@@ -1084,7 +1084,10 @@ function getTopKey(record: Readonly<Record<string, number>>): string | null {
   let bestKey: string | null = null;
   let bestCount = 0;
   for (const [key, count] of Object.entries(record)) {
-    if (count > bestCount || (count === bestCount && count > 0 && (bestKey === null || key < bestKey))) {
+    if (
+      Number.isFinite(count) &&
+      (count > bestCount || (count === bestCount && count > 0 && (bestKey === null || key < bestKey)))
+    ) {
       bestCount = count;
       bestKey = key;
     }
@@ -1231,10 +1234,10 @@ function mergeMaxCountRecords(
 ): Record<string, number> {
   const out: Record<string, number> = {};
   for (const [k, v] of Object.entries(a)) {
-    if (v > 0) out[k] = v;
+    if (Number.isFinite(v) && v > 0) out[k] = v;
   }
   for (const [k, v] of Object.entries(b)) {
-    if (v > (out[k] ?? 0)) out[k] = v;
+    if (Number.isFinite(v) && v > (out[k] ?? 0)) out[k] = v;
   }
   return out;
 }
@@ -1245,10 +1248,10 @@ function mergeMinPositiveRecords(
 ): Record<string, number> {
   const out: Record<string, number> = {};
   for (const [k, v] of Object.entries(a)) {
-    if (v > 0) out[k] = v;
+    if (Number.isFinite(v) && v > 0) out[k] = v;
   }
   for (const [k, v] of Object.entries(b)) {
-    if (v > 0 && (out[k] === undefined || v < out[k])) {
+    if (Number.isFinite(v) && v > 0 && (out[k] === undefined || v < out[k])) {
       out[k] = v;
     }
   }

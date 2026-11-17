@@ -20,6 +20,7 @@ import {
   mergeRunModifiers,
   resolveRunModifiers,
   scaleGoldCost,
+  scaleGoldReward,
 } from '../../src/sim/meta/modifiers.ts';
 import {
   buildEndlessMutatorLoadout,
@@ -580,14 +581,22 @@ describe('Daily challenge pure date-seeded generator', () => {
     expect(selectEndlessMutators('nan-safe', Number.NaN).mutators).toHaveLength(2);
     expect(getRecentDailySpecs('2026-11-17', Number.NaN)).toHaveLength(7);
 
-    // Non-finite score inputs & 0-cost scaleGoldCost safety
+    // Non-finite score inputs & 0/negative/non-finite scaleGoldCost / scaleGoldReward safety
     expect(computeEndlessScore(Number.NaN, Number.POSITIVE_INFINITY, 1.5)).toEqual({
       baseScore: 0,
       scoreMultiplier: 1.5,
       totalScore: 0,
     });
     expect(computeCampaignRunScore(5, 20, Number.NaN, 1.2)).toBe(Math.round((5 * 150 + 20 * 2) * 1.2));
-    expect(scaleGoldCost(0, resolveRunModifiers({ towerCostMultiplier: 1.25 }))).toBe(0);
+    const costMod = resolveRunModifiers({ towerCostMultiplier: 1.25, goldRewardMultiplier: 0.75 });
+    expect(scaleGoldCost(0, costMod)).toBe(0);
+    expect(scaleGoldCost(-15, costMod)).toBe(0);
+    expect(scaleGoldCost(Number.NaN, costMod)).toBe(0);
+    expect(scaleGoldCost(Number.POSITIVE_INFINITY, costMod)).toBe(0);
+    expect(scaleGoldReward(0, costMod)).toBe(0);
+    expect(scaleGoldReward(-10, costMod)).toBe(0);
+    expect(scaleGoldReward(Number.NaN, costMod)).toBe(0);
+    expect(scaleGoldReward(Number.POSITIVE_INFINITY, costMod)).toBe(0);
 
     // Leap-day and year-boundary daily calendar streak continuity
     expect(

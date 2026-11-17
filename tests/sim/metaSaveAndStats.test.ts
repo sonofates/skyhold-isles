@@ -22,6 +22,7 @@ import {
   getStats,
   getTowerMasteryStats,
   importMetaSaveJson,
+  mergeMetaSaves,
   migrateToMetaSave,
   recordRunCompletion,
 } from '../../src/sim/meta/metaEngine.ts';
@@ -1210,6 +1211,113 @@ describe('MetaSession stats, achievements, challenges & daily persistence', () =
     expect(replaySave.bestLivesByLevelId[LEVELS[0].id]).toBeUndefined();
     replayObs.dispose();
 
+    // mergeMetaSaves ignores non-finite outlier records so valid finite records survive
+    const corruptBase = createDefaultMetaSave(9);
+    corruptBase.bestEndlessScoresByLevelId[LEVELS[0].id] = Number.POSITIVE_INFINITY;
+    corruptBase.fastestWinSecByLevelId[LEVELS[0].id] = Number.NaN;
+    corruptBase.stats.towersBuiltByType.archer = Number.POSITIVE_INFINITY;
+    const validIncoming = createDefaultMetaSave(9);
+    validIncoming.bestEndlessScoresByLevelId[LEVELS[0].id] = 480;
+    validIncoming.fastestWinSecByLevelId[LEVELS[0].id] = 55.4;
+    validIncoming.stats.towersBuiltByType.cannon = 12;
+    const mergedClean = mergeMetaSaves(corruptBase, validIncoming, 9, LEVELS);
+    expect(mergedClean.bestEndlessScoresByLevelId[LEVELS[0].id]).toBe(480);
+    expect(mergedClean.fastestWinSecByLevelId[LEVELS[0].id]).toBe(55.4);
+    expect(mergedClean.stats.towersBuiltByType.cannon).toBe(12);
+    expect(mergedClean.stats.towersBuiltByType.archer).toBeUndefined();
+
+    const testLevels = [tinyLevel, ...LEVELS.slice(1)];
+    // Pre-wave quit does not bump gamesPlayed, whereas mid-Wave-1 quit flushes stats & increments gamesPlayed
+    const quitMeta = new MetaSession({
+      levels: testLevels,
+      saveData: createDefaultMetaSave(testLevels.length),
+      onSave: () => {},
+    });
+    const preEv = new EventBus();
+    const preWorld = new SimWorld(tinyLevel, preEv);
+    quitMeta.startRun(tinyLevel, preEv);
+    preWorld.placeTower(4, 2, 'archer');
+    quitMeta.endRun();
+    expect(quitMeta.getStats().gamesPlayed).toBe(0);
+    expect(quitMeta.getStats().towersBuiltTotal).toBe(1);
+
+    const midEv = new EventBus();
+    const midWorld = new SimWorld(tinyLevel, midEv);
+    quitMeta.startRun(tinyLevel, midEv);
+    midWorld.placeTower(4, 2, 'archer');
+    midWorld.startNextWave();
+    for (let i = 0; i < 60 * 10 && midWorld.enemiesKilledTotal === 0; i++) {
+      quitMeta.onTick(BALANCE.fixedDt, 3);
+      midWorld.fixedTick(BALANCE.fixedDt);
+    }
+    quitMeta.endRun();
+    expect(quitMeta.getStats().gamesPlayed).toBe(1);
+    expect(quitMeta.getStats().gamesWon).toBe(0);
+    expect(quitMeta.getStats().gamesLost).toBe(0);
+    expect(quitMeta.getStats().enemiesDefeatedTotal).toBeGreaterThan(0);
+
+    // Mutated story win -> Endless continuation preserves mutatedScore, storyWinSnapshot, and unlocks mutated_endless
+    const mutTinyLevel: LevelDef = { ...tinyLevel, startingGold: 6000 };
+    const mutLevels = [mutTinyLevel, ...LEVELS.slice(1)];
+    const mutEndlessMeta = new MetaSession({
+      levels: mutLevels,
+      saveData: createDefaultMetaSave(mutLevels.length),
+      onSave: () => {},
+    });
+    const mutRoll = mutEndlessMeta.getMutatorPresetRoll('iron-skies')!;
+    const mutEv = new EventBus();
+    const mutWorld = new SimWorld(mutTinyLevel, mutEv, mutRoll.modifiers);
+    mutEndlessMeta.startRun(mutTinyLevel, mutEv, { modifiers: mutRoll.modifiers, speed: 3 });
+    const spots: Array<[number, number, 'archer' | 'cannon' | 'frost' | 'tesla' | 'mortar']> = [
+      [4, 2, 'archer'],
+      [4, 3, 'cannon'],
+      [7, 5, 'frost'],
+      [8, 5, 'archer'],
+      [10, 4, 'tesla'],
+      [5, 7, 'mortar'],
+      [7, 3, 'cannon'],
+    ];
+    for (const [col, row, type] of spots) {
+      const tw = mutWorld.placeTower(col, row, type);
+      if (tw) {
+        mutWorld.upgradeTower(tw.id);
+        mutWorld.upgradeTower(tw.id);
+      }
+    }
+    mutWorld.startNextWave();
+    for (let i = 0; i < 60 * 30 && mutWorld.outcome === 'ongoing'; i++) {
+      mutEndlessMeta.onTick(BALANCE.fixedDt, 3);
+      mutWorld.fixedTick(BALANCE.fixedDt);
+    }
+    expect(mutWorld.outcome).toBe('won');
+    expect(mutEndlessMeta.getLastRunOutcome()?.mutatedScore).toBeGreaterThan(0);
+    expect(mutEndlessMeta.getIslandMasteryStatus(0)?.fastestWinSec).toBeNull();
+    expect(mutWorld.enterEndlessMode()).toBe(true);
+    mutEndlessMeta.onEndlessEntered();
+    expect(mutEndlessMeta.getActiveModifierBadges().map((b) => b.id)).toEqual([
+      'iron_clad',
+      'sky_swarm',
+    ]);
+    let clearedEndless = 0;
+    mutEv.on('waveCompleted', (w) => {
+      if (w.waveIndex >= mutTinyLevel.waves.length) clearedEndless++;
+    });
+    for (let i = 0; i < 60 * 180 && clearedEndless < 5 && mutWorld.outcome === 'ongoing'; i++) {
+      if (mutWorld.waveSystem.state === 'betweenWaves') {
+        mutWorld.startNextWave();
+      }
+      mutEndlessMeta.onTick(BALANCE.fixedDt, 3);
+      mutWorld.fixedTick(BALANCE.fixedDt);
+    }
+    expect(clearedEndless).toBeGreaterThanOrEqual(5);
+    expect(mutEndlessMeta.verifyWorldIntegrity(mutWorld.gold, mutWorld.lives)).toBe(true);
+    expect(mutEndlessMeta.getLiveEndlessScore()!.totalScore).toBeGreaterThan(0);
+    expect(
+      mutEndlessMeta.getAchievements().find((a) => a.def.id === 'mutated_endless')?.unlocked,
+    ).toBe(true);
+
+    mutEndlessMeta.dispose();
+    quitMeta.dispose();
     dailyMeta.dispose();
     meta.dispose();
   });
