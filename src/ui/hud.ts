@@ -1,4 +1,6 @@
 import type { SpeedMultiplier } from '../core/types.ts';
+import { ENEMY_DEFS } from '../data/enemies.ts';
+import { TOWER_DEFS, TOWER_TYPES } from '../data/towers.ts';
 import type { WavePreview } from '../sim/waveSystem.ts';
 import { ENEMY_BADGE_META, ENEMY_ICON_SVGS, UI_ICON_SVGS } from './icons.ts';
 
@@ -33,6 +35,12 @@ export interface HudStateView {
 }
 
 const SPEED_CYCLE: Record<SpeedMultiplier, SpeedMultiplier> = { 1: 2, 2: 3, 3: 1 };
+
+/** Display names of the towers that can hit flyers, e.g. "Archer, Frost, Tesla and Ballista". */
+const AIR_TOWER_NAMES = ((): string => {
+  const names = TOWER_TYPES.filter((t) => TOWER_DEFS[t].hitsFlyers).map((t) => t.charAt(0).toUpperCase() + t.slice(1));
+  return names.length > 1 ? `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}` : names.join('');
+})();
 
 export class HudBar {
   private readonly rootEl: HTMLDivElement;
@@ -332,16 +340,17 @@ export class HudBar {
         const item = view.nextPreview.items[i];
         const meta = ENEMY_BADGE_META[item.enemyType];
         const chip = document.createElement('span');
-        const air = item.enemyType === 'flyer';
-        chip.className = `hud-preview-chip${air ? ' is-air' : ''}${air && item.count >= 3 ? ' hud-preview-chip-flyer-warn' : ''}`;
+        const air = ENEMY_DEFS[item.enemyType].flying;
+        const elites = item.eliteCount ?? 0;
+        chip.className = `hud-preview-chip${air ? ' is-air' : ''}${air && item.count >= 3 ? ' hud-preview-chip-flyer-warn' : ''}${elites > 0 ? ' is-elite' : ''}`;
         chip.setAttribute('data-enemy', item.enemyType);
         chip.innerHTML = `<span class="hud-preview-icon">${ENEMY_ICON_SVGS[item.enemyType]}</span><b>${item.count}</b>`;
         this.previewEl.appendChild(chip);
-        names.push(`${item.count}× ${meta.label}`);
+        names.push(`${item.count}× ${meta.label}${elites > 0 ? ` (${elites} elite)` : ''}`);
       }
-      const hasAirWarn = view.nextPreview.items.some((x) => x.enemyType === 'flyer' && x.count >= 3);
+      const hasAirWarn = view.nextPreview.items.some((x) => ENEMY_DEFS[x.enemyType].flying && x.count >= 3);
       this.previewSummary = `Wave ${view.nextPreview.waveOneBased}: ${names.join(', ')}${
-        hasAirWarn ? ' — only Archer, Frost and Tesla hit air' : ''
+        hasAirWarn ? ` — only ${AIR_TOWER_NAMES} hit air` : ''
       }`;
       this.previewEl.title = this.previewSummary;
     } else {

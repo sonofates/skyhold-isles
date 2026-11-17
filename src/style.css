@@ -554,6 +554,11 @@ button.hud-wave-btn:disabled .hud-wave-btn-sub {
   color: #ffb4b4;
 }
 
+/* Elite groups in the next wave: gold rim around the glyph. */
+.hud-preview-chip.is-elite .hud-preview-icon {
+  background: var(--gx-gold);
+}
+
 /* Right-hand cluster */
 .hud-actions {
   flex: none;
