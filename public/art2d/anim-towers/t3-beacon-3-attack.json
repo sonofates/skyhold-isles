@@ -10,5 +10,6 @@
  ],
  "release": 3,
  "image": "t3-beacon-3-attack.webp",
- "ringW": 105.0
+ "ringW": 105.0,
+ "stripped": true
 }

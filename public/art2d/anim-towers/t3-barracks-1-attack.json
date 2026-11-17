@@ -10,5 +10,6 @@
  ],
  "release": 3,
  "image": "t3-barracks-1-attack.webp",
- "ringW": 207.0
+ "ringW": 207.0,
+ "stripped": true
 }
