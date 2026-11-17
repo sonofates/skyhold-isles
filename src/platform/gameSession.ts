@@ -219,6 +219,7 @@ export class GameSession {
     if (modalOpen) this.deps?.radial?.close();
     loop.simActive = this.viewMode === 'playing';
     loop.paused = this.userPaused || modalOpen;
+    this.soundManager.setMusicDucked(this.viewMode === 'playing' && loop.paused);
     inputManager.setEnabled(this.viewMode === 'playing');
     inputManager.setModalOpen(modalOpen);
   }
@@ -836,6 +837,7 @@ export class GameSession {
       this.renderWorld.loadLevel(LEVELS[this.currentLevelIndex], undefined, () => this.settings);
     }
     this.viewMode = target;
+    this.soundManager.setMusicContext(LEVELS[this.currentLevelIndex].id, 'menu');
     this.deps?.content?.onLeavePlay();
     this.applyBannedTowerMarkers();
     overlays.closeModals();
@@ -884,6 +886,7 @@ export class GameSession {
     this.quality.rearm();
 
     this.viewMode = 'playing';
+    this.soundManager.setMusicContext(level.id, 'build');
     this.userPaused = false;
     loop.speed = 1;
     overlays.mainMenu.setOpen(false);

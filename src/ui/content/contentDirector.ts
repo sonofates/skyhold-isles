@@ -8,6 +8,8 @@ import { CoachMark } from './coachMark.ts';
 import { seenIdOf, SightingQueue, waveHasElite } from './firstSighting.ts';
 import { coachMessage, OnboardingMachine, TOUR_TILE, type OnboardingObs } from './onboardingMachine.ts';
 import { SightingCard } from './sightingCard.ts';
+import { WaveBanner } from './waveBanner.ts';
+import { waveBannerContent } from './waveHints.ts';
 
 export interface ContentHost {
   /** The card opened/closed: re-evaluate pause + input gating. */
@@ -26,6 +28,7 @@ export class ContentDirector {
   private readonly host: ContentHost;
   private readonly card: SightingCard;
   private readonly coach: CoachMark;
+  private readonly banner: WaveBanner;
   private readonly machine: OnboardingMachine;
   private readonly queue: SightingQueue;
   private doneTimer: number | null = null;
@@ -39,6 +42,7 @@ export class ContentDirector {
     this.queue = new SightingQueue(store);
     this.machine = new OnboardingMachine(store.getOnboardingStatus() === 'pending');
     this.coach = new CoachMark(uiRoot, () => this.onCoachButton());
+    this.banner = new WaveBanner(uiRoot);
     this.card = new SightingCard(uiRoot, {
       onVisibilityChange: () => this.host.onBlockingChange(),
       onOpenCodex: (tab, id) => this.codex.open(tab, id),
@@ -83,12 +87,15 @@ export class ContentDirector {
   /** Subscribe to the new level's sim events. Listeners die with the bus on the next level load. */
   bindLevel(bus: EventBus, level: LevelDef, levelIndex: number): void {
     this.dismissCard();
+    this.banner.hide();
     this.machine.onLevelStart(levelIndex);
     this.coach.resetDoneStyle();
     bus.on('enemySpawned', (e) => {
       if (this.queue.offerEnemy(e.enemyType)) this.flush();
     });
     bus.on('waveStarted', (e) => {
+      // The tour's coach card owns that spot on island 1; otherwise name the wave and hint at what is coming.
+      if (!this.machine.active) this.banner.show(waveBannerContent(level, e.waveIndex, e.totalWaves, e.endless === true));
       if (e.endless || !waveHasElite(level, e.waveIndex)) return;
       if (this.queue.offerElite()) this.flush();
     });
@@ -108,6 +115,7 @@ export class ContentDirector {
   private flush(): void {
     const refs = this.queue.drain();
     if (refs.length > 0) {
+      this.banner.hide();
       this.card.show(refs);
       this.refreshNewBadge();
     }
@@ -152,6 +160,7 @@ export class ContentDirector {
   onLeavePlay(): void {
     this.wantMarker = false;
     this.coach.hide();
+    this.banner.hide();
     this.dismissCard();
   }
 
@@ -210,6 +219,7 @@ export class ContentDirector {
   dispose(): void {
     if (this.doneTimer !== null) window.clearTimeout(this.doneTimer);
     this.coach.dispose();
+    this.banner.dispose();
     this.card.dispose();
     this.codex.dispose();
   }

@@ -132,6 +132,8 @@ export function cabin(pb: PieceBuilder, variant: number): void {
   pb.cone(CREAM, 0.9, 0.52, [0, 1.0, 0], 4, [0, Math.PI / 4, 0], [1, 1, 0.82]);
   pb.cone(0x5a5e78, 0.87, 0.22, [0, 0.9, 0], 4, [0, Math.PI / 4, 0], [1.02, 1, 0.84]);
   pb.box(STONE_LIGHT, [0.16, 0.34, 0.16], [0.34, 1.0, -0.1]);
+  // Chimney smoke
+  for (let k = 0; k < 3; k++) pb.anim('smoke', 0.34, 1.2, -0.1, 0, k / 3, 0xe4e6ee);
   pb.box(0xf6bd41, [0.14, 0.16, 0.04], [-0.32, 0.52, 0.43]);
   pb.box(WOOD_DARK, [0.22, 0.4, 0.04], [0.1, 0.34, 0.43]);
   pb.box(CREAM, [0.4, 0.06, 0.2], [0.1, 0.07, 0.6]);
@@ -165,6 +167,11 @@ export function fountain(pb: PieceBuilder, variant: number): void {
   pb.cyl(0x7ccbee, 0.34, 0.34, 0.04, [0, 0.9, 0], 8);
   pb.cone(gold ? PALETTE_HEX.gold : 0xc9f0fb, 0.1, 0.34, [0, 1.12, 0], 5);
   pb.ico(gold ? PALETTE_HEX.coral : CREAM, [0.06, 0.06, 0.06], [0, 1.32, 0]);
+  // Four water jets arcing down into the upper basin.
+  for (let k = 0; k < 4; k++) {
+    const a = (k * Math.PI) / 2 + 0.4;
+    pb.anim('flow', Math.cos(a) * 0.13, 1.3, Math.sin(a) * 0.13, 0, k * 0.27, 0xe8fbff);
+  }
 }
 
 export function sheep(pb: PieceBuilder, variant: number): void {
@@ -203,4 +210,6 @@ export function lamp(pb: PieceBuilder, variant: number): void {
   pb.cyl(0xfff3b0, 0.1, 0.1, 0.2, [0, 1.52, 0], 6);
   pb.cone(frame, 0.16, 0.14, [0, 1.69, 0], 6);
   pb.ico(PALETTE_HEX.gold, [0.04, 0.04, 0.04], [0, 1.8, 0]);
+  // Two fireflies circle the lantern.
+  for (let k = 0; k < 2; k++) pb.anim('mote', 0, 1.5, 0, 0, k * 0.5 + 0.13, 0xfff0a0, (k === 0 ? 1 : -1) * 0.3);
 }

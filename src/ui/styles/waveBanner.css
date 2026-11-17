@@ -1,0 +1,121 @@
+/* Wave-start banner: non-blocking, sits under the HUD bar. */
+.wb-banner {
+  --c: 10px;
+  --lip: 5px;
+  position: absolute;
+  top: calc(var(--pad-t) + 76px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(360px, calc(100vw - 24px));
+  z-index: 26;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 8px 14px 13px;
+  text-align: center;
+  pointer-events: none;
+  animation: wbLife 3.8s ease-in-out both;
+}
+
+.wb-banner.hidden {
+  display: none !important;
+}
+
+.wb-banner[data-accent='boss'] {
+  --s-hi: #6b5d9e;
+  --s-face: #3a2f66;
+  --s-lo: #231a45;
+}
+
+.wb-head {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.wb-kicker {
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--gx-muted);
+}
+
+.wb-banner[data-accent='boss'] .wb-kicker {
+  color: #ff9c8a;
+}
+
+.wb-elite {
+  padding: 1px 7px 2px;
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--gx-ink);
+  background: var(--gx-gold);
+  border-radius: 99px;
+}
+
+.wb-elite.hidden {
+  display: none;
+}
+
+.wb-title {
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--gx-cream);
+  -webkit-text-stroke: 4px var(--gx-ink);
+  paint-order: stroke fill;
+  text-shadow: 0 2px 0 var(--gx-ink);
+  overflow-wrap: anywhere;
+}
+
+.wb-hint {
+  font-size: 13px;
+  line-height: 1.3;
+  color: var(--gx-cream);
+  opacity: 0.92;
+}
+
+.wb-banner[data-accent='air'] .wb-hint {
+  color: #bfe4ff;
+}
+
+@keyframes wbLife {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -10px);
+  }
+  8% {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+  84% {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -4px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wb-banner {
+    animation: wbFade 3.8s linear both;
+  }
+  @keyframes wbFade {
+    0%,
+    100% {
+      opacity: 0;
+    }
+    8%,
+    84% {
+      opacity: 1;
+    }
+  }
+}

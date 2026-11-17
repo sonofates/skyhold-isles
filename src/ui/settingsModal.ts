@@ -1,4 +1,5 @@
 import type { GameSettings, QualityLevel } from '../core/types.ts';
+import { getMusicVolume, setMusicVolume } from '../audio/musicPrefs.ts';
 import { UI_ICON_SVGS } from './icons.ts';
 import { ResetProgressRow } from './resetProgress.ts';
 import { SaveCodePanel, type SaveCodeCallbacks } from './saveCodePanel.ts';
@@ -27,6 +28,8 @@ export class SettingsModal {
   private readonly backdrop: HTMLDivElement;
   private readonly volumeInput: HTMLInputElement;
   private readonly volumeLabel: HTMLSpanElement;
+  private readonly musicInput: HTMLInputElement;
+  private readonly musicLabel: HTMLSpanElement;
   private readonly muteInput: HTMLInputElement;
   private readonly shakeInput: HTMLInputElement;
   private readonly dmgInput: HTMLInputElement;
@@ -78,6 +81,27 @@ export class SettingsModal {
     volWrap.className = 'setting-slider-wrap';
     volWrap.append(this.volumeInput, this.volumeLabel);
     volRow.append(volLeft, volWrap);
+
+    // Music volume (own localStorage key, see audio/musicPrefs)
+    const musicRow = document.createElement('label');
+    musicRow.className = 'setting-row';
+    musicRow.append(settingLabel('Music'));
+    this.musicLabel = document.createElement('span');
+    this.musicLabel.className = 'setting-val';
+    this.musicInput = document.createElement('input');
+    this.musicInput.type = 'range';
+    this.musicInput.min = '0';
+    this.musicInput.max = '100';
+    this.musicInput.className = 'setting-slider';
+    this.musicInput.setAttribute('data-testid', 'music-volume');
+    this.musicInput.addEventListener('input', () => {
+      setMusicVolume(Number(this.musicInput.value) / 100);
+      this.syncInputs();
+    });
+    const musicWrap = document.createElement('div');
+    musicWrap.className = 'setting-slider-wrap';
+    musicWrap.append(this.musicInput, this.musicLabel);
+    musicRow.append(musicWrap);
 
     // Mute toggle
     const muteRow = document.createElement('label');
@@ -191,7 +215,7 @@ export class SettingsModal {
     this.closeBtn.addEventListener('click', () => callbacks.onClose());
 
     actions.append(this.restartBtn, this.quitBtn, this.closeBtn);
-    card.append(title, volRow, muteRow, shakeRow, dmgRow, hapticsRow, qualRow);
+    card.append(title, volRow, musicRow, muteRow, shakeRow, dmgRow, hapticsRow, qualRow);
     if (tutorialRow) card.appendChild(tutorialRow);
     card.appendChild(actions);
     this.backdrop.appendChild(card);
@@ -211,6 +235,10 @@ export class SettingsModal {
     this.volumeInput.value = String(pct);
     this.volumeLabel.textContent = `${pct}%`;
     this.volumeInput.style.setProperty('--pct', `${pct}%`);
+    const musicPct = Math.round(getMusicVolume() * 100);
+    this.musicInput.value = String(musicPct);
+    this.musicLabel.textContent = `${musicPct}%`;
+    this.musicInput.style.setProperty('--pct', `${musicPct}%`);
     this.muteInput.checked = this.settings.muted;
     this.shakeInput.checked = this.settings.cameraShake;
     this.dmgInput.checked = this.settings.damageNumbers;
