@@ -69,6 +69,10 @@ Machine load from the other agents can make desktop shots slow (timeout raised t
       Chaser (Gold endless medal), Squall Rider (7 Dailies), Steady Winds (3-day streak),
       Seasoned Warden (30 wins).
 - [x] Main-menu star pill opens the Logbook too (role=button, Enter/Space, aria-label).
+- [x] Endless live PB moment: when the wave after the island's record starts, a toast "New best —
+      past wave N!" + chime (merged with the mutator toast when both land on one wave). Pure
+      `isEndlessBestCrossing(best, wave)` fires exactly once (tested); no callout before a first
+      record exists.
 
 ## Next ideas (not started) — for a later round
 - HUD chip for active challenge / live star rating (MOBILE's HUD area — coordinate via the lead).

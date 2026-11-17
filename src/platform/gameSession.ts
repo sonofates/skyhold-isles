@@ -67,7 +67,7 @@ import {
 import type { EndlessResultView } from '../ui/gameModals.ts';
 import { affordableUpgradeCount } from '../ui/workshop.ts';
 import { buyRank, workshopModifiers, type WorkshopUpgradeId } from '../data/workshop.ts';
-import { isIslandMastered, starWallet } from '../game/progression.ts';
+import { isEndlessBestCrossing, isIslandMastered, starWallet } from '../game/progression.ts';
 import { badgesForWin, resolveRunConfig, type RunConfig } from '../game/runConfig.ts';
 import { earnedFeatIds, newlyEarnedFeats } from '../game/feats.ts';
 
@@ -740,12 +740,20 @@ export class GameSession {
     if (this.runConfig.endless) this.simWorld.startEndlessFromStart();
     this.simWorld.setAutoWave(this.autoWaveEnabled);
     this.bindSimEvents(this.events);
+    // Read once per run: the record only changes when this run ends.
+    const endlessBest = this.progress.bestEndlessWaves[this.currentLevelIndex] ?? 0;
     this.events.on('waveStarted', (ev) => {
       if (!ev.endless) return;
       const mut = newEndlessMutatorAt(ev.waveIndex - level.waves.length, level.index);
-      if (!mut) return;
-      this.d.overlays.toast.show(`Mutator: ${mut.name} — ${mut.description}`, 4);
-      this.soundManager.playBossPulse();
+      const best = isEndlessBestCrossing(endlessBest, ev.waveIndex + 1);
+      if (best) this.soundManager.playStarChime(2);
+      else if (mut) this.soundManager.playBossPulse();
+      if (best || mut) {
+        const parts: string[] = [];
+        if (best) parts.push(`New best — past wave ${endlessBest}!`);
+        if (mut) parts.push(`Mutator: ${mut.name} — ${mut.description}`);
+        this.d.overlays.toast.show(parts.join(' · '), 4);
+      }
     });
     this.renderWorld.cameraController.setShowcaseMode(false);
     this.renderWorld.loadLevel(level, this.events, () => this.settings);

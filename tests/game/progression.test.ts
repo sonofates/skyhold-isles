@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { LEVELS } from '../../src/data/levels/index.ts';
 import { computeStarsForLivesLost, STAR_RULES, type Difficulty } from '../../src/data/stars.ts';
-import { applyEndlessRecord, applyWin, totalCampaignStars } from '../../src/game/progression.ts';
+import {
+  applyEndlessRecord,
+  applyWin,
+  isEndlessBestCrossing,
+  totalCampaignStars,
+} from '../../src/game/progression.ts';
 import { createDefaultProgress, migrateProgress, PROGRESS_SAVE_VERSION } from '../../src/platform/storage.ts';
 import { computeStarRating } from '../../src/sim/world.ts';
 
@@ -142,5 +147,18 @@ describe('save migration v1 → v2', () => {
       expect(p.unlockedLevelIndex).toBe(0);
     }
     expect(migrateProgress({ clears: [NaN, -3, 2.7] }, 3).clears).toEqual([0, 0, 2]);
+  });
+});
+
+describe('live endless personal-best callout', () => {
+  it('fires once, on the wave right after the record, and never without a record', () => {
+    expect(isEndlessBestCrossing(0, 1)).toBe(false);
+    expect(isEndlessBestCrossing(0, 25)).toBe(false);
+    expect(isEndlessBestCrossing(22, 22)).toBe(false);
+    expect(isEndlessBestCrossing(22, 23)).toBe(true);
+    expect(isEndlessBestCrossing(22, 24)).toBe(false);
+    const fired: number[] = [];
+    for (let w = 1; w <= 40; w++) if (isEndlessBestCrossing(18, w)) fired.push(w);
+    expect(fired).toEqual([19]);
   });
 });

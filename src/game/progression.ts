@@ -66,6 +66,15 @@ export function applyWin(
   };
 }
 
+/**
+ * Live "new personal best" moment during an endless run: true exactly once, when the wave after the
+ * island's record starts (records are the one-based wave a run fell on, so starting wave best+1
+ * means the record is already beaten). No callout before the first record exists.
+ */
+export function isEndlessBestCrossing(previousBest: number, waveOneBased: number): boolean {
+  return previousBest > 0 && Math.floor(waveOneBased) === Math.floor(previousBest) + 1;
+}
+
 /** Records an endless run's furthest wave; returns whether it beat the island's personal best. */
 export function applyEndlessRecord(
   progress: ProgressData,
