@@ -54,6 +54,8 @@ export interface GameOverlayCallbacks {
   onEndlessMode: () => void;
   // Campaign / meta screens (kept above the settings callbacks: other branches append after them).
   onOpenWorkshop: (from: 'menu' | 'levelSelect') => void;
+  /** Results card Workshop chip: leaves the finished run for the Workshop. */
+  onOpenWorkshopFromRun?: () => void;
   onWorkshopBuy: (id: WorkshopUpgradeId) => boolean;
   onWorkshopRefundAll: () => void;
   onWorkshopBack: () => void;
@@ -167,6 +169,7 @@ export class GameOverlays {
       onReplay: cb.onRestartLevel,
       onLevelSelect: cb.onOpenLevelSelectFromPause,
       onMainMenu: cb.onMainMenuFromPause,
+      onOpenWorkshop: cb.onOpenWorkshopFromRun,
     });
 
     this.settingsModal = new SettingsModal(uiRoot, cb.initialSettings, {

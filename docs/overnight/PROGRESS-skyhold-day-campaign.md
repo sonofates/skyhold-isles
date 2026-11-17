@@ -92,6 +92,9 @@ Machine load from the other agents can make desktop shots slow (timeout raised t
       island's hand-picked pair (changing pairs would orphan earned badges) → it appears through the
       Daily Squall rotation (CHALLENGE_IDS) and is available for future islands.
       NOTE: adding an id reshuffles which daily each future day picks (hash mod CHALLENGE_IDS.length).
+- [x] Results-card Workshop shortcut: the "Workshop: N★ to spend ›" chip is a button (victory and
+      now also campaign DEFEAT when an upgrade is affordable) → `openWorkshopFromRun()` tears the
+      finished run down, opens the Workshop, Back returns to the island select.
 - [x] Round-2 review (subagent, read-only) → 3 findings, all fixed:
       1. Save-code merge dropped a running Daily streak continued on another device →
          `mergeDaily` chains overlapping/adjacent runs (symmetric, idempotent; total stays max —

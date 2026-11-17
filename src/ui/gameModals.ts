@@ -208,6 +208,8 @@ export interface OutcomeCallbacks {
   onReplay: () => void;
   onLevelSelect: () => void;
   onMainMenu: () => void;
+  /** "Workshop: N★ to spend" chip → leave the run and open the Workshop. */
+  onOpenWorkshop?: () => void;
 }
 
 export class OutcomeOverlay {
@@ -219,6 +221,7 @@ export class OutcomeOverlay {
   private readonly calloutsEl: HTMLDivElement;
   /** Daily Squall result line for the "Copy result" chip (empty = no chip). */
   private shareText = '';
+  private readonly canOpenWorkshop: boolean;
   private readonly goalsEl: HTMLDivElement;
   private readonly statsEl: HTMLDivElement;
   private readonly mvpEl: HTMLDivElement;
@@ -228,6 +231,7 @@ export class OutcomeOverlay {
   private open = false;
 
   constructor(parent: HTMLElement, callbacks: OutcomeCallbacks) {
+    this.canOpenWorkshop = callbacks.onOpenWorkshop !== undefined;
     this.backdrop = document.createElement('div');
     this.backdrop.className = 'modal-backdrop hidden ui-interactive';
 
@@ -249,8 +253,10 @@ export class OutcomeOverlay {
     this.calloutsEl = document.createElement('div');
     this.calloutsEl.className = 'outcome-callouts';
     this.calloutsEl.addEventListener('click', (e) => {
-      const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('.callout-share');
+      const target = e.target as HTMLElement;
+      const btn = target.closest<HTMLButtonElement>('.callout-share');
       if (btn && this.shareText) void copyShareText(btn, this.shareText);
+      if (target.closest('.callout-workshop-btn')) callbacks.onOpenWorkshop?.();
     });
 
     this.goalsEl = document.createElement('div');
@@ -452,7 +458,7 @@ export class OutcomeOverlay {
     }
     for (const name of challengeNames) chip('callout-challenge', UI_ICON_SVGS.star, `${name} +1★`);
     if (unlockedName) chip('callout-unlock', UI_ICON_SVGS.islands, `${unlockedName} unlocked`);
-    if (workshopStars > 0) chip('callout-workshop', WORKSHOP_ICON_SVG, `Workshop: ${workshopStars}★ to spend`);
+    if (workshopStars > 0) chips.push(this.workshopChipHtml(workshopStars, delay));
     chips.push(...featCalloutChips(newFeats, delay));
     if (this.shareText) {
       chips.push(
@@ -460,6 +466,14 @@ export class OutcomeOverlay {
       );
     }
     this.calloutsEl.innerHTML = chips.join('');
+  }
+
+  /** Workshop chip: a button when the overlay can open the Workshop, a plain chip otherwise. */
+  private workshopChipHtml(stars: number, delayMs: number): string {
+    const inner = `${WORKSHOP_ICON_SVG}<span>Workshop: ${stars}★ to spend</span>`;
+    return this.canOpenWorkshop
+      ? `<button type="button" class="outcome-callout callout-workshop callout-workshop-btn" data-testid="btn-outcome-workshop" style="--reveal-delay:${delayMs}ms">${inner}<span class="callout-go" aria-hidden="true">›</span></button>`
+      : `<span class="outcome-callout callout-workshop" style="--reveal-delay:${delayMs}ms">${inner}</span>`;
   }
 
   showLose(
@@ -472,6 +486,8 @@ export class OutcomeOverlay {
       earnedStars?: number;
       endless?: EndlessResultView;
       startingLives?: number;
+      /** Stars available when an upgrade is affordable (campaign defeats point to the Workshop). */
+      workshopStars?: number;
     },
   ): void {
     this.open = true;
@@ -532,6 +548,8 @@ export class OutcomeOverlay {
         <div class="outcome-stat"><span>Wave</span><strong>${waveReached} / ${level.waves.length}</strong></div>
         <div class="outcome-stat"><span>Foes</span><strong>${enemiesKilled}</strong></div>
       `;
+      const ws = options?.workshopStars ?? 0;
+      if (ws > 0) this.calloutsEl.innerHTML = this.workshopChipHtml(ws, 300);
     }
 
     this.renderMvp(options?.mvp);

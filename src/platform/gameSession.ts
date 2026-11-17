@@ -570,6 +570,8 @@ export class GameSession {
           earnedStars: isEndless ? (this.progress.bestStars[this.currentLevelIndex] ?? 0) : 0,
           endless: endlessResult,
           startingLives: this.simWorld.startingLives,
+          workshopStars:
+            !isEndless && affordableUpgradeCount(this.progress) > 0 ? starWallet(this.progress).available : 0,
         });
         this.syncLoopAndInput();
         this.syncUi();
@@ -727,6 +729,13 @@ export class GameSession {
   openWorkshop(from: 'menu' | 'levelSelect'): void {
     this.workshopReturn = from;
     this.showMenuView('workshop');
+  }
+
+  /** From a results card: tear the finished run down and open the Workshop (Back → islands). */
+  openWorkshopFromRun(): void {
+    this.soundManager.unlock();
+    this.workshopReturn = 'levelSelect';
+    this.showMenuView('workshop', true);
   }
 
   closeWorkshop(): void {

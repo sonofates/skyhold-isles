@@ -90,6 +90,7 @@ async function bootstrap(loadingScreen: LoadingScreen): Promise<void> {
       soundManager.unlock();
       session.openWorkshop(from);
     },
+    onOpenWorkshopFromRun: () => session.openWorkshopFromRun(),
     onWorkshopBuy: (id) => session.buyWorkshopUpgrade(id),
     onWorkshopRefundAll: () => session.refundWorkshop(),
     onWorkshopBack: () => session.closeWorkshop(),
