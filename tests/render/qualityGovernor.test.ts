@@ -93,3 +93,43 @@ describe('QualityGovernor', () => {
     expect(feed(g, 40, 90)).toEqual([]);
   });
 });
+
+describe('QualityGovernor frame pacing (missed vsync)', () => {
+  /** 120 Hz display where `missEvery`-th frames take two refreshes. */
+  function feedPaced(g: QualityGovernor, n: number, interval: number, missShare: number): string[] {
+    const changes: string[] = [];
+    let acc = 0;
+    for (let i = 0; i < n; i++) {
+      acc += missShare;
+      const miss = acc >= 1;
+      if (miss) acc -= 1;
+      const t = g.sample(miss ? interval * 2 : interval);
+      if (t) changes.push(t);
+    }
+    return changes;
+  }
+
+  it('steps down when a 120 Hz display misses vsync on ~40% of frames (mean still ~12 ms)', () => {
+    const g = new QualityGovernor('high');
+    expect(feedPaced(g, WARM + W * 2, 8.33, 0.4)).toEqual(['medium']);
+  });
+
+  it('keeps a steady 120 Hz or 60 Hz tier', () => {
+    const g120 = new QualityGovernor('high');
+    expect(feedPaced(g120, WARM + W * 6, 8.33, 0)).toEqual([]);
+    const g60 = new QualityGovernor('high');
+    expect(feedPaced(g60, WARM + W * 6, 16.7, 0.03)).toEqual([]);
+  });
+
+  it('steps down on a 60 Hz display that keeps dropping to 30 fps frames', () => {
+    const g = new QualityGovernor('high');
+    expect(feedPaced(g, WARM + W * 2, 16.7, 0.25)).toEqual(['medium']);
+  });
+
+  it('a juddering window never counts toward stepping up', () => {
+    const g = new QualityGovernor('medium');
+    // 20% misses at 120 Hz: mean ~10 ms (would be "smooth" by mean alone) but too many misses
+    const ch = feedPaced(g, WARM + Math.ceil((25 * 1000) / 10 / W) * W, 8.33, 0.2);
+    expect(ch).not.toContain('high');
+  });
+});

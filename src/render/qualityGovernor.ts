@@ -11,6 +11,10 @@
  *  - A display locked to a steady 30 Hz (iOS low-power mode, power saver) looks "slow" but lowering
  *    quality cannot fix it, so a flat ~33 ms signal is not treated as a GPU problem.
  *  - Warm-up frames after load / tier change / resume are ignored.
+ *  - Frame pacing: on a 60/90/120 Hz display, a tier that keeps missing vsync alternates short and
+ *    long frames (e.g. 8 ms / 17 ms at 120 Hz). The mean still looks fine, but motion judders.
+ *    Each window estimates the display interval from its fastest frames and counts frames that
+ *    took noticeably longer; too many misses count as a slow window.
  */
 import type { QualityTier } from '../core/types.ts';
 
@@ -32,6 +36,10 @@ export interface GovernorOptions {
   /** Single-frame clip (ms) applied before averaging. */
   clipMs: number;
   maxUpAttempts: number;
+  /** Share of frames that missed the display interval above which a window counts as slow. */
+  missRatioSlow: number;
+  /** Share of missed frames at or below which a window may count as smooth. */
+  missRatioSmooth: number;
 }
 
 export const DEFAULT_GOVERNOR_OPTIONS: GovernorOptions = {
@@ -45,6 +53,8 @@ export const DEFAULT_GOVERNOR_OPTIONS: GovernorOptions = {
   warmupFrames: 40,
   clipMs: 60,
   maxUpAttempts: 3,
+  missRatioSlow: 0.15,
+  missRatioSmooth: 0.05,
 };
 
 export function tierIndex(t: QualityTier): number {
@@ -68,9 +78,14 @@ export class QualityGovernor {
   private lastUpAtSec = -Infinity;
   private upAttempts = 0;
   private transitions = 0;
+  /** Raw frame times of the current window (preallocated; sorted copy once per window). */
+  private readonly buf: Float32Array;
+  private readonly sorted: Float32Array;
 
   constructor(initial: QualityTier = 'high', opts: Partial<GovernorOptions> = {}) {
     this.o = { ...DEFAULT_GOVERNOR_OPTIONS, ...opts };
+    this.buf = new Float32Array(this.o.windowFrames);
+    this.sorted = new Float32Array(this.o.windowFrames);
     this.tierNow = initial;
     this.warm = this.o.warmupFrames;
   }
@@ -124,6 +139,7 @@ export class QualityGovernor {
       return null;
     }
     const clipped = Math.min(frameMs, this.o.clipMs);
+    this.buf[this.frames] = frameMs;
     this.frames++;
     this.sum += clipped;
     this.sumSq += clipped * clipped;
@@ -133,17 +149,37 @@ export class QualityGovernor {
     const variance = Math.max(0, this.sumSq / this.frames - mean * mean);
     const sd = Math.sqrt(variance);
     const windowSec = this.sum / 1000;
+    const missRatio = this.windowMissRatio(this.frames);
     this.frames = 0;
     this.sum = 0;
     this.sumSq = 0;
-    return this.evaluateWindow(mean, sd, windowSec);
+    return this.evaluateWindow(mean, sd, windowSec, missRatio);
   }
 
-  private evaluateWindow(mean: number, sd: number, windowSec: number): QualityTier | null {
+  /**
+   * Share of frames in the window that missed the display interval. The interval is estimated from
+   * the window's fast frames (20th percentile); only meaningful on >= ~50 Hz pacing, so a window
+   * whose fast frames are already slow (30 Hz cap, heavy load) reports 0 and is left to the mean.
+   */
+  private windowMissRatio(n: number): number {
+    if (n < 8) return 0;
+    const s = this.sorted.subarray(0, n);
+    s.set(this.buf.subarray(0, n));
+    s.sort();
+    const interval = s[Math.floor(n * 0.2)];
+    if (!(interval > 4) || interval > 20) return 0;
+    const limit = interval * 1.45;
+    let missed = 0;
+    for (let i = 0; i < n; i++) if (s[i] > limit) missed++;
+    return missed / n;
+  }
+
+  private evaluateWindow(mean: number, sd: number, windowSec: number, missRatio = 0): QualityTier | null {
     const o = this.o;
     // Steady ~30 Hz (or slower) pacing with almost no jitter = refresh-rate cap, not load.
     const cappedRefresh = mean >= 28 && mean <= 36 && sd < 3;
-    const slow = mean > o.slowMs && !cappedRefresh;
+    const juddering = missRatio > o.missRatioSlow;
+    const slow = (mean > o.slowMs || juddering) && !cappedRefresh;
     if (slow) {
       this.smoothSec = 0;
       this.slowStreak++;
@@ -154,7 +190,7 @@ export class QualityGovernor {
     }
     this.slowStreak = 0;
 
-    if (mean <= o.smoothMs) {
+    if (mean <= o.smoothMs && missRatio <= o.missRatioSmooth) {
       this.smoothSec += windowSec;
       if (
         this.smoothSec >= o.upStableSec &&
