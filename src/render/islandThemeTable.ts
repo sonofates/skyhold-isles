@@ -764,13 +764,13 @@ const AMBERSTONE_MESA = theme({
 
 /** L15 — Moonwell Crossing: moonlit isle, crystal groves, a glowing well where the road crosses itself. */
 const MOONWELL_CROSSING = theme({
-  pathStyle: 'stone',
+  pathStyle: 'sand',
   bridge: 'rope',
   spawnCrystalCell: [4, 2],
   goal: { color: 0xa8e8ff, shard: 0xe8f8ff, ring: 0xe6e0ff, glow: 0x3a6bff, deco: 'shards' },
-  water: 0x16385e,
-  atmosphere: { horizon: 0x6a78c4, zenith: 0x141a45, hemiSky: 0x7a86c8, sun: 0xbfd0ff, sunIntensity: 1.05 },
-  grassTint: [0.6, 0.86, 0.9],
+  water: 0x1c4a7a,
+  atmosphere: { horizon: 0x6a78c4, zenith: 0x141a45, hemiSky: 0x7a86c8, sun: 0xbfd0ff, sunIntensity: 1.3 },
+  grassTint: [0.8, 1.0, 1.08],
   grassZones: [{ col: 8, row: 6, radius: 2.6, soft: 3, tint: [0.7, 0.95, 1.05] }],
   ground: [{ kind: 'moss', where: 'shore', chance: 0.6 }],
   cliff: {
