@@ -6,6 +6,7 @@ import { LEVELS } from '../../src/data/levels/index.ts';
 import type { EnemyEntity, TowerEntity } from '../../src/sim/entities.ts';
 import { buildEndlessWaveDef } from '../../src/sim/waveSystem.ts';
 import { SimWorld } from '../../src/sim/world.ts';
+import { runLevelBalanceSim } from '../../scripts/balanceSim.ts';
 
 const DT = BALANCE.fixedDt;
 const HEX = ENEMY_DEFS.hexer;
@@ -182,6 +183,14 @@ describe('Gloam Hexer', () => {
       expect(minRoadDist(c, 2), `(${c},2)`).toBeLessThan(R);
       expect(minRoadDist(c, 8), `(${c},8)`).toBeLessThan(R);
     }
+  });
+
+  it('replays Lanternfall Hollow (hexers silencing scripted towers) identically', () => {
+    const level = LEVELS.find((l) => l.id === 'lanternfall-hollow')!;
+    const a = runLevelBalanceSim(level, 'weak', level.weakBuildOrder ?? []);
+    const b = runLevelBalanceSim(level, 'weak', level.weakBuildOrder ?? []);
+    expect(b).toEqual(a);
+    expect(a.waves.length).toBeGreaterThan(8);
   });
 
   it('shows up in the endless spotlight rotation', () => {
