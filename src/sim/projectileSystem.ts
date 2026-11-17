@@ -7,13 +7,33 @@ import type { EnemySystem } from './enemySystem.ts';
 import type { SpatialHashGrid } from './spatialHash.ts';
 
 const _splashCandidates: number[] = [];
+/** Seconds between burn ticks (all patches tick together so overlapping patches never double-hit). */
+export const BURN_TICK_INTERVAL = 0.5;
+const MAX_BURN_ZONES = 14;
+const _burnHit = new Set<number>();
+const _pierceUsed = new Set<number>();
+/** Half-width of the corridor a piercing bolt can hit enemies in. */
+const PIERCE_HALF_WIDTH = 0.55;
 const _leadVec = { x: 0, y: 0, z: 0 };
 
 /** Fraction of full target lead applied to parabolic shells (1 = perfect aim). */
 const SHELL_LEAD_FACTOR = 0.8;
 const SHELL_LEAD_ITERATIONS = 5;
 
+interface BurnZone {
+  active: boolean;
+  x: number;
+  z: number;
+  radius: number;
+  timeLeft: number;
+  damage: number;
+  towerId: number;
+}
+
 export class ProjectileSystem {
+  private readonly burnZones: BurnZone[] = [];
+  private burnTickTimer = BURN_TICK_INTERVAL;
+
   private readonly projectilePool: ObjectPool<ProjectileEntity>;
   private readonly enemyPool: ObjectPool<EnemyEntity>;
   private readonly spatialHash: SpatialHashGrid;
@@ -32,21 +52,126 @@ export class ProjectileSystem {
     this.spatialHash = spatialHash;
     this.enemySystem = enemySystem;
     this.events = events;
+    for (let i = 0; i < MAX_BURN_ZONES; i++) {
+      this.burnZones.push({ active: false, x: 0, z: 0, radius: 0, timeLeft: 0, damage: 0, towerId: 0 });
+    }
   }
 
+  getActiveBurnZoneCount(): number {
+    let n = 0;
+    for (let i = 0; i < this.burnZones.length; i++) if (this.burnZones[i].active) n++;
+    return n;
+  }
+
+  clearBurnZones(): void {
+    for (let i = 0; i < this.burnZones.length; i++) this.burnZones[i].active = false;
+    this.burnTickTimer = BURN_TICK_INTERVAL;
+  }
+
+  private spawnBurnZone(p: ProjectileEntity): void {
+    // Reuse an inactive slot, else overwrite the patch closest to expiry.
+    let slot: BurnZone | null = null;
+    let soonest = Infinity;
+    for (let i = 0; i < this.burnZones.length; i++) {
+      const z = this.burnZones[i];
+      if (!z.active) {
+        slot = z;
+        break;
+      }
+      if (z.timeLeft < soonest) {
+        soonest = z.timeLeft;
+        slot = z;
+      }
+    }
+    if (!slot) return;
+    slot.active = true;
+    slot.x = p.endX;
+    slot.z = p.endZ;
+    slot.radius = p.burnRadius;
+    slot.timeLeft = p.burnDuration;
+    slot.damage = p.burnDamage;
+    slot.towerId = p.towerId;
+    this.events.emit('groundZone', {
+      kind: 'fire',
+      x: p.endX,
+      z: p.endZ,
+      radius: p.burnRadius,
+      duration: p.burnDuration,
+    });
+  }
+
+  private updateBurnZones(dt: number, towers: readonly TowerEntity[]): void {
+    let any = false;
+    for (let i = 0; i < this.burnZones.length; i++) {
+      const z = this.burnZones[i];
+      if (!z.active) continue;
+      z.timeLeft -= dt;
+      if (z.timeLeft <= 0) z.active = false;
+      else any = true;
+    }
+    if (!any) {
+      this.burnTickTimer = BURN_TICK_INTERVAL;
+      return;
+    }
+    this.burnTickTimer -= dt;
+    if (this.burnTickTimer > 0) return;
+    this.burnTickTimer += BURN_TICK_INTERVAL;
+
+    _burnHit.clear();
+    for (let i = 0; i < this.burnZones.length; i++) {
+      const z = this.burnZones[i];
+      if (!z.active) continue;
+      this.spatialHash.query(z.x, z.z, z.radius, _splashCandidates);
+      const rSq = z.radius * z.radius;
+      for (let k = 0; k < _splashCandidates.length; k++) {
+        const idx = _splashCandidates[k];
+        if (_burnHit.has(idx)) continue;
+        const e = this.enemyPool.items[idx];
+        if (!e.active || e.hp <= 0 || e.flying) continue;
+        const dx = e.x - z.x;
+        const dz = e.z - z.z;
+        if (dx * dx + dz * dz > rSq) continue;
+        _burnHit.add(idx);
+        const res = this.enemySystem.applyDamage(e, z.damage, true);
+        if (res.actualDamage > 0) {
+          const src = this.findTowerById(towers, z.towerId);
+          if (src) {
+            src.totalDamageDealt += res.actualDamage;
+            if (res.killed) src.kills++;
+          }
+        }
+      }
+    }
+  }
+
+  /**
+   * @param damageMult scales this projectile's damage (volley arrows)
+   * @param lateral    launch-point offset perpendicular to the aim direction (fans volley arrows out)
+   */
   spawnProjectile(
     tower: TowerEntity,
     target: EnemyEntity,
     splashFalloffMin: number,
+    damageMult = 1,
+    lateral = 0,
   ): ProjectileEntity | null {
     const p = this.projectilePool.acquire();
     if (!p) return null;
 
     const def = TOWER_DEFS[tower.type];
     const stats = getTowerTierStats(tower.type, tower.tier);
-    const sx = tower.x;
+    let sx = tower.x;
     const sy = def.turretHeight + 0.15;
-    const sz = tower.z;
+    let sz = tower.z;
+    if (lateral !== 0) {
+      const ax = target.x - tower.x;
+      const az = target.z - tower.z;
+      const al = Math.hypot(ax, az);
+      if (al > 0.0001) {
+        sx += (-az / al) * lateral;
+        sz += (ax / al) * lateral;
+      }
+    }
     let tx = target.x;
     const ty = target.y + target.height * 0.55;
     let tz = target.z;
@@ -64,7 +189,7 @@ export class ProjectileSystem {
     p.towerId = tower.id;
     p.targetUid = target.uid;
     p.targetPoolIndex = target.poolIndex;
-    p.damage = stats.damage;
+    p.damage = stats.damage * damageMult;
     p.splashRadius = stats.splashRadius;
     p.splashFalloffMin = splashFalloffMin;
     p.slowRatio = stats.slowRatio;
@@ -72,6 +197,19 @@ export class ProjectileSystem {
     p.parabolic = parabolic;
     p.arcHeight = stats.parabolicArcHeight;
     p.speed = Math.max(1, stats.projectileSpeed);
+    p.armorPierce = stats.armorPierce ?? 0;
+    p.pierceCount = stats.pierceCount ?? 0;
+    p.pierceLength = stats.pierceLength ?? 0;
+    p.pierceFalloff = stats.pierceFalloff ?? 1;
+    p.brittle = stats.brittle ?? 0;
+    p.clusterCount = stats.clusterCount ?? 0;
+    p.clusterDamage = stats.clusterDamage ?? 0;
+    p.clusterRadius = stats.clusterRadius ?? 0;
+    p.clusterOffset = stats.clusterOffset ?? 0;
+    p.clusterSeed = tower.shotCount;
+    p.burnDamage = stats.burnDamage ?? 0;
+    p.burnRadius = stats.burnRadius ?? 0;
+    p.burnDuration = stats.burnDuration ?? 0;
 
     p.startX = sx;
     p.startY = sy;
@@ -127,6 +265,7 @@ export class ProjectileSystem {
   }
 
   update(dt: number, towers: readonly TowerEntity[]): void {
+    this.updateBurnZones(dt, towers);
     let pos = 0;
     while (pos < this.projectilePool.getActiveCount()) {
       const idx = this.projectilePool.getActiveIndex(pos);
@@ -177,41 +316,22 @@ export class ProjectileSystem {
 
   private resolveImpact(p: ProjectileEntity, towers: readonly TowerEntity[]): void {
     const sourceTower = this.findTowerById(towers, p.towerId);
-    const falloffMin = p.splashFalloffMin;
     const def = TOWER_DEFS[p.towerType];
 
     let hitBoss = false;
 
     if (p.splashRadius > 0) {
-      this.spatialHash.query(p.endX, p.endZ, p.splashRadius, _splashCandidates);
-      const rSq = p.splashRadius * p.splashRadius;
-      for (let i = 0; i < _splashCandidates.length; i++) {
-        const e = this.enemyPool.items[_splashCandidates[i]];
-        if (!e.active || e.hp <= 0) continue;
-        if (e.flying && !def.hitsFlyers) continue;
-
-        const dx = e.x - p.endX;
-        const dz = e.z - p.endZ;
-        const dSq = dx * dx + dz * dz;
-        if (dSq > rSq) continue;
-
-        const dist = Math.sqrt(dSq);
-        const falloff = computeSplashMultiplier(dist, p.splashRadius, falloffMin);
-        const dmg = Math.round(p.damage * falloff);
-        const res = this.enemySystem.applyDamage(e, dmg);
-        if (e.type === 'boss' && res.actualDamage > 0) hitBoss = true;
-        if (p.slowRatio > 0) {
-          this.enemySystem.applySlow(e, p.slowRatio, p.slowDuration);
-        }
-        if (sourceTower) {
-          sourceTower.totalDamageDealt += res.actualDamage;
-          if (res.killed) sourceTower.kills++;
-        }
+      hitBoss = this.applySplash(p, sourceTower, def.hitsFlyers, p.endX, p.endZ, p.splashRadius, 1, p.brittle);
+      if (p.clusterCount > 0) {
+        this.resolveCluster(p, sourceTower, def.hitsFlyers);
+      }
+      if (p.burnDamage > 0) {
+        this.spawnBurnZone(p);
       }
     } else if (p.targetPoolIndex >= 0) {
       const target = this.enemyPool.items[p.targetPoolIndex];
       if (target.active && target.uid === p.targetUid && target.hp > 0) {
-        const res = this.enemySystem.applyDamage(target, p.damage);
+        const res = this.enemySystem.applyDamage(target, p.damage + Math.min(target.armor, p.armorPierce));
         if (target.type === 'boss' && res.actualDamage > 0) hitBoss = true;
         if (p.slowRatio > 0) {
           this.enemySystem.applySlow(target, p.slowRatio, p.slowDuration);
@@ -220,9 +340,20 @@ export class ProjectileSystem {
           sourceTower.totalDamageDealt += res.actualDamage;
           if (res.killed) sourceTower.kills++;
         }
+        if (p.pierceCount > 0) {
+          this.resolvePierce(p, target, sourceTower, def.hitsFlyers);
+        }
       }
     }
 
+    const pierceLen = p.pierceCount > 0 ? p.pierceLength : 0;
+    let pierce: { dx: number; dz: number; length: number } | undefined;
+    if (pierceLen > 0) {
+      const dx = p.endX - p.startX;
+      const dz = p.endZ - p.startZ;
+      const l = Math.hypot(dx, dz);
+      if (l > 0.0001) pierce = { dx: dx / l, dz: dz / l, length: pierceLen };
+    }
     this.events.emit('projectileImpact', {
       towerType: p.towerType as TowerType,
       x: p.endX,
@@ -230,7 +361,132 @@ export class ProjectileSystem {
       z: p.endZ,
       radius: p.splashRadius,
       isBossHit: hitBoss,
+      pierce,
     });
+  }
+
+  /** Radial splash damage around (cx, cz); returns whether a boss took damage. */
+  private applySplash(
+    p: ProjectileEntity,
+    sourceTower: TowerEntity | null,
+    hitsFlyers: boolean,
+    cx: number,
+    cz: number,
+    radius: number,
+    damageScale: number,
+    brittle: number,
+  ): boolean {
+    let hitBoss = false;
+    this.spatialHash.query(cx, cz, radius, _splashCandidates);
+    const rSq = radius * radius;
+    for (let i = 0; i < _splashCandidates.length; i++) {
+      const e = this.enemyPool.items[_splashCandidates[i]];
+      if (!e.active || e.hp <= 0) continue;
+      if (e.flying && !hitsFlyers) continue;
+
+      const dx = e.x - cx;
+      const dz = e.z - cz;
+      const dSq = dx * dx + dz * dz;
+      if (dSq > rSq) continue;
+
+      const dist = Math.sqrt(dSq);
+      const falloff = computeSplashMultiplier(dist, radius, p.splashFalloffMin);
+      const chill = brittle > 0 ? 1 + brittle * e.slowRatio : 1;
+      const dmg = Math.round(p.damage * damageScale * falloff * chill);
+      const res = this.enemySystem.applyDamage(e, dmg);
+      if (e.type === 'boss' && res.actualDamage > 0) hitBoss = true;
+      if (chill > 1.05 && res.actualDamage > 0) {
+        this.events.emit('brittleCrack', { x: e.x, y: e.flying ? e.y : 0.5, z: e.z, bonus: chill - 1 });
+      }
+      if (p.slowRatio > 0) {
+        this.enemySystem.applySlow(e, p.slowRatio, p.slowDuration);
+      }
+      if (sourceTower) {
+        sourceTower.totalDamageDealt += res.actualDamage;
+        if (res.killed) sourceTower.kills++;
+      }
+    }
+    return hitBoss;
+  }
+
+  /** Cannon T3: bomblets land in a ring around the main blast (fixed golden-angle rotation per shot). */
+  private resolveCluster(
+    p: ProjectileEntity,
+    sourceTower: TowerEntity | null,
+    hitsFlyers: boolean,
+  ): void {
+    const n = p.clusterCount;
+    const base = p.clusterSeed * 2.399963;
+    for (let k = 0; k < n; k++) {
+      const a = base + (k / n) * Math.PI * 2;
+      const bx = p.endX + Math.cos(a) * p.clusterOffset;
+      const bz = p.endZ + Math.sin(a) * p.clusterOffset;
+      const boss = this.applySplash(p, sourceTower, hitsFlyers, bx, bz, p.clusterRadius, p.clusterDamage, 0);
+      this.events.emit('projectileImpact', {
+        towerType: p.towerType as TowerType,
+        x: bx,
+        y: 0.15,
+        z: bz,
+        radius: p.clusterRadius,
+        isBossHit: boss,
+      });
+    }
+  }
+
+  /**
+   * Bolt keeps flying: damages up to `pierceCount` further enemies standing in a narrow corridor behind
+   * the primary target (along the shot direction), nearest first, at `pierceFalloff` damage each.
+   */
+  private resolvePierce(
+    p: ProjectileEntity,
+    primary: EnemyEntity,
+    sourceTower: TowerEntity | null,
+    hitsFlyers: boolean,
+  ): void {
+    let dirX = p.endX - p.startX;
+    let dirZ = p.endZ - p.startZ;
+    const dirLen = Math.hypot(dirX, dirZ);
+    if (dirLen < 0.0001) return;
+    dirX /= dirLen;
+    dirZ /= dirLen;
+
+    const reach = p.pierceLength;
+    this.spatialHash.query(
+      primary.x + dirX * reach * 0.5,
+      primary.z + dirZ * reach * 0.5,
+      reach * 0.5 + 0.9,
+      _splashCandidates,
+    );
+    _pierceUsed.clear();
+    const dmg = Math.round(p.damage * p.pierceFalloff);
+    for (let n = 0; n < p.pierceCount; n++) {
+      let best: EnemyEntity | null = null;
+      let bestAlong = Infinity;
+      for (let i = 0; i < _splashCandidates.length; i++) {
+        const idx = _splashCandidates[i];
+        if (idx === primary.poolIndex || _pierceUsed.has(idx)) continue;
+        const e = this.enemyPool.items[idx];
+        if (!e.active || e.hp <= 0) continue;
+        if (e.flying && !hitsFlyers) continue;
+        const rx = e.x - primary.x;
+        const rz = e.z - primary.z;
+        const along = rx * dirX + rz * dirZ;
+        if (along < -0.2 || along > reach) continue;
+        const perp = Math.abs(rx * dirZ - rz * dirX);
+        if (perp > PIERCE_HALF_WIDTH + e.radius * 0.6) continue;
+        if (along < bestAlong) {
+          bestAlong = along;
+          best = e;
+        }
+      }
+      if (!best) break;
+      _pierceUsed.add(best.poolIndex);
+      const res = this.enemySystem.applyDamage(best, dmg + Math.min(best.armor, p.armorPierce));
+      if (sourceTower) {
+        sourceTower.totalDamageDealt += res.actualDamage;
+        if (res.killed) sourceTower.kills++;
+      }
+    }
   }
 
   private findTowerById(towers: readonly TowerEntity[], id: number): TowerEntity | null {

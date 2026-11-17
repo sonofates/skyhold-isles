@@ -51,6 +51,8 @@ export class RenderWorld {
   private readonly xrayTargetRect: ScreenRect = emptyRect();
   private eventUnsubs: Array<() => void> = [];
   private showAllRanges = false;
+  /** Particle-count multiplier: halved on Low quality. */
+  private fxScale = 1;
 
   constructor(canvas: HTMLCanvasElement, assets: KenneyAssetStore) {
     this.assets = assets;
@@ -102,72 +104,188 @@ export class RenderWorld {
     }
   }
 
+  private fx(count: number): number {
+    return Math.max(1, Math.round(count * this.fxScale));
+  }
+
   private bindEvents(events: EventBus, getSettings?: () => GameSettings): void {
     const shakeEnabled = (): boolean => (getSettings ? getSettings().cameraShake : true);
 
     this.eventUnsubs.push(
       events.on('towerBuilt', (e) => {
-        this.effectsRenderer.spawnParticles(e.x, 0.2, e.z, PALETTE_HEX.cream, 10, 2.8, 4.0);
-        this.effectsRenderer.spawnParticles(e.x, 0.15, e.z, PALETTE_HEX.sand, 6, 2.2, 4.0);
+        this.effectsRenderer.spawnParticles(e.x, 0.2, e.z, PALETTE_HEX.cream, this.fx(10), 2.8, 4.0);
+        this.effectsRenderer.spawnParticles(e.x, 0.15, e.z, PALETTE_HEX.sand, this.fx(6), 2.2, 4.0);
+        this.effectsRenderer.spawnPulseRing(e.x, 0.07, e.z, 1.35, PALETTE_HEX.cream);
       }),
       events.on('towerUpgraded', (e) => {
-        this.effectsRenderer.spawnParticles(e.x, 0.5, e.z, PALETTE_HEX.gold, 14, 3.2, 3.0);
-        this.effectsRenderer.spawnParticles(e.x, 0.25, e.z, PALETTE_HEX.cream, 10, 2.6, 4.0);
-        this.effectsRenderer.spawnParticles(e.x, 0.2, e.z, PALETTE_HEX.sand, 6, 2.2, 4.0);
+        this.effectsRenderer.spawnParticles(e.x, 0.5, e.z, PALETTE_HEX.gold, this.fx(14), 3.2, 3.0);
+        this.effectsRenderer.spawnParticles(e.x, 0.25, e.z, PALETTE_HEX.cream, this.fx(10), 2.6, 4.0);
+        this.effectsRenderer.spawnParticles(e.x, 0.2, e.z, PALETTE_HEX.sand, this.fx(6), 2.2, 4.0);
+        this.effectsRenderer.spawnPulseRing(e.x, 0.08, e.z, 1.8 + e.tier * 0.15, PALETTE_HEX.gold);
+        // Sparkle column rising out of the tower
+        this.effectsRenderer.spawnBurst(e.x, 0.6, e.z, PALETTE_HEX.gold, this.fx(8), {
+          speed: 1.3,
+          lift: 3.2,
+          gravity: -1.2,
+          life: 0.75,
+          scale: 0.7,
+        });
+        this.effectsRenderer.spawnFlash(e.x, 1.1, e.z, PALETTE_HEX.cream, 2.6, 0.14);
       }),
       events.on('towerSold', (e) => {
-        this.effectsRenderer.spawnParticles(e.x, 0.4, e.z, PALETTE_HEX.gold, 10, 2.6, 4.5);
+        this.towerRenderer.addSoldGhost(e.type, e.tier, e.x, e.z);
+        this.effectsRenderer.spawnParticles(e.x, 0.4, e.z, PALETTE_HEX.gold, this.fx(10), 2.6, 4.5);
+        this.effectsRenderer.spawnBurst(e.x, 0.5, e.z, PALETTE_HEX.gold, this.fx(7), {
+          speed: 1.8,
+          lift: 2.8,
+          gravity: 9,
+          life: 0.55,
+          scale: 0.85,
+        });
+        this.effectsRenderer.spawnPulseRing(e.x, 0.07, e.z, 1.2, PALETTE_HEX.sand);
       }),
       events.on('towerFired', (e) => {
-        const color =
-          e.type === 'frost'
-            ? PALETTE_HEX.water
-            : e.type === 'tesla'
-              ? PALETTE_HEX.cream
-              : e.type === 'archer'
-                ? PALETTE_HEX.gold
-                : PALETTE_HEX.coral;
-        const muzzleX = e.x + Math.sin(e.yaw) * 0.45;
-        const muzzleZ = e.z + Math.cos(e.yaw) * 0.45;
-        this.effectsRenderer.spawnParticles(muzzleX, e.y, muzzleZ, color, 4, 1.8, 1.5);
-      }),
-      events.on('projectileImpact', (e) => {
-        if (e.towerType === 'cannon' || e.towerType === 'mortar') {
-          this.effectsRenderer.spawnPulseRing(
-            e.x,
-            0.06,
-            e.z,
-            e.radius,
-            e.towerType === 'mortar' ? PALETTE_HEX.coral : PALETTE_HEX.gold,
-          );
-          this.effectsRenderer.spawnParticles(
-            e.x,
-            e.y,
-            e.z,
-            PALETTE_HEX.coral,
-            e.towerType === 'mortar' ? 14 : 9,
-            e.towerType === 'mortar' ? 4.4 : 3.2,
-            7.0,
-          );
-          if (e.towerType === 'mortar') {
-            this.cameraController.addShake(BALANCE.camera.mortarImpactShake, shakeEnabled());
-          }
-        } else if (e.towerType === 'frost') {
-          this.effectsRenderer.spawnPulseRing(e.x, 0.06, e.z, e.radius, PALETTE_HEX.water);
-          this.effectsRenderer.spawnParticles(e.x, e.y, e.z, PALETTE_HEX.cream, 7, 2.2, 2.5);
-        } else {
-          this.effectsRenderer.spawnParticles(e.x, e.y, e.z, PALETTE_HEX.gold, 3, 1.8, 3.0);
+        const fx = this.effectsRenderer;
+        const dirX = Math.sin(e.yaw);
+        const dirZ = Math.cos(e.yaw);
+        const mx = e.x + dirX * 0.5;
+        const mz = e.z + dirZ * 0.5;
+        switch (e.type) {
+          case 'archer':
+            if (e.special) {
+              // Volley: fan of sparks + brighter flash
+              fx.spawnFlash(mx, e.y, mz, PALETTE_HEX.cream, 1.9, 0.1);
+              fx.spawnBurst(mx, e.y, mz, PALETTE_HEX.gold, this.fx(5), {
+                speed: 4.2, dirX, dirZ, spread: 0.6, life: 0.26, scale: 0.55, lift: 0.3,
+              });
+            }
+            fx.spawnFlash(mx, e.y, mz, PALETTE_HEX.gold, 0.9, 0.06);
+            fx.spawnBurst(mx, e.y, mz, PALETTE_HEX.gold, this.fx(2), {
+              speed: 3.4, dirX, dirZ, spread: 0.25, life: 0.2, scale: 0.5, lift: 0.25,
+            });
+            break;
+          case 'cannon':
+            fx.spawnFlash(mx, e.y, mz, PALETTE_HEX.cream, 2.3, 0.1);
+            fx.spawnBurst(mx, e.y, mz, PALETTE_HEX.gold, this.fx(3), {
+              speed: 4.2, dirX, dirZ, spread: 0.4, life: 0.22, scale: 0.55, lift: 0.3,
+            });
+            fx.spawnBurst(mx, e.y, mz, PALETTE_HEX.stone, this.fx(3), {
+              speed: 1.5, dirX, dirZ, spread: 0.7, life: 0.55, scale: 1.5, gravity: -0.7, lift: 0.5,
+            });
+            this.cameraController.addShake(0.012, shakeEnabled());
+            break;
+          case 'mortar':
+            fx.spawnFlash(mx, e.y, mz, PALETTE_HEX.gold, 3.0, 0.12);
+            fx.spawnBurst(e.x, e.y, e.z, PALETTE_HEX.stone, this.fx(5), {
+              speed: 2.0, spread: 1, life: 0.7, scale: 1.7, gravity: -0.8, lift: 1.3,
+            });
+            fx.spawnBurst(mx, e.y, mz, PALETTE_HEX.coral, this.fx(3), {
+              speed: 3.0, life: 0.3, scale: 0.6, lift: 1.4,
+            });
+            this.cameraController.addShake(0.02, shakeEnabled());
+            break;
+          case 'frost':
+            fx.spawnFlash(mx, e.y, mz, PALETTE_HEX.water, 1.5, 0.08);
+            fx.spawnBurst(mx, e.y, mz, PALETTE_HEX.cream, this.fx(3), {
+              speed: 1.4, life: 0.45, scale: 0.55, gravity: 0.5, lift: 1.2,
+            });
+            break;
+          case 'tesla':
+            fx.spawnFlash(e.x, e.y + 0.2, e.z, PALETTE_HEX.cream, 1.8, 0.08);
+            fx.spawnBurst(e.x, e.y + 0.2, e.z, PALETTE_HEX.water, this.fx(4), {
+              speed: 3.2, life: 0.2, scale: 0.5, gravity: 2, lift: 0.9,
+            });
+            break;
+          case 'ballista':
+            fx.spawnFlash(mx, e.y, mz, PALETTE_HEX.cream, 2.4, 0.09);
+            fx.spawnBurst(mx, e.y, mz, PALETTE_HEX.coral, this.fx(4), {
+              speed: 6.0, dirX, dirZ, spread: 0.12, life: 0.22, scale: 0.55, lift: 0.1, gravity: 1,
+            });
+            this.cameraController.addShake(0.008, shakeEnabled());
+            break;
+          default:
+            break;
         }
       }),
+      events.on('projectileImpact', (e) => {
+        const fx = this.effectsRenderer;
+        if (e.towerType === 'cannon' || e.towerType === 'mortar') {
+          const mortar = e.towerType === 'mortar';
+          fx.spawnPulseRing(e.x, 0.06, e.z, e.radius, mortar ? PALETTE_HEX.coral : PALETTE_HEX.gold);
+          fx.spawnParticles(e.x, e.y, e.z, PALETTE_HEX.coral, this.fx(mortar ? 14 : 9), mortar ? 4.4 : 3.2, 7.0);
+          fx.spawnFlash(e.x, e.y + 0.2, e.z, PALETTE_HEX.gold, mortar ? 4.0 : 3.0, 0.12);
+          fx.spawnDebris(e.x, 0.3, e.z, PALETTE_HEX.stone, this.fx(mortar ? 6 : 4), mortar ? 3.4 : 2.6, 0.55);
+          fx.spawnBurst(e.x, 0.25, e.z, PALETTE_HEX.sand, this.fx(mortar ? 6 : 4), {
+            speed: 1.6, spread: 1, life: 0.6, scale: mortar ? 2.0 : 1.5, gravity: -0.6, lift: 0.8,
+          });
+          if (mortar) {
+            this.cameraController.addShake(BALANCE.camera.mortarImpactShake, shakeEnabled());
+          }
+        } else if (e.towerType === 'ballista') {
+          fx.spawnFlash(e.x, e.y, e.z, PALETTE_HEX.cream, 1.7, 0.08);
+          fx.spawnParticles(e.x, e.y, e.z, PALETTE_HEX.cream, this.fx(5), 2.4, 3.0);
+          fx.spawnParticles(e.x, e.y, e.z, PALETTE_HEX.coral, this.fx(3), 1.8, 3.0);
+          if (e.pierce) {
+            // Streak of embers along the corridor the bolt keeps flying through
+            const steps = this.fx(6);
+            for (let k = 1; k <= steps; k++) {
+              const d = (k / steps) * e.pierce.length;
+              fx.spawnBurst(e.x + e.pierce.dx * d, e.y, e.z + e.pierce.dz * d, PALETTE_HEX.cream, 1, {
+                speed: 0.6, life: 0.28, scale: 0.55, gravity: 0.4, lift: 0.3,
+              });
+            }
+          }
+        } else if (e.towerType === 'frost') {
+          fx.spawnPulseRing(e.x, 0.06, e.z, e.radius, PALETTE_HEX.water);
+          fx.spawnParticles(e.x, e.y, e.z, PALETTE_HEX.cream, this.fx(7), 2.2, 2.5);
+          // Frost shatter
+          fx.spawnDebris(e.x, e.y, e.z, PALETTE_HEX.water, this.fx(4), 2.2, 0.42);
+          fx.spawnDebris(e.x, e.y, e.z, PALETTE_HEX.cream, this.fx(2), 1.8, 0.34);
+        } else {
+          fx.spawnParticles(e.x, e.y, e.z, PALETTE_HEX.gold, this.fx(3), 1.8, 3.0);
+          fx.spawnFlash(e.x, e.y, e.z, PALETTE_HEX.cream, 0.8, 0.05);
+          fx.spawnBurst(e.x, e.y, e.z, PALETTE_HEX.sand, this.fx(2), {
+            speed: 1.0, life: 0.3, scale: 0.6, gravity: 0.5, lift: 0.6,
+          });
+        }
+      }),
+      events.on('brittleCrack', (e) => {
+        const fx = this.effectsRenderer;
+        fx.spawnDebris(e.x, e.y, e.z, PALETTE_HEX.cream, this.fx(3), 2.6, 0.3);
+        fx.spawnFlash(e.x, e.y + 0.2, e.z, PALETTE_HEX.water, 1.0 + e.bonus * 0.8, 0.06);
+      }),
+      events.on('groundZone', (e) => {
+        this.effectsRenderer.spawnBurnZone(e.x, e.z, e.radius, e.duration);
+      }),
+      events.on('beaconPulse', (e) => {
+        this.effectsRenderer.spawnPulseRing(e.x, 0.07, e.z, e.radius, PALETTE_HEX.gold);
+        this.effectsRenderer.spawnBurst(e.x, 1.6 + e.tier * 0.2, e.z, PALETTE_HEX.gold, this.fx(3), {
+          speed: 0.9, lift: 1.6, gravity: -0.6, life: 0.7, scale: 0.55,
+        });
+      }),
       events.on('lightningChain', (e) => {
-        this.effectsRenderer.spawnLightningArc(e.points);
+        this.effectsRenderer.spawnLightningArc(e.points, e.overload === true);
+        if (e.overload && e.points.length > 0) {
+          const o = e.points[0];
+          this.effectsRenderer.spawnFlash(o.x, o.y, o.z, PALETTE_HEX.cream, 3.2, 0.14);
+          this.effectsRenderer.spawnPulseRing(o.x, 0.2, o.z, 2.4, PALETTE_HEX.water);
+          this.effectsRenderer.spawnBurst(o.x, o.y, o.z, PALETTE_HEX.water, this.fx(8), {
+            speed: 3.6, life: 0.3, scale: 0.6, gravity: 2, lift: 1.2,
+          });
+          this.cameraController.addShake(0.014, shakeEnabled());
+        }
         for (let i = 1; i < e.points.length; i++) {
           const pt = e.points[i];
-          this.effectsRenderer.spawnParticles(pt.x, pt.y, pt.z, PALETTE_HEX.water, 5, 2.6, 2.0);
+          this.effectsRenderer.spawnParticles(pt.x, pt.y, pt.z, PALETTE_HEX.water, this.fx(5), 2.6, 2.0);
+          this.effectsRenderer.spawnFlash(pt.x, pt.y, pt.z, PALETTE_HEX.cream, 1.3, 0.07);
         }
       }),
       events.on('enemyKilled', (e) => {
         this.effectsRenderer.spawnDeathShards(e.enemyType, e.x, e.y, e.z);
+        // Coin pop
+        this.effectsRenderer.spawnBurst(e.x, e.y + 0.2, e.z, PALETTE_HEX.gold, this.fx(e.enemyType === 'boss' ? 12 : 3), {
+          speed: 1.4, lift: 3.4, gravity: 10, life: 0.5, scale: 0.75,
+        });
         if (e.enemyType === 'boss') {
           this.cameraController.addShake(BALANCE.camera.bossHitShake, shakeEnabled());
         }
@@ -324,6 +442,7 @@ export class RenderWorld {
   }
 
   setQuality(quality: QualityLevel): void {
+    this.fxScale = quality === 'low' ? 0.5 : 1;
     this.sceneManager.setQuality(quality);
     this.materials.setOutlineAlphaEnabled(quality !== 'low');
     this.decorBuilder.setQuality(quality);

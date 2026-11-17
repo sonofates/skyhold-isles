@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { PALETTE_HEX } from '../data/palette.ts';
 
-interface SwatchTint {
+export interface SwatchTint {
   cx: number;
   cy: number;
   lightHex: number;
@@ -16,7 +16,7 @@ export const WHITE_SWATCH_UV: readonly [number, number] = [7.5 / 8, 0.5 / 4];
  * Preserves Kenney gradient contrast while aligning grass, sandstone, coral, indigo, and stone
  * to Skyhold Isles' palette in src/data/palette.ts.
  */
-const SWATCH_TINTS: readonly SwatchTint[] = [
+export const SWATCH_TINTS: readonly SwatchTint[] = [
   // (3, 2): Grass & tree foliage -> sunny vibrant meadow grass + rich emerald foliage gradient
   { cx: 3, cy: 2, lightHex: 0x8ae24b, darkHex: 0x52ad42, mix: 0.58 },
   // (7, 3): Road dirt & timber -> warm sandstone trail & terracotta earth

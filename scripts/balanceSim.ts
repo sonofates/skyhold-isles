@@ -260,15 +260,11 @@ function printResult(lvlIdx: number, res: SimRunResult, difficulty: string): voi
   }
 }
 
-function main(): void {
-  console.log('=== Skyhold Isles Headless Balance Simulator (60 Hz Human-Paced) ===\n');
-
-  // Optional filter for quicker iteration, e.g. `LEVELS=3,6 npm run sim:balance`.
-  // CLI alternative: `npm run sim:balance -- --levels=3,6`.
-  const levelsArg = process.argv.find((a) => a.startsWith('--levels='))?.slice('--levels='.length);
-  const levelsSpec = levelsArg ?? process.env.LEVELS;
-  const levelFilter = levelsSpec ? new Set(levelsSpec.split(',').map((x) => Number(x.trim()) - 1)) : null;
-
+/** Runs every (filtered) level's greedy + weak script and applies the balance windows/asserts. */
+export function evaluateBalance(
+  levelFilter: ReadonlySet<number> | null,
+  verbose: boolean,
+): { summary: string[]; failures: string[]; robustLines: string[] } {
   /** Greedy (competent build script) lives-left window per difficulty label. */
   const GREEDY_LIVES: Record<LevelDef['difficulty'], readonly [number, number]> = {
     Breezy: [18, 20],
@@ -308,11 +304,11 @@ function main(): void {
     if (levelFilter && !levelFilter.has(i)) continue;
     const level = LEVELS[i];
     const greedyRes = runLevelBalanceSim(level, 'greedy', level.scriptedBuildOrder ?? []);
-    printResult(i, greedyRes, level.difficulty);
+    if (verbose) printResult(i, greedyRes, level.difficulty);
 
     const weakRes = runLevelBalanceSim(level, 'weak', level.weakBuildOrder ?? []);
-    printResult(i, weakRes, level.difficulty);
-    console.log('');
+    if (verbose) printResult(i, weakRes, level.difficulty);
+    if (verbose) console.log('');
 
     if (process.argv.includes('--peaks')) {
       console.log(
@@ -411,6 +407,19 @@ function main(): void {
       failures.push(`L${i + 1} weak must lose (got ${weakRes.outcome} with ${weakRes.finalLives} lives)`);
     }
   }
+
+  return { summary, failures, robustLines };
+}
+
+function main(): void {
+  console.log('=== Skyhold Isles Headless Balance Simulator (60 Hz Human-Paced) ===\n');
+
+  // Optional filter for quicker iteration, e.g. `LEVELS=3,6 npm run sim:balance`.
+  // CLI alternative: `npm run sim:balance -- --levels=3,6`.
+  const levelsArg = process.argv.find((a) => a.startsWith('--levels='))?.slice('--levels='.length);
+  const levelsSpec = levelsArg ?? process.env.LEVELS;
+  const levelFilter = levelsSpec ? new Set(levelsSpec.split(',').map((x) => Number(x.trim()) - 1)) : null;
+  const { summary, failures, robustLines } = evaluateBalance(levelFilter, true);
 
   console.log('=== Summary (lives left / stars / leaks by type over the whole run) ===');
   for (const line of summary) console.log(line);

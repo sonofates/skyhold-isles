@@ -3,7 +3,7 @@ import type { AbilityId, EnemyType, TowerType, Vec3 } from './types.ts';
 export interface GameEventMap {
   towerBuilt: { towerId: number; type: TowerType; tier: number; x: number; z: number };
   towerUpgraded: { towerId: number; type: TowerType; tier: number; x: number; z: number };
-  towerSold: { towerId: number; type: TowerType; refund: number; x: number; z: number };
+  towerSold: { towerId: number; type: TowerType; tier: number; refund: number; x: number; z: number };
   towerFired: {
     towerId: number;
     type: TowerType;
@@ -12,7 +12,17 @@ export interface GameEventMap {
     y: number;
     z: number;
     yaw: number;
+    /** True on tier-signature shots (archer volley, tesla overload). */
+    special?: boolean;
   };
+  groundZone: {
+    kind: 'fire';
+    x: number;
+    z: number;
+    radius: number;
+    duration: number;
+  };
+  beaconPulse: { towerId: number; tier: number; x: number; z: number; radius: number };
   projectileImpact: {
     towerType: TowerType;
     x: number;
@@ -20,10 +30,15 @@ export interface GameEventMap {
     z: number;
     radius: number;
     isBossHit: boolean;
+    /** Ballista bolts that keep flying: unit direction (xz) and corridor length, for the pierce streak. */
+    pierce?: { dx: number; dz: number; length: number };
   };
   lightningChain: {
     points: readonly Vec3[];
+    overload?: boolean;
   };
+  /** Frost T3 Brittle: a frost bolt hit a chilled enemy for bonus damage (cap-limited by the emitter). */
+  brittleCrack: { x: number; y: number; z: number; bonus: number };
   enemySpawned: {
     enemyId: number;
     enemyType: EnemyType;

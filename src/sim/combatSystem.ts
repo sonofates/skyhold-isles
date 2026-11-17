@@ -8,8 +8,12 @@ import type { ProjectileSystem } from './projectileSystem.ts';
 import type { SpatialHashGrid } from './spatialHash.ts';
 import { acquireTarget } from './targeting.ts';
 
+/** Seconds between Beacon aura pulse effects. */
+export const BEACON_PULSE_INTERVAL = 2.6;
+
 const _chainCandidates: number[] = [];
 const _hitPoolIndices = new Set<number>();
+const _volleyUsed = new Set<number>();
 
 function shortestAngleDiff(from: number, to: number): number {
   let diff = (to - from) % (Math.PI * 2);
@@ -39,9 +43,44 @@ export class CombatSystem {
     this.events = events;
   }
 
+  /**
+   * Recomputes the support aura every tick: each non-beacon tower receives the best fire-rate / range
+   * bonus among the un-jammed Beacons covering it (bonuses from several Beacons do not stack).
+   */
+  private applyBeaconAuras(towers: readonly TowerEntity[]): void {
+    let anyBeacon = false;
+    for (let i = 0; i < towers.length; i++) {
+      const t = towers[i];
+      t.auraRate = 0;
+      t.auraRange = 0;
+      if (t.type === 'beacon') anyBeacon = true;
+    }
+    if (!anyBeacon) return;
+
+    for (let b = 0; b < towers.length; b++) {
+      const beacon = towers[b];
+      if (beacon.type !== 'beacon' || beacon.stunTimer > 0) continue;
+      const bs = getTowerTierStats('beacon', beacon.tier);
+      const rSq = bs.range * bs.range;
+      const rate = bs.auraRate ?? 0;
+      const rng = bs.auraRange ?? 0;
+      for (let i = 0; i < towers.length; i++) {
+        const t = towers[i];
+        if (t === beacon || t.type === 'beacon') continue;
+        const dx = t.x - beacon.x;
+        const dz = t.z - beacon.z;
+        if (dx * dx + dz * dz > rSq) continue;
+        if (rate > t.auraRate) t.auraRate = rate;
+        if (rng > t.auraRange) t.auraRange = rng;
+      }
+    }
+  }
+
   update(dt: number, towers: TowerEntity[], fireRateMultiplier = 1): void {
     const turnSpeed = 12.0;
     const rateMult = Math.max(0.01, fireRateMultiplier);
+
+    this.applyBeaconAuras(towers);
 
     for (let i = 0; i < towers.length; i++) {
       const tower = towers[i];
@@ -59,11 +98,32 @@ export class CombatSystem {
           continue;
         }
       }
-      if (tower.cooldownTimer > 0) {
-        tower.cooldownTimer = Math.max(0, tower.cooldownTimer - dt * rateMult);
-      }
 
       const stats = getTowerTierStats(tower.type, tower.tier);
+
+      if (TOWER_DEFS[tower.type].role === 'support') {
+        // Beacons only pulse (cosmetic event driving FX); their aura is applied above.
+        tower.cooldownTimer -= dt;
+        if (tower.cooldownTimer <= 0) {
+          tower.cooldownTimer = BEACON_PULSE_INTERVAL;
+          this.events.emit('beaconPulse', {
+            towerId: tower.id,
+            tier: tower.tier,
+            x: tower.x,
+            z: tower.z,
+            radius: stats.range,
+          });
+        }
+        continue;
+      }
+
+      if (tower.cooldownTimer > 0) {
+        tower.cooldownTimer = Math.max(
+          0,
+          tower.cooldownTimer - dt * rateMult * (1 + tower.auraRate),
+        );
+      }
+
       const target = acquireTarget(tower, stats, this.enemyPool, this.spatialHash);
 
       if (target) {
@@ -81,10 +141,17 @@ export class CombatSystem {
           tower.recoil = 1;
           const def = TOWER_DEFS[tower.type];
 
+          tower.shotCount++;
+          let special = false;
           if (tower.type === 'tesla') {
-            this.fireChainLightning(tower, target, stats);
+            special = (stats.overloadEvery ?? 0) > 0 && tower.shotCount % stats.overloadEvery! === 0;
+            this.fireChainLightning(tower, target, stats, special);
           } else {
             this.projectileSystem.spawnProjectile(tower, target, stats.splashFalloffMin);
+            if ((stats.volleyEvery ?? 0) > 0 && tower.shotCount % stats.volleyEvery! === 0) {
+              special = true;
+              this.fireVolley(tower, target, stats);
+            }
           }
 
           this.events.emit('towerFired', {
@@ -95,6 +162,7 @@ export class CombatSystem {
             y: def.turretHeight + 0.15,
             z: tower.z,
             yaw: tower.yaw,
+            special,
           });
         }
       } else {
@@ -104,18 +172,63 @@ export class CombatSystem {
     }
   }
 
+  /**
+   * Archer T3 volley: extra arrows (reduced damage) go to the enemies closest to the primary target,
+   * fanned out from slightly different launch points; leftovers double up on the primary target.
+   */
+  private fireVolley(
+    tower: TowerEntity,
+    primary: EnemyEntity,
+    stats: ReturnType<typeof getTowerTierStats>,
+  ): void {
+    const extra = stats.volleyExtra ?? 0;
+    const dmgMult = stats.volleyDamage ?? 0.6;
+    const range = stats.range * (1 + tower.auraRange);
+    this.spatialHash.query(primary.x, primary.z, 3.2, _chainCandidates);
+    _volleyUsed.clear();
+    _volleyUsed.add(primary.poolIndex);
+    for (let n = 0; n < extra; n++) {
+      let best: EnemyEntity | null = null;
+      let bestSq = Infinity;
+      for (let k = 0; k < _chainCandidates.length; k++) {
+        const idx = _chainCandidates[k];
+        if (_volleyUsed.has(idx)) continue;
+        const e = this.enemyPool.items[idx];
+        if (!e.active || e.hp <= 0) continue;
+        if (Math.hypot(e.x - tower.x, e.z - tower.z) > range) continue;
+        const dx = e.x - primary.x;
+        const dz = e.z - primary.z;
+        const dSq = dx * dx + dz * dz;
+        if (dSq < bestSq) {
+          bestSq = dSq;
+          best = e;
+        }
+      }
+      if (best) _volleyUsed.add(best.poolIndex);
+      const lateral = (n % 2 === 0 ? 1 : -1) * 0.2 * (1 + Math.floor(n / 2));
+      this.projectileSystem.spawnProjectile(
+        tower,
+        best ?? primary,
+        stats.splashFalloffMin,
+        dmgMult,
+        lateral,
+      );
+    }
+  }
+
   private fireChainLightning(
     tower: TowerEntity,
     initialTarget: EnemyEntity,
     stats: ReturnType<typeof getTowerTierStats>,
+    overload = false,
   ): void {
     const def = TOWER_DEFS.tesla;
     const points: Vec3[] = [{ x: tower.x, y: def.turretHeight + 0.35, z: tower.z }];
     _hitPoolIndices.clear();
 
     let current: EnemyEntity | null = initialTarget;
-    let currentDamage = stats.damage;
-    const maxJumps = Math.max(1, stats.chainCount);
+    let currentDamage = stats.damage * (overload ? (stats.overloadDamage ?? 1) : 1);
+    const maxJumps = Math.max(1, stats.chainCount + (overload ? (stats.overloadChain ?? 0) : 0));
 
     for (let jump = 0; jump < maxJumps && current !== null; jump++) {
       _hitPoolIndices.add(current.poolIndex);
@@ -159,6 +272,6 @@ export class CombatSystem {
       currentDamage *= stats.chainFalloff;
     }
 
-    this.events.emit('lightningChain', { points });
+    this.events.emit('lightningChain', { points, overload });
   }
 }

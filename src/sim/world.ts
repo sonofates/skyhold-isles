@@ -175,6 +175,7 @@ export class SimWorld {
   debugSkipToWave(waveOneBased: number): boolean {
     this.enemyPool.clear();
     this.projectilePool.clear();
+    this.projectileSystem.clearBurnZones();
     this.spatialHash.clear();
     if (this.lives <= 0) {
       this.lives = BALANCE.startingLives;
@@ -236,6 +237,9 @@ export class SimWorld {
       popAnimTimer: 0.32,
       totalDamageDealt: 0,
       kills: 0,
+      auraRate: 0,
+      auraRange: 0,
+      shotCount: 0,
     };
 
     this.towers.push(tower);
@@ -291,6 +295,7 @@ export class SimWorld {
     this.events.emit('towerSold', {
       towerId: tower.id,
       type: tower.type,
+      tier: tower.tier,
       refund,
       x: tower.x,
       z: tower.z,

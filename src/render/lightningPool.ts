@@ -7,11 +7,15 @@ interface LightningArc {
   life: number;
   maxLife: number;
   basePoints: Vec3[];
+  /** Number of independently jittered strokes drawn per segment (more = fatter, crackly bolt). */
+  passes: number;
 }
 
 const SEGS_PER_JUMP = 3;
-const MAX_JUMPS_PER_ARC = 6;
-const MAX_VERTICES_TOTAL = BALANCE.pools.maxLightningArcs * MAX_JUMPS_PER_ARC * SEGS_PER_JUMP * 2;
+const MAX_JUMPS_PER_ARC = 8;
+const MAX_PASSES = 3;
+const MAX_VERTICES_TOTAL =
+  BALANCE.pools.maxLightningArcs * MAX_JUMPS_PER_ARC * SEGS_PER_JUMP * 2 * MAX_PASSES;
 
 export class LightningArcPool {
   readonly group = new THREE.Group();
@@ -46,17 +50,19 @@ export class LightningArcPool {
         life: 0,
         maxLife: 0.16,
         basePoints: [],
+        passes: 2,
       });
     }
   }
 
-  spawn(points: readonly Vec3[]): void {
+  spawn(points: readonly Vec3[], overload = false): void {
     if (points.length < 2) return;
     for (let i = 0; i < this.arcs.length; i++) {
       const arc = this.arcs[i];
       if (arc.active) continue;
       arc.active = true;
-      arc.maxLife = 0.16;
+      arc.maxLife = overload ? 0.24 : 0.16;
+      arc.passes = overload ? MAX_PASSES : 2;
       arc.life = arc.maxLife;
       arc.basePoints = points.map((pt) => ({ x: pt.x, y: pt.y, z: pt.z }));
       this.rebuildBuffer();
@@ -95,31 +101,35 @@ export class LightningArcPool {
       for (let i = 0; i < arc.basePoints.length - 1; i++) {
         const a = arc.basePoints[i];
         const b = arc.basePoints[i + 1];
-        let prevX = a.x;
-        let prevY = a.y;
-        let prevZ = a.z;
+        for (let pass = 0; pass < arc.passes; pass++) {
+          let prevX = a.x;
+          let prevY = a.y;
+          let prevZ = a.z;
+          // Later passes wander wider so the bolt looks forked/crackling instead of a single line.
+          const wander = 0.26 + pass * 0.16;
 
-        for (let s = 1; s <= SEGS_PER_JUMP; s++) {
-          if (vertexCount + 2 > MAX_VERTICES_TOTAL) break;
-          const t = s / SEGS_PER_JUMP;
-          const isEnd = s === SEGS_PER_JUMP;
-          const jitter = isEnd ? 0 : 0.26;
-          const nextX = a.x + (b.x - a.x) * t + (Math.random() - 0.5) * jitter;
-          const nextY = a.y + (b.y - a.y) * t + (Math.random() - 0.5) * jitter;
-          const nextZ = a.z + (b.z - a.z) * t + (Math.random() - 0.5) * jitter;
+          for (let s = 1; s <= SEGS_PER_JUMP; s++) {
+            if (vertexCount + 2 > MAX_VERTICES_TOTAL) break;
+            const t = s / SEGS_PER_JUMP;
+            const isEnd = s === SEGS_PER_JUMP;
+            const jitter = isEnd ? 0 : wander;
+            const nextX = a.x + (b.x - a.x) * t + (Math.random() - 0.5) * jitter;
+            const nextY = a.y + (b.y - a.y) * t + (Math.random() - 0.5) * jitter;
+            const nextZ = a.z + (b.z - a.z) * t + (Math.random() - 0.5) * jitter;
 
-          const off = vertexCount * 3;
-          arr[off] = prevX;
-          arr[off + 1] = prevY;
-          arr[off + 2] = prevZ;
-          arr[off + 3] = nextX;
-          arr[off + 4] = nextY;
-          arr[off + 5] = nextZ;
-          vertexCount += 2;
+            const off = vertexCount * 3;
+            arr[off] = prevX;
+            arr[off + 1] = prevY;
+            arr[off + 2] = prevZ;
+            arr[off + 3] = nextX;
+            arr[off + 4] = nextY;
+            arr[off + 5] = nextZ;
+            vertexCount += 2;
 
-          prevX = nextX;
-          prevY = nextY;
-          prevZ = nextZ;
+            prevX = nextX;
+            prevY = nextY;
+            prevZ = nextZ;
+          }
         }
       }
     }

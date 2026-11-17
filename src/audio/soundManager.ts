@@ -7,6 +7,10 @@ export class SoundManager {
   private masterGain: GainNode | null = null;
   private settings: GameSettings;
   private readonly lastPlayedMs = new Map<string, number>();
+  /** Per-call voicing set by playFire/playImpact: random pitch jitter, tier pitch multiplier, tier volume. */
+  private jitter = 0;
+  private pitchMul = 1;
+  private volMul = 1;
 
   constructor(initialSettings: GameSettings) {
     this.settings = { ...initialSettings };
@@ -19,7 +23,15 @@ export class SoundManager {
       this.ctx = new AudioCtx();
       this.masterGain = this.ctx.createGain();
       this.applyVolume();
-      this.masterGain.connect(this.ctx.destination);
+      // Soft limiter so dense late waves (many towers + impacts at once) never clip.
+      const limiter = this.ctx.createDynamicsCompressor();
+      limiter.threshold.value = -14;
+      limiter.knee.value = 12;
+      limiter.ratio.value = 6;
+      limiter.attack.value = 0.003;
+      limiter.release.value = 0.15;
+      this.masterGain.connect(limiter);
+      limiter.connect(this.ctx.destination);
       this.noiseBuffer = this.createNoiseBuffer(this.ctx);
     }
     if (this.ctx && this.ctx.state === 'suspended') {
@@ -68,6 +80,10 @@ export class SoundManager {
   ): void {
     if (!this.ctx || !this.masterGain) return;
     const now = this.ctx.currentTime + delaySec;
+    const pm = this.pitchMul * (this.jitter > 0 ? 1 + (Math.random() * 2 - 1) * this.jitter : 1);
+    startFreq *= pm;
+    endFreq *= pm;
+    volume *= this.volMul;
     const osc = this.ctx.createOscillator();
     const g = this.ctx.createGain();
     osc.type = type;
@@ -110,11 +126,23 @@ export class SoundManager {
     this.tone('sine', 330, 495, 0.12, 0.16, 0.04);
   }
 
-  playTowerUpgrade(): void {
+  playTowerUpgrade(tier = 2): void {
     if (!this.canPlay('upgrade', 50)) return;
     this.tone('triangle', 392, 523, 0.11, 0.22, 0);
     this.tone('triangle', 523, 659, 0.12, 0.22, 0.07);
     this.tone('sine', 659, 784, 0.18, 0.2, 0.14);
+    if (tier >= 3) {
+      // Final tier: extra rising sparkle on top of the chime.
+      this.tone('sine', 784, 1046, 0.16, 0.16, 0.2);
+      this.tone('triangle', 1046, 1318, 0.28, 0.14, 0.26);
+      this.noiseBurst(5200, 0.12, 0.05);
+    }
+  }
+
+  playBrittleCrack(): void {
+    if (!this.canPlay('brittle', 60)) return;
+    this.tone('triangle', 2100, 1500, 0.05, 0.1, 0);
+    this.noiseBurst(6500, 0.05, 0.07);
   }
 
   playTowerSell(): void {
@@ -123,7 +151,39 @@ export class SoundManager {
     this.tone('sine', 740, 880, 0.11, 0.16, 0.06);
   }
 
-  playFire(type: TowerType): void {
+  /** Voices a tower sound: +-jitter random detune, higher tiers sound deeper and slightly louder. */
+  private voice(tier: number, jitter: number): void {
+    this.jitter = jitter;
+    this.pitchMul = 1 - (tier - 1) * 0.07;
+    this.volMul = 1 + (tier - 1) * 0.1;
+  }
+
+  private resetVoice(): void {
+    this.jitter = 0;
+    this.pitchMul = 1;
+    this.volMul = 1;
+  }
+
+  playFire(type: TowerType, tier = 1, special = false): void {
+    this.voice(tier, 0.07);
+    this.fireSound(type);
+    if (special) this.specialLayer(type);
+    this.resetVoice();
+  }
+
+  /** Extra layer on tier-signature shots (archer volley, tesla overload). */
+  private specialLayer(type: TowerType): void {
+    if (type === 'archer') {
+      this.tone('triangle', 600, 230, 0.07, 0.12, 0.045);
+      this.tone('triangle', 660, 250, 0.07, 0.1, 0.09);
+    } else if (type === 'tesla') {
+      this.tone('sawtooth', 220, 90, 0.2, 0.16);
+      this.tone('sine', 1500, 400, 0.14, 0.1, 0.02);
+      this.noiseBurst(4200, 0.14, 0.14);
+    }
+  }
+
+  private fireSound(type: TowerType): void {
     switch (type) {
       case 'archer':
         if (!this.canPlay('fire_archer', 65)) return;
@@ -148,10 +208,24 @@ export class SoundManager {
         this.tone('sine', 110, 38, 0.28, 0.36);
         this.noiseBurst(620, 0.22, 0.25);
         break;
+      case 'ballista':
+        if (!this.canPlay('fire_ballista', 110)) return;
+        this.tone('triangle', 300, 90, 0.16, 0.26);
+        this.tone('sawtooth', 1400, 500, 0.06, 0.07);
+        this.noiseBurst(3200, 0.07, 0.1);
+        break;
+      case 'beacon':
+        break;
     }
   }
 
   playImpact(type: TowerType): void {
+    this.jitter = 0.08;
+    this.impactSound(type);
+    this.resetVoice();
+  }
+
+  private impactSound(type: TowerType): void {
     if (type === 'cannon' || type === 'mortar') {
       if (!this.canPlay(`impact_${type}`, 90)) return;
       this.tone('sine', type === 'mortar' ? 105 : 130, 34, type === 'mortar' ? 0.34 : 0.22, 0.36);
@@ -159,12 +233,32 @@ export class SoundManager {
     } else if (type === 'frost') {
       if (!this.canPlay('impact_frost', 110)) return;
       this.tone('sine', 1180, 1560, 0.09, 0.09);
+    } else if (type === 'ballista') {
+      if (!this.canPlay('impact_ballista', 90)) return;
+      this.tone('square', 220, 70, 0.07, 0.12);
+      this.noiseBurst(1800, 0.06, 0.12);
     }
+  }
+
+  playIgnite(): void {
+    if (!this.canPlay('ignite', 150)) return;
+    this.jitter = 0.08;
+    this.noiseBurst(2400, 0.28, 0.1);
+    this.tone('sawtooth', 180, 90, 0.18, 0.06);
+    this.resetVoice();
+  }
+
+  playBeaconPulse(): void {
+    if (!this.canPlay('beacon_pulse', 700)) return;
+    this.tone('sine', 880, 1175, 0.18, 0.05);
+    this.tone('sine', 1320, 1568, 0.2, 0.03, 0.06);
   }
 
   playGoldCoin(): void {
     if (!this.canPlay('coin', 95)) return;
+    this.jitter = 0.06;
     this.tone('sine', 1046, 1396, 0.08, 0.12);
+    this.resetVoice();
   }
 
   playWaveStart(): void {
@@ -313,9 +407,12 @@ export class SoundManager {
   bindEvents(events: EventBus): () => void {
     const unsubs = [
       events.on('towerBuilt', () => this.playTowerBuild()),
-      events.on('towerUpgraded', () => this.playTowerUpgrade()),
+      events.on('towerUpgraded', (e) => this.playTowerUpgrade(e.tier)),
       events.on('towerSold', () => this.playTowerSell()),
-      events.on('towerFired', (e) => this.playFire(e.type)),
+      events.on('beaconPulse', () => this.playBeaconPulse()),
+      events.on('brittleCrack', () => this.playBrittleCrack()),
+      events.on('groundZone', () => this.playIgnite()),
+      events.on('towerFired', (e) => this.playFire(e.type, e.tier, e.special === true)),
       events.on('projectileImpact', (e) => this.playImpact(e.towerType)),
       events.on('enemyKilled', () => this.playGoldCoin()),
       events.on('enemyLeaked', () => this.playEnemyLeak()),

@@ -5,7 +5,7 @@ export interface GridCoord {
   readonly row: number;
 }
 
-export type TowerType = 'archer' | 'cannon' | 'frost' | 'tesla' | 'mortar';
+export type TowerType = 'archer' | 'cannon' | 'frost' | 'tesla' | 'mortar' | 'ballista' | 'beacon';
 
 export type EnemyType =
   | 'grunt'

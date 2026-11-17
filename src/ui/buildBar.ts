@@ -42,6 +42,8 @@ export class BuildBar {
         frost: 'Frost',
         tesla: 'Tesla',
         mortar: 'Mortar',
+        ballista: 'Ballista',
+        beacon: 'Beacon',
       };
       const nameEl = document.createElement('div');
       nameEl.className = 'build-name';
