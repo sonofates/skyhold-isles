@@ -71,6 +71,7 @@ import { buyRank, workshopModifiers, type WorkshopUpgradeId } from '../data/work
 import { isEndlessBestCrossing, isIslandMastered, starWallet } from '../game/progression.ts';
 import { badgesForWin, resolveRunConfig, type RunConfig } from '../game/runConfig.ts';
 import { earnedFeatIds, newlyEarnedFeats } from '../game/feats.ts';
+import { dailyShareText } from '../game/share.ts';
 import { decodeSaveCode, describeMergeGain, encodeSaveCode, mergeProgress } from './saveCode.ts';
 
 /** Countdown / cooldown HUD refresh cadence when no event triggered a sync. */
@@ -496,6 +497,17 @@ export class GameSession {
             newlyMastered:
               !masteredBefore && isIslandMastered(this.progress, this.currentLevelIndex, offered),
             newFeats: newlyEarnedFeats(featsBefore, this.progress),
+            shareText:
+              this.runConfig.daily !== null
+                ? dailyShareText({
+                    day: this.runConfig.daily,
+                    islandName: LEVELS[this.currentLevelIndex].name,
+                    challenges: this.runConfig.challenges,
+                    stars,
+                    livesLost: Math.max(0, this.simWorld.startingLives - livesRemaining),
+                    streak: dailyStreak,
+                  })
+                : undefined,
           },
         );
         this.scheduleStarChimes(stars);

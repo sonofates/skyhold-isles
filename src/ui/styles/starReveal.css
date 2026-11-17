@@ -101,6 +101,7 @@
 .outcome-callouts {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   justify-content: center;
   gap: 6px;
   min-height: 0;
@@ -243,4 +244,22 @@
   font-family: var(--font-display);
   font-weight: 700;
   color: var(--gx-gold);
+}
+
+/* Daily Squall: "Copy result" chip (a real button, so it gets a touch-sized hit area). */
+.outcome-callout.callout-share {
+  appearance: none;
+  -webkit-appearance: none;
+  border: 0;
+  min-height: 44px;
+  padding: 3px 14px 4px;
+  color: var(--gx-ink);
+  background: #8fd5ee;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.outcome-callout.callout-share:focus-visible {
+  outline: 3px solid var(--gx-gold);
+  outline-offset: 2px;
 }

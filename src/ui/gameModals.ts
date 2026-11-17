@@ -46,6 +46,19 @@ export interface EndlessResultView {
   readonly newFeats?: readonly FeatDef[];
 }
 
+const COPY_ICON_SVG = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="8" y="8" width="11" height="12" rx="1.5" stroke="currentColor" stroke-width="2.2"/><path d="M5 15V5.5C5 4.7 5.7 4 6.5 4H15" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>`;
+
+/** Clipboard copy for the Daily result chip; falls back to a prompt-free "select it" message. */
+async function copyShareText(btn: HTMLButtonElement, text: string): Promise<void> {
+  const label = btn.querySelector('span');
+  try {
+    await navigator.clipboard.writeText(text);
+    if (label) label.textContent = 'Copied!';
+  } catch {
+    if (label) label.textContent = 'Copy not allowed here';
+  }
+}
+
 function escapeHtml(text: string): string {
   return text.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 }
@@ -204,6 +217,8 @@ export class OutcomeOverlay {
   private readonly subEl: HTMLDivElement;
   private readonly starsEl: HTMLDivElement;
   private readonly calloutsEl: HTMLDivElement;
+  /** Daily Squall result line for the "Copy result" chip (empty = no chip). */
+  private shareText = '';
   private readonly goalsEl: HTMLDivElement;
   private readonly statsEl: HTMLDivElement;
   private readonly mvpEl: HTMLDivElement;
@@ -233,6 +248,10 @@ export class OutcomeOverlay {
 
     this.calloutsEl = document.createElement('div');
     this.calloutsEl.className = 'outcome-callouts';
+    this.calloutsEl.addEventListener('click', (e) => {
+      const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('.callout-share');
+      if (btn && this.shareText) void copyShareText(btn, this.shareText);
+    });
 
     this.goalsEl = document.createElement('div');
     this.goalsEl.className = 'outcome-star-goals hidden';
@@ -359,11 +378,14 @@ export class OutcomeOverlay {
       newlyMastered?: boolean;
       /** Feats this win earned (shown last, after the unlock / Workshop chips). */
       newFeats?: readonly FeatDef[];
+      /** Daily Squall result line: adds a "Copy result" chip. */
+      shareText?: string;
     },
   ): void {
     this.open = true;
     const record = extras?.record;
     const startingLives = extras?.startingLives ?? BALANCE.startingLives;
+    this.shareText = extras?.shareText ?? '';
     this.badgeEl.className = 'outcome-badge outcome-badge-win';
     this.badgeEl.textContent = 'Island defended';
     this.titleEl.textContent = 'Victory';
@@ -432,6 +454,11 @@ export class OutcomeOverlay {
     if (unlockedName) chip('callout-unlock', UI_ICON_SVGS.islands, `${unlockedName} unlocked`);
     if (workshopStars > 0) chip('callout-workshop', WORKSHOP_ICON_SVG, `Workshop: ${workshopStars}★ to spend`);
     chips.push(...featCalloutChips(newFeats, delay));
+    if (this.shareText) {
+      chips.push(
+        `<button type="button" class="outcome-callout callout-share" data-testid="btn-share-daily" style="--reveal-delay:${delay + newFeats.length * 160}ms">${COPY_ICON_SVG}<span>Copy result</span></button>`,
+      );
+    }
     this.calloutsEl.innerHTML = chips.join('');
   }
 
@@ -453,6 +480,7 @@ export class OutcomeOverlay {
     const earnedStars = options?.earnedStars ?? 0;
     const startingLives = options?.startingLives ?? BALANCE.startingLives;
     this.starsEl.className = 'outcome-stars';
+    this.shareText = '';
     this.calloutsEl.innerHTML = '';
     this.goalsEl.classList.add('hidden');
 
