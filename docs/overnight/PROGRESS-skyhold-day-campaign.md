@@ -147,6 +147,23 @@ Start. Toggles are remembered per island for the session. Restart/Retry reuse th
   ISLAND_CHALLENGES. MOBILE may restyle `.menu-btn-row`; the Workshop row override lives in
   `src/ui/styles/workshop.css` (`.menu-btn-row.has-workshop`).
 
+## Merge notes for the lead (checked against origin/hermes/skyhold-day-mobile @e5a0278)
+Read-only diff comparison (merge-tree not permitted here). Shared files and expected result:
+- `src/core/types.ts`: mobile edits QualityLevel/GameSettings, I edit ProgressData → clean.
+- `src/platform/storage.ts`: mobile edits settings parse/save; I replace createDefaultProgress /
+  loadProgress and append helpers → separate hunks (one unchanged line between at parseQuality).
+- `src/audio/soundManager.ts`: mobile adds methods after unlock(); mine at the end → clean.
+- `src/ui/settingsModal.ts`: mobile rewrites quality buttons + adds haptics row and changes the
+  `card.append(...)` line; my reset row was moved to the constructor tail (980cec5) → clean.
+- `src/main.ts`: mobile adds input callbacks / visibility / SW; mine edits the overlay callback
+  object + a menu Escape listener → separate hunks.
+- `src/platform/gameSession.ts`: both large; hunks are interleaved but on different lines
+  (imports, fields, startLevel middle vs end). If a conflict appears in startLevel, keep both:
+  mobile's `this.quality.rearm()` / `setHudRects(...)` and my run-config / banned-marker /
+  announceRun lines.
+- `README.md`: mobile edits the Touch section, I append a section at the end → clean.
+- `style.css`: I never touched it.
+
 ## Cross-area changes
 - `src/sim/{world,abilitySystem,combatSystem,enemySystem}.ts`: optional modifier hooks (neutral default, sim results identical).
 - `src/data/balance.ts`: removed `starThresholds` (moved to src/data/stars.ts).
