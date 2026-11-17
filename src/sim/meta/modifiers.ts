@@ -166,7 +166,7 @@ export function getAllowedTowerTypes(modifiers: ResolvedRunModifiers): readonly 
 
 /** Scales a tower build or upgrade cost by towerCostMultiplier (no-op when 1). */
 export function scaleGoldCost(baseCost: number, modifiers: ResolvedRunModifiers): number {
-  if (modifiers.towerCostMultiplier === 1) return baseCost;
+  if (baseCost <= 0 || modifiers.towerCostMultiplier === 1) return baseCost;
   return Math.max(1, Math.round(baseCost * modifiers.towerCostMultiplier));
 }
 

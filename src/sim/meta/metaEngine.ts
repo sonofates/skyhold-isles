@@ -611,7 +611,9 @@ export function recordRunCompletion(
     params.previousBestEndlessWave ?? (save.campaign.bestEndlessWaves[level.index] ?? 0);
   const prevEndlessScore =
     params.previousBestEndlessScore ?? (save.bestEndlessScoresByLevelId[level.id] ?? 0);
-  const runDurationSec = +Math.max(0, telemetry.simTimeSec).toFixed(1);
+  const runDurationSec = Number.isFinite(telemetry.simTimeSec)
+    ? +Math.max(0, telemetry.simTimeSec).toFixed(1)
+    : 0;
 
   if (won) {
     if (telemetry.eligibleForChallenges) {
@@ -633,15 +635,13 @@ export function recordRunCompletion(
 
         const hasModifiers = telemetry.hasRunModifiers || telemetry.activeMutatorIds.length > 0;
         if (!hasModifiers) {
-          const clampedLives = Math.max(
-            0,
-            Math.min(BALANCE.startingLives, Math.floor(livesRemaining)),
-          );
+          const safeLives = Number.isFinite(livesRemaining) ? Math.floor(livesRemaining) : 0;
+          const clampedLives = Math.max(0, Math.min(BALANCE.startingLives, safeLives));
           if (clampedLives > (save.bestLivesByLevelId[level.id] ?? 0)) {
             save.bestLivesByLevelId[level.id] = clampedLives;
             isNewBestLives = true;
           }
-          if (telemetry.simTimeSec > 0) {
+          if (Number.isFinite(telemetry.simTimeSec) && telemetry.simTimeSec > 0) {
             const clearSec = Math.max(0.1, +telemetry.simTimeSec.toFixed(1));
             const prevFastest = save.fastestWinSecByLevelId[level.id];
             if (prevFastest === undefined || clearSec < prevFastest) {
@@ -1157,6 +1157,7 @@ export function getTowerMasteryStats(save: MetaSaveData): readonly TowerMasteryS
     0,
   );
   return TOWER_TYPES.map((type) => {
+    const def = TOWER_DEFS[type];
     const builtCount = save.stats.towersBuiltByType[type] ?? 0;
     let tierIdx = 0;
     for (let i = 0; i < TOWER_MASTERY_THRESHOLDS.length; i++) {
@@ -1172,7 +1173,10 @@ export function getTowerMasteryStats(save: MetaSaveData): readonly TowerMasteryS
       : 1;
     return {
       type,
-      name: TOWER_DEFS[type].name,
+      name: def.name,
+      shortDesc: def.shortDesc,
+      hitsFlyers: def.hitsFlyers,
+      buildCost: def.tiers[0].upgradeCost,
       builtCount,
       sharePct: totalBuilt > 0 ? Math.round((builtCount / totalBuilt) * 100) : 0,
       rank: current.rank,
@@ -1193,8 +1197,11 @@ export function getEnemyIntelStats(save: MetaSaveData): readonly EnemyIntelEntry
       description: def.description,
       defeatedCount,
       discovered: defeatedCount > 0,
+      maxHp: def.maxHp,
+      speed: def.speed,
       flying: def.flying,
       armor: def.armor,
+      reward: def.reward,
       livesCost: def.livesCost,
     };
   });

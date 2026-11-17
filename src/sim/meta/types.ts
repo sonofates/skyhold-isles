@@ -267,6 +267,9 @@ export type TowerMasteryRank = 'Recruit' | 'Apprentice' | 'Artificer' | 'Grandma
 export interface TowerMasteryStat {
   readonly type: TowerType;
   readonly name: string;
+  readonly shortDesc: string;
+  readonly hitsFlyers: boolean;
+  readonly buildCost: number;
   readonly builtCount: number;
   readonly sharePct: number;
   readonly rank: TowerMasteryRank;
@@ -280,8 +283,11 @@ export interface EnemyIntelEntry {
   readonly description: string;
   readonly defeatedCount: number;
   readonly discovered: boolean;
+  readonly maxHp: number;
+  readonly speed: number;
   readonly flying: boolean;
   readonly armor: number;
+  readonly reward: number;
   readonly livesCost: number;
 }
 

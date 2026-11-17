@@ -150,8 +150,12 @@ export function computeEndlessScore(
   enemiesKilled: number,
   scoreMultiplier = 1,
 ): EndlessScoreBreakdown {
-  const waves = Math.max(0, Math.floor(wavesClearedInEndless));
-  const kills = Math.max(0, Math.floor(enemiesKilled));
+  const waves = Number.isFinite(wavesClearedInEndless)
+    ? Math.max(0, Math.floor(wavesClearedInEndless))
+    : 0;
+  const kills = Number.isFinite(enemiesKilled)
+    ? Math.max(0, Math.floor(enemiesKilled))
+    : 0;
   const mult = Number.isFinite(scoreMultiplier) && scoreMultiplier > 0 ? scoreMultiplier : 1;
   const baseScore = waves * 150 + kills * 2;
   return {
@@ -168,7 +172,9 @@ export function computeCampaignRunScore(
   livesRemaining: number,
   scoreMultiplier = 1,
 ): number {
-  const safeLives = Math.max(0, Math.floor(livesRemaining));
+  const safeLives = Number.isFinite(livesRemaining)
+    ? Math.max(0, Math.floor(livesRemaining))
+    : 0;
   return computeEndlessScore(wavesCleared, enemiesKilled, scoreMultiplier).totalScore + safeLives * 25;
 }
 

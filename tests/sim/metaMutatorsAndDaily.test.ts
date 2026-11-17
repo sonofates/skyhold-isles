@@ -19,6 +19,7 @@ import {
   isTowerTypeAllowed,
   mergeRunModifiers,
   resolveRunModifiers,
+  scaleGoldCost,
 } from '../../src/sim/meta/modifiers.ts';
 import {
   buildEndlessMutatorLoadout,
@@ -578,5 +579,25 @@ describe('Daily challenge pure date-seeded generator', () => {
 
     expect(selectEndlessMutators('nan-safe', Number.NaN).mutators).toHaveLength(2);
     expect(getRecentDailySpecs('2026-11-17', Number.NaN)).toHaveLength(7);
+
+    // Non-finite score inputs & 0-cost scaleGoldCost safety
+    expect(computeEndlessScore(Number.NaN, Number.POSITIVE_INFINITY, 1.5)).toEqual({
+      baseScore: 0,
+      scoreMultiplier: 1.5,
+      totalScore: 0,
+    });
+    expect(computeCampaignRunScore(5, 20, Number.NaN, 1.2)).toBe(Math.round((5 * 150 + 20 * 2) * 1.2));
+    expect(scaleGoldCost(0, resolveRunModifiers({ towerCostMultiplier: 1.25 }))).toBe(0);
+
+    // Leap-day and year-boundary daily calendar streak continuity
+    expect(
+      computeDailyStreaks(
+        ['2024-02-28', '2024-02-29', '2024-03-01', '2025-12-31', '2026-01-01'],
+        '2026-01-01',
+      ),
+    ).toEqual({
+      currentStreak: 2,
+      bestStreak: 3,
+    });
   });
 });

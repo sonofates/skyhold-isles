@@ -1129,9 +1129,16 @@ describe('MetaSession stats, achievements, challenges & daily persistence', () =
     expect(towerMastery.find((t) => t.type === 'frost')?.nextTarget).toBe(25);
 
     const enemyIntel = getEnemyIntelStats(codexSave);
-    expect(enemyIntel.find((e) => e.type === 'grunt')?.discovered).toBe(true);
+    const gruntIntel = enemyIntel.find((e) => e.type === 'grunt')!;
+    expect(gruntIntel.discovered).toBe(true);
+    expect(gruntIntel.maxHp).toBeGreaterThan(0);
+    expect(gruntIntel.speed).toBeGreaterThan(0);
+    expect(gruntIntel.reward).toBeGreaterThan(0);
     expect(enemyIntel.find((e) => e.type === 'flyer')?.discovered).toBe(false);
     expect(enemyIntel.find((e) => e.type === 'boss')?.defeatedCount).toBe(3);
+    expect(towerMastery[0].hitsFlyers).toBe(true);
+    expect(towerMastery[0].buildCost).toBeGreaterThan(0);
+    expect(towerMastery[0].shortDesc.length).toBeGreaterThan(5);
 
     // Mid-final-wave replace import increments gamesPlayed on gameWon even when gamesPlayed > gamesWon + gamesLost
     const importedSave = createDefaultMetaSave(9);
@@ -1158,6 +1165,50 @@ describe('MetaSession stats, achievements, challenges & daily persistence', () =
     expect(meta.getLastRunOutcome()).not.toBeNull();
     expect(meta.importSaveJson(JSON.stringify(importedSave), 'replace').ok).toBe(true);
     expect(meta.getLastRunOutcome()).toBeNull();
+
+    // Replaying an already-completed Daily Watch with higher score updates dailyBestScores once without double-counting completion
+    const replaySave = createDefaultMetaSave(9);
+    const replayEv = new EventBus();
+    const replayObs = new RunObserver(LEVELS[0], replayEv);
+    const firstDaily = recordRunCompletion(replaySave, {
+      level: LEVELS[0],
+      telemetry: replayObs.getTelemetry(),
+      won: true,
+      stars: 2,
+      livesRemaining: 10,
+      levels: LEVELS,
+      dailyDate: '2026-11-17',
+      scoreMultiplier: 1.3,
+    });
+    expect(firstDaily.isNewBestDailyScore).toBe(true);
+    const secondDaily = recordRunCompletion(replaySave, {
+      level: LEVELS[0],
+      telemetry: replayObs.getTelemetry(),
+      won: true,
+      stars: 3,
+      livesRemaining: 20,
+      levels: LEVELS,
+      dailyDate: '2026-11-17',
+      scoreMultiplier: 1.3,
+    });
+    expect(secondDaily.isNewBestDailyScore).toBe(true);
+    expect(secondDaily.dailyScore).toBeGreaterThan(firstDaily.dailyScore!);
+    expect(replaySave.completedDailyDates).toEqual(['2026-11-17']);
+    expect(replaySave.stats.dailyChallengesCompleted).toBe(1);
+    expect(replaySave.dailyBestScores['2026-11-17']).toBe(secondDaily.dailyScore);
+
+    // Non-finite livesRemaining / simTimeSec safely sanitize to 0
+    const nanOutcome = recordRunCompletion(replaySave, {
+      level: LEVELS[0],
+      telemetry: { ...replayObs.getTelemetry(), simTimeSec: Number.NaN },
+      won: true,
+      stars: 1,
+      livesRemaining: Number.NaN,
+      levels: LEVELS,
+    });
+    expect(nanOutcome.runDurationSec).toBe(0);
+    expect(replaySave.bestLivesByLevelId[LEVELS[0].id]).toBeUndefined();
+    replayObs.dispose();
 
     dailyMeta.dispose();
     meta.dispose();
