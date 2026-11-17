@@ -105,6 +105,17 @@ function pickTowerRestriction(
         modifiers: { forbiddenTowerTypes: [banned], scoreMultiplier: 1.2 },
       };
     }
+    if (!allowLimited) {
+      return {
+        restriction: {
+          kind: 'none',
+          label: noneLabel,
+          allowedTowerTypes: null,
+          forbiddenTowerTypes: [],
+        },
+        modifiers: {},
+      };
+    }
   }
 
   // Limited arsenal: pick 3 available towers including at least 1 primary anti-air DPS tower

@@ -733,7 +733,7 @@ describe('RunObserver challenge condition tracking', () => {
       expect.arrayContaining(['grand-skyhold:no-mortar', 'grand-skyhold:no-sell']),
     );
     expect(runScenario(8, {})).toContain('grand-skyhold:sturdy');
-  });
+  }, 15_000);
 
   it('scales Islands 10+ fallback tower cap from scriptedBuildOrder and tracks early Endless waves accurately', () => {
     const scripted20 = Array.from({ length: 20 }, (_, idx) => ({

@@ -219,7 +219,10 @@ export class SimWorld {
     this.lives = 0;
     this.outcome = 'lost';
     this.events.emit('economyChanged', { gold: this.gold, lives: this.lives });
-    this.events.emit('gameLost', { waveIndex: Math.max(0, this.waveSystem.currentWaveIndex) });
+    this.events.emit('gameLost', {
+      waveIndex: Math.max(0, this.waveSystem.currentWaveIndex),
+      endless: this.waveSystem.isEndless,
+    });
   }
 
   /** Effective gold cost to build a Tier 1 tower of `type` under active run modifiers. */

@@ -4,6 +4,7 @@ import {
   describeActiveModifiers,
   getAllowedTowerTypes,
   mergeRunModifiers,
+  NEUTRAL_RUN_MODIFIERS,
   resolveRunModifiers,
 } from './modifiers.ts';
 import type {
@@ -187,6 +188,9 @@ export function resolveMutatorSelection(
   presets: readonly MutatorPreset[] = ENDLESS_MUTATOR_PRESETS,
   catalog: readonly MutatorDef[] = ENDLESS_MUTATORS,
 ): ResolvedRunModifiers {
+  if (!input || typeof input !== 'object') {
+    return NEUTRAL_RUN_MODIFIERS;
+  }
   if (Array.isArray(input)) {
     return buildEndlessMutatorLoadout(input, catalog).modifiers;
   }

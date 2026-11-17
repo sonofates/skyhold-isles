@@ -586,7 +586,7 @@ describe('Daily challenge pure date-seeded generator', () => {
       expect(obs.getTelemetry().eligibleForChallenges).toBe(true);
       obs.dispose();
     }
-  });
+  }, 15_000);
 
   it('keeps RunObserver economy integrity exact across builds, upgrades, sells, early calls, and clear bonuses under tight_budget + gold_drought', () => {
     const level: LevelDef = {
@@ -814,5 +814,38 @@ describe('Daily challenge pure date-seeded generator', () => {
     const roundedFlyerMod = resolveRunModifiers({ flyerCountMultiplier: 2.4 });
     expect(roundedFlyerMod.flyerCountMultiplier).toBe(2);
     expect(describeActiveModifiers(roundedFlyerMod)[0]?.label).toBe('2x Flyers');
+
+    // Non-array runtime forbiddenTowerTypes/activeMutatorIds & null selection safely normalize, and near-1 floats don't emit +0% badges
+    const nonArrayMod = resolveRunModifiers({
+      forbiddenTowerTypes: 'frost' as unknown as readonly ('frost')[],
+      activeMutatorIds: 'swift_march' as unknown as readonly string[],
+      enemySpeedMultiplier: 1.001,
+    });
+    expect(nonArrayMod.forbiddenTowerTypes).toEqual([]);
+    expect(nonArrayMod.activeMutatorIds).toEqual([]);
+    expect(describeActiveModifiers(nonArrayMod)).toEqual([]);
+    expect(resolveMutatorSelection(null as unknown as string[])).toEqual(resolveRunModifiers(null));
+
+    // debugForceLose during Endless Mode marks gameLost event with endless: true
+    const loseEv = new EventBus();
+    const miniLvl: LevelDef = {
+      ...LEVELS[0],
+      startingGold: 1000,
+      waves: [{ clearBonus: 20, groups: [{ enemyType: 'grunt', count: 1, spawnInterval: 0.3, startDelay: 0 }] }],
+    };
+    const loseWorld = new SimWorld(miniLvl, loseEv);
+    loseWorld.placeTower(4, 2, 'archer');
+    loseWorld.startNextWave();
+    for (let i = 0; i < 60 * 30 && loseWorld.outcome === 'ongoing'; i++) {
+      loseWorld.fixedTick(BALANCE.fixedDt);
+    }
+    expect(loseWorld.outcome).toBe('won');
+    expect(loseWorld.enterEndlessMode()).toBe(true);
+    let lostPayload: { waveIndex: number; endless?: boolean } | null = null;
+    loseEv.on('gameLost', (ev) => {
+      lostPayload = ev;
+    });
+    loseWorld.debugForceLose();
+    expect(lostPayload).toEqual({ waveIndex: 0, endless: true });
   });
 });

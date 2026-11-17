@@ -17,6 +17,7 @@ import {
   applyTelemetryDeltaToStats,
   createDefaultMetaSave,
   getAchievements,
+  getAchievementSummary,
   getAllChallengeProgress,
   getChallengeStatus,
   getEnemyIntelStats,
@@ -31,6 +32,7 @@ import {
   mergeCampaignProgress,
   mergeMetaSaves,
   migrateToMetaSave,
+  recomputeAchievements,
   recordRunCompletion,
 } from '../../src/sim/meta/metaEngine.ts';
 import { RunObserver } from '../../src/sim/meta/runObserver.ts';
@@ -1569,5 +1571,138 @@ describe('MetaSession stats, achievements, challenges & daily persistence', () =
     quitMeta.dispose();
     dailyMeta.dispose();
     meta.dispose();
+  });
+
+  it('unlocks all 25 achievements, advances through all 6 Career Ranks, exercises every Next-Goal branch, and tolerates partial saves', () => {
+    const save = createDefaultMetaSave(LEVELS.length);
+    expect(getMetaCareerRank(save, LEVELS)).toMatchObject({
+      rankIndex: 0,
+      title: 'Sky Recruit',
+      points: 0,
+      nextRankTitle: 'Cloud Warden',
+    });
+    expect(getRecommendedNextGoal(save, '2026-11-17', [])).toBeNull();
+
+    // 1. Recommended Next Goal cascade: daily -> campaign clear -> challenge -> 3-star -> achievement (>=40%) -> endless
+    const goalDaily = getRecommendedNextGoal(save, '2026-11-17', LEVELS)!;
+    expect(goalDaily.kind).toBe('daily');
+
+    save.completedDailyDates.push('2026-11-17');
+    const goalClear = getRecommendedNextGoal(save, '2026-11-17', LEVELS)!;
+    expect(goalClear).toMatchObject({ kind: 'campaign', levelIndex: 0 });
+
+    save.campaign.bestStars[0] = 2;
+    const goalChallenge = getRecommendedNextGoal(save, '2026-11-17', LEVELS)!;
+    expect(goalChallenge).toMatchObject({ kind: 'challenge', levelIndex: 0 });
+
+    save.completedChallenges['sunlit-meadow:perfect'] = true;
+    save.completedChallenges['sunlit-meadow:lean'] = true;
+    save.completedChallenges['sunlit-meadow:rush3x'] = true;
+    const goalThreeStar = getRecommendedNextGoal(save, '2026-11-17', LEVELS)!;
+    expect(goalThreeStar).toMatchObject({ kind: 'campaign', levelIndex: 0 });
+    expect(goalThreeStar.title).toContain('3-Star');
+
+    save.campaign.bestStars[0] = 3;
+    save.stats.enemiesDefeatedTotal = 1200; // 1200/2500 = 48% on slayer_2500
+    recomputeAchievements(save, LEVELS);
+    const goalAch = getRecommendedNextGoal(save, '2026-11-17', LEVELS)!;
+    expect(goalAch.kind).toBe('achievement');
+
+    // Fill all 9 islands with 3 stars, all 27 challenges, all 25 achievements, and 10 dailies -> Sovereign of the Skies & Endless goal
+    save.campaign.unlockedLevelIndex = LEVELS.length - 1;
+    for (let i = 0; i < LEVELS.length; i++) {
+      save.campaign.bestStars[i] = 3;
+      const chStatus = getChallengeStatus(save, i, LEVELS)!;
+      for (const ch of chStatus.challenges) {
+        save.completedChallenges[ch.def.id] = true;
+      }
+    }
+    save.achievementMilestones.wonNoLivesLost = true;
+    save.achievementMilestones.wonAt3xSpeed = true;
+    save.achievementMilestones.wonMax6Towers = true;
+    save.achievementMilestones.bestMutatedEndlessWavesCleared = 5;
+    save.stats.gamesWon = 9;
+    save.stats.perfectClears = 3;
+    save.stats.enemiesDefeatedTotal = 2500;
+    save.stats.enemiesDefeatedByType.boss = 10;
+    save.stats.flyingEnemiesDefeated = 250;
+    save.stats.towersCleansed = 2;
+    save.stats.meteorsCast = 20;
+    save.stats.towersBuiltTotal = 100;
+    save.stats.towersUpgradedToTier3 = 25;
+    save.stats.towersUpgradedTotal = 100;
+    save.stats.goldEarnedTotal = 25000;
+    save.stats.earlyWavesCalled = 30;
+    save.stats.bestEndlessWaveOverall = 15;
+    save.completedDailyDates = [
+      '2026-11-08',
+      '2026-11-09',
+      '2026-11-10',
+      '2026-11-11',
+      '2026-11-12',
+      '2026-11-13',
+      '2026-11-14',
+      '2026-11-15',
+      '2026-11-16',
+      '2026-11-17',
+    ];
+    save.stats.dailyChallengesCompleted = 10;
+
+    recomputeAchievements(save, LEVELS);
+    const allAchievements = getAchievements(save);
+    expect(allAchievements).toHaveLength(ACHIEVEMENTS.length);
+    for (const ach of allAchievements) {
+      expect(ach.unlocked).toBe(true);
+      expect(ach.progressRatio).toBe(1);
+    }
+    const summary = getAchievementSummary(save);
+    expect(summary.unlockedCount).toBe(ACHIEVEMENTS.length);
+    expect(summary.completionRatio).toBe(1);
+    expect(summary.byCategory.every((c) => c.unlocked === c.total && c.total > 0)).toBe(true);
+
+    const sovereign = getMetaCareerRank(save, LEVELS);
+    expect(sovereign.rankIndex).toBe(5);
+    expect(sovereign.title).toBe('Sovereign of the Skies');
+    expect(sovereign.nextRankTitle).toBeNull();
+    expect(sovereign.progressRatio).toBe(1);
+    expect(sovereign.points).toBe(151);
+
+    // Check all intermediate rank tiers too (Cloud Warden -> Gale Tactician -> Bastion Commander -> Tempest Marshal)
+    const rankProgressSave = createDefaultMetaSave(LEVELS.length);
+    rankProgressSave.campaign.bestStars[0] = 3; // 3 pts
+    rankProgressSave.completedDailyDates = ['2026-11-01', '2026-11-02', '2026-11-03', '2026-11-04', '2026-11-05']; // +10 -> 13 pts (Cloud Warden)
+    expect(getMetaCareerRank(rankProgressSave, LEVELS).title).toBe('Cloud Warden');
+    rankProgressSave.campaign.bestStars = [3, 3, 3, 3, 3, 3, 0, 0, 0]; // 18 + 10 + 4(ch)=32 -> Gale Tactician
+    rankProgressSave.completedChallenges['sunlit-meadow:perfect'] = true;
+    rankProgressSave.completedChallenges['sunlit-meadow:lean'] = true;
+    expect(getMetaCareerRank(rankProgressSave, LEVELS).title).toBe('Gale Tactician');
+    rankProgressSave.campaign.bestStars = [3, 3, 3, 3, 3, 3, 3, 3, 3]; // 27 stars + 10 daily + 24 (12 challenges) = 61 -> Bastion Commander
+    for (let i = 1; i <= 5; i++) {
+      const chs = getChallengeStatus(rankProgressSave, i, LEVELS)!;
+      rankProgressSave.completedChallenges[chs.challenges[0].def.id] = true;
+      rankProgressSave.completedChallenges[chs.challenges[1].def.id] = true;
+    }
+    expect(getMetaCareerRank(rankProgressSave, LEVELS).title).toBe('Bastion Commander');
+    for (let i = 0; i < 9; i++) {
+      const chs = getChallengeStatus(rankProgressSave, i, LEVELS)!;
+      for (const c of chs.challenges) rankProgressSave.completedChallenges[c.def.id] = true;
+    }
+    // 27 stars + 10 daily + 54 (27 challenges) + 4 (2 achievements) = 95 -> Tempest Marshal
+    rankProgressSave.unlockedAchievements.first_victory = true;
+    rankProgressSave.unlockedAchievements.challenger_5 = true;
+    expect(getMetaCareerRank(rankProgressSave, LEVELS).title).toBe('Tempest Marshal');
+
+    const goalEndless = getRecommendedNextGoal(save, '2026-11-17', LEVELS)!;
+    expect(goalEndless.kind).toBe('endless');
+
+    // 2. Partial/missing sub-records never throw in direct query or merge calls
+    const partialObj = { version: 2, campaign: { unlockedLevelIndex: 0, bestStars: [], bestEndlessWaves: [] } } as unknown as ReturnType<typeof createDefaultMetaSave>;
+    expect(getAchievements(partialObj)).toHaveLength(ACHIEVEMENTS.length);
+    expect(getStats(partialObj).enemiesDefeatedTotal).toBe(0);
+    expect(getTowerMasteryStats(partialObj).every((t) => t.builtCount === 0)).toBe(true);
+    expect(getEnemyIntelStats(partialObj).every((e) => !e.discovered)).toBe(true);
+    expect(getIslandMasteryStatus(partialObj, 0, LEVELS)?.campaignStars).toBe(0);
+    expect(getMetaCareerSummary(partialObj, '2026-11-17', LEVELS).rank.title).toBe('Sky Recruit');
+    expect(mergeMetaSaves(partialObj, partialObj, 9, LEVELS).version).toBe(2);
   });
 });

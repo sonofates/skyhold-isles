@@ -32,10 +32,12 @@ export function resolveRunModifiers(modifiers?: RunModifiers | null): ResolvedRu
   const allowed = Array.isArray(modifiers.allowedTowerTypes)
     ? [...new Set(modifiers.allowedTowerTypes)]
     : null;
-  const forbidden = modifiers.forbiddenTowerTypes
+  const forbidden = Array.isArray(modifiers.forbiddenTowerTypes)
     ? [...new Set(modifiers.forbiddenTowerTypes)]
     : [];
-  const mutatorIds = modifiers.activeMutatorIds ? [...new Set(modifiers.activeMutatorIds)] : [];
+  const mutatorIds = Array.isArray(modifiers.activeMutatorIds)
+    ? [...new Set(modifiers.activeMutatorIds)]
+    : [];
 
   return {
     enemySpeedMultiplier: clampPositive(modifiers.enemySpeedMultiplier, 1),
@@ -249,6 +251,7 @@ export function describeActiveModifiers(
     const pushPctBadge = (id: string, name: string, mult: number, detail: string) => {
       if (mult === 1) return;
       const pct = Math.round((mult - 1) * 100);
+      if (pct === 0) return;
       badges.push({ id, label: `${name} ${pct >= 0 ? '+' : ''}${pct}%`, detail });
     };
     pushPctBadge(
