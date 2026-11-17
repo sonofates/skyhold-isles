@@ -16,10 +16,7 @@ export const BALANCE = {
   sellRefundRatio: 0.7,
   earlyWaveBonusMaxGold: 30,
   interWaveCountdownSec: 12,
-  starThresholds: {
-    threeStarsMinLives: 18,
-    twoStarsMinLives: 10,
-  },
+  // Star thresholds live in src/data/stars.ts (per difficulty, rated on lives lost).
 
   // Combat & status rules
   minArmorDamage: 1,

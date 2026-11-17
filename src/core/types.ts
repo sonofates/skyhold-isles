@@ -55,10 +55,27 @@ export interface GameSettings {
   haptics: boolean;
 }
 
+/**
+ * Campaign save (localStorage `skyhold_isles_progress_v1` key; the format version lives in
+ * `version`). v1 saves had only the first three fields; `loadProgress` migrates them in place.
+ * Arrays are indexed by island index (islands are only ever appended).
+ */
 export interface ProgressData {
+  /** Save format version (see PROGRESS_SAVE_VERSION in platform/storage.ts). */
+  version: number;
   unlockedLevelIndex: number;
   bestStars: number[];
   bestEndlessWaves: number[];
+  /** Most lives left on a win per island (0 = no recorded win). */
+  bestLives: number[];
+  /** Number of wins per island. */
+  clears: number[];
+  /** Workshop upgrade ranks bought with stars (upgrade id -> rank). */
+  workshop: Record<string, number>;
+  /** Challenge ids completed per island (each one is worth a bonus star). */
+  challengeClears: string[][];
+  /** Daily Squall record (see src/data/daily.ts). */
+  daily: { lastDay: number; streak: number; bestStreak: number; total: number };
 }
 
 export interface Vec3 {

@@ -15,6 +15,7 @@ import { getTowerTierStats, TOWER_DEFS, TOWER_TYPES } from '../data/towers.ts';
 import type { RenderWorld } from '../render/renderWorld.ts';
 import { getTowerPickHeight } from '../render/towerPicking.ts';
 import { SimWorld } from '../sim/world.ts';
+import { STAR_REVEAL_DELAYS_MS } from '../ui/gameModals.ts';
 import type { GameOverlays } from '../ui/gameOverlays.ts';
 import type { ContentDirector } from '../ui/content/contentDirector.ts';
 import type { OnboardingObs } from '../ui/content/onboardingMachine.ts';
@@ -42,14 +43,49 @@ import {
   loadProgress,
   loadSettings,
   markUpgradeToastSeen,
+  backupProgressBeforeImport,
+  resetProgressSave,
+  saveProgress,
   saveSettings,
 } from './storage.ts';
+import type { RunModifiers } from '../data/runModifiers.ts';
+import {
+  applyDailyWin,
+  dailyChallengeFor,
+  utcDayNumber,
+  type DailyChallenge,
+} from '../data/daily.ts';
+import {
+  CHALLENGES,
+  challengesForLevel,
+  isChallengeId,
+  runModifiersFor,
+  type ChallengeId,
+} from '../data/challenges.ts';
+import { STAR_RULES } from '../data/stars.ts';
+import {
+  ENDLESS_TIERS,
+  endlessTier,
+  ENDLESS_MUTATOR_INTERVAL,
+  endlessMutatorsAt,
+  newEndlessMutatorAt,
+} from '../data/endlessMutators.ts';
+import type { EndlessResultView } from '../ui/gameModals.ts';
+import { affordableUpgradeCount } from '../ui/workshop.ts';
+import { buyRank, workshopModifiers, type WorkshopUpgradeId } from '../data/workshop.ts';
+import { isEndlessBestCrossing, isIslandMastered, starWallet } from '../game/progression.ts';
+import { badgesForWin, resolveRunConfig, type RunConfig } from '../game/runConfig.ts';
+import { earnedFeatIds, newlyEarnedFeats, type FeatDef } from '../game/feats.ts';
+import { dailyShareText } from '../game/share.ts';
+import { decodeSaveCode, describeMergeGain, encodeSaveCode, mergeProgress } from './saveCode.ts';
 
 /** Countdown / cooldown HUD refresh cadence when no event triggered a sync. */
 const UI_SYNC_INTERVAL_SEC = 0.2;
 
-export type ViewMode = 'menu' | 'levelSelect' | 'playing';
+export type ViewMode = 'menu' | 'levelSelect' | 'workshop' | 'playing';
 export type SettingsOrigin = 'menu' | 'hud' | 'pause';
+
+export type { RunConfig } from '../game/runConfig.ts';
 
 export interface SessionRuntimeDeps {
   overlays: GameOverlays;
@@ -106,6 +142,7 @@ export class GameSession {
   private readonly quality: QualityController;
   /** Tile whose ghost tower the radial build ring is previewing (survives pointer-leave refreshes). */
   private radialPreview: { type: TowerType; col: number; row: number } | null = null;
+  private readonly starChimeTimers: number[] = [];
 
   constructor(renderWorld: RenderWorld, soundManager: SoundManager) {
     this.renderWorld = renderWorld;
@@ -145,7 +182,35 @@ export class GameSession {
     const waveLabel = ws.isEndless
       ? `Wave ${ws.currentWaveOneBased} ∞`
       : `Wave ${ws.currentWaveOneBased}/${ws.totalWaves}`;
-    return `${LEVELS[this.currentLevelIndex].name} · ${waveLabel}`;
+    const challenges = this.runConfig.challenges.map((id) => CHALLENGES[id].name);
+    const daily = this.runConfig.daily !== null ? 'Daily: ' : '';
+    const tag = challenges.length > 0 ? ` · ${daily}${challenges.join(' + ')}` : '';
+    return `${LEVELS[this.currentLevelIndex].name} · ${waveLabel}${tag}`;
+  }
+
+  /** Pause card detail: lives lost vs the star goals, or the endless mutators in play. */
+  pauseRunInfo(): string | null {
+    const w = this.simWorld;
+    const ws = w.waveSystem;
+    const level = w.level;
+    if (ws.isEndless) {
+      const offset = ws.currentWaveIndex - level.waves.length;
+      if (offset < 0) return null;
+      const muts = endlessMutatorsAt(offset, level.index).map((m) => m.name);
+      return muts.length > 0
+        ? `<span class="pri-label">Mutators</span> ${muts.join(' · ')}`
+        : `<span class="pri-label">Mutators</span> first one at endless wave ${ENDLESS_MUTATOR_INTERVAL + 1}`;
+    }
+    const rule = STAR_RULES[level.difficulty] ?? STAR_RULES.Breezy;
+    const lost = Math.max(0, w.startingLives - w.lives);
+    const stars = w.computeStars();
+    const next =
+      stars === 3
+        ? `3★ holds while you lose ≤ ${rule.threeStarMaxLost}`
+        : stars === 2
+          ? `2★ holds while you lose ≤ ${rule.twoStarMaxLost}`
+          : '1★ — any win counts';
+    return `<span class="pri-label">Lives lost ${lost}</span> ${next}`;
   }
 
   syncLoopAndInput(): void {
@@ -308,12 +373,24 @@ export class GameSession {
     this.renderWorld.setFlightPathHighlight(nextHasFlyers || currentHasFlyers, true);
   }
 
-  /** Records the current endless run (if any) so leaving/restarting mid-run keeps the best wave. */
-  private recordEndlessIfActive(): void {
-    if (this.viewMode !== 'playing') return;
+  /**
+   * Records the current endless run (if any) so leaving/restarting mid-run keeps the best wave.
+   * Returns feats that record just earned (announced by the caller once the view has changed).
+   */
+  private recordEndlessIfActive(): FeatDef[] {
+    if (this.viewMode !== 'playing') return [];
     const ws = this.simWorld.waveSystem;
-    if (!ws.isEndless) return;
+    // Endless started from the island card: story waves never count as an endless record.
+    if (!ws.isEndless || ws.currentWaveIndex < this.simWorld.level.waves.length) return [];
+    const featsBefore = earnedFeatIds(this.progress);
     recordEndlessProgress(this.progress, this.currentLevelIndex, ws.currentWaveOneBased);
+    return newlyEarnedFeats(featsBefore, this.progress);
+  }
+
+  private announceFeats(feats: readonly FeatDef[]): void {
+    if (feats.length === 0) return;
+    this.d.overlays.toast.show(`Feat earned: ${feats.map((f) => f.name).join(', ')}`, 4);
+    this.soundManager.playStarChime(2);
   }
 
   setPlacementMode(type: TowerType | null): void {
@@ -332,6 +409,7 @@ export class GameSession {
 
   toggleBuildType(type: TowerType): void {
     this.soundManager.unlock();
+    if (this.activePlacementType !== type && this.isBanned(type)) return;
     this.setPlacementMode(this.activePlacementType === type ? null : type);
   }
 
@@ -352,6 +430,10 @@ export class GameSession {
   activateAbility(id: AbilityId): void {
     if (this.viewMode !== 'playing' || this.d.overlays.isModalOpen()) return;
     if (this.simWorld.outcome !== 'ongoing' || this.simWorld.waveSystem.state === 'preFirstWave') {
+      return;
+    }
+    if (this.simWorld.mods.abilitiesDisabled) {
+      this.d.overlays.toast.show('Abilities are off in this challenge', 2.5);
       return;
     }
     this.soundManager.unlock();
@@ -394,6 +476,7 @@ export class GameSession {
   }
 
   private clearTransientPlayState(): void {
+    this.cancelStarChimes();
     this.pendingDebugSpawns.length = 0;
     this.deps?.radial?.close(false);
     this.radialPreview = null;
@@ -413,6 +496,20 @@ export class GameSession {
     this.simClockSec = 0;
   }
 
+  /** Chimes in sync with the victory star stamps; cancelled when the run is left early. */
+  private scheduleStarChimes(stars: number): void {
+    this.cancelStarChimes();
+    for (let i = 0; i < stars; i++) {
+      const delay = STAR_REVEAL_DELAYS_MS[i] ?? 0;
+      this.starChimeTimers.push(window.setTimeout(() => this.soundManager.playStarChime(i), delay));
+    }
+  }
+
+  private cancelStarChimes(): void {
+    for (const t of this.starChimeTimers) window.clearTimeout(t);
+    this.starChimeTimers.length = 0;
+  }
+
   private bindSimEvents(bus: EventBus): void {
     const { overlays } = this.d;
     this.unbindSound?.();
@@ -427,7 +524,29 @@ export class GameSession {
       getSimClock: () => this.simClockSec,
       onSyncUi: this.syncUi,
       onGameWon: (stars, livesRemaining) => {
-        recordWinProgress(this.progress, this.currentLevelIndex, stars);
+        // Island badges only for the island's own challenges (a Daily may use others).
+        const offered = challengesForLevel(LEVELS[this.currentLevelIndex]);
+        const masteredBefore = isIslandMastered(this.progress, this.currentLevelIndex, offered);
+        const featsBefore = earnedFeatIds(this.progress);
+        const record = recordWinProgress(
+          this.progress,
+          this.currentLevelIndex,
+          stars,
+          livesRemaining,
+          badgesForWin(offered, this.runConfig.challenges),
+        );
+        let dailyStreak = 0;
+        if (this.runConfig.daily !== null) {
+          const res = applyDailyWin(
+            this.progress.daily,
+            this.runConfig.daily,
+            utcDayNumber(Date.now()),
+          );
+          if (res.counted) {
+            dailyStreak = res.streak;
+            saveProgress(this.progress);
+          }
+        }
         this.deps?.content?.onLevelWon(this.currentLevelIndex);
         this.deps?.radial?.close();
         this.activeAbilityMode = null;
@@ -441,7 +560,33 @@ export class GameSession {
           this.simWorld.enemiesKilledTotal,
           this.currentLevelIndex + 1 < LEVELS.length,
           this.simWorld.getMvpTowerSummary(),
+          {
+            record,
+            startingLives: this.simWorld.startingLives,
+            unlockedName: record.unlockedIndex !== null ? LEVELS[record.unlockedIndex]?.name : undefined,
+            newChallengeNames: record.newChallenges.map((id) =>
+              isChallengeId(id) ? CHALLENGES[id].name : id,
+            ),
+            workshopStars:
+              affordableUpgradeCount(this.progress) > 0 ? starWallet(this.progress).available : 0,
+            dailyStreak,
+            newlyMastered:
+              !masteredBefore && isIslandMastered(this.progress, this.currentLevelIndex, offered),
+            newFeats: newlyEarnedFeats(featsBefore, this.progress),
+            shareText:
+              this.runConfig.daily !== null
+                ? dailyShareText({
+                    day: this.runConfig.daily,
+                    islandName: LEVELS[this.currentLevelIndex].name,
+                    challenges: this.runConfig.challenges,
+                    stars,
+                    livesLost: Math.max(0, this.simWorld.startingLives - livesRemaining),
+                    streak: dailyStreak,
+                  })
+                : undefined,
+          },
         );
+        this.scheduleStarChimes(stars);
         this.syncLoopAndInput();
         this.syncUi();
       },
@@ -452,29 +597,238 @@ export class GameSession {
         overlays.tooltip.hide();
         overlays.closeModals();
         const isEndless = Boolean(endless ?? this.simWorld.waveSystem.isEndless);
+        const level = LEVELS[this.currentLevelIndex];
+        let endlessResult: EndlessResultView | undefined;
         if (isEndless) {
-          recordEndlessProgress(this.progress, this.currentLevelIndex, waveIndex + 1);
+          const offset = waveIndex - level.waves.length;
+          if (offset >= 0) {
+            const featsBefore = earnedFeatIds(this.progress);
+            const rec = recordEndlessProgress(this.progress, this.currentLevelIndex, waveIndex + 1);
+            const tierBefore = endlessTier(rec.previousBest, level.waves.length);
+            const tierNow = endlessTier(rec.best, level.waves.length);
+            endlessResult = {
+              newTierName: tierNow > tierBefore ? ENDLESS_TIERS[tierNow - 1].name : undefined,
+              best: rec.best,
+              previousBest: rec.previousBest,
+              isNewBest: rec.isNewBest,
+              reachedEndless: true,
+              endlessWavesCleared: offset,
+              mutators: endlessMutatorsAt(offset, level.index).map((m) => m.name),
+              newFeats: newlyEarnedFeats(featsBefore, this.progress),
+            };
+          } else {
+            // Fell during the story waves of an island-card Endless run: no record.
+            const best = this.progress.bestEndlessWaves[this.currentLevelIndex] ?? 0;
+            endlessResult = {
+              best,
+              previousBest: best,
+              isNewBest: false,
+              reachedEndless: false,
+              endlessWavesCleared: 0,
+              mutators: [],
+            };
+          }
         }
-        overlays.outcomeOverlay.showLose(
-          LEVELS[this.currentLevelIndex],
-          waveIndex + 1,
-          this.simWorld.enemiesKilledTotal,
-          {
-            isEndless,
-            mvp: this.simWorld.getMvpTowerSummary(),
-            earnedStars: isEndless ? (this.progress.bestStars[this.currentLevelIndex] ?? 0) : 0,
-          },
-        );
+        overlays.outcomeOverlay.showLose(level, waveIndex + 1, this.simWorld.enemiesKilledTotal, {
+          isEndless,
+          mvp: this.simWorld.getMvpTowerSummary(),
+          earnedStars: isEndless ? (this.progress.bestStars[this.currentLevelIndex] ?? 0) : 0,
+          endless: endlessResult,
+          startingLives: this.simWorld.startingLives,
+          workshopStars:
+            !isEndless && affordableUpgradeCount(this.progress) > 0 ? starWallet(this.progress).available : 0,
+        });
         this.syncLoopAndInput();
         this.syncUi();
       },
     });
   }
 
-  showMenuView(target: 'menu' | 'levelSelect', reloadShowcase = false): void {
+  /** Where the Workshop's back button returns to. */
+  private workshopReturn: 'menu' | 'levelSelect' = 'menu';
+
+  /** How the current run was started (kept for Restart / Retry). */
+  private runConfig: RunConfig = { endless: false, challenges: [], daily: null };
+
+  /** Modifiers for a run: Workshop upgrades + the run's challenge toggles. */
+  buildRunModifiers(challenges: readonly ChallengeId[] = []): RunModifiers {
+    return runModifiersFor(workshopModifiers(this.progress.workshop), challenges);
+  }
+
+  /** Challenges currently active (empty for a normal run). */
+  getRunConfig(): Readonly<RunConfig> {
+    return this.runConfig;
+  }
+
+  /** Island select → card button: cleared islands open the briefing, new ones start at once. */
+  selectIsland(levelIndex: number): void {
+    this.soundManager.unlock();
+    const idx = Math.max(0, Math.min(LEVELS.length - 1, levelIndex));
+    if ((this.progress.clears[idx] ?? 0) > 0) {
+      this.d.overlays.islandBriefing.show(idx, this.progress);
+      return;
+    }
+    this.startLevel(idx);
+  }
+
+  /** Settings (menu) → Reset progress, after the in-dialog confirm. The old save is backed up. */
+  resetProgress(): void {
+    const fresh = resetProgressSave(LEVELS.length);
+    Object.assign(this.progress, fresh);
+    this.currentLevelIndex = 0;
+    this.runConfig = { endless: false, challenges: [], daily: null };
+    this.soundManager.playUiBack();
+    this.d.overlays.mainMenu.setOpen(this.viewMode === 'menu', this.progress);
+    this.d.overlays.toast.show('Progress reset — a backup of the old save was kept.', 3);
+  }
+
+  exportSaveCode(): string {
+    return encodeSaveCode(this.progress);
+  }
+
+  /** Settings → Save code → Load: merges a pasted save (best of both), backs up the old one. */
+  importSaveCode(code: string): { ok: boolean; message: string } {
+    const res = decodeSaveCode(code, LEVELS.length);
+    if (!res.ok) {
+      this.soundManager.playUiBack();
+      return { ok: false, message: res.error };
+    }
+    const merged = mergeProgress(this.progress, res.progress, LEVELS.length);
+    const gain = describeMergeGain(this.progress, merged);
+    backupProgressBeforeImport();
+    Object.assign(this.progress, merged);
+    saveProgress(this.progress);
+    this.soundManager.playUiConfirm();
+    this.d.overlays.mainMenu.setOpen(this.viewMode === 'menu', this.progress);
+    return { ok: true, message: `Loaded: ${gain}.` };
+  }
+
+  /** Today's Daily Squall (UTC day), or null until an island has been cleared. */
+  todaysDaily(): DailyChallenge | null {
+    const cleared: number[] = [];
+    for (let i = 0; i < LEVELS.length; i++) if ((this.progress.clears[i] ?? 0) > 0) cleared.push(i);
+    return dailyChallengeFor(utcDayNumber(Date.now()), cleared);
+  }
+
+  openDaily(): void {
+    this.soundManager.unlock();
+    this.d.overlays.daily.show(this.todaysDaily(), this.progress);
+  }
+
+  startDaily(shown?: DailyChallenge): void {
+    const d = shown ?? this.todaysDaily();
+    if (!d) return;
+    this.startLevel(d.levelIndex, { challenges: [...d.challenges], daily: d.day });
+  }
+
+  openLogbook(): void {
+    this.soundManager.unlock();
+    this.d.overlays.logbook.show(this.progress);
+  }
+
+  /** Escape outside gameplay: closes the island briefing, then backs out of the Workshop. */
+  onMenuEscape(): boolean {
     const { overlays } = this.d;
+    if (this.viewMode === 'playing') return false;
+    if (overlays.settingsModal.isOpen()) return false;
+    if (overlays.islandBriefing.isOpen()) {
+      overlays.islandBriefing.close();
+      return true;
+    }
+    if (overlays.logbook.isOpen()) {
+      overlays.logbook.hide();
+      return true;
+    }
+    if (overlays.daily.isOpen()) {
+      overlays.daily.hide();
+      return true;
+    }
+    if (this.viewMode === 'workshop') {
+      this.closeWorkshop();
+      return true;
+    }
+    return false;
+  }
+
+  /** Restart / Retry: same island, same mode and challenges. */
+  restartLevel(): void {
+    this.startLevel(this.currentLevelIndex, this.runConfig);
+  }
+
+  /** Banned towers can't be picked from the build bar / hotkeys; the radial ring greys them via CSS. */
+  private isBanned(type: TowerType): boolean {
+    if (!this.simWorld.isTowerBanned(type)) return false;
+    this.d.overlays.toast.show(`${TOWER_DEFS[type].name} is off-limits in this challenge`, 2.5);
+    return true;
+  }
+
+  private applyBannedTowerMarkers(): void {
+    const banned = this.viewMode === 'playing' ? this.simWorld.mods.bannedTowers : [];
+    if (banned.length > 0) document.documentElement.dataset.bannedTowers = banned.join(' ');
+    else delete document.documentElement.dataset.bannedTowers;
+  }
+
+  private announceRun(): void {
+    const level = LEVELS[this.currentLevelIndex];
+    const { challenges, endless, daily } = this.runConfig;
+    if (daily !== null) {
+      const names = challenges.map((id) => CHALLENGES[id].name).join(' + ');
+      const today = utcDayNumber(Date.now());
+      const done = this.progress.daily.lastDay === daily || daily < today - 1;
+      this.d.overlays.toast.show(
+        `Daily Squall: ${names}${done ? ' — no daily star this time' : ' — win for +1★ (badges extra)'}`,
+        5,
+      );
+    } else if (challenges.length > 0) {
+      const names = challenges.map((id) => CHALLENGES[id].name).join(' + ');
+      this.d.overlays.toast.show(`Challenge: ${names} — win for +${challenges.length}★`, 5);
+    } else if (endless) {
+      const best = this.progress.bestEndlessWaves[this.currentLevelIndex] ?? 0;
+      this.d.overlays.toast.show(
+        `Endless on ${level.name}${best > 0 ? ` · best wave ${best}` : ''} — a new mutator joins every ${ENDLESS_MUTATOR_INTERVAL} endless waves`,
+        5,
+      );
+    }
+  }
+
+  openWorkshop(from: 'menu' | 'levelSelect'): void {
+    this.workshopReturn = from;
+    this.showMenuView('workshop');
+  }
+
+  /** From a results card: tear the finished run down and open the Workshop (Back → islands). */
+  openWorkshopFromRun(): void {
+    this.soundManager.unlock();
+    this.workshopReturn = 'levelSelect';
+    this.showMenuView('workshop', true);
+  }
+
+  closeWorkshop(): void {
+    this.showMenuView(this.workshopReturn);
+  }
+
+  buyWorkshopUpgrade(id: WorkshopUpgradeId): boolean {
+    this.soundManager.unlock();
+    const next = buyRank(this.progress.workshop, id, starWallet(this.progress).available);
+    if (!next) return false;
+    this.progress.workshop = next;
+    saveProgress(this.progress);
+    this.soundManager.playUiConfirm();
+    return true;
+  }
+
+  refundWorkshop(): void {
+    this.soundManager.unlock();
+    this.progress.workshop = {};
+    saveProgress(this.progress);
+    this.soundManager.playUiBack();
+  }
+
+  showMenuView(target: 'menu' | 'levelSelect' | 'workshop', reloadShowcase = false): void {
+    const { overlays } = this.d;
+    let feats: FeatDef[] = [];
     if (reloadShowcase) {
-      this.recordEndlessIfActive();
+      feats = this.recordEndlessIfActive();
       this.clearTransientPlayState();
       this.events.clear();
       this.events = new EventBus();
@@ -483,26 +837,48 @@ export class GameSession {
     }
     this.viewMode = target;
     this.deps?.content?.onLeavePlay();
+    this.applyBannedTowerMarkers();
     overlays.closeModals();
     overlays.mainMenu.setOpen(target === 'menu', this.progress);
     overlays.levelSelect.setOpen(target === 'levelSelect', this.progress);
+    overlays.workshop.setOpen(target === 'workshop', this.progress);
     this.renderWorld.cameraController.setShowcaseMode(true);
     this.syncLoopAndInput();
     this.syncUi();
+    this.announceFeats(feats);
   }
 
-  startLevel(levelIndex: number): void {
+  startLevel(levelIndex: number, config: Partial<RunConfig> = {}): void {
     const { overlays, loop } = this.d;
-    this.recordEndlessIfActive();
+    const feats = this.recordEndlessIfActive();
     this.currentLevelIndex = Math.max(0, Math.min(LEVELS.length - 1, levelIndex));
     const level = LEVELS[this.currentLevelIndex];
+    // Challenges and island-card Endless unlock after the first clear.
+    const cleared = (this.progress.clears[this.currentLevelIndex] ?? 0) > 0;
+    this.runConfig = resolveRunConfig(level, cleared, config);
     this.clearTransientPlayState();
     this.events.clear();
     this.events = new EventBus();
-    this.simWorld = new SimWorld(level, this.events);
+    this.simWorld = new SimWorld(level, this.events, this.buildRunModifiers(this.runConfig.challenges));
+    if (this.runConfig.endless) this.simWorld.startEndlessFromStart();
     this.simWorld.setAutoWave(this.autoWaveEnabled);
     this.bindSimEvents(this.events);
     this.deps?.content?.bindLevel(this.events, level, this.currentLevelIndex);
+    // Read once per run: the record only changes when this run ends.
+    const endlessBest = this.progress.bestEndlessWaves[this.currentLevelIndex] ?? 0;
+    this.events.on('waveStarted', (ev) => {
+      if (!ev.endless) return;
+      const mut = newEndlessMutatorAt(ev.waveIndex - level.waves.length, level.index);
+      const best = isEndlessBestCrossing(endlessBest, ev.waveIndex + 1);
+      if (best) this.soundManager.playStarChime(2);
+      else if (mut) this.soundManager.playBossPulse();
+      if (best || mut) {
+        const parts: string[] = [];
+        if (best) parts.push(`New best — past wave ${endlessBest}!`);
+        if (mut) parts.push(`Mutator: ${mut.name} — ${mut.description}`);
+        this.d.overlays.toast.show(parts.join(' · '), 4);
+      }
+    });
     this.renderWorld.cameraController.setShowcaseMode(false);
     this.renderWorld.loadLevel(level, this.events, () => this.settings);
     this.quality.rearm();
@@ -512,7 +888,11 @@ export class GameSession {
     loop.speed = 1;
     overlays.mainMenu.setOpen(false);
     overlays.levelSelect.setOpen(false);
+    overlays.workshop.setOpen(false);
     overlays.closeModals();
+    this.applyBannedTowerMarkers();
+    this.announceRun();
+    this.announceFeats(feats);
     this.refreshPlacementPreview();
     this.syncLoopAndInput();
     this.syncUi();
@@ -533,6 +913,7 @@ export class GameSession {
     const { overlays } = this.d;
     overlays.settingsModal.setOpen(false);
     if (this.settingsOrigin === 'pause') {
+      overlays.pauseMenu.setRunInfo(this.pauseRunInfo());
       overlays.pauseMenu.setOpen(true, this.pauseSubtitle());
     }
     this.syncLoopAndInput();
@@ -544,6 +925,7 @@ export class GameSession {
     if (this.viewMode !== 'playing' || overlays.outcomeOverlay.isOpen()) return;
     overlays.tooltip.hide();
     overlays.settingsModal.setOpen(false);
+    overlays.pauseMenu.setRunInfo(this.pauseRunInfo());
     overlays.pauseMenu.setOpen(true, this.pauseSubtitle());
     this.syncLoopAndInput();
     this.syncUi();
@@ -850,7 +1232,8 @@ export class GameSession {
   onHotkeyTower(index: number): void {
     this.soundManager.unlock();
     const type = TOWER_TYPES[index];
-    if (type) this.setPlacementMode(this.activePlacementType === type ? null : type);
+    if (!type || (this.activePlacementType !== type && this.isBanned(type))) return;
+    this.setPlacementMode(this.activePlacementType === type ? null : type);
   }
 
   fixedTick(dt: number): void {

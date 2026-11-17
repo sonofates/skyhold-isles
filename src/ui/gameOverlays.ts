@@ -13,9 +13,16 @@ import { OutcomeOverlay, PauseMenuModal } from './gameModals.ts';
 import { HudBar, type HudStateView } from './hud.ts';
 import { LevelSelectOverlay, MainMenuOverlay } from './menus.ts';
 import { SettingsModal } from './settingsModal.ts';
+import type { SaveCodeCallbacks } from './saveCodePanel.ts';
 import { GameToast } from './toast.ts';
 import { EnemyTooltip } from './tooltip.ts';
 import { TowerPanel } from './towerPanel.ts';
+import { WorkshopOverlay } from './workshop.ts';
+import { IslandBriefingModal, type BriefingStartConfig } from './islandBriefing.ts';
+import { LogbookModal } from './logbook.ts';
+import { DailyModal } from './daily.ts';
+import type { DailyChallenge } from '../data/daily.ts';
+import type { WorkshopUpgradeId } from '../data/workshop.ts';
 
 export interface GameOverlayCallbacks {
   initialSettings: GameSettings;
@@ -45,6 +52,20 @@ export interface GameOverlayCallbacks {
   onMainMenuFromPause: () => void;
   onNextLevel: () => void;
   onEndlessMode: () => void;
+  // Campaign / meta screens (kept above the settings callbacks: other branches append after them).
+  onOpenWorkshop: (from: 'menu' | 'levelSelect') => void;
+  /** Results card Workshop chip: leaves the finished run for the Workshop. */
+  onOpenWorkshopFromRun?: () => void;
+  onWorkshopBuy: (id: WorkshopUpgradeId) => boolean;
+  onWorkshopRefundAll: () => void;
+  onWorkshopBack: () => void;
+  onBriefingStart: (levelIndex: number, config: BriefingStartConfig) => void;
+  onBriefingToggle?: (on: boolean) => void;
+  onResetProgress?: () => void;
+  saveCode?: SaveCodeCallbacks;
+  onOpenLogbook?: () => void;
+  onOpenDaily?: () => void;
+  onStartDaily?: (daily: DailyChallenge) => void;
   onSettingsChange: (next: GameSettings) => void;
   onSettingsClose: () => void;
   onReplayTutorial?: () => void;
@@ -63,6 +84,10 @@ export class GameOverlays {
   readonly pauseMenu: PauseMenuModal;
   readonly outcomeOverlay: OutcomeOverlay;
   readonly settingsModal: SettingsModal;
+  readonly workshop: WorkshopOverlay;
+  readonly islandBriefing: IslandBriefingModal;
+  readonly logbook: LogbookModal;
+  readonly daily: DailyModal;
   private readonly pauseBanner: HTMLDivElement;
 
   constructor(uiRoot: HTMLElement, cb: GameOverlayCallbacks) {
@@ -102,12 +127,32 @@ export class GameOverlays {
       onPlay: cb.onPlayFromMenu,
       onOpenLevelSelect: cb.onOpenLevelSelectFromMenu,
       onOpenSettings: cb.onOpenSettingsFromMenu,
+      onOpenWorkshop: () => cb.onOpenWorkshop('menu'),
+      onOpenDaily: () => cb.onOpenDaily?.(),
+      onOpenLogbook: () => cb.onOpenLogbook?.(),
     });
 
     this.levelSelect = new LevelSelectOverlay(uiRoot, {
       onSelectLevel: cb.onSelectLevel,
       onBack: cb.onBackFromLevelSelect,
+      onOpenWorkshop: () => cb.onOpenWorkshop('levelSelect'),
+      onOpenLogbook: () => cb.onOpenLogbook?.(),
     });
+
+    this.workshop = new WorkshopOverlay(uiRoot, {
+      onBuy: cb.onWorkshopBuy,
+      onRefundAll: cb.onWorkshopRefundAll,
+      onBack: cb.onWorkshopBack,
+    });
+
+    this.islandBriefing = new IslandBriefingModal(uiRoot, {
+      onStart: cb.onBriefingStart,
+      onClose: () => {},
+      onToggleSound: cb.onBriefingToggle,
+    });
+
+    this.logbook = new LogbookModal(uiRoot);
+    this.daily = new DailyModal(uiRoot, { onStart: (d) => cb.onStartDaily?.(d) });
 
     this.pauseMenu = new PauseMenuModal(uiRoot, {
       onResume: cb.onResumeFromPause,
@@ -125,10 +170,13 @@ export class GameOverlays {
       onReplay: cb.onRestartLevel,
       onLevelSelect: cb.onOpenLevelSelectFromPause,
       onMainMenu: cb.onMainMenuFromPause,
+      onOpenWorkshop: cb.onOpenWorkshopFromRun,
     });
 
     this.settingsModal = new SettingsModal(uiRoot, cb.initialSettings, {
       onChange: cb.onSettingsChange,
+      onResetProgress: cb.onResetProgress,
+      saveCode: cb.saveCode,
       onRestart: cb.onRestartLevel,
       onQuitToMenu: cb.onMainMenuFromPause,
       onReplayTutorial: cb.onReplayTutorial,
@@ -145,6 +193,9 @@ export class GameOverlays {
   }
 
   closeModals(): void {
+    this.islandBriefing.hide();
+    this.logbook.hide();
+    this.daily.hide();
     this.pauseMenu.setOpen(false);
     this.settingsModal.setOpen(false);
     this.outcomeOverlay.hide();
@@ -183,6 +234,10 @@ export class GameOverlays {
     this.towerPanel.dispose();
     this.mainMenu.dispose();
     this.levelSelect.dispose();
+    this.workshop.dispose();
+    this.islandBriefing.dispose();
+    this.logbook.dispose();
+    this.daily.dispose();
     this.pauseMenu.dispose();
     this.outcomeOverlay.dispose();
     this.settingsModal.dispose();

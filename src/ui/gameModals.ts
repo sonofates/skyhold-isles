@@ -1,8 +1,67 @@
 import type { TowerMvpSummary } from '../core/types.ts';
 import { BALANCE } from '../data/balance.ts';
 import type { LevelDef } from '../data/levels/index.ts';
+import { describeStarGoals } from '../data/stars.ts';
+import type { FeatDef } from '../game/feats.ts';
+import type { WinRecord } from '../game/progression.ts';
+import { featCalloutChips } from './feats.ts';
 import { TOWER_ICON_SVGS, UI_ICON_SVGS } from './icons.ts';
-import { renderStarsHtml } from './menus.ts';
+import { MASTERED_CROWN_SVG, renderStarsHtml } from './menus.ts';
+import './styles/starReveal.css';
+import { WORKSHOP_ICON_SVG } from './workshop.ts';
+
+/** When each victory star stamps in (ms after the card opens); the session plays chimes in sync. */
+export const STAR_REVEAL_DELAYS_MS: readonly number[] = [650, 1000, 1350];
+
+/** Victory stars: empty slots first, then each earned star stamps in; stars beyond the old best get a NEW tag. */
+export function renderStarRevealHtml(stars: number, previousBest: number): string {
+  let out = '';
+  for (let i = 1; i <= 3; i++) {
+    const earned = i <= stars;
+    const isNew = earned && i > previousBest;
+    const delay = STAR_REVEAL_DELAYS_MS[i - 1] ?? 0;
+    out += `<span class="star-slot${earned ? ' earned' : ' empty'}${isNew ? ' star-new' : ''}" style="--reveal-delay:${delay}ms">`;
+    out += `<span class="star-layer star-layer-empty">${UI_ICON_SVGS.starEmpty}</span>`;
+    if (earned) {
+      out += `<span class="star-burst"></span><span class="star-layer star-layer-fill">${UI_ICON_SVGS.star}</span>`;
+      if (isNew && previousBest > 0) out += `<span class="star-new-tag">NEW</span>`;
+    }
+    out += '</span>';
+  }
+  return out;
+}
+
+/** Endless results card data (built by the session from the run + saved record). */
+export interface EndlessResultView {
+  readonly best: number;
+  readonly previousBest: number;
+  readonly isNewBest: boolean;
+  /** False when the run fell during the island's story waves (no endless record then). */
+  readonly reachedEndless: boolean;
+  readonly endlessWavesCleared: number;
+  readonly mutators: readonly string[];
+  /** Endless medal tier reached for the first time by this run (e.g. "Silver"). */
+  readonly newTierName?: string;
+  /** Feats this run earned (endless medals can complete Storm Chaser). */
+  readonly newFeats?: readonly FeatDef[];
+}
+
+const COPY_ICON_SVG = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="8" y="8" width="11" height="12" rx="1.5" stroke="currentColor" stroke-width="2.2"/><path d="M5 15V5.5C5 4.7 5.7 4 6.5 4H15" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>`;
+
+/** Clipboard copy for the Daily result chip; falls back to a prompt-free "select it" message. */
+async function copyShareText(btn: HTMLButtonElement, text: string): Promise<void> {
+  const label = btn.querySelector('span');
+  try {
+    await navigator.clipboard.writeText(text);
+    if (label) label.textContent = 'Copied!';
+  } catch {
+    if (label) label.textContent = 'Copy not allowed here';
+  }
+}
+
+function escapeHtml(text: string): string {
+  return text.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+}
 
 function tierToRoman(tier: 1 | 2 | 3): string {
   return tier === 3 ? 'III' : tier === 2 ? 'II' : 'I';
@@ -32,6 +91,7 @@ export interface PauseMenuCallbacks {
 export class PauseMenuModal {
   private readonly backdrop: HTMLDivElement;
   private readonly subtitleEl: HTMLDivElement;
+  private readonly runInfoEl: HTMLDivElement;
   private readonly autoBtn: HTMLButtonElement;
   private readonly lanesBtn: HTMLButtonElement;
   private open = false;
@@ -103,7 +163,11 @@ export class PauseMenuModal {
 
     stack.append(makeBtn('Resume', UI_ICON_SVGS.play, 'green', callbacks.onResume, 'btn-pause-resume'), toggles, tiles);
 
-    card.append(title, this.subtitleEl, stack);
+    this.runInfoEl = document.createElement('div');
+    this.runInfoEl.className = 'pause-run-info hidden';
+    this.runInfoEl.setAttribute('data-testid', 'pause-run-info');
+
+    card.append(title, this.subtitleEl, this.runInfoEl, stack);
     this.backdrop.appendChild(card);
     parent.appendChild(this.backdrop);
   }
@@ -114,6 +178,12 @@ export class PauseMenuModal {
       this.subtitleEl.textContent = levelLabel;
     }
     this.backdrop.classList.toggle('hidden', !open);
+  }
+
+  /** Run details under the subtitle: star goal progress, or endless mutators (HTML; null hides). */
+  setRunInfo(html: string | null): void {
+    this.runInfoEl.classList.toggle('hidden', !html);
+    this.runInfoEl.innerHTML = html ?? '';
   }
 
   setToggles(autoWave: boolean, routesVisible: boolean): void {
@@ -138,6 +208,8 @@ export interface OutcomeCallbacks {
   onReplay: () => void;
   onLevelSelect: () => void;
   onMainMenu: () => void;
+  /** "Workshop: N★ to spend" chip → leave the run and open the Workshop. */
+  onOpenWorkshop?: () => void;
 }
 
 export class OutcomeOverlay {
@@ -146,6 +218,11 @@ export class OutcomeOverlay {
   private readonly titleEl: HTMLDivElement;
   private readonly subEl: HTMLDivElement;
   private readonly starsEl: HTMLDivElement;
+  private readonly calloutsEl: HTMLDivElement;
+  /** Daily Squall result line for the "Copy result" chip (empty = no chip). */
+  private shareText = '';
+  private readonly canOpenWorkshop: boolean;
+  private readonly goalsEl: HTMLDivElement;
   private readonly statsEl: HTMLDivElement;
   private readonly mvpEl: HTMLDivElement;
   private readonly nextBtn: HTMLButtonElement;
@@ -154,6 +231,7 @@ export class OutcomeOverlay {
   private open = false;
 
   constructor(parent: HTMLElement, callbacks: OutcomeCallbacks) {
+    this.canOpenWorkshop = callbacks.onOpenWorkshop !== undefined;
     this.backdrop = document.createElement('div');
     this.backdrop.className = 'modal-backdrop hidden ui-interactive';
 
@@ -171,6 +249,18 @@ export class OutcomeOverlay {
 
     this.starsEl = document.createElement('div');
     this.starsEl.className = 'outcome-stars';
+
+    this.calloutsEl = document.createElement('div');
+    this.calloutsEl.className = 'outcome-callouts';
+    this.calloutsEl.addEventListener('click', (e) => {
+      const target = e.target as HTMLElement;
+      const btn = target.closest<HTMLButtonElement>('.callout-share');
+      if (btn && this.shareText) void copyShareText(btn, this.shareText);
+      if (target.closest('.callout-workshop-btn')) callbacks.onOpenWorkshop?.();
+    });
+
+    this.goalsEl = document.createElement('div');
+    this.goalsEl.className = 'outcome-star-goals hidden';
 
     this.statsEl = document.createElement('div');
     this.statsEl.className = 'outcome-stats';
@@ -215,7 +305,17 @@ export class OutcomeOverlay {
     tileRow.className = 'pause-tiles';
     tileRow.append(levelsBtn, menuBtn);
     actions.append(this.nextBtn, this.endlessBtn, this.replayBtn, tileRow);
-    card.append(this.badgeEl, this.titleEl, this.subEl, this.starsEl, this.statsEl, this.mvpEl, actions);
+    card.append(
+      this.badgeEl,
+      this.titleEl,
+      this.subEl,
+      this.starsEl,
+      this.calloutsEl,
+      this.goalsEl,
+      this.statsEl,
+      this.mvpEl,
+      actions,
+    );
     this.backdrop.appendChild(card);
     parent.appendChild(this.backdrop);
   }
@@ -270,16 +370,54 @@ export class OutcomeOverlay {
     enemiesKilled: number,
     hasNext: boolean,
     mvp?: TowerMvpSummary | null,
+    extras?: {
+      record?: WinRecord;
+      startingLives?: number;
+      unlockedName?: string;
+      /** Challenges completed for the first time by this win. */
+      newChallengeNames?: readonly string[];
+      /** Stars available in the Workshop when at least one upgrade is affordable (0 = no chip). */
+      workshopStars?: number;
+      /** Daily Squall streak after this win (0 = not a counted daily). */
+      dailyStreak?: number;
+      /** This win completed the island (3 stars + every challenge). */
+      newlyMastered?: boolean;
+      /** Feats this win earned (shown last, after the unlock / Workshop chips). */
+      newFeats?: readonly FeatDef[];
+      /** Daily Squall result line: adds a "Copy result" chip. */
+      shareText?: string;
+    },
   ): void {
     this.open = true;
+    const record = extras?.record;
+    const startingLives = extras?.startingLives ?? BALANCE.startingLives;
+    this.shareText = extras?.shareText ?? '';
     this.badgeEl.className = 'outcome-badge outcome-badge-win';
     this.badgeEl.textContent = 'Island defended';
     this.titleEl.textContent = 'Victory';
     this.subEl.textContent = level.name;
-    this.starsEl.innerHTML = renderStarsHtml(stars);
+    this.starsEl.className = 'outcome-stars star-reveal';
+    this.starsEl.innerHTML = renderStarRevealHtml(stars, record?.previousBestStars ?? 0);
     this.starsEl.classList.remove('hidden');
+    this.renderCallouts(
+      stars,
+      record,
+      extras?.unlockedName,
+      extras?.newChallengeNames ?? [],
+      extras?.workshopStars ?? 0,
+      extras?.dailyStreak ?? 0,
+      extras?.newlyMastered === true,
+      extras?.newFeats ?? [],
+    );
+    if (stars < 3) {
+      const goals = describeStarGoals(level.difficulty);
+      this.goalsEl.innerHTML = `${level.difficulty}: <b>3★</b> ${goals.three} · <b>2★</b> ${goals.two}`;
+      this.goalsEl.classList.remove('hidden');
+    } else {
+      this.goalsEl.classList.add('hidden');
+    }
     this.statsEl.innerHTML = `
-      <div class="outcome-stat"><span>Lives</span><strong>${livesRemaining} / ${BALANCE.startingLives}</strong></div>
+      <div class="outcome-stat"><span>Lives</span><strong>${livesRemaining} / ${startingLives}</strong></div>
       <div class="outcome-stat"><span>Waves</span><strong>${level.waves.length} / ${level.waves.length}</strong></div>
       <div class="outcome-stat"><span>Foes</span><strong>${enemiesKilled}</strong></div>
     `;
@@ -291,6 +429,53 @@ export class OutcomeOverlay {
     this.backdrop.classList.remove('hidden');
   }
 
+  private renderCallouts(
+    stars: number,
+    record: WinRecord | undefined,
+    unlockedName: string | undefined,
+    challengeNames: readonly string[],
+    workshopStars: number,
+    dailyStreak: number,
+    newlyMastered: boolean,
+    newFeats: readonly FeatDef[],
+  ): void {
+    const chips: string[] = [];
+    let delay = (STAR_REVEAL_DELAYS_MS[Math.max(0, stars - 1)] ?? 0) + 380;
+    const chip = (cls: string, icon: string, text: string): void => {
+      chips.push(
+        `<span class="outcome-callout ${cls}" style="--reveal-delay:${delay}ms">${icon}<span>${escapeHtml(text)}</span></span>`,
+      );
+      delay += 160;
+    };
+    if (record) {
+      if (record.firstClear) chip('callout-first', UI_ICON_SVGS.star, 'First clear!');
+      else if (record.starsGained > 0) chip('callout-best', UI_ICON_SVGS.star, `+${record.starsGained}★ new best`);
+      else if (record.newBestLives) chip('callout-best', UI_ICON_SVGS.heart, 'Best defence yet');
+    }
+    if (newlyMastered) chip('callout-mastered', MASTERED_CROWN_SVG, 'Island mastered!');
+    if (dailyStreak > 0) {
+      chip('callout-daily', UI_ICON_SVGS.star, `Daily Squall +1★${dailyStreak > 1 ? ` · ${dailyStreak}-day streak` : ''}`);
+    }
+    for (const name of challengeNames) chip('callout-challenge', UI_ICON_SVGS.star, `${name} +1★`);
+    if (unlockedName) chip('callout-unlock', UI_ICON_SVGS.islands, `${unlockedName} unlocked`);
+    if (workshopStars > 0) chips.push(this.workshopChipHtml(workshopStars, delay));
+    chips.push(...featCalloutChips(newFeats, delay));
+    if (this.shareText) {
+      chips.push(
+        `<button type="button" class="outcome-callout callout-share" data-testid="btn-share-daily" style="--reveal-delay:${delay + newFeats.length * 160}ms">${COPY_ICON_SVG}<span>Copy result</span></button>`,
+      );
+    }
+    this.calloutsEl.innerHTML = chips.join('');
+  }
+
+  /** Workshop chip: a button when the overlay can open the Workshop, a plain chip otherwise. */
+  private workshopChipHtml(stars: number, delayMs: number): string {
+    const inner = `${WORKSHOP_ICON_SVG}<span>Workshop: ${stars}★ to spend</span>`;
+    return this.canOpenWorkshop
+      ? `<button type="button" class="outcome-callout callout-workshop callout-workshop-btn" data-testid="btn-outcome-workshop" style="--reveal-delay:${delayMs}ms">${inner}<span class="callout-go" aria-hidden="true">›</span></button>`
+      : `<span class="outcome-callout callout-workshop" style="--reveal-delay:${delayMs}ms">${inner}</span>`;
+  }
+
   showLose(
     level: LevelDef,
     waveOneBased: number,
@@ -299,23 +484,56 @@ export class OutcomeOverlay {
       isEndless?: boolean;
       mvp?: TowerMvpSummary | null;
       earnedStars?: number;
+      endless?: EndlessResultView;
+      startingLives?: number;
+      /** Stars available when an upgrade is affordable (campaign defeats point to the Workshop). */
+      workshopStars?: number;
     },
   ): void {
     this.open = true;
     const waveReached = Math.max(1, waveOneBased);
     const isEndless = Boolean(options?.isEndless);
     const earnedStars = options?.earnedStars ?? 0;
+    const startingLives = options?.startingLives ?? BALANCE.startingLives;
+    this.starsEl.className = 'outcome-stars';
+    this.shareText = '';
+    this.calloutsEl.innerHTML = '';
+    this.goalsEl.classList.add('hidden');
 
     if (isEndless) {
-      this.badgeEl.className = 'outcome-badge outcome-badge-lose outcome-badge-endless';
-      this.badgeEl.textContent = 'Endless over';
-      this.titleEl.textContent = 'Endless Fallen';
-      this.subEl.textContent = `${level.name} · wave ${waveReached}`;
-      this.starsEl.innerHTML = renderStarsHtml(earnedStars);
-      this.starsEl.classList.remove('hidden');
+      const res = options?.endless;
+      this.badgeEl.className = 'outcome-badge outcome-badge-endless';
+      this.badgeEl.textContent = `Endless · ${level.name}`;
+      this.titleEl.textContent = `Wave ${waveReached}`;
+      this.subEl.textContent = res
+        ? !res.reachedEndless
+          ? `Fell on story wave ${waveReached}/${level.waves.length}${res.best > 0 ? ` · best W${res.best}` : ''}`
+          : res.isNewBest
+          ? res.previousBest > 0
+            ? `New personal best (was wave ${res.previousBest})`
+            : 'First endless record on this island'
+          : `Personal best: wave ${res.best}`
+        : 'The sanctuary finally fell';
+      this.starsEl.classList.add('hidden');
+      const chips: string[] = [];
+      if (res?.isNewBest) {
+        chips.push(`<span class="outcome-callout callout-best" style="--reveal-delay:350ms">${UI_ICON_SVGS.star}<span>New best!</span></span>`);
+      }
+      if (res?.newTierName) {
+        chips.push(
+          `<span class="outcome-callout callout-tier tier-${escapeHtml(res.newTierName.toLowerCase())}" style="--reveal-delay:520ms">${UI_ICON_SVGS.autoWave}<span>${escapeHtml(res.newTierName)} endless medal</span></span>`,
+        );
+      }
+      chips.push(...featCalloutChips(res?.newFeats ?? [], 690));
+      this.calloutsEl.innerHTML = chips.join('');
+      if (res && res.mutators.length > 0) {
+        const chips = res.mutators.map((m) => `<span class="endless-mutator-chip">${escapeHtml(m)}</span>`).join('');
+        this.goalsEl.innerHTML = `<span class="endless-mutators-label">Mutators faced</span>${chips}`;
+        this.goalsEl.classList.remove('hidden');
+      }
       this.statsEl.innerHTML = `
-        <div class="outcome-stat"><span>Lives</span><strong>0 / ${BALANCE.startingLives}</strong></div>
-        <div class="outcome-stat"><span>Wave</span><strong>Wave ${waveReached} ∞</strong></div>
+        <div class="outcome-stat"><span>Endless waves</span><strong>${res?.endlessWavesCleared ?? 0}</strong></div>
+        <div class="outcome-stat"><span>Best</span><strong>${res && res.best > 0 ? `W${res.best}` : '–'}</strong></div>
         <div class="outcome-stat"><span>Foes</span><strong>${enemiesKilled}</strong></div>
       `;
     } else {
@@ -326,10 +544,12 @@ export class OutcomeOverlay {
       this.starsEl.innerHTML = renderStarsHtml(earnedStars);
       this.starsEl.classList.remove('hidden');
       this.statsEl.innerHTML = `
-        <div class="outcome-stat"><span>Lives</span><strong>0 / ${BALANCE.startingLives}</strong></div>
+        <div class="outcome-stat"><span>Lives</span><strong>0 / ${startingLives}</strong></div>
         <div class="outcome-stat"><span>Wave</span><strong>${waveReached} / ${level.waves.length}</strong></div>
         <div class="outcome-stat"><span>Foes</span><strong>${enemiesKilled}</strong></div>
       `;
+      const ws = options?.workshopStars ?? 0;
+      if (ws > 0) this.calloutsEl.innerHTML = this.workshopChipHtml(ws, 300);
     }
 
     this.renderMvp(options?.mvp);

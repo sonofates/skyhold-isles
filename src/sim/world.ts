@@ -2,7 +2,10 @@ import type { EventBus } from '../core/eventBus.ts';
 import { ObjectPool } from '../core/pool.ts';
 import type { TargetingMode, TowerMvpSummary, TowerType } from '../core/types.ts';
 import { BALANCE } from '../data/balance.ts';
+import { championLevel } from '../data/champions.ts';
 import type { LevelDef } from '../data/levels/index.ts';
+import { NEUTRAL_RUN_MODIFIERS, type RunModifiers } from '../data/runModifiers.ts';
+import { computeStarsForLivesLost, type Difficulty } from '../data/stars.ts';
 import { getTowerTierStats, TOWER_DEFS } from '../data/towers.ts';
 import { AbilitySystem } from './abilitySystem.ts';
 import { CombatSystem } from './combatSystem.ts';
@@ -26,10 +29,16 @@ export function computeSellRefund(totalInvested: number): number {
   return Math.round(totalInvested * BALANCE.sellRefundRatio);
 }
 
-export function computeStarRating(livesRemaining: number): 1 | 2 | 3 {
-  if (livesRemaining >= BALANCE.starThresholds.threeStarsMinLives) return 3;
-  if (livesRemaining >= BALANCE.starThresholds.twoStarsMinLives) return 2;
-  return 1;
+/**
+ * Star rating for a win: based on lives LOST against the island's difficulty table
+ * (`src/data/stars.ts`). Defaults reproduce the classic 20-life Breezy rule (18+ left = 3★, 10+ = 2★).
+ */
+export function computeStarRating(
+  livesRemaining: number,
+  difficulty: Difficulty = 'Breezy',
+  startingLives: number = BALANCE.startingLives,
+): 1 | 2 | 3 {
+  return computeStarsForLivesLost(startingLives - livesRemaining, difficulty);
 }
 
 export class SimWorld {
@@ -48,18 +57,25 @@ export class SimWorld {
   readonly waveSystem: WaveSystem;
   readonly abilitySystem: AbilitySystem;
   readonly events: EventBus;
+  /** Workshop upgrades + challenge toggles applied to this run (neutral = classic rules). */
+  readonly mods: RunModifiers;
 
   readonly towers: TowerEntity[] = [];
   private nextTowerId = 1;
 
   gold: number;
   lives: number;
+  /** Lives this run started with (stars are rated on lives lost from here). */
+  readonly startingLives: number;
   enemiesKilledTotal = 0;
   outcome: 'ongoing' | 'won' | 'lost' = 'ongoing';
 
-  constructor(level: LevelDef, events: EventBus) {
+  constructor(baseLevel: LevelDef, events: EventBus, mods: RunModifiers = NEUTRAL_RUN_MODIFIERS) {
+    // Champion Host rewrites the story waves (a copy; the shared level data stays untouched).
+    const level = mods.championWaves ? championLevel(baseLevel) : baseLevel;
     this.level = level;
     this.events = events;
+    this.mods = mods;
     this.grid = new MapGrid(level);
 
     this.groundPath = new CompiledPath(
@@ -113,8 +129,26 @@ export class SimWorld {
     this.waveSystem = new WaveSystem(level, events);
     this.abilitySystem = new AbilitySystem(events);
 
-    this.gold = level.startingGold;
-    this.lives = BALANCE.startingLives;
+    this.abilitySystem.cooldownMul = mods.abilityCooldownMul;
+    this.combatSystem.towerRateMul = mods.towerFireRateMul;
+    this.enemySystem.speedMul = mods.enemySpeedMul;
+
+    this.gold = Math.max(0, Math.round(level.startingGold * mods.startGoldMul) + mods.startGoldBonus);
+    this.startingLives = Math.max(
+      1,
+      mods.maxLives !== null ? mods.maxLives : BALANCE.startingLives + mods.bonusLives,
+    );
+    this.lives = this.startingLives;
+  }
+
+  private scaleWaveBonus(bonus: number): number {
+    const mul = this.mods.waveBonusMul;
+    return mul === 1 ? bonus : Math.max(0, Math.round(bonus * mul));
+  }
+
+  /** Star rating the run would earn if it were won right now. */
+  computeStars(): 1 | 2 | 3 {
+    return computeStarRating(this.lives, this.level.difficulty, this.startingLives);
   }
 
   setAutoWave(enabled: boolean): void {
@@ -123,7 +157,11 @@ export class SimWorld {
 
   /** Abilities are only usable once the first wave has started (mirrors the HUD guard). */
   private canUseAbilities(): boolean {
-    return this.outcome === 'ongoing' && this.waveSystem.state !== 'preFirstWave';
+    return (
+      !this.mods.abilitiesDisabled &&
+      this.outcome === 'ongoing' &&
+      this.waveSystem.state !== 'preFirstWave'
+    );
   }
 
   castMeteor(x: number, z: number): boolean {
@@ -134,6 +172,13 @@ export class SimWorld {
   castOvercharge(): boolean {
     if (!this.canUseAbilities()) return false;
     return this.abilitySystem.castOvercharge(this.towers);
+  }
+
+  /** Island card → Endless: the whole run is endless from wave 1 (no victory, no stars). */
+  startEndlessFromStart(): boolean {
+    if (this.outcome !== 'ongoing' || this.waveSystem.state !== 'preFirstWave') return false;
+    this.waveSystem.startEndlessFromStart();
+    return true;
   }
 
   enterEndlessMode(): boolean {
@@ -167,7 +212,7 @@ export class SimWorld {
   startNextWave(): boolean {
     if (this.outcome !== 'ongoing') return false;
     return this.waveSystem.startNextWave((bonus) => {
-      this.gold += bonus;
+      this.gold += this.scaleWaveBonus(bonus);
       this.events.emit('economyChanged', { gold: this.gold, lives: this.lives });
     });
   }
@@ -178,7 +223,7 @@ export class SimWorld {
     this.projectileSystem.clearBurnZones();
     this.spatialHash.clear();
     if (this.lives <= 0) {
-      this.lives = BALANCE.startingLives;
+      this.lives = this.startingLives;
     }
     this.outcome = 'ongoing';
     const ok = this.waveSystem.skipToWave(waveOneBased);
@@ -191,7 +236,7 @@ export class SimWorld {
     if (this.lives <= 0) this.lives = 1;
     this.outcome = 'won';
     this.events.emit('gameWon', {
-      stars: computeStarRating(this.lives),
+      stars: this.computeStars(),
       livesRemaining: this.lives,
     });
   }
@@ -204,6 +249,11 @@ export class SimWorld {
     this.events.emit('gameLost', { waveIndex: Math.max(0, this.waveSystem.currentWaveIndex) });
   }
 
+  /** Tower types a challenge forbids this run. */
+  isTowerBanned(type: TowerType): boolean {
+    return this.mods.bannedTowers.includes(type);
+  }
+
   placeTower(
     col: number,
     row: number,
@@ -211,6 +261,7 @@ export class SimWorld {
     targetingMode: TargetingMode = 'first',
   ): TowerEntity | null {
     if (this.outcome !== 'ongoing') return null;
+    if (this.isTowerBanned(type)) return null;
     if (!this.grid.canPlaceTower(col, row)) return null;
     const stats = getTowerTierStats(type, 1);
     if (this.gold < stats.upgradeCost) return null;
@@ -321,27 +372,43 @@ export class SimWorld {
   fixedTick(dt: number): void {
     if (this.outcome !== 'ongoing') return;
 
+    // Run + endless-wave modifiers for everything spawned this tick (incl. escorts, raiders, mites).
+    const waveFx = this.waveSystem.getEndlessMutatorEffects();
+    this.enemySystem.speedMul = this.mods.enemySpeedMul * waveFx.speedMul;
+    this.enemySystem.armorBonus = waveFx.armorBonus;
+
     this.waveSystem.update(
       dt,
       () => this.enemyPool.getActiveCount(),
       (enemyType, hpScale, elite, lane) => {
-        const spawned = this.enemySystem.spawnEnemy(enemyType, hpScale, elite, lane);
+        const fx = this.waveSystem.getEndlessMutatorEffects();
+        const spawned = this.enemySystem.spawnEnemy(
+          enemyType,
+          hpScale * this.mods.enemyHpMul * fx.hpMul,
+          elite,
+          lane,
+        );
         if (spawned) {
           spawned.reward = Math.max(
             1,
-            Math.round(spawned.reward * this.waveSystem.getRewardMultiplier()),
+            Math.round(
+              spawned.reward *
+                this.waveSystem.getRewardMultiplier() *
+                this.mods.killGoldMul *
+                fx.killGoldMul,
+            ),
           );
         }
       },
       (bonus) => {
-        this.gold += bonus;
+        this.gold += this.scaleWaveBonus(bonus);
         this.events.emit('economyChanged', { gold: this.gold, lives: this.lives });
       },
       () => {
         if (this.outcome === 'ongoing' && this.lives > 0 && !this.waveSystem.isEndless) {
           this.outcome = 'won';
           this.events.emit('gameWon', {
-            stars: computeStarRating(this.lives),
+            stars: this.computeStars(),
             livesRemaining: this.lives,
           });
         }
@@ -380,7 +447,7 @@ export class SimWorld {
         this.events.emit('economyChanged', { gold: this.gold, lives: this.lives });
       },
       this.towers,
-      this.waveSystem.getCurrentWaveHpScale(),
+      this.waveSystem.getCurrentWaveHpScale() * this.mods.enemyHpMul * waveFx.hpMul,
     );
 
     if (this.outcome !== 'ongoing') return;
@@ -388,14 +455,14 @@ export class SimWorld {
     this.waveSystem.checkCompletion(
       () => this.enemyPool.getActiveCount(),
       (bonus) => {
-        this.gold += bonus;
+        this.gold += this.scaleWaveBonus(bonus);
         this.events.emit('economyChanged', { gold: this.gold, lives: this.lives });
       },
       () => {
         if (this.outcome === 'ongoing' && this.lives > 0 && !this.waveSystem.isEndless) {
           this.outcome = 'won';
           this.events.emit('gameWon', {
-            stars: computeStarRating(this.lives),
+            stars: this.computeStars(),
             livesRemaining: this.lives,
           });
         }

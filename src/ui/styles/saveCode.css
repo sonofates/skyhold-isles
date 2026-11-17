@@ -1,0 +1,159 @@
+/* Settings → Save code (menu only) */
+.save-code {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.save-code-open,
+.save-code-done {
+  appearance: none;
+  -webkit-appearance: none;
+  border: 0;
+  background: none;
+  min-height: 44px;
+  padding: 6px 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 600;
+  color: #8fd5ee;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.save-code-done {
+  align-self: center;
+  color: var(--gx-muted);
+}
+
+.save-code-open .btn-icon {
+  width: 18px;
+  height: 18px;
+}
+
+.save-code-open:focus-visible,
+.save-code-done:focus-visible {
+  outline: 3px solid var(--gx-gold);
+  outline-offset: 2px;
+}
+
+.save-code-panel {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px 4px;
+  background: rgba(79, 179, 217, 0.14);
+  clip-path: polygon(9px 0, calc(100% - 9px) 0, 100% 9px, 100% calc(100% - 9px), calc(100% - 9px) 100%, 9px 100%, 0 calc(100% - 9px), 0 9px);
+  text-align: left;
+}
+
+.save-code-label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--gx-muted);
+}
+
+.save-code-text {
+  width: 100%;
+  box-sizing: border-box;
+  resize: none;
+  padding: 8px 10px;
+  border: 2px solid var(--gx-ink);
+  border-radius: 0;
+  font-family: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+  /* 16px stops iOS from zooming into the field. */
+  font-size: 16px;
+  line-height: 1.3;
+  word-break: break-all;
+  color: var(--gx-cream);
+  background: var(--gx-slate-lo);
+}
+
+.save-code-text:focus {
+  outline: 3px solid var(--gx-gold);
+  outline-offset: 0;
+}
+
+.save-code-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.save-code-row button {
+  flex: none;
+  min-width: 96px;
+  min-height: 46px;
+  padding: 0 14px 4px;
+  font-size: 17px;
+  text-shadow: 0 2px 0 var(--gx-ink);
+}
+
+.save-code-status {
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--gx-cream);
+}
+
+.save-code-status.is-ok {
+  color: #a9e57f;
+}
+
+.save-code-status.is-error {
+  color: #ff9d9d;
+}
+
+/* The expanded panel makes the settings card taller than a phone screen: let it scroll. */
+.settings-card:has(.save-code-panel:not(.hidden)) {
+  max-height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* The code itself is read-only (no iOS focus zoom), so it can be smaller. */
+.save-code-text[readonly] {
+  font-size: 13px;
+}
+
+/* Short landscape phones: the settings card is a 2-column grid; give the save tools the full
+   width and lay the copy / load halves side by side. */
+@media (max-height: 500px) and (orientation: landscape) {
+  .settings-card > .save-code,
+  .settings-card > .reset-progress {
+    grid-column: 1 / -1;
+  }
+
+  .save-code-panel {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-auto-flow: column;
+    grid-template-rows: auto auto auto;
+    column-gap: 14px;
+  }
+
+  .save-code-panel > :nth-child(1),
+  .save-code-panel > :nth-child(2) {
+    grid-column: 1;
+  }
+
+  .save-code-panel > :nth-child(3),
+  .save-code-panel > :nth-child(4) {
+    grid-column: 2;
+  }
+
+  .save-code-panel > .save-code-done {
+    grid-column: 1 / -1;
+    grid-row: 3;
+  }
+}

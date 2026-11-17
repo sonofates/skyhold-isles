@@ -71,6 +71,14 @@ export class EnemySystem {
     return this.groundPaths.length;
   }
 
+  /**
+   * Run / wave modifiers for every newly spawned unit (challenge speed, endless mutators), set by
+   * SimWorld before spawning. Split children inherit the (already scaled) parent speed instead.
+   * 1 / 0 = classic.
+   */
+  speedMul = 1;
+  armorBonus = 0;
+
   spawnEnemy(type: EnemyType, hpScale = 1, elite = false, lane = 0): EnemyEntity | null {
     const def = ENEMY_DEFS[type];
     const hpMul = elite ? ELITE_MODIFIERS.hpMul : 1;
@@ -198,8 +206,8 @@ export class EnemySystem {
     entity.type = type;
     entity.maxHp = maxHp;
     entity.hp = maxHp;
-    entity.speed = speed;
-    entity.armor = def.armor;
+    entity.speed = isSplitChild ? speed : speed * this.speedMul;
+    entity.armor = def.armor + this.armorBonus;
     entity.reward = reward;
     entity.livesCost = livesCost;
     entity.flying = def.flying;
@@ -230,7 +238,7 @@ export class EnemySystem {
     entity.shieldMax = 0;
     entity.burrowed = false;
     entity.armorBreakTimer = 0;
-    entity.baseArmor = def.armor;
+    entity.baseArmor = entity.armor;
     entity.elite = false;
     entity.isDropped = false;
     entity.bossPhase = 0;

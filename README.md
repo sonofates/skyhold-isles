@@ -114,3 +114,18 @@ npx tsx scripts/previewMap.ts all   # Headless PNG previews of every island (no 
 1. Add the key to `EnemyType` in `src/core/types.ts`.
 2. Add stats in `src/data/enemies.ts` (`ENEMY_DEFS` and `ENEMY_TYPES`).
 3. Add procedural geometry/shard color mapping in `src/render/enemyMeshes.ts` and `src/render/effectsRenderer.ts`, plus badge metadata in `src/ui/icons.ts`.
+
+---
+
+## Campaign & Replayability
+
+- **Stars** (`src/data/stars.ts`): a win earns 1–3★ rated on *lives lost*, with a looser table on harder islands (Breezy 3★ ≤ 2 lost … Master 3★ ≤ 7 lost). The victory card stamps the stars in one by one and calls out first clears, new bests, unlocked islands and new challenge badges.
+- **Save** (`src/platform/storage.ts`): `localStorage` key `skyhold_isles_progress_v1`, versioned (`version: 2`). `migrateProgress()` upgrades any older save without losing unlocks or stars and keeps a one-time copy of the pre-migration save; Settings → *Reset progress* asks for confirmation and keeps a backup too.
+- **Workshop** (`src/data/workshop.ts`, `src/ui/workshop.ts`): spend stars (campaign + challenge badges) on small permanent upgrades — start gold, kill gold, lives, ability cooldowns, tower-family fire rate. Refund everything at any time. Upgrades reach the simulation through `RunModifiers` (`src/data/runModifiers.ts`); the balance sim's baseline uses none.
+- **Island briefing** (`src/ui/islandBriefing.ts`): replaying a cleared island lets you pick *Campaign* (with optional challenges) or *Endless*.
+- **Challenges** (`src/data/challenges.ts`): two per island (tower bans, faster/tougher foes, thin purse, 8-life sanctuary, no abilities). Each one won gives a badge and +1★; 3★ plus every challenge marks the island *Mastered*.
+- **Endless** (`src/data/endlessMutators.ts`): generated waves with the full roster, elites and bosses; a stacking mutator joins every 3 endless waves (order rotates per island). Personal best per island (a toast marks the moment a run passes it) and Bronze/Silver/Gold medals for 3/6/10 endless waves.
+- **Daily Squall** (`src/data/daily.ts`): one cleared island + two challenges per UTC day; the first win of the day gives +1★ and builds a streak.
+- **Logbook & Feats** (`src/ui/logbook.ts`, `src/game/feats.ts`): tap a star total for per-island records and 13 cosmetic long-term feats, all derived from the save (no extra data). New feats are called out on the results card.
+- **Save code** (`src/platform/saveCode.ts`): Settings → *Save code…* copies the campaign as a `SKY2-…` text code; loading a code merges it (best of both saves), so it can never lose progress.
+- `npm run sim:balance` also prints an *Endless sanity* section and a *Workshop max* check (a fully upgraded greedy run must still lose lives on every Master island); add `-- --challenges` for a per-challenge report.

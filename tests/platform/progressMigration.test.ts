@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { loadProgress } from '../../src/platform/storage.ts';
+import { loadProgress, resetProgressSave, saveProgress } from '../../src/platform/storage.ts';
 
 const KEY = 'skyhold_isles_progress_v1';
+const BACKUP_KEY = 'skyhold_isles_progress_backup_v1';
 const store = new Map<string, string>();
 (globalThis as unknown as { localStorage: Storage }).localStorage = {
   getItem: (k: string) => store.get(k) ?? null,
@@ -47,5 +48,39 @@ describe('progress load across island-count changes', () => {
     expect(loadProgress(13).unlockedLevelIndex).toBe(0);
     store.set(KEY, '{not json');
     expect(loadProgress(13).unlockedLevelIndex).toBe(0);
+  });
+});
+
+describe('progress save versioning', () => {
+  beforeEach(() => store.clear());
+
+  it('backs up a pre-v2 save once and saves back as v2 without losing anything', () => {
+    const v1 = { unlockedLevelIndex: 2, bestStars: [3, 1], bestEndlessWaves: [12] };
+    save(v1);
+    const p = loadProgress(13);
+    expect(JSON.parse(store.get(BACKUP_KEY) ?? 'null')).toEqual(v1);
+    saveProgress(p);
+    const stored = JSON.parse(store.get(KEY) ?? '{}') as Record<string, unknown>;
+    expect(stored.version).toBe(2);
+    expect(stored.bestStars).toEqual([3, 1, ...new Array<number>(11).fill(0)]);
+    expect(stored.bestEndlessWaves).toEqual([12, ...new Array<number>(12).fill(0)]);
+    expect(loadProgress(13).unlockedLevelIndex).toBe(2);
+    // A later load does not overwrite the original backup.
+    expect(JSON.parse(store.get(BACKUP_KEY) ?? 'null')).toEqual(v1);
+  });
+
+  it('reset progress keeps a backup of the erased save and leaves settings alone', () => {
+    store.set('skyhold_isles_settings_v1', '{"muted":true}');
+    save({ version: 2, unlockedLevelIndex: 5, bestStars: [3, 3, 3, 3, 3, 1], workshop: { bastion: 2 } });
+    const before = store.get(KEY);
+    const fresh = resetProgressSave(13);
+    expect(fresh.unlockedLevelIndex).toBe(0);
+    expect(fresh.workshop).toEqual({});
+    expect(store.get('skyhold_isles_progress_reset_backup')).toBe(before);
+    expect(loadProgress(13).bestStars.every((s) => s === 0)).toBe(true);
+    expect(store.get('skyhold_isles_settings_v1')).toBe('{"muted":true}');
+    // Resetting the now-empty save again must not overwrite the backup of the real progress.
+    resetProgressSave(13);
+    expect(store.get('skyhold_isles_progress_reset_backup')).toBe(before);
   });
 });

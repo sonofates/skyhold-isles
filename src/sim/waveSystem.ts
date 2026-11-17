@@ -1,6 +1,16 @@
 import type { EventBus } from '../core/eventBus.ts';
 import type { EnemyType } from '../core/types.ts';
 import { BALANCE } from '../data/balance.ts';
+import {
+  combineEndlessMutators,
+  ENDLESS_UNSCALED_TYPES,
+  endlessMutatorsAt,
+  mutatedGroupCount,
+  NO_ENDLESS_MUTATORS,
+  poolWeight,
+  type EndlessMutatorEffects,
+} from '../data/endlessMutators.ts';
+import { ENEMY_DEFS } from '../data/enemies.ts';
 import type { LevelDef, WaveDef, WaveGroupDef } from '../data/levels/index.ts';
 
 export type WaveState =
@@ -117,6 +127,7 @@ export function buildEndlessWaveDef(waveIndex: number, level: LevelDef): WaveDef
   ];
 
   // Rotating "spotlight" pair of newer archetypes so every endless wave plays differently.
+  const spotlightStart = groups.length;
   const spotlight = ENDLESS_SPOTLIGHTS[offset % ENDLESS_SPOTLIGHTS.length];
   for (let k = 0; k < spotlight.length; k++) {
     const type = spotlight[k];
@@ -132,6 +143,9 @@ export function buildEndlessWaveDef(waveIndex: number, level: LevelDef): WaveDef
     });
   }
 
+  // Boss / Tempest groups below are not spotlights (Vanguard must not empower them).
+  const spotlightEnd = groups.length;
+
   if ((offset + 1) % 5 === 0) {
     const bossTier = Math.floor(offset / 5);
     // Every second boss wave brings a Tempest Colossus to lead the Dreadnoughts.
@@ -146,10 +160,49 @@ export function buildEndlessWaveDef(waveIndex: number, level: LevelDef): WaveDef
     });
   }
 
+  // Escalating mutators (every ENDLESS_MUTATOR_INTERVAL endless waves) reshape the groups.
+  const fx = endlessMutatorEffectsAt(waveIndex, level);
+  let mutatedGroups = groups;
+  if (fx !== NO_ENDLESS_MUTATORS) {
+    const counts = groups.map((g) =>
+      ENDLESS_UNSCALED_TYPES.includes(g.enemyType)
+        ? g.count
+        : mutatedGroupCount(g.count, ENEMY_DEFS[g.enemyType].flying, fx),
+    );
+    // Extra units from count mutators must still fit the enemy pool (incl. mid-wave spawns):
+    // shrink the growth proportionally when the stacked wave would overflow it.
+    let baseWorst = 0;
+    let mutWorst = 0;
+    for (let i = 0; i < groups.length; i++) {
+      const w = poolWeight(groups[i].enemyType);
+      baseWorst += groups[i].count * w;
+      mutWorst += counts[i] * w;
+    }
+    const budget = BALANCE.pools.maxEnemies;
+    if (mutWorst > budget && mutWorst > baseWorst) {
+      const f = Math.max(0, budget - baseWorst) / (mutWorst - baseWorst);
+      for (let i = 0; i < groups.length; i++) {
+        counts[i] = groups[i].count + Math.floor((counts[i] - groups[i].count) * f);
+      }
+    }
+    mutatedGroups = groups.map((g, i) => {
+      const count = counts[i];
+      const elite =
+        g.elite === true ||
+        (fx.allSpotlightElite &&
+          i >= spotlightStart &&
+          i < spotlightEnd &&
+          g.enemyType !== 'mite');
+      return count === g.count && elite === (g.elite === true) ? g : { ...g, count, elite };
+    });
+  }
+
   // Islands with extra spawn lanes: deal the groups round-robin across every lane.
   const laneCount = 1 + (level.extraGroundPaths?.length ?? 0);
   const lanedGroups =
-    laneCount > 1 ? groups.map((g, i) => ({ ...g, lane: (i + offset) % laneCount })) : groups;
+    laneCount > 1
+      ? mutatedGroups.map((g, i) => ({ ...g, lane: (i + offset) % laneCount }))
+      : mutatedGroups;
 
   const lastStoryBonus = level.waves[level.waves.length - 1]?.clearBonus ?? 40;
   const clearBonus = Math.round(
@@ -157,6 +210,14 @@ export function buildEndlessWaveDef(waveIndex: number, level: LevelDef): WaveDef
   );
 
   return { groups: lanedGroups, clearBonus };
+}
+
+/** Aggregated endless mutator effects for wave `waveIndex` (neutral for story waves). */
+export function endlessMutatorEffectsAt(waveIndex: number, level: LevelDef): EndlessMutatorEffects {
+  const offset = waveIndex - level.waves.length;
+  if (offset < 0) return NO_ENDLESS_MUTATORS;
+  const list = endlessMutatorsAt(offset, level.index);
+  return list.length === 0 ? NO_ENDLESS_MUTATORS : combineEndlessMutators(list);
 }
 
 function buildWaveQueueFromDef(wave: WaveDef): QueuedSpawn[] {
@@ -216,6 +277,8 @@ export class WaveSystem {
   autoWave = false;
 
   private spawnQueue: QueuedSpawn[] = [];
+  private mutatorCacheIndex = -1;
+  private mutatorCache: EndlessMutatorEffects = NO_ENDLESS_MUTATORS;
   private spawnCursor = 0;
   private currentWaveClearBonus = 0;
   /**
@@ -268,6 +331,25 @@ export class WaveSystem {
       this.interWaveTimer = manualSec;
       this.autoShortenedBy = 0;
     }
+  }
+
+  /** Stat mutators for the wave in progress (neutral outside endless). */
+  getEndlessMutatorEffects(): EndlessMutatorEffects {
+    if (!this.endlessMode || this.currentWaveIndex < this.level.waves.length) return NO_ENDLESS_MUTATORS;
+    if (this.mutatorCacheIndex !== this.currentWaveIndex) {
+      this.mutatorCacheIndex = this.currentWaveIndex;
+      this.mutatorCache = endlessMutatorEffectsAt(this.currentWaveIndex, this.level);
+    }
+    return this.mutatorCache;
+  }
+
+  /**
+   * Starts an Endless run from wave 1 (island card → Endless): the story waves play without a
+   * victory stop and the generated endless waves follow.
+   */
+  startEndlessFromStart(): void {
+    if (this.state !== 'preFirstWave') return;
+    this.endlessMode = true;
   }
 
   getRewardMultiplier(): number {

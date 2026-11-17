@@ -1,6 +1,29 @@
 import type { ProgressData } from '../core/types.ts';
+import { CHALLENGES, challengesForLevel, type ChallengeId } from '../data/challenges.ts';
 import { LEVELS } from '../data/levels/index.ts';
+import { describeStarGoals } from '../data/stars.ts';
+import { ENDLESS_TIERS, endlessTier } from '../data/endlessMutators.ts';
 import { TOWER_ICON_SVGS, UI_ICON_SVGS } from './icons.ts';
+import { affordableUpgradeCount, WORKSHOP_ICON_SVG } from './workshop.ts';
+import { isIslandMastered } from '../game/progression.ts';
+import { DAILY_ICON_SVG, dailyPillState } from './daily.ts';
+import './styles/levelSelect.css';
+
+/** Small crown for islands with 3 stars and every challenge won. */
+export const MASTERED_CROWN_SVG = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8L7.5 12L12 5L16.5 12L21 8L19 18H5L3 8Z" fill="#f6bd41" stroke="#1b1936" stroke-width="2" stroke-linejoin="round"/><rect x="5" y="18" width="14" height="2.6" fill="#b8801c" stroke="#1b1936" stroke-width="1.6"/></svg>`;
+
+/** Gold count bubble on a Workshop entry button when an upgrade is affordable. */
+function setWorkshopBadge(btn: HTMLButtonElement, progress: ProgressData): void {
+  btn.querySelector('.ws-badge')?.remove();
+  const n = affordableUpgradeCount(progress);
+  if (n > 0) {
+    const badge = document.createElement('span');
+    badge.className = 'ws-badge';
+    badge.textContent = String(n);
+    badge.setAttribute('aria-label', `${n} upgrade${n === 1 ? '' : 's'} affordable`);
+    btn.appendChild(badge);
+  }
+}
 
 export function renderStarsHtml(earned: number): string {
   let out = '';
@@ -40,12 +63,17 @@ export interface MainMenuCallbacks {
   onPlay: (levelIndex: number) => void;
   onOpenLevelSelect: () => void;
   onOpenSettings: () => void;
+  onOpenWorkshop?: () => void;
+  onOpenDaily?: () => void;
+  onOpenLogbook?: () => void;
 }
 
 export class MainMenuOverlay {
   private readonly rootEl: HTMLDivElement;
   private readonly summaryEl: HTMLDivElement;
   private readonly playBtn: HTMLButtonElement;
+  private readonly workshopBtn: HTMLButtonElement;
+  private readonly dailyBtn: HTMLButtonElement;
   private targetLevelIndex = 0;
 
   constructor(parent: HTMLElement, callbacks: MainMenuCallbacks) {
@@ -77,7 +105,17 @@ export class MainMenuOverlay {
     actions.className = 'menu-actions';
 
     this.summaryEl = document.createElement('div');
-    this.summaryEl.className = 'menu-progress-pill gx gx-slate';
+    this.summaryEl.className = 'menu-progress-pill gx gx-slate lb-open-pill';
+    this.summaryEl.setAttribute('role', 'button');
+    this.summaryEl.tabIndex = 0;
+    this.summaryEl.setAttribute('data-testid', 'btn-menu-logbook');
+    this.summaryEl.addEventListener('click', () => callbacks.onOpenLogbook?.());
+    this.summaryEl.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        callbacks.onOpenLogbook?.();
+      }
+    });
 
     const btnStack = document.createElement('div');
     btnStack.className = 'menu-btn-stack';
@@ -102,16 +140,35 @@ export class MainMenuOverlay {
     settingsBtn.setAttribute('data-testid', 'btn-main-settings');
     settingsBtn.addEventListener('click', () => callbacks.onOpenSettings());
 
+    this.workshopBtn = document.createElement('button');
+    this.workshopBtn.type = 'button';
+    this.workshopBtn.className = 'btn-secondary btn-lg gx gx-slate-btn btn-workshop';
+    this.workshopBtn.innerHTML = `<span class="btn-icon">${WORKSHOP_ICON_SVG}</span><span class="btn-label">Workshop</span>`;
+    this.workshopBtn.setAttribute('data-testid', 'btn-workshop');
+    this.workshopBtn.addEventListener('click', () => callbacks.onOpenWorkshop?.());
+
+    settingsBtn.classList.add('menu-settings-icon');
+    settingsBtn.setAttribute('aria-label', 'Settings');
+
     const secondary = document.createElement('div');
-    secondary.className = 'menu-btn-row';
-    secondary.append(levelSelectBtn, settingsBtn);
+    secondary.className = 'menu-btn-row has-workshop';
+    secondary.append(levelSelectBtn, this.workshopBtn, settingsBtn);
     btnStack.append(this.playBtn, secondary);
 
     const hints = document.createElement('div');
     hints.className = 'menu-controls-hint desktop-only';
-    hints.textContent = 'Drag / WASD pan · Wheel zoom · Q/E rotate · 1–5 build · Space pause';
+    hints.textContent = 'Drag / WASD pan · Wheel zoom · Q/E rotate · 1–7 build · Space pause';
 
-    actions.append(this.summaryEl, btnStack, hints);
+    this.dailyBtn = document.createElement('button');
+    this.dailyBtn.type = 'button';
+    this.dailyBtn.className = 'daily-pill gx gx-slate-btn';
+    this.dailyBtn.setAttribute('data-testid', 'btn-daily');
+    this.dailyBtn.addEventListener('click', () => callbacks.onOpenDaily?.());
+    const pillRow = document.createElement('div');
+    pillRow.className = 'menu-pill-row';
+    pillRow.append(this.summaryEl, this.dailyBtn);
+
+    actions.append(pillRow, btnStack, hints);
     card.append(hero, actions);
     this.rootEl.appendChild(card);
     parent.appendChild(this.rootEl);
@@ -129,7 +186,21 @@ export class MainMenuOverlay {
 
     this.playBtn.innerHTML = `<span class="btn-icon">${UI_ICON_SVGS.play}</span><span class="btn-label-stack"><span class="btn-label">Play</span><span class="btn-sub">${frontierLevel.name}</span></span>`;
     this.summaryEl.innerHTML = `<span class="menu-star-inline">${UI_ICON_SVGS.star}</span><b>${totalStars}</b><span class="menu-stars-of">/ ${maxStars}</span>`;
-    this.summaryEl.title = `${frontierIdx + 1}/${LEVELS.length} islands unlocked`;
+    this.summaryEl.title = `${frontierIdx + 1}/${LEVELS.length} islands unlocked · open the Logbook`;
+    this.summaryEl.setAttribute('aria-label', `${totalStars} of ${maxStars} stars — open the Logbook`);
+    setWorkshopBadge(this.workshopBtn, progress);
+    const daily = dailyPillState(progress, Date.now());
+    const anyCleared = progress.clears.some((c) => c > 0);
+    this.dailyBtn.classList.toggle('hidden', !anyCleared);
+    this.dailyBtn.classList.toggle('is-open', daily.open);
+    this.dailyBtn.classList.toggle('is-done', !daily.open);
+    this.dailyBtn.innerHTML = `<span class="btn-icon">${DAILY_ICON_SVG}</span><span class="btn-label">Daily</span>${
+      daily.streak > 1 ? `<span class="daily-streak">×${daily.streak}</span>` : ''
+    }${daily.open ? '<span class="daily-dot" aria-hidden="true"></span>' : ''}`;
+    this.dailyBtn.setAttribute(
+      'aria-label',
+      daily.open ? 'Daily Squall — not won today' : 'Daily Squall — won today',
+    );
   }
 
   dispose(): void {
@@ -140,11 +211,14 @@ export class MainMenuOverlay {
 export interface LevelSelectCallbacks {
   onSelectLevel: (levelIndex: number) => void;
   onBack: () => void;
+  onOpenWorkshop?: () => void;
+  onOpenLogbook?: () => void;
 }
 
 export class LevelSelectOverlay {
   private readonly rootEl: HTMLDivElement;
   private readonly starsBadgeEl: HTMLDivElement;
+  private readonly workshopBtn: HTMLButtonElement;
   private readonly gridEl: HTMLDivElement;
   private readonly callbacks: LevelSelectCallbacks;
 
@@ -172,9 +246,28 @@ export class LevelSelectOverlay {
     title.textContent = 'Islands';
 
     this.starsBadgeEl = document.createElement('div');
-    this.starsBadgeEl.className = 'menu-progress-pill gx gx-slate';
+    this.starsBadgeEl.className = 'menu-progress-pill gx gx-slate lb-open-pill';
+    this.starsBadgeEl.setAttribute('role', 'button');
+    this.starsBadgeEl.tabIndex = 0;
+    this.starsBadgeEl.setAttribute('aria-label', 'Open the Logbook');
+    this.starsBadgeEl.setAttribute('data-testid', 'btn-logbook');
+    this.starsBadgeEl.addEventListener('click', () => callbacks.onOpenLogbook?.());
+    this.starsBadgeEl.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        callbacks.onOpenLogbook?.();
+      }
+    });
 
-    header.append(backBtn, title, this.starsBadgeEl);
+    this.workshopBtn = document.createElement('button');
+    this.workshopBtn.type = 'button';
+    this.workshopBtn.className = 'btn-secondary gx gx-slate-btn ws-entry-btn';
+    this.workshopBtn.innerHTML = `<span class="btn-icon">${WORKSHOP_ICON_SVG}</span><span class="btn-label">Workshop</span>`;
+    this.workshopBtn.setAttribute('aria-label', 'Workshop');
+    this.workshopBtn.setAttribute('data-testid', 'btn-level-workshop');
+    this.workshopBtn.addEventListener('click', () => callbacks.onOpenWorkshop?.());
+
+    header.append(backBtn, title, this.workshopBtn, this.starsBadgeEl);
 
     this.gridEl = document.createElement('div');
     this.gridEl.className = 'level-grid';
@@ -203,11 +296,19 @@ export class LevelSelectOverlay {
   }
 
   setOpen(open: boolean, progress?: ProgressData): void {
+    const wasHidden = this.rootEl.classList.contains('hidden');
     this.rootEl.classList.toggle('hidden', !open);
+    // Entrance only when the screen appears, not on refreshes while it is already open.
+    if (open && wasHidden) {
+      this.rootEl.classList.remove('ls-enter');
+      void this.rootEl.offsetWidth;
+      this.rootEl.classList.add('ls-enter');
+    }
     if (!open || !progress) return;
 
     const totalStars = progress.bestStars.reduce((a, b) => a + b, 0);
     this.starsBadgeEl.innerHTML = `<span class="menu-star-inline">${UI_ICON_SVGS.star}</span><b>${totalStars}</b><span class="menu-stars-of">/ ${LEVELS.length * 3}</span>`;
+    setWorkshopBadge(this.workshopBtn, progress);
 
     this.gridEl.innerHTML = '';
     for (let i = 0; i < LEVELS.length; i++) {
@@ -228,7 +329,18 @@ export class LevelSelectOverlay {
       const diffEl = document.createElement('span');
       diffEl.className = `difficulty-badge ${diffClass}`;
       diffEl.innerHTML = `${GEM_SVG}<span>${lvl.difficulty}</span>`;
-      topRow.append(numEl, diffEl);
+      const offeredHere = challengesForLevel(lvl);
+      const mastered = unlocked && isIslandMastered(progress, i, offeredHere);
+      if (mastered) {
+        card.classList.add('mastered');
+        const crown = document.createElement('span');
+        crown.className = 'level-mastered-crown';
+        crown.title = 'Mastered: 3 stars and every challenge';
+        crown.innerHTML = MASTERED_CROWN_SVG;
+        topRow.append(numEl, crown, diffEl);
+      } else {
+        topRow.append(numEl, diffEl);
+      }
 
       const art = document.createElement('div');
       art.className = 'level-card-art';
@@ -251,13 +363,18 @@ export class LevelSelectOverlay {
       const starsRow = document.createElement('div');
       starsRow.className = 'star-row';
       starsRow.innerHTML = renderStarsHtml(stars);
+      const goals = describeStarGoals(lvl.difficulty);
+      starsRow.title = `3★: ${goals.three} · 2★: ${goals.two}`;
 
       const bestEndless = progress.bestEndlessWaves?.[i] ?? 0;
       if (bestEndless > 0) {
         const endlessChip = document.createElement('span');
-        endlessChip.className = 'level-endless-chip';
+        const tier = endlessTier(bestEndless, lvl.waves.length);
+        endlessChip.className = `level-endless-chip${tier > 0 ? ` tier-${tier}` : ''}`;
         endlessChip.innerHTML = `${UI_ICON_SVGS.autoWave}W${bestEndless}`;
-        endlessChip.title = `Endless best: wave ${bestEndless}`;
+        endlessChip.title = `Endless best: wave ${bestEndless}${
+          tier > 0 ? ` · ${ENDLESS_TIERS[tier - 1].name} medal` : ''
+        }`;
         metaEl.appendChild(endlessChip);
       }
 
@@ -273,7 +390,26 @@ export class LevelSelectOverlay {
         actionBtn.title = `Clear ${LEVELS[Math.max(0, i - 1)].name} to unlock`;
       }
 
-      card.append(topRow, art, nameEl, starsRow, metaEl, actionBtn);
+      const offered = offeredHere;
+      const medals = document.createElement('div');
+      medals.className = 'level-card-medals';
+      const doneChallenges = progress.challengeClears?.[i] ?? [];
+      if (unlocked && stars > 0) {
+        for (const id of offered) {
+          const m = document.createElement('span');
+          const earned = doneChallenges.includes(id);
+          m.className = `level-medal${earned ? ' earned' : ''}`;
+          m.title = `${CHALLENGES[id].name}${earned ? ' — earned' : ''}`;
+          medals.appendChild(m);
+        }
+        medals.title = `Challenges ${doneChallenges.filter((id) => offered.includes(id as ChallengeId)).length}/${offered.length}`;
+      } else if (unlocked) {
+        // No stars yet: show the 3-star goal instead (touch players get no hover tooltip).
+        medals.classList.add('level-card-goal');
+        medals.textContent = `3★ · ${goals.three}`;
+      }
+
+      card.append(topRow, art, nameEl, starsRow, medals, metaEl, actionBtn);
       this.gridEl.appendChild(card);
     }
 
