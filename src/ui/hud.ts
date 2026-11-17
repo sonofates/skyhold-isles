@@ -274,7 +274,7 @@ export class HudBar {
       this.waveBtnBonus.textContent = '';
       if (view.isPreFirstWave) {
         this.waveBtnTitle.textContent = 'Start Wave 1';
-        this.waveBtnSub.textContent = 'Tap when ready';
+        this.waveBtnSub.textContent = document.documentElement.classList.contains('is-touch') ? 'Tap when ready' : 'Click when ready';
         this.waveBtnShort.textContent = 'Start';
       } else if (view.canStartWave) {
         const nextNum = view.currentWave + 1;
