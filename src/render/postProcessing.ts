@@ -115,6 +115,86 @@ interface N8aoInternalResources {
   neuralDenoiseMaterial?: DisposableLike | null;
 }
 
+interface BloomInternalResources {
+  luminanceMaterial?: THREE.Material | null;
+  mipmapBlurPass?: {
+    enabled?: boolean;
+    downsamplingMaterial?: THREE.Material | null;
+    upsamplingMaterial?: THREE.Material | null;
+  } | null;
+}
+
+export interface PostWarmUpMaterials {
+  readonly linearMaterials: THREE.Material[];
+  readonly screenMaterials: THREE.Material[];
+}
+
+export interface PostWarmUpMaterialSources {
+  readonly n8aoPass?: N8AOPostPass | null;
+  readonly bloomEffect?: BloomEffect | null;
+  readonly compositePass?: EffectPass | null;
+  readonly smaaPass?: EffectPass | null;
+  readonly smaaEffect?: SMAAEffect | null;
+}
+
+/**
+ * Collects unique materials across active post-processing passes split by target color space
+ * (`linearMaterials` render into linear HalfFloat buffers; `screenMaterials` render to the sRGB canvas).
+ */
+export function collectPostWarmUpMaterials(
+  sources: PostWarmUpMaterialSources,
+): PostWarmUpMaterials {
+  const linearMaterials: THREE.Material[] = [];
+  const screenMaterials: THREE.Material[] = [];
+  const seenLinear = new Set<THREE.Material>();
+  const seenScreen = new Set<THREE.Material>();
+
+  const pushLinear = (mat: unknown): void => {
+    const m = mat as THREE.Material | null | undefined;
+    if (!m || seenLinear.has(m)) return;
+    seenLinear.add(m);
+    linearMaterials.push(m);
+  };
+  const pushScreen = (mat: unknown): void => {
+    const m = mat as THREE.Material | null | undefined;
+    if (!m || seenScreen.has(m)) return;
+    seenScreen.add(m);
+    screenMaterials.push(m);
+  };
+
+  if (sources.n8aoPass) {
+    const n8ao = sources.n8aoPass as unknown as N8aoInternalResources;
+    if (sources.n8aoPass.configuration.halfRes) {
+      pushLinear(n8ao.depthDownsampleQuad?.material);
+    }
+    pushLinear(n8ao.effectShaderQuad?.material);
+    pushLinear(n8ao.standardDenoiseMaterial);
+    pushLinear(n8ao.accumulationQuad?.material);
+    pushLinear(n8ao.effectCompositerQuad?.material);
+    pushLinear(n8ao.copyQuad?.material);
+  }
+
+  if (sources.bloomEffect) {
+    const bloom = sources.bloomEffect as unknown as BloomInternalResources;
+    pushLinear(bloom.luminanceMaterial);
+    if (bloom.mipmapBlurPass?.enabled !== false) {
+      pushLinear(bloom.mipmapBlurPass?.downsamplingMaterial);
+      pushLinear(bloom.mipmapBlurPass?.upsamplingMaterial);
+    }
+  }
+
+  if (sources.smaaPass && sources.smaaEffect) {
+    pushLinear(sources.compositePass?.fullscreenMaterial);
+    pushLinear(sources.smaaEffect.edgeDetectionMaterial);
+    pushLinear(sources.smaaEffect.weightsMaterial);
+    pushScreen(sources.smaaPass.fullscreenMaterial);
+  } else {
+    pushScreen(sources.compositePass?.fullscreenMaterial);
+  }
+
+  return { linearMaterials, screenMaterials };
+}
+
 // Empty scratch scene passed to N8AOPostPass's constructor so its initial detectTransparency()
 // scan finds no transparent meshes and never allocates+discards transient HalfFloat targets.
 const _n8aoEmptyInitScene = new THREE.Scene();
@@ -244,6 +324,7 @@ export class PostProcessingPipeline {
   private height: number;
 
   private n8aoPass: N8AOPostPass | null = null;
+  private bloomEffect: BloomEffect | null = null;
   private compositePass: EffectPass | null = null;
   private smaaPass: EffectPass | null = null;
   private smaaEffect: SMAAEffect | null = null;
@@ -349,6 +430,16 @@ export class PostProcessingPipeline {
     return this.smaaReadyPromise ?? Promise.resolve();
   }
 
+  getWarmUpMaterials(): PostWarmUpMaterials {
+    return collectPostWarmUpMaterials({
+      n8aoPass: this.n8aoPass,
+      bloomEffect: this.bloomEffect,
+      compositePass: this.compositePass,
+      smaaPass: this.smaaPass,
+      smaaEffect: this.smaaEffect,
+    });
+  }
+
   applyConfig(next: PostProcessingConfig, forceRebuild = false): void {
     const n8aoChanged = forceRebuild || this.config.n8ao !== next.n8ao;
     const compositeChanged =
@@ -407,18 +498,18 @@ export class PostProcessingPipeline {
       if (next.outline) {
         effects.push(new SilhouetteOutlineEffect(1.06, 0x181628, 0.72));
       }
+      let nextBloom: BloomEffect | null = null;
       if (next.bloom) {
-        effects.push(
-          new BloomEffect({
-            blendFunction: BlendFunction.ADD,
-            luminanceThreshold: 1.05,
-            luminanceSmoothing: 0.14,
-            intensity: 0.34,
-            mipmapBlur: true,
-            radius: 0.58,
-            levels: 4,
-          }),
-        );
+        nextBloom = new BloomEffect({
+          blendFunction: BlendFunction.ADD,
+          luminanceThreshold: 1.05,
+          luminanceSmoothing: 0.14,
+          intensity: 0.34,
+          mipmapBlur: true,
+          radius: 0.58,
+          levels: 4,
+        });
+        effects.push(nextBloom);
       }
       effects.push(
         new HueSaturationEffect({ saturation: 0.17 }),
@@ -430,6 +521,7 @@ export class PostProcessingPipeline {
       const nextComposite = new EffectPass(this.camera, ...effects);
       this.composer.addPass(nextComposite, insertIdx >= 0 ? insertIdx : undefined);
       this.compositePass = nextComposite;
+      this.bloomEffect = nextBloom;
 
       if (prevComposite) {
         this.composer.removePass(prevComposite);
@@ -489,6 +581,7 @@ export class PostProcessingPipeline {
       this.n8aoPass = null;
     }
     this.composer.dispose();
+    this.bloomEffect = null;
     this.compositePass = null;
     this.smaaPass = null;
     this.smaaEffect = null;

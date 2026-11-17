@@ -12,6 +12,7 @@ import {
 import {
   canUseHalfFloatComposer,
   canUseHalfResN8ao,
+  collectPostWarmUpMaterials,
   getN8aoQualitySettings,
 } from '../../src/render/postProcessing.ts';
 import {
@@ -461,5 +462,98 @@ describe('PerfGovernor', () => {
     matNeedsColorB.dispose();
     matAlreadyColored.dispose();
     matPlainMesh.dispose();
+  });
+
+  it('routes post-processing warmUp materials into linear vs sRGB screen buckets', () => {
+    const mats = Array.from({ length: 12 }, () => new THREE.ShaderMaterial());
+    const [
+      mDownsample,
+      mAo,
+      mDenoise,
+      mAccum,
+      mCompositer,
+      mCopy,
+      mLum,
+      mMipDown,
+      mMipUp,
+      mComposite,
+      mSmaaEdge,
+      mSmaaWeights,
+    ] = mats;
+    const mSmaaFinal = new THREE.ShaderMaterial();
+
+    const fullWithSmaa = collectPostWarmUpMaterials({
+      n8aoPass: {
+        configuration: { halfRes: false },
+        depthDownsampleQuad: { material: mDownsample },
+        effectShaderQuad: { material: mAo },
+        standardDenoiseMaterial: mDenoise,
+        accumulationQuad: { material: mAccum },
+        effectCompositerQuad: { material: mCompositer },
+        copyQuad: { material: mCopy },
+      } as unknown as Parameters<typeof collectPostWarmUpMaterials>[0]['n8aoPass'],
+      bloomEffect: {
+        luminanceMaterial: mLum,
+        mipmapBlurPass: { enabled: true, downsamplingMaterial: mMipDown, upsamplingMaterial: mMipUp },
+      } as unknown as Parameters<typeof collectPostWarmUpMaterials>[0]['bloomEffect'],
+      compositePass: {
+        fullscreenMaterial: mComposite,
+      } as unknown as Parameters<typeof collectPostWarmUpMaterials>[0]['compositePass'],
+      smaaPass: {
+        fullscreenMaterial: mSmaaFinal,
+      } as unknown as Parameters<typeof collectPostWarmUpMaterials>[0]['smaaPass'],
+      smaaEffect: {
+        edgeDetectionMaterial: mSmaaEdge,
+        weightsMaterial: mSmaaWeights,
+      } as unknown as Parameters<typeof collectPostWarmUpMaterials>[0]['smaaEffect'],
+    });
+
+    // halfRes is false so depthDownsampleQuad is excluded; composite renders linearly into SMAA
+    expect(fullWithSmaa.linearMaterials).toEqual([
+      mAo,
+      mDenoise,
+      mAccum,
+      mCompositer,
+      mCopy,
+      mLum,
+      mMipDown,
+      mMipUp,
+      mComposite,
+      mSmaaEdge,
+      mSmaaWeights,
+    ]);
+    expect(fullWithSmaa.screenMaterials).toEqual([mSmaaFinal]);
+
+    const halfNoSmaa = collectPostWarmUpMaterials({
+      n8aoPass: {
+        configuration: { halfRes: true },
+        depthDownsampleQuad: { material: mDownsample },
+        effectShaderQuad: { material: mAo },
+        standardDenoiseMaterial: mDenoise,
+        accumulationQuad: { material: mAccum },
+        effectCompositerQuad: { material: mCompositer },
+        copyQuad: { material: mCopy },
+      } as unknown as Parameters<typeof collectPostWarmUpMaterials>[0]['n8aoPass'],
+      bloomEffect: null,
+      compositePass: {
+        fullscreenMaterial: mComposite,
+      } as unknown as Parameters<typeof collectPostWarmUpMaterials>[0]['compositePass'],
+      smaaPass: null,
+      smaaEffect: null,
+    });
+
+    // halfRes includes depthDownsampleQuad; without SMAA, composite renders directly to screen
+    expect(halfNoSmaa.linearMaterials).toEqual([
+      mDownsample,
+      mAo,
+      mDenoise,
+      mAccum,
+      mCompositer,
+      mCopy,
+    ]);
+    expect(halfNoSmaa.screenMaterials).toEqual([mComposite]);
+
+    for (const m of mats) m.dispose();
+    mSmaaFinal.dispose();
   });
 });

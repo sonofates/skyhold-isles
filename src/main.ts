@@ -269,6 +269,7 @@ async function bootstrap(loadingScreen: LoadingScreen): Promise<void> {
   window.addEventListener('resize', onResize);
   window.addEventListener('pointerdown', onWakeActivity, { passive: true });
   window.addEventListener('pointermove', onWakeActivity, { passive: true });
+  window.addEventListener('pointerup', onWakeActivity, { passive: true });
   window.addEventListener('wheel', onWakeActivity, { passive: true });
   window.addEventListener('keydown', onWakeActivity, { passive: true });
 
@@ -282,7 +283,10 @@ async function bootstrap(loadingScreen: LoadingScreen): Promise<void> {
   renderWorld.resize(canvas.clientWidth || window.innerWidth, canvas.clientHeight || window.innerHeight);
   await renderWorld.sceneManager.warmUp(renderWorld.cameraController.camera, {
     instancedHighlightMaterial: renderWorld.materials.kenneyTower,
-    extraMaterials: [renderWorld.materials.ghostInvalidMaterial],
+    extraMaterials: [
+      renderWorld.materials.ghostValidMaterial,
+      renderWorld.materials.ghostInvalidMaterial,
+    ],
     instancedColorRoots: [renderWorld.effectsRenderer.group],
   });
   const warmupMs = performance.now() - warmStartMs;
@@ -319,6 +323,7 @@ async function bootstrap(loadingScreen: LoadingScreen): Promise<void> {
       window.removeEventListener('resize', onResize);
       window.removeEventListener('pointerdown', onWakeActivity);
       window.removeEventListener('pointermove', onWakeActivity);
+      window.removeEventListener('pointerup', onWakeActivity);
       window.removeEventListener('wheel', onWakeActivity);
       window.removeEventListener('keydown', onWakeActivity);
       session.dispose();

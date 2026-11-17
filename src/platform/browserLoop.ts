@@ -245,6 +245,8 @@ export class GameLoop {
 
   stop(): void {
     this.running = false;
+    this.wakeUntilMs = 0;
+    this.lastThrottled = false;
     if (this.rafId !== null) {
       cancelAnimationFrame(this.rafId);
       this.rafId = null;

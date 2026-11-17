@@ -15,6 +15,7 @@ import {
 import {
   PostProcessingPipeline,
   canUseHalfFloatComposer,
+  canUseHalfResN8ao,
 } from './postProcessing.ts';
 
 export interface EffectiveQualityState {
@@ -112,12 +113,21 @@ export function detectPrimaryTouchDevice(): boolean {
   return isTouchDevice();
 }
 
+const MAX_VALID_DISPLAY_FRAME_MS = 1000;
+
 function createWarmUpTriangleGeometry(): THREE.BufferGeometry {
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.Float32BufferAttribute([0, 0, 0, 1, 0, 0, 0, 1, 0], 3));
   geo.setAttribute('normal', new THREE.Float32BufferAttribute([0, 1, 0, 0, 1, 0, 0, 1, 0], 3));
   geo.setAttribute('uv', new THREE.Float32BufferAttribute([0, 0, 1, 0, 0, 1], 2));
   geo.setAttribute('color', new THREE.Float32BufferAttribute([1, 1, 1, 1, 1, 1, 1, 1, 1], 3));
+  return geo;
+}
+
+function createFullscreenWarmUpGeometry(): THREE.BufferGeometry {
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute([-1, -1, 0, 3, -1, 0, -1, 3, 0], 3));
+  geo.setAttribute('uv', new THREE.Float32BufferAttribute([0, 0, 2, 0, 0, 2], 2));
   return geo;
 }
 
@@ -130,6 +140,7 @@ export class SceneManager {
   private readonly canvas: HTMLCanvasElement;
   private readonly isTouch: boolean;
   private readonly composerSupported: boolean;
+  private readonly halfResN8aoSupported: boolean;
   private readonly governor: PerfGovernor;
   private readonly displayMetrics = new RollingFrameMetrics(120);
   private readonly workMetrics = new RollingFrameMetrics(120);
@@ -145,12 +156,15 @@ export class SceneManager {
   private lastHeight: number;
   private appliedDpr = -1;
   private tierTransitions = 0;
+  private contextLost = false;
 
   private readonly onContextLost = (event: Event): void => {
     event.preventDefault();
+    this.contextLost = true;
   };
 
   private readonly onContextRestored = (): void => {
+    this.contextLost = false;
     this.renderer.shadowMap.needsUpdate = true;
     this.governor.resetWarmup();
     this.resetDisplayMetrics();
@@ -177,6 +191,7 @@ export class SceneManager {
       powerPreference: 'high-performance',
     });
     this.composerSupported = canUseHalfFloatComposer(this.renderer);
+    this.halfResN8aoSupported = canUseHalfResN8ao(this.renderer);
     // Track full multi-pass WebGL draw calls accurately across EffectComposer frames
     this.renderer.info.autoReset = false;
     this.renderer.shadowMap.enabled = true;
@@ -382,28 +397,73 @@ export class SceneManager {
       }
     }
 
-    // Compile scene + deferred gameplay shaders against EffectComposer's linear HalfFloat buffer
-    // when post-processing is enabled so RenderPass doesn't recompile srgb-linear variants on first draw.
-    const prevTarget = this.renderer.getRenderTarget();
+    let linearPostGroup: THREE.Group | null = null;
+    let screenPostGroup: THREE.Group | null = null;
+    const postCam = this.postProcessing ? new THREE.OrthographicCamera() : null;
     if (this.postProcessing) {
-      this.renderer.setRenderTarget(this.postProcessing.composer.inputBuffer);
+      const { linearMaterials, screenMaterials } = this.postProcessing.getWarmUpMaterials();
+      if (linearMaterials.length > 0 || screenMaterials.length > 0) {
+        const postDummyGeo = createFullscreenWarmUpGeometry();
+        disposables.push(postDummyGeo);
+        if (linearMaterials.length > 0) {
+          linearPostGroup = new THREE.Group();
+          for (let i = 0; i < linearMaterials.length; i++) {
+            linearPostGroup.add(new THREE.Mesh(postDummyGeo, linearMaterials[i]));
+          }
+        }
+        if (screenMaterials.length > 0) {
+          screenPostGroup = new THREE.Group();
+          for (let i = 0; i < screenMaterials.length; i++) {
+            screenPostGroup.add(new THREE.Mesh(postDummyGeo, screenMaterials[i]));
+          }
+        }
+      }
     }
+
+    // Compile scene, deferred gameplay, and post-processing shaders in one parallel batch so
+    // KHR_parallel_shader_compile drivers compile all programs concurrently before initial draw.
+    const prevTarget = this.renderer.getRenderTarget();
+    const compileSync = (): void => {
+      if (this.postProcessing) {
+        this.renderer.setRenderTarget(this.postProcessing.composer.inputBuffer);
+      }
+      this.renderer.compile(this.scene, camera);
+      if (extraGroup) this.renderer.compile(extraGroup, camera, this.scene);
+      if (linearPostGroup && postCam) this.renderer.compile(linearPostGroup, postCam);
+      if (screenPostGroup && postCam) {
+        this.renderer.setRenderTarget(null);
+        this.renderer.compile(screenPostGroup, postCam);
+      }
+    };
     try {
       if (typeof this.renderer.compileAsync === 'function') {
         try {
-          await Promise.all([
+          if (this.postProcessing) {
+            this.renderer.setRenderTarget(this.postProcessing.composer.inputBuffer);
+          }
+          const tasks: Array<Promise<unknown>> = [
             this.renderer.compileAsync(this.scene, camera),
-            extraGroup ? this.renderer.compileAsync(extraGroup, camera, this.scene) : null,
-            this.postProcessing?.whenReady() ?? null,
-          ]);
+          ];
+          if (extraGroup) {
+            tasks.push(this.renderer.compileAsync(extraGroup, camera, this.scene));
+          }
+          if (linearPostGroup && postCam) {
+            tasks.push(this.renderer.compileAsync(linearPostGroup, postCam));
+          }
+          if (screenPostGroup && postCam) {
+            this.renderer.setRenderTarget(null);
+            tasks.push(this.renderer.compileAsync(screenPostGroup, postCam));
+          }
+          if (this.postProcessing) {
+            tasks.push(this.postProcessing.whenReady());
+          }
+          await Promise.all(tasks);
         } catch {
-          this.renderer.compile(this.scene, camera);
-          if (extraGroup) this.renderer.compile(extraGroup, camera, this.scene);
+          compileSync();
           await (this.postProcessing?.whenReady() ?? Promise.resolve());
         }
       } else {
-        this.renderer.compile(this.scene, camera);
-        if (extraGroup) this.renderer.compile(extraGroup, camera, this.scene);
+        compileSync();
         await (this.postProcessing?.whenReady() ?? Promise.resolve());
       }
     } finally {
@@ -428,9 +488,14 @@ export class SceneManager {
       allowUpgrade?: boolean;
     },
   ): TierTransition | null {
-    if (options?.hidden) return null;
+    if (options?.hidden || this.contextLost) return null;
     const frameMs = frameDtSec * 1000;
-    if (!options?.skipDisplayFrameSample && frameMs > 0 && Number.isFinite(frameMs)) {
+    if (
+      !options?.skipDisplayFrameSample &&
+      frameMs > 0 &&
+      frameMs <= MAX_VALID_DISPLAY_FRAME_MS &&
+      Number.isFinite(frameMs)
+    ) {
       this.displayMetrics.record(frameMs);
     }
     if (workMs > 0 && Number.isFinite(workMs)) {
@@ -480,6 +545,7 @@ export class SceneManager {
   }
 
   render(camera: THREE.Camera): void {
+    if (this.contextLost) return;
     this.renderer.info.reset();
     const preset = this.governor.getPreset();
     if (this.isComposerActive(preset)) {
@@ -594,7 +660,7 @@ export class SceneManager {
     if (this.postProcessing) return this.postProcessing.getActivePassSummary();
     const parts: string[] = [];
     if (preset.n8ao === 'full') parts.push('AO');
-    else if (preset.n8ao === 'half') parts.push('AO½');
+    else if (preset.n8ao === 'half') parts.push(this.halfResN8aoSupported ? 'AO½' : 'AO-P');
     if (preset.outline) parts.push('Out');
     if (preset.bloom) parts.push('Bloom');
     if (preset.smaa) parts.push('SMAA');

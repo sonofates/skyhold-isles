@@ -427,4 +427,40 @@ describe('GameLoop throttle boundary and storage backward compatibility', () => 
     loop.stop();
     vi.unstubAllGlobals();
   });
+
+  it('clears pending wake and throttle state when stop() is called before a restart', () => {
+    let nextRaf: ((now: number) => void) | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: (now: number) => void) => {
+      nextRaf = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', () => {});
+    vi.stubGlobal('performance', { now: () => 100 });
+
+    const observedSleepBoundaries: boolean[] = [];
+    const loop = new GameLoop({
+      onFixedTick: () => {},
+      onRender: () => {},
+      onAfterRender: (_dt, _work, _throttled, sleepBoundary) => {
+        observedSleepBoundaries.push(Boolean(sleepBoundary));
+      },
+    });
+
+    loop.setRenderPacing(15, 'modal');
+    loop.start();
+    loop.wakeRender(2.0);
+    nextRaf?.(116); // renders throttled frame -> lastThrottled becomes true
+    expect(loop.isWakeActive()).toBe(true);
+
+    loop.stop();
+    expect(loop.isWakeActive()).toBe(false);
+
+    loop.setRenderPacing(null, 'active');
+    loop.start();
+    nextRaf?.(132);
+    expect(observedSleepBoundaries).toEqual([false, false]);
+
+    loop.stop();
+    vi.unstubAllGlobals();
+  });
 });

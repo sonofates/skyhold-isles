@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { GLTFLoader, type GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { createHarmonizedColormapTexture } from './kenneyPalette.ts';
 
@@ -178,14 +178,28 @@ export class KenneyAssetStore {
 
     const concurrency = 10;
     let cursor = 0;
-    let lastYieldMs = typeof performance !== 'undefined' ? performance.now() : 0;
+    let syncCpuMs = 0;
     let pendingYield: Promise<void> | null = null;
 
     const worker = async (): Promise<void> => {
       while (cursor < models.length) {
         const idx = cursor++;
         const name = models[idx];
-        const gltf = await loader.loadAsync(`${base}${name}.glb`);
+        const url = `${base}${name}.glb`;
+        let gltf: GLTF;
+        let cpuStartMs: number;
+        if (typeof fetch === 'function') {
+          const res = await fetch(url);
+          if (!res.ok) {
+            throw new Error(`Failed to load model "${name}" (${res.status})`);
+          }
+          const buf = await res.arrayBuffer();
+          cpuStartMs = typeof performance !== 'undefined' ? performance.now() : 0;
+          gltf = await loader.parseAsync(buf, base);
+        } else {
+          gltf = await loader.loadAsync(url);
+          cpuStartMs = typeof performance !== 'undefined' ? performance.now() : 0;
+        }
         gltf.scene.updateMatrixWorld(true);
         const parts: THREE.BufferGeometry[] = [];
         gltf.scene.traverse((obj) => {
@@ -214,14 +228,17 @@ export class KenneyAssetStore {
         completed++;
         onProgress?.(completed, total, name);
 
-        if (typeof performance !== 'undefined' && performance.now() - lastYieldMs >= 10) {
-          if (!pendingYield) {
-            pendingYield = yieldMainThread().then(() => {
-              lastYieldMs = performance.now();
-              pendingYield = null;
-            });
+        if (typeof performance !== 'undefined') {
+          syncCpuMs += Math.max(0, performance.now() - cpuStartMs);
+          if (syncCpuMs >= 10) {
+            if (!pendingYield) {
+              pendingYield = yieldMainThread().then(() => {
+                syncCpuMs = 0;
+                pendingYield = null;
+              });
+            }
+            await pendingYield;
           }
-          await pendingYield;
         }
       }
     };
