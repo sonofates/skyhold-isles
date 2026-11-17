@@ -4,19 +4,27 @@ Started 2026-11-16 23:00 UTC (02:00 TR). Deadline 06:00 UTC (09:00 TR).
 
 ## Status / task list
 - [x] 1. New enemy archetypes (sim + data + mesh + badge + tests) — warden, burrower, carrier, blinker, golem, mite + elite flag (`tests/sim/newEnemies.test.ts`)
+  - [x] (round 2) 7th archetype **Gloam Hexer** (`hexer`, `tests/sim/hexer.test.ts`) + endless spotlight pairs `[hexer, mite]`, `[golem, hexer]`
 - [x] 2. Endless-mode variety — `ENDLESS_SPOTLIGHTS` rotation in `waveSystem.ts`, elites from 4th endless wave. Probe: `npx tsx scripts/endlessProbe.ts --level=9` (full L9 build: endless lasts to wave 25 vs 26 before — slightly harder, accepted).
 - [x] Sim extension: extra ground spawn lanes (`LevelDef.extraGroundPaths`, `WaveGroupDef.lane`) + render support (`tests/sim/lanes.test.ts`, incl. layout validation for every island)
 - [x] 4. New boss `tempest` (Tempest Colossus) — sim/mesh/FX/tests (built before L12 so the island can use it)
 - [x] 3. New islands
   - [x] L10 **Confluence Terraces** (`level10.ts`): two spawn lanes (west causeway = lane 0, northern switchback = lane 1) merge at a crossroads; introduces mites (w2), wardens (w3), burrowers (w4); Dreadnought at w10 and w20 with elite wardens/brutes. enemyHpScale 1.01 (late clearBonus trimmed, heavier w19/w20 elites after the targeting fix) → greedy W 5 lives here / 9 in the 3-branch dry-run merge (merged plateau 1.005–1.03, here 0.96–1.015); weak loses ~w8.
   - [x] L11 **Galewatch Spires** (`level11.ts`, helper agent): road loops a central plateau and a void "gale chasm"; the sky lane is 87% of the road length and slaloms over buildable land. Haulers w3, blinkers w4, golems w6, elites from w16, Dreadnought w10 and w20 (bosses arrive last so haulers don't slip by under boss focus). Greedy W 7 lives 1★ here (passes 1.19–1.24 except a 13-life spike at 1.205) / 8 lives merged (passes 1.20–1.22), weak loses w16–17. Leaks are mostly haulers + their dropped raiders (by design: ground defence isn't the limiter here).
-  - [x] L12 **Stormcrown Citadel** (`level12.ts`, helper agent): 18x14 spiral fortress; main road coils inward through 3 rings to a central storm altar, northern war-road (lane 1) joins the inner ring at (13,7); every new archetype, lane-1 pressure in 16/22 waves, 6 elite groups (w18–22), Dreadnought w11, Tempest Colossus walks the whole spiral in w22 (Stormwall on the outer ring, enrages ~inner court; greedy kills it with 2–9% HP to spare). enemyHpScale 1.65 → greedy W 7 here / 9 merged; weak loses ~w15.
+  - [x] (round 2) L12 **Lanternfall Hollow** (`level12.ts`): Gloam Hexer showcase. 17x13 switchback: the road doubles back four times, so the 1-tile hedgerows between switchbacks (rows 2, 8, 10) see two road stretches but are inside hex reach; the middle band (row 5, cols 4-15) and the south-west pocket (2,9..11) are 2 tiles off the road → out of every hex. Hexers from w3, Dreadnought + hex choir w10, elites w16+, w20 = 1 Dreadnought + elite brutes/hexers + mites. enemyHpScale 1.44 (plateau 1.42–1.46 here, 1.41/1.43–1.47 merged, spike at 1.42 merged) → greedy W 8 lives on this branch AND in the 3-branch dry-run merge; weak (hugs the road) loses ~w12. Hex probe (`.wt/hexprobe.ts 12`): weak gets 13 of 16 towers hexed, greedy 7 of 23 — the counterplay is real.
+  - [x] L13 **Stormcrown Citadel** (`level13.ts`, was level12.ts until round 2 — moved so the finale stays last; id unchanged, `index: 12`, helper agent): 18x14 spiral fortress; main road coils inward through 3 rings to a central storm altar, northern war-road (lane 1) joins the inner ring at (13,7); every new archetype, lane-1 pressure in 16/22 waves, 6 elite groups (w18–22), Dreadnought w11, Tempest Colossus walks the whole spiral in w22 (Stormwall on the outer ring, enrages ~inner court; greedy kills it with 2–9% HP to spare). enemyHpScale 1.65 → greedy W 7 here / 9 merged; weak loses ~w15.
 - [x] 5. Polish: hit/death FX, readability, more tests
   - [x] FX for every new mechanic (`enemyFx.ts`), blinker flicker + burrower mound bulge telegraphs, elite ring, shield bubble, blue glint when a barrier soaks a hit (`shieldAbsorb`)
   - [x] mesh polish after a rasterised preview (rounder burrower, striped balloon)
   - [x] tests: geometry sanity, EnemyRenderer update path (stub materials), FX bindings, determinism replay, seeded fuzz/stress over all archetypes (`enemyStress.test.ts`)
   - [x] wave preview `eliteCount`, endless Tempest every 10th wave, endless groups spread over lanes
   - [x] first-encounter counterplay toasts
+
+## Round 2 (this session, 2026-11-17 ~00:00–) log
+- Re-ran the merge dry-run with the other branches' latest heads: same single balanceSim conflict, same L6 failure (ISLANDS×TOWERS), L10–L13 pass. `.wt/stitch.py .wt/m3` resolves the conflict in the scratch tree.
+- Endless probe on L10–L13 (full greedy build, auto-wave stacking): dies 3 waves after the campaign, same as L9 → consistent.
+- Second independent review (sub-agent, read-only) → fixed: (1) "Strongest" tie-break compared raw `dist` across lanes → now `dist + laneProgressOffset` (bit-identical on single-lane islands); (2) a downed hauler dropped no raiders when the enemy pool was full (it spawned them before freeing its own slot) → slot freed first, wreck copied to a scratch object; (3) "New foe" toasts were gated on SIM time (6 s) while the toast lives 7 REAL seconds → at 2x/3x a second hint wiped the first; now gated on wall-clock time (`getRealClock` handler, defaults to `performance.now()`), and the old flyer hint waits too. Tests: `tests/sim/lanes.test.ts` (strongest), `tests/sim/newEnemies.test.ts` (full pool), `tests/platform/sessionBridge.test.ts` (toasts).
+- Not fixed (TOWERS area, harmless today): `projectileSystem.ts` flags `isBossHit` only for `type === 'boss'`, not the Tempest Colossus; nothing reads it yet.
 
 ## Enemy design table
 
@@ -29,10 +37,11 @@ Started 2026-11-16 23:00 UTC (02:00 TR). Deadline 06:00 UTC (09:00 TR).
 | `golem` | Basalt Golem | Very high armor (12). Every frost/chill hit (slow application, incl. meteor) cracks its armor down to 3 for a few seconds. | Pair Frost with Archer/Tesla volume; meteor; mortars do OK. Without frost, low-damage hits do ~1. | Massive dark basalt block body with glowing coral cracks; cracks turn icy when brittle. |
 | `mite` | Scuttle Mite | Tiny, fast, cheap, comes in dense swarms. 1 life each. | Splash (cannon/mortar), Tesla chains. Single-target towers get overwhelmed. | Tiny bright-orange beetle with cream back stripe, low to the ground. |
 | (elite) | Empowered variant | Wave-group flag `elite`: ×1.75 HP, +1 armor, ×1.6 reward, gold aura ring. Used in late waves of new islands + endless. | Same as base, focus fire. | Gold tint + aura. |
+| `hexer` | Gloam Hexer | Every 5.5 s, if an un-hexed tower stands within 3.6 (≈ adjacent/diagonal to the road), it stops and channels 0.7 s (telegraph: magenta throb + sparks on the target tower), then stuns that tower for 2.4 s (falls back to the nearest other tower if the target was sold/left reach; killing it mid-channel cancels). 120 HP, armor 1, 2 lives. | Kill it before it reaches your towers / during the channel; towers 2 tiles off the road are out of reach; Overcharge clears hexes. | Hunched burgundy robe, drooping pointed hood, shadowed face with magenta eyes, gold rune patches, crooked staff with a hanging magenta lantern. |
 | `tempest` (boss) | Tempest Colossus (L12, endless every 10th wave) | 1500 HP, armor 8, 6 lives. ≤66%: stops 1.3 s and raises a Stormwall (self shield 20% maxHP, allies within 5 get 60% of their maxHP). ≤33%: enrages ×1.35 speed, summons 6 mites, jams the 2 nearest towers every 6 s. | Burst it in phase windows, splash the shielded escort, Overcharge to cleanse jams. | Huge slate-blue stone colossus, gold storm core, cloud pauldrons, gold bolt crown. |
 
 ## How to verify (all green at every commit on this branch)
-`npx tsc --noEmit && npm run lint && npm test && npm run build && npm run sim:balance` — 12 islands pass; `LEVELS=10,11,12 npm run sim:balance` for just the new ones.
+`npx tsc --noEmit && npm run lint && npm test && npm run build && npm run sim:balance` — 13 islands pass; `LEVELS=10,11,12,13 npm run sim:balance` for just the new ones.
 New tests: `tests/sim/newEnemies.test.ts`, `tests/sim/lanes.test.ts`, `tests/sim/enemyStress.test.ts`, `tests/render/enemyGeometry.test.ts`, `tests/render/enemyRenderer.test.ts`, `tests/render/enemyFx.test.ts`.
 
 ## Scratch tools (git-ignored `.wt/`, hermes only — for the next round of this agent)
@@ -76,7 +85,7 @@ New tests: `tests/sim/newEnemies.test.ts`, `tests/sim/lanes.test.ts`, `tests/sim
 - Difficulty label: a `Legendary` tier for L11/L12 would need a `diff-legendary` class in style.css (not touched). Levels currently say `Master`.
 - HUD wave preview (`hud.ts`): elite groups are not flagged (data is there: `WaveGroupDef.elite`); the "N Flyers incoming" warning chip only triggers for `flyer`, not `carrier` (use `ENEMY_DEFS[type].flying`).
 - Enemy tooltip could show `counterHint` (new field on every new def) — a second line would need styling, so not added.
-- Audio (TOWERS agent area): no sounds yet for `wardPulse`, `shieldBroken`, `enemyBurrow`, `enemyBlink`, `carrierDrop`, `armorCracked`, `bossPhase` events (all on the EventBus).
+- Audio (TOWERS agent area): no sounds yet for `wardPulse`, `shieldBroken`, `enemyBurrow`, `enemyBlink`, `carrierDrop`, `armorCracked`, `bossPhase`, `hexCharge`, `towerHexed` events (all on the EventBus). `towerHexed` would suit the existing boss-pulse/jam sound.
 
 ## Known issues
 - New meshes were not checked in a real browser (no browser on hermes). They WERE checked with a software-rasterised lineup (a copy of the ISLANDS branch's `scripts/previewMap.ts` rasteriser, run in the git-ignored `.wt/` scratch area) — silhouettes/colours read well against grass. Also `tests/render/enemyGeometry.test.ts` (size vs sim height/radius, footprint, ≤900 tris, size classes). Not checkable that way (transparent/animated): shield bubble, elite ring, burrow mound bulge, blinker flicker — please eyeball in-game.
