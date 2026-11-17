@@ -86,6 +86,12 @@ round except wave composition of a few waves, see below).
   no shadow casting). Re-checked previews of all islands at several camera yaws: nothing overlaps routes. Hide-on-build for
   ground details already existed (flowers/tufts/bushes/pebbles hide under towers). Sim/data untouched.
 
+### Round 4 (render-only)
+- L7: three swaying `windsock` set pieces (new `sock` anim family: tapered striped sleeve swinging on a pole) on decor tiles
+  (2,0), (11,0), (5,0); added to the sight-line test. Preview checked; draw calls on L7 map+decor stay ~18-19.
+- All checks green (tsc, lint, 134 tests, build, sim:balance unchanged: every island inside its window).
+- Scarecrow animation dropped (no good low-cost cloth part; static scarecrow reads fine).
+
 ## Audit (what was samey before)
 All 9 islands shared: one flat height, identical grass tint, same 3-tree mix on every `T` tile, same ambient
 (4 islets + 5 clouds), same goal sanctuary and spawn gate, same sky/water. Only the grid shape differed.
@@ -135,7 +141,7 @@ early waves does NOT soften them, it starves the economy (kill rewards) and the 
 
 ## Next (ideas, in rough priority)
 - Re-verify everything after the lead merges the towers/enemies branches (see Merge notes).
-- More authored moments: animated scarecrow, windsocks on L7, (ember sparks done in round 3).
+- More authored moments: (ember sparks round 3, L7 windsocks round 4 done); animated scarecrow not done.
 - If wave pacing is to be tuned further, do it together with kill rewards / clearBonus (see Pressure metric).
 - Layout/path changes were deliberately NOT attempted: every grid tweak invalidates both scripted build orders and
   the knife-edge windows; the themes make the existing layouts read very differently already.
