@@ -1054,5 +1054,26 @@ describe('Daily challenge pure date-seeded generator', () => {
     const emptyIdLvl = { ...LEVELS[0], id: '' };
     expect(generateDailyChallenge('2026-11-17', [emptyIdLvl, LEVELS[1]]).levelId).toBe(LEVELS[1].id);
     expect(generateDailyChallenge('2026-11-17', [LEVELS[0], LEVELS[0]]).levelIndex).toBeLessThan(2);
+
+    const nanFlyerLvl = {
+      ...LEVELS[0],
+      waves: [
+        {
+          clearBonus: 10,
+          groups: [
+            { enemyType: 'flyer', count: Number.NaN, spawnInterval: Number.NaN, startDelay: Number.NaN },
+            { enemyType: 'toString' as unknown as 'grunt', count: 2, spawnInterval: 0.5, startDelay: 0 },
+          ],
+        },
+      ],
+    } as LevelDef;
+    const scaledNanFlyer = applyModifiersToLevel(nanFlyerLvl, { flyerCountMultiplier: 2 });
+    expect(scaledNanFlyer.waves[0].groups[0]).toEqual({
+      enemyType: 'flyer',
+      count: 0,
+      spawnInterval: 0.25,
+      startDelay: 0,
+    });
+    expect(scaledNanFlyer.waves[0].groups[1].enemyType).toBe('toString');
   });
 });

@@ -992,6 +992,10 @@ function getPlainRecord(raw: unknown): Record<string, unknown> | null {
   return isPlainRecord(raw) ? raw : null;
 }
 
+function isValidLevel(level: unknown): level is LevelDef {
+  return Boolean(level) && typeof (level as LevelDef).id === 'string' && (level as LevelDef).id.length > 0;
+}
+
 /** Typed UI query: challenge status & challenge stars for a single island index. */
 export function getChallengeStatus(
   save: MetaSaveData,
@@ -1000,7 +1004,7 @@ export function getChallengeStatus(
 ): LevelChallengeStatus | null {
   if (!Array.isArray(levels) || !Number.isInteger(levelIndex)) return null;
   const level = levels[levelIndex];
-  if (!level || typeof level.id !== 'string') return null;
+  if (!isValidLevel(level)) return null;
   const defs = getChallengesForLevel(level);
   const completedMap = getPlainRecord(save?.completedChallenges);
   const challenges: ChallengeItemStatus[] = [];
@@ -1239,7 +1243,7 @@ export function getMetaCareerRank(
   let campaignStars = 0;
   for (let i = 0; i < safeLevels.length; i++) {
     const lvl = safeLevels[i];
-    if (!lvl || typeof lvl.id !== 'string') continue;
+    if (!isValidLevel(lvl)) continue;
     campaignStars += Math.min(3, asNonNegInt(bestStarsArr[i]));
   }
   const challengeStars = getAllChallengeProgress(save, safeLevels).earnedStars;
@@ -1278,7 +1282,7 @@ export function getRecommendedNextGoal(
   todayDateStr: string,
   levels: readonly LevelDef[] = LEVELS,
 ): RecommendedGoal | null {
-  if (!Array.isArray(levels) || !levels.some((l) => Boolean(l) && typeof l.id === 'string')) {
+  if (!Array.isArray(levels) || !levels.some((l) => isValidLevel(l))) {
     return null;
   }
 
@@ -1306,7 +1310,7 @@ export function getRecommendedNextGoal(
 
   for (let i = 0; i <= maxUnlocked; i++) {
     const lvl = levels[i];
-    if (!lvl || typeof lvl.id !== 'string') continue;
+    if (!isValidLevel(lvl)) continue;
     if (Math.min(3, asNonNegInt(bestStarsArr[i])) === 0) {
       return {
         kind: 'campaign',
@@ -1320,7 +1324,7 @@ export function getRecommendedNextGoal(
 
   for (let i = 0; i <= maxUnlocked; i++) {
     const lvl = levels[i];
-    if (!lvl || typeof lvl.id !== 'string') continue;
+    if (!isValidLevel(lvl)) continue;
     const chStatus = getChallengeStatus(save, i, levels);
     const missing = chStatus?.challenges.find((c) => !c.completed);
     if (missing) {
@@ -1337,7 +1341,7 @@ export function getRecommendedNextGoal(
 
   for (let i = 0; i <= maxUnlocked; i++) {
     const lvl = levels[i];
-    if (!lvl || typeof lvl.id !== 'string') continue;
+    if (!isValidLevel(lvl)) continue;
     if (Math.min(3, asNonNegInt(bestStarsArr[i])) < 3) {
       return {
         kind: 'campaign',
@@ -1370,17 +1374,17 @@ export function getRecommendedNextGoal(
 
   let focusIndex = maxUnlocked;
   let focusLevel = levels[focusIndex];
-  if (!focusLevel || typeof focusLevel.id !== 'string') {
+  if (!isValidLevel(focusLevel)) {
     for (let i = maxUnlocked; i >= 0; i--) {
       const cand = levels[i];
-      if (cand && typeof cand.id === 'string') {
+      if (isValidLevel(cand)) {
         focusIndex = i;
         focusLevel = cand;
         break;
       }
     }
   }
-  if (!focusLevel || typeof focusLevel.id !== 'string') return null;
+  if (!isValidLevel(focusLevel)) return null;
   const waveLen = Array.isArray(focusLevel.waves) ? focusLevel.waves.length : 0;
   const bestWave = Math.max(
     waveLen,
@@ -1435,7 +1439,7 @@ export function getMetaCareerSummary(
 
   for (let i = 0; i < safeLevels.length; i++) {
     const lvl = safeLevels[i];
-    if (!lvl || typeof lvl.id !== 'string') continue;
+    if (!isValidLevel(lvl)) continue;
     validIslands++;
     const stars = Math.min(3, asNonNegInt(bestStarsArr[i]));
     campaignStarsEarned += stars;
@@ -1498,7 +1502,7 @@ export function getTowerMasteryStats(save: MetaSaveData): readonly TowerMasteryS
     0,
   );
   return TOWER_TYPES.map((type) => {
-    const def = TOWER_DEFS[type];
+    const def = Object.hasOwn(TOWER_DEFS, type) ? TOWER_DEFS[type] : undefined;
     const builtCount = readOwnNonNegInt(byType, type);
     let tierIdx = 0;
     for (let i = 0; i < TOWER_MASTERY_THRESHOLDS.length; i++) {
@@ -1531,7 +1535,7 @@ export function getTowerMasteryStats(save: MetaSaveData): readonly TowerMasteryS
 export function getEnemyIntelStats(save: MetaSaveData): readonly EnemyIntelEntry[] {
   const byType = getPlainRecord(save?.stats?.enemiesDefeatedByType);
   return ENEMY_TYPES.map((type) => {
-    const def = ENEMY_DEFS[type];
+    const def = Object.hasOwn(ENEMY_DEFS, type) ? ENEMY_DEFS[type] : undefined;
     const defeatedCount = readOwnNonNegInt(byType, type);
     return {
       type,

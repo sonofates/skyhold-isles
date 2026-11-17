@@ -86,7 +86,9 @@ export function evaluateLevelChallenges(
   won: boolean,
   livesRemaining: number,
 ): readonly ChallengeDef[] {
-  if (!won || !telemetry.eligibleForChallenges || !level || typeof level.id !== 'string') return [];
+  if (!won || !telemetry?.eligibleForChallenges || !level || typeof level.id !== 'string' || level.id.length === 0) {
+    return [];
+  }
   const defs = getChallengesForLevel(level);
   const completed: ChallengeDef[] = [];
   for (let i = 0; i < defs.length; i++) {
@@ -224,7 +226,7 @@ export function evaluateLiveLevelChallenges(
   outcome: 'ongoing' | 'won' | 'lost',
   completedMap: Readonly<Record<string, boolean>>,
 ): readonly LiveChallengeStatus[] {
-  if (!level || typeof level.id !== 'string') return [];
+  if (!level || typeof level.id !== 'string' || level.id.length === 0) return [];
   const defs = getChallengesForLevel(level);
   const safeCompleted =
     completedMap && typeof completedMap === 'object' && !Array.isArray(completedMap)

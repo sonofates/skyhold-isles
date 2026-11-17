@@ -14,6 +14,7 @@ import { MetaSession } from '../../src/platform/metaSession.ts';
 import { isAdvantageousModifiers } from '../../src/sim/meta/modifiers.ts';
 import {
   evaluateChallengeCondition,
+  evaluateLevelChallenges,
   evaluateLiveChallengeState,
   evaluateLiveLevelChallenges,
   RunObserver,
@@ -1220,6 +1221,11 @@ describe('RunObserver challenge condition tracking', () => {
       cleansedTowerIds: null as unknown as number[],
     });
     expect(protoTypeObs.getTelemetry().towersCleansed).toBe(0);
+    const emptyIdLvl = { ...LEVELS[0], id: '' };
+    expect(getChallengesForLevel(emptyIdLvl)).toEqual([]);
+    expect(getChallengeById(':sturdy', [emptyIdLvl])).toBeUndefined();
+    expect(evaluateLevelChallenges(emptyIdLvl, protoTel, true, 20)).toEqual([]);
+    expect(evaluateLiveLevelChallenges(emptyIdLvl, protoTel, 20, 'ongoing', {})).toEqual([]);
     protoTypeObs.dispose();
 
     guardMeta.dispose();

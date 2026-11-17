@@ -395,7 +395,8 @@ export class SimWorld {
         this.spawnConfiguredEnemy(enemyType, hpScale);
         if (
           this.waveSystem.isEndless &&
-          ENEMY_DEFS[enemyType]?.flying &&
+          Object.hasOwn(ENEMY_DEFS, enemyType) &&
+          ENEMY_DEFS[enemyType].flying &&
           this.modifiers.flyerCountMultiplier > 1
         ) {
           const extras = Math.max(0, Math.round(this.modifiers.flyerCountMultiplier) - 1);

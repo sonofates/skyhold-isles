@@ -432,9 +432,10 @@ describe('GameSession and sessionBridge meta wiring', () => {
     }
     expect(session.progress.bestEndlessWaves[0]).toBe(prevBestEndlessL0);
 
-    // 4. enterEndlessMode is a no-op before winning, and advantageous Endless modifiers taint Endless eligibility immediately
+    // 4. enterEndlessMode is a no-op before winning (even with invalid preset), and advantageous Endless modifiers taint Endless eligibility immediately
     session.startLevel(0);
     session.enterEndlessMode({ presetId: 'lean-siege' });
+    expect(() => session.enterEndlessMode({ presetId: 'nonexistent-preset' })).not.toThrow();
     expect(session.simWorld.waveSystem.isEndless).toBe(false);
     expect(session.getActiveRunModifiers()?.activeMutatorIds).toEqual([]);
 

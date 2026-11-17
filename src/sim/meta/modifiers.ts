@@ -210,12 +210,16 @@ export function applyModifiersToLevel(level: LevelDef, modifiers?: RunModifiers 
   const waves: WaveDef[] = level.waves.map((wave) => {
     const rawGroups = wave && Array.isArray(wave.groups as unknown) ? wave.groups : [];
     const groups: WaveGroupDef[] = rawGroups.map((grp) => {
-      if (!grp || !ENEMY_DEFS[grp.enemyType]?.flying) return grp;
+      const hasEnemy = Boolean(grp) && Object.hasOwn(ENEMY_DEFS, grp.enemyType);
+      if (!hasEnemy || !ENEMY_DEFS[grp.enemyType].flying) return grp;
+      const safeCount = Number.isFinite(grp.count) ? Math.max(0, Math.round(grp.count)) : 0;
+      const safeInterval =
+        Number.isFinite(grp.spawnInterval) && grp.spawnInterval > 0 ? grp.spawnInterval : 0.5;
       return {
         enemyType: grp.enemyType,
-        count: grp.count * mult,
-        spawnInterval: Math.max(0.18, +(grp.spawnInterval / mult).toFixed(2)),
-        startDelay: grp.startDelay,
+        count: safeCount * mult,
+        spawnInterval: Math.max(0.18, +(safeInterval / mult).toFixed(2)),
+        startDelay: Number.isFinite(grp.startDelay) ? Math.max(0, grp.startDelay) : 0,
       };
     });
     return {

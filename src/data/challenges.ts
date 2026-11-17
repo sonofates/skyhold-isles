@@ -1,5 +1,5 @@
 import type { LevelDef } from './levels/types.ts';
-import { TOWER_DEFS } from './towers.ts';
+import { TOWER_DEFS, TOWER_TYPES } from './towers.ts';
 import type { AchievementDef, ChallengeDef, MutatorDef, MutatorPreset } from '../sim/meta/types.ts';
 
 /**
@@ -230,7 +230,7 @@ function hashLevelId(id: string): number {
  * and deterministically generates 3 level-id-keyed challenges for any new islands added later.
  */
 export function getChallengesForLevel(level: LevelDef): readonly ChallengeDef[] {
-  if (!level || typeof level.id !== 'string') {
+  if (!level || typeof level.id !== 'string' || level.id.length === 0) {
     return [];
   }
   if (Object.hasOwn(CHALLENGES_BY_LEVEL_ID, level.id)) {
@@ -238,7 +238,10 @@ export function getChallengesForLevel(level: LevelDef): readonly ChallengeDef[] 
   }
 
   const h = hashLevelId(level.id);
-  const bannedPool = ['frost', 'mortar', 'cannon', 'tesla'] as const;
+  const extraTowers = TOWER_TYPES.filter(
+    (t) => t !== 'archer' && t !== 'frost' && t !== 'mortar' && t !== 'cannon' && t !== 'tesla',
+  );
+  const bannedPool = ['frost', 'mortar', 'cannon', 'tesla', ...extraTowers] as const;
   const bannedType = bannedPool[h % bannedPool.length];
   const minLives =
     level.difficulty === 'Breezy'
@@ -258,13 +261,16 @@ export function getChallengesForLevel(level: LevelDef): readonly ChallengeDef[] 
       ? Math.max(8, Math.min(22, Math.round(plannedTowers * 0.85)))
       : waveBasedCap;
 
-  const banLabels: Record<(typeof bannedPool)[number], string> = {
+  const banLabels: Record<string, string> = {
     frost: 'Frost Spires',
     mortar: 'Siege Mortars',
     cannon: 'Cannon Bastions',
     tesla: 'Tesla Coils',
   };
-  const bannedLabel = banLabels[bannedType] ?? `${TOWER_DEFS[bannedType]?.name ?? bannedType}s`;
+  const towerDef = Object.hasOwn(TOWER_DEFS, bannedType) ? TOWER_DEFS[bannedType] : undefined;
+  const bannedLabel = Object.hasOwn(banLabels, bannedType)
+    ? banLabels[bannedType]
+    : `${towerDef?.name ?? bannedType}s`;
 
   return [
     {
@@ -304,7 +310,7 @@ export function getChallengeById(
   if (typeof challengeId !== 'string' || !challengeId || !Array.isArray(levels)) return undefined;
   for (let i = 0; i < levels.length; i++) {
     const level = levels[i];
-    if (!level || typeof level.id !== 'string') continue;
+    if (!level || typeof level.id !== 'string' || level.id.length === 0) continue;
     const list = getChallengesForLevel(level);
     for (let j = 0; j < list.length; j++) {
       if (list[j].id === challengeId) return list[j];

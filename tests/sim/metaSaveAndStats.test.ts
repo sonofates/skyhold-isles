@@ -2177,5 +2177,19 @@ describe('MetaSession stats, achievements, challenges & daily persistence', () =
         levels: LEVELS,
       }).won,
     ).toBe(false);
+
+    // Empty-id levels are ignored uniformly by challenge/rank/summary/recommender queries
+    const emptyIdSave = createDefaultMetaSave(2);
+    emptyIdSave.completedDailyDates = ['2026-11-17'];
+    emptyIdSave.campaign.bestStars = [3, 0];
+    const emptyAndValidLevels = [{ ...LEVELS[0], id: '' }, LEVELS[1]];
+    expect(getChallengeStatus(emptyIdSave, 0, emptyAndValidLevels)).toBeNull();
+    expect(getAllChallengeProgress(emptyIdSave, emptyAndValidLevels).totalStars).toBe(3);
+    expect(getMetaCareerRank(emptyIdSave, emptyAndValidLevels).points).toBe(2); // only daily bonus, not empty-id stars
+    expect(getMetaCareerSummary(emptyIdSave, '2026-11-17', emptyAndValidLevels)).toMatchObject({
+      campaignStarsEarned: 0,
+      totalIslands: 1,
+    });
+    expect(getRecommendedNextGoal(emptyIdSave, '2026-11-17', [{ ...LEVELS[0], id: '' }])).toBeNull();
   });
 });

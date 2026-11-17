@@ -347,13 +347,13 @@ export class GameSession {
 
   enterEndlessMode(mutatorSeedOrModifiers?: number | string | MutatorSelectionInput): void {
     this.soundManager.unlock();
+    if (this.simWorld.outcome !== 'won') return;
     let modifiers: RunModifiers | undefined;
     if (typeof mutatorSeedOrModifiers === 'number' || typeof mutatorSeedOrModifiers === 'string') {
       modifiers = this.meta.rollEndlessMutators(mutatorSeedOrModifiers).modifiers;
     } else if (mutatorSeedOrModifiers !== undefined) {
       modifiers = this.meta.resolveMutatorSelection(mutatorSeedOrModifiers);
     }
-    if (this.simWorld.outcome !== 'won') return;
     if (this.pendingDebugSpawns.length > 0 || this.simWorld.debugTainted) {
       this.meta.markDebugTainted();
     }
