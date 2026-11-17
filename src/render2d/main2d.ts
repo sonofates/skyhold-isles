@@ -2,8 +2,10 @@ import '@fontsource-variable/fredoka';
 import { Application, UPDATE_PRIORITY } from 'pixi.js';
 import { getLevelById } from '../data/levels2d/index.ts';
 import { AbScene } from './abScene.ts';
+import { artCheckSummary, mountArtCheck } from './artCheck.ts';
 import { loadArt } from './assets2d.ts';
 import { autoplayHooks, benchHooks } from './benchScene.ts';
+import { towersHooks, zooHooks, ZooLabels } from './debugScenes.ts';
 import { FrameStats } from './frameStats.ts';
 import { Game2D, type Game2DHooks } from './game2d.ts';
 import { HUD_FONT } from './hudText.ts';
@@ -15,6 +17,9 @@ import { HUD_FONT } from './hudText.ts';
  *   ?bench=150        stress scene: ~N enemies, towers on every plot, window.__bench stats
  *   ?autoplay=1       plays the greedy build script and auto-calls waves
  *   ?raider=veo31q    raider walk-cycle variant (default omni12; `cheap` = procedural)
+ *   ?artcheck=1       overlay: which manifest art files are present / missing (and the stand-ins)
+ *   ?zoo=1            all 15 enemy types walking, specials triggered periodically (labelled)
+ *   ?towers=1[&tier=N] every tower type built and firing (cycles T1-T3 unless tier is given)
  */
 interface BenchStats {
   readonly fps: number;
@@ -32,7 +37,12 @@ interface BenchStats {
 declare global {
   interface Window {
     __bench?: BenchStats;
-    __p0?: { mode: string; state: () => Record<string, unknown>; plotScreen?: (i: number) => { x: number; y: number } };
+    __p0?: {
+      mode: string;
+      state: () => Record<string, unknown>;
+      plotScreen?: (i: number) => { x: number; y: number };
+      artcheck?: () => ReturnType<typeof artCheckSummary>;
+    };
   }
 }
 
@@ -91,6 +101,7 @@ async function main(): Promise<void> {
   const art = await loadArt('/art2d/manifest.json', level.layout2d.image, { raider: q.get('raider') });
   if (art.notes.length > 0) console.info('[art2d] fallbacks:\n  ' + art.notes.join('\n  '));
   document.getElementById('boot')?.remove();
+  if (q.get('artcheck') === '1') mountArtCheck(art);
 
   const draws = countDrawCalls((app.renderer as unknown as { gl?: WebGL2RenderingContext }).gl);
   const stats = new FrameStats();
@@ -112,17 +123,21 @@ async function main(): Promise<void> {
 
   let hooks: Game2DHooks = {};
   if (bench > 0) hooks = benchHooks(bench);
+  else if (q.get('zoo') === '1') hooks = zooHooks();
+  else if (q.get('towers') === '1') hooks = towersHooks(Math.max(0, Math.min(3, Number(q.get('tier') ?? 0) || 0)) || null);
   else if (q.get('autoplay') === '1') hooks = autoplayHooks(level.scriptedBuildOrder ?? []);
   const game = new Game2D(app, art, level, hooks);
   game.attachInput(app.canvas);
   const onResize = (): void => game.resize(app.screen.width, app.screen.height);
   onResize();
   app.renderer.on('resize', onResize);
+  const zooLabels = q.get('zoo') === '1' ? new ZooLabels(game) : null;
   app.ticker.add((t) => {
     if (draws) lastDraws = draws.take();
     const t0 = performance.now();
     stats.record(t.deltaMS, t0);
     game.frame(t.deltaMS / 1000);
+    zooLabels?.update();
     renderStart = performance.now();
     updateStats.record(renderStart - t0, renderStart);
   });
@@ -135,6 +150,7 @@ async function main(): Promise<void> {
     mode: bench > 0 ? 'bench' : 'play',
     state: () => game.debugState(),
     plotScreen: (i) => game.plotScreen(i),
+    artcheck: () => artCheckSummary(art),
   };
   if (bench > 0) {
     Object.defineProperty(window, '__bench', {

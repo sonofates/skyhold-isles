@@ -530,3 +530,13 @@
 .cx-entry .btn-icon {
   position: relative;
 }
+
+/* Painted 2D art (only present when the 2D entry registers a codex art resolver). */
+.cx-art {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+  filter: drop-shadow(0 2px 0 rgba(0, 0, 0, 0.35));
+}

@@ -1,6 +1,7 @@
 import '../styles/codex.css';
 import type { TowerType } from '../../core/types.ts';
 import { ENEMY_ICON_SVGS, TOWER_ICON_SVGS, UI_ICON_SVGS } from '../icons.ts';
+import { codexArtHtml } from './codexArt.ts';
 import {
   allEnemyEntries,
   allTowerEntries,
@@ -34,6 +35,16 @@ const TOWER_TILE_LABELS: Record<TowerType, string> = {
   ballista: 'Ballista',
   beacon: 'Beacon',
 };
+
+/** Painted 2D art when the page registered a resolver (2d.html), else the built-in SVG icon. */
+function enemyIcon(e: { kind: string; id: string }): string {
+  if (e.kind !== 'enemy') return UI_ICON_SVGS.star;
+  return codexArtHtml('enemy', e.id) ?? ENEMY_ICON_SVGS[e.id as keyof typeof ENEMY_ICON_SVGS];
+}
+
+function towerIcon(id: TowerType): string {
+  return codexArtHtml('tower', id) ?? TOWER_ICON_SVGS[id];
+}
 
 function h<K extends keyof HTMLElementTagNameMap>(
   tag: K,
@@ -240,12 +251,12 @@ export class CodexScreen {
 
   private enemyTile(e: EnemyLikeEntry): HTMLButtonElement {
     const seen = this.cb.isSeen(e.seenId);
-    const icon = e.kind === 'enemy' ? ENEMY_ICON_SVGS[e.id] : UI_ICON_SVGS.star;
+    const icon = enemyIcon(e);
     return this.tile(e.id, e.seenId, icon, seen ? e.name.replace('Empowered ', '') : '???', !seen, e.kind === 'enemy' && e.isBoss);
   }
 
   private towerTile(t: CodexTowerEntry): HTMLButtonElement {
-    return this.tile(t.id, t.seenId, TOWER_ICON_SVGS[t.id], TOWER_TILE_LABELS[t.id], false);
+    return this.tile(t.id, t.seenId, towerIcon(t.id), TOWER_TILE_LABELS[t.id], false);
   }
 
   private renderDetail(): void {
@@ -286,7 +297,7 @@ export class CodexScreen {
 
   private renderEnemyDetail(body: HTMLElement, e: EnemyLikeEntry): void {
     const seen = this.cb.isSeen(e.seenId);
-    const icon = e.kind === 'enemy' ? ENEMY_ICON_SVGS[e.id] : UI_ICON_SVGS.star;
+    const icon = enemyIcon(e);
     if (!seen) {
       body.append(
         this.head(icon, 'Unknown foe', 'Not yet met', true),
@@ -306,7 +317,7 @@ export class CodexScreen {
 
   private renderTowerDetail(body: HTMLElement, t: CodexTowerEntry): void {
     body.append(
-      this.head(TOWER_ICON_SVGS[t.id], t.name, 'Tower', false),
+      this.head(towerIcon(t.id), t.name, 'Tower', false),
       tagRow(t.tags),
       h('p', 'cx-desc', t.description),
       statChips(t.stats),

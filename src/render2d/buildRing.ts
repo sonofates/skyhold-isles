@@ -1,9 +1,9 @@
-import { Container, Sprite, Texture, type Text } from 'pixi.js';
+import { Container, Graphics, Sprite, Texture, type Text } from 'pixi.js';
 import type { TowerType } from '../core/types.ts';
 import type { LoadedArt } from './assets2d.ts';
 import { MIN_TOUCH } from './hud.ts';
 import { paintedText, setFontSize, setText } from './hudText.ts';
-import { layoutRing, type RingPoint } from './ringLayout.ts';
+import { layoutGrid, layoutRing, type GridBox, type RingPoint } from './ringLayout.ts';
 
 export type RingAction =
   | { readonly kind: 'build'; readonly type: TowerType }
@@ -17,6 +17,7 @@ interface Token {
   readonly label: Text;
   action: RingAction | null;
   enabled: boolean;
+  twoLine: boolean;
 }
 
 export interface TowerPanelInfo {
@@ -27,26 +28,51 @@ export interface TowerPanelInfo {
   readonly refund: number;
 }
 
-const MAX_TOKENS = 4;
+/** Room for the barracks (8th tower) and a spare. */
+const MAX_TOKENS = 10;
+/** More than this many tokens switch from the arc to the compact grid. */
+const ARC_MAX = 4;
+
+const SHORT_NAMES: Readonly<Record<string, string>> = {
+  archer: 'Archer',
+  cannon: 'Cannon',
+  frost: 'Frost',
+  tesla: 'Tesla',
+  mortar: 'Mortar',
+  ballista: 'Ballista',
+  beacon: 'Beacon',
+  barracks: 'Barracks',
+};
+
+export function shortTowerName(type: string): string {
+  return SHORT_NAMES[type] ?? type.charAt(0).toUpperCase() + type.slice(1);
+}
 
 /**
- * Screen-space build ring (free plot: one token per buildable tower with its cost, greyed when
- * unaffordable) and tower panel (built plot: upgrade with cost / MAX, sell with refund). Tokens
- * are pooled; touch targets are at least MIN_TOUCH px.
+ * Screen-space build ring (free plot: one token per buildable tower with its name and cost,
+ * greyed when unaffordable) and tower panel (built plot: upgrade with cost / MAX, sell with
+ * refund). Up to 4 towers fan out in an arc; more (7 towers now, 8 with the barracks) sit in a
+ * compact two-row grid on a dim backdrop that stays inside the viewport. Tokens are pooled; touch
+ * targets are at least MIN_TOUCH px and never overlap.
  */
 export class BuildRing {
   readonly root = new Container();
   private readonly tokens: Token[] = [];
   private readonly points: RingPoint[] = [];
+  private readonly panel = new Graphics();
+  private readonly box: GridBox = { x: 0, y: 0, w: 0, h: 0 };
   private readonly art: LoadedArt;
   private tokenR = 32;
   private count = 0;
+  private grid = false;
   /** What the ring is open on: plot index, or -1. */
   plot = -1;
   mode: 'build' | 'tower' | null = null;
 
   constructor(art: LoadedArt) {
     this.art = art;
+    this.panel.visible = false;
+    this.root.addChild(this.panel);
     for (let i = 0; i < MAX_TOKENS; i++) {
       const root = new Container();
       const bg = new Sprite(art.ui.button);
@@ -57,7 +83,7 @@ export class BuildRing {
       root.addChild(bg, icon, label);
       root.visible = false;
       this.root.addChild(root);
-      this.tokens.push({ root, bg, icon, label, action: null, enabled: false });
+      this.tokens.push({ root, bg, icon, label, action: null, enabled: false, twoLine: false });
     }
     this.root.visible = false;
   }
@@ -77,7 +103,16 @@ export class BuildRing {
     this.tokenR = Math.max(MIN_TOUCH / 2 + 2, 42 * u);
   }
 
-  private setToken(i: number, tex: Texture, iconH: number, label: string, action: RingAction, enabled: boolean): void {
+  private setToken(
+    i: number,
+    tex: Texture,
+    iconH: number,
+    label: string,
+    action: RingAction,
+    enabled: boolean,
+    tintOn = 0xffffff,
+    twoLine = false,
+  ): void {
     const t = this.tokens[i];
     const r = this.tokenR;
     t.root.visible = true;
@@ -87,20 +122,33 @@ export class BuildRing {
     const s = (r * iconH) / Math.max(1, tex.height);
     t.icon.scale.set(s);
     t.icon.position.set(0, r * 0.05);
-    setFontSize(t.label, Math.round(Math.max(14, r * 0.5)));
+    setFontSize(t.label, Math.round(Math.max(13, r * (twoLine ? 0.42 : 0.5))));
     setText(t.label, label);
-    t.label.position.set(0, r * 1.02);
+    t.label.position.set(0, twoLine ? r * 1.5 : r * 1.02);
+    t.twoLine = twoLine;
     t.action = action;
     t.enabled = enabled;
     t.root.alpha = enabled ? 1 : 0.62;
-    const tint = enabled ? 0xffffff : 0x8a8a8a;
-    t.bg.tint = tint;
-    t.icon.tint = tint;
+    t.bg.tint = enabled ? 0xffffff : 0x8a8a8a;
+    t.icon.tint = enabled ? tintOn : 0x8a8a8a;
     t.label.style.fill = enabled ? '#fff4dc' : '#d9a59a';
   }
 
   private place(cx: number, cy: number, w: number, h: number, topBand: number): void {
-    layoutRing(cx, cy, this.count, this.tokenR, w, h, topBand, this.points);
+    const r = this.tokenR;
+    this.grid = this.count > ARC_MAX;
+    this.panel.clear();
+    if (this.grid) {
+      layoutGrid(cx, cy, this.count, r, r * 1.0, w, h, topBand, this.points, this.box);
+      this.panel
+        .roundRect(this.box.x, this.box.y, this.box.w, this.box.h, 14)
+        .fill({ color: 0x2a190b, alpha: 0.62 })
+        .stroke({ color: 0xf2d79a, alpha: 0.55, width: 2 });
+      this.panel.visible = true;
+    } else {
+      layoutRing(cx, cy, this.count, r, w, h, topBand, this.points);
+      this.panel.visible = false;
+    }
     for (let i = 0; i < this.tokens.length; i++) {
       const t = this.tokens[i];
       if (i < this.count) t.root.position.set(this.points[i].x, this.points[i].y);
@@ -118,8 +166,19 @@ export class BuildRing {
     for (let i = 0; i < this.count; i++) {
       const type = ring[i];
       const cost = costs.get(type) ?? 0;
-      const tex = this.art.towers[type]?.tiers[0] ?? Texture.WHITE;
-      this.setToken(i, tex, 1.45, String(cost), { kind: 'build', type }, gold >= cost);
+      const art = this.art.towers[type];
+      const tex = art?.tiers[0] ?? Texture.WHITE;
+      const grid = this.count > ARC_MAX;
+      this.setToken(
+        i,
+        tex,
+        grid ? 1.3 : 1.45,
+        grid ? `${shortTowerName(type)}\n${cost}` : String(cost),
+        { kind: 'build', type },
+        gold >= cost,
+        art?.tint ?? 0xffffff,
+        grid,
+      );
     }
     this.place(cx, cy, w, h, topBand);
   }
@@ -132,10 +191,11 @@ export class BuildRing {
     const art = this.art.towers[info.type];
     const nextTier = Math.min(3, info.tier + 1);
     const upTex = art?.tiers[nextTier - 1] ?? Texture.WHITE;
+    const tint = art?.tint ?? 0xffffff;
     if (info.upgradeCost === null) {
-      this.setToken(0, upTex, 1.45, 'MAX', { kind: 'upgrade' }, false);
+      this.setToken(0, upTex, 1.45, 'MAX', { kind: 'upgrade' }, false, tint);
     } else {
-      this.setToken(0, upTex, 1.45, `▲ ${info.upgradeCost}`, { kind: 'upgrade' }, gold >= info.upgradeCost);
+      this.setToken(0, upTex, 1.45, `▲ ${info.upgradeCost}`, { kind: 'upgrade' }, gold >= info.upgradeCost, tint);
     }
     this.setToken(1, this.art.ui.gold, 0.95, `+${info.refund}`, { kind: 'sell' }, true);
     this.place(cx, cy, w, h, topBand);
@@ -151,6 +211,10 @@ export class BuildRing {
       const dy = y - t.root.y;
       if (dx * dx + dy * dy <= r * r) return t.enabled ? t.action : null;
     }
+    // Taps on the grid backdrop belong to the ring (do not fall through to the map).
+    if (this.grid && x >= this.box.x && x <= this.box.x + this.box.w && y >= this.box.y && y <= this.box.y + this.box.h) {
+      return null;
+    }
     return undefined;
   }
 
@@ -162,5 +226,10 @@ export class BuildRing {
       out.push({ x: t.root.x, y: t.root.y, enabled: t.enabled });
     }
     return out;
+  }
+
+  /** Token radius and layout kind (QA hooks). */
+  get layoutInfo(): { tokenR: number; grid: boolean; box: GridBox } {
+    return { tokenR: this.tokenR, grid: this.grid, box: this.box };
   }
 }
