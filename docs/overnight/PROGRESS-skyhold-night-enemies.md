@@ -33,6 +33,11 @@ Started 2026-11-16 23:00 UTC (02:00 TR). Deadline 06:00 UTC (09:00 TR).
 - Second independent review (sub-agent, read-only) → fixed: (1) "Strongest" tie-break compared raw `dist` across lanes → now `dist + laneProgressOffset` (bit-identical on single-lane islands); (2) a downed hauler dropped no raiders when the enemy pool was full (it spawned them before freeing its own slot) → slot freed first, wreck copied to a scratch object; (3) "New foe" toasts were gated on SIM time (6 s) while the toast lives 7 REAL seconds → at 2x/3x a second hint wiped the first; now gated on wall-clock time (`getRealClock` handler, defaults to `performance.now()`), and the old flyer hint waits too. Tests: `tests/sim/lanes.test.ts` (strongest), `tests/sim/newEnemies.test.ts` (full pool), `tests/platform/sessionBridge.test.ts` (toasts).
 - Not fixed (TOWERS area, harmless today): `projectileSystem.ts` flags `isBossHit` only for `type === 'boss'`, not the Tempest Colossus; nothing reads it yet.
 
+## Next (if another round runs) — all backlog items are done; only low-risk work left
+- Re-run the merge dry-run if the other branches move (`trymerge.py` + `stitch.py`, then `robust.py 10,11,12,13`).
+- Don't re-tune L10–L13 blind: the balance is chaotic (see Round 9 log). Only touch if a merged run fails a window.
+- Possible extras: more edge-case tests; nothing structural pending.
+
 ## Round 9 (2026-11-17 02:36 UTC) log
 - Rounds 3–8 left no commits (sessions apparently cut short). Found one uncommitted tweak in `level10.ts` (w15 elite brutes 7@1.0 s → 6@1.2 s). Swept both versions over enemyHpScale 0.98–1.04: identical greedy lives at every value (5 lives on 1.00–1.025, fails at 1.03) → no gain, discarded; L10 stays as committed.
 - Merge dry-run re-run with the latest local heads (islands `54b721d`, towers `f5f71fc`): same single balanceSim conflict (stitch script resolves it), tsc clean, **291/291 tests**, balance: everything passes except the known **L6**; new islands merged L10 7 / L11 8 / L12 8 / L13 9 greedy lives.
