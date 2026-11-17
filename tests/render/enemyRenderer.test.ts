@@ -34,6 +34,8 @@ describe('EnemyRenderer with the new archetypes', () => {
     sys.spawnEnemy('tempest');
     sys.spawnEnemy('mite');
     sys.spawnEnemy('warden');
+    const hexer = sys.spawnEnemy('hexer')!;
+    hexer.hexTargetId = 3; // channelling a hex (magenta throb)
     burrower.burrowed = true;
     burrower.abilityTimer = 0.1; // inside the resurfacing telegraph window
     shielded.shield = 20;
@@ -47,11 +49,19 @@ describe('EnemyRenderer with the new archetypes', () => {
 
     const all = meshesByCount(renderer);
     const visibleCounts = all.filter((m) => m.visible).map((m) => m.count);
-    // 7 body layers (burrower hidden) + mound + bubble + ring + hp bar + shadows
-    expect(all.length).toBeGreaterThanOrEqual(14 + 5);
+    // 8 body layers (burrower hidden) + mound + bubble + ring + hp bar + shadows
+    expect(all.length).toBeGreaterThanOrEqual(15 + 5);
     const total = visibleCounts.reduce((a, b) => a + b, 0);
-    // bodies 7, mound 1, bubble 1, rings 2, hp bar 1, shadows 7
-    expect(total).toBe(7 + 1 + 1 + 2 + 1 + 7);
+    // bodies 8, mound 1, bubble 1, rings 2, hp bar 1, shadows 8
+    expect(total).toBe(8 + 1 + 1 + 2 + 1 + 8);
+    // The channelling hexer is tinted toward the hex glow (more red+blue than green).
+    const layers = (renderer as unknown as { layers: Map<string, { mesh: THREE.InstancedMesh }> }).layers;
+    const hexMesh = layers.get('hexer')!.mesh;
+    expect(hexMesh.count).toBe(1);
+    const c = new THREE.Color();
+    hexMesh.getColorAt(0, c);
+    expect(c.r).toBeGreaterThan(c.g + 0.15);
+    expect(c.b).toBeGreaterThan(c.g + 0.15);
     for (const m of all) {
       for (let i = 0; i < m.count; i++) {
         const mat = new THREE.Matrix4();
