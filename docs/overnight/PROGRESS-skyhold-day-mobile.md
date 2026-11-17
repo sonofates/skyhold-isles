@@ -113,3 +113,5 @@ Branch `hermes/skyhold-day-mobile`. Preview port 4302. Deadline 21:00 TR.
 - Round 17: **bug fix** `src/platform/input.ts`: `pointercancel` shares the pointerup handler and, for a non-dragging single touch, delivered a primary tap (palm rejection / browser taking over the gesture could place a tower). Taps now require `e.type === "pointerup"`. New `tests/platform/inputTap.test.ts` (fake window/canvas: tap, cancel, drag/pinch release). Tree green (tsc, lint, 467 tests, build). No gameplay/data change.
 
 - Round 18: tree green (tsc, lint, 467 tests, build). Backlog 1-5 complete; no code change. Open items still need real devices (governor tuning) or a Lighthouse binary.
+
+- Round 19: re-read `src/platform/input.ts` (pinch -> single finger, blur, cancel paths) and found no further bug. Tree green (tsc, lint, 467 tests, build). Backlog 1-5 complete; no code change. Open items still need real devices (governor tuning) or a Lighthouse binary. Merge-tree trial against campaign/content is still blocked by the sandbox.
