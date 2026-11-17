@@ -90,6 +90,8 @@ export class GameLoop {
     if (typeof document === 'undefined') return;
     if (document.hidden) {
       this.wakeUntilMs = 0;
+      this.hasRendered = false;
+      this.lastThrottled = false;
       if (this.rafId !== null) {
         cancelAnimationFrame(this.rafId);
         this.rafId = null;

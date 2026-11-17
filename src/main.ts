@@ -257,8 +257,16 @@ async function bootstrap(loadingScreen: LoadingScreen): Promise<void> {
     setDebugVisible: (v) => debugPanel?.setVisible(hasPerf ? true : v),
   });
 
+  let lastViewportW = Math.max(1, Math.round(canvas.clientWidth || window.innerWidth));
+  let lastViewportH = Math.max(1, Math.round(canvas.clientHeight || window.innerHeight));
+
   const onResize = (): void => {
-    renderWorld.resize(canvas.clientWidth || window.innerWidth, canvas.clientHeight || window.innerHeight);
+    const w = Math.max(1, Math.round(canvas.clientWidth || window.innerWidth));
+    const h = Math.max(1, Math.round(canvas.clientHeight || window.innerHeight));
+    if (w === lastViewportW && h === lastViewportH) return;
+    lastViewportW = w;
+    lastViewportH = h;
+    renderWorld.resize(w, h);
     renderWorld.sceneManager.resetGovernorWarmup(0.65, false);
   };
   const onFirstGesture = (): void => soundManager.unlock();
@@ -282,7 +290,9 @@ async function bootstrap(loadingScreen: LoadingScreen): Promise<void> {
   await nextAnimationFrame();
 
   const warmStartMs = performance.now();
-  renderWorld.resize(canvas.clientWidth || window.innerWidth, canvas.clientHeight || window.innerHeight);
+  lastViewportW = Math.max(1, Math.round(canvas.clientWidth || window.innerWidth));
+  lastViewportH = Math.max(1, Math.round(canvas.clientHeight || window.innerHeight));
+  renderWorld.resize(lastViewportW, lastViewportH);
   await renderWorld.sceneManager.warmUp(renderWorld.cameraController.camera, {
     instancedHighlightMaterial: renderWorld.materials.kenneyTower,
     extraMaterials: [

@@ -494,4 +494,50 @@ describe('GameLoop throttle boundary and storage backward compatibility', () => 
     loop.stop();
     vi.unstubAllGlobals();
   });
+
+  it('resets pre-hide throttle and rendered flags when visibility becomes hidden', () => {
+    let hidden = false;
+    let nextRaf: ((now: number) => void) | null = null;
+    const listeners = new Map<string, () => void>();
+
+    vi.stubGlobal('document', {
+      get hidden() {
+        return hidden;
+      },
+      addEventListener: (type: string, cb: () => void) => listeners.set(type, cb),
+      removeEventListener: (type: string) => listeners.delete(type),
+    });
+    vi.stubGlobal('requestAnimationFrame', (cb: (now: number) => void) => {
+      nextRaf = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', () => {});
+    vi.stubGlobal('performance', { now: () => 100 });
+
+    const sleepBoundaries: boolean[] = [];
+    const loop = new GameLoop({
+      onFixedTick: () => {},
+      onRender: () => {},
+      onAfterRender: (_dt, _work, _throttled, sleepBoundary) => {
+        sleepBoundaries.push(Boolean(sleepBoundary));
+      },
+    });
+
+    loop.setRenderPacing(15, 'modal');
+    loop.start();
+    nextRaf?.(116); // renders throttled frame -> lastThrottled=true
+
+    // Hide while throttled, then restore directly into uncapped active gameplay
+    hidden = true;
+    listeners.get('visibilitychange')?.();
+    loop.setRenderPacing(null, 'active');
+    hidden = false;
+    listeners.get('visibilitychange')?.();
+    nextRaf?.(132);
+
+    expect(sleepBoundaries).toEqual([false, false]);
+
+    loop.stop();
+    vi.unstubAllGlobals();
+  });
 });

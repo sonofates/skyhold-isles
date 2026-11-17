@@ -97,6 +97,20 @@ export function collectInstancedMaterialsNeedingColor(
 }
 
 /**
+ * Three.js compileAsync unconditionally schedules a 10ms+ setTimeout fallback when
+ * KHR_parallel_shader_compile is unavailable (e.g. iOS Safari / WebKit), even though
+ * shaders compiled synchronously. Use compileAsync only when parallel compile exists.
+ */
+export function shouldUseAsyncShaderCompile(
+  renderer: Partial<Pick<THREE.WebGLRenderer, 'compileAsync' | 'extensions'>>,
+): boolean {
+  return (
+    typeof renderer.compileAsync === 'function' &&
+    Boolean(renderer.extensions?.has?.('KHR_parallel_shader_compile'))
+  );
+}
+
+/**
  * Distinguishes primary-touch phones/tablets from touchscreen laptops with a mouse/trackpad
  * so desktop touchscreen machines preserve full Tier 5 visuals.
  */
@@ -319,6 +333,7 @@ export class SceneManager {
     if (this.disposed || quality === this.governor.getMode()) return;
     this.tierTransitions = 0;
     this.governor.setMode(quality);
+    this.resetDisplayMetrics();
     this.applyPreset(this.governor.getPreset(), true);
   }
 
@@ -445,7 +460,7 @@ export class SceneManager {
       }
     };
     try {
-      if (typeof this.renderer.compileAsync === 'function') {
+      if (shouldUseAsyncShaderCompile(this.renderer)) {
         try {
           if (this.postProcessing) {
             this.renderer.setRenderTarget(this.postProcessing.composer.inputBuffer);

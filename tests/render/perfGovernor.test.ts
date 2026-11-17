@@ -3,7 +3,7 @@ import * as path from 'node:path';
 import { EffectPass } from 'postprocessing';
 import * as THREE from 'three';
 import { describe, expect, it, vi } from 'vitest';
-import { KenneyAssetStore } from '../../src/render/kenneyAssets.ts';
+import { KenneyAssetStore, yieldMainThread } from '../../src/render/kenneyAssets.ts';
 import {
   GOVERNOR_THRESHOLDS,
   PerfGovernor,
@@ -23,6 +23,7 @@ import {
 import {
   collectInstancedMaterialsNeedingColor,
   detectPrimaryTouchDevice,
+  shouldUseAsyncShaderCompile,
 } from '../../src/render/sceneManager.ts';
 import { DebugPanel, formatPerfLogLine } from '../../src/ui/debugPanel.ts';
 
@@ -833,5 +834,77 @@ describe('PerfGovernor', () => {
     } finally {
       vi.unstubAllGlobals();
     }
+  });
+
+  it('uses compileAsync only when KHR_parallel_shader_compile is supported to avoid 10ms timer stalls on WebKit', () => {
+    const compileAsync = async () => [];
+    expect(
+      shouldUseAsyncShaderCompile({
+        compileAsync: compileAsync as unknown as THREE.WebGLRenderer['compileAsync'],
+        extensions: { has: (name: string) => name === 'KHR_parallel_shader_compile' } as THREE.WebGLExtensions,
+      }),
+    ).toBe(true);
+
+    expect(
+      shouldUseAsyncShaderCompile({
+        compileAsync: compileAsync as unknown as THREE.WebGLRenderer['compileAsync'],
+        extensions: { has: () => false } as unknown as THREE.WebGLExtensions,
+      }),
+    ).toBe(false);
+
+    expect(
+      shouldUseAsyncShaderCompile({
+        extensions: { has: () => true } as unknown as THREE.WebGLExtensions,
+      }),
+    ).toBe(false);
+  });
+
+  it('yields cooperatively via scheduler.yield, MessageChannel (closing ports), or setTimeout fallback', async () => {
+    let schedCalled = false;
+    vi.stubGlobal('scheduler', {
+      yield: () => {
+        schedCalled = true;
+        return Promise.resolve();
+      },
+    });
+    await yieldMainThread();
+    expect(schedCalled).toBe(true);
+
+    vi.stubGlobal('scheduler', undefined);
+    let closedPorts = 0;
+    let timeoutCalled = false;
+    vi.stubGlobal('setTimeout', (cb: () => void) => {
+      timeoutCalled = true;
+      cb();
+      return 1;
+    });
+    vi.stubGlobal(
+      'MessageChannel',
+      class FakeMessageChannel {
+        port1 = {
+          onmessage: null as (() => void) | null,
+          close: () => {
+            closedPorts++;
+          },
+        };
+        port2 = {
+          postMessage: () => {
+            queueMicrotask(() => this.port1.onmessage?.());
+          },
+          close: () => {
+            closedPorts++;
+          },
+        };
+      },
+    );
+    await yieldMainThread();
+    expect(closedPorts).toBe(2);
+    expect(timeoutCalled).toBe(false);
+
+    vi.stubGlobal('MessageChannel', undefined);
+    await yieldMainThread();
+    expect(timeoutCalled).toBe(true);
+
+    vi.unstubAllGlobals();
   });
 });
