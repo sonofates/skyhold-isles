@@ -1260,6 +1260,31 @@ describe('MetaSession stats, achievements, challenges & daily persistence', () =
     expect(careerSummary.mostDefeatedEnemyType).toBe('grunt');
     expect(careerSummary.winRatePct).toBe(71);
 
+    // Unsanitized non-finite / negative values in codex & rank inputs never propagate NaN
+    const dirtyCodexSave = createDefaultMetaSave(9);
+    dirtyCodexSave.campaign.bestStars[0] = Number.NaN;
+    dirtyCodexSave.campaign.bestStars[1] = 2;
+    dirtyCodexSave.stats.towersBuiltByType = { archer: Number.NaN, cannon: -3, frost: 10.9 };
+    dirtyCodexSave.stats.enemiesDefeatedByType = { grunt: Number.POSITIVE_INFINITY, flyer: -1, brute: 4.7 };
+    const dirtyTowerStats = getTowerMasteryStats(dirtyCodexSave);
+    expect(dirtyTowerStats.find((t) => t.type === 'archer')?.builtCount).toBe(0);
+    expect(dirtyTowerStats.find((t) => t.type === 'cannon')?.builtCount).toBe(0);
+    expect(dirtyTowerStats.find((t) => t.type === 'frost')).toMatchObject({
+      builtCount: 10,
+      sharePct: 100,
+      rank: 'Apprentice',
+    });
+    const dirtyEnemyIntel = getEnemyIntelStats(dirtyCodexSave);
+    expect(dirtyEnemyIntel.find((e) => e.type === 'grunt')).toMatchObject({
+      defeatedCount: 0,
+      discovered: false,
+    });
+    expect(dirtyEnemyIntel.find((e) => e.type === 'brute')).toMatchObject({
+      defeatedCount: 4,
+      discovered: true,
+    });
+    expect(getMetaCareerSummary(dirtyCodexSave, '2026-11-17', LEVELS).rank.points).toBe(2);
+
     const testLevels = [tinyLevel, ...LEVELS.slice(1)];
     // Pre-wave quit does not bump gamesPlayed, whereas mid-Wave-1 quit flushes stats & increments gamesPlayed
     const quitMeta = new MetaSession({

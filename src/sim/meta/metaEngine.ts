@@ -964,7 +964,7 @@ export function getMetaCareerRank(
 ): MetaCareerRank {
   let campaignStars = 0;
   for (let i = 0; i < levels.length; i++) {
-    campaignStars += save.campaign.bestStars[i] ?? 0;
+    campaignStars += Math.min(3, asNonNegInt(save.campaign.bestStars[i]));
   }
   const challengeStars = getAllChallengeProgress(save, levels).earnedStars;
   let achievementsUnlocked = 0;
@@ -1181,12 +1181,12 @@ const TOWER_MASTERY_THRESHOLDS: readonly { minBuilt: number; rank: TowerMasteryR
 /** Typed UI query: per-tower lifetime build counts, share percentages, and mastery tiers. */
 export function getTowerMasteryStats(save: MetaSaveData): readonly TowerMasteryStat[] {
   const totalBuilt = TOWER_TYPES.reduce(
-    (sum, type) => sum + (save.stats.towersBuiltByType[type] ?? 0),
+    (sum, type) => sum + asNonNegInt(save.stats.towersBuiltByType[type]),
     0,
   );
   return TOWER_TYPES.map((type) => {
     const def = TOWER_DEFS[type];
-    const builtCount = save.stats.towersBuiltByType[type] ?? 0;
+    const builtCount = asNonNegInt(save.stats.towersBuiltByType[type]);
     let tierIdx = 0;
     for (let i = 0; i < TOWER_MASTERY_THRESHOLDS.length; i++) {
       if (builtCount >= TOWER_MASTERY_THRESHOLDS[i].minBuilt) {
@@ -1218,7 +1218,7 @@ export function getTowerMasteryStats(save: MetaSaveData): readonly TowerMasteryS
 export function getEnemyIntelStats(save: MetaSaveData): readonly EnemyIntelEntry[] {
   return ENEMY_TYPES.map((type) => {
     const def = ENEMY_DEFS[type];
-    const defeatedCount = save.stats.enemiesDefeatedByType[type] ?? 0;
+    const defeatedCount = asNonNegInt(save.stats.enemiesDefeatedByType[type]);
     return {
       type,
       name: def.name,

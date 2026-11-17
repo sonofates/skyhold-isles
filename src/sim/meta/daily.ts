@@ -215,6 +215,11 @@ export function generateDailyChallenge(
 
   const hasEconomySqueeze =
     mutatorRoll.modifiers.goldRewardMultiplier < 1 || mutatorRoll.modifiers.towerCostMultiplier > 1;
+  const hasMasterIntensity =
+    hasEconomySqueeze ||
+    mutatorRoll.modifiers.enemyHpMultiplier > 1 ||
+    mutatorRoll.modifiers.enemySpeedMultiplier > 1 ||
+    mutatorRoll.modifiers.flyerCountMultiplier > 1;
 
   const { restriction, modifiers: restrictionMods } = pickTowerRestriction(
     rng,
@@ -224,7 +229,10 @@ export function generateDailyChallenge(
         !isMaster && (!isHeroic || (mutatorRoll.mutators.length < 2 && !hasEconomySqueeze)),
       forceNone:
         mutatorRoll.modifiers.forbiddenTowerTypes.length > 0 ||
-        (isHeroic && mutatorRoll.mutators.length >= 2 && hasEconomySqueeze),
+        (isMaster && hasMasterIntensity) ||
+        (isHeroic &&
+          mutatorRoll.mutators.length >= 2 &&
+          (hasEconomySqueeze || mutatorRoll.modifiers.enemyHpMultiplier > 1)),
       preserveAntiAir: mutatorRoll.modifiers.flyerCountMultiplier > 1,
       requireArmorBreaker:
         isHeroic ||

@@ -325,12 +325,29 @@ describe('Daily challenge pure date-seeded generator', () => {
       }
 
       // Heroic dailies never combine economy-squeeze mutators (gold_drought/tight_budget) with limited_arsenal,
-      // nor 2 mutators + economy squeeze with any tower ban; heavy-armored limited_arsenal retains splash/heavy damage
+      // nor 2 mutators + economy squeeze/HP boost with any tower ban; Master dailies never stack an extra ban
+      // on top of HP/speed/flyer/economy mutators; heavy-armored limited_arsenal retains splash/heavy damage
       const hasEconomySqueeze =
         spec.modifiers.goldRewardMultiplier < 1 || spec.modifiers.towerCostMultiplier > 1;
-      if (lvl.difficulty === 'Heroic' && hasEconomySqueeze) {
-        expect(spec.towerRestriction.kind).not.toBe('limited_arsenal');
-        if (spec.mutators.length >= 2 && spec.modifiers.forbiddenTowerTypes.length === 0) {
+      if (lvl.difficulty === 'Master') {
+        const hasMasterIntensity =
+          hasEconomySqueeze ||
+          spec.modifiers.enemyHpMultiplier > 1 ||
+          spec.modifiers.enemySpeedMultiplier > 1 ||
+          spec.modifiers.flyerCountMultiplier > 1;
+        if (hasMasterIntensity && spec.modifiers.forbiddenTowerTypes.length === 0) {
+          expect(spec.towerRestriction.kind).toBe('none');
+        }
+      }
+      if (lvl.difficulty === 'Heroic') {
+        if (hasEconomySqueeze) {
+          expect(spec.towerRestriction.kind).not.toBe('limited_arsenal');
+        }
+        if (
+          spec.mutators.length >= 2 &&
+          (hasEconomySqueeze || spec.modifiers.enemyHpMultiplier > 1) &&
+          spec.modifiers.forbiddenTowerTypes.length === 0
+        ) {
           expect(spec.towerRestriction.kind).toBe('none');
         }
       }
@@ -441,8 +458,8 @@ describe('Daily challenge pure date-seeded generator', () => {
     obs.dispose();
   });
 
-  it('wins both Heroic and Master Daily Watch runs in SimWorld with tower bans and economy integrity intact', () => {
-    for (const dateStr of ['2026-11-15', '2026-11-04'] as const) {
+  it('wins Heroic and Master Daily Watch runs in SimWorld with mutators, tower bans, and economy integrity intact', () => {
+    for (const dateStr of ['2026-11-15', '2026-11-04', '2026-01-02', '2026-02-26'] as const) {
       const spec = generateDailyChallenge(dateStr, LEVELS);
       const level = LEVELS[spec.levelIndex];
       const legal = getAllowedTowerTypes(spec.modifiers);

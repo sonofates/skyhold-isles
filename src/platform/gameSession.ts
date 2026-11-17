@@ -271,6 +271,9 @@ export class GameSession {
     if (this.pendingDebugSpawns.length > 0 || this.simWorld.debugTainted) {
       this.meta.markDebugTainted();
     }
+    if (this.simWorld.outcome === 'ongoing') {
+      this.meta.verifyWorldIntegrity(this.simWorld.gold, this.simWorld.lives);
+    }
     if (!this.meta.isCurrentRunEligible()) return;
     const ws = this.simWorld.waveSystem;
     if (!ws.isEndless || ws.currentWaveOneBased <= this.simWorld.level.waves.length) return;
