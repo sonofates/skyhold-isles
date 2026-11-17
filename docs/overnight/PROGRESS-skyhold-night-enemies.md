@@ -4,11 +4,11 @@ Started 2026-11-16 23:00 UTC (02:00 TR). Deadline 06:00 UTC (09:00 TR).
 
 ## TL;DR for the lead (morning)
 - **What's in:** 7 new enemy archetypes (warden, burrower, carrier, blinker, golem, mite, hexer) + Empowered elites + a 2nd boss (Tempest Colossus); 4 new islands L10–L13 (multi-lane Confluence Terraces, sky-lane Galewatch Spires, hexer switchbacks Lanternfall Hollow, spiral finale Stormcrown Citadel); endless spotlight rotation; FX, enemy sound cues, badges, counter-hint toasts; progress-unlock fix so L9 finishers get L10.
-- **Branch state:** all green (`tsc`, lint, 143 tests, build, `sim:balance` 13/13 islands).
+- **Branch state:** all green (`tsc`, lint, 147 tests, build, `sim:balance` 13/13 islands).
 - **UI follow-ups** (not done, UI branch's area): see "UI needs" — Legendary difficulty label, elite flag + `carrier` in the HUD wave preview/flyer warning, counter hints in tooltips, a theme for `lanternfall-hollow`.
 
 ### Merge recipe (all checked in scratch merges, repo untouched)
-1. **ISLANDS + TOWERS + this branch:** the only textual conflict is `scripts/balanceSim.ts` (ISLANDS × TOWERS, not this branch). Take TOWERS' `evaluateBalance()` refactor and re-home ISLANDS' `robustLines` (return it from `evaluateBalance` or move the `--robust` sweep into `main()`), otherwise `--robust` throws a ReferenceError at the end. Result: tsc clean, 313/313 tests, every island in its window **except L6** (ISLANDS × TOWERS; sweep in the Round 9 log).
+1. **ISLANDS + TOWERS + this branch:** the only textual conflict is `scripts/balanceSim.ts` (ISLANDS × TOWERS, not this branch). Take TOWERS' `evaluateBalance()` refactor and re-home ISLANDS' `robustLines` (return it from `evaluateBalance` or move the `--robust` sweep into `main()`), otherwise `--robust` throws a ReferenceError at the end. Result: tsc clean, 317/317 tests, every island in its window **except L6** (ISLANDS × TOWERS; sweep in the Round 9 log).
 2. **+ agy-meta:** one conflict, `src/sim/world.ts` `waveSystem.update` spawn callback — keep agy-meta's `spawnConfiguredEnemy` and thread `elite`/`lane` through it and the extra-flyer queue (exact code in Round 10). `storage.ts` now merges cleanly.
 3. **+ agy-qa:** apply `docs/overnight/agy-qa-fuzzPlay-new-enemies.patch` to its `scripts/fuzzPlay.ts` (teaches the fuzz invariants about cracked golem armor, lanes, burrowing, dropped raiders, elites, tempest-as-boss). The remaining agy test failures pin 9 islands / one spawn / "offset 9 = 2 Dreadnoughts" — table with suggested fixes in Round 10. None is a bug in the new content (agy-qa's own fuzzer, patched, ran 312 campaign + 104 endless runs clean).
 4. **Then always** `npm run sim:balance` (L10 is 5 lives here / 7 merged, window 5–10) and `npm test`.
@@ -90,6 +90,8 @@ Tests after that merge (mine + 3 agy): **352 pass / 31 fail; 13 of those 31 alre
 - agy branches are still moving (agy-qa committed again at ~02:55 UTC) → re-check in the morning.
 
 - Islands + towers dry-run re-run after all round-10 commits (islands `c4864a4`, towers `fef1e60`): same single balanceSim stitch, tsc clean, **313/313 tests**, balance unchanged — all pass except the known L6 (6 lives); new islands L10 7 / L11 8 / L12 8 / L13 9.
+
+- Wave names: ISLANDS gave every wave of L1–L9 a flavour `name` (new optional `WaveDef.name`, data only — no UI shows it yet). Added the same field (byte-identical lines, so `types.ts` merges cleanly) and names for all 82 waves of L10–L13 (e.g. L10 "The Confluence", L12 "Witching Hour" / "Lanternfall", L13 "Crown of Storms"); test `tests/sim/waveNamesNewIslands.test.ts` (same rules as ISLANDS' 1–9 test). 3-way dry-run after that: tsc clean, **317/317**.
 
 ## Round 10 — readability vs roads
 - New test (`tests/render/enemyGeometry.test.ts`): every new archetype's camera-facing surface is >85 % colour-distinct (CIELAB ΔE > 25, area-weighted) from grass and dark foliage. All pass with margin (golem 93 % — its moss tufts are the intended accent).
