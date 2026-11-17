@@ -199,6 +199,25 @@ Read-only diff comparison (merge-tree not permitted here). Shared files and expe
 - `README.md`: mobile edits the Touch section, I append a section at the end → clean.
 - `style.css`: I never touched it.
 
+## Merge notes vs origin/hermes/skyhold-day-content @3a7c4df (read-only diff, round 2)
+- `ContentStore.migrate` reads only `unlockedLevelIndex` + `bestStars` from the progress save →
+  compatible with save v2. Content keeps its own keys (`skyhold_isles_codex_v1`, `_onboarding_v1`).
+- `gameSession.ts` onGameWon: content adds `this.deps?.content?.onLevelWon(this.currentLevelIndex);`
+  right after `recordWinProgress(this.progress, this.currentLevelIndex, stars);` — that line is
+  replaced here by the multi-line `recordWinProgress(..., livesRemaining, badgesForWin(...))`
+  call → **expected conflict**: keep mine and add content's `onLevelWon` line after it. Other
+  content hunks (syncLoopAndInput, fixedTick, showMenuView `onLeavePlay`, startLevel `bindLevel`,
+  render `updateMarker`) are on lines I did not change. `startTutorialIsland: () =>
+  session.startLevel(0)` still type-checks (config is optional).
+- `gameOverlays.ts`: my callbacks now sit above `onSettingsChange`/`onSettingsClose` and the reset
+  callback above `onRestart`, so content's `onReplayTutorial` additions merge cleanly.
+- `settingsModal.ts`: content's tutorial row + `card.append(...)` change and my reset row at the
+  constructor tail are separate hunks.
+- Codex entry points (content decorates `.menu-btn-row` + `.level-select-header`): simulated with
+  `.tune/injectCodex.js` — main menu gets a full-width Codex row under Islands|Workshop|⚙ (fine);
+  island-select header was pushed off-screen at 390 px → fixed in `logbook.css` (narrow phones drop
+  the "/ 39" and tighten gaps). Landscape/desktop show the labelled chip, fits.
+
 ## Cross-area changes
 - `src/sim/{world,abilitySystem,combatSystem,enemySystem}.ts`: optional modifier hooks (neutral default, sim results identical).
 - `src/data/balance.ts`: removed `starThresholds` (moved to src/data/stars.ts).

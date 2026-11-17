@@ -51,8 +51,7 @@ export interface GameOverlayCallbacks {
   onMainMenuFromPause: () => void;
   onNextLevel: () => void;
   onEndlessMode: () => void;
-  onSettingsChange: (next: GameSettings) => void;
-  onSettingsClose: () => void;
+  // Campaign / meta screens (kept above the settings callbacks: other branches append after them).
   onOpenWorkshop: (from: 'menu' | 'levelSelect') => void;
   onWorkshopBuy: (id: WorkshopUpgradeId) => boolean;
   onWorkshopRefundAll: () => void;
@@ -63,6 +62,8 @@ export interface GameOverlayCallbacks {
   onOpenLogbook?: () => void;
   onOpenDaily?: () => void;
   onStartDaily?: (daily: DailyChallenge) => void;
+  onSettingsChange: (next: GameSettings) => void;
+  onSettingsClose: () => void;
 }
 
 export class GameOverlays {
@@ -167,10 +168,10 @@ export class GameOverlays {
 
     this.settingsModal = new SettingsModal(uiRoot, cb.initialSettings, {
       onChange: cb.onSettingsChange,
+      onResetProgress: cb.onResetProgress,
       onRestart: cb.onRestartLevel,
       onQuitToMenu: cb.onMainMenuFromPause,
       onClose: cb.onSettingsClose,
-      onResetProgress: cb.onResetProgress,
     });
   }
 
