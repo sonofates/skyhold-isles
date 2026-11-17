@@ -1,8 +1,10 @@
 import type { EnemyType, ProgressData, TowerType } from '../../core/types.ts';
 import { BALANCE } from '../../data/balance.ts';
 import { ACHIEVEMENTS, getChallengeById, getChallengesForLevel } from '../../data/challenges.ts';
+import { ENEMY_DEFS, ENEMY_TYPES } from '../../data/enemies.ts';
 import { LEVELS } from '../../data/levels/index.ts';
 import type { LevelDef } from '../../data/levels/types.ts';
+import { TOWER_DEFS, TOWER_TYPES } from '../../data/towers.ts';
 import {
   computeDailyStreaks,
   generateDailyChallenge,
@@ -22,6 +24,7 @@ import type {
   ChallengeItemStatus,
   DailyHistoryEntry,
   EndlessScoreBreakdown,
+  EnemyIntelEntry,
   IslandMasteryStatus,
   LevelChallengeStatus,
   LifetimeStats,
@@ -31,6 +34,8 @@ import type {
   RecommendedGoal,
   RunMetaOutcome,
   RunTelemetry,
+  TowerMasteryRank,
+  TowerMasteryStat,
 } from './types.ts';
 import { evaluateLevelChallenges } from './runObserver.ts';
 
@@ -1136,6 +1141,63 @@ export function getMetaCareerSummary(
     mostDefeatedEnemyType: getTopKey(save.stats.enemiesDefeatedByType) as EnemyType | null,
     rank: getMetaCareerRank(save, levels),
   };
+}
+
+const TOWER_MASTERY_THRESHOLDS: readonly { minBuilt: number; rank: TowerMasteryRank }[] = [
+  { minBuilt: 0, rank: 'Recruit' },
+  { minBuilt: 10, rank: 'Apprentice' },
+  { minBuilt: 25, rank: 'Artificer' },
+  { minBuilt: 60, rank: 'Grandmaster' },
+];
+
+/** Typed UI query: per-tower lifetime build counts, share percentages, and mastery tiers. */
+export function getTowerMasteryStats(save: MetaSaveData): readonly TowerMasteryStat[] {
+  const totalBuilt = TOWER_TYPES.reduce(
+    (sum, type) => sum + (save.stats.towersBuiltByType[type] ?? 0),
+    0,
+  );
+  return TOWER_TYPES.map((type) => {
+    const builtCount = save.stats.towersBuiltByType[type] ?? 0;
+    let tierIdx = 0;
+    for (let i = 0; i < TOWER_MASTERY_THRESHOLDS.length; i++) {
+      if (builtCount >= TOWER_MASTERY_THRESHOLDS[i].minBuilt) {
+        tierIdx = i;
+      }
+    }
+    const current = TOWER_MASTERY_THRESHOLDS[tierIdx];
+    const next =
+      tierIdx + 1 < TOWER_MASTERY_THRESHOLDS.length ? TOWER_MASTERY_THRESHOLDS[tierIdx + 1] : null;
+    const progressRatio = next
+      ? Math.min(1, Math.max(0, (builtCount - current.minBuilt) / (next.minBuilt - current.minBuilt)))
+      : 1;
+    return {
+      type,
+      name: TOWER_DEFS[type].name,
+      builtCount,
+      sharePct: totalBuilt > 0 ? Math.round((builtCount / totalBuilt) * 100) : 0,
+      rank: current.rank,
+      nextTarget: next ? next.minBuilt : null,
+      progressRatio: +progressRatio.toFixed(3),
+    };
+  });
+}
+
+/** Typed UI query: per-enemy bestiary/intel status derived from lifetime defeats. */
+export function getEnemyIntelStats(save: MetaSaveData): readonly EnemyIntelEntry[] {
+  return ENEMY_TYPES.map((type) => {
+    const def = ENEMY_DEFS[type];
+    const defeatedCount = save.stats.enemiesDefeatedByType[type] ?? 0;
+    return {
+      type,
+      name: def.name,
+      description: def.description,
+      defeatedCount,
+      discovered: defeatedCount > 0,
+      flying: def.flying,
+      armor: def.armor,
+      livesCost: def.livesCost,
+    };
+  });
 }
 
 /** Typed UI query: recent Daily Watch history entries with completion & personal-best score status. */

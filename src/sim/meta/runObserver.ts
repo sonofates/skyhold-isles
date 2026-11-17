@@ -146,7 +146,9 @@ export function evaluateLiveChallengeState(
       break;
     case 'maxPeakTowers':
       failed = telemetry.peakTowersActive > cond.maxCount;
-      progressLabel = `${telemetry.activeTowers}/${cond.maxCount} active`;
+      progressLabel = failed
+        ? `Peak ${telemetry.peakTowersActive}/${cond.maxCount}`
+        : `${telemetry.activeTowers}/${cond.maxCount} active`;
       break;
     case 'maxTowerTier':
       failed = telemetry.maxTowerTierBuilt > cond.maxTier;

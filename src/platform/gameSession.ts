@@ -163,7 +163,7 @@ export class GameSession {
     setDebugVisible(inPlay);
     if (!inPlay) return;
     if (!this.deferIntegrityCheck && this.simWorld.outcome === 'ongoing') {
-      if (this.pendingDebugSpawns.length > 0) {
+      if (this.pendingDebugSpawns.length > 0 || this.simWorld.debugTainted) {
         this.meta.markDebugTainted();
       }
       this.meta.verifyWorldIntegrity(this.simWorld.gold, this.simWorld.lives);
@@ -350,6 +350,9 @@ export class GameSession {
       !isTowerTypeAllowed(this.activePlacementType, this.simWorld.modifiers)
     ) {
       this.setPlacementMode(null);
+    }
+    if (this.pendingDebugSpawns.length > 0 || this.simWorld.debugTainted) {
+      this.meta.markDebugTainted();
     }
     this.meta.verifyWorldIntegrity(this.simWorld.gold, this.simWorld.lives);
     this.meta.onEndlessEntered(modifiers);
@@ -894,7 +897,7 @@ export class GameSession {
     this.simClockSec += dt;
     if (this.simWorld.outcome === 'ongoing') {
       this.meta.onTick(dt, this.deps?.loop.speed ?? 1);
-      if (this.pendingDebugSpawns.length > 0) {
+      if (this.pendingDebugSpawns.length > 0 || this.simWorld.debugTainted) {
         this.meta.markDebugTainted();
       }
       this.meta.verifyWorldIntegrity(this.simWorld.gold, this.simWorld.lives);

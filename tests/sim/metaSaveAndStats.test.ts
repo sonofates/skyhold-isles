@@ -17,8 +17,10 @@ import {
   getAchievements,
   getAllChallengeProgress,
   getChallengeStatus,
+  getEnemyIntelStats,
   getRecentDailyHistory,
   getStats,
+  getTowerMasteryStats,
   importMetaSaveJson,
   migrateToMetaSave,
   recordRunCompletion,
@@ -1110,6 +1112,52 @@ describe('MetaSession stats, achievements, challenges & daily persistence', () =
     expect(endlessAfterDaily.endlessScore).not.toBeNull();
     expect(dailyMeta.getStats().gamesLost).toBe(0);
     expect(dailyMeta.getDailyStatus('2026-11-17').bestScoreToday).toBe(savedDailyBest);
+
+    // 5. Tower mastery & enemy intel stats + mid-final-wave replace-import gamesPlayed tracking
+    const codexSave = createDefaultMetaSave(9);
+    codexSave.stats.towersBuiltByType = { archer: 65, cannon: 25, frost: 10, tesla: 0, mortar: 0 };
+    codexSave.stats.enemiesDefeatedByType = { grunt: 120, boss: 3 };
+    const towerMastery = getTowerMasteryStats(codexSave);
+    expect(towerMastery.map((t) => [t.type, t.rank, t.sharePct])).toEqual([
+      ['archer', 'Grandmaster', 65],
+      ['cannon', 'Artificer', 25],
+      ['frost', 'Apprentice', 10],
+      ['tesla', 'Recruit', 0],
+      ['mortar', 'Recruit', 0],
+    ]);
+    expect(towerMastery.find((t) => t.type === 'archer')?.nextTarget).toBeNull();
+    expect(towerMastery.find((t) => t.type === 'frost')?.nextTarget).toBe(25);
+
+    const enemyIntel = getEnemyIntelStats(codexSave);
+    expect(enemyIntel.find((e) => e.type === 'grunt')?.discovered).toBe(true);
+    expect(enemyIntel.find((e) => e.type === 'flyer')?.discovered).toBe(false);
+    expect(enemyIntel.find((e) => e.type === 'boss')?.defeatedCount).toBe(3);
+
+    // Mid-final-wave replace import increments gamesPlayed on gameWon even when gamesPlayed > gamesWon + gamesLost
+    const importedSave = createDefaultMetaSave(9);
+    importedSave.stats.gamesPlayed = 5;
+    importedSave.stats.gamesWon = 2;
+    importedSave.stats.gamesLost = 1;
+    const finalWaveEv = new EventBus();
+    const finalWaveWorld = new SimWorld(tinyLevel, finalWaveEv);
+    meta.startRun(tinyLevel, finalWaveEv);
+    finalWaveWorld.placeTower(4, 2, 'archer');
+    finalWaveWorld.startNextWave();
+    expect(meta.importSaveJson(JSON.stringify(importedSave), 'replace').ok).toBe(true);
+    expect(meta.getTowerMasteryStats()[0].rank).toBe('Recruit');
+    expect(meta.getEnemyIntelStats()).toHaveLength(enemyIntel.length);
+    for (let i = 0; i < 60 * 30 && finalWaveWorld.outcome === 'ongoing'; i++) {
+      meta.onTick(BALANCE.fixedDt, 3);
+      finalWaveWorld.fixedTick(BALANCE.fixedDt);
+    }
+    expect(finalWaveWorld.outcome).toBe('won');
+    expect(meta.getStats().gamesPlayed).toBe(6);
+    expect(meta.getStats().gamesWon).toBe(3);
+    // Replace-import after run ends clears stale lastRunOutcome
+    meta.endRun();
+    expect(meta.getLastRunOutcome()).not.toBeNull();
+    expect(meta.importSaveJson(JSON.stringify(importedSave), 'replace').ok).toBe(true);
+    expect(meta.getLastRunOutcome()).toBeNull();
 
     dailyMeta.dispose();
     meta.dispose();

@@ -123,6 +123,16 @@ function pickTowerRestriction(
       chosen.push(rng.pick(armorBreakers));
     }
   }
+  if (
+    options?.preserveAntiAir &&
+    chosen.length < targetSize &&
+    chosen.filter((t) => TOWER_DEFS[t].hitsFlyers).length < 2
+  ) {
+    const extraAntiAir = available.filter((t) => !chosen.includes(t) && TOWER_DEFS[t].hitsFlyers);
+    if (extraAntiAir.length > 0) {
+      chosen.push(rng.pick(extraAntiAir));
+    }
+  }
   const remaining = available.filter((t) => !chosen.includes(t));
   while (chosen.length < targetSize && remaining.length > 0) {
     const idx = rng.int(0, remaining.length - 1);

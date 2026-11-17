@@ -313,9 +313,13 @@ describe('Daily challenge pure date-seeded generator', () => {
         expect(spec.modifiers.forbiddenTowerTypes).toHaveLength(0);
       }
 
-      // Never ban anti-air towers when Sky Swarm (2x flyers) is active
+      // Never ban anti-air towers when Sky Swarm (2x flyers) is active,
+      // and include >= 2 anti-air towers if limited_arsenal coincides with Sky Swarm
       if (spec.modifiers.flyerCountMultiplier > 1) {
         expect(spec.modifiers.forbiddenTowerTypes.some((t) => TOWER_DEFS[t].hitsFlyers)).toBe(false);
+        if (spec.towerRestriction.kind === 'limited_arsenal') {
+          expect(legalTowers.filter((t) => TOWER_DEFS[t].hitsFlyers).length).toBeGreaterThanOrEqual(2);
+        }
       }
 
       // Heroic dailies never combine gold_drought with limited_arsenal, and heavy-armored limited_arsenal retains splash/heavy damage

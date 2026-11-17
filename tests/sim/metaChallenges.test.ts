@@ -13,6 +13,7 @@ import { MetaSession } from '../../src/platform/metaSession.ts';
 import { isAdvantageousModifiers } from '../../src/sim/meta/modifiers.ts';
 import {
   evaluateChallengeCondition,
+  evaluateLiveChallengeState,
   evaluateLiveLevelChallenges,
   RunObserver,
 } from '../../src/sim/meta/runObserver.ts';
@@ -932,6 +933,49 @@ describe('RunObserver challenge condition tracking', () => {
     cheatWorld.gold += 100;
     expect(meta.verifyWorldIntegrity(cheatWorld.gold, cheatWorld.lives)).toBe(false);
     expect(meta.isCurrentRunEligible()).toBe(false);
+
+    // SimWorld.debugTainted catches betweenWaves next-wave debugSkipToWave & debugForceWin
+    const skipEv = new EventBus();
+    const skipWorld = new SimWorld(level, skipEv);
+    meta.startRun(level, skipEv);
+    expect(skipWorld.debugTainted).toBe(false);
+    skipWorld.placeTower(4, 2, 'archer');
+    skipWorld.upgradeTower(1);
+    skipWorld.startNextWave();
+    for (let t = 0; t < 60 * 30 && skipWorld.waveSystem.state !== 'betweenWaves'; t++) {
+      meta.onTick(BALANCE.fixedDt, 3);
+      skipWorld.fixedTick(BALANCE.fixedDt);
+    }
+    expect(skipWorld.waveSystem.state).toBe('betweenWaves');
+    skipWorld.debugSkipToWave(2);
+    expect(skipWorld.debugTainted).toBe(true);
+    if (skipWorld.debugTainted) meta.markDebugTainted();
+    expect(meta.isCurrentRunEligible()).toBe(false);
+
+    // maxPeakTowers live status explains Peak X/Y failure even after selling back down
+    const peakEv = new EventBus();
+    const peakWorld = new SimWorld(level, peakEv);
+    const peakObs = new RunObserver(level, peakEv);
+    const tA = peakWorld.placeTower(4, 2, 'archer')!;
+    peakWorld.placeTower(4, 3, 'archer');
+    peakWorld.placeTower(7, 5, 'archer');
+    peakWorld.sellTower(tA.id);
+    const peakLive = evaluateLiveChallengeState(
+      {
+        id: 'test:peak',
+        levelId: level.id,
+        title: 'Peak Cap',
+        description: 'At most 2 active towers at once.',
+        condition: { kind: 'maxPeakTowers', maxCount: 2 },
+      },
+      peakObs.getTelemetry(),
+      peakWorld.lives,
+      'ongoing',
+      false,
+    );
+    expect(peakLive.state).toBe('failed');
+    expect(peakLive.progressLabel).toBe('Peak 3/2');
+    peakObs.dispose();
     meta.dispose();
   });
 });

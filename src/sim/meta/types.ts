@@ -262,6 +262,29 @@ export interface MetaCareerSummary {
   readonly rank: MetaCareerRank;
 }
 
+export type TowerMasteryRank = 'Recruit' | 'Apprentice' | 'Artificer' | 'Grandmaster';
+
+export interface TowerMasteryStat {
+  readonly type: TowerType;
+  readonly name: string;
+  readonly builtCount: number;
+  readonly sharePct: number;
+  readonly rank: TowerMasteryRank;
+  readonly nextTarget: number | null;
+  readonly progressRatio: number;
+}
+
+export interface EnemyIntelEntry {
+  readonly type: EnemyType;
+  readonly name: string;
+  readonly description: string;
+  readonly defeatedCount: number;
+  readonly discovered: boolean;
+  readonly flying: boolean;
+  readonly armor: number;
+  readonly livesCost: number;
+}
+
 export interface EndlessMutatorRoll {
   readonly seed: number;
   readonly mutators: readonly MutatorDef[];

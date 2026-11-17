@@ -19,12 +19,14 @@ import {
   getAllChallengeProgress,
   getAllIslandMasteryStatuses,
   getChallengeStatus,
+  getEnemyIntelStats,
   getIslandMasteryStatus,
   getMetaCareerRank,
   getMetaCareerSummary,
   getRecentDailyHistory,
   getRecommendedNextGoal,
   getStats,
+  getTowerMasteryStats,
   importMetaSaveJson,
   recomputeAchievements,
   recordEndlessRunStats,
@@ -59,6 +61,7 @@ import type {
   DailyStatus,
   EndlessMutatorRoll,
   EndlessScoreBreakdown,
+  EnemyIntelEntry,
   IslandMasteryStatus,
   LevelChallengeStatus,
   LifetimeStats,
@@ -75,6 +78,7 @@ import type {
   RunMetaOutcome,
   RunModifiers,
   RunTelemetry,
+  TowerMasteryStat,
 } from '../sim/meta/types.ts';
 import { getTodayUtcDateString, loadMetaSave, saveMetaSave } from './storage.ts';
 
@@ -162,6 +166,10 @@ export class MetaSession {
       }),
       events.on('gameWon', (ev) => {
         if (observer.getTelemetry().endlessEntered) return;
+        if (!this.countedGamePlayed && observer.isEligibleForChallenges()) {
+          this.countedGamePlayed = true;
+          this.save.stats.gamesPlayed++;
+        }
         this.flushStats(false);
         const telemetry = observer.getTelemetry();
         const outcome = recordRunCompletion(this.save, {
@@ -187,6 +195,14 @@ export class MetaSession {
         this.persist();
       }),
       events.on('gameLost', () => {
+        if (
+          !this.countedGamePlayed &&
+          observer.isEligibleForChallenges() &&
+          !observer.getTelemetry().endlessEntered
+        ) {
+          this.countedGamePlayed = true;
+          this.save.stats.gamesPlayed++;
+        }
         this.flushStats(false);
         const telemetry = observer.getTelemetry();
         const outcome = recordRunCompletion(this.save, {
@@ -427,6 +443,14 @@ export class MetaSession {
     return getMetaCareerSummary(this.save, dateStr ?? this.getTodayDateFn(), this.levels);
   }
 
+  getTowerMasteryStats(): readonly TowerMasteryStat[] {
+    return getTowerMasteryStats(this.save);
+  }
+
+  getEnemyIntelStats(): readonly EnemyIntelEntry[] {
+    return getEnemyIntelStats(this.save);
+  }
+
   getRecommendedNextGoal(dateStr?: string): RecommendedGoal | null {
     return getRecommendedNextGoal(this.save, dateStr ?? this.getTodayDateFn(), this.levels);
   }
@@ -528,6 +552,9 @@ export class MetaSession {
     this.save.completedDailyDates = next.completedDailyDates;
     this.save.dailyBestScores = next.dailyBestScores;
 
+    if (mode === 'replace') {
+      this.lastRunOutcome = null;
+    }
     if (this.observer) {
       this.runStartBestEndlessWave =
         this.save.campaign.bestEndlessWaves[this.observer.level.index] ?? 0;
@@ -538,7 +565,6 @@ export class MetaSession {
           ? this.observer.getTelemetry()
           : null;
         this.countedGamePlayed = false;
-        this.lastRunOutcome = null;
         this.runUnlockedAchievementIds = [];
       }
     }

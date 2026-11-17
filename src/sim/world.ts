@@ -69,6 +69,7 @@ export class SimWorld {
   lives: number;
   enemiesKilledTotal = 0;
   outcome: 'ongoing' | 'won' | 'lost' = 'ongoing';
+  debugTainted = false;
 
   constructor(level: LevelDef, events: EventBus, modifiers?: RunModifiers | null) {
     const resolvedModifiers = resolveRunModifiers(modifiers);
@@ -188,6 +189,7 @@ export class SimWorld {
   }
 
   debugSkipToWave(waveOneBased: number): boolean {
+    this.debugTainted = true;
     this.pendingExtraFlyers.length = 0;
     this.enemyPool.clear();
     this.projectilePool.clear();
@@ -203,6 +205,7 @@ export class SimWorld {
 
   debugForceWin(): void {
     if (this.outcome !== 'ongoing' || this.waveSystem.isEndless) return;
+    this.debugTainted = true;
     if (this.lives <= 0) this.lives = 1;
     this.outcome = 'won';
     this.events.emit('gameWon', {
