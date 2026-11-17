@@ -437,17 +437,24 @@ export class SoldierSystem {
         if (!best) break;
         this.claim(s, best);
       }
-      // Soldiers ganging up on an enemy that is held without them switch to one nobody holds
-      // (last squad slot first, so the first soldiers keep their fights).
-      for (let i = b.squad.length - 1; i >= 0; i--) {
-        const s = b.squad[i];
-        if (s.state !== 'engaging' && s.state !== 'fighting') continue;
-        const cur = this.target(s);
-        if (!cur || this.claims[cur.poolIndex] <= ENEMY_MELEE[cur.type].holdCost) continue;
-        const needy = this.pickTarget(true);
-        if (!needy) break;
-        this.claims[cur.poolIndex]--;
-        this.claim(s, needy);
+      // Soldiers ganging up on an enemy that is held without them switch to one nobody holds.
+      // Soldiers still closing in go first; a soldier in contact only leaves if enough others
+      // stay in contact to keep the hold. Last squad slot first, so the first soldiers keep fights.
+      for (let pass = 0; pass < 2; pass++) {
+        const want: SoldierState = pass === 0 ? 'engaging' : 'fighting';
+        for (let i = b.squad.length - 1; i >= 0; i--) {
+          const s = b.squad[i];
+          if (s.state !== want) continue;
+          const cur = this.target(s);
+          if (!cur) continue;
+          const hold = ENEMY_MELEE[cur.type].holdCost;
+          if (this.claims[cur.poolIndex] <= hold) continue;
+          if (want === 'fighting' && this.inContact(cur) <= hold) continue;
+          const needy = this.pickTarget(true);
+          if (!needy) break;
+          this.claims[cur.poolIndex]--;
+          this.claim(s, needy);
+        }
       }
     }
     for (let i = 0; i < this.soldiers.length; i++) {
@@ -603,6 +610,16 @@ export class SoldierSystem {
     s.targetUid = e.uid;
     s.state = 'engaging';
     this.claims[e.poolIndex]++;
+  }
+
+  /** Soldiers (any barracks) in melee contact with this enemy right now. */
+  private inContact(e: EnemyEntity): number {
+    let n = 0;
+    for (let i = 0; i < this.soldiers.length; i++) {
+      const s = this.soldiers[i];
+      if (s.state === 'fighting' && s.targetPoolIndex === e.poolIndex && s.targetUid === e.uid) n++;
+    }
+    return n;
   }
 
   /** Free = alive, not claiming anything, and close enough to the rally point to help. */
