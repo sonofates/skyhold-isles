@@ -86,7 +86,7 @@ export function loadSettings(): GameSettings {
     const parsed = JSON.parse(raw) as Partial<GameSettings>;
     return {
       masterVolume:
-        typeof parsed.masterVolume === 'number'
+        typeof parsed.masterVolume === 'number' && Number.isFinite(parsed.masterVolume)
           ? Math.max(0, Math.min(1, parsed.masterVolume))
           : defaults.masterVolume,
       muted: typeof parsed.muted === 'boolean' ? parsed.muted : defaults.muted,
@@ -112,22 +112,23 @@ export function saveSettings(settings: GameSettings): void {
 }
 
 export function loadProgress(levelCount: number): ProgressData {
+  const safeCount = Math.max(1, levelCount);
   try {
     const raw = localStorage.getItem(PROGRESS_KEY);
-    if (!raw) return createDefaultProgress(levelCount);
+    if (!raw) return createDefaultProgress(safeCount);
     const parsed = JSON.parse(raw) as Partial<ProgressData>;
-    const bestStars = new Array<number>(levelCount).fill(0);
+    const bestStars = new Array<number>(safeCount).fill(0);
     if (Array.isArray(parsed.bestStars)) {
-      for (let i = 0; i < levelCount; i++) {
+      for (let i = 0; i < safeCount; i++) {
         const val = parsed.bestStars[i];
         if (typeof val === 'number' && Number.isFinite(val)) {
           bestStars[i] = Math.max(0, Math.min(3, Math.floor(val)));
         }
       }
     }
-    const bestEndlessWaves = new Array<number>(levelCount).fill(0);
+    const bestEndlessWaves = new Array<number>(safeCount).fill(0);
     if (Array.isArray(parsed.bestEndlessWaves)) {
-      for (let i = 0; i < levelCount; i++) {
+      for (let i = 0; i < safeCount; i++) {
         const val = parsed.bestEndlessWaves[i];
         if (typeof val === 'number' && Number.isFinite(val)) {
           bestEndlessWaves[i] = Math.max(0, Math.floor(val));
@@ -135,12 +136,12 @@ export function loadProgress(levelCount: number): ProgressData {
       }
     }
     const unlockedLevelIndex =
-      typeof parsed.unlockedLevelIndex === 'number'
-        ? Math.max(0, Math.min(levelCount - 1, Math.floor(parsed.unlockedLevelIndex)))
+      typeof parsed.unlockedLevelIndex === 'number' && Number.isFinite(parsed.unlockedLevelIndex)
+        ? Math.max(0, Math.min(safeCount - 1, Math.floor(parsed.unlockedLevelIndex)))
         : 0;
     return { unlockedLevelIndex, bestStars, bestEndlessWaves };
   } catch {
-    return createDefaultProgress(levelCount);
+    return createDefaultProgress(safeCount);
   }
 }
 

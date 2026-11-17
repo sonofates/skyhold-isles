@@ -340,12 +340,30 @@ describe('Daily challenge pure date-seeded generator', () => {
         }
       }
       if (lvl.difficulty === 'Heroic') {
-        if (hasEconomySqueeze) {
+        expect(spec.towerRestriction.kind).not.toBe('limited_arsenal');
+        expect(spec.mutators.some((m) => m.id === 'gold_drought') && spec.mutators.length >= 2).toBe(false);
+        if (
+          (hasEconomySqueeze ||
+            spec.modifiers.enemyHpMultiplier > 1 ||
+            spec.mutators.length >= 2) &&
+          spec.modifiers.forbiddenTowerTypes.length === 0
+        ) {
+          expect(spec.towerRestriction.kind).toBe('none');
+        }
+      }
+      if (lvl.difficulty === 'Challenging') {
+        expect(spec.mutators.some((m) => m.id === 'gold_drought') && spec.mutators.length >= 2).toBe(false);
+        if (
+          spec.mutators.length >= 2 ||
+          hasEconomySqueeze ||
+          spec.modifiers.enemyHpMultiplier > 1 ||
+          spec.modifiers.flyerCountMultiplier > 1
+        ) {
           expect(spec.towerRestriction.kind).not.toBe('limited_arsenal');
         }
         if (
           spec.mutators.length >= 2 &&
-          (hasEconomySqueeze || spec.modifiers.enemyHpMultiplier > 1) &&
+          hasEconomySqueeze &&
           spec.modifiers.forbiddenTowerTypes.length === 0
         ) {
           expect(spec.towerRestriction.kind).toBe('none');
@@ -458,8 +476,18 @@ describe('Daily challenge pure date-seeded generator', () => {
     obs.dispose();
   });
 
-  it('wins Heroic and Master Daily Watch runs in SimWorld with mutators, tower bans, and economy integrity intact', () => {
-    for (const dateStr of ['2026-11-15', '2026-11-04', '2026-01-02', '2026-02-26', '2026-01-28'] as const) {
+  it('wins Challenging, Heroic, and Master Daily Watch runs in SimWorld with mutators, tower bans, and economy integrity intact', () => {
+    for (const dateStr of [
+      '2026-11-15',
+      '2026-11-04',
+      '2026-01-02',
+      '2026-02-26',
+      '2026-01-28',
+      '2026-03-20',
+      '2026-12-06',
+      '2026-10-21',
+      '2026-08-26',
+    ] as const) {
       const spec = generateDailyChallenge(dateStr, LEVELS);
       const level = LEVELS[spec.levelIndex];
       const legal = getAllowedTowerTypes(spec.modifiers);
@@ -664,6 +692,27 @@ describe('Daily challenge pure date-seeded generator', () => {
     expect(rawPreview.badges.map((b) => b.id)).toEqual(['restricted-towers']);
     expect(rawPreview.allowedTowerTypes).not.toContain('mortar');
     expect(rawPreview.conflictingMutatorIds).toEqual([]);
+
+    const customScalarPreview = previewMutatorSelection({
+      enemyHpMultiplier: 1.35,
+      enemySpeedMultiplier: 1.2,
+      enemyArmorBonus: 2,
+      flyerCountMultiplier: 2,
+      goldRewardMultiplier: 0.8,
+      startingGoldMultiplier: 0.9,
+      towerCostMultiplier: 1.15,
+    });
+    expect(customScalarPreview.badges.map((b) => b.id)).toEqual([
+      'custom-enemy-hp',
+      'custom-enemy-speed',
+      'custom-enemy-armor',
+      'custom-flyer-count',
+      'custom-gold-reward',
+      'custom-starting-gold',
+      'custom-tower-cost',
+    ]);
+    expect(customScalarPreview.badges[0].label).toBe('Enemy HP +35%');
+    expect(customScalarPreview.badges[3].label).toBe('2x Flyers');
   });
 
   it('generates fair deterministic Daily Watch challenges when Islands 10+ are appended', () => {

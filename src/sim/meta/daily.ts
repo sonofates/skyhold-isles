@@ -178,6 +178,7 @@ export function generateDailyChallenge(
   const level = levels[levelIndex];
   const isMaster = level.difficulty === 'Master';
   const isHeroic = level.difficulty === 'Heroic';
+  const isChallenging = level.difficulty === 'Challenging';
   const hasHeavyArmoredWaves = level.waves.some((wave) => {
     let armoredSwarmCount = 0;
     for (let g = 0; g < wave.groups.length; g++) {
@@ -211,7 +212,25 @@ export function generateDailyChallenge(
   const effectivePool = masterSafePool.length > 0 ? masterSafePool : mutatorCatalog;
 
   const mutatorSeed = (seed ^ Math.imul(rng.int(1, 0x7fffffff), 2654435761)) >>> 0;
-  const mutatorRoll = selectEndlessMutators(mutatorSeed, mutatorCount, effectivePool);
+  let mutatorRoll = selectEndlessMutators(mutatorSeed, mutatorCount, effectivePool);
+
+  // On Heroic/Challenging islands, keep gold_drought solo and avoid pairing two heavy
+  // Heroic multipliers (economy squeeze + HP/flyers/speed, Titan Tide + Sky Swarm, or Sky Swarm + Tailwind March).
+  if ((isHeroic || isChallenging) && mutatorRoll.mutators.length >= 2) {
+    const mMods = mutatorRoll.modifiers;
+    const hasDrought = mutatorRoll.mutators.some((m) => m.id === 'gold_drought');
+    const hasSqueeze = mMods.goldRewardMultiplier < 1 || mMods.towerCostMultiplier > 1;
+    const hasHpOrFlyers = mMods.enemyHpMultiplier > 1 || mMods.flyerCountMultiplier > 1;
+    const hasDoubleSpike =
+      hasDrought ||
+      (isHeroic &&
+        ((hasSqueeze && (hasHpOrFlyers || mMods.enemySpeedMultiplier > 1)) ||
+          (mMods.enemyHpMultiplier > 1 && mMods.flyerCountMultiplier > 1) ||
+          (mMods.flyerCountMultiplier > 1 && mMods.enemySpeedMultiplier > 1)));
+    if (hasDoubleSpike) {
+      mutatorRoll = selectEndlessMutators(mutatorSeed, 1, effectivePool);
+    }
+  }
 
   const hasEconomySqueeze =
     mutatorRoll.modifiers.goldRewardMultiplier < 1 || mutatorRoll.modifiers.towerCostMultiplier > 1;
@@ -226,13 +245,21 @@ export function generateDailyChallenge(
     mutatorRoll.modifiers.forbiddenTowerTypes,
     {
       allowLimitedArsenal:
-        !isMaster && (!isHeroic || (mutatorRoll.mutators.length < 2 && !hasEconomySqueeze)),
+        !isMaster &&
+        !isHeroic &&
+        (!isChallenging ||
+          (mutatorRoll.mutators.length < 2 &&
+            !hasEconomySqueeze &&
+            mutatorRoll.modifiers.enemyHpMultiplier <= 1 &&
+            mutatorRoll.modifiers.flyerCountMultiplier <= 1)),
       forceNone:
         mutatorRoll.modifiers.forbiddenTowerTypes.length > 0 ||
         (isMaster && hasMasterIntensity) ||
         (isHeroic &&
-          mutatorRoll.mutators.length >= 2 &&
-          (hasEconomySqueeze || mutatorRoll.modifiers.enemyHpMultiplier > 1)),
+          (hasEconomySqueeze ||
+            mutatorRoll.modifiers.enemyHpMultiplier > 1 ||
+            mutatorRoll.mutators.length >= 2)) ||
+        (isChallenging && mutatorRoll.mutators.length >= 2 && hasEconomySqueeze),
       preserveAntiAir: mutatorRoll.modifiers.flyerCountMultiplier > 1,
       requireArmorBreaker:
         isHeroic ||

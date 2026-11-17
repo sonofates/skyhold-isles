@@ -8,6 +8,7 @@ import { MetaSession } from '../../src/platform/metaSession.ts';
 import {
   loadMetaSave,
   loadProgress,
+  loadSettings,
   META_PROGRESS_KEY,
   PROGRESS_KEY,
   saveMetaSave,
@@ -1298,6 +1299,39 @@ describe('MetaSession stats, achievements, challenges & daily persistence', () =
     expect(dirtySummary.campaignStarsEarned).toBe(2);
     expect(dirtySummary.islandsCleared).toBe(1);
     expect(dirtySummary.rank.points).toBe(2);
+    // Padded daily dates, padded dailyBestScores keys, and non-boolean achievement flags stay sanitized in queries & merges
+    dirtyCodexSave.completedDailyDates = [' 2026-11-16 ', 'invalid-date'];
+    dirtyCodexSave.dailyBestScores[' 2026-11-16 '] = 1450;
+    dirtyCodexSave.unlockedAchievements = { first_victory: 'yes' as unknown as boolean };
+    expect(getMetaCareerSummary(dirtyCodexSave, '2026-11-17', LEVELS).achievementsUnlocked).toBe(0);
+    expect(getRecentDailyHistory(dirtyCodexSave, '2026-11-17', 2, '2026-11-17', LEVELS)[0]).toMatchObject({
+      completed: true,
+      bestScore: 1450,
+    });
+    const mergedPadded = mergeMetaSaves(dirtyCodexSave, createDefaultMetaSave(9), 9, LEVELS);
+    expect(mergedPadded.completedDailyDates).toEqual(['2026-11-16']);
+    expect(mergedPadded.stats.dailyChallengesCompleted).toBe(1);
+
+    // loadSettings & loadProgress sanitize non-finite (1e500 -> Infinity) / zero-levelCount storage edges
+    const prevStorage = globalThis.localStorage;
+    try {
+      const storageStore = installMockLocalStorage({
+        skyhold_isles_settings_v1: '{"masterVolume":1e500}',
+        [PROGRESS_KEY]: '{"unlockedLevelIndex":1e500,"bestStars":[2],"bestEndlessWaves":[5]}',
+      });
+      expect(Number.isFinite(loadSettings().masterVolume)).toBe(true);
+      expect(loadSettings().masterVolume).toBe(0.65);
+      expect(loadProgress(0).bestStars).toHaveLength(1);
+      expect(loadProgress(9).unlockedLevelIndex).toBe(0);
+      storageStore.clear();
+    } finally {
+      Object.defineProperty(globalThis, 'localStorage', {
+        value: prevStorage,
+        configurable: true,
+        writable: true,
+      });
+    }
+
     expect(getIslandMasteryStatus(dirtyCodexSave, 0, LEVELS)).toMatchObject({
       campaignStars: 0,
       bestEndlessWave: 0,

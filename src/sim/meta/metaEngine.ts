@@ -994,7 +994,7 @@ export function getMetaCareerRank(
   const challengeStars = getAllChallengeProgress(save, levels).earnedStars;
   let achievementsUnlocked = 0;
   for (let i = 0; i < ACHIEVEMENTS.length; i++) {
-    if (save.unlockedAchievements[ACHIEVEMENTS[i].id]) achievementsUnlocked++;
+    if (save.unlockedAchievements[ACHIEVEMENTS[i].id] === true) achievementsUnlocked++;
   }
   const dailyBonus = Math.min(20, save.completedDailyDates.length * 2);
   const points = campaignStars + challengeStars * 2 + achievementsUnlocked * 2 + dailyBonus;
@@ -1030,7 +1030,10 @@ export function getRecommendedNextGoal(
   if (levels.length === 0) return null;
 
   const normalizedToday = todayDateStr.trim();
-  if (isValidDateString(normalizedToday) && !save.completedDailyDates.includes(normalizedToday)) {
+  if (
+    isValidDateString(normalizedToday) &&
+    !save.completedDailyDates.some((d) => typeof d === 'string' && d.trim() === normalizedToday)
+  ) {
     const daily = generateDailyChallenge(normalizedToday, levels);
     return {
       kind: 'daily',
@@ -1161,7 +1164,7 @@ export function getMetaCareerSummary(
 
   let achievementsUnlocked = 0;
   for (let i = 0; i < ACHIEVEMENTS.length; i++) {
-    if (save.unlockedAchievements[ACHIEVEMENTS[i].id]) {
+    if (save.unlockedAchievements[ACHIEVEMENTS[i].id] === true) {
       achievementsUnlocked++;
     }
   }
@@ -1268,12 +1271,15 @@ export function getRecentDailyHistory(
   endDateStr: string = todayDateStr,
   levels: readonly LevelDef[] = LEVELS,
 ): readonly DailyHistoryEntry[] {
-  const completedSet = new Set(save.completedDailyDates);
+  const completedSet = new Set(
+    save.completedDailyDates.map((d) => (typeof d === 'string' ? d.trim() : '')).filter(Boolean),
+  );
   const normalizedToday = todayDateStr.trim();
+  const scoreByDate = sanitizeDailyScoreRecord(save.dailyBestScores);
   return getRecentDailySpecs(endDateStr, days, levels).map((spec) => ({
     spec,
     completed: completedSet.has(spec.date),
-    bestScore: asNonNegInt(save.dailyBestScores[spec.date]),
+    bestScore: asNonNegInt(scoreByDate[spec.date]),
     isToday: spec.date === normalizedToday,
   }));
 }
@@ -1330,7 +1336,11 @@ export function mergeMetaSaves(
     if (v === true && !IGNORED_RECORD_KEYS.has(k)) unlockedAchievements[k] = true;
   }
   const completedDailyDates = [
-    ...new Set([...base.completedDailyDates, ...incoming.completedDailyDates]),
+    ...new Set(
+      [...base.completedDailyDates, ...incoming.completedDailyDates]
+        .filter((d): d is string => typeof d === 'string' && isValidDateString(d))
+        .map((d) => d.trim()),
+    ),
   ].sort();
 
   const merged: MetaSaveData = {

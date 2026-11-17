@@ -240,6 +240,60 @@ export function describeActiveModifiers(
     }
   }
 
+  // Surface custom scalar RunModifiers when no catalog mutator IDs explain them
+  if (modifiers.activeMutatorIds.length === 0) {
+    const pushPctBadge = (id: string, name: string, mult: number, detail: string) => {
+      if (mult === 1) return;
+      const pct = Math.round((mult - 1) * 100);
+      badges.push({ id, label: `${name} ${pct >= 0 ? '+' : ''}${pct}%`, detail });
+    };
+    pushPctBadge(
+      'custom-enemy-hp',
+      'Enemy HP',
+      modifiers.enemyHpMultiplier,
+      `Enemies have ${modifiers.enemyHpMultiplier}x health.`,
+    );
+    pushPctBadge(
+      'custom-enemy-speed',
+      'Enemy Speed',
+      modifiers.enemySpeedMultiplier,
+      `Enemies move at ${modifiers.enemySpeedMultiplier}x speed.`,
+    );
+    if (modifiers.enemyArmorBonus > 0) {
+      badges.push({
+        id: 'custom-enemy-armor',
+        label: `Enemy Armor +${modifiers.enemyArmorBonus}`,
+        detail: `All enemies gain +${modifiers.enemyArmorBonus} flat armor.`,
+      });
+    }
+    if (modifiers.flyerCountMultiplier > 1) {
+      const flyerMult = Math.round(modifiers.flyerCountMultiplier);
+      badges.push({
+        id: 'custom-flyer-count',
+        label: `${flyerMult}x Flyers`,
+        detail: `Aerial waves spawn ${flyerMult}x flying enemies.`,
+      });
+    }
+    pushPctBadge(
+      'custom-gold-reward',
+      'Gold Rewards',
+      modifiers.goldRewardMultiplier,
+      `Kills and wave bonuses grant ${modifiers.goldRewardMultiplier}x gold.`,
+    );
+    pushPctBadge(
+      'custom-starting-gold',
+      'Starting Gold',
+      modifiers.startingGoldMultiplier,
+      `Start with ${modifiers.startingGoldMultiplier}x starting gold.`,
+    );
+    pushPctBadge(
+      'custom-tower-cost',
+      'Tower Cost',
+      modifiers.towerCostMultiplier,
+      `Tower builds and upgrades cost ${modifiers.towerCostMultiplier}x gold.`,
+    );
+  }
+
   if (modifiers.allowedTowerTypes !== null) {
     if (modifiers.allowedTowerTypes.length === 0) {
       badges.push({
