@@ -4,13 +4,13 @@ Owner decision (2026-11-17): **go**, using the **Omni-sheet route** for enemy an
 Branch: `art-2d`. The Three.js `main` stays live and untouched.
 
 ## Art (lead: Codex image_gen + Flow Omni 1.2 Flash)
-- [ ] Enemy front designs: runner, healer, splitter, warden, burrower (+ underground mound), carrier, blinker, golem, mite, hexer, tempest (boss), boss (Dreadnought). Existing: grunt = raider, brute, flyer = kite.
-- [ ] Enemy back views (walking away), all 15
-- [ ] Omni walk/fly clips: front + back for all 15 enemies + the soldier → sheets via `tools/sprites/veo_to_sheet.py`
-- [ ] Optional per enemy, if clean: hit and death clips
-- [ ] Towers: cannon T2/T3, crystal T2/T3, frost T1–T3, mortar T1–T3, ballista T1–T3, beacon T1–T3, barracks T1–T3
-- [ ] Soldier unit: front/back walk, attack pose
-- [ ] Tower attack frames (archer draw, cannon recoil, crystal pulse, mortar puff, ballista release, frost burst); procedural where frames don't add enough
+- [x] Enemy front designs: runner, healer, splitter, warden, burrower (+ underground mound), carrier, blinker, golem, mite, hexer, tempest (boss), boss (Dreadnought). Existing: grunt = raider, brute, flyer = kite.
+- [x] Enemy back views (walking away), all 15
+- [x] Omni walk/fly clips: front + back for all 15 enemies + the soldier → sheets via `tools/sprites/veo_to_sheet.py`
+- [ ] Optional per enemy, if clean: hit and death clips (not done; procedural hit/death)
+- [x] Towers: cannon T2/T3, crystal T2/T3, frost T1–T3, mortar T1–T3, ballista T1–T3, beacon T1–T3, barracks T1–T3
+- [x] Soldier unit: front/back walk (attack pose: procedural lunge)
+- [~] Tower attack frames (procedural only) (archer draw, cannon recoil, crystal pulse, mortar puff, ballista release, frost burst); procedural where frames don't add enough
 
 ## Sim: barracks/soldier tower (agent, a real feature)
 - [x] Soldiers block ground enemies on the path (melee engagement, blocking capacity), fight, die, respawn after a timer
@@ -30,12 +30,12 @@ Rules as built (code: `src/sim/soldierSystem.ts`, data: `src/data/soldiers.ts`, 
 - **3D game:** `only2d` keeps the barracks out of `TOWER_TYPES` (build bar, radial, hotkeys, codex).
 
 ## Renderer (agent)
-- [ ] Manifest entries for the full roster (fallbacks until art lands)
-- [ ] Per-enemy visuals: healer aura, warden shield bubble, burrower mound/underground, blinker blink FX, golem crack, hexer jam, splitter split, carrier drop, elite tint/overlay, boss phases
-- [ ] Tower attack animation (procedural recoil/flash + frames where provided), all 7 tower types + barracks in the build ring
-- [ ] Codex screen uses the 2D art
+- [x] Manifest entries for the full roster (fallbacks until art lands)
+- [x] Per-enemy visuals: healer aura, warden shield bubble, burrower mound/underground, blinker blink FX, golem crack, hexer jam, splitter split, carrier drop, elite tint/overlay, boss phases
+- [x] Tower attack animation (procedural recoil/flash + frames where provided), all 7 tower types + barracks in the build ring
+- [x] Codex screen uses the 2D art
 
 ## Gate (end of P1)
-- [ ] tsc, lint, full tests, sim:balance, build on hermes
-- [ ] Recordings: all enemies walking on L1c, every tower at T1–T3 firing, barracks blocking a wave
-- [ ] Report + next decision (P2 maps)
+- [x] tsc, lint, full tests, sim:balance, build on hermes
+- [x] Recordings: all enemies walking on L1c, every tower at T1–T3 firing, barracks blocking a wave
+- [x] Report + next decision (P2 maps)
