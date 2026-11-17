@@ -38,3 +38,10 @@ playwright/.cache/
 # local screenshot tooling
 .shots-tool/
 qa-out/
+
+# 2D art: raw generator output stays local (large); keyed out/ is committed
+design/art-2d/raw/
+design/art-2d/*.log
+design/art-direction/*.log
+design/art-2d/proto-*.mp4
+design/art-2d/proto-*.png
