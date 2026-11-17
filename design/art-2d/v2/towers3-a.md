@@ -1,0 +1,3 @@
+- raw/t3-archer-1.png, raw/t3-archer-2.png, raw/t3-archer-3.png — ARCHER: wooden watchtower with an archer visible on the platform; t2 stone base + roofed platform and two archers; t3 tall stone-and-timber keep with a big mounted crossbow on top and a flag.
+- raw/t3-cannon-1.png, raw/t3-cannon-2.png, raw/t3-cannon-3.png — CANNON: round stone bastion with a bronze cannon; t2 larger with a double cannon; t3 fortified gun tower with a huge siege cannon.
+- raw/t3-crystal-1.png, raw/t3-crystal-2.png, raw/t3-crystal-3.png — CRYSTAL (lightning): stone spire with a glowing blue crystal; t2 more crystals and a rune ring; t3 tall arcane tower with a floating crystal and crackling sparks.

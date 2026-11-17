@@ -1,0 +1,3 @@
+- raw/t3-frost-1.png, raw/t3-frost-2.png, raw/t3-frost-3.png — FROST: pale stone tower with an ice crystal; t2 icicles and a frosted crown; t3 tall ice citadel with a large floating frost crystal.
+- raw/t3-mortar-1.png, raw/t3-mortar-2.png, raw/t3-mortar-3.png — MORTAR: squat stone pit with a big iron mortar angled upward; t2 heavier mortar and reinforced walls; t3 fortress pit with a huge bronze mortar.
+- raw/t3-ballista-1.png, raw/t3-ballista-2.png, raw/t3-ballista-3.png — BALLISTA: sturdy wooden platform with a large crossbow launcher loaded with a long bolt; t2 on a stone base; t3 tall siege platform with a massive ballista.

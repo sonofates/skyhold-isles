@@ -1,0 +1,2 @@
+- raw/t3-beacon-1.png, raw/t3-beacon-2.png, raw/t3-beacon-3.png — BEACON (support, buffs nearby towers): slender stone tower with a golden brazier light on top and banners; t2 taller with a lantern cage; t3 grand lighthouse-like spire with a radiant golden flame.
+- raw/t3-barracks-1.png, raw/t3-barracks-2.png, raw/t3-barracks-3.png — BARRACKS (spawns soldiers): small fortified gatehouse with a wooden door and a blue-and-gold banner; t2 bigger with a second storey; t3 proud stone keep with a portcullis gate.
