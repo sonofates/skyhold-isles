@@ -45,10 +45,10 @@
     }
    ],
    "muzzleFrac": 0.8,
-   "attack": [
-    "anim-towers/t3-archer-1-attack.json",
-    "anim-towers/t3-archer-2-attack.json",
-    "anim-towers/t3-archer-3-attack.json"
+   "turret": [
+    "turrets/archer-1-turret.json",
+    "turrets/archer-2-turret.json",
+    "turrets/archer-3-turret.json"
    ]
   },
   "cannon": {
@@ -82,10 +82,10 @@
     }
    ],
    "muzzleFrac": 0.74,
-   "attack": [
-    "anim-towers/t3-cannon-1-attack.json",
-    "anim-towers/t3-cannon-2-attack.json",
-    "anim-towers/t3-cannon-3-attack.json"
+   "turret": [
+    "turrets/cannon-1-turret.json",
+    "turrets/cannon-2-turret.json",
+    "turrets/cannon-3-turret.json"
    ]
   },
   "tesla": {
@@ -123,6 +123,20 @@
     "anim-towers/t3-crystal-1-attack.json",
     "anim-towers/t3-crystal-2-attack.json",
     "anim-towers/t3-crystal-3-attack.json"
+   ],
+   "muzzlePx": [
+    [
+     188.9,
+     22.5
+    ],
+    [
+     162.7,
+     21.6
+    ],
+    [
+     141.2,
+     21.7
+    ]
    ]
   },
   "frost": {
@@ -164,6 +178,20 @@
     "anim-towers/t3-frost-1-attack.json",
     "anim-towers/t3-frost-2-attack.json",
     "anim-towers/t3-frost-3-attack.json"
+   ],
+   "muzzlePx": [
+    [
+     197.6,
+     21.6
+    ],
+    [
+     146.2,
+     20.7
+    ],
+    [
+     149.8,
+     20.7
+    ]
    ]
   },
   "mortar": {
@@ -205,6 +233,20 @@
     "anim-towers/t3-mortar-1-attack.json",
     "anim-towers/t3-mortar-2-attack.json",
     "anim-towers/t3-mortar-3-attack.json"
+   ],
+   "muzzlePx": [
+    [
+     327.4,
+     57.0
+    ],
+    [
+     244.2,
+     57.0
+    ],
+    [
+     244.5,
+     57.0
+    ]
    ]
   },
   "ballista": {
@@ -243,10 +285,10 @@
     }
    ],
    "muzzleFrac": 0.78,
-   "attack": [
-    "anim-towers/t3-ballista-1-attack.json",
-    "anim-towers/t3-ballista-2-attack.json",
-    "anim-towers/t3-ballista-3-attack.json"
+   "turret": [
+    "turrets/ballista-1-turret.json",
+    "turrets/ballista-2-turret.json",
+    "turrets/ballista-3-turret.json"
    ]
   },
   "beacon": {

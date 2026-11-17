@@ -68,6 +68,20 @@ export interface TowerArt {
   readonly attack: readonly (string | null)[];
   /** Per tier: idle sheet JSON (looped while not attacking), or null. */
   readonly idle: readonly (string | null)[];
+  /**
+   * Per tier: aimable turret JSON (turret.ts / tools/sprites/turret_pack.py), or null. With a
+   * turret the tower draws `body` (ring-fitted like `tiers`) plus the 8-direction turret piece on
+   * its platform; `tiers` stays the full-tower picture (codex, build ring, fallback if the body or
+   * turret fails to load).
+   */
+  readonly turret: readonly (string | null)[];
+  /** Per tier: body sprite drawn under the turret (default: the `body` named in the turret JSON). */
+  readonly body: readonly (string | null)[];
+  /**
+   * Per tier: where shots leave (crystal tip, mortar mouth), in the tier sprite's px; null = the
+   * old rule (`muzzleFrac` of the drawn height, centred).
+   */
+  readonly muzzlePx: readonly (readonly [number, number] | null)[];
 }
 
 export interface TowerFallback {
@@ -233,6 +247,19 @@ function perTier(v: unknown, n: number, what: string): (string | null)[] {
   return Array.from({ length: n }, (_, i) => (v[i] === null || v[i] === undefined ? null : str(v[i], `${what}[${i}]`)));
 }
 
+function perTierPoint(v: unknown, n: number, what: string): (readonly [number, number] | null)[] {
+  if (v === undefined || v === null) return new Array<readonly [number, number] | null>(n).fill(null);
+  if (!Array.isArray(v)) throw new ManifestError(`${what} must be an array of [x, y] | null`);
+  return Array.from({ length: n }, (_, i) => {
+    const p = v[i] as unknown;
+    if (p === null || p === undefined) return null;
+    if (!Array.isArray(p) || p.length !== 2 || typeof p[0] !== 'number' || typeof p[1] !== 'number' || !Number.isFinite(p[0]) || !Number.isFinite(p[1])) {
+      throw new ManifestError(`${what}[${i}] must be [x, y] or null`);
+    }
+    return [p[0], p[1]] as const;
+  });
+}
+
 function obj(v: unknown, what: string): Json {
   if (!v || typeof v !== 'object' || Array.isArray(v)) throw new ManifestError(`${what} must be an object`);
   return v as Json;
@@ -255,6 +282,9 @@ export function parseManifest(raw: unknown): ArtManifest {
       muzzleFrac: numOr(t.muzzleFrac, 0.75),
       attack: perTier(t.attack, 3, `towers.${type}.attack`),
       idle: perTier(t.idle, 3, `towers.${type}.idle`),
+      turret: perTier(t.turret, 3, `towers.${type}.turret`),
+      body: perTier(t.body, 3, `towers.${type}.body`),
+      muzzlePx: perTierPoint(t.muzzlePx, 3, `towers.${type}.muzzlePx`),
       tiers,
       height: numOr(t.height, 3),
       anchor: pair(t.anchor, [0.5, 0.88]),

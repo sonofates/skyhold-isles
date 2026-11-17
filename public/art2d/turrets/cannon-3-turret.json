@@ -1,0 +1,50 @@
+{
+ "image": "cannon-3-turret.webp",
+ "frameW": 290,
+ "frameH": 222,
+ "count": 5,
+ "dirs": [
+  "S",
+  "SE",
+  "E",
+  "NE",
+  "N"
+ ],
+ "pivot": [
+  145.0,
+  209.61
+ ],
+ "muzzle": [
+  [
+   0.56,
+   -103.97
+  ],
+  [
+   104.02,
+   -29.37
+  ],
+  [
+   138.41,
+   -92.35
+  ],
+  [
+   99.05,
+   -191.15
+  ],
+  [
+   0.12,
+   -193.22
+  ]
+ ],
+ "body": "cannon-3-body.webp",
+ "bodyMount": [
+  165.17,
+  99.49
+ ],
+ "bodyRing": {
+  "ringWidthPx": 323.0,
+  "ringBottomPx": 509.0,
+  "ringCenterXPx": 165.5
+ },
+ "scale": 1.0
+}

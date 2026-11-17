@@ -6,6 +6,7 @@ import { HEIGHT_TO_SCREEN } from './layers.ts';
 import type { MapView } from './mapView.ts';
 import type { ProcTextures } from './procTextures.ts';
 import { projectileReveal } from './towerAnim.ts';
+import { cannonArcPx, launchBlend } from './turret.ts';
 
 interface ProjView {
   readonly sprite: Sprite;
@@ -15,6 +16,13 @@ interface ProjView {
   trail: number;
   lastX: number;
   lastY: number;
+  /** Launch offset (map px): drawn launch point minus the sim's start point, latched at the first frame. */
+  offX: number;
+  offY: number;
+  /** Identity of the projectile the offset belongs to (pool slots are reused). */
+  startX: number;
+  startZ: number;
+  lastProgress: number;
 }
 
 interface TrailSpec {
@@ -53,6 +61,7 @@ export class ProjectileLayer {
   private readonly tex: ProcTextures;
   private readonly muzzle: (p: ProjectileEntity) => number;
   private readonly release: (p: ProjectileEntity) => number;
+  private readonly launch: (p: ProjectileEntity) => { x: number; y: number } | null;
   private readonly fx: FxLayer | null;
   /** Lifetime counter (QA): trail particles requested. */
   trailsRequested = 0;
@@ -65,7 +74,9 @@ export class ProjectileLayer {
     muzzle: (p: ProjectileEntity) => number,
     fx: FxLayer | null = null,
     release: (p: ProjectileEntity) => number = () => 0,
+    launch: (p: ProjectileEntity) => { x: number; y: number } | null = () => null,
   ) {
+    this.launch = launch;
     this.map = map;
     this.parent = parent;
     this.shadows = shadows;
@@ -84,16 +95,24 @@ export class ProjectileLayer {
       shadow.anchor.set(0.5);
       this.parent.addChild(sprite);
       this.shadows.addChild(shadow);
-      v = { sprite, shadow, seen: -1, trail: 0, lastX: 0, lastY: 0 };
+      v = { sprite, shadow, seen: -1, trail: 0, lastX: 0, lastY: 0, offX: 0, offY: 0, startX: NaN, startZ: NaN, lastProgress: 0 };
       this.views[i] = v;
     }
     return v;
   }
 
-  private screenY(p: ProjectileEntity, z: number, y: number): number {
-    const t = Math.min(1, p.progress);
-    const h = y + (this.muzzle(p) - p.startY) * (1 - t);
-    return this.map.pxY(z) - Math.max(0, h) * HEIGHT_TO_SCREEN * this.map.layout.pxPerUnit;
+  /**
+   * Launch offset of a new projectile: the tower's drawn muzzle point (aimable turret: the barrel /
+   * bolt / arrow tip it faces with; others: the measured crystal tip / barrel mouth) minus the sim's
+   * start point, or, without a point, the muzzle height above the sim start. Render-only.
+   */
+  private launchOffset(p: ProjectileEntity): { x: number; y: number } {
+    const k = HEIGHT_TO_SCREEN * this.map.layout.pxPerUnit;
+    const sx = this.map.pxX(p.startX);
+    const sy = this.map.pxY(p.startZ) - p.startY * k;
+    const pt = this.launch(p);
+    if (pt) return { x: pt.x - sx, y: pt.y - sy };
+    return { x: 0, y: -(this.muzzle(p) - p.startY) * k };
   }
 
   sync(pool: ObjectPool<ProjectileEntity>, alpha: number): void {
@@ -103,13 +122,27 @@ export class ProjectileLayer {
       const idx = pool.getActiveIndex(i);
       const p = pool.items[idx];
       const v = this.viewFor(idx);
-      const fresh = v.seen !== this.frameNo - 1;
+      // A slot reused for a new projectile (same frame or not) counts as fresh too.
+      const fresh = v.seen !== this.frameNo - 1 || p.progress < v.lastProgress || p.startX !== v.startX || p.startZ !== v.startZ;
       v.seen = this.frameNo;
+      v.lastProgress = p.progress;
+      if (fresh) {
+        const o = this.launchOffset(p);
+        v.offX = o.x;
+        v.offY = o.y;
+        v.startX = p.startX;
+        v.startZ = p.startZ;
+      }
       const x = p.prevX + (p.x - p.prevX) * alpha;
       const y = p.prevY + (p.y - p.prevY) * alpha;
       const z = p.prevZ + (p.z - p.prevZ) * alpha;
-      let sx = this.map.pxX(x);
-      let sy = this.screenY(p, z, y);
+      const type = p.towerType as string;
+      const k = HEIGHT_TO_SCREEN * this.map.layout.pxPerUnit;
+      const t = Math.min(1, p.progress);
+      const pos = launchBlend(this.map.pxX(x), this.map.pxY(z) - Math.max(0, y) * k, v.offX, v.offY, t);
+      let sx = pos.x;
+      // Cannonballs fly a short render-only arc (the sim shot is straight).
+      let sy = pos.y - (type === 'cannon' && !p.parabolic ? cannonArcPx(p.duration, t) : 0);
       const s = v.sprite;
       const reveal = projectileReveal(p.progress * p.duration, this.release(p));
       if (reveal < 0) {
@@ -121,9 +154,11 @@ export class ProjectileLayer {
         v.trail = 0;
         continue;
       }
+      const lx = this.map.pxX(p.startX) + v.offX;
+      const ly = this.map.pxY(p.startZ) - p.startY * k + v.offY;
       if (reveal < 1) {
-        const mx = this.map.pxX(p.startX);
-        const my = this.map.pxY(p.startZ) - this.muzzle(p) * HEIGHT_TO_SCREEN * this.map.layout.pxPerUnit;
+        const mx = lx;
+        const my = ly;
         sx = mx + (sx - mx) * reveal;
         sy = my + (sy - my) * reveal;
       }
@@ -134,16 +169,22 @@ export class ProjectileLayer {
         v.lastX = sx;
         v.lastY = sy;
       }
-      const type = p.towerType as string;
       const ball = type === 'cannon' || type === 'mortar';
       if (type === 'archer' || type === 'ballista') {
         const heavy = type === 'ballista';
         const bolt = heavy ? this.tex.bolt : this.tex.arrow;
         if (s.texture !== bolt) s.texture = bolt;
-        const psx = this.map.pxX(p.prevX);
-        const psy = this.screenY(p, p.prevZ, p.prevY);
-        const dx = sx - psx;
-        const dy = sy - psy;
+        // Along the drawn flight: frame-to-frame motion, or (first frame) from the launch point.
+        let dx = sx - v.lastX;
+        let dy = sy - v.lastY;
+        if (dx * dx + dy * dy < 0.25) {
+          dx = sx - lx;
+          dy = sy - ly;
+        }
+        if (dx * dx + dy * dy < 0.25) {
+          dx = this.map.pxX(p.x) - this.map.pxX(p.prevX);
+          dy = this.map.pxY(p.z) - this.map.pxY(p.prevZ) - (p.y - p.prevY) * k;
+        }
         if (dx * dx + dy * dy > 1e-4) s.rotation = Math.atan2(dy, dx);
         s.scale.set(heavy ? 0.78 : 0.7);
         s.tint = 0xffffff;

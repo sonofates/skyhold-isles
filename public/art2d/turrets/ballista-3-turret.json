@@ -1,0 +1,50 @@
+{
+ "image": "ballista-3-turret.webp",
+ "frameW": 352,
+ "frameH": 252,
+ "count": 5,
+ "dirs": [
+  "S",
+  "SE",
+  "E",
+  "NE",
+  "N"
+ ],
+ "pivot": [
+  176.0,
+  240.44
+ ],
+ "muzzle": [
+  [
+   0.09,
+   1.12
+  ],
+  [
+   91.77,
+   4.52
+  ],
+  [
+   162.63,
+   -123.88
+  ],
+  [
+   169.07,
+   -189.8
+  ],
+  [
+   -0.64,
+   -231.13
+  ]
+ ],
+ "body": "ballista-3-body.webp",
+ "bodyMount": [
+  177.64,
+  83.73
+ ],
+ "bodyRing": {
+  "ringWidthPx": 355.0,
+  "ringBottomPx": 507.0,
+  "ringCenterXPx": 182.5
+ },
+ "scale": 1.0
+}

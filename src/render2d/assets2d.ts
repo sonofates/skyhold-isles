@@ -3,6 +3,7 @@ import type { TowerType } from '../core/types.ts';
 import { alphaFeetAnchor } from './alphaBox.ts';
 import { enemyHasArt, mulTint, pickTier, resolveEnemyArt, resolveTowerTiers } from './artResolve.ts';
 import { measureRing, type RingSpec } from './towerFit.ts';
+import { parseTurretJson, TURRET_DIRS, type TurretSpec } from './turret.ts';
 import {
   parseManifest,
   parseSheetJson,
@@ -32,6 +33,17 @@ export interface TowerArtRuntime {
   readonly attack: readonly (TowerSheetRuntime | null)[];
   /** Per tier 1..3: painted idle loop, or null. */
   readonly idle: readonly (TowerSheetRuntime | null)[];
+  /**
+   * Per tier 1..3: aimable turret (its body is then that tier's texture / ring), or null. Optional:
+   * art built by hand (placeholders, tests) may leave it out.
+   */
+  readonly turrets?: readonly (TurretRuntime | null)[];
+}
+
+/** A loaded aimable turret: 5 direction frames (TURRET_DIRS order) + the packed measurements. */
+export interface TurretRuntime {
+  readonly spec: TurretSpec;
+  readonly frames: readonly Texture[];
 }
 
 /** A tower animation sheet, ring-measured in its own frame px (so frames fit the plot like statics). */
@@ -354,8 +366,66 @@ async function loadTower(
         return { frames: seq.frames, fps: seq.fps, release: seq.release, ring, frameW: seq.frameW, frameH: seq.frameH };
       }),
     );
-  const [attack, idle] = await Promise.all([sheets(spec.attack), sheets(spec.idle)]);
-  return { spec, tiers, tierFiles, tint: 0xffffff, fallbackOf: null, rings, attack, idle, hasArt: has.some(Boolean) };
+  const [attack, idle, turrets] = await Promise.all([sheets(spec.attack), sheets(spec.idle), loadTurrets(base, spec, present)]);
+  // A turret tier draws its body instead of the full-tower sprite (same ring convention).
+  turrets.forEach((t, i) => {
+    if (!t) return;
+    tiers[i] = t.body;
+    tierFiles[i] = t.bodyFile;
+    rings[i] = t.ring;
+  });
+  return {
+    spec,
+    tiers,
+    tierFiles,
+    tint: 0xffffff,
+    fallbackOf: null,
+    rings,
+    attack,
+    idle,
+    turrets: turrets.map((t) => (t ? { spec: t.spec, frames: t.frames } : null)),
+    hasArt: has.some(Boolean) || turrets.some(Boolean),
+  };
+}
+
+/**
+ * Per tier: the turret JSON, its 5-frame strip and its body sprite. Any part missing / unreadable
+ * → null for that tier (the tower then draws its full `tiers` sprite as before).
+ */
+async function loadTurrets(
+  base: string,
+  spec: TowerArt,
+  present: Set<string>,
+): Promise<({ spec: TurretSpec; frames: Texture[]; body: Texture; bodyFile: string; ring: RingSpec } | null)[]> {
+  return Promise.all(
+    [0, 1, 2].map(async (i) => {
+      const jsonPath = spec.turret[i];
+      if (!jsonPath) return null;
+      const raw = await tryJson(base + jsonPath);
+      if (!raw) return null;
+      let ts: TurretSpec;
+      try {
+        ts = parseTurretJson(raw, jsonPath.slice(jsonPath.lastIndexOf('/') + 1).replace(/\.json$/, '.webp'));
+      } catch (err) {
+        console.warn(`[art2d] bad turret ${jsonPath}:`, err);
+        return null;
+      }
+      const dir = dirOf(jsonPath);
+      const bodyFile = spec.body[i] ?? (ts.body ? dir + ts.body : null);
+      if (!bodyFile) return null;
+      const [strip, body] = await Promise.all([tryTexture(base + dir + ts.image, true), tryTexture(base + bodyFile, true)]);
+      if (!strip || !body) return null;
+      const ring = ts.bodyRing ?? resolveRing('auto', body);
+      if (!ring) return null;
+      present.add(jsonPath);
+      present.add(dir + ts.image);
+      present.add(bodyFile);
+      const frames = TURRET_DIRS.map(
+        (_, f) => new Texture({ source: strip.source, frame: new Rectangle(f * ts.frameW, 0, ts.frameW, ts.frameH) }),
+      );
+      return { spec: ts, frames, body, bodyFile, ring };
+    }),
+  );
 }
 
 /**
@@ -438,6 +508,7 @@ export async function loadArt(
           rings: src.rings,
           attack: [null, null, null],
           idle: [null, null, null],
+          turrets: [null, null, null],
         };
         notes.push(`tower ${type}: art pending → tinted ${res.source}`);
       } else {

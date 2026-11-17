@@ -119,6 +119,7 @@ export class Game2D {
       (p) => this.towers.muzzleOf(p.towerId, p.towerType),
       this.fx,
       (p) => this.towers.shotDelayOf(p.towerId),
+      (p) => this.towers.muzzlePointOf(p.towerId),
     );
     this.soldiers = new SoldierLayer(art, this.map, this.layers, this.tex, this.fx);
     this.hud = new Hud(art);
@@ -470,6 +471,7 @@ export class Game2D {
         extras: this.enemies.specials.extrasCreated,
       },
       barracks: { ...this.soldiers.debug(w.soldierSystem), rallyMode: this.rallyTower },
+      turrets: { shots: this.towers.turretShots, views: this.towers.turretReport() },
       plots: {
         count: this.plots.geometry.rects.length,
         visible: this.plots.visibleCount,

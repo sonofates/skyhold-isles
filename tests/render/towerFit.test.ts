@@ -66,9 +66,14 @@ describe('fit rule: towers stand exactly on their plot', () => {
   const plot = M.plot!;
   const PLOT_TEX: [number, number] = [512, 343];
 
-  it('every tower ships an attack sheet per tier, and each sheet JSON carries its ring', () => {
+  it('every tower ships an attack sheet or an aimable turret per tier, and each sheet JSON carries its ring', () => {
     for (const [type, art] of Object.entries(M.towers)) {
       art!.attack.forEach((p, i) => {
+        if (art!.turret[i]) {
+          // Directional towers aim a turret instead of playing a baked attack video.
+          expect(p, `${type} T${i + 1}: turret towers carry no attack sheet`).toBeNull();
+          return;
+        }
         expect(p, `${type} T${i + 1}`).not.toBeNull();
         const raw = JSON.parse(readFileSync(resolve(ROOT, 'public/art2d', p!), 'utf8')) as Record<string, unknown>;
         const sheet = parseSheetJson(raw, 'x.png');
