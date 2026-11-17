@@ -13,6 +13,7 @@ Started 2026-11-16 23:00 UTC (02:00 TR). Deadline 06:00 UTC (09:00 TR).
 3. **+ agy-qa:** apply `docs/overnight/agy-qa-fuzzPlay-new-enemies.patch` to its `scripts/fuzzPlay.ts` (teaches the fuzz invariants about cracked golem armor, lanes, burrowing, dropped raiders, elites, tempest-as-boss). The remaining agy test failures pin 9 islands / one spawn / "offset 9 = 2 Dreadnoughts" — table with suggested fixes in Round 10. None is a bug in the new content (agy-qa's own fuzzer, patched, ran 312 campaign + 104 endless runs clean).
 4. **Then always** `npm run sim:balance` (L10 is 5 lives here / 7 merged, window 5–10) and `npm test`.
 5. Optional, semantic: agy-meta's `boss_slayer_10` only counts `boss` kills, not `tempest`.
+6. Optional: give Lanternfall Hollow (L12) a theme — `docs/overnight/islands-lanternfall-theme.patch` for ISLANDS' theme table (otherwise it uses the fallback biome).
 
 ## Status / task list
 - [x] 1. New enemy archetypes (sim + data + mesh + badge + tests) — warden, burrower, carrier, blinker, golem, mite + elite flag (`tests/sim/newEnemies.test.ts`)
@@ -160,7 +161,7 @@ New tests: `tests/sim/newEnemies.test.ts`, `tests/sim/lanes.test.ts`, `tests/sim
 - `src/ui/icons.ts`: `ENEMY_BADGE_META` entries. `src/ui/tooltip.ts`: text only — "Empowered" name prefix, `Shield N`, `(cracked)` armor.
 
 ## UI needs (for the UI branch / lead)
-- `lanternfall-hollow` (new L12) has no authored island theme → it uses the ISLANDS branch's deterministic fallback biome. Suggestion for ISLANDS/lead: dusk palette, hanging lanterns on the hedgerows (rows 2/8/10), a lantern on the (15,5) point.
+- `lanternfall-hollow` (new L12) has no authored island theme → after the merge it gets ISLANDS' deterministic fallback biome (plain meadow, stone road). **Ready-made proposal: `docs/overnight/islands-lanternfall-theme.patch`** (applies to ISLANDS' `src/render/islandThemeTable.ts`): dusk sky/indigo zenith, dirt road, lanterns (`lamp`) on the four hedgerow decor tiles the hexers prowl, a brazier in the hex-safe middle band, cabin, autumn/pine trees, magenta spawn crystals, fireflies + rising lantern 'leaves', sea stacks. Checked in the scratch merge: tsc/eslint clean, ISLANDS' `islandThemes.test.ts` 66/66 (placement on decor/water, draw-call budget), rasterised preview looks right (sky/tint/fireflies only show in-game).
 - Difficulty label: a `Legendary` tier for L11/L12 would need a `diff-legendary` class in style.css (not touched). Levels currently say `Master`.
 - HUD wave preview (`hud.ts`): elite groups are not flagged (data is there: `WaveGroupDef.elite`); the "N Flyers incoming" warning chip only triggers for `flyer`, not `carrier` (use `ENEMY_DEFS[type].flying`).
 - Enemy tooltip could show `counterHint` (new field on every new def) — a second line would need styling, so not added.
