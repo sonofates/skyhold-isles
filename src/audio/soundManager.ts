@@ -1,5 +1,9 @@
 import type { EventBus } from '../core/eventBus.ts';
 import type { GameSettings, TowerType } from '../core/types.ts';
+import { ENEMY_DEFS } from '../data/enemies.ts';
+import { MusicEngine } from './music/musicEngine.ts';
+import type { MusicScene } from './music/sequencer.ts';
+import { getMusicVolume, onMusicVolumeChange } from './musicPrefs.ts';
 
 export class SoundManager {
   private ctx: AudioContext | null = null;
@@ -12,8 +16,16 @@ export class SoundManager {
   private pitchMul = 1;
   private volMul = 1;
 
+  /** Procedural soundtrack + ambience (created with the AudioContext on the first user gesture). */
+  private music: MusicEngine | null = null;
+  private musicLevelId: string | null = null;
+  private musicScene: MusicScene = 'menu';
+  private musicDucked = false;
+  private readonly unsubMusicVolume: () => void;
+
   constructor(initialSettings: GameSettings) {
     this.settings = { ...initialSettings };
+    this.unsubMusicVolume = onMusicVolumeChange(() => this.syncMusic());
   }
 
   unlock(): void {
@@ -33,24 +45,62 @@ export class SoundManager {
       this.masterGain.connect(limiter);
       limiter.connect(this.ctx.destination);
       this.noiseBuffer = this.createNoiseBuffer(this.ctx);
+      this.music = new MusicEngine(this.ctx, this.masterGain, this.noiseBuffer);
+      this.syncMusic();
     }
     if (this.ctx && this.ctx.state === 'suspended') {
       void this.ctx.resume();
     }
   }
 
+  /**
+   * Which island tune to play and the scene: `menu` (showcase), `build` (calm, between waves), `wave`, `boss`, `end`.
+   * Call with `build` when a level loads and `menu` when leaving play, so a scene never outlives its level.
+   */
+  setMusicContext(levelId: string | null, scene: MusicScene): void {
+    this.musicLevelId = levelId ?? this.musicLevelId;
+    this.musicScene = scene;
+    this.syncMusic();
+  }
+
+  /** Pause menu / modals: duck the music under the UI. */
+  setMusicDucked(ducked: boolean): void {
+    if (ducked === this.musicDucked) return;
+    this.musicDucked = ducked;
+    this.syncMusic();
+  }
+
+  private setMusicScene(scene: MusicScene): void {
+    this.musicScene = scene;
+    this.syncMusic();
+  }
+
+  /** Push level / scene / volume to the engine and start or stop it (silent = no timer, no nodes ticking). */
+  private syncMusic(): void {
+    const m = this.music;
+    if (!m) return;
+    const audible = !this.settings.muted && this.settings.masterVolume > 0.01 && getMusicVolume() > 0.005;
+    m.setVolume(getMusicVolume());
+    m.setDucked(this.musicDucked);
+    m.setTarget(this.musicLevelId, this.musicScene);
+    m.setActive(audible);
+  }
+
   /** Silence audio while the page is hidden (phone locked / tab switched). */
   suspendForBackground(): void {
+    this.music?.pause();
     if (this.ctx && this.ctx.state === 'running') void this.ctx.suspend();
   }
 
   resumeFromBackground(): void {
     if (this.ctx && this.ctx.state === 'suspended') void this.ctx.resume();
+    this.music?.resume();
   }
 
   updateSettings(next: GameSettings): void {
     this.settings = { ...next };
     this.applyVolume();
+    this.syncMusic();
   }
 
   private applyVolume(): void {
@@ -440,9 +490,24 @@ export class SoundManager {
       events.on('abilityTargeted', () => this.playAbilityTarget()),
       events.on('meteorImpact', () => this.playMeteorImpact()),
       events.on('overchargeActivated', () => this.playOvercharge()),
-      events.on('waveStarted', () => this.playWaveStart()),
-      events.on('gameWon', () => this.playOutcome(true)),
-      events.on('gameLost', () => this.playOutcome(false)),
+      events.on('waveStarted', () => {
+        this.playWaveStart();
+        this.setMusicScene('wave');
+      }),
+      events.on('waveCompleted', () => this.setMusicScene('build')),
+      events.on('enemySpawned', (e) => {
+        if (!ENEMY_DEFS[e.enemyType].isBoss || this.musicScene === 'boss') return;
+        this.setMusicScene('boss');
+        this.music?.stinger();
+      }),
+      events.on('gameWon', () => {
+        this.playOutcome(true);
+        this.setMusicScene('end');
+      }),
+      events.on('gameLost', () => {
+        this.playOutcome(false);
+        this.setMusicScene('end');
+      }),
     ];
     return () => {
       for (let i = 0; i < unsubs.length; i++) unsubs[i]();
@@ -450,6 +515,9 @@ export class SoundManager {
   }
 
   dispose(): void {
+    this.unsubMusicVolume();
+    this.music?.dispose();
+    this.music = null;
     if (this.ctx) {
       void this.ctx.close();
       this.ctx = null;
