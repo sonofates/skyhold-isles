@@ -15,6 +15,8 @@ import { createDebugPanelIfEnabled } from './ui/debugWiring.ts';
 import { GameOverlays } from './ui/gameOverlays.ts';
 import { LoadingScreen } from './ui/loadingScreen.ts';
 import { RadialMenu } from './ui/radialMenu.ts';
+import { registerServiceWorker } from './platform/serviceWorker.ts';
+import { UpdatePrompt } from './ui/updatePrompt.ts';
 
 function describeBootError(err: unknown): string {
   const raw = err instanceof Error ? err.message : String(err);
@@ -176,6 +178,16 @@ async function bootstrap(loadingScreen: LoadingScreen): Promise<void> {
   loadingScreen.hide();
   loop.start();
 
+  // Offline cache + "new version ready" prompt (production builds only).
+  let pendingUpdate: (() => void) | null = null;
+  const updatePrompt = new UpdatePrompt(uiRoot, () => pendingUpdate?.());
+  registerServiceWorker({
+    onUpdateReady: (handle) => {
+      pendingUpdate = handle.apply;
+      updatePrompt.show();
+    },
+  });
+
   if (import.meta.hot) {
     import.meta.hot.dispose(() => {
       document.removeEventListener('visibilitychange', onVisibility);
@@ -189,6 +201,7 @@ async function bootstrap(loadingScreen: LoadingScreen): Promise<void> {
       loop.stop();
       inputManager.dispose();
       overlays.dispose();
+      updatePrompt.dispose();
       debugPanel?.dispose();
       renderWorld.dispose();
     });

@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3a9fcb"/>
+      <stop offset="1" stop-color="#8fd6ee"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#sky)"/>
+  <!-- low-poly clouds -->
+  <polygon points="52,170 96,150 150,158 170,184 120,196 74,192" fill="#ffffff" opacity="0.55"/>
+  <polygon points="350,120 396,100 452,112 466,138 418,150 372,146" fill="#ffffff" opacity="0.45"/>
+  <polygon points="300,420 340,408 392,414 404,434 360,442 318,440" fill="#ffffff" opacity="0.4"/>
+  <g transform="translate(76 70) scale(5.5)">
+    <!-- hanging rock -->
+    <polygon points="14,39 32,50 50,39 40,52 32,64 25,52" fill="#6d4a33"/>
+    <polygon points="8,22 32,36 32,50 14,39" fill="#9c6b49"/>
+    <polygon points="56,22 32,36 32,50 50,39" fill="#8b95a5"/>
+    <polygon points="32,8 56,22 32,36 8,22" fill="#7ec850"/>
+    <polygon points="32,12 44,22 32,29 20,22" fill="#5da83a"/>
+    <!-- keep -->
+    <rect x="27" y="13" width="10" height="12" fill="#e6cfa3"/>
+    <rect x="27" y="13" width="3.4" height="12" fill="#d3bb8a"/>
+    <polygon points="32,3 41,13 23,13" fill="#e85d5d"/>
+    <polygon points="32,3 41,13 32,13" fill="#c94646"/>
+  </g>
+</svg>

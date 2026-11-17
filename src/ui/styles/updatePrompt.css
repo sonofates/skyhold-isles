@@ -1,0 +1,60 @@
+/* "New version ready" pill (PWA update flow). Sits just above the bottom HUD row. */
+.update-prompt {
+  position: fixed;
+  left: 50%;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 108px);
+  transform: translateX(-50%);
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px 6px 16px;
+  max-width: calc(100vw - 24px);
+  font-family: var(--font-display);
+  font-size: 16px;
+  color: var(--gx-cream);
+  background: var(--gx-slate-lo);
+  border: 2px solid var(--gx-ink);
+  border-radius: 14px;
+  box-shadow: 0 4px 0 rgba(20, 18, 45, 0.55);
+  white-space: nowrap;
+}
+
+.update-prompt-btn {
+  --c: 8px;
+  --lip: 3px;
+  min-height: 44px;
+  min-width: 88px;
+  padding: 0 14px 3px;
+  font-size: 16px;
+  font-weight: 700;
+  color: #fff;
+  text-shadow: 0 2px 0 var(--gx-ink);
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.update-prompt-btn:disabled {
+  opacity: 0.7;
+}
+
+.update-prompt-close {
+  width: 44px;
+  height: 44px;
+  border: 0;
+  background: transparent;
+  color: var(--gx-muted);
+  font-size: 26px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+@media (max-height: 500px) and (orientation: landscape) {
+  .update-prompt {
+    /* Landscape: the bottom-right holds the ability / start gems, bottom-left is free. */
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 8px);
+    left: calc(env(safe-area-inset-left, 0px) + 12px);
+    transform: none;
+  }
+}
