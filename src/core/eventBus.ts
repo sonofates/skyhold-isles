@@ -206,6 +206,32 @@ export interface GameEventMap {
     waveIndex: number;
     bonus: number;
   };
+  /** A barracks soldier stepped out of its barracks (spawn or respawn) and walks to its post. */
+  soldierSpawned: { soldierId: number; towerId: number; x: number; z: number };
+  /** A soldier struck an enemy in melee (`cleave` = the T3 side swing). */
+  soldierAttack: {
+    soldierId: number;
+    towerId: number;
+    enemyId: number;
+    x: number;
+    z: number;
+    targetX: number;
+    targetZ: number;
+    damage: number;
+    cleave: boolean;
+  };
+  /** An enemy struck a soldier. */
+  soldierHurt: { soldierId: number; towerId: number; enemyId: number; damage: number; x: number; z: number };
+  /** A soldier fell; it respawns at the barracks after the tier's respawn time. */
+  soldierDied: { soldierId: number; towerId: number; x: number; z: number; respawnSec: number };
+  /** A soldier was removed without dying (its barracks was sold). */
+  soldierRemoved: { soldierId: number; towerId: number; x: number; z: number };
+  /** A barracks rally point moved (build, player order); its squad walks to the new posts. */
+  rallyMoved: { towerId: number; x: number; z: number };
+  /** An enemy is held by soldiers (was free last tick). */
+  enemyBlocked: { enemyId: number; enemyType: EnemyType; x: number; y: number; z: number };
+  /** A held enemy is free again (its soldiers died, were sold, or it dived / blinked / trampled away). */
+  enemyUnblocked: { enemyId: number; enemyType: EnemyType; x: number; y: number; z: number };
   economyChanged: {
     gold: number;
     lives: number;

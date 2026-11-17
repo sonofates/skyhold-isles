@@ -44,6 +44,7 @@ export class BuildBar {
         mortar: 'Mortar',
         ballista: 'Ballista',
         beacon: 'Beacon',
+        barracks: 'Barracks',
       };
       const nameEl = document.createElement('div');
       nameEl.className = 'build-name';

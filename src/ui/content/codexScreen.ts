@@ -33,6 +33,7 @@ const TOWER_TILE_LABELS: Record<TowerType, string> = {
   mortar: 'Mortar',
   ballista: 'Ballista',
   beacon: 'Beacon',
+  barracks: 'Barracks',
 };
 
 function h<K extends keyof HTMLElementTagNameMap>(
