@@ -403,6 +403,20 @@ describe('RenderWorld subsystems headless verification', () => {
 
     projRenderer.clear();
     towerRenderer.clearInstances();
+
+    // Verify incremental bucket growth from an existing capacity-64 bucket preserves matrices & aHighlight
+    const smallBatch = Array.from({ length: 5 }, (_, i) => makeTower(i + 1, 'archer', 1, i * 2, 0, i, 0));
+    towerRenderer.syncTowers(smallBatch, mats, 0.5, 2.2, 2, false);
+    const grownBatch = Array.from({ length: 75 }, (_, i) => makeTower(i + 1, 'archer', 1, i * 2, 0, i, 0));
+    towerRenderer.syncTowers(grownBatch, mats, 0.5, 2.5, 2, false);
+    const grownMeshes = towerRenderer.group.children.filter(
+      (c): c is THREE.InstancedMesh => (c as THREE.InstancedMesh).isInstancedMesh && c.count === 75,
+    );
+    expect(grownMeshes).toHaveLength(2);
+    const grownHighlight = grownMeshes[0].geometry.getAttribute('aHighlight') as THREE.InstancedBufferAttribute;
+    expect(grownHighlight.getX(1)).toBe(1);
+    expect(grownHighlight.getX(0)).toBe(0);
+
     projRenderer.dispose();
     towerRenderer.dispose();
     mats.dispose();
@@ -606,6 +620,13 @@ describe('RenderWorld subsystems headless verification', () => {
       (el) => el[0] === 0 && el[5] === 0 && el[10] === 0,
     ).length;
     expect(zeroScaledCount).toBeGreaterThan(0);
+
+    // Repeating same tower set or replacing a tower at identical coordinates hits fast-path without altering matrices
+    groundDetails.syncOccupiedTiles(coverAllGrass);
+    expect(snapshotMatrices()).toEqual(hiddenMats);
+    const replacedIds = coverAllGrass.map((t, i) => ({ ...t, id: t.id + (i === 0 ? 1000 : 0) }));
+    groundDetails.syncOccupiedTiles(replacedIds);
+    expect(snapshotMatrices()).toEqual(hiddenMats);
 
     groundDetails.syncOccupiedTiles([]);
     expect(snapshotMatrices()).toEqual(initialMats);

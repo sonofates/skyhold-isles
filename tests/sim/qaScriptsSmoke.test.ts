@@ -245,6 +245,15 @@ describe('QA scripts smoke verification', () => {
       totalRuns: number;
       passedRuns: number;
       endlessChecks: number;
+      coverage: {
+        enemyTypesSpawned: string[];
+        enemyTypesKilled: string[];
+        splitterSplits: number;
+        healerPulses: number;
+        bossPulses: number;
+        bossSummons: number;
+        cleansedTowers: number;
+      };
       failures: unknown[];
     };
     expect(campaignJson.mode).toBe('campaign');
@@ -252,6 +261,13 @@ describe('QA scripts smoke verification', () => {
     expect(campaignJson.totalRuns).toBe(1);
     expect(campaignJson.passedRuns).toBe(1);
     expect(campaignJson.endlessChecks).toBe(1);
+    expect(campaignJson.coverage.enemyTypesSpawned.length).toBeGreaterThan(0);
+    expect(campaignJson.coverage.enemyTypesKilled.length).toBeGreaterThan(0);
+    expect(campaignJson.coverage.splitterSplits).toBeGreaterThanOrEqual(0);
+    expect(campaignJson.coverage.healerPulses).toBeGreaterThanOrEqual(0);
+    expect(campaignJson.coverage.bossPulses).toBeGreaterThanOrEqual(0);
+    expect(campaignJson.coverage.bossSummons).toBeGreaterThanOrEqual(0);
+    expect(campaignJson.coverage.cleansedTowers).toBeGreaterThanOrEqual(0);
     expect(campaignJson.failures).toEqual([]);
 
     const fuzzEndlessOnly = runTsx([

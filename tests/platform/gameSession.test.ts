@@ -767,6 +767,23 @@ describe('GameSession state machine, input, and lifecycle', () => {
     h.session.setSpeed(2);
     expect(h.loop.speed).toBe(2);
     expect(h.loop.paused).toBe(true);
+    h.session.closePauseMenu();
+    expect(h.loop.paused).toBe(false);
+
+    // Selected tower panel anchor re-projects across camera rotation during renderFrame
+    h.session.simWorld.gold = 500;
+    const anchorTower = h.session.simWorld.placeTower(4, 2, 'archer')!;
+    h.session.selectTower(anchorTower.id);
+    const anchorSpy = h.overlays.towerPanel.setAnchorScreenPos as ReturnType<typeof vi.fn>;
+    const firstAnchor = anchorSpy.mock.calls[anchorSpy.mock.calls.length - 1];
+    h.cam.rotate90(1);
+    for (let i = 0; i < 30; i++) h.cam.update(1 / 60);
+    h.session.renderFrame(1 / 60, 0, 1);
+    const rotatedAnchor = anchorSpy.mock.calls[anchorSpy.mock.calls.length - 1];
+    expect(rotatedAnchor[0]).not.toBeCloseTo(firstAnchor[0], 1);
+    expect(rotatedAnchor[2]).toBe(1280);
+    expect(rotatedAnchor[3]).toBe(720);
+
     h.session.showMenuView('levelSelect', false);
     expect(h.session.simWorld).toBe(simRef);
     expect((h.renderWorld.loadLevel as ReturnType<typeof vi.fn>).mock.calls.length).toBe(loadCallsBeforeMenu);

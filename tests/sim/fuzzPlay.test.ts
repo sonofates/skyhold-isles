@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { EventBus } from '../../src/core/eventBus.ts';
 import { FixedTimestepStepper } from '../../src/core/gameLoop.ts';
 import { BALANCE } from '../../src/data/balance.ts';
+import { ENEMY_TYPES } from '../../src/data/enemies.ts';
 import { LEVELS } from '../../src/data/levels/index.ts';
 import { TOWER_TYPES } from '../../src/data/towers.ts';
 import { SimWorld } from '../../src/sim/world.ts';
@@ -36,6 +37,13 @@ describe('headless fuzz playthrough harness', () => {
     expect(summary.coverage.meteorCasts).toBeGreaterThan(0);
     expect(summary.coverage.overchargeCasts).toBeGreaterThan(0);
     expect([...summary.coverage.targetingModesUsed].sort()).toEqual(['closest', 'first', 'last', 'strongest']);
+    expect([...summary.coverage.enemyTypesSpawned].sort()).toEqual([...ENEMY_TYPES].sort());
+    expect([...summary.coverage.enemyTypesKilled].sort()).toEqual([...ENEMY_TYPES].sort());
+    expect(summary.coverage.splitterSplits).toBeGreaterThan(0);
+    expect(summary.coverage.healerPulses).toBeGreaterThan(0);
+    expect(summary.coverage.bossPulses).toBeGreaterThan(0);
+    expect(summary.coverage.bossSummons).toBeGreaterThan(0);
+    expect(summary.coverage.cleansedTowers).toBeGreaterThan(0);
   });
 
   it('produces identical final state digests when replaying the same seed across levels', { timeout: 60_000 }, () => {
@@ -218,6 +226,29 @@ describe('headless fuzz playthrough harness', () => {
     expect(storyLoss.ok, storyLoss.failure).toBe(true);
     expect(storyLoss.digest.storyOutcome).toBe('lost');
     expect(storyLoss.digest.finalOutcome).toBe('lost');
+
+    // endlessWaves: 0 stops cleanly at story victory without entering Endless Mode
+    const quickStoryWinLevel = {
+      ...brutalEndlessLevel,
+      id: 'qa-quick-story-win',
+      enemyHpScale: 0.25,
+      startingGold: 500,
+      waves: [
+        {
+          clearBonus: 15,
+          groups: [{ enemyType: 'grunt' as const, count: 2, spawnInterval: 0.3, startDelay: 0 }],
+        },
+      ],
+    };
+    const storyOnlyWin = runFuzzPlaythrough(quickStoryWinLevel, 202, {
+      endlessWaves: 0,
+      profile: 'tactical',
+    });
+    expect(storyOnlyWin.ok, storyOnlyWin.failure).toBe(true);
+    expect(storyOnlyWin.digest.storyOutcome).toBe('won');
+    expect(storyOnlyWin.digest.finalOutcome).toBe('won');
+    expect(storyOnlyWin.digest.waveState).toBe('finished');
+    expect(storyOnlyWin.digest.endlessWavesCompleted).toBe(0);
 
     expect(() => parseFuzzCliArgs(['--profile', 'unknown'])).toThrow(/Invalid --profile/);
     expect(() => parseFuzzCliArgs(['--seed'])).toThrow(/requires a value/);

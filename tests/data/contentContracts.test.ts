@@ -52,12 +52,13 @@ describe('tower, enemy, ability, and UI metadata contracts', () => {
     expect(new Set(TOWER_TYPES).size).toBe(TOWER_TYPES.length);
     const seenHotkeys = new Set<number>();
 
-    for (const type of TOWER_TYPES) {
+    TOWER_TYPES.forEach((type, idx) => {
       const def = TOWER_DEFS[type];
       expect(def.type).toBe(type);
       expect(def.name.trim().length).toBeGreaterThan(0);
       expect(def.shortDesc.trim().length).toBeGreaterThan(0);
       expect(def.turretHeight).toBeGreaterThan(0);
+      expect(def.hotkey).toBe(idx + 1);
       expect(seenHotkeys.has(def.hotkey)).toBe(false);
       seenHotkeys.add(def.hotkey);
 
@@ -104,7 +105,7 @@ describe('tower, enemy, ability, and UI metadata contracts', () => {
       }
       expect(t2.range).toBeGreaterThanOrEqual(t1.range);
       expect(t3.range).toBeGreaterThanOrEqual(t2.range);
-    }
+    });
 
     expect(TOWER_TYPES.some((t) => TOWER_DEFS[t].hitsFlyers)).toBe(true);
     expect(TOWER_TYPES.some((t) => getTowerTierStats(t, 1).splashRadius > 0)).toBe(true);
@@ -171,6 +172,10 @@ describe('tower, enemy, ability, and UI metadata contracts', () => {
     expect(ABILITY_DEFS.overcharge.requiresTarget).toBe(false);
     expect(ABILITY_DEFS.overcharge.durationSec).toBeGreaterThan(0);
     expect(ABILITY_DEFS.overcharge.fireRateMultiplier).toBeGreaterThan(1);
+
+    expect(computeMeteorDamage(0)).toBe(ABILITY_DEFS.meteor.baseDamage);
+    expect(computeMeteorDamage(-3)).toBe(ABILITY_DEFS.meteor.baseDamage);
+    expect(computeMeteorDamage(1)).toBe(ABILITY_DEFS.meteor.baseDamage);
 
     let prev = 0;
     for (let wave = 1; wave <= 30; wave++) {

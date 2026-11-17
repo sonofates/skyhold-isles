@@ -788,6 +788,25 @@ describe('InputManager pointer, pinch, wheel, keyboard, and cleanup', () => {
     expect(log).toContainEqual(['keyPan', -1, 1]);
     expect(log).toContainEqual(['towerAction', 'sell']);
 
+    // Two-finger pinch followed by sequential finger lifts must not emit a phantom tap on final pointerup
+    log.length = 0;
+    canvas.dispatch('pointerdown', { pointerId: 60, target: canvas, clientX: 100, clientY: 50, button: 0 });
+    canvas.dispatch('pointerdown', { pointerId: 61, target: canvas, clientX: 150, clientY: 50, button: 0 });
+    mockWin.dispatch('pointerup', { pointerId: 61, clientX: 150, clientY: 50, button: 0 });
+    mockWin.dispatch('pointerup', { pointerId: 60, clientX: 100, clientY: 50, button: 0 });
+    expect(log.some((e) => e[0] === 'tap')).toBe(false);
+
+    // Disabled or modal-open state blocks pointerdown/pointermove/wheel as well as modified/repeated Escape
+    mgr.setEnabled(false);
+    log.length = 0;
+    canvas.dispatch('pointerdown', { pointerId: 62, target: canvas, clientX: 100, clientY: 50, button: 0 });
+    mockWin.dispatch('pointermove', { pointerId: 62, target: canvas, clientX: 110, clientY: 60 });
+    canvas.dispatch('wheel', { target: canvas, clientX: 100, clientY: 50, deltaY: -100, preventDefault: () => {} });
+    mgr.setModalOpen(true);
+    mockWin.dispatch('keydown', { code: 'Escape', key: 'Escape', metaKey: true, ctrlKey: false, altKey: false, repeat: false, target: canvas, preventDefault: () => {} });
+    mockWin.dispatch('keydown', { code: 'Escape', key: 'Escape', metaKey: false, ctrlKey: false, altKey: false, repeat: true, target: canvas, preventDefault: () => {} });
+    expect(log).toEqual([['keyPan', 0, 0]]);
+
     mgr.dispose();
   });
 });

@@ -4,7 +4,7 @@ import { SeededRng } from '../src/core/rng.ts';
 import type { EnemyType, GridCoord, SpeedMultiplier, TargetingMode, TowerType } from '../src/core/types.ts';
 import { ABILITY_DEFS, ABILITY_IDS } from '../src/data/abilities.ts';
 import { BALANCE } from '../src/data/balance.ts';
-import { ENEMY_DEFS } from '../src/data/enemies.ts';
+import { ENEMY_DEFS, ENEMY_TYPES } from '../src/data/enemies.ts';
 import { LEVELS, type LevelDef } from '../src/data/levels/index.ts';
 import { getTowerTierStats, TOWER_DEFS, TOWER_TYPES } from '../src/data/towers.ts';
 import { buildEndlessWaveDef, type WaveState } from '../src/sim/waveSystem.ts';
@@ -44,6 +44,8 @@ const _seenTowerIds = new Set<number>();
 const _seenTowerCoords = new Set<number>();
 const _seenEventTowerIds = new Set<number>();
 const _seenChainEnemyUids = new Set<number>();
+const _expectedPreviewCounts = new Map<EnemyType, number>();
+const _seenPreviewTypes = new Set<EnemyType>();
 
 export type FuzzProfile = 'tactical' | 'competent' | 'balanced' | 'chaotic' | 'minimal';
 export const FUZZ_PROFILES: readonly FuzzProfile[] = ['tactical', 'competent', 'balanced', 'chaotic', 'minimal'];
@@ -89,6 +91,13 @@ export interface FuzzCoverageStats {
   readonly meteorCasts: number;
   readonly overchargeCasts: number;
   readonly targetingModesUsed: readonly TargetingMode[];
+  readonly enemyTypesSpawned: readonly EnemyType[];
+  readonly enemyTypesKilled: readonly EnemyType[];
+  readonly splitterSplits: number;
+  readonly healerPulses: number;
+  readonly bossPulses: number;
+  readonly bossSummons: number;
+  readonly cleansedTowers: number;
 }
 
 export interface FuzzRunResult {
@@ -138,10 +147,17 @@ interface FuzzTracker {
   maxEverTowerId: number;
   builtTowerTypes: Set<TowerType>;
   usedTargetingModes: Set<TargetingMode>;
+  spawnedEnemyTypes: Set<EnemyType>;
+  killedEnemyTypes: Set<EnemyType>;
   maxTierReached: number;
   soldTowerCount: number;
   meteorCastCount: number;
   overchargeCastCount: number;
+  splitterSplitCount: number;
+  healerPulseCount: number;
+  bossPulseCount: number;
+  bossSummonCount: number;
+  cleansedTowerCount: number;
   endlessWaveCompletedCount: number;
   expectedGold: number;
   expectedLives: number;
@@ -262,6 +278,7 @@ function attachEventTracker(
     }
     tracker.seenSpawnUids.add(ev.enemyId);
     tracker.spawnedTypes.set(ev.enemyId, ev.enemyType);
+    tracker.spawnedEnemyTypes.add(ev.enemyType);
     tracker.spawnedCount++;
     tracker.stateHash = mixStringHash(mixHash(mixHash(tracker.stateHash, 1), ev.enemyId), ev.enemyType);
   });
@@ -295,6 +312,7 @@ function attachEventTracker(
       return;
     }
     tracker.killedUids.add(ev.enemyId);
+    tracker.killedEnemyTypes.add(ev.enemyType);
     if (ev.enemyType === 'splitter') {
       tracker.killedSplitterUids.add(ev.enemyId);
     }
@@ -335,6 +353,7 @@ function attachEventTracker(
     if (!Number.isFinite(ev.x) || !Number.isFinite(ev.y) || !Number.isFinite(ev.z)) {
       recordEventError(tracker, `Non-finite enemySplit coordinates for parentUid=${ev.parentUid}`);
     }
+    tracker.splitterSplitCount++;
     tracker.stateHash = mixHash(mixHash(tracker.stateHash, 4), ev.parentUid);
   });
 
@@ -407,6 +426,7 @@ function attachEventTracker(
         }
       }
     }
+    tracker.bossPulseCount++;
     tracker.stateHash = mixHash(mixHash(tracker.stateHash, 5), ev.stunnedTowerIds.length);
   });
 
@@ -436,6 +456,7 @@ function attachEventTracker(
     if (!hasBossAtSource) {
       recordEventError(tracker, `bossSummon emitted without eligible active boss at (${ev.x},${ev.y},${ev.z})`);
     }
+    tracker.bossSummonCount++;
     tracker.stateHash = mixHash(mixHash(tracker.stateHash, 6), ev.count);
   });
 
@@ -506,6 +527,8 @@ function attachEventTracker(
     }
     if (!hasHealedTargetInRadius) {
       recordEventError(tracker, `healerPulse emitted with no active target inside radius ${ev.radius}`);
+    } else {
+      tracker.healerPulseCount++;
     }
   });
 
@@ -749,6 +772,7 @@ function attachEventTracker(
       _seenEventTowerIds.add(tid);
     }
     tracker.overchargeCastCount++;
+    tracker.cleansedTowerCount += ev.cleansedTowerIds.length;
     tracker.stateHash = mixHash(mixHash(tracker.stateHash, 17), ev.cleansedTowerIds.length);
   });
 
@@ -1079,10 +1103,14 @@ function assertTickInvariants(world: SimWorld, tracker: FuzzTracker, tick: numbe
       !Number.isFinite(p.speed) ||
       !Number.isInteger(p.targetUid) ||
       p.targetUid <= 0 ||
+      p.targetUid > tracker.spawnedCount ||
+      !tracker.seenSpawnUids.has(p.targetUid) ||
       !Number.isInteger(p.targetPoolIndex) ||
       p.targetPoolIndex < 0 ||
       p.targetPoolIndex >= BALANCE.pools.maxEnemies ||
       p.duration < 0.06 - 1e-9 ||
+      (p.parabolic &&
+        Math.abs(p.duration - Math.max(0.06, Math.hypot(p.endX - p.startX, p.endZ - p.startZ) / p.speed)) > 1e-9) ||
       p.progress < 0 ||
       p.progress >= 1 ||
       p.arcHeight < 0 ||
@@ -1339,10 +1367,25 @@ function assertTickInvariants(world: SimWorld, tracker: FuzzTracker, tick: numbe
         nextWaveIdx < world.level.waves.length
           ? world.level.waves[nextWaveIdx]
           : buildEndlessWaveDef(nextWaveIdx, world.level);
-      const expectedTotal = nextDef.groups.reduce((s, g) => s + g.count, 0);
-      const previewTotal = preview.items.reduce((s, it) => s + it.count, 0);
-      if (previewTotal !== expectedTotal) {
-        return `nextWavePreview count ${previewTotal} != waveDef count ${expectedTotal}`;
+      _expectedPreviewCounts.clear();
+      for (let g = 0; g < nextDef.groups.length; g++) {
+        const grp = nextDef.groups[g];
+        _expectedPreviewCounts.set(grp.enemyType, (_expectedPreviewCounts.get(grp.enemyType) ?? 0) + grp.count);
+      }
+      _seenPreviewTypes.clear();
+      for (let pIdx = 0; pIdx < preview.items.length; pIdx++) {
+        const item = preview.items[pIdx];
+        if (item.count <= 0 || _seenPreviewTypes.has(item.enemyType)) {
+          return `Invalid or duplicate nextWavePreview item ${item.enemyType}=${item.count}`;
+        }
+        _seenPreviewTypes.add(item.enemyType);
+        const expCount = _expectedPreviewCounts.get(item.enemyType) ?? 0;
+        if (item.count !== expCount) {
+          return `nextWavePreview ${item.enemyType} count ${item.count} != waveDef count ${expCount}`;
+        }
+      }
+      if (_seenPreviewTypes.size !== _expectedPreviewCounts.size) {
+        return `nextWavePreview missing enemy types (${_seenPreviewTypes.size} != ${_expectedPreviewCounts.size})`;
       }
     }
   }
@@ -1469,22 +1512,33 @@ function performLegalAction(
     const goldSnap = world.gold;
     const countSnap = world.towers.length;
     const spawn = world.level.pathWaypoints[0];
+    const existingTower = world.towers[0];
     const maxTierTower = world.towers.find((t) => t.tier >= 3);
+    const unaffordableUpgrade = world.towers.find(
+      (t) => t.tier < 3 && world.gold < getTowerTierStats(t.type, (t.tier + 1) as 2 | 3).upgradeCost,
+    );
+    const unaffordableTierBefore = unaffordableUpgrade?.tier;
     const freeTile = world.gold < CHEAPEST_TOWER_COST ? tiles.find((t) => world.grid.canPlaceTower(t.col, t.row)) : undefined;
     if (
       world.placeTower(-1, -1, 'archer') !== null ||
       (spawn && world.placeTower(spawn.col, spawn.row, 'archer') !== null) ||
+      (existingTower && world.placeTower(existingTower.col, existingTower.row, 'archer') !== null) ||
       (freeTile && world.placeTower(freeTile.col, freeTile.row, 'archer') !== null) ||
       world.upgradeTower(999_999) !== false ||
       (maxTierTower && world.upgradeTower(maxTierTower.id) !== false) ||
+      (unaffordableUpgrade && world.upgradeTower(unaffordableUpgrade.id) !== false) ||
       world.sellTower(999_999) !== 0 ||
       world.enterEndlessMode() !== false
     ) {
       return 'Illegal action succeeded unexpectedly during ongoing play';
     }
     world.setTowerTargeting(999_999, 'last');
-    if (world.gold !== goldSnap || world.towers.length !== countSnap) {
-      return 'Illegal action mutated gold or tower count';
+    if (
+      world.gold !== goldSnap ||
+      world.towers.length !== countSnap ||
+      (unaffordableUpgrade && unaffordableUpgrade.tier !== unaffordableTierBefore)
+    ) {
+      return 'Illegal action mutated gold, tower count, or unaffordable tower tier';
     }
   }
 
@@ -1743,10 +1797,17 @@ function createFuzzTracker(startingGold: number, endlessWavesConfig: number): Fu
     maxEverTowerId: 0,
     builtTowerTypes: new Set<TowerType>(),
     usedTargetingModes: new Set<TargetingMode>(),
+    spawnedEnemyTypes: new Set<EnemyType>(),
+    killedEnemyTypes: new Set<EnemyType>(),
     maxTierReached: 0,
     soldTowerCount: 0,
     meteorCastCount: 0,
     overchargeCastCount: 0,
+    splitterSplitCount: 0,
+    healerPulseCount: 0,
+    bossPulseCount: 0,
+    bossSummonCount: 0,
+    cleansedTowerCount: 0,
     endlessWaveCompletedCount: 0,
     expectedGold: startingGold,
     expectedLives: BALANCE.startingLives,
@@ -1863,6 +1924,13 @@ function buildCoverageStats(tracker: FuzzTracker): FuzzCoverageStats {
     meteorCasts: tracker.meteorCastCount,
     overchargeCasts: tracker.overchargeCastCount,
     targetingModesUsed: [...tracker.usedTargetingModes],
+    enemyTypesSpawned: [...tracker.spawnedEnemyTypes],
+    enemyTypesKilled: [...tracker.killedEnemyTypes],
+    splitterSplits: tracker.splitterSplitCount,
+    healerPulses: tracker.healerPulseCount,
+    bossPulses: tracker.bossPulseCount,
+    bossSummons: tracker.bossSummonCount,
+    cleansedTowers: tracker.cleansedTowerCount,
   };
 }
 
@@ -2431,19 +2499,33 @@ export function runFuzzCampaign(config: {
   let maxPeakProjectiles = 0;
   const towerTypesBuilt = new Set<TowerType>();
   const targetingModesUsed = new Set<TargetingMode>();
+  const enemyTypesSpawned = new Set<EnemyType>();
+  const enemyTypesKilled = new Set<EnemyType>();
   let maxTierReached = 0;
   let towersSold = 0;
   let meteorCasts = 0;
   let overchargeCasts = 0;
+  let splitterSplits = 0;
+  let healerPulses = 0;
+  let bossPulses = 0;
+  let bossSummons = 0;
+  let cleansedTowers = 0;
 
   const mergeCoverage = (cov?: FuzzCoverageStats): void => {
     if (!cov) return;
     for (const t of cov.towerTypesBuilt) towerTypesBuilt.add(t);
     for (const m of cov.targetingModesUsed) targetingModesUsed.add(m);
+    for (const e of cov.enemyTypesSpawned) enemyTypesSpawned.add(e);
+    for (const e of cov.enemyTypesKilled) enemyTypesKilled.add(e);
     if (cov.maxTierReached > maxTierReached) maxTierReached = cov.maxTierReached;
     towersSold += cov.towersSold;
     meteorCasts += cov.meteorCasts;
     overchargeCasts += cov.overchargeCasts;
+    splitterSplits += cov.splitterSplits;
+    healerPulses += cov.healerPulses;
+    bossPulses += cov.bossPulses;
+    bossSummons += cov.bossSummons;
+    cleansedTowers += cov.cleansedTowers;
   };
 
   for (const li of indices) {
@@ -2535,6 +2617,13 @@ export function runFuzzCampaign(config: {
       meteorCasts,
       overchargeCasts,
       targetingModesUsed: [...targetingModesUsed],
+      enemyTypesSpawned: [...enemyTypesSpawned],
+      enemyTypesKilled: [...enemyTypesKilled],
+      splitterSplits,
+      healerPulses,
+      bossPulses,
+      bossSummons,
+      cleansedTowers,
     },
   };
 }
@@ -2809,6 +2898,12 @@ function main(): void {
   console.log(
     `Peak pools observed: enemies=${summary.maxPeakEnemies}/${BALANCE.pools.maxEnemies}, ` +
       `projectiles=${summary.maxPeakProjectiles}/${BALANCE.pools.maxProjectiles}`,
+  );
+  console.log(
+    `Coverage: towers=${summary.coverage.towerTypesBuilt.length}/${TOWER_TYPES.length} (T${summary.coverage.maxTierReached}), ` +
+      `enemies=${summary.coverage.enemyTypesKilled.length}/${ENEMY_TYPES.length} killed, ` +
+      `splits=${summary.coverage.splitterSplits}, healerPulses=${summary.coverage.healerPulses}, ` +
+      `bossPulses=${summary.coverage.bossPulses}, cleansed=${summary.coverage.cleansedTowers}`,
   );
 
   if (summary.failures.length > 0) {
