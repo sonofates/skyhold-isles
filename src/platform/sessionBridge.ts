@@ -4,6 +4,7 @@ import type { EventBus } from '../core/eventBus.ts';
 import type { AbilityId, EnemyType, GameSettings, ProgressData, TowerType } from '../core/types.ts';
 import { ABILITY_DEFS } from '../data/abilities.ts';
 import { BALANCE } from '../data/balance.ts';
+import { ENEMY_DEFS } from '../data/enemies.ts';
 import { LEVELS } from '../data/levels/index.ts';
 import { getTowerTierStats } from '../data/towers.ts';
 import type { RenderWorld } from '../render/renderWorld.ts';
@@ -13,7 +14,13 @@ import type { AbilityBarState } from '../ui/abilityBar.ts';
 import type { GameOverlays } from '../ui/gameOverlays.ts';
 import type { HudStateView } from '../ui/hud.ts';
 import type { GameLoop } from './browserLoop.ts';
-import { saveProgress, hasSeenFlyerToast, markFlyerToastSeen } from './storage.ts';
+import {
+  saveProgress,
+  hasSeenEnemyIntro,
+  hasSeenFlyerToast,
+  markEnemyIntroSeen,
+  markFlyerToastSeen,
+} from './storage.ts';
 
 export interface SimBridgeHandlers {
   bus: EventBus;
@@ -21,10 +28,15 @@ export interface SimBridgeHandlers {
   overlays: GameOverlays;
   getSettings: () => GameSettings;
   getSimClock: () => number;
+  /** Wall-clock seconds (the toast counts down in real time, whatever the game speed). */
+  getRealClock?: () => number;
   onSyncUi: () => void;
   onGameWon: (stars: 1 | 2 | 3, livesRemaining: number) => void;
   onGameLost: (waveIndex: number, endless?: boolean) => void;
 }
+
+/** First-encounter hints stay up this long (real seconds); the next hint waits until it is gone. */
+const INTRO_TOAST_SEC = 7.0;
 
 export function bindSimEventBridge(h: SimBridgeHandlers): () => void {
   const unbindSound = h.soundManager.bindEvents(h.bus);
@@ -40,8 +52,24 @@ export function bindSimEventBridge(h: SimBridgeHandlers): () => void {
     }
   });
   h.bus.on('towerSold', h.onSyncUi);
+  // Wall-clock time of the last "New foe" hint: a second new type (or the flyer hint) arriving while
+  // it is still on screen — at any game speed — waits for a later spawn instead of wiping it
+  // (a hint is only marked seen once it was actually shown).
+  const realClock = h.getRealClock ?? ((): number => performance.now() / 1000);
+  let lastIntroAt = -Infinity;
+  const introOnScreen = (): boolean => realClock() - lastIntroAt < INTRO_TOAST_SEC;
   h.bus.on('enemySpawned', (e) => {
-    if (!e.flying || hasSeenFlyerToast()) return;
+    // First encounter with a newer archetype: one-time counterplay hint.
+    const hint = ENEMY_DEFS[e.enemyType].counterHint;
+    if (hint && !hasSeenEnemyIntro(e.enemyType)) {
+      if (!introOnScreen()) {
+        lastIntroAt = realClock();
+        markEnemyIntroSeen(e.enemyType);
+        h.overlays.toast.show(`New foe — ${ENEMY_DEFS[e.enemyType].name}: ${hint}`, INTRO_TOAST_SEC);
+      }
+      return;
+    }
+    if (!e.flying || hasSeenFlyerToast() || introOnScreen()) return;
     markFlyerToastSeen();
     h.overlays.toast.show('Flyers incoming! Only Archer, Frost and Tesla can hit them.');
   });

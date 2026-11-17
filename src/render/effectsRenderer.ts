@@ -93,6 +93,14 @@ const _enemyShardColors: Record<EnemyType, number> = {
   flyer: PALETTE_HEX.cream,
   healer: PALETTE_HEX.grass,
   splitter: 0xe84a7f,
+  warden: 0x3d5bd9,
+  burrower: PALETTE_HEX.dirt,
+  carrier: PALETTE_HEX.sand,
+  blinker: 0x3fe0d0,
+  golem: 0x4a4550,
+  mite: 0xff8a1f,
+  hexer: 0x8a2f62,
+  tempest: 0x3b5a8c,
   boss: PALETTE_HEX.indigo,
 };
 

@@ -23,6 +23,34 @@ const _splitChildTint = new THREE.Color(0xff7898);
 const _hpGreen = new THREE.Color(PALETTE_HEX.grass);
 const _hpGold = new THREE.Color(PALETTE_HEX.gold);
 const _hpCoral = new THREE.Color(PALETTE_HEX.coral);
+const _eliteTint = new THREE.Color(PALETTE_HEX.gold);
+const _blinkGlow = new THREE.Color(0xc8fff8);
+const _hexGlow = new THREE.Color(0xf2a6ff);
+/** Seconds before a Rift Blinker's jump during which it flickers as a telegraph. */
+const BLINK_TELEGRAPH_SEC = 0.55;
+/** Seconds before a Loam Burrower resurfaces during which its mound bulges. */
+const BURROW_TELEGRAPH_SEC = 0.45;
+const GROUND_SHADOW_SCALE: Partial<Record<EnemyType, number>> = {
+  boss: 1.95,
+  tempest: 2.1,
+  brute: 1.48,
+  golem: 1.62,
+  splitter: 1.18,
+  warden: 1.14,
+  burrower: 1.3,
+  runner: 0.94,
+  blinker: 0.92,
+  mite: 0.62,
+  hexer: 1.0,
+};
+const HP_BAR_WIDTH: Partial<Record<EnemyType, number>> = {
+  boss: 1.75,
+  tempest: 1.9,
+  brute: 1.2,
+  golem: 1.3,
+  carrier: 1.1,
+  mite: 0.6,
+};
 
 /** Creates a unit chamfered low-poly block roughly fitting [-0.5..0.5]^3 for figurine silhouettes. */
 function createChamferedBoxGeometry(): THREE.BufferGeometry {
@@ -74,6 +102,48 @@ function createWingGeometry(): THREE.BufferGeometry {
   return geo;
 }
 
+/** Source primitives every enemy figurine is assembled from (read-only merge inputs). */
+interface EnemyPrimitives {
+  readonly chamfer: THREE.BufferGeometry;
+  readonly box: THREE.BufferGeometry;
+  readonly cone: THREE.BufferGeometry;
+  readonly ico: THREE.BufferGeometry;
+  readonly icoSmooth: THREE.BufferGeometry;
+  readonly cyl: THREE.BufferGeometry;
+  readonly wing: THREE.BufferGeometry;
+}
+
+let _primitives: EnemyPrimitives | null = null;
+
+/**
+ * Same data as `geo`, but as a plain BufferGeometry. three's `clone()` is
+ * `new this.constructor().copy(this)`, so cloning a non-indexed IcosahedronGeometry or
+ * ExtrudeGeometry first builds a throwaway *default* one (a 12-segment bevelled extrusion);
+ * `mergeColoredParts` clones every non-indexed part, so that was most of the boot cost.
+ */
+function toPlainGeometry(geo: THREE.BufferGeometry): THREE.BufferGeometry {
+  const plain = new THREE.BufferGeometry().copy(geo);
+  geo.dispose();
+  return plain;
+}
+
+/**
+ * Built once and shared by every archetype: `mergeColoredParts` only reads its inputs (it copies
+ * each part before transforming it), and these never reach the GPU, so they are never disposed.
+ */
+function getEnemyPrimitives(): EnemyPrimitives {
+  _primitives ??= {
+    chamfer: toPlainGeometry(createChamferedBoxGeometry()),
+    box: new THREE.BoxGeometry(1, 1, 1),
+    cone: new THREE.ConeGeometry(1, 1, 5),
+    ico: toPlainGeometry(new THREE.IcosahedronGeometry(1, 0)),
+    icoSmooth: toPlainGeometry(new THREE.IcosahedronGeometry(1, 1)),
+    cyl: new THREE.CylinderGeometry(1, 1, 1, 6),
+    wing: toPlainGeometry(createWingGeometry()),
+  };
+  return _primitives;
+}
+
 function addEyes(
   parts: ColoredPart[],
   eyeGeo: THREE.BufferGeometry,
@@ -98,13 +168,18 @@ export class EnemyRenderer {
   private hpRatioAttr: THREE.InstancedBufferAttribute;
   private hpRatioArray: Float32Array;
   private shadowDecalMesh: THREE.InstancedMesh;
+  private moundMesh: THREE.InstancedMesh;
+  private bubbleMesh: THREE.InstancedMesh;
+  private bubbleMaterial: THREE.MeshBasicMaterial;
+  private eliteRingMesh: THREE.InstancedMesh;
+  private eliteRingMaterial: THREE.MeshBasicMaterial;
 
   constructor(materials: MaterialLibrary) {
     const cap = BALANCE.pools.maxEnemies;
 
     for (let i = 0; i < ENEMY_TYPES.length; i++) {
       const type = ENEMY_TYPES[i];
-      const geo = this.buildEnemyGeometry(type);
+      const geo = EnemyRenderer.buildEnemyGeometry(type);
       this.geometries.push(geo);
 
       const flashArray = new Float32Array(cap);
@@ -114,7 +189,7 @@ export class EnemyRenderer {
 
       const mesh = new THREE.InstancedMesh(geo, materials.enemyInstancedMaterial, cap);
       mesh.count = 0;
-      mesh.castShadow = type === 'brute' || type === 'boss';
+      mesh.castShadow = type === 'brute' || type === 'boss' || type === 'tempest' || type === 'golem';
       mesh.receiveShadow = false;
       mesh.frustumCulled = false;
 
@@ -146,6 +221,48 @@ export class EnemyRenderer {
     if (this.hpBarMesh.instanceColor) this.hpBarMesh.instanceColor.needsUpdate = true;
     this.group.add(this.hpBarMesh);
 
+    // Burrower dirt mounds (shares the enemy material, so it needs its own aFlash attribute)
+    const moundGeo = this.buildMoundGeometry();
+    this.geometries.push(moundGeo);
+    const moundFlash = new THREE.InstancedBufferAttribute(new Float32Array(cap), 1);
+    moundGeo.setAttribute('aFlash', moundFlash);
+    this.moundMesh = new THREE.InstancedMesh(moundGeo, materials.enemyInstancedMaterial, cap);
+    this.moundMesh.count = 0;
+    this.moundMesh.visible = false;
+    this.moundMesh.frustumCulled = false;
+
+    // Warden barrier bubbles: one translucent draw call for every shielded enemy
+    const bubbleGeo = new THREE.IcosahedronGeometry(0.5, 1);
+    this.geometries.push(bubbleGeo);
+    this.bubbleMaterial = new THREE.MeshBasicMaterial({
+      color: 0x9fdcff,
+      transparent: true,
+      opacity: 0.3,
+      depthWrite: false,
+    });
+    this.bubbleMesh = new THREE.InstancedMesh(bubbleGeo, this.bubbleMaterial, cap);
+    this.bubbleMesh.count = 0;
+    this.bubbleMesh.visible = false;
+    this.bubbleMesh.frustumCulled = false;
+    this.bubbleMesh.renderOrder = 6;
+
+    // Empowered elite aura rings (flat gold rings at the feet / under flyers)
+    const ringGeo = new THREE.RingGeometry(0.42, 0.56, 18, 1);
+    ringGeo.rotateX(-Math.PI / 2);
+    this.geometries.push(ringGeo);
+    this.eliteRingMaterial = new THREE.MeshBasicMaterial({
+      color: PALETTE_HEX.gold,
+      transparent: true,
+      opacity: 0.85,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+    });
+    this.eliteRingMesh = new THREE.InstancedMesh(ringGeo, this.eliteRingMaterial, cap);
+    this.eliteRingMesh.count = 0;
+    this.eliteRingMesh.visible = false;
+    this.eliteRingMesh.frustumCulled = false;
+    this.eliteRingMesh.renderOrder = 3;
+
     const shadowGeo = new THREE.PlaneGeometry(1.15, 1.15);
     shadowGeo.rotateX(-Math.PI / 2);
     this.geometries.push(shadowGeo);
@@ -154,6 +271,10 @@ export class EnemyRenderer {
     this.shadowDecalMesh.renderOrder = 2;
     this.shadowDecalMesh.frustumCulled = false;
     this.group.add(this.shadowDecalMesh);
+
+    // Archetype layers go after the HP bar + shadow so those keep their long-standing child
+    // indices (ENEMY_TYPES.length and +1) that other code/tests address directly.
+    this.group.add(this.moundMesh, this.bubbleMesh, this.eliteRingMesh);
   }
 
   update(
@@ -167,6 +288,9 @@ export class EnemyRenderer {
     });
     let hpCount = 0;
     let shadowDecalCount = 0;
+    let moundCount = 0;
+    let bubbleCount = 0;
+    let ringCount = 0;
 
     const activeCount = pool.getActiveCount();
     for (let i = 0; i < activeCount; i++) {
@@ -174,9 +298,6 @@ export class EnemyRenderer {
       const e = pool.items[idx];
       const layer = this.layers.get(e.type);
       if (!layer) continue;
-
-      const slot = layer.mesh.count;
-      layer.mesh.count = slot + 1;
 
       const ix = e.prevX + (e.x - e.prevX) * alpha;
       const iy = e.prevY + (e.y - e.prevY) * alpha;
@@ -186,6 +307,31 @@ export class EnemyRenderer {
       if (dyaw > Math.PI) dyaw -= Math.PI * 2;
       if (dyaw < -Math.PI) dyaw += Math.PI * 2;
       const iyaw = e.prevYaw + dyaw * alpha;
+
+      if (e.burrowed) {
+        // Underground: only a wobbling dirt mound travels along the road (no body, no HP bar).
+        const wob = Math.sin(e.walkPhase * 1.6);
+        // Resurfacing telegraph: the mound bulges and shivers in the last moments underground.
+        const bulge =
+          e.abilityTimer < BURROW_TELEGRAPH_SEC
+            ? 1 - e.abilityTimer / BURROW_TELEGRAPH_SEC
+            : 0;
+        const shiver = bulge * Math.sin(elapsedTime * 38) * 0.08;
+        _dummy.position.set(ix, iy + 0.02, iz);
+        _dummy.rotation.set(0, iyaw, wob * 0.06 + shiver);
+        _dummy.scale.set(
+          1 + wob * 0.06 + bulge * 0.25,
+          1 - wob * 0.08 + bulge * 0.9,
+          1 + wob * 0.04 + bulge * 0.25,
+        );
+        _dummy.updateMatrix();
+        this.moundMesh.setMatrixAt(moundCount, _dummy.matrix);
+        moundCount++;
+        continue;
+      }
+
+      const slot = layer.mesh.count;
+      layer.mesh.count = slot + 1;
 
       let bobY: number;
       let tiltZ: number;
@@ -201,13 +347,20 @@ export class EnemyRenderer {
             ? e.isSplitChild
               ? 0.24
               : 0.18
-            : e.type === 'splitter'
+            : e.type === 'splitter' || e.type === 'burrower'
               ? 0.08
-              : 0.04;
+              : e.type === 'mite'
+                ? 0.1
+                : 0.04;
+        if (e.type === 'golem') {
+          // Heavy stomp: less sway, more vertical thud
+          tiltZ *= 0.5;
+          bobY *= 0.7;
+        }
       }
 
       const scaleMul = e.scaleOverride || 1;
-      const enemyScale = (e.type === 'boss' ? 1.26 : 1.28) * scaleMul;
+      const enemyScale = (e.type === 'boss' || e.type === 'tempest' ? 1.26 : 1.28) * scaleMul;
       _dummy.position.set(ix, iy + bobY, iz);
       _dummy.rotation.set(tiltX, iyaw, tiltZ);
       _dummy.scale.setScalar(enemyScale);
@@ -215,33 +368,58 @@ export class EnemyRenderer {
       layer.mesh.setMatrixAt(slot, _dummy.matrix);
 
       _color.copy(e.isSplitChild ? _splitChildTint : _white);
+      if (e.elite) {
+        _color.lerp(_eliteTint, 0.28);
+      }
       if (e.slowTimer > 0) {
         _color.lerp(_frostTint, Math.min(1, 0.55 + e.slowRatio));
+      } else if (e.armorBreakTimer > 0) {
+        _color.lerp(_frostTint, 0.45);
+      }
+      if (e.type === 'blinker' && e.abilityTimer < BLINK_TELEGRAPH_SEC) {
+        // Rift charge telegraph: flicker toward bright aqua right before the jump
+        const k = 1 - e.abilityTimer / BLINK_TELEGRAPH_SEC;
+        _color.lerp(_blinkGlow, k * (0.55 + 0.45 * Math.abs(Math.sin(elapsedTime * 30))));
+      }
+      if (e.type === 'hexer' && e.hexTargetId >= 0) {
+        // Hex channel telegraph: the hexcaster glows and throbs magenta until the hex lands.
+        _color.lerp(_hexGlow, 0.45 + 0.35 * Math.abs(Math.sin(elapsedTime * 14)));
       }
       layer.mesh.setColorAt(slot, _color);
+
+      if (e.shield > 0) {
+        const fill = e.shieldMax > 0 ? Math.min(1, e.shield / e.shieldMax) : 1;
+        const s = Math.max(e.radius * 2.5, e.height * 1.2) * enemyScale * (0.82 + fill * 0.18);
+        _dummy.position.set(ix, iy + bobY + e.height * enemyScale * 0.5, iz);
+        _dummy.rotation.set(0, elapsedTime * 0.8 + e.walkPhase, 0);
+        _dummy.scale.set(s, s * 1.04, s);
+        _dummy.updateMatrix();
+        this.bubbleMesh.setMatrixAt(bubbleCount++, _dummy.matrix);
+      }
+      if (e.elite) {
+        const pulse = 1 + Math.sin(elapsedTime * 3.4 + e.walkPhase) * 0.06;
+        _dummy.position.set(ix, e.flying ? iy + bobY - 0.12 : iy + 0.035, iz);
+        _dummy.rotation.set(0, elapsedTime * 1.2, 0);
+        _dummy.scale.setScalar((e.radius * 2.4 + 0.2) * scaleMul * pulse);
+        _dummy.updateMatrix();
+        this.eliteRingMesh.setMatrixAt(ringCount++, _dummy.matrix);
+      }
 
       layer.flashArray[slot] = e.hitFlashTimer > 0 ? Math.min(1, e.hitFlashTimer / 0.12) : 0;
 
       if (e.flying) {
         _dummy.position.set(ix, 0.024, iz);
         _dummy.rotation.set(0, 0, 0);
-        const s = (1.12 + Math.sin(elapsedTime * 4.5 + e.walkPhase) * 0.08) * scaleMul;
+        const s =
+          (e.type === 'carrier' ? 1.45 : 1.12 + Math.sin(elapsedTime * 4.5 + e.walkPhase) * 0.08) *
+          scaleMul;
         _dummy.scale.setScalar(s);
         _dummy.updateMatrix();
         this.shadowDecalMesh.setMatrixAt(shadowDecalCount++, _dummy.matrix);
       } else {
         _dummy.position.set(ix, iy + 0.018, iz);
         _dummy.rotation.set(0, 0, 0);
-        const baseShadowScale =
-          e.type === 'boss'
-            ? 1.95
-            : e.type === 'brute'
-              ? 1.48
-              : e.type === 'splitter'
-                ? 1.18
-                : e.type === 'runner'
-                  ? 0.94
-                  : 1.08;
+        const baseShadowScale = GROUND_SHADOW_SCALE[e.type] ?? 1.08;
         _dummy.scale.setScalar(baseShadowScale * scaleMul);
         _dummy.updateMatrix();
         this.shadowDecalMesh.setMatrixAt(shadowDecalCount++, _dummy.matrix);
@@ -249,10 +427,8 @@ export class EnemyRenderer {
 
       if (e.hp < e.maxHp && e.hp > 0) {
         const ratio = Math.max(0.02, Math.min(1, e.hp / e.maxHp));
-        const barW =
-          (e.type === 'boss' ? 1.75 : e.type === 'brute' ? 1.2 : 0.94) *
-          (e.isSplitChild ? 0.8 : 1);
-        const barH = e.type === 'boss' ? 0.2 : 0.14;
+        const barW = (HP_BAR_WIDTH[e.type] ?? 0.94) * (e.isSplitChild ? 0.8 : 1);
+        const barH = e.type === 'boss' || e.type === 'tempest' ? 0.2 : 0.14;
 
         _barPos.set(ix, iy + bobY + e.height * enemyScale + 0.34, iz);
 
@@ -291,11 +467,36 @@ export class EnemyRenderer {
       this.hpRatioAttr.needsUpdate = true;
     }
 
+    this.finishExtraLayer(this.moundMesh, moundCount);
+    this.finishExtraLayer(this.bubbleMesh, bubbleCount);
+    this.finishExtraLayer(this.eliteRingMesh, ringCount);
+
     this.shadowDecalMesh.count = shadowDecalCount;
     this.shadowDecalMesh.visible = shadowDecalCount > 0;
     if (shadowDecalCount > 0) {
       this.shadowDecalMesh.instanceMatrix.needsUpdate = true;
     }
+  }
+
+  private finishExtraLayer(mesh: THREE.InstancedMesh, count: number): void {
+    mesh.count = count;
+    mesh.visible = count > 0;
+    if (count > 0) mesh.instanceMatrix.needsUpdate = true;
+  }
+
+  /** Low lumpy dirt mound with a few pebbles, used for burrowed Loam Burrowers. */
+  private buildMoundGeometry(): THREE.BufferGeometry {
+    const ico = new THREE.IcosahedronGeometry(1, 0);
+    const parts: ColoredPart[] = [
+      { geometry: ico, colorHex: PALETTE_HEX.dirt, position: [0, 0.04, 0], scale: [0.5, 0.2, 0.62] },
+      { geometry: ico, colorHex: 0x7d5236, position: [0.12, 0.1, -0.12], scale: [0.26, 0.16, 0.3] },
+      { geometry: ico, colorHex: 0xb5835c, position: [-0.14, 0.08, 0.18], scale: [0.22, 0.12, 0.24] },
+      { geometry: ico, colorHex: 0x8b95a5, position: [0.3, 0.05, 0.3], scale: [0.07, 0.06, 0.07] },
+      { geometry: ico, colorHex: 0x8b95a5, position: [-0.32, 0.04, -0.2], scale: [0.06, 0.05, 0.06] },
+    ];
+    const merged = mergeColoredParts(parts);
+    ico.dispose();
+    return merged;
   }
 
   clear(): void {
@@ -307,15 +508,17 @@ export class EnemyRenderer {
     this.hpBarMesh.visible = false;
     this.shadowDecalMesh.count = 0;
     this.shadowDecalMesh.visible = false;
+    this.moundMesh.count = 0;
+    this.moundMesh.visible = false;
+    this.bubbleMesh.count = 0;
+    this.bubbleMesh.visible = false;
+    this.eliteRingMesh.count = 0;
+    this.eliteRingMesh.visible = false;
   }
 
-  private buildEnemyGeometry(type: EnemyType): THREE.BufferGeometry {
-    const chamfer = createChamferedBoxGeometry();
-    const box = new THREE.BoxGeometry(1, 1, 1);
-    const cone = new THREE.ConeGeometry(1, 1, 5);
-    const ico = new THREE.IcosahedronGeometry(1, 0);
-    const cyl = new THREE.CylinderGeometry(1, 1, 1, 6);
-    const wing = createWingGeometry();
+  /** Merged flat-shaded figurine geometry for one enemy type (static so tests can inspect it). */
+  static buildEnemyGeometry(type: EnemyType): THREE.BufferGeometry {
+    const { chamfer, box, cone, ico, icoSmooth, cyl, wing } = getEnemyPrimitives();
 
     const eyeDark = 0x1a1829;
     const eyeGlowGold = 0xffcf4d;
@@ -363,17 +566,17 @@ export class EnemyRenderer {
       }
 
       case 'brute': {
-        // Steel-grey armored siege juggernaut with bold crimson belt/pauldrons, horns, and glowing amber eyes
+        // Polished-silver armored siege juggernaut with bold crimson belt/pauldrons, horns, and glowing amber eyes
         parts = [
-          { geometry: chamfer, colorHex: 0x6c798c, position: [-0.2, 0.18, 0], scale: [0.24, 0.36, 0.28] },
-          { geometry: chamfer, colorHex: 0x6c798c, position: [0.2, 0.18, 0], scale: [0.24, 0.36, 0.28] },
-          { geometry: chamfer, colorHex: 0x9aa7ba, position: [0, 0.64, 0], scale: [0.76, 0.58, 0.54] },
+          { geometry: chamfer, colorHex: 0x5a6476, position: [-0.2, 0.18, 0], scale: [0.24, 0.36, 0.28] },
+          { geometry: chamfer, colorHex: 0x5a6476, position: [0.2, 0.18, 0], scale: [0.24, 0.36, 0.28] },
+          { geometry: chamfer, colorHex: 0xc3ccd9, position: [0, 0.64, 0], scale: [0.76, 0.58, 0.54] },
           { geometry: chamfer, colorHex: 0xe63636, position: [0, 0.45, 0.04], scale: [0.64, 0.18, 0.52] },
-          { geometry: chamfer, colorHex: 0x8593a8, position: [-0.47, 0.78, 0], rotation: [0, 0, 0.16], scale: [0.26, 0.34, 0.38] },
-          { geometry: chamfer, colorHex: 0x8593a8, position: [0.47, 0.78, 0], rotation: [0, 0, -0.16], scale: [0.26, 0.34, 0.38] },
-          { geometry: cone, colorHex: 0xe63636, position: [-0.49, 0.98, 0], scale: [0.075, 0.16, 0.075] },
-          { geometry: cone, colorHex: 0xe63636, position: [0.49, 0.98, 0], scale: [0.075, 0.16, 0.075] },
-          { geometry: chamfer, colorHex: 0x7b889c, position: [0, 1.04, 0.05], scale: [0.38, 0.32, 0.36] },
+          { geometry: chamfer, colorHex: 0xc62f36, position: [-0.47, 0.78, 0], rotation: [0, 0, 0.16], scale: [0.26, 0.34, 0.38] },
+          { geometry: chamfer, colorHex: 0xc62f36, position: [0.47, 0.78, 0], rotation: [0, 0, -0.16], scale: [0.26, 0.34, 0.38] },
+          { geometry: cone, colorHex: 0xf0e1c4, position: [-0.49, 0.98, 0], scale: [0.075, 0.16, 0.075] },
+          { geometry: cone, colorHex: 0xf0e1c4, position: [0.49, 0.98, 0], scale: [0.075, 0.16, 0.075] },
+          { geometry: chamfer, colorHex: 0xaab5c6, position: [0, 1.04, 0.05], scale: [0.38, 0.32, 0.36] },
           { geometry: box, colorHex: 0x2a2f3d, position: [0, 1.04, 0.21], scale: [0.26, 0.09, 0.06] },
           { geometry: cone, colorHex: 0xf0e1c4, position: [-0.22, 1.22, 0.05], rotation: [0, 0, 0.42], scale: [0.09, 0.28, 0.09] },
           { geometry: cone, colorHex: 0xf0e1c4, position: [0.22, 1.22, 0.05], rotation: [0, 0, -0.42], scale: [0.09, 0.28, 0.09] },
@@ -436,6 +639,188 @@ export class EnemyRenderer {
         break;
       }
 
+      case 'warden': {
+        // Cobalt-robed shield priest: huge cream tower-shield with gold rim, gold halo, azure orb staff
+        parts = [
+          { geometry: chamfer, colorHex: 0x23306e, position: [-0.13, 0.15, 0], scale: [0.15, 0.3, 0.19] },
+          { geometry: chamfer, colorHex: 0x23306e, position: [0.13, 0.15, 0], scale: [0.15, 0.3, 0.19] },
+          { geometry: cyl, colorHex: 0x3d5bd9, position: [0, 0.48, 0], scale: [0.27, 0.56, 0.25] },
+          { geometry: chamfer, colorHex: 0x5b7cf0, position: [0, 0.68, 0.02], scale: [0.44, 0.32, 0.34] },
+          { geometry: box, colorHex: PALETTE_HEX.gold, position: [0, 0.52, 0.02], scale: [0.5, 0.07, 0.38] },
+          { geometry: chamfer, colorHex: skinWarm, position: [0, 0.98, 0.03], scale: [0.27, 0.25, 0.26] },
+          { geometry: chamfer, colorHex: PALETTE_HEX.cream, position: [0, 1.1, 0.0], scale: [0.31, 0.15, 0.3] },
+          { geometry: cone, colorHex: PALETTE_HEX.gold, position: [0, 1.25, 0.0], scale: [0.07, 0.2, 0.07] },
+          { geometry: cyl, colorHex: PALETTE_HEX.gold, position: [0, 1.42, -0.04], scale: [0.3, 0.035, 0.3] },
+          { geometry: cyl, colorHex: 0xfff2c4, position: [0, 1.425, -0.04], scale: [0.21, 0.04, 0.21] },
+          // Tower shield (gold rim behind cream face + cobalt emblem)
+          { geometry: chamfer, colorHex: PALETTE_HEX.gold, position: [-0.3, 0.62, 0.22], rotation: [0, 0.35, 0], scale: [0.1, 0.78, 0.5] },
+          { geometry: chamfer, colorHex: PALETTE_HEX.cream, position: [-0.34, 0.62, 0.25], rotation: [0, 0.35, 0], scale: [0.08, 0.68, 0.42] },
+          { geometry: box, colorHex: 0x3d5bd9, position: [-0.385, 0.66, 0.27], rotation: [0, 0.35, 0], scale: [0.03, 0.34, 0.1] },
+          { geometry: box, colorHex: 0x3d5bd9, position: [-0.385, 0.7, 0.27], rotation: [0, 0.35, 0], scale: [0.03, 0.1, 0.28] },
+          // Staff with azure orb
+          { geometry: cyl, colorHex: leatherDark, position: [0.3, 0.62, 0.1], scale: [0.04, 1.0, 0.04] },
+          { geometry: ico, colorHex: 0x8fd3ff, position: [0.3, 1.18, 0.1], scale: [0.12, 0.14, 0.12] },
+        ];
+        addEyes(parts, ico, 0.98, 0.17, 0.065, 0.032, eyeDark);
+        break;
+      }
+
+      case 'burrower': {
+        // Squat umber mole-beast: steel drill snout, cream digging claws, ochre spiny back ridge
+        parts = [
+          { geometry: chamfer, colorHex: 0x4e321c, position: [-0.2, 0.12, 0.05], scale: [0.18, 0.22, 0.24] },
+          { geometry: chamfer, colorHex: 0x4e321c, position: [0.2, 0.12, 0.05], scale: [0.18, 0.22, 0.24] },
+          { geometry: icoSmooth, colorHex: 0x6e4a2c, position: [0, 0.42, -0.04], scale: [0.4, 0.32, 0.46] },
+          { geometry: icoSmooth, colorHex: PALETTE_HEX.sand, position: [0, 0.32, 0.12], scale: [0.3, 0.2, 0.32] },
+          { geometry: chamfer, colorHex: 0x8a5d36, position: [0, 0.56, 0.36], scale: [0.42, 0.34, 0.3] },
+          { geometry: cone, colorHex: 0xa2b0c4, position: [0, 0.52, 0.64], rotation: [Math.PI / 2, 0, 0], scale: [0.13, 0.32, 0.13] },
+          { geometry: cyl, colorHex: steelMid, position: [0, 0.52, 0.5], rotation: [Math.PI / 2, 0, 0], scale: [0.16, 0.06, 0.16] },
+          { geometry: cone, colorHex: PALETTE_HEX.cream, position: [-0.34, 0.24, 0.42], rotation: [1.25, 0, 0.3], scale: [0.07, 0.24, 0.07] },
+          { geometry: cone, colorHex: PALETTE_HEX.cream, position: [-0.24, 0.22, 0.46], rotation: [1.25, 0, 0.1], scale: [0.07, 0.24, 0.07] },
+          { geometry: cone, colorHex: PALETTE_HEX.cream, position: [0.34, 0.24, 0.42], rotation: [1.25, 0, -0.3], scale: [0.07, 0.24, 0.07] },
+          { geometry: cone, colorHex: PALETTE_HEX.cream, position: [0.24, 0.22, 0.46], rotation: [1.25, 0, -0.1], scale: [0.07, 0.24, 0.07] },
+          { geometry: cone, colorHex: 0xe0a640, position: [0, 0.76, -0.1], rotation: [-0.3, 0, 0], scale: [0.08, 0.22, 0.08] },
+          { geometry: cone, colorHex: 0xe0a640, position: [0, 0.72, -0.34], rotation: [-0.5, 0, 0], scale: [0.08, 0.22, 0.08] },
+          { geometry: cone, colorHex: 0xe0a640, position: [-0.2, 0.7, -0.22], rotation: [-0.4, 0, 0.35], scale: [0.07, 0.2, 0.07] },
+          { geometry: cone, colorHex: 0xe0a640, position: [0.2, 0.7, -0.22], rotation: [-0.4, 0, -0.35], scale: [0.07, 0.2, 0.07] },
+        ];
+        addEyes(parts, ico, 0.66, 0.5, 0.13, 0.034, eyeDark);
+        break;
+      }
+
+      case 'carrier': {
+        // Striped cream sky-balloon with a wicker gondola, coral pennants and a little rear propeller.
+        // Indigo bands (were coral): red-on-green vanished for deuteranopes against grass/foliage.
+        parts = [
+          { geometry: icoSmooth, colorHex: PALETTE_HEX.cream, position: [0, 0.82, 0], scale: [0.6, 0.5, 0.74] },
+          { geometry: cyl, colorHex: PALETTE_HEX.indigo, position: [0, 0.82, 0], scale: [0.65, 0.12, 0.79] },
+          { geometry: cyl, colorHex: PALETTE_HEX.indigo, position: [0, 1.08, 0], scale: [0.53, 0.08, 0.65] },
+          { geometry: cone, colorHex: PALETTE_HEX.gold, position: [0, 1.36, 0], scale: [0.08, 0.16, 0.08] },
+          { geometry: box, colorHex: leatherDark, position: [-0.2, 0.36, 0], scale: [0.03, 0.4, 0.03] },
+          { geometry: box, colorHex: leatherDark, position: [0.2, 0.36, 0], scale: [0.03, 0.4, 0.03] },
+          { geometry: chamfer, colorHex: 0x9c6b49, position: [0, 0.06, 0], scale: [0.5, 0.26, 0.56] },
+          { geometry: box, colorHex: 0x6b4423, position: [0, 0.12, 0], scale: [0.52, 0.05, 0.58] },
+          { geometry: chamfer, colorHex: 0xc28a52, position: [0, 0.22, 0.04], scale: [0.26, 0.16, 0.22] },
+          { geometry: cone, colorHex: PALETTE_HEX.coral, position: [0.3, 0.3, 0.2], rotation: [0, 0, -Math.PI / 2], scale: [0.07, 0.2, 0.03] },
+          { geometry: cone, colorHex: PALETTE_HEX.coral, position: [-0.3, 0.3, 0.2], rotation: [0, 0, Math.PI / 2], scale: [0.07, 0.2, 0.03] },
+          { geometry: cyl, colorHex: steelMid, position: [0, 0.08, -0.34], rotation: [Math.PI / 2, 0, 0], scale: [0.05, 0.14, 0.05] },
+          { geometry: box, colorHex: PALETTE_HEX.sand, position: [0, 0.08, -0.42], scale: [0.4, 0.06, 0.03] },
+        ];
+        break;
+      }
+
+      case 'blinker': {
+        // Slim aqua crystal imp in deep-indigo robes with a floating shard crown and glowing hands
+        parts = [
+          { geometry: chamfer, colorHex: 0x2b2550, position: [-0.1, 0.14, 0], scale: [0.12, 0.28, 0.15] },
+          { geometry: chamfer, colorHex: 0x2b2550, position: [0.1, 0.14, 0], scale: [0.12, 0.28, 0.15] },
+          { geometry: cone, colorHex: 0x3a2f7a, position: [0, 0.46, 0], rotation: [Math.PI, 0, 0], scale: [0.3, 0.5, 0.26] },
+          { geometry: ico, colorHex: 0x3fe0d0, position: [0, 0.6, 0.04], scale: [0.18, 0.22, 0.14] },
+          { geometry: ico, colorHex: 0x8ff5ea, position: [0, 0.86, 0.02], scale: [0.2, 0.22, 0.2] },
+          { geometry: cone, colorHex: 0x3fe0d0, position: [0, 1.16, -0.02], scale: [0.06, 0.18, 0.06] },
+          { geometry: cone, colorHex: PALETTE_HEX.cream, position: [-0.17, 1.08, -0.02], rotation: [0, 0, 0.5], scale: [0.05, 0.15, 0.05] },
+          { geometry: cone, colorHex: PALETTE_HEX.cream, position: [0.17, 1.08, -0.02], rotation: [0, 0, -0.5], scale: [0.05, 0.15, 0.05] },
+          { geometry: ico, colorHex: 0x3fe0d0, position: [-0.27, 0.56, 0.12], scale: [0.08, 0.1, 0.08] },
+          { geometry: ico, colorHex: 0x3fe0d0, position: [0.27, 0.56, 0.12], scale: [0.08, 0.1, 0.08] },
+          { geometry: box, colorHex: 0x3a2f7a, position: [-0.21, 0.6, 0.04], rotation: [0, 0, 0.5], scale: [0.06, 0.22, 0.07] },
+          { geometry: box, colorHex: 0x3a2f7a, position: [0.21, 0.6, 0.04], rotation: [0, 0, -0.5], scale: [0.06, 0.22, 0.07] },
+        ];
+        addEyes(parts, ico, 0.87, 0.17, 0.07, 0.035, 0xfff6c8);
+        break;
+      }
+
+      case 'golem': {
+        // Hulking basalt golem: dark stone blocks, glowing coral magma cracks, mossy shoulder tufts
+        parts = [
+          { geometry: chamfer, colorHex: 0x34303a, position: [-0.24, 0.2, 0], scale: [0.28, 0.4, 0.32] },
+          { geometry: chamfer, colorHex: 0x34303a, position: [0.24, 0.2, 0], scale: [0.28, 0.4, 0.32] },
+          { geometry: chamfer, colorHex: 0x4a4550, position: [0, 0.7, 0], scale: [0.86, 0.66, 0.6] },
+          { geometry: box, colorHex: 0xff7a3d, position: [-0.12, 0.72, 0.31], rotation: [0, 0, 0.5], scale: [0.05, 0.42, 0.03] },
+          { geometry: box, colorHex: 0xff7a3d, position: [0.14, 0.62, 0.31], rotation: [0, 0, -0.35], scale: [0.05, 0.32, 0.03] },
+          { geometry: box, colorHex: 0xffb347, position: [0.02, 0.86, 0.31], scale: [0.2, 0.05, 0.03] },
+          { geometry: ico, colorHex: 0x5a5560, position: [-0.52, 0.92, 0], scale: [0.3, 0.28, 0.3] },
+          { geometry: ico, colorHex: 0x5a5560, position: [0.52, 0.92, 0], scale: [0.3, 0.28, 0.3] },
+          { geometry: ico, colorHex: PALETTE_HEX.foliageDark, position: [-0.52, 1.12, -0.02], scale: [0.2, 0.1, 0.2] },
+          { geometry: ico, colorHex: PALETTE_HEX.grass, position: [0.5, 1.13, 0.02], scale: [0.18, 0.09, 0.18] },
+          { geometry: chamfer, colorHex: 0x403b46, position: [-0.56, 0.5, 0.06], scale: [0.24, 0.42, 0.26] },
+          { geometry: chamfer, colorHex: 0x403b46, position: [0.56, 0.5, 0.06], scale: [0.24, 0.42, 0.26] },
+          { geometry: chamfer, colorHex: 0x55505c, position: [0, 1.14, 0.08], scale: [0.36, 0.28, 0.32] },
+          { geometry: ico, colorHex: PALETTE_HEX.foliageDark, position: [0.05, 1.3, 0.02], scale: [0.16, 0.08, 0.16] },
+        ];
+        addEyes(parts, ico, 1.15, 0.25, 0.08, 0.038, 0xff7a3d);
+        break;
+      }
+
+      case 'mite': {
+        // Tiny hot-orange scuttling beetle with a cream back stripe and dark head (sized for swarms)
+        parts = [
+          { geometry: ico, colorHex: 0xff8a1f, position: [0, 0.2, -0.04], scale: [0.3, 0.2, 0.38] },
+          { geometry: box, colorHex: PALETTE_HEX.cream, position: [0, 0.37, -0.06], scale: [0.07, 0.04, 0.3] },
+          { geometry: chamfer, colorHex: 0x3a2418, position: [0, 0.2, 0.3], scale: [0.22, 0.16, 0.16] },
+          { geometry: box, colorHex: 0x3a2418, position: [-0.06, 0.34, 0.4], rotation: [-0.7, 0, 0.3], scale: [0.025, 0.22, 0.025] },
+          { geometry: box, colorHex: 0x3a2418, position: [0.06, 0.34, 0.4], rotation: [-0.7, 0, -0.3], scale: [0.025, 0.22, 0.025] },
+          { geometry: box, colorHex: 0x3a2418, position: [-0.3, 0.08, 0.1], rotation: [0, 0, 0.6], scale: [0.18, 0.035, 0.04] },
+          { geometry: box, colorHex: 0x3a2418, position: [0.3, 0.08, 0.1], rotation: [0, 0, -0.6], scale: [0.18, 0.035, 0.04] },
+          { geometry: box, colorHex: 0x3a2418, position: [-0.3, 0.08, -0.14], rotation: [0, 0, 0.6], scale: [0.18, 0.035, 0.04] },
+          { geometry: box, colorHex: 0x3a2418, position: [0.3, 0.08, -0.14], rotation: [0, 0, -0.6], scale: [0.18, 0.035, 0.04] },
+        ];
+        addEyes(parts, ico, 0.24, 0.38, 0.06, 0.03, 0xffe885);
+        break;
+      }
+
+      case 'hexer': {
+        // Hunched lantern hexcaster: burgundy robe, drooping pointed hood, shadowed face with magenta
+        // eyes, gold rune patches, crooked staff with a hanging magenta lantern held out front
+        const robe = 0x7a2a52;
+        const hexMagenta = 0xd45cff;
+        parts = [
+          { geometry: chamfer, colorHex: 0x3a1a2c, position: [-0.1, 0.07, 0.04], scale: [0.12, 0.14, 0.18] },
+          { geometry: chamfer, colorHex: 0x3a1a2c, position: [0.1, 0.07, 0.04], scale: [0.12, 0.14, 0.18] },
+          { geometry: cone, colorHex: robe, position: [0, 0.5, 0], scale: [0.34, 0.9, 0.32] },
+          { geometry: box, colorHex: PALETTE_HEX.gold, position: [-0.09, 0.34, 0.21], rotation: [-0.3, 0, 0.6], scale: [0.07, 0.07, 0.03] },
+          { geometry: box, colorHex: PALETTE_HEX.gold, position: [0.08, 0.24, 0.24], rotation: [-0.3, 0, 0.6], scale: [0.07, 0.07, 0.03] },
+          { geometry: cyl, colorHex: PALETTE_HEX.cream, position: [0, 0.79, 0.01], scale: [0.21, 0.07, 0.2] },
+          { geometry: chamfer, colorHex: 0x2a1424, position: [0, 0.93, 0.05], scale: [0.25, 0.22, 0.22] },
+          { geometry: cyl, colorHex: 0x5e1f3f, position: [0, 1.0, 0.02], scale: [0.25, 0.07, 0.25] },
+          { geometry: cone, colorHex: 0x8f3563, position: [0, 1.15, -0.03], rotation: [-0.4, 0, 0], scale: [0.21, 0.36, 0.21] },
+          { geometry: box, colorHex: robe, position: [0.2, 0.62, 0.08], rotation: [0.3, 0, -0.55], scale: [0.09, 0.28, 0.1] },
+          { geometry: cyl, colorHex: leatherDark, position: [0.31, 0.62, 0.12], scale: [0.035, 1.12, 0.035] },
+          { geometry: box, colorHex: leatherDark, position: [0.31, 1.17, 0.23], scale: [0.035, 0.035, 0.24] },
+          { geometry: box, colorHex: PALETTE_HEX.gold, position: [0.31, 1.11, 0.33], scale: [0.015, 0.1, 0.015] },
+          { geometry: cyl, colorHex: PALETTE_HEX.gold, position: [0.31, 1.05, 0.33], scale: [0.12, 0.04, 0.12] },
+          { geometry: ico, colorHex: hexMagenta, position: [0.31, 0.94, 0.33], scale: [0.13, 0.15, 0.13] },
+          { geometry: cyl, colorHex: PALETTE_HEX.gold, position: [0.31, 0.82, 0.33], scale: [0.1, 0.035, 0.1] },
+        ];
+        addEyes(parts, ico, 0.93, 0.16, 0.065, 0.034, 0xf08cff);
+        break;
+      }
+
+      case 'tempest': {
+        // Storm-forged colossus: slate-blue stone titan, gold storm core, cloud pauldrons, bolt crown
+        parts = [
+          { geometry: chamfer, colorHex: 0x2a3550, position: [-0.34, 0.26, 0], scale: [0.36, 0.52, 0.4] },
+          { geometry: chamfer, colorHex: 0x2a3550, position: [0.34, 0.26, 0], scale: [0.36, 0.52, 0.4] },
+          { geometry: chamfer, colorHex: 0x3b5a8c, position: [0, 0.98, 0], scale: [1.12, 0.92, 0.8] },
+          { geometry: chamfer, colorHex: 0x324c78, position: [0, 0.6, 0.02], scale: [0.92, 0.2, 0.74] },
+          { geometry: ico, colorHex: 0xffd34d, position: [0, 1.02, 0.4], scale: [0.28, 0.28, 0.16] },
+          { geometry: ico, colorHex: 0xfff2b0, position: [0, 1.02, 0.47], scale: [0.14, 0.14, 0.08] },
+          { geometry: ico, colorHex: 0xdfe7f2, position: [-0.7, 1.32, 0], scale: [0.36, 0.28, 0.38] },
+          { geometry: ico, colorHex: 0xb8c4d6, position: [-0.86, 1.22, -0.1], scale: [0.24, 0.2, 0.26] },
+          { geometry: ico, colorHex: 0xdfe7f2, position: [0.7, 1.32, 0], scale: [0.36, 0.28, 0.38] },
+          { geometry: ico, colorHex: 0xb8c4d6, position: [0.86, 1.22, -0.1], scale: [0.24, 0.2, 0.26] },
+          { geometry: chamfer, colorHex: 0x2f4670, position: [-0.74, 0.7, 0.08], scale: [0.3, 0.6, 0.32] },
+          { geometry: chamfer, colorHex: 0x2f4670, position: [0.74, 0.7, 0.08], scale: [0.3, 0.6, 0.32] },
+          { geometry: ico, colorHex: 0x46689e, position: [-0.76, 0.34, 0.12], scale: [0.24, 0.22, 0.24] },
+          { geometry: ico, colorHex: 0x46689e, position: [0.76, 0.34, 0.12], scale: [0.24, 0.22, 0.24] },
+          { geometry: chamfer, colorHex: 0x46689e, position: [0, 1.62, 0.06], scale: [0.48, 0.4, 0.44] },
+          { geometry: cone, colorHex: PALETTE_HEX.gold, position: [-0.22, 1.98, 0.04], rotation: [0, 0, 0.32], scale: [0.09, 0.34, 0.09] },
+          { geometry: cone, colorHex: PALETTE_HEX.gold, position: [0, 2.04, 0.04], scale: [0.1, 0.4, 0.1] },
+          { geometry: cone, colorHex: PALETTE_HEX.gold, position: [0.22, 1.98, 0.04], rotation: [0, 0, -0.32], scale: [0.09, 0.34, 0.09] },
+        ];
+        addEyes(parts, ico, 1.64, 0.27, 0.11, 0.05, 0x9fdcff);
+        break;
+      }
+
       case 'boss':
       default: {
         // Large dark-crimson Dread Warlord with burnished gold armor trim, crown, pauldrons, and banners
@@ -462,14 +847,7 @@ export class EnemyRenderer {
       }
     }
 
-    const merged = mergeColoredParts(parts);
-    chamfer.dispose();
-    box.dispose();
-    cone.dispose();
-    ico.dispose();
-    cyl.dispose();
-    wing.dispose();
-    return merged;
+    return mergeColoredParts(parts);
   }
 
   dispose(): void {
@@ -480,5 +858,7 @@ export class EnemyRenderer {
     }
     this.geometries.length = 0;
     this.layers.clear();
+    this.bubbleMaterial.dispose();
+    this.eliteRingMaterial.dispose();
   }
 }

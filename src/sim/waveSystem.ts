@@ -14,6 +14,8 @@ export type WaveState =
 export interface WavePreviewItem {
   readonly enemyType: EnemyType;
   readonly count: number;
+  /** How many of `count` are Empowered elites (omitted when none). */
+  readonly eliteCount?: number;
 }
 
 export interface WavePreview {
@@ -26,6 +28,8 @@ export interface QueuedSpawn {
   readonly spawnTime: number;
   readonly groupOrder: number;
   readonly seqInGroup: number;
+  readonly elite: boolean;
+  readonly lane: number;
 }
 
 export function computeEarlyCallBonus(
@@ -41,6 +45,30 @@ export function computeEarlyCallBonus(
   const ratio = Math.min(1, remainingCountdownSec / BALANCE.interWaveCountdownSec);
   return Math.max(1, Math.round(ratio * BALANCE.earlyWaveBonusMaxGold));
 }
+
+/** Endless spotlight rotation (one pair per endless wave, cycling). */
+export const ENDLESS_SPOTLIGHTS: readonly (readonly EnemyType[])[] = [
+  ['warden', 'golem'],
+  ['burrower', 'mite'],
+  ['carrier', 'blinker'],
+  ['golem', 'mite'],
+  ['warden', 'burrower'],
+  ['blinker', 'carrier'],
+  ['hexer', 'mite'],
+  ['golem', 'hexer'],
+];
+
+const ENDLESS_SPOTLIGHT_TUNING: Partial<
+  Record<EnemyType, { base: number; perWave: number; max: number; interval: number }>
+> = {
+  warden: { base: 2, perWave: 0.35, max: 8, interval: 1.3 },
+  golem: { base: 2, perWave: 0.45, max: 12, interval: 1.1 },
+  burrower: { base: 3, perWave: 0.6, max: 16, interval: 0.8 },
+  mite: { base: 12, perWave: 2.4, max: 48, interval: 0.2 },
+  carrier: { base: 2, perWave: 0.4, max: 10, interval: 1.2 },
+  blinker: { base: 4, perWave: 0.7, max: 18, interval: 0.6 },
+  hexer: { base: 2, perWave: 0.35, max: 9, interval: 1.4 },
+};
 
 /**
  * Deterministically generates an escalating wave definition for Endless Mode beyond `level.waves`.
@@ -88,22 +116,47 @@ export function buildEndlessWaveDef(waveIndex: number, level: LevelDef): WaveDef
     },
   ];
 
+  // Rotating "spotlight" pair of newer archetypes so every endless wave plays differently.
+  const spotlight = ENDLESS_SPOTLIGHTS[offset % ENDLESS_SPOTLIGHTS.length];
+  for (let k = 0; k < spotlight.length; k++) {
+    const type = spotlight[k];
+    const tuning = ENDLESS_SPOTLIGHT_TUNING[type];
+    if (!tuning) continue;
+    groups.push({
+      enemyType: type,
+      count: Math.min(tuning.max, Math.round((tuning.base + offset * tuning.perWave) * scaleFactor)),
+      spawnInterval: Math.max(0.18, +(tuning.interval - offset * 0.02).toFixed(2)),
+      startDelay: 1.0 + k * 1.1,
+      // From the 4th endless wave on, the lead spotlight group arrives Empowered.
+      elite: offset >= 3 && k === 0 && type !== 'mite',
+    });
+  }
+
   if ((offset + 1) % 5 === 0) {
     const bossTier = Math.floor(offset / 5);
+    // Every second boss wave brings a Tempest Colossus to lead the Dreadnoughts.
+    if ((offset + 1) % 10 === 0) {
+      groups.push({ enemyType: 'tempest', count: 1, spawnInterval: 1, startDelay: 2.6 });
+    }
     groups.push({
       enemyType: 'boss',
-      count: 1 + bossTier,
+      count: (offset + 1) % 10 === 0 ? bossTier : 1 + bossTier,
       spawnInterval: Math.max(0.18, +(2.4 - bossTier * 0.25).toFixed(2)),
       startDelay: 3.2,
     });
   }
+
+  // Islands with extra spawn lanes: deal the groups round-robin across every lane.
+  const laneCount = 1 + (level.extraGroundPaths?.length ?? 0);
+  const lanedGroups =
+    laneCount > 1 ? groups.map((g, i) => ({ ...g, lane: (i + offset) % laneCount })) : groups;
 
   const lastStoryBonus = level.waves[level.waves.length - 1]?.clearBonus ?? 40;
   const clearBonus = Math.round(
     Math.max(40, lastStoryBonus * 0.75) + offset * 5 + ((offset + 1) % 5 === 0 ? 25 : 0),
   );
 
-  return { groups, clearBonus };
+  return { groups: lanedGroups, clearBonus };
 }
 
 function buildWaveQueueFromDef(wave: WaveDef): QueuedSpawn[] {
@@ -113,6 +166,8 @@ function buildWaveQueueFromDef(wave: WaveDef): QueuedSpawn[] {
     for (let i = 0; i < group.count; i++) {
       queue.push({
         enemyType: group.enemyType,
+        elite: group.elite === true,
+        lane: group.lane ?? 0,
         spawnTime: group.startDelay + i * group.spawnInterval,
         groupOrder: g,
         seqInGroup: i,
@@ -277,10 +332,14 @@ export class WaveSystem {
     }
 
     const counts = new Map<EnemyType, number>();
+    const eliteCounts = new Map<EnemyType, number>();
     const order: EnemyType[] = [];
 
     for (let g = 0; g < wave.groups.length; g++) {
       const grp = wave.groups[g];
+      if (grp.elite) {
+        eliteCounts.set(grp.enemyType, (eliteCounts.get(grp.enemyType) ?? 0) + grp.count);
+      }
       if (!counts.has(grp.enemyType)) {
         order.push(grp.enemyType);
         counts.set(grp.enemyType, grp.count);
@@ -292,7 +351,12 @@ export class WaveSystem {
     const items: WavePreviewItem[] = [];
     for (let i = 0; i < order.length; i++) {
       const type = order[i];
-      items.push({ enemyType: type, count: counts.get(type) ?? 0 });
+      const eliteCount = eliteCounts.get(type) ?? 0;
+      items.push(
+        eliteCount > 0
+          ? { enemyType: type, count: counts.get(type) ?? 0, eliteCount }
+          : { enemyType: type, count: counts.get(type) ?? 0 },
+      );
     }
 
     return {
@@ -366,7 +430,7 @@ export class WaveSystem {
   update(
     dt: number,
     getActiveEnemiesCount: () => number,
-    onSpawn: (type: EnemyType, hpScale: number) => void,
+    onSpawn: (type: EnemyType, hpScale: number, elite: boolean, lane: number) => void,
     onAwardGold: (amount: number) => void,
     onAllClearedWin: () => void,
   ): void {
@@ -381,7 +445,8 @@ export class WaveSystem {
         this.spawnCursor < this.spawnQueue.length &&
         this.spawnQueue[this.spawnCursor].spawnTime <= this.waveElapsed
       ) {
-        onSpawn(this.spawnQueue[this.spawnCursor].enemyType, hpScale);
+        const queued = this.spawnQueue[this.spawnCursor];
+        onSpawn(queued.enemyType, hpScale, queued.elite, queued.lane);
         this.spawnCursor++;
       }
 

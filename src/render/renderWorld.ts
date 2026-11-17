@@ -8,6 +8,7 @@ import type { SimWorld } from '../sim/world.ts';
 import { CameraController } from './cameraController.ts';
 import { DecorBuilder } from './decorBuilder.ts';
 import { EffectsRenderer } from './effectsRenderer.ts';
+import { bindEnemyArchetypeFx } from './enemyFx.ts';
 import { EnemyRenderer } from './enemyMeshes.ts';
 import type { KenneyAssetStore } from './kenneyAssets.ts';
 import { MapBuilder } from './mapBuilder.ts';
@@ -193,6 +194,9 @@ export class RenderWorld {
         this.effectsRenderer.spawnMeteorVisual(e.x, e.y, e.z, e.radius);
         this.cameraController.addShake(BALANCE.camera.bossHitShake * 0.9, shakeEnabled());
       }),
+      ...bindEnemyArchetypeFx(events, this.effectsRenderer, (strength) =>
+        this.cameraController.addShake(BALANCE.camera.bossHitShake * strength, shakeEnabled()),
+      ),
     );
   }
 

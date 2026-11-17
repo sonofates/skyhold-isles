@@ -105,7 +105,7 @@ export class ProjectileSystem {
     sz: number,
     shellSpeed: number,
   ): { x: number; z: number } {
-    const path = this.enemySystem.getPath(target.flying);
+    const path = this.enemySystem.getPath(target.flying, target.lane);
 
     const effSpeed = target.speed * (1 - target.slowRatio);
     // Lead = displacement of the path sample between "now" and "at impact", added to the

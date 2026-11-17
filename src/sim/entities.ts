@@ -35,6 +35,35 @@ export interface EnemyEntity {
   bossSummonedEscorts: boolean;
   scaleOverride: number;
   isSplitChild: boolean;
+
+  /** Damage-absorbing barrier (Aegis Warden ward). Absorbs post-armor damage before HP. */
+  shield: number;
+  shieldMax: number;
+  /** Burrower: underground (left out of the spatial hash → untargetable & immune). */
+  burrowed: boolean;
+  /** Generic per-archetype timer: burrow phase, blink charge, ward pulse. */
+  abilityTimer: number;
+  /** Golem: seconds left of chill-cracked (brittle) armor. */
+  armorBreakTimer: number;
+  /** Armor to restore when brittleness wears off (includes elite bonus). */
+  baseArmor: number;
+  /** Empowered elite variant (more HP/armor/reward, gold aura). */
+  elite: boolean;
+  /** Raider dropped by a Cloud Hauler. */
+  isDropped: boolean;
+  /** Ground lane index (0 = main path, 1.. = level.extraGroundPaths). Flyers are always 0. */
+  lane: number;
+  /**
+   * Added to `dist` and `totalDist` when ranking path progress, so enemies on lanes of different
+   * lengths compare by distance left to the shared goal (0 on the main road and for flyers).
+   */
+  laneProgressOffset: number;
+  /** Phase-boss progress (Tempest Colossus: 0 → 1 Stormwall → 2 enraged). */
+  bossPhase: number;
+  /** Seconds the enemy stands still channelling (e.g. Stormwall). */
+  channelTimer: number;
+  /** Gloam Hexer: tower id being hexed while channelling (-1 = none). */
+  hexTargetId: number;
 }
 
 export function createEnemyEntity(poolIndex: number): EnemyEntity {
@@ -71,6 +100,19 @@ export function createEnemyEntity(poolIndex: number): EnemyEntity {
     bossSummonedEscorts: false,
     scaleOverride: 1,
     isSplitChild: false,
+    shield: 0,
+    shieldMax: 0,
+    burrowed: false,
+    abilityTimer: 0,
+    armorBreakTimer: 0,
+    baseArmor: 0,
+    elite: false,
+    isDropped: false,
+    lane: 0,
+    laneProgressOffset: 0,
+    bossPhase: 0,
+    channelTimer: 0,
+    hexTargetId: -1,
   };
 }
 

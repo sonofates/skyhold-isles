@@ -4,6 +4,40 @@ const SETTINGS_KEY = 'skyhold_isles_settings_v1';
 const PROGRESS_KEY = 'skyhold_isles_progress_v1';
 const FLYER_TOAST_SEEN_KEY = 'skyhold_isles_flyer_toast_seen_v1';
 const UPGRADE_TOAST_SEEN_KEY = 'skyhold_isles_upgrade_toast_seen_v1';
+const ENEMY_INTROS_SEEN_KEY = 'skyhold_isles_enemy_intros_seen_v1';
+
+let enemyIntrosSeen: Set<string> | null = null;
+
+function loadEnemyIntrosSeen(): Set<string> {
+  if (enemyIntrosSeen) return enemyIntrosSeen;
+  enemyIntrosSeen = new Set<string>();
+  try {
+    const raw = localStorage.getItem(ENEMY_INTROS_SEEN_KEY);
+    const parsed: unknown = raw ? JSON.parse(raw) : [];
+    if (Array.isArray(parsed)) {
+      for (const v of parsed) if (typeof v === 'string') enemyIntrosSeen.add(v);
+    }
+  } catch {
+    // ignore storage / parse errors
+  }
+  return enemyIntrosSeen;
+}
+
+/** First-encounter "new foe" hint per enemy type (cached in memory; persisted in localStorage). */
+export function hasSeenEnemyIntro(type: string): boolean {
+  return loadEnemyIntrosSeen().has(type);
+}
+
+export function markEnemyIntroSeen(type: string): void {
+  const seen = loadEnemyIntrosSeen();
+  if (seen.has(type)) return;
+  seen.add(type);
+  try {
+    localStorage.setItem(ENEMY_INTROS_SEEN_KEY, JSON.stringify([...seen]));
+  } catch {
+    // ignore storage errors
+  }
+}
 
 export function hasSeenUpgradeToast(): boolean {
   try {
@@ -130,7 +164,16 @@ export function loadProgress(levelCount: number): ProgressData {
       typeof parsed.unlockedLevelIndex === 'number'
         ? Math.max(0, Math.min(levelCount - 1, Math.floor(parsed.unlockedLevelIndex)))
         : 0;
-    return { unlockedLevelIndex, bestStars, bestEndlessWaves };
+
+    // Walk forward from the stored unlock across islands the player has already cleared. Saves
+    // from a build with fewer islands never recorded an unlock past their last island (there was
+    // none), so islands appended later would otherwise stay locked for players who had finished
+    // the campaign. Starting from the stored index keeps corrupted saves conservative.
+    // A non-finite stored index (corrupted save, e.g. 1e500 -> Infinity) starts at island 0 and is not walked.
+    const storedIndexOk = Number.isFinite(parsed.unlockedLevelIndex);
+    let unlocked = storedIndexOk ? unlockedLevelIndex : 0;
+    while (storedIndexOk && unlocked < bestStars.length - 1 && bestStars[unlocked] > 0) unlocked++;
+    return { unlockedLevelIndex: unlocked, bestStars, bestEndlessWaves };
   } catch {
     return createDefaultProgress(levelCount);
   }

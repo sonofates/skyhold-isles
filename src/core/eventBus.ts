@@ -73,6 +73,89 @@ export interface GameEventMap {
     radius: number;
     stunnedTowerIds: readonly number[];
   };
+  wardPulse: {
+    x: number;
+    y: number;
+    z: number;
+    radius: number;
+    shieldedCount: number;
+  };
+  /** A hit was (partly) soaked by a barrier. */
+  shieldAbsorb: {
+    enemyId: number;
+    amount: number;
+    x: number;
+    y: number;
+    z: number;
+  };
+  shieldBroken: {
+    enemyId: number;
+    x: number;
+    y: number;
+    z: number;
+  };
+  enemyBurrow: {
+    enemyId: number;
+    burrowed: boolean;
+    x: number;
+    y: number;
+    z: number;
+  };
+  enemyBlink: {
+    enemyId: number;
+    fromX: number;
+    fromY: number;
+    fromZ: number;
+    toX: number;
+    toY: number;
+    toZ: number;
+  };
+  carrierDrop: {
+    x: number;
+    y: number;
+    z: number;
+    groundX: number;
+    groundY: number;
+    groundZ: number;
+    count: number;
+  };
+  armorCracked: {
+    enemyId: number;
+    x: number;
+    y: number;
+    z: number;
+  };
+  bossPhase: {
+    enemyId: number;
+    enemyType: EnemyType;
+    /** 1 = Stormwall raised, 2 = enraged. */
+    phase: number;
+    x: number;
+    y: number;
+    z: number;
+    radius: number;
+  };
+  /** Gloam Hexer starts channelling a hex on a tower (telegraph). */
+  hexCharge: {
+    enemyId: number;
+    towerId: number;
+    x: number;
+    y: number;
+    z: number;
+    towerX: number;
+    towerZ: number;
+  };
+  /** A Gloam Hexer's hex landed: the tower is stunned for `duration` seconds. */
+  towerHexed: {
+    enemyId: number;
+    towerId: number;
+    x: number;
+    y: number;
+    z: number;
+    towerX: number;
+    towerZ: number;
+    duration: number;
+  };
   bossSummon: {
     x: number;
     y: number;

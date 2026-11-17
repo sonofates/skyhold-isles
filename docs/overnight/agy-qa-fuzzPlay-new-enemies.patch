@@ -1,0 +1,228 @@
+--- a/scripts/fuzzPlay.ts
++++ b/scripts/fuzzPlay.ts
+@@ -4,7 +4,7 @@
+ import type { EnemyType, GridCoord, SpeedMultiplier, TargetingMode, TowerType } from '../src/core/types.ts';
+ import { ABILITY_DEFS, ABILITY_IDS } from '../src/data/abilities.ts';
+ import { BALANCE } from '../src/data/balance.ts';
+-import { ENEMY_DEFS, ENEMY_TYPES } from '../src/data/enemies.ts';
++import { ELITE_MODIFIERS, ENEMY_DEFS, ENEMY_TYPES } from '../src/data/enemies.ts';
+ import { LEVELS, type LevelDef } from '../src/data/levels/index.ts';
+ import { getTowerTierStats, TOWER_DEFS, TOWER_TYPES } from '../src/data/towers.ts';
+ import type { TowerEntity } from '../src/sim/entities.ts';
+@@ -52,6 +52,10 @@
+ ) as Record<TowerType, number>;
+ const _hashProbe: number[] = [];
+ const _localHashProbe: number[] = [];
++// Enemies whose barrier (Aegis Warden pulse / Tempest Stormwall) soaked damage during the current tick. A fully
++// soaked hit still lands (hit flash) but deals 0 HP damage, so the sim reports isBossHit=false for it. Cleared
++// per tick, not per impact: Cannon T3 (TOWERS) emits its bomblet impacts before the main blast's impact event.
++const _shieldSoakedThisTick = new Set<number>();
+ const _pathCheckVec = { x: 0, y: 0, z: 0 };
+ const _hashSeen = new Set<number>();
+ const _seenEnemyUids = new Set<number>();
+@@ -364,7 +368,7 @@
+       );
+       return;
+     }
+-    const maxAllowedReward = Math.max(ENEMY_DEFS[ev.enemyType].reward, 2);
++    const maxAllowedReward = Math.max(Math.round(ENEMY_DEFS[ev.enemyType].reward * ELITE_MODIFIERS.rewardMul), 2);
+     if (!Number.isInteger(ev.reward) || ev.reward < 1 || ev.reward > maxAllowedReward) {
+       recordEventError(
+         tracker,
+@@ -445,6 +449,14 @@
+     tracker.stateHash = mixHash(mixHash(tracker.stateHash, 4), ev.parentUid);
+   });
+ 
++  // Gloam Hexer: a finished channel stuns one tower for hexStunSec (max with any running stun) — a legal new stun.
++  events.on('towerHexed', (ev) => {
++    const t = tracker.towerById.get(ev.towerId);
++    if (!t || t.stunTimer + 1e-9 < ev.duration) {
++      recordEventError(tracker, `towerHexed tower id=${ev.towerId} not stunned for ${ev.duration}s`);
++    }
++    tracker.newlyStunnedTowerIds.add(ev.towerId);
++  });
+   events.on('bossPulse', (ev) => {
+     if (ev.stunnedTowerIds.length < 1 || ev.stunnedTowerIds.length > 2) {
+       recordEventError(tracker, `bossPulse stunned ${ev.stunnedTowerIds.length} towers (expected 1..2)`);
+@@ -458,7 +470,8 @@
+       const e = world.enemyPool.items[_localHashProbe[i]];
+       if (
+         e.active &&
+-        e.type === 'boss' &&
++        // The Tempest Colossus' phase-2 tower jams reuse the Dreadnought pulse (same stun rules).
++        (e.type === 'boss' || (e.type === 'tempest' && e.bossPhase === 2)) &&
+         Math.hypot(e.x - ev.x, e.z - ev.z) <= 1e-5 &&
+         Math.abs(ev.y - (e.y + 0.45)) <= 1e-6
+       ) {
+@@ -520,6 +533,30 @@
+   });
+ 
+   events.on('bossSummon', (ev) => {
++    // Tempest Colossus enrage (phase 2) summons its own mite swarm, not Dreadnought escorts.
++    world.spatialHash.query(ev.x, ev.z, 0.05, _localHashProbe);
++    let tempestAtSource = false;
++    for (let i = 0; i < _localHashProbe.length; i++) {
++      const e = world.enemyPool.items[_localHashProbe[i]];
++      if (
++        e.active &&
++        e.type === 'tempest' &&
++        e.bossPhase === 2 &&
++        Math.hypot(e.x - ev.x, e.z - ev.z) <= 1e-5 &&
++        Math.abs(ev.y - (e.y + 0.8)) <= 1e-6
++      ) {
++        tempestAtSource = true;
++        break;
++      }
++    }
++    if (tempestAtSource) {
++      if (ev.count < 1 || ev.count > (ENEMY_DEFS.tempest.enrageSummonCount ?? 6)) {
++        recordEventError(tracker, `tempest bossSummon count=${ev.count} out of range`);
++      }
++      tracker.bossSummonCount++;
++      tracker.stateHash = mixHash(mixHash(tracker.stateHash, 6), ev.count);
++      return;
++    }
+     if (ev.count < 1 || ev.count > 2) {
+       recordEventError(tracker, `bossSummon count=${ev.count} out of 1..2`);
+     }
+@@ -565,7 +602,7 @@
+       recordEventError(tracker, `Invalid enemyHit damage=${ev.damage} for uid=${ev.enemyId}`);
+       return;
+     }
+-    if (ev.isBoss !== (ev.enemyType === 'boss')) {
++    if (ev.isBoss !== (ENEMY_DEFS[ev.enemyType].isBoss === true)) {
+       recordEventError(tracker, `enemyHit isBoss=${ev.isBoss} mismatch for type=${ev.enemyType}`);
+       return;
+     }
+@@ -771,6 +808,9 @@
+     }
+   });
+ 
++  events.on('shieldAbsorb', (ev) => {
++    _shieldSoakedThisTick.add(ev.enemyId);
++  });
+   events.on('projectileImpact', (ev) => {
+     const towerDef = TOWER_DEFS[ev.towerType];
+     if (!towerDef || ev.towerType === 'tesla') {
+@@ -818,6 +858,7 @@
+           e.active &&
+           e.type === 'boss' &&
+           e.hp > 0 &&
++          !_shieldSoakedThisTick.has(e.uid) &&
+           Math.hypot(e.x - ev.x, e.z - ev.z) <= ev.radius - 1e-5
+         ) {
+           recordEventError(tracker, `projectileImpact isBossHit=false despite live boss inside radius ${ev.radius}`);
+@@ -1165,6 +1206,7 @@
+ }
+ 
+ function assertTickInvariants(world: SimWorld, tracker: FuzzTracker, tick: number): string | null {
++  _shieldSoakedThisTick.clear();
+   if (tracker.eventInvariantError) {
+     return tracker.eventInvariantError;
+   }
+@@ -1220,10 +1262,6 @@
+     tracker.pendingSplitChildrenExpected = 0;
+   }
+ 
+-  const groundPath = world.enemySystem.getPath(false);
+-  const flightPath = world.enemySystem.getPath(true);
+-  const groundPathLen = Math.max(0.01, groundPath.totalLength);
+-  const flightPathLen = Math.max(0.01, flightPath.totalLength);
+ 
+   let pendingDeaths = 0;
+   _seenEnemyUids.clear();
+@@ -1241,7 +1279,7 @@
+     if (e.isSplitChild && (e.type !== 'runner' || e.scaleOverride !== 0.72 || e.reward !== 1 || e.maxHp < 18)) {
+       return `Invalid split child state for uid=${e.uid} (type=${e.type}, scale=${e.scaleOverride}, reward=${e.reward}, maxHp=${e.maxHp})`;
+     }
+-    if (!e.isSplitChild && e.scaleOverride !== 1) {
++    if (!e.isSplitChild && e.scaleOverride !== (e.elite ? ELITE_MODIFIERS.scaleMul : e.isDropped ? 0.86 : 1)) {
+       return `Non-split enemy uid=${e.uid} has stale scaleOverride=${e.scaleOverride}`;
+     }
+     if (e.type !== 'boss' && e.bossSummonedEscorts) {
+@@ -1261,20 +1299,23 @@
+     }
+     const def = ENEMY_DEFS[e.type];
+     if (
+-      e.armor !== def.armor ||
++      e.baseArmor !== def.armor + (e.elite ? ELITE_MODIFIERS.armorBonus : 0) ||
++      (e.armorBreakTimer > 0 ? e.armor > e.baseArmor : e.armor !== e.baseArmor) ||
+       e.livesCost !== def.livesCost ||
+       e.flying !== def.flying ||
+       e.radius !== def.radius ||
+       e.height !== def.height ||
+       !Number.isInteger(e.reward) ||
+       e.reward < 1 ||
+-      e.reward > def.reward
++      e.reward > (e.elite ? Math.round(def.reward * ELITE_MODIFIERS.rewardMul) : def.reward)
+     ) {
+       return `Enemy def/reward mismatch for ${e.type} uid=${e.uid} (armor=${e.armor}, livesCost=${e.livesCost}, flying=${e.flying}, reward=${e.reward})`;
+     }
+     if (
+       (e.isSplitChild && Math.abs(e.speed - ENEMY_DEFS.splitter.speed * 1.45) > 1e-6) ||
+-      (!e.isSplitChild && e.speed !== def.speed)
++      (!e.isSplitChild &&
++        e.speed !==
++          (e.type === 'tempest' && e.bossPhase === 2 ? def.speed * (def.enrageSpeedMul ?? 1.35) : def.speed))
+     ) {
+       return `Enemy speed mismatch for ${e.type} uid=${e.uid} (isSplitChild=${e.isSplitChild}, speed=${e.speed})`;
+     }
+@@ -1314,7 +1355,8 @@
+     }
+     const moveDx = e.x - e.prevX;
+     const moveDz = e.z - e.prevZ;
+-    const maxStepDist = e.speed * BALANCE.fixedDt + 1e-4;
++    const maxStepDist =
++      e.speed * BALANCE.fixedDt * (e.burrowed ? (ENEMY_DEFS[e.type].burrowSpeedMul ?? 1) : 1) + 1e-4;
+     const moveDistSq = moveDx * moveDx + moveDz * moveDz;
+     if (moveDistSq > maxStepDist * maxStepDist) {
+       return `Enemy uid=${e.uid} (${e.type}) moved ${Math.sqrt(moveDistSq)} > max ${e.speed * BALANCE.fixedDt} in one tick`;
+@@ -1322,9 +1364,9 @@
+     if (!Number.isFinite(e.dist) || !Number.isFinite(e.totalDist) || e.dist < 0 || e.dist > e.totalDist) {
+       return `Invalid enemy dist (${e.dist}/${e.totalDist}) for uid=${e.uid}`;
+     }
+-    const expectedPath = e.flying ? flightPath : groundPath;
++    const expectedPath = world.enemySystem.getPath(e.flying, e.lane);
+     const expectedYaw = expectedPath.sample(e.dist, _pathCheckVec);
+-    const expectedPathLen = e.flying ? flightPathLen : groundPathLen;
++    const expectedPathLen = Math.max(0.01, expectedPath.totalLength);
+     if (Math.abs(e.totalDist - expectedPathLen) > 1e-4) {
+       return `Enemy uid=${e.uid} totalDist=${e.totalDist} != path.totalLength=${expectedPathLen}`;
+     }
+@@ -1747,12 +1789,16 @@
+       }
+       _hashSeen.add(idx);
+     }
+-    if (_hashSeen.size !== activeEnemies) {
++    let burrowedCount = 0;
++    for (let i = 0; i < activeEnemies; i++) {
++      if (world.enemyPool.items[world.enemyPool.getActiveIndex(i)].burrowed) burrowedCount++;
++    }
++    if (_hashSeen.size !== activeEnemies - burrowedCount) {
+       return `SpatialHash count (${_hashSeen.size}) != activeEnemies (${activeEnemies})`;
+     }
+     for (let i = 0; i < activeEnemies; i++) {
+       const poolIdx = world.enemyPool.getActiveIndex(i);
+-      if (!_hashSeen.has(poolIdx)) {
++      if (!_hashSeen.has(poolIdx) && !world.enemyPool.items[poolIdx].burrowed) {
+         return `Active enemy poolIndex=${poolIdx} missing from SpatialHashGrid`;
+       }
+     }
+@@ -1761,7 +1807,7 @@
+       const eIdx = world.enemyPool.getActiveIndex(Math.floor((s * activeEnemies) / probeSampleCount));
+       const enemy = world.enemyPool.items[eIdx];
+       world.spatialHash.query(enemy.x, enemy.z, 0.01, _localHashProbe);
+-      if (!_localHashProbe.includes(eIdx)) {
++      if (!enemy.burrowed && !_localHashProbe.includes(eIdx)) {
+         return `Active enemy poolIndex=${eIdx} missing from localized SpatialHashGrid cell at (${enemy.x},${enemy.z})`;
+       }
+     }
+@@ -1837,7 +1883,7 @@
+       const hovered = sample.flying
+         ? world.findHoveredEnemy(9999, 9999, sample.x, sample.z)
+         : world.findHoveredEnemy(sample.x, sample.z, 9999, 9999);
+-      if (!hovered || !hovered.active || hovered.flying !== sample.flying) {
++      if (!sample.burrowed && (!hovered || !hovered.active || hovered.flying !== sample.flying)) {
+         return `findHoveredEnemy failed for active ${sample.type} (flying=${sample.flying})`;
+       }
+     }

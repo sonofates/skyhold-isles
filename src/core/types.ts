@@ -7,7 +7,22 @@ export interface GridCoord {
 
 export type TowerType = 'archer' | 'cannon' | 'frost' | 'tesla' | 'mortar';
 
-export type EnemyType = 'grunt' | 'runner' | 'brute' | 'flyer' | 'healer' | 'splitter' | 'boss';
+export type EnemyType =
+  | 'grunt'
+  | 'runner'
+  | 'brute'
+  | 'flyer'
+  | 'healer'
+  | 'splitter'
+  | 'warden'
+  | 'burrower'
+  | 'carrier'
+  | 'blinker'
+  | 'golem'
+  | 'mite'
+  | 'hexer'
+  | 'tempest'
+  | 'boss';
 
 export type AbilityId = 'meteor' | 'overcharge';
 
