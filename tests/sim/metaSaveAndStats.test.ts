@@ -2078,5 +2078,41 @@ describe('MetaSession stats, achievements, challenges & daily persistence', () =
     toStringObs.dispose();
     expect(toStringOutcome.isNewFastestWin).toBe(true);
     expect(Object.hasOwn(infLivesSave.fastestWinSecByLevelId, 'toString')).toBe(true);
+    expect(getIslandMasteryStatus(createDefaultMetaSave(1), 0, [toStringLevel])).toMatchObject({
+      bestLivesRemaining: 0,
+      bestMutatedScore: 0,
+      fastestWinSec: null,
+    });
+
+    // Truthy non-boolean achievementMilestones do not unlock mastery achievements and sanitize on ensureWritableSaveContainers
+    const dirtyMilestoneSave = createDefaultMetaSave(LEVELS.length);
+    dirtyMilestoneSave.achievementMilestones = {
+      wonNoLivesLost: 'yes' as unknown as boolean,
+      wonAt3xSpeed: 1 as unknown as boolean,
+      wonMax6Towers: [] as unknown as boolean,
+      bestMutatedEndlessWavesCleared: Number.NaN,
+    };
+    const milestoneAchs = getAchievements(dirtyMilestoneSave);
+    expect(milestoneAchs.find((a) => a.def.id === 'flawless_defense')?.current).toBe(0);
+    expect(milestoneAchs.find((a) => a.def.id === 'speed_demon')?.current).toBe(0);
+    expect(milestoneAchs.find((a) => a.def.id === 'minimalist')?.current).toBe(0);
+    expect(recomputeAchievements(dirtyMilestoneSave, LEVELS)).toEqual([]);
+    expect(dirtyMilestoneSave.achievementMilestones).toEqual({
+      wonNoLivesLost: false,
+      wonAt3xSpeed: false,
+      wonMax6Towers: false,
+      bestMutatedEndlessWavesCleared: 0,
+    });
+
+    // Missing/empty level.name falls back cleanly to level.id in getChallengeStatus & getRecommendedNextGoal,
+    // and invalid Date input to getTodayUtcDateString falls back cleanly to a valid YYYY-MM-DD date
+    const namelessLevel = { ...LEVELS[0], id: 'sky-nameless', name: '' };
+    const namelessSave = createDefaultMetaSave(1);
+    namelessSave.completedDailyDates = ['2026-11-17'];
+    expect(getChallengeStatus(namelessSave, 0, [namelessLevel])?.levelName).toBe('sky-nameless');
+    expect(getRecommendedNextGoal(namelessSave, '2026-11-17', [namelessLevel])?.title).toBe(
+      'Secure sky-nameless',
+    );
+    expect(/^\d{4}-\d{2}-\d{2}$/.test(getTodayUtcDateString(new Date('invalid')))).toBe(true);
   });
 });

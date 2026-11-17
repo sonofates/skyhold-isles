@@ -169,9 +169,10 @@ export function saveProgress(progress: ProgressData): void {
 }
 
 export function getTodayUtcDateString(now: Date = new Date()): string {
-  const y = String(now.getUTCFullYear()).padStart(4, '0');
-  const m = String(now.getUTCMonth() + 1).padStart(2, '0');
-  const d = String(now.getUTCDate()).padStart(2, '0');
+  const safeNow = now instanceof Date && !Number.isNaN(now.getTime()) ? now : new Date();
+  const y = String(safeNow.getUTCFullYear()).padStart(4, '0');
+  const m = String(safeNow.getUTCMonth() + 1).padStart(2, '0');
+  const d = String(safeNow.getUTCDate()).padStart(2, '0');
   return `${y}-${m}-${d}`;
 }
 
