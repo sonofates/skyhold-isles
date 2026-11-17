@@ -1,0 +1,3 @@
+REDO one enemy. The previous "Cinder Splitling" looked too much like the Basalt Golem (attached), so make it clearly different:
+- raw/enemy-splitter.png — "Cinder Splitling": a SMALL, round, egg-shaped ember creature (about half the golem's bulk) built from two glowing half-shells clamped together with a bronze band, bright orange-yellow lava light pouring from the seam, stubby little legs and claws, two ember eyes, sparks drifting off. Mid-stride walking pose facing DOWN-RIGHT toward the camera.
+- raw/enemy-splitter-back.png — the same splitter seen from BEHIND walking AWAY toward the UPPER-LEFT.
