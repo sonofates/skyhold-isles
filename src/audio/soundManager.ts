@@ -231,6 +231,84 @@ export class SoundManager {
     this.tone('sine', 720, 1080, 0.09, 0.11, 0.04);
   }
 
+  // ---- Enemy archetype cues (quiet, throttled: these fire often in late waves) ----
+
+  /** Aegis Warden barrier pulse: soft rising shimmer. */
+  playWardPulse(): void {
+    if (!this.canPlay('ward_pulse', 350)) return;
+    this.tone('sine', 660, 990, 0.18, 0.07, 0);
+    this.tone('sine', 990, 1320, 0.16, 0.04, 0.05);
+  }
+
+  /** A barrier shattered: short glassy crack. */
+  playShieldBroken(): void {
+    if (!this.canPlay('shield_broken', 90)) return;
+    this.tone('triangle', 1800, 900, 0.08, 0.1, 0);
+    this.noiseBurst(5000, 0.06, 0.06);
+  }
+
+  /** Loam Burrower digs in (low thump) or pops back out (dirt spray). */
+  playBurrow(burrowed: boolean): void {
+    if (burrowed) {
+      if (!this.canPlay('burrow_in', 140)) return;
+      this.tone('sine', 120, 55, 0.16, 0.14, 0);
+      this.noiseBurst(420, 0.16, 0.1);
+    } else {
+      if (!this.canPlay('burrow_out', 140)) return;
+      this.tone('sine', 90, 160, 0.12, 0.12, 0);
+      this.noiseBurst(760, 0.12, 0.1);
+    }
+  }
+
+  /** Rift Blinker teleport: quick up-down zip. */
+  playBlink(): void {
+    if (!this.canPlay('blink', 110)) return;
+    this.tone('sine', 400, 1600, 0.07, 0.08, 0);
+    this.tone('sine', 1600, 600, 0.08, 0.06, 0.05);
+  }
+
+  /** Cloud Hauler goes down and drops its raiders: falling whoosh. */
+  playCarrierDrop(): void {
+    if (!this.canPlay('carrier_drop', 200)) return;
+    this.tone('triangle', 700, 250, 0.25, 0.12, 0);
+    this.noiseBurst(1500, 0.2, 0.08);
+  }
+
+  /** Basalt Golem armor cracked by chill: stony crunch (lower than the frost brittle tick). */
+  playArmorCracked(): void {
+    if (!this.canPlay('armor_cracked', 120)) return;
+    this.noiseBurst(900, 0.14, 0.16);
+    this.tone('square', 260, 120, 0.08, 0.07, 0);
+  }
+
+  /** Tempest Colossus phase change: 1 = Stormwall (rising swell), 2 = enrage (heavy roar). */
+  playBossPhase(phase: number): void {
+    if (!this.canPlay('boss_phase', 400)) return;
+    if (phase >= 2) {
+      this.tone('sawtooth', 260, 60, 0.5, 0.2, 0);
+      this.tone('sine', 130, 40, 0.55, 0.24, 0.04);
+      this.noiseBurst(1000, 0.4, 0.18);
+    } else {
+      this.tone('sawtooth', 110, 220, 0.5, 0.14, 0);
+      this.tone('sine', 220, 440, 0.5, 0.12, 0.08);
+      this.tone('sine', 330, 660, 0.45, 0.08, 0.16);
+    }
+  }
+
+  /** Gloam Hexer starts channelling: eerie wobble so the player can react. */
+  playHexCharge(): void {
+    if (!this.canPlay('hex_charge', 250)) return;
+    this.tone('sine', 520, 780, 0.5, 0.07, 0);
+    this.tone('triangle', 780, 520, 0.5, 0.05, 0.1);
+  }
+
+  /** The hex landed and a tower is silenced: descending zap. */
+  playTowerHexed(): void {
+    if (!this.canPlay('tower_hexed', 150)) return;
+    this.tone('sawtooth', 900, 180, 0.22, 0.12, 0);
+    this.tone('sine', 300, 120, 0.26, 0.1, 0.03);
+  }
+
   bindEvents(events: EventBus): () => void {
     const unsubs = [
       events.on('towerBuilt', () => this.playTowerBuild()),
@@ -243,6 +321,15 @@ export class SoundManager {
       events.on('enemySplit', () => this.playEnemySplit()),
       events.on('bossPulse', () => this.playBossPulse()),
       events.on('bossSummon', () => this.playBossSummon()),
+      events.on('wardPulse', () => this.playWardPulse()),
+      events.on('shieldBroken', () => this.playShieldBroken()),
+      events.on('enemyBurrow', (e) => this.playBurrow(e.burrowed)),
+      events.on('enemyBlink', () => this.playBlink()),
+      events.on('carrierDrop', () => this.playCarrierDrop()),
+      events.on('armorCracked', () => this.playArmorCracked()),
+      events.on('bossPhase', (e) => this.playBossPhase(e.phase)),
+      events.on('hexCharge', () => this.playHexCharge()),
+      events.on('towerHexed', () => this.playTowerHexed()),
       events.on('abilityTargeted', () => this.playAbilityTarget()),
       events.on('meteorImpact', () => this.playMeteorImpact()),
       events.on('overchargeActivated', () => this.playOvercharge()),

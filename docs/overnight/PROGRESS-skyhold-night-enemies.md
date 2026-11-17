@@ -30,6 +30,7 @@ Started 2026-11-16 23:00 UTC (02:00 TR). Deadline 06:00 UTC (09:00 TR).
 - Rounds 3–8 left no commits (sessions apparently cut short). Found one uncommitted tweak in `level10.ts` (w15 elite brutes 7@1.0 s → 6@1.2 s). Swept both versions over enemyHpScale 0.98–1.04: identical greedy lives at every value (5 lives on 1.00–1.025, fails at 1.03) → no gain, discarded; L10 stays as committed.
 - Merge dry-run re-run with the latest local heads (islands `54b721d`, towers `f5f71fc`): same single balanceSim conflict (stitch script resolves it), tsc clean, **291/291 tests**, balance: everything passes except the known **L6**; new islands merged L10 7 / L11 8 / L12 8 / L13 9 greedy lives.
 - **L6 (merged) diagnosis for the lead** — scratch sweep of `level6.ts` enemyHpScale in the merged tree: 1.14→20L/weak W6, 1.16→19/weak W4, 1.17→11/weak W1, 1.18→12/weak W3, **1.19→10 PASS (weak loses)**, 1.20 (current)→6/weak W3, 1.21→5, 1.22→3, 1.24→7/weak L. Only 1.19 passes and the weak script survives at most values, so an HP-scale nudge alone is a knife-edge fix; L6 needs a wave-side change (ISLANDS) or a T3 retune (TOWERS `scripts/tuneSweep.ts`). Leaks are runners + healers.
+- Enemy sound cues (was an open "UI/TOWERS need"): `soundManager.ts` + `tests/audio/enemySounds.test.ts`; merges cleanly with TOWERS (scratch merge: tsc clean, 308/308 tests). Branch gate green (138 tests, 13 islands).
 
 ## Enemy design table
 
@@ -86,6 +87,7 @@ New tests: `tests/sim/newEnemies.test.ts`, `tests/sim/lanes.test.ts`, `tests/sim
 - `scripts/balanceSim.ts`: flyer-share checks now count *lives* lost to every flying type (haulers included) via a new per-wave `livesByType` (that hunk merges cleanly with both other branches).
 - `src/platform/sessionBridge.ts` + `storage.ts`: one-time "New foe — <name>: <counterHint>" toast on first spawn of each type that has a `counterHint` (only the new archetypes have one). Round 2: hints are spaced on wall-clock time (new optional `getRealClock` handler, default `performance.now()`), and the old flyer toast now waits while a hint is on screen instead of replacing it.
 - `src/sim/targeting.ts` (round 2): the Strongest tie-break is lane-aware too (`dist + laneProgressOffset`; identical on single-lane islands).
+- `src/audio/soundManager.ts` (round 9, TOWERS' file): 9 quiet, throttled synth cues for the enemy events (`playWardPulse`, `playShieldBroken`, `playBurrow(in/out)`, `playBlink`, `playCarrierDrop`, `playArmorCracked` — lower/stonier than TOWERS' icy `brittleCrack`, `playBossPhase(1|2)`, `playHexCharge` telegraph, `playTowerHexed`) + 9 `bindEvents` lines after `bossSummon`. Placed in regions TOWERS didn't touch: the scratch 3-way merge with the towers branch is clean and its tsc/308 tests pass. Test: `tests/audio/enemySounds.test.ts` (bindings, fake Web Audio voice count, throttle, mute).
 - `src/ui/icons.ts`: `ENEMY_BADGE_META` entries. `src/ui/tooltip.ts`: text only — "Empowered" name prefix, `Shield N`, `(cracked)` armor.
 
 ## UI needs (for the UI branch / lead)
@@ -93,7 +95,7 @@ New tests: `tests/sim/newEnemies.test.ts`, `tests/sim/lanes.test.ts`, `tests/sim
 - Difficulty label: a `Legendary` tier for L11/L12 would need a `diff-legendary` class in style.css (not touched). Levels currently say `Master`.
 - HUD wave preview (`hud.ts`): elite groups are not flagged (data is there: `WaveGroupDef.elite`); the "N Flyers incoming" warning chip only triggers for `flyer`, not `carrier` (use `ENEMY_DEFS[type].flying`).
 - Enemy tooltip could show `counterHint` (new field on every new def) — a second line would need styling, so not added.
-- Audio (TOWERS agent area): no sounds yet for `wardPulse`, `shieldBroken`, `enemyBurrow`, `enemyBlink`, `carrierDrop`, `armorCracked`, `bossPhase`, `hexCharge`, `towerHexed` events (all on the EventBus). `towerHexed` would suit the existing boss-pulse/jam sound.
+- Audio: done in round 9 (see Cross-area changes). `shieldAbsorb` deliberately has no sound (fires on every soaked hit; the blue glint is enough).
 
 ## Known issues
 - New meshes were not checked in a real browser (no browser on hermes). They WERE checked with a software-rasterised lineup (a copy of the ISLANDS branch's `scripts/previewMap.ts` rasteriser, run in the git-ignored `.wt/` scratch area) — silhouettes/colours read well against grass. Also `tests/render/enemyGeometry.test.ts` (size vs sim height/radius, footprint, ≤900 tris, size classes). Not checkable that way (transparent/animated): shield bubble, elite ring, burrow mound bulge, blinker flicker — please eyeball in-game.
