@@ -18,8 +18,10 @@ import {
   getAllChallengeProgress,
   getChallengeStatus,
   getEnemyIntelStats,
+  getIslandMasteryStatus,
   getMetaCareerSummary,
   getRecentDailyHistory,
+  getRecommendedNextGoal,
   getStats,
   getTowerMasteryStats,
   importMetaSaveJson,
@@ -1260,10 +1262,19 @@ describe('MetaSession stats, achievements, challenges & daily persistence', () =
     expect(careerSummary.mostDefeatedEnemyType).toBe('grunt');
     expect(careerSummary.winRatePct).toBe(71);
 
-    // Unsanitized non-finite / negative values in codex & rank inputs never propagate NaN
+    // Unsanitized non-finite / negative values & prototype keys in query/codex/rank inputs never propagate NaN or throw
     const dirtyCodexSave = createDefaultMetaSave(9);
+    dirtyCodexSave.campaign.unlockedLevelIndex = Number.NaN;
     dirtyCodexSave.campaign.bestStars[0] = Number.NaN;
     dirtyCodexSave.campaign.bestStars[1] = 2;
+    dirtyCodexSave.campaign.bestEndlessWaves[0] = Number.NaN;
+    dirtyCodexSave.bestEndlessScoresByLevelId[LEVELS[0].id] = Number.NaN;
+    dirtyCodexSave.bestMutatedScoresByLevelId[LEVELS[0].id] = Number.POSITIVE_INFINITY;
+    dirtyCodexSave.bestLivesByLevelId[LEVELS[0].id] = Number.NaN;
+    dirtyCodexSave.fastestWinSecByLevelId[LEVELS[0].id] = Number.NaN;
+    dirtyCodexSave.dailyBestScores['2026-11-17'] = Number.NaN;
+    dirtyCodexSave.stats.enemiesDefeatedTotal = Number.NaN;
+    dirtyCodexSave.stats.gamesWon = Number.NaN;
     dirtyCodexSave.stats.towersBuiltByType = { archer: Number.NaN, cannon: -3, frost: 10.9 };
     dirtyCodexSave.stats.enemiesDefeatedByType = { grunt: Number.POSITIVE_INFINITY, flyer: -1, brute: 4.7 };
     const dirtyTowerStats = getTowerMasteryStats(dirtyCodexSave);
@@ -1283,7 +1294,41 @@ describe('MetaSession stats, achievements, challenges & daily persistence', () =
       defeatedCount: 4,
       discovered: true,
     });
-    expect(getMetaCareerSummary(dirtyCodexSave, '2026-11-17', LEVELS).rank.points).toBe(2);
+    const dirtySummary = getMetaCareerSummary(dirtyCodexSave, '2026-11-17', LEVELS);
+    expect(dirtySummary.campaignStarsEarned).toBe(2);
+    expect(dirtySummary.islandsCleared).toBe(1);
+    expect(dirtySummary.rank.points).toBe(2);
+    expect(getIslandMasteryStatus(dirtyCodexSave, 0, LEVELS)).toMatchObject({
+      campaignStars: 0,
+      bestEndlessWave: 0,
+      bestEndlessScore: 0,
+      bestMutatedScore: 0,
+      bestLivesRemaining: 0,
+      fastestWinSec: null,
+    });
+    expect(getAchievements(dirtyCodexSave).every((a) => Number.isFinite(a.current) && Number.isFinite(a.progressRatio))).toBe(true);
+    expect(getRecommendedNextGoal(dirtyCodexSave, '2026-11-17', LEVELS)?.kind).toBe('daily');
+    dirtyCodexSave.completedDailyDates.push('2026-11-17');
+    expect(getRecommendedNextGoal(dirtyCodexSave, '2026-11-17', LEVELS)?.levelIndex).toBe(0);
+    expect(getRecentDailyHistory(dirtyCodexSave, '2026-11-17', 2, '2026-11-17', LEVELS)[1]?.bestScore).toBe(0);
+
+    // Crafted JSON with __proto__/constructor/prototype keys is ignored safely during migration/import
+    const protoJson = JSON.stringify({
+      version: 2,
+      campaign: { unlockedLevelIndex: 0, bestStars: [1, 0, 0, 0, 0, 0, 0, 0, 0], bestEndlessWaves: [0, 0, 0, 0, 0, 0, 0, 0, 0] },
+      completedChallenges: JSON.parse('{"__proto__":true,"constructor":true,"sunlit-meadow:perfect":true}'),
+      stats: {
+        enemiesDefeatedByType: JSON.parse('{"__proto__":99,"prototype":5,"grunt":3}'),
+      },
+    });
+    const protoImport = importMetaSaveJson(protoJson, null, 9, LEVELS, 'replace');
+    expect(protoImport.ok).toBe(true);
+    if (protoImport.ok) {
+      expect(Object.prototype.hasOwnProperty.call(protoImport.save.completedChallenges, 'constructor')).toBe(false);
+      expect(Object.prototype.hasOwnProperty.call(protoImport.save.stats.enemiesDefeatedByType, 'prototype')).toBe(false);
+      expect(protoImport.save.completedChallenges['sunlit-meadow:perfect']).toBe(true);
+      expect(protoImport.save.stats.enemiesDefeatedByType.grunt).toBe(3);
+    }
 
     const testLevels = [tinyLevel, ...LEVELS.slice(1)];
     // Pre-wave quit does not bump gamesPlayed, whereas mid-Wave-1 quit flushes stats & increments gamesPlayed

@@ -96,10 +96,13 @@ export function createDefaultMetaSave(levelCount: number): MetaSaveData {
   };
 }
 
+const IGNORED_RECORD_KEYS = new Set<string>(['__proto__', 'constructor', 'prototype']);
+
 function sanitizePositiveFloatRecord(raw: unknown): Record<string, number> {
   const out: Record<string, number> = {};
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return out;
   for (const [key, val] of Object.entries(raw as Record<string, unknown>)) {
+    if (IGNORED_RECORD_KEYS.has(key)) continue;
     if (typeof val === 'number' && Number.isFinite(val) && val > 0) {
       out[key] = Math.max(0.1, +val.toFixed(1));
     }
@@ -121,6 +124,7 @@ function sanitizeCountRecord(raw: unknown): Record<string, number> {
   const out: Record<string, number> = {};
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return out;
   for (const [key, val] of Object.entries(raw as Record<string, unknown>)) {
+    if (IGNORED_RECORD_KEYS.has(key)) continue;
     const n = asNonNegInt(val, 0);
     if (n > 0) out[key] = n;
   }
@@ -145,6 +149,7 @@ function sanitizeBoolRecord(raw: unknown): Record<string, boolean> {
   const out: Record<string, boolean> = {};
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return out;
   for (const [key, val] of Object.entries(raw as Record<string, unknown>)) {
+    if (IGNORED_RECORD_KEYS.has(key)) continue;
     if (val === true) out[key] = true;
   }
   return out;
@@ -447,14 +452,21 @@ function getAchievementCurrentValue(
   def: AchievementDef,
   save: MetaSaveData,
 ): number {
-  const bestStars = save.campaign.bestStars;
-  const islandsWithStars = bestStars.filter((s) => s > 0).length;
-  const totalStars = bestStars.reduce((sum, s) => sum + s, 0);
-  const completedChallengeCount = Object.values(save.completedChallenges).filter(Boolean).length;
+  const bestStars = Array.isArray(save.campaign.bestStars) ? save.campaign.bestStars : [];
+  let islandsWithStars = 0;
+  let totalStars = 0;
+  for (let i = 0; i < bestStars.length; i++) {
+    const s = Math.min(3, asNonNegInt(bestStars[i]));
+    if (s > 0) islandsWithStars++;
+    totalStars += s;
+  }
+  const completedChallengeCount = Object.values(save.completedChallenges).filter(
+    (v) => v === true,
+  ).length;
 
   switch (def.id) {
     case 'first_victory':
-      return Math.max(save.stats.gamesWon, islandsWithStars > 0 ? 1 : 0);
+      return Math.max(asNonNegInt(save.stats.gamesWon), islandsWithStars > 0 ? 1 : 0);
     case 'island_explorer':
       return islandsWithStars;
     case 'campaign_champion':
@@ -466,38 +478,43 @@ function getAchievementCurrentValue(
     case 'challenger_15':
       return completedChallengeCount;
     case 'flawless_defense':
-      return save.achievementMilestones.wonNoLivesLost || save.stats.perfectClears > 0 ? 1 : 0;
+      return save.achievementMilestones.wonNoLivesLost || asNonNegInt(save.stats.perfectClears) > 0
+        ? 1
+        : 0;
     case 'speed_demon':
       return save.achievementMilestones.wonAt3xSpeed ? 1 : 0;
     case 'minimalist':
       return save.achievementMilestones.wonMax6Towers ? 1 : 0;
     case 'slayer_250':
     case 'slayer_2500':
-      return save.stats.enemiesDefeatedTotal;
+      return asNonNegInt(save.stats.enemiesDefeatedTotal);
     case 'boss_slayer_10':
-      return save.stats.enemiesDefeatedByType.boss ?? 0;
+      return asNonNegInt(save.stats.enemiesDefeatedByType.boss);
     case 'anti_air_ace':
-      return save.stats.flyingEnemiesDefeated;
+      return asNonNegInt(save.stats.flyingEnemiesDefeated);
     case 'overcharge_cleanse':
-      return save.stats.towersCleansed;
+      return asNonNegInt(save.stats.towersCleansed);
     case 'meteor_caller':
-      return save.stats.meteorsCast;
+      return asNonNegInt(save.stats.meteorsCast);
     case 'master_architect':
-      return save.stats.towersBuiltTotal;
+      return asNonNegInt(save.stats.towersBuiltTotal);
     case 'tier3_forge':
-      return save.stats.towersUpgradedToTier3;
+      return asNonNegInt(save.stats.towersUpgradedToTier3);
     case 'upgrade_specialist':
-      return save.stats.towersUpgradedTotal;
+      return asNonNegInt(save.stats.towersUpgradedTotal);
     case 'gold_baron':
-      return save.stats.goldEarnedTotal;
+      return asNonNegInt(save.stats.goldEarnedTotal);
     case 'early_bird':
-      return save.stats.earlyWavesCalled;
+      return asNonNegInt(save.stats.earlyWavesCalled);
     case 'endless_survivor':
-      return save.stats.bestEndlessWaveOverall;
+      return asNonNegInt(save.stats.bestEndlessWaveOverall);
     case 'mutated_endless':
-      return save.achievementMilestones.bestMutatedEndlessWavesCleared;
+      return asNonNegInt(save.achievementMilestones.bestMutatedEndlessWavesCleared);
     case 'daily_victor':
-      return Math.max(save.stats.dailyChallengesCompleted, save.completedDailyDates.length);
+      return Math.max(
+        asNonNegInt(save.stats.dailyChallengesCompleted),
+        save.completedDailyDates.length,
+      );
     case 'daily_streak_3': {
       const refDate = save.completedDailyDates[save.completedDailyDates.length - 1] ?? '1970-01-01';
       return computeDailyStreaks(save.completedDailyDates, refDate).bestStreak;
@@ -706,9 +723,12 @@ export function recordRunCompletion(
   } else if (!telemetry.endlessEntered && telemetry.eligibleForChallenges) {
     save.stats.gamesLost++;
   }
-  if (save.stats.gamesPlayed < save.stats.gamesWon + save.stats.gamesLost) {
-    save.stats.gamesPlayed = save.stats.gamesWon + save.stats.gamesLost;
-  }
+  const safeWon = asNonNegInt(save.stats.gamesWon);
+  const safeLost = asNonNegInt(save.stats.gamesLost);
+  const safePlayed = asNonNegInt(save.stats.gamesPlayed);
+  save.stats.gamesWon = safeWon;
+  save.stats.gamesLost = safeLost;
+  save.stats.gamesPlayed = Math.max(safePlayed, safeWon + safeLost);
 
   const endlessScore = recordEndlessRunStats(
     save,
@@ -858,12 +878,17 @@ export function getIslandMasteryStatus(
 ): IslandMasteryStatus | null {
   const challengeStatus = getChallengeStatus(save, levelIndex, levels);
   if (!challengeStatus) return null;
-  const campaignStars = save.campaign.bestStars[levelIndex] ?? 0;
-  const bestEndlessWave = save.campaign.bestEndlessWaves[levelIndex] ?? 0;
-  const bestEndlessScore = save.bestEndlessScoresByLevelId[challengeStatus.levelId] ?? 0;
-  const bestMutatedScore = save.bestMutatedScoresByLevelId[challengeStatus.levelId] ?? 0;
-  const bestLivesRemaining = save.bestLivesByLevelId[challengeStatus.levelId] ?? 0;
-  const fastestWinSec = save.fastestWinSecByLevelId[challengeStatus.levelId] ?? null;
+  const campaignStars = Math.min(3, asNonNegInt(save.campaign.bestStars[levelIndex]));
+  const bestEndlessWave = asNonNegInt(save.campaign.bestEndlessWaves[levelIndex]);
+  const bestEndlessScore = asNonNegInt(save.bestEndlessScoresByLevelId[challengeStatus.levelId]);
+  const bestMutatedScore = asNonNegInt(save.bestMutatedScoresByLevelId[challengeStatus.levelId]);
+  const bestLivesRemaining = Math.min(
+    BALANCE.startingLives,
+    asNonNegInt(save.bestLivesByLevelId[challengeStatus.levelId]),
+  );
+  const rawFast = save.fastestWinSecByLevelId[challengeStatus.levelId];
+  const fastestWinSec =
+    typeof rawFast === 'number' && Number.isFinite(rawFast) && rawFast > 0 ? rawFast : null;
   return {
     levelId: challengeStatus.levelId,
     levelIndex,
@@ -1017,10 +1042,10 @@ export function getRecommendedNextGoal(
     };
   }
 
-  const maxUnlocked = Math.min(levels.length - 1, Math.max(0, save.campaign.unlockedLevelIndex));
+  const maxUnlocked = Math.min(levels.length - 1, asNonNegInt(save.campaign.unlockedLevelIndex));
 
   for (let i = 0; i <= maxUnlocked; i++) {
-    if ((save.campaign.bestStars[i] ?? 0) === 0) {
+    if (Math.min(3, asNonNegInt(save.campaign.bestStars[i])) === 0) {
       const lvl = levels[i];
       return {
         kind: 'campaign',
@@ -1048,7 +1073,7 @@ export function getRecommendedNextGoal(
   }
 
   for (let i = 0; i <= maxUnlocked; i++) {
-    if ((save.campaign.bestStars[i] ?? 0) < 3) {
+    if (Math.min(3, asNonNegInt(save.campaign.bestStars[i])) < 3) {
       const lvl = levels[i];
       return {
         kind: 'campaign',
@@ -1082,7 +1107,7 @@ export function getRecommendedNextGoal(
   const focusLevel = levels[maxUnlocked];
   const bestWave = Math.max(
     focusLevel.waves.length,
-    save.campaign.bestEndlessWaves[maxUnlocked] ?? 0,
+    asNonNegInt(save.campaign.bestEndlessWaves[maxUnlocked]),
   );
   return {
     kind: 'endless',
@@ -1127,7 +1152,7 @@ export function getMetaCareerSummary(
   let islandsMastered = 0;
 
   for (let i = 0; i < levels.length; i++) {
-    const stars = save.campaign.bestStars[i] ?? 0;
+    const stars = Math.min(3, asNonNegInt(save.campaign.bestStars[i]));
     campaignStarsEarned += stars;
     if (stars > 0) islandsCleared++;
     const mastery = getIslandMasteryStatus(save, i, levels);
@@ -1248,7 +1273,7 @@ export function getRecentDailyHistory(
   return getRecentDailySpecs(endDateStr, days, levels).map((spec) => ({
     spec,
     completed: completedSet.has(spec.date),
-    bestScore: save.dailyBestScores[spec.date] ?? 0,
+    bestScore: asNonNegInt(save.dailyBestScores[spec.date]),
     isToday: spec.date === normalizedToday,
   }));
 }
@@ -1259,10 +1284,10 @@ function mergeMaxCountRecords(
 ): Record<string, number> {
   const out: Record<string, number> = {};
   for (const [k, v] of Object.entries(a)) {
-    if (Number.isFinite(v) && v > 0) out[k] = v;
+    if (!IGNORED_RECORD_KEYS.has(k) && Number.isFinite(v) && v > 0) out[k] = v;
   }
   for (const [k, v] of Object.entries(b)) {
-    if (Number.isFinite(v) && v > (out[k] ?? 0)) out[k] = v;
+    if (!IGNORED_RECORD_KEYS.has(k) && Number.isFinite(v) && v > (out[k] ?? 0)) out[k] = v;
   }
   return out;
 }
@@ -1273,10 +1298,10 @@ function mergeMinPositiveRecords(
 ): Record<string, number> {
   const out: Record<string, number> = {};
   for (const [k, v] of Object.entries(a)) {
-    if (Number.isFinite(v) && v > 0) out[k] = v;
+    if (!IGNORED_RECORD_KEYS.has(k) && Number.isFinite(v) && v > 0) out[k] = v;
   }
   for (const [k, v] of Object.entries(b)) {
-    if (Number.isFinite(v) && v > 0 && (out[k] === undefined || v < out[k])) {
+    if (!IGNORED_RECORD_KEYS.has(k) && Number.isFinite(v) && v > 0 && (out[k] === undefined || v < out[k])) {
       out[k] = v;
     }
   }
@@ -1296,13 +1321,13 @@ export function mergeMetaSaves(
   levelCount: number,
   levels: readonly LevelDef[] = LEVELS,
 ): MetaSaveData {
-  const completedChallenges: Record<string, boolean> = { ...base.completedChallenges };
+  const completedChallenges: Record<string, boolean> = sanitizeBoolRecord(base.completedChallenges);
   for (const [k, v] of Object.entries(incoming.completedChallenges)) {
-    if (v) completedChallenges[k] = true;
+    if (v === true && !IGNORED_RECORD_KEYS.has(k)) completedChallenges[k] = true;
   }
-  const unlockedAchievements: Record<string, boolean> = { ...base.unlockedAchievements };
+  const unlockedAchievements: Record<string, boolean> = sanitizeBoolRecord(base.unlockedAchievements);
   for (const [k, v] of Object.entries(incoming.unlockedAchievements)) {
-    if (v) unlockedAchievements[k] = true;
+    if (v === true && !IGNORED_RECORD_KEYS.has(k)) unlockedAchievements[k] = true;
   }
   const completedDailyDates = [
     ...new Set([...base.completedDailyDates, ...incoming.completedDailyDates]),

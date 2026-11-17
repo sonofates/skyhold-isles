@@ -459,7 +459,7 @@ describe('Daily challenge pure date-seeded generator', () => {
   });
 
   it('wins Heroic and Master Daily Watch runs in SimWorld with mutators, tower bans, and economy integrity intact', () => {
-    for (const dateStr of ['2026-11-15', '2026-11-04', '2026-01-02', '2026-02-26'] as const) {
+    for (const dateStr of ['2026-11-15', '2026-11-04', '2026-01-02', '2026-02-26', '2026-01-28'] as const) {
       const spec = generateDailyChallenge(dateStr, LEVELS);
       const level = LEVELS[spec.levelIndex];
       const legal = getAllowedTowerTypes(spec.modifiers);
@@ -526,6 +526,9 @@ describe('Daily challenge pure date-seeded generator', () => {
         if (world.waveSystem.state === 'betweenWaves') {
           while (tryStep()) {
             // between-wave build/upgrade
+          }
+          if (world.waveSystem.canStartNextWave()) {
+            world.startNextWave();
           }
         } else if (t % (60 * 4) === 0) {
           tryStep();

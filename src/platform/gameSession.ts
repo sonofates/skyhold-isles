@@ -675,7 +675,12 @@ export class GameSession {
     rawJson: string,
     mode: 'merge' | 'replace' = 'merge',
   ): { ok: true } | { ok: false; error: string } {
-    return this.meta.importSaveJson(rawJson, mode);
+    const res = this.meta.importSaveJson(rawJson, mode);
+    if (res.ok && this.deps && this.viewMode !== 'playing') {
+      this.deps.overlays.mainMenu.setOpen(this.viewMode === 'menu', this.progress);
+      this.deps.overlays.levelSelect.setOpen(this.viewMode === 'levelSelect', this.progress);
+    }
+    return res;
   }
 
   openSettingsModal(origin: SettingsOrigin): void {

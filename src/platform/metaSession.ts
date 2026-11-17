@@ -82,6 +82,10 @@ import type {
 } from '../sim/meta/types.ts';
 import { getTodayUtcDateString, loadMetaSave, saveMetaSave } from './storage.ts';
 
+function nonNegIntOrZero(value: unknown): number {
+  return typeof value === 'number' && Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0;
+}
+
 export interface MetaSessionOptions {
   readonly levels?: readonly LevelDef[];
   readonly saveData?: MetaSaveData;
@@ -148,8 +152,8 @@ export class MetaSession {
         : null;
     this.lastRunOutcome = null;
     this.runUnlockedAchievementIds = [];
-    this.runStartBestEndlessWave = this.save.campaign.bestEndlessWaves[level.index] ?? 0;
-    this.runStartBestEndlessScore = this.save.bestEndlessScoresByLevelId[level.id] ?? 0;
+    this.runStartBestEndlessWave = nonNegIntOrZero(this.save.campaign.bestEndlessWaves[level.index]);
+    this.runStartBestEndlessScore = nonNegIntOrZero(this.save.bestEndlessScoresByLevelId[level.id]);
 
     this.unsubs.push(
       events.on('waveStarted', () => {
@@ -166,75 +170,59 @@ export class MetaSession {
       }),
       events.on('gameWon', (ev) => {
         if (observer.getTelemetry().endlessEntered) return;
-        if (!this.countedGamePlayed && observer.isEligibleForChallenges()) {
-          this.countedGamePlayed = true;
-          this.save.stats.gamesPlayed++;
-        }
-        this.flushStats(false);
-        const telemetry = observer.getTelemetry();
-        const outcome = recordRunCompletion(this.save, {
-          level,
-          telemetry,
-          won: true,
-          stars: ev.stars,
-          livesRemaining: ev.livesRemaining,
-          levels: this.levels,
-          dailyDate: this.activeDailyDate,
-          scoreMultiplier: observer.getModifiers().scoreMultiplier,
-          previousBestEndlessWave: this.runStartBestEndlessWave,
-          previousBestEndlessScore: this.runStartBestEndlessScore,
-        });
-        this.collectRunAchievements(outcome.newlyUnlockedAchievementIds);
-        const unlockedIds = [...this.runUnlockedAchievementIds];
-        this.lastRunOutcome = {
-          ...outcome,
-          newlyUnlockedAchievementIds: unlockedIds,
-          newlyUnlockedAchievements: resolveAchievementDefs(unlockedIds),
-        };
-        this.runUnlockedAchievementIds = [];
-        this.persist();
+        this.finalizeRunOutcome(level, observer, true, ev.stars, ev.livesRemaining);
       }),
       events.on('gameLost', () => {
-        if (
-          !this.countedGamePlayed &&
-          observer.isEligibleForChallenges() &&
-          !observer.getTelemetry().endlessEntered
-        ) {
-          this.countedGamePlayed = true;
-          this.save.stats.gamesPlayed++;
-        }
-        this.flushStats(false);
-        const telemetry = observer.getTelemetry();
-        const outcome = recordRunCompletion(this.save, {
-          level,
-          telemetry,
-          won: false,
-          stars: 0,
-          livesRemaining: 0,
-          levels: this.levels,
-          dailyDate: this.activeDailyDate,
-          scoreMultiplier: observer.getModifiers().scoreMultiplier,
-          previousBestEndlessWave: this.runStartBestEndlessWave,
-          previousBestEndlessScore: this.runStartBestEndlessScore,
-        });
-        this.collectRunAchievements(outcome.newlyUnlockedAchievementIds);
-        const unlockedIds = [...this.runUnlockedAchievementIds];
-        this.lastRunOutcome = {
-          ...outcome,
-          newlyUnlockedAchievementIds: unlockedIds,
-          newlyUnlockedAchievements: resolveAchievementDefs(unlockedIds),
-        };
-        this.runUnlockedAchievementIds = [];
-        this.persist();
+        this.finalizeRunOutcome(level, observer, false, 0, 0);
       }),
     );
   }
 
+  private finalizeRunOutcome(
+    level: LevelDef,
+    observer: RunObserver,
+    won: boolean,
+    stars: 0 | 1 | 2 | 3,
+    livesRemaining: number,
+  ): void {
+    const endlessEntered = observer.getTelemetry().endlessEntered;
+    if (!this.countedGamePlayed && observer.isEligibleForChallenges() && (won || !endlessEntered)) {
+      this.countedGamePlayed = true;
+      this.save.stats.gamesPlayed++;
+    }
+    this.flushStats(false);
+    const telemetry = observer.getTelemetry();
+    const outcome = recordRunCompletion(this.save, {
+      level,
+      telemetry,
+      won,
+      stars,
+      livesRemaining,
+      levels: this.levels,
+      dailyDate: this.activeDailyDate,
+      scoreMultiplier: observer.getModifiers().scoreMultiplier,
+      previousBestEndlessWave: this.runStartBestEndlessWave,
+      previousBestEndlessScore: this.runStartBestEndlessScore,
+    });
+    this.collectRunAchievements(outcome.newlyUnlockedAchievementIds);
+    const unlockedIds = [...this.runUnlockedAchievementIds];
+    this.lastRunOutcome = {
+      ...outcome,
+      newlyUnlockedAchievementIds: unlockedIds,
+      newlyUnlockedAchievements: resolveAchievementDefs(unlockedIds),
+    };
+    this.runUnlockedAchievementIds = [];
+    this.persist();
+  }
+
   onEndlessEntered(modifiers?: RunModifiers | null): void {
     if (!this.observer) return;
-    this.runStartBestEndlessWave = this.save.campaign.bestEndlessWaves[this.observer.level.index] ?? 0;
-    this.runStartBestEndlessScore =
-      this.save.bestEndlessScoresByLevelId[this.observer.level.id] ?? 0;
+    this.runStartBestEndlessWave = nonNegIntOrZero(
+      this.save.campaign.bestEndlessWaves[this.observer.level.index],
+    );
+    this.runStartBestEndlessScore = nonNegIntOrZero(
+      this.save.bestEndlessScoresByLevelId[this.observer.level.id],
+    );
     if (modifiers !== undefined) {
       this.observer.setModifiers(modifiers);
     }
@@ -355,7 +343,7 @@ export class MetaSession {
     return {
       spec,
       completedToday: this.save.completedDailyDates.includes(spec.date),
-      bestScoreToday: this.save.dailyBestScores[spec.date] ?? 0,
+      bestScoreToday: nonNegIntOrZero(this.save.dailyBestScores[spec.date]),
       totalDailyCompleted: this.save.completedDailyDates.length,
       currentStreak,
       bestStreak,
@@ -556,10 +544,12 @@ export class MetaSession {
       this.lastRunOutcome = null;
     }
     if (this.observer) {
-      this.runStartBestEndlessWave =
-        this.save.campaign.bestEndlessWaves[this.observer.level.index] ?? 0;
-      this.runStartBestEndlessScore =
-        this.save.bestEndlessScoresByLevelId[this.observer.level.id] ?? 0;
+      this.runStartBestEndlessWave = nonNegIntOrZero(
+        this.save.campaign.bestEndlessWaves[this.observer.level.index],
+      );
+      this.runStartBestEndlessScore = nonNegIntOrZero(
+        this.save.bestEndlessScoresByLevelId[this.observer.level.id],
+      );
       if (mode === 'replace') {
         this.committedTelemetry = this.observer.isEligibleForChallenges()
           ? this.observer.getTelemetry()
