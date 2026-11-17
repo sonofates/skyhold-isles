@@ -320,6 +320,7 @@ async function bootstrap(loadingScreen: LoadingScreen): Promise<void> {
     extraMaterials: [
       renderWorld.materials.ghostValidMaterial,
       renderWorld.materials.ghostInvalidMaterial,
+      renderWorld.materials.shoreFoamMaterial,
     ],
     instancedColorRoots: [renderWorld.effectsRenderer.group],
   });

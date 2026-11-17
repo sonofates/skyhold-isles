@@ -113,6 +113,9 @@ export class GameLoop {
       return;
     }
     if (typeof document !== 'undefined' && document.hidden) {
+      this.wakeUntilMs = 0;
+      this.hasRendered = false;
+      this.lastThrottled = false;
       this.rafId = null;
       return;
     }
@@ -206,6 +209,7 @@ export class GameLoop {
 
   wakeRender(durationSec = 0.75): void {
     if (!Number.isFinite(durationSec) || durationSec <= 0) return;
+    if (typeof document !== 'undefined' && document.hidden) return;
     const now = typeof performance !== 'undefined' ? performance.now() : 0;
     this.wakeUntilMs = Math.max(this.wakeUntilMs, now + durationSec * 1000);
   }

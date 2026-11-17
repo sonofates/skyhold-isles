@@ -1252,4 +1252,81 @@ describe('PerfGovernor', () => {
     warmWithColor.geometry.dispose();
     mat.dispose();
   });
+
+  it('defers runtime SMAA pass attachment until LUT textures finish loading and guards disposed pipeline methods', async () => {
+    const loadCallbacks: Array<() => void> = [];
+    vi.stubGlobal(
+      'Image',
+      class FakeSmaaImage {
+        width = 16;
+        height = 16;
+        addEventListener(type: string, cb: () => void): void {
+          if (type === 'load') loadCallbacks.push(cb);
+        }
+        set src(_v: string) {}
+      },
+    );
+
+    const { renderer: mockRenderer } = createMockPostRenderer(800, 600);
+    const scene = new THREE.Scene();
+    const camera = new THREE.OrthographicCamera();
+
+    const pipeline = new PostProcessingPipeline(
+      mockRenderer,
+      scene,
+      camera,
+      800,
+      600,
+      { n8ao: 'off', outline: true, bloom: true, smaa: false },
+    );
+
+    try {
+      type ComposerInternals = {
+        passes: Array<{ renderToScreen: boolean }>;
+      };
+      const composer = pipeline.composer as unknown as ComposerInternals;
+      expect(composer.passes).toHaveLength(2); // RenderPass, Composite
+      expect(composer.passes[1].renderToScreen).toBe(true);
+
+      // Runtime upgrade T4 -> T5 enables SMAA while images decode asynchronously
+      pipeline.applyConfig({ n8ao: 'off', outline: true, bloom: true, smaa: true });
+      expect(loadCallbacks).toHaveLength(2);
+      // Composite remains renderToScreen until SMAA search & area LUT textures finish loading
+      expect(composer.passes).toHaveLength(2);
+      expect(composer.passes[1].renderToScreen).toBe(true);
+
+      for (const cb of loadCallbacks) cb();
+      await pipeline.whenReady();
+      expect(composer.passes).toHaveLength(3);
+      expect(composer.passes.map((p) => p.renderToScreen)).toEqual([false, false, true]);
+
+      // Post-dispose lifecycle calls are safe no-ops
+      pipeline.dispose();
+      pipeline.applyConfig({ n8ao: 'off', outline: false, bloom: false, smaa: false });
+      pipeline.releaseDisabledPasses({ n8ao: 'off', outline: false, bloom: false, smaa: false });
+      pipeline.setSize(640, 480);
+
+      // Deferred SMAA option on lazy pipeline creation also avoids attaching before LUT load
+      loadCallbacks.length = 0;
+      const lazyPipeline = new PostProcessingPipeline(
+        mockRenderer,
+        scene,
+        camera,
+        800,
+        600,
+        { n8ao: 'off', outline: true, bloom: false, smaa: true },
+        { deferSmaaAttachUntilReady: true },
+      );
+      const lazyComposer = lazyPipeline.composer as unknown as ComposerInternals;
+      expect(lazyComposer.passes).toHaveLength(2);
+      expect(lazyComposer.passes[1].renderToScreen).toBe(true);
+      for (const cb of loadCallbacks) cb();
+      await lazyPipeline.whenReady();
+      expect(lazyComposer.passes).toHaveLength(3);
+      expect(lazyComposer.passes.map((p) => p.renderToScreen)).toEqual([false, false, true]);
+      lazyPipeline.dispose();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
 });

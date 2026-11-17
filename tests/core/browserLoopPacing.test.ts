@@ -540,4 +540,46 @@ describe('GameLoop throttle boundary and storage backward compatibility', () => 
     loop.stop();
     vi.unstubAllGlobals();
   });
+
+  it('ignores wakeRender while document is hidden and clears wake/throttle state if a RAF tick sees hidden=true', () => {
+    let hidden = false;
+    let nextRaf: ((now: number) => void) | null = null;
+    const listeners = new Map<string, () => void>();
+
+    vi.stubGlobal('document', {
+      get hidden() {
+        return hidden;
+      },
+      addEventListener: (type: string, cb: () => void) => listeners.set(type, cb),
+      removeEventListener: (type: string) => listeners.delete(type),
+    });
+    vi.stubGlobal('requestAnimationFrame', (cb: (now: number) => void) => {
+      nextRaf = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', () => {});
+    vi.stubGlobal('performance', { now: () => 100 });
+
+    const loop = new GameLoop({
+      onFixedTick: () => {},
+      onRender: () => {},
+    });
+
+    loop.setRenderPacing(20, 'paused');
+    loop.start();
+    loop.wakeRender(1.0);
+    expect(loop.isWakeActive()).toBe(true);
+
+    // Tab becomes hidden before visibilitychange arrives -> tick cleans up wake and stops RAF
+    hidden = true;
+    nextRaf?.(116);
+    expect(loop.isWakeActive()).toBe(false);
+
+    // Residual events while hidden cannot arm wake timer
+    loop.wakeRender(1.0);
+    expect(loop.isWakeActive()).toBe(false);
+
+    loop.stop();
+    vi.unstubAllGlobals();
+  });
 });

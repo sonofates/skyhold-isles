@@ -321,6 +321,18 @@ function configureN8aoPass(
   pass.configuration.halfRes = settings.halfRes;
 }
 
+export interface PostProcessingPipelineOptions {
+  readonly deferSmaaAttachUntilReady?: boolean;
+}
+
+function isSmaaEffectReady(effect: SMAAEffect | null): boolean {
+  if (!effect) return false;
+  return (
+    typeof Image === 'undefined' ||
+    Boolean(effect.weightsMaterial.searchTexture && effect.weightsMaterial.areaTexture)
+  );
+}
+
 /**
  * Adaptive post-processing chain built with pmndrs/postprocessing and N8AO:
  * RenderPass -> [N8AOPostPass] -> ([Outline] + [Bloom] + HueSat + NeutralToneMapping) -> [SMAA].
@@ -330,6 +342,7 @@ export class PostProcessingPipeline {
   private readonly scene: THREE.Scene;
   private readonly camera: THREE.Camera;
   private readonly allowHalfResN8ao: boolean;
+  private readonly deferSmaaAttachUntilReady: boolean;
   private width: number;
   private height: number;
 
@@ -341,6 +354,7 @@ export class PostProcessingPipeline {
   private smaaReadyPromise: Promise<void> | null = null;
   private smaaReadyCancel: (() => void) | null = null;
   private config: PostProcessingConfig;
+  private disposed = false;
   private readonly drawingSize = new THREE.Vector2();
 
   constructor(
@@ -350,10 +364,12 @@ export class PostProcessingPipeline {
     width: number,
     height: number,
     initialConfig: PostProcessingConfig = DEFAULT_CONFIG,
+    options?: PostProcessingPipelineOptions,
   ) {
     this.scene = scene;
     this.camera = camera;
     this.allowHalfResN8ao = canUseHalfResN8ao(renderer);
+    this.deferSmaaAttachUntilReady = options?.deferSmaaAttachUntilReady ?? false;
     this.width = Math.max(1, width);
     this.height = Math.max(1, height);
     this.config = { ...initialConfig };
@@ -419,6 +435,7 @@ export class PostProcessingPipeline {
    * are never resized only to be immediately disposed.
    */
   releaseDisabledPasses(next: PostProcessingConfig): void {
+    if (this.disposed) return;
     if (next.n8ao === 'off' && this.n8aoPass) {
       this.removeAndDisposeN8ao();
       this.config = { ...this.config, n8ao: 'off' };
@@ -429,11 +446,8 @@ export class PostProcessingPipeline {
     }
   }
 
-  private createSmaaReadyPromise(effect: SMAAEffect): Promise<void> {
-    if (
-      typeof Image === 'undefined' ||
-      (effect.weightsMaterial.searchTexture && effect.weightsMaterial.areaTexture)
-    ) {
+  private createSmaaReadyPromise(effect: SMAAEffect, onLoaded?: () => void): Promise<void> {
+    if (isSmaaEffectReady(effect)) {
       return Promise.resolve();
     }
     return new Promise((resolve) => {
@@ -454,9 +468,11 @@ export class PostProcessingPipeline {
         if (this.smaaReadyCancel === cancel) {
           this.smaaReadyCancel = null;
         }
-        if (disposed) {
+        if (disposed || this.disposed) {
           effect.weightsMaterial.searchTexture?.dispose();
           effect.weightsMaterial.areaTexture?.dispose();
+        } else {
+          onLoaded?.();
         }
         settle();
       };
@@ -488,6 +504,7 @@ export class PostProcessingPipeline {
   }
 
   applyConfig(next: PostProcessingConfig, forceRebuild = false): void {
+    if (this.disposed) return;
     const n8aoChanged = forceRebuild || this.config.n8ao !== next.n8ao;
     const compositeChanged =
       forceRebuild ||
@@ -528,7 +545,7 @@ export class PostProcessingPipeline {
       const prevComposite = this.compositePass;
       const insertIdx = prevComposite
         ? this.composer.passes.indexOf(prevComposite)
-        : this.smaaPass
+        : this.smaaPass && this.composer.passes.includes(this.smaaPass)
           ? this.composer.passes.indexOf(this.smaaPass)
           : -1;
 
@@ -567,25 +584,46 @@ export class PostProcessingPipeline {
       }
     }
 
+    this.config = { ...next };
+
     if (smaaChanged || (next.smaa && !this.smaaPass)) {
       if (next.smaa) {
         if (!this.smaaPass) {
-          this.smaaEffect = new SMAAEffect({ preset: SMAAPreset.MEDIUM });
-          this.smaaReadyPromise = this.createSmaaReadyPromise(this.smaaEffect);
-          this.smaaPass = new EffectPass(this.camera, this.smaaEffect);
-        }
-        if (!this.composer.passes.includes(this.smaaPass)) {
+          const effect = new SMAAEffect({ preset: SMAAPreset.MEDIUM });
+          const pass = new EffectPass(this.camera, effect);
+          this.smaaEffect = effect;
+          this.smaaPass = pass;
+          const attachImmediately =
+            (forceRebuild && !this.deferSmaaAttachUntilReady) || isSmaaEffectReady(effect);
+          this.smaaReadyPromise = this.createSmaaReadyPromise(effect, () => {
+            if (
+              !attachImmediately &&
+              !this.disposed &&
+              this.config.smaa &&
+              this.smaaPass === pass &&
+              isSmaaEffectReady(effect) &&
+              !this.composer.passes.includes(pass)
+            ) {
+              this.composer.addPass(pass);
+            }
+          });
+          if (attachImmediately) {
+            this.composer.addPass(pass);
+          }
+        } else if (
+          ((forceRebuild && !this.deferSmaaAttachUntilReady) || isSmaaEffectReady(this.smaaEffect)) &&
+          !this.composer.passes.includes(this.smaaPass)
+        ) {
           this.composer.addPass(this.smaaPass);
         }
       } else if (this.smaaPass) {
         this.removeAndDisposeSmaa();
       }
     }
-
-    this.config = { ...next };
   }
 
   setSize(width: number, height: number): void {
+    if (this.disposed) return;
     this.width = Math.max(1, width);
     this.height = Math.max(1, height);
     this.composer.setSize(this.width, this.height, false);
@@ -593,10 +631,13 @@ export class PostProcessingPipeline {
   }
 
   render(): void {
+    if (this.disposed) return;
     this.composer.render();
   }
 
   dispose(): void {
+    if (this.disposed) return;
+    this.disposed = true;
     this.removeAndDisposeN8ao();
     this.removeAndDisposeSmaa();
     this.composer.dispose();

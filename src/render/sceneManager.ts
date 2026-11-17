@@ -533,6 +533,7 @@ export class SceneManager {
           }
           await Promise.all(tasks);
         } catch {
+          if (this.disposed || this.contextLost) return;
           compileSync();
           await (this.postProcessing?.whenReady() ?? Promise.resolve());
         }
@@ -660,6 +661,7 @@ export class SceneManager {
   private createPostProcessingPipeline(
     camera: THREE.Camera,
     preset: QualityPreset,
+    deferSmaaAttachUntilReady = false,
   ): PostProcessingPipeline {
     const dpr = this.appliedDpr > 0 ? this.appliedDpr : this.computePresetDpr(preset);
     const renderDims = computeSafeRenderDimensions(this.lastWidth, this.lastHeight, dpr);
@@ -675,6 +677,7 @@ export class SceneManager {
         bloom: preset.bloom,
         smaa: preset.smaa,
       },
+      { deferSmaaAttachUntilReady },
     );
   }
 
@@ -684,7 +687,7 @@ export class SceneManager {
     const preset = this.governor.getPreset();
     if (this.isComposerActive(preset)) {
       if (!this.postProcessing) {
-        this.postProcessing = this.createPostProcessingPipeline(camera, preset);
+        this.postProcessing = this.createPostProcessingPipeline(camera, preset, true);
       }
       this.postProcessing.render();
     } else {
