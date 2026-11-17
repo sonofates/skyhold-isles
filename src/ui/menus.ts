@@ -1,6 +1,7 @@
 import type { ProgressData } from '../core/types.ts';
 import { CHALLENGES, challengesForLevel, type ChallengeId } from '../data/challenges.ts';
 import { LEVELS } from '../data/levels/index.ts';
+import { describeStarGoals } from '../data/stars.ts';
 import { TOWER_ICON_SVGS, UI_ICON_SVGS } from './icons.ts';
 import { affordableUpgradeCount, WORKSHOP_ICON_SVG } from './workshop.ts';
 import { isIslandMastered } from '../game/progression.ts';
@@ -317,6 +318,8 @@ export class LevelSelectOverlay {
       const starsRow = document.createElement('div');
       starsRow.className = 'star-row';
       starsRow.innerHTML = renderStarsHtml(stars);
+      const goals = describeStarGoals(lvl.difficulty);
+      starsRow.title = `3★: ${goals.three} · 2★: ${goals.two}`;
 
       const bestEndless = progress.bestEndlessWaves?.[i] ?? 0;
       if (bestEndless > 0) {

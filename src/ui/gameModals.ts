@@ -72,6 +72,7 @@ export interface PauseMenuCallbacks {
 export class PauseMenuModal {
   private readonly backdrop: HTMLDivElement;
   private readonly subtitleEl: HTMLDivElement;
+  private readonly runInfoEl: HTMLDivElement;
   private readonly autoBtn: HTMLButtonElement;
   private readonly lanesBtn: HTMLButtonElement;
   private open = false;
@@ -143,7 +144,11 @@ export class PauseMenuModal {
 
     stack.append(makeBtn('Resume', UI_ICON_SVGS.play, 'green', callbacks.onResume, 'btn-pause-resume'), toggles, tiles);
 
-    card.append(title, this.subtitleEl, stack);
+    this.runInfoEl = document.createElement('div');
+    this.runInfoEl.className = 'pause-run-info hidden';
+    this.runInfoEl.setAttribute('data-testid', 'pause-run-info');
+
+    card.append(title, this.subtitleEl, this.runInfoEl, stack);
     this.backdrop.appendChild(card);
     parent.appendChild(this.backdrop);
   }
@@ -154,6 +159,12 @@ export class PauseMenuModal {
       this.subtitleEl.textContent = levelLabel;
     }
     this.backdrop.classList.toggle('hidden', !open);
+  }
+
+  /** Run details under the subtitle: star goal progress, or endless mutators (HTML; null hides). */
+  setRunInfo(html: string | null): void {
+    this.runInfoEl.classList.toggle('hidden', !html);
+    this.runInfoEl.innerHTML = html ?? '';
   }
 
   setToggles(autoWave: boolean, routesVisible: boolean): void {

@@ -50,6 +50,7 @@ import {
   sanitizeChallengeSelection,
   type ChallengeId,
 } from '../data/challenges.ts';
+import { STAR_RULES } from '../data/stars.ts';
 import {
   ENDLESS_MUTATOR_INTERVAL,
   endlessMutatorsAt,
@@ -149,6 +150,31 @@ export class GameSession {
     const challenges = this.runConfig.challenges.map((id) => CHALLENGES[id].name);
     const tag = challenges.length > 0 ? ` · ${challenges.join(' + ')}` : '';
     return `${LEVELS[this.currentLevelIndex].name} · ${waveLabel}${tag}`;
+  }
+
+  /** Pause card detail: lives lost vs the star goals, or the endless mutators in play. */
+  pauseRunInfo(): string | null {
+    const w = this.simWorld;
+    const ws = w.waveSystem;
+    const level = w.level;
+    if (ws.isEndless) {
+      const offset = ws.currentWaveIndex - level.waves.length;
+      if (offset < 0) return null;
+      const muts = endlessMutatorsAt(offset, level.index).map((m) => m.name);
+      return muts.length > 0
+        ? `<span class="pri-label">Mutators</span> ${muts.join(' · ')}`
+        : `<span class="pri-label">Mutators</span> first one at endless wave ${ENDLESS_MUTATOR_INTERVAL + 1}`;
+    }
+    const rule = STAR_RULES[level.difficulty];
+    const lost = Math.max(0, w.startingLives - w.lives);
+    const stars = w.computeStars();
+    const next =
+      stars === 3
+        ? `3★ holds while you lose ≤ ${rule.threeStarMaxLost}`
+        : stars === 2
+          ? `2★ holds while you lose ≤ ${rule.twoStarMaxLost}`
+          : '1★ — any win counts';
+    return `<span class="pri-label">Lives lost ${lost}</span> ${next}`;
   }
 
   syncLoopAndInput(): void {
@@ -696,6 +722,7 @@ export class GameSession {
     const { overlays } = this.d;
     overlays.settingsModal.setOpen(false);
     if (this.settingsOrigin === 'pause') {
+      overlays.pauseMenu.setRunInfo(this.pauseRunInfo());
       overlays.pauseMenu.setOpen(true, this.pauseSubtitle());
     }
     this.syncLoopAndInput();
@@ -707,6 +734,7 @@ export class GameSession {
     if (this.viewMode !== 'playing' || overlays.outcomeOverlay.isOpen()) return;
     overlays.tooltip.hide();
     overlays.settingsModal.setOpen(false);
+    overlays.pauseMenu.setRunInfo(this.pauseRunInfo());
     overlays.pauseMenu.setOpen(true, this.pauseSubtitle());
     this.syncLoopAndInput();
     this.syncUi();
