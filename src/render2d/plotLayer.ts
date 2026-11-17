@@ -114,8 +114,8 @@ export class PlotLayer {
         v.halo.width = w * k;
         v.halo.height = w * k * 0.62;
         v.halo.tint = sel ? SELECT_TINT : HOVER_TINT;
-        v.halo.alpha = sel ? 0.5 + 0.15 * pulse : 0.38;
-        v.hi.alpha = sel ? 0.2 + 0.08 * pulse : 0.14;
+        v.halo.alpha = sel ? 0.62 + 0.15 * pulse : 0.5;
+        v.hi.alpha = sel ? 0.3 + 0.1 * pulse : 0.22;
       }
     }
     this.visibleCount = visible;
