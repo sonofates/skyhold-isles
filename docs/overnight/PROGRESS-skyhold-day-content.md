@@ -56,6 +56,9 @@ Re-verified tsc/lint/428 tests/build/sim:balance (all 16 islands in window) and 
 portrait + landscape screenshots (fine; landscape grid scrolls). Added lore-vs-data consistency tests (no ground-only tower
 recommended against flyers; every tower/ability name in lore is real).
 
+## Round 3 (verification)
+Clean tree at start. Re-ran tsc / lint / 430 tests / build / sim:balance: all green, all 16 islands inside their windows (L14 7L, L15 8L, L16 9L greedy; weak loses). Lore text reviewed again, no changes needed. No new code this round.
+
 ## Next
 - Round 2+: visual QA if a browser becomes available; description/tooltips polish; more tests; tower-unlock card wiring if
   CAMPAIGN adds unlocks; maybe a "NEW" dot on codex entries.
