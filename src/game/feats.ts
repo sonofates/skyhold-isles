@@ -1,6 +1,6 @@
 import type { ProgressData } from '../core/types.ts';
 import { challengesForLevel } from '../data/challenges.ts';
-import { endlessTier } from '../data/endlessMutators.ts';
+import { ENDLESS_TIERS, endlessWavesCleared } from '../data/endlessMutators.ts';
 import type { LevelDef } from '../data/levels/index.ts';
 import { LEVELS } from '../data/levels/index.ts';
 import { isIslandMastered, totalCampaignStars } from './progression.ts';
@@ -46,13 +46,16 @@ function badgeCount(p: ProgressData, levels: readonly LevelDef[]): number {
   return n;
 }
 
-function bestEndlessTier(p: ProgressData, levels: readonly LevelDef[]): number {
+/** Most endless waves cleared beyond the story on any island (the measure behind endless medals). */
+function bestEndlessCleared(p: ProgressData, levels: readonly LevelDef[]): number {
   let best = 0;
   for (let i = 0; i < levels.length; i++) {
-    best = Math.max(best, endlessTier(p.bestEndlessWaves[i] ?? 0, levels[i].waves.length));
+    best = Math.max(best, endlessWavesCleared(p.bestEndlessWaves[i] ?? 0, levels[i].waves.length));
   }
   return best;
 }
+
+const GOLD_ENDLESS_WAVES = ENDLESS_TIERS[ENDLESS_TIERS.length - 1].cleared;
 
 const totalWins = (p: ProgressData, levels: readonly LevelDef[]): number => {
   let n = 0;
@@ -135,9 +138,9 @@ export const FEATS: readonly FeatDef[] = [
   {
     id: 'stormChaser',
     name: 'Storm Chaser',
-    description: 'Earn a Gold endless medal (10 endless waves)',
+    description: `Earn a Gold endless medal (${GOLD_ENDLESS_WAVES} endless waves on one island)`,
     icon: 'endless',
-    measure: (p, ls) => ({ current: bestEndlessTier(p, ls), target: 3 }),
+    measure: (p, ls) => ({ current: bestEndlessCleared(p, ls), target: GOLD_ENDLESS_WAVES }),
   },
   {
     id: 'squallRider',

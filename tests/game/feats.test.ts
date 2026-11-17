@@ -56,11 +56,11 @@ describe('feats', () => {
     expect(byId(p).masterStroke.earned).toBe(true);
   });
 
-  it('Storm Chaser follows the endless Gold medal; progress is the best tier', () => {
+  it('Storm Chaser follows the endless Gold medal; progress is endless waves cleared', () => {
     const p = createDefaultProgress(LEVELS.length);
     const story = LEVELS[2].waves.length;
     applyEndlessRecord(p, 2, story + 1 + 6); // 6 endless waves cleared → Silver
-    expect(byId(p).stormChaser.current).toBe(2);
+    expect(byId(p).stormChaser.current).toBe(6);
     expect(byId(p).stormChaser.earned).toBe(false);
     applyEndlessRecord(p, 2, story + 1 + 10);
     expect(byId(p).stormChaser.earned).toBe(true);

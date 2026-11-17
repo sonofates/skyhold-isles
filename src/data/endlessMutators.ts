@@ -148,8 +148,13 @@ export const ENDLESS_TIERS: readonly { readonly name: string; readonly cleared: 
  * Medal tier (0 none, 1 bronze, 2 silver, 3 gold) for an island's best endless wave. `bestWave` is
  * the one-based wave the run fell on, so waves cleared past the story = bestWave - 1 - storyWaves.
  */
+export function endlessWavesCleared(bestWave: number, storyWaves: number): number {
+  const w = Number.isFinite(bestWave) ? Math.floor(bestWave) : 0;
+  return Math.max(0, w - 1 - storyWaves);
+}
+
 export function endlessTier(bestWave: number, storyWaves: number): number {
-  const cleared = Math.max(0, Math.floor(bestWave) - 1 - storyWaves);
+  const cleared = endlessWavesCleared(bestWave, storyWaves);
   let tier = 0;
   for (let i = 0; i < ENDLESS_TIERS.length; i++) if (cleared >= ENDLESS_TIERS[i].cleared) tier = i + 1;
   return tier;
