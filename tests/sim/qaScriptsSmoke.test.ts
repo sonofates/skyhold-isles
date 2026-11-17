@@ -1,8 +1,10 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { runLevelBalanceSim } from '../../scripts/balanceSim.ts';
 import { CI_STEPS, EXTRA_QA_STEPS } from '../../scripts/ci.ts';
 import { pickBenchLevel, runSimBenchScenario } from '../../scripts/simBench.ts';
+import { LEVELS } from '../../src/data/levels/index.ts';
 
 describe('QA scripts smoke verification', () => {
   it('verifies CI_STEPS and EXTRA_QA_STEPS reference valid package.json scripts', () => {
@@ -45,5 +47,14 @@ describe('QA scripts smoke verification', () => {
     expect(Number.isFinite(res.msPerTick)).toBe(true);
     expect(Number.isFinite(res.simMsAt3xFrame)).toBe(true);
     expect(res.peakProjectiles).toBeGreaterThanOrEqual(0);
+  });
+
+  it('runs balanceSim exported runLevelBalanceSim cleanly on Level 1 greedy order', () => {
+    const lvl1 = LEVELS[0];
+    const res = runLevelBalanceSim(lvl1, 'greedy', lvl1.scriptedBuildOrder ?? []);
+    expect(res.outcome).toBe('won');
+    expect(res.invalidActions).toBe(0);
+    expect(res.finalLives).toBeGreaterThanOrEqual(18);
+    expect(res.stars).toBe(3);
   });
 });

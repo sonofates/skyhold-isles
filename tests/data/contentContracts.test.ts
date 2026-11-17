@@ -76,6 +76,16 @@ describe('tower, enemy, ability, and UI metadata contracts', () => {
         expect(bounds.halfWidth).toBeGreaterThan(0);
         expect(bounds.height).toBeGreaterThan(0);
       }
+
+      const t1 = getTowerTierStats(type, 1);
+      const t2 = getTowerTierStats(type, 2);
+      const t3 = getTowerTierStats(type, 3);
+      if (t1.damage > 0) {
+        expect(t2.damage * t2.fireRate).toBeGreaterThan(t1.damage * t1.fireRate);
+        expect(t3.damage * t3.fireRate).toBeGreaterThan(t2.damage * t2.fireRate);
+      }
+      expect(t2.range).toBeGreaterThanOrEqual(t1.range);
+      expect(t3.range).toBeGreaterThanOrEqual(t2.range);
     }
   });
 
@@ -168,14 +178,18 @@ describe('level data, flight paths, waves, and scripted build orders', () => {
         expect(wave.clearBonus).toBeGreaterThanOrEqual(0);
         expect(wave.groups.length).toBeGreaterThan(0);
         let waveTotal = 0;
+        let worstCaseSpawns = 0;
         for (const grp of wave.groups) {
           expect(enemyTypeSet.has(grp.enemyType)).toBe(true);
           expect(Number.isInteger(grp.count) && grp.count > 0).toBe(true);
           expect(grp.spawnInterval).toBeGreaterThan(0);
           expect(grp.startDelay).toBeGreaterThanOrEqual(0);
           waveTotal += grp.count;
+          const multiplier = grp.enemyType === 'splitter' || grp.enemyType === 'boss' ? 3 : 1;
+          worstCaseSpawns += grp.count * multiplier;
         }
         expect(waveTotal).toBeLessThanOrEqual(BALANCE.pools.maxEnemies);
+        expect(worstCaseSpawns).toBeLessThanOrEqual(BALANCE.pools.maxEnemies);
       }
 
       // Scripted build orders (greedy + weak) must build once per grass tile and upgrade <= tier 3
