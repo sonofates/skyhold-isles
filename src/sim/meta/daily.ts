@@ -350,9 +350,12 @@ export function getRecentDailySpecs(
     throw new RangeError(`Invalid daily challenge date "${endDateStr}": expected YYYY-MM-DD.`);
   }
   const clampedDays = Number.isFinite(days) ? Math.max(1, Math.min(31, Math.floor(days))) : 7;
+  const minEpochDay = dateStringToEpochDay('0000-01-01')!;
   const specs: DailyChallengeSpec[] = [];
   for (let offset = clampedDays - 1; offset >= 0; offset--) {
-    const ds = epochDayToDateString(endDay - offset);
+    const targetDay = endDay - offset;
+    if (targetDay < minEpochDay) continue;
+    const ds = epochDayToDateString(targetDay);
     specs.push(generateDailyChallenge(ds, levels, mutatorCatalog));
   }
   return specs;

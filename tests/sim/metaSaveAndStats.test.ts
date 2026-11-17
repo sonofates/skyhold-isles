@@ -1811,5 +1811,50 @@ describe('MetaSession stats, achievements, challenges & daily persistence', () =
     saveMetaSave({ version: 2 } as unknown as ReturnType<typeof createDefaultMetaSave>);
     expect(storeForPartial.has(META_PROGRESS_KEY)).toBe(true);
     expect(storeForPartial.has(PROGRESS_KEY)).toBe(true);
+
+    // Fractional < 1 counts in towersBuiltByType / enemiesDefeatedByType do not produce bogus top keys,
+    // and array-corrupted sub-records never leak index "0" reads into query helpers
+    const fracSave = createDefaultMetaSave(9);
+    fracSave.stats.towersBuiltByType.archer = 0.4;
+    fracSave.stats.enemiesDefeatedByType.grunt = 0.9;
+    const fracSummary = getMetaCareerSummary(fracSave, '2026-11-17', LEVELS);
+    expect(fracSummary.favoriteTowerType).toBeNull();
+    expect(fracSummary.mostDefeatedEnemyType).toBeNull();
+
+    const arrSubCorrupt = {
+      version: 2,
+      campaign: { unlockedLevelIndex: 0, bestStars: { '0': 3 }, bestEndlessWaves: { '0': 15 } },
+      completedChallenges: [true],
+      unlockedAchievements: [true],
+      stats: {
+        gamesWon: [5],
+        towersBuiltByType: [12],
+        enemiesDefeatedByType: [20],
+      },
+    } as unknown as ReturnType<typeof createDefaultMetaSave>;
+    expect(getIslandMasteryStatus(arrSubCorrupt, 0, LEVELS)?.campaignStars).toBe(0);
+    expect(getMetaCareerRank(arrSubCorrupt, LEVELS).points).toBe(0);
+    expect(getMetaCareerSummary(arrSubCorrupt, '2026-11-17', LEVELS).winRatePct).toBe(0);
+    expect(getRecommendedNextGoal(arrSubCorrupt, '2026-11-17', LEVELS)?.kind).toBe('daily');
+    expect(getTowerMasteryStats(arrSubCorrupt).every((t) => t.builtCount === 0)).toBe(true);
+    expect(getEnemyIntelStats(arrSubCorrupt).every((e) => e.defeatedCount === 0)).toBe(true);
+
+    // MetaSession handles minimal partial saveData cleanly across startRun, waveStarted, live states, and importSaveJson
+    const partialSessionSave = { version: 2 } as unknown as ReturnType<typeof createDefaultMetaSave>;
+    const partialMeta = new MetaSession({
+      levels: LEVELS,
+      saveData: partialSessionSave,
+      onSave: () => {},
+    });
+    const pmEv = new EventBus();
+    partialMeta.startRun(LEVELS[0], pmEv);
+    pmEv.emit('waveStarted', { waveIndex: 0, totalWaves: 10, earlyBonus: 0 });
+    expect(partialMeta.getStats().gamesPlayed).toBe(1);
+    expect(partialMeta.getLiveChallengeStates(20, 'ongoing')).toHaveLength(3);
+    expect(
+      partialMeta.importSaveJson(JSON.stringify(createDefaultMetaSave(LEVELS.length)), 'replace').ok,
+    ).toBe(true);
+    expect(partialMeta.getCampaignProgress().bestStars).toHaveLength(LEVELS.length);
+    partialMeta.dispose();
   });
 });

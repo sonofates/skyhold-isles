@@ -891,5 +891,37 @@ describe('Daily challenge pure date-seeded generator', () => {
     });
     expect(buildEndlessMutatorLoadout(null as unknown as readonly string[]).mutators).toEqual([]);
     expect(getConflictingMutatorIds(null as unknown as readonly string[])).toEqual([]);
+
+    // Mixed allowedTowerTypes + forbiddenTowerTypes filters banned towers out of Limited Arsenal badge,
+    // and unresolved fractional flyerCountMultiplier < 1.5 never emits a '1x Flyers' badge
+    const overlapMods = mergeRunModifiers(
+      { allowedTowerTypes: ['archer', 'frost', 'cannon'] },
+      { activeMutatorIds: ['no_frost'], forbiddenTowerTypes: ['frost'] },
+    );
+    const overlapArsenal = describeActiveModifiers(overlapMods).find((b) => b.id === 'allowed-arsenal');
+    expect(overlapArsenal?.detail).toBe('Only Archer Tower, Cannon Bastion can be built.');
+
+    const blockedAllMods = mergeRunModifiers(
+      { allowedTowerTypes: ['frost'] },
+      { activeMutatorIds: ['no_frost'], forbiddenTowerTypes: ['frost'] },
+    );
+    expect(
+      describeActiveModifiers(blockedAllMods).find((b) => b.id === 'allowed-arsenal')?.label,
+    ).toBe('No Towers Allowed');
+
+    expect(
+      describeActiveModifiers({
+        ...resolveRunModifiers(null),
+        flyerCountMultiplier: 1.4,
+      }),
+    ).toEqual([]);
+
+    // getRecentDailySpecs clamps cleanly at 0000-01-01 without generating negative-year RangeError
+    expect(getRecentDailySpecs('0000-01-01', 7, LEVELS).map((s) => s.date)).toEqual(['0000-01-01']);
+    expect(getRecentDailySpecs('0000-01-03', 7, LEVELS).map((s) => s.date)).toEqual([
+      '0000-01-01',
+      '0000-01-02',
+      '0000-01-03',
+    ]);
   });
 });

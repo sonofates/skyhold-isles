@@ -286,11 +286,8 @@ export function describeActiveModifiers(
       detail: `All enemies gain +${modifiers.enemyArmorBonus} flat armor.`,
     });
   }
-  if (
-    modifiers.flyerCountMultiplier !== baseline.flyerCountMultiplier &&
-    modifiers.flyerCountMultiplier > 1
-  ) {
-    const flyerMult = Math.round(modifiers.flyerCountMultiplier);
+  const flyerMult = Math.round(modifiers.flyerCountMultiplier);
+  if (flyerMult !== baseline.flyerCountMultiplier && flyerMult > 1) {
     badges.push({
       id: 'custom-flyer-count',
       label: `${flyerMult}x Flyers`,
@@ -320,14 +317,17 @@ export function describeActiveModifiers(
   );
 
   if (modifiers.allowedTowerTypes !== null) {
-    if (modifiers.allowedTowerTypes.length === 0) {
+    const effectiveAllowed = modifiers.allowedTowerTypes.filter(
+      (t) => !modifiers.forbiddenTowerTypes.includes(t),
+    );
+    if (effectiveAllowed.length === 0) {
       badges.push({
         id: 'allowed-arsenal',
         label: 'No Towers Allowed',
         detail: 'No tower types are permitted under these modifiers.',
       });
     } else {
-      const names = modifiers.allowedTowerTypes.map((t) => TOWER_DEFS[t]?.name ?? t).join(', ');
+      const names = effectiveAllowed.map((t) => TOWER_DEFS[t]?.name ?? t).join(', ');
       badges.push({
         id: 'allowed-arsenal',
         label: 'Limited Arsenal',
