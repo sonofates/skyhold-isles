@@ -5,6 +5,7 @@ import { AbScene } from './abScene.ts';
 import { artCheckSummary, mountArtCheck } from './artCheck.ts';
 import { loadArt } from './assets2d.ts';
 import { autoplayHooks, benchHooks } from './benchScene.ts';
+import { mountCodex2D } from './codex2d.ts';
 import { towersHooks, zooHooks, ZooLabels } from './debugScenes.ts';
 import { FrameStats } from './frameStats.ts';
 import { Game2D, type Game2DHooks } from './game2d.ts';
@@ -17,6 +18,7 @@ import { HUD_FONT } from './hudText.ts';
  *   ?bench=150        stress scene: ~N enemies, towers on every plot, window.__bench stats
  *   ?autoplay=1       plays the greedy build script and auto-calls waves
  *   ?raider=veo31q    raider walk-cycle variant (default omni12; `cheap` = procedural)
+ *   ?codex=1          opens the codex (painted art) on load; a Codex button is always top-left
  *   ?artcheck=1       overlay: which manifest art files are present / missing (and the stand-ins)
  *   ?zoo=1            all 15 enemy types walking, specials triggered periodically (labelled)
  *   ?towers=1[&tier=N] every tower type built and firing (cycles T1-T3 unless tier is given)
@@ -131,6 +133,16 @@ async function main(): Promise<void> {
   const onResize = (): void => game.resize(app.screen.width, app.screen.height);
   onResize();
   app.renderer.on('resize', onResize);
+  if (bench === 0) {
+    let wasPaused = false;
+    const codex = mountCodex2D(art, (open) => {
+      if (open) {
+        wasPaused = game.stepper.paused;
+        game.stepper.paused = true;
+      } else game.stepper.paused = wasPaused;
+    });
+    if (q.get('codex') === '1') codex.open();
+  }
   const zooLabels = q.get('zoo') === '1' ? new ZooLabels(game) : null;
   app.ticker.add((t) => {
     if (draws) lastDraws = draws.take();

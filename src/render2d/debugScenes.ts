@@ -54,7 +54,7 @@ export function zooHooks(): Game2DHooks {
     beforeTick(world: SimWorld): void {
       tick++;
       world.lives = 999;
-      world.gold = 1e9;
+      world.gold = 9999;
       if (!setup) {
         setup = true;
         for (const [plot, type] of DEMO_PLOTS) world.placeTowerOnPlot(plot, type);
@@ -136,7 +136,7 @@ export function towersHooks(fixedTier: number | null): Game2DHooks {
     beforeTick(world: SimWorld): void {
       tick++;
       world.lives = 999;
-      world.gold = 1e9;
+      world.gold = 9999;
       if (!setup) {
         setup = true;
         for (const [plot, type] of DEMO_PLOTS) {
