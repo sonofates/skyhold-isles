@@ -396,7 +396,9 @@ export class PostProcessingPipeline {
     else if (this.config.n8ao === 'half') parts.push(this.allowHalfResN8ao ? 'AO½' : 'AO-P');
     if (this.config.outline) parts.push('Out');
     if (this.config.bloom) parts.push('Bloom');
-    if (this.config.smaa) parts.push('SMAA');
+    if (this.config.smaa && this.smaaPass && this.composer.passes.includes(this.smaaPass)) {
+      parts.push('SMAA');
+    }
     return parts.length > 0 ? parts.join('+') : 'Tone';
   }
 

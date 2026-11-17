@@ -23,6 +23,7 @@ import {
 } from '../../src/render/postProcessing.ts';
 import {
   collectInstancedMaterialsNeedingColor,
+  compileWarmUpGroups,
   computeSafeRenderDimensions,
   createInstancedShadowWarmMesh,
   detectPrimaryTouchDevice,
@@ -1079,6 +1080,93 @@ describe('PerfGovernor', () => {
     }
   });
 
+  it('defers newly arriving GLB parses when another worker already triggered a frame yield', async () => {
+    const crystalBuf = fs.readFileSync(
+      path.resolve(process.cwd(), 'public/models/kenney/detail-crystal.glb'),
+    );
+    let resolveYield: (() => void) | null = null;
+    let yieldCalls = 0;
+    vi.stubGlobal('scheduler', {
+      yield: () => {
+        yieldCalls++;
+        if (yieldCalls === 1) {
+          return new Promise<void>((resolve) => {
+            resolveYield = resolve;
+          });
+        }
+        return Promise.resolve();
+      },
+    });
+    vi.stubGlobal(
+      'Image',
+      class FakeImage {
+        width = 64;
+        height = 64;
+        crossOrigin = '';
+        onload: (() => void) | null = null;
+        set src(_v: string) {
+          queueMicrotask(() => this.onload?.());
+        }
+      },
+    );
+    vi.stubGlobal('document', {
+      createElement: () => ({
+        width: 64,
+        height: 64,
+        getContext: () => ({
+          drawImage: () => {},
+          getImageData: () => ({ data: new Uint8ClampedArray(64 * 64 * 4) }),
+          putImageData: () => {},
+          fillRect: () => {},
+          fillStyle: '',
+        }),
+      }),
+    });
+    vi.stubGlobal('fetch', (url: string) => {
+      const makeRes = () =>
+        ({
+          ok: true,
+          status: 200,
+          arrayBuffer: () =>
+            Promise.resolve(
+              crystalBuf.buffer.slice(crystalBuf.byteOffset, crystalBuf.byteOffset + crystalBuf.byteLength),
+            ),
+        }) as unknown as Response;
+      if (url.includes('detail-crystal')) {
+        return Promise.resolve(makeRes());
+      }
+      return new Promise<Response>((resolve) => {
+        setTimeout(() => resolve(makeRes()), 5);
+      });
+    });
+
+    let fakeClockMs = 0;
+    const nowSpy = vi.spyOn(performance, 'now').mockImplementation(() => {
+      fakeClockMs += 12;
+      return fakeClockMs;
+    });
+
+    const completedLabels: string[] = [];
+    try {
+      const preloadPromise = KenneyAssetStore.preload(
+        (_loaded, _total, label) => completedLabels.push(label),
+        ['detail-crystal', 'detail-rocks'],
+      );
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      expect(resolveYield).not.toBeNull();
+      expect(completedLabels).toContain('detail-crystal');
+      expect(completedLabels).not.toContain('detail-rocks');
+
+      resolveYield?.();
+      const store = await preloadPromise;
+      expect(completedLabels).toContain('detail-rocks');
+      store.dispose();
+    } finally {
+      nowSpy.mockRestore();
+      vi.unstubAllGlobals();
+    }
+  });
+
   it('disposes late-loaded SMAA LUT textures when PostProcessingPipeline is disposed before Image load', async () => {
     const loadCallbacks: Array<() => void> = [];
     vi.stubGlobal(
@@ -1294,11 +1382,13 @@ describe('PerfGovernor', () => {
       // Composite remains renderToScreen until SMAA search & area LUT textures finish loading
       expect(composer.passes).toHaveLength(2);
       expect(composer.passes[1].renderToScreen).toBe(true);
+      expect(pipeline.getActivePassSummary()).toBe('Out+Bloom');
 
       for (const cb of loadCallbacks) cb();
       await pipeline.whenReady();
       expect(composer.passes).toHaveLength(3);
       expect(composer.passes.map((p) => p.renderToScreen)).toEqual([false, false, true]);
+      expect(pipeline.getActivePassSummary()).toBe('Out+Bloom+SMAA');
 
       // Post-dispose lifecycle calls are safe no-ops
       pipeline.dispose();
@@ -1320,11 +1410,148 @@ describe('PerfGovernor', () => {
       const lazyComposer = lazyPipeline.composer as unknown as ComposerInternals;
       expect(lazyComposer.passes).toHaveLength(2);
       expect(lazyComposer.passes[1].renderToScreen).toBe(true);
+      expect(lazyPipeline.getActivePassSummary()).toBe('Out');
       for (const cb of loadCallbacks) cb();
       await lazyPipeline.whenReady();
       expect(lazyComposer.passes).toHaveLength(3);
       expect(lazyComposer.passes.map((p) => p.renderToScreen)).toEqual([false, false, true]);
+      expect(lazyPipeline.getActivePassSummary()).toBe('Out+SMAA');
       lazyPipeline.dispose();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('chunks sync shader compilation across yieldMainThread on non-parallel drivers and uses parallel compileAsync otherwise', async () => {
+    const events: string[] = [];
+    vi.stubGlobal('scheduler', {
+      yield: () => {
+        events.push('yield');
+        return Promise.resolve();
+      },
+    });
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.OrthographicCamera();
+    const extraGroup = new THREE.Group();
+    const linearPostGroup = new THREE.Group();
+    const screenPostGroup = new THREE.Group();
+    const postCamera = new THREE.OrthographicCamera();
+    const linearTarget = { name: 'inputBuffer' } as unknown as THREE.WebGLRenderTarget;
+
+    try {
+      // 1. Non-parallel driver (e.g. WebKit / iOS Safari): chunks scene+extra, yields, then compiles post groups
+      const syncRenderer = {
+        extensions: { has: () => false } as unknown as THREE.WebGLExtensions,
+        setRenderTarget: (t: THREE.WebGLRenderTarget | null) =>
+          events.push(t ? 'target:linear' : 'target:screen'),
+        compile: (obj: THREE.Object3D) => {
+          if (obj === scene) events.push('compile:scene');
+          else if (obj === extraGroup) events.push('compile:extra');
+          else if (obj === linearPostGroup) events.push('compile:linearPost');
+          else if (obj === screenPostGroup) events.push('compile:screenPost');
+        },
+        compileAsync: async () => [],
+      } as unknown as Parameters<typeof compileWarmUpGroups>[0]['renderer'];
+
+      const syncUsed = await compileWarmUpGroups({
+        renderer: syncRenderer,
+        scene,
+        camera,
+        linearTarget,
+        extraGroup,
+        linearPostGroup,
+        screenPostGroup,
+        postCamera,
+        whenPostReady: async () => {
+          events.push('postReady');
+        },
+        isAborted: () => false,
+      });
+
+      expect(syncUsed).toBe(true);
+      expect(events).toEqual([
+        'target:linear',
+        'compile:scene',
+        'compile:extra',
+        'yield',
+        'target:linear',
+        'compile:linearPost',
+        'target:screen',
+        'compile:screenPost',
+        'postReady',
+      ]);
+
+      // 2. Parallel driver (KHR_parallel_shader_compile): compiles all groups in one batch without mid-compile yields
+      events.length = 0;
+      const parallelRenderer = {
+        extensions: { has: (ext: string) => ext === 'KHR_parallel_shader_compile' } as unknown as THREE.WebGLExtensions,
+        setRenderTarget: (t: THREE.WebGLRenderTarget | null) =>
+          events.push(t ? 'target:linear' : 'target:screen'),
+        compile: () => {
+          events.push('sync-fallback');
+          return new Set();
+        },
+        compileAsync: async (obj: THREE.Object3D) => {
+          if (obj === scene) events.push('async:scene');
+          else if (obj === extraGroup) events.push('async:extra');
+          else if (obj === linearPostGroup) events.push('async:linearPost');
+          else if (obj === screenPostGroup) events.push('async:screenPost');
+          return [];
+        },
+      } as unknown as Parameters<typeof compileWarmUpGroups>[0]['renderer'];
+
+      const parallelUsed = await compileWarmUpGroups({
+        renderer: parallelRenderer,
+        scene,
+        camera,
+        linearTarget,
+        extraGroup,
+        linearPostGroup,
+        screenPostGroup,
+        postCamera,
+        whenPostReady: async () => {
+          events.push('postReady');
+        },
+        isAborted: () => false,
+      });
+
+      expect(parallelUsed).toBe(false);
+      expect(events).toEqual([
+        'target:linear',
+        'async:scene',
+        'async:extra',
+        'async:linearPost',
+        'target:screen',
+        'async:screenPost',
+        'postReady',
+      ]);
+
+      // 3. compileAsync rejection falls back cleanly to chunked sync compile
+      events.length = 0;
+      const failingParallelRenderer = {
+        ...syncRenderer,
+        extensions: { has: (ext: string) => ext === 'KHR_parallel_shader_compile' } as unknown as THREE.WebGLExtensions,
+        compileAsync: async () => {
+          throw new Error('compileAsync unavailable');
+        },
+      } as unknown as Parameters<typeof compileWarmUpGroups>[0]['renderer'];
+
+      const fellBack = await compileWarmUpGroups({
+        renderer: failingParallelRenderer,
+        scene,
+        camera,
+        linearTarget,
+        extraGroup: null,
+        linearPostGroup,
+        screenPostGroup: null,
+        postCamera,
+        whenPostReady: async () => {},
+        isAborted: () => false,
+      });
+      expect(fellBack).toBe(true);
+      expect(events).toContain('yield');
+      expect(events).toContain('compile:linearPost');
     } finally {
       vi.unstubAllGlobals();
     }

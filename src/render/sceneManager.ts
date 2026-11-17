@@ -3,6 +3,7 @@ import type { QualityLevel } from '../core/types.ts';
 import { BALANCE } from '../data/balance.ts';
 import { PALETTE_HEX, SKY_HORIZON_HEX, SKY_ZENITH_HEX } from '../data/palette.ts';
 import { isTouchDevice } from '../platform/storage.ts';
+import { yieldMainThread } from './kenneyAssets.ts';
 import {
   PerfGovernor,
   RollingFrameMetrics,
@@ -108,6 +109,95 @@ export function shouldUseAsyncShaderCompile(
     typeof renderer.compileAsync === 'function' &&
     Boolean(renderer.extensions?.has?.('KHR_parallel_shader_compile'))
   );
+}
+
+export interface WarmUpCompileContext {
+  readonly renderer: Pick<
+    THREE.WebGLRenderer,
+    'compile' | 'compileAsync' | 'extensions' | 'setRenderTarget'
+  >;
+  readonly scene: THREE.Scene;
+  readonly camera: THREE.Camera;
+  readonly linearTarget: THREE.WebGLRenderTarget | null;
+  readonly extraGroup: THREE.Group | null;
+  readonly linearPostGroup: THREE.Group | null;
+  readonly screenPostGroup: THREE.Group | null;
+  readonly postCamera: THREE.Camera | null;
+  readonly whenPostReady: () => Promise<void>;
+  readonly isAborted: () => boolean;
+}
+
+/**
+ * Compiles scene, deferred gameplay, and post-processing shader groups concurrently when
+ * KHR_parallel_shader_compile is available, or splits synchronous compilation and initial
+ * draw across yieldMainThread() slices on WebKit/iOS drivers without parallel compile.
+ * Returns true when synchronous chunked compilation ran so callers yield before first render.
+ */
+export async function compileWarmUpGroups(ctx: WarmUpCompileContext): Promise<boolean> {
+  const {
+    renderer,
+    scene,
+    camera,
+    linearTarget,
+    extraGroup,
+    linearPostGroup,
+    screenPostGroup,
+    postCamera,
+    whenPostReady,
+    isAborted,
+  } = ctx;
+
+  const compileSyncChunked = async (): Promise<void> => {
+    if (linearTarget) {
+      renderer.setRenderTarget(linearTarget);
+    }
+    renderer.compile(scene, camera);
+    if (extraGroup) renderer.compile(extraGroup, camera, scene);
+    if ((linearPostGroup || screenPostGroup) && postCamera) {
+      await yieldMainThread();
+      if (isAborted()) return;
+      if (linearPostGroup) {
+        if (linearTarget) {
+          renderer.setRenderTarget(linearTarget);
+        }
+        renderer.compile(linearPostGroup, postCamera);
+      }
+      if (screenPostGroup) {
+        renderer.setRenderTarget(null);
+        renderer.compile(screenPostGroup, postCamera);
+      }
+    }
+    await whenPostReady();
+  };
+
+  if (shouldUseAsyncShaderCompile(renderer)) {
+    try {
+      if (linearTarget) {
+        renderer.setRenderTarget(linearTarget);
+      }
+      const tasks: Array<Promise<unknown>> = [renderer.compileAsync(scene, camera)];
+      if (extraGroup) {
+        tasks.push(renderer.compileAsync(extraGroup, camera, scene));
+      }
+      if (linearPostGroup && postCamera) {
+        tasks.push(renderer.compileAsync(linearPostGroup, postCamera));
+      }
+      if (screenPostGroup && postCamera) {
+        renderer.setRenderTarget(null);
+        tasks.push(renderer.compileAsync(screenPostGroup, postCamera));
+      }
+      tasks.push(whenPostReady());
+      await Promise.all(tasks);
+      return false;
+    } catch {
+      if (isAborted()) return false;
+      await compileSyncChunked();
+      return true;
+    }
+  }
+
+  await compileSyncChunked();
+  return true;
 }
 
 /**
@@ -494,53 +584,21 @@ export class SceneManager {
       }
     }
 
-    // Compile scene, deferred gameplay, and post-processing shaders in one parallel batch so
-    // KHR_parallel_shader_compile drivers compile all programs concurrently before initial draw.
     const prevTarget = this.renderer.getRenderTarget();
-    const compileSync = (): void => {
-      if (this.postProcessing) {
-        this.renderer.setRenderTarget(this.postProcessing.composer.inputBuffer);
-      }
-      this.renderer.compile(this.scene, camera);
-      if (extraGroup) this.renderer.compile(extraGroup, camera, this.scene);
-      if (linearPostGroup && postCam) this.renderer.compile(linearPostGroup, postCam);
-      if (screenPostGroup && postCam) {
-        this.renderer.setRenderTarget(null);
-        this.renderer.compile(screenPostGroup, postCam);
-      }
-    };
+    let usedSyncFallback: boolean;
     try {
-      if (shouldUseAsyncShaderCompile(this.renderer)) {
-        try {
-          if (this.postProcessing) {
-            this.renderer.setRenderTarget(this.postProcessing.composer.inputBuffer);
-          }
-          const tasks: Array<Promise<unknown>> = [
-            this.renderer.compileAsync(this.scene, camera),
-          ];
-          if (extraGroup) {
-            tasks.push(this.renderer.compileAsync(extraGroup, camera, this.scene));
-          }
-          if (linearPostGroup && postCam) {
-            tasks.push(this.renderer.compileAsync(linearPostGroup, postCam));
-          }
-          if (screenPostGroup && postCam) {
-            this.renderer.setRenderTarget(null);
-            tasks.push(this.renderer.compileAsync(screenPostGroup, postCam));
-          }
-          if (this.postProcessing) {
-            tasks.push(this.postProcessing.whenReady());
-          }
-          await Promise.all(tasks);
-        } catch {
-          if (this.disposed || this.contextLost) return;
-          compileSync();
-          await (this.postProcessing?.whenReady() ?? Promise.resolve());
-        }
-      } else {
-        compileSync();
-        await (this.postProcessing?.whenReady() ?? Promise.resolve());
-      }
+      usedSyncFallback = await compileWarmUpGroups({
+        renderer: this.renderer,
+        scene: this.scene,
+        camera,
+        linearTarget: this.postProcessing ? this.postProcessing.composer.inputBuffer : null,
+        extraGroup,
+        linearPostGroup,
+        screenPostGroup,
+        postCamera: postCam,
+        whenPostReady: () => this.postProcessing?.whenReady() ?? Promise.resolve(),
+        isAborted: () => this.disposed || this.contextLost,
+      });
     } finally {
       if (!this.disposed && !this.contextLost) {
         this.renderer.setRenderTarget(prevTarget);
@@ -550,6 +608,9 @@ export class SceneManager {
       }
     }
 
+    if (usedSyncFallback && !this.disposed && !this.contextLost) {
+      await yieldMainThread();
+    }
     if (this.disposed || this.contextLost) return;
     const shadowWarmMeshes: Array<{ mesh: THREE.InstancedMesh; geometry: THREE.BufferGeometry }> = [];
     if (this.shadowsEnabled) {

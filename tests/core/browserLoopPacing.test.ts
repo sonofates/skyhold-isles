@@ -582,4 +582,42 @@ describe('GameLoop throttle boundary and storage backward compatibility', () => 
     loop.stop();
     vi.unstubAllGlobals();
   });
+
+  it('does not schedule an orphan RAF tick if onVisibilityRestore calls stop()', () => {
+    let hidden = false;
+    const listeners = new Map<string, () => void>();
+    let rafCount = 0;
+
+    vi.stubGlobal('document', {
+      get hidden() {
+        return hidden;
+      },
+      addEventListener: (type: string, cb: () => void) => listeners.set(type, cb),
+      removeEventListener: (type: string) => listeners.delete(type),
+    });
+    vi.stubGlobal('requestAnimationFrame', () => ++rafCount);
+    vi.stubGlobal('cancelAnimationFrame', () => {});
+    vi.stubGlobal('performance', { now: () => 100 });
+
+    const loop = new GameLoop({
+      onFixedTick: () => {},
+      onRender: () => {},
+      onVisibilityRestore: () => {
+        loop.stop();
+      },
+    });
+
+    loop.start();
+    expect(rafCount).toBe(1);
+
+    hidden = true;
+    listeners.get('visibilitychange')?.();
+
+    hidden = false;
+    listeners.get('visibilitychange')?.();
+    expect(rafCount).toBe(1);
+
+    loop.stop();
+    vi.unstubAllGlobals();
+  });
 });

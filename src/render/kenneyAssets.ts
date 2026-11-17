@@ -217,6 +217,10 @@ export class KenneyAssetStore {
           }
           const buf = await res.arrayBuffer();
           if (aborted) return;
+          if (pendingYield) {
+            await pendingYield;
+            if (aborted) return;
+          }
           cpuStartMs = typeof performance !== 'undefined' ? performance.now() : 0;
           gltf = await loader.parseAsync(buf, base);
         } else {

@@ -103,7 +103,9 @@ export class GameLoop {
       this.lastRenderTimestamp = 0;
       this.hasRendered = false;
       this.callbacks.onVisibilityRestore?.();
-      this.rafId = requestAnimationFrame(this.tick);
+      if (this.running && this.rafId === null) {
+        this.rafId = requestAnimationFrame(this.tick);
+      }
     }
   };
 
