@@ -165,3 +165,11 @@ early waves does NOT soften them, it starves the economy (kill rewards) and the 
   call with `{}` reproduces the old look. Called from `RenderWorld.loadLevel` (one line + import).
 - `src/data/levels/types.ts`: `WaveDef.name?: string` (optional, data only).
 - `materials.ts` is untouched; per-level water colour and goal glow are set on the shared materials at map build.
+
+### Round 5 (verification only, no code changes)
+- Re-ran tsc, lint, 134 tests, build, `sim:balance` (all 9 islands inside windows) on a clean tree: green.
+- Re-rendered all previews (`previewMap.ts all`): 18-26 map+decor draw calls, 34-51k tris per island; no overlaps,
+  islands read distinctly (meadow / cay / highland / emerald / windmill / lagoon / skybridge / bastion / skyhold).
+- Deliberately stopped adding features: the remaining items (layout/path changes, wave-ramp retuning) would move the knife-edge
+  balance windows (see "Balance stability analysis") and the other branches are about to be merged. Handoff state is final;
+  see "Merge notes for the lead".
