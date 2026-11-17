@@ -173,3 +173,8 @@ early waves does NOT soften them, it starves the economy (kill rewards) and the 
 - Deliberately stopped adding features: the remaining items (layout/path changes, wave-ramp retuning) would move the knife-edge
   balance windows (see "Balance stability analysis") and the other branches are about to be merged. Handoff state is final;
   see "Merge notes for the lead".
+
+### Round 6 (verification only, no code changes)
+- Clean tree at start. `npm run sim:balance` re-run: all 9 islands inside their windows (greedy L1 20 / L2 15 / L3 9 / L4 15 / L5 14 / L6 13 / L7 10 / L8 7 / L9 9 lives; every weak script loses L2+).
+- `previewMap.ts all` re-rendered: 18-26 map+decor draw calls, 34-51k tris per island, islands read distinctly.
+- No new features: remaining backlog (layout/path changes, wave-ramp retuning) would move the knife-edge balance windows; handoff state unchanged, see "Merge notes for the lead".
