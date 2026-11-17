@@ -91,3 +91,5 @@ Branch `hermes/skyhold-day-mobile`. Preview port 4302. Deadline 21:00 TR.
 - Round 6: tree green (tsc, lint, 464 tests, build). Small hardening in `src/style.css` (html/body): `overscroll-behavior: none` (no pull-to-refresh / rubber-band when a drag reaches the page edge) and `-webkit-touch-callout: none` (no iOS long-press callout; the long-press tower info card is ours). No gameplay/data change, sim:balance not needed. Not verifiable on a real device here.
 
 - Round 7: tree green (tsc, lint, 464 tests, build). Backlog 1-5 complete; no further code change. Remaining items need real devices (governor tuning) or a Lighthouse binary.
+
+- Round 8: tree green (tsc, lint, 464 tests, build). Backlog 1-5 complete; no code change. Open items still need real devices (governor tuning) or a Lighthouse binary.
