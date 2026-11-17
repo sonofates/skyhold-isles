@@ -653,11 +653,12 @@ export class EnemyRenderer {
       }
 
       case 'carrier': {
-        // Striped cream sky-balloon with a wicker gondola, coral pennants and a little rear propeller
+        // Striped cream sky-balloon with a wicker gondola, coral pennants and a little rear propeller.
+        // Indigo bands (were coral): red-on-green vanished for deuteranopes against grass/foliage.
         parts = [
           { geometry: icoSmooth, colorHex: PALETTE_HEX.cream, position: [0, 0.82, 0], scale: [0.6, 0.5, 0.74] },
-          { geometry: cyl, colorHex: PALETTE_HEX.coral, position: [0, 0.82, 0], scale: [0.65, 0.12, 0.79] },
-          { geometry: cyl, colorHex: PALETTE_HEX.coral, position: [0, 1.08, 0], scale: [0.53, 0.08, 0.65] },
+          { geometry: cyl, colorHex: PALETTE_HEX.indigo, position: [0, 0.82, 0], scale: [0.65, 0.12, 0.79] },
+          { geometry: cyl, colorHex: PALETTE_HEX.indigo, position: [0, 1.08, 0], scale: [0.53, 0.08, 0.65] },
           { geometry: cone, colorHex: PALETTE_HEX.gold, position: [0, 1.36, 0], scale: [0.08, 0.16, 0.08] },
           { geometry: box, colorHex: leatherDark, position: [-0.2, 0.36, 0], scale: [0.03, 0.4, 0.03] },
           { geometry: box, colorHex: leatherDark, position: [0.2, 0.36, 0], scale: [0.03, 0.4, 0.03] },

@@ -84,6 +84,70 @@ describe('enemy figurine geometry', () => {
     }
   });
 
+  it('newer archetypes stay readable for red-green colour-blind players where they are seen', () => {
+    // Machado et al. 2009 simulation matrices (severity 1, linear RGB), then the same CIELAB ΔE > 25 share as
+    // above. Ground walkers are judged against the default road they walk on, flyers against grass + foliage.
+    const SIM: Record<string, number[][]> = {
+      deuteranopia: [
+        [0.367322, 0.860646, -0.227968],
+        [0.280085, 0.672501, 0.047413],
+        [-0.01182, 0.04294, 0.968881],
+      ],
+      protanopia: [
+        [0.152286, 1.052583, -0.204868],
+        [0.114503, 0.786281, 0.099216],
+        [-0.003882, -0.048116, 1.051998],
+      ],
+    };
+    const clamp01 = (v: number): number => Math.min(1, Math.max(0, v));
+    const toLab = (c: THREE.Color, m: number[][]): number[] => {
+      const r = clamp01(m[0][0] * c.r + m[0][1] * c.g + m[0][2] * c.b);
+      const g = clamp01(m[1][0] * c.r + m[1][1] * c.g + m[1][2] * c.b);
+      const b = clamp01(m[2][0] * c.r + m[2][1] * c.g + m[2][2] * c.b);
+      const f = (t: number): number => (t > 0.008856 ? Math.cbrt(t) : 7.787 * t + 16 / 116);
+      const fx = f((0.4124 * r + 0.3576 * g + 0.1805 * b) / 0.95047);
+      const fy = f(0.2126 * r + 0.7152 * g + 0.0722 * b);
+      const fz = f((0.0193 * r + 0.1192 * g + 0.9505 * b) / 1.08883);
+      return [116 * fy - 16, 500 * (fx - fy), 200 * (fy - fz)];
+    };
+    const dE = (p: number[], q: number[]): number => Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2]);
+    const a = new THREE.Vector3();
+    const b = new THREE.Vector3();
+    const c = new THREE.Vector3();
+    const col = new THREE.Color();
+    const NEW_TYPES: EnemyType[] = ['warden', 'burrower', 'carrier', 'blinker', 'golem', 'mite', 'hexer', 'tempest'];
+    for (const [mode, m] of Object.entries(SIM)) {
+      const grounds = (flying: boolean): number[][] =>
+        flying
+          ? [toLab(new THREE.Color(PALETTE_HEX.grass), m), toLab(new THREE.Color(PALETTE_HEX.foliageDark), m)]
+          : [toLab(new THREE.Color(0xe08961), m)];
+      for (const type of NEW_TYPES) {
+        const bgs = grounds(ENEMY_DEFS[type].flying);
+        const geo = EnemyRenderer.buildEnemyGeometry(type);
+        const pos = geo.getAttribute('position');
+        const colors = geo.getAttribute('color');
+        let total = 0;
+        let distinct = 0;
+        for (let i = 0; i < pos.count; i += 3) {
+          a.fromBufferAttribute(pos, i);
+          b.fromBufferAttribute(pos, i + 1).sub(a);
+          c.fromBufferAttribute(pos, i + 2).sub(a);
+          b.cross(c);
+          const area = b.length() / 2;
+          if (area === 0 || b.y / (2 * area) < -0.3) continue;
+          col.setRGB(colors.getX(i), colors.getY(i), colors.getZ(i));
+          const lab = toLab(col, m);
+          total += area;
+          if (bgs.every((bg) => dE(lab, bg) > 25)) distinct += area;
+        }
+        geo.dispose();
+        // Floor 0.55: tightest today is the Loam Burrower on the terracotta road (~0.61 deuteranopia); the old
+        // coral-banded Cloud Hauler (0.39 / 0.44 over grass) failed this before its bands turned indigo.
+        expect(distinct / total, `${type} (${mode})`).toBeGreaterThan(0.55);
+      }
+    }
+  });
+
   it('keeps silhouettes readable by size class', () => {
     const h = (t: EnemyType): number => bounds(t).size.y;
     const w = (t: EnemyType): number => {
