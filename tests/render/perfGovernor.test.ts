@@ -28,6 +28,34 @@ import {
 } from '../../src/render/sceneManager.ts';
 import { DebugPanel, formatPerfLogLine } from '../../src/ui/debugPanel.ts';
 
+function createMockPostRenderer(initialW = 800, initialH = 600): {
+  renderer: THREE.WebGLRenderer;
+  setBufferSize: (w: number, h: number) => void;
+} {
+  let w = initialW;
+  let h = initialH;
+  const renderer = {
+    outputColorSpace: THREE.SRGBColorSpace,
+    autoClear: true,
+    capabilities: { isWebGL2: true, maxSamples: 4 },
+    extensions: { has: () => true },
+    getContext: () => ({ getContextAttributes: () => ({ alpha: false }) }),
+    getSize: (t: THREE.Vector2) => t.set(w, h),
+    getDrawingBufferSize: (t: THREE.Vector2) => t.set(w, h),
+    setSize: (nextW: number, nextH: number) => {
+      w = nextW;
+      h = nextH;
+    },
+  } as unknown as THREE.WebGLRenderer;
+  return {
+    renderer,
+    setBufferSize: (nextW: number, nextH: number) => {
+      w = nextW;
+      h = nextH;
+    },
+  };
+}
+
 function feedFrames(
   gov: PerfGovernor,
   count: number,
@@ -777,9 +805,10 @@ describe('PerfGovernor', () => {
     }
   });
 
-  it('defers DebugPanel telemetry refresh after resetDisplaySmoothing while keeping boot update immediate', () => {
+  it('defers DebugPanel telemetry refresh after resetDisplaySmoothing, skips while collapsed, and refreshes on Show', () => {
     const makeEl = (tag: string) => {
-      const el: Record<string, unknown> = {
+      const listeners = new Map<string, () => void>();
+      const el = {
         tagName: tag.toUpperCase(),
         id: '',
         className: '',
@@ -787,23 +816,25 @@ describe('PerfGovernor', () => {
         children: [] as unknown[],
         classList: { toggle: () => {} },
         setAttribute: () => {},
-        addEventListener: () => {},
+        addEventListener: (type: string, cb: () => void) => listeners.set(type, cb),
+        trigger: (type: string) => listeners.get(type)?.(),
         append: (...args: unknown[]) => {
-          (el.children as unknown[]).push(...args);
+          el.children.push(...args);
         },
         appendChild: (child: unknown) => {
-          (el.children as unknown[]).push(child);
+          el.children.push(child);
           return child;
         },
         remove: () => {},
       };
       return el;
     };
+    const rootStub = makeEl('div');
     vi.stubGlobal('document', { createElement: (tag: string) => makeEl(tag) });
 
     let telemetryCalls = 0;
     const panel = new DebugPanel(
-      makeEl('div') as unknown as HTMLElement,
+      rootStub as unknown as HTMLElement,
       {
         onAddGold: () => {},
         onSetLives: () => {},
@@ -837,6 +868,10 @@ describe('PerfGovernor', () => {
     );
 
     try {
+      const panelRoot = rootStub.children[0] as ReturnType<typeof makeEl>;
+      const header = panelRoot.children[0] as ReturnType<typeof makeEl>;
+      const toggleBtn = header.children[1] as ReturnType<typeof makeEl>;
+
       // Boot update(0) renders immediately
       panel.update(0);
       expect(telemetryCalls).toBe(1);
@@ -849,6 +884,16 @@ describe('PerfGovernor', () => {
       // After accumulating >= 0.2s, telemetry refreshes normally
       panel.update(0.16);
       expect(telemetryCalls).toBe(2);
+
+      // Collapse skips telemetry polling; expanding refreshes immediately on click
+      toggleBtn.trigger('click');
+      expect(toggleBtn.textContent).toBe('Show');
+      panel.update(0.25);
+      expect(telemetryCalls).toBe(2);
+
+      toggleBtn.trigger('click');
+      expect(toggleBtn.textContent).toBe('Hide');
+      expect(telemetryCalls).toBe(3);
     } finally {
       vi.unstubAllGlobals();
     }
@@ -1039,16 +1084,7 @@ describe('PerfGovernor', () => {
         return origTexDispose.call(this);
       });
 
-    const mockRenderer = {
-      outputColorSpace: THREE.SRGBColorSpace,
-      autoClear: true,
-      capabilities: { isWebGL2: true, maxSamples: 4 },
-      extensions: { has: () => true },
-      getContext: () => ({ getContextAttributes: () => ({ alpha: false }) }),
-      getSize: (t: THREE.Vector2) => t.set(800, 600),
-      getDrawingBufferSize: (t: THREE.Vector2) => t.set(800, 600),
-      setSize: () => {},
-    } as unknown as THREE.WebGLRenderer;
+    const { renderer: mockRenderer } = createMockPostRenderer(800, 600);
 
     try {
       const pipeline = new PostProcessingPipeline(
@@ -1072,6 +1108,91 @@ describe('PerfGovernor', () => {
       expect(disposedTexNames).toEqual(['SMAA.Search', 'SMAA.Area']);
     } finally {
       texDisposeSpy.mockRestore();
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('preserves depthRenderTarget across composite swaps, keeps pass order, and clamps halfRes N8AO on 1x1 buffers', () => {
+    vi.stubGlobal('Image', undefined);
+    const { renderer: mockRenderer } = createMockPostRenderer(800, 600);
+    const scene = new THREE.Scene();
+    const camera = new THREE.OrthographicCamera();
+
+    const pipeline = new PostProcessingPipeline(mockRenderer, scene, camera, 800, 600, {
+      n8ao: 'full',
+      outline: true,
+      bloom: true,
+      smaa: true,
+    });
+
+    try {
+      type ComposerInternals = {
+        depthRenderTarget: THREE.WebGLRenderTarget | null;
+        passes: Array<{ renderToScreen: boolean; name?: string }>;
+      };
+      type PipelineInternals = {
+        n8aoPass: {
+          width: number;
+          height: number;
+          autoDetectTransparency: boolean;
+          effectCompositerQuad: { material: THREE.ShaderMaterial };
+        } | null;
+      };
+      const composer = pipeline.composer as unknown as ComposerInternals;
+      const initialDepthTarget = composer.depthRenderTarget;
+      expect(initialDepthTarget).not.toBeNull();
+      expect(composer.passes).toHaveLength(4); // RenderPass, N8AO, Composite, SMAA
+      expect(composer.passes.map((p) => p.renderToScreen)).toEqual([false, false, false, true]);
+      expect(pipeline.getActivePassSummary()).toBe('AO+Out+Bloom+SMAA');
+
+      const internals = pipeline as unknown as PipelineInternals;
+      expect(internals.n8aoPass?.autoDetectTransparency).toBe(false);
+      expect(internals.n8aoPass?.effectCompositerQuad.material.fragmentShader).toContain('#define ORTHO');
+
+      // Step down directly from Tier 5 -> Tier 4 (full -> half N8AO in-place, SMAA dropped)
+      const tier4 = { n8ao: 'half' as const, outline: true, bloom: true, smaa: false };
+      const initialN8ao = internals.n8aoPass;
+      pipeline.releaseDisabledPasses(tier4);
+      pipeline.setSize(1, 1);
+      pipeline.applyConfig(tier4);
+      expect(internals.n8aoPass).toBe(initialN8ao);
+      expect(composer.passes).toHaveLength(3); // RenderPass, N8AO, Composite
+      expect(composer.passes.map((p) => p.renderToScreen)).toEqual([false, false, true]);
+      expect(composer.depthRenderTarget).toBe(initialDepthTarget);
+      expect(internals.n8aoPass?.width).toBeGreaterThanOrEqual(2);
+      expect(internals.n8aoPass?.height).toBeGreaterThanOrEqual(2);
+      expect(internals.n8aoPass?.effectCompositerQuad.material.fragmentShader).toContain('#define ORTHO');
+      expect(pipeline.getActivePassSummary()).toBe('AO½+Out+Bloom');
+
+      // Step down to Tier 3 (off N8AO) using releaseDisabledPasses -> resize -> applyConfig
+      const tier3 = { n8ao: 'off' as const, outline: true, bloom: true, smaa: false };
+      pipeline.releaseDisabledPasses(tier3);
+      expect(composer.passes).toHaveLength(2); // RenderPass, Composite
+      expect(composer.passes[1].renderToScreen).toBe(true);
+      expect(composer.depthRenderTarget).toBe(initialDepthTarget);
+      pipeline.setSize(640, 480);
+      pipeline.applyConfig(tier3);
+      expect(pipeline.getActivePassSummary()).toBe('Out+Bloom');
+
+      // Step down to Tier 2 (drop Bloom -> compositePass rebuilt in-place, preserving depthRenderTarget)
+      const tier2 = { n8ao: 'off' as const, outline: true, bloom: false, smaa: false };
+      pipeline.applyConfig(tier2);
+      expect(composer.passes).toHaveLength(2);
+      expect(composer.passes[1].renderToScreen).toBe(true);
+      expect(composer.depthRenderTarget).toBe(initialDepthTarget);
+      expect(pipeline.getActivePassSummary()).toBe('Out');
+
+      // Upgrade back to Tier 4 (halfRes N8AO) at a 1x1 layout size -> clamped to >= 2x2
+      pipeline.setSize(1, 1);
+      pipeline.applyConfig(tier4);
+      expect(composer.passes).toHaveLength(3); // RenderPass, N8AO, Composite
+      expect(composer.passes.map((p) => p.renderToScreen)).toEqual([false, false, true]);
+      expect(internals.n8aoPass?.width).toBeGreaterThanOrEqual(2);
+      expect(internals.n8aoPass?.height).toBeGreaterThanOrEqual(2);
+      expect(internals.n8aoPass?.effectCompositerQuad.material.fragmentShader).toContain('#define ORTHO');
+      expect(pipeline.getActivePassSummary()).toBe('AO½+Out+Bloom');
+    } finally {
+      pipeline.dispose();
       vi.unstubAllGlobals();
     }
   });

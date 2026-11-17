@@ -132,6 +132,10 @@ export class DebugPanel {
       this.collapsed = !this.collapsed;
       this.bodyEl.classList.toggle('hidden', this.collapsed);
       toggleBtn.textContent = this.collapsed ? 'Show' : 'Hide';
+      if (!this.collapsed) {
+        this.uiRefreshAccum = 0.2;
+        this.update(0);
+      }
     });
     header.append(title, toggleBtn);
 
