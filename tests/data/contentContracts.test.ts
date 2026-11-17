@@ -1,5 +1,5 @@
-import { readFileSync, statSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { ABILITY_DEFS, ABILITY_IDS, computeMeteorDamage } from '../../src/data/abilities.ts';
 import { BALANCE } from '../../src/data/balance.ts';
@@ -18,6 +18,7 @@ import { getTowerTierStats, TOWER_DEFS, TOWER_TYPES } from '../../src/data/tower
 import { KENNEY_MODEL_LIST } from '../../src/render/kenneyAssets.ts';
 import { getTowerPickBounds, TOWER_PICK_BOUNDS } from '../../src/render/towerPicking.ts';
 import { CompiledPath } from '../../src/sim/path.ts';
+import { buildEndlessWaveDef } from '../../src/sim/waveSystem.ts';
 import { ENEMY_BADGE_META, TOWER_ICON_SVGS, UI_ICON_SVGS } from '../../src/ui/icons.ts';
 
 describe('palette and color math contracts', () => {
@@ -250,6 +251,95 @@ describe('BALANCE constants and Kenney public asset contracts', () => {
       const buf = readFileSync(filePath);
       expect(buf.length, `${modelName}.glb empty`).toBeGreaterThan(12);
       expect(buf.subarray(0, 4).toString('ascii'), `${modelName}.glb invalid GLB header`).toBe('glTF');
+    }
+  });
+});
+
+function collectTsFiles(dir: string): string[] {
+  const out: string[] = [];
+  for (const ent of readdirSync(dir, { withFileTypes: true })) {
+    const full = join(dir, ent.name);
+    if (ent.isDirectory()) {
+      out.push(...collectTsFiles(full));
+    } else if (ent.name.endsWith('.ts')) {
+      out.push(full);
+    }
+  }
+  return out;
+}
+
+function stripComments(source: string): string {
+  return source
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/^\s*\/\/.*$/gm, '');
+}
+
+describe('simulation determinism and endless scaling safety contracts', () => {
+  it('forbids nondeterministic RNG/clock APIs and Three.js imports in src/core, src/data, and src/sim', () => {
+    const dirs = ['src/core', 'src/data', 'src/sim'].map((d) => resolve(process.cwd(), d));
+    const files = dirs.flatMap(collectTsFiles);
+    expect(files.length).toBeGreaterThan(10);
+
+    const forbiddenPatterns: Array<{ name: string; regex: RegExp }> = [
+      { name: 'Math.random', regex: /\bMath\.random\b/ },
+      { name: 'Date.now', regex: /\bDate\.now\b/ },
+      { name: 'performance.now', regex: /\bperformance\.now\b/ },
+      { name: 'crypto randomness', regex: /\bcrypto\.(randomUUID|getRandomValues)\b/ },
+      { name: 'three import', regex: /from\s+['"]three(?:\/[^'"]*)?['"]/ },
+    ];
+
+    for (const filePath of files) {
+      const code = stripComments(readFileSync(filePath, 'utf8'));
+      for (const { name, regex } of forbiddenPatterns) {
+        expect(regex.test(code), `${filePath} must not use ${name}`).toBe(false);
+      }
+    }
+  });
+
+  it('keeps single-wave endless spawns within maxEnemies pool capacity across all islands and extreme offsets', () => {
+    const enemyTypeSet = new Set<string>(ENEMY_TYPES);
+    const offsets = [0, 4, 19, 49, 99];
+
+    for (const lvl of LEVELS) {
+      for (const offset of offsets) {
+        const wave = buildEndlessWaveDef(lvl.waves.length + offset, lvl);
+        expect(wave.clearBonus).toBeGreaterThan(0);
+        expect(wave.groups.length).toBeGreaterThan(0);
+
+        let worstCaseSpawns = 0;
+        for (const grp of wave.groups) {
+          expect(enemyTypeSet.has(grp.enemyType)).toBe(true);
+          expect(Number.isInteger(grp.count) && grp.count > 0).toBe(true);
+          expect(grp.spawnInterval).toBeGreaterThanOrEqual(0.18);
+          expect(grp.startDelay).toBeGreaterThanOrEqual(0);
+          const mult = grp.enemyType === 'splitter' || grp.enemyType === 'boss' ? 3 : 1;
+          worstCaseSpawns += grp.count * mult;
+        }
+        expect(
+          worstCaseSpawns,
+          `Endless offset +${offset} on ${lvl.id} worst-case ${worstCaseSpawns} > ${BALANCE.pools.maxEnemies}`,
+        ).toBeLessThanOrEqual(BALANCE.pools.maxEnemies);
+      }
+    }
+  });
+
+  it('validates targeting modes and distinct endpoints on every level', () => {
+    const validTargets = new Set(['first', 'last', 'strongest', 'closest']);
+    for (const lvl of LEVELS) {
+      const firstWp = lvl.pathWaypoints[0];
+      const lastWp = lvl.pathWaypoints[lvl.pathWaypoints.length - 1];
+      expect(firstWp.col === lastWp.col && firstWp.row === lastWp.row).toBe(false);
+
+      const firstFp = lvl.flightPath[0];
+      const lastFp = lvl.flightPath[lvl.flightPath.length - 1];
+      expect(firstFp.col === lastFp.col && firstFp.row === lastFp.row).toBe(false);
+
+      for (const act of [...(lvl.scriptedBuildOrder ?? []), ...(lvl.weakBuildOrder ?? [])]) {
+        expect(Number.isInteger(act.waveIndex)).toBe(true);
+        if (act.targetingMode !== undefined) {
+          expect(validTargets.has(act.targetingMode)).toBe(true);
+        }
+      }
     }
   });
 });

@@ -100,4 +100,69 @@ describe('WaveSystem & SimWorld boundary edge cases', () => {
     expect(computeStarRating(1)).toBe(1);
     expect(computeStarRating(0)).toBe(1);
   });
+
+  it('resolves close-range projectiles in a single tick and clamps parabolic lead at path end', () => {
+    const events = new EventBus();
+    const world = new SimWorld(LEVELS[0], events);
+    world.gold = 2000;
+
+    const archer = world.placeTower(4, 2, 'archer')!;
+    const mortar = world.placeTower(7, 5, 'mortar')!;
+
+    // Close target -> duration clamped to min 0.06s; one 0.1s update impacts & frees immediately
+    const runner = world.enemySystem.spawnEnemy('runner')!;
+    runner.x = archer.x + 0.1;
+    runner.z = archer.z;
+    const arrow = world.projectileSystem.spawnProjectile(archer, runner, 1)!;
+    expect(arrow.duration).toBeCloseTo(0.06, 6);
+    world.projectileSystem.update(0.1, world.towers);
+    expect(arrow.active).toBe(false);
+    expect(archer.totalDamageDealt).toBeGreaterThan(0);
+
+    // Enemy near end of path: parabolic lead clamps along path without NaN or overshooting
+    const nearEnd = world.enemySystem.spawnEnemy('grunt')!;
+    nearEnd.dist = nearEnd.totalDist - 0.05;
+    const endPos = { x: 0, y: 0, z: 0 };
+    world.groundPath.sample(nearEnd.dist, endPos);
+    nearEnd.x = endPos.x;
+    nearEnd.z = endPos.z;
+    const shell = world.projectileSystem.spawnProjectile(mortar, nearEnd, 0.45)!;
+    expect(Number.isFinite(shell.endX)).toBe(true);
+    expect(Number.isFinite(shell.endZ)).toBe(true);
+    const goalPos = { x: 0, y: 0, z: 0 };
+    world.groundPath.sample(nearEnd.totalDist, goalPos);
+    expect(Math.hypot(shell.endX - goalPos.x, shell.endZ - goalPos.z)).toBeLessThan(0.5);
+  });
+
+  it('keeps longer slow duration when hit by a weaker-duration slow and handles boss retry->hit transition', () => {
+    const events = new EventBus();
+    const world = new SimWorld(LEVELS[0], events);
+    world.gold = 2000;
+
+    const grunt = world.enemySystem.spawnEnemy('grunt')!;
+    world.enemySystem.applySlow(grunt, 0.35, 3.0);
+    world.enemySystem.applySlow(grunt, 0.2, 0.5);
+    expect(grunt.slowTimer).toBeCloseTo(3.0, 5);
+    expect(grunt.slowRatio).toBeCloseTo(0.45, 5); // max(0.35, 0.35 + 0.2*0.5)
+
+    // Boss with no towers in range retries every 0.75s, then stuns as soon as a tower enters range
+    const boss = world.enemySystem.spawnEnemy('boss')!;
+    boss.bossPulseTimer = 0.01;
+    const t = world.placeTower(4, 2, 'archer')!;
+    (t as { x: number; z: number }).x = boss.x + 20;
+    (t as { x: number; z: number }).z = boss.z;
+
+    let pulses = 0;
+    events.on('bossPulse', () => pulses++);
+
+    world.enemySystem.update(0.02, () => {}, () => {}, [t], 1);
+    expect(pulses).toBe(0);
+    expect(boss.bossPulseTimer).toBeCloseTo(0.75, 5);
+
+    (t as { x: number; z: number }).x = boss.x + 2.0;
+    boss.bossPulseTimer = 0.01;
+    world.enemySystem.update(0.02, () => {}, () => {}, [t], 1);
+    expect(pulses).toBe(1);
+    expect(t.stunTimer).toBeCloseTo(2.65, 5);
+  });
 });

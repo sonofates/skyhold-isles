@@ -42,12 +42,14 @@ describe('EventBus', () => {
     const log: number[] = [];
 
     const unsub1 = bus.on('economyChanged', (ev) => log.push(ev.gold));
-    bus.on('economyChanged', (ev) => log.push(ev.gold * 10));
+    const listener2 = (ev: { gold: number; lives: number }) => log.push(ev.gold * 10);
+    bus.on('economyChanged', listener2);
 
     bus.emit('economyChanged', { gold: 5, lives: 20 });
     expect(log).toEqual([5, 50]);
 
     unsub1();
+    unsub1(); // calling unsub twice must be a safe no-op and must not remove listener2
     bus.emit('economyChanged', { gold: 3, lives: 20 });
     expect(log).toEqual([5, 50, 30]);
 
@@ -154,5 +156,11 @@ describe('SpatialHashGrid', () => {
     hash.clear();
     hash.query(0, 0, 50, out);
     expect(out).toEqual([]);
+
+    // Re-inserting same indices after clear must not leave stale linked-list cycles
+    hash.insert(0, 2, 2);
+    hash.insert(1, 2, 2);
+    hash.query(2, 2, 1, out);
+    expect(out.sort()).toEqual([0, 1]);
   });
 });
