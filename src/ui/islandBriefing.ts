@@ -25,6 +25,8 @@ const RULE_ICONS: Partial<Record<ChallengeId, string>> = {
   thinPurse: UI_ICON_SVGS.coin,
   glassSanctuary: UI_ICON_SVGS.heart,
   silentSkies: UI_ICON_SVGS.meteor,
+  // Champion Host: gold rank chevrons (Empowered foes).
+  championHost: `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 12.5L12 6.5L19 12.5" stroke="#f6bd41" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 18.5L12 12.5L19 18.5" stroke="#f6bd41" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
 };
 
 /** Icon for a challenge row: banned tower with a slash, or a rule glyph. */
