@@ -102,6 +102,48 @@ function createWingGeometry(): THREE.BufferGeometry {
   return geo;
 }
 
+/** Source primitives every enemy figurine is assembled from (read-only merge inputs). */
+interface EnemyPrimitives {
+  readonly chamfer: THREE.BufferGeometry;
+  readonly box: THREE.BufferGeometry;
+  readonly cone: THREE.BufferGeometry;
+  readonly ico: THREE.BufferGeometry;
+  readonly icoSmooth: THREE.BufferGeometry;
+  readonly cyl: THREE.BufferGeometry;
+  readonly wing: THREE.BufferGeometry;
+}
+
+let _primitives: EnemyPrimitives | null = null;
+
+/**
+ * Same data as `geo`, but as a plain BufferGeometry. three's `clone()` is
+ * `new this.constructor().copy(this)`, so cloning a non-indexed IcosahedronGeometry or
+ * ExtrudeGeometry first builds a throwaway *default* one (a 12-segment bevelled extrusion);
+ * `mergeColoredParts` clones every non-indexed part, so that was most of the boot cost.
+ */
+function toPlainGeometry(geo: THREE.BufferGeometry): THREE.BufferGeometry {
+  const plain = new THREE.BufferGeometry().copy(geo);
+  geo.dispose();
+  return plain;
+}
+
+/**
+ * Built once and shared by every archetype: `mergeColoredParts` only reads its inputs (it copies
+ * each part before transforming it), and these never reach the GPU, so they are never disposed.
+ */
+function getEnemyPrimitives(): EnemyPrimitives {
+  _primitives ??= {
+    chamfer: toPlainGeometry(createChamferedBoxGeometry()),
+    box: new THREE.BoxGeometry(1, 1, 1),
+    cone: new THREE.ConeGeometry(1, 1, 5),
+    ico: toPlainGeometry(new THREE.IcosahedronGeometry(1, 0)),
+    icoSmooth: toPlainGeometry(new THREE.IcosahedronGeometry(1, 1)),
+    cyl: new THREE.CylinderGeometry(1, 1, 1, 6),
+    wing: toPlainGeometry(createWingGeometry()),
+  };
+  return _primitives;
+}
+
 function addEyes(
   parts: ColoredPart[],
   eyeGeo: THREE.BufferGeometry,
@@ -476,13 +518,7 @@ export class EnemyRenderer {
 
   /** Merged flat-shaded figurine geometry for one enemy type (static so tests can inspect it). */
   static buildEnemyGeometry(type: EnemyType): THREE.BufferGeometry {
-    const chamfer = createChamferedBoxGeometry();
-    const box = new THREE.BoxGeometry(1, 1, 1);
-    const cone = new THREE.ConeGeometry(1, 1, 5);
-    const ico = new THREE.IcosahedronGeometry(1, 0);
-    const icoSmooth = new THREE.IcosahedronGeometry(1, 1);
-    const cyl = new THREE.CylinderGeometry(1, 1, 1, 6);
-    const wing = createWingGeometry();
+    const { chamfer, box, cone, ico, icoSmooth, cyl, wing } = getEnemyPrimitives();
 
     const eyeDark = 0x1a1829;
     const eyeGlowGold = 0xffcf4d;
@@ -811,15 +847,7 @@ export class EnemyRenderer {
       }
     }
 
-    const merged = mergeColoredParts(parts);
-    chamfer.dispose();
-    box.dispose();
-    cone.dispose();
-    ico.dispose();
-    icoSmooth.dispose();
-    cyl.dispose();
-    wing.dispose();
-    return merged;
+    return mergeColoredParts(parts);
   }
 
   dispose(): void {

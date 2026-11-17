@@ -159,4 +159,25 @@ describe('enemy figurine geometry', () => {
     expect(h('tempest')).toBeGreaterThan(h('boss'));
     expect(h('burrower')).toBeLessThan(h('grunt'));
   });
+
+  it('builds every figurine identically on every call (the shared source primitives are never mutated)', () => {
+    const snapshot = (type: EnemyType): Float32Array[] => {
+      const geo = EnemyRenderer.buildEnemyGeometry(type);
+      const out = ['position', 'normal', 'color'].map((name) => {
+        const attr = geo.getAttribute(name);
+        expect(attr, `${type} ${name}`).toBeDefined();
+        return Float32Array.from(attr.array as Float32Array);
+      });
+      geo.dispose(); // disposing a result must not touch the shared inputs either
+      return out;
+    };
+    const first = ENEMY_TYPES.map(snapshot);
+    // Second pass in reverse order: a type that mutated a shared primitive would change later builds.
+    const second = [...ENEMY_TYPES].reverse().map(snapshot).reverse();
+    for (let i = 0; i < ENEMY_TYPES.length; i++) {
+      for (let k = 0; k < first[i].length; k++) {
+        expect(second[i][k], `${ENEMY_TYPES[i]} attribute ${k}`).toEqual(first[i][k]);
+      }
+    }
+  });
 });
