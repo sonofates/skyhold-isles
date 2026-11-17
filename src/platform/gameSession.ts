@@ -58,6 +58,11 @@ export interface SessionRuntimeDeps {
   radial?: RadialMenu;
 }
 
+/** `?perf` in the URL logs quality-tier changes to the console (for tuning the governor from device reports). */
+function perfLogEnabled(): boolean {
+  return typeof location !== 'undefined' && /[?&]perf\b/.test(location.search);
+}
+
 export class GameSession {
   settings: GameSettings = loadSettings();
   readonly progress: ProgressData = loadProgress(LEVELS.length);
@@ -102,7 +107,10 @@ export class GameSession {
     this.renderWorld = renderWorld;
     this.soundManager = soundManager;
     this.quality = new QualityController(
-      (tier) => this.renderWorld.setQuality(tier),
+      (tier) => {
+        if (perfLogEnabled()) console.info(`[skyhold] quality tier -> ${tier}`);
+        this.renderWorld.setQuality(tier);
+      },
       isTouchDevice,
     );
     this.quality.setSetting(this.settings.quality);

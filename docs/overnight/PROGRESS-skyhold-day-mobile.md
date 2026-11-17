@@ -96,4 +96,6 @@ Branch `hermes/skyhold-day-mobile`. Preview port 4302. Deadline 21:00 TR.
 
 - Round 19: re-read `src/platform/input.ts` (pinch -> single finger, blur, cancel paths) and found no further bug. Tree green (tsc, lint, 467 tests, build). Backlog 1-5 complete; no code change. Open items still need real devices (governor tuning) or a Lighthouse binary. Merge-tree trial against campaign/content is still blocked by the sandbox.
 
+- Round 59: added opt-in `?perf` URL flag: logs `[skyhold] quality tier -> <tier>` to the console on every tier change (`gameSession.ts`), for tuning the governor from device reports. tsc/lint/tests green.
+
 - Rounds 7-58 (except 17, 19 notes above): tree re-verified green each round (tsc, lint, 467 tests, build); no code change. Backlog 1-5 complete; open items still need real devices (governor tuning) or a Lighthouse binary. Merge-tree trial vs campaign/content was blocked by the sandbox — lead should expect manual conflicts in `src/style.css` / `src/ui`.
