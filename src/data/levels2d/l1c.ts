@@ -128,6 +128,8 @@ export const LEVEL_L1C: LevelDef = {
     },
   ],
   // Plots: 0-3 top row, 4-6 upper-left, 7-9 upper-right, 10-11 between the lanes, 12-15 bottom row.
+  // Barracks: plot 14 rallies on the shared final road, plot 12 at the merge (both lanes pass).
+  // The pre-barracks scripts are kept as L1C_SCRIPTS_NO_BARRACKS for the on/off comparison.
   scriptedBuildOrder: [
     build(0, 11, 'archer'),
     build(0, 6, 'archer'),
@@ -136,13 +138,13 @@ export const LEVEL_L1C: LevelDef = {
     upgrade(1, 11),
     build(2, 7, 'tesla'),
     upgrade(3, 6),
-    build(3, 14, 'cannon'),
+    build(3, 14, 'barracks'),
     upgrade(4, 13),
     build(4, 5, 'archer'),
     upgrade(5, 10),
     build(5, 8, 'tesla'),
     upgrade(6, 7),
-    build(6, 12, 'archer'),
+    build(6, 12, 'barracks'),
     upgrade(7, 11),
     build(7, 15, 'cannon'),
     upgrade(8, 14),
@@ -158,7 +160,7 @@ export const LEVEL_L1C: LevelDef = {
     upgrade(2, 11),
     build(2, 7, 'tesla'),
     upgrade(3, 6),
-    build(4, 14, 'cannon'),
+    build(4, 14, 'barracks'),
     upgrade(4, 13),
     upgrade(5, 10),
     upgrade(6, 7),
@@ -166,4 +168,22 @@ export const LEVEL_L1C: LevelDef = {
     upgrade(7, 11),
     upgrade(8, 14),
   ],
+};
+
+/**
+ * L1c build scripts before the barracks existed (cannon on plot 14, archer on plot 12). Used by
+ * `scripts/barracksCompare.ts` to report barracks on/off; not part of the balance gate.
+ */
+export const L1C_SCRIPTS_NO_BARRACKS: {
+  readonly greedy: readonly ScriptedBuildAction[];
+  readonly weak: readonly ScriptedBuildAction[];
+} = {
+  greedy: (LEVEL_L1C.scriptedBuildOrder ?? []).map((a) =>
+    a.action === 'build' && a.towerType === 'barracks'
+      ? { ...a, towerType: a.col === 14 ? 'cannon' : 'archer' }
+      : a,
+  ),
+  weak: (LEVEL_L1C.weakBuildOrder ?? []).map((a) =>
+    a.action === 'build' && a.towerType === 'barracks' ? { ...a, towerType: 'cannon' } : a,
+  ),
 };

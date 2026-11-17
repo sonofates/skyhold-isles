@@ -3,6 +3,7 @@ import type { ObjectPool } from '../core/pool.ts';
 import type { EnemyType } from '../core/types.ts';
 import { BALANCE } from '../data/balance.ts';
 import { ELITE_MODIFIERS, ENEMY_DEFS } from '../data/enemies.ts';
+import { ENEMY_MELEE } from '../data/soldiers.ts';
 import type { EnemyEntity, TowerEntity } from './entities.ts';
 import type { CompiledPath } from './path.ts';
 import type { SpatialHashGrid } from './spatialHash.ts';
@@ -254,6 +255,8 @@ export class EnemySystem {
               ? HEX_FIRST_DELAY
               : 0;
     entity.hexTargetId = -1;
+    entity.blockers = 0;
+    entity.meleeTimer = 0;
 
     this.events.emit('enemySpawned', {
       enemyId: entity.uid,
@@ -431,7 +434,11 @@ export class EnemySystem {
         e.channelTimer = Math.max(0, e.channelTimer - dt);
         channelMul = 0;
       }
-      const effectiveSpeed = e.speed * (1 - e.slowRatio) * burrowMul * channelMul;
+      let effectiveSpeed = e.speed * (1 - e.slowRatio) * burrowMul * channelMul;
+      if (e.blockers > 0) {
+        // Held by barracks soldiers (SoldierSystem): stopped, or slowed while short of holdCost.
+        effectiveSpeed *= Math.max(0, 1 - e.blockers / ENEMY_MELEE[e.type].holdCost);
+      }
       e.dist += effectiveSpeed * dt;
       e.walkPhase += effectiveSpeed * dt * 3.4;
 

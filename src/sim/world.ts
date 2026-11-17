@@ -20,6 +20,7 @@ import { EnemySystem } from './enemySystem.ts';
 import { MapGrid } from './grid.ts';
 import { CompiledPath } from './path.ts';
 import { ProjectileSystem } from './projectileSystem.ts';
+import { SoldierSystem } from './soldierSystem.ts';
 import { SpatialHashGrid } from './spatialHash.ts';
 import { WaveSystem } from './waveSystem.ts';
 
@@ -56,6 +57,8 @@ export class SimWorld {
   readonly combatSystem: CombatSystem;
   readonly waveSystem: WaveSystem;
   readonly abilitySystem: AbilitySystem;
+  /** Barracks soldiers (idle on islands without a barracks). */
+  readonly soldierSystem: SoldierSystem;
   readonly events: EventBus;
   /** Workshop upgrades + challenge toggles applied to this run (neutral = classic rules). */
   readonly mods: RunModifiers;
@@ -138,6 +141,7 @@ export class SimWorld {
     );
     this.waveSystem = new WaveSystem(level, events);
     this.abilitySystem = new AbilitySystem(events);
+    this.soldierSystem = new SoldierSystem(this.enemyPool, this.spatialHash, this.enemySystem, events);
 
     this.abilitySystem.cooldownMul = mods.abilityCooldownMul;
     this.combatSystem.towerRateMul = mods.towerFireRateMul;
@@ -279,10 +283,12 @@ export class SimWorld {
     if (!this.grid.canPlaceTower(col, row)) return null;
     const stats = getTowerTierStats(type, 1);
     if (this.gold < stats.upgradeCost) return null;
-
-    this.gold -= stats.upgradeCost;
     const x = this.grid.siteWorldX(col, row);
     const z = this.grid.siteWorldZ(col, row);
+    // A barracks needs a stretch of road within its rally range.
+    if (TOWER_DEFS[type].role === 'barracks' && !this.soldierSystem.hasRoadInRange(x, z, stats.range)) return null;
+
+    this.gold -= stats.upgradeCost;
     const tower: TowerEntity = {
       id: this.nextTowerId++,
       col,
@@ -309,6 +315,7 @@ export class SimWorld {
 
     this.towers.push(tower);
     this.grid.setTowerAt(col, row, tower.id);
+    if (TOWER_DEFS[type].role === 'barracks') this.soldierSystem.addBarracks(tower);
 
     this.events.emit('towerBuilt', {
       towerId: tower.id,
@@ -344,6 +351,7 @@ export class SimWorld {
     tower.tier = nextTier;
     tower.totalInvested += nextStats.upgradeCost;
     tower.popAnimTimer = 0.32;
+    if (TOWER_DEFS[tower.type].role === 'barracks') this.soldierSystem.onUpgrade(tower);
 
     this.events.emit('towerUpgraded', {
       towerId: tower.id,
@@ -366,6 +374,7 @@ export class SimWorld {
     this.gold += refund;
     this.grid.clearTowerAt(tower.col, tower.row);
     this.towers.splice(idx, 1);
+    if (TOWER_DEFS[tower.type].role === 'barracks') this.soldierSystem.removeBarracks(tower.id);
 
     this.events.emit('towerSold', {
       towerId: tower.id,
@@ -377,6 +386,17 @@ export class SimWorld {
     });
     this.events.emit('economyChanged', { gold: this.gold, lives: this.lives });
     return refund;
+  }
+
+  /**
+   * Moves a barracks' rally point toward (x, z): clamped onto the road within the barracks range.
+   * False if the tower is not a barracks (or the run is over).
+   */
+  setRallyPoint(towerId: number, x: number, z: number): boolean {
+    if (this.outcome !== 'ongoing') return false;
+    const tower = this.getTowerById(towerId);
+    if (!tower || TOWER_DEFS[tower.type].role !== 'barracks') return false;
+    return this.soldierSystem.setRally(tower, x, z);
   }
 
   setTowerTargeting(towerId: number, mode: TargetingMode): void {
@@ -495,6 +515,7 @@ export class SimWorld {
 
     if (this.outcome !== 'ongoing') return;
 
+    this.soldierSystem.update(dt, this.towers, this.abilitySystem.getFireRateMultiplier());
     this.combatSystem.update(dt, this.towers, this.abilitySystem.getFireRateMultiplier());
     this.projectileSystem.update(dt, this.towers);
   }

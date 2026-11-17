@@ -46,6 +46,12 @@ export const TOWER_PICK_BOUNDS: Record<TowerType, readonly [TowerPickBounds, Tow
     { halfWidth: DEFAULT_HALF_WIDTH, height: 2.55 },
     { halfWidth: DEFAULT_HALF_WIDTH, height: 3.1 },
   ],
+  // 2D-only tower (never built in the 3D game); bounds kept for type completeness.
+  barracks: [
+    { halfWidth: DEFAULT_HALF_WIDTH, height: 1.6 },
+    { halfWidth: DEFAULT_HALF_WIDTH, height: 1.9 },
+    { halfWidth: DEFAULT_HALF_WIDTH, height: 2.2 },
+  ],
 };
 
 export function getTowerPickBounds(type: TowerType, tier: 1 | 2 | 3): TowerPickBounds {

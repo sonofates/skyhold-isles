@@ -64,6 +64,13 @@ export interface EnemyEntity {
   channelTimer: number;
   /** Gloam Hexer: tower id being hexed while channelling (-1 = none). */
   hexTargetId: number;
+  /**
+   * Barracks soldiers in melee contact (written by SoldierSystem every tick it runs; read by the
+   * enemy movement as a hold: speed x max(0, 1 - blockers / holdCost)). 0 = free.
+   */
+  blockers: number;
+  /** Seconds until this enemy's next strike at a soldier holding it. */
+  meleeTimer: number;
 }
 
 export function createEnemyEntity(poolIndex: number): EnemyEntity {
@@ -113,6 +120,8 @@ export function createEnemyEntity(poolIndex: number): EnemyEntity {
     bossPhase: 0,
     channelTimer: 0,
     hexTargetId: -1,
+    blockers: 0,
+    meleeTimer: 0,
   };
 }
 

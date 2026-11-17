@@ -5,7 +5,16 @@ export interface GridCoord {
   readonly row: number;
 }
 
-export type TowerType = 'archer' | 'cannon' | 'frost' | 'tesla' | 'mortar' | 'ballista' | 'beacon';
+export type TowerType =
+  | 'archer'
+  | 'cannon'
+  | 'frost'
+  | 'tesla'
+  | 'mortar'
+  | 'ballista'
+  | 'beacon'
+  /** Soldier tower (2D plot maps only; hidden from the 3D build bar via TowerDef.only2d). */
+  | 'barracks';
 
 export type EnemyType =
   | 'grunt'

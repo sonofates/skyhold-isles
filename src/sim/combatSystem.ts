@@ -102,6 +102,9 @@ export class CombatSystem {
         }
       }
 
+      // Barracks never shoot: their soldiers fight in SoldierSystem (stun / pop timers tick above).
+      if (TOWER_DEFS[tower.type].role === 'barracks') continue;
+
       const stats = getTowerTierStats(tower.type, tower.tier);
 
       if (TOWER_DEFS[tower.type].role === 'support') {

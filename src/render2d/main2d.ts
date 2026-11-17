@@ -22,6 +22,7 @@ import { HUD_FONT } from './hudText.ts';
  *   ?artcheck=1       overlay: which manifest art files are present / missing (and the stand-ins)
  *   ?zoo=1            all 15 enemy types walking, specials triggered periodically (labelled)
  *   ?towers=1[&tier=N] every tower type built and firing (cycles T1-T3 unless tier is given)
+ *   ?speed=2|3        start at 2× / 3× sim speed (QA recordings)
  */
 interface BenchStats {
   readonly fps: number;
@@ -130,6 +131,8 @@ async function main(): Promise<void> {
   else if (q.get('autoplay') === '1') hooks = autoplayHooks(level.scriptedBuildOrder ?? []);
   const game = new Game2D(app, art, level, hooks);
   game.attachInput(app.canvas);
+  const startSpeed = Number(q.get('speed'));
+  if (startSpeed === 2 || startSpeed === 3) game.stepper.speed = startSpeed;
   const onResize = (): void => game.resize(app.screen.width, app.screen.height);
   onResize();
   app.renderer.on('resize', onResize);

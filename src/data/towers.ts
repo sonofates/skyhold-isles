@@ -47,6 +47,21 @@ export interface TowerTierStats {
   readonly burnDamage?: number;
   readonly burnRadius?: number;
   readonly burnDuration?: number;
+  /**
+   * Barracks (role 'barracks'): soldiers on the road. `range` is how far from the tower the rally
+   * point may be; `damage` / `fireRate` mirror `soldierDamage` / `soldierRate` for UI text.
+   */
+  readonly soldierCount?: number;
+  readonly soldierHp?: number;
+  readonly soldierDamage?: number;
+  /** Soldier swings per second. */
+  readonly soldierRate?: number;
+  /** Flat armor against enemy melee hits (min 1 damage gets through). */
+  readonly soldierArmor?: number;
+  /** Seconds from a soldier's death until it steps out of the barracks again. */
+  readonly soldierRespawnSec?: number;
+  /** Barracks T3 Cleave: each swing also hits one other enemy within reach for this fraction. */
+  readonly soldierCleave?: number;
 }
 
 export interface TowerDef {
@@ -56,14 +71,23 @@ export interface TowerDef {
   readonly shortDesc: string;
   readonly hitsFlyers: boolean;
   readonly turretHeight: number;
-  /** 'support' towers never shoot; their `range` is the aura radius. */
-  readonly role: 'attack' | 'support';
+  /**
+   * 'support' towers never shoot; their `range` is the aura radius. 'barracks' towers never shoot
+   * either: they field soldiers (SoldierSystem) and their `range` bounds the rally point.
+   */
+  readonly role: 'attack' | 'support' | 'barracks';
+  /**
+   * Only offered on 2D plot maps (the 2D build ring). The 3D build bar, radial menu, hotkeys and
+   * codex iterate `TOWER_TYPES`, which leaves these out.
+   */
+  readonly only2d?: boolean;
   /** Tier III signature, for UI text (tower panel / build tooltips). */
   readonly signature: { readonly name: string; readonly desc: string };
   readonly tiers: readonly [TowerTierStats, TowerTierStats, TowerTierStats];
 }
 
-export const TOWER_TYPES: readonly TowerType[] = [
+/** Every tower the sim knows, 3D roster first. */
+export const ALL_TOWER_TYPES: readonly TowerType[] = [
   'archer',
   'cannon',
   'frost',
@@ -71,6 +95,7 @@ export const TOWER_TYPES: readonly TowerType[] = [
   'mortar',
   'ballista',
   'beacon',
+  'barracks',
 ];
 
 export const TOWER_DEFS: Record<TowerType, TowerDef> = {
@@ -544,7 +569,96 @@ export const TOWER_DEFS: Record<TowerType, TowerDef> = {
       },
     ],
   },
+  barracks: {
+    type: 'barracks',
+    name: 'Militia Barracks',
+    hotkey: 8,
+    shortDesc: 'Sends soldiers to hold the road. They block ground foes in melee; flyers pass over.',
+    hitsFlyers: false,
+    turretHeight: 1.2,
+    role: 'barracks',
+    only2d: true,
+    signature: { name: 'Cleave', desc: 'Every soldier swing also hits a second foe beside its target.' },
+    tiers: [
+      {
+        tier: 1,
+        upgradeCost: 60,
+        damage: 14,
+        fireRate: 1.0,
+        range: 3.2,
+        minRange: 0,
+        projectileSpeed: 0,
+        splashRadius: 0,
+        splashFalloffMin: 1,
+        parabolicArcHeight: 0,
+        slowRatio: 0,
+        slowDuration: 0,
+        chainCount: 0,
+        chainRange: 0,
+        chainFalloff: 1,
+        soldierCount: 2,
+        soldierHp: 110,
+        soldierDamage: 14,
+        soldierRate: 1.0,
+        soldierArmor: 1,
+        soldierRespawnSec: 9,
+      },
+      {
+        tier: 2,
+        upgradeCost: 80,
+        damage: 19,
+        fireRate: 1.1,
+        range: 3.5,
+        minRange: 0,
+        projectileSpeed: 0,
+        splashRadius: 0,
+        splashFalloffMin: 1,
+        parabolicArcHeight: 0,
+        slowRatio: 0,
+        slowDuration: 0,
+        chainCount: 0,
+        chainRange: 0,
+        chainFalloff: 1,
+        soldierCount: 3,
+        soldierHp: 160,
+        soldierDamage: 19,
+        soldierRate: 1.1,
+        soldierArmor: 2,
+        soldierRespawnSec: 8,
+      },
+      {
+        tier: 3,
+        upgradeCost: 130,
+        damage: 26,
+        fireRate: 1.2,
+        range: 3.8,
+        minRange: 0,
+        projectileSpeed: 0,
+        splashRadius: 0,
+        splashFalloffMin: 1,
+        parabolicArcHeight: 0,
+        slowRatio: 0,
+        slowDuration: 0,
+        chainCount: 0,
+        chainRange: 0,
+        chainFalloff: 1,
+        soldierCount: 3,
+        soldierHp: 230,
+        soldierDamage: 26,
+        soldierRate: 1.2,
+        soldierArmor: 4,
+        soldierRespawnSec: 7,
+        soldierCleave: 0.5,
+      },
+    ],
+  },
 };
+
+/**
+ * Towers offered by the 3D game (build bar, radial menu, number hotkeys, codex): everything except
+ * `only2d` towers such as the barracks.
+ */
+export const TOWER_TYPES: readonly TowerType[] = ALL_TOWER_TYPES.filter((t) => !TOWER_DEFS[t].only2d);
 
 export function getTowerTierStats(type: TowerType, tier: 1 | 2 | 3): TowerTierStats {
   return TOWER_DEFS[type].tiers[tier - 1];

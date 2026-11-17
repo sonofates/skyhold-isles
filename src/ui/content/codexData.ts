@@ -139,6 +139,11 @@ export const TOWER_LORE: Record<TowerType, TowerLore> = {
     weak: 'Does nothing alone, and boss jams switch it off. Auras do not stack.',
     tags: ['Support', 'Aura'],
   },
+  barracks: {
+    strong: 'Soldiers block the road: held foes stand still under your towers\' fire.',
+    weak: 'Flyers pass over, burrowers dig under, blinkers jump past; swarms and bosses overwhelm a squad.',
+    tags: ['Ground only', 'Blocking'],
+  },
 };
 
 export type SpeedClass = 'slow' | 'steady' | 'quick' | 'swift';

@@ -34,6 +34,7 @@ const TOWER_TILE_LABELS: Record<TowerType, string> = {
   mortar: 'Mortar',
   ballista: 'Ballista',
   beacon: 'Beacon',
+  barracks: 'Barracks',
 };
 
 /** Painted 2D art when the page registered a resolver (2d.html), else the built-in SVG icon. */

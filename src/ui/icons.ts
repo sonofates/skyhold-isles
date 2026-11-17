@@ -38,6 +38,11 @@ export const TOWER_ICON_SVGS: Record<TowerType, string> = {
     <path d="M16 4L21 10L16 16L11 10Z" fill="${PALETTE.gold}" stroke="${PALETTE.indigo}" stroke-width="1.8" stroke-linejoin="round"/>
     <path d="M6 9C4.6 11.4 4.6 14.2 6 16.6M26 9C27.4 11.4 27.4 14.2 26 16.6" stroke="${PALETTE.water}" stroke-width="2" stroke-linecap="round"/>
   </svg>`,
+  barracks: `<svg viewBox="0 0 32 32" fill="none" aria-hidden="true">
+    <path d="M10 26V12L16 7L22 12V26Z" fill="${PALETTE.stone}" stroke="${PALETTE.indigo}" stroke-width="2" stroke-linejoin="round"/>
+    <path d="M7 26L13 18M25 26L19 18" stroke="${PALETTE.gold}" stroke-width="2.4" stroke-linecap="round"/>
+    <path d="M16 7V3L21 4.5L16 6" fill="${PALETTE.coral}" stroke="${PALETTE.indigo}" stroke-width="1.4" stroke-linejoin="round"/>
+  </svg>`,
 };
 
 export const UI_ICON_SVGS = {
