@@ -246,6 +246,28 @@ describe('Cloud Hauler', () => {
       expect(r.dist).toBeLessThanOrEqual(world.groundPath.totalLength - 3 + 0.1);
     }
   });
+
+  it('still drops a raider into its own freed slot when the enemy pool is full', () => {
+    const { world, events } = makeWorld();
+    const c = world.enemySystem.spawnEnemy('carrier', 1.5)!;
+    tick(world, 2.0);
+    const wreckX = c.x;
+    const wreckZ = c.z;
+    while (world.enemySystem.spawnEnemy('grunt')) {
+      // fill every remaining slot
+    }
+    const full = world.enemyPool.getActiveCount();
+    let drop: { count: number; x: number; z: number } | null = null;
+    events.on('carrierDrop', (e) => (drop = { count: e.count, x: e.x, z: e.z }));
+    world.enemySystem.applyDamage(c, 99999, true);
+    world.enemySystem.update(DT, () => {}, () => {});
+    // The hauler's slot went to the first raider (the second has no room).
+    expect(drop).toEqual({ count: 1, x: wreckX, z: wreckZ });
+    expect(world.enemyPool.getActiveCount()).toBe(full);
+    const raiders = activeEnemies(world).filter((e) => e.isDropped);
+    expect(raiders).toHaveLength(1);
+    expect(raiders[0].maxHp).toBe(Math.round(ENEMY_DEFS.grunt.maxHp * ENEMY_DEFS.carrier.dropHpFrac! * 1.5));
+  });
 });
 
 describe('Rift Blinker', () => {

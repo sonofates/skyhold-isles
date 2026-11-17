@@ -214,5 +214,9 @@ describe('targeting across lanes of different length', () => {
     expect(acquireTarget(tower!, stats, world.enemyPool, world.spatialHash)).toBe(side);
     tower!.targetingMode = 'last';
     expect(acquireTarget(tower!, stats, world.enemyPool, world.spatialHash)).toBe(main);
+    // Equal HP: "strongest" breaks the tie toward the goal, lane-aware as well.
+    expect(main.hp).toBe(side.hp);
+    tower!.targetingMode = 'strongest';
+    expect(acquireTarget(tower!, stats, world.enemyPool, world.spatialHash)).toBe(side);
   });
 });

@@ -52,7 +52,13 @@ export function acquireTarget(
         break;
       case 'strongest':
         score = e.hp;
-        if (score > bestScore || (score === bestScore && best && e.dist > best.dist)) {
+        // Ties (e.g. fresh units of one type) go to the one nearest the goal, lane-aware.
+        if (
+          score > bestScore ||
+          (score === bestScore &&
+            best &&
+            e.dist + e.laneProgressOffset > best.dist + best.laneProgressOffset)
+        ) {
           bestScore = score;
           best = e;
         }

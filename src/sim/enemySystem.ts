@@ -10,6 +10,8 @@ import type { SpatialHashGrid } from './spatialHash.ts';
 const _sampleVec = { x: 0, y: 0, z: 0 };
 const _healCandidates: number[] = [];
 const _blinkFrom = { x: 0, y: 0, z: 0 };
+/** Scratch copy of a downed Cloud Hauler (its pool slot is released before raiders spawn). */
+const _wreck = { x: 0, y: 0, z: 0, hpScale: 1 };
 /** Blinkers never teleport to within this path distance of the goal. */
 const BLINK_GOAL_MARGIN = 2.0;
 /** Hauler raiders never land closer than this to the goal. */
@@ -98,9 +100,13 @@ export class EnemySystem {
     return e.maxHp / ENEMY_DEFS[e.type].maxHp;
   }
 
-  /** Cloud Hauler death: raiders land on the ground path point nearest to the wreck. */
-  private spawnDroppedRaiders(carrier: EnemyEntity): number {
-    const def = ENEMY_DEFS[carrier.type];
+  /**
+   * Cloud Hauler death: raiders land on the ground path point nearest to the wreck. Takes a copy of
+   * the wreck (not the entity) so the hauler's pool slot can be freed first — with a full pool the
+   * first raider may reuse that very slot.
+   */
+  private spawnDroppedRaiders(carrier: Readonly<typeof _wreck>): number {
+    const def = ENEMY_DEFS.carrier;
     const count = def.dropCount ?? 0;
     if (count <= 0) return 0;
     const gruntDef = ENEMY_DEFS.grunt;
@@ -123,7 +129,7 @@ export class EnemySystem {
     const landDist = Math.max(0, Math.min(landPath.totalLength - DROP_GOAL_MARGIN, nearest));
     const hp = Math.max(
       1,
-      Math.round(gruntDef.maxHp * (def.dropHpFrac ?? 0.6) * this.hpScaleOf(carrier)),
+      Math.round(gruntDef.maxHp * (def.dropHpFrac ?? 0.6) * carrier.hpScale),
     );
     let spawned = 0;
     for (let k = 0; k < count; k++) {
@@ -370,7 +376,13 @@ export class EnemySystem {
           this.spawnSplitChild(e, Math.max(0, e.dist - 0.35));
           this.spawnSplitChild(e, Math.max(0, e.dist));
         } else if (e.type === 'carrier') {
-          this.spawnDroppedRaiders(e);
+          _wreck.x = e.x;
+          _wreck.y = e.y;
+          _wreck.z = e.z;
+          _wreck.hpScale = this.hpScaleOf(e);
+          this.pool.releaseAtActivePos(pos);
+          this.spawnDroppedRaiders(_wreck);
+          continue;
         }
         this.pool.releaseAtActivePos(pos);
         continue;
