@@ -73,6 +73,15 @@ Machine load from the other agents can make desktop shots slow (timeout raised t
       past wave N!" + chime (merged with the mutator toast when both land on one wave). Pure
       `isEndlessBestCrossing(best, wave)` fires exactly once (tested); no callout before a first
       record exists.
+- [x] Save code (Settings, menu only — src/platform/saveCode.ts, src/ui/saveCodePanel.ts,
+      styles/saveCode.css): "Save code…" shows the campaign save as `SKY2-<base64url>-<fnv1a>`
+      (Copy uses the clipboard, falls back to selecting the text) and loads a pasted code by
+      MERGING it (per-island max of stars/lives/clears/endless, union of badges, max unlock, daily
+      totals/best streak, Workshop ranks from the save that spent more, auto-refund if
+      unaffordable) — loading can never lose progress. Old save copied to
+      `skyhold_isles_progress_import_backup` first. Settings are not in the code. Whitespace in
+      pasted codes is ignored; damaged/truncated codes give a readable error. Card scrolls while the
+      panel is open (`:has()` scoped to the open panel); landscape lays copy/load side by side.
 
 ## Next ideas (not started) — for a later round
 - HUD chip for active challenge / live star rating (MOBILE's HUD area — coordinate via the lead).

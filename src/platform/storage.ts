@@ -279,6 +279,18 @@ export function resetProgressSave(levelCount: number): ProgressData {
   return fresh;
 }
 
+/** Copy of the save as it was before the last Settings → Save code → Load. */
+const PROGRESS_IMPORT_BACKUP_KEY = 'skyhold_isles_progress_import_backup';
+
+export function backupProgressBeforeImport(): void {
+  try {
+    const raw = localStorage.getItem(PROGRESS_KEY);
+    if (raw) localStorage.setItem(PROGRESS_IMPORT_BACKUP_KEY, raw);
+  } catch {
+    // ignore storage errors
+  }
+}
+
 /** True when a save holds anything worth backing up. */
 export function hasAnyProgress(p: ProgressData): boolean {
   return (

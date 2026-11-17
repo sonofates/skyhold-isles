@@ -98,6 +98,10 @@ async function bootstrap(loadingScreen: LoadingScreen): Promise<void> {
       session.startLevel(idx, config);
     },
     onResetProgress: () => session.resetProgress(),
+    saveCode: {
+      getCode: () => session.exportSaveCode(),
+      load: (code) => session.importSaveCode(code),
+    },
     onOpenLogbook: () => session.openLogbook(),
     onOpenDaily: () => session.openDaily(),
     onStartDaily: (daily) => {

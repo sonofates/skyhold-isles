@@ -13,6 +13,7 @@ import { OutcomeOverlay, PauseMenuModal } from './gameModals.ts';
 import { HudBar, type HudStateView } from './hud.ts';
 import { LevelSelectOverlay, MainMenuOverlay } from './menus.ts';
 import { SettingsModal } from './settingsModal.ts';
+import type { SaveCodeCallbacks } from './saveCodePanel.ts';
 import { GameToast } from './toast.ts';
 import { EnemyTooltip } from './tooltip.ts';
 import { TowerPanel } from './towerPanel.ts';
@@ -59,6 +60,7 @@ export interface GameOverlayCallbacks {
   onBriefingStart: (levelIndex: number, config: BriefingStartConfig) => void;
   onBriefingToggle?: (on: boolean) => void;
   onResetProgress?: () => void;
+  saveCode?: SaveCodeCallbacks;
   onOpenLogbook?: () => void;
   onOpenDaily?: () => void;
   onStartDaily?: (daily: DailyChallenge) => void;
@@ -170,6 +172,7 @@ export class GameOverlays {
     this.settingsModal = new SettingsModal(uiRoot, cb.initialSettings, {
       onChange: cb.onSettingsChange,
       onResetProgress: cb.onResetProgress,
+      saveCode: cb.saveCode,
       onRestart: cb.onRestartLevel,
       onQuitToMenu: cb.onMainMenuFromPause,
       onClose: cb.onSettingsClose,

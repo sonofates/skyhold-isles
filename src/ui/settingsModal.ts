@@ -1,6 +1,7 @@
 import type { GameSettings, QualityLevel } from '../core/types.ts';
 import { UI_ICON_SVGS } from './icons.ts';
 import { ResetProgressRow } from './resetProgress.ts';
+import { SaveCodePanel, type SaveCodeCallbacks } from './saveCodePanel.ts';
 
 export interface SettingsModalCallbacks {
   onChange: (next: GameSettings) => void;
@@ -9,6 +10,8 @@ export interface SettingsModalCallbacks {
   onClose: () => void;
   /** Menu-only "Reset progress" (confirmed in-place). */
   onResetProgress?: () => void;
+  /** Menu-only "Save code" (copy / merge-load the campaign save). */
+  saveCode?: SaveCodeCallbacks;
 }
 
 function settingLabel(text: string): HTMLSpanElement {
@@ -31,6 +34,7 @@ export class SettingsModal {
   private readonly quitBtn: HTMLButtonElement;
   private readonly closeBtn: HTMLButtonElement;
   private readonly resetRow: ResetProgressRow | null;
+  private readonly saveCodePanel: SaveCodePanel | null;
   private settings: GameSettings;
   private open = false;
 
@@ -162,6 +166,8 @@ export class SettingsModal {
     this.syncInputs();
 
     // Menu-only "Reset progress" (campaign area; kept at the end to stay clear of settings rows).
+    this.saveCodePanel = callbacks.saveCode ? new SaveCodePanel(callbacks.saveCode) : null;
+    if (this.saveCodePanel) card.appendChild(this.saveCodePanel.el);
     const onReset = callbacks.onResetProgress;
     this.resetRow = onReset ? new ResetProgressRow(onReset) : null;
     if (this.resetRow) card.appendChild(this.resetRow.el);
@@ -189,6 +195,7 @@ export class SettingsModal {
     this.quitBtn.classList.toggle('hidden', !inGame);
     this.closeBtn.textContent = inGame ? 'Back' : 'Done';
     this.resetRow?.setVisible(open && !inGame);
+    this.saveCodePanel?.setVisible(open && !inGame);
     this.backdrop.classList.toggle('hidden', !open);
   }
 

@@ -38,6 +38,7 @@ import {
   loadProgress,
   loadSettings,
   markUpgradeToastSeen,
+  backupProgressBeforeImport,
   resetProgressSave,
   saveProgress,
   saveSettings,
@@ -70,6 +71,7 @@ import { buyRank, workshopModifiers, type WorkshopUpgradeId } from '../data/work
 import { isEndlessBestCrossing, isIslandMastered, starWallet } from '../game/progression.ts';
 import { badgesForWin, resolveRunConfig, type RunConfig } from '../game/runConfig.ts';
 import { earnedFeatIds, newlyEarnedFeats } from '../game/feats.ts';
+import { decodeSaveCode, describeMergeGain, encodeSaveCode, mergeProgress } from './saveCode.ts';
 
 /** Countdown / cooldown HUD refresh cadence when no event triggered a sync. */
 const UI_SYNC_INTERVAL_SEC = 0.2;
@@ -588,6 +590,27 @@ export class GameSession {
     this.soundManager.playUiBack();
     this.d.overlays.mainMenu.setOpen(this.viewMode === 'menu', this.progress);
     this.d.overlays.toast.show('Progress reset — a backup of the old save was kept.', 3);
+  }
+
+  exportSaveCode(): string {
+    return encodeSaveCode(this.progress);
+  }
+
+  /** Settings → Save code → Load: merges a pasted save (best of both), backs up the old one. */
+  importSaveCode(code: string): { ok: boolean; message: string } {
+    const res = decodeSaveCode(code, LEVELS.length);
+    if (!res.ok) {
+      this.soundManager.playUiBack();
+      return { ok: false, message: res.error };
+    }
+    const merged = mergeProgress(this.progress, res.progress, LEVELS.length);
+    const gain = describeMergeGain(this.progress, merged);
+    backupProgressBeforeImport();
+    Object.assign(this.progress, merged);
+    saveProgress(this.progress);
+    this.soundManager.playUiConfirm();
+    this.d.overlays.mainMenu.setOpen(this.viewMode === 'menu', this.progress);
+    return { ok: true, message: `Loaded: ${gain}.` };
   }
 
   /** Today's Daily Squall (UTC day), or null until an island has been cleared. */
