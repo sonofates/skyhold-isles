@@ -63,6 +63,7 @@ export interface LoopCallbacks {
     workMs: number,
     throttled: boolean,
     sleepBoundary?: boolean,
+    actualFrameDt?: number,
   ) => void;
   onVisibilityRestore?: () => void;
   resolveRenderPacing?: (wakeActive: boolean) => RenderPacingTarget;
@@ -134,7 +135,8 @@ export class GameLoop {
       }
     }
 
-    const rawDt = Math.min(Math.max(0, (now - this.lastTimestamp) / 1000), 0.1);
+    const actualFrameDt = Math.max(0, (now - this.lastTimestamp) / 1000);
+    const rawDt = Math.min(actualFrameDt, 0.1);
     this.lastTimestamp = now;
     this.lastRenderTimestamp = now;
     const throttled = capFps !== null && capFps > 0;
@@ -157,6 +159,7 @@ export class GameLoop {
       this.lastWorkMs,
       throttled || resumedFromThrottle,
       resumedFromThrottle,
+      actualFrameDt,
     );
   };
 

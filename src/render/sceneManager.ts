@@ -12,7 +12,10 @@ import {
   type QualityTier,
   type TierTransition,
 } from './perfGovernor.ts';
-import { PostProcessingPipeline } from './postProcessing.ts';
+import {
+  PostProcessingPipeline,
+  canUseHalfFloatComposer,
+} from './postProcessing.ts';
 
 export interface EffectiveQualityState {
   readonly mode: QualityLevel;
@@ -90,6 +93,7 @@ export class SceneManager {
 
   private readonly canvas: HTMLCanvasElement;
   private readonly isTouch: boolean;
+  private readonly composerSupported: boolean;
   private readonly governor: PerfGovernor;
   private readonly displayMetrics = new RollingFrameMetrics(120);
   private readonly workMetrics = new RollingFrameMetrics(120);
@@ -136,6 +140,7 @@ export class SceneManager {
       alpha: false,
       powerPreference: 'high-performance',
     });
+    this.composerSupported = canUseHalfFloatComposer(this.renderer);
     // Track full multi-pass WebGL draw calls accurately across EffectComposer frames
     this.renderer.info.autoReset = false;
     this.renderer.shadowMap.enabled = true;
@@ -221,7 +226,11 @@ export class SceneManager {
   }
 
   get postProcessingEnabled(): boolean {
-    return this.governor.getPreset().composer;
+    return this.isComposerActive(this.governor.getPreset());
+  }
+
+  private isComposerActive(preset: QualityPreset): boolean {
+    return preset.composer && this.composerSupported;
   }
 
   setEffectiveStateListener(listener: ((state: EffectiveQualityState) => void) | null): void {
@@ -233,14 +242,15 @@ export class SceneManager {
 
   getEffectiveRenderState(): EffectiveQualityState {
     const preset = this.governor.getPreset();
+    const composerEnabled = this.isComposerActive(preset);
     return {
       mode: this.governor.getMode(),
       tier: preset.tier,
       tierLabel: preset.label,
       dpr: this.appliedDpr > 0 ? this.appliedDpr : this.computePresetDpr(preset),
       shadowsEnabled: this.shadowsEnabled,
-      composerEnabled: preset.composer,
-      outlineEnabled: preset.outline,
+      composerEnabled,
+      outlineEnabled: composerEnabled && preset.outline,
       decorLow: preset.decorLow,
       activePasses: this.getActivePassesLabel(preset),
     };
@@ -277,7 +287,7 @@ export class SceneManager {
     );
 
     const preset = this.governor.getPreset();
-    if (preset.composer && !this.postProcessing) {
+    if (this.isComposerActive(preset) && !this.postProcessing) {
       this.postProcessing = new PostProcessingPipeline(
         this.renderer,
         this.scene,
@@ -410,7 +420,7 @@ export class SceneManager {
   render(camera: THREE.Camera): void {
     this.renderer.info.reset();
     const preset = this.governor.getPreset();
-    if (preset.composer) {
+    if (this.isComposerActive(preset)) {
       if (!this.postProcessing) {
         this.postProcessing = new PostProcessingPipeline(
           this.renderer,
@@ -434,6 +444,7 @@ export class SceneManager {
 
   getPerfSnapshot(): ScenePerfSnapshot {
     const preset = this.governor.getPreset();
+    const composerEnabled = this.isComposerActive(preset);
     const frameStats = this.displayMetrics.getSnapshot();
     const workStats = this.workMetrics.getSnapshot();
     const nativeDpr = (typeof window !== 'undefined' ? window.devicePixelRatio : 1) || 1;
@@ -456,7 +467,7 @@ export class SceneManager {
       nativeDpr,
       pixelWidth,
       pixelHeight,
-      composerEnabled: preset.composer,
+      composerEnabled,
       activePasses: this.getActivePassesLabel(preset),
       shadowsEnabled,
       shadowMapSize: shadowsEnabled ? this.dirLight.shadow.mapSize.x : 0,
@@ -517,7 +528,7 @@ export class SceneManager {
   }
 
   private getActivePassesLabel(preset: QualityPreset): string {
-    if (!preset.composer) return 'Direct';
+    if (!this.isComposerActive(preset)) return 'Direct';
     if (this.postProcessing) return this.postProcessing.getActivePassSummary();
     const parts: string[] = [];
     if (preset.n8ao === 'full') parts.push('AO');
@@ -544,9 +555,10 @@ export class SceneManager {
     }
     this.renderer.shadowMap.needsUpdate = true;
 
-    this.skyMaterial.uniforms.uDirectOutput.value = preset.composer ? 0 : 1;
-    this.renderer.toneMapping = preset.composer ? THREE.NoToneMapping : THREE.NeutralToneMapping;
-    this.renderer.toneMappingExposure = preset.composer ? 1.0 : 1.06;
+    const composerEnabled = this.isComposerActive(preset);
+    this.skyMaterial.uniforms.uDirectOutput.value = composerEnabled ? 0 : 1;
+    this.renderer.toneMapping = composerEnabled ? THREE.NoToneMapping : THREE.NeutralToneMapping;
+    this.renderer.toneMappingExposure = composerEnabled ? 1.0 : 1.06;
 
     const w = refreshSize
       ? Math.max(1, this.canvas.clientWidth || window.innerWidth)
@@ -555,7 +567,7 @@ export class SceneManager {
       ? Math.max(1, this.canvas.clientHeight || window.innerHeight)
       : this.lastHeight;
 
-    if (!preset.composer) {
+    if (!composerEnabled) {
       if (this.postProcessing) {
         // Free the composer render targets & N8AO buffers; recreated lazily if stepping back up.
         this.postProcessing.dispose();
@@ -588,6 +600,7 @@ export class SceneManager {
       this.canvas.removeEventListener('webglcontextrestored', this.onContextRestored);
     }
     this.effectiveStateListener = null;
+    this.disposeShadowMap();
     this.postProcessing?.dispose();
     this.postProcessing = null;
     this.skyGeometry.dispose();

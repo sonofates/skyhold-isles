@@ -118,6 +118,10 @@ function loadImage(url: string): Promise<HTMLImageElement> {
 }
 
 function yieldMainThread(): Promise<void> {
+  const sched = (globalThis as { scheduler?: { yield?: () => Promise<void> } }).scheduler;
+  if (typeof sched?.yield === 'function') {
+    return sched.yield();
+  }
   return new Promise((resolve) => {
     if (typeof setTimeout === 'function') {
       setTimeout(resolve, 0);

@@ -8,7 +8,11 @@ import {
   computeShadowMapSize,
   computeTargetDpr,
 } from '../../src/render/perfGovernor.ts';
-import { getN8aoQualitySettings } from '../../src/render/postProcessing.ts';
+import {
+  canUseHalfFloatComposer,
+  canUseHalfResN8ao,
+  getN8aoQualitySettings,
+} from '../../src/render/postProcessing.ts';
 import { detectPrimaryTouchDevice } from '../../src/render/sceneManager.ts';
 import { formatPerfLogLine } from '../../src/ui/debugPanel.ts';
 
@@ -338,9 +342,63 @@ describe('PerfGovernor', () => {
       qualityMode: 'Performance',
       halfRes: true,
     });
+    expect(getN8aoQualitySettings('half', false)).toEqual({
+      qualityMode: 'Performance',
+      halfRes: false,
+    });
     expect(getN8aoQualitySettings('full')).toEqual({
       qualityMode: 'Medium',
       halfRes: false,
     });
+  });
+
+  it('guards halfRes N8AO and HalfFloat composer behind WebGL extension support', () => {
+    const makeRenderer = (isWebGL2: boolean, exts: string[]) => ({
+      capabilities: { isWebGL2 } as unknown as WebGLCapabilitiesLike,
+      extensions: { has: (name: string) => exts.includes(name) },
+    });
+    type WebGLCapabilitiesLike = { isWebGL2: boolean };
+
+    expect(
+      canUseHalfResN8ao(
+        makeRenderer(true, ['EXT_color_buffer_float']) as unknown as Parameters<
+          typeof canUseHalfResN8ao
+        >[0],
+      ),
+    ).toBe(true);
+    expect(
+      canUseHalfResN8ao(
+        makeRenderer(true, ['EXT_color_buffer_half_float']) as unknown as Parameters<
+          typeof canUseHalfResN8ao
+        >[0],
+      ),
+    ).toBe(false);
+    expect(
+      canUseHalfResN8ao(
+        makeRenderer(false, ['EXT_color_buffer_float']) as unknown as Parameters<
+          typeof canUseHalfResN8ao
+        >[0],
+      ),
+    ).toBe(false);
+
+    expect(
+      canUseHalfFloatComposer(
+        makeRenderer(true, ['EXT_color_buffer_half_float']) as unknown as Parameters<
+          typeof canUseHalfFloatComposer
+        >[0],
+      ),
+    ).toBe(true);
+    expect(
+      canUseHalfFloatComposer(
+        makeRenderer(true, ['EXT_color_buffer_float']) as unknown as Parameters<
+          typeof canUseHalfFloatComposer
+        >[0],
+      ),
+    ).toBe(true);
+    expect(
+      canUseHalfFloatComposer(
+        makeRenderer(true, []) as unknown as Parameters<typeof canUseHalfFloatComposer>[0],
+      ),
+    ).toBe(false);
   });
 });

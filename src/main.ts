@@ -182,7 +182,7 @@ async function bootstrap(loadingScreen: LoadingScreen): Promise<void> {
       const camVer = renderWorld.cameraController.getViewVersion();
       if (camVer !== lastCamViewVersion) {
         lastCamViewVersion = camVer;
-        if (loop.paused && loop.simActive) {
+        if (loop.paused && loop.simActive && !overlays.isModalOpen()) {
           loop.wakeRender(0.35);
         }
       }
@@ -199,6 +199,7 @@ async function bootstrap(loadingScreen: LoadingScreen): Promise<void> {
         if (wasPacingThrottled && pacing.targetFps === null) {
           renderWorld.sceneManager.resetGovernorWarmup(0.4, true);
         } else if (pacing.mode !== lastPacingMode && pacing.targetFps !== null) {
+          skipNextDisplayFrame = true;
           renderWorld.sceneManager.resetDisplayMetrics();
         }
       }
@@ -210,10 +211,10 @@ async function bootstrap(loadingScreen: LoadingScreen): Promise<void> {
         debugPanel?.update(frameDt);
       }
     },
-    onAfterRender: (frameDt, workMs, throttled, sleepBoundary) => {
+    onAfterRender: (frameDt, workMs, throttled, sleepBoundary, actualFrameDt) => {
       const skipDisplayFrameSample = Boolean(sleepBoundary) || skipNextDisplayFrame;
       skipNextDisplayFrame = false;
-      const transition = renderWorld.sceneManager.recordFrame(frameDt, workMs, {
+      const transition = renderWorld.sceneManager.recordFrame(actualFrameDt ?? frameDt, workMs, {
         throttled,
         hidden: document.hidden,
         skipDisplayFrameSample,
@@ -291,7 +292,7 @@ async function bootstrap(loadingScreen: LoadingScreen): Promise<void> {
 
   if (hasPerf) {
     debugPanel?.setVisible(true);
-    debugPanel?.update(0.25);
+    debugPanel?.update(0);
     const snap = renderWorld.sceneManager.getPerfSnapshot();
     const glInfo = renderWorld.sceneManager.getWebGLDiagnosticInfo();
     const gpuSuffix = glInfo.gpuRenderer ? ` gpu="${glInfo.gpuRenderer}"` : '';

@@ -155,6 +155,7 @@ function createN8aoPass(
   width: number,
   height: number,
   mode: Exclude<N8aoMode, 'off'>,
+  allowHalfRes: boolean,
 ): N8AOPostPass {
   const pass = new N8AOPostPass(_n8aoEmptyInitScene, camera, width, height);
   // Disable transparency auto-detection before attaching the real scene so N8AO never triggers
@@ -162,10 +163,11 @@ function createN8aoPass(
   const internal = pass as unknown as N8aoInternalResources;
   internal.autoDetectTransparency = false;
   internal.scene = scene;
-  configureN8aoPass(pass, mode);
-  // N8AOPostPass's constructor invokes configureEffectCompositer without ortho=true; when mode is
-  // 'full' (halfRes stays false) the proxy never re-invokes it for OrthographicCamera.
-  if (mode === 'full' && (camera as THREE.OrthographicCamera).isOrthographicCamera) {
+  configureN8aoPass(pass, mode, allowHalfRes);
+  // N8AOPostPass's constructor invokes configureEffectCompositer without ortho=true; whenever
+  // halfRes stays false ('full' or 'half' fallback without EXT_color_buffer_float), the proxy
+  // never re-invokes configureEffectCompositer with ortho=true.
+  if (!pass.configuration.halfRes && (camera as THREE.OrthographicCamera).isOrthographicCamera) {
     internal.configureEffectCompositer?.(internal.configuration?.depthBufferType ?? 1, true);
   }
   pass.configuration.aoRadius = 1.25;
@@ -177,17 +179,54 @@ function createN8aoPass(
   return pass;
 }
 
-export function getN8aoQualitySettings(mode: Exclude<N8aoMode, 'off'>): {
+/**
+ * N8AO's halfRes DepthDownSample MRT writes to a RedFormat+FloatType (R32F) target, which
+ * requires WebGL2 + EXT_color_buffer_float for framebuffer completeness.
+ */
+export function canUseHalfResN8ao(
+  renderer: Pick<THREE.WebGLRenderer, 'capabilities' | 'extensions'>,
+): boolean {
+  if (renderer.capabilities && renderer.extensions) {
+    return (
+      Boolean(renderer.capabilities.isWebGL2) &&
+      Boolean(renderer.extensions.has('EXT_color_buffer_float'))
+    );
+  }
+  return true;
+}
+
+/**
+ * EffectComposer uses HalfFloatType buffers, requiring EXT_color_buffer_half_float or
+ * EXT_color_buffer_float.
+ */
+export function canUseHalfFloatComposer(
+  renderer: Pick<THREE.WebGLRenderer, 'extensions'>,
+): boolean {
+  if (!renderer.extensions) return true;
+  return Boolean(
+    renderer.extensions.has('EXT_color_buffer_half_float') ||
+    renderer.extensions.has('EXT_color_buffer_float'),
+  );
+}
+
+export function getN8aoQualitySettings(
+  mode: Exclude<N8aoMode, 'off'>,
+  allowHalfRes = true,
+): {
   qualityMode: 'Performance' | 'Medium';
   halfRes: boolean;
 } {
   return mode === 'half'
-    ? { qualityMode: 'Performance', halfRes: true }
+    ? { qualityMode: 'Performance', halfRes: allowHalfRes }
     : { qualityMode: 'Medium', halfRes: false };
 }
 
-function configureN8aoPass(pass: N8AOPostPass, mode: Exclude<N8aoMode, 'off'>): void {
-  const settings = getN8aoQualitySettings(mode);
+function configureN8aoPass(
+  pass: N8AOPostPass,
+  mode: Exclude<N8aoMode, 'off'>,
+  allowHalfRes: boolean,
+): void {
+  const settings = getN8aoQualitySettings(mode, allowHalfRes);
   pass.setQualityMode(settings.qualityMode);
   pass.configuration.halfRes = settings.halfRes;
 }
@@ -200,6 +239,7 @@ export class PostProcessingPipeline {
   readonly composer: EffectComposer;
   private readonly scene: THREE.Scene;
   private readonly camera: THREE.Camera;
+  private readonly allowHalfResN8ao: boolean;
   private width: number;
   private height: number;
 
@@ -208,6 +248,7 @@ export class PostProcessingPipeline {
   private smaaPass: EffectPass | null = null;
   private smaaEffect: SMAAEffect | null = null;
   private smaaReadyPromise: Promise<void> | null = null;
+  private smaaReadyCancel: (() => void) | null = null;
   private config: PostProcessingConfig;
   private readonly drawingSize = new THREE.Vector2();
 
@@ -221,6 +262,7 @@ export class PostProcessingPipeline {
   ) {
     this.scene = scene;
     this.camera = camera;
+    this.allowHalfResN8ao = canUseHalfResN8ao(renderer);
     this.width = Math.max(1, width);
     this.height = Math.max(1, height);
     this.config = { ...initialConfig };
@@ -244,7 +286,7 @@ export class PostProcessingPipeline {
   getActivePassSummary(): string {
     const parts: string[] = [];
     if (this.config.n8ao === 'full') parts.push('AO');
-    else if (this.config.n8ao === 'half') parts.push('AO½');
+    else if (this.config.n8ao === 'half') parts.push(this.allowHalfResN8ao ? 'AO½' : 'AO-P');
     if (this.config.outline) parts.push('Out');
     if (this.config.bloom) parts.push('Bloom');
     if (this.config.smaa) parts.push('SMAA');
@@ -263,6 +305,8 @@ export class PostProcessingPipeline {
       this.config = { ...this.config, n8ao: 'off' };
     }
     if (!next.smaa && this.smaaPass) {
+      this.smaaReadyCancel?.();
+      this.smaaReadyCancel = null;
       this.composer.removePass(this.smaaPass);
       this.smaaPass.dispose();
       this.smaaPass = null;
@@ -273,7 +317,10 @@ export class PostProcessingPipeline {
   }
 
   private createSmaaReadyPromise(effect: SMAAEffect): Promise<void> {
-    if (effect.weightsMaterial.searchTexture && effect.weightsMaterial.areaTexture) {
+    if (
+      typeof Image === 'undefined' ||
+      (effect.weightsMaterial.searchTexture && effect.weightsMaterial.areaTexture)
+    ) {
       return Promise.resolve();
     }
     return new Promise((resolve) => {
@@ -283,12 +330,16 @@ export class PostProcessingPipeline {
         settled = true;
         clearTimeout(timer);
         dispatcher.removeEventListener('load', finish);
+        if (this.smaaReadyCancel === finish) {
+          this.smaaReadyCancel = null;
+        }
         resolve();
       };
       const dispatcher = effect as unknown as {
         addEventListener: (type: string, cb: () => void) => void;
         removeEventListener: (type: string, cb: () => void) => void;
       };
+      this.smaaReadyCancel = finish;
       dispatcher.addEventListener('load', finish);
       const timer = setTimeout(finish, 50);
     });
@@ -322,10 +373,17 @@ export class PostProcessingPipeline {
         this.composer.getRenderer().getDrawingBufferSize(this.drawingSize);
         const targetW = Math.max(1, this.drawingSize.width || this.width);
         const targetH = Math.max(1, this.drawingSize.height || this.height);
-        this.n8aoPass = createN8aoPass(this.scene, this.camera, targetW, targetH, next.n8ao);
+        this.n8aoPass = createN8aoPass(
+          this.scene,
+          this.camera,
+          targetW,
+          targetH,
+          next.n8ao,
+          this.allowHalfResN8ao,
+        );
         this.composer.addPass(this.n8aoPass, 1);
       } else {
-        configureN8aoPass(this.n8aoPass, next.n8ao);
+        configureN8aoPass(this.n8aoPass, next.n8ao, this.allowHalfResN8ao);
       }
     }
 
@@ -382,6 +440,8 @@ export class PostProcessingPipeline {
           this.composer.addPass(this.smaaPass);
         }
       } else if (this.smaaPass) {
+        this.smaaReadyCancel?.();
+        this.smaaReadyCancel = null;
         this.composer.removePass(this.smaaPass);
         this.smaaPass.dispose();
         this.smaaPass = null;
@@ -404,6 +464,8 @@ export class PostProcessingPipeline {
   }
 
   dispose(): void {
+    this.smaaReadyCancel?.();
+    this.smaaReadyCancel = null;
     if (this.n8aoPass) {
       this.composer.removePass(this.n8aoPass);
       disposeN8aoPass(this.n8aoPass);

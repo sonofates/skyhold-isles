@@ -107,8 +107,9 @@ export class DebugPanel {
   private showAllRanges = false;
   private frameDtAccum = 0;
   private frameCount = 0;
-  private smoothedFps = 60;
-  private smoothedMs = 16.7;
+  private smoothedFps = 0;
+  private smoothedMs = 0;
+  private hasSmoothedSample = false;
   private uiRefreshAccum = 0.2;
 
   constructor(parent: HTMLElement, actions: DebugActions, mode: DebugPanelMode = 'debug') {
@@ -234,14 +235,17 @@ export class DebugPanel {
   }
 
   update(frameDt: number): void {
-    this.frameDtAccum += frameDt;
-    this.frameCount++;
-    this.uiRefreshAccum += frameDt;
-    if (this.frameDtAccum >= 0.2) {
-      this.smoothedMs = (this.frameDtAccum / this.frameCount) * 1000;
-      this.smoothedFps = this.frameCount / this.frameDtAccum;
-      this.frameDtAccum = 0;
-      this.frameCount = 0;
+    if (frameDt > 0) {
+      this.frameDtAccum += frameDt;
+      this.frameCount++;
+      this.uiRefreshAccum += frameDt;
+      if (this.frameDtAccum >= 0.2) {
+        this.smoothedMs = (this.frameDtAccum / this.frameCount) * 1000;
+        this.smoothedFps = this.frameCount / this.frameDtAccum;
+        this.hasSmoothedSample = true;
+        this.frameDtAccum = 0;
+        this.frameCount = 0;
+      }
     }
 
     if (this.collapsed || this.uiRefreshAccum < 0.2) {
@@ -250,8 +254,9 @@ export class DebugPanel {
     this.uiRefreshAccum = 0;
 
     const t = this.actions.getTelemetry();
-    const displayFps = t.fps > 0 ? t.fps.toFixed(1) : this.smoothedFps.toFixed(1);
-    const displayMs = t.frameTimeMs > 0 ? t.frameTimeMs : this.smoothedMs;
+    const displayFps =
+      t.fps > 0 ? t.fps.toFixed(1) : this.hasSmoothedSample ? this.smoothedFps.toFixed(1) : '--';
+    const displayMs = t.frameTimeMs > 0 ? t.frameTimeMs : this.hasSmoothedSample ? this.smoothedMs : 0;
     const p95Ms = typeof t.p95FrameMs === 'number' && t.p95FrameMs > 0 ? t.p95FrameMs : displayMs;
     const maxMs = typeof t.maxFrameMs === 'number' && t.maxFrameMs > 0 ? t.maxFrameMs : p95Ms;
     const workMs = typeof t.workAvgMs === 'number' ? t.workAvgMs : 0;

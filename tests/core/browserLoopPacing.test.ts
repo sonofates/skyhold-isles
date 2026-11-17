@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { GameLoop, computeRenderPacingTarget } from '../../src/platform/browserLoop.ts';
 import { loadSettings } from '../../src/platform/storage.ts';
+import { PerfGovernor } from '../../src/render/perfGovernor.ts';
 
 describe('computeRenderPacingTarget', () => {
   it('skips rendering when the tab is hidden', () => {
@@ -341,6 +342,45 @@ describe('GameLoop throttle boundary and storage backward compatibility', () => 
     store.set('skyhold_isles_settings_v1', JSON.stringify({ quality: 'invalid' }));
     expect(loadSettings().quality).toBe('auto');
 
+    vi.unstubAllGlobals();
+  });
+
+  it('passes unclamped actualFrameDt to onAfterRender so PerfGovernor ignores >250ms OS stalls', () => {
+    let nextRaf: ((now: number) => void) | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: (now: number) => void) => {
+      nextRaf = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', () => {});
+    vi.stubGlobal('performance', { now: () => 0 });
+
+    const renderDts: number[] = [];
+    const actualDts: number[] = [];
+    const gov = new PerfGovernor({ mode: 'auto', isTouch: false });
+
+    const loop = new GameLoop({
+      onFixedTick: () => {},
+      onRender: (frameDt) => {
+        renderDts.push(frameDt);
+      },
+      onAfterRender: (_dt, _work, throttled, _sleepBoundary, actualFrameDt) => {
+        const dt = actualFrameDt ?? _dt;
+        actualDts.push(dt);
+        gov.recordFrame(dt * 1000, { throttled });
+      },
+    });
+
+    loop.start();
+    nextRaf?.(16);
+    nextRaf?.(416); // 400ms OS hitch -> clamped to 0.1s for sim/render, unclamped 0.4s for governor
+
+    expect(renderDts[1]).toBeCloseTo(0.1, 6);
+    expect(actualDts[1]).toBeCloseTo(0.4, 6);
+    // Governor rejected the 400ms spike (>250ms) and kept Tier 5 with 0 recorded slow samples
+    expect(gov.getTier()).toBe(5);
+    expect(gov.getStats().sampleCount).toBe(0);
+
+    loop.stop();
     vi.unstubAllGlobals();
   });
 });
