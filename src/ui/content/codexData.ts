@@ -55,7 +55,7 @@ export const ENEMY_LORE: Record<EnemyType, EnemyLore> = {
   },
   burrower: {
     blurb: 'Tunnels under the road in bursts — untargetable and faster while down.',
-    counter: 'Cover the whole road; splash where it resurfaces. Don’t waste shots while it digs.',
+    counter: 'Cover the whole road so something is always in range when it surfaces; splash helps where it resurfaces.',
     tags: ['Ground', 'Evasive'],
   },
   carrier: {
@@ -235,7 +235,7 @@ export function eliteEntry(): CodexEliteEntry {
     name: 'Empowered Elites',
     description: 'Some waves send Empowered versions of a foe: bigger, tougher and carrying a golden aura.',
     blurb: 'Gilded versions of normal foes with extra health and armor.',
-    counter: 'Focus them with your strongest towers; they pay a bigger bounty. Armor-piercing hits matter more.',
+    counter: 'Focus them with your strongest towers (Strongest targeting helps); they pay a bigger bounty.',
     tags: ['Any foe', 'Gold aura'],
     stats: [
       { label: 'Health', value: `×${m.hpMul}` },
