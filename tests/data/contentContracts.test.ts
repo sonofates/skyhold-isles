@@ -67,6 +67,8 @@ describe('tower, enemy, ability, and UI metadata contracts', () => {
       seenHotkeys.add(def.hotkey);
 
       expect(TOWER_ICON_SVGS[type]).toContain('<svg');
+      expect(TOWER_ICON_SVGS[type]).toContain('viewBox=');
+      expect(TOWER_ICON_SVGS[type]).toContain('</svg>');
       expect(TOWER_PICK_BOUNDS[type]).toHaveLength(3);
 
       for (const tier of [1, 2, 3] as const) {
@@ -166,6 +168,12 @@ describe('tower, enemy, ability, and UI metadata contracts', () => {
       expect(seenHotkeys.has(def.hotkey)).toBe(false);
       seenHotkeys.add(def.hotkey);
       expect(UI_ICON_SVGS[id]).toContain('<svg');
+      expect(UI_ICON_SVGS[id]).toContain('</svg>');
+    }
+    for (const svg of Object.values(UI_ICON_SVGS)) {
+      expect(svg).toContain('<svg');
+      expect(svg).toContain('viewBox=');
+      expect(svg).toContain('</svg>');
     }
 
     expect(ABILITY_DEFS.meteor.requiresTarget).toBe(true);
@@ -268,7 +276,7 @@ describe('level data, flight paths, waves, and scripted build orders', () => {
       // Waves must contain valid enemy types, positive intervals/counts, and fit pool capacity
       expect(lvl.waves.length).toBeGreaterThan(0);
       for (const wave of lvl.waves) {
-        expect(wave.clearBonus).toBeGreaterThanOrEqual(0);
+        expect(Number.isInteger(wave.clearBonus) && wave.clearBonus >= 0).toBe(true);
         expect(wave.groups.length).toBeGreaterThan(0);
         let waveTotal = 0;
         let worstCaseSpawns = 0;

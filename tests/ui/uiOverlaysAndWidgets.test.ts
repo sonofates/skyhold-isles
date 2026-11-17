@@ -519,6 +519,19 @@ describe('In-play UI widgets (HudBar, AbilityBar, BuildBar, TowerPanel, GameToas
     expect(callbacks.onOpenSettings).toHaveBeenCalledTimes(1);
     expect(callbacks.onOpenMenu).toHaveBeenCalledTimes(1);
 
+    // Repeating exact same HudStateView hits memoization fast paths cleanly
+    const callsBeforeRepeat = callbacks.onStartWave.mock.calls.length;
+    hud.update({
+      ...baseView,
+      isPreFirstWave: false,
+      canStartWave: false,
+      currentWave: 12,
+      totalWaves: 12,
+      isEndless: true,
+      nextPreview: null,
+    });
+    expect(callbacks.onStartWave).toHaveBeenCalledTimes(callsBeforeRepeat);
+
     hud.setVisible(false);
     expect(root.classList.contains('hidden')).toBe(true);
     hud.dispose();
@@ -588,6 +601,23 @@ describe('In-play UI widgets (HudBar, AbilityBar, BuildBar, TowerPanel, GameToas
     expect(meteorBtn.classList.contains('is-disabled')).toBe(true);
     expect(meteorBtn.classList.contains('is-targeting')).toBe(false);
 
+    // Active Overcharge buff WITHOUT cooldown hides cooldown badge, omits overchargeDuration to test fallback,
+    // handles meteorMaxCooldown=0 safely, and memoizes identical repeat update
+    const buffOnlyState = {
+      activeAbility: null,
+      meteorCooldown: 0,
+      meteorMaxCooldown: 0,
+      overchargeCooldown: 0,
+      overchargeMaxCooldown: 36,
+      overchargeRemaining: 2.1,
+    };
+    bar1.update(buffOnlyState);
+    bar1.update(buffOnlyState);
+    expect(overchargeBtn.classList.contains('is-buff-active')).toBe(true);
+    expect(overchargeBtn.classList.contains('on-cooldown')).toBe(false);
+    expect(overchargeBtn.findByClass('ability-cd-badge')[0].classList.contains('hidden')).toBe(true);
+    expect(overchargeBtn.findByClass('ability-status')[0].textContent).toBe('Active 3s');
+
     meteorBtn.click();
     overchargeBtn.click();
     expect(onActivate).toHaveBeenNthCalledWith(1, 'meteor');
@@ -607,6 +637,7 @@ describe('In-play UI widgets (HudBar, AbilityBar, BuildBar, TowerPanel, GameToas
     expect(cards).toHaveLength(TOWER_TYPES.length);
 
     bar.update(70, 'frost'); // archer=50, frost=65 affordable; cannon=75, tesla=90, mortar=110 unaffordable
+    bar.update(70, 'frost'); // repeat update hits memoized fast-path cleanly
     for (const type of TOWER_TYPES) {
       const card = cards.find((c) => c.getAttribute('data-tower') === type)!;
       const affordable = 70 >= getTowerTierStats(type, 1).upgradeCost;
@@ -642,6 +673,16 @@ describe('In-play UI widgets (HudBar, AbilityBar, BuildBar, TowerPanel, GameToas
       '/s',
       'RNG',
     ]);
+
+    const archerT2 = makeTower(14, 'archer', 2, { kills: 2, totalDamageDealt: 42.6 });
+    panel.update(archerT2, 200);
+    expect(root.findByClass('tower-panel-sub')[0].textContent).toBe('Tier II');
+    expect(root.findByClass('tower-panel-telemetry')[0].findByClass('tower-stat-val')[1].textContent).toBe('43');
+    // Repeat identical signature returns early, then hiding and reopening refreshes metricsDirty cleanly
+    panel.update(archerT2, 200);
+    panel.update(null, 200);
+    panel.update(archerT2, 200);
+    expect(root.classList.contains('hidden')).toBe(false);
 
     const cannon = makeTower(10, 'cannon', 1, { kills: 3, totalDamageDealt: 1250 });
     panel.update(cannon, 40);
@@ -728,6 +769,15 @@ describe('In-play UI widgets (HudBar, AbilityBar, BuildBar, TowerPanel, GameToas
     panel.setAnchorScreenPos(120, 200, 844, 390);
     expect(root.dataset.anchorSide).toBe('edge-right');
 
+    // Narrow desktop viewport (780x720) with wider panel where neither side fits -> chooses wider side
+    (root as unknown as { offsetWidth: number }).offsetWidth = 340;
+    panel.update(null, 0);
+    panel.update(mortarT3, 500);
+    panel.setAnchorScreenPos(380, 360, 780, 720);
+    expect(root.dataset.anchorSide).toBe('right');
+    panel.setAnchorScreenPos(400, 360, 780, 720);
+    expect(root.dataset.anchorSide).toBe('left');
+
     panel.update(null, 0);
     expect(root.classList.contains('hidden')).toBe(true);
     panel.dispose();
@@ -750,6 +800,14 @@ describe('In-play UI widgets (HudBar, AbilityBar, BuildBar, TowerPanel, GameToas
 
     toast.show('Manual close', 5.0);
     toastRoot.findByClass('game-toast-close')[0].click();
+    toast.hide(); // idempotent when already hidden
+    toast.update(1.0); // no-op while hidden
+    expect(toastRoot.classList.contains('hidden')).toBe(true);
+
+    toast.show('Default timeout');
+    toast.update(3.6);
+    expect(toastRoot.classList.contains('hidden')).toBe(false);
+    toast.update(2.5);
     expect(toastRoot.classList.contains('hidden')).toBe(true);
     toast.dispose();
 
@@ -777,7 +835,19 @@ describe('In-play UI widgets (HudBar, AbilityBar, BuildBar, TowerPanel, GameToas
     tooltip.showTower(makeTower(2, 'frost', 3), 100, 200);
     expect(tipRoot.findByClass('enemy-tooltip-name')[0].textContent).toBe('Frost Spire T3 · Max tier');
 
+    tooltip.show({
+      type: 'grunt',
+      hp: 50,
+      maxHp: 75,
+      armor: 0,
+      slowTimer: 0,
+      slowRatio: 0,
+    } as EnemyEntity, 100, 200);
+    expect(tipRoot.findByClass('enemy-tooltip-stats')[0].children[1].textContent).toBe('');
+    expect(tipRoot.findByClass('enemy-tooltip-slow')[0].textContent).toBe('');
+
     tooltip.hide();
+    tooltip.hide(); // idempotent when hidden
     expect(tipRoot.classList.contains('hidden')).toBe(true);
     tooltip.dispose();
     expect(dom.body.children).toHaveLength(0);
@@ -814,6 +884,7 @@ describe('Menus, modals, SettingsModal, LoadingScreen, and GameOverlays integrat
       bestEndlessWaves: [0, 14, 0],
     };
     mainMenu.setOpen(true, progress);
+    mainMenu.setOpen(true); // omitted progress leaves previous state intact cleanly
     const menuRoot = dom.body.children[0];
     const playBtn = menuRoot.findByTestId('btn-play')!;
     expect(playBtn.textContent).toBe(`Play · ${LEVELS[LEVELS.length - 1].name}`);
@@ -841,6 +912,7 @@ describe('Menus, modals, SettingsModal, LoadingScreen, and GameOverlays integrat
       bestStars: [3, 0, 0],
       bestEndlessWaves: [0, 14, 0],
     });
+    levelSelect.setOpen(true); // omitted progress leaves cards intact cleanly
     const lsRoot = dom.body.children[0];
     const cards = lsRoot.findByClass('level-card');
     expect(cards).toHaveLength(LEVELS.length);
@@ -912,6 +984,15 @@ describe('Menus, modals, SettingsModal, LoadingScreen, and GameOverlays integrat
     expect(outBackdrop.findByClass('outcome-mvp')[0].classList.contains('hidden')).toBe(false);
     expect(outBackdrop.findByClass('outcome-mvp')[0].textContent).toContain('MVP · Siege Mortar III');
     expect(outBackdrop.findByClass('outcome-mvp')[0].textContent).toContain('1.5k DMG · 1 Kill');
+
+    outcome.showWin(LEVELS[0], 3, 19, 80, true, {
+      name: 'Archer Tower',
+      type: 'archer',
+      tier: 1,
+      damageDealt: 840,
+      kills: 5,
+    });
+    expect(outBackdrop.findByClass('outcome-mvp')[0].textContent).toContain('840 DMG · 5 Kills');
 
     outcome.showWin(LEVELS[0], 2, 14, 70, true, {
       name: 'Tesla Coil',
@@ -987,13 +1068,14 @@ describe('Menus, modals, SettingsModal, LoadingScreen, and GameOverlays integrat
     checkboxes[2].checked = false;
     checkboxes[2].dispatch('change');
     setBackdrop.findByClass('setting-seg-btn')[1].click(); // Low quality
+    setBackdrop.findByClass('setting-seg-btn')[0].click(); // High quality toggle back
 
     expect(setCb.onChange).toHaveBeenLastCalledWith({
       masterVolume: 0.3,
       muted: true,
       cameraShake: false,
       damageNumbers: false,
-      quality: 'low',
+      quality: 'high',
     });
 
     setBackdrop.click(setBackdrop.findByClass('settings-card')[0]);
@@ -1005,6 +1087,18 @@ describe('Menus, modals, SettingsModal, LoadingScreen, and GameOverlays integrat
     expect(setCb.onRestart).toHaveBeenCalledTimes(1);
     expect(setCb.onQuitToMenu).toHaveBeenCalledTimes(1);
     settingsModal.dispose();
+
+    // SettingsModal with omitted optional callbacks hides Restart/Main Menu buttons cleanly
+    const minimalSettings = new SettingsModal(dom.body as unknown as HTMLElement, initialSettings, {
+      onChange: vi.fn(),
+      onClose: vi.fn(),
+    });
+    const minBtns = dom.body.children[0].findByClass('modal-actions')[0].children;
+    expect(minBtns[0].classList.contains('hidden')).toBe(true);
+    expect(minBtns[1].classList.contains('hidden')).toBe(true);
+    minimalSettings.setOpen(true);
+    expect(minimalSettings.isOpen()).toBe(true);
+    minimalSettings.dispose();
   });
 
   it('LoadingScreen updates clamped progress, switches to error/reload state, and removes on hide timeout', () => {
@@ -1018,6 +1112,7 @@ describe('Menus, modals, SettingsModal, LoadingScreen, and GameOverlays integrat
 
     ls.setProgress(5, 0);
     expect(ls.element.findByClass('loading-pct')[0].textContent).toBe('0%');
+    expect(ls.element.findByClass('loading-detail')[0].textContent).toBe('Loading tile-straight');
     ls.setProgress(50, 10);
     expect(ls.element.findByClass('loading-pct')[0].textContent).toBe('100%');
 

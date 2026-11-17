@@ -310,6 +310,32 @@ describe('QA scripts smoke verification', () => {
     expect(endlessOnlyJson.deterministic).toBe(true);
     expect(endlessOnlyJson.digest.profile).toBe('competent');
     expect(endlessOnlyJson.digest.endlessWavesCompleted).toBe(1);
+
+    const fuzzHumanRepro = runTsx([
+      'scripts/fuzzPlay.ts',
+      '--level',
+      '1',
+      '--seed',
+      '1',
+      '--endless-waves',
+      '0',
+    ]);
+    expect(fuzzHumanRepro.status, fuzzHumanRepro.stderr).toBe(0);
+    expect(fuzzHumanRepro.stdout).toContain('Skyhold Isles Fuzz Repro');
+    expect(fuzzHumanRepro.stdout).toContain('PASSED in');
+
+    const fuzzHumanCampaign = runTsx([
+      'scripts/fuzzPlay.ts',
+      '--level',
+      '1',
+      '--seeds',
+      '1',
+      '--endless-waves',
+      '0',
+    ]);
+    expect(fuzzHumanCampaign.status, fuzzHumanCampaign.stderr).toBe(0);
+    expect(fuzzHumanCampaign.stdout).toContain('Peak pools observed:');
+    expect(fuzzHumanCampaign.stdout).toContain('Fuzz harness PASSED: all invariants held!');
   });
 
   it('executes simBench --json CLI entrypoint cleanly', { timeout: 30_000 }, () => {

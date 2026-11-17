@@ -25,6 +25,15 @@ const SPEEDS: readonly SpeedMultiplier[] = [1, 2, 3];
 const FRAME_DTS: readonly number[] = [1 / 60, 1 / 30, 0.05, 0.1];
 const MAX_CHAIN_POINTS = 1 + Math.max(1, ...TOWER_TYPES.map((t) => getTowerTierStats(t, 3).chainCount));
 const CHEAPEST_TOWER_COST = Math.min(...TOWER_TYPES.map((t) => getTowerTierStats(t, 1).upgradeCost));
+const MAX_SLOW_DURATION = Math.max(
+  ABILITY_DEFS.meteor.slowDuration,
+  ...TOWER_TYPES.flatMap((t) => TOWER_DEFS[t].tiers.map((st) => st.slowDuration)),
+);
+const MIN_ENEMY_IMPACT_Y = Math.min(
+  ...ENEMY_TYPES.map(
+    (t) => (ENEMY_DEFS[t].flying ? BALANCE.flyerHeight : BALANCE.tilePathTopY) + ENEMY_DEFS[t].height * 0.55,
+  ),
+);
 const MAX_GROUND_IMPACT_Y =
   BALANCE.tilePathTopY +
   Math.max(...ENEMY_TYPES.filter((t) => !ENEMY_DEFS[t].flying).map((t) => ENEMY_DEFS[t].height)) * 0.55;
@@ -557,12 +566,13 @@ function attachEventTracker(
 
   events.on('healerPulse', (ev) => {
     const expectedRadius = ENEMY_DEFS.healer.healRadius ?? 3.8;
+    const expectedHealerY = (ENEMY_DEFS.healer.flying ? BALANCE.flyerHeight : BALANCE.tilePathTopY) + 0.12;
     if (
       !Number.isFinite(ev.x) ||
       !Number.isFinite(ev.y) ||
       !Number.isFinite(ev.z) ||
       Math.abs(ev.radius - expectedRadius) > 1e-6 ||
-      Math.abs(ev.y - (BALANCE.tilePathTopY + 0.12)) > 1e-6
+      Math.abs(ev.y - expectedHealerY) > 1e-6
     ) {
       recordEventError(tracker, `Invalid healerPulse payload`);
       return;
@@ -987,8 +997,14 @@ function attachEventTracker(
         `Unexpected waveStarted index: got ${ev.waveIndex}, expected ${tracker.expectedNextWaveIndex}`,
       );
     }
-    if (ev.totalWaves < world.level.waves.length) {
-      recordEventError(tracker, `waveStarted totalWaves=${ev.totalWaves} < level.waves.length=${world.level.waves.length}`);
+    const expectedTotalWaves = inEndless()
+      ? Math.max(world.level.waves.length, ev.waveIndex + 1)
+      : world.level.waves.length;
+    if (ev.totalWaves !== expectedTotalWaves) {
+      recordEventError(
+        tracker,
+        `waveStarted totalWaves=${ev.totalWaves} != expected=${expectedTotalWaves} (endless=${inEndless()})`,
+      );
     }
     if (!Number.isInteger(ev.earlyBonus) || ev.earlyBonus < 0 || ev.earlyBonus > BALANCE.earlyWaveBonusMaxGold) {
       recordEventError(tracker, `Invalid waveStarted earlyBonus=${ev.earlyBonus}`);
@@ -1217,6 +1233,7 @@ function assertTickInvariants(world: SimWorld, tracker: FuzzTracker, tick: numbe
       e.slowRatio > BALANCE.maxSlowRatio + 1e-9 ||
       !Number.isFinite(e.slowTimer) ||
       e.slowTimer < 0 ||
+      e.slowTimer > MAX_SLOW_DURATION + 1e-6 ||
       !Number.isFinite(e.hitFlashTimer) ||
       e.hitFlashTimer < 0 ||
       e.hitFlashTimer > 0.12 + 1e-6 ||
@@ -1282,8 +1299,10 @@ function assertTickInvariants(world: SimWorld, tracker: FuzzTracker, tick: numbe
       p.duration < 0.06 - 1e-9 ||
       (p.parabolic &&
         Math.abs(p.duration - Math.max(0.06, Math.hypot(p.endX - p.startX, p.endZ - p.startZ) / p.speed)) > 1e-9) ||
-      p.progress < 0 ||
+      p.progress <= 0 ||
       p.progress >= 1 ||
+      p.endY < MIN_ENEMY_IMPACT_Y - 1e-5 ||
+      p.endY > (TOWER_DEFS[p.towerType].hitsFlyers ? MAX_ANY_IMPACT_Y : MAX_GROUND_IMPACT_Y) + 1e-5 ||
       p.arcHeight < 0 ||
       (p.parabolic
         ? p.arcHeight <= 0 ||
@@ -1335,6 +1354,25 @@ function assertTickInvariants(world: SimWorld, tracker: FuzzTracker, tick: numbe
         Math.abs(p.startZ - srcTower.z) > 1e-6)
     ) {
       return `Projectile start origin drifted from live source tower id=${p.towerId}`;
+    }
+    if (!p.parabolic && world.outcome === 'ongoing') {
+      const target = world.enemyPool.items[p.targetPoolIndex];
+      if (
+        target.active &&
+        target.uid === p.targetUid &&
+        (Math.abs(p.endX - target.x) > 1e-6 ||
+          Math.abs(p.endY - (target.y + target.height * 0.55)) > 1e-5 ||
+          Math.abs(p.endZ - target.z) > 1e-6)
+      ) {
+        return `Linear projectile target (${p.endX},${p.endY},${p.endZ}) out of sync with live target uid=${p.targetUid}`;
+      }
+    } else if (p.parabolic && Math.hypot(p.endX - p.startX, p.endZ - p.startZ) > 0.01) {
+      const expectedProjYaw = Math.atan2(p.endX - p.startX, p.endZ - p.startZ);
+      let projYawDiff = Math.abs(p.yaw - expectedProjYaw) % (Math.PI * 2);
+      if (projYawDiff > Math.PI) projYawDiff = Math.PI * 2 - projYawDiff;
+      if (projYawDiff > 1e-4) {
+        return `Parabolic projectile yaw=${p.yaw} diverged from travel heading=${expectedProjYaw}`;
+      }
     }
     const projT = Math.min(1, p.progress);
     const expProjX = p.startX + (p.endX - p.startX) * projT;
