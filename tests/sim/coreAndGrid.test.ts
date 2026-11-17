@@ -208,4 +208,23 @@ describe('SpatialHashGrid', () => {
     hash.query(2, 2, 1, out);
     expect(out.sort()).toEqual([0, 1]);
   });
+
+  it('clamps non-positive world dimensions to at least a 4x4 grid and handles negative query radii cleanly', () => {
+    const zeroHash = new SpatialHashGrid(0, -10, 4);
+    zeroHash.insert(0, -1e5, -1e5);
+    zeroHash.insert(1, 0, 0);
+    zeroHash.insert(2, 1e5, 1e5);
+
+    const out: number[] = [42, 99];
+    // Wide query gathers every clamped entity; negative radius never loops or leaks prior results
+    zeroHash.query(0, 0, 1e6, out);
+    expect(out.sort()).toEqual([0, 1, 2]);
+
+    expect(() => zeroHash.query(0, 0, -5, out)).not.toThrow();
+    expect(out).toEqual([]);
+
+    // Small negative radius inside a single cell either returns the local bucket or empty cleanly
+    expect(() => zeroHash.query(0, 0, -0.1, out)).not.toThrow();
+    expect(out.every((idx) => idx >= 0 && idx < 4)).toBe(true);
+  });
 });

@@ -1062,3 +1062,154 @@ describe('upgrade snapshot, killed aura suppression, boss pulse ties, and combat
     expect(impacts[1]).toEqual({ towerType: 'archer', isBossHit: false });
   });
 });
+
+describe('degenerate paths, zero-distance projectiles, splash isolation, and deep tesla chains', () => {
+  it('spawns and leaks cleanly on a 1-waypoint CompiledPath with minimum 0.01 totalDist', () => {
+    const events = new EventBus();
+    const leakedEvents: Array<{ enemyType: string; livesLost: number }> = [];
+    events.on('enemyLeaked', (ev) =>
+      leakedEvents.push({ enemyType: ev.enemyType, livesLost: ev.livesLost }),
+    );
+
+    const singlePointLevel: LevelDef = {
+      ...LEVELS[0],
+      cols: 5,
+      rows: 5,
+      layout: [
+        '. . . . .',
+        '. . . . .',
+        '. . G . .',
+        '. . . . .',
+        '. . . . .',
+      ],
+      pathWaypoints: [{ col: 2, row: 2 }],
+      flightPath: [{ col: 2, row: 2 }],
+    };
+
+    const world = new SimWorld(singlePointLevel, events);
+    expect(world.enemySystem.getPath(false).totalLength).toBe(0);
+    expect(world.enemySystem.getPath(true).totalLength).toBe(0);
+
+    const grunt = world.enemySystem.spawnEnemy('grunt')!;
+    expect(grunt).not.toBeNull();
+    expect(grunt.totalDist).toBe(0.01);
+    expect(grunt.dist).toBe(0);
+    expect(Number.isFinite(grunt.x) && Number.isFinite(grunt.y) && Number.isFinite(grunt.z)).toBe(true);
+    expect(Number.isFinite(grunt.yaw)).toBe(true);
+
+    let leakCallbacks = 0;
+    world.enemySystem.update(0.1, () => {
+      leakCallbacks++;
+    }, () => {});
+    expect(leakCallbacks).toBe(1);
+    expect(leakedEvents).toEqual([{ enemyType: 'grunt', livesLost: ENEMY_DEFS.grunt.livesCost }]);
+    expect(world.enemyPool.getActiveCount()).toBe(0);
+  });
+
+  it('clamps zero-XZ-distance projectile duration to 0.06 and keeps pre-existing frost slow after cannon splash', () => {
+    const { world } = makeWorld();
+    const archer = world.placeTower(4, 2, 'archer')!;
+    const cannon = world.placeTower(5, 2, 'cannon')!;
+
+    const coLocated = world.enemySystem.spawnEnemy('brute')!;
+    coLocated.x = archer.x;
+    coLocated.z = archer.z;
+
+    const zeroDistArrow = world.projectileSystem.spawnProjectile(archer, coLocated, 1)!;
+    expect(zeroDistArrow.duration).toBe(0.06);
+    expect(zeroDistArrow.yaw).toBe(0);
+    expect(zeroDistArrow.parabolic).toBe(false);
+
+    world.projectileSystem.update(0.03, [archer, cannon]);
+    expect(zeroDistArrow.active).toBe(true);
+    expect(Number.isFinite(zeroDistArrow.x) && Number.isFinite(zeroDistArrow.y) && Number.isFinite(zeroDistArrow.z)).toBe(true);
+    world.projectileSystem.update(0.035, [archer, cannon]);
+    expect(zeroDistArrow.active).toBe(false);
+
+    // Zero-XZ parabolic shell against stationary target also clamps to 0.06 duration with finite arc
+    const stationaryUnderCannon = world.enemySystem.spawnEnemy('brute')!;
+    stationaryUnderCannon.x = cannon.x;
+    stationaryUnderCannon.z = cannon.z;
+    stationaryUnderCannon.speed = 0;
+    world.enemySystem.applySlow(stationaryUnderCannon, 0.35, 1.5);
+
+    const zeroDistShell = world.projectileSystem.spawnProjectile(cannon, stationaryUnderCannon, 0.45)!;
+    expect(zeroDistShell.parabolic).toBe(true);
+    expect(zeroDistShell.slowRatio).toBe(0);
+    expect(zeroDistShell.duration).toBe(0.06);
+    expect(zeroDistShell.yaw).toBe(0);
+
+    world.spatialHash.clear();
+    world.spatialHash.insert(stationaryUnderCannon.poolIndex, stationaryUnderCannon.x, stationaryUnderCannon.z);
+
+    world.projectileSystem.update(0.03, [archer, cannon]);
+    expect(Number.isFinite(zeroDistShell.y)).toBe(true);
+    expect(zeroDistShell.y).toBeGreaterThan(zeroDistShell.startY);
+
+    const hpBeforeSplash = stationaryUnderCannon.hp;
+    world.projectileSystem.update(0.04, [archer, cannon]);
+    expect(stationaryUnderCannon.hp).toBeLessThan(hpBeforeSplash);
+    expect(stationaryUnderCannon.slowRatio).toBe(0.35);
+    expect(stationaryUnderCannon.slowTimer).toBe(1.5);
+  });
+
+  it('chains a T3 tesla across all hops including outside->inside range and hits armored boss for at least minArmorDamage', () => {
+    const { world, events } = makeWorld();
+    const tesla = world.placeTower(4, 2, 'tesla', 'first')!;
+    expect(world.upgradeTower(tesla.id)).toBe(true);
+    expect(world.upgradeTower(tesla.id)).toBe(true);
+    expect(tesla.tier).toBe(3);
+
+    const stats = getTowerTierStats('tesla', 3);
+    expect(stats.chainCount).toBeGreaterThanOrEqual(5);
+    expect(stats.chainRange).toBeGreaterThanOrEqual(1.5);
+
+    const chains: Array<Array<{ x: number; y: number; z: number }>> = [];
+    events.on('lightningChain', (ev) => chains.push(ev.points));
+
+    // Geometry: e0 in tower range -> e1 strictly outside tower range -> e2 back inside tower range -> e3 -> e4 (armored boss)
+    const r = stats.range;
+    const coords = [
+      { x: tesla.x + r - 0.25, z: tesla.z, dist: 50, armor: 0, type: 'grunt' as const },
+      { x: tesla.x + r + 0.25, z: tesla.z, dist: 40, armor: 0, type: 'grunt' as const },
+      { x: tesla.x + r - 0.45, z: tesla.z + 0.7, dist: 30, armor: 0, type: 'grunt' as const },
+      { x: tesla.x + r - 1.5, z: tesla.z + 0.9, dist: 20, armor: 0, type: 'grunt' as const },
+      { x: tesla.x + r - 2.65, z: tesla.z + 1.0, dist: 10, armor: 999, type: 'boss' as const },
+    ];
+
+    const enemies = coords.map((spec) => {
+      const e = world.enemySystem.spawnEnemy(spec.type)!;
+      e.x = spec.x;
+      e.z = spec.z;
+      e.dist = spec.dist;
+      e.armor = spec.armor;
+      e.maxHp = 5000;
+      e.hp = 5000;
+      return e;
+    });
+
+    expect(Math.hypot(enemies[1].x - tesla.x, enemies[1].z - tesla.z)).toBeGreaterThan(r);
+    expect(Math.hypot(enemies[2].x - tesla.x, enemies[2].z - tesla.z)).toBeLessThan(r);
+
+    world.spatialHash.clear();
+    for (const e of enemies) {
+      world.spatialHash.insert(e.poolIndex, e.x, e.z);
+    }
+
+    tesla.cooldownTimer = 0;
+    world.combatSystem.update(BALANCE.fixedDt, [tesla]);
+
+    expect(chains).toHaveLength(1);
+    expect(chains[0]).toHaveLength(6); // turret origin + 5 jumps
+
+    // Every hop in order matches exact e0 -> e1 (out of tower range) -> e2 (back in range) -> e3 -> e4
+    for (let i = 0; i < enemies.length; i++) {
+      expect(chains[0][i + 1].x).toBeCloseTo(enemies[i].x, 5);
+      expect(chains[0][i + 1].z).toBeCloseTo(enemies[i].z, 5);
+      expect(enemies[i].hp).toBeLessThan(5000);
+    }
+
+    // Last hop against extreme armor falls through to exact minArmorDamage floor
+    expect(5000 - enemies[4].hp).toBe(BALANCE.minArmorDamage);
+  });
+});

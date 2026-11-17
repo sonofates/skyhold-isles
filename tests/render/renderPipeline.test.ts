@@ -779,6 +779,93 @@ describe('RenderWorld subsystems headless verification', () => {
       decorBuilder.dispose();
     }).not.toThrow();
 
+    // Fresh/disposed MapBuilder and GroundDetails safely no-op on update/syncOccupiedTiles,
+    // and MapBuilder covers N-S open-water bridges plus all 4 cardinal spawn/goal & corner orientations
+    const freshMap = new MapBuilder();
+    const freshGround = new GroundDetails();
+    expect(() => {
+      freshMap.update(0.5);
+      freshGround.syncOccupiedTiles([]);
+    }).not.toThrow();
+
+    const orientationLevel = {
+      ...LEVELS[0],
+      cols: 5,
+      rows: 5,
+      layout: [
+        'S P P . .',
+        '~ ~ P ~ ~',
+        '. . P P P',
+        'P P P . P',
+        'G . P P P',
+      ],
+      // Traverses N-S vertical open-water bridge at (2,1), S(DIR_E), G(DIR_N),
+      // and all 4 corner rounds: S|W (2,0), N|E (2,2), W|N (4,4), E|S (0,3)
+      pathWaypoints: [
+        { col: 0, row: 0 },
+        { col: 2, row: 0 },
+        { col: 2, row: 2 },
+        { col: 4, row: 2 },
+        { col: 4, row: 4 },
+        { col: 2, row: 4 },
+        { col: 2, row: 3 },
+        { col: 0, row: 3 },
+        { col: 0, row: 4 },
+      ],
+      flightPath: [
+        { col: 0, row: 0 },
+        { col: 0, row: 4 },
+      ],
+    };
+    expect(() => {
+      freshMap.build(orientationLevel, mats, assets);
+      freshMap.update(0.75);
+      freshMap.dispose();
+      freshMap.update(1.0);
+    }).not.toThrow();
+
+    // Also test North/South-opening and Westward-opening spawn/goal orientations
+    const northSouthLevel = {
+      ...LEVELS[0],
+      cols: 3,
+      rows: 5,
+      layout: [
+        '. S .',
+        '. P .',
+        '~ P ~',
+        '. P .',
+        '. G .',
+      ],
+      pathWaypoints: [
+        { col: 1, row: 0 },
+        { col: 1, row: 4 },
+      ],
+      flightPath: [
+        { col: 1, row: 0 },
+        { col: 1, row: 4 },
+      ],
+    };
+    const westwardLevel = {
+      ...LEVELS[0],
+      cols: 3,
+      rows: 3,
+      layout: ['. . .', 'G P S', '. . .'],
+      pathWaypoints: [
+        { col: 2, row: 1 },
+        { col: 0, row: 1 },
+      ],
+      flightPath: [
+        { col: 2, row: 1 },
+        { col: 0, row: 1 },
+      ],
+    };
+    expect(() => {
+      freshMap.build(northSouthLevel, mats, assets);
+      freshMap.dispose();
+      freshMap.build(westwardLevel, mats, assets);
+      freshMap.dispose();
+    }).not.toThrow();
+
     mapBuilder.dispose();
     decorBuilder.dispose();
     expect(mapBuilder.group.children).toHaveLength(0);

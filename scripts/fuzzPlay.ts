@@ -194,6 +194,7 @@ interface FuzzTracker {
   currentTick: number;
   pendingMeteors: Array<{ x: number; z: number; radius: number; castTick: number }>;
   newlyStunnedTowerIds: Set<number>;
+  firedTowerIdsThisTick: Set<number>;
   bossSummonedUids: Set<number>;
   bossesBelowHalfLastTick: Set<number>;
   prevTowerStats: Map<
@@ -206,6 +207,7 @@ interface FuzzTracker {
       tier: 1 | 2 | 3;
       totalInvested: number;
       recoil: number;
+      popAnimTimer: number;
     }
   >;
   stateHash: number;
@@ -704,6 +706,10 @@ function attachEventTracker(
       recordEventError(tracker, `towerUpgraded live state mismatch for id=${ev.towerId} tier=${ev.tier}`);
       return;
     }
+    const prevStats = tracker.prevTowerStats.get(ev.towerId);
+    if (prevStats) {
+      prevStats.popAnimTimer = 0.32;
+    }
     tracker.maxTierReached = Math.max(tracker.maxTierReached, ev.tier);
     tracker.stateHash = mixHash(mixHash(mixHash(tracker.stateHash, 13), ev.towerId), ev.tier);
   });
@@ -738,6 +744,7 @@ function attachEventTracker(
     }
     tracker.builtTowerIds.delete(ev.towerId);
     tracker.towerById.delete(ev.towerId);
+    tracker.prevTowerStats.delete(ev.towerId);
     tracker.soldTowerCount++;
     tracker.stateHash = mixHash(mixHash(mixHash(tracker.stateHash, 14), ev.towerId), ev.refund);
   });
@@ -748,6 +755,7 @@ function attachEventTracker(
       recordEventError(tracker, `Invalid or stunned towerFired for id=${ev.towerId}`);
       return;
     }
+    tracker.firedTowerIdsThisTick.add(ev.towerId);
     if (
       ev.type !== tower.type ||
       ev.tier !== tower.tier ||
@@ -1338,8 +1346,9 @@ function assertTickInvariants(world: SimWorld, tracker: FuzzTracker, tick: numbe
       e.hitFlashTimer < 0 ||
       e.hitFlashTimer > 0.12 + 1e-6 ||
       !Number.isFinite(e.healTimer) ||
-      e.healTimer < 0 ||
-      (e.type === 'healer' ? e.healTimer > (def.healInterval ?? 2.6) + 1e-6 : e.healTimer !== 0) ||
+      (e.type === 'healer'
+        ? e.healTimer <= 0 || e.healTimer > (def.healInterval ?? 2.6) + 1e-6
+        : e.healTimer !== 0) ||
       !Number.isFinite(e.walkPhase) ||
       !Number.isFinite(e.bossPulseTimer) ||
       e.bossPulseTimer < 0 ||
@@ -1561,6 +1570,18 @@ function assertTickInvariants(world: SimWorld, tracker: FuzzTracker, tick: numbe
       ) {
         return `Tower id=${t.id} stats/tier regressed (kills ${prevStats.kills}->${t.kills}, dmg ${prevStats.dmg}->${t.totalDamageDealt}, tier ${prevStats.tier}->${t.tier})`;
       }
+      if (world.outcome === 'ongoing') {
+        const expectedPopAnim = Math.max(0, prevStats.popAnimTimer - BALANCE.fixedDt);
+        if (Math.abs(t.popAnimTimer - expectedPopAnim) > 1e-9) {
+          return `Tower id=${t.id} popAnimTimer mismatch: got=${t.popAnimTimer}, expected=${expectedPopAnim}`;
+        }
+        if (!tracker.firedTowerIdsThisTick.has(t.id)) {
+          const expectedRecoil = Math.max(0, prevStats.recoil - BALANCE.fixedDt * 5.0);
+          if (Math.abs(t.recoil - expectedRecoil) > 1e-9) {
+            return `Tower id=${t.id} recoil decay mismatch: got=${t.recoil}, expected=${expectedRecoil}`;
+          }
+        }
+      }
       if (
         prevStats.stunTimer > BALANCE.fixedDt + 1e-6 &&
         t.stunTimer > 0 &&
@@ -1599,6 +1620,7 @@ function assertTickInvariants(world: SimWorld, tracker: FuzzTracker, tick: numbe
       prevStats.tier = t.tier;
       prevStats.totalInvested = t.totalInvested;
       prevStats.recoil = t.recoil;
+      prevStats.popAnimTimer = t.popAnimTimer;
     } else {
       tracker.prevTowerStats.set(t.id, {
         kills: t.kills,
@@ -1608,12 +1630,14 @@ function assertTickInvariants(world: SimWorld, tracker: FuzzTracker, tick: numbe
         tier: t.tier,
         totalInvested: t.totalInvested,
         recoil: t.recoil,
+        popAnimTimer: t.popAnimTimer,
       });
     }
     activeTowerKills += t.kills;
     activeTowerDamage += t.totalDamageDealt;
   }
   tracker.newlyStunnedTowerIds.clear();
+  tracker.firedTowerIdsThisTick.clear();
   tracker.bossesBelowHalfLastTick.clear();
   for (const bossUid of _bossesBelowHalfScratch) {
     tracker.bossesBelowHalfLastTick.add(bossUid);
@@ -2323,6 +2347,7 @@ function createFuzzTracker(startingGold: number, endlessWavesConfig: number): Fu
     currentTick: 0,
     pendingMeteors: [],
     newlyStunnedTowerIds: new Set<number>(),
+    firedTowerIdsThisTick: new Set<number>(),
     bossSummonedUids: new Set<number>(),
     bossesBelowHalfLastTick: new Set<number>(),
     prevTowerStats: new Map(),
