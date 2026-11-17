@@ -117,3 +117,6 @@ Clean tree, `main` merged (no new main commits). tsc / 430 tests green. No code 
 
 ## Round 13 (verification)
 Clean tree, `main` merged (no new main commits). tsc / lint / tests / sim:balance (16 islands in window) green. No code changes; backlog 1–5 complete, nothing pending.
+
+## Round 14 (verification)
+Clean tree, `main` unchanged. tsc / lint / 430 tests / build / sim:balance (16 islands in window) green. Campaign branch has new commits (hand-picked challenge pairs for L14-16 by id) — compatible by design. Merge dry-runs (`git merge-tree`, temp worktree) are not permitted in this sandbox, so merge conflicts between day branches remain unchecked here. No code changes; backlog 1-5 complete.
