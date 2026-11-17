@@ -157,12 +157,14 @@ export class SettingsModal {
 
     actions.append(this.restartBtn, this.quitBtn, this.closeBtn);
     card.append(title, volRow, muteRow, shakeRow, dmgRow, qualRow, actions);
-    const onReset = callbacks.onResetProgress;
-    this.resetRow = onReset ? new ResetProgressRow(onReset) : null;
-    if (this.resetRow) card.appendChild(this.resetRow.el);
     this.backdrop.appendChild(card);
     parent.appendChild(this.backdrop);
     this.syncInputs();
+
+    // Menu-only "Reset progress" (campaign area; kept at the end to stay clear of settings rows).
+    const onReset = callbacks.onResetProgress;
+    this.resetRow = onReset ? new ResetProgressRow(onReset) : null;
+    if (this.resetRow) card.appendChild(this.resetRow.el);
   }
 
   private syncInputs(): void {
