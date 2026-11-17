@@ -180,6 +180,10 @@
   background: #e7a6ff;
 }
 
+.outcome-callout.callout-workshop {
+  background: #c9c4ea;
+}
+
 /* Endless results */
 .outcome-badge.outcome-badge-endless {
   color: #8fd5ee;

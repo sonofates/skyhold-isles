@@ -56,6 +56,7 @@ import {
   newEndlessMutatorAt,
 } from '../data/endlessMutators.ts';
 import type { EndlessResultView } from '../ui/gameModals.ts';
+import { affordableUpgradeCount } from '../ui/workshop.ts';
 import { buyRank, workshopModifiers, type WorkshopUpgradeId } from '../data/workshop.ts';
 import { starWallet } from '../game/progression.ts';
 
@@ -434,6 +435,8 @@ export class GameSession {
             newChallengeNames: record.newChallenges.map((id) =>
               isChallengeId(id) ? CHALLENGES[id].name : id,
             ),
+            workshopStars:
+              affordableUpgradeCount(this.progress) > 0 ? starWallet(this.progress).available : 0,
           },
         );
         this.scheduleStarChimes(stars);

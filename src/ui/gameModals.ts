@@ -6,6 +6,7 @@ import type { WinRecord } from '../game/progression.ts';
 import { TOWER_ICON_SVGS, UI_ICON_SVGS } from './icons.ts';
 import { renderStarsHtml } from './menus.ts';
 import './styles/starReveal.css';
+import { WORKSHOP_ICON_SVG } from './workshop.ts';
 
 /** When each victory star stamps in (ms after the card opens); the session plays chimes in sync. */
 export const STAR_REVEAL_DELAYS_MS: readonly number[] = [650, 1000, 1350];
@@ -331,6 +332,8 @@ export class OutcomeOverlay {
       unlockedName?: string;
       /** Challenges completed for the first time by this win. */
       newChallengeNames?: readonly string[];
+      /** Stars available in the Workshop when at least one upgrade is affordable (0 = no chip). */
+      workshopStars?: number;
     },
   ): void {
     this.open = true;
@@ -343,7 +346,13 @@ export class OutcomeOverlay {
     this.starsEl.className = 'outcome-stars star-reveal';
     this.starsEl.innerHTML = renderStarRevealHtml(stars, record?.previousBestStars ?? 0);
     this.starsEl.classList.remove('hidden');
-    this.renderCallouts(stars, record, extras?.unlockedName, extras?.newChallengeNames ?? []);
+    this.renderCallouts(
+      stars,
+      record,
+      extras?.unlockedName,
+      extras?.newChallengeNames ?? [],
+      extras?.workshopStars ?? 0,
+    );
     if (stars < 3) {
       const goals = describeStarGoals(level.difficulty);
       this.goalsEl.innerHTML = `${level.difficulty}: <b>3★</b> ${goals.three} · <b>2★</b> ${goals.two}`;
@@ -369,6 +378,7 @@ export class OutcomeOverlay {
     record: WinRecord | undefined,
     unlockedName: string | undefined,
     challengeNames: readonly string[],
+    workshopStars: number,
   ): void {
     const chips: string[] = [];
     let delay = (STAR_REVEAL_DELAYS_MS[Math.max(0, stars - 1)] ?? 0) + 380;
@@ -385,6 +395,7 @@ export class OutcomeOverlay {
     }
     for (const name of challengeNames) chip('callout-challenge', UI_ICON_SVGS.star, `${name} +1★`);
     if (unlockedName) chip('callout-unlock', UI_ICON_SVGS.islands, `${unlockedName} unlocked`);
+    if (workshopStars > 0) chip('callout-workshop', WORKSHOP_ICON_SVG, `Workshop: ${workshopStars}★ to spend`);
     this.calloutsEl.innerHTML = chips.join('');
   }
 
