@@ -8,6 +8,7 @@ const FROST_CRACK = 0xcfefff;
 const HEX_MAGENTA = 0xd45cff;
 /** Height above the tile where hex sparks burst on a tower (turret level). */
 const HEX_TOWER_Y = 1.1;
+const HEX_STREAK_DOTS = 5;
 
 /**
  * Hit / ability FX for the newer enemy archetypes (warden, burrower, hauler, blinker, golem, hexer).
@@ -77,6 +78,19 @@ export function bindEnemyArchetypeFx(
       fx.spawnParticles(e.towerX, HEX_TOWER_Y, e.towerZ, HEX_MAGENTA, 4, 1.0, 0.6);
     }),
     events.on('towerHexed', (e) => {
+      // A dotted magenta streak from the lantern to the silenced tower, so the culprit is obvious.
+      for (let k = 1; k <= HEX_STREAK_DOTS; k++) {
+        const t = k / (HEX_STREAK_DOTS + 1);
+        fx.spawnParticles(
+          e.x + (e.towerX - e.x) * t,
+          e.y + (HEX_TOWER_Y - e.y) * t,
+          e.z + (e.towerZ - e.z) * t,
+          HEX_MAGENTA,
+          1,
+          0.4,
+          0.2,
+        );
+      }
       fx.spawnPulseRing(e.towerX, 0.12, e.towerZ, 1.3, HEX_MAGENTA);
       fx.spawnStunSparks(e.towerX, HEX_TOWER_Y, e.towerZ, 9);
       fx.spawnParticles(e.x, e.y, e.z, PALETTE_HEX.cream, 4, 1.8, 1.0);
