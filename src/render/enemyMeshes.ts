@@ -188,7 +188,6 @@ export class EnemyRenderer {
     this.moundMesh.count = 0;
     this.moundMesh.visible = false;
     this.moundMesh.frustumCulled = false;
-    this.group.add(this.moundMesh);
 
     // Warden barrier bubbles: one translucent draw call for every shielded enemy
     const bubbleGeo = new THREE.IcosahedronGeometry(0.5, 1);
@@ -204,7 +203,6 @@ export class EnemyRenderer {
     this.bubbleMesh.visible = false;
     this.bubbleMesh.frustumCulled = false;
     this.bubbleMesh.renderOrder = 6;
-    this.group.add(this.bubbleMesh);
 
     // Empowered elite aura rings (flat gold rings at the feet / under flyers)
     const ringGeo = new THREE.RingGeometry(0.42, 0.56, 18, 1);
@@ -222,7 +220,6 @@ export class EnemyRenderer {
     this.eliteRingMesh.visible = false;
     this.eliteRingMesh.frustumCulled = false;
     this.eliteRingMesh.renderOrder = 3;
-    this.group.add(this.eliteRingMesh);
 
     const shadowGeo = new THREE.PlaneGeometry(1.15, 1.15);
     shadowGeo.rotateX(-Math.PI / 2);
@@ -232,6 +229,10 @@ export class EnemyRenderer {
     this.shadowDecalMesh.renderOrder = 2;
     this.shadowDecalMesh.frustumCulled = false;
     this.group.add(this.shadowDecalMesh);
+
+    // Archetype layers go after the HP bar + shadow so those keep their long-standing child
+    // indices (ENEMY_TYPES.length and +1) that other code/tests address directly.
+    this.group.add(this.moundMesh, this.bubbleMesh, this.eliteRingMesh);
   }
 
   update(
