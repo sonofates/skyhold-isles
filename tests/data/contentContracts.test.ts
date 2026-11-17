@@ -365,8 +365,9 @@ describe('BALANCE constants and Kenney public asset contracts', () => {
     expect(BALANCE.pools.maxFloatingTexts).toBeGreaterThan(0);
   });
 
-  it('verifies every KENNEY_MODEL_LIST GLB and colormap texture exists on disk with valid magic header', () => {
+  it('verifies every KENNEY_MODEL_LIST GLB binary/JSON mesh structure, render references, and colormap texture', () => {
     expect(new Set(KENNEY_MODEL_LIST).size).toBe(KENNEY_MODEL_LIST.length);
+    const kenneySet = new Set<string>(KENNEY_MODEL_LIST);
     const kenneyRoot = resolve(process.cwd(), 'public/models/kenney');
     const colormapStat = statSync(resolve(kenneyRoot, 'Textures/colormap.png'));
     expect(colormapStat.size).toBeGreaterThan(100);
@@ -374,9 +375,53 @@ describe('BALANCE constants and Kenney public asset contracts', () => {
     for (const modelName of KENNEY_MODEL_LIST) {
       const filePath = resolve(kenneyRoot, `${modelName}.glb`);
       const buf = readFileSync(filePath);
-      expect(buf.length, `${modelName}.glb empty`).toBeGreaterThan(12);
-      expect(buf.subarray(0, 4).toString('ascii'), `${modelName}.glb invalid GLB header`).toBe('glTF');
+      expect(buf.length, `${modelName}.glb empty`).toBeGreaterThanOrEqual(20);
+      expect(buf.subarray(0, 4).toString('ascii'), `${modelName}.glb invalid GLB magic`).toBe('glTF');
+      expect(buf.readUInt32LE(4), `${modelName}.glb unsupported GLB version`).toBe(2);
+      expect(buf.readUInt32LE(8), `${modelName}.glb truncated or mismatched byte length`).toBe(buf.byteLength);
+
+      const jsonLen = buf.readUInt32LE(12);
+      const jsonType = buf.readUInt32LE(16);
+      expect(jsonType, `${modelName}.glb chunk 0 must be JSON`).toBe(0x4e4f534a);
+      expect(20 + jsonLen).toBeLessThanOrEqual(buf.byteLength);
+      const gltf = JSON.parse(buf.subarray(20, 20 + jsonLen).toString('utf8')) as {
+        meshes?: Array<{ primitives?: Array<{ attributes?: Record<string, number> }> }>;
+        accessors?: Array<{ count?: number }>;
+        bufferViews?: Array<{ byteOffset?: number; byteLength?: number }>;
+        buffers?: Array<{ byteLength?: number }>;
+      };
+      expect(Array.isArray(gltf.meshes) && gltf.meshes.length > 0, `${modelName}.glb missing meshes`).toBe(true);
+      expect(Array.isArray(gltf.accessors) && gltf.accessors.length > 0, `${modelName}.glb missing accessors`).toBe(true);
+      const firstPosAccIdx = gltf.meshes![0].primitives?.[0]?.attributes?.POSITION;
+      expect(typeof firstPosAccIdx, `${modelName}.glb primitive missing POSITION`).toBe('number');
+      expect(gltf.accessors![firstPosAccIdx!]?.count ?? 0, `${modelName}.glb empty POSITION accessor`).toBeGreaterThan(0);
+
+      if (20 + jsonLen + 8 <= buf.byteLength) {
+        const binLen = buf.readUInt32LE(20 + jsonLen);
+        const binType = buf.readUInt32LE(20 + jsonLen + 4);
+        expect(binType, `${modelName}.glb chunk 1 must be BIN`).toBe(0x004e4942);
+        expect(20 + jsonLen + 8 + binLen).toBeLessThanOrEqual(buf.byteLength);
+        if (gltf.buffers?.[0]?.byteLength !== undefined) {
+          expect(binLen).toBeGreaterThanOrEqual(gltf.buffers[0].byteLength);
+        }
+      }
     }
+
+    // Verify every Kenney model name referenced in src/render/ is registered in KENNEY_MODEL_LIST
+    const renderFiles = collectTsFiles(resolve(process.cwd(), 'src/render'));
+    const refRegex = /\b(?:cloneGeometry|grab|frostBase|teslaSquare|mortarSquare)\(\s*['"]([a-z0-9-]+)['"]/g;
+    let totalRefs = 0;
+    for (const filePath of renderFiles) {
+      const code = stripComments(readFileSync(filePath, 'utf8'));
+      for (const match of code.matchAll(refRegex)) {
+        totalRefs++;
+        expect(
+          kenneySet.has(match[1]),
+          `${filePath} references unregistered Kenney model "${match[1]}"`,
+        ).toBe(true);
+      }
+    }
+    expect(totalRefs).toBeGreaterThan(20);
   });
 });
 
@@ -419,8 +464,8 @@ describe('simulation determinism and endless scaling safety contracts', () => {
       { name: 'crypto randomness', regex: /\bcrypto\.(randomUUID|getRandomValues)\b/ },
       { name: 'non-deterministic timers or Date', regex: /\b(?:setTimeout|setInterval)\b|\bnew\s+Date\b/ },
       {
-        name: 'browser global (window/document/localStorage/rAF)',
-        regex: /\b(?:window|document|localStorage|requestAnimationFrame)\b/,
+        name: 'browser global (window/document/navigator/localStorage/rAF/DOM/AudioContext)',
+        regex: /\b(?:window|document|navigator|localStorage|requestAnimationFrame|cancelAnimationFrame|HTMLElement|HTMLCanvasElement|PointerEvent|KeyboardEvent|WheelEvent|AudioContext)\b/,
       },
     ];
 

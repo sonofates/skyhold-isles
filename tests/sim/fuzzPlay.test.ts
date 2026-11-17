@@ -147,6 +147,54 @@ describe('headless fuzz playthrough harness', () => {
 
     expect(parseFuzzCliArgs(['--seed=0', '--endless-waves=0']).baseSeed).toBe(0);
     expect(parseFuzzCliArgs(['--seed=-5']).baseSeed).toBe(-5);
+    expect(parseFuzzCliArgs(['--seed', '42'])).toEqual({
+      seedsPerLevel: 1,
+      singleSeedMode: true,
+      endlessOnly: false,
+      json: false,
+      baseSeed: 42,
+      endlessWaves: 5,
+      levelIndices: undefined,
+      profile: undefined,
+    });
+
+    // Endless fuzz without scriptedBuildOrder exercises fallback tile builder + endless loss immutability
+    const brutalEndlessLevel = {
+      ...LEVELS[0],
+      id: 'qa-brutal-endless',
+      enemyHpScale: 1000,
+      scriptedBuildOrder: undefined,
+      weakBuildOrder: undefined,
+      waves: [
+        {
+          clearBonus: 10,
+          groups: [{ enemyType: 'grunt' as const, count: 1, spawnInterval: 0.5, startDelay: 0 }],
+        },
+      ],
+    };
+    const endlessLoss = runEndlessFuzz(brutalEndlessLevel, 99, 5, 'minimal');
+    expect(endlessLoss.ok, endlessLoss.failure).toBe(true);
+    expect(endlessLoss.digest.finalOutcome).toBe('lost');
+    expect(endlessLoss.digest.lives).toBe(0);
+
+    // Story fuzz loss path on custom minimal level (5 bosses > 20 starting lives)
+    const storyLossLevel = {
+      ...brutalEndlessLevel,
+      id: 'qa-brutal-story',
+      waves: [
+        {
+          clearBonus: 10,
+          groups: [{ enemyType: 'boss' as const, count: 5, spawnInterval: 0.25, startDelay: 0 }],
+        },
+      ],
+    };
+    const storyLoss = runFuzzPlaythrough(storyLossLevel, 101, {
+      endlessWaves: 2,
+      profile: 'minimal',
+    });
+    expect(storyLoss.ok, storyLoss.failure).toBe(true);
+    expect(storyLoss.digest.storyOutcome).toBe('lost');
+    expect(storyLoss.digest.finalOutcome).toBe('lost');
 
     expect(() => parseFuzzCliArgs(['--profile', 'unknown'])).toThrow(/Invalid --profile/);
     expect(() => parseFuzzCliArgs(['--seed'])).toThrow(/requires a value/);
@@ -201,7 +249,7 @@ describe('headless fuzz playthrough harness', () => {
           stepper.step(BALANCE.fixedDt, onTick);
         }
       } else {
-        const framePattern = [1 / 30, 1 / 15, 0.008, 0.05, 0.1];
+        const framePattern = [0.004, 1 / 30, 1 / 15, 0.008, 0.05, 0.25];
         let stepIdx = 0;
         while (executedTicks < totalTicks) {
           stepper.speed = stepIdx % 3 === 0 ? 3 : stepIdx % 2 === 0 ? 2 : 1;
@@ -209,6 +257,9 @@ describe('headless fuzz playthrough harness', () => {
             stepper.paused = true;
             stepper.step(0.05, onTick);
             stepper.paused = false;
+          }
+          if (stepIdx % 29 === 13) {
+            stepper.resetAccumulator();
           }
           stepper.step(framePattern[stepIdx % framePattern.length], onTick);
           stepIdx++;

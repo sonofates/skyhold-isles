@@ -129,7 +129,10 @@ interface FuzzTracker {
   seenSpawnUids: Set<number>;
   killedUids: Set<number>;
   killedSplitterUids: Set<number>;
+  pendingDeathUids: Set<number>;
   builtTowerIds: Set<number>;
+  everBuiltTowerIds: Set<number>;
+  maxEverTowerId: number;
   builtTowerTypes: Set<TowerType>;
   maxTierReached: number;
   soldTowerCount: number;
@@ -384,6 +387,10 @@ function attachEventTracker(
       return;
     }
     tracker.builtTowerIds.add(ev.towerId);
+    tracker.everBuiltTowerIds.add(ev.towerId);
+    if (ev.towerId > tracker.maxEverTowerId) {
+      tracker.maxEverTowerId = ev.towerId;
+    }
     tracker.builtTowerTypes.add(ev.type);
     tracker.maxTierReached = Math.max(tracker.maxTierReached, ev.tier);
     tracker.stateHash = mixStringHash(mixHash(mixHash(tracker.stateHash, 12), ev.towerId), ev.type);
@@ -666,12 +673,19 @@ function assertTickInvariants(world: SimWorld, tracker: FuzzTracker, tick: numbe
     return `world.enemiesKilledTotal (${world.enemiesKilledTotal}) !== killedCount (${tracker.killedCount})`;
   }
 
+  for (const prevDeadUid of tracker.pendingDeathUids) {
+    if (!tracker.killedUids.has(prevDeadUid)) {
+      return `Pending-death enemy uid=${prevDeadUid} failed to settle into enemyKilled on the following tick`;
+    }
+  }
+  tracker.pendingDeathUids.clear();
+
   let pendingDeaths = 0;
   _seenEnemyUids.clear();
   for (let i = 0; i < activeEnemies; i++) {
     const e = world.enemyPool.items[world.enemyPool.getActiveIndex(i)];
     if (!e.active) return `Inactive enemy at active index pos=${i}`;
-    if (e.uid <= 0 || _seenEnemyUids.has(e.uid)) {
+    if (e.uid <= 0 || e.uid > tracker.spawnedCount || _seenEnemyUids.has(e.uid)) {
       return `Invalid or duplicate active enemy uid=${e.uid} at pos=${i}`;
     }
     _seenEnemyUids.add(e.uid);
@@ -685,13 +699,22 @@ function assertTickInvariants(world: SimWorld, tracker: FuzzTracker, tick: numbe
       return `Non-boss enemy uid=${e.uid} (${e.type}) has stale bossSummonedEscorts=true`;
     }
     const def = ENEMY_DEFS[e.type];
-    if (e.armor !== def.armor || e.livesCost !== def.livesCost || e.flying !== def.flying) {
+    if (
+      e.armor !== def.armor ||
+      e.livesCost !== def.livesCost ||
+      e.flying !== def.flying ||
+      e.radius !== def.radius ||
+      e.height !== def.height
+    ) {
       return `Enemy def mismatch for ${e.type} uid=${e.uid} (armor=${e.armor}, livesCost=${e.livesCost}, flying=${e.flying})`;
     }
     if ((e.slowTimer === 0) !== (e.slowRatio === 0)) {
       return `Enemy slow state mismatch for uid=${e.uid}: slowTimer=${e.slowTimer}, slowRatio=${e.slowRatio}`;
     }
-    if (e.hp === 0) pendingDeaths++;
+    if (e.hp === 0) {
+      pendingDeaths++;
+      tracker.pendingDeathUids.add(e.uid);
+    }
     if (
       !Number.isFinite(e.x) ||
       !Number.isFinite(e.y) ||
@@ -723,6 +746,10 @@ function assertTickInvariants(world: SimWorld, tracker: FuzzTracker, tick: numbe
       return `Invalid enemy dist (${e.dist}/${e.totalDist}) for uid=${e.uid}`;
     }
     const expectedYaw = world.enemySystem.getPath(e.flying).sample(e.dist, _pathCheckVec);
+    const expectedPathLen = Math.max(0.01, world.enemySystem.getPath(e.flying).totalLength);
+    if (Math.abs(e.totalDist - expectedPathLen) > 1e-4) {
+      return `Enemy uid=${e.uid} totalDist=${e.totalDist} != path.totalLength=${expectedPathLen}`;
+    }
     let yawDiff = Math.abs(e.yaw - expectedYaw) % (Math.PI * 2);
     if (yawDiff > Math.PI) yawDiff = Math.PI * 2 - yawDiff;
     if (Math.hypot(e.x - _pathCheckVec.x, e.z - _pathCheckVec.z) > 1e-4 || yawDiff > 1e-4) {
@@ -764,6 +791,8 @@ function assertTickInvariants(world: SimWorld, tracker: FuzzTracker, tick: numbe
     if (
       !Number.isInteger(p.towerId) ||
       p.towerId <= 0 ||
+      p.towerId > tracker.maxEverTowerId ||
+      !tracker.everBuiltTowerIds.has(p.towerId) ||
       !Number.isFinite(p.x) ||
       !Number.isFinite(p.y) ||
       !Number.isFinite(p.z) ||
@@ -800,7 +829,9 @@ function assertTickInvariants(world: SimWorld, tracker: FuzzTracker, tick: numbe
         ? p.arcHeight <= 0 ||
           p.y < Math.min(p.startY, p.endY) - 1e-5 ||
           p.y > Math.max(p.startY, p.endY) + p.arcHeight + 1e-5
-        : p.arcHeight !== 0) ||
+        : p.arcHeight !== 0 ||
+          p.y < Math.min(p.startY, p.endY) - 1e-5 ||
+          p.y > Math.max(p.startY, p.endY) + 1e-5) ||
       p.damage < 0 ||
       p.splashRadius < 0 ||
       p.splashFalloffMin <= 0 ||
@@ -811,6 +842,19 @@ function assertTickInvariants(world: SimWorld, tracker: FuzzTracker, tick: numbe
       p.speed <= 0
     ) {
       return `Non-finite or invalid projectile state (type=${p.towerType}, progress=${p.progress}, duration=${p.duration})`;
+    }
+    const matchesTierStats = TOWER_DEFS[p.towerType].tiers.some(
+      (st) =>
+        p.damage === st.damage &&
+        p.splashRadius === st.splashRadius &&
+        p.splashFalloffMin === st.splashFalloffMin &&
+        p.slowRatio === st.slowRatio &&
+        p.slowDuration === st.slowDuration &&
+        p.arcHeight === st.parabolicArcHeight &&
+        p.speed === Math.max(1, st.projectileSpeed),
+    );
+    if (!matchesTierStats) {
+      return `Projectile stats for ${p.towerType} (dmg=${p.damage}, splash=${p.splashRadius}, speed=${p.speed}) match no tier`;
     }
   }
 
@@ -1400,7 +1444,10 @@ function createFuzzTracker(startingGold: number, endlessWavesConfig: number): Fu
     seenSpawnUids: new Set<number>(),
     killedUids: new Set<number>(),
     killedSplitterUids: new Set<number>(),
+    pendingDeathUids: new Set<number>(),
     builtTowerIds: new Set<number>(),
+    everBuiltTowerIds: new Set<number>(),
+    maxEverTowerId: 0,
     builtTowerTypes: new Set<TowerType>(),
     maxTierReached: 0,
     soldTowerCount: 0,

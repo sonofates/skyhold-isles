@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { EventBus } from '../../src/core/eventBus.ts';
 import { BALANCE } from '../../src/data/balance.ts';
+import { ENEMY_DEFS, ENEMY_TYPES } from '../../src/data/enemies.ts';
 import { LEVELS, type LevelDef } from '../../src/data/levels/index.ts';
 import { CompiledPath } from '../../src/sim/path.ts';
 import { buildEndlessWaveDef, WaveSystem } from '../../src/sim/waveSystem.ts';
@@ -382,5 +383,37 @@ describe('WaveSystem & SimWorld boundary edge cases', () => {
     const dmgRes = leakWorld.enemySystem.applyDamage(boss, 3, false); // 3 - 8 armor -> clamped to 1
     expect(dmgRes).toEqual({ actualDamage: BALANCE.minArmorDamage, killed: false });
     expect(boss.hp).toBe(hpBefore - BALANCE.minArmorDamage);
+
+    // Zero raw damage ignoring armor deals 0 and fractional damage rounds cleanly
+    const grunt = leakWorld.enemySystem.spawnEnemy('grunt')!;
+    expect(leakWorld.enemySystem.applyDamage(grunt, 0, true)).toEqual({
+      actualDamage: 0,
+      killed: false,
+    });
+    expect(leakWorld.enemySystem.applyDamage(grunt, 10.6, true)).toEqual({
+      actualDamage: 11,
+      killed: false,
+    });
+
+    // Deep endless fixedTick clamps scaled enemy kill reward to >= 1 across all archetypes
+    const deepWorld = new SimWorld(LEVELS[0], new EventBus());
+    deepWorld.debugForceWin();
+    expect(deepWorld.enterEndlessMode()).toBe(true);
+    expect(deepWorld.debugSkipToWave(LEVELS[0].waves.length + 50)).toBe(true);
+    expect(deepWorld.waveSystem.getRewardMultiplier()).toBe(0.32);
+    deepWorld.fixedTick(BALANCE.fixedDt);
+    expect(deepWorld.enemyPool.getActiveCount()).toBeGreaterThan(0);
+    for (let i = 0; i < deepWorld.enemyPool.getActiveCount(); i++) {
+      const e = deepWorld.enemyPool.items[deepWorld.enemyPool.getActiveIndex(i)];
+      expect(e.reward).toBeGreaterThanOrEqual(1);
+      expect(e.reward).toBeLessThanOrEqual(ENEMY_DEFS[e.type].reward);
+    }
+
+    // All EnemyTypes spawn cleanly with positive rounded maxHp at high hpScale
+    for (const type of ENEMY_TYPES) {
+      const spawned = leakWorld.enemySystem.spawnEnemy(type, 12.34)!;
+      expect(spawned).not.toBeNull();
+      expect(spawned.maxHp).toBe(Math.round(ENEMY_DEFS[type].maxHp * 12.34));
+    }
   });
 });

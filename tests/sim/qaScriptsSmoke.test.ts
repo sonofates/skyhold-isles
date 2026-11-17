@@ -243,5 +243,41 @@ describe('QA scripts smoke verification', () => {
     expect(campaignJson.passedRuns).toBe(1);
     expect(campaignJson.endlessChecks).toBe(1);
     expect(campaignJson.failures).toEqual([]);
+
+    const fuzzEndlessOnly = runTsx([
+      'scripts/fuzzPlay.ts',
+      '--seed',
+      '1',
+      '--level',
+      '1',
+      '--endless-waves',
+      '1',
+      '--endless-only',
+      '--json',
+    ]);
+    expect(fuzzEndlessOnly.status, fuzzEndlessOnly.stderr).toBe(0);
+    const endlessOnlyJson = JSON.parse(fuzzEndlessOnly.stdout) as {
+      mode: string;
+      endlessOnly: boolean;
+      passed: boolean;
+      deterministic: boolean;
+      digest: { endlessWavesCompleted: number };
+    };
+    expect(endlessOnlyJson.mode).toBe('repro');
+    expect(endlessOnlyJson.endlessOnly).toBe(true);
+    expect(endlessOnlyJson.passed).toBe(true);
+    expect(endlessOnlyJson.deterministic).toBe(true);
+    expect(endlessOnlyJson.digest.endlessWavesCompleted).toBe(1);
+
+    const benchJsonProc = runTsx(['scripts/simBench.ts', '--json']);
+    expect(benchJsonProc.status, benchJsonProc.stderr).toBe(0);
+    const benchJson = JSON.parse(benchJsonProc.stdout) as {
+      levelId: string;
+      passed: boolean;
+      results: Array<{ enemyCount: number; towerCount: number; ticksPerSec: number }>;
+    };
+    expect(benchJson.passed).toBe(true);
+    expect(benchJson.results.map((r) => r.enemyCount)).toEqual([100, 250, 360]);
+    expect(benchJson.results.every((r) => r.towerCount === 40 && r.ticksPerSec > 180)).toBe(true);
   });
 });

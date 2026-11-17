@@ -371,17 +371,24 @@ describe('RenderWorld subsystems headless verification', () => {
     expect(() =>
       towerRenderer.syncTowers(towers, mats, 0.5, 2.0, 2, true),
     ).not.toThrow();
+    const archerT1Meshes = towerRenderer.group.children.filter(
+      (c): c is THREE.InstancedMesh => (c as THREE.InstancedMesh).isInstancedMesh && c.count === 70,
+    );
+    expect(archerT1Meshes).toHaveLength(2); // base + turret bucket both grew past 64 and hold all 70
 
-    // Verify ProjectileRenderer updates linear + parabolic projectiles
+    // Verify ProjectileRenderer updates linear + parabolic projectiles, yaw wrap across +-PI, and pitch tilt
     const world = new SimWorld(LEVELS[0], new EventBus());
     world.gold = 2000;
     const grunt = world.enemySystem.spawnEnemy('grunt')!;
     grunt.x = 4;
     grunt.z = 0;
-    for (const type of ['archer', 'cannon', 'frost', 'mortar'] as const) {
+    const spawnedProjs = (['archer', 'cannon', 'frost', 'mortar'] as const).map((type) => {
       const t = makeTower(200, type, 1, 0, 0);
-      world.projectileSystem.spawnProjectile(t, grunt, 0.5);
-    }
+      return world.projectileSystem.spawnProjectile(t, grunt, 0.5)!;
+    });
+    spawnedProjs[0].prevYaw = Math.PI - 0.1;
+    spawnedProjs[0].yaw = -Math.PI + 0.1;
+    spawnedProjs[3].progress = 0.2;
     projRenderer.update(world.projectilePool, 0.5);
     let visibleProjMeshes = 0;
     for (const child of projRenderer.group.children) {
@@ -389,6 +396,10 @@ describe('RenderWorld subsystems headless verification', () => {
       if (m.isInstancedMesh && m.visible) visibleProjMeshes += m.count;
     }
     expect(visibleProjMeshes).toBe(4);
+    const arrowMat = new THREE.Matrix4();
+    (projRenderer.group.children[0] as THREE.InstancedMesh).getMatrixAt(0, arrowMat);
+    const arrowFwd = new THREE.Vector3(0, 0, 1).transformDirection(arrowMat);
+    expect(arrowFwd.z).toBeLessThan(-0.9); // interpolated across +-PI to ~-PI, not 0
 
     projRenderer.clear();
     towerRenderer.clearInstances();
@@ -406,11 +417,26 @@ describe('RenderWorld subsystems headless verification', () => {
     const groundDetails = new GroundDetails();
     const diorama = new AmbientDiorama();
 
-    // Verify OverlayIndicators handles every island cleanly
+    // Verify OverlayIndicators handles every island cleanly + 0/1-point degenerate path fallback
     for (const lvl of LEVELS) {
       overlays.setFlightPath(lvl);
       overlays.setBuildableGrid(lvl);
     }
+    expect(() => {
+      overlays.setFlightPath({
+        ...LEVELS[0],
+        pathWaypoints: [],
+        flightPath: [{ col: 0, row: 0 }],
+      });
+      overlays.setBuildableGrid({
+        ...LEVELS[0],
+        cols: 2,
+        rows: 1,
+        layout: ['S G'],
+      });
+    }).not.toThrow();
+    overlays.setFlightPath(LEVELS[0]);
+    overlays.setBuildableGrid(LEVELS[0]);
 
     overlays.setRoutesPinned(true);
     overlays.setFlightPathHighlight(true, true);
@@ -590,6 +616,32 @@ describe('RenderWorld subsystems headless verification', () => {
       decorBuilder.setQuality('high');
       decorBuilder.update(1.0);
     }
+
+    // Custom level with crossing (4-way) and split (3-way) path intersections builds cleanly
+    const junctionLevel = {
+      ...LEVELS[0],
+      cols: 5,
+      rows: 5,
+      layout: [
+        '~ ~ S ~ ~',
+        '~ . P . ~',
+        '. P P P G',
+        '~ . P . ~',
+        '~ ~ ~ ~ ~',
+      ],
+      pathWaypoints: [
+        { col: 2, row: 0 },
+        { col: 2, row: 3 },
+        { col: 2, row: 2 },
+        { col: 0, row: 2 },
+        { col: 4, row: 2 },
+      ],
+      flightPath: [
+        { col: 2, row: 0 },
+        { col: 4, row: 2 },
+      ],
+    };
+    expect(() => mapBuilder.build(junctionLevel, mats, assets)).not.toThrow();
 
     mapBuilder.dispose();
     decorBuilder.dispose();
