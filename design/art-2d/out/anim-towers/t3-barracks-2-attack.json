@@ -1,0 +1,18 @@
+{
+ "frameW": 170,
+ "frameH": 256,
+ "count": 42,
+ "cols": 8,
+ "fps": 12.0,
+ "anchor": [
+  85,
+  249
+ ],
+ "source": "t3-barracks-2.mp4",
+ "loop": [
+  7,
+  91
+ ],
+ "loopScore": 1.23,
+ "release": 29
+}

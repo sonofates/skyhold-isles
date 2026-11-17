@@ -1,0 +1,13 @@
+{
+ "frameW": 117,
+ "frameH": 256,
+ "count": 12,
+ "cols": 8,
+ "fps": 12.0,
+ "anchor": [
+  60,
+  265
+ ],
+ "release": 3,
+ "image": "t3-beacon-3-attack.webp"
+}

@@ -48,3 +48,6 @@ design/art-2d/proto-*.png
 design/art-2d/out/anim/*-walk-*.png
 design/art-2d/out/anim/*-preview.gif
 design/art-2d/veo/p1-clips/
+design/art-2d/out/anim-towers/*.png
+design/art-2d/out/anim-towers/*.gif
+design/art-2d/veo/tower-clips/

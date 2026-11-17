@@ -1,0 +1,13 @@
+{
+ "frameW": 449,
+ "frameH": 256,
+ "count": 32,
+ "cols": 8,
+ "fps": 12.0,
+ "anchor": [
+  235,
+  236
+ ],
+ "release": 3,
+ "image": "t3-cannon-1-attack.webp"
+}

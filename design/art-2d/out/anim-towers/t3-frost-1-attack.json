@@ -1,0 +1,18 @@
+{
+ "frameW": 448,
+ "frameH": 256,
+ "count": 25,
+ "cols": 8,
+ "fps": 12.0,
+ "anchor": [
+  224,
+  246
+ ],
+ "source": "t3-frost-1.mp4",
+ "loop": [
+  10,
+  60
+ ],
+ "loopScore": 2.49,
+ "release": 14
+}

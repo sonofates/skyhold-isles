@@ -1,0 +1,18 @@
+{
+ "frameW": 447,
+ "frameH": 256,
+ "count": 23,
+ "cols": 8,
+ "fps": 12.0,
+ "anchor": [
+  225,
+  253
+ ],
+ "source": "t3-beacon-1.mp4",
+ "loop": [
+  13,
+  59
+ ],
+ "loopScore": 1.15,
+ "release": 7
+}

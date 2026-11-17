@@ -1,0 +1,13 @@
+{
+ "frameW": 448,
+ "frameH": 256,
+ "count": 30,
+ "cols": 8,
+ "fps": 12.0,
+ "anchor": [
+  225,
+  237
+ ],
+ "release": 3,
+ "image": "t3-mortar-1-attack.webp"
+}

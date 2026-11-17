@@ -1,0 +1,18 @@
+{
+ "frameW": 306,
+ "frameH": 256,
+ "count": 35,
+ "cols": 8,
+ "fps": 12.0,
+ "anchor": [
+  98,
+  250
+ ],
+ "source": "t3-ballista-1.mp4",
+ "loop": [
+  5,
+  75
+ ],
+ "loopScore": 0.76,
+ "release": 15
+}
