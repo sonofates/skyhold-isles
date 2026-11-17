@@ -91,3 +91,8 @@ Clean tree, `main` still merged. tsc / lint / 430 tests green. No code changes: 
 (tower-unlock card wiring, landscape codex density) depend on the CAMPAIGN/MOBILE merges. Note for the lead: the campaign branch
 has a save v2 migration — after merging, check that `ContentStore.migrate()` veteran inference (`unlockedLevelIndex`/stars) still
 reads the right fields from the v2 progress shape.
+
+## Round 6 (verification)
+Clean tree, `main` still merged. Checked the campaign branch's v2 `ProgressData` (read-only, `git show`): `unlockedLevelIndex` and
+`bestStars` still exist with the same meaning, so `ContentStore.migrate()` veteran inference works unchanged after that merge
+(resolves the round-5 note). No code changes.
