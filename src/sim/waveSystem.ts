@@ -11,7 +11,7 @@ import {
   type EndlessMutatorEffects,
 } from '../data/endlessMutators.ts';
 import { ENEMY_DEFS } from '../data/enemies.ts';
-import type { LevelDef, WaveDef, WaveGroupDef } from '../data/levels/index.ts';
+import { groundLaneCount, type LevelDef, type WaveDef, type WaveGroupDef } from '../data/levels/index.ts';
 
 export type WaveState =
   | 'preFirstWave'
@@ -198,7 +198,7 @@ export function buildEndlessWaveDef(waveIndex: number, level: LevelDef): WaveDef
   }
 
   // Islands with extra spawn lanes: deal the groups round-robin across every lane.
-  const laneCount = 1 + (level.extraGroundPaths?.length ?? 0);
+  const laneCount = groundLaneCount(level);
   const lanedGroups =
     laneCount > 1
       ? mutatedGroups.map((g, i) => ({ ...g, lane: (i + offset) % laneCount }))

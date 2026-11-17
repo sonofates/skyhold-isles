@@ -12,7 +12,7 @@ import { applyOverrides } from './tuneTowers.ts';
 
 const configs = JSON.parse(readFileSync(process.argv[2], 'utf8')) as { name: string; o: never[] }[];
 const baseline = TOWER_TYPES.map((t) => JSON.parse(JSON.stringify(TOWER_DEFS[t].tiers)) as Record<string, number>[]);
-const only = process.env.LEVELS ? new Set(process.env.LEVELS.split(',').map((x) => Number(x) - 1)) : null;
+const only = process.env.LEVELS ? new Set(process.env.LEVELS.split(",").map((x) => (/^\d+$/.test(x.trim()) ? `L${Number(x)}` : x.trim()))) : null;
 
 for (const cfg of configs) {
   TOWER_TYPES.forEach((t, i) => {

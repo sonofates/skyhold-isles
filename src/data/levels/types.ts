@@ -21,10 +21,45 @@ export interface WaveDef {
 export interface ScriptedBuildAction {
   readonly waveIndex: number; // Execute before or during start of this 0-based wave
   readonly action: 'build' | 'upgrade';
+  /** Grid column; on plot levels (`layout2d`) the plot index (with `row` 0). */
   readonly col: number;
   readonly row: number;
   readonly towerType?: TowerType;
   readonly targetingMode?: TargetingMode;
+}
+
+/** A point on the ground plane in world units (x → east, z → south / down the screen). */
+export interface WorldPoint {
+  readonly x: number;
+  readonly z: number;
+}
+
+/**
+ * 2D painted-map layout (plot maps). Everything gameplay-relevant is in world units; the image
+ * fields are only for renderers. World origin = image centre, 1 world unit = `pxPerUnit` image px
+ * (default 50, so a ~100 px stone plot is about one old 2.0-unit tile):
+ *   x = (px - imageW / 2) / pxPerUnit,   z = (py - imageH / 2) / pxPerUnit.
+ * See `src/data/levels2d/loader.ts`.
+ */
+export interface Level2DLayout {
+  /** Art key of the painted map (renderer looks it up in the art manifest). */
+  readonly image: string;
+  /** Map image size in px. */
+  readonly imageSize: readonly [number, number];
+  readonly pxPerUnit: number;
+  /** Centred part of the image (px, [x, y, w, h]) that contains all gameplay; never cropped. */
+  readonly safeArea: readonly [number, number, number, number];
+  /** Spawn points; entrance i starts ground lane i (`paths[i]`). */
+  readonly entrances: readonly (WorldPoint & { readonly id: string })[];
+  readonly goal: WorldPoint;
+  /** Ground road per entrance (lane i). Every lane ends at `goal`; lanes may merge and share a tail. */
+  readonly paths: readonly (readonly WorldPoint[])[];
+  /** Flyer route (straight-ish line from entrance 0 to the goal unless the map supplies one). */
+  readonly flightPath: readonly WorldPoint[];
+  /** Build plots: one tower per plot. */
+  readonly plots: readonly WorldPoint[];
+  /** Plot radius in world units (picking / footprint). */
+  readonly plotRadius: number;
 }
 
 export interface LevelDef {
@@ -50,6 +85,18 @@ export interface LevelDef {
   readonly waves: readonly WaveDef[];
   readonly scriptedBuildOrder?: readonly ScriptedBuildAction[];
   readonly weakBuildOrder?: readonly ScriptedBuildAction[];
+  /**
+   * 2D plot map. When present the sim ignores the tile grid for placement and paths: towers go on
+   * `plots` (build site `col` = plot index, `row` = 0) and enemies follow `paths` / `flightPath`.
+   * The grid fields stay (an all-empty layout sized to the map) so grid-based code keeps working.
+   */
+  readonly layout2d?: Level2DLayout;
+}
+
+/** Number of ground spawn lanes (lane 0 = main road). */
+export function groundLaneCount(level: LevelDef): number {
+  if (level.layout2d) return Math.max(1, level.layout2d.paths.length);
+  return 1 + (level.extraGroundPaths?.length ?? 0);
 }
 
 export function parseTileChar(ch: string): TileType {

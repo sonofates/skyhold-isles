@@ -28,7 +28,7 @@ export function applyOverrides(list: readonly Override[]): void {
 if (process.argv[1]?.endsWith('tuneTowers.ts')) {
   const overrides: Override[] = process.env.OVERRIDES ? (JSON.parse(process.env.OVERRIDES) as Override[]) : [];
   applyOverrides(overrides);
-  const only = process.env.LEVELS ? new Set(process.env.LEVELS.split(',').map((x) => Number(x) - 1)) : null;
+  const only = process.env.LEVELS ? new Set(process.env.LEVELS.split(",").map((x) => (/^\d+$/.test(x.trim()) ? `L${Number(x)}` : x.trim()))) : null;
   const t0 = Date.now();
   const { summary, failures } = evaluateBalance(only, false);
   for (const line of summary) console.log(line);

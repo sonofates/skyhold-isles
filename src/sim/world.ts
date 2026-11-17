@@ -78,26 +78,36 @@ export class SimWorld {
     this.mods = mods;
     this.grid = new MapGrid(level);
 
-    this.groundPath = new CompiledPath(
-      level.pathWaypoints,
-      level.cols,
-      level.rows,
-      BALANCE.tilePathTopY,
-      true,
-    );
-    this.extraGroundPaths = (level.extraGroundPaths ?? []).map(
-      (wps) => new CompiledPath(wps, level.cols, level.rows, BALANCE.tilePathTopY, true),
-    );
-    this.flightPath = new CompiledPath(
-      level.flightPath,
-      level.cols,
-      level.rows,
-      BALANCE.flyerHeight,
-      false,
-    );
+    const layout = level.layout2d;
+    if (layout) {
+      // Plot map: traced polylines in world units (lane i = entrance i), see Level2DLayout.
+      this.groundPath = CompiledPath.fromWorld(layout.paths[0] ?? [], BALANCE.tilePathTopY, true);
+      this.extraGroundPaths = layout.paths
+        .slice(1)
+        .map((pts) => CompiledPath.fromWorld(pts, BALANCE.tilePathTopY, true));
+      this.flightPath = CompiledPath.fromWorld(layout.flightPath, BALANCE.flyerHeight, false);
+    } else {
+      this.groundPath = new CompiledPath(
+        level.pathWaypoints,
+        level.cols,
+        level.rows,
+        BALANCE.tilePathTopY,
+        true,
+      );
+      this.extraGroundPaths = (level.extraGroundPaths ?? []).map(
+        (wps) => new CompiledPath(wps, level.cols, level.rows, BALANCE.tilePathTopY, true),
+      );
+      this.flightPath = new CompiledPath(
+        level.flightPath,
+        level.cols,
+        level.rows,
+        BALANCE.flyerHeight,
+        false,
+      );
+    }
 
-    const worldW = level.cols * BALANCE.tileSize;
-    const worldD = level.rows * BALANCE.tileSize;
+    const worldW = layout ? layout.imageSize[0] / layout.pxPerUnit : level.cols * BALANCE.tileSize;
+    const worldD = layout ? layout.imageSize[1] / layout.pxPerUnit : level.rows * BALANCE.tileSize;
     this.spatialHash = new SpatialHashGrid(worldW, worldD, BALANCE.pools.maxEnemies);
     this.enemyPool = new ObjectPool<EnemyEntity>(BALANCE.pools.maxEnemies, createEnemyEntity);
     this.projectilePool = new ObjectPool<ProjectileEntity>(
@@ -254,6 +264,10 @@ export class SimWorld {
     return this.mods.bannedTowers.includes(type);
   }
 
+  /**
+   * Builds a tower on a site: a grass tile (col, row), or on plot levels plot `col` (row 0) —
+   * see `placeTowerOnPlot`.
+   */
   placeTower(
     col: number,
     row: number,
@@ -267,8 +281,8 @@ export class SimWorld {
     if (this.gold < stats.upgradeCost) return null;
 
     this.gold -= stats.upgradeCost;
-    const x = this.grid.gridToWorldX(col);
-    const z = this.grid.gridToWorldZ(row);
+    const x = this.grid.siteWorldX(col, row);
+    const z = this.grid.siteWorldZ(col, row);
     const tower: TowerEntity = {
       id: this.nextTowerId++,
       col,
@@ -305,6 +319,16 @@ export class SimWorld {
     });
     this.events.emit('economyChanged', { gold: this.gold, lives: this.lives });
     return tower;
+  }
+
+  /** Plot levels: builds on plot `plotIndex` (one tower per plot; selling frees it). */
+  placeTowerOnPlot(
+    plotIndex: number,
+    type: TowerType,
+    targetingMode: TargetingMode = 'first',
+  ): TowerEntity | null {
+    if (!this.grid.isPlotMode) return null;
+    return this.placeTower(plotIndex, 0, type, targetingMode);
   }
 
   upgradeTower(towerId: number): boolean {

@@ -34,5 +34,5 @@ export const LEVELS: readonly LevelDef[] = [
   LEVEL_15,
   LEVEL_16,
 ];
-export type { LevelDef, WaveDef, WaveGroupDef } from './types.ts';
-export { parseLevelGrid } from './types.ts';
+export type { Level2DLayout, LevelDef, ScriptedBuildAction, WaveDef, WaveGroupDef, WorldPoint } from './types.ts';
+export { groundLaneCount, parseLevelGrid } from './types.ts';
