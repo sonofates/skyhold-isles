@@ -421,12 +421,16 @@ export class GameSession {
         this.setPlacementMode(null);
         overlays.tooltip.hide();
         overlays.closeModals();
+        const canAdvanceToNext =
+          this.currentLevelIndex + 1 < LEVELS.length &&
+          (!this.meta.getActiveDailyDate() ||
+            this.currentLevelIndex + 1 <= this.progress.unlockedLevelIndex);
         overlays.outcomeOverlay.showWin(
           LEVELS[this.currentLevelIndex],
           stars,
           livesRemaining,
           this.simWorld.enemiesKilledTotal,
-          this.currentLevelIndex + 1 < LEVELS.length,
+          canAdvanceToNext,
           this.simWorld.getMvpTowerSummary(),
         );
         this.syncLoopAndInput();

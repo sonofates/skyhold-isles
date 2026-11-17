@@ -30,7 +30,9 @@ export function isValidDateString(dateStr: string): boolean {
 }
 
 function formatTowerNames(types: readonly TowerType[]): string {
-  return types.map((t) => TOWER_DEFS[t]?.name ?? t).join(', ');
+  return types
+    .map((t) => (Object.hasOwn(TOWER_DEFS, t) ? (TOWER_DEFS[t]?.name ?? t) : t))
+    .join(', ');
 }
 
 function pickTowerRestriction(
@@ -223,7 +225,8 @@ export function generateDailyChallenge(
     let armoredSwarmCount = 0;
     for (let g = 0; g < groups.length; g++) {
       const grp = groups[g];
-      const def = grp ? ENEMY_DEFS[grp.enemyType] : undefined;
+      const def =
+        grp && Object.hasOwn(ENEMY_DEFS, grp.enemyType) ? ENEMY_DEFS[grp.enemyType] : undefined;
       if (!def) continue;
       if (def.livesCost >= 3 || (def.armor >= 4 && def.maxHp >= 400)) {
         return true;

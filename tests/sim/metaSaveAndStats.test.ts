@@ -2114,5 +2114,20 @@ describe('MetaSession stats, achievements, challenges & daily persistence', () =
       'Secure sky-nameless',
     );
     expect(/^\d{4}-\d{2}-\d{2}$/.test(getTodayUtcDateString(new Date('invalid')))).toBe(true);
+
+    // mergeMetaSaves handles Object.prototype-named keys (e.g. 'toString') commutatively
+    const protoNamedSave = createDefaultMetaSave(LEVELS.length);
+    protoNamedSave.bestEndlessScoresByLevelId.toString = 750;
+    protoNamedSave.fastestWinSecByLevelId.toString = 42.5;
+    protoNamedSave.stats.towersBuiltByType.toString = 6;
+    protoNamedSave.stats.enemiesDefeatedByType.toString = 18;
+    const mergedLeft = mergeMetaSaves(createDefaultMetaSave(LEVELS.length), protoNamedSave, LEVELS.length, LEVELS);
+    const mergedRight = mergeMetaSaves(protoNamedSave, createDefaultMetaSave(LEVELS.length), LEVELS.length, LEVELS);
+    expect(mergedLeft.bestEndlessScoresByLevelId.toString).toBe(750);
+    expect(mergedRight.bestEndlessScoresByLevelId.toString).toBe(750);
+    expect(mergedLeft.fastestWinSecByLevelId.toString).toBe(42.5);
+    expect(mergedRight.fastestWinSecByLevelId.toString).toBe(42.5);
+    expect(mergedLeft.stats.towersBuiltByType.toString).toBe(6);
+    expect(mergedRight.stats.enemiesDefeatedByType.toString).toBe(18);
   });
 });

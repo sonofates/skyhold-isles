@@ -253,6 +253,7 @@ export function describeActiveModifiers(
   const activeIds = Array.isArray(modifiers?.activeMutatorIds) ? modifiers.activeMutatorIds : [];
   for (let i = 0; i < activeIds.length; i++) {
     const id = activeIds[i];
+    if (typeof id !== 'string' || id.length === 0) continue;
     const def = mutatorById.get(id);
     if (def) {
       badges.push({ id: def.id, label: def.name, detail: def.description });
@@ -362,7 +363,9 @@ export function describeActiveModifiers(
         detail: 'No tower types are permitted under these modifiers.',
       });
     } else {
-      const names = effectiveAllowed.map((t) => TOWER_DEFS[t]?.name ?? t).join(', ');
+      const names = effectiveAllowed
+        .map((t) => (Object.hasOwn(TOWER_DEFS, t) ? (TOWER_DEFS[t]?.name ?? t) : t))
+        .join(', ');
       badges.push({
         id: 'allowed-arsenal',
         label: 'Limited Arsenal',
@@ -373,7 +376,9 @@ export function describeActiveModifiers(
 
   const extraBanned = forbiddenList.filter((t) => !mutatorForbidden.has(t));
   if (extraBanned.length > 0) {
-    const names = extraBanned.map((t) => TOWER_DEFS[t]?.name ?? t).join(', ');
+    const names = extraBanned
+      .map((t) => (Object.hasOwn(TOWER_DEFS, t) ? (TOWER_DEFS[t]?.name ?? t) : t))
+      .join(', ');
     badges.push({
       id: 'restricted-towers',
       label: `No ${names}`,

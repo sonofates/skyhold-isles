@@ -21,6 +21,8 @@ import type {
   RunTelemetry,
 } from './types.ts';
 
+const IGNORED_OBSERVER_KEYS = new Set<string>(['__proto__', 'constructor', 'prototype']);
+
 /** Evaluates a single challenge condition against a completed run telemetry snapshot. */
 export function evaluateChallengeCondition(
   condition: ChallengeCondition,
@@ -28,8 +30,14 @@ export function evaluateChallengeCondition(
   won: boolean,
   livesRemaining: number,
 ): boolean {
-  if (!won || !telemetry.eligibleForChallenges) return false;
+  if (!won || !telemetry?.eligibleForChallenges) return false;
   const safeLives = Number.isFinite(livesRemaining) ? Math.max(0, Math.floor(livesRemaining)) : 0;
+  const builtByType =
+    telemetry.towersBuiltByType &&
+    typeof telemetry.towersBuiltByType === 'object' &&
+    !Array.isArray(telemetry.towersBuiltByType)
+      ? telemetry.towersBuiltByType
+      : {};
 
   switch (condition.kind) {
     case 'noLivesLost':
@@ -39,12 +47,10 @@ export function evaluateChallengeCondition(
     case 'forbiddenTowerTypes':
       return condition.forbidden.every(
         (type) =>
-          (Object.hasOwn(telemetry.towersBuiltByType, type)
-            ? (telemetry.towersBuiltByType[type] ?? 0)
-            : 0) === 0,
+          (Object.hasOwn(builtByType, type) ? (builtByType[type] ?? 0) : 0) === 0,
       );
     case 'allowedTowerTypes': {
-      for (const [type, count] of Object.entries(telemetry.towersBuiltByType)) {
+      for (const [type, count] of Object.entries(builtByType)) {
         if (count > 0 && !condition.allowed.includes(type as TowerType)) {
           return false;
         }
@@ -134,12 +140,14 @@ export function evaluateLiveChallengeState(
       progressLabel = `${safeLives}/${cond.minLives}+ lives`;
       break;
     case 'forbiddenTowerTypes': {
+      const builtMap =
+        telemetry.towersBuiltByType &&
+        typeof telemetry.towersBuiltByType === 'object' &&
+        !Array.isArray(telemetry.towersBuiltByType)
+          ? telemetry.towersBuiltByType
+          : {};
       const builtForbidden = cond.forbidden.reduce(
-        (sum, type) =>
-          sum +
-          (Object.hasOwn(telemetry.towersBuiltByType, type)
-            ? (telemetry.towersBuiltByType[type] ?? 0)
-            : 0),
+        (sum, type) => sum + (Object.hasOwn(builtMap, type) ? (builtMap[type] ?? 0) : 0),
         0,
       );
       failed = builtForbidden > 0;
@@ -147,7 +155,13 @@ export function evaluateLiveChallengeState(
       break;
     }
     case 'allowedTowerTypes': {
-      const hasDisallowed = Object.entries(telemetry.towersBuiltByType).some(
+      const builtMap =
+        telemetry.towersBuiltByType &&
+        typeof telemetry.towersBuiltByType === 'object' &&
+        !Array.isArray(telemetry.towersBuiltByType)
+          ? telemetry.towersBuiltByType
+          : {};
+      const hasDisallowed = Object.entries(builtMap).some(
         ([type, count]) => count > 0 && !cond.allowed.includes(type as TowerType),
       );
       failed = hasDisallowed;
@@ -221,13 +235,17 @@ export function evaluateLiveLevelChallenges(
 ): readonly LiveChallengeStatus[] {
   if (!level || typeof level.id !== 'string') return [];
   const defs = getChallengesForLevel(level);
+  const safeCompleted =
+    completedMap && typeof completedMap === 'object' && !Array.isArray(completedMap)
+      ? completedMap
+      : {};
   return defs.map((def) =>
     evaluateLiveChallengeState(
       def,
       telemetry,
       livesRemaining,
       outcome,
-      completedMap[def.id] === true,
+      Object.hasOwn(safeCompleted, def.id) && safeCompleted[def.id] === true,
     ),
   );
 }
@@ -313,7 +331,12 @@ export class RunObserver {
         if (this.activeTowers > this.peakTowersActive) {
           this.peakTowersActive = this.activeTowers;
         }
-        this.towersBuiltByType[ev.type] = (this.towersBuiltByType[ev.type] ?? 0) + 1;
+        if (!IGNORED_OBSERVER_KEYS.has(ev.type)) {
+          const prevBuilt = Object.hasOwn(this.towersBuiltByType, ev.type)
+            ? this.towersBuiltByType[ev.type]
+            : 0;
+          this.towersBuiltByType[ev.type] = prevBuilt + 1;
+        }
         if (ev.tier > this.maxTowerTierBuilt) {
           this.maxTowerTierBuilt = ev.tier;
         }
@@ -354,8 +377,12 @@ export class RunObserver {
         if (this.endlessEntered) {
           this.endlessEnemiesKilled++;
         }
-        this.enemiesKilledByType[ev.enemyType] =
-          (this.enemiesKilledByType[ev.enemyType] ?? 0) + 1;
+        if (!IGNORED_OBSERVER_KEYS.has(ev.enemyType)) {
+          const prevKills = Object.hasOwn(this.enemiesKilledByType, ev.enemyType)
+            ? this.enemiesKilledByType[ev.enemyType]
+            : 0;
+          this.enemiesKilledByType[ev.enemyType] = prevKills + 1;
+        }
         if (this.spawnedFlyingIds.delete(ev.enemyId)) {
           this.flyingEnemiesKilled++;
         }

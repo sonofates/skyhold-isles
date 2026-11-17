@@ -50,6 +50,7 @@ afterEach(() => {
 function createStubEnv() {
   const placementCalls: Array<{ visible: boolean; type: string | null; valid: boolean }> = [];
   const menuCalls: Array<{ screen: 'menu' | 'levelSelect'; open: boolean; unlocked: number }> = [];
+  const outcomeWinCalls: Array<{ levelId: string; hasNext: boolean }> = [];
   const hitPos = new Vector3();
 
   const renderWorld = {
@@ -94,7 +95,13 @@ function createStubEnv() {
     tooltip: { hide: () => {} },
     toast: { hide: () => {}, show: () => {} },
     towerPanel: { setSellConfirmArmed: () => {} },
-    outcomeOverlay: { showWin: () => {}, showLose: () => {}, isOpen: () => false },
+    outcomeOverlay: {
+      showWin: (level: { id: string }, _stars: number, _lives: number, _kills: number, hasNext: boolean) => {
+        outcomeWinCalls.push({ levelId: level.id, hasNext });
+      },
+      showLose: () => {},
+      isOpen: () => false,
+    },
     pauseMenu: { setOpen: () => {} },
     settingsModal: { setOpen: () => {} },
     mainMenu: {
@@ -121,7 +128,7 @@ function createStubEnv() {
     setDebugVisible: () => {},
   };
 
-  return { renderWorld, soundManager, deps, placementCalls, menuCalls, hitPos };
+  return { renderWorld, soundManager, deps, placementCalls, menuCalls, outcomeWinCalls, hitPos };
 }
 
 function runScriptedLevelThroughSession(
@@ -284,7 +291,7 @@ describe('GameSession and sessionBridge meta wiring', () => {
 
   it('completes campaign + endless, isolates daily -> endless outcomes, and blocks debug tampering end-to-end', () => {
     installMockLocalStorage();
-    const { renderWorld, soundManager, deps } = createStubEnv();
+    const { renderWorld, soundManager, deps, outcomeWinCalls } = createStubEnv();
     const session = new GameSession(renderWorld, soundManager);
     session.attachRuntime(deps);
 
@@ -300,6 +307,10 @@ describe('GameSession and sessionBridge meta wiring', () => {
     session.setSpeed(3);
     runScriptedLevelThroughSession(session, 0, 600);
     expect(session.simWorld.outcome).toBe('won');
+    expect(outcomeWinCalls[outcomeWinCalls.length - 1]).toEqual({
+      levelId: LEVELS[0].id,
+      hasNext: true,
+    });
     expect(session.progress.bestStars[0]).toBeGreaterThanOrEqual(1);
     expect(session.progress.unlockedLevelIndex).toBeGreaterThanOrEqual(1);
     const winOutcome = session.getLastRunMetaOutcome()!;
@@ -348,6 +359,10 @@ describe('GameSession and sessionBridge meta wiring', () => {
     runScriptedLevelThroughSession(session, spec.levelIndex, 1800);
     expect(session.simWorld.outcome).toBe('won');
     expect(session.progress.unlockedLevelIndex).toBe(lockedBeforeDaily);
+    expect(outcomeWinCalls[outcomeWinCalls.length - 1]).toEqual({
+      levelId: spec.levelId,
+      hasNext: false,
+    });
     expect(session.getDailyStatus(dailyDate).completedToday).toBe(true);
     expect(session.getLastRunMetaOutcome()?.isDaily).toBe(true);
 
@@ -357,6 +372,26 @@ describe('GameSession and sessionBridge meta wiring', () => {
     session.simWorld.startNextWave();
     session.showMenuView('menu', true);
     expect(session.progress.unlockedLevelIndex).toBe(lockedBeforeDaily);
+
+    // Daily Watch on already-unlocked Island 1 (unlockedLevelIndex >= 1) keeps Next Island enabled
+    let l1DailyDate = '';
+    for (let m = 1; m <= 12 && !l1DailyDate; m++) {
+      for (let d = 1; d <= 28; d++) {
+        const cand = `2026-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+        if (session.getDailyChallenge(cand).levelIndex === 0) {
+          l1DailyDate = cand;
+          break;
+        }
+      }
+    }
+    const l1Spec = session.startDailyChallenge(l1DailyDate);
+    expect(l1Spec.levelIndex).toBe(0);
+    runScriptedLevelThroughSession(session, 0, 600);
+    expect(session.simWorld.outcome).toBe('won');
+    expect(outcomeWinCalls[outcomeWinCalls.length - 1]).toEqual({
+      levelId: LEVELS[0].id,
+      hasNext: true,
+    });
 
     // 3. Verify debug cheats (?debug gold, debugSkipToWave, debugForceWin, debugForceLose) never taint progress
     session.startLevel(2); // locked/uncleared Island 3

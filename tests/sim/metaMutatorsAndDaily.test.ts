@@ -1041,5 +1041,13 @@ describe('Daily challenge pure date-seeded generator', () => {
       ],
     } as LevelDef;
     expect(generateDailyChallenge('2026-11-17', [nanBruteMaster]).levelId).toBe(nanBruteMaster.id);
+
+    expect(
+      describeActiveModifiers({
+        ...resolveRunModifiers(null),
+        activeMutatorIds: [null as unknown as string, '', 'swift_march'],
+        forbiddenTowerTypes: ['toString' as unknown as (typeof TOWER_TYPES)[number]],
+      }).map((b) => b.label),
+    ).toEqual(['Tailwind March', 'No toString']);
   });
 });

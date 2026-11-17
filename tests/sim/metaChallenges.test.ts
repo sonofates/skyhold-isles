@@ -1170,6 +1170,44 @@ describe('RunObserver challenge condition tracking', () => {
     };
     expect(getChallengesForLevel(sparseBuildLvl)).toHaveLength(3);
 
+    // RunObserver & challenge evaluators guard prototype keys & missing towersBuiltByType cleanly
+    const protoTypeEv = new EventBus();
+    const protoTypeObs = new RunObserver(tinyLvl, protoTypeEv);
+    protoTypeEv.emit('waveStarted', { waveIndex: 0, totalWaves: 1, earlyBonus: 0 });
+    protoTypeEv.emit('towerBuilt', {
+      towerId: 1,
+      type: 'toString' as unknown as 'archer',
+      tier: 1,
+      x: 0,
+      z: 0,
+    });
+    protoTypeEv.emit('towerBuilt', {
+      towerId: 2,
+      type: '__proto__' as unknown as 'archer',
+      tier: 1,
+      x: 1,
+      z: 0,
+    });
+    protoTypeEv.emit('enemyKilled', {
+      enemyId: 1,
+      enemyType: 'toString' as unknown as 'grunt',
+      reward: 4,
+      x: 0,
+      y: 0,
+      z: 0,
+    });
+    const protoTel = protoTypeObs.getTelemetry();
+    expect(protoTel.towersBuiltByType.toString).toBe(1);
+    expect(Object.hasOwn(protoTel.towersBuiltByType, '__proto__')).toBe(false);
+    expect(protoTel.enemiesKilledByType.toString).toBe(1);
+    const missingMapTel = {
+      ...protoTel,
+      towersBuiltByType: null as unknown as Record<string, number>,
+    };
+    expect(evaluateChallengeCondition({ kind: 'allowedTowerTypes', allowed: ['archer'] }, missingMapTel, true, 20)).toBe(true);
+    expect(evaluateChallengeCondition({ kind: 'forbiddenTowerTypes', forbidden: ['frost'] }, missingMapTel, true, 20)).toBe(true);
+    protoTypeObs.dispose();
+
     guardMeta.dispose();
     peakObs.dispose();
     meta.dispose();

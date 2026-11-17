@@ -553,19 +553,31 @@ export function applyTelemetryDeltaToStats(
 
   for (const [enemyType, count] of Object.entries(current.enemiesKilledByType)) {
     if (IGNORED_RECORD_KEYS.has(enemyType)) continue;
-    const delta = Math.floor(d(count, prev?.enemiesKilledByType[enemyType]));
+    const prevCount =
+      prev?.enemiesKilledByType && Object.hasOwn(prev.enemiesKilledByType, enemyType)
+        ? prev.enemiesKilledByType[enemyType]
+        : 0;
+    const delta = Math.floor(d(count, prevCount));
     if (delta > 0) {
-      save.stats.enemiesDefeatedByType[enemyType] =
-        asNonNegInt(save.stats.enemiesDefeatedByType[enemyType]) + delta;
+      const existing = Object.hasOwn(save.stats.enemiesDefeatedByType, enemyType)
+        ? save.stats.enemiesDefeatedByType[enemyType]
+        : 0;
+      save.stats.enemiesDefeatedByType[enemyType] = asNonNegInt(existing) + delta;
     }
   }
 
   for (const [towerType, count] of Object.entries(current.towersBuiltByType)) {
     if (IGNORED_RECORD_KEYS.has(towerType)) continue;
-    const delta = Math.floor(d(count, prev?.towersBuiltByType[towerType]));
+    const prevCount =
+      prev?.towersBuiltByType && Object.hasOwn(prev.towersBuiltByType, towerType)
+        ? prev.towersBuiltByType[towerType]
+        : 0;
+    const delta = Math.floor(d(count, prevCount));
     if (delta > 0) {
-      save.stats.towersBuiltByType[towerType] =
-        asNonNegInt(save.stats.towersBuiltByType[towerType]) + delta;
+      const existing = Object.hasOwn(save.stats.towersBuiltByType, towerType)
+        ? save.stats.towersBuiltByType[towerType]
+        : 0;
+      save.stats.towersBuiltByType[towerType] = asNonNegInt(existing) + delta;
     }
   }
 
@@ -673,7 +685,7 @@ export function recomputeAchievements(
   const newlyUnlocked: string[] = [];
   for (let i = 0; i < ACHIEVEMENTS.length; i++) {
     const def = ACHIEVEMENTS[i];
-    if (save.unlockedAchievements[def.id] === true) continue;
+    if (readBoolFlag(save.unlockedAchievements, def.id)) continue;
     const current = getAchievementCurrentValue(def, save);
     if (current >= def.target) {
       save.unlockedAchievements[def.id] = true;
@@ -727,7 +739,7 @@ export function recordEndlessRunStats(
   );
   if (!IGNORED_RECORD_KEYS.has(level.id)) {
     save.bestEndlessScoresByLevelId[level.id] = Math.max(
-      asNonNegInt(save.bestEndlessScoresByLevelId[level.id]),
+      readOwnNonNegInt(save.bestEndlessScoresByLevelId, level.id),
       endlessScore.totalScore,
     );
   }
@@ -1576,7 +1588,7 @@ function mergeMaxCountRecords(
         !IGNORED_RECORD_KEYS.has(k) &&
         typeof v === 'number' &&
         Number.isFinite(v) &&
-        v > (out[k] ?? 0)
+        v > (Object.hasOwn(out, k) ? out[k] : 0)
       ) {
         out[k] = v;
       }
@@ -1604,7 +1616,7 @@ function mergeMinPositiveRecords(
         typeof v === 'number' &&
         Number.isFinite(v) &&
         v > 0 &&
-        (out[k] === undefined || v < out[k])
+        (!Object.hasOwn(out, k) || v < out[k])
       ) {
         out[k] = v;
       }
