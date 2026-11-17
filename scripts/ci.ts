@@ -44,6 +44,13 @@ function runStep(step: CiStep): CiStepResult {
 }
 
 function main(): void {
+  if (process.argv.includes('--help') || process.argv.includes('-h')) {
+    console.log('Usage: npm run ci [-- --fail-fast] [--full]');
+    console.log('  --fail-fast  Stop immediately after the first failed step');
+    console.log('  --full       Also run sim:fuzz and sim:bench after build');
+    return;
+  }
+
   const failFast = process.argv.includes('--fail-fast');
   const full = process.argv.includes('--full');
   const steps = full ? [...CI_STEPS, ...EXTRA_QA_STEPS] : CI_STEPS;

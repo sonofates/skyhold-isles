@@ -53,7 +53,9 @@ describe('headless fuzz playthrough harness', () => {
       const runB = runFuzzPlaythrough(LEVELS[0], seed, { endlessWaves: 1, profile });
       expect(runA.ok, runA.failure).toBe(true);
       expect(runA.digest.profile).toBe(profile);
+      expect(runA.digest.stateHash).toBeGreaterThan(0);
       expect(digestsEqual(runA.digest, runB.digest)).toBe(true);
+      expect(digestsEqual(runA.digest, { ...runB.digest, stateHash: runB.digest.stateHash ^ 1 })).toBe(false);
     }
 
     expect(parseFuzzCliArgs([])).toEqual({
@@ -87,6 +89,8 @@ describe('headless fuzz playthrough harness', () => {
 
     expect(() => parseFuzzCliArgs(['--profile', 'unknown'])).toThrow(/Invalid --profile/);
     expect(() => parseFuzzCliArgs(['--seed', 'abc'])).toThrow(/Invalid --seed/);
+    expect(() => parseFuzzCliArgs(['--seeds', 'abc'])).toThrow(/Invalid --seeds/);
+    expect(() => parseFuzzCliArgs(['--endless-waves', 'xyz'])).toThrow(/Invalid --endless-waves/);
     expect(() => parseFuzzCliArgs(['--level', '999'])).toThrow(/No valid levels/);
   });
 });

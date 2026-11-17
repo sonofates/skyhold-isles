@@ -177,6 +177,12 @@ export function runSimBenchScenario(
         `Benchmark lost/leaked enemies (${world.enemyPool.getActiveCount()} != ${config.enemyCount})`,
       );
     }
+    for (let i = 0; i < config.enemyCount; i++) {
+      const e = world.enemyPool.items[world.enemyPool.getActiveIndex(i)];
+      if (!Number.isFinite(e.x) || !Number.isFinite(e.z) || !Number.isFinite(e.hp) || e.hp <= 0) {
+        throw new Error(`Benchmark corrupted enemy state at slot ${i} (hp=${e.hp}, x=${e.x}, z=${e.z})`);
+      }
+    }
     peakProjectiles = Math.max(peakProjectiles, world.projectilePool.getActiveCount());
   }
 
@@ -200,12 +206,22 @@ export function runSimBenchScenario(
 }
 
 function main(): void {
+  if (process.argv.includes('--help') || process.argv.includes('-h')) {
+    console.log('Usage: npm run sim:bench [-- --strict] [--json]');
+    console.log('  --strict  Exit non-zero if any scenario misses the soft mobile-headroom budget');
+    console.log('  --json    Emit machine-readable JSON results');
+    return;
+  }
+
   const strict = process.argv.includes('--strict');
+  const jsonOutput = process.argv.includes('--json');
   const level = pickBenchLevel();
 
-  console.log(
-    `=== Skyhold Isles Sim Benchmark (level=${level.name}, 40 active towers, 60 Hz fixedTick) ===\n`,
-  );
+  if (!jsonOutput) {
+    console.log(
+      `=== Skyhold Isles Sim Benchmark (level=${level.name}, 40 active towers, 60 Hz fixedTick) ===\n`,
+    );
+  }
 
   // Brief global JIT warmup before running reported scenarios
   runSimBenchScenario(level, BENCH_SCENARIOS[0], 1, 120);
@@ -218,27 +234,48 @@ function main(): void {
   let anySoftMiss = false;
   let anyHardFail = false;
 
-  console.log('Enemies | Towers | Ticks/sec |  ms/tick | 3x Sim/Frame | PeakProj | Soft Budget | Status');
-  console.log('--------+--------+-----------+----------+--------------+----------+-------------+--------');
+  if (!jsonOutput) {
+    console.log('Enemies | Towers | Ticks/sec |  ms/tick | 3x Sim/Frame | PeakProj | Soft Budget | Status');
+    console.log('--------+--------+-----------+----------+--------------+----------+-------------+--------');
+  }
   for (const r of results) {
     const hardOk = r.ticksPerSec >= HARD_FLOOR_TICKS_PER_SEC;
     if (!hardOk) anyHardFail = true;
     if (!r.meetsSoftBudget) anySoftMiss = true;
 
-    const status = !hardOk ? 'FAIL' : r.meetsSoftBudget ? 'PASS' : 'WARN';
-    console.log(
-      `${String(r.enemyCount).padStart(7)} | ` +
-        `${String(r.towerCount).padStart(6)} | ` +
-        `${Math.round(r.ticksPerSec).toString().padStart(9)} | ` +
-        `${r.msPerTick.toFixed(4).padStart(8)} | ` +
-        `${(r.simMsAt3xFrame.toFixed(3) + ' ms').padStart(12)} | ` +
-        `${String(r.peakProjectiles).padStart(8)} | ` +
-        `${('>=' + r.softBudgetTicksPerSec + '/s').padStart(11)} | ` +
-        `${status}`,
-    );
+    if (!jsonOutput) {
+      const status = !hardOk ? 'FAIL' : r.meetsSoftBudget ? 'PASS' : 'WARN';
+      console.log(
+        `${String(r.enemyCount).padStart(7)} | ` +
+          `${String(r.towerCount).padStart(6)} | ` +
+          `${Math.round(r.ticksPerSec).toString().padStart(9)} | ` +
+          `${r.msPerTick.toFixed(4).padStart(8)} | ` +
+          `${(r.simMsAt3xFrame.toFixed(3) + ' ms').padStart(12)} | ` +
+          `${String(r.peakProjectiles).padStart(8)} | ` +
+          `${('>=' + r.softBudgetTicksPerSec + '/s').padStart(11)} | ` +
+          `${status}`,
+      );
+    }
   }
 
-  console.log('');
+  if (jsonOutput) {
+    console.log(
+      JSON.stringify(
+        {
+          levelId: level.id,
+          levelName: level.name,
+          hardFloorTicksPerSec: HARD_FLOOR_TICKS_PER_SEC,
+          passed: !anyHardFail && (!strict || !anySoftMiss),
+          results,
+        },
+        null,
+        2,
+      ),
+    );
+  } else {
+    console.log('');
+  }
+
   if (anyHardFail) {
     console.error(`Sim benchmark FAILED: dropped below 3x real-time floor (${HARD_FLOOR_TICKS_PER_SEC} ticks/sec).`);
     process.exit(1);
@@ -249,10 +286,14 @@ function main(): void {
       console.error(`${msg} (--strict enabled)`);
       process.exit(1);
     }
-    console.warn(`${msg} (soft assertion; pass --strict to fail CI)`);
+    if (!jsonOutput) {
+      console.warn(`${msg} (soft assertion; pass --strict to fail CI)`);
+    }
     return;
   }
-  console.log('Sim benchmark PASSED: all scenarios met soft phone-headroom budgets!');
+  if (!jsonOutput) {
+    console.log('Sim benchmark PASSED: all scenarios met soft phone-headroom budgets!');
+  }
 }
 
 if (process.argv[1]?.endsWith('simBench.ts')) {
