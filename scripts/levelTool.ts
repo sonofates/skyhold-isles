@@ -5,10 +5,14 @@
  *  - `orderFromTemplate` re-targets an existing level's scripted build order onto a new level's ranked sites,
  *    so a new island starts from a sane build script before hand-tuning.
  *
- * CLI: `npx tsx scripts/levelTool.ts <levelId>` prints the layout + ranked sites of a registered level.
+ * CLI: `npx tsx scripts/levelTool.ts <levelId|n> [--seed-from=13 [--write]]` prints the layout + ranked sites of a
+ * registered level and can seed its build orders from another level's scripts. Then run `tuneBuildOrder.ts` and
+ * `hpSweep.ts` (see their headers).
  */
+import { readFileSync, writeFileSync } from 'node:fs';
 import type { GridCoord } from '../src/core/types.ts';
-import { LEVELS, parseLevelGrid, type LevelDef, type ScriptedBuildAction } from '../src/data/levels/index.ts';
+import { LEVELS, parseLevelGrid, type LevelDef } from '../src/data/levels/index.ts';
+import type { ScriptedBuildAction } from '../src/data/levels/types.ts';
 
 export interface LayoutSpec {
   /** One string per row; chars: `.` buildable grass, `T` decor, `~` water. Space-separated or packed. */
@@ -163,15 +167,30 @@ function main(): void {
   const id = process.argv[2];
   const level = LEVELS.find((l) => l.id === id || String(l.index + 1) === id);
   if (!level) {
-    console.error('usage: tsx scripts/levelTool.ts <levelId|number>');
+    console.error('usage: tsx scripts/levelTool.ts <levelId|number> [--seed-from=<levelNumber> [--write]]');
     process.exit(1);
   }
   console.log(level.layout.join('\n'));
-  console.log(
-    rankSites(level, 24)
-      .map((s, i) => `${i + 1}. (${s.col},${s.row}) ${s.score.toFixed(1)}`)
-      .join('\n'),
-  );
+  const sites = rankSites(level, 30);
+  console.log(sites.map((s, i) => `${i + 1}. (${s.col},${s.row}) ${s.score.toFixed(1)}`).join('\n'));
+
+  // Seed starting build orders by re-targeting another level's scripts onto this level's best sites.
+  const seed = process.argv.find((a) => a.startsWith('--seed-from='))?.slice('--seed-from='.length);
+  if (!seed) return;
+  const tmpl = LEVELS[Number(seed) - 1];
+  const greedy = orderFromTemplate(tmpl.scriptedBuildOrder ?? [], sites);
+  const weak = orderFromTemplate(tmpl.weakBuildOrder ?? [], sites, greedy.mapping);
+  const body = `  scriptedBuildOrder: [\n${formatOrder(greedy.order)}\n  ],\n  weakBuildOrder: [\n${formatOrder(weak.order)}\n  ],\n};\n`;
+  if (!process.argv.includes('--write')) {
+    console.log(body);
+    return;
+  }
+  const file = `src/data/levels/level${level.index + 1}.ts`;
+  const src = readFileSync(file, 'utf8');
+  const start = src.indexOf('  scriptedBuildOrder: [');
+  if (start < 0) throw new Error(`no scriptedBuildOrder placeholder in ${file}`);
+  writeFileSync(file, src.slice(0, start) + body);
+  console.log(`wrote ${file}`);
 }
 
 if (process.argv[1]?.endsWith('levelTool.ts')) main();
