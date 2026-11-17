@@ -107,7 +107,8 @@ export class PostProcessingPipeline {
       ao.configuration.color = new THREE.Color(0x282648);
       ao.configuration.gammaCorrection = false;
       ao.configuration.transparencyAware = false;
-      ao.configuration.halfRes = false;
+      // Half-res AO with depth-aware upsampling: ~4x cheaper on Retina/phone panels, nearly identical look.
+      ao.configuration.halfRes = true;
       this.composer.addPass(ao);
     }
 

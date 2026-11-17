@@ -13,7 +13,7 @@ export interface TierSpec {
 }
 
 export const TIER_SPECS: Record<QualityTier, TierSpec> = {
-  high: { dprCap: 2, shadows: true, shadowMapSize: 2048, composer: 'high', fxScale: 1 },
+  high: { dprCap: 1.5, shadows: true, shadowMapSize: 2048, composer: 'high', fxScale: 1 },
   medium: { dprCap: 1.5, shadows: true, shadowMapSize: 1024, composer: 'medium', fxScale: 0.75 },
   low: { dprCap: 1, shadows: false, shadowMapSize: 1024, composer: null, fxScale: 0.5 },
 };

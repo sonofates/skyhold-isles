@@ -549,10 +549,12 @@ export class MapBuilder {
           });
 
           // Kenney fortress spawn archway & crystal threshold
+          // Pad model is 0..0.1 tall (x0.9): sit its top 0.025 above the road top (y=0) so the two
+          // faces are never coplanar — coplanar faces z-fight (flicker) as the camera pans.
           parts.push({
             geometry: geoSpawnPad,
             colorHex: 0xf4f6ff,
-            position: [wx, -0.09, wz],
+            position: [wx, -0.065, wz],
             rotation: [0, rotY, 0],
             scale: [1.35, 0.9, 1.35],
           });

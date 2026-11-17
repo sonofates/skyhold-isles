@@ -52,9 +52,9 @@ describe('QualityController', () => {
 });
 
 describe('tier specs', () => {
-  it('desktop high keeps the original look (dpr cap 2, shadows, full composer)', () => {
-    expect(TIER_SPECS.high).toMatchObject({ dprCap: 2, shadows: true, composer: 'high', fxScale: 1 });
-    expect(effectivePixelRatio('high', 3)).toBe(2);
+  it('high keeps the full look (shadows, full composer) at a 1.5 pixel-ratio cap', () => {
+    expect(TIER_SPECS.high).toMatchObject({ dprCap: 1.5, shadows: true, composer: 'high', fxScale: 1 });
+    expect(effectivePixelRatio('high', 3)).toBe(1.5);
     expect(effectivePixelRatio('high', 1)).toBe(1);
   });
 

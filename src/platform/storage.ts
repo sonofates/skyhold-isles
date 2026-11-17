@@ -89,8 +89,9 @@ export function getDefaultSettings(): GameSettings {
     muted: false,
     cameraShake: true,
     damageNumbers: true,
-    // Phones/tablets start in Auto (frame-time governor); desktop keeps the full High look.
-    quality: isTouchDevice() ? 'auto' : 'high',
+    // Everyone starts in Auto: the frame-time governor begins at High on desktop / Medium on touch
+    // and steps down only when frames are actually slow.
+    quality: 'auto',
     haptics: true,
   };
 }
@@ -151,7 +152,7 @@ function parseQuality(val: unknown, fallback: QualityLevel): QualityLevel {
 }
 
 /** Bump when the stored settings shape changes; see loadSettings for the migration notes. */
-const SETTINGS_VERSION = 2;
+const SETTINGS_VERSION = 3;
 
 export function loadSettings(): GameSettings {
   const defaults = getDefaultSettings();
@@ -164,6 +165,9 @@ export function loadSettings(): GameSettings {
     // almost always that old default rather than a choice: move it to Auto. Explicit choices
     // made on desktop (or any v2 save) are kept as they are.
     if (parsed.v === undefined && quality === 'low' && isTouchDevice()) quality = 'auto';
+    // Before v3, desktop defaulted to a fixed 'high' (no governor), which stutters on weaker GPUs.
+    // A stored desktop 'high' from v1/v2 is that old default, not a choice: move it to Auto.
+    if ((parsed.v === undefined || parsed.v < 3) && quality === 'high' && !isTouchDevice()) quality = 'auto';
     return {
       masterVolume:
         typeof parsed.masterVolume === 'number'

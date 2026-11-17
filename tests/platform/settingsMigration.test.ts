@@ -30,7 +30,7 @@ describe('settings load / migration', () => {
     expect(s.masterVolume).toBe(0.4);
     expect(s.muted).toBe(true);
     expect(s.cameraShake).toBe(false);
-    expect(s.quality).toBe('high');
+    expect(s.quality).toBe('auto'); // the old desktop default 'high' moves to Auto (v3)
     expect(s.haptics).toBe(true);
   });
 
@@ -48,7 +48,7 @@ describe('settings load / migration', () => {
   it('keeps a deliberate "low" in a v2 save even on touch devices', () => {
     asTouchDevice(true);
     saveSettings({ ...loadSettings(), quality: 'low' });
-    expect(JSON.parse(store.get(KEY) as string).v).toBe(2);
+    expect(JSON.parse(store.get(KEY) as string).v).toBe(3);
     expect(loadSettings().quality).toBe('low');
   });
 
@@ -56,11 +56,21 @@ describe('settings load / migration', () => {
     store.set(KEY, JSON.stringify({ ...legacy, quality: 'medium', v: 2 }));
     expect(loadSettings().quality).toBe('medium');
     store.set(KEY, JSON.stringify({ ...legacy, quality: 'ultra', v: 2 }));
+    expect(loadSettings().quality).toBe('auto');
+  });
+
+  it('keeps a deliberate desktop "high" saved by v3', () => {
+    saveSettings({ ...loadSettings(), quality: 'high' });
     expect(loadSettings().quality).toBe('high');
   });
 
-  it('defaults to auto on touch and high on desktop', () => {
-    expect(loadSettings().quality).toBe('high');
+  it('moves a v2 desktop "high" (the old fixed default) to auto', () => {
+    store.set(KEY, JSON.stringify({ ...legacy, quality: 'high', v: 2 }));
+    expect(loadSettings().quality).toBe('auto');
+  });
+
+  it('defaults to auto on touch and on desktop', () => {
+    expect(loadSettings().quality).toBe('auto');
     asTouchDevice(true);
     expect(loadSettings().quality).toBe('auto');
   });
