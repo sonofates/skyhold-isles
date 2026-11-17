@@ -1223,9 +1223,31 @@ describe('RunObserver challenge condition tracking', () => {
     expect(protoTypeObs.getTelemetry().towersCleansed).toBe(0);
     const emptyIdLvl = { ...LEVELS[0], id: '' };
     expect(getChallengesForLevel(emptyIdLvl)).toEqual([]);
-    expect(getChallengeById(':sturdy', [emptyIdLvl])).toBeUndefined();
+    expect(getChallengeById(':sturdy', [emptyIdLvl])).toEqual(undefined);
     expect(evaluateLevelChallenges(emptyIdLvl, protoTel, true, 20)).toEqual([]);
     expect(evaluateLiveLevelChallenges(emptyIdLvl, protoTel, 20, 'ongoing', {})).toEqual([]);
+    expect(
+      evaluateChallengeCondition(
+        { kind: 'maxTowersBuilt', maxCount: 2 },
+        { ...protoTel, towersBuilt: -1 },
+        true,
+        20,
+      ),
+    ).toBe(false);
+    expect(
+      evaluateChallengeCondition(
+        { kind: 'maxGoldSpent', maxGold: 100 },
+        { ...protoTel, grossGoldSpent: -5 },
+        true,
+        20,
+      ),
+    ).toBe(false);
+    const waveMissingObs = new RunObserver(
+      { ...LEVELS[0], waves: null as unknown as LevelDef['waves'] },
+      new EventBus(),
+    );
+    expect(waveMissingObs.getTelemetry().storyWaveCount).toBe(0);
+    waveMissingObs.dispose();
     protoTypeObs.dispose();
 
     guardMeta.dispose();

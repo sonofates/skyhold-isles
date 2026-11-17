@@ -2191,5 +2191,28 @@ describe('MetaSession stats, achievements, challenges & daily persistence', () =
       totalIslands: 1,
     });
     expect(getRecommendedNextGoal(emptyIdSave, '2026-11-17', [{ ...LEVELS[0], id: '' }])).toBeNull();
+
+    // perfectClears milestone sync, empty-id bestEndlessScores isolation, array telemetry safety, and null saveMetaSave no-op
+    const perfectMigrateSave = createDefaultMetaSave(LEVELS.length);
+    perfectMigrateSave.stats.perfectClears = 2;
+    const migratedPerfect = migrateToMetaSave(perfectMigrateSave, null, LEVELS.length, LEVELS);
+    expect(migratedPerfect.achievementMilestones.wonNoLivesLost).toBe(true);
+    expect(migratedPerfect.unlockedAchievements.flawless_defense).toBe(true);
+
+    const emptyEndlessSave = createDefaultMetaSave(LEVELS.length);
+    expect(
+      recordEndlessRunStats(emptyEndlessSave, { ...LEVELS[0], id: '' }, { ...messyTelemetry, endlessEnemiesKilled: 5 }, 1),
+    ).not.toBeNull();
+    expect(Object.hasOwn(emptyEndlessSave.bestEndlessScoresByLevelId, '')).toBe(false);
+    applyTelemetryDeltaToStats(
+      emptyEndlessSave,
+      [] as unknown as typeof messyTelemetry,
+      null,
+    );
+    expect(emptyEndlessSave.stats.enemiesDefeatedTotal).toBe(0);
+
+    const nullSaveStore = installMockLocalStorage();
+    saveMetaSave(null as unknown as ReturnType<typeof createDefaultMetaSave>);
+    expect(nullSaveStore.has(META_PROGRESS_KEY)).toBe(false);
   });
 });

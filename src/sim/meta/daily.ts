@@ -45,7 +45,9 @@ function pickTowerRestriction(
     requireArmorBreaker?: boolean;
   },
 ): { restriction: DailyTowerRestriction; modifiers: RunModifiers } {
-  const available = TOWER_TYPES.filter((t) => Boolean(TOWER_DEFS[t]) && !alreadyForbidden.includes(t));
+  const available = TOWER_TYPES.filter(
+    (t) => Object.hasOwn(TOWER_DEFS, t) && !alreadyForbidden.includes(t),
+  );
   const antiAirAvailable = available.filter((t) => TOWER_DEFS[t]?.hitsFlyers === true);
   const antiAirDpsAvailable = antiAirAvailable.filter((t) => {
     const t1 = TOWER_DEFS[t]?.tiers?.[0];
@@ -106,7 +108,7 @@ function pickTowerRestriction(
       return {
         restriction: {
           kind: 'ban_one',
-          label: `No ${TOWER_DEFS[banned]?.name ?? banned}`,
+          label: `No ${formatTowerNames([banned])}`,
           allowedTowerTypes: null,
           forbiddenTowerTypes: [banned],
         },
@@ -197,7 +199,12 @@ export function generateDailyChallenge(
   const safeLevels: readonly LevelDef[] = levels;
   const safeCatalog: readonly MutatorDef[] = Array.isArray(mutatorCatalog)
     ? mutatorCatalog.filter(
-        (m): m is MutatorDef => Boolean(m) && typeof m === 'object' && typeof m.id === 'string' && m.id.length > 0,
+        (m): m is MutatorDef =>
+          Boolean(m) &&
+          typeof m === 'object' &&
+          !Array.isArray(m) &&
+          typeof m.id === 'string' &&
+          m.id.length > 0,
       )
     : [];
 

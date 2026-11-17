@@ -89,7 +89,7 @@ export function mergeRunModifiers(...layers: Array<RunModifiers | undefined | nu
 
   for (let i = 0; i < layers.length; i++) {
     const raw = layers[i];
-    if (!raw) continue;
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) continue;
     const mod = resolveRunModifiers(raw);
     enemySpeedMultiplier *= mod.enemySpeedMultiplier;
     enemyHpMultiplier *= mod.enemyHpMultiplier;
@@ -257,18 +257,15 @@ export function describeActiveModifiers(
 
   const mutatorForbidden = new Set<TowerType>();
   const recognizedMutatorLayers: RunModifiers[] = [];
-  const activeIds = Array.isArray(modifiers?.activeMutatorIds) ? modifiers.activeMutatorIds : [];
+  const activeIds = dedupeStrings<string>(modifiers?.activeMutatorIds);
   for (let i = 0; i < activeIds.length; i++) {
     const id = activeIds[i];
-    if (typeof id !== 'string' || id.length === 0) continue;
     const def = mutatorById.get(id);
     if (def) {
       badges.push({ id: def.id, label: def.name, detail: def.description });
-      if (def.modifiers && typeof def.modifiers === 'object') {
+      if (def.modifiers && typeof def.modifiers === 'object' && !Array.isArray(def.modifiers)) {
         recognizedMutatorLayers.push(def.modifiers);
-        const banned = Array.isArray(def.modifiers.forbiddenTowerTypes)
-          ? def.modifiers.forbiddenTowerTypes
-          : [];
+        const banned = dedupeStrings<TowerType>(def.modifiers.forbiddenTowerTypes);
         for (let j = 0; j < banned.length; j++) {
           mutatorForbidden.add(banned[j]);
         }
@@ -310,15 +307,14 @@ export function describeActiveModifiers(
     baseline.enemySpeedMultiplier,
     `Enemies move at ${modifiers.enemySpeedMultiplier}x speed.`,
   );
-  if (
-    Number.isFinite(modifiers.enemyArmorBonus) &&
-    modifiers.enemyArmorBonus !== baseline.enemyArmorBonus &&
-    modifiers.enemyArmorBonus > 0
-  ) {
+  const armorBonus = Number.isFinite(modifiers.enemyArmorBonus)
+    ? Math.max(0, Math.round(modifiers.enemyArmorBonus))
+    : 0;
+  if (armorBonus !== baseline.enemyArmorBonus && armorBonus > 0) {
     badges.push({
       id: 'custom-enemy-armor',
-      label: `Enemy Armor +${modifiers.enemyArmorBonus}`,
-      detail: `All enemies gain +${modifiers.enemyArmorBonus} flat armor.`,
+      label: `Enemy Armor +${armorBonus}`,
+      detail: `All enemies gain +${armorBonus} flat armor.`,
     });
   }
   const flyerMult = Number.isFinite(modifiers.flyerCountMultiplier)
@@ -353,11 +349,9 @@ export function describeActiveModifiers(
     `Tower builds and upgrades cost ${modifiers.towerCostMultiplier}x gold.`,
   );
 
-  const forbiddenList: readonly TowerType[] = Array.isArray(modifiers?.forbiddenTowerTypes)
-    ? modifiers.forbiddenTowerTypes
-    : [];
-  const allowedList: readonly TowerType[] | null = Array.isArray(modifiers?.allowedTowerTypes)
-    ? modifiers.allowedTowerTypes
+  const forbiddenList = dedupeStrings<TowerType>(modifiers?.forbiddenTowerTypes);
+  const allowedList = Array.isArray(modifiers?.allowedTowerTypes)
+    ? dedupeStrings<TowerType>(modifiers.allowedTowerTypes)
     : null;
   if (allowedList !== null) {
     const effectiveAllowed = allowedList.filter(

@@ -45,9 +45,18 @@ export function normalizeSeed(seed: number | string): number {
 function sanitizeMutatorCatalog(catalog: readonly MutatorDef[]): MutatorDef[] {
   if (!Array.isArray(catalog)) return [];
   const valid: MutatorDef[] = [];
+  const seen = new Set<string>();
   for (let i = 0; i < catalog.length; i++) {
     const def = catalog[i];
-    if (def && typeof def === 'object' && typeof def.id === 'string' && def.id.length > 0) {
+    if (
+      def &&
+      typeof def === 'object' &&
+      !Array.isArray(def) &&
+      typeof def.id === 'string' &&
+      def.id.length > 0 &&
+      !seen.has(def.id)
+    ) {
+      seen.add(def.id);
       valid.push(def);
     }
   }
@@ -66,7 +75,7 @@ function finalizeMutatorRoll(seed: number, selected: readonly MutatorDef[]): End
         : 0;
     scoreBonusSum += bonus;
     mutatorIds.push(def.id);
-    if (def.modifiers && typeof def.modifiers === 'object') {
+    if (def.modifiers && typeof def.modifiers === 'object' && !Array.isArray(def.modifiers)) {
       modifierLayers.push({ ...def.modifiers, scoreMultiplier: undefined });
     }
   }
@@ -169,7 +178,9 @@ export function getMutatorPresetRoll(
   catalog: readonly MutatorDef[] = ENDLESS_MUTATORS,
 ): EndlessMutatorRoll | null {
   if (typeof presetId !== 'string' || !Array.isArray(presets)) return null;
-  const preset = presets.find((p) => Boolean(p) && p.id === presetId);
+  const preset = presets.find(
+    (p) => Boolean(p) && typeof p === 'object' && !Array.isArray(p) && p.id === presetId,
+  );
   if (!preset) return null;
   return buildEndlessMutatorLoadout(preset.mutatorIds, catalog);
 }

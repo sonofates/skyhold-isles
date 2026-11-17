@@ -29,6 +29,39 @@ function getSafeCountMap(raw: unknown): Readonly<Record<string, number>> {
     : {};
 }
 
+function isNonNegFinite(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0;
+}
+
+function countForbiddenTowersBuilt(
+  builtMap: Readonly<Record<string, number>>,
+  forbidden: readonly TowerType[],
+): number {
+  let total = 0;
+  for (let i = 0; i < forbidden.length; i++) {
+    const type = forbidden[i];
+    if (Object.hasOwn(builtMap, type)) {
+      const count = builtMap[type];
+      if (typeof count === 'number' && Number.isFinite(count) && count > 0) {
+        total += count;
+      }
+    }
+  }
+  return total;
+}
+
+function hasDisallowedTowerBuilt(
+  builtMap: Readonly<Record<string, number>>,
+  allowed: readonly TowerType[],
+): boolean {
+  for (const [type, count] of Object.entries(builtMap)) {
+    if (typeof count === 'number' && Number.isFinite(count) && count > 0 && !allowed.includes(type as TowerType)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 /** Evaluates a single challenge condition against a completed run telemetry snapshot. */
 export function evaluateChallengeCondition(
   condition: ChallengeCondition,
@@ -46,36 +79,38 @@ export function evaluateChallengeCondition(
     case 'minLivesRemaining':
       return safeLives >= condition.minLives;
     case 'forbiddenTowerTypes':
-      return condition.forbidden.every(
-        (type) =>
-          (Object.hasOwn(builtByType, type) ? (builtByType[type] ?? 0) : 0) === 0,
-      );
-    case 'allowedTowerTypes': {
-      for (const [type, count] of Object.entries(builtByType)) {
-        if (count > 0 && !condition.allowed.includes(type as TowerType)) {
-          return false;
-        }
-      }
-      return true;
-    }
+      return countForbiddenTowersBuilt(builtByType, condition.forbidden) === 0;
+    case 'allowedTowerTypes':
+      return !hasDisallowedTowerBuilt(builtByType, condition.allowed);
     case 'maxTowersBuilt':
-      return telemetry.towersBuilt <= condition.maxCount;
+      return isNonNegFinite(telemetry.towersBuilt) && telemetry.towersBuilt <= condition.maxCount;
     case 'maxPeakTowers':
-      return telemetry.peakTowersActive <= condition.maxCount;
+      return (
+        isNonNegFinite(telemetry.peakTowersActive) &&
+        telemetry.peakTowersActive <= condition.maxCount
+      );
     case 'maxTowerTier':
-      return telemetry.maxTowerTierBuilt <= condition.maxTier;
+      return (
+        isNonNegFinite(telemetry.maxTowerTierBuilt) &&
+        telemetry.maxTowerTierBuilt <= condition.maxTier
+      );
     case 'maxGoldSpent':
-      return telemetry.grossGoldSpent <= condition.maxGold;
+      return isNonNegFinite(telemetry.grossGoldSpent) && telemetry.grossGoldSpent <= condition.maxGold;
     case 'noAbilities':
       return telemetry.abilitiesCastTotal === 0;
     case 'noTowerSelling':
       return telemetry.towersSold === 0;
     case 'combatSpeedOnly':
       return (
-        telemetry.minCombatSpeed !== null && telemetry.minCombatSpeed >= condition.requiredSpeed
+        typeof telemetry.minCombatSpeed === 'number' &&
+        Number.isFinite(telemetry.minCombatSpeed) &&
+        telemetry.minCombatSpeed >= condition.requiredSpeed
       );
     case 'minEarlyWaves':
-      return telemetry.earlyWavesCalled >= condition.minCount;
+      return (
+        isNonNegFinite(telemetry.earlyWavesCalled) &&
+        telemetry.earlyWavesCalled >= condition.minCount
+      );
   }
 }
 
@@ -144,20 +179,13 @@ export function evaluateLiveChallengeState(
       break;
     case 'forbiddenTowerTypes': {
       const builtMap = getSafeCountMap(telemetry.towersBuiltByType);
-      const builtForbidden = cond.forbidden.reduce(
-        (sum, type) => sum + (Object.hasOwn(builtMap, type) ? (builtMap[type] ?? 0) : 0),
-        0,
-      );
-      failed = builtForbidden > 0;
+      failed = countForbiddenTowersBuilt(builtMap, cond.forbidden) > 0;
       progressLabel = failed ? 'Banned tower built' : 'Clean';
       break;
     }
     case 'allowedTowerTypes': {
       const builtMap = getSafeCountMap(telemetry.towersBuiltByType);
-      const hasDisallowed = Object.entries(builtMap).some(
-        ([type, count]) => count > 0 && !cond.allowed.includes(type as TowerType),
-      );
-      failed = hasDisallowed;
+      failed = hasDisallowedTowerBuilt(builtMap, cond.allowed);
       progressLabel = failed ? 'Disallowed tower built' : 'Arsenal intact';
       break;
     }
@@ -259,6 +287,7 @@ function getTowerTierBaseCost(type: TowerType, tier: number, fallbackTier: numbe
  */
 export class RunObserver {
   readonly level: LevelDef;
+  private readonly storyWaveCount: number;
   private modifiers: ResolvedRunModifiers;
   private readonly unsubs: Array<() => void> = [];
   private readonly spawnedFlyingIds = new Set<number>();
@@ -309,11 +338,13 @@ export class RunObserver {
 
   constructor(level: LevelDef, events: EventBus, modifiers?: RunModifiers | null) {
     this.level = level;
+    this.storyWaveCount = Array.isArray(level?.waves) ? level.waves.length : 0;
     this.modifiers = resolveRunModifiers(modifiers);
     if (isAdvantageousModifiers(this.modifiers)) {
       this.eligibleForChallenges = false;
     }
-    this.expectedGold = Math.round(level.startingGold * this.modifiers.startingGoldMultiplier);
+    const baseStartingGold = Number.isFinite(level?.startingGold) ? Math.max(0, level.startingGold) : 0;
+    this.expectedGold = Math.round(baseStartingGold * this.modifiers.startingGoldMultiplier);
     this.expectedLives = BALANCE.startingLives;
     this.bind(events);
   }
@@ -415,7 +446,7 @@ export class RunObserver {
             this.eligibleForChallenges = false;
           } else if (this.endlessEntered) {
             this.pendingAbsorbedEndlessWaves++;
-          } else if (ev.waveIndex - 1 < this.level.waves.length) {
+          } else if (ev.waveIndex - 1 < this.storyWaveCount) {
             this.pendingAbsorbedStoryWaves++;
           }
         }
@@ -438,7 +469,7 @@ export class RunObserver {
       events.on('waveCompleted', (ev) => {
         this.inWavePhase = false;
         this.lastCompletedWaveIndex = ev.waveIndex;
-        if (this.endlessEntered || ev.waveIndex >= this.level.waves.length) {
+        if (this.endlessEntered || ev.waveIndex >= this.storyWaveCount) {
           const cleared = 1 + this.pendingAbsorbedEndlessWaves;
           this.pendingAbsorbedEndlessWaves = 0;
           this.wavesCompleted += cleared;
@@ -470,8 +501,8 @@ export class RunObserver {
           this.endlessEntered ||
           this.storyWinSnapshot !== null ||
           this.skippedWaves ||
-          this.storyWavesCompleted < this.level.waves.length ||
-          this.lastCompletedWaveIndex !== this.level.waves.length - 1
+          this.storyWavesCompleted < this.storyWaveCount ||
+          this.lastCompletedWaveIndex !== this.storyWaveCount - 1
         ) {
           this.eligibleForChallenges = false;
         }
@@ -564,7 +595,7 @@ export class RunObserver {
     return {
       levelId: this.level.id,
       levelIndex: this.level.index,
-      storyWaveCount: this.level.waves.length,
+      storyWaveCount: this.storyWaveCount,
       simTimeSec: this.simTimeSec,
       towersBuilt: this.towersBuilt,
       activeTowers: this.activeTowers,

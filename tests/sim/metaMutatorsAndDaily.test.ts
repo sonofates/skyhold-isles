@@ -1075,5 +1075,27 @@ describe('Daily challenge pure date-seeded generator', () => {
       startDelay: 0,
     });
     expect(scaledNanFlyer.waves[0].groups[1].enemyType).toBe('toString');
+
+    // Duplicate mutator IDs/forbidden types & fractional armor on unresolved modifiers never emit duplicate/spurious badges
+    expect(
+      describeActiveModifiers({
+        ...resolveRunModifiers(null),
+        activeMutatorIds: ['swift_march', 'swift_march'],
+        enemySpeedMultiplier: 1.22,
+        enemyArmorBonus: 0.4,
+        forbiddenTowerTypes: ['frost', 'frost', '' as unknown as 'frost'],
+      }).map((b) => b.label),
+    ).toEqual(['Tailwind March', 'No Frost Spire']);
+
+    // Custom catalog with duplicate IDs and array-corrupted entries never selects the same mutator twice
+    const dupCatalog = [
+      ENDLESS_MUTATORS[0],
+      ENDLESS_MUTATORS[0],
+      [] as unknown as (typeof ENDLESS_MUTATORS)[number],
+    ];
+    expect(selectEndlessMutators('dup-check', 2, dupCatalog).mutators).toHaveLength(1);
+    expect(
+      getMutatorPresetRoll('bad', [[] as unknown as (typeof ENDLESS_MUTATOR_PRESETS)[number]], dupCatalog),
+    ).toBeNull();
   });
 });

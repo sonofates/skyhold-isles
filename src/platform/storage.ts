@@ -205,6 +205,7 @@ export function loadMetaSave(levelCount: number, levels?: readonly LevelDef[]): 
  * monotonically by default (or directly when `overwriteV1` is true for explicit restore).
  */
 export function saveMetaSave(save: MetaSaveData, overwriteV1 = false): void {
+  if (!save || typeof save !== 'object' || Array.isArray(save)) return;
   try {
     localStorage.setItem(META_PROGRESS_KEY, JSON.stringify(save));
     const hasCampaign =

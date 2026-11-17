@@ -415,6 +415,9 @@ export function migrateToMetaSave(
       break;
     }
   }
+  if (base.stats.perfectClears > 0) {
+    base.achievementMilestones.wonNoLivesLost = true;
+  }
 
   recomputeAchievements(base, levels);
   return base;
@@ -527,7 +530,7 @@ export function applyTelemetryDeltaToStats(
   current: RunTelemetry,
   committed: RunTelemetry | null,
 ): void {
-  if (!current || typeof current !== 'object' || !current.eligibleForChallenges) return;
+  if (!isPlainRecord(current) || !current.eligibleForChallenges) return;
   ensureWritableSaveContainers(save);
   const prev = committed;
   const d = (curr: number, old: number | undefined): number => {
@@ -695,7 +698,7 @@ export function recordEndlessRunStats(
   telemetry: RunTelemetry,
   scoreMultiplier = 1,
 ): EndlessScoreBreakdown | null {
-  if (!level || typeof level.id !== 'string' || !telemetry || typeof telemetry !== 'object') {
+  if (!isPlainRecord(level) || typeof level.id !== 'string' || !isPlainRecord(telemetry)) {
     return null;
   }
   const safeLevelIndex = Number.isFinite(level.index) ? Math.max(0, Math.floor(level.index)) : 0;
@@ -732,7 +735,7 @@ export function recordEndlessRunStats(
     telemetry.endlessEnemiesKilled,
     scoreMultiplier,
   );
-  if (!IGNORED_RECORD_KEYS.has(level.id)) {
+  if (level.id.length > 0 && !IGNORED_RECORD_KEYS.has(level.id)) {
     save.bestEndlessScoresByLevelId[level.id] = Math.max(
       readOwnNonNegInt(save.bestEndlessScoresByLevelId, level.id),
       endlessScore.totalScore,
@@ -1572,26 +1575,19 @@ export function getRecentDailyHistory(
   }));
 }
 
-function mergeMaxCountRecords(
+function mergePositiveRecords(
   a: Readonly<Record<string, number>> | undefined | null,
   b: Readonly<Record<string, number>> | undefined | null,
+  pickMin: boolean,
 ): Record<string, number> {
   const out: Record<string, number> = {};
-  if (a && typeof a === 'object' && !Array.isArray(a)) {
-    for (const [k, v] of Object.entries(a)) {
-      if (!IGNORED_RECORD_KEYS.has(k) && typeof v === 'number' && Number.isFinite(v) && v > 0) {
-        out[k] = v;
+  for (const src of [a, b]) {
+    if (!isPlainRecord(src)) continue;
+    for (const [k, v] of Object.entries(src)) {
+      if (IGNORED_RECORD_KEYS.has(k) || typeof v !== 'number' || !Number.isFinite(v) || v <= 0) {
+        continue;
       }
-    }
-  }
-  if (b && typeof b === 'object' && !Array.isArray(b)) {
-    for (const [k, v] of Object.entries(b)) {
-      if (
-        !IGNORED_RECORD_KEYS.has(k) &&
-        typeof v === 'number' &&
-        Number.isFinite(v) &&
-        v > (Object.hasOwn(out, k) ? out[k] : 0)
-      ) {
+      if (!Object.hasOwn(out, k) || (pickMin ? v < out[k] : v > out[k])) {
         out[k] = v;
       }
     }
@@ -1599,32 +1595,18 @@ function mergeMaxCountRecords(
   return out;
 }
 
+function mergeMaxCountRecords(
+  a: Readonly<Record<string, number>> | undefined | null,
+  b: Readonly<Record<string, number>> | undefined | null,
+): Record<string, number> {
+  return mergePositiveRecords(a, b, false);
+}
+
 function mergeMinPositiveRecords(
   a: Readonly<Record<string, number>> | undefined | null,
   b: Readonly<Record<string, number>> | undefined | null,
 ): Record<string, number> {
-  const out: Record<string, number> = {};
-  if (a && typeof a === 'object' && !Array.isArray(a)) {
-    for (const [k, v] of Object.entries(a)) {
-      if (!IGNORED_RECORD_KEYS.has(k) && typeof v === 'number' && Number.isFinite(v) && v > 0) {
-        out[k] = v;
-      }
-    }
-  }
-  if (b && typeof b === 'object' && !Array.isArray(b)) {
-    for (const [k, v] of Object.entries(b)) {
-      if (
-        !IGNORED_RECORD_KEYS.has(k) &&
-        typeof v === 'number' &&
-        Number.isFinite(v) &&
-        v > 0 &&
-        (!Object.hasOwn(out, k) || v < out[k])
-      ) {
-        out[k] = v;
-      }
-    }
-  }
-  return out;
+  return mergePositiveRecords(a, b, true);
 }
 
 function maxFiniteNonNeg(a: number, b: number): number {
