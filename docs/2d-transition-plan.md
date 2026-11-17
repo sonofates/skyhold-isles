@@ -1,6 +1,8 @@
 # Skyhold Isles → 2D painted: transition plan
 
-Status: draft, 2026-11-17. Decisions marked ✅ were made by the owner. The rest are proposals.
+Status: approved with changes, 2026-11-17. Decisions marked ✅ were made by the owner. The rest are proposals.
+
+**Branching:** ✅ the Three.js build stays on `main` and live until the P0 gate passes. All 2D work stays on `art-2d`.
 
 ## Decisions so far
 
@@ -17,8 +19,19 @@ Status: draft, 2026-11-17. Decisions marked ✅ were made by the owner. The rest
   - One codebase.
 - ✅ **Original IP.** We use the genre and the 2D-painted readability, but every character, UI frame, map and name is our own.
   - Never put a specific existing game in a prompt as the look to copy.
-- **Camera:** fixed, with no rotation. Zoom and pan only on phones.
+- ✅ **Camera:** L1c's near top-down gameplay plane is locked. Depth comes from the painting (3/4-view buildings, towers and props), not from camera tilt.
+  - No rotation. Zoom and pan only on phones.
   - This also removes the old "tower hides the tiles behind it" problem.
+- ✅ **One map image per level, no phone variants.**
+  - Every map is painted once at about 19.5:9.
+  - All plots, paths and entrances sit inside a centred 16:9 safe area.
+  - Desktop crops the edges; phones show the full width.
+  - The map editor shows the safe-area overlay.
+- ✅ **Scope:**
+  - No hero unit for launch.
+  - Barracks/soldier tower is planned for P1 and treated as a real sim feature, not a small extension: blocking, melee, rally point, respawn, new tests, a balance retune.
+  - Steam first, mobile after Steam.
+  - The name stays Skyhold Isles until the end of P1.
 - **Towers on fixed plots.** Plots are part of the painted map, which replaces free tile placement.
 
 ## What stays and what changes in the code
@@ -47,7 +60,7 @@ Status: draft, 2026-11-17. Decisions marked ✅ were made by the owner. The rest
    - Mockup A plus a palette and line-weight sheet. Every generation passes these as reference images.
    - Generate in batches, so each family comes from one session with the same references (consistency).
 2. **Maps** (Codex image_gen with the style refs).
-   - 16:9 at 1600×900 or more, plus a wider phone variant (about 19.5:9) whose edges extend the same scene.
+   - One image per level at about 19.5:9 (for example 2048×945). Gameplay stays inside the centred 16:9 safe area. No separate phone variant.
    - Then trace the path, plots and entrances in a small **map editor page**: click to place, export JSON, overlay check, the way Kaginawa's editor works.
 3. **Towers:**
    - 7 towers × 3 tiers = 21 sprites, plus attack frames: archer draw, cannon recoil, mage crystal pulse.
@@ -64,7 +77,19 @@ Status: draft, 2026-11-17. Decisions marked ✅ were made by the owner. The rest
    - Painted panels with short Veo motion and dialog boxes.
    - A painted campaign world map.
 
-**Rough counts:** 16 maps (+16 phone variants), about 17 animated characters × ~4 clips, 21 tower sprites plus attack frames, about 20 FX strips, about 40 UI pieces.
+**Rough counts:** 16 maps, about 17 animated characters × ~4 clips, 21 tower sprites plus attack frames, about 20 FX strips, about 40 UI pieces.
+
+## P0 go/no-go gate ✅
+
+The gate is written to `docs/p0-gate.md`. Work stops there until the owner decides; P1 does not start automatically. It contains:
+- Side-by-side screenshots and a short screen recording of L1c in the Pixi renderer at real in-game size, on desktop and on a mid-range phone viewport.
+- Measured pipeline cost (hours and credits) for:
+  - one map (generation + tracing in the editor),
+  - one tower (3 tiers),
+  - one Veo-animated enemy,
+  - one cheaply animated enemy.
+- The extrapolated total cost of the full roster in this plan.
+- FPS on desktop and on a throttled mobile profile with 150 enemies.
 
 ## Platforms
 
@@ -78,7 +103,7 @@ Status: draft, 2026-11-17. Decisions marked ✅ were made by the owner. The rest
 
 | Phase | Done when |
 |---|---|
-| **P0 vertical slice** | L1c is playable in the new Pixi renderer on the real sim: 3 towers, 3 Veo-animated enemies, the painted HUD and build ring, on desktop and phone. |
+| **P0 vertical slice** ✅ | L1c is playable in the new Pixi renderer on the real sim: 3 towers, the painted HUD and build ring, on desktop and phone. **Enemy animation A/B:** 1 enemy with the Veo walk-cycle pipeline, 2 with the cheap method (one painted sprite + procedural bob, squash/stretch, lean, 2–3 frame leg swap), shown together at in-game scale. Ends with the **go/no-go gate** below. |
 | P1 roster art | All 7 towers (T1–T3) and 15 enemies + bosses are animated in game, and the codex uses the new art. |
 | P2 maps | All 16 islands are repainted as plot maps and re-balanced in the sim. |
 | P3 meta and story | The campaign map, story panels and the meta screens are reskinned (Steam scope). |
@@ -88,10 +113,8 @@ Status: draft, 2026-11-17. Decisions marked ✅ were made by the owner. The rest
 
 ## Open decisions for the owner
 
-- **Hero unit and barracks/soldier tower.** They are common in the genre and would add depth. Designs must be our own.
-- **Camera tilt:** L1c's near top-down, or a little more tilt for depth, as in mockup A.
-- **Scope split:** which islands and features are Steam-only versus mobile-free.
-- Final game name and store pricing per region.
+- **Scope split:** which islands and features are Steam-only versus mobile-free (decided after Steam).
+- The final game name (after P1) and store pricing per region.
 
 ## Risks
 
