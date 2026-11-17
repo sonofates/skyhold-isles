@@ -85,3 +85,9 @@ Clean tree at start. Re-ran tsc / lint / 430 tests / build / sim:balance: all gr
 ## Round 4 (verification)
 Clean tree at start, `main` already merged into the branch. tsc / lint / tests green; no code changes (backlog 1–5 complete; the
 remaining ideas — tower-unlock card wiring, landscape codex density — depend on CAMPAIGN/MOBILE merges and are listed under Next).
+
+## Round 5 (verification)
+Clean tree, `main` still merged. tsc / lint / 430 tests green. No code changes: backlog 1–5 are complete; remaining ideas
+(tower-unlock card wiring, landscape codex density) depend on the CAMPAIGN/MOBILE merges. Note for the lead: the campaign branch
+has a save v2 migration — after merging, check that `ContentStore.migrate()` veteran inference (`unlockedLevelIndex`/stars) still
+reads the right fields from the v2 progress shape.
