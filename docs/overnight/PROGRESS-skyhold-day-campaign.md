@@ -36,9 +36,13 @@ Machine load from the other agents can make desktop shots slow (timeout raised t
       calls out a newly reached medal. Victory card says "Island mastered!" when a win completes it.
 - [x] Modals focus their main action (keyboard).
 
-## Next ideas (not started)
-- Show challenge-star total next to the campaign star pill.
-- HUD chip for active challenge (MOBILE's HUD area — left to lead/mobile; pause subtitle shows it now).
+## Next ideas (not started) — for a later round
+- When CONTENT pushes L14+: add hand-picked pairs to ISLAND_CHALLENGES, run
+  `npm run sim:balance` (Workshop-max must still lose lives on new Master islands) and re-check
+  merge overlap like the mobile notes below.
+- HUD chip for active challenge / live star rating (MOBILE's HUD area — coordinate via the lead).
+- Show challenge/daily star total next to the campaign star pill on the main menu.
+- Kill-gold modifiers for carrier raiders / escorts / mites (hard-coded rewards in enemySystem).
 
 ## Star table (src/data/stars.ts) — rated on lives LOST (win always ≥ 1★)
 | Difficulty  | 3★ if lost ≤ | 2★ if lost ≤ | greedy sim (lives left) → stars |
