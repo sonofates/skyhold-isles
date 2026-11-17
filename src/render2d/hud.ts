@@ -225,7 +225,8 @@ export class Hud {
 
   /** Screen rect the HUD occupies at the top (ring placement keeps clear of it). */
   get topBand(): number {
-    return this.plaque.y + this.plaque.height;
+    // Only the round buttons sit at the top since the plaque moved to the bottom band.
+    return this.pauseBtn.root.y + this.pauseBtn.r;
   }
 
   /** Centres of the round buttons (QA hooks). */

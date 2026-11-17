@@ -13,11 +13,21 @@ Branch: `art-2d`. The Three.js `main` stays live and untouched.
 - [ ] Tower attack frames (archer draw, cannon recoil, crystal pulse, mortar puff, ballista release, frost burst); procedural where frames don't add enough
 
 ## Sim: barracks/soldier tower (agent, a real feature)
-- [ ] Soldiers block ground enemies on the path (melee engagement, blocking capacity), fight, die, respawn after a timer
-- [ ] Rally point the player can move (within range); tiers raise soldier count/HP/damage
-- [ ] Flyers and burrowers ignore soldiers; bosses interact by sensible rules
-- [ ] Deterministic, tested; balance sim keeps all windows; L1c scripts may use barracks
-- [ ] 2D renderer: soldier layer + rally flag UI; 3D build bar hides barracks (main game unaffected)
+- [x] Soldiers block ground enemies on the path (melee engagement, blocking capacity), fight, die, respawn after a timer
+- [x] Rally point the player can move (within range); tiers raise soldier count/HP/damage
+- [x] Flyers and burrowers ignore soldiers; bosses interact by sensible rules
+- [x] Deterministic, tested; balance sim keeps all windows; L1c scripts may use barracks
+- [x] 2D renderer: soldier layer + rally flag UI; 3D build bar hides barracks (main game unaffected)
+
+Rules as built (code: `src/sim/soldierSystem.ts`, data: `src/data/soldiers.ts`, tiers in `src/data/towers.ts`):
+- **Tiers:** 60 / 80 / 130 g. Soldiers 2 / 3 / 3, HP 110 / 160 / 230, hit 14 / 19 / 26 at 1.0 / 1.1 / 1.2 per s, armor 1 / 2 / 4, respawn 9 / 8 / 7 s, rally range 3.2 / 3.5 / 3.8. T3 signature **Cleave**: each swing also hits a second foe beside the target for 50 %.
+- **Rally:** defaults to the nearest road point in range; a move is clamped onto the road inside the range. A barracks cannot be built where no road is in range. Moving the rally makes the squad drop its fights and walk to the new posts.
+- **Holding:** a soldier in contact holds one enemy. An enemy with hold cost N stops when N soldiers are in contact; with fewer it moves at (1 − contact/N) speed. Spare soldiers gang up (max 3 per enemy) and peel off as soon as an unheld enemy comes into reach. Held enemies 2.8 units from the rally point are let go.
+- **Per archetype:** flyers (Skimmer, Hauler) ignore soldiers. Burrowers can be held only while surfaced; a dive breaks the hold. Blinkers can be held, but the blink keeps charging and jumps them past the squad. Golem: hold cost 2. Dreadnought and Tempest: hold cost 3, and their blows hit every soldier in contact. The Tempest tramples through once enraged (phase 2). Brutes and Golems hit hard; mites hit weakly, but one soldier holds one mite, so swarms stream past.
+- **Enemy melee** scales with √(HP scale): wave growth and elites hit harder, much less steeply than their HP. Chill slows the enemy's swing.
+- **Interactions:** the Beacon aura's fire-rate bonus and Overcharge speed up swings (the aura also speeds up respawn). Hexer hexes and boss pulses target the barracks like any tower: a jammed barracks pauses its respawn timers, and soldiers already out keep fighting. Splitter hatchlings and Hauler raiders are ordinary new enemies and get held. Kills credit the barracks and pay gold as usual.
+- **Upgrade** refreshes the squad: full HP at the new tier, fallen soldiers step out at once, new slots fill. **Sell** removes the squad, and held enemies walk on immediately.
+- **3D game:** `only2d` keeps the barracks out of `TOWER_TYPES` (build bar, radial, hotkeys, codex).
 
 ## Renderer (agent)
 - [ ] Manifest entries for the full roster (fallbacks until art lands)

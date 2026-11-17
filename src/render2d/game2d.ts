@@ -14,6 +14,7 @@ import { WorldLayers } from './layers.ts';
 import { MapView } from './mapView.ts';
 import { createProcTextures, type ProcTextures } from './procTextures.ts';
 import { ProjectileLayer } from './projectileLayer.ts';
+import { SoldierLayer, withBarracksArt } from './soldierLayer.ts';
 import { TowerLayer } from './towerLayer.ts';
 
 /** Tap = pointer released within this distance (css px) and time of the press. */
@@ -43,6 +44,7 @@ export class Game2D {
   readonly towers: TowerLayer;
   readonly projectiles: ProjectileLayer;
   readonly fx: FxLayer;
+  readonly soldiers: SoldierLayer;
   readonly hud: Hud;
   readonly ring: BuildRing;
   readonly stepper = new FixedTimestepStepper();
@@ -53,6 +55,8 @@ export class Game2D {
   world!: SimWorld;
   events!: EventBus;
   private selectedTower = -1;
+  /** Barracks waiting for a road tap to move its rally point (-1 = none). */
+  private rallyTower = -1;
   private down: { x: number; y: number; t: number } | null = null;
   private hudState: {
     lives: number;
@@ -68,6 +72,7 @@ export class Game2D {
 
   constructor(app: Application, art: LoadedArt, level: LevelDef, hooks: Game2DHooks = {}) {
     if (!level.layout2d) throw new Error(`${level.id} has no 2D layout`);
+    art = withBarracksArt(art);
     this.app = app;
     this.art = art;
     this.level = level;
@@ -92,6 +97,7 @@ export class Game2D {
       glow: this.tex.glow,
       flash: this.tex.spark,
     });
+    this.soldiers = new SoldierLayer(art, this.map, this.layers, this.tex, this.fx);
     this.hud = new Hud(art);
     this.ring = new BuildRing(art);
     this.screen.addChild(this.hud.root, this.ring.root);
@@ -111,6 +117,8 @@ export class Game2D {
     this.selectedTower = -1;
     this.rangeDisc.visible = false;
     this.enemies.reset();
+    this.soldiers.reset();
+    this.rallyTower = -1;
     this.wireEvents();
   }
 
@@ -118,6 +126,7 @@ export class Game2D {
     const ev = this.events;
     const m = this.map;
     const ppu = this.level.layout2d!.pxPerUnit;
+    this.soldiers.wire(ev);
     ev.on('towerFired', (e) => this.towers.onFired(e.towerId, e.yaw));
     ev.on('lightningChain', (e) => this.fx.bolt(e.points, e.overload === true, this.towers.muzzleHeight('tesla')));
     ev.on('projectileImpact', (e) => {
@@ -177,10 +186,12 @@ export class Game2D {
     this.towers.sync(world.towers, dtSec);
     this.enemies.syncPool(world.enemyPool, alpha, simDt);
     this.projectiles.sync(world.projectilePool, alpha);
+    this.soldiers.sync(world.soldierSystem, alpha, simDt, dtSec, this.selectedTower, this.rallyTower);
     this.fx.update(simDt > 0 ? simDt : dtSec * 0.25);
 
     // A selected tower could be sold or the run reset.
     if (this.selectedTower !== -1 && !world.getTowerById(this.selectedTower)) this.closeRing();
+    if (this.rallyTower !== -1 && !world.getTowerById(this.rallyTower)) this.closeRing();
 
     const s = this.hudState;
     s.lives = world.lives;
@@ -198,13 +209,16 @@ export class Game2D {
           ? 'Defeat'
           : this.stepper.paused
             ? 'Paused'
-            : '';
+            : this.rallyTower !== -1
+              ? 'Tap the road'
+              : '';
     this.hud.update(s as HudState, dtSec);
   }
 
   private closeRing(): void {
     this.ring.close();
     this.selectedTower = -1;
+    this.rallyTower = -1;
     this.rangeDisc.visible = false;
   }
 
@@ -237,7 +251,13 @@ export class Game2D {
       plot,
       c.x,
       c.y - 30,
-      { type: t.type, tier: t.tier, upgradeCost: next, refund: computeSellRefund(t.totalInvested) },
+      {
+        type: t.type,
+        tier: t.tier,
+        upgradeCost: next,
+        refund: computeSellRefund(t.totalInvested),
+        ...(t.type === 'barracks' ? { rallyIcon: this.soldiers.flagTexture } : {}),
+      },
       world.gold,
       w,
       h,
@@ -257,6 +277,12 @@ export class Game2D {
       world.placeTowerOnPlot(plot, action.type);
     } else if (action.kind === 'upgrade') {
       if (this.selectedTower !== -1) world.upgradeTower(this.selectedTower);
+    } else if (action.kind === 'rally') {
+      // Keep the range disc up: the next tap inside it on the road plants the flag.
+      const id = this.selectedTower;
+      this.ring.close();
+      this.rallyTower = id;
+      return;
     } else {
       if (this.selectedTower !== -1) world.sellTower(this.selectedTower);
     }
@@ -286,6 +312,11 @@ export class Game2D {
     if (this.stepper.paused) return;
     const wx = this.map.worldXFromScreen(x);
     const wz = this.map.worldZFromScreen(y);
+    if (this.rallyTower !== -1) {
+      world.setRallyPoint(this.rallyTower, wx, wz);
+      this.closeRing();
+      return;
+    }
     let plot = world.grid.findPlotAt(wx, wz, 1.25);
     if (plot === -1) {
       // Tapping a tower's body (drawn above its plot) selects it too.
@@ -344,6 +375,7 @@ export class Game2D {
       horn: this.hud.hornPosition,
       buttons: this.hud.buttonPositions,
       fx: { boltsDrawn: this.fx.boltsDrawn, particlesSpawned: this.fx.particlesSpawned },
+      barracks: { ...this.soldiers.debug(w.soldierSystem), rallyMode: this.rallyTower },
       artNotes: this.art.notes,
     };
   }

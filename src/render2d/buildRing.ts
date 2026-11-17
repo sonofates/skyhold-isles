@@ -8,7 +8,9 @@ import { layoutRing, type RingPoint } from './ringLayout.ts';
 export type RingAction =
   | { readonly kind: 'build'; readonly type: TowerType }
   | { readonly kind: 'upgrade' }
-  | { readonly kind: 'sell' };
+  | { readonly kind: 'sell' }
+  /** Barracks: next tap on the road moves its rally point. */
+  | { readonly kind: 'rally' };
 
 interface Token {
   readonly root: Container;
@@ -25,6 +27,8 @@ export interface TowerPanelInfo {
   /** Cost of the next tier, or null at max tier. */
   readonly upgradeCost: number | null;
   readonly refund: number;
+  /** Barracks: show a "Rally" token with this icon (between upgrade and sell). */
+  readonly rallyIcon?: Texture;
 }
 
 const MAX_TOKENS = 4;
@@ -128,7 +132,7 @@ export class BuildRing {
     this.sizeFor(w, h);
     this.mode = 'tower';
     this.plot = plot;
-    this.count = 2;
+    this.count = info.rallyIcon ? 3 : 2;
     const art = this.art.towers[info.type];
     const nextTier = Math.min(3, info.tier + 1);
     const upTex = art?.tiers[nextTier - 1] ?? Texture.WHITE;
@@ -137,7 +141,8 @@ export class BuildRing {
     } else {
       this.setToken(0, upTex, 1.45, `▲ ${info.upgradeCost}`, { kind: 'upgrade' }, gold >= info.upgradeCost);
     }
-    this.setToken(1, this.art.ui.gold, 0.95, `+${info.refund}`, { kind: 'sell' }, true);
+    if (info.rallyIcon) this.setToken(1, info.rallyIcon, 1.2, 'Rally', { kind: 'rally' }, true);
+    this.setToken(this.count - 1, this.art.ui.gold, 0.95, `+${info.refund}`, { kind: 'sell' }, true);
     this.place(cx, cy, w, h, topBand);
   }
 

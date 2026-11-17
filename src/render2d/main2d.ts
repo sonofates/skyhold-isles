@@ -15,6 +15,7 @@ import { HUD_FONT } from './hudText.ts';
  *   ?bench=150        stress scene: ~N enemies, towers on every plot, window.__bench stats
  *   ?autoplay=1       plays the greedy build script and auto-calls waves
  *   ?raider=veo31q    raider walk-cycle variant (default omni12; `cheap` = procedural)
+ *   ?speed=2|3        start at 2× / 3× sim speed (QA recordings)
  */
 interface BenchStats {
   readonly fps: number;
@@ -115,6 +116,8 @@ async function main(): Promise<void> {
   else if (q.get('autoplay') === '1') hooks = autoplayHooks(level.scriptedBuildOrder ?? []);
   const game = new Game2D(app, art, level, hooks);
   game.attachInput(app.canvas);
+  const startSpeed = Number(q.get('speed'));
+  if (startSpeed === 2 || startSpeed === 3) game.stepper.speed = startSpeed;
   const onResize = (): void => game.resize(app.screen.width, app.screen.height);
   onResize();
   app.renderer.on('resize', onResize);
