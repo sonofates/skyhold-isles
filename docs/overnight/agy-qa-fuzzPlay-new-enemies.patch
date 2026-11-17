@@ -1,0 +1,118 @@
+--- a/scripts/fuzzPlay.ts
++++ b/scripts/fuzzPlay.ts
+@@ -4,7 +4,7 @@
+ import type { EnemyType, GridCoord, SpeedMultiplier, TargetingMode, TowerType } from '../src/core/types.ts';
+ import { ABILITY_DEFS, ABILITY_IDS } from '../src/data/abilities.ts';
+ import { BALANCE } from '../src/data/balance.ts';
+-import { ENEMY_DEFS, ENEMY_TYPES } from '../src/data/enemies.ts';
++import { ELITE_MODIFIERS, ENEMY_DEFS, ENEMY_TYPES } from '../src/data/enemies.ts';
+ import { LEVELS, type LevelDef } from '../src/data/levels/index.ts';
+ import { getTowerTierStats, TOWER_DEFS, TOWER_TYPES } from '../src/data/towers.ts';
+ import type { TowerEntity } from '../src/sim/entities.ts';
+@@ -310,7 +310,7 @@
+       recordEventError(tracker, `Non-finite enemyKilled coordinates for uid=${ev.enemyId}`);
+       return;
+     }
+-    const maxAllowedReward = Math.max(ENEMY_DEFS[ev.enemyType].reward, 2);
++    const maxAllowedReward = Math.max(Math.round(ENEMY_DEFS[ev.enemyType].reward * ELITE_MODIFIERS.rewardMul), 2);
+     if (!Number.isInteger(ev.reward) || ev.reward < 1 || ev.reward > maxAllowedReward) {
+       recordEventError(
+         tracker,
+@@ -500,7 +500,7 @@
+       recordEventError(tracker, `Invalid enemyHit damage=${ev.damage} for uid=${ev.enemyId}`);
+       return;
+     }
+-    if (ev.isBoss !== (ev.enemyType === 'boss')) {
++    if (ev.isBoss !== (ENEMY_DEFS[ev.enemyType].isBoss === true)) {
+       recordEventError(tracker, `enemyHit isBoss=${ev.isBoss} mismatch for type=${ev.enemyType}`);
+       return;
+     }
+@@ -1011,10 +1011,6 @@
+   }
+   tracker.pendingDeathUids.clear();
+ 
+-  const groundPath = world.enemySystem.getPath(false);
+-  const flightPath = world.enemySystem.getPath(true);
+-  const groundPathLen = Math.max(0.01, groundPath.totalLength);
+-  const flightPathLen = Math.max(0.01, flightPath.totalLength);
+ 
+   let pendingDeaths = 0;
+   _seenEnemyUids.clear();
+@@ -1031,7 +1027,7 @@
+     if (e.isSplitChild && (e.type !== 'runner' || e.scaleOverride !== 0.72 || e.reward !== 1)) {
+       return `Invalid split child state for uid=${e.uid} (type=${e.type}, scale=${e.scaleOverride}, reward=${e.reward})`;
+     }
+-    if (!e.isSplitChild && e.scaleOverride !== 1) {
++    if (!e.isSplitChild && e.scaleOverride !== (e.elite ? ELITE_MODIFIERS.scaleMul : e.isDropped ? 0.86 : 1)) {
+       return `Non-split enemy uid=${e.uid} has stale scaleOverride=${e.scaleOverride}`;
+     }
+     if (e.type !== 'boss' && e.bossSummonedEscorts) {
+@@ -1039,7 +1035,8 @@
+     }
+     const def = ENEMY_DEFS[e.type];
+     if (
+-      e.armor !== def.armor ||
++      e.baseArmor !== def.armor + (e.elite ? ELITE_MODIFIERS.armorBonus : 0) ||
++      (e.armorBreakTimer > 0 ? e.armor > e.baseArmor : e.armor !== e.baseArmor) ||
+       e.livesCost !== def.livesCost ||
+       e.flying !== def.flying ||
+       e.radius !== def.radius ||
+@@ -1083,7 +1080,8 @@
+     }
+     const moveDx = e.x - e.prevX;
+     const moveDz = e.z - e.prevZ;
+-    const maxStepDist = e.speed * BALANCE.fixedDt + 1e-4;
++    const maxStepDist =
++      e.speed * BALANCE.fixedDt * (e.burrowed ? (ENEMY_DEFS[e.type].burrowSpeedMul ?? 1) : 1) + 1e-4;
+     const moveDistSq = moveDx * moveDx + moveDz * moveDz;
+     if (moveDistSq > maxStepDist * maxStepDist) {
+       return `Enemy uid=${e.uid} (${e.type}) moved ${Math.sqrt(moveDistSq)} > max ${e.speed * BALANCE.fixedDt} in one tick`;
+@@ -1091,9 +1089,9 @@
+     if (!Number.isFinite(e.dist) || !Number.isFinite(e.totalDist) || e.dist < 0 || e.dist > e.totalDist) {
+       return `Invalid enemy dist (${e.dist}/${e.totalDist}) for uid=${e.uid}`;
+     }
+-    const expectedPath = e.flying ? flightPath : groundPath;
++    const expectedPath = world.enemySystem.getPath(e.flying, e.lane);
+     const expectedYaw = expectedPath.sample(e.dist, _pathCheckVec);
+-    const expectedPathLen = e.flying ? flightPathLen : groundPathLen;
++    const expectedPathLen = Math.max(0.01, expectedPath.totalLength);
+     if (Math.abs(e.totalDist - expectedPathLen) > 1e-4) {
+       return `Enemy uid=${e.uid} totalDist=${e.totalDist} != path.totalLength=${expectedPathLen}`;
+     }
+@@ -1385,12 +1383,16 @@
+       }
+       _hashSeen.add(idx);
+     }
+-    if (_hashSeen.size !== activeEnemies) {
++    let burrowedCount = 0;
++    for (let i = 0; i < activeEnemies; i++) {
++      if (world.enemyPool.items[world.enemyPool.getActiveIndex(i)].burrowed) burrowedCount++;
++    }
++    if (_hashSeen.size !== activeEnemies - burrowedCount) {
+       return `SpatialHash count (${_hashSeen.size}) != activeEnemies (${activeEnemies})`;
+     }
+     for (let i = 0; i < activeEnemies; i++) {
+       const poolIdx = world.enemyPool.getActiveIndex(i);
+-      if (!_hashSeen.has(poolIdx)) {
++      if (!_hashSeen.has(poolIdx) && !world.enemyPool.items[poolIdx].burrowed) {
+         return `Active enemy poolIndex=${poolIdx} missing from SpatialHashGrid`;
+       }
+     }
+@@ -1399,7 +1401,7 @@
+       const eIdx = world.enemyPool.getActiveIndex(Math.floor((s * activeEnemies) / probeSampleCount));
+       const enemy = world.enemyPool.items[eIdx];
+       world.spatialHash.query(enemy.x, enemy.z, 0.01, _localHashProbe);
+-      if (!_localHashProbe.includes(eIdx)) {
++      if (!enemy.burrowed && !_localHashProbe.includes(eIdx)) {
+         return `Active enemy poolIndex=${eIdx} missing from localized SpatialHashGrid cell at (${enemy.x},${enemy.z})`;
+       }
+     }
+@@ -1475,7 +1477,7 @@
+       const hovered = sample.flying
+         ? world.findHoveredEnemy(9999, 9999, sample.x, sample.z)
+         : world.findHoveredEnemy(sample.x, sample.z, 9999, 9999);
+-      if (!hovered || !hovered.active || hovered.flying !== sample.flying) {
++      if (!sample.burrowed && (!hovered || !hovered.active || hovered.flying !== sample.flying)) {
+         return `findHoveredEnemy failed for active ${sample.type} (flying=${sample.flying})`;
+       }
+     }
