@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { ManifestError, parseManifest, parseSheetJson } from '../../src/render2d/manifest.ts';
-import { attackFrame, attackPlan, CATCH_UP, idleFrame, MAX_RELEASE_LEAD, projectileReveal } from '../../src/render2d/towerAnim.ts';
+import { attackFrame, attackPlan, CATCH_UP, idleFrame, onShot, PREROLL_GRACE, projectileReveal, shotEta, shouldPreroll } from '../../src/render2d/towerAnim.ts';
 import { drawnRing, fitOnRing, measureRing, plotRing, plotSpriteRect, ringMuzzle, type RingSpec } from '../../src/render2d/towerFit.ts';
 
 const ROOT = resolve(import.meta.dirname, '../..');
@@ -65,6 +65,20 @@ describe('ring measurement (sprites whose top is wider than the ring)', () => {
 describe('fit rule: towers stand exactly on their plot', () => {
   const plot = M.plot!;
   const PLOT_TEX: [number, number] = [512, 343];
+
+  it('every tower ships an attack sheet per tier, and each sheet JSON carries its ring', () => {
+    for (const [type, art] of Object.entries(M.towers)) {
+      art!.attack.forEach((p, i) => {
+        expect(p, `${type} T${i + 1}`).not.toBeNull();
+        const raw = JSON.parse(readFileSync(resolve(ROOT, 'public/art2d', p!), 'utf8')) as Record<string, unknown>;
+        const sheet = parseSheetJson(raw, 'x.png');
+        expect(sheet.ringW, `${p} ringW`).toBeGreaterThan(60);
+        expect(sheet.release).toBe(3);
+        expect(sheet.anchor![1]).toBeLessThanOrEqual(1);
+        expect(existsSync(resolve(ROOT, 'public/art2d', p!.replace(/[^/]+$/, sheet.image)))).toBe(true);
+      });
+    }
+  });
 
   it('the manifest carries the plot sprite and its ring', () => {
     expect(plot.file).toBe('plot-base.webp');
@@ -131,6 +145,7 @@ describe('manifest: rings, attack / idle sheets', () => {
     raw.towers.archer.attack = ['anim/tower-archer-t1-attack.json', null, 'anim/tower-archer-t3-attack.json'];
     raw.towers.archer.idle = 'anim/tower-archer-idle.json';
     raw.towers.cannon.ring = ['auto', null];
+    delete raw.towers.frost.attack;
     const m = parseManifest(raw);
     expect(m.towers.archer?.attack).toEqual(['anim/tower-archer-t1-attack.json', null, 'anim/tower-archer-t3-attack.json']);
     expect(m.towers.archer?.idle).toEqual(Array(3).fill('anim/tower-archer-idle.json'));
@@ -172,14 +187,42 @@ describe('attack animation timing (render-only)', () => {
     expect(p.releaseDelay).toBeCloseTo(1 / 12, 9);
   });
 
-  it('a late release clips the wind-up so the shot lags the sim by at most MAX_RELEASE_LEAD', () => {
-    const t = { count: 16, fps: 12, release: 9 };
+  it('plays from frame 0 by default (shipped sheets: release frame 3 at 12 fps = 0.25 s)', () => {
+    const t = { count: 27, fps: 12, release: 3 };
     const p = attackPlan(t);
-    expect(p.releaseDelay).toBeLessThanOrEqual(MAX_RELEASE_LEAD + 1e-9);
-    expect(p.startFrame).toBe(9 - Math.floor(MAX_RELEASE_LEAD * 12));
-    // The release frame is on screen exactly when the delay has elapsed.
+    expect(p.startFrame).toBe(0);
+    expect(p.releaseDelay).toBeCloseTo(0.25, 9);
+    expect(attackFrame(p, t, p.releaseDelay)).toBe(3);
+    expect(attackFrame(p, t, p.duration - 1e-6)).toBe(26);
+  });
+
+  it('an optional lead cap clips the wind-up', () => {
+    const t = { count: 16, fps: 12, release: 9 };
+    const p = attackPlan(t, 0.15);
+    expect(p.releaseDelay).toBeLessThanOrEqual(0.15 + 1e-9);
+    expect(p.startFrame).toBe(9 - Math.floor(0.15 * 12));
     expect(attackFrame(p, t, p.releaseDelay)).toBe(9);
-    expect(attackFrame(p, t, p.duration - 1e-6)).toBe(15);
+  });
+
+  it('pre-roll: starts when the coming shot is within the release delay, once per shot', () => {
+    const base = { hasTarget: true, releaseDelay: 0.25, armed: false };
+    expect(shouldPreroll({ ...base, eta: 0.3 })).toBe(false);
+    expect(shouldPreroll({ ...base, eta: 0.25 })).toBe(true);
+    expect(shouldPreroll({ ...base, eta: 0.1, armed: true })).toBe(false);
+    expect(shouldPreroll({ ...base, eta: 0.1, hasTarget: false })).toBe(false);
+    expect(shouldPreroll({ ...base, eta: 0, releaseDelay: 0 })).toBe(false);
+    // Cooldown drains at the observed rate (beacon buffs, global modifiers).
+    expect(shotEta(0.5, 2)).toBeCloseTo(0.25, 9);
+    expect(shotEta(0, 1)).toBe(0);
+    expect(shotEta(0.5, 0)).toBe(Number.POSITIVE_INFINITY);
+  });
+
+  it('shot: a pre-rolled sheet keeps playing (release on the shot); otherwise it restarts from frame 0', () => {
+    expect(onShot(true, 0.25, 0.25)).toEqual({ elapsed: 0.25, shotDelay: 0 });
+    expect(onShot(true, 0.2, 0.25).shotDelay).toBeCloseTo(0.05, 9);
+    expect(onShot(false, 0.6, 0.25)).toEqual({ elapsed: 0, shotDelay: 0.25 });
+    // A stale pre-roll (shot never came) does not count.
+    expect(onShot(true, 0.25 + PREROLL_GRACE + 0.01, 0.25)).toEqual({ elapsed: 0, shotDelay: 0.25 });
   });
 
   it('projectile: hidden until the release, then catches up with the sim', () => {

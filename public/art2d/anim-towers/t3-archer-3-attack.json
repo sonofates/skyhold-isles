@@ -9,5 +9,6 @@
   251
  ],
  "release": 3,
- "image": "t3-archer-3-attack.webp"
+ "image": "t3-archer-3-attack.webp",
+ "ringW": 120.0
 }

@@ -3,7 +3,8 @@ import { EventBus, type GameEventMap } from '../core/eventBus.ts';
 import { FixedTimestepStepper } from '../core/gameLoop.ts';
 import type { SpeedMultiplier, TowerType } from '../core/types.ts';
 import type { LevelDef } from '../data/levels/types.ts';
-import { getTowerTierStats } from '../data/towers.ts';
+import { getTowerTierStats, TOWER_DEFS } from '../data/towers.ts';
+import type { TowerEntity } from '../sim/entities.ts';
 import { computeSellRefund, SimWorld } from '../sim/world.ts';
 import type { LoadedArt } from './assets2d.ts';
 import { BuildRing, type RingAction } from './buildRing.ts';
@@ -109,7 +110,7 @@ export class Game2D {
     this.enemies = new EnemyLayer(art, this.map, this.layers, this.tex, this.fx);
     this.plots = new PlotLayer(level.layout2d, art.plot, this.tex);
     this.layers.plots.addChild(this.plots.root);
-    this.towers = new TowerLayer(art, this.map, this.layers, this.tex, this.fx, this.plots.geometry);
+    this.towers = new TowerLayer(art, this.map, this.layers, this.tex, this.fx, this.plots.geometry, (t) => this.towerHasTarget(t));
     this.projectiles = new ProjectileLayer(
       this.map,
       this.layers.projectiles,
@@ -117,10 +118,7 @@ export class Game2D {
       this.tex,
       (p) => this.towers.muzzleOf(p.towerId, p.towerType),
       this.fx,
-      (p) => {
-        const t = this.world.getTowerById(p.towerId);
-        return t ? this.towers.releaseDelay(t.type, t.tier) : 0;
-      },
+      (p) => this.towers.shotDelayOf(p.towerId),
     );
     this.soldiers = new SoldierLayer(art, this.map, this.layers, this.tex, this.fx);
     this.hud = new Hud(art);
@@ -130,6 +128,26 @@ export class Game2D {
     for (const t of art.manifest.buildRing) this.costs.set(t, getTowerTierStats(t, 1).upgradeCost);
     this.minCost = Math.min(...this.costs.values());
     this.newRun();
+  }
+
+  /**
+   * Render-side estimate of "this tower has something to shoot" (drives the attack-sheet pre-roll):
+   * a live enemy inside its (beacon-buffed) range ring that it can hit (flyers / mortar blind spot).
+   */
+  private towerHasTarget(t: TowerEntity): boolean {
+    const def = TOWER_DEFS[t.type];
+    if (def.role !== 'attack') return false;
+    const st = getTowerTierStats(t.type, t.tier);
+    const maxSq = (st.range * (1 + t.auraRange)) ** 2;
+    const minSq = st.minRange * st.minRange;
+    const pool = this.world.enemyPool;
+    for (let i = 0; i < pool.getActiveCount(); i++) {
+      const e = pool.items[pool.getActiveIndex(i)];
+      if (!e.active || e.hp <= 0 || (e.flying && !def.hitsFlyers)) continue;
+      const d = (e.x - t.x) ** 2 + (e.z - t.z) ** 2;
+      if (d <= maxSq && d >= minSq) return true;
+    }
+    return false;
   }
 
   /** Starts (or restarts) a run on the level. */
@@ -171,7 +189,7 @@ export class Game2D {
       const p0 = e.points[0];
       const t = this.world.towers.find((x) => Math.abs(x.x - p0.x) < 1e-6 && Math.abs(x.z - p0.z) < 1e-6);
       const muzzle = t ? this.towers.muzzleOf(t.id, t.type) : this.towers.muzzleHeight('tesla');
-      const delay = t ? this.towers.releaseDelay(t.type, t.tier) : 0;
+      const delay = t ? this.towers.predictShotDelay(t.id, t.type, t.tier) : 0;
       if (delay > 0) this.boltQueue.push({ t: delay, points: e.points.map((q) => ({ ...q })), overload: e.overload === true, muzzle });
       else this.fx.bolt(e.points, e.overload === true, muzzle);
     });
@@ -459,6 +477,8 @@ export class Game2D {
         rings: this.plots.geometry.rings,
         towerRings: this.towers.ringReport(w.towers),
         attacksPlayed: this.towers.attacksPlayed,
+        shotsPrerolled: this.towers.shotsPrerolled,
+        shotsDelayed: this.towers.shotsDelayed,
       },
       mips: {
         map: this.art.map.source.mipLevelCount,

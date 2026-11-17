@@ -9,7 +9,7 @@ import { HEIGHT_TO_SCREEN, type WorldLayers } from './layers.ts';
 import type { MapView } from './mapView.ts';
 import type { PlotGeometry } from './plotLayer.ts';
 import type { ProcTextures } from './procTextures.ts';
-import { attackFrame, attackPlan, idleFrame, type AttackPlan } from './towerAnim.ts';
+import { attackFrame, attackPlan, idleFrame, onShot, PREROLL_GRACE, shotEta, shouldPreroll, type AttackPlan } from './towerAnim.ts';
 import { drawnRing, fitOnRing, ringMuzzle, type RingPlacement, type RingSpec } from './towerFit.ts';
 
 /** Procedural attack animation of one tower type (lookup with a default, so new towers just work). */
@@ -76,6 +76,13 @@ interface TowerView {
   attackPlan: AttackPlan | null;
   /** Muzzle FX waiting for the release frame. */
   pending: GameEventMap['towerFired'] | null;
+  /** The sheet was pre-rolled for the upcoming shot. */
+  armed: boolean;
+  /** Projectile delay (sim s after spawn) of the latest shot. */
+  shotDelay: number;
+  /** Observed cooldown drain (cooldown s per sim s) and the last cooldown seen. */
+  drain: number;
+  prevCd: number;
   /** Muzzle height (world units) of the art currently drawn. */
   muzzle: number;
   /** Top / middle of the drawn tower (map px), for markers. */
@@ -104,18 +111,35 @@ export class TowerLayer {
   private readonly tex: ProcTextures;
   private readonly fx: FxLayer | null;
   private readonly plots: PlotGeometry | null;
+  private readonly hasTarget: (t: TowerEntity) => boolean;
   /** Lifetime counters (QA). */
   firedSeen = 0;
   specialSeen = 0;
   attacksPlayed = 0;
+  /** QA: shots whose sheet was pre-rolled (release on the shot) vs started on the shot (delayed). */
+  shotsPrerolled = 0;
+  shotsDelayed = 0;
 
-  constructor(art: LoadedArt, map: MapView, layers: WorldLayers, tex: ProcTextures, fx: FxLayer | null = null, plots: PlotGeometry | null = null) {
+  /**
+   * `hasTarget(t)`: the tower has something to shoot right now (drives the attack-sheet pre-roll;
+   * render-side estimate, the sim is not asked).
+   */
+  constructor(
+    art: LoadedArt,
+    map: MapView,
+    layers: WorldLayers,
+    tex: ProcTextures,
+    fx: FxLayer | null = null,
+    plots: PlotGeometry | null = null,
+    hasTarget: (t: TowerEntity) => boolean = () => false,
+  ) {
     this.art = art;
     this.map = map;
     this.layers = layers;
     this.tex = tex;
     this.fx = fx;
     this.plots = plots;
+    this.hasTarget = hasTarget;
   }
 
   /** Wires the tower events this layer animates. */
@@ -126,8 +150,27 @@ export class TowerLayer {
       if (v) {
         v.kick = 1;
         v.prof = fireProfile('beacon');
+        this.playDecorative(v, 'beacon', e.tier, true);
       }
     });
+    // Barracks: the gate sheet plays as a soldier steps out (once per burst, not per soldier).
+    ev.on('soldierSpawned', (e) => {
+      const v = this.views.get(e.towerId);
+      if (v) this.playDecorative(v, 'barracks', v.tier, false);
+    });
+  }
+
+  /** Non-shooting towers (beacon pulse, barracks gate): play the attack sheet from frame 0, no shot. */
+  private playDecorative(v: TowerView, type: TowerType, tier: number, restart: boolean): void {
+    const sheet = this.attackOf(type, tier);
+    if (!sheet) return;
+    if (!restart && v.attackT >= 0 && v.attackSheet === sheet) return;
+    v.attackSheet = sheet;
+    v.attackPlan = attackPlan({ count: sheet.frames.length, fps: sheet.fps, release: null });
+    v.attackT = 0;
+    v.armed = false;
+    v.pending = null;
+    this.attacksPlayed++;
   }
 
   /** Stone ring (texture px) of the tier art a tower draws, or null for legacy art. */
@@ -140,10 +183,26 @@ export class TowerLayer {
     return this.art.towers[type]?.attack[Math.max(1, Math.min(3, tier)) - 1] ?? null;
   }
 
-  /** Sim seconds between a shot and its painted release (0 = show the shot at once). */
+  /** Sim seconds from the start of a tier's attack sheet to its release frame (0 = no sheet / release). */
   releaseDelay(type: TowerType, tier: number): number {
     const s = this.attackOf(type, tier);
     return s ? attackPlan({ count: s.frames.length, fps: s.fps, release: s.release }).releaseDelay : 0;
+  }
+
+  /** Projectile delay (sim s after its spawn) for a tower's latest shot. */
+  shotDelayOf(towerId: number): number {
+    return this.views.get(towerId)?.shotDelay ?? 0;
+  }
+
+  /**
+   * Delay a shot fired NOW would get (tesla bolts: the chain event comes just before towerFired):
+   * what is left of a pre-rolled sheet, else the full release delay.
+   */
+  predictShotDelay(towerId: number, type: TowerType, tier: number): number {
+    const full = this.releaseDelay(type, tier);
+    const v = this.views.get(towerId);
+    if (!v || full <= 0) return full;
+    return onShot(v.armed && v.attackT >= 0, v.attackT, full).shotDelay;
   }
 
   /** Tower fired (event): painted attack / procedural kick, muzzle flash and the tier flourish. */
@@ -158,13 +217,21 @@ export class TowerLayer {
     v.dirX = Math.abs(dx) > 0.05 ? Math.sign(dx) : v.dirX;
     if (Math.abs(dx) > 0.15) v.aim = dx > 0 ? 1 : -1;
     const sheet = this.attackOf(e.type, e.tier);
+    v.shotDelay = 0;
     if (sheet) {
-      // A new shot mid-animation restarts it (towerAnim.ts).
+      // Pre-rolled for this shot: keep playing (release lands now); otherwise restart from frame 0.
+      const plan = attackPlan({ count: sheet.frames.length, fps: sheet.fps, release: sheet.release });
+      const kept = v.armed && v.attackSheet === sheet && v.attackT >= 0;
+      const r = onShot(kept, v.attackT, plan.releaseDelay);
+      if (!kept || r.elapsed === 0) this.attacksPlayed++;
+      if (kept && r.elapsed > 0) this.shotsPrerolled++;
+      else this.shotsDelayed++;
       v.attackSheet = sheet;
-      v.attackPlan = attackPlan({ count: sheet.frames.length, fps: sheet.fps, release: sheet.release });
-      v.attackT = 0;
-      this.attacksPlayed++;
-      if (v.attackPlan.releaseDelay > 0) {
+      v.attackPlan = plan;
+      v.attackT = r.elapsed;
+      v.shotDelay = r.shotDelay;
+      v.armed = false;
+      if (r.shotDelay > 0) {
         v.pending = e;
         return;
       }
@@ -252,6 +319,10 @@ export class TowerLayer {
       attackSheet: null,
       attackPlan: null,
       pending: null,
+      armed: false,
+      shotDelay: 0,
+      drain: 1,
+      prevCd: t.cooldownTimer,
       muzzle: art ? art.spec.muzzle : 2,
       topY: 0,
       midY: 0,
@@ -284,6 +355,32 @@ export class TowerLayer {
     if (!target) return false;
     const ppu = this.map.layout.pxPerUnit;
     const tierIdx = Math.max(1, Math.min(3, t.tier)) - 1;
+    // Pre-roll the attack sheet so its release frame lands on the coming shot (towerAnim.ts).
+    const sheetNow = art.attack[tierIdx];
+    if (simDt > 0) {
+      const d = v.prevCd - t.cooldownTimer;
+      if (d > 0) v.drain = v.drain * 0.6 + (d / simDt) * 0.4;
+    }
+    v.prevCd = t.cooldownTimer;
+    if (sheetNow) {
+      const plan = attackPlan({ count: sheetNow.frames.length, fps: sheetNow.fps, release: sheetNow.release });
+      if (v.armed && v.attackT > plan.releaseDelay + PREROLL_GRACE) v.armed = false;
+      const busy = v.attackT >= 0 && v.attackPlan !== null && v.attackT < v.attackPlan.releaseDelay;
+      if (
+        !busy &&
+        shouldPreroll({
+          hasTarget: t.stunTimer <= 0 && this.hasTarget(t),
+          eta: shotEta(t.cooldownTimer, v.drain),
+          releaseDelay: plan.releaseDelay,
+          armed: v.armed,
+        })
+      ) {
+        v.attackSheet = sheetNow;
+        v.attackPlan = plan;
+        v.attackT = Math.max(0, plan.releaseDelay - shotEta(t.cooldownTimer, v.drain)) - simDt;
+        v.armed = true;
+      }
+    }
     const stat = art.tiers[tierIdx];
     // Static fit (also the muzzle reference, so shots leave the same spot with or without sheets).
     const fit = fitOnRing(target, ring, stat.width, stat.height, art.spec.ringScale);
@@ -356,6 +453,7 @@ export class TowerLayer {
         v.attackT = -1;
         v.attackSheet = null;
         v.pending = null;
+        v.armed = false;
       }
       const px = this.map.pxX(t.x);
       const py = this.map.pxY(t.z);

@@ -5,9 +5,10 @@
  "cols": 8,
  "fps": 12.0,
  "anchor": [
-  99,
-  247
+  87.5,
+  247.0
  ],
  "release": 3,
- "image": "t3-mortar-3-attack.webp"
+ "image": "t3-mortar-3-attack.webp",
+ "ringW": 145.0
 }

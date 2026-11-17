@@ -75,6 +75,11 @@ for sim_type, tiers in sorted(found.items()):
             bad.append(f'{name}: ring IoU {iou:.3f} < {MIN_IOU}')
     spec['tiers'] = files
     spec['ring'] = rings
+    # Painted attack sheets (Omni clips of the same canvases; ring measured by sheet_rings.py), when shipped.
+    art_name = {v: k for k, v in SIM_TYPE.items()}.get(sim_type, sim_type)
+    sheets = [f'anim-towers/t3-{art_name}-{t}-attack.json' for t in (1, 2, 3)]
+    if all((PUB / s).exists() for s in sheets):
+        spec['attack'] = sheets
 
 if not DRY:
     MANIFEST.write_text(json.dumps(manifest, indent=1, ensure_ascii=False) + '\n')

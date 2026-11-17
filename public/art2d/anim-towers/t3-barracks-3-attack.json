@@ -9,5 +9,6 @@
   236
  ],
  "release": 3,
- "image": "t3-barracks-3-attack.webp"
+ "image": "t3-barracks-3-attack.webp",
+ "ringW": 124.0
 }

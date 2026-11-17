@@ -178,10 +178,15 @@ LANDMARKS.append(('prop-castle-gate.png', gx + ROAD_W * 0.4, gy + ROAD_W * 0.9, 
 LANDMARKS.append(('prop-windmill.png', iw * 0.9, ih * 0.22, ROAD_W * 3.0))
 landmark_rects = [sprite_rect(load(n), x, yb, h) for n, x, yb, h in LANDMARKS]
 
-# Screen-space HUD lands on these map corners at the extreme fits (phone landscape 915x412 is the
-# worst case: lives plaque bottom-left, wave banner bottom-right, pause/speed top-right, horn
-# between the entrances). Layout px.
-HUD_RECTS = [(0, 712, 410, ih), (1520, 700, iw, ih), (1600, 0, iw, 125)]
+# Screen-space HUD lands on these map corners (lives plaque bottom-left, wave banner bottom-right,
+# pause/speed top-right, horn between the entrances). Measured at both extreme fits and unioned,
+# layout px (+10 px margin): desktop 16:9 (1600x900: map cropped to the safe area, plaque reaches
+# x 460 / y 757) and phone landscape (915x412: height-fit, bigger relative HUD).
+HUD_RECTS = [
+    (0, 740, 480, ih), (0, 702, 420, ih),  # lives plaque: desktop, phone
+    (1400, 745, iw, ih), (1510, 690, iw, ih),  # wave banner: desktop, phone
+    (1470, 0, iw, 115), (1590, 0, iw, 135),  # pause / speed: desktop, phone
+]
 ex_m = sum(e['x'] for e in L['entrances']) / len(L['entrances'])
 ey_m = sum(e['y'] for e in L['entrances']) / len(L['entrances'])
 HORN = (ex_m + 18, ey_m + 4, 64)  # horn button (radius) ...
@@ -315,15 +320,16 @@ def generate_plots():
         for i, c in enumerate(uniq):
             mind[i] = min(mind[i], adist(c, uniq[bi]))
 
-    # seeds: the valid candidate nearest each entrance (the farthest-point pass alone tends to
-    # leave the cramped first stretch next to a gate empty)
+    # seeds: the valid candidates nearest each entrance and nearest the point 300 px down its road
+    # (the farthest-point pass alone tends to leave the cramped first stretch next to a gate thin)
     for path in raw_paths:
-        e0 = path[0]
-        order = sorted(range(len(uniq)), key=lambda i: math.hypot(uniq[i][0] - e0[0], uniq[i][1] - e0[1]))
-        for i in order:
-            if all(pair_ok(uniq[i], p) for p in chosen):
-                take(i)
-                break
+        pts = resample(path, 10.0)
+        for e0 in (pts[0], pts[min(len(pts) - 1, 30)]):
+            order = sorted(range(len(uniq)), key=lambda i: math.hypot(uniq[i][0] - e0[0], uniq[i][1] - e0[1]))
+            for i in order:
+                if all(pair_ok(uniq[i], p) for p in chosen):
+                    take(i)
+                    break
     while len(chosen) < NPLOTS:
         best, bi = -1.0, -1
         for i, c in enumerate(uniq):

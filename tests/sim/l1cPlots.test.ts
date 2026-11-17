@@ -72,7 +72,7 @@ describe('L1c plots (generated layout)', () => {
       const ax = R + ROAD_HALF - 14;
       const ay = RY + ROAD_HALF - 14;
       for (const [qx, qy] of pts) expect(((qx - p.x) / ax) ** 2 + ((qy - p.y) / ay) ** 2, `plot ${i}`).toBeGreaterThanOrEqual(1);
-      expect(roadDist(p.x, p.y), `plot ${i}`).toBeLessThanOrEqual(Math.min(135, reach));
+      expect(roadDist(p.x, p.y), `plot ${i}`).toBeLessThanOrEqual(Math.min(140, reach)); // 135 from the drawn spline (compose.py), a few px more from the polyline
     }
   });
 

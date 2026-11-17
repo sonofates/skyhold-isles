@@ -5,9 +5,10 @@
  "cols": 8,
  "fps": 12.0,
  "anchor": [
-  124,
-  250
+  110.5,
+  249.0
  ],
  "release": 3,
- "image": "t3-barracks-1-attack.webp"
+ "image": "t3-barracks-1-attack.webp",
+ "ringW": 207.0
 }

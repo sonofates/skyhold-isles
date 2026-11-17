@@ -44,7 +44,12 @@
      "ringCenterXPx": 143.0
     }
    ],
-   "muzzleFrac": 0.8
+   "muzzleFrac": 0.8,
+   "attack": [
+    "anim-towers/t3-archer-1-attack.json",
+    "anim-towers/t3-archer-2-attack.json",
+    "anim-towers/t3-archer-3-attack.json"
+   ]
   },
   "cannon": {
    "tiers": [
@@ -76,7 +81,12 @@
      "ringCenterXPx": 148.0
     }
    ],
-   "muzzleFrac": 0.74
+   "muzzleFrac": 0.74,
+   "attack": [
+    "anim-towers/t3-cannon-1-attack.json",
+    "anim-towers/t3-cannon-2-attack.json",
+    "anim-towers/t3-cannon-3-attack.json"
+   ]
   },
   "tesla": {
    "tiers": [
@@ -108,7 +118,12 @@
      "ringCenterXPx": 141.0
     }
    ],
-   "muzzleFrac": 0.9
+   "muzzleFrac": 0.9,
+   "attack": [
+    "anim-towers/t3-crystal-1-attack.json",
+    "anim-towers/t3-crystal-2-attack.json",
+    "anim-towers/t3-crystal-3-attack.json"
+   ]
   },
   "frost": {
    "tiers": [
@@ -144,7 +159,12 @@
      "ringCenterXPx": 149.5
     }
    ],
-   "muzzleFrac": 0.86
+   "muzzleFrac": 0.86,
+   "attack": [
+    "anim-towers/t3-frost-1-attack.json",
+    "anim-towers/t3-frost-2-attack.json",
+    "anim-towers/t3-frost-3-attack.json"
+   ]
   },
   "mortar": {
    "tiers": [
@@ -180,7 +200,12 @@
      "ringCenterXPx": 174.0
     }
    ],
-   "muzzleFrac": 0.7
+   "muzzleFrac": 0.7,
+   "attack": [
+    "anim-towers/t3-mortar-1-attack.json",
+    "anim-towers/t3-mortar-2-attack.json",
+    "anim-towers/t3-mortar-3-attack.json"
+   ]
   },
   "ballista": {
    "tiers": [
@@ -217,7 +242,12 @@
      "ringCenterXPx": 162.0
     }
    ],
-   "muzzleFrac": 0.78
+   "muzzleFrac": 0.78,
+   "attack": [
+    "anim-towers/t3-ballista-1-attack.json",
+    "anim-towers/t3-ballista-2-attack.json",
+    "anim-towers/t3-ballista-3-attack.json"
+   ]
   },
   "beacon": {
    "tiers": [
@@ -253,7 +283,12 @@
      "ringCenterXPx": 118.0
     }
    ],
-   "muzzleFrac": 0.86
+   "muzzleFrac": 0.86,
+   "attack": [
+    "anim-towers/t3-beacon-1-attack.json",
+    "anim-towers/t3-beacon-2-attack.json",
+    "anim-towers/t3-beacon-3-attack.json"
+   ]
   },
   "barracks": {
    "tiers": [
@@ -286,7 +321,12 @@
      "ringCenterXPx": 156.5
     }
    ],
-   "muzzleFrac": 0.6
+   "muzzleFrac": 0.6,
+   "attack": [
+    "anim-towers/t3-barracks-1-attack.json",
+    "anim-towers/t3-barracks-2-attack.json",
+    "anim-towers/t3-barracks-3-attack.json"
+   ]
   }
  },
  "buildRing": [

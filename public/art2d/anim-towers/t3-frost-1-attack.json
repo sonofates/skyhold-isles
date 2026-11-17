@@ -5,9 +5,10 @@
  "cols": 8,
  "fps": 12.0,
  "anchor": [
-  224,
-  246
+  223.5,
+  235.0
  ],
  "release": 3,
- "image": "t3-frost-1-attack.webp"
+ "image": "t3-frost-1-attack.webp",
+ "ringW": 153.0
 }

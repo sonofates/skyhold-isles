@@ -5,9 +5,10 @@
  "cols": 8,
  "fps": 12.0,
  "anchor": [
-  225,
-  245
+  224.0,
+  235.0
  ],
  "release": 3,
- "image": "t3-beacon-2-attack.webp"
+ "image": "t3-beacon-2-attack.webp",
+ "ringW": 126.0
 }
