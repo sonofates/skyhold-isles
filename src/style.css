@@ -71,6 +71,9 @@ body {
   color: var(--gx-cream);
   background: var(--pal-water);
   touch-action: none;
+  /* no pull-to-refresh / rubber-band when a drag reaches the page edge, no iOS long-press callout */
+  overscroll-behavior: none;
+  -webkit-touch-callout: none;
 }
 
 button {
