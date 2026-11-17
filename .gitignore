@@ -34,3 +34,6 @@ playwright/.cache/
 
 # local tuning scratch
 .tune/
+
+# local screenshot tooling
+.shots-tool/
