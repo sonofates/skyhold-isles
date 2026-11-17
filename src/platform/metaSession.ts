@@ -41,6 +41,7 @@ import {
   buildEndlessMutatorLoadout,
   computeEndlessScore,
   getMutatorPresetRoll,
+  previewMutatorSelection,
   resolveMutatorSelection,
   selectEndlessMutators,
   type MutatorSelectionInput,
@@ -68,6 +69,7 @@ import type {
   ModifierBadgeInfo,
   MutatorDef,
   MutatorPreset,
+  MutatorSelectionPreview,
   RecommendedGoal,
   ResolvedRunModifiers,
   RunMetaOutcome,
@@ -454,6 +456,10 @@ export class MetaSession {
     return resolveMutatorSelection(input);
   }
 
+  previewMutatorSelection(input: MutatorSelectionInput): MutatorSelectionPreview {
+    return previewMutatorSelection(input);
+  }
+
   getActiveRunModifiers(): ResolvedRunModifiers | null {
     return this.observer ? this.observer.getModifiers() : null;
   }
@@ -529,6 +535,7 @@ export class MetaSession {
         this.save.bestEndlessScoresByLevelId[this.observer.level.id] ?? 0;
       if (mode === 'replace') {
         this.lastRunOutcome = null;
+        this.runUnlockedAchievementIds = [];
       }
     }
 

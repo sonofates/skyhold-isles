@@ -269,6 +269,14 @@ export interface EndlessMutatorRoll {
   readonly scoreMultiplier: number;
 }
 
+export interface MutatorSelectionPreview {
+  readonly modifiers: ResolvedRunModifiers;
+  readonly badges: readonly ModifierBadgeInfo[];
+  readonly scoreMultiplier: number;
+  readonly allowedTowerTypes: readonly TowerType[];
+  readonly conflictingMutatorIds: readonly string[];
+}
+
 export interface EndlessScoreBreakdown {
   readonly baseScore: number;
   readonly scoreMultiplier: number;

@@ -36,6 +36,7 @@ import type {
   ModifierBadgeInfo,
   MutatorDef,
   MutatorPreset,
+  MutatorSelectionPreview,
   RecommendedGoal,
   ResolvedRunModifiers,
   RunMetaOutcome,
@@ -344,6 +345,13 @@ export class GameSession {
       modifiers = this.meta.resolveMutatorSelection(mutatorSeedOrModifiers);
     }
     if (!this.simWorld.enterEndlessMode(modifiers)) return;
+    if (
+      this.activePlacementType &&
+      !isTowerTypeAllowed(this.activePlacementType, this.simWorld.modifiers)
+    ) {
+      this.setPlacementMode(null);
+    }
+    this.meta.verifyWorldIntegrity(this.simWorld.gold, this.simWorld.lives);
     this.meta.onEndlessEntered(modifiers);
     const { overlays, loop } = this.d;
     // The win path pauses the loop via the outcome modal. Close every modal (a HUD-opened
@@ -631,6 +639,10 @@ export class GameSession {
 
   getMutatorPresetRoll(presetId: string): EndlessMutatorRoll | null {
     return this.meta.getMutatorPresetRoll(presetId);
+  }
+
+  previewMutatorSelection(input: MutatorSelectionInput): MutatorSelectionPreview {
+    return this.meta.previewMutatorSelection(input);
   }
 
   getTodayDailyDate(): string {

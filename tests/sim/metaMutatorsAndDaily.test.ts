@@ -24,8 +24,10 @@ import {
   buildEndlessMutatorLoadout,
   computeCampaignRunScore,
   computeEndlessScore,
+  getConflictingMutatorIds,
   getMutatorPresetRoll,
   hashSeedString,
+  previewMutatorSelection,
   resolveMutatorSelection,
   selectEndlessMutators,
 } from '../../src/sim/meta/mutators.ts';
@@ -320,6 +322,10 @@ describe('Daily challenge pure date-seeded generator', () => {
       if (lvl.difficulty === 'Heroic' && spec.modifiers.goldRewardMultiplier < 1) {
         expect(spec.towerRestriction.kind).not.toBe('limited_arsenal');
       }
+      // Never contradict a mutator tower ban with 'Full Arsenal' label
+      if (spec.modifiers.forbiddenTowerTypes.length > 0 && spec.towerRestriction.kind === 'none') {
+        expect(spec.towerRestriction.label).toBe('No Extra Ban');
+      }
       const hasHeavyArmored = lvl.waves.some((w) =>
         w.groups.some((g) => (g.enemyType === 'brute' && g.count >= 6) || g.enemyType === 'boss'),
       );
@@ -504,5 +510,28 @@ describe('Daily challenge pure date-seeded generator', () => {
     expect(computeCampaignRunScore(10, 80, 18, 1.5)).toBe(
       Math.round((10 * 150 + 80 * 2) * 1.5) + 18 * 25,
     );
+  });
+
+  it('previews mutator badges, legal towers, score multipliers, and conflict exclusions before launch', () => {
+    expect(getConflictingMutatorIds(['sky_swarm'])).toEqual(['no_frost', 'no_tesla']);
+    expect(getConflictingMutatorIds(['gold_drought'])).toEqual(['tight_budget']);
+
+    const presetPreview = previewMutatorSelection({ presetId: 'iron-skies' });
+    expect(presetPreview.scoreMultiplier).toBe(1.6);
+    expect(presetPreview.badges.map((b) => b.id)).toEqual(['iron_clad', 'sky_swarm']);
+    expect(presetPreview.allowedTowerTypes).toHaveLength(5);
+    expect(presetPreview.conflictingMutatorIds).toEqual(['no_frost', 'no_tesla']);
+
+    const customPreview = previewMutatorSelection(['gold_drought', 'tight_budget', 'no_frost']);
+    expect(customPreview.modifiers.activeMutatorIds).toEqual(['gold_drought', 'no_frost']);
+    expect(customPreview.scoreMultiplier).toBe(1.6);
+    expect(customPreview.allowedTowerTypes).not.toContain('frost');
+    expect(customPreview.conflictingMutatorIds).toEqual(['sky_swarm', 'tight_budget', 'no_tesla']);
+
+    const rawPreview = previewMutatorSelection({ forbiddenTowerTypes: ['mortar'], scoreMultiplier: 1.25 });
+    expect(rawPreview.scoreMultiplier).toBe(1.25);
+    expect(rawPreview.badges.map((b) => b.id)).toEqual(['restricted-towers']);
+    expect(rawPreview.allowedTowerTypes).not.toContain('mortar');
+    expect(rawPreview.conflictingMutatorIds).toEqual([]);
   });
 });

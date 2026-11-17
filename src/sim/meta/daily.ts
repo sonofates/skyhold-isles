@@ -52,11 +52,12 @@ function pickTowerRestriction(
     antiAirDpsAvailable.length > 0 ? antiAirDpsAvailable : antiAirAvailable;
   const armorBreakersAvailable = available.filter((t) => TOWER_DEFS[t].tiers[0].damage >= 35);
 
+  const noneLabel = alreadyForbidden.length > 0 ? 'No Extra Ban' : 'Full Arsenal';
   if (options?.forceNone || available.length <= 2 || antiAirAvailable.length === 0) {
     return {
       restriction: {
         kind: 'none',
-        label: 'Full Arsenal',
+        label: noneLabel,
         allowedTowerTypes: null,
         forbiddenTowerTypes: [],
       },
@@ -69,7 +70,7 @@ function pickTowerRestriction(
     return {
       restriction: {
         kind: 'none',
-        label: 'Full Arsenal',
+        label: noneLabel,
         allowedTowerTypes: null,
         forbiddenTowerTypes: [],
       },

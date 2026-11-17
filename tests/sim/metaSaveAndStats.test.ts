@@ -982,4 +982,54 @@ describe('MetaSession stats, achievements, challenges & daily persistence', () =
     expect(meta.getRecommendedNextGoal(' 2026-11-17 ')?.kind).not.toBe('daily');
     meta.dispose();
   });
+
+  it('previews mutator selections on MetaSession and guards replace-import & post-win Endless tamper edges', () => {
+    installMockLocalStorage();
+    const tinyLevel: LevelDef = {
+      ...LEVELS[0],
+      startingGold: 1000,
+      waves: [{ clearBonus: 25, groups: [{ enemyType: 'grunt', count: 2, spawnInterval: 0.3, startDelay: 0 }] }],
+    };
+    const meta = new MetaSession({
+      levels: [tinyLevel, ...LEVELS.slice(1)],
+      getTodayDate: () => '2026-11-17',
+    });
+
+    const preview = meta.previewMutatorSelection({ presetId: 'lean-siege' });
+    expect(preview.scoreMultiplier).toBe(1.5);
+    expect(preview.allowedTowerTypes).not.toContain('frost');
+    expect(preview.conflictingMutatorIds).toContain('gold_drought');
+    expect(preview.conflictingMutatorIds).toContain('sky_swarm');
+
+    // 1. Tampering with gold after story win before entering Endless must taint the Endless phase
+    const ev1 = new EventBus();
+    const w1 = new SimWorld(tinyLevel, ev1);
+    meta.startRun(tinyLevel, ev1);
+    w1.placeTower(4, 2, 'archer');
+    w1.startNextWave();
+    for (let i = 0; i < 60 * 30 && w1.outcome === 'ongoing'; i++) {
+      meta.onTick(BALANCE.fixedDt, 3);
+      w1.fixedTick(BALANCE.fixedDt);
+    }
+    expect(w1.outcome).toBe('won');
+    w1.gold += 5000;
+    expect(w1.enterEndlessMode()).toBe(true);
+    expect(meta.verifyWorldIntegrity(w1.gold, w1.lives)).toBe(false);
+    meta.onEndlessEntered();
+    expect(meta.isCurrentRunEligible()).toBe(false);
+
+    // 2. Replace-mode import mid-run clears prior run-collected achievements cleanly
+    const ev2 = new EventBus();
+    meta.startRun(tinyLevel, ev2);
+    ev2.emit('overchargeActivated', { duration: 7, cleansedTowerIds: [1] });
+    meta.flushStats(false);
+    expect(meta.getAchievements().find((a) => a.def.id === 'overcharge_cleanse')?.unlocked).toBe(true);
+
+    const blankJson = JSON.stringify(createDefaultMetaSave(9));
+    expect(meta.importSaveJson(blankJson, 'replace').ok).toBe(true);
+    expect(meta.getAchievements().find((a) => a.def.id === 'overcharge_cleanse')?.unlocked).toBe(false);
+    ev2.emit('gameWon', { stars: 3, livesRemaining: 20 });
+    expect(meta.getLastRunOutcome()!.newlyUnlockedAchievementIds).not.toContain('overcharge_cleanse');
+    meta.dispose();
+  });
 });

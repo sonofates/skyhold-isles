@@ -1,11 +1,17 @@
 import { SeededRng } from '../../core/rng.ts';
 import { ENDLESS_MUTATOR_PRESETS, ENDLESS_MUTATORS } from '../../data/challenges.ts';
-import { mergeRunModifiers, resolveRunModifiers } from './modifiers.ts';
+import {
+  describeActiveModifiers,
+  getAllowedTowerTypes,
+  mergeRunModifiers,
+  resolveRunModifiers,
+} from './modifiers.ts';
 import type {
   EndlessMutatorRoll,
   EndlessScoreBreakdown,
   MutatorDef,
   MutatorPreset,
+  MutatorSelectionPreview,
   ResolvedRunModifiers,
   RunModifiers,
 } from './types.ts';
@@ -187,4 +193,50 @@ export function resolveMutatorSelection(
     return selectEndlessMutators(input.seed, input.count ?? 2, catalog).modifiers;
   }
   return resolveRunModifiers(input as RunModifiers);
+}
+
+/**
+ * Returns mutator IDs from `catalog` that cannot be combined with `selectedIds`
+ * because they share a conflictGroup with an already-selected mutator.
+ */
+export function getConflictingMutatorIds(
+  selectedIds: readonly string[],
+  catalog: readonly MutatorDef[] = ENDLESS_MUTATORS,
+): readonly string[] {
+  const selectedSet = new Set(selectedIds);
+  const usedGroups = new Set<string>();
+  for (let i = 0; i < catalog.length; i++) {
+    const def = catalog[i];
+    if (selectedSet.has(def.id) && def.conflictGroup) {
+      usedGroups.add(def.conflictGroup);
+    }
+  }
+  if (usedGroups.size === 0) return [];
+  const conflicting: string[] = [];
+  for (let i = 0; i < catalog.length; i++) {
+    const def = catalog[i];
+    if (!selectedSet.has(def.id) && def.conflictGroup && usedGroups.has(def.conflictGroup)) {
+      conflicting.push(def.id);
+    }
+  }
+  return conflicting;
+}
+
+/**
+ * Previews resolved modifiers, UI badges, score multiplier, legal towers, and conflicting mutator IDs
+ * before launching an Endless or Mutated Island run.
+ */
+export function previewMutatorSelection(
+  input: MutatorSelectionInput,
+  presets: readonly MutatorPreset[] = ENDLESS_MUTATOR_PRESETS,
+  catalog: readonly MutatorDef[] = ENDLESS_MUTATORS,
+): MutatorSelectionPreview {
+  const modifiers = resolveMutatorSelection(input, presets, catalog);
+  return {
+    modifiers,
+    badges: describeActiveModifiers(modifiers, catalog),
+    scoreMultiplier: modifiers.scoreMultiplier,
+    allowedTowerTypes: getAllowedTowerTypes(modifiers),
+    conflictingMutatorIds: getConflictingMutatorIds(modifiers.activeMutatorIds, catalog),
+  };
 }
