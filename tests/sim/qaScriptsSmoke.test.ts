@@ -175,19 +175,19 @@ describe('QA scripts smoke verification', () => {
     ).toThrow(/placed only 2\/5 towers/);
   });
 
-  it('executes CI, simBench, and fuzzPlay CLI entrypoints (--help, --json repro/campaign, invalid flags)', { timeout: 15_000 }, () => {
-    const tsxBin = resolve(process.cwd(), 'node_modules/.bin/tsx');
-    const runTsx = (args: readonly string[]) =>
-      spawnSync(tsxBin, [...args], {
-        encoding: 'utf8',
-        shell: process.platform === 'win32',
-      });
+  const tsxBin = resolve(process.cwd(), 'node_modules/.bin/tsx');
+  const runTsx = (args: readonly string[]) =>
+    spawnSync(tsxBin, [...args], {
+      encoding: 'utf8',
+      shell: process.platform === 'win32',
+    });
 
+  it('executes CI, simBench, and fuzzPlay CLI --help/-h and rejects unknown flags', { timeout: 30_000 }, () => {
     const ciHelp = runTsx(['scripts/ci.ts', '--help']);
     expect(ciHelp.status).toBe(0);
     expect(ciHelp.stdout).toContain('Usage: npm run ci');
 
-    const benchHelp = runTsx(['scripts/simBench.ts', '--help']);
+    const benchHelp = runTsx(['scripts/simBench.ts', '-h']);
     expect(benchHelp.status).toBe(0);
     expect(benchHelp.stdout).toContain('Usage: npm run sim:bench');
 
@@ -203,13 +203,17 @@ describe('QA scripts smoke verification', () => {
 
     const fuzzBad = runTsx(['scripts/fuzzPlay.ts', '--unknown-flag']);
     expect(fuzzBad.status).not.toBe(0);
+  });
 
+  it('executes fuzzPlay CLI --json across repro, campaign, profile, and --endless-only modes', { timeout: 30_000 }, () => {
     const fuzzRepro = runTsx([
       'scripts/fuzzPlay.ts',
       '--level',
       '1',
       '--seed',
       '1',
+      '--profile',
+      'tactical',
       '--endless-waves',
       '1',
       '--json',
@@ -219,13 +223,14 @@ describe('QA scripts smoke verification', () => {
       mode: string;
       passed: boolean;
       deterministic: boolean;
-      digest: { levelId: string; seed: number; stateHash: number };
+      digest: { levelId: string; seed: number; profile: string; stateHash: number };
     };
     expect(reproJson.mode).toBe('repro');
     expect(reproJson.passed).toBe(true);
     expect(reproJson.deterministic).toBe(true);
     expect(reproJson.digest.levelId).toBe(LEVELS[0].id);
     expect(reproJson.digest.seed).toBe(1);
+    expect(reproJson.digest.profile).toBe('tactical');
     expect(reproJson.digest.stateHash).toBeGreaterThan(0);
 
     const fuzzCampaign = runTsx([
@@ -287,14 +292,17 @@ describe('QA scripts smoke verification', () => {
       endlessOnly: boolean;
       passed: boolean;
       deterministic: boolean;
-      digest: { endlessWavesCompleted: number };
+      digest: { endlessWavesCompleted: number; profile: string };
     };
     expect(endlessOnlyJson.mode).toBe('repro');
     expect(endlessOnlyJson.endlessOnly).toBe(true);
     expect(endlessOnlyJson.passed).toBe(true);
     expect(endlessOnlyJson.deterministic).toBe(true);
+    expect(endlessOnlyJson.digest.profile).toBe('competent');
     expect(endlessOnlyJson.digest.endlessWavesCompleted).toBe(1);
+  });
 
+  it('executes simBench --strict --json CLI entrypoint cleanly', { timeout: 30_000 }, () => {
     const benchJsonProc = runTsx(['scripts/simBench.ts', '--strict', '--json']);
     expect(benchJsonProc.status, benchJsonProc.stderr).toBe(0);
     const benchJson = JSON.parse(benchJsonProc.stdout) as {

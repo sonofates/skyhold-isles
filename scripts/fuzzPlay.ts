@@ -7,6 +7,7 @@ import { BALANCE } from '../src/data/balance.ts';
 import { ENEMY_DEFS, ENEMY_TYPES } from '../src/data/enemies.ts';
 import { LEVELS, type LevelDef } from '../src/data/levels/index.ts';
 import { getTowerTierStats, TOWER_DEFS, TOWER_TYPES } from '../src/data/towers.ts';
+import type { TowerEntity } from '../src/sim/entities.ts';
 import { buildEndlessWaveDef, type WaveState } from '../src/sim/waveSystem.ts';
 import { computeSellRefund, computeStarRating, SimWorld } from '../src/sim/world.ts';
 
@@ -46,6 +47,11 @@ const _seenEventTowerIds = new Set<number>();
 const _seenChainEnemyUids = new Set<number>();
 const _expectedPreviewCounts = new Map<EnemyType, number>();
 const _seenPreviewTypes = new Set<EnemyType>();
+const _freeTiles: ScoredTile[] = [];
+const _affordableTypes: TowerType[] = [];
+const _aaAffordableTypes: TowerType[] = [];
+const _upgradableTowers: TowerEntity[] = [];
+const _towerTypeCounts = new Map<TowerType, number>();
 
 export type FuzzProfile = 'tactical' | 'competent' | 'balanced' | 'chaotic' | 'minimal';
 export const FUZZ_PROFILES: readonly FuzzProfile[] = ['tactical', 'competent', 'balanced', 'chaotic', 'minimal'];
@@ -143,6 +149,7 @@ interface FuzzTracker {
   killedSplitterUids: Set<number>;
   pendingDeathUids: Set<number>;
   builtTowerIds: Set<number>;
+  towerById: Map<number, TowerEntity>;
   everBuiltTowerIds: Set<number>;
   maxEverTowerId: number;
   builtTowerTypes: Set<TowerType>;
@@ -391,7 +398,7 @@ function attachEventTracker(
         break;
       }
       _seenEventTowerIds.add(tid);
-      const t = world.getTowerById(tid);
+      const t = tracker.towerById.get(tid);
       if (!t || Math.abs(t.stunTimer - 2.65) > 1e-6) {
         recordEventError(tracker, `bossPulse stunnedTowerId=${tid} not stunned at 2.65s`);
         break;
@@ -552,6 +559,7 @@ function attachEventTracker(
       return;
     }
     tracker.builtTowerIds.add(ev.towerId);
+    tracker.towerById.set(ev.towerId, liveBuilt);
     tracker.everBuiltTowerIds.add(ev.towerId);
     if (ev.towerId > tracker.maxEverTowerId) {
       tracker.maxEverTowerId = ev.towerId;
@@ -598,12 +606,13 @@ function attachEventTracker(
       return;
     }
     tracker.builtTowerIds.delete(ev.towerId);
+    tracker.towerById.delete(ev.towerId);
     tracker.soldTowerCount++;
     tracker.stateHash = mixHash(mixHash(mixHash(tracker.stateHash, 14), ev.towerId), ev.refund);
   });
 
   events.on('towerFired', (ev) => {
-    const tower = world.getTowerById(ev.towerId);
+    const tower = tracker.towerById.get(ev.towerId);
     if (!tower || !tracker.builtTowerIds.has(ev.towerId) || tower.stunTimer > 0) {
       recordEventError(tracker, `Invalid or stunned towerFired for id=${ev.towerId}`);
       return;
@@ -654,13 +663,20 @@ function attachEventTracker(
       }
     }
     const origin = ev.points[0];
-    const sourceTesla = world.towers.find(
-      (t) =>
+    let sourceTesla: TowerEntity | undefined;
+    const expectedOriginY = TOWER_DEFS.tesla.turretHeight + 0.35;
+    for (let i = 0; i < world.towers.length; i++) {
+      const t = world.towers[i];
+      if (
         t.type === 'tesla' &&
         t.x === origin.x &&
         t.z === origin.z &&
-        Math.abs(origin.y - (TOWER_DEFS.tesla.turretHeight + 0.35)) <= 1e-6,
-    );
+        Math.abs(origin.y - expectedOriginY) <= 1e-6
+      ) {
+        sourceTesla = t;
+        break;
+      }
+    }
     if (!sourceTesla) {
       recordEventError(tracker, `lightningChain origin (${origin.x},${origin.y},${origin.z}) matches no live tesla tower`);
       return;
@@ -759,7 +775,7 @@ function attachEventTracker(
     _seenEventTowerIds.clear();
     for (let i = 0; i < ev.cleansedTowerIds.length; i++) {
       const tid = ev.cleansedTowerIds[i];
-      const cleansedTower = world.getTowerById(tid);
+      const cleansedTower = tracker.towerById.get(tid);
       if (
         _seenEventTowerIds.has(tid) ||
         !tracker.builtTowerIds.has(tid) ||
@@ -1022,9 +1038,12 @@ function assertTickInvariants(world: SimWorld, tracker: FuzzTracker, tick: numbe
     if (Math.abs(e.y - expectedLaneY) > 1e-5 || e.y !== e.prevY) {
       return `Invalid enemy lane altitude y=${e.y} (prevY=${e.prevY}, expected ${expectedLaneY}) for ${e.type} uid=${e.uid}`;
     }
-    const stepMoved = Math.hypot(e.x - e.prevX, e.z - e.prevZ);
-    if (stepMoved > e.speed * BALANCE.fixedDt + 1e-4) {
-      return `Enemy uid=${e.uid} (${e.type}) moved ${stepMoved} > max ${e.speed * BALANCE.fixedDt} in one tick`;
+    const moveDx = e.x - e.prevX;
+    const moveDz = e.z - e.prevZ;
+    const maxStepDist = e.speed * BALANCE.fixedDt + 1e-4;
+    const moveDistSq = moveDx * moveDx + moveDz * moveDz;
+    if (moveDistSq > maxStepDist * maxStepDist) {
+      return `Enemy uid=${e.uid} (${e.type}) moved ${Math.sqrt(moveDistSq)} > max ${e.speed * BALANCE.fixedDt} in one tick`;
     }
     if (!Number.isFinite(e.dist) || !Number.isFinite(e.totalDist) || e.dist < 0 || e.dist > e.totalDist) {
       return `Invalid enemy dist (${e.dist}/${e.totalDist}) for uid=${e.uid}`;
@@ -1037,7 +1056,9 @@ function assertTickInvariants(world: SimWorld, tracker: FuzzTracker, tick: numbe
     }
     let yawDiff = Math.abs(e.yaw - expectedYaw) % (Math.PI * 2);
     if (yawDiff > Math.PI) yawDiff = Math.PI * 2 - yawDiff;
-    if (Math.hypot(e.x - _pathCheckVec.x, e.z - _pathCheckVec.z) > 1e-4 || yawDiff > 1e-4) {
+    const pathDx = e.x - _pathCheckVec.x;
+    const pathDz = e.z - _pathCheckVec.z;
+    if (pathDx * pathDx + pathDz * pathDz > 1e-8 || yawDiff > 1e-4) {
       return `Enemy uid=${e.uid} (${e.type}) drifted from compiled path (dist=${e.dist})`;
     }
     if (
@@ -1341,13 +1362,19 @@ function assertTickInvariants(world: SimWorld, tracker: FuzzTracker, tick: numbe
       if (mvp !== null) return 'Expected null MVP summary when zero towers exist';
     } else {
       if (!mvp) return 'Expected non-null MVP summary with active towers';
-      const matching = world.towers.some(
-        (t) =>
+      let matching = false;
+      for (let tIdx = 0; tIdx < world.towers.length; tIdx++) {
+        const t = world.towers[tIdx];
+        if (
           t.type === mvp.type &&
           t.tier === mvp.tier &&
           t.kills === mvp.kills &&
-          Math.round(t.totalDamageDealt) === mvp.damageDealt,
-      );
+          Math.round(t.totalDamageDealt) === mvp.damageDealt
+        ) {
+          matching = true;
+          break;
+        }
+      }
       if (!matching) {
         return `MVP summary (${mvp.type} T${mvp.tier} dmg=${mvp.damageDealt} kills=${mvp.kills}) matches no live tower`;
       }
@@ -1421,6 +1448,18 @@ function assertTickInvariants(world: SimWorld, tracker: FuzzTracker, tick: numbe
   return null;
 }
 
+function compareTilesMortar(a: ScoredTile, b: ScoredTile): number {
+  return b.mortarCoverage - a.mortarCoverage;
+}
+
+function compareTilesAir(a: ScoredTile, b: ScoredTile): number {
+  return b.groundCoverage + b.flightCoverage * 0.95 - (a.groundCoverage + a.flightCoverage * 0.95);
+}
+
+function compareTilesGround(a: ScoredTile, b: ScoredTile): number {
+  return b.groundCoverage - a.groundCoverage;
+}
+
 function chooseTileForBuild(
   world: SimWorld,
   rng: SeededRng,
@@ -1428,74 +1467,113 @@ function chooseTileForBuild(
   towerType: TowerType,
   profile: FuzzProfile,
 ): GridCoord | null {
-  const free = tiles.filter((t) => world.grid.canPlaceTower(t.col, t.row));
-  if (free.length === 0) return null;
+  _freeTiles.length = 0;
+  for (let i = 0; i < tiles.length; i++) {
+    const t = tiles[i];
+    if (world.grid.canPlaceTower(t.col, t.row)) {
+      _freeTiles.push(t);
+    }
+  }
+  if (_freeTiles.length === 0) return null;
 
   if (profile === 'chaotic' || profile === 'minimal') {
-    return rng.pick(free);
+    return rng.pick(_freeTiles);
   }
 
   const hitsFlyers = TOWER_DEFS[towerType].hitsFlyers;
-  const isMortar = towerType === 'mortar';
-  const sorted = [...free].sort((a, b) => {
-    const scoreA = isMortar
-      ? a.mortarCoverage
+  const cmp =
+    towerType === 'mortar'
+      ? compareTilesMortar
       : hitsFlyers
-        ? a.groundCoverage + a.flightCoverage * 0.95
-        : a.groundCoverage;
-    const scoreB = isMortar
-      ? b.mortarCoverage
-      : hitsFlyers
-        ? b.groundCoverage + b.flightCoverage * 0.95
-        : b.groundCoverage;
-    return scoreB - scoreA;
-  });
+        ? compareTilesAir
+        : compareTilesGround;
+  _freeTiles.sort(cmp);
 
   const poolSize =
     profile === 'tactical'
-      ? Math.min(2, sorted.length)
+      ? Math.min(2, _freeTiles.length)
       : profile === 'competent'
-        ? Math.min(4, sorted.length)
-        : Math.min(10, sorted.length);
-  return sorted[rng.int(0, poolSize - 1)];
+        ? Math.min(4, _freeTiles.length)
+        : Math.min(10, _freeTiles.length);
+  return _freeTiles[rng.int(0, poolSize - 1)];
 }
 
 function chooseTowerType(world: SimWorld, rng: SeededRng, profile: FuzzProfile): TowerType | null {
-  const affordable = TOWER_TYPES.filter((type) => world.gold >= getTowerTierStats(type, 1).upgradeCost);
-  if (affordable.length === 0) return null;
+  _affordableTypes.length = 0;
+  for (let i = 0; i < TOWER_TYPES.length; i++) {
+    const type = TOWER_TYPES[i];
+    if (world.gold >= getTowerTierStats(type, 1).upgradeCost) {
+      _affordableTypes.push(type);
+    }
+  }
+  if (_affordableTypes.length === 0) return null;
 
   if (profile === 'tactical') {
-    const counts = new Map<TowerType, number>();
-    for (const t of world.towers) counts.set(t.type, (counts.get(t.type) ?? 0) + 1);
-    const antiAirCount = world.towers.filter((t) => TOWER_DEFS[t.type].hitsFlyers).length;
-    const nextHasFlyer =
-      world.waveSystem.getNextWavePreview()?.items.some((it) => it.enemyType === 'flyer') ?? false;
-
-    if ((nextHasFlyer || antiAirCount < 2) && affordable.some((t) => TOWER_DEFS[t].hitsFlyers)) {
-      if ((counts.get('frost') ?? 0) === 0 && affordable.includes('frost')) return 'frost';
-      if (affordable.includes('tesla') && rng.chance(0.45)) return 'tesla';
-      if (affordable.includes('archer')) return 'archer';
+    _towerTypeCounts.clear();
+    let antiAirCount = 0;
+    for (let i = 0; i < world.towers.length; i++) {
+      const t = world.towers[i];
+      _towerTypeCounts.set(t.type, (_towerTypeCounts.get(t.type) ?? 0) + 1);
+      if (TOWER_DEFS[t.type].hitsFlyers) antiAirCount++;
     }
-    if ((counts.get('frost') ?? 0) < 2 && affordable.includes('frost')) return 'frost';
-    if ((counts.get('cannon') ?? 0) < 2 && affordable.includes('cannon')) return 'cannon';
-    if ((counts.get('mortar') ?? 0) < 2 && affordable.includes('mortar')) return 'mortar';
-    if ((counts.get('tesla') ?? 0) < 2 && affordable.includes('tesla')) return 'tesla';
-    return rng.pick(affordable);
+    let nextHasFlyer = false;
+    const preview = world.waveSystem.getNextWavePreview();
+    if (preview) {
+      for (let i = 0; i < preview.items.length; i++) {
+        if (preview.items[i].enemyType === 'flyer') {
+          nextHasFlyer = true;
+          break;
+        }
+      }
+    }
+    let anyAffordableFlyer = false;
+    for (let i = 0; i < _affordableTypes.length; i++) {
+      if (TOWER_DEFS[_affordableTypes[i]].hitsFlyers) {
+        anyAffordableFlyer = true;
+        break;
+      }
+    }
+
+    if ((nextHasFlyer || antiAirCount < 2) && anyAffordableFlyer) {
+      if ((_towerTypeCounts.get('frost') ?? 0) === 0 && _affordableTypes.includes('frost')) return 'frost';
+      if (_affordableTypes.includes('tesla') && rng.chance(0.45)) return 'tesla';
+      if (_affordableTypes.includes('archer')) return 'archer';
+    }
+    if ((_towerTypeCounts.get('frost') ?? 0) < 2 && _affordableTypes.includes('frost')) return 'frost';
+    if ((_towerTypeCounts.get('cannon') ?? 0) < 2 && _affordableTypes.includes('cannon')) return 'cannon';
+    if ((_towerTypeCounts.get('mortar') ?? 0) < 2 && _affordableTypes.includes('mortar')) return 'mortar';
+    if ((_towerTypeCounts.get('tesla') ?? 0) < 2 && _affordableTypes.includes('tesla')) return 'tesla';
+    return rng.pick(_affordableTypes);
   }
 
   if (profile !== 'competent') {
-    return rng.pick(affordable);
+    return rng.pick(_affordableTypes);
   }
 
   // Competent profile prefers anti-air early if aerial coverage is sparse
-  const antiAirCount = world.towers.filter((t) => TOWER_DEFS[t.type].hitsFlyers).length;
-  const nextHasFlyer =
-    world.waveSystem.getNextWavePreview()?.items.some((it) => it.enemyType === 'flyer') ?? false;
-  if ((nextHasFlyer || antiAirCount < 2) && rng.chance(0.7)) {
-    const aaAffordable = affordable.filter((t) => TOWER_DEFS[t].hitsFlyers);
-    if (aaAffordable.length > 0) return rng.pick(aaAffordable);
+  let antiAirCount = 0;
+  for (let i = 0; i < world.towers.length; i++) {
+    if (TOWER_DEFS[world.towers[i].type].hitsFlyers) antiAirCount++;
   }
-  return rng.pick(affordable);
+  let nextHasFlyer = false;
+  const preview = world.waveSystem.getNextWavePreview();
+  if (preview) {
+    for (let i = 0; i < preview.items.length; i++) {
+      if (preview.items[i].enemyType === 'flyer') {
+        nextHasFlyer = true;
+        break;
+      }
+    }
+  }
+  if ((nextHasFlyer || antiAirCount < 2) && rng.chance(0.7)) {
+    _aaAffordableTypes.length = 0;
+    for (let i = 0; i < _affordableTypes.length; i++) {
+      const t = _affordableTypes[i];
+      if (TOWER_DEFS[t].hitsFlyers) _aaAffordableTypes.push(t);
+    }
+    if (_aaAffordableTypes.length > 0) return rng.pick(_aaAffordableTypes);
+  }
+  return rng.pick(_affordableTypes);
 }
 
 function performLegalAction(
@@ -1513,12 +1591,30 @@ function performLegalAction(
     const countSnap = world.towers.length;
     const spawn = world.level.pathWaypoints[0];
     const existingTower = world.towers[0];
-    const maxTierTower = world.towers.find((t) => t.tier >= 3);
-    const unaffordableUpgrade = world.towers.find(
-      (t) => t.tier < 3 && world.gold < getTowerTierStats(t.type, (t.tier + 1) as 2 | 3).upgradeCost,
-    );
+    let maxTierTower: TowerEntity | undefined;
+    let unaffordableUpgrade: TowerEntity | undefined;
+    for (let i = 0; i < world.towers.length; i++) {
+      const t = world.towers[i];
+      if (!maxTierTower && t.tier >= 3) maxTierTower = t;
+      if (
+        !unaffordableUpgrade &&
+        t.tier < 3 &&
+        world.gold < getTowerTierStats(t.type, (t.tier + 1) as 2 | 3).upgradeCost
+      ) {
+        unaffordableUpgrade = t;
+      }
+      if (maxTierTower && unaffordableUpgrade) break;
+    }
     const unaffordableTierBefore = unaffordableUpgrade?.tier;
-    const freeTile = world.gold < CHEAPEST_TOWER_COST ? tiles.find((t) => world.grid.canPlaceTower(t.col, t.row)) : undefined;
+    let freeTile: ScoredTile | undefined;
+    if (world.gold < CHEAPEST_TOWER_COST) {
+      for (let i = 0; i < tiles.length; i++) {
+        if (world.grid.canPlaceTower(tiles[i].col, tiles[i].row)) {
+          freeTile = tiles[i];
+          break;
+        }
+      }
+    }
     if (
       world.placeTower(-1, -1, 'archer') !== null ||
       (spawn && world.placeTower(spawn.col, spawn.row, 'archer') !== null) ||
@@ -1609,27 +1705,42 @@ function performLegalAction(
         tx = target.x;
         tz = target.z;
       } else {
-        const samplePos = { x: 0, y: 0, z: 0 };
-        world.groundPath.sample(rng.range(0, world.groundPath.totalLength), samplePos);
-        tx = samplePos.x;
-        tz = samplePos.z;
+        world.groundPath.sample(rng.range(0, world.groundPath.totalLength), _pathCheckVec);
+        tx = _pathCheckVec.x;
+        tz = _pathCheckVec.z;
       }
       if (!world.castMeteor(tx, tz)) {
         return 'castMeteor returned false while canCast("meteor") was true during combat';
       }
     }
-    const anyStunned = world.towers.some((t) => t.stunTimer > 0);
     if (!world.abilitySystem.canCast('overcharge')) {
       const overCd = world.abilitySystem.getCooldown('overcharge');
       if (world.castOvercharge() || world.abilitySystem.getCooldown('overcharge') !== overCd) {
         return 'castOvercharge succeeded or mutated cooldown while on cooldown';
       }
-    } else if (profile === 'tactical' ? anyStunned || world.enemyPool.getActiveCount() >= 6 : rng.chance(0.35)) {
-      if (!world.castOvercharge()) {
-        return 'castOvercharge returned false while canCast("overcharge") was true during combat';
+    } else {
+      let shouldCastOvercharge: boolean;
+      if (profile === 'tactical') {
+        let anyStunned = false;
+        for (let i = 0; i < world.towers.length; i++) {
+          if (world.towers[i].stunTimer > 0) {
+            anyStunned = true;
+            break;
+          }
+        }
+        shouldCastOvercharge = anyStunned || world.enemyPool.getActiveCount() >= 6;
+      } else {
+        shouldCastOvercharge = rng.chance(0.35);
       }
-      if (world.towers.some((t) => t.stunTimer > 0)) {
-        return 'castOvercharge left a tower stunned';
+      if (shouldCastOvercharge) {
+        if (!world.castOvercharge()) {
+          return 'castOvercharge returned false while canCast("overcharge") was true during combat';
+        }
+        for (let i = 0; i < world.towers.length; i++) {
+          if (world.towers[i].stunTimer > 0) {
+            return 'castOvercharge left a tower stunned';
+          }
+        }
       }
     }
   }
@@ -1671,13 +1782,17 @@ function performLegalAction(
   }
 
   if (roll < upgradeCutoff && world.towers.length > 0) {
-    const upgradable = world.towers.filter((t) => {
-      if (t.tier >= 3) return false;
+    _upgradableTowers.length = 0;
+    for (let i = 0; i < world.towers.length; i++) {
+      const t = world.towers[i];
+      if (t.tier >= 3) continue;
       const nextTier = (t.tier + 1) as 2 | 3;
-      return world.gold >= getTowerTierStats(t.type, nextTier).upgradeCost;
-    });
-    if (upgradable.length > 0) {
-      const target = rng.pick(upgradable);
+      if (world.gold >= getTowerTierStats(t.type, nextTier).upgradeCost) {
+        _upgradableTowers.push(t);
+      }
+    }
+    if (_upgradableTowers.length > 0) {
+      const target = rng.pick(_upgradableTowers);
       const nextTier = (target.tier + 1) as 2 | 3;
       const cost = getTowerTierStats(target.type, nextTier).upgradeCost;
       const goldBefore = world.gold;
@@ -1793,6 +1908,7 @@ function createFuzzTracker(startingGold: number, endlessWavesConfig: number): Fu
     killedSplitterUids: new Set<number>(),
     pendingDeathUids: new Set<number>(),
     builtTowerIds: new Set<number>(),
+    towerById: new Map<number, TowerEntity>(),
     everBuiltTowerIds: new Set<number>(),
     maxEverTowerId: 0,
     builtTowerTypes: new Set<TowerType>(),
@@ -1869,7 +1985,13 @@ function verifyPostEndImmutability(
   const wonSnap = tracker.gameWonCount;
   const lostSnap = tracker.gameLostCount;
 
-  const freeTile = tiles.find((t) => world.grid.canPlaceTower(t.col, t.row));
+  let freeTile: ScoredTile | undefined;
+  for (let i = 0; i < tiles.length; i++) {
+    if (world.grid.canPlaceTower(tiles[i].col, tiles[i].row)) {
+      freeTile = tiles[i];
+      break;
+    }
+  }
   if (freeTile && world.placeTower(freeTile.col, freeTile.row, 'archer') !== null) {
     return `placeTower succeeded after outcome=${outcomeSnap}`;
   }
@@ -1911,9 +2033,87 @@ interface FuzzStepContext {
   readonly tiles: readonly ScoredTile[];
   readonly profile: FuzzProfile;
   readonly tracker: FuzzTracker;
+  readonly onTick: (fixedDt: number) => void;
+  readonly onPausedTick: () => void;
+  maxTicksLimit: number;
+  targetEndlessWaves: number;
   tickCount: number;
   nextActionTick: number;
   fatalReason: string | null;
+}
+
+function createFuzzStepContext(
+  world: SimWorld,
+  stepper: FixedTimestepStepper,
+  rng: SeededRng,
+  tiles: readonly ScoredTile[],
+  profile: FuzzProfile,
+  tracker: FuzzTracker,
+  nextActionTick: number,
+  maxTicksLimit: number,
+): FuzzStepContext {
+  const ctx: FuzzStepContext = {
+    world,
+    stepper,
+    rng,
+    tiles,
+    profile,
+    tracker,
+    maxTicksLimit,
+    targetEndlessWaves: -1,
+    tickCount: 0,
+    nextActionTick,
+    fatalReason: null,
+    onPausedTick: () => {
+      ctx.fatalReason = 'FixedTimestepStepper ticked while paused';
+    },
+    onTick: (fixedDt: number) => {
+      if (
+        ctx.fatalReason ||
+        ctx.world.outcome !== 'ongoing' ||
+        (ctx.targetEndlessWaves >= 0 && ctx.tracker.endlessWaveCompletedCount >= ctx.targetEndlessWaves) ||
+        ctx.tickCount >= ctx.maxTicksLimit
+      ) {
+        return;
+      }
+      ctx.tickCount++;
+      const prevWaveState = world.waveSystem.state;
+      const prevMeteorCd = world.abilitySystem.getCooldown('meteor');
+      const prevOverchargeCd = world.abilitySystem.getCooldown('overcharge');
+      try {
+        world.fixedTick(fixedDt);
+      } catch (err) {
+        ctx.fatalReason = `Uncaught error in fixedTick: ${err instanceof Error ? err.message : String(err)}`;
+        return;
+      }
+
+      if (prevWaveState === 'betweenWaves' && world.waveSystem.state === 'betweenWaves') {
+        if (
+          world.abilitySystem.getCooldown('meteor') !== prevMeteorCd ||
+          world.abilitySystem.getCooldown('overcharge') !== prevOverchargeCd
+        ) {
+          ctx.fatalReason = 'Ability cooldown changed during betweenWaves idle countdown';
+          return;
+        }
+      }
+
+      const invErr = assertTickInvariants(world, tracker, ctx.tickCount);
+      if (invErr) {
+        ctx.fatalReason = invErr;
+        return;
+      }
+
+      if (ctx.tickCount >= ctx.nextActionTick && world.outcome === 'ongoing') {
+        const actErr = performLegalAction(world, rng, tiles, profile, tracker);
+        if (actErr) {
+          ctx.fatalReason = actErr;
+          return;
+        }
+        ctx.nextActionTick = ctx.tickCount + rng.int(18, 65);
+      }
+    },
+  };
+  return ctx;
 }
 
 function buildCoverageStats(tracker: FuzzTracker): FuzzCoverageStats {
@@ -1934,20 +2134,14 @@ function buildCoverageStats(tracker: FuzzTracker): FuzzCoverageStats {
   };
 }
 
-function stepFuzzFrame(
-  ctx: FuzzStepContext,
-  maxTicksLimit: number,
-  stopPredicate: () => boolean,
-): void {
-  const { world, stepper, rng, tiles, profile, tracker } = ctx;
+function stepFuzzFrame(ctx: FuzzStepContext): void {
+  const { stepper, rng } = ctx;
   if (rng.chance(0.08)) {
     stepper.speed = rng.pick(SPEEDS);
   }
   if (rng.chance(0.02)) {
     stepper.paused = true;
-    const pausedStep = stepper.step(rng.pick(FRAME_DTS), () => {
-      ctx.fatalReason = 'FixedTimestepStepper ticked while paused';
-    });
+    const pausedStep = stepper.step(rng.pick(FRAME_DTS), ctx.onPausedTick);
     if (pausedStep.ticksExecuted !== 0) {
       ctx.fatalReason = `Expected 0 ticks while paused, got ${pausedStep.ticksExecuted}`;
     }
@@ -1956,44 +2150,7 @@ function stepFuzzFrame(
   }
 
   const frameDt = rng.pick(FRAME_DTS);
-  const stepRes = stepper.step(frameDt, (fixedDt) => {
-    if (ctx.fatalReason || stopPredicate() || ctx.tickCount >= maxTicksLimit) return;
-    ctx.tickCount++;
-    const prevWaveState = world.waveSystem.state;
-    const prevMeteorCd = world.abilitySystem.getCooldown('meteor');
-    const prevOverchargeCd = world.abilitySystem.getCooldown('overcharge');
-    try {
-      world.fixedTick(fixedDt);
-    } catch (err) {
-      ctx.fatalReason = `Uncaught error in fixedTick: ${err instanceof Error ? err.message : String(err)}`;
-      return;
-    }
-
-    if (prevWaveState === 'betweenWaves' && world.waveSystem.state === 'betweenWaves') {
-      if (
-        world.abilitySystem.getCooldown('meteor') !== prevMeteorCd ||
-        world.abilitySystem.getCooldown('overcharge') !== prevOverchargeCd
-      ) {
-        ctx.fatalReason = 'Ability cooldown changed during betweenWaves idle countdown';
-        return;
-      }
-    }
-
-    const invErr = assertTickInvariants(world, tracker, ctx.tickCount);
-    if (invErr) {
-      ctx.fatalReason = invErr;
-      return;
-    }
-
-    if (ctx.tickCount >= ctx.nextActionTick && world.outcome === 'ongoing') {
-      const actErr = performLegalAction(world, rng, tiles, profile, tracker);
-      if (actErr) {
-        ctx.fatalReason = actErr;
-        return;
-      }
-      ctx.nextActionTick = ctx.tickCount + rng.int(18, 65);
-    }
-  });
+  const stepRes = stepper.step(frameDt, ctx.onTick);
   if (
     !ctx.fatalReason &&
     (!Number.isFinite(stepRes.alpha) ||
@@ -2047,20 +2204,19 @@ export function runFuzzPlaythrough(
     world.startNextWave();
   }
 
-  const stepCtx: FuzzStepContext = {
+  const stepCtx = createFuzzStepContext(
     world,
     stepper,
     rng,
     tiles,
     profile,
     tracker,
-    tickCount: 0,
-    nextActionTick: rng.int(20, 75),
-    fatalReason: null,
-  };
+    rng.int(20, 75),
+    maxStoryTicks,
+  );
 
   while (world.outcome === 'ongoing' && stepCtx.tickCount < maxStoryTicks && !stepCtx.fatalReason) {
-    stepFuzzFrame(stepCtx, maxStoryTicks, () => world.outcome !== 'ongoing');
+    stepFuzzFrame(stepCtx);
   }
 
   if (stepCtx.fatalReason) {
@@ -2167,17 +2323,15 @@ export function runFuzzPlaythrough(
         );
       }
       const endlessTickCap = stepCtx.tickCount + maxEndlessTicks;
+      stepCtx.maxTicksLimit = endlessTickCap;
+      stepCtx.targetEndlessWaves = endlessWaves;
       while (
         getOutcome() === 'ongoing' &&
         tracker.endlessWaveCompletedCount < endlessWaves &&
         stepCtx.tickCount < endlessTickCap &&
         !stepCtx.fatalReason
       ) {
-        stepFuzzFrame(
-          stepCtx,
-          endlessTickCap,
-          () => getOutcome() !== 'ongoing' || tracker.endlessWaveCompletedCount >= endlessWaves,
-        );
+        stepFuzzFrame(stepCtx);
       }
       if (stepCtx.fatalReason) {
         return makeFailure(level, seed, profile, stepCtx.tickCount, world, tracker, storyOutcome, stepCtx.fatalReason);
@@ -2345,17 +2499,17 @@ export function runEndlessFuzz(
   world.startNextWave();
 
   const maxTicks = 60 * 1500;
-  const stepCtx: FuzzStepContext = {
+  const stepCtx = createFuzzStepContext(
     world,
     stepper,
     rng,
     tiles,
     profile,
     tracker,
-    tickCount: 0,
-    nextActionTick: rng.int(20, 60),
-    fatalReason: null,
-  };
+    rng.int(20, 60),
+    maxTicks,
+  );
+  stepCtx.targetEndlessWaves = wavesTarget;
 
   while (
     world.outcome === 'ongoing' &&
@@ -2363,11 +2517,7 @@ export function runEndlessFuzz(
     stepCtx.tickCount < maxTicks &&
     !stepCtx.fatalReason
   ) {
-    stepFuzzFrame(
-      stepCtx,
-      maxTicks,
-      () => world.outcome !== 'ongoing' || tracker.endlessWaveCompletedCount >= wavesTarget,
-    );
+    stepFuzzFrame(stepCtx);
   }
 
   if (stepCtx.fatalReason) {

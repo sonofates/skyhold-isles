@@ -216,5 +216,10 @@ describe('CameraController framing, pan/zoom/rotate, shake, and viewVersion', ()
     zeroCam.camera.lookAt(0, 5, 0);
     zeroCam.camera.updateMatrixWorld(true);
     expect(zeroCam.screenNdcToPlane(0, 0, 0)).toBeNull();
+
+    // zoomByDelta also survives a null screenNdcToPlane focal hit without NaN
+    expect(() => zeroCam.zoomByDelta(0.25, 0, 0)).not.toThrow();
+    zeroCam.update(1 / 60);
+    expect(Number.isFinite(zeroCam.camera.zoom)).toBe(true);
   });
 });

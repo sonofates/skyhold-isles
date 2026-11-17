@@ -704,4 +704,111 @@ describe('WaveSystem & SimWorld boundary edge cases', () => {
     expect(world.enemyPool.getActiveCount()).toBe(0);
     expect(started[started.length - 1]).toEqual({ waveIndex: 2, earlyBonus: 0 });
   });
+
+  it('aborts SimWorld.fixedTick cleanly on mid-tick win/loss transitions and handles debugForceWin/loss recovery', () => {
+    // 1. Mid-tick win inside waveSystem.update (empty final wave) skips ability/enemy/combat/projectile steps
+    const emptyWaveLevel: LevelDef = {
+      ...LEVELS[0],
+      id: 'qa-midtick-win-waveupdate',
+      waves: [{ clearBonus: 15, groups: [] }],
+    };
+    const w1Bus = new EventBus();
+    const w1Events: string[] = [];
+    w1Bus.on('meteorImpact', () => w1Events.push('meteorImpact'));
+    w1Bus.on('towerFired', () => w1Events.push('towerFired'));
+    w1Bus.on('gameWon', () => w1Events.push('gameWon'));
+
+    const w1 = new SimWorld(emptyWaveLevel, w1Bus);
+    w1.gold = 500;
+    const w1Tower = w1.placeTower(4, 2, 'archer')!;
+    w1Tower.cooldownTimer = 0;
+    w1.startNextWave();
+    expect(w1.castMeteor(0, 0)).toBe(true);
+    // Spawn an enemy outside wave queue so we confirm towerFired doesn't trigger after waveSystem.update wins
+    w1.enemySystem.spawnEnemy('grunt');
+    // Force pending meteor remaining to resolve on next tick, then clear active enemies so empty wave completes
+    w1.enemyPool.clear();
+    w1.spatialHash.clear();
+    w1.abilitySystem.update(0.31, true, w1.enemyPool, w1.spatialHash, w1.enemySystem);
+    w1.fixedTick(BALANCE.fixedDt);
+    expect(w1.outcome).toBe('won');
+    expect(w1Events).toEqual(['gameWon']);
+
+    // 2. Mid-tick loss inside enemySystem.update skips checkCompletion, combatSystem, and projectileSystem
+    const lossBus = new EventBus();
+    const lossEvents: string[] = [];
+    lossBus.on('gameLost', () => lossEvents.push('gameLost'));
+    lossBus.on('towerFired', () => lossEvents.push('towerFired'));
+    lossBus.on('projectileImpact', () => lossEvents.push('projectileImpact'));
+
+    const singleWaveLevel: LevelDef = {
+      ...LEVELS[0],
+      id: 'qa-midtick-loss',
+      waves: [{ clearBonus: 20, groups: [{ enemyType: 'grunt', count: 1, spawnInterval: 1, startDelay: 0 }] }],
+    };
+    const wLoss = new SimWorld(singleWaveLevel, lossBus);
+    wLoss.gold = 500;
+    wLoss.lives = 1;
+    wLoss.startNextWave();
+    const leaker = wLoss.enemySystem.spawnEnemy('grunt')!;
+    leaker.dist = leaker.totalDist - 0.001;
+    const targetBystander = wLoss.enemySystem.spawnEnemy('grunt')!;
+    targetBystander.dist = 3.0;
+    wLoss.spatialHash.clear();
+    wLoss.spatialHash.insert(targetBystander.poolIndex, targetBystander.x, targetBystander.z);
+    const readyTower = wLoss.placeTower(4, 2, 'archer')!;
+    readyTower.cooldownTimer = 0;
+    const inFlight = wLoss.projectileSystem.spawnProjectile(readyTower, targetBystander, 1)!;
+    inFlight.progress = 0.99;
+
+    wLoss.fixedTick(BALANCE.fixedDt);
+    expect(wLoss.outcome).toBe('lost');
+    expect(lossEvents).toEqual(['gameLost']);
+
+    // debugSkipToWave recovers cleanly from lost state (restoring lives & ongoing outcome)
+    expect(wLoss.debugSkipToWave(1)).toBe(true);
+    expect(wLoss.outcome).toBe('ongoing');
+    expect(wLoss.lives).toBe(BALANCE.startingLives);
+
+    // 3. Mid-tick win inside waveSystem.checkCompletion skips combatSystem & projectileSystem
+    const winCheckBus = new EventBus();
+    const winCheckEvents: string[] = [];
+    winCheckBus.on('gameWon', () => winCheckEvents.push('gameWon'));
+    winCheckBus.on('towerFired', () => winCheckEvents.push('towerFired'));
+    winCheckBus.on('projectileImpact', () => winCheckEvents.push('projectileImpact'));
+
+    const wWinCheck = new SimWorld(singleWaveLevel, winCheckBus);
+    wWinCheck.gold = 500;
+    wWinCheck.startNextWave();
+    // Advance past wave spawn so waveState enters 'allSpawned'
+    for (let i = 0; i < 10; i++) wWinCheck.fixedTick(BALANCE.fixedDt);
+    expect(wWinCheck.waveSystem.state).toBe('allSpawned');
+    const lastEnemy = wWinCheck.enemyPool.items[wWinCheck.enemyPool.getActiveIndex(0)];
+    lastEnemy.hp = 0;
+    const tWin = wWinCheck.placeTower(4, 2, 'archer')!;
+    tWin.cooldownTimer = 0;
+    const strayProj = wWinCheck.projectileSystem.spawnProjectile(tWin, lastEnemy, 1)!;
+    strayProj.progress = 0.99;
+    wWinCheck.fixedTick(BALANCE.fixedDt);
+    expect(wWinCheck.outcome).toBe('won');
+    expect(winCheckEvents).toEqual(['gameWon']);
+
+    // 4. debugForceWin clamps lives <= 0 to 1 (1 star) and early enterEndlessMode jumps to level.waves.length + 1
+    const clampBus = new EventBus();
+    let forcedStars = 0;
+    let forcedLives = 0;
+    clampBus.on('gameWon', (ev) => {
+      forcedStars = ev.stars;
+      forcedLives = ev.livesRemaining;
+    });
+    const wClamp = new SimWorld(LEVELS[0], clampBus);
+    wClamp.lives = 0;
+    wClamp.debugForceWin();
+    expect(forcedStars).toBe(1);
+    expect(forcedLives).toBe(1);
+    expect(wClamp.lives).toBe(1);
+    expect(wClamp.enterEndlessMode()).toBe(true);
+    expect(wClamp.waveSystem.currentWaveOneBased).toBe(LEVELS[0].waves.length);
+    expect(wClamp.waveSystem.getNextWavePreview()?.waveOneBased).toBe(LEVELS[0].waves.length + 1);
+  });
 });

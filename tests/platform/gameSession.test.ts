@@ -788,6 +788,47 @@ describe('GameSession state machine, input, and lifecycle', () => {
     expect(h.session.simWorld).toBe(simRef);
     expect((h.renderWorld.loadLevel as ReturnType<typeof vi.fn>).mock.calls.length).toBe(loadCallsBeforeMenu);
 
+    // syncUi clears stale selectedTowerId if the tower was removed directly on simWorld
+    h.session.startLevel(0);
+    h.session.simWorld.gold = 500;
+    const staleTower = h.session.simWorld.placeTower(4, 2, 'archer')!;
+    h.session.selectTower(staleTower.id);
+    h.session.simWorld.sellTower(staleTower.id);
+    h.session.syncUi();
+    expect(h.renderWorld.overlayIndicators.setSelectedTowerRing).toHaveBeenLastCalledWith(null);
+    expect(h.overlays.syncInPlay).toHaveBeenLastCalledWith(
+      expect.any(Object),
+      expect.any(Object),
+      null,
+      null,
+      false,
+    );
+
+    // First valid primary-tap build triggers one-time upgrade toast; second does not; setSpeed clears userPaused
+    const toastShowSpy = h.overlays.toast.show as ReturnType<typeof vi.fn>;
+    const toastsBefore = toastShowSpy.mock.calls.length;
+    h.session.toggleUserPause();
+    expect(h.loop.paused).toBe(true);
+    h.session.setSpeed(3);
+    expect(h.loop.paused).toBe(false);
+    expect(h.loop.speed).toBe(3);
+
+    h.session.setPlacementMode('archer');
+    const buildX1 = h.session.simWorld.grid.gridToWorldX(4);
+    const buildZ1 = h.session.simWorld.grid.gridToWorldZ(2);
+    const buildX2 = h.session.simWorld.grid.gridToWorldX(5);
+    const buildZ2 = h.session.simWorld.grid.gridToWorldZ(2);
+    const planeSpy = vi
+      .spyOn(h.cam, 'screenNdcToPlane')
+      .mockReturnValueOnce(new THREE.Vector3(buildX1, 0, buildZ1))
+      .mockReturnValueOnce(new THREE.Vector3(buildX2, 0, buildZ2));
+    vi.spyOn(h.renderWorld, 'pickTowerAtNdc').mockReturnValue(null);
+    h.session.onPrimaryTap(0, 0, true);
+    h.session.onPrimaryTap(0, 0, false);
+    planeSpy.mockRestore();
+    expect(toastShowSpy.mock.calls.length).toBe(toastsBefore + 1);
+    expect(toastShowSpy).toHaveBeenLastCalledWith('Click a tower to upgrade or sell it');
+
     // Double dispose is idempotent
     h.session.dispose();
     h.session.dispose();

@@ -175,6 +175,16 @@ describe('RenderWorld subsystems headless verification', () => {
 
     mats.dispose();
     colormap.dispose();
+
+    // MaterialLibrary and TowerBadgeRenderer survive null 2D canvas context gracefully
+    vi.stubGlobal('document', {
+      createElement: () => ({ width: 64, height: 64, getContext: () => null }),
+    });
+    const nullCtxMats = new MaterialLibrary();
+    const nullCtxBadges = new TowerBadgeRenderer();
+    nullCtxBadges.sync([makeTower(1, 'archer', 1, 0, 0)], 100, new THREE.Quaternion(), 0.5, 1);
+    nullCtxBadges.dispose();
+    nullCtxMats.dispose();
   });
 
   it('EffectsRenderer spawns, caps pools, animates, expires, and clears every FX type', () => {
