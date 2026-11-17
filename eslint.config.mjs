@@ -19,7 +19,11 @@ export default tseslint.config(
               message: 'src/sim, src/data, and src/core must never import three.',
             },
             {
-              group: ['**/render/*', '**/ui/*', '**/platform/*', '**/audio/*'],
+              group: ['pixi.js', 'pixi.js/*'],
+              message: 'src/sim, src/data, and src/core must never import pixi.js.',
+            },
+            {
+              group: ['**/render/*', '**/render2d/*', '**/render2d/**', '**/ui/*', '**/platform/*', '**/audio/*'],
               message: 'src/sim, src/data, and src/core must remain pure and isolated from browser layers.',
             },
           ],

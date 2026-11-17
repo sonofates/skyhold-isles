@@ -1,0 +1,12 @@
+{
+  "image": "placeholder-walk-down.png",
+  "frameW": 128,
+  "frameH": 128,
+  "count": 6,
+  "cols": 6,
+  "fps": 10,
+  "anchor": [
+    0.5,
+    0.97
+  ]
+}

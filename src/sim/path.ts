@@ -1,5 +1,6 @@
 import type { GridCoord, Vec3 } from '../core/types.ts';
 import { BALANCE } from '../data/balance.ts';
+import type { WorldPoint } from '../data/levels/index.ts';
 import { gridToWorldX, gridToWorldZ } from './grid.ts';
 
 interface PathPoint {
@@ -13,20 +14,30 @@ export class CompiledPath {
   readonly points: PathPoint[];
   readonly totalLength: number;
 
+  /** Polyline already in world units (2D plot maps); `cols`/`rows` are ignored. */
+  static fromWorld(points: readonly WorldPoint[], yLevel: number, bevelCorners: boolean): CompiledPath {
+    return new CompiledPath({ world: points }, 0, 0, yLevel, bevelCorners);
+  }
+
   constructor(
-    waypoints: readonly GridCoord[],
+    waypoints: readonly GridCoord[] | { readonly world: readonly WorldPoint[] },
     cols: number,
     rows: number,
     yLevel: number,
     bevelCorners: boolean,
   ) {
     const raw: Array<{ x: number; y: number; z: number }> = [];
-    for (let i = 0; i < waypoints.length; i++) {
-      raw.push({
-        x: gridToWorldX(waypoints[i].col, cols),
-        y: yLevel,
-        z: gridToWorldZ(waypoints[i].row, rows),
-      });
+    if ('world' in waypoints) {
+      const pts = waypoints.world;
+      for (let i = 0; i < pts.length; i++) raw.push({ x: pts[i].x, y: yLevel, z: pts[i].z });
+    } else {
+      for (let i = 0; i < waypoints.length; i++) {
+        raw.push({
+          x: gridToWorldX(waypoints[i].col, cols),
+          y: yLevel,
+          z: gridToWorldZ(waypoints[i].row, rows),
+        });
+      }
     }
 
     const smoothed: Array<{ x: number; y: number; z: number }> = [];

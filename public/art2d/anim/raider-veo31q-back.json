@@ -1,0 +1,17 @@
+{
+ "frameW": 251,
+ "frameH": 256,
+ "count": 14,
+ "cols": 8,
+ "fps": 12.0,
+ "anchor": [
+  125,
+  251
+ ],
+ "source": "veo31q-back.mp4",
+ "loop": [
+  17,
+  45
+ ],
+ "loopScore": 3.76
+}

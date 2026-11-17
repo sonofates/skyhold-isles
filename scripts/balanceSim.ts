@@ -3,6 +3,7 @@ import type { EnemyType } from '../src/core/types.ts';
 import { BALANCE } from '../src/data/balance.ts';
 import { ENEMY_DEFS } from '../src/data/enemies.ts';
 import { LEVELS, type LevelDef, type ScriptedBuildAction } from '../src/data/levels/index.ts';
+import { LEVELS_2D } from '../src/data/levels2d/index.ts';
 import { NEUTRAL_RUN_MODIFIERS, type RunModifiers } from '../src/data/runModifiers.ts';
 import { getTowerTierStats } from '../src/data/towers.ts';
 import { maxedWorkshopRanks, workshopModifiers } from '../src/data/workshop.ts';
@@ -56,6 +57,7 @@ function tryExecuteAction(
 ): { executed: boolean; invalid: boolean; cost: number; isBuild: boolean; changedTargeting: boolean } {
   if (act.action === 'build') {
     if (!act.towerType) return { executed: false, invalid: true, cost: 0, isBuild: false, changedTargeting: false };
+    // Plot levels address plots as (col = plot index, row = 0); see MapGrid.
     if (!world.grid.canPlaceTower(act.col, act.row)) {
       return { executed: false, invalid: true, cost: 0, isBuild: false, changedTargeting: false };
     }
@@ -118,6 +120,13 @@ function spendEndlessGold(world: SimWorld): void {
     const type = world.towers.length % 2 === 0 ? 'archer' : 'cannon';
     if (world.gold < getTowerTierStats(type, 1).upgradeCost) return;
     let placed = false;
+    if (world.grid.isPlotMode) {
+      for (let p = 0; p < world.grid.plotCount && !placed; p++) {
+        if (world.placeTowerOnPlot(p, type)) placed = true;
+      }
+      if (!placed) return;
+      continue;
+    }
     for (let r = 0; r < world.level.rows && !placed; r++) {
       for (let c = 0; c < world.level.cols && !placed; c++) {
         if (!world.grid.canPlaceTower(c, r)) continue;
@@ -310,10 +319,29 @@ export function runLevelBalanceSim(
   };
 }
 
-function printResult(lvlIdx: number, res: SimRunResult, difficulty: string): void {
+/** Campaign islands are labelled L1..L16; 2D side islands by id (e.g. l1c). */
+export interface BalanceEntry {
+  readonly label: string;
+  readonly level: LevelDef;
+}
+
+export function balanceEntries(): BalanceEntry[] {
+  return [
+    ...LEVELS.map((level, i) => ({ label: `L${i + 1}`, level })),
+    ...LEVELS_2D.map((level) => ({ label: level.id, level })),
+  ];
+}
+
+/** `--levels=3,6,l1c`: numbers pick campaign islands (1-based), other tokens match 2D ids. */
+function entryMatches(filter: ReadonlySet<string> | null, e: BalanceEntry): boolean {
+  if (!filter) return true;
+  return filter.has(e.label) || filter.has(e.label.toLowerCase());
+}
+
+function printResult(label: string, res: SimRunResult, difficulty: string): void {
   const tag = res.scriptKind === 'greedy' ? 'GREEDY' : 'WEAK  ';
   console.log(
-    `[L${lvlIdx + 1} ${tag}] ${res.name} (${difficulty}) -> ${res.outcome.toUpperCase()} | ` +
+    `[${label} ${tag}] ${res.name} (${difficulty}) -> ${res.outcome.toUpperCase()} | ` +
       `Lives: ${res.finalLives}/${BALANCE.startingLives} | Stars: ${res.stars}/3 | ` +
       `Towers: ${res.towersBuilt}/${res.plannedTowers} (tgtSwaps: ${res.targetingChanges})`,
   );
@@ -342,7 +370,7 @@ function printResult(lvlIdx: number, res: SimRunResult, difficulty: string): voi
 
 /** Runs every (filtered) level's greedy + weak script and applies the balance windows/asserts. */
 export function evaluateBalance(
-  levelFilter: ReadonlySet<number> | null,
+  levelFilter: ReadonlySet<string> | null,
   verbose: boolean,
 ): { summary: string[]; failures: string[]; robustLines: string[] } {
   /** Greedy (competent build script) lives-left window per difficulty label. */
@@ -380,14 +408,14 @@ export function evaluateBalance(
   const summary: string[] = [];
   const robustLines: string[] = [];
 
-  for (let i = 0; i < LEVELS.length; i++) {
-    if (levelFilter && !levelFilter.has(i)) continue;
-    const level = LEVELS[i];
+  for (const entry of balanceEntries()) {
+    if (!entryMatches(levelFilter, entry)) continue;
+    const { level, label } = entry;
     const greedyRes = runLevelBalanceSim(level, 'greedy', level.scriptedBuildOrder ?? []);
-    if (verbose) printResult(i, greedyRes, level.difficulty);
+    if (verbose) printResult(label, greedyRes, level.difficulty);
 
     const weakRes = runLevelBalanceSim(level, 'weak', level.weakBuildOrder ?? []);
-    if (verbose) printResult(i, weakRes, level.difficulty);
+    if (verbose) printResult(label, weakRes, level.difficulty);
     if (verbose) console.log('');
 
     if (process.argv.includes('--peaks')) {
@@ -408,7 +436,7 @@ export function evaluateBalance(
         const ok = r.outcome === 'won' && r.finalLives >= lo && r.finalLives <= hi;
         cells.push(`x${k.toFixed(3)}:${r.outcome === 'won' ? r.finalLives : 'LOST'}${ok ? '' : '!'}`);
       }
-      robustLines.push(`L${i + 1} ${level.difficulty.padEnd(11)} ${cells.join('  ')}   (window ${lo}-${hi}, ! = outside)`);
+      robustLines.push(`${label} ${level.difficulty.padEnd(11)} ${cells.join('  ')}   (window ${lo}-${hi}, ! = outside)`);
     }
 
     const gT = livesLostTotals(greedyRes);
@@ -418,73 +446,73 @@ export function evaluateBalance(
         .map(([k, v]) => `${k}:${v}`)
         .join(' ') || '-';
     summary.push(
-      `L${i + 1} ${level.difficulty.padEnd(11)} greedy ${greedyRes.outcome === 'won' ? 'W' : greedyRes.outcome === 'lost' ? 'L' : '?'} ` +
+      `${label} ${level.difficulty.padEnd(11)} greedy ${greedyRes.outcome === 'won' ? 'W' : greedyRes.outcome === 'lost' ? 'L' : '?'} ` +
         `${String(greedyRes.finalLives).padStart(2)}L ${greedyRes.stars}* leaks[${fmt(gT)}] | ` +
         `weak ${weakRes.outcome === 'won' ? 'W' : weakRes.outcome === 'lost' ? 'L' : '?'} ` +
         `${String(weakRes.finalLives).padStart(2)}L ${weakRes.stars}* (reached wave ${weakRes.waves.length}/${level.waves.length}) leaks[${fmt(wT)}]`,
     );
 
     if (greedyRes.outcome !== 'won') {
-      failures.push(`L${i + 1} greedy did not win`);
+      failures.push(`${label} greedy did not win`);
     }
     const [gMin, gMax] = GREEDY_LIVES[level.difficulty];
     if (greedyRes.finalLives < gMin || greedyRes.finalLives > gMax) {
-      failures.push(`L${i + 1} greedy lives ${greedyRes.finalLives} outside ${level.difficulty} window ${gMin}-${gMax}`);
+      failures.push(`${label} greedy lives ${greedyRes.finalLives} outside ${level.difficulty} window ${gMin}-${gMax}`);
     }
     if (gT.total >= 4 && gT.flyers / gT.total > MAX_FLYER_SHARE_GREEDY) {
-      failures.push(`L${i + 1} greedy flyer leaks dominate (${gT.flyers}/${gT.total} lives)`);
+      failures.push(`${label} greedy flyer leaks dominate (${gT.flyers}/${gT.total} lives)`);
     }
     if (weakRes.outcome === 'lost' && wT.total >= 4 && wT.flyers / wT.total > MAX_FLYER_SHARE_WEAK_LOSS) {
-      failures.push(`L${i + 1} weak loss dominated by flyers (${wT.flyers}/${wT.total} lives)`);
+      failures.push(`${label} weak loss dominated by flyers (${wT.flyers}/${wT.total} lives)`);
     }
     if (greedyRes.lastWaveHoardPct >= 15) {
-      failures.push(`L${i + 1} greedy hoards ${greedyRes.lastWaveHoardPct.toFixed(1)}% of earned gold at final wave start (>= 15%)`);
+      failures.push(`${label} greedy hoards ${greedyRes.lastWaveHoardPct.toFixed(1)}% of earned gold at final wave start (>= 15%)`);
     }
     if (greedyRes.invalidActions > 0) {
-      failures.push(`L${i + 1} greedy has ${greedyRes.invalidActions} invalid actions`);
+      failures.push(`${label} greedy has ${greedyRes.invalidActions} invalid actions`);
     }
     if (weakRes.invalidActions > 0) {
-      failures.push(`L${i + 1} weak has ${weakRes.invalidActions} invalid actions`);
+      failures.push(`${label} weak has ${weakRes.invalidActions} invalid actions`);
     }
     if (weakRes.targetingChanges > 0) {
-      failures.push(`L${i + 1} weak used ${weakRes.targetingChanges} targeting mode changes (expected 0)`);
+      failures.push(`${label} weak used ${weakRes.targetingChanges} targeting mode changes (expected 0)`);
     }
 
     const weakPlanRatio =
       greedyRes.plannedTowers > 0 ? weakRes.plannedTowers / greedyRes.plannedTowers : 1;
     if (weakPlanRatio > 0.74 || weakPlanRatio < 0.64) {
       failures.push(
-        `L${i + 1} weak planned towers (${weakRes.plannedTowers}/${greedyRes.plannedTowers} = ${(weakPlanRatio * 100).toFixed(0)}%) should be ~70%`,
+        `${label} weak planned towers (${weakRes.plannedTowers}/${greedyRes.plannedTowers} = ${(weakPlanRatio * 100).toFixed(0)}%) should be ~70%`,
       );
     }
 
     if (level.difficulty === 'Breezy' && greedyRes.stars !== 3) {
-      failures.push(`L${i + 1} greedy got ${greedyRes.stars} stars (expected 3)`);
+      failures.push(`${label} greedy got ${greedyRes.stars} stars (expected 3)`);
     }
     if (level.difficulty === 'Challenging' && greedyRes.stars !== 2) {
-      failures.push(`L${i + 1} greedy got ${greedyRes.stars} stars (expected 2)`);
+      failures.push(`${label} greedy got ${greedyRes.stars} stars (expected 2)`);
     }
     if ((level.difficulty === 'Heroic' || level.difficulty === 'Master') && (greedyRes.stars < 1 || greedyRes.stars > 2)) {
-      failures.push(`L${i + 1} greedy got ${greedyRes.stars} stars (expected 1-2)`);
+      failures.push(`${label} greedy got ${greedyRes.stars} stars (expected 1-2)`);
     }
 
     if (level.difficulty === 'Breezy') {
       if (weakRes.outcome !== 'won') {
-        failures.push(`L${i + 1} weak must still be winnable`);
+        failures.push(`${label} weak must still be winnable`);
       } else if (weakRes.stars === 3) {
-        failures.push(`L${i + 1} weak won with 3 stars (${weakRes.finalLives} lives); expected 1-2 stars`);
+        failures.push(`${label} weak won with 3 stars (${weakRes.finalLives} lives); expected 1-2 stars`);
       }
     }
     if (level.difficulty === 'Challenging') {
       if (weakRes.outcome === 'won' && weakRes.finalLives > 8) {
-        failures.push(`L${i + 1} weak too comfortable (${weakRes.finalLives} lives left; expected borderline <= 8)`);
+        failures.push(`${label} weak too comfortable (${weakRes.finalLives} lives left; expected borderline <= 8)`);
       }
       if (weakRes.outcome === 'lost' && weakRes.waves.length < Math.ceil(level.waves.length * 0.75)) {
-        failures.push(`L${i + 1} weak lost too early on wave ${weakRes.waves.length}/${level.waves.length}`);
+        failures.push(`${label} weak lost too early on wave ${weakRes.waves.length}/${level.waves.length}`);
       }
     }
     if ((level.difficulty === 'Heroic' || level.difficulty === 'Master') && weakRes.outcome !== 'lost') {
-      failures.push(`L${i + 1} weak must lose (got ${weakRes.outcome} with ${weakRes.finalLives} lives)`);
+      failures.push(`${label} weak must lose (got ${weakRes.outcome} with ${weakRes.finalLives} lives)`);
     }
   }
 
@@ -497,14 +525,14 @@ export function evaluateBalance(
  * must stay inside the pool.
  */
 export function evaluateEndlessSanity(
-  levelFilter: ReadonlySet<number> | null,
+  levelFilter: ReadonlySet<string> | null,
 ): { lines: string[]; failures: string[] } {
   const CAP = 40;
   const sample = [0, 6, LEVELS.length - 1];
   const lines: string[] = [];
   const failures: string[] = [];
   for (const i of sample) {
-    if (levelFilter && !levelFilter.has(i)) continue;
+    if (levelFilter && !levelFilter.has(`L${i + 1}`)) continue;
     const level = LEVELS[i];
     const r = runLevelBalanceSim(level, 'greedy', level.scriptedBuildOrder ?? [], NEUTRAL_RUN_MODIFIERS, CAP);
     const reached = r.endlessReachedWave ?? 0;
@@ -529,11 +557,11 @@ export function evaluateEndlessSanity(
  * with a maxed Workshop. Tower-ban challenges make the fixed script skip its banned builds, so they
  * usually lose here — a player re-plans; rule challenges should sit near the edge.
  */
-export function evaluateChallenges(levelFilter: ReadonlySet<number> | null): string[] {
+export function evaluateChallenges(levelFilter: ReadonlySet<string> | null): string[] {
   const maxed = workshopModifiers(maxedWorkshopRanks());
   const lines: string[] = [];
   for (let i = 0; i < LEVELS.length; i++) {
-    if (levelFilter && !levelFilter.has(i)) continue;
+    if (levelFilter && !levelFilter.has(`L${i + 1}`)) continue;
     const level = LEVELS[i];
     const cells: string[] = [];
     for (const id of challengesForLevel(level)) {
@@ -555,14 +583,13 @@ export function evaluateChallenges(levelFilter: ReadonlySet<number> | null): str
  * still lose lives on every Master island (and on average gain only a few lives anywhere).
  */
 export function evaluateWorkshopMax(
-  levelFilter: ReadonlySet<number> | null,
+  levelFilter: ReadonlySet<string> | null,
 ): { lines: string[]; failures: string[] } {
   const mods = workshopModifiers(maxedWorkshopRanks());
   const lines: string[] = [];
   const failures: string[] = [];
-  for (let i = 0; i < LEVELS.length; i++) {
-    if (levelFilter && !levelFilter.has(i)) continue;
-    const level = LEVELS[i];
+  for (const { label, level } of balanceEntries()) {
+    if (!entryMatches(levelFilter, { label, level })) continue;
     const base = runLevelBalanceSim(level, 'greedy', level.scriptedBuildOrder ?? []);
     const maxed = runLevelBalanceSim(level, 'greedy', level.scriptedBuildOrder ?? [], mods);
     const baseLost = base.outcome === 'won' ? BALANCE.startingLives - base.finalLives : BALANCE.startingLives;
@@ -572,11 +599,11 @@ export function evaluateWorkshopMax(
     // into a worse run (more lives lost) — that is noise, not the upgrade hurting real players.
     const note = maxedLost > baseLost ? '  (script timing noise: worse than base)' : '';
     lines.push(
-      `L${i + 1} ${level.difficulty.padEnd(11)} lives lost: base ${String(baseLost).padStart(2)} -> maxed ${String(maxedLost).padStart(2)} ` +
+      `${label} ${level.difficulty.padEnd(11)} lives lost: base ${String(baseLost).padStart(2)} -> maxed ${String(maxedLost).padStart(2)} ` +
         `(${maxed.outcome === 'won' ? 'W' : 'L'}, ${maxed.stars}*)${note}`,
     );
     if (level.difficulty === 'Master' && maxed.outcome === 'won' && maxedLost === 0) {
-      failures.push(`L${i + 1} Workshop-maxed greedy loses no lives on a Master island (trivialised)`);
+      failures.push(`${label} Workshop-maxed greedy loses no lives on a Master island (trivialised)`);
     }
   }
   return { lines, failures };
@@ -589,7 +616,14 @@ function main(): void {
   // CLI alternative: `npm run sim:balance -- --levels=3,6`.
   const levelsArg = process.argv.find((a) => a.startsWith('--levels='))?.slice('--levels='.length);
   const levelsSpec = levelsArg ?? process.env.LEVELS;
-  const levelFilter = levelsSpec ? new Set(levelsSpec.split(',').map((x) => Number(x.trim()) - 1)) : null;
+  const levelFilter = levelsSpec
+    ? new Set(
+        levelsSpec.split(',').map((x) => {
+          const t = x.trim();
+          return /^\d+$/.test(t) ? `L${Number(t)}` : t;
+        }),
+      )
+    : null;
   const { summary, failures, robustLines } = evaluateBalance(levelFilter, true);
   const workshop = evaluateWorkshopMax(levelFilter);
   failures.push(...workshop.failures);
