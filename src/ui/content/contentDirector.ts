@@ -70,8 +70,12 @@ export class ContentDirector {
       if (e.endless || !waveHasElite(level, e.waveIndex)) return;
       if (this.queue.offerElite()) this.flush();
     });
-    bus.on('abilityTargeted', () => this.machine.onAbilityCast());
-    bus.on('overchargeActivated', () => this.machine.onAbilityCast());
+    const onCast = (): void => {
+      this.machine.onAbilityCast();
+      if (this.machine.step === 'done' && this.store.getOnboardingStatus() === 'pending') this.finishTour('done');
+    };
+    bus.on('abilityTargeted', onCast);
+    bus.on('overchargeActivated', onCast);
   }
 
   /** A tower type became available (e.g. unlocked by progression): show its card once. */
