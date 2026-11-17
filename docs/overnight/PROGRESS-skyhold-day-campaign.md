@@ -36,10 +36,25 @@ Machine load from the other agents can make desktop shots slow (timeout raised t
       calls out a newly reached medal. Victory card says "Island mastered!" when a win completes it.
 - [x] Modals focus their main action (keyboard).
 
+## Round 2 (day, 2026-11-17)
+- [x] CONTENT's L14-16 checked against this branch (level files copied into a throwaway local
+      branch, deleted afterwards — `git merge`/worktree are not permitted here). With them:
+      `npm run sim:balance` PASSED for 16 levels; Workshop max lives lost on Master L14/15/16 =
+      7/11/9 (base 13/12/11) → the "must still lose lives" check holds. Endless sanity L16 lost at
+      endless wave 3.
+- [x] Hand-picked challenge pairs for L14-16 (keyed by id, inert until the merge). Per-challenge
+      greedy sweep on the merged levels (`.tune/chal.ts`, W-n = won losing n, L@w = lost at wave w;
+      `0` = no Workshop, `M` = maxed):
+      | Island | picked | sweep (0 / M) |
+      |---|---|---|
+      | L14 Amberstone Mesa | Bowless, Gale Force | W-13/W-7, L@3/W-21 |
+      | L15 Moonwell Crossing | Silent Skies, Glass Sanctuary | W-12/W-11, L@22/L@22 |
+      | L16 Emberglass Sanctum | Thaw, Iron Tide | L@22/L@22, L@10/L@24 |
+      Rule challenges on these Master islands are at/over the edge for the fixed script (it does not
+      re-plan); one "doable" + one "hard" each, like L9-13. Glass Sanctuary on L15 and both of L16's
+      die on the final wave only → hard but fair for a player. Revisit if playtests disagree.
+
 ## Next ideas (not started) — for a later round
-- When CONTENT pushes L14+: add hand-picked pairs to ISLAND_CHALLENGES, run
-  `npm run sim:balance` (Workshop-max must still lose lives on new Master islands) and re-check
-  merge overlap like the mobile notes below.
 - HUD chip for active challenge / live star rating (MOBILE's HUD area — coordinate via the lead).
 - Show challenge/daily star total next to the campaign star pill on the main menu.
 - Kill-gold modifiers for carrier raiders / escorts / mites (hard-coded rewards in enemySystem).

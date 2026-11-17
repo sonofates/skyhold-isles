@@ -108,7 +108,15 @@ const ISLAND_CHALLENGES: Readonly<Record<string, readonly ChallengeId[]>> = {
   'galewatch-spires': ['bowless', 'silentSkies'],
   'lanternfall-hollow': ['thaw', 'ironTide'],
   'stormcrown-citadel': ['quietGuns', 'thinPurse'],
+  // Islands 14-16 live on the CONTENT branch (by id, so these apply once it is merged). Picked
+  // from a per-challenge greedy sweep on the merged levels (see PROGRESS-skyhold-day-campaign).
+  'amberstone-mesa': ['bowless', 'galeForce'],
+  'moonwell-crossing': ['silentSkies', 'glassSanctuary'],
+  'emberglass-sanctum': ['thaw', 'ironTide'],
 };
+
+/** Level ids with a hand-picked pair (tests check they are real or known-pending islands). */
+export const HAND_PICKED_CHALLENGE_ISLANDS: readonly string[] = Object.keys(ISLAND_CHALLENGES);
 
 /** Fallback for islands without a hand-picked pair (e.g. islands added later), by difficulty. */
 const DEFAULT_BY_DIFFICULTY: Readonly<Record<LevelDef['difficulty'], readonly ChallengeId[]>> = {

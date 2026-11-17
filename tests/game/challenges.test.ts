@@ -3,6 +3,7 @@ import { EventBus } from '../../src/core/eventBus.ts';
 import {
   CHALLENGE_IDS,
   CHALLENGES,
+  HAND_PICKED_CHALLENGE_ISLANDS,
   challengeModifiers,
   challengesForLevel,
   isChallengeId,
@@ -23,6 +24,16 @@ describe('challenge data', () => {
       expect(offered, level.id).toHaveLength(2);
       expect(new Set(offered).size).toBe(2);
       for (const id of offered) expect(isChallengeId(id)).toBe(true);
+    }
+  });
+
+  it('every island has a hand-picked pair; extra ids are only the known CONTENT islands', () => {
+    const known = new Set(LEVELS.map((l) => l.id));
+    for (const level of LEVELS) expect(HAND_PICKED_CHALLENGE_ISLANDS, level.id).toContain(level.id);
+    const pending = HAND_PICKED_CHALLENGE_ISLANDS.filter((id) => !known.has(id));
+    // Islands authored on the CONTENT branch; once merged they are real levels (pending shrinks).
+    for (const id of pending) {
+      expect(['amberstone-mesa', 'moonwell-crossing', 'emberglass-sanctum']).toContain(id);
     }
   });
 
