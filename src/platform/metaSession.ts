@@ -258,13 +258,15 @@ export class MetaSession {
     this.persist();
   }
 
-  onEndlessEntered(modifiers?: RunModifiers | null): void {
+  onEndlessEntered(modifiers?: RunModifiers | null, flush = true): void {
     if (!this.observer) return;
     this.syncRunEndlessBaseline(this.observer.level);
     if (modifiers !== undefined) {
       this.observer.setModifiers(modifiers);
     }
-    this.flushStats();
+    if (flush) {
+      this.flushStats();
+    }
   }
 
   onTick(dt: number, speed: SpeedMultiplier): void {

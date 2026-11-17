@@ -639,7 +639,7 @@ function getAchievementCurrentValue(
     case 'slayer_2500':
       return asNonNegInt(save?.stats?.enemiesDefeatedTotal);
     case 'boss_slayer_10':
-      return asNonNegInt(save?.stats?.enemiesDefeatedByType?.boss);
+      return readOwnNonNegInt(getPlainRecord(save?.stats?.enemiesDefeatedByType), 'boss');
     case 'anti_air_ace':
       return asNonNegInt(save?.stats?.flyingEnemiesDefeated);
     case 'overcharge_cleanse':

@@ -323,9 +323,18 @@ describe('GameSession and sessionBridge meta wiring', () => {
     expect(session.getEnemyIntelStats()).toHaveLength(ENEMY_TYPES.length);
     expect(session.getEnemyIntelStats().some((e) => e.discovered)).toBe(true);
 
-    // Arm frost placement before entering Lean Siege Endless (which bans frost) -> cleared cleanly
+    // Arm frost placement before entering Lean Siege Endless (which bans frost) -> cleared cleanly,
+    // and endlessEntered listeners already observe the new Endless modifiers & badges immediately.
+    let endlessListenerAllowedFrost: boolean | null = null;
+    let endlessListenerBadges: string[] = [];
+    session.events.on('endlessEntered', () => {
+      endlessListenerAllowedFrost = session.isTowerAllowed('frost');
+      endlessListenerBadges = session.getActiveModifierBadges().map((b) => b.id);
+    });
     session.setPlacementMode('frost');
     session.enterEndlessMode({ presetId: 'lean-siege' });
+    expect(endlessListenerAllowedFrost).toBe(false);
+    expect(endlessListenerBadges).toEqual(['tight_budget', 'no_frost']);
     expect(session.getAllowedTowerTypes()).not.toContain('frost');
     expect(session.getActiveModifierBadges().map((b) => b.id)).toEqual(['tight_budget', 'no_frost']);
     session.simWorld.startNextWave();
@@ -422,6 +431,22 @@ describe('GameSession and sessionBridge meta wiring', () => {
       session.fixedTick(BALANCE.fixedDt);
     }
     expect(session.progress.bestEndlessWaves[0]).toBe(prevBestEndlessL0);
+
+    // 4. enterEndlessMode is a no-op before winning, and advantageous Endless modifiers taint Endless eligibility immediately
+    session.startLevel(0);
+    session.enterEndlessMode({ presetId: 'lean-siege' });
+    expect(session.simWorld.waveSystem.isEndless).toBe(false);
+    expect(session.getActiveRunModifiers()?.activeMutatorIds).toEqual([]);
+
+    runScriptedLevelThroughSession(session, 0, 600);
+    expect(session.simWorld.outcome).toBe('won');
+    let eligibleDuringAdvantageousEndless: boolean | null = null;
+    session.events.on('endlessEntered', () => {
+      eligibleDuringAdvantageousEndless = session.meta.isCurrentRunEligible();
+    });
+    session.enterEndlessMode({ enemyHpMultiplier: 0.5 });
+    expect(eligibleDuringAdvantageousEndless).toBe(false);
+    expect(session.meta.isCurrentRunEligible()).toBe(false);
 
     session.dispose();
   }, 15_000);

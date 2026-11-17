@@ -353,6 +353,12 @@ export class GameSession {
     } else if (mutatorSeedOrModifiers !== undefined) {
       modifiers = this.meta.resolveMutatorSelection(mutatorSeedOrModifiers);
     }
+    if (this.simWorld.outcome !== 'won') return;
+    if (this.pendingDebugSpawns.length > 0 || this.simWorld.debugTainted) {
+      this.meta.markDebugTainted();
+    }
+    this.meta.verifyWorldIntegrity(this.simWorld.gold, this.simWorld.lives);
+    this.meta.onEndlessEntered(modifiers, false);
     if (!this.simWorld.enterEndlessMode(modifiers)) return;
     if (
       this.activePlacementType &&
@@ -360,11 +366,6 @@ export class GameSession {
     ) {
       this.setPlacementMode(null);
     }
-    if (this.pendingDebugSpawns.length > 0 || this.simWorld.debugTainted) {
-      this.meta.markDebugTainted();
-    }
-    this.meta.verifyWorldIntegrity(this.simWorld.gold, this.simWorld.lives);
-    this.meta.onEndlessEntered(modifiers);
     const { overlays, loop } = this.d;
     // The win path pauses the loop via the outcome modal. Close every modal (a HUD-opened
     // Settings or the pause menu could still be stacked under the outcome card), drop any

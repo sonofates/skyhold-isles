@@ -2129,5 +2129,15 @@ describe('MetaSession stats, achievements, challenges & daily persistence', () =
     expect(mergedRight.fastestWinSecByLevelId.toString).toBe(42.5);
     expect(mergedLeft.stats.towersBuiltByType.toString).toBe(6);
     expect(mergedRight.stats.enemiesDefeatedByType.toString).toBe(18);
+
+    // boss_slayer_10 reads enemiesDefeatedByType safely even when corrupted to an array
+    const arrBossSave = {
+      ...createDefaultMetaSave(LEVELS.length),
+      stats: {
+        ...createDefaultMetaSave(LEVELS.length).stats,
+        enemiesDefeatedByType: [10] as unknown as Record<string, number>,
+      },
+    };
+    expect(getAchievements(arrBossSave).find((a) => a.def.id === 'boss_slayer_10')?.current).toBe(0);
   });
 });

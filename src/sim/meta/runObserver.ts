@@ -252,7 +252,9 @@ export function evaluateLiveLevelChallenges(
 
 /** Looks up the upgrade/build gold cost for a tower tier cleanly (supports future extra tiers). */
 function getTowerTierBaseCost(type: TowerType, tier: number, fallbackTier: number): number {
-  const tiers = TOWER_DEFS[type]?.tiers as readonly { readonly upgradeCost: number }[] | undefined;
+  const tiers = Object.hasOwn(TOWER_DEFS, type)
+    ? (TOWER_DEFS[type]?.tiers as readonly { readonly upgradeCost: number }[] | undefined)
+    : undefined;
   if (!tiers || tiers.length === 0) return 0;
   const resolvedTier = Number.isFinite(tier) ? Math.max(1, Math.floor(tier)) : fallbackTier;
   return tiers[resolvedTier - 1]?.upgradeCost ?? 0;
