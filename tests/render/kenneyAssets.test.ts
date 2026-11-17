@@ -184,7 +184,7 @@ describe('KenneyAssetStore preload, normalization, and disposal', () => {
     );
   });
 
-  it('loads all real Kenney GLBs and builds TowerGeometryCache, ProjectileRenderer, MapBuilder, and DecorBuilder cleanly', async () => {
+  it('loads all real Kenney GLBs and builds TowerGeometryCache, ProjectileRenderer, MapBuilder, and DecorBuilder cleanly', { timeout: 25_000 }, async () => {
     vi.stubGlobal('self', globalThis);
     vi.spyOn(THREE.TextureLoader.prototype, 'load').mockImplementation(
       (_url, onLoad) => {

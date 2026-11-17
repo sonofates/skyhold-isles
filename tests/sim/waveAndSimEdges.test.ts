@@ -4,7 +4,7 @@ import { BALANCE } from '../../src/data/balance.ts';
 import { ENEMY_DEFS, ENEMY_TYPES } from '../../src/data/enemies.ts';
 import { LEVELS, type LevelDef } from '../../src/data/levels/index.ts';
 import { CompiledPath } from '../../src/sim/path.ts';
-import { buildEndlessWaveDef, WaveSystem } from '../../src/sim/waveSystem.ts';
+import { buildEndlessWaveDef, buildWaveSpawnQueue, WaveSystem } from '../../src/sim/waveSystem.ts';
 import { computeSellRefund, computeStarRating, SimWorld } from '../../src/sim/world.ts';
 
 describe('WaveSystem & SimWorld boundary edge cases', () => {
@@ -851,5 +851,102 @@ describe('WaveSystem & SimWorld boundary edge cases', () => {
 
     world.fixedTick(BALANCE.fixedDt);
     expect(spawned).toHaveLength(2);
+  });
+
+  it('orders zero-interval burst groups deterministically and makes post-outcome fixedTick a pure no-op', () => {
+    // 1. Zero-interval burst preserves seqInGroup tie-breaking and ignores non-positive group counts
+    const burstLevel: LevelDef = {
+      ...LEVELS[0],
+      id: 'qa-zero-interval-burst',
+      waves: [
+        {
+          clearBonus: 30,
+          groups: [
+            { enemyType: 'brute', count: 0, spawnInterval: 0.5, startDelay: 0 },
+            { enemyType: 'grunt', count: 3, spawnInterval: 0, startDelay: 0.2 },
+            { enemyType: 'runner', count: 2, spawnInterval: 0, startDelay: 0.2 },
+          ],
+        },
+      ],
+    };
+    const queue = buildWaveSpawnQueue(burstLevel, 0);
+    expect(queue).toEqual([
+      { enemyType: 'grunt', spawnTime: 0.2, groupOrder: 1, seqInGroup: 0 },
+      { enemyType: 'grunt', spawnTime: 0.2, groupOrder: 1, seqInGroup: 1 },
+      { enemyType: 'grunt', spawnTime: 0.2, groupOrder: 1, seqInGroup: 2 },
+      { enemyType: 'runner', spawnTime: 0.2, groupOrder: 2, seqInGroup: 0 },
+      { enemyType: 'runner', spawnTime: 0.2, groupOrder: 2, seqInGroup: 1 },
+    ]);
+
+    const burstBus = new EventBus();
+    const spawnedTypes: string[] = [];
+    burstBus.on('enemySpawned', (ev) => spawnedTypes.push(ev.enemyType));
+    const burstWorld = new SimWorld(burstLevel, burstBus);
+    burstWorld.startNextWave();
+    for (let i = 0; i < 15; i++) burstWorld.fixedTick(BALANCE.fixedDt); // > 0.2s
+    expect(spawnedTypes).toEqual(['grunt', 'grunt', 'grunt', 'runner', 'runner']);
+    expect(burstWorld.waveSystem.state).toBe('allSpawned');
+
+    // 2. fixedTick after won/lost does not tick enemies, projectiles, towers, meteors, or emit events
+    for (const forceOutcome of ['won', 'lost'] as const) {
+      const bus = new EventBus();
+      const world = new SimWorld(LEVELS[0], bus);
+      world.gold = 2000;
+      const archer = world.placeTower(4, 2, 'archer', 'first')!;
+      archer.cooldownTimer = 0;
+      world.startNextWave();
+
+      // Advance until an enemy spawns, launch a projectile + queue a meteor
+      for (let i = 0; i < 30 && world.enemyPool.getActiveCount() === 0; i++) {
+        world.fixedTick(BALANCE.fixedDt);
+      }
+      const enemy = world.enemyPool.items[world.enemyPool.getActiveIndex(0)];
+      enemy.x = archer.x + 2.0;
+      enemy.z = archer.z;
+      const proj = world.projectileSystem.spawnProjectile(archer, enemy, 1)!;
+      proj.progress = 0.99;
+      expect(world.castMeteor(enemy.x, enemy.z)).toBe(true);
+
+      if (forceOutcome === 'won') {
+        world.debugForceWin();
+      } else {
+        world.debugForceLose();
+      }
+
+      const lateEvents: string[] = [];
+      for (const evName of [
+        'towerFired',
+        'enemyHit',
+        'enemyKilled',
+        'enemyLeaked',
+        'projectileImpact',
+        'meteorImpact',
+        'waveStarted',
+        'economyChanged',
+        'gameWon',
+        'gameLost',
+      ] as const) {
+        bus.on(evName, () => lateEvents.push(evName));
+      }
+
+      const snapGold = world.gold;
+      const snapLives = world.lives;
+      const snapEnemyDist = enemy.dist;
+      const snapEnemyHp = enemy.hp;
+      const snapProjProgress = proj.progress;
+      const snapWaveElapsed = world.waveSystem.waveElapsed;
+      const snapMeteorCd = world.abilitySystem.getCooldown('meteor');
+
+      for (let i = 0; i < 90; i++) world.fixedTick(BALANCE.fixedDt);
+
+      expect(lateEvents).toEqual([]);
+      expect(world.gold).toBe(snapGold);
+      expect(world.lives).toBe(snapLives);
+      expect(enemy.dist).toBe(snapEnemyDist);
+      expect(enemy.hp).toBe(snapEnemyHp);
+      expect(proj.progress).toBe(snapProjProgress);
+      expect(world.waveSystem.waveElapsed).toBe(snapWaveElapsed);
+      expect(world.abilitySystem.getCooldown('meteor')).toBe(snapMeteorCd);
+    }
   });
 });

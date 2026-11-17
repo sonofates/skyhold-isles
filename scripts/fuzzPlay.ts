@@ -195,6 +195,11 @@ interface FuzzTracker {
   pendingMeteors: Array<{ x: number; z: number; radius: number; castTick: number }>;
   newlyStunnedTowerIds: Set<number>;
   firedTowerIdsThisTick: Set<number>;
+  hitEnemyUidsThisTick: Set<number>;
+  prevEnemyUid: Int32Array;
+  prevEnemyHitFlash: Float64Array;
+  prevEnemyHealTimer: Float64Array;
+  prevEnemyWalkPhase: Float64Array;
   bossSummonedUids: Set<number>;
   bossesBelowHalfLastTick: Set<number>;
   prevTowerStats: Map<
@@ -224,6 +229,13 @@ function mixStringHash(hash: number, text: string): number {
     h = mixHash(h, text.charCodeAt(i));
   }
   return h;
+}
+
+function shortestAngleDelta(from: number, to: number): number {
+  let diff = (to - from) % (Math.PI * 2);
+  if (diff > Math.PI) diff -= Math.PI * 2;
+  if (diff < -Math.PI) diff += Math.PI * 2;
+  return diff;
 }
 
 function buildScoredGrassTiles(world: SimWorld): ScoredTile[] {
@@ -498,13 +510,20 @@ function attachEventTracker(
     if (!tracker.eventInvariantError) {
       for (let i = 0; i < world.towers.length; i++) {
         const o = world.towers[i];
-        if (o.stunTimer !== 0) continue;
         const oDist = Math.hypot(o.x - ev.x, o.z - ev.z);
         if (oDist <= ev.radius) {
+          if (ev.stunnedTowerIds.length < 2 && !_seenEventTowerIds.has(o.id)) {
+            recordEventError(
+              tracker,
+              `bossPulse stunned only ${ev.stunnedTowerIds.length} tower(s) despite eligible in-radius tower id=${o.id} (dist=${oDist})`,
+            );
+            break;
+          }
           if (
-            ev.stunnedTowerIds.length < 2 ||
-            oDist < maxStunnedDist ||
-            (oDist === maxStunnedDist && o.id < maxStunnedDistId)
+            o.stunTimer === 0 &&
+            (ev.stunnedTowerIds.length < 2 ||
+              oDist < maxStunnedDist ||
+              (oDist === maxStunnedDist && o.id < maxStunnedDistId))
           ) {
             recordEventError(
               tracker,
@@ -593,6 +612,7 @@ function attachEventTracker(
       recordEventError(tracker, `enemyHit uid=${ev.enemyId} failed spatialHash/entity state parity`);
       return;
     }
+    tracker.hitEnemyUidsThisTick.add(ev.enemyId);
     tracker.totalEnemyHitDamage += ev.damage;
   });
 
@@ -672,6 +692,16 @@ function attachEventTracker(
     }
     tracker.builtTowerIds.add(ev.towerId);
     tracker.towerById.set(ev.towerId, liveBuilt);
+    tracker.prevTowerStats.set(ev.towerId, {
+      kills: 0,
+      dmg: 0,
+      cooldownTimer: 0.15,
+      stunTimer: 0,
+      tier: 1,
+      totalInvested: tier1Cost,
+      recoil: 0,
+      popAnimTimer: 0.32,
+    });
     tracker.everBuiltTowerIds.add(ev.towerId);
     if (ev.towerId > tracker.maxEverTowerId) {
       tracker.maxEverTowerId = ev.towerId;
@@ -708,6 +738,8 @@ function attachEventTracker(
     }
     const prevStats = tracker.prevTowerStats.get(ev.towerId);
     if (prevStats) {
+      prevStats.tier = ev.tier;
+      prevStats.totalInvested = liveUpgraded.totalInvested;
       prevStats.popAnimTimer = 0.32;
     }
     tracker.maxTierReached = Math.max(tracker.maxTierReached, ev.tier);
@@ -768,6 +800,21 @@ function attachEventTracker(
       ev.yaw !== tower.yaw
     ) {
       recordEventError(tracker, `towerFired payload/state mismatch for id=${ev.towerId}`);
+      return;
+    }
+    if (ev.type !== 'tesla' && tracker.projectilePoolOverflows === 0) {
+      let spawnedProj = false;
+      const projCount = world.projectilePool.getActiveCount();
+      for (let i = 0; i < projCount; i++) {
+        const p = world.projectilePool.items[world.projectilePool.getActiveIndex(i)];
+        if (p.active && p.towerId === ev.towerId && p.towerType === ev.type && p.progress === 0) {
+          spawnedProj = true;
+          break;
+        }
+      }
+      if (!spawnedProj) {
+        recordEventError(tracker, `towerFired id=${ev.towerId} (${ev.type}) produced no active projectile`);
+      }
     }
   });
 
@@ -1362,7 +1409,41 @@ function assertTickInvariants(world: SimWorld, tracker: FuzzTracker, tick: numbe
     ) {
       return `Invalid status/stat state for uid=${e.uid} type=${e.type}`;
     }
+    if (e.poolIndex >= 0 && e.poolIndex < tracker.prevEnemyUid.length) {
+      if (
+        tick > 0 &&
+        world.outcome === 'ongoing' &&
+        tracker.prevEnemyUid[e.poolIndex] === e.uid
+      ) {
+        if (!tracker.hitEnemyUidsThisTick.has(e.uid)) {
+          const expectedHitFlash = Math.max(
+            0,
+            tracker.prevEnemyHitFlash[e.poolIndex] - BALANCE.fixedDt,
+          );
+          if (Math.abs(e.hitFlashTimer - expectedHitFlash) > 1e-9) {
+            return `Enemy uid=${e.uid} hitFlashTimer decay mismatch: got=${e.hitFlashTimer}, expected=${expectedHitFlash}`;
+          }
+        }
+        if (e.type === 'healer') {
+          const healInterval = def.healInterval ?? 2.6;
+          const rawNextHeal = tracker.prevEnemyHealTimer[e.poolIndex] - BALANCE.fixedDt;
+          const expectedHeal = rawNextHeal <= 0 ? rawNextHeal + healInterval : rawNextHeal;
+          if (Math.abs(e.healTimer - expectedHeal) > 1e-9) {
+            return `Healer uid=${e.uid} healTimer step mismatch: got=${e.healTimer}, expected=${expectedHeal}`;
+          }
+        }
+        const walkDelta = e.walkPhase - tracker.prevEnemyWalkPhase[e.poolIndex];
+        if (walkDelta < -1e-9 || walkDelta > e.speed * BALANCE.fixedDt * 3.4 + 1e-6) {
+          return `Enemy uid=${e.uid} walkPhase step out of bounds: delta=${walkDelta} (max=${e.speed * BALANCE.fixedDt * 3.4})`;
+        }
+      }
+      tracker.prevEnemyUid[e.poolIndex] = e.uid;
+      tracker.prevEnemyHitFlash[e.poolIndex] = e.hitFlashTimer;
+      tracker.prevEnemyHealTimer[e.poolIndex] = e.healTimer;
+      tracker.prevEnemyWalkPhase[e.poolIndex] = e.walkPhase;
+    }
   }
+  tracker.hitEnemyUidsThisTick.clear();
 
   for (let i = 0; i < activeProj; i++) {
     const p = world.projectilePool.items[world.projectilePool.getActiveIndex(i)];
@@ -1512,6 +1593,13 @@ function assertTickInvariants(world: SimWorld, tracker: FuzzTracker, tick: numbe
       return `Stunned tower id=${t.id} rotated yaw (${t.prevYaw} -> ${t.yaw}) while stunTimer=${t.stunTimer}`;
     }
     if (
+      tick > 0 &&
+      world.outcome === 'ongoing' &&
+      Math.abs(shortestAngleDelta(t.prevYaw, t.yaw)) > 12.0 * BALANCE.fixedDt + 1e-6
+    ) {
+      return `Tower id=${t.id} yaw step exceeded max turn speed (${t.prevYaw} -> ${t.yaw})`;
+    }
+    if (
       !Number.isFinite(t.x) ||
       !Number.isFinite(t.z) ||
       !Number.isFinite(t.yaw) ||
@@ -1570,7 +1658,7 @@ function assertTickInvariants(world: SimWorld, tracker: FuzzTracker, tick: numbe
       ) {
         return `Tower id=${t.id} stats/tier regressed (kills ${prevStats.kills}->${t.kills}, dmg ${prevStats.dmg}->${t.totalDamageDealt}, tier ${prevStats.tier}->${t.tier})`;
       }
-      if (world.outcome === 'ongoing') {
+      if (tick > 0 && world.outcome === 'ongoing') {
         const expectedPopAnim = Math.max(0, prevStats.popAnimTimer - BALANCE.fixedDt);
         if (Math.abs(t.popAnimTimer - expectedPopAnim) > 1e-9) {
           return `Tower id=${t.id} popAnimTimer mismatch: got=${t.popAnimTimer}, expected=${expectedPopAnim}`;
@@ -1583,6 +1671,7 @@ function assertTickInvariants(world: SimWorld, tracker: FuzzTracker, tick: numbe
         }
       }
       if (
+        tick > 0 &&
         prevStats.stunTimer > BALANCE.fixedDt + 1e-6 &&
         t.stunTimer > 0 &&
         !tracker.newlyStunnedTowerIds.has(t.id)
@@ -1595,6 +1684,7 @@ function assertTickInvariants(world: SimWorld, tracker: FuzzTracker, tick: numbe
           return `Continuously stunned tower id=${t.id} mutated cooldown (${prevStats.cooldownTimer}->${t.cooldownTimer}), stun (${prevStats.stunTimer}->${t.stunTimer}), or recoil`;
         }
       } else if (
+        tick > 0 &&
         world.outcome === 'ongoing' &&
         prevStats.stunTimer === 0 &&
         t.stunTimer === 0 &&
@@ -2348,6 +2438,11 @@ function createFuzzTracker(startingGold: number, endlessWavesConfig: number): Fu
     pendingMeteors: [],
     newlyStunnedTowerIds: new Set<number>(),
     firedTowerIdsThisTick: new Set<number>(),
+    hitEnemyUidsThisTick: new Set<number>(),
+    prevEnemyUid: new Int32Array(BALANCE.pools.maxEnemies),
+    prevEnemyHitFlash: new Float64Array(BALANCE.pools.maxEnemies),
+    prevEnemyHealTimer: new Float64Array(BALANCE.pools.maxEnemies),
+    prevEnemyWalkPhase: new Float64Array(BALANCE.pools.maxEnemies),
     bossSummonedUids: new Set<number>(),
     bossesBelowHalfLastTick: new Set<number>(),
     prevTowerStats: new Map(),

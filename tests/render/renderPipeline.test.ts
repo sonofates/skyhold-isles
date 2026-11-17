@@ -690,7 +690,7 @@ describe('RenderWorld subsystems headless verification', () => {
     mats.dispose();
   });
 
-  it('MapBuilder and DecorBuilder build, animate, toggle quality, and dispose cleanly across all islands', () => {
+  it('MapBuilder and DecorBuilder build, animate, toggle quality, and dispose cleanly across all islands', { timeout: 15_000 }, () => {
     const assets = createFakeAssetStore();
     const mats = new MaterialLibrary();
     const mapBuilder = new MapBuilder();

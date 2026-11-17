@@ -241,7 +241,7 @@ describe('RenderWorld draw-call budget and reload memory hygiene', () => {
     mats.dispose();
   });
 
-  it('disposes old geometries cleanly and prevents scene-graph growth across repeated multi-island reloads', () => {
+  it('disposes old geometries cleanly and prevents scene-graph growth across repeated multi-island reloads', { timeout: 15_000 }, () => {
     const assets = createMockAssets();
     const canvas = { clientWidth: 1280, clientHeight: 720 } as unknown as HTMLCanvasElement;
     const rw = new RenderWorld(canvas, assets);

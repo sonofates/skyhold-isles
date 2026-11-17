@@ -1212,4 +1212,79 @@ describe('degenerate paths, zero-distance projectiles, splash isolation, and dee
     // Last hop against extreme armor falls through to exact minArmorDamage floor
     expect(5000 - enemies[4].hp).toBe(BALANCE.minArmorDamage);
   });
+
+  it('decrements cooldownTimer with Overcharge rateMult on the stun wake-up tick and floors edge frost splash on armored bosses', () => {
+    const { world, events } = makeWorld();
+    const archer = world.placeTower(4, 2, 'archer', 'first')!;
+    const frost = world.placeTower(4, 3, 'frost', 'first')!;
+    const dt = BALANCE.fixedDt;
+    const rateMult = ABILITY_DEFS.overcharge.fireRateMultiplier;
+
+    const target = world.enemySystem.spawnEnemy('brute')!;
+    target.x = archer.x + 2.5;
+    target.z = archer.z;
+    target.maxHp = 2000;
+    target.hp = 2000;
+    world.spatialHash.clear();
+    world.spatialHash.insert(target.poolIndex, target.x, target.z);
+
+    // 1. Stun wake-up tick falls through into cooldown decrement + turret rotation + immediate shot when cooldown <= dt * rateMult
+    archer.stunTimer = dt * 0.5;
+    archer.cooldownTimer = 0.25;
+    archer.yaw = 0;
+
+    let firedCount = 0;
+    events.on('towerFired', (ev) => {
+      if (ev.towerId === archer.id) firedCount++;
+    });
+
+    world.combatSystem.update(dt, [archer], rateMult);
+    expect(archer.stunTimer).toBe(0);
+    expect(archer.cooldownTimer).toBeCloseTo(0.25 - dt * rateMult, 8);
+    expect(archer.yaw).toBeGreaterThan(0); // rotated toward +X/+Z target on the same wake-up tick
+    expect(firedCount).toBe(0);
+
+    // Second wake-up case: cooldown reaches <= 0 on exact wake-up tick -> fires immediately
+    archer.stunTimer = dt * 0.5;
+    archer.cooldownTimer = dt * rateMult * 0.8;
+    world.combatSystem.update(dt, [archer], rateMult);
+    expect(archer.stunTimer).toBe(0);
+    expect(firedCount).toBe(1);
+
+    // 2. Frost splash at edge radius against heavily armored boss floors damage to minArmorDamage (1),
+    // reports isBossHit=true, and still applies slow
+    const frostStats = getTowerTierStats('frost', 1); // splashRadius: 1.5, falloffMin: 0.45
+    const anchor = world.enemySystem.spawnEnemy('grunt')!;
+    anchor.x = frost.x + 1.0;
+    anchor.z = frost.z;
+
+    const boss = world.enemySystem.spawnEnemy('boss')!;
+    boss.armor = 999;
+    boss.maxHp = 1000;
+    boss.hp = 1000;
+    boss.x = anchor.x + frostStats.splashRadius - 0.01;
+    boss.z = anchor.z;
+
+    world.spatialHash.clear();
+    world.spatialHash.insert(anchor.poolIndex, anchor.x, anchor.z);
+    world.spatialHash.insert(boss.poolIndex, boss.x, boss.z);
+
+    const impacts: Array<{ isBossHit: boolean; splash: number }> = [];
+    const hitDamages: number[] = [];
+    events.on('projectileImpact', (ev) => impacts.push({ isBossHit: ev.isBossHit, splash: ev.splash }));
+    events.on('enemyHit', (ev) => {
+      if (ev.enemyId === boss.uid) hitDamages.push(ev.damage);
+    });
+
+    const frostBolt = world.projectileSystem.spawnProjectile(frost, anchor, frostStats.splashFalloffMin)!;
+    frostBolt.progress = 0.99;
+    world.projectileSystem.update(0.1, [frost]);
+
+    expect(impacts).toHaveLength(1);
+    expect(impacts[0].isBossHit).toBe(true);
+    expect(hitDamages).toEqual([BALANCE.minArmorDamage]);
+    expect(boss.hp).toBe(1000 - BALANCE.minArmorDamage);
+    expect(boss.slowRatio).toBeCloseTo(frostStats.slowRatio, 5);
+    expect(boss.slowTimer).toBeCloseTo(frostStats.slowDuration, 5);
+  });
 });
