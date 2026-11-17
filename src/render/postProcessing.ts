@@ -101,9 +101,15 @@ interface DisposableLike {
   depthTexture?: DisposableLike | null;
 }
 
+interface N8aoShaderMaterialLike extends DisposableLike {
+  uniforms?: Record<string, { value: unknown }>;
+  fragmentShader?: string;
+  needsUpdate?: boolean;
+}
+
 interface N8aoQuadLike extends DisposableLike {
   render?: (renderer: THREE.WebGLRenderer) => void;
-  material?: (DisposableLike & { uniforms?: Record<string, { value: unknown }> }) | null;
+  material?: N8aoShaderMaterialLike | null;
 }
 
 interface N8aoInternalResources {
@@ -119,14 +125,14 @@ interface N8aoInternalResources {
   transparencyRenderTargetDWFalse?: DisposableLike | null;
   transparencyRenderTargetDWTrue?: DisposableLike | null;
   bluenoise?: DisposableLike | null;
-  effectShaderQuad?: DisposableLike | null;
+  effectShaderQuad?: N8aoQuadLike | null;
   poissonBlurQuad?: DisposableLike | null;
   accumulationQuad?: N8aoQuadLike | null;
   effectCompositerQuad?: N8aoQuadLike | null;
   copyQuad?: N8aoQuadLike | null;
-  depthDownsampleQuad?: DisposableLike | null;
+  depthDownsampleQuad?: N8aoQuadLike | null;
   depthCopyPass?: DisposableLike | null;
-  standardDenoiseMaterial?: DisposableLike | null;
+  standardDenoiseMaterial?: N8aoShaderMaterialLike | null;
   neuralDenoiseMaterial?: DisposableLike | null;
 }
 
@@ -350,19 +356,37 @@ function disposeN8aoPass(pass: N8AOPostPass): void {
   pass.dispose();
 }
 
-function optimizeN8aoCompositerShader(pass: N8AOPostPass): void {
-  const internal = pass as unknown as N8aoInternalResources;
-  const mat = internal.effectCompositerQuad?.material as THREE.ShaderMaterial | null | undefined;
-  if (!mat || typeof mat.fragmentShader !== 'string') return;
+interface FragmentShaderPatch {
+  guard: string;
+  target: string;
+  replacement: string;
+}
 
+function patchFragmentShader(
+  mat: N8aoShaderMaterialLike | null | undefined,
+  patches: readonly FragmentShaderPatch[],
+): void {
+  if (!mat || typeof mat.fragmentShader !== 'string') return;
   let frag = mat.fragmentShader;
   let changed = false;
+  for (const { guard, target, replacement } of patches) {
+    if (!frag.includes(guard) && frag.includes(target)) {
+      frag = frag.replace(target, replacement);
+      changed = true;
+    }
+  }
+  if (changed) {
+    mat.fragmentShader = frag;
+    mat.needsUpdate = true;
+  }
+}
 
-  const depthLine = 'float depth = texture2D(sceneDepth, vUv).x;';
-  if (!frag.includes('if (isBackgroundDepth(depth) && renderMode == 0.0 && !transparencyAware)') && frag.includes(depthLine)) {
-    frag = frag.replace(
-      depthLine,
-      `${depthLine}
+const N8AO_COMPOSITER_PATCHES: readonly FragmentShaderPatch[] = [
+  {
+    // Early-return sky/background depth pixels without computing AO pow(), fog, or normal reconstruction.
+    guard: 'if (isBackgroundDepth(depth) && renderMode == 0.0 && !transparencyAware)',
+    target: 'float depth = texture2D(sceneDepth, vUv).x;',
+    replacement: `float depth = texture2D(sceneDepth, vUv).x;
         if (isBackgroundDepth(depth) && renderMode == 0.0 && !transparencyAware) {
             gl_FragColor = sceneTexel;
             #include <dithering_fragment>
@@ -371,20 +395,210 @@ function optimizeN8aoCompositerShader(pass: N8AOPostPass): void {
             }
             return;
         }`,
-    );
-    changed = true;
-  }
+  },
+  {
+    // Reuse already-computed worldPos in HALFRES normal reconstruction (N8AO calls computeNormal once here).
+    guard: 'vec3 normal = computeNormal(worldPos, vUv);',
+    target: 'vec3 normal = computeNormal(getWorldPos(depth, vUv), vUv);',
+    replacement: 'vec3 normal = computeNormal(worldPos, vUv);',
+  },
+  {
+    guard: 'vec3 ce = worldPos;',
+    target: 'vec3 ce = getWorldPos(c0, vUv).xyz;',
+    replacement: 'vec3 ce = worldPos;',
+  },
+  {
+    // Skip far-plane background taps in HALFRES 3x3 bilateral upsampling along island silhouettes.
+    guard: 'if (!isBackgroundDepth(sampleDepth)) {',
+    target: `                float sampleDepth = texelFetch(downsampledDepth,p, 0).x;
+                vec4 sampleInfo = texelFetch(tDiffuse, p, 0);
+                vec3 normalSample = sampleInfo.gba * 2.0 - 1.0;
+                vec3 worldPosSample = getWorldPos(sampleDepth, pUv);
+                float tangentPlaneDist = abs(dot(worldPosSample - worldPos, normal));
+                float rangeCheck = exp(-1.0 * tangentPlaneDist * (1.0 / distanceFalloffToUse)) * max(dot(normal, normalSample), 0.0);
+                float weight = rangeCheck;
+                totalWeight += weight;
+                texel += sampleInfo * weight;`,
+    replacement: `                float sampleDepth = texelFetch(downsampledDepth,p, 0).x;
+                if (!isBackgroundDepth(sampleDepth)) {
+                    vec4 sampleInfo = texelFetch(tDiffuse, p, 0);
+                    vec3 normalSample = sampleInfo.gba * 2.0 - 1.0;
+                    vec3 worldPosSample = getWorldPos(sampleDepth, pUv);
+                    float tangentPlaneDist = abs(dot(worldPosSample - worldPos, normal));
+                    float rangeCheck = exp(-1.0 * tangentPlaneDist * (1.0 / distanceFalloffToUse)) * max(dot(normal, normalSample), 0.0);
+                    float weight = rangeCheck;
+                    totalWeight += weight;
+                    texel += sampleInfo * weight;
+                }`,
+  },
+  {
+    // Analytic orthographic view-space Z avoids an extra projectionMatrixInv * vec4 multiply for fog.
+    guard: 'linearize_depth_ortho(depth, near, far)',
+    target: '            float fogDepth = -getWorldPos(depth, vUv).z;',
+    replacement: `#ifdef ORTHO
+            #ifdef REVERSEDEPTH
+            float fogDepth = linearize_depth_ortho(1.0 - depth, near, far);
+            #else
+            float fogDepth = linearize_depth_ortho(depth, near, far);
+            #endif
+#else
+            float fogDepth = -getWorldPos(depth, vUv).z;
+#endif`,
+  },
+];
 
-  const dupNormalCall = 'vec3 normal = computeNormal(getWorldPos(depth, vUv), vUv);';
-  if (frag.includes(dupNormalCall)) {
-    frag = frag.replace(dupNormalCall, 'vec3 normal = computeNormal(worldPos, vUv);');
-    changed = true;
-  }
+const N8AO_EFFECT_SHADER_PATCHES: readonly FragmentShaderPatch[] = [
+  {
+    // N8AO EffectShader fetches sceneDiffuse but never reads `diffuse`.
+    guard: 'void main() {\n      float depth = texture2D(sceneDepth, vUv).x;',
+    target: `void main() {
+      vec4 diffuse = texture2D(sceneDiffuse, vUv);
+      float depth = texture2D(sceneDepth, vUv).x;`,
+    replacement: `void main() {
+      float depth = texture2D(sceneDepth, vUv).x;`,
+  },
+  {
+    // EffectShader invokes computeNormal once at full resolution passing already-computed worldPos.
+    guard: 'vec3 ce = worldPos;',
+    target: 'vec3 ce = getWorldPos(c0, vUv).xyz;',
+    replacement: 'vec3 ce = worldPos;',
+  },
+];
 
-  if (changed) {
-    mat.fragmentShader = frag;
-    mat.needsUpdate = true;
-  }
+const N8AO_DOWNSAMPLE_PATCHES: readonly FragmentShaderPatch[] = [
+  {
+    // Sky/background depth texels are skipped in EffectShader; skip 9 depth taps + 6 matrix multiplies.
+    guard: 'if (samples[chosenIndex] == 1.0) {',
+    target: `        gl_FragColor = vec4(samples[chosenIndex], 0.0, 0.0, 1.0);
+        gNormal = vec4(computeNormal(
+            getWorldPos(samples[chosenIndex], uvSamples[chosenIndex]), uvSamples[chosenIndex]
+        ), 0.0);`,
+    replacement: `        gl_FragColor = vec4(samples[chosenIndex], 0.0, 0.0, 1.0);
+        #ifdef REVERSEDEPTH
+        if (samples[chosenIndex] == 0.0) {
+            gNormal = vec4(0.0, 0.0, 1.0, 0.0);
+            return;
+        }
+        #else
+        if (samples[chosenIndex] == 1.0) {
+            gNormal = vec4(0.0, 0.0, 1.0, 0.0);
+            return;
+        }
+        #endif
+        gNormal = vec4(computeNormal(vec3(0.0), uvSamples[chosenIndex]), 0.0);`,
+  },
+];
+
+const N8AO_DENOISE_PATCHES: readonly FragmentShaderPatch[] = [
+  {
+    // Test background sky depth before fetching tDiffuse; EffectShader writes vec4(1.0) on sky.
+    guard: '        if (isBackgroundDepth(d)) {\n          gl_FragColor = vec4(1.0);\n          return;\n        }',
+    target: `        vec4 data = texture2D(tDiffuse, vUv);
+        float occlusion = data.r;
+        float baseOcc = data.r;
+        vec3 normal = data.gba * 2.0 - 1.0;
+        float count = 1.0;
+        float d = texture2D(sceneDepth, vUv).x;
+        if (isBackgroundDepth(d)) {
+          gl_FragColor = data;
+          return;
+        }`,
+    replacement: `        float d = texture2D(sceneDepth, vUv).x;
+        if (isBackgroundDepth(d)) {
+          gl_FragColor = vec4(1.0);
+          return;
+        }
+        vec4 data = texture2D(tDiffuse, vUv);
+        float occlusion = data.r;
+        vec3 normal = data.gba * 2.0 - 1.0;
+        float count = 1.0;`,
+  },
+  {
+    // Skip tDiffuse fetch, getWorldPos, dot, and exp for Poisson taps that land on sky depth.
+    guard: 'float dSample = texture2D(sceneDepth, uv + offset).x;\n            if (!isBackgroundDepth(dSample)) {',
+    target: `        for(int i = 0; i < NUM_SAMPLES; i++) {
+            vec2 offset = (rotationMatrix * poissonDisk[i]) * texelSize * size;
+            vec4 dataSample = texture2D(tDiffuse, uv + offset);
+            float occSample = dataSample.r;
+            vec3 normalSample = dataSample.gba * 2.0 - 1.0;
+            float dSample = texture2D(sceneDepth, uv + offset).x;
+            vec3 worldPosSample = getWorldPos(dSample, uv + offset);
+            float tangentPlaneDist = abs(dot(worldPosSample - worldPos, normal));
+            float rangeCheck = float(!isBackgroundDepth(dSample)) * exp(-1.0 * tangentPlaneDist * invDistance ) * max(dot(normal, normalSample), 0.0);
+            occlusion += occSample * rangeCheck;
+            count += rangeCheck;
+#ifdef NEURAL_DENOISE
+            if (!isBackgroundDepth(dSample)) {
+                vec3 localDelta = (neuralWorldToLocal * (worldPosSample - worldPos))
+                    * neuralInverseRadius;
+                vec3 localNormal = neuralWorldToLocal
+                    * neuralSafeNormalize(normalSample, vec3(0.0, 0.0, 1.0));
+                NeuralToken rawTap = NeuralToken(
+                    vec4(localDelta, localNormal.x),
+                    vec4(
+                        localNormal.y,
+                        localNormal.z,
+                        occSample,
+                        tangentPlaneDist * neuralInverseDistance
+                    )
+                );
+                neuralEncodeTap(
+                    rawTap,
+                    neuralMaximum,
+                    neuralDenominator,
+                    neuralSummaryLo,
+                    neuralSummaryHi
+                );
+            }
+#endif
+        }`,
+    replacement: `        for(int i = 0; i < NUM_SAMPLES; i++) {
+            vec2 offset = (rotationMatrix * poissonDisk[i]) * texelSize * size;
+            float dSample = texture2D(sceneDepth, uv + offset).x;
+            if (!isBackgroundDepth(dSample)) {
+                vec4 dataSample = texture2D(tDiffuse, uv + offset);
+                float occSample = dataSample.r;
+                vec3 normalSample = dataSample.gba * 2.0 - 1.0;
+                vec3 worldPosSample = getWorldPos(dSample, uv + offset);
+                float tangentPlaneDist = abs(dot(worldPosSample - worldPos, normal));
+                float rangeCheck = exp(-1.0 * tangentPlaneDist * invDistance ) * max(dot(normal, normalSample), 0.0);
+                occlusion += occSample * rangeCheck;
+                count += rangeCheck;
+#ifdef NEURAL_DENOISE
+                if (!isBackgroundDepth(dSample)) {
+                    vec3 localDelta = (neuralWorldToLocal * (worldPosSample - worldPos))
+                        * neuralInverseRadius;
+                    vec3 localNormal = neuralWorldToLocal
+                        * neuralSafeNormalize(normalSample, vec3(0.0, 0.0, 1.0));
+                    NeuralToken rawTap = NeuralToken(
+                        vec4(localDelta, localNormal.x),
+                        vec4(
+                            localNormal.y,
+                            localNormal.z,
+                            occSample,
+                            tangentPlaneDist * neuralInverseDistance
+                        )
+                    );
+                    neuralEncodeTap(
+                        rawTap,
+                        neuralMaximum,
+                        neuralDenominator,
+                        neuralSummaryLo,
+                        neuralSummaryHi
+                    );
+                }
+#endif
+            }
+        }`,
+  },
+];
+
+function optimizeN8aoShaders(pass: N8AOPostPass): void {
+  const internal = pass as unknown as N8aoInternalResources;
+  patchFragmentShader(internal.depthDownsampleQuad?.material, N8AO_DOWNSAMPLE_PATCHES);
+  patchFragmentShader(internal.effectShaderQuad?.material, N8AO_EFFECT_SHADER_PATCHES);
+  patchFragmentShader(internal.standardDenoiseMaterial, N8AO_DENOISE_PATCHES);
+  patchFragmentShader(internal.effectCompositerQuad?.material, N8AO_COMPOSITER_PATCHES);
 }
 
 function createN8aoPass(
@@ -407,7 +621,7 @@ function createN8aoPass(
   // never re-invokes configureEffectCompositer with ortho=true.
   if (!pass.configuration.halfRes && (camera as THREE.OrthographicCamera).isOrthographicCamera) {
     internal.configureEffectCompositer?.(internal.configuration?.depthBufferType ?? 1, true);
-    optimizeN8aoCompositerShader(pass);
+    optimizeN8aoShaders(pass);
   }
   pass.configuration.aoRadius = 1.25;
   pass.configuration.distanceFalloff = 0.9;
@@ -469,7 +683,7 @@ function configureN8aoPass(
   const settings = getN8aoQualitySettings(mode, allowHalfRes);
   pass.setQualityMode(settings.qualityMode);
   pass.configuration.halfRes = settings.halfRes;
-  optimizeN8aoCompositerShader(pass);
+  optimizeN8aoShaders(pass);
 }
 
 export interface PostProcessingPipelineOptions {

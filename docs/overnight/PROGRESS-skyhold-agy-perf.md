@@ -116,6 +116,14 @@ Branch: `hermes/skyhold-agy-perf` (base: `main`)
 - **`tests/render/perfGovernor.test.ts`**: Added 3 unit tests covering N8AO compositer patching across `full`/`half` transitions, mid-burst GLB parse yielding, and `recordFrame` `workMetrics` boundary filtering (`47` tests in `perfGovernor.test.ts`).
 - **Node measurement suggestion for TOWERS (not edited by PERF)**: First-time geometry generation across all 15 tower variants (`TowerGeometryCache.get`) measured `54.82ms` total in Node, with `frost_2` taking `15.55ms` alone; slicing or simplifying `frost_2` geometry merges would prevent first-preview/first-build hitches.
 
+### Turn 29
+- **`src/render/postProcessing.ts` (`optimizeN8aoShaders`, `patchFragmentShader`)**: Generalized `optimizeN8aoCompositerShader` into table-driven `optimizeN8aoShaders(pass)` patching all four active N8AO fragment shaders idempotently across `full`/`half` switches:
+  - `depthDownsampleQuad` (Tier 4 `halfRes`, default on touch phones): early-returns background sky texels (`samples[chosenIndex] == 1.0`, or `0.0` under `REVERSEDEPTH`) before running 9 `texelFetch`es and 6 `getWorldPos` matrix multiplies inside `computeNormal`, while keeping `getWorldPos(c0, vUv)` intact inside `computeNormal` because `depthDownsampleQuad` passes `vec3(0.0)`.
+  - `effectShaderQuad` (Tiers 4 & 5): removed dead `texture2D(sceneDiffuse, vUv)` fetch executed before background sky early-out (`diffuse` is never read), and reused `worldPos` inside `computeNormal` (`ce = worldPos`) in Tier 5 `full` mode.
+  - `standardDenoiseMaterial` (2 bilateral passes/frame on Tiers 4 & 5): moved `sceneDepth` sky check ahead of `texture2D(tDiffuse, vUv)` (writing `vec4(1.0)` directly, removing dead `baseOcc`), and skipped `tDiffuse` fetch, `getWorldPos`, `dot`, and `exp` for Poisson neighborhood taps landing on sky depth (`if (!isBackgroundDepth(dSample))`).
+  - `effectCompositerQuad` (Tiers 4 & 5): added `ce = worldPos` inside `computeNormal` (saving another `projectionMatrixInv` multiply per pixel in Tier 4 `HALFRES`), skipped background sky neighbor taps in the 3x3 `#ifdef HALFRES` bilateral upsampler along island silhouettes, and replaced `fogDepth = -getWorldPos(depth, vUv).z` under `#ifdef ORTHO` with analytic `linearize_depth_ortho(depth, near, far)` (or `1.0 - depth` under `REVERSEDEPTH`).
+- **`tests/render/perfGovernor.test.ts`**: Expanded the N8AO patching test to verify true `full -> half -> full` transitions (fixed the prior `getActivePassSummary().includes('half')` guard that checked `'half'` instead of `'AO½'`) and assert all four N8AO shaders; fixed the `PerfGovernor` constructor argument order (`new PerfGovernor({ mode: 'auto', isTouch: false })`) in the `workMetrics` boundary-frame test.
+
 ## Verification
 All checks passed after the final edit:
 - `npx tsc --noEmit`

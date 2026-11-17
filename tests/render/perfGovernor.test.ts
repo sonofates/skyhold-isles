@@ -2082,7 +2082,7 @@ describe('PerfGovernor', () => {
     fxMat.dispose();
   });
 
-  it('patches N8AO EffectCompositer for background depth early-out and removes duplicate getWorldPos across full/half transitions', () => {
+  it('patches all N8AO shaders across full/half transitions cleanly and idempotently', () => {
     vi.stubGlobal('Image', undefined);
     const { renderer: mockRenderer } = createMockPostRenderer(800, 600);
     const scene = new THREE.Scene();
@@ -2097,22 +2097,60 @@ describe('PerfGovernor', () => {
 
     type N8aoPipelineInternals = {
       n8aoPass: {
+        depthDownsampleQuad: { material: THREE.ShaderMaterial } | null;
+        effectShaderQuad: { material: THREE.ShaderMaterial };
+        standardDenoiseMaterial: THREE.ShaderMaterial;
         effectCompositerQuad: { material: THREE.ShaderMaterial };
       } | null;
     };
 
-    const getCompositerFrag = (): string =>
-      (pipeline as unknown as N8aoPipelineInternals).n8aoPass!.effectCompositerQuad.material.fragmentShader;
+    const getN8ao = () => (pipeline as unknown as N8aoPipelineInternals).n8aoPass!;
 
     try {
-      for (const mode of ['full', 'half', 'full'] as const) {
-        if (mode !== 'full' || pipeline.getActivePassSummary().includes('half')) {
+      const modes = ['full', 'half', 'full'] as const;
+      for (let i = 0; i < modes.length; i++) {
+        const mode = modes[i];
+        if (i > 0) {
           pipeline.applyConfig({ n8ao: mode, outline: true, bloom: true, smaa: false });
         }
-        const frag = getCompositerFrag();
-        expect(frag).toContain('if (isBackgroundDepth(depth) && renderMode == 0.0 && !transparencyAware)');
-        expect(frag).toContain('vec3 normal = computeNormal(worldPos, vUv);');
-        expect(frag).not.toContain('computeNormal(getWorldPos(depth, vUv), vUv)');
+        expect(pipeline.getActivePassSummary()).toBe(mode === 'half' ? 'AO½+Out+Bloom' : 'AO+Out+Bloom');
+
+        const n8ao = getN8ao();
+        const compFrag = n8ao.effectCompositerQuad.material.fragmentShader;
+        expect(compFrag).toContain('if (isBackgroundDepth(depth) && renderMode == 0.0 && !transparencyAware)');
+        expect(compFrag).toContain('vec3 normal = computeNormal(worldPos, vUv);');
+        expect(compFrag).not.toContain('computeNormal(getWorldPos(depth, vUv), vUv)');
+        expect(compFrag).toContain('vec3 ce = worldPos;');
+        expect(compFrag).not.toContain('vec3 ce = getWorldPos(c0, vUv).xyz;');
+        expect(compFrag).toContain('if (!isBackgroundDepth(sampleDepth)) {');
+        expect(compFrag).toContain(
+          '#ifdef ORTHO\n            #ifdef REVERSEDEPTH\n            float fogDepth = linearize_depth_ortho(1.0 - depth, near, far);\n            #else\n            float fogDepth = linearize_depth_ortho(depth, near, far);\n            #endif\n#else\n            float fogDepth = -getWorldPos(depth, vUv).z;\n#endif',
+        );
+
+        const aoFrag = n8ao.effectShaderQuad.material.fragmentShader;
+        expect(aoFrag).toContain('void main() {\n      float depth = texture2D(sceneDepth, vUv).x;');
+        expect(aoFrag).not.toContain('vec4 diffuse = texture2D(sceneDiffuse, vUv);');
+        expect(aoFrag).toContain('vec3 ce = worldPos;');
+        expect(aoFrag).not.toContain('vec3 ce = getWorldPos(c0, vUv).xyz;');
+
+        const denoiseFrag = n8ao.standardDenoiseMaterial.fragmentShader;
+        const skyIdx = denoiseFrag.indexOf('if (isBackgroundDepth(d)) {\n          gl_FragColor = vec4(1.0);');
+        const tDiffuseIdx = denoiseFrag.indexOf('vec4 data = texture2D(tDiffuse, vUv);');
+        expect(skyIdx).toBeGreaterThan(-1);
+        expect(tDiffuseIdx).toBeGreaterThan(skyIdx);
+        expect(denoiseFrag).not.toContain('float baseOcc = data.r;');
+        expect(denoiseFrag).toContain(
+          'float dSample = texture2D(sceneDepth, uv + offset).x;\n            if (!isBackgroundDepth(dSample)) {',
+        );
+        expect(denoiseFrag).not.toContain('float(!isBackgroundDepth(dSample))');
+
+        if (n8ao.depthDownsampleQuad) {
+          const dsFrag = n8ao.depthDownsampleQuad.material.fragmentShader;
+          expect(dsFrag).toContain('if (samples[chosenIndex] == 1.0) {');
+          expect(dsFrag).toContain('gNormal = vec4(computeNormal(vec3(0.0), uvSamples[chosenIndex]), 0.0);');
+          // Downsample passes vec3(0.0) into computeNormal, so getWorldPos(c0, vUv) must remain intact.
+          expect(dsFrag).toContain('vec3 ce = getWorldPos(c0, vUv).xyz;');
+        }
       }
     } finally {
       pipeline.dispose();
@@ -2200,7 +2238,7 @@ describe('PerfGovernor', () => {
   it('skips workMetrics and displayMetrics recording on boundary frames while keeping 0ms and positive samples', () => {
     const displayMetrics = new RollingFrameMetrics(30);
     const workMetrics = new RollingFrameMetrics(30);
-    const governor = new PerfGovernor(false, 'auto');
+    const governor = new PerfGovernor({ mode: 'auto', isTouch: false });
     const stub = {
       contextLost: false,
       disposed: false,
