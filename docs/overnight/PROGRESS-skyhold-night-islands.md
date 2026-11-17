@@ -178,3 +178,8 @@ early waves does NOT soften them, it starves the economy (kill rewards) and the 
 - Clean tree at start. `npm run sim:balance` re-run: all 9 islands inside their windows (greedy L1 20 / L2 15 / L3 9 / L4 15 / L5 14 / L6 13 / L7 10 / L8 7 / L9 9 lives; every weak script loses L2+).
 - `previewMap.ts all` re-rendered: 18-26 map+decor draw calls, 34-51k tris per island, islands read distinctly.
 - No new features: remaining backlog (layout/path changes, wave-ramp retuning) would move the knife-edge balance windows; handoff state unchanged, see "Merge notes for the lead".
+
+### Round 7 (verification only, no code changes)
+- Clean tree. tsc, lint, 134 tests, build, `sim:balance` all green (greedy L1 20 / L2 15 / L3 9 / L4 15 / L5 14 / L6 13 / L7 10 / L8 7 / L9 9 lives; every weak script loses).
+- Previews re-rendered (18-26 draw calls, 34-51k tris); L5 and L8 re-inspected visually, nothing overlapping routes. Set-piece / ambient update loops use module-level scratch objects (no per-frame allocations found).
+- Handoff state unchanged; see "Merge notes for the lead".
