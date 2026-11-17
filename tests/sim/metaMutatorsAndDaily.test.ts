@@ -1107,5 +1107,12 @@ describe('Daily challenge pure date-seeded generator', () => {
     expect(
       getMutatorPresetRoll('bad', [[] as unknown as (typeof ENDLESS_MUTATOR_PRESETS)[number]], dupCatalog),
     ).toBeNull();
+
+    // Custom scalar badge details strip IEEE-754 float noise (e.g. 1.15 * 1.1 = 1.2650000000000001)
+    const floatNoiseBadges = describeActiveModifiers({
+      ...resolveRunModifiers(null),
+      enemyHpMultiplier: 1.15 * 1.1,
+    });
+    expect(floatNoiseBadges[0]?.detail).toBe('Enemies have 1.265x health.');
   });
 });

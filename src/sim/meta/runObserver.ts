@@ -37,10 +37,11 @@ function countForbiddenTowersBuilt(
   builtMap: Readonly<Record<string, number>>,
   forbidden: readonly TowerType[],
 ): number {
+  if (!Array.isArray(forbidden)) return 0;
   let total = 0;
   for (let i = 0; i < forbidden.length; i++) {
     const type = forbidden[i];
-    if (Object.hasOwn(builtMap, type)) {
+    if (!IGNORED_OBSERVER_KEYS.has(type) && Object.hasOwn(builtMap, type)) {
       const count = builtMap[type];
       if (typeof count === 'number' && Number.isFinite(count) && count > 0) {
         total += count;
@@ -54,8 +55,15 @@ function hasDisallowedTowerBuilt(
   builtMap: Readonly<Record<string, number>>,
   allowed: readonly TowerType[],
 ): boolean {
+  const safeAllowed = Array.isArray(allowed) ? allowed : [];
   for (const [type, count] of Object.entries(builtMap)) {
-    if (typeof count === 'number' && Number.isFinite(count) && count > 0 && !allowed.includes(type as TowerType)) {
+    if (
+      !IGNORED_OBSERVER_KEYS.has(type) &&
+      typeof count === 'number' &&
+      Number.isFinite(count) &&
+      count > 0 &&
+      !safeAllowed.includes(type as TowerType)
+    ) {
       return true;
     }
   }
@@ -428,10 +436,11 @@ export class RunObserver {
         this.expectedGold -= paid;
       }),
       events.on('towerSold', (ev) => {
+        const refund = isNonNegFinite(ev.refund) ? ev.refund : 0;
         this.activeTowers = Math.max(0, this.activeTowers - 1);
         this.towersSold++;
-        this.netGoldSpent = Math.max(0, this.netGoldSpent - ev.refund);
-        this.expectedGold += ev.refund;
+        this.netGoldSpent = Math.max(0, this.netGoldSpent - refund);
+        this.expectedGold += refund;
       }),
       events.on('enemySpawned', (ev) => {
         if (!this.inWavePhase) {
@@ -442,6 +451,7 @@ export class RunObserver {
         }
       }),
       events.on('enemyKilled', (ev) => {
+        const reward = isNonNegFinite(ev.reward) ? ev.reward : 0;
         this.enemiesKilledTotal++;
         if (this.endlessEntered) {
           this.endlessEnemiesKilled++;
@@ -455,12 +465,13 @@ export class RunObserver {
         if (this.spawnedFlyingIds.delete(ev.enemyId)) {
           this.flyingEnemiesKilled++;
         }
-        this.goldEarned += ev.reward;
-        this.expectedGold += ev.reward;
+        this.goldEarned += reward;
+        this.expectedGold += reward;
       }),
       events.on('enemyLeaked', (ev) => {
-        this.livesLost += ev.livesLost;
-        this.expectedLives = Math.max(0, this.expectedLives - ev.livesLost);
+        const lives = isNonNegFinite(ev.livesLost) ? ev.livesLost : 0;
+        this.livesLost += lives;
+        this.expectedLives = Math.max(0, this.expectedLives - lives);
       }),
       events.on('abilityTargeted', (ev) => {
         this.abilitiesCastTotal++;
@@ -551,7 +562,7 @@ export class RunObserver {
         }
         if (this.storyWinSnapshot === null && !this.endlessEntered) {
           this.storyWinSnapshot = {
-            livesRemaining: ev.livesRemaining,
+            livesRemaining: isNonNegFinite(ev.livesRemaining) ? Math.floor(ev.livesRemaining) : 0,
             telemetry: this.getTelemetry(),
           };
         }
@@ -561,8 +572,8 @@ export class RunObserver {
         this.inWavePhase = false;
         this.runEnded = true;
         this.hasLost = true;
-        if (ev.waveIndex + 1 > this.maxWaveReached) {
-          this.maxWaveReached = ev.waveIndex + 1;
+        if (isNonNegFinite(ev.waveIndex) && Math.floor(ev.waveIndex) + 1 > this.maxWaveReached) {
+          this.maxWaveReached = Math.floor(ev.waveIndex) + 1;
         }
       }),
     );
@@ -570,6 +581,7 @@ export class RunObserver {
 
   /** Records a speed setting change (call pre-wave and whenever loop speed changes). */
   recordSpeed(speed: SpeedMultiplier): void {
+    if (typeof speed !== 'number' || !Number.isFinite(speed) || speed <= 0) return;
     this.currentSpeed = speed;
     if (this.inCombat) {
       if (this.minCombatSpeed === null || speed < this.minCombatSpeed) {

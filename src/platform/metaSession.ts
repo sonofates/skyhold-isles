@@ -12,6 +12,7 @@ import {
 } from '../sim/meta/daily.ts';
 import {
   applyTelemetryDeltaToStats,
+  asNonNegInt,
   createEmptyLifetimeStats,
   ensureWritableSaveContainers,
   exportMetaSaveJson,
@@ -26,6 +27,7 @@ import {
   getIslandMasteryStatus,
   getMetaCareerRank,
   getMetaCareerSummary,
+  getPlainRecord,
   getRecentDailyHistory,
   getRecommendedNextGoal,
   getStats,
@@ -33,6 +35,7 @@ import {
   getValidDailyDateSet,
   importMetaSaveJson,
   isPlainRecord,
+  readOwnNonNegInt,
   recomputeAchievements,
   recordEndlessRunStats,
   recordRunCompletion,
@@ -86,12 +89,6 @@ import type {
   TowerMasteryStat,
 } from '../sim/meta/types.ts';
 import { getTodayUtcDateString, loadMetaSave, saveMetaSave } from './storage.ts';
-
-const IGNORED_BASELINE_KEYS = new Set<string>(['__proto__', 'constructor', 'prototype']);
-
-function nonNegIntOrZero(value: unknown): number {
-  return typeof value === 'number' && Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0;
-}
 
 export interface MetaSessionOptions {
   readonly levels?: readonly LevelDef[];
@@ -203,28 +200,23 @@ export class MetaSession {
     if (!isPlainRecord(this.save.stats)) {
       this.save.stats = createEmptyLifetimeStats();
     }
-    this.save.stats.gamesPlayed = nonNegIntOrZero(this.save.stats.gamesPlayed) + 1;
+    this.save.stats.gamesPlayed = asNonNegInt(this.save.stats.gamesPlayed) + 1;
   }
 
   private syncRunEndlessBaseline(level: LevelDef): void {
     const bestEndlessWaves = Array.isArray(this.save?.campaign?.bestEndlessWaves)
       ? this.save.campaign.bestEndlessWaves
       : null;
-    const scoresMap = isPlainRecord(this.save?.bestEndlessScoresByLevelId)
-      ? this.save.bestEndlessScoresByLevelId
-      : null;
     const idx =
       typeof level?.index === 'number' && Number.isFinite(level.index)
         ? Math.max(0, Math.floor(level.index))
         : -1;
     this.runStartBestEndlessWave =
-      bestEndlessWaves && idx >= 0 ? nonNegIntOrZero(bestEndlessWaves[idx]) : 0;
+      bestEndlessWaves && idx >= 0 ? asNonNegInt(bestEndlessWaves[idx]) : 0;
     const levelId = typeof level?.id === 'string' ? level.id : '';
-    const isSafeId = levelId.length > 0 && !IGNORED_BASELINE_KEYS.has(levelId);
-    this.runStartBestEndlessScore =
-      isSafeId && scoresMap && Object.hasOwn(scoresMap, levelId)
-        ? nonNegIntOrZero(scoresMap[levelId])
-        : 0;
+    this.runStartBestEndlessScore = levelId
+      ? readOwnNonNegInt(getPlainRecord(this.save?.bestEndlessScoresByLevelId), levelId)
+      : 0;
   }
 
   private finalizeRunOutcome(
@@ -412,9 +404,9 @@ export class MetaSession {
     outcome: 'ongoing' | 'won' | 'lost' = 'ongoing',
   ): readonly LiveChallengeStatus[] {
     if (!this.observer || this.activeDailyDate !== null) return [];
-    const completedMap = isPlainRecord(this.save?.completedChallenges)
-      ? (this.save.completedChallenges as Readonly<Record<string, boolean>>)
-      : {};
+    const completedMap = (getPlainRecord(this.save?.completedChallenges) ?? {}) as Readonly<
+      Record<string, boolean>
+    >;
     const storySnapshot = this.observer.getStoryWinSnapshot();
     if (storySnapshot) {
       return evaluateLiveLevelChallenges(

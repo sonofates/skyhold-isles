@@ -5,7 +5,7 @@ import { ENEMY_DEFS } from '../../data/enemies.ts';
 import { LEVELS } from '../../data/levels/index.ts';
 import type { LevelDef, WaveDef, WaveGroupDef } from '../../data/levels/types.ts';
 import { TOWER_DEFS, TOWER_TYPES } from '../../data/towers.ts';
-import { mergeRunModifiers } from './modifiers.ts';
+import { formatTowerNames, mergeRunModifiers } from './modifiers.ts';
 import { hashSeedString, selectEndlessMutators } from './mutators.ts';
 import type { DailyChallengeSpec, DailyTowerRestriction, MutatorDef, RunModifiers } from './types.ts';
 
@@ -27,12 +27,6 @@ export function isValidDateString(dateStr: string): boolean {
   if (month < 1 || month > 12 || day < 1) return false;
   const maxDay = month === 2 && isLeapYear(year) ? 29 : DAYS_IN_MONTH[month - 1];
   return day <= maxDay;
-}
-
-function formatTowerNames(types: readonly TowerType[]): string {
-  return types
-    .map((t) => (Object.hasOwn(TOWER_DEFS, t) ? (TOWER_DEFS[t]?.name ?? t) : t))
-    .join(', ');
 }
 
 function pickTowerRestriction(

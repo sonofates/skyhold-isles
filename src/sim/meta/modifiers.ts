@@ -166,6 +166,13 @@ export function hasActiveRunModifiers(modifiers: ResolvedRunModifiers): boolean 
   );
 }
 
+/** Formats tower display names in order, safely handling unknown/future tower keys. */
+export function formatTowerNames(types: readonly TowerType[]): string {
+  return types
+    .map((t) => (Object.hasOwn(TOWER_DEFS, t) ? (TOWER_DEFS[t]?.name ?? t) : t))
+    .join(', ');
+}
+
 /** Checks whether a tower type can be built under the active run modifiers. */
 export function isTowerTypeAllowed(type: TowerType, modifiers: ResolvedRunModifiers): boolean {
   if (modifiers.forbiddenTowerTypes.includes(type)) {
@@ -292,27 +299,34 @@ export function describeActiveModifiers(
     name: string,
     mult: number,
     expectedMult: number,
-    detail: string,
+    detailPrefix: string,
+    detailSuffix: string,
   ) => {
     if (!Number.isFinite(mult) || mult <= 0) return;
     if (Math.abs(mult - expectedMult) <= 1e-3 || mult === 1) return;
     const pct = Math.round((mult - 1) * 100);
     if (pct === 0) return;
-    badges.push({ id, label: `${name} ${pct >= 0 ? '+' : ''}${pct}%`, detail });
+    badges.push({
+      id,
+      label: `${name} ${pct >= 0 ? '+' : ''}${pct}%`,
+      detail: `${detailPrefix}${+mult.toFixed(4)}x${detailSuffix}`,
+    });
   };
   pushPctBadge(
     'custom-enemy-hp',
     'Enemy HP',
     modifiers.enemyHpMultiplier,
     baseline.enemyHpMultiplier,
-    `Enemies have ${modifiers.enemyHpMultiplier}x health.`,
+    'Enemies have ',
+    ' health.',
   );
   pushPctBadge(
     'custom-enemy-speed',
     'Enemy Speed',
     modifiers.enemySpeedMultiplier,
     baseline.enemySpeedMultiplier,
-    `Enemies move at ${modifiers.enemySpeedMultiplier}x speed.`,
+    'Enemies move at ',
+    ' speed.',
   );
   const armorBonus = Number.isFinite(modifiers.enemyArmorBonus)
     ? Math.max(0, Math.round(modifiers.enemyArmorBonus))
@@ -339,21 +353,24 @@ export function describeActiveModifiers(
     'Gold Rewards',
     modifiers.goldRewardMultiplier,
     baseline.goldRewardMultiplier,
-    `Kills and wave bonuses grant ${modifiers.goldRewardMultiplier}x gold.`,
+    'Kills and wave bonuses grant ',
+    ' gold.',
   );
   pushPctBadge(
     'custom-starting-gold',
     'Starting Gold',
     modifiers.startingGoldMultiplier,
     baseline.startingGoldMultiplier,
-    `Start with ${modifiers.startingGoldMultiplier}x starting gold.`,
+    'Start with ',
+    ' starting gold.',
   );
   pushPctBadge(
     'custom-tower-cost',
     'Tower Cost',
     modifiers.towerCostMultiplier,
     baseline.towerCostMultiplier,
-    `Tower builds and upgrades cost ${modifiers.towerCostMultiplier}x gold.`,
+    'Tower builds and upgrades cost ',
+    ' gold.',
   );
 
   const forbiddenList = dedupeStrings<TowerType>(modifiers?.forbiddenTowerTypes);
@@ -371,22 +388,17 @@ export function describeActiveModifiers(
         detail: 'No tower types are permitted under these modifiers.',
       });
     } else {
-      const names = effectiveAllowed
-        .map((t) => (Object.hasOwn(TOWER_DEFS, t) ? (TOWER_DEFS[t]?.name ?? t) : t))
-        .join(', ');
       badges.push({
         id: 'allowed-arsenal',
         label: 'Limited Arsenal',
-        detail: `Only ${names} can be built.`,
+        detail: `Only ${formatTowerNames(effectiveAllowed)} can be built.`,
       });
     }
   }
 
   const extraBanned = forbiddenList.filter((t) => !mutatorForbidden.has(t));
   if (extraBanned.length > 0) {
-    const names = extraBanned
-      .map((t) => (Object.hasOwn(TOWER_DEFS, t) ? (TOWER_DEFS[t]?.name ?? t) : t))
-      .join(', ');
+    const names = formatTowerNames(extraBanned);
     badges.push({
       id: 'restricted-towers',
       label: `No ${names}`,

@@ -2284,5 +2284,22 @@ describe('MetaSession stats, achievements, challenges & daily persistence', () =
     expect(protoSession.getLastRunOutcome()?.isNewBestEndlessScore).toBe(true);
     expect(protoSession.getLastRunOutcome()?.isNewBestEndlessWave).toBe(true);
     protoSession.dispose();
+
+    // Prototype-method level IDs (e.g. 'toString') stay isolated from Object.prototype across mastery, records, and baselines
+    const toStringLevels = [{ ...LEVELS[0], id: 'toString', index: 0, waves: [LEVELS[0].waves[0]] }];
+    const toStringSave = createDefaultMetaSave(1);
+    const toStringSession = new MetaSession({
+      levels: toStringLevels,
+      saveData: toStringSave,
+      onSave: () => {},
+    });
+    const toStringBus = new EventBus();
+    toStringSession.startRun(toStringLevels[0], toStringBus);
+    toStringBus.emit('waveStarted', { waveIndex: 0, totalWaves: 1, earlyBonus: 0 });
+    toStringBus.emit('waveCompleted', { waveIndex: 0, bonus: 10 });
+    toStringBus.emit('gameWon', { stars: 3, livesRemaining: 20 });
+    expect(toStringSession.getIslandMasteryStatus(0)?.bestLivesRemaining).toBe(20);
+    expect(toStringSession.getIslandMasteryStatus(0)?.fastestWinSec).toBeNull();
+    toStringSession.dispose();
   });
 });

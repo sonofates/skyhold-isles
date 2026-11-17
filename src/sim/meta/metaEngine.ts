@@ -117,7 +117,7 @@ function sanitizePositiveFloatRecord(raw: unknown): Record<string, number> {
   return out;
 }
 
-function asNonNegInt(value: unknown, fallback = 0): number {
+export function asNonNegInt(value: unknown, fallback = 0): number {
   if (typeof value !== 'number' || !Number.isFinite(value)) return fallback;
   return Math.max(0, Math.floor(value));
 }
@@ -172,10 +172,10 @@ export function getDailyBestScore(
 ): number {
   if (typeof dateStr !== 'string') return 0;
   const target = dateStr.trim();
-  if (!scores || typeof scores !== 'object' || Array.isArray(scores) || !isValidDateString(target)) {
+  if (!isPlainRecord(scores) || !isValidDateString(target)) {
     return 0;
   }
-  let best = asNonNegInt(scores[target], 0);
+  let best = 0;
   for (const [key, val] of Object.entries(scores)) {
     if (key.trim() === target) {
       best = Math.max(best, asNonNegInt(val, 0));
@@ -431,10 +431,18 @@ function readBoolFlag(map: Record<string, unknown> | null, key: string): boolean
   return map !== null && !IGNORED_RECORD_KEYS.has(key) && Object.hasOwn(map, key) && map[key] === true;
 }
 
-function readOwnNonNegInt(map: Record<string, unknown> | null, key: string): number {
+export function readOwnNonNegInt(map: Record<string, unknown> | null, key: string): number {
   return map !== null && !IGNORED_RECORD_KEYS.has(key) && Object.hasOwn(map, key)
     ? asNonNegInt(map[key])
     : 0;
+}
+
+function readOwnPositiveFloat(map: Record<string, unknown> | null, key: string): number | null {
+  if (map === null || IGNORED_RECORD_KEYS.has(key) || !Object.hasOwn(map, key)) {
+    return null;
+  }
+  const val = map[key];
+  return typeof val === 'number' && Number.isFinite(val) && val > 0 ? val : null;
 }
 
 function getLevelDisplayName(level: LevelDef): string {
@@ -813,9 +821,7 @@ export function recordRunCompletion(
     : 0;
   const prevEndlessScore = asNonNegInt(
     params.previousBestEndlessScore ??
-      (safeLevelId && Object.hasOwn(save.bestEndlessScoresByLevelId, safeLevelId)
-        ? save.bestEndlessScoresByLevelId[safeLevelId]
-        : 0),
+      (safeLevelId ? readOwnNonNegInt(save.bestEndlessScoresByLevelId, safeLevelId) : 0),
   );
   const runDurationSec =
     telemetry && Number.isFinite(telemetry.simTimeSec)
@@ -856,16 +862,8 @@ export function recordRunCompletion(
           }
           if (safeLevelId && Number.isFinite(telemetry.simTimeSec) && telemetry.simTimeSec > 0) {
             const clearSec = Math.max(0.1, +telemetry.simTimeSec.toFixed(1));
-            const rawPrevFastest = Object.hasOwn(save.fastestWinSecByLevelId, safeLevelId)
-              ? save.fastestWinSecByLevelId[safeLevelId]
-              : undefined;
-            const prevFastest =
-              typeof rawPrevFastest === 'number' &&
-              Number.isFinite(rawPrevFastest) &&
-              rawPrevFastest > 0
-                ? rawPrevFastest
-                : undefined;
-            if (prevFastest === undefined || clearSec < prevFastest) {
+            const prevFastest = readOwnPositiveFloat(save.fastestWinSecByLevelId, safeLevelId);
+            if (prevFastest === null || clearSec < prevFastest) {
               save.fastestWinSecByLevelId[safeLevelId] = clearSec;
               isNewFastestWin = true;
             }
@@ -998,8 +996,16 @@ export function recordRunCompletion(
   };
 }
 
-function getPlainRecord(raw: unknown): Record<string, unknown> | null {
+export function getPlainRecord(raw: unknown): Record<string, unknown> | null {
   return isPlainRecord(raw) ? raw : null;
+}
+
+function countUnlockedAchievements(unlockedMap: Record<string, unknown> | null): number {
+  let count = 0;
+  for (let i = 0; i < ACHIEVEMENTS.length; i++) {
+    if (readBoolFlag(unlockedMap, ACHIEVEMENTS[i].id)) count++;
+  }
+  return count;
 }
 
 function isValidLevel(level: unknown): level is LevelDef {
@@ -1139,12 +1145,7 @@ export function getIslandMasteryStatus(
   const bestLivesRemaining = safeId
     ? Math.min(BALANCE.startingLives, readOwnNonNegInt(bestLivesMap, safeId))
     : 0;
-  const rawFast =
-    safeId && fastestWinMap && Object.hasOwn(fastestWinMap, safeId)
-      ? fastestWinMap[safeId]
-      : undefined;
-  const fastestWinSec =
-    typeof rawFast === 'number' && Number.isFinite(rawFast) && rawFast > 0 ? rawFast : null;
+  const fastestWinSec = safeId ? readOwnPositiveFloat(fastestWinMap, safeId) : null;
   return {
     levelId: challengeStatus.levelId,
     levelIndex,
@@ -1257,10 +1258,7 @@ export function getMetaCareerRank(
     campaignStars += Math.min(3, asNonNegInt(bestStarsArr[i]));
   }
   const challengeStars = getAllChallengeProgress(save, safeLevels).earnedStars;
-  let achievementsUnlocked = 0;
-  for (let i = 0; i < ACHIEVEMENTS.length; i++) {
-    if (readBoolFlag(unlockedMap, ACHIEVEMENTS[i].id)) achievementsUnlocked++;
-  }
+  const achievementsUnlocked = countUnlockedAchievements(unlockedMap);
   const dailyBonus = Math.min(20, getValidDailyDateSet(save?.completedDailyDates).size * 2);
   const points = campaignStars + challengeStars * 2 + achievementsUnlocked * 2 + dailyBonus;
 
@@ -1458,12 +1456,7 @@ export function getMetaCareerSummary(
     if (mastery?.mastered) islandsMastered++;
   }
 
-  let achievementsUnlocked = 0;
-  for (let i = 0; i < ACHIEVEMENTS.length; i++) {
-    if (readBoolFlag(unlockedMap, ACHIEVEMENTS[i].id)) {
-      achievementsUnlocked++;
-    }
-  }
+  const achievementsUnlocked = countUnlockedAchievements(unlockedMap);
 
   const validDailyDates = getValidDailyDateSet(save?.completedDailyDates);
   const streaks = computeDailyStreaks([...validDailyDates], todayDateStr);
@@ -1577,7 +1570,7 @@ export function getRecentDailyHistory(
   return getRecentDailySpecs(endDateStr, days, levels).map((spec) => ({
     spec,
     completed: completedSet.has(spec.date),
-    bestScore: asNonNegInt(scoreByDate[spec.date]),
+    bestScore: readOwnNonNegInt(scoreByDate, spec.date),
     isToday: spec.date === normalizedToday,
   }));
 }
@@ -1622,6 +1615,17 @@ function maxFiniteNonNeg(a: number, b: number): number {
   return Math.max(va, vb);
 }
 
+function mergeBoolRecords(
+  a: Readonly<Record<string, boolean>> | undefined | null,
+  b: Readonly<Record<string, boolean>> | undefined | null,
+): Record<string, boolean> {
+  const merged = sanitizeBoolRecord(a);
+  for (const k of Object.keys(sanitizeBoolRecord(b))) {
+    merged[k] = true;
+  }
+  return merged;
+}
+
 /** Monotonically merges two MetaSaveData objects, preserving highest stars, records, and unlocks. */
 export function mergeMetaSaves(
   base: MetaSaveData,
@@ -1629,14 +1633,14 @@ export function mergeMetaSaves(
   levelCount: number,
   levels: readonly LevelDef[] = LEVELS,
 ): MetaSaveData {
-  const completedChallenges: Record<string, boolean> = sanitizeBoolRecord(base?.completedChallenges);
-  for (const k of Object.keys(sanitizeBoolRecord(incoming?.completedChallenges))) {
-    completedChallenges[k] = true;
-  }
-  const unlockedAchievements: Record<string, boolean> = sanitizeBoolRecord(base?.unlockedAchievements);
-  for (const k of Object.keys(sanitizeBoolRecord(incoming?.unlockedAchievements))) {
-    unlockedAchievements[k] = true;
-  }
+  const completedChallenges = mergeBoolRecords(
+    base?.completedChallenges,
+    incoming?.completedChallenges,
+  );
+  const unlockedAchievements = mergeBoolRecords(
+    base?.unlockedAchievements,
+    incoming?.unlockedAchievements,
+  );
   const completedDailyDates = [
     ...getValidDailyDateSet([
       ...(Array.isArray(base?.completedDailyDates) ? base.completedDailyDates : []),

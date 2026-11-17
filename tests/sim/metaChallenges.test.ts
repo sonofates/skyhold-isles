@@ -1352,6 +1352,63 @@ describe('RunObserver challenge condition tracking', () => {
       ).state,
     ).toBe('failed');
 
+    // RunObserver ignores non-finite speeds and malformed event payloads without tainting telemetry
+    const cleanEv = new EventBus();
+    const cleanObs = new RunObserver(LEVELS[0], cleanEv);
+    cleanObs.recordSpeed(3);
+    cleanEv.emit('waveStarted', { waveIndex: 0, totalWaves: 10, earlyBonus: 0 });
+    cleanObs.recordSpeed(Number.NaN as unknown as 1);
+    cleanEv.emit('enemyKilled', {
+      enemyId: 1,
+      enemyType: 'grunt',
+      reward: Number.NaN,
+      x: 0,
+      y: 0,
+      z: 0,
+    });
+    cleanEv.emit('enemyLeaked', {
+      enemyType: 'grunt',
+      livesLost: Number.NaN,
+      x: 0,
+      y: 0,
+      z: 0,
+    });
+    cleanEv.emit('towerSold', {
+      towerId: 1,
+      type: 'archer',
+      refund: Number.NaN,
+      x: 0,
+      y: 0,
+      z: 0,
+    });
+    expect(cleanObs.getTelemetry().minCombatSpeed).toBe(3);
+    expect(cleanObs.getTelemetry().goldEarned).toBe(0);
+    expect(cleanObs.getTelemetry().livesLost).toBe(0);
+    expect(cleanObs.getTelemetry().netGoldSpent).toBe(0);
+
+    // Non-array condition pools and constructor-keyed telemetry maps fail safely
+    const protoBuiltTel = {
+      ...cleanObs.getTelemetry(),
+      towersBuiltByType: Object.defineProperty({}, 'constructor', { value: 2, enumerable: true }),
+    };
+    expect(
+      evaluateChallengeCondition(
+        { kind: 'allowedTowerTypes', allowed: null as unknown as readonly ('archer')[] },
+        protoBuiltTel,
+        true,
+        20,
+      ),
+    ).toBe(true);
+    expect(
+      evaluateChallengeCondition(
+        { kind: 'forbiddenTowerTypes', forbidden: null as unknown as readonly ('frost')[] },
+        protoBuiltTel,
+        true,
+        20,
+      ),
+    ).toBe(true);
+
+    cleanObs.dispose();
     protoTypeObs.dispose();
 
     guardMeta.dispose();
