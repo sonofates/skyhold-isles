@@ -50,6 +50,7 @@ function pickTowerRestriction(
   });
   const primaryAntiAirPool =
     antiAirDpsAvailable.length > 0 ? antiAirDpsAvailable : antiAirAvailable;
+  const armorBreakersAvailable = available.filter((t) => TOWER_DEFS[t].tiers[0].damage >= 35);
 
   if (options?.forceNone || available.length <= 2 || antiAirAvailable.length === 0) {
     return {
@@ -82,6 +83,13 @@ function pickTowerRestriction(
     const bannable = available.filter((t) => {
       if (options?.preserveAntiAir && TOWER_DEFS[t].hitsFlyers) return false;
       if (primaryAntiAirPool.includes(t) && primaryAntiAirPool.length <= 1) return false;
+      if (
+        options?.requireArmorBreaker &&
+        TOWER_DEFS[t].tiers[0].damage >= 35 &&
+        armorBreakersAvailable.length <= 1
+      ) {
+        return false;
+      }
       return !TOWER_DEFS[t].hitsFlyers || antiAirAvailable.length > 1;
     });
     if (bannable.length > 0) {

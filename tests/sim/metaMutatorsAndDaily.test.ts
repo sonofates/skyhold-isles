@@ -14,6 +14,7 @@ import {
 import {
   describeActiveModifiers,
   getAllowedTowerTypes,
+  hasActiveRunModifiers,
   isAdvantageousModifiers,
   isTowerTypeAllowed,
   mergeRunModifiers,
@@ -323,10 +324,9 @@ describe('Daily challenge pure date-seeded generator', () => {
         w.groups.some((g) => (g.enemyType === 'brute' && g.count >= 6) || g.enemyType === 'boss'),
       );
       if (
-        spec.towerRestriction.kind === 'limited_arsenal' &&
-        (lvl.difficulty === 'Heroic' ||
-          (lvl.difficulty !== 'Breezy' && hasHeavyArmored) ||
-          spec.modifiers.enemyArmorBonus > 0)
+        lvl.difficulty === 'Heroic' ||
+        (lvl.difficulty !== 'Breezy' && hasHeavyArmored) ||
+        spec.modifiers.enemyArmorBonus > 0
       ) {
         expect(legalTowers.some((t) => TOWER_DEFS[t].tiers[0].damage >= 35)).toBe(true);
       }
@@ -496,6 +496,9 @@ describe('Daily challenge pure date-seeded generator', () => {
 
     expect(isAdvantageousModifiers(fromPreset)).toBe(false);
     expect(isAdvantageousModifiers(resolveRunModifiers({ towerCostMultiplier: 0.8 }))).toBe(true);
+    expect(hasActiveRunModifiers(resolveRunModifiers(null))).toBe(false);
+    expect(hasActiveRunModifiers(resolveRunModifiers({ enemyHpMultiplier: 1.3 }))).toBe(true);
+    expect(hasActiveRunModifiers(resolveRunModifiers({ forbiddenTowerTypes: ['frost'] }))).toBe(true);
 
     // Campaign score combines wave/kill base * multiplier + 25 per remaining life
     expect(computeCampaignRunScore(10, 80, 18, 1.5)).toBe(

@@ -122,6 +122,7 @@ export interface RunTelemetry {
   readonly currentSpeed: SpeedMultiplier;
   readonly minCombatSpeed: SpeedMultiplier | null;
   readonly activeMutatorIds: readonly string[];
+  readonly hasRunModifiers: boolean;
   readonly eligibleForChallenges: boolean;
 }
 

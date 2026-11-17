@@ -337,6 +337,26 @@ export function migrateToMetaSave(
     base.stats.dailyChallengesCompleted = base.completedDailyDates.length;
   }
 
+  // Keep sticky achievement milestones consistent with migrated challenge/life records
+  for (const [cid, done] of Object.entries(base.completedChallenges)) {
+    if (!done) continue;
+    const chDef = getChallengeById(cid, levels);
+    if (!chDef) continue;
+    if (chDef.condition.kind === 'noLivesLost') {
+      base.achievementMilestones.wonNoLivesLost = true;
+    } else if (chDef.condition.kind === 'combatSpeedOnly' && chDef.condition.requiredSpeed >= 3) {
+      base.achievementMilestones.wonAt3xSpeed = true;
+    } else if (chDef.condition.kind === 'maxTowersBuilt' && chDef.condition.maxCount <= 6) {
+      base.achievementMilestones.wonMax6Towers = true;
+    }
+  }
+  for (const lives of Object.values(base.bestLivesByLevelId)) {
+    if (lives >= BALANCE.startingLives) {
+      base.achievementMilestones.wonNoLivesLost = true;
+      break;
+    }
+  }
+
   recomputeAchievements(base, levels);
   return base;
 }
@@ -351,6 +371,7 @@ export function applyTelemetryDeltaToStats(
   current: RunTelemetry,
   committed: RunTelemetry | null,
 ): void {
+  if (!current.eligibleForChallenges) return;
   const prev = committed;
   const d = (curr: number, old: number | undefined): number => Math.max(0, curr - (old ?? 0));
 
@@ -513,7 +534,7 @@ export function recordEndlessRunStats(
   }
   const endlessWavesCleared = telemetry.endlessWavesCompleted;
   if (
-    telemetry.activeMutatorIds.length > 0 &&
+    (telemetry.hasRunModifiers || telemetry.activeMutatorIds.length > 0) &&
     endlessWavesCleared > save.achievementMilestones.bestMutatedEndlessWavesCleared
   ) {
     save.achievementMilestones.bestMutatedEndlessWavesCleared = endlessWavesCleared;
@@ -605,7 +626,8 @@ export function recordRunCompletion(
           );
         }
 
-        if (telemetry.activeMutatorIds.length === 0) {
+        const hasModifiers = telemetry.hasRunModifiers || telemetry.activeMutatorIds.length > 0;
+        if (!hasModifiers) {
           const clampedLives = Math.min(BALANCE.startingLives, livesRemaining);
           if (clampedLives > (save.bestLivesByLevelId[level.id] ?? 0)) {
             save.bestLivesByLevelId[level.id] = clampedLives;
@@ -660,8 +682,11 @@ export function recordRunCompletion(
         }
       }
     }
-  } else if (!telemetry.endlessEntered) {
+  } else if (!telemetry.endlessEntered && telemetry.eligibleForChallenges) {
     save.stats.gamesLost++;
+  }
+  if (save.stats.gamesPlayed < save.stats.gamesWon + save.stats.gamesLost) {
+    save.stats.gamesPlayed = save.stats.gamesWon + save.stats.gamesLost;
   }
 
   const endlessScore = recordEndlessRunStats(
@@ -958,8 +983,9 @@ export function getRecommendedNextGoal(
 ): RecommendedGoal | null {
   if (levels.length === 0) return null;
 
-  if (isValidDateString(todayDateStr) && !save.completedDailyDates.includes(todayDateStr)) {
-    const daily = generateDailyChallenge(todayDateStr, levels);
+  const normalizedToday = todayDateStr.trim();
+  if (isValidDateString(normalizedToday) && !save.completedDailyDates.includes(normalizedToday)) {
+    const daily = generateDailyChallenge(normalizedToday, levels);
     return {
       kind: 'daily',
       title: daily.title,

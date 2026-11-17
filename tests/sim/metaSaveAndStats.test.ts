@@ -861,4 +861,125 @@ describe('MetaSession stats, achievements, challenges & daily persistence', () =
     expect(meta.getIslandMasteryStatus(0)?.bestMutatedScore).toBe(99999);
     meta.dispose();
   });
+
+  it('blocks debug-tainted stat/achievement farming, supports raw RunModifiers replays, and exposes live endless score', () => {
+    installMockLocalStorage();
+    const tinyLevel: LevelDef = {
+      ...LEVELS[0],
+      startingGold: 1500,
+      waves: [{ clearBonus: 25, groups: [{ enemyType: 'grunt', count: 2, spawnInterval: 0.3, startDelay: 0 }] }],
+    };
+    const testLevels = [tinyLevel, ...LEVELS.slice(1)];
+    const meta = new MetaSession({
+      levels: testLevels,
+      getTodayDate: () => '2026-11-17',
+    });
+
+    // 1. Debug-spawned bosses / cheated gold must NOT unlock boss_slayer_10, master_architect, or pollute stats
+    const dbgEv = new EventBus();
+    const dbgWorld = new SimWorld(tinyLevel, dbgEv);
+    meta.startRun(tinyLevel, dbgEv);
+    meta.markDebugTainted();
+    dbgWorld.placeTower(4, 2, 'archer');
+    for (let i = 0; i < 15; i++) {
+      dbgWorld.enemySystem.spawnEnemy('boss');
+      dbgEv.emit('enemyKilled', {
+        enemyId: 200 + i,
+        enemyType: 'boss',
+        reward: 35,
+        x: 0,
+        y: 0,
+        z: 0,
+      });
+    }
+    dbgWorld.debugForceLose();
+    meta.endRun();
+
+    expect(meta.getStats().enemiesDefeatedTotal).toBe(0);
+    expect(meta.getStats().towersBuiltTotal).toBe(0);
+    expect(meta.getStats().gamesLost).toBe(0);
+    expect(meta.getAchievements().find((a) => a.def.id === 'boss_slayer_10')?.unlocked).toBe(false);
+
+    // 2. Raw RunModifiers without activeMutatorIds still score mutated replays & unlock mutated_endless
+    const rawMods = meta.resolveMutatorSelection({ enemyHpMultiplier: 1.35, scoreMultiplier: 1.4 });
+    const rawEv = new EventBus();
+    const rawWorld = new SimWorld(tinyLevel, rawEv, rawMods);
+    meta.startRun(tinyLevel, rawEv, { modifiers: rawMods, speed: 3 });
+    expect(meta.getLiveEndlessScore()).toBeNull();
+    expect(meta.getLiveRunTelemetry()?.hasRunModifiers).toBe(true);
+
+    const archer = rawWorld.placeTower(4, 2, 'archer')!;
+    rawWorld.upgradeTower(archer.id);
+    rawWorld.upgradeTower(archer.id);
+    rawWorld.startNextWave();
+    for (let i = 0; i < 60 * 30 && rawWorld.outcome === 'ongoing'; i++) {
+      meta.onTick(BALANCE.fixedDt, 3);
+      rawWorld.fixedTick(BALANCE.fixedDt);
+    }
+    expect(rawWorld.outcome).toBe('won');
+    const storyOutcome = meta.getLastRunOutcome()!;
+    expect(storyOutcome.mutatedScore).toBeGreaterThan(0);
+    expect(storyOutcome.isNewFastestWin).toBe(false);
+    expect(meta.getIslandMasteryStatus(0)?.fastestWinSec).toBeNull();
+
+    // Enter Endless with raw custom modifiers -> live Endless score updates & mutated_endless unlocks
+    expect(rawWorld.enterEndlessMode(rawMods)).toBe(true);
+    meta.onEndlessEntered(rawMods);
+    expect(meta.getLiveEndlessScore()?.totalScore).toBe(0);
+
+    rawWorld.gold = 6000;
+    const spots: Array<[number, number, 'archer' | 'cannon' | 'frost' | 'tesla' | 'mortar']> = [
+      [4, 3, 'cannon'],
+      [7, 5, 'frost'],
+      [8, 5, 'archer'],
+      [10, 4, 'tesla'],
+      [5, 7, 'mortar'],
+      [7, 3, 'cannon'],
+    ];
+    for (const [col, row, type] of spots) {
+      const tw = rawWorld.placeTower(col, row, type);
+      if (tw) {
+        rawWorld.upgradeTower(tw.id);
+        rawWorld.upgradeTower(tw.id);
+      }
+    }
+
+    let clearedEndless = 0;
+    rawEv.on('waveCompleted', (w) => {
+      if (w.waveIndex >= tinyLevel.waves.length) clearedEndless++;
+    });
+    for (let i = 0; i < 60 * 180 && clearedEndless < 5 && rawWorld.outcome === 'ongoing'; i++) {
+      if (rawWorld.waveSystem.state === 'betweenWaves') {
+        rawWorld.startNextWave();
+      }
+      meta.onTick(BALANCE.fixedDt, 3);
+      rawWorld.fixedTick(BALANCE.fixedDt);
+    }
+    expect(clearedEndless).toBeGreaterThanOrEqual(5);
+    const liveScore = meta.getLiveEndlessScore();
+    expect(liveScore).not.toBeNull();
+    expect(liveScore!.scoreMultiplier).toBe(1.4);
+    expect(liveScore!.totalScore).toBeGreaterThan(0);
+
+    meta.endRun();
+    expect(meta.getAchievements().find((a) => a.def.id === 'mutated_endless')?.unlocked).toBe(true);
+
+    // 3. Partial v2 migration infers sticky milestones from completed challenges & bestLivesByLevelId
+    const partialSave = createDefaultMetaSave(9);
+    partialSave.completedChallenges['sunlit-meadow:perfect'] = true;
+    partialSave.completedChallenges['sunlit-meadow:rush3x'] = true;
+    partialSave.completedChallenges['sunlit-meadow:lean'] = true;
+    const inferred = migrateToMetaSave(partialSave, null, 9, LEVELS);
+    expect(inferred.achievementMilestones.wonNoLivesLost).toBe(true);
+    expect(inferred.achievementMilestones.wonAt3xSpeed).toBe(true);
+    expect(inferred.achievementMilestones.wonMax6Towers).toBe(true);
+    expect(inferred.unlockedAchievements.flawless_defense).toBe(true);
+    expect(inferred.unlockedAchievements.speed_demon).toBe(true);
+    expect(inferred.unlockedAchievements.minimalist).toBe(true);
+
+    // Padded todayDateStr is trimmed in getRecommendedNextGoal
+    meta.getSaveSnapshot().completedDailyDates.push('2026-11-17');
+    expect(meta.getRecommendedNextGoal(' 2026-11-17 ')?.kind).not.toBe('daily');
+    meta.dispose();
+  });
 });

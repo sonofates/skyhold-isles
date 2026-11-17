@@ -849,4 +849,89 @@ describe('RunObserver challenge condition tracking', () => {
     expect(obs2.evaluateCompletedChallenges(true, w2.lives)).toHaveLength(0);
     obs2.dispose();
   });
+
+  it('keeps run eligible across economyChanged bridge emissions during kills, leaks, early calls, and wave clears', () => {
+    const level = makeSimpleTestLevel({
+      startingGold: 300,
+      waves: [
+        {
+          clearBonus: 30,
+          groups: [
+            { enemyType: 'grunt', count: 3, spawnInterval: 0.35, startDelay: 0 },
+            { enemyType: 'runner', count: 2, spawnInterval: 0.35, startDelay: 0.2 },
+          ],
+        },
+        {
+          clearBonus: 40,
+          groups: [{ enemyType: 'flyer', count: 2, spawnInterval: 0.4, startDelay: 0 }],
+        },
+      ],
+    });
+    const events = new EventBus();
+    const world = new SimWorld(level, events);
+    const meta = new MetaSession({ levels: [level], onSave: () => {} });
+    meta.startRun(level, events, { speed: 3 });
+
+    // Mirror GameSession.bindSimEvents deferIntegrityCheck pattern on economyChanged
+    let deferIntegrityCheck = false;
+    const syncUi = () => {
+      if (!deferIntegrityCheck && world.outcome === 'ongoing') {
+        meta.verifyWorldIntegrity(world.gold, world.lives);
+      }
+    };
+    events.on('economyChanged', () => {
+      const prev = deferIntegrityCheck;
+      deferIntegrityCheck = true;
+      try {
+        syncUi();
+      } finally {
+        deferIntegrityCheck = prev;
+      }
+    });
+
+    // Place a single weak Tier-1 archer near start? No, place far back or let Wave 1 leak runners first, then build
+    const frontTower = world.placeTower(10, 4, 'archer')!;
+    expect(frontTower).not.toBeNull();
+    world.startNextWave();
+    syncUi();
+
+    for (let t = 0; t < 60 * 35 && world.waveSystem.state !== 'betweenWaves' && world.outcome === 'ongoing'; t++) {
+      if (world.outcome === 'ongoing') {
+        meta.onTick(BALANCE.fixedDt, 3);
+        meta.verifyWorldIntegrity(world.gold, world.lives);
+      }
+      world.fixedTick(BALANCE.fixedDt);
+      if (world.outcome === 'ongoing') {
+        meta.verifyWorldIntegrity(world.gold, world.lives);
+      }
+    }
+
+    // Build more defense before calling Wave 2 early
+    world.upgradeTower(frontTower.id);
+    world.placeTower(4, 2, 'archer');
+    expect(world.startNextWave()).toBe(true);
+    syncUi();
+
+    for (let t = 0; t < 60 * 60 && world.outcome === 'ongoing'; t++) {
+      meta.onTick(BALANCE.fixedDt, 3);
+      meta.verifyWorldIntegrity(world.gold, world.lives);
+      world.fixedTick(BALANCE.fixedDt);
+      if (world.outcome === 'ongoing') {
+        meta.verifyWorldIntegrity(world.gold, world.lives);
+      }
+    }
+
+    expect(world.outcome).toBe('won');
+    expect(meta.isCurrentRunEligible()).toBe(true);
+    expect(meta.getStats().enemiesDefeatedTotal).toBeGreaterThan(0);
+
+    // Confirm direct out-of-band gold mutation still taints immediately via syncUi
+    const cheatEv = new EventBus();
+    const cheatWorld = new SimWorld(level, cheatEv);
+    meta.startRun(level, cheatEv);
+    cheatWorld.gold += 100;
+    expect(meta.verifyWorldIntegrity(cheatWorld.gold, cheatWorld.lives)).toBe(false);
+    expect(meta.isCurrentRunEligible()).toBe(false);
+    meta.dispose();
+  });
 });

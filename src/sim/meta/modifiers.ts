@@ -132,6 +132,22 @@ export function isAdvantageousModifiers(modifiers: ResolvedRunModifiers): boolea
   );
 }
 
+/** Returns true when modifiers alter gameplay rules away from the neutral baseline. */
+export function hasActiveRunModifiers(modifiers: ResolvedRunModifiers): boolean {
+  return (
+    modifiers.activeMutatorIds.length > 0 ||
+    modifiers.enemySpeedMultiplier !== 1 ||
+    modifiers.enemyHpMultiplier !== 1 ||
+    modifiers.enemyArmorBonus !== 0 ||
+    modifiers.flyerCountMultiplier !== 1 ||
+    modifiers.goldRewardMultiplier !== 1 ||
+    modifiers.startingGoldMultiplier !== 1 ||
+    modifiers.towerCostMultiplier !== 1 ||
+    modifiers.allowedTowerTypes !== null ||
+    modifiers.forbiddenTowerTypes.length > 0
+  );
+}
+
 /** Checks whether a tower type can be built under the active run modifiers. */
 export function isTowerTypeAllowed(type: TowerType, modifiers: ResolvedRunModifiers): boolean {
   if (modifiers.forbiddenTowerTypes.includes(type)) {

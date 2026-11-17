@@ -39,6 +39,7 @@ import {
 } from '../sim/meta/modifiers.ts';
 import {
   buildEndlessMutatorLoadout,
+  computeEndlessScore,
   getMutatorPresetRoll,
   resolveMutatorSelection,
   selectEndlessMutators,
@@ -56,6 +57,7 @@ import type {
   DailyHistoryEntry,
   DailyStatus,
   EndlessMutatorRoll,
+  EndlessScoreBreakdown,
   IslandMasteryStatus,
   LevelChallengeStatus,
   LifetimeStats,
@@ -145,7 +147,7 @@ export class MetaSession {
 
     this.unsubs.push(
       events.on('waveStarted', () => {
-        if (!this.countedGamePlayed) {
+        if (!this.countedGamePlayed && observer.isEligibleForChallenges()) {
           this.countedGamePlayed = true;
           this.save.stats.gamesPlayed++;
         }
@@ -254,7 +256,9 @@ export class MetaSession {
     if (!this.observer) return;
     const current = this.observer.getTelemetry();
     applyTelemetryDeltaToStats(this.save, current, this.committedTelemetry);
-    this.committedTelemetry = current;
+    if (current.eligibleForChallenges) {
+      this.committedTelemetry = current;
+    }
 
     if (current.endlessEntered) {
       recordEndlessRunStats(
@@ -452,6 +456,21 @@ export class MetaSession {
 
   getActiveRunModifiers(): ResolvedRunModifiers | null {
     return this.observer ? this.observer.getModifiers() : null;
+  }
+
+  getLiveRunTelemetry(): RunTelemetry | null {
+    return this.observer ? this.observer.getTelemetry() : null;
+  }
+
+  getLiveEndlessScore(): EndlessScoreBreakdown | null {
+    if (!this.observer) return null;
+    const t = this.observer.getTelemetry();
+    if (!t.endlessEntered) return null;
+    return computeEndlessScore(
+      t.endlessWavesCompleted,
+      t.endlessEnemiesKilled,
+      this.observer.getModifiers().scoreMultiplier,
+    );
   }
 
   getActiveDailyDate(): string | null {

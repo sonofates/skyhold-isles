@@ -4,7 +4,13 @@ import { BALANCE } from '../../data/balance.ts';
 import { getChallengesForLevel } from '../../data/challenges.ts';
 import type { LevelDef } from '../../data/levels/types.ts';
 import { TOWER_DEFS } from '../../data/towers.ts';
-import { isAdvantageousModifiers, resolveRunModifiers, scaleGoldCost, scaleGoldReward } from './modifiers.ts';
+import {
+  hasActiveRunModifiers,
+  isAdvantageousModifiers,
+  resolveRunModifiers,
+  scaleGoldCost,
+  scaleGoldReward,
+} from './modifiers.ts';
 import type {
   ChallengeCondition,
   ChallengeDef,
@@ -540,6 +546,7 @@ export class RunObserver {
       currentSpeed: this.currentSpeed,
       minCombatSpeed: this.minCombatSpeed,
       activeMutatorIds: [...this.modifiers.activeMutatorIds],
+      hasRunModifiers: hasActiveRunModifiers(this.modifiers),
       eligibleForChallenges: this.eligibleForChallenges,
     };
   }

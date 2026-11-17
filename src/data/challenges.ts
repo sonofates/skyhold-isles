@@ -1,4 +1,5 @@
 import type { LevelDef } from './levels/types.ts';
+import { TOWER_DEFS } from './towers.ts';
 import type { AchievementDef, ChallengeDef, MutatorDef, MutatorPreset } from '../sim/meta/types.ts';
 
 /**
@@ -257,6 +258,7 @@ export function getChallengesForLevel(level: LevelDef): readonly ChallengeDef[] 
     cannon: 'Cannon Bastions',
     tesla: 'Tesla Coils',
   };
+  const bannedLabel = banLabels[bannedType] ?? `${TOWER_DEFS[bannedType].name}s`;
 
   return [
     {
@@ -276,7 +278,7 @@ export function getChallengesForLevel(level: LevelDef): readonly ChallengeDef[] 
       id: `${level.id}:restricted`,
       levelId: level.id,
       title: 'Improvised Bastion',
-      description: `Win without building any ${banLabels[bannedType]}.`,
+      description: `Win without building any ${bannedLabel}.`,
       condition: { kind: 'forbiddenTowerTypes', forbidden: [bannedType] },
     },
     {

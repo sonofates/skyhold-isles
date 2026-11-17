@@ -26,6 +26,7 @@ import type {
   DailyHistoryEntry,
   DailyStatus,
   EndlessMutatorRoll,
+  EndlessScoreBreakdown,
   IslandMasteryStatus,
   LevelChallengeStatus,
   LifetimeStats,
@@ -39,6 +40,7 @@ import type {
   ResolvedRunModifiers,
   RunMetaOutcome,
   RunModifiers,
+  RunTelemetry,
 } from '../sim/meta/types.ts';
 import { SimWorld } from '../sim/world.ts';
 import type { GameOverlays } from '../ui/gameOverlays.ts';
@@ -114,6 +116,7 @@ export class GameSession {
   private deps: SessionRuntimeDeps | null = null;
   private lastRunOptions: { modifiers?: RunModifiers | null; dailyDate?: string | null } | undefined =
     undefined;
+  private deferIntegrityCheck = false;
 
   constructor(renderWorld: RenderWorld, soundManager: SoundManager) {
     this.renderWorld = renderWorld;
@@ -158,7 +161,10 @@ export class GameSession {
     overlays.setPlayVisibility(inPlay);
     setDebugVisible(inPlay);
     if (!inPlay) return;
-    if (this.simWorld.outcome === 'ongoing') {
+    if (!this.deferIntegrityCheck && this.simWorld.outcome === 'ongoing') {
+      if (this.pendingDebugSpawns.length > 0) {
+        this.meta.markDebugTainted();
+      }
       this.meta.verifyWorldIntegrity(this.simWorld.gold, this.simWorld.lives);
     }
 
@@ -329,12 +335,14 @@ export class GameSession {
     this.syncUi();
   }
 
-  enterEndlessMode(mutatorSeedOrModifiers?: number | string | RunModifiers): void {
+  enterEndlessMode(mutatorSeedOrModifiers?: number | string | MutatorSelectionInput): void {
     this.soundManager.unlock();
-    const modifiers: RunModifiers | undefined =
-      typeof mutatorSeedOrModifiers === 'number' || typeof mutatorSeedOrModifiers === 'string'
-        ? this.meta.rollEndlessMutators(mutatorSeedOrModifiers).modifiers
-        : mutatorSeedOrModifiers;
+    let modifiers: RunModifiers | undefined;
+    if (typeof mutatorSeedOrModifiers === 'number' || typeof mutatorSeedOrModifiers === 'string') {
+      modifiers = this.meta.rollEndlessMutators(mutatorSeedOrModifiers).modifiers;
+    } else if (mutatorSeedOrModifiers !== undefined) {
+      modifiers = this.meta.resolveMutatorSelection(mutatorSeedOrModifiers);
+    }
     if (!this.simWorld.enterEndlessMode(modifiers)) return;
     this.meta.onEndlessEntered(modifiers);
     const { overlays, loop } = this.d;
@@ -376,7 +384,15 @@ export class GameSession {
       overlays,
       getSettings: () => this.settings,
       getSimClock: () => this.simClockSec,
-      onSyncUi: this.syncUi,
+      onSyncUi: () => {
+        const prev = this.deferIntegrityCheck;
+        this.deferIntegrityCheck = true;
+        try {
+          this.syncUi();
+        } finally {
+          this.deferIntegrityCheck = prev;
+        }
+      },
       onGameWon: (stars, livesRemaining) => {
         if (!this.meta.getActiveDailyDate() && this.meta.isCurrentRunEligible()) {
           recordWinProgress(this.progress, this.currentLevelIndex, stars);
@@ -402,7 +418,11 @@ export class GameSession {
         overlays.tooltip.hide();
         overlays.closeModals();
         const isEndless = Boolean(endless ?? this.simWorld.waveSystem.isEndless);
-        if (isEndless && this.meta.isCurrentRunEligible()) {
+        if (
+          isEndless &&
+          this.meta.isCurrentRunEligible() &&
+          waveIndex + 1 > this.simWorld.level.waves.length
+        ) {
           recordEndlessProgress(this.progress, this.currentLevelIndex, waveIndex + 1);
         }
         overlays.outcomeOverlay.showLose(
@@ -535,6 +555,14 @@ export class GameSession {
 
   getLiveChallengeStates(): readonly LiveChallengeStatus[] {
     return this.meta.getLiveChallengeStates(this.simWorld.lives, this.simWorld.outcome);
+  }
+
+  getLiveRunTelemetry(): RunTelemetry | null {
+    return this.meta.getLiveRunTelemetry();
+  }
+
+  getLiveEndlessScore(): EndlessScoreBreakdown | null {
+    return this.meta.getLiveEndlessScore();
   }
 
   getAllowedTowerTypes(): readonly TowerType[] {
@@ -861,6 +889,9 @@ export class GameSession {
     }
     stepPendingSpawns(this.pendingDebugSpawns, this.simWorld, dt);
     this.simWorld.fixedTick(dt);
+    if (this.simWorld.outcome === 'ongoing') {
+      this.meta.verifyWorldIntegrity(this.simWorld.gold, this.simWorld.lives);
+    }
   }
 
   private syncTowerPanelAnchor(): void {
