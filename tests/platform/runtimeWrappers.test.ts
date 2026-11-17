@@ -268,11 +268,30 @@ describe('SoundManager with mocked Web Audio', () => {
     expect(oscAfterEvents).toBeGreaterThan(20);
     expect(bufSrcCount).toBeGreaterThan(3);
 
+    // Mute + zero volume suppression, playTowerSell, and playImpact('archer') no-op
+    perfMs += 1000;
+    sm.playTowerSell();
+    const oscAfterSell = oscCount;
+    expect(oscAfterSell).toBeGreaterThan(oscAfterEvents);
+    sm.playImpact('archer');
+    expect(oscCount).toBe(oscAfterSell);
+
+    sm.updateSettings({
+      masterVolume: 0.005,
+      muted: false,
+      cameraShake: true,
+      damageNumbers: true,
+      quality: 'high',
+    });
+    perfMs += 1000;
+    sm.playTowerBuild();
+    expect(oscCount).toBe(oscAfterSell);
+
     // Unbind stops further event playback
     unbind();
     perfMs += 2000;
     bus.emit('towerBuilt', { towerId: 2, type: 'archer', tier: 1, x: 0, z: 0 });
-    expect(oscCount).toBe(oscAfterEvents);
+    expect(oscCount).toBe(oscAfterSell);
 
     sm.dispose();
     expect(closedCount).toBe(1);
@@ -551,6 +570,76 @@ describe('InputManager pointer, pinch, wheel, keyboard, and cleanup', () => {
     dispatchArrow('keyup', 'ArrowUp');
     dispatchArrow('keyup', 'ArrowLeft');
     expect(log[log.length - 1]).toEqual(['keyPan', 0, 0]);
+
+    // pointerleave is suppressed while a pointer drag holds capture, and emitted when idle
+    log.length = 0;
+    canvas.dispatch('pointerdown', { pointerId: 31, target: canvas, clientX: 150, clientY: 80, button: 0 });
+    canvas.dispatch('pointerleave', { pointerId: 31 });
+    expect(log.some((e) => e[0] === 'leave')).toBe(false);
+    mockWin.dispatch('pointerup', { pointerId: 31, clientX: 150, clientY: 80, button: 0 });
+    canvas.dispatch('pointerleave', { pointerId: 31 });
+    expect(log).toContainEqual(['leave']);
+
+    // Hover pointermove without active drag emits move NDC, and two-finger pan shifts camera
+    log.length = 0;
+    mockWin.dispatch('pointermove', { pointerId: 99, target: canvas, clientX: 200, clientY: 100 });
+    expect(log).toContainEqual(['move', 0, 0]);
+
+    log.length = 0;
+    canvas.dispatch('pointerdown', { pointerId: 40, target: canvas, clientX: 180, clientY: 100, button: 0 });
+    canvas.dispatch('pointerdown', { pointerId: 41, target: canvas, clientX: 220, clientY: 100, button: 0 });
+    mockWin.dispatch('pointermove', { pointerId: 40, target: canvas, clientX: 195, clientY: 112 });
+    mockWin.dispatch('pointermove', { pointerId: 41, target: canvas, clientX: 235, clientY: 112 });
+    expect(log.some((e) => e[0] === 'pan')).toBe(true);
+    mockWin.dispatch('pointerup', { pointerId: 40, clientX: 195, clientY: 112, button: 0 });
+    mockWin.dispatch('pointerup', { pointerId: 41, clientX: 235, clientY: 112, button: 0 });
+
+    // HTMLTextAreaElement target ignores hotkeys; Escape ignored when disabled & no modal;
+    // setModalOpen(false) re-enables hotkeys; false from onTowerActionHotkey skips preventDefault
+    log.length = 0;
+    let preventedFalseHotkey = false;
+    mockWin.dispatch('keydown', {
+      code: 'KeyF',
+      key: 'f',
+      repeat: false,
+      metaKey: false,
+      ctrlKey: false,
+      altKey: false,
+      target: new MockTextAreaElement(),
+      preventDefault: () => {},
+    });
+    expect(log).toEqual([]);
+
+    mgr.setEnabled(false);
+    mgr.setModalOpen(false);
+    log.length = 0;
+    mockWin.dispatch('keydown', {
+      code: 'Escape',
+      key: 'Escape',
+      repeat: false,
+      metaKey: false,
+      ctrlKey: false,
+      altKey: false,
+      target: canvas,
+      preventDefault: () => {},
+    });
+    expect(log).toEqual([]);
+
+    mgr.setEnabled(true);
+    handlers.onTowerActionHotkey = () => false;
+    mockWin.dispatch('keydown', {
+      code: 'KeyU',
+      key: 'u',
+      repeat: false,
+      metaKey: false,
+      ctrlKey: false,
+      altKey: false,
+      target: canvas,
+      preventDefault: () => {
+        preventedFalseHotkey = true;
+      },
+    });
+    expect(preventedFalseHotkey).toBe(false);
 
     mgr.dispose();
   });

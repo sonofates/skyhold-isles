@@ -40,12 +40,12 @@ describe('QA scripts smoke verification', () => {
     const level = pickBenchLevel();
     const res = runSimBenchScenario(
       level,
-      { enemyCount: 40, towerCount: 15, softBudgetTicksPerSec: 180 },
+      { enemyCount: 60, towerCount: 15, softBudgetTicksPerSec: 180 },
       1,
       20,
     );
 
-    expect(res.enemyCount).toBe(40);
+    expect(res.enemyCount).toBe(60);
     expect(res.towerCount).toBe(15);
     expect(res.totalTicks).toBe(20);
     expect(res.ticksPerSec).toBeGreaterThan(180);

@@ -126,6 +126,19 @@ describe('headless fuzz playthrough harness', () => {
     expect(tacticalEndless.ok, tacticalEndless.failure).toBe(true);
     expect(tacticalEndless.digest.profile).toBe('tactical');
 
+    // Timeout failure reporting includes failureDetail + exact reproducible CLI command
+    const timedOut = runFuzzPlaythrough(LEVELS[0], 777, { maxStoryTicks: 5, profile: 'balanced', endlessWaves: 3 });
+    expect(timedOut.ok).toBe(false);
+    expect(timedOut.digest.storyOutcome).toBe('timeout');
+    expect(timedOut.failureDetail).toMatchObject({
+      levelId: LEVELS[0].id,
+      levelIndex: 0,
+      seed: 777,
+    });
+    expect(timedOut.failureDetail?.reproCmd).toBe(
+      'npx tsx scripts/fuzzPlay.ts --level 1 --seed 777 --profile balanced --endless-waves 3',
+    );
+
     expect(() => parseFuzzCliArgs(['--profile', 'unknown'])).toThrow(/Invalid --profile/);
     expect(() => parseFuzzCliArgs(['--seed', 'abc'])).toThrow(/Invalid --seed/);
     expect(() => parseFuzzCliArgs(['--seed', ''])).toThrow(/Invalid --seed/);

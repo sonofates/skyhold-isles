@@ -136,6 +136,43 @@ describe('RenderWorld subsystems headless verification', () => {
     expect(mats.outlineAlphaUniform.value).toBe(1);
     mats.setOutlineAlphaEnabled(false);
     expect(mats.outlineAlphaUniform.value).toBe(0);
+
+    // Verify every onBeforeCompile shader hook cleanly patches Three.js ShaderLib templates
+    const compileCheck = (
+      mat: THREE.Material,
+      baseLib: { vertexShader: string; fragmentShader: string },
+    ) => {
+      const params = {
+        uniforms: {},
+        vertexShader: baseLib.vertexShader,
+        fragmentShader: baseLib.fragmentShader,
+      } as unknown as THREE.WebGLProgramParametersWithUniforms;
+      mat.onBeforeCompile(params, {} as THREE.WebGLRenderer);
+      return params;
+    };
+
+    const towerShader = compileCheck(mats.kenneyTower, THREE.ShaderLib.standard);
+    expect(mats.kenneyTower.customProgramCacheKey()).toContain('kenney-tower');
+    expect(towerShader.vertexShader).toContain('attribute float aHighlight;');
+    expect(towerShader.fragmentShader).toContain('uniform float uOutlineAlpha;');
+    expect(towerShader.uniforms.uOutlineAlpha).toBe(mats.outlineAlphaUniform);
+
+    const waterShader = compileCheck(mats.waterMaterial, THREE.ShaderLib.standard);
+    expect(mats.waterMaterial.customProgramCacheKey()).toContain('water-vertex-waves');
+    expect(waterShader.vertexShader).toContain('uniform float uWaterTime;');
+    expect(waterShader.fragmentShader).toContain('varying float vWaterRNorm;');
+    expect(waterShader.uniforms.uWaterTime).toBe(mats.waterUniforms.uWaterTime);
+
+    const enemyShader = compileCheck(mats.enemyInstancedMaterial, THREE.ShaderLib.standard);
+    expect(mats.enemyInstancedMaterial.customProgramCacheKey()).toContain('enemy-instanced-flash');
+    expect(enemyShader.vertexShader).toContain('attribute float aFlash;');
+    expect(enemyShader.fragmentShader).toContain('totalEmissiveRadiance += vec3(0.62, 0.52, 0.42) * vFlash;');
+
+    const hpShader = compileCheck(mats.hpBarMaterial, THREE.ShaderLib.basic);
+    expect(mats.hpBarMaterial.customProgramCacheKey()).toContain('enemy-hp-bar');
+    expect(hpShader.vertexShader).toContain('attribute float aHpRatio;');
+    expect(hpShader.fragmentShader).toContain('uniform vec3 uHpBgColor;');
+
     mats.dispose();
     colormap.dispose();
   });
@@ -168,9 +205,16 @@ describe('RenderWorld subsystems headless verification', () => {
       fx.spawnPulseRing(0, 0.1, 0, 2.5, PALETTE_HEX.coral);
     }
 
-    // Meteor telegraph followed by impact cancels falling orb & telegraph cleanly
+    // Meteor telegraph followed by dt=0 (paused) advances zero trail particles, then active dt spawns trail particles
+    fx.clearEffects();
     fx.spawnMeteorTelegraph(3, -4, 3.4, 0.32);
+    fx.update(0);
+    fx.update(0);
+    const particleMesh = fx.group.children[1] as THREE.InstancedMesh;
+    expect(particleMesh.count).toBe(0);
     fx.update(0.05);
+    fx.update(0.01);
+    expect(particleMesh.count).toBeGreaterThan(0);
     expect(fx.getActiveFxCount()).toBeGreaterThan(0);
     fx.spawnMeteorVisual(3, 0.25, -4, 3.4);
 
@@ -381,16 +425,44 @@ describe('RenderWorld subsystems headless verification', () => {
     overlays.syncDebugAllRanges(true, manyTowers);
     overlays.clear();
 
-    // TowerBadgeRenderer: tier pills + affordable upgrade arrows + extreme zoom clamping
+    // TowerBadgeRenderer: exact tier pills + affordable upgrade arrows + extreme zoom clamping + >96 cap safety
     const camQuat = new THREE.Quaternion();
     const badgeTowers = [
       makeTower(1, 'archer', 1, 0, 0), // upgrade cost 55 -> affordable at 100g
       makeTower(2, 'cannon', 2, 2, 0), // upgrade cost 140 -> unaffordable at 100g
       makeTower(3, 'frost', 3, 4, 0), // max tier -> no arrow
     ];
+    const badgeTierMeshes = [0, 1, 2].map((idx) => badges.group.children[idx] as THREE.InstancedMesh);
+    const badgeArrowMesh = badges.group.children[3] as THREE.InstancedMesh;
+
+    badges.sync(badgeTowers, 0, camQuat, 1.0, 0.01);
+    expect(badgeTierMeshes.map((m) => m.count)).toEqual([1, 1, 1]);
+    expect(badgeArrowMesh.count).toBe(0);
+
     badges.sync(badgeTowers, 100, camQuat, 1.0, 0.01);
-    badges.sync(badgeTowers, 100, camQuat, 2.0, 20.0);
+    expect(badgeArrowMesh.count).toBe(1);
+
+    badges.sync(badgeTowers, 200, camQuat, 2.0, 20.0);
+    expect(badgeArrowMesh.count).toBe(2);
+
+    const overCapTowers = Array.from({ length: 110 }, (_, i) => makeTower(i + 1, 'archer', 1, i, 0));
+    expect(() => badges.sync(overCapTowers, 500, camQuat, 3.0, 1.0)).not.toThrow();
+    expect(badgeTierMeshes[0].count).toBe(96);
+    expect(badgeArrowMesh.count).toBe(96);
     badges.clear();
+    expect(badgeTierMeshes.every((m) => m.count === 0 && !m.visible)).toBe(true);
+    expect(badgeArrowMesh.count).toBe(0);
+
+    // GroundDetails: empty-grass level yields zero meshes and safely no-ops syncOccupiedTiles
+    const voidLevel = {
+      ...LEVELS[0],
+      cols: 3,
+      rows: 2,
+      layout: ['~ ~ ~', 'S P G'],
+    };
+    groundDetails.build(voidLevel, mats);
+    expect(groundDetails.group.children).toHaveLength(0);
+    expect(() => groundDetails.syncOccupiedTiles([makeTower(1, 'archer', 1, 0, 0)])).not.toThrow();
 
     // GroundDetails hides under occupied grass tiles and restores exact matrices when sold
     const level0 = LEVELS[0];

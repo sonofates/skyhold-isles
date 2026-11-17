@@ -217,4 +217,63 @@ describe('WaveSystem & SimWorld boundary edge cases', () => {
     expect(Number.isFinite(yaw)).toBe(true);
     expect(Number.isFinite(out.x) && Number.isFinite(out.z)).toBe(true);
   });
+
+  it('supports early-call from allSpawned in Endless Mode with bonus accumulation, exact upgrade boundary, and preFirstWave HP scale', () => {
+    const events = new EventBus();
+    const world = new SimWorld(LEVELS[0], events);
+    // Pre-first-wave (currentWaveIndex = -1) clamps w >= 0 to base scale
+    expect(world.waveSystem.getCurrentWaveHpScale()).toBeCloseTo(LEVELS[0].enemyHpScale ?? 1, 8);
+
+    // Exact affordability boundary on build & upgrade
+    const archerCost = 50;
+    const t2Cost = 55;
+    world.gold = archerCost - 1;
+    expect(world.placeTower(4, 2, 'archer')).toBeNull();
+    world.gold = archerCost;
+    const tower = world.placeTower(4, 2, 'archer')!;
+    expect(tower).not.toBeNull();
+    expect(world.gold).toBe(0);
+
+    world.gold = t2Cost - 1;
+    expect(world.upgradeTower(tower.id)).toBe(false);
+    world.gold = t2Cost;
+    expect(world.upgradeTower(tower.id)).toBe(true);
+    expect(world.gold).toBe(0);
+
+    // Enter endless mode and advance wave N+1 until all its spawns enter 'allSpawned'
+    world.debugForceWin();
+    expect(world.enterEndlessMode()).toBe(true);
+    expect(world.startNextWave()).toBe(true);
+    for (let i = 0; i < 60 * 30 && world.waveSystem.state === 'spawning'; i++) {
+      world.fixedTick(BALANCE.fixedDt);
+    }
+    expect(world.waveSystem.state).toBe('allSpawned');
+    expect(world.enemyPool.getActiveCount()).toBeGreaterThan(0);
+    expect(world.waveSystem.canStartNextWave()).toBe(true);
+    expect(world.waveSystem.getEarlyCallBonus()).toBe(BALANCE.earlyWaveBonusMaxGold);
+
+    const w1ClearBonus = buildEndlessWaveDef(LEVELS[0].waves.length, LEVELS[0]).clearBonus;
+    const w2ClearBonus = buildEndlessWaveDef(LEVELS[0].waves.length + 1, LEVELS[0]).clearBonus;
+    expect(world.waveSystem.pendingClearBonus).toBe(w1ClearBonus);
+
+    const goldBeforeEarly = world.gold;
+    expect(world.startNextWave()).toBe(true);
+    expect(world.gold).toBe(goldBeforeEarly + BALANCE.earlyWaveBonusMaxGold);
+    expect(world.waveSystem.totalWaves).toBe(LEVELS[0].waves.length + 2);
+
+    // Finish spawning wave N+2 -> state returns to 'allSpawned' with combined pendingClearBonus
+    for (let i = 0; i < 60 * 30 && world.waveSystem.state === 'spawning'; i++) {
+      world.fixedTick(BALANCE.fixedDt);
+    }
+    expect(world.waveSystem.pendingClearBonus).toBe(w1ClearBonus + w2ClearBonus);
+
+    const completedBonuses: number[] = [];
+    events.on('waveCompleted', (ev) => completedBonuses.push(ev.bonus));
+    world.enemyPool.clear();
+    world.fixedTick(BALANCE.fixedDt);
+
+    expect(completedBonuses).toEqual([w1ClearBonus + w2ClearBonus]);
+    expect(world.waveSystem.state).toBe('betweenWaves');
+    expect(world.waveSystem.pendingClearBonus).toBe(0);
+  });
 });

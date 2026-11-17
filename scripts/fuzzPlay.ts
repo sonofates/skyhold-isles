@@ -22,11 +22,13 @@ const VALID_WAVE_STATES = new Set<WaveState>([
 ]);
 const SPEEDS: readonly SpeedMultiplier[] = [1, 2, 3];
 const FRAME_DTS: readonly number[] = [1 / 60, 1 / 30, 0.05, 0.1];
+const MAX_CHAIN_POINTS = 1 + Math.max(1, ...TOWER_TYPES.map((t) => getTowerTierStats(t, 3).chainCount));
 const _hashProbe: number[] = [];
 const _hashSeen = new Set<number>();
 const _seenEnemyUids = new Set<number>();
 const _seenTowerIds = new Set<number>();
 const _seenTowerCoords = new Set<number>();
+const _seenEventTowerIds = new Set<number>();
 
 export type FuzzProfile = 'tactical' | 'competent' | 'balanced' | 'chaotic' | 'minimal';
 export const FUZZ_PROFILES: readonly FuzzProfile[] = ['tactical', 'competent', 'balanced', 'chaotic', 'minimal'];
@@ -103,11 +105,14 @@ interface FuzzTracker {
   peakProjectiles: number;
   seenSpawnUids: Set<number>;
   killedUids: Set<number>;
+  builtTowerIds: Set<number>;
   endlessWaveCompletedCount: number;
   expectedGold: number;
   expectedLives: number;
   pendingExpectedWaveBonus: number;
   soldTowerKills: number;
+  soldTowerDamage: number;
+  totalEnemyHitDamage: number;
   expectedNextWaveIndex: number;
   lastWaveHpScale: number;
   endlessWavesConfig: number;
@@ -260,6 +265,23 @@ function attachEventTracker(
     if (ev.stunnedTowerIds.length < 1 || ev.stunnedTowerIds.length > 2) {
       recordEventError(tracker, `bossPulse stunned ${ev.stunnedTowerIds.length} towers (expected 1..2)`);
     }
+    if (!Number.isFinite(ev.x) || !Number.isFinite(ev.y) || !Number.isFinite(ev.z) || ev.radius <= 0) {
+      recordEventError(tracker, `Invalid bossPulse coordinates/radius`);
+    }
+    _seenEventTowerIds.clear();
+    for (let i = 0; i < ev.stunnedTowerIds.length; i++) {
+      const tid = ev.stunnedTowerIds[i];
+      if (_seenEventTowerIds.has(tid)) {
+        recordEventError(tracker, `Duplicate stunnedTowerId=${tid} in bossPulse`);
+        break;
+      }
+      _seenEventTowerIds.add(tid);
+      const t = world.getTowerById(tid);
+      if (!t || Math.abs(t.stunTimer - 2.65) > 1e-6) {
+        recordEventError(tracker, `bossPulse stunnedTowerId=${tid} not stunned at 2.65s`);
+        break;
+      }
+    }
     tracker.stateHash = mixHash(mixHash(tracker.stateHash, 5), ev.stunnedTowerIds.length);
   });
 
@@ -267,7 +289,169 @@ function attachEventTracker(
     if (ev.count < 1 || ev.count > 2) {
       recordEventError(tracker, `bossSummon count=${ev.count} out of 1..2`);
     }
+    if (!Number.isFinite(ev.x) || !Number.isFinite(ev.y) || !Number.isFinite(ev.z)) {
+      recordEventError(tracker, `Non-finite bossSummon coordinates`);
+    }
     tracker.stateHash = mixHash(mixHash(tracker.stateHash, 6), ev.count);
+  });
+
+  events.on('enemyHit', (ev) => {
+    if (!tracker.seenSpawnUids.has(ev.enemyId) || tracker.killedUids.has(ev.enemyId)) {
+      recordEventError(tracker, `enemyHit for unknown or already-killed uid=${ev.enemyId}`);
+      return;
+    }
+    if (!Number.isInteger(ev.damage) || ev.damage < 1) {
+      recordEventError(tracker, `Invalid enemyHit damage=${ev.damage} for uid=${ev.enemyId}`);
+      return;
+    }
+    if (ev.isBoss !== (ev.enemyType === 'boss')) {
+      recordEventError(tracker, `enemyHit isBoss=${ev.isBoss} mismatch for type=${ev.enemyType}`);
+      return;
+    }
+    if (!Number.isFinite(ev.x) || !Number.isFinite(ev.y) || !Number.isFinite(ev.z)) {
+      recordEventError(tracker, `Non-finite enemyHit coordinates for uid=${ev.enemyId}`);
+      return;
+    }
+    tracker.totalEnemyHitDamage += ev.damage;
+  });
+
+  events.on('healerPulse', (ev) => {
+    if (!Number.isFinite(ev.x) || !Number.isFinite(ev.y) || !Number.isFinite(ev.z) || ev.radius <= 0) {
+      recordEventError(tracker, `Invalid healerPulse payload`);
+    }
+  });
+
+  events.on('towerBuilt', (ev) => {
+    if (ev.towerId <= 0 || tracker.builtTowerIds.has(ev.towerId) || !TOWER_DEFS[ev.type] || ev.tier !== 1) {
+      recordEventError(tracker, `Invalid towerBuilt payload id=${ev.towerId} type=${ev.type} tier=${ev.tier}`);
+      return;
+    }
+    if (!Number.isFinite(ev.x) || !Number.isFinite(ev.z)) {
+      recordEventError(tracker, `Non-finite towerBuilt coordinates for id=${ev.towerId}`);
+      return;
+    }
+    tracker.builtTowerIds.add(ev.towerId);
+    tracker.stateHash = mixStringHash(mixHash(mixHash(tracker.stateHash, 12), ev.towerId), ev.type);
+  });
+
+  events.on('towerUpgraded', (ev) => {
+    if (!tracker.builtTowerIds.has(ev.towerId) || (ev.tier !== 2 && ev.tier !== 3) || !TOWER_DEFS[ev.type]) {
+      recordEventError(tracker, `Invalid towerUpgraded payload id=${ev.towerId} tier=${ev.tier}`);
+      return;
+    }
+    if (!Number.isFinite(ev.x) || !Number.isFinite(ev.z)) {
+      recordEventError(tracker, `Non-finite towerUpgraded coordinates for id=${ev.towerId}`);
+      return;
+    }
+    tracker.stateHash = mixHash(mixHash(mixHash(tracker.stateHash, 13), ev.towerId), ev.tier);
+  });
+
+  events.on('towerSold', (ev) => {
+    if (!tracker.builtTowerIds.has(ev.towerId) || !Number.isInteger(ev.refund) || ev.refund <= 0) {
+      recordEventError(tracker, `Invalid towerSold payload id=${ev.towerId} refund=${ev.refund}`);
+      return;
+    }
+    if (!Number.isFinite(ev.x) || !Number.isFinite(ev.z)) {
+      recordEventError(tracker, `Non-finite towerSold coordinates for id=${ev.towerId}`);
+      return;
+    }
+    tracker.builtTowerIds.delete(ev.towerId);
+    tracker.stateHash = mixHash(mixHash(mixHash(tracker.stateHash, 14), ev.towerId), ev.refund);
+  });
+
+  events.on('towerFired', (ev) => {
+    const tower = world.getTowerById(ev.towerId);
+    if (!tower || !tracker.builtTowerIds.has(ev.towerId) || tower.stunTimer > 0) {
+      recordEventError(tracker, `Invalid or stunned towerFired for id=${ev.towerId}`);
+      return;
+    }
+    if (
+      !Number.isFinite(ev.x) ||
+      !Number.isFinite(ev.y) ||
+      !Number.isFinite(ev.z) ||
+      !Number.isFinite(ev.yaw)
+    ) {
+      recordEventError(tracker, `Non-finite towerFired coordinates/yaw for id=${ev.towerId}`);
+    }
+  });
+
+  events.on('projectileImpact', (ev) => {
+    if (!TOWER_DEFS[ev.towerType] || ev.towerType === 'tesla') {
+      recordEventError(tracker, `Invalid projectileImpact towerType=${ev.towerType}`);
+      return;
+    }
+    if (
+      !Number.isFinite(ev.x) ||
+      !Number.isFinite(ev.y) ||
+      !Number.isFinite(ev.z) ||
+      !Number.isFinite(ev.radius) ||
+      ev.radius < 0
+    ) {
+      recordEventError(tracker, `Invalid projectileImpact coordinates/radius`);
+    }
+  });
+
+  events.on('lightningChain', (ev) => {
+    if (ev.points.length < 2 || ev.points.length > MAX_CHAIN_POINTS) {
+      recordEventError(tracker, `Invalid lightningChain points length=${ev.points.length}`);
+      return;
+    }
+    for (let i = 0; i < ev.points.length; i++) {
+      const pt = ev.points[i];
+      if (!Number.isFinite(pt.x) || !Number.isFinite(pt.y) || !Number.isFinite(pt.z)) {
+        recordEventError(tracker, `Non-finite lightningChain point at index ${i}`);
+        return;
+      }
+    }
+    tracker.stateHash = mixHash(mixHash(tracker.stateHash, 15), ev.points.length);
+  });
+
+  events.on('abilityTargeted', (ev) => {
+    if (ev.abilityId !== 'meteor' || !Number.isFinite(ev.x) || !Number.isFinite(ev.z) || ev.radius <= 0) {
+      recordEventError(tracker, `Invalid abilityTargeted payload for ${ev.abilityId}`);
+    }
+  });
+
+  events.on('meteorImpact', (ev) => {
+    if (!Number.isFinite(ev.x) || !Number.isFinite(ev.y) || !Number.isFinite(ev.z) || ev.radius <= 0) {
+      recordEventError(tracker, `Invalid meteorImpact payload`);
+      return;
+    }
+    tracker.stateHash = mixHash(mixHash(tracker.stateHash, 16), Math.round(ev.x * 100));
+  });
+
+  events.on('overchargeActivated', (ev) => {
+    if (!Number.isFinite(ev.duration) || ev.duration <= 0) {
+      recordEventError(tracker, `Invalid overchargeActivated duration=${ev.duration}`);
+      return;
+    }
+    _seenEventTowerIds.clear();
+    for (let i = 0; i < ev.cleansedTowerIds.length; i++) {
+      const tid = ev.cleansedTowerIds[i];
+      if (_seenEventTowerIds.has(tid) || !tracker.builtTowerIds.has(tid)) {
+        recordEventError(tracker, `Invalid or duplicate cleansedTowerId=${tid} in overchargeActivated`);
+        return;
+      }
+      _seenEventTowerIds.add(tid);
+    }
+    tracker.stateHash = mixHash(mixHash(tracker.stateHash, 17), ev.cleansedTowerIds.length);
+  });
+
+  events.on('economyChanged', (ev) => {
+    if (
+      !Number.isInteger(ev.gold) ||
+      ev.gold < 0 ||
+      !Number.isInteger(ev.lives) ||
+      ev.lives < 0 ||
+      ev.lives > BALANCE.startingLives ||
+      ev.gold !== world.gold ||
+      ev.lives !== world.lives
+    ) {
+      recordEventError(
+        tracker,
+        `economyChanged mismatch/invalid (ev=${ev.gold}g/${ev.lives}L vs world=${world.gold}g/${world.lives}L)`,
+      );
+    }
   });
 
   events.on('gameWon', (ev) => {
@@ -430,8 +614,18 @@ function assertTickInvariants(world: SimWorld, tracker: FuzzTracker, tick: numbe
     ) {
       return `Non-finite enemy position/yaw for uid=${e.uid} type=${e.type}`;
     }
-    if (!Number.isFinite(e.hp) || !Number.isFinite(e.maxHp) || e.maxHp <= 0 || e.hp < 0 || e.hp > e.maxHp) {
+    if (
+      !Number.isInteger(e.hp) ||
+      !Number.isInteger(e.maxHp) ||
+      e.maxHp <= 0 ||
+      e.hp < 0 ||
+      e.hp > e.maxHp
+    ) {
       return `Invalid enemy HP (${e.hp}/${e.maxHp}) for uid=${e.uid} type=${e.type}`;
+    }
+    const expectedLaneY = e.flying ? BALANCE.flyerHeight : BALANCE.tilePathTopY;
+    if (Math.abs(e.y - expectedLaneY) > 1e-5) {
+      return `Invalid enemy lane altitude y=${e.y} (expected ${expectedLaneY}) for ${e.type} uid=${e.uid}`;
     }
     if (!Number.isFinite(e.dist) || !Number.isFinite(e.totalDist) || e.dist < 0 || e.dist > e.totalDist) {
       return `Invalid enemy dist (${e.dist}/${e.totalDist}) for uid=${e.uid}`;
@@ -516,6 +710,7 @@ function assertTickInvariants(world: SimWorld, tracker: FuzzTracker, tick: numbe
   _seenTowerIds.clear();
   _seenTowerCoords.clear();
   let activeTowerKills = 0;
+  let activeTowerDamage = 0;
   for (let i = 0; i < world.towers.length; i++) {
     const t = world.towers[i];
     if (
@@ -543,6 +738,9 @@ function assertTickInvariants(world: SimWorld, tracker: FuzzTracker, tick: numbe
       t.kills < 0
     ) {
       return `Invalid tower state for id=${t.id} type=${t.type}`;
+    }
+    if (t.x !== world.grid.gridToWorldX(t.col) || t.z !== world.grid.gridToWorldZ(t.row)) {
+      return `Tower id=${t.id} position (${t.x},${t.z}) drifted from grid tile (${t.col},${t.row})`;
     }
     if (_seenTowerIds.has(t.id)) {
       return `Duplicate tower id=${t.id}`;
@@ -574,10 +772,14 @@ function assertTickInvariants(world: SimWorld, tracker: FuzzTracker, tick: numbe
       tracker.prevTowerStats.set(t.id, { kills: t.kills, dmg: t.totalDamageDealt });
     }
     activeTowerKills += t.kills;
+    activeTowerDamage += t.totalDamageDealt;
   }
 
   if (activeTowerKills + tracker.soldTowerKills > tracker.killedCount + pendingDeaths) {
     return `Tower kills (${activeTowerKills}+${tracker.soldTowerKills}) exceeded killedCount+pendingDeaths (${tracker.killedCount}+${pendingDeaths})`;
+  }
+  if (activeTowerDamage + tracker.soldTowerDamage > tracker.totalEnemyHitDamage) {
+    return `Tower damage (${activeTowerDamage}+${tracker.soldTowerDamage}) exceeded total enemyHit damage (${tracker.totalEnemyHitDamage})`;
   }
 
   for (const id of ABILITY_IDS) {
@@ -606,6 +808,7 @@ function assertTickInvariants(world: SimWorld, tracker: FuzzTracker, tick: numbe
   if (
     !VALID_WAVE_STATES.has(ws.state) ||
     (!ws.isEndless && ws.totalWaves !== world.level.waves.length) ||
+    (ws.isEndless && ws.totalWaves !== Math.max(world.level.waves.length, ws.currentWaveOneBased)) ||
     ws.currentWaveOneBased !== Math.max(0, ws.currentWaveIndex + 1) ||
     ws.totalWaves < world.level.waves.length ||
     !Number.isFinite(ws.interWaveTimer) ||
@@ -614,6 +817,19 @@ function assertTickInvariants(world: SimWorld, tracker: FuzzTracker, tick: numbe
     ws.waveElapsed < 0
   ) {
     return `Invalid waveSystem state (${ws.state}, wave=${ws.currentWaveOneBased}, interWave=${ws.interWaveTimer})`;
+  }
+  if (
+    ((ws.state === 'spawning' || ws.state === 'finished') && (ws.canStartNextWave() || ws.getEarlyCallBonus() !== 0)) ||
+    (ws.state === 'preFirstWave' && (!ws.canStartNextWave() || ws.getEarlyCallBonus() !== 0)) ||
+    (ws.state === 'clearing' &&
+      ws.getEarlyCallBonus() !== (ws.canStartNextWave() ? BALANCE.earlyWaveBonusMaxGold : 0)) ||
+    (ws.state === 'betweenWaves' &&
+      ws.canStartNextWave() !== (ws.isEndless || ws.currentWaveIndex + 1 < world.level.waves.length)) ||
+    (ws.state === 'allSpawned' &&
+      (ws.canStartNextWave() !== ws.isEndless ||
+        ws.getEarlyCallBonus() !== (ws.isEndless ? BALANCE.earlyWaveBonusMaxGold : 0)))
+  ) {
+    return `Inconsistent waveSystem action/bonus state in ${ws.state} (endless=${ws.isEndless})`;
   }
 
   if (tick % 30 === 0) {
@@ -868,7 +1084,12 @@ function performLegalAction(
       return 'Ability cast succeeded during preFirstWave';
     }
   } else {
-    if (world.abilitySystem.canCast('meteor') && (profile === 'tactical' ? world.enemyPool.getActiveCount() >= 4 : rng.chance(0.35))) {
+    if (!world.abilitySystem.canCast('meteor')) {
+      const meteorCd = world.abilitySystem.getCooldown('meteor');
+      if (world.castMeteor(0, 0) || world.abilitySystem.getCooldown('meteor') !== meteorCd) {
+        return 'castMeteor succeeded or mutated cooldown while on cooldown';
+      }
+    } else if (profile === 'tactical' ? world.enemyPool.getActiveCount() >= 4 : rng.chance(0.35)) {
       const activeEnemies = world.enemyPool.getActiveCount();
       let tx: number;
       let tz: number;
@@ -888,12 +1109,17 @@ function performLegalAction(
       }
     }
     const anyStunned = world.towers.some((t) => t.stunTimer > 0);
-    if (
-      world.abilitySystem.canCast('overcharge') &&
-      (profile === 'tactical' ? anyStunned || world.enemyPool.getActiveCount() >= 6 : rng.chance(0.35))
-    ) {
+    if (!world.abilitySystem.canCast('overcharge')) {
+      const overCd = world.abilitySystem.getCooldown('overcharge');
+      if (world.castOvercharge() || world.abilitySystem.getCooldown('overcharge') !== overCd) {
+        return 'castOvercharge succeeded or mutated cooldown while on cooldown';
+      }
+    } else if (profile === 'tactical' ? anyStunned || world.enemyPool.getActiveCount() >= 6 : rng.chance(0.35)) {
       if (!world.castOvercharge()) {
         return 'castOvercharge returned false while canCast("overcharge") was true during combat';
+      }
+      if (world.towers.some((t) => t.stunTimer > 0)) {
+        return 'castOvercharge left a tower stunned';
       }
     }
   }
@@ -920,12 +1146,14 @@ function performLegalAction(
     const goldBefore = world.gold;
     const expectedRefund = computeSellRefund(victim.totalInvested);
     const victimKills = victim.kills;
+    const victimDamage = victim.totalDamageDealt;
     const refund = world.sellTower(victim.id);
     if (refund !== expectedRefund || world.gold !== goldBefore + expectedRefund) {
       return `Sell refund mismatch: got ${refund}, expected ${expectedRefund}`;
     }
     tracker.expectedGold += refund;
     tracker.soldTowerKills += victimKills;
+    tracker.soldTowerDamage += victimDamage;
     if (!world.grid.canPlaceTower(victim.col, victim.row)) {
       return `Tile (${victim.col},${victim.row}) remained blocked after sellTower`;
     }
@@ -1049,11 +1277,14 @@ function createFuzzTracker(startingGold: number, endlessWavesConfig: number): Fu
     peakProjectiles: 0,
     seenSpawnUids: new Set<number>(),
     killedUids: new Set<number>(),
+    builtTowerIds: new Set<number>(),
     endlessWaveCompletedCount: 0,
     expectedGold: startingGold,
     expectedLives: BALANCE.startingLives,
     pendingExpectedWaveBonus: 0,
     soldTowerKills: 0,
+    soldTowerDamage: 0,
+    totalEnemyHitDamage: 0,
     expectedNextWaveIndex: 0,
     lastWaveHpScale: 0,
     endlessWavesConfig,

@@ -513,4 +513,58 @@ describe('GameSession state machine, input, and lifecycle', () => {
     expect(h.session.simWorld.waveSystem.isEndless).toBe(false);
     expect(loadProgress(LEVELS.length).bestEndlessWaves[0]).toBe(LEVELS[0].waves.length + 2);
   });
+
+  it('handles cross-mode meteor/placement toggles, pickedTower & OOB placement taps, flight highlight subtlety, and menu renderFrame', () => {
+    const h = createHarness();
+    h.session.startLevel(0);
+    h.session.simWorld.gold = 2000;
+
+    // Flight path highlight is bright (subtle=false) for anti-air towers, subtle (subtle=true) for ground-only
+    h.session.toggleBuildType('archer');
+    expect(h.renderWorld.setFlightPathHighlight).toHaveBeenLastCalledWith(true, false);
+    h.session.toggleBuildType('cannon');
+    expect(h.renderWorld.setFlightPathHighlight).toHaveBeenLastCalledWith(true, true);
+
+    // Out-of-bounds tap while in placement mode leaves placement active (does not exit placement)
+    h.session.onPrimaryTap(0.99, 0.99, false);
+    expect(h.renderWorld.setPlacementGridActive).toHaveBeenLastCalledWith(true);
+
+    // Clicking an existing pickedTower while in placement mode exits placement and selects that tower
+    const placed = h.session.simWorld.placeTower(4, 2, 'archer')!;
+    h.setPickedTower(placed);
+    const tileA = projectTileNdc(h.cam, h.session, 4, 2);
+    h.session.onPrimaryTap(tileA.x, tileA.y, false);
+    expect(h.renderWorld.setPlacementGridActive).toHaveBeenLastCalledWith(false);
+    expect(h.renderWorld.overlayIndicators.setSelectedTowerRing).toHaveBeenLastCalledWith(placed);
+
+    // Activating meteor clears active placement mode; pointer move previews meteor; clicking meteor again toggles OFF
+    h.setPickedTower(null);
+    h.session.simWorld.startNextWave();
+    h.session.toggleBuildType('frost');
+    h.session.activateAbility('meteor');
+    expect(h.renderWorld.setPlacementGridActive).toHaveBeenLastCalledWith(false);
+    h.session.onPointerMove(0, 0, 640, 360);
+    expect(h.renderWorld.setMeteorTargetPreview).toHaveBeenLastCalledWith(true, expect.any(Number), expect.any(Number), expect.any(Number));
+    h.session.activateAbility('meteor');
+    expect(h.renderWorld.setMeteorTargetPreview).toHaveBeenLastCalledWith(false, 0, 0, 1);
+
+    // Selecting a build tower while aiming meteor cancels meteor mode
+    h.session.activateAbility('meteor');
+    h.session.toggleBuildType('tesla');
+    expect(h.renderWorld.setMeteorTargetPreview).toHaveBeenLastCalledWith(false, 0, 0, 1);
+    expect(h.renderWorld.setPlacementGridActive).toHaveBeenLastCalledWith(true);
+
+    // Escape does NOT open pause menu while outcomeOverlay is open
+    h.session.setPlacementMode(null);
+    h.setOutcomeOpen(true);
+    h.session.onSecondaryAction('escape');
+    expect(h.overlays.pauseMenu.isOpen()).toBe(false);
+
+    // renderFrame in menu mode renders with null simWorld and fxDt = 0 without periodic UI sync
+    h.session.showMenuView('menu');
+    const syncCallsBefore = (h.overlays.syncInPlay as ReturnType<typeof vi.fn>).mock.calls.length;
+    h.session.renderFrame(0.5, 0.25, 2.0);
+    expect(h.renderWorld.render).toHaveBeenLastCalledWith(null, 0.5, 0.25, 2.0, 0);
+    expect((h.overlays.syncInPlay as ReturnType<typeof vi.fn>).mock.calls.length).toBe(syncCallsBefore);
+  });
 });

@@ -271,13 +271,15 @@ describe('level data, flight paths, waves, and scripted build orders', () => {
         (acc, row) => acc + row.filter((cell) => cell === 'grass').length,
         0,
       );
-      expect(grassCount).toBeGreaterThan(0);
+      expect(grassCount).toBeGreaterThanOrEqual(10);
 
       for (const order of [lvl.scriptedBuildOrder ?? [], lvl.weakBuildOrder ?? []]) {
         const tiersByTile = new Map<string, number>();
+        let prevWaveIndex = 0;
         for (const act of order) {
-          expect(act.waveIndex).toBeGreaterThanOrEqual(0);
+          expect(act.waveIndex).toBeGreaterThanOrEqual(prevWaveIndex);
           expect(act.waveIndex).toBeLessThan(lvl.waves.length);
+          prevWaveIndex = act.waveIndex;
           expect(grid[act.row]?.[act.col]).toBe('grass');
           const key = `${act.col},${act.row}`;
           if (act.action === 'build') {
