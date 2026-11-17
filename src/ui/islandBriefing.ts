@@ -80,6 +80,8 @@ export class IslandBriefingModal {
     this.open = true;
     this.render();
     this.backdrop.classList.remove('hidden');
+    // Keyboard users land on the main action (no scroll jump on touch).
+    this.card.querySelector<HTMLElement>('.ib-start')?.focus({ preventScroll: true });
   }
 
   close(): void {

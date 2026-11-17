@@ -36,6 +36,8 @@ export class LogbookModal {
     this.open = true;
     this.render(progress);
     this.backdrop.classList.remove('hidden');
+    // Keyboard users land on the main action (no scroll jump on touch).
+    this.card.querySelector<HTMLElement>('.lb-close')?.focus({ preventScroll: true });
   }
 
   hide(): void {

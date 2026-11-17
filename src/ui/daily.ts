@@ -56,6 +56,8 @@ export class DailyModal {
     this.open = true;
     this.render(daily, progress);
     this.backdrop.classList.remove('hidden');
+    // Keyboard users land on the main action (no scroll jump on touch).
+    this.card.querySelector<HTMLElement>('.ib-start, .ib-close')?.focus({ preventScroll: true });
   }
 
   private render(daily: DailyChallenge | null, progress: ProgressData): void {
