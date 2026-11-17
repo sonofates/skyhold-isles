@@ -2,14 +2,16 @@ import { describe, expect, it } from 'vitest';
 import { EventBus } from '../../src/core/eventBus.ts';
 import { FixedTimestepStepper } from '../../src/core/gameLoop.ts';
 import { BALANCE } from '../../src/data/balance.ts';
-import { ENEMY_TYPES } from '../../src/data/enemies.ts';
-import { LEVELS } from '../../src/data/levels/index.ts';
+import { ENEMY_DEFS, ENEMY_TYPES } from '../../src/data/enemies.ts';
+import { LEVELS, type LevelDef } from '../../src/data/levels/index.ts';
 import { TOWER_TYPES } from '../../src/data/towers.ts';
 import { SimWorld } from '../../src/sim/world.ts';
 import {
   digestsEqual,
+  findIllegalProbeTiles,
   FUZZ_PROFILES,
   parseFuzzCliArgs,
+  probeIllegalActions,
   runEndlessFuzz,
   runFuzzCampaign,
   runFuzzPlaythrough,
@@ -423,5 +425,116 @@ describe('headless fuzz playthrough harness', () => {
     const baseline = runWithCadence('steady60_1x');
     const varied = runWithCadence('mixed_speeds_and_pauses');
     expect(varied).toEqual(baseline);
+  });
+
+  it('finds decor, path, and empty tiles via parsed grid and safely rejects illegal placement probes', () => {
+    const customLevel: LevelDef = {
+      id: 'qa-probe-level',
+      index: 99,
+      name: 'QA Probe Island',
+      subtitle: 'Synthetic tile mix',
+      difficulty: 'Breezy',
+      cols: 7,
+      rows: 5,
+      layout: [
+        '~ T . . . T ~',
+        'S P P P P P G',
+        '. . . . . . .',
+        '. T . . . T .',
+        '~ . . . . . ~',
+      ],
+      pathWaypoints: [
+        { col: 0, row: 1 },
+        { col: 6, row: 1 },
+      ],
+      flightPath: [
+        { col: 0, row: 1 },
+        { col: 6, row: 1 },
+      ],
+      decorationSeed: 1,
+      startingGold: 400,
+      waves: [
+        {
+          clearBonus: 25,
+          groups: [{ enemyType: 'grunt', count: 1, spawnInterval: 0.5, startDelay: 0 }],
+        },
+      ],
+    };
+
+    const world = new SimWorld(customLevel, new EventBus());
+    const probeTiles = findIllegalProbeTiles(world);
+
+    expect(probeTiles.empty).toEqual({ col: 0, row: 0 });
+    expect(probeTiles.decor).toEqual({ col: 1, row: 0 });
+    expect(probeTiles.path).toEqual({ col: 1, row: 1 });
+    expect(world.grid.getTile(probeTiles.empty!.col, probeTiles.empty!.row)).toBe('empty');
+    expect(world.grid.getTile(probeTiles.decor!.col, probeTiles.decor!.row)).toBe('decor');
+    expect(world.grid.getTile(probeTiles.path!.col, probeTiles.path!.row)).toBe('path');
+
+    const tMax = world.placeTower(2, 0, 'archer')!;
+    expect(world.upgradeTower(tMax.id)).toBe(true);
+    expect(world.upgradeTower(tMax.id)).toBe(true);
+    expect(tMax.tier).toBe(3);
+
+    const tLow = world.placeTower(3, 0, 'archer')!;
+    world.gold = 10;
+
+    const grassTiles = [
+      { col: 4, row: 0 },
+      { col: 0, row: 2 },
+    ];
+    expect(probeIllegalActions(world, grassTiles, probeTiles)).toBeNull();
+    expect(world.gold).toBe(10);
+    expect(world.towers).toHaveLength(2);
+    expect(tLow.tier).toBe(1);
+  });
+
+  it('enforces bossPulseTimer invariants cleanly through runFuzzPlaythrough when zero towers are built on a boss island', () => {
+    const bossFreezeLevel: LevelDef = {
+      id: 'qa-boss-zero-tower',
+      index: 98,
+      name: 'QA Boss Freeze Island',
+      subtitle: 'Zero-tower boss pulse freeze check',
+      difficulty: 'Master',
+      cols: 7,
+      rows: 5,
+      layout: [
+        '~ T . . . T ~',
+        'S P P P P P G',
+        '. . . . . . .',
+        '. T . . . T .',
+        '~ . . . . . ~',
+      ],
+      pathWaypoints: [
+        { col: 0, row: 1 },
+        { col: 6, row: 1 },
+      ],
+      flightPath: [
+        { col: 0, row: 1 },
+        { col: 6, row: 1 },
+      ],
+      decorationSeed: 2,
+      startingGold: 0,
+      waves: [
+        {
+          clearBonus: 0,
+          groups: [
+            {
+              enemyType: 'boss',
+              count: Math.ceil(BALANCE.startingLives / ENEMY_DEFS.boss.livesCost) + 1,
+              spawnInterval: 0.25,
+              startDelay: 0,
+            },
+          ],
+        },
+      ],
+    };
+
+    const res = runFuzzPlaythrough(bossFreezeLevel, 777, { endlessWaves: 0, profile: 'chaotic' });
+    expect(res.ok, res.failure).toBe(true);
+    expect(res.digest.storyOutcome).toBe('lost');
+    expect(res.digest.lives).toBe(0);
+    expect(res.digest.towerCount).toBe(0);
+    expect(res.coverage?.bossPulses).toBe(0);
   });
 });

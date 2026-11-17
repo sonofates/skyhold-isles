@@ -949,4 +949,163 @@ describe('WaveSystem & SimWorld boundary edge cases', () => {
       expect(world.abilitySystem.getCooldown('meteor')).toBe(snapMeteorCd);
     }
   });
+
+  it('keeps setAutoWave idempotent in betweenWaves, restores remaining countdown on off-toggle, and clears tracking on startNextWave', () => {
+    const level: LevelDef = {
+      ...LEVELS[0],
+      waves: [
+        { clearBonus: 10, groups: [{ enemyType: 'grunt', count: 1, spawnInterval: 0.5, startDelay: 0 }] },
+        { clearBonus: 10, groups: [{ enemyType: 'grunt', count: 1, spawnInterval: 0.5, startDelay: 0 }] },
+        { clearBonus: 10, groups: [{ enemyType: 'grunt', count: 1, spawnInterval: 0.5, startDelay: 0 }] },
+      ],
+    };
+    const ws = new WaveSystem(level, new EventBus());
+
+    expect(ws.startNextWave(() => {})).toBe(true);
+    ws.spawnCursor = ws.spawnQueue.length;
+    ws.state = 'clearing';
+    ws.checkCompletion(() => 0, () => {}, () => {});
+    expect(ws.state).toBe('betweenWaves');
+    const initialTimer = ws.interWaveTimer;
+    expect(initialTimer).toBeGreaterThan(2);
+
+    ws.setAutoWave(true);
+    expect(ws.interWaveTimer).toBeCloseTo(0.75, 6);
+    // Repeated enable call must not shorten or double-accumulate
+    ws.setAutoWave(true);
+    expect(ws.interWaveTimer).toBeCloseTo(0.75, 6);
+
+    ws.update(0.25, () => 0, () => {}, () => {}, () => {});
+    expect(ws.interWaveTimer).toBeCloseTo(0.5, 6);
+
+    // Turning off restores exact remaining full timer minus elapsed 0.25s; repeated disable is a no-op
+    ws.setAutoWave(false);
+    expect(ws.interWaveTimer).toBeCloseTo(initialTimer - 0.25, 6);
+    ws.setAutoWave(false);
+    expect(ws.interWaveTimer).toBeCloseTo(initialTimer - 0.25, 6);
+
+    // Re-enable then manually start next wave -> clears autoShortenedBy before next betweenWaves cycle
+    ws.setAutoWave(true);
+    expect(ws.interWaveTimer).toBeCloseTo(0.75, 6);
+    expect(ws.startNextWave(() => {})).toBe(true);
+    expect(ws.state).toBe('spawning');
+
+    ws.spawnCursor = ws.spawnQueue.length;
+    ws.state = 'clearing';
+    ws.checkCompletion(() => 0, () => {}, () => {});
+    expect(ws.state).toBe('betweenWaves');
+    expect(ws.autoWave).toBe(true);
+    expect(ws.interWaveTimer).toBeCloseTo(0.75, 6);
+
+    ws.setAutoWave(false);
+    expect(ws.interWaveTimer).toBeCloseTo(BALANCE.interWaveCountdownSec, 6);
+  });
+
+  it('treats fixedTick(0) as an exact zero-advancement step for timers, enemies, projectiles, and abilities', () => {
+    const events = new EventBus();
+    const world = new SimWorld(LEVELS[0], events);
+    let buildCoord: { col: number; row: number } | null = null;
+    for (let r = 0; r < world.grid.rows && !buildCoord; r++) {
+      for (let c = 0; c < world.grid.cols; c++) {
+        if (world.grid.canPlaceTower(c, r)) {
+          buildCoord = { col: c, row: r };
+          break;
+        }
+      }
+    }
+    expect(buildCoord).not.toBeNull();
+    const tower = world.placeTower(buildCoord!.col, buildCoord!.row, 'archer', 'first')!;
+    tower.cooldownTimer = 1.0;
+    const enemy = world.enemySystem.spawnEnemy('brute')!;
+    enemy.dist = 2.0;
+    enemy.hitFlashTimer = 0.1;
+    const proj = world.projectileSystem.spawnProjectile(tower, enemy, 1)!;
+    proj.duration = 0.5;
+    proj.progress = 0.3;
+
+    world.waveSystem.state = 'clearing';
+    world.waveSystem.currentWaveIndex = 0;
+    world.waveSystem.waveElapsed = 1.25;
+
+    expect(world.castOvercharge()).toBe(true);
+    expect(world.castMeteor(enemy.x, enemy.z)).toBe(true);
+    // Advance one regular frame so enemy world coords/prev coords match sampled path before dt=0 checks
+    world.fixedTick(BALANCE.fixedDt);
+
+    const observedEvents: string[] = [];
+    for (const evName of [
+      'enemyKilled',
+      'enemyLeaked',
+      'projectileImpact',
+      'meteorImpact',
+      'waveCompleted',
+      'gameWon',
+      'gameLost',
+    ] as const) {
+      events.on(evName, () => observedEvents.push(evName));
+    }
+
+    const snapDist = enemy.dist;
+    const snapX = enemy.x;
+    const snapZ = enemy.z;
+    const snapHp = enemy.hp;
+    const snapWalk = enemy.walkPhase;
+    const snapHitFlash = enemy.hitFlashTimer;
+    const snapProjProgress = proj.progress;
+    const snapProjX = proj.x;
+    const snapProjZ = proj.z;
+    const snapMeteorCd = world.abilitySystem.getCooldown('meteor');
+    const snapOverchargeCd = world.abilitySystem.getCooldown('overcharge');
+    const snapOverchargeRem = world.abilitySystem.getOverchargeRemaining();
+    const snapWaveElapsed = world.waveSystem.waveElapsed;
+
+    for (let i = 0; i < 4; i++) {
+      world.fixedTick(0);
+    }
+
+    expect(observedEvents).toEqual([]);
+    expect(enemy.dist).toBe(snapDist);
+    expect(enemy.x).toBe(snapX);
+    expect(enemy.z).toBe(snapZ);
+    expect(enemy.prevX).toBe(enemy.x);
+    expect(enemy.prevZ).toBe(enemy.z);
+    expect(enemy.hp).toBe(snapHp);
+    expect(enemy.walkPhase).toBe(snapWalk);
+    expect(enemy.hitFlashTimer).toBe(snapHitFlash);
+    expect(proj.progress).toBe(snapProjProgress);
+    expect(proj.x).toBe(snapProjX);
+    expect(proj.z).toBe(snapProjZ);
+    expect(world.abilitySystem.getCooldown('meteor')).toBe(snapMeteorCd);
+    expect(world.abilitySystem.getCooldown('overcharge')).toBe(snapOverchargeCd);
+    expect(world.abilitySystem.getOverchargeRemaining()).toBe(snapOverchargeRem);
+    expect(world.waveSystem.waveElapsed).toBe(snapWaveElapsed);
+  });
+
+  it('fires gameLost only on the multi-cost brute leak that actually drops lives to zero', () => {
+    const events = new EventBus();
+    const world = new SimWorld(LEVELS[0], events);
+    world.lives = 3;
+    world.waveSystem.state = 'allSpawned';
+    world.waveSystem.currentWaveIndex = world.level.waves.length - 1;
+
+    const leakedEvents: Array<{ livesLost: number; livesAfter: number }> = [];
+    let lostCount = 0;
+    events.on('enemyLeaked', (ev) => leakedEvents.push({ livesLost: ev.livesLost, livesAfter: world.lives }));
+    events.on('gameLost', () => lostCount++);
+
+    const bruteA = world.enemySystem.spawnEnemy('brute')!;
+    const bruteB = world.enemySystem.spawnEnemy('brute')!;
+    expect(bruteA.livesCost).toBe(2);
+    bruteA.dist = bruteA.totalDist - 0.001;
+    bruteB.dist = bruteB.totalDist - 0.001;
+
+    world.fixedTick(BALANCE.fixedDt);
+
+    expect(leakedEvents).toHaveLength(2);
+    expect(leakedEvents[0]).toEqual({ livesLost: 2, livesAfter: 1 });
+    expect(leakedEvents[1]).toEqual({ livesLost: 2, livesAfter: 0 });
+    expect(lostCount).toBe(1);
+    expect(world.lives).toBe(0);
+    expect(world.outcome).toBe('lost');
+  });
 });

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { EventBus } from '../../src/core/eventBus.ts';
-import { ABILITY_DEFS } from '../../src/data/abilities.ts';
+import { ABILITY_DEFS, computeMeteorDamage } from '../../src/data/abilities.ts';
 import { BALANCE } from '../../src/data/balance.ts';
 import { ENEMY_DEFS } from '../../src/data/enemies.ts';
 import { LEVELS, type LevelDef } from '../../src/data/levels/index.ts';
@@ -1286,5 +1286,205 @@ describe('degenerate paths, zero-distance projectiles, splash isolation, and dee
     expect(boss.hp).toBe(1000 - BALANCE.minArmorDamage);
     expect(boss.slowRatio).toBeCloseTo(frostStats.slowRatio, 5);
     expect(boss.slowTimer).toBeCloseTo(frostStats.slowDuration, 5);
+  });
+});
+
+describe('chain lightning boundaries and meteor wave scaling', () => {
+  it('enforces exact chainRange boundary and spatialHash insertion-order invariance for tesla chains', () => {
+    const t1 = getTowerTierStats('tesla', 1);
+    const flatLevel: LevelDef = {
+      ...LEVELS[0],
+      id: 'qa-chain-boundary',
+      cols: 7,
+      rows: 5,
+      layout: [
+        '. . . . . . .',
+        '. . . . . . .',
+        'S P . . . P G',
+        '. . . . . . .',
+        '. . . . . . .',
+      ],
+      pathWaypoints: [
+        { col: 0, row: 2 },
+        { col: 6, row: 2 },
+      ],
+      flightPath: [
+        { col: 0, row: 2 },
+        { col: 6, row: 2 },
+      ],
+    };
+
+    // 1) Exact chainRange boundary: dist === chainRange hits, chainRange + 0.01 misses
+    const events = new EventBus();
+    const world = new SimWorld(flatLevel, events);
+    world.gold = 4000;
+    const tesla = world.placeTower(3, 2, 'tesla')!;
+    expect(tesla.z).toBe(0);
+    tesla.cooldownTimer = 0;
+
+    const anchor = world.enemySystem.spawnEnemy('brute')!;
+    anchor.armor = 0;
+    anchor.maxHp = 500;
+    anchor.hp = 500;
+    anchor.dist = 2.0;
+    anchor.x = tesla.x;
+    anchor.z = 0;
+
+    const hopExact = world.enemySystem.spawnEnemy('grunt')!;
+    hopExact.armor = 0;
+    hopExact.maxHp = 500;
+    hopExact.hp = 500;
+    hopExact.dist = 1.0;
+    hopExact.x = anchor.x;
+    hopExact.z = t1.chainRange;
+
+    const hopOut = world.enemySystem.spawnEnemy('grunt')!;
+    hopOut.armor = 0;
+    hopOut.maxHp = 500;
+    hopOut.hp = 500;
+    hopOut.dist = 0.5;
+    hopOut.x = anchor.x;
+    // Place on opposite side of anchor so distance exceeds chainRange from both anchor and hopExact
+    hopOut.z = -(t1.chainRange + 0.01);
+
+    // Far second hop beyond chainRange from both anchor and hopExact
+    const chains: number[] = [];
+    events.on('lightningChain', (ev) => chains.push(ev.points.length));
+
+    world.spatialHash.clear();
+    world.spatialHash.insert(anchor.poolIndex, anchor.x, anchor.z);
+    world.spatialHash.insert(hopExact.poolIndex, hopExact.x, hopExact.z);
+    world.spatialHash.insert(hopOut.poolIndex, hopOut.x, hopOut.z);
+
+    world.combatSystem.update(0.01, [tesla]);
+
+    expect(chains).toEqual([3]); // origin + anchor + hopExact
+    expect(500 - anchor.hp).toBe(t1.damage);
+    expect(500 - hopExact.hp).toBe(Math.round(t1.damage * t1.chainFalloff));
+    expect(hopOut.hp).toBe(500);
+
+    // 2) SpatialHash insertion-order invariance: closer hop takes jump 2 damage before farther hop
+    const runOrder = (insertFarFirst: boolean): { nearDmg: number; farDmg: number } => {
+      const ordWorld = new SimWorld(flatLevel, new EventBus());
+      ordWorld.gold = 4000;
+      const tower = ordWorld.placeTower(3, 2, 'tesla')!;
+      tower.cooldownTimer = 0;
+
+      const root = ordWorld.enemySystem.spawnEnemy('brute')!;
+      root.armor = 0;
+      root.maxHp = 500;
+      root.hp = 500;
+      root.dist = 3.0;
+      root.x = tower.x;
+      root.z = tower.z;
+
+      const near = ordWorld.enemySystem.spawnEnemy('brute')!;
+      near.armor = 0;
+      near.maxHp = 500;
+      near.hp = 500;
+      near.dist = 1.0;
+      near.x = root.x + 1.2;
+      near.z = root.z;
+
+      const far = ordWorld.enemySystem.spawnEnemy('brute')!;
+      far.armor = 0;
+      far.maxHp = 500;
+      far.hp = 500;
+      far.dist = 0.5;
+      far.x = root.x + 2.4;
+      far.z = root.z;
+
+      ordWorld.spatialHash.clear();
+      ordWorld.spatialHash.insert(root.poolIndex, root.x, root.z);
+      if (insertFarFirst) {
+        ordWorld.spatialHash.insert(far.poolIndex, far.x, far.z);
+        ordWorld.spatialHash.insert(near.poolIndex, near.x, near.z);
+      } else {
+        ordWorld.spatialHash.insert(near.poolIndex, near.x, near.z);
+        ordWorld.spatialHash.insert(far.poolIndex, far.x, far.z);
+      }
+
+      ordWorld.combatSystem.update(0.01, [tower]);
+      return { nearDmg: 500 - near.hp, farDmg: 500 - far.hp };
+    };
+
+    const nearFirst = runOrder(false);
+    const farFirst = runOrder(true);
+    expect(nearFirst).toEqual(farFirst);
+    expect(nearFirst.nearDmg).toBe(Math.round(t1.damage * t1.chainFalloff));
+    expect(nearFirst.farDmg).toBe(Math.round(t1.damage * t1.chainFalloff * t1.chainFalloff));
+  });
+
+  it('exposes ability max cooldown parity and scales meteor armor-piercing AoE damage by wave across ground and flyers', () => {
+    const posVec = { x: 0, y: 0, z: 0 };
+    const impactTicks = Math.ceil(ABILITY_DEFS.meteor.impactDelaySec / BALANCE.fixedDt) + 1;
+
+    const checkWave = (targetWaveOneBased: number): number => {
+      const { world } = makeWorld();
+      expect(world.abilitySystem.getMaxCooldown('meteor')).toBe(ABILITY_DEFS.meteor.cooldownSec);
+      expect(world.abilitySystem.getMaxCooldown('overcharge')).toBe(ABILITY_DEFS.overcharge.cooldownSec);
+
+      world.debugSkipToWave(targetWaveOneBased);
+      expect(world.waveSystem.currentWaveOneBased).toBe(targetWaveOneBased);
+      // Hold wave in clearing so currentWaveIndex remains pinned across impactDelaySec ticks
+      world.waveSystem.spawnCursor = world.waveSystem.spawnQueue.length;
+      world.waveSystem.state = 'clearing';
+
+      const ground = world.enemySystem.spawnEnemy('brute')!;
+      ground.armor = 50;
+      ground.maxHp = 2000;
+      ground.hp = 2000;
+      ground.dist = 2.0;
+      ground.speed = 0.0001;
+      world.groundPath.sample(ground.dist, posVec);
+
+      expect(world.castMeteor(posVec.x, posVec.z)).toBe(true);
+      for (let i = 0; i < impactTicks; i++) {
+        world.fixedTick(BALANCE.fixedDt);
+      }
+
+      const expectedRaw = computeMeteorDamage(targetWaveOneBased);
+      expect(2000 - ground.hp).toBe(expectedRaw);
+      expect(ground.slowRatio).toBeCloseTo(ABILITY_DEFS.meteor.slowRatio, 5);
+      expect(ground.slowTimer).toBeGreaterThan(0);
+      return expectedRaw;
+    };
+
+    const w1 = checkWave(1);
+    const w5 = checkWave(5);
+    expect(w5).toBeGreaterThan(w1);
+    expect(w1).toBe(ABILITY_DEFS.meteor.baseDamage);
+    expect(w5).toBe(Math.round(ABILITY_DEFS.meteor.baseDamage * (1 + 4 * ABILITY_DEFS.meteor.waveDamageScale)));
+
+    // Verify flyer hits inside meteor radius ignore armor and out-of-range enemies take zero damage
+    const { world } = makeWorld();
+    world.waveSystem.state = 'clearing';
+    world.waveSystem.currentWaveIndex = 2; // wave 3
+
+    const flyer = world.enemySystem.spawnEnemy('flyer')!;
+    flyer.armor = 999;
+    flyer.maxHp = 2000;
+    flyer.hp = 2000;
+    flyer.dist = world.flightPath.totalLength * 0.6;
+    world.flightPath.sample(flyer.dist + flyer.speed * 0.35, posVec);
+    const impactX = posVec.x;
+    const impactZ = posVec.z;
+
+    const outOfRange = world.enemySystem.spawnEnemy('grunt')!;
+    outOfRange.maxHp = 2000;
+    outOfRange.hp = 2000;
+    outOfRange.dist = 0;
+    outOfRange.speed = 0.0001;
+    world.groundPath.sample(0, posVec);
+    expect(Math.hypot(posVec.x - impactX, posVec.z - impactZ)).toBeGreaterThan(ABILITY_DEFS.meteor.radius + 0.5);
+
+    expect(world.castMeteor(impactX, impactZ)).toBe(true);
+    for (let i = 0; i < impactTicks; i++) {
+      world.fixedTick(BALANCE.fixedDt);
+    }
+
+    expect(2000 - flyer.hp).toBe(computeMeteorDamage(3));
+    expect(flyer.slowRatio).toBeCloseTo(ABILITY_DEFS.meteor.slowRatio, 5);
+    expect(outOfRange.hp).toBe(2000);
   });
 });

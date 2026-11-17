@@ -145,6 +145,12 @@ interface ScoredTile {
   readonly flightCoverage: number;
 }
 
+export interface IllegalProbeTiles {
+  readonly decor?: GridCoord;
+  readonly path?: GridCoord;
+  readonly empty?: GridCoord;
+}
+
 interface FuzzTracker {
   spawnedCount: number;
   killedCount: number;
@@ -204,6 +210,7 @@ interface FuzzTracker {
   prevEnemyDist: Float64Array;
   prevEnemySlowTimer: Float64Array;
   prevEnemySlowRatio: Float64Array;
+  prevEnemyBossPulseTimer: Float64Array;
   bossSummonedUids: Set<number>;
   bossesBelowHalfLastTick: Set<number>;
   prevTowerStats: Map<
@@ -291,6 +298,29 @@ function buildScoredGrassTiles(world: SimWorld): ScoredTile[] {
     }
   }
   return tiles;
+}
+
+/** Locate representative non-buildable tiles via parsed grid state for safe illegal-action probing. */
+export function findIllegalProbeTiles(world: SimWorld): IllegalProbeTiles {
+  let decor: GridCoord | undefined;
+  let path: GridCoord | undefined;
+  let empty: GridCoord | undefined;
+  for (let row = 0; row < world.grid.rows; row++) {
+    for (let col = 0; col < world.grid.cols; col++) {
+      const tile = world.grid.getTile(col, row);
+      if (tile === 'decor' && !decor) {
+        decor = { col, row };
+      } else if (tile === 'path' && !path) {
+        path = { col, row };
+      } else if (tile === 'empty' && !empty) {
+        empty = { col, row };
+      }
+      if (decor && path && empty) {
+        return { decor, path, empty };
+      }
+    }
+  }
+  return { decor, path, empty };
 }
 
 function instrumentPools(world: SimWorld, tracker: FuzzTracker): void {
@@ -1459,6 +1489,31 @@ function assertTickInvariants(world: SimWorld, tracker: FuzzTracker, tick: numbe
             return `Healer uid=${e.uid} healTimer step mismatch: got=${e.healTimer}, expected=${expectedHeal}`;
           }
         }
+        if (e.type === 'boss') {
+          const prevPulse = tracker.prevEnemyBossPulseTimer[e.poolIndex];
+          let expectedPulse: number;
+          if (world.towers.length === 0) {
+            expectedPulse = prevPulse;
+          } else {
+            const rawNextPulse = prevPulse - BALANCE.fixedDt;
+            if (rawNextPulse > 0) {
+              expectedPulse = rawNextPulse;
+            } else {
+              let anyInRange = false;
+              for (let tIdx = 0; tIdx < world.towers.length; tIdx++) {
+                const t = world.towers[tIdx];
+                if (Math.hypot(t.x - e.x, t.z - e.z) <= 7.6) {
+                  anyInRange = true;
+                  break;
+                }
+              }
+              expectedPulse = anyInRange ? 7.0 : 0.75;
+            }
+          }
+          if (Math.abs(e.bossPulseTimer - expectedPulse) > 1e-9) {
+            return `Boss uid=${e.uid} bossPulseTimer step mismatch: got=${e.bossPulseTimer}, expected=${expectedPulse}`;
+          }
+        }
         const prevDist = tracker.prevEnemyDist[e.poolIndex];
         const prevSlowTimer = tracker.prevEnemySlowTimer[e.poolIndex];
         const prevSlowRatio = tracker.prevEnemySlowRatio[e.poolIndex];
@@ -1489,6 +1544,7 @@ function assertTickInvariants(world: SimWorld, tracker: FuzzTracker, tick: numbe
       tracker.prevEnemyDist[e.poolIndex] = e.dist;
       tracker.prevEnemySlowTimer[e.poolIndex] = e.slowTimer;
       tracker.prevEnemySlowRatio[e.poolIndex] = e.slowRatio;
+      tracker.prevEnemyBossPulseTimer[e.poolIndex] = e.bossPulseTimer;
     }
   }
   if (tracker.hitEnemyUidsThisTick.size > 0) {
@@ -1920,21 +1976,24 @@ function assertTickInvariants(world: SimWorld, tracker: FuzzTracker, tick: numbe
       if (mvp !== null) return 'Expected null MVP summary when zero towers exist';
     } else {
       if (!mvp) return 'Expected non-null MVP summary with active towers';
-      let matching = false;
-      for (let tIdx = 0; tIdx < world.towers.length; tIdx++) {
-        const t = world.towers[tIdx];
+      let expectedBest = world.towers[0];
+      for (let tIdx = 1; tIdx < world.towers.length; tIdx++) {
+        const candidate = world.towers[tIdx];
         if (
-          t.type === mvp.type &&
-          t.tier === mvp.tier &&
-          t.kills === mvp.kills &&
-          Math.round(t.totalDamageDealt) === mvp.damageDealt
+          candidate.totalDamageDealt > expectedBest.totalDamageDealt ||
+          (candidate.totalDamageDealt === expectedBest.totalDamageDealt && candidate.kills > expectedBest.kills)
         ) {
-          matching = true;
-          break;
+          expectedBest = candidate;
         }
       }
-      if (!matching) {
-        return `MVP summary (${mvp.type} T${mvp.tier} dmg=${mvp.damageDealt} kills=${mvp.kills}) matches no live tower`;
+      if (
+        mvp.type !== expectedBest.type ||
+        mvp.tier !== expectedBest.tier ||
+        mvp.kills !== expectedBest.kills ||
+        mvp.damageDealt !== Math.round(expectedBest.totalDamageDealt) ||
+        mvp.name !== TOWER_DEFS[expectedBest.type].name
+      ) {
+        return `MVP summary (${mvp.type} T${mvp.tier} dmg=${mvp.damageDealt} kills=${mvp.kills}) != expected best (${expectedBest.type} T${expectedBest.tier} dmg=${Math.round(expectedBest.totalDamageDealt)} kills=${expectedBest.kills})`;
       }
     }
 
@@ -2134,10 +2193,74 @@ function chooseTowerType(world: SimWorld, rng: SeededRng, profile: FuzzProfile):
   return rng.pick(_affordableTypes);
 }
 
+/** Exercise illegal sim calls during ongoing play and verify they fail with zero state mutation. */
+export function probeIllegalActions(
+  world: SimWorld,
+  tiles: readonly GridCoord[],
+  probeTiles: IllegalProbeTiles,
+): string | null {
+  const goldSnap = world.gold;
+  const countSnap = world.towers.length;
+  const spawn = world.level.pathWaypoints[0];
+  const goal = world.level.pathWaypoints[world.level.pathWaypoints.length - 1];
+  const existingTower = world.towers[0];
+  let maxTierTower: TowerEntity | undefined;
+  let unaffordableUpgrade: TowerEntity | undefined;
+  for (let i = 0; i < world.towers.length; i++) {
+    const t = world.towers[i];
+    if (!maxTierTower && t.tier >= 3) maxTierTower = t;
+    if (
+      !unaffordableUpgrade &&
+      t.tier < 3 &&
+      world.gold < getTowerTierStats(t.type, (t.tier + 1) as 2 | 3).upgradeCost
+    ) {
+      unaffordableUpgrade = t;
+    }
+    if (maxTierTower && unaffordableUpgrade) break;
+  }
+  const unaffordableTierBefore = unaffordableUpgrade?.tier;
+  let freeTile: GridCoord | undefined;
+  if (world.gold < CHEAPEST_TOWER_COST) {
+    for (let i = 0; i < tiles.length; i++) {
+      if (world.grid.canPlaceTower(tiles[i].col, tiles[i].row)) {
+        freeTile = tiles[i];
+        break;
+      }
+    }
+  }
+  if (
+    world.placeTower(-1, -1, 'archer') !== null ||
+    (spawn && world.placeTower(spawn.col, spawn.row, 'archer') !== null) ||
+    (goal && world.placeTower(goal.col, goal.row, 'archer') !== null) ||
+    (probeTiles.decor && world.placeTower(probeTiles.decor.col, probeTiles.decor.row, 'archer') !== null) ||
+    (probeTiles.path && world.placeTower(probeTiles.path.col, probeTiles.path.row, 'archer') !== null) ||
+    (probeTiles.empty && world.placeTower(probeTiles.empty.col, probeTiles.empty.row, 'archer') !== null) ||
+    (existingTower && world.placeTower(existingTower.col, existingTower.row, 'archer') !== null) ||
+    (freeTile && world.placeTower(freeTile.col, freeTile.row, 'archer') !== null) ||
+    world.upgradeTower(999_999) !== false ||
+    (maxTierTower && world.upgradeTower(maxTierTower.id) !== false) ||
+    (unaffordableUpgrade && world.upgradeTower(unaffordableUpgrade.id) !== false) ||
+    world.sellTower(999_999) !== 0 ||
+    world.enterEndlessMode() !== false
+  ) {
+    return 'Illegal action succeeded unexpectedly during ongoing play';
+  }
+  world.setTowerTargeting(999_999, 'last');
+  if (
+    world.gold !== goldSnap ||
+    world.towers.length !== countSnap ||
+    (unaffordableUpgrade && unaffordableUpgrade.tier !== unaffordableTierBefore)
+  ) {
+    return 'Illegal action mutated gold, tower count, or unaffordable tower tier';
+  }
+  return null;
+}
+
 function performLegalAction(
   world: SimWorld,
   rng: SeededRng,
   tiles: readonly ScoredTile[],
+  probeTiles: IllegalProbeTiles,
   profile: FuzzProfile,
   tracker: FuzzTracker,
 ): string | null {
@@ -2145,68 +2268,8 @@ function performLegalAction(
 
   // Occasionally probe illegal calls to verify they fail safely with zero state mutation
   if (rng.chance(0.06)) {
-    const goldSnap = world.gold;
-    const countSnap = world.towers.length;
-    const spawn = world.level.pathWaypoints[0];
-    const goal = world.level.pathWaypoints[world.level.pathWaypoints.length - 1];
-    const existingTower = world.towers[0];
-    let maxTierTower: TowerEntity | undefined;
-    let unaffordableUpgrade: TowerEntity | undefined;
-    for (let i = 0; i < world.towers.length; i++) {
-      const t = world.towers[i];
-      if (!maxTierTower && t.tier >= 3) maxTierTower = t;
-      if (
-        !unaffordableUpgrade &&
-        t.tier < 3 &&
-        world.gold < getTowerTierStats(t.type, (t.tier + 1) as 2 | 3).upgradeCost
-      ) {
-        unaffordableUpgrade = t;
-      }
-      if (maxTierTower && unaffordableUpgrade) break;
-    }
-    const unaffordableTierBefore = unaffordableUpgrade?.tier;
-    let freeTile: ScoredTile | undefined;
-    if (world.gold < CHEAPEST_TOWER_COST) {
-      for (let i = 0; i < tiles.length; i++) {
-        if (world.grid.canPlaceTower(tiles[i].col, tiles[i].row)) {
-          freeTile = tiles[i];
-          break;
-        }
-      }
-    }
-    let decorTile: { col: number; row: number } | undefined;
-    for (let r = 0; r < world.level.rows && !decorTile; r++) {
-      for (let c = 0; c < world.level.cols; c++) {
-        const cell = world.level.layout[r][c];
-        if (cell === 'decor' || cell === 'blocked') {
-          decorTile = { col: c, row: r };
-          break;
-        }
-      }
-    }
-    if (
-      world.placeTower(-1, -1, 'archer') !== null ||
-      (spawn && world.placeTower(spawn.col, spawn.row, 'archer') !== null) ||
-      (goal && world.placeTower(goal.col, goal.row, 'archer') !== null) ||
-      (decorTile && world.placeTower(decorTile.col, decorTile.row, 'archer') !== null) ||
-      (existingTower && world.placeTower(existingTower.col, existingTower.row, 'archer') !== null) ||
-      (freeTile && world.placeTower(freeTile.col, freeTile.row, 'archer') !== null) ||
-      world.upgradeTower(999_999) !== false ||
-      (maxTierTower && world.upgradeTower(maxTierTower.id) !== false) ||
-      (unaffordableUpgrade && world.upgradeTower(unaffordableUpgrade.id) !== false) ||
-      world.sellTower(999_999) !== 0 ||
-      world.enterEndlessMode() !== false
-    ) {
-      return 'Illegal action succeeded unexpectedly during ongoing play';
-    }
-    world.setTowerTargeting(999_999, 'last');
-    if (
-      world.gold !== goldSnap ||
-      world.towers.length !== countSnap ||
-      (unaffordableUpgrade && unaffordableUpgrade.tier !== unaffordableTierBefore)
-    ) {
-      return 'Illegal action mutated gold, tower count, or unaffordable tower tier';
-    }
+    const probeErr = probeIllegalActions(world, tiles, probeTiles);
+    if (probeErr) return probeErr;
   }
 
   // Toggle auto-wave occasionally and verify countdown conservation
@@ -2518,6 +2581,7 @@ function createFuzzTracker(startingGold: number, endlessWavesConfig: number): Fu
     prevEnemyDist: new Float64Array(BALANCE.pools.maxEnemies),
     prevEnemySlowTimer: new Float64Array(BALANCE.pools.maxEnemies),
     prevEnemySlowRatio: new Float64Array(BALANCE.pools.maxEnemies),
+    prevEnemyBossPulseTimer: new Float64Array(BALANCE.pools.maxEnemies),
     bossSummonedUids: new Set<number>(),
     bossesBelowHalfLastTick: new Set<number>(),
     prevTowerStats: new Map(),
@@ -2619,6 +2683,7 @@ interface FuzzStepContext {
   readonly stepper: FixedTimestepStepper;
   readonly rng: SeededRng;
   readonly tiles: readonly ScoredTile[];
+  readonly probeTiles: IllegalProbeTiles;
   readonly profile: FuzzProfile;
   readonly tracker: FuzzTracker;
   readonly onTick: (fixedDt: number) => void;
@@ -2635,6 +2700,7 @@ function createFuzzStepContext(
   stepper: FixedTimestepStepper,
   rng: SeededRng,
   tiles: readonly ScoredTile[],
+  probeTiles: IllegalProbeTiles,
   profile: FuzzProfile,
   tracker: FuzzTracker,
   nextActionTick: number,
@@ -2645,6 +2711,7 @@ function createFuzzStepContext(
     stepper,
     rng,
     tiles,
+    probeTiles,
     profile,
     tracker,
     maxTicksLimit,
@@ -2668,6 +2735,8 @@ function createFuzzStepContext(
       tracker.currentTick = ctx.tickCount;
       tracker.runnerSpawnsThisTick = 0;
       const prevWaveState = world.waveSystem.state;
+      const prevWaveIndex = world.waveSystem.currentWaveIndex;
+      const prevWaveElapsed = world.waveSystem.waveElapsed;
       const prevMeteorCd = world.abilitySystem.getCooldown('meteor');
       const prevOverchargeCd = world.abilitySystem.getCooldown('overcharge');
       const prevOverchargeRemaining = world.abilitySystem.getOverchargeRemaining();
@@ -2683,6 +2752,17 @@ function createFuzzStepContext(
         if (Math.abs(world.abilitySystem.getOverchargeRemaining() - expectedOverchargeRemaining) > 1e-9) {
           ctx.fatalReason = `Overcharge remaining mismatch on tick ${ctx.tickCount}: expected ${expectedOverchargeRemaining}, got ${world.abilitySystem.getOverchargeRemaining()}`;
           return;
+        }
+        if (
+          prevWaveState === 'spawning' &&
+          world.waveSystem.state === 'spawning' &&
+          world.waveSystem.currentWaveIndex === prevWaveIndex
+        ) {
+          const expectedWaveElapsed = prevWaveElapsed + fixedDt;
+          if (Math.abs(world.waveSystem.waveElapsed - expectedWaveElapsed) > 1e-9) {
+            ctx.fatalReason = `waveElapsed mismatch on tick ${ctx.tickCount}: expected ${expectedWaveElapsed}, got ${world.waveSystem.waveElapsed}`;
+            return;
+          }
         }
       }
 
@@ -2715,7 +2795,7 @@ function createFuzzStepContext(
       }
 
       if (ctx.tickCount >= ctx.nextActionTick && world.outcome === 'ongoing') {
-        const actErr = performLegalAction(world, rng, tiles, profile, tracker);
+        const actErr = performLegalAction(world, rng, tiles, probeTiles, profile, tracker);
         if (actErr) {
           ctx.fatalReason = actErr;
           return;
@@ -2796,6 +2876,7 @@ export function runFuzzPlaythrough(
   const stepper = new FixedTimestepStepper();
   stepper.simActive = true;
   const tiles = buildScoredGrassTiles(world);
+  const probeTiles = findIllegalProbeTiles(world);
 
   const tracker = createFuzzTracker(level.startingGold, endlessWaves);
 
@@ -2807,7 +2888,7 @@ export function runFuzzPlaythrough(
 
   // Pre-wave 1 setup: build initial affordable towers and start wave 1
   for (let i = 0; i < 6 && world.outcome === 'ongoing'; i++) {
-    const err = performLegalAction(world, rng, tiles, profile, tracker);
+    const err = performLegalAction(world, rng, tiles, probeTiles, profile, tracker);
     if (err) return makeFailure(level, seed, profile, 0, world, tracker, storyOutcome, err);
     if (world.waveSystem.state !== 'preFirstWave') break;
   }
@@ -2820,6 +2901,7 @@ export function runFuzzPlaythrough(
     stepper,
     rng,
     tiles,
+    probeTiles,
     profile,
     tracker,
     rng.int(20, 75),
@@ -3055,6 +3137,7 @@ export function runEndlessFuzz(
   const stepper = new FixedTimestepStepper();
   stepper.simActive = true;
   const tiles = buildScoredGrassTiles(world);
+  const probeTiles = findIllegalProbeTiles(world);
 
   const tracker = createFuzzTracker(level.startingGold, wavesTarget);
 
@@ -3121,6 +3204,7 @@ export function runEndlessFuzz(
     stepper,
     rng,
     tiles,
+    probeTiles,
     profile,
     tracker,
     rng.int(20, 60),
