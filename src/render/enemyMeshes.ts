@@ -532,15 +532,15 @@ export class EnemyRenderer {
       case 'brute': {
         // Steel-grey armored siege juggernaut with bold crimson belt/pauldrons, horns, and glowing amber eyes
         parts = [
-          { geometry: chamfer, colorHex: 0x6c798c, position: [-0.2, 0.18, 0], scale: [0.24, 0.36, 0.28] },
-          { geometry: chamfer, colorHex: 0x6c798c, position: [0.2, 0.18, 0], scale: [0.24, 0.36, 0.28] },
-          { geometry: chamfer, colorHex: 0x9aa7ba, position: [0, 0.64, 0], scale: [0.76, 0.58, 0.54] },
+          { geometry: chamfer, colorHex: 0x5a6476, position: [-0.2, 0.18, 0], scale: [0.24, 0.36, 0.28] },
+          { geometry: chamfer, colorHex: 0x5a6476, position: [0.2, 0.18, 0], scale: [0.24, 0.36, 0.28] },
+          { geometry: chamfer, colorHex: 0xc3ccd9, position: [0, 0.64, 0], scale: [0.76, 0.58, 0.54] },
           { geometry: chamfer, colorHex: 0xe63636, position: [0, 0.45, 0.04], scale: [0.64, 0.18, 0.52] },
-          { geometry: chamfer, colorHex: 0x8593a8, position: [-0.47, 0.78, 0], rotation: [0, 0, 0.16], scale: [0.26, 0.34, 0.38] },
-          { geometry: chamfer, colorHex: 0x8593a8, position: [0.47, 0.78, 0], rotation: [0, 0, -0.16], scale: [0.26, 0.34, 0.38] },
-          { geometry: cone, colorHex: 0xe63636, position: [-0.49, 0.98, 0], scale: [0.075, 0.16, 0.075] },
-          { geometry: cone, colorHex: 0xe63636, position: [0.49, 0.98, 0], scale: [0.075, 0.16, 0.075] },
-          { geometry: chamfer, colorHex: 0x7b889c, position: [0, 1.04, 0.05], scale: [0.38, 0.32, 0.36] },
+          { geometry: chamfer, colorHex: 0xc62f36, position: [-0.47, 0.78, 0], rotation: [0, 0, 0.16], scale: [0.26, 0.34, 0.38] },
+          { geometry: chamfer, colorHex: 0xc62f36, position: [0.47, 0.78, 0], rotation: [0, 0, -0.16], scale: [0.26, 0.34, 0.38] },
+          { geometry: cone, colorHex: 0xf0e1c4, position: [-0.49, 0.98, 0], scale: [0.075, 0.16, 0.075] },
+          { geometry: cone, colorHex: 0xf0e1c4, position: [0.49, 0.98, 0], scale: [0.075, 0.16, 0.075] },
+          { geometry: chamfer, colorHex: 0xaab5c6, position: [0, 1.04, 0.05], scale: [0.38, 0.32, 0.36] },
           { geometry: box, colorHex: 0x2a2f3d, position: [0, 1.04, 0.21], scale: [0.26, 0.09, 0.06] },
           { geometry: cone, colorHex: 0xf0e1c4, position: [-0.22, 1.22, 0.05], rotation: [0, 0, 0.42], scale: [0.09, 0.28, 0.09] },
           { geometry: cone, colorHex: 0xf0e1c4, position: [0.22, 1.22, 0.05], rotation: [0, 0, -0.42], scale: [0.09, 0.28, 0.09] },
