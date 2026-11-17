@@ -1230,8 +1230,8 @@ function assertTickInvariants(world: SimWorld, tracker: FuzzTracker, tick: numbe
     if (tracker.spawnedTypes.get(e.uid) !== e.type) {
       return `Active enemy uid=${e.uid} type mismatch: spawned=${tracker.spawnedTypes.get(e.uid)}, actual=${e.type}`;
     }
-    if (e.isSplitChild && (e.type !== 'runner' || e.scaleOverride !== 0.72 || e.reward !== 1)) {
-      return `Invalid split child state for uid=${e.uid} (type=${e.type}, scale=${e.scaleOverride}, reward=${e.reward})`;
+    if (e.isSplitChild && (e.type !== 'runner' || e.scaleOverride !== 0.72 || e.reward !== 1 || e.maxHp < 18)) {
+      return `Invalid split child state for uid=${e.uid} (type=${e.type}, scale=${e.scaleOverride}, reward=${e.reward}, maxHp=${e.maxHp})`;
     }
     if (!e.isSplitChild && e.scaleOverride !== 1) {
       return `Non-split enemy uid=${e.uid} has stale scaleOverride=${e.scaleOverride}`;
@@ -2474,11 +2474,33 @@ function createFuzzStepContext(
       const prevWaveState = world.waveSystem.state;
       const prevMeteorCd = world.abilitySystem.getCooldown('meteor');
       const prevOverchargeCd = world.abilitySystem.getCooldown('overcharge');
+      const prevOverchargeRemaining = world.abilitySystem.getOverchargeRemaining();
       try {
         world.fixedTick(fixedDt);
       } catch (err) {
         ctx.fatalReason = `Uncaught error in fixedTick: ${err instanceof Error ? err.message : String(err)}`;
         return;
+      }
+
+      if (world.outcome === 'ongoing') {
+        const expectedOverchargeRemaining = Math.max(0, prevOverchargeRemaining - fixedDt);
+        if (Math.abs(world.abilitySystem.getOverchargeRemaining() - expectedOverchargeRemaining) > 1e-9) {
+          ctx.fatalReason = `Overcharge remaining mismatch on tick ${ctx.tickCount}: expected ${expectedOverchargeRemaining}, got ${world.abilitySystem.getOverchargeRemaining()}`;
+          return;
+        }
+      }
+
+      const isCombatState = (s: string): boolean => s === 'spawning' || s === 'clearing' || s === 'allSpawned';
+      if (world.outcome === 'ongoing' && isCombatState(prevWaveState) && isCombatState(world.waveSystem.state)) {
+        const expectedMeteorCd = Math.max(0, prevMeteorCd - fixedDt);
+        const expectedOverchargeCd = Math.max(0, prevOverchargeCd - fixedDt);
+        if (
+          Math.abs(world.abilitySystem.getCooldown('meteor') - expectedMeteorCd) > 1e-9 ||
+          Math.abs(world.abilitySystem.getCooldown('overcharge') - expectedOverchargeCd) > 1e-9
+        ) {
+          ctx.fatalReason = `Ability cooldown decay mismatch during active combat on tick ${ctx.tickCount}`;
+          return;
+        }
       }
 
       if (prevWaveState === 'betweenWaves' && world.waveSystem.state === 'betweenWaves') {

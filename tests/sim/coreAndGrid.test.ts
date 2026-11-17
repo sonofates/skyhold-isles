@@ -34,6 +34,30 @@ describe('SeededRng', () => {
     expect(a.chance(1)).toBe(true);
     expect(['x', 'y', 'z']).toContain(a.pick(['x', 'y', 'z']));
   });
+
+  it('stays deterministic and bounded for boundary seeds 0 and -1', () => {
+    for (const seed of [0, -1]) {
+      const r1 = new SeededRng(seed);
+      const r2 = new SeededRng(seed);
+      for (let i = 0; i < 20; i++) {
+        const v1 = r1.next();
+        const v2 = r2.next();
+        expect(v1).toBe(v2);
+        expect(v1).toBeGreaterThanOrEqual(0);
+        expect(v1).toBeLessThan(1);
+
+        const i1 = r1.int(-2, 4);
+        const i2 = r2.int(-2, 4);
+        expect(i1).toBe(i2);
+        expect(i1).toBeGreaterThanOrEqual(-2);
+        expect(i1).toBeLessThanOrEqual(4);
+      }
+      expect(r1.chance(0)).toBe(false);
+      expect(r1.chance(1)).toBe(true);
+    }
+
+    expect(new SeededRng(0).next()).not.toBe(new SeededRng(-1).next());
+  });
 });
 
 describe('EventBus', () => {
@@ -56,6 +80,27 @@ describe('EventBus', () => {
     bus.clear();
     bus.emit('economyChanged', { gold: 9, lives: 20 });
     expect(log).toEqual([5, 50, 30]);
+  });
+
+  it('handles zero-listener emits and idempotent unsubscribe calls safely', () => {
+    const bus = new EventBus();
+    expect(() => bus.emit('waveCompleted', { waveIndex: 0 })).not.toThrow();
+
+    const hits: number[] = [];
+    const unsubA = bus.on('waveCompleted', (ev) => hits.push(ev.waveIndex));
+    bus.on('waveCompleted', (ev) => hits.push(ev.waveIndex + 10));
+
+    unsubA();
+    // Second unsubscribe call must be a no-op and leave the remaining listener intact
+    unsubA();
+
+    bus.emit('waveCompleted', { waveIndex: 3 });
+    expect(hits).toEqual([13]);
+
+    bus.clear();
+    bus.clear();
+    bus.emit('waveCompleted', { waveIndex: 4 });
+    expect(hits).toEqual([13]);
   });
 });
 

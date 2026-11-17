@@ -899,4 +899,46 @@ describe('GameSession state machine, input, and lifecycle', () => {
     h.session.showMenuView('menu', true);
     expect(loadProgress(LEVELS.length).bestEndlessWaves[0]).toBe(0);
   });
+
+  it('keeps ongoing enterEndlessMode as a safe no-op and honors exact 3500ms sell-confirm boundary', () => {
+    const h = createHarness();
+    h.session.startLevel(0);
+    h.session.toggleUserPause();
+    h.session.openSettingsModal();
+    expect(h.overlays.settingsModal.isOpen()).toBe(true);
+    expect(h.loop.paused).toBe(true);
+
+    // enterEndlessMode while outcome === 'ongoing' must return early without unpausing or closing modals
+    h.session.enterEndlessMode();
+    expect(h.session.simWorld.waveSystem.isEndless).toBe(false);
+    expect(h.overlays.settingsModal.isOpen()).toBe(true);
+    expect(h.loop.paused).toBe(true);
+
+    h.session.closeSettingsModal();
+    h.session.toggleUserPause();
+    h.session.simWorld.gold = 500;
+
+    const nowSpy = vi.spyOn(performance, 'now');
+    const t1 = h.session.simWorld.placeTower(4, 2, 'archer')!;
+    h.session.selectTower(t1.id);
+
+    nowSpy.mockReturnValue(1000);
+    expect(h.session.onTowerActionHotkey('sell')).toBe(true);
+    expect(h.session.simWorld.getTowerById(t1.id)).toBeDefined();
+
+    // Exact 3500ms boundary (nowMs === sellConfirmDeadlineMs) still confirms the sell
+    nowSpy.mockReturnValue(4500);
+    expect(h.session.onTowerActionHotkey('sell')).toBe(true);
+    expect(h.session.simWorld.getTowerById(t1.id)).toBeNull();
+
+    // Past 3500ms boundary (13501 > 13500 deadline) re-arms confirmation instead of selling
+    const t2 = h.session.simWorld.placeTower(4, 3, 'archer')!;
+    h.session.selectTower(t2.id);
+    nowSpy.mockReturnValue(10000);
+    expect(h.session.onTowerActionHotkey('sell')).toBe(true);
+    nowSpy.mockReturnValue(13501);
+    expect(h.session.onTowerActionHotkey('sell')).toBe(true);
+    expect(h.session.simWorld.getTowerById(t2.id)).toBe(t2);
+    expect(h.overlays.towerPanel.setSellConfirmArmed).toHaveBeenLastCalledWith(true);
+  });
 });

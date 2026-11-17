@@ -232,6 +232,74 @@ describe('meteor strike ability', () => {
     abilities.update(10, true, world.enemyPool, world.spatialHash, world.enemySystem);
     expect(abilities.getCooldown('meteor')).toBe(20);
   });
+
+  it('resolves multiple pending meteors on the same update tick without skipping shifted entries', () => {
+    const { world, events, abilities } = makeHarness();
+    const b1 = world.enemySystem.spawnEnemy('brute')!;
+    b1.x = 0;
+    b1.z = 0;
+    const b2 = world.enemySystem.spawnEnemy('brute')!;
+    b2.x = 12;
+    b2.z = 0;
+
+    world.spatialHash.clear();
+    world.spatialHash.insert(b1.poolIndex, b1.x, b1.z);
+    world.spatialHash.insert(b2.poolIndex, b2.x, b2.z);
+
+    const impacts: number[] = [];
+    events.on('meteorImpact', (ev) => {
+      impacts.push(ev.x);
+    });
+
+    expect(abilities.castMeteor(0, 0, 1)).toBe(true);
+    // Bypass cooldown solely to queue a second in-flight meteor on the same tick
+    (abilities as unknown as { cooldowns: { meteor: number } }).cooldowns.meteor = 0;
+    expect(abilities.castMeteor(12, 0, 1)).toBe(true);
+
+    abilities.update(
+      ABILITY_DEFS.meteor.impactDelaySec + 0.05,
+      false,
+      world.enemyPool,
+      world.spatialHash,
+      world.enemySystem,
+    );
+
+    expect(impacts).toEqual([0, 12]);
+    const dmg = computeMeteorDamage(1);
+    expect(b1.hp).toBe(ENEMY_DEFS.brute.maxHp - dmg);
+    expect(b2.hp).toBe(ENEMY_DEFS.brute.maxHp - dmg);
+
+    // Next update must not re-fire any leftover entry
+    abilities.update(1, true, world.enemyPool, world.spatialHash, world.enemySystem);
+    expect(impacts).toHaveLength(2);
+  });
+
+  it('decays overcharge remaining duration even outside combat and ignores non-positive dt', () => {
+    const { world, abilities } = makeHarness();
+    const def = ABILITY_DEFS.overcharge;
+
+    expect(abilities.castOvercharge([])).toBe(true);
+    expect(abilities.isOverchargeActive()).toBe(true);
+    expect(abilities.getOverchargeRemaining()).toBe(def.durationSec);
+    expect(abilities.getFireRateMultiplier()).toBe(def.fireRateMultiplier);
+
+    abilities.update(0, false, world.enemyPool, world.spatialHash, world.enemySystem);
+    abilities.update(-0.5, true, world.enemyPool, world.spatialHash, world.enemySystem);
+    expect(abilities.getOverchargeRemaining()).toBe(def.durationSec);
+    expect(abilities.getCooldown('overcharge')).toBe(def.cooldownSec);
+
+    const half = def.durationSec * 0.5;
+    abilities.update(half, false, world.enemyPool, world.spatialHash, world.enemySystem);
+    expect(abilities.getOverchargeRemaining()).toBeCloseTo(def.durationSec - half, 6);
+    expect(abilities.isOverchargeActive()).toBe(true);
+    expect(abilities.getCooldown('overcharge')).toBe(def.cooldownSec);
+
+    abilities.update(def.durationSec, false, world.enemyPool, world.spatialHash, world.enemySystem);
+    expect(abilities.getOverchargeRemaining()).toBe(0);
+    expect(abilities.isOverchargeActive()).toBe(false);
+    expect(abilities.getFireRateMultiplier()).toBe(1);
+    expect(abilities.getCooldown('overcharge')).toBe(def.cooldownSec);
+  });
 });
 
 describe('boss abilities, tower stun, and overcharge cleanse', () => {

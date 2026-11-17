@@ -235,6 +235,54 @@ describe('combat system rotation, timers, stun recovery, and chain kills', () =>
     expect(tesla.totalDamageDealt).toBe(15); // capped at actual 10 + 5 HP removed
     expect(tooFar.hp).toBe(40);
   });
+
+  it('skips zero-HP active corpses left in pool earlier in the tick during chain lightning', () => {
+    const { world, events } = makeWorld();
+    const tesla = world.placeTower(4, 2, 'tesla')!;
+    const stats = getTowerTierStats('tesla', 1);
+    tesla.cooldownTimer = 0;
+
+    const first = world.enemySystem.spawnEnemy('runner')!;
+    first.hp = 40;
+    first.x = tesla.x + 1.5;
+    first.z = tesla.z;
+    first.dist = 30;
+
+    // Active=true corpse awaiting EnemySystem.update cleanup at end of tick
+    const corpse = world.enemySystem.spawnEnemy('runner')!;
+    corpse.hp = 0;
+    corpse.x = first.x + 1.0;
+    corpse.z = tesla.z;
+    corpse.dist = 25;
+
+    const second = world.enemySystem.spawnEnemy('runner')!;
+    second.hp = 40;
+    second.x = first.x + 2.0;
+    second.z = tesla.z;
+    second.dist = 10;
+
+    world.spatialHash.clear();
+    world.spatialHash.insert(first.poolIndex, first.x, first.z);
+    world.spatialHash.insert(corpse.poolIndex, corpse.x, corpse.z);
+    world.spatialHash.insert(second.poolIndex, second.x, second.z);
+
+    let chainPoints: ReadonlyArray<{ x: number; y: number; z: number }> = [];
+    events.on('lightningChain', (ev) => {
+      chainPoints = ev.points;
+    });
+
+    world.combatSystem.update(BALANCE.fixedDt, [tesla]);
+
+    const secondDmg = Math.round(stats.damage * stats.chainFalloff);
+    expect(chainPoints).toHaveLength(3); // muzzle + first + second (corpse ignored)
+    expect(chainPoints[1].x).toBeCloseTo(first.x, 5);
+    expect(chainPoints[2].x).toBeCloseTo(second.x, 5);
+    expect(corpse.hp).toBe(0);
+    expect(first.hp).toBe(40 - stats.damage);
+    expect(second.hp).toBe(40 - secondDmg);
+    expect(tesla.kills).toBe(0);
+    expect(tesla.totalDamageDealt).toBe(stats.damage + secondDmg);
+  });
 });
 
 describe('wave preview, empty wave, leak clamping, and beveled path edge cases', () => {
