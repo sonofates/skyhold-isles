@@ -570,4 +570,144 @@ describe('overlapping waves, dead-target projectiles, boss tie-break, and healer
     expect(grunt.hp).toBe(0);
     expect(hitEvents).toEqual([grunt.maxHp]);
   });
+
+  it('prevents boss re-summon after healer restores >50% HP, resets recycled pool slots, and handles cross-layer tesla/frost & staggered meteors', () => {
+    const { world, events } = makeWorld();
+
+    // 1. Boss healed above 50% HP by healer never summons escorts a second time
+    const boss = world.enemySystem.spawnEnemy('boss')!;
+    boss.dist = 6;
+    boss.speed = 0;
+    boss.hp = Math.floor(boss.maxHp * 0.5) - 2; // triggers summon at <=50%, then 1 heal (+22) lifts above 50%
+    const healer = world.enemySystem.spawnEnemy('healer')!;
+    healer.dist = 6;
+    healer.speed = 0;
+    healer.healTimer = 0.01;
+
+    let summonEvents = 0;
+    let pulseEvents = 0;
+    events.on('bossSummon', () => summonEvents++);
+    events.on('bossPulse', () => pulseEvents++);
+
+    // Empty towers array suppresses bossPulse cleanly
+    boss.bossPulseTimer = 0.01;
+    world.enemySystem.update(0.02, () => {}, () => {}, [], 1);
+    expect(summonEvents).toBe(1);
+    expect(pulseEvents).toBe(0);
+    expect(boss.hp).toBeGreaterThan(boss.maxHp * 0.5);
+
+    // Damage boss below 50% again -> must NOT summon escorts a second time
+    boss.hp = Math.floor(boss.maxHp * 0.4);
+    world.enemySystem.update(0.02, () => {}, () => {}, [], 1);
+    expect(summonEvents).toBe(1);
+
+    // 2. Recycling an enemy pool slot resets every status/visual field cleanly
+    world.enemyPool.clear();
+    const dirty = world.enemySystem.spawnEnemy('grunt')!;
+    const dirtyIdx = dirty.poolIndex;
+    const dirtyUid = dirty.uid;
+    dirty.slowTimer = 2.5;
+    dirty.slowRatio = 0.4;
+    dirty.hitFlashTimer = 0.1;
+    dirty.bossSummonedEscorts = true;
+    dirty.scaleOverride = 0.72;
+    dirty.isSplitChild = true;
+    world.enemyPool.releaseAtActivePos(0);
+
+    const fresh = world.enemySystem.spawnEnemy('runner')!;
+    expect(fresh.poolIndex).toBe(dirtyIdx);
+    expect(fresh.uid).toBeGreaterThan(dirtyUid);
+    expect(fresh.slowTimer).toBe(0);
+    expect(fresh.slowRatio).toBe(0);
+    expect(fresh.hitFlashTimer).toBe(0);
+    expect(fresh.bossSummonedEscorts).toBe(false);
+    expect(fresh.scaleOverride).toBe(1);
+    expect(fresh.isSplitChild).toBe(false);
+
+    // 3. Tesla chains from ground -> flyer -> ground beyond tower firing range with zero projectilePool usage
+    world.enemyPool.clear();
+    const tesla = world.placeTower(4, 3, 'tesla')!;
+    const teslaStats = getTowerTierStats('tesla', 1); // range 4.7, chainRange 3.3, chainCount 3
+    tesla.cooldownTimer = 0;
+
+    const g1 = world.enemySystem.spawnEnemy('grunt')!;
+    g1.x = tesla.x + 4.0; // inside tower range (4.7)
+    g1.z = tesla.z;
+    const f2 = world.enemySystem.spawnEnemy('flyer')!;
+    f2.x = g1.x + 2.5; // 6.5 from tower (> 4.7), within chainRange 3.3 of g1
+    f2.z = tesla.z;
+    const g3 = world.enemySystem.spawnEnemy('grunt')!;
+    g3.x = f2.x + 2.5; // 9.0 from tower, within chainRange 3.3 of f2
+    g3.z = tesla.z;
+
+    world.spatialHash.clear();
+    world.spatialHash.insert(g1.poolIndex, g1.x, g1.z);
+    world.spatialHash.insert(f2.poolIndex, f2.x, f2.z);
+    world.spatialHash.insert(g3.poolIndex, g3.x, g3.z);
+
+    let chainCount = 0;
+    events.on('lightningChain', (ev) => {
+      chainCount = ev.points.length;
+    });
+
+    world.combatSystem.update(BALANCE.fixedDt, [tesla]);
+    expect(world.projectilePool.getActiveCount()).toBe(0);
+    expect(chainCount).toBe(4);
+    expect(g1.hp).toBe(g1.maxHp - teslaStats.damage);
+    expect(f2.hp).toBe(f2.maxHp - Math.round(teslaStats.damage * teslaStats.chainFalloff));
+    expect(g3.hp).toBe(g3.maxHp - Math.round(teslaStats.damage * teslaStats.chainFalloff * teslaStats.chainFalloff));
+
+    // 4. Frost tower ground target splashes and slows adjacent flyer inside splashRadius
+    world.enemyPool.clear();
+    const frost = world.placeTower(4, 2, 'frost')!;
+    const frostStats = getTowerTierStats('frost', 1); // splashRadius 1.65
+    const groundTarget = world.enemySystem.spawnEnemy('grunt')!;
+    groundTarget.x = frost.x + 2.0;
+    groundTarget.z = frost.z;
+    const nearFlyer = world.enemySystem.spawnEnemy('flyer')!;
+    nearFlyer.x = groundTarget.x + 1.0;
+    nearFlyer.z = frost.z;
+    const farFlyer = world.enemySystem.spawnEnemy('flyer')!;
+    farFlyer.x = groundTarget.x + frostStats.splashRadius + 0.5;
+    farFlyer.z = frost.z;
+
+    world.spatialHash.clear();
+    world.spatialHash.insert(groundTarget.poolIndex, groundTarget.x, groundTarget.z);
+    world.spatialHash.insert(nearFlyer.poolIndex, nearFlyer.x, nearFlyer.z);
+    world.spatialHash.insert(farFlyer.poolIndex, farFlyer.x, farFlyer.z);
+
+    const frostBolt = world.projectileSystem.spawnProjectile(frost, groundTarget, frostStats.splashFalloffMin)!;
+    frostBolt.progress = 0.99;
+    world.projectileSystem.update(0.1, [frost]);
+    expect(nearFlyer.hp).toBeLessThan(nearFlyer.maxHp);
+    expect(nearFlyer.slowRatio).toBeCloseTo(frostStats.slowRatio, 5);
+    expect(farFlyer.hp).toBe(farFlyer.maxHp);
+    expect(farFlyer.slowRatio).toBe(0);
+
+    // 5. Overcharge with zero stunned towers + staggered simultaneous meteors resolving independently
+    const overchargePayloads: Array<readonly number[]> = [];
+    events.on('overchargeActivated', (ev) => overchargePayloads.push(ev.cleansedTowerIds));
+    expect(world.abilitySystem.castOvercharge([])).toBe(true);
+    expect(overchargePayloads).toEqual([[]]);
+
+    const meteorHits: Array<{ x: number; z: number }> = [];
+    events.on('meteorImpact', (ev) => meteorHits.push({ x: ev.x, z: ev.z }));
+
+    world.abilitySystem.reset();
+    expect(world.abilitySystem.castMeteor(0, 0, 1)).toBe(true);
+    world.abilitySystem.update(0.2, true, world.enemyPool, world.spatialHash, world.enemySystem);
+    (world.abilitySystem as unknown as { cooldowns: { meteor: number } }).cooldowns.meteor = 0;
+    expect(world.abilitySystem.castMeteor(5, -3, 1)).toBe(true);
+
+    // At +0.15s: meteor 1 (0.35s elapsed) lands while meteor 2 (0.15s elapsed) remains queued
+    world.abilitySystem.update(0.15, true, world.enemyPool, world.spatialHash, world.enemySystem);
+    expect(meteorHits).toEqual([{ x: 0, z: 0 }]);
+
+    // At +0.20s: meteor 2 (0.35s elapsed) lands
+    world.abilitySystem.update(0.2, true, world.enemyPool, world.spatialHash, world.enemySystem);
+    expect(meteorHits).toEqual([
+      { x: 0, z: 0 },
+      { x: 5, z: -3 },
+    ]);
+  });
 });

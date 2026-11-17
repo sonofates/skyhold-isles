@@ -7,7 +7,7 @@ import { LEVELS } from '../../src/data/levels/index.ts';
 import { GameLoop } from '../../src/platform/browserLoop.ts';
 import { GameSession } from '../../src/platform/gameSession.ts';
 import type { InputManager } from '../../src/platform/input.ts';
-import { loadProgress, saveProgress } from '../../src/platform/storage.ts';
+import { loadProgress, loadSettings, saveProgress } from '../../src/platform/storage.ts';
 import { CameraController } from '../../src/render/cameraController.ts';
 import type { RenderWorld } from '../../src/render/renderWorld.ts';
 import type { TowerEntity } from '../../src/sim/entities.ts';
@@ -459,5 +459,58 @@ describe('GameSession state machine, input, and lifecycle', () => {
     // Starting another level unbinds the previous SoundManager subscription
     h.session.startLevel(1);
     expect(h.unbindSoundSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('handles non-grass taps, updateSettings, toggleRoutesPinned, pendingDebugSpawns, and showcase reset cleanly', () => {
+    const h = createHarness();
+    h.session.startLevel(0);
+    h.session.simWorld.gold = 1000;
+
+    // Tapping road tile (1, 2) during placement places nothing, shows no toast, keeps placement active
+    h.session.toggleBuildType('archer');
+    const roadNdc = projectTileNdc(h.cam, h.session, 1, 2);
+    h.session.onPrimaryTap(roadNdc.x, roadNdc.y, false);
+    expect(h.session.simWorld.towers).toHaveLength(0);
+    expect(h.overlays.toast.show).not.toHaveBeenCalled();
+
+    // Tapping grass tile afterwards still places tower -> proves placement mode stayed active
+    const grassNdc = projectTileNdc(h.cam, h.session, 4, 2);
+    h.session.onPrimaryTap(grassNdc.x, grassNdc.y, false);
+    expect(h.session.simWorld.towers).toHaveLength(1);
+
+    // updateSettings persists and syncs SoundManager + RenderWorld quality
+    const nextSettings = {
+      masterVolume: 0.25,
+      muted: true,
+      cameraShake: false,
+      damageNumbers: false,
+      quality: 'low' as const,
+    };
+    h.session.updateSettings(nextSettings);
+    expect(loadSettings()).toEqual(nextSettings);
+    expect(h.soundManager.updateSettings).toHaveBeenCalledWith(nextSettings);
+    expect(h.renderWorld.setQuality).toHaveBeenLastCalledWith('low');
+
+    // toggleRoutesPinned forwards state to RenderWorld & HUD
+    h.session.toggleRoutesPinned();
+    expect(h.renderWorld.setRoutesPinned).toHaveBeenLastCalledWith(true);
+
+    // fixedTick drains pendingDebugSpawns cleanly
+    h.session.pendingDebugSpawns.push({ type: 'grunt', delay: 0.05 });
+    for (let i = 0; i < 4; i++) h.session.fixedTick(BALANCE.fixedDt);
+    expect(h.session.pendingDebugSpawns).toHaveLength(0);
+    expect(h.session.simWorld.enemyPool.getActiveCount()).toBe(1);
+
+    // Returning to levelSelect with reloadShowcase=true from Endless records progress, clears spawns, and resets world
+    h.session.simWorld.debugForceWin();
+    h.session.enterEndlessMode();
+    h.session.simWorld.debugSkipToWave(LEVELS[0].waves.length + 2);
+    h.session.pendingDebugSpawns.push({ type: 'runner', delay: 1.0 });
+    h.session.showMenuView('levelSelect', true);
+
+    expect(h.session.viewMode).toBe('levelSelect');
+    expect(h.session.pendingDebugSpawns).toHaveLength(0);
+    expect(h.session.simWorld.waveSystem.isEndless).toBe(false);
+    expect(loadProgress(LEVELS.length).bestEndlessWaves[0]).toBe(LEVELS[0].waves.length + 2);
   });
 });

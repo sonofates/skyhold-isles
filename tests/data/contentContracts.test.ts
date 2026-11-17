@@ -46,6 +46,7 @@ describe('palette and color math contracts', () => {
 describe('tower, enemy, ability, and UI metadata contracts', () => {
   it('ensures every tower archetype has complete stats, picking bounds, unique hotkeys, and SVG icons', () => {
     expect(TOWER_TYPES.length).toBeGreaterThanOrEqual(5);
+    expect(new Set(TOWER_TYPES).size).toBe(TOWER_TYPES.length);
     const seenHotkeys = new Set<number>();
 
     for (const type of TOWER_TYPES) {
@@ -103,6 +104,7 @@ describe('tower, enemy, ability, and UI metadata contracts', () => {
 
   it('ensures every enemy archetype has valid combat parameters and UI badge metadata', () => {
     expect(ENEMY_TYPES.length).toBeGreaterThanOrEqual(7);
+    expect(new Set(ENEMY_TYPES).size).toBe(ENEMY_TYPES.length);
 
     for (const type of ENEMY_TYPES) {
       const def = ENEMY_DEFS[type];
@@ -128,6 +130,7 @@ describe('tower, enemy, ability, and UI metadata contracts', () => {
   });
 
   it('ensures every ability has valid definitions, icons, and monotonic meteor scaling', () => {
+    expect(new Set(ABILITY_IDS).size).toBe(ABILITY_IDS.length);
     const seenHotkeys = new Set<string>();
     for (const id of ABILITY_IDS) {
       const def = ABILITY_DEFS[id];
@@ -155,8 +158,12 @@ describe('level data, flight paths, waves, and scripted build orders', () => {
     const enemyTypeSet = new Set<string>(ENEMY_TYPES);
     const towerTypeSet = new Set<string>(TOWER_TYPES);
     const validDifficulties = new Set(['Breezy', 'Challenging', 'Heroic', 'Master']);
+    const seenLevelIds = new Set<string>();
 
-    for (const lvl of LEVELS) {
+    LEVELS.forEach((lvl, idx) => {
+      expect(lvl.index).toBe(idx);
+      expect(seenLevelIds.has(lvl.id)).toBe(false);
+      seenLevelIds.add(lvl.id);
       expect(lvl.name.trim().length).toBeGreaterThan(0);
       expect(lvl.subtitle.trim().length).toBeGreaterThan(0);
       expect(validDifficulties.has(lvl.difficulty)).toBe(true);
@@ -220,6 +227,46 @@ describe('level data, flight paths, waves, and scripted build orders', () => {
 
       // Scripted build orders (greedy + weak) must build once per grass tile and upgrade <= tier 3
       const grid = parseLevelGrid(lvl);
+      const spawns: Array<{ col: number; row: number }> = [];
+      const goals: Array<{ col: number; row: number }> = [];
+      const roadTiles = new Set<string>();
+      for (let r = 0; r < lvl.rows; r++) {
+        for (let c = 0; c < lvl.cols; c++) {
+          const tile = grid[r][c];
+          if (tile === 'spawn') spawns.push({ col: c, row: r });
+          if (tile === 'goal') goals.push({ col: c, row: r });
+          if (tile === 'path' || tile === 'spawn' || tile === 'goal') {
+            roadTiles.add(`${c},${r}`);
+          }
+        }
+      }
+      expect(spawns).toEqual([lvl.pathWaypoints[0]]);
+      expect(goals).toEqual([lvl.pathWaypoints[lvl.pathWaypoints.length - 1]]);
+
+      const walked = new Set<string>();
+      for (let i = 0; i < lvl.pathWaypoints.length - 1; i++) {
+        const a = lvl.pathWaypoints[i];
+        const b = lvl.pathWaypoints[i + 1];
+        expect((a.col === b.col) !== (a.row === b.row)).toBe(true);
+        const dc = Math.sign(b.col - a.col);
+        const dr = Math.sign(b.row - a.row);
+        let c = a.col;
+        let r = a.row;
+        while (true) {
+          const key = `${c},${r}`;
+          const isJoin = i > 0 && c === a.col && r === a.row;
+          if (!isJoin) {
+            expect(walked.has(key)).toBe(false);
+            walked.add(key);
+          }
+          expect(roadTiles.has(key)).toBe(true);
+          if (c === b.col && r === b.row) break;
+          c += dc;
+          r += dr;
+        }
+      }
+      expect(walked.size).toBe(roadTiles.size);
+
       const grassCount = grid.reduce(
         (acc, row) => acc + row.filter((cell) => cell === 'grass').length,
         0,
@@ -245,7 +292,7 @@ describe('level data, flight paths, waves, and scripted build orders', () => {
           }
         }
       }
-    }
+    });
   });
 });
 
@@ -267,6 +314,7 @@ describe('BALANCE constants and Kenney public asset contracts', () => {
   });
 
   it('verifies every KENNEY_MODEL_LIST GLB and colormap texture exists on disk with valid magic header', () => {
+    expect(new Set(KENNEY_MODEL_LIST).size).toBe(KENNEY_MODEL_LIST.length);
     const kenneyRoot = resolve(process.cwd(), 'public/models/kenney');
     const colormapStat = statSync(resolve(kenneyRoot, 'Textures/colormap.png'));
     expect(colormapStat.size).toBeGreaterThan(100);
@@ -317,6 +365,7 @@ describe('simulation determinism and endless scaling safety contracts', () => {
       { name: 'Date.now', regex: /\bDate\.now\b/ },
       { name: 'performance.now', regex: /\bperformance\.now\b/ },
       { name: 'crypto randomness', regex: /\bcrypto\.(randomUUID|getRandomValues)\b/ },
+      { name: 'non-deterministic timers or Date', regex: /\b(?:setTimeout|setInterval)\b|\bnew\s+Date\b/ },
       {
         name: 'browser global (window/document/localStorage/rAF)',
         regex: /\b(?:window|document|localStorage|requestAnimationFrame)\b/,

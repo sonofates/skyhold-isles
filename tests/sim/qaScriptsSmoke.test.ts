@@ -2,8 +2,13 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { runLevelBalanceSim } from '../../scripts/balanceSim.ts';
-import { CI_STEPS, EXTRA_QA_STEPS } from '../../scripts/ci.ts';
-import { BENCH_SCENARIOS, pickBenchLevel, runSimBenchScenario } from '../../scripts/simBench.ts';
+import { CI_STEPS, EXTRA_QA_STEPS, parseCiCliArgs } from '../../scripts/ci.ts';
+import {
+  BENCH_SCENARIOS,
+  parseSimBenchCliArgs,
+  pickBenchLevel,
+  runSimBenchScenario,
+} from '../../scripts/simBench.ts';
 import { LEVELS, type LevelDef } from '../../src/data/levels/index.ts';
 
 describe('QA scripts smoke verification', () => {
@@ -92,5 +97,49 @@ describe('QA scripts smoke verification', () => {
     expect(res.invalidActions).toBe(2);
     expect(res.unspentScriptActions).toBe(1);
     expect(res.startingGold + res.goldEarned - res.goldSpent).toBe(res.finalGold);
+  });
+
+  it('validates CI and simBench CLI arguments strictly and rejects under-sized bench levels', () => {
+    expect(parseCiCliArgs([])).toEqual({ help: false, failFast: false, full: false });
+    expect(parseCiCliArgs(['--fail-fast', '--full'])).toEqual({
+      help: false,
+      failFast: true,
+      full: true,
+    });
+    expect(parseCiCliArgs(['-h'])).toEqual({ help: true, failFast: false, full: false });
+    expect(() => parseCiCliArgs(['--fial-fast'])).toThrow(/Unknown CI argument/);
+    expect(() => parseCiCliArgs(['extra'])).toThrow(/Unknown CI argument/);
+
+    expect(parseSimBenchCliArgs([])).toEqual({ help: false, strict: false, json: false });
+    expect(parseSimBenchCliArgs(['--strict', '--json'])).toEqual({
+      help: false,
+      strict: true,
+      json: true,
+    });
+    expect(parseSimBenchCliArgs(['--help'])).toEqual({ help: true, strict: false, json: false });
+    expect(() => parseSimBenchCliArgs(['--strct'])).toThrow(/Unknown sim:bench argument/);
+    expect(() => parseSimBenchCliArgs(['extra'])).toThrow(/Unknown sim:bench argument/);
+
+    const tinyLevel: LevelDef = {
+      ...LEVELS[0],
+      cols: 4,
+      rows: 3,
+      layout: [
+        '~ . . ~',
+        'S P P G',
+        '~ ~ ~ ~',
+      ],
+      pathWaypoints: [
+        { col: 0, row: 1 },
+        { col: 3, row: 1 },
+      ],
+      flightPath: [
+        { col: 0, row: 1 },
+        { col: 3, row: 1 },
+      ],
+    };
+    expect(() =>
+      runSimBenchScenario(tinyLevel, { enemyCount: 10, towerCount: 5, softBudgetTicksPerSec: 180 }, 1, 5),
+    ).toThrow(/placed only 2\/5 towers/);
   });
 });

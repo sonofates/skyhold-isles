@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
+import { EventBus } from '../../src/core/eventBus.ts';
+import { FixedTimestepStepper } from '../../src/core/gameLoop.ts';
+import { BALANCE } from '../../src/data/balance.ts';
 import { LEVELS } from '../../src/data/levels/index.ts';
+import { SimWorld } from '../../src/sim/world.ts';
 import {
   digestsEqual,
   FUZZ_PROFILES,
@@ -62,6 +66,7 @@ describe('headless fuzz playthrough harness', () => {
       seedsPerLevel: 8,
       singleSeedMode: false,
       endlessOnly: false,
+      json: false,
       baseSeed: 1336,
       endlessWaves: 5,
       levelIndices: undefined,
@@ -78,11 +83,13 @@ describe('headless fuzz playthrough harness', () => {
         'tactical',
         '--endless-waves=3',
         '--endless-only',
+        '--json',
       ]),
     ).toEqual({
       seedsPerLevel: 1,
       singleSeedMode: true,
       endlessOnly: true,
+      json: true,
       baseSeed: 42,
       endlessWaves: 3,
       levelIndices: [1],
@@ -93,11 +100,31 @@ describe('headless fuzz playthrough harness', () => {
       seedsPerLevel: 4,
       singleSeedMode: false,
       endlessOnly: false,
+      json: false,
       baseSeed: 1336,
       endlessWaves: 5,
       levelIndices: [0, 2],
       profile: 'chaotic',
     });
+
+    // Endless-only campaign & custom profile in runEndlessFuzz
+    const endlessCampaign = runFuzzCampaign({
+      seedsPerLevel: 1,
+      baseSeed: 2025,
+      endlessWaves: 2,
+      levelIndices: [0],
+      profile: 'tactical',
+      endlessOnly: true,
+    });
+    expect(endlessCampaign.failures).toEqual([]);
+    expect(endlessCampaign.totalRuns).toBe(0);
+    expect(endlessCampaign.endlessChecks).toBe(1);
+    expect(endlessCampaign.endlessWavesCompletedTotal).toBe(2);
+    expect(endlessCampaign.determinismChecks).toBe(1);
+
+    const tacticalEndless = runEndlessFuzz(LEVELS[0], 42, 2, 'tactical');
+    expect(tacticalEndless.ok, tacticalEndless.failure).toBe(true);
+    expect(tacticalEndless.digest.profile).toBe('tactical');
 
     expect(() => parseFuzzCliArgs(['--profile', 'unknown'])).toThrow(/Invalid --profile/);
     expect(() => parseFuzzCliArgs(['--seed', 'abc'])).toThrow(/Invalid --seed/);
@@ -108,7 +135,86 @@ describe('headless fuzz playthrough harness', () => {
     expect(() => parseFuzzCliArgs(['--endless-waves', '-1'])).toThrow(/Invalid --endless-waves/);
     expect(() => parseFuzzCliArgs(['--level', '999'])).toThrow(/No valid levels/);
     expect(() => parseFuzzCliArgs(['--level', '1,999'])).toThrow(/No valid levels/);
+    expect(() => parseFuzzCliArgs(['--json=true'])).toThrow(/does not take a value/);
     expect(() => parseFuzzCliArgs(['--unknown-flag'])).toThrow(/Unknown flag/);
     expect(() => parseFuzzCliArgs(['positional'])).toThrow(/Unexpected positional/);
+  });
+
+  it('produces bit-identical simulation state across different FixedTimestepStepper frame rates, speeds, and pauses', () => {
+    const runWithCadence = (
+      mode: 'steady60_1x' | 'mixed_speeds_and_pauses',
+    ) => {
+      const world = new SimWorld(LEVELS[1], new EventBus());
+      const stepper = new FixedTimestepStepper();
+      stepper.simActive = true;
+
+      const t1 = world.placeTower(2, 3, 'archer', 'first')!;
+      const t2 = world.placeTower(4, 5, 'frost', 'strongest')!;
+      world.startNextWave();
+
+      const totalTicks = 1500;
+      let executedTicks = 0;
+
+      const onTick = (fixedDt: number): void => {
+        if (executedTicks >= totalTicks) return;
+        executedTicks++;
+        world.fixedTick(fixedDt);
+        if (executedTicks === 180) {
+          world.upgradeTower(t1.id);
+        } else if (executedTicks === 420) {
+          world.castOvercharge();
+        } else if (executedTicks === 720) {
+          world.castMeteor(0, 0);
+        } else if (executedTicks === 960) {
+          world.setTowerTargeting(t2.id, 'closest');
+        }
+      };
+
+      if (mode === 'steady60_1x') {
+        stepper.speed = 1;
+        while (executedTicks < totalTicks) {
+          stepper.step(BALANCE.fixedDt, onTick);
+        }
+      } else {
+        const framePattern = [1 / 30, 1 / 15, 0.008, 0.05, 0.1];
+        let stepIdx = 0;
+        while (executedTicks < totalTicks) {
+          stepper.speed = stepIdx % 3 === 0 ? 3 : stepIdx % 2 === 0 ? 2 : 1;
+          if (stepIdx % 11 === 5) {
+            stepper.paused = true;
+            stepper.step(0.05, onTick);
+            stepper.paused = false;
+          }
+          stepper.step(framePattern[stepIdx % framePattern.length], onTick);
+          stepIdx++;
+        }
+      }
+
+      const activeSnapshot: Array<{ uid: number; hp: number; x: number; z: number; dist: number }> = [];
+      for (let i = 0; i < world.enemyPool.getActiveCount(); i++) {
+        const e = world.enemyPool.items[world.enemyPool.getActiveIndex(i)];
+        activeSnapshot.push({ uid: e.uid, hp: e.hp, x: e.x, z: e.z, dist: e.dist });
+      }
+
+      return {
+        gold: world.gold,
+        lives: world.lives,
+        kills: world.enemiesKilledTotal,
+        wave: world.waveSystem.currentWaveOneBased,
+        waveState: world.waveSystem.state,
+        towers: world.towers.map((t) => ({
+          id: t.id,
+          tier: t.tier,
+          dmg: t.totalDamageDealt,
+          kills: t.kills,
+          yaw: t.yaw,
+        })),
+        activeSnapshot,
+      };
+    };
+
+    const baseline = runWithCadence('steady60_1x');
+    const varied = runWithCadence('mixed_speeds_and_pauses');
+    expect(varied).toEqual(baseline);
   });
 });

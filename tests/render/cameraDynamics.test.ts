@@ -1,3 +1,4 @@
+import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import { BALANCE } from '../../src/data/balance.ts';
 import { LEVELS } from '../../src/data/levels/index.ts';
@@ -111,5 +112,38 @@ describe('CameraController framing, pan/zoom/rotate, shake, and viewVersion', ()
     // Decay over ~2s returns exactly to rest position
     for (let i = 0; i < 120; i++) cam.update(1 / 60);
     expect(cam.camera.position.distanceTo(restPos)).toBeCloseTo(0, 5);
+  });
+
+  it('anchors zoom focal point under cursor and round-trips world/screen/ray across 90-degree rotation', () => {
+    const cam = new CameraController(1280, 720);
+    cam.configureForMap(14, 11);
+
+    // Off-center cursor zoom keeps world point under cursor anchored
+    const ndcX = 0.35;
+    const ndcY = -0.25;
+    const anchorBefore = cam.screenNdcToPlane(ndcX, ndcY, 0)!.clone();
+    cam.zoomByDelta(0.5, ndcX, ndcY);
+    for (let i = 0; i < 120; i++) cam.update(1 / 60);
+    const anchorAfter = cam.screenNdcToPlane(ndcX, ndcY, 0)!;
+    expect(Math.hypot(anchorAfter.x - anchorBefore.x, anchorAfter.z - anchorBefore.z)).toBeLessThan(0.05);
+
+    // Rotate 90 degrees and settle, then verify worldCoordsToScreen <-> screenNdcToPlane & setNdcRay/getRay
+    cam.rotate90(1);
+    for (let i = 0; i < 60; i++) cam.update(1 / 60);
+
+    const screenOut = { x: 0, y: 0 };
+    cam.worldCoordsToScreen(3, 0, -2, screenOut);
+    const rtNdcX = (screenOut.x / 1280) * 2 - 1;
+    const rtNdcY = -(screenOut.y / 720) * 2 + 1;
+    const recovered = cam.screenNdcToPlane(rtNdcX, rtNdcY, 0)!;
+    expect(recovered.x).toBeCloseTo(3, 3);
+    expect(recovered.z).toBeCloseTo(-2, 3);
+
+    const ray = cam.setNdcRay(rtNdcX, rtNdcY);
+    expect(cam.getRay()).toBe(ray);
+    const planeHit = new THREE.Vector3();
+    expect(ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), planeHit)).not.toBeNull();
+    expect(planeHit.x).toBeCloseTo(3, 3);
+    expect(planeHit.z).toBeCloseTo(-2, 3);
   });
 });

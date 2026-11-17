@@ -205,16 +205,42 @@ export function runSimBenchScenario(
   };
 }
 
+export interface ParsedSimBenchCliArgs {
+  readonly help: boolean;
+  readonly strict: boolean;
+  readonly json: boolean;
+}
+
+const BENCH_FLAGS = new Set(['--strict', '--json', '--help', '-h']);
+
+export function parseSimBenchCliArgs(argv: readonly string[]): ParsedSimBenchCliArgs {
+  let help = false;
+  let strict = false;
+  let json = false;
+
+  for (const arg of argv) {
+    if (!BENCH_FLAGS.has(arg)) {
+      throw new Error(`Unknown sim:bench argument "${arg}". Run with --help for usage.`);
+    }
+    if (arg === '--help' || arg === '-h') help = true;
+    else if (arg === '--strict') strict = true;
+    else if (arg === '--json') json = true;
+  }
+
+  return { help, strict, json };
+}
+
 function main(): void {
-  if (process.argv.includes('--help') || process.argv.includes('-h')) {
+  const parsed = parseSimBenchCliArgs(process.argv.slice(2));
+  if (parsed.help) {
     console.log('Usage: npm run sim:bench [-- --strict] [--json]');
     console.log('  --strict  Exit non-zero if any scenario misses the soft mobile-headroom budget');
     console.log('  --json    Emit machine-readable JSON results');
     return;
   }
 
-  const strict = process.argv.includes('--strict');
-  const jsonOutput = process.argv.includes('--json');
+  const strict = parsed.strict;
+  const jsonOutput = parsed.json;
   const level = pickBenchLevel();
 
   if (!jsonOutput) {

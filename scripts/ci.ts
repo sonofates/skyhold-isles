@@ -43,16 +43,41 @@ function runStep(step: CiStep): CiStepResult {
   return { name: step.name, displayCmd, passed, exitCode, durationSec };
 }
 
+export interface ParsedCiCliArgs {
+  readonly help: boolean;
+  readonly failFast: boolean;
+  readonly full: boolean;
+}
+
+const CI_FLAGS = new Set(['--fail-fast', '--full', '--help', '-h']);
+
+export function parseCiCliArgs(argv: readonly string[]): ParsedCiCliArgs {
+  let help = false;
+  let failFast = false;
+  let full = false;
+
+  for (const arg of argv) {
+    if (!CI_FLAGS.has(arg)) {
+      throw new Error(`Unknown CI argument "${arg}". Run with --help for usage.`);
+    }
+    if (arg === '--help' || arg === '-h') help = true;
+    else if (arg === '--fail-fast') failFast = true;
+    else if (arg === '--full') full = true;
+  }
+
+  return { help, failFast, full };
+}
+
 function main(): void {
-  if (process.argv.includes('--help') || process.argv.includes('-h')) {
+  const parsed = parseCiCliArgs(process.argv.slice(2));
+  if (parsed.help) {
     console.log('Usage: npm run ci [-- --fail-fast] [--full]');
     console.log('  --fail-fast  Stop immediately after the first failed step');
     console.log('  --full       Also run sim:fuzz and sim:bench after build');
     return;
   }
 
-  const failFast = process.argv.includes('--fail-fast');
-  const full = process.argv.includes('--full');
+  const { failFast, full } = parsed;
   const steps = full ? [...CI_STEPS, ...EXTRA_QA_STEPS] : CI_STEPS;
   const results: CiStepResult[] = [];
   const totalStartMs = performance.now();

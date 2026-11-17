@@ -144,9 +144,17 @@ describe('RenderWorld subsystems headless verification', () => {
     const fx = new EffectsRenderer();
     expect(fx.getActiveFxCount()).toBe(0);
 
-    // Every registered EnemyType must produce death shards cleanly
+    // Every registered EnemyType must produce non-black death shards cleanly
+    const shardMesh = fx.group.children[0] as THREE.InstancedMesh;
+    const shardCol = new THREE.Color();
     for (const enemyType of ENEMY_TYPES) {
+      fx.clearEffects();
       fx.spawnDeathShards(enemyType, 1, 0.5, -2);
+      fx.update(0.01);
+      expect(shardMesh.count).toBeGreaterThanOrEqual(7);
+      // Slot 1 uses the type-specific shard color (slot 0 uses PALETTE_HEX.cream)
+      shardMesh.getColorAt(1, shardCol);
+      expect(shardCol.r + shardCol.g + shardCol.b).toBeGreaterThan(0.05);
     }
 
     // Overflow shard, particle, pulse, meteor, and scorch pools safely without throwing
@@ -352,6 +360,16 @@ describe('RenderWorld subsystems headless verification', () => {
     const mortar = makeTower(1, 'mortar', 1, 2, 2);
     const archer = makeTower(2, 'archer', 2, -2, -2);
     overlays.setPlacementPreview(true, 'mortar', 2, 2, true, towerRenderer.geometryCache);
+    // Ghost group + placement inner/outer rings reflect mortar deadzone and valid material
+    const placementInnerRing = overlays.group.children[3] as THREE.Mesh;
+    const ghostGroup = overlays.group.children[1] as THREE.Group;
+    expect(placementInnerRing.visible).toBe(true);
+    expect((ghostGroup.children[0] as THREE.Mesh).material).toBe(mats.ghostValidMaterial);
+
+    overlays.setPlacementPreview(true, 'archer', 2, 2, false, towerRenderer.geometryCache);
+    expect(placementInnerRing.visible).toBe(false);
+    expect((ghostGroup.children[0] as THREE.Mesh).material).toBe(mats.ghostInvalidMaterial);
+
     overlays.setSelectedTowerRing(mortar);
     overlays.setSelectedTowerRing(archer);
     overlays.setMeteorTargetPreview(true, 0, 0, 3.4);
@@ -374,21 +392,42 @@ describe('RenderWorld subsystems headless verification', () => {
     badges.sync(badgeTowers, 100, camQuat, 2.0, 20.0);
     badges.clear();
 
-    // GroundDetails hides under occupied grass tile and restores when sold
+    // GroundDetails hides under occupied grass tiles and restores exact matrices when sold
     const level0 = LEVELS[0];
     groundDetails.build(level0, mats);
-    const grassTile = { col: 4, row: 2 };
-    const placed = makeTower(
-      10,
-      'archer',
-      1,
-      0,
-      0,
-      grassTile.col,
-      grassTile.row,
-    );
-    groundDetails.syncOccupiedTiles([placed]);
+    const snapshotMatrices = (): number[][] => {
+      const out: number[][] = [];
+      const m = new THREE.Matrix4();
+      for (const child of groundDetails.group.children) {
+        const inst = child as THREE.InstancedMesh;
+        for (let i = 0; i < inst.count; i++) {
+          inst.getMatrixAt(i, m);
+          out.push([...m.elements]);
+        }
+      }
+      return out;
+    };
+    const initialMats = snapshotMatrices();
+    expect(initialMats.length).toBeGreaterThan(0);
+
+    const coverAllGrass: TowerEntity[] = [];
+    for (let r = 0; r < level0.rows; r++) {
+      const rowCells = level0.layout[r].trim().split(/\s+/);
+      for (let c = 0; c < level0.cols; c++) {
+        if (rowCells[c] === '.') {
+          coverAllGrass.push(makeTower(coverAllGrass.length + 1, 'archer', 1, 0, 0, c, r));
+        }
+      }
+    }
+    groundDetails.syncOccupiedTiles(coverAllGrass);
+    const hiddenMats = snapshotMatrices();
+    const zeroScaledCount = hiddenMats.filter(
+      (el) => el[0] === 0 && el[5] === 0 && el[10] === 0,
+    ).length;
+    expect(zeroScaledCount).toBeGreaterThan(0);
+
     groundDetails.syncOccupiedTiles([]);
+    expect(snapshotMatrices()).toEqual(initialMats);
 
     // AmbientDiorama build & animate
     const unitBox = new THREE.BoxGeometry(1, 1, 1);
@@ -418,11 +457,26 @@ describe('RenderWorld subsystems headless verification', () => {
       mapBuilder.build(lvl, mats, assets);
       expect(mapBuilder.group.children.length).toBeGreaterThan(0);
       mapBuilder.update(0.75);
+      expect(mats.waterUniforms.uWaterTime.value).toBeCloseTo(0.75, 6);
       mapBuilder.syncOccupiedTiles([makeTower(1, 'archer', 1, 0, 0, 4, 2)]);
 
       decorBuilder.build(lvl, mats, assets);
+      const highCounts = decorBuilder.group.children.map((c) => (c as THREE.InstancedMesh).count);
       decorBuilder.setQuality('low');
-      decorBuilder.update(0.5);
+      const lowCounts = decorBuilder.group.children.map((c) => (c as THREE.InstancedMesh).count);
+      for (let i = 0; i < highCounts.length; i++) {
+        expect(lowCounts[i]).toBeLessThanOrEqual(highCounts[i]);
+      }
+      // Sway update in low quality must not alter instance matrices
+      const firstLayer = decorBuilder.group.children[0] as THREE.InstancedMesh | undefined;
+      const beforeMat = new THREE.Matrix4();
+      const afterMat = new THREE.Matrix4();
+      if (firstLayer && firstLayer.count > 0) {
+        firstLayer.getMatrixAt(0, beforeMat);
+        decorBuilder.update(0.5);
+        firstLayer.getMatrixAt(0, afterMat);
+        expect(afterMat.equals(beforeMat)).toBe(true);
+      }
       decorBuilder.setQuality('high');
       decorBuilder.update(1.0);
     }
