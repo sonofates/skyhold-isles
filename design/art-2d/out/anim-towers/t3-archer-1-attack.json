@@ -1,0 +1,18 @@
+{
+ "frameW": 446,
+ "frameH": 256,
+ "count": 27,
+ "cols": 8,
+ "fps": 12.0,
+ "anchor": [
+  209,
+  250
+ ],
+ "source": "t3-archer-1.mp4",
+ "loop": [
+  13,
+  67
+ ],
+ "loopScore": 0.67,
+ "release": 16
+}

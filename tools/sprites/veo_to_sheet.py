@@ -15,7 +15,7 @@ from PIL import Image, ImageChops
 
 args = sys.argv[1:]
 clip, prefix = Path(args[0]), Path(args[1])
-opt = {'--fps': 12, '--height': 256, '--max-seconds': 4.0, '--min-seconds': 0.6}
+opt = {'--fps': 12, '--height': 256, '--max-seconds': 4.0, '--min-seconds': 0.6, '--max-cycle': 1.6}
 for k in opt:
     if k in args:
         opt[k] = type(opt[k])(args[args.index(k) + 1])
@@ -27,7 +27,50 @@ subprocess.run(['ffmpeg', '-loglevel', 'error', '-i', str(clip), '-t', str(opt['
 files = sorted(tmp.glob('f*.png'))
 
 
+UNMIX = '--unmix' in args
+STATIC = '--static' in args
+
+
+def key_unmix(im):
+    """Magenta un-mixing for semi-transparent FX (smoke, glow, mist) that keeps the art opaque.
+
+    "Magenta-ness" m = min(R,B) - G. Art (stone, wood, crystal, leaves) has m <= ~25 and stays fully
+    opaque with its own colour. Pixels between art and the backdrop are treated as F over M:
+    alpha = 1 - m / m_M (m_M measured from the frame border, since video shifts the backdrop),
+    colour F = (P - (1-a)·M) / a. Pure backdrop becomes fully transparent.
+    """
+    im = im.convert('RGB')
+    w, h = im.size
+    src = im.load()
+    border = [src[x, 0] for x in range(0, w, 7)] + [src[x, h - 1] for x in range(0, w, 7)] + [src[0, y] for y in range(0, h, 7)] + [src[w - 1, y] for y in range(0, h, 7)]
+    M = [sorted(c[i] for c in border)[len(border) // 2] for i in range(3)]
+    mM = max(60, min(M[0], M[2]) - M[1])
+    out = Image.new('RGBA', (w, h))
+    px = out.load()
+    for y in range(h):
+        for x in range(w):
+            r, g, b = src[x, y]
+            m = min(r, b) - g
+            if m <= 25:
+                px[x, y] = (r, g, b, 255)
+                continue
+            a = 1.0 - (m - 25) / max(1, mM - 25)
+            if a < 0.06:
+                px[x, y] = (0, 0, 0, 0)
+                continue
+            a = min(1.0, a)
+            F = [(r - (1 - a) * M[0]) / a, (g - (1 - a) * M[1]) / a, (b - (1 - a) * M[2]) / a]
+            if a < 0.55:  # faint smoke/glow: residual backdrop error shows as pink, pull toward grey
+                lum = 0.3 * F[0] + 0.59 * F[1] + 0.11 * F[2]
+                k = min(1.0, (0.55 - a) * 2.2)
+                F = [f + (lum - f) * k for f in F]
+            px[x, y] = (int(max(0, min(255, F[0]))), int(max(0, min(255, F[1]))), int(max(0, min(255, F[2]))), int(a * 255))
+    return out
+
+
 def key(im):
+    if UNMIX:
+        return key_unmix(im)
     im = im.convert('RGBA')
     px = im.load()
     w, h = im.size
@@ -54,6 +97,14 @@ for f in files:
 alphas = [f.getchannel('A') for f in frames]
 boxes = [a.getbbox() for a in alphas]
 anch = [((b[0] + b[2]) / 2, b[3]) if b else (320, 300) for b in boxes]
+if STATIC:
+    # towers don't move: anchor every frame at the same point (median of the opaque core's bottom),
+    # so FX spilling below the base (mist, glow rings) cannot make the tower jitter
+    cores = [f.getchannel('A').point(lambda v: 255 if v > 230 else 0).getbbox() for f in frames]
+    cores = [c for c in cores if c]
+    xs = sorted((c[0] + c[2]) / 2 for c in cores); ys = sorted(c[3] for c in cores)
+    fixed = (xs[len(xs) // 2], ys[len(ys) // 2])
+    anch = [fixed] * len(frames)
 
 # loop search on small alpha+gray thumbnails, aligned on the feet anchor
 def thumb(i):
@@ -67,7 +118,7 @@ def diff(i, j):
     return sum(sum(p) for p in d.getdata()) / (60 * 58 * 4)
 
 best = None
-lo, hi = int(opt['--min-seconds'] * SRC_FPS), int(1.6 * SRC_FPS)
+lo, hi = int(opt['--min-seconds'] * SRC_FPS), int(opt['--max-cycle'] * SRC_FPS)
 for i in range(0, min(len(frames) - lo, SRC_FPS)):
     for j in range(i + lo, min(len(frames), i + hi + 1)):
         s = diff(i, j)
@@ -102,8 +153,15 @@ for k, c in enumerate(cells):
     sheet.paste(c, ((k % cols) * fw, (k // cols) * fh))
 prefix.parent.mkdir(parents=True, exist_ok=True)
 sheet.save(f'{prefix}.png', optimize=True)
+release = None
+if STATIC and cells:
+    base_small = cells[0].resize((48, 48))
+    diffs = [sum(sum(px) for px in ImageChops.difference(c.resize((48, 48)), base_small).getdata()) for c in cells]
+    release = max(range(len(diffs)), key=lambda i: diffs[i])
 meta = {'frameW': fw, 'frameH': fh, 'count': len(cells), 'cols': cols, 'fps': round(fps_out, 2),
         'anchor': [round(-L * scale), round(-T * scale)], 'source': clip.name, 'loop': [i0, j0], 'loopScore': round(score, 2)}
+if release is not None:
+    meta['release'] = release
 Path(f'{prefix}.json').write_text(json.dumps(meta, indent=1))
 bg = [Image.alpha_composite(Image.new('RGBA', (fw, fh), (120, 170, 90, 255)), c).convert('P') for c in cells]
 bg[0].save(f'{prefix}-preview.gif', save_all=True, append_images=bg[1:] * 3, duration=int(1000 / fps_out), loop=0)
