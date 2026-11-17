@@ -2139,5 +2139,43 @@ describe('MetaSession stats, achievements, challenges & daily persistence', () =
       },
     };
     expect(getAchievements(arrBossSave).find((a) => a.def.id === 'boss_slayer_10')?.current).toBe(0);
+
+    // Partial/corrupted RunTelemetry with null maps or missing activeMutatorIds never crashes stats/endless/completion writes
+    const partialTelemetrySave = createDefaultMetaSave(LEVELS.length);
+    const baseEv = new EventBus();
+    const baseObs = new RunObserver(LEVELS[0], baseEv);
+    const messyTelemetry = {
+      ...baseObs.getTelemetry(),
+      enemiesKilledByType: null as unknown as Record<string, number>,
+      towersBuiltByType: ['archer'] as unknown as Record<string, number>,
+      activeMutatorIds: null as unknown as readonly string[],
+      maxWaveReached: Number.NaN,
+      endlessEntered: true,
+      endlessWavesCompleted: 2,
+      hasRunModifiers: true,
+    };
+    baseObs.dispose();
+    applyTelemetryDeltaToStats(partialTelemetrySave, messyTelemetry, null);
+    expect(recordEndlessRunStats(partialTelemetrySave, LEVELS[0], messyTelemetry, 1.5)).not.toBeNull();
+    const partialOutcome = recordRunCompletion(partialTelemetrySave, {
+      level: LEVELS[0],
+      telemetry: { ...messyTelemetry, endlessEntered: false, storyWavesCompleted: 10 },
+      won: true,
+      stars: 2,
+      livesRemaining: 14,
+      levels: LEVELS,
+    });
+    expect(partialOutcome.won).toBe(true);
+    expect(partialOutcome.mutatedScore).toBeGreaterThan(0);
+    expect(
+      recordRunCompletion(partialTelemetrySave, {
+        level: LEVELS[0],
+        telemetry: null as unknown as typeof messyTelemetry,
+        won: false,
+        stars: 0,
+        livesRemaining: 0,
+        levels: LEVELS,
+      }).won,
+    ).toBe(false);
   });
 });

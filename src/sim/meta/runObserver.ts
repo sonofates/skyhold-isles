@@ -23,6 +23,12 @@ import type {
 
 const IGNORED_OBSERVER_KEYS = new Set<string>(['__proto__', 'constructor', 'prototype']);
 
+function getSafeCountMap(raw: unknown): Readonly<Record<string, number>> {
+  return raw && typeof raw === 'object' && !Array.isArray(raw)
+    ? (raw as Record<string, number>)
+    : {};
+}
+
 /** Evaluates a single challenge condition against a completed run telemetry snapshot. */
 export function evaluateChallengeCondition(
   condition: ChallengeCondition,
@@ -32,12 +38,7 @@ export function evaluateChallengeCondition(
 ): boolean {
   if (!won || !telemetry?.eligibleForChallenges) return false;
   const safeLives = Number.isFinite(livesRemaining) ? Math.max(0, Math.floor(livesRemaining)) : 0;
-  const builtByType =
-    telemetry.towersBuiltByType &&
-    typeof telemetry.towersBuiltByType === 'object' &&
-    !Array.isArray(telemetry.towersBuiltByType)
-      ? telemetry.towersBuiltByType
-      : {};
+  const builtByType = getSafeCountMap(telemetry.towersBuiltByType);
 
   switch (condition.kind) {
     case 'noLivesLost':
@@ -105,12 +106,12 @@ export function evaluateLiveChallengeState(
   previouslyCompleted: boolean,
 ): LiveChallengeStatus {
   const cond = def.condition;
-  if (!telemetry.eligibleForChallenges || outcome === 'lost') {
+  if (!telemetry || !telemetry.eligibleForChallenges || outcome === 'lost') {
     return {
       def,
       state: 'failed',
       previouslyCompleted,
-      progressLabel: !telemetry.eligibleForChallenges ? 'Modifier/Debug ineligible' : 'Defeat',
+      progressLabel: !telemetry?.eligibleForChallenges ? 'Modifier/Debug ineligible' : 'Defeat',
     };
   }
   const safeLives = Number.isFinite(livesRemaining) ? Math.max(0, Math.floor(livesRemaining)) : 0;
@@ -140,12 +141,7 @@ export function evaluateLiveChallengeState(
       progressLabel = `${safeLives}/${cond.minLives}+ lives`;
       break;
     case 'forbiddenTowerTypes': {
-      const builtMap =
-        telemetry.towersBuiltByType &&
-        typeof telemetry.towersBuiltByType === 'object' &&
-        !Array.isArray(telemetry.towersBuiltByType)
-          ? telemetry.towersBuiltByType
-          : {};
+      const builtMap = getSafeCountMap(telemetry.towersBuiltByType);
       const builtForbidden = cond.forbidden.reduce(
         (sum, type) => sum + (Object.hasOwn(builtMap, type) ? (builtMap[type] ?? 0) : 0),
         0,
@@ -155,12 +151,7 @@ export function evaluateLiveChallengeState(
       break;
     }
     case 'allowedTowerTypes': {
-      const builtMap =
-        telemetry.towersBuiltByType &&
-        typeof telemetry.towersBuiltByType === 'object' &&
-        !Array.isArray(telemetry.towersBuiltByType)
-          ? telemetry.towersBuiltByType
-          : {};
+      const builtMap = getSafeCountMap(telemetry.towersBuiltByType);
       const hasDisallowed = Object.entries(builtMap).some(
         ([type, count]) => count > 0 && !cond.allowed.includes(type as TowerType),
       );
@@ -404,7 +395,7 @@ export class RunObserver {
       events.on('overchargeActivated', (ev) => {
         this.abilitiesCastTotal++;
         this.overchargesCast++;
-        this.towersCleansed += ev.cleansedTowerIds.length;
+        this.towersCleansed += Array.isArray(ev.cleansedTowerIds) ? ev.cleansedTowerIds.length : 0;
       }),
       events.on('waveStarted', (ev) => {
         if (this.hasLost || (this.runEnded && !this.endlessEntered)) {

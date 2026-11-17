@@ -207,13 +207,15 @@ export function generateDailyChallenge(
   const levelIndex = rng.int(0, safeLevels.length - 1);
   const rawLevel = safeLevels[levelIndex];
   const level =
-    rawLevel && typeof rawLevel.id === 'string'
+    rawLevel && typeof rawLevel.id === 'string' && rawLevel.id.length > 0
       ? rawLevel
-      : safeLevels.find((l): l is LevelDef => Boolean(l) && typeof l.id === 'string');
+      : safeLevels.find(
+          (l): l is LevelDef => Boolean(l) && typeof l.id === 'string' && l.id.length > 0,
+        );
   if (!level) {
     throw new Error('Cannot generate daily challenge without any valid level definitions.');
   }
-  const resolvedLevelIndex = safeLevels.indexOf(level);
+  const resolvedLevelIndex = level === rawLevel ? levelIndex : safeLevels.indexOf(level);
   const isMaster = level.difficulty === 'Master';
   const isHeroic = level.difficulty === 'Heroic';
   const isChallenging = level.difficulty === 'Challenging';

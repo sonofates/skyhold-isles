@@ -238,6 +238,9 @@ export function describeActiveModifiers(
   modifiers: ResolvedRunModifiers,
   mutatorCatalog: readonly MutatorDef[] = ENDLESS_MUTATORS,
 ): readonly ModifierBadgeInfo[] {
+  if (!modifiers || typeof modifiers !== 'object' || Array.isArray(modifiers)) {
+    return [];
+  }
   const badges: ModifierBadgeInfo[] = [];
   const safeCatalog = Array.isArray(mutatorCatalog) ? mutatorCatalog : [];
   const mutatorById = new Map<string, MutatorDef>();

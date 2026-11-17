@@ -1049,5 +1049,10 @@ describe('Daily challenge pure date-seeded generator', () => {
         forbiddenTowerTypes: ['toString' as unknown as (typeof TOWER_TYPES)[number]],
       }).map((b) => b.label),
     ).toEqual(['Tailwind March', 'No toString']);
+    expect(describeActiveModifiers(null as unknown as ReturnType<typeof resolveRunModifiers>)).toEqual([]);
+
+    const emptyIdLvl = { ...LEVELS[0], id: '' };
+    expect(generateDailyChallenge('2026-11-17', [emptyIdLvl, LEVELS[1]]).levelId).toBe(LEVELS[1].id);
+    expect(generateDailyChallenge('2026-11-17', [LEVELS[0], LEVELS[0]]).levelIndex).toBeLessThan(2);
   });
 });

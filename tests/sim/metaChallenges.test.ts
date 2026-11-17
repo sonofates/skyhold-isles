@@ -1206,6 +1206,20 @@ describe('RunObserver challenge condition tracking', () => {
     };
     expect(evaluateChallengeCondition({ kind: 'allowedTowerTypes', allowed: ['archer'] }, missingMapTel, true, 20)).toBe(true);
     expect(evaluateChallengeCondition({ kind: 'forbiddenTowerTypes', forbidden: ['frost'] }, missingMapTel, true, 20)).toBe(true);
+    expect(
+      evaluateLiveChallengeState(
+        allowedDef,
+        null as unknown as typeof protoTel,
+        20,
+        'ongoing',
+        false,
+      ),
+    ).toMatchObject({ state: 'failed', progressLabel: 'Modifier/Debug ineligible' });
+    protoTypeEv.emit('overchargeActivated', {
+      duration: 7,
+      cleansedTowerIds: null as unknown as number[],
+    });
+    expect(protoTypeObs.getTelemetry().towersCleansed).toBe(0);
     protoTypeObs.dispose();
 
     guardMeta.dispose();

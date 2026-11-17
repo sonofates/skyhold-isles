@@ -497,6 +497,26 @@ export function ensureWritableSaveContainers(save: MetaSaveData, minLevelCount =
   if (!isPlainRecord(save.dailyBestScores)) save.dailyBestScores = {};
 }
 
+function accumulateCountDelta(
+  target: Record<string, number>,
+  currentMap: unknown,
+  prevMap: unknown,
+): void {
+  if (!isPlainRecord(currentMap)) return;
+  const safePrev = isPlainRecord(prevMap) ? prevMap : null;
+  for (const [key, count] of Object.entries(currentMap)) {
+    if (IGNORED_RECORD_KEYS.has(key)) continue;
+    const currVal = typeof count === 'number' && Number.isFinite(count) ? count : 0;
+    const rawPrev = safePrev && Object.hasOwn(safePrev, key) ? safePrev[key] : 0;
+    const prevVal = typeof rawPrev === 'number' && Number.isFinite(rawPrev) ? rawPrev : 0;
+    const delta = Math.floor(Math.max(0, currVal - prevVal));
+    if (delta > 0) {
+      const existing = Object.hasOwn(target, key) ? target[key] : 0;
+      target[key] = asNonNegInt(existing) + delta;
+    }
+  }
+}
+
 /**
  * Applies incremental telemetry delta from an ongoing or ended run into `save.stats`.
  * Pass the difference `(currentTelemetry - alreadyCommittedTelemetry)` so multiple flushes
@@ -507,7 +527,7 @@ export function applyTelemetryDeltaToStats(
   current: RunTelemetry,
   committed: RunTelemetry | null,
 ): void {
-  if (!current.eligibleForChallenges) return;
+  if (!current || typeof current !== 'object' || !current.eligibleForChallenges) return;
   ensureWritableSaveContainers(save);
   const prev = committed;
   const d = (curr: number, old: number | undefined): number => {
@@ -551,35 +571,8 @@ export function applyTelemetryDeltaToStats(
   save.stats.towersUpgradedTotal =
     asNonNegInt(save.stats.towersUpgradedTotal) + Math.floor(d(current.towersUpgraded, prev?.towersUpgraded));
 
-  for (const [enemyType, count] of Object.entries(current.enemiesKilledByType)) {
-    if (IGNORED_RECORD_KEYS.has(enemyType)) continue;
-    const prevCount =
-      prev?.enemiesKilledByType && Object.hasOwn(prev.enemiesKilledByType, enemyType)
-        ? prev.enemiesKilledByType[enemyType]
-        : 0;
-    const delta = Math.floor(d(count, prevCount));
-    if (delta > 0) {
-      const existing = Object.hasOwn(save.stats.enemiesDefeatedByType, enemyType)
-        ? save.stats.enemiesDefeatedByType[enemyType]
-        : 0;
-      save.stats.enemiesDefeatedByType[enemyType] = asNonNegInt(existing) + delta;
-    }
-  }
-
-  for (const [towerType, count] of Object.entries(current.towersBuiltByType)) {
-    if (IGNORED_RECORD_KEYS.has(towerType)) continue;
-    const prevCount =
-      prev?.towersBuiltByType && Object.hasOwn(prev.towersBuiltByType, towerType)
-        ? prev.towersBuiltByType[towerType]
-        : 0;
-    const delta = Math.floor(d(count, prevCount));
-    if (delta > 0) {
-      const existing = Object.hasOwn(save.stats.towersBuiltByType, towerType)
-        ? save.stats.towersBuiltByType[towerType]
-        : 0;
-      save.stats.towersBuiltByType[towerType] = asNonNegInt(existing) + delta;
-    }
-  }
+  accumulateCountDelta(save.stats.enemiesDefeatedByType, current.enemiesKilledByType, prev?.enemiesKilledByType);
+  accumulateCountDelta(save.stats.towersBuiltByType, current.towersBuiltByType, prev?.towersBuiltByType);
 
   if (
     current.eligibleForChallenges &&
@@ -702,7 +695,7 @@ export function recordEndlessRunStats(
   telemetry: RunTelemetry,
   scoreMultiplier = 1,
 ): EndlessScoreBreakdown | null {
-  if (!level || typeof level.id !== 'string') {
+  if (!level || typeof level.id !== 'string' || !telemetry || typeof telemetry !== 'object') {
     return null;
   }
   const safeLevelIndex = Number.isFinite(level.index) ? Math.max(0, Math.floor(level.index)) : 0;
@@ -726,8 +719,10 @@ export function recordEndlessRunStats(
   if (maxWaveReached > asNonNegInt(save.stats.bestEndlessWaveOverall)) {
     save.stats.bestEndlessWaveOverall = maxWaveReached;
   }
+  const hasMutatorIds =
+    Array.isArray(telemetry.activeMutatorIds) && telemetry.activeMutatorIds.length > 0;
   if (
-    (telemetry.hasRunModifiers || telemetry.activeMutatorIds.length > 0) &&
+    (telemetry.hasRunModifiers || hasMutatorIds) &&
     endlessWavesCleared > asNonNegInt(save.achievementMilestones.bestMutatedEndlessWavesCleared)
   ) {
     save.achievementMilestones.bestMutatedEndlessWavesCleared = endlessWavesCleared;
@@ -793,7 +788,7 @@ export function recordRunCompletion(
   ensureWritableSaveContainers(save, Math.max(safeLevelIndex + 1, levels.length));
   const normalizedDailyDate =
     params.dailyDate && isValidDateString(params.dailyDate) ? params.dailyDate.trim() : null;
-  const isDaily = normalizedDailyDate !== null && !telemetry.endlessEntered;
+  const isDaily = normalizedDailyDate !== null && !telemetry?.endlessEntered;
   const newlyCompletedChallengeIds: string[] = [];
   const completedChallengeIds: string[] = [];
   const newlyCompletedChallenges: ChallengeDef[] = [];
@@ -816,12 +811,13 @@ export function recordRunCompletion(
         ? save.bestEndlessScoresByLevelId[safeLevelId]
         : 0),
   );
-  const runDurationSec = Number.isFinite(telemetry.simTimeSec)
-    ? +Math.max(0, telemetry.simTimeSec).toFixed(1)
-    : 0;
+  const runDurationSec =
+    telemetry && Number.isFinite(telemetry.simTimeSec)
+      ? +Math.max(0, telemetry.simTimeSec).toFixed(1)
+      : 0;
 
   if (won) {
-    if (telemetry.eligibleForChallenges) {
+    if (telemetry?.eligibleForChallenges) {
       save.stats.gamesWon = asNonNegInt(save.stats.gamesWon) + 1;
       if (!isDaily && clampedStars > 0) {
         while (save.campaign.bestStars.length <= safeLevelIndex) {
@@ -838,7 +834,9 @@ export function recordRunCompletion(
           );
         }
 
-        const hasModifiers = telemetry.hasRunModifiers || telemetry.activeMutatorIds.length > 0;
+        const hasModifiers =
+          telemetry.hasRunModifiers ||
+          (Array.isArray(telemetry.activeMutatorIds) && telemetry.activeMutatorIds.length > 0);
         if (!hasModifiers) {
           const prevBestLives = safeLevelId
             ? Math.min(
@@ -914,7 +912,7 @@ export function recordRunCompletion(
         }
       }
     }
-  } else if (!telemetry.endlessEntered && telemetry.eligibleForChallenges) {
+  } else if (!telemetry?.endlessEntered && telemetry?.eligibleForChallenges) {
     save.stats.gamesLost = asNonNegInt(save.stats.gamesLost) + 1;
   }
   const safeWon = asNonNegInt(save.stats.gamesWon);
@@ -931,7 +929,7 @@ export function recordRunCompletion(
     params.scoreMultiplier ?? 1,
   );
   const isNewBestEndlessWave =
-    endlessScore !== null && telemetry.maxWaveReached > prevEndlessWave;
+    endlessScore !== null && asNonNegInt(telemetry?.maxWaveReached) > prevEndlessWave;
   const isNewBestEndlessScore =
     endlessScore !== null && endlessScore.totalScore > prevEndlessScore;
 
