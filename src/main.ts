@@ -157,6 +157,11 @@ async function bootstrap(loadingScreen: LoadingScreen): Promise<void> {
     window.setTimeout(onResize, 500);
   };
   renderWorld.cameraController.setSafeInsets(readSafeArea());
+  // Menu screens (Workshop, island briefing) close with Escape; gameplay Escape is InputManager's.
+  const onMenuKey = (e: KeyboardEvent): void => {
+    if (e.code === 'Escape' && !e.repeat && session.onMenuEscape()) e.preventDefault();
+  };
+  window.addEventListener('keydown', onMenuKey);
   const onFirstGesture = (): void => soundManager.unlock();
   window.addEventListener('pointerdown', onFirstGesture, { once: true });
   window.addEventListener('resize', onResize);
@@ -170,6 +175,7 @@ async function bootstrap(loadingScreen: LoadingScreen): Promise<void> {
   if (import.meta.hot) {
     import.meta.hot.dispose(() => {
       window.removeEventListener('pointerdown', onFirstGesture);
+      window.removeEventListener('keydown', onMenuKey);
       window.removeEventListener('resize', onResize);
       window.removeEventListener('orientationchange', onOrientation);
       window.visualViewport?.removeEventListener('resize', onResize);

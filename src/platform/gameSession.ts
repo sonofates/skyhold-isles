@@ -533,6 +533,22 @@ export class GameSession {
     this.d.overlays.toast.show('Progress reset — a backup of the old save was kept.', 3);
   }
 
+  /** Escape outside gameplay: closes the island briefing, then backs out of the Workshop. */
+  onMenuEscape(): boolean {
+    const { overlays } = this.d;
+    if (this.viewMode === 'playing') return false;
+    if (overlays.settingsModal.isOpen()) return false;
+    if (overlays.islandBriefing.isOpen()) {
+      overlays.islandBriefing.close();
+      return true;
+    }
+    if (this.viewMode === 'workshop') {
+      this.closeWorkshop();
+      return true;
+    }
+    return false;
+  }
+
   /** Restart / Retry: same island, same mode and challenges. */
   restartLevel(): void {
     this.startLevel(this.currentLevelIndex, this.runConfig);

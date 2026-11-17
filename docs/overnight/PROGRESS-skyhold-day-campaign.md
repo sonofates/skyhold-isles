@@ -3,16 +3,26 @@
 Branch `hermes/skyhold-day-campaign` (base main @5149e2f). Deadline 21:00 TR (18:00 UTC).
 Green gate after every commit: `npx tsc --noEmit && npm run lint && npm test && npm run build && npm run sim:balance`.
 (Worktree had no node_modules: run `npm ci` first in a fresh checkout.)
-Screenshots: `.tune/` is gitignored — `.tune/shot.mjs` (playwright-core installed in `.tune/pw`) +
-`npx vite preview --port 4301`. Scenes: menu, levels, workshop, workshop-buy, win, lose (?debug Win/Lose).
+Screenshots: `.tune/` is gitignored — `.tune/shot2.mjs <name> '<steps>' [portrait|landscape|desktop]`
+(playwright-core in `.tune/pw`, chromium_headless_shell-1234, seeds `.tune/save.json`), served by
+`npx vite preview --port 4301`. Steps: `click:<sel>;;wait:<ms>;;text:<btn>;;eval:<js>;;hidedebug`;
+names starting `dbg-` load `?debug` (Win/Lose buttons: `click:.debug-panel button:text-is("Win")`).
+Machine load from the other agents can make desktop shots slow (timeout raised to 150 s).
 
 ## Plan / status
 - [x] 1. Stars per difficulty (lives-lost table), best result per island, save v2 migration, victory star reveal
 - [x] 2. Workshop upgrade tree (stars currency, refundable) + RunModifiers sim hook + max-upgrade sim check
 - [x] 3. Endless upgrade (mutators every 3 endless waves, Endless from island briefing, results card, PB)
 - [x] 4. Challenge modifiers per island (2 per island, badge + bonus star), island briefing modal
-- [~] 5. Polish: reset-progress confirm in settings DONE; next: transitions, level-card best line,
-      HUD challenge chip?, endless toast sound, more screenshots (landscape/desktop of new screens)
+- [x] 5. Polish: reset-progress confirm (Keep/Erase + backup), Workshop entrance stagger, mutator
+      sound, victory "Workshop: N★ to spend" chip, Mastered islands (crown + gold rim), Esc closes
+      briefing/Workshop, README section
+- [x] Independent code review (subagent) → 5 findings, all fixed in 66a0a60 (see below)
+
+## Next ideas (not started)
+- Logbook/records screen (per-island table, completion %), maybe as a Workshop tab.
+- Show challenge-star total next to the campaign star pill.
+- HUD chip for active challenge (MOBILE's HUD area — left to lead/mobile; pause subtitle shows it now).
 
 ## Star table (src/data/stars.ts) — rated on lives LOST (win always ≥ 1★)
 | Difficulty  | 3★ if lost ≤ | 2★ if lost ≤ | greedy sim (lives left) → stars |
@@ -47,7 +57,9 @@ Total cost 33★ (campaign max 39★).
 - `src/data/runModifiers.ts` RunModifiers (start gold ±, lives, ability cd, kill/wave gold mul,
   per-tower fire-rate mul, enemy speed/hp mul, banned towers, abilities off) + combine().
 - SimWorld(level, events, mods = neutral). Minimal hooks: AbilitySystem.cooldownMul,
-  CombatSystem.towerRateMul, EnemySystem.speedMul (wave spawns only), world gold/lives/bans.
+  CombatSystem.towerRateMul, EnemySystem.speedMul/armorBonus (set by SimWorld each tick = run
+  speed × endless-mutator speed; applies to every spawn incl. escorts/raiders/mites, split children
+  inherit parent speed), world gold/lives/bans.
 - `src/game/progression.ts` applyWin / applyEndlessRecord / starWallet (pure, tested).
 - Save: same key `skyhold_isles_progress_v1`, `version: 2`, fields bestLives, clears, workshop,
   challengeClears. `migrateProgress()` is pure; pre-v2 raw save copied once to
@@ -108,11 +120,29 @@ Start. Toggles are remembered per island for the session. Restart/Retry reuse th
 - Settings → Reset progress (menu only): explicit Keep/Erase confirm; erased save copied to
   `skyhold_isles_progress_reset_backup`; settings untouched.
 
+## Review fixes (66a0a60)
+1. Vanguard empowered bosses/Tempests on boss waves → spotlight range bounded.
+2. Island-card Endless wrote story waves as an endless best → only offset ≥ 0 is recorded.
+3. Silent Skies: meteor hotkey entered targeting and swallowed taps → blocked with a toast.
+4. Mid-wave spawns skipped speed/armor modifiers → moved into EnemySystem.initEnemyAt.
+5. Second reset overwrote the reset backup → backup only when the save has progress.
+
 ## Known issues
 - Fire-rate perk is invisible in the tower panel stats (panel reads TOWER_DEFS). Small (+2%), OK for now.
+- Carrier raiders / boss escorts / mites use hard-coded rewards, so kill-gold modifiers (Bounty,
+  Thin Purse, Lean Pickings) skip them. Minor.
+- Merge note: if CONTENT's new Master islands fail "Workshop max" (maxed greedy loses 0 lives),
+  retune the island, not the check. New islands get fallback challenges until added to
+  ISLAND_CHALLENGES. MOBILE may restyle `.menu-btn-row`; the Workshop row override lives in
+  `src/ui/styles/workshop.css` (`.menu-btn-row.has-workshop`).
 
 ## Cross-area changes
 - `src/sim/{world,abilitySystem,combatSystem,enemySystem}.ts`: optional modifier hooks (neutral default, sim results identical).
 - `src/data/balance.ts`: removed `starThresholds` (moved to src/data/stars.ts).
 - `src/audio/soundManager.ts`: added playStarChime / playUiConfirm / playUiBack.
-- `scripts/balanceSim.ts`: runLevelBalanceSim takes optional mods; new "Workshop max" check.
+- `scripts/balanceSim.ts`: runLevelBalanceSim takes optional mods + endless continuation; new
+  "Endless sanity" + "Workshop max" sections, `--challenges` report.
+- `src/sim/waveSystem.ts`: endless mutators in buildEndlessWaveDef, startEndlessFromStart, mutator cache.
+- `src/ui/settingsModal.ts`: optional Reset-progress row (menu only). `src/ui/menus.ts`: main menu
+  row gets Workshop (+ settings icon-only), level cards get medals/crown, header Workshop button.
+- `README.md`: "Campaign & Replayability" section appended.
