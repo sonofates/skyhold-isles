@@ -322,3 +322,7 @@ early waves does NOT soften them, it starves the economy (kill rewards) and the 
 ### Round 47 (verification only, no code changes)
 - Clean tree. tsc, lint, tests and `sim:balance` all green (greedy L1 20 / L2 15 / L3 9 / L4 15 / L5 14 / L6 13 / L7 10 / L8 7 / L9 9 lives; every weak script loses L2+). Build not re-run (no source changes since round 28). L1 and L5 previews re-inspected, nothing overlaps routes.
 - Handoff state unchanged; see "Merge notes for the lead".
+
+### Round 48 (render-only: cottage chimney smoke)
+- Cottages (L1 and the cottage variant in the theme table) now puff three pale smoke wisps from the chimney, reusing the `ember` anim family (instanced, shadowless; +1 draw call on islands without braziers; L1 map+decor now 27 draws, budget test still < 40).
+- tsc, lint, 143 tests, build green; sim/data untouched, so the `sim:balance` result at the start of this round stands (greedy L1 20 / L2 15 / L3 9 / L4 15 / L5 14 / L6 13 / L7 10 / L8 7 / L9 9; every weak script loses L2+).

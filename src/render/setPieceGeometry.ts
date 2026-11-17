@@ -199,6 +199,8 @@ function cottage(pb: PieceBuilder, variant: number): void {
   pb.box(CREAM, [0.4, 0.04, 0.03], [0.34, 0.17, 0.78]);
   // haystack
   pb.cone(0xe3b84a, 0.26, 0.4, [0.82, 0.2, -0.15], 6);
+  // chimney smoke: pale puffs reuse the (cheap, shadowless) ember family
+  for (let k = 0; k < 3; k++) pb.anim('ember', 0.34, 1.2, -0.12, 0, k / 3 + 0.07 * k, 0xeef0f4);
 }
 
 function lighthouse(pb: PieceBuilder): void {
