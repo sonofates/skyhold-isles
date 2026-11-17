@@ -85,7 +85,13 @@ function tileMarginPx(o: OcclusionFitOptions, zoom: number): number {
   return Math.max(6, o.tileWorld * ppuAt(o, zoom) * 0.3);
 }
 
-/** Weighted fraction of points visible (inside the viewport, outside every HUD rect). */
+/** Points with at least this weight (spawn / goal) must be visible, not merely counted. */
+export const KEY_POINT_WEIGHT = 5;
+
+/**
+ * Weighted fraction of points visible (inside the viewport, outside every HUD rect). A hidden key
+ * point (spawn / goal) subtracts 0.5, which makes that framing infeasible for any sane coverage target.
+ */
 export function visibleFraction(
   pts: PlanePoints,
   zoom: number,
@@ -100,23 +106,31 @@ export function visibleFraction(
   const rects = o.hudRects;
   let seen = 0;
   let total = 0;
+  let keyHidden = false;
   for (let i = 0; i < pts.r.length; i++) {
     const wgt = pts.w[i];
     total += wgt;
     const px = W / 2 + (pts.r[i] - tr) * ppu;
     const py = H / 2 - (pts.u[i] - tu) * ppu;
-    if (px < m || px > W - m || py < m || py > H - m) continue;
+    // Key tiles (spawn / goal) get a roomier margin so they never hug the screen edge.
+    const mm = wgt >= KEY_POINT_WEIGHT ? m * 1.8 : m;
+    if (px < mm || px > W - mm || py < mm || py > H - mm) {
+      if (wgt >= KEY_POINT_WEIGHT) keyHidden = true;
+      continue;
+    }
     let blocked = false;
     for (let k = 0; k < rects.length; k++) {
       const rc = rects[k];
-      if (px > rc.x0 - m && px < rc.x1 + m && py > rc.y0 - m && py < rc.y1 + m) {
+      if (px > rc.x0 - mm && px < rc.x1 + mm && py > rc.y0 - mm && py < rc.y1 + mm) {
         blocked = true;
         break;
       }
     }
     if (!blocked) seen += wgt;
+    else if (wgt >= KEY_POINT_WEIGHT) keyHidden = true;
   }
-  return total > 0 ? seen / total : 1;
+  const frac = total > 0 ? seen / total : 1;
+  return keyHidden ? frac - 0.5 : frac;
 }
 
 interface Box {

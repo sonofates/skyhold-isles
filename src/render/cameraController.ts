@@ -232,7 +232,8 @@ export class CameraController {
         tileWorld: BALANCE.tileSize,
         hudRects: this.hudRects,
         zoomCeil: fit.zoom,
-        zoomFloor: fit.minZoom,
+        // May go a little below the whole-island zoom when a key tile would otherwise sit on the edge.
+        zoomFloor: fit.minZoom * 0.8,
         coverage: OCCLUSION_COVERAGE,
         prefR: fit.targetX * Math.cos(yaw) - fit.targetZ * Math.sin(yaw),
         prefU: -(fit.targetX * Math.sin(yaw) + fit.targetZ * Math.cos(yaw)) * st,
@@ -249,7 +250,7 @@ export class CameraController {
     this.planeExtYaw = NaN;
     this.cancelFling();
     this.fitKind = profile.kind;
-    this.minZoom = fit.minZoom;
+    this.minZoom = Math.min(fit.minZoom, zoom);
     this.maxZoom = Math.max(fit.maxZoom, zoom * 2.2);
     this.desiredTarget.set(tx, 0, tz);
     this.desiredZoom = zoom;
