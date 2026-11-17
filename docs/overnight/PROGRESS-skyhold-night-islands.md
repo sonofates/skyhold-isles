@@ -184,3 +184,4 @@ early waves does NOT soften them, it starves the economy (kill rewards) and the 
 - Handoff state final; layout/path and wave-ramp changes deliberately untouched (knife-edge windows). See "Merge notes for the lead".
 - Round 82: tsc, lint, tests, sim:balance re-run on clean tree: unchanged, green (greedy L1 20 / L2 15 / L3 9 / L4 15 / L5 14 / L6 13 / L7 10 / L8 7 / L9 9).
 - Round 83: tsc, lint, 143 tests, build, sim:balance re-run on clean tree: unchanged, green (greedy L1 20 / L2 15 / L3 9 / L4 15 / L5 14 / L6 13 / L7 10 / L8 7 / L9 9).
+- Round 84: tsc, lint, tests, sim:balance re-run on clean tree: unchanged, green (greedy L1 20 / L2 15 / L3 9 / L4 15 / L5 14 / L6 13 / L7 10 / L8 7 / L9 9).
