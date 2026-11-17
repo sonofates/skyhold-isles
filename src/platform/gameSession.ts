@@ -518,14 +518,19 @@ export class GameSession {
    * player does not come back to a lost wave, and re-arm the quality governor for the resume hitch.
    */
   enterBackground(): void {
+    this.pauseIfRunning();
+    this.soundManager.suspendForBackground();
+    this.quality.rearm();
+  }
+
+  /** Freezes play (user pause) when a level is running and nothing else already paused it. */
+  pauseIfRunning(): void {
     const overlays = this.deps?.overlays;
     if (overlays && this.viewMode === 'playing' && !this.userPaused && !overlays.isModalOpen()) {
       this.userPaused = true;
       this.syncLoopAndInput();
       this.syncUi();
     }
-    this.soundManager.suspendForBackground();
-    this.quality.rearm();
   }
 
   returnFromBackground(): void {

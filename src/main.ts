@@ -5,7 +5,7 @@ import { LEVELS } from './data/levels/index.ts';
 import { GameLoop } from './platform/browserLoop.ts';
 import { GameSession } from './platform/gameSession.ts';
 import { InputManager } from './platform/input.ts';
-import { initDeviceClass } from './platform/deviceClass.ts';
+import { initDeviceClass, isTouchDevice } from './platform/deviceClass.ts';
 import { readSafeArea } from './platform/safeArea.ts';
 import { loadSettings } from './platform/storage.ts';
 import { KenneyAssetStore } from './render/kenneyAssets.ts';
@@ -174,6 +174,11 @@ async function bootstrap(loadingScreen: LoadingScreen): Promise<void> {
     }
   };
   document.addEventListener('visibilitychange', onVisibility);
+  // Touch devices: a pulled-down notification shade / incoming call blurs the window without hiding it.
+  const onBlur = (): void => {
+    if (isTouchDevice()) session.pauseIfRunning();
+  };
+  window.addEventListener('blur', onBlur);
 
   session.showMenuView('menu', true);
   loadingScreen.hide();
@@ -192,6 +197,7 @@ async function bootstrap(loadingScreen: LoadingScreen): Promise<void> {
   if (import.meta.hot) {
     import.meta.hot.dispose(() => {
       document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('blur', onBlur);
       window.removeEventListener('pointerdown', onFirstGesture);
       window.removeEventListener('resize', onResize);
       window.removeEventListener('orientationchange', onOrientation);
