@@ -160,20 +160,18 @@ export function loadProgress(levelCount: number): ProgressData {
         }
       }
     }
-    let unlockedLevelIndex =
-      typeof parsed.unlockedLevelIndex === 'number' && Number.isFinite(parsed.unlockedLevelIndex)
+    const unlockedLevelIndex =
+      typeof parsed.unlockedLevelIndex === 'number'
         ? Math.max(0, Math.min(levelCount - 1, Math.floor(parsed.unlockedLevelIndex)))
         : 0;
-    // A cleared island always unlocks the next one. Saves from a build with fewer islands never
-    // recorded an unlock past their last island (there was none), so new islands appended later
-    // would otherwise stay locked for players who had already finished the campaign.
-    for (let i = levelCount - 2; i >= 0; i--) {
-      if (bestStars[i] > 0) {
-        unlockedLevelIndex = Math.max(unlockedLevelIndex, i + 1);
-        break;
-      }
-    }
-    return { unlockedLevelIndex, bestStars, bestEndlessWaves };
+
+    // Walk forward from the stored unlock across islands the player has already cleared. Saves
+    // from a build with fewer islands never recorded an unlock past their last island (there was
+    // none), so islands appended later would otherwise stay locked for players who had finished
+    // the campaign. Starting from the stored index keeps corrupted saves conservative.
+    let unlocked = unlockedLevelIndex;
+    while (unlocked < bestStars.length - 1 && bestStars[unlocked] > 0) unlocked++;
+    return { unlockedLevelIndex: unlocked, bestStars, bestEndlessWaves };
   } catch {
     return createDefaultProgress(levelCount);
   }
