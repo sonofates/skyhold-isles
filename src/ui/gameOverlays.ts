@@ -16,6 +16,8 @@ import { SettingsModal } from './settingsModal.ts';
 import { GameToast } from './toast.ts';
 import { EnemyTooltip } from './tooltip.ts';
 import { TowerPanel } from './towerPanel.ts';
+import { WorkshopOverlay } from './workshop.ts';
+import type { WorkshopUpgradeId } from '../data/workshop.ts';
 
 export interface GameOverlayCallbacks {
   initialSettings: GameSettings;
@@ -47,6 +49,10 @@ export interface GameOverlayCallbacks {
   onEndlessMode: () => void;
   onSettingsChange: (next: GameSettings) => void;
   onSettingsClose: () => void;
+  onOpenWorkshop: (from: 'menu' | 'levelSelect') => void;
+  onWorkshopBuy: (id: WorkshopUpgradeId) => boolean;
+  onWorkshopRefundAll: () => void;
+  onWorkshopBack: () => void;
 }
 
 export class GameOverlays {
@@ -62,6 +68,7 @@ export class GameOverlays {
   readonly pauseMenu: PauseMenuModal;
   readonly outcomeOverlay: OutcomeOverlay;
   readonly settingsModal: SettingsModal;
+  readonly workshop: WorkshopOverlay;
   private readonly pauseBanner: HTMLDivElement;
 
   constructor(uiRoot: HTMLElement, cb: GameOverlayCallbacks) {
@@ -101,11 +108,19 @@ export class GameOverlays {
       onPlay: cb.onPlayFromMenu,
       onOpenLevelSelect: cb.onOpenLevelSelectFromMenu,
       onOpenSettings: cb.onOpenSettingsFromMenu,
+      onOpenWorkshop: () => cb.onOpenWorkshop('menu'),
     });
 
     this.levelSelect = new LevelSelectOverlay(uiRoot, {
       onSelectLevel: cb.onSelectLevel,
       onBack: cb.onBackFromLevelSelect,
+      onOpenWorkshop: () => cb.onOpenWorkshop('levelSelect'),
+    });
+
+    this.workshop = new WorkshopOverlay(uiRoot, {
+      onBuy: cb.onWorkshopBuy,
+      onRefundAll: cb.onWorkshopRefundAll,
+      onBack: cb.onWorkshopBack,
     });
 
     this.pauseMenu = new PauseMenuModal(uiRoot, {
@@ -181,6 +196,7 @@ export class GameOverlays {
     this.towerPanel.dispose();
     this.mainMenu.dispose();
     this.levelSelect.dispose();
+    this.workshop.dispose();
     this.pauseMenu.dispose();
     this.outcomeOverlay.dispose();
     this.settingsModal.dispose();

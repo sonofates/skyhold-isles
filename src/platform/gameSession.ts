@@ -38,13 +38,17 @@ import {
   loadProgress,
   loadSettings,
   markUpgradeToastSeen,
+  saveProgress,
   saveSettings,
 } from './storage.ts';
+import type { RunModifiers } from '../data/runModifiers.ts';
+import { buyRank, workshopModifiers, type WorkshopUpgradeId } from '../data/workshop.ts';
+import { starWallet } from '../game/progression.ts';
 
 /** Countdown / cooldown HUD refresh cadence when no event triggered a sync. */
 const UI_SYNC_INTERVAL_SEC = 0.2;
 
-export type ViewMode = 'menu' | 'levelSelect' | 'playing';
+export type ViewMode = 'menu' | 'levelSelect' | 'workshop' | 'playing';
 export type SettingsOrigin = 'menu' | 'hud' | 'pause';
 
 export interface SessionRuntimeDeps {
@@ -429,7 +433,41 @@ export class GameSession {
     });
   }
 
-  showMenuView(target: 'menu' | 'levelSelect', reloadShowcase = false): void {
+  /** Where the Workshop's back button returns to. */
+  private workshopReturn: 'menu' | 'levelSelect' = 'menu';
+
+  /** Modifiers for the next run: Workshop upgrades (+ challenge toggles once chosen). */
+  buildRunModifiers(): RunModifiers {
+    return workshopModifiers(this.progress.workshop);
+  }
+
+  openWorkshop(from: 'menu' | 'levelSelect'): void {
+    this.workshopReturn = from;
+    this.showMenuView('workshop');
+  }
+
+  closeWorkshop(): void {
+    this.showMenuView(this.workshopReturn);
+  }
+
+  buyWorkshopUpgrade(id: WorkshopUpgradeId): boolean {
+    this.soundManager.unlock();
+    const next = buyRank(this.progress.workshop, id, starWallet(this.progress).available);
+    if (!next) return false;
+    this.progress.workshop = next;
+    saveProgress(this.progress);
+    this.soundManager.playUiConfirm();
+    return true;
+  }
+
+  refundWorkshop(): void {
+    this.soundManager.unlock();
+    this.progress.workshop = {};
+    saveProgress(this.progress);
+    this.soundManager.playUiBack();
+  }
+
+  showMenuView(target: 'menu' | 'levelSelect' | 'workshop', reloadShowcase = false): void {
     const { overlays } = this.d;
     if (reloadShowcase) {
       this.recordEndlessIfActive();
@@ -443,6 +481,7 @@ export class GameSession {
     overlays.closeModals();
     overlays.mainMenu.setOpen(target === 'menu', this.progress);
     overlays.levelSelect.setOpen(target === 'levelSelect', this.progress);
+    overlays.workshop.setOpen(target === 'workshop', this.progress);
     this.renderWorld.cameraController.setShowcaseMode(true);
     this.syncLoopAndInput();
     this.syncUi();
@@ -456,7 +495,7 @@ export class GameSession {
     this.clearTransientPlayState();
     this.events.clear();
     this.events = new EventBus();
-    this.simWorld = new SimWorld(level, this.events);
+    this.simWorld = new SimWorld(level, this.events, this.buildRunModifiers());
     this.simWorld.setAutoWave(this.autoWaveEnabled);
     this.bindSimEvents(this.events);
     this.renderWorld.cameraController.setShowcaseMode(false);
@@ -467,6 +506,7 @@ export class GameSession {
     loop.speed = 1;
     overlays.mainMenu.setOpen(false);
     overlays.levelSelect.setOpen(false);
+    overlays.workshop.setOpen(false);
     overlays.closeModals();
     this.refreshPlacementPreview();
     this.syncLoopAndInput();

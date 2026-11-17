@@ -1,6 +1,20 @@
 import type { ProgressData } from '../core/types.ts';
 import { LEVELS } from '../data/levels/index.ts';
 import { TOWER_ICON_SVGS, UI_ICON_SVGS } from './icons.ts';
+import { affordableUpgradeCount, WORKSHOP_ICON_SVG } from './workshop.ts';
+
+/** Gold count bubble on a Workshop entry button when an upgrade is affordable. */
+function setWorkshopBadge(btn: HTMLButtonElement, progress: ProgressData): void {
+  btn.querySelector('.ws-badge')?.remove();
+  const n = affordableUpgradeCount(progress);
+  if (n > 0) {
+    const badge = document.createElement('span');
+    badge.className = 'ws-badge';
+    badge.textContent = String(n);
+    badge.setAttribute('aria-label', `${n} upgrade${n === 1 ? '' : 's'} affordable`);
+    btn.appendChild(badge);
+  }
+}
 
 export function renderStarsHtml(earned: number): string {
   let out = '';
@@ -40,12 +54,14 @@ export interface MainMenuCallbacks {
   onPlay: (levelIndex: number) => void;
   onOpenLevelSelect: () => void;
   onOpenSettings: () => void;
+  onOpenWorkshop?: () => void;
 }
 
 export class MainMenuOverlay {
   private readonly rootEl: HTMLDivElement;
   private readonly summaryEl: HTMLDivElement;
   private readonly playBtn: HTMLButtonElement;
+  private readonly workshopBtn: HTMLButtonElement;
   private targetLevelIndex = 0;
 
   constructor(parent: HTMLElement, callbacks: MainMenuCallbacks) {
@@ -102,9 +118,19 @@ export class MainMenuOverlay {
     settingsBtn.setAttribute('data-testid', 'btn-main-settings');
     settingsBtn.addEventListener('click', () => callbacks.onOpenSettings());
 
+    this.workshopBtn = document.createElement('button');
+    this.workshopBtn.type = 'button';
+    this.workshopBtn.className = 'btn-secondary btn-lg gx gx-slate-btn btn-workshop';
+    this.workshopBtn.innerHTML = `<span class="btn-icon">${WORKSHOP_ICON_SVG}</span><span class="btn-label">Workshop</span>`;
+    this.workshopBtn.setAttribute('data-testid', 'btn-workshop');
+    this.workshopBtn.addEventListener('click', () => callbacks.onOpenWorkshop?.());
+
+    settingsBtn.classList.add('menu-settings-icon');
+    settingsBtn.setAttribute('aria-label', 'Settings');
+
     const secondary = document.createElement('div');
-    secondary.className = 'menu-btn-row';
-    secondary.append(levelSelectBtn, settingsBtn);
+    secondary.className = 'menu-btn-row has-workshop';
+    secondary.append(levelSelectBtn, this.workshopBtn, settingsBtn);
     btnStack.append(this.playBtn, secondary);
 
     const hints = document.createElement('div');
@@ -130,6 +156,7 @@ export class MainMenuOverlay {
     this.playBtn.innerHTML = `<span class="btn-icon">${UI_ICON_SVGS.play}</span><span class="btn-label-stack"><span class="btn-label">Play</span><span class="btn-sub">${frontierLevel.name}</span></span>`;
     this.summaryEl.innerHTML = `<span class="menu-star-inline">${UI_ICON_SVGS.star}</span><b>${totalStars}</b><span class="menu-stars-of">/ ${maxStars}</span>`;
     this.summaryEl.title = `${frontierIdx + 1}/${LEVELS.length} islands unlocked`;
+    setWorkshopBadge(this.workshopBtn, progress);
   }
 
   dispose(): void {
@@ -140,11 +167,13 @@ export class MainMenuOverlay {
 export interface LevelSelectCallbacks {
   onSelectLevel: (levelIndex: number) => void;
   onBack: () => void;
+  onOpenWorkshop?: () => void;
 }
 
 export class LevelSelectOverlay {
   private readonly rootEl: HTMLDivElement;
   private readonly starsBadgeEl: HTMLDivElement;
+  private readonly workshopBtn: HTMLButtonElement;
   private readonly gridEl: HTMLDivElement;
   private readonly callbacks: LevelSelectCallbacks;
 
@@ -174,7 +203,15 @@ export class LevelSelectOverlay {
     this.starsBadgeEl = document.createElement('div');
     this.starsBadgeEl.className = 'menu-progress-pill gx gx-slate';
 
-    header.append(backBtn, title, this.starsBadgeEl);
+    this.workshopBtn = document.createElement('button');
+    this.workshopBtn.type = 'button';
+    this.workshopBtn.className = 'btn-secondary gx gx-slate-btn ws-entry-btn';
+    this.workshopBtn.innerHTML = `<span class="btn-icon">${WORKSHOP_ICON_SVG}</span><span class="btn-label">Workshop</span>`;
+    this.workshopBtn.setAttribute('aria-label', 'Workshop');
+    this.workshopBtn.setAttribute('data-testid', 'btn-level-workshop');
+    this.workshopBtn.addEventListener('click', () => callbacks.onOpenWorkshop?.());
+
+    header.append(backBtn, title, this.workshopBtn, this.starsBadgeEl);
 
     this.gridEl = document.createElement('div');
     this.gridEl.className = 'level-grid';
@@ -208,6 +245,7 @@ export class LevelSelectOverlay {
 
     const totalStars = progress.bestStars.reduce((a, b) => a + b, 0);
     this.starsBadgeEl.innerHTML = `<span class="menu-star-inline">${UI_ICON_SVGS.star}</span><b>${totalStars}</b><span class="menu-stars-of">/ ${LEVELS.length * 3}</span>`;
+    setWorkshopBadge(this.workshopBtn, progress);
 
     this.gridEl.innerHTML = '';
     for (let i = 0; i < LEVELS.length; i++) {

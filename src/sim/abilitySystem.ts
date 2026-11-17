@@ -26,6 +26,8 @@ export class AbilitySystem {
   };
   private overchargeRemaining = 0;
   private readonly pendingMeteors: PendingMeteor[] = [];
+  /** Scales every ability cooldown (Workshop upgrade); 1 = classic. */
+  cooldownMul = 1;
 
   constructor(events: EventBus) {
     this.events = events;
@@ -47,7 +49,7 @@ export class AbilitySystem {
   }
 
   getMaxCooldown(id: AbilityId): number {
-    return ABILITY_DEFS[id].cooldownSec;
+    return ABILITY_DEFS[id].cooldownSec * this.cooldownMul;
   }
 
   isOverchargeActive(): boolean {
@@ -65,7 +67,7 @@ export class AbilitySystem {
   castMeteor(x: number, z: number, waveOneBased: number): boolean {
     if (!this.canCast('meteor')) return false;
     const def = ABILITY_DEFS.meteor;
-    this.cooldowns.meteor = def.cooldownSec;
+    this.cooldowns.meteor = this.getMaxCooldown('meteor');
     this.pendingMeteors.push({
       x,
       z,
@@ -88,7 +90,7 @@ export class AbilitySystem {
   castOvercharge(towers: readonly TowerEntity[]): boolean {
     if (!this.canCast('overcharge')) return false;
     const def = ABILITY_DEFS.overcharge;
-    this.cooldowns.overcharge = def.cooldownSec;
+    this.cooldowns.overcharge = this.getMaxCooldown('overcharge');
     this.overchargeRemaining = def.durationSec;
 
     const cleansedTowerIds: number[] = [];

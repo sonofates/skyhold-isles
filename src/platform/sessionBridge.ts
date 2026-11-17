@@ -170,7 +170,10 @@ export function buildAbilityBarState(
     overchargeMaxCooldown: ab.getMaxCooldown('overcharge'),
     overchargeRemaining: ab.getOverchargeRemaining(),
     overchargeDuration: ABILITY_DEFS.overcharge.durationSec,
-    disabled: simWorld.outcome !== 'ongoing' || ws.state === 'preFirstWave',
+    disabled:
+      simWorld.outcome !== 'ongoing' ||
+      ws.state === 'preFirstWave' ||
+      simWorld.mods.abilitiesDisabled,
   };
 }
 

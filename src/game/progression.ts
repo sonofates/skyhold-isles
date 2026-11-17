@@ -1,4 +1,5 @@
 import type { ProgressData } from '../core/types.ts';
+import { workshopStarsSpent } from '../data/workshop.ts';
 
 /** What a recorded win changed — drives the victory screen's "new best" / unlock callouts. */
 export interface WinRecord {
@@ -65,4 +66,27 @@ export function totalCampaignStars(progress: ProgressData): number {
   let total = 0;
   for (const s of progress.bestStars) total += Math.max(0, Math.min(3, s | 0));
   return total;
+}
+
+/** Bonus stars from completed island challenges (one per challenge). */
+export function totalChallengeStars(progress: ProgressData): number {
+  let total = 0;
+  for (const list of progress.challengeClears ?? []) total += list?.length ?? 0;
+  return total;
+}
+
+/** Star currency for the Workshop: everything earned minus what upgrades currently hold. */
+export interface StarWallet {
+  readonly campaign: number;
+  readonly challenge: number;
+  readonly earned: number;
+  readonly spent: number;
+  readonly available: number;
+}
+
+export function starWallet(progress: ProgressData): StarWallet {
+  const campaign = totalCampaignStars(progress);
+  const challenge = totalChallengeStars(progress);
+  const spent = workshopStarsSpent(progress.workshop ?? {});
+  return { campaign, challenge, earned: campaign + challenge, spent, available: campaign + challenge - spent };
 }

@@ -89,6 +89,13 @@ async function bootstrap(loadingScreen: LoadingScreen): Promise<void> {
     onEndlessMode: () => session.enterEndlessMode(),
     onSettingsChange: (next) => session.updateSettings(next),
     onSettingsClose: () => session.closeSettingsModal(),
+    onOpenWorkshop: (from) => {
+      soundManager.unlock();
+      session.openWorkshop(from);
+    },
+    onWorkshopBuy: (id) => session.buyWorkshopUpgrade(id),
+    onWorkshopRefundAll: () => session.refundWorkshop(),
+    onWorkshopBack: () => session.closeWorkshop(),
   });
 
   const debugPanel = createDebugPanelIfEnabled(uiRoot, {

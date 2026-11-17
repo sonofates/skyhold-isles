@@ -71,6 +71,9 @@ export class EnemySystem {
     return this.groundPaths.length;
   }
 
+  /** Movement speed multiplier for wave spawns (challenge / endless mutators); 1 = classic. */
+  speedMul = 1;
+
   spawnEnemy(type: EnemyType, hpScale = 1, elite = false, lane = 0): EnemyEntity | null {
     const def = ENEMY_DEFS[type];
     const hpMul = elite ? ELITE_MODIFIERS.hpMul : 1;
@@ -81,7 +84,7 @@ export class EnemySystem {
       validLane,
       0,
       Math.round(def.maxHp * hpScale * hpMul),
-      def.speed,
+      def.speed * this.speedMul,
       elite ? Math.round(def.reward * ELITE_MODIFIERS.rewardMul) : def.reward,
       def.livesCost,
       elite ? ELITE_MODIFIERS.scaleMul : 1,

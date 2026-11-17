@@ -65,6 +65,10 @@ export interface ProgressData {
   bestLives: number[];
   /** Number of wins per island. */
   clears: number[];
+  /** Workshop upgrade ranks bought with stars (upgrade id -> rank). */
+  workshop: Record<string, number>;
+  /** Challenge ids completed per island (each one is worth a bonus star). */
+  challengeClears: string[][];
 }
 
 export interface Vec3 {

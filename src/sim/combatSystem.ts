@@ -1,6 +1,6 @@
 import type { EventBus } from '../core/eventBus.ts';
 import type { ObjectPool } from '../core/pool.ts';
-import type { Vec3 } from '../core/types.ts';
+import type { TowerType, Vec3 } from '../core/types.ts';
 import { TOWER_DEFS, getTowerTierStats } from '../data/towers.ts';
 import type { EnemyEntity, TowerEntity } from './entities.ts';
 import type { EnemySystem } from './enemySystem.ts';
@@ -76,6 +76,9 @@ export class CombatSystem {
     }
   }
 
+  /** Per tower type fire-rate multiplier (Workshop family upgrades); missing = 1. */
+  towerRateMul: Readonly<Partial<Record<TowerType, number>>> = {};
+
   update(dt: number, towers: TowerEntity[], fireRateMultiplier = 1): void {
     const turnSpeed = 12.0;
     const rateMult = Math.max(0.01, fireRateMultiplier);
@@ -120,7 +123,8 @@ export class CombatSystem {
       if (tower.cooldownTimer > 0) {
         tower.cooldownTimer = Math.max(
           0,
-          tower.cooldownTimer - dt * rateMult * (1 + tower.auraRate),
+          tower.cooldownTimer -
+            dt * rateMult * (1 + tower.auraRate) * (this.towerRateMul[tower.type] ?? 1),
         );
       }
 

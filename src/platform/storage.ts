@@ -1,4 +1,6 @@
 import type { GameSettings, ProgressData, QualityLevel } from '../core/types.ts';
+import { sanitizeRanks } from '../data/workshop.ts';
+import { starWallet } from '../game/progression.ts';
 
 const SETTINGS_KEY = 'skyhold_isles_settings_v1';
 const PROGRESS_KEY = 'skyhold_isles_progress_v1';
@@ -92,7 +94,10 @@ export function getDefaultSettings(): GameSettings {
 
 export const DEFAULT_SETTINGS: GameSettings = getDefaultSettings();
 
-/** Current progress save format. v1 = unlock/stars/endless only; v2 adds bestLives + clears. */
+/**
+ * Current progress save format. v1 = unlock/stars/endless only; v2 adds bestLives, clears,
+ * Workshop ranks and challenge clears.
+ */
 export const PROGRESS_SAVE_VERSION = 2;
 /** One-time copy of a pre-migration save, written before the first save in a newer format. */
 const PROGRESS_BACKUP_KEY = 'skyhold_isles_progress_backup_v1';
@@ -105,7 +110,25 @@ export function createDefaultProgress(levelCount: number): ProgressData {
     bestEndlessWaves: new Array<number>(levelCount).fill(0),
     bestLives: new Array<number>(levelCount).fill(0),
     clears: new Array<number>(levelCount).fill(0),
+    workshop: {},
+    challengeClears: Array.from({ length: levelCount }, () => []),
   };
+}
+
+/** Per-island list of unique short id strings (junk → empty list). */
+function parseIslandIdLists(val: unknown, levelCount: number): string[][] {
+  const out: string[][] = Array.from({ length: levelCount }, () => []);
+  if (!Array.isArray(val)) return out;
+  for (let i = 0; i < levelCount; i++) {
+    const list: unknown = val[i];
+    if (!Array.isArray(list)) continue;
+    for (const id of list) {
+      if (typeof id === 'string' && id.length > 0 && id.length <= 40 && !out[i].includes(id)) {
+        out[i].push(id);
+      }
+    }
+  }
+  return out;
 }
 
 /** Per-island non-negative integer array of exactly `levelCount` entries (junk → 0). */
@@ -186,14 +209,20 @@ export function migrateProgress(parsed: unknown, levelCount: number): ProgressDa
   const storedIndexOk = typeof storedIndex === 'number' && Number.isFinite(storedIndex);
   let unlocked = storedIndexOk ? unlockedLevelIndex : 0;
   while (storedIndexOk && unlocked < bestStars.length - 1 && bestStars[unlocked] > 0) unlocked++;
-  return {
+  const progress: ProgressData = {
     version: PROGRESS_SAVE_VERSION,
     unlockedLevelIndex: unlocked,
     bestStars,
     bestEndlessWaves,
     bestLives,
     clears,
+    workshop: sanitizeRanks(raw.workshop),
+    challengeClears: parseIslandIdLists(raw.challengeClears, levelCount),
   };
+  // Upgrades are always refundable: if a save somehow spends more stars than it has earned
+  // (edited save, retuned costs), refund everything instead of keeping an impossible state.
+  if (starWallet(progress).available < 0) progress.workshop = {};
+  return progress;
 }
 
 export function loadProgress(levelCount: number): ProgressData {

@@ -3,6 +3,7 @@ import { ObjectPool } from '../core/pool.ts';
 import type { TargetingMode, TowerMvpSummary, TowerType } from '../core/types.ts';
 import { BALANCE } from '../data/balance.ts';
 import type { LevelDef } from '../data/levels/index.ts';
+import { NEUTRAL_RUN_MODIFIERS, type RunModifiers } from '../data/runModifiers.ts';
 import { computeStarsForLivesLost, type Difficulty } from '../data/stars.ts';
 import { getTowerTierStats, TOWER_DEFS } from '../data/towers.ts';
 import { AbilitySystem } from './abilitySystem.ts';
@@ -55,6 +56,8 @@ export class SimWorld {
   readonly waveSystem: WaveSystem;
   readonly abilitySystem: AbilitySystem;
   readonly events: EventBus;
+  /** Workshop upgrades + challenge toggles applied to this run (neutral = classic rules). */
+  readonly mods: RunModifiers;
 
   readonly towers: TowerEntity[] = [];
   private nextTowerId = 1;
@@ -66,9 +69,10 @@ export class SimWorld {
   enemiesKilledTotal = 0;
   outcome: 'ongoing' | 'won' | 'lost' = 'ongoing';
 
-  constructor(level: LevelDef, events: EventBus) {
+  constructor(level: LevelDef, events: EventBus, mods: RunModifiers = NEUTRAL_RUN_MODIFIERS) {
     this.level = level;
     this.events = events;
+    this.mods = mods;
     this.grid = new MapGrid(level);
 
     this.groundPath = new CompiledPath(
@@ -122,9 +126,21 @@ export class SimWorld {
     this.waveSystem = new WaveSystem(level, events);
     this.abilitySystem = new AbilitySystem(events);
 
-    this.gold = level.startingGold;
-    this.startingLives = BALANCE.startingLives;
+    this.abilitySystem.cooldownMul = mods.abilityCooldownMul;
+    this.combatSystem.towerRateMul = mods.towerFireRateMul;
+    this.enemySystem.speedMul = mods.enemySpeedMul;
+
+    this.gold = Math.max(0, Math.round(level.startingGold * mods.startGoldMul) + mods.startGoldBonus);
+    this.startingLives = Math.max(
+      1,
+      mods.maxLives !== null ? mods.maxLives : BALANCE.startingLives + mods.bonusLives,
+    );
     this.lives = this.startingLives;
+  }
+
+  private scaleWaveBonus(bonus: number): number {
+    const mul = this.mods.waveBonusMul;
+    return mul === 1 ? bonus : Math.max(0, Math.round(bonus * mul));
   }
 
   /** Star rating the run would earn if it were won right now. */
@@ -138,7 +154,11 @@ export class SimWorld {
 
   /** Abilities are only usable once the first wave has started (mirrors the HUD guard). */
   private canUseAbilities(): boolean {
-    return this.outcome === 'ongoing' && this.waveSystem.state !== 'preFirstWave';
+    return (
+      !this.mods.abilitiesDisabled &&
+      this.outcome === 'ongoing' &&
+      this.waveSystem.state !== 'preFirstWave'
+    );
   }
 
   castMeteor(x: number, z: number): boolean {
@@ -182,7 +202,7 @@ export class SimWorld {
   startNextWave(): boolean {
     if (this.outcome !== 'ongoing') return false;
     return this.waveSystem.startNextWave((bonus) => {
-      this.gold += bonus;
+      this.gold += this.scaleWaveBonus(bonus);
       this.events.emit('economyChanged', { gold: this.gold, lives: this.lives });
     });
   }
@@ -219,6 +239,11 @@ export class SimWorld {
     this.events.emit('gameLost', { waveIndex: Math.max(0, this.waveSystem.currentWaveIndex) });
   }
 
+  /** Tower types a challenge forbids this run. */
+  isTowerBanned(type: TowerType): boolean {
+    return this.mods.bannedTowers.includes(type);
+  }
+
   placeTower(
     col: number,
     row: number,
@@ -226,6 +251,7 @@ export class SimWorld {
     targetingMode: TargetingMode = 'first',
   ): TowerEntity | null {
     if (this.outcome !== 'ongoing') return null;
+    if (this.isTowerBanned(type)) return null;
     if (!this.grid.canPlaceTower(col, row)) return null;
     const stats = getTowerTierStats(type, 1);
     if (this.gold < stats.upgradeCost) return null;
@@ -340,16 +366,23 @@ export class SimWorld {
       dt,
       () => this.enemyPool.getActiveCount(),
       (enemyType, hpScale, elite, lane) => {
-        const spawned = this.enemySystem.spawnEnemy(enemyType, hpScale, elite, lane);
+        const spawned = this.enemySystem.spawnEnemy(
+          enemyType,
+          hpScale * this.mods.enemyHpMul,
+          elite,
+          lane,
+        );
         if (spawned) {
           spawned.reward = Math.max(
             1,
-            Math.round(spawned.reward * this.waveSystem.getRewardMultiplier()),
+            Math.round(
+              spawned.reward * this.waveSystem.getRewardMultiplier() * this.mods.killGoldMul,
+            ),
           );
         }
       },
       (bonus) => {
-        this.gold += bonus;
+        this.gold += this.scaleWaveBonus(bonus);
         this.events.emit('economyChanged', { gold: this.gold, lives: this.lives });
       },
       () => {
@@ -395,7 +428,7 @@ export class SimWorld {
         this.events.emit('economyChanged', { gold: this.gold, lives: this.lives });
       },
       this.towers,
-      this.waveSystem.getCurrentWaveHpScale(),
+      this.waveSystem.getCurrentWaveHpScale() * this.mods.enemyHpMul,
     );
 
     if (this.outcome !== 'ongoing') return;
@@ -403,7 +436,7 @@ export class SimWorld {
     this.waveSystem.checkCompletion(
       () => this.enemyPool.getActiveCount(),
       (bonus) => {
-        this.gold += bonus;
+        this.gold += this.scaleWaveBonus(bonus);
         this.events.emit('economyChanged', { gold: this.gold, lives: this.lives });
       },
       () => {

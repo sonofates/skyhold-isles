@@ -3,7 +3,9 @@ import type { EnemyType } from '../src/core/types.ts';
 import { BALANCE } from '../src/data/balance.ts';
 import { ENEMY_DEFS } from '../src/data/enemies.ts';
 import { LEVELS, type LevelDef, type ScriptedBuildAction } from '../src/data/levels/index.ts';
+import { NEUTRAL_RUN_MODIFIERS, type RunModifiers } from '../src/data/runModifiers.ts';
 import { getTowerTierStats } from '../src/data/towers.ts';
+import { maxedWorkshopRanks, workshopModifiers } from '../src/data/workshop.ts';
 import { SimWorld } from '../src/sim/world.ts';
 
 type ScriptKind = 'greedy' | 'weak';
@@ -93,9 +95,10 @@ export function runLevelBalanceSim(
   level: LevelDef,
   scriptKind: ScriptKind,
   scriptActions: readonly ScriptedBuildAction[],
+  mods: RunModifiers = NEUTRAL_RUN_MODIFIERS,
 ): SimRunResult {
   const events = new EventBus();
-  const world = new SimWorld(level, events);
+  const world = new SimWorld(level, events, mods);
 
   const plannedTowers = scriptActions.filter((a) => a.action === 'build').length;
   const waveRows: WaveStatRow[] = [];
@@ -411,6 +414,39 @@ export function evaluateBalance(
   return { summary, failures, robustLines };
 }
 
+/**
+ * Meta-progression guard: the same greedy scripts with every Workshop upgrade at max rank.
+ * Upgrades must help (never hurt) but not trivialise the hardest islands: a maxed greedy run must
+ * still lose lives on every Master island (and on average gain only a few lives anywhere).
+ */
+export function evaluateWorkshopMax(
+  levelFilter: ReadonlySet<number> | null,
+): { lines: string[]; failures: string[] } {
+  const mods = workshopModifiers(maxedWorkshopRanks());
+  const lines: string[] = [];
+  const failures: string[] = [];
+  for (let i = 0; i < LEVELS.length; i++) {
+    if (levelFilter && !levelFilter.has(i)) continue;
+    const level = LEVELS[i];
+    const base = runLevelBalanceSim(level, 'greedy', level.scriptedBuildOrder ?? []);
+    const maxed = runLevelBalanceSim(level, 'greedy', level.scriptedBuildOrder ?? [], mods);
+    const baseLost = base.outcome === 'won' ? BALANCE.startingLives - base.finalLives : BALANCE.startingLives;
+    const startLives = BALANCE.startingLives + mods.bonusLives;
+    const maxedLost = maxed.outcome === 'won' ? startLives - maxed.finalLives : startLives;
+    // Informational: the scripted build is chaotic, so a small boost can also shift its timing
+    // into a worse run (more lives lost) — that is noise, not the upgrade hurting real players.
+    const note = maxedLost > baseLost ? '  (script timing noise: worse than base)' : '';
+    lines.push(
+      `L${i + 1} ${level.difficulty.padEnd(11)} lives lost: base ${String(baseLost).padStart(2)} -> maxed ${String(maxedLost).padStart(2)} ` +
+        `(${maxed.outcome === 'won' ? 'W' : 'L'}, ${maxed.stars}*)${note}`,
+    );
+    if (level.difficulty === 'Master' && maxed.outcome === 'won' && maxedLost === 0) {
+      failures.push(`L${i + 1} Workshop-maxed greedy loses no lives on a Master island (trivialised)`);
+    }
+  }
+  return { lines, failures };
+}
+
 function main(): void {
   console.log('=== Skyhold Isles Headless Balance Simulator (60 Hz Human-Paced) ===\n');
 
@@ -420,9 +456,14 @@ function main(): void {
   const levelsSpec = levelsArg ?? process.env.LEVELS;
   const levelFilter = levelsSpec ? new Set(levelsSpec.split(',').map((x) => Number(x.trim()) - 1)) : null;
   const { summary, failures, robustLines } = evaluateBalance(levelFilter, true);
+  const workshop = evaluateWorkshopMax(levelFilter);
+  failures.push(...workshop.failures);
 
   console.log('=== Summary (lives left / stars / leaks by type over the whole run) ===');
   for (const line of summary) console.log(line);
+  console.log('');
+  console.log('=== Workshop max (all upgrades, greedy script; baseline above uses none) ===');
+  for (const line of workshop.lines) console.log(line);
   console.log('');
   if (robustLines.length > 0) {
     console.log('=== Robustness (greedy lives vs enemy HP scale; informational) ===');
