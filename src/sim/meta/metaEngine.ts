@@ -6,9 +6,13 @@ import type { LevelDef } from '../../data/levels/types.ts';
 import { computeDailyStreaks, generateDailyChallenge, isValidDateString } from './daily.ts';
 import { computeEndlessScore } from './mutators.ts';
 import type {
+  AchievementCategory,
+  AchievementCategorySummary,
   AchievementDef,
   AchievementStatus,
+  AchievementSummary,
   AllChallengeProgress,
+  AllIslandMastery,
   ChallengeItemStatus,
   EndlessScoreBreakdown,
   IslandMasteryStatus,
@@ -752,6 +756,71 @@ export function getIslandMasteryStatus(
   };
 }
 
+/** Typed UI query: mastery status across every registered island. */
+export function getAllIslandMasteryStatuses(
+  save: MetaSaveData,
+  levels: readonly LevelDef[] = LEVELS,
+): AllIslandMastery {
+  const islands: IslandMasteryStatus[] = [];
+  let masteredCount = 0;
+  for (let i = 0; i < levels.length; i++) {
+    const status = getIslandMasteryStatus(save, i, levels);
+    if (status) {
+      islands.push(status);
+      if (status.mastered) masteredCount++;
+    }
+  }
+  return {
+    masteredCount,
+    totalIslands: islands.length,
+    islands,
+  };
+}
+
+const ACHIEVEMENT_CATEGORIES: readonly AchievementCategory[] = [
+  'campaign',
+  'combat',
+  'economy',
+  'mastery',
+  'endless',
+];
+
+/** Typed UI query: unlocked achievement totals broken down by category. */
+export function getAchievementSummary(save: MetaSaveData): AchievementSummary {
+  const totals: Record<AchievementCategory, { unlocked: number; total: number }> = {
+    campaign: { unlocked: 0, total: 0 },
+    combat: { unlocked: 0, total: 0 },
+    economy: { unlocked: 0, total: 0 },
+    mastery: { unlocked: 0, total: 0 },
+    endless: { unlocked: 0, total: 0 },
+  };
+  let unlockedCount = 0;
+
+  for (let i = 0; i < ACHIEVEMENTS.length; i++) {
+    const def = ACHIEVEMENTS[i];
+    const bucket = totals[def.category];
+    bucket.total++;
+    if (save.unlockedAchievements[def.id] === true) {
+      bucket.unlocked++;
+      unlockedCount++;
+    }
+  }
+
+  const byCategory: AchievementCategorySummary[] = ACHIEVEMENT_CATEGORIES.map((category) => ({
+    category,
+    unlocked: totals[category].unlocked,
+    total: totals[category].total,
+  }));
+
+  return {
+    unlockedCount,
+    totalCount: ACHIEVEMENTS.length,
+    completionRatio:
+      ACHIEVEMENTS.length > 0 ? +(unlockedCount / ACHIEVEMENTS.length).toFixed(3) : 1,
+    byCategory,
+  };
+}
+
 const CAREER_RANK_TIERS: readonly { minPoints: number; title: string }[] = [
   { minPoints: 0, title: 'Sky Recruit' },
   { minPoints: 12, title: 'Cloud Warden' },
@@ -957,4 +1026,189 @@ export function getMetaCareerSummary(
     mostDefeatedEnemyType: getTopKey(save.stats.enemiesDefeatedByType) as EnemyType | null,
     rank: getMetaCareerRank(save, levels),
   };
+}
+
+function mergeMaxCountRecords(
+  a: Readonly<Record<string, number>>,
+  b: Readonly<Record<string, number>>,
+): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const [k, v] of Object.entries(a)) {
+    if (v > 0) out[k] = v;
+  }
+  for (const [k, v] of Object.entries(b)) {
+    if (v > (out[k] ?? 0)) out[k] = v;
+  }
+  return out;
+}
+
+function mergeMinPositiveRecords(
+  a: Readonly<Record<string, number>>,
+  b: Readonly<Record<string, number>>,
+): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const [k, v] of Object.entries(a)) {
+    if (v > 0) out[k] = v;
+  }
+  for (const [k, v] of Object.entries(b)) {
+    if (v > 0 && (out[k] === undefined || v < out[k])) {
+      out[k] = v;
+    }
+  }
+  return out;
+}
+
+/** Monotonically merges two MetaSaveData objects, preserving highest stars, records, and unlocks. */
+export function mergeMetaSaves(
+  base: MetaSaveData,
+  incoming: MetaSaveData,
+  levelCount: number,
+  levels: readonly LevelDef[] = LEVELS,
+): MetaSaveData {
+  const completedChallenges: Record<string, boolean> = { ...base.completedChallenges };
+  for (const [k, v] of Object.entries(incoming.completedChallenges)) {
+    if (v) completedChallenges[k] = true;
+  }
+  const unlockedAchievements: Record<string, boolean> = { ...base.unlockedAchievements };
+  for (const [k, v] of Object.entries(incoming.unlockedAchievements)) {
+    if (v) unlockedAchievements[k] = true;
+  }
+  const completedDailyDates = [
+    ...new Set([...base.completedDailyDates, ...incoming.completedDailyDates]),
+  ].sort();
+
+  const merged: MetaSaveData = {
+    version: META_SAVE_VERSION,
+    campaign: mergeCampaignProgress(base.campaign, incoming.campaign, levelCount),
+    completedChallenges,
+    unlockedAchievements,
+    achievementMilestones: {
+      wonNoLivesLost:
+        base.achievementMilestones.wonNoLivesLost || incoming.achievementMilestones.wonNoLivesLost,
+      wonAt3xSpeed:
+        base.achievementMilestones.wonAt3xSpeed || incoming.achievementMilestones.wonAt3xSpeed,
+      wonMax6Towers:
+        base.achievementMilestones.wonMax6Towers || incoming.achievementMilestones.wonMax6Towers,
+      bestMutatedEndlessWavesCleared: Math.max(
+        base.achievementMilestones.bestMutatedEndlessWavesCleared,
+        incoming.achievementMilestones.bestMutatedEndlessWavesCleared,
+      ),
+    },
+    stats: {
+      totalPlayTimeSec: Math.max(base.stats.totalPlayTimeSec, incoming.stats.totalPlayTimeSec),
+      gamesPlayed: Math.max(base.stats.gamesPlayed, incoming.stats.gamesPlayed),
+      gamesWon: Math.max(base.stats.gamesWon, incoming.stats.gamesWon),
+      gamesLost: Math.max(base.stats.gamesLost, incoming.stats.gamesLost),
+      wavesCleared: Math.max(base.stats.wavesCleared, incoming.stats.wavesCleared),
+      earlyWavesCalled: Math.max(base.stats.earlyWavesCalled, incoming.stats.earlyWavesCalled),
+      enemiesDefeatedTotal: Math.max(
+        base.stats.enemiesDefeatedTotal,
+        incoming.stats.enemiesDefeatedTotal,
+      ),
+      enemiesDefeatedByType: mergeMaxCountRecords(
+        base.stats.enemiesDefeatedByType,
+        incoming.stats.enemiesDefeatedByType,
+      ),
+      flyingEnemiesDefeated: Math.max(
+        base.stats.flyingEnemiesDefeated,
+        incoming.stats.flyingEnemiesDefeated,
+      ),
+      towersBuiltTotal: Math.max(base.stats.towersBuiltTotal, incoming.stats.towersBuiltTotal),
+      towersBuiltByType: mergeMaxCountRecords(
+        base.stats.towersBuiltByType,
+        incoming.stats.towersBuiltByType,
+      ),
+      towersUpgradedToTier3: Math.max(
+        base.stats.towersUpgradedToTier3,
+        incoming.stats.towersUpgradedToTier3,
+      ),
+      towersUpgradedTotal: Math.max(
+        base.stats.towersUpgradedTotal,
+        incoming.stats.towersUpgradedTotal,
+      ),
+      towersSoldTotal: Math.max(base.stats.towersSoldTotal, incoming.stats.towersSoldTotal),
+      goldEarnedTotal: Math.max(base.stats.goldEarnedTotal, incoming.stats.goldEarnedTotal),
+      goldSpentTotal: Math.max(base.stats.goldSpentTotal, incoming.stats.goldSpentTotal),
+      abilitiesCastTotal: Math.max(base.stats.abilitiesCastTotal, incoming.stats.abilitiesCastTotal),
+      meteorsCast: Math.max(base.stats.meteorsCast, incoming.stats.meteorsCast),
+      overchargesCast: Math.max(base.stats.overchargesCast, incoming.stats.overchargesCast),
+      towersCleansed: Math.max(base.stats.towersCleansed, incoming.stats.towersCleansed),
+      perfectClears: Math.max(base.stats.perfectClears, incoming.stats.perfectClears),
+      bestEndlessWaveOverall: Math.max(
+        base.stats.bestEndlessWaveOverall,
+        incoming.stats.bestEndlessWaveOverall,
+      ),
+      bestEndlessScoreOverall: Math.max(
+        base.stats.bestEndlessScoreOverall,
+        incoming.stats.bestEndlessScoreOverall,
+      ),
+      dailyChallengesCompleted: Math.max(
+        base.stats.dailyChallengesCompleted,
+        incoming.stats.dailyChallengesCompleted,
+        completedDailyDates.length,
+      ),
+    },
+    bestEndlessScoresByLevelId: mergeMaxCountRecords(
+      base.bestEndlessScoresByLevelId,
+      incoming.bestEndlessScoresByLevelId,
+    ),
+    bestLivesByLevelId: mergeMaxCountRecords(base.bestLivesByLevelId, incoming.bestLivesByLevelId),
+    fastestWinSecByLevelId: mergeMinPositiveRecords(
+      base.fastestWinSecByLevelId,
+      incoming.fastestWinSecByLevelId,
+    ),
+    completedDailyDates,
+    dailyBestScores: mergeMaxCountRecords(base.dailyBestScores, incoming.dailyBestScores),
+  };
+
+  return migrateToMetaSave(merged, null, levelCount, levels);
+}
+
+/** Serializes a MetaSaveData snapshot to portable JSON for user backup. */
+export function exportMetaSaveJson(save: MetaSaveData): string {
+  return JSON.stringify(save);
+}
+
+/**
+ * Validates and parses an exported Skyhold Isles v1 or v2 JSON save string.
+ * Rejects malformed or unrelated JSON without mutating existing progress.
+ */
+export function importMetaSaveJson(
+  rawJson: string,
+  currentSave: MetaSaveData | null,
+  levelCount: number,
+  levels: readonly LevelDef[] = LEVELS,
+  mode: 'merge' | 'replace' = 'merge',
+): { ok: true; save: MetaSaveData } | { ok: false; error: string } {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(rawJson);
+  } catch {
+    return { ok: false, error: 'Invalid JSON syntax.' };
+  }
+
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    return { ok: false, error: 'Save payload must be a JSON object.' };
+  }
+
+  const obj = parsed as Record<string, unknown>;
+  const isValidV2 =
+    obj.version === META_SAVE_VERSION &&
+    Boolean(obj.campaign) &&
+    typeof obj.campaign === 'object' &&
+    !Array.isArray(obj.campaign);
+  const isValidV1 = obj.version === undefined && Array.isArray(obj.bestStars);
+
+  if (!isValidV2 && !isValidV1) {
+    return { ok: false, error: 'Unrecognized Skyhold Isles save format.' };
+  }
+
+  const imported = isValidV2
+    ? migrateToMetaSave(obj, null, levelCount, levels)
+    : migrateToMetaSave(null, obj, levelCount, levels);
+
+  if (mode === 'replace' || !currentSave) {
+    return { ok: true, save: imported };
+  }
+  return { ok: true, save: mergeMetaSaves(currentSave, imported, levelCount, levels) };
 }

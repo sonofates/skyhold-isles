@@ -185,11 +185,15 @@ export function loadMetaSave(levelCount: number, levels?: readonly LevelDef[]): 
 
 /**
  * Persists versioned v2 meta save and mirrors campaign progress back to `skyhold_isles_progress_v1`
- * monotonically so legacy/v1 readers always stay synced and never lose progress.
+ * monotonically by default (or directly when `overwriteV1` is true for explicit restore).
  */
-export function saveMetaSave(save: MetaSaveData): void {
+export function saveMetaSave(save: MetaSaveData, overwriteV1 = false): void {
   try {
     localStorage.setItem(META_PROGRESS_KEY, JSON.stringify(save));
+    if (overwriteV1) {
+      localStorage.setItem(PROGRESS_KEY, JSON.stringify(save.campaign));
+      return;
+    }
     const existingV1 = loadProgress(save.campaign.bestStars.length);
     const mergedV1 = mergeCampaignProgress(
       existingV1,

@@ -12,14 +12,18 @@ import {
 } from '../sim/meta/daily.ts';
 import {
   applyTelemetryDeltaToStats,
+  exportMetaSaveJson,
   getAchievements,
+  getAchievementSummary,
   getAllChallengeProgress,
+  getAllIslandMasteryStatuses,
   getChallengeStatus,
   getIslandMasteryStatus,
   getMetaCareerRank,
   getMetaCareerSummary,
   getRecommendedNextGoal,
   getStats,
+  importMetaSaveJson,
   recomputeAchievements,
   recordEndlessRunStats,
   recordRunCompletion,
@@ -37,7 +41,9 @@ import {
 import { evaluateLiveLevelChallenges, RunObserver } from '../sim/meta/runObserver.ts';
 import type {
   AchievementStatus,
+  AchievementSummary,
   AllChallengeProgress,
+  AllIslandMastery,
   DailyChallengeSpec,
   DailyStatus,
   EndlessMutatorRoll,
@@ -62,7 +68,7 @@ import { getTodayUtcDateString, loadMetaSave, saveMetaSave } from './storage.ts'
 export interface MetaSessionOptions {
   readonly levels?: readonly LevelDef[];
   readonly saveData?: MetaSaveData;
-  readonly onSave?: (save: MetaSaveData) => void;
+  readonly onSave?: (save: MetaSaveData, overwriteV1?: boolean) => void;
   readonly getTodayDate?: () => string;
 }
 
@@ -73,7 +79,7 @@ export interface MetaSessionOptions {
 export class MetaSession {
   private readonly levels: readonly LevelDef[];
   private readonly save: MetaSaveData;
-  private readonly persistFn: (save: MetaSaveData) => void;
+  private readonly persistFn: (save: MetaSaveData, overwriteV1?: boolean) => void;
   private readonly getTodayDateFn: () => string;
 
   private observer: RunObserver | null = null;
@@ -270,8 +276,8 @@ export class MetaSession {
     this.unsubs.length = 0;
   }
 
-  private persist(): void {
-    this.persistFn(this.save);
+  private persist(overwriteV1 = false): void {
+    this.persistFn(this.save, overwriteV1);
   }
 
   dispose(): void {
@@ -290,6 +296,10 @@ export class MetaSession {
 
   getAchievements(): readonly AchievementStatus[] {
     return getAchievements(this.save);
+  }
+
+  getAchievementSummary(): AchievementSummary {
+    return getAchievementSummary(this.save);
   }
 
   getStats(): LifetimeStats {
@@ -386,6 +396,10 @@ export class MetaSession {
     return getIslandMasteryStatus(this.save, levelIndex, this.levels);
   }
 
+  getAllIslandMasteryStatuses(): AllIslandMastery {
+    return getAllIslandMasteryStatuses(this.save, this.levels);
+  }
+
   getMetaCareerRank(): MetaCareerRank {
     return getMetaCareerRank(this.save, this.levels);
   }
@@ -412,5 +426,49 @@ export class MetaSession {
 
   getLastRunOutcome(): RunMetaOutcome | null {
     return this.lastRunOutcome;
+  }
+
+  exportSaveJson(): string {
+    return exportMetaSaveJson(this.save);
+  }
+
+  importSaveJson(
+    rawJson: string,
+    mode: 'merge' | 'replace' = 'merge',
+  ): { ok: true } | { ok: false; error: string } {
+    const res = importMetaSaveJson(
+      rawJson,
+      this.save,
+      this.levels.length,
+      this.levels,
+      mode,
+    );
+    if (!res.ok) return res;
+
+    const next = res.save;
+    // Preserve campaign object/array references held by GameSession.progress
+    this.save.campaign.unlockedLevelIndex = next.campaign.unlockedLevelIndex;
+    this.save.campaign.bestStars.splice(
+      0,
+      this.save.campaign.bestStars.length,
+      ...next.campaign.bestStars,
+    );
+    this.save.campaign.bestEndlessWaves.splice(
+      0,
+      this.save.campaign.bestEndlessWaves.length,
+      ...next.campaign.bestEndlessWaves,
+    );
+    this.save.completedChallenges = next.completedChallenges;
+    this.save.unlockedAchievements = next.unlockedAchievements;
+    this.save.achievementMilestones = next.achievementMilestones;
+    this.save.stats = next.stats;
+    this.save.bestEndlessScoresByLevelId = next.bestEndlessScoresByLevelId;
+    this.save.bestLivesByLevelId = next.bestLivesByLevelId;
+    this.save.fastestWinSecByLevelId = next.fastestWinSecByLevelId;
+    this.save.completedDailyDates = next.completedDailyDates;
+    this.save.dailyBestScores = next.dailyBestScores;
+
+    this.persist(mode === 'replace');
+    return { ok: true };
   }
 }

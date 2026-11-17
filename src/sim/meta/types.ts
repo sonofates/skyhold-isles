@@ -200,6 +200,25 @@ export interface IslandMasteryStatus {
   readonly mastered: boolean;
 }
 
+export interface AllIslandMastery {
+  readonly masteredCount: number;
+  readonly totalIslands: number;
+  readonly islands: readonly IslandMasteryStatus[];
+}
+
+export interface AchievementCategorySummary {
+  readonly category: AchievementCategory;
+  readonly unlocked: number;
+  readonly total: number;
+}
+
+export interface AchievementSummary {
+  readonly unlockedCount: number;
+  readonly totalCount: number;
+  readonly completionRatio: number;
+  readonly byCategory: readonly AchievementCategorySummary[];
+}
+
 export interface MetaCareerRank {
   readonly rankIndex: number;
   readonly title: string;

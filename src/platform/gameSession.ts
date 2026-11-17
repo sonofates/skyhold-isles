@@ -16,7 +16,9 @@ import { getTowerPickHeight } from '../render/towerPicking.ts';
 import { isTowerTypeAllowed } from '../sim/meta/modifiers.ts';
 import type {
   AchievementStatus,
+  AchievementSummary,
   AllChallengeProgress,
+  AllIslandMastery,
   DailyChallengeSpec,
   DailyStatus,
   EndlessMutatorRoll,
@@ -492,6 +494,10 @@ export class GameSession {
     return this.meta.getAchievements();
   }
 
+  getAchievementSummary(): AchievementSummary {
+    return this.meta.getAchievementSummary();
+  }
+
   getStats(): LifetimeStats {
     return this.meta.getStats();
   }
@@ -544,6 +550,10 @@ export class GameSession {
     return this.meta.getIslandMasteryStatus(levelIndex);
   }
 
+  getAllIslandMasteryStatuses(): AllIslandMastery {
+    return this.meta.getAllIslandMasteryStatuses();
+  }
+
   getMetaCareerRank(): MetaCareerRank {
     return this.meta.getMetaCareerRank();
   }
@@ -574,6 +584,17 @@ export class GameSession {
 
   getMutatorPresetRoll(presetId: string): EndlessMutatorRoll | null {
     return this.meta.getMutatorPresetRoll(presetId);
+  }
+
+  exportMetaSaveJson(): string {
+    return this.meta.exportSaveJson();
+  }
+
+  importMetaSaveJson(
+    rawJson: string,
+    mode: 'merge' | 'replace' = 'merge',
+  ): { ok: true } | { ok: false; error: string } {
+    return this.meta.importSaveJson(rawJson, mode);
   }
 
   openSettingsModal(origin: SettingsOrigin): void {
