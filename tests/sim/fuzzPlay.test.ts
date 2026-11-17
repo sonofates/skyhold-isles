@@ -75,6 +75,22 @@ describe('headless fuzz playthrough harness', () => {
       expect(runA.digest.stateHash).toBeGreaterThan(0);
       expect(digestsEqual(runA.digest, runB.digest)).toBe(true);
       expect(digestsEqual(runA.digest, { ...runB.digest, stateHash: runB.digest.stateHash ^ 1 })).toBe(false);
+      expect(digestsEqual(runA.digest, { ...runB.digest, ticks: runB.digest.ticks + 1 })).toBe(false);
+      expect(digestsEqual(runA.digest, { ...runB.digest, gold: runB.digest.gold + 1 })).toBe(false);
+      expect(digestsEqual(runA.digest, { ...runB.digest, lives: runB.digest.lives + 1 })).toBe(false);
+      expect(digestsEqual(runA.digest, { ...runB.digest, spawnedCount: runB.digest.spawnedCount + 1 })).toBe(false);
+      expect(digestsEqual(runA.digest, { ...runB.digest, killedCount: runB.digest.killedCount + 1 })).toBe(false);
+      expect(digestsEqual(runA.digest, { ...runB.digest, leakedCount: runB.digest.leakedCount + 1 })).toBe(false);
+      expect(digestsEqual(runA.digest, { ...runB.digest, towerCount: runB.digest.towerCount + 1 })).toBe(false);
+      expect(
+        digestsEqual(runA.digest, { ...runB.digest, endlessWavesCompleted: runB.digest.endlessWavesCompleted + 1 }),
+      ).toBe(false);
+      expect(
+        digestsEqual(runA.digest, {
+          ...runB.digest,
+          finalOutcome: runB.digest.finalOutcome === 'won' ? 'lost' : 'won',
+        }),
+      ).toBe(false);
     }
 
     expect(parseFuzzCliArgs([])).toEqual({

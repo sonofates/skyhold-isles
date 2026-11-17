@@ -311,8 +311,18 @@ function attachEventTracker(
       recordEventError(tracker, `enemyKilled fired twice for uid: ${ev.enemyId}`);
       return;
     }
-    if (!Number.isFinite(ev.x) || !Number.isFinite(ev.y) || !Number.isFinite(ev.z)) {
-      recordEventError(tracker, `Non-finite enemyKilled coordinates for uid=${ev.enemyId}`);
+    const killedDef = ENEMY_DEFS[ev.enemyType];
+    const expectedKillY = (killedDef.flying ? BALANCE.flyerHeight : BALANCE.tilePathTopY) + killedDef.height * 0.6;
+    if (
+      !Number.isFinite(ev.x) ||
+      !Number.isFinite(ev.y) ||
+      !Number.isFinite(ev.z) ||
+      Math.abs(ev.y - expectedKillY) > 1e-5
+    ) {
+      recordEventError(
+        tracker,
+        `Invalid enemyKilled coordinates/y=${ev.y} (expected=${expectedKillY}) for uid=${ev.enemyId}`,
+      );
       return;
     }
     const maxAllowedReward = Math.max(ENEMY_DEFS[ev.enemyType].reward, 2);
@@ -379,8 +389,17 @@ function attachEventTracker(
     if (!tracker.killedSplitterUids.has(ev.parentUid)) {
       recordEventError(tracker, `enemySplit fired before splitter enemyKilled for parentUid=${ev.parentUid}`);
     }
-    if (!Number.isFinite(ev.x) || !Number.isFinite(ev.y) || !Number.isFinite(ev.z)) {
-      recordEventError(tracker, `Non-finite enemySplit coordinates for parentUid=${ev.parentUid}`);
+    const expectedSplitY = (ENEMY_DEFS.splitter.flying ? BALANCE.flyerHeight : BALANCE.tilePathTopY) + 0.4;
+    if (
+      !Number.isFinite(ev.x) ||
+      !Number.isFinite(ev.y) ||
+      !Number.isFinite(ev.z) ||
+      Math.abs(ev.y - expectedSplitY) > 1e-5
+    ) {
+      recordEventError(
+        tracker,
+        `Invalid enemySplit coordinates/y=${ev.y} (expected=${expectedSplitY}) for parentUid=${ev.parentUid}`,
+      );
     }
     tracker.splitterSplitCount++;
     tracker.stateHash = mixHash(mixHash(tracker.stateHash, 4), ev.parentUid);
@@ -600,6 +619,15 @@ function attachEventTracker(
       recordEventError(tracker, `Non-finite towerBuilt coordinates for id=${ev.towerId}`);
       return;
     }
+    const tier1Cost = getTowerTierStats(ev.type, 1).upgradeCost;
+    if (
+      liveBuilt.popAnimTimer !== 0.32 ||
+      liveBuilt.cooldownTimer !== 0.15 ||
+      liveBuilt.totalInvested !== tier1Cost
+    ) {
+      recordEventError(tracker, `towerBuilt live state mismatch for id=${ev.towerId}`);
+      return;
+    }
     tracker.builtTowerIds.add(ev.towerId);
     tracker.towerById.set(ev.towerId, liveBuilt);
     tracker.everBuiltTowerIds.add(ev.towerId);
@@ -629,15 +657,26 @@ function attachEventTracker(
       recordEventError(tracker, `Non-finite towerUpgraded coordinates for id=${ev.towerId}`);
       return;
     }
+    if (
+      liveUpgraded.popAnimTimer !== 0.32 ||
+      liveUpgraded.totalInvested !== expectedTowerInvestment(ev.type, ev.tier)
+    ) {
+      recordEventError(tracker, `towerUpgraded live state mismatch for id=${ev.towerId} tier=${ev.tier}`);
+      return;
+    }
     tracker.maxTierReached = Math.max(tracker.maxTierReached, ev.tier);
     tracker.stateHash = mixHash(mixHash(mixHash(tracker.stateHash, 13), ev.towerId), ev.tier);
   });
 
   events.on('towerSold', (ev) => {
+    const soldTower = tracker.towerById.get(ev.towerId);
     if (
+      !soldTower ||
       !tracker.builtTowerIds.has(ev.towerId) ||
+      ev.type !== soldTower.type ||
       !Number.isInteger(ev.refund) ||
       ev.refund <= 0 ||
+      ev.refund !== computeSellRefund(soldTower.totalInvested) ||
       world.getTowerById(ev.towerId) !== null
     ) {
       recordEventError(tracker, `Invalid towerSold payload id=${ev.towerId} refund=${ev.refund}`);
@@ -645,6 +684,16 @@ function attachEventTracker(
     }
     if (!Number.isFinite(ev.x) || !Number.isFinite(ev.z)) {
       recordEventError(tracker, `Non-finite towerSold coordinates for id=${ev.towerId}`);
+      return;
+    }
+    const soldCoord = world.grid.worldToGrid(ev.x, ev.z);
+    if (
+      !soldCoord ||
+      soldCoord.col !== soldTower.col ||
+      soldCoord.row !== soldTower.row ||
+      world.grid.getTowerIdAt(soldCoord.col, soldCoord.row) !== -1
+    ) {
+      recordEventError(tracker, `towerSold grid tile not cleared for id=${ev.towerId}`);
       return;
     }
     tracker.builtTowerIds.delete(ev.towerId);
@@ -831,8 +880,14 @@ function attachEventTracker(
   });
 
   events.on('meteorImpact', (ev) => {
-    if (!Number.isFinite(ev.x) || !Number.isFinite(ev.y) || !Number.isFinite(ev.z) || ev.radius <= 0) {
-      recordEventError(tracker, `Invalid meteorImpact payload`);
+    if (
+      !Number.isFinite(ev.x) ||
+      !Number.isFinite(ev.y) ||
+      !Number.isFinite(ev.z) ||
+      ev.y !== 0.25 ||
+      Math.abs(ev.radius - ABILITY_DEFS.meteor.radius) > 1e-6
+    ) {
+      recordEventError(tracker, `Invalid meteorImpact payload y=${ev.y}, r=${ev.radius}`);
       return;
     }
     tracker.stateHash = mixHash(mixHash(tracker.stateHash, 16), Math.round(ev.x * 100));
@@ -951,12 +1006,12 @@ function attachEventTracker(
     }
     tracker.lastWaveHpScale = hpScale;
     const rewardMult = world.waveSystem.getRewardMultiplier();
-    if (inEndless()) {
-      if (!Number.isFinite(rewardMult) || rewardMult < 0.32 - 1e-9 || rewardMult > 1 + 1e-9) {
-        recordEventError(tracker, `Endless rewardMultiplier out of [0.32, 1]: ${rewardMult}`);
-      }
-    } else if (rewardMult !== 1) {
-      recordEventError(tracker, `Story rewardMultiplier expected 1, got ${rewardMult}`);
+    const expectedRewardMult =
+      ev.waveIndex < world.level.waves.length
+        ? 1
+        : Math.max(0.32, 1 / (1 + (ev.waveIndex - world.level.waves.length + 1) * 0.14));
+    if (!Number.isFinite(rewardMult) || Math.abs(rewardMult - expectedRewardMult) > 1e-9) {
+      recordEventError(tracker, `waveStarted rewardMultiplier=${rewardMult} != expected=${expectedRewardMult}`);
     }
     const waveDef =
       ev.waveIndex < world.level.waves.length
@@ -1258,6 +1313,31 @@ function assertTickInvariants(world: SimWorld, tracker: FuzzTracker, tick: numbe
     }
     if (!matchesTierStats) {
       return `Projectile stats for ${p.towerType} (dmg=${p.damage}, splash=${p.splashRadius}, speed=${p.speed}) match no tier`;
+    }
+    const expectedStartY = TOWER_DEFS[p.towerType].turretHeight + 0.15;
+    if (Math.abs(p.startY - expectedStartY) > 1e-6) {
+      return `Projectile startY=${p.startY} != expected=${expectedStartY} for ${p.towerType}`;
+    }
+    const srcTower = tracker.towerById.get(p.towerId);
+    if (
+      srcTower &&
+      (srcTower.type !== p.towerType ||
+        Math.abs(p.startX - srcTower.x) > 1e-6 ||
+        Math.abs(p.startZ - srcTower.z) > 1e-6)
+    ) {
+      return `Projectile start origin drifted from live source tower id=${p.towerId}`;
+    }
+    const projT = Math.min(1, p.progress);
+    const expProjX = p.startX + (p.endX - p.startX) * projT;
+    const expProjZ = p.startZ + (p.endZ - p.startZ) * projT;
+    const expProjY =
+      p.startY + (p.endY - p.startY) * projT + (p.parabolic ? 4 * p.arcHeight * projT * (1 - projT) : 0);
+    if (
+      Math.abs(p.x - expProjX) > 1e-5 ||
+      Math.abs(p.y - expProjY) > 1e-5 ||
+      Math.abs(p.z - expProjZ) > 1e-5
+    ) {
+      return `Projectile (${p.x},${p.y},${p.z}) diverged from parametric curve (${expProjX},${expProjY},${expProjZ}) at progress=${p.progress}`;
     }
   }
 

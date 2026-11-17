@@ -50,9 +50,19 @@ describe('QA scripts smoke verification', () => {
     expect(res.towerCount).toBe(15);
     expect(res.totalTicks).toBe(20);
     expect(res.ticksPerSec).toBeGreaterThan(180);
+    expect(res.meetsSoftBudget).toBe(true);
     expect(Number.isFinite(res.msPerTick)).toBe(true);
     expect(Number.isFinite(res.simMsAt3xFrame)).toBe(true);
     expect(res.peakProjectiles).toBeGreaterThanOrEqual(0);
+
+    const missedBudget = runSimBenchScenario(
+      level,
+      { enemyCount: 30, towerCount: 10, softBudgetTicksPerSec: 1e12 },
+      1,
+      5,
+    );
+    expect(missedBudget.ticksPerSec).toBeGreaterThan(0);
+    expect(missedBudget.meetsSoftBudget).toBe(false);
   });
 
   it('runs balanceSim exported runLevelBalanceSim cleanly on Level 1 greedy order', () => {
@@ -302,18 +312,29 @@ describe('QA scripts smoke verification', () => {
     expect(endlessOnlyJson.digest.endlessWavesCompleted).toBe(1);
   });
 
-  it('executes simBench --strict --json CLI entrypoint cleanly', { timeout: 30_000 }, () => {
-    const benchJsonProc = runTsx(['scripts/simBench.ts', '--strict', '--json']);
+  it('executes simBench --json CLI entrypoint cleanly', { timeout: 30_000 }, () => {
+    // Keep parallel Vitest checks on the 180 Hz hard floor (no --strict soft desktop
+    // budget assertion under heavy multi-worker CPU contention); npm run sim:bench / ci -- --full run uncontended.
+    const benchJsonProc = runTsx(['scripts/simBench.ts', '--json']);
     expect(benchJsonProc.status, benchJsonProc.stderr).toBe(0);
     const benchJson = JSON.parse(benchJsonProc.stdout) as {
       levelId: string;
       hardFloorTicksPerSec: number;
       passed: boolean;
-      results: Array<{ enemyCount: number; towerCount: number; ticksPerSec: number }>;
+      results: Array<{
+        enemyCount: number;
+        towerCount: number;
+        ticksPerSec: number;
+        meetsSoftBudget: boolean;
+      }>;
     };
     expect(benchJson.hardFloorTicksPerSec).toBe(180);
     expect(benchJson.passed).toBe(true);
     expect(benchJson.results.map((r) => r.enemyCount)).toEqual([100, 250, 360]);
-    expect(benchJson.results.every((r) => r.towerCount === 40 && r.ticksPerSec > 180)).toBe(true);
+    expect(
+      benchJson.results.every(
+        (r) => r.towerCount === 40 && r.ticksPerSec > 180 && typeof r.meetsSoftBudget === 'boolean',
+      ),
+    ).toBe(true);
   });
 });

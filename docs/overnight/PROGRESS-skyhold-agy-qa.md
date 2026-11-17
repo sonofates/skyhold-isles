@@ -3,6 +3,10 @@
 Branch: `hermes/skyhold-agy-qa` (base: `main` at `cfb9330`)
 
 ## Done
+- Strict Turn 20 hardening in `scripts/fuzzPlay.ts`, `tests/sim/fuzzPlay.test.ts`, and `tests/sim/qaScriptsSmoke.test.ts` (`npm test` verified: 31 files / 191 tests in 33.23s):
+  - `scripts/fuzzPlay.ts`: added `enemyKilled` (`y === laneY + def.height * 0.6`), `enemySplit` (`y === laneY + 0.4`), `meteorImpact` (`y === 0.25 && radius === ABILITY_DEFS.meteor.radius`), `towerBuilt`/`towerUpgraded` (`popAnimTimer === 0.32`, `cooldownTimer === 0.15`, `totalInvested`), `towerSold` (`ev.type`, `computeSellRefund(soldTower.totalInvested)`, grid `-1` clearance & coordinate parity), `waveStarted` exact `getRewardMultiplier()` formula parity, and active-projectile `startY` (`turretHeight + 0.15`), live source-tower origin parity, plus exact parametric `(x, y, z)` trajectory parity at `t = Math.min(1, p.progress)` in `assertTickInvariants`.
+  - `tests/sim/fuzzPlay.test.ts`: extended `digestsEqual` sensitivity checks across `ticks`, `gold`, `lives`, `spawnedCount`, `killedCount`, `leakedCount`, `towerCount`, `endlessWavesCompleted`, and `finalOutcome`.
+  - `tests/sim/qaScriptsSmoke.test.ts`: de-flaked the Vitest `simBench.ts` CLI smoke test under parallel-worker / coverage CPU contention by invoking `simBench.ts --json` (retaining the 180 Hz hard-floor `passed: true` assertion inside parallel Vitest while leaving `--strict` desktop soft-budget gating to uncontended standalone `npm run sim:bench` / `npm run ci -- --full`), and added deterministic `meetsSoftBudget` (`true` and impossible-budget `false`) unit assertions on `runSimBenchScenario`.
 - **CI runner (`npm run ci`, `scripts/ci.ts`)**:
   - Runs `npx tsc --noEmit`, `npm run lint`, `npm test`, `npm run sim:balance`, and `npm run build` sequentially with per-step timing and a clear PASS/FAIL summary table.
   - Strictly validates flags via exported `parseCiCliArgs` (`--fail-fast`, `--full`, `--help`/`-h`; rejects unknown flags/positional args).
@@ -60,6 +64,7 @@ Branch: `hermes/skyhold-agy-qa` (base: `main` at `cfb9330`)
 - After ENEMIES / TOWERS / ISLANDS / PERF / META / UI branches merge into `main`, run `npm run ci -- --full`:
   - `tests/data/contentContracts.test.ts`, `scripts/fuzzPlay.ts`, and `scripts/simBench.ts` automatically cover newly registered enemies, towers, and islands.
   - Note: `tests/sim/waves.test.ts` line 305 currently asserts `expect(LEVELS.length).toBe(9)` (existing baseline test; update after new islands merge).
+  - Merge reminder for TOWERS (`src/ui/buildBar.ts` lines 38–44): `shortNames: Record<TowerType, string>` hardcodes the 5 tower keys alongside `TOWER_ICON_SVGS`.
 - Consider extending `tsconfig.json` (or adding `tsconfig.scripts.json`) if the team wants `tsc --noEmit` to typecheck `tests/**` and `scripts/**` in CI too (currently blocked by missing `@types/node` and un-exported `ScriptedBuildAction` in `src/data/levels/index.ts`).
 
 ## Decisions
@@ -78,6 +83,8 @@ Branch: `hermes/skyhold-agy-qa` (base: `main` at `cfb9330`)
 - `src/sim/enemySystem.ts` (`lines 230–241`) & `src/sim/world.ts` (`lines 355–365`): `onLeak(e)` executes before `this.events.emit('enemyLeaked', ...)`, so a fatal leak emits `gameLost` before its own `enemyLeaked`, and any extra same-tick leakers emit `economyChanged` + `enemyLeaked` after `gameLost` (`gameLost` still fires once and `lives` remains clamped at `0`).
 - `src/ui/tooltip.ts` (`lines 43, 63`): `Math.min(window.innerWidth - 190, clientX + offsetX)` (and `- 260` in `showTower`) lacks a lower-bound `Math.max(..., ...)` clamp, allowing negative `left` coordinates on narrow viewports (`< 260px`) or negative offsets (left untouched in `src/ui/**`).
 - `src/sim/waveSystem.ts` (`lines 331–342`): `skipToWave(waveOneBased)` computes `Math.max(0, Math.floor(waveOneBased) - 1)` without a `Number.isFinite` guard (`NaN` yields `clampedIdx = NaN`; `Infinity` in endless yields `clampedIdx = Infinity`), causing `startNextWave` to advance with a non-finite `currentWaveIndex`.
+- `src/platform/gameSession.ts` (`lines 219–225`): `syncFlightPathHighlight()` checks `ws.state === 'spawning' || ws.state === 'clearing'`, omitting `ws.state === 'allSpawned'`, so on an island's final story wave (`nextPreview === null`) the aerial flight-path highlight turns off as soon as the final wave finishes spawning while flyers may still be airborne.
+- `src/ui/buildBar.ts` (`lines 38–44`): `shortNames: Record<TowerType, string>` hardcodes the 5 base tower keys (reminder for TOWERS merges alongside `TOWER_ICON_SVGS` in `src/ui/icons.ts`).
 
 ## Cross-area Changes
 - `src/core/gameLoop.ts`: 1-line isolated `Number.isNaN(rawDt)` guard in `FixedTimestepStepper.step` (prevents `NaN` dt from poisoning `elapsedVisualTime` and `alpha`, covered in `tests/core/gameLoop.test.ts`).
