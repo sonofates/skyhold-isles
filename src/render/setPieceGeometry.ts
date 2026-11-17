@@ -12,7 +12,7 @@ import { cabin, cairn, fountain, hut, lamp, parasol, pond, sheep, stall, statue,
  * 1 tile = BALANCE.tileSize (2) units. Builders only append parts; SetPieces merges and instances them.
  */
 
-export type AnimFamily = 'blades' | 'cloth' | 'flow' | 'boat' | 'sail' | 'kite' | 'sock' | 'flame' | 'ember';
+export type AnimFamily = 'blades' | 'cloth' | 'flow' | 'boat' | 'sail' | 'kite' | 'sock' | 'flame' | 'ember' | 'leap';
 
 export interface AnimInstance {
   readonly family: AnimFamily;
@@ -371,6 +371,12 @@ function dock(pb: PieceBuilder, variant: number): void {
   pb.cyl(0xe9d3a6, 0.1, 0.1, 0.05, [0.2, 0.06, 0.95], 8);
 }
 
+/** A fish that periodically leaps out of the water along local +Z (variant offsets timing and picks the colour). */
+function fish(pb: PieceBuilder, variant: number): void {
+  const colors = [0xff9b54, 0xf8f4e8, 0x5be3ff, 0xf6bd41];
+  pb.anim('leap', 0, BALANCE.waterPlaneY, 0, variant * 1.3, variant * 0.37 + 0.11, colors[variant % colors.length]);
+}
+
 function boat(pb: PieceBuilder, variant: number): void {
   pb.anim('boat', 0, BALANCE.waterPlaneY + 0.02, 0, 0, variant * 2.1);
 }
@@ -510,6 +516,7 @@ const BUILDERS: Record<SetPieceKind, (pb: PieceBuilder, variant: number) => void
   seaStack,
   peak,
   boat,
+  fish,
   sailboat,
   kite,
   windsock,

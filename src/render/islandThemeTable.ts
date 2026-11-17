@@ -94,6 +94,8 @@ const TWIN_BRIDGE_CAY = theme({
     { kind: 'lamp', col: 11, row: 2, variant: 1 },
     { kind: 'stall', col: 3, row: 10, variant: 1 },
     { kind: 'boat', col: 7.5, row: 5.5, variant: 1 },
+    { kind: 'fish', col: 7.5, row: 1.4, variant: 0 },
+    { kind: 'fish', col: 11.5, row: 10.8, variant: 2 },
     { kind: 'cottage', col: 5, row: 2, yaw: 0.2, variant: 1 },
   ],
 });
@@ -292,6 +294,9 @@ const CRESCENT_LAGOON = theme({
     { kind: 'lighthouse', col: 5.2, row: 5.6 },
     { kind: 'sailboat', col: 5.6, row: 6, variant: 0 },
     { kind: 'boat', col: 7.4, row: 4.5, variant: 1 },
+    { kind: 'fish', col: 6.6, row: 7.3, variant: 0 },
+    { kind: 'fish', col: 5.5, row: 4.2, variant: 3 },
+    { kind: 'fish', col: 3, row: 10.5, variant: 1 },
     { kind: 'dock', col: 1, row: 5, yaw: -Math.PI / 2, variant: 0 },
     { kind: 'dock', col: 15, row: 5, yaw: Math.PI / 2, variant: 1 },
     { kind: 'dock', col: 2, row: 8, yaw: 0, variant: 1 },

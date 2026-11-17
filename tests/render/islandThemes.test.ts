@@ -89,6 +89,19 @@ describe('island themes', () => {
         }
       });
 
+      it('keeps leaping fish over open water', () => {
+        for (const p of theme.setPieces) {
+          if (p.kind !== 'fish') continue;
+          for (let k = 0; k < 8; k++) {
+            const a = (k / 8) * Math.PI * 2;
+            const c = Math.round(p.col + Math.cos(a) * 0.7);
+            const r = Math.round(p.row + Math.sin(a) * 0.7);
+            const tile = grid[r]?.[c];
+            expect(tile === undefined || tile === 'empty', `fish at ${p.col},${p.row} leaps over ${tile} at ${c},${r}`).toBe(true);
+          }
+        }
+      });
+
       it('builds within the draw-call budget and disposes cleanly', () => {
         const materials = stubMaterials();
         const assets = stubAssets();

@@ -45,6 +45,7 @@ const KIND_SCALE: Record<SetPieceKind, number> = {
   seaStack: 1.2,
   peak: 1.3,
   boat: 1.2,
+  fish: 1.2,
   sailboat: 1.2,
   kite: 1.3,
   windsock: 1.3,
@@ -167,6 +168,14 @@ function familyGeometry(family: AnimFamily): THREE.BufferGeometry {
     case 'ember':
       parts = [{ geometry: box(0.045, 0.045, 0.045), colorHex: 0xffffff, forceWhiteUv: true }];
       break;
+    case 'leap':
+      // Little fish pointing along +Z: tinted body + lighter belly, wedge tail.
+      parts = [
+        { geometry: box(0.1, 0.12, 0.3), colorHex: 0xffffff, forceWhiteUv: true },
+        { geometry: box(0.08, 0.04, 0.26), colorHex: 0xf8f4e8, position: [0, -0.06, 0], forceWhiteUv: true },
+        { geometry: box(0.025, 0.14, 0.1), colorHex: 0xffffff, position: [0, 0, -0.2], rotation: [0.3, 0, 0], forceWhiteUv: true },
+      ];
+      break;
     case 'flame':
       parts = [
         {
@@ -265,7 +274,7 @@ export class SetPieces {
       const geo = familyGeometry(family);
       this.disposableGeometries.push(geo);
       const mesh = new THREE.InstancedMesh(geo, materials.kenneyTerrain, entry.bases.length);
-      mesh.castShadow = family !== 'flow' && family !== 'ember';
+      mesh.castShadow = family !== 'flow' && family !== 'ember' && family !== 'leap';
       mesh.receiveShadow = false;
       mesh.frustumCulled = false;
       for (let i = 0; i < entry.bases.length; i++) {
@@ -356,6 +365,24 @@ export class SetPieces {
               _q.setFromEuler(_e.set(frac * 4, frac * 6, 0)),
               _s.set(sc, sc, sc),
             );
+            _m.multiplyMatrices(base, _m2);
+            break;
+          }
+          case 'leap': {
+            // One arc every ~6 s (per-fish offset); hidden under the surface in between.
+            const period = 5.5 + (ph % 1) * 2;
+            const frac = ((t + ph * 3.7) % period) / period;
+            const u = frac / 0.1;
+            if (u >= 1) {
+              _m2.makeScale(0, 0, 0);
+            } else {
+              const arc = 4 * u * (1 - u);
+              _m2.compose(
+                _p.set(0, arc * 0.5, (u - 0.5) * 0.9),
+                _q.setFromEuler(_e.set((u - 0.5) * 2.2, 0, 0)),
+                _s.set(1, 1, 1),
+              );
+            }
             _m.multiplyMatrices(base, _m2);
             break;
           }
