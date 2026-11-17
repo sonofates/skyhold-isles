@@ -72,7 +72,9 @@ export function selectEndlessMutators(
   catalog: readonly MutatorDef[] = ENDLESS_MUTATORS,
 ): EndlessMutatorRoll {
   const normalizedSeed = normalizeSeed(seed);
-  const targetCount = Math.max(0, Math.min(catalog.length, Math.floor(count)));
+  const targetCount = Number.isFinite(count)
+    ? Math.max(0, Math.min(catalog.length, Math.floor(count)))
+    : Math.min(2, catalog.length);
   const rng = new SeededRng(normalizedSeed);
 
   // Fisher-Yates shuffle on a shallow copy so selection is uniform and deterministic

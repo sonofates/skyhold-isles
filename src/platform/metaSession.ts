@@ -371,7 +371,7 @@ export class MetaSession {
   }
 
   getActiveDailyChallenge(): DailyChallengeSpec | null {
-    if (!this.activeDailyDate) return null;
+    if (!this.activeDailyDate || this.observer?.getTelemetry().endlessEntered) return null;
     return generateDailyChallenge(this.activeDailyDate, this.levels);
   }
 

@@ -571,5 +571,8 @@ describe('Daily challenge pure date-seeded generator', () => {
       start.setUTCDate(start.getUTCDate() + 1);
     }
     expect(seenExpanded.size).toBe(2);
+
+    expect(selectEndlessMutators('nan-safe', Number.NaN).mutators).toHaveLength(2);
+    expect(getRecentDailySpecs('2026-11-17', Number.NaN)).toHaveLength(7);
   });
 });

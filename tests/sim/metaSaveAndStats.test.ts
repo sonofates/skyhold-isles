@@ -811,9 +811,11 @@ describe('MetaSession stats, achievements, challenges & daily persistence', () =
       'not-a-date': 9999,
     };
     messyV2.bestMutatedScoresByLevelId = { 'sunlit-meadow': 420 };
+    messyV2.fastestWinSecByLevelId = { 'twin-bridge-cay': 0.02 };
     const cleaned = migrateToMetaSave(messyV2, null, 9, LEVELS);
     expect(cleaned.dailyBestScores).toEqual({ '2026-11-16': 1200 });
     expect(cleaned.bestMutatedScoresByLevelId['sunlit-meadow']).toBe(420);
+    expect(cleaned.fastestWinSecByLevelId['twin-bridge-cay']).toBe(0.1);
 
     // 2. Mutated non-daily story win records mutatedScore & preserves fastestWinSec fairness
     const tinyLevel: LevelDef = {
@@ -1089,11 +1091,13 @@ describe('MetaSession stats, achievements, challenges & daily persistence', () =
       dailyWorld.fixedTick(BALANCE.fixedDt);
     }
     expect(dailyWorld.outcome).toBe('won');
+    expect(dailyMeta.getActiveDailyChallenge()?.date).toBe('2026-11-17');
     const savedDailyBest = dailyMeta.getDailyStatus('2026-11-17').bestScoreToday;
     expect(savedDailyBest).toBeGreaterThan(0);
 
     expect(dailyWorld.enterEndlessMode()).toBe(true);
     dailyMeta.onEndlessEntered();
+    expect(dailyMeta.getActiveDailyChallenge()).toBeNull();
     expect(dailyMeta.getLiveChallengeStates(dailyWorld.lives, dailyWorld.outcome)).toEqual([]);
     dailyWorld.startNextWave();
     dailyEv.emit('enemyKilled', { enemyId: 777, enemyType: 'grunt', reward: 4, x: 0, y: 0, z: 0 });

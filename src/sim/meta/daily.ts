@@ -251,12 +251,14 @@ function dateStringToEpochDay(dateStr: string): number | null {
   const year = Number(match[1]);
   const month = Number(match[2]);
   const day = Number(match[3]);
-  return Math.floor(Date.UTC(year, month - 1, day) / 86_400_000);
+  const dt = new Date(0);
+  dt.setUTCFullYear(year, month - 1, day);
+  return Math.floor(dt.getTime() / 86_400_000);
 }
 
 function epochDayToDateString(epochDay: number): string {
   const dt = new Date(epochDay * 86_400_000);
-  const y = dt.getUTCFullYear();
+  const y = String(dt.getUTCFullYear()).padStart(4, '0');
   const m = String(dt.getUTCMonth() + 1).padStart(2, '0');
   const d = String(dt.getUTCDate()).padStart(2, '0');
   return `${y}-${m}-${d}`;
@@ -276,7 +278,7 @@ export function getRecentDailySpecs(
   if (endDay === null) {
     throw new RangeError(`Invalid daily challenge date "${endDateStr}": expected YYYY-MM-DD.`);
   }
-  const clampedDays = Math.max(1, Math.min(31, Math.floor(days)));
+  const clampedDays = Number.isFinite(days) ? Math.max(1, Math.min(31, Math.floor(days))) : 7;
   const specs: DailyChallengeSpec[] = [];
   for (let offset = clampedDays - 1; offset >= 0; offset--) {
     const ds = epochDayToDateString(endDay - offset);

@@ -96,7 +96,7 @@ function sanitizePositiveFloatRecord(raw: unknown): Record<string, number> {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return out;
   for (const [key, val] of Object.entries(raw as Record<string, unknown>)) {
     if (typeof val === 'number' && Number.isFinite(val) && val > 0) {
-      out[key] = +val.toFixed(1);
+      out[key] = Math.max(0.1, +val.toFixed(1));
     }
   }
   return out;
