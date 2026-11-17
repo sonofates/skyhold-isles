@@ -4,7 +4,7 @@ export const LEVEL_2: LevelDef = {
   id: 'twin-bridge-cay',
   index: 1,
   name: 'Twin-Bridge Cay',
-  subtitle: 'Harbour cay of timber docks and bobbing boats, split by a channel and twin bridges',
+  subtitle: 'Harbor cay of timber docks and bobbing boats, split by a channel and twin bridges',
   difficulty: 'Challenging',
   cols: 15,
   rows: 12,

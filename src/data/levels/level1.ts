@@ -4,7 +4,7 @@ export const LEVEL_1: LevelDef = {
   id: 'sunlit-meadow',
   index: 0,
   name: 'Sunlit Meadow',
-  subtitle: 'A gentle winding trail through wildflower meadows and a cosy cottage',
+  subtitle: 'A gentle winding trail through wildflower meadows and a cozy cottage',
   difficulty: 'Breezy',
   cols: 14,
   rows: 11,
