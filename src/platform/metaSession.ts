@@ -161,7 +161,7 @@ export class MetaSession {
       events.on('waveStarted', () => {
         if (!this.countedGamePlayed && observer.isEligibleForChallenges()) {
           this.countedGamePlayed = true;
-          this.save.stats.gamesPlayed++;
+          this.save.stats.gamesPlayed = nonNegIntOrZero(this.save.stats.gamesPlayed) + 1;
         }
       }),
       events.on('waveCompleted', () => {
@@ -190,7 +190,7 @@ export class MetaSession {
     const endlessEntered = observer.getTelemetry().endlessEntered;
     if (!this.countedGamePlayed && observer.isEligibleForChallenges() && (won || !endlessEntered)) {
       this.countedGamePlayed = true;
-      this.save.stats.gamesPlayed++;
+      this.save.stats.gamesPlayed = nonNegIntOrZero(this.save.stats.gamesPlayed) + 1;
     }
     this.flushStats(false);
     const telemetry = observer.getTelemetry();

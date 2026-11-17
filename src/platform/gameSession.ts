@@ -487,7 +487,8 @@ export class GameSession {
     const { overlays, loop } = this.d;
     this.recordEndlessIfActive();
     this.lastRunOptions = options;
-    this.currentLevelIndex = Math.max(0, Math.min(LEVELS.length - 1, levelIndex));
+    const safeLevelIndex = Number.isFinite(levelIndex) ? Math.floor(levelIndex) : 0;
+    this.currentLevelIndex = Math.max(0, Math.min(LEVELS.length - 1, safeLevelIndex));
     const level = LEVELS[this.currentLevelIndex];
     this.clearTransientPlayState();
     this.events.clear();

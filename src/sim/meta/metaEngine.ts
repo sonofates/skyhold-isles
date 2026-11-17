@@ -417,44 +417,50 @@ export function applyTelemetryDeltaToStats(
 ): void {
   if (!current.eligibleForChallenges) return;
   const prev = committed;
-  const d = (curr: number, old: number | undefined): number => Math.max(0, curr - (old ?? 0));
+  const d = (curr: number, old: number | undefined): number => {
+    const c = typeof curr === 'number' && Number.isFinite(curr) ? curr : 0;
+    const o = typeof old === 'number' && Number.isFinite(old) ? old : 0;
+    return Math.max(0, c - o);
+  };
 
   save.stats.totalPlayTimeSec = +(
     asNonNegFloat(save.stats.totalPlayTimeSec) + d(current.simTimeSec, prev?.simTimeSec)
   ).toFixed(3);
-  save.stats.wavesCleared = asNonNegInt(save.stats.wavesCleared) + d(current.wavesCompleted, prev?.wavesCompleted);
+  save.stats.wavesCleared = asNonNegInt(save.stats.wavesCleared) + Math.floor(d(current.wavesCompleted, prev?.wavesCompleted));
   save.stats.earlyWavesCalled =
-    asNonNegInt(save.stats.earlyWavesCalled) + d(current.earlyWavesCalled, prev?.earlyWavesCalled);
+    asNonNegInt(save.stats.earlyWavesCalled) + Math.floor(d(current.earlyWavesCalled, prev?.earlyWavesCalled));
   save.stats.enemiesDefeatedTotal =
     asNonNegInt(save.stats.enemiesDefeatedTotal) +
-    d(current.enemiesKilledTotal, prev?.enemiesKilledTotal);
+    Math.floor(d(current.enemiesKilledTotal, prev?.enemiesKilledTotal));
   save.stats.flyingEnemiesDefeated =
     asNonNegInt(save.stats.flyingEnemiesDefeated) +
-    d(current.flyingEnemiesKilled, prev?.flyingEnemiesKilled);
+    Math.floor(d(current.flyingEnemiesKilled, prev?.flyingEnemiesKilled));
   save.stats.towersBuiltTotal =
-    asNonNegInt(save.stats.towersBuiltTotal) + d(current.towersBuilt, prev?.towersBuilt);
+    asNonNegInt(save.stats.towersBuiltTotal) + Math.floor(d(current.towersBuilt, prev?.towersBuilt));
   save.stats.towersSoldTotal =
-    asNonNegInt(save.stats.towersSoldTotal) + d(current.towersSold, prev?.towersSold);
+    asNonNegInt(save.stats.towersSoldTotal) + Math.floor(d(current.towersSold, prev?.towersSold));
   save.stats.goldEarnedTotal =
-    asNonNegInt(save.stats.goldEarnedTotal) + d(current.goldEarned, prev?.goldEarned);
+    asNonNegInt(save.stats.goldEarnedTotal) + Math.floor(d(current.goldEarned, prev?.goldEarned));
   save.stats.goldSpentTotal =
-    asNonNegInt(save.stats.goldSpentTotal) + d(current.grossGoldSpent, prev?.grossGoldSpent);
+    asNonNegInt(save.stats.goldSpentTotal) + Math.floor(d(current.grossGoldSpent, prev?.grossGoldSpent));
   save.stats.abilitiesCastTotal =
     asNonNegInt(save.stats.abilitiesCastTotal) +
-    d(current.abilitiesCastTotal, prev?.abilitiesCastTotal);
-  save.stats.meteorsCast = asNonNegInt(save.stats.meteorsCast) + d(current.meteorsCast, prev?.meteorsCast);
+    Math.floor(d(current.abilitiesCastTotal, prev?.abilitiesCastTotal));
+  save.stats.meteorsCast =
+    asNonNegInt(save.stats.meteorsCast) + Math.floor(d(current.meteorsCast, prev?.meteorsCast));
   save.stats.overchargesCast =
-    asNonNegInt(save.stats.overchargesCast) + d(current.overchargesCast, prev?.overchargesCast);
+    asNonNegInt(save.stats.overchargesCast) + Math.floor(d(current.overchargesCast, prev?.overchargesCast));
   save.stats.towersCleansed =
-    asNonNegInt(save.stats.towersCleansed) + d(current.towersCleansed, prev?.towersCleansed);
+    asNonNegInt(save.stats.towersCleansed) + Math.floor(d(current.towersCleansed, prev?.towersCleansed));
   save.stats.towersUpgradedToTier3 =
     asNonNegInt(save.stats.towersUpgradedToTier3) +
-    d(current.towersUpgradedToTier3, prev?.towersUpgradedToTier3);
+    Math.floor(d(current.towersUpgradedToTier3, prev?.towersUpgradedToTier3));
   save.stats.towersUpgradedTotal =
-    asNonNegInt(save.stats.towersUpgradedTotal) + d(current.towersUpgraded, prev?.towersUpgraded);
+    asNonNegInt(save.stats.towersUpgradedTotal) + Math.floor(d(current.towersUpgraded, prev?.towersUpgraded));
 
   for (const [enemyType, count] of Object.entries(current.enemiesKilledByType)) {
-    const delta = d(count, prev?.enemiesKilledByType[enemyType]);
+    if (IGNORED_RECORD_KEYS.has(enemyType)) continue;
+    const delta = Math.floor(d(count, prev?.enemiesKilledByType[enemyType]));
     if (delta > 0) {
       save.stats.enemiesDefeatedByType[enemyType] =
         asNonNegInt(save.stats.enemiesDefeatedByType[enemyType]) + delta;
@@ -462,7 +468,8 @@ export function applyTelemetryDeltaToStats(
   }
 
   for (const [towerType, count] of Object.entries(current.towersBuiltByType)) {
-    const delta = d(count, prev?.towersBuiltByType[towerType]);
+    if (IGNORED_RECORD_KEYS.has(towerType)) continue;
+    const delta = Math.floor(d(count, prev?.towersBuiltByType[towerType]));
     if (delta > 0) {
       save.stats.towersBuiltByType[towerType] =
         asNonNegInt(save.stats.towersBuiltByType[towerType]) + delta;
@@ -472,10 +479,11 @@ export function applyTelemetryDeltaToStats(
   if (
     current.eligibleForChallenges &&
     current.endlessEntered &&
+    Number.isFinite(current.maxWaveReached) &&
     current.maxWaveReached > current.storyWaveCount &&
-    current.maxWaveReached > asNonNegInt(save.stats.bestEndlessWaveOverall)
+    Math.floor(current.maxWaveReached) > asNonNegInt(save.stats.bestEndlessWaveOverall)
   ) {
-    save.stats.bestEndlessWaveOverall = current.maxWaveReached;
+    save.stats.bestEndlessWaveOverall = Math.floor(current.maxWaveReached);
   }
 }
 
@@ -900,10 +908,32 @@ export function getAchievements(save: MetaSaveData): readonly AchievementStatus[
 
 /** Typed UI query: cloned snapshot of lifetime player stats. */
 export function getStats(save: MetaSaveData): LifetimeStats {
+  const s = save.stats;
   return {
-    ...save.stats,
-    enemiesDefeatedByType: { ...save.stats.enemiesDefeatedByType },
-    towersBuiltByType: { ...save.stats.towersBuiltByType },
+    totalPlayTimeSec: asNonNegFloat(s.totalPlayTimeSec),
+    gamesPlayed: asNonNegInt(s.gamesPlayed),
+    gamesWon: asNonNegInt(s.gamesWon),
+    gamesLost: asNonNegInt(s.gamesLost),
+    wavesCleared: asNonNegInt(s.wavesCleared),
+    earlyWavesCalled: asNonNegInt(s.earlyWavesCalled),
+    enemiesDefeatedTotal: asNonNegInt(s.enemiesDefeatedTotal),
+    enemiesDefeatedByType: sanitizeCountRecord(s.enemiesDefeatedByType),
+    flyingEnemiesDefeated: asNonNegInt(s.flyingEnemiesDefeated),
+    towersBuiltTotal: asNonNegInt(s.towersBuiltTotal),
+    towersBuiltByType: sanitizeCountRecord(s.towersBuiltByType),
+    towersUpgradedToTier3: asNonNegInt(s.towersUpgradedToTier3),
+    towersUpgradedTotal: asNonNegInt(s.towersUpgradedTotal),
+    towersSoldTotal: asNonNegInt(s.towersSoldTotal),
+    goldEarnedTotal: asNonNegInt(s.goldEarnedTotal),
+    goldSpentTotal: asNonNegInt(s.goldSpentTotal),
+    abilitiesCastTotal: asNonNegInt(s.abilitiesCastTotal),
+    meteorsCast: asNonNegInt(s.meteorsCast),
+    overchargesCast: asNonNegInt(s.overchargesCast),
+    towersCleansed: asNonNegInt(s.towersCleansed),
+    perfectClears: asNonNegInt(s.perfectClears),
+    bestEndlessWaveOverall: asNonNegInt(s.bestEndlessWaveOverall),
+    bestEndlessScoreOverall: asNonNegInt(s.bestEndlessScoreOverall),
+    dailyChallengesCompleted: asNonNegInt(s.dailyChallengesCompleted),
   };
 }
 
@@ -1077,7 +1107,7 @@ export function getRecommendedNextGoal(
   const normalizedToday = todayDateStr.trim();
   if (
     isValidDateString(normalizedToday) &&
-    !save.completedDailyDates.some((d) => typeof d === 'string' && d.trim() === normalizedToday)
+    !getValidDailyDateSet(save.completedDailyDates).has(normalizedToday)
   ) {
     const daily = generateDailyChallenge(normalizedToday, levels);
     return {

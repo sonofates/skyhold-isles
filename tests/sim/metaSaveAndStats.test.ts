@@ -1514,6 +1514,57 @@ describe('MetaSession stats, achievements, challenges & daily persistence', () =
     expect(nanRecOutcome.isNewBestDailyScore).toBe(true);
     expect(nanRecSave.dailyBestScores['2026-11-17']).toBe(nanRecOutcome.dailyScore);
 
+    // getStats & applyTelemetryDeltaToStats sanitize non-finite fields & prototype-polluting keys,
+    // and MetaSession recovers from pre-existing NaN gamesPlayed on waveStarted
+    const dirtyStatsSave = createDefaultMetaSave(9);
+    dirtyStatsSave.stats.gamesPlayed = Number.NaN;
+    dirtyStatsSave.stats.goldEarnedTotal = Number.POSITIVE_INFINITY;
+    dirtyStatsSave.stats.totalPlayTimeSec = -4;
+    dirtyStatsSave.stats.enemiesDefeatedByType = JSON.parse('{"__proto__":7,"constructor":3,"grunt":5,"flyer":-2}');
+    dirtyStatsSave.stats.towersBuiltByType = JSON.parse('{"prototype":9,"archer":4}');
+    expect(getStats(dirtyStatsSave)).toMatchObject({
+      gamesPlayed: 0,
+      goldEarnedTotal: 0,
+      totalPlayTimeSec: 0,
+      enemiesDefeatedByType: { grunt: 5 },
+      towersBuiltByType: { archer: 4 },
+    });
+    expect(Object.prototype.hasOwnProperty.call(getStats(dirtyStatsSave).enemiesDefeatedByType, 'constructor')).toBe(false);
+    expect(Object.prototype.hasOwnProperty.call(getStats(dirtyStatsSave).towersBuiltByType, 'prototype')).toBe(false);
+
+    const dirtyDeltaTarget = createDefaultMetaSave(9);
+    const badObsEv = new EventBus();
+    const badObs = new RunObserver(LEVELS[0], badObsEv);
+    const badTelemetry = {
+      ...badObs.getTelemetry(),
+      simTimeSec: Number.NaN,
+      wavesCompleted: Number.POSITIVE_INFINITY,
+      enemiesKilledTotal: -5,
+      enemiesKilledByType: JSON.parse('{"__proto__":9,"constructor":4,"grunt":2}'),
+      towersBuiltByType: JSON.parse('{"prototype":8,"archer":3}'),
+    };
+    applyTelemetryDeltaToStats(dirtyDeltaTarget, badTelemetry, null);
+    badObs.dispose();
+    expect(dirtyDeltaTarget.stats.totalPlayTimeSec).toBe(0);
+    expect(dirtyDeltaTarget.stats.wavesCleared).toBe(0);
+    expect(dirtyDeltaTarget.stats.enemiesDefeatedTotal).toBe(0);
+    expect(dirtyDeltaTarget.stats.enemiesDefeatedByType).toEqual({ grunt: 2 });
+    expect(dirtyDeltaTarget.stats.towersBuiltByType).toEqual({ archer: 3 });
+    expect(Object.prototype.hasOwnProperty.call(dirtyDeltaTarget.stats.enemiesDefeatedByType, 'constructor')).toBe(false);
+
+    const nanPlayedSave = createDefaultMetaSave(9);
+    nanPlayedSave.stats.gamesPlayed = Number.NaN;
+    const nanPlayedMeta = new MetaSession({
+      levels: LEVELS,
+      saveData: nanPlayedSave,
+      onSave: () => {},
+    });
+    const npEv = new EventBus();
+    nanPlayedMeta.startRun(LEVELS[0], npEv);
+    npEv.emit('waveStarted', { waveIndex: 0, totalWaves: 10, earlyBonus: 0 });
+    expect(nanPlayedMeta.getStats().gamesPlayed).toBe(1);
+    nanPlayedMeta.dispose();
+
     mutEndlessMeta.dispose();
     quitMeta.dispose();
     dailyMeta.dispose();
