@@ -53,6 +53,8 @@ const VIEWPORTS: Viewport[] = [
 ];
 
 interface Measure {
+  /** Share of ALL land tiles (decor / island rim included) whose centre is off screen or under the HUD. */
+  landLost: number;
   coverage: number;
   keyVisible: boolean;
   zoom: number;
@@ -69,11 +71,24 @@ function measure(levelIndex: number, vp: Viewport, withHud: boolean): Measure {
   let seen = 0;
   let total = 0;
   let keyVisible = true;
+  let landTotal = 0;
+  let landLost = 0;
   for (let row = 0; row < lvl.rows; row++) {
     const tokens = (lvl.layout[row] ?? '').trim().split(/\s+/);
     for (let col = 0; col < lvl.cols; col++) {
       const tile = parseTileChar(tokens[col] ?? '~');
-      if (tile === 'empty' || tile === 'decor') continue;
+      if (tile === 'empty') continue;
+      cam.worldCoordsToScreen(gridToWorldX(col, lvl.cols), 0.5, gridToWorldZ(row, lvl.rows), out);
+      landTotal++;
+      if (
+        out.x < 0 ||
+        out.x > vp.w ||
+        out.y < 0 ||
+        out.y > vp.h ||
+        vp.hud.some((h) => out.x > h.x0 && out.x < h.x1 && out.y > h.y0 && out.y < h.y1)
+      )
+        landLost++;
+      if (tile === 'decor') continue;
       const key = tile === 'spawn' || tile === 'goal';
       const wgt = key ? 6 : tile === 'path' ? 0.7 : 1;
       cam.worldCoordsToScreen(gridToWorldX(col, lvl.cols), key ? 1.85 : 0.5, gridToWorldZ(row, lvl.rows), out);
@@ -84,7 +99,7 @@ function measure(levelIndex: number, vp: Viewport, withHud: boolean): Measure {
       else if (key) keyVisible = false;
     }
   }
-  return { coverage: seen / total, keyVisible, zoom: cam.camera.zoom };
+  return { landLost: landLost / Math.max(1, landTotal), coverage: seen / total, keyVisible, zoom: cam.camera.zoom };
 }
 
 describe('default framing keeps the playable island clear of the HUD', () => {
@@ -102,6 +117,9 @@ describe('default framing keeps the playable island clear of the HUD', () => {
         expect(m.coverage).toBeGreaterThanOrEqual(0.8);
         // Never worse than the HUD-blind framing it replaces.
         expect(m.coverage).toBeGreaterThanOrEqual(old.coverage - 0.04);
+        // The island's rim must not be sliced off or tucked under HUD clusters (portrait L13 left edge,
+        // landscape L13 corner buttons): at most a few percent of all land tiles.
+        expect(m.landLost).toBeLessThanOrEqual(0.06);
         // ...and never framed farther away than needed (the "map too far away" complaint).
         expect(m.zoom).toBeGreaterThanOrEqual(old.zoom * 0.7);
       });

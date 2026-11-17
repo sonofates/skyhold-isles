@@ -18,6 +18,8 @@ import {
 
 /** Share (by weight) of playable tiles that must be visible and clear of the HUD at default zoom. */
 const OCCLUSION_COVERAGE = 0.88;
+/** Portrait phones crop the island at the sides by design (bigger tiles); keep that crop small. */
+const OCCLUSION_COVERAGE_PORTRAIT = 0.97;
 /** A quarter-turn must frame the island at least this much larger before it replaces the default angle. */
 const AUTO_YAW_MIN_GAIN = 1.2;
 /** Keep the occlusion search cheap: at most this many tile samples. */
@@ -163,10 +165,12 @@ export class CameraController {
           if (tile === 'empty') continue;
           const topY = tile === 'spawn' || tile === 'goal' || tile === 'decor' ? 1.85 : 0.5;
           addTile(gridToWorldX(c, cols), gridToWorldZ(r, rows), topY, tile !== 'decor');
-          if (tile !== 'decor') {
-            tileXyz.push(gridToWorldX(c, cols), topY, gridToWorldZ(r, rows));
-            tileWeight.push(tile === 'spawn' || tile === 'goal' ? 6 : tile === 'path' ? 0.7 : 1);
-          }
+          // Decor tiles (island rim, props) are sampled too, at half weight, so the island's
+          // edges are kept off the HUD and the screen border instead of being ignored.
+          tileXyz.push(gridToWorldX(c, cols), topY, gridToWorldZ(r, rows));
+          tileWeight.push(
+            tile === 'spawn' || tile === 'goal' ? 6 : tile === 'path' ? 0.7 : tile === 'decor' ? 0.5 : 1,
+          );
         }
       }
     }
@@ -241,7 +245,7 @@ export class CameraController {
         zoomCeil: fit.zoom,
         // May go a little below the whole-island zoom when a key tile would otherwise sit on the edge.
         zoomFloor: fit.minZoom * 0.8,
-        coverage: OCCLUSION_COVERAGE,
+        coverage: profile.kind === 'portrait' ? OCCLUSION_COVERAGE_PORTRAIT : OCCLUSION_COVERAGE,
         prefR: fit.targetX * Math.cos(yaw) - fit.targetZ * Math.sin(yaw),
         prefU: -(fit.targetX * Math.sin(yaw) + fit.targetZ * Math.cos(yaw)) * st,
       });

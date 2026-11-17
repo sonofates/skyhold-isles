@@ -28,4 +28,16 @@ function skyholdServiceWorker(): Plugin {
 
 export default defineConfig({
   plugins: [skyholdServiceWorker()],
+  build: {
+    rollupOptions: {
+      output: {
+        // three.js (~60% of the JS) changes far less often than game code: its own chunk downloads in
+        // parallel with the app chunk and stays cached across deploys.
+        manualChunks(id) {
+          if (id.includes('/node_modules/three/')) return 'three';
+          return undefined;
+        },
+      },
+    },
+  },
 });

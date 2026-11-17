@@ -3,6 +3,13 @@
  * angles are in degrees, -90 = straight up.
  */
 
+/** Minimum touch target (CSS px) for any control; radial tokens must not shrink below it. */
+export const MIN_TOUCH_TARGET = 44;
+/** Radial token button size (CSS px); the whole octagon is the hit area. */
+export const TOKEN_SIZE = 56;
+/** Token plus the cost plate that hangs off its bottom edge. */
+export const FOOTPRINT = 70;
+
 export interface Rect {
   left: number;
   top: number;
@@ -159,9 +166,11 @@ export interface ViewportInfo {
  * Area tokens may occupy: viewport minus safe areas minus the HUD bands. Portrait keeps clear of
  * the bottom gem row; landscape keeps clear of the top plate only.
  */
-export function ringBounds(v: ViewportInfo, margin = 6): Rect {
+export function ringBounds(v: ViewportInfo, margin = 6, clearTop = 0): Rect {
   const portrait = v.height > v.width;
-  const top = v.safe.top + (portrait ? 66 : 52);
+  // `clearTop`: bottom edge (px) of a card pinned to the top of the screen (first-run coach) that
+  // the tokens must not cover; ignored when it would leave less than 60% of the height for the ring.
+  const top = Math.max(v.safe.top + (portrait ? 66 : 52), clearTop + 8);
   const bottom = v.height - v.safe.bottom - (portrait ? 96 : 6);
   return {
     left: v.safe.left + margin,

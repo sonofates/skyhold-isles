@@ -7,7 +7,7 @@ import type { RenderWorld } from '../render/renderWorld.ts';
 import { getTowerPickHeight } from '../render/towerPicking.ts';
 import { computeSellRefund } from '../sim/world.ts';
 import { TOWER_ICON_SVGS, UI_ICON_SVGS } from './icons.ts';
-import { layoutRing, placeBox, ringBounds, type Point } from './radialLayout.ts';
+import { FOOTPRINT, layoutRing, placeBox, ringBounds, TOKEN_SIZE, type Point } from './radialLayout.ts';
 
 type Mode = 'closed' | 'build' | 'tower' | 'info';
 
@@ -15,9 +15,6 @@ export type RadialTarget =
   | { kind: 'build'; col: number; row: number }
   | { kind: 'tower'; id: number };
 
-const TOKEN_SIZE = 56;
-/** Token plus the cost plate that hangs off its bottom edge. */
-const FOOTPRINT = 70;
 const BASE_RADIUS = 78;
 const CLICK_GUARD_MS = 280;
 const TARGET_LABELS: Record<TargetingMode, string> = {
@@ -366,14 +363,14 @@ export class RadialMenu {
     const ay = this.scratch.y;
     const vw = window.innerWidth;
     const vh = window.innerHeight;
-    const bounds = ringBounds({ width: vw, height: vh, safe: this.safe });
+    const bounds = ringBounds({ width: vw, height: vh, safe: this.safe }, 6, this.coachBottom());
 
     if (this.mode === 'info') {
       this.positionInfo(ax, ay, bounds);
       return;
     }
 
-    const sig = `${Math.round(ax * 2)}|${Math.round(ay * 2)}|${vw}|${vh}|${this.slots.length}`;
+    const sig = `${Math.round(ax * 2)}|${Math.round(ay * 2)}|${vw}|${vh}|${this.slots.length}|${Math.round(bounds.top)}`;
     if (sig === this.lastLayoutSig) return;
     this.lastLayoutSig = sig;
 
@@ -392,6 +389,12 @@ export class RadialMenu {
     for (let i = 0; i < this.slots.length; i++) {
       this.placeSlot(this.slots[i], layout.positions[i], ax, ay);
     }
+  }
+
+  /** Bottom edge of the first-run coach card when it is showing (0 otherwise); the ring stays below it. */
+  private coachBottom(): number {
+    const card = this.rootEl.parentElement?.querySelector<HTMLElement>('.onb-coach:not(.hidden)');
+    return card ? card.getBoundingClientRect().bottom : 0;
   }
 
   private placeSlot(s: Slot, p: Point, ax: number, ay: number): void {

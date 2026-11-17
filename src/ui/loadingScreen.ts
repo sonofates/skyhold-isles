@@ -24,6 +24,8 @@ export class LoadingScreen {
       </div>
     `;
     parent.appendChild(this.element);
+    // The static splash from index.html has done its job: the real loading card is on screen.
+    document.getElementById('boot-splash')?.remove();
 
     this.fillEl = this.element.querySelector('.loading-bar-fill') as HTMLDivElement;
     this.pctEl = this.element.querySelector('.loading-pct') as HTMLSpanElement;
