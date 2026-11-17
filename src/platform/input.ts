@@ -218,7 +218,15 @@ export class InputManager {
       const tracked = this.pointers.get(e.pointerId);
       this.clearLongPress();
       const live = this.enabled && !this.modalOpen && e.type === 'pointerup';
-      if (tracked && this.pointers.size === 1 && !this.isDragging && this.enabled && !this.modalOpen) {
+      // A cancelled touch (palm rejection, the browser claiming the gesture) is never a tap.
+      if (
+        tracked &&
+        e.type === 'pointerup' &&
+        this.pointers.size === 1 &&
+        !this.isDragging &&
+        this.enabled &&
+        !this.modalOpen
+      ) {
         const ndc = this.toNdc(e.clientX, e.clientY);
         if (this.longPressFired) {
           // The long press already acted; lifting the finger is not a tap.

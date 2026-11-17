@@ -109,3 +109,5 @@ Branch `hermes/skyhold-day-mobile`. Preview port 4302. Deadline 21:00 TR.
 - Round 15: tree green (tsc, lint, tests, build). Backlog 1-5 complete; no code change. Open items still need real devices (governor tuning) or a Lighthouse binary.
 
 - Round 16: tree green (tsc, lint, 464 tests, build). Backlog 1-5 complete; no code change. Open items still need real devices (governor tuning) or a Lighthouse binary.
+
+- Round 17: **bug fix** `src/platform/input.ts`: `pointercancel` shares the pointerup handler and, for a non-dragging single touch, delivered a primary tap (palm rejection / browser taking over the gesture could place a tower). Taps now require `e.type === "pointerup"`. New `tests/platform/inputTap.test.ts` (fake window/canvas: tap, cancel, drag/pinch release). Tree green (tsc, lint, 467 tests, build). No gameplay/data change.
