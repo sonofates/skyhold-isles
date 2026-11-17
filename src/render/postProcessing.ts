@@ -101,6 +101,11 @@ interface DisposableLike {
   depthTexture?: DisposableLike | null;
 }
 
+interface N8aoQuadLike extends DisposableLike {
+  render?: (renderer: THREE.WebGLRenderer) => void;
+  material?: (DisposableLike & { uniforms?: Record<string, { value: unknown }> }) | null;
+}
+
 interface N8aoInternalResources {
   scene?: THREE.Scene;
   autoDetectTransparency?: boolean;
@@ -117,8 +122,8 @@ interface N8aoInternalResources {
   effectShaderQuad?: DisposableLike | null;
   poissonBlurQuad?: DisposableLike | null;
   accumulationQuad?: DisposableLike | null;
-  effectCompositerQuad?: DisposableLike | null;
-  copyQuad?: DisposableLike | null;
+  effectCompositerQuad?: N8aoQuadLike | null;
+  copyQuad?: N8aoQuadLike | null;
   depthDownsampleQuad?: DisposableLike | null;
   depthCopyPass?: DisposableLike | null;
   standardDenoiseMaterial?: DisposableLike | null;
@@ -147,12 +152,69 @@ export interface PostWarmUpMaterialSources {
   readonly smaaEffect?: SMAAEffect | null;
 }
 
+const directOutputN8aoPasses = new WeakSet<N8AOPostPass>();
+const noopQuadRender = (): void => {};
+
+type N8aoRenderFn = (
+  this: N8AOPostPass,
+  renderer: THREE.WebGLRenderer,
+  inputBuffer: THREE.WebGLRenderTarget,
+  outputBuffer: THREE.WebGLRenderTarget | null,
+  deltaTime?: number,
+  stencilTest?: boolean,
+) => void;
+
+/**
+ * Routes N8AOPostPass's final EffectCompositer output directly into EffectComposer's outputBuffer
+ * when rendering offscreen, bypassing the leftover full-resolution outputTargetInternal render target
+ * and full-screen copyQuad blit pass (saves 1 HalfFloat target, 1 shader compile, and 1 pass/frame).
+ */
+export function installN8aoDirectOutputPass(pass: N8AOPostPass): boolean {
+  if (directOutputN8aoPasses.has(pass)) return true;
+  const internal = pass as unknown as N8aoInternalResources;
+  const copyQuad = internal.copyQuad;
+  const passLike = pass as unknown as { render?: N8aoRenderFn };
+  const origRender = passLike.render;
+  if (
+    typeof origRender !== 'function' ||
+    !internal.effectCompositerQuad ||
+    !copyQuad ||
+    typeof copyQuad.render !== 'function' ||
+    !('outputTargetInternal' in internal)
+  ) {
+    return false;
+  }
+
+  passLike.render = function (renderer, inputBuffer, outputBuffer, deltaTime, stencilTest) {
+    if (this.renderToScreen || !outputBuffer) {
+      return origRender.call(this, renderer, inputBuffer, outputBuffer, deltaTime, stencilTest);
+    }
+    const prevOutputTarget = internal.outputTargetInternal;
+    const prevCopyRender = copyQuad.render;
+    const prevCopyDiffuse = copyQuad.material?.uniforms?.tDiffuse;
+    internal.outputTargetInternal = outputBuffer as unknown as DisposableLike;
+    copyQuad.render = noopQuadRender;
+    try {
+      return origRender.call(this, renderer, inputBuffer, outputBuffer, deltaTime, stencilTest);
+    } finally {
+      internal.outputTargetInternal = prevOutputTarget;
+      copyQuad.render = prevCopyRender;
+      if (prevCopyDiffuse) {
+        prevCopyDiffuse.value = null;
+      }
+    }
+  };
+  directOutputN8aoPasses.add(pass);
+  return true;
+}
+
 /**
  * Collects unique materials across active post-processing passes split by target color space
  * (`linearMaterials` render into linear HalfFloat buffers; `screenMaterials` render to the sRGB canvas).
  */
 export function collectPostWarmUpMaterials(
   sources: PostWarmUpMaterialSources,
+  options?: { includeN8aoCopy?: boolean },
 ): PostWarmUpMaterials {
   const linearMaterials: THREE.Material[] = [];
   const screenMaterials: THREE.Material[] = [];
@@ -181,7 +243,10 @@ export function collectPostWarmUpMaterials(
     pushLinear(n8ao.standardDenoiseMaterial);
     pushLinear(n8ao.accumulationQuad?.material);
     pushLinear(n8ao.effectCompositerQuad?.material);
-    pushLinear(n8ao.copyQuad?.material);
+    const includeN8aoCopy = options?.includeN8aoCopy ?? !directOutputN8aoPasses.has(sources.n8aoPass);
+    if (includeN8aoCopy) {
+      pushLinear(n8ao.copyQuad?.material);
+    }
   }
 
   if (sources.bloomEffect) {
@@ -266,6 +331,7 @@ function createN8aoPass(
   pass.configuration.color = new THREE.Color(0x282648);
   pass.configuration.gammaCorrection = false;
   pass.configuration.transparencyAware = false;
+  installN8aoDirectOutputPass(pass);
   return pass;
 }
 
@@ -543,12 +609,15 @@ export class PostProcessingPipeline {
   }
 
   getWarmUpMaterials(): PostWarmUpMaterials {
+    const smaaAttached = Boolean(
+      this.smaaPass && this.composer.passes.includes(this.smaaPass),
+    );
     return collectPostWarmUpMaterials({
       n8aoPass: this.n8aoPass,
       bloomEffect: this.bloomEffect,
       compositePass: this.compositePass,
-      smaaPass: this.smaaPass,
-      smaaEffect: this.smaaEffect,
+      smaaPass: smaaAttached ? this.smaaPass : null,
+      smaaEffect: smaaAttached ? this.smaaEffect : null,
     });
   }
 

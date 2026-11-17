@@ -1,5 +1,6 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { N8AOPostPass } from 'n8ao';
 import { EffectPass } from 'postprocessing';
 import * as THREE from 'three';
 import { describe, expect, it, vi } from 'vitest';
@@ -20,6 +21,7 @@ import {
   canUseHalfResN8ao,
   collectPostWarmUpMaterials,
   getN8aoQualitySettings,
+  installN8aoDirectOutputPass,
 } from '../../src/render/postProcessing.ts';
 import {
   collectInstancedMaterialsNeedingColor,
@@ -1766,6 +1768,140 @@ describe('PerfGovernor', () => {
       expect(internals.compositePass).toBe(initialComposite);
       expect(composer.depthRenderTarget).toBe(initialDepthTarget);
       expect(pipeline.getActivePassSummary()).toBe('Out+Bloom');
+    } finally {
+      pipeline.dispose();
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('bypasses N8AO outputTargetInternal + copyQuad for offscreen composer renders and excludes copyQuad from pipeline warm-up', () => {
+    vi.stubGlobal('Image', undefined);
+    const { renderer: mockRenderer } = createMockPostRenderer(800, 600);
+    const scene = new THREE.Scene();
+    const camera = new THREE.OrthographicCamera();
+
+    const pipeline = new PostProcessingPipeline(mockRenderer, scene, camera, 800, 600, {
+      n8ao: 'half',
+      outline: true,
+      bloom: true,
+      smaa: false,
+    });
+
+    try {
+      type N8aoInternals = {
+        outputTargetInternal: THREE.WebGLRenderTarget;
+        copyQuad: {
+          render: (r: THREE.WebGLRenderer) => void;
+          material: THREE.ShaderMaterial;
+        };
+        effectCompositerQuad: { render: () => void };
+      };
+      const internals = pipeline as unknown as { n8aoPass: N8AOPostPass | null };
+      const pass = internals.n8aoPass!;
+      const n8ao = pass as unknown as N8aoInternals;
+
+      // Real pipeline N8AO excludes unused copyQuad shader from warm-up materials
+      const warm = pipeline.getWarmUpMaterials();
+      expect(warm.linearMaterials).not.toContain(n8ao.copyQuad.material);
+
+      // Verify direct-output wrapper redirects outputTargetInternal to outputBuffer and skips copyQuad.render
+      const dummyInternal = { id: 'orig-internal' } as unknown as THREE.WebGLRenderTarget;
+      const outBuf = new THREE.WebGLRenderTarget(800, 600);
+      const inBuf = new THREE.WebGLRenderTarget(800, 600);
+      const copyMat = new THREE.ShaderMaterial({ uniforms: { tDiffuse: { value: null } } });
+      let copyCalls = 0;
+      let observedTargetDuringRender: unknown = null;
+      let shouldThrow = false;
+
+      const fakePass = {
+        renderToScreen: false,
+        outputTargetInternal: dummyInternal,
+        effectCompositerQuad: {},
+        copyQuad: {
+          material: copyMat,
+          render: () => {
+            copyCalls++;
+          },
+        },
+        render(
+          this: { outputTargetInternal: unknown; copyQuad: { render: (r: THREE.WebGLRenderer) => void; material: THREE.ShaderMaterial } },
+          r: THREE.WebGLRenderer,
+        ) {
+          observedTargetDuringRender = this.outputTargetInternal;
+          this.copyQuad.material.uniforms.tDiffuse.value = outBuf.texture;
+          this.copyQuad.render(r);
+          if (shouldThrow) {
+            throw new Error('render failure');
+          }
+        },
+      };
+
+      expect(installN8aoDirectOutputPass(fakePass as unknown as N8AOPostPass)).toBe(true);
+      fakePass.render(mockRenderer, inBuf, outBuf);
+      expect(observedTargetDuringRender).toBe(outBuf);
+      expect(copyCalls).toBe(0);
+      expect(fakePass.outputTargetInternal).toBe(dummyInternal);
+      expect(copyMat.uniforms.tDiffuse.value).toBeNull();
+
+      // Restores internal target & copyQuad.render even if underlying render throws
+      shouldThrow = true;
+      expect(() => fakePass.render(mockRenderer, inBuf, outBuf)).toThrow('render failure');
+      expect(fakePass.outputTargetInternal).toBe(dummyInternal);
+
+      // Falls back to original copy path if renderToScreen is true
+      shouldThrow = false;
+      fakePass.renderToScreen = true;
+      fakePass.render(mockRenderer, inBuf, outBuf);
+      expect(observedTargetDuringRender).toBe(dummyInternal);
+      expect(copyCalls).toBe(1);
+
+      outBuf.dispose();
+      inBuf.dispose();
+      copyMat.dispose();
+    } finally {
+      pipeline.dispose();
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('routes compositePass to screenMaterials in getWarmUpMaterials while deferred SMAA LUT images are loading', () => {
+    const loadCallbacks: Array<() => void> = [];
+    vi.stubGlobal(
+      'Image',
+      class FakeSmaaImage {
+        width = 16;
+        height = 16;
+        addEventListener(type: string, cb: () => void): void {
+          if (type === 'load') loadCallbacks.push(cb);
+        }
+        set src(_v: string) {}
+      },
+    );
+
+    const { renderer: mockRenderer } = createMockPostRenderer(800, 600);
+    const pipeline = new PostProcessingPipeline(
+      mockRenderer,
+      new THREE.Scene(),
+      new THREE.OrthographicCamera(),
+      800,
+      600,
+      { n8ao: 'off', outline: true, bloom: false, smaa: true },
+      { deferSmaaAttachUntilReady: true },
+    );
+
+    try {
+      const internals = pipeline as unknown as {
+        compositePass: EffectPass | null;
+        smaaPass: EffectPass | null;
+      };
+      const pendingWarm = pipeline.getWarmUpMaterials();
+      expect(pendingWarm.screenMaterials).toEqual([internals.compositePass!.fullscreenMaterial]);
+      expect(pendingWarm.linearMaterials).toEqual([]);
+
+      for (const cb of loadCallbacks) cb();
+      const readyWarm = pipeline.getWarmUpMaterials();
+      expect(readyWarm.linearMaterials).toContain(internals.compositePass!.fullscreenMaterial);
+      expect(readyWarm.screenMaterials).toEqual([internals.smaaPass!.fullscreenMaterial]);
     } finally {
       pipeline.dispose();
       vi.unstubAllGlobals();
