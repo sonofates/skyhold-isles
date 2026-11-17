@@ -47,6 +47,7 @@ export interface GameOverlayCallbacks {
   onEndlessMode: () => void;
   onSettingsChange: (next: GameSettings) => void;
   onSettingsClose: () => void;
+  onReplayTutorial?: () => void;
 }
 
 export class GameOverlays {
@@ -130,6 +131,7 @@ export class GameOverlays {
       onChange: cb.onSettingsChange,
       onRestart: cb.onRestartLevel,
       onQuitToMenu: cb.onMainMenuFromPause,
+      onReplayTutorial: cb.onReplayTutorial,
       onClose: cb.onSettingsClose,
     });
   }

@@ -5,6 +5,8 @@ export interface SettingsModalCallbacks {
   onChange: (next: GameSettings) => void;
   onRestart?: () => void;
   onQuitToMenu?: () => void;
+  /** Restarts the first-run tour on island 1. */
+  onReplayTutorial?: () => void;
   onClose: () => void;
 }
 
@@ -128,6 +130,16 @@ export class SettingsModal {
     qualWrap.append(this.qualityHighBtn, this.qualityLowBtn);
     qualRow.append(qualLabel, qualWrap);
 
+    let tutorialRow: HTMLButtonElement | null = null;
+    if (callbacks.onReplayTutorial) {
+      tutorialRow = document.createElement('button');
+      tutorialRow.type = 'button';
+      tutorialRow.className = 'btn-secondary gx gx-slate-btn setting-tutorial-btn';
+      tutorialRow.setAttribute('data-testid', 'btn-replay-tutorial');
+      tutorialRow.innerHTML = '<span class="btn-label">Replay tutorial</span>';
+      tutorialRow.addEventListener('click', () => callbacks.onReplayTutorial?.());
+    }
+
     const actions = document.createElement('div');
     actions.className = 'modal-actions';
 
@@ -152,7 +164,9 @@ export class SettingsModal {
     this.closeBtn.addEventListener('click', () => callbacks.onClose());
 
     actions.append(this.restartBtn, this.quitBtn, this.closeBtn);
-    card.append(title, volRow, muteRow, shakeRow, dmgRow, qualRow, actions);
+    card.append(title, volRow, muteRow, shakeRow, dmgRow, qualRow);
+    if (tutorialRow) card.appendChild(tutorialRow);
+    card.appendChild(actions);
     this.backdrop.appendChild(card);
     parent.appendChild(this.backdrop);
     this.syncInputs();

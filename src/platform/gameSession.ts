@@ -11,11 +11,13 @@ import type {
 } from '../core/types.ts';
 import { ENEMY_DEFS } from '../data/enemies.ts';
 import { LEVELS } from '../data/levels/index.ts';
-import { TOWER_DEFS, TOWER_TYPES } from '../data/towers.ts';
+import { getTowerTierStats, TOWER_DEFS, TOWER_TYPES } from '../data/towers.ts';
 import type { RenderWorld } from '../render/renderWorld.ts';
 import { getTowerPickHeight } from '../render/towerPicking.ts';
 import { SimWorld } from '../sim/world.ts';
 import type { GameOverlays } from '../ui/gameOverlays.ts';
+import type { ContentDirector } from '../ui/content/contentDirector.ts';
+import type { OnboardingObs } from '../ui/content/onboardingMachine.ts';
 import type { RadialMenu } from '../ui/radialMenu.ts';
 import type { GameLoop } from './browserLoop.ts';
 import { isRadialActive } from './deviceClass.ts';
@@ -53,6 +55,8 @@ export interface SessionRuntimeDeps {
   setDebugVisible: (visible: boolean) => void;
   /** Touch build / tower menu; absent in tests. */
   radial?: RadialMenu;
+  /** Onboarding / first-sighting cards / codex; absent in tests. */
+  content?: ContentDirector;
 }
 
 export class GameSession {
@@ -123,7 +127,7 @@ export class GameSession {
 
   syncLoopAndInput(): void {
     const { overlays, loop, inputManager } = this.d;
-    const modalOpen = overlays.isModalOpen();
+    const modalOpen = overlays.isModalOpen() || (this.deps?.content?.isBlocking() ?? false);
     if (modalOpen) this.deps?.radial?.close();
     loop.simActive = this.viewMode === 'playing';
     loop.paused = this.userPaused || modalOpen;
@@ -152,7 +156,41 @@ export class GameSession {
       this.userPaused,
     );
     this.syncFlightPathHighlight();
+    this.deps?.content?.observe(this.buildOnboardingObs(selectedTower !== null));
   };
+
+  /** Snapshot of what the player is doing, for the first-run tour. */
+  private buildOnboardingObs(towerSelected: boolean): OnboardingObs {
+    const sim = this.simWorld;
+    const ws = sim.waveSystem;
+    const radialMode = this.deps?.radial?.openedFor()?.kind ?? 'closed';
+    let maxTier = 0;
+    let cheapestUpgrade = Infinity;
+    for (const t of sim.towers) {
+      if (t.tier > maxTier) maxTier = t.tier;
+      if (t.tier < 3) {
+        const cost = getTowerTierStats(t.type, (t.tier + 1) as 2 | 3).upgradeCost;
+        if (cost < cheapestUpgrade) cheapestUpgrade = cost;
+      }
+    }
+    const overlays = this.deps?.overlays;
+    return {
+      inPlay: this.viewMode === 'playing',
+      levelIndex: this.currentLevelIndex,
+      touch: isRadialActive(),
+      modalOpen: overlays?.isModalOpen() ?? false,
+      towerCount: sim.towers.length,
+      maxTier,
+      towerSelected: towerSelected || radialMode === 'tower',
+      placementActive: this.activePlacementType !== null,
+      radialMode,
+      wavesStarted: ws.currentWaveOneBased,
+      gold: sim.gold,
+      cheapestUpgrade,
+      meteorReady: ws.state !== 'preFirstWave' && sim.abilitySystem.canCast('meteor'),
+      meteorAiming: this.activeAbilityMode === 'meteor',
+    };
+  }
 
   refreshPlacementPreview(): void {
     const inPlayAndInside = this.viewMode === 'playing' && this.pointerInside;
@@ -357,6 +395,7 @@ export class GameSession {
     this.unbindSound?.();
     this.unbindSound = bindSimEventBridge({
       bus,
+      suppressIntroToasts: this.deps?.content !== undefined,
       soundManager: this.soundManager,
       overlays,
       getSettings: () => this.settings,
@@ -364,6 +403,7 @@ export class GameSession {
       onSyncUi: this.syncUi,
       onGameWon: (stars, livesRemaining) => {
         recordWinProgress(this.progress, this.currentLevelIndex, stars);
+        this.deps?.content?.onLevelWon(this.currentLevelIndex);
         this.deps?.radial?.close();
         this.activeAbilityMode = null;
         this.setPlacementMode(null);
@@ -417,6 +457,7 @@ export class GameSession {
       this.renderWorld.loadLevel(LEVELS[this.currentLevelIndex], undefined, () => this.settings);
     }
     this.viewMode = target;
+    this.deps?.content?.onLeavePlay();
     overlays.closeModals();
     overlays.mainMenu.setOpen(target === 'menu', this.progress);
     overlays.levelSelect.setOpen(target === 'levelSelect', this.progress);
@@ -436,6 +477,7 @@ export class GameSession {
     this.simWorld = new SimWorld(level, this.events);
     this.simWorld.setAutoWave(this.autoWaveEnabled);
     this.bindSimEvents(this.events);
+    this.deps?.content?.bindLevel(this.events, level, this.currentLevelIndex);
     this.renderWorld.cameraController.setShowcaseMode(false);
     this.renderWorld.loadLevel(level, this.events, () => this.settings);
 
@@ -724,6 +766,8 @@ export class GameSession {
   }
 
   fixedTick(dt: number): void {
+    // A first-sighting card opened mid-frame: drop the rest of this frame's catch-up ticks.
+    if (this.deps?.content?.isBlocking()) return;
     this.simClockSec += dt;
     stepPendingSpawns(this.pendingDebugSpawns, this.simWorld, dt);
     this.simWorld.fixedTick(dt);

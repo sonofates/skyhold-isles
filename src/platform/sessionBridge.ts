@@ -33,6 +33,8 @@ export interface SimBridgeHandlers {
   onSyncUi: () => void;
   onGameWon: (stars: 1 | 2 | 3, livesRemaining: number) => void;
   onGameLost: (waveIndex: number, endless?: boolean) => void;
+  /** The first-sighting cards cover foe/flyer introductions: skip the older "New foe" toasts. */
+  suppressIntroToasts?: boolean;
 }
 
 /** First-encounter hints stay up this long (real seconds); the next hint waits until it is gone. */
@@ -59,6 +61,7 @@ export function bindSimEventBridge(h: SimBridgeHandlers): () => void {
   let lastIntroAt = -Infinity;
   const introOnScreen = (): boolean => realClock() - lastIntroAt < INTRO_TOAST_SEC;
   h.bus.on('enemySpawned', (e) => {
+    if (h.suppressIntroToasts) return;
     // First encounter with a newer archetype: one-time counterplay hint.
     const hint = ENEMY_DEFS[e.enemyType].counterHint;
     if (hint && !hasSeenEnemyIntro(e.enemyType)) {
