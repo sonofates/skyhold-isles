@@ -379,7 +379,7 @@ export class PerfGovernor {
 
   recordFrame(
     frameDtMs: number,
-    options?: { throttled?: boolean; hidden?: boolean },
+    options?: { throttled?: boolean; hidden?: boolean; allowUpgrade?: boolean },
   ): TierTransition | null {
     if (options?.hidden || options?.throttled) {
       return null;
@@ -446,7 +446,8 @@ export class PerfGovernor {
     // while clearly fast frames allow gradual recovery after the hold window.
     this.slowAccumSec = Math.max(0, this.slowAccumSec - evalDt * 0.5);
 
-    if (clearlyFast && this.tier < this.lockedCeilingTier) {
+    const allowUpgrade = options?.allowUpgrade !== false;
+    if (clearlyFast && allowUpgrade && this.tier < this.lockedCeilingTier) {
       this.fastAccumSec += evalDt;
       if (this.fastAccumSec >= this.upgradeHoldSec) {
         const nextTier = Math.min(this.lockedCeilingTier, this.tier + 1) as QualityTier;

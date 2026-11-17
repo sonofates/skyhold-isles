@@ -128,6 +128,9 @@ export class GameLoop {
       : waking && (this.pacingMode === 'paused' || this.pacingMode === 'wake')
         ? null
         : this.maxRenderFps;
+    if (capFps !== null && capFps <= 0) {
+      return;
+    }
     if (capFps !== null && capFps > 0 && this.lastRenderTimestamp > 0) {
       const minIntervalMs = 1000 / capFps - VSYNC_JITTER_TOLERANCE_MS;
       if (now - this.lastRenderTimestamp < minIntervalMs) {
@@ -197,8 +200,9 @@ export class GameLoop {
   }
 
   wakeRender(durationSec = 0.75): void {
+    const safeSec = Number.isFinite(durationSec) && durationSec > 0 ? durationSec : 0;
     const now = typeof performance !== 'undefined' ? performance.now() : 0;
-    this.wakeUntilMs = Math.max(this.wakeUntilMs, now + durationSec * 1000);
+    this.wakeUntilMs = Math.max(this.wakeUntilMs, now + safeSec * 1000);
   }
 
   isWakeActive(): boolean {

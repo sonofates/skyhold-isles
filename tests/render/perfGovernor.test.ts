@@ -1,3 +1,4 @@
+import * as THREE from 'three';
 import { describe, expect, it, vi } from 'vitest';
 import {
   GOVERNOR_THRESHOLDS,
@@ -13,7 +14,10 @@ import {
   canUseHalfResN8ao,
   getN8aoQualitySettings,
 } from '../../src/render/postProcessing.ts';
-import { detectPrimaryTouchDevice } from '../../src/render/sceneManager.ts';
+import {
+  collectInstancedMaterialsNeedingColor,
+  detectPrimaryTouchDevice,
+} from '../../src/render/sceneManager.ts';
 import { formatPerfLogLine } from '../../src/ui/debugPanel.ts';
 
 function feedFrames(
@@ -400,5 +404,62 @@ describe('PerfGovernor', () => {
         makeRenderer(true, []) as unknown as Parameters<typeof canUseHalfFloatComposer>[0],
       ),
     ).toBe(false);
+  });
+
+  it('suppresses upgrades when allowUpgrade is false (paused wake) while still allowing downgrades', () => {
+    const gov = new PerfGovernor({ mode: 'auto', isTouch: false });
+    // Step down 5 -> 4
+    expect(feedFrames(gov, 160, 25).some((t) => t.toTier === 4)).toBe(true);
+    gov.resetWarmup();
+
+    // Even 1000 fast frames while paused (allowUpgrade: false) must never upgrade
+    const transitions: ReturnType<PerfGovernor['recordFrame']>[] = [];
+    for (let i = 0; i < 1000; i++) {
+      const tr = gov.recordFrame(12, { allowUpgrade: false });
+      if (tr) transitions.push(tr);
+    }
+    expect(transitions).toHaveLength(0);
+    expect(gov.getTier()).toBe(4);
+
+    // Slow frames with allowUpgrade: false still protect framerate by downgrading
+    const downWhilePaused: ReturnType<PerfGovernor['recordFrame']>[] = [];
+    for (let i = 0; i < 160; i++) {
+      const tr = gov.recordFrame(25, { allowUpgrade: false });
+      if (tr) downWhilePaused.push(tr);
+    }
+    expect(downWhilePaused.some((t) => t.direction === 'down' && t.toTier === 3)).toBe(true);
+  });
+
+  it('collects unique InstancedMesh materials missing instanceColor for warmUp precompilation', () => {
+    const root = new THREE.Group();
+    const geo = new THREE.BufferGeometry();
+    const matNeedsColorA = new THREE.MeshBasicMaterial();
+    const matNeedsColorB = new THREE.MeshStandardMaterial();
+    const matAlreadyColored = new THREE.MeshBasicMaterial();
+    const matPlainMesh = new THREE.MeshBasicMaterial();
+
+    const instA1 = new THREE.InstancedMesh(geo, matNeedsColorA, 2);
+    const instA2 = new THREE.InstancedMesh(geo, matNeedsColorA, 2);
+    const instB = new THREE.InstancedMesh(geo, matNeedsColorB, 2);
+    instB.castShadow = true;
+    const instColored = new THREE.InstancedMesh(geo, matAlreadyColored, 2);
+    instColored.setColorAt(0, new THREE.Color(1, 1, 1));
+    const plain = new THREE.Mesh(geo, matPlainMesh);
+
+    root.add(instA1, instA2, instB, instColored, plain);
+    const variants = collectInstancedMaterialsNeedingColor([root]);
+    expect(variants).toHaveLength(2);
+    expect(variants.map((v) => v.material)).toEqual([matNeedsColorA, matNeedsColorB]);
+    expect(variants[1].castShadow).toBe(true);
+
+    instA1.dispose();
+    instA2.dispose();
+    instB.dispose();
+    instColored.dispose();
+    geo.dispose();
+    matNeedsColorA.dispose();
+    matNeedsColorB.dispose();
+    matAlreadyColored.dispose();
+    matPlainMesh.dispose();
   });
 });

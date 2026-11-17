@@ -383,4 +383,48 @@ describe('GameLoop throttle boundary and storage backward compatibility', () => 
     loop.stop();
     vi.unstubAllGlobals();
   });
+
+  it('skips rendering completely when resolveRenderPacing returns targetFps 0 (hidden) and clamps wake duration', () => {
+    let nextRaf: ((now: number) => void) | null = null;
+    vi.stubGlobal('requestAnimationFrame', (cb: (now: number) => void) => {
+      nextRaf = cb;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', () => {});
+    vi.stubGlobal('performance', { now: () => 100 });
+
+    let hidden = true;
+    let rendered = 0;
+    const loop = new GameLoop({
+      resolveRenderPacing: (wakeActive) =>
+        computeRenderPacingTarget({
+          hidden,
+          simActive: true,
+          paused: false,
+          modalOpen: false,
+          menuView: 'playing',
+          wakeActive,
+        }),
+      onFixedTick: () => {},
+      onRender: () => {
+        rendered++;
+      },
+    });
+
+    loop.wakeRender(-5);
+    expect(loop.isWakeActive()).toBe(false);
+    loop.wakeRender(Number.NaN);
+    expect(loop.isWakeActive()).toBe(false);
+
+    loop.start();
+    nextRaf?.(116);
+    expect(rendered).toBe(0);
+
+    hidden = false;
+    nextRaf?.(132);
+    expect(rendered).toBe(1);
+
+    loop.stop();
+    vi.unstubAllGlobals();
+  });
 });

@@ -371,8 +371,9 @@ export class PostProcessingPipeline {
         }
       } else if (!this.n8aoPass) {
         this.composer.getRenderer().getDrawingBufferSize(this.drawingSize);
-        const targetW = Math.max(1, this.drawingSize.width || this.width);
-        const targetH = Math.max(1, this.drawingSize.height || this.height);
+        const minDim = next.n8ao === 'half' && this.allowHalfResN8ao ? 2 : 1;
+        const targetW = Math.max(minDim, this.drawingSize.width || this.width);
+        const targetH = Math.max(minDim, this.drawingSize.height || this.height);
         this.n8aoPass = createN8aoPass(
           this.scene,
           this.camera,
@@ -382,6 +383,13 @@ export class PostProcessingPipeline {
           this.allowHalfResN8ao,
         );
         this.composer.addPass(this.n8aoPass, 1);
+        if (
+          next.n8ao === 'half' &&
+          this.allowHalfResN8ao &&
+          (this.drawingSize.width < 2 || this.drawingSize.height < 2)
+        ) {
+          this.n8aoPass.setSize(targetW, targetH);
+        }
       } else {
         configureN8aoPass(this.n8aoPass, next.n8ao, this.allowHalfResN8ao);
       }
@@ -457,6 +465,15 @@ export class PostProcessingPipeline {
     this.width = Math.max(1, width);
     this.height = Math.max(1, height);
     this.composer.setSize(this.width, this.height, false);
+    if (this.n8aoPass && this.config.n8ao === 'half' && this.allowHalfResN8ao) {
+      this.composer.getRenderer().getDrawingBufferSize(this.drawingSize);
+      if (this.drawingSize.width < 2 || this.drawingSize.height < 2) {
+        this.n8aoPass.setSize(
+          Math.max(2, this.drawingSize.width),
+          Math.max(2, this.drawingSize.height),
+        );
+      }
+    }
   }
 
   render(): void {

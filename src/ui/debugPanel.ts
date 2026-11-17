@@ -321,6 +321,14 @@ export class DebugPanel {
       `FloatTxt: ${t.floatingTextsActive}/${t.floatingTextsMax}`;
   }
 
+  resetDisplaySmoothing(): void {
+    this.frameDtAccum = 0;
+    this.frameCount = 0;
+    this.smoothedFps = 0;
+    this.smoothedMs = 0;
+    this.hasSmoothedSample = false;
+  }
+
   getTelemetrySnapshot(): DebugTelemetry {
     return this.actions.getTelemetry();
   }

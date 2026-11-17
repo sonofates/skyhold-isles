@@ -175,6 +175,7 @@ async function bootstrap(loadingScreen: LoadingScreen): Promise<void> {
         lastViewMode = session.viewMode;
         skipNextDisplayFrame = true;
         renderWorld.sceneManager.resetGovernorWarmup(undefined, true);
+        debugPanel?.resetDisplaySmoothing();
       }
 
       session.renderFrame(frameDt, alpha, elapsedVisualTime);
@@ -198,9 +199,11 @@ async function bootstrap(loadingScreen: LoadingScreen): Promise<void> {
       if (!levelOrViewChanged) {
         if (wasPacingThrottled && pacing.targetFps === null) {
           renderWorld.sceneManager.resetGovernorWarmup(0.4, true);
+          debugPanel?.resetDisplaySmoothing();
         } else if (pacing.mode !== lastPacingMode && pacing.targetFps !== null) {
           skipNextDisplayFrame = true;
           renderWorld.sceneManager.resetDisplayMetrics();
+          debugPanel?.resetDisplaySmoothing();
         }
       }
       lastPacingMode = pacing.mode;
@@ -218,6 +221,7 @@ async function bootstrap(loadingScreen: LoadingScreen): Promise<void> {
         throttled,
         hidden: document.hidden,
         skipDisplayFrameSample,
+        allowUpgrade: !loop.paused,
       });
       if (hasPerf && transition) {
         console.info(
@@ -279,6 +283,7 @@ async function bootstrap(loadingScreen: LoadingScreen): Promise<void> {
   await renderWorld.sceneManager.warmUp(renderWorld.cameraController.camera, {
     instancedHighlightMaterial: renderWorld.materials.kenneyTower,
     extraMaterials: [renderWorld.materials.ghostInvalidMaterial],
+    instancedColorRoots: [renderWorld.effectsRenderer.group],
   });
   const warmupMs = performance.now() - warmStartMs;
   loadingScreen.setProgress(bootStepTotal, bootStepTotal);

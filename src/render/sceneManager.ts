@@ -57,6 +57,42 @@ export interface ScenePerfSnapshot {
 export interface WarmUpOptions {
   readonly instancedHighlightMaterial?: THREE.Material;
   readonly extraMaterials?: readonly THREE.Material[];
+  readonly instancedColorRoots?: readonly THREE.Object3D[];
+}
+
+export interface WarmUpColorVariant {
+  readonly material: THREE.Material;
+  readonly castShadow: boolean;
+  readonly receiveShadow: boolean;
+}
+
+/**
+ * Collects unique materials from InstancedMeshes that start without an instanceColor buffer
+ * (such as FX pools) so warmUp can precompile USE_INSTANCING_COLOR variants before combat.
+ */
+export function collectInstancedMaterialsNeedingColor(
+  roots: readonly THREE.Object3D[],
+): WarmUpColorVariant[] {
+  const seen = new Set<THREE.Material>();
+  const variants: WarmUpColorVariant[] = [];
+  for (let r = 0; r < roots.length; r++) {
+    roots[r].traverse((obj) => {
+      const inst = obj as THREE.InstancedMesh;
+      if (!inst.isInstancedMesh || inst.instanceColor !== null) return;
+      const mats = Array.isArray(inst.material) ? inst.material : [inst.material];
+      for (let m = 0; m < mats.length; m++) {
+        const mat = mats[m];
+        if (!mat || seen.has(mat)) continue;
+        seen.add(mat);
+        variants.push({
+          material: mat,
+          castShadow: inst.castShadow,
+          receiveShadow: inst.receiveShadow,
+        });
+      }
+    });
+  }
+  return variants;
 }
 
 /**
@@ -303,11 +339,18 @@ export class SceneManager {
       );
     }
 
+    const instancedColorVariants = options?.instancedColorRoots?.length
+      ? collectInstancedMaterialsNeedingColor(options.instancedColorRoots)
+      : [];
     const disposables: Array<{ dispose: () => void }> = [];
     let extraGroup: THREE.Group | null = null;
-    if (options?.instancedHighlightMaterial || options?.extraMaterials?.length) {
+    if (
+      options?.instancedHighlightMaterial ||
+      options?.extraMaterials?.length ||
+      instancedColorVariants.length > 0
+    ) {
       extraGroup = new THREE.Group();
-      if (options.instancedHighlightMaterial) {
+      if (options?.instancedHighlightMaterial) {
         const instGeo = createWarmUpTriangleGeometry();
         instGeo.setAttribute('aHighlight', new THREE.InstancedBufferAttribute(new Float32Array(1), 1));
         const instMesh = new THREE.InstancedMesh(instGeo, options.instancedHighlightMaterial, 1);
@@ -316,11 +359,25 @@ export class SceneManager {
         extraGroup.add(instMesh);
         disposables.push(instGeo, instMesh);
       }
-      if (options.extraMaterials?.length) {
+      if (options?.extraMaterials?.length || instancedColorVariants.length > 0) {
         const plainGeo = createWarmUpTriangleGeometry();
         disposables.push(plainGeo);
-        for (let i = 0; i < options.extraMaterials.length; i++) {
-          extraGroup.add(new THREE.Mesh(plainGeo, options.extraMaterials[i]));
+        if (options?.extraMaterials?.length) {
+          for (let i = 0; i < options.extraMaterials.length; i++) {
+            extraGroup.add(new THREE.Mesh(plainGeo, options.extraMaterials[i]));
+          }
+        }
+        if (instancedColorVariants.length > 0) {
+          const seedColor = new THREE.Color(1, 1, 1);
+          for (let i = 0; i < instancedColorVariants.length; i++) {
+            const v = instancedColorVariants[i];
+            const instMesh = new THREE.InstancedMesh(plainGeo, v.material, 1);
+            instMesh.setColorAt(0, seedColor);
+            instMesh.castShadow = v.castShadow;
+            instMesh.receiveShadow = v.receiveShadow;
+            extraGroup.add(instMesh);
+            disposables.push(instMesh);
+          }
         }
       }
     }
@@ -364,7 +421,12 @@ export class SceneManager {
   recordFrame(
     frameDtSec: number,
     workMs: number,
-    options?: { throttled?: boolean; hidden?: boolean; skipDisplayFrameSample?: boolean },
+    options?: {
+      throttled?: boolean;
+      hidden?: boolean;
+      skipDisplayFrameSample?: boolean;
+      allowUpgrade?: boolean;
+    },
   ): TierTransition | null {
     if (options?.hidden) return null;
     const frameMs = frameDtSec * 1000;
