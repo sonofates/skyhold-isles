@@ -19,6 +19,9 @@ export interface DebugTelemetry {
   floatingTextsActive: number;
   floatingTextsMax: number;
   geometries?: number;
+  /** Rendering tier (e.g. 'auto→medium') and framebuffer pixel ratio. */
+  quality?: string;
+  pixelRatio?: number;
 }
 
 export interface DebugActions {
@@ -164,9 +167,11 @@ export class DebugPanel {
     }
 
     const t = this.actions.getTelemetry();
+    const qualitySuffix =
+      t.quality !== undefined ? ` · ${t.quality} @${(t.pixelRatio ?? 1).toFixed(2)}x` : '';
     const geoSuffix = typeof t.geometries === 'number' ? ` · Geos: ${t.geometries}` : '';
     this.telemetryEl.textContent =
-      `FPS: ${this.smoothedFps.toFixed(1)} (${this.smoothedMs.toFixed(1)} ms)\n` +
+      `FPS: ${this.smoothedFps.toFixed(1)} (${this.smoothedMs.toFixed(1)} ms)${qualitySuffix}\n` +
       `Draws: ${t.drawsWithShadows} w/sh | ${t.drawsNoShadows} no-sh\n` +
       `Tris: ${t.triangles.toLocaleString()}${geoSuffix}\n` +
       `Enemies: ${t.enemiesActive}/${t.enemiesMax} · Towers: ${t.towersCount}\n` +

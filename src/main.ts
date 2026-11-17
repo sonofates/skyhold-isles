@@ -100,6 +100,7 @@ async function bootstrap(loadingScreen: LoadingScreen): Promise<void> {
     floatingTextPool: overlays.floatingTextPool,
     pendingDebugSpawns: session.pendingDebugSpawns,
     syncUi: session.syncUi,
+    getQualityLabel: () => session.qualityLabel(),
   });
 
   const inputManager = new InputManager(canvas, {

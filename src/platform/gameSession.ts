@@ -123,6 +123,11 @@ export class GameSession {
     return this.deps;
   }
 
+  /** Short label for the debug overlay, e.g. `auto→medium` or `high`. */
+  qualityLabel(): string {
+    return this.quality.isAuto ? `auto→${this.quality.tier}` : this.quality.tier;
+  }
+
   pauseSubtitle(): string {
     const ws = this.simWorld.waveSystem;
     const waveLabel = ws.isEndless

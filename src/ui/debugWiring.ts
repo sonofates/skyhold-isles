@@ -11,6 +11,7 @@ export interface DebugWiringContext {
   floatingTextPool: FloatingTextPool;
   pendingDebugSpawns: Array<{ type: EnemyType; delay: number }>;
   syncUi: () => void;
+  getQualityLabel?: () => string;
 }
 
 export function createDebugPanelIfEnabled(
@@ -71,6 +72,8 @@ export function createDebugPanelIfEnabled(
         particlesMax: BALANCE.pools.maxParticles + BALANCE.pools.maxShards,
         floatingTextsActive: ctx.floatingTextPool.getActiveCount(),
         floatingTextsMax: BALANCE.pools.maxFloatingTexts,
+        quality: ctx.getQualityLabel?.(),
+        pixelRatio: ctx.renderWorld.sceneManager.renderer.getPixelRatio(),
       };
     },
   });
