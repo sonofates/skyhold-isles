@@ -97,7 +97,7 @@
      expect(summary.coverage.bossPulses).toBeGreaterThan(0);
 --- a/tests/sim/metaChallenges.test.ts
 +++ b/tests/sim/metaChallenges.test.ts
-@@ -575,7 +575,7 @@
+@@ -576,7 +576,7 @@
      obs.dispose();
    });
  
