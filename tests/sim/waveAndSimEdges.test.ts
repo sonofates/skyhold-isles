@@ -5,7 +5,7 @@ import { ENEMY_DEFS, ENEMY_TYPES } from '../../src/data/enemies.ts';
 import { LEVELS, type LevelDef } from '../../src/data/levels/index.ts';
 import { CompiledPath } from '../../src/sim/path.ts';
 import { buildEndlessWaveDef, WaveSystem } from '../../src/sim/waveSystem.ts';
-import { computeStarRating, SimWorld } from '../../src/sim/world.ts';
+import { computeSellRefund, computeStarRating, SimWorld } from '../../src/sim/world.ts';
 
 describe('WaveSystem & SimWorld boundary edge cases', () => {
   it('handles skipToWave clamping, empty-wave guards, and endless unbounded skips', () => {
@@ -659,5 +659,49 @@ describe('WaveSystem & SimWorld boundary edge cases', () => {
     expect(bystanderFlyer.hp).toBeLessThan(flyerHpBefore);
     expect(bystanderFlyer.slowTimer).toBeGreaterThan(0);
     expect(frostTower.totalDamageDealt).toBeGreaterThan(0);
+  });
+
+  it('keeps tower IDs strictly monotonic across sell/rebuild cycles and resets countdown/pools on debugSkipToWave', () => {
+    const bus = new EventBus();
+    const refunds: number[] = [];
+    const started: Array<{ waveIndex: number; earlyBonus: number }> = [];
+    bus.on('towerSold', (ev) => refunds.push(ev.refund));
+    bus.on('waveStarted', (ev) => started.push({ waveIndex: ev.waveIndex, earlyBonus: ev.earlyBonus }));
+
+    const world = new SimWorld(LEVELS[0], bus);
+    world.gold = 1000;
+
+    // Build, sell, rebuild on the same cell across multiple cycles
+    const t1 = world.placeTower(4, 2, 'archer');
+    expect(t1).not.toBeNull();
+    expect(world.sellTower(t1!.id)).toBe(computeSellRefund(t1!.totalInvested));
+    expect(world.getTowerById(t1!.id)).toBeNull();
+    expect(world.grid.getTowerIdAt(4, 2)).toBe(-1);
+
+    const t2 = world.placeTower(4, 2, 'mortar');
+    expect(t2).not.toBeNull();
+    expect(t2!.id).toBeGreaterThan(t1!.id);
+    expect(world.sellTower(t2!.id)).toBe(computeSellRefund(t2!.totalInvested));
+
+    const t3 = world.placeTower(4, 2, 'tesla');
+    expect(t3).not.toBeNull();
+    expect(t3!.id).toBeGreaterThan(t2!.id);
+    expect(world.grid.getTowerIdAt(4, 2)).toBe(t3!.id);
+    expect(refunds).toEqual([computeSellRefund(t1!.totalInvested), computeSellRefund(t2!.totalInvested)]);
+
+    // Start wave 1 so enemies spawn, then skip from an active countdown with auto-wave enabled
+    expect(world.startNextWave()).toBe(true);
+    for (let i = 0; i < 60; i++) world.fixedTick(BALANCE.fixedDt);
+    expect(world.enemyPool.getActiveCount()).toBeGreaterThan(0);
+
+    world.setAutoWave(true);
+    world.waveSystem.state = 'betweenWaves';
+    world.waveSystem.interWaveTimer = 10;
+    expect(world.debugSkipToWave(3)).toBe(true);
+    expect(world.waveSystem.currentWaveOneBased).toBe(3);
+    expect(world.waveSystem.state).toBe('spawning');
+    expect(world.waveSystem.interWaveTimer).toBe(0);
+    expect(world.enemyPool.getActiveCount()).toBe(0);
+    expect(started[started.length - 1]).toEqual({ waveIndex: 2, earlyBonus: 0 });
   });
 });

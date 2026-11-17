@@ -129,6 +129,26 @@ describe('headless fuzz playthrough harness', () => {
     expect(endlessCampaign.endlessWavesCompletedTotal).toBe(2);
     expect(endlessCampaign.determinismChecks).toBe(1);
 
+    // Omitting profile in multi-seed endlessOnly campaign rotates profiles deterministically (s=0 -> competent)
+    const rotatedEndless = runFuzzCampaign({
+      seedsPerLevel: 2,
+      baseSeed: 2025,
+      endlessWaves: 1,
+      levelIndices: [0],
+      endlessOnly: true,
+    });
+    expect(rotatedEndless.failures).toEqual([]);
+    expect(rotatedEndless.endlessChecks).toBe(2);
+    expect(rotatedEndless.endlessWavesCompletedTotal).toBe(2);
+    expect(rotatedEndless.determinismChecks).toBe(1);
+
+    const competentEndless = runEndlessFuzz(LEVELS[0], 2025 + 42 + 0 * 97, 1, 'competent');
+    const balancedEndless = runEndlessFuzz(LEVELS[0], 2025 + 42 + 1 * 97, 1, 'balanced');
+    expect(competentEndless.ok, competentEndless.failure).toBe(true);
+    expect(balancedEndless.ok, balancedEndless.failure).toBe(true);
+    expect(competentEndless.digest.profile).toBe('competent');
+    expect(balancedEndless.digest.profile).toBe('balanced');
+
     const tacticalEndless = runEndlessFuzz(LEVELS[0], 42, 2, 'tactical');
     expect(tacticalEndless.ok, tacticalEndless.failure).toBe(true);
     expect(tacticalEndless.digest.profile).toBe('tactical');

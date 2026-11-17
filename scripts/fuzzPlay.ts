@@ -1,7 +1,7 @@
 import { EventBus } from '../src/core/eventBus.ts';
 import { FixedTimestepStepper } from '../src/core/gameLoop.ts';
 import { SeededRng } from '../src/core/rng.ts';
-import type { GridCoord, SpeedMultiplier, TargetingMode, TowerType } from '../src/core/types.ts';
+import type { EnemyType, GridCoord, SpeedMultiplier, TargetingMode, TowerType } from '../src/core/types.ts';
 import { ABILITY_DEFS, ABILITY_IDS } from '../src/data/abilities.ts';
 import { BALANCE } from '../src/data/balance.ts';
 import { ENEMY_DEFS } from '../src/data/enemies.ts';
@@ -43,6 +43,7 @@ const _seenEnemyUids = new Set<number>();
 const _seenTowerIds = new Set<number>();
 const _seenTowerCoords = new Set<number>();
 const _seenEventTowerIds = new Set<number>();
+const _seenChainEnemyUids = new Set<number>();
 
 export type FuzzProfile = 'tactical' | 'competent' | 'balanced' | 'chaotic' | 'minimal';
 export const FUZZ_PROFILES: readonly FuzzProfile[] = ['tactical', 'competent', 'balanced', 'chaotic', 'minimal'];
@@ -128,6 +129,7 @@ interface FuzzTracker {
   peakEnemies: number;
   peakProjectiles: number;
   seenSpawnUids: Set<number>;
+  spawnedTypes: Map<number, EnemyType>;
   killedUids: Set<number>;
   killedSplitterUids: Set<number>;
   pendingDeathUids: Set<number>;
@@ -259,6 +261,7 @@ function attachEventTracker(
       return;
     }
     tracker.seenSpawnUids.add(ev.enemyId);
+    tracker.spawnedTypes.set(ev.enemyId, ev.enemyType);
     tracker.spawnedCount++;
     tracker.stateHash = mixStringHash(mixHash(mixHash(tracker.stateHash, 1), ev.enemyId), ev.enemyType);
   });
@@ -266,6 +269,13 @@ function attachEventTracker(
   events.on('enemyKilled', (ev) => {
     if (!tracker.seenSpawnUids.has(ev.enemyId)) {
       recordEventError(tracker, `enemyKilled for unknown uid: ${ev.enemyId}`);
+      return;
+    }
+    if (tracker.spawnedTypes.get(ev.enemyId) !== ev.enemyType) {
+      recordEventError(
+        tracker,
+        `enemyKilled type mismatch for uid=${ev.enemyId}: expected ${tracker.spawnedTypes.get(ev.enemyId)}, got ${ev.enemyType}`,
+      );
       return;
     }
     if (tracker.killedUids.has(ev.enemyId)) {
@@ -313,6 +323,12 @@ function attachEventTracker(
     if (ev.count !== 2) {
       recordEventError(tracker, `enemySplit count=${ev.count} != 2 for parentUid=${ev.parentUid}`);
     }
+    if (tracker.spawnedTypes.get(ev.parentUid) !== 'splitter') {
+      recordEventError(
+        tracker,
+        `enemySplit parentUid=${ev.parentUid} was spawned as ${tracker.spawnedTypes.get(ev.parentUid)}, not splitter`,
+      );
+    }
     if (!tracker.killedSplitterUids.has(ev.parentUid)) {
       recordEventError(tracker, `enemySplit fired before splitter enemyKilled for parentUid=${ev.parentUid}`);
     }
@@ -347,6 +363,8 @@ function attachEventTracker(
       recordEventError(tracker, `bossPulse emitted without active boss at (${ev.x},${ev.y},${ev.z})`);
     }
     _seenEventTowerIds.clear();
+    let maxStunnedDist = -1;
+    let maxStunnedDistId = -1;
     for (let i = 0; i < ev.stunnedTowerIds.length; i++) {
       const tid = ev.stunnedTowerIds[i];
       if (_seenEventTowerIds.has(tid)) {
@@ -359,9 +377,34 @@ function attachEventTracker(
         recordEventError(tracker, `bossPulse stunnedTowerId=${tid} not stunned at 2.65s`);
         break;
       }
-      if (Math.hypot(t.x - ev.x, t.z - ev.z) > ev.radius + 1e-6) {
+      const dist = Math.hypot(t.x - ev.x, t.z - ev.z);
+      if (dist > ev.radius + 1e-6) {
         recordEventError(tracker, `bossPulse stunnedTowerId=${tid} outside pulse radius ${ev.radius}`);
         break;
+      }
+      if (dist > maxStunnedDist || (dist === maxStunnedDist && tid > maxStunnedDistId)) {
+        maxStunnedDist = dist;
+        maxStunnedDistId = tid;
+      }
+    }
+    if (!tracker.eventInvariantError) {
+      for (let i = 0; i < world.towers.length; i++) {
+        const o = world.towers[i];
+        if (o.stunTimer !== 0) continue;
+        const oDist = Math.hypot(o.x - ev.x, o.z - ev.z);
+        if (oDist <= ev.radius) {
+          if (
+            ev.stunnedTowerIds.length < 2 ||
+            oDist < maxStunnedDist ||
+            (oDist === maxStunnedDist && o.id < maxStunnedDistId)
+          ) {
+            recordEventError(
+              tracker,
+              `bossPulse skipped closer/higher-priority unstunned tower id=${o.id} (dist=${oDist}) vs stunned max=${maxStunnedDist} id=${maxStunnedDistId}`,
+            );
+            break;
+          }
+        }
       }
     }
     tracker.stateHash = mixHash(mixHash(tracker.stateHash, 5), ev.stunnedTowerIds.length);
@@ -399,6 +442,13 @@ function attachEventTracker(
   events.on('enemyHit', (ev) => {
     if (!tracker.seenSpawnUids.has(ev.enemyId) || tracker.killedUids.has(ev.enemyId)) {
       recordEventError(tracker, `enemyHit for unknown or already-killed uid=${ev.enemyId}`);
+      return;
+    }
+    if (tracker.spawnedTypes.get(ev.enemyId) !== ev.enemyType) {
+      recordEventError(
+        tracker,
+        `enemyHit type mismatch for uid=${ev.enemyId}: expected ${tracker.spawnedTypes.get(ev.enemyId)}, got ${ev.enemyType}`,
+      );
       return;
     }
     if (!Number.isInteger(ev.damage) || ev.damage < 1) {
@@ -543,7 +593,8 @@ function attachEventTracker(
       Math.abs(ev.y - (TOWER_DEFS[ev.type].turretHeight + 0.15)) > 1e-6 ||
       tower.recoil !== 1 ||
       Math.abs(tower.cooldownTimer - 1 / getTowerTierStats(ev.type, ev.tier).fireRate) > 1e-6 ||
-      !Number.isFinite(ev.yaw)
+      !Number.isFinite(ev.yaw) ||
+      ev.yaw !== tower.yaw
     ) {
       recordEventError(tracker, `towerFired payload/state mismatch for id=${ev.towerId}`);
     }
@@ -592,6 +643,14 @@ function attachEventTracker(
       return;
     }
     const stats = getTowerTierStats('tesla', sourceTesla.tier);
+    if (
+      sourceTesla.stunTimer > 0 ||
+      sourceTesla.recoil !== 1 ||
+      Math.abs(sourceTesla.cooldownTimer - 1 / stats.fireRate) > 1e-6
+    ) {
+      recordEventError(tracker, `lightningChain source tesla id=${sourceTesla.id} firing state mismatch`);
+      return;
+    }
     if (ev.points.length > 1 + Math.max(1, stats.chainCount)) {
       recordEventError(tracker, `lightningChain length ${ev.points.length} exceeded tier ${sourceTesla.tier} limit`);
       return;
@@ -606,6 +665,32 @@ function attachEventTracker(
         recordEventError(tracker, `lightningChain hop ${i} dist=${hop} exceeded chainRange=${stats.chainRange}`);
         return;
       }
+    }
+    _seenChainEnemyUids.clear();
+    for (let i = 1; i < ev.points.length; i++) {
+      const pt = ev.points[i];
+      world.spatialHash.query(pt.x, pt.z, 0.05, _localHashProbe);
+      let matchedUid = -1;
+      for (let j = 0; j < _localHashProbe.length; j++) {
+        const e = world.enemyPool.items[_localHashProbe[j]];
+        if (
+          e.active &&
+          !_seenChainEnemyUids.has(e.uid) &&
+          Math.hypot(e.x - pt.x, e.z - pt.z) <= 1e-5 &&
+          Math.abs(pt.y - (e.y + e.height * 0.55)) <= 1e-5
+        ) {
+          matchedUid = e.uid;
+          break;
+        }
+      }
+      if (matchedUid === -1) {
+        recordEventError(
+          tracker,
+          `lightningChain target point[${i}] (${pt.x},${pt.y},${pt.z}) matched no unhit active enemy`,
+        );
+        return;
+      }
+      _seenChainEnemyUids.add(matchedUid);
     }
     tracker.stateHash = mixHash(mixHash(tracker.stateHash, 15), ev.points.length);
   });
@@ -857,6 +942,9 @@ function assertTickInvariants(world: SimWorld, tracker: FuzzTracker, tick: numbe
       return `Invalid or duplicate active enemy uid=${e.uid} at pos=${i}`;
     }
     _seenEnemyUids.add(e.uid);
+    if (tracker.spawnedTypes.get(e.uid) !== e.type) {
+      return `Active enemy uid=${e.uid} type mismatch: spawned=${tracker.spawnedTypes.get(e.uid)}, actual=${e.type}`;
+    }
     if (e.isSplitChild && (e.type !== 'runner' || e.scaleOverride !== 0.72 || e.reward !== 1)) {
       return `Invalid split child state for uid=${e.uid} (type=${e.type}, scale=${e.scaleOverride}, reward=${e.reward})`;
     }
@@ -1646,6 +1734,7 @@ function createFuzzTracker(startingGold: number, endlessWavesConfig: number): Fu
     peakEnemies: 0,
     peakProjectiles: 0,
     seenSpawnUids: new Set<number>(),
+    spawnedTypes: new Map<number, EnemyType>(),
     killedUids: new Set<number>(),
     killedSplitterUids: new Set<number>(),
     pendingDeathUids: new Set<number>(),
@@ -2401,7 +2490,8 @@ export function runFuzzCampaign(config: {
       const endlessCount = config.endlessOnly ? config.seedsPerLevel : 1;
       for (let s = 0; s < endlessCount; s++) {
         const endlessSeed = config.baseSeed + li * 7919 + 42 + s * 97;
-        const endlessProfile = config.profile ?? 'competent';
+        const endlessProfile =
+          config.profile ?? (config.endlessOnly ? FUZZ_PROFILES[(s + 1) % FUZZ_PROFILES.length] : 'competent');
         const eRes = runEndlessFuzz(level, endlessSeed, config.endlessWaves, endlessProfile);
         endlessChecks++;
         endlessWavesCompletedTotal += eRes.digest.endlessWavesCompleted;

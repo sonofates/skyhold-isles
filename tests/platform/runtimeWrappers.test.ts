@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SoundManager } from '../../src/audio/soundManager.ts';
 import { EventBus } from '../../src/core/eventBus.ts';
 import { BALANCE } from '../../src/data/balance.ts';
+import { TOWER_TYPES } from '../../src/data/towers.ts';
 import { GameLoop } from '../../src/platform/browserLoop.ts';
 import { InputManager, type InputHandlers } from '../../src/platform/input.ts';
 
@@ -315,6 +316,23 @@ describe('SoundManager with mocked Web Audio', () => {
     sm.playImpact('archer');
     expect(oscCount).toBe(oscAfterSell);
 
+    for (const towerType of TOWER_TYPES) {
+      perfMs += 1000;
+      const beforeFireNodes = oscCount + bufSrcCount;
+      sm.playFire(towerType);
+      expect(oscCount + bufSrcCount).toBeGreaterThan(beforeFireNodes);
+
+      perfMs += 1000;
+      const beforeImpactNodes = oscCount + bufSrcCount;
+      sm.playImpact(towerType);
+      if (towerType === 'cannon' || towerType === 'frost' || towerType === 'mortar') {
+        expect(oscCount + bufSrcCount).toBeGreaterThan(beforeImpactNodes);
+      } else {
+        expect(oscCount + bufSrcCount).toBe(beforeImpactNodes);
+      }
+    }
+    const oscAfterAllTowerSounds = oscCount;
+
     sm.updateSettings({
       masterVolume: 0.005,
       muted: false,
@@ -324,13 +342,13 @@ describe('SoundManager with mocked Web Audio', () => {
     });
     perfMs += 1000;
     sm.playTowerBuild();
-    expect(oscCount).toBe(oscAfterSell);
+    expect(oscCount).toBe(oscAfterAllTowerSounds);
 
     // Unbind stops further event playback
     unbind();
     perfMs += 2000;
     bus.emit('towerBuilt', { towerId: 2, type: 'archer', tier: 1, x: 0, z: 0 });
-    expect(oscCount).toBe(oscAfterSell);
+    expect(oscCount).toBe(oscAfterAllTowerSounds);
 
     sm.dispose();
     expect(closedCount).toBe(1);

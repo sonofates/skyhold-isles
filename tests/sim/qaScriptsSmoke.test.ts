@@ -86,6 +86,7 @@ describe('QA scripts smoke verification', () => {
     const res = runLevelBalanceSim(customLevel, 'weak', [
       { waveIndex: 0, action: 'build', col: 4, row: 2, towerType: 'archer', targetingMode: 'strongest' },
       { waveIndex: 0, action: 'build', col: 0, row: 0, towerType: 'archer' }, // invalid void tile
+      { waveIndex: 0, action: 'build', col: 4, row: 3 }, // invalid build missing towerType
       { waveIndex: 0, action: 'upgrade', col: 4, row: 3 }, // invalid missing tower
       { waveIndex: 0, action: 'upgrade', col: 4, row: 2 }, // unaffordable at 10g
     ]);
@@ -95,8 +96,11 @@ describe('QA scripts smoke verification', () => {
     expect(res.stars).toBe(0);
     expect(res.towersBuilt).toBe(1);
     expect(res.targetingChanges).toBe(1);
-    expect(res.invalidActions).toBe(2);
+    expect(res.invalidActions).toBe(3);
     expect(res.unspentScriptActions).toBe(1);
+    expect(res.waves).toHaveLength(1);
+    expect(res.waves[0].livesLost).toBeGreaterThan(0);
+    expect(res.waves[0].leaksByType.boss).toBeGreaterThan(0);
     expect(res.startingGold + res.goldEarned - res.goldSpent).toBe(res.finalGold);
 
     // Verify full T1 -> T2 -> T3 upgrades + T4 over-upgrade rejection & hoard % tracking
@@ -194,6 +198,12 @@ describe('QA scripts smoke verification', () => {
     const ciBad = runTsx(['scripts/ci.ts', '--unknown-flag']);
     expect(ciBad.status).not.toBe(0);
 
+    const benchBad = runTsx(['scripts/simBench.ts', '--unknown-flag']);
+    expect(benchBad.status).not.toBe(0);
+
+    const fuzzBad = runTsx(['scripts/fuzzPlay.ts', '--unknown-flag']);
+    expect(fuzzBad.status).not.toBe(0);
+
     const fuzzRepro = runTsx([
       'scripts/fuzzPlay.ts',
       '--level',
@@ -269,13 +279,15 @@ describe('QA scripts smoke verification', () => {
     expect(endlessOnlyJson.deterministic).toBe(true);
     expect(endlessOnlyJson.digest.endlessWavesCompleted).toBe(1);
 
-    const benchJsonProc = runTsx(['scripts/simBench.ts', '--json']);
+    const benchJsonProc = runTsx(['scripts/simBench.ts', '--strict', '--json']);
     expect(benchJsonProc.status, benchJsonProc.stderr).toBe(0);
     const benchJson = JSON.parse(benchJsonProc.stdout) as {
       levelId: string;
+      hardFloorTicksPerSec: number;
       passed: boolean;
       results: Array<{ enemyCount: number; towerCount: number; ticksPerSec: number }>;
     };
+    expect(benchJson.hardFloorTicksPerSec).toBe(180);
     expect(benchJson.passed).toBe(true);
     expect(benchJson.results.map((r) => r.enemyCount)).toEqual([100, 250, 360]);
     expect(benchJson.results.every((r) => r.towerCount === 40 && r.ticksPerSec > 180)).toBe(true);
