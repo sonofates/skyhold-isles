@@ -7,6 +7,7 @@ import {
   endlessMutatorsAt,
   newEndlessMutatorAt,
   NO_ENDLESS_MUTATORS,
+  endlessTier,
 } from '../../src/data/endlessMutators.ts';
 import { ENEMY_DEFS } from '../../src/data/enemies.ts';
 import { LEVELS } from '../../src/data/levels/index.ts';
@@ -170,5 +171,18 @@ describe('endless from the island card', () => {
     world.startNextWave();
     expect(world.startEndlessFromStart()).toBe(false);
     expect(world.waveSystem.isEndless).toBe(false);
+  });
+});
+
+describe('endless medal tiers', () => {
+  it('counts endless waves cleared beyond the story', () => {
+    // 18 story waves: falling on wave 19 = 0 endless waves cleared.
+    expect(endlessTier(0, 18)).toBe(0);
+    expect(endlessTier(19, 18)).toBe(0);
+    expect(endlessTier(21, 18)).toBe(0);
+    expect(endlessTier(22, 18)).toBe(1);
+    expect(endlessTier(25, 18)).toBe(2);
+    expect(endlessTier(29, 18)).toBe(3);
+    expect(endlessTier(99, 18)).toBe(3);
   });
 });

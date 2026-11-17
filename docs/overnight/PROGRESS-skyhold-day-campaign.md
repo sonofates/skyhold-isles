@@ -31,6 +31,11 @@ Machine load from the other agents can make desktop shots slow (timeout raised t
       bestStreak, total}; v1/v2 saves without it get an empty record. Date.now() is read only in
       the UI/session layer.
 
+- [x] Endless medals (derived, no save change): endless waves cleared beyond the story ≥3 Bronze,
+      ≥6 Silver, ≥10 Gold (`endlessTier`). Card endless chip + Logbook column tinted; results card
+      calls out a newly reached medal. Victory card says "Island mastered!" when a win completes it.
+- [x] Modals focus their main action (keyboard).
+
 ## Next ideas (not started)
 - Show challenge-star total next to the campaign star pill.
 - HUD chip for active challenge (MOBILE's HUD area — left to lead/mobile; pause subtitle shows it now).

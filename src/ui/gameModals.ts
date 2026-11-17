@@ -4,7 +4,7 @@ import type { LevelDef } from '../data/levels/index.ts';
 import { describeStarGoals } from '../data/stars.ts';
 import type { WinRecord } from '../game/progression.ts';
 import { TOWER_ICON_SVGS, UI_ICON_SVGS } from './icons.ts';
-import { renderStarsHtml } from './menus.ts';
+import { MASTERED_CROWN_SVG, renderStarsHtml } from './menus.ts';
 import './styles/starReveal.css';
 import { WORKSHOP_ICON_SVG } from './workshop.ts';
 
@@ -38,6 +38,8 @@ export interface EndlessResultView {
   readonly reachedEndless: boolean;
   readonly endlessWavesCleared: number;
   readonly mutators: readonly string[];
+  /** Endless medal tier reached for the first time by this run (e.g. "Silver"). */
+  readonly newTierName?: string;
 }
 
 function escapeHtml(text: string): string {
@@ -349,6 +351,8 @@ export class OutcomeOverlay {
       workshopStars?: number;
       /** Daily Squall streak after this win (0 = not a counted daily). */
       dailyStreak?: number;
+      /** This win completed the island (3 stars + every challenge). */
+      newlyMastered?: boolean;
     },
   ): void {
     this.open = true;
@@ -368,6 +372,7 @@ export class OutcomeOverlay {
       extras?.newChallengeNames ?? [],
       extras?.workshopStars ?? 0,
       extras?.dailyStreak ?? 0,
+      extras?.newlyMastered === true,
     );
     if (stars < 3) {
       const goals = describeStarGoals(level.difficulty);
@@ -396,6 +401,7 @@ export class OutcomeOverlay {
     challengeNames: readonly string[],
     workshopStars: number,
     dailyStreak: number,
+    newlyMastered: boolean,
   ): void {
     const chips: string[] = [];
     let delay = (STAR_REVEAL_DELAYS_MS[Math.max(0, stars - 1)] ?? 0) + 380;
@@ -410,6 +416,7 @@ export class OutcomeOverlay {
       else if (record.starsGained > 0) chip('callout-best', UI_ICON_SVGS.star, `+${record.starsGained}★ new best`);
       else if (record.newBestLives) chip('callout-best', UI_ICON_SVGS.heart, 'Best defence yet');
     }
+    if (newlyMastered) chip('callout-mastered', MASTERED_CROWN_SVG, 'Island mastered!');
     if (dailyStreak > 0) {
       chip('callout-daily', UI_ICON_SVGS.star, `Daily Squall +1★${dailyStreak > 1 ? ` · ${dailyStreak}-day streak` : ''}`);
     }
@@ -455,9 +462,16 @@ export class OutcomeOverlay {
           : `Personal best: wave ${res.best}`
         : 'The sanctuary finally fell';
       this.starsEl.classList.add('hidden');
+      const chips: string[] = [];
       if (res?.isNewBest) {
-        this.calloutsEl.innerHTML = `<span class="outcome-callout callout-best" style="--reveal-delay:350ms">${UI_ICON_SVGS.star}<span>New best!</span></span>`;
+        chips.push(`<span class="outcome-callout callout-best" style="--reveal-delay:350ms">${UI_ICON_SVGS.star}<span>New best!</span></span>`);
       }
+      if (res?.newTierName) {
+        chips.push(
+          `<span class="outcome-callout callout-tier tier-${escapeHtml(res.newTierName.toLowerCase())}" style="--reveal-delay:520ms">${UI_ICON_SVGS.autoWave}<span>${escapeHtml(res.newTierName)} endless medal</span></span>`,
+        );
+      }
+      this.calloutsEl.innerHTML = chips.join('');
       if (res && res.mutators.length > 0) {
         const chips = res.mutators.map((m) => `<span class="endless-mutator-chip">${escapeHtml(m)}</span>`).join('');
         this.goalsEl.innerHTML = `<span class="endless-mutators-label">Mutators faced</span>${chips}`;

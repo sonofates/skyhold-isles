@@ -58,6 +58,8 @@ import {
 } from '../data/challenges.ts';
 import { STAR_RULES } from '../data/stars.ts';
 import {
+  ENDLESS_TIERS,
+  endlessTier,
   ENDLESS_MUTATOR_INTERVAL,
   endlessMutatorsAt,
   newEndlessMutatorAt,
@@ -65,7 +67,7 @@ import {
 import type { EndlessResultView } from '../ui/gameModals.ts';
 import { affordableUpgradeCount } from '../ui/workshop.ts';
 import { buyRank, workshopModifiers, type WorkshopUpgradeId } from '../data/workshop.ts';
-import { starWallet } from '../game/progression.ts';
+import { isIslandMastered, starWallet } from '../game/progression.ts';
 import { badgesForWin, resolveRunConfig, type RunConfig } from '../game/runConfig.ts';
 
 /** Countdown / cooldown HUD refresh cadence when no event triggered a sync. */
@@ -445,6 +447,7 @@ export class GameSession {
       onGameWon: (stars, livesRemaining) => {
         // Island badges only for the island's own challenges (a Daily may use others).
         const offered = challengesForLevel(LEVELS[this.currentLevelIndex]);
+        const masteredBefore = isIslandMastered(this.progress, this.currentLevelIndex, offered);
         const record = recordWinProgress(
           this.progress,
           this.currentLevelIndex,
@@ -486,6 +489,8 @@ export class GameSession {
             workshopStars:
               affordableUpgradeCount(this.progress) > 0 ? starWallet(this.progress).available : 0,
             dailyStreak,
+            newlyMastered:
+              !masteredBefore && isIslandMastered(this.progress, this.currentLevelIndex, offered),
           },
         );
         this.scheduleStarChimes(stars);
@@ -505,7 +510,10 @@ export class GameSession {
           const offset = waveIndex - level.waves.length;
           if (offset >= 0) {
             const rec = recordEndlessProgress(this.progress, this.currentLevelIndex, waveIndex + 1);
+            const tierBefore = endlessTier(rec.previousBest, level.waves.length);
+            const tierNow = endlessTier(rec.best, level.waves.length);
             endlessResult = {
+              newTierName: tierNow > tierBefore ? ENDLESS_TIERS[tierNow - 1].name : undefined,
               best: rec.best,
               previousBest: rec.previousBest,
               isNewBest: rec.isNewBest,

@@ -409,6 +409,22 @@
   box-shadow: inset 0 -3px 0 #a26ac0;
 }
 
+/* Endless medal tiers (card chip + logbook column) */
+.level-endless-chip.tier-1,
+.lb-stat.tier-1 {
+  color: #e0a46b;
+}
+
+.level-endless-chip.tier-2,
+.lb-stat.tier-2 {
+  color: #e8eef8;
+}
+
+.level-endless-chip.tier-3,
+.lb-stat.tier-3 {
+  color: var(--gx-gold);
+}
+
 /* Mastered islands (3 stars + every challenge): gold rim + crown */
 .level-card.mastered {
   --s-hi: #6b5ea8;

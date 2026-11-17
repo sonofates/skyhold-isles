@@ -2,6 +2,7 @@ import type { ProgressData } from '../core/types.ts';
 import { CHALLENGES, challengesForLevel, type ChallengeId } from '../data/challenges.ts';
 import { LEVELS } from '../data/levels/index.ts';
 import { describeStarGoals } from '../data/stars.ts';
+import { ENDLESS_TIERS, endlessTier } from '../data/endlessMutators.ts';
 import { TOWER_ICON_SVGS, UI_ICON_SVGS } from './icons.ts';
 import { affordableUpgradeCount, WORKSHOP_ICON_SVG } from './workshop.ts';
 import { isIslandMastered } from '../game/progression.ts';
@@ -348,9 +349,12 @@ export class LevelSelectOverlay {
       const bestEndless = progress.bestEndlessWaves?.[i] ?? 0;
       if (bestEndless > 0) {
         const endlessChip = document.createElement('span');
-        endlessChip.className = 'level-endless-chip';
+        const tier = endlessTier(bestEndless, lvl.waves.length);
+        endlessChip.className = `level-endless-chip${tier > 0 ? ` tier-${tier}` : ''}`;
         endlessChip.innerHTML = `${UI_ICON_SVGS.autoWave}W${bestEndless}`;
-        endlessChip.title = `Endless best: wave ${bestEndless}`;
+        endlessChip.title = `Endless best: wave ${bestEndless}${
+          tier > 0 ? ` · ${ENDLESS_TIERS[tier - 1].name} medal` : ''
+        }`;
         metaEl.appendChild(endlessChip);
       }
 

@@ -1,5 +1,6 @@
 import type { ProgressData } from '../core/types.ts';
 import { challengesForLevel } from '../data/challenges.ts';
+import { endlessTier } from '../data/endlessMutators.ts';
 import { LEVELS } from '../data/levels/index.ts';
 import { isIslandMastered, summarizeProgress } from '../game/progression.ts';
 import { UI_ICON_SVGS } from './icons.ts';
@@ -95,7 +96,7 @@ export class LogbookModal {
            <span class="lb-medals">${medals}</span>
            <span class="lb-stat" title="Best lives left">${lives > 0 ? `${UI_ICON_SVGS.heart}${lives}` : '–'}</span>
            <span class="lb-stat lb-stat-wins" title="Wins">${wins > 0 ? `${wins}×` : '–'}</span>
-           <span class="lb-stat lb-stat-endless" title="Endless best">${endless > 0 ? `W${endless}` : '–'}</span>`
+           <span class="lb-stat lb-stat-endless tier-${endlessTier(endless, level.waves.length)}" title="Endless best">${endless > 0 ? `W${endless}` : '–'}</span>`
         : `<span class="lb-num">${i + 1}</span><span class="lb-name lb-locked-name">${UI_ICON_SVGS.lock}Locked</span>`;
       list.appendChild(row);
     }

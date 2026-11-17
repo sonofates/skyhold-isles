@@ -184,6 +184,22 @@
   background: #c9c4ea;
 }
 
+.outcome-callout.callout-mastered {
+  background: linear-gradient(135deg, #ffe08f, #f6bd41);
+}
+
+.outcome-callout.callout-tier.tier-bronze {
+  background: #e0a46b;
+}
+
+.outcome-callout.callout-tier.tier-silver {
+  background: #e8eef8;
+}
+
+.outcome-callout.callout-tier.tier-gold {
+  background: var(--gx-gold);
+}
+
 /* Endless results */
 .outcome-badge.outcome-badge-endless {
   color: #8fd5ee;

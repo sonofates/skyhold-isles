@@ -136,3 +136,21 @@ export const ENDLESS_POOL_EXTRA: Readonly<Partial<Record<EnemyType, number>>> = 
 export function poolWeight(type: EnemyType): number {
   return 1 + (ENDLESS_POOL_EXTRA[type] ?? 0);
 }
+
+/** Endless medal tiers by endless waves cleared beyond the story. */
+export const ENDLESS_TIERS: readonly { readonly name: string; readonly cleared: number }[] = [
+  { name: 'Bronze', cleared: 3 },
+  { name: 'Silver', cleared: 6 },
+  { name: 'Gold', cleared: 10 },
+];
+
+/**
+ * Medal tier (0 none, 1 bronze, 2 silver, 3 gold) for an island's best endless wave. `bestWave` is
+ * the one-based wave the run fell on, so waves cleared past the story = bestWave - 1 - storyWaves.
+ */
+export function endlessTier(bestWave: number, storyWaves: number): number {
+  const cleared = Math.max(0, Math.floor(bestWave) - 1 - storyWaves);
+  let tier = 0;
+  for (let i = 0; i < ENDLESS_TIERS.length; i++) if (cleared >= ENDLESS_TIERS[i].cleared) tier = i + 1;
+  return tier;
+}
