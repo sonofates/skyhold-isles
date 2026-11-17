@@ -34,16 +34,22 @@ export interface TowerArtRuntime {
   /** Per tier 1..3: painted idle loop, or null. */
   readonly idle: readonly (TowerSheetRuntime | null)[];
   /**
-   * Per tier 1..3: aimable turret (its body is then that tier's texture / ring), or null. Optional:
-   * art built by hand (placeholders, tests) may leave it out.
+   * Per tier 1..3: aimable turret (drawn as its body + the turret piece instead of `tiers`), or
+   * null. Optional: art built by hand (placeholders, tests) may leave it out.
    */
   readonly turrets?: readonly (TurretRuntime | null)[];
 }
 
-/** A loaded aimable turret: 5 direction frames (TURRET_DIRS order) + the packed measurements. */
+/**
+ * A loaded aimable turret: 5 direction frames (TURRET_DIRS order), the packed measurements and the
+ * body drawn under it (its own stone ring). `tiers` keeps the full-tower picture (build ring, codex).
+ */
 export interface TurretRuntime {
   readonly spec: TurretSpec;
   readonly frames: readonly Texture[];
+  readonly body: Texture;
+  readonly bodyFile: string;
+  readonly ring: RingSpec;
 }
 
 /** A tower animation sheet, ring-measured in its own frame px (so frames fit the plot like statics). */
@@ -367,13 +373,6 @@ async function loadTower(
       }),
     );
   const [attack, idle, turrets] = await Promise.all([sheets(spec.attack), sheets(spec.idle), loadTurrets(base, spec, present)]);
-  // A turret tier draws its body instead of the full-tower sprite (same ring convention).
-  turrets.forEach((t, i) => {
-    if (!t) return;
-    tiers[i] = t.body;
-    tierFiles[i] = t.bodyFile;
-    rings[i] = t.ring;
-  });
   return {
     spec,
     tiers,
@@ -383,8 +382,8 @@ async function loadTower(
     rings,
     attack,
     idle,
-    turrets: turrets.map((t) => (t ? { spec: t.spec, frames: t.frames } : null)),
-    hasArt: has.some(Boolean) || turrets.some(Boolean),
+    turrets,
+    hasArt: has.some(Boolean),
   };
 }
 
@@ -396,7 +395,7 @@ async function loadTurrets(
   base: string,
   spec: TowerArt,
   present: Set<string>,
-): Promise<({ spec: TurretSpec; frames: Texture[]; body: Texture; bodyFile: string; ring: RingSpec } | null)[]> {
+): Promise<(TurretRuntime | null)[]> {
   return Promise.all(
     [0, 1, 2].map(async (i) => {
       const jsonPath = spec.turret[i];

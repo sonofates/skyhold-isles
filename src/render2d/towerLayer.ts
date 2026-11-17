@@ -471,11 +471,14 @@ export class TowerLayer {
   }
 
   /** Places a ring-convention tower; returns false when it cannot (no plot geometry). */
-  private syncRing(v: TowerView, t: TowerEntity, ring: RingSpec, art: TowerArtRuntime, simDt: number, py: number): boolean {
+  private syncRing(v: TowerView, t: TowerEntity, tierRing: RingSpec, art: TowerArtRuntime, simDt: number, py: number): boolean {
     const target = this.plots?.rings[t.col];
     if (!target) return false;
     const ppu = this.map.layout.pxPerUnit;
     const tierIdx = Math.max(1, Math.min(3, t.tier)) - 1;
+    // A turret tier draws its body (own ring) under the turret instead of the full-tower picture.
+    const turret = art.turrets?.[tierIdx] ?? null;
+    const ring = turret ? turret.ring : tierRing;
     // Pre-roll the attack sheet so its release frame lands on the coming shot (towerAnim.ts).
     const sheetNow = art.attack[tierIdx];
     if (simDt > 0) {
@@ -502,11 +505,10 @@ export class TowerLayer {
         v.armed = true;
       }
     }
-    const stat = art.tiers[tierIdx];
+    const stat = turret ? turret.body : art.tiers[tierIdx];
     // Static fit (also the muzzle reference, so shots leave the same spot with or without sheets).
     const fit = fitOnRing(target, ring, stat.width, stat.height, art.spec.ringScale);
     v.muzzle = ringMuzzle(fit, ring, py, art.spec.muzzleFrac, HEIGHT_TO_SCREEN * ppu);
-    const turret = art.turrets?.[tierIdx] ?? null;
     v.turretArt = turret;
     const tip = turret ? null : art.spec.muzzlePx[tierIdx];
     v.muzzlePt = tip ? spriteMuzzle(fit, ring, tip) : null;
