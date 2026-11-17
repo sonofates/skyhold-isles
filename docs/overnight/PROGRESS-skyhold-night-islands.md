@@ -212,3 +212,7 @@ early waves does NOT soften them, it starves the economy (kill rewards) and the 
 ### Round 12 (verification only, no code changes)
 - Clean tree. tsc, lint, 134 tests, `sim:balance` all green (greedy L1 20 / L2 15 / L3 9 / L4 15 / L5 14 / L6 13 / L7 10 / L8 7 / L9 9 lives; every weak script loses L2+).
 - Handoff state unchanged; see "Merge notes for the lead". Layout/path and wave-ramp changes remain untouched (knife-edge windows).
+
+### Round 14 (verification only, no code changes)
+- Clean tree. tsc, lint, 134 tests, build, `sim:balance` all green (greedy L1 20 / L2 15 / L3 9 / L4 15 / L5 14 / L6 13 / L7 10 / L8 7 / L9 9 lives; every weak script loses L2+).
+- Re-checked ambient/theme coverage: every island already has its own sky, birds/butterflies/islets, set pieces and goal trimmings; no gaps left that are worth the risk. Layout/path and wave-ramp changes remain untouched (knife-edge windows). Handoff state unchanged; see "Merge notes for the lead".
