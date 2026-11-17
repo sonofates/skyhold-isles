@@ -251,6 +251,8 @@ function waterfall(pb: PieceBuilder): void {
   pb.ico(CREAM, [0.8, 0.12, 0.5], [0, waterY + 0.03, 1.3]);
   pb.ico(CREAM, [0.45, 0.1, 0.3], [-0.6, waterY + 0.02, 1.5]);
   pb.ico(CREAM, [0.4, 0.1, 0.28], [0.62, waterY + 0.02, 1.46]);
+  // Spray rising from the plunge pool.
+  for (let k = 0; k < 4; k++) pb.anim('ember', -0.3 + k * 0.22, waterY + 0.1, 1.3 + (k % 2) * 0.12, 0, k / 4 + 0.09 * k, 0xf2fbff);
 }
 
 /** Tall snow-capped mountain rising from the sea (background silhouette). */

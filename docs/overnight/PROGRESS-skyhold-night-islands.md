@@ -366,3 +366,8 @@ early waves does NOT soften them, it starves the economy (kill rewards) and the 
 ### Round 58 (verification only, no code changes)
 - Clean tree at start (HEAD = round 57). tsc, lint, 143 tests and `sim:balance` all green (greedy L1 20 / L2 15 / L3 9 / L4 15 / L5 14 / L6 13 / L7 10 / L8 7 / L9 9 lives; every weak script loses L2+). Build not re-run (no source changes since round 48).
 - Handoff state unchanged; see "Merge notes for the lead".
+
+### Round 59 (render-only: waterfall spray)
+- Waterfalls (L3's two cliff falls, plus any other theme using the piece) now throw 4 white spray particles up from the plunge pool, reusing the `ember` anim family (no new draw call on islands that already have braziers/cottages; L3 map+decor 23 draws, budget test < 40 unaffected).
+- tsc, lint, 143 tests, build, `sim:balance` green (sim/data untouched; greedy L1 20 / L2 15 / L3 9 / L4 15 / L5 14 / L6 13 / L7 10 / L8 7 / L9 9; every weak script loses L2+).
+- Handoff state unchanged; see "Merge notes for the lead".
