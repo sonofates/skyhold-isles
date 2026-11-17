@@ -125,7 +125,7 @@ export function buildEndlessWaveDef(waveIndex: number, level: LevelDef): WaveDef
     groups.push({
       enemyType: type,
       count: Math.min(tuning.max, Math.round((tuning.base + offset * tuning.perWave) * scaleFactor)),
-      spawnInterval: Math.max(0.16, +(tuning.interval - offset * 0.02).toFixed(2)),
+      spawnInterval: Math.max(0.18, +(tuning.interval - offset * 0.02).toFixed(2)),
       startDelay: 1.0 + k * 1.1,
       // From the 4th endless wave on, the lead spotlight group arrives Empowered.
       elite: offset >= 3 && k === 0 && type !== 'mite',

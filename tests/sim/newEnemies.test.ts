@@ -441,6 +441,21 @@ describe('endless spotlight variety', () => {
     }
   });
 
+  it('worst-case endless waves fit the enemy pool, counting units spawned mid-wave', () => {
+    // Units that bring more units: split children, boss escorts, hauler raiders, tempest mites.
+    const extra: Partial<Record<EnemyType, number>> = { splitter: 2, boss: 2, carrier: 2, tempest: 6 };
+    for (const level of LEVELS) {
+      for (const offset of [0, 4, 9, 19, 49, 99]) {
+        let worst = 0;
+        for (const g of buildEndlessWaveDef(level.waves.length + offset, level).groups) {
+          expect(g.spawnInterval).toBeGreaterThanOrEqual(0.18);
+          worst += g.count * (1 + (extra[g.enemyType] ?? 0));
+        }
+        expect(worst, `${level.id} +${offset}`).toBeLessThanOrEqual(BALANCE.pools.maxEnemies);
+      }
+    }
+  });
+
   it('every second endless boss wave is led by a Tempest Colossus', () => {
     const level = LEVELS[0];
     const at = (offset: number): Map<EnemyType, number> => {
