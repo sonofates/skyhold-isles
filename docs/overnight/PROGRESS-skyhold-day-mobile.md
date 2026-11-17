@@ -117,3 +117,5 @@ Branch `hermes/skyhold-day-mobile`. Preview port 4302. Deadline 21:00 TR.
 - Round 19: re-read `src/platform/input.ts` (pinch -> single finger, blur, cancel paths) and found no further bug. Tree green (tsc, lint, 467 tests, build). Backlog 1-5 complete; no code change. Open items still need real devices (governor tuning) or a Lighthouse binary. Merge-tree trial against campaign/content is still blocked by the sandbox.
 
 - Round 20: tree green (tsc, lint, 467 tests, build). Backlog 1-5 complete; no code change. Open items still need real devices (governor tuning) or a Lighthouse binary.
+
+- Round 21: tree green (tsc, lint, 467 tests, build). Backlog 1-5 complete; no code change. Open items still need real devices (governor tuning) or a Lighthouse binary.
