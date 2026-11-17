@@ -56,7 +56,10 @@ function networkFirstNavigation(request) {
         clearTimeout(timer);
         if (settled) return;
         settled = true;
-        if (res.ok) {
+        // Only the 3D game's own page refreshes the offline shell; other pages (2d.html) must never
+        // overwrite it.
+        const path = new URL(request.url).pathname;
+        if (res.ok && (path === '/' || path === '/index.html')) {
           const copy = res.clone();
           caches.open(CACHE).then((c) => c.put('/index.html', copy));
         }
@@ -79,6 +82,9 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
   if (url.pathname === '/sw.js') return;
+  // The 2D build lives on the same origin but is not part of the offline 3D game: let its page,
+  // manifest and art go straight to the network (cache-first would pin a stale manifest forever).
+  if (url.pathname === '/2d.html' || url.pathname.startsWith('/art2d/')) return;
 
   if (request.mode === 'navigate') {
     event.respondWith(networkFirstNavigation(request));

@@ -79,16 +79,23 @@ function tryTexture(url: string): Promise<Texture | null> {
   let p = textureCache.get(url);
   if (!p) {
     p = (async () => {
-      try {
-        // Probe first: a dev/preview server may answer a missing file with index.html (200).
-        const head = await fetch(url, { method: 'HEAD' });
-        const type = head.headers.get('content-type') ?? '';
-        if (!head.ok || type.includes('text/html')) return null;
-        const tex = await Assets.load<Texture>(url);
-        return tex ?? null;
-      } catch {
-        return null;
+      // A burst of ~100 parallel requests at boot can drop a few on weak servers or flaky mobile
+      // networks: retry transient failures; a real 404 / HTML fallback still returns null at once.
+      for (let attempt = 0; attempt < LOAD_RETRIES; attempt++) {
+        try {
+          // Probe first: a dev/preview server may answer a missing file with index.html (200).
+          const head = await fetch(url, { method: 'HEAD' });
+          const type = head.headers.get('content-type') ?? '';
+          if (head.status === 404 || type.includes('text/html')) return null;
+          if (!head.ok) throw new Error(`HTTP ${head.status}`);
+          const tex = await Assets.load<Texture>(url);
+          if (tex) return tex;
+        } catch {
+          // transient: fall through to the retry
+        }
+        await sleep(RETRY_BASE_MS * (attempt + 1));
       }
+      return null;
     })();
     textureCache.set(url, p);
   }
@@ -96,13 +103,24 @@ function tryTexture(url: string): Promise<Texture | null> {
 }
 
 async function tryJson(url: string): Promise<unknown | null> {
-  try {
-    const res = await fetch(url);
-    if (!res.ok) return null;
-    return (await res.json()) as unknown;
-  } catch {
-    return null;
+  for (let attempt = 0; attempt < LOAD_RETRIES; attempt++) {
+    try {
+      const res = await fetch(url);
+      if (res.status === 404) return null;
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return (await res.json()) as unknown;
+    } catch {
+      // transient: retry
+    }
+    await sleep(RETRY_BASE_MS * (attempt + 1));
   }
+  return null;
+}
+
+const LOAD_RETRIES = 4;
+const RETRY_BASE_MS = 250;
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function dirOf(url: string): string {

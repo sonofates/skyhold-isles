@@ -80,3 +80,13 @@ describe('web app manifest', () => {
     expect(html).toContain('viewport-fit=cover');
   });
 });
+
+describe('service worker template vs the 2D build', () => {
+  const tpl = readFileSync('pwa/sw.template.js', 'utf8');
+  it('lets 2d.html and /art2d/ go to the network (no cache-first, no stale manifest)', () => {
+    expect(tpl).toContain("url.pathname === '/2d.html' || url.pathname.startsWith('/art2d/')");
+  });
+  it('only stores the offline shell for the 3D page itself', () => {
+    expect(tpl).toMatch(/path === '\/' \|\| path === '\/index\.html'/);
+  });
+});
