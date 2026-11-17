@@ -488,8 +488,8 @@ export class PerfGovernor {
       if (this.bounceCounts[bouncedFrom] >= GOVERNOR_THRESHOLDS.maxBouncesBeforeLock) {
         this.lockedCeilingTier = Math.min(this.lockedCeilingTier, Math.max(0, bouncedFrom - 1)) as QualityTier;
       }
-      this.lastUpgradeToTier = null;
     }
+    this.lastUpgradeToTier = null;
 
     this.tier = nextTier;
     this.lastChangeSec = this.clockSec;

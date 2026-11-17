@@ -1794,15 +1794,20 @@ describe('PerfGovernor', () => {
           render: (r: THREE.WebGLRenderer) => void;
           material: THREE.ShaderMaterial;
         };
+        accumulationQuad: {
+          render: (r: THREE.WebGLRenderer) => void;
+          material: THREE.ShaderMaterial;
+        };
         effectCompositerQuad: { render: () => void };
       };
       const internals = pipeline as unknown as { n8aoPass: N8AOPostPass | null };
       const pass = internals.n8aoPass!;
       const n8ao = pass as unknown as N8aoInternals;
 
-      // Real pipeline N8AO excludes unused copyQuad shader from warm-up materials
+      // Real pipeline N8AO excludes unused copyQuad & accumulationQuad shaders from warm-up materials
       const warm = pipeline.getWarmUpMaterials();
       expect(warm.linearMaterials).not.toContain(n8ao.copyQuad.material);
+      expect(warm.linearMaterials).not.toContain(n8ao.accumulationQuad.material);
 
       // Verify direct-output wrapper redirects outputTargetInternal to outputBuffer and skips copyQuad.render
       const dummyInternal = { id: 'orig-internal' } as unknown as THREE.WebGLRenderTarget;
@@ -1904,6 +1909,100 @@ describe('PerfGovernor', () => {
       expect(readyWarm.screenMaterials).toEqual([internals.smaaPass!.fullscreenMaterial]);
     } finally {
       pipeline.dispose();
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('bypasses N8AO accumulationRenderTarget + accumulationQuad when accumulate is false and passes explicit deltaTime in render()', () => {
+    vi.stubGlobal('Image', undefined);
+    const { renderer: mockRenderer } = createMockPostRenderer(800, 600);
+    const writeTarget = new THREE.WebGLRenderTarget(400, 300);
+    const accumTarget = new THREE.WebGLRenderTarget(400, 300);
+    const outBuf = new THREE.WebGLRenderTarget(800, 600);
+    const inBuf = new THREE.WebGLRenderTarget(800, 600);
+    const accumMat = new THREE.ShaderMaterial({ uniforms: { tDiffuse: { value: null } } });
+
+    let accumCalls = 0;
+    let observedAccumTarget: unknown = null;
+    let shouldThrow = false;
+
+    const fakePass = {
+      renderToScreen: true,
+      configuration: { accumulate: false, denoiseIterations: 2 },
+      writeTargetInternal: writeTarget,
+      accumulationRenderTarget: accumTarget,
+      accumulationQuad: {
+        material: accumMat,
+        render: () => {
+          accumCalls++;
+        },
+      },
+      render(
+        this: {
+          accumulationRenderTarget: unknown;
+          accumulationQuad: { render: (r: THREE.WebGLRenderer) => void; material: THREE.ShaderMaterial };
+        },
+        r: THREE.WebGLRenderer,
+      ) {
+        observedAccumTarget = this.accumulationRenderTarget;
+        this.accumulationQuad.material.uniforms.tDiffuse.value = writeTarget.texture;
+        this.accumulationQuad.render(r);
+        if (shouldThrow) {
+          throw new Error('accum failure');
+        }
+      },
+    };
+
+    const pipeline = new PostProcessingPipeline(
+      mockRenderer,
+      new THREE.Scene(),
+      new THREE.OrthographicCamera(),
+      800,
+      600,
+      { n8ao: 'off', outline: true, bloom: false, smaa: false },
+    );
+
+    try {
+      expect(installN8aoDirectOutputPass(fakePass as unknown as N8AOPostPass)).toBe(true);
+
+      // accumulate=false + even denoiseIterations -> aliases writeTargetInternal and skips accumulationQuad
+      fakePass.render(mockRenderer, inBuf, outBuf);
+      expect(observedAccumTarget).toBe(writeTarget);
+      expect(accumCalls).toBe(0);
+      expect(fakePass.accumulationRenderTarget).toBe(accumTarget);
+      expect(accumMat.uniforms.tDiffuse.value).toBeNull();
+
+      // Restores accumulationRenderTarget even if render throws
+      shouldThrow = true;
+      expect(() => fakePass.render(mockRenderer, inBuf, outBuf)).toThrow('accum failure');
+      expect(fakePass.accumulationRenderTarget).toBe(accumTarget);
+      shouldThrow = false;
+
+      // Odd denoiseIterations falls back to normal accumulation target safely
+      fakePass.configuration.denoiseIterations = 1;
+      fakePass.render(mockRenderer, inBuf, outBuf);
+      expect(observedAccumTarget).toBe(accumTarget);
+      expect(accumCalls).toBe(1);
+
+      // accumulate=true falls back to normal accumulation target safely
+      fakePass.configuration.denoiseIterations = 2;
+      fakePass.configuration.accumulate = true;
+      fakePass.render(mockRenderer, inBuf, outBuf);
+      expect(observedAccumTarget).toBe(accumTarget);
+      expect(accumCalls).toBe(2);
+
+      // PostProcessingPipeline.render() passes numeric deltaTime (0) to skip EffectComposer.timer.update()
+      const composerRenderSpy = vi.spyOn(pipeline.composer, 'render').mockImplementation(() => {});
+      pipeline.render();
+      expect(composerRenderSpy).toHaveBeenCalledWith(0);
+      composerRenderSpy.mockRestore();
+    } finally {
+      pipeline.dispose();
+      writeTarget.dispose();
+      accumTarget.dispose();
+      outBuf.dispose();
+      inBuf.dispose();
+      accumMat.dispose();
       vi.unstubAllGlobals();
     }
   });

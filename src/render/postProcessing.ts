@@ -13,7 +13,7 @@ import {
   ToneMappingEffect,
   ToneMappingMode,
 } from 'postprocessing';
-import { N8AOPostPass } from 'n8ao';
+import { N8AOPostPass, type N8AOConfiguration } from 'n8ao';
 import type { N8aoMode } from './perfGovernor.ts';
 
 export interface PostProcessingConfig {
@@ -121,7 +121,7 @@ interface N8aoInternalResources {
   bluenoise?: DisposableLike | null;
   effectShaderQuad?: DisposableLike | null;
   poissonBlurQuad?: DisposableLike | null;
-  accumulationQuad?: DisposableLike | null;
+  accumulationQuad?: N8aoQuadLike | null;
   effectCompositerQuad?: N8aoQuadLike | null;
   copyQuad?: N8aoQuadLike | null;
   depthDownsampleQuad?: DisposableLike | null;
@@ -164,43 +164,84 @@ type N8aoRenderFn = (
   stencilTest?: boolean,
 ) => void;
 
+function canBypassN8aoAccumulation(pass: N8AOPostPass): boolean {
+  const internal = pass as unknown as N8aoInternalResources;
+  const cfg = pass.configuration as Partial<N8AOConfiguration> | undefined;
+  return (
+    !cfg?.accumulate &&
+    ((cfg?.denoiseIterations ?? 2) % 2) === 0 &&
+    Boolean(internal.writeTargetInternal) &&
+    Boolean(internal.accumulationQuad) &&
+    typeof internal.accumulationQuad?.render === 'function' &&
+    'accumulationRenderTarget' in internal
+  );
+}
+
 /**
  * Routes N8AOPostPass's final EffectCompositer output directly into EffectComposer's outputBuffer
- * when rendering offscreen, bypassing the leftover full-resolution outputTargetInternal render target
- * and full-screen copyQuad blit pass (saves 1 HalfFloat target, 1 shader compile, and 1 pass/frame).
+ * when rendering offscreen and skips the redundant accumulationQuad pass when accumulate is false,
+ * avoiding 2 unused render targets, 2 shader compiles, and 2 full-screen copy blits per frame.
  */
 export function installN8aoDirectOutputPass(pass: N8AOPostPass): boolean {
   if (directOutputN8aoPasses.has(pass)) return true;
   const internal = pass as unknown as N8aoInternalResources;
   const copyQuad = internal.copyQuad;
+  const accumulationQuad = internal.accumulationQuad;
   const passLike = pass as unknown as { render?: N8aoRenderFn };
   const origRender = passLike.render;
-  if (
-    typeof origRender !== 'function' ||
-    !internal.effectCompositerQuad ||
-    !copyQuad ||
-    typeof copyQuad.render !== 'function' ||
-    !('outputTargetInternal' in internal)
-  ) {
+  const canBypassCopy =
+    Boolean(internal.effectCompositerQuad) &&
+    Boolean(copyQuad) &&
+    typeof copyQuad?.render === 'function' &&
+    'outputTargetInternal' in internal;
+  const hasAccumSlots =
+    Boolean(internal.writeTargetInternal) &&
+    Boolean(accumulationQuad) &&
+    typeof accumulationQuad?.render === 'function' &&
+    'accumulationRenderTarget' in internal;
+
+  if (typeof origRender !== 'function' || (!canBypassCopy && !hasAccumSlots)) {
     return false;
   }
 
   passLike.render = function (renderer, inputBuffer, outputBuffer, deltaTime, stencilTest) {
-    if (this.renderToScreen || !outputBuffer) {
+    const bypassCopy = canBypassCopy && !this.renderToScreen && Boolean(outputBuffer);
+    const bypassAccum = canBypassN8aoAccumulation(this);
+    if (!bypassCopy && !bypassAccum) {
       return origRender.call(this, renderer, inputBuffer, outputBuffer, deltaTime, stencilTest);
     }
+
     const prevOutputTarget = internal.outputTargetInternal;
-    const prevCopyRender = copyQuad.render;
-    const prevCopyDiffuse = copyQuad.material?.uniforms?.tDiffuse;
-    internal.outputTargetInternal = outputBuffer as unknown as DisposableLike;
-    copyQuad.render = noopQuadRender;
+    const prevCopyRender = copyQuad?.render;
+    const prevCopyDiffuse = copyQuad?.material?.uniforms?.tDiffuse;
+    const prevAccumTarget = internal.accumulationRenderTarget;
+    const prevAccumRender = accumulationQuad?.render;
+    const prevAccumDiffuse = accumulationQuad?.material?.uniforms?.tDiffuse;
+
+    if (bypassCopy && copyQuad) {
+      internal.outputTargetInternal = outputBuffer as unknown as DisposableLike;
+      copyQuad.render = noopQuadRender;
+    }
+    if (bypassAccum && accumulationQuad) {
+      internal.accumulationRenderTarget = internal.writeTargetInternal;
+      accumulationQuad.render = noopQuadRender;
+    }
     try {
       return origRender.call(this, renderer, inputBuffer, outputBuffer, deltaTime, stencilTest);
     } finally {
-      internal.outputTargetInternal = prevOutputTarget;
-      copyQuad.render = prevCopyRender;
-      if (prevCopyDiffuse) {
-        prevCopyDiffuse.value = null;
+      if (bypassCopy && copyQuad) {
+        internal.outputTargetInternal = prevOutputTarget;
+        copyQuad.render = prevCopyRender;
+        if (prevCopyDiffuse) {
+          prevCopyDiffuse.value = null;
+        }
+      }
+      if (bypassAccum && accumulationQuad) {
+        internal.accumulationRenderTarget = prevAccumTarget;
+        accumulationQuad.render = prevAccumRender;
+        if (prevAccumDiffuse) {
+          prevAccumDiffuse.value = null;
+        }
       }
     }
   };
@@ -214,7 +255,7 @@ export function installN8aoDirectOutputPass(pass: N8AOPostPass): boolean {
  */
 export function collectPostWarmUpMaterials(
   sources: PostWarmUpMaterialSources,
-  options?: { includeN8aoCopy?: boolean },
+  options?: { includeN8aoCopy?: boolean; includeN8aoAccum?: boolean },
 ): PostWarmUpMaterials {
   const linearMaterials: THREE.Material[] = [];
   const screenMaterials: THREE.Material[] = [];
@@ -241,9 +282,14 @@ export function collectPostWarmUpMaterials(
     }
     pushLinear(n8ao.effectShaderQuad?.material);
     pushLinear(n8ao.standardDenoiseMaterial);
-    pushLinear(n8ao.accumulationQuad?.material);
+    const hasDirectBypass = directOutputN8aoPasses.has(sources.n8aoPass);
+    const includeN8aoAccum =
+      options?.includeN8aoAccum ?? !(hasDirectBypass && canBypassN8aoAccumulation(sources.n8aoPass));
+    if (includeN8aoAccum) {
+      pushLinear(n8ao.accumulationQuad?.material);
+    }
     pushLinear(n8ao.effectCompositerQuad?.material);
-    const includeN8aoCopy = options?.includeN8aoCopy ?? !directOutputN8aoPasses.has(sources.n8aoPass);
+    const includeN8aoCopy = options?.includeN8aoCopy ?? !hasDirectBypass;
     if (includeN8aoCopy) {
       pushLinear(n8ao.copyQuad?.material);
     }
@@ -709,9 +755,9 @@ export class PostProcessingPipeline {
     this.clampHalfResN8aoTarget(this.config.n8ao);
   }
 
-  render(): void {
+  render(deltaTime = 0): void {
     if (this.disposed) return;
-    this.composer.render();
+    this.composer.render(deltaTime);
   }
 
   dispose(): void {
