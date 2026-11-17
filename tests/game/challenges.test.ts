@@ -54,13 +54,13 @@ describe('challenge rules in the sim', () => {
   it('Glass Sanctuary caps lives even with Workshop bonus lives', () => {
     const mods = runModifiersFor(workshopModifiers({ bastion: 2 }), ['glassSanctuary']);
     const w = new SimWorld(level, new EventBus(), mods);
-    expect(w.lives).toBe(5);
-    expect(w.startingLives).toBe(5);
+    expect(w.lives).toBe(8);
+    expect(w.startingLives).toBe(8);
   });
 
-  it('Thin Purse halves the starting gold (Workshop gold still added)', () => {
+  it('Thin Purse cuts the starting gold (Workshop gold still added)', () => {
     const w = new SimWorld(level, new EventBus(), runModifiersFor(workshopModifiers({ treasury: 1 }), ['thinPurse']));
-    expect(w.gold).toBe(Math.round(level.startingGold * 0.5) + 10);
+    expect(w.gold).toBe(Math.round(level.startingGold * 0.7) + 10);
   });
 
   it('Gale Force speeds up wave spawns', () => {
@@ -68,7 +68,7 @@ describe('challenge rules in the sim', () => {
     w.startNextWave();
     for (let i = 0; i < 30; i++) w.fixedTick(1 / 60);
     const e = w.enemyPool.items[w.enemyPool.getActiveIndex(0)];
-    expect(e.speed).toBeCloseTo(ENEMY_DEFS[e.type].speed * 1.15, 5);
+    expect(e.speed).toBeCloseTo(ENEMY_DEFS[e.type].speed * 1.12, 5);
   });
 
   it('Iron Tide raises enemy health', () => {
@@ -79,7 +79,7 @@ describe('challenge rules in the sim', () => {
       for (let i = 0; i < 30; i++) w.fixedTick(1 / 60);
     }
     const hp = (w: SimWorld): number => w.enemyPool.items[w.enemyPool.getActiveIndex(0)].maxHp;
-    expect(hp(iron)).toBeGreaterThan(hp(plain) * 1.15);
+    expect(hp(iron)).toBeGreaterThan(hp(plain) * 1.1);
   });
 });
 

@@ -97,6 +97,7 @@ async function bootstrap(loadingScreen: LoadingScreen): Promise<void> {
       soundManager.unlock();
       session.startLevel(idx, config);
     },
+    onResetProgress: () => session.resetProgress(),
     onBriefingToggle: (on) => (on ? soundManager.playUiConfirm() : soundManager.playUiBack()),
   });
 

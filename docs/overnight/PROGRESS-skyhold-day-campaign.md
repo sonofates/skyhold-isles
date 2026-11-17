@@ -9,9 +9,10 @@ Screenshots: `.tune/` is gitignored — `.tune/shot.mjs` (playwright-core instal
 ## Plan / status
 - [x] 1. Stars per difficulty (lives-lost table), best result per island, save v2 migration, victory star reveal
 - [x] 2. Workshop upgrade tree (stars currency, refundable) + RunModifiers sim hook + max-upgrade sim check
-- [ ] 3. Endless upgrade (mutators every N waves, start endless from island card, results screen, PB)
-- [ ] 4. Challenge modifiers per island (bonus star / badge)
-- [ ] 5. Polish (level card best-result line, transitions, reset-progress confirm in settings, empty states)
+- [x] 3. Endless upgrade (mutators every 3 endless waves, Endless from island briefing, results card, PB)
+- [x] 4. Challenge modifiers per island (2 per island, badge + bonus star), island briefing modal
+- [~] 5. Polish: reset-progress confirm in settings DONE; next: transitions, level-card best line,
+      HUD challenge chip?, endless toast sound, more screenshots (landscape/desktop of new screens)
 
 ## Star table (src/data/stars.ts) — rated on lives LOST (win always ≥ 1★)
 | Difficulty  | 3★ if lost ≤ | 2★ if lost ≤ | greedy sim (lives left) → stars |
@@ -54,11 +55,58 @@ Total cost 33★ (campaign max 39★).
 - GameSession: viewMode 'workshop', buildRunModifiers(), buy/refund; victory chimes via
   SoundManager.playStarChime (timers cancelled on leaving the run).
 
+## Endless (src/data/endlessMutators.ts)
+- Existing endless (after a win) kept; NEW: Endless from the island briefing (cleared islands) —
+  story waves play without a victory stop, then generated waves. No stars from endless runs.
+- Mutators: Tailwind (+8% speed), Ironbark (+2 armor), Swarmtide (+20% counts), Vanguard (spotlight
+  groups elite), Thick Hide (+12% HP), Gale Riders (+40% flyers), Lean Pickings (−15% gold).
+  One joins every 3 endless waves (offset 3, 6, 9…), stacking; order rotated per island
+  (start = islandIndex*3 mod 7). Count growth is budgeted to the 360-enemy pool (same weights as the
+  pool test). Interval 3 (not 5) because endless HP grows ×1.22/wave — most runs end by endless
+  wave ~5-10, so 5 would hide mutators from most players.
+- Toast on each new mutator; results card: wave reached, PB / new best, endless waves, mutators.
+- Sim: "Endless sanity" section (L1, L7, L13 greedy continue after the win with a crude spender):
+  fails if a run survives 40 generated waves or the enemy pool fills.
+
+## Challenges (src/data/challenges.ts)
+| Island | Challenges |
+|---|---|
+| L1 Sunlit Meadow | Bowless (no archer), Glass Sanctuary (8 lives) |
+| L2 Twin-Bridge Cay | Quiet Guns (no cannon/mortar), Gale Force (+12% speed) |
+| L3 Highland Citadel | Thaw (no frost), Thin Purse (−30% start gold, −15% kill gold) |
+| L4 Emerald Stepping Stones | Still Air (no tesla), Iron Tide (+12% HP) |
+| L5 Windmill Switchback | Gale Force, Silent Skies (no abilities) |
+| L6 Crescent Lagoon | Bowless, Thin Purse |
+| L7 Skybridge Gauntlet | Quiet Guns, Glass Sanctuary |
+| L8 Sunken Bastion | Thaw, Silent Skies |
+| L9 Grand Skyhold | Iron Tide, Glass Sanctuary |
+| L10 Confluence Terraces | Still Air, Gale Force |
+| L11 Galewatch Spires | Bowless, Silent Skies |
+| L12 Lanternfall Hollow | Thaw, Iron Tide |
+| L13 Stormcrown Citadel | Quiet Guns, Thin Purse |
+| L14+ (CONTENT agent) | fallback by difficulty (Master: Silent Skies + Iron Tide) — add hand-picked pairs in ISLAND_CHALLENGES |
+- Unlocked after the first clear, toggled in the island briefing; several may stack; each won = +1★
+  (Workshop currency) + medal on the card. A challenge win is a normal win (stars, unlock).
+- `npm run sim:balance -- --challenges` prints greedy results per challenge (informational). Ban
+  challenges usually make the fixed script lose (it just skips banned builds); rule challenges sit
+  near the edge with a maxed Workshop. Values were softened after a first pass (50% gold / +20% HP
+  collapsed the script by wave 2-6).
+- Banned towers: `html[data-banned-towers]` attribute + CSS greys the build card / radial token;
+  session blocks build-bar/hotkey selection with a toast; SimWorld.placeTower refuses anyway.
+
+## Island briefing (src/ui/islandBriefing.ts)
+Cleared island → card button opens it (uncleared islands still start immediately): records (best
+stars, best lives, wins, endless best), 3★ goal, Campaign / Endless switch, challenge toggles,
+Start. Toggles are remembered per island for the session. Restart/Retry reuse the run config.
+
 ## Decisions
 - Name "Skywright Workshop" (original); UI label "Workshop".
 - Main menu row is now Islands | Workshop | ⚙ (settings icon-only, 60px). Island select header
   has a Workshop button. Gold badge = number of affordable upgrades.
 - 3★ on Master with full Workshop by greedy is allowed (informational only); hard rule = must lose lives.
+
+- Settings → Reset progress (menu only): explicit Keep/Erase confirm; erased save copied to
+  `skyhold_isles_progress_reset_backup`; settings untouched.
 
 ## Known issues
 - Fire-rate perk is invisible in the tower panel stats (panel reads TOWER_DEFS). Small (+2%), OK for now.

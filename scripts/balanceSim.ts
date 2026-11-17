@@ -7,6 +7,7 @@ import { NEUTRAL_RUN_MODIFIERS, type RunModifiers } from '../src/data/runModifie
 import { getTowerTierStats } from '../src/data/towers.ts';
 import { maxedWorkshopRanks, workshopModifiers } from '../src/data/workshop.ts';
 import { endlessMutatorsAt } from '../src/data/endlessMutators.ts';
+import { challengesForLevel, runModifiersFor } from '../src/data/challenges.ts';
 import { computeStarRating, SimWorld } from '../src/sim/world.ts';
 
 type ScriptKind = 'greedy' | 'weak';
@@ -524,6 +525,31 @@ export function evaluateEndlessSanity(
 }
 
 /**
+ * Challenge sanity (informational, `--challenges`): greedy with each island challenge, without and
+ * with a maxed Workshop. Tower-ban challenges make the fixed script skip its banned builds, so they
+ * usually lose here — a player re-plans; rule challenges should sit near the edge.
+ */
+export function evaluateChallenges(levelFilter: ReadonlySet<number> | null): string[] {
+  const maxed = workshopModifiers(maxedWorkshopRanks());
+  const lines: string[] = [];
+  for (let i = 0; i < LEVELS.length; i++) {
+    if (levelFilter && !levelFilter.has(i)) continue;
+    const level = LEVELS[i];
+    const cells: string[] = [];
+    for (const id of challengesForLevel(level)) {
+      for (const [tag, base] of [['ws0', NEUTRAL_RUN_MODIFIERS], ['wsMax', maxed]] as const) {
+        const mods = runModifiersFor(base, [id]);
+        const r = runLevelBalanceSim(level, 'greedy', level.scriptedBuildOrder ?? [], mods);
+        const start = mods.maxLives ?? BALANCE.startingLives + mods.bonusLives;
+        cells.push(`${id}/${tag}:${r.outcome === 'won' ? `W-${start - r.finalLives}` : `L@${r.waves.length}`}`);
+      }
+    }
+    lines.push(`L${i + 1} ${level.difficulty.padEnd(11)} ${cells.join('  ')}`);
+  }
+  return lines;
+}
+
+/**
  * Meta-progression guard: the same greedy scripts with every Workshop upgrade at max rank.
  * Upgrades must help (never hurt) but not trivialise the hardest islands: a maxed greedy run must
  * still lose lives on every Master island (and on average gain only a few lives anywhere).
@@ -576,6 +602,11 @@ function main(): void {
   console.log('=== Endless sanity (greedy continues after the win; informational unless capped/pool-full) ===');
   for (const line of endless.lines) console.log(line);
   console.log('');
+  if (process.argv.includes('--challenges')) {
+    console.log('=== Challenges (greedy; W-n = won losing n lives, L@w = lost on wave w) ===');
+    for (const line of evaluateChallenges(levelFilter)) console.log(line);
+    console.log('');
+  }
   console.log('=== Workshop max (all upgrades, greedy script; baseline above uses none) ===');
   for (const line of workshop.lines) console.log(line);
   console.log('');

@@ -38,6 +38,7 @@ import {
   loadProgress,
   loadSettings,
   markUpgradeToastSeen,
+  resetProgressSave,
   saveProgress,
   saveSettings,
 } from './storage.ts';
@@ -497,6 +498,17 @@ export class GameSession {
       return;
     }
     this.startLevel(idx);
+  }
+
+  /** Settings (menu) → Reset progress, after the in-dialog confirm. The old save is backed up. */
+  resetProgress(): void {
+    const fresh = resetProgressSave(LEVELS.length);
+    Object.assign(this.progress, fresh);
+    this.currentLevelIndex = 0;
+    this.runConfig = { endless: false, challenges: [] };
+    this.soundManager.playUiBack();
+    this.d.overlays.mainMenu.setOpen(this.viewMode === 'menu', this.progress);
+    this.d.overlays.toast.show('Progress reset — a backup of the old save was kept.', 3);
   }
 
   /** Restart / Retry: same island, same mode and challenges. */

@@ -1,11 +1,14 @@
 import type { GameSettings, QualityLevel } from '../core/types.ts';
 import { UI_ICON_SVGS } from './icons.ts';
+import { ResetProgressRow } from './resetProgress.ts';
 
 export interface SettingsModalCallbacks {
   onChange: (next: GameSettings) => void;
   onRestart?: () => void;
   onQuitToMenu?: () => void;
   onClose: () => void;
+  /** Menu-only "Reset progress" (confirmed in-place). */
+  onResetProgress?: () => void;
 }
 
 function settingLabel(text: string): HTMLSpanElement {
@@ -27,6 +30,7 @@ export class SettingsModal {
   private readonly restartBtn: HTMLButtonElement;
   private readonly quitBtn: HTMLButtonElement;
   private readonly closeBtn: HTMLButtonElement;
+  private readonly resetRow: ResetProgressRow | null;
   private settings: GameSettings;
   private open = false;
 
@@ -153,6 +157,9 @@ export class SettingsModal {
 
     actions.append(this.restartBtn, this.quitBtn, this.closeBtn);
     card.append(title, volRow, muteRow, shakeRow, dmgRow, qualRow, actions);
+    const onReset = callbacks.onResetProgress;
+    this.resetRow = onReset ? new ResetProgressRow(onReset) : null;
+    if (this.resetRow) card.appendChild(this.resetRow.el);
     this.backdrop.appendChild(card);
     parent.appendChild(this.backdrop);
     this.syncInputs();
@@ -179,6 +186,7 @@ export class SettingsModal {
     this.restartBtn.classList.toggle('hidden', !inGame);
     this.quitBtn.classList.toggle('hidden', !inGame);
     this.closeBtn.textContent = inGame ? 'Back' : 'Done';
+    this.resetRow?.setVisible(open && !inGame);
     this.backdrop.classList.toggle('hidden', !open);
   }
 

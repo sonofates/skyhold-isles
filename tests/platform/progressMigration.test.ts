@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { loadProgress, saveProgress } from '../../src/platform/storage.ts';
+import { loadProgress, resetProgressSave, saveProgress } from '../../src/platform/storage.ts';
 
 const KEY = 'skyhold_isles_progress_v1';
 const BACKUP_KEY = 'skyhold_isles_progress_backup_v1';
@@ -67,5 +67,17 @@ describe('progress save versioning', () => {
     expect(loadProgress(13).unlockedLevelIndex).toBe(2);
     // A later load does not overwrite the original backup.
     expect(JSON.parse(store.get(BACKUP_KEY) ?? 'null')).toEqual(v1);
+  });
+
+  it('reset progress keeps a backup of the erased save and leaves settings alone', () => {
+    store.set('skyhold_isles_settings_v1', '{"muted":true}');
+    save({ version: 2, unlockedLevelIndex: 5, bestStars: [3, 3, 3, 3, 3, 1], workshop: { bastion: 2 } });
+    const before = store.get(KEY);
+    const fresh = resetProgressSave(13);
+    expect(fresh.unlockedLevelIndex).toBe(0);
+    expect(fresh.workshop).toEqual({});
+    expect(store.get('skyhold_isles_progress_reset_backup')).toBe(before);
+    expect(loadProgress(13).bestStars.every((s) => s === 0)).toBe(true);
+    expect(store.get('skyhold_isles_settings_v1')).toBe('{"muted":true}');
   });
 });

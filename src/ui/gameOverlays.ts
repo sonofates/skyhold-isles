@@ -56,6 +56,7 @@ export interface GameOverlayCallbacks {
   onWorkshopBack: () => void;
   onBriefingStart: (levelIndex: number, config: BriefingStartConfig) => void;
   onBriefingToggle?: (on: boolean) => void;
+  onResetProgress?: () => void;
 }
 
 export class GameOverlays {
@@ -156,6 +157,7 @@ export class GameOverlays {
       onRestart: cb.onRestartLevel,
       onQuitToMenu: cb.onMainMenuFromPause,
       onClose: cb.onSettingsClose,
+      onResetProgress: cb.onResetProgress,
     });
   }
 
