@@ -534,4 +534,42 @@ describe('Daily challenge pure date-seeded generator', () => {
     expect(rawPreview.allowedTowerTypes).not.toContain('mortar');
     expect(rawPreview.conflictingMutatorIds).toEqual([]);
   });
+
+  it('generates fair deterministic Daily Watch challenges when Islands 10+ are appended', () => {
+    const island10: LevelDef = {
+      ...LEVELS[6],
+      id: 'obsidian-aerie',
+      index: 9,
+      name: 'Obsidian Aerie',
+      difficulty: 'Heroic',
+    };
+    const island11: LevelDef = {
+      ...LEVELS[8],
+      id: 'storm-crown',
+      index: 10,
+      name: 'Storm Crown',
+      difficulty: 'Master',
+    };
+    const expandedLevels = [...LEVELS, island10, island11];
+
+    const seenExpanded = new Set<string>();
+    const start = new Date('2026-08-01T00:00:00Z');
+    for (let i = 0; i < 60; i++) {
+      const ds = start.toISOString().slice(0, 10);
+      const spec = generateDailyChallenge(ds, expandedLevels);
+      expect(spec).toEqual(generateDailyChallenge(ds, expandedLevels));
+      expect(spec.scoreMultiplier).toBe(spec.modifiers.scoreMultiplier);
+      if (spec.levelIndex >= 9) seenExpanded.add(spec.levelId);
+
+      const lvl = expandedLevels[spec.levelIndex];
+      const legal = getAllowedTowerTypes(spec.modifiers);
+      expect(legal.some((t) => TOWER_DEFS[t].hitsFlyers && TOWER_DEFS[t].tiers[0].damage >= 15)).toBe(true);
+      if (lvl.difficulty === 'Master') {
+        expect(spec.mutators).toHaveLength(1);
+        expect(spec.towerRestriction.kind).not.toBe('limited_arsenal');
+      }
+      start.setUTCDate(start.getUTCDate() + 1);
+    }
+    expect(seenExpanded.size).toBe(2);
+  });
 });

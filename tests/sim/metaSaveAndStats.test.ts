@@ -1030,6 +1030,84 @@ describe('MetaSession stats, achievements, challenges & daily persistence', () =
     expect(meta.getAchievements().find((a) => a.def.id === 'overcharge_cleanse')?.unlocked).toBe(false);
     ev2.emit('gameWon', { stars: 3, livesRemaining: 20 });
     expect(meta.getLastRunOutcome()!.newlyUnlockedAchievementIds).not.toContain('overcharge_cleanse');
+
+    // 3. Replace-mode import BEFORE any flushStats() must also discard un-flushed Wave 1 telemetry
+    const ev3 = new EventBus();
+    const w3 = new SimWorld(tinyLevel, ev3);
+    meta.startRun(tinyLevel, ev3);
+    w3.placeTower(4, 2, 'archer');
+    w3.startNextWave();
+    ev3.emit('overchargeActivated', { duration: 7, cleansedTowerIds: [1] });
+    ev3.emit('enemyKilled', { enemyId: 901, enemyType: 'grunt', reward: 4, x: 0, y: 0, z: 0 });
+    expect(meta.importSaveJson(blankJson, 'replace').ok).toBe(true);
+    expect(meta.getStats().enemiesDefeatedTotal).toBe(0);
+    expect(meta.getStats().towersBuiltTotal).toBe(0);
+    ev3.emit('waveCompleted', { waveIndex: 0, bonus: 25 });
+    // Pre-import kill, tower, and cleanse did NOT leak into the replaced save
+    expect(meta.getStats().enemiesDefeatedTotal).toBe(0);
+    expect(meta.getStats().towersBuiltTotal).toBe(0);
+    expect(meta.getAchievements().find((a) => a.def.id === 'overcharge_cleanse')?.unlocked).toBe(false);
+    // Post-import kills DO accumulate cleanly
+    ev3.emit('enemyKilled', { enemyId: 902, enemyType: 'grunt', reward: 4, x: 0, y: 0, z: 0 });
+    meta.flushStats(false);
+    expect(meta.getStats().enemiesDefeatedTotal).toBe(1);
+
+    // 4. Daily Watch story win -> Enter Endless Mode -> Endless loss isolates dailyScore and isDaily
+    const dailyLevels: LevelDef[] = LEVELS.map((lvl, idx) => ({
+      ...lvl,
+      index: idx,
+      startingGold: 1500,
+      waves: [{ clearBonus: 25, groups: [{ enemyType: 'grunt', count: 2, spawnInterval: 0.3, startDelay: 0 }] }],
+    }));
+    const dailyMeta = new MetaSession({
+      levels: dailyLevels,
+      saveData: createDefaultMetaSave(dailyLevels.length),
+      onSave: () => {},
+      getTodayDate: () => '2026-11-17',
+    });
+    const dailySpec = dailyMeta.getDailyChallenge('2026-11-17');
+    const dailyEv = new EventBus();
+    const dailyWorld = new SimWorld(dailyLevels[dailySpec.levelIndex], dailyEv, dailySpec.modifiers);
+    dailyMeta.startRun(dailyWorld.level, dailyEv, {
+      modifiers: dailySpec.modifiers,
+      dailyDate: dailySpec.date,
+      speed: 3,
+    });
+    const legalType = dailyMeta.getAllowedTowerTypes()[0]!;
+    let builtSpot = false;
+    for (let r = 0; r < dailyWorld.level.rows && !builtSpot; r++) {
+      for (let c = 0; c < dailyWorld.level.cols && !builtSpot; c++) {
+        if (dailyWorld.grid.canPlaceTower(c, r)) {
+          builtSpot = dailyWorld.placeTower(c, r, legalType) !== null;
+        }
+      }
+    }
+    expect(builtSpot).toBe(true);
+    dailyWorld.startNextWave();
+    for (let i = 0; i < 60 * 40 && dailyWorld.outcome === 'ongoing'; i++) {
+      dailyMeta.onTick(BALANCE.fixedDt, 3);
+      dailyWorld.fixedTick(BALANCE.fixedDt);
+    }
+    expect(dailyWorld.outcome).toBe('won');
+    const savedDailyBest = dailyMeta.getDailyStatus('2026-11-17').bestScoreToday;
+    expect(savedDailyBest).toBeGreaterThan(0);
+
+    expect(dailyWorld.enterEndlessMode()).toBe(true);
+    dailyMeta.onEndlessEntered();
+    expect(dailyMeta.getLiveChallengeStates(dailyWorld.lives, dailyWorld.outcome)).toEqual([]);
+    dailyWorld.startNextWave();
+    dailyEv.emit('enemyKilled', { enemyId: 777, enemyType: 'grunt', reward: 4, x: 0, y: 0, z: 0 });
+    dailyWorld.debugForceLose();
+
+    const endlessAfterDaily = dailyMeta.getLastRunOutcome()!;
+    expect(endlessAfterDaily.won).toBe(false);
+    expect(endlessAfterDaily.isDaily).toBe(false);
+    expect(endlessAfterDaily.dailyScore).toBeNull();
+    expect(endlessAfterDaily.endlessScore).not.toBeNull();
+    expect(dailyMeta.getStats().gamesLost).toBe(0);
+    expect(dailyMeta.getDailyStatus('2026-11-17').bestScoreToday).toBe(savedDailyBest);
+
+    dailyMeta.dispose();
     meta.dispose();
   });
 });

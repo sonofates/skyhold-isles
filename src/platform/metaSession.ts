@@ -534,6 +534,10 @@ export class MetaSession {
       this.runStartBestEndlessScore =
         this.save.bestEndlessScoresByLevelId[this.observer.level.id] ?? 0;
       if (mode === 'replace') {
+        this.committedTelemetry = this.observer.isEligibleForChallenges()
+          ? this.observer.getTelemetry()
+          : null;
+        this.countedGamePlayed = false;
         this.lastRunOutcome = null;
         this.runUnlockedAchievementIds = [];
       }

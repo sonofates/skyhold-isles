@@ -593,7 +593,7 @@ export function recordRunCompletion(
   const { level, telemetry, won, stars, livesRemaining } = params;
   const normalizedDailyDate =
     params.dailyDate && isValidDateString(params.dailyDate) ? params.dailyDate.trim() : null;
-  const isDaily = normalizedDailyDate !== null;
+  const isDaily = normalizedDailyDate !== null && !telemetry.endlessEntered;
   const newlyCompletedChallengeIds: string[] = [];
   const completedChallengeIds: string[] = [];
   const newlyCompletedChallenges: ChallengeDef[] = [];
@@ -628,7 +628,10 @@ export function recordRunCompletion(
 
         const hasModifiers = telemetry.hasRunModifiers || telemetry.activeMutatorIds.length > 0;
         if (!hasModifiers) {
-          const clampedLives = Math.min(BALANCE.startingLives, livesRemaining);
+          const clampedLives = Math.max(
+            0,
+            Math.min(BALANCE.startingLives, Math.floor(livesRemaining)),
+          );
           if (clampedLives > (save.bestLivesByLevelId[level.id] ?? 0)) {
             save.bestLivesByLevelId[level.id] = clampedLives;
             isNewBestLives = true;
@@ -704,7 +707,7 @@ export function recordRunCompletion(
   let isNewBestDailyScore = false;
   if (isDaily && won && normalizedDailyDate && telemetry.eligibleForChallenges) {
     const score = computeCampaignRunScore(
-      telemetry.wavesCompleted,
+      telemetry.storyWavesCompleted,
       telemetry.enemiesKilledTotal,
       livesRemaining,
       params.scoreMultiplier ?? 1,
