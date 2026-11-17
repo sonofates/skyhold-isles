@@ -104,20 +104,23 @@ export class Hud {
     const pad = Math.max(8, 14 * u);
     const pw = Math.max(180, 260 * u);
     const ph = (pw * this.plaque.texture.height) / this.plaque.texture.width;
-    this.plaque.position.set(pad, pad);
+    // Lives/gold plaque bottom-left: painted maps keep gameplay out of the bottom cliff/cloud band,
+    // while the top edge carries roads and the entrance gates.
+    const py = h - pad - ph;
+    this.plaque.position.set(pad, py);
     this.plaque.width = pw;
     this.plaque.height = ph;
     const icon = ph * 0.62;
     const font = Math.round(Math.max(18, ph * 0.42));
-    this.heart.position.set(pad + pw * 0.15, pad + ph / 2);
+    this.heart.position.set(pad + pw * 0.15, py + ph / 2);
     this.heart.height = icon;
     this.heart.scale.x = this.heart.scale.y;
-    this.livesText.position.set(pad + pw * 0.24, pad + ph / 2);
+    this.livesText.position.set(pad + pw * 0.24, py + ph / 2);
     setFontSize(this.livesText, font);
-    this.coin.position.set(pad + pw * 0.53, pad + ph / 2);
+    this.coin.position.set(pad + pw * 0.53, py + ph / 2);
     this.coin.height = icon * 1.05;
     this.coin.scale.x = this.coin.scale.y;
-    this.goldText.position.set(pad + pw * 0.62, pad + ph / 2);
+    this.goldText.position.set(pad + pw * 0.62, py + ph / 2);
     setFontSize(this.goldText, font);
 
     const r = Math.max(MIN_TOUCH / 2, 40 * u);
@@ -131,10 +134,10 @@ export class Hud {
       setFontSize(b.label, Math.round(r * 0.72));
     }
 
-    // Wave banner: top-right under the round buttons (the painted maps keep a road along the top edge).
+    // Wave banner bottom-right, mirroring the plaque (bottom band = scenery only).
     const bw = Math.max(150, 230 * u);
     const bh = (bw * this.banner.texture.height) / this.banner.texture.width;
-    const bannerY = pad + r * 2 + pad * 0.3;
+    const bannerY = h - pad - bh;
     this.banner.position.set(w - pad - bw / 2, bannerY);
     this.banner.width = bw;
     this.banner.height = bh;
@@ -142,9 +145,9 @@ export class Hud {
     setFontSize(this.waveText, Math.round(Math.max(16, bh * 0.4)));
 
     this.hornR = Math.max(MIN_TOUCH / 2 + 4, 44 * u);
-    const minY = pad + ph + this.hornR + 4;
+    const minY = pad + this.hornR + 4;
     this.hornX = Math.max(pad + this.hornR, Math.min(w - pad - this.hornR, hornAt.x));
-    this.hornY = Math.max(minY, Math.min(h - pad - this.hornR, hornAt.y));
+    this.hornY = Math.max(minY, Math.min(h - pad - ph - this.hornR - 30, hornAt.y));
     this.hornLabel.position.set(this.hornX, this.hornY + this.hornR + 10);
     setFontSize(this.hornLabel, Math.round(Math.max(15, 20 * u)));
 
