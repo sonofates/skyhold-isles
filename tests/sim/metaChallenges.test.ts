@@ -1248,6 +1248,110 @@ describe('RunObserver challenge condition tracking', () => {
     );
     expect(waveMissingObs.getTelemetry().storyWaveCount).toBe(0);
     waveMissingObs.dispose();
+
+    // Malformed/non-finite telemetry fails live challenge checks consistently with evaluateChallengeCondition
+    const partialLevelObs = new RunObserver(
+      { id: undefined as unknown as string, index: Number.NaN } as unknown as LevelDef,
+      new EventBus(),
+    );
+    expect(partialLevelObs.getTelemetry().levelId).toBe('');
+    expect(partialLevelObs.getTelemetry().levelIndex).toBe(0);
+    partialLevelObs.dispose();
+
+    const nanTel = {
+      ...protoTel,
+      livesLost: Number.NaN,
+      towersBuilt: Number.NaN,
+      peakTowersActive: Number.NaN,
+      maxTowerTierBuilt: Number.NaN,
+      grossGoldSpent: Number.NaN,
+      abilitiesCastTotal: -1,
+      towersSold: Number.NaN,
+      minCombatSpeed: Number.NaN as unknown as SpeedMultiplier,
+      earlyWavesCalled: Number.NaN,
+    };
+    expect(
+      evaluateLiveChallengeState(
+        { id: 'nan:lives', levelId: level.id, title: 'L', description: 'D', condition: { kind: 'noLivesLost' } },
+        nanTel,
+        20,
+        'ongoing',
+        false,
+      ).state,
+    ).toBe('failed');
+    expect(
+      evaluateLiveChallengeState(
+        { id: 'nan:built', levelId: level.id, title: 'B', description: 'D', condition: { kind: 'maxTowersBuilt', maxCount: 6 } },
+        nanTel,
+        20,
+        'ongoing',
+        false,
+      ).state,
+    ).toBe('failed');
+    expect(
+      evaluateLiveChallengeState(
+        { id: 'nan:peak', levelId: level.id, title: 'P', description: 'D', condition: { kind: 'maxPeakTowers', maxCount: 4 } },
+        nanTel,
+        20,
+        'ongoing',
+        false,
+      ).state,
+    ).toBe('failed');
+    expect(
+      evaluateLiveChallengeState(
+        { id: 'nan:tier', levelId: level.id, title: 'T', description: 'D', condition: { kind: 'maxTowerTier', maxTier: 2 } },
+        nanTel,
+        20,
+        'ongoing',
+        false,
+      ).state,
+    ).toBe('failed');
+    expect(
+      evaluateLiveChallengeState(
+        { id: 'nan:gold', levelId: level.id, title: 'G', description: 'D', condition: { kind: 'maxGoldSpent', maxGold: 500 } },
+        nanTel,
+        20,
+        'ongoing',
+        false,
+      ).state,
+    ).toBe('failed');
+    expect(
+      evaluateLiveChallengeState(
+        { id: 'nan:abilities', levelId: level.id, title: 'A', description: 'D', condition: { kind: 'noAbilities' } },
+        nanTel,
+        20,
+        'ongoing',
+        false,
+      ).state,
+    ).toBe('failed');
+    expect(
+      evaluateLiveChallengeState(
+        { id: 'nan:sell', levelId: level.id, title: 'S', description: 'D', condition: { kind: 'noTowerSelling' } },
+        nanTel,
+        20,
+        'ongoing',
+        false,
+      ).state,
+    ).toBe('failed');
+    expect(
+      evaluateLiveChallengeState(
+        { id: 'nan:speed', levelId: level.id, title: 'Sp', description: 'D', condition: { kind: 'combatSpeedOnly', requiredSpeed: 3 } },
+        nanTel,
+        20,
+        'ongoing',
+        false,
+      ),
+    ).toMatchObject({ state: 'failed', progressLabel: 'Speed invalid' });
+    expect(
+      evaluateLiveChallengeState(
+        { id: 'nan:early', levelId: level.id, title: 'E', description: 'D', condition: { kind: 'minEarlyWaves', minCount: 2 } },
+        nanTel,
+        20,
+        'ongoing',
+        false,
+      ).state,
+    ).toBe('failed');
+
     protoTypeObs.dispose();
 
     guardMeta.dispose();

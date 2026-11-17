@@ -465,11 +465,17 @@ export function ensureWritableSaveContainers(save: MetaSaveData, minLevelCount =
   if (!Array.isArray(save.campaign.bestStars)) {
     save.campaign.bestStars = new Array<number>(safeLen).fill(0);
   } else {
+    for (let i = 0; i < save.campaign.bestStars.length; i++) {
+      save.campaign.bestStars[i] = Math.min(3, asNonNegInt(save.campaign.bestStars[i]));
+    }
     while (save.campaign.bestStars.length < safeLen) save.campaign.bestStars.push(0);
   }
   if (!Array.isArray(save.campaign.bestEndlessWaves)) {
     save.campaign.bestEndlessWaves = new Array<number>(safeLen).fill(0);
   } else {
+    for (let i = 0; i < save.campaign.bestEndlessWaves.length; i++) {
+      save.campaign.bestEndlessWaves[i] = asNonNegInt(save.campaign.bestEndlessWaves[i]);
+    }
     while (save.campaign.bestEndlessWaves.length < safeLen) save.campaign.bestEndlessWaves.push(0);
   }
   if (!isPlainRecord(save.completedChallenges)) save.completedChallenges = {};

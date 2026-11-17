@@ -1088,12 +1088,22 @@ describe('Daily challenge pure date-seeded generator', () => {
     ).toEqual(['Tailwind March', 'No Frost Spire']);
 
     // Custom catalog with duplicate IDs and array-corrupted entries never selects the same mutator twice
+    // and keeps first-wins lookup consistency between selection and describeActiveModifiers
     const dupCatalog = [
       ENDLESS_MUTATORS[0],
-      ENDLESS_MUTATORS[0],
+      {
+        ...ENDLESS_MUTATORS[0],
+        name: 'Duplicate Override',
+        modifiers: { enemySpeedMultiplier: 2 },
+      },
+      { id: '', name: 'Empty', description: 'Ignored', scoreMultiplierBonus: 0, modifiers: {} },
       [] as unknown as (typeof ENDLESS_MUTATORS)[number],
     ];
     expect(selectEndlessMutators('dup-check', 2, dupCatalog).mutators).toHaveLength(1);
+    const dupRoll = buildEndlessMutatorLoadout(['swift_march'], dupCatalog);
+    const dupBadges = describeActiveModifiers(dupRoll.modifiers, dupCatalog);
+    expect(dupBadges).toHaveLength(1);
+    expect(dupBadges[0].label).toBe('Tailwind March');
     expect(
       getMutatorPresetRoll('bad', [[] as unknown as (typeof ENDLESS_MUTATOR_PRESETS)[number]], dupCatalog),
     ).toBeNull();

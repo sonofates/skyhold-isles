@@ -166,13 +166,17 @@ export function evaluateLiveChallengeState(
   let progressLabel = '';
 
   switch (cond.kind) {
-    case 'noLivesLost':
-      failed = telemetry.livesLost > 0 || safeLives < BALANCE.startingLives;
+    case 'noLivesLost': {
+      const livesLost = isNonNegFinite(telemetry.livesLost) ? Math.floor(telemetry.livesLost) : null;
+      failed = livesLost === null || livesLost > 0 || safeLives < BALANCE.startingLives;
       progressLabel =
-        telemetry.livesLost > 0
-          ? `${telemetry.livesLost} lost`
-          : `${safeLives}/${BALANCE.startingLives} lives`;
+        livesLost === null
+          ? 'Invalid lives'
+          : livesLost > 0
+            ? `${livesLost} lost`
+            : `${safeLives}/${BALANCE.startingLives} lives`;
       break;
+    }
     case 'minLivesRemaining':
       failed = safeLives < cond.minLives;
       progressLabel = `${safeLives}/${cond.minLives}+ lives`;
@@ -189,50 +193,89 @@ export function evaluateLiveChallengeState(
       progressLabel = failed ? 'Disallowed tower built' : 'Arsenal intact';
       break;
     }
-    case 'maxTowersBuilt':
-      failed = telemetry.towersBuilt > cond.maxCount;
-      progressLabel = `${telemetry.towersBuilt}/${cond.maxCount} towers`;
+    case 'maxTowersBuilt': {
+      const validBuilt = isNonNegFinite(telemetry.towersBuilt);
+      const built = validBuilt ? Math.floor(telemetry.towersBuilt) : 0;
+      failed = !validBuilt || built > cond.maxCount;
+      progressLabel = validBuilt ? `${built}/${cond.maxCount} towers` : `Invalid/${cond.maxCount} towers`;
       break;
-    case 'maxPeakTowers':
-      failed = telemetry.peakTowersActive > cond.maxCount;
-      progressLabel = failed
-        ? `Peak ${telemetry.peakTowersActive}/${cond.maxCount}`
-        : `${telemetry.activeTowers}/${cond.maxCount} active`;
+    }
+    case 'maxPeakTowers': {
+      const validPeak = isNonNegFinite(telemetry.peakTowersActive);
+      const peak = validPeak ? Math.floor(telemetry.peakTowersActive) : 0;
+      const active = isNonNegFinite(telemetry.activeTowers) ? Math.floor(telemetry.activeTowers) : 0;
+      failed = !validPeak || peak > cond.maxCount;
+      progressLabel = !validPeak
+        ? `Peak ?/${cond.maxCount}`
+        : failed
+          ? `Peak ${peak}/${cond.maxCount}`
+          : `${active}/${cond.maxCount} active`;
       break;
-    case 'maxTowerTier':
-      failed = telemetry.maxTowerTierBuilt > cond.maxTier;
-      progressLabel = `Max T${telemetry.maxTowerTierBuilt}/T${cond.maxTier}`;
+    }
+    case 'maxTowerTier': {
+      const validTier = isNonNegFinite(telemetry.maxTowerTierBuilt);
+      const maxTier = validTier ? Math.floor(telemetry.maxTowerTierBuilt) : 0;
+      failed = !validTier || maxTier > cond.maxTier;
+      progressLabel = validTier ? `Max T${maxTier}/T${cond.maxTier}` : `Max T?/T${cond.maxTier}`;
       break;
-    case 'maxGoldSpent':
-      failed = telemetry.grossGoldSpent > cond.maxGold;
-      progressLabel = `${telemetry.grossGoldSpent}/${cond.maxGold}g`;
+    }
+    case 'maxGoldSpent': {
+      const validSpent = isNonNegFinite(telemetry.grossGoldSpent);
+      const spent = validSpent ? Math.floor(telemetry.grossGoldSpent) : 0;
+      failed = !validSpent || spent > cond.maxGold;
+      progressLabel = validSpent ? `${spent}/${cond.maxGold}g` : `Invalid/${cond.maxGold}g`;
       break;
-    case 'noAbilities':
-      failed = telemetry.abilitiesCastTotal > 0;
-      progressLabel = failed ? `${telemetry.abilitiesCastTotal} cast` : '0 abilities';
+    }
+    case 'noAbilities': {
+      const casts = isNonNegFinite(telemetry.abilitiesCastTotal)
+        ? Math.floor(telemetry.abilitiesCastTotal)
+        : null;
+      failed = casts === null || casts > 0;
+      progressLabel = casts === null ? 'Invalid casts' : failed ? `${casts} cast` : '0 abilities';
       break;
-    case 'noTowerSelling':
-      failed = telemetry.towersSold > 0;
-      progressLabel = failed ? `${telemetry.towersSold} sold` : '0 sold';
+    }
+    case 'noTowerSelling': {
+      const sold = isNonNegFinite(telemetry.towersSold) ? Math.floor(telemetry.towersSold) : null;
+      failed = sold === null || sold > 0;
+      progressLabel = sold === null ? 'Invalid sells' : failed ? `${sold} sold` : '0 sold';
       break;
-    case 'combatSpeedOnly':
-      failed =
-        telemetry.minCombatSpeed !== null && telemetry.minCombatSpeed < cond.requiredSpeed;
-      progressLabel = failed
-        ? `Dropped to ${telemetry.minCombatSpeed}x`
-        : telemetry.minCombatSpeed === null
-          ? telemetry.currentSpeed >= cond.requiredSpeed
+    }
+    case 'combatSpeedOnly': {
+      const minSpeed = telemetry.minCombatSpeed;
+      if (minSpeed === null) {
+        const currSpeed =
+          typeof telemetry.currentSpeed === 'number' && Number.isFinite(telemetry.currentSpeed)
+            ? telemetry.currentSpeed
+            : 0;
+        failed = false;
+        progressLabel =
+          currSpeed >= cond.requiredSpeed
             ? `${cond.requiredSpeed}x armed`
-            : `Set ${cond.requiredSpeed}x before W1`
-          : `${cond.requiredSpeed}x locked`;
+            : `Set ${cond.requiredSpeed}x before W1`;
+      } else if (typeof minSpeed === 'number' && Number.isFinite(minSpeed)) {
+        failed = minSpeed < cond.requiredSpeed;
+        progressLabel = failed ? `Dropped to ${minSpeed}x` : `${cond.requiredSpeed}x locked`;
+      } else {
+        failed = true;
+        progressLabel = 'Speed invalid';
+      }
       break;
+    }
     case 'minEarlyWaves': {
+      const validEarly = isNonNegFinite(telemetry.earlyWavesCalled);
+      const earlyCalled = validEarly ? Math.floor(telemetry.earlyWavesCalled) : 0;
+      const maxWave = isNonNegFinite(telemetry.maxWaveReached)
+        ? Math.floor(telemetry.maxWaveReached)
+        : 0;
+      const storyWaves = isNonNegFinite(telemetry.storyWaveCount)
+        ? Math.floor(telemetry.storyWaveCount)
+        : 0;
       const maxRemaining =
-        telemetry.maxWaveReached === 0
-          ? Math.max(0, telemetry.storyWaveCount - 1)
-          : Math.max(0, telemetry.storyWaveCount - telemetry.maxWaveReached);
-      failed = telemetry.earlyWavesCalled + maxRemaining < cond.minCount;
-      progressLabel = `${telemetry.earlyWavesCalled}/${cond.minCount} early`;
+        maxWave === 0 ? Math.max(0, storyWaves - 1) : Math.max(0, storyWaves - maxWave);
+      failed = !validEarly || earlyCalled + maxRemaining < cond.minCount;
+      progressLabel = validEarly
+        ? `${earlyCalled}/${cond.minCount} early`
+        : `Invalid/${cond.minCount} early`;
       break;
     }
   }
@@ -593,8 +636,11 @@ export class RunObserver {
 
   getTelemetry(): RunTelemetry {
     return {
-      levelId: this.level.id,
-      levelIndex: this.level.index,
+      levelId: typeof this.level?.id === 'string' ? this.level.id : '',
+      levelIndex:
+        typeof this.level?.index === 'number' && Number.isFinite(this.level.index)
+          ? Math.max(0, Math.floor(this.level.index))
+          : 0,
       storyWaveCount: this.storyWaveCount,
       simTimeSec: this.simTimeSec,
       towersBuilt: this.towersBuilt,

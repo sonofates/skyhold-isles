@@ -2214,5 +2214,21 @@ describe('MetaSession stats, achievements, challenges & daily persistence', () =
     const nullSaveStore = installMockLocalStorage();
     saveMetaSave(null as unknown as ReturnType<typeof createDefaultMetaSave>);
     expect(nullSaveStore.has(META_PROGRESS_KEY)).toBe(false);
+
+    // Dirty/sparse campaign array slots sanitize in place inside ensureWritableSaveContainers / MetaSession
+    const dirtyArraySave = createDefaultMetaSave(3);
+    dirtyArraySave.campaign.bestStars = [3, 'bad' as unknown as number, 99, -2, Number.NaN];
+    dirtyArraySave.campaign.bestEndlessWaves = [12, undefined as unknown as number, Number.NaN, -5];
+    const dirtyArraySession = new MetaSession({
+      levels: LEVELS,
+      saveData: dirtyArraySave,
+      onSave: () => {},
+    });
+    const cleanProgress = dirtyArraySession.getCampaignProgress();
+    expect(cleanProgress.bestStars).toHaveLength(LEVELS.length);
+    expect(cleanProgress.bestStars.slice(0, 5)).toEqual([3, 0, 3, 0, 0]);
+    expect(cleanProgress.bestEndlessWaves.slice(0, 4)).toEqual([12, 0, 0, 0]);
+    expect(cleanProgress.bestStars.reduce((a, b) => a + b, 0)).toBe(6);
+    dirtyArraySession.dispose();
   });
 });

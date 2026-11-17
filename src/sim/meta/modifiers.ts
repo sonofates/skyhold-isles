@@ -250,7 +250,14 @@ export function describeActiveModifiers(
   const mutatorById = new Map<string, MutatorDef>();
   for (let i = 0; i < safeCatalog.length; i++) {
     const entry = safeCatalog[i];
-    if (entry && typeof entry.id === 'string') {
+    if (
+      entry &&
+      typeof entry === 'object' &&
+      !Array.isArray(entry) &&
+      typeof entry.id === 'string' &&
+      entry.id.length > 0 &&
+      !mutatorById.has(entry.id)
+    ) {
       mutatorById.set(entry.id, entry);
     }
   }
