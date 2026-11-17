@@ -24,7 +24,7 @@ import {
   collectInstancedMaterialsNeedingColor,
   detectPrimaryTouchDevice,
 } from '../../src/render/sceneManager.ts';
-import { formatPerfLogLine } from '../../src/ui/debugPanel.ts';
+import { DebugPanel, formatPerfLogLine } from '../../src/ui/debugPanel.ts';
 
 function feedFrames(
   gov: PerfGovernor,
@@ -669,6 +669,168 @@ describe('PerfGovernor', () => {
     } finally {
       geoDisposeSpy.mockRestore();
       texDisposeSpy.mockRestore();
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('clears lastChangeSec cooldown when setMode resets governor state', () => {
+    const gov = new PerfGovernor({ mode: 'auto', isTouch: false });
+    // Trigger an immediate downgrade so lastChangeSec advances
+    expect(feedFrames(gov, 160, 26).some((t) => t.toTier === 4)).toBe(true);
+
+    // Switch away and back to auto, bypassing initial warmup to test downgradeCooldownSec (2.0s):
+    // without clearing lastChangeSec, 1.2s of severe 40ms frames (< 2.0s cooldown) would be blocked.
+    gov.setMode('high');
+    gov.setMode('auto');
+    gov.resetWarmup(0);
+
+    const tr = feedFrames(gov, 35, 40);
+    expect(tr.length).toBeGreaterThanOrEqual(1);
+    expect(tr[0]).toMatchObject({ fromTier: 5, toTier: 3, direction: 'down' });
+  });
+
+  it('preserves GLTFLoader bounds on single-mesh identity GLBs and computes bounds for multi-part GLBs', async () => {
+    const crystalBuf = fs.readFileSync(
+      path.resolve(process.cwd(), 'public/models/kenney/detail-crystal.glb'),
+    );
+    const ballistaBuf = fs.readFileSync(
+      path.resolve(process.cwd(), 'public/models/kenney/weapon-ballista.glb'),
+    );
+
+    vi.stubGlobal(
+      'Image',
+      class FakeImage {
+        width = 64;
+        height = 64;
+        crossOrigin = '';
+        onload: (() => void) | null = null;
+        set src(_v: string) {
+          queueMicrotask(() => this.onload?.());
+        }
+      },
+    );
+    vi.stubGlobal('document', {
+      createElement: () => ({
+        width: 64,
+        height: 64,
+        getContext: () => ({
+          drawImage: () => {},
+          getImageData: () => ({ data: new Uint8ClampedArray(64 * 64 * 4) }),
+          putImageData: () => {},
+          fillRect: () => {},
+          fillStyle: '',
+        }),
+      }),
+    });
+    vi.stubGlobal('fetch', (url: string) => {
+      const src = url.includes('detail-crystal') ? crystalBuf : ballistaBuf;
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        arrayBuffer: () =>
+          Promise.resolve(src.buffer.slice(src.byteOffset, src.byteOffset + src.byteLength)),
+      } as unknown as Response);
+    });
+
+    const boxSpy = vi.spyOn(THREE.BufferGeometry.prototype, 'computeBoundingBox');
+    try {
+      const store = await KenneyAssetStore.preload(undefined, [
+        'detail-crystal',
+        'weapon-ballista',
+      ]);
+      const crystal = store.cloneGeometry('detail-crystal');
+      const ballista = store.cloneGeometry('weapon-ballista');
+
+      expect(crystal.boundingBox).not.toBeNull();
+      expect(crystal.boundingSphere).not.toBeNull();
+      expect(ballista.boundingBox).not.toBeNull();
+      expect(ballista.boundingSphere).not.toBeNull();
+      // Only the 2-part merged weapon-ballista (and GLTFLoader internal calls if any) should compute boxes;
+      // single-mesh identity detail-crystal preserves GLTFLoader's box directly.
+      expect(boxSpy.mock.calls.length).toBeLessThanOrEqual(3);
+
+      crystal.dispose();
+      ballista.dispose();
+      store.dispose();
+    } finally {
+      boxSpy.mockRestore();
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('defers DebugPanel telemetry refresh after resetDisplaySmoothing while keeping boot update immediate', () => {
+    const makeEl = (tag: string) => {
+      const el: Record<string, unknown> = {
+        tagName: tag.toUpperCase(),
+        id: '',
+        className: '',
+        textContent: '',
+        children: [] as unknown[],
+        classList: { toggle: () => {} },
+        setAttribute: () => {},
+        addEventListener: () => {},
+        append: (...args: unknown[]) => {
+          (el.children as unknown[]).push(...args);
+        },
+        appendChild: (child: unknown) => {
+          (el.children as unknown[]).push(child);
+          return child;
+        },
+        remove: () => {},
+      };
+      return el;
+    };
+    vi.stubGlobal('document', { createElement: (tag: string) => makeEl(tag) });
+
+    let telemetryCalls = 0;
+    const panel = new DebugPanel(
+      makeEl('div') as unknown as HTMLElement,
+      {
+        onAddGold: () => {},
+        onSetLives: () => {},
+        onSkipToWave: () => {},
+        onSpawnEnemies: () => {},
+        onInstantWin: () => {},
+        onInstantLose: () => {},
+        onToggleAllRangeRings: () => {},
+        getTelemetry: () => {
+          telemetryCalls++;
+          return {
+            fps: 60,
+            frameTimeMs: 16.6,
+            drawCalls: 20,
+            drawsWithShadows: 20,
+            drawsNoShadows: 10,
+            triangles: 1000,
+            enemiesActive: 0,
+            enemiesMax: 256,
+            towersCount: 0,
+            projectilesActive: 0,
+            projectilesMax: 256,
+            particlesActive: 0,
+            particlesMax: 512,
+            floatingTextsActive: 0,
+            floatingTextsMax: 60,
+          };
+        },
+      },
+      'perf',
+    );
+
+    try {
+      // Boot update(0) renders immediately
+      panel.update(0);
+      expect(telemetryCalls).toBe(1);
+
+      // Reset clears uiRefreshAccum so the next single 50ms frame does not flash empty metrics
+      panel.resetDisplaySmoothing();
+      panel.update(0.05);
+      expect(telemetryCalls).toBe(1);
+
+      // After accumulating >= 0.2s, telemetry refreshes normally
+      panel.update(0.16);
+      expect(telemetryCalls).toBe(2);
+    } finally {
       vi.unstubAllGlobals();
     }
   });

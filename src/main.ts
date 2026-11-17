@@ -237,7 +237,9 @@ async function bootstrap(loadingScreen: LoadingScreen): Promise<void> {
       }
     },
     onVisibilityRestore: () => {
-      renderWorld.sceneManager.resetGovernorWarmup();
+      skipNextDisplayFrame = true;
+      renderWorld.sceneManager.resetGovernorWarmup(undefined, true);
+      debugPanel?.resetDisplaySmoothing();
     },
   });
 

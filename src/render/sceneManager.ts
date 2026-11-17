@@ -165,8 +165,15 @@ export class SceneManager {
   };
 
   private readonly onContextRestored = (): void => {
+    if (this.disposed) return;
     this.contextLost = false;
-    this.renderer.shadowMap.needsUpdate = true;
+    if (this.postProcessing) {
+      this.postProcessing.dispose();
+      this.postProcessing = null;
+    }
+    this.disposeShadowMap();
+    this.appliedDpr = -1;
+    this.applyPreset(this.governor.getPreset(), true);
     this.governor.resetWarmup();
     this.resetDisplayMetrics();
   };
@@ -309,7 +316,7 @@ export class SceneManager {
   }
 
   setQuality(quality: QualityLevel): void {
-    if (quality === this.governor.getMode()) return;
+    if (this.disposed || quality === this.governor.getMode()) return;
     this.tierTransitions = 0;
     this.governor.setMode(quality);
     this.applyPreset(this.governor.getPreset(), true);
@@ -333,7 +340,7 @@ export class SceneManager {
    * and first-build compile hitches.
    */
   async warmUp(camera: THREE.Camera, options?: WarmUpOptions): Promise<void> {
-    if (this.contextLost) return;
+    if (this.disposed || this.contextLost) return;
     this.resize(
       this.canvas.clientWidth || window.innerWidth,
       this.canvas.clientHeight || window.innerHeight,
@@ -529,6 +536,7 @@ export class SceneManager {
   }
 
   resize(width: number, height: number): void {
+    if (this.disposed) return;
     const safeW = Number.isFinite(width) ? width : this.lastWidth;
     const safeH = Number.isFinite(height) ? height : this.lastHeight;
     const w = Math.max(1, Math.round(safeW));

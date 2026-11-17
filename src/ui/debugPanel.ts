@@ -327,6 +327,7 @@ export class DebugPanel {
     this.smoothedFps = 0;
     this.smoothedMs = 0;
     this.hasSmoothedSample = false;
+    this.uiRefreshAccum = 0;
   }
 
   getTelemetrySnapshot(): DebugTelemetry {

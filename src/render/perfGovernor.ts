@@ -349,6 +349,7 @@ export class PerfGovernor {
     this.lockedCeilingTier = this.getDefaultMaxTier();
     this.lastUpgradeToTier = null;
     this.lastUpgradeSec = -Infinity;
+    this.lastChangeSec = -Infinity;
     this.tier = this.getInitialTierForMode();
     this.resetWarmup();
     return prevTier !== this.tier || prevMode !== this.mode;

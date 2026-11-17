@@ -74,7 +74,11 @@ function normalizeMeshGeometry(src: THREE.BufferGeometry, worldMatrix: THREE.Mat
     }
   }
   const geo = src.index ? src.toNonIndexed() : src.clone();
-  if (!isIdentityMatrix(worldMatrix)) {
+  if (isIdentityMatrix(worldMatrix)) {
+    // Preserve GLTFLoader's precomputed bounds so identity single-mesh models skip redundant vertex scans.
+    if (src.boundingBox) geo.boundingBox = src.boundingBox.clone();
+    if (src.boundingSphere) geo.boundingSphere = src.boundingSphere.clone();
+  } else {
     geo.applyMatrix4(worldMatrix);
   }
   if (!geo.hasAttribute('normal')) {
@@ -237,8 +241,8 @@ export class KenneyAssetStore {
             }
           }
         }
-        merged.computeBoundingBox();
-        merged.computeBoundingSphere();
+        if (!merged.boundingBox) merged.computeBoundingBox();
+        if (!merged.boundingSphere) merged.computeBoundingSphere();
         geometries.set(name, merged);
 
         completed++;
