@@ -7,8 +7,10 @@ import { LEVELS_2D } from '../../data/levels2d/index.ts';
 import type { LevelDef } from '../../data/levels/types.ts';
 import type { WinRecord } from '../../game/progression.ts';
 import { islandMapUrl, type MapsManifest } from './islandArt.ts';
+export { endNoteFor } from './modeBits.ts';
 import {
   indexOf2D,
+  islandStates,
   isUnlocked2D,
   loadProgress2D,
   markStorySeen,
@@ -50,6 +52,12 @@ export function recordRun(level: LevelDef, won: boolean, stars: number, lives: n
   if (!won) return null;
   const s = Math.max(1, Math.min(3, Math.round(stars))) as 1 | 2 | 3;
   return recordWin2D(level.id, s, lives);
+}
+
+/** Is the island mastered in the 2D save (3 stars + all its challenge badges)? */
+export function isMastered(levelId: string): boolean {
+  const i = indexOf2D(levelId);
+  return i >= 0 && (islandStates(loadProgress2D())[i]?.mastered ?? false);
 }
 
 /** Records a campaign, challenge, Daily Squall, or Endless run outcome into the 2D save. */

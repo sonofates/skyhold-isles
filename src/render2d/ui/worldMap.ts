@@ -15,12 +15,13 @@ import type { LevelDef } from '../../data/levels/types.ts';
 import { nextRankCost, WORKSHOP_UPGRADES } from '../../data/workshop.ts';
 import { starWallet, totalCampaignStars } from '../../game/progression.ts';
 import { readSafeInsets } from '../uiKit.ts';
-import { showBriefing } from './briefing.ts';
+import { showBriefing, type RunChoice } from './briefing.ts';
+import { isChallengeId } from '../../data/challenges.ts';
 import { anySheetOpen, el, glyph, img, KIT, medal, roundButton, starsRow } from './dom.ts';
-import { islandHref } from './inGame.ts';
 import { fetchMapsManifest, islandMapUrl, type MapsManifest } from './islandArt.ts';
 import { routePath, scrollToCentre, worldMapLayout, type WorldMapLayout } from './mapLayout.ts';
 import { dailyFor2D, openDaily, openLogbook, openSettings, openWorkshop, type MetaContext } from './metaScreens.ts';
+import { availableChallenges, buildRunHref2D, canPlayEndless } from './modes2d.ts';
 import { islandStates, loadProgress2D, type IslandState } from './progress2d.ts';
 import { paintSea } from './seaPainter.ts';
 
@@ -72,7 +73,13 @@ export async function mountWorldMap(q: URLSearchParams): Promise<void> {
   const right = el('div', 'pu-topbar-right', {}, tallyBox, wsBtn, lbBtn, dailyBtn, setBtn);
   const topbar = el('div', 'pu-topbar', {}, banner, right);
   const hint = el('div', 'pu-map-hint pu-letter', {}, 'Tap an island to set sail');
-  root.append(scroll, topbar, hint);
+  // Painted arrows at the sea's edges when more of the route lies that way (mouse users without a
+  // wheel; touch pans natively, a mouse can also drag the sea).
+  const panL = roundButton('back', 'Sail west along the route', 'map2d-pan-left');
+  const panR = roundButton('next', 'Sail east along the route', 'map2d-pan-right');
+  panL.classList.add('pu-map-pan', 'left');
+  panR.classList.add('pu-map-pan', 'right');
+  root.append(scroll, panL, panR, topbar, hint);
   document.body.append(root);
 
   let states: IslandState[] = [];
@@ -94,10 +101,16 @@ export async function mountWorldMap(q: URLSearchParams): Promise<void> {
     },
   };
 
-  const openBrief = (i: number): void => {
+  const openBrief = (i: number, initial?: Partial<RunChoice>): void => {
     const st = states[i];
     if (!st) return;
-    showBriefing(st, i > 0 ? levels[i - 1] : null, thumb(st.level), () => location.assign(islandHref(st.level)));
+    const id = st.level.id;
+    const modes = st.unlocked
+      ? { challenges: availableChallenges(id, progress, levels), endless: canPlayEndless(id, progress, levels), initial }
+      : { challenges: [], endless: false };
+    showBriefing(st, i > 0 ? levels[i - 1] : null, thumb(st.level), modes, (choice) =>
+      location.assign(buildRunHref2D(id, { challenges: choice.challenges, endless: choice.endless, intro: st.clears === 0 })),
+    );
   };
 
   const buildNodes = (): void => {
@@ -180,6 +193,7 @@ export async function mountWorldMap(q: URLSearchParams): Promise<void> {
       b.style.top = `${L.nodes[i].y}px`;
     });
     scroll.scrollLeft = scrollToCentre(L.nodes[frontier]?.x ?? 0, w, L.worldW);
+    updatePan();
   };
 
   const refresh = (): void => {
@@ -188,6 +202,51 @@ export async function mountWorldMap(q: URLSearchParams): Promise<void> {
     refreshTopbar();
     relayout(true);
   };
+
+  const updatePan = (): void => {
+    const max = scroll.scrollWidth - scroll.clientWidth;
+    panL.hidden = max <= 2 || scroll.scrollLeft <= 2;
+    panR.hidden = max <= 2 || scroll.scrollLeft >= max - 2;
+  };
+  const panBy = (dir: -1 | 1): void => {
+    const step = Math.max(layout ? layout.nodeD * 1.62 : 200, scroll.clientWidth * 0.6);
+    scroll.scrollBy({ left: dir * step, behavior: 'smooth' });
+  };
+  panL.addEventListener('click', () => panBy(-1));
+  panR.addEventListener('click', () => panBy(1));
+  scroll.addEventListener('scroll', updatePan, { passive: true });
+  // Mouse drag pans the sea; a drag never counts as a tap on an island.
+  let drag: { x: number; left: number; moved: boolean; id: number } | null = null;
+  scroll.addEventListener('pointerdown', (e) => {
+    if (e.pointerType !== 'mouse' || e.button !== 0) return;
+    drag = { x: e.clientX, left: scroll.scrollLeft, moved: false, id: e.pointerId };
+  });
+  scroll.addEventListener('pointermove', (e) => {
+    if (!drag || e.pointerId !== drag.id) return;
+    const dx = e.clientX - drag.x;
+    if (!drag.moved && Math.abs(dx) > 6) {
+      drag.moved = true;
+      scroll.setPointerCapture(e.pointerId);
+      scroll.classList.add('dragging');
+    }
+    if (drag.moved) scroll.scrollLeft = drag.left - dx;
+  });
+  const endDrag = (e: PointerEvent): void => {
+    if (!drag || e.pointerId !== drag.id) return;
+    const moved = drag.moved;
+    drag = null;
+    scroll.classList.remove('dragging');
+    if (!moved) return;
+    // Swallow the click the browser sends after the drag.
+    const swallow = (ev: Event): void => {
+      ev.stopPropagation();
+      ev.preventDefault();
+    };
+    window.addEventListener('click', swallow, { capture: true, once: true });
+    window.setTimeout(() => window.removeEventListener('click', swallow, { capture: true }), 0);
+  };
+  scroll.addEventListener('pointerup', endDrag);
+  scroll.addEventListener('pointercancel', endDrag);
 
   wsBtn.addEventListener('click', () => openWorkshop(ctx));
   lbBtn.addEventListener('click', () => openLogbook(ctx));
@@ -207,7 +266,9 @@ export async function mountWorldMap(q: URLSearchParams): Promise<void> {
   window.addEventListener('resize', () => relayout());
   window.addEventListener('keydown', (e) => {
     if (anySheetOpen()) return;
-    if (e.key === 'Enter') openBrief(Math.max(0, Math.min(levels.length - 1, progress.unlockedLevelIndex)));
+    if (e.key === 'Enter' && !(e.target instanceof HTMLButtonElement)) openBrief(Math.max(0, Math.min(levels.length - 1, progress.unlockedLevelIndex)));
+    else if (e.key === 'ArrowLeft') panBy(-1);
+    else if (e.key === 'ArrowRight') panBy(1);
   });
 
   await document.fonts?.ready.catch(() => undefined);
@@ -218,7 +279,14 @@ export async function mountWorldMap(q: URLSearchParams): Promise<void> {
   };
 
   const screen = q.get('screen');
-  if (screen === 'brief') openBrief(Math.max(0, Math.min(levels.length - 1, Number(q.get('island') ?? progress.unlockedLevelIndex) || 0)));
+  if (screen === 'brief') {
+    // QA: &pick=endless or &pick=<challenge id>[,<id>] pre-selects modes on the card.
+    const pick = (q.get('pick') ?? '').split(',').filter(Boolean);
+    openBrief(Math.max(0, Math.min(levels.length - 1, Number(q.get('island') ?? progress.unlockedLevelIndex) || 0)), {
+      endless: pick.includes('endless'),
+      challenges: pick.filter(isChallengeId),
+    });
+  }
   else if (screen === 'workshop') openWorkshop(ctx);
   else if (screen === 'logbook') openLogbook(ctx, q.get('tab') === 'feats' ? 'feats' : 'islands');
   else if (screen === 'daily') openDaily(ctx);

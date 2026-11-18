@@ -75,6 +75,7 @@ export class Hud {
   private lastLives = NaN;
   private lastGold = NaN;
   private lastWave = NaN;
+  private endlessAfter: number | null = null;
   private lastHorn = NaN;
   private lastBanner = '\u0000';
 
@@ -239,6 +240,20 @@ export class Hud {
     }
   }
 
+  /**
+   * Endless run: the banner reads "Wave n/story" through the island's own waves, then
+   * "Endless · Wave n" (the sim's totalWaves grows with the wave in Endless). null = normal run.
+   */
+  /** The wave banner's text (QA). */
+  get waveLabel(): string {
+    return this.waveText.text;
+  }
+
+  setEndless(storyWaves: number | null): void {
+    this.endlessAfter = storyWaves;
+    this.lastWave = NaN;
+  }
+
   update(s: HudState, dt: number): void {
     this.t += dt;
     // Strings are only built when a value changes (no per-frame allocation).
@@ -254,7 +269,9 @@ export class Hud {
     }
     if (s.wave * 1000 + s.totalWaves !== this.lastWave) {
       this.lastWave = s.wave * 1000 + s.totalWaves;
-      setText(this.waveText, `Wave ${Math.max(1, s.wave)}/${s.totalWaves}`);
+      const w = Math.max(1, s.wave);
+      const story = this.endlessAfter;
+      setText(this.waveText, story === null ? `Wave ${w}/${s.totalWaves}` : w <= story ? `Wave ${w}/${story}` : `Endless · Wave ${w}`);
       fitWidth(this.waveText, this.bannerFont);
     }
     const pausedKey = s.paused ? 1 : 0;

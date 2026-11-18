@@ -5,7 +5,8 @@
  */
 import type { GameSettings, ProgressData } from '../../core/types.ts';
 import { CHALLENGES, challengesForLevel, type ChallengeId } from '../../data/challenges.ts';
-import { liveStreak, type DailyChallenge } from '../../data/daily.ts';
+import { liveStreak, utcDayNumber, type DailyChallenge } from '../../data/daily.ts';
+import { endlessTier } from '../../data/endlessMutators.ts';
 import { LEVELS_2D } from '../../data/levels2d/index.ts';
 import type { LevelDef } from '../../data/levels/types.ts';
 import { buyRank, maxRank, nextRankCost, rankOf, WORKSHOP_BRANCHES, WORKSHOP_UPGRADES, workshopTotalCost, type WorkshopUpgradeDef } from '../../data/workshop.ts';
@@ -13,6 +14,7 @@ import { featStatuses, type FeatIcon } from '../../game/feats.ts';
 import { isIslandMastered, starWallet } from '../../game/progression.ts';
 import { loadSettings, saveSettings } from '../../platform/storage.ts';
 import { ART, el, glyph, img, KIT, medal, openSheet, plank, slider, starsRow, toggle, type Sheet } from './dom.ts';
+import { endlessRecordText, tierColour } from './modeBits.ts';
 import { dailyForToday, dailyHref2D } from './modes2d.ts';
 import type { IconName } from './paintedIcons.ts';
 import { resetProgress2D, saveProgress2D } from './progress2d.ts';
@@ -141,7 +143,9 @@ export function openLogbook(ctx: MetaContext, tab: 'islands' | 'feats' = 'island
     let mastered = 0;
     let cleared = 0;
     let wins = 0;
+    let medals = 0;
     levels.forEach((lvl, i) => {
+      medals += endlessTier(p.bestEndlessWaves[i] ?? 0, lvl.waves.length);
       const offered = challengesForLevel(lvl);
       badgesMax += offered.length;
       badges += offered.filter((id) => (p.challengeClears[i] ?? []).includes(id)).length;
@@ -151,7 +155,7 @@ export function openLogbook(ctx: MetaContext, tab: 'islands' | 'feats' = 'island
     });
     sheet.body.innerHTML = '';
     const total = (icon: IconName | 'star', value: string, label: string): HTMLElement =>
-      el('div', 'pu-lb-total', {}, seal(icon), el('div', '', {}, el('strong', 'pu-ink', {}, value), el('span', 'pu-ink-soft', {}, label)));
+      el('div', 'pu-lb-total', { 'data-testid': `lb2d-total-${icon}` }, seal(icon), el('div', '', {}, el('strong', 'pu-ink', {}, value), el('span', 'pu-ink-soft', {}, label)));
     const totals = el(
       'div',
       'pu-lb-totals',
@@ -160,6 +164,8 @@ export function openLogbook(ctx: MetaContext, tab: 'islands' | 'feats' = 'island
       total('medal', `${badges}/${badgesMax}`, 'badges'),
       total('crown', `${mastered}/${levels.length}`, 'mastered'),
       total('trophy', String(wins), 'victories'),
+      total('daily', String(liveStreak(p.daily, utcDayNumber(Date.now()))), `day streak · best ${p.daily.bestStreak}`),
+      total('endless', `${medals}/${levels.length * 3}`, 'endless medals'),
     );
     const feats = featStatuses(p, levels);
     const earned = feats.filter((f) => f.earned).length;
@@ -187,10 +193,33 @@ export function openLogbook(ctx: MetaContext, tab: 'islands' | 'feats' = 'island
         } else {
           const lives = p.bestLives[i] ?? 0;
           const w = p.clears[i] ?? 0;
+          const done = p.challengeClears[i] ?? [];
+          const badges = el('span', 'pu-ledger-badges', { 'data-testid': `lb2d-badges-${lvl.id}` });
+          for (const id of challengesForLevel(lvl)) {
+            const got = done.includes(id);
+            const b = ruleSeal(id);
+            b.classList.toggle('off', !got);
+            b.setAttribute('aria-hidden', 'false');
+            b.setAttribute('role', 'img');
+            b.setAttribute('aria-label', `${CHALLENGES[id].name}: ${got ? 'badge earned' : 'not yet'}`);
+            b.title = `${CHALLENGES[id].name} — ${CHALLENGES[id].description}${got ? ' (badge earned)' : ''}`;
+            badges.append(b);
+          }
+          const rec = endlessRecordText(p.bestEndlessWaves[i] ?? 0, lvl.waves.length);
+          const endless = el(
+            'span',
+            `pu-rec pu-ledger-endless pu-ink${rec.tier > 0 ? '' : ' none'}`,
+            { title: `Endless best: ${rec.best}${rec.tierName ? ` (${rec.tierName} medal)` : ''}`, 'data-testid': `lb2d-endless-${lvl.id}` },
+            glyph('endless'),
+            (p.bestEndlessWaves[i] ?? 0) > lvl.waves.length ? `W${p.bestEndlessWaves[i]}` : '–',
+          );
+          if (rec.tier > 0) endless.style.setProperty('--tier', tierColour(rec.tier));
           row.append(
             num,
             el('span', 'pu-ledger-name pu-ink', {}, lvl.name, el('small', 'pu-ink-soft', {}, lvl.difficulty)),
             starsRow(p.bestStars[i] ?? 0),
+            badges,
+            endless,
             el('span', 'pu-rec pu-ink', { title: 'Best lives left' }, glyph('heart'), lives > 0 ? String(lives) : '–'),
             el('span', 'pu-ink-soft', { title: 'Victories' }, w > 0 ? `${w}× won` : 'not won'),
           );
@@ -242,7 +271,8 @@ const RULE_ICON: Partial<Record<ChallengeId, IconName>> = {
   championHost: 'crown',
 };
 
-function ruleSeal(id: ChallengeId): HTMLSpanElement {
+/** Round seal for a challenge rule: the banned tower crossed out, a purse, or a rule glyph. */
+export function ruleSeal(id: ChallengeId): HTMLSpanElement {
   const def = CHALLENGES[id];
   const s = el('span', 'pu-round', { 'aria-hidden': 'true' });
   if (def.bannedIcon) {
@@ -321,6 +351,15 @@ export function openSettings(ctx: MetaContext): Sheet {
   const save = (): void => saveSettings(s);
   const row = (label: string, sub: string | null, control: HTMLElement): HTMLElement =>
     el('div', 'pu-set-row', {}, el('div', 'pu-ink', {}, label, sub ? el('small', 'pu-ink-soft', {}, sub) : null), control);
+  const quiet = (r: HTMLElement): HTMLElement => {
+    r.classList.add('quiet');
+    r.setAttribute('data-testid', 'set2d-quiet');
+    const mute = glyph('mute');
+    mute.classList.add('pu-set-mute');
+    const label = r.firstElementChild!;
+    label.insertBefore(mute, label.querySelector('small'));
+    return r;
+  };
   const val = el('span', 'pu-slider-val pu-ink', {}, `${Math.round(s.masterVolume * 100)}%`);
   const vol = slider(s.masterVolume, 'Master volume', 'set2d-volume', (v) => {
     s.masterVolume = Math.round(v * 100) / 100;
@@ -346,16 +385,18 @@ export function openSettings(ctx: MetaContext): Sheet {
       if (!reset.disabled) reset.querySelector('span')!.textContent = 'Reset isles progress';
     }, 3300);
   });
+  // The painted isles have no sound player yet: volume / sound are kept (the 3D isles use them)
+  // but labelled as such. Shake, damage numbers and vibration work in the painted isles.
   sheet.body.append(
-    row('Volume', null, volBox),
-    row(
+    quiet(row('Volume', 'No sound in the painted isles yet', volBox)),
+    quiet(row(
       'Sound',
-      'Music and effects',
+      'Kept for when painted-isle sound arrives',
       toggle(!s.muted, 'Sound on', 'set2d-sound', (v) => {
         s.muted = !v;
         save();
       }),
-    ),
+    )),
     row(
       'Screen shake',
       'Big hits rattle the view',
