@@ -87,6 +87,74 @@ const before = await page.textContent('[data-testid="pu-wallet"] b');
 await page.click('[data-testid="ws2d-buy-treasury"]');
 const after = await page.textContent('[data-testid="pu-wallet"] b');
 check(Number(after) === Number(before) - 1, `workshop buy spends a star (${before} → ${after})`);
+await page.keyboard.press('Escape');
+
+// Run modes (l1c is won now): challenge switches, Endless clears them, Play builds the URL.
+await page.click('[data-testid="map2d-island-l1c"]');
+await page.waitForSelector('[data-testid="brief2d-modes"]');
+check(await page.isVisible('[data-testid="brief2d-ch-bowless"]'), 'briefing offers the island challenges after a win');
+check(await page.isVisible('[data-testid="brief2d-endless"]'), 'briefing offers Endless after a win');
+await page.click('[data-testid="brief2d-ch-bowless"]');
+check((await page.getAttribute('[data-testid="brief2d-ch-bowless"]', 'aria-checked')) === 'true', 'tapping a challenge switches it on');
+await page.click('[data-testid="brief2d-endless"]');
+check(
+  (await page.getAttribute('[data-testid="brief2d-ch-bowless"]', 'aria-checked')) === 'false' &&
+    (await page.getAttribute('[data-testid="brief2d-endless"]', 'aria-checked')) === 'true',
+  'Endless switches the challenges off',
+);
+await page.click('[data-testid="brief2d-ch-glassSanctuary"]');
+check((await page.getAttribute('[data-testid="brief2d-endless"]', 'aria-checked')) === 'false', 'a challenge switches Endless off');
+await Promise.all([page.waitForURL((u) => u.search === '?level=l1c&challenge=glassSanctuary'), page.click('[data-testid="brief2d-play"]')]);
+check(true, 'Play with a challenge opens ?level=l1c&challenge=glassSanctuary');
+await page.waitForFunction(() => window.__p0?.mode === 'play', null, { timeout: 15000 });
+await page.evaluate(() => window.__p0.forceEnd('won'));
+await page.waitForFunction(() => window.__p0?.state().end?.note, null, { timeout: 8000 }).catch(() => undefined);
+const note = await page.evaluate(() => window.__p0?.state().end?.note);
+check(/Glass Sanctuary \+1★/.test(note?.caption ?? ''), `end panel shows the badge (${note?.caption})`);
+const saved2 = await page.evaluate(() => JSON.parse(localStorage.getItem('skyhold_isles_progress2d_v1') ?? 'null'));
+check(saved2?.progress?.challengeClears?.[0]?.includes('glassSanctuary'), 'challenge badge recorded in the 2D save');
+await page.goto(`${BASE}/2d.html?screen=logbook`);
+await page.waitForSelector('[data-testid="lb2d-badges-l1c"]');
+const badgeOn = await page.$$eval('[data-testid="lb2d-badges-l1c"] .pu-round:not(.off)', (n) => n.length);
+check(badgeOn === 1, `logbook shows the earned badge (${badgeOn})`);
+await page.keyboard.press('Escape');
+
+// Endless from the card → URL, HUD banner past the story waves.
+await page.click('[data-testid="map2d-island-l1c"]');
+await page.click('[data-testid="brief2d-endless"]');
+await Promise.all([page.waitForURL((u) => u.search === '?level=l1c&endless=1'), page.click('[data-testid="brief2d-play"]')]);
+await page.waitForFunction(() => window.__p0?.mode === 'play', null, { timeout: 15000 });
+check(true, 'Endless from the card opens ?level=l1c&endless=1');
+await page.evaluate(() => window.__p0.skipToWave(12));
+await page.waitForTimeout(600);
+const hudWave = await page.evaluate(() => window.__p0.hudWave());
+check(hudWave === 'Endless · Wave 12', `HUD banner past the story waves (${hudWave})`);
+
+// Daily: Set sail starts today's squall.
+await page.goto(`${BASE}/2d.html?screen=daily`);
+await page.waitForSelector('[data-testid="daily2d-start"]');
+await Promise.all([page.waitForURL((u) => u.search.includes('daily=1')), page.click('[data-testid="daily2d-start"]')]);
+check(true, 'Daily Set sail opens a ?daily=1 run');
+
+// Long route: mouse drag pans the sea without opening a briefing; the edge arrow pans too.
+await page.goto(`${BASE}/2d.html?mockislands=8`);
+await page.waitForSelector('[data-testid="worldmap2d"]');
+await page.waitForTimeout(900);
+const sx0 = await page.$eval('.pu-map-scroll', (e) => e.scrollLeft);
+await page.mouse.move(700, 420);
+await page.mouse.down();
+await page.mouse.move(500, 420, { steps: 8 });
+await page.mouse.up();
+await page.waitForTimeout(200);
+const sx1 = await page.$eval('.pu-map-scroll', (e) => e.scrollLeft);
+check(sx1 > sx0 + 100 && !(await page.isVisible('[data-testid="brief2d"]')), `mouse drag pans the map without opening a card (${sx0} → ${sx1})`);
+const rightShown = await page.isVisible('[data-testid="map2d-pan-right"]');
+if (rightShown) {
+  await page.click('[data-testid="map2d-pan-right"]', { force: true });
+  await page.waitForTimeout(700);
+}
+const sx2 = await page.$eval('.pu-map-scroll', (e) => e.scrollLeft);
+check(rightShown && sx2 > sx1 + 100, `edge arrow pans east (${sx1} → ${sx2})`);
 
 await browser.close();
 console.log(fails.length ? `\n${fails.length} FAILED` : '\nall flow checks passed');

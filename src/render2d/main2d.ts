@@ -65,6 +65,7 @@ declare global {
       forceEnd?: (o: 'won' | 'lost') => void;
       /** QA: jump to a one-based wave (Endless records / end-panel shots). */
       skipToWave?: (n: number) => boolean;
+      hudWave?: () => string;
       setGold?: (g: number) => void;
       setLives?: (n: number) => void;
       artcheck?: () => ReturnType<typeof artCheckSummary>;
@@ -353,6 +354,7 @@ async function main(): Promise<void> {
     plotScreen: (i) => game.plotScreen(i),
     forceEnd: (o) => game.forceEnd(o),
     skipToWave: (n) => game.world.debugSkipToWave(n),
+    hudWave: () => game.hud.waveLabel,
     artcheck: () => artCheckSummary(art),
     setGold: (g) => {
       game.world.gold = g;

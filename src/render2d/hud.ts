@@ -244,6 +244,11 @@ export class Hud {
    * Endless run: the banner reads "Wave n/story" through the island's own waves, then
    * "Endless · Wave n" (the sim's totalWaves grows with the wave in Endless). null = normal run.
    */
+  /** The wave banner's text (QA). */
+  get waveLabel(): string {
+    return this.waveText.text;
+  }
+
   setEndless(storyWaves: number | null): void {
     this.endlessAfter = storyWaves;
     this.lastWave = NaN;

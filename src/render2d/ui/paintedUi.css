@@ -662,7 +662,7 @@
   transform: translateY(-50%);
   width: calc(var(--s) * 4.4);
   height: calc(var(--s) * 4.4);
-  animation: pu-pan-nudge 2.2s ease-in-out infinite;
+  animation: pu-pan-nudge 2.2s ease-in-out 3;
 }
 
 .pu-round.pu-map-pan.left {
@@ -1153,9 +1153,19 @@
 .pu-lb-totals {
   display: flex;
   justify-content: center;
-  gap: calc(var(--s) * 2);
+  gap: calc(var(--s) * 0.8) calc(var(--s) * 1.6);
   flex-wrap: wrap;
   margin-bottom: calc(var(--s) * 0.6);
+}
+
+/* Big boards: two rows of three, clear of the ribbon's hanging tails. */
+@media (min-height: 481px) {
+  .pu-lb-totals {
+    display: grid;
+    grid-template-columns: repeat(3, auto);
+    justify-content: center;
+    column-gap: calc(var(--s) * 3);
+  }
 }
 
 .pu-lb-total {

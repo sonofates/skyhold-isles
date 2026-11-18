@@ -123,7 +123,6 @@ async function checkBounds(page, name) {
 const browser = await chromium.launch({ args: ARGS });
 for (const size of [...SIZES, WIDE]) {
   for (const [name, query, seed, wait, action] of SHOTS) {
-    if (size === WIDE && !name.startsWith('map') && !name.startsWith('brief-') && !['workshop', 'logbook', 'story-intro', 'end-won', 'end-challenge', 'end-endless'].includes(name)) continue;
     const key = `${name}-${size.key}`;
     if (only && !key.includes(only)) continue;
     const ctx = await browser.newContext({ viewport: { width: size.w, height: size.h }, deviceScaleFactor: size.dpr, isMobile: size.touch, hasTouch: size.touch });
