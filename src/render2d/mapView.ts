@@ -16,7 +16,7 @@ export class MapView {
   private readonly mapSprite: Sprite;
   private readonly bandSprites: Sprite[] = [];
   fit: MapFit;
-  private readonly texture: Texture;
+  private texture: Texture;
   readonly layout: Level2DLayout;
 
   constructor(texture: Texture, layout: Level2DLayout) {
@@ -33,6 +33,22 @@ export class MapView {
       this.bands.addChild(s);
     }
     this.fit = computeMapFit(1, 1, layout.imageSize[0], layout.imageSize[1], layout.safeArea);
+  }
+
+  /** Texels per layout px of the current map texture (resolution variant, see mapVariant.ts). */
+  get texelScale(): number {
+    // source px, not texture units: Pixi reads `@1.5x` in a file name as a resolution suffix
+    return this.texture.source.pixelWidth / this.imageW;
+  }
+
+  /** Swaps in another bake of the same map (e.g. a bigger variant after the window grew). */
+  setTexture(texture: Texture): void {
+    if (texture === this.texture) return;
+    this.texture = texture;
+    this.mapSprite.texture = texture;
+    this.mapSprite.width = this.imageW;
+    this.mapSprite.height = this.imageH;
+    this.layoutBands();
   }
 
   get imageW(): number {

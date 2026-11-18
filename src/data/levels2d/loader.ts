@@ -1,5 +1,6 @@
 import { BALANCE } from '../balance.ts';
 import type { Level2DLayout, WorldPoint } from '../levels/types.ts';
+import { parseGate, type Level2DGate } from './gates.ts';
 
 /**
  * Map-editor export (`tools/map-editor`), all in image px. `pxPerUnit`, `plotRadiusPx` and
@@ -10,13 +11,15 @@ export interface Level2DJson {
   readonly image: string;
   readonly imageSize: readonly number[];
   readonly safeArea?: readonly number[];
-  readonly entrances: readonly { readonly id: string; readonly x: number; readonly y: number }[];
+  readonly entrances: readonly { readonly id: string; readonly x: number; readonly y: number; readonly gate?: unknown }[];
   readonly goal: readonly number[];
   readonly paths: readonly (readonly (readonly number[])[])[];
   readonly plots: readonly (readonly number[])[];
   readonly pxPerUnit?: number;
   readonly plotRadiusPx?: number;
   readonly flightPath?: readonly (readonly number[])[];
+  /** Optional goal gate (castle): prop, facing, front layer (see gates.ts). */
+  readonly goalGate?: unknown;
 }
 
 /** Default world scale: 50 image px per world unit (a ~100 px stone plot ≈ one old 2.0-unit tile). */
@@ -85,6 +88,14 @@ export function parseLevel2D(json: Level2DJson): Level2DLayout {
     ? json.flightPath.map((p, i) => pt(p, `flight point ${i}`))
     : defaultFlightPath(paths[0][0], goal);
 
+  const gates: Level2DGate[] = [];
+  json.entrances.forEach((e, i) => {
+    const g = parseGate(e.gate, 'entrance', i, `entrance ${i} gate`);
+    if (g) gates.push(g);
+  });
+  const goalGate = parseGate(json.goalGate, 'goal', -1, 'goalGate');
+  if (goalGate) gates.push(goalGate);
+
   return {
     image: json.image,
     imageSize: [w, h],
@@ -96,6 +107,7 @@ export function parseLevel2D(json: Level2DJson): Level2DLayout {
     flightPath,
     plots,
     plotRadius,
+    gates,
   };
 }
 

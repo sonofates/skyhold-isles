@@ -11,6 +11,7 @@ import { BuildRing, type RingAction } from './buildRing.ts';
 import { EndPanel, endStars } from './endPanel.ts';
 import { EnemyLayer } from './enemyLayer.ts';
 import { FxLayer } from './fxLayer.ts';
+import { GateLayer } from './gateLayer.ts';
 import { Hud, type HudState } from './hud.ts';
 import { WorldLayers } from './layers.ts';
 import { MapView } from './mapView.ts';
@@ -63,6 +64,7 @@ export class Game2D {
   readonly soldiers: SoldierLayer;
   /** Melee fight state shared by the enemy and soldier layers (swings, facing, spacing, flash). */
   readonly melee: MeleeDirector;
+  readonly gates: GateLayer;
   readonly hud: Hud;
   readonly ring: BuildRing;
   readonly end: EndPanel;
@@ -108,6 +110,7 @@ export class Game2D {
     this.tex = createProcTextures();
     this.map = new MapView(art.map, level.layout2d);
     this.layers = new WorldLayers(this.map.world);
+    this.gates = new GateLayer(this.layers.actors, level.layout2d.gates ?? [], art.overlays);
     this.rangeDisc = new Sprite(this.tex.rangeDisc);
     this.rangeDisc.anchor.set(0.5);
     this.rangeDisc.visible = false;
@@ -541,6 +544,27 @@ export class Game2D {
     });
   }
 
+  /** QA: ground enemies in map px with their lane, distance walked and distance left (world units). */
+  private enemyPx(): { type: string; lane: number; dist: number; toGoal: number; px: number; py: number }[] {
+    const w = this.world;
+    const out: { type: string; lane: number; dist: number; toGoal: number; px: number; py: number }[] = [];
+    const pool = w.enemyPool;
+    for (let i = 0; i < pool.getActiveCount(); i++) {
+      const e = pool.items[pool.getActiveIndex(i)];
+      if (!e.active || e.flying) continue;
+      const r2 = (v: number): number => Math.round(v * 100) / 100;
+      out.push({
+        type: e.type,
+        lane: e.lane,
+        dist: r2(e.dist),
+        toGoal: r2(e.totalDist - e.dist),
+        px: Math.round(this.map.pxX(e.x)),
+        py: Math.round(this.map.pxY(e.z)),
+      });
+    }
+    return out;
+  }
+
   /** Debug / QA snapshot. */
   debugState(): Record<string, unknown> {
     const w = this.world;
@@ -560,6 +584,8 @@ export class Game2D {
       end: this.end.debug(),
       insets: this.insets,
       fit: this.map.fit,
+      mapInfo: { key: this.art.mapKey, texelScale: this.map.texelScale, gateFronts: this.gates.sprites.length },
+      enemyPx: this.enemyPx(),
       horn: this.hud.hornPosition,
       buttons: this.hud.buttonPositions,
       fx: {

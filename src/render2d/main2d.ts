@@ -3,7 +3,7 @@ import { Application, UPDATE_PRIORITY } from 'pixi.js';
 import { getLevelById, LEVELS_2D } from '../data/levels2d/index.ts';
 import { AbScene } from './abScene.ts';
 import { artCheckSummary, mountArtCheck } from './artCheck.ts';
-import { loadArt } from './assets2d.ts';
+import { loadArt, loadMapVariant, type LoadedArt } from './assets2d.ts';
 import { autoplayHooks, benchHooks } from './benchScene.ts';
 import { mountCodex2D } from './codex2d.ts';
 import { AimOverlay, aimHooks, meleeHooks, towersHooks, zooHooks, ZooLabels, type AimSceneState, type MeleeSceneState } from './debugScenes.ts';
@@ -12,6 +12,9 @@ import type { EnemyType } from '../core/types.ts';
 import { FrameStats } from './frameStats.ts';
 import { Game2D, type Game2DHooks } from './game2d.ts';
 import { HUD_FONT } from './hudText.ts';
+import type { MapView } from './mapView.ts';
+import { VARIANT_SLACK } from './mapVariant.ts';
+import { computeMapFit } from './viewFit.ts';
 
 /**
  * 2d.html entry — P0 vertical slice of the painted 2D renderer (Pixi v8) on the real sim.
@@ -30,6 +33,7 @@ import { HUD_FONT } from './hudText.ts';
  *                     window.__meleeScene.step(frames), for frame-exact captures)
  *   ?speed=2|3        start at 2× / 3× sim speed (QA recordings)
  *   ?end=won|lost     force the end panel shortly after load (UI QA)
+ *   ?mapmips=1        QA: draw the map texture mipmapped (default: resolution variant, no mips)
  */
 interface BenchStats {
   readonly fps: number;
@@ -113,7 +117,17 @@ async function main(): Promise<void> {
   await Promise.all([
     document.fonts.load(`700 32px ${HUD_FONT}`).catch(() => undefined),
   ]);
-  const art = await loadArt('/art2d/manifest.json', level.layout2d.image, { raider: q.get('raider') });
+  const layout2d = level.layout2d;
+  // Device px per layout px at a screen size: picks the map bake (resolution variant) to load.
+  const mapNeed = (w: number, h: number): number =>
+    computeMapFit(w, h, layout2d.imageSize[0], layout2d.imageSize[1], layout2d.safeArea).scale * app.renderer.resolution;
+  const mapMips = q.get('mapmips') === '1';
+  const art = await loadArt(
+    '/art2d/manifest.json',
+    layout2d.image,
+    { raider: q.get('raider') },
+    { need: mapNeed(app.screen.width, app.screen.height), mips: mapMips },
+  );
   if (art.notes.length > 0) console.info('[art2d] fallbacks:\n  ' + art.notes.join('\n  '));
   document.getElementById('boot')?.remove();
   if (q.get('artcheck') === '1') mountArtCheck(art);
@@ -128,7 +142,10 @@ async function main(): Promise<void> {
 
   if (ab) {
     const scene = new AbScene(app, art, level);
-    const onResize = (): void => scene.resize(app.screen.width, app.screen.height);
+    const onResize = (): void => {
+      scene.resize(app.screen.width, app.screen.height);
+      upgradeMap(art, scene.map, mapNeed(app.screen.width, app.screen.height), mapMips);
+    };
     onResize();
     app.renderer.on('resize', onResize);
     app.ticker.add((t) => scene.frame(Math.min(0.1, t.deltaMS / 1000)));
@@ -183,7 +200,10 @@ async function main(): Promise<void> {
   game.attachInput(app.canvas);
   const startSpeed = Number(q.get('speed'));
   if (startSpeed === 2 || startSpeed === 3) game.stepper.speed = startSpeed;
-  const onResize = (): void => game.resize(app.screen.width, app.screen.height);
+  const onResize = (): void => {
+    game.resize(app.screen.width, app.screen.height);
+    upgradeMap(art, game.map, mapNeed(app.screen.width, app.screen.height), mapMips);
+  };
   onResize();
   app.renderer.on('resize', onResize);
   if (bench === 0) {
@@ -262,6 +282,20 @@ async function main(): Promise<void> {
       },
     });
   }
+}
+
+let mapUpgrade: Promise<void> | null = null;
+
+/** After the window grew past what the loaded map bake covers, swaps in a bigger variant (once at a time). */
+function upgradeMap(art: LoadedArt, map: MapView, need: number, mips: boolean): void {
+  if (mapUpgrade || map.texelScale * VARIANT_SLACK >= need) return;
+  mapUpgrade = loadMapVariant(art.manifest, art.baseUrl, map.layout.image, { need, mips })
+    .then((res) => {
+      if (res && res.texture.source.pixelWidth > map.texelScale * map.imageW) map.setTexture(res.texture);
+    })
+    .finally(() => {
+      mapUpgrade = null;
+    });
 }
 
 main().catch((err: unknown) => {

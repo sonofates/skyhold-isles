@@ -2,6 +2,7 @@ import { Assets, Rectangle, Texture } from 'pixi.js';
 import type { TowerType } from '../core/types.ts';
 import { alphaFeetAnchor } from './alphaBox.ts';
 import { enemyHasArt, mulTint, pickTier, resolveEnemyArt, resolveTowerTiers } from './artResolve.ts';
+import { pickMapVariant } from './mapVariant.ts';
 import { measureRing, type RingSpec } from './towerFit.ts';
 import { parseTurretJson, TURRET_DIRS, type TurretSpec } from './turret.ts';
 import {
@@ -120,6 +121,10 @@ export interface EnemyArtRuntime {
 export interface LoadedArt {
   readonly manifest: ArtManifest;
   readonly map: Texture;
+  /** Manifest maps key of the bake that was loaded (a resolution variant of the level's map). */
+  readonly mapKey: string;
+  /** Map overlays (gate front layers) by manifest `overlays` key; missing files are absent. */
+  readonly overlays: Readonly<Record<string, Texture>>;
   /** Empty build plot sprite (null when the manifest has none / it failed to load). */
   readonly plot: PlotArtRuntime | null;
   readonly ui: Readonly<Record<keyof UiArt, Texture>>;
@@ -143,7 +148,8 @@ const textureCache = new Map<string, Promise<Texture | null>>();
  * of shimmering).
  */
 function tryTexture(url: string, mips = false): Promise<Texture | null> {
-  let p = textureCache.get(url);
+  const cacheKey = mips ? `${url}#mips` : url;
+  let p = textureCache.get(cacheKey);
   if (!p) {
     p = (async () => {
       // A burst of ~100 parallel requests at boot can drop a few on weak servers or flaky mobile
@@ -164,9 +170,37 @@ function tryTexture(url: string, mips = false): Promise<Texture | null> {
       }
       return null;
     })();
-    textureCache.set(url, p);
+    textureCache.set(cacheKey, p);
   }
   return p;
+}
+
+/** Options for the map texture: device px per layout px at the current fit, and (QA) mipmaps. */
+export interface MapLoadOptions {
+  readonly need?: number;
+  readonly mips?: boolean;
+}
+
+/**
+ * Loads the bake of map `mapKey` that suits `need` (see mapVariant.ts). Resolves to null when that
+ * file is missing; falls back to the master key when the variant fails.
+ */
+export async function loadMapVariant(
+  manifest: ArtManifest,
+  baseUrl: string,
+  mapKey: string,
+  opts: MapLoadOptions = {},
+): Promise<{ key: string; texture: Texture } | null> {
+  const key = pickMapVariant(manifest.maps, mapKey, opts.need ?? 2) ?? mapKey;
+  const file = manifest.maps[key];
+  if (file) {
+    const tex = await tryTexture(baseUrl + file, opts.mips === true);
+    if (tex) return { key, texture: tex };
+  }
+  const master = manifest.maps[mapKey];
+  if (!master || key === mapKey) return null;
+  const tex = await tryTexture(baseUrl + master, opts.mips === true);
+  return tex ? { key: mapKey, texture: tex } : null;
 }
 
 async function tryJson(url: string): Promise<unknown | null> {
@@ -512,6 +546,7 @@ export async function loadArt(
   manifestUrl: string,
   mapKey: string,
   variants: Readonly<Record<string, string | null>> = {},
+  mapOpts: MapLoadOptions = {},
 ): Promise<LoadedArt> {
   const raw = await tryJson(manifestUrl);
   if (!raw) throw new Error(`art manifest not found: ${manifestUrl}`);
@@ -526,8 +561,9 @@ export async function loadArt(
   const uiKeys = Object.keys(manifest.ui) as (keyof UiArt)[];
   const kitEntries = Object.entries(manifest.uiKit ?? {});
   const plotSpec = manifest.plot;
-  const [map, plotTex, uiTex, kitTex, towerList, enemyList] = await Promise.all([
-    tryTexture(base + mapFile, true),
+  const overlayKeys = Object.keys(manifest.overlays);
+  const [mapRes, plotTex, uiTex, kitTex, towerList, enemyList, overlayTex] = await Promise.all([
+    loadMapVariant(manifest, base, mapKey, mapOpts),
     plotSpec ? tryTexture(base + plotSpec.file, true) : Promise.resolve(null),
     Promise.all(uiKeys.map((k) => tryTexture(base + manifest.ui[k]))),
     Promise.all(kitEntries.map(([, f]) => tryTexture(base + f, true))),
@@ -541,8 +577,20 @@ export async function loadArt(
         async ([key, spec]) => [key, await loadEnemy(base, key, spec, notes, present)] as const,
       ),
     ),
+    // Gate front layers are drawn smaller than their file on phones: mipmapped.
+    Promise.all(overlayKeys.map((k) => tryTexture(base + manifest.overlays[k], true))),
   ]);
-  if (!map) throw new Error(`map image failed to load: ${mapFile}`);
+  if (!mapRes) throw new Error(`map image failed to load: ${mapFile}`);
+  const map = mapRes.texture;
+  present.add(manifest.maps[mapRes.key]);
+  const overlays: Record<string, Texture> = {};
+  overlayKeys.forEach((k, i) => {
+    const t = overlayTex[i];
+    if (t) {
+      overlays[k] = t;
+      present.add(manifest.overlays[k]);
+    } else notes.push(`overlay ${k}: ${manifest.overlays[k]} missing`);
+  });
   if (plotSpec && plotTex) present.add(plotSpec.file);
   else if (plotSpec) notes.push(`plot sprite ${plotSpec.file} missing → plots not drawn`);
   const plot: PlotArtRuntime | null = plotSpec && plotTex ? { texture: plotTex, ring: plotSpec.ring } : null;
@@ -607,5 +655,5 @@ export async function loadArt(
     }
     towers[type as TowerType] = out;
   }
-  return { manifest, map, plot, ui, uiKit, towers, enemies, notes, present, baseUrl: base };
+  return { manifest, map, mapKey: mapRes.key, overlays, plot, ui, uiKit, towers, enemies, notes, present, baseUrl: base };
 }

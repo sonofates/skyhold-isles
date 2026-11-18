@@ -5,12 +5,30 @@ with generated build plots.
 usage: /usr/bin/python3 tools/map-compose/compose.py <layout.json> <assets_dir> <out.png|.webp>
          [--w 3072] [--plots 24] [--seed 7] [--bake] [--keep-plots]
          [--towers archer:3,cannon:9,...] [--enemies] [--cliff]
+         [--variants 1,1.5] [--write-layout] [--cave-h 2.5] [--castle-h 2.7] [--gate-inset 0.5]
+         [--windmill x,ybottom,h] [--decals 240] [--no-decals]
+
+  shipped L1c bake (2x layout px master + 1x / 1.5x variants, gate fronts, gates written to the JSON):
+    /usr/bin/python3 tools/map-compose/compose.py src/data/levels2d/l1c.json design/art-2d/v2/assets \\
+      public/art2d/map-L1c-layered.webp --bake --keep-plots --w 3692 --variants 1,1.5 --write-layout
+  (gate / decal art: tools/map-compose/prep_gates.py keys the Codex renders into assets/)
 
   --bake        BACKGROUND ONLY (ground, road, props, landmarks). Plots are NOT painted: the game
                 draws them (plot-base sprite) and the towers on them. Use this for the shipped map.
   --keep-plots  take the plots from layout.json instead of generating them (re-bakes keep the
                 sim's plot indices stable). The rules below are still checked.
+  --variants    also write <out stem>@<s>x.<ext> at s x the layout size (src/render2d/mapVariant.ts
+                loads the smallest that covers the screen; the master is the --w bake).
+  --write-layout  write each gate (prop, facing, front layer rect / depth) into layout.json
+                (entrances[i].gate, goalGate) — see src/data/levels2d/gates.ts.
   (mock mode)   without --bake the plots (and --towers / --enemies) are painted in, for design mocks.
+
+Gates (gates.py): a raider cave at every entrance with its mouth facing along the road's first
+segment, the castle gate at the goal facing back along the last one; the path end sits inside the
+dark mouth. Each gate's FRONT layer (rock lip / arch + mouth shading) is cut from the final
+composite into <out stem>-gate-<id>.webp; the renderer draws it above the walkers.
+Crisp ground (ground.py): fine brush detail, a ragged crisp road edge with a thin dark rim, grass
+fringe and pebbles, sparse decals (assets/decal-*.png).
 
 Everything geometric is computed in LAYOUT px (layout.json `imageSize`), so the plots and the
 prop layout do not depend on --w; the bake is rendered at --w px wide (keep the aspect).
@@ -44,6 +62,11 @@ from pathlib import Path
 from PIL import Image, ImageChops, ImageDraw, ImageFilter
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import numpy as np  # noqa: E402
+from gates import (  # noqa: E402
+    cut_front, entrance_dir, entrance_facing, gate_alpha_hit, goal_dir, goal_facing, output_box, output_sprite, place_gate, resolve_prop,
+)
+from ground import Decals, fine_detail, inner_band, nearest_dist, ragged_mask, ring, road_fringe, scatter  # noqa: E402
 from ringfit import measure_ring  # noqa: E402
 
 args = sys.argv[1:]
@@ -163,7 +186,6 @@ for sp, rp in zip(spl_paths, raw_paths):
 # ---------------------------------------------------------------- landmarks + exclusions (layout px)
 sx, sy, sw, sh = L['safeArea']
 gx, gy = L['goal']
-gate_im, castle_im, mill_im = load('prop-gate-raider.png'), load('prop-castle-gate.png'), load('prop-windmill.png')
 
 
 def sprite_rect(im, x_center, y_bottom, height):
@@ -171,12 +193,33 @@ def sprite_rect(im, x_center, y_bottom, height):
     return (x_center - w / 2, y_bottom - height, x_center + w / 2, y_bottom)
 
 
+# Gates (gates.py): a raider cave at every entrance whose mouth faces along the road's first
+# segment, the castle gate at the goal facing back along the last segment. The path end sits
+# GATE_INSET road widths inside the dark mouth, so walkers appear out of the darkness (front layer).
+CAVE_H, CASTLE_H, GATE_INSET = opt('--cave-h', 2.5), opt('--castle-h', 2.7), opt('--gate-inset', 0.5)
+GATES = []  # dict(role, lane, id, prop, facing, g = placement)
+for _i, _e in enumerate(L['entrances']):
+    _f = entrance_facing(raw_paths[_i])
+    _prop, _file, _flip = resolve_prop('cave', _f, assets)
+    _g = place_gate(load(_file), _flip, (_e['x'], _e['y']), _f, ROAD_W * CAVE_H, ROAD_W * GATE_INSET, entrance_dir(raw_paths[_i]))
+    GATES.append({'role': 'entrance', 'lane': _i, 'id': str(_e['id']), 'prop': _prop, 'facing': _f, 'g': _g})
+_f = goal_facing(raw_paths[0])
+_prop, _file, _flip = resolve_prop('castle', _f, assets)
+_g = place_gate(load(_file), _flip, (gx, gy), _f, ROAD_W * CASTLE_H, ROAD_W * GATE_INSET, goal_dir(raw_paths[0]))
+GATES.append({'role': 'goal', 'lane': -1, 'id': 'goal', 'prop': _prop, 'facing': _f, 'g': _g})
+
 LANDMARKS = []  # (name, layout x centre, layout y bottom, layout height)
-for e in L['entrances']:
-    LANDMARKS.append(('prop-gate-raider.png', e['x'] - ROAD_W * 0.2, e['y'] + ROAD_W * 0.7, ROAD_W * 2.4))
-LANDMARKS.append(('prop-castle-gate.png', gx + ROAD_W * 0.4, gy + ROAD_W * 0.9, ROAD_W * 3.0))
-LANDMARKS.append(('prop-windmill.png', iw * 0.9, ih * 0.22, ROAD_W * 3.0))
-landmark_rects = [sprite_rect(load(n), x, yb, h) for n, x, yb, h in LANDMARKS]
+MILL = [float(v) for v in opt('--windmill', '1609,298,2.7').split(',')]  # x centre, y bottom, height / ROAD_W
+LANDMARKS.append(('prop-windmill.png', MILL[0], MILL[1], ROAD_W * MILL[2]))
+landmark_rects = [sprite_rect(load(n), x, yb, h) for n, x, yb, h in LANDMARKS] + [G['g']['rect'] for G in GATES]
+
+
+def landmark_hit(rect, pad):
+    """Rect (layout px) touches a landmark: the windmill by its rect, gates by their painted pixels
+    (their bounding boxes are mostly empty corners)."""
+    if any(rects_hit(rect, r, pad) for r in landmark_rects[:len(LANDMARKS)]):
+        return True
+    return any(gate_alpha_hit(G['g'], rect, 0) for G in GATES)  # exact painted pixels: no pad
 
 # Screen-space HUD lands on these map corners (lives plaque bottom-left, wave banner bottom-right,
 # pause/speed top-right, horn between the entrances). Measured at both extreme fits and unioned,
@@ -211,7 +254,7 @@ def plot_ok(x, y):
         return 'hud'
     if math.hypot(x - HORN[0], y - HORN[1]) < HORN[2] + PLOT_R:
         return 'horn'
-    if any(rects_hit(plot_zone(x, y), r, 8) for r in landmark_rects):
+    if landmark_hit(plot_zone(x, y), 8):
         return 'landmark'
     if dist_to_road(x, y) > REACH:
         return 'reach'
@@ -385,6 +428,26 @@ if last_n < 2:
     fails.append(f'only {last_n} plots on the last stretch')
 if dev > ROAD_W * 0.3:
     fails.append(f'spline deviates {dev:.1f} px from the sim polyline (> 30% of the road width)')
+# Landmarks must not be cut by the screen edge at 16:9 (the safe area is exactly what a 16:9 / 16:10
+# screen shows) nor sit under the HUD. Entrance caves may bleed a little past the left / right edge
+# (a rock mound running off-screen reads fine); their mouth must be on screen.
+warns = []
+for (n, x, yb, h), r in zip(LANDMARKS, landmark_rects):
+    if r[0] < sx or r[2] > sx + sw or r[1] < sy or r[3] > sy + sh:
+        fails.append(f'{n} rect {tuple(round(v) for v in r)} leaves the safe area')
+    if any(rects_hit(r, z) for z in HUD_RECTS[:6]):
+        fails.append(f'{n} rect {tuple(round(v) for v in r)} is under the HUD')
+for G in GATES:
+    r = G['g']['rect']
+    out = max(sx - r[0], r[2] - (sx + sw), sy - r[1], r[3] - (sy + sh), 0)
+    if G['role'] == 'goal' and out > 0:
+        fails.append(f'castle gate rect {tuple(round(v) for v in r)} leaves the safe area by {out:.0f} px')
+    elif out > ROAD_W * 0.6:
+        fails.append(f'gate {G["id"]} rect {tuple(round(v) for v in r)} leaves the safe area by {out:.0f} px')
+    elif out > 0:
+        warns.append(f'gate {G["id"]} bleeds {out:.0f} px past the safe area')
+    if any(rects_hit(r, z) for z in HUD_RECTS[:6]):
+        fails.append(f'gate {G["id"]} rect {tuple(round(v) for v in r)} is under the HUD')
 gaps = [min(math.hypot(p[0] - q[0], p[1] - q[1]) for q in plots if q is not p) for p in plots]
 reach = [dist_to_road(*p) for p in plots]
 
@@ -418,25 +481,50 @@ ground = Image.composite(dark, ground, mask)
 # very soft, large light patches: breaks the tiling without adding detail
 light = soft_noise(W, H, round(420 * TEX), SEED + 11).point(lambda v: max(0, min(255, (v - 150) * 2)))
 ground = Image.composite(Image.new('RGBA', (W, H), (196, 214, 120, 255)), ground, light.point(lambda v: int(v * 0.10)))
+# crisp painted detail: the high-pass of a finer tiling of the same grass (brush strokes at ~1/3
+# the scale), luminance only -> sharper at 100% without new colours or busier large shapes
+ground = fine_detail(ground, grass, round(1024 * 0.2 * TEX), 0.55, 9 * TEX)
 
 # ---------------------------------------------------------------- road
-road_mask = Image.new('L', (W, H))
-dr = ImageDraw.Draw(road_mask)
+road_hard = Image.new('L', (W, H))
+dr = ImageDraw.Draw(road_hard)
 for path in spl_paths:
     pts = [P(p) for p in path]
     dr.line(pts, fill=255, width=round(rw), joint='curve')
     for x, y in (pts[0], pts[-1]):
         dr.ellipse((x - rw / 2, y - rw / 2, x + rw / 2, y + rw / 2), fill=255)
-road_mask = road_mask.filter(ImageFilter.GaussianBlur(rw * 0.04))
+# crisp, slightly irregular painted edge (was a ~10-25 px Gaussian ramp: the main "blurry" cue)
+road_mask = ragged_mask(road_hard, rw * 0.05, max(4, round(rw * 0.16)), 0.22, SEED + 21, aa=1.1 * W / 3692)
 dirt = tiled(load('tex-dirt.png'), W, H, 0.45 * TEX)
-# soft dark rim on the grass under the road edge, then the dirt, then a gentle inner edge shade
-rim = road_mask.filter(ImageFilter.MaxFilter(2 * round(rw * 0.08) + 1)).filter(ImageFilter.GaussianBlur(rw * 0.12))
-ground = Image.composite(Image.new('RGBA', (W, H), (70, 52, 30, 255)), ground, rim.point(lambda v: int(v * 0.45)))
+dirt = fine_detail(dirt, load('tex-dirt.png'), round(1024 * 0.16 * TEX), 0.45, 7 * TEX)
+# a faint wide shade on the grass along the road, a thin darker rim right at the edge, the dirt,
+# then a narrow darker lip just inside the edge
+shade = road_mask.filter(ImageFilter.MaxFilter(2 * round(rw * 0.05) + 1)).filter(ImageFilter.GaussianBlur(rw * 0.10))
+ground = Image.composite(Image.new('RGBA', (W, H), (70, 52, 30, 255)), ground, shade.point(lambda v: int(v * 0.22)))
+rim_band = ring(road_mask, max(2, round(rw * 0.035)), 0.7 * W / 3692)
+ground = Image.composite(Image.new('RGBA', (W, H), (74, 70, 30, 255)), ground, rim_band.point(lambda v: int(v * 0.50)))
 ground = Image.composite(dirt, ground, road_mask)
-inner = road_mask.filter(ImageFilter.MinFilter(2 * round(rw * 0.1) + 1)).filter(ImageFilter.GaussianBlur(rw * 0.14))
-# edge = road minus its blurred core
-edge_band = ImageChops.subtract(road_mask, inner)
-ground = Image.composite(Image.new('RGBA', (W, H), (120, 82, 44, 255)), ground, edge_band.point(lambda v: int(v * 0.22)))
+lip = inner_band(road_mask, max(2, round(rw * 0.06)), 1.2 * W / 3692)
+ground = Image.composite(Image.new('RGBA', (W, H), (122, 80, 42, 255)), ground, lip.point(lambda v: int(v * 0.30)))
+
+# ---------------------------------------------------------------- crisp painted details
+decals = Decals(load)
+fringe_n = scatter_n = None
+if decals.ok and '--no-decals' not in args:
+    road_np = np.array([q for p in spl_paths for q in resample(p, 3.0)])
+    edge_polys = [resample(p, 4.0) for p in spl_paths]
+    fringe_n = road_fringe(ground, decals, edge_polys, road_np, ROAD_W / 2, S, SEED + 31)
+    plot_ells = [(px, py) for px, py in plots]
+
+    def decal_ok(x, y, r):
+        if nearest_dist(road_np, x, y) < ROAD_W / 2 + r + 2:
+            return False
+        for px, py in plot_ells:
+            if ((x - px) / (PLOT_R + r)) ** 2 + ((y - py) / (PLOT_RY + r)) ** 2 < 1:
+                return False
+        return not any(rects_hit((x - r, y - r, x + r, y + r), z, 4) for z in landmark_rects)
+
+    scatter_n = scatter(ground, decals, iw, ih, decal_ok, S, SEED + 41, n=opt('--decals', 240))
 
 # ---------------------------------------------------------------- sprites (depth sorted)
 items = []  # (sort_y, img, x_center, y_bottom, shadow)
@@ -489,6 +577,9 @@ if not BAKE:
 
 for n, x, yb, h in LANDMARKS:
     sprite(n, x * S, yb * S, h * S)
+for G in GATES:
+    gx0, gy0, gw_, gh_ = output_box(G['g'], S)
+    items.append((gy0 + gh_, output_sprite(G['g'], S), gx0 + gw_ / 2, gy0 + gh_, True))
 
 # scatter props (layout px), mostly on the margins, never on the road / plots / towers / landmarks
 PROPS = [('prop-tree-1.png', 2.1), ('prop-tree-2.png', 2.4), ('prop-tree-3.png', 1.9), ('prop-bush.png', 1.0),
@@ -558,6 +649,53 @@ else:
     rgb.save(out_p, quality=92)
 inv = [[round(x), round(y)] for x, y in plots]
 Path(str(out_p) + '.plots.json').write_text(json.dumps(inv))
+
+# resolution variants (mapVariant.ts): <stem>@<scale>x, texture width = scale x layout width
+variant_files = {}
+for v in filter(None, opt('--variants', '').split(',')):
+    vs = float(v)
+    vw, vh = round(iw * vs), round(ih * vs)
+    vp = out_p.with_name(f'{out_p.stem}@{v}x{out_p.suffix}')
+    rgb.resize((vw, vh), Image.LANCZOS).save(vp, quality=90, method=6)
+    variant_files[f'{out_p.stem}@{v}x'] = vp.name
+
+# gate front layers, cut from the final composite (same pixels as the bake underneath)
+gate_json = []
+for G in GATES:
+    front_im, (fx, fy) = cut_front(canvas, G['g'], S, exit_cut=G['role'] == 'entrance')
+    entry = {'prop': G['prop'], 'facing': G['facing'], 'front': None}
+    if front_im is not None:
+        key = f'{out_p.stem}-gate-{G["id"]}'
+        fp = out_p.with_name(f'{key}.webp')
+        front_im.save(fp, quality=90, method=6, exact=True)
+        gr = G['g']['rect']
+        entry['front'] = {
+            'art': key,
+            'rect': [round(fx / S, 2), round(fy / S, 2), round(front_im.width / S, 2), round(front_im.height / S, 2)],
+            # depth key: the gate's front ground line (its sprite bottom), layout px
+            'baseY': round(gr[3], 2),
+        }
+        G['file'] = fp.name
+    G['json'] = entry
+    gate_json.append({'role': G['role'], 'lane': G['lane'], **entry})
+Path(str(out_p) + '.gates.json').write_text(json.dumps(gate_json, indent=1))
+if '--write-layout' in args:
+    for G in GATES:
+        if G['role'] == 'entrance':
+            L['entrances'][G['lane']]['gate'] = G['json']
+        else:
+            L['goalGate'] = G['json']
+    layout_p.write_text(json.dumps(L, indent=1))
+for k, f in variant_files.items():
+    print(f'  variant {k} -> {f}')
+for G in GATES:
+    fr = G['json']['front']
+    print(f'  gate {G["id"]}: {G["prop"]} facing {G["facing"]} rect {tuple(round(v) for v in G["g"]["rect"])}'
+          f' front {G.get("file")} {fr["rect"] if fr else None}')
+if fringe_n:
+    print(f'  road fringe tufts {fringe_n[0]} pebbles {fringe_n[1]}; decals {scatter_n}')
+for w_ in warns:
+    print('  warning: ' + w_)
 
 print(f'{out_p} {W}x{H} mode={"bake" if BAKE else "mock"} plots={len(plots)} (candidates {ncand}) props={len(placed)}')
 print(f'  plot footprint {2 * PLOT_R:.0f}x{2 * PLOT_RY:.0f} layout px, road width {ROAD_W:.1f}, spline deviation {dev:.1f} px')
