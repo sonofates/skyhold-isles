@@ -5,7 +5,7 @@ with generated build plots.
 usage: /usr/bin/python3 tools/map-compose/compose.py <layout.json> <assets_dir> <out.png|.webp>
          [--w 3072] [--plots 24] [--seed 7] [--bake] [--keep-plots]
          [--towers archer:3,cannon:9,...] [--enemies] [--cliff]
-         [--variants 1,1.5] [--write-layout] [--cave-h 2.5] [--castle-h 3.2] [--gate-inset 0.5]
+         [--variants 1,1.5] [--write-layout] [--cave-h 2.5] [--castle-h 2.7] [--gate-inset 0.5]
          [--windmill x,ybottom,h] [--decals 240] [--no-decals]
 
   shipped L1c bake (2x layout px master + 1x / 1.5x variants, gate fronts, gates written to the JSON):
@@ -64,7 +64,7 @@ from PIL import Image, ImageChops, ImageDraw, ImageFilter
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import numpy as np  # noqa: E402
 from gates import (  # noqa: E402
-    cut_front, entrance_facing, gate_alpha_hit, goal_facing, output_box, output_sprite, place_gate, resolve_prop,
+    cut_front, entrance_dir, entrance_facing, gate_alpha_hit, goal_dir, goal_facing, output_box, output_sprite, place_gate, resolve_prop,
 )
 from ground import Decals, fine_detail, inner_band, nearest_dist, ragged_mask, ring, road_fringe, scatter  # noqa: E402
 from ringfit import measure_ring  # noqa: E402
@@ -196,16 +196,16 @@ def sprite_rect(im, x_center, y_bottom, height):
 # Gates (gates.py): a raider cave at every entrance whose mouth faces along the road's first
 # segment, the castle gate at the goal facing back along the last segment. The path end sits
 # GATE_INSET road widths inside the dark mouth, so walkers appear out of the darkness (front layer).
-CAVE_H, CASTLE_H, GATE_INSET = opt('--cave-h', 2.5), opt('--castle-h', 3.2), opt('--gate-inset', 0.5)
+CAVE_H, CASTLE_H, GATE_INSET = opt('--cave-h', 2.5), opt('--castle-h', 2.7), opt('--gate-inset', 0.5)
 GATES = []  # dict(role, lane, id, prop, facing, g = placement)
 for _i, _e in enumerate(L['entrances']):
     _f = entrance_facing(raw_paths[_i])
     _prop, _file, _flip = resolve_prop('cave', _f, assets)
-    _g = place_gate(load(_file), _flip, (_e['x'], _e['y']), _f, ROAD_W * CAVE_H, ROAD_W * GATE_INSET)
+    _g = place_gate(load(_file), _flip, (_e['x'], _e['y']), _f, ROAD_W * CAVE_H, ROAD_W * GATE_INSET, entrance_dir(raw_paths[_i]))
     GATES.append({'role': 'entrance', 'lane': _i, 'id': str(_e['id']), 'prop': _prop, 'facing': _f, 'g': _g})
 _f = goal_facing(raw_paths[0])
 _prop, _file, _flip = resolve_prop('castle', _f, assets)
-_g = place_gate(load(_file), _flip, (gx, gy), _f, ROAD_W * CASTLE_H, ROAD_W * GATE_INSET)
+_g = place_gate(load(_file), _flip, (gx, gy), _f, ROAD_W * CASTLE_H, ROAD_W * GATE_INSET, goal_dir(raw_paths[0]))
 GATES.append({'role': 'goal', 'lane': -1, 'id': 'goal', 'prop': _prop, 'facing': _f, 'g': _g})
 
 LANDMARKS = []  # (name, layout x centre, layout y bottom, layout height)

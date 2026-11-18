@@ -39,6 +39,21 @@ def _first_step(path, frm, step):
     raise ValueError('path has no non-zero segment')
 
 
+def _unit(dx, dy):
+    n = math.hypot(dx, dy) or 1.0
+    return dx / n, dy / n
+
+
+def entrance_dir(path):
+    """Unit direction of the road leaving an entrance (its first segment)."""
+    return _unit(*_first_step(path, 0, 1))
+
+
+def goal_dir(path):
+    """Unit direction from the goal back along the road (its last segment, reversed)."""
+    return _unit(*_first_step(path, len(path) - 1, -1))
+
+
 def entrance_facing(path):
     return facing_from_dir(*_first_step(path, 0, 1))
 
@@ -116,18 +131,20 @@ def measure_mouth(im: Image.Image, facing: str, dark=58):
             'top_exit': top_exit}
 
 
-def place_gate(im_src: Image.Image, flip: bool, point, facing, height_layout, inset_layout):
+def place_gate(im_src: Image.Image, flip: bool, point, facing, height_layout, inset_layout, along=None):
     """Flip / measure a gate and compute where it goes (layout px).
 
     Returns dict(im (source px), k (source px -> layout px), left, top, rect, mouth, facing). The
-    path end `point` ends up `inset_layout` px inside the mouth's exit."""
+    path end `point` ends up `inset_layout` px inside the mouth's exit, measured along `along` (the
+    unit direction of the road leaving the gate: the walkers' own line), else along the facing."""
     im = im_src.transpose(Image.FLIP_LEFT_RIGHT) if flip else im_src
     mouth = measure_mouth(im, facing)
     k = height_layout / im.height  # sprite px -> layout px
     vx, vy = FACING_VEC[facing]
     ax, ay = mouth['anchor']
     # anchor (exit middle, layout px) = point + facing * inset
-    tx, ty = point[0] + vx * inset_layout, point[1] + vy * inset_layout
+    ux, uy = along if along is not None else (vx, vy)
+    tx, ty = point[0] + ux * inset_layout, point[1] + uy * inset_layout
     left = tx - ax * k
     top = ty - ay * k
     return {'im': im, 'k': k, 'left': left, 'top': top, 'mouth': mouth, 'facing': facing,

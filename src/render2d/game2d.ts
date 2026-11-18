@@ -447,11 +447,6 @@ export class Game2D {
     const w = this.world;
     const out: { type: string; lane: number; dist: number; toGoal: number; px: number; py: number }[] = [];
     const pool = w.enemyPool;
-    const lens = this.level.layout2d!.paths.map((p) => {
-      let L = 0;
-      for (let i = 1; i < p.length; i++) L += Math.hypot(p[i].x - p[i - 1].x, p[i].z - p[i - 1].z);
-      return L;
-    });
     for (let i = 0; i < pool.getActiveCount(); i++) {
       const e = pool.items[pool.getActiveIndex(i)];
       if (!e.active || e.flying) continue;
@@ -460,7 +455,7 @@ export class Game2D {
         type: e.type,
         lane: e.lane,
         dist: r2(e.dist),
-        toGoal: r2((lens[e.lane] ?? 0) - e.dist),
+        toGoal: r2(e.totalDist - e.dist),
         px: Math.round(this.map.pxX(e.x)),
         py: Math.round(this.map.pxY(e.z)),
       });

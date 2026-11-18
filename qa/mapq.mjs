@@ -72,7 +72,7 @@ async function full(browser) {
 /** Waits until an enemy of `lane` is `lo..hi` world units along its path (or near the goal), pauses, crops. */
 async function enemyShot(page, view, name, pred, region) {
   try {
-    await page.waitForFunction(pred, null, { timeout: 120000, polling: 30 });
+    await page.waitForFunction(pred, null, { timeout: 120000, polling: 'raf' });
   } catch {
     report.errors.push(`${view}: timeout waiting for ${name}`);
     return;
@@ -94,10 +94,10 @@ async function enemies(browser) {
     await enemyShot(page, view, 'caveA-exit', () => (window.__p0.state().enemyPx ?? (window.__p0.state().enemies >= 1 ? [{ lane: 0, dist: 0.4 }] : [])).some((e) => e.lane === 0 && e.dist > 0.25 && e.dist < 0.6), REGIONS.caveA);
     await enemyShot(page, view, 'caveA-out', () => (window.__p0.state().enemyPx ?? []).some((e) => e.lane === 0 && e.dist > 0.9 && e.dist < 1.3), REGIONS.caveA);
     await ctx.close();
-    const c = await open(browser, view, '?speed=2');
+    const c = await open(browser, view, '');
     await c.page.keyboard.press('n');
-    await enemyShot(c.page, view, 'castle-enter', () => (window.__p0.state().enemyPx ?? []).some((e) => e.toGoal < 0.7 && e.toGoal > 0.15), REGIONS.castle);
-    await enemyShot(c.page, view, 'castle-approach', () => (window.__p0.state().enemyPx ?? []).some((e) => e.toGoal < 2.6 && e.toGoal > 1.6), REGIONS.castle);
+    await enemyShot(c.page, view, 'castle-approach', () => (window.__p0.state().enemyPx ?? []).some((e) => e.toGoal < 2.4 && e.toGoal > 1.2), REGIONS.castle);
+    await enemyShot(c.page, view, 'castle-enter', () => (window.__p0.state().enemyPx ?? []).some((e) => e.toGoal < 0.9 && e.toGoal > 0.05), REGIONS.castle);
     await c.ctx.close();
     const b = await open(browser, view, '');
     b.page.on('dialog', (d) => d.dismiss());
