@@ -1,0 +1,306 @@
+/*
+ * In-game ability bar (abilityBar2d.ts): two medallion buttons over the canvas, bottom centre.
+ * `--d` = button diameter (set from the viewport, >= 54 px so it stays a comfortable touch target).
+ * The medallion's sky-blue disc spans 19%..81% of the art: the icon, the recharge sweep and the
+ * Overcharge surge ring are clipped to it.
+ */
+
+.pu-abilities {
+  position: fixed;
+  z-index: 25;
+  display: flex;
+  gap: var(--gap, 14px);
+  pointer-events: none;
+}
+
+.pu-abilities.vertical {
+  flex-direction: column;
+}
+
+.pu-abilities[hidden],
+.pu-ab-hint[hidden] {
+  display: none !important;
+}
+
+.pu-ab {
+  position: relative;
+  width: var(--d, 60px);
+  height: var(--d, 60px);
+  border-radius: 50%;
+  pointer-events: auto;
+  filter: drop-shadow(0 3px 2px rgba(30, 16, 4, 0.5));
+  transition: transform 0.08s ease-out, filter 0.15s;
+}
+
+.pu-abilities .pu-ab:focus-visible {
+  border-radius: 50%;
+  outline-offset: 3px;
+}
+
+.pu-ab > * {
+  pointer-events: none;
+}
+
+.pu-ab-frame,
+.pu-ab-icon,
+.pu-ab-sweep,
+.pu-ab-surge {
+  position: absolute;
+}
+
+.pu-ab-frame {
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.pu-ab-icon {
+  inset: 17%;
+  border-radius: 50%;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  background: radial-gradient(circle at 50% 38%, #e9f7ff, #a9d6f0 70%, #7fb4d8);
+}
+
+.pu-ab-icon > svg,
+.pu-ab-icon > img {
+  width: 84%;
+  height: 84%;
+  display: block;
+  object-fit: contain;
+}
+
+.pu-ab-icon > img.pu-ab-art {
+  width: 100%;
+  height: 100%;
+}
+
+/* Recharge: a dark wedge that unwinds clockwise from 12 o'clock as the ability recharges. */
+.pu-ab-sweep {
+  inset: 17%;
+  border-radius: 50%;
+  background: conic-gradient(rgba(24, 12, 4, 0.66) calc(var(--cd, 0) * 360deg), transparent 0);
+}
+
+/* Overcharge surge: a cyan ring around the disc that runs down with the surge. */
+.pu-ab-surge {
+  inset: 13%;
+  border-radius: 50%;
+  opacity: 0;
+  background: conic-gradient(#9ff0ff calc(var(--act, 0) * 360deg), rgba(159, 240, 255, 0.15) 0);
+  -webkit-mask: radial-gradient(circle, transparent 60%, #000 62%, #000 70%, transparent 72%);
+  mask: radial-gradient(circle, transparent 60%, #000 62%, #000 70%, transparent 72%);
+}
+
+.pu-ab.surging .pu-ab-surge {
+  opacity: 1;
+}
+
+.pu-ab-secs {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: calc(var(--d, 60px) * 0.3);
+  font-weight: 700;
+}
+
+.pu-ab-key {
+  position: absolute;
+  right: -6%;
+  bottom: -6%;
+  min-width: 34%;
+  height: 34%;
+  display: grid;
+  place-items: center;
+  padding: 0 0.25em;
+  font-size: calc(var(--d, 60px) * 0.2);
+  border-radius: 8px;
+  background: linear-gradient(#a8743e, #7a4c22);
+  box-shadow: 0 0 0 2px var(--outline), inset 0 1px 0 rgba(255, 230, 180, 0.5);
+}
+
+.pu-ab-cancel {
+  position: absolute;
+  right: -4%;
+  top: -4%;
+  width: 34%;
+  height: 34%;
+  display: none;
+  place-items: center;
+  border-radius: 50%;
+  font-size: calc(var(--d, 60px) * 0.2);
+  font-weight: 700;
+  color: var(--cream);
+  background: radial-gradient(circle at 35% 30%, #ff8a6a, #c8341f 65%);
+  box-shadow: 0 0 0 2px var(--outline);
+}
+
+/* --- states ---------------------------------------------------------------------------------- */
+
+.pu-ab[data-state='ready']:not(.paused) {
+  animation: pu-ab-ready 1.8s ease-in-out infinite;
+}
+
+@keyframes pu-ab-ready {
+  50% {
+    filter: drop-shadow(0 0 calc(var(--d, 60px) * 0.12) rgba(255, 210, 100, 0.95)) drop-shadow(0 3px 2px rgba(30, 16, 4, 0.5));
+  }
+}
+
+.pu-ab[data-state='ready']:hover:not(.paused) {
+  transform: translateY(-2px) scale(1.04);
+}
+
+.pu-ab:active {
+  transform: translateY(2px) scale(0.95);
+}
+
+.pu-ab.ready-pop {
+  animation: pu-ab-pop 0.45s cubic-bezier(0.2, 0.9, 0.3, 1.5), pu-ab-ready 1.8s ease-in-out 0.45s infinite;
+}
+
+@keyframes pu-ab-pop {
+  0% {
+    transform: scale(0.9);
+  }
+  55% {
+    transform: scale(1.14);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.pu-ab.is-aiming {
+  animation: none;
+  transform: translateY(-4px) scale(1.08);
+  filter: drop-shadow(0 0 calc(var(--d, 60px) * 0.16) rgba(255, 150, 60, 1)) drop-shadow(0 3px 2px rgba(30, 16, 4, 0.5));
+}
+
+.pu-ab.is-aiming .pu-ab-cancel {
+  display: grid;
+}
+
+.pu-ab[data-state='cooldown'] .pu-ab-icon {
+  filter: saturate(0.55) brightness(0.9);
+}
+
+.pu-ab[data-state='waiting'],
+.pu-ab[data-state='noTargets'],
+.pu-ab.paused {
+  filter: saturate(0.55) brightness(0.9) drop-shadow(0 3px 2px rgba(30, 16, 4, 0.45));
+}
+
+.pu-ab[data-state='disabled'] {
+  filter: grayscale(0.95) brightness(0.75) drop-shadow(0 2px 1px rgba(30, 16, 4, 0.35));
+  opacity: 0.8;
+}
+
+.pu-ab[data-state='disabled']::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 70%;
+  height: 7%;
+  border-radius: 4px;
+  background: #c8341f;
+  box-shadow: 0 0 0 2px var(--outline);
+  transform: translate(-50%, -50%) rotate(-40deg);
+}
+
+.pu-ab.nope {
+  animation: pu-ab-nope 0.35s ease-out;
+}
+
+@keyframes pu-ab-nope {
+  20%,
+  60% {
+    transform: translateX(-4px);
+  }
+  40%,
+  80% {
+    transform: translateX(4px);
+  }
+}
+
+/* --- tooltip + aiming hint (gold-framed parchment) ------------------------------------------- */
+
+.pu-ab-tip,
+.pu-ab-hint {
+  border-style: solid;
+  border-width: max(10px, calc(var(--s) * 1.1));
+  border-image: url('/art2d/ui/tooltip.webp') 40 fill stretch;
+  filter: drop-shadow(0 3px 3px rgba(30, 16, 4, 0.45));
+  pointer-events: none;
+}
+
+.pu-ab-tip {
+  position: fixed;
+  z-index: 27;
+  width: max-content;
+  max-width: min(360px, 70vw);
+  padding: 2px 6px;
+  font-size: max(12px, calc(var(--s) * 1.15));
+  line-height: 1.25;
+}
+
+.pu-ab-tip-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8em;
+  font-size: 1.3em;
+  font-weight: 700;
+}
+
+.pu-ab-tip-key {
+  font-size: 0.7em;
+  padding: 0.1em 0.45em;
+  border-radius: 6px;
+  background: linear-gradient(#a8743e, #7a4c22);
+  box-shadow: 0 0 0 2px var(--outline);
+}
+
+.pu-ab-tip-desc {
+  margin: 0.25em 0 0.35em;
+  font-weight: 600;
+}
+
+.pu-ab-tip-foot {
+  display: flex;
+  justify-content: space-between;
+  gap: 1em;
+  font-weight: 600;
+}
+
+.pu-ab-hint {
+  position: fixed;
+  z-index: 26;
+  width: max-content;
+  max-width: min(440px, 80vw);
+  padding: 0 8px;
+  text-align: center;
+  font-size: max(13px, calc(var(--s) * 1.3));
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.pu-ab-hint small {
+  display: block;
+  font-size: 0.78em;
+  font-weight: 600;
+}
+
+.pu-ab-hint.nudge {
+  animation: pu-ab-nope 0.35s ease-out;
+}
+
+/* Reduced motion (Settings → Graphics): no pulsing, popping or shaking. */
+.pu-reduce-motion .pu-ab,
+.pu-reduce-motion .pu-ab-hint {
+  animation: none !important;
+}

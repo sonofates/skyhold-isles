@@ -13,9 +13,12 @@ import type { LevelDef } from '../../data/levels/types.ts';
 import { buyRank, maxRank, nextRankCost, rankOf, WORKSHOP_BRANCHES, WORKSHOP_UPGRADES, workshopTotalCost, type WorkshopUpgradeDef } from '../../data/workshop.ts';
 import { featStatuses, type FeatIcon } from '../../game/feats.ts';
 import { isIslandMastered, starWallet } from '../../game/progression.ts';
-import { loadSettings, saveSettings } from '../../platform/storage.ts';
+import { isTouchDevice, loadSettings, saveSettings } from '../../platform/storage.ts';
+import { isDesktopClient } from '../renderResolution.ts';
+import { ABILITY_KEYS } from './abilities2d.ts';
+import { announceGraphicsChange, loadGraphics, reapplyGraphicsSettings, saveGraphics, type EffectsDensity, type FpsCap, type GraphicsSettings } from './graphicsSettings.ts';
 import { branchName, challengeDesc, challengeName, difficultyName, featDesc, featName, islandName, upgradeName, upgradeRankText } from '../../i18n/data.ts';
-import { getLocale, LANGUAGE_NAMES, LOCALES, pct, setLocale, shortDate, t, type Locale } from '../../i18n/index.ts';
+import { getLocale, LANGUAGE_NAMES, LOCALES, pct, setLocale, shortDate, t, type Locale, type MsgKey } from '../../i18n/index.ts';
 import { reapplyLocaleSetting, saveLocaleSetting } from '../../i18n/localeSetting.ts';
 import { el, glyph, img, KIT, medal, openSheet, plank, sealBadge, slider, starsRow, toggle, type Sheet } from './dom.ts';
 import { endlessRecordText, tierColour } from './modeBits.ts';
@@ -347,112 +350,358 @@ function switchLocale(l: Locale, ctx: SettingsContext): void {
 /**
  * What Settings needs: the island list (store row) and a change callback. `inGame` = opened over a
  * run (the HUD button / pause plate): no progress reset or store rows, and a language change
- * restarts the island (noted under the picker).
+ * restarts the island (noted under the picker). `tab` = the section to open on (default General;
+ * `?settab=` picks it for QA).
  */
 export interface SettingsContext {
   readonly levels: readonly LevelDef[];
   onChange(): void;
   readonly inGame?: boolean;
   readonly onClose?: () => void;
+  readonly tab?: SettingsTab;
+}
+
+export const SETTINGS_TABS = ['general', 'audio', 'graphics', 'controls'] as const;
+export type SettingsTab = (typeof SETTINGS_TABS)[number];
+
+const TAB_LABEL: Readonly<Record<SettingsTab, MsgKey>> = {
+  general: 'set.tabGeneral',
+  audio: 'set.tabAudio',
+  graphics: 'set.tabGraphics',
+  controls: 'set.tabControls',
+};
+
+function isSettingsTab(v: unknown): v is SettingsTab {
+  return typeof v === 'string' && (SETTINGS_TABS as readonly string[]).includes(v);
+}
+
+/**
+ * A row of small planks, one checked (the language picker's look): Quality, Effects, FPS cap.
+ * Picking one re-checks the row and calls `onPick`.
+ */
+function choice<T extends string | number>(options: readonly (readonly [T, string])[], current: T, aria: string, testid: string, onPick: (v: T) => void): HTMLElement {
+  const box = el('div', 'pu-tabs pu-lang pu-choice', { role: 'radiogroup', 'aria-label': aria, 'data-testid': testid });
+  const buttons: HTMLButtonElement[] = [];
+  const mark = (v: T): void =>
+    options.forEach(([o], i) => {
+      buttons[i].setAttribute('aria-checked', String(o === v));
+      buttons[i].setAttribute('aria-selected', String(o === v));
+    });
+  for (const [v, label] of options) {
+    const b = plank(label, { kind: 'small', testid: `${testid}-${v}` });
+    b.setAttribute('role', 'radio');
+    b.addEventListener('click', () => {
+      mark(v);
+      onPick(v);
+    });
+    buttons.push(b);
+    box.append(b);
+  }
+  mark(current);
+  return box;
+}
+
+/** A painted key cap (Controls). */
+function keyCap(label: string): HTMLElement {
+  return el('kbd', 'pu-key pu-letter', {}, label);
+}
+
+function fullscreenSupported(): boolean {
+  return typeof document !== 'undefined' && document.fullscreenEnabled === true && typeof document.documentElement.requestFullscreen === 'function';
 }
 
 export function openSettings(ctx: SettingsContext): Sheet {
-  const sheet = openSheet(t('set.title'), { cls: `pu-meta pu-settings${ctx.inGame ? ' pu-settings-ingame' : ''}`, testid: 'settings2d', onClose: ctx.onClose });
+  const sheet = openSheet(t('set.title'), { cls: `pu-meta pu-settings tabbed${ctx.inGame ? ' pu-settings-ingame' : ''}`, testid: 'settings2d', onClose: ctx.onClose });
   const s: GameSettings = loadSettings();
+  const g: GraphicsSettings = loadGraphics();
+  const desktop = isDesktopClient(new URLSearchParams(location.search));
+  const touch = isTouchDevice();
   const save = (): void => {
     saveSettings(s);
-    // saveSettings() drops fields it does not know: put the language back next to them.
+    // saveSettings() drops fields it does not know: put the language and graphics back next to them.
     reapplyLocaleSetting();
+    reapplyGraphicsSettings();
   };
-  const row = (label: string, sub: string | null, control: HTMLElement): HTMLElement =>
-    el('div', 'pu-set-row', {}, el('div', 'pu-ink', {}, label, sub ? el('small', 'pu-ink-soft', {}, sub) : null), control);
-  // Sound: the mixer (render2d/audio2d.ts) re-reads these settings after every click / key /
-  // slider drag, so a change is heard at once (music on the map, the battle in a run).
-  const mixRows: HTMLElement[] = [];
-  const dimWhenMuted = (): void => {
-    for (const r of mixRows) r.classList.toggle('off', s.muted);
+  const saveGfx = (): void => {
+    saveGraphics(g);
+    announceGraphicsChange();
   };
-  const val = el('span', 'pu-slider-val pu-ink', {}, pct(s.masterVolume));
-  const vol = slider(s.masterVolume, t('set.volumeAria'), 'set2d-volume', (v) => {
-    s.masterVolume = Math.round(v * 100) / 100;
-    val.textContent = pct(s.masterVolume);
-    save();
-  });
-  const musicVal = el('span', 'pu-slider-val pu-ink', {}, pct(getMusicVolume()));
-  const music = slider(getMusicVolume(), t('set.musicAria'), 'set2d-music', (v) => {
-    setMusicVolume(Math.round(v * 100) / 100);
-    musicVal.textContent = pct(getMusicVolume());
-  });
-  const musicBox = el('div', '', {}, music, musicVal);
-  musicBox.style.cssText = 'display:flex;align-items:center;gap:calc(var(--s) * 1)';
-  const volBox = el('div', '', {}, vol, val);
-  volBox.style.cssText = 'display:flex;align-items:center;gap:calc(var(--s) * 1)';
-  let armed = 0;
-  const reset = plank(t('set.reset'), { kind: 'small', testid: 'set2d-reset' });
-  reset.addEventListener('click', () => {
-    if (performance.now() < armed) {
-      resetProgress2D();
-      armed = 0;
-      reset.querySelector('span')!.textContent = t('set.resetDone');
-      reset.disabled = true;
-      ctx.onChange();
-      return;
+  const row = (label: string, sub: string | null, control: HTMLElement, testid?: string): HTMLElement =>
+    el('div', 'pu-set-row', { 'data-testid': testid }, el('div', 'pu-ink', {}, label, sub ? el('small', 'pu-ink-soft', {}, sub) : null), control);
+  const flex = (...kids: HTMLElement[]): HTMLElement => {
+    const b = el('div', 'pu-set-flex', {}, ...kids);
+    return b;
+  };
+
+  // --- General ---------------------------------------------------------------------------------
+  const general = (): HTMLElement[] => {
+    let armed = 0;
+    const reset = plank(t('set.reset'), { kind: 'small', testid: 'set2d-reset' });
+    reset.addEventListener('click', () => {
+      if (performance.now() < armed) {
+        resetProgress2D();
+        armed = 0;
+        reset.querySelector('span')!.textContent = t('set.resetDone');
+        reset.disabled = true;
+        ctx.onChange();
+        return;
+      }
+      armed = performance.now() + 3200;
+      reset.querySelector('span')!.textContent = t('set.resetArmed');
+      window.setTimeout(() => {
+        if (!reset.disabled) reset.querySelector('span')!.textContent = t('set.reset');
+      }, 3300);
+    });
+    const rows = [
+      row(t('set.language'), ctx.inGame ? t('set.languageNoteInGame') : t('set.languageNote'), languagePicker(ctx)),
+      row(
+        t('set.dmg'),
+        t('set.dmgNote'),
+        toggle(s.damageNumbers, t('set.dmg'), 'set2d-dmg', (v) => {
+          s.damageNumbers = v;
+          save();
+        }),
+      ),
+      row(
+        t('set.haptics'),
+        t('set.hapticsNote'),
+        toggle(s.haptics, t('set.haptics'), 'set2d-haptics', (v) => {
+          s.haptics = v;
+          save();
+        }),
+      ),
+    ];
+    if (ctx.inGame) return rows;
+    // Mobile builds only: the store (Buy / Restore purchases must stay reachable after a purchase).
+    if (storeEnabled()) {
+      const shop = plank(t('set.storeOpen'), { kind: 'small', testid: 'set2d-store' });
+      shop.addEventListener('click', () => openStore({ totalIslands: ctx.levels.length, onOwnedChange: () => ctx.onChange() }));
+      rows.push(row(t('set.store'), ownsFullAdventure() ? t('set.storeOwned') : t('set.storeNote'), shop));
     }
-    armed = performance.now() + 3200;
-    reset.querySelector('span')!.textContent = t('set.resetArmed');
-    window.setTimeout(() => {
-      if (!reset.disabled) reset.querySelector('span')!.textContent = t('set.reset');
-    }, 3300);
-  });
-  const volRow = row(t('set.volume'), t('set.volumeNote'), volBox);
-  const musicRow = row(t('set.music'), t('set.musicNote'), musicBox);
-  mixRows.push(volRow, musicRow);
-  dimWhenMuted();
-  sheet.body.append(
-    row(t('set.language'), ctx.inGame ? t('set.languageNoteInGame') : t('set.languageNote'), languagePicker(ctx)),
-    row(
-      t('set.sound'),
-      t('set.soundNote'),
-      toggle(!s.muted, t('set.soundAria'), 'set2d-sound', (v) => {
-        s.muted = !v;
+    rows.push(row(t('set.progress'), t('set.progressNote'), reset));
+    return rows;
+  };
+
+  // --- Audio -----------------------------------------------------------------------------------
+  // The mixer (render2d/audio2d.ts) re-reads these settings after every click / key / slider drag,
+  // so a change is heard at once (music on the map, the battle in a run).
+  const audio = (): HTMLElement[] => {
+    const mixRows: HTMLElement[] = [];
+    const dimWhenMuted = (): void => {
+      for (const r of mixRows) r.classList.toggle('off', s.muted);
+    };
+    const val = el('span', 'pu-slider-val pu-ink', {}, pct(s.masterVolume));
+    const vol = slider(s.masterVolume, t('set.volumeAria'), 'set2d-volume', (v) => {
+      s.masterVolume = Math.round(v * 100) / 100;
+      val.textContent = pct(s.masterVolume);
+      save();
+    });
+    const musicVal = el('span', 'pu-slider-val pu-ink', {}, pct(getMusicVolume()));
+    const music = slider(getMusicVolume(), t('set.musicAria'), 'set2d-music', (v) => {
+      setMusicVolume(Math.round(v * 100) / 100);
+      musicVal.textContent = pct(getMusicVolume());
+    });
+    const volRow = row(t('set.volume'), t('set.volumeNote'), flex(vol, val));
+    const musicRow = row(t('set.music'), t('set.musicNote'), flex(music, musicVal));
+    mixRows.push(volRow, musicRow);
+    dimWhenMuted();
+    return [
+      row(
+        t('set.sound'),
+        t('set.soundNote'),
+        toggle(!s.muted, t('set.soundAria'), 'set2d-sound', (v) => {
+          s.muted = !v;
+          save();
+          dimWhenMuted();
+        }),
+      ),
+      volRow,
+      musicRow,
+    ];
+  };
+
+  // --- Graphics --------------------------------------------------------------------------------
+  const graphics = (): HTMLElement[] => {
+    const rows: HTMLElement[] = [];
+    const quality = choice<GameSettings['quality']>(
+      [
+        ['auto', t('set.qAuto')],
+        ['low', t('set.qLow')],
+        ['medium', t('set.qMedium')],
+        ['high', t('set.qHigh')],
+      ],
+      s.quality,
+      t('set.quality'),
+      'set2d-quality',
+      (v) => {
+        s.quality = v;
         save();
-        dimWhenMuted();
-      }),
-    ),
-    volRow,
-    musicRow,
-    row(
-      t('set.shake'),
-      t('set.shakeNote'),
+        announceGraphicsChange();
+      },
+    );
+    rows.push(row(t('set.quality'), t('set.qualityNote'), quality));
+    if (desktop) {
+      // Render resolution: Auto (full) or 50–100 % of it.
+      const shown = (): string => (g.renderScale === null ? t('set.qAuto') : pct(g.renderScale));
+      const resVal = el('span', 'pu-slider-val pu-ink', {}, shown());
+      const auto = plank(t('set.qAuto'), { kind: 'small', testid: 'set2d-res-auto' });
+      auto.setAttribute('role', 'switch');
+      const res = slider(((g.renderScale ?? 1) - 0.5) / 0.5, t('set.resolutionAria'), 'set2d-res', (v) => {
+        g.renderScale = Math.round((0.5 + v * 0.5) * 20) / 20;
+        paintRes();
+        saveGfx();
+      });
+      const paintRes = (): void => {
+        resVal.textContent = shown();
+        auto.setAttribute('aria-checked', String(g.renderScale === null));
+        auto.setAttribute('aria-selected', String(g.renderScale === null));
+        res.classList.toggle('auto', g.renderScale === null);
+      };
+      auto.addEventListener('click', () => {
+        g.renderScale = g.renderScale === null ? 1 : null;
+        paintRes();
+        saveGfx();
+      });
+      paintRes();
+      const box = flex(el('div', 'pu-tabs pu-lang pu-choice', {}, auto), res, resVal);
+      rows.push(row(t('set.resolution'), t('set.resolutionNote'), box, 'set2d-res-row'));
+    }
+    rows.push(
+      row(
+        t('set.effects'),
+        t('set.effectsNote'),
+        choice<EffectsDensity>(
+          [
+            ['low', t('set.fxLow')],
+            ['normal', t('set.fxNormal')],
+            ['high', t('set.fxHigh')],
+          ],
+          g.effects,
+          t('set.effects'),
+          'set2d-effects',
+          (v) => {
+            g.effects = v;
+            saveGfx();
+          },
+        ),
+      ),
+      row(
+        t('set.fpsCap'),
+        t('set.fpsCapNote'),
+        choice<FpsCap>(
+          [
+            [30, '30'],
+            [60, '60'],
+            [0, t('set.fpsUnlimited')],
+          ],
+          g.fpsCap,
+          t('set.fpsCap'),
+          'set2d-fpscap',
+          (v) => {
+            g.fpsCap = v;
+            saveGfx();
+          },
+        ),
+      ),
+      row(
+        t('set.fpsCounter'),
+        t('set.fpsCounterNote'),
+        toggle(g.showFps, t('set.fpsCounter'), 'set2d-fps', (v) => {
+          g.showFps = v;
+          saveGfx();
+        }),
+      ),
+    );
+    const shakeNote = el('small', 'pu-ink-soft', {}, g.reducedMotion ? t('set.shakeOffByMotion') : t('set.shakeNote'));
+    const shakeRow = el(
+      'div',
+      'pu-set-row',
+      {},
+      el('div', 'pu-ink', {}, t('set.shake'), shakeNote),
       toggle(s.cameraShake, t('set.shake'), 'set2d-shake', (v) => {
         s.cameraShake = v;
         save();
+        announceGraphicsChange();
       }),
-    ),
-    row(
-      t('set.dmg'),
-      t('set.dmgNote'),
-      toggle(s.damageNumbers, t('set.dmg'), 'set2d-dmg', (v) => {
-        s.damageNumbers = v;
-        save();
-      }),
-    ),
-    row(
-      t('set.haptics'),
-      t('set.hapticsNote'),
-      toggle(s.haptics, t('set.haptics'), 'set2d-haptics', (v) => {
-        s.haptics = v;
-        save();
-      }),
-    ),
-  );
-  if (ctx.inGame) return sheet;
-  // Mobile builds only: the store (Buy / Restore purchases must stay reachable after a purchase).
-  if (storeEnabled()) {
-    const shop = plank(t('set.storeOpen'), { kind: 'small', testid: 'set2d-store' });
-    shop.addEventListener('click', () => openStore({ totalIslands: ctx.levels.length, onOwnedChange: () => ctx.onChange() }));
-    sheet.body.append(row(t('set.store'), ownsFullAdventure() ? t('set.storeOwned') : t('set.storeNote'), shop));
-  }
-  sheet.body.append(row(t('set.progress'), t('set.progressNote'), reset));
+    );
+    const paintMotion = (): void => {
+      shakeRow.classList.toggle('off', g.reducedMotion);
+      shakeNote.textContent = g.reducedMotion ? t('set.shakeOffByMotion') : t('set.shakeNote');
+    };
+    paintMotion();
+    rows.push(
+      row(
+        t('set.reducedMotion'),
+        t('set.reducedMotionNote'),
+        toggle(g.reducedMotion, t('set.reducedMotion'), 'set2d-motion', (v) => {
+          g.reducedMotion = v;
+          paintMotion();
+          saveGfx();
+        }),
+      ),
+      shakeRow,
+    );
+    if (desktop && fullscreenSupported()) {
+      const fs = toggle(!!document.fullscreenElement, t('set.fullscreen'), 'set2d-fullscreen', (v) => {
+        const done = v ? document.documentElement.requestFullscreen() : document.exitFullscreen();
+        void done.catch(() => fs.setAttribute('aria-checked', String(!!document.fullscreenElement)));
+      });
+      const sync = (): void => {
+        if (!fs.isConnected) {
+          document.removeEventListener('fullscreenchange', sync);
+          return;
+        }
+        fs.setAttribute('aria-checked', String(!!document.fullscreenElement));
+      };
+      document.addEventListener('fullscreenchange', sync);
+      rows.push(row(t('set.fullscreen'), t('set.fullscreenNote'), fs));
+    }
+    return rows;
+  };
+
+  // --- Controls --------------------------------------------------------------------------------
+  const controls = (): HTMLElement[] => {
+    const keyRow = (caps: readonly string[], what: string): HTMLElement => el('div', 'pu-key-row', {}, el('span', 'pu-key-caps', {}, ...caps.map(keyCap)), el('span', 'pu-ink', {}, what));
+    const section = (title: string, ...items: HTMLElement[]): HTMLElement => el('section', 'pu-key-section', {}, el('h3', 'pu-letter', {}, title), el('div', 'pu-key-list', {}, ...items));
+    const out: HTMLElement[] = [];
+    if (touch) out.push(section(t('set.touch'), el('div', 'pu-key-row pu-ink', {}, t('touch.build')), el('div', 'pu-key-row pu-ink', {}, t('touch.ability')), el('div', 'pu-key-row pu-ink', {}, t('touch.cancel'))));
+    out.push(
+      section(
+        t('set.keyboard'),
+        keyRow([t('key.space')], t('key.pause')),
+        keyRow(['1'], t('key.speed1')),
+        keyRow(['2'], t('key.speed2')),
+        keyRow(['N'], t('key.wave')),
+        keyRow([ABILITY_KEYS.meteor], t('key.meteor')),
+        keyRow([ABILITY_KEYS.overcharge], t('key.overcharge')),
+        keyRow([t('key.esc')], t('key.cancel')),
+      ),
+    );
+    if (!touch || desktop) out.push(section(t('set.mouse'), keyRow([t('key.rightClick')], t('key.cancelAim'))));
+    return [el('div', 'pu-key-grid', {}, ...out)];
+  };
+
+  // --- tabs ------------------------------------------------------------------------------------
+  const build: Readonly<Record<SettingsTab, () => HTMLElement[]>> = { general, audio, graphics, controls };
+  const fromQuery = new URLSearchParams(location.search).get('settab');
+  let tab: SettingsTab = ctx.tab ?? (isSettingsTab(fromQuery) ? fromQuery : 'general');
+  const tabs = el('div', 'pu-tabs pu-set-tabs', { role: 'tablist', 'data-testid': 'set2d-tabs' });
+  const tabButtons = SETTINGS_TABS.map((id) => {
+    const b = plank(t(TAB_LABEL[id]), { kind: 'small', testid: `set2d-tab-${id}` });
+    b.setAttribute('role', 'tab');
+    b.addEventListener('click', () => show(id));
+    tabs.append(b);
+    return b;
+  });
+  sheet.sheet.insertBefore(tabs, sheet.body);
+  const show = (id: SettingsTab): void => {
+    tab = id;
+    SETTINGS_TABS.forEach((x, i) => tabButtons[i].setAttribute('aria-selected', String(x === id)));
+    sheet.body.innerHTML = '';
+    sheet.body.dataset.tab = id;
+    sheet.body.scrollTop = 0;
+    sheet.body.append(...build[id]());
+  };
+  show(tab);
   return sheet;
 }
