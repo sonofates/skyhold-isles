@@ -350,7 +350,7 @@ export interface PlaqueSlots {
   readonly midY: number;
 }
 
-/** Number areas of the painted HUD plaque (heart + pouch carved in) — measured from public/art2d/ui/hud-plaque.webp. */
+/** Number areas of the painted HUD plaque (heart + coins carved in) — measured from public/art2d/ui/hud-plaque.webp. */
 export const KIT_PLAQUE_SLOTS: PlaqueSlots = { lives: [0.268, 0.455], gold: [0.688, 0.898], midY: 0.514 };
 
 export interface PlaqueLayout {

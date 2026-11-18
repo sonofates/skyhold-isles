@@ -751,17 +751,17 @@
   ]
  ],
  "goalGate": {
-  "prop": "castle-w",
+  "prop": "keep-highlands-w",
   "facing": "W",
   "front": {
    "art": "map-i13-layered-gate-goal",
    "rect": [
-    925.5,
-    219.0,
-    191.5,
-    156.5
+    926.0,
+    245.0,
+    200.5,
+    163.5
    ],
-   "baseY": 375.36
+   "baseY": 408.67
   }
  }
 }

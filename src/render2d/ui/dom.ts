@@ -16,7 +16,7 @@ export const KIT = {
   rally: `${ART}ui/icon-rally.webp`,
   upgrade: `${ART}ui/icon-upgrade.webp`,
   heart: `${ART}icon-heart.webp`,
-  gold: `${ART}icon-gold.webp`,
+  gold: `${ART}icon-crown-coins.webp`,
   pipEmpty: `${ART}ui/pip-empty.webp`,
   pipFilled: `${ART}ui/pip-filled.webp`,
   toggleOn: `${ART}ui/toggle-on.webp`,

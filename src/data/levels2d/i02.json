@@ -274,17 +274,17 @@
  ],
  "plotRadiusPx": 48,
  "goalGate": {
-  "prop": "castle-w",
+  "prop": "keep-tidal-w",
   "facing": "W",
   "front": {
    "art": "map-i02-layered-gate-goal",
    "rect": [
-    848.0,
-    578.0,
-    199.0,
-    152.5
+    845.5,
+    587.0,
+    212.0,
+    162.5
    ],
-   "baseY": 731.48
+   "baseY": 749.67
   }
  }
 }

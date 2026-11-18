@@ -667,17 +667,17 @@
   ]
  ],
  "goalGate": {
-  "prop": "castle-e",
+  "prop": "keep-terraces-e",
   "facing": "E",
   "front": {
    "art": "map-i10-layered-gate-goal",
    "rect": [
-    1051.0,
-    435.5,
-    228.5,
-    149.5
+    1070.0,
+    448.5,
+    201.0,
+    152.0
    ],
-   "baseY": 585.08
+   "baseY": 600.33
   }
  }
 }

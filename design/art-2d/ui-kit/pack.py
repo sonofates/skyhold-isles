@@ -14,7 +14,7 @@ import colorsys
 import json
 from pathlib import Path
 
-from PIL import Image, ImageChops, ImageEnhance, ImageFilter
+from PIL import Image, ImageChops, ImageDraw, ImageEnhance, ImageFilter
 
 ROOT = Path(__file__).resolve().parents[3]
 RAW = ROOT / 'design/art-2d/ui-kit/raw'
@@ -103,6 +103,18 @@ def recolor_ribbon(im: Image.Image) -> Image.Image:
     return im
 
 
+def coin_plaque(plaque: Image.Image) -> Image.Image:
+    """Refinish the gold socket with wood from the number recess and the shared coin painting."""
+    wood = plaque.crop((721, 111, 890, 195)).resize((166, 166), Image.Resampling.BICUBIC)
+    socket = Image.new('L', wood.size)
+    ImageDraw.Draw(socket).ellipse((1, 1, 164, 164), fill=255)
+    plaque.paste(wood, (501, 68), socket.filter(ImageFilter.GaussianBlur(1.2)))
+    coins = Image.open(ROOT / 'design/art-2d/out/icon-gold.png').convert('RGBA')
+    coins.thumbnail((151, 141), Image.Resampling.LANCZOS)
+    plaque.alpha_composite(coins, (584 - coins.width // 2, 152 - coins.height // 2))
+    return plaque
+
+
 def main() -> None:
     meta = {}
     medal = key_image(Image.open(RAW / 'ui-medallion.png'))
@@ -138,7 +150,7 @@ def main() -> None:
     save(recolor_ribbon(board), 'end-panel-defeat')
 
     plaque = cap(key_image(Image.open(RAW / 'ui-hud-plaque.png'), margin=3), 1024)
-    save(plaque, 'hud-plaque')
+    save(coin_plaque(plaque), 'hud-plaque')
     meta['plaqueSize'] = plaque.size
     meta['boardSize'] = board.size
     print(json.dumps(meta))

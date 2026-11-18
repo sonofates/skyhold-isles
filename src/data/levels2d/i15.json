@@ -727,17 +727,17 @@
   ]
  ],
  "goalGate": {
-  "prop": "castle-w",
+  "prop": "keep-hollow-w",
   "facing": "W",
   "front": {
    "art": "map-i15-layered-gate-goal",
    "rect": [
-    617.5,
-    258.0,
-    230.0,
-    156.5
+    622.0,
+    286.5,
+    213.5,
+    162.5
    ],
-   "baseY": 414.34
+   "baseY": 448.67
   }
  }
 }

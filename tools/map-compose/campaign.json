@@ -63,6 +63,7 @@
     ]
   },
   "i05": {
+    "keepFootprint": {"hall": [69, 42], "far": [17, -68], "near": [-24, 38]},
     "plots": 19,
     "seed": 193,
     "decals": 280,
@@ -76,6 +77,7 @@
     "castle-h": 2.26
   },
   "i06": {
+    "keepFootprint": {"hall": [-65, 3], "nearPier": -23, "far": [38, -64], "near": [-27, 9]},
     "plots": 24,
     "seed": 227,
     "decals": 135,
@@ -107,7 +109,6 @@
     "sprites": {
       "gate-cave-e.png": "storm-cave-e.webp",
       "gate-cave-s.png": "storm-cave-s.webp",
-      "gate-castle-w.png": "storm-castle-w.webp",
       "signal-post.webp": "torn-standard.webp",
       "parapet.webp": "broken-wall.webp",
       "snow-fir.webp": "storm-pine.webp"
@@ -119,15 +120,13 @@
     ]
   },
   "i08": {
+    "keepFootprint": {"hall": [-103, -9], "hallFlip": true, "nearPier": 0, "far": [-48, -63], "near": [7, 42], "shelf": [-62, -13, 258, 110]},
     "plots": 28,
     "seed": 353,
     "decals": 205,
     "props": 61,
     "windmill": "none",
     "biome": "terraces",
-    "sprites": {
-      "gate-castle-w.png": "bailey-gate.webp"
-    },
     "propWeights": [1, 0, 3, 3, 6, 4, 6],
     "crossings": [
       ["stone-bridge", 951, 304, 110, 69, 99]
@@ -135,7 +134,7 @@
     "islet": "islet.webp",
     "gate-inset": 0.08,
     "cave-h": 1.9,
-    "castle-h": 2.05,
+    "castle-h": 2.95,
     "landmarks": [
       ["bastion", 757, 244, 48]
     ]
@@ -153,8 +152,7 @@
       ["marble-bridge", 461, 394, 113, 70, -13]
     ],
     "sprites": {
-      "fence-corner.webp": "landmark-standard.webp",
-      "gate-castle-w.png": "crown-hall.webp"
+      "fence-corner.webp": "landmark-standard.webp"
     },
     "cave-h": 2.1,
     "castle-h": 3.15
@@ -189,7 +187,6 @@
     "sprites": {
       "gate-cave-e.png": "storm-cave-e.webp",
       "gate-cave-s.png": "storm-cave-s.webp",
-      "gate-castle-w.png": "storm-castle-w.webp",
       "signal-post.webp": "wind-vane.webp",
       "parapet.webp": "broken-wall.webp",
       "snow-fir.webp": "storm-pine.webp"
@@ -239,7 +236,6 @@
     "sprites": {
       "gate-cave-e.png": "storm-cave-e.webp",
       "gate-cave-s.png": "storm-cave-s.webp",
-      "gate-castle-w.png": "storm-castle-w.webp",
       "signal-post.webp": "split-spire.webp",
       "shale-pine.webp": "storm-pine.webp",
       "parapet.webp": "broken-wall.webp",
@@ -261,7 +257,6 @@
     "sprites": {
       "gate-cave-e.png": "mesa-cave-e.webp",
       "gate-cave-s.png": "mesa-cave-s.webp",
-      "gate-castle-w.png": "mesa-castle-w.webp",
       "clinker.webp": "sandstone-column.webp"
     },
     "roadMaterial": "tex-buff-sand.webp",
