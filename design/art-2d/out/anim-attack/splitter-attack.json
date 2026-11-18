@@ -1,0 +1,18 @@
+{
+ "frameW": 471,
+ "frameH": 256,
+ "count": 8,
+ "cols": 8,
+ "fps": 12.0,
+ "anchor": [
+  263,
+  288
+ ],
+ "source": "enemy-splitter-attack.mp4",
+ "loop": [
+  9,
+  25
+ ],
+ "loopScore": 16.77,
+ "release": 6
+}

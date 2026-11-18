@@ -1,0 +1,13 @@
+{
+ "frameW": 362,
+ "frameH": 256,
+ "count": 30,
+ "cols": 8,
+ "fps": 12.0,
+ "anchor": [
+  166,
+  236
+ ],
+ "impact": 4,
+ "image": "blinker-attack.webp"
+}

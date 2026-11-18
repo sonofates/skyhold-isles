@@ -1,0 +1,13 @@
+{
+ "frameW": 376,
+ "frameH": 256,
+ "count": 28,
+ "cols": 8,
+ "fps": 12.0,
+ "anchor": [
+  151,
+  224
+ ],
+ "impact": 4,
+ "image": "burrower-attack.webp"
+}

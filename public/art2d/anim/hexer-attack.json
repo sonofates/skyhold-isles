@@ -1,0 +1,13 @@
+{
+ "frameW": 442,
+ "frameH": 256,
+ "count": 30,
+ "cols": 8,
+ "fps": 12.0,
+ "anchor": [
+  224,
+  225
+ ],
+ "impact": 4,
+ "image": "hexer-attack.webp"
+}

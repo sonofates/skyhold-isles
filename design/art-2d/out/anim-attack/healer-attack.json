@@ -1,0 +1,18 @@
+{
+ "frameW": 446,
+ "frameH": 256,
+ "count": 24,
+ "cols": 8,
+ "fps": 12.0,
+ "anchor": [
+  232,
+  236
+ ],
+ "source": "enemy-healer-attack.mp4",
+ "loop": [
+  22,
+  70
+ ],
+ "loopScore": 12.04,
+ "release": 2
+}

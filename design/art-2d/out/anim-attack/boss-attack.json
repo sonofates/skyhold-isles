@@ -1,0 +1,18 @@
+{
+ "frameW": 385,
+ "frameH": 256,
+ "count": 30,
+ "cols": 8,
+ "fps": 12.0,
+ "anchor": [
+  163,
+  231
+ ],
+ "source": "enemy-boss-attack.mp4",
+ "loop": [
+  6,
+  66
+ ],
+ "loopScore": 18.96,
+ "release": 16
+}

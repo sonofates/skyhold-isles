@@ -1,0 +1,18 @@
+{
+ "frameW": 412,
+ "frameH": 256,
+ "count": 7,
+ "cols": 7,
+ "fps": 12.0,
+ "anchor": [
+  218,
+  243
+ ],
+ "source": "enemy-golem-attack.mp4",
+ "loop": [
+  10,
+  24
+ ],
+ "loopScore": 21.61,
+ "release": 5
+}

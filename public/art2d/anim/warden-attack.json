@@ -1,0 +1,13 @@
+{
+ "frameW": 445,
+ "frameH": 256,
+ "count": 27,
+ "cols": 8,
+ "fps": 12.0,
+ "anchor": [
+  233,
+  249
+ ],
+ "impact": 4,
+ "image": "warden-attack.webp"
+}
