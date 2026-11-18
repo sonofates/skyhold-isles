@@ -1539,6 +1539,251 @@
   font-size: max(11px, calc(var(--s) * 1.05));
 }
 
+/* Big boards: the first settings row (Language) starts below the ribbon's hanging tails. */
+@media (min-height: 481px) {
+  .pu-settings .pu-sheet-body {
+    padding-top: calc(var(--s) * 3);
+  }
+}
+
+/* The first row sits next to the board's gold corner bracket: indent it on every size. */
+.pu-settings .pu-set-row:first-child {
+  padding-left: calc(var(--s) * 2.4);
+}
+
+/* Settings → Language: two planks, each language in its own name. */
+.pu-tabs.pu-lang {
+  margin: 0;
+  flex: none;
+  gap: calc(var(--s) * 0.5);
+}
+
+.pu-tabs.pu-lang .pu-plank {
+  min-width: calc(var(--s) * 8.5);
+}
+
+/* ---- codex (painted bestiary + tower reference) --------------------------------------------- */
+
+.pu-codex {
+  width: min(100%, calc(var(--s) * 100));
+  height: min(100%, calc(var(--s) * 58));
+}
+
+.pu-codex .pu-sheet-body {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.pu-cx-tabs {
+  flex: none;
+}
+
+/* Left column: the tile grid (scrolls) with the met / tower count under it. */
+.pu-cx-side {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.pu-cx-side .pu-cx-grid {
+  flex: 1;
+}
+
+.pu-cx-count {
+  flex: none;
+  padding-top: calc(var(--s) * 0.3);
+}
+
+.pu-cx {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr);
+  gap: calc(var(--s) * 1.2);
+}
+
+.pu-cx-grid {
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: #b08a5a transparent;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(calc(var(--s) * 7.6), 1fr));
+  gap: calc(var(--s) * 0.5) calc(var(--s) * 0.3);
+  align-content: start;
+  padding: calc(var(--s) * 0.3);
+}
+
+.pu-cx-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(var(--s) * 0.2);
+  min-width: 0;
+  padding: calc(var(--s) * 0.2) 0;
+  border-radius: calc(var(--s) * 1);
+}
+
+.pu-cx-medal {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: calc(var(--s) * 5.6);
+  height: calc(var(--s) * 5.6);
+  min-width: 44px;
+  min-height: 44px;
+  flex: none;
+  background: url('/art2d/ui/medallion.webp') center / contain no-repeat;
+  filter: drop-shadow(0 2px 1px rgba(30, 16, 4, 0.4));
+  transition: transform 0.08s ease-out;
+}
+
+.pu-cx-medal.big {
+  width: calc(var(--s) * 7.2);
+  height: calc(var(--s) * 7.2);
+}
+
+.pu-cx-tile.active .pu-cx-medal {
+  background-image: url('/art2d/ui/medallion-hi.webp');
+  transform: scale(1.06);
+}
+
+.pu-cx-tile:active .pu-cx-medal {
+  transform: scale(0.95);
+}
+
+.pu-cx-art {
+  width: 74%;
+  height: 74%;
+  object-fit: contain;
+}
+
+.pu-cx-art.star {
+  width: 52%;
+  height: 52%;
+}
+
+.pu-cx-tile.locked .pu-cx-art {
+  filter: brightness(0) opacity(0.5);
+}
+
+.pu-cx-name {
+  max-width: 100%;
+  font-size: calc(var(--s) * 1.1);
+  line-height: 1.1;
+  text-align: center;
+  overflow-wrap: anywhere;
+  hyphens: auto;
+}
+
+.pu-cx-tile.active .pu-cx-name {
+  color: #9a3b18;
+}
+
+.pu-cx-tile.boss .pu-cx-name::after {
+  content: ' ♛';
+  color: #b8860b;
+}
+
+.pu-cx-detail {
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: #b08a5a transparent;
+  padding: calc(var(--s) * 0.5) calc(var(--s) * 1);
+  font-size: calc(var(--s) * 1.3);
+}
+
+.pu-cx-head {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--s) * 1);
+}
+
+.pu-cx-kicker {
+  font-size: calc(var(--s) * 1.1);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.pu-cx-title {
+  font-size: calc(var(--s) * 2);
+  line-height: 1.05;
+}
+
+.pu-cx-tags {
+  margin-top: calc(var(--s) * 0.4);
+  font-size: calc(var(--s) * 1.15);
+}
+
+.pu-cx-desc {
+  margin: calc(var(--s) * 0.5) 0;
+  line-height: 1.3;
+  font-weight: 600;
+}
+
+.pu-cx-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(var(--s) * 0.5) calc(var(--s) * 1.4);
+  padding: calc(var(--s) * 0.4) 0;
+  border-top: 2px dashed rgba(122, 85, 50, 0.35);
+  border-bottom: 2px dashed rgba(122, 85, 50, 0.35);
+}
+
+.pu-cx-stat strong {
+  display: block;
+  font-size: 1.25em;
+  line-height: 1.05;
+}
+
+.pu-cx-stat span {
+  font-size: 0.85em;
+}
+
+.pu-cx-note {
+  font-size: calc(var(--s) * 1.25);
+}
+
+.pu-cx-note .pu-round {
+  width: calc(var(--s) * 2.9);
+  height: calc(var(--s) * 2.9);
+}
+
+.pu-cx-note.warn .pu-round {
+  filter: sepia(0.4) hue-rotate(-25deg) drop-shadow(0 2px 1px rgba(30, 16, 4, 0.4));
+}
+
+.pu-cx-sub {
+  margin: calc(var(--s) * 0.4) 0 calc(var(--s) * 0.2);
+  font-size: calc(var(--s) * 1.5);
+}
+
+.pu-cx-tier {
+  display: grid;
+  grid-template-columns: calc(var(--s) * 2.8) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: calc(var(--s) * 0.7);
+  padding: calc(var(--s) * 0.2) 0;
+  font-size: calc(var(--s) * 1.15);
+}
+
+.pu-cx-cost {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2em;
+  white-space: nowrap;
+}
+
+.pu-cx-cost img {
+  width: 1.3em;
+  height: 1.3em;
+  object-fit: contain;
+}
+
 /* ---- phone landscape: tighter boards ------------------------------------------------------- */
 
 @media (max-height: 480px) {
@@ -1560,7 +1805,7 @@
   }
 
   .pu-set-row:first-child {
-    padding-left: calc(var(--s) * 1.4);
+    padding-left: calc(var(--s) * 2.4);
   }
 
   .pu-map-hint {

@@ -6,6 +6,7 @@ import { artCheckSummary, mountArtCheck } from './artCheck.ts';
 import { loadArt, loadMapVariant, type LoadedArt } from './assets2d.ts';
 import { autoplayHooks, benchHooks } from './benchScene.ts';
 import { mountCodex2D } from './codex2d.ts';
+import { initLocale, t } from '../i18n/index.ts';
 import { AimOverlay, aimHooks, meleeHooks, towersHooks, zooHooks, ZooLabels, type AimSceneState, type MeleeSceneState } from './debugScenes.ts';
 import { ENEMY_TYPES } from '../data/enemies.ts';
 import type { EnemyType } from '../core/types.ts';
@@ -103,10 +104,27 @@ function showError(msg: string): void {
 /** Query keys that start a game scene; without any of them 2d.html opens the world map. */
 const GAME_PARAMS = ['level', 'daily', 'challenge', 'endless', 'ab', 'bench', 'autoplay', 'raider', 'codex', 'artcheck', 'zoo', 'towers', 'melee', 'speed', 'end', 'mapmips'] as const;
 
+/**
+ * Language first (before any text is built): `?lang=`, the stored setting, else the browser. The
+ * boot line and the page title follow it, and Fredoka's latin-ext subset (ğ ş ı İ) is fetched with
+ * the latin one, so canvas text never falls back to another font for Turkish letters.
+ */
+function bootLocale(): Promise<unknown> {
+  initLocale();
+  document.title = t('page.title');
+  const boot = document.getElementById('boot');
+  if (boot) boot.textContent = t('boot.loading');
+  return Promise.all([
+    document.fonts.load(`700 32px ${HUD_FONT}`, 'Aa'), // i18n-ignore (font probe)
+    document.fonts.load(`700 32px ${HUD_FONT}`, 'ğşıİçöüĞŞÇÖÜ'),
+  ]).catch(() => undefined);
+}
+
 async function main(): Promise<void> {
   const q = new URLSearchParams(location.search);
+  const fontsReady = bootLocale();
   if (!GAME_PARAMS.some((k) => q.has(k))) {
-    await document.fonts.load(`700 32px ${HUD_FONT}`).catch(() => undefined);
+    await fontsReady;
     const { mountWorldMap } = await import('./ui/worldMap.ts');
     await mountWorldMap(q);
     document.getElementById('boot')?.remove();
@@ -133,7 +151,7 @@ async function main(): Promise<void> {
   });
   const level = run.level;
   if (!level?.layout2d) {
-    showError(`Unknown 2D island: ${run.levelId}`);
+    showError(t('boot.unknownIsland', { id: run.levelId }));
     return;
   }
 
@@ -148,9 +166,7 @@ async function main(): Promise<void> {
   });
   document.getElementById('stage')!.appendChild(app.canvas);
 
-  await Promise.all([
-    document.fonts.load(`700 32px ${HUD_FONT}`).catch(() => undefined),
-  ]);
+  await fontsReady;
   const layout2d = level.layout2d;
   // Device px per layout px at a screen size: picks the map bake (resolution variant) to load.
   const mapNeed = (w: number, h: number): number =>
@@ -405,5 +421,5 @@ function upgradeMap(art: LoadedArt, map: MapView, need: number, mips: boolean): 
 
 main().catch((err: unknown) => {
   console.error(err);
-  showError(`Failed to start: ${err instanceof Error ? err.message : String(err)}`);
+  showError(t('boot.failed', { msg: err instanceof Error ? err.message : String(err) }));
 });

@@ -3,6 +3,7 @@
  * painted kit; these only assemble the pieces.
  */
 import './paintedUi.css';
+import { t } from '../../i18n/index.ts';
 import { ICONS, type IconName } from './paintedIcons.ts';
 
 export const ART = '/art2d/';
@@ -63,7 +64,7 @@ export function plank(label: string, opts: { icon?: IconName; kind?: 'primary' |
 
 /** Three kit stars (earned ones gold). Font-size of the container sets the star size. */
 export function starsRow(earned: number, cls = 'pu-stars'): HTMLSpanElement {
-  const s = el('span', cls, { 'aria-label': `${earned} of 3 stars`, role: 'img' });
+  const s = el('span', cls, { 'aria-label': t('common.starsOf3', { n: earned }), role: 'img' });
   for (let i = 0; i < 3; i++) s.append(img(i < earned ? KIT.star : KIT.starEmpty));
   return s;
 }
@@ -103,9 +104,9 @@ export function openSheet(
 ): Sheet {
   const overlay = el('div', 'pu pu-overlay', { 'data-testid': opts.testid });
   const sheet = el('div', `pu-sheet${opts.red ? ' red' : ''}${opts.cls ? ` ${opts.cls}` : ''}`, { role: 'dialog', 'aria-modal': 'true', 'aria-label': title });
-  const t = el('div', 'pu-sheet-title pu-letter', {}, title);
+  const titleEl = el('div', 'pu-sheet-title pu-letter', {}, title);
   const body = el('div', 'pu-sheet-body');
-  sheet.append(t, body);
+  sheet.append(titleEl, body);
   overlay.append(sheet);
   let closed = false;
   const close = (): void => {
@@ -123,7 +124,7 @@ export function openSheet(
     }
   };
   if (opts.closeButton !== false) {
-    const x = roundButton('close', 'Close', `${opts.testid ?? 'sheet'}-close`);
+    const x = roundButton('close', t('common.close'), `${opts.testid ?? 'sheet'}-close`);
     x.classList.add('pu-sheet-close');
     x.addEventListener('click', close);
     sheet.append(x);

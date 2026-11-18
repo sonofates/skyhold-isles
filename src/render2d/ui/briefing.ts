@@ -8,7 +8,9 @@
  * (and the other way round). Play hands the choice to `onPlay`, which builds the run URL.
  */
 import type { ChallengeId } from '../../data/challenges.ts';
-import { describeStarGoals } from '../../data/stars.ts';
+import { STAR_RULES } from '../../data/stars.ts';
+import { challengeDesc, challengeName, difficultyName, islandName, islandSubtitle } from '../../i18n/data.ts';
+import { lower, t } from '../../i18n/index.ts';
 import type { LevelDef } from '../../data/levels/types.ts';
 import { el, glyph, img, KIT, medal, openSheet, plank, starsRow, type Sheet } from './dom.ts';
 import { endlessRecordText, tierColour } from './modeBits.ts';
@@ -55,17 +57,18 @@ function endlessSeal(): HTMLSpanElement {
 export function showBriefing(st: IslandState, prev: LevelDef | null, thumb: string | null, modes: BriefingModes, onPlay: (choice: RunChoice) => void): Sheet {
   const lvl = st.level;
   const hasModes = st.unlocked && (modes.challenges.length > 0 || modes.endless);
-  const sheet = openSheet(lvl.name, { cls: `pu-brief${hasModes ? ' has-modes' : ''}`, testid: 'brief2d' });
-  const goals = describeStarGoals(lvl.difficulty);
-  const gem = el('span', 'pu-gem pu-ink', {}, lvl.difficulty);
+  const sheet = openSheet(islandName(lvl), { cls: `pu-brief${hasModes ? ' has-modes' : ''}`, testid: 'brief2d' });
+  const lost3 = (STAR_RULES[lvl.difficulty] ?? STAR_RULES.Breezy).threeStarMaxLost;
+  const goal3 = lost3 === 0 ? t('brief.goalNoLoss') : t('brief.goalLose', { n: lost3 });
+  const gem = el('span', 'pu-gem pu-ink', {}, difficultyName(lvl.difficulty));
   gem.style.setProperty('--gem', GEM[lvl.difficulty] ?? GEM.Breezy);
   const info = el(
     'div',
     'pu-brief-info',
     {},
-    el('div', 'pu-brief-sub pu-ink-soft', {}, lvl.subtitle),
-    el('div', 'pu-brief-row', {}, gem, el('span', 'pu-rec pu-ink', {}, glyph('wave'), `${lvl.waves.length} waves`)),
-    el('div', 'pu-brief-row', {}, starsRow(st.stars), el('span', 'pu-ink-soft', {}, st.stars === 3 ? 'Perfect defence' : `3★: ${goals.three}`)),
+    el('div', 'pu-brief-sub pu-ink-soft', {}, islandSubtitle(lvl)),
+    el('div', 'pu-brief-row', {}, gem, el('span', 'pu-rec pu-ink', {}, glyph('wave'), t('brief.waves', { n: lvl.waves.length }))),
+    el('div', 'pu-brief-row', {}, starsRow(st.stars), el('span', 'pu-ink-soft', {}, st.stars === 3 ? t('brief.perfect') : t('brief.goal3', { goal: goal3 }))),
   );
   if (st.unlocked && st.clears > 0) {
     info.append(
@@ -73,13 +76,13 @@ export function showBriefing(st: IslandState, prev: LevelDef | null, thumb: stri
         'div',
         'pu-brief-row',
         {},
-        el('span', 'pu-rec pu-ink', { title: 'Best lives left' }, glyph('heart'), `${st.bestLives} best`),
-        el('span', 'pu-rec pu-ink', { title: 'Victories' }, glyph('trophy'), `${st.clears}× won`),
-        st.mastered ? el('span', 'pu-rec pu-ink', {}, glyph('crown'), 'Mastered') : null,
+        el('span', 'pu-rec pu-ink', { title: t('brief.bestLivesTitle') }, glyph('heart'), t('brief.bestLives', { n: st.bestLives })),
+        el('span', 'pu-rec pu-ink', { title: t('brief.victoriesTitle') }, glyph('trophy'), t('brief.wins', { n: st.clears })),
+        st.mastered ? el('span', 'pu-rec pu-ink', {}, glyph('crown'), t('brief.mastered')) : null,
       ),
     );
   } else if (st.unlocked) {
-    info.append(el('div', 'pu-brief-row pu-brief-hint pu-ink-soft', { 'data-testid': 'brief2d-modes-hint' }, glyph('lock'), 'Win this isle once to open its challenges and Endless'));
+    info.append(el('div', 'pu-brief-row pu-brief-hint pu-ink-soft', { 'data-testid': 'brief2d-modes-hint' }, glyph('lock'), t('brief.modesLocked')));
   }
   const thumbBox = medal(thumb, 'calc(var(--s) * 14)', st.frontier && st.unlocked);
   thumbBox.classList.add('pu-brief-medal');
@@ -100,30 +103,30 @@ export function showBriefing(st: IslandState, prev: LevelDef | null, thumb: stri
     modesBox = el('div', 'pu-modes', { 'data-testid': 'brief2d-modes' });
     if (modes.challenges.length > 0) {
       const earned = modes.challenges.filter((c) => c.completed).length;
-      modesBox.append(el('div', 'pu-modes-head pu-letter', {}, 'Challenges', el('small', '', {}, `${earned}/${modes.challenges.length} badges`)));
+      modesBox.append(el('div', 'pu-modes-head pu-letter', {}, t('brief.challenges'), el('small', '', {}, t('brief.badgesCount', { e: earned, n: modes.challenges.length }))));
       for (const c of modes.challenges) {
         const state = c.completed
-          ? el('span', 'pu-mode-state done pu-ink', { title: 'Badge earned' }, glyph('medal'), 'Earned')
-          : el('span', 'pu-mode-state pu-ink', { title: 'Win with this rule for a badge and a bonus star' }, img(KIT.star), '+1');
-        const b = modeSwitch(ruleSeal(c.id), c.name, c.description, state, `brief2d-ch-${c.id}`);
+          ? el('span', 'pu-mode-state done pu-ink', { title: t('brief.badgeEarnedTitle') }, glyph('medal'), t('brief.earned'))
+          : el('span', 'pu-mode-state pu-ink', { title: t('brief.bonusTitle') }, img(KIT.star), '+1');
+        const b = modeSwitch(ruleSeal(c.id), challengeName(c.id), challengeDesc(c.id), state, `brief2d-ch-${c.id}`);
         chSwitches.push({ id: c.id, b });
         modesBox.append(b);
       }
     }
     if (modes.endless) {
       const rec = endlessRecordText(st.bestEndlessWave, lvl.waves.length);
-      const medalTag = el('span', 'pu-mode-medal', {}, rec.tierName ? `${rec.tierName} medal` : 'No medal yet');
+      const medalTag = el('span', 'pu-mode-medal', {}, rec.tierName ? t('brief.tierMedal', { tier: rec.tierName }) : t('brief.noMedal'));
       if (rec.tier > 0) medalTag.style.setProperty('--tier', tierColour(rec.tier));
       const state = el('span', `pu-mode-state pu-ink${rec.tier > 0 ? ' done' : ''}`, {}, medalTag, rec.next ? el('small', 'pu-ink-soft', {}, rec.next) : null);
-      endlessSwitch = modeSwitch(endlessSeal(), 'Endless tide', `Waves keep coming past wave ${lvl.waves.length}. No challenges.`, state, 'brief2d-endless');
+      endlessSwitch = modeSwitch(endlessSeal(), t('brief.endlessName'), t('brief.endlessRule', { n: lvl.waves.length }), state, 'brief2d-endless');
       endlessSwitch.classList.add('endless');
-      modesBox.append(el('div', 'pu-modes-head pu-letter', {}, 'Endless', el('small', '', {}, rec.tier > 0 || st.bestEndlessWave > lvl.waves.length ? `Best: ${rec.best.toLowerCase()}` : rec.best)), endlessSwitch);
+      modesBox.append(el('div', 'pu-modes-head pu-letter', {}, t('brief.endless'), el('small', '', {}, rec.tier > 0 || st.bestEndlessWave > lvl.waves.length ? t('brief.endlessBest', { best: lower(rec.best) }) : rec.best)), endlessSwitch);
     }
   }
 
   const play = st.unlocked
-    ? plank(st.clears > 0 ? 'Replay' : 'Play', { kind: 'primary', icon: 'play', testid: 'brief2d-play', sub: hasModes ? 'Campaign' : undefined })
-    : plank('Locked', { kind: 'primary', icon: 'lock', testid: 'brief2d-play', sub: prev ? `Win ${prev.name} first` : undefined });
+    ? plank(st.clears > 0 ? t('brief.replay') : t('brief.play'), { kind: 'primary', icon: 'play', testid: 'brief2d-play', sub: hasModes ? t('brief.campaign') : undefined })
+    : plank(t('brief.locked'), { kind: 'primary', icon: 'lock', testid: 'brief2d-play', sub: prev ? t('brief.winFirst', { name: islandName(prev) }) : undefined });
   play.disabled = !st.unlocked;
 
   const paint = (): void => {
@@ -134,8 +137,8 @@ export function showBriefing(st: IslandState, prev: LevelDef | null, thumb: stri
     endlessSwitch?.setAttribute('aria-checked', String(endless));
     if (!hasModes) return;
     const label = play.lastElementChild!;
-    const sub = endless ? 'Endless' : chosen.size > 0 ? `${chosen.size} ${chosen.size > 1 ? 'challenges' : 'challenge'}` : 'Campaign';
-    label.replaceChildren(endless ? 'Set sail' : st.clears > 0 ? 'Replay' : 'Play', el('span', 'pu-plank-sub', {}, sub));
+    const sub = endless ? t('brief.endless') : chosen.size > 0 ? t('brief.nChallenges', { n: chosen.size }) : t('brief.campaign');
+    label.replaceChildren(endless ? t('brief.setSail') : st.clears > 0 ? t('brief.replay') : t('brief.play'), el('span', 'pu-plank-sub', {}, sub));
   };
   for (const { id, b } of chSwitches) {
     b.addEventListener('click', () => {

@@ -1,4 +1,5 @@
 import { Container, Graphics, Sprite, Texture, type Text } from 'pixi.js';
+import { t, type MsgKey } from '../i18n/index.ts';
 import type { LoadedArt } from './assets2d.ts';
 import { paintedText, setFontSize, setText } from './hudText.ts';
 import { easeOutBack, easeOutCubic, fitWidth, inkText, kit, setInkSize } from './uiKit.ts';
@@ -10,7 +11,7 @@ export { endStars } from './uiLayout.ts';
 /** `menu` = back to the world map. */
 export type EndAction = 'retry' | 'next' | 'menu';
 
-const END_LABELS: Readonly<Record<EndAction, string>> = { retry: 'Retry', next: 'Next Isle', menu: 'World Map' };
+const END_LABELS: Readonly<Record<EndAction, MsgKey>> = { retry: 'end.retry', next: 'end.next', menu: 'end.menu' };
 
 export interface EndSummary {
   readonly won: boolean;
@@ -103,16 +104,16 @@ export class EndPanel {
     this.t = 0;
     this.root.visible = true;
     this.panel.texture = kit(this.art, s.won ? 'endPanel' : 'endPanelDefeat', kit(this.art, 'endPanel', Texture.EMPTY));
-    setText(this.title, s.won ? 'Victory!' : 'Defeat');
+    setText(this.title, s.won ? t('end.victory') : t('end.defeat'));
     this.title.style.fill = s.won ? '#fff4dc' : '#ffd9c8';
     if (s.won) {
       setText(this.line1, `${s.lives}/${s.startLives}`);
       setText(this.line2, String(s.gold));
-      setText(this.caption, s.stars === 3 ? 'Flawless defence!' : s.stars === 2 ? 'Well defended!' : 'The isle holds!');
+      setText(this.caption, s.stars === 3 ? t('end.flawless') : s.stars === 2 ? t('end.well') : t('end.holds'));
     } else {
-      setText(this.line1, `Wave ${Math.max(1, s.wave)}/${s.totalWaves}`);
+      setText(this.line1, t('end.waveOf', { n: Math.max(1, s.wave), total: s.totalWaves }));
       setText(this.line2, String(s.gold));
-      setText(this.caption, 'The raiders broke through');
+      setText(this.caption, t('end.brokeThrough'));
     }
     this.styleCaption(false);
     this.layout(this.w, this.h);
@@ -224,7 +225,7 @@ export class EndPanel {
       b.bg.width = r * 2;
       b.bg.height = r * 2;
       setInkSize(b.label, Math.round(Math.max(13, r * 0.42)));
-      setText(b.label, END_LABELS[b.action]);
+      setText(b.label, t(END_LABELS[b.action]));
       fitWidth(b.label, r * 3.1);
       b.label.position.set(0, r * 1.38);
       this.drawGlyph(b);

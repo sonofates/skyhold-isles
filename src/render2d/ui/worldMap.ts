@@ -14,6 +14,8 @@ import { LEVELS_2D } from '../../data/levels2d/index.ts';
 import type { LevelDef } from '../../data/levels/types.ts';
 import { nextRankCost, WORKSHOP_UPGRADES } from '../../data/workshop.ts';
 import { starWallet, totalCampaignStars } from '../../game/progression.ts';
+import { islandName } from '../../i18n/data.ts';
+import { t } from '../../i18n/index.ts';
 import { readSafeInsets } from '../uiKit.ts';
 import { showBriefing, type RunChoice } from './briefing.ts';
 import { isChallengeId } from '../../data/challenges.ts';
@@ -31,7 +33,8 @@ declare global {
   }
 }
 
-const MOCK_NAMES = ['Gullrock Shoals', 'Ember Terraces', 'Mistveil Keys', 'Thornwood Rise', 'Saltmarsh Reach', 'Cinder Spire', 'Frostfen Ring', 'Lanternfall', 'Brambledeep', 'Coral Bastion', 'Stormcrown', 'Hollow Tide', 'Skyreach', 'Duskmoor', 'Last Lantern'];
+// QA-only stand-in names (?mockislands=N layout check), never shown to players.
+const MOCK_NAMES = ['Gullrock Shoals', 'Ember Terraces', 'Mistveil Keys', 'Thornwood Rise', 'Saltmarsh Reach', 'Cinder Spire', 'Frostfen Ring', 'Lanternfall', 'Brambledeep', 'Coral Bastion', 'Stormcrown', 'Hollow Tide', 'Skyreach', 'Duskmoor', 'Last Lantern']; // i18n-ignore (QA stand-ins)
 
 function mockLevels(n: number): LevelDef[] {
   const base = LEVELS_2D[0];
@@ -40,7 +43,7 @@ function mockLevels(n: number): LevelDef[] {
     ...base,
     id: `mock-${i + 1}`,
     name: MOCK_NAMES[i % MOCK_NAMES.length],
-    subtitle: 'Stand-in island (layout QA)',
+    subtitle: t('map.mockSubtitle'),
     difficulty: diffs[Math.min(3, Math.floor((i * 4) / Math.max(1, n)))],
     layout2d: i % 3 === 2 ? undefined : base.layout2d,
   }));
@@ -64,19 +67,19 @@ export async function mountWorldMap(q: URLSearchParams): Promise<void> {
   scroll.append(world);
 
   // Top strip.
-  const banner = el('div', 'pu-title-banner pu-letter', {}, el('span', '', {}, 'Skyhold Isles'));
-  const tallyBox = el('div', 'pu-tally pu-letter', { 'data-testid': 'map2d-stars', title: 'Stars earned' });
-  const wsBtn = roundButton('workshop', 'Workshop', 'map2d-workshop', 'Workshop');
-  const lbBtn = roundButton('logbook', 'Logbook', 'map2d-logbook', 'Logbook');
-  const dailyBtn = roundButton('daily', 'Daily Squall', 'map2d-daily', 'Daily');
-  const setBtn = roundButton('settings', 'Settings', 'map2d-settings', 'Settings');
+  const banner = el('div', 'pu-title-banner pu-letter', {}, el('span', '', {}, t('map.title')));
+  const tallyBox = el('div', 'pu-tally pu-letter', { 'data-testid': 'map2d-stars', title: t('map.starsEarned') });
+  const wsBtn = roundButton('workshop', t('map.workshop'), 'map2d-workshop', t('map.workshop'));
+  const lbBtn = roundButton('logbook', t('map.logbook'), 'map2d-logbook', t('map.logbookShort'));
+  const dailyBtn = roundButton('daily', t('daily.title'), 'map2d-daily', t('map.daily'));
+  const setBtn = roundButton('settings', t('map.settings'), 'map2d-settings', t('map.settings'));
   const right = el('div', 'pu-topbar-right', {}, tallyBox, wsBtn, lbBtn, dailyBtn, setBtn);
   const topbar = el('div', 'pu-topbar', {}, banner, right);
-  const hint = el('div', 'pu-map-hint pu-letter', {}, 'Tap an island to set sail');
+  const hint = el('div', 'pu-map-hint pu-letter', {}, t('map.hint'));
   // Painted arrows at the sea's edges when more of the route lies that way (mouse users without a
   // wheel; touch pans natively, a mouse can also drag the sea).
-  const panL = roundButton('back', 'Sail west along the route', 'map2d-pan-left');
-  const panR = roundButton('next', 'Sail east along the route', 'map2d-pan-right');
+  const panL = roundButton('back', t('map.panWest'), 'map2d-pan-left');
+  const panR = roundButton('next', t('map.panEast'), 'map2d-pan-right');
   panL.classList.add('pu-map-pan', 'left');
   panR.classList.add('pu-map-pan', 'right');
   root.append(scroll, panL, panR, topbar, hint);
@@ -120,7 +123,7 @@ export async function mountWorldMap(q: URLSearchParams): Promise<void> {
       const b = el('button', `pu-node${st.unlocked ? '' : ' locked'}${st.frontier ? ' frontier' : ''}`, {
         type: 'button',
         'data-testid': `map2d-island-${st.level.id}`,
-        'aria-label': `${st.level.name}${st.unlocked ? `, ${st.stars} of 3 stars` : ', locked'}`,
+        'aria-label': st.unlocked ? t('map.nodeOpen', { name: islandName(st.level), n: st.stars }) : t('map.nodeLocked', { name: islandName(st.level) }),
       });
       b.style.animationDelay = `${0.05 + i * 0.06}s`;
       b.append(el('span', 'pu-node-shore'), medal(thumb(st.level), '100%', st.frontier && st.unlocked));
@@ -130,7 +133,7 @@ export async function mountWorldMap(q: URLSearchParams): Promise<void> {
         c.append(glyph('crown'));
         b.append(c);
       }
-      const name = el('span', 'pu-tag pu-node-name', {}, el('span', 'pu-tag-ring pu-letter', {}, String(i + 1)), el('span', 'pu-ink', {}, st.unlocked ? st.level.name : '? ? ?'));
+      const name = el('span', 'pu-tag pu-node-name', {}, el('span', 'pu-tag-ring pu-letter', {}, String(i + 1)), el('span', 'pu-ink', {}, st.unlocked ? islandName(st.level) : '? ? ?'));
       b.append(name);
       if (!st.unlocked) {
         const lock = el('span', 'pu-node-lock');
@@ -153,7 +156,7 @@ export async function mountWorldMap(q: URLSearchParams): Promise<void> {
       const c = nextRankCost(progress.workshop, d.id);
       return c !== null && c <= available;
     }).length;
-    if (affordable > 0) wsBtn.append(el('span', 'pu-badge', { 'aria-label': `${affordable} upgrades affordable` }, String(affordable)));
+    if (affordable > 0) wsBtn.append(el('span', 'pu-badge', { 'aria-label': t('map.affordable', { n: affordable }) }, String(affordable)));
     dailyBtn.querySelector('.pu-dot')?.remove();
     const daily = dailyFor2D(progress, Date.now(), levels);
     if (daily && progress.daily.lastDay !== utcDayNumber(Date.now())) dailyBtn.append(el('span', 'pu-dot', { 'aria-hidden': 'true' }));

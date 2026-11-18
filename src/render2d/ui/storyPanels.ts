@@ -3,6 +3,8 @@
  * revealed one at a time. "Next" reveals the next panel, the last one closes; "Skip" closes at once.
  */
 import type { LevelDef } from '../../data/levels/types.ts';
+import { islandName } from '../../i18n/data.ts';
+import { t } from '../../i18n/index.ts';
 import { el, openSheet, plank } from './dom.ts';
 import { vignetteStyle } from './islandArt.ts';
 import { defaultFocus, type StoryBeat, type StoryPart } from './storyBeats.ts';
@@ -14,8 +16,8 @@ export interface StoryCard {
 }
 
 export function showStory(level: LevelDef, part: StoryPart, beats: readonly StoryBeat[], mapUrl: string | null, onDone: () => void): StoryCard {
-  const sheet = openSheet(level.name, { cls: 'pu-story', testid: 'story2d', onClose: onDone, modal: true, closeButton: false });
-  const kicker = el('div', 'pu-story-kicker pu-ink-soft', {}, part === 'intro' ? 'Before the battle' : 'After the battle');
+  const sheet = openSheet(islandName(level), { cls: 'pu-story', testid: 'story2d', onClose: onDone, modal: true, closeButton: false });
+  const kicker = el('div', 'pu-story-kicker pu-ink-soft', {}, part === 'intro' ? t('story.before') : t('story.after'));
   const strip = el('div', 'pu-story-strip');
   const panels: HTMLDivElement[] = [];
   const vignettes: HTMLDivElement[] = [];
@@ -32,8 +34,8 @@ export function showStory(level: LevelDef, part: StoryPart, beats: readonly Stor
     panels.push(p);
     vignettes.push(v);
   });
-  const skip = plank('Skip', { kind: 'small', testid: 'story2d-skip' });
-  const next = plank('Next', { kind: 'primary', icon: 'play', testid: 'story2d-next' });
+  const skip = plank(t('story.skip'), { kind: 'small', testid: 'story2d-skip' });
+  const next = plank(t('story.next'), { kind: 'primary', icon: 'play', testid: 'story2d-next' });
   const actions = el('div', 'pu-story-actions', {}, skip, next);
   sheet.body.append(kicker, strip, actions);
 
@@ -56,7 +58,7 @@ export function showStory(level: LevelDef, part: StoryPart, beats: readonly Stor
       p.classList.toggle('current', i === shown - 1);
     });
     const last = shown >= panels.length;
-    next.querySelector('span:last-child')!.textContent = last ? (part === 'intro' ? 'To battle!' : 'Onward') : 'Next';
+    next.querySelector('span:last-child')!.textContent = last ? (part === 'intro' ? t('story.toBattle') : t('story.onward')) : t('story.next');
   };
   const advance = (): void => {
     if (shown >= panels.length) {

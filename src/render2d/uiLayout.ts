@@ -3,6 +3,8 @@
  * the lives + gold plaque and the end-of-run panel. Everything is in css px of the canvas and
  * respects the device safe-area insets (notches, rounded corners) plus a small visual margin.
  */
+import { towerRole } from '../i18n/data.ts';
+import { t } from '../i18n/index.ts';
 import type { TowerType } from '../core/types.ts';
 import { getTowerTierStats, TOWER_DEFS } from '../data/towers.ts';
 
@@ -263,38 +265,28 @@ export function statRows(type: TowerType, tier: 1 | 2 | 3): StatRow[] {
   const s = getTowerTierStats(type, tier);
   if (def.role === 'support') {
     return [
-      { label: 'Haste', pips: pipsFor((s.auraRate ?? 0) * 100, [1, 10, 16, 22, 28]) },
-      { label: 'Reach', pips: pipsFor((s.auraRange ?? 0) * 100, [0.01, 5, 10, 15, 20]) },
-      { label: 'Aura', pips: pipsFor(s.range, [0.1, 3, 3.8, 4.4, 5.2]) },
+      { label: t('stat.haste'), pips: pipsFor((s.auraRate ?? 0) * 100, [1, 10, 16, 22, 28]) },
+      { label: t('stat.reach'), pips: pipsFor((s.auraRange ?? 0) * 100, [0.01, 5, 10, 15, 20]) },
+      { label: t('stat.aura'), pips: pipsFor(s.range, [0.1, 3, 3.8, 4.4, 5.2]) },
     ];
   }
   if (def.role === 'barracks') {
     return [
-      { label: 'Soldiers', pips: Math.min(5, s.soldierCount ?? 0) },
-      { label: 'Toughness', pips: pipsFor(s.soldierHp ?? 0, [1, 100, 150, 210, 300]) },
-      { label: 'Damage', pips: pipsFor(s.soldierDamage ?? s.damage, [1, 10, 18, 25, 40]) },
+      { label: t('stat.soldiers'), pips: Math.min(5, s.soldierCount ?? 0) },
+      { label: t('stat.toughness'), pips: pipsFor(s.soldierHp ?? 0, [1, 100, 150, 210, 300]) },
+      { label: t('stat.damage'), pips: pipsFor(s.soldierDamage ?? s.damage, [1, 10, 18, 25, 40]) },
     ];
   }
   return [
-    { label: 'Damage', pips: pipsFor(s.damage, DMG_STEPS) },
-    { label: 'Range', pips: pipsFor(s.range, RANGE_STEPS) },
-    { label: 'Speed', pips: pipsFor(s.fireRate, RATE_STEPS) },
+    { label: t('stat.damage'), pips: pipsFor(s.damage, DMG_STEPS) },
+    { label: t('stat.range'), pips: pipsFor(s.range, RANGE_STEPS) },
+    { label: t('stat.speed'), pips: pipsFor(s.fireRate, RATE_STEPS) },
   ];
 }
 
-const ROLE_LINES: Readonly<Record<TowerType, string>> = {
-  archer: 'Fast arrows · ground & air',
-  cannon: 'Splash shells · ground only',
-  frost: 'Chills and slows · ground & air',
-  tesla: 'Chain lightning · ground & air',
-  mortar: 'Huge range · close blind spot',
-  ballista: 'Armor-piercing bolts · ground & air',
-  beacon: 'Support · speeds up nearby towers',
-  barracks: 'Soldiers block the road',
-};
-
+/** One-line role under a tower's name in the build-ring tooltip (localised; see src/i18n/data.ts). */
 export function roleLine(type: TowerType): string {
-  return ROLE_LINES[type] ?? TOWER_DEFS[type]?.shortDesc ?? '';
+  return towerRole(type);
 }
 
 // ---------------------------------------------------------------------------------------------

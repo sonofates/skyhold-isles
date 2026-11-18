@@ -1,6 +1,7 @@
 import { ColorMatrixFilter, Container, Graphics, NineSliceSprite, Sprite, Texture, type Text } from 'pixi.js';
 import type { TargetingMode, TowerType } from '../core/types.ts';
-import { TOWER_DEFS } from '../data/towers.ts';
+import { signatureDesc, signatureName, towerName, towerShortName } from '../i18n/data.ts';
+import { t as msg, type MsgKey } from '../i18n/index.ts';
 import type { LoadedArt } from './assets2d.ts';
 import { MIN_TOUCH } from './hud.ts';
 import { paintedText, setFontSize, setText } from './hudText.ts';
@@ -50,22 +51,17 @@ export interface RingPreview {
   readonly tier: 1 | 2 | 3;
 }
 
-const SHORT_NAMES: Readonly<Record<string, string>> = {
-  archer: 'Archer',
-  cannon: 'Cannon',
-  frost: 'Frost',
-  tesla: 'Tesla',
-  mortar: 'Mortar',
-  ballista: 'Ballista',
-  beacon: 'Beacon',
-  barracks: 'Barracks',
-};
-
+/** Short tower name (localised; see src/i18n/data.ts). */
 export function shortTowerName(type: string): string {
-  return SHORT_NAMES[type] ?? type.charAt(0).toUpperCase() + type.slice(1);
+  return towerShortName(type);
 }
 
-const TARGET_LABEL: Readonly<Record<TargetingMode, string>> = { first: 'First', last: 'Last', strongest: 'Strongest', closest: 'Closest' };
+const TARGET_LABEL: Readonly<Record<TargetingMode, MsgKey>> = {
+  first: 'ring.target.first',
+  last: 'ring.target.last',
+  strongest: 'ring.target.strongest',
+  closest: 'ring.target.closest',
+};
 
 const MAX_TOKENS = 10;
 const OPEN_S = 0.26;
@@ -494,7 +490,7 @@ export class BuildRing {
       t.enabled = !banned && gold >= cost;
       t.confirm = true;
       t.preview = { type, tier: 1 };
-      t.tip = { title: TOWER_DEFS[type]?.name ?? shortTowerName(type), role: roleLine(type), rows: statRows(type, 1), next: null, hint: 'Tap again to build', hintBad: '' };
+      t.tip = { title: towerName(type), role: roleLine(type), rows: statRows(type, 1), next: null, hint: msg('ring.tapBuild'), hintBad: '' };
       this.applyEnabled(t);
     }
     this.layout(cx, cy, evenAngles(this.count));
@@ -510,7 +506,7 @@ export class BuildRing {
     const tint = art?.tint ?? 0xffffff;
     const tier = Math.max(1, Math.min(3, info.tier)) as 1 | 2 | 3;
     const nextTier = Math.min(3, tier + 1) as 1 | 2 | 3;
-    const name = TOWER_DEFS[info.type]?.name ?? shortTowerName(info.type);
+    const name = towerName(info.type);
     const roman = ['I', 'II', 'III'];
     let i = 0;
     // Upgrade: next-tier portrait with an upgrade arrow badge.
@@ -520,20 +516,20 @@ export class BuildRing {
       const maxed = info.upgradeCost === null;
       t.badge.texture = kit(this.art, 'iconUpgrade', Texture.EMPTY);
       t.badge.visible = !maxed && t.badge.texture !== Texture.EMPTY;
-      this.setTag(t, maxed ? 'MAX' : String(info.upgradeCost), !maxed);
+      this.setTag(t, maxed ? msg('ring.max') : String(info.upgradeCost), !maxed);
       t.action = { kind: 'upgrade' };
       t.cost = maxed ? null : info.upgradeCost;
       t.enabled = !maxed && gold >= (info.upgradeCost ?? Infinity);
       t.confirm = true;
       t.preview = { type: info.type, tier: nextTier };
       t.tip = maxed
-        ? { title: `${name} ${roman[tier - 1]}`, role: 'Fully upgraded', rows: statRows(info.type, tier), next: null, hint: '', hintBad: '' }
+        ? { title: msg('ring.tierName', { name, tier: roman[tier - 1] }), role: msg('ring.fullyUpgraded'), rows: statRows(info.type, tier), next: null, hint: '', hintBad: '' }
         : {
-            title: `Upgrade to ${roman[nextTier - 1]}`,
-            role: nextTier === 3 ? `${TOWER_DEFS[info.type].signature.name}: ${TOWER_DEFS[info.type].signature.desc}` : name,
+            title: msg('ring.upgradeTo', { tier: roman[nextTier - 1] }),
+            role: nextTier === 3 ? msg('ring.signature', { name: signatureName(info.type), desc: signatureDesc(info.type) }) : name,
             rows: statRows(info.type, tier),
             next: statRows(info.type, nextTier),
-            hint: 'Tap again to upgrade',
+            hint: msg('ring.tapUpgrade'),
             hintBad: '',
           };
       this.applyEnabled(t);
@@ -545,7 +541,7 @@ export class BuildRing {
     if (info.rallyIcon) {
       const t = this.resetToken(i++);
       this.setFace(t, kit(this.art, 'iconRally', info.rallyIcon), false);
-      this.setTag(t, 'Rally', false);
+      this.setTag(t, msg('ring.rally'), false);
       t.action = { kind: 'rally' };
       t.enabled = true;
       t.confirm = false;
@@ -554,7 +550,7 @@ export class BuildRing {
     } else if (info.targeting) {
       const t = this.resetToken(i++);
       this.setFace(t, kit(this.art, 'iconTarget', Texture.EMPTY), false);
-      this.setTag(t, TARGET_LABEL[info.targeting], false);
+      this.setTag(t, msg(TARGET_LABEL[info.targeting]), false);
       t.action = { kind: 'target' };
       t.enabled = true;
       t.confirm = false;
@@ -569,7 +565,7 @@ export class BuildRing {
       t.enabled = true;
       t.confirm = true;
       t.preview = { type: info.type, tier };
-      t.tip = { title: `Sell ${name}`, role: `Refund: ${info.refund} gold`, rows: null, next: null, hint: 'Tap again to sell', hintBad: '' };
+      t.tip = { title: msg('ring.sell', { name }), role: msg('ring.refund', { n: info.refund }), rows: null, next: null, hint: msg('ring.tapSell'), hintBad: '' };
       this.applyEnabled(t);
     }
     this.count = i;
@@ -586,7 +582,7 @@ export class BuildRing {
   setTargetMode(mode: TargetingMode): void {
     for (let i = 0; i < this.count; i++) {
       const t = this.tokens[i];
-      if (t.action?.kind === 'target') this.setTag(t, TARGET_LABEL[mode], false);
+      if (t.action?.kind === 'target') this.setTag(t, msg(TARGET_LABEL[mode]), false);
     }
   }
 
@@ -634,11 +630,11 @@ export class BuildRing {
     }
     const c = t.tip;
     const poor = t.cost !== null && !t.enabled;
-    c.hintBad = t.banned ? 'Off-limits in this challenge' : poor ? `Need ${t.cost} gold` : '';
+    c.hintBad = t.banned ? msg('ring.banned') : poor ? msg('ring.needGold', { n: t.cost ?? 0 }) : '';
     const maxed = t.action?.kind === 'upgrade' && t.cost === null;
     if (maxed || t.banned) c.hint = '';
-    else if (i !== this.selected) c.hint = 'Tap to choose';
-    else c.hint = t.action?.kind === 'build' ? 'Tap again to build' : t.action?.kind === 'upgrade' ? 'Tap again to upgrade' : t.action?.kind === 'sell' ? 'Tap again to sell' : '';
+    else if (i !== this.selected) c.hint = msg('ring.tapChoose');
+    else c.hint = t.action?.kind === 'build' ? msg('ring.tapBuild') : t.action?.kind === 'upgrade' ? msg('ring.tapUpgrade') : t.action?.kind === 'sell' ? msg('ring.tapSell') : '';
     this.tooltip.set(c, this.u);
     const p = placeTooltip(this.box, this.tooltip.w, this.tooltip.h, this.screenW, this.screenH, this.insets);
     this.tooltip.root.position.set(p.x, p.y);
