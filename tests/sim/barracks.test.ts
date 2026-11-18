@@ -9,6 +9,7 @@ import { parseLevel2D, type Level2DJson } from '../../src/data/levels2d/loader.t
 import { ENEMY_MELEE, SOLDIER_RULES } from '../../src/data/soldiers.ts';
 import { ALL_TOWER_TYPES, getTowerTierStats, TOWER_DEFS, TOWER_TYPES } from '../../src/data/towers.ts';
 import type { EnemyEntity, TowerEntity } from '../../src/sim/entities.ts';
+import { BLOCK_LATERAL_MAX, blockedLateralOffset } from '../../src/sim/soldierSystem.ts';
 import { computeSellRefund, SimWorld } from '../../src/sim/world.ts';
 
 const DT = BALANCE.fixedDt;
@@ -438,6 +439,89 @@ describe('blocking and melee', () => {
     expect(t.totalDamageDealt).toBe(e.maxHp);
     expect(world.gold).toBe(gold + e.reward);
     expect(world.lives).toBe(BALANCE.startingLives);
+  });
+
+  it('6 enemies blocked by one soldier end up at distinct positions at least 12 px apart', () => {
+    const { world } = setup();
+    const ppu = world.level.layout2d!.pxPerUnit;
+    const t = barracksOn(world, 0);
+    tick(world, 60);
+    const [blocker, spare] = squad(world, t.id);
+    // Keep only one active soldier on the road, able to hold 6 foes for the queue-spread test.
+    blocker.hp = blocker.maxHp = 1e6;
+    blocker.holdCap = 6;
+    spare.hp = 0;
+    spare.state = 'dead';
+    spare.respawnTimer = 999;
+
+    const enemies = Array.from({ length: 6 }, (_, i) => spawnAt(world, 'grunt', 5.4 - i * 0.12));
+    tickUntil(world, () => enemies.every((e) => e.blockers >= 1));
+    // Allow exponential easing to settle into the queue slots.
+    tick(world, 45);
+
+    expect(world.soldierSystem.blockedCount).toBe(6);
+    const minPairwisePx = 12;
+    for (let i = 0; i < enemies.length; i++) {
+      // Lateral offset stays within the road band around z = 0.
+      expect(Math.abs(enemies[i].z)).toBeLessThanOrEqual(BLOCK_LATERAL_MAX + 1e-3);
+      for (let j = i + 1; j < enemies.length; j++) {
+        const dxPx = (enemies[i].x - enemies[j].x) * ppu;
+        const dzPx = (enemies[i].z - enemies[j].z) * ppu;
+        expect(Math.hypot(dxPx, dzPx)).toBeGreaterThanOrEqual(minPairwisePx);
+      }
+    }
+    // Queue spans both across the road (z) and along the path behind the blocker (x).
+    const xs = enemies.map((e) => e.x);
+    const zs = enemies.map((e) => e.z);
+    expect(Math.max(...xs) - Math.min(...xs)).toBeGreaterThan(1.0);
+    expect(Math.max(...zs) - Math.min(...zs)).toBeGreaterThan(0.3);
+  });
+
+  it('blocked crowd at a standard barracks choke spreads deterministically with uid-stable lateral slots', () => {
+    const runCrowd = (): { x: number; z: number; uid: number }[] => {
+      const { world } = setup();
+      const t1 = barracksOn(world, 0);
+      const t2 = barracksOn(world, 2);
+      world.upgradeTower(t1.id);
+      world.upgradeTower(t2.id);
+      world.setRallyPoint(t1.id, 1.5, 0);
+      world.setRallyPoint(t2.id, 1.5, 0);
+      tick(world, 90);
+      for (const s of world.soldierSystem.soldiers) s.hp = s.maxHp = 1e6;
+      const foes = Array.from({ length: 6 }, () => spawnAt(world, 'grunt', 6.5));
+      tickUntil(world, () => foes.every((e) => e.blockers >= 1));
+      tick(world, 45);
+      return foes.map((e) => ({ x: e.x, z: e.z, uid: e.uid }));
+    };
+
+    const first = runCrowd();
+    const second = runCrowd();
+    expect(first).toEqual(second);
+    const ppu = 50;
+    for (let i = 0; i < first.length; i++) {
+      expect(first[i].z).toBeCloseTo(-blockedLateralOffset(first[i].uid), 2);
+      for (let j = i + 1; j < first.length; j++) {
+        const dPx = Math.hypot((first[i].x - first[j].x) * ppu, (first[i].z - first[j].z) * ppu);
+        expect(dPx).toBeGreaterThanOrEqual(12);
+      }
+    }
+
+    // Lateral slot stays bound to enemy uid when the front foe dies, and eases back to 0 once freed.
+    const { world } = setup();
+    const t = barracksOn(world, 0);
+    tick(world, 60);
+    for (const s of squad(world, t.id)) s.hp = s.maxHp = 1e6;
+    const front = spawnAt(world, 'grunt', 6.4);
+    const rear = spawnAt(world, 'grunt', 6.2);
+    tickUntil(world, () => front.blockers >= 1 && rear.blockers >= 1);
+    tick(world, 45);
+    const rearLatBefore = rear.z;
+    front.hp = 0;
+    tick(world, 45);
+    expect(rear.z).toBeCloseTo(rearLatBefore, 3);
+    world.sellTower(t.id);
+    tick(world, 45);
+    expect(Math.abs(rear.z)).toBeLessThan(1e-3);
   });
 });
 

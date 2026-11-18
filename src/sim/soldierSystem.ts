@@ -6,6 +6,7 @@ import { ENEMY_MELEE, SOLDIER_FORMATION, SOLDIER_RULES } from '../data/soldiers.
 import { getTowerTierStats, type TowerTierStats } from '../data/towers.ts';
 import type { EnemyEntity, TowerEntity } from './entities.ts';
 import type { EnemySystem } from './enemySystem.ts';
+import type { CompiledPath } from './path.ts';
 import type { SpatialHashGrid } from './spatialHash.ts';
 
 /**
@@ -39,6 +40,8 @@ export interface SoldierEntity {
   /** Claimed enemy (pool index + uid; pool slots are reused), -1 / 0 when none. */
   targetPoolIndex: number;
   targetUid: number;
+  /** Maximum enemies this soldier can hold in melee at once (1 in all shipped barracks tiers). */
+  holdCap: number;
   /** Render-facing only: the next blow was announced (`meleeSwing`); never read by the rules. */
   swingArmed: boolean;
 }
@@ -67,11 +70,40 @@ export interface RoadPoint {
 }
 
 const _v: Vec3 = { x: 0, y: 0, z: 0 };
+const _baseVec: Vec3 = { x: 0, y: 0, z: 0 };
 const _candidates: number[] = [];
 const _engageList: number[] = [];
 const _blockedList: number[] = [];
 const _prevBlocked: number[] = [];
 const _prevBlockedUid: number[] = [];
+const _spreadOrder: number[] = [];
+const _extraHoldOrder: number[] = [];
+
+/** Golden-ratio conjugate: spreads consecutive integer uids evenly across [-1, 1] with zero RNG. */
+const GOLDEN_CONJUGATE = 0.6180339887498949;
+/** Max path distance gap (world units) between consecutive blocked foes in the same road queue. */
+export const BLOCK_CLUSTER_GAP = 1.8;
+/** Path spacing (world units) behind the front blocked foe per queue slot (0.30 u = 15 px at 50 px/u). */
+export const BLOCK_QUEUE_SPACING = 0.30;
+/** Half-width of lateral spread across the road (world units; 0.36 u = ±18 px inside a ~58 px road). */
+export const BLOCK_LATERAL_MAX = 0.36;
+/** Exponential smoothing rate (1/s) so blocked foes glide into and out of their queue slots. */
+const BLOCK_EASE_RATE = 14;
+
+/** Deterministic lateral road offset in [-halfWidth, +halfWidth], stable for an enemy's lifetime. */
+export function blockedLateralOffset(uid: number, halfWidth = BLOCK_LATERAL_MAX): number {
+  const u = (((uid * GOLDEN_CONJUGATE) % 1) + 1) % 1;
+  return (u * 2 - 1) * halfWidth;
+}
+
+/** Samples `path` at `dist`, extrapolating backward along the start tangent when `dist < 0`. */
+function samplePathWithBackoff(path: CompiledPath, dist: number, out: Vec3): number {
+  if (dist >= 0) return path.sample(dist, out);
+  const yaw = path.sample(0, out);
+  out.x += Math.sin(yaw) * dist;
+  out.z += Math.cos(yaw) * dist;
+  return yaw;
+}
 
 /**
  * Barracks soldiers (deterministic, fixed-step, no RNG). Runs after enemy movement each tick:
@@ -104,6 +136,13 @@ export class SoldierSystem {
   private readonly primary: Int32Array;
   /** Render-facing only: a held enemy's next blow was announced (`meleeSwing`). */
   private readonly enemyArmed: Uint8Array;
+  /** Per-pool-slot blocked queue spread state (world-unit offset from pure path sample). */
+  private readonly spreadUid: Int32Array;
+  private readonly spreadOffX: Float64Array;
+  private readonly spreadOffZ: Float64Array;
+  private readonly wantOffX: Float64Array;
+  private readonly wantOffZ: Float64Array;
+  private readonly isBlockedSlot: Uint8Array;
 
   private readonly pool: ObjectPool<EnemyEntity>;
   private readonly spatialHash: SpatialHashGrid;
@@ -120,6 +159,12 @@ export class SoldierSystem {
     this.wasBlocked = new Uint8Array(n);
     this.primary = new Int32Array(n).fill(-1);
     this.enemyArmed = new Uint8Array(n);
+    this.spreadUid = new Int32Array(n);
+    this.spreadOffX = new Float64Array(n);
+    this.spreadOffZ = new Float64Array(n);
+    this.wantOffX = new Float64Array(n);
+    this.wantOffZ = new Float64Array(n);
+    this.isBlockedSlot = new Uint8Array(n);
   }
 
   getBarracks(towerId: number): BarracksState | null {
@@ -292,6 +337,7 @@ export class SoldierSystem {
       hitFlashTimer: 0,
       targetPoolIndex: -1,
       targetUid: 0,
+      holdCap: 1,
       swingArmed: false,
     };
     b.squad.push(s);
@@ -567,6 +613,9 @@ export class SoldierSystem {
         this.primary[e.poolIndex] = i;
       }
       e.blockers++;
+      if (s.holdCap > 1) {
+        this.applyExtraHolds(s, i, e);
+      }
     }
 
     // 7. Held enemies strike back.
@@ -651,6 +700,154 @@ export class SoldierSystem {
       this.wasBlocked[_prevBlocked[k]] = 0;
       if (e.active && e.uid === _prevBlockedUid[k] && e.blockers === 0) this.emitBlock('enemyUnblocked', e);
     }
+
+    // 9. Deterministic spread for blocked / queued enemies along and across the road.
+    const anyOffset = this.applyBlockedSpread(dt);
+    this.dirty = this.soldiers.length > 0 || anyOffset;
+  }
+
+  /**
+   * Optional multi-hold capacity on a single soldier (`holdCap > 1`; shipped barracks use 1):
+   * holds additional ground enemies queued right behind the primary blocked target on the same lane.
+   */
+  private applyExtraHolds(s: SoldierEntity, soldierIndex: number, primary: EnemyEntity): void {
+    const maxExtra = s.holdCap - 1;
+    if (maxExtra <= 0) return;
+    const reach = Math.max(SOLDIER_RULES.engageRadius, (s.holdCap + 1) * BLOCK_QUEUE_SPACING + 0.4);
+    this.spatialHash.query(primary.x, primary.z, reach, _candidates);
+    _extraHoldOrder.length = 0;
+    for (let k = 0; k < _candidates.length; k++) {
+      const cand = this.pool.items[_candidates[k]];
+      if (cand === primary || cand.lane !== primary.lane || !this.isHoldable(cand)) continue;
+      if (cand.blockers >= ENEMY_MELEE[cand.type].holdCost) continue;
+      if (cand.dist > primary.dist + 0.35) continue;
+      _extraHoldOrder.push(cand.poolIndex);
+    }
+    _extraHoldOrder.sort((ia, ib) => {
+      const a = this.pool.items[ia];
+      const b = this.pool.items[ib];
+      if (b.dist !== a.dist) return b.dist - a.dist;
+      return a.uid - b.uid;
+    });
+    let added = 0;
+    for (let k = 0; k < _extraHoldOrder.length && added < maxExtra; k++) {
+      const cand = this.pool.items[_extraHoldOrder[k]];
+      const queueStopDist = primary.dist - (added + 1) * BLOCK_QUEUE_SPACING;
+      if (cand.dist < queueStopDist - 0.12) continue;
+      if (cand.blockers === 0) {
+        _blockedList.push(cand.poolIndex);
+        this.primary[cand.poolIndex] = soldierIndex;
+      }
+      cand.blockers++;
+      added++;
+    }
+  }
+
+  /**
+   * Gives blocked enemies a deterministic spread: lateral offset across the road width (stable per
+   * enemy `uid`) and short spacing along the path behind the front blocker in each road cluster.
+   * Returns true while any active enemy still carries a non-zero offset.
+   */
+  private applyBlockedSpread(dt: number): boolean {
+    const pool = this.pool;
+    _spreadOrder.length = 0;
+    for (let k = 0; k < _blockedList.length; k++) {
+      const idx = _blockedList[k];
+      const e = pool.items[idx];
+      if (e.active && e.hp > 0 && e.blockers > 0 && !e.flying && !e.burrowed) {
+        _spreadOrder.push(idx);
+      }
+    }
+
+    if (_spreadOrder.length > 1) {
+      _spreadOrder.sort((ia, ib) => {
+        const a = pool.items[ia];
+        const b = pool.items[ib];
+        if (a.lane !== b.lane) return a.lane - b.lane;
+        if (b.dist !== a.dist) return b.dist - a.dist;
+        return a.uid - b.uid;
+      });
+    }
+
+    let clusterLane = -1;
+    let frontDist = 0;
+    let prevDist = 0;
+    let rank = 0;
+    for (let k = 0; k < _spreadOrder.length; k++) {
+      const idx = _spreadOrder[k];
+      const e = pool.items[idx];
+      if (k === 0 || e.lane !== clusterLane || prevDist - e.dist > BLOCK_CLUSTER_GAP) {
+        clusterLane = e.lane;
+        frontDist = e.dist;
+        rank = 0;
+      } else {
+        rank++;
+      }
+      prevDist = e.dist;
+
+      const path = this.enemySystem.getPath(false, e.lane);
+      path.sample(e.dist, _baseVec);
+      const targetDist = Math.min(e.dist, frontDist - rank * BLOCK_QUEUE_SPACING);
+      const roadYaw = samplePathWithBackoff(path, targetDist, _v);
+      const lateral = blockedLateralOffset(e.uid);
+      const wantX = _v.x + Math.cos(roadYaw) * lateral;
+      const wantZ = _v.z - Math.sin(roadYaw) * lateral;
+      this.wantOffX[idx] = wantX - _baseVec.x;
+      this.wantOffZ[idx] = wantZ - _baseVec.z;
+      this.isBlockedSlot[idx] = 1;
+    }
+
+    const ease = dt > 0 ? 1 - Math.exp(-dt * BLOCK_EASE_RATE) : 1;
+    let anyOffset = false;
+    const activeCount = pool.getActiveCount();
+    for (let i = 0; i < activeCount; i++) {
+      const idx = pool.getActiveIndex(i);
+      const e = pool.items[idx];
+      if (this.spreadUid[idx] !== e.uid) {
+        this.spreadUid[idx] = e.uid;
+        this.spreadOffX[idx] = 0;
+        this.spreadOffZ[idx] = 0;
+      }
+      if (e.flying || e.burrowed) {
+        this.spreadOffX[idx] = 0;
+        this.spreadOffZ[idx] = 0;
+        this.isBlockedSlot[idx] = 0;
+        continue;
+      }
+      const blocked = this.isBlockedSlot[idx] === 1;
+      const tx = blocked ? this.wantOffX[idx] : 0;
+      const tz = blocked ? this.wantOffZ[idx] : 0;
+      this.isBlockedSlot[idx] = 0;
+
+      let cx = this.spreadOffX[idx];
+      let cz = this.spreadOffZ[idx];
+      if (cx === 0 && cz === 0 && tx === 0 && tz === 0) continue;
+
+      cx += (tx - cx) * ease;
+      cz += (tz - cz) * ease;
+      if (Math.abs(tx - cx) < 1e-5 && Math.abs(tz - cz) < 1e-5) {
+        cx = tx;
+        cz = tz;
+      }
+      this.spreadOffX[idx] = cx;
+      this.spreadOffZ[idx] = cz;
+
+      const path = this.enemySystem.getPath(false, e.lane);
+      path.sample(e.dist, _baseVec);
+      e.x = _baseVec.x + cx;
+      e.z = _baseVec.z + cz;
+      if (cx !== 0 || cz !== 0) anyOffset = true;
+    }
+
+    if (anyOffset) {
+      this.spatialHash.clear();
+      for (let i = 0; i < activeCount; i++) {
+        const idx = pool.getActiveIndex(i);
+        const e = pool.items[idx];
+        if (!e.burrowed) this.spatialHash.insert(idx, e.x, e.z);
+      }
+    }
+    return anyOffset;
   }
 
   /**
