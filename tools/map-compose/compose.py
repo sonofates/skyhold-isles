@@ -5,12 +5,14 @@ with generated build plots.
 usage: /usr/bin/python3 tools/map-compose/compose.py <layout.json> <assets_dir> <out.png|.webp>
          [--biome name] [--w 3072] [--plots 24] [--seed 7] [--bake] [--keep-plots]
          [--towers archer:3,cannon:9,...] [--enemies] [--cliff]
-         [--variants 1,1.5] [--write-layout] [--cave-h 2.5] [--castle-h 2.7] [--gate-inset 0.5]
+         [--variants 1,1.5] [--3x] [--write-layout] [--cave-h 2.5] [--castle-h 2.7] [--gate-inset 0.5]
          [--quality 0..100] [--windmill x,ybottom,h|none] [--props 70] [--decals 240] [--no-decals] [--check-plots]
 
-  shipped L1c bake (2x layout px master + 1x / 1.5x variants, gate fronts, gates written to the JSON):
+  shipped L1c master and smaller variants (follow with the --3x pass below):
     /usr/bin/python3 tools/map-compose/compose.py src/data/levels2d/l1c.json design/art-2d/v2/assets \\
       public/art2d/map-L1c-layered.webp --bake --keep-plots --w 3692 --variants 1,1.5 --write-layout
+    /usr/bin/python3 tools/map-compose/compose.py src/data/levels2d/l1c.json design/art-2d/v2/assets \\
+      public/art2d/map-L1c-layered.webp --bake --keep-plots --3x
   (gate / decal art: tools/map-compose/prep_gates.py keys the Codex renders into assets/)
 
   --bake        BACKGROUND ONLY (ground, road, props, landmarks). Plots are NOT painted: the game
@@ -19,6 +21,9 @@ usage: /usr/bin/python3 tools/map-compose/compose.py <layout.json> <assets_dir> 
                 sim's plot indices stable). The rules below are still checked.
   --variants    also write <out stem>@<s>x.<ext> at s x the layout size (src/render2d/mapVariant.ts
                 loads the smallest that covers the screen; the master is the --w bake).
+  --3x          render only the native @3x WebP and its @3x gate fronts, using the saved master
+                gate rectangles. Pass the regular master output path and --bake --keep-plots.
+                rebake_all.py runs this pass after the regular master / smaller bakes.
   Campaign defaults for --seed, --plots, --windmill, --props and --decals come from
   campaign.json by layout id. CLI options override them. For a new layout, bake once with
   --write-layout to generate plots, then add --keep-plots for every subsequent bake.
@@ -122,6 +127,17 @@ BAKE = '--bake' in args
 random.seed(SEED)
 
 iw, ih = L['imageSize']
+variants = list(filter(None, opt('--variants', '').split(',')))
+if BAKE and any(float(v) == 3 for v in variants):
+    sys.exit('Use the --3x pass for a native 3x map and aligned gate fronts')
+native_3x = '--3x' in args
+if native_3x:
+    if (not BAKE or '--keep-plots' not in args or out_p is None or out_p.suffix != '.webp'
+            or '--write-layout' in args or '--variants' in args):
+        sys.exit('--3x requires a WebP bake with --keep-plots and the saved master gate layout')
+    W = 3 * iw
+    quality = opt('--quality', 90)
+
 S = W / iw  # layout px -> output px
 H = round(ih * S)
 
@@ -579,7 +595,8 @@ if '--check-plots' in args:
 
 # ---------------------------------------------------------------- ground (output px)
 def tiled(tex, w, h, scale):
-    t = tex.resize((max(1, round(tex.width * scale)), max(1, round(tex.height * scale))), Image.LANCZOS)
+    resampling = Image.Resampling.BICUBIC if native_3x and scale > 1 else Image.LANCZOS
+    t = tex.resize((max(1, round(tex.width * scale)), max(1, round(tex.height * scale))), resampling)
     out = Image.new('RGBA', (w, h))
     for y in range(0, h, t.height):
         for x in range(0, w, t.width):
@@ -654,7 +671,9 @@ for path in spl_paths:
 for G in GATES:
     clip_road_at_gate(road_hard, G['g'], S, rw)
 # crisp, slightly irregular painted edge (was a ~10-25 px Gaussian ramp: the main "blurry" cue)
-road_mask = ragged_mask(road_hard, rw * 0.05, max(4, round(rw * 0.16)), 0.22, SEED + 21, aa=1.1 * W / 3692)
+# Use the master's noise lattice at both scales so the painted contour stays in place.
+noise_scale = S / 2 if native_3x else 1
+road_mask = ragged_mask(road_hard, rw * 0.05, max(4, round(rw * 0.16 / noise_scale)), 0.22, SEED + 21, aa=1.1 if native_3x else 1.1 * W / 3692, noise_scale=noise_scale)
 road_material = load(dressing.get('roadMaterial', 'tex-dirt.png'))
 dirt = tiled(road_material, W, H, 0.45 * TEX)
 dirt = fine_detail(dirt, road_material, round(1024 * 0.16 * TEX), 0.45, 7 * TEX)
@@ -680,6 +699,11 @@ for name, x, y, length, width, angle in dressing.get('crossings', []):
     deck = load(f'landmark-{name}.webp').resize((round(width * S), round(length * S)), Image.Resampling.LANCZOS)
     deck = deck.rotate(angle, Image.Resampling.BICUBIC, expand=True)
     ground.alpha_composite(deck, (round(x * S - deck.width / 2), round(y * S - deck.height / 2)))
+    # Prop rejection uses the same rotated bounding box as the master, including its pixel rounding.
+    if native_3x:
+        ref = Image.new('L', (round(width * 2), round(length * 2))).rotate(angle, expand=True)
+        crossing_rects.append((x - ref.width / 4, y - ref.height / 4, x + ref.width / 4, y + ref.height / 4))
+        continue
     crossing_rects.append(sprite_rect(deck, x, y + deck.height / (2 * S), deck.height / S))
 
 # ---------------------------------------------------------------- crisp painted details
@@ -834,16 +858,26 @@ if cliff:
     canvas.paste(strip, (0, H - band_h), edge_mask)
 
 rgb = canvas.convert('RGB')
-if out_p.suffix.lower() == '.webp':
+if native_3x:
+    dest = out_p.with_stem(out_p.stem + '@3x')
+    while True:
+        rgb.save(dest, quality=quality, method=6)
+        if dest.stat().st_size <= 3_000_000:
+            break
+        quality -= 3
+        if quality < 0:
+            sys.exit(f'{dest} exceeds 3 MB')
+elif out_p.suffix.lower() == '.webp':
     rgb.save(out_p, quality=quality, method=6)
 else:
     rgb.save(out_p, quality=92)
 inv = [[round(x), round(y)] for x, y in plots]
-Path(str(out_p) + '.plots.json').write_text(json.dumps(inv))
+if not native_3x:
+    Path(str(out_p) + '.plots.json').write_text(json.dumps(inv))
 
 # resolution variants (mapVariant.ts): <stem>@<scale>x, texture width = scale x layout width
 variant_files = {}
-for v in filter(None, opt('--variants', '').split(',')):
+for v in variants:
     vs = float(v)
     vw, vh = round(iw * vs), round(ih * vs)
     vp = out_p.with_name(f'{out_p.stem}@{v}x{out_p.suffix}')
@@ -857,6 +891,16 @@ for G in GATES:
     entry = {'prop': G['prop'], 'facing': G['facing'], 'front': None}
     if front_im is not None:
         key = f'{out_p.stem}-gate-{G["id"]}'
+        rect = [round(v / S, 2) for v in (fx, fy, front_im.width, front_im.height)]
+        if native_3x:
+            gate = L['goalGate'] if G['role'] == 'goal' else L['entrances'][G['lane']]['gate']
+            # The saved 2x rectangle can start between 3x texels. Sample that exact footprint so
+            # the mounted sprite and the painted map agree, even at a half-layout-pixel boundary.
+            rect = gate['front']['rect']
+            x, y, w, h = rect
+            box = (x * S - fx, y * S - fy, (x + w) * S - fx, (y + h) * S - fy)
+            front_im = front_im.transform((round(w * S), round(h * S)), Image.Transform.EXTENT, box, Image.Resampling.BICUBIC)
+            key += '@3x'
         fp = out_p.with_name(f'{key}.webp')
         encoded = BytesIO()
         front_im.save(encoded, format='WEBP', quality=90, method=6, exact=True)
@@ -872,14 +916,15 @@ for G in GATES:
         gr = G['g']['rect']
         entry['front'] = {
             'art': key,
-            'rect': [round(fx / S, 2), round(fy / S, 2), round(front_im.width / S, 2), round(front_im.height / S, 2)],
+            'rect': rect,
             # depth key: the gate's front ground line (its sprite bottom), layout px
             'baseY': round(gr[3], 2),
         }
         G['file'] = fp.name
     G['json'] = entry
     gate_json.append({'role': G['role'], 'lane': G['lane'], **entry})
-Path(str(out_p) + '.gates.json').write_text(json.dumps(gate_json, indent=1))
+if not native_3x:
+    Path(str(out_p) + '.gates.json').write_text(json.dumps(gate_json, indent=1))
 if '--write-layout' in args:
     L['plots'] = inv
     for G in GATES:
@@ -900,7 +945,7 @@ if fringe_n:
 for w_ in warns:
     print('  warning: ' + w_)
 
-print(f'{out_p} {W}x{H} mode={"bake" if BAKE else "mock"} plots={len(plots)} (candidates {ncand}) props={len(placed)}')
+print(f'{dest if native_3x else out_p} {W}x{H} mode={"bake" if BAKE else "mock"} plots={len(plots)} (candidates {ncand}) props={len(placed)}')
 print(f'  plot footprint {2 * PLOT_R:.0f}x{2 * PLOT_RY:.0f} layout px, road width {ROAD_W:.1f}, spline deviation {dev:.1f} px')
 print(f'  sections {counts}  first-stretch {near_entrance}  merges {len(merges)}  last-stretch {last_counts}')
 if plots:

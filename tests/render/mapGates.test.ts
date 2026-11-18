@@ -13,7 +13,8 @@ import {
 } from '../../src/data/levels2d/gates.ts';
 import { parseLevel2D, type Level2DJson } from '../../src/data/levels2d/loader.ts';
 import { parseManifest } from '../../src/render2d/manifest.ts';
-import { mapVariants, pickMapVariant, texelsPerLayoutPx } from '../../src/render2d/mapVariant.ts';
+import { renderResolution } from '../../src/render2d/renderResolution.ts';
+import { mapVariants, maxMapScale, pickMapVariant, texelsPerLayoutPx } from '../../src/render2d/mapVariant.ts';
 import { computeMapFit } from '../../src/render2d/viewFit.ts';
 
 const ROOT = resolve(import.meta.dirname, '../..');
@@ -107,13 +108,14 @@ describe('gate front layers', () => {
 });
 
 describe('map resolution variants', () => {
-  const maps = { m: 'm.webp', 'm@1x': 'a.webp', 'm@1.5x': 'b.webp', other: 'o.webp', 'other@1x': 'c.webp' };
+  const maps = { m: 'm.webp', 'm@1x': 'a.webp', 'm@1.5x': 'b.webp', 'm@3x': 'hi.webp', other: 'o.webp', 'other@1x': 'c.webp' };
 
-  it('lists the variants of one key smallest first, the master last', () => {
+  it('lists the variants of one key in increasing scale including the 2x master', () => {
     expect(mapVariants(maps, 'm')).toEqual([
       { key: 'm@1x', scale: 1 },
       { key: 'm@1.5x', scale: 1.5 },
-      { key: 'm', scale: null },
+      { key: 'm', scale: 2 },
+      { key: 'm@3x', scale: 3 },
     ]);
     expect(mapVariants({}, 'm')).toEqual([]);
   });
@@ -123,9 +125,28 @@ describe('map resolution variants', () => {
     expect(pickMapVariant(maps, 'm', 1.01)).toBe('m@1x'); // within the 2 % slack
     expect(pickMapVariant(maps, 'm', 1.06)).toBe('m@1.5x'); // 1600x900 DPR 1
     expect(pickMapVariant(maps, 'm', 1.69)).toBe('m'); // 2560x1440 DPR 1 -> the 2x master
+    expect(pickMapVariant(maps, 'm', 2)).toBe('m');
+    expect(pickMapVariant(maps, 'm', 2.001)).toBe('m@3x');
     expect(pickMapVariant({ m: 'm.webp' }, 'm', 0.5)).toBe('m');
     expect(pickMapVariant({ 'm@1x': 'a' }, 'm', 3)).toBe('m@1x');
     expect(pickMapVariant({}, 'm', 1)).toBeNull();
+  });
+
+  it.each([
+    { w: 844, h: 390, dpr: 3, desktop: false, limit: 8192, suffix: '@1.5x' },
+    { w: 1920, h: 1080, dpr: 1, desktop: true, limit: 8192, suffix: '@1.5x' },
+    { w: 1920, h: 1080, dpr: 2, desktop: true, limit: 8192, suffix: '@3x' },
+    { w: 2560, h: 1440, dpr: 2, desktop: true, limit: 8192, suffix: '@3x' },
+    { w: 3840, h: 2160, dpr: 1, desktop: true, limit: 8192, suffix: '@3x' },
+    { w: 3840, h: 2160, dpr: 2, desktop: true, limit: 8192, suffix: '@3x' },
+    { w: 3840, h: 2160, dpr: 1, desktop: true, limit: 4096, suffix: '' },
+    { w: 3840, h: 2160, dpr: 1, desktop: true, limit: 2048, suffix: '@1x' },
+    { w: 1920, h: 1080, dpr: 3, desktop: false, limit: 8192, suffix: '' },
+  ])('$w×$h DPR $dpr desktop=$desktop MAX_TEXTURE_SIZE=$limit → master$suffix', ({ w, h, dpr, desktop, limit, suffix }) => {
+    const [iw, ih] = L1C.imageSize;
+    const fit = computeMapFit(w, h, iw, ih, L1C.safeArea as [number, number, number, number]);
+    const need = fit.scale * renderResolution(w, h, dpr);
+    expect(pickMapVariant(MANIFEST.maps, L1C.image, need, maxMapScale(desktop, limit, [iw, ih]))).toBe(L1C.image + suffix);
   });
 
   it('L1c: the shipped bakes cover 1600x900, 2560x1440 (DPR 1) and a DPR 2 phone without magnifying', () => {

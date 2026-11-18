@@ -94,6 +94,9 @@ export class MapView {
     const f = this.fit;
     const s = f.scale;
     const [iw, ih] = this.layout.imageSize;
+    // Strip frames use texture units (the unqualified master has two per layout pixel).
+    const stripScaleX = s * iw / this.texture.width;
+    const stripScaleY = s * ih / this.texture.height;
     const mapTop = f.offsetY;
     const mapLeft = f.offsetX;
     const mapW = iw * s;
@@ -107,28 +110,28 @@ export class MapView {
     if (f.bandLeft > 0.5) {
       const w = Math.min(iw, f.bandLeft / s + 1);
       left.texture = this.stripTexture(0, 0, w, ih);
-      left.scale.set(-s, s);
+      left.scale.set(-stripScaleX, stripScaleY);
       left.position.set(mapLeft + 0.5, mapTop);
       left.visible = true;
     }
     if (f.bandRight > 0.5) {
       const w = Math.min(iw, f.bandRight / s + 1);
       right.texture = this.stripTexture(iw - w, 0, w, ih);
-      right.scale.set(-s, s);
+      right.scale.set(-stripScaleX, stripScaleY);
       right.position.set(mapLeft + mapW + w * s - 0.5, mapTop);
       right.visible = true;
     }
     if (f.bandTop > 0.5) {
       const h = Math.min(ih, f.bandTop / s + 1);
       top.texture = this.stripTexture(0, 0, iw, h);
-      top.scale.set(s, -s);
+      top.scale.set(stripScaleX, -stripScaleY);
       top.position.set(mapLeft, mapTop + 0.5);
       top.visible = true;
     }
     if (f.bandBottom > 0.5) {
       const h = Math.min(ih, f.bandBottom / s + 1);
       bottom.texture = this.stripTexture(0, ih - h, iw, h);
-      bottom.scale.set(s, -s);
+      bottom.scale.set(stripScaleX, -stripScaleY);
       bottom.position.set(mapLeft, mapTop + mapH + h * s - 0.5);
       bottom.visible = true;
     }
