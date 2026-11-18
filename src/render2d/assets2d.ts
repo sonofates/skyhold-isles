@@ -12,6 +12,7 @@ import {
   type AnimMode,
   type ArtManifest,
   type EnemyArt,
+  type HeroArtSpec,
   type TierRing,
   type TowerArt,
   type UiArt,
@@ -140,6 +141,34 @@ export interface LoadedArt {
   readonly present: ReadonlySet<string>;
   /** Directory URL of the manifest (with trailing slash). */
   readonly baseUrl: string;
+  /** The run's hero sheets (loaded only for the hero picked for this run), or null. */
+  readonly hero?: HeroArtRuntime | null;
+}
+
+/** One painted hero sequence (grid sheet): frames, fps, feet anchor (normalised), impact frame. */
+export interface HeroSeqRuntime {
+  readonly frames: readonly Texture[];
+  readonly fps: number;
+  readonly anchor: readonly [number, number];
+  readonly impact: number | null;
+}
+
+/**
+ * A hero's in-game art. Every sequence shares the frame size and feet anchor (handoff-codex-hero-art),
+ * so one px→world scale (`height` over the idle figure's frame height) holds through attack + death.
+ */
+export interface HeroArtRuntime {
+  readonly id: string;
+  readonly spec: HeroArtSpec;
+  readonly idle: HeroSeqRuntime;
+  /** Walk towards the viewer / away / to screen right (mirror for left). Missing → idle. */
+  readonly down: HeroSeqRuntime;
+  readonly up: HeroSeqRuntime;
+  readonly side: HeroSeqRuntime;
+  readonly attack: HeroSeqRuntime | null;
+  readonly death: HeroSeqRuntime | null;
+  /** Frame height in px the `spec.height` world units map to (figure ≈ 90% of the frame). */
+  readonly figurePx: number;
 }
 
 const textureCache = new Map<string, Promise<Texture | null>>();
@@ -578,6 +607,51 @@ async function loadTurrets(
   );
 }
 
+function heroSeq(seq: LoadedSeq): HeroSeqRuntime {
+  return { frames: seq.frames, fps: seq.fps, anchor: seq.anchor ?? [0.5, 0.977], impact: seq.impact };
+}
+
+/** Loads one hero's sheets (null when the manifest has no usable idle / standing art for it). */
+export async function loadHeroArt(manifest: ArtManifest, base: string, heroId: string, present?: Set<string>, notes?: string[]): Promise<HeroArtRuntime | null> {
+  const spec = manifest.heroes?.[heroId];
+  if (!spec) return null;
+  const seq = async (p: string | null): Promise<LoadedSeq | null> => {
+    if (!p) return null;
+    const r = await loadSheetSeq(base, p, true);
+    if (r) present?.add(p);
+    else notes?.push(`hero ${heroId}: sheet ${p} missing`);
+    return r;
+  };
+  const [idle, down, up, side, attack, death, standing] = await Promise.all([
+    seq(spec.idle),
+    seq(spec.walk?.down ?? null),
+    seq(spec.walk?.up ?? null),
+    seq(spec.walk?.side ?? null),
+    seq(spec.attack),
+    seq(spec.death),
+    spec.file ? tryTexture(base + spec.file, true) : Promise.resolve(null),
+  ]);
+  let idleRt: HeroSeqRuntime | null = idle ? heroSeq(idle) : null;
+  if (!idleRt && standing) idleRt = { frames: [standing], fps: 1, anchor: [0.5, 0.977], impact: null };
+  if (!idleRt) {
+    notes?.push(`hero ${heroId}: no idle art`);
+    return null;
+  }
+  const walkDown = down ? heroSeq(down) : idleRt;
+  const frameH = idle?.frameH ?? idleRt.frames[0].height;
+  return {
+    id: heroId,
+    spec,
+    idle: idleRt,
+    down: walkDown,
+    up: up ? heroSeq(up) : walkDown,
+    side: side ? heroSeq(side) : walkDown,
+    attack: attack ? heroSeq(attack) : null,
+    death: death ? heroSeq(death) : null,
+    figurePx: frameH * 0.9,
+  };
+}
+
 /**
  * Loads public/art2d/manifest.json and everything it references for one map. Missing optional
  * files fall back (see manifest.ts); a missing manifest or map throws.
@@ -587,6 +661,7 @@ export async function loadArt(
   mapKey: string,
   variants: Readonly<Record<string, string | null>> = {},
   mapOpts: MapLoadOptions = {},
+  heroId: string | null = null,
 ): Promise<LoadedArt> {
   const raw = await tryJson(manifestUrl);
   if (!raw) throw new Error(`art manifest not found: ${manifestUrl}`);
@@ -602,7 +677,7 @@ export async function loadArt(
   const kitEntries = Object.entries(manifest.uiKit ?? {});
   const plotSpec = manifest.plot;
   const overlayKeys = mapOpts.overlayKeys ?? Object.keys(manifest.overlays).filter((key) => !key.endsWith('@3x'));
-  const [mapRes, plotTex, uiTex, kitTex, towerList, enemyList, overlayTex] = await Promise.all([
+  const [mapRes, plotTex, uiTex, kitTex, towerList, enemyList, overlayTex, hero] = await Promise.all([
     loadMapVariant(manifest, base, mapKey, mapOpts),
     plotSpec ? tryTexture(base + plotSpec.file, true) : Promise.resolve(null),
     Promise.all(uiKeys.map((k) => tryTexture(base + manifest.ui[k]))),
@@ -619,6 +694,7 @@ export async function loadArt(
     ),
     // Gate front layers are drawn smaller than their file on phones: mipmapped.
     Promise.all(overlayKeys.map((k) => tryTexture(base + manifest.overlays[k], true))),
+    heroId ? loadHeroArt(manifest, base, heroId, present, notes) : Promise.resolve(null),
   ]);
   if (!mapRes) throw new Error(`map image failed to load: ${mapFile}`);
   const map = mapRes.texture;
@@ -700,7 +776,7 @@ export async function loadArt(
     sharedProbeCanvas.width = 1;
     sharedProbeCanvas.height = 1;
   }
-  return { manifest, map: { key: mapRes.key, texture: map, overlays }, plot, ui, uiKit, towers, enemies, notes, present, baseUrl: base };
+  return { manifest, map: { key: mapRes.key, texture: map, overlays }, plot, ui, uiKit, towers, enemies, notes, present, baseUrl: base, hero };
 }
 
 /**
@@ -743,5 +819,7 @@ export function collectArtTextureSources(art: LoadedArt): TextureSource[] {
     if (en.sheet) for (const seq of en.sheet.seqs) addList(seq);
     addList(en.attack?.frames);
   }
+  const h = art.hero;
+  if (h) for (const sq of [h.idle, h.down, h.up, h.side, h.attack, h.death]) addList(sq?.frames);
   return [...seen];
 }

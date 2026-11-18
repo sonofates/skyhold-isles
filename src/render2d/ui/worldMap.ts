@@ -4,7 +4,8 @@
  * the campaign's own rules). Tap an island → briefing card → Play loads `?level=<id>`. The meta
  * screens (Workshop, Logbook, Daily, Settings) open from the round buttons top-right.
  *
- * QA params: ?screen=brief|workshop|logbook|daily|settings|store opens that screen (brief = frontier
+ * QA params: ?screen=brief|workshop|logbook|daily|settings|store|heroes|herosel opens that screen
+ * (heroes = skill tree, herosel = hero picker, both take &focus=<hero id>; brief = frontier
  * island), ?mockislands=N appends N stand-in islands (layout check only; they reuse the first
  * island's map), window.__map exposes the layout. ?store=<island id> opens the store card for
  * that island (where main2d sends a deep link into an island the free version does not include).
@@ -12,7 +13,8 @@
  * Mobile builds only (and ?iapmock=1 in a browser): islands past the free scope wear the "full
  * adventure" lock (store2d.ts) and open the store card instead of the briefing.
  */
-import type { ProgressData } from '../../core/types.ts';
+import type { HeroId, ProgressData } from '../../core/types.ts';
+import { isHeroId } from '../../data/heroes.ts';
 import { utcDayNumber } from '../../data/daily.ts';
 import { LEVELS_2D } from '../../data/levels2d/index.ts';
 import type { LevelDef } from '../../data/levels/types.ts';
@@ -29,6 +31,8 @@ import { routeMarks, scrollToCentre, worldMapLayout, type RouteMark, type WorldM
 import { dailyFor2D, openDaily, openLogbook, openSettings, openWorkshop, type MetaContext } from './metaScreens.ts';
 import { availableChallenges, buildRunHref2D, canPlayEndless } from './modes2d.ts';
 import { islandStates, loadProgress2D, type IslandState } from './progress2d.ts';
+import { heroArtFiles } from './heroBits.ts';
+import { heroChip, heroesButton, openHeroSelect, openSkillTree } from './heroScreens.ts';
 import { needsFullAdventure, openStore, storeEnabled } from './store2d.ts';
 
 declare global {
@@ -87,6 +91,7 @@ export async function mountWorldMap(q: URLSearchParams): Promise<void> {
   const mock = Math.max(0, Math.min(24, Number(q.get('mockislands') ?? 0) || 0));
   const levels: readonly LevelDef[] = mock > 0 ? [...LEVELS_2D, ...mockLevels(mock)] : LEVELS_2D;
   const manifest: MapsManifest | null = await fetchMapsManifest();
+  const heroFiles = await heroArtFiles();
   const thumb = (level: LevelDef): string | null => {
     const token = manifest?.paintedUi?.[`island-${level.id}`];
     return token ? `/art2d/${token}` : islandMapUrl(manifest, level);
@@ -109,7 +114,8 @@ export async function mountWorldMap(q: URLSearchParams): Promise<void> {
   const lbBtn = roundButton('logbook', t('map.logbook'), 'map2d-logbook', t('map.logbookShort'));
   const dailyBtn = roundButton('daily', t('daily.title'), 'map2d-daily', t('map.daily'));
   const setBtn = roundButton('settings', t('map.settings'), 'map2d-settings', t('map.settings'));
-  const right = el('div', 'pu-topbar-right', {}, tallyBox, wsBtn, lbBtn, dailyBtn, setBtn);
+  const heroBtn = heroesButton(heroFiles);
+  const right = el('div', 'pu-topbar-right', {}, tallyBox, heroBtn.el, wsBtn, lbBtn, dailyBtn, setBtn);
   const topbar = el('div', 'pu-topbar', {}, banner, right);
   const hint = el('div', 'pu-map-hint pu-letter', {}, t('map.hint'));
   // Painted arrows at the sea's edges when more of the route lies that way (mouse users without a
@@ -162,8 +168,13 @@ export async function mountWorldMap(q: URLSearchParams): Promise<void> {
     const modes = st.unlocked
       ? { challenges: availableChallenges(id, progress, levels), endless: canPlayEndless(id, progress, levels), initial }
       : { challenges: [], endless: false };
-    showBriefing(st, i > 0 ? levels[i - 1] : null, thumb(st.level), modes, (choice) =>
-      location.assign(buildRunHref2D(id, { challenges: choice.challenges, endless: choice.endless, intro: st.clears === 0 })),
+    showBriefing(
+      st,
+      i > 0 ? levels[i - 1] : null,
+      thumb(st.level),
+      modes,
+      (choice) => location.assign(buildRunHref2D(id, { challenges: choice.challenges, endless: choice.endless, intro: st.clears === 0 })),
+      heroChip(ctx, heroFiles).el,
     );
   };
 
@@ -219,6 +230,7 @@ export async function mountWorldMap(q: URLSearchParams): Promise<void> {
       return c !== null && c <= available;
     }).length;
     if (affordable > 0) wsBtn.append(el('span', 'pu-badge', { 'aria-label': t('map.affordable', { n: affordable }) }, String(affordable)));
+    heroBtn.refresh(ctx);
     dailyBtn.querySelector('.pu-dot')?.remove();
     const daily = dailyFor2D(progress, Date.now(), levels);
     if (daily && progress.daily.lastDay !== utcDayNumber(Date.now())) dailyBtn.append(el('span', 'pu-dot', { 'aria-hidden': 'true' }));
@@ -310,6 +322,7 @@ export async function mountWorldMap(q: URLSearchParams): Promise<void> {
   lbBtn.addEventListener('click', () => openLogbook(ctx));
   dailyBtn.addEventListener('click', () => openDaily(ctx));
   setBtn.addEventListener('click', () => openSettings(ctx));
+  heroBtn.el.addEventListener('click', () => openSkillTree(ctx, heroFiles));
   // A mouse wheel scrolls the sea sideways.
   scroll.addEventListener(
     'wheel',
@@ -349,6 +362,8 @@ export async function mountWorldMap(q: URLSearchParams): Promise<void> {
   else if (screen === 'logbook') openLogbook(ctx, q.get('tab') === 'feats' ? 'feats' : 'islands');
   else if (screen === 'daily') openDaily(ctx);
   else if (screen === 'settings') openSettings(ctx);
+  else if (screen === 'heroes') openSkillTree(ctx, heroFiles, isHeroId(q.get('focus')) ? (q.get('focus') as HeroId) : undefined);
+  else if (screen === 'herosel') openHeroSelect(ctx, heroFiles, undefined, isHeroId(q.get('focus')) ? (q.get('focus') as HeroId) : undefined);
   else if (screen === 'store' && storeEnabled()) openStoreFor(null);
   // A deep link into an island the free version does not include lands here (main2d.ts).
   const storeFor = q.get('store');

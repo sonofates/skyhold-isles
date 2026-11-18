@@ -1,4 +1,4 @@
-import { Container, Graphics, Sprite, Texture, type Text } from 'pixi.js';
+import { Assets, Container, Graphics, Sprite, Texture, type Text } from 'pixi.js';
 import { t, type MsgKey } from '../i18n/index.ts';
 import type { LoadedArt } from './assets2d.ts';
 import { paintedText, setFontSize, setText } from './hudText.ts';
@@ -43,6 +43,21 @@ interface Btn {
   r: number;
 }
 
+/** The run's hero on the board: XP gained this run and any level-ups (filled after the stars). */
+export interface EndHeroXp {
+  readonly heroId: string;
+  readonly name: string;
+  readonly xpGained: number;
+  /** XP-bar fill before / after the run (0..1 of the level), and the levels. */
+  readonly fromFrac: number;
+  readonly toFrac: number;
+  readonly fromLevel: number;
+  readonly toLevel: number;
+  readonly skillPoints: number;
+  /** False when the run is not recorded (QA / debug scenes): no bar, just the run's XP. */
+  readonly recorded: boolean;
+}
+
 const STAR_DELAY = 0.45;
 const STAR_STEP = 0.28;
 
@@ -68,6 +83,15 @@ export class EndPanel {
   private lay: EndLayout | null = null;
   private summary: EndSummary | null = null;
   private note: EndModeNote | null = null;
+  private hero: EndHeroXp | null = null;
+  private readonly heroRow = new Container();
+  private readonly heroPort = new Sprite(Texture.EMPTY);
+  private readonly heroRing = new Graphics();
+  private readonly heroBar = new Graphics();
+  private readonly heroText = inkText(18, 'left');
+  private readonly heroLvl = inkText(18, 'left', '#9a3b18', '700');
+  private heroBarW = 100;
+  private heroBarH = 8;
   private t = 0;
   private w = 1;
   private h = 1;
@@ -101,6 +125,12 @@ export class EndPanel {
       this.board.addChild(root);
       this.buttons.push({ root, bg, glyph, icon, label, action, r: 30 });
     }
+    this.heroPort.anchor.set(0.5);
+    this.heroText.anchor.set(0, 0.5);
+    this.heroLvl.anchor.set(0, 0.5);
+    this.heroRow.addChild(this.heroRing, this.heroPort, this.heroBar, this.heroText, this.heroLvl);
+    this.heroRow.visible = false;
+    this.board.addChild(this.heroRow);
     this.root.addChild(this.dim, this.board);
     this.root.visible = false;
     this.loadPaintedIcons();
@@ -127,9 +157,38 @@ export class EndPanel {
     return this.root.visible;
   }
 
+  /** Hero XP row (null hides it). Call after `show`. */
+  setHero(h: EndHeroXp | null): void {
+    this.hero = h;
+    this.heroRow.visible = !!h && this.root.visible;
+    if (!h) return;
+    const file = this.art.manifest.heroes?.[h.heroId]?.portrait;
+    if (file) {
+      void Assets.load<Texture>({ src: this.art.baseUrl + file, data: { autoGenerateMipmaps: true } })
+        .then((tex) => {
+          if (tex && this.hero === h) {
+            this.heroPort.texture = tex;
+            this.layout(this.w, this.h);
+          }
+        })
+        .catch(() => undefined);
+    }
+    setText(this.heroText, t('end.heroXp', { name: h.name, n: h.xpGained }));
+    const up = h.toLevel > h.fromLevel;
+    setText(this.heroLvl, up ? t('end.heroLevelUp', { n: h.toLevel }) + (h.skillPoints > 0 ? t('common.sep') + t('end.heroPoints', { n: h.skillPoints }) : '') : h.recorded ? t('end.heroLevel', { n: h.toLevel }) : '');
+    this.layout(this.w, this.h);
+  }
+
+  /** QA: the hero row. */
+  get heroInfo(): EndHeroXp | null {
+    return this.heroRow.visible ? this.hero : null;
+  }
+
   show(s: EndSummary): void {
     this.summary = s;
     this.note = null;
+    this.hero = null;
+    this.heroRow.visible = false;
     this.t = 0;
     this.root.visible = true;
     this.panel.texture = kit(this.art, s.won ? 'endPanel' : 'endPanelDefeat', kit(this.art, 'endPanel', Texture.EMPTY));
@@ -242,6 +301,7 @@ export class EndPanel {
     this.line2.position.set(x, y);
     this.caption.position.set(L.summary.x, won ? y + f * 1.3 : y + f * 1.7);
     fitWidth(this.caption, P.w * 0.8);
+    this.layoutHero(L, f);
     // Buttons: Retry / Next Isle / World Map (Next hidden when there is no open next island).
     const hasNext = this.summary?.hasNext ?? false;
     const shown = this.buttons.filter((b) => b.action !== 'next' || hasNext);
@@ -259,6 +319,57 @@ export class EndPanel {
       b.label.position.set(0, r * 1.38);
       this.drawGlyph(b);
     });
+  }
+
+  /** Hero row between the caption and the buttons: portrait, "Bran +86 XP", level-up line, XP bar. */
+  private layoutHero(L: EndLayout, f: number): void {
+    const h = this.hero;
+    this.heroRow.visible = !!h && this.root.visible;
+    if (!h) return;
+    const P = L.panel;
+    const capBottom = this.caption.y + this.caption.height / 2;
+    const btnTop = L.buttons[0].y - L.buttonR;
+    const yMid = (capBottom + btnTop) / 2 - f * 0.05;
+    const fs = Math.round(f * 0.8);
+    setInkSize(this.heroText, fs);
+    setInkSize(this.heroLvl, fs);
+    const d = fs * 2.3;
+    this.heroBarH = Math.max(5, fs * 0.42);
+    this.heroBarW = Math.max(this.heroText.width, P.w * 0.3);
+    const lvlW = this.heroLvl.text ? this.heroLvl.width + fs * 0.6 : 0;
+    const total = d + fs * 0.5 + Math.max(this.heroBarW, this.heroText.width + lvlW);
+    const x0 = P.x + P.w / 2 - total / 2;
+    const tex = this.heroPort.texture;
+    this.heroPort.visible = tex !== Texture.EMPTY;
+    this.heroPort.scale.set(d / Math.max(1, tex.width));
+    this.heroPort.position.set(x0 + d / 2, yMid);
+    this.heroRing.clear();
+    if (!this.heroPort.visible) this.heroRing.circle(x0 + d / 2, yMid, d / 2).fill({ color: 0xc89a52 }).stroke({ color: 0x3a2412, width: 2 });
+    const tx = x0 + d + fs * 0.5;
+    const showBar = h.recorded;
+    const textY = showBar ? yMid - this.heroBarH * 0.9 : yMid;
+    this.heroText.position.set(tx, textY);
+    this.heroLvl.position.set(tx + this.heroText.width + fs * 0.6, textY);
+    this.heroBar.position.set(tx, yMid + fs * 0.45);
+    this.heroBar.visible = showBar;
+    this.drawHeroBar(1);
+  }
+
+  /** XP bar at animation progress k (0..1): from the old fill to the new one (wrapping on level-ups). */
+  private drawHeroBar(k: number): void {
+    const h = this.hero;
+    const g = this.heroBar;
+    g.clear();
+    if (!h || !h.recorded) return;
+    const w = this.heroBarW;
+    const bh = this.heroBarH;
+    const ups = Math.max(0, h.toLevel - h.fromLevel);
+    const span = ups + h.toFrac - h.fromFrac;
+    const pos = h.fromFrac + span * Math.max(0, Math.min(1, k));
+    const frac = k >= 1 ? h.toFrac : pos - Math.floor(pos);
+    g.roundRect(-2, -2, w + 4, bh + 4, (bh + 4) / 2).fill({ color: 0x3a2412, alpha: 0.85 });
+    g.roundRect(0, 0, Math.max(0, w * Math.min(1, frac)), bh, bh / 2).fill({ color: 0x6fc0f0 });
+    g.roundRect(0, 0, Math.max(0, w * Math.min(1, frac)), bh * 0.4, bh / 4).fill({ color: 0xffffff, alpha: 0.3 });
   }
 
   private drawGlyph(b: Btn): void {
@@ -311,6 +422,11 @@ export class EndPanel {
     const pop = easeOutBack((t - 0.08) / 0.38);
     this.board.scale.set(Math.max(0.001, 0.6 + 0.4 * pop));
     this.board.alpha = Math.min(1, Math.max(0, (t - 0.05) / 0.2));
+    if (this.heroRow.visible) {
+      const k = (t - STAR_DELAY - 3 * STAR_STEP) / 1.1;
+      this.drawHeroBar(easeOutCubic(Math.max(0, Math.min(1, k))));
+      this.heroLvl.alpha = Math.max(0, Math.min(1, (k - 0.7) / 0.3));
+    }
     const n = this.summary?.stars ?? 0;
     for (let i = 0; i < 3; i++) {
       const st = this.stars[i];

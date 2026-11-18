@@ -2,7 +2,9 @@
  * Localised data-table text, looked up by the data ids. src/data/** is English and read-only here;
  * in English (or when an id is missing from DATA_TR) every lookup returns the data's own text.
  */
-import type { TowerType } from '../core/types.ts';
+import type { HeroId, TowerType } from '../core/types.ts';
+import { HERO_DEFS } from '../data/heroes.ts';
+import { HERO_ROLE_EN, HEROES_TR, type HeroTr } from './heroesTr.ts';
 import { CHALLENGES, type ChallengeId } from '../data/challenges.ts';
 import { ENEMY_DEFS } from '../data/enemies.ts';
 import { TOWER_DEFS } from '../data/towers.ts';
@@ -157,4 +159,59 @@ export function featName(def: Pick<FeatDef, 'id' | 'name'>): string {
 
 export function featDesc(def: Pick<FeatDef, 'id' | 'description'>): string {
   return (tr() && DATA_TR.feats[def.id]?.desc) || def.description;
+}
+
+// --- heroes ----------------------------------------------------------------------------------
+
+function heroTr(id: HeroId): HeroTr | undefined {
+  return tr() ? HEROES_TR[id] : undefined;
+}
+
+export function heroName(id: HeroId): string {
+  return heroTr(id)?.name || HERO_DEFS[id].name;
+}
+
+export function heroTitle(id: HeroId): string {
+  return heroTr(id)?.title || HERO_DEFS[id].title;
+}
+
+export function heroDesc(id: HeroId): string {
+  return heroTr(id)?.shortDesc || HERO_DEFS[id].shortDesc;
+}
+
+/** One short role line ("Melee tank · holds the road"). */
+export function heroRole(id: HeroId): string {
+  return heroTr(id)?.role || HERO_ROLE_EN[id] || '';
+}
+
+export function heroPassiveName(id: HeroId): string {
+  return heroTr(id)?.passive.name || HERO_DEFS[id].passive.name;
+}
+
+export function heroPassiveDesc(id: HeroId): string {
+  return heroTr(id)?.passive.desc || HERO_DEFS[id].passive.description;
+}
+
+export function heroSkillName(id: HeroId, slot: 0 | 1): string {
+  return heroTr(id)?.actives[slot]?.name || HERO_DEFS[id].actives[slot].name;
+}
+
+export function heroSkillDesc(id: HeroId, slot: 0 | 1): string {
+  return heroTr(id)?.actives[slot]?.desc || HERO_DEFS[id].actives[slot].description;
+}
+
+export function heroBranchName(id: HeroId, branchId: string): string {
+  return heroTr(id)?.branches[branchId]?.name || HERO_DEFS[id].branches.find((b) => b.id === branchId)?.name || branchId;
+}
+
+export function heroBranchDesc(id: HeroId, branchId: string): string {
+  return heroTr(id)?.branches[branchId]?.desc || HERO_DEFS[id].branches.find((b) => b.id === branchId)?.description || '';
+}
+
+export function heroNodeName(id: HeroId, nodeId: string): string {
+  return heroTr(id)?.nodes[nodeId]?.name || HERO_DEFS[id].skillTree.find((n) => n.id === nodeId)?.name || nodeId;
+}
+
+export function heroNodeDesc(id: HeroId, nodeId: string): string {
+  return heroTr(id)?.nodes[nodeId]?.desc || HERO_DEFS[id].skillTree.find((n) => n.id === nodeId)?.description || '';
 }

@@ -45,7 +45,15 @@ function endlessSeal(): HTMLSpanElement {
   return sealBadge('endless');
 }
 
-export function showBriefing(st: IslandState, prev: LevelDef | null, thumb: string | null, modes: BriefingModes, onPlay: (choice: RunChoice) => void): Sheet {
+export function showBriefing(
+  st: IslandState,
+  prev: LevelDef | null,
+  thumb: string | null,
+  modes: BriefingModes,
+  onPlay: (choice: RunChoice) => void,
+  /** The hero row (heroScreens.ts `heroChip`): shown on an open island. */
+  hero?: HTMLElement,
+): Sheet {
   const lvl = st.level;
   const hasModes = st.unlocked && (modes.challenges.length > 0 || modes.endless);
   const sheet = openSheet(islandName(lvl), { cls: `pu-brief${hasModes ? ' has-modes' : ''}`, testid: 'brief2d' });
@@ -152,6 +160,7 @@ export function showBriefing(st: IslandState, prev: LevelDef | null, thumb: stri
     sheet.close();
     onPlay({ challenges: endless ? [] : [...chosen], endless });
   });
+  if (hero && st.unlocked) info.append(hero);
   const left = el('div', 'pu-brief-main', {}, thumbBox, info);
   sheet.body.append(el('div', 'pu-brief-body', {}, left, modesBox), el('div', 'pu-brief-actions', {}, play));
   requestAnimationFrame(() => play.focus({ preventScroll: true }));

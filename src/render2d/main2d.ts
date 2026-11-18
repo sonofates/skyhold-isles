@@ -7,12 +7,15 @@ import { changeMapVariant, loadArt } from './assets2d.ts';
 import { autoplayHooks, benchHooks } from './benchScene.ts';
 import { mountCodex2D } from './codex2d.ts';
 import { initLocale, t } from '../i18n/index.ts';
+import { heroName } from '../i18n/data.ts';
 import { AimOverlay, aimHooks, meleeHooks, towersHooks, zooHooks, ZooLabels, type AimSceneState, type MeleeSceneState } from './debugScenes.ts';
 import { ENEMY_TYPES } from '../data/enemies.ts';
 import type { EnemyType } from '../core/types.ts';
 import { FrameStats } from './frameStats.ts';
 import { Game2D, type Game2DHooks } from './game2d.ts';
-import { resolveHeroForRun } from './heroes2d.ts';
+import { heroLevelProgress, resolveHeroForRun } from './heroes2d.ts';
+import type { HeroHud2D } from './ui/heroHud2d.ts';
+import type { HeroSkillSlot } from '../core/types.ts';
 import { HUD_FONT } from './hudText.ts';
 import { detectSoftwareWebGL, isDesktopClient, qualityOverride, renderResolution, setGraphicsPrefs, type QualityTier } from './renderResolution.ts';
 import { setFxPrefs } from './fxLayer.ts';
@@ -54,6 +57,8 @@ import { anySheetOpen } from './ui/dom.ts';
  *   &settings=1       open the in-game Settings on load (a language switch reloads with it)
  *   &settab=general|audio|graphics|controls   the Settings section it opens on (QA; map too)
  *   ?desktop=1|0      QA: force the desktop / phone render-resolution policy (renderResolution.ts)
+ *   ?hero=<id>|none   run with that hero (or none); &herolevel=1..20 forces its level (QA)
+ *   &herosel=1        QA: start with the hero selected (move mode)
  */
 interface BenchStats {
   readonly fps: number;
@@ -89,6 +94,18 @@ declare global {
       aimAbility?: (id: AbilityId | null) => void;
       /** QA: stop / restart the ticker (a frozen frame for mid-effect screenshots, no Paused plate). */
       freeze?: (on: boolean) => void;
+      /** QA: the hero (HUD + render + sim state) and commands as the player would give them. */
+      hero?: {
+        state: () => Record<string, unknown>;
+        select: (on: boolean) => void;
+        move: (x: number, z: number) => boolean;
+        aim: (slot: HeroSkillSlot | null) => void;
+        cast: (slot: HeroSkillSlot, x?: number, z?: number) => boolean;
+        kill: () => void;
+        toScreen: (x: number, z: number) => { x: number; y: number };
+        tap: (x: number, y: number) => void;
+        nearestEnemy: () => { x: number; z: number } | null;
+      };
     };
   }
 }
@@ -250,6 +267,7 @@ async function main(): Promise<void> {
       overlayKeys: fronts,
       maxScale,
     },
+    heroSelection?.heroId ?? null,
   );
   if (art.notes.length > 0) console.info('[art2d] fallbacks:\n  ' + art.notes.join('\n  '));
   if (q.get('artcheck') === '1') mountArtCheck(art);
@@ -369,6 +387,7 @@ async function main(): Promise<void> {
   window.addEventListener('storage', refreshLiveSettings, { capture: true });
   window.addEventListener('focus', refreshLiveSettings, { capture: true });
   let abilities: AbilityBar2D | null = null;
+  let heroHud: HeroHud2D | null = null;
   hooks = {
     ...baseHooks,
     modifiers: run.modifiers,
@@ -392,9 +411,11 @@ async function main(): Promise<void> {
       codexRef?.setButtonVisible(!shown);
       settingsRef?.setButtonVisible(!shown);
       abilities?.setVisible(!shown && !storyOpen);
+      heroHud?.setVisible(!shown && !storyOpen);
       const w = gameRef?.world;
       if (!shown || !w) return;
       const won = w.outcome === 'won';
+      let heroRecorded = false;
       if (plainPlay) {
         const masteredBefore = routing.isMastered(level.id);
         const result = routing.recordRunOutcome({
@@ -409,6 +430,23 @@ async function main(): Promise<void> {
           wavesCleared: won ? level.waves.length : Math.max(0, w.waveSystem.currentWaveOneBased - 1),
           heroXpEarned: w.heroSystem.runXp,
         });
+        const hr = result.hero;
+        if (hr) {
+          heroRecorded = true;
+          const from = heroLevelProgress(hr.previousXp);
+          const to = heroLevelProgress(hr.newXp);
+          gameRef?.end.setHero({
+            heroId: hr.heroId,
+            name: heroName(hr.heroId),
+            xpGained: hr.xpGained,
+            fromFrac: from.fraction,
+            toFrac: to.fraction,
+            fromLevel: hr.previousLevel,
+            toLevel: hr.newLevel,
+            skillPoints: hr.skillPointsGained,
+            recorded: true,
+          });
+        }
         // Challenge badges, Daily Squall and Endless records go on the board.
         gameRef?.end.annotate(
           routing.endNoteFor({
@@ -420,6 +458,20 @@ async function main(): Promise<void> {
             masteredNow: !masteredBefore && routing.isMastered(level.id),
           }),
         );
+      }
+      if (!heroRecorded && w.hero) {
+        // Not recorded (QA / debug scenes): the run's XP only.
+        gameRef?.end.setHero({
+          heroId: w.hero.heroId,
+          name: heroName(w.hero.heroId),
+          xpGained: w.heroSystem.runXp,
+          fromFrac: 0,
+          toFrac: 0,
+          fromLevel: w.hero.level,
+          toLevel: w.hero.level,
+          skillPoints: 0,
+          recorded: false,
+        });
       }
       const story = q.get('story');
       if (won && (plainPlay || story === 'outro')) void routing.playStoryOnce(level, 'outro', art.manifest, art.baseUrl, story === 'outro');
@@ -489,7 +541,16 @@ async function main(): Promise<void> {
   if (bench === 0) {
     // Global abilities (Meteor Strike, Overcharge): painted bar + aiming + FX (ui/abilityBar2d.ts).
     const { mountAbilityBar2D, abilityArtFiles } = await import('./ui/abilityBar2d.ts');
-    abilities = mountAbilityBar2D(game, { desktop, art: abilityArtFiles(art.baseUrl), baseUrl: art.baseUrl });
+    // The hero's portrait + skill buttons sit in front of the abilities as one bar (ui/heroHud2d.ts).
+    const [{ createHeroHud2D, heroGroupLong }, { heroArtFiles }] = await Promise.all([import('./ui/heroHud2d.ts'), import('./ui/heroBits.ts')]);
+    heroHud = createHeroHud2D(game, { desktop, files: heroArtFiles(), onAimStart: () => abilities?.aim(null) });
+    abilities = mountAbilityBar2D(game, {
+      desktop,
+      art: abilityArtFiles(art.baseUrl),
+      baseUrl: art.baseUrl,
+      ...(heroHud ? { lead: { el: heroHud.el, long: heroGroupLong, short: (d) => d * 1.5 }, onAimStart: () => heroHud?.aim(null) } : {}),
+    });
+    if (q.get('herosel') === '1') game.setHeroSelected(true);
   }
   if (bench === 0) {
     const codex = mountCodex2D(art, (open) => {
@@ -525,6 +586,7 @@ async function main(): Promise<void> {
       codex.setButtonVisible(false);
       settings.setButtonVisible(false);
       abilities?.setVisible(false);
+      heroHud?.setVisible(false);
       storyOpen = true;
       void routing.playStoryOnce(level, 'intro', art.manifest, art.baseUrl, storyQ === 'intro').then(() => {
         storyOpen = false;
@@ -533,6 +595,7 @@ async function main(): Promise<void> {
           codex.setButtonVisible(true);
           settings.setButtonVisible(true);
           abilities?.setVisible(true);
+          heroHud?.setVisible(true);
         }
       });
     }
@@ -557,6 +620,7 @@ async function main(): Promise<void> {
     stats.record(t.deltaMS, t0);
     if (!manual) game.frame(t.deltaMS / 1000);
     abilities?.frame(t.deltaMS / 1000);
+    heroHud?.frame(t.deltaMS / 1000);
     if (fpsChip.visible && t0 - fpsShownAt > 500) {
       fpsShownAt = t0;
       fpsChip.show(stats.snapshot(t0).fps);
@@ -583,6 +647,41 @@ async function main(): Promise<void> {
     abilities: () => abilities?.debug() ?? null,
     aimAbility: (id) => abilities?.aim(id),
     freeze: (on) => (on ? app.ticker.stop() : app.ticker.start()),
+    hero: {
+      state: () => ({ hud: heroHud?.debug() ?? null, view: game.heroes.debug(), sim: game.getHeroState(), selected: game.heroSelected }),
+      select: (on) => game.setHeroSelected(on),
+      move: (x, z) => game.commandHeroMove(x, z),
+      aim: (slot) => heroHud?.aim(slot),
+      cast: (slot, x, z) => (x === undefined || z === undefined ? game.castHeroSkill(slot) : game.castHeroSkill(slot, x, z)),
+      kill: () => {
+        // QA only: fell the hero now (the sim's own death path needs an enemy blow).
+        const h = game.world.hero;
+        if (!h || h.state === 'dead') return;
+        h.hp = 0;
+        h.state = 'dead';
+        h.respawnTimer = h.stats.respawnSec;
+        h.waypoints.length = 0;
+        game.events.emit('heroDied', { heroId: h.heroId, x: h.x, z: h.z, respawnSec: h.stats.respawnSec });
+      },
+      toScreen: (x, z) => ({ x: game.map.screenX(game.map.pxX(x)), y: game.map.screenY(game.map.pxY(z)) }),
+      tap: (x, y) => game.tap(x, y),
+      nearestEnemy: () => {
+        const h = game.world.hero;
+        const pool = game.world.enemyPool;
+        let best: { x: number; z: number } | null = null;
+        let bd = Infinity;
+        for (let i = 0; i < pool.getActiveCount(); i++) {
+          const e = pool.items[pool.getActiveIndex(i)];
+          if (!e.active || e.hp <= 0) continue;
+          const d = h ? (e.x - h.x) ** 2 + (e.z - h.z) ** 2 : 0;
+          if (d < bd) {
+            bd = d;
+            best = { x: e.x, z: e.z };
+          }
+        }
+        return best;
+      },
+    },
     setGold: (g) => {
       game.world.gold = g;
       game.markHudDirty();

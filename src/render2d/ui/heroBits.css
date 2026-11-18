@@ -1,0 +1,44 @@
+/* Shared hero UI pieces (heroBits.ts): level badge + XP bar, in game and on the world map. */
+
+.pu-hero-lvl {
+  display: inline-grid;
+  place-items: center;
+  min-width: 1.9em;
+  height: 1.9em;
+  padding: 0 0.2em;
+  border-radius: 50%;
+  font-size: calc(var(--d, calc(var(--s) * 4.4)) * 0.24);
+  font-weight: 700;
+  line-height: 1;
+  background: radial-gradient(circle at 35% 30%, #ffe08a, #d39a2c 60%, #8a5a1a);
+  box-shadow: 0 0 0 2px var(--outline), inset 0 1px 0 rgba(255, 245, 210, 0.7);
+}
+
+.pu-hero-xp {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: calc(var(--s) * 10);
+  height: calc(var(--s) * 1.7);
+  border-radius: 999px;
+  background: rgba(58, 36, 18, 0.82);
+  box-shadow: 0 0 0 2px var(--outline), inset 0 2px 3px rgba(0, 0, 0, 0.4);
+  overflow: hidden;
+}
+
+.pu-hero-xp-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  border-radius: 999px;
+  background: linear-gradient(#b8e6ff, #5fb4e8 55%, #3a86c0);
+}
+
+.pu-hero-xp-text {
+  position: relative;
+  display: block;
+  text-align: center;
+  font-size: calc(var(--s) * 1.05);
+  line-height: calc(var(--s) * 1.7);
+  white-space: nowrap;
+}
