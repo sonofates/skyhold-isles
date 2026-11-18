@@ -4,6 +4,8 @@ import { describe, expect, it } from 'vitest';
 import { ManifestError, parseManifest } from '../../src/render2d/manifest.ts';
 import { fitOnRing, type RingSpec } from '../../src/render2d/towerFit.ts';
 import {
+  aimedSpriteMuzzle,
+  bodyAimPose,
   cannonArcPx,
   DEFAULT_SECTOR,
   frameFor,
@@ -264,5 +266,64 @@ describe('turret JSON + manifest entries', () => {
     for (const type of ['tesla', 'frost', 'mortar'] as const) {
       M.towers[type]!.muzzlePx.forEach((p, i) => expect(p, `${type} T${i + 1}`).not.toBeNull());
     }
+  });
+});
+
+describe('mortar body aim fallback (mirror for west + slight pitch tilt)', () => {
+  const mortar = M.towers.mortar!;
+  const ring = mortar.ring[0] as RingSpec;
+  const muzzlePx = mortar.muzzlePx[0]!;
+  const fit = fitOnRing({ cx: 600, bottom: 400, width: 96 }, ring, 512, 512);
+
+  it('mirrors west sectors (SW, W, NW) and keeps east sectors (NE, E, SE) unmirrored', () => {
+    for (const east of ['E', 'SE', 'NE'] as const) {
+      const p = bodyAimPose(idx(east) * 45 * DEG, -1);
+      expect(p.sector).toBe(idx(east));
+      expect(p.mirror).toBe(false);
+    }
+    for (const west of ['W', 'SW', 'NW'] as const) {
+      const p = bodyAimPose(idx(west) * 45 * DEG, -1);
+      expect(p.sector).toBe(idx(west));
+      expect(p.mirror).toBe(true);
+    }
+  });
+
+  it('negates rotation when mirrored so symmetric E/W sectors place the barrel mouth at equal y and mirrored x', () => {
+    for (const [east, west] of [
+      ['E', 'W'],
+      ['SE', 'SW'],
+      ['NE', 'NW'],
+    ] as const) {
+      const pe = bodyAimPose(idx(east) * 45 * DEG, -1);
+      const pw = bodyAimPose(idx(west) * 45 * DEG, -1);
+      expect(pw.rotation).toBeCloseTo(-pe.rotation, 9);
+      const me = aimedSpriteMuzzle(fit, ring, muzzlePx, pe.mirror, pe.rotation);
+      const mw = aimedSpriteMuzzle(fit, ring, muzzlePx, pw.mirror, pw.rotation);
+      expect(me.x - fit.x).toBeGreaterThan(0);
+      expect(mw.x - fit.x).toBeCloseTo(-(me.x - fit.x), 9);
+      expect(mw.y).toBeCloseTo(me.y, 9);
+    }
+  });
+
+  it('tilts barrel mouth steeper upward for north targets and lower forward for south targets', () => {
+    const north = bodyAimPose(yawToScreenAngle(Math.PI), -1, false);
+    const east = bodyAimPose(yawToScreenAngle(Math.PI / 2), -1, false);
+    const south = bodyAimPose(yawToScreenAngle(0), -1, false);
+    const mn = aimedSpriteMuzzle(fit, ring, muzzlePx, north.mirror, north.rotation);
+    const me = aimedSpriteMuzzle(fit, ring, muzzlePx, east.mirror, east.rotation);
+    const ms = aimedSpriteMuzzle(fit, ring, muzzlePx, south.mirror, south.rotation);
+    expect(mn.y).toBeLessThan(me.y);
+    expect(me.y).toBeLessThan(ms.y);
+    expect(Math.abs(north.rotation)).toBeLessThanOrEqual(0.15);
+    expect(Math.abs(south.rotation)).toBeLessThanOrEqual(0.15);
+  });
+
+  it('holds previous mirror state near due N / S to prevent horizontal flip-flop', () => {
+    // 92° (2° west of due S): cos ≈ -0.035 is inside the ±0.08 deadband, so prevMirror holds.
+    const almostSouthWest = 92 * DEG;
+    expect(bodyAimPose(almostSouthWest, idx('S'), false).mirror).toBe(false);
+    expect(bodyAimPose(almostSouthWest, idx('S'), true).mirror).toBe(true);
+    // 102° (12° west of due S): cos ≈ -0.208 crosses the deadband → mirrors west.
+    expect(bodyAimPose(102 * DEG, idx('S'), false).mirror).toBe(true);
   });
 });

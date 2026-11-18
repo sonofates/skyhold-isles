@@ -206,3 +206,73 @@ export function cannonArcPx(duration: number, t: number): number {
 export function spriteMuzzle(fit: SpriteFit, ring: RingSpec, p: readonly [number, number]): { x: number; y: number } {
   return { x: fit.x + (p[0] - ring.ringCenterXPx) * fit.scale, y: fit.y + (p[1] - ring.ringBottomPx) * fit.scale };
 }
+
+/**
+ * Fallback directional pose for an aimable shooter that has no 5-direction turret strip yet
+ * (shipped mortar art: barrel painted facing east/up-right on a symmetrical stone ring).
+ */
+export interface BodyAimPose {
+  readonly sector: number;
+  /** Horizontal flip (`scale.x < 0` when true) so east-facing art points west. */
+  readonly mirror: boolean;
+  /** Clockwise Pixi rotation (rad), negated when `mirror` is true so vertical pitch stays symmetric. */
+  readonly rotation: number;
+}
+
+/** Vertical barrel pitch (rad, +downward toward S, -upward toward N) per sector E..NE. */
+const BODY_SECTOR_PITCH: readonly number[] = [
+  0.03, // E
+  0.08, // SE
+  0.11, // S
+  0.08, // SW
+  0.03, // W
+  -0.05, // NW
+  -0.1, // N
+  -0.05, // NE
+];
+
+/**
+ * Computes sector (with hysteresis), west-mirroring, and slight pitch tilt toward `angle` (screen
+ * radians from `yawToScreenAngle`). `prevMirror` prevents flicker when a target crosses due N / S.
+ */
+export function bodyAimPose(
+  angle: number,
+  currentSector: number,
+  prevMirror = false,
+  hysteresis = SECTOR_HYSTERESIS,
+): BodyAimPose {
+  const sector = pickSector(angle, currentSector, hysteresis);
+  let mirror: boolean;
+  if (sector === 3 || sector === 4 || sector === 5) {
+    mirror = true;
+  } else if (sector === 0 || sector === 1 || sector === 7) {
+    mirror = false;
+  } else {
+    const cosA = Math.cos(angle);
+    mirror = cosA < -0.08 ? true : cosA > 0.08 ? false : prevMirror;
+  }
+  const pitch = BODY_SECTOR_PITCH[sector] ?? 0;
+  const rotation = (mirror ? -pitch : pitch) + 0;
+  return { sector, mirror, rotation };
+}
+
+/**
+ * Sprite-relative muzzle point mapped through the ring fit PLUS horizontal mirror (`mirror`) and
+ * rotation (`rotation`) around the ring's bottom-centre anchor.
+ */
+export function aimedSpriteMuzzle(
+  fit: SpriteFit,
+  ring: RingSpec,
+  p: readonly [number, number],
+  mirror: boolean,
+  rotation: number,
+): { x: number; y: number } {
+  const lx = (p[0] - ring.ringCenterXPx) * fit.scale * (mirror ? -1 : 1);
+  const ly = (p[1] - ring.ringBottomPx) * fit.scale;
+  const cos = Math.cos(rotation);
+  const sin = Math.sin(rotation);
+  return {
+    x: fit.x + lx * cos - ly * sin,
+    y: fit.y + lx * sin + ly * cos,
+  };
+}

@@ -12,6 +12,8 @@ import type { ProcTextures } from './procTextures.ts';
 import { attackFrame, attackPlan, idleFrame, onShot, PREROLL_GRACE, prerollStart, shotEta, shouldPreroll, type AttackPlan } from './towerAnim.ts';
 import { drawnRing, fitOnRing, ringMuzzle, type RingPlacement, type RingSpec, type SpriteFit } from './towerFit.ts';
 import {
+  aimedSpriteMuzzle,
+  bodyAimPose,
   DEFAULT_SECTOR,
   frameFor,
   mountPoint,
@@ -24,6 +26,9 @@ import {
   turretScale,
   yawToScreenAngle,
 } from './turret.ts';
+
+/** Directional shooters that aim via whole-sprite mirror + tilt until 5-direction turret art lands. */
+const BODY_AIM_TOWERS: ReadonlySet<TowerType> = new Set(['mortar']);
 
 /** Turret recoil per tower type: duration (s) and push-back as a share of the turret frame height. */
 export const TURRET_RECOIL: Readonly<Partial<Record<TowerType, { readonly dur: number; readonly frac: number }>>> = {
@@ -100,6 +105,9 @@ interface TowerView {
   /** Turret direction (index into turret.ts SECTORS) and whether it ever had a target. */
   sector: number;
   aimed: boolean;
+  /** Mirror / tilt state for directional shooters without a separate turret strip (mortar). */
+  bodyMirror: boolean;
+  bodyRot: number;
   /** Sim seconds since the last shot (turret recoil), -1 = at rest. */
   recoilT: number;
   /** Turret drawn this frame: its spec, foot point on the platform (map px) and scale. */
@@ -276,6 +284,21 @@ export class TowerLayer {
       v.aimed = true;
       v.recoilT = 0;
       v.muzzlePt = turretMuzzle(v.turretArt.spec, v.sector, v.mount, v.turretScale);
+    } else if (BODY_AIM_TOWERS.has(e.type)) {
+      const pose = bodyAimPose(yawToScreenAngle(v.entity.targetYaw), v.aimed ? v.sector : -1, v.bodyMirror);
+      v.sector = pose.sector;
+      v.bodyMirror = pose.mirror;
+      v.bodyRot = pose.rotation;
+      v.aimed = true;
+      const tierIdx = Math.max(1, Math.min(3, e.tier)) - 1;
+      const target = this.plots?.rings[v.entity.col];
+      const ring = v.art?.rings[tierIdx];
+      const tip = v.art?.spec.muzzlePx[tierIdx];
+      if (v.art && target && ring && tip) {
+        const stat = v.art.tiers[tierIdx];
+        const fit = fitOnRing(target, ring, stat.width, stat.height, v.art.spec.ringScale);
+        v.muzzlePt = aimedSpriteMuzzle(fit, ring, tip, v.bodyMirror, v.bodyRot);
+      }
     }
     const sheet = this.attackOf(e.type, e.tier);
     v.shotDelay = 0;
@@ -333,7 +356,9 @@ export class TowerLayer {
         break;
       case 'mortar':
         fx.spawn('flash', mx, my, 40 * big, 0, 0, 0.16, 0xffb060);
-        for (let i = 0; i < 4; i++) fx.spawn('puff', mx + (i - 1.5) * 4, my, (11 + i * 2) * big, (i - 1.5) * 8, -58 - i * 12, 0.5 + i * 0.07, 0xa89c8e);
+        for (let i = 0; i < 4; i++) {
+          fx.spawn('puff', mx + (i - 1.5) * 4, my, (11 + i * 2) * big, (i - 1.5) * 8 + dx * 16, -58 - i * 12 + dy * 8, 0.5 + i * 0.07, 0xa89c8e);
+        }
         fx.spawn('wring', v.px, v.py + 2, 24 * big, 0, 0, 0.32, 0xd9c29a);
         break;
       case 'bolt':
@@ -418,6 +443,8 @@ export class TowerLayer {
       entity: t,
       sector: DEFAULT_SECTOR,
       aimed: false,
+      bodyMirror: false,
+      bodyRot: 0,
       recoilT: -1,
       turretArt: null,
       mount: { x: 0, y: 0 },
@@ -510,8 +537,20 @@ export class TowerLayer {
     const fit = fitOnRing(target, ring, stat.width, stat.height, art.spec.ringScale);
     v.muzzle = ringMuzzle(fit, ring, py, art.spec.muzzleFrac, HEIGHT_TO_SCREEN * ppu);
     v.turretArt = turret;
+    const bodyAim = !turret && BODY_AIM_TOWERS.has(t.type);
+    if (bodyAim && t.stunTimer <= 0 && this.hasTarget(t)) {
+      const pose = bodyAimPose(yawToScreenAngle(t.targetYaw), v.aimed ? v.sector : -1, v.bodyMirror);
+      v.sector = pose.sector;
+      v.bodyMirror = pose.mirror;
+      v.bodyRot = pose.rotation;
+      v.aimed = true;
+    }
     const tip = turret ? null : art.spec.muzzlePx[tierIdx];
-    v.muzzlePt = tip ? spriteMuzzle(fit, ring, tip) : null;
+    v.muzzlePt = tip
+      ? bodyAim && v.aimed
+        ? aimedSpriteMuzzle(fit, ring, tip, v.bodyMirror, v.bodyRot)
+        : spriteMuzzle(fit, ring, tip)
+      : null;
     let tex: Texture = stat;
     let texRing = ring;
     let texW = stat.width;
@@ -551,8 +590,9 @@ export class TowerLayer {
     // (a turret tower's body stays still: only its turret recoils).
     const squash = painted || v.attackSheet || turret ? 0 : v.prof.squashY * RING_SQUASH * v.kick;
     const pulse = painted || turret ? 0 : v.prof.pulse * 0.5 * Math.sin(v.kick * Math.PI);
-    v.sprite.scale.set(f2.scale * (1 + pop * 0.5 + pulse), f2.scale * (1 + pop - squash + pulse));
-    v.sprite.rotation = 0;
+    const mirrorSign = bodyAim && v.aimed && v.bodyMirror ? -1 : 1;
+    v.sprite.scale.set(f2.scale * (1 + pop * 0.5 + pulse) * mirrorSign, f2.scale * (1 + pop - squash + pulse));
+    v.sprite.rotation = bodyAim && v.aimed ? v.bodyRot : 0;
     v.sprite.position.set(f2.x, f2.y);
     v.sprite.zIndex = f2.y;
     v.ring = drawnRing(f2, texRing);
@@ -561,6 +601,7 @@ export class TowerLayer {
     v.midY = fit.y - h * 0.55;
     if (turret) this.syncTurret(v, t, turret, fit, ring, 1 + pop * 0.5, 1 + pop, simDt);
     else if (v.turret) v.turret.visible = false;
+    if (bodyAim) v.mount = { x: fit.x, y: fit.y };
     if (v.muzzlePt) v.muzzle = Math.max(0.2, (py - v.muzzlePt.y) / (HEIGHT_TO_SCREEN * ppu));
     // The plot layer draws the contact shadow under every plot (covered or not).
     v.shadow.visible = false;
@@ -678,7 +719,7 @@ export class TowerLayer {
           v.pending = null;
         }
       } else if (jammed) {
-        v.sprite.rotation = Math.sin(time * 31) * 0.012;
+        v.sprite.rotation += Math.sin(time * 31) * 0.012;
       }
       let tint = art ? art.tint : 0xffffff;
       if (jammed) tint = mixTint(tint, JAM_TINT, 0.45 + 0.1 * Math.sin(time * 12));
@@ -749,9 +790,13 @@ export class TowerLayer {
   turretReport(): TurretReportRow[] {
     const out: TurretReportRow[] = [];
     for (const [id, v] of this.views) {
-      if (!v.turretArt || !v.turret?.visible) continue;
-      const f = frameFor(v.sector);
-      out.push({ id, type: v.entity.type, tier: v.entity.tier, sector: v.sector, aimed: v.aimed, targetYaw: v.entity.targetYaw, mirror: f.mirror, frame: f.frame, muzzle: v.muzzlePt, mount: v.mount, px: v.px, py: v.py });
+      if (v.turretArt && v.turret?.visible) {
+        const f = frameFor(v.sector);
+        out.push({ id, type: v.entity.type, tier: v.entity.tier, sector: v.sector, aimed: v.aimed, targetYaw: v.entity.targetYaw, mirror: f.mirror, frame: f.frame, muzzle: v.muzzlePt, mount: v.mount, px: v.px, py: v.py });
+      } else if (BODY_AIM_TOWERS.has(v.entity.type)) {
+        const f = frameFor(v.sector);
+        out.push({ id, type: v.entity.type, tier: v.entity.tier, sector: v.sector, aimed: v.aimed, targetYaw: v.entity.targetYaw, mirror: v.bodyMirror, frame: f.frame, muzzle: v.muzzlePt, mount: v.mount, px: v.px, py: v.py });
+      }
     }
     return out;
   }
