@@ -21,6 +21,8 @@ import { workshopModifiers, type WorkshopRanks } from '../../data/workshop.ts';
 import type { RunConfig } from '../../game/runConfig.ts';
 import { indexOf2D } from './progress2d.ts';
 
+export { audioSettings2d, type AudioSettings2D } from '../settings2d.ts';
+
 export interface AvailableChallenge2D extends ChallengeDef {
   /** Whether the player has already earned this challenge's badge on the island. */
   readonly completed: boolean;
