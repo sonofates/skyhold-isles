@@ -405,7 +405,8 @@
     "stride": 1,
     "rock": 0.07
    },
-   "back": "enemy-raider-back.webp"
+   "back": "enemy-raider-back.webp",
+   "attack": "anim/raider-attack.json"
   },
   "raider-veo31q": {
    "mode": "sheet",
@@ -429,7 +430,8 @@
     "lean": 0.14,
     "stride": 1,
     "rock": 0.07
-   }
+   },
+   "attack": "anim/raider-attack.json"
   },
   "brute": {
    "mode": "sheet",
@@ -460,7 +462,8 @@
     "up": "anim/brute-walk-up.json",
     "facing": "right",
     "facingUp": "left"
-   }
+   },
+   "attack": "anim/brute-attack.json"
   },
   "kite": {
    "mode": "sheet",
@@ -537,7 +540,8 @@
     "art": "raider",
     "tint": "#ffe0b0",
     "scale": 0.88
-   }
+   },
+   "attack": "anim/runner-attack.json"
   },
   "healer": {
    "mode": "sheet",
@@ -567,7 +571,8 @@
     "art": "raider",
     "tint": "#b8f0a0",
     "scale": 1.08
-   }
+   },
+   "attack": "anim/healer-attack.json"
   },
   "splitter": {
    "mode": "sheet",
@@ -597,7 +602,8 @@
     "art": "brute",
     "tint": "#ff9a7a",
     "scale": 0.78
-   }
+   },
+   "attack": "anim/splitter-attack.json"
   },
   "warden": {
    "mode": "sheet",
@@ -627,7 +633,8 @@
     "art": "brute",
     "tint": "#a8d8ff",
     "scale": 0.98
-   }
+   },
+   "attack": "anim/warden-attack.json"
   },
   "burrower": {
    "mode": "sheet",
@@ -658,7 +665,8 @@
     "art": "raider",
     "tint": "#d8b890",
     "scale": 0.92
-   }
+   },
+   "attack": "anim/burrower-attack.json"
   },
   "carrier": {
    "mode": "sheet",
@@ -718,7 +726,8 @@
     "art": "raider",
     "tint": "#9ff0e6",
     "scale": 1
-   }
+   },
+   "attack": "anim/blinker-attack.json"
   },
   "golem": {
    "mode": "sheet",
@@ -748,7 +757,8 @@
     "art": "brute",
     "tint": "#b0b0c0",
     "scale": 1.14
-   }
+   },
+   "attack": "anim/golem-attack.json"
   },
   "mite": {
    "mode": "sheet",
@@ -778,7 +788,8 @@
     "art": "raider",
     "tint": "#c8a8ff",
     "scale": 0.5
-   }
+   },
+   "attack": "anim/mite-attack.json"
   },
   "hexer": {
    "mode": "sheet",
@@ -808,7 +819,8 @@
     "art": "raider",
     "tint": "#e0a0ff",
     "scale": 1.12
-   }
+   },
+   "attack": "anim/hexer-attack.json"
   },
   "tempest": {
    "mode": "sheet",
@@ -838,7 +850,8 @@
     "art": "brute",
     "tint": "#9fc8ff",
     "scale": 1.6
-   }
+   },
+   "attack": "anim/tempest-attack.json"
   },
   "boss": {
    "mode": "sheet",
@@ -868,7 +881,8 @@
     "art": "brute",
     "tint": "#ff9090",
     "scale": 1.45
-   }
+   },
+   "attack": "anim/boss-attack.json"
   },
   "soldier": {
    "file": "unit-soldier.webp",
@@ -893,7 +907,8 @@
     "lean": 0.12,
     "stride": 1.3,
     "rock": 0.05
-   }
+   },
+   "attack": "anim/soldier-attack.json"
   }
  },
  "enemyMap": {

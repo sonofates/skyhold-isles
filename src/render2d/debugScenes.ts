@@ -15,6 +15,9 @@ import { sectorOf, yawToScreenAngle } from './turret.ts';
  *                        `tier` the whole set cycles T1 → T2 → T3 every 9 s
  *   ?towers=aim&type=T[&tier=N]  one directional tower, one immortal target hopping around it by
  *                        compass sector (turret aim QA; AimOverlay marks the sim's aim + muzzle)
+ *   ?melee=1[&tier=N][&types=grunt,brute,golem,mite][&plot=N][&die=1][&kill=1]  one barracks
+ *                        fighting a rotating mix of melee enemies walked into its rally point
+ *                        (melee animation QA; enemies and soldiers are topped up unless kill / die)
  * Both keep lives/gold topped up and never end.
  */
 
@@ -368,4 +371,113 @@ export class ZooLabels {
     }
     for (let i = n; i < this.nodes.length; i++) this.nodes[i].style.display = 'none';
   }
+}
+
+export interface MeleeSceneOptions {
+  readonly tier: number;
+  readonly types: readonly EnemyType[];
+  /** Plot for the barracks (-1 = the demo barracks plot, else the first that takes one). */
+  readonly plot: number;
+  /** Soldiers may die (death + respawn QA). */
+  readonly die: boolean;
+  /** Enemies may die (kill FX QA). */
+  readonly kill: boolean;
+  /** Enemies kept in the fight at once. */
+  readonly crowd: number;
+}
+
+/** QA state of `?melee=1` (exposed on window.__meleeScene by main2d). */
+export interface MeleeSceneState {
+  towerId: number;
+  rally: { x: number; z: number } | null;
+  lane: number;
+  spawned: number;
+}
+
+/** `?melee=1`: a barracks holding a rotating mix of melee enemies at its rally point. */
+export function meleeHooks(opts: MeleeSceneOptions, state: MeleeSceneState): Game2DHooks {
+  let setup = false;
+  let tick = 0;
+  let k = 0;
+  let rallyDist = 0;
+  let nextSpawn = 0;
+  const ours = new Set<number>();
+  const v = { x: 0, y: 0, z: 0 };
+  return {
+    endless: true,
+    beforeTick(world: SimWorld): void {
+      tick++;
+      world.lives = 999;
+      world.gold = 99999;
+      if (!setup) {
+        setup = true;
+        const demo = DEMO_PLOTS.find(([, t]) => t === 'barracks')?.[0] ?? 0;
+        const plots = world.level.layout2d?.plots ?? [];
+        const order = [opts.plot >= 0 ? opts.plot : demo, ...plots.map((_, i) => i)];
+        for (const plot of order) {
+          const t = world.placeTowerOnPlot(plot, 'barracks');
+          if (!t) continue;
+          state.towerId = t.id;
+          while (t.tier < opts.tier) if (!world.upgradeTower(t.id)) break;
+          break;
+        }
+        const b = world.soldierSystem.getBarracks(state.towerId);
+        if (!b) return;
+        state.rally = { x: b.rallyX, z: b.rallyZ };
+        // Lane and path distance of the rally point.
+        let best = Infinity;
+        for (let lane = 0; lane < world.enemySystem.groundLaneCount; lane++) {
+          const path = world.enemySystem.getPath(false, lane);
+          for (let d = 0; d < path.totalLength; d += 0.05) {
+            path.sample(d, v);
+            const e = Math.hypot(v.x - b.rallyX, v.z - b.rallyZ);
+            if (e < best) {
+              best = e;
+              state.lane = lane;
+              rallyDist = d;
+            }
+          }
+        }
+        nextSpawn = tick + 30;
+      }
+      if (!state.rally) return;
+      const pool = world.enemyPool;
+      let alive = 0;
+      for (let i = 0; i < pool.getActiveCount(); i++) {
+        const e = pool.items[pool.getActiveIndex(i)];
+        if (!ours.has(e.uid)) {
+          // The level's own waves are retired at the goal: only the scene's fighters.
+          e.dist = e.totalDist;
+          continue;
+        }
+        alive++;
+        if (!opts.kill && e.hp < e.maxHp * 0.35) e.hp = e.maxHp;
+        // Walked through (blinked / let go): send it back up the road.
+        if (e.dist > rallyDist + 2.4) {
+          e.dist = Math.max(0, rallyDist - 2.6);
+          world.enemySystem.getPath(false, e.lane).sample(e.dist, v);
+          e.x = e.prevX = v.x;
+          e.z = e.prevZ = v.z;
+        }
+      }
+      if (!opts.die) {
+        const b = world.soldierSystem.getBarracks(state.towerId);
+        for (const so of b?.squad ?? []) if (so.state !== 'dead' && so.hp < so.maxHp * 0.4) so.hp = so.maxHp;
+      }
+      if (alive < opts.crowd && tick >= nextSpawn) {
+        const type = opts.types[k % opts.types.length];
+        k++;
+        const e = world.enemySystem.spawnEnemy(type, 1, false, state.lane);
+        if (e) {
+          ours.add(e.uid);
+          state.spawned++;
+          e.dist = Math.max(0, rallyDist - 2.2 - (k % 2) * 0.4);
+          world.enemySystem.getPath(false, state.lane).sample(e.dist, v);
+          e.x = e.prevX = v.x;
+          e.z = e.prevZ = v.z;
+        }
+        nextSpawn = tick + 50;
+      }
+    },
+  };
 }

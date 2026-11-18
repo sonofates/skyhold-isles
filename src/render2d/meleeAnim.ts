@@ -35,7 +35,7 @@ export interface SheetTiming {
 export const PROC_CLIP: SwingClip = { lead: 0.3, dur: 0.54 };
 export const PROC_CLIP_HEAVY: SwingClip = { lead: 0.46, dur: 0.82 };
 export const MAX_WINDUP_SPEED = 2.5;
-export const MAX_RECOVER_SPEED = 3;
+export const MAX_RECOVER_SPEED = 6;
 /** A blow arriving this long after the impact frame passed does not restart the clip. */
 export const IMPACT_GRACE = 0.12;
 export const CANCEL_FADE = 0.12;

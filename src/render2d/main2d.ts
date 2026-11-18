@@ -6,7 +6,9 @@ import { artCheckSummary, mountArtCheck } from './artCheck.ts';
 import { loadArt } from './assets2d.ts';
 import { autoplayHooks, benchHooks } from './benchScene.ts';
 import { mountCodex2D } from './codex2d.ts';
-import { AimOverlay, aimHooks, towersHooks, zooHooks, ZooLabels, type AimSceneState } from './debugScenes.ts';
+import { AimOverlay, aimHooks, meleeHooks, towersHooks, zooHooks, ZooLabels, type AimSceneState, type MeleeSceneState } from './debugScenes.ts';
+import { ENEMY_TYPES } from '../data/enemies.ts';
+import type { EnemyType } from '../core/types.ts';
 import { FrameStats } from './frameStats.ts';
 import { Game2D, type Game2DHooks } from './game2d.ts';
 import { HUD_FONT } from './hudText.ts';
@@ -23,6 +25,9 @@ import { HUD_FONT } from './hudText.ts';
  *   ?zoo=1            all 15 enemy types walking, specials triggered periodically (labelled)
  *   ?towers=1[&tier=N] every tower type built and firing (cycles T1-T3 unless tier is given)
  *   ?towers=aim&type=cannon|archer|ballista[&tier=N]  turret aim QA (window.__aim, aim overlay)
+ *   ?melee=1[&tier=N][&types=a,b][&plot=N][&die=1][&kill=1][&crowd=N]  barracks melee QA
+ *                     (window.__meleeScene; with &manual=1 the game only advances through
+ *                     window.__meleeScene.step(frames), for frame-exact captures)
  *   ?speed=2|3        start at 2× / 3× sim speed (QA recordings)
  */
 interface BenchStats {
@@ -42,6 +47,7 @@ declare global {
   interface Window {
     __bench?: BenchStats;
     __aim?: AimSceneState;
+    __meleeScene?: MeleeSceneState & { step: (frames: number) => void; stats: () => Record<string, unknown>; toScreen: (x: number, z: number) => { x: number; y: number } };
     __p0?: {
       mode: string;
       state: () => Record<string, unknown>;
@@ -128,7 +134,25 @@ async function main(): Promise<void> {
 
   let hooks: Game2DHooks = {};
   let aimState: AimSceneState | null = null;
+  let meleeState: MeleeSceneState | null = null;
   if (bench > 0) hooks = benchHooks(bench);
+  else if (q.get('melee') === '1') {
+    meleeState = { towerId: -1, rally: null, lane: 0, spawned: 0 };
+    const types = (q.get('types') ?? 'grunt,brute,golem,mite')
+      .split(',')
+      .filter((t): t is EnemyType => (ENEMY_TYPES as readonly string[]).includes(t));
+    hooks = meleeHooks(
+      {
+        tier: Math.max(1, Math.min(3, Number(q.get('tier') ?? 3) || 3)),
+        types: types.length > 0 ? types : ['grunt'],
+        plot: Number(q.get('plot') ?? -1),
+        die: q.get('die') === '1',
+        kill: q.get('kill') === '1',
+        crowd: Math.max(1, Math.min(6, Number(q.get('crowd') ?? 3) || 3)),
+      },
+      meleeState,
+    );
+  }
   else if (q.get('zoo') === '1') hooks = zooHooks();
   else if (q.get('towers') === 'aim') {
     const type = (['archer', 'cannon', 'ballista'] as const).find((x) => x === q.get('type')) ?? 'cannon';
@@ -156,11 +180,22 @@ async function main(): Promise<void> {
   }
   const zooLabels = q.get('zoo') === '1' ? new ZooLabels(game) : null;
   const aimOverlay = aimState && q.get('overlay') !== '0' ? new AimOverlay(game) : null;
+  const manual = meleeState !== null && q.get('manual') === '1';
+  if (meleeState) {
+    const ms = meleeState;
+    window.__meleeScene = Object.assign(ms, {
+      step: (frames: number): void => {
+        for (let i = 0; i < frames; i++) game.frame(1 / 60);
+      },
+      stats: (): Record<string, unknown> => ({ ...game.melee.stats, ...game.soldiers.debug(game.world.soldierSystem) }),
+      toScreen: (x: number, z: number) => ({ x: game.map.screenX(game.map.pxX(x)), y: game.map.screenY(game.map.pxY(z)) }),
+    });
+  }
   app.ticker.add((t) => {
     if (draws) lastDraws = draws.take();
     const t0 = performance.now();
     stats.record(t.deltaMS, t0);
-    game.frame(t.deltaMS / 1000);
+    if (!manual) game.frame(t.deltaMS / 1000);
     zooLabels?.update();
     aimOverlay?.update();
     renderStart = performance.now();
