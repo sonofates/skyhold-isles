@@ -3,7 +3,9 @@
 and writes the gates back into the layout JSON. Then checks that no gameplay field of any layout
 changed (only `entrances[].gate` / `goalGate` may differ from git HEAD).
 
-usage: /usr/bin/python3 tools/map-compose/rebake_all.py [ids,comma,separated] [--jobs 6]
+Use --only-3x to add native high-resolution art to an existing set of bakes and layouts.
+
+usage: /usr/bin/python3 tools/map-compose/rebake_all.py [ids,comma,separated] [--jobs 2] [--only-3x]
 """
 import json
 import subprocess
@@ -13,7 +15,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 args = sys.argv[1:]
-jobs = int(args[args.index('--jobs') + 1]) if '--jobs' in args else 6
+jobs = int(args[args.index('--jobs') + 1]) if '--jobs' in args else 2
 pos = [a for i, a in enumerate(args) if not a.startswith('--') and (i == 0 or args[i - 1] != '--jobs')]
 ids = pos[0].split(',') if pos else ['l1c'] + [f'i{n:02d}' for n in range(1, 17)]
 
@@ -24,9 +26,13 @@ def out_name(lid):
 
 
 def bake(lid):
-    cmd = ['/usr/bin/python3', 'tools/map-compose/compose.py', f'src/data/levels2d/{lid}.json', 'design/art-2d/v2/assets',
-           f'public/art2d/{out_name(lid)}.webp', '--bake', '--keep-plots', '--w', '3692', '--variants', '1,1.5', '--write-layout']
-    r = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True)
+    cmd = ['/usr/bin/python3', '-B', 'tools/map-compose/compose.py', f'src/data/levels2d/{lid}.json', 'design/art-2d/v2/assets',
+           f'public/art2d/{out_name(lid)}.webp', '--bake', '--keep-plots']
+    passes = [] if '--only-3x' in args else [['--w', '3692', '--variants', '1,1.5', '--write-layout']]
+    for options in [*passes, ['--3x']]:
+        r = subprocess.run(cmd + options, cwd=ROOT, capture_output=True, text=True)
+        if r.returncode:
+            break
     return lid, r.returncode, r.stdout + r.stderr
 
 
@@ -51,7 +57,8 @@ with ThreadPoolExecutor(jobs) as ex:
 for lid in ids:
     p = f'src/data/levels2d/{lid}.json'
     head = subprocess.run(['git', 'show', f'HEAD:{p}'], cwd=ROOT, capture_output=True, text=True).stdout
-    same = strip_gates(json.loads(head)) == strip_gates(json.loads((ROOT / p).read_text()))
+    before, after = json.loads(head), json.loads((ROOT / p).read_text())
+    same = before == after if '--only-3x' in args else strip_gates(before) == strip_gates(after)
     print(f'{lid}: gameplay fields {"unchanged" if same else "CHANGED"}')
     fail |= not same
 sys.exit(1 if fail else 0)

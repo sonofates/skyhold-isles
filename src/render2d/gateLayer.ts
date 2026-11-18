@@ -11,6 +11,12 @@ import { frontPlacement, type Level2DGate } from '../data/levels2d/gates.ts';
 export class GateLayer {
   readonly sprites: Sprite[] = [];
 
+  private readonly artBySprite = new Map<Sprite, string>();
+
+  setTextures(overlays: Readonly<Record<string, Texture>>): void {
+    for (const [sprite, key] of this.artBySprite) sprite.texture = overlays[key];
+  }
+
   constructor(actors: Container, gates: readonly Level2DGate[], overlays: Readonly<Record<string, Texture>>) {
     for (const g of gates) {
       if (!g.front) continue;
@@ -26,6 +32,7 @@ export class GateLayer {
       s.label = `gate-${g.role}-${g.lane}`;
       actors.addChild(s);
       this.sprites.push(s);
+      this.artBySprite.set(s, g.front.art);
     }
   }
 }

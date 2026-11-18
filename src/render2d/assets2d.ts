@@ -2,7 +2,7 @@ import { Assets, Rectangle, Texture, type TextureSource } from 'pixi.js';
 import type { TowerType } from '../core/types.ts';
 import { alphaFeetAnchor } from './alphaBox.ts';
 import { enemyHasArt, mulTint, pickTier, resolveEnemyArt, resolveTowerTiers } from './artResolve.ts';
-import { pickMapVariant } from './mapVariant.ts';
+import { MASTER_SCALE, pickMapVariant } from './mapVariant.ts';
 import { measureRing, type RingSpec } from './towerFit.ts';
 import { parseTurretJson, TURRET_DIRS, type TurretSpec } from './turret.ts';
 import {
@@ -120,11 +120,13 @@ export interface EnemyArtRuntime {
 
 export interface LoadedArt {
   readonly manifest: ArtManifest;
-  readonly map: Texture;
-  /** Manifest maps key of the bake that was loaded (a resolution variant of the level's map). */
-  readonly mapKey: string;
-  /** Map overlays (gate front layers) by manifest `overlays` key; missing files are absent. */
-  readonly overlays: Readonly<Record<string, Texture>>;
+  /** Shared by all scene layers, including art copies with tower fallbacks. */
+  readonly map: {
+    key: string;
+    texture: Texture;
+    /** Mounted by the layout's front art key at every resolution. */
+    overlays: Readonly<Record<string, Texture>>;
+  };
   /** Empty build plot sprite (null when the manifest has none / it failed to load). */
   readonly plot: PlotArtRuntime | null;
   readonly ui: Readonly<Record<keyof UiArt, Texture>>;
@@ -178,6 +180,7 @@ function tryTexture(url: string, mips = false): Promise<Texture | null> {
 /** Options for the map texture: device px per layout px at the current fit, and (QA) mipmaps. */
 export interface MapLoadOptions {
   readonly need?: number;
+  readonly maxScale?: number;
   readonly mips?: boolean;
   readonly overlayKeys?: readonly string[];
 }
@@ -186,22 +189,52 @@ export interface MapLoadOptions {
  * Loads the bake of map `mapKey` that suits `need` (see mapVariant.ts). Resolves to null when that
  * file is missing; falls back to the master key when the variant fails.
  */
-export async function loadMapVariant(
+async function loadMapVariant(
   manifest: ArtManifest,
   baseUrl: string,
   mapKey: string,
-  opts: MapLoadOptions = {},
+  opts: MapLoadOptions,
 ): Promise<{ key: string; texture: Texture } | null> {
-  const key = pickMapVariant(manifest.maps, mapKey, opts.need ?? 2) ?? mapKey;
-  const file = manifest.maps[key];
-  if (file) {
-    const tex = await tryTexture(baseUrl + file, opts.mips === true);
-    if (tex) return { key, texture: tex };
+  // The first frame uses at most the master. The larger map and its fronts stream together later.
+  const limit = Math.min(MASTER_SCALE, opts.maxScale ?? MASTER_SCALE);
+  const key = pickMapVariant(manifest.maps, mapKey, opts.need ?? MASTER_SCALE, limit);
+  if (!key) return null;
+  const texture = await tryTexture(baseUrl + manifest.maps[key], opts.mips);
+  if (texture) return { key, texture };
+  if (key === mapKey || limit < MASTER_SCALE || !manifest.maps[mapKey]) return null;
+  const master = await tryTexture(baseUrl + manifest.maps[mapKey], opts.mips);
+  return master ? { key: mapKey, texture: master } : null;
+}
+
+/** Swap an island's map and its matching fronts as one frame, then evict superseded textures. */
+export async function changeMapVariant(
+  art: LoadedArt, key: string, fronts: readonly string[], mips: boolean,
+  stillWanted: () => boolean, show: () => void,
+): Promise<void> {
+  const { manifest, baseUrl } = art;
+  const suffix = (k: string): string => k.endsWith('@3x') ? '@3x' : '';
+  const filesFor = (k: string): string[] => [
+    manifest.maps[k], ...fronts.map((f) => manifest.overlays[f + suffix(k)]),
+  ];
+  const oldFiles = filesFor(art.map.key);
+  const newFiles = filesFor(key);
+  if (newFiles.some((f) => !f)) return;
+  const textures = await Promise.all(newFiles.map((f, i) => tryTexture(baseUrl + f, i === 0 ? mips : true)));
+  const [map, ...overlays] = textures;
+  const apply = map !== null && overlays.every((t) => t !== null) && stillWanted();
+  if (apply) {
+    art.map.key = key;
+    art.map.texture = map;
+    art.map.overlays = Object.fromEntries(fronts.map((f, i) => [f, overlays[i]!]));
+    show();
   }
-  const master = manifest.maps[mapKey];
-  if (!master || key === mapKey) return null;
-  const tex = await tryTexture(baseUrl + master, opts.mips === true);
-  return tex ? { key: mapKey, texture: tex } : null;
+  const retained = apply ? newFiles : oldFiles;
+  await Promise.all((apply ? oldFiles : newFiles).map(async (file, i) => {
+    if (retained.includes(file)) return;
+    const url = baseUrl + file;
+    textureCache.delete(i > 0 || mips ? url + '#mips' : url);
+    if (Assets.cache.has(url)) await Assets.unload(url);
+  }));
 }
 
 async function tryJson(url: string): Promise<unknown | null> {
@@ -568,7 +601,7 @@ export async function loadArt(
   const uiKeys = Object.keys(manifest.ui) as (keyof UiArt)[];
   const kitEntries = Object.entries(manifest.uiKit ?? {});
   const plotSpec = manifest.plot;
-  const overlayKeys = mapOpts.overlayKeys ?? Object.keys(manifest.overlays);
+  const overlayKeys = mapOpts.overlayKeys ?? Object.keys(manifest.overlays).filter((key) => !key.endsWith('@3x'));
   const [mapRes, plotTex, uiTex, kitTex, towerList, enemyList, overlayTex] = await Promise.all([
     loadMapVariant(manifest, base, mapKey, mapOpts),
     plotSpec ? tryTexture(base + plotSpec.file, true) : Promise.resolve(null),
@@ -667,7 +700,7 @@ export async function loadArt(
     sharedProbeCanvas.width = 1;
     sharedProbeCanvas.height = 1;
   }
-  return { manifest, map, mapKey: mapRes.key, overlays, plot, ui, uiKit, towers, enemies, notes, present, baseUrl: base };
+  return { manifest, map: { key: mapRes.key, texture: map, overlays }, plot, ui, uiKit, towers, enemies, notes, present, baseUrl: base };
 }
 
 /**
@@ -684,9 +717,9 @@ export function collectArtTextureSources(art: LoadedArt): TextureSource[] {
     if (!list) return;
     for (let i = 0; i < list.length; i++) add(list[i]);
   };
-  add(art.map);
+  add(art.map.texture);
   add(art.plot?.texture);
-  for (const t of Object.values(art.overlays)) add(t);
+  for (const t of Object.values(art.map.overlays)) add(t);
   for (const t of Object.values(art.ui)) add(t);
   if (art.uiKit) for (const t of Object.values(art.uiKit)) add(t);
   for (const tw of Object.values(art.towers)) {

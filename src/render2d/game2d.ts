@@ -182,9 +182,9 @@ export class Game2D {
     this.level = level;
     this.hooks = hooks;
     this.tex = createProcTextures();
-    this.map = new MapView(art.map, level.layout2d);
+    this.map = new MapView(art.map.texture, level.layout2d);
     this.layers = new WorldLayers(this.map.world);
-    this.gates = new GateLayer(this.layers.actors, level.layout2d.gates ?? [], art.overlays);
+    this.gates = new GateLayer(this.layers.actors, level.layout2d.gates ?? [], art.map.overlays);
     this.rangeDisc = new Sprite(this.tex.rangeDisc);
     this.rangeDisc.anchor.set(0.5);
     this.rangeDisc.visible = false;
@@ -961,10 +961,11 @@ export class Game2D {
       insets: this.insets,
       fit: this.map.fit,
       mapInfo: {
-        key: this.art.mapKey,
+        key: this.art.map.key,
         texelScale: this.map.texelScale,
         texturePx: [this.map.textureSource.pixelWidth, this.map.textureSource.pixelHeight],
         gateFronts: this.gates.sprites.length,
+        gateTextureWidths: this.gates.sprites.map((sprite) => sprite.texture.source.pixelWidth),
       },
       render: {
         resolution: this.app.renderer.resolution,
@@ -1001,7 +1002,7 @@ export class Game2D {
         shotsDelayed: this.towers.shotsDelayed,
       },
       mips: {
-        map: this.art.map.source.mipLevelCount,
+        map: this.art.map.texture.source.mipLevelCount,
         plot: this.art.plot?.texture.source.mipLevelCount ?? null,
         tower: this.art.towers.archer?.tiers[0].source.mipLevelCount ?? null,
       },

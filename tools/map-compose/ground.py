@@ -30,26 +30,28 @@ def fine_detail(base: Image.Image, tex: Image.Image, tile_px: int, amount: float
     f = np.asarray(fine).astype(np.float32)
     lo = np.asarray(fine.filter(ImageFilter.GaussianBlur(radius))).astype(np.float32)
     hp = (f - lo) * amount
-    b = np.asarray(base.convert('RGB')).astype(np.float32)
-    out = b + hp[..., None]
-    return Image.fromarray(out.clip(0, 255).astype(np.uint8)).convert('RGBA')
+    channels = []
+    for channel in base.convert('RGB').split():
+        v = np.asarray(channel) + hp
+        channels.append(Image.fromarray(v.clip(0, 255).astype(np.uint8)))
+    return Image.merge('RGB', channels).convert('RGBA')
 
 
-def value_noise(w, h, cell, seed):
+def value_noise(w, h, cell, seed, scale):
     rnd = random.Random(seed)
-    gw, gh = w // cell + 2, h // cell + 2
+    gw, gh = round(w / scale) // cell + 2, round(h / scale) // cell + 2
     small = Image.new('L', (gw, gh))
     small.putdata([rnd.randint(0, 255) for _ in range(gw * gh)])
     return small.resize((w, h), Image.BICUBIC)
 
 
-def ragged_mask(hard: Image.Image, soft_r: float, cell: int, amp: float, seed: int, aa: float = 0.9) -> Image.Image:
+def ragged_mask(hard: Image.Image, soft_r: float, cell: int, amp: float, seed: int, aa: float = 0.9, noise_scale=1) -> Image.Image:
     """A crisp, slightly irregular (painted) version of a hard mask: blur, perturb the 50% level
     with value noise, re-threshold with a ~1-2 px anti-aliased step."""
     W, H = hard.size
     soft = np.asarray(hard.filter(ImageFilter.GaussianBlur(soft_r))).astype(np.float32) / 255
-    n = np.asarray(value_noise(W, H, cell, seed)).astype(np.float32) / 255 - 0.5
-    n2 = np.asarray(value_noise(W, H, max(2, cell // 3), seed + 1)).astype(np.float32) / 255 - 0.5
+    n = np.asarray(value_noise(W, H, cell, seed, noise_scale)).astype(np.float32) / 255 - 0.5
+    n2 = np.asarray(value_noise(W, H, max(2, cell // 3), seed + 1, noise_scale)).astype(np.float32) / 255 - 0.5
     v = soft + (n * 0.7 + n2 * 0.3) * amp
     # soft is a ramp of width ~ 2.5 * soft_r px across the edge: map +-step to a ~aa px wide AA band
     step = aa / (2.5 * soft_r)

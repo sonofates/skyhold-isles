@@ -3,7 +3,7 @@ import { Application, UPDATE_PRIORITY } from 'pixi.js';
 import { getLevelById } from '../data/levels2d/index.ts';
 import { AbScene } from './abScene.ts';
 import { artCheckSummary, mountArtCheck } from './artCheck.ts';
-import { loadArt, loadMapVariant, type LoadedArt } from './assets2d.ts';
+import { changeMapVariant, loadArt } from './assets2d.ts';
 import { autoplayHooks, benchHooks } from './benchScene.ts';
 import { mountCodex2D } from './codex2d.ts';
 import { initLocale, t } from '../i18n/index.ts';
@@ -15,7 +15,8 @@ import { Game2D, type Game2DHooks } from './game2d.ts';
 import { HUD_FONT } from './hudText.ts';
 import { detectSoftwareWebGL, isDesktopClient, qualityOverride, renderResolution, type QualityTier } from './renderResolution.ts';
 import type { MapView } from './mapView.ts';
-import { VARIANT_SLACK } from './mapVariant.ts';
+import type { GateLayer } from './gateLayer.ts';
+import { MASTER_SCALE, maxMapScale, pickMapVariant } from './mapVariant.ts';
 import { computeMapFit } from './viewFit.ts';
 import { mountSettings2D, type Settings2D } from './settingsButton2d.ts';
 import { anySheetOpen } from './ui/dom.ts';
@@ -196,6 +197,9 @@ async function main(): Promise<void> {
   // Device px per layout px at a screen size: picks the map bake (resolution variant) to load.
   const mapNeed = (w: number, h: number): number =>
     computeMapFit(w, h, layout2d.imageSize[0], layout2d.imageSize[1], layout2d.safeArea).scale * app.renderer.resolution;
+  const textureLimit = gl ? Number(gl.getParameter(gl.MAX_TEXTURE_SIZE)) : 4096;
+  const maxScale = maxMapScale(isDesktopClient(q), textureLimit, layout2d.imageSize);
+  const fronts = ab ? [] : layout2d.gates?.flatMap((gate) => gate.front ? [gate.front.art] : []) ?? [];
   const mapMips = q.get('mapmips') === '1';
   const art = await loadArt(
     '/art2d/manifest.json',
@@ -204,11 +208,48 @@ async function main(): Promise<void> {
     {
       need: mapNeed(app.screen.width, app.screen.height),
       mips: mapMips,
-      overlayKeys: layout2d.gates?.flatMap((gate) => gate.front ? [gate.front.art] : []),
+      overlayKeys: fronts,
+      maxScale,
     },
   );
   if (art.notes.length > 0) console.info('[art2d] fallbacks:\n  ' + art.notes.join('\n  '));
   if (q.get('artcheck') === '1') mountArtCheck(art);
+
+  // Subscribe after the master has painted. Serialize loads and recheck the fit before applying
+  // them, since resizing / adaptive resolution can change the desired bake while it downloads.
+  function watchMap(map: MapView, gates?: GateLayer): void {
+    const desired = (): string | null => {
+      const need = mapNeed(app.screen.width, app.screen.height);
+      // Small bakes can stay resident when a phone calibrates down after boot.
+      if (map.texelScale <= MASTER_SCALE && map.texelScale >= need) return art.map.key;
+      return pickMapVariant(art.manifest.maps, layout2d.image, need, maxScale);
+    };
+    let loading = false;
+    const update = async (): Promise<void> => {
+      if (loading) return;
+      loading = true;
+      try {
+        let key = desired();
+        while (key && key !== art.map.key) {
+          const target = key;
+          await changeMapVariant(art, target, fronts, mapMips, () => desired() === target, () => {
+            map.setTexture(art.map.texture);
+            gates?.setTextures(art.map.overlays);
+          });
+          key = desired();
+          if (key === target) break;
+        }
+      } finally {
+        loading = false;
+      }
+    };
+    const refresh = (): void => { void update().catch((err: unknown) => console.warn('[art2d] map swap failed', err)); };
+    app.ticker.addOnce(() => requestAnimationFrame(() => {
+      app.renderer.on('resize', refresh);
+      app.renderer.runners.resolutionChange.add({ resolutionChange: refresh });
+      refresh();
+    }), null, UPDATE_PRIORITY.UTILITY);
+  }
 
   const draws = countDrawCalls(gl);
   const stats = new FrameStats();
@@ -222,9 +263,9 @@ async function main(): Promise<void> {
     const scene = new AbScene(app, art, level);
     const onResize = (): void => {
       scene.resize(app.screen.width, app.screen.height);
-      upgradeMap(art, scene.map, mapNeed(app.screen.width, app.screen.height), mapMips);
     };
     onResize();
+    watchMap(scene.map);
     app.renderer.on('resize', onResize);
     app.ticker.add((t) => scene.frame(Math.min(0.1, t.deltaMS / 1000)));
     document.getElementById('boot')?.remove();
@@ -354,10 +395,9 @@ async function main(): Promise<void> {
   if (startSpeed === 2 || startSpeed === 3) game.stepper.speed = startSpeed;
   game.resize(app.screen.width, app.screen.height);
   game.prewarm({ benchSteps: bench > 0 ? Math.ceil(bench / 10) + 2 : 0 });
-  upgradeMap(art, game.map, mapNeed(app.screen.width, app.screen.height), mapMips);
+  watchMap(game.map, game.gates);
   const onResize = (): void => {
     game.resize(app.screen.width, app.screen.height);
-    upgradeMap(art, game.map, mapNeed(app.screen.width, app.screen.height), mapMips);
   };
   app.renderer.on('resize', onResize);
   for (let warmFrames = 0; warmFrames < 4; warmFrames++) {
@@ -484,20 +524,6 @@ async function main(): Promise<void> {
     });
   }
   if (!document.hidden || isDebugScene) app.ticker.start();
-}
-
-let mapUpgrade: Promise<void> | null = null;
-
-/** After the window grew past what the loaded map bake covers, swaps in a bigger variant (once at a time). */
-function upgradeMap(art: LoadedArt, map: MapView, need: number, mips: boolean): void {
-  if (mapUpgrade || map.texelScale * VARIANT_SLACK >= need) return;
-  mapUpgrade = loadMapVariant(art.manifest, art.baseUrl, map.layout.image, { need, mips })
-    .then((res) => {
-      if (res && res.texture.source.pixelWidth > map.texelScale * map.imageW) map.setTexture(res.texture);
-    })
-    .finally(() => {
-      mapUpgrade = null;
-    });
 }
 
 main().catch((err: unknown) => {

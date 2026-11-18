@@ -63,7 +63,7 @@ export class AbScene {
 
   constructor(app: Application, art: LoadedArt, level: LevelDef) {
     const layout = level.layout2d!;
-    this.map = new MapView(art.map, layout);
+    this.map = new MapView(art.map.texture, layout);
     const layers = new WorldLayers(this.map.world);
     this.enemies = new EnemyLayer(art, this.map, layers, createProcTextures());
     const modeOf = (key: string): string => {

@@ -90,7 +90,7 @@ describe.each(ids)('%s campaign plot map', (id) => {
 
   it('selects this map at every resolution and supplies its gate fronts', () => {
     expect(layout.image).toBe(`map-${id}-layered`);
-    for (const [need, suffix] of [[1, '@1x'], [1.5, '@1.5x'], [2, '']] as const) {
+    for (const [need, suffix] of [[1, '@1x'], [1.5, '@1.5x'], [2, ''], [3, '@3x']] as const) {
       const key = pickMapVariant(art.maps, layout.image, need);
       expect(key).toBe(layout.image + suffix);
       expect(art.maps[key!]).toBe(key + '.webp');
@@ -107,8 +107,10 @@ describe.each(ids)('%s campaign plot map', (id) => {
       }
       const key = gate.front!.art;
       expect(key).toBe(layout.image + '-gate-' + (gate.role === 'goal' ? 'goal' : layout.entrances[gate.lane].id));
-      expect(art.overlays[key]).toBe(key + '.webp');
-      expect(existsSync('public/art2d/' + art.overlays[key])).toBe(true);
+      for (const variant of [key, key + '@3x']) {
+        expect(art.overlays[variant]).toBe(variant + '.webp');
+        expect(existsSync('public/art2d/' + art.overlays[variant])).toBe(true);
+      }
     }
   });
 });
