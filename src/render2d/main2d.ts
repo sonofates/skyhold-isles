@@ -98,7 +98,7 @@ function showError(msg: string): void {
 }
 
 /** Query keys that start a game scene; without any of them 2d.html opens the world map. */
-const GAME_PARAMS = ['level', 'ab', 'bench', 'autoplay', 'raider', 'codex', 'artcheck', 'zoo', 'towers', 'melee', 'speed', 'end', 'mapmips'] as const;
+const GAME_PARAMS = ['level', 'daily', 'challenge', 'endless', 'ab', 'bench', 'autoplay', 'raider', 'codex', 'artcheck', 'zoo', 'towers', 'melee', 'speed', 'end', 'mapmips'] as const;
 
 async function main(): Promise<void> {
   const q = new URLSearchParams(location.search);
@@ -109,14 +109,30 @@ async function main(): Promise<void> {
     document.getElementById('boot')?.remove();
     return;
   }
-  const levelId = q.get('level') ?? 'l1c';
-  const level = getLevelById(levelId);
-  if (!level?.layout2d) {
-    showError(`Unknown 2D island: ${levelId}`);
-    return;
-  }
   const ab = q.get('ab') === '1';
   const bench = Math.max(0, Math.min(340, Number(q.get('bench') ?? 0) || 0));
+  const isDebugScene =
+    ab ||
+    bench > 0 ||
+    q.get('melee') === '1' ||
+    q.get('zoo') === '1' ||
+    q.has('towers') ||
+    q.get('autoplay') === '1' ||
+    q.has('end');
+  const [{ loadProgress2D }, { resolveQueryRun2D }] = await Promise.all([
+    import('./ui/progress2d.ts'),
+    import('./ui/modes2d.ts'),
+  ]);
+  const run = resolveQueryRun2D(q, loadProgress2D(), {
+    nowMs: Date.now(),
+    lookupLevel: getLevelById,
+    applySaveModifiers: !isDebugScene,
+  });
+  const level = run.level;
+  if (!level?.layout2d) {
+    showError(`Unknown 2D island: ${run.levelId}`);
+    return;
+  }
 
   const app = new Application();
   await app.init({
@@ -211,16 +227,40 @@ async function main(): Promise<void> {
   const baseHooks = hooks;
   hooks = {
     ...baseHooks,
+    modifiers: run.modifiers,
+    startEndless: run.runConfig.endless,
     onEndPanel: (shown) => {
       codexRef?.setButtonVisible(!shown);
       const w = gameRef?.world;
       if (!shown || !w) return;
       const won = w.outcome === 'won';
-      if (plainPlay) routing.recordRun(level, won, won ? w.computeStars() : 0, w.lives);
+      if (plainPlay) {
+        routing.recordRunOutcome({
+          levelId: level.id,
+          won,
+          stars: won ? w.computeStars() : 0,
+          livesRemaining: w.lives,
+          waveReached: w.waveSystem.currentWaveOneBased,
+          runConfig: run.runConfig,
+        });
+      }
       const story = q.get('story');
       if (won && (plainPlay || story === 'outro')) void routing.playStoryOnce(level, 'outro', art.manifest, art.baseUrl, story === 'outro');
     },
-    onMenu: () => location.assign(routing.worldMapHref()),
+    onMenu: () => {
+      const w = gameRef?.world;
+      if (plainPlay && w && run.runConfig.endless && w.outcome === 'ongoing') {
+        routing.recordRunOutcome({
+          levelId: level.id,
+          won: false,
+          stars: 0,
+          livesRemaining: w.lives,
+          waveReached: w.waveSystem.currentWaveOneBased,
+          runConfig: run.runConfig,
+        });
+      }
+      location.assign(routing.worldMapHref());
+    },
     get onNext() {
       const next = routing.nextIslandOpen(level.id, gameRef?.world.outcome === 'won');
       return next ? () => location.assign(routing.islandHref(next)) : undefined;

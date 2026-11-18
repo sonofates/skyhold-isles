@@ -7,7 +7,17 @@ import { LEVELS_2D } from '../../data/levels2d/index.ts';
 import type { LevelDef } from '../../data/levels/types.ts';
 import type { WinRecord } from '../../game/progression.ts';
 import { islandMapUrl, type MapsManifest } from './islandArt.ts';
-import { indexOf2D, isUnlocked2D, loadProgress2D, markStorySeen, recordWin2D, storySeen } from './progress2d.ts';
+import {
+  indexOf2D,
+  isUnlocked2D,
+  loadProgress2D,
+  markStorySeen,
+  recordRunResult2D,
+  recordWin2D,
+  storySeen,
+  type RunOutcome2D,
+  type RunResultRecord2D,
+} from './progress2d.ts';
 import { storyBeats, type StoryPart } from './storyBeats.ts';
 import { showStory } from './storyPanels.ts';
 
@@ -40,6 +50,11 @@ export function recordRun(level: LevelDef, won: boolean, stars: number, lives: n
   if (!won) return null;
   const s = Math.max(1, Math.min(3, Math.round(stars))) as 1 | 2 | 3;
   return recordWin2D(level.id, s, lives);
+}
+
+/** Records a campaign, challenge, Daily Squall, or Endless run outcome into the 2D save. */
+export function recordRunOutcome(outcome: RunOutcome2D): RunResultRecord2D {
+  return recordRunResult2D(outcome);
 }
 
 /**

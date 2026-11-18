@@ -5,7 +5,7 @@
  */
 import type { GameSettings, ProgressData } from '../../core/types.ts';
 import { CHALLENGES, challengesForLevel, type ChallengeId } from '../../data/challenges.ts';
-import { dailyChallengeFor, liveStreak, utcDayNumber, type DailyChallenge } from '../../data/daily.ts';
+import { liveStreak, type DailyChallenge } from '../../data/daily.ts';
 import { LEVELS_2D } from '../../data/levels2d/index.ts';
 import type { LevelDef } from '../../data/levels/types.ts';
 import { buyRank, maxRank, nextRankCost, rankOf, WORKSHOP_BRANCHES, WORKSHOP_UPGRADES, workshopTotalCost, type WorkshopUpgradeDef } from '../../data/workshop.ts';
@@ -13,6 +13,7 @@ import { featStatuses, type FeatIcon } from '../../game/feats.ts';
 import { isIslandMastered, starWallet } from '../../game/progression.ts';
 import { loadSettings, saveSettings } from '../../platform/storage.ts';
 import { ART, el, glyph, img, KIT, medal, openSheet, plank, slider, starsRow, toggle, type Sheet } from './dom.ts';
+import { dailyForToday, dailyHref2D } from './modes2d.ts';
 import type { IconName } from './paintedIcons.ts';
 import { resetProgress2D, saveProgress2D } from './progress2d.ts';
 
@@ -260,11 +261,7 @@ function ruleSeal(id: ChallengeId): HTMLSpanElement {
 
 /** Today's Daily over the 2D isles (null until one island is won). */
 export function dailyFor2D(progress: ProgressData, nowMs: number, levels: readonly LevelDef[] = LEVELS_2D): DailyChallenge | null {
-  const cleared: number[] = [];
-  levels.forEach((_, i) => {
-    if ((progress.clears[i] ?? 0) > 0) cleared.push(i);
-  });
-  return dailyChallengeFor(utcDayNumber(nowMs), cleared);
+  return dailyForToday(nowMs, progress, levels);
 }
 
 export function openDaily(ctx: MetaContext, nowMs = Date.now()): Sheet {
@@ -302,10 +299,16 @@ export function openDaily(ctx: MetaContext, nowMs = Date.now()): Sheet {
     const def = CHALLENGES[id];
     rules.append(el('div', 'pu-rule', {}, ruleSeal(id), el('div', 'pu-ink', {}, def.name, el('small', 'pu-ink-soft', {}, def.description))));
   }
-  // 2D runs cannot apply challenge rules yet (Game2D builds its SimWorld without run modifiers),
-  // so the Daily cannot be played honestly here; the button says so instead of starting a plain run.
-  const start = plank('Set sail', { kind: 'primary', icon: 'play', testid: 'daily2d-start', sub: 'Opens when painted runs get challenge rules' });
-  start.disabled = true;
+  const start = plank('Set sail', {
+    kind: 'primary',
+    icon: 'play',
+    testid: 'daily2d-start',
+    sub: doneToday ? 'No reward until tomorrow' : 'Win once today for +1★',
+  });
+  start.addEventListener('click', () => {
+    sheet.close();
+    location.assign(dailyHref2D(level.id));
+  });
   sheet.body.append(el('div', 'pu-daily-grid', {}, left, el('div', '', {}, rules)), el('div', 'pu-brief-actions', {}, start));
   return sheet;
 }
