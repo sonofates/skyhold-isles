@@ -21,6 +21,9 @@ import { EndPanel, endStars } from './endPanel.ts';
 import { EnemyLayer } from './enemyLayer.ts';
 import { FxLayer } from './fxLayer.ts';
 import { GateLayer } from './gateLayer.ts';
+import { HeroLayer } from './heroLayer.ts';
+import { HERO_TAP_SLACK, heroHitBox, inBox, resolveHeroTap } from './heroInput.ts';
+import { HERO_RULES } from '../data/heroes.ts';
 import { Hud, type HudState } from './hud.ts';
 import { WorldLayers } from './layers.ts';
 import { MapView } from './mapView.ts';
@@ -114,6 +117,8 @@ export class Game2D {
   /** Melee fight state shared by the enemy and soldier layers (swings, facing, spacing, flash). */
   readonly melee: MeleeDirector;
   readonly gates: GateLayer;
+  /** The run's hero (sprite sheets, ring, bars, skill FX, aim previews). */
+  readonly heroes: HeroLayer;
   readonly hud: Hud;
   readonly ring: BuildRing;
   readonly end: EndPanel;
@@ -131,6 +136,10 @@ export class Game2D {
   private selectedTower = -1;
   /** Barracks waiting for a road tap to move its rally point (-1 = none). */
   private rallyTower = -1;
+  /** The hero is selected: the next map tap is a move order (heroInput.ts rules). */
+  private heroSel = false;
+  /** Fired when the hero selection changes (HUD portrait highlight). */
+  onHeroSelect: ((selected: boolean) => void) | null = null;
   private down: { x: number; y: number; t: number } | null = null;
   /** Free plot under the mouse (desktop hover glow), or -1. */
   private hoverPlot = -1;
@@ -224,6 +233,7 @@ export class Game2D {
     this.melee = new MeleeDirector(meleeLookFor(art));
     this.enemies.setMelee(this.melee);
     this.soldiers.setMelee(this.melee);
+    this.heroes = new HeroLayer(art, this.map, this.layers, this.tex, this.fx);
     this.hud = new Hud(art);
     this.ring = new BuildRing(art);
     this.end = new EndPanel(art);
@@ -316,6 +326,8 @@ export class Game2D {
     this.activeDamagePopups = 0;
     this.soldiers.reset();
     this.melee.reset();
+    this.heroes.reset();
+    this.setHeroSelected(false);
     this.rallyTower = -1;
     this.boltActive = 0;
     this.hudGoldDirty = true;
@@ -347,6 +359,8 @@ export class Game2D {
     );
     this.melee.wire(ev);
     this.soldiers.wire(ev);
+    this.heroes.wire(ev);
+    ev.on('heroDied', () => this.setHeroSelected(false));
     ev.on('lightningChain', (e) => {
       // points[0] is the firing tower: draw the bolt at its painted release frame, from its muzzle.
       const p0 = e.points[0];
@@ -608,6 +622,8 @@ export class Game2D {
     this.enemies.syncPool(world.enemyPool, alpha, simDt);
     this.projectiles.sync(world.projectilePool, alpha);
     this.soldiers.sync(world.soldierSystem, alpha, simDt, dtSec, this.selectedTower, this.rallyTower);
+    if (this.heroSel && (world.outcome !== 'ongoing' || !world.hero || world.hero.state === 'dead')) this.setHeroSelected(false);
+    this.heroes.sync(world, alpha, simDt, dtSec);
     this.fx.update(simDt > 0 ? simDt : dtSec * 0.25);
     this.activeDamagePopups = this.hooks.endless ? 0 : this.damageNumbers.update(simDt > 0 ? dtSec : 0, cfg);
     if (!this.hooks.endless) {
@@ -771,6 +787,62 @@ export class Game2D {
     return this.world.getAbilitiesState();
   }
 
+  /** Selects / deselects the hero (move mode). Opening it closes the build ring. */
+  setHeroSelected(on: boolean): void {
+    const h = this.world?.hero;
+    const ok = on && !!h && h.state !== 'dead' && this.world.outcome === 'ongoing';
+    if (ok && this.ring.isOpen) this.closeRing();
+    if (ok) this.rallyTower = -1;
+    const was = this.heroSel;
+    this.heroSel = ok;
+    this.heroes.selected = ok;
+    if (!ok) this.heroes.setHover(null);
+    if (was !== ok) this.onHeroSelect?.(ok);
+  }
+
+  get heroSelected(): boolean {
+    return this.heroSel;
+  }
+
+  /** Screen (css px) position of the hero's feet, or null without a hero. */
+  heroScreen(): { x: number; y: number } | null {
+    const f = this.heroes.feet();
+    return f ? { x: this.map.screenX(f.x), y: this.map.screenY(f.y) } : null;
+  }
+
+  /** Is the screen point on the hero (body box grown to a touch-sized target)? */
+  private onHeroAt(x: number, y: number): boolean {
+    const b = this.heroes.bodyRect();
+    if (!b) return false;
+    const sb = { x: this.map.screenX(b.x), y: this.map.screenY(b.y), w: b.w * this.map.fit.scale, h: b.h * this.map.fit.scale };
+    return inBox(heroHitBox(sb, 44), x, y);
+  }
+
+  /** Distance (world units) from a world point to the nearest road the hero can walk. */
+  offRoad(wx: number, wz: number): number {
+    const c = this.world.heroSystem.groundGraph.clampToGround(wx, wz, Infinity);
+    return Math.hypot(wx - c.roadX, wz - c.roadZ);
+  }
+
+  /** Move order at a screen point: walks there (true) or shows the invalid cross (false). */
+  private heroMoveAt(x: number, y: number): boolean {
+    const wx = this.map.worldXFromScreen(x);
+    const wz = this.map.worldZFromScreen(y);
+    if (this.offRoad(wx, wz) > HERO_RULES.maxOffRoadDist + HERO_TAP_SLACK) {
+      this.heroes.flashInvalid(wx, wz);
+      return false;
+    }
+    if (this.world.commandHeroMove(wx, wz)) haptics.pulse('tap');
+    return true;
+  }
+
+  /** Desktop right click: with the hero selected, a move order that keeps it selected. */
+  rightClick(x: number, y: number): void {
+    if (this.end.visible || this.stepper.paused || !this.heroSel) return;
+    if (this.ring.isOpen) this.closeRing();
+    this.heroMoveAt(x, y);
+  }
+
   private closeRing(): void {
     this.ring.close();
     this.selectedTower = -1;
@@ -904,6 +976,32 @@ export class Game2D {
       const my = (y - this.map.fit.offsetY) / this.map.fit.scale;
       plot = this.towers.plotAtSprite(mx, my, world.towers);
     }
+    // Hero rules (heroInput.ts): select / move / invalid before plots, a plot tap drops the hero.
+    const h = world.hero;
+    const heroAct = resolveHeroTap({
+      hasHero: !!h,
+      heroAlive: !!h && h.state !== 'dead',
+      selected: this.heroSel,
+      onHero: !!h && this.onHeroAt(x, y),
+      onPlot: plot !== -1,
+      offRoad: h ? this.offRoad(wx, wz) : Infinity,
+      maxOffRoad: HERO_RULES.maxOffRoadDist,
+    });
+    if (heroAct === 'select' || heroAct === 'deselect') {
+      haptics.pulse('tap');
+      this.setHeroSelected(heroAct === 'select');
+      return;
+    }
+    if (heroAct === 'move') {
+      this.heroMoveAt(x, y);
+      this.setHeroSelected(false);
+      return;
+    }
+    if (heroAct === 'invalid') {
+      this.heroMoveAt(x, y);
+      return;
+    }
+    if (this.heroSel) this.setHeroSelected(false);
     if (plot === -1 || (this.ring.isOpen && this.ring.plot === plot)) {
       this.closeRing();
       return;
@@ -916,8 +1014,16 @@ export class Game2D {
   attachInput(canvas: HTMLCanvasElement): void {
     canvas.style.touchAction = 'none';
     canvas.addEventListener('pointerdown', (e) => {
+      if (e.button === 2) {
+        // Right click: a hero move order (when the hero is selected); never a tap.
+        this.down = null;
+        const r = canvas.getBoundingClientRect();
+        this.rightClick(e.clientX - r.left, e.clientY - r.top);
+        return;
+      }
       this.down = { x: e.clientX, y: e.clientY, t: performance.now() };
     });
+    canvas.addEventListener('contextmenu', (e) => e.preventDefault());
     canvas.addEventListener('pointerup', (e) => {
       const d = this.down;
       this.down = null;
@@ -941,10 +1047,25 @@ export class Game2D {
       const mx = (e.clientX - r.left - this.map.fit.offsetX) / this.map.fit.scale;
       const my = (e.clientY - r.top - this.map.fit.offsetY) / this.map.fit.scale;
       this.hoverPlot = this.plots.plotAtPx(mx, my);
-      canvas.style.cursor = this.hoverPlot !== -1 && this.world.grid.getTowerIdAt(this.hoverPlot, 0) === -1 ? 'pointer' : '';
+      const sx = e.clientX - r.left;
+      const sy = e.clientY - r.top;
+      const overHero = !!this.world.hero && this.onHeroAt(sx, sy);
+      if (this.heroSel) {
+        const wx = this.map.worldXFromScreen(sx);
+        const wz = this.map.worldZFromScreen(sy);
+        const onPlot = this.hoverPlot !== -1 || this.towers.plotAtSprite(mx, my, this.world.towers) !== -1;
+        if (overHero || onPlot) this.heroes.setHover(null);
+        else {
+          const valid = this.offRoad(wx, wz) <= HERO_RULES.maxOffRoadDist + HERO_TAP_SLACK;
+          const c = this.world.heroSystem.groundGraph.clampToGround(wx, wz);
+          this.heroes.setHover(valid ? { x: c.x, z: c.z, valid } : { x: wx, z: wz, valid });
+        }
+      }
+      canvas.style.cursor = overHero || (this.hoverPlot !== -1 && this.world.grid.getTowerIdAt(this.hoverPlot, 0) === -1) ? 'pointer' : this.heroSel ? 'crosshair' : '';
     });
     canvas.addEventListener('pointerleave', () => {
       this.hoverPlot = -1;
+      this.heroes.setHover(null);
     });
     window.addEventListener('storage', () => this.refreshSettings());
     window.addEventListener('focus', () => this.refreshSettings());
@@ -974,7 +1095,11 @@ export class Game2D {
       else if (e.key === '1') this.stepper.speed = 1;
       else if (e.key === '2') this.stepper.speed = 2;
       else if (e.key === 'n' || e.key === 'N') this.world.startNextWave();
-      else if (e.key === 'Escape') this.closeRing();
+      else if ((e.key === 'h' || e.key === 'H') && !e.repeat && !e.ctrlKey && !e.metaKey && !this.stepper.paused) this.setHeroSelected(!this.heroSel);
+      else if (e.key === 'Escape') {
+        this.closeRing();
+        this.setHeroSelected(false);
+      }
     });
   }
 
@@ -1053,6 +1178,7 @@ export class Game2D {
         extras: this.enemies.specials.extrasCreated,
       },
       barracks: { ...this.soldiers.debug(w.soldierSystem), rallyMode: this.rallyTower, melee: { ...this.melee.stats } },
+      heroView: { ...this.heroes.debug(), screen: this.heroScreen() },
       turrets: { shots: this.towers.turretShots, views: this.towers.turretReport() },
       plots: {
         count: this.plots.geometry.rects.length,

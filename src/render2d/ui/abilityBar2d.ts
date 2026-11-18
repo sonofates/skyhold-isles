@@ -87,9 +87,17 @@ export interface AbilityBarOptions {
   /** Painted pieces (manifest `abilities.*`) when present. */
   readonly art?: Promise<Partial<Record<AbilityArtKey, string>>>;
   readonly baseUrl?: string;
+  /** A group laid out in front of the ability buttons (the hero HUD) and its length at size d / gap. */
+  readonly lead?: { readonly el: HTMLElement; readonly long: (d: number, gap: number) => number; readonly short?: (d: number) => number };
+  /** An ability started aiming (the hero HUD drops its own aim). */
+  readonly onAimStart?: () => void;
 }
 
-/** `abilities` section of the raw art manifest (the parsed one keeps only the game's keys). */
+/**
+ * `abilities` section of the raw art manifest (the parsed one keeps only the game's keys). Accepts
+ * the flat keys (`meteorIcon`, …) and the nested layout the art landed with
+ * (`abilities.meteor.icon`, `abilities.overcharge.icon`).
+ */
 export async function abilityArtFiles(baseUrl: string): Promise<Partial<Record<AbilityArtKey, string>>> {
   try {
     const res = await fetch(`${baseUrl}manifest.json`);
@@ -100,6 +108,15 @@ export async function abilityArtFiles(baseUrl: string): Promise<Partial<Record<A
       const v = raw.abilities?.[k];
       if (typeof v === 'string' && v) out[k] = v;
     }
+    const nested = (id: string, key: string): string | null => {
+      const sec = raw.abilities?.[id];
+      const v = sec && typeof sec === 'object' ? (sec as Record<string, unknown>)[key] : undefined;
+      return typeof v === 'string' && v ? v : null;
+    };
+    out.meteorIcon ??= nested('meteor', 'icon') ?? undefined;
+    out.overchargeIcon ??= nested('overcharge', 'icon') ?? undefined;
+    if (!out.meteorIcon) delete out.meteorIcon;
+    if (!out.overchargeIcon) delete out.overchargeIcon;
     return out;
   } catch {
     return {};
@@ -134,6 +151,7 @@ export function mountAbilityBar2D(game: Game2D, opts: AbilityBarOptions): Abilit
     if (opts.desktop) btn.append(el('span', 'pu-ab-key pu-letter', { 'aria-hidden': 'true' }, ABILITY_KEYS[id]));
     return { id, btn, frame, icon, sweep, surge, secs, key: '', view: null };
   });
+  if (opts.lead) root.append(opts.lead.el);
   for (const s of slots) root.append(s.btn);
   root.append(tip);
   document.body.append(root, hint);
@@ -187,9 +205,8 @@ export function mountAbilityBar2D(game: Game2D, opts: AbilityBarOptions): Abilit
     const ins = readSafeInsets();
     const u = uiScale(w, h);
     const pad = Math.max(8, 14 * u);
-    d = Math.round(Math.max(54, 76 * u));
+    const base = Math.round(Math.max(54, 76 * u));
     const gap = Math.round(Math.max(10, 16 * u));
-    const long = d * slots.length + gap * (slots.length - 1);
     const r = game.hud.rects();
     const m = game.map;
     const sx = (px: number): number => m.fit.offsetX + px * m.fit.scale;
@@ -197,16 +214,30 @@ export function mountAbilityBar2D(game: Game2D, opts: AbilityBarOptions): Abilit
     // Plots with room for the tower that may stand on them (≈ 1.3 plot widths tall).
     const hard: Rect[] = game.plots.geometry.rects.map((p) => ({ x: sx(p.x), y: sy(p.y - p.w * 1.3), w: p.w * m.fit.scale, h: (p.h + p.w * 1.3) * m.fit.scale }));
     placing = true;
-    hard.push(r.horn, hudButtonsKeepOut(w, h, ins), ...hudKeepOuts());
+    hard.push(r.horn, r.plaque, r.banner, hudButtonsKeepOut(w, h, ins), ...hudKeepOuts());
     placing = false;
     const soft = roadPts.map((p) => ({ x: sx(m.pxX(p.x)), y: sy(m.pxY(p.z)) }));
-    spot = abilityBarSpot({ w, h, insets: ins, pad, long, short: d, gap, plaque: r.plaque, banner: r.banner, hard, soft });
+    // With the hero group the bar is long: shrink the buttons (never under 46 px) until a spot
+    // covers nothing; else keep the size whose best spot covers least.
+    let best: { d: number; long: number; short: number; spot: AbilityBarSpot } | null = null;
+    for (let dd = base; dd >= Math.min(base, 46); dd -= 2) {
+      const lg = dd * slots.length + gap * (slots.length - 1) + (opts.lead ? opts.lead.long(dd, gap) : 0);
+      const sh = Math.max(dd, opts.lead?.short ? Math.ceil(opts.lead.short(dd)) : dd);
+      const sp = abilityBarSpot({ w, h, insets: ins, pad, long: lg, short: sh, gap, plaque: r.plaque, banner: r.banner, hard, soft });
+      if (!best || sp.score < best.spot.score) best = { d: dd, long: lg, short: sh, spot: sp };
+      if (sp.score === 0 || !opts.lead) break;
+    }
+    d = best!.d;
+    const long = best!.long;
+    const short = best!.short;
+    spot = best!.spot;
     root.classList.toggle('vertical', spot.vertical);
     root.style.setProperty('--d', `${d}px`);
     root.style.setProperty('--gap', `${gap}px`);
     root.style.left = `${Math.round(spot.x)}px`;
     root.style.top = `${Math.round(spot.y)}px`;
-    box = { x: spot.x, y: spot.y, w: spot.vertical ? d : long, h: spot.vertical ? long : d };
+    box = { x: spot.x, y: spot.y, w: spot.vertical ? short : long, h: spot.vertical ? long : short };
+    root.style.setProperty('--short', `${short}px`);
     placeHint();
   };
   const placeHint = (): void => {
@@ -321,6 +352,8 @@ export function mountAbilityBar2D(game: Game2D, opts: AbilityBarOptions): Abilit
   };
   const setAim = (id: AbilityId | null): void => {
     if (id && aiming !== id) {
+      opts.onAimStart?.();
+      game.setHeroSelected(false);
       // Close the build ring through game2d's own Esc shortcut (its ring / selection are private).
       synthetic = true;
       window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));

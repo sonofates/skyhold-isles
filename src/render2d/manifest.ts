@@ -27,6 +27,61 @@ export interface ArtManifest {
   readonly enemies: Readonly<Record<string, EnemyArt>>;
   /** Sim enemy type → art (+ optional tint / scale); `*` is the fallback for unmapped types. */
   readonly enemyMap: Readonly<Record<string, EnemyMapEntry>>;
+  /** Hero art (portraits, icons, sprite sheets) keyed by hero id; absent when the section is missing. */
+  readonly heroes?: Readonly<Record<string, HeroArtSpec>>;
+}
+
+/**
+ * One hero's art (manifest `heroes.<id>`). Every path is relative to the manifest directory; the
+ * sheet descriptors are grid JSONs (parseSheetJson). See docs/handoff-codex-hero-art.md.
+ */
+export interface HeroArtSpec {
+  readonly portrait: string | null;
+  readonly select: string | null;
+  /** Skill id (passive + both actives, e.g. `shieldBash`) → 256 px round icon. */
+  readonly skills: Readonly<Record<string, string>>;
+  /** Branch slot (`passive` / `active1` / `active2`) → 256 px icon reused by its four tiers. */
+  readonly branches: Readonly<Record<string, string>>;
+  /** Standing figure (first idle pose). */
+  readonly file: string | null;
+  /** Display height in world units (soldier = 1.15). */
+  readonly height: number;
+  readonly idle: string | null;
+  readonly walk: { readonly down: string; readonly up: string; readonly side: string | null } | null;
+  readonly attack: string | null;
+  readonly death: string | null;
+}
+
+/** Parses the optional `heroes` section; malformed entries are skipped, never thrown. */
+export function parseHeroArt(raw: unknown): Record<string, HeroArtSpec> {
+  const out: Record<string, HeroArtSpec> = {};
+  if (!raw || typeof raw !== 'object') return out;
+  const s = (v: unknown): string | null => (typeof v === 'string' && v.length > 0 ? v : null);
+  const strMap = (v: unknown): Record<string, string> => {
+    const m: Record<string, string> = {};
+    if (v && typeof v === 'object') for (const [k, f] of Object.entries(v as Record<string, unknown>)) if (s(f)) m[k] = f as string;
+    return m;
+  };
+  for (const [id, v] of Object.entries(raw as Record<string, unknown>)) {
+    if (!v || typeof v !== 'object') continue;
+    const h = v as Record<string, unknown>;
+    const sheet = h.sheet && typeof h.sheet === 'object' ? (h.sheet as Record<string, unknown>) : null;
+    const down = s(sheet?.down);
+    const up = s(sheet?.up);
+    out[id] = {
+      portrait: s(h.portrait),
+      select: s(h.select),
+      skills: strMap(h.skills),
+      branches: strMap(h.branches),
+      file: s(h.file),
+      height: typeof h.height === 'number' && h.height > 0 ? h.height : 1.4,
+      idle: s(h.idle),
+      walk: down && up ? { down, up, side: s(sheet?.side) } : null,
+      attack: s(h.attack),
+      death: s(h.death),
+    };
+  }
+  return out;
 }
 
 export interface PlotArt {
@@ -426,6 +481,7 @@ export function parseManifest(raw: unknown): ArtManifest {
     buildRing,
     enemies,
     enemyMap,
+    ...(m.heroes !== undefined && m.heroes !== null ? { heroes: parseHeroArt(m.heroes) } : {}),
   };
 }
 

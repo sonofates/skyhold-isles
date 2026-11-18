@@ -1,0 +1,779 @@
+/*
+ * Hero screens (heroScreens.ts): briefing chip, "Choose your hero", skill tree, map Heroes button.
+ * `--s` is the painted UI unit (paintedUi.css): ~15 px on desktop, 8.5 px on a landscape phone.
+ */
+
+/* ---- shared pieces --------------------------------------------------------------------------- */
+
+.pu-hero-face {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  width: calc(var(--s) * 5);
+  height: calc(var(--s) * 5);
+  flex: none;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 38%, #e9f7ff, #a9d6f0 70%, #7fb4d8);
+  filter: drop-shadow(0 2px 2px rgba(30, 16, 4, 0.45));
+}
+
+.pu-hero-face-art {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: 50%;
+}
+
+.pu-hero-face-initial {
+  font-size: calc(var(--s) * 2.2);
+}
+
+.pu-hero-face-lvl {
+  position: absolute;
+  left: -10%;
+  bottom: -8%;
+  --d: calc(var(--s) * 4.2);
+}
+
+.pu-hero-face-lock {
+  position: absolute;
+  inset: 26%;
+  display: grid;
+  place-items: center;
+  filter: drop-shadow(0 2px 1px rgba(0, 0, 0, 0.5));
+}
+
+.pu-hero-face-lock .pu-glyph,
+.pu-hero-face-lock .pu-glyph > * {
+  width: 100%;
+  height: 100%;
+}
+
+.pu-hero-face-check {
+  position: absolute;
+  right: -8%;
+  bottom: -6%;
+  width: 40%;
+  height: 40%;
+  object-fit: contain;
+}
+
+.pu-hero-points {
+  display: inline-block;
+  padding: 0.15em 0.6em;
+  border-radius: 999px;
+  font-size: calc(var(--s) * 1.25);
+  white-space: nowrap;
+  background: linear-gradient(#a8743e, #7a4c22);
+  box-shadow: 0 0 0 2px var(--outline);
+}
+
+.pu-hero-points.has {
+  background: radial-gradient(circle at 35% 30%, #ffe07a, #e09a20 70%);
+}
+
+.pu-hero-chip .pu-badge,
+.pu-hero-sel .pu-badge,
+.pu-hero-tree .pu-badge {
+  position: absolute;
+  right: -1.1em;
+  top: -0.8em;
+  min-width: 1.6em;
+  height: 1.6em;
+  display: grid;
+  place-items: center;
+  padding: 0 0.3em;
+  font-size: calc(var(--s) * 1.1);
+  color: var(--cream);
+  border-radius: 999px;
+  background: radial-gradient(circle at 35% 30%, #ffe07a, #e09a20 70%);
+  box-shadow: 0 0 0 2px var(--outline);
+}
+
+.pu-plank {
+  position: relative;
+}
+
+/* ---- briefing chip --------------------------------------------------------------------------- */
+
+.pu-hero-chip {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--s) * 1);
+  margin-top: calc(var(--s) * 0.6);
+  padding: calc(var(--s) * 0.5) calc(var(--s) * 0.7);
+  border-radius: calc(var(--s) * 1);
+  background: rgba(255, 244, 220, 0.45);
+  box-shadow: inset 0 0 0 2px rgba(122, 85, 50, 0.35);
+}
+
+.pu-hero-chip-face {
+  width: calc(var(--s) * 4.6);
+  height: calc(var(--s) * 4.6);
+}
+
+.pu-hero-chip-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--s) * 0.25);
+}
+
+.pu-hero-chip-kicker {
+  font-size: calc(var(--s) * 1);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.pu-hero-chip-name {
+  font-size: calc(var(--s) * 1.45);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pu-hero-chip-name small {
+  margin-left: 0.5em;
+  font-size: 0.75em;
+}
+
+.pu-hero-chip-actions {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--s) * 0.4);
+}
+
+/* ---- choose your hero ------------------------------------------------------------------------ */
+
+.pu-hero-sel {
+  width: min(100%, calc(var(--s) * 92));
+}
+
+.pu-hero-sel-grid {
+  display: grid;
+  grid-template-columns: auto minmax(0, 0.8fr) minmax(0, 1.5fr);
+  gap: calc(var(--s) * 1.2);
+  align-items: start;
+}
+
+.pu-hero-roster {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--s) * 0.5);
+}
+
+.pu-hero-tab {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.1em;
+  padding: calc(var(--s) * 0.2);
+  border-radius: calc(var(--s) * 1);
+  transition: transform 0.08s ease-out;
+}
+
+.pu-hero-tab .pu-hero-face {
+  width: calc(var(--s) * 4.4);
+  height: calc(var(--s) * 4.4);
+}
+
+.pu-hero-tab.on {
+  background: rgba(255, 216, 120, 0.55);
+  box-shadow: 0 0 0 2px #c8902e;
+}
+
+.pu-hero-tab.on .pu-hero-face {
+  filter: drop-shadow(0 0 calc(var(--s) * 0.6) rgba(255, 216, 74, 0.95));
+}
+
+.pu-hero-tab.locked .pu-hero-face-art {
+  filter: grayscale(0.9) brightness(0.65);
+}
+
+.pu-hero-tab:hover {
+  transform: translateY(-1px);
+}
+
+.pu-hero-tab-name {
+  font-size: calc(var(--s) * 1.05);
+}
+
+.pu-hero-tab.small {
+  padding: calc(var(--s) * 0.15);
+}
+
+.pu-hero-tab.small .pu-hero-face {
+  width: calc(var(--s) * 3.6);
+  height: calc(var(--s) * 3.6);
+}
+
+.pu-hero-art {
+  position: relative;
+  display: grid;
+  place-items: end center;
+  height: calc(var(--s) * 30);
+  border-radius: calc(var(--s) * 1.2);
+  background: radial-gradient(ellipse at 50% 92%, rgba(122, 85, 50, 0.35), transparent 45%), radial-gradient(circle at 50% 40%, rgba(255, 250, 230, 0.85), rgba(233, 214, 170, 0.3) 70%);
+}
+
+.pu-hero-art-img {
+  position: absolute;
+  left: 50%;
+  bottom: 2%;
+  transform: translateX(-50%);
+  max-width: 100%;
+  max-height: 98%;
+  object-fit: contain;
+  filter: drop-shadow(0 4px 3px rgba(30, 16, 4, 0.35));
+}
+
+.pu-hero-art.locked .pu-hero-art-img {
+  filter: grayscale(0.85) brightness(0.55) drop-shadow(0 4px 3px rgba(30, 16, 4, 0.35));
+}
+
+.pu-hero-info {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--s) * 0.55);
+  min-width: 0;
+}
+
+.pu-hero-name {
+  font-size: calc(var(--s) * 2.1);
+  line-height: 1.05;
+  display: flex;
+  align-items: center;
+  gap: 0.4em;
+}
+
+.pu-hero-name .pu-hero-lvl {
+  font-size: calc(var(--s) * 1.2);
+}
+
+.pu-hero-sub {
+  font-size: calc(var(--s) * 1.25);
+}
+
+.pu-hero-blurb {
+  font-size: calc(var(--s) * 1.15);
+  line-height: 1.25;
+}
+
+.pu-hero-lvlrow {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--s) * 0.7);
+}
+
+.pu-hero-lvlrow > .pu-hero-lvl {
+  font-size: calc(var(--s) * 1.3);
+}
+
+.pu-hero-unlock {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  padding: 0.35em 0.7em;
+  border-radius: calc(var(--s) * 0.8);
+  font-size: calc(var(--s) * 1.3);
+  background: rgba(200, 52, 31, 0.12);
+  box-shadow: inset 0 0 0 2px rgba(200, 52, 31, 0.35);
+}
+
+.pu-hero-unlock .pu-glyph {
+  width: 1.6em;
+  height: 1.6em;
+  flex: none;
+}
+
+.pu-hero-unlock small {
+  display: block;
+  font-size: 0.8em;
+}
+
+.pu-hero-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4em 1.2em;
+  font-size: calc(var(--s) * 1.2);
+}
+
+.pu-hero-stats span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3em;
+}
+
+.pu-hero-stats .pu-glyph {
+  width: 1.2em;
+  height: 1.2em;
+}
+
+.pu-hero-skill {
+  display: flex;
+  align-items: flex-start;
+  gap: calc(var(--s) * 0.7);
+  font-size: calc(var(--s) * 1.12);
+  line-height: 1.25;
+}
+
+.pu-hero-skill-icon {
+  width: calc(var(--s) * 3.6);
+  height: calc(var(--s) * 3.6);
+  flex: none;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 40%, #fff6dc, #e9cf98 70%, #b98f52);
+  box-shadow: 0 0 0 2px var(--outline);
+  overflow: hidden;
+}
+
+.pu-hero-skill-icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.pu-hero-skill-text > div:first-child {
+  font-size: 1.12em;
+}
+
+.pu-hero-skill-text small {
+  margin-left: 0.55em;
+  font-size: 0.78em;
+}
+
+.pu-hero-skill-kind {
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #9a3b18;
+}
+
+.pu-hero-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: calc(var(--s) * 1.2);
+  margin-top: calc(var(--s) * 0.8);
+}
+
+/* ---- skill tree ------------------------------------------------------------------------------ */
+
+.pu-hero-tree {
+  width: min(100%, calc(var(--s) * 96));
+  max-height: min(100%, calc(var(--s) * 64));
+}
+
+.pu-hero-tree-top {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--s) * 1.4);
+  flex-wrap: wrap;
+  margin-bottom: calc(var(--s) * 0.6);
+}
+
+.pu-hero-tree-tabs {
+  display: flex;
+  gap: calc(var(--s) * 0.3);
+}
+
+.pu-hero-tree-head {
+  flex: 1 1 calc(var(--s) * 40);
+  display: flex;
+  align-items: center;
+  gap: calc(var(--s) * 0.9);
+  min-width: 0;
+}
+
+.pu-hero-tree-face {
+  width: calc(var(--s) * 4.4);
+  height: calc(var(--s) * 4.4);
+}
+
+.pu-hero-tree-who {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--s) * 0.3);
+}
+
+.pu-hero-tree-who .pu-hero-name {
+  font-size: calc(var(--s) * 1.7);
+}
+
+.pu-hero-tree-pts {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2em;
+  font-size: calc(var(--s) * 1);
+}
+
+.pu-hero-tree-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(calc(var(--s) * 18), 0.42fr);
+  gap: calc(var(--s) * 1.2);
+  align-items: start;
+}
+
+.pu-hero-tree-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0 calc(var(--s) * 0.8);
+}
+
+.pu-hero-tree-grid.hero-locked {
+  filter: grayscale(0.6);
+  opacity: 0.8;
+}
+
+.pu-hero-branch {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.pu-hero-branch-head {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 0 0 calc(var(--s) * 0.3);
+  text-align: center;
+  font-size: calc(var(--s) * 1.45);
+  line-height: 1.1;
+}
+
+.pu-hero-branch-head small {
+  font-size: calc(var(--s) * 0.92);
+  font-weight: 600;
+  max-width: 16em;
+}
+
+.pu-hero-branch-icon {
+  width: calc(var(--s) * 3.4);
+  height: calc(var(--s) * 3.4);
+  object-fit: contain;
+  filter: drop-shadow(0 2px 1px rgba(30, 16, 4, 0.4));
+}
+
+/* A node plus the connector up to the tier above it (gold once this node is owned). */
+.pu-hnode-wrap {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  padding-top: calc(var(--s) * 0.55);
+}
+
+.pu-hnode-wrap::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 0;
+  width: calc(var(--s) * 0.42);
+  height: calc(var(--s) * 1.4);
+  transform: translateX(-50%);
+  border-radius: 99px;
+  background: rgba(122, 85, 50, 0.45);
+}
+
+.pu-hnode-wrap.tier1::before {
+  display: none;
+}
+
+.pu-hnode-wrap.owned::before {
+  background: linear-gradient(#ffe07a, #d39a2c);
+  box-shadow: 0 0 0 1.5px var(--outline);
+}
+
+.pu-hnode {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.1em;
+  width: calc(var(--s) * 9);
+  transition: transform 0.08s ease-out;
+}
+
+.pu-hnode:hover {
+  transform: translateY(-1px);
+}
+
+.pu-hnode-medal {
+  position: relative;
+  width: calc(var(--s) * 4.6);
+  height: calc(var(--s) * 4.6);
+  filter: drop-shadow(0 2px 2px rgba(30, 16, 4, 0.45));
+}
+
+.pu-hnode.cap .pu-hnode-medal {
+  width: calc(var(--s) * 6.4);
+  height: calc(var(--s) * 6.4);
+}
+
+.pu-hnode-ring {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.pu-hnode-disc {
+  position: absolute;
+  inset: 17%;
+  border-radius: 50%;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  background: radial-gradient(circle at 50% 40%, #fff6dc, #e9cf98 70%, #b98f52);
+}
+
+.pu-hnode-disc img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+/* Capstone: the three branch icons fanned in its disc. */
+.pu-hnode-disc.cap {
+  background: radial-gradient(circle at 50% 40%, #fff2b0, #f0b84a 70%, #b97a22);
+}
+
+.pu-hnode-disc.cap img {
+  position: absolute;
+  width: 62%;
+  height: 62%;
+}
+
+.pu-hnode-cap0 {
+  left: 2%;
+  top: 22%;
+}
+
+.pu-hnode-cap1 {
+  left: 19%;
+  top: 2%;
+}
+
+.pu-hnode-cap2 {
+  right: 2%;
+  top: 22%;
+}
+
+.pu-hnode-check {
+  position: absolute;
+  right: -6%;
+  bottom: -4%;
+  width: 40%;
+  height: 40%;
+  object-fit: contain;
+}
+
+.pu-hnode-lock {
+  position: absolute;
+  inset: 30%;
+  display: grid;
+  place-items: center;
+}
+
+.pu-hnode-lock .pu-glyph,
+.pu-hnode-lock .pu-glyph > * {
+  width: 100%;
+  height: 100%;
+}
+
+.pu-hnode-name {
+  font-size: calc(var(--s) * 1.02);
+  line-height: 1.1;
+  text-align: center;
+}
+
+.pu-hnode-cost {
+  display: inline-flex;
+  gap: 1px;
+}
+
+.pu-hnode-cost img {
+  width: calc(var(--s) * 1.15);
+  height: calc(var(--s) * 1.15);
+  object-fit: contain;
+}
+
+.pu-hnode.locked .pu-hnode-disc,
+.pu-hnode.poor .pu-hnode-disc {
+  filter: grayscale(0.85) brightness(0.75);
+}
+
+.pu-hnode.locked .pu-hnode-name {
+  opacity: 0.6;
+}
+
+.pu-hnode.available .pu-hnode-medal {
+  animation: pu-hnode-glow 1.8s ease-in-out infinite;
+}
+
+@keyframes pu-hnode-glow {
+  50% {
+    filter: drop-shadow(0 0 calc(var(--s) * 0.8) rgba(255, 210, 100, 0.95)) drop-shadow(0 2px 2px rgba(30, 16, 4, 0.45));
+  }
+}
+
+.pu-hnode.owned .pu-hnode-medal {
+  filter: drop-shadow(0 0 calc(var(--s) * 0.45) rgba(255, 205, 90, 0.8)) drop-shadow(0 2px 2px rgba(30, 16, 4, 0.45));
+}
+
+.pu-hnode.picked .pu-hnode-medal {
+  transform: scale(1.1);
+  outline: 3px solid #fff3c8;
+  outline-offset: 1px;
+  border-radius: 50%;
+}
+
+.pu-hnode.just .pu-hnode-medal {
+  animation: pu-pop 0.4s ease-out;
+}
+
+.pu-hero-cap-row {
+  position: relative;
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: center;
+  padding-top: calc(var(--s) * 1.6);
+}
+
+/* Bar joining the three branches above the capstone. */
+.pu-hero-cap-bar {
+  position: absolute;
+  left: 16.6%;
+  right: 16.6%;
+  top: calc(var(--s) * 0.5);
+  height: calc(var(--s) * 0.42);
+  border-radius: 99px;
+  background: rgba(122, 85, 50, 0.45);
+}
+
+.pu-hero-cap-bar::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 0;
+  width: calc(var(--s) * 0.42);
+  height: calc(var(--s) * 1.5);
+  transform: translateX(-50%);
+  border-radius: 99px;
+  background: inherit;
+}
+
+.pu-hero-cap-row.ready .pu-hero-cap-bar,
+.pu-hero-cap-row.owned .pu-hero-cap-bar {
+  background: linear-gradient(#ffe07a, #d39a2c);
+}
+
+.pu-hero-node-detail {
+  position: sticky;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--s) * 0.5);
+  min-height: calc(var(--s) * 12);
+  font-size: calc(var(--s) * 1.2);
+}
+
+.pu-hero-node-title {
+  font-size: 1.35em;
+  line-height: 1.1;
+}
+
+.pu-hero-node-title small {
+  display: block;
+  margin-top: 0.2em;
+  font-size: 0.68em;
+}
+
+.pu-hero-node-desc {
+  line-height: 1.3;
+}
+
+.pu-hero-node-foot {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: calc(var(--s) * 0.5);
+}
+
+.pu-hero-node-why {
+  font-size: 0.9em;
+}
+
+.pu-hero-node-why.warn {
+  color: #9a3b18;
+}
+
+.pu-hero-node-hint {
+  line-height: 1.3;
+}
+
+/* ---- world map button ------------------------------------------------------------------------ */
+
+.pu-hero-mapbtn .pu-hero-face {
+  width: 76%;
+  height: 76%;
+  filter: none;
+}
+
+/* ---- landscape phones ------------------------------------------------------------------------ */
+
+@media (max-height: 480px) {
+  .pu-hero-sel-grid {
+    grid-template-columns: auto minmax(0, 0.7fr) minmax(0, 1.6fr);
+    gap: calc(var(--s) * 0.9);
+  }
+
+  .pu-hero-roster {
+    gap: calc(var(--s) * 0.15);
+  }
+
+  .pu-hero-tab .pu-hero-face {
+    width: calc(var(--s) * 4);
+    height: calc(var(--s) * 4);
+  }
+
+  .pu-hero-tab-name {
+    display: none;
+  }
+
+  .pu-hero-art {
+    height: calc(var(--s) * 26);
+  }
+
+  .pu-hero-blurb {
+    display: none;
+  }
+
+  .pu-hero-skill {
+    font-size: calc(var(--s) * 1.25);
+  }
+
+  .pu-hero-tree-main {
+    grid-template-columns: minmax(0, 1fr) minmax(calc(var(--s) * 22), 0.5fr);
+  }
+
+  .pu-hero-branch-head small {
+    display: none;
+  }
+
+  .pu-hnode-name {
+    font-size: calc(var(--s) * 1.2);
+  }
+
+  .pu-hero-node-detail {
+    font-size: calc(var(--s) * 1.35);
+  }
+}
+
+.pu-reduce-motion .pu-hnode.available .pu-hnode-medal {
+  animation: none;
+}

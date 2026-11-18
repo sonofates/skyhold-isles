@@ -16,6 +16,7 @@ import { isIslandMastered, starWallet } from '../../game/progression.ts';
 import { isTouchDevice, loadSettings, saveSettings } from '../../platform/storage.ts';
 import { isDesktopClient } from '../renderResolution.ts';
 import { ABILITY_KEYS } from './abilities2d.ts';
+import { HERO_KEYS } from './heroKeys.ts';
 import { announceGraphicsChange, loadGraphics, reapplyGraphicsSettings, saveGraphics, type EffectsDensity, type FpsCap, type GraphicsSettings } from './graphicsSettings.ts';
 import { branchName, challengeDesc, challengeName, difficultyName, featDesc, featName, islandName, upgradeName, upgradeRankText } from '../../i18n/data.ts';
 import { getLocale, LANGUAGE_NAMES, LOCALES, pct, setLocale, shortDate, t, type Locale, type MsgKey } from '../../i18n/index.ts';
@@ -664,7 +665,7 @@ export function openSettings(ctx: SettingsContext): Sheet {
     const keyRow = (caps: readonly string[], what: string): HTMLElement => el('div', 'pu-key-row', {}, el('span', 'pu-key-caps', {}, ...caps.map(keyCap)), el('span', 'pu-ink', {}, what));
     const section = (title: string, ...items: HTMLElement[]): HTMLElement => el('section', 'pu-key-section', {}, el('h3', 'pu-letter', {}, title), el('div', 'pu-key-list', {}, ...items));
     const out: HTMLElement[] = [];
-    if (touch) out.push(section(t('set.touch'), el('div', 'pu-key-row pu-ink', {}, t('touch.build')), el('div', 'pu-key-row pu-ink', {}, t('touch.ability')), el('div', 'pu-key-row pu-ink', {}, t('touch.cancel'))));
+    if (touch) out.push(section(t('set.touch'), el('div', 'pu-key-row pu-ink', {}, t('touch.build')), el('div', 'pu-key-row pu-ink', {}, t('touch.hero')), el('div', 'pu-key-row pu-ink', {}, t('touch.ability')), el('div', 'pu-key-row pu-ink', {}, t('touch.cancel'))));
     out.push(
       section(
         t('set.keyboard'),
@@ -674,10 +675,13 @@ export function openSettings(ctx: SettingsContext): Sheet {
         keyRow(['N'], t('key.wave')),
         keyRow([ABILITY_KEYS.meteor], t('key.meteor')),
         keyRow([ABILITY_KEYS.overcharge], t('key.overcharge')),
+        keyRow([HERO_KEYS.select], t('key.heroSelect')),
+        keyRow([HERO_KEYS.skill0], t('key.heroSkill1')),
+        keyRow([HERO_KEYS.skill1], t('key.heroSkill2')),
         keyRow([t('key.esc')], t('key.cancel')),
       ),
     );
-    if (!touch || desktop) out.push(section(t('set.mouse'), keyRow([t('key.rightClick')], t('key.cancelAim'))));
+    if (!touch || desktop) out.push(section(t('set.mouse'), keyRow([t('key.rightClick')], t('key.cancelAim')), keyRow([t('key.rightClick')], t('key.heroMove'))));
     return [el('div', 'pu-key-grid', {}, ...out)];
   };
 

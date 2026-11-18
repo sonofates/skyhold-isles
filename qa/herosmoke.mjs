@@ -1,0 +1,36 @@
+// Quick hero smoke: node qa/herosmoke.mjs <hero> [out] [w] [h]
+import { chromium } from 'playwright';
+const hero = process.argv[2] ?? 'bran';
+const out = process.argv[3] ?? '/tmp/herosmoke';
+const W = Number(process.argv[4] ?? 1280);
+const H = Number(process.argv[5] ?? 720);
+const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
+const ctx = await browser.newContext({ viewport: { width: W, height: H } });
+const page = await ctx.newPage();
+page.on('pageerror', (e) => console.log('pageerror', e.message));
+await page.goto(`http://127.0.0.1:4371/2d.html?level=l1c&hero=${hero}&herolevel=20&desktop=1&autoplay=1&speed=2`);
+await page.waitForFunction(() => !!window.__p0?.hero, null, { timeout: 90000 });
+await page.waitForTimeout(800);
+const st = () => page.evaluate(() => window.__p0.hero.state());
+await page.evaluate(() => window.__p0.hero.select(true));
+await page.waitForTimeout(300);
+await page.screenshot({ path: `${out}-sel.jpg`, quality: 80 });
+// Move to the middle of the road.
+await page.evaluate(() => window.__p0.hero.move(0, 0));
+await page.waitForTimeout(700);
+await page.screenshot({ path: `${out}-walk.jpg`, quality: 80 });
+await page.waitForTimeout(12000);
+console.log(JSON.stringify(await st()).slice(0, 900));
+await page.screenshot({ path: `${out}-fight.jpg`, quality: 80 });
+await page.evaluate(() => window.__p0.hero.aim(0));
+await page.mouse.move(W / 2, H / 2);
+await page.waitForTimeout(300);
+await page.screenshot({ path: `${out}-aim.jpg`, quality: 80 });
+await page.mouse.click(W / 2, H / 2);
+await page.waitForTimeout(200);
+await page.screenshot({ path: `${out}-cast.jpg`, quality: 80 });
+await page.evaluate(() => window.__p0.hero.kill());
+await page.waitForTimeout(1500);
+await page.screenshot({ path: `${out}-dead.jpg`, quality: 80 });
+console.log(JSON.stringify(await st()).slice(0, 900));
+await browser.close();
