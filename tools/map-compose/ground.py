@@ -92,6 +92,11 @@ class Decals:
             im = im.resize((max(1, round(im.width * s)), max(1, round(height_px))), Image.LANCZOS)
             if flip:
                 im = im.transpose(Image.FLIP_LEFT_RIGHT)
+            if k in TUFTS or k in CLOVER:
+                # the painted tufts are a touch yellow against the meadow: pull them toward its greens
+                r, g, b, a = im.split()
+                im = Image.merge('RGBA', (r.point(lambda v: int(v * 0.80)), g.point(lambda v: int(v * 0.90)),
+                                          b.point(lambda v: int(v * 0.78)), a))
             self.cache[key] = im
         return self.cache[key]
 

@@ -37,7 +37,8 @@ export class MapView {
 
   /** Texels per layout px of the current map texture (resolution variant, see mapVariant.ts). */
   get texelScale(): number {
-    return this.texture.width / this.imageW;
+    // source px, not texture units: Pixi reads `@1.5x` in a file name as a resolution suffix
+    return this.texture.source.pixelWidth / this.imageW;
   }
 
   /** Swaps in another bake of the same map (e.g. a bigger variant after the window grew). */

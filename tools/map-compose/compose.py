@@ -5,7 +5,7 @@ with generated build plots.
 usage: /usr/bin/python3 tools/map-compose/compose.py <layout.json> <assets_dir> <out.png|.webp>
          [--w 3072] [--plots 24] [--seed 7] [--bake] [--keep-plots]
          [--towers archer:3,cannon:9,...] [--enemies] [--cliff]
-         [--variants 1,1.5] [--write-layout] [--cave-h 2.4] [--castle-h 2.9] [--gate-inset 0.5]
+         [--variants 1,1.5] [--write-layout] [--cave-h 2.5] [--castle-h 3.2] [--gate-inset 0.5]
          [--windmill x,ybottom,h] [--decals 240] [--no-decals]
 
   shipped L1c bake (2x layout px master + 1x / 1.5x variants, gate fronts, gates written to the JSON):
@@ -196,7 +196,7 @@ def sprite_rect(im, x_center, y_bottom, height):
 # Gates (gates.py): a raider cave at every entrance whose mouth faces along the road's first
 # segment, the castle gate at the goal facing back along the last segment. The path end sits
 # GATE_INSET road widths inside the dark mouth, so walkers appear out of the darkness (front layer).
-CAVE_H, CASTLE_H, GATE_INSET = opt('--cave-h', 2.4), opt('--castle-h', 2.9), opt('--gate-inset', 0.5)
+CAVE_H, CASTLE_H, GATE_INSET = opt('--cave-h', 2.5), opt('--castle-h', 3.2), opt('--gate-inset', 0.5)
 GATES = []  # dict(role, lane, id, prop, facing, g = placement)
 for _i, _e in enumerate(L['entrances']):
     _f = entrance_facing(raw_paths[_i])

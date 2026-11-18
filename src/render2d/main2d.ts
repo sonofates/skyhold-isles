@@ -230,7 +230,7 @@ function upgradeMap(art: LoadedArt, map: MapView, need: number, mips: boolean): 
   if (mapUpgrade || map.texelScale * VARIANT_SLACK >= need) return;
   mapUpgrade = loadMapVariant(art.manifest, art.baseUrl, map.layout.image, { need, mips })
     .then((res) => {
-      if (res && res.texture.width > map.texelScale * map.imageW) map.setTexture(res.texture);
+      if (res && res.texture.source.pixelWidth > map.texelScale * map.imageW) map.setTexture(res.texture);
     })
     .finally(() => {
       mapUpgrade = null;

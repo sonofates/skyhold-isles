@@ -93,9 +93,12 @@ async function enemies(browser) {
     await page.waitForTimeout(100);
     await enemyShot(page, view, 'caveA-exit', () => (window.__p0.state().enemyPx ?? (window.__p0.state().enemies >= 1 ? [{ lane: 0, dist: 0.4 }] : [])).some((e) => e.lane === 0 && e.dist > 0.25 && e.dist < 0.6), REGIONS.caveA);
     await enemyShot(page, view, 'caveA-out', () => (window.__p0.state().enemyPx ?? []).some((e) => e.lane === 0 && e.dist > 0.9 && e.dist < 1.3), REGIONS.caveA);
-    await page.keyboard.press('3');
-    await enemyShot(page, view, 'castle-enter', () => (window.__p0.state().enemyPx ?? []).some((e) => e.toGoal < 0.5), REGIONS.castle);
     await ctx.close();
+    const c = await open(browser, view, '?speed=2');
+    await c.page.keyboard.press('n');
+    await enemyShot(c.page, view, 'castle-enter', () => (window.__p0.state().enemyPx ?? []).some((e) => e.toGoal < 0.7 && e.toGoal > 0.15), REGIONS.castle);
+    await enemyShot(c.page, view, 'castle-approach', () => (window.__p0.state().enemyPx ?? []).some((e) => e.toGoal < 2.6 && e.toGoal > 1.6), REGIONS.castle);
+    await c.ctx.close();
     const b = await open(browser, view, '');
     b.page.on('dialog', (d) => d.dismiss());
     await b.page.keyboard.press('n');

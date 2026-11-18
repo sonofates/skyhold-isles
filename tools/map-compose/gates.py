@@ -110,7 +110,10 @@ def measure_mouth(im: Image.Image, facing: str, dark=58):
     else:
         ax = float(np.mean(xs))
         ay = float(np.mean(ys))
-    return {'mask': mask, 'exit': exit_p, 'depth': exit_p - lo, 'anchor': (ax, ay), 'bbox': mask.getbbox()}
+    # top of the opening at the exit (E/W): the lintel above it spans the walker's head as it steps out
+    top_exit = float(np.percentile(ys[band], 4)) if facing in ('E', 'W') else None
+    return {'mask': mask, 'exit': exit_p, 'depth': exit_p - lo, 'anchor': (ax, ay), 'bbox': mask.getbbox(),
+            'top_exit': top_exit}
 
 
 def place_gate(im_src: Image.Image, flip: bool, point, facing, height_layout, inset_layout):
@@ -172,6 +175,12 @@ def cut_front(canvas: Image.Image, g, S: float, exit_cut=True, shade_max=0.93, f
     # keep the inner side of the exit line (soft over ~3 output px)
     soft = 3.0 / k
     keep = np.clip((exit_p + soft - proj) / (2 * soft), 0, 1) if exit_cut else np.ones_like(proj)
+    te = g['mouth'].get('top_exit')
+    if exit_cut and te is not None:
+        # the lintel / rock above the opening stays in front beyond the exit line too (a walker
+        # stepping out passes under it); only the door post below it stands behind the walker
+        above = np.clip((te - yy / k) / (2 * soft) + 0.5, 0, 1)
+        keep = np.maximum(keep, above)
     a = np.asarray(alpha).astype(np.float32) / 255
     mo = np.asarray(mouth).astype(np.float32) / 255
     rock = a * (1 - mo) * keep
