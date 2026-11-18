@@ -1,3 +1,5 @@
+import { existsSync, readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { EventBus } from '../../src/core/eventBus.ts';
 import {
@@ -10,12 +12,15 @@ import {
 import {
   createPlatformAdapter,
   MOBILE_APP_ID,
+  MOBILE_START_PATH,
   setPlatformAdapter,
   type MobileBridge,
   type NativeHapticFeedback,
   type SteamBridge,
 } from '../../src/platform/index.ts';
 import { isTouchDevice } from '../../src/platform/storage.ts';
+
+const ROOT = resolve(import.meta.dirname, '../..');
 
 function createMockMobile(platform: 'ios' | 'android' = 'android'): {
   mobile: MobileBridge;
@@ -177,7 +182,40 @@ describe('platform adapter: mobile (Capacitor) flags, haptics & lifecycle', () =
     expect(eventsAfterThrow).toEqual(['pause-2', 'pause-2']);
   });
 
-  it('keeps MOBILE_APP_ID as the placeholder com.skyholdisles.game', () => {
+  it('keeps MOBILE_APP_ID as the single placeholder constant and validates Capacitor Android/iOS configs', () => {
     expect(MOBILE_APP_ID).toBe('com.skyholdisles.game');
+    expect(MOBILE_START_PATH).toBe('/2d.html');
+
+    const capConfigSrc = readFileSync(resolve(ROOT, 'capacitor.config.ts'), 'utf8');
+    expect(capConfigSrc).toContain('appId: MOBILE_APP_ID');
+    expect(capConfigSrc).toContain('appStartPath: MOBILE_START_PATH');
+    expect(capConfigSrc).toContain("webDir: 'dist'");
+    expect(capConfigSrc).not.toContain('com.skyholdisles.game');
+
+    const manifestPath = resolve(ROOT, 'android/app/src/main/AndroidManifest.xml');
+    expect(existsSync(manifestPath)).toBe(true);
+    const manifestXml = readFileSync(manifestPath, 'utf8');
+    expect(manifestXml).toContain('android:screenOrientation="sensorLandscape"');
+
+    const mainActivityJava = readFileSync(
+      resolve(ROOT, 'android/app/src/main/java/com/skyholdisles/game/MainActivity.java'),
+      'utf8',
+    );
+    expect(mainActivityJava).toContain('LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES');
+    expect(mainActivityJava).toContain('BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE');
+    expect(mainActivityJava).toContain('WindowInsetsCompat.Type.systemBars()');
+
+    const androidAppGradle = readFileSync(resolve(ROOT, 'android/app/build.gradle'), 'utf8');
+    expect(androidAppGradle).toContain(`applicationId "${MOBILE_APP_ID}"`);
+
+    const infoPlist = readFileSync(resolve(ROOT, 'ios/App/App/Info.plist'), 'utf8');
+    expect(infoPlist).toContain('UIInterfaceOrientationLandscapeLeft');
+    expect(infoPlist).toContain('UIInterfaceOrientationLandscapeRight');
+    expect(infoPlist).not.toContain('UIInterfaceOrientationPortrait');
+    expect(infoPlist).toContain('<key>UIRequiresFullScreen</key>');
+    expect(infoPlist).toContain('<key>UIStatusBarHidden</key>');
+
+    const pbxproj = readFileSync(resolve(ROOT, 'ios/App/App.xcodeproj/project.pbxproj'), 'utf8');
+    expect(pbxproj).toContain(`PRODUCT_BUNDLE_IDENTIFIER = ${MOBILE_APP_ID};`);
   });
 });

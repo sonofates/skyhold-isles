@@ -16,7 +16,12 @@
     "desktop:dev": "npm run build && electron .",
     "desktop:build:linux": "npm run build && electron-builder --config desktop/electron-builder.json --linux AppImage --publish never",
     "desktop:build:win": "npm run build && electron-builder --config desktop/electron-builder.json --win nsis zip --publish never",
-    "desktop:build:mac": "npm run build && electron-builder --config desktop/electron-builder.json --mac dmg --publish never"
+    "desktop:build:mac": "npm run build && electron-builder --config desktop/electron-builder.json --mac dmg --publish never",
+    "mobile:sync": "npm run build && cap sync",
+    "mobile:copy": "npm run build && cap copy",
+    "mobile:open:android": "cap open android",
+    "mobile:open:ios": "cap open ios",
+    "mobile:build:android:debug": "npm run mobile:sync && cd android && ./gradlew assembleDebug"
   },
   "devDependencies": {
     "@capacitor/cli": "^8.6.2",
