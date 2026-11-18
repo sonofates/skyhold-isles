@@ -1,6 +1,5 @@
 /** DOM button art. Secondary glyphs share the kit's cream, gold and brown palette. */
 const O = '#3a2412';
-const C = '#fff4dc';
 const G = '#f2b33d';
 
 const svg = (body: string, extra = ''): string =>
@@ -8,6 +7,14 @@ const svg = (body: string, extra = ''): string =>
 
 const painted = (name: string): string =>
   `<img src="/art2d/ui/icon-${name}.webp" style="display:block;width:100%;height:100%;object-fit:contain" alt="" draggable="false" aria-hidden="true"/>`;
+
+/** A painted wax seal (`seal-<name>.webp`): carries its own backing, used as an inline badge. */
+const sealArt = (name: string): string =>
+  `<img src="/art2d/ui/seal-${name}.webp" style="display:block;width:100%;height:100%;object-fit:contain" alt="" draggable="false" aria-hidden="true"/>`;
+
+/** The play triangle mirrored: the painted "back" arrow (there is no separate back icon). */
+const paintedBack = (): string =>
+  `<img src="/art2d/ui/icon-play.webp" style="display:block;width:100%;height:100%;object-fit:contain;transform:scaleX(-1)" alt="" draggable="false" aria-hidden="true"/>`;
 
 export const ICONS = {
   workshop: painted('workshop'),
@@ -19,10 +26,18 @@ export const ICONS = {
   play: painted('play'),
   lock: painted('lock'),
   map: painted('map'),
-  next: svg(
-    `<path d="M20 10 L34 24 L20 38" fill="none" stroke="${O}" stroke-width="10"/>` + `<path d="M20 10 L34 24 L20 38" fill="none" stroke="${C}" stroke-width="5"/>`,
-  ),
-  /** Treasure chest with a gold clasp and a blue gem: the "full adventure" lock and store item. */
+  next: painted('play'),
+  back: paintedBack(),
+  heart: `<img src="/art2d/icon-heart.webp" style="display:block;width:100%;height:100%;object-fit:contain" alt="" draggable="false" aria-hidden="true"/>`,
+  crown: sealArt('crown'),
+  medal: sealArt('medal'),
+  islands: sealArt('islands'),
+  endless: sealArt('endless'),
+  trophy: sealArt('trophy'),
+  /**
+   * Treasure chest with a gold clasp and a blue gem: the "full adventure" lock and store item.
+   * Still SVG: the painted kit has no chest yet (docs/handoff-opus-ui4.md lists the need).
+   */
   chest: svg(
     `<path d="M8 22 C8 13.5 15 9.5 24 9.5 C33 9.5 40 13.5 40 22 Z" fill="#a8622e" stroke="${O}" stroke-width="3.2"/>` +
       `<rect x="8" y="22" width="32" height="17" rx="2.5" fill="#8a4a22" stroke="${O}" stroke-width="3.2"/>` +
@@ -33,45 +48,14 @@ export const ICONS = {
       `<circle cx="24" cy="23" r="2.4" fill="#3d7bd6" stroke="${O}" stroke-width="1.4"/>` +
       `<path d="M24 25.4 V28" stroke="${O}" stroke-width="2"/>`,
   ),
-  /** Speaker with a red slash: no sound. */
-  mute: svg(
-    `<path d="M8 19 H15 L25 10 V38 L15 29 H8 Z" fill="${C}" stroke="${O}" stroke-width="3.2"/>` +
-      `<path d="M30 17 C33 20 33 28 30 31 M35 13 C40 18 40 30 35 35" fill="none" stroke="${O}" stroke-width="3" opacity=".55"/>` +
-      `<path d="M8 40 L40 8" stroke="${O}" stroke-width="8"/>` +
-      `<path d="M8 40 L40 8" stroke="#c8341f" stroke-width="4"/>`,
-  ),
-  back: svg(
-    `<path d="M28 10 L14 24 L28 38" fill="none" stroke="${O}" stroke-width="10"/>` + `<path d="M28 10 L14 24 L28 38" fill="none" stroke="${C}" stroke-width="5"/>`,
-  ),
-  heart: svg(
-    `<path d="M24 40 C14 32 7 26 7 18 C7 12.5 11 9 15.5 9 C19 9 22 11 24 14 C26 11 29 9 32.5 9 C37 9 41 12.5 41 18 C41 26 34 32 24 40 Z" fill="#d8342a" stroke="${O}" stroke-width="3.2"/>`,
-  ),
+  /** Endless-record wave (no painted equivalent in the kit). */
   wave: svg(
     `<path d="M6 30 C10 24 14 24 18 30 C22 36 26 36 30 30 C34 24 38 24 42 30" fill="none" stroke="${O}" stroke-width="8"/>` +
       `<path d="M6 30 C10 24 14 24 18 30 C22 36 26 36 30 30 C34 24 38 24 42 30" fill="none" stroke="#7cc4e0" stroke-width="4"/>`,
   ),
-  crown: svg(
-    `<path d="M7 17 L15 25 L24 11 L33 25 L41 17 L37 37 H11 Z" fill="${G}" stroke="${O}" stroke-width="3.2"/>`,
-  ),
-  medal: svg(
-    `<path d="M15 5 L21 20 M33 5 L27 20" stroke="#2f5fae" stroke-width="6"/>` +
-      `<circle cx="24" cy="29" r="12" fill="${G}" stroke="${O}" stroke-width="3.2"/>` +
-      `<circle cx="24" cy="29" r="6" fill="none" stroke="${O}" stroke-width="2" opacity=".5"/>`,
-  ),
-  islands: svg(
-    `<path d="M6 30 C12 22 18 20 24 22 C30 20 37 22 42 30 C34 33 14 33 6 30 Z" fill="#7cb84a" stroke="${O}" stroke-width="3"/>` +
-      `<path d="M10 31 C16 38 32 38 38 31" fill="#9c6b49" stroke="${O}" stroke-width="3"/>` +
-      `<path d="M24 22 V10 L33 14 L24 17" fill="#c8341f" stroke="${O}" stroke-width="2.6"/>`,
-  ),
-  endless: svg(
-    `<path d="M14 18 C8 18 6 22 6 24 C6 26 8 30 14 30 C20 30 28 18 34 18 C40 18 42 22 42 24 C42 26 40 30 34 30 C28 30 20 18 14 18 Z" fill="none" stroke="${O}" stroke-width="8"/>` +
-      `<path d="M14 18 C8 18 6 22 6 24 C6 26 8 30 14 30 C20 30 28 18 34 18 C40 18 42 22 42 24 C42 26 40 30 34 30 C28 30 20 18 14 18 Z" fill="none" stroke="${G}" stroke-width="4"/>`,
-  ),
-  trophy: svg(
-    `<path d="M15 8 H33 V18 C33 24 29 28 24 28 C19 28 15 24 15 18 Z" fill="${G}" stroke="${O}" stroke-width="3.2"/>` +
-      `<path d="M15 12 H9 C9 18 11 21 15.5 21 M33 12 H39 C39 18 37 21 32.5 21" fill="none" stroke="${O}" stroke-width="3"/>` +
-      `<path d="M20 40 H28 L27 32 H21 Z M16 40 H32" fill="${G}" stroke="${O}" stroke-width="3"/>`,
-  ),
 } as const;
+
+/** Glyphs that are painted wax seals (own backing: never set them on a round wooden button). */
+export const SEAL_GLYPHS: ReadonlySet<string> = new Set(['crown', 'medal', 'islands', 'endless', 'trophy']);
 
 export type IconName = keyof typeof ICONS;

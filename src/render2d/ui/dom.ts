@@ -17,7 +17,33 @@ export const KIT = {
   upgrade: `${ART}ui/icon-upgrade.webp`,
   heart: `${ART}icon-heart.webp`,
   gold: `${ART}icon-gold.webp`,
+  pipEmpty: `${ART}ui/pip-empty.webp`,
+  pipFilled: `${ART}ui/pip-filled.webp`,
+  toggleOn: `${ART}ui/toggle-on.webp`,
+  toggleOff: `${ART}ui/toggle-off.webp`,
+  portraitPell: `${ART}ui/portrait-pell.webp`,
+  priceTag: `${ART}ui/price-tag.webp`,
 } as const;
+
+/** Painted difficulty jewel (`gem-<difficulty>.webp`). */
+export function gemUrl(difficulty: string): string {
+  return `${ART}ui/gem-${difficulty.toLowerCase()}.webp`;
+}
+
+/** Painted wax seal (`seal-<name>.webp`, feat icons and challenge IDs). */
+export function sealUrl(name: string): string {
+  return `${ART}ui/seal-${name}.webp`;
+}
+
+/**
+ * A painted wax seal badge. Keeps the `pu-round` class so the screens' seal sizing rules apply,
+ * plus `pu-seal`, which drops the wooden button backing (each seal painting has its own).
+ */
+export function sealBadge(name: string): HTMLSpanElement {
+  const s = el('span', 'pu-round pu-seal', { 'aria-hidden': 'true' });
+  s.append(img(sealUrl(name)));
+  return s;
+}
 
 type Attrs = Record<string, string | number | boolean | undefined>;
 
@@ -141,10 +167,11 @@ export function anySheetOpen(): boolean {
   return openSheets > 0;
 }
 
-/** Medallion toggle (role=switch) that shows the kit's green check when on. */
+/** Painted toggle seal (role=switch): the full `toggle-on` / `toggle-off` paintings, swapped by state. */
 export function toggle(on: boolean, aria: string, testid: string, onChange: (v: boolean) => void): HTMLButtonElement {
   const b = el('button', 'pu-toggle', { type: 'button', role: 'switch', 'aria-checked': String(on), 'aria-label': aria, 'data-testid': testid });
-  b.append(img(KIT.confirm));
+  // Both states are in the DOM from the start, so a switch never flashes while an image loads.
+  b.append(img(KIT.toggleOff, '', 'pu-toggle-off'), img(KIT.toggleOn, '', 'pu-toggle-on'));
   b.addEventListener('click', () => {
     const v = b.getAttribute('aria-checked') !== 'true';
     b.setAttribute('aria-checked', String(v));

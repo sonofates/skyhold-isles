@@ -5,7 +5,7 @@
  */
 import { getMusicVolume, setMusicVolume } from '../../audio/musicPrefs.ts';
 import type { GameSettings, ProgressData } from '../../core/types.ts';
-import { CHALLENGES, challengesForLevel, type ChallengeId } from '../../data/challenges.ts';
+import { challengesForLevel, type ChallengeId } from '../../data/challenges.ts';
 import { liveStreak, utcDayNumber, type DailyChallenge } from '../../data/daily.ts';
 import { endlessTier } from '../../data/endlessMutators.ts';
 import { LEVELS_2D } from '../../data/levels2d/index.ts';
@@ -17,10 +17,9 @@ import { loadSettings, saveSettings } from '../../platform/storage.ts';
 import { branchName, challengeDesc, challengeName, difficultyName, featDesc, featName, islandName, upgradeName, upgradeRankText } from '../../i18n/data.ts';
 import { getLocale, LANGUAGE_NAMES, LOCALES, pct, setLocale, shortDate, t, type Locale } from '../../i18n/index.ts';
 import { reapplyLocaleSetting, saveLocaleSetting } from '../../i18n/localeSetting.ts';
-import { ART, el, glyph, img, KIT, medal, openSheet, plank, slider, starsRow, toggle, type Sheet } from './dom.ts';
+import { el, glyph, img, KIT, medal, openSheet, plank, sealBadge, slider, starsRow, toggle, type Sheet } from './dom.ts';
 import { endlessRecordText, tierColour } from './modeBits.ts';
 import { dailyForToday, dailyHref2D } from './modes2d.ts';
-import type { IconName } from './paintedIcons.ts';
 import { resetProgress2D, saveProgress2D } from './progress2d.ts';
 import { openStore, ownsFullAdventure, storeEnabled } from './store2d.ts';
 
@@ -89,7 +88,7 @@ export function openWorkshop(ctx: MetaContext): Sheet {
     const effect = el('div', 'pu-ws-effect pu-ink-soft', {}, now);
     if (rank < max) effect.append(' → ', el('span', 'next', {}, upgradeRankText(def, rank + 1)));
     const pips = el('span', 'pu-pips', { 'aria-label': t('ws.rank', { r: rank, max }) });
-    for (let i = 0; i < max; i++) pips.append(el('span', `pu-pip${i < rank ? ' on' : ''}`));
+    for (let i = 0; i < max; i++) pips.append(img(i < rank ? KIT.pipFilled : KIT.pipEmpty, '', `pu-pip${i < rank ? ' on' : ''}`));
     let buy: HTMLButtonElement;
     if (cost === null) {
       buy = plank(t('ws.max'), { kind: 'small', testid: `ws2d-buy-${def.id}` });
@@ -117,24 +116,9 @@ export function openWorkshop(ctx: MetaContext): Sheet {
 
 // --- Logbook -------------------------------------------------------------------------------------
 
-const FEAT_ICON: Record<FeatIcon, IconName | 'star'> = {
-  star: 'star',
-  islands: 'islands',
-  medal: 'medal',
-  crown: 'crown',
-  endless: 'endless',
-  daily: 'daily',
-  trophy: 'trophy',
-};
-
-function seal(icon: IconName | 'star'): HTMLSpanElement {
-  const s = el('span', 'pu-round', { 'aria-hidden': 'true' });
-  if (icon === 'star') {
-    const i = img(KIT.star);
-    i.style.cssText = 'width:58%;height:58%';
-    s.append(i);
-  } else s.append(glyph(icon));
-  return s;
+/** Feat emblem: the painted `seal-<feat icon>` (every feat icon has its own wax seal). */
+function seal(icon: FeatIcon): HTMLSpanElement {
+  return sealBadge(icon);
 }
 
 export function openLogbook(ctx: MetaContext, tab: 'islands' | 'feats' = 'islands'): Sheet {
@@ -159,7 +143,7 @@ export function openLogbook(ctx: MetaContext, tab: 'islands' | 'feats' = 'island
       wins += p.clears[i] ?? 0;
     });
     sheet.body.innerHTML = '';
-    const total = (icon: IconName | 'star', value: string, label: string): HTMLElement =>
+    const total = (icon: FeatIcon, value: string, label: string): HTMLElement =>
       el('div', 'pu-lb-total', { 'data-testid': `lb2d-total-${icon}` }, seal(icon), el('div', '', {}, el('strong', 'pu-ink', {}, value), el('span', 'pu-ink-soft', {}, label)));
     const totals = el(
       'div',
@@ -241,7 +225,7 @@ export function openLogbook(ctx: MetaContext, tab: 'islands' | 'feats' = 'island
             'div',
             `pu-feat${f.earned ? '' : ' locked'}`,
             {},
-            seal(FEAT_ICON[f.def.icon]),
+            seal(f.def.icon),
             el('div', '', {}, el('div', 'pu-feat-name pu-ink', {}, featName(f.def)), el('div', 'pu-feat-desc pu-ink-soft', {}, featDesc(f.def))),
             bar,
           ),
@@ -268,30 +252,9 @@ export function openLogbook(ctx: MetaContext, tab: 'islands' | 'feats' = 'island
 
 // --- Daily Squall --------------------------------------------------------------------------------
 
-const RULE_ICON: Partial<Record<ChallengeId, IconName>> = {
-  galeForce: 'wave',
-  ironTide: 'heart',
-  glassSanctuary: 'heart',
-  silentSkies: 'lock',
-  championHost: 'crown',
-};
-
-/** Round seal for a challenge rule: the banned tower crossed out, a purse, or a rule glyph. */
+/** Round seal for a challenge rule: the painted `seal-<challenge ID>` (its own backing included). */
 export function ruleSeal(id: ChallengeId): HTMLSpanElement {
-  const def = CHALLENGES[id];
-  const s = el('span', 'pu-round', { 'aria-hidden': 'true' });
-  if (def.bannedIcon) {
-    const i = img(`${ART}tower-${def.bannedIcon}-t1.webp`);
-    i.style.cssText = 'width:64%;height:64%;object-fit:contain;filter:grayscale(.3)';
-    const slash = el('span');
-    slash.style.cssText = 'position:absolute;left:18%;right:18%;top:47%;height:9%;background:#c8341f;transform:rotate(-40deg);border-radius:3px;box-shadow:0 0 0 2px #3a2412';
-    s.append(i, slash);
-  } else if (id === 'thinPurse') {
-    const i = img(KIT.gold);
-    i.style.cssText = 'width:52%;height:52%;object-fit:contain';
-    s.append(i);
-  } else s.append(glyph(RULE_ICON[id] ?? 'medal'));
-  return s;
+  return sealBadge(id);
 }
 
 /** Today's Daily over the 2D isles (null until one island is won). */

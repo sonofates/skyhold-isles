@@ -248,6 +248,29 @@
   pointer-events: none;
 }
 
+/* Painted wax seals (feats, challenge rules): the painting has its own backing, no wooden button. */
+.pu-round.pu-seal {
+  background: none;
+  filter: drop-shadow(0 2px 1px rgba(30, 16, 4, 0.4));
+}
+
+.pu-round.pu-seal > img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+.pu-round.pu-seal:hover,
+.pu-round.pu-seal:active {
+  transform: none;
+}
+
+/* Inline glyphs that are seal paintings read a touch larger than the old line glyphs. */
+.pu-glyph > img {
+  display: block;
+}
+
 /* ---- wood plank buttons (ui-plaque, 9-sliced) ----------------------------------------------- */
 
 .pu-plank {
@@ -470,6 +493,15 @@
   top: 0;
   pointer-events: none;
   overflow: visible;
+}
+
+/* Route legs already sailed are full colour; the legs ahead are a faint promise of the voyage. */
+.pu-route-sailed {
+  filter: drop-shadow(0 1px 1px rgba(30, 20, 8, 0.45));
+}
+
+.pu-route-ahead {
+  opacity: 0.55;
 }
 
 .pu-node {
@@ -806,14 +838,12 @@
   font-weight: 700;
 }
 
-.pu-gem::before {
-  content: '';
-  width: 0.85em;
-  height: 0.85em;
-  transform: rotate(45deg);
-  border-radius: 0.15em;
-  background: var(--gem, #6fbf45);
-  box-shadow: 0 0 0 2px var(--outline), inset 0.15em 0.15em 0 rgba(255, 255, 255, 0.45);
+.pu-gem-img {
+  width: 1.45em;
+  height: 1.45em;
+  flex: none;
+  object-fit: contain;
+  filter: drop-shadow(0 1px 1px rgba(30, 16, 4, 0.4));
 }
 
 .pu-rec {
@@ -1099,6 +1129,26 @@
   color: var(--ink);
 }
 
+.pu-panel-text.has-portrait {
+  display: flex;
+  align-items: flex-start;
+  gap: calc(var(--s) * 0.7);
+}
+
+.pu-panel-words {
+  min-width: 0;
+}
+
+/* Narrator portrait: the painted round frame, beside the speaker's name. */
+.pu-portrait {
+  flex: none;
+  width: clamp(36px, calc(var(--s) * 4.6), 72px);
+  height: clamp(36px, calc(var(--s) * 4.6), 72px);
+  margin-top: calc(var(--s) * -0.2);
+  object-fit: contain;
+  filter: drop-shadow(0 2px 1px rgba(30, 16, 4, 0.4));
+}
+
 .pu-panel-text b {
   display: block;
   font-size: 0.82em;
@@ -1190,20 +1240,19 @@
 
 .pu-pips {
   display: inline-flex;
-  gap: calc(var(--s) * 0.35);
+  align-items: center;
+  gap: calc(var(--s) * 0.05);
 }
 
+/* Workshop rank pips: the painted empty / filled diamonds (outline included in the art). */
 .pu-pip {
-  width: calc(var(--s) * 1);
-  height: calc(var(--s) * 1);
-  transform: rotate(45deg);
-  border-radius: 2px;
-  background: #c9b48c;
-  box-shadow: 0 0 0 2px var(--outline);
+  width: max(14px, calc(var(--s) * 1.7));
+  height: max(14px, calc(var(--s) * 1.7));
+  object-fit: contain;
 }
 
 .pu-pip.on {
-  background: linear-gradient(135deg, #ffe58a, #e09a20);
+  filter: drop-shadow(0 0 calc(var(--s) * 0.25) rgba(255, 205, 90, 0.8));
 }
 
 .pu-ws-node.maxed {
@@ -1505,7 +1554,7 @@
   opacity: 0.55;
 }
 
-/* Toggle: a medallion that shows the kit's green check when on. */
+/* Toggle: the painted on / off seals (green check vs. stone bar), cross-faded by state. */
 .pu-toggle {
   position: relative;
   width: calc(var(--s) * 3.8);
@@ -1513,26 +1562,27 @@
   min-width: 44px;
   min-height: 44px;
   flex: none;
-  background: url('/art2d/ui/medallion.webp') center / contain no-repeat;
   filter: drop-shadow(0 2px 1px rgba(30, 16, 4, 0.4));
+  transition: transform 0.08s ease-out;
+}
+
+.pu-toggle:active {
+  transform: scale(0.94);
 }
 
 .pu-toggle img {
   position: absolute;
-  left: 22%;
-  top: 22%;
-  width: 56%;
-  height: 56%;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
   transition: transform 0.15s cubic-bezier(0.2, 0.9, 0.3, 1.4), opacity 0.15s;
 }
 
-.pu-toggle[aria-checked='false'] img {
-  transform: scale(0.3);
+.pu-toggle[aria-checked='true'] .pu-toggle-off,
+.pu-toggle[aria-checked='false'] .pu-toggle-on {
+  transform: scale(0.85);
   opacity: 0;
-}
-
-.pu-toggle[aria-checked='false'] {
-  filter: saturate(0.5) brightness(0.88) drop-shadow(0 2px 1px rgba(30, 16, 4, 0.3));
 }
 
 /* Slider: wood plank track, gold fill, round wooden knob. */
@@ -1925,6 +1975,12 @@
   background: url('/art2d/ui/button-round.webp') center / contain no-repeat;
 }
 
+.pu-store-icon.seal {
+  padding: 0;
+  background: none;
+  filter: drop-shadow(0 2px 1px rgba(30, 16, 4, 0.4));
+}
+
 .pu-store-name {
   min-width: 0;
   overflow-wrap: anywhere;
@@ -1952,16 +2008,34 @@
   font-size: calc(var(--s) * 1.6);
 }
 
-/* The store's own price, lettered on a small gold plaque. */
+/* The store's own price, lettered on the kit's painted price tag (360x130, 9-sliced so the gold
+   socket at the left end stays round; the element is exactly one tag tall, so nothing stretches
+   vertically). The socket holds the kit coin. */
 .pu-store-price {
+  --tag-h: max(34px, calc(var(--s) * 3.6));
+  position: relative;
   display: inline-flex;
   align-items: center;
-  padding: 0.2em 0.6em;
-  border-radius: 0.5em;
-  font-size: calc(var(--s) * 1.5);
-  background: linear-gradient(180deg, #f6c95a, #d99a2b);
-  box-shadow: inset 0 0 0 0.12em #7a4a1a, 0 0.12em 0 rgba(30, 16, 4, 0.35);
+  box-sizing: border-box;
+  height: var(--tag-h);
+  padding: 0 0.15em 0 0.25em;
+  font-size: calc(var(--s) * 1.45);
+  color: var(--ink);
   white-space: nowrap;
+  border-style: solid;
+  border-width: calc(var(--tag-h) * 0.2) calc(var(--tag-h) * 0.23) calc(var(--tag-h) * 0.2) calc(var(--tag-h) * 0.708);
+  border-image: url('/art2d/ui/price-tag.webp') 26 30 26 92 fill stretch;
+}
+
+.pu-store-price-coin {
+  position: absolute;
+  left: calc(var(--tag-h) * -0.555);
+  top: 50%;
+  width: calc(var(--tag-h) * 0.43);
+  height: calc(var(--tag-h) * 0.43);
+  transform: translateY(-50%);
+  object-fit: contain;
+  pointer-events: none;
 }
 
 .pu-store-owned {

@@ -12,18 +12,11 @@ import { STAR_RULES } from '../../data/stars.ts';
 import { challengeDesc, challengeName, difficultyName, islandName, islandSubtitle } from '../../i18n/data.ts';
 import { lower, t } from '../../i18n/index.ts';
 import type { LevelDef } from '../../data/levels/types.ts';
-import { el, glyph, img, KIT, medal, openSheet, plank, starsRow, type Sheet } from './dom.ts';
+import { el, gemUrl, glyph, img, KIT, medal, openSheet, plank, sealBadge, starsRow, type Sheet } from './dom.ts';
 import { endlessRecordText, tierColour } from './modeBits.ts';
 import type { AvailableChallenge2D } from './modes2d.ts';
 import { ruleSeal } from './metaScreens.ts';
 import type { IslandState } from './progress2d.ts';
-
-const GEM: Record<LevelDef['difficulty'], string> = {
-  Breezy: '#6fbf45',
-  Challenging: '#3f8fd8',
-  Heroic: '#b04fd0',
-  Master: '#f2b33d',
-};
 
 export interface RunChoice {
   readonly challenges: ChallengeId[];
@@ -49,9 +42,7 @@ function modeSwitch(seal: HTMLElement, name: string, rule: string, state: HTMLEl
 }
 
 function endlessSeal(): HTMLSpanElement {
-  const s = el('span', 'pu-round', { 'aria-hidden': 'true' });
-  s.append(glyph('endless'));
-  return s;
+  return sealBadge('endless');
 }
 
 export function showBriefing(st: IslandState, prev: LevelDef | null, thumb: string | null, modes: BriefingModes, onPlay: (choice: RunChoice) => void): Sheet {
@@ -60,8 +51,8 @@ export function showBriefing(st: IslandState, prev: LevelDef | null, thumb: stri
   const sheet = openSheet(islandName(lvl), { cls: `pu-brief${hasModes ? ' has-modes' : ''}`, testid: 'brief2d' });
   const lost3 = (STAR_RULES[lvl.difficulty] ?? STAR_RULES.Breezy).threeStarMaxLost;
   const goal3 = lost3 === 0 ? t('brief.goalNoLoss') : t('brief.goalLose', { n: lost3 });
-  const gem = el('span', 'pu-gem pu-ink', {}, difficultyName(lvl.difficulty));
-  gem.style.setProperty('--gem', GEM[lvl.difficulty] ?? GEM.Breezy);
+  // Painted difficulty jewel in front of the name.
+  const gem = el('span', 'pu-gem pu-ink', {}, img(gemUrl(lvl.difficulty), '', 'pu-gem-img'), difficultyName(lvl.difficulty));
   const info = el(
     'div',
     'pu-brief-info',

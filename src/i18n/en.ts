@@ -98,7 +98,12 @@ export const EN = {
   'story.next': 'Next',
   'story.toBattle': 'To battle!',
   'story.onward': 'Onward',
-  'story.l1c.speaker': 'Warden Pell',
+  'story.pell': 'Warden Pell',
+  // Neutral captions for islands that have story paintings but no written story yet
+  // (render2d/ui/storyBeats.ts, GENERIC_STORY_ISLANDS). Real copy replaces them per island.
+  'story.generic.intro': 'Next stop: {name}. {subtitle}.',
+  'story.generic.introShort': 'Next stop: {name}. Ready the towers before the raiders land.',
+  'story.generic.outro': '{name} is safe again. I will mark it on the chart, and we sail on.',
   'story.l1c.intro.1': 'Two caves woke in the hills last night. Raiders are already crawling out of them.',
   'story.l1c.intro.2': 'Both trails twist down to the same road. Hold the bends and they cannot slip past.',
   'story.l1c.intro.3': 'Our keep is the last door before the mill. Build on the stone rings and stand fast.',

@@ -25,8 +25,8 @@ import {
 import { num, pct, t, type MsgKey } from '../../i18n/index.ts';
 import { allEnemyEntries, allTowerEntries, eliteEntry, speedClass, type CodexEliteEntry, type CodexEnemyEntry } from '../../ui/content/codexData.ts';
 import { ENEMY_DEFS } from '../../data/enemies.ts';
-import { el, glyph, img, KIT, openSheet, plank, type Sheet } from './dom.ts';
-import type { IconName } from './paintedIcons.ts';
+import { el, glyph, img, KIT, openSheet, plank, sealBadge, type Sheet } from './dom.ts';
+import { SEAL_GLYPHS, type IconName } from './paintedIcons.ts';
 
 export type CodexTab2D = 'enemies' | 'towers';
 
@@ -105,8 +105,13 @@ function towerStats(id: TowerType): HTMLElement {
 
 /** A labelled note with a round seal: "How to stop it", "Strong at", "Watch out". */
 function note(icon: IconName, label: string, text: string, tone: 'good' | 'warn' = 'good'): HTMLElement {
-  const seal = el('span', 'pu-round', { 'aria-hidden': 'true' });
-  seal.append(glyph(icon));
+  // Painted wax seals carry their own backing; other glyphs sit on the round wooden button.
+  let seal: HTMLSpanElement;
+  if (SEAL_GLYPHS.has(icon)) seal = sealBadge(icon);
+  else {
+    seal = el('span', 'pu-round', { 'aria-hidden': 'true' });
+    seal.append(glyph(icon));
+  }
   return el('div', `pu-rule pu-cx-note ${tone}`, {}, seal, el('div', 'pu-ink', {}, label, el('small', 'pu-ink-soft', {}, text)));
 }
 
