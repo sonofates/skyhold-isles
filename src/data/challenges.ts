@@ -1,6 +1,12 @@
 import type { TowerType } from '../core/types.ts';
 import type { LevelDef } from './levels/types.ts';
-import { combineRunModifiers, type RunModifierPatch, type RunModifiers } from './runModifiers.ts';
+import {
+  combineRunModifiers,
+  hasModifierEffectIn2D,
+  type RunModifierPatch,
+  type RunModifiers,
+} from './runModifiers.ts';
+import { TOWER_DEFS } from './towers.ts';
 
 /**
  * Island challenges: optional handicaps unlocked after an island's first clear. Winning with a
@@ -133,9 +139,36 @@ const DEFAULT_BY_DIFFICULTY: Readonly<Record<LevelDef['difficulty'], readonly Ch
   Master: ['silentSkies', 'ironTide'],
 };
 
-export function challengesForLevel(level: Pick<LevelDef, 'id' | 'difficulty'>): readonly ChallengeId[] {
-  return ISLAND_CHALLENGES[level.id] ?? DEFAULT_BY_DIFFICULTY[level.difficulty] ?? [];
+export function challengesForLevel(
+  level: Pick<LevelDef, 'id' | 'difficulty'> & { readonly layout2d?: unknown },
+): readonly ChallengeId[] {
+  const offered = ISLAND_CHALLENGES[level.id] ?? DEFAULT_BY_DIFFICULTY[level.difficulty] ?? [];
+  return level.layout2d ? offered.filter((id) => isChallengeEffectiveIn2D(CHALLENGES[id])) : offered;
 }
+
+/**
+ * Data-driven check for whether a challenge's modifier patch actually alters a 2D plot-map run
+ * (where active abilities do not exist, and tower bans / rate multipliers only apply to 2D towers).
+ */
+export function isChallengeEffectiveIn2D(challenge: Pick<ChallengeDef, 'patch'>): boolean {
+  const p = challenge.patch;
+  const validBans = p.bannedTowers?.filter((t) => Object.prototype.hasOwnProperty.call(TOWER_DEFS, t));
+  const validRates = p.towerFireRateMul
+    ? (Object.fromEntries(
+        Object.entries(p.towerFireRateMul).filter(([t]) => Object.prototype.hasOwnProperty.call(TOWER_DEFS, t)),
+      ) as Partial<Record<TowerType, number>>)
+    : undefined;
+  return hasModifierEffectIn2D({
+    ...p,
+    bannedTowers: validBans,
+    towerFireRateMul: validRates,
+  });
+}
+
+/** Challenge IDs whose rules have a real gameplay effect in 2D (excludes e.g. `silentSkies`). */
+export const CHALLENGE_IDS_2D: readonly ChallengeId[] = CHALLENGE_IDS.filter((id) =>
+  isChallengeEffectiveIn2D(CHALLENGES[id]),
+);
 
 export function isChallengeId(id: unknown): id is ChallengeId {
   return typeof id === 'string' && Object.prototype.hasOwnProperty.call(CHALLENGES, id);
@@ -143,7 +176,7 @@ export function isChallengeId(id: unknown): id is ChallengeId {
 
 /** Only challenges offered on this island, deduplicated, in the island's order. */
 export function sanitizeChallengeSelection(
-  level: Pick<LevelDef, 'id' | 'difficulty'>,
+  level: Pick<LevelDef, 'id' | 'difficulty'> & { readonly layout2d?: unknown },
   selected: readonly unknown[],
 ): ChallengeId[] {
   const offered = challengesForLevel(level);

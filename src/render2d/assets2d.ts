@@ -1,4 +1,4 @@
-import { Assets, Rectangle, Texture } from 'pixi.js';
+import { Assets, Rectangle, Texture, type TextureSource } from 'pixi.js';
 import type { TowerType } from '../core/types.ts';
 import { alphaFeetAnchor } from './alphaBox.ts';
 import { enemyHasArt, mulTint, pickTier, resolveEnemyArt, resolveTowerTiers } from './artResolve.ts';
@@ -270,6 +270,21 @@ async function loadSheetSeq(base: string, jsonPath: string, mips = false): Promi
   }
 }
 
+let sharedProbeCanvas: HTMLCanvasElement | null = null;
+let sharedProbeCtx: CanvasRenderingContext2D | null = null;
+
+function probeContext(w: number, h: number): CanvasRenderingContext2D | null {
+  if (!sharedProbeCanvas) {
+    sharedProbeCanvas = document.createElement('canvas');
+    sharedProbeCtx = sharedProbeCanvas.getContext('2d', { willReadFrequently: true });
+  }
+  if (!sharedProbeCtx || !sharedProbeCanvas) return null;
+  sharedProbeCanvas.width = w;
+  sharedProbeCanvas.height = h;
+  sharedProbeCtx.clearRect(0, 0, w, h);
+  return sharedProbeCtx;
+}
+
 /** RGBA pixels of a texture's source (null when unreadable). */
 function texturePixels(tex: Texture): { data: Uint8ClampedArray; w: number; h: number } | null {
   try {
@@ -277,10 +292,7 @@ function texturePixels(tex: Texture): { data: Uint8ClampedArray; w: number; h: n
     const w = tex.source.pixelWidth;
     const h = tex.source.pixelHeight;
     if (!res || w <= 0 || h <= 0) return null;
-    const c = document.createElement('canvas');
-    c.width = w;
-    c.height = h;
-    const ctx = c.getContext('2d', { willReadFrequently: true });
+    const ctx = probeContext(w, h);
     if (!ctx) return null;
     ctx.drawImage(res, 0, 0);
     return { data: ctx.getImageData(0, 0, w, h).data, w, h };
@@ -297,10 +309,7 @@ export function figureHeight(tex: Texture): number | null {
     const w = Math.round(f.width);
     const h = Math.round(f.height);
     if (!res || w <= 0 || h <= 0) return null;
-    const c = document.createElement('canvas');
-    c.width = w;
-    c.height = h;
-    const ctx = c.getContext('2d', { willReadFrequently: true });
+    const ctx = probeContext(w, h);
     if (!ctx) return null;
     ctx.drawImage(res, f.x, f.y, w, h, 0, 0, w, h);
     const data = ctx.getImageData(0, 0, w, h).data;
@@ -349,10 +358,7 @@ function feetAnchor(tex: Texture, fallback: readonly [number, number]): readonly
     const w = tex.source.pixelWidth;
     const h = tex.source.pixelHeight;
     if (!res || w <= 0 || h <= 0) return fallback;
-    const c = document.createElement('canvas');
-    c.width = w;
-    c.height = h;
-    const ctx = c.getContext('2d', { willReadFrequently: true });
+    const ctx = probeContext(w, h);
     if (!ctx) return fallback;
     ctx.drawImage(res, 0, 0);
     return alphaFeetAnchor(ctx.getImageData(0, 0, w, h).data, w, h);
@@ -656,5 +662,53 @@ export async function loadArt(
     }
     towers[type as TowerType] = out;
   }
+  // Release pixel-probe scratch buffer once art loading finishes.
+  if (sharedProbeCanvas) {
+    sharedProbeCanvas.width = 1;
+    sharedProbeCanvas.height = 1;
+  }
   return { manifest, map, mapKey: mapRes.key, overlays, plot, ui, uiKit, towers, enemies, notes, present, baseUrl: base };
+}
+
+/**
+ * Collects every unique `TextureSource` referenced by `LoadedArt` (map, overlays, plot, UI kit,
+ * all tower tiers/sheets/turrets, and all enemy walk/attack sheets) for ahead-of-wave GPU upload.
+ */
+export function collectArtTextureSources(art: LoadedArt): TextureSource[] {
+  const seen = new Set<TextureSource>();
+  const add = (tex: Texture | null | undefined): void => {
+    if (!tex || tex === Texture.EMPTY) return;
+    seen.add(tex.source);
+  };
+  const addList = (list: readonly (Texture | null | undefined)[] | undefined): void => {
+    if (!list) return;
+    for (let i = 0; i < list.length; i++) add(list[i]);
+  };
+  add(art.map);
+  add(art.plot?.texture);
+  for (const t of Object.values(art.overlays)) add(t);
+  for (const t of Object.values(art.ui)) add(t);
+  if (art.uiKit) for (const t of Object.values(art.uiKit)) add(t);
+  for (const tw of Object.values(art.towers)) {
+    if (!tw) continue;
+    addList(tw.tiers);
+    for (const sh of tw.attack) addList(sh?.frames);
+    for (const sh of tw.idle) addList(sh?.frames);
+    if (tw.turrets) {
+      for (const tur of tw.turrets) {
+        if (!tur) continue;
+        add(tur.body);
+        addList(tur.frames);
+      }
+    }
+  }
+  for (const en of Object.values(art.enemies)) {
+    add(en.base);
+    addList(en.frames);
+    add(en.back);
+    add(en.mound);
+    if (en.sheet) for (const seq of en.sheet.seqs) addList(seq);
+    addList(en.attack?.frames);
+  }
+  return [...seen];
 }

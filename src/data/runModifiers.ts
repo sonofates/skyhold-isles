@@ -118,6 +118,21 @@ export function isNeutralRun(m: RunModifiers): boolean {
     m.enemySpeedMul === 1 &&
     m.enemyHpMul === 1 &&
     m.bannedTowers.length === 0 &&
-    !m.abilitiesDisabled
+    !m.abilitiesDisabled &&
+    !m.championWaves
   );
+}
+
+/**
+ * True when `patch` changes at least one gameplay rule active in the 2D build.
+ * The 2D game has no active abilities (Meteor Strike / Overcharge), so ability-only patches
+ * (`abilitiesDisabled`, `abilityCooldownMul`) evaluate to neutral and have no effect in 2D.
+ */
+export function hasModifierEffectIn2D(patch: RunModifierPatch): boolean {
+  const m = combineRunModifiers(patch);
+  return !isNeutralRun({
+    ...m,
+    abilityCooldownMul: 1,
+    abilitiesDisabled: false,
+  });
 }

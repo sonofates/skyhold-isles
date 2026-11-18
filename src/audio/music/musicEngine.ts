@@ -189,7 +189,7 @@ export class MusicEngine {
     }
   }
 
-  private osc(type: OscillatorType, freq: number, t: number, stopAt: number): OscillatorNode {
+  private osc(type: OscillatorType, freq: number, t: number, stopAt: number, tailNode?: AudioNode): OscillatorNode {
     const o = this.ctx.createOscillator();
     o.type = type;
     o.frequency.value = freq;
@@ -198,18 +198,19 @@ export class MusicEngine {
     this.liveVoices++;
     o.onended = () => {
       this.liveVoices--;
+      tailNode?.disconnect();
     };
     return o;
   }
 
   private padVoice(ev: MusicEvent): void {
     const { t, dur } = ev;
-    const o = this.osc(this.profile.padWave, ev.freq, t, t + dur + 0.05);
+    const g = this.ctx.createGain();
+    const o = this.osc(this.profile.padWave, ev.freq, t, t + dur + 0.05, g);
     o.detune.value = (Math.random() * 2 - 1) * 5;
     const f = this.ctx.createBiquadFilter();
     f.type = 'lowpass';
     f.frequency.value = this.profile.padCutoff;
-    const g = this.ctx.createGain();
     const peak = ev.vel * 0.1;
     g.gain.setValueAtTime(0.0001, t);
     g.gain.linearRampToValueAtTime(peak, t + 0.45);
@@ -222,8 +223,8 @@ export class MusicEngine {
 
   private bassVoice(ev: MusicEvent): void {
     const { t, dur } = ev;
-    const o = this.osc('triangle', ev.freq, t, t + dur + 0.05);
     const g = this.ctx.createGain();
+    const o = this.osc('triangle', ev.freq, t, t + dur + 0.05, g);
     g.gain.setValueAtTime(0.0001, t);
     g.gain.linearRampToValueAtTime(ev.vel * 0.22, t + 0.012);
     g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
@@ -238,16 +239,16 @@ export class MusicEngine {
     g.connect(this.bus);
     if (kind === 'pluck') {
       const dur = ev.dur + 0.2;
-      const o = this.osc('triangle', ev.freq, t, t + dur + 0.05);
+      const o = this.osc('triangle', ev.freq, t, t + dur + 0.05, g);
       g.gain.setValueAtTime(0.0001, t);
       g.gain.linearRampToValueAtTime(ev.vel * 0.13, t + 0.006);
       g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
       o.connect(g);
     } else if (kind === 'bell') {
       const dur = ev.dur + 0.7;
-      const o = this.osc('sine', ev.freq, t, t + dur + 0.05);
-      const o2 = this.osc('sine', ev.freq * 2.76, t, t + dur * 0.5 + 0.05);
+      const o = this.osc('sine', ev.freq, t, t + dur + 0.05, g);
       const g2 = this.ctx.createGain();
+      const o2 = this.osc('sine', ev.freq * 2.76, t, t + dur * 0.5 + 0.05, g2);
       g2.gain.value = 0.3;
       g.gain.setValueAtTime(0.0001, t);
       g.gain.linearRampToValueAtTime(ev.vel * 0.12, t + 0.008);
@@ -257,7 +258,7 @@ export class MusicEngine {
       g2.connect(g);
     } else if (kind === 'flute') {
       const dur = ev.dur + 0.15;
-      const o = this.osc('sine', ev.freq, t, t + dur + 0.05);
+      const o = this.osc('sine', ev.freq, t, t + dur + 0.05, g);
       g.gain.setValueAtTime(0.0001, t);
       g.gain.linearRampToValueAtTime(ev.vel * 0.12, t + 0.07);
       g.gain.linearRampToValueAtTime(ev.vel * 0.08, t + dur * 0.6);
@@ -265,7 +266,7 @@ export class MusicEngine {
       o.connect(g);
     } else {
       const dur = ev.dur + 0.1;
-      const o = this.osc('sawtooth', ev.freq, t, t + dur + 0.05);
+      const o = this.osc('sawtooth', ev.freq, t, t + dur + 0.05, g);
       const f = this.ctx.createBiquadFilter();
       f.type = 'lowpass';
       f.frequency.setValueAtTime(500, t);
@@ -281,10 +282,10 @@ export class MusicEngine {
 
   private kickVoice(ev: MusicEvent): void {
     const { t, dur } = ev;
-    const o = this.osc('sine', 120, t, t + dur + 0.05);
+    const g = this.ctx.createGain();
+    const o = this.osc('sine', 120, t, t + dur + 0.05, g);
     o.frequency.setValueAtTime(120, t);
     o.frequency.exponentialRampToValueAtTime(42, t + dur * 0.8);
-    const g = this.ctx.createGain();
     g.gain.setValueAtTime(ev.vel * 0.3, t);
     g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
     o.connect(g);
@@ -305,17 +306,18 @@ export class MusicEngine {
     src.connect(f);
     f.connect(g);
     g.connect(this.bus);
+    src.onended = () => g.disconnect();
     src.start(t);
     src.stop(t + dur + 0.02);
   }
 
   private droneVoice(ev: MusicEvent): void {
     const { t, dur } = ev;
-    const o = this.osc('sawtooth', ev.freq, t, t + dur + 0.05);
+    const g = this.ctx.createGain();
+    const o = this.osc('sawtooth', ev.freq, t, t + dur + 0.05, g);
     const f = this.ctx.createBiquadFilter();
     f.type = 'lowpass';
     f.frequency.value = 260;
-    const g = this.ctx.createGain();
     g.gain.setValueAtTime(0.0001, t);
     g.gain.linearRampToValueAtTime(ev.vel * 0.11, t + 0.3);
     g.gain.linearRampToValueAtTime(0.0001, t + dur);
@@ -326,12 +328,12 @@ export class MusicEngine {
 
   private stingerVoice(ev: MusicEvent): void {
     const { t, dur } = ev;
-    const o = this.osc('sawtooth', ev.freq, t, t + dur + 0.05);
+    const g = this.ctx.createGain();
+    const o = this.osc('sawtooth', ev.freq, t, t + dur + 0.05, g);
     const f = this.ctx.createBiquadFilter();
     f.type = 'lowpass';
     f.frequency.setValueAtTime(1400, t);
     f.frequency.exponentialRampToValueAtTime(300, t + dur);
-    const g = this.ctx.createGain();
     g.gain.setValueAtTime(0.0001, t);
     g.gain.linearRampToValueAtTime(ev.vel * 0.16, t + 0.03);
     g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
@@ -348,10 +350,21 @@ export class MusicEngine {
       return;
     }
     const ctx = this.ctx;
-    const len = Math.floor(ctx.sampleRate * 3);
-    const buf = ctx.createBuffer(1, len, ctx.sampleRate);
-    const data = buf.getChannelData(0);
-    for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
+    let buf: AudioBuffer;
+    if (this.sfxNoise && this.sfxNoise.length >= Math.floor(ctx.sampleRate * 0.3)) {
+      buf = this.sfxNoise;
+    } else {
+      const len = Math.floor(ctx.sampleRate);
+      buf = ctx.createBuffer(1, len, ctx.sampleRate);
+      const data = buf.getChannelData(0);
+      let s = 0x517cc1b7;
+      for (let i = 0; i < len; i++) {
+        s ^= s << 13;
+        s ^= s >>> 17;
+        s ^= s << 5;
+        data[i] = ((s >>> 0) / 0x80000000) - 1;
+      }
+    }
     const src = ctx.createBufferSource();
     src.buffer = buf;
     src.loop = true;
@@ -447,6 +460,7 @@ export class MusicEngine {
       src.connect(f);
       f.connect(g);
       g.connect(this.bus);
+      src.onended = () => g.disconnect();
       src.start(t);
       src.stop(t + 0.04);
     }
@@ -458,12 +472,12 @@ export class MusicEngine {
   private ping(now: number, freq: number, peak: number, drip = false): void {
     if (this.liveVoices >= MAX_VOICES) return;
     const t = now + Math.random() * 0.1;
-    const o = this.osc('sine', freq, t, t + 0.2);
+    const g = this.ctx.createGain();
+    const o = this.osc('sine', freq, t, t + 0.2, g);
     if (drip) {
       o.frequency.setValueAtTime(freq * 1.4, t);
       o.frequency.exponentialRampToValueAtTime(freq, t + 0.08);
     }
-    const g = this.ctx.createGain();
     g.gain.setValueAtTime(peak, t);
     g.gain.exponentialRampToValueAtTime(0.0001, t + (drip ? 0.14 : 0.1));
     o.connect(g);

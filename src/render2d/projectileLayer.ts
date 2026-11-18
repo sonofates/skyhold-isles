@@ -91,11 +91,25 @@ export class ProjectileLayer {
     if (!v) {
       const sprite = new Sprite(Texture.EMPTY);
       sprite.anchor.set(0.5);
+      sprite.visible = false;
       this.parent.addChild(sprite);
       v = { sprite, shadow: null, seen: -1, trail: 0, lastX: 0, lastY: 0, offX: 0, offY: 0, startX: NaN, startZ: NaN, lastProgress: 0 };
       this.views[i] = v;
     }
     return v;
+  }
+
+  /** Pre-allocates projectile + shadow sprites during load so volleys allocate nothing in play. */
+  prewarm(count = 64): void {
+    for (let i = 0; i < count; i++) {
+      const v = this.viewFor(i);
+      if (!v.shadow) {
+        v.shadow = new Sprite(this.tex.shadow);
+        v.shadow.anchor.set(0.5);
+        v.shadow.visible = false;
+        this.shadows.addChild(v.shadow);
+      }
+    }
   }
 
   /**

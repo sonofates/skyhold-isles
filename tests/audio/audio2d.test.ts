@@ -1,8 +1,10 @@
-import { describe, expect, it, vi } from 'vitest';
-import { SoundManager } from '../../src/audio/soundManager.ts';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { fillNoiseChannel, PREBAKED_NOISE, SoundManager } from '../../src/audio/soundManager.ts';
 import { VoiceCap } from '../../src/audio/voiceCap.ts';
 import { EventBus } from '../../src/core/eventBus.ts';
-import { bindAudio2D, screenPan } from '../../src/render2d/audio2d.ts';
+import { FixedTimestepStepper } from '../../src/core/gameLoop.ts';
+import { createPlatformAdapter, setPlatformAdapter, type MobileBridge } from '../../src/platform/index.ts';
+import { Audio2D, bindAudio2D, bindBackgroundLifecycle2D, screenPan } from '../../src/render2d/audio2d.ts';
 
 describe('painted audio', () => {
   it('routes combat by type and places melee contact at its target', () => {
@@ -81,5 +83,150 @@ describe('painted audio', () => {
     voices.release('arrow');
     expect(voices.acquire('arrow')).toBe(true);
     expect(voices.acquire('arrow')).toBe(false);
+  });
+
+  afterEach(() => {
+    setPlatformAdapter(null);
+    vi.unstubAllGlobals();
+  });
+
+  it('pauses game and audio on platform.onPause and document.visibilitychange, and stays paused on resume', () => {
+    let appStateCb: ((isActive: boolean) => void) | null = null;
+    const mobile: MobileBridge = {
+      isNative: true,
+      platform: 'ios',
+      triggerHaptic: async () => true,
+      onAppStateChange(cb) {
+        appStateCb = cb;
+        return () => {
+          appStateCb = null;
+        };
+      },
+    };
+    const platform = createPlatformAdapter({ bridge: null, mobile });
+    setPlatformAdapter(platform);
+
+    const docListeners = new Map<string, Set<EventListener>>();
+    let hidden = false;
+    const fakeDoc = {
+      get hidden() {
+        return hidden;
+      },
+      addEventListener(type: string, fn: EventListener) {
+        let set = docListeners.get(type);
+        if (!set) {
+          set = new Set();
+          docListeners.set(type, set);
+        }
+        set.add(fn);
+      },
+      removeEventListener(type: string, fn: EventListener) {
+        docListeners.get(type)?.delete(fn);
+      },
+      emit(type: string, ev: Partial<Event> = {}) {
+        for (const fn of docListeners.get(type) ?? []) fn(ev as Event);
+      },
+    };
+    const winListeners = new Map<string, Set<EventListener>>();
+    const fakeWin = {
+      addEventListener(type: string, fn: EventListener) {
+        let set = winListeners.get(type);
+        if (!set) {
+          set = new Set();
+          winListeners.set(type, set);
+        }
+        set.add(fn);
+      },
+      removeEventListener(type: string, fn: EventListener) {
+        winListeners.get(type)?.delete(fn);
+      },
+    };
+
+    const audio = new Audio2D({
+      platform,
+      doc: fakeDoc as unknown as Document,
+      win: fakeWin as unknown as Window,
+    });
+    const suspendSpy = vi.spyOn(audio.sound, 'suspendForBackground');
+    const resumeSpy = vi.spyOn(audio.sound, 'resumeFromBackground');
+    const duckSpy = vi.spyOn(audio.sound, 'setMusicDucked');
+    const unlockSpy = vi.spyOn(audio.sound, 'unlock');
+
+    // Mirror Game2D's stepper + HUD pause state wiring through bindBackgroundLifecycle2D.
+    const stepper = new FixedTimestepStepper();
+    stepper.simActive = true;
+    stepper.paused = false;
+    let banner = '';
+    const syncPauseHud = () => {
+      banner = stepper.paused ? 'Paused' : '';
+    };
+    const gameLifecycle = bindBackgroundLifecycle2D({
+      platform,
+      doc: fakeDoc,
+      win: fakeWin,
+      onBackground: () => {
+        stepper.paused = true;
+        stepper.resetAccumulator();
+        audio.sound.setMusicDucked(true);
+        syncPauseHud();
+      },
+      onForeground: () => {
+        // Must remain paused on resume, showing the existing pause banner.
+        syncPauseHud();
+      },
+    });
+
+    // 1) Native mobile app goes to background (`getPlatform().onPause`) while document.hidden is still false.
+    appStateCb!(false);
+    expect(stepper.paused).toBe(true);
+    expect(banner).toBe('Paused');
+    expect(duckSpy).toHaveBeenLastCalledWith(true);
+    expect(suspendSpy).toHaveBeenCalledTimes(1);
+
+    // Taps while backgrounded must not unlock/resume audio.
+    fakeDoc.emit('pointerup');
+    expect(unlockSpy).not.toHaveBeenCalled();
+
+    // Native app resumes (`getPlatform().onResume`): audio exits background, game STAYS paused.
+    appStateCb!(true);
+    expect(resumeSpy).toHaveBeenCalledTimes(1);
+    expect(stepper.paused).toBe(true);
+    expect(banner).toBe('Paused');
+
+    // Player deliberately unpauses.
+    stepper.paused = false;
+    syncPauseHud();
+    expect(banner).toBe('');
+
+    // 2) Document visibility goes hidden (`document.visibilitychange`) and overlaps with native pause.
+    hidden = true;
+    fakeDoc.emit('visibilitychange');
+    expect(stepper.paused).toBe(true);
+    expect(banner).toBe('Paused');
+    expect(suspendSpy).toHaveBeenCalledTimes(2);
+
+    appStateCb!(false);
+    // Document becomes visible first while native app is still paused -> stays in background!
+    hidden = false;
+    fakeDoc.emit('visibilitychange');
+    expect(resumeSpy).toHaveBeenCalledTimes(1);
+    expect(stepper.paused).toBe(true);
+
+    // Once native app also resumes, audio foregrounds and game still stays paused.
+    appStateCb!(true);
+    expect(resumeSpy).toHaveBeenCalledTimes(2);
+    expect(stepper.paused).toBe(true);
+    expect(banner).toBe('Paused');
+
+    gameLifecycle.dispose();
+    audio.dispose();
+  });
+
+  it('fills noise buffers from prebaked samples and disconnects finished voice nodes', () => {
+    const dst = new Float32Array(PREBAKED_NOISE.length + 128);
+    fillNoiseChannel(dst);
+    expect(dst[0]).toBe(PREBAKED_NOISE[0]);
+    expect(dst[PREBAKED_NOISE.length]).toBe(PREBAKED_NOISE[0]);
+    expect(dst.some((v) => v !== 0)).toBe(true);
   });
 });

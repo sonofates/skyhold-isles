@@ -48,11 +48,16 @@ export function dailyPairAllowed(a: ChallengeId, b: ChallengeId): boolean {
  * one strong rule (see STRONG_RULES).
  * Returns null until at least one island is cleared.
  */
-export function dailyChallengeFor(day: number, clearedIslands: readonly number[]): DailyChallenge | null {
-  if (clearedIslands.length === 0) return null;
+export function dailyChallengeFor(
+  day: number,
+  clearedIslands: readonly number[],
+  challengePool: readonly ChallengeId[] = CHALLENGE_IDS,
+): DailyChallenge | null {
+  if (clearedIslands.length === 0 || challengePool.length < 2) return null;
   const levelIndex = clearedIslands[hashDay(day, 1) % clearedIslands.length];
-  const first = CHALLENGE_IDS[hashDay(day, 2) % CHALLENGE_IDS.length];
-  const pool = CHALLENGE_IDS.filter((id) => dailyPairAllowed(first, id));
+  const first = challengePool[hashDay(day, 2) % challengePool.length];
+  const pool = challengePool.filter((id) => dailyPairAllowed(first, id));
+  if (pool.length === 0) return null;
   const second = pool[hashDay(day, 3) % pool.length];
   return { day, levelIndex, challenges: [first, second] };
 }

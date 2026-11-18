@@ -13,7 +13,7 @@ import type { EnemyType } from '../core/types.ts';
 import { FrameStats } from './frameStats.ts';
 import { Game2D, type Game2DHooks } from './game2d.ts';
 import { HUD_FONT } from './hudText.ts';
-import { renderResolution } from './renderResolution.ts';
+import { detectSoftwareWebGL, qualityOverride, renderResolution, type QualityTier } from './renderResolution.ts';
 import type { MapView } from './mapView.ts';
 import { VARIANT_SLACK } from './mapVariant.ts';
 import { computeMapFit } from './viewFit.ts';
@@ -165,16 +165,25 @@ async function main(): Promise<void> {
     return;
   }
 
+  const dprOverride = Number(q.get('dpr')) || undefined;
+  const explicitQuality = qualityOverride(q.get('quality'));
+  const softwareWebGL = detectSoftwareWebGL();
+  const startWave = Number(q.get('wave') ?? 0) || 0;
+  const bootTier: QualityTier =
+    explicitQuality ?? ((bench > 0 || startWave > 1) && softwareWebGL ? 'low' : 'high');
   const app = new Application();
   await app.init({
     resizeTo: window,
     background: '#5b8f3a',
-    antialias: true,
+    antialias: !softwareWebGL,
     autoDensity: true,
-    resolution: renderResolution(window.innerWidth, window.innerHeight, window.devicePixelRatio || 1, Number(new URLSearchParams(location.search).get('dpr')) || undefined),
+    autoStart: false,
+    resolution: renderResolution(window.innerWidth, window.innerHeight, window.devicePixelRatio || 1, dprOverride, bootTier),
     preference: 'webgl',
   });
   document.getElementById('stage')!.appendChild(app.canvas);
+
+  const gl = (app.renderer as unknown as { gl?: WebGL2RenderingContext }).gl;
 
   await fontsReady;
   const layout2d = level.layout2d;
@@ -193,10 +202,9 @@ async function main(): Promise<void> {
     },
   );
   if (art.notes.length > 0) console.info('[art2d] fallbacks:\n  ' + art.notes.join('\n  '));
-  document.getElementById('boot')?.remove();
   if (q.get('artcheck') === '1') mountArtCheck(art);
 
-  const draws = countDrawCalls((app.renderer as unknown as { gl?: WebGL2RenderingContext }).gl);
+  const draws = countDrawCalls(gl);
   const stats = new FrameStats();
   const updateStats = new FrameStats();
   const renderStats = new FrameStats();
@@ -213,6 +221,8 @@ async function main(): Promise<void> {
     onResize();
     app.renderer.on('resize', onResize);
     app.ticker.add((t) => scene.frame(Math.min(0.1, t.deltaMS / 1000)));
+    document.getElementById('boot')?.remove();
+    app.ticker.start();
     window.__p0 = { mode: 'ab', state: () => scene.debugState() };
     return;
   }
@@ -252,12 +262,26 @@ async function main(): Promise<void> {
   const plainPlay = Object.keys(hooks).length === 0 && !q.has('end') && bench === 0;
   let codexRef: { setButtonVisible(v: boolean): void } | null = null;
   let gameRef: Game2D | null = null;
+  let codexWasPaused = false;
+  let introWasPaused = false;
   const routing = await import('./ui/inGame.ts');
   const baseHooks = hooks;
   hooks = {
     ...baseHooks,
     modifiers: run.modifiers,
     startEndless: run.runConfig.endless,
+    initialUnlockedTier: bootTier,
+    onBackgroundChange: (inBackground) => {
+      if (inBackground) {
+        // Keep the run paused on resume even if Codex or the intro story was open when backgrounded.
+        codexWasPaused = true;
+        introWasPaused = true;
+        if (!isDebugScene) app.ticker.stop();
+      } else if (!isDebugScene) {
+        app.ticker.start();
+        app.render();
+      }
+    },
     onEndPanel: (shown) => {
       codexRef?.setButtonVisible(!shown);
       const w = gameRef?.world;
@@ -317,19 +341,30 @@ async function main(): Promise<void> {
   game.attachInput(app.canvas);
   const startSpeed = Number(q.get('speed'));
   if (startSpeed === 2 || startSpeed === 3) game.stepper.speed = startSpeed;
+  game.resize(app.screen.width, app.screen.height);
+  game.prewarm({ benchSteps: bench > 0 ? Math.ceil(bench / 10) + 2 : 0 });
+  upgradeMap(art, game.map, mapNeed(app.screen.width, app.screen.height), mapMips);
   const onResize = (): void => {
     game.resize(app.screen.width, app.screen.height);
     upgradeMap(art, game.map, mapNeed(app.screen.width, app.screen.height), mapMips);
   };
-  onResize();
   app.renderer.on('resize', onResize);
+  for (let warmFrames = 0; warmFrames < 4; warmFrames++) {
+    await new Promise<void>((resolve) =>
+      requestAnimationFrame(() => {
+        app.render();
+        resolve();
+      }),
+    );
+  }
+  draws?.take();
+  document.getElementById('boot')?.remove();
   if (bench === 0) {
-    let wasPaused = false;
     const codex = mountCodex2D(art, (open) => {
       if (open) {
-        wasPaused = game.stepper.paused;
+        codexWasPaused = game.stepper.paused;
         game.stepper.paused = true;
-      } else game.stepper.paused = wasPaused;
+      } else game.stepper.paused = codexWasPaused;
     });
     codexRef = codex;
     if (q.get('codex') === '1') codex.open();
@@ -337,11 +372,11 @@ async function main(): Promise<void> {
     const storyQ = q.get('story');
     if (q.get('intro') === '1' || storyQ === 'intro') {
       const g = game;
-      const was = g.stepper.paused;
+      introWasPaused = g.stepper.paused;
       g.stepper.paused = true;
       codex.setButtonVisible(false);
       void routing.playStoryOnce(level, 'intro', art.manifest, art.baseUrl, storyQ === 'intro').then(() => {
-        g.stepper.paused = was;
+        g.stepper.paused = introWasPaused;
         if (!g.end.visible) codex.setButtonVisible(true);
       });
     }
@@ -384,9 +419,11 @@ async function main(): Promise<void> {
     artcheck: () => artCheckSummary(art),
     setGold: (g) => {
       game.world.gold = g;
+      game.markHudDirty();
     },
     setLives: (n) => {
       game.world.lives = n;
+      game.markHudDirty();
     },
   };
   if (aimState) window.__aim = aimState;
@@ -413,6 +450,7 @@ async function main(): Promise<void> {
       },
     });
   }
+  if (!document.hidden || isDebugScene) app.ticker.start();
 }
 
 let mapUpgrade: Promise<void> | null = null;

@@ -82,6 +82,32 @@ export class FxLayer {
       this.top.addChild(this.additive);
     }
   }
+
+  /** Pre-allocates pooled particle sprites during load so wave combat allocates none. */
+  prewarm(count = this.particleLimit): void {
+    const n = Math.min(MAX_PARTICLES, Math.max(0, count));
+    for (let i = this.particles.length; i < n; i++) {
+      const sprite = new Sprite(Texture.EMPTY);
+      sprite.anchor.set(0.5);
+      sprite.visible = false;
+      this.top.addChild(sprite);
+      this.particles[i] = {
+        sprite,
+        kind: 'puff',
+        t: 0,
+        life: 0.5,
+        x: 0,
+        y: 0,
+        vx: 0,
+        vy: 0,
+        size: 1,
+        rot: 0,
+        vr: 0,
+        gy: 0,
+        active: false,
+      };
+    }
+  }
   /** Lifetime counters (QA): bolts / beams / zones drawn. */
   boltsDrawn = 0;
   beamsDrawn = 0;

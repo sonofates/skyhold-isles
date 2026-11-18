@@ -123,6 +123,13 @@ export class EnemyLayer {
     this.melee = melee;
   }
 
+  /** Pre-allocates pooled enemy views during load so wave spawns allocate no sprites mid-frame. */
+  prewarm(count = 160): void {
+    for (let i = 0; i < count; i++) {
+      this.viewFor(i);
+    }
+  }
+
   private viewFor(index: number): EnemyView {
     let v = this.views[index];
     if (!v) {

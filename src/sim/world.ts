@@ -170,9 +170,10 @@ export class SimWorld {
     this.waveSystem.setAutoWave(enabled);
   }
 
-  /** Abilities are only usable once the first wave has started (mirrors the HUD guard). */
+  /** Abilities are only usable once the first wave has started, and never on 2D plot maps (which have no active abilities). */
   private canUseAbilities(): boolean {
     return (
+      !this.grid.isPlotMode &&
       !this.mods.abilitiesDisabled &&
       this.outcome === 'ongoing' &&
       this.waveSystem.state !== 'preFirstWave'
