@@ -3,6 +3,7 @@
  * 3D build's logic modules (src/data/workshop, src/game/progression + feats, src/data/daily,
  * src/platform/storage settings). Only the views are new; every rule comes from those modules.
  */
+import { getMusicVolume, setMusicVolume } from '../../audio/musicPrefs.ts';
 import type { GameSettings, ProgressData } from '../../core/types.ts';
 import { CHALLENGES, challengesForLevel, type ChallengeId } from '../../data/challenges.ts';
 import { liveStreak, utcDayNumber, type DailyChallenge } from '../../data/daily.ts';
@@ -21,6 +22,7 @@ import { endlessRecordText, tierColour } from './modeBits.ts';
 import { dailyForToday, dailyHref2D } from './modes2d.ts';
 import type { IconName } from './paintedIcons.ts';
 import { resetProgress2D, saveProgress2D } from './progress2d.ts';
+import { openStore, ownsFullAdventure, storeEnabled } from './store2d.ts';
 
 export interface MetaContext {
   progress: ProgressData;
@@ -388,14 +390,11 @@ export function openSettings(ctx: MetaContext): Sheet {
   };
   const row = (label: string, sub: string | null, control: HTMLElement): HTMLElement =>
     el('div', 'pu-set-row', {}, el('div', 'pu-ink', {}, label, sub ? el('small', 'pu-ink-soft', {}, sub) : null), control);
-  const quiet = (r: HTMLElement): HTMLElement => {
-    r.classList.add('quiet');
-    r.setAttribute('data-testid', 'set2d-quiet');
-    const mute = glyph('mute');
-    mute.classList.add('pu-set-mute');
-    const label = r.firstElementChild!;
-    label.insertBefore(mute, label.querySelector('small'));
-    return r;
+  // Sound: the mixer (render2d/audio2d.ts) re-reads these settings after every click / key /
+  // slider drag, so a change is heard at once (music on the map, the battle in a run).
+  const mixRows: HTMLElement[] = [];
+  const dimWhenMuted = (): void => {
+    for (const r of mixRows) r.classList.toggle('off', s.muted);
   };
   const val = el('span', 'pu-slider-val pu-ink', {}, pct(s.masterVolume));
   const vol = slider(s.masterVolume, t('set.volumeAria'), 'set2d-volume', (v) => {
@@ -403,6 +402,13 @@ export function openSettings(ctx: MetaContext): Sheet {
     val.textContent = pct(s.masterVolume);
     save();
   });
+  const musicVal = el('span', 'pu-slider-val pu-ink', {}, pct(getMusicVolume()));
+  const music = slider(getMusicVolume(), t('set.musicAria'), 'set2d-music', (v) => {
+    setMusicVolume(Math.round(v * 100) / 100);
+    musicVal.textContent = pct(getMusicVolume());
+  });
+  const musicBox = el('div', '', {}, music, musicVal);
+  musicBox.style.cssText = 'display:flex;align-items:center;gap:calc(var(--s) * 1)';
   const volBox = el('div', '', {}, vol, val);
   volBox.style.cssText = 'display:flex;align-items:center;gap:calc(var(--s) * 1)';
   let armed = 0;
@@ -422,19 +428,23 @@ export function openSettings(ctx: MetaContext): Sheet {
       if (!reset.disabled) reset.querySelector('span')!.textContent = t('set.reset');
     }, 3300);
   });
-  // The painted isles have no sound player yet: volume / sound are kept (the 3D isles use them)
-  // but labelled as such. Shake, damage numbers and vibration work in the painted isles.
+  const volRow = row(t('set.volume'), t('set.volumeNote'), volBox);
+  const musicRow = row(t('set.music'), t('set.musicNote'), musicBox);
+  mixRows.push(volRow, musicRow);
+  dimWhenMuted();
   sheet.body.append(
     row(t('set.language'), t('set.languageNote'), languagePicker(ctx)),
-    quiet(row(t('set.volume'), t('set.volumeNote'), volBox)),
-    quiet(row(
+    row(
       t('set.sound'),
       t('set.soundNote'),
       toggle(!s.muted, t('set.soundAria'), 'set2d-sound', (v) => {
         s.muted = !v;
         save();
+        dimWhenMuted();
       }),
-    )),
+    ),
+    volRow,
+    musicRow,
     row(
       t('set.shake'),
       t('set.shakeNote'),
@@ -459,7 +469,13 @@ export function openSettings(ctx: MetaContext): Sheet {
         save();
       }),
     ),
-    row(t('set.progress'), t('set.progressNote'), reset),
   );
+  // Mobile builds only: the store (Buy / Restore purchases must stay reachable after a purchase).
+  if (storeEnabled()) {
+    const shop = plank(t('set.storeOpen'), { kind: 'small', testid: 'set2d-store' });
+    shop.addEventListener('click', () => openStore({ totalIslands: ctx.levels.length, onOwnedChange: () => ctx.onChange() }));
+    sheet.body.append(row(t('set.store'), ownsFullAdventure() ? t('set.storeOwned') : t('set.storeNote'), shop));
+  }
+  sheet.body.append(row(t('set.progress'), t('set.progressNote'), reset));
   return sheet;
 }
