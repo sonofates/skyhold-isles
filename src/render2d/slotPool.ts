@@ -6,7 +6,8 @@
 export class SlotPool {
   readonly capacity: number;
   private readonly free: Int32Array;
-  private readonly used: Uint8Array;
+  private readonly positions: Int32Array;
+  readonly activeSlots: Int32Array;
   private freeTop: number;
   /** Slots handed out so far (lifetime). */
   spawned = 0;
@@ -19,19 +20,21 @@ export class SlotPool {
   constructor(capacity: number) {
     this.capacity = capacity;
     this.free = new Int32Array(capacity);
-    this.used = new Uint8Array(capacity);
+    this.positions = new Int32Array(capacity).fill(-1);
+    this.activeSlots = new Int32Array(capacity);
     this.freeTop = capacity;
     // Lowest index is handed out first.
     for (let i = 0; i < capacity; i++) this.free[i] = capacity - 1 - i;
   }
 
-  acquire(): number {
-    if (this.freeTop === 0) {
+  acquire(limit = this.capacity): number {
+    if (this.freeTop === 0 || this.active >= limit) {
       this.dropped++;
       return -1;
     }
     const i = this.free[--this.freeTop];
-    this.used[i] = 1;
+    this.positions[i] = this.active;
+    this.activeSlots[this.active] = i;
     this.spawned++;
     this.active++;
     if (this.active > this.peak) this.peak = this.active;
@@ -40,14 +43,18 @@ export class SlotPool {
 
   /** Returns a slot; releasing a slot that is not in use is a no-op (never double-frees). */
   release(i: number): void {
-    if (i < 0 || i >= this.capacity || this.used[i] === 0) return;
-    this.used[i] = 0;
+    if (!this.isUsed(i)) return;
+    const last = this.activeSlots[this.active - 1];
+    const pos = this.positions[i];
+    this.activeSlots[pos] = last;
+    this.positions[last] = pos;
+    this.positions[i] = -1;
     this.free[this.freeTop++] = i;
     this.active--;
   }
 
   isUsed(i: number): boolean {
-    return i >= 0 && i < this.capacity && this.used[i] === 1;
+    return i >= 0 && i < this.capacity && this.positions[i] >= 0;
   }
 
   get freeCount(): number {
@@ -56,7 +63,7 @@ export class SlotPool {
 
   /** Frees every slot (a new run); lifetime counters keep counting. */
   releaseAll(): void {
-    this.used.fill(0);
+    this.positions.fill(-1);
     this.freeTop = this.capacity;
     for (let i = 0; i < this.capacity; i++) this.free[i] = this.capacity - 1 - i;
     this.active = 0;

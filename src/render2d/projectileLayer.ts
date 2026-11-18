@@ -6,11 +6,11 @@ import { HEIGHT_TO_SCREEN } from './layers.ts';
 import type { MapView } from './mapView.ts';
 import type { ProcTextures } from './procTextures.ts';
 import { projectileReveal } from './towerAnim.ts';
-import { cannonArcPx, launchBlend } from './turret.ts';
+import { cannonArcPx } from './turret.ts';
 
 interface ProjView {
   readonly sprite: Sprite;
-  readonly shadow: Sprite;
+  shadow: Sprite | null;
   seen: number;
   /** Screen px travelled since the last trail particle. */
   trail: number;
@@ -91,11 +91,8 @@ export class ProjectileLayer {
     if (!v) {
       const sprite = new Sprite(Texture.EMPTY);
       sprite.anchor.set(0.5);
-      const shadow = new Sprite(this.tex.shadow);
-      shadow.anchor.set(0.5);
       this.parent.addChild(sprite);
-      this.shadows.addChild(shadow);
-      v = { sprite, shadow, seen: -1, trail: 0, lastX: 0, lastY: 0, offX: 0, offY: 0, startX: NaN, startZ: NaN, lastProgress: 0 };
+      v = { sprite, shadow: null, seen: -1, trail: 0, lastX: 0, lastY: 0, offX: 0, offY: 0, startX: NaN, startZ: NaN, lastProgress: 0 };
       this.views[i] = v;
     }
     return v;
@@ -139,16 +136,16 @@ export class ProjectileLayer {
       const type = p.towerType as string;
       const k = HEIGHT_TO_SCREEN * this.map.layout.pxPerUnit;
       const t = Math.min(1, p.progress);
-      const pos = launchBlend(this.map.pxX(x), this.map.pxY(z) - Math.max(0, y) * k, v.offX, v.offY, t);
-      let sx = pos.x;
+      const launchWeight = 1 - Math.max(0, t);
+      let sx = this.map.pxX(x) + v.offX * launchWeight;
       // Cannonballs fly a short render-only arc (the sim shot is straight).
-      let sy = pos.y - (type === 'cannon' && !p.parabolic ? cannonArcPx(p.duration, t) : 0);
+      let sy = this.map.pxY(z) - Math.max(0, y) * k + v.offY * launchWeight - (type === 'cannon' && !p.parabolic ? cannonArcPx(p.duration, t) : 0);
       const s = v.sprite;
       const reveal = projectileReveal(p.progress * p.duration, this.release(p));
       if (reveal < 0) {
         // Still in the tower's wind-up: not drawn yet.
         s.visible = false;
-        v.shadow.visible = false;
+        if (v.shadow) v.shadow.visible = false;
         v.lastX = sx;
         v.lastY = sy;
         v.trail = 0;
@@ -207,8 +204,13 @@ export class ProjectileLayer {
         s.scale.set(0.45);
         s.tint = 0xffffff;
       }
-      v.shadow.visible = ball;
+      if (v.shadow) v.shadow.visible = ball;
       if (ball) {
+        if (!v.shadow) {
+          v.shadow = new Sprite(this.tex.shadow);
+          v.shadow.anchor.set(0.5);
+          this.shadows.addChild(v.shadow);
+        }
         v.shadow.position.set(sx, this.map.pxY(z));
         const big = type === 'mortar';
         v.shadow.scale.set(big ? 0.22 : 0.16, big ? 0.11 : 0.08);
@@ -217,9 +219,10 @@ export class ProjectileLayer {
       const trail = TRAILS[type];
       if (trail && this.fx) {
         v.trail += Math.hypot(sx - v.lastX, sy - v.lastY);
+        const step = trail.step / this.fx.density;
         let guard = 0;
-        while (v.trail >= trail.step && guard++ < 3) {
-          v.trail -= trail.step;
+        while (v.trail >= step && guard++ < 3) {
+          v.trail -= step;
           this.trailsRequested++;
           this.fx.spawn(trail.kind, sx, sy, trail.size, 0, trail.kind === 'puff' ? -9 : 0, trail.life, trail.tint);
         }
@@ -231,7 +234,7 @@ export class ProjectileLayer {
       const v = this.views[i];
       if (v && v.seen !== this.frameNo && v.sprite.visible) {
         v.sprite.visible = false;
-        v.shadow.visible = false;
+        if (v.shadow) v.shadow.visible = false;
       }
     }
   }
