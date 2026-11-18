@@ -79,8 +79,9 @@ export function castMeteor2D(w: AbilityWorld, x: number, z: number): boolean {
 
 /** Overcharge (every tower; the tapped one only picks where the surge starts). */
 export function castOvercharge2D(w: AbilityWorld): boolean {
-  if (w.castOvercharge()) return true;
-  return abilityGate(w) === 'ok' && w.towers.length > 0 && w.abilitySystem.castOvercharge(w.towers);
+  // Overcharge needs at least one tower to surge (the sim itself would cast on an empty board).
+  if (abilityGate(w) !== 'ok' || w.towers.length === 0) return false;
+  return w.castOvercharge() || w.abilitySystem.castOvercharge(w.towers);
 }
 
 /** Meteor damage for the wave being fought (the tooltip number). */
