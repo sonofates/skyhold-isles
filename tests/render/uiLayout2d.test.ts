@@ -13,6 +13,8 @@ import {
   plaqueLayout,
   ringRadius,
   statRows,
+  tokenRect,
+  towerRingAngles,
   type Insets,
   type Pt,
   type Rect,
@@ -211,5 +213,45 @@ describe('tooltip stat pips', () => {
     expect(statRows('mortar', 1)[1].pips).toBeGreaterThan(statRows('frost', 1)[1].pips); // range
     expect(statRows('archer', 1)[2].pips).toBeGreaterThan(statRows('mortar', 1)[2].pips); // speed
     expect(statRows('ballista', 1)[0].pips).toBeGreaterThan(statRows('frost', 1)[0].pips); // damage
+  });
+});
+
+describe('tower ring (built tower in the middle)', () => {
+  const towerBox = (px: number, py: number, r: number): Rect => ({ x: px - 1.1 * r, y: py - 2.7 * r, w: 2.2 * r, h: 2.9 * r });
+  const hits = (a: Rect, b: Rect): boolean => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+
+  it('never covers the tower and stays on screen, wherever the plot is (incl. top row, bottom edge, corners)', () => {
+    for (const [name, w, h, ins] of VIEWS) {
+      const r = tokenRFor(w, h);
+      const tag = r * 0.62;
+      for (const count of [2, 3]) {
+        for (let px = w * 0.04; px <= w * 0.96; px += w / 17) {
+          for (let py = 2.8 * r; py <= h - 4; py += h / 11) {
+            const k = towerBox(px, py, r);
+            const cy = k.y + k.h * 0.55;
+            const radius = Math.max(r * 3.05, k.h * 0.55 + r * 1.5 + 4);
+            const angles = towerRingAngles(count, px, cy, r, tag, radius, w, h, ins, k);
+            const out: Pt[] = [];
+            layoutRadial(px, cy, angles, r, tag, w, h, ins, out, 6, radius);
+            for (const p of out) {
+              const tr = tokenRect(p.x, p.y, r, tag);
+              expect(inside(tr, w, h, ins, 0.01), `${name} ${count} @${px.toFixed(0)},${py.toFixed(0)} off screen`).toBe(true);
+              expect(hits(tr, k), `${name} ${count} @${px.toFixed(0)},${py.toFixed(0)} covers the tower`).toBe(false);
+            }
+          }
+        }
+      }
+    }
+  });
+
+  it('keeps upgrade on top for a mid-screen tower and flips it below on a top-row plot', () => {
+    const r = 40;
+    const mid = towerBox(800, 500, r);
+    const a = towerRingAngles(3, 800, mid.y + mid.h * 0.55, r, 25, 125, 1600, 900, NO_INSETS, mid);
+    expect(a[0]).toBeCloseTo(-Math.PI / 2, 6);
+    const top = towerBox(800, 120, r);
+    const b = towerRingAngles(3, 800, top.y + top.h * 0.55, r, 25, 125, 1600, 900, NO_INSETS, top);
+    expect(Math.sin(b[0])).toBeGreaterThan(0.5); // upgrade below the tower
+    expect(Math.abs(Math.sin(b[1])) + Math.abs(Math.sin(b[2]))).toBeLessThan(1e-9); // the others beside it
   });
 });

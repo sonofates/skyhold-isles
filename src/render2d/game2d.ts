@@ -37,6 +37,8 @@ export interface Game2DHooks {
   /** End panel "Next" (shown only when given) and "Menu" targets. */
   onNext?: () => void;
   onMenu?: () => void;
+  /** The end panel opened / closed (DOM overlays, e.g. the Codex button, hide meanwhile). */
+  onEndPanel?: (shown: boolean) => void;
 }
 
 /**
@@ -171,6 +173,7 @@ export class Game2D {
     this.stepper.paused = false;
     this.stepper.resetAccumulator();
     this.ring.close();
+    if (this.endShown) this.hooks.onEndPanel?.(false);
     this.end.hide();
     this.endShown = false;
     this.selectedTower = -1;
@@ -308,6 +311,7 @@ export class Game2D {
         totalWaves: s.totalWaves,
         hasNext: !!this.hooks.onNext,
       });
+      this.hooks.onEndPanel?.(true);
     }
     this.end.update(dtSec);
   }
@@ -376,10 +380,20 @@ export class Game2D {
     if (!t) return;
     this.selectedTower = t.id;
     const next = t.tier < 3 ? getTowerTierStats(t.type, (t.tier + 1) as 2 | 3).upgradeCost : null;
+    // Ring centred on the tower's body (not its plot), kept off it.
+    const box = this.towers.spriteRect(t.id);
+    const keepOut = box
+      ? {
+          x: this.map.screenX(box.x),
+          y: this.map.screenY(box.y),
+          w: box.w * this.map.fit.scale,
+          h: box.h * this.map.fit.scale,
+        }
+      : null;
     this.ring.openTower(
       plot,
       c.x,
-      c.y - 30,
+      keepOut ? keepOut.y + keepOut.h * 0.55 : c.y - 30,
       {
         type: t.type,
         tier: t.tier,
@@ -387,6 +401,7 @@ export class Game2D {
         refund: computeSellRefund(t.totalInvested),
         ...(t.type === 'barracks' ? { rallyIcon: this.soldiers.flagTexture } : {}),
         ...(TOWER_DEFS[t.type].role === 'attack' ? { targeting: t.targetingMode } : {}),
+        ...(keepOut ? { keepOut } : {}),
       },
       world.gold,
       w,
@@ -529,7 +544,7 @@ export class Game2D {
       projectiles: w.projectilePool.getActiveCount(),
       paused: this.stepper.paused,
       speed: this.stepper.speed,
-      towers: w.towers.map((t) => ({ id: t.id, type: t.type, tier: t.tier, plot: t.col })),
+      towers: w.towers.map((t) => ({ id: t.id, type: t.type, tier: t.tier, plot: t.col, targeting: t.targetingMode })),
       ring: { open: this.ring.isOpen, mode: this.ring.mode, plot: this.ring.plot, tokens: this.ring.tokenPositions(), layout: this.ring.layoutInfo, rangeShown: this.rangeDisc.visible },
       hud: this.hud.rects(),
       end: this.end.debug(),

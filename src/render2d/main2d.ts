@@ -49,6 +49,7 @@ declare global {
       plotScreen?: (i: number) => { x: number; y: number };
       forceEnd?: (o: 'won' | 'lost') => void;
       setGold?: (g: number) => void;
+      setLives?: (n: number) => void;
       artcheck?: () => ReturnType<typeof artCheckSummary>;
     };
   }
@@ -143,8 +144,10 @@ async function main(): Promise<void> {
   // End panel: Next = the following 2D island (hidden when there is none), Menu = the main game.
   const idx2d = LEVELS_2D.findIndex((l) => l.id === level.id);
   const next2d = idx2d >= 0 ? LEVELS_2D[idx2d + 1] : undefined;
+  let codexRef: { setButtonVisible(v: boolean): void } | null = null;
   hooks = {
     ...hooks,
+    onEndPanel: (shown) => codexRef?.setButtonVisible(!shown),
     onMenu: () => location.assign('/'),
     ...(next2d ? { onNext: () => location.assign(`${location.pathname}?level=${next2d.id}`) } : {}),
   };
@@ -167,6 +170,7 @@ async function main(): Promise<void> {
         game.stepper.paused = true;
       } else game.stepper.paused = wasPaused;
     });
+    codexRef = codex;
     if (q.get('codex') === '1') codex.open();
   }
   const zooLabels = q.get('zoo') === '1' ? new ZooLabels(game) : null;
@@ -194,6 +198,9 @@ async function main(): Promise<void> {
     artcheck: () => artCheckSummary(art),
     setGold: (g) => {
       game.world.gold = g;
+    },
+    setLives: (n) => {
+      game.world.lives = n;
     },
   };
   if (aimState) window.__aim = aimState;

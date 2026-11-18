@@ -10,8 +10,10 @@ import {
   layoutRadial,
   NO_INSETS,
   placeTooltip,
+  ringRadius,
   roleLine,
   statRows,
+  towerRingAngles,
   uiScale,
   type Insets,
   type Pt,
@@ -38,6 +40,8 @@ export interface TowerPanelInfo {
   readonly rallyIcon?: Texture;
   /** Attack towers: current targeting mode (adds a targeting token). */
   readonly targeting?: TargetingMode;
+  /** Screen box of the built tower: the ring arranges itself to stay off it. */
+  readonly keepOut?: Rect;
 }
 
 /** What the ring is pointing at right now (selected, else hovered): drives the range preview. */
@@ -554,9 +558,13 @@ export class BuildRing {
       this.applyEnabled(t);
     }
     this.count = i;
-    const angles = i === 3 ? [-Math.PI / 2, (Math.PI * 5) / 6, Math.PI / 6] : [-Math.PI / 2, Math.PI / 2];
     // Wider than the build ring: the built tower stands in the middle and must stay visible.
-    this.layout(cx, cy, angles, r3(this.tokenR));
+    const r = this.tokenR;
+    const k = info.keepOut ?? null;
+    const minR = Math.max(r3(r), k ? k.h * 0.55 + r * 1.5 + 4 : 0);
+    const radius = Math.max(minR, ringRadius(evenAngles(i), r, r * TAG_H));
+    const angles = towerRingAngles(i, cx, cy, r, r * TAG_H, radius, this.screenW, this.screenH, this.insets, k);
+    this.layout(cx, cy, angles, radius);
   }
 
   /** Refreshes the targeting token's label after the mode changed. */

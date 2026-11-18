@@ -156,6 +156,20 @@ for (const [key, w, h, dpr, touch] of SIZES) {
     await tap(page, touch, s.ring.tokens[0].x, s.ring.tokens[0].y);
     await page.waitForTimeout(450);
     await shot('tower-upgrade');
+    // Targeting token cycles the mode at once (first -> last).
+    await tap(page, touch, s.ring.tokens[1].x, s.ring.tokens[1].y);
+    await page.waitForTimeout(300);
+    const s2 = await state(page);
+    rep.targeting = s2.towers[0]?.targeting;
+    if (s2.towers[0]?.targeting !== 'last') err(`${key}: targeting tap did not cycle (${s2.towers[0]?.targeting})`);
+    await shot('tower-target');
+    // Sell: first tap selects (refund tooltip), nothing sold yet.
+    const sellTok = s.ring.tokens[s.ring.tokens.length - 1];
+    await tap(page, touch, sellTok.x, sellTok.y);
+    await page.waitForTimeout(400);
+    const s3 = await state(page);
+    if (s3.towers.length !== 1) err(`${key}: first sell tap already sold`);
+    await shot('tower-sell');
   }
   await page.keyboard.press('Escape');
   await page.waitForTimeout(200);
@@ -175,6 +189,13 @@ for (const [key, w, h, dpr, touch] of SIZES) {
   if (s.ring.mode !== 'tower' || s.ring.tokens.length !== 3) err(`${key}: barracks ring did not open with 3 tokens`);
   else rep['barracks-ring'] = checkRing(`${key} barracks-ring`, s, w, h);
   await shot('barracks-ring');
+  if (s.ring.tokens.length === 3) {
+    await tap(page, touch, s.ring.tokens[1].x, s.ring.tokens[1].y);
+    await page.waitForTimeout(350);
+    const sr = await state(page);
+    if (sr.barracks.rallyMode === -1) err(`${key}: rally tap did not enter rally mode`);
+    await shot('rally-mode');
+  }
   await page.keyboard.press('Escape');
   await page.waitForTimeout(200);
   await page.keyboard.press(' ');
@@ -182,7 +203,20 @@ for (const [key, w, h, dpr, touch] of SIZES) {
   await shot('paused');
   await page.keyboard.press(' ');
 
+  // Live resize mid-session (desktop): HUD re-laid out inside the new viewport.
+  if (!touch) {
+    const w2 = Math.round(w * 0.72);
+    await page.setViewportSize({ width: w2, height: h });
+    await page.waitForTimeout(500);
+    s = await state(page);
+    for (const [k, r] of Object.entries(s.hud)) if (!inside(r, w2, h)) err(`${key}: after resize hud.${k} outside ${w2}x${h}`);
+    await shot('resized');
+    await page.setViewportSize({ width: w, height: h });
+    await page.waitForTimeout(400);
+  }
+
   // End panels.
+  const codexShown = () => page.evaluate(() => getComputedStyle(document.querySelector('[data-testid=codex2d-open]')).display !== 'none');
   await page.evaluate(() => window.__p0.forceEnd('won'));
   await page.waitForTimeout(250);
   await shot('victory-pop');
@@ -195,12 +229,29 @@ for (const [key, w, h, dpr, touch] of SIZES) {
     for (const b of s.end.buttons) if (b.r * 2 < 44) err(`${key}: end button ${b.action} < 44 px`);
   }
   await shot('victory');
+  if (await codexShown()) err(`${key}: Codex button visible over the end panel`);
   const retry = s.end?.buttons.find((b) => b.action === 'retry');
-  if (retry) {
+  const doRetry = async () => {
     await tap(page, touch, retry.x, retry.y);
     await page.waitForTimeout(500);
     s = await state(page);
     if (s.end || s.outcome !== 'ongoing') err(`${key}: Retry did not restart`);
+  };
+  if (retry) {
+    await doRetry();
+    if (!(await codexShown())) err(`${key}: Codex button not back after Retry`);
+    for (const [lives, want] of [
+      [15, 2],
+      [5, 1],
+    ]) {
+      await page.evaluate((n) => window.__p0.setLives(n), lives);
+      await page.evaluate(() => window.__p0.forceEnd('won'));
+      await page.waitForTimeout(2300);
+      s = await state(page);
+      if (s.end?.stars !== want) err(`${key}: ${lives} lives -> ${s.end?.stars} stars, want ${want}`);
+      await shot(`victory-${want}star`);
+      await doRetry();
+    }
   }
   await page.evaluate(() => window.__p0.forceEnd('lost'));
   await page.waitForTimeout(2200);

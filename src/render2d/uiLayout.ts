@@ -122,6 +122,75 @@ export function layoutRadial(
   return { cx: x, cy: y, radius, box: { x: x + minX, y: y + minY, w: maxX - minX, h: maxY - minY } };
 }
 
+const DEG = Math.PI / 180;
+/** Tower ring arrangements (upgrade, [targeting | rally], sell), tried in order. */
+const TOWER_RING_3: readonly (readonly number[])[] = [
+  [-90 * DEG, 150 * DEG, 30 * DEG], // upgrade above, the others low left / right
+  [90 * DEG, 180 * DEG, 0], // top-row plots: upgrade below, the others beside
+  [90 * DEG, -150 * DEG, -30 * DEG],
+  [-90 * DEG, 0, 90 * DEG], // left-edge plots: everything on the right half
+  [-90 * DEG, 180 * DEG, 90 * DEG], // right-edge plots
+  [90 * DEG, 35 * DEG, 0], // corners
+  [90 * DEG, 145 * DEG, 180 * DEG],
+  [-90 * DEG, -35 * DEG, 0],
+  [-90 * DEG, -145 * DEG, 180 * DEG],
+];
+const TOWER_RING_2: readonly (readonly number[])[] = [
+  [-90 * DEG, 90 * DEG],
+  [180 * DEG, 0],
+  [-90 * DEG, 0],
+  [-90 * DEG, 180 * DEG],
+  [90 * DEG, 0],
+  [90 * DEG, 180 * DEG],
+];
+
+function rectsHit(a: Rect, b: Rect): boolean {
+  return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+}
+
+/** Disc + hanging price tag of a medallion centred at (x, y). */
+export function tokenRect(x: number, y: number, tokenR: number, tagH: number): Rect {
+  return { x: x - tokenR, y: y - tokenR, w: tokenR * 2, h: tokenR * 2 + tagH * 0.75 };
+}
+
+/**
+ * Tower ring: picks the first arrangement whose medallions fit on screen WITHOUT shifting and
+ * stay off the built tower (`keepOut`, screen px). Shifting a ring that wraps a tower would slide
+ * a medallion onto it, so the arrangement flips instead (e.g. upgrade below on a top-row plot).
+ * If nothing fits unshifted, the arrangement needing the smallest shift that still clears the
+ * tower wins (then the least shift overall).
+ */
+export function towerRingAngles(
+  count: number,
+  cx: number,
+  cy: number,
+  tokenR: number,
+  tagH: number,
+  radius: number,
+  screenW: number,
+  screenH: number,
+  insets: Insets,
+  keepOut: Rect | null,
+  margin = 6,
+): readonly number[] {
+  const cands = count >= 3 ? TOWER_RING_3 : TOWER_RING_2;
+  const out: Pt[] = [];
+  let best: readonly number[] = cands[0];
+  let bestScore = Infinity;
+  for (const angles of cands) {
+    const lay = layoutRadial(cx, cy, angles, tokenR, tagH, screenW, screenH, insets, out, margin, radius);
+    const shift = Math.hypot(lay.cx - cx, lay.cy - cy);
+    const hitsTower = keepOut !== null && out.some((p) => rectsHit(tokenRect(p.x, p.y, tokenR, tagH), keepOut));
+    if (shift < 0.5 && !hitsTower) return angles;
+    const score = shift + (hitsTower ? 1e6 : 0);
+    if (score < bestScore) {
+      bestScore = score;
+      best = angles;
+    }
+  }
+  return best;
+}
+
 export type TipSide = 'right' | 'left' | 'below' | 'above' | 'clamped';
 
 function overlapArea(a: Rect, b: Rect): number {
