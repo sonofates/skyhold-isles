@@ -179,6 +179,7 @@ function tryTexture(url: string, mips = false): Promise<Texture | null> {
 export interface MapLoadOptions {
   readonly need?: number;
   readonly mips?: boolean;
+  readonly overlayKeys?: readonly string[];
 }
 
 /**
@@ -561,7 +562,7 @@ export async function loadArt(
   const uiKeys = Object.keys(manifest.ui) as (keyof UiArt)[];
   const kitEntries = Object.entries(manifest.uiKit ?? {});
   const plotSpec = manifest.plot;
-  const overlayKeys = Object.keys(manifest.overlays);
+  const overlayKeys = mapOpts.overlayKeys ?? Object.keys(manifest.overlays);
   const [mapRes, plotTex, uiTex, kitTex, towerList, enemyList, overlayTex] = await Promise.all([
     loadMapVariant(manifest, base, mapKey, mapOpts),
     plotSpec ? tryTexture(base + plotSpec.file, true) : Promise.resolve(null),

@@ -1,0 +1,58 @@
+{
+  "i01": {
+    "plots": 16,
+    "seed": 31,
+    "decals": 310,
+    "props": 52,
+    "windmill": "none"
+  },
+  "i02": {
+    "plots": 19,
+    "seed": 73,
+    "decals": 160,
+    "props": 42,
+    "windmill": "none"
+  },
+  "i03": {
+    "plots": 22,
+    "seed": 107,
+    "decals": 194,
+    "props": 78,
+    "windmill": "none"
+  },
+  "i04": {
+    "plots": 20,
+    "seed": 151,
+    "decals": 270,
+    "props": 64,
+    "windmill": "none"
+  },
+  "i05": {
+    "plots": 19,
+    "seed": 193,
+    "decals": 280,
+    "props": 72,
+    "windmill": "665,506,2.7"
+  },
+  "i06": {
+    "plots": 24,
+    "seed": 227,
+    "decals": 135,
+    "props": 45,
+    "windmill": "none"
+  },
+  "i07": {
+    "plots": 26,
+    "seed": 283,
+    "decals": 155,
+    "props": 58,
+    "windmill": "none"
+  },
+  "i08": {
+    "plots": 28,
+    "seed": 353,
+    "decals": 205,
+    "props": 80,
+    "windmill": "none"
+  }
+}
