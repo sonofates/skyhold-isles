@@ -63,6 +63,8 @@ declare global {
       state: () => Record<string, unknown>;
       plotScreen?: (i: number) => { x: number; y: number };
       forceEnd?: (o: 'won' | 'lost') => void;
+      /** QA: jump to a one-based wave (Endless records / end-panel shots). */
+      skipToWave?: (n: number) => boolean;
       setGold?: (g: number) => void;
       setLives?: (n: number) => void;
       artcheck?: () => ReturnType<typeof artCheckSummary>;
@@ -235,7 +237,8 @@ async function main(): Promise<void> {
       if (!shown || !w) return;
       const won = w.outcome === 'won';
       if (plainPlay) {
-        routing.recordRunOutcome({
+        const masteredBefore = routing.isMastered(level.id);
+        const result = routing.recordRunOutcome({
           levelId: level.id,
           won,
           stars: won ? w.computeStars() : 0,
@@ -243,6 +246,17 @@ async function main(): Promise<void> {
           waveReached: w.waveSystem.currentWaveOneBased,
           runConfig: run.runConfig,
         });
+        // Challenge badges, Daily Squall and Endless records go on the board.
+        gameRef?.end.annotate(
+          routing.endNoteFor({
+            won,
+            runConfig: run.runConfig,
+            result,
+            wave: w.waveSystem.currentWaveOneBased,
+            storyWaves: level.waves.length,
+            masteredNow: !masteredBefore && routing.isMastered(level.id),
+          }),
+        );
       }
       const story = q.get('story');
       if (won && (plainPlay || story === 'outro')) void routing.playStoryOnce(level, 'outro', art.manifest, art.baseUrl, story === 'outro');
@@ -268,6 +282,7 @@ async function main(): Promise<void> {
   };
   const game = new Game2D(app, art, level, hooks);
   gameRef = game;
+  if (run.runConfig.endless) game.hud.setEndless(level.waves.length);
   if (q.get('end') === 'won' || q.get('end') === 'lost') {
     const end = q.get('end') as 'won' | 'lost';
     setTimeout(() => game.forceEnd(end), 300);
@@ -337,6 +352,7 @@ async function main(): Promise<void> {
     state: () => game.debugState(),
     plotScreen: (i) => game.plotScreen(i),
     forceEnd: (o) => game.forceEnd(o),
+    skipToWave: (n) => game.world.debugSkipToWave(n),
     artcheck: () => artCheckSummary(art),
     setGold: (g) => {
       game.world.gold = g;

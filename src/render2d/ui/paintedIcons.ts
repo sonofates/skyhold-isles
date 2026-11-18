@@ -50,6 +50,16 @@ export const ICONS = {
       `<path d="M17 8 V36 M31 12 V40" stroke="${O}" stroke-width="2.6"/>` +
       `<path d="M11 30 C15 26 19 30 23 25 C26 21 30 24 34 18" stroke="#c8341f" stroke-width="2.6" stroke-dasharray="1 4" fill="none"/>`,
   ),
+  next: svg(
+    `<path d="M20 10 L34 24 L20 38" fill="none" stroke="${O}" stroke-width="10"/>` + `<path d="M20 10 L34 24 L20 38" fill="none" stroke="${C}" stroke-width="5"/>`,
+  ),
+  /** Speaker with a red slash: no sound (yet). */
+  mute: svg(
+    `<path d="M8 19 H15 L25 10 V38 L15 29 H8 Z" fill="${C}" stroke="${O}" stroke-width="3.2"/>` +
+      `<path d="M30 17 C33 20 33 28 30 31 M35 13 C40 18 40 30 35 35" fill="none" stroke="${O}" stroke-width="3" opacity=".55"/>` +
+      `<path d="M8 40 L40 8" stroke="${O}" stroke-width="8"/>` +
+      `<path d="M8 40 L40 8" stroke="#c8341f" stroke-width="4"/>`,
+  ),
   back: svg(
     `<path d="M28 10 L14 24 L28 38" fill="none" stroke="${O}" stroke-width="10"/>` + `<path d="M28 10 L14 24 L28 38" fill="none" stroke="${C}" stroke-width="5"/>`,
   ),

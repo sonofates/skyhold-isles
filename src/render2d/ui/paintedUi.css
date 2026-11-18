@@ -646,6 +646,45 @@
   opacity: 0.85;
 }
 
+.pu-map-scroll.dragging {
+  cursor: grabbing;
+}
+
+.pu-map-scroll.dragging .pu-node {
+  pointer-events: none;
+}
+
+/* Edge arrows: more of the route lies that way. */
+.pu-round.pu-map-pan {
+  position: absolute;
+  top: 54%;
+  z-index: 2;
+  transform: translateY(-50%);
+  width: calc(var(--s) * 4.4);
+  height: calc(var(--s) * 4.4);
+  animation: pu-pan-nudge 2.2s ease-in-out infinite;
+}
+
+.pu-round.pu-map-pan.left {
+  left: max(calc(var(--s) * 0.8), var(--safe-l));
+  --nudge: -4px;
+}
+
+.pu-round.pu-map-pan.right {
+  right: max(calc(var(--s) * 0.8), var(--safe-r));
+  --nudge: 4px;
+}
+
+.pu-round.pu-map-pan:active {
+  transform: translateY(calc(-50% + 2px)) scale(0.96);
+}
+
+@keyframes pu-pan-nudge {
+  50% {
+    translate: var(--nudge) 0;
+  }
+}
+
 .pu-map-hint {
   position: absolute;
   left: 50%;
@@ -728,6 +767,197 @@
   display: flex;
   justify-content: center;
   padding-top: calc(var(--s) * 0.6);
+}
+
+.pu-brief-main {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--s) * 1.8);
+  min-width: 0;
+  flex: 1;
+}
+
+.pu-brief-hint {
+  font-size: calc(var(--s) * 1.25);
+  line-height: 1.2;
+  flex-wrap: nowrap;
+  gap: calc(var(--s) * 0.5);
+}
+
+.pu-brief-hint .pu-glyph {
+  width: 1.5em;
+  height: 1.5em;
+  flex: none;
+}
+
+/* With run modes: the card widens, the modes sit in a third column next to the records. */
+.pu-brief.has-modes {
+  width: min(100%, calc(var(--s) * 92));
+}
+
+.pu-brief.has-modes .pu-brief-body {
+  align-items: stretch;
+  gap: calc(var(--s) * 2);
+}
+
+.pu-brief.has-modes .pu-brief-main {
+  flex: 1.05 1 0;
+}
+
+.pu-modes {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding-left: calc(var(--s) * 1.6);
+  border-left: 2px dashed rgba(122, 85, 50, 0.35);
+}
+
+.pu-modes-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  font-size: calc(var(--s) * 1.45);
+  margin: calc(var(--s) * 0.2) 0 calc(var(--s) * 0.1);
+}
+
+.pu-modes-head small {
+  font-size: 0.78em;
+}
+
+/* One run mode: a medallion switch (rule seal + green check when on), the rule, and its state. */
+.pu-mode {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--s) * 0.9);
+  width: 100%;
+  min-height: 44px;
+  padding: calc(var(--s) * 0.3) 0;
+  text-align: left;
+  font-size: calc(var(--s) * 1.35);
+  transition: opacity 0.15s;
+}
+
+.pu-mode + .pu-mode {
+  border-top: 2px dashed rgba(122, 85, 50, 0.3);
+}
+
+.pu-mode-seal {
+  position: relative;
+  flex: none;
+  width: max(38px, calc(var(--s) * 3.8));
+  height: max(38px, calc(var(--s) * 3.8));
+}
+
+.pu-mode-seal > .pu-round {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  transition: filter 0.15s, transform 0.15s cubic-bezier(0.2, 0.9, 0.3, 1.4);
+}
+
+.pu-mode[aria-checked='false'] .pu-mode-seal > .pu-round {
+  filter: saturate(0.55) brightness(0.9) drop-shadow(0 2px 1px rgba(30, 16, 4, 0.3));
+}
+
+.pu-mode[aria-checked='true'] .pu-mode-seal > .pu-round {
+  transform: scale(1.06);
+  filter: drop-shadow(0 0 calc(var(--s) * 0.5) rgba(255, 205, 90, 1)) drop-shadow(0 2px 1px rgba(30, 16, 4, 0.4));
+}
+
+.pu-mode-check {
+  position: absolute;
+  right: -14%;
+  bottom: -10%;
+  width: 52%;
+  height: 52%;
+  pointer-events: none;
+  filter: drop-shadow(0 1px 1px rgba(30, 16, 4, 0.5));
+  transition: transform 0.15s cubic-bezier(0.2, 0.9, 0.3, 1.4), opacity 0.15s;
+}
+
+.pu-mode[aria-checked='false'] .pu-mode-check {
+  transform: scale(0.3);
+  opacity: 0;
+}
+
+.pu-mode-text {
+  flex: 1;
+  min-width: 0;
+  font-weight: 700;
+  line-height: 1.15;
+}
+
+.pu-mode[aria-checked='true'] .pu-mode-text {
+  color: #9a3b18;
+}
+
+.pu-mode-text small {
+  display: block;
+  font-weight: 600;
+  font-size: 0.82em;
+}
+
+.pu-mode-state {
+  flex: none;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-end;
+  font-weight: 700;
+  font-size: 0.95em;
+  line-height: 1.1;
+  text-align: right;
+}
+
+.pu-mode-state:not(.done) img,
+.pu-mode-state .pu-glyph {
+  width: 1.6em;
+  height: 1.6em;
+}
+
+.pu-mode-state:has(> img),
+.pu-mode-state:has(> .pu-glyph) {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.15em;
+}
+
+.pu-mode-state small {
+  font-size: 0.8em;
+}
+
+.pu-mode.muted {
+  opacity: 0.5;
+}
+
+/* Endless medal: a coloured gem in front of the medal name. */
+.pu-mode-medal {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3em;
+}
+
+.pu-mode-medal::before {
+  content: '';
+  width: 0.9em;
+  height: 0.9em;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.6), transparent 45%), var(--tier, #b9a27c);
+  box-shadow: 0 0 0 2px var(--outline);
+}
+
+@media (max-width: 640px) {
+  .pu-brief.has-modes .pu-brief-body {
+    flex-direction: column;
+  }
+
+  .pu-modes {
+    padding-left: 0;
+    border-left: 0;
+    border-top: 2px dashed rgba(122, 85, 50, 0.35);
+  }
 }
 
 /* ---- storybook panels ----------------------------------------------------------------------- */
@@ -1009,6 +1239,49 @@
   opacity: 0.6;
 }
 
+.pu-ledger-row:not(.locked) {
+  grid-template-columns: calc(var(--s) * 3) minmax(0, 1fr) auto auto calc(var(--s) * 4.6) auto auto;
+}
+
+.pu-ledger-row > * {
+  white-space: nowrap;
+}
+
+.pu-ledger-row > .pu-ledger-name {
+  white-space: normal;
+}
+/* Challenge badges: the island's two rule seals, full colour once earned. */
+.pu-ledger-badges {
+  display: inline-flex;
+  gap: calc(var(--s) * 0.3);
+}
+
+.pu-ledger-badges .pu-round {
+  width: calc(var(--s) * 2.7);
+  height: calc(var(--s) * 2.7);
+  min-width: 0;
+  min-height: 0;
+  cursor: default;
+}
+
+.pu-ledger-badges .pu-round.off {
+  filter: grayscale(0.9) brightness(0.85) opacity(0.55);
+}
+
+.pu-ledger-endless .pu-glyph {
+  border-radius: 50%;
+  background: var(--tier, transparent);
+  box-shadow: 0 0 0 2px var(--tier, transparent);
+}
+
+.pu-ledger-endless.none {
+  color: var(--ink-soft);
+}
+
+.pu-ledger-endless.none .pu-glyph {
+  filter: grayscale(0.8) opacity(0.6);
+}
+
 .pu-feat {
   display: grid;
   grid-template-columns: calc(var(--s) * 3.4) minmax(0, 1fr) calc(var(--s) * 12);
@@ -1150,6 +1423,19 @@
   font-size: 0.75em;
 }
 
+/* Settings that do nothing in the painted isles yet: kept, but dimmed and explained. */
+.pu-set-row.quiet {
+  opacity: 0.62;
+}
+
+.pu-set-row .pu-set-mute {
+  display: inline-block;
+  vertical-align: -0.25em;
+  width: 1.3em;
+  height: 1.3em;
+  margin-left: 0.35em;
+}
+
 /* Toggle: a medallion that shows the kit's green check when on. */
 .pu-toggle {
   position: relative;
@@ -1261,6 +1547,10 @@
 
   .pu-lb-totals {
     gap: calc(var(--s) * 1.2);
+  }
+
+  .pu-set-row:first-child {
+    padding-left: calc(var(--s) * 1.4);
   }
 
   .pu-map-hint {

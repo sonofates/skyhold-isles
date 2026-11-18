@@ -3,6 +3,7 @@ import type { LoadedArt } from './assets2d.ts';
 import { paintedText, setFontSize, setText } from './hudText.ts';
 import { easeOutBack, easeOutCubic, fitWidth, inkText, kit, setInkSize } from './uiKit.ts';
 import { END_FRAME, endLayout, NO_INSETS, type EndLayout, type Insets, type Rect } from './uiLayout.ts';
+import type { EndModeNote } from './ui/modeBits.ts';
 
 export { endStars } from './uiLayout.ts';
 
@@ -57,6 +58,7 @@ export class EndPanel {
   private readonly art: LoadedArt;
   private lay: EndLayout | null = null;
   private summary: EndSummary | null = null;
+  private note: EndModeNote | null = null;
   private t = 0;
   private w = 1;
   private h = 1;
@@ -97,6 +99,7 @@ export class EndPanel {
 
   show(s: EndSummary): void {
     this.summary = s;
+    this.note = null;
     this.t = 0;
     this.root.visible = true;
     this.panel.texture = kit(this.art, s.won ? 'endPanel' : 'endPanelDefeat', kit(this.art, 'endPanel', Texture.EMPTY));
@@ -111,8 +114,37 @@ export class EndPanel {
       setText(this.line2, String(s.gold));
       setText(this.caption, 'The raiders broke through');
     }
+    this.styleCaption(false);
     this.layout(this.w, this.h);
     this.update(0);
+  }
+
+  /**
+   * Mode results on the open board (after the run was recorded): challenge badges, the Daily
+   * Squall, an Endless record. Overrides the title / summary line / caption; null = no change.
+   */
+  annotate(note: EndModeNote | null): void {
+    if (!this.root.visible || !note) return;
+    this.note = note;
+    if (note.victoryBoard) {
+      this.panel.texture = kit(this.art, 'endPanel', Texture.EMPTY);
+      this.title.style.fill = '#fff4dc';
+    }
+    if (note.title) setText(this.title, note.title);
+    if (note.line1) setText(this.line1, note.line1);
+    setText(this.caption, note.caption);
+    this.styleCaption(note.reward ?? false);
+    this.layout(this.w, this.h);
+  }
+
+  /** The mode note shown (QA). */
+  get modeNote(): EndModeNote | null {
+    return this.note;
+  }
+
+  private styleCaption(reward: boolean): void {
+    this.caption.style.fill = reward ? '#9a3b18' : '#7a5532';
+    this.caption.style.fontWeight = reward ? '700' : '600';
   }
 
   hide(): void {
@@ -167,7 +199,8 @@ export class EndPanel {
     const blockB = icon + gap + this.line2.width;
     const total = blockA + f * 1.6 + blockB;
     let x = L.summary.x - total / 2;
-    const y = won ? L.summary.y : L.stars[1].y + L.starR * 0.4;
+    // An Endless board has no stars: its lines sit lower, between the ribbon and the buttons.
+    const y = won ? L.summary.y : this.note?.victoryBoard ? (L.stars[1].y + L.summary.y) / 2 + f * 0.6 : L.stars[1].y + L.starR * 0.4;
     if (won) {
       this.heart.position.set(x + icon / 2, y);
       x += icon + gap;
@@ -178,6 +211,7 @@ export class EndPanel {
     x += icon + gap;
     this.line2.position.set(x, y);
     this.caption.position.set(L.summary.x, won ? y + f * 1.3 : y + f * 1.7);
+    fitWidth(this.caption, P.w * 0.8);
     // Buttons: Retry / Next Isle / World Map (Next hidden when there is no open next island).
     const hasNext = this.summary?.hasNext ?? false;
     const shown = this.buttons.filter((b) => b.action !== 'next' || hasNext);
@@ -264,12 +298,18 @@ export class EndPanel {
   }
 
   /** QA hooks: panel rect, button centres, stars shown. */
-  debug(): { panel: Rect | null; buttons: { action: EndAction; x: number; y: number; r: number }[]; stars: number } | null {
+  debug(): {
+    panel: Rect | null;
+    buttons: { action: EndAction; x: number; y: number; r: number }[];
+    stars: number;
+    note: { title: string; line1: string; caption: string } | null;
+  } | null {
     if (!this.root.visible || !this.lay) return null;
     return {
       panel: this.lay.panel,
       buttons: this.buttons.filter((b) => b.root.visible).map((b) => ({ action: b.action, x: b.root.x, y: b.root.y, r: b.r })),
       stars: this.summary?.stars ?? 0,
+      note: this.note ? { title: this.title.text, line1: this.line1.text, caption: this.caption.text } : null,
     };
   }
 }
