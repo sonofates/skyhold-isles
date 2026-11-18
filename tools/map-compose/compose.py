@@ -3,10 +3,10 @@
 with generated build plots.
 
 usage: /usr/bin/python3 tools/map-compose/compose.py <layout.json> <assets_dir> <out.png|.webp>
-         [--w 3072] [--plots 24] [--seed 7] [--bake] [--keep-plots]
+         [--biome name] [--w 3072] [--plots 24] [--seed 7] [--bake] [--keep-plots]
          [--towers archer:3,cannon:9,...] [--enemies] [--cliff]
          [--variants 1,1.5] [--write-layout] [--cave-h 2.5] [--castle-h 2.7] [--gate-inset 0.5]
-         [--windmill x,ybottom,h|none] [--props 70] [--decals 240] [--no-decals] [--check-plots]
+         [--quality 0..100] [--windmill x,ybottom,h|none] [--props 70] [--decals 240] [--no-decals] [--check-plots]
 
   shipped L1c bake (2x layout px master + 1x / 1.5x variants, gate fronts, gates written to the JSON):
     /usr/bin/python3 tools/map-compose/compose.py src/data/levels2d/l1c.json design/art-2d/v2/assets \\
@@ -24,6 +24,9 @@ usage: /usr/bin/python3 tools/map-compose/compose.py <layout.json> <assets_dir> 
   --write-layout to generate plots, then add --keep-plots for every subsequent bake.
   A recipe may reserve plots at specific layout-pixel centres with seedPlots. These count
   toward --plots and must pass the same clearance and coverage checks as generated plots.
+  --biome        select a WebP kit from <assets_dir>/../biomes/. Campaign recipes select their
+                kit, painted terrain, landmarks and crossings by default. Shared gameplay sprites
+                such as plot-base continue to come from <assets_dir>.
   --check-plots   validate the saved plots and geometry without rendering or writing files:
                 compose.py <layout.json> <assets_dir> --check-plots
   --write-layout  save generated plots in route order and write each gate (prop, facing, front layer rect / depth) into layout.json
@@ -61,6 +64,7 @@ pass (anisotropic, light bonus for covering more road) spreads them evenly along
 The road itself is a Catmull-Rom spline THROUGH the sim polyline vertices; the max deviation from
 the polyline (what enemies walk) is printed and checked.
 """
+from io import BytesIO
 import json
 import math
 import random
@@ -90,10 +94,18 @@ def opt(k, d):
     return type(d)(args[args.index(k) + 1]) if k in args else recipe.get(k[2:], d)
 
 
+biome = opt('--biome', '')
+kit = assets.parent / 'biomes' / biome if biome else None
+if kit and not kit.is_dir():
+    sys.exit(f'Unknown biome kit: {kit}')
+kit_spec = json.loads((kit / 'kit.json').read_text()) if kit else {}
+dressing = recipe if biome and biome == recipe.get('biome') else {}
+quality = opt('--quality', 72 if kit else 90)
+
 W = opt('--w', 3072)
 NPLOTS = opt('--plots', 24)
 SEED = opt('--seed', 7)
-GRASS = opt('--grass', 'tex-grass.png')
+GRASS = opt('--grass', dressing.get('groundMaterial', 'tex-grass.png'))
 TOWERS = opt('--towers', '')
 BAKE = '--bake' in args
 random.seed(SEED)
@@ -103,8 +115,16 @@ S = W / iw  # layout px -> output px
 H = round(ih * S)
 
 
+def asset_file(name):
+    if kit:
+        themed = (kit / dressing.get('sprites', {}).get(name, name)).with_suffix('.webp')
+        if themed.exists():
+            return themed
+    return assets / name
+
+
 def load(name):
-    p = assets / name
+    p = asset_file(name)
     return Image.open(p).convert('RGBA') if p.exists() else None
 
 
@@ -209,16 +229,16 @@ def sprite_rect(im, x_center, y_bottom, height):
 # Gates (gates.py): a raider cave at every entrance whose mouth faces along the road's first
 # segment, the castle gate at the goal facing back along the last segment. The path end sits
 # GATE_INSET road widths inside the dark mouth, so walkers appear out of the darkness (front layer).
-CAVE_H, CASTLE_H, GATE_INSET = opt('--cave-h', 2.5), opt('--castle-h', 2.7), opt('--gate-inset', 0.5)
+CAVE_H, CASTLE_H, GATE_INSET = opt('--cave-h', 2.5), opt('--castle-h', 2.7), opt('--gate-inset', 0.42 if kit else 0.5)
 GATES = []  # dict(role, lane, id, prop, facing, g = placement)
 for _i, _e in enumerate(L['entrances']):
     _f = entrance_facing(raw_paths[_i])
-    _prop, _file, _flip = resolve_prop('cave', _f, assets)
-    _g = place_gate(load(_file), _flip, (_e['x'], _e['y']), _f, ROAD_W * CAVE_H, ROAD_W * GATE_INSET, entrance_dir(raw_paths[_i]))
+    _prop, _file, _flip = resolve_prop('cave', _f, asset_file)
+    _g = place_gate(load(_file), _flip, (_e['x'], _e['y']), _f, ROAD_W * CAVE_H, ROAD_W * GATE_INSET, entrance_dir(raw_paths[_i]), fit_opening=bool(kit))
     GATES.append({'role': 'entrance', 'lane': _i, 'id': str(_e['id']), 'prop': _prop, 'facing': _f, 'g': _g})
 _f = goal_facing(raw_paths[0])
-_prop, _file, _flip = resolve_prop('castle', _f, assets)
-_g = place_gate(load(_file), _flip, (gx, gy), _f, ROAD_W * CASTLE_H, ROAD_W * GATE_INSET, goal_dir(raw_paths[0]))
+_prop, _file, _flip = resolve_prop('castle', _f, asset_file)
+_g = place_gate(load(_file), _flip, (gx, gy), _f, ROAD_W * CASTLE_H, ROAD_W * GATE_INSET, goal_dir(raw_paths[0]), fit_opening=bool(kit))
 GATES.append({'role': 'goal', 'lane': -1, 'id': 'goal', 'prop': _prop, 'facing': _f, 'g': _g})
 
 LANDMARKS = []  # (name, layout x centre, layout y bottom, layout height)
@@ -226,6 +246,8 @@ mill = opt('--windmill', '1609,298,2.7')
 if mill != 'none':
     mx, my, mh = map(float, mill.split(','))
     LANDMARKS.append(('prop-windmill.png', mx, my, ROAD_W * mh))
+for name, x, yb, h in dressing.get('landmarks', []):
+    LANDMARKS.append((f'landmark-{name}.webp', x, yb, h))
 landmark_rects = [sprite_rect(load(n), x, yb, h) for n, x, yb, h in LANDMARKS] + [G['g']['rect'] for G in GATES]
 
 
@@ -528,6 +550,37 @@ ground = Image.composite(Image.new('RGBA', (W, H), (196, 214, 120, 255)), ground
 # the scale), luminance only -> sharper at 100% without new colours or busier large shapes
 ground = fine_detail(ground, grass, round(1024 * 0.2 * TEX), 0.55, 9 * TEX)
 
+# An island's broad painted landforms sit over the fine repeating biome brushwork.
+if dressing:
+    plate = load(f'terrain-{L["id"]}.webp').resize((W, H), Image.Resampling.BICUBIC)
+    ground = Image.blend(ground, plate, 0.92)
+
+# Mask of water and chasm banks in the terrain painting. Keep rooted props on land.
+land_mask = load(f'land-{L["id"]}.webp').convert('L') if dressing.get('islet') else None
+
+
+def on_land(x, y):
+    if land_mask is None:
+        return True
+    u = max(0, min(land_mask.width - 1, int(x / iw * land_mask.width)))
+    v = max(0, min(land_mask.height - 1, int(y / ih * land_mask.height)))
+    return land_mask.getpixel((u, v)) >= 128
+
+
+# Give structures that stand in tidal water or over a rift a painted foundation.
+if land_mask:
+    islet = load(dressing['islet'])
+
+    def foundation(x, y, width, height):
+        if not on_land(x, y):
+            shelf = islet.resize((round(width * S), round(height * S)), Image.Resampling.LANCZOS)
+            ground.alpha_composite(shelf, (round(x * S - shelf.width / 2), round(y * S - shelf.height * 0.43)))
+
+    for px, py in plots:
+        foundation(px, py, 2.65 * PLOT_R, 2.8 * PLOT_RY)
+    for left, top, right, bottom in landmark_rects:
+        foundation((left + right) / 2, bottom - 5, (right - left) * 1.17, (right - left) * 0.49)
+
 # ---------------------------------------------------------------- road
 road_hard = Image.new('L', (W, H))
 dr = ImageDraw.Draw(road_hard)
@@ -538,8 +591,15 @@ for path in spl_paths:
         dr.ellipse((x - rw / 2, y - rw / 2, x + rw / 2, y + rw / 2), fill=255)
 # crisp, slightly irregular painted edge (was a ~10-25 px Gaussian ramp: the main "blurry" cue)
 road_mask = ragged_mask(road_hard, rw * 0.05, max(4, round(rw * 0.16)), 0.22, SEED + 21, aa=1.1 * W / 3692)
-dirt = tiled(load('tex-dirt.png'), W, H, 0.45 * TEX)
-dirt = fine_detail(dirt, load('tex-dirt.png'), round(1024 * 0.16 * TEX), 0.45, 7 * TEX)
+road_material = load(dressing.get('roadMaterial', 'tex-dirt.png'))
+dirt = tiled(road_material, W, H, 0.45 * TEX)
+dirt = fine_detail(dirt, road_material, round(1024 * 0.16 * TEX), 0.45, 7 * TEX)
+if 'branchMaterial' in dressing:
+    lane, material = dressing['branchMaterial']
+    first = catmull(SECTIONS[first_sections[lane]])
+    branch = Image.new('L', (W, H))
+    ImageDraw.Draw(branch).line([P(p) for p in first], fill=255, width=round(rw * 1.6), joint='curve')
+    dirt = Image.composite(tiled(load(material), W, H, 0.45 * TEX), dirt, branch.filter(ImageFilter.GaussianBlur(rw * 0.1)))
 # a faint wide shade on the grass along the road, a thin darker rim right at the edge, the dirt,
 # then a narrow darker lip just inside the edge
 shade = road_mask.filter(ImageFilter.MaxFilter(2 * round(rw * 0.05) + 1)).filter(ImageFilter.GaussianBlur(rw * 0.10))
@@ -550,16 +610,26 @@ ground = Image.composite(dirt, ground, road_mask)
 lip = inner_band(road_mask, max(2, round(rw * 0.06)), 1.2 * W / 3692)
 ground = Image.composite(Image.new('RGBA', (W, H), (122, 80, 42, 255)), ground, lip.point(lambda v: int(v * 0.30)))
 
+# Crossings share the road centreline. These deck stamps have no collision or sim geometry.
+crossing_rects = []
+for name, x, y, length, width, angle in dressing.get('crossings', []):
+    deck = load(f'landmark-{name}.webp').resize((round(width * S), round(length * S)), Image.Resampling.LANCZOS)
+    deck = deck.rotate(angle, Image.Resampling.BICUBIC, expand=True)
+    ground.alpha_composite(deck, (round(x * S - deck.width / 2), round(y * S - deck.height / 2)))
+    crossing_rects.append(sprite_rect(deck, x, y + deck.height / (2 * S), deck.height / S))
+
 # ---------------------------------------------------------------- crisp painted details
-decals = Decals(load)
+decals = Decals(load, themed=bool(kit))
 fringe_n = scatter_n = None
 if decals.ok and '--no-decals' not in args:
     road_np = np.array([q for p in spl_paths for q in resample(p, 3.0)])
     edge_polys = [resample(p, 4.0) for p in spl_paths]
-    fringe_n = road_fringe(ground, decals, edge_polys, road_np, ROAD_W / 2, S, SEED + 31)
+    fringe_n = road_fringe(ground, decals, edge_polys, road_np, ROAD_W / 2, S, SEED + 31, ok_at=on_land if land_mask else None)
     plot_ells = [(px, py) for px, py in plots]
 
     def decal_ok(x, y, r):
+        if not on_land(x, y):
+            return False
         if nearest_dist(road_np, x, y) < ROAD_W / 2 + r + 2:
             return False
         for px, py in plot_ells:
@@ -627,17 +697,20 @@ for G in GATES:
 # scatter props (layout px), mostly on the margins, never on the road / plots / towers / landmarks
 PROPS = [('prop-tree-1.png', 2.1), ('prop-tree-2.png', 2.4), ('prop-tree-3.png', 1.9), ('prop-bush.png', 1.0),
          ('prop-rock-1.png', 0.9), ('prop-rock-2.png', 0.8), ('prop-flowers.png', 0.55)]
-WEIGHTS = [5, 3, 2, 4, 2, 2, 2]
+PROPS = kit_spec.get('props', PROPS)
+WEIGHTS = dressing.get('propWeights', [5, 3, 2, 4, 2, 2, 2])
 prop_ims = {n: load(n) for n, _ in PROPS}
 rnd = random.Random(SEED)
 placed = []
 tries = 0
-zones = [plot_zone(*p) for p in plots] + landmark_rects
+zones = [plot_zone(*p) for p in plots] + landmark_rects + crossing_rects
 prop_count = opt('--props', 70)
 while len(placed) < prop_count and tries < 12000:
     tries += 1
     x, y = rnd.uniform(0, iw), rnd.uniform(ROAD_W * 0.4, ih - ROAD_W * 0.6)
     margin = x < sx or x > sx + sw or min(x, iw - x) < iw * 0.12 or y < ih * 0.12
+    if not on_land(x, y):
+        continue
     if not margin and rnd.random() < 0.75:  # keep the play area calm
         continue
     name, rel = rnd.choices(PROPS, WEIGHTS)[0]
@@ -688,7 +761,7 @@ if cliff:
 
 rgb = canvas.convert('RGB')
 if out_p.suffix.lower() == '.webp':
-    rgb.save(out_p, quality=90, method=6)
+    rgb.save(out_p, quality=quality, method=6)
 else:
     rgb.save(out_p, quality=92)
 inv = [[round(x), round(y)] for x, y in plots]
@@ -700,7 +773,7 @@ for v in filter(None, opt('--variants', '').split(',')):
     vs = float(v)
     vw, vh = round(iw * vs), round(ih * vs)
     vp = out_p.with_name(f'{out_p.stem}@{v}x{out_p.suffix}')
-    rgb.resize((vw, vh), Image.LANCZOS).save(vp, quality=90, method=6)
+    rgb.resize((vw, vh), Image.LANCZOS).save(vp, quality=quality, method=6)
     variant_files[f'{out_p.stem}@{v}x'] = vp.name
 
 # gate front layers, cut from the final composite (same pixels as the bake underneath)
@@ -711,7 +784,17 @@ for G in GATES:
     if front_im is not None:
         key = f'{out_p.stem}-gate-{G["id"]}'
         fp = out_p.with_name(f'{key}.webp')
-        front_im.save(fp, quality=90, method=6, exact=True)
+        encoded = BytesIO()
+        front_im.save(encoded, format='WEBP', quality=90, method=6, exact=True)
+        # Versions of libwebp can encode identical gate pixels with different lossless
+        # alpha streams. Preserve the shipped file when its decoded RGBA already matches.
+        try:
+            with Image.open(fp) as previous, Image.open(encoded) as candidate:
+                same_pixels = np.array_equal(np.asarray(previous), np.asarray(candidate))
+        except OSError:
+            same_pixels = False
+        if not same_pixels:
+            fp.write_bytes(encoded.getvalue())
         gr = G['g']['rect']
         entry['front'] = {
             'art': key,

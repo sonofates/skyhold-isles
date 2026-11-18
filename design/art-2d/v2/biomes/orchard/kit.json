@@ -1,0 +1,11 @@
+{
+  "props": [
+    ["apple-tree.webp", 1.75],
+    ["cypress.webp", 1.9],
+    ["espalier.webp", 1.12],
+    ["hay-sheaf.webp", 0.62],
+    ["fence-corner.webp", 0.62],
+    ["balustrade.webp", 0.6],
+    ["buttercups.webp", 0.51]
+  ]
+}

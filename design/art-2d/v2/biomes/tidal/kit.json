@@ -1,0 +1,11 @@
+{
+  "props": [
+    ["fan-palm.webp", 1.6],
+    ["salt-willow.webp", 1.35],
+    ["dinghy.webp", 0.63],
+    ["salt-grass.webp", 0.6],
+    ["mooring-posts.webp", 0.62],
+    ["driftwood.webp", 0.42],
+    ["tide-pool.webp", 0.48]
+  ]
+}

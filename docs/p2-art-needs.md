@@ -1,6 +1,6 @@
 # Art brief for campaign islands 1–16
 
-The playable bakes use the existing meadow kit. Each row describes the next painted pass. The road, gate mouths, flight path and numbered build plots in the corresponding layout are the placement reference. Keep tall silhouettes outside the plot and tower clearances.
+The 16 campaign bakes use six painted biome kits. The table records the palette, props and intended landmark placement for each island. The road, gate mouths, flight path and numbered build plots in the corresponding layout are the placement reference. Keep tall silhouettes outside the plot and tower clearances. [Review the campaign bakes at 1x](art-themes-sheet.jpg).
 
 | Island | Ground palette | Props | Landmark and placement |
 | --- | --- | --- | --- |
