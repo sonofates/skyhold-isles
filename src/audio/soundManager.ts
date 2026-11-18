@@ -1,15 +1,34 @@
 import type { EventBus } from '../core/eventBus.ts';
-import type { GameSettings, TowerType } from '../core/types.ts';
+import type { EnemyType, GameSettings, TowerType } from '../core/types.ts';
 import { ENEMY_DEFS } from '../data/enemies.ts';
 import { MusicEngine } from './music/musicEngine.ts';
 import type { MusicScene } from './music/sequencer.ts';
 import { getMusicVolume, onMusicVolumeChange } from './musicPrefs.ts';
+import { VoiceCap } from './voiceCap.ts';
+
+type MixerSettings = Pick<GameSettings, 'muted' | 'masterVolume'>;
+
+// Pitch of the falling death note for each painted enemy, in Hz.
+const DEATH_PITCH: Record<EnemyType, number> = {
+  grunt: 230, runner: 330, brute: 125, flyer: 490, healer: 620,
+  splitter: 400, warden: 175, burrower: 145, carrier: 270, blinker: 720,
+  golem: 100, mite: 570, hexer: 370, tempest: 82, boss: 70,
+};
+
+const FIRE_INTERVAL_MS: Partial<Record<TowerType, number>> = {
+  archer: 65, cannon: 90, frost: 80, tesla: 85, mortar: 140, ballista: 110,
+};
 
 export class SoundManager {
   private ctx: AudioContext | null = null;
   private noiseBuffer: AudioBuffer | null = null;
   private masterGain: GainNode | null = null;
-  private settings: GameSettings;
+  private settings: MixerSettings;
+  private background = false;
+  private panBucket: number | null = null;
+  private readonly panners: StereoPannerNode[] = [];
+  private readonly voices = new VoiceCap(6);
+  private voiceTag = '';
   private readonly lastPlayedMs = new Map<string, number>();
   /** Per-call voicing set by playFire/playImpact: random pitch jitter, tier pitch multiplier, tier volume. */
   private jitter = 0;
@@ -23,7 +42,7 @@ export class SoundManager {
   private musicDucked = false;
   private readonly unsubMusicVolume: () => void;
 
-  constructor(initialSettings: GameSettings) {
+  constructor(initialSettings: MixerSettings) {
     this.settings = { ...initialSettings };
     this.unsubMusicVolume = onMusicVolumeChange(() => this.syncMusic());
   }
@@ -48,8 +67,8 @@ export class SoundManager {
       this.music = new MusicEngine(this.ctx, this.masterGain, this.noiseBuffer);
       this.syncMusic();
     }
-    if (this.ctx && this.ctx.state === 'suspended') {
-      void this.ctx.resume();
+    if (this.ctx && !this.background && this.ctx.state !== 'running') {
+      void this.ctx.resume().catch(() => {});
     }
   }
 
@@ -79,7 +98,7 @@ export class SoundManager {
   private syncMusic(): void {
     const m = this.music;
     if (!m) return;
-    const audible = !this.settings.muted && this.settings.masterVolume > 0.01 && getMusicVolume() > 0.005;
+    const audible = !this.background && !this.settings.muted && this.settings.masterVolume > 0.01 && getMusicVolume() > 0.005;
     m.setVolume(getMusicVolume());
     m.setDucked(this.musicDucked);
     m.setTarget(this.musicLevelId, this.musicScene);
@@ -88,16 +107,21 @@ export class SoundManager {
 
   /** Silence audio while the page is hidden (phone locked / tab switched). */
   suspendForBackground(): void {
+    this.background = true;
+    this.applyVolume();
     this.music?.pause();
-    if (this.ctx && this.ctx.state === 'running') void this.ctx.suspend();
+    if (this.ctx) void this.ctx.suspend().catch(() => {});
   }
 
   resumeFromBackground(): void {
-    if (this.ctx && this.ctx.state === 'suspended') void this.ctx.resume();
+    this.background = false;
+    this.applyVolume();
+    if (this.ctx) void this.ctx.resume().catch(() => {});
+    this.syncMusic();
     this.music?.resume();
   }
 
-  updateSettings(next: GameSettings): void {
+  updateSettings(next: MixerSettings): void {
     this.settings = { ...next };
     this.applyVolume();
     this.syncMusic();
@@ -105,17 +129,18 @@ export class SoundManager {
 
   private applyVolume(): void {
     if (!this.masterGain || !this.ctx) return;
-    const gain = this.settings.muted ? 0 : Math.max(0, Math.min(1, this.settings.masterVolume)) * 0.45;
+    const gain = this.background || this.settings.muted ? 0 : Math.max(0, Math.min(1, this.settings.masterVolume)) * 0.45;
     this.masterGain.gain.setValueAtTime(gain, this.ctx.currentTime);
   }
 
   private canPlay(tag: string, minIntervalMs: number): boolean {
     if (!this.ctx || !this.masterGain || this.ctx.state !== 'running') return false;
-    if (this.settings.muted || this.settings.masterVolume <= 0.01) return false;
+    if (this.background || this.settings.muted || this.settings.masterVolume <= 0.01) return false;
     const now = performance.now();
-    const prev = this.lastPlayedMs.get(tag) ?? 0;
+    const prev = this.lastPlayedMs.get(tag) ?? -Infinity;
     if (now - prev < minIntervalMs) return false;
     this.lastPlayedMs.set(tag, now);
+    this.voiceTag = tag;
     return true;
   }
 
@@ -129,6 +154,31 @@ export class SoundManager {
     return buffer;
   }
 
+  /** Fixed stereo buses keep each ringing voice at its launch position. Music bypasses these. */
+  setScreenPan(pan: number): void {
+    this.panBucket = Math.round((Math.max(-1, Math.min(1, pan)) + 1) * 4);
+  }
+
+  private voiceOutput(): AudioNode | null {
+    if (this.panBucket === null) return this.masterGain; // 3D mixer
+    if (!this.voices.acquire(this.voiceTag)) return null;
+    if (this.panBucket === 4 || !this.ctx?.createStereoPanner) return this.masterGain;
+    let bus = this.panners[this.panBucket];
+    if (!bus) {
+      bus = this.ctx.createStereoPanner();
+      bus.pan.value = this.panBucket / 4 - 1;
+      bus.connect(this.masterGain!);
+      this.panners[this.panBucket] = bus;
+    }
+    return bus;
+  }
+
+  private releaseOnEnd(source: AudioScheduledSourceNode): void {
+    if (this.panBucket === null) return;
+    const tag = this.voiceTag;
+    source.onended = () => this.voices.release(tag);
+  }
+
   private tone(
     type: OscillatorType,
     startFreq: number,
@@ -138,6 +188,8 @@ export class SoundManager {
     delaySec = 0,
   ): void {
     if (!this.ctx || !this.masterGain) return;
+    const output = this.voiceOutput();
+    if (!output) return;
     const now = this.ctx.currentTime + delaySec;
     const pm = this.pitchMul * (this.jitter > 0 ? 1 + (Math.random() * 2 - 1) * this.jitter : 1);
     startFreq *= pm;
@@ -152,13 +204,16 @@ export class SoundManager {
     g.gain.linearRampToValueAtTime(volume, now + 0.01);
     g.gain.exponentialRampToValueAtTime(0.0001, now + durationSec);
     osc.connect(g);
-    g.connect(this.masterGain);
+    g.connect(output);
+    this.releaseOnEnd(osc);
     osc.start(now);
     osc.stop(now + durationSec + 0.02);
   }
 
   private noiseBurst(filterFreq: number, durationSec: number, volume: number): void {
     if (!this.ctx || !this.masterGain || !this.noiseBuffer) return;
+    const output = this.voiceOutput();
+    if (!output) return;
     const now = this.ctx.currentTime;
     const src = this.ctx.createBufferSource();
     src.buffer = this.noiseBuffer;
@@ -174,7 +229,8 @@ export class SoundManager {
 
     src.connect(filter);
     filter.connect(g);
-    g.connect(this.masterGain);
+    g.connect(output);
+    this.releaseOnEnd(src);
     src.start(now);
     src.stop(now + durationSec + 0.02);
   }
@@ -224,6 +280,8 @@ export class SoundManager {
   }
 
   playFire(type: TowerType, tier = 1, special = false): void {
+    const interval = FIRE_INTERVAL_MS[type];
+    if (interval === undefined || !this.canPlay(`fire_${type}`, interval)) return;
     this.voice(tier, 0.07);
     this.fireSound(type);
     if (special) this.specialLayer(type);
@@ -245,30 +303,24 @@ export class SoundManager {
   private fireSound(type: TowerType): void {
     switch (type) {
       case 'archer':
-        if (!this.canPlay('fire_archer', 65)) return;
         this.tone('triangle', 540, 210, 0.07, 0.14);
         break;
       case 'cannon':
-        if (!this.canPlay('fire_cannon', 90)) return;
         this.tone('sine', 160, 46, 0.22, 0.34);
         this.noiseBurst(900, 0.16, 0.22);
         break;
       case 'frost':
-        if (!this.canPlay('fire_frost', 80)) return;
         this.tone('sine', 920, 1340, 0.11, 0.12);
         break;
       case 'tesla':
-        if (!this.canPlay('fire_tesla', 85)) return;
         this.tone('sawtooth', 780, 240, 0.11, 0.14);
         this.noiseBurst(2800, 0.08, 0.12);
         break;
       case 'mortar':
-        if (!this.canPlay('fire_mortar', 140)) return;
         this.tone('sine', 110, 38, 0.28, 0.36);
         this.noiseBurst(620, 0.22, 0.25);
         break;
       case 'ballista':
-        if (!this.canPlay('fire_ballista', 110)) return;
         this.tone('triangle', 300, 90, 0.16, 0.26);
         this.tone('sawtooth', 1400, 500, 0.06, 0.07);
         this.noiseBurst(3200, 0.07, 0.1);
@@ -296,7 +348,26 @@ export class SoundManager {
       if (!this.canPlay('impact_ballista', 90)) return;
       this.tone('square', 220, 70, 0.07, 0.12);
       this.noiseBurst(1800, 0.06, 0.12);
+    } else if (this.panBucket !== null && (type === 'archer' || type === 'tesla')) {
+      if (!this.canPlay(`impact_${type}`, 85)) return;
+      this.noiseBurst(type === 'archer' ? 1200 : 3600, 0.05, 0.08);
     }
+  }
+
+  playEnemyDeath(type: EnemyType): void {
+    if (!this.canPlay(`death_${type}`, 100)) return;
+    const hz = DEATH_PITCH[type];
+    this.tone('triangle', hz, hz * 0.4, hz < 150 ? 0.25 : 0.12, 0.15);
+  }
+
+  playMeleeSwing(): void {
+    if (this.canPlay('melee_swing', 80)) this.noiseBurst(1900, 0.06, 0.08);
+  }
+
+  playMeleeHit(heavy: boolean): void {
+    if (!this.canPlay('melee_hit', 85)) return;
+    this.noiseBurst(heavy ? 800 : 3200, 0.09, 0.12);
+    this.tone('triangle', heavy ? 150 : 740, heavy ? 50 : 420, 0.12, 0.14);
   }
 
   playIgnite(): void {
@@ -463,7 +534,7 @@ export class SoundManager {
     this.tone('sine', 300, 120, 0.26, 0.1, 0.03);
   }
 
-  bindEvents(events: EventBus): () => void {
+  bindEvents(events: Pick<EventBus, 'on'>, onDeath: (type: EnemyType) => void = () => this.playGoldCoin()): () => void {
     const unsubs = [
       events.on('towerBuilt', () => this.playTowerBuild()),
       events.on('towerUpgraded', (e) => this.playTowerUpgrade(e.tier)),
@@ -473,7 +544,7 @@ export class SoundManager {
       events.on('groundZone', () => this.playIgnite()),
       events.on('towerFired', (e) => this.playFire(e.type, e.tier, e.special === true)),
       events.on('projectileImpact', (e) => this.playImpact(e.towerType)),
-      events.on('enemyKilled', () => this.playGoldCoin()),
+      events.on('enemyKilled', e => onDeath(e.enemyType)),
       events.on('enemyLeaked', () => this.playEnemyLeak()),
       events.on('enemySplit', () => this.playEnemySplit()),
       events.on('bossPulse', () => this.playBossPulse()),

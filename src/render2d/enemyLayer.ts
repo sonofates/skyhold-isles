@@ -54,7 +54,7 @@ const TELEPORT_UNITS = 2.2;
 export class EnemyView {
   readonly body = new Sprite(Texture.EMPTY);
   /** Additive copy of the body shown for a few frames when a melee blow lands (white hit flash). */
-  readonly flash = new Sprite(Texture.EMPTY);
+  flash: Sprite | null = null;
   readonly shadow: Sprite;
   readonly barBg = new Sprite(Texture.WHITE);
   readonly barFill = new Sprite(Texture.WHITE);
@@ -81,8 +81,6 @@ export class EnemyView {
     this.shadow = new Sprite(shadowTex);
     this.shadow.anchor.set(0.5);
     this.body.anchor.set(0.5, 0.95);
-    this.flash.blendMode = 'add';
-    this.flash.visible = false;
     this.barBg.tint = HP_BG;
     this.barFill.tint = HP_GREEN;
     this.barBg.anchor.set(0, 0.5);
@@ -98,6 +96,7 @@ export class EnemyView {
 export class EnemyLayer {
   private readonly views: (EnemyView | undefined)[] = [];
   private frameNo = 0;
+  private readonly layoutScratch = { px: 0, py: 0, cy: 0, heightPx: 0, shadowR: 0, uiScale: 1 };
   private readonly art: LoadedArt;
   private readonly map: MapView;
   private readonly layers: WorldLayers;
@@ -140,7 +139,7 @@ export class EnemyLayer {
     v.body.visible = on;
     v.shadow.visible = on;
     if (!on) {
-      v.flash.visible = false;
+      if (v.flash) v.flash.visible = false;
       v.barBg.visible = false;
       v.barFill.visible = false;
       this.specials.hideAll(v.ex);
@@ -170,8 +169,10 @@ export class EnemyLayer {
     this.specials.hideAll(v.ex);
     const parent = w.flying ? this.layers.air : this.layers.actors;
     if (v.body.parent !== parent) parent.addChild(v.body);
-    if (v.flash.parent !== parent) parent.addChild(v.flash);
-    v.flash.visible = false;
+    if (v.flash) {
+      if (v.flash.parent !== parent) parent.addChild(v.flash);
+      v.flash.visible = false;
+    }
   }
 
   /** Forget all bindings (new run: sim uids start over). */
@@ -348,15 +349,13 @@ export class EnemyLayer {
     out.bodyAlpha = 1;
     out.bodyVisible = true;
     out.shadowAlpha = 1;
-    this.specials.apply(
-      v.ex,
-      v.sp,
-      art,
-      w,
-      { px, py, cy: py - liftPx - heightPx * 0.5, heightPx, shadowR: shR, uiScale: 1 },
-      dt,
-      out,
-    );
+    const layout = this.layoutScratch;
+    layout.px = px;
+    layout.py = py;
+    layout.cy = py - liftPx - heightPx * 0.5;
+    layout.heightPx = heightPx;
+    layout.shadowR = shR;
+    this.specials.apply(v.ex, v.sp, art, w, layout, dt, out);
     // Hit flash: the sim's hitFlashTimer drives a warm tint (no per-sprite filters).
     if (w.hitFlashTimer > 0) out.tint = 0xff9c8c;
 
@@ -391,10 +390,14 @@ export class EnemyLayer {
     v.body.tint = out.tint;
     v.body.alpha = out.bodyAlpha;
     v.body.visible = out.bodyVisible;
-    const fl = v.flash;
     const flashK = ms && out.bodyVisible ? ms.flash / HIT_FLASH : 0;
-    fl.visible = flashK > 0;
+    if (v.flash) v.flash.visible = flashK > 0;
     if (flashK > 0) {
+      const fl = v.flash ??= new Sprite();
+      if (!fl.parent) {
+        fl.blendMode = 'add';
+        v.body.parent!.addChild(fl);
+      }
       fl.texture = v.body.texture;
       fl.anchor.copyFrom(v.body.anchor);
       fl.scale.copyFrom(v.body.scale);

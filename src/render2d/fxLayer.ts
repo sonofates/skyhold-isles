@@ -1,7 +1,8 @@
-import { Graphics, Sprite, Texture, type Container } from 'pixi.js';
+import { Container, Graphics, Sprite, Texture } from 'pixi.js';
 import type { Vec3 } from '../core/types.ts';
 import { HEIGHT_TO_SCREEN } from './layers.ts';
 import type { MapView } from './mapView.ts';
+import type { QualityTier } from './renderResolution.ts';
 import { SlotPool } from './slotPool.ts';
 
 export type FxKind = 'puff' | 'ring' | 'coin' | 'spark' | 'glow' | 'flash' | 'wring' | 'crater' | 'shard' | 'orb';
@@ -52,8 +53,8 @@ const MAX_ZONES = 6;
 
 /**
  * Pooled painted-looking FX in map px: smoke puffs, rings, coin pops, sparks, glows, shards,
- * ground craters, lightning bolts, light beams and burning-ground zones. Nothing is allocated
- * after construction; when a pool is full the newest FX is dropped (counted in `stats()`).
+ * ground craters, lightning bolts, light beams and burning-ground zones. Particle sprites grow
+ * to the observed peak and are reused; when a pool is full the newest FX is dropped (counted in `stats()`).
  */
 export class FxLayer {
   private readonly particles: Particle[] = [];
@@ -68,6 +69,19 @@ export class FxLayer {
   private readonly top: Container;
   private readonly map: MapView;
   private seed = 1;
+  private additive: Container | null = null;
+  private particleLimit = MAX_PARTICLES;
+  density = 1;
+
+  setQuality(tier: QualityTier): void {
+    this.particleLimit = tier === 'high' ? MAX_PARTICLES : tier === 'med' ? 144 : 64;
+    this.density = tier === 'high' ? 1 : tier === 'med' ? 0.55 : 0.25;
+    // Decorative light sprites can share one additive batch on reduced tiers.
+    if (tier !== 'high' && !this.additive) {
+      this.additive = new Container();
+      this.top.addChild(this.additive);
+    }
+  }
   /** Lifetime counters (QA): bolts / beams / zones drawn. */
   boltsDrawn = 0;
   beamsDrawn = 0;
@@ -84,12 +98,6 @@ export class FxLayer {
     this.ground = ground;
     this.top = top;
     this.textures = textures;
-    for (let i = 0; i < MAX_PARTICLES; i++) {
-      const sprite = new Sprite(Texture.EMPTY);
-      sprite.anchor.set(0.5);
-      sprite.visible = false;
-      this.particles.push({ sprite, kind: 'puff', t: 0, life: 1, x: 0, y: 0, vx: 0, vy: 0, size: 1, rot: 0, vr: 0, gy: 0, active: false });
-    }
     for (let i = 0; i < MAX_BOLTS; i++) {
       const g = new Graphics();
       g.visible = false;
@@ -135,9 +143,14 @@ export class FxLayer {
 
   /** Spawns one particle at map px (null when the pool is full: the newest particle is dropped). */
   spawn(kind: FxKind, px: number, py: number, size: number, vx = 0, vy = 0, life = 0.5, tint = 0xffffff): Particle | null {
-    const i = this.pool.acquire();
+    const i = this.pool.acquire(this.particleLimit);
     if (i < 0) return null;
-    const p = this.particles[i];
+    let p = this.particles[i];
+    if (!p) {
+      const sprite = new Sprite(Texture.EMPTY);
+      sprite.anchor.set(0.5);
+      p = this.particles[i] = { sprite, kind, t: 0, life, x: px, y: py, vx, vy, size, rot: 0, vr: 0, gy: 0, active: true };
+    }
     p.active = true;
     p.kind = kind;
     p.t = 0;
@@ -157,7 +170,9 @@ export class FxLayer {
     s.rotation = 0;
     s.tint = tint;
     s.blendMode = ADDITIVE_KINDS.has(kind) ? 'add' : 'normal';
-    const parent = GROUND_KINDS.has(kind) ? this.ground : this.top;
+    let parent = this.top;
+    if (GROUND_KINDS.has(kind)) parent = this.ground;
+    else if (this.additive && ADDITIVE_KINDS.has(kind)) parent = this.additive;
     if (s.parent !== parent) parent.addChild(s);
     this.place(p);
     return p;
@@ -165,6 +180,7 @@ export class FxLayer {
 
   /** A burst of `n` puffs around a point (kill smoke, build dust, cannon blast). */
   puffs(px: number, py: number, n: number, spread: number, tint = 0xfff3d6): void {
+    n = Math.ceil(n * this.density);
     for (let i = 0; i < n; i++) {
       const a = this.rand() * Math.PI * 2;
       const r = this.rand() * spread;
@@ -183,6 +199,7 @@ export class FxLayer {
 
   /** A radial burst of `n` particles of `kind` (shards fly out, spin and fall under `gravity`). */
   burst(kind: FxKind, px: number, py: number, n: number, size: number, speed: number, life: number, tint = 0xffffff, gravity = 0): void {
+    n = Math.ceil(n * this.density);
     for (let i = 0; i < n; i++) {
       const a = (i / n) * Math.PI * 2 + this.rand() * 0.8;
       const sp = speed * (0.55 + this.rand() * 0.6);
@@ -263,6 +280,10 @@ export class FxLayer {
       p.active = false;
       p.sprite.visible = false;
     }
+    for (const b of this.bolts) {
+      b.active = false;
+      b.g.visible = false;
+    }
     for (const b of this.beams) {
       b.active = false;
       b.g.visible = false;
@@ -284,7 +305,7 @@ export class FxLayer {
     const ppu = this.map.layout.pxPerUnit;
     const g = b.g;
     g.clear();
-    const segs = 6;
+    const segs = Math.max(2, Math.ceil(6 * this.density));
     const jn = Math.min(this.jitter.length, (points.length - 1) * segs);
     for (let k = 0; k < jn; k++) this.jitter[k] = (this.rand() - 0.5) * 18;
     const core = overload ? 0xfff6c8 : 0xeafcff;
@@ -371,7 +392,12 @@ export class FxLayer {
   }
 
   update(dt: number): void {
-    for (let i = 0; i < this.particles.length; i++) {
+    // High retains the original release order (and hence the layering of reused sprites).
+    // On reduced tiers walk the dense list backwards so swap-removal never skips a particle.
+    const high = this.density === 1;
+    const count = high ? this.particles.length : this.pool.active;
+    for (let pos = 0; pos < count; pos++) {
+      const i = high ? pos : this.pool.activeSlots[count - 1 - pos];
       const p = this.particles[i];
       if (!p.active) continue;
       p.t += dt;

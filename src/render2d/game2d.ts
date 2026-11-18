@@ -2,6 +2,7 @@ import { Container, Sprite, type Application } from 'pixi.js';
 import { EventBus, type GameEventMap } from '../core/eventBus.ts';
 import { FixedTimestepStepper } from '../core/gameLoop.ts';
 import type { GameSettings, SpeedMultiplier, TargetingMode, TowerType } from '../core/types.ts';
+import { LEVELS } from '../data/levels/index.ts';
 import { BALANCE } from '../data/balance.ts';
 import type { LevelDef } from '../data/levels/types.ts';
 import { NEUTRAL_RUN_MODIFIERS, type RunModifiers } from '../data/runModifiers.ts';
@@ -11,6 +12,8 @@ import { isTouchDevice, loadSettings } from '../platform/storage.ts';
 import type { TowerEntity } from '../sim/entities.ts';
 import { computeSellRefund, SimWorld } from '../sim/world.ts';
 import type { LoadedArt } from './assets2d.ts';
+import { Audio2D, bindAudio2D, screenPan } from './audio2d.ts';
+import { AdaptiveQuality, qualityOverride, renderResolution } from './renderResolution.ts';
 import { BuildRing, type RingAction } from './buildRing.ts';
 import { DamageNumbers2D } from './damageNumbers2d.ts';
 import { EndPanel, endStars } from './endPanel.ts';
@@ -39,6 +42,10 @@ import { meleeLookFor } from './meleeLook.ts';
 import { TowerLayer } from './towerLayer.ts';
 import { readSafeInsets } from './uiKit.ts';
 import { NO_INSETS, type Insets } from './uiLayout.ts';
+
+// This module is loaded by both routes of 2d.html, including the DOM-only world map.
+// Install gesture listeners before async artwork loading, so a tap during boot can unlock audio.
+const audio = typeof document === 'undefined' ? null : new Audio2D();
 
 const TARGET_CYCLE: readonly TargetingMode[] = ['first', 'last', 'strongest', 'closest'];
 
@@ -111,6 +118,10 @@ export class Game2D {
   private readonly shake = createShakeState2D();
   private simClockSec = 0;
   private activeDamagePopups = 0;
+  private unbindAudio: (() => void) | null = null;
+  private readonly quality: AdaptiveQuality;
+  private readonly dprOverride: number | undefined;
+  private readonly benchWave: number;
   private unbindHaptics: (() => void) | null = null;
   /** Tesla bolts waiting for their tower's painted release frame (sim seconds left). */
   private readonly boltQueue: { t: number; points: GameEventMap['lightningChain']['points']; overload: boolean; muzzle: number }[] = [];
@@ -130,6 +141,10 @@ export class Game2D {
     if (!level.layout2d) throw new Error(`${level.id} has no 2D layout`);
     art = withBarracksArt(art);
     this.app = app;
+    const query = new URLSearchParams(location.search);
+    this.quality = new AdaptiveQuality(qualityOverride(query.get('quality')));
+    this.dprOverride = Number(query.get('dpr')) || undefined;
+    this.benchWave = hooks.endless && Number(query.get('bench')) > 0 ? Number(query.get('wave')) : 0;
     this.art = art;
     this.level = level;
     this.hooks = hooks;
@@ -153,6 +168,7 @@ export class Game2D {
       shard: this.tex.shard,
       orb: this.tex.orb,
     });
+    this.fx.setQuality(this.quality.tier);
     this.damageNumbers = new DamageNumbers2D(this.map, this.layers.fx);
     this.enemies = new EnemyLayer(art, this.map, this.layers, this.tex, this.fx);
     this.plots = new PlotLayer(level.layout2d, art.plot, this.tex);
@@ -220,12 +236,14 @@ export class Game2D {
   /** Reloads persisted `GameSettings` from storage and syncs haptics. */
   refreshSettings(): void {
     this.settings = loadSettings();
+    audio?.sync(this.audioSettings);
     haptics.setEnabled(shouldVibrate2D(this.currentSettings(), isTouchDevice()));
   }
 
   /** Starts (or restarts) a run on the level. */
   newRun(): void {
     this.unbindHaptics?.();
+    this.unbindAudio?.();
     this.refreshSettings();
     this.events = new EventBus();
     this.unbindHaptics = bindHaptics(this.events);
@@ -251,7 +269,14 @@ export class Game2D {
     this.melee.reset();
     this.rallyTower = -1;
     this.boltQueue.length = 0;
+    if (audio) {
+      audio.sound.setMusicContext(LEVELS[this.level.index]?.id ?? this.level.id, 'build');
+      this.unbindAudio = bindAudio2D(this.events, audio.sound,
+        x => screenPan(this.map.screenX(this.map.pxX(x)), this.app.screen.width),
+        id => this.world.soldierSystem.soldiers.find(s => s.id === id)?.x);
+    }
     this.wireEvents();
+    if (Number.isSafeInteger(this.benchWave) && this.benchWave > 0) this.world.debugSkipToWave(this.benchWave);
   }
 
   private wireEvents(): void {
@@ -324,7 +349,13 @@ export class Game2D {
     });
   }
 
+  private applyResolution(w: number, h: number): void {
+    const resolution = renderResolution(w, h, window.devicePixelRatio, this.dprOverride, this.quality.tier) * this.quality.resolutionScale;
+    if (this.app.renderer.resolution !== resolution) this.app.renderer.resolution = resolution;
+  }
+
   resize(w: number, h: number): void {
+    this.applyResolution(w, h);
     this.map.resize(w, h);
     const ents = this.level.layout2d!.entrances;
     // Horn between the entrances, nudged onto the grass to their right.
@@ -350,6 +381,11 @@ export class Game2D {
 
   /** One rendered frame. */
   frame(dtSec: number): void {
+    if (this.quality.observe(this.app.ticker.elapsedMS, !document.hidden)) {
+      this.fx.setQuality(this.quality.tier);
+      this.applyResolution(this.app.screen.width, this.app.screen.height);
+    }
+    audio?.sound.setMusicDucked(this.stepper.paused);
     const world = this.world;
     const res = this.stepper.step(dtSec, (fixedDt) => {
       this.simClockSec += fixedDt;
@@ -677,6 +713,7 @@ export class Game2D {
       lives: w.lives,
       wave: w.waveSystem.currentWaveOneBased,
       waveState: w.waveSystem.state,
+      quality: this.quality.tier,
       endless: w.waveSystem.isEndless,
       modifiers: w.mods,
       outcome: w.outcome,
