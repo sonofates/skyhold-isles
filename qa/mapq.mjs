@@ -110,8 +110,31 @@ async function enemies(browser) {
   }
 }
 
+/** Tallest L1c walker (brute, wave 4 lane 1) through cave B, and the map mipmapped (?mapmips=1) for the A/B. */
+async function extra(browser) {
+  // ?zoo=1 spawns every enemy type at the start of lane 0 / 1 in turn (elites later, bigger)
+  const { ctx, page } = await open(browser, 'd1600', '?zoo=1');
+  {
+    const tag = 'brute';
+    await page.waitForFunction(() => (window.__p0.state().enemyPx ?? []).some((e) => e.type === 'brute'), null, { timeout: 120000 }).catch(() => {});
+    const lane = await page.evaluate(() => (window.__p0.state().enemyPx ?? []).filter((e) => e.type === 'brute').pop()?.lane ?? 1);
+    await enemyShot(page, 'd1600', `cave-${tag}`, () => (window.__p0.state().enemyPx ?? []).some((e) => e.type === 'brute' && e.dist > 0.2 && e.dist < 0.75), lane === 0 ? REGIONS.caveA : REGIONS.caveB);
+    await enemyShot(page, 'd1600', `cave-${tag}-out`, () => (window.__p0.state().enemyPx ?? []).some((e) => e.type === 'brute' && e.dist > 1.0 && e.dist < 1.6), lane === 0 ? REGIONS.caveA : REGIONS.caveB);
+  }
+  await ctx.close();
+  for (const view of ['d1600', 'phone']) {
+    const m = await open(browser, view, '?mapmips=1');
+    await m.page.keyboard.press(' ');
+    await m.page.waitForTimeout(300);
+    const s = await state(m.page);
+    report.notes[`${view}-mapmips`] = { map: s.mapInfo, mips: s.mips };
+    await m.page.screenshot({ path: `${OUT}/${view}-mapmips-crop-road.png`, clip: clipOf(view, s.fit, REGIONS.road) });
+    await m.ctx.close();
+  }
+}
+
 const browser = await chromium.launch({ args: ARGS });
-for (const [name, fn] of Object.entries({ full, enemies })) {
+for (const [name, fn] of Object.entries({ full, enemies, extra })) {
   if (only && !only.split(',').includes(name)) continue;
   try {
     await fn(browser);
