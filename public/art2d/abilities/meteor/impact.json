@@ -1,0 +1,12 @@
+{
+ "frameW": 288,
+ "frameH": 256,
+ "count": 6,
+ "cols": 6,
+ "fps": 9,
+ "anchor": [
+  144,
+  158
+ ],
+ "image": "impact.webp"
+}

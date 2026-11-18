@@ -1,0 +1,12 @@
+{
+ "frameW": 418,
+ "frameH": 256,
+ "count": 4,
+ "cols": 4,
+ "fps": 7,
+ "anchor": [
+  209,
+  250
+ ],
+ "image": "death.webp"
+}
