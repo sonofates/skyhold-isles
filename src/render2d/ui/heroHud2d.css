@@ -140,3 +140,7 @@
 .pu-reduce-motion .pu-hero-port {
   animation: none !important;
 }
+
+.pu-hero-tip .pu-ab-tip-foot > :first-child {
+  white-space: nowrap;
+}

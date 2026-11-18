@@ -205,10 +205,8 @@ export function mountAbilityBar2D(game: Game2D, opts: AbilityBarOptions): Abilit
     const ins = readSafeInsets();
     const u = uiScale(w, h);
     const pad = Math.max(8, 14 * u);
-    d = Math.round(Math.max(54, 76 * u));
+    const base = Math.round(Math.max(54, 76 * u));
     const gap = Math.round(Math.max(10, 16 * u));
-    const long = d * slots.length + gap * (slots.length - 1) + (opts.lead ? opts.lead.long(d, gap) : 0);
-    const short = Math.max(d, opts.lead?.short ? Math.ceil(opts.lead.short(d)) : d);
     const r = game.hud.rects();
     const m = game.map;
     const sx = (px: number): number => m.fit.offsetX + px * m.fit.scale;
@@ -216,10 +214,23 @@ export function mountAbilityBar2D(game: Game2D, opts: AbilityBarOptions): Abilit
     // Plots with room for the tower that may stand on them (≈ 1.3 plot widths tall).
     const hard: Rect[] = game.plots.geometry.rects.map((p) => ({ x: sx(p.x), y: sy(p.y - p.w * 1.3), w: p.w * m.fit.scale, h: (p.h + p.w * 1.3) * m.fit.scale }));
     placing = true;
-    hard.push(r.horn, hudButtonsKeepOut(w, h, ins), ...hudKeepOuts());
+    hard.push(r.horn, r.plaque, r.banner, hudButtonsKeepOut(w, h, ins), ...hudKeepOuts());
     placing = false;
     const soft = roadPts.map((p) => ({ x: sx(m.pxX(p.x)), y: sy(m.pxY(p.z)) }));
-    spot = abilityBarSpot({ w, h, insets: ins, pad, long, short, gap, plaque: r.plaque, banner: r.banner, hard, soft });
+    // With the hero group the bar is long: shrink the buttons (never under 46 px) until a spot
+    // covers nothing; else keep the size whose best spot covers least.
+    let best: { d: number; long: number; short: number; spot: AbilityBarSpot } | null = null;
+    for (let dd = base; dd >= Math.min(base, 46); dd -= 2) {
+      const lg = dd * slots.length + gap * (slots.length - 1) + (opts.lead ? opts.lead.long(dd, gap) : 0);
+      const sh = Math.max(dd, opts.lead?.short ? Math.ceil(opts.lead.short(dd)) : dd);
+      const sp = abilityBarSpot({ w, h, insets: ins, pad, long: lg, short: sh, gap, plaque: r.plaque, banner: r.banner, hard, soft });
+      if (!best || sp.score < best.spot.score) best = { d: dd, long: lg, short: sh, spot: sp };
+      if (sp.score === 0 || !opts.lead) break;
+    }
+    d = best!.d;
+    const long = best!.long;
+    const short = best!.short;
+    spot = best!.spot;
     root.classList.toggle('vertical', spot.vertical);
     root.style.setProperty('--d', `${d}px`);
     root.style.setProperty('--gap', `${gap}px`);

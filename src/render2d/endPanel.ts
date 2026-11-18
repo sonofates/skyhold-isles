@@ -58,6 +58,24 @@ export interface EndHeroXp {
   readonly recorded: boolean;
 }
 
+/**
+ * Makes room for the hero XP row: smaller stars lifted a little, the summary closer under them and
+ * the buttons a touch lower (fractions of the parchment's inner height `innerFrac` × panel h).
+ */
+function heroRoom(L: EndLayout, innerFrac: number): EndLayout {
+  const inner = L.panel.h * innerFrac;
+  const starR = L.starR * 0.8;
+  const lift = inner * 0.05;
+  return {
+    ...L,
+    starR,
+    stars: L.stars.map((p, i) => ({ x: L.panel.x + L.panel.w / 2 + (i - 1) * starR * 2.4, y: p.y - lift - (L.starR - starR) * 0.6 })),
+    summary: { x: L.summary.x, y: L.summary.y - inner * 0.1 },
+    buttons: L.buttons.map((p) => ({ x: p.x, y: p.y + inner * 0.035 })),
+    buttonR: L.buttonR * 0.94,
+  };
+}
+
 const STAR_DELAY = 0.45;
 const STAR_STEP = 0.28;
 
@@ -248,7 +266,7 @@ export class EndPanel {
     const tex = this.panel.texture;
     const hasArt = tex !== Texture.EMPTY;
     const aspect = hasArt ? tex.width / Math.max(1, tex.height) : 1.45;
-    const L = endLayout(w, h, insets, aspect, END_FRAME);
+    const L = this.hero ? heroRoom(endLayout(w, h, insets, aspect, END_FRAME), END_FRAME.innerBottom - END_FRAME.innerTop) : endLayout(w, h, insets, aspect, END_FRAME);
     this.lay = L;
     this.dim.clear().rect(0, 0, w, h).fill({ color: 0x1a1006, alpha: 0.55 });
     const P = L.panel;

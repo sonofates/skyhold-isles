@@ -52,7 +52,7 @@ const SAVES = {
   fresh: save(5, { bran: { xp: 3200, skills: [] }, wren: { xp: 600, skills: [] }, mira: { xp: 0, skills: [] } }),
   spent: save(5, { bran: { xp: 3200, skills: BRAN_SPENT }, wren: { xp: 600, skills: [] }, mira: { xp: 0, skills: [] } }),
   // Just short of level 5 (785 XP): a won run levels up.
-  levelup: save(5, { bran: { xp: 700, skills: [] } }),
+  levelup: save(5, { bran: { xp: 730, skills: [] } }),
 };
 
 async function open(size, lang, query, saveKey = 'fresh') {
@@ -255,6 +255,8 @@ async function endShots(size, lang) {
   });
   await page.waitForTimeout(600);
   await page.evaluate(() => window.__p0.forceEnd('won'));
+  // The island's after-battle story opens over the board on a first win: skip it.
+  await page.waitForSelector('[data-testid=story2d-skip]', { timeout: 8000 }).then((b) => b.click()).catch(() => undefined);
   await page.waitForTimeout(3600);
   await shot(page, size, lang, 'end-xp');
   const end = await page.evaluate(() => window.__p0.state().end);
