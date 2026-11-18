@@ -8,10 +8,17 @@ import type { EndModeNote } from './ui/modeBits.ts';
 
 export { endStars } from './uiLayout.ts';
 
-/** `menu` = back to the world map. */
-export type EndAction = 'retry' | 'next' | 'menu';
+/** `menu` = back to the world map; `replay` = watch the run just played. */
+export type EndAction = 'retry' | 'replay' | 'next' | 'menu';
 
-const END_LABELS: Readonly<Record<EndAction, MsgKey>> = { retry: 'end.retry', next: 'end.next', menu: 'end.menu' };
+const END_LABELS: Readonly<Record<EndAction, MsgKey>> = { retry: 'end.retry', replay: 'end.replay', next: 'end.next', menu: 'end.menu' };
+
+/** Everything the board shows, to put it back after a replay. */
+export interface EndSnapshot {
+  readonly summary: EndSummary;
+  readonly hero: EndHeroXp | null;
+  readonly note: EndModeNote | null;
+}
 
 export interface EndSummary {
   readonly won: boolean;
@@ -24,6 +31,8 @@ export interface EndSummary {
   readonly totalWaves: number;
   /** Show the Next button (there is a next island). */
   readonly hasNext: boolean;
+  /** Show the Watch replay button (the run was recorded). */
+  readonly hasReplay?: boolean;
 }
 
 /**
@@ -130,7 +139,7 @@ export class EndPanel {
       this.stars.push({ empty, full });
       this.board.addChild(empty, full);
     }
-    for (const action of ['retry', 'next', 'menu'] as const) {
+    for (const action of ['retry', 'replay', 'next', 'menu'] as const) {
       const root = new Container();
       const bg = new Sprite(kit(art, action === 'next' ? 'medallionHi' : 'buttonRound', art.ui.button));
       bg.anchor.set(0.5);
@@ -259,6 +268,19 @@ export class EndPanel {
     this.summary = null;
   }
 
+  /** The board as shown (null when hidden). */
+  snapshot(): EndSnapshot | null {
+    if (!this.root.visible || !this.summary) return null;
+    return { summary: this.summary, hero: this.hero, note: this.note };
+  }
+
+  /** Shows a saved board again (the stars pop in again). */
+  restore(snap: EndSnapshot): void {
+    this.show(snap.summary);
+    if (snap.hero) this.setHero(snap.hero);
+    if (snap.note) this.annotate(snap.note);
+  }
+
   layout(w: number, h: number, insets: Insets = this.insets): void {
     this.w = w;
     this.h = h;
@@ -322,18 +344,22 @@ export class EndPanel {
     this.layoutHero(L, f);
     // Buttons: Retry / Next Isle / World Map (Next hidden when there is no open next island).
     const hasNext = this.summary?.hasNext ?? false;
-    const shown = this.buttons.filter((b) => b.action !== 'next' || hasNext);
+    const hasReplay = this.summary?.hasReplay ?? false;
+    const shown = this.buttons.filter((b) => (b.action !== 'next' || hasNext) && (b.action !== 'replay' || hasReplay));
     for (const b of this.buttons) b.root.visible = shown.includes(b);
+    // Four buttons: a little smaller and closer so they stay on the parchment.
+    const four = shown.length >= 4;
+    const step = four ? 3.05 : 3.4;
     shown.forEach((b, i) => {
       const k = i - (shown.length - 1) / 2;
-      const r = L.buttonR;
+      const r = four ? L.buttonR * 0.9 : L.buttonR;
       b.r = r;
-      b.root.position.set(L.summary.x + k * r * 3.4, L.buttons[0].y);
+      b.root.position.set(L.summary.x + k * r * step, L.buttons[0].y);
       b.bg.width = r * 2;
       b.bg.height = r * 2;
       setInkSize(b.label, Math.round(Math.max(13, r * 0.42)));
       setText(b.label, t(END_LABELS[b.action]));
-      fitWidth(b.label, r * 3.1);
+      fitWidth(b.label, r * (step - 0.3));
       b.label.position.set(0, r * 1.38);
       this.drawGlyph(b);
     });
@@ -415,6 +441,13 @@ export class EndPanel {
     } else if (b.action === 'next') {
       g.moveTo(-r * 0.22, -r * 0.34).lineTo(r * 0.36, 0).lineTo(-r * 0.22, r * 0.34).closePath();
       g.fill({ color: 0xfff4dc }).stroke(line);
+    } else if (b.action === 'replay') {
+      // Watch: a little picture frame on a stand with a play triangle in it.
+      g.roundRect(-r * 0.42, -r * 0.32, r * 0.84, r * 0.58, r * 0.09).fill({ color: 0xfff4dc }).stroke(line);
+      g.moveTo(-r * 0.14, r * 0.26).lineTo(-r * 0.22, r * 0.42).moveTo(r * 0.14, r * 0.26).lineTo(r * 0.22, r * 0.42);
+      g.stroke({ color: 0x3a2412, width: Math.max(2, r * 0.08), cap: 'round' });
+      g.moveTo(-r * 0.1, -r * 0.17).lineTo(r * 0.17, -r * 0.03).lineTo(-r * 0.1, r * 0.11).closePath();
+      g.fill({ color: 0xc8341f }).stroke({ color: 0x3a2412, width: Math.max(1.5, r * 0.05) });
     } else {
       // World map: a folded chart (three panels) with a dotted red route.
       const x0 = -r * 0.4;

@@ -429,7 +429,7 @@ export function createHeroHud2D(game: Game2D, opts: HeroHudOptions): HeroHud2D |
   window.addEventListener(
     'keydown',
     (e) => {
-      if (anySheetOpen() || e.ctrlKey || e.metaKey || e.altKey) return;
+      if (anySheetOpen() || game.replaying || e.ctrlKey || e.metaKey || e.altKey) return;
       if (e.key === 'Escape') {
         if (aiming !== null) setAim(null);
         return;

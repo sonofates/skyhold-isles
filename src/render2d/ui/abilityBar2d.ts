@@ -29,8 +29,6 @@ import {
   abilityDesc,
   abilityName,
   abilitySlotView,
-  castMeteor2D,
-  castOvercharge2D,
   secsLabel,
   slotStatus,
   type AbilitySlotView,
@@ -409,10 +407,10 @@ export function mountAbilityBar2D(game: Game2D, opts: AbilityBarOptions): Abilit
   }
 
   const commit = (p: { x: number; y: number }): void => {
-    const w = game.world;
     if (aiming === 'meteor') {
       if (!insideMap(p)) return;
-      if (castMeteor2D(w, game.map.worldXFromScreen(p.x), game.map.worldZFromScreen(p.y))) {
+      // Through the game's command layer (recorded for the replay); same castMeteor2D rules.
+      if (game.castAbility('meteor', game.map.worldXFromScreen(p.x), game.map.worldZFromScreen(p.y))) {
         haptics.pulse('tap');
         setAim(null);
       }
@@ -425,7 +423,7 @@ export function mountAbilityBar2D(game: Game2D, opts: AbilityBarOptions): Abilit
         return;
       }
       originTower = id;
-      if (castOvercharge2D(w)) {
+      if (game.castAbility('overcharge')) {
         haptics.pulse('tap');
         setAim(null);
       }
@@ -492,7 +490,7 @@ export function mountAbilityBar2D(game: Game2D, opts: AbilityBarOptions): Abilit
   window.addEventListener(
     'keydown',
     (e) => {
-      if (synthetic || anySheetOpen() || e.ctrlKey || e.metaKey || e.altKey) return;
+      if (synthetic || anySheetOpen() || game.replaying || e.ctrlKey || e.metaKey || e.altKey) return;
       if (e.key === 'Escape') {
         if (aiming) setAim(null);
         return;

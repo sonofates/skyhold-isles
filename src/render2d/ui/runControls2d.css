@@ -1,0 +1,176 @@
+/* Run flow controls (runControls2d.ts): pause menu, confirm board, replay player. */
+
+/* ---- pause menu: a row of small planks under the "Paused" plate ----------------------------- */
+.pu-pause-menu {
+  position: fixed;
+  z-index: 30;
+  transform: translateX(-50%);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: calc(var(--s) * 0.5) calc(var(--s) * 0.7);
+  width: max-content;
+  max-width: calc(100vw - 24px);
+}
+
+.pu-pause-menu .pu-plank {
+  min-height: 44px;
+}
+
+/* Resume is the main way out: a warm glow like the kit's primary plank, but plank-sized. */
+.pu-pause-menu .pu-pause-resume {
+  border-image-source: url('/art2d/ui/button-go.webp');
+  filter: drop-shadow(0 0 calc(var(--s) * 0.45) rgba(255, 205, 90, 0.9)) drop-shadow(0 3px 2px rgba(30, 16, 4, 0.45));
+}
+
+/* ---- confirm board ----------------------------------------------------------------------- */
+.pu-sheet.pu-confirm {
+  width: min(max(calc(var(--s) * 34), 440px), 92vw);
+}
+
+.pu-confirm .pu-confirm-text {
+  margin: calc(var(--s) * 0.4) calc(var(--s) * 0.6) calc(var(--s) * 1.2);
+  font-size: calc(var(--s) * 1.35);
+  line-height: 1.35;
+  text-align: center;
+  color: var(--ink);
+}
+
+.pu-confirm .pu-confirm-row {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: calc(var(--s) * 1);
+  padding-bottom: calc(var(--s) * 0.4);
+}
+
+.pu-confirm .pu-confirm-yes {
+  border-image-source: url('/art2d/ui/button-go.webp');
+}
+
+/* ---- replay player ------------------------------------------------------------------------ */
+.pu-replay-bar {
+  position: fixed;
+  z-index: 31;
+  top: max(8px, var(--safe-t));
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: calc(var(--s) * 0.35);
+  padding: calc(var(--s) * 0.5) calc(var(--s) * 1.1) calc(var(--s) * 0.6);
+  border-style: solid;
+  border-width: calc(var(--s) * 1.1);
+  border-image: url('/art2d/ui-plaque.webp') 42 64 fill stretch;
+  filter: drop-shadow(0 4px 3px rgba(30, 16, 4, 0.45));
+  animation: pu-replay-in 0.28s ease-out;
+}
+
+@keyframes pu-replay-in {
+  from {
+    transform: translate(-50%, -30%);
+    opacity: 0;
+  }
+}
+
+.pu-replay-row {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--s) * 0.8);
+}
+
+.pu-replay-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35em;
+  font-size: calc(var(--s) * 1.45);
+  color: var(--cream);
+  white-space: nowrap;
+}
+
+.pu-replay-badge > .pu-glyph {
+  width: 1.4em;
+  height: 1.4em;
+}
+
+.pu-replay-wave {
+  min-width: 6.5em;
+  font-size: calc(var(--s) * 1.2);
+  color: #ffe6a8;
+  white-space: nowrap;
+}
+
+.pu-replay-bar .pu-round {
+  width: calc(var(--s) * 3.4);
+  height: calc(var(--s) * 3.4);
+  min-width: 40px;
+  min-height: 40px;
+}
+
+.pu-replay-speeds {
+  display: inline-flex;
+  gap: calc(var(--s) * 0.3);
+}
+
+.pu-replay-speed {
+  min-width: max(40px, calc(var(--s) * 3.2));
+  height: max(36px, calc(var(--s) * 2.7));
+  padding: 0 0.4em;
+  border-radius: 999px;
+  font-size: calc(var(--s) * 1.3);
+  color: var(--cream);
+  background: rgba(40, 22, 8, 0.55);
+  box-shadow: inset 0 0 0 2px rgba(255, 230, 170, 0.25);
+  transition: background 0.12s, transform 0.08s;
+}
+
+.pu-replay-speed[aria-pressed='true'] {
+  background: radial-gradient(circle at 40% 30%, #f7c95a, #c9861c 75%);
+  box-shadow: 0 0 0 2px var(--outline), 0 0 calc(var(--s) * 0.6) rgba(255, 210, 100, 0.8);
+}
+
+.pu-replay-speed:active {
+  transform: scale(0.95);
+}
+
+.pu-replay-track {
+  height: max(5px, calc(var(--s) * 0.45));
+  border-radius: 999px;
+  background: rgba(40, 22, 8, 0.7);
+  box-shadow: 0 0 0 1.5px rgba(255, 230, 170, 0.35);
+  overflow: hidden;
+}
+
+.pu-replay-fill {
+  display: block;
+  height: 100%;
+  width: 0;
+  border-radius: inherit;
+  background: linear-gradient(#ffe9a0, #e6a72e);
+}
+
+.pu-replay-keys {
+  font-size: calc(var(--s) * 0.95);
+  text-align: center;
+  color: rgba(255, 240, 210, 0.85);
+}
+
+/* While watching, the ability / hero bar is for show only. */
+.pu-replaying .pu-abilities,
+.pu-replaying .pu-hero-group {
+  pointer-events: none;
+}
+
+.pu-replaying .pu-abilities {
+  opacity: 0.75;
+}
+
+@media (max-height: 480px) {
+  .pu-replay-bar {
+    padding: 2px calc(var(--s) * 0.8) 4px;
+  }
+  .pu-replay-keys {
+    display: none;
+  }
+}

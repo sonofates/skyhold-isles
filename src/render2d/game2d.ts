@@ -47,6 +47,17 @@ import { TowerLayer } from './towerLayer.ts';
 import { anySheetOpen } from './ui/dom.ts';
 import { readSafeInsets } from './uiKit.ts';
 import { NO_INSETS, type Insets } from './uiLayout.ts';
+import { applyRunCommand, ReplayCursor, RunRecorder, runFingerprint, sameFingerprint, type RunCommand, type RunReplay } from './ui/replay2d.ts';
+
+/** Replay viewer speeds (the live game cycles 1× / 2× / 3×). */
+export const REPLAY_SPEEDS = [1, 2, 4] as const;
+const LIVE_SPEEDS = [1, 2, 3] as const;
+
+/** The next speed in a cycle (unknown speeds restart it). */
+export function nextSpeed(cycle: readonly number[], s: number): number {
+  const i = cycle.indexOf(s);
+  return cycle[(i + 1) % cycle.length];
+}
 
 // This module is loaded by both routes of 2d.html, including the DOM-only world map.
 // Install gesture listeners before async artwork loading, so a tap during boot can unlock audio.
@@ -80,6 +91,8 @@ export interface Game2DHooks {
   onBackgroundChange?: (inBackground: boolean) => void;
   /** Default starting quality tier when no `?quality=` override is locked. */
   initialUnlockedTier?: QualityTier;
+  /** A replay started (true) or the game went back to live play (false). */
+  onReplay?: (on: boolean) => void;
 }
 
 const SYNC_PIXEL = new Uint8Array(4);
@@ -159,11 +172,30 @@ export class Game2D {
   /** Tesla bolts waiting for their tower's painted release frame (pooled, sim seconds left). */
   private readonly boltQueue: { t: number; points: Vec3[]; count: number; view: Vec3[]; overload: boolean; muzzle: number }[] = [];
   private boltActive = 0;
+  /** Fixed sim ticks run this run (the replay clock). */
+  private ticks = 0;
+  /** Commands of the live run (null while a replay plays). */
+  private recorder: RunRecorder | null = null;
+  /** The replay being shown (stays set after it ends / is left, until the next live run). */
+  private replayCursor: ReplayCursor | null = null;
+  /** The last finished live run, ready to be watched. */
+  lastReplay: RunReplay | null = null;
+  /** The end board of that run (restored when the replay ends or is left). */
+  private lastEnd: ReturnType<EndPanel['snapshot']> = null;
+  /** Did the last replay reproduce its run exactly (null = not finished)? */
+  replayMatched: boolean | null = null;
   private readonly onFixedTick = (fixedDt: number): void => {
     this.simClockSec += fixedDt;
+    // The run clock stops with the run (the end tick must not depend on how frames chunk ticks).
+    if (this.world.outcome !== 'ongoing' && !this.hooks.endless) return;
+    this.replayCursor?.applyDue(this.world, this.ticks);
     this.hooks.beforeTick?.(this.world);
     this.world.fixedTick(fixedDt);
+    this.ticks++;
+    this.tickProbe?.(this.world, this.ticks);
   };
+  /** QA: called after every fixed tick (replay determinism traces). */
+  tickProbe: ((world: SimWorld, tick: number) => void) | null = null;
   private readonly plotStateFn = (i: number): PlotState => {
     const id = this.world.grid.getTowerIdAt(i, 0);
     if (id === -1) return 'free';
@@ -286,8 +318,78 @@ export class Game2D {
     haptics.setEnabled(shouldVibrate2D(this.currentSettings(), isTouchDevice()));
   }
 
-  /** Starts (or restarts) a run on the level. */
-  newRun(): void {
+  /** Live play: records every command for the replay. Replay: commands come from the recording only. */
+  get replaying(): boolean {
+    return this.replayCursor !== null;
+  }
+
+  /** Replay progress 0..1 (by sim tick), 0 in live play. */
+  get replayProgress(): number {
+    return this.replayCursor ? this.replayCursor.progress(this.ticks) : 0;
+  }
+
+  /** Sim ticks run so far this run. */
+  get tickCount(): number {
+    return this.ticks;
+  }
+
+  /**
+   * The one way the UI changes the sim: records the command (live play) and applies it. While a
+   * replay plays, player commands are ignored (false).
+   */
+  command(c: RunCommand): boolean {
+    if (this.replayCursor) return false;
+    this.recorder?.push(this.ticks, c);
+    return applyRunCommand(this.world, c);
+  }
+
+  /** Watches the last finished run again from its first tick (same island, rules, hero and seed). */
+  startReplay(): boolean {
+    const r = this.lastReplay;
+    if (!r) return false;
+    this.newRun(r);
+    return true;
+  }
+
+  /** Leaves a replay: back to the run's end board (the world under it stays where the replay was). */
+  exitReplay(): void {
+    if (!this.replayCursor) return;
+    this.stepper.simActive = false;
+    this.showEnd();
+  }
+
+  /** Replay viewer speed (1× / 2× / 4×). */
+  setReplaySpeed(s: number): void {
+    if (!this.replayCursor) return;
+    (this.stepper as { speed: number }).speed = (REPLAY_SPEEDS as readonly number[]).includes(s) ? s : 1;
+  }
+
+  /** Sets the live game speed (1× / 2× / 3×) and records it. */
+  setSpeed(s: SpeedMultiplier): void {
+    if (this.replayCursor) {
+      this.setReplaySpeed(s);
+      return;
+    }
+    if (this.stepper.speed === s) return;
+    this.stepper.speed = s;
+    this.command({ k: 'speed', s });
+  }
+
+  /** Speed button / key cycle: 1×→2×→3× live, 1×→2×→4× in a replay. */
+  cycleSpeed(): void {
+    if (this.replayCursor) this.setReplaySpeed(nextSpeed(REPLAY_SPEEDS, this.stepper.speed));
+    else this.setSpeed(nextSpeed(LIVE_SPEEDS, this.stepper.speed) as SpeedMultiplier);
+  }
+
+  /** Starts (or restarts) a run on the level; with `replay`, plays that recorded run back instead. */
+  newRun(replay?: RunReplay): void {
+    const wasReplay = this.replayCursor !== null;
+    this.ticks = 0;
+    this.replayCursor = replay ? new ReplayCursor(replay) : null;
+    this.recorder = replay ? null : new RunRecorder(this.level.id);
+    this.replayMatched = null;
+    // Entering / leaving a replay starts at 1× (a live retry keeps the player's speed).
+    if (wasReplay !== !!replay) this.stepper.speed = 1;
     this.unbindHaptics?.();
     this.unbindAudio?.();
     this.refreshSettings();
@@ -340,6 +442,7 @@ export class Game2D {
     }
     this.wireEvents();
     if (Number.isSafeInteger(this.benchWave) && this.benchWave > 0) this.world.debugSkipToWave(this.benchWave);
+    if (wasReplay !== !!replay) this.hooks.onReplay?.(!!replay);
   }
 
   private wireEvents(): void {
@@ -644,22 +747,42 @@ export class Game2D {
 
     const over = this.syncHud(dtSec);
     if (over && !this.endShown) {
-      this.endShown = true;
-      this.closeRing();
-      const won = world.outcome === 'won';
-      this.end.show({
-        won,
-        stars: endStars(won, won ? world.computeStars() : 0),
-        lives: world.lives,
-        startLives: world.startingLives,
-        gold: world.gold,
-        wave: this.hudState.wave,
-        totalWaves: this.hudState.totalWaves,
-        hasNext: !!this.hooks.onNext,
-      });
-      this.hooks.onEndPanel?.(true);
+      if (this.replayCursor) {
+        this.replayMatched = sameFingerprint(runFingerprint(world, this.ticks), this.replayCursor.replay.end);
+        if (!this.replayMatched) console.warn('[replay] the replay did not reproduce the run', runFingerprint(world, this.ticks), this.replayCursor.replay.end);
+        this.showEnd();
+      } else {
+        if (this.recorder) this.lastReplay = this.recorder.finish(world, this.ticks);
+        this.endShown = true;
+        this.closeRing();
+        const won = world.outcome === 'won';
+        this.end.show({
+          won,
+          stars: endStars(won, won ? world.computeStars() : 0),
+          lives: world.lives,
+          startLives: world.startingLives,
+          gold: world.gold,
+          wave: this.hudState.wave,
+          totalWaves: this.hudState.totalWaves,
+          hasNext: !!this.hooks.onNext,
+          hasReplay: !!this.lastReplay && !this.hooks.endless,
+        });
+        // main2d fills in the hero XP / mode note in this callback; the board is kept after it.
+        this.hooks.onEndPanel?.(true);
+        this.lastEnd = this.end.snapshot();
+      }
     }
     this.end.update(dtSec);
+  }
+
+  /** Replay ended / left: the recorded run's own end board (hero XP, mode notes) comes back. */
+  private showEnd(): void {
+    if (this.endShown) return;
+    this.endShown = true;
+    this.closeRing();
+    this.setHeroSelected(false);
+    if (this.lastEnd) this.end.restore(this.lastEnd);
+    this.hooks.onEndPanel?.(true);
   }
 
   private syncHud(dtSec: number, force = false): boolean {
@@ -699,7 +822,7 @@ export class Game2D {
    * keeping play paused on resume until the player deliberately unpauses.
    */
   pauseForBackground(): boolean {
-    if (this.hooks.endless || this.endShown || this.world.outcome !== 'ongoing') return false;
+    if (this.hooks.endless || this.endShown || this.world.outcome !== 'ongoing' || !this.stepper.simActive) return false;
     this.down = null;
     this.hoverPlot = -1;
     this.closeRing();
@@ -744,32 +867,32 @@ export class Game2D {
 
   /** Orders the active hero to walk along the ground road graph to world coordinates `(worldX, worldZ)`. */
   commandHeroMove(worldX: number, worldZ: number): boolean {
-    return this.world.commandHeroMove(worldX, worldZ);
+    return this.command({ k: 'heroMove', x: worldX, z: worldZ });
   }
 
   /** Orders the active hero to walk along the ground road graph to screen (css px) coordinates `(screenX, screenY)`. */
   commandHeroMoveAtScreen(screenX: number, screenY: number): boolean {
-    return this.world.commandHeroMove(this.map.worldXFromScreen(screenX), this.map.worldZFromScreen(screenY));
+    return this.commandHeroMove(this.map.worldXFromScreen(screenX), this.map.worldZFromScreen(screenY));
   }
 
   /** Casts hero active skill `slot` (`0` or `1`) at optional world coordinates `(worldX, worldZ)`. */
   castHeroSkill(slot: HeroSkillSlot, worldX = NaN, worldZ = NaN): boolean {
-    return this.world.castHeroSkill(slot, worldX, worldZ);
+    return this.command({ k: 'heroSkill', slot, x: Number.isFinite(worldX) ? worldX : null, z: Number.isFinite(worldZ) ? worldZ : null });
   }
 
   /** Casts hero active skill `slot` (`0` or `1`) targeting screen (css px) coordinates `(screenX, screenY)`. */
   castHeroSkillAtScreen(slot: HeroSkillSlot, screenX: number, screenY: number): boolean {
-    return this.world.castHeroSkill(slot, this.map.worldXFromScreen(screenX), this.map.worldZFromScreen(screenY));
+    return this.castHeroSkill(slot, this.map.worldXFromScreen(screenX), this.map.worldZFromScreen(screenY));
   }
 
   /** Casts a global active ability (`'meteor'` or `'overcharge'`) at optional world coordinates `(worldX, worldZ)`. */
   castAbility(id: AbilityId, worldX = 0, worldZ = 0): boolean {
-    return this.world.castAbility(id, worldX, worldZ);
+    return id === 'meteor' ? this.command({ k: 'meteor', x: worldX, z: worldZ }) : this.command({ k: 'overcharge' });
   }
 
   /** Casts a global active ability (`'meteor'` or `'overcharge'`) targeting screen (css px) coordinates `(screenX, screenY)`. */
   castAbilityAtScreen(id: AbilityId, screenX: number, screenY: number): boolean {
-    return this.world.castAbility(id, this.map.worldXFromScreen(screenX), this.map.worldZFromScreen(screenY));
+    return this.castAbility(id, this.map.worldXFromScreen(screenX), this.map.worldZFromScreen(screenY));
   }
 
   /** Snapshot of the active hero and its two skill cooldowns (`null` when running without a hero). */
@@ -790,7 +913,7 @@ export class Game2D {
   /** Selects / deselects the hero (move mode). Opening it closes the build ring. */
   setHeroSelected(on: boolean): void {
     const h = this.world?.hero;
-    const ok = on && !!h && h.state !== 'dead' && this.world.outcome === 'ongoing';
+    const ok = on && !!h && h.state !== 'dead' && this.world.outcome === 'ongoing' && !this.replayCursor;
     if (ok && this.ring.isOpen) this.closeRing();
     if (ok) this.rallyTower = -1;
     const was = this.heroSel;
@@ -832,13 +955,13 @@ export class Game2D {
       this.heroes.flashInvalid(wx, wz);
       return false;
     }
-    if (this.world.commandHeroMove(wx, wz)) haptics.pulse('tap');
+    if (this.commandHeroMove(wx, wz)) haptics.pulse('tap');
     return true;
   }
 
   /** Desktop right click: with the hero selected, a move order that keeps it selected. */
   rightClick(x: number, y: number): void {
-    if (this.end.visible || this.stepper.paused || !this.heroSel) return;
+    if (this.end.visible || this.stepper.paused || !this.heroSel || this.replayCursor) return;
     if (this.ring.isOpen) this.closeRing();
     this.heroMoveAt(x, y);
   }
@@ -914,14 +1037,14 @@ export class Game2D {
     const world = this.world;
     const plot = this.ring.plot;
     if (action.kind === 'build') {
-      world.placeTowerOnPlot(plot, action.type);
+      this.command({ k: 'build', plot, type: action.type });
     } else if (action.kind === 'upgrade') {
-      if (this.selectedTower !== -1) world.upgradeTower(this.selectedTower);
+      if (this.selectedTower !== -1) this.command({ k: 'upgrade', id: this.selectedTower });
     } else if (action.kind === 'target') {
       const t = this.selectedTower !== -1 ? world.getTowerById(this.selectedTower) : null;
       if (t) {
         const next = TARGET_CYCLE[(TARGET_CYCLE.indexOf(t.targetingMode) + 1) % TARGET_CYCLE.length];
-        world.setTowerTargeting(t.id, next);
+        this.command({ k: 'target', id: t.id, mode: next });
         this.ring.setTargetMode(next);
       }
       return;
@@ -932,7 +1055,7 @@ export class Game2D {
       this.rallyTower = id;
       return;
     } else {
-      if (this.selectedTower !== -1) world.sellTower(this.selectedTower);
+      if (this.selectedTower !== -1) this.command({ k: 'sell', id: this.selectedTower });
     }
     this.closeRing();
   }
@@ -943,8 +1066,16 @@ export class Game2D {
     if (this.end.visible) {
       const a = this.end.hit(x, y);
       if (a === 'retry') this.newRun();
+      else if (a === 'replay') this.startReplay();
       else if (a === 'next') this.hooks.onNext?.();
       else if (a === 'menu') this.hooks.onMenu?.();
+      return;
+    }
+    if (this.replayCursor) {
+      // Watching: only the pause / speed buttons answer (the replay bar has the rest).
+      const hudHit = this.hud.hit(x, y);
+      if (hudHit === 'pause') this.stepper.paused = !this.stepper.paused;
+      else if (hudHit === 'speed') this.cycleSpeed();
       return;
     }
     if (world.outcome !== 'ongoing' && !this.hooks.endless) return;
@@ -957,15 +1088,15 @@ export class Game2D {
     if (hudHit) {
       this.closeRing();
       if (hudHit === 'pause') this.stepper.paused = !this.stepper.paused;
-      else if (hudHit === 'speed') this.stepper.speed = (this.stepper.speed === 1 ? 2 : 1) as SpeedMultiplier;
-      else if (hudHit === 'horn' && !this.stepper.paused) world.startNextWave();
+      else if (hudHit === 'speed') this.cycleSpeed();
+      else if (hudHit === 'horn' && !this.stepper.paused) this.command({ k: 'wave' });
       return;
     }
     if (this.stepper.paused) return;
     const wx = this.map.worldXFromScreen(x);
     const wz = this.map.worldZFromScreen(y);
     if (this.rallyTower !== -1) {
-      world.setRallyPoint(this.rallyTower, wx, wz);
+      this.command({ k: 'rally', id: this.rallyTower, x: wx, z: wz });
       this.closeRing();
       return;
     }
@@ -1038,6 +1169,11 @@ export class Game2D {
     // Desktop hover: glow the free plot under the mouse (touch has no hover).
     canvas.addEventListener('pointermove', (e) => {
       if (e.pointerType !== 'mouse') return;
+      if (this.replayCursor) {
+        this.hoverPlot = -1;
+        canvas.style.cursor = '';
+        return;
+      }
       const r = canvas.getBoundingClientRect();
       if (this.ring.isOpen && this.ring.hover(e.clientX - r.left, e.clientY - r.top)) {
         this.hoverPlot = -1;
@@ -1091,10 +1227,22 @@ export class Game2D {
     window.addEventListener('keydown', (e) => {
       // Settings / Codex sheets own the keyboard while open (and keep the run paused).
       if (anySheetOpen()) return;
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      if (this.replayCursor) {
+        // Replay viewer: Space pauses, 1 / 2 / 4 pick the speed, Esc leaves it.
+        if (this.endShown) return;
+        if (e.key === ' ') this.stepper.paused = !this.stepper.paused;
+        else if (e.key === '1' || e.key === '2' || e.key === '4') this.setReplaySpeed(Number(e.key));
+        else if (e.key === 'Escape') this.exitReplay();
+        else return;
+        e.preventDefault();
+        return;
+      }
       if (e.key === ' ') this.stepper.paused = !this.stepper.paused;
-      else if (e.key === '1') this.stepper.speed = 1;
-      else if (e.key === '2') this.stepper.speed = 2;
-      else if (e.key === 'n' || e.key === 'N') this.world.startNextWave();
+      else if (e.key === '1') this.setSpeed(1);
+      else if (e.key === '2') this.setSpeed(2);
+      else if (e.key === '3') this.setSpeed(3);
+      else if (e.key === 'n' || e.key === 'N') this.command({ k: 'wave' });
       else if ((e.key === 'h' || e.key === 'H') && !e.repeat && !e.ctrlKey && !e.metaKey && !this.stepper.paused) this.setHeroSelected(!this.heroSel);
       else if (e.key === 'Escape') {
         this.closeRing();
@@ -1142,6 +1290,15 @@ export class Game2D {
       abilities: w.getAbilitiesState(),
       paused: this.stepper.paused,
       speed: this.stepper.speed,
+      ticks: this.ticks,
+      replay: {
+        playing: !!this.replayCursor,
+        recorded: this.recorder?.count ?? 0,
+        last: this.lastReplay ? { commands: this.lastReplay.commands.length, endTick: this.lastReplay.endTick, end: this.lastReplay.end } : null,
+        applied: this.replayCursor?.applied ?? 0,
+        progress: this.replayProgress,
+        matched: this.replayMatched,
+      },
       towers: w.towers.map((t) => ({ id: t.id, type: t.type, tier: t.tier, plot: t.col, targeting: t.targetingMode })),
       ring: { open: this.ring.isOpen, mode: this.ring.mode, plot: this.ring.plot, tokens: this.ring.tokenPositions(), layout: this.ring.layoutInfo, rangeShown: this.rangeDisc.visible },
       hud: this.hud.rects(),

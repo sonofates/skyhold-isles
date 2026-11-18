@@ -12,10 +12,11 @@ import { AimOverlay, aimHooks, meleeHooks, towersHooks, zooHooks, ZooLabels, typ
 import { ENEMY_TYPES } from '../data/enemies.ts';
 import type { EnemyType } from '../core/types.ts';
 import { FrameStats } from './frameStats.ts';
-import { Game2D, type Game2DHooks } from './game2d.ts';
+import { Game2D, REPLAY_SPEEDS, type Game2DHooks } from './game2d.ts';
 import { heroLevelProgress, resolveHeroForRun } from './heroes2d.ts';
 import type { HeroHud2D } from './ui/heroHud2d.ts';
 import type { HeroSkillSlot } from '../core/types.ts';
+import type { RunCommand } from './ui/replay2d.ts';
 import { HUD_FONT } from './hudText.ts';
 import { detectSoftwareWebGL, isDesktopClient, qualityOverride, renderResolution, setGraphicsPrefs, type QualityTier } from './renderResolution.ts';
 import { setFxPrefs } from './fxLayer.ts';
@@ -94,6 +95,19 @@ declare global {
       aimAbility?: (id: AbilityId | null) => void;
       /** QA: stop / restart the ticker (a frozen frame for mid-effect screenshots, no Paused plate). */
       freeze?: (on: boolean) => void;
+      /** QA: watch the last run / leave it / viewer speed / restart the island now (no confirm). */
+      replay?: {
+        start: () => boolean;
+        exit: () => void;
+        speed: (s: number) => void;
+        restart: () => void;
+        /** A player command through the recorded command layer. */
+        cmd: (c: RunCommand) => boolean;
+        /** Runs `frames` game frames of 0.1 s right now (fast-forward for QA). */
+        step: (frames: number) => void;
+        /** Per-tick callback (determinism traces), null to stop. */
+        probe: (fn: ((world: import('../sim/world.ts').SimWorld, tick: number) => void) | null) => void;
+      };
       /** QA: the hero (HUD + render + sim state) and commands as the player would give them. */
       hero?: {
         state: () => Record<string, unknown>;
@@ -365,6 +379,7 @@ async function main(): Promise<void> {
   // and shows the island's after-battle story once; QA / debug scenes record nothing.
   const plainPlay = Object.keys(hooks).length === 0 && !q.has('end') && bench === 0;
   let codexRef: { setButtonVisible(v: boolean): void } | null = null;
+  let pauseMenu: import('./ui/runControls2d.ts').PauseMenu2D | null = null;
   let settingsRef: Settings2D | null = null;
   let gameRef: Game2D | null = null;
   let codexWasPaused = false;
@@ -388,6 +403,24 @@ async function main(): Promise<void> {
   window.addEventListener('focus', refreshLiveSettings, { capture: true });
   let abilities: AbilityBar2D | null = null;
   let heroHud: HeroHud2D | null = null;
+  let replayBar: import('./ui/runControls2d.ts').ReplayBar2D | null = null;
+  // Endless run left early (World Map / Restart): its best wave still goes on the board.
+  const recordEndlessQuit = (): void => {
+    const w = gameRef?.world;
+    if (!plainPlay || !w || !run.runConfig.endless || w.outcome !== 'ongoing' || gameRef?.replaying) return;
+    routing.recordRunOutcome({
+      levelId: level.id,
+      won: false,
+      stars: 0,
+      livesRemaining: w.lives,
+      waveReached: w.waveSystem.currentWaveOneBased,
+      runConfig: run.runConfig,
+      heroId: w.hero?.heroId ?? null,
+      enemiesKilled: w.enemiesKilledTotal,
+      wavesCleared: Math.max(0, w.waveSystem.currentWaveOneBased - 1),
+      heroXpEarned: w.heroSystem.runXp,
+    });
+  };
   hooks = {
     ...baseHooks,
     modifiers: run.modifiers,
@@ -412,8 +445,10 @@ async function main(): Promise<void> {
       settingsRef?.setButtonVisible(!shown);
       abilities?.setVisible(!shown && !storyOpen);
       heroHud?.setVisible(!shown && !storyOpen);
+      replayBar?.setVisible(!shown && !!gameRef?.replaying);
       const w = gameRef?.world;
-      if (!shown || !w) return;
+      // A replay's end shows the recorded run's own board again: nothing is recorded twice.
+      if (!shown || !w || gameRef?.replaying) return;
       const won = w.outcome === 'won';
       let heroRecorded = false;
       if (plainPlay) {
@@ -477,22 +512,14 @@ async function main(): Promise<void> {
       if (won && (plainPlay || story === 'outro')) void routing.playStoryOnce(level, 'outro', art.manifest, art.baseUrl, story === 'outro');
     },
     onMenu: () => {
-      const w = gameRef?.world;
-      if (plainPlay && w && run.runConfig.endless && w.outcome === 'ongoing') {
-        routing.recordRunOutcome({
-          levelId: level.id,
-          won: false,
-          stars: 0,
-          livesRemaining: w.lives,
-          waveReached: w.waveSystem.currentWaveOneBased,
-          runConfig: run.runConfig,
-          heroId: w.hero?.heroId ?? null,
-          enemiesKilled: w.enemiesKilledTotal,
-          wavesCleared: Math.max(0, w.waveSystem.currentWaveOneBased - 1),
-          heroXpEarned: w.heroSystem.runXp,
-        });
-      }
+      recordEndlessQuit();
       location.assign(routing.worldMapHref());
+    },
+    onReplay: (on) => {
+      document.documentElement.classList.toggle('pu-replaying', on);
+      abilities?.aim(null);
+      heroHud?.aim(null);
+      replayBar?.setVisible(on && !gameRef?.end.visible);
     },
     get onNext() {
       const next = routing.nextIslandOpen(level.id, gameRef?.world.outcome === 'won');
@@ -575,6 +602,49 @@ async function main(): Promise<void> {
       () => undefined,
     );
     settingsRef = settings;
+    const { mountPauseMenu, mountReplayBar, confirmBoard } = await import('./ui/runControls2d.ts');
+    let asking = false;
+    const ask = async (kind: 'restart' | 'leave'): Promise<boolean> => {
+      if (asking) return false;
+      asking = true;
+      const endless = run.runConfig.endless;
+      const ok = await confirmBoard(
+        kind === 'restart'
+          ? { title: t('confirm.restartTitle'), body: t('confirm.restartBody'), yes: t('confirm.restartYes'), no: t('confirm.cancel'), testid: 'confirm-restart' }
+          : { title: t('confirm.leaveTitle'), body: t(endless ? 'confirm.leaveBodyEndless' : 'confirm.leaveBody'), yes: t('confirm.leaveYes'), no: t('confirm.cancel'), testid: 'confirm-leave' },
+      );
+      asking = false;
+      return ok;
+    };
+    pauseMenu = mountPauseMenu({
+      resume: () => {
+        game.stepper.paused = false;
+      },
+      restart: () => {
+        void ask('restart').then((ok) => {
+          if (!ok) return;
+          recordEndlessQuit();
+          game.newRun();
+        });
+      },
+      settings: () => settings.open(),
+      map: () => {
+        void ask('leave').then((ok) => {
+          if (ok) hooks.onMenu?.();
+        });
+      },
+    });
+    replayBar = mountReplayBar(
+      {
+        togglePause: () => {
+          game.stepper.paused = !game.stepper.paused;
+        },
+        setSpeed: (sp) => game.setReplaySpeed(sp),
+        exit: () => game.exitReplay(),
+      },
+      REPLAY_SPEEDS,
+      desktop,
+    );
     if (q.get('codex') === '1') codex.open();
     else if (q.get('settings') === '1') settings.open();
     // Story panels before an island's first play (map → Play / Next Isle add &intro=1; ?story=intro forces them).
@@ -625,7 +695,10 @@ async function main(): Promise<void> {
       fpsShownAt = t0;
       fpsChip.show(stats.snapshot(t0).fps);
     }
-    settingsRef?.setPausePlate(storyOpen || anySheetOpen() ? null : game.hud.pausePlate);
+    pauseMenu?.setPlate(storyOpen || anySheetOpen() || game.replaying ? null : game.hud.pausePlate);
+    if (game.replaying && !game.end.visible) {
+      replayBar?.update({ paused: game.stepper.paused, speed: game.stepper.speed, progress: game.replayProgress, wave: game.hud.waveLabel });
+    }
     zooLabels?.update();
     aimOverlay?.update();
     renderStart = performance.now();
@@ -647,6 +720,19 @@ async function main(): Promise<void> {
     abilities: () => abilities?.debug() ?? null,
     aimAbility: (id) => abilities?.aim(id),
     freeze: (on) => (on ? app.ticker.stop() : app.ticker.start()),
+    replay: {
+      start: () => game.startReplay(),
+      exit: () => game.exitReplay(),
+      speed: (sp) => game.setReplaySpeed(sp),
+      restart: () => game.newRun(),
+      cmd: (c) => game.command(c),
+      step: (frames) => {
+        for (let i = 0; i < frames; i++) game.frame(0.1);
+      },
+      probe: (fn) => {
+        game.tickProbe = fn;
+      },
+    },
     hero: {
       state: () => ({ hud: heroHud?.debug() ?? null, view: game.heroes.debug(), sim: game.getHeroState(), selected: game.heroSelected }),
       select: (on) => game.setHeroSelected(on),

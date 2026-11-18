@@ -110,8 +110,11 @@ export function sameFingerprint(a: RunFingerprint, b: RunFingerprint): boolean {
 /** Collects the commands of the run being played. */
 export class RunRecorder {
   private commands: RecordedCommand[] = [];
+  readonly levelId: string;
 
-  constructor(readonly levelId: string) {}
+  constructor(levelId: string) {
+    this.levelId = levelId;
+  }
 
   push(tick: number, c: RunCommand): void {
     this.commands.push({ t: tick, c });
@@ -129,8 +132,11 @@ export class RunRecorder {
 /** Feeds a recorded run back into a fresh world, tick by tick. */
 export class ReplayCursor {
   private next = 0;
+  readonly replay: RunReplay;
 
-  constructor(readonly replay: RunReplay) {}
+  constructor(replay: RunReplay) {
+    this.replay = replay;
+  }
 
   /** Applies every command given after `tick` ticks (call before running tick `tick + 1`). */
   applyDue(world: SimWorld, tick: number): number {
