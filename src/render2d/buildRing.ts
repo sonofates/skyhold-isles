@@ -612,7 +612,9 @@ export class BuildRing {
     const c = t.tip;
     const poor = t.cost !== null && !t.enabled;
     c.hintBad = poor ? `Need ${t.cost} gold` : '';
-    if (i !== this.selected) c.hint = c.hint ? 'Tap to choose' : '';
+    const maxed = t.action?.kind === 'upgrade' && t.cost === null;
+    if (maxed) c.hint = '';
+    else if (i !== this.selected) c.hint = 'Tap to choose';
     else c.hint = t.action?.kind === 'build' ? 'Tap again to build' : t.action?.kind === 'upgrade' ? 'Tap again to upgrade' : t.action?.kind === 'sell' ? 'Tap again to sell' : '';
     this.tooltip.set(c, this.u);
     const p = placeTooltip(this.box, this.tooltip.w, this.tooltip.h, this.screenW, this.screenH, this.insets);
