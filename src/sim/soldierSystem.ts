@@ -39,6 +39,8 @@ export interface SoldierEntity {
   /** Claimed enemy (pool index + uid; pool slots are reused), -1 / 0 when none. */
   targetPoolIndex: number;
   targetUid: number;
+  /** Render-facing only: the next blow was announced (`meleeSwing`); never read by the rules. */
+  swingArmed: boolean;
 }
 
 export interface BarracksState {
@@ -100,6 +102,8 @@ export class SoldierSystem {
   private readonly claims: Int16Array;
   private readonly wasBlocked: Uint8Array;
   private readonly primary: Int32Array;
+  /** Render-facing only: a held enemy's next blow was announced (`meleeSwing`). */
+  private readonly enemyArmed: Uint8Array;
 
   private readonly pool: ObjectPool<EnemyEntity>;
   private readonly spatialHash: SpatialHashGrid;
@@ -115,6 +119,7 @@ export class SoldierSystem {
     this.claims = new Int16Array(n);
     this.wasBlocked = new Uint8Array(n);
     this.primary = new Int32Array(n).fill(-1);
+    this.enemyArmed = new Uint8Array(n);
   }
 
   getBarracks(towerId: number): BarracksState | null {
@@ -287,6 +292,7 @@ export class SoldierSystem {
       hitFlashTimer: 0,
       targetPoolIndex: -1,
       targetUid: 0,
+      swingArmed: false,
     };
     b.squad.push(s);
     this.soldiers.push(s);
@@ -305,6 +311,7 @@ export class SoldierSystem {
     s.hitFlashTimer = 0;
     s.targetPoolIndex = -1;
     s.targetUid = 0;
+    s.swingArmed = false;
     this.events.emit('soldierSpawned', { soldierId: s.id, towerId: b.towerId, x: s.x, z: s.z });
   }
 
@@ -513,18 +520,37 @@ export class SoldierSystem {
       const rateMul = rate * (1 + tower.auraRate);
       for (let i = 0; i < b.squad.length; i++) {
         const s = b.squad[i];
-        if (s.state !== 'fighting') continue;
+        if (s.state !== 'fighting') {
+          s.swingArmed = false;
+          continue;
+        }
         const e = this.target(s);
-        if (!e || e.hp <= 0) continue;
+        if (!e || e.hp <= 0) {
+          s.swingArmed = false;
+          continue;
+        }
         s.attackTimer -= dt * rateMul;
-        if (s.attackTimer > 0) continue;
-        s.attackTimer += 1 / swingRate;
-        if (s.attackTimer <= 0) s.attackTimer = 1 / swingRate;
-        this.strike(tower, s, e, stats.soldierDamage ?? 0, false);
-        const cleave = stats.soldierCleave ?? 0;
-        if (cleave > 0) {
-          const other = this.cleaveTarget(e);
-          if (other) this.strike(tower, s, other, Math.round((stats.soldierDamage ?? 0) * cleave), true);
+        if (s.attackTimer <= 0) {
+          s.attackTimer += 1 / swingRate;
+          if (s.attackTimer <= 0) s.attackTimer = 1 / swingRate;
+          s.swingArmed = false;
+          this.strike(tower, s, e, stats.soldierDamage ?? 0, false);
+          const cleave = stats.soldierCleave ?? 0;
+          if (cleave > 0) {
+            const other = this.cleaveTarget(e);
+            if (other) this.strike(tower, s, other, Math.round((stats.soldierDamage ?? 0) * cleave), true);
+          }
+        }
+        // Announce the next blow (render timing only; the swing stays even if this blow killed).
+        if (!s.swingArmed && e.hp > 0) {
+          s.swingArmed = true;
+          this.events.emit('meleeSwing', {
+            attacker: 'soldier',
+            attackerId: s.id,
+            targetId: e.uid,
+            impactIn: s.attackTimer / rateMul,
+            sweep: false,
+          });
         }
       }
     }
@@ -550,24 +576,66 @@ export class SoldierSystem {
       if (!this.wasBlocked[e.poolIndex]) {
         this.emitBlock('enemyBlocked', e);
         if (e.meleeTimer <= 0) e.meleeTimer = 0.5 / Math.max(0.01, m.rate);
+        this.enemyArmed[e.poolIndex] = 0;
       }
       if (m.rate <= 0 || m.damage <= 0) continue;
       // Chill slows the swing as much as the stride.
-      e.meleeTimer -= dt * (1 - e.slowRatio);
-      if (e.meleeTimer > 0) continue;
-      e.meleeTimer += 1 / m.rate;
-      if (e.meleeTimer <= 0) e.meleeTimer = 1 / m.rate;
-      const scale = Math.sqrt(Math.max(0.01, e.maxHp / ENEMY_DEFS[e.type].maxHp));
-      if (m.sweep) {
-        for (let i = 0; i < this.soldiers.length; i++) {
-          const s = this.soldiers[i];
-          if (s.state === 'fighting' && s.targetPoolIndex === e.poolIndex && s.targetUid === e.uid) {
-            this.hurt(s, e, m.damage * scale);
+      const drain = 1 - e.slowRatio;
+      e.meleeTimer -= dt * drain;
+      if (e.meleeTimer <= 0) {
+        e.meleeTimer += 1 / m.rate;
+        if (e.meleeTimer <= 0) e.meleeTimer = 1 / m.rate;
+        this.enemyArmed[e.poolIndex] = 0;
+        const scale = Math.sqrt(Math.max(0.01, e.maxHp / ENEMY_DEFS[e.type].maxHp));
+        const first = this.soldiers[this.primary[e.poolIndex]];
+        const fx = first ? first.x : e.x;
+        const fz = first ? first.z : e.z;
+        let struck = 0;
+        let dealt = 0;
+        let killed = false;
+        if (m.sweep) {
+          for (let i = 0; i < this.soldiers.length; i++) {
+            const s = this.soldiers[i];
+            if (s.state === 'fighting' && s.targetPoolIndex === e.poolIndex && s.targetUid === e.uid) {
+              const r = this.hurt(s, e, m.damage * scale);
+              if (struck === 0) dealt = r;
+              struck++;
+              killed = killed || s.hp <= 0;
+            }
           }
+        } else if (first) {
+          dealt = this.hurt(first, e, m.damage * scale);
+          struck = 1;
+          killed = first.hp <= 0;
         }
-      } else {
-        const s = this.soldiers[this.primary[e.poolIndex]];
-        if (s) this.hurt(s, e, m.damage * scale);
+        if (struck > 0) {
+          this.events.emit('meleeHit', {
+            attacker: 'enemy',
+            attackerId: e.uid,
+            targetId: first ? first.id : -1,
+            damage: dealt,
+            x: e.x,
+            z: e.z,
+            targetX: fx,
+            targetZ: fz,
+            struck,
+            cleave: false,
+            sweep: m.sweep === true,
+            killed,
+          });
+        }
+      }
+      // Announce the next blow while something still holds it (render timing only).
+      const next = this.soldiers[this.primary[e.poolIndex]];
+      if (!this.enemyArmed[e.poolIndex] && drain > 1e-6 && next && next.state === 'fighting') {
+        this.enemyArmed[e.poolIndex] = 1;
+        this.events.emit('meleeSwing', {
+          attacker: 'enemy',
+          attackerId: e.uid,
+          targetId: next.id,
+          impactIn: e.meleeTimer / drain,
+          sweep: m.sweep === true,
+        });
       }
     }
     for (let k = 0; k < _blockedList.length; k++) this.primary[_blockedList[k]] = -1;
@@ -670,6 +738,20 @@ export class SoldierSystem {
       damage: res.actualDamage,
       cleave,
     });
+    this.events.emit('meleeHit', {
+      attacker: 'soldier',
+      attackerId: s.id,
+      targetId: e.uid,
+      damage: res.actualDamage,
+      x: s.x,
+      z: s.z,
+      targetX: e.x,
+      targetZ: e.z,
+      struck: 1,
+      cleave,
+      sweep: false,
+      killed: res.killed,
+    });
   }
 
   /** T3 Cleave: nearest other living ground enemy beside the struck one. */
@@ -692,14 +774,15 @@ export class SoldierSystem {
     return best;
   }
 
-  private hurt(s: SoldierEntity, e: EnemyEntity, raw: number): void {
+  /** Returns the damage dealt. */
+  private hurt(s: SoldierEntity, e: EnemyEntity, raw: number): number {
     const stats = this.getBarracks(s.towerId)?.stats;
     const damage = Math.max(1, Math.round(raw - (stats?.soldierArmor ?? 0)));
     s.hp -= damage;
     s.hitFlashTimer = 0.12;
     s.sinceHurt = 0;
     this.events.emit('soldierHurt', { soldierId: s.id, towerId: s.towerId, enemyId: e.uid, damage, x: s.x, z: s.z });
-    if (s.hp > 0) return;
+    if (s.hp > 0) return damage;
     s.hp = 0;
     if (e.blockers > 0) e.blockers--;
     s.state = 'dead';
@@ -713,5 +796,6 @@ export class SoldierSystem {
       z: s.z,
       respawnSec: s.respawnTimer,
     });
+    return damage;
   }
 }

@@ -220,6 +220,32 @@ export interface GameEventMap {
     damage: number;
     cleave: boolean;
   };
+  /**
+   * Render-facing melee timing (no gameplay meaning). A melee attacker armed its next blow: it lands
+   * in `impactIn` sim seconds at the current swing rate (aura / Overcharge / chill changes can shift
+   * it; `meleeHit` is authoritative). Emitted when a soldier makes contact, when an enemy becomes
+   * held, and right after every blow. Soldier: `attackerId` = soldier id, `targetId` = enemy uid.
+   * Enemy: `attackerId` = enemy uid, `targetId` = the soldier it strikes (its first in contact).
+   */
+  meleeSwing: { attacker: 'soldier' | 'enemy'; attackerId: number; targetId: number; impactIn: number; sweep: boolean };
+  /**
+   * A melee blow landed (one per swing; a T3 cleave adds one with `cleave`, a sweeping boss blow is
+   * one event with `struck` = soldiers hit). Positions are the attacker's and the target's.
+   */
+  meleeHit: {
+    attacker: 'soldier' | 'enemy';
+    attackerId: number;
+    targetId: number;
+    damage: number;
+    x: number;
+    z: number;
+    targetX: number;
+    targetZ: number;
+    struck: number;
+    cleave: boolean;
+    sweep: boolean;
+    killed: boolean;
+  };
   /** An enemy struck a soldier. */
   soldierHurt: { soldierId: number; towerId: number; enemyId: number; damage: number; x: number; z: number };
   /** A soldier fell; it respawns at the barracks after the tier's respawn time. */
