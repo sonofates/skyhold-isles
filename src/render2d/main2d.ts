@@ -127,7 +127,11 @@ async function main(): Promise<void> {
     '/art2d/manifest.json',
     layout2d.image,
     { raider: q.get('raider') },
-    { need: mapNeed(app.screen.width, app.screen.height), mips: mapMips },
+    {
+      need: mapNeed(app.screen.width, app.screen.height),
+      mips: mapMips,
+      overlayKeys: layout2d.gates?.flatMap((gate) => gate.front ? [gate.front.art] : []),
+    },
   );
   if (art.notes.length > 0) console.info('[art2d] fallbacks:\n  ' + art.notes.join('\n  '));
   document.getElementById('boot')?.remove();

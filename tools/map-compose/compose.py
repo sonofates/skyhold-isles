@@ -6,7 +6,7 @@ usage: /usr/bin/python3 tools/map-compose/compose.py <layout.json> <assets_dir> 
          [--w 3072] [--plots 24] [--seed 7] [--bake] [--keep-plots]
          [--towers archer:3,cannon:9,...] [--enemies] [--cliff]
          [--variants 1,1.5] [--write-layout] [--cave-h 2.5] [--castle-h 2.7] [--gate-inset 0.5]
-         [--windmill x,ybottom,h] [--decals 240] [--no-decals]
+         [--windmill x,ybottom,h|none] [--props 70] [--decals 240] [--no-decals] [--check-plots]
 
   shipped L1c bake (2x layout px master + 1x / 1.5x variants, gate fronts, gates written to the JSON):
     /usr/bin/python3 tools/map-compose/compose.py src/data/levels2d/l1c.json design/art-2d/v2/assets \\
@@ -19,7 +19,12 @@ usage: /usr/bin/python3 tools/map-compose/compose.py <layout.json> <assets_dir> 
                 sim's plot indices stable). The rules below are still checked.
   --variants    also write <out stem>@<s>x.<ext> at s x the layout size (src/render2d/mapVariant.ts
                 loads the smallest that covers the screen; the master is the --w bake).
-  --write-layout  write each gate (prop, facing, front layer rect / depth) into layout.json
+  Campaign defaults for --seed, --plots, --windmill, --props and --decals come from
+  campaign.json by layout id. CLI options override them. For a new layout, bake once with
+  --write-layout to generate plots, then add --keep-plots for every subsequent bake.
+  --check-plots   validate the saved plots and geometry without rendering or writing files:
+                compose.py <layout.json> <assets_dir> --check-plots
+  --write-layout  save generated plots in route order and write each gate (prop, facing, front layer rect / depth) into layout.json
                 (entrances[i].gate, goalGate) — see src/data/levels2d/gates.ts.
   (mock mode)   without --bake the plots (and --towers / --enemies) are painted in, for design mocks.
 
@@ -47,7 +52,8 @@ Plot rules (checked, the script exits non-zero when any fails):
   * no plot ring (or the tower that will stand on it) overlaps a landmark (gates, castle, windmill)
   * plots do not overlap each other, and a plot is not hidden behind the tower in front of it
   * every route section has plots: >= 2 on the first stretch from each entrance (first 40% of its
-    branch or 350 px, whichever is longer), >= 2 at the merge, >= 2 on the last quarter to the gate
+    branch or 350 px, whichever is longer), >= 2 at each shared-tail junction, >= 2 on the last quarter of each final section
+    (a single lane counts its own first stretch and last quarter)
 Selection: candidates hug the road on both sides (closest offset that clears it); a farthest-point
 pass (anisotropic, light bonus for covering more road) spreads them evenly along the whole route.
 The road itself is a Catmull-Rom spline THROUGH the sim polyline vertices; the max deviation from
@@ -70,11 +76,16 @@ from ground import Decals, fine_detail, inner_band, nearest_dist, ragged_mask, r
 from ringfit import measure_ring  # noqa: E402
 
 args = sys.argv[1:]
-layout_p, assets, out_p = Path(args[0]), Path(args[1]), Path(args[2])
+layout_p, assets = Path(args[0]), Path(args[1])
+out_p = None if '--check-plots' in args else Path(args[2])
+
+
+L = json.loads(layout_p.read_text())
+recipe = json.loads(Path(__file__).with_name('campaign.json').read_text()).get(L['id'], {})
 
 
 def opt(k, d):
-    return type(d)(args[args.index(k) + 1]) if k in args else d
+    return type(d)(args[args.index(k) + 1]) if k in args else recipe.get(k[2:], d)
 
 
 W = opt('--w', 3072)
@@ -85,7 +96,6 @@ TOWERS = opt('--towers', '')
 BAKE = '--bake' in args
 random.seed(SEED)
 
-L = json.loads(layout_p.read_text())
 iw, ih = L['imageSize']
 S = W / iw  # layout px -> output px
 H = round(ih * S)
@@ -156,25 +166,26 @@ spl_paths = [catmull(p) for p in raw_paths]
 road_pts = [q for p in spl_paths for q in resample(p, 4.0)] + [q for p in raw_paths for q in resample(p, 4.0)]
 
 
+# Vectorized segment projection keeps geometry checks inexpensive on long switchbacks.
+segments = np.array([(a, b) for path in spl_paths + raw_paths for a, b in zip(path, path[1:])])
+ax, ay = segments[:, 0].T
+vx, vy = (segments[:, 1] - segments[:, 0]).T
+length_sq = vx * vx + vy * vy
+length_sq[length_sq == 0] = 1
+qx, qy = np.array(road_pts).T
+
+
 def dist_to_road(x, y):
     """Distance to the road centreline (spline AND sim polyline, whichever is closer)."""
-    best = 1e9
-    for poly in spl_paths + raw_paths:
-        for i in range(len(poly) - 1):
-            d = seg_dist(x, y, *poly[i], *poly[i + 1])
-            if d < best:
-                best = d
-    return best
+    dx, dy = x - ax, y - ay
+    t = np.clip((dx * vx + dy * vy) / length_sq, 0, 1)
+    return float(np.sqrt(((dx - t * vx) ** 2 + (dy - t * vy) ** 2).min()))
 
 
 def ellipse_clears_road(x, y, rx, ry):
-    """True when the ellipse (rx, ry) grown by the road half-width + rim touches no road point."""
-    ax, ay = rx + ROAD_W / 2 + RIM, ry + ROAD_W / 2 + RIM
-    for qx, qy in road_pts:
-        dx, dy = (qx - x) / ax, (qy - y) / ay
-        if dx * dx + dy * dy < 1:
-            return False
-    return True
+    """True when the ellipse grown by the road half-width + rim touches no road point."""
+    dx, dy = (qx - x) / (rx + ROAD_W / 2 + RIM), (qy - y) / (ry + ROAD_W / 2 + RIM)
+    return not np.any(dx * dx + dy * dy < 1)
 
 
 # spline vs sim polyline deviation (enemies walk the polyline)
@@ -209,8 +220,10 @@ _g = place_gate(load(_file), _flip, (gx, gy), _f, ROAD_W * CASTLE_H, ROAD_W * GA
 GATES.append({'role': 'goal', 'lane': -1, 'id': 'goal', 'prop': _prop, 'facing': _f, 'g': _g})
 
 LANDMARKS = []  # (name, layout x centre, layout y bottom, layout height)
-MILL = [float(v) for v in opt('--windmill', '1609,298,2.7').split(',')]  # x centre, y bottom, height / ROAD_W
-LANDMARKS.append(('prop-windmill.png', MILL[0], MILL[1], ROAD_W * MILL[2]))
+mill = opt('--windmill', '1609,298,2.7')
+if mill != 'none':
+    mx, my, mh = map(float, mill.split(','))
+    LANDMARKS.append(('prop-windmill.png', mx, my, ROAD_W * mh))
 landmark_rects = [sprite_rect(load(n), x, yb, h) for n, x, yb, h in LANDMARKS] + [G['g']['rect'] for G in GATES]
 
 
@@ -232,8 +245,14 @@ HUD_RECTS = [
 ]
 ex_m = sum(e['x'] for e in L['entrances']) / len(L['entrances'])
 ey_m = sum(e['y'] for e in L['entrances']) / len(L['entrances'])
-HORN = (ex_m + 18, ey_m + 4, 64)  # horn button (radius) ...
-HUD_RECTS.append((HORN[0] - 56, HORN[1] + 52, HORN[0] + 56, HORN[1] + 100))  # ... and its label
+# game2d.ts anchors the horn 30 px east and 8 px north of the entrance midpoint.
+# hud.ts clamps it above the plaque: on 915x412 and 1600x900 the southern limits
+# are 619 and 668 layout px. Reserve the sweep between the two fits, plus the
+# label above the button (its screen-space offset is largest on the phone).
+horn_x = ex_m + 30
+horn_y_low = max(80, min(615, ey_m - 8))
+horn_y_high = max(82, min(672, ey_m - 8))
+HUD_RECTS.append((horn_x - 56, horn_y_low - 102, horn_x + 56, horn_y_high - 44))
 
 
 def rects_hit(a, b, pad=0.0):
@@ -252,7 +271,8 @@ def plot_ok(x, y):
     ring = (x - PLOT_R, y - PLOT_RY, x + PLOT_R, y + PLOT_RY)
     if any(rects_hit(ring, r) for r in HUD_RECTS):
         return 'hud'
-    if math.hypot(x - HORN[0], y - HORN[1]) < HORN[2] + PLOT_R:
+    closest_y = max(horn_y_low, min(horn_y_high, y))
+    if math.hypot(x - horn_x, y - closest_y) < 64 + PLOT_R:
         return 'horn'
     if landmark_hit(plot_zone(x, y), 8):
         return 'landmark'
@@ -274,20 +294,31 @@ def pair_ok(a, b):
     return True
 
 
-# route sections: A branch (path 0 until it joins path 1), B branch, shared trunk
-def merge_index(p0, p1):
-    s1 = set(p1)
-    for i, q in enumerate(p0):
-        if q in s1 and p0[i:] == p1[p1.index(q):]:
-            return i, p1.index(q)
-    return len(p0) - 1, len(p1) - 1
+# A common suffix of path vertices is a shared road. Split at every join, including
+# staged merges. A crossing or a repeated vertex on a loop alone is not a join.
+# The users of a directed edge are the lanes sharing its entire remaining suffix.
+users = {}
+for lane, path in enumerate(raw_paths):
+    for i in range(len(path) - 1):
+        users.setdefault(tuple(path[i:]), []).append(lane)
 
-
-mi0, mi1 = merge_index(raw_paths[0], raw_paths[1]) if len(raw_paths) > 1 else (len(raw_paths[0]) - 1, 0)
-SECTIONS = {'A': raw_paths[0][:mi0 + 1], 'trunk': raw_paths[0][mi0:]}
-if len(raw_paths) > 1:
-    SECTIONS['B'] = raw_paths[1][:mi1 + 1]
-MERGE = raw_paths[0][mi0]
+SECTIONS = {}
+first_sections, final_sections, merges = [], set(), set()
+for path in raw_paths:
+    start = 0
+    for i in range(1, len(path)):
+        key = tuple(users[tuple(path[start:])])
+        at_goal = i == len(path) - 1
+        if not at_goal and users[tuple(path[i:])] == list(key):
+            continue
+        SECTIONS[key] = path[start:i + 1]
+        if start == 0:
+            first_sections.append(key)
+        if at_goal:
+            final_sections.add(key)
+        else:
+            merges.add(path[i])
+        start = i
 
 
 def poly_len(p):
@@ -311,7 +342,7 @@ def section_of(x, y):
     return best[1], best[2]
 
 
-ORDER = {'A': 0, 'B': 1, 'trunk': 2}
+ORDER = {key: i for i, key in enumerate(dict.fromkeys([*first_sections, *SECTIONS]))}
 
 
 def route_key(p):
@@ -387,7 +418,7 @@ def generate_plots():
     return sorted(chosen, key=route_key), len(uniq)
 
 
-if '--keep-plots' in args:
+if '--keep-plots' in args or '--check-plots' in args:
     plots = [tuple(map(float, p)) for p in L['plots']]
     ncand = 0
 else:
@@ -408,24 +439,25 @@ for i in range(len(plots)):
 counts = {k: 0 for k in SECTIONS}
 for p in plots:
     counts[section_of(*p)[0]] += 1
-trunk_len = poly_len(SECTIONS['trunk'])
-near_entrance = {k: 0 for k in SECTIONS if k != 'trunk'}
-merge_n = last_n = 0
+near_entrance = {key: 0 for key in first_sections}
+last_counts = {key: 0 for key in final_sections}
 for p in plots:
     name, arc = section_of(*p)
-    if name in near_entrance and arc < max(poly_len(SECTIONS[name]) * 0.4, 350.0):
+    length = poly_len(SECTIONS[name])
+    if name in near_entrance and arc < max(length * 0.4, 350.0):
         near_entrance[name] += 1
-    if math.hypot(p[0] - MERGE[0], p[1] - MERGE[1]) < 230:
-        merge_n += 1
-    if name == 'trunk' and arc > trunk_len * 0.75:
-        last_n += 1
-for k, n in near_entrance.items():
+    if name in last_counts and arc > length * 0.75:
+        last_counts[name] += 1
+for lane, key in enumerate(first_sections):
+    if near_entrance[key] < 2:
+        fails.append(f'only {near_entrance[key]} plots on the first stretch from entrance {lane}')
+for point in merges:
+    n = sum(math.dist(p, point) < 230 for p in plots)
     if n < 2:
-        fails.append(f'only {n} plots on the first stretch from entrance {k}')
-if merge_n < 2:
-    fails.append(f'only {merge_n} plots at the merge')
-if last_n < 2:
-    fails.append(f'only {last_n} plots on the last stretch')
+        fails.append(f'only {n} plots at the merge {point}')
+for key, n in last_counts.items():
+    if n < 2:
+        fails.append(f'only {n} plots on the last stretch of section {key}')
 if dev > ROAD_W * 0.3:
     fails.append(f'spline deviates {dev:.1f} px from the sim polyline (> 30% of the road width)')
 # Landmarks must not be cut by the screen edge at 16:9 (the safe area is exactly what a 16:9 / 16:10
@@ -450,6 +482,12 @@ for G in GATES:
         fails.append(f'gate {G["id"]} rect {tuple(round(v) for v in r)} is under the HUD')
 gaps = [min(math.hypot(p[0] - q[0], p[1] - q[1]) for q in plots if q is not p) for p in plots]
 reach = [dist_to_road(*p) for p in plots]
+
+if fails:
+    sys.exit('PLOT RULES FAILED:\n  ' + '\n  '.join(fails))
+if '--check-plots' in args:
+    print(f'{layout_p}: {len(plots)} plots pass')
+    sys.exit(0)
 
 # ---------------------------------------------------------------- ground (output px)
 def tiled(tex, w, h, scale):
@@ -590,7 +628,8 @@ rnd = random.Random(SEED)
 placed = []
 tries = 0
 zones = [plot_zone(*p) for p in plots] + landmark_rects
-while len(placed) < 70 and tries < 12000:
+prop_count = opt('--props', 70)
+while len(placed) < prop_count and tries < 12000:
     tries += 1
     x, y = rnd.uniform(0, iw), rnd.uniform(ROAD_W * 0.4, ih - ROAD_W * 0.6)
     margin = x < sx or x > sx + sw or min(x, iw - x) < iw * 0.12 or y < ih * 0.12
@@ -680,6 +719,7 @@ for G in GATES:
     gate_json.append({'role': G['role'], 'lane': G['lane'], **entry})
 Path(str(out_p) + '.gates.json').write_text(json.dumps(gate_json, indent=1))
 if '--write-layout' in args:
+    L['plots'] = inv
     for G in GATES:
         if G['role'] == 'entrance':
             L['entrances'][G['lane']]['gate'] = G['json']
@@ -699,10 +739,7 @@ for w_ in warns:
 
 print(f'{out_p} {W}x{H} mode={"bake" if BAKE else "mock"} plots={len(plots)} (candidates {ncand}) props={len(placed)}')
 print(f'  plot footprint {2 * PLOT_R:.0f}x{2 * PLOT_RY:.0f} layout px, road width {ROAD_W:.1f}, spline deviation {dev:.1f} px')
-print(f'  sections {counts}  first-stretch {near_entrance}  merge {merge_n}  last-stretch {last_n}')
+print(f'  sections {counts}  first-stretch {near_entrance}  merges {len(merges)}  last-stretch {last_counts}')
 if plots:
     print(f'  nearest-neighbour gap min {min(gaps):.0f} / median {sorted(gaps)[len(gaps) // 2]:.0f} / max {max(gaps):.0f} px; '
           f'road reach max {max(reach):.0f} px (limit {REACH:.0f})')
-if fails:
-    print('PLOT RULES FAILED:\n  ' + '\n  '.join(fails))
-    sys.exit(1)
