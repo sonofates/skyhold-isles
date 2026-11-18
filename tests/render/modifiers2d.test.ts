@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { resetMusicPrefsCache, setMusicVolume } from '../../src/audio/musicPrefs.ts';
 import { EventBus } from '../../src/core/eventBus.ts';
+import type { TowerType } from '../../src/core/types.ts';
 import { BALANCE } from '../../src/data/balance.ts';
 import {
   CHALLENGE_IDS,
@@ -33,6 +34,12 @@ import {
   stepShake2D,
   triggerShake2D,
 } from '../../src/render2d/settings2d.ts';
+import {
+  abilityGate,
+  abilitySlotView,
+  castMeteor2D,
+  castOvercharge2D,
+} from '../../src/render2d/ui/abilities2d.ts';
 import {
   availableChallenges,
   buildRunHref2D,
@@ -354,71 +361,159 @@ describe('modes2d pure UI helpers', () => {
     expect(updated.map((c) => c.completed)).toEqual([false, true]);
   });
 
-  it('excludes Silent Skies and any ability-only challenge in 2D via data-driven patch check (no free badges)', () => {
-    // Data-driven check inspects patch fields, not hardcoded challenge IDs.
+  it('offers Silent Skies on 2D islands per 3D rules while keeping data-driven filtering for no-effect patches', () => {
+    // Data-driven check: abilities count in 2D; empty/neutral patches and unknown-tower bans stay false.
     expect(hasModifierEffectIn2D({})).toBe(false);
-    expect(hasModifierEffectIn2D({ abilitiesDisabled: true })).toBe(false);
-    expect(hasModifierEffectIn2D({ abilityCooldownMul: 2 })).toBe(false);
+    expect(hasModifierEffectIn2D({ enemyHpMul: 1, abilityCooldownMul: 1, abilitiesDisabled: false })).toBe(false);
+    expect(hasModifierEffectIn2D({ bannedTowers: ['trebuchet' as TowerType] })).toBe(false);
+    expect(
+      hasModifierEffectIn2D({ towerFireRateMul: { trebuchet: 1.25 } as Partial<Record<TowerType, number>> }),
+    ).toBe(false);
+    expect(isChallengeEffectiveIn2D({ patch: {} })).toBe(false);
+    expect(isChallengeEffectiveIn2D({ patch: { bannedTowers: ['trebuchet' as TowerType] } })).toBe(false);
+
+    expect(hasModifierEffectIn2D({ abilitiesDisabled: true })).toBe(true);
+    expect(hasModifierEffectIn2D({ abilityCooldownMul: 0.85 })).toBe(true);
+    expect(hasModifierEffectIn2D({ bannedTowers: ['archer'] })).toBe(true);
+    expect(hasModifierEffectIn2D({ bannedTowers: ['barracks'] })).toBe(true);
     expect(hasModifierEffectIn2D({ enemyHpMul: 1.12 })).toBe(true);
     expect(hasModifierEffectIn2D({ championWaves: true })).toBe(true);
 
-    expect(isChallengeEffectiveIn2D(CHALLENGES.silentSkies)).toBe(false);
-    expect(CHALLENGE_IDS_2D).not.toContain('silentSkies');
-    expect(CHALLENGE_IDS_2D).toHaveLength(CHALLENGE_IDS.length - 1);
-    for (const id of CHALLENGE_IDS_2D) {
-      expect(isChallengeEffectiveIn2D(CHALLENGES[id]), id).toBe(true);
-    }
+    expect(isChallengeEffectiveIn2D(CHALLENGES.silentSkies)).toBe(true);
+    expect(CHALLENGE_IDS_2D).toContain('silentSkies');
+    expect(CHALLENGE_IDS_2D).toEqual(CHALLENGE_IDS);
 
-    // Every 2D island (including Master islands i08–i16) excludes silentSkies in availableChallenges.
+    // Every 2D island offers its two challenges per the same rules as 3D (Master islands i08–i16 get silentSkies + ironTide).
     const p = createDefaultProgress(LEVELS_2D.length);
     for (let i = 0; i < LEVELS_2D.length; i++) p.clears[i] = 1;
     for (const lvl of LEVELS_2D) {
       const offered = availableChallenges(lvl.id, p, LEVELS_2D);
-      expect(offered.length, lvl.id).toBeGreaterThan(0);
-      expect(offered.map((c) => c.id), lvl.id).not.toContain('silentSkies');
-      for (const c of offered) {
-        expect(isChallengeEffectiveIn2D(c), `${lvl.id}:${c.id}`).toBe(true);
-      }
+      const expected3d = challengesForLevel({ id: lvl.id, difficulty: lvl.difficulty });
+      expect(offered.map((c) => c.id), lvl.id).toEqual(expected3d);
+      expect(offered, lvl.id).toHaveLength(2);
       if (lvl.difficulty === 'Master') {
-        expect(offered.map((c) => c.id), lvl.id).toEqual(['ironTide']);
+        expect(offered.map((c) => c.id), lvl.id).toEqual(['silentSkies', 'ironTide']);
       }
     }
 
-    // Even a hand-picked island ID with layout2d attached filters out silentSkies.
-    const masterPlotMock = { ...LEVELS[4], layout2d: LEVEL_L1C.layout2d };
-    expect(challengesForLevel(LEVELS[4])).toContain('silentSkies'); // 3D keeps Silent Skies
-    expect(challengesForLevel(masterPlotMock)).toEqual(['galeForce']); // 2D drops Silent Skies
+    // Hand-picked 3D island IDs with layout2d attached preserve their exact 3D pairs (including silentSkies).
+    for (const lvl3d of LEVELS) {
+      const withPlot = { ...lvl3d, layout2d: LEVEL_L1C.layout2d };
+      expect(challengesForLevel(withPlot), lvl3d.id).toEqual(challengesForLevel(lvl3d));
+    }
+    expect(challengesForLevel({ ...LEVELS[4], layout2d: LEVEL_L1C.layout2d })).toEqual(['galeForce', 'silentSkies']);
+  });
 
-    // Winning a 2D Master island with ?challenge=silentSkies awards NO badge; winning ironTide masters it.
+  it('Silent Skies disables both Meteor Strike and Overcharge button casts in the 2D sim', () => {
+    const p = createDefaultProgress(LEVELS_2D.length);
+    p.workshop = maxedWorkshopRanks();
+    const masterLevel = LEVELS_2D.find((l) => l.id === 'i08')!;
+    const plot = masterLevel.layout2d!.plots[0];
+
+    // Control: without Silent Skies on the same 2D island, both ability buttons are ready and cast in the sim.
+    const normalRun = resolveQueryRun2D(new URLSearchParams('level=i08'), p);
+    expect(normalRun.modifiers.abilitiesDisabled).toBe(false);
+    const wNormal = new SimWorld(masterLevel, new EventBus(), normalRun.modifiers);
+    wNormal.gold = 9999;
+    expect(wNormal.placeTowerOnPlot(0, 'archer')).not.toBeNull();
+    wNormal.startNextWave();
+    expect(abilityGate(wNormal)).toBe('ok');
+    expect(abilitySlotView(wNormal, 'meteor').state).toBe('ready');
+    expect(abilitySlotView(wNormal, 'overcharge').state).toBe('ready');
+    expect(castMeteor2D(wNormal, plot.x, plot.z)).toBe(true);
+    expect(castOvercharge2D(wNormal)).toBe(true);
+
+    // Silent Skies: launching with ?challenge=silentSkies disables both HUD buttons and blocks casts in SimWorld.
+    const silentRun = resolveQueryRun2D(new URLSearchParams('level=i08&challenge=silentSkies'), p);
+    expect(silentRun.runConfig.challenges).toEqual(['silentSkies']);
+    expect(silentRun.modifiers.abilitiesDisabled).toBe(true);
+
+    const events = new EventBus();
+    let targetedEvents = 0;
+    let overchargeEvents = 0;
+    events.on('abilityTargeted', () => targetedEvents++);
+    events.on('overchargeActivated', () => overchargeEvents++);
+
+    const wSilent = new SimWorld(masterLevel, events, silentRun.modifiers);
+    wSilent.gold = 9999;
+    expect(wSilent.placeTowerOnPlot(0, 'archer')).not.toBeNull();
+    wSilent.startNextWave();
+
+    expect(abilityGate(wSilent)).toBe('disabled');
+    expect(abilitySlotView(wSilent, 'meteor').state).toBe('disabled');
+    expect(abilitySlotView(wSilent, 'overcharge').state).toBe('disabled');
+    expect(castMeteor2D(wSilent, plot.x, plot.z)).toBe(false);
+    expect(castOvercharge2D(wSilent)).toBe(false);
+    expect(wSilent.castMeteor(plot.x, plot.z)).toBe(false);
+    expect(wSilent.castOvercharge()).toBe(false);
+    expect(wSilent.castAbility('meteor', plot.x, plot.z)).toBe(false);
+    expect(wSilent.castAbility('overcharge')).toBe(false);
+    expect(wSilent.getAbilityState('meteor')).toMatchObject({ disabled: true, usable: false });
+    expect(wSilent.getAbilityState('overcharge')).toMatchObject({ disabled: true, usable: false });
+    expect(wSilent.abilitySystem.getOverchargeRemaining()).toBe(0);
+    expect(targetedEvents).toBe(0);
+    expect(overchargeEvents).toBe(0);
+  });
+
+  it('records the Silent Skies badge, bonus star, and mastery on 2D Master islands', () => {
     installMemoryStorage();
     const masterIdx = LEVELS_2D.findIndex((l) => l.id === 'i16');
     expect(masterIdx).toBeGreaterThan(0);
-    const freeAttempt = recordWin2D('i16', 3, 20, LEVELS_2D, ['silentSkies'])!;
-    expect(freeAttempt.newChallenges).toEqual([]);
-    expect(loadProgress2D(LEVELS_2D).challengeClears[masterIdx]).toEqual([]);
-    expect(islandStates(loadProgress2D(LEVELS_2D), LEVELS_2D)[masterIdx].mastered).toBe(false);
 
-    const realClear = recordWin2D('i16', 3, 20, LEVELS_2D, ['ironTide'])!;
-    expect(realClear.newChallenges).toEqual(['ironTide']);
-    expect(islandStates(loadProgress2D(LEVELS_2D), LEVELS_2D)[masterIdx].mastered).toBe(true);
+    const silentClear = recordWin2D('i16', 3, 20, LEVELS_2D, ['silentSkies'])!;
+    expect(silentClear.newChallenges).toEqual(['silentSkies']);
+    let saved = loadProgress2D(LEVELS_2D);
+    expect(saved.challengeClears[masterIdx]).toEqual(['silentSkies']);
+    expect(starWallet(saved)).toMatchObject({ campaign: 3, challenge: 1, earned: 4 });
+    expect(availableChallenges('i16', saved, LEVELS_2D).map((c) => [c.id, c.completed])).toEqual([
+      ['silentSkies', true],
+      ['ironTide', false],
+    ]);
+    expect(islandStates(saved, LEVELS_2D)[masterIdx].mastered).toBe(false);
 
-    // Daily pool filtering also supports CHALLENGE_IDS_2D with zero silentSkies rolls.
+    // Re-winning Silent Skies does not double-count; clearing Iron Tide completes mastery.
+    expect(recordWin2D('i16', 3, 20, LEVELS_2D, ['silentSkies'])!.newChallenges).toEqual([]);
+    const secondClear = recordWin2D('i16', 2, 16, LEVELS_2D, ['ironTide'])!;
+    expect(secondClear.newChallenges).toEqual(['ironTide']);
+    saved = loadProgress2D(LEVELS_2D);
+    expect(saved.challengeClears[masterIdx]).toEqual(['silentSkies', 'ironTide']);
+    expect(starWallet(saved)).toMatchObject({ campaign: 3, challenge: 2, earned: 5 });
+    expect(islandStates(saved, LEVELS_2D)[masterIdx].mastered).toBe(true);
+  });
+
+  it('includes Silent Skies in the 2D Daily Squall pool and applies it on ?daily=1 runs', () => {
+    const p = createDefaultProgress(LEVELS_2D.length);
+    for (let i = 0; i < 6; i++) p.clears[i] = 1;
+    const cleared = [0, 1, 2, 3, 4, 5];
+
+    let silentDays = 0;
+    let firstSilentDayMs: number | null = null;
     for (let day = 20_000; day < 20_200; day++) {
-      const dc = dailyChallengeFor(day, [0, 1, 2], CHALLENGE_IDS_2D)!;
-      expect(dc.challenges).not.toContain('silentSkies');
+      const dayMs = day * 86_400_000 + 3_600_000;
+      const dc2d = dailyForToday(dayMs, p, LEVELS_2D)!;
+      const dc3d = dailyChallengeFor(day, cleared)!;
+      expect(dc2d.challenges).toEqual(dc3d.challenges);
+      expect(dailyChallengeFor(day, cleared, CHALLENGE_IDS_2D)!.challenges).toEqual(dc3d.challenges);
+      if (dc2d.challenges.includes('silentSkies')) {
+        silentDays++;
+        firstSilentDayMs ??= dayMs;
+      }
     }
+    expect(silentDays).toBeGreaterThan(0);
 
-    // SimWorld on a 2D plot map allows global abilities once a wave starts, unless disabled by modifier.
-    const w2d = new SimWorld(LEVEL_L1C, new EventBus());
-    expect(w2d.castMeteor(0, 0)).toBe(false);
-    expect(w2d.castOvercharge()).toBe(false);
-    w2d.startNextWave();
-    expect(w2d.castMeteor(0, 0)).toBe(true);
-    expect(w2d.castOvercharge()).toBe(true);
-    const w2dSilent = new SimWorld(LEVEL_L1C, new EventBus(), { ...NEUTRAL_RUN_MODIFIERS, abilitiesDisabled: true });
-    w2dSilent.startNextWave();
-    expect(w2dSilent.castMeteor(0, 0)).toBe(false);
-    expect(w2dSilent.castOvercharge()).toBe(false);
+    // Launching ?daily=1 on a Silent Skies day disables both abilities in the resolved 2D run.
+    const res = resolveQueryRun2D(new URLSearchParams('daily=1'), p, {
+      nowMs: firstSilentDayMs!,
+      levels: LEVELS_2D,
+    });
+    expect(res.runConfig.challenges).toContain('silentSkies');
+    expect(res.modifiers.abilitiesDisabled).toBe(true);
+    const w = new SimWorld(res.level!, new EventBus(), res.modifiers);
+    w.gold = 9999;
+    w.placeTowerOnPlot(0, 'archer');
+    w.startNextWave();
+    expect(castMeteor2D(w, 0, 0)).toBe(false);
+    expect(castOvercharge2D(w)).toBe(false);
   });
 
   it('canPlayEndless requires at least one clear on a valid 2D island', () => {

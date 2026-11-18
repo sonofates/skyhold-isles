@@ -6,7 +6,6 @@ import {
   type RunModifierPatch,
   type RunModifiers,
 } from './runModifiers.ts';
-import { TOWER_DEFS } from './towers.ts';
 
 /**
  * Island challenges: optional handicaps unlocked after an island's first clear. Winning with a
@@ -148,24 +147,13 @@ export function challengesForLevel(
 
 /**
  * Data-driven check for whether a challenge's modifier patch actually alters a 2D plot-map run
- * (where active abilities do not exist, and tower bans / rate multipliers only apply to 2D towers).
+ * (abilities, economy, lives, enemy stats, champions, and bans/multipliers on existing 2D towers).
  */
 export function isChallengeEffectiveIn2D(challenge: Pick<ChallengeDef, 'patch'>): boolean {
-  const p = challenge.patch;
-  const validBans = p.bannedTowers?.filter((t) => Object.prototype.hasOwnProperty.call(TOWER_DEFS, t));
-  const validRates = p.towerFireRateMul
-    ? (Object.fromEntries(
-        Object.entries(p.towerFireRateMul).filter(([t]) => Object.prototype.hasOwnProperty.call(TOWER_DEFS, t)),
-      ) as Partial<Record<TowerType, number>>)
-    : undefined;
-  return hasModifierEffectIn2D({
-    ...p,
-    bannedTowers: validBans,
-    towerFireRateMul: validRates,
-  });
+  return hasModifierEffectIn2D(challenge.patch);
 }
 
-/** Challenge IDs whose rules have a real gameplay effect in 2D (excludes e.g. `silentSkies`). */
+/** Challenge IDs whose rules have a real gameplay effect in 2D (includes `silentSkies`). */
 export const CHALLENGE_IDS_2D: readonly ChallengeId[] = CHALLENGE_IDS.filter((id) =>
   isChallengeEffectiveIn2D(CHALLENGES[id]),
 );

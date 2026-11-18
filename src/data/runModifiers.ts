@@ -1,4 +1,5 @@
 import type { TowerType } from '../core/types.ts';
+import { TOWER_DEFS } from './towers.ts';
 
 /**
  * Everything outside the island data that changes a run: Workshop upgrades (small permanent
@@ -123,16 +124,27 @@ export function isNeutralRun(m: RunModifiers): boolean {
   );
 }
 
+const is2DTower = (t: string): t is TowerType =>
+  Object.prototype.hasOwnProperty.call(TOWER_DEFS, t);
+
 /**
  * True when `patch` changes at least one gameplay rule active in the 2D build.
- * The 2D game has no active abilities (Meteor Strike / Overcharge), so ability-only patches
- * (`abilitiesDisabled`, `abilityCooldownMul`) evaluate to neutral and have no effect in 2D.
+ * Global abilities (Meteor Strike and Overcharge) are active in 2D, so `abilitiesDisabled` and
+ * `abilityCooldownMul` count as real effects; neutral values and bans/multipliers targeting
+ * non-existent towers evaluate to false.
  */
 export function hasModifierEffectIn2D(patch: RunModifierPatch): boolean {
-  const m = combineRunModifiers(patch);
-  return !isNeutralRun({
-    ...m,
-    abilityCooldownMul: 1,
-    abilitiesDisabled: false,
-  });
+  const validBans = patch.bannedTowers?.filter(is2DTower);
+  const validRates = patch.towerFireRateMul
+    ? (Object.fromEntries(
+        Object.entries(patch.towerFireRateMul).filter(([t]) => is2DTower(t)),
+      ) as Partial<Record<TowerType, number>>)
+    : undefined;
+  return !isNeutralRun(
+    combineRunModifiers({
+      ...patch,
+      bannedTowers: validBans,
+      towerFireRateMul: validRates,
+    }),
+  );
 }
