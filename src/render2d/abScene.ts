@@ -52,7 +52,7 @@ const SPACING = 4.6;
  * show), no combat, with a small label per lane.
  */
 export class AbScene {
-  private readonly map: MapView;
+  readonly map: MapView;
   private readonly enemies: EnemyLayer;
   private readonly lanes: AbLane[];
   private readonly walkers: LoopWalker[] = [];

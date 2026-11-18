@@ -1,4 +1,5 @@
 import type { EnemyType, GridCoord, TargetingMode, TileType, TowerType } from '../../core/types.ts';
+import type { Level2DGate } from '../levels2d/gates.ts';
 
 export interface WaveGroupDef {
   readonly enemyType: EnemyType;
@@ -60,6 +61,8 @@ export interface Level2DLayout {
   readonly plots: readonly WorldPoint[];
   /** Plot radius in world units (picking / footprint). */
   readonly plotRadius: number;
+  /** Renderer-only: entrance caves / goal gate (facing + front layer, image px). Empty when the map has none. */
+  readonly gates?: readonly Level2DGate[];
 }
 
 export interface LevelDef {

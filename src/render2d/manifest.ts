@@ -9,8 +9,10 @@ import type { RingSpec } from './towerFit.ts';
  */
 export interface ArtManifest {
   readonly version: number;
-  /** Map art key (Level2DLayout.image) → file. */
+  /** Map art key (Level2DLayout.image) → file; `<key>@<scale>x` keys are resolution variants (mapVariant.ts). */
   readonly maps: Readonly<Record<string, string>>;
+  /** Map overlays drawn by the renderer above the actors (gate front layers, see levels2d/gates.ts). */
+  readonly overlays: Readonly<Record<string, string>>;
   /** Empty build plot sprite (drawn by the renderer on every free plot) and its stone ring. */
   readonly plot: PlotArt | null;
   readonly ui: UiArt;
@@ -380,6 +382,7 @@ export function parseManifest(raw: unknown): ArtManifest {
   }
   if (!enemyMap['*']) throw new ManifestError('enemyMap needs a "*" fallback');
   const maps = obj(m.maps, 'maps');
+  const overlays = m.overlays === undefined || m.overlays === null ? {} : obj(m.overlays, 'overlays');
   const buildRing = Array.isArray(m.buildRing) ? (m.buildRing as TowerType[]).filter((t) => towers[t]) : [];
   let plot: PlotArt | null = null;
   if (m.plot !== undefined && m.plot !== null) {
@@ -390,6 +393,7 @@ export function parseManifest(raw: unknown): ArtManifest {
     version: numOr(m.version, 1),
     plot,
     maps: Object.fromEntries(Object.entries(maps).map(([k, f]) => [k, str(f, `maps.${k}`)])),
+    overlays: Object.fromEntries(Object.entries(overlays).map(([k, f]) => [k, str(f, `overlays.${k}`)])),
     ui: {
       plaque: str(ui.plaque, 'ui.plaque'),
       banner: str(ui.banner, 'ui.banner'),

@@ -1,0 +1,8 @@
+You are producing small GROUND DETAIL decals for "Skyhold Isles", an ORIGINAL 2D hand-painted tower defense. The attached images are the approved STYLE references (the painted grass ground texture, a tree, a flower patch): clean storybook painting, calm warm palette (not oversaturated), soft painterly shading, light from the top-left, near top-down 3/4 camera. These decals get scattered sparsely on the grass of the map to give it crisp, hand-painted detail, so they must be SUBTLE: low contrast against the attached grass, no heavy outlines (at most a thin darker green edge), small simple shapes.
+
+Use your image generation tool. Save into raw/ with the exact file name, then verify the file exists and print its pixel size.
+
+raw/decals-sheet.png — 1536x1024, FLAT PURE MAGENTA background (#FF00FF, no gradient, no ground, no shadow on the background, no magenta inside any item). A clean 4 x 2 grid of 8 SEPARATE items, each centred in its own 384x512 cell, each item about 200-300 px wide, with plenty of magenta between items (items never touch each other or the cell border):
+  row 1: (1) a small tuft of grass blades in the SAME greens as the attached grass (slightly lighter tips, slightly darker base), (2) a different, wider low grass tuft, (3) a small clump of clover-like leaves, (4) a thin tuft of three or four taller blades.
+  row 2: (5) two tiny white-and-yellow wildflowers with a few leaves (much smaller and simpler than the attached flower patch), (6) three or four small flat grey-brown pebbles half sunk in the ground, (7) a single small flat stone with a bit of moss, (8) a few tiny pale-yellow flowers on short stems.
+No text, no labels, no grid lines.

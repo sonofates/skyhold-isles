@@ -15,12 +15,40 @@
   {
    "id": "A",
    "x": 291,
-   "y": 121
+   "y": 121,
+   "gate": {
+    "prop": "cave-e",
+    "facing": "E",
+    "front": {
+     "art": "map-L1c-layered-gate-A",
+     "rect": [
+      160.0,
+      26.5,
+      165.0,
+      139.0
+     ],
+     "baseY": 165.55
+    }
+   }
   },
   {
    "id": "B",
    "x": 277,
-   "y": 419
+   "y": 419,
+   "gate": {
+    "prop": "cave-e",
+    "facing": "E",
+    "front": {
+     "art": "map-L1c-layered-gate-B",
+     "rect": [
+      146.0,
+      324.5,
+      165.0,
+      139.0
+     ],
+     "baseY": 463.55
+    }
+   }
   }
  ],
  "goal": [
@@ -335,5 +363,19 @@
    385
   ]
  ],
- "plotRadiusPx": 48
+ "plotRadiusPx": 48,
+ "goalGate": {
+  "prop": "castle-w",
+  "facing": "W",
+  "front": {
+   "art": "map-L1c-layered-gate-goal",
+   "rect": [
+    1375.5,
+    413.5,
+    241.5,
+    168.0
+   ],
+   "baseY": 581.4
+  }
+ }
 }
