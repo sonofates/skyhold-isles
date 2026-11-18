@@ -44,8 +44,9 @@ export function dailyPairAllowed(a: ChallengeId, b: ChallengeId): boolean {
 
 /**
  * Today's challenge among the first `clearedIslands` islands (the player must have won them, so a
- * daily is always on familiar ground). Two different challenges, at most one tower ban and at most
- * one strong rule (see STRONG_RULES).
+ * daily is always on familiar ground). Two different challenges from `challengePool` (defaults to
+ * `CHALLENGE_IDS`; 2D passes `CHALLENGE_IDS_2D`), at most one tower ban and at most one strong rule
+ * (see STRONG_RULES).
  * Returns null until at least one island is cleared.
  */
 export function dailyChallengeFor(

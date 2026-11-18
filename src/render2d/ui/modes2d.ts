@@ -6,8 +6,10 @@
  */
 import type { ProgressData } from '../../core/types.ts';
 import {
+  CHALLENGE_IDS_2D,
   CHALLENGES,
   challengesForLevel,
+  isChallengeEffectiveIn2D,
   isChallengeId,
   runModifiersFor,
   type ChallengeDef,
@@ -87,7 +89,7 @@ export function dailyForToday(
   } else {
     levels.forEach((_, i) => cleared.push(i));
   }
-  const dc = dailyChallengeFor(utcDayNumber(ms), cleared);
+  const dc = dailyChallengeFor(utcDayNumber(ms), cleared, CHALLENGE_IDS_2D);
   if (!dc) return null;
   const level = levels[dc.levelIndex];
   if (!level) return null;
@@ -188,6 +190,10 @@ export function resolveQueryRun2D(
         }
         if (!isChallengeId(token)) {
           warn(`[skyhold-2d] Unknown challenge id "${token}" ignored.`);
+          continue;
+        }
+        if (!isChallengeEffectiveIn2D(CHALLENGES[token])) {
+          warn(`[skyhold-2d] Challenge "${token}" has no effect in 2D; ignored.`);
           continue;
         }
         if (!challengesReq.includes(token)) challengesReq.push(token);
