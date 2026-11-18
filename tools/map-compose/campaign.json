@@ -63,7 +63,6 @@
     ]
   },
   "i05": {
-    "keepFootprint": {"hall": [69, 42], "far": [17, -68], "near": [-24, 38]},
     "plots": 19,
     "seed": 193,
     "decals": 280,
@@ -77,7 +76,8 @@
     "castle-h": 2.26
   },
   "i06": {
-    "keepFootprint": {"hall": [-65, 3], "nearPier": -23, "far": [38, -64], "near": [-27, 9]},
+    "gatehouseShelf": [-18, 1, 203, 92],
+    "gatehouseView": "compact",
     "plots": 24,
     "seed": 227,
     "decals": 135,
@@ -120,7 +120,8 @@
     ]
   },
   "i08": {
-    "keepFootprint": {"hall": [-103, -9], "hallFlip": true, "nearPier": 0, "far": [-48, -63], "near": [7, 42], "shelf": [-62, -13, 258, 110]},
+    "gatehouseShelf": [-18, -7, 206, 90],
+    "gatehouseView": "compact",
     "plots": 28,
     "seed": 353,
     "decals": 205,
@@ -198,6 +199,7 @@
     ]
   },
   "i12": {
+    "gatehouseView": "compact",
     "plots": 27,
     "seed": 541,
     "decals": 320,
@@ -216,7 +218,7 @@
     "biome": "hollow",
     "propWeights": [3, 7, 5, 5, 1, 1, 0],
     "cave-h": 2.18,
-    "castle-h": 2.26,
+    "castle-h": 1.55,
     "landmarks": [
       ["shrine", 1124, 637, 81]
     ]

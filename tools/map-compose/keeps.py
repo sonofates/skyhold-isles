@@ -1,177 +1,265 @@
-"""Project painted castle plans onto the last road segment. Elevations always stay upright."""
+"""Fit one painted gatehouse to a fixed road endpoint and lay its threshold into the road."""
 import math
 
 import numpy as np
-from postern import postern
-from PIL import Image, ImageChops, ImageDraw, ImageFilter
+from PIL import Image
 
-# Portal axis (y), half-width, inner lintel (x), front bastion centre (x), rear hall (x),
-# in keyed plan pixels. The floor is a separate surface and never occludes a walker.
-PORTALS = {
-    'orchard': (194, 19, 168, 123, 416),
-    'terraces': (186, 23, 203, 112, 414),
-    'tidal': (190, 21, 194, 122, 425),
-    'highlands': (193, 24, 205, 133, 415),
-    'hollow': (185, 21, 168, 106, 409),
-    'ember': (185, 24, 213, 123, 420),
+from gates import facing_from_dir
+
+
+# Fractional positions on the keyed turnarounds. The sill is at ground level.
+# The outer paving is a material swatch. Only the threshold inside the jambs
+# stays in the painting; the compositor lays the wider apron on island terrain.
+VIEWS = {
+    'W': ((-1, 0), (0.235, 0.572), (0.015, 0.506, 0.145, 0.636)),
+    'S': ((0, 1), (0.5, 0.814), (0.399, 0.876, 0.603, 0.99)),
+    'N': ((0, -1), (0.5, 0.307), (0.39, 0.012, 0.61, 0.15)),
+    'sw': ((-0.728, 0.686), (0.334, 0.765), None),
+    'nw': ((-0.821, -0.571), (0.27, 0.488), None),
+    'compact': ((-1, 0), (0.173, 0.933), None),
 }
 
 
-class Keep:
-    def __init__(self, directory, biome, point, along, road, height, footprint=None):
-        self.theme = biome or 'orchard'
-        self.plan = Image.open(directory / f'plan-{self.theme}.webp').convert('RGBA')
-        self.hall = Image.open(directory / f'tower-{self.theme}.webp').convert('RGBA')
-        self.axis, self.half, self.lintel, self.bastion, self.rear = PORTALS[self.theme]
-        self.point, self.along, self.road = point, along, road
-        self.height = height
-        self.footprint = footprint or {}
-        if self.footprint:
-            self.arch = Image.open(directory / f'arch-{self.theme}.webp').convert('RGBA')
-        # The courtyard floor and roof deck share a registration at all facings. Remove the
-        # artist's square-ended approach outside the gate and blend its sill into the plaza.
-        # The tidal sill includes a dark raised curb above its central paving.
-        paver_top = self.axis - 5 if self.theme == 'tidal' else self.axis - self.half + 6
-        self.pavers = self.plan.convert('RGB').crop((20, paver_top, 76, self.axis + self.half - 6))
-        px = np.array(self.plan)
-        yy, xx = np.indices(px.shape[:2])
-        outside = xx < self.bastion - 48
-        floor = (abs(yy - self.axis) < self.half + 7) & (xx < self.lintel)
-        fade = np.clip((xx - self.bastion + 35) / 25, 0, 1)
-        px[..., 3] = np.where(outside, 0, px[..., 3] * np.where(floor, fade, 1))
-        self.plan = Image.fromarray(px)
-        alpha = px[..., 3].copy()
-        alpha[floor] = 0
-        self.front = Image.fromarray(alpha)
-        self.yard = self.plan.getchannel('A')
-        ImageDraw.Draw(self.yard).rounded_rectangle(
-            (self.bastion, self.axis - 92, self.plan.width - 34, self.axis + 92), radius=24, fill=255)
+def source_coordinates(source, xx, yy, anchor, c, s, flip):
+    """Inverse map the rotated silhouette back into the registered painting."""
+    ax, ay = anchor
+    h, w = xx.shape
+    if source == 'compact':
+        # This elevation has a very shallow ground footprint. Its painted porch
+        # turns with the road, while the back stone courses stay over the footing.
+        # Taper the floor displacement to zero at the eaves to keep the roof level.
+        sign = 1 if flip else -1
 
-    def place(self, wings, approach, size):
-        """Scale the two wall ends beyond the turrets, preserving the portal and sim endpoint."""
-        if self.footprint:
-            return postern(self, self.footprint, wings, size)
-        # Undo vertical foreshortening before computing the plan rotation. The projected
-        # longitudinal axis then agrees with the sim vector, including N/S and diagonals.
+        def floor_offset(delta):
+            return s * sign * np.clip(sign * delta, -w * 0.10, w * 0.43)
+
+        dx, dy = xx - ax, yy - ay
+        weight = np.clip((yy / h - 0.48) / 0.34, 0, 1)
+        projected_y = dy + weight * floor_offset(dx)
+        left, top = math.floor((dx * c).min()) - 1, math.floor(projected_y.min()) - 1
+        width = math.ceil((dx * c).max()) - left + 2
+        high = math.ceil(projected_y.max()) - top + 2
+        y, x = np.indices((high, width), dtype=np.float32)
+        ix = ax + (x + left) / c
+        iy = ay + y + top
+        for _ in range(6):
+            weight = np.clip((iy / h - 0.48) / 0.34, 0, 1)
+            iy = ay + y + top - weight * floor_offset(ix - ax)
+        return ix, iy, left, top
+
+    def elevation(x, y):
+        # Interpolate the depth breaks at front turret cap, masonry and near eaves.
+        if source != 'W':
+            return np.clip((h * 0.86 - y) * 0.29, 0, h * 0.17)
+        side = (w - 1 - x if flip else x) / w
+        turret = np.interp(y / h, (0, 0.17, 0.47, 0.57, 0.71, 1), (0.24, 0.17, 0, 0.23, 0.16, 0))
+        roof = np.interp(y / h, (0, 0.16, 0.34, 0.66, 0.90, 1), (0.19, 0.18, 0.29, 0.19, 0, 0))
+        t = np.clip((side - 0.35) / 0.13, 0, 1)
+        # The open throat, including its floor, stays on the ground plane.
+        portal = np.clip((abs(y / h - 0.572) - 0.043) / 0.055, 0, 1)
+        portal = np.maximum(portal, np.clip((side - 0.33) / 0.07, 0, 1))
+        return h * (turret * (1 - t) + roof * t) * portal
+
+    # Give the passage extra room across its opening, preserving adjacent stone
+    # courses. The floor axis and both ends of the arch remain registered.
+    x_knots = np.array([0, 0.16, 0.37, 1]) * w
+    y_knots = np.array([0, 0.41, 0.64, 1]) * h
+    if flip:
+        x_knots = w - x_knots[::-1]
+    x_draw = x_knots + np.array([0, 0, 0.075, 0.075]) * w
+    y_draw = y_knots + np.array([0, 0, 0.095, 0.095]) * h
+    if source != 'W':
+        x_draw, y_draw = x_knots, y_knots
+
+    def project(x, y):
+        lift = elevation(x, y)
+        dx = np.interp(x, x_knots, x_draw) - np.interp(ax, x_knots, x_draw)
+        dy = np.interp(y, y_knots, y_draw) - np.interp(ay, y_knots, y_draw)
+        return c * dx - s * (dy + lift), s * dx + c * (dy + lift) - lift
+
+    gx, gy = project(xx, yy)
+    left, top = math.floor(gx.min()) - 1, math.floor(gy.min()) - 1
+    width, high = math.ceil(gx.max()) - left + 2, math.ceil(gy.max()) - top + 2
+    y, x = np.indices((high, width), dtype=np.float32)
+    x, y = x + left, y + top
+    x0 = np.interp(ax, x_knots, x_draw) + c * x + s * y
+    y0 = np.interp(ay, y_knots, y_draw) - s * x + c * y
+
+    # Extrapolate outside the source so the transparent border stays clear.
+    def unwarp(value, dest, src):
+        return np.interp(value, dest, src) + np.minimum(value - dest[0], 0) + np.maximum(value - dest[-1], 0)
+
+    ix, iy = unwarp(x0, x_draw, x_knots), unwarp(y0, y_draw, y_knots)
+    for _ in range(6):
+        lift = elevation(ix, iy)
+        ix = unwarp(x0 + s * lift, x_draw, x_knots)
+        iy = unwarp(y0 + (c - 1) * lift, y_draw, y_knots)
+    return ix, iy, left, top
+
+
+# Sample premultiplied colour and the occlusion mask with the same transform.
+def sample(data, ix, iy):
+    h, w = data.shape[:2]
+    xa, ya = np.floor(ix).astype(int), np.floor(iy).astype(int)
+    u, v = ix - xa, iy - ya
+    result = np.zeros((*ix.shape, data.shape[2]), dtype=np.float32)
+    for dx, dy, weight in ((0, 0, (1 - u) * (1 - v)), (1, 0, u * (1 - v)), (0, 1, (1 - u) * v), (1, 1, u * v)):
+        valid = (xa + dx >= 0) & (xa + dx < w) & (ya + dy >= 0) & (ya + dy < h)
+        result[valid] += data[ya[valid] + dy, xa[valid] + dx] * weight[valid, None]
+    return result.clip(0, 255).round().astype('uint8')
+
+
+class Keep:
+    def __init__(self, directory, biome, point, along, road, height, view=None):
+        self.theme = biome or 'orchard'
+        self.point, self.along, self.road = point, along, road
+        facing = facing_from_dir(*along)
+        # Use the painted yaw nearest the road. All eight compass directions have
+        # an elevation, with the east-side views mirrored from their western pair.
+        bearing = math.degrees(math.atan2(along[1], abs(along[0])))
+        if view == 'compact' and facing in ('E', 'W'):
+            source = view
+        elif 22.5 <= abs(bearing) < 67.5:
+            source = 'sw' if bearing > 0 else 'nw'
+        else:
+            source = 'W' if facing == 'E' else facing
+        flip = along[0] > 0 and source not in ('S', 'N')
+        direction, sill, swatch = VIEWS[source]
+        im = Image.open(directory / f'{self.theme}-{source.lower()}.webp').convert('RGBA')
+        w, h = im.size
+
+        pixels = np.array(im)
+        yy, xx = np.indices((h, w), dtype=np.float32)
+        ax, ay = sill[0] * w, sill[1] * h
+        ux, uy = direction
+        outside = (xx - ax) * ux + (yy - ay) * uy
+        across = -(xx - ax) * uy + (yy - ay) * ux
+        # Cut the rectangular outer tab only within the painted paving band.
+        if source == 'nw':
+            floor = (xx < w * 0.243) & (yy > h * 0.31) & (yy < h * 0.56)
+            opening = (xx > w * 0.247) & (xx < w * 0.405) & (yy > h * 0.387) & (yy < h * 0.564)
+        elif source == 'sw':
+            floor = (xx < w * 0.44) & (yy > h * 0.766)
+            opening = (xx > w * 0.25) & (xx < w * 0.44) & (yy > h * 0.60) & (yy < h * 0.82)
+        elif source == 'compact':
+            floor = (yy > h * 0.883) & (xx < w * 0.26)
+            opening = (yy > h * 0.648) & (xx < w * 0.272)
+        elif source == 'W':
+            floor = (yy > h * 0.475) & (yy < h * 0.668)
+            floor &= (xx < w * 0.169) | ((yy > h * 0.519) & (yy < h * 0.609))
+            opening = (yy > h * 0.429) & (yy < h * 0.637) & (xx < w * 0.365)
+        elif source == 'S':
+            floor = (abs(xx - ax) < w * 0.126) & (yy > h * 0.767)
+            opening = (abs(across) < w * 0.116) & (yy > h * 0.685)
+        else:
+            floor = (abs(xx - ax) < w * 0.132) & (yy < h * 0.184)
+            opening = (abs(across) < w * 0.118) & (yy > h * 0.238) & (yy < h * 0.39)
+        fade = np.clip((w * 0.085 - outside) / (w * 0.065), 0, 1)
+        pixels[..., 3] = np.where(floor, pixels[..., 3] * fade, pixels[..., 3])
+        depth = np.clip((-outside + w * 0.009) / (w * 0.075), 0, 1)
+        front = (pixels[..., 3] * np.where(floor | opening, depth, 1)).astype('uint8')
+
+        if flip:
+            pixels, front = pixels[:, ::-1], front[:, ::-1]
+            ax, ux = w - 1 - ax, -ux
+        # Rotate the floor about the surveyed sill, through the exact terminal tangent.
+        # Raise the painted roofs back along screen vertical. A height field registered
+        # to the eaves keeps the turrets upright on oblique approaches.
+        rot = math.atan2(along[1], along[0]) - math.atan2(uy, ux)
+        c, s = math.cos(rot), math.sin(rot)
+        ix, iy, left, top = source_coordinates(source, xx, yy, (ax, ay), c, s, flip)
+        rgba = np.asarray(Image.fromarray(pixels).convert('RGBa'))
+        warped = sample(np.dstack((rgba, front)), ix, iy)
+        painted = Image.fromarray(warped[:, :, :4], 'RGBa').convert('RGBA')
+        box = painted.getchannel('A').getbbox()
+        self.im = painted.crop(box)
+        self.front = Image.fromarray(warped[:, :, 4]).crop(box)
+        self.anchor = -left - box[0], -top - box[1]
+        paving = im
+        if swatch is None:
+            # Short oblique sills contain less than one full course of paving.
+            paving = Image.open(directory / f'{self.theme}-w.webp')
+            swatch = VIEWS['W'][2]
+        box = tuple(round(n * v) for n, v in zip(swatch, (*paving.size, *paving.size)))
+        self.pavers = np.asarray(paving.convert('RGB').crop(box))
+        self.compact = source == 'compact'
+        if self.compact:
+            # The short sill has enough paint to match its hue, while the broad
+            # lateral swatch provides full stone courses for the whole forecourt.
+            stone = im.convert('RGB').crop((round(w*0.035), round(h*0.914),
+                                            round(w*0.12), round(h*0.953)))
+            tone = np.median(np.asarray(stone), axis=(0, 1))
+            original = np.maximum(1, np.median(self.pavers, axis=(0, 1)))
+            self.pavers = np.clip(self.pavers * (tone / original), 0, 255).astype('uint8')
+        self.k = height * 1.15 / h
+        self.deep = w * (0.12 if source == 'W' else 0.088) * self.k
+
+    def place(self, size):
+        k = self.k * size
         ux, uy = self.along
-        pitch = 0.76
-        cos, sin = -ux, -uy / pitch
-        norm = math.hypot(cos, sin)
-        cos, sin = cos / norm, sin / norm
-        k = self.road / 117 * size
-        q = 3  # match the native high-resolution bake
-        # Keep the upriver end of the lane open between bastions. Taper the outside wall
-        # courses independently of the width of the passage and the central roof.
-        sy = np.array([0, self.axis - 92, self.axis - self.half, self.axis + self.half,
-                       self.axis + 92, self.plan.height])
-        lane = self.road * 0.39
-        shoulder = (17 + 13 * wings) * size
-        dy = np.array([-lane - shoulder - 35 * wings, -lane - shoulder, -lane,
-                       lane, lane + shoulder, lane + shoulder + 35 * wings])
-        sx = [0, self.lintel, self.plan.width]
-        dx = [-self.lintel * k * approach, 0, (self.plan.width - self.lintel) * k]
-        inset = 12 * size
-        def project(x, y):
-            return cos * x - sin * y + ux * inset, (sin * x + cos * y) * pitch + uy * inset
-        hx, hy = project((self.rear - self.lintel) * k, 0)
-        hall_h = self.height * size
-        hall_w = hall_h * self.hall.width / self.hall.height
-        # An upright hall sits on the inner bailey, with its foot just inside the near parapet.
-        hall_bottom = hy + hall_w * 0.27
-        corners = [project(x, y) for x in (dx[0], dx[-1]) for y in (dy[0], dy[-1])]
-        left = math.floor(min(hx - hall_w / 2, *(x for x, _ in corners))) - 2
-        top = math.floor(min(hall_bottom - hall_h, *(y for _, y in corners)) - 10)
-        right = math.ceil(max(hx + hall_w / 2, *(x for x, _ in corners))) + 2
-        bottom = math.ceil(max(hall_bottom, *(y for _, y in corners))) + 2
-        yy, xx = np.indices((round((bottom - top) * q), round((right - left) * q)), dtype=np.float32)
-        x = left + (xx + 0.5) / q - ux * inset
-        py = top + (yy + 0.5) / q
-        y = (py - uy * inset) / pitch
-        # Map the painted wall courses onto the projected plan.
-        # Inverse-map at working resolution to leave the portal at exactly the same point.
-        cross = -sin * x + cos * y
-        u = np.interp(cos * x + sin * y, dx, sx, left=-2, right=-2)
-        v = np.interp(cross, dy, sy, left=-2, right=-2)
-        def sample(im):
-            # Half-source-pixel sampling keeps oblique eaves smooth on the 3x maps.
-            enlarged = im.resize((2 * im.width, 2 * im.height), Image.Resampling.BICUBIC)
-            ix = np.clip((u * 2).astype(int), 0, enlarged.width - 1)
-            iy = np.clip((v * 2).astype(int), 0, enlarged.height - 1)
-            pixels = np.asarray(enlarged)[iy, ix].copy()
-            pixels[(u < 0) | (v < 0)] = 0
-            return Image.fromarray(pixels)
-        ground = sample(self.plan)
-        yard = sample(self.yard)
-        roof = ground.copy()
-        roof.putalpha(sample(self.front))
-        # The masonry has a shallow vertical return on the near edge, independently of yaw.
-        lift = round(8 * q)
-        side = roof.point(lambda n: int(n * .71))
-        side.putalpha(roof.getchannel('A'))
-        for h in range(0, lift, 2):
-            ground.alpha_composite(side, (0, -h))
-        ground.alpha_composite(roof, (0, -lift))
-        foreground = Image.new('L', ground.size)
-        foreground.paste(roof.getchannel('A'), (0, -lift))
-        for h in range(lift):
-            raised = Image.new('L', ground.size)
-            raised.paste(roof.getchannel('A'), (0, -h))
-            foreground = ImageChops.lighter(foreground, raised)
-        hall = self.hall.resize((round(hall_w * q), round(hall_h * q)), Image.Resampling.LANCZOS)
-        xy = round((hx - hall_w / 2 - left) * q), round((hall_bottom - hall_h - top) * q)
-        ground.alpha_composite(hall, xy)
-        hall_mask = Image.new('L', ground.size)
-        hall_mask.paste(hall.getchannel('A'), xy)
-        foreground = ImageChops.lighter(foreground, hall_mask)
-        bb = ground.getchannel('A').getbbox()
-        ground, foreground = ground.crop(bb), foreground.crop(bb)
-        left += self.point[0] + bb[0] / q
-        top += self.point[1] + bb[1] / q
-        return dict(im=ground, front=foreground, yard=yard.crop(bb), left=left, top=top, k=1/q,
-                    rect=(left, top, left+ground.width/q, top+ground.height/q), point=self.point,
-                    along=self.along, wings=wings, approach=approach, size=size, inset=inset,
-                    sites=[(self.point[0]+hx, self.point[1]+hall_bottom-hall_w*.15, hall_w)])
+        # The endpoint remains inside the tunnel as the entire building shrinks.
+        inset = self.deep * size
+        x, y = self.point
+        left = x + ux * inset - self.anchor[0] * k
+        top = y + uy * inset - self.anchor[1] * k
+        return dict(im=self.im, front=self.front, k=k, left=left, top=top,
+                    rect=(left, top, left + self.im.width * k, top + self.im.height * k),
+                    point=self.point, along=self.along, size=size, inset=inset)
+
+    def trim_road(self, mask, scale):
+        """Round the terminal dirt shoulder under the shallow gatehouses' short sills."""
+        if not self.compact:
+            return
+        gx, gy = self.point
+        ux, uy = self.along
+        radius = self.road * 1.25
+        left, top = max(0, round((gx-radius)*scale)), max(0, round((gy-radius)*scale))
+        right = min(mask.width, round((gx+radius)*scale))
+        bottom = min(mask.height, round((gy+radius)*scale))
+        yy, xx = np.indices((bottom-top, right-left), dtype=np.float32)
+        x, y = (xx+left)/scale-gx, (yy+top)/scale-gy
+        along, cross = x*ux+y*uy, -x*uy+y*ux
+        # The road's square line cap can project past the gate base on the downhill
+        # side. Pull just the edges back, under the stone apron.
+        setback = 0.48*self.road*(cross/(self.road*0.53))**2-5
+        keep = np.where(abs(cross) < self.road*0.68, np.clip((along-setback)/3, 0, 1), 1)
+        dirt = np.asarray(mask.crop((left, top, right, bottom)))
+        mask.paste(Image.fromarray((dirt*keep).astype('uint8')), (left, top))
 
     def apron(self, ground, gate, scale, plots, rx, ry, path):
-        """Flare the road into a stone forecourt. Worn outer setts dissolve into the local dirt."""
+        """Setts flare from the existing dirt width to the foot of the two piers."""
         ux, uy = self.along
         gx, gy = self.point
-        road = self.road
         last = next(p for p in reversed(path[:-1]) if tuple(p) != tuple(path[-1]))
-        length = min(road * 1.6, math.dist(last, path[-1]))
-        r = math.ceil(max(length + road, gx-gate['left'], gy-gate['top'], gate['rect'][2]-gx, gate['rect'][3]-gy) * scale + 8*scale)
+        length = min(self.road * 1.32, math.dist(last, path[-1]))
+        r = math.ceil((length + self.road) * scale)
         left, top = round(gx * scale) - r, round(gy * scale) - r
-        yy, xx = np.indices((2*r, 2*r), dtype=np.float32)
+        yy, xx = np.indices((2 * r, 2 * r), dtype=np.float32)
         x, y = (xx + left) / scale - gx, (yy + top) / scale - gy
         d, cross = x * ux + y * uy, -x * uy + y * ux
-        # Broad at the barbican and narrow at the dirt end. Slightly irregular edge stones.
-        t = np.clip(d / length, 0, 1)
-        width = road * (0.77 - 0.32 * t)
-        row = np.floor((d + 100) / 8)
-        col = np.floor((cross + 100 + 7 * (row % 2)) / 15)
+        t = np.clip((d - gate['inset']) / max(1, length - gate['inset']), 0, 1)
+        half = self.road * (0.66 - 0.22 * t)
+        row = np.floor((d + 90) / 8)
+        col = np.floor((cross + 100 + 6 * (row % 2)) / 13)
         wear = np.sin(row * 23.7 + col * 75.1)
-        alpha = np.clip((width - abs(cross) + wear * 2.4) / 5, 0, 1)
-        alpha *= np.clip((length - d + wear * 11) / (road * .55), 0, 1)
-        alpha *= np.clip((d + 12) / 8, 0, 1)
-        # The yard extends underneath the whole fortress. Its gravel shoulder softens into
-        # the surrounding biome, and the open space between the walls reads as a courtyard.
-        fp = gate['yard']
-        footprint = fp.resize((round(fp.width * gate['k'] * scale), round(fp.height * gate['k'] * scale)),
-                              Image.Resampling.LANCZOS)
-        yard = Image.new('L', (2*r, 2*r))
-        yard.paste(footprint, (round(gate['left'] * scale) - left, round(gate['top'] * scale) - top))
-        shoulder = np.asarray(yard.filter(ImageFilter.GaussianBlur(4 * scale))) / 255
-        alpha = np.maximum(alpha, shoulder * .88)
+        alpha = np.clip((half - abs(cross) + wear * 1.5) / 3.5, 0, 1)
+        alpha *= np.clip((length - d + wear * 6) / (self.road * 0.38), 0, 1)
+        if self.compact:
+            # The south jamb on these shallow sites is nearly flush with the
+            # building's foot. Round the unused corners back into the road verge.
+            nose = self.road * 0.50 * (cross / half)**2
+            alpha *= np.clip((d + 4 - nose + wear * 2) / 9, 0, 1)
+        else:
+            alpha *= np.clip((d + 5) / 6, 0, 1)
         for px, py in plots:
-            if abs(px-gx) < 3.5*road and abs(py-gy) < 3.5*road:
-                ring = ((x + gx - px) / (rx+4))**2 + ((y + gy - py) / (ry+4))**2
-                alpha *= np.clip((ring - 1) * 5, 0, 1)
-        # Use the actual painted paving from this gate's approach. Mirror alternate tiles at
-        # the seams so a snow-dusted sill, for example, meets the same snow-dusted setts.
-        tex = np.asarray(self.pavers)
-        def mirrored(a, n):
-            m = np.floor(a).astype(int) % (2*n)
-            return np.minimum(m, 2*n-1-m)
-        color = tex[mirrored(cross * 1.7, tex.shape[0]), mirrored(d * 1.9, tex.shape[1])]
-        stamp = Image.fromarray(np.dstack((color, (alpha * 245).astype('uint8'))))
-        ground.alpha_composite(stamp, (left, top))
+            if abs(px - gx) < 3 * self.road and abs(py - gy) < 3 * self.road:
+                ellipse = ((x + gx - px) / (rx + 4))**2 + ((y + gy - py) / (ry + 4))**2
+                alpha *= np.clip((ellipse - 1) * 5, 0, 1)
+
+        def mirror(a, n):
+            value = np.floor(a).astype(int) % (2 * n)
+            return np.minimum(value, 2 * n - 1 - value)
+
+        tex = self.pavers
+        color = tex[mirror(cross * 3.0, tex.shape[0]), mirror(d * 3.0, tex.shape[1])]
+        ground.alpha_composite(Image.fromarray(np.dstack((color, (alpha * 245).astype('uint8')))), (left, top))

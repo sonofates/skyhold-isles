@@ -506,17 +506,17 @@
   ]
  ],
  "goalGate": {
-  "prop": "keep-highlands-w",
+  "prop": "gatehouse-highlands-w",
   "facing": "W",
   "front": {
    "art": "map-i11-layered-gate-goal",
    "rect": [
-    913.0,
-    607.0,
-    227.5,
-    163.0
+    942.0,
+    616.0,
+    162.0,
+    197.0
    ],
-   "baseY": 770.0
+   "baseY": 813.38
   }
  }
 }

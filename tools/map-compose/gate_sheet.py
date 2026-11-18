@@ -3,7 +3,7 @@
 with the gate front layers composited on top (what the game shows with no walkers).
 
 usage: /usr/bin/python3 tools/map-compose/gate_sheet.py <out.png> [--ids l1c,i01,...] [--path]
-         [--maps public/art2d] [--layouts src/data/levels2d] [--role entrance|goal] [--context] [--ref HEAD]
+         [--maps public/art2d] [--layouts src/data/levels2d] [--role entrance|goal] [--context] [--tile 300] [--ref HEAD]
   --context  fixed field of view with nearby build plots for scale comparisons
   --ref      read the layouts and art directly from a git revision
   --path   draw the sim path (enemy walk line) in red over the crops
@@ -40,7 +40,7 @@ def rgba(path):
 
 manifest = json.loads(read(maps / 'manifest.json'))
 plot = rgba(maps / 'plot-base.webp') if '--context' in args else None
-TILE = 300
+TILE = int(opt('--tile', '300'))
 tiles = []
 for lid in ids:
     L = json.loads(read(layouts / f'{lid}.json'))

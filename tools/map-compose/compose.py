@@ -43,13 +43,10 @@ aims the road through the midpoint of the cave sill. --gate-seat exit uses the o
 With --keep-plots a cave can move partway toward its seat to respect the saved tower envelopes.
 --gate-bleed sets the maximum cave bleed beyond the safe area in road widths (default 0.6).
 
-Goal keeps (keeps.py) use the reverse tangent of the final segment. A keyed biome plan supplies
-the gate, walls and paving. The residential hall stays upright at every angle. The fit shortens
-curtain walls and the outer approach before reducing the whole footprint. A campaign keepFootprint
-lays out a compact gate and its individual return walls on a constrained site (postern.py).
---castle-h sets the hall height in road widths. The stone plaza meets the road at the sill.
-The front layer uses the masonry and tunnel mask over the final map pixels, leaving the exterior
-floor clear for walkers. Castles must remain inside the safe area. Every gate casts a contact shadow.
+Goal keeps (keeps.py) are single keyed gatehouses with an arch in the main facade. The
+painted sill and the flared stone apron share the final road tangent. --castle-h sets the
+nominal height in road widths. The whole building shrinks uniformly to clear existing
+plots, towers and the safe area. The front redraws the masonry and deep tunnel over walkers.
 Re-bake every shipped island: /usr/bin/python3 tools/map-compose/rebake_all.py (checks that only
 gate fields of the layouts changed). Gate contact sheet: tools/map-compose/gate_sheet.py.
 Crisp ground (ground.py): fine brush detail, a ragged crisp road edge with a thin dark rim, grass
@@ -342,27 +339,25 @@ def gate_bleed(g):
     return max(sx - pr[0], pr[2] - (sx + sw), sy - pr[1], pr[3] - (sy + sh), 0)
 
 
-# The goal stays fixed under the lintel. Shorten wall ends, then the barbican approach,
-# before reducing the keep on particularly tight sites. Use the same fit at every resolution.
-keep = Keep(assets.parent / 'keeps', biome, (gx, gy), goal_dir(raw_paths[0]), ROAD_W, ROAD_W * CASTLE_H, recipe.get('keepFootprint'))
+# Fit the whole gatehouse at its fixed threshold, independently of output resolution.
+keep = Keep(assets.parent / 'gatehouses', biome, (gx, gy), goal_dir(raw_paths[0]), ROAD_W, ROAD_W * CASTLE_H, recipe.get('gatehouseView'))
 kept_zones = [plot_zone(*p) for p in L['plots']] if ('--keep-plots' in args or '--check-plots' in args) else []
+
+
 def fit_keep():
-    wall_fits = ((1, 1), (.5, 1), (.2, 1))
-    if not keep.footprint:
-        wall_fits += ((.2, .72), (.2, .48))
-    for size in (1, 0.92, 0.84, 0.76, 0.68, 0.60):
-        for wings, approach in wall_fits:
-            candidate = keep.place(wings, approach, size)
-            if gate_bleed(candidate) or any(rects_hit(candidate['rect'], hud) for hud in HUD_RECTS[:6]):
-                continue
-            if any(gate_alpha_hit(candidate, z) for z in kept_zones):
-                continue
-            return candidate
+    for percent in range(100, 9, -2):
+        candidate = keep.place(percent / 100)
+        if gate_bleed(candidate) or any(rects_hit(candidate['rect'], hud) for hud in HUD_RECTS[:6]):
+            continue
+        if any(gate_alpha_hit(candidate, z) for z in kept_zones):
+            continue
+        return candidate
     raise ValueError(f"No clear castle footprint on {L['id']}")
+
 
 castle = fit_keep()
 facing = goal_facing(raw_paths[0])
-GATES.append({'role': 'goal', 'lane': -1, 'id': 'goal', 'prop': f'keep-{keep.theme}-{facing.lower()}',
+GATES.append({'role': 'goal', 'lane': -1, 'id': 'goal', 'prop': f'gatehouse-{keep.theme}-{facing.lower()}',
               'facing': facing, 'g': castle})
 landmark_rects.append(castle['rect'])
 
@@ -617,7 +612,7 @@ reach = [dist_to_road(*p) for p in plots]
 if fails:
     sys.exit('PLOT RULES FAILED:\n  ' + '\n  '.join(fails))
 if '--check-plots' in args:
-    print(f"{layout_p}: {len(plots)} plots pass, keep {castle['size']:.2f}, walls {castle['wings']:.2f}, approach {castle['approach']:.2f}")
+    print(f"{layout_p}: {len(plots)} plots pass, keep {castle['size']:.2f}")
     sys.exit(0)
 
 # ---------------------------------------------------------------- ground (output px)
@@ -685,16 +680,17 @@ if land_mask:
 
     for px, py in plots:
         foundation(px, py, 2.65 * PLOT_R, 2.8 * PLOT_RY)
-    shelf = keep.footprint.get('shelf')
-    if shelf:
-        # One continuous rock terrace supports the hall, curtain walls and portal where
-        # the terrain mask changes from land to water through the middle of the bailey.
-        dx, dy, width, height = shelf
-        foundation(gx + dx, gy + dy, width, height, force=True)
-    else:
-        for x, y, w in castle['sites']:
-            foundation(x, y, w * 1.28, w * .73)
-    for left, top, right, bottom in (landmark_rects[:-1] if shelf else landmark_rects):
+    # Put one footing under the gatehouse if its base crosses the terrain edge.
+    left, top, right, bottom = castle['rect']
+    width, height = right-left, bottom-top
+    base = (left+right)/2, bottom-height*.20
+    if 'gatehouseShelf' in recipe:
+        dx, dy, w, h = recipe['gatehouseShelf']
+        foundation(gx+dx, gy+dy, w, h, force=True)
+    elif any(not on_land(base[0]+dx*width, base[1]+dy*height)
+           for dx, dy in ((-.35,0), (.35,0), (0,.12), (0,-.15))):
+        foundation(*base, width*1.28, max(width*.57, height*.43), force=True)
+    for left, top, right, bottom in landmark_rects[:-1]:
         foundation((left + right) / 2, bottom - 5, (right - left) * 1.17, (right - left) * 0.49)
 
 # ---------------------------------------------------------------- road
@@ -709,6 +705,7 @@ for path in spl_paths:
 # the road ends at each seated gate's threshold (no end cap peeking out under the gate)
 for G in GATES:
     clip_road_at_gate(road_hard, G['g'], S, rw)
+keep.trim_road(road_hard, S)
 # crisp, slightly irregular painted edge (was a ~10-25 px Gaussian ramp: the main "blurry" cue)
 # Use the master's noise lattice at both scales so the painted contour stays in place.
 noise_scale = S / 2 if native_3x else 1
@@ -983,7 +980,7 @@ for G in GATES:
     fr = G['json']['front']
     _seat = 'exit' if G['g'].get('seat') is None else f"seated {G['g'].get('blend', 1.0):.2f}"
     if G['role'] == 'goal':
-        _seat = f"aligned {castle['size']:.2f} walls {castle['wings']:.2f} approach {castle['approach']:.2f}"
+        _seat = f"aligned {castle['size']:.2f}"
     print(f'  gate {G["id"]}: {G["prop"]} facing {G["facing"]} {_seat} rect {tuple(round(v) for v in G["g"]["rect"])}'
           f' front {G.get("file")} {fr["rect"] if fr else None}')
 if fringe_n:

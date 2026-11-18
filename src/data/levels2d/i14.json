@@ -740,17 +740,17 @@
   ]
  ],
  "goalGate": {
-  "prop": "keep-ember-w",
+  "prop": "gatehouse-ember-w",
   "facing": "W",
   "front": {
    "art": "map-i14-layered-gate-goal",
    "rect": [
-    1456.5,
-    277.0,
-    190.0,
-    151.5
+    1463.5,
+    272.0,
+    141.0,
+    173.0
    ],
-   "baseY": 428.67
+   "baseY": 445.13
   }
  }
 }
