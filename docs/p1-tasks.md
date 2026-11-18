@@ -34,6 +34,7 @@ Rules as built (code: `src/sim/soldierSystem.ts`, data: `src/data/soldiers.ts`, 
 - [x] Per-enemy visuals: healer aura, warden shield bubble, burrower mound/underground, blinker blink FX, golem crack, hexer jam, splitter split, carrier drop, elite tint/overlay, boss phases
 - [x] Tower attack animation (procedural recoil/flash + frames where provided), all 7 tower types + barracks in the build ring
 - [x] Codex screen uses the 2D art
+- [x] Melee fights: sim `meleeSwing` (blow announced, `impactIn`) / `meleeHit` (blow landed) events, render-only; Omni attack sheets (`enemies.<art>.attack`, `impact` frame) pre-rolled so the impact frame lands on the sim hit, procedural swing fallback; fighters face each other, stand off left / right of the foe (gang-ups spread over both sides), hit flash, knockback jolt, slash / sparks / dust, heavy-blow ground slam (`src/render2d/meleeAnim.ts`, `meleeDirector.ts`; QA `?melee=1&manual=1`, `qa/melee2d.mjs`)
 
 ## Gate (end of P1)
 - [x] tsc, lint, full tests, sim:balance, build on hermes
