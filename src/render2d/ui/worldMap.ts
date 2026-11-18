@@ -1,6 +1,6 @@
 /**
  * World map (2d.html without ?level=): a painted sea with the 2D isles as medallion nodes along a
- * dotted route, left to right. Locked / unlocked / stars come from the 2D save (progress2d.ts, on
+ * painted route (dashes + an anchor per leg), left to right. Locked / unlocked / stars come from the 2D save (progress2d.ts, on
  * the campaign's own rules). Tap an island → briefing card → Play loads `?level=<id>`. The meta
  * screens (Workshop, Logbook, Daily, Settings) open from the round buttons top-right.
  *
@@ -25,7 +25,7 @@ import { showBriefing, type RunChoice } from './briefing.ts';
 import { isChallengeId } from '../../data/challenges.ts';
 import { anySheetOpen, el, glyph, img, KIT, medal, roundButton, starsRow } from './dom.ts';
 import { fetchMapsManifest, islandMapUrl, type MapsManifest } from './islandArt.ts';
-import { routePath, scrollToCentre, worldMapLayout, type WorldMapLayout } from './mapLayout.ts';
+import { routeMarks, scrollToCentre, worldMapLayout, type RouteMark, type WorldMapLayout } from './mapLayout.ts';
 import { dailyFor2D, openDaily, openLogbook, openSettings, openWorkshop, type MetaContext } from './metaScreens.ts';
 import { availableChallenges, buildRunHref2D, canPlayEndless } from './modes2d.ts';
 import { islandStates, loadProgress2D, type IslandState } from './progress2d.ts';
@@ -51,6 +51,36 @@ function mockLevels(n: number): LevelDef[] {
     difficulty: diffs[Math.min(3, Math.floor((i * 4) / Math.max(1, n)))],
     layout2d: i % 3 === 2 ? undefined : base.layout2d,
   }));
+}
+
+const ROUTE_DASH = '/art2d/ui/route-dash.webp';
+const ROUTE_ANCHOR = '/art2d/ui/route-anchor.webp';
+
+/**
+ * The voyage route as painted pieces: `route-dash` marks every few steps along the curve through
+ * the islands and a `route-anchor` halfway along each leg. Legs already sailed (up to the frontier
+ * island) are full colour; the legs ahead are faded. Both pieces are small (32 px) paintings, so
+ * they are never drawn wider than 28 css px.
+ */
+function routeSvg(L: WorldMapLayout, frontier: number): string {
+  const dashW = Math.round(Math.max(14, Math.min(28, L.nodeD * 0.13)));
+  const dashH = dashW / 2;
+  const anchorD = Math.round(Math.max(18, Math.min(28, L.nodeD * 0.16)));
+  const marks = routeMarks(L.nodes, dashW * 1.45, L.nodeD * 0.5, anchorD * 0.7);
+  const deg = (a: number): string => ((a * 180) / Math.PI).toFixed(1);
+  const piece = (m: RouteMark, href: string, w: number, h: number, turn: boolean): string =>
+    `<image href="${href}" x="${(-w / 2).toFixed(1)}" y="${(-h / 2).toFixed(1)}" width="${w}" height="${h.toFixed(1)}" preserveAspectRatio="none" ` +
+    `transform="translate(${m.x.toFixed(1)} ${m.y.toFixed(1)})${turn ? ` rotate(${deg(m.angle)})` : ''}"/>`;
+  const group = (sailed: boolean): string => {
+    const keep = (m: RouteMark): boolean => (m.leg < frontier) === sailed;
+    return (
+      `<g class="pu-route-${sailed ? 'sailed' : 'ahead'}">` +
+      marks.dashes.filter(keep).map((m) => piece(m, ROUTE_DASH, dashW, dashH, true)).join('') +
+      marks.anchors.filter(keep).map((m) => piece(m, ROUTE_ANCHOR, anchorD, anchorD, false)).join('') +
+      '</g>'
+    );
+  };
+  return group(false) + group(true);
 }
 
 export async function mountWorldMap(q: URLSearchParams): Promise<void> {
@@ -212,15 +242,7 @@ export async function mountWorldMap(q: URLSearchParams): Promise<void> {
     route.setAttribute('height', String(h));
     route.setAttribute('viewBox', `0 0 ${L.worldW} ${h}`);
     const frontier = Math.max(0, Math.min(levels.length - 1, progress.unlockedLevelIndex));
-    const done = L.nodes.slice(0, frontier + 1);
-    const ahead = L.nodes.slice(frontier);
-    const sw = Math.max(3, L.nodeD * 0.045);
-    route.innerHTML =
-      `<path d="${routePath(done)}" fill="none" stroke="rgba(30,20,8,.35)" stroke-width="${sw * 2.2}" stroke-linecap="round"/>` +
-      `<path d="${routePath(done)}" fill="none" stroke="#fff4dc" stroke-width="${sw}" stroke-linecap="round" stroke-dasharray="${sw * 0.2} ${sw * 2.6}"/>` +
-      (ahead.length > 1
-        ? `<path d="${routePath(ahead)}" fill="none" stroke="rgba(255,244,220,.45)" stroke-width="${sw * 0.8}" stroke-linecap="round" stroke-dasharray="${sw * 0.2} ${sw * 2.4}"/>`
-        : '');
+    route.innerHTML = routeSvg(L, frontier);
     nodes.forEach((b, i) => {
       b.style.setProperty('--d', `${L.nodeD}px`);
       b.style.left = `${L.nodes[i].x}px`;

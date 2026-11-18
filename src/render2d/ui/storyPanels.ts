@@ -5,7 +5,7 @@
 import type { LevelDef } from '../../data/levels/types.ts';
 import { islandName } from '../../i18n/data.ts';
 import { t } from '../../i18n/index.ts';
-import { el, openSheet, plank } from './dom.ts';
+import { el, img, openSheet, plank } from './dom.ts';
 import { vignetteStyle } from './islandArt.ts';
 import { defaultFocus, type StoryBeat, type StoryPart } from './storyBeats.ts';
 
@@ -27,9 +27,13 @@ export function showStory(level: LevelDef, part: StoryPart, beats: readonly Stor
     if (b.art) v.style.background = `center / cover no-repeat url("${b.art}")`;
     else if (mapUrl) v.style.backgroundImage = `url("${mapUrl}")`;
     v.append(el('span', 'pu-vignette-num pu-letter', {}, String(i + 1)));
-    const text = el('div', 'pu-panel-text');
-    if (b.speaker) text.append(el('b', '', {}, b.speaker));
-    text.append(b.text);
+    // Caption: the speaker's round portrait (when the beat has one) left of the name and line.
+    const words = el('div', 'pu-panel-words');
+    if (b.speaker) words.append(el('b', '', {}, b.speaker));
+    words.append(b.text);
+    const text = el('div', `pu-panel-text${b.portrait ? ' has-portrait' : ''}`);
+    if (b.portrait) text.append(img(b.portrait, '', 'pu-portrait'));
+    text.append(words);
     p.append(v, text);
     strip.append(p);
     panels.push(p);

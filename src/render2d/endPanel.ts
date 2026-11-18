@@ -2,7 +2,7 @@ import { Container, Graphics, Sprite, Texture, type Text } from 'pixi.js';
 import { t, type MsgKey } from '../i18n/index.ts';
 import type { LoadedArt } from './assets2d.ts';
 import { paintedText, setFontSize, setText } from './hudText.ts';
-import { easeOutBack, easeOutCubic, fitWidth, inkText, kit, setInkSize } from './uiKit.ts';
+import { easeOutBack, easeOutCubic, fitWidth, inkText, kit, paintedUiTexture, setInkSize } from './uiKit.ts';
 import { END_FRAME, endLayout, NO_INSETS, type EndLayout, type Insets, type Rect } from './uiLayout.ts';
 import type { EndModeNote } from './ui/modeBits.ts';
 
@@ -26,10 +26,18 @@ export interface EndSummary {
   readonly hasNext: boolean;
 }
 
+/**
+ * Painted action icons (manifest `paintedUi`). Retry has no painted icon in the kit yet and keeps
+ * its Graphics glyph; so does any button whose painting has not loaded (or failed to).
+ */
+const PAINTED_ICON: Partial<Readonly<Record<EndAction, string>>> = { next: 'icon-play', menu: 'icon-map' };
+
 interface Btn {
   readonly root: Container;
   readonly bg: Sprite;
   readonly glyph: Graphics;
+  /** Texture-backed glyph (painted icon); invisible until its texture has loaded. */
+  readonly icon: Sprite;
   readonly label: Text;
   readonly action: EndAction;
   r: number;
@@ -85,13 +93,34 @@ export class EndPanel {
       const bg = new Sprite(kit(art, action === 'next' ? 'medallionHi' : 'buttonRound', art.ui.button));
       bg.anchor.set(0.5);
       const glyph = new Graphics();
+      const icon = new Sprite(Texture.EMPTY);
+      icon.anchor.set(0.5);
+      icon.visible = false;
       const label = inkText(18, 'center');
-      root.addChild(bg, glyph, label);
+      root.addChild(bg, glyph, icon, label);
       this.board.addChild(root);
-      this.buttons.push({ root, bg, glyph, label, action, r: 30 });
+      this.buttons.push({ root, bg, glyph, icon, label, action, r: 30 });
     }
     this.root.addChild(this.dim, this.board);
     this.root.visible = false;
+    this.loadPaintedIcons();
+  }
+
+  /**
+   * Loads the painted play / map icons in the background (small 224 px paintings, mipmapped so
+   * they stay crisp when drawn at phone sizes). The board is built long before a run can end, so
+   * the textures are normally in place when it first shows; until then the Graphics glyph stands in.
+   */
+  private loadPaintedIcons(): void {
+    for (const b of this.buttons) {
+      const key = PAINTED_ICON[b.action];
+      if (!key) continue;
+      void paintedUiTexture(this.art, key).then((tex) => {
+        if (!tex) return;
+        b.icon.texture = tex;
+        this.drawGlyph(b);
+      });
+    }
   }
 
   get visible(): boolean {
@@ -237,6 +266,16 @@ export class EndPanel {
     const r = b.r;
     const line = { color: 0x3a2412, width: Math.max(2, r * 0.09) };
     g.clear();
+    const tex = b.icon.texture;
+    b.icon.visible = tex !== Texture.EMPTY;
+    if (b.icon.visible) {
+      // Same proportion as the DOM round buttons (glyph at 56 % of the medallion), nudged right
+      // for the play triangle so it looks centred.
+      const d = r * 1.12;
+      b.icon.scale.set(d / Math.max(1, Math.max(tex.width, tex.height)));
+      b.icon.position.set(b.action === 'next' ? r * 0.05 : 0, 0);
+      return;
+    }
     if (b.action === 'retry') {
       g.arc(0, 0, r * 0.34, -Math.PI * 0.15, Math.PI * 1.45).stroke({ color: 0x3a2412, width: r * 0.22, cap: 'round' });
       g.arc(0, 0, r * 0.34, -Math.PI * 0.15, Math.PI * 1.45).stroke({ color: 0xfff4dc, width: r * 0.12, cap: 'round' });
@@ -304,6 +343,8 @@ export class EndPanel {
     buttons: { action: EndAction; x: number; y: number; r: number }[];
     stars: number;
     note: { title: string; line1: string; caption: string } | null;
+    /** Buttons drawn with their painted icon (texture loaded), the rest use the Graphics glyph. */
+    painted: EndAction[];
   } | null {
     if (!this.root.visible || !this.lay) return null;
     return {
@@ -311,6 +352,7 @@ export class EndPanel {
       buttons: this.buttons.filter((b) => b.root.visible).map((b) => ({ action: b.action, x: b.root.x, y: b.root.y, r: b.r })),
       stars: this.summary?.stars ?? 0,
       note: this.note ? { title: this.title.text, line1: this.line1.text, caption: this.caption.text } : null,
+      painted: this.buttons.filter((b) => b.root.visible && b.icon.visible).map((b) => b.action),
     };
   }
 }

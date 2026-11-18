@@ -13,8 +13,8 @@
 import { FREE_ISLANDS, getIap, getPlatform, isUnlocked, type IapStoreAdapter, type IapStoreProduct } from '../../platform/index.ts';
 import { FULL_UNLOCK_ENTITLEMENT } from '../../platform/iapProducts.ts';
 import { t } from '../../i18n/index.ts';
-import { el, glyph, openSheet, plank, type Sheet } from './dom.ts';
-import type { IconName } from './paintedIcons.ts';
+import { el, glyph, img, KIT, openSheet, plank, type Sheet } from './dom.ts';
+import { SEAL_GLYPHS, type IconName } from './paintedIcons.ts';
 
 /** Is the free-version scope (and the store) in force on this build? */
 export function storeEnabled(iap: IapStoreAdapter = getIap()): boolean {
@@ -96,12 +96,14 @@ export function openStore(opts: StoreCardOptions): Sheet {
   const card = (p: IapStoreProduct): HTMLElement => {
     const owned = p.kind === 'non_consumable' && iap.owned(p.id);
     const main = p.id === FULL_UNLOCK_ENTITLEMENT;
-    const icon = el('span', 'pu-store-icon');
-    icon.append(glyph(PRODUCT_ICON[p.id] ?? 'medal'));
+    const iconName = PRODUCT_ICON[p.id] ?? 'medal';
+    // Painted wax seals bring their own backing; the chest (still SVG) sits on the round button.
+    const icon = el('span', `pu-store-icon${SEAL_GLYPHS.has(iconName) ? ' seal' : ''}`);
+    icon.append(glyph(iconName));
     // Name and price exactly as the store adapter gives them (store-localised on the phone).
     const name = el('div', 'pu-ws-name pu-store-name', {}, p.title || p.id);
     const blurb = main ? t('store.blurbFull', { n: FREE_ISLANDS.length }) : p.description;
-    const price = el('span', 'pu-store-price pu-letter', { 'data-testid': `store2d-price-${p.id}` }, p.priceString);
+    const price = el('span', 'pu-store-price pu-ink', { 'data-testid': `store2d-price-${p.id}` }, img(KIT.gold, '', 'pu-store-price-coin'), p.priceString);
     let action: HTMLElement;
     if (owned) {
       action = el('span', 'pu-store-owned pu-letter', { 'data-testid': `store2d-owned-${p.id}` });

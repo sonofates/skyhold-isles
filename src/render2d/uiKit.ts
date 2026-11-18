@@ -1,4 +1,4 @@
-import { Text, TextStyle, Texture } from 'pixi.js';
+import { Assets, Text, TextStyle, Texture } from 'pixi.js';
 import type { LoadedArt } from './assets2d.ts';
 import { HUD_FONT } from './hudText.ts';
 import type { Insets, Rect } from './uiLayout.ts';
@@ -28,6 +28,21 @@ export function kit(art: LoadedArt, key: KitKey, fallback: Texture): Texture {
 
 export function hasKit(art: LoadedArt, key: KitKey): boolean {
   return !!art.uiKit?.[key];
+}
+
+/**
+ * A piece of the DOM painted set (manifest `paintedUi`, e.g. `icon-play`, `pip-filled`) as a Pixi
+ * texture, loaded on demand with mipmaps (they are drawn well below their painted size). Resolves
+ * null when the piece fails to load; callers keep their Graphics stand-in then.
+ */
+export function paintedUiTexture(art: Pick<LoadedArt, 'manifest' | 'baseUrl'>, key: string): Promise<Texture | null> {
+  const painted = (art.manifest as { paintedUi?: Readonly<Record<string, string>> } | undefined)?.paintedUi;
+  // The parsed art manifest (manifest.ts) keeps only the keys the game layers read and drops
+  // `paintedUi`, so fall back to that index's own naming (`ui/<key>.webp`).
+  const file = painted?.[key] ?? `ui/${key}.webp`;
+  return Assets.load<Texture>({ src: `${art.baseUrl}${file}`, data: { autoGenerateMipmaps: true } })
+    .then((tex) => (tex && tex !== Texture.EMPTY ? tex : null))
+    .catch(() => null);
 }
 
 export const INK = '#4a2a12';
