@@ -3,6 +3,7 @@ import { EventBus, type GameEventMap } from '../core/eventBus.ts';
 import { FixedTimestepStepper } from '../core/gameLoop.ts';
 import type { SpeedMultiplier, TargetingMode, TowerType } from '../core/types.ts';
 import type { LevelDef } from '../data/levels/types.ts';
+import { NEUTRAL_RUN_MODIFIERS, type RunModifiers } from '../data/runModifiers.ts';
 import { getTowerTierStats, TOWER_DEFS } from '../data/towers.ts';
 import type { TowerEntity } from '../sim/entities.ts';
 import { computeSellRefund, SimWorld } from '../sim/world.ts';
@@ -37,6 +38,10 @@ export interface Game2DHooks {
   beforeTick?: (world: SimWorld) => void;
   /** Disable the win/lose overlay + restart (bench). */
   endless?: boolean;
+  /** Run modifiers (Workshop upgrades + challenge / Daily rules) passed to SimWorld. */
+  modifiers?: RunModifiers;
+  /** Start SimWorld in Endless mode from wave 1 (`startEndlessFromStart()`), keeping normal defeat flow. */
+  startEndless?: boolean;
   /** End panel "Next" (shown only when given) and "Menu" targets. */
   onNext?: () => void;
   onMenu?: () => void;
@@ -150,8 +155,14 @@ export class Game2D {
     this.end = new EndPanel(art);
     this.screen.addChild(this.hud.root, this.ring.root, this.end.root);
     app.stage.addChild(this.map.root, this.screen);
-    for (const t of art.manifest.buildRing) this.costs.set(t, getTowerTierStats(t, 1).upgradeCost);
-    this.minCost = Math.min(...this.costs.values());
+    const banned = hooks.modifiers?.bannedTowers ?? [];
+    let minAllowed = Infinity;
+    for (const t of art.manifest.buildRing) {
+      const c = getTowerTierStats(t, 1).upgradeCost;
+      this.costs.set(t, c);
+      if (!banned.includes(t) && c < minAllowed) minAllowed = c;
+    }
+    this.minCost = Number.isFinite(minAllowed) ? minAllowed : Math.min(...this.costs.values());
     this.newRun();
   }
 
@@ -178,7 +189,8 @@ export class Game2D {
   /** Starts (or restarts) a run on the level. */
   newRun(): void {
     this.events = new EventBus();
-    this.world = new SimWorld(this.level, this.events);
+    this.world = new SimWorld(this.level, this.events, this.hooks.modifiers ?? NEUTRAL_RUN_MODIFIERS);
+    if (this.hooks.startEndless) this.world.startEndlessFromStart();
     this.stepper.simActive = true;
     this.stepper.paused = false;
     this.stepper.resetAccumulator();
@@ -310,7 +322,8 @@ export class Game2D {
     s.paused = this.stepper.paused;
     s.speed = this.stepper.speed;
     s.canCall = world.outcome === 'ongoing' && world.waveSystem.canStartNextWave();
-    s.earlyBonus = s.canCall ? world.waveSystem.getEarlyCallBonus() : 0;
+    const rawBonus = s.canCall ? world.waveSystem.getEarlyCallBonus() : 0;
+    s.earlyBonus = world.mods.waveBonusMul === 1 ? rawBonus : Math.max(0, Math.round(rawBonus * world.mods.waveBonusMul));
     const over = world.outcome !== 'ongoing' && !this.hooks.endless;
     s.banner = over ? '' : this.stepper.paused ? 'Paused' : this.rallyTower !== -1 ? 'Tap the road' : '';
     this.hud.update(s as HudState, dtSec);
@@ -390,7 +403,7 @@ export class Game2D {
     if (towerId === -1) {
       this.selectedTower = -1;
       this.rangeDisc.visible = false;
-      this.ring.openBuild(plot, c.x, c.y, world.gold, this.costs, w, h, this.hud.topBand);
+      this.ring.openBuild(plot, c.x, c.y, world.gold, this.costs, w, h, this.hud.topBand, world.mods.bannedTowers);
       return;
     }
     const t = world.getTowerById(towerId);
@@ -577,6 +590,8 @@ export class Game2D {
       lives: w.lives,
       wave: w.waveSystem.currentWaveOneBased,
       waveState: w.waveSystem.state,
+      endless: w.waveSystem.isEndless,
+      modifiers: w.mods,
       outcome: w.outcome,
       enemies: w.enemyPool.getActiveCount(),
       projectiles: w.projectilePool.getActiveCount(),
