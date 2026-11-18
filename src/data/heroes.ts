@@ -1,4 +1,10 @@
-import type { HeroId, HeroSkillSlot, TowerType } from '../core/types.ts';
+import type {
+  HeroId,
+  HeroProgressEntry,
+  HeroSaveData,
+  HeroSkillSlot,
+  TowerType,
+} from '../core/types.ts';
 
 export const HERO_IDS: readonly HeroId[] = ['bran', 'wren', 'mira', 'tobb', 'sela'];
 
@@ -1381,6 +1387,224 @@ export function getHeroSkillNode(heroId: HeroId, nodeId: string): HeroSkillNodeD
 export function heroSkillPointsForLevel(level: number): number {
   const clamped = Math.max(1, Math.min(HERO_MAX_LEVEL, Math.floor(Number.isFinite(level) ? level : 1)));
   return clamped - 1;
+}
+
+export const MAX_HERO_SAVE_XP = 1_000_000;
+
+/** Clamps raw XP to `[0, MAX_HERO_SAVE_XP]` integer (`0` for non-numbers / NaN / negatives). */
+export function sanitizeHeroXp(val: unknown): number {
+  if (typeof val !== 'number' || !Number.isFinite(val)) return 0;
+  return Math.max(0, Math.min(MAX_HERO_SAVE_XP, Math.floor(val)));
+}
+
+/** Hero level (`1..20`) for a total persistent XP count. */
+export function heroLevelFromXp(xp: number): number {
+  const cleanXp = sanitizeHeroXp(xp);
+  let lvl = 1;
+  for (let i = 1; i < HERO_LEVEL_XP.length; i++) {
+    if (cleanXp >= HERO_LEVEL_XP[i]) lvl = i + 1;
+    else break;
+  }
+  return lvl;
+}
+
+/** True when `unlockedSkills` satisfies `node`'s prerequisite rule (`all` or `minPrerequisites`). */
+export function areHeroNodePrerequisitesMet(
+  node: HeroSkillNodeDef,
+  unlockedSkills: readonly string[],
+): boolean {
+  const needed = node.minPrerequisites ?? node.prerequisites.length;
+  if (needed <= 0) return true;
+  let count = 0;
+  for (let i = 0; i < node.prerequisites.length; i++) {
+    if (unlockedSkills.includes(node.prerequisites[i])) count++;
+  }
+  return count >= needed;
+}
+
+/** Total skill points spent across `unlockedSkills` for `heroId`. */
+export function countHeroSkillPointsSpent(
+  heroId: HeroId,
+  unlockedSkills: readonly string[],
+): number {
+  let spent = 0;
+  const seen = new Set<string>();
+  for (let i = 0; i < unlockedSkills.length; i++) {
+    const id = unlockedSkills[i];
+    if (seen.has(id)) continue;
+    const node = getHeroSkillNode(heroId, id);
+    if (!node) continue;
+    seen.add(id);
+    spent += node.cost;
+  }
+  return spent;
+}
+
+/**
+ * Validates and normalizes a stored skill-node list for `heroId` against `maxSkillPoints`.
+ * Unknown or duplicate IDs are dropped; if the remaining set violates prerequisites or exceeds
+ * earned skill points (corrupted / edited save), refunds to `[]` while keeping XP intact.
+ */
+export function sanitizeHeroSkillsForBudget(
+  heroId: HeroId,
+  rawSkills: unknown,
+  maxSkillPoints: number,
+): string[] {
+  if (!Array.isArray(rawSkills)) return [];
+  const candidates: HeroSkillNodeDef[] = [];
+  const seen = new Set<string>();
+  for (let i = 0; i < rawSkills.length; i++) {
+    const id: unknown = rawSkills[i];
+    if (typeof id !== 'string' || seen.has(id)) continue;
+    const node = getHeroSkillNode(heroId, id);
+    if (!node) continue;
+    seen.add(id);
+    candidates.push(node);
+  }
+  if (candidates.length === 0) return [];
+
+  candidates.sort((a, b) => a.tier - b.tier);
+  const accepted: string[] = [];
+  let costSum = 0;
+  for (let i = 0; i < candidates.length; i++) {
+    const node = candidates[i];
+    if (!areHeroNodePrerequisitesMet(node, accepted)) return [];
+    costSum += node.cost;
+    if (costSum > maxSkillPoints) return [];
+    accepted.push(node.id);
+  }
+  return accepted;
+}
+
+/** Pure unlock check given campaign islands-cleared count and unlock frontier index. */
+export function isHeroUnlockedForCounts(
+  heroId: HeroId,
+  clearedIslandsCount: number,
+  unlockedLevelIndex: number,
+): boolean {
+  if (!isHeroId(heroId)) return false;
+  const rule = HERO_DEFS[heroId].unlock;
+  if (rule.kind === 'starter') return true;
+  return clearedIslandsCount >= rule.count || unlockedLevelIndex >= rule.count;
+}
+
+/** Fresh default `HeroSaveData` (`bran` selected, 0 XP and empty skill trees for all 5 heroes). */
+export function createFreshHeroSaveData(): HeroSaveData {
+  const roster: Partial<Record<HeroId, HeroProgressEntry>> = {};
+  for (let i = 0; i < HERO_IDS.length; i++) {
+    roster[HERO_IDS[i]] = { xp: 0, skills: [] };
+  }
+  return { selectedHero: 'bran', roster };
+}
+
+/** Platform-independent sanitization of `progress.heroes` (never loses valid XP). */
+export function sanitizeHeroSaveData(
+  raw: unknown,
+  clearedIslandsCount?: number,
+  unlockedLevelIndex?: number,
+): HeroSaveData {
+  const out = createFreshHeroSaveData();
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return out;
+  const obj = raw as { selectedHero?: unknown; roster?: unknown };
+  const rawRoster =
+    obj.roster && typeof obj.roster === 'object' && !Array.isArray(obj.roster)
+      ? (obj.roster as Record<string, unknown>)
+      : {};
+
+  for (let i = 0; i < HERO_IDS.length; i++) {
+    const id = HERO_IDS[i];
+    const entryRaw = rawRoster[id];
+    if (!entryRaw || typeof entryRaw !== 'object' || Array.isArray(entryRaw)) continue;
+    const e = entryRaw as { xp?: unknown; skills?: unknown };
+    const xp = sanitizeHeroXp(e.xp);
+    const pts = heroSkillPointsForLevel(heroLevelFromXp(xp));
+    const skills = sanitizeHeroSkillsForBudget(id, e.skills, pts);
+    out.roster[id] = { xp, skills };
+  }
+
+  if (isHeroId(obj.selectedHero)) {
+    const ok =
+      clearedIslandsCount !== undefined && unlockedLevelIndex !== undefined
+        ? isHeroUnlockedForCounts(obj.selectedHero, clearedIslandsCount, unlockedLevelIndex)
+        : true;
+    out.selectedHero = ok ? obj.selectedHero : 'bran';
+  }
+  return out;
+}
+
+/** Sum of persistent XP across all 5 heroes in `heroes`. */
+export function totalHeroSaveXp(heroes: HeroSaveData | undefined): number {
+  if (!heroes?.roster) return 0;
+  let sum = 0;
+  for (let i = 0; i < HERO_IDS.length; i++) {
+    sum += sanitizeHeroXp(heroes.roster[HERO_IDS[i]]?.xp);
+  }
+  return sum;
+}
+
+/** True when `heroes` contains non-default progress worth backing up. */
+export function hasHeroSaveProgress(heroes: HeroSaveData | undefined): boolean {
+  if (!heroes) return false;
+  if (heroes.selectedHero !== 'bran') return true;
+  for (let i = 0; i < HERO_IDS.length; i++) {
+    const e = heroes.roster?.[HERO_IDS[i]];
+    if (!e) continue;
+    if (sanitizeHeroXp(e.xp) > 0 || (Array.isArray(e.skills) && e.skills.length > 0)) return true;
+  }
+  return false;
+}
+
+/**
+ * Merges two optional `HeroSaveData` records monotonically and idempotently:
+ * per-hero XP takes `Math.max`, skills union when within the merged budget (otherwise keeping the
+ * larger valid skill investment), and `selectedHero` prefers an unlocked non-default pick.
+ */
+export function mergeHeroSaveData(
+  a: HeroSaveData | undefined,
+  b: HeroSaveData | undefined,
+  clearedIslandsCount: number,
+  unlockedLevelIndex: number,
+): HeroSaveData | undefined {
+  if (!a && !b) return undefined;
+  const sa = sanitizeHeroSaveData(a, clearedIslandsCount, unlockedLevelIndex);
+  const sb = sanitizeHeroSaveData(b, clearedIslandsCount, unlockedLevelIndex);
+  const roster: Partial<Record<HeroId, HeroProgressEntry>> = {};
+
+  for (let i = 0; i < HERO_IDS.length; i++) {
+    const id = HERO_IDS[i];
+    const ea = sa.roster[id] ?? { xp: 0, skills: [] };
+    const eb = sb.roster[id] ?? { xp: 0, skills: [] };
+    const xp = Math.max(ea.xp, eb.xp);
+    const budget = heroSkillPointsForLevel(heroLevelFromXp(xp));
+    const combined = [...ea.skills, ...eb.skills];
+    const unionSkills = sanitizeHeroSkillsForBudget(id, combined, budget);
+    let skills: string[];
+    if (unionSkills.length > 0 || (ea.skills.length === 0 && eb.skills.length === 0)) {
+      skills = unionSkills;
+    } else {
+      const va = sanitizeHeroSkillsForBudget(id, ea.skills, budget);
+      const vb = sanitizeHeroSkillsForBudget(id, eb.skills, budget);
+      const spentA = countHeroSkillPointsSpent(id, va);
+      const spentB = countHeroSkillPointsSpent(id, vb);
+      skills = spentB > spentA ? vb : va;
+    }
+    roster[id] = { xp, skills };
+  }
+
+  let selectedHero: HeroId = 'bran';
+  const candA = isHeroUnlockedForCounts(sa.selectedHero, clearedIslandsCount, unlockedLevelIndex)
+    ? sa.selectedHero
+    : 'bran';
+  const candB = isHeroUnlockedForCounts(sb.selectedHero, clearedIslandsCount, unlockedLevelIndex)
+    ? sb.selectedHero
+    : 'bran';
+  if (candA !== 'bran' && candB === 'bran') selectedHero = candA;
+  else if (candB !== 'bran' && candA === 'bran') selectedHero = candB;
+  else if (candA !== 'bran' && candB !== 'bran') {
+    selectedHero = totalHeroSaveXp(sb) > totalHeroSaveXp(sa) ? candB : candA;
+  }
+
+  return { selectedHero, roster };
 }
 
 /**

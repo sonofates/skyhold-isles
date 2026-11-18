@@ -311,7 +311,7 @@ export class SimWorld {
   }
 
   enterEndlessMode(): boolean {
-    if (this.outcome !== 'won') return false;
+    if (this.outcome !== 'won' || this.waveSystem.isEndless) return false;
     this.outcome = 'ongoing';
     this.waveSystem.enterEndlessMode();
     return true;

@@ -1,6 +1,7 @@
-import type { ProgressData } from '../core/types.ts';
+import type { HeroId, HeroSaveData, ProgressData } from '../core/types.ts';
 import { isChallengeId } from '../data/challenges.ts';
 import type { DailyRecord } from '../data/daily.ts';
+import { HERO_IDS, mergeHeroSaveData, sanitizeHeroSaveData, totalHeroSaveXp } from '../data/heroes.ts';
 import { starWallet } from '../game/progression.ts';
 import { migrateProgress } from './storage.ts';
 
@@ -49,8 +50,50 @@ function trimLists(list: readonly string[][]): string[][] {
   return list.slice(0, end).map((l) => [...l]);
 }
 
+interface CompactHeroPayload {
+  readonly s: HeroId;
+  readonly r?: Partial<Record<HeroId, { readonly x: number; readonly k?: readonly string[] }>>;
+}
+
+function encodeHeroPayload(heroes: HeroSaveData): CompactHeroPayload {
+  const clean = sanitizeHeroSaveData(heroes);
+  const r: Partial<Record<HeroId, { readonly x: number; readonly k?: readonly string[] }>> = {};
+  let hasAny = false;
+  for (let i = 0; i < HERO_IDS.length; i++) {
+    const id = HERO_IDS[i];
+    const e = clean.roster[id];
+    if (!e || (e.xp === 0 && e.skills.length === 0)) continue;
+    r[id] = e.skills.length > 0 ? { x: e.xp, k: [...e.skills] } : { x: e.xp };
+    hasAny = true;
+  }
+  return hasAny ? { s: clean.selectedHero, r } : { s: clean.selectedHero };
+}
+
+function decodeHeroPayload(raw: unknown): HeroSaveData | undefined {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined;
+  const obj = raw as Record<string, unknown>;
+  // Accept either compact `{ s, r: { bran: { x, k } } }` or full `{ selectedHero, roster }`.
+  if ('selectedHero' in obj || 'roster' in obj) {
+    return sanitizeHeroSaveData(obj);
+  }
+  const rawR =
+    obj.r && typeof obj.r === 'object' && !Array.isArray(obj.r)
+      ? (obj.r as Record<string, unknown>)
+      : {};
+  const roster: Record<string, { xp: unknown; skills: unknown }> = {};
+  for (let i = 0; i < HERO_IDS.length; i++) {
+    const id = HERO_IDS[i];
+    const ce = rawR[id];
+    if (ce && typeof ce === 'object' && !Array.isArray(ce)) {
+      const c = ce as { x?: unknown; k?: unknown };
+      roster[id] = { xp: c.x ?? 0, skills: c.k ?? [] };
+    }
+  }
+  return sanitizeHeroSaveData({ selectedHero: obj.s, roster });
+}
+
 export function encodeSaveCode(progress: ProgressData): string {
-  const payload = {
+  const payload: Record<string, unknown> = {
     v: progress.version,
     u: progress.unlockedLevelIndex,
     s: trimZeros(progress.bestStars),
@@ -61,6 +104,9 @@ export function encodeSaveCode(progress: ProgressData): string {
     b: trimLists(progress.challengeClears),
     d: progress.daily,
   };
+  if (progress.heroes !== undefined) {
+    payload.h = encodeHeroPayload(progress.heroes);
+  }
   const body = toBase64Url(JSON.stringify(payload));
   return `${PREFIX}${body}-${checksum(body)}`;
 }
@@ -85,8 +131,11 @@ export function decodeSaveCode(code: string, levelCount: number): SaveCodeResult
   } catch {
     return { ok: false, error: 'The code could not be read.' };
   }
-  if (!raw || typeof raw !== 'object') return { ok: false, error: 'The code could not be read.' };
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+    return { ok: false, error: 'The code could not be read.' };
+  }
   const r = raw as Record<string, unknown>;
+  const decodedHeroes = r.h !== undefined ? decodeHeroPayload(r.h) : undefined;
   const progress = migrateProgress(
     {
       version: r.v,
@@ -98,11 +147,13 @@ export function decodeSaveCode(code: string, levelCount: number): SaveCodeResult
       workshop: r.w,
       challengeClears: r.b,
       daily: r.d,
+      ...(decodedHeroes !== undefined ? { heroes: decodedHeroes } : {}),
     },
     levelCount,
   );
   // Only real challenge ids travel between saves (a hand-made code could carry anything).
   progress.challengeClears = progress.challengeClears.map((list) => list.filter((id) => isChallengeId(id)));
+  if (starWallet(progress).available < 0) progress.workshop = {};
   return { ok: true, progress };
 }
 
@@ -131,25 +182,36 @@ export function mergeDaily(a: DailyRecord, b: DailyRecord): DailyRecord {
  * whichever save had spent more (refunded if the merged wallet somehow cannot pay for them).
  */
 export function mergeProgress(a: ProgressData, b: ProgressData, levelCount: number): ProgressData {
+  const count = Number.isFinite(levelCount) ? Math.max(0, Math.floor(levelCount)) : 0;
   const maxList = (x: readonly number[], y: readonly number[]): number[] =>
-    Array.from({ length: levelCount }, (_, i) => Math.max(x[i] ?? 0, y[i] ?? 0));
+    Array.from({ length: count }, (_, i) => Math.max(x[i] ?? 0, y[i] ?? 0));
   const daily = mergeDaily(a.daily, b.daily);
   const spentA = starWallet(a).spent;
   const spentB = starWallet(b).spent;
+  const maxIdx = Math.max(0, count - 1);
+  const bestStars = maxList(a.bestStars, b.bestStars);
+  const clears = maxList(a.clears, b.clears);
+  const unlockedLevelIndex = Math.min(maxIdx, Math.max(0, a.unlockedLevelIndex, b.unlockedLevelIndex));
+  let clearedCount = 0;
+  for (let i = 0; i < count; i++) {
+    if (clears[i] > 0 || bestStars[i] > 0) clearedCount++;
+  }
+  const mergedHeroes = mergeHeroSaveData(a.heroes, b.heroes, clearedCount, unlockedLevelIndex);
   const merged: ProgressData = {
     version: Math.max(a.version, b.version),
-    unlockedLevelIndex: Math.min(levelCount - 1, Math.max(a.unlockedLevelIndex, b.unlockedLevelIndex)),
-    bestStars: maxList(a.bestStars, b.bestStars),
+    unlockedLevelIndex,
+    bestStars,
     bestEndlessWaves: maxList(a.bestEndlessWaves, b.bestEndlessWaves),
     bestLives: maxList(a.bestLives, b.bestLives),
-    clears: maxList(a.clears, b.clears),
+    clears,
     workshop: { ...(spentB > spentA ? b.workshop : a.workshop) },
-    challengeClears: Array.from({ length: levelCount }, (_, i) => {
+    challengeClears: Array.from({ length: count }, (_, i) => {
       const out = [...(a.challengeClears[i] ?? [])];
       for (const id of b.challengeClears[i] ?? []) if (!out.includes(id)) out.push(id);
       return out;
     }),
     daily,
+    ...(mergedHeroes !== undefined ? { heroes: mergedHeroes } : {}),
   };
   if (starWallet(merged).available < 0) merged.workshop = {};
   return merged;
@@ -169,5 +231,6 @@ export function describeMergeGain(before: ProgressData, after: ProgressData): st
   if (badges > 0) parts.push(`+${badges} badge${badges === 1 ? '' : 's'}`);
   const records = after.bestEndlessWaves.some((v, i) => v > (before.bestEndlessWaves[i] ?? 0));
   if (records) parts.push('new endless records');
+  if (totalHeroSaveXp(after.heroes) > totalHeroSaveXp(before.heroes)) parts.push('hero XP');
   return parts.length > 0 ? parts.join(', ') : 'nothing new — this save already had all of it';
 }

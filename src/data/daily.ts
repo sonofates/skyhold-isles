@@ -1,4 +1,4 @@
-import { CHALLENGES, CHALLENGE_IDS, type ChallengeId } from './challenges.ts';
+import { CHALLENGES, CHALLENGE_IDS, isChallengeId, type ChallengeId } from './challenges.ts';
 
 /**
  * Daily Squall: one island + two challenges per UTC day, the same for every player on that day.
@@ -11,8 +11,9 @@ export interface DailyChallenge {
   readonly challenges: readonly ChallengeId[];
 }
 
-/** Days since 1970-01-01 (UTC) for a millisecond timestamp. */
+/** Days since 1970-01-01 (UTC) for a millisecond timestamp (`0` for non-finite inputs). */
 export function utcDayNumber(epochMs: number): number {
+  if (!Number.isFinite(epochMs)) return 0;
   return Math.floor(epochMs / 86_400_000);
 }
 
@@ -54,13 +55,28 @@ export function dailyChallengeFor(
   clearedIslands: readonly number[],
   challengePool: readonly ChallengeId[] = CHALLENGE_IDS,
 ): DailyChallenge | null {
-  if (clearedIslands.length === 0 || challengePool.length < 2) return null;
-  const levelIndex = clearedIslands[hashDay(day, 1) % clearedIslands.length];
-  const first = challengePool[hashDay(day, 2) % challengePool.length];
-  const pool = challengePool.filter((id) => dailyPairAllowed(first, id));
+  if (!Number.isFinite(day)) return null;
+  const cleanDay = Math.floor(day);
+  const validIslands: number[] = [];
+  for (let i = 0; i < clearedIslands.length; i++) {
+    const idx = clearedIslands[i];
+    if (typeof idx === 'number' && Number.isFinite(idx) && idx >= 0) {
+      const floored = Math.floor(idx);
+      if (!validIslands.includes(floored)) validIslands.push(floored);
+    }
+  }
+  const validPool: ChallengeId[] = [];
+  for (let i = 0; i < challengePool.length; i++) {
+    const id = challengePool[i];
+    if (isChallengeId(id) && !validPool.includes(id)) validPool.push(id);
+  }
+  if (validIslands.length === 0 || validPool.length < 2) return null;
+  const levelIndex = validIslands[hashDay(cleanDay, 1) % validIslands.length];
+  const first = validPool[hashDay(cleanDay, 2) % validPool.length];
+  const pool = validPool.filter((id) => dailyPairAllowed(first, id));
   if (pool.length === 0) return null;
-  const second = pool[hashDay(day, 3) % pool.length];
-  return { day, levelIndex, challenges: [first, second] };
+  const second = pool[hashDay(cleanDay, 3) % pool.length];
+  return { day: cleanDay, levelIndex, challenges: [first, second] };
 }
 
 /** Saved daily record. */
@@ -82,8 +98,10 @@ export function createDailyRecord(): DailyRecord {
  * Daily would stay "won" and unpaid until that date. Returns the same object.
  */
 export function normalizeDailyRecord(rec: DailyRecord, today: number): DailyRecord {
-  if (rec.lastDay > today) {
-    rec.lastDay = today - 2;
+  if (!Number.isFinite(today)) return rec;
+  const cleanToday = Math.floor(today);
+  if (rec.lastDay > cleanToday) {
+    rec.lastDay = cleanToday - 2;
     rec.streak = 0;
   }
   return rec;
@@ -91,8 +109,10 @@ export function normalizeDailyRecord(rec: DailyRecord, today: number): DailyReco
 
 /** Streak still alive today? (completed yesterday or today) */
 export function liveStreak(rec: DailyRecord, today: number): number {
-  if (rec.lastDay > today) return 0;
-  return rec.lastDay === today || rec.lastDay === today - 1 ? rec.streak : 0;
+  if (!Number.isFinite(today)) return 0;
+  const cleanToday = Math.floor(today);
+  if (rec.lastDay > cleanToday) return 0;
+  return rec.lastDay === cleanToday || rec.lastDay === cleanToday - 1 ? Math.max(0, rec.streak) : 0;
 }
 
 /**
@@ -105,12 +125,19 @@ export function applyDailyWin(
   day: number,
   today: number,
 ): { counted: boolean; streak: number } {
-  normalizeDailyRecord(rec, today);
-  if (day > today || day < today - 1 || day <= rec.lastDay) return { counted: false, streak: rec.streak };
-  rec.streak = rec.lastDay === day - 1 ? rec.streak + 1 : 1;
-  rec.lastDay = day;
+  if (!Number.isFinite(day) || !Number.isFinite(today)) {
+    return { counted: false, streak: Math.max(0, rec.streak) };
+  }
+  const cleanDay = Math.floor(day);
+  const cleanToday = Math.floor(today);
+  normalizeDailyRecord(rec, cleanToday);
+  if (cleanDay > cleanToday || cleanDay < cleanToday - 1 || cleanDay <= rec.lastDay) {
+    return { counted: false, streak: Math.max(0, rec.streak) };
+  }
+  rec.streak = rec.lastDay === cleanDay - 1 ? Math.max(0, rec.streak) + 1 : 1;
+  rec.lastDay = cleanDay;
   rec.bestStreak = Math.max(rec.bestStreak, rec.streak);
-  rec.total += 1;
+  rec.total = Math.max(0, rec.total) + 1;
   return { counted: true, streak: rec.streak };
 }
 

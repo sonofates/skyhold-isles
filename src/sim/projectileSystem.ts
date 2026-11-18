@@ -15,6 +15,7 @@ const _pierceUsed = new Set<number>();
 /** Half-width of the corridor a piercing bolt can hit enemies in. */
 const PIERCE_HALF_WIDTH = 0.55;
 const _leadVec = { x: 0, y: 0, z: 0 };
+const _impactOut = { x: 0, z: 0 };
 
 /** Fraction of full target lead applied to parabolic shells (1 = perfect aim). */
 const SHELL_LEAD_FACTOR = 0.8;
@@ -353,8 +354,12 @@ export class ProjectileSystem {
       px = target.x + (_leadVec.x - baseX);
       pz = target.z + (_leadVec.z - baseZ);
       t = Math.max(0.06, Math.hypot(px - sx, pz - sz) / shellSpeed);
+      _impactOut.x = px;
+      _impactOut.z = pz;
     }
-    return { x: px, z: pz };
+    _impactOut.x = px;
+    _impactOut.z = pz;
+    return _impactOut;
   }
 
   update(dt: number, towers: readonly TowerEntity[]): void {

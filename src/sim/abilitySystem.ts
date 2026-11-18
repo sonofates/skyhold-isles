@@ -71,6 +71,7 @@ export class AbilitySystem {
   }
 
   castMeteor(x: number, z: number, waveOneBased: number): boolean {
+    if (!Number.isFinite(x) || !Number.isFinite(z)) return false;
     if (!this.canCast('meteor')) return false;
     const def = ABILITY_DEFS.meteor;
     this.cooldowns.meteor = this.getMaxCooldown('meteor');

@@ -1,7 +1,7 @@
 import type { EventBus } from '../core/eventBus.ts';
 import type { ObjectPool } from '../core/pool.ts';
 import { SeededRng } from '../core/rng.ts';
-import type { HeroId, HeroSkillSlot, Vec3 } from '../core/types.ts';
+import type { HeroId, HeroSkillSlot, TowerType, Vec3 } from '../core/types.ts';
 import { ENEMY_DEFS } from '../data/enemies.ts';
 import {
   HERO_DEFS,
@@ -16,9 +16,9 @@ import { TOWER_DEFS } from '../data/towers.ts';
 import type { EnemyEntity, TowerEntity } from './entities.ts';
 import type { EnemySystem } from './enemySystem.ts';
 import type { MapGrid } from './grid.ts';
-import { GroundGraph, type GroundWaypoint } from './groundGraph.ts';
+import { GroundGraph, type GroundClampResult, type GroundWaypoint } from './groundGraph.ts';
 import type { CompiledPath } from './path.ts';
-import { BURN_TICK_INTERVAL, type ProjectileSystem } from './projectileSystem.ts';
+import { BURN_TICK_INTERVAL, type HeroShotParams, type ProjectileSystem } from './projectileSystem.ts';
 import type { SoldierSystem } from './soldierSystem.ts';
 import type { SpatialHashGrid } from './spatialHash.ts';
 
@@ -138,6 +138,37 @@ const _prevTotalBlocked: number[] = [];
 const _extraHoldIndices: number[] = [];
 const _samplePt: Vec3 = { x: 0, y: 0, z: 0 };
 const _hitSet = new Set<number>();
+const _clampTarget: GroundClampResult = { x: 0, z: 0, roadX: 0, roadZ: 0, lane: 0, dist: 0 };
+const _clampStep: GroundClampResult = { x: 0, z: 0, roadX: 0, roadZ: 0, lane: 0, dist: 0 };
+const _heroShotScratch: {
+  style: TowerType;
+  startX: number;
+  startY: number;
+  startZ: number;
+  target: EnemyEntity | null;
+  damage: number;
+  speed: number;
+  splashRadius: number;
+  armorPierce: number;
+  slowRatio: number;
+  slowDuration: number;
+  hitsFlyers: boolean;
+  lateral: number;
+} = {
+  style: 'archer',
+  startX: 0,
+  startY: 0.9,
+  startZ: 0,
+  target: null,
+  damage: 1,
+  speed: 24,
+  splashRadius: 0,
+  armorPierce: 0,
+  slowRatio: 0,
+  slowDuration: 0,
+  hitsFlyers: true,
+  lateral: 0,
+};
 const GIZMO_DIST_OFFSETS: readonly number[] = [0, 0.45, -0.45, 0.9, -0.9, 1.35, -1.35, 1.8, -1.8, 2.3, -2.3, 2.8, -2.8];
 const GIZMO_LAT_OFFSETS: readonly number[] = [0, 0.45, -0.45, 0.85, -0.85, 1.1, -1.1];
 
@@ -1127,20 +1158,20 @@ export class HeroSystem {
         g.yaw = Math.atan2(target.x - g.x, target.z - g.z);
         if (g.cooldownTimer <= 0) {
           g.cooldownTimer = 1 / g.fireRate;
-          this.projectileSystem.spawnHeroProjectile({
-            style: 'ballista',
-            startX: g.x,
-            startY: 0.65,
-            startZ: g.z,
-            target,
-            damage: g.damage,
-            speed: 28,
-            splashRadius: g.splashRadius,
-            armorPierce: 2,
-            slowRatio: 0,
-            slowDuration: 0,
-            hitsFlyers: true,
-          });
+          _heroShotScratch.style = 'ballista';
+          _heroShotScratch.startX = g.x;
+          _heroShotScratch.startY = 0.65;
+          _heroShotScratch.startZ = g.z;
+          _heroShotScratch.target = target;
+          _heroShotScratch.damage = g.damage;
+          _heroShotScratch.speed = 28;
+          _heroShotScratch.splashRadius = g.splashRadius;
+          _heroShotScratch.armorPierce = 2;
+          _heroShotScratch.slowRatio = 0;
+          _heroShotScratch.slowDuration = 0;
+          _heroShotScratch.hitsFlyers = true;
+          _heroShotScratch.lateral = 0;
+          this.projectileSystem.spawnHeroProjectile(_heroShotScratch as HeroShotParams);
         }
       }
     }
@@ -1195,7 +1226,12 @@ export class HeroSystem {
   }
 
   private stepTowardPoint(h: HeroEntity, tx: number, tz: number, dt: number): boolean {
-    const clampedTarget = this.groundGraph.clampToGround(tx, tz, HERO_RULES.maxOffRoadDist);
+    const clampedTarget = this.groundGraph.clampToGroundOut(
+      tx,
+      tz,
+      HERO_RULES.maxOffRoadDist,
+      _clampTarget,
+    );
     const goalX = clampedTarget.x;
     const goalZ = clampedTarget.z;
     const dx = goalX - h.x;
@@ -1209,7 +1245,12 @@ export class HeroSystem {
     }
     const nx = h.x + (dx / d) * step;
     const nz = h.z + (dz / d) * step;
-    const clampedStep = this.groundGraph.clampToGround(nx, nz, HERO_RULES.maxOffRoadDist);
+    const clampedStep = this.groundGraph.clampToGroundOut(
+      nx,
+      nz,
+      HERO_RULES.maxOffRoadDist,
+      _clampStep,
+    );
     const movedDx = clampedStep.x - h.x;
     const movedDz = clampedStep.z - h.z;
     h.x = clampedStep.x;
@@ -1402,6 +1443,7 @@ export class HeroSystem {
       if (best) {
         h.targetPoolIndex = best.poolIndex;
         h.targetUid = best.uid;
+        h.waypoints.length = 0;
         h.state = 'engaging';
         target = best;
       }
@@ -1492,9 +1534,14 @@ export class HeroSystem {
     // Idle / returning to guard post along the walkable road graph.
     h.attackTimer = Math.max(0, h.attackTimer - dt * rateMul);
     const postDist = Math.hypot(h.postX - h.x, h.postZ - h.z);
-    if (postDist > 1.4) {
-      const route = this.groundGraph.findPath(h.x, h.z, h.postX, h.postZ);
-      this.stepTowardPoint(h, route[0].x, route[0].z, dt);
+    if (postDist > 1.4 || h.waypoints.length > 0) {
+      if (h.waypoints.length === 0) {
+        this.groundGraph.findPathInto(h.x, h.z, h.postX, h.postZ, HERO_RULES.maxOffRoadDist, h.waypoints);
+      }
+      const wp = h.waypoints[0];
+      if (this.stepTowardPoint(h, wp.x, wp.z, dt)) {
+        h.waypoints.shift();
+      }
       return;
     }
     const atPost = this.stepTowardPoint(h, h.postX, h.postZ, dt);
@@ -1603,38 +1650,30 @@ export class HeroSystem {
         }
 
         const chill = pas.extras.has('chillBolts');
-        this.projectileSystem.spawnHeroProjectile({
-          style: h.stats.projectileStyle,
-          startX: h.x,
-          startY: 0.9,
-          startZ: h.z,
-          target,
-          damage: dmg,
-          speed: h.stats.projectileSpeed,
-          splashRadius: h.stats.splashRadius,
-          armorPierce: h.stats.armorPierce,
-          slowRatio: chill ? 0.22 : 0,
-          slowDuration: chill ? 1.6 : 0,
-          hitsFlyers: h.stats.hitsFlyers,
-        });
+        _heroShotScratch.style = h.stats.projectileStyle;
+        _heroShotScratch.startX = h.x;
+        _heroShotScratch.startY = 0.9;
+        _heroShotScratch.startZ = h.z;
+        _heroShotScratch.target = target;
+        _heroShotScratch.damage = dmg;
+        _heroShotScratch.speed = h.stats.projectileSpeed;
+        _heroShotScratch.splashRadius = h.stats.splashRadius;
+        _heroShotScratch.armorPierce = h.stats.armorPierce;
+        _heroShotScratch.slowRatio = chill ? 0.22 : 0;
+        _heroShotScratch.slowDuration = chill ? 1.6 : 0;
+        _heroShotScratch.hitsFlyers = h.stats.hitsFlyers;
+        _heroShotScratch.lateral = 0;
+        this.projectileSystem.spawnHeroProjectile(_heroShotScratch as HeroShotParams);
 
         if (pas.extras.has('twinArrow') && h.shotCount % 3 === 0) {
           const second = this.findSecondRangedTarget(h, target) ?? target;
-          this.projectileSystem.spawnHeroProjectile({
-            style: h.stats.projectileStyle,
-            startX: h.x,
-            startY: 0.9,
-            startZ: h.z,
-            target: second,
-            damage: Math.max(1, Math.round(h.stats.damage * 0.55)),
-            speed: h.stats.projectileSpeed,
-            splashRadius: 0,
-            armorPierce: h.stats.armorPierce,
-            slowRatio: 0,
-            slowDuration: 0,
-            hitsFlyers: h.stats.hitsFlyers,
-            lateral: 0.22,
-          });
+          _heroShotScratch.target = second;
+          _heroShotScratch.damage = Math.max(1, Math.round(h.stats.damage * 0.55));
+          _heroShotScratch.splashRadius = 0;
+          _heroShotScratch.slowRatio = 0;
+          _heroShotScratch.slowDuration = 0;
+          _heroShotScratch.lateral = 0.22;
+          this.projectileSystem.spawnHeroProjectile(_heroShotScratch as HeroShotParams);
         }
 
         this.events.emit('heroAttack', {

@@ -261,6 +261,7 @@ export class SoldierSystem {
    * squad lets go of its fights and walks to the new posts. False if the barracks is unknown.
    */
   setRally(tower: TowerEntity, x: number, z: number): boolean {
+    if (!Number.isFinite(x) || !Number.isFinite(z)) return false;
     const b = this.getBarracks(tower.id);
     if (!b) return false;
     const stats = getTowerTierStats(tower.type, tower.tier);

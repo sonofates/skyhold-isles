@@ -23,11 +23,20 @@
   - Added per-hero `HeroLevelGrowth`, `buildLevel20Specialization` (all 3 branch pairings `B0+1 / B0+2 / B1+2`), and `defaultSkillsForLevel` (wired into `?herolevel=N` and `scripts/heroBalance.ts`).
   - Moderated Mira's `wispFireRing` capstone secondary ring (`0.78×` radius, `0.42×` burst, `0.55×` burn, `2.0s`) and gave Bran's `Rally Banner` a self-combat surge (`+6%` swing speed and `0.55×` banner damage bonus) so Bran reaches 3★ on Master islands (`i10`, `i16`) without over-scaling solo DPS.
   - Tobb's `Deploy Gizmo` build-plot collision fix verified across all 17 islands (committed in Step 1).
-- [ ] **3. Robustness (Save/Progress Migrations, Fuzz Tests, Daily/Endless/Challenge Edge Cases, Zero-Alloc Hot Paths)** — *Next*
-  - Save/progress migration & `saveCode.ts` hero-roster preservation + fuzz tests across legacy v1/v2/2D/corrupted shapes.
-  - Daily/Endless edge cases & Challenge + Hero/Ability interactions (`Silent Skies` vs hero skills).
-  - Eliminate remaining per-tick allocations in owned `src/sim/**` hot paths (`SimWorld.fixedTick` 9 closures/tick and `HeroSystem`/`SoldierSystem` sort closures already eliminated in Step 1; audit `combatSystem`, `projectileSystem`, `waveSystem`, `heroSystem` skills).
-- [ ] **4. Speed 3× & Deterministic Replay Command API (`src/core/**`, `src/sim/**`, `src/platform/**`)**
+- [x] **3. Robustness (Save/Progress Migrations, Fuzz Tests, Daily/Endless/Challenge Edge Cases, Zero-Alloc Hot Paths)** — *DONE (Round 2)*
+  - **Save & Save-Code Migrations (`src/data/heroes.ts`, `src/platform/storage.ts`, `src/platform/saveCode.ts`, `src/render2d/ui/progress2d.ts`):**
+    - Added platform-free `sanitizeHeroSaveData`, `hasHeroSaveProgress`, and monotonic/idempotent `mergeHeroSaveData` so `migrateProgress`, `hasAnyProgress`, `encodeSaveCode`, `decodeSaveCode`, `mergeProgress`, and `describeMergeGain` preserve 2D hero XP, skill trees, and `selectedHero` while keeping hero-less 3D saves byte-identical.
+    - Fixed `loadProgress2D` / `remapProgress` empty `ids: []` wrapper bug (previously wiped positional stars to 0), duplicate IDs in `oldIds` (now merges via `Math.max` + badge union), non-object JSON primitives/arrays, `levelCount <= 0` edge cases, `NaN` `masterVolume` in `loadSettings`, and `NaN` stars/lives in `recordWin2D` / `applyRunResult2D`.
+    - Added `tests/platform/robustnessFuzz.test.ts` (500 seeded fuzzed v1/v2/2D/corrupted payloads + 150 save-code round-trip/merge fuzz pairs).
+  - **Daily, Endless & Coordinate Guards (`src/data/daily.ts`, `src/sim/waveSystem.ts`, `src/sim/abilitySystem.ts`, `src/sim/soldierSystem.ts`, `src/sim/groundGraph.ts`, `src/sim/world.ts`):**
+    - Hardened `utcDayNumber`, `dailyChallengeFor`, `normalizeDailyRecord`, `liveStreak`, and `applyDailyWin` against `NaN`/`Infinity`/fractional day inputs and duplicate/negative `clearedIslands`.
+    - Fixed `WaveSystem.skipToWave(NaN)` setting `currentWaveIndex = NaN`, capped `getCurrentWaveHpScale()` at `1e12` so extreme endless wave skips (`wave 5000`) never overflow IEEE-754 `double` to `Infinity`, capped high-offset endless boss counts (`<= 12`) & clear bonus (`<= 10,000`), made `enterEndlessMode()` idempotent, and rejected non-finite `(x, z)` coordinates in `castMeteor`, `setRally`, and `clampToGround`.
+  - **Challenge + Hero Interaction Decision (`Silent Skies`):**
+    - **Decision:** `Silent Skies` (`abilitiesDisabled: true`) disables **only global sanctuary/sky abilities (`Meteor Strike` and `Overcharge`)**; hero active skills and passives remain enabled and usable.
+    - **Rationale:** Matches `docs/hero-spec.md` ("global active abilities are separate from hero skills"), matches EN/TR `CHALLENGES.silentSkies` copy ("Meteor Strike and Overcharge are disabled"), and matches Opus's `abilityBar2d.ts` / `heroHud2d.ts` UI without stripping hero identity on `i05`/`i08`/`i11`/`i15`. Verified across all 5 heroes in `tests/platform/robustnessFuzz.test.ts`.
+  - **Zero Per-Tick Allocations in Owned `src/sim/**` Hot Paths:**
+    - Added `GroundGraph.clampToGroundOut` & `findPathInto` (`_clampTarget`, `_clampStep`, `_chainScratch`), cached post-return routes into `h.waypoints`, reused `_heroShotScratch` for hero & Tobb gizmo projectiles, and reused `_impactOut` in `ProjectileSystem.predictImpactPoint` (in addition to the 9 per-tick `SimWorld.fixedTick` closures and `HeroSystem`/`SoldierSystem` sort closures eliminated in Step 1).
+- [ ] **4. Speed 3× & Deterministic Replay Command API (`src/core/**`, `src/sim/**`, `src/platform/**`)** — *Next*
   - Verify 3× speed support and expose tick-stamped command recording & deterministic replay hooks on `SimWorld` for Opus; document exact API below.
 
 ---

@@ -53,9 +53,16 @@ function storage(): Storage | null {
  */
 export function remapProgress(raw: unknown, oldIds: readonly string[], levels: readonly Pick<LevelDef, 'id'>[]): ProgressData {
   const n = levels.length;
-  const rawHeroes = raw && typeof raw === 'object' ? (raw as { heroes?: unknown }).heroes : undefined;
-  const old = migrateProgress(raw, Math.max(1, oldIds.length));
-  const same = oldIds.length === n && oldIds.every((id, i) => levels[i]?.id === id);
+  const rawHeroes =
+    raw && typeof raw === 'object' && !Array.isArray(raw) ? (raw as { heroes?: unknown }).heroes : undefined;
+  if (n === 0) {
+    const empty = createDefaultProgress(0);
+    empty.heroes = migrateHeroSave(rawHeroes, empty, levels);
+    return empty;
+  }
+  const effectiveOldIds = oldIds.length > 0 ? oldIds : levels.map((l) => l.id);
+  const old = migrateProgress(raw, Math.max(1, effectiveOldIds.length));
+  const same = effectiveOldIds.length === n && effectiveOldIds.every((id, i) => levels[i]?.id === id);
   if (same) {
     const migrated = migrateProgress(raw, n);
     migrated.heroes = migrateHeroSave(rawHeroes, migrated, levels);
@@ -64,14 +71,17 @@ export function remapProgress(raw: unknown, oldIds: readonly string[], levels: r
   const out = createDefaultProgress(n);
   let frontier = 0;
   levels.forEach((lvl, i) => {
-    const j = oldIds.indexOf(lvl.id);
-    if (j < 0) return;
-    out.bestStars[i] = old.bestStars[j] ?? 0;
-    out.bestEndlessWaves[i] = old.bestEndlessWaves[j] ?? 0;
-    out.bestLives[i] = old.bestLives[j] ?? 0;
-    out.clears[i] = old.clears[j] ?? 0;
-    out.challengeClears[i] = [...(old.challengeClears[j] ?? [])];
-    if (j <= old.unlockedLevelIndex) frontier = Math.max(frontier, i);
+    for (let j = 0; j < effectiveOldIds.length; j++) {
+      if (effectiveOldIds[j] !== lvl.id) continue;
+      out.bestStars[i] = Math.max(out.bestStars[i], old.bestStars[j] ?? 0);
+      out.bestEndlessWaves[i] = Math.max(out.bestEndlessWaves[i], old.bestEndlessWaves[j] ?? 0);
+      out.bestLives[i] = Math.max(out.bestLives[i], old.bestLives[j] ?? 0);
+      out.clears[i] = Math.max(out.clears[i], old.clears[j] ?? 0);
+      for (const ch of old.challengeClears[j] ?? []) {
+        if (!out.challengeClears[i].includes(ch)) out.challengeClears[i].push(ch);
+      }
+      if (j <= old.unlockedLevelIndex) frontier = Math.max(frontier, i);
+    }
   });
   out.workshop = { ...old.workshop };
   out.daily = { ...old.daily };
@@ -93,10 +103,15 @@ export function loadProgress2D(levels: readonly LevelDef[] = LEVELS_2D): Progres
   try {
     const raw = ls?.getItem(PROGRESS_2D_KEY);
     if (!raw) return makeFresh();
-    const parsed = JSON.parse(raw) as Partial<Stored2D>;
-    const hasWrapper = parsed !== null && typeof parsed === 'object' && 'progress' in parsed;
-    const payload = hasWrapper ? parsed.progress : parsed;
-    const ids = Array.isArray(parsed?.ids) ? parsed.ids.filter((x): x is string => typeof x === 'string') : levels.map((l) => l.id);
+    const parsed: unknown = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return makeFresh();
+    const obj = parsed as Partial<Stored2D>;
+    const hasWrapper = 'progress' in obj;
+    const payload = hasWrapper ? obj.progress : obj;
+    const validIds = Array.isArray(obj.ids)
+      ? obj.ids.filter((x): x is string => typeof x === 'string' && x.length > 0)
+      : [];
+    const ids = validIds.length > 0 ? validIds : levels.map((l) => l.id);
     return remapProgress(payload, ids, levels);
   } catch {
     return makeFresh();
@@ -130,6 +145,7 @@ export interface IslandState {
 }
 
 export function islandStates(progress: ProgressData, levels: readonly LevelDef[] = LEVELS_2D): IslandState[] {
+  if (levels.length === 0) return [];
   const frontier = Math.max(0, Math.min(levels.length - 1, progress.unlockedLevelIndex));
   return levels.map((level, i) => ({
     index: i,
@@ -166,8 +182,10 @@ export function recordWin2D(
   const i = indexOf2D(levelId, levels);
   if (i < 0) return null;
   const p = loadProgress2D(levels);
+  const safeStars = (Number.isFinite(stars) ? Math.max(1, Math.min(3, Math.round(stars))) : 1) as 1 | 2 | 3;
+  const safeLives = Number.isFinite(livesLeft) ? Math.max(0, Math.floor(livesLeft)) : 0;
   const badges = badgesForWin(challengesForLevel(levels[i]), challenges);
-  const rec = applyWin(p, i, levels.length, stars, livesLeft, badges);
+  const rec = applyWin(p, i, levels.length, safeStars, safeLives, badges);
   saveProgress2D(p, levels);
   return rec;
 }
@@ -295,15 +313,22 @@ export function applyRunResult2D(
     return hero ? { win: null, daily: null, endless: null, hero } : { win: null, daily: null, endless: null };
   }
 
-  const stars = Math.max(1, Math.min(3, Math.round(outcome.stars))) as 1 | 2 | 3;
+  const stars = (
+    Number.isFinite(outcome.stars) ? Math.max(1, Math.min(3, Math.round(outcome.stars))) : 1
+  ) as 1 | 2 | 3;
+  const safeLives = Number.isFinite(outcome.livesRemaining)
+    ? Math.max(0, Math.floor(outcome.livesRemaining))
+    : 0;
   let win: WinRecord | null = null;
   if (i >= 0) {
     const badges = badgesForWin(challengesForLevel(levels[i]), cfg.challenges);
-    win = applyWin(progress, i, levels.length, stars, outcome.livesRemaining, badges);
+    win = applyWin(progress, i, levels.length, stars, safeLives, badges);
   }
+  const nowMs =
+    typeof outcome.nowMs === 'number' && Number.isFinite(outcome.nowMs) ? outcome.nowMs : Date.now();
   const daily =
-    cfg.daily !== null
-      ? applyDailyWin(progress.daily, cfg.daily, utcDayNumber(outcome.nowMs ?? Date.now()))
+    cfg.daily !== null && Number.isFinite(cfg.daily)
+      ? applyDailyWin(progress.daily, cfg.daily, utcDayNumber(nowMs))
       : null;
   const hero = recordHeroOutcome(progress, outcome, levels);
   return hero ? { win, daily, endless: null, hero } : { win, daily, endless: null };

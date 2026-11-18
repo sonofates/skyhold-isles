@@ -84,7 +84,8 @@ const ENDLESS_SPOTLIGHT_TUNING: Partial<
  * Deterministically generates an escalating wave definition for Endless Mode beyond `level.waves`.
  */
 export function buildEndlessWaveDef(waveIndex: number, level: LevelDef): WaveDef {
-  const offset = Math.max(0, waveIndex - level.waves.length);
+  const rawOffset = Number.isFinite(waveIndex) ? Math.floor(waveIndex) - level.waves.length : 0;
+  const offset = Math.max(0, rawOffset);
   const scaleFactor = 1 + Math.max(0, level.waves.length - 10) * 0.05;
 
   const groups: WaveGroupDef[] = [
@@ -154,7 +155,7 @@ export function buildEndlessWaveDef(waveIndex: number, level: LevelDef): WaveDef
     }
     groups.push({
       enemyType: 'boss',
-      count: (offset + 1) % 10 === 0 ? bossTier : 1 + bossTier,
+      count: Math.min(12, (offset + 1) % 10 === 0 ? bossTier : 1 + bossTier),
       spawnInterval: Math.max(0.18, +(2.4 - bossTier * 0.25).toFixed(2)),
       startDelay: 3.2,
     });
@@ -205,8 +206,9 @@ export function buildEndlessWaveDef(waveIndex: number, level: LevelDef): WaveDef
       : mutatedGroups;
 
   const lastStoryBonus = level.waves[level.waves.length - 1]?.clearBonus ?? 40;
-  const clearBonus = Math.round(
-    Math.max(40, lastStoryBonus * 0.75) + offset * 5 + ((offset + 1) % 5 === 0 ? 25 : 0),
+  const clearBonus = Math.min(
+    10_000,
+    Math.round(Math.max(40, lastStoryBonus * 0.75) + offset * 5 + ((offset + 1) % 5 === 0 ? 25 : 0)),
   );
 
   return { groups: lanedGroups, clearBonus };
@@ -476,9 +478,10 @@ export class WaveSystem {
 
   skipToWave(waveOneBased: number): boolean {
     if (this.totalWaves <= 0 && !this.endlessMode) return false;
-    const requestedIdx = Math.max(0, Math.floor(waveOneBased) - 1);
+    const safeOneBased = Number.isFinite(waveOneBased) ? Math.floor(waveOneBased) : 1;
+    const requestedIdx = Math.max(0, safeOneBased - 1);
     const clampedIdx = this.endlessMode
-      ? requestedIdx
+      ? Math.min(10_000, requestedIdx)
       : Math.min(this.level.waves.length - 1, requestedIdx);
     this.pendingClearBonus = 0;
     this.interWaveTimer = 0;
@@ -505,8 +508,9 @@ export class WaveSystem {
     }
     const finalStoryIndex = Math.max(0, storyCount - 1);
     const finalStoryScale = this.computeStoryWaveHpScale(finalStoryIndex);
-    const offset = this.currentWaveIndex - storyCount;
-    return finalStoryScale * Math.pow(1.22, offset + 1);
+    const offset = Math.max(0, this.currentWaveIndex - storyCount);
+    // Cap endless HP scaling so extreme debug/endless wave skips never overflow IEEE-754 double to Infinity.
+    return Math.min(1e12, finalStoryScale * Math.pow(1.22, Math.min(120, offset + 1)));
   }
 
   update(
