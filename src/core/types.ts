@@ -35,6 +35,21 @@ export type EnemyType =
 
 export type AbilityId = 'meteor' | 'overcharge';
 
+export type HeroId = 'bran' | 'wren' | 'mira' | 'tobb' | 'sela';
+
+/** Active hero skill slot: 0 = Active 1, 1 = Active 2. */
+export type HeroSkillSlot = 0 | 1;
+
+export interface HeroProgressEntry {
+  xp: number;
+  skills: string[];
+}
+
+export interface HeroSaveData {
+  selectedHero: HeroId;
+  roster: Partial<Record<HeroId, HeroProgressEntry>>;
+}
+
 export type TargetingMode = 'first' | 'last' | 'strongest' | 'closest';
 
 export type GameScreen = 'menu' | 'levelSelect' | 'playing' | 'won' | 'lost';
@@ -85,6 +100,8 @@ export interface ProgressData {
   challengeClears: string[][];
   /** Daily Squall record (see src/data/daily.ts). */
   daily: { lastDay: number; streak: number; bestStreak: number; total: number };
+  /** Persistent 2D hero roster XP, unlocked skill-tree nodes, and last-selected hero. */
+  heroes?: HeroSaveData;
 }
 
 export interface Vec3 {

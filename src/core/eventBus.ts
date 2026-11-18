@@ -1,4 +1,4 @@
-import type { AbilityId, EnemyType, TowerType, Vec3 } from './types.ts';
+import type { AbilityId, EnemyType, HeroId, HeroSkillSlot, TowerType, Vec3 } from './types.ts';
 
 export interface GameEventMap {
   towerBuilt: { towerId: number; type: TowerType; tier: number; x: number; z: number };
@@ -258,6 +258,75 @@ export interface GameEventMap {
   enemyBlocked: { enemyId: number; enemyType: EnemyType; x: number; y: number; z: number };
   /** A held enemy is free again (its soldiers died, were sold, or it dived / blinked / trampled away). */
   enemyUnblocked: { enemyId: number; enemyType: EnemyType; x: number; y: number; z: number };
+  /** Player ordered the hero to walk along the ground road graph to (targetX, targetZ). */
+  heroMoved: {
+    heroId: HeroId;
+    x: number;
+    z: number;
+    targetX: number;
+    targetZ: number;
+    waypoints: readonly { readonly x: number; readonly z: number }[];
+  };
+  /** The hero swung in melee or loosed a ranged projectile at an enemy. */
+  heroAttack: {
+    heroId: HeroId;
+    mode: 'melee' | 'ranged';
+    x: number;
+    z: number;
+    targetX: number;
+    targetZ: number;
+    targetEnemyId: number;
+    yaw: number;
+    damage: number;
+    crit: boolean;
+    cleave: boolean;
+  };
+  /** The hero took damage from an enemy strike. */
+  heroHit: {
+    heroId: HeroId;
+    enemyId: number;
+    damage: number;
+    hp: number;
+    maxHp: number;
+    x: number;
+    z: number;
+  };
+  /** The hero cast one of its two active skills. */
+  heroSkillCast: {
+    heroId: HeroId;
+    slot: HeroSkillSlot;
+    skillId: string;
+    x: number;
+    z: number;
+    targetX: number;
+    targetZ: number;
+    radius: number;
+    duration: number;
+  };
+  /** The hero fell in battle and begins its respawn countdown at the castle. */
+  heroDied: {
+    heroId: HeroId;
+    x: number;
+    z: number;
+    respawnSec: number;
+  };
+  /** The hero respawned at the castle at full health. */
+  heroRespawn: {
+    heroId: HeroId;
+    x: number;
+    z: number;
+    hp: number;
+    maxHp: number;
+  };
+  /** The hero earned persistent progression XP during a run. */
+  heroXpGained: {
+    heroId: HeroId;
+    amount: number;
+    totalRunXp: number;
+    source: 'kill' | 'wave' | 'victory';
+    x: number;
+    z: number;
+  };
   economyChanged: {
     gold: number;
     lives: number;
