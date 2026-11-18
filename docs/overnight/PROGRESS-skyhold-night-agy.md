@@ -18,9 +18,12 @@
     2. **Tobb's Deploy Gizmo landing on build plots (`src/sim/heroSystem.ts`, `src/sim/world.ts`):** Caught 448 violations (`l1c` plots 3 & 9, `i01` plots 5 & 9, etc.). Fixed via `HeroSystem.resolveGizmoPlacement`, which enforces `>= plotRadius * 1.28` clearance from every plot in `grid.plots` while searching nearby road/verge positions within cast range (verified exhaustively across every plot of all 17 islands in `tests/sim/qaBot.test.ts`).
     3. **Unbalanced `enemyBlocked` / `enemyUnblocked` events (`src/sim/heroSystem.ts`, `src/sim/soldierSystem.ts`):** When Bran entered melee contact and died on the same tick, or when barracks soldiers and Bran co-held an enemy, `enemyBlocked` could fire twice or fail to emit `enemyUnblocked` when the hold ended. Fixed in both systems so block/unblock events stay 1-to-1.
     4. **Leaked mid-flight projectiles, burn zones & fire rings on victory + `debugSkipToWave` (`src/sim/world.ts`, `src/sim/abilitySystem.ts`, `src/sim/heroSystem.ts`, `src/sim/soldierSystem.ts`):** Winning a story run froze mid-air projectiles/mortar burn patches/fire rings indefinitely. Added `clearVictoryTransients()` on story win, full transient reset in `debugSkipToWave`, and `world.dispose()` for complete post-run teardown. Also fixed missing `tower.heroRangeBonus` on Archer T3 `fireVolley` (`src/sim/combatSystem.ts`).
-- [ ] **2. Hero Balance (`src/data/heroes.ts`, `scripts/heroBalance.ts`)** — *Next*
-  - Target (`docs/hero-spec.md`): L1 ≈ 1× T2 Barracks (`~648` benchmark dmg), L20 ≈ 2× T3 Towers (`~7,642` benchmark dmg); tune `heroes.ts` numbers and tree nodes so no hero is useless (`bran` L1 is only `224` benchmark dmg) or dominant (`mira` L20 deals `101k–135k` island dmg vs `22k–35k` for `bran`/`sela`). Document before/after tables below.
-- [ ] **3. Robustness (Save/Progress Migrations, Fuzz Tests, Daily/Endless/Challenge Edge Cases, Zero-Alloc Hot Paths)**
+- [x] **2. Hero Balance (`src/data/heroes.ts`, `src/sim/heroSystem.ts`, `src/render2d/heroes2d.ts`, `scripts/heroBalance.ts`)** — *DONE (Round 2)*
+  - Tuned all 5 heroes (`bran`, `wren`, `mira`, `tobb`, `sela`) against `docs/hero-spec.md` targets (`L1 ≈ 1× T2 Barracks = 648 dmg`, `L20 ≈ 2× T3 Towers = 7,642 dmg`) without altering any skill-node percentage hardcoded in `src/i18n/heroesTr.ts` (keeps EN & TR tooltips 100% accurate).
+  - Added per-hero `HeroLevelGrowth`, `buildLevel20Specialization` (all 3 branch pairings `B0+1 / B0+2 / B1+2`), and `defaultSkillsForLevel` (wired into `?herolevel=N` and `scripts/heroBalance.ts`).
+  - Moderated Mira's `wispFireRing` capstone secondary ring (`0.78×` radius, `0.42×` burst, `0.55×` burn, `2.0s`) and gave Bran's `Rally Banner` a self-combat surge (`+6%` swing speed and `0.55×` banner damage bonus) so Bran reaches 3★ on Master islands (`i10`, `i16`) without over-scaling solo DPS.
+  - Tobb's `Deploy Gizmo` build-plot collision fix verified across all 17 islands (committed in Step 1).
+- [ ] **3. Robustness (Save/Progress Migrations, Fuzz Tests, Daily/Endless/Challenge Edge Cases, Zero-Alloc Hot Paths)** — *Next*
   - Save/progress migration & `saveCode.ts` hero-roster preservation + fuzz tests across legacy v1/v2/2D/corrupted shapes.
   - Daily/Endless edge cases & Challenge + Hero/Ability interactions (`Silent Skies` vs hero skills).
   - Eliminate remaining per-tick allocations in owned `src/sim/**` hot paths (`SimWorld.fixedTick` 9 closures/tick and `HeroSystem`/`SoldierSystem` sort closures already eliminated in Step 1; audit `combatSystem`, `projectileSystem`, `waveSystem`, `heroSystem` skills).
@@ -37,3 +40,27 @@
    - `Game2D.wireEvents()` `lightningChain` handler (line 376): when `t` is null (Sela's **Thunder Call**, where `points[0]` is `{ x: h.x, y: 1.1, z: h.z }`), `muzzle` falls back to `this.towers.muzzleHeight('tesla')` instead of `p0.y`, drawing the bolt origin above Sela's head.
 2. **Codex (`src/sim/enemySystem.ts`):**
    - `EnemySystem.updateHealerAura` (line 840): checks `if (!ally.active || ally.hp >= ally.maxHp) continue;` — harmless today since pass 1 releases `hp <= 0`, but adding `|| ally.hp <= 0 || ally.burrowed` is a good defensive guard if new enemy death-delay mechanics are added tonight.
+
+---
+
+## Hero Balance — Before vs After (`npm run sim:heroes`)
+
+### 1. Controlled 55s Unit Power Equivalence Benchmark (`l1c` mixed ground/armored/flyer wave)
+- **Spec Targets (`docs/hero-spec.md`):**
+  - **Level 1 Target (`1× Tier-2 Barracks`, 140g):** `648 dmg`
+  - **Level 20 Target (`2× Tier-3 Towers: Archer + Cannon`, 500g):** `7,642 dmg`
+
+| Hero | Before L1 Dmg | After L1 Dmg | After L10 Dmg | Before L20 Dmg (`B0+1`) | After L20 Dmg (`B0+1 / B0+2 / B1+2`) |
+| :--- | ---: | ---: | ---: | ---: | ---: |
+| **Bran Ironoak** | `224` *(35% of ref)* | `959` | `2,014` | `6,011` | `7,683 / 6,767 / 8,492` |
+| **Wren Skyfletch** | `499` *(77% of ref)* | `646` | `2,633` | `5,776` | `7,532 / 7,105 / 6,746` |
+| **Mira Emberwisp** | `537` *(83% of ref)* | `575` | `3,829` | `7,783` | `7,174 / 6,212 / 7,081` |
+| **Tobb Gearwright** | `733` *(113% of ref)* | `653` | `2,019` | `5,948` | `7,530 / 6,508 / 7,730` |
+| **Sela Tidecaller** | `622` *(96% of ref)* | `685` | `2,183` | `5,609` | `7,673 / 7,456 / 8,202` |
+
+### 2. Campaign Island Impact (`l1c`, `i05`, `i10`, `i16` — Greedy / Weak)
+- **Before:** `bran` L1 dealt only `2.9k–3.7k` across 15–20 waves and `bran` L20 failed to reach 3★ on Master `i10` (`12L 2★`, vs `20L 3★` for every ranged hero), while `mira` L20 dominated `i05` (`101k–105k`, ~3.5×–4.5× `bran`/`sela`).
+- **After:**
+  - Every hero at L20 turns `l1c` Weak (`11L 2★` baseline) into `20L 3★`, turns `i05` Weak (`Loss 0L` baseline) into a victory (`9L–20L`), and upgrades **both** Master `i10` Greedy (`5L 1★` baseline) and Master `i16` Greedy (`5L 1★` baseline) to **3★ clears** (`bran` L20 now clears `i10` at `13L 3★` and `i16` at `13L 3★`; `wren`/`mira`/`tobb`/`sela` L20 all clear at `20L 3★`).
+  - Master `i10` L20 Greedy hero damage band narrowed from `26.1k–63.5k` (`2.44×` spread) to `28.0k–66.7k` with every hero earning 3★, and no hero solo-carries Master Weak (`L 0L` on `i10`/`i16` weak across all 5 heroes).
+  - Kept all `src/i18n/heroesTr.ts` node percentage strings untouched by tuning `baseStats`, `levelGrowth`, passive base power (`Kindling` / `Calm Waters`), and active base damage/cooldowns/radii.

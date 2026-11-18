@@ -11,7 +11,9 @@ import type {
   ProgressData,
 } from '../core/types.ts';
 import {
+  buildLevel20Specialization,
   defaultLevel20Skills,
+  defaultSkillsForLevel,
   getHeroSkillNode,
   HERO_DEFS,
   HERO_IDS,
@@ -30,7 +32,9 @@ import { LEVELS_2D } from '../data/levels2d/index.ts';
 import type { LevelDef } from '../data/levels/types.ts';
 
 export {
+  buildLevel20Specialization,
   defaultLevel20Skills,
+  defaultSkillsForLevel,
   getHeroSkillNode,
   HERO_DEFS,
   HERO_IDS,
@@ -497,7 +501,10 @@ export function resolveHeroForRun(
   const parsedLevel = levelParam ? Number(levelParam) : NaN;
   if (Number.isFinite(parsedLevel) && parsedLevel >= 1) {
     const forcedLevel = Math.max(1, Math.min(HERO_MAX_LEVEL, Math.floor(parsedLevel)));
-    const skills = forcedLevel >= HERO_MAX_LEVEL && entry.skills.length === 0 ? defaultLevel20Skills(heroId) : entry.skills;
+    const skills =
+      forcedLevel > 1 && entry.skills.length === 0
+        ? defaultSkillsForLevel(heroId, forcedLevel)
+        : entry.skills;
     return { heroId, level: forcedLevel, skills: [...skills] };
   }
   return {

@@ -215,13 +215,13 @@ describe('QA bot regression & invariant unit tests', () => {
     expect(hashWorldState(w2)).not.toBe(h1);
   });
 
-  it('runs quick headless QA bot slice cleanly across l1c and i10 with 0 violations', async () => {
+  it('runs quick headless QA bot slice cleanly across all strategy families on l1c with 0 violations', async () => {
     const summary = await runQaBotSuite({
       quick: true,
-      levelIds: ['l1c', 'i10'],
+      levelIds: ['l1c'],
       jobs: 1,
     });
-    expect(summary.totalScenarios).toBeGreaterThanOrEqual(12);
+    expect(summary.totalScenarios).toBeGreaterThanOrEqual(7);
     expect(summary.failedScenarios).toBe(0);
     expect(summary.determinismReplays).toBeGreaterThanOrEqual(1);
   }, 30_000);

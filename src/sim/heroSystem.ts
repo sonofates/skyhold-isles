@@ -601,10 +601,10 @@ export class HeroSystem {
             h,
             endX,
             endZ,
-            ringAct.radius * 0.85,
-            Math.round(ringAct.damage * 0.5),
-            Math.round(ringAct.effect * 0.75),
-            2.5,
+            ringAct.radius * 0.78,
+            Math.round(ringAct.damage * 0.42),
+            Math.round(ringAct.effect * 0.55),
+            2.0,
             ringAct.extras.has('ringSlow'),
           );
         }
@@ -1435,11 +1435,12 @@ export class HeroSystem {
 
       if (h.state === 'fighting') {
         this.applyMeleeHolds(h, target);
-        h.attackTimer -= dt * rateMul;
+        const bannerSpeedMul = h.rallyBannerTimer > 0 ? 1.06 : 1;
+        h.attackTimer -= dt * rateMul * bannerSpeedMul;
         if (h.attackTimer <= 0) {
           h.attackTimer += 1 / h.stats.attackSpeed;
           if (h.attackTimer <= 0) h.attackTimer = 1 / h.stats.attackSpeed;
-          const rallyBonus = h.rallyBannerTimer > 0 ? 1 + h.stats.actives[1].effect * 0.5 : 1;
+          const rallyBonus = h.rallyBannerTimer > 0 ? 1 + h.stats.actives[1].effect * 0.55 : 1;
           const baseDmg = Math.round(h.stats.damage * rallyBonus);
           const pierce = Math.min(target.armor, h.stats.armorPierce);
           const res = this.enemySystem.applyDamage(target, baseDmg + pierce);

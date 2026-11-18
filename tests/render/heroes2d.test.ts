@@ -7,6 +7,7 @@ import {
   applyNode,
   canUnlockNode,
   defaultLevel20Skills,
+  defaultSkillsForLevel,
   HERO_IDS,
   heroLevel,
   heroLevelProgress,
@@ -290,13 +291,18 @@ describe('2D save persistence, migration & run-end XP recording', () => {
     expect(endlessRes.hero?.newXp).toBe(310);
     saveProgress2D(p, LEVELS_2D);
 
-    // URL query resolver supports default lastHero, ?hero=<id>, ?hero=none, and ?herolevel=20.
+    // URL query resolver supports default lastHero, ?hero=<id>, ?hero=none, ?herolevel=10, and ?herolevel=20.
     const saved = loadProgress2D(LEVELS_2D);
     expect(resolveHeroForRun(saved, null, null, LEVELS_2D)?.heroId).toBe('wren');
     expect(resolveHeroForRun(saved, 'none', null, LEVELS_2D)).toBeNull();
+    const forced10 = resolveHeroForRun(saved, 'mira', '10', LEVELS_2D)!;
+    expect(forced10.heroId).toBe('mira');
+    expect(forced10.level).toBe(10);
+    expect(forced10.skills).toEqual(defaultSkillsForLevel('mira', 10));
+    expect(forced10.skills.length).toBeGreaterThan(0);
     const forced20 = resolveHeroForRun(saved, 'sela', '20', LEVELS_2D)!;
     expect(forced20.heroId).toBe('sela');
     expect(forced20.level).toBe(20);
-    expect(forced20.skills).toEqual(defaultLevel20Skills('sela'));
+    expect([...forced20.skills].sort()).toEqual([...defaultLevel20Skills('sela')].sort());
   });
 });
