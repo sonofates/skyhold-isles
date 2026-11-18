@@ -15,7 +15,7 @@ const rep = {};
 for (const [k, w, h, dpr] of SIZES) {
   const ctx = await browser.newContext({ viewport: { width: w, height: h }, deviceScaleFactor: dpr, isMobile: dpr > 1, hasTouch: dpr > 1 });
   const page = await ctx.newPage();
-  await page.goto(`${BASE}/2d.html`);
+  await page.goto(`${BASE}/2d.html?level=l1c`);
   await page.waitForFunction(() => !!window.__p0, null, { timeout: 30000 });
   await page.waitForTimeout(1000);
   rep[k] = await page.evaluate(() => {

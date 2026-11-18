@@ -59,7 +59,7 @@ for (const [key, w, h, dpr, touch] of SIZES) {
     if (m.type() === 'error' && !/404|Failed to load resource/.test(m.text())) err(`[${key}] ${m.text()}`);
   });
   page.on('pageerror', (e) => err(`[${key}] pageerror ${e.message}`));
-  await page.goto(`${BASE}/2d.html`);
+  await page.goto(`${BASE}/2d.html?level=l1c`);
   await page.waitForFunction(() => !!window.__p0, null, { timeout: 30000 });
   await page.waitForTimeout(900);
   const rep = (report.sizes[key] = {});
