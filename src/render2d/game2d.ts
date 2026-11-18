@@ -1,13 +1,18 @@
 import { Container, Sprite, type Application } from 'pixi.js';
 import { EventBus, type GameEventMap } from '../core/eventBus.ts';
 import { FixedTimestepStepper } from '../core/gameLoop.ts';
-import type { SpeedMultiplier, TargetingMode, TowerType } from '../core/types.ts';
+import type { GameSettings, SpeedMultiplier, TargetingMode, TowerType } from '../core/types.ts';
+import { BALANCE } from '../data/balance.ts';
 import type { LevelDef } from '../data/levels/types.ts';
+import { NEUTRAL_RUN_MODIFIERS, type RunModifiers } from '../data/runModifiers.ts';
 import { getTowerTierStats, TOWER_DEFS } from '../data/towers.ts';
+import { bindHaptics, haptics } from '../platform/haptics.ts';
+import { isTouchDevice, loadSettings } from '../platform/storage.ts';
 import type { TowerEntity } from '../sim/entities.ts';
 import { computeSellRefund, SimWorld } from '../sim/world.ts';
 import type { LoadedArt } from './assets2d.ts';
 import { BuildRing, type RingAction } from './buildRing.ts';
+import { DamageNumbers2D } from './damageNumbers2d.ts';
 import { EndPanel, endStars } from './endPanel.ts';
 import { EnemyLayer } from './enemyLayer.ts';
 import { FxLayer } from './fxLayer.ts';
@@ -18,6 +23,15 @@ import { MapView } from './mapView.ts';
 import { PlotLayer, type PlotState } from './plotLayer.ts';
 import { createProcTextures, type ProcTextures } from './procTextures.ts';
 import { ProjectileLayer } from './projectileLayer.ts';
+import {
+  audioSettings2d,
+  createShakeState2D,
+  resetShakeState2D,
+  shouldVibrate2D,
+  stepShake2D,
+  triggerShake2D,
+  type AudioSettings2D,
+} from './settings2d.ts';
 import { bindSpecialFx, createSpecialFxStats } from './specialFx.ts';
 import { SoldierLayer, withBarracksArt } from './soldierLayer.ts';
 import { MeleeDirector } from './meleeDirector.ts';
@@ -37,6 +51,12 @@ export interface Game2DHooks {
   beforeTick?: (world: SimWorld) => void;
   /** Disable the win/lose overlay + restart (bench). */
   endless?: boolean;
+  /** Run modifiers (Workshop upgrades + challenge / Daily rules) passed to SimWorld. */
+  modifiers?: RunModifiers;
+  /** Start SimWorld in Endless mode from wave 1 (`startEndlessFromStart()`), keeping normal defeat flow. */
+  startEndless?: boolean;
+  /** Optional settings provider (defaults to shared `loadSettings()` from `platform/storage`). */
+  getSettings?: () => GameSettings;
   /** End panel "Next" (shown only when given) and "Menu" targets. */
   onNext?: () => void;
   onMenu?: () => void;
@@ -61,6 +81,7 @@ export class Game2D {
   readonly plots: PlotLayer;
   readonly projectiles: ProjectileLayer;
   readonly fx: FxLayer;
+  readonly damageNumbers: DamageNumbers2D;
   readonly soldiers: SoldierLayer;
   /** Melee fight state shared by the enemy and soldier layers (swings, facing, spacing, flash). */
   readonly melee: MeleeDirector;
@@ -86,6 +107,11 @@ export class Game2D {
   /** Free plot under the mouse (desktop hover glow), or -1. */
   private hoverPlot = -1;
   private minCost = 0;
+  private settings: GameSettings = loadSettings();
+  private readonly shake = createShakeState2D();
+  private simClockSec = 0;
+  private activeDamagePopups = 0;
+  private unbindHaptics: (() => void) | null = null;
   /** Tesla bolts waiting for their tower's painted release frame (sim seconds left). */
   private readonly boltQueue: { t: number; points: GameEventMap['lightningChain']['points']; overload: boolean; muzzle: number }[] = [];
   private hudState: {
@@ -127,6 +153,7 @@ export class Game2D {
       shard: this.tex.shard,
       orb: this.tex.orb,
     });
+    this.damageNumbers = new DamageNumbers2D(this.map, this.layers.fx);
     this.enemies = new EnemyLayer(art, this.map, this.layers, this.tex, this.fx);
     this.plots = new PlotLayer(level.layout2d, art.plot, this.tex);
     this.layers.plots.addChild(this.plots.root);
@@ -150,8 +177,14 @@ export class Game2D {
     this.end = new EndPanel(art);
     this.screen.addChild(this.hud.root, this.ring.root, this.end.root);
     app.stage.addChild(this.map.root, this.screen);
-    for (const t of art.manifest.buildRing) this.costs.set(t, getTowerTierStats(t, 1).upgradeCost);
-    this.minCost = Math.min(...this.costs.values());
+    const banned = hooks.modifiers?.bannedTowers ?? [];
+    let minAllowed = Infinity;
+    for (const t of art.manifest.buildRing) {
+      const c = getTowerTierStats(t, 1).upgradeCost;
+      this.costs.set(t, c);
+      if (!banned.includes(t) && c < minAllowed) minAllowed = c;
+    }
+    this.minCost = Number.isFinite(minAllowed) ? minAllowed : Math.min(...this.costs.values());
     this.newRun();
   }
 
@@ -175,10 +208,29 @@ export class Game2D {
     return false;
   }
 
+  /** Live 2D audio settings resolved from shared `GameSettings` + `musicPrefs`. */
+  get audioSettings(): AudioSettings2D {
+    return audioSettings2d(this.currentSettings());
+  }
+
+  currentSettings(): GameSettings {
+    return this.hooks.getSettings ? this.hooks.getSettings() : this.settings;
+  }
+
+  /** Reloads persisted `GameSettings` from storage and syncs haptics. */
+  refreshSettings(): void {
+    this.settings = loadSettings();
+    haptics.setEnabled(shouldVibrate2D(this.currentSettings(), isTouchDevice()));
+  }
+
   /** Starts (or restarts) a run on the level. */
   newRun(): void {
+    this.unbindHaptics?.();
+    this.refreshSettings();
     this.events = new EventBus();
-    this.world = new SimWorld(this.level, this.events);
+    this.unbindHaptics = bindHaptics(this.events);
+    this.world = new SimWorld(this.level, this.events, this.hooks.modifiers ?? NEUTRAL_RUN_MODIFIERS);
+    if (this.hooks.startEndless) this.world.startEndlessFromStart();
     this.stepper.simActive = true;
     this.stepper.paused = false;
     this.stepper.resetAccumulator();
@@ -190,6 +242,11 @@ export class Game2D {
     this.rangeDisc.visible = false;
     this.enemies.reset();
     this.fx.clear();
+    this.damageNumbers.clear();
+    resetShakeState2D(this.shake);
+    this.map.root.position.set(0, 0);
+    this.simClockSec = 0;
+    this.activeDamagePopups = 0;
     this.soldiers.reset();
     this.melee.reset();
     this.rallyTower = -1;
@@ -222,12 +279,39 @@ export class Game2D {
       const delay = t ? this.towers.predictShotDelay(t.id, t.type, t.tier) : 0;
       if (delay > 0) this.boltQueue.push({ t: delay, points: e.points.map((q) => ({ ...q })), overload: e.overload === true, muzzle });
       else this.fx.bolt(e.points, e.overload === true, muzzle);
+      if (e.overload && !this.hooks.endless) triggerShake2D(this.shake, 0.014, this.currentSettings());
+    });
+    ev.on('towerFired', (e) => {
+      if (this.hooks.endless) return;
+      if (e.type === 'mortar') triggerShake2D(this.shake, 0.02, this.currentSettings());
+      else if (e.type === 'cannon') triggerShake2D(this.shake, 0.012, this.currentSettings());
+      else if (e.type === 'ballista') triggerShake2D(this.shake, 0.008, this.currentSettings());
+    });
+    ev.on('projectileImpact', (e) => {
+      if (!this.hooks.endless && e.towerType === 'mortar') {
+        triggerShake2D(this.shake, BALANCE.camera.mortarImpactShake, this.currentSettings());
+      }
+    });
+    ev.on('meteorImpact', () => {
+      if (!this.hooks.endless) triggerShake2D(this.shake, BALANCE.camera.bossHitShake * 0.9, this.currentSettings());
+    });
+    ev.on('bossPhase', (e) => {
+      if (!this.hooks.endless) {
+        triggerShake2D(this.shake, BALANCE.camera.bossHitShake * (e.phase >= 2 ? 0.85 : 0.55), this.currentSettings());
+      }
+    });
+    ev.on('enemyHit', (e) => {
+      if (this.hooks.endless) return;
+      this.damageNumbers.spawn(e, this.simClockSec, this.currentSettings());
     });
     ev.on('enemyKilled', (e) => {
       const px = m.pxX(e.x);
       const py = m.pxY(e.z) - e.y * 0.9 * ppu;
       this.fx.puffs(px, py - 14, 7, 12);
       this.fx.spawn('coin', px, py - 30, 26, 0, -70, 0.8);
+      if (!this.hooks.endless && (e.enemyType === 'boss' || e.enemyType === 'tempest')) {
+        triggerShake2D(this.shake, BALANCE.camera.bossHitShake, this.currentSettings());
+      }
     });
     ev.on('towerBuilt', (e) => this.fx.puffs(m.pxX(e.x), m.pxY(e.z), 10, 30, 0xe9d8b4));
     ev.on('towerUpgraded', (e) => {
@@ -268,11 +352,13 @@ export class Game2D {
   frame(dtSec: number): void {
     const world = this.world;
     const res = this.stepper.step(dtSec, (fixedDt) => {
+      this.simClockSec += fixedDt;
       this.hooks.beforeTick?.(world);
       world.fixedTick(fixedDt);
     });
     const alpha = res.alpha;
     const simDt = this.stepper.paused ? 0 : dtSec * this.stepper.speed;
+    const cfg = this.currentSettings();
     this.towers.sync(world.towers, dtSec, simDt);
     for (let i = this.boltQueue.length - 1; i >= 0; i--) {
       const b = this.boltQueue[i];
@@ -295,6 +381,16 @@ export class Game2D {
     this.projectiles.sync(world.projectilePool, alpha);
     this.soldiers.sync(world.soldierSystem, alpha, simDt, dtSec, this.selectedTower, this.rallyTower);
     this.fx.update(simDt > 0 ? simDt : dtSec * 0.25);
+    this.activeDamagePopups = this.hooks.endless ? 0 : this.damageNumbers.update(simDt > 0 ? dtSec : 0, cfg);
+    if (!this.hooks.endless) {
+      stepShake2D(this.shake, simDt > 0 && !this.endShown ? dtSec : 0, cfg);
+      if (simDt > 0 && !this.endShown && (this.shake.offsetX !== 0 || this.shake.offsetY !== 0)) {
+        const unitPx = this.level.layout2d!.pxPerUnit * this.map.fit.scale;
+        this.map.root.position.set(this.shake.offsetX * unitPx, this.shake.offsetY * unitPx);
+      } else {
+        this.map.root.position.set(0, 0);
+      }
+    }
     this.ring.update(dtSec, world.gold);
     this.syncRangePreview();
 
@@ -310,7 +406,8 @@ export class Game2D {
     s.paused = this.stepper.paused;
     s.speed = this.stepper.speed;
     s.canCall = world.outcome === 'ongoing' && world.waveSystem.canStartNextWave();
-    s.earlyBonus = s.canCall ? world.waveSystem.getEarlyCallBonus() : 0;
+    const rawBonus = s.canCall ? world.waveSystem.getEarlyCallBonus() : 0;
+    s.earlyBonus = world.mods.waveBonusMul === 1 ? rawBonus : Math.max(0, Math.round(rawBonus * world.mods.waveBonusMul));
     const over = world.outcome !== 'ongoing' && !this.hooks.endless;
     s.banner = over ? '' : this.stepper.paused ? 'Paused' : this.rallyTower !== -1 ? 'Tap the road' : '';
     this.hud.update(s as HudState, dtSec);
@@ -390,7 +487,7 @@ export class Game2D {
     if (towerId === -1) {
       this.selectedTower = -1;
       this.rangeDisc.visible = false;
-      this.ring.openBuild(plot, c.x, c.y, world.gold, this.costs, w, h, this.hud.topBand);
+      this.ring.openBuild(plot, c.x, c.y, world.gold, this.costs, w, h, this.hud.topBand, world.mods.bannedTowers);
       return;
     }
     const t = world.getTowerById(towerId);
@@ -502,6 +599,7 @@ export class Game2D {
       this.closeRing();
       return;
     }
+    haptics.pulse('tap');
     this.openForPlot(plot);
   }
 
@@ -539,6 +637,8 @@ export class Game2D {
     canvas.addEventListener('pointerleave', () => {
       this.hoverPlot = -1;
     });
+    window.addEventListener('storage', () => this.refreshSettings());
+    window.addEventListener('focus', () => this.refreshSettings());
     window.addEventListener('keydown', (e) => {
       if (e.key === ' ') this.stepper.paused = !this.stepper.paused;
       else if (e.key === '1') this.stepper.speed = 1;
@@ -577,6 +677,8 @@ export class Game2D {
       lives: w.lives,
       wave: w.waveSystem.currentWaveOneBased,
       waveState: w.waveSystem.state,
+      endless: w.waveSystem.isEndless,
+      modifiers: w.mods,
       outcome: w.outcome,
       enemies: w.enemyPool.getActiveCount(),
       projectiles: w.projectilePool.getActiveCount(),
@@ -623,6 +725,14 @@ export class Game2D {
         tower: this.art.towers.archer?.tiers[0].source.mipLevelCount ?? null,
       },
       artNotes: this.art.notes,
+      settings: {
+        audio: this.audioSettings,
+        cameraShake: this.currentSettings().cameraShake,
+        damageNumbers: this.currentSettings().damageNumbers,
+        haptics: this.currentSettings().haptics,
+      },
+      shake: { offsetX: this.shake.offsetX, offsetY: this.shake.offsetY, triggers: this.shake.triggers },
+      damagePopups: { active: this.activeDamagePopups, spawned: this.damageNumbers.pool.spawned },
     };
   }
 }

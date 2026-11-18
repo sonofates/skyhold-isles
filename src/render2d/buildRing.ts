@@ -88,7 +88,8 @@ interface Token {
   readonly label: Text;
   action: RingAction | null;
   enabled: boolean;
-  /** Build cost / upgrade cost checked against live gold (null = always enabled). */
+  banned: boolean;
+  /** Build cost / upgrade cost checked against live gold (null = always enabled / banned). */
   cost: number | null;
   preview: RingPreview | null;
   tip: TipContent | null;
@@ -317,6 +318,7 @@ export class BuildRing {
         label,
         action: null,
         enabled: false,
+        banned: false,
         cost: null,
         preview: null,
         tip: null,
@@ -376,6 +378,7 @@ export class BuildRing {
     t.tag.visible = false;
     t.label.visible = false;
     t.hoverK = 0;
+    t.banned = false;
     t.cost = null;
     t.preview = null;
     t.tip = null;
@@ -459,7 +462,17 @@ export class BuildRing {
     this.applyAnim();
   }
 
-  openBuild(plot: number, cx: number, cy: number, gold: number, costs: ReadonlyMap<TowerType, number>, w: number, h: number, topBand = 0): void {
+  openBuild(
+    plot: number,
+    cx: number,
+    cy: number,
+    gold: number,
+    costs: ReadonlyMap<TowerType, number>,
+    w: number,
+    h: number,
+    topBand = 0,
+    bannedTowers: readonly TowerType[] = [],
+  ): void {
     this.sizeFor(w, h);
     void topBand; // the ring is drawn over the HUD and hit-tested first; only the safe area bounds it
     this.mode = 'build';
@@ -470,13 +483,15 @@ export class BuildRing {
     for (let i = 0; i < this.count; i++) {
       const type = ring[i];
       const cost = costs.get(type) ?? 0;
+      const banned = bannedTowers.includes(type);
       const art = this.art.towers[type];
       const t = this.resetToken(i);
       this.setFace(t, art?.tiers[0] ?? Texture.WHITE, true, art?.tint ?? 0xffffff);
       this.setTag(t, String(cost), true);
       t.action = { kind: 'build', type };
-      t.cost = cost;
-      t.enabled = gold >= cost;
+      t.banned = banned;
+      t.cost = banned ? null : cost;
+      t.enabled = !banned && gold >= cost;
       t.confirm = true;
       t.preview = { type, tier: 1 };
       t.tip = { title: TOWER_DEFS[type]?.name ?? shortTowerName(type), role: roleLine(type), rows: statRows(type, 1), next: null, hint: 'Tap again to build', hintBad: '' };
@@ -619,9 +634,9 @@ export class BuildRing {
     }
     const c = t.tip;
     const poor = t.cost !== null && !t.enabled;
-    c.hintBad = poor ? `Need ${t.cost} gold` : '';
+    c.hintBad = t.banned ? 'Off-limits in this challenge' : poor ? `Need ${t.cost} gold` : '';
     const maxed = t.action?.kind === 'upgrade' && t.cost === null;
-    if (maxed) c.hint = '';
+    if (maxed || t.banned) c.hint = '';
     else if (i !== this.selected) c.hint = 'Tap to choose';
     else c.hint = t.action?.kind === 'build' ? 'Tap again to build' : t.action?.kind === 'upgrade' ? 'Tap again to upgrade' : t.action?.kind === 'sell' ? 'Tap again to sell' : '';
     this.tooltip.set(c, this.u);
