@@ -1,0 +1,12 @@
+{
+ "frameW": 304,
+ "frameH": 256,
+ "count": 4,
+ "cols": 4,
+ "fps": 8,
+ "anchor": [
+  152,
+  250
+ ],
+ "image": "walk-side.webp"
+}

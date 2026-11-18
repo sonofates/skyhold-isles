@@ -1,0 +1,12 @@
+{
+ "frameW": 384,
+ "frameH": 256,
+ "count": 4,
+ "cols": 4,
+ "fps": 6,
+ "anchor": [
+  192,
+  186
+ ],
+ "image": "aura.webp"
+}

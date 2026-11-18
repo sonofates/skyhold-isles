@@ -1215,5 +1215,187 @@
   "ringWidthPx": 500.0,
   "ringBottomPx": 337.0,
   "ringCenterXPx": 256.0
+ },
+ "heroes": {
+  "bran": {
+   "portrait": "heroes/bran/portrait.webp",
+   "select": "heroes/bran/select.webp",
+   "skills": {
+    "bulwark": "heroes/bran/skills/bulwark.webp",
+    "shieldBash": "heroes/bran/skills/shieldBash.webp",
+    "rallyBanner": "heroes/bran/skills/rallyBanner.webp"
+   },
+   "branches": {
+    "passive": "heroes/bran/branches/passive.webp",
+    "active1": "heroes/bran/branches/active1.webp",
+    "active2": "heroes/bran/branches/active2.webp"
+   },
+   "mode": "sheet",
+   "file": "heroes/bran/standing.webp",
+   "height": 1.52,
+   "anchor": [
+    0.5,
+    0.9765625
+   ],
+   "facing": "right",
+   "sheet": {
+    "down": "heroes/bran/walk-down.json",
+    "up": "heroes/bran/walk-up.json",
+    "side": "heroes/bran/walk-side.json",
+    "facing": "right",
+    "facingUp": "left",
+    "facingSide": "right"
+   },
+   "idle": "heroes/bran/idle.json",
+   "attack": "heroes/bran/attack.json",
+   "death": "heroes/bran/death.json"
+  },
+  "wren": {
+   "portrait": "heroes/wren/portrait.webp",
+   "select": "heroes/wren/select.webp",
+   "skills": {
+    "keenEye": "heroes/wren/skills/keenEye.webp",
+    "volley": "heroes/wren/skills/volley.webp",
+    "huntersMark": "heroes/wren/skills/huntersMark.webp"
+   },
+   "branches": {
+    "passive": "heroes/wren/branches/passive.webp",
+    "active1": "heroes/wren/branches/active1.webp",
+    "active2": "heroes/wren/branches/active2.webp"
+   },
+   "mode": "sheet",
+   "file": "heroes/wren/standing.webp",
+   "height": 1.43,
+   "anchor": [
+    0.5,
+    0.9765625
+   ],
+   "facing": "right",
+   "sheet": {
+    "down": "heroes/wren/walk-down.json",
+    "up": "heroes/wren/walk-up.json",
+    "side": "heroes/wren/walk-side.json",
+    "facing": "right",
+    "facingUp": "left",
+    "facingSide": "right"
+   },
+   "idle": "heroes/wren/idle.json",
+   "attack": "heroes/wren/attack.json",
+   "death": "heroes/wren/death.json"
+  },
+  "mira": {
+   "portrait": "heroes/mira/portrait.webp",
+   "select": "heroes/mira/select.webp",
+   "skills": {
+    "kindling": "heroes/mira/skills/kindling.webp",
+    "fireRing": "heroes/mira/skills/fireRing.webp",
+    "wispBurst": "heroes/mira/skills/wispBurst.webp"
+   },
+   "branches": {
+    "passive": "heroes/mira/branches/passive.webp",
+    "active1": "heroes/mira/branches/active1.webp",
+    "active2": "heroes/mira/branches/active2.webp"
+   },
+   "mode": "sheet",
+   "file": "heroes/mira/standing.webp",
+   "height": 1.27,
+   "anchor": [
+    0.5,
+    0.9765625
+   ],
+   "facing": "right",
+   "sheet": {
+    "down": "heroes/mira/walk-down.json",
+    "up": "heroes/mira/walk-up.json",
+    "side": "heroes/mira/walk-side.json",
+    "facing": "right",
+    "facingUp": "left",
+    "facingSide": "right"
+   },
+   "idle": "heroes/mira/idle.json",
+   "attack": "heroes/mira/attack.json",
+   "death": "heroes/mira/death.json"
+  },
+  "tobb": {
+   "portrait": "heroes/tobb/portrait.webp",
+   "select": "heroes/tobb/select.webp",
+   "skills": {
+    "tinker": "heroes/tobb/skills/tinker.webp",
+    "deployGizmo": "heroes/tobb/skills/deployGizmo.webp",
+    "overhaul": "heroes/tobb/skills/overhaul.webp"
+   },
+   "branches": {
+    "passive": "heroes/tobb/branches/passive.webp",
+    "active1": "heroes/tobb/branches/active1.webp",
+    "active2": "heroes/tobb/branches/active2.webp"
+   },
+   "mode": "sheet",
+   "file": "heroes/tobb/standing.webp",
+   "height": 1.35,
+   "anchor": [
+    0.5,
+    0.9765625
+   ],
+   "facing": "right",
+   "sheet": {
+    "down": "heroes/tobb/walk-down.json",
+    "up": "heroes/tobb/walk-up.json",
+    "side": "heroes/tobb/walk-side.json",
+    "facing": "right",
+    "facingUp": "left",
+    "facingSide": "right"
+   },
+   "idle": "heroes/tobb/idle.json",
+   "attack": "heroes/tobb/attack.json",
+   "death": "heroes/tobb/death.json"
+  },
+  "sela": {
+   "portrait": "heroes/sela/portrait.webp",
+   "select": "heroes/sela/select.webp",
+   "skills": {
+    "calmWaters": "heroes/sela/skills/calmWaters.webp",
+    "undertow": "heroes/sela/skills/undertow.webp",
+    "thunderCall": "heroes/sela/skills/thunderCall.webp"
+   },
+   "branches": {
+    "passive": "heroes/sela/branches/passive.webp",
+    "active1": "heroes/sela/branches/active1.webp",
+    "active2": "heroes/sela/branches/active2.webp"
+   },
+   "mode": "sheet",
+   "file": "heroes/sela/standing.webp",
+   "height": 1.59,
+   "anchor": [
+    0.5,
+    0.9765625
+   ],
+   "facing": "right",
+   "sheet": {
+    "down": "heroes/sela/walk-down.json",
+    "up": "heroes/sela/walk-up.json",
+    "side": "heroes/sela/walk-side.json",
+    "facing": "right",
+    "facingUp": "left",
+    "facingSide": "right"
+   },
+   "idle": "heroes/sela/idle.json",
+   "attack": "heroes/sela/attack.json",
+   "death": "heroes/sela/death.json"
+  }
+ },
+ "abilities": {
+  "meteor": {
+   "icon": "abilities/meteor/icon.webp",
+   "falling": "abilities/meteor/falling.webp",
+   "fallingAnchor": [
+    0.81,
+    0.77
+   ],
+   "impact": "abilities/meteor/impact.json"
+  },
+  "overcharge": {
+   "icon": "abilities/overcharge/icon.webp",
+   "aura": "abilities/overcharge/aura.json"
+  }
  }
 }

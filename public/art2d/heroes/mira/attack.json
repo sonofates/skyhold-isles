@@ -1,0 +1,13 @@
+{
+ "frameW": 314,
+ "frameH": 256,
+ "count": 4,
+ "cols": 4,
+ "fps": 7,
+ "anchor": [
+  157,
+  250
+ ],
+ "impact": 2,
+ "image": "attack.webp"
+}

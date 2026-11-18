@@ -1,0 +1,12 @@
+{
+ "frameW": 314,
+ "frameH": 256,
+ "count": 4,
+ "cols": 4,
+ "fps": 8,
+ "anchor": [
+  157,
+  250
+ ],
+ "image": "walk-down.webp"
+}

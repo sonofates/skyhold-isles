@@ -1,0 +1,12 @@
+{
+ "frameW": 320,
+ "frameH": 256,
+ "count": 4,
+ "cols": 4,
+ "fps": 4,
+ "anchor": [
+  160,
+  250
+ ],
+ "image": "idle.webp"
+}

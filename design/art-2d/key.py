@@ -9,9 +9,6 @@ import sys
 from pathlib import Path
 from PIL import Image
 
-src, dst = Path(sys.argv[1]), Path(sys.argv[2])
-dst.mkdir(parents=True, exist_ok=True)
-
 
 def key_image(im: Image.Image) -> Image.Image:
     im = im.convert('RGBA')
@@ -41,19 +38,26 @@ def key_image(im: Image.Image) -> Image.Image:
     return im
 
 
-for p in sorted(src.glob('*.png')):
-    im = Image.open(p)
-    if p.name.startswith('map-'):
-        im = im.convert('RGB')
-        if im.width > 1920:
-            im = im.resize((1920, round(im.height * 1920 / im.width)), Image.LANCZOS)
-        im.save(dst / p.name, optimize=True)
-        print('map ', p.name, im.size)
-        continue
-    out = key_image(im)
-    # sprites: cap the longest side at 512 px (plenty for 1080p play)
-    s = 512 / max(out.size)
-    if s < 1:
-        out = out.resize((round(out.width * s), round(out.height * s)), Image.LANCZOS)
-    out.save(dst / p.name, optimize=True)
-    print('keyed', p.name, out.size)
+def main():
+    src, dst = Path(sys.argv[1]), Path(sys.argv[2])
+    dst.mkdir(parents=True, exist_ok=True)
+    for p in sorted(src.glob('*.png')):
+        im = Image.open(p)
+        if p.name.startswith('map-'):
+            im = im.convert('RGB')
+            if im.width > 1920:
+                im = im.resize((1920, round(im.height * 1920 / im.width)), Image.LANCZOS)
+            im.save(dst / p.name, optimize=True)
+            print('map ', p.name, im.size)
+            continue
+        out = key_image(im)
+        # sprites: cap the longest side at 512 px (plenty for 1080p play)
+        s = 512 / max(out.size)
+        if s < 1:
+            out = out.resize((round(out.width * s), round(out.height * s)), Image.LANCZOS)
+        out.save(dst / p.name, optimize=True)
+        print('keyed', p.name, out.size)
+
+
+if __name__ == "__main__":
+    main()
