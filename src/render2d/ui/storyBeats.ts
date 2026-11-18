@@ -6,7 +6,7 @@
  *
  *   story: { intro: StoryBeat[] | string[], outro: StoryBeat[] | string[] }
  *
- * where a beat is `{ text, speaker?, focus?: [fx, fy] }` (`focus` = where the panel's vignette looks
+ * where a beat is `{ text, speaker?, art?, focus?: [fx, fy] }` (`focus` = where the panel's vignette looks
  * on the island's painted map, as fractions of the map image; default: spread across the map).
  *
  * Until the data carries stories, `PLACEHOLDER_STORY` below supplies short placeholder beats for
@@ -18,6 +18,8 @@ import { t, type MsgKey } from '../../i18n/index.ts';
 export type StoryPart = 'intro' | 'outro';
 
 export interface StoryBeat {
+  /** URL of a painted panel illustration. */
+  readonly art?: string;
   readonly text: string;
   readonly speaker?: string;
   /** Vignette centre on the island map, fractions of the image (0..1). */
@@ -29,6 +31,7 @@ export interface StoryBeat {
  * the i18n dictionaries (story.<island>.*), so the placeholder reads in the player's language.
  */
 interface PlaceholderBeat {
+  readonly art?: string;
   readonly key: MsgKey;
   readonly speaker?: MsgKey;
   readonly focus?: readonly [number, number];
@@ -36,19 +39,19 @@ interface PlaceholderBeat {
 const PLACEHOLDER_STORY: Readonly<Record<string, Partial<Record<StoryPart, readonly PlaceholderBeat[]>>>> = {
   l1c: {
     intro: [
-      { speaker: 'story.l1c.speaker', key: 'story.l1c.intro.1', focus: [0.12, 0.25] },
-      { speaker: 'story.l1c.speaker', key: 'story.l1c.intro.2', focus: [0.45, 0.6] },
-      { speaker: 'story.l1c.speaker', key: 'story.l1c.intro.3', focus: [0.85, 0.55] },
+      { speaker: 'story.l1c.speaker', key: 'story.l1c.intro.1', art: '/art2d/ui/story-l1c-intro-1.webp', focus: [0.12, 0.25] },
+      { speaker: 'story.l1c.speaker', key: 'story.l1c.intro.2', art: '/art2d/ui/story-l1c-intro-2.webp', focus: [0.45, 0.6] },
+      { speaker: 'story.l1c.speaker', key: 'story.l1c.intro.3', art: '/art2d/ui/story-l1c-intro-3.webp', focus: [0.85, 0.55] },
     ],
     outro: [
-      { speaker: 'story.l1c.speaker', key: 'story.l1c.outro.1', focus: [0.87, 0.24] },
-      { speaker: 'story.l1c.speaker', key: 'story.l1c.outro.2', focus: [0.15, 0.45] },
+      { speaker: 'story.l1c.speaker', key: 'story.l1c.outro.1', art: '/art2d/ui/story-l1c-outro-1.webp', focus: [0.87, 0.24] },
+      { speaker: 'story.l1c.speaker', key: 'story.l1c.outro.2', art: '/art2d/ui/story-l1c-outro-2.webp', focus: [0.15, 0.45] },
     ],
   },
 };
 
 const placeholderBeats = (beats: readonly PlaceholderBeat[]): StoryBeat[] =>
-  beats.map((b) => ({ text: t(b.key), ...(b.speaker ? { speaker: t(b.speaker) } : {}), ...(b.focus ? { focus: b.focus } : {}) }));
+  beats.map((b) => ({ text: t(b.key), ...(b.art ? { art: b.art } : {}), ...(b.speaker ? { speaker: t(b.speaker) } : {}), ...(b.focus ? { focus: b.focus } : {}) }));
 
 function normBeat(v: unknown): StoryBeat | null {
   if (typeof v === 'string') return v.trim() ? { text: v.trim() } : null;
@@ -62,7 +65,7 @@ function normBeat(v: unknown): StoryBeat | null {
     Array.isArray(f) && f.length === 2 && f.every((n) => typeof n === 'number' && Number.isFinite(n))
       ? ([Math.max(0, Math.min(1, f[0] as number)), Math.max(0, Math.min(1, f[1] as number))] as const)
       : undefined;
-  return { text, ...(speaker ? { speaker } : {}), ...(focus ? { focus } : {}) };
+  return { text, ...(typeof o.art === 'string' && o.art ? { art: o.art } : {}), ...(speaker ? { speaker } : {}), ...(focus ? { focus } : {}) };
 }
 
 /** Normalises any accepted shape to at most 3 beats (the storybook card has 2-3 panels). */

@@ -33,7 +33,7 @@ import { computeMapFit } from './viewFit.ts';
  *   ?artcheck=1       overlay: which manifest art files are present / missing (and the stand-ins)
  *   ?zoo=1            all 15 enemy types walking, specials triggered periodically (labelled)
  *   ?towers=1[&tier=N] every tower type built and firing (cycles T1-T3 unless tier is given)
- *   ?towers=aim&type=cannon|archer|ballista[&tier=N]  turret aim QA (window.__aim, aim overlay)
+ *   ?towers=aim&type=cannon|archer|ballista|mortar[&tier=N]  turret aim QA (window.__aim, aim overlay)
  *   ?melee=1[&tier=N][&types=a,b][&plot=N][&die=1][&kill=1][&crowd=N]  barracks melee QA
  *                     (window.__meleeScene; with &manual=1 the game only advances through
  *                     window.__meleeScene.step(frames), for frame-exact captures)
@@ -230,7 +230,7 @@ async function main(): Promise<void> {
   }
   else if (q.get('zoo') === '1') hooks = zooHooks();
   else if (q.get('towers') === 'aim') {
-    const type = (['archer', 'cannon', 'ballista'] as const).find((x) => x === q.get('type')) ?? 'cannon';
+    const type = (['archer', 'cannon', 'ballista', 'mortar'] as const).find((x) => x === q.get('type')) ?? 'cannon';
     const tier = Math.max(1, Math.min(3, Number(q.get('tier') ?? 1) || 1));
     aimState = { type, tier, plot: -1, sectors: [], current: -1, since: 0 };
     hooks = aimHooks(type, tier, aimState, Math.max(0.5, Number(q.get('hold') ?? 1.6) || 1.6));

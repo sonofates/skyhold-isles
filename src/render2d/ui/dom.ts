@@ -77,8 +77,7 @@ export function medal(thumb: string | null, d: number | string, glow = false): H
   const t = el('span', `pu-medal-thumb${thumb ? '' : ' blank'}`);
   if (thumb) {
     t.style.backgroundImage = `url("${thumb}")`;
-    // The map's middle (the keep / the roads) reads best in a small circle.
-    t.style.backgroundSize = 'auto 135%';
+    t.style.backgroundSize = thumb.includes('/ui/island-') ? 'contain' : 'auto 135%';
     t.style.backgroundPosition = '55% 50%';
   }
   m.append(t);

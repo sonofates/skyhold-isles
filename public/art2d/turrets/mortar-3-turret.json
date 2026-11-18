@@ -1,0 +1,50 @@
+{
+ "image": "mortar-3-turret.webp",
+ "frameW": 432,
+ "frameH": 487,
+ "count": 5,
+ "dirs": [
+  "S",
+  "SE",
+  "E",
+  "NE",
+  "N"
+ ],
+ "pivot": [
+  216.0,
+  461.0
+ ],
+ "muzzle": [
+  [
+   -6.5,
+   -321.0
+  ],
+  [
+   91.0,
+   -360.0
+  ],
+  [
+   94.5,
+   -414.0
+  ],
+  [
+   70.5,
+   -412.0
+  ],
+  [
+   -1.5,
+   -419.0
+  ]
+ ],
+ "body": "mortar-3-body.webp",
+ "bodyMount": [
+  255.0,
+  84.0
+ ],
+ "bodyRing": {
+  "ringWidthPx": 502.0,
+  "ringBottomPx": 451.0,
+  "ringCenterXPx": 256.0
+ },
+ "scale": 0.8475
+}

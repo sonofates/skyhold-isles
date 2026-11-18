@@ -6,6 +6,7 @@
 import type { LevelDef } from '../../data/levels/types.ts';
 
 export interface MapsManifest {
+  readonly paintedUi?: Readonly<Record<string, string>>;
   readonly maps: Readonly<Record<string, string>>;
 }
 

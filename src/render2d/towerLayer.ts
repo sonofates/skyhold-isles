@@ -329,8 +329,12 @@ export class TowerLayer {
     const prof = fireProfile(e.type);
     const big = e.tier >= 3 ? 1.3 : e.tier === 2 ? 1.12 : 1;
     if (v.turretArt && v.muzzlePt) {
-      this.turretFx(v, e, prof, big);
-      return;
+      this.turretShots++;
+      if (e.type !== 'mortar') {
+        this.turretFx(v, e, prof, big);
+        return;
+      }
+      // Mortars use their rising smoke plume at the painted muzzle below.
     }
     const dx = Math.sin(e.yaw);
     const dy = Math.cos(e.yaw);
@@ -394,7 +398,6 @@ export class TowerLayer {
     const fx = this.fx;
     const m = v.muzzlePt;
     if (!fx || !m) return;
-    this.turretShots++;
     const d = sectorVector(v.sector);
     const k = v.turretScale * (v.turretArt?.spec.frameH ?? 200);
     switch (e.type) {
