@@ -2,7 +2,9 @@ import { Container, Graphics, Sprite, Texture, type Text } from 'pixi.js';
 import type { LoadedArt } from './assets2d.ts';
 import { paintedText, setFontSize, setText } from './hudText.ts';
 import { easeOutBack, easeOutCubic, fitWidth, inkText, kit, setInkSize } from './uiKit.ts';
-import { endLayout, NO_INSETS, type EndLayout, type Insets, type Rect } from './uiLayout.ts';
+import { END_FRAME, endLayout, NO_INSETS, type EndLayout, type Insets, type Rect } from './uiLayout.ts';
+
+export { endStars } from './uiLayout.ts';
 
 export type EndAction = 'retry' | 'next' | 'menu';
 
@@ -17,17 +19,6 @@ export interface EndSummary {
   readonly totalWaves: number;
   /** Show the Next button (there is a next island). */
   readonly hasNext: boolean;
-}
-
-/**
- * Where the parchment and the title ribbon sit inside the end-panel art (fractions of its
- * height) — measured from public/art2d/ui/end-panel.webp.
- */
-export const END_FRAME = { ribbonMid: 0.105, innerTop: 0.235, innerBottom: 0.9 } as const;
-
-/** Stars a finished run shows: the sim's rating on a win, none on a defeat. */
-export function endStars(won: boolean, simStars: number): number {
-  return won ? Math.max(1, Math.min(3, Math.round(simStars))) : 0;
 }
 
 interface Btn {

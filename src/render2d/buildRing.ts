@@ -161,7 +161,7 @@ class RingTooltip {
   /** Lays the content out for scale `u`; sets w / h. */
   set(c: TipContent, u: number): void {
     this.content = c;
-    const k = Math.max(0.62, Math.min(1.15, u));
+    const k = Math.max(0.62, Math.min(1.35, u));
     const W = Math.round(236 * k);
     const pad = Math.round(W * 0.085);
     const fTitle = Math.round(Math.max(15, 21 * k));

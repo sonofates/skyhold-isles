@@ -29,7 +29,7 @@ export interface Pt {
 
 /** UI scale for a viewport: 1 at ~1400x760, clamped so phones and 4K stay readable. */
 export function uiScale(w: number, h: number): number {
-  return Math.max(0.5, Math.min(1.2, Math.min(w / 1400, h / 760)));
+  return Math.max(0.5, Math.min(1.4, Math.min(w / 1400, h / 760)));
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -241,6 +241,9 @@ export interface PlaqueSlots {
   readonly midY: number;
 }
 
+/** Number areas of the painted HUD plaque (heart + pouch carved in) — measured from public/art2d/ui/hud-plaque.webp. */
+export const KIT_PLAQUE_SLOTS: PlaqueSlots = { lives: [0.268, 0.455], gold: [0.688, 0.898], midY: 0.514 };
+
 export interface PlaqueLayout {
   readonly x: number;
   readonly y: number;
@@ -272,6 +275,17 @@ export function plaqueLayout(w: number, h: number, insets: Insets, aspect: numbe
 // End panel
 // ---------------------------------------------------------------------------------------------
 
+/**
+ * Where the parchment and the title ribbon sit inside the end-panel art (fractions of its
+ * height) — measured from public/art2d/ui/end-panel.webp.
+ */
+export const END_FRAME = { ribbonMid: 0.105, innerTop: 0.235, innerBottom: 0.9 } as const;
+
+/** Stars a finished run shows: the sim's rating (SimWorld.computeStars) on a win, none on a defeat. */
+export function endStars(won: boolean, simStars: number): number {
+  return won ? Math.max(1, Math.min(3, Math.round(simStars))) : 0;
+}
+
 export interface EndLayout {
   readonly panel: Rect;
   /** Star centres (3) and their radius. */
@@ -302,18 +316,19 @@ export function endLayout(
 ): EndLayout {
   const availW = w - insets.left - insets.right - 24;
   const availH = h - insets.top - insets.bottom - 24;
-  const pw = Math.min(availW, availH * aspect, 720);
+  const pw = Math.min(availW * 0.92, availH * aspect, h * 0.64 * aspect);
   const ph = pw / aspect;
   const px = insets.left + (w - insets.left - insets.right - pw) / 2;
   const py = insets.top + (h - insets.top - insets.bottom - ph) / 2;
   const top = py + ph * frame.innerTop;
   const bottom = py + ph * frame.innerBottom;
   const inner = bottom - top;
-  const starR = Math.max(16, Math.min(pw * 0.072, inner * 0.16));
-  const starY = top + inner * 0.18;
+  const starR = Math.max(16, Math.min(pw * 0.065, inner * 0.14));
+  // The raised, larger middle star (1.15 R, lifted 0.25 R) stays below the ribbon.
+  const starY = top + Math.max(inner * 0.18, starR * 1.45);
   const stars = [-1, 0, 1].map((k) => ({ x: px + pw / 2 + k * starR * 2.4, y: starY + (k === 0 ? -starR * 0.25 : starR * 0.12) }));
   const buttonR = Math.max(24, Math.min(pw * 0.062, inner * 0.13));
-  const btnY = top + inner * 0.74;
+  const btnY = top + inner * 0.75;
   const buttons = [-1, 0, 1].map((k) => ({ x: px + pw / 2 + k * buttonR * 3.3, y: btnY }));
   const fontBody = Math.round(Math.max(14, Math.min(26, inner * 0.085)));
   return {
@@ -323,7 +338,7 @@ export function endLayout(
     buttons,
     buttonR,
     title: { x: px + pw / 2, y: py + ph * frame.ribbonMid },
-    summary: { x: px + pw / 2, y: top + inner * 0.42 },
+    summary: { x: px + pw / 2, y: top + inner * 0.445 },
     fontTitle: Math.round(Math.max(22, Math.min(54, ph * 0.085))),
     fontBody,
   };

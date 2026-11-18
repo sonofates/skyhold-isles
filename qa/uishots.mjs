@@ -159,6 +159,24 @@ for (const [key, w, h, dpr, touch] of SIZES) {
   }
   await page.keyboard.press('Escape');
   await page.waitForTimeout(200);
+  // Barracks on the top-row plot: its ring carries the rally token.
+  await page.evaluate(() => window.__p0.setGold(400));
+  await tap(page, touch, top.x, top.y);
+  await page.waitForTimeout(550);
+  s = await state(page);
+  const bi = s.ring.tokens.length - 1;
+  await tap(page, touch, s.ring.tokens[bi].x, s.ring.tokens[bi].y);
+  await page.waitForTimeout(300);
+  await tap(page, touch, s.ring.tokens[bi].x, s.ring.tokens[bi].y);
+  await page.waitForTimeout(500);
+  await tap(page, touch, top.x, top.y - 20);
+  await page.waitForTimeout(550);
+  s = await state(page);
+  if (s.ring.mode !== 'tower' || s.ring.tokens.length !== 3) err(`${key}: barracks ring did not open with 3 tokens`);
+  else rep['barracks-ring'] = checkRing(`${key} barracks-ring`, s, w, h);
+  await shot('barracks-ring');
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(200);
   await page.keyboard.press(' ');
   await page.waitForTimeout(300);
   await shot('paused');

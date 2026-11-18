@@ -6,8 +6,9 @@ usage: /usr/bin/python3 design/art-2d/ui-kit/pack.py   (from the repo root)
 Keying is the same magenta un-mix as design/art-2d/key.py. Paired pieces are DERIVED from one
 master so they register exactly: medallion-hi (glow + brighter rim) from the medallion, the empty
 star socket from the full star, the defeat board (crimson ribbon, dimmer parchment) from the
-victory board. Writes a JSON with measured fractions (number slots of the HUD plaque, parchment
-of the end panel) to stdout for the renderer constants.
+victory board. Prints the packed sizes; the HUD plaque number slots and the end-panel parchment
+fractions are measured by eye from the packed WebP and live in src/render2d/uiLayout.ts
+(KIT_PLAQUE_SLOTS, END_FRAME) — re-measure them if the art is regenerated.
 """
 import colorsys
 import json
@@ -102,28 +103,6 @@ def recolor_ribbon(im: Image.Image) -> Image.Image:
     return im
 
 
-def slots_of_plaque(im: Image.Image) -> dict:
-    """Finds the two dark recessed number areas along the plaque's middle row."""
-    w, h = im.size
-    rgb = im.convert('RGB')
-    y0, y1 = int(h * 0.42), int(h * 0.58)
-    dark = []
-    for x in range(w):
-        lum = sum(sum(rgb.getpixel((x, y))) / 3 for y in range(y0, y1)) / (y1 - y0)
-        dark.append(lum)
-    base = sorted(dark)[len(dark) // 2]
-    runs, start = [], None
-    for x, v in enumerate(dark):
-        is_dark = v < base * 0.82
-        if is_dark and start is None:
-            start = x
-        elif not is_dark and start is not None:
-            if x - start > w * 0.08:
-                runs.append((start, x))
-            start = None
-    return {'runs': [(round(a / w, 3), round(b / w, 3)) for a, b in runs], 'base': base}
-
-
 def main() -> None:
     meta = {}
     medal = key_image(Image.open(RAW / 'ui-medallion.png'))
@@ -160,7 +139,6 @@ def main() -> None:
 
     plaque = cap(key_image(Image.open(RAW / 'ui-hud-plaque.png'), margin=3), 1024)
     save(plaque, 'hud-plaque')
-    meta['plaque'] = slots_of_plaque(plaque)
     meta['plaqueSize'] = plaque.size
     meta['boardSize'] = board.size
     print(json.dumps(meta))

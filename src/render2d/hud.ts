@@ -2,7 +2,7 @@ import { Container, Graphics, NineSliceSprite, Sprite, type Text } from 'pixi.js
 import type { LoadedArt } from './assets2d.ts';
 import { paintedText, setFontSize, setText } from './hudText.ts';
 import { fitWidth, hasKit, inkText, kit, setInkSize } from './uiKit.ts';
-import { NO_INSETS, plaqueLayout, uiScale, type Insets, type PlaqueSlots, type Rect } from './uiLayout.ts';
+import { KIT_PLAQUE_SLOTS, NO_INSETS, plaqueLayout, uiScale, type Insets, type PlaqueSlots, type Rect } from './uiLayout.ts';
 
 /** Minimum touch target edge in css px. */
 export const MIN_TOUCH = 48;
@@ -31,11 +31,6 @@ interface RoundButton {
   r: number;
 }
 
-/**
- * Number areas of the painted HUD plaque (`uiKit.hudPlaque`: heart + pouch carved into the wood),
- * as fractions of the keyed image — measured from public/art2d/ui/hud-plaque.webp.
- */
-export const KIT_PLAQUE_SLOTS: PlaqueSlots = { lives: [0.268, 0.455], gold: [0.688, 0.898], midY: 0.514 };
 /** The legacy plaque (empty board): icons are drawn inside it at these x fractions. */
 const OLD_PLAQUE_SLOTS: PlaqueSlots = { lives: [0.215, 0.45], gold: [0.6, 0.92], midY: 0.5 };
 const OLD_HEART_X = 0.13;
