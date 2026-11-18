@@ -96,6 +96,7 @@ declare global {
       abilities?: () => Record<string, unknown> | null;
       /** QA: the next-wave card beside the horn. */
       waveCard?: () => Record<string, unknown> | null;
+      lives?: () => Record<string, unknown> | null;
       aimAbility?: (id: AbilityId | null) => void;
       /** QA: stop / restart the ticker (a frozen frame for mid-effect screenshots, no Paused plate). */
       freeze?: (on: boolean) => void;
@@ -385,6 +386,7 @@ async function main(): Promise<void> {
   let codexRef: { setButtonVisible(v: boolean): void } | null = null;
   let pauseMenu: import('./ui/runControls2d.ts').PauseMenu2D | null = null;
   let waveCard: import('./ui/wavePreview2d.ts').WaveCard2D | null = null;
+  let livesWarn: import('./ui/lowLives2d.ts').LivesWarning | null = null;
   let settingsRef: Settings2D | null = null;
   let gameRef: Game2D | null = null;
   let codexWasPaused = false;
@@ -652,6 +654,7 @@ async function main(): Promise<void> {
     );
     const { mountWaveCard } = await import('./ui/wavePreview2d.ts');
     const { codexEnemyUrl } = await import('./codex2d.ts');
+    livesWarn = (await import('./ui/lowLives2d.ts')).mountLivesWarning();
     waveCard = mountWaveCard(
       (type) => codexEnemyUrl(art, type),
       () => {
@@ -719,6 +722,7 @@ async function main(): Promise<void> {
       fpsChip.show(stats.snapshot(t0).fps);
     }
     pauseMenu?.setPlate(storyOpen || anySheetOpen() || game.replaying ? null : game.hud.pausePlate);
+    livesWarn?.update(game.world.lives, game.world.startingLives, !game.end.visible && !storyOpen && game.world.outcome === 'ongoing');
     if (waveCard) {
       const w = game.world;
       const ws = w.waveSystem;
@@ -758,6 +762,7 @@ async function main(): Promise<void> {
     artcheck: () => artCheckSummary(art),
     abilities: () => abilities?.debug() ?? null,
     waveCard: () => waveCard?.debug() ?? null,
+    lives: () => livesWarn?.debug() ?? null,
     aimAbility: (id) => abilities?.aim(id),
     freeze: (on) => (on ? app.ticker.stop() : app.ticker.start()),
     replay: {

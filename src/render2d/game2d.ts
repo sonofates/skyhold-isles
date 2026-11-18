@@ -214,7 +214,8 @@ export class Game2D {
     banner: string;
     countdown: number;
     countdownFrac: number;
-  } = { lives: 0, gold: 0, wave: 0, totalWaves: 0, paused: false, speed: 1, canCall: false, earlyBonus: 0, banner: '', countdown: 0, countdownFrac: 0 };
+    startLives: number;
+  } = { startLives: 20, lives: 0, gold: 0, wave: 0, totalWaves: 0, paused: false, speed: 1, canCall: false, earlyBonus: 0, banner: '', countdown: 0, countdownFrac: 0 };
   /** Length of the running between-waves countdown (its first value seen). */
   private countdownMax = 0;
 
@@ -809,6 +810,7 @@ export class Game2D {
       s.gold = 9999;
     } else {
       s.lives = world.lives;
+      s.startLives = world.startingLives;
       this.hudGoldTimer += dtSec;
       const wsState = world.waveSystem.state;
       const combatWave = wsState === 'spawning' || wsState === 'allSpawned' || wsState === 'clearing';
@@ -1226,6 +1228,11 @@ export class Game2D {
     canvas.addEventListener('pointerleave', () => {
       this.hoverPlot = -1;
       this.heroes.setHover(null);
+    });
+    // Desktop: the run pauses when the window loses focus (alt-tab, another app on top), like
+    // backgrounding does; the player resumes on purpose. Touch devices pause via visibility already.
+    window.addEventListener('blur', () => {
+      if (!isTouchDevice() && this.stepper.simActive && !this.stepper.paused && !this.hooks.endless && !anySheetOpen()) this.pauseForBackground();
     });
     window.addEventListener('storage', () => this.refreshSettings());
     window.addEventListener('focus', () => this.refreshSettings());

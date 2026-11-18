@@ -672,6 +672,7 @@ export function openSettings(ctx: SettingsContext): Sheet {
         keyRow([t('key.space')], t('key.pause')),
         keyRow(['1'], t('key.speed1')),
         keyRow(['2'], t('key.speed2')),
+        keyRow(['3'], t('key.speed3')),
         keyRow(['N'], t('key.wave')),
         keyRow([ABILITY_KEYS.meteor], t('key.meteor')),
         keyRow([ABILITY_KEYS.overcharge], t('key.overcharge')),
@@ -680,6 +681,7 @@ export function openSettings(ctx: SettingsContext): Sheet {
         keyRow([HERO_KEYS.skill1], t('key.heroSkill2')),
         keyRow([t('key.esc')], t('key.cancel')),
       ),
+      section(t('set.replayKeys'), keyRow([t('key.space')], t('key.pause')), keyRow(['1', '2', '4'], t('key.replaySpeed')), keyRow([t('key.esc')], t('key.replayLeave'))),
     );
     if (!touch || desktop) out.push(section(t('set.mouse'), keyRow([t('key.rightClick')], t('key.cancelAim')), keyRow([t('key.rightClick')], t('key.heroMove'))));
     return [el('div', 'pu-key-grid', {}, ...out)];

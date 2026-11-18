@@ -34,6 +34,8 @@ export interface HudState {
   /** Gold for calling it early (0 = none). */
   readonly earlyBonus: number;
   readonly banner: string;
+  /** Lives the run started with (the number turns red when lives run low). */
+  readonly startLives?: number;
   /** Seconds until the next wave starts on its own (0 = no countdown running). */
   readonly countdown?: number;
   /** The countdown's remaining fraction 0..1 (drives the ring round the horn). */
@@ -95,6 +97,9 @@ export class Hud {
   private lastPaused = -1;
   private lastSpeed = -1;
   private lastLives = NaN;
+  /** Seconds left of the lives number's "hit" pop, and its fitted scale. */
+  private livesHit = 0;
+  private livesBaseScale = 1;
   private lastGold = NaN;
   private lastWave = NaN;
   private endlessAfter: number | null = null;
@@ -289,9 +294,22 @@ export class Hud {
     this.t += dt;
     // Strings are only built when a value changes (no per-frame allocation).
     if (s.lives !== this.lastLives) {
+      if (s.lives < this.lastLives) this.livesHit = 0.5;
       this.lastLives = s.lives;
       setText(this.livesText, String(s.lives));
       fitWidth(this.livesText, this.livesBox.w);
+      this.livesBaseScale = this.livesText.scale.x;
+      const low = s.startLives !== undefined && s.lives > 0 && (s.lives <= 3 || s.lives <= Math.floor(s.startLives * 0.25));
+      this.livesText.style.fill = low ? '#ffb4a0' : '#fff4dc';
+    }
+    if (this.livesHit > 0) {
+      this.livesHit = Math.max(0, this.livesHit - dt);
+      const k = this.livesHit / 0.5;
+      this.livesText.scale.set(this.livesBaseScale * (1 + 0.28 * Math.sin(k * Math.PI)));
+      this.livesText.tint = k > 0 ? 0xff8a7a : 0xffffff;
+    } else if (this.livesText.tint !== 0xffffff) {
+      this.livesText.tint = 0xffffff;
+      this.livesText.scale.set(this.livesBaseScale);
     }
     if (s.gold !== this.lastGold) {
       this.lastGold = s.gold;

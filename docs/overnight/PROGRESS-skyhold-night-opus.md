@@ -42,11 +42,14 @@ QA: `npx vite preview --port 4381 --strictPort` in background (kill with TaskSto
   where the card grazes one plot (i14 1366, i13); phone compact card grazes 1-2 plots on
   i04/i05/i13/i14 (dense maps, click-through, accepted). Tests `tests/render/flowUi2d.test.ts`.
 
+- **R1 backlog 2b — DONE:** low-lives warning (`ui/lowLives2d.ts|.css`: red edge flash on every
+  life lost, slow red pulse at ≤25 % / ≤3 lives, static under Reduced motion; lives number pops red
+  and stays warm red while low), pause on window blur (desktop), Settings → Controls lists 3 (3×)
+  and a "Watching a replay" section. QA `qa/flowshots.mjs` (lives hit/low, key 3, blur, controls).
+
 ## Next (backlog 2: missing basics) — candidates, in rough value order
 - enemy info card on tap; tower info card (stats, targeting, upgrade/sell with refund)
-- first-time coach marks on l1c; wave countdown; low-lives warning; victory stars breakdown
-- pause on window blur (desktop); keyboard shortcuts vs Controls page (add 3, replay keys)
-- Settings → Controls: add key 3 (3× speed) + replay keys.
+- first-time coach marks on l1c; victory stars breakdown
 - Then backlog 3 (ability-bar placement: i12 at 1366x768 the bar sits ON the castle — castle is not a keep-out; l1c column), 4 polish.
 
 ## Decisions
