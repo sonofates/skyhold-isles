@@ -5,7 +5,7 @@ import { t as msg, type MsgKey } from '../i18n/index.ts';
 import type { LoadedArt } from './assets2d.ts';
 import { MIN_TOUCH } from './hud.ts';
 import { paintedText, setFontSize, setText } from './hudText.ts';
-import { easeOutBack, easeOutCubic, fitWidth, hudKeepOuts, INK, INK_SOFT, inkText, kit, PRICE_RED, setInkSize } from './uiKit.ts';
+import { easeOutBack, easeOutCubic, fitWidth, hudKeepOuts, INK, INK_SOFT, inkText, kit, paintedUiTexture, PRICE_RED, setInkSize } from './uiKit.ts';
 import {
   evenAngles,
   hudButtonsKeepOut,
@@ -138,8 +138,12 @@ class RingTooltip {
   private readonly role = inkText(14, 'left', INK_SOFT, '600');
   private readonly labels: Text[] = [];
   private readonly pips = new Graphics();
+  /** Painted rank pips (3 rows x 5); used once `pip-empty` / `pip-filled` have loaded. */
+  private readonly pipSprites: Sprite[] = [];
+  private pipTex: { empty: Texture; filled: Texture } | null = null;
   private readonly hint = inkText(14, 'left', INK, '600');
   private content: TipContent | null = null;
+  private lastU = 1;
   w = 220;
   h = 140;
 
@@ -152,17 +156,30 @@ class RingTooltip {
       this.bg = new Graphics();
     }
     this.root.addChild(this.bg, this.title, this.role, this.pips, this.hint);
+    for (let i = 0; i < 15; i++) {
+      const p = new Sprite(Texture.EMPTY);
+      p.anchor.set(0.5);
+      p.visible = false;
+      this.pipSprites.push(p);
+      this.root.addChild(p);
+    }
     for (let i = 0; i < 3; i++) {
       const l = inkText(14, 'left', INK_SOFT, '600');
       this.labels.push(l);
       this.root.addChild(l);
     }
     this.root.visible = false;
+    void Promise.all([paintedUiTexture(art, 'pip-empty'), paintedUiTexture(art, 'pip-filled')]).then(([empty, filled]) => {
+      if (!empty || !filled) return;
+      this.pipTex = { empty, filled };
+      if (this.content) this.set(this.content, this.lastU);
+    });
   }
 
   /** Lays the content out for scale `u`; sets w / h. */
   set(c: TipContent, u: number): void {
     this.content = c;
+    this.lastU = u;
     const k = Math.max(0.62, Math.min(1.35, u));
     const W = Math.round(236 * k);
     const pad = Math.round(W * 0.085);
@@ -181,6 +198,8 @@ class RingTooltip {
     y += fBody * 0.6;
     const g = this.pips;
     g.clear();
+    const painted = this.pipTex;
+    for (const s of this.pipSprites) s.visible = false;
     const rows = c.rows;
     const rowH = fBody * 1.42;
     const labelW = W * 0.38;
@@ -200,6 +219,16 @@ class RingTooltip {
         const x = pad + labelW + pr + p * pr * 2.75;
         const filled = p < have;
         const gain = !filled && p < next;
+        if (painted) {
+          // Painted diamonds: gold when held, green-tinted gold for the next tier's gain.
+          const s = this.pipSprites[i * 5 + p];
+          s.texture = filled || gain ? painted.filled : painted.empty;
+          s.tint = gain ? 0x8fe070 : 0xffffff;
+          s.position.set(x, y);
+          s.scale.set((pr * 2.9) / Math.max(1, s.texture.width));
+          s.visible = true;
+          continue;
+        }
         g.circle(x, y, pr).fill({ color: filled ? 0xe9b53c : gain ? 0x7fc24c : 0xd8c39a }).stroke({
           color: filled || gain ? 0x5a3412 : 0xa88c62,
           width: Math.max(1.2, pr * 0.34),

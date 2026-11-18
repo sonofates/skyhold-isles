@@ -1139,6 +1139,40 @@
   min-width: 0;
 }
 
+/* A single beat (the islands' painted intro / outro) reads as a book spread: the painting on the
+   left page, the narrator and caption on the right page. */
+.pu-panel:only-child {
+  max-width: none;
+  flex-direction: row;
+  align-items: center;
+  gap: calc(var(--s) * 2.2);
+  padding-right: calc(var(--s) * 1.4);
+}
+
+.pu-panel:only-child .pu-vignette {
+  flex: none;
+  height: clamp(70px, calc(100vh - var(--s) * 26), calc(var(--s) * 30));
+  width: auto;
+  aspect-ratio: 8 / 5;
+  max-width: 58%;
+}
+
+.pu-panel:only-child .pu-panel-text {
+  flex: 1 1 0;
+  min-width: 0;
+  font-size: calc(var(--s) * 1.6);
+}
+
+.pu-panel:only-child .pu-panel-text.has-portrait {
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.pu-panel:only-child .pu-portrait {
+  width: clamp(44px, calc(var(--s) * 7), 96px);
+  height: clamp(44px, calc(var(--s) * 7), 96px);
+}
+
 /* Narrator portrait: the painted round frame, beside the speaker's name. */
 .pu-portrait {
   flex: none;
@@ -2100,6 +2134,17 @@
 
   .pu-store-blurb {
     font-size: calc(var(--s) * 1.1);
+  }
+
+  /* Price tag and Buy share one row on the phone's narrow cards. */
+  .pu-store-price {
+    --tag-h: 30px;
+    font-size: calc(var(--s) * 1.3);
+  }
+
+  .pu-store-item.main .pu-store-row .pu-plank {
+    min-width: 0;
+    font-size: calc(var(--s) * 1.45);
   }
 
   .pu-store-foot {

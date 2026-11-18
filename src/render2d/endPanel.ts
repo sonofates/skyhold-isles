@@ -1,8 +1,8 @@
-import { Assets, Container, Graphics, Sprite, Texture, type Text } from 'pixi.js';
+import { Container, Graphics, Sprite, Texture, type Text } from 'pixi.js';
 import { t, type MsgKey } from '../i18n/index.ts';
 import type { LoadedArt } from './assets2d.ts';
 import { paintedText, setFontSize, setText } from './hudText.ts';
-import { easeOutBack, easeOutCubic, fitWidth, inkText, kit, setInkSize } from './uiKit.ts';
+import { easeOutBack, easeOutCubic, fitWidth, inkText, kit, paintedUiTexture, setInkSize } from './uiKit.ts';
 import { END_FRAME, endLayout, NO_INSETS, type EndLayout, type Insets, type Rect } from './uiLayout.ts';
 import type { EndModeNote } from './ui/modeBits.ts';
 
@@ -112,19 +112,14 @@ export class EndPanel {
    * the textures are normally in place when it first shows; until then the Graphics glyph stands in.
    */
   private loadPaintedIcons(): void {
-    const painted = (this.art.manifest as { paintedUi?: Readonly<Record<string, string>> }).paintedUi;
     for (const b of this.buttons) {
       const key = PAINTED_ICON[b.action];
       if (!key) continue;
-      const file = painted?.[key] ?? `ui/${key}.webp`;
-      const src = `${this.art.baseUrl ?? '/art2d/'}${file}`;
-      Assets.load<Texture>({ src, data: { autoGenerateMipmaps: true } })
-        .then((tex) => {
-          if (!tex || tex === Texture.EMPTY) return;
-          b.icon.texture = tex;
-          this.drawGlyph(b);
-        })
-        .catch(() => undefined);
+      void paintedUiTexture(this.art, key).then((tex) => {
+        if (!tex) return;
+        b.icon.texture = tex;
+        this.drawGlyph(b);
+      });
     }
   }
 
@@ -348,6 +343,8 @@ export class EndPanel {
     buttons: { action: EndAction; x: number; y: number; r: number }[];
     stars: number;
     note: { title: string; line1: string; caption: string } | null;
+    /** Buttons drawn with their painted icon (texture loaded), the rest use the Graphics glyph. */
+    painted: EndAction[];
   } | null {
     if (!this.root.visible || !this.lay) return null;
     return {
@@ -355,6 +352,7 @@ export class EndPanel {
       buttons: this.buttons.filter((b) => b.root.visible).map((b) => ({ action: b.action, x: b.root.x, y: b.root.y, r: b.r })),
       stars: this.summary?.stars ?? 0,
       note: this.note ? { title: this.title.text, line1: this.line1.text, caption: this.caption.text } : null,
+      painted: this.buttons.filter((b) => b.root.visible && b.icon.visible).map((b) => b.action),
     };
   }
 }

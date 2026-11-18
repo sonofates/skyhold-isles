@@ -66,7 +66,7 @@ function routeSvg(L: WorldMapLayout, frontier: number): string {
   const dashW = Math.round(Math.max(14, Math.min(28, L.nodeD * 0.13)));
   const dashH = dashW / 2;
   const anchorD = Math.round(Math.max(18, Math.min(28, L.nodeD * 0.16)));
-  const marks = routeMarks(L.nodes, dashW * 1.7, L.nodeD * 0.56, anchorD * 0.9);
+  const marks = routeMarks(L.nodes, dashW * 1.45, L.nodeD * 0.5, anchorD * 0.7);
   const deg = (a: number): string => ((a * 180) / Math.PI).toFixed(1);
   const piece = (m: RouteMark, href: string, w: number, h: number, turn: boolean): string =>
     `<image href="${href}" x="${(-w / 2).toFixed(1)}" y="${(-h / 2).toFixed(1)}" width="${w}" height="${h.toFixed(1)}" preserveAspectRatio="none" ` +
