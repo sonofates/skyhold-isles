@@ -2,10 +2,10 @@ import { Container, Graphics, NineSliceSprite, Sprite, type Text } from 'pixi.js
 import type { LoadedArt } from './assets2d.ts';
 import { paintedText, setFontSize, setText } from './hudText.ts';
 import { fitWidth, hasKit, inkText, kit, setInkSize } from './uiKit.ts';
-import { KIT_PLAQUE_SLOTS, NO_INSETS, plaqueLayout, uiScale, type Insets, type PlaqueSlots, type Rect } from './uiLayout.ts';
+import { HUD_MIN_TOUCH, hudButtonsLayout, KIT_PLAQUE_SLOTS, NO_INSETS, plaqueLayout, uiScale, type Insets, type PlaqueSlots, type Rect } from './uiLayout.ts';
 
 /** Minimum touch target edge in css px. */
-export const MIN_TOUCH = 48;
+export const MIN_TOUCH = HUD_MIN_TOUCH;
 
 export type HudAction = 'pause' | 'speed' | 'horn' | null;
 
@@ -155,12 +155,13 @@ export class Hud {
     }
     this.fitNumbers();
 
-    const r = Math.max(MIN_TOUCH / 2, 38 * u);
+    // Shared with the DOM Codex button (codex2d.ts), so the three stay in one row.
+    const hb = hudButtonsLayout(w, h, insets);
+    const r = hb.r;
     this.speedBtn.r = r;
     this.pauseBtn.r = r;
-    const top = insets.top + pad + r;
-    this.speedBtn.root.position.set(w - insets.right - pad - r, top);
-    this.pauseBtn.root.position.set(w - insets.right - pad - r * 3.25, top);
+    this.speedBtn.root.position.set(hb.speedX, hb.y);
+    this.pauseBtn.root.position.set(hb.pauseX, hb.y);
     for (const b of [this.speedBtn, this.pauseBtn]) {
       b.bg.width = r * 2;
       b.bg.height = r * 2;

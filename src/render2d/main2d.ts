@@ -1,6 +1,6 @@
 import '@fontsource-variable/fredoka';
 import { Application, UPDATE_PRIORITY } from 'pixi.js';
-import { getLevelById, LEVELS_2D } from '../data/levels2d/index.ts';
+import { getLevelById } from '../data/levels2d/index.ts';
 import { AbScene } from './abScene.ts';
 import { artCheckSummary, mountArtCheck } from './artCheck.ts';
 import { loadArt, loadMapVariant, type LoadedArt } from './assets2d.ts';
@@ -18,8 +18,12 @@ import { VARIANT_SLACK } from './mapVariant.ts';
 import { computeMapFit } from './viewFit.ts';
 
 /**
- * 2d.html entry — P0 vertical slice of the painted 2D renderer (Pixi v8) on the real sim.
- *   ?level=l1c        island id (2D layouts only; default l1c)
+ * 2d.html entry — the painted 2D renderer (Pixi v8) on the real sim.
+ *   (no params)       the world map (island select, briefing, Workshop / Logbook / Daily / Settings);
+ *                     map QA: ?screen=brief|workshop|logbook|daily|settings, ?mockislands=N
+ *   ?level=l1c        play an island (deep link, skips the map; any debug param below defaults to l1c)
+ *   &intro=1          show the island's story panels first (once; the map adds it on a first play)
+ *   ?story=intro|outro QA: force the story panels (intro on load, outro after a win)
  *   ?ab=1             enemy-animation A/B showcase (no combat)
  *   ?bench=150        stress scene: ~N enemies, towers on every plot, window.__bench stats
  *   ?autoplay=1       plays the greedy build script and auto-calls waves
@@ -93,8 +97,18 @@ function showError(msg: string): void {
   if (el) el.textContent = msg;
 }
 
+/** Query keys that start a game scene; without any of them 2d.html opens the world map. */
+const GAME_PARAMS = ['level', 'ab', 'bench', 'autoplay', 'raider', 'codex', 'artcheck', 'zoo', 'towers', 'melee', 'speed', 'end', 'mapmips'] as const;
+
 async function main(): Promise<void> {
   const q = new URLSearchParams(location.search);
+  if (!GAME_PARAMS.some((k) => q.has(k))) {
+    await document.fonts.load(`700 32px ${HUD_FONT}`).catch(() => undefined);
+    const { mountWorldMap } = await import('./ui/worldMap.ts');
+    await mountWorldMap(q);
+    document.getElementById('boot')?.remove();
+    return;
+  }
   const levelId = q.get('level') ?? 'l1c';
   const level = getLevelById(levelId);
   if (!level?.layout2d) {
@@ -187,17 +201,33 @@ async function main(): Promise<void> {
     hooks = aimHooks(type, tier, aimState, Math.max(0.5, Number(q.get('hold') ?? 1.6) || 1.6));
   } else if (q.get('towers') === '1') hooks = towersHooks(Math.max(0, Math.min(3, Number(q.get('tier') ?? 0) || 0)) || null);
   else if (q.get('autoplay') === '1') hooks = autoplayHooks(level.scriptedBuildOrder ?? []);
-  // End panel: Next = the following 2D island (hidden when there is none), Menu = the main game.
-  const idx2d = LEVELS_2D.findIndex((l) => l.id === level.id);
-  const next2d = idx2d >= 0 ? LEVELS_2D[idx2d + 1] : undefined;
+  // End panel: Next Isle = the following island on the world map route (only when it is open, or
+  // this run just won it open), World Map = back to the map. Plain play records wins in the 2D save
+  // and shows the island's after-battle story once; QA / debug scenes record nothing.
+  const plainPlay = Object.keys(hooks).length === 0 && !q.has('end') && bench === 0;
   let codexRef: { setButtonVisible(v: boolean): void } | null = null;
+  let gameRef: Game2D | null = null;
+  const routing = await import('./ui/inGame.ts');
+  const baseHooks = hooks;
   hooks = {
-    ...hooks,
-    onEndPanel: (shown) => codexRef?.setButtonVisible(!shown),
-    onMenu: () => location.assign('/'),
-    ...(next2d ? { onNext: () => location.assign(`${location.pathname}?level=${next2d.id}`) } : {}),
+    ...baseHooks,
+    onEndPanel: (shown) => {
+      codexRef?.setButtonVisible(!shown);
+      const w = gameRef?.world;
+      if (!shown || !w) return;
+      const won = w.outcome === 'won';
+      if (plainPlay) routing.recordRun(level, won, won ? w.computeStars() : 0, w.lives);
+      const story = q.get('story');
+      if (won && (plainPlay || story === 'outro')) void routing.playStoryOnce(level, 'outro', art.manifest, art.baseUrl, story === 'outro');
+    },
+    onMenu: () => location.assign(routing.worldMapHref()),
+    get onNext() {
+      const next = routing.nextIslandOpen(level.id, gameRef?.world.outcome === 'won');
+      return next ? () => location.assign(routing.islandHref(next)) : undefined;
+    },
   };
   const game = new Game2D(app, art, level, hooks);
+  gameRef = game;
   if (q.get('end') === 'won' || q.get('end') === 'lost') {
     const end = q.get('end') as 'won' | 'lost';
     setTimeout(() => game.forceEnd(end), 300);
@@ -221,6 +251,18 @@ async function main(): Promise<void> {
     });
     codexRef = codex;
     if (q.get('codex') === '1') codex.open();
+    // Story panels before an island's first play (map → Play / Next Isle add &intro=1; ?story=intro forces them).
+    const storyQ = q.get('story');
+    if (q.get('intro') === '1' || storyQ === 'intro') {
+      const g = game;
+      const was = g.stepper.paused;
+      g.stepper.paused = true;
+      codex.setButtonVisible(false);
+      void routing.playStoryOnce(level, 'intro', art.manifest, art.baseUrl, storyQ === 'intro').then(() => {
+        g.stepper.paused = was;
+        if (!g.end.visible) codex.setButtonVisible(true);
+      });
+    }
   }
   const zooLabels = q.get('zoo') === '1' ? new ZooLabels(game) : null;
   const aimOverlay = aimState && q.get('overlay') !== '0' ? new AimOverlay(game) : null;

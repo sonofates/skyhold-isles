@@ -6,7 +6,10 @@ import { END_FRAME, endLayout, NO_INSETS, type EndLayout, type Insets, type Rect
 
 export { endStars } from './uiLayout.ts';
 
+/** `menu` = back to the world map. */
 export type EndAction = 'retry' | 'next' | 'menu';
+
+const END_LABELS: Readonly<Record<EndAction, string>> = { retry: 'Retry', next: 'Next Isle', menu: 'World Map' };
 
 export interface EndSummary {
   readonly won: boolean;
@@ -35,7 +38,7 @@ const STAR_STEP = 0.28;
 
 /**
  * Victory / defeat board: the map dims, a painted panel pops in with a title ribbon, 1-3 stars
- * that pop in one by one, a lives / gold (or wave) summary and Retry / Next / Menu buttons.
+ * that pop in one by one, a lives / gold (or wave) summary and Retry / Next Isle / World Map buttons.
  */
 export class EndPanel {
   readonly root = new Container();
@@ -175,7 +178,7 @@ export class EndPanel {
     x += icon + gap;
     this.line2.position.set(x, y);
     this.caption.position.set(L.summary.x, won ? y + f * 1.3 : y + f * 1.7);
-    // Buttons: Retry / Next / Menu (Next hidden when there is no next island).
+    // Buttons: Retry / Next Isle / World Map (Next hidden when there is no open next island).
     const hasNext = this.summary?.hasNext ?? false;
     const shown = this.buttons.filter((b) => b.action !== 'next' || hasNext);
     for (const b of this.buttons) b.root.visible = shown.includes(b);
@@ -187,7 +190,8 @@ export class EndPanel {
       b.bg.width = r * 2;
       b.bg.height = r * 2;
       setInkSize(b.label, Math.round(Math.max(13, r * 0.42)));
-      setText(b.label, b.action === 'retry' ? 'Retry' : b.action === 'next' ? 'Next' : 'Menu');
+      setText(b.label, END_LABELS[b.action]);
+      fitWidth(b.label, r * 3.1);
       b.label.position.set(0, r * 1.38);
       this.drawGlyph(b);
     });
@@ -209,8 +213,19 @@ export class EndPanel {
       g.moveTo(-r * 0.22, -r * 0.34).lineTo(r * 0.36, 0).lineTo(-r * 0.22, r * 0.34).closePath();
       g.fill({ color: 0xfff4dc }).stroke(line);
     } else {
-      for (let i = -1; i <= 1; i++) g.roundRect(-r * 0.32, i * r * 0.22 - r * 0.06, r * 0.64, r * 0.12, r * 0.05);
-      g.fill({ color: 0xfff4dc }).stroke(line);
+      // World map: a folded chart (three panels) with a dotted red route.
+      const x0 = -r * 0.4;
+      const pw = r * 0.27;
+      const top = [-r * 0.26, -r * 0.34, -r * 0.26, -r * 0.34];
+      const bot = [r * 0.34, r * 0.26, r * 0.34, r * 0.26];
+      g.moveTo(x0, top[0]);
+      for (let i = 1; i < 4; i++) g.lineTo(x0 + pw * i, top[i]);
+      for (let i = 3; i >= 0; i--) g.lineTo(x0 + pw * i, bot[i]);
+      g.closePath().fill({ color: 0xfff4dc }).stroke(line);
+      for (let i = 1; i < 3; i++) g.moveTo(x0 + pw * i, top[i]).lineTo(x0 + pw * i, bot[i]);
+      g.stroke({ color: 0x3a2412, width: Math.max(1.5, r * 0.05) });
+      for (let i = 0; i < 4; i++) g.circle(x0 + pw * (0.5 + i * 0.7), r * (0.14 - i * 0.1), Math.max(1.2, r * 0.04));
+      g.fill({ color: 0xc8341f });
     }
   }
 
