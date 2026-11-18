@@ -43,6 +43,7 @@ export class EnemySystem {
   /** All ground lanes: [main, ...extra spawn lanes]. Every lane ends at the same goal. */
   private readonly groundPaths: readonly CompiledPath[];
   private readonly flightPath: CompiledPath;
+  private readonly hexRadius: number;
   private readonly spatialHash: SpatialHashGrid;
   private readonly events: EventBus;
 
@@ -53,11 +54,13 @@ export class EnemySystem {
     spatialHash: SpatialHashGrid,
     events: EventBus,
     extraGroundPaths: readonly CompiledPath[] = [],
+    hexRadius = ENEMY_DEFS.hexer.hexRadius ?? 3.6,
   ) {
     this.pool = pool;
     this.groundPath = groundPath;
     this.groundPaths = [groundPath, ...extraGroundPaths];
     this.flightPath = flightPath;
+    this.hexRadius = hexRadius;
     this.spatialHash = spatialHash;
     this.events = events;
   }
@@ -612,7 +615,7 @@ export class EnemySystem {
    */
   private updateHex(e: EnemyEntity, dt: number, towers: readonly TowerEntity[] | undefined): void {
     const def = ENEMY_DEFS.hexer;
-    const radius = def.hexRadius ?? 3.6;
+    const radius = this.hexRadius;
     if (e.hexTargetId >= 0) {
       if (e.channelTimer > 0) return;
       let target: TowerEntity | null = null;

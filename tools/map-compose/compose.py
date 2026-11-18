@@ -22,6 +22,8 @@ usage: /usr/bin/python3 tools/map-compose/compose.py <layout.json> <assets_dir> 
   Campaign defaults for --seed, --plots, --windmill, --props and --decals come from
   campaign.json by layout id. CLI options override them. For a new layout, bake once with
   --write-layout to generate plots, then add --keep-plots for every subsequent bake.
+  A recipe may reserve plots at specific layout-pixel centres with seedPlots. These count
+  toward --plots and must pass the same clearance and coverage checks as generated plots.
   --check-plots   validate the saved plots and geometry without rendering or writing files:
                 compose.py <layout.json> <assets_dir> --check-plots
   --write-layout  save generated plots in route order and write each gate (prop, facing, front layer rect / depth) into layout.json
@@ -37,8 +39,8 @@ fringe and pebbles, sparse decals (assets/decal-*.png).
 
 Everything geometric is computed in LAYOUT px (layout.json `imageSize`), so the plots and the
 prop layout do not depend on --w; the bake is rendered at --w px wide (keep the aspect).
-Writes <out>.plots.json: the plots in layout px, in route order (entrance A branch, entrance B
-branch, shared road to the gate).
+Writes <out>.plots.json: the plots in layout px, in route order (entrance branches first, then shared
+sections to the gate).
 
 Plot footprint (shared with the renderer): the plot sprite (plot-base.png) is drawn
 2 * plotRadiusPx wide (layout px), centred on the plot point (anchor 0.5, 0.5); its height follows
@@ -389,10 +391,13 @@ def generate_plots():
     chosen = []
     mind = [1e9] * len(uniq)
 
-    def take(bi):
-        chosen.append(uniq[bi])
+    def take(point):
+        chosen.append(point)
         for i, c in enumerate(uniq):
-            mind[i] = min(mind[i], adist(c, uniq[bi]))
+            mind[i] = min(mind[i], adist(c, point))
+
+    for x, y in recipe.get('seedPlots', []):
+        take((x, y))
 
     # seeds: the valid candidates nearest each entrance and nearest the point 300 px down its road
     # (the farthest-point pass alone tends to leave the cramped first stretch next to a gate thin)
@@ -402,7 +407,7 @@ def generate_plots():
             order = sorted(range(len(uniq)), key=lambda i: math.hypot(uniq[i][0] - e0[0], uniq[i][1] - e0[1]))
             for i in order:
                 if all(pair_ok(uniq[i], p) for p in chosen):
-                    take(i)
+                    take(uniq[i])
                     break
     while len(chosen) < NPLOTS:
         best, bi = -1.0, -1
@@ -414,7 +419,7 @@ def generate_plots():
                 best, bi = s, i
         if bi < 0:
             break
-        take(bi)
+        take(uniq[bi])
     return sorted(chosen, key=route_key), len(uniq)
 
 

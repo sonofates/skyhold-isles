@@ -124,6 +124,7 @@ export class SimWorld {
       this.spatialHash,
       events,
       this.extraGroundPaths,
+      level.hexRadius,
     );
     this.projectileSystem = new ProjectileSystem(
       this.projectilePool,
