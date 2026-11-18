@@ -34,6 +34,43 @@ export function renderResolution(w: number, h: number, dpr: number, override?: n
   return Math.min(high, medium ? 1.5 : 0.8, Math.sqrt(pixelBudget / Math.max(1, w * h)));
 }
 
+/** Detects software WebGL rasterizers (ANGLE SwiftShader, LLVMpipe, Basic Render Driver). */
+export function isSoftwareRenderer(gl: WebGLRenderingContext | WebGL2RenderingContext | null | undefined): boolean {
+  if (!gl) return false;
+  try {
+    const ext = gl.getExtension('WEBGL_debug_renderer_info');
+    const unmasked = ext ? String(gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) ?? '') : '';
+    const base = String(gl.getParameter(gl.RENDERER) ?? '');
+    return /swiftshader|llvmpipe|softpipe|software rasterizer|basic render driver/i.test(`${unmasked} ${base}`);
+  } catch {
+    return false;
+  }
+}
+
+let cachedSoftwareWebGL: boolean | null = null;
+
+/** Probes a temporary 1×1 WebGL context before Pixi init so software renderers can skip 4× MSAA. */
+export function detectSoftwareWebGL(): boolean {
+  if (cachedSoftwareWebGL !== null) return cachedSoftwareWebGL;
+  if (typeof document === 'undefined') return false;
+  try {
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = 1;
+    const attrs: WebGLContextAttributes = { antialias: false, depth: false, stencil: false };
+    const gl = (canvas.getContext('webgl2', attrs) ?? canvas.getContext('webgl', attrs)) as
+      | WebGLRenderingContext
+      | WebGL2RenderingContext
+      | null;
+    const software = isSoftwareRenderer(gl);
+    gl?.getExtension('WEBGL_lose_context')?.loseContext();
+    cachedSoftwareWebGL = software;
+    return software;
+  } catch {
+    cachedSoftwareWebGL = false;
+    return false;
+  }
+}
+
 /** Step down after two consecutive slow windows. Stay at the selected tier for this visit
  * so quiet build phases don't repeatedly raise resolution just before the next wave. */
 export class AdaptiveQuality {
@@ -44,17 +81,60 @@ export class AdaptiveQuality {
   private elapsed = 0;
   private frames = 0;
   private slowWindows = 0;
+  private severeFrames = 0;
 
-  constructor(override: QualityTier | null) {
-    this.tier = override ?? 'high';
+  constructor(override: QualityTier | null, initialUnlockedTier: QualityTier = 'high') {
+    this.tier = override ?? initialUnlockedTier;
     this.locked = override !== null;
+  }
+
+  get isLocked(): boolean {
+    return this.locked;
+  }
+
+  /**
+   * Pre-wave / boot calibration from a synchronous GPU-flushed render measurement:
+   * steps down before gameplay begins so software or fill-bound devices avoid multi-hundred-ms
+   * swapchain resizes mid-wave.
+   */
+  calibrateBoot(renderMs: number, software: boolean, activeWorkload = true): boolean {
+    this.elapsed = this.frames = this.slowWindows = this.severeFrames = 0;
+    if (this.locked || this.resolutionScale < 1) return false;
+    if (!Number.isFinite(renderMs) || renderMs <= 0) return false;
+    const threshold = software ? (activeWorkload ? 14.5 : 28) : 45;
+    if (renderMs <= threshold) return false;
+    if (software && renderMs > 65) {
+      this.tier = 'low';
+      this.resolutionScale = 0.65 / 0.8;
+      return true;
+    }
+    if (software && renderMs > 36 && this.tier === 'high') {
+      this.tier = 'low';
+      return true;
+    }
+    if (this.tier === 'low') this.resolutionScale = 0.65 / 0.8;
+    else this.tier = this.tier === 'high' ? 'med' : 'low';
+    return true;
   }
 
   observe(ms: number, visible: boolean): boolean {
     if (this.locked || this.resolutionScale < 1) return false;
     if (!visible || !Number.isFinite(ms) || ms <= 0) {
-      this.elapsed = this.frames = this.slowWindows = 0;
+      this.elapsed = this.frames = this.slowWindows = this.severeFrames = 0;
       return false;
+    }
+    // Two back-to-back severe stalls (> 85 ms, < 12 fps) drop straight to a playable tier
+    // instead of waiting through several seconds of multi-step swapchain reallocations.
+    if (ms > 85) {
+      this.severeFrames++;
+      if (this.severeFrames >= 2) {
+        this.elapsed = this.frames = this.slowWindows = this.severeFrames = 0;
+        if (this.tier === 'low') this.resolutionScale = 0.65 / 0.8;
+        else this.tier = 'low';
+        return true;
+      }
+    } else {
+      this.severeFrames = 0;
     }
     // A single resume/GC stall cannot fill a whole observation window.
     this.elapsed += Math.min(ms, 250);

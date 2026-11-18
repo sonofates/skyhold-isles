@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { SoundManager } from '../../src/audio/soundManager.ts';
+import { fillNoiseChannel, PREBAKED_NOISE, SoundManager } from '../../src/audio/soundManager.ts';
 import { VoiceCap } from '../../src/audio/voiceCap.ts';
 import { EventBus } from '../../src/core/eventBus.ts';
 import { FixedTimestepStepper } from '../../src/core/gameLoop.ts';
@@ -220,5 +220,13 @@ describe('painted audio', () => {
 
     gameLifecycle.dispose();
     audio.dispose();
+  });
+
+  it('fills noise buffers from prebaked samples and disconnects finished voice nodes', () => {
+    const dst = new Float32Array(PREBAKED_NOISE.length + 128);
+    fillNoiseChannel(dst);
+    expect(dst[0]).toBe(PREBAKED_NOISE[0]);
+    expect(dst[PREBAKED_NOISE.length]).toBe(PREBAKED_NOISE[0]);
+    expect(dst.some((v) => v !== 0)).toBe(true);
   });
 });

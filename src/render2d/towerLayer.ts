@@ -10,7 +10,7 @@ import type { MapView } from './mapView.ts';
 import type { PlotGeometry } from './plotLayer.ts';
 import type { ProcTextures } from './procTextures.ts';
 import { attackFrame, attackPlan, idleFrame, onShot, PREROLL_GRACE, prerollStart, shotEta, shouldPreroll, type AttackPlan } from './towerAnim.ts';
-import { drawnRing, fitOnRing, ringMuzzle, type RingPlacement, type RingSpec, type SpriteFit } from './towerFit.ts';
+import { fitOnRing, ringMuzzle, type RingPlacement, type RingSpec, type SpriteFit } from './towerFit.ts';
 import {
   aimedSpriteMuzzle,
   bodyAimPose,
@@ -150,6 +150,11 @@ interface TowerView {
   midY: number;
   /** Ring as drawn this frame (ring-convention art), for QA. */
   ring: RingPlacement | null;
+  readonly ringScratch: { cx: number; bottom: number; width: number };
+  readonly fitStatic: { scale: number; anchorX: number; anchorY: number; x: number; y: number };
+  readonly fitFrame: { scale: number; anchorX: number; anchorY: number; x: number; y: number };
+  cachedSheetPlan: AttackPlan | null;
+  cachedPlanSheet: TowerSheetRuntime | null;
 }
 
 /**
@@ -475,6 +480,11 @@ export class TowerLayer {
       topY: 0,
       midY: 0,
       ring: null,
+      ringScratch: { cx: 0, bottom: 0, width: 0 },
+      fitStatic: { scale: 1, anchorX: 0.5, anchorY: 1, x: 0, y: 0 },
+      fitFrame: { scale: 1, anchorX: 0.5, anchorY: 1, x: 0, y: 0 },
+      cachedSheetPlan: null,
+      cachedPlanSheet: null,
     };
     this.views.set(t.id, v);
     return v;
@@ -514,7 +524,11 @@ export class TowerLayer {
     }
     v.prevCd = t.cooldownTimer;
     if (sheetNow) {
-      const plan = attackPlan({ count: sheetNow.frames.length, fps: sheetNow.fps, release: sheetNow.release });
+      if (v.cachedPlanSheet !== sheetNow || !v.cachedSheetPlan) {
+        v.cachedPlanSheet = sheetNow;
+        v.cachedSheetPlan = attackPlan({ count: sheetNow.frames.length, fps: sheetNow.fps, release: sheetNow.release });
+      }
+      const plan = v.cachedSheetPlan;
       if (v.armed && v.attackT > plan.releaseDelay + PREROLL_GRACE) v.armed = false;
       const busy = v.attackT >= 0 && v.attackPlan !== null && v.attackT < v.attackPlan.releaseDelay;
       if (
@@ -534,7 +548,12 @@ export class TowerLayer {
     }
     const stat = turret ? turret.body : art.tiers[tierIdx];
     // Static fit (also the muzzle reference, so shots leave the same spot with or without sheets).
-    const fit = fitOnRing(target, ring, stat.width, stat.height, art.spec.ringScale);
+    const fit = v.fitStatic;
+    fit.scale = (target.width * (art.spec.ringScale ?? 1)) / Math.max(1e-6, ring.ringWidthPx);
+    fit.anchorX = ring.ringCenterXPx / Math.max(1, stat.width);
+    fit.anchorY = ring.ringBottomPx / Math.max(1, stat.height);
+    fit.x = target.cx;
+    fit.y = target.bottom;
     v.muzzle = ringMuzzle(fit, ring, py, art.spec.muzzleFrac, HEIGHT_TO_SCREEN * ppu);
     v.turretArt = turret;
     const bodyAim = !turret && BODY_AIM_TOWERS.has(t.type);
@@ -582,7 +601,16 @@ export class TowerLayer {
       texH = idle.frameH;
       painted = true;
     }
-    const f2 = tex === stat ? fit : fitOnRing(target, texRing, texW, texH, art.spec.ringScale);
+    let f2: SpriteFit = fit;
+    if (tex !== stat) {
+      const ff = v.fitFrame;
+      ff.scale = (target.width * (art.spec.ringScale ?? 1)) / Math.max(1e-6, texRing.ringWidthPx);
+      ff.anchorX = texRing.ringCenterXPx / Math.max(1, texW);
+      ff.anchorY = texRing.ringBottomPx / Math.max(1, texH);
+      ff.x = target.cx;
+      ff.y = target.bottom;
+      f2 = ff;
+    }
     if (v.sprite.texture !== tex) v.sprite.texture = tex;
     v.sprite.anchor.set(f2.anchorX, f2.anchorY);
     const pop = t.popAnimTimer > 0 ? Math.sin((t.popAnimTimer / 0.32) * Math.PI) * 0.1 : 0;
@@ -595,13 +623,19 @@ export class TowerLayer {
     v.sprite.rotation = bodyAim && v.aimed ? v.bodyRot : 0;
     v.sprite.position.set(f2.x, f2.y);
     v.sprite.zIndex = f2.y;
-    v.ring = drawnRing(f2, texRing);
+    v.ringScratch.cx = f2.x;
+    v.ringScratch.bottom = f2.y;
+    v.ringScratch.width = texRing.ringWidthPx * f2.scale;
+    v.ring = v.ringScratch;
     const h = ring.ringBottomPx * fit.scale;
     v.topY = fit.y - h;
     v.midY = fit.y - h * 0.55;
     if (turret) this.syncTurret(v, t, turret, fit, ring, 1 + pop * 0.5, 1 + pop, simDt);
     else if (v.turret) v.turret.visible = false;
-    if (bodyAim) v.mount = { x: fit.x, y: fit.y };
+    if (bodyAim) {
+      v.mount.x = fit.x;
+      v.mount.y = fit.y;
+    }
     if (v.muzzlePt) v.muzzle = Math.max(0.2, (py - v.muzzlePt.y) / (HEIGHT_TO_SCREEN * ppu));
     // The plot layer draws the contact shadow under every plot (covered or not).
     v.shadow.visible = false;

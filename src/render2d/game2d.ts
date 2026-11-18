@@ -1,7 +1,7 @@
-import { Container, Sprite, type Application } from 'pixi.js';
-import { EventBus, type GameEventMap } from '../core/eventBus.ts';
+import { Container, Graphics, NineSliceSprite, Sprite, Text, Texture, type Application, type TextureSource } from 'pixi.js';
+import { EventBus } from '../core/eventBus.ts';
 import { FixedTimestepStepper } from '../core/gameLoop.ts';
-import type { GameSettings, SpeedMultiplier, TargetingMode, TowerType } from '../core/types.ts';
+import type { GameSettings, SpeedMultiplier, TargetingMode, TowerType, Vec3 } from '../core/types.ts';
 import { LEVELS } from '../data/levels/index.ts';
 import { BALANCE } from '../data/balance.ts';
 import type { LevelDef } from '../data/levels/types.ts';
@@ -11,9 +11,9 @@ import { bindHaptics, haptics } from '../platform/haptics.ts';
 import { isTouchDevice, loadSettings } from '../platform/storage.ts';
 import type { TowerEntity } from '../sim/entities.ts';
 import { computeSellRefund, SimWorld } from '../sim/world.ts';
-import type { LoadedArt } from './assets2d.ts';
+import { collectArtTextureSources, type LoadedArt } from './assets2d.ts';
 import { Audio2D, bindAudio2D, bindBackgroundLifecycle2D, screenPan, type BackgroundLifecycleHandle2D } from './audio2d.ts';
-import { AdaptiveQuality, qualityOverride, renderResolution } from './renderResolution.ts';
+import { AdaptiveQuality, isSoftwareRenderer, qualityOverride, renderResolution, type QualityTier } from './renderResolution.ts';
 import { BuildRing, type RingAction } from './buildRing.ts';
 import { DamageNumbers2D } from './damageNumbers2d.ts';
 import { EndPanel, endStars } from './endPanel.ts';
@@ -71,6 +71,21 @@ export interface Game2DHooks {
   onEndPanel?: (shown: boolean) => void;
   /** Fired when active gameplay enters/leaves background (`platform.onPause` / `visibilitychange`). */
   onBackgroundChange?: (inBackground: boolean) => void;
+  /** Default starting quality tier when no `?quality=` override is locked. */
+  initialUnlockedTier?: QualityTier;
+}
+
+const SYNC_PIXEL = new Uint8Array(4);
+
+/** Synchronously drains the browser's OOP-GPU command buffer during boot prewarm (`#boot` cover). */
+function flushGpu(gl: WebGLRenderingContext | WebGL2RenderingContext | undefined): void {
+  if (!gl) return;
+  try {
+    gl.finish();
+    gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, SYNC_PIXEL);
+  } catch {
+    // ignore lost context or mock GL in headless tests
+  }
 }
 
 /**
@@ -126,8 +141,22 @@ export class Game2D {
   private readonly benchWave: number;
   private unbindHaptics: (() => void) | null = null;
   private lifecycle: BackgroundLifecycleHandle2D | null = null;
-  /** Tesla bolts waiting for their tower's painted release frame (sim seconds left). */
-  private readonly boltQueue: { t: number; points: GameEventMap['lightningChain']['points']; overload: boolean; muzzle: number }[] = [];
+  private hudGoldTimer = 0;
+  private hudGoldDirty = true;
+  /** Tesla bolts waiting for their tower's painted release frame (pooled, sim seconds left). */
+  private readonly boltQueue: { t: number; points: Vec3[]; count: number; view: Vec3[]; overload: boolean; muzzle: number }[] = [];
+  private boltActive = 0;
+  private readonly onFixedTick = (fixedDt: number): void => {
+    this.simClockSec += fixedDt;
+    this.hooks.beforeTick?.(this.world);
+    this.world.fixedTick(fixedDt);
+  };
+  private readonly plotStateFn = (i: number): PlotState => {
+    const id = this.world.grid.getTowerIdAt(i, 0);
+    if (id === -1) return 'free';
+    const t = this.world.getTowerById(id);
+    return t && this.towers.ringOf(t.type, t.tier) ? 'covered' : 'legacy';
+  };
   private hudState: {
     lives: number;
     gold: number;
@@ -145,7 +174,7 @@ export class Game2D {
     art = withBarracksArt(art);
     this.app = app;
     const query = new URLSearchParams(location.search);
-    this.quality = new AdaptiveQuality(qualityOverride(query.get('quality')));
+    this.quality = new AdaptiveQuality(qualityOverride(query.get('quality')), hooks.initialUnlockedTier ?? 'high');
     this.dprOverride = Number(query.get('dpr')) || undefined;
     this.benchWave = hooks.endless && Number(query.get('bench')) > 0 ? Number(query.get('wave')) : 0;
     this.art = art;
@@ -271,7 +300,9 @@ export class Game2D {
     this.soldiers.reset();
     this.melee.reset();
     this.rallyTower = -1;
-    this.boltQueue.length = 0;
+    this.boltActive = 0;
+    this.hudGoldDirty = true;
+    this.hudGoldTimer = 0;
     if (audio) {
       audio.sound.setMusicContext(LEVELS[this.level.index]?.id ?? this.level.id, 'build');
       this.unbindAudio = bindAudio2D(this.events, audio.sound,
@@ -302,10 +333,18 @@ export class Game2D {
     ev.on('lightningChain', (e) => {
       // points[0] is the firing tower: draw the bolt at its painted release frame, from its muzzle.
       const p0 = e.points[0];
-      const t = this.world.towers.find((x) => Math.abs(x.x - p0.x) < 1e-6 && Math.abs(x.z - p0.z) < 1e-6);
+      let t: TowerEntity | null = null;
+      const towers = this.world.towers;
+      for (let i = 0; i < towers.length; i++) {
+        const cand = towers[i];
+        if (Math.abs(cand.x - p0.x) < 1e-6 && Math.abs(cand.z - p0.z) < 1e-6) {
+          t = cand;
+          break;
+        }
+      }
       const muzzle = t ? this.towers.muzzleOf(t.id, t.type) : this.towers.muzzleHeight('tesla');
       const delay = t ? this.towers.predictShotDelay(t.id, t.type, t.tier) : 0;
-      if (delay > 0) this.boltQueue.push({ t: delay, points: e.points.map((q) => ({ ...q })), overload: e.overload === true, muzzle });
+      if (delay > 0) this.enqueueBolt(delay, e.points, e.overload === true, muzzle);
       else this.fx.bolt(e.points, e.overload === true, muzzle);
       if (e.overload && !this.hooks.endless) triggerShake2D(this.shake, 0.014, this.currentSettings());
     });
@@ -341,15 +380,154 @@ export class Game2D {
         triggerShake2D(this.shake, BALANCE.camera.bossHitShake, this.currentSettings());
       }
     });
-    ev.on('towerBuilt', (e) => this.fx.puffs(m.pxX(e.x), m.pxY(e.z), 10, 30, 0xe9d8b4));
+    ev.on('towerBuilt', (e) => {
+      this.hudGoldDirty = true;
+      this.fx.puffs(m.pxX(e.x), m.pxY(e.z), 10, 30, 0xe9d8b4);
+    });
     ev.on('towerUpgraded', (e) => {
+      this.hudGoldDirty = true;
       this.fx.puffs(m.pxX(e.x), m.pxY(e.z), 8, 26, 0xfff0c0);
       this.fx.spawn('flash', m.pxX(e.x), m.pxY(e.z) - 60, 50, 0, 0, 0.3);
     });
     ev.on('towerSold', (e) => {
+      this.hudGoldDirty = true;
       this.fx.puffs(m.pxX(e.x), m.pxY(e.z), 10, 30, 0xe9d8b4);
       this.fx.spawn('coin', m.pxX(e.x), m.pxY(e.z) - 40, 34, 0, -60, 0.9);
     });
+    ev.on('waveStarted', () => {
+      this.hudGoldDirty = true;
+    });
+    ev.on('waveCompleted', () => {
+      this.hudGoldDirty = true;
+    });
+  }
+
+  private enqueueBolt(delay: number, pts: readonly Vec3[], overload: boolean, muzzle: number): void {
+    let slot = this.boltQueue[this.boltActive];
+    if (!slot) {
+      slot = { t: 0, points: [], count: 0, view: [], overload: false, muzzle: 0 };
+      this.boltQueue[this.boltActive] = slot;
+    }
+    slot.t = delay;
+    slot.overload = overload;
+    slot.muzzle = muzzle;
+    slot.count = pts.length;
+    slot.view.length = pts.length;
+    for (let i = 0; i < pts.length; i++) {
+      let dst = slot.points[i];
+      if (!dst) dst = slot.points[i] = { x: 0, y: 0, z: 0 };
+      dst.x = pts[i].x;
+      dst.y = pts[i].y;
+      dst.z = pts[i].z;
+      slot.view[i] = dst;
+    }
+    this.boltActive++;
+  }
+
+  /** Marks numeric HUD counters dirty so the next frame refreshes them without waiting for the combat rollup window. */
+  markHudDirty(): void {
+    this.hudGoldDirty = true;
+  }
+
+  /**
+   * Pre-uploads all loaded & procedural `TextureSource`s (+ mipmaps), pre-compiles all Pixi shader
+   * pipelines (`Sprite` normal/add, `Graphics` normal/add, `NineSliceSprite`, `Text`), pre-warms
+   * pooled entity/particle sprites, and calibrates initial adaptive resolution before Wave 1 starts.
+   */
+  prewarm(opts: { readonly benchSteps?: number } = {}): void {
+    const renderer = this.app.renderer as unknown as {
+      gl?: WebGL2RenderingContext;
+      texture?: { initSource?: (src: TextureSource) => void };
+      renderPipes?: { text?: { initGpuText?: (t: Text) => void } };
+    };
+    const gl = renderer.gl;
+
+    // 1. Pre-allocate pooled views so wave spawns and volleys allocate no Sprites on the hot path.
+    this.enemies.prewarm(160);
+    this.projectiles.prewarm(64);
+    this.fx.prewarm(this.quality.tier === 'high' ? 160 : 96);
+
+    // 2. Upload every TextureSource + build mipmaps ahead of gameplay.
+    const initSource = renderer.texture?.initSource?.bind(renderer.texture);
+    if (initSource) {
+      const sources = new Set<TextureSource>(collectArtTextureSources(this.art));
+      for (const tex of Object.values(this.tex) as Texture[]) {
+        if (tex && tex !== Texture.EMPTY) sources.add(tex.source);
+      }
+      if (this.soldiers.flagTexture !== Texture.EMPTY) sources.add(this.soldiers.flagTexture.source);
+      for (const src of sources) initSource(src);
+    }
+
+    // 3. Populate initial HUD & run optional bench setup steps while #boot still covers the stage.
+    const benchSteps = opts.benchSteps ?? 0;
+    if (benchSteps > 0) {
+      for (let i = 0; i < benchSteps; i++) this.frame(1 / 60);
+    } else {
+      this.syncHud(0, true);
+    }
+
+    // 4. Pre-warm every Text node and compile Sprite (normal + add), Graphics (normal + add),
+    //    and NineSliceSprite shaders in one flushed pass.
+    const initText = renderer.renderPipes?.text?.initGpuText?.bind(renderer.renderPipes.text);
+    if (initText) {
+      const walkText = (c: Container): void => {
+        if (c instanceof Text) initText(c);
+        for (let i = 0; i < c.children.length; i++) walkText(c.children[i]);
+      };
+      walkText(this.app.stage);
+    }
+
+    const warm = new Container();
+    warm.alpha = 0.001;
+    const sNorm = new Sprite(this.tex.puff);
+    sNorm.width = sNorm.height = 1;
+    const sAdd = new Sprite(this.tex.spark);
+    sAdd.blendMode = 'add';
+    sAdd.width = sAdd.height = 1;
+    const gNorm = new Graphics().rect(0, 0, 2, 2).fill({ color: 0xffffff }).moveTo(0, 0).lineTo(2, 2).stroke({ width: 1, color: 0xffffff });
+    const gAdd = new Graphics().moveTo(0, 0).lineTo(2, 2).stroke({ width: 2, color: 0xffffff });
+    gAdd.blendMode = 'add';
+    const tip = this.art.uiKit?.tooltip ?? Texture.WHITE;
+    const nine = new NineSliceSprite({ texture: tip, leftWidth: 2, rightWidth: 2, topHeight: 2, bottomHeight: 2, width: 8, height: 8 });
+    warm.addChild(sNorm, sAdd, gNorm, gAdd, nine);
+    this.app.stage.addChildAt(warm, 0);
+    this.app.render();
+    flushGpu(gl);
+    this.app.stage.removeChild(warm);
+    warm.destroy({ children: true });
+
+    // 5. Measure actual GPU-flushed frame time (with hot shader/texture caches) and settle
+    //    resolution before `#boot` is removed so gameplay starts with zero backlog or mid-wave resizes.
+    const software = isSoftwareRenderer(gl);
+    const activeWorkload = benchSteps > 0 || this.world.waveSystem.state !== 'preFirstWave';
+    if (!this.quality.isLocked) {
+      this.frame(0);
+      this.app.render();
+      flushGpu(gl);
+      let resized = false;
+      for (let iter = 0; iter < 3; iter++) {
+        const t0 = performance.now();
+        this.frame(0);
+        this.app.render();
+        flushGpu(gl);
+        const renderMs = performance.now() - t0;
+        if (!this.quality.calibrateBoot(renderMs, software, activeWorkload)) {
+          resized = false;
+          break;
+        }
+        resized = true;
+        this.fx.setQuality(this.quality.tier);
+        this.applyResolution(this.app.screen.width, this.app.screen.height);
+      }
+      if (resized) {
+        this.app.render();
+        flushGpu(gl);
+      }
+      this.quality.observe(0, false);
+    } else {
+      this.app.render();
+      flushGpu(gl);
+    }
   }
 
   private applyResolution(w: number, h: number): void {
@@ -390,31 +568,25 @@ export class Game2D {
     }
     audio?.sound.setMusicDucked(this.stepper.paused);
     const world = this.world;
-    const res = this.stepper.step(dtSec, (fixedDt) => {
-      this.simClockSec += fixedDt;
-      this.hooks.beforeTick?.(world);
-      world.fixedTick(fixedDt);
-    });
+    const res = this.stepper.step(dtSec, this.onFixedTick);
     const alpha = res.alpha;
     const simDt = this.stepper.paused ? 0 : dtSec * this.stepper.speed;
     const cfg = this.currentSettings();
     this.towers.sync(world.towers, dtSec, simDt);
-    for (let i = this.boltQueue.length - 1; i >= 0; i--) {
+    for (let i = this.boltActive - 1; i >= 0; i--) {
       const b = this.boltQueue[i];
       b.t -= simDt;
       if (b.t <= 0) {
-        this.fx.bolt(b.points, b.overload, b.muzzle);
-        this.boltQueue.splice(i, 1);
+        this.fx.bolt(b.view, b.overload, b.muzzle);
+        this.boltActive--;
+        if (i !== this.boltActive) {
+          const last = this.boltQueue[this.boltActive];
+          this.boltQueue[this.boltActive] = b;
+          this.boltQueue[i] = last;
+        }
       }
     }
-    const grid = world.grid;
-    const plotState = (i: number): PlotState => {
-      const id = grid.getTowerIdAt(i, 0);
-      if (id === -1) return 'free';
-      const t = world.getTowerById(id);
-      return t && this.towers.ringOf(t.type, t.tier) ? 'covered' : 'legacy';
-    };
-    this.plots.sync(plotState, this.hoverPlot, this.ring.isOpen ? this.ring.plot : -1, world.gold < this.minCost, dtSec);
+    this.plots.sync(this.plotStateFn, this.hoverPlot, this.ring.isOpen ? this.ring.plot : -1, world.gold < this.minCost, dtSec);
     this.melee.update(world.soldierSystem, world.enemyPool, alpha, simDt);
     this.enemies.syncPool(world.enemyPool, alpha, simDt);
     this.projectiles.sync(world.projectilePool, alpha);
@@ -457,11 +629,25 @@ export class Game2D {
     this.end.update(dtSec);
   }
 
-  private syncHud(dtSec: number): boolean {
+  private syncHud(dtSec: number, force = false): boolean {
     const world = this.world;
     const s = this.hudState;
-    s.lives = world.lives;
-    s.gold = world.gold;
+    const over = world.outcome !== 'ongoing' && !this.hooks.endless;
+    if (this.hooks.endless) {
+      // Bench keeps steady topped-up counters (999 / 9999) so per-tick kill rewards do not re-rasterize Text every frame.
+      s.lives = 999;
+      s.gold = 9999;
+    } else {
+      s.lives = world.lives;
+      this.hudGoldTimer += dtSec;
+      const wsState = world.waveSystem.state;
+      const combatWave = wsState === 'spawning' || wsState === 'allSpawned' || wsState === 'clearing';
+      if (force || this.hudGoldDirty || !combatWave || this.ring.isOpen || this.stepper.paused || over || this.hudGoldTimer >= 0.12) {
+        s.gold = world.gold;
+        this.hudGoldDirty = false;
+        this.hudGoldTimer = 0;
+      }
+    }
     s.wave = world.waveSystem.currentWaveOneBased;
     s.totalWaves = world.waveSystem.totalWaves;
     s.paused = this.stepper.paused;
@@ -469,7 +655,6 @@ export class Game2D {
     s.canCall = world.outcome === 'ongoing' && world.waveSystem.canStartNextWave();
     const rawBonus = s.canCall ? world.waveSystem.getEarlyCallBonus() : 0;
     s.earlyBonus = world.mods.waveBonusMul === 1 ? rawBonus : Math.max(0, Math.round(rawBonus * world.mods.waveBonusMul));
-    const over = world.outcome !== 'ongoing' && !this.hooks.endless;
     s.banner = over ? '' : this.stepper.paused ? 'Paused' : this.rallyTower !== -1 ? 'Tap the road' : '';
     this.hud.update(s as HudState, dtSec);
     return over;
@@ -488,7 +673,7 @@ export class Game2D {
     this.stepper.paused = true;
     this.stepper.resetAccumulator();
     audio?.sound.setMusicDucked(true);
-    this.syncHud(0);
+    this.syncHud(0, true);
     return true;
   }
 

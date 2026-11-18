@@ -19,6 +19,28 @@ const FIRE_INTERVAL_MS: Partial<Record<TowerType, number>> = {
   archer: 65, cannon: 90, frost: 80, tesla: 85, mortar: 140, ballista: 110,
 };
 
+/** Pre-baked white-noise samples (xorshift32) copied into AudioBuffers off the gesture hot path. */
+export const PREBAKED_NOISE: Float32Array = (() => {
+  const out = new Float32Array(48_000);
+  let s = 0x6d2b79f5;
+  for (let i = 0; i < out.length; i++) {
+    s ^= s << 13;
+    s ^= s >>> 17;
+    s ^= s << 5;
+    out[i] = ((s >>> 0) / 0x80000000) - 1;
+  }
+  return out;
+})();
+
+export function fillNoiseChannel(dst: Float32Array): void {
+  let offset = 0;
+  while (offset < dst.length) {
+    const chunk = Math.min(PREBAKED_NOISE.length, dst.length - offset);
+    dst.set(PREBAKED_NOISE.subarray(0, chunk), offset);
+    offset += chunk;
+  }
+}
+
 export class SoundManager {
   private ctx: AudioContext | null = null;
   private noiseBuffer: AudioBuffer | null = null;
@@ -147,10 +169,7 @@ export class SoundManager {
   private createNoiseBuffer(ctx: AudioContext): AudioBuffer {
     const len = Math.floor(ctx.sampleRate * 0.4);
     const buffer = ctx.createBuffer(1, len, ctx.sampleRate);
-    const data = buffer.getChannelData(0);
-    for (let i = 0; i < len; i++) {
-      data[i] = Math.random() * 2 - 1;
-    }
+    fillNoiseChannel(buffer.getChannelData(0));
     return buffer;
   }
 
@@ -173,10 +192,14 @@ export class SoundManager {
     return bus;
   }
 
-  private releaseOnEnd(source: AudioScheduledSourceNode): void {
-    if (this.panBucket === null) return;
+  private releaseOnEnd(source: AudioScheduledSourceNode, tailNode?: AudioNode): void {
+    const hasVoice = this.panBucket !== null;
+    if (!hasVoice && !tailNode) return;
     const tag = this.voiceTag;
-    source.onended = () => this.voices.release(tag);
+    source.onended = () => {
+      if (hasVoice) this.voices.release(tag);
+      tailNode?.disconnect();
+    };
   }
 
   private tone(
@@ -205,7 +228,7 @@ export class SoundManager {
     g.gain.exponentialRampToValueAtTime(0.0001, now + durationSec);
     osc.connect(g);
     g.connect(output);
-    this.releaseOnEnd(osc);
+    this.releaseOnEnd(osc, g);
     osc.start(now);
     osc.stop(now + durationSec + 0.02);
   }
@@ -230,7 +253,7 @@ export class SoundManager {
     src.connect(filter);
     filter.connect(g);
     g.connect(output);
-    this.releaseOnEnd(src);
+    this.releaseOnEnd(src, g);
     src.start(now);
     src.stop(now + durationSec + 0.02);
   }
