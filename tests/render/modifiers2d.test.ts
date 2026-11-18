@@ -3,14 +3,19 @@ import { resetMusicPrefsCache, setMusicVolume } from '../../src/audio/musicPrefs
 import { EventBus } from '../../src/core/eventBus.ts';
 import { BALANCE } from '../../src/data/balance.ts';
 import {
+  CHALLENGE_IDS,
+  CHALLENGE_IDS_2D,
+  CHALLENGES,
   challengesForLevel,
+  isChallengeEffectiveIn2D,
   isChallengeId,
   runModifiersFor,
   type ChallengeId,
 } from '../../src/data/challenges.ts';
-import { dailyPairAllowed, isStrongRule, utcDayNumber } from '../../src/data/daily.ts';
+import { dailyChallengeFor, dailyPairAllowed, isStrongRule, utcDayNumber } from '../../src/data/daily.ts';
+import { LEVELS } from '../../src/data/levels/index.ts';
 import { LEVEL_L1C, LEVELS_2D } from '../../src/data/levels2d/index.ts';
-import { NEUTRAL_RUN_MODIFIERS } from '../../src/data/runModifiers.ts';
+import { hasModifierEffectIn2D, NEUTRAL_RUN_MODIFIERS } from '../../src/data/runModifiers.ts';
 import { maxedWorkshopRanks, workshopModifiers } from '../../src/data/workshop.ts';
 import { starWallet } from '../../src/game/progression.ts';
 import { createDefaultProgress, getDefaultSettings, saveSettings } from '../../src/platform/storage.ts';
@@ -347,6 +352,67 @@ describe('modes2d pure UI helpers', () => {
     p.challengeClears[0] = [initial[1].id];
     const updated = availableChallenges(id, p, LEVELS_2D);
     expect(updated.map((c) => c.completed)).toEqual([false, true]);
+  });
+
+  it('excludes Silent Skies and any ability-only challenge in 2D via data-driven patch check (no free badges)', () => {
+    // Data-driven check inspects patch fields, not hardcoded challenge IDs.
+    expect(hasModifierEffectIn2D({})).toBe(false);
+    expect(hasModifierEffectIn2D({ abilitiesDisabled: true })).toBe(false);
+    expect(hasModifierEffectIn2D({ abilityCooldownMul: 2 })).toBe(false);
+    expect(hasModifierEffectIn2D({ enemyHpMul: 1.12 })).toBe(true);
+    expect(hasModifierEffectIn2D({ championWaves: true })).toBe(true);
+
+    expect(isChallengeEffectiveIn2D(CHALLENGES.silentSkies)).toBe(false);
+    expect(CHALLENGE_IDS_2D).not.toContain('silentSkies');
+    expect(CHALLENGE_IDS_2D).toHaveLength(CHALLENGE_IDS.length - 1);
+    for (const id of CHALLENGE_IDS_2D) {
+      expect(isChallengeEffectiveIn2D(CHALLENGES[id]), id).toBe(true);
+    }
+
+    // Every 2D island (including Master islands i08–i16) excludes silentSkies in availableChallenges.
+    const p = createDefaultProgress(LEVELS_2D.length);
+    for (let i = 0; i < LEVELS_2D.length; i++) p.clears[i] = 1;
+    for (const lvl of LEVELS_2D) {
+      const offered = availableChallenges(lvl.id, p, LEVELS_2D);
+      expect(offered.length, lvl.id).toBeGreaterThan(0);
+      expect(offered.map((c) => c.id), lvl.id).not.toContain('silentSkies');
+      for (const c of offered) {
+        expect(isChallengeEffectiveIn2D(c), `${lvl.id}:${c.id}`).toBe(true);
+      }
+      if (lvl.difficulty === 'Master') {
+        expect(offered.map((c) => c.id), lvl.id).toEqual(['ironTide']);
+      }
+    }
+
+    // Even a hand-picked island ID with layout2d attached filters out silentSkies.
+    const masterPlotMock = { ...LEVELS[4], layout2d: LEVEL_L1C.layout2d };
+    expect(challengesForLevel(LEVELS[4])).toContain('silentSkies'); // 3D keeps Silent Skies
+    expect(challengesForLevel(masterPlotMock)).toEqual(['galeForce']); // 2D drops Silent Skies
+
+    // Winning a 2D Master island with ?challenge=silentSkies awards NO badge; winning ironTide masters it.
+    installMemoryStorage();
+    const masterIdx = LEVELS_2D.findIndex((l) => l.id === 'i16');
+    expect(masterIdx).toBeGreaterThan(0);
+    const freeAttempt = recordWin2D('i16', 3, 20, LEVELS_2D, ['silentSkies'])!;
+    expect(freeAttempt.newChallenges).toEqual([]);
+    expect(loadProgress2D(LEVELS_2D).challengeClears[masterIdx]).toEqual([]);
+    expect(islandStates(loadProgress2D(LEVELS_2D), LEVELS_2D)[masterIdx].mastered).toBe(false);
+
+    const realClear = recordWin2D('i16', 3, 20, LEVELS_2D, ['ironTide'])!;
+    expect(realClear.newChallenges).toEqual(['ironTide']);
+    expect(islandStates(loadProgress2D(LEVELS_2D), LEVELS_2D)[masterIdx].mastered).toBe(true);
+
+    // Daily pool filtering also supports CHALLENGE_IDS_2D with zero silentSkies rolls.
+    for (let day = 20_000; day < 20_200; day++) {
+      const dc = dailyChallengeFor(day, [0, 1, 2], CHALLENGE_IDS_2D)!;
+      expect(dc.challenges).not.toContain('silentSkies');
+    }
+
+    // SimWorld on a 2D plot map never allows casting active abilities even without silentSkies.
+    const w2d = new SimWorld(LEVEL_L1C, new EventBus());
+    w2d.startNextWave();
+    expect(w2d.castMeteor(0, 0)).toBe(false);
+    expect(w2d.castOvercharge()).toBe(false);
   });
 
   it('canPlayEndless requires at least one clear on a valid 2D island', () => {
