@@ -254,7 +254,11 @@ export class Game2D {
     ez /= Math.max(1, ents.length);
     this.insets = readSafeInsets();
     this.ring.insets = this.insets;
-    this.hud.layout(w, h, { x: this.map.screenX(this.map.pxX(ex)) + 10, y: this.map.screenY(this.map.pxY(ez)) }, this.insets);
+    // Horn sits on the open grass right of the cave mouths (≈ 30 image px east, 8 px up of their
+    // midpoint): clear of both caves, the roads and the plots; its label goes above it.
+    const hornPx = this.map.pxX(ex) + 30;
+    const hornPy = this.map.pxY(ez) - 8;
+    this.hud.layout(w, h, { x: this.map.screenX(hornPx), y: this.map.screenY(hornPy) }, this.insets);
     this.end.layout(w, h, this.insets);
     this.ring.close();
     this.rangeDisc.visible = false;

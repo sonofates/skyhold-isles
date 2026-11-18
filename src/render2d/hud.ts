@@ -182,7 +182,7 @@ export class Hud {
     const minY = insets.top + pad + this.hornR + 4;
     this.hornX = Math.max(insets.left + pad + this.hornR, Math.min(w - insets.right - pad - this.hornR, hornAt.x));
     this.hornY = Math.max(minY, Math.min(pl.y - this.hornR - 30, hornAt.y));
-    this.hornLabel.position.set(this.hornX, this.hornY + this.hornR + 10);
+    this.hornLabel.position.set(this.hornX, this.hornY - this.hornR - 12);
     setFontSize(this.hornLabel, Math.round(Math.max(15, 20 * u)));
 
     setInkSize(this.centre, Math.round(Math.max(24, 44 * u)));
