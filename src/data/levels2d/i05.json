@@ -306,17 +306,17 @@
  ],
  "plotRadiusPx": 48,
  "goalGate": {
-  "prop": "keep-orchard-w",
+  "prop": "gatehouse-orchard-w",
   "facing": "W",
   "front": {
    "art": "map-i05-layered-gate-goal",
    "rect": [
-    1401.5,
-    182.0,
-    152.0,
-    132.0
+    1399.5,
+    192.0,
+    108.0,
+    153.0
    ],
-   "baseY": 314.0
+   "baseY": 345.43
   }
  }
 }

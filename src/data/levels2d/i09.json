@@ -522,17 +522,17 @@
   ]
  ],
  "goalGate": {
-  "prop": "keep-orchard-w",
+  "prop": "gatehouse-orchard-w",
   "facing": "W",
   "front": {
    "art": "map-i09-layered-gate-goal",
    "rect": [
-    1229.5,
-    169.5,
-    246.5,
-    189.5
+    1251.0,
+    214.5,
+    153.0,
+    179.5
    ],
-   "baseY": 359.33
+   "baseY": 394.1
   }
  }
 }

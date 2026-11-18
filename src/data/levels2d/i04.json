@@ -362,17 +362,17 @@
  ],
  "plotRadiusPx": 48,
  "goalGate": {
-  "prop": "keep-terraces-w",
+  "prop": "gatehouse-terraces-w",
   "facing": "W",
   "front": {
    "art": "map-i04-layered-gate-goal",
    "rect": [
-    1374.5,
-    501.5,
-    236.5,
-    176.5
+    1425.5,
+    541.0,
+    124.5,
+    137.0
    ],
-   "baseY": 678.33
+   "baseY": 677.82
   }
  }
 }

@@ -354,17 +354,17 @@
  ],
  "plotRadiusPx": 48,
  "goalGate": {
-  "prop": "keep-highlands-e",
+  "prop": "gatehouse-highlands-e",
   "facing": "E",
   "front": {
    "art": "map-i03-layered-gate-goal",
    "rect": [
-    655.5,
-    422.5,
-    212.5,
-    165.0
+    725.5,
+    465.5,
+    118.0,
+    142.0
    ],
-   "baseY": 587.33
+   "baseY": 607.31
   }
  }
 }
