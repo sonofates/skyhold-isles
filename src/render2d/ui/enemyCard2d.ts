@@ -159,7 +159,7 @@ export function mountEnemyCard(portrait: (type: string) => string | null): Enemy
             y = below + h <= screen.h - 8 ? below : Math.max(8, r.y - 6 - h);
           }
         }
-        card.style.transform = `translate(${Math.round(x)}px, ${Math.round(y)}px)`;
+        card.style.transform = `translate(${Math.round(x)}px, ${Math.round(y)}px)`; // i18n-ignore (css)
       }
     },
     debug: () => ({ shown, type, hpFrac, fell }),
