@@ -12,6 +12,7 @@ import type { EnemyType } from '../core/types.ts';
 import { FrameStats } from './frameStats.ts';
 import { Game2D, type Game2DHooks } from './game2d.ts';
 import { HUD_FONT } from './hudText.ts';
+import { renderResolution } from './renderResolution.ts';
 import type { MapView } from './mapView.ts';
 import { VARIANT_SLACK } from './mapVariant.ts';
 import { computeMapFit } from './viewFit.ts';
@@ -109,7 +110,7 @@ async function main(): Promise<void> {
     background: '#5b8f3a',
     antialias: true,
     autoDensity: true,
-    resolution: Math.min(window.devicePixelRatio || 1, 2),
+    resolution: renderResolution(window.innerWidth, window.innerHeight, window.devicePixelRatio || 1, Number(new URLSearchParams(location.search).get('dpr')) || undefined),
     preference: 'webgl',
   });
   document.getElementById('stage')!.appendChild(app.canvas);
