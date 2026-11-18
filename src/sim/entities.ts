@@ -71,6 +71,18 @@ export interface EnemyEntity {
   blockers: number;
   /** Seconds until this enemy's next strike at a soldier holding it. */
   meleeTimer: number;
+  /** Seconds the enemy is stunned (hero Shield Bash / Thunder Call). */
+  stunTimer: number;
+  /** Seconds left of Wren's Hunter's Mark vulnerability. */
+  markTimer: number;
+  /** Extra damage multiplier taken while `markTimer > 0` (0.35 = +35%). */
+  markVuln: number;
+  /** Hold units applied by a melee hero this tick (`HeroSystem`, combined with `blockers`). */
+  heroBlockers: number;
+  /** Melee damage reduction applied by Bran's Bulwark while blocked (`0..0.65`). */
+  heroDamageReduction: number;
+  /** Seconds until this enemy's next melee strike against a hero in contact. */
+  heroMeleeTimer: number;
 }
 
 export function createEnemyEntity(poolIndex: number): EnemyEntity {
@@ -122,6 +134,12 @@ export function createEnemyEntity(poolIndex: number): EnemyEntity {
     hexTargetId: -1,
     blockers: 0,
     meleeTimer: 0,
+    stunTimer: 0,
+    markTimer: 0,
+    markVuln: 0,
+    heroBlockers: 0,
+    heroDamageReduction: 0,
+    heroMeleeTimer: 0,
   };
 }
 
@@ -150,6 +168,14 @@ export interface TowerEntity {
   auraRange: number;
   /** Shots fired so far; drives every-Nth-shot tier signatures (volley, overload). */
   shotCount: number;
+  /** Fire-rate bonus received from Tobb's Tinker passive this tick (0 = none). */
+  heroRateBonus?: number;
+  /** Range bonus received from Tobb's upgraded Tinker passive this tick (0 = none). */
+  heroRangeBonus?: number;
+  /** Seconds remaining of Tobb's Overhaul active boost on this tower. */
+  overhaulTimer?: number;
+  /** Fire-rate bonus granted while `overhaulTimer > 0`. */
+  overhaulRateBonus?: number;
 }
 
 export interface ProjectileEntity {
@@ -180,6 +206,10 @@ export interface ProjectileEntity {
   burnDamage: number;
   burnRadius: number;
   burnDuration: number;
+  /** True when fired by a ranged hero or hero gizmo turret rather than a tower. */
+  fromHero: boolean;
+  /** Overrides `TOWER_DEFS[towerType].hitsFlyers` when `fromHero` is true. */
+  hitsFlyersOverride: boolean;
 
   startX: number;
   startY: number;
@@ -229,6 +259,8 @@ export function createProjectileEntity(poolIndex: number): ProjectileEntity {
     burnDamage: 0,
     burnRadius: 0,
     burnDuration: 0,
+    fromHero: false,
+    hitsFlyersOverride: false,
     startX: 0,
     startY: 0,
     startZ: 0,
