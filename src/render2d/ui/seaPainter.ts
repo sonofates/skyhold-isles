@@ -3,6 +3,7 @@
  * soft brush dabs, little wave crests, an edge vignette and a compass rose. Seeded, so it looks the
  * same every visit. To be replaced by a painted sea chart (docs/p3-art-needs.md).
  */
+import { t } from '../../i18n/index.ts';
 
 function rng(seed: number): () => number {
   let s = seed >>> 0 || 1;
@@ -125,7 +126,8 @@ function compassRose(g: CanvasRenderingContext2D, cx: number, cy: number, R: num
   g.fillStyle = '#fff4dc';
   g.strokeStyle = '#3a2412';
   g.lineWidth = 3;
-  g.strokeText('N', 0, -R - 6);
-  g.fillText('N', 0, -R - 6);
+  const north = t('map.compassN');
+  g.strokeText(north, 0, -R - 6);
+  g.fillText(north, 0, -R - 6);
   g.restore();
 }

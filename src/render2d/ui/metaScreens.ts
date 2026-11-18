@@ -13,6 +13,9 @@ import { buyRank, maxRank, nextRankCost, rankOf, WORKSHOP_BRANCHES, WORKSHOP_UPG
 import { featStatuses, type FeatIcon } from '../../game/feats.ts';
 import { isIslandMastered, starWallet } from '../../game/progression.ts';
 import { loadSettings, saveSettings } from '../../platform/storage.ts';
+import { branchName, challengeDesc, challengeName, difficultyName, featDesc, featName, islandName, upgradeName, upgradeRankText } from '../../i18n/data.ts';
+import { getLocale, LANGUAGE_NAMES, LOCALES, setLocale, shortDate, t, type Locale } from '../../i18n/index.ts';
+import { reapplyLocaleSetting, saveLocaleSetting } from '../../i18n/localeSetting.ts';
 import { ART, el, glyph, img, KIT, medal, openSheet, plank, slider, starsRow, toggle, type Sheet } from './dom.ts';
 import { endlessRecordText, tierColour } from './modeBits.ts';
 import { dailyForToday, dailyHref2D } from './modes2d.ts';
@@ -34,14 +37,14 @@ function tally(value: string | number, suffix: string): HTMLDivElement {
 // --- Workshop ------------------------------------------------------------------------------------
 
 export function openWorkshop(ctx: MetaContext): Sheet {
-  const sheet = openSheet('Workshop', { cls: 'pu-meta', testid: 'workshop2d' });
+  const sheet = openSheet(t('ws.title'), { cls: 'pu-meta', testid: 'workshop2d' });
   let lastBought: string | null = null;
   let armedUntil = 0;
   const render = (): void => {
     const p = ctx.progress;
     const wallet = starWallet(p);
     sheet.body.innerHTML = '';
-    const refund = plank(performance.now() < armedUntil ? `Tap again · refund ${wallet.spent}★` : 'Refund all', { kind: 'small', testid: 'ws2d-refund' });
+    const refund = plank(performance.now() < armedUntil ? t('ws.refundArmed', { n: wallet.spent }) : t('ws.refundAll'), { kind: 'small', testid: 'ws2d-refund' });
     refund.disabled = wallet.spent === 0;
     refund.addEventListener('click', () => {
       if (performance.now() < armedUntil) {
@@ -54,10 +57,10 @@ export function openWorkshop(ctx: MetaContext): Sheet {
       render();
       window.setTimeout(render, 3300);
     });
-    const head = el('div', 'pu-meta-head', {}, tally(wallet.available, 'to spend'), el('div', 'pu-meta-note pu-ink-soft', {}, 'Spend stars on lasting upgrades. Refund any time.'), refund);
+    const head = el('div', 'pu-meta-head', {}, tally(wallet.available, t('ws.toSpend')), el('div', 'pu-meta-note pu-ink-soft', {}, t('ws.note')), refund);
     const cols = el('div', 'pu-ws-cols');
     for (const branch of WORKSHOP_BRANCHES) {
-      const col = el('section', 'pu-ws-col', {}, el('h3', 'pu-letter', {}, branch.name));
+      const col = el('section', 'pu-ws-col', {}, el('h3', 'pu-letter', {}, branchName(branch.id)));
       for (const def of WORKSHOP_UPGRADES) if (def.branch === branch.id) col.append(node(def, wallet.available));
       cols.append(col);
     }
@@ -65,7 +68,7 @@ export function openWorkshop(ctx: MetaContext): Sheet {
       'div',
       'pu-meta-foot pu-ink-soft',
       {},
-      wallet.earned === 0 ? 'Win islands to earn stars: up to 3★ each, challenges and dailies add more.' : `${wallet.spent}/${workshopTotalCost()}★ invested · ${wallet.earned}★ earned`,
+      wallet.earned === 0 ? t('ws.footEmpty') : t('ws.foot', { spent: wallet.spent, total: workshopTotalCost(), earned: wallet.earned }),
     );
     sheet.body.append(head, cols, foot);
   };
@@ -80,21 +83,21 @@ export function openWorkshop(ctx: MetaContext): Sheet {
     const max = maxRank(def);
     const cost = nextRankCost(p.workshop, def.id);
     const n = el('div', `pu-ws-node pu-card${rank >= max ? ' maxed' : ''}${lastBought === def.id ? ' just-bought' : ''}`, { 'data-upgrade': def.id });
-    const now = rank > 0 ? def.rankText[rank - 1] : 'Not built';
+    const now = rank > 0 ? upgradeRankText(def, rank) : t('ws.notBuilt');
     const effect = el('div', 'pu-ws-effect pu-ink-soft', {}, now);
-    if (rank < max) effect.append(' → ', el('span', 'next', {}, def.rankText[rank]));
-    const pips = el('span', 'pu-pips', { 'aria-label': `Rank ${rank} of ${max}` });
+    if (rank < max) effect.append(' → ', el('span', 'next', {}, upgradeRankText(def, rank + 1)));
+    const pips = el('span', 'pu-pips', { 'aria-label': t('ws.rank', { r: rank, max }) });
     for (let i = 0; i < max; i++) pips.append(el('span', `pu-pip${i < rank ? ' on' : ''}`));
     let buy: HTMLButtonElement;
     if (cost === null) {
-      buy = plank('Max', { kind: 'small', testid: `ws2d-buy-${def.id}` });
+      buy = plank(t('ws.max'), { kind: 'small', testid: `ws2d-buy-${def.id}` });
       buy.disabled = true;
     } else {
       buy = plank(String(cost), { kind: 'small', testid: `ws2d-buy-${def.id}` });
       buy.prepend(img(KIT.star));
       (buy.firstChild as HTMLImageElement).style.cssText = 'width:1.2em;height:1.2em';
       buy.disabled = cost > available;
-      buy.setAttribute('aria-label', `Upgrade ${def.name} for ${cost} stars`);
+      buy.setAttribute('aria-label', t('ws.buyAria', { name: upgradeName(def), n: cost }));
       buy.addEventListener('click', () => {
         const next = buyRank(p.workshop, def.id, starWallet(p).available);
         if (!next) return;
@@ -103,7 +106,7 @@ export function openWorkshop(ctx: MetaContext): Sheet {
         commit();
       });
     }
-    n.append(el('div', 'pu-ws-name', {}, def.name), effect, el('div', 'pu-ws-row', {}, pips, buy));
+    n.append(el('div', 'pu-ws-name', {}, upgradeName(def)), effect, el('div', 'pu-ws-row', {}, pips, buy));
     return n;
   };
   render();
@@ -133,7 +136,7 @@ function seal(icon: IconName | 'star'): HTMLSpanElement {
 }
 
 export function openLogbook(ctx: MetaContext, tab: 'islands' | 'feats' = 'islands'): Sheet {
-  const sheet = openSheet('Logbook', { cls: 'pu-meta', testid: 'logbook2d' });
+  const sheet = openSheet(t('lb.title'), { cls: 'pu-meta', testid: 'logbook2d' });
   const render = (): void => {
     const p = ctx.progress;
     const levels = ctx.levels;
@@ -160,12 +163,12 @@ export function openLogbook(ctx: MetaContext, tab: 'islands' | 'feats' = 'island
       'div',
       'pu-lb-totals',
       {},
-      total('star', `${wallet.campaign}/${levels.length * 3}`, 'stars'),
-      total('medal', `${badges}/${badgesMax}`, 'badges'),
-      total('crown', `${mastered}/${levels.length}`, 'mastered'),
-      total('trophy', String(wins), 'victories'),
-      total('daily', String(liveStreak(p.daily, utcDayNumber(Date.now()))), `day streak · best ${p.daily.bestStreak}`),
-      total('endless', `${medals}/${levels.length * 3}`, 'endless medals'),
+      total('star', `${wallet.campaign}/${levels.length * 3}`, t('lb.stars')),
+      total('medal', `${badges}/${badgesMax}`, t('lb.badges')),
+      total('crown', `${mastered}/${levels.length}`, t('lb.mastered')),
+      total('trophy', String(wins), t('lb.victories')),
+      total('daily', String(liveStreak(p.daily, utcDayNumber(Date.now()))), t('lb.streak', { n: p.daily.bestStreak })),
+      total('endless', `${medals}/${levels.length * 3}`, t('lb.medals')),
     );
     const feats = featStatuses(p, levels);
     const earned = feats.filter((f) => f.earned).length;
@@ -180,8 +183,8 @@ export function openLogbook(ctx: MetaContext, tab: 'islands' | 'feats' = 'island
       });
       tabs.append(b);
     };
-    mk('islands', 'Islands');
-    mk('feats', `Feats ${earned}/${feats.length}`);
+    mk('islands', t('lb.tabIslands'));
+    mk('feats', t('lb.tabFeats', { e: earned, n: feats.length }));
     const list = el('div', 'pu-ledger');
     if (tab === 'islands') {
       levels.forEach((lvl, i) => {
@@ -189,7 +192,7 @@ export function openLogbook(ctx: MetaContext, tab: 'islands' | 'feats' = 'island
         const row = el('div', `pu-ledger-row${unlocked ? '' : ' locked'}`);
         const num = el('span', 'pu-ledger-num pu-letter', {}, String(i + 1));
         if (!unlocked) {
-          row.append(num, el('span', 'pu-ledger-name pu-ink', {}, 'Uncharted isle', el('small', 'pu-ink-soft', {}, `Clear ${levels[Math.max(0, i - 1)].name} to sail here`)));
+          row.append(num, el('span', 'pu-ledger-name pu-ink', {}, t('lb.uncharted'), el('small', 'pu-ink-soft', {}, t('lb.clearToSail', { name: islandName(levels[Math.max(0, i - 1)]) }))));
         } else {
           const lives = p.bestLives[i] ?? 0;
           const w = p.clears[i] ?? 0;
@@ -201,27 +204,27 @@ export function openLogbook(ctx: MetaContext, tab: 'islands' | 'feats' = 'island
             b.classList.toggle('off', !got);
             b.setAttribute('aria-hidden', 'false');
             b.setAttribute('role', 'img');
-            b.setAttribute('aria-label', `${CHALLENGES[id].name}: ${got ? 'badge earned' : 'not yet'}`);
-            b.title = `${CHALLENGES[id].name} — ${CHALLENGES[id].description}${got ? ' (badge earned)' : ''}`;
+            b.setAttribute('aria-label', t(got ? 'lb.badgeAria' : 'lb.badgeAriaNot', { name: challengeName(id) }));
+            b.title = t(got ? 'lb.badgeTitleEarned' : 'lb.badgeTitle', { name: challengeName(id), desc: challengeDesc(id) });
             badges.append(b);
           }
           const rec = endlessRecordText(p.bestEndlessWaves[i] ?? 0, lvl.waves.length);
           const endless = el(
             'span',
             `pu-rec pu-ledger-endless pu-ink${rec.tier > 0 ? '' : ' none'}`,
-            { title: `Endless best: ${rec.best}${rec.tierName ? ` (${rec.tierName} medal)` : ''}`, 'data-testid': `lb2d-endless-${lvl.id}` },
+            { title: rec.tierName ? t('lb.endlessTitleMedal', { best: rec.best, tier: rec.tierName }) : t('lb.endlessTitle', { best: rec.best }), 'data-testid': `lb2d-endless-${lvl.id}` },
             glyph('endless'),
-            (p.bestEndlessWaves[i] ?? 0) > lvl.waves.length ? `W${p.bestEndlessWaves[i]}` : '–',
+            (p.bestEndlessWaves[i] ?? 0) > lvl.waves.length ? t('lb.waveShort', { n: p.bestEndlessWaves[i] }) : '–',
           );
           if (rec.tier > 0) endless.style.setProperty('--tier', tierColour(rec.tier));
           row.append(
             num,
-            el('span', 'pu-ledger-name pu-ink', {}, lvl.name, el('small', 'pu-ink-soft', {}, lvl.difficulty)),
+            el('span', 'pu-ledger-name pu-ink', {}, islandName(lvl), el('small', 'pu-ink-soft', {}, difficultyName(lvl.difficulty))),
             starsRow(p.bestStars[i] ?? 0),
             badges,
             endless,
-            el('span', 'pu-rec pu-ink', { title: 'Best lives left' }, glyph('heart'), lives > 0 ? String(lives) : '–'),
-            el('span', 'pu-ink-soft', { title: 'Victories' }, w > 0 ? `${w}× won` : 'not won'),
+            el('span', 'pu-rec pu-ink', { title: t('lb.bestLives') }, glyph('heart'), lives > 0 ? String(lives) : '–'),
+            el('span', 'pu-ink-soft', { title: t('lb.victoriesTitle') }, w > 0 ? t('lb.wins', { n: w }) : t('lb.notWon')),
           );
         }
         list.append(row);
@@ -237,7 +240,7 @@ export function openLogbook(ctx: MetaContext, tab: 'islands' | 'feats' = 'island
             `pu-feat${f.earned ? '' : ' locked'}`,
             {},
             seal(FEAT_ICON[f.def.icon]),
-            el('div', '', {}, el('div', 'pu-feat-name pu-ink', {}, f.def.name), el('div', 'pu-feat-desc pu-ink-soft', {}, f.def.description)),
+            el('div', '', {}, el('div', 'pu-feat-name pu-ink', {}, featName(f.def)), el('div', 'pu-feat-desc pu-ink-soft', {}, featDesc(f.def))),
             bar,
           ),
         );
@@ -249,11 +252,11 @@ export function openLogbook(ctx: MetaContext, tab: 'islands' | 'feats' = 'island
       {},
       tab === 'feats'
         ? earned === 0
-          ? 'Feats are long voyages: they unlock as your records grow.'
-          : `${earned} of ${feats.length} feats earned`
+          ? t('lb.featsEmpty')
+          : t('lb.featsFoot', { n: earned, total: feats.length })
         : wins === 0
-          ? 'Your victories and records will be written here.'
-          : `${cleared}/${levels.length} isles cleared`,
+          ? t('lb.empty')
+          : t('lb.cleared', { n: cleared, total: levels.length }),
     );
     sheet.body.append(totals, tabs, list, foot);
   };
@@ -295,45 +298,44 @@ export function dailyFor2D(progress: ProgressData, nowMs: number, levels: readon
 }
 
 export function openDaily(ctx: MetaContext, nowMs = Date.now()): Sheet {
-  const sheet = openSheet('Daily Squall', { cls: 'pu-meta', red: true, testid: 'daily2d' });
+  const sheet = openSheet(t('daily.title'), { cls: 'pu-meta', red: true, testid: 'daily2d' });
   const p = ctx.progress;
   const daily = dailyFor2D(p, nowMs, ctx.levels);
   if (!daily) {
     sheet.body.append(
-      el('div', 'pu-daily-island', {}, seal('daily'), el('div', 'pu-ink', {}, 'The squall is gathering')),
-      el('p', 'pu-meta-note pu-ink-soft', {}, 'Win your first island to open the Daily Squall: one island and two challenge rules, new every day, the same for every captain.'),
+      el('div', 'pu-daily-island', {}, seal('daily'), el('div', 'pu-ink', {}, t('daily.gathering'))),
+      el('p', 'pu-meta-note pu-ink-soft', {}, t('daily.lockedNote')),
     );
     return sheet;
   }
   const level = ctx.levels[daily.levelIndex];
   const doneToday = p.daily.lastDay === daily.day;
   const streak = liveStreak(p.daily, daily.day);
-  const day = new Date(daily.day * 86_400_000).toLocaleDateString(undefined, { month: 'short', day: 'numeric', timeZone: 'UTC' });
+  const day = shortDate(daily.day);
   const left = el(
     'div',
     '',
     {},
-    el('div', 'pu-daily-island', {}, medal(ctx.thumb(level), 'calc(var(--s) * 8)'), el('div', '', {}, el('div', 'pu-ink', {}, level.name), el('div', 'pu-ink-soft', {}, `${level.difficulty} · ${day} (UTC)`))),
+    el('div', 'pu-daily-island', {}, medal(ctx.thumb(level), 'calc(var(--s) * 8)'), el('div', '', {}, el('div', 'pu-ink', {}, islandName(level)), el('div', 'pu-ink-soft', {}, t('daily.meta', { difficulty: difficultyName(level.difficulty), day })))),
     el(
       'div',
       'pu-chips',
       {},
-      el('div', 'pu-chip pu-ink', {}, el('strong', '', {}, doneToday ? '✓' : '+1★'), el('span', 'pu-ink-soft', {}, doneToday ? 'won today' : 'reward')),
-      el('div', 'pu-chip pu-ink', {}, el('strong', '', {}, String(streak)), el('span', 'pu-ink-soft', {}, 'day streak')),
-      el('div', 'pu-chip pu-ink', {}, el('strong', '', {}, String(p.daily.bestStreak)), el('span', 'pu-ink-soft', {}, 'best streak')),
-      el('div', 'pu-chip pu-ink', {}, el('strong', '', {}, String(p.daily.total)), el('span', 'pu-ink-soft', {}, 'won')),
+      el('div', 'pu-chip pu-ink', {}, el('strong', '', {}, doneToday ? '✓' : '+1★'), el('span', 'pu-ink-soft', {}, doneToday ? t('daily.wonToday') : t('daily.reward'))),
+      el('div', 'pu-chip pu-ink', {}, el('strong', '', {}, String(streak)), el('span', 'pu-ink-soft', {}, t('daily.streak'))),
+      el('div', 'pu-chip pu-ink', {}, el('strong', '', {}, String(p.daily.bestStreak)), el('span', 'pu-ink-soft', {}, t('daily.bestStreak'))),
+      el('div', 'pu-chip pu-ink', {}, el('strong', '', {}, String(p.daily.total)), el('span', 'pu-ink-soft', {}, t('daily.won'))),
     ),
   );
   const rules = el('div', '');
   for (const id of daily.challenges) {
-    const def = CHALLENGES[id];
-    rules.append(el('div', 'pu-rule', {}, ruleSeal(id), el('div', 'pu-ink', {}, def.name, el('small', 'pu-ink-soft', {}, def.description))));
+    rules.append(el('div', 'pu-rule', {}, ruleSeal(id), el('div', 'pu-ink', {}, challengeName(id), el('small', 'pu-ink-soft', {}, challengeDesc(id)))));
   }
-  const start = plank('Set sail', {
+  const start = plank(t('daily.setSail'), {
     kind: 'primary',
     icon: 'play',
     testid: 'daily2d-start',
-    sub: doneToday ? 'No reward until tomorrow' : 'Win once today for +1★',
+    sub: doneToday ? t('daily.noReward') : t('daily.winOnce'),
   });
   start.addEventListener('click', () => {
     sheet.close();
@@ -345,10 +347,45 @@ export function openDaily(ctx: MetaContext, nowMs = Date.now()): Sheet {
 
 // --- Settings ------------------------------------------------------------------------------------
 
+/**
+ * Language switch: one plank per language, each in its own name. Picking one stores it with the
+ * settings and reloads the map with Settings open again (every screen is rebuilt in the new
+ * language; the map's screens are built once, so a reload is the simplest correct refresh).
+ */
+function languagePicker(ctx: MetaContext): HTMLElement {
+  const box = el('div', 'pu-tabs pu-lang', { role: 'radiogroup', 'aria-label': t('set.language') });
+  const cur = getLocale();
+  for (const l of LOCALES) {
+    const b = plank(LANGUAGE_NAMES[l], { kind: 'small', testid: `set2d-lang-${l}` });
+    b.setAttribute('role', 'radio');
+    b.setAttribute('aria-checked', String(l === cur));
+    b.setAttribute('aria-selected', String(l === cur));
+    b.setAttribute('lang', l);
+    b.addEventListener('click', () => switchLocale(l, ctx));
+    box.append(b);
+  }
+  return box;
+}
+
+function switchLocale(l: Locale, ctx: MetaContext): void {
+  saveLocaleSetting(l);
+  if (l === getLocale()) return;
+  setLocale(l);
+  ctx.onChange();
+  const q = new URLSearchParams(location.search);
+  q.delete('lang');
+  q.set('screen', 'settings');
+  location.assign(`${location.pathname}?${q.toString()}`);
+}
+
 export function openSettings(ctx: MetaContext): Sheet {
-  const sheet = openSheet('Settings', { cls: 'pu-meta', testid: 'settings2d' });
+  const sheet = openSheet(t('set.title'), { cls: 'pu-meta', testid: 'settings2d' });
   const s: GameSettings = loadSettings();
-  const save = (): void => saveSettings(s);
+  const save = (): void => {
+    saveSettings(s);
+    // saveSettings() drops fields it does not know: put the language back next to them.
+    reapplyLocaleSetting();
+  };
   const row = (label: string, sub: string | null, control: HTMLElement): HTMLElement =>
     el('div', 'pu-set-row', {}, el('div', 'pu-ink', {}, label, sub ? el('small', 'pu-ink-soft', {}, sub) : null), control);
   const quiet = (r: HTMLElement): HTMLElement => {
@@ -361,7 +398,7 @@ export function openSettings(ctx: MetaContext): Sheet {
     return r;
   };
   const val = el('span', 'pu-slider-val pu-ink', {}, `${Math.round(s.masterVolume * 100)}%`);
-  const vol = slider(s.masterVolume, 'Master volume', 'set2d-volume', (v) => {
+  const vol = slider(s.masterVolume, t('set.volumeAria'), 'set2d-volume', (v) => {
     s.masterVolume = Math.round(v * 100) / 100;
     val.textContent = `${Math.round(s.masterVolume * 100)}%`;
     save();
@@ -369,59 +406,60 @@ export function openSettings(ctx: MetaContext): Sheet {
   const volBox = el('div', '', {}, vol, val);
   volBox.style.cssText = 'display:flex;align-items:center;gap:calc(var(--s) * 1)';
   let armed = 0;
-  const reset = plank('Reset isles progress', { kind: 'small', testid: 'set2d-reset' });
+  const reset = plank(t('set.reset'), { kind: 'small', testid: 'set2d-reset' });
   reset.addEventListener('click', () => {
     if (performance.now() < armed) {
       resetProgress2D();
       armed = 0;
-      reset.querySelector('span')!.textContent = 'Progress erased';
+      reset.querySelector('span')!.textContent = t('set.resetDone');
       reset.disabled = true;
       ctx.onChange();
       return;
     }
     armed = performance.now() + 3200;
-    reset.querySelector('span')!.textContent = 'Tap again to erase';
+    reset.querySelector('span')!.textContent = t('set.resetArmed');
     window.setTimeout(() => {
-      if (!reset.disabled) reset.querySelector('span')!.textContent = 'Reset isles progress';
+      if (!reset.disabled) reset.querySelector('span')!.textContent = t('set.reset');
     }, 3300);
   });
   // The painted isles have no sound player yet: volume / sound are kept (the 3D isles use them)
   // but labelled as such. Shake, damage numbers and vibration work in the painted isles.
   sheet.body.append(
-    quiet(row('Volume', 'No sound in the painted isles yet', volBox)),
+    row(t('set.language'), t('set.languageNote'), languagePicker(ctx)),
+    quiet(row(t('set.volume'), t('set.volumeNote'), volBox)),
     quiet(row(
-      'Sound',
-      'Kept for when painted-isle sound arrives',
-      toggle(!s.muted, 'Sound on', 'set2d-sound', (v) => {
+      t('set.sound'),
+      t('set.soundNote'),
+      toggle(!s.muted, t('set.soundAria'), 'set2d-sound', (v) => {
         s.muted = !v;
         save();
       }),
     )),
     row(
-      'Screen shake',
-      'Big hits rattle the view',
-      toggle(s.cameraShake, 'Screen shake', 'set2d-shake', (v) => {
+      t('set.shake'),
+      t('set.shakeNote'),
+      toggle(s.cameraShake, t('set.shake'), 'set2d-shake', (v) => {
         s.cameraShake = v;
         save();
       }),
     ),
     row(
-      'Damage numbers',
-      'Show hit numbers over foes',
-      toggle(s.damageNumbers, 'Damage numbers', 'set2d-dmg', (v) => {
+      t('set.dmg'),
+      t('set.dmgNote'),
+      toggle(s.damageNumbers, t('set.dmg'), 'set2d-dmg', (v) => {
         s.damageNumbers = v;
         save();
       }),
     ),
     row(
-      'Vibration',
-      'Taps and hits on phones',
-      toggle(s.haptics, 'Vibration', 'set2d-haptics', (v) => {
+      t('set.haptics'),
+      t('set.hapticsNote'),
+      toggle(s.haptics, t('set.haptics'), 'set2d-haptics', (v) => {
         s.haptics = v;
         save();
       }),
     ),
-    row('Painted isles progress', 'Stars, unlocks and Workshop of the 2D isles', reset),
+    row(t('set.progress'), t('set.progressNote'), reset),
   );
   return sheet;
 }

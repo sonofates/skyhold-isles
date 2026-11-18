@@ -1,4 +1,5 @@
 import { ENEMY_DEFS } from '../data/enemies.ts';
+import { t } from '../i18n/index.ts';
 import type { LoadedArt } from './assets2d.ts';
 import { enemyArtFor } from './manifest.ts';
 import { roundButton } from './ui/dom.ts';
@@ -29,15 +30,15 @@ export interface Codex2D {
 }
 
 /**
- * Mounts the DOM codex (src/ui/content/codexScreen.ts) on the 2D page with the painted art. The
- * 3D game's global UI stylesheet and the codex code are loaded lazily, only when it first opens,
- * so a plain 2D session pays nothing. `onToggle(open)` lets the game pause while it is open.
+ * Mounts the painted Codex (ui/codexSheet.ts) on the 2D page with the painted art, in the player's
+ * language. The sheet code is loaded lazily, only when it first opens, so a plain 2D session pays
+ * nothing. `onToggle(open)` lets the game pause while it is open.
  */
 export function mountCodex2D(art: LoadedArt, onToggle: (open: boolean) => void): Codex2D {
   // Painted round kit button (book glyph), in the HUD's top-right row left of pause / speed.
   const wrap = document.createElement('div');
   wrap.className = 'pu';
-  const btn = roundButton('codex', 'Open codex', 'codex2d-open', 'Codex');
+  const btn = roundButton('codex', t('codex.open'), 'codex2d-open', t('codex.button'));
   btn.classList.add('pu-codex-btn');
   wrap.appendChild(btn);
   document.body.appendChild(wrap);
@@ -54,35 +55,22 @@ export function mountCodex2D(art: LoadedArt, onToggle: (open: boolean) => void):
   window.addEventListener('resize', place);
 
   let gameHidden = false;
-  let screen: { open: () => void } | null = null;
-  let loading: Promise<void> | null = null;
-  const load = (): Promise<void> => {
-    loading ??= (async () => {
-      await import('../style.css');
-      const [{ CodexScreen }, { setCodexArtResolver }] = await Promise.all([
-        import('../ui/content/codexScreen.ts'),
-        import('../ui/content/codexArt.ts'),
-      ]);
-      setCodexArtResolver((kind, id) => (kind === 'enemy' ? codexEnemyUrl(art, id) : codexTowerUrl(art, id)));
-      const root = document.createElement('div');
-      root.id = 'ui-root';
-      document.body.appendChild(root);
-      const cx = new CodexScreen(root, {
-        isSeen: () => true,
+  let isOpen = false;
+  const open = (): void => {
+    if (isOpen) return;
+    isOpen = true;
+    void import('./ui/codexSheet.ts').then(({ openCodex2D }) => {
+      onToggle(true);
+      btn.style.display = 'none';
+      openCodex2D({
+        enemyUrl: (id) => codexEnemyUrl(art, id),
+        towerUrl: (id) => codexTowerUrl(art, id),
         onClose: () => {
+          isOpen = false;
           btn.style.display = gameHidden ? 'none' : '';
           onToggle(false);
         },
       });
-      screen = { open: () => cx.open('enemies') };
-    })();
-    return loading;
-  };
-  const open = (): void => {
-    void load().then(() => {
-      onToggle(true);
-      btn.style.display = 'none';
-      screen?.open();
     });
   };
   btn.addEventListener('click', open);

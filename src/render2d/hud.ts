@@ -1,8 +1,18 @@
 import { Container, Graphics, NineSliceSprite, Sprite, type Text } from 'pixi.js';
+import { t, type MsgKey } from '../i18n/index.ts';
 import type { LoadedArt } from './assets2d.ts';
 import { paintedText, setFontSize, setText } from './hudText.ts';
 import { fitWidth, hasKit, inkText, kit, setInkSize } from './uiKit.ts';
 import { HUD_MIN_TOUCH, hudButtonsLayout, KIT_PLAQUE_SLOTS, NO_INSETS, plaqueLayout, uiScale, type Insets, type PlaqueSlots, type Rect } from './uiLayout.ts';
+
+/**
+ * game2d.ts sets `HudState.banner` to these English ids (its protocol, not display text); the HUD
+ * shows them in the player's language with their sub line.
+ */
+const BANNERS: Readonly<Record<string, readonly [MsgKey, MsgKey]>> = {
+  Paused: ['hud.paused', 'hud.pausedSub'], // i18n-ignore (banner id)
+  'Tap the road': ['hud.tapRoad', 'hud.tapRoadSub'], // i18n-ignore (banner id)
+};
 
 /** Minimum touch target edge in css px. */
 export const MIN_TOUCH = HUD_MIN_TOUCH;
@@ -271,7 +281,7 @@ export class Hud {
       this.lastWave = s.wave * 1000 + s.totalWaves;
       const w = Math.max(1, s.wave);
       const story = this.endlessAfter;
-      setText(this.waveText, story === null ? `Wave ${w}/${s.totalWaves}` : w <= story ? `Wave ${w}/${story}` : `Endless · Wave ${w}`);
+      setText(this.waveText, story === null ? t('hud.wave', { n: w, total: s.totalWaves }) : w <= story ? t('hud.wave', { n: w, total: story }) : t('hud.endlessWave', { n: w }));
       fitWidth(this.waveText, this.bannerFont);
     }
     const pausedKey = s.paused ? 1 : 0;
@@ -291,12 +301,16 @@ export class Hud {
     const hornKey = s.canCall ? (s.earlyBonus > 0 ? s.earlyBonus : s.wave === 0 ? -1 : 0) : -2;
     if (hornKey !== this.lastHorn) {
       this.lastHorn = hornKey;
-      setText(this.hornLabel, hornKey > 0 ? `+${hornKey}` : hornKey === -1 ? 'Start!' : '');
+      setText(this.hornLabel, hornKey > 0 ? `+${hornKey}` : hornKey === -1 ? t('hud.start') : '');
     }
     if (s.banner !== this.lastBanner) {
       this.lastBanner = s.banner;
-      setText(this.centre, s.banner);
-      setText(this.sub, s.banner === 'Paused' ? 'Tap ▶ to resume' : s.banner === 'Tap the road' ? 'to move the rally flag' : '');
+      const known = BANNERS[s.banner];
+      setText(this.centre, known ? t(known[0]) : s.banner);
+      setText(this.sub, known ? t(known[1]) : '');
+      // A long translation never runs off a phone screen.
+      fitWidth(this.centre, this.screenW * 0.8);
+      fitWidth(this.sub, this.screenW * 0.8);
       this.layoutPlate();
     }
   }
