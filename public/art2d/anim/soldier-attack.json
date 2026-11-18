@@ -1,0 +1,13 @@
+{
+ "frameW": 357,
+ "frameH": 256,
+ "count": 28,
+ "cols": 8,
+ "fps": 12.0,
+ "anchor": [
+  186,
+  243
+ ],
+ "impact": 4,
+ "image": "soldier-attack.webp"
+}

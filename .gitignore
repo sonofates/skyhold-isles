@@ -51,3 +51,6 @@ design/art-2d/veo/p1-clips/
 design/art-2d/out/anim-towers/*.png
 design/art-2d/out/anim-towers/*.gif
 design/art-2d/veo/tower-clips/
+design/art-2d/out/anim-attack/*.png
+design/art-2d/out/anim-attack/*.gif
+design/art-2d/veo/attack-clips/

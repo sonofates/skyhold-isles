@@ -1,0 +1,13 @@
+{
+ "frameW": 448,
+ "frameH": 256,
+ "count": 26,
+ "cols": 8,
+ "fps": 12.0,
+ "anchor": [
+  266,
+  249
+ ],
+ "impact": 4,
+ "image": "tempest-attack.webp"
+}

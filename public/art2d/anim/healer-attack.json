@@ -1,0 +1,13 @@
+{
+ "frameW": 446,
+ "frameH": 256,
+ "count": 24,
+ "cols": 8,
+ "fps": 12.0,
+ "anchor": [
+  232,
+  236
+ ],
+ "impact": 4,
+ "image": "healer-attack.webp"
+}

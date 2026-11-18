@@ -1,0 +1,13 @@
+{
+ "frameW": 412,
+ "frameH": 256,
+ "count": 7,
+ "cols": 7,
+ "fps": 12.0,
+ "anchor": [
+  218,
+  243
+ ],
+ "impact": 3,
+ "image": "golem-attack.webp"
+}

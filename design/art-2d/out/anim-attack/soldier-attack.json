@@ -1,0 +1,18 @@
+{
+ "frameW": 357,
+ "frameH": 256,
+ "count": 28,
+ "cols": 8,
+ "fps": 12.0,
+ "anchor": [
+  186,
+  243
+ ],
+ "source": "unit-soldier-attack.mp4",
+ "loop": [
+  22,
+  78
+ ],
+ "loopScore": 6.77,
+ "release": 26
+}

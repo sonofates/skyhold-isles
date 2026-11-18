@@ -1,0 +1,13 @@
+{
+ "frameW": 314,
+ "frameH": 256,
+ "count": 9,
+ "cols": 8,
+ "fps": 12.0,
+ "anchor": [
+  157,
+  248
+ ],
+ "impact": 4,
+ "image": "mite-attack.webp"
+}

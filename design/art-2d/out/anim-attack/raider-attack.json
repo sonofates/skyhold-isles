@@ -1,0 +1,18 @@
+{
+ "frameW": 400,
+ "frameH": 256,
+ "count": 25,
+ "cols": 8,
+ "fps": 12.0,
+ "anchor": [
+  163,
+  229
+ ],
+ "source": "enemy-raider-attack.mp4",
+ "loop": [
+  14,
+  63
+ ],
+ "loopScore": 23.61,
+ "release": 9
+}

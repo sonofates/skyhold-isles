@@ -1,0 +1,13 @@
+{
+ "frameW": 290,
+ "frameH": 256,
+ "count": 25,
+ "cols": 8,
+ "fps": 12.0,
+ "anchor": [
+  123,
+  227
+ ],
+ "impact": 4,
+ "image": "brute-attack.webp"
+}
