@@ -130,12 +130,86 @@ def measure_mouth(im: Image.Image, facing: str, dark=58):
             'top_exit': top_exit}
 
 
-def place_gate(im_src: Image.Image, flip: bool, point, facing, height_layout, inset_layout, along=None, fit_opening=False):
+def mouth_threshold(mouth, facing):
+    """Threshold of a side-facing (E / W) gate opening, sprite px: the floor line of the dark mouth
+    (the lowest mouth pixel of each column) from its near post to its far post, and its midpoint.
+
+    The side gates are painted in 3/4 view: the opening's floor runs diagonally from the front post's
+    foot to the back post's foot. A road seen entering the gate crosses that line; centring it on the
+    line's midpoint makes it run straight into the darkness (owner feedback 2026-11-18). Returns
+    dict(mid=(x, y), a=(x, y), b=(x, y)) or None for S / N (their floor is already level)."""
+    if facing not in ('E', 'W'):
+        return None
+    arr = np.asarray(mouth['mask']) > 0
+    ys, xs = np.nonzero(arr)
+    x0, x1 = float(np.percentile(xs, 4)), float(np.percentile(xs, 96))
+    floor = {}
+    for x in range(int(x0), int(x1) + 1):
+        col = np.nonzero(arr[:, x])[0]
+        if len(col):
+            floor[x] = float(np.percentile(col, 97))
+
+    def floor_at(x):
+        win = [floor[c] for c in range(int(x) - 3, int(x) + 4) if c in floor]
+        return float(np.median(win)) if win else float(np.percentile(ys, 97))
+
+    xm = (x0 + x1) / 2
+    return {'mid': (xm, floor_at(xm)), 'a': (x0, floor_at(x0 + 3)), 'b': (x1, floor_at(x1 - 3))}
+
+
+def seat_point(mouth, facing, seat):
+    """Sprite point of the opening the road centreline is aimed through (see place_gate), or None
+    to keep the legacy exit anchor."""
+    if seat == 'exit' or facing not in ('E', 'W'):
+        return None
+    if seat == 'threshold':
+        return mouth_threshold(mouth, facing)['mid']
+    if seat == 'centre':
+        # middle of the opening's cross-section at the exit: between the lintel and the floor
+        th = mouth_threshold(mouth, facing)
+        floor_exit = th['b'][1] if facing == 'E' else th['a'][1]
+        ax = mouth['anchor'][0]
+        return ax, (mouth['top_exit'] + floor_exit) / 2
+    if seat.startswith('mix'):
+        # mix<f>: f of the way from the threshold midpoint to the exit centre
+        f = float(seat[3:])
+        a = seat_point(mouth, facing, 'threshold')
+        b = seat_point(mouth, facing, 'centre')
+        return a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f
+    raise ValueError(f'unknown gate seat {seat}')
+
+
+def spawn_depth(mouth, sx, sy, ux, uy, cap):
+    """Sprite px to step back from (sx, sy) against the road direction (ux, uy) so the path end sits
+    well inside the dark (the middle of the first run of eroded-mouth pixels on that line, at most
+    `cap`). None when the line never enters the opening."""
+    inside = np.asarray(mouth['mask'].filter(ImageFilter.MinFilter(9))) > 0
+    h, w = inside.shape
+    run = []
+    for t in np.arange(0.0, 4.0 * max(8.0, mouth['depth']), 1.0):
+        x, y = round(sx - ux * t), round(sy - uy * t)
+        ok = 0 <= x < w and 0 <= y < h and inside[y, x]
+        if ok:
+            run.append(t)
+        elif run:
+            break
+    if not run:
+        return None
+    return min((run[0] + run[-1]) / 2, max(run[0], cap))
+
+
+def place_gate(im_src: Image.Image, flip: bool, point, facing, height_layout, inset_layout, along=None, fit_opening=False,
+               seat='exit'):
     """Flip / measure a gate and compute where it goes (layout px).
 
-    Returns dict(im (source px), k (source px -> layout px), left, top, rect, mouth, facing). The
-    path end `point` ends up `inset_layout` px inside the mouth's exit, measured along `along` (the
-    unit direction of the road leaving the gate: the walkers' own line), else along the facing."""
+    Returns dict(im (source px), k (source px -> layout px), left, top, rect, mouth, facing, seat).
+
+    seat='exit' (legacy): the path end `point` ends up `inset_layout` px inside the mouth's exit,
+    measured along `along` (the unit direction of the road leaving the gate: the walkers' own line),
+    else along the facing; the exit anchor is the bottom of the mouth at its far edge.
+    seat='threshold' / 'centre' / 'mix<f>' (side gates, E / W): the road centreline is aimed
+    through that point of the opening (seat_point), and the path end sits inside the dark on the
+    same line (spawn_depth). S / N gates always use the exit anchor (their floor is level)."""
     im = im_src.transpose(Image.FLIP_LEFT_RIGHT) if flip else im_src
     mouth = measure_mouth(im, facing)
     k = height_layout / im.height  # sprite px -> layout px
@@ -146,6 +220,20 @@ def place_gate(im_src: Image.Image, flip: bool, point, facing, height_layout, in
     tx, ty = point[0] + ux * inset_layout, point[1] + uy * inset_layout
     left = tx - ax * k
     top = ty - ay * k
+    seated = None
+    # A road arriving from above the floor line (e.g. down onto a west castle's door) cannot cross
+    # the threshold from outside: fall back toward the middle of the opening.
+    ladder = [seat, 'mix0.5', 'centre'] if seat == 'threshold' else [seat]
+    for s_ in ladder:
+        sp = seat_point(mouth, facing, s_)
+        if sp is None:
+            break
+        t = spawn_depth(mouth, sp[0], sp[1], ux, uy, inset_layout / k)
+        if t is not None:
+            seated = sp
+            left = point[0] - (sp[0] - ux * t) * k
+            top = point[1] - (sp[1] - uy * t) * k
+            break
     if fit_opening:
         # A diagonal approach can put the intended inset below an oblique painted sill.
         # Move the artwork just enough to seat the fixed endpoint inside the open aperture.
@@ -157,8 +245,78 @@ def place_gate(im_src: Image.Image, flip: bool, point, facing, height_layout, in
                 raise ValueError('gate opening is too narrow to seat the path endpoint')
             nearest = np.argmin((xs - x) ** 2 + (ys - y) ** 2)
             left, top = point[0] - xs[nearest] * k, point[1] - ys[nearest] * k
-    return {'im': im, 'k': k, 'left': left, 'top': top, 'mouth': mouth, 'facing': facing,
+    return {'im': im, 'k': k, 'left': left, 'top': top, 'mouth': mouth, 'facing': facing, 'seat': seated, 'along': (ux, uy),
+            'point': tuple(point), 'threshold': mouth_threshold(mouth, facing) if seated else None,
             'rect': (left, top, left + im.width * k, top + im.height * k)}
+
+
+def blend_placement(g_from, g_to, f):
+    """Placement f of the way from `g_from` to `g_to` (same sprite, translation only); keeps the
+    seat / threshold of `g_to` (they are sprite px, so the road clip follows the art)."""
+    left = g_from['left'] + (g_to['left'] - g_from['left']) * f
+    top = g_from['top'] + (g_to['top'] - g_from['top']) * f
+    w, h = g_to['im'].width * g_to['k'], g_to['im'].height * g_to['k']
+    return {**g_to, 'left': left, 'top': top, 'rect': (left, top, left + w, top + h), 'blend': f}
+
+
+def point_in_opening(g, point, erode=9):
+    """True when a layout point lies inside the (eroded) dark opening of a placed gate."""
+    x, y = (point[0] - g['left']) / g['k'], (point[1] - g['top']) / g['k']
+    inside = g['mouth']['mask'].filter(ImageFilter.MinFilter(erode))
+    xi, yi = round(x), round(y)
+    return 0 <= xi < inside.width and 0 <= yi < inside.height and inside.getpixel((xi, yi)) > 0
+
+
+def seat_layout(g):
+    """Seat point of a placed gate in layout px (None for the legacy exit anchor)."""
+    if g.get('seat') is None:
+        return None
+    return g['left'] + g['seat'][0] * g['k'], g['top'] + g['seat'][1] * g['k']
+
+
+def clip_road_at_gate(road: Image.Image, g, S: float, rw: float):
+    """Ends the painted road at a seated gate's threshold (in place, output px). Removed: road
+    pixels on the inner side of the threshold line (the side of the path end), and any deeper along
+    the road than the threshold's deepest end (the round end cap). Within 1.3 road widths of the
+    seat point only. The spline still runs on to the path end inside the gate; this only stops road
+    peeking out under the gate's transparent base corners, so the road ends flush with the door's
+    floor line (owner feedback 2026-11-18: castle road ended below the door)."""
+    m = seat_layout(g)
+    th = g.get('threshold')
+    if m is None or th is None:
+        return
+    k = g['k']
+
+    def lay(p):
+        return (g['left'] + p[0] * k) * S, (g['top'] + p[1] * k) * S
+
+    mx, my = lay(g['seat'])
+    (axp, ayp), (bxp, byp) = lay(th['a']), lay(th['b'])
+    px, py = g['point'][0] * S, g['point'][1] * S
+    ux, uy = g['along']
+    r = rw * 1.3
+    x0, y0 = max(0, int(mx - r - 2)), max(0, int(my - r - 2))
+    x1, y1 = min(road.width, int(mx + r + 3)), min(road.height, int(my + r + 3))
+    if x1 <= x0 or y1 <= y0:
+        return
+    yy, xx = np.mgrid[y0:y1, x0:x1].astype(np.float32)
+    # signed distance to the threshold line, positive on the path end's (inner) side
+    ex, ey = bxp - axp, byp - ayp
+    n = math.hypot(ex, ey) or 1.0
+    side = 1.0 if (ex * (py - ayp) - ey * (px - axp)) >= 0 else -1.0
+    inner = side * (ex * (yy - ayp) - ey * (xx - axp)) / n
+    # ...only across the threshold's own span (the line extended would cut the approach road)
+    along_t = ((xx - axp) * ex + (yy - ayp) * ey) / n
+    inner = np.where((along_t >= -2) & (along_t <= n + 2), inner, -1e9)
+    # depth along the road beyond the deepest threshold end
+    deepest = min((axp - mx) * ux + (ayp - my) * uy, (bxp - mx) * ux + (byp - my) * uy)
+    beyond = deepest - ((xx - mx) * ux + (yy - my) * uy)
+    cut = np.maximum(inner, beyond)
+    keep = np.clip(0.5 - cut / 1.5, 0, 1)  # ~1.5 px soft edge
+    near = (xx - mx) ** 2 + (yy - my) ** 2 <= r * r
+    keep = np.where(near, keep, 1.0)
+    win = np.asarray(road.crop((x0, y0, x1, y1))).astype(np.float32)
+    road.paste(Image.fromarray((win * keep).astype(np.uint8), 'L'), (x0, y0))
 
 
 def gate_alpha_hit(g, rect, pad=0.0, thresh=40):
@@ -182,6 +340,46 @@ def output_box(g, S: float):
 def output_sprite(g, S: float) -> Image.Image:
     _, _, w, h = output_box(g, S)
     return g['im'].resize((w, h), Image.LANCZOS)
+
+
+def contact_shadow(g, S: float, rw: float):
+    """Ground contact shadow of a placed gate (output px): its own silhouette, nudged down / right
+    (light from the upper left) and softened, strongest along the base. Returns (L image, (x0, y0)).
+    Replaces the generic ellipse, so the castle and caves sit on the ground instead of floating."""
+    x0, y0, w, h = output_box(g, S)
+    a = g['im'].getchannel('A').resize((w, h), Image.LANCZOS)
+    pad = round(rw * 0.5)
+    canvas = Image.new('L', (w + 2 * pad, h + 2 * pad))
+    canvas.paste(a, (pad + round(rw * 0.06), pad + round(rw * 0.10)))
+    soft = canvas.filter(ImageFilter.GaussianBlur(rw * 0.09))
+    # weight toward the base: the lower part of the silhouette casts, the top does not
+    ramp = np.clip((np.arange(h + 2 * pad, dtype=np.float32) - pad - h * 0.55) / (h * 0.35), 0, 1)
+    arr = np.asarray(soft).astype(np.float32) * ramp[:, None]
+    # a tighter, darker occlusion line right at the foot
+    tight = np.asarray(canvas.filter(ImageFilter.GaussianBlur(rw * 0.03))).astype(np.float32) * (ramp[:, None] ** 3)
+    out = np.maximum(arr * 0.75, tight)
+    return Image.fromarray(out.clip(0, 255).astype(np.uint8), 'L'), (x0 - pad, y0 - pad)
+
+
+def light_interior(sprite: Image.Image, g, floor_rgb=(118, 82, 48)):
+    """Castle door (in place, output-size sprite): the near-black opening gets depth — a deep warm
+    brown at the back / top, warmer toward the floor where the road runs in (owner feedback
+    2026-11-18: the door read as a flat black hole). Caves keep their darkness (raiders come out of it)."""
+    w, h = sprite.size
+    mo = np.asarray(g['mouth']['mask'].resize((w, h), Image.BILINEAR).filter(ImageFilter.GaussianBlur(1.2))).astype(np.float32) / 255
+    if mo.max() <= 0:
+        return sprite
+    ys = np.nonzero(mo > 0.5)[0]
+    top, bot = float(ys.min()), float(ys.max())
+    yy = np.arange(h, dtype=np.float32)[:, None]
+    t = np.clip((yy - top) / max(1.0, bot - top), 0, 1)  # 0 at the lintel, 1 at the floor
+    back = np.array((26, 17, 12), np.float32)
+    fl = np.array(floor_rgb, np.float32) * 0.62
+    tint = back + (fl - back) * (t ** 2.2)[..., None]
+    rgba = np.asarray(sprite).astype(np.float32)
+    k = (mo * 0.85)[..., None]
+    rgba[..., :3] = rgba[..., :3] * (1 - k) + np.maximum(rgba[..., :3], tint) * k
+    return Image.fromarray(rgba.clip(0, 255).astype(np.uint8), 'RGBA')
 
 
 def cut_front(canvas: Image.Image, g, S: float, exit_cut=True, shade_max=0.93, feather=1.2):
