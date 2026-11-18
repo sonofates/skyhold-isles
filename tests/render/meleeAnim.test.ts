@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   advanceSwing,
+  assignSides,
   announceSwing,
   cancelSwing,
   createSwing,
@@ -11,7 +12,6 @@ import {
   impactSwing,
   knockCurve,
   MAX_WINDUP_SPEED,
-  pickSide,
   PROC_CLIP,
   sheetClip,
   swingFrame,
@@ -124,11 +124,20 @@ describe('melee facing and spacing', () => {
     expect(faceToward(0.01, -1)).toBe(-1);
   });
 
-  it('side picking has hysteresis', () => {
-    expect(pickSide(0.01, 0, 0.1)).toBe(1);
-    expect(pickSide(-0.05, 1, 0.1)).toBe(1);
-    expect(pickSide(-0.2, 1, 0.1)).toBe(-1);
-    expect(pickSide(0.05, -1, 0.1)).toBe(-1);
+  it('gang-ups spread over both sides and keep their side for the fight', () => {
+    const out: number[] = [];
+    // Three soldiers all arriving from the right of a boss: two right, the most central one left.
+    assignSides(3, [1.0, 0.3, 0.8], [0, 0, 0], 1, out);
+    expect(out).toEqual([1, -1, 1]);
+    // Kept next frame even though its sim spot is still on the right.
+    assignSides(3, [1.0, 0.3, 0.8], out.slice(), 1, out);
+    expect(out).toEqual([1, -1, 1]);
+    // Two kept on the right, a second one joins: one per side.
+    assignSides(2, [0.9, 0.4], [1, 1], 1, out);
+    expect(out).toEqual([1, -1]);
+    // The foe walked clearly past a fighter: it switches.
+    assignSides(1, [-1.5], [1], 1, out);
+    expect(out).toEqual([-1]);
   });
 
   it('the gap keeps the sprites apart and is never inside the sim contact distance', () => {
@@ -145,11 +154,13 @@ describe('melee facing and spacing', () => {
     gangSlots(2, [-1, 1], [0, 0], 1, x, z);
     expect(x).toEqual([-1, 1]);
     gangSlots(3, [1, 1, 1], [0.3, -0.3, 0], 1, x, z);
-    // Sorted by dz: the one above stays above, the middle one stands a little further out.
+    // Sorted by dz: the one above stays above and stands furthest out; about a body height apart.
     expect(z[1]).toBeLessThan(z[2]);
     expect(z[2]).toBeLessThan(z[0]);
+    expect(x[1]).toBeGreaterThan(x[2]);
     expect(x[2]).toBeGreaterThan(x[0]);
-    for (const v of x) expect(v).toBeGreaterThan(0.9);
+    expect(z[2] - z[1]).toBeGreaterThanOrEqual(0.7);
+    for (const v of x) expect(v).toBeGreaterThan(0.85);
     // Spots never coincide.
     expect(new Set(z.map((v) => v.toFixed(3))).size).toBe(3);
   });

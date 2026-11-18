@@ -5,7 +5,7 @@ import type { BarracksState, SoldierEntity, SoldierSystem } from '../sim/soldier
 import type { AttackSheetRuntime, EnemyArtRuntime, LoadedArt, TowerArtRuntime } from './assets2d.ts';
 import type { FxLayer } from './fxLayer.ts';
 import { HEIGHT_TO_SCREEN, type WorldLayers } from './layers.ts';
-import type { CheapWalkSpec, TowerArt } from './manifest.ts';
+import { enemyArtFor, type CheapWalkSpec, type TowerArt } from './manifest.ts';
 import type { MapView } from './mapView.ts';
 import type { ProcTextures } from './procTextures.ts';
 import { swingFrame } from './meleeAnim.ts';
@@ -549,13 +549,16 @@ export class SoldierLayer {
     const cx = m.pxX(a.x + (t.x - a.x) * k);
     const cy = m.pxY(a.z + (t.z - a.z) * k) - lift;
     const face = t.x >= a.x ? 1 : -1;
+    // A painted attack sheet already draws its own swing trail: keep the painted slash small then.
+    const trail = e.attacker === 'soldier' ? this.look.attack !== null : this.enemyHasAttackSheet(a.st);
+    const slashK = trail ? 0.6 : 1;
     if (e.attacker === 'soldier') {
-      this.slash(cx, cy, face, e.cleave ? 0.75 : 1, e.cleave ? 0xffd27a : 0xffffff, 0.18);
+      this.slash(cx, cy, face, (e.cleave ? 0.75 : 1) * slashK, e.cleave ? 0xffd27a : 0xffffff, 0.18);
       this.fx.spawn('spark', cx, cy, e.cleave ? 9 : 12, 0, 0, 0.13, e.cleave ? 0xffd27a : 0xfff6dc);
       this.fx.burst('spark', cx, cy, e.killed ? 6 : 3, 4, 70, 0.22, 0xffe2a0, 220);
     } else {
       const size = heavy ? 1.5 : Math.max(0.8, Math.min(1.2, a.h / 1.4));
-      this.slash(cx, cy, face, size, heavy ? 0xffc890 : 0xffe6c8, heavy ? 0.24 : 0.18);
+      this.slash(cx, cy, face, size * slashK, heavy ? 0xffc890 : 0xffe6c8, heavy ? 0.24 : 0.18);
       this.fx.spawn('spark', cx, cy, heavy ? 16 : 11, 0, 0, 0.14, 0xfff0d8);
       this.fx.burst('spark', cx, cy, heavy ? 6 : 3, 4, heavy ? 110 : 70, 0.24, 0xffd8a0, 220);
     }
@@ -570,6 +573,12 @@ export class SoldierLayer {
       this.fx.spawn('crater', gx, gy, r * 0.45, 0, 0, 0.9, 0xffffff);
       this.fx.puffs(gx, gy, 7, r * 0.7, 0xe9d8b4);
     }
+  }
+
+  private enemyHasAttackSheet(st: FighterState | undefined): boolean {
+    if (!st || st.type === null) return false;
+    const entry = enemyArtFor(this.art.manifest, st.type, false);
+    return (this.art.enemies[entry.art]?.attack ?? null) !== null;
   }
 
   /** Subscribes to the run's sim events (call once per run, after `reset`). */

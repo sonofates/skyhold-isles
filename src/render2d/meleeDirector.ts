@@ -14,7 +14,7 @@ import {
   gangSlots,
   impactSwing,
   knockCurve,
-  pickSide,
+  assignSides,
   smoothK,
   swingPose,
   type SwingClip,
@@ -52,8 +52,9 @@ export interface FighterState {
   engaged: boolean;
   /** +1 / −1 while in a fight, 0 = the walk decides. */
   facing: number;
-  /** Side of its foe a soldier stands on (+1 right, −1 left, 0 unknown). */
+  /** Side of its foe a soldier stands on (+1 right, −1 left, 0 unknown), and that foe's uid. */
   side: number;
+  sideFor: number;
   /** Spacing offset this frame wants (before easing), world units. */
   aimX: number;
   aimZ: number;
@@ -97,6 +98,7 @@ function createFighter(): FighterState {
     engaged: false,
     facing: 0,
     side: 0,
+    sideFor: -1,
     aimX: 0,
     aimZ: 0,
     slotX: 0,
@@ -132,6 +134,8 @@ export class MeleeDirector {
   // Gang scratch (no per-frame allocation).
   private readonly gang: SoldierEntity[] = [];
   private readonly gangSide: number[] = [];
+  private readonly gangPrev: number[] = [];
+  private readonly gangDx: number[] = [];
   private readonly gangDz: number[] = [];
   private readonly slotX: number[] = [];
   private readonly slotZ: number[] = [];
@@ -196,6 +200,7 @@ export class MeleeDirector {
         st.age = 0;
         st.slotX = st.slotZ = 0;
         st.side = 0;
+        st.sideFor = -1;
         cancelSwing(st.swing);
         st.swing.t = -1;
       }),
@@ -337,16 +342,23 @@ export class MeleeDirector {
         if (this.targetOf(s, pool) === e) gang.push(s);
       }
       const n = gang.length;
-      this.gangSide.length = n;
+      this.gangPrev.length = n;
+      this.gangDx.length = n;
       this.gangDz.length = n;
       for (let i = 0; i < n; i++) {
         const s = gang[i];
         const st = this.soldierState(s.id);
         const sx = s.prevX + (s.x - s.prevX) * alpha;
         const sz = s.prevZ + (s.z - s.prevZ) * alpha;
-        st.side = pickSide(sx - ex, st.side, 0.15 * gap);
-        this.gangSide[i] = st.side;
+        this.gangPrev[i] = st.sideFor === uid ? st.side : 0;
+        this.gangDx[i] = sx - ex;
         this.gangDz[i] = sz - ez;
+      }
+      assignSides(n, this.gangDx, this.gangPrev, gap, this.gangSide);
+      for (let i = 0; i < n; i++) {
+        const st = this.soldierState(gang[i].id);
+        st.side = this.gangSide[i];
+        st.sideFor = uid;
       }
       gangSlots(n, this.gangSide, this.gangDz, gap, this.slotX, this.slotZ);
       let primary: FighterState | null = null;
@@ -359,6 +371,9 @@ export class MeleeDirector {
         const w = s.state === 'fighting' ? 1 : Math.max(0, Math.min(1, 1 - (d - gap) / APPROACH));
         st.aimX = (ex + this.slotX[i] - sx) * w;
         st.aimZ = (ez + this.slotZ[i] - sz) * w;
+        // Crossing to the other side: step around in front of the foe, not through it.
+        const curX = sx + st.slotX - ex;
+        if (curX * st.side < gap * 0.6) st.aimZ += gap * 0.7 * (1 - Math.min(1, Math.abs(curX) / gap)) * w;
         if (w > 0.5) st.facing = -st.side;
         if (s.state === 'fighting' && !primary) primary = st;
       }

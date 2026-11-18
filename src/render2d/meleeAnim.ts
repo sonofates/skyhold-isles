@@ -220,24 +220,68 @@ export function faceToward(dx: number, current: number, eps = 0.06): number {
 }
 
 /**
- * Which side (+1 right / −1 left) of its foe a fighter stands on, with hysteresis: it only
- * switches once it is clearly (`hyst` world units) on the other side.
+ * Distance (world units) between a fighter's and its foe's centres so the sprites don't overlap
+ * (painted foes are about 0.8x as wide as tall, with weapons / shields / fists sticking out).
  */
-export function pickSide(dx: number, prev: number, hyst: number): number {
-  if (prev === 0) return dx >= 0 ? 1 : -1;
-  return prev > 0 ? (dx < -hyst ? -1 : 1) : dx > hyst ? 1 : -1;
+export function fightGap(contact: number, foeHeight: number, fighterHeight: number): number {
+  return Math.max(contact, 0.42 * foeHeight + 0.32 * fighterHeight) + 0.04;
 }
 
-/** Distance (world units) between a fighter's and its foe's centres so the sprites don't overlap. */
-export function fightGap(contact: number, foeHeight: number, fighterHeight: number): number {
-  return Math.max(contact, 0.3 * foeHeight + 0.3 * fighterHeight) + 0.04;
+/**
+ * Sides (+1 right / −1 left of the foe) for the `n` fighters on one foe, written to `out`. A side
+ * once given (`prev[i]` ≠ 0) is kept for the fight — the fighter only switches when the foe has
+ * walked clearly past it (> `gap` on the other side). New fighters take their own side unless it
+ * is full; a side never holds more than ⌈n/2⌉, so gang-ups spread around the foe (the fighter
+ * nearest the middle crosses over).
+ */
+export function assignSides(n: number, dx: ArrayLike<number>, prev: ArrayLike<number>, gap: number, out: number[]): void {
+  out.length = n;
+  const cap = Math.ceil(n / 2);
+  let right = 0;
+  let left = 0;
+  for (let i = 0; i < n; i++) {
+    let s = prev[i] > 0 ? 1 : prev[i] < 0 ? -1 : 0;
+    if (s !== 0 && s * dx[i] < -gap) s = -s;
+    out[i] = s;
+    if (s > 0) right++;
+    else if (s < 0) left++;
+  }
+  // Unassigned, clearest first.
+  for (;;) {
+    let pick = -1;
+    for (let i = 0; i < n; i++) {
+      if (out[i] === 0 && (pick < 0 || Math.abs(dx[i]) > Math.abs(dx[pick]))) pick = i;
+    }
+    if (pick < 0) break;
+    let s = dx[pick] >= 0 ? 1 : -1;
+    if ((s > 0 ? right : left) >= cap) s = -s;
+    out[pick] = s;
+    if (s > 0) right++;
+    else left++;
+  }
+  // Overfull side (sides kept from a smaller gang): the one nearest the middle crosses over.
+  while (right > cap || left > cap) {
+    const from = right > cap ? 1 : -1;
+    let pick = -1;
+    for (let i = 0; i < n; i++) {
+      if (out[i] === from && (pick < 0 || from * dx[i] < from * dx[pick])) pick = i;
+    }
+    out[pick] = -from;
+    if (from > 0) {
+      right--;
+      left++;
+    } else {
+      left--;
+      right++;
+    }
+  }
 }
 
 /**
  * Stand-off spots around one foe for the `n` fighters on it, relative to the foe (world units,
  * x right, z down the screen). Fighters stay on their own side (`sides[i]`); fighters sharing a
- * side stack up and down it (sorted by `dz[i]`, so nobody crosses another), the middle one of
- * three a little further out. One fighter keeps a bit of its own height offset (clamped).
+ * side stack up and down it (sorted by `dz[i]`, so nobody crosses another), staggered outward
+ * toward the back. One fighter keeps a bit of its own height offset (clamped).
  */
 export function gangSlots(
   n: number,
@@ -265,11 +309,12 @@ export function gangSlots(
         outX[i] = side * gap;
         outZ[i] = Math.max(-0.2 * gap, Math.min(0.2 * gap, dz[i]));
       } else {
-        const spread = Math.min(0.42, 0.84 / (k - 1)) * gap;
+        // Stacked up and down the side about a body height apart; the ones further back (up the
+        // screen) stand a little further out so the one in front does not hide them.
+        const spread = Math.min(0.75, 1.5 / (k - 1)) * gap;
         const mid = (k - 1) / 2;
         const off = rank - mid;
-        const out = k >= 3 && Math.abs(off) < 0.5 ? 1.12 : 0.94;
-        outX[i] = side * gap * out;
+        outX[i] = side * gap * (1 - 0.12 * (off / Math.max(0.5, mid)));
         outZ[i] = off * spread;
       }
     }
