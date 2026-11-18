@@ -3,7 +3,7 @@ import { t } from '../i18n/index.ts';
 import type { LoadedArt } from './assets2d.ts';
 import { enemyArtFor } from './manifest.ts';
 import { roundButton } from './ui/dom.ts';
-import { readSafeInsets } from './uiKit.ts';
+import { addHudKeepOut, readSafeInsets } from './uiKit.ts';
 import { hudButtonsLayout } from './uiLayout.ts';
 
 /** Image URL of an enemy's front sprite for the codex (stand-in art when its own is pending), or null. */
@@ -53,6 +53,17 @@ export function mountCodex2D(art: LoadedArt, onToggle: (open: boolean) => void):
   };
   place();
   window.addEventListener('resize', place);
+  // The button and its caption sit over the canvas: the build ring keeps clear of both.
+  addHudKeepOut(() => {
+    if (btn.style.display === 'none' || !btn.isConnected) return null;
+    const b = btn.getBoundingClientRect();
+    const cap = btn.querySelector('.pu-round-label')?.getBoundingClientRect();
+    const x0 = Math.min(b.left, cap?.left ?? b.left);
+    const y0 = Math.min(b.top, cap?.top ?? b.top);
+    const x1 = Math.max(b.right, cap?.right ?? b.right);
+    const y1 = Math.max(b.bottom, cap?.bottom ?? b.bottom);
+    return { x: x0 - 4, y: y0 - 4, w: x1 - x0 + 8, h: y1 - y0 + 8 };
+  });
 
   let gameHidden = false;
   let isOpen = false;

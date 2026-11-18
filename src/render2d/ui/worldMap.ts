@@ -4,9 +4,13 @@
  * the campaign's own rules). Tap an island → briefing card → Play loads `?level=<id>`. The meta
  * screens (Workshop, Logbook, Daily, Settings) open from the round buttons top-right.
  *
- * QA params: ?screen=brief|workshop|logbook|daily|settings opens that screen (brief = frontier
+ * QA params: ?screen=brief|workshop|logbook|daily|settings|store opens that screen (brief = frontier
  * island), ?mockislands=N appends N stand-in islands (layout check only; they reuse the first
- * island's map), window.__map exposes the layout.
+ * island's map), window.__map exposes the layout. ?store=<island id> opens the store card for
+ * that island (where main2d sends a deep link into an island the free version does not include).
+ *
+ * Mobile builds only (and ?iapmock=1 in a browser): islands past the free scope wear the "full
+ * adventure" lock (store2d.ts) and open the store card instead of the briefing.
  */
 import type { ProgressData } from '../../core/types.ts';
 import { utcDayNumber } from '../../data/daily.ts';
@@ -26,10 +30,11 @@ import { dailyFor2D, openDaily, openLogbook, openSettings, openWorkshop, type Me
 import { availableChallenges, buildRunHref2D, canPlayEndless } from './modes2d.ts';
 import { islandStates, loadProgress2D, type IslandState } from './progress2d.ts';
 import { paintSea } from './seaPainter.ts';
+import { needsFullAdventure, openStore, storeEnabled } from './store2d.ts';
 
 declare global {
   interface Window {
-    __map?: { layout: () => WorldMapLayout | null; islands: () => { id: string; unlocked: boolean; stars: number; x: number; y: number }[] };
+    __map?: { layout: () => WorldMapLayout | null; islands: () => { id: string; unlocked: boolean; paid: boolean; stars: number; x: number; y: number }[] };
   }
 }
 
@@ -86,6 +91,8 @@ export async function mountWorldMap(q: URLSearchParams): Promise<void> {
   document.body.append(root);
 
   let states: IslandState[] = [];
+  /** Per island: past the free version's scope (mobile builds, full adventure not owned). */
+  let paid: boolean[] = [];
   let layout: WorldMapLayout | null = null;
   const nodes: HTMLButtonElement[] = [];
 
@@ -104,9 +111,22 @@ export async function mountWorldMap(q: URLSearchParams): Promise<void> {
     },
   };
 
+  const openStoreFor = (i: number | null): void => {
+    const st = i === null ? null : states[i];
+    openStore({
+      islandName: st && st.unlocked ? islandName(st.level) : null,
+      totalIslands: levels.length,
+      onOwnedChange: () => ctx.onChange(),
+    });
+  };
+
   const openBrief = (i: number, initial?: Partial<RunChoice>): void => {
     const st = states[i];
     if (!st) return;
+    if (paid[i]) {
+      openStoreFor(i);
+      return;
+    }
     const id = st.level.id;
     const modes = st.unlocked
       ? { challenges: availableChallenges(id, progress, levels), endless: canPlayEndless(id, progress, levels), initial }
@@ -120,14 +140,19 @@ export async function mountWorldMap(q: URLSearchParams): Promise<void> {
     for (const n of nodes) n.remove();
     nodes.length = 0;
     states.forEach((st, i) => {
-      const b = el('button', `pu-node${st.unlocked ? '' : ' locked'}${st.frontier ? ' frontier' : ''}`, {
+      const isPaid = paid[i];
+      const b = el('button', `pu-node${st.unlocked ? '' : ' locked'}${isPaid ? ' paid' : ''}${st.frontier ? ' frontier' : ''}`, {
         type: 'button',
         'data-testid': `map2d-island-${st.level.id}`,
-        'aria-label': st.unlocked ? t('map.nodeOpen', { name: islandName(st.level), n: st.stars }) : t('map.nodeLocked', { name: islandName(st.level) }),
+        'aria-label': isPaid
+          ? t('store.nodeAria', { name: st.unlocked ? islandName(st.level) : '? ? ?' })
+          : st.unlocked
+            ? t('map.nodeOpen', { name: islandName(st.level), n: st.stars })
+            : t('map.nodeLocked', { name: islandName(st.level) }),
       });
       b.style.animationDelay = `${0.05 + i * 0.06}s`;
       b.append(el('span', 'pu-node-shore'), medal(thumb(st.level), '100%', st.frontier && st.unlocked));
-      if (st.unlocked) b.append(starsRow(st.stars, 'pu-stars pu-node-stars'));
+      if (st.unlocked && !isPaid) b.append(starsRow(st.stars, 'pu-stars pu-node-stars'));
       if (st.mastered) {
         const c = el('span', 'pu-node-crown');
         c.append(glyph('crown'));
@@ -135,12 +160,18 @@ export async function mountWorldMap(q: URLSearchParams): Promise<void> {
       }
       const name = el('span', 'pu-tag pu-node-name', {}, el('span', 'pu-tag-ring pu-letter', {}, String(i + 1)), el('span', 'pu-ink', {}, st.unlocked ? islandName(st.level) : '? ? ?'));
       b.append(name);
-      if (!st.unlocked) {
+      if (isPaid) {
+        // The "full adventure" lock: a chest seal and a red ribbon (not the grey padlock of an
+        // island the route has not reached yet).
+        const seal = el('span', 'pu-node-chest');
+        seal.append(glyph('chest'));
+        b.append(seal, el('span', 'pu-node-ribbon pu-letter', { 'data-testid': `map2d-paid-${st.level.id}` }, t('store.lockTag')));
+      } else if (!st.unlocked) {
         const lock = el('span', 'pu-node-lock');
         lock.append(glyph('lock'));
         b.append(lock);
       }
-      if (st.frontier && st.unlocked) b.append(img(KIT.rally, '', 'pu-node-flag'));
+      if (st.frontier && st.unlocked && !isPaid) b.append(img(KIT.rally, '', 'pu-node-flag'));
       b.addEventListener('click', () => openBrief(i));
       world.append(b);
       nodes.push(b);
@@ -201,6 +232,8 @@ export async function mountWorldMap(q: URLSearchParams): Promise<void> {
 
   const refresh = (): void => {
     states = islandStates(progress, levels);
+    const scoped = storeEnabled();
+    paid = states.map((st) => scoped && needsFullAdventure(st.level.id));
     buildNodes();
     refreshTopbar();
     relayout(true);
@@ -278,7 +311,7 @@ export async function mountWorldMap(q: URLSearchParams): Promise<void> {
   refresh();
   window.__map = {
     layout: () => layout,
-    islands: () => states.map((s, i) => ({ id: s.level.id, unlocked: s.unlocked, stars: s.stars, x: layout?.nodes[i]?.x ?? 0, y: layout?.nodes[i]?.y ?? 0 })),
+    islands: () => states.map((s, i) => ({ id: s.level.id, unlocked: s.unlocked, paid: paid[i] ?? false, stars: s.stars, x: layout?.nodes[i]?.x ?? 0, y: layout?.nodes[i]?.y ?? 0 })),
   };
 
   const screen = q.get('screen');
@@ -294,4 +327,15 @@ export async function mountWorldMap(q: URLSearchParams): Promise<void> {
   else if (screen === 'logbook') openLogbook(ctx, q.get('tab') === 'feats' ? 'feats' : 'islands');
   else if (screen === 'daily') openDaily(ctx);
   else if (screen === 'settings') openSettings(ctx);
+  else if (screen === 'store' && storeEnabled()) openStoreFor(null);
+  // A deep link into an island the free version does not include lands here (main2d.ts).
+  const storeFor = q.get('store');
+  if (storeFor && storeEnabled()) {
+    const i = levels.findIndex((l) => l.id === storeFor);
+    if (i >= 0 && paid[i]) {
+      const L = layout as WorldMapLayout | null; // set by refresh() above
+      if (L) scroll.scrollLeft = scrollToCentre(L.nodes[i]?.x ?? 0, window.innerWidth, L.worldW);
+      openStoreFor(i);
+    }
+  }
 }

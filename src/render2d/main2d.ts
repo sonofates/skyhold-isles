@@ -21,7 +21,8 @@ import { computeMapFit } from './viewFit.ts';
 /**
  * 2d.html entry — the painted 2D renderer (Pixi v8) on the real sim.
  *   (no params)       the world map (island select, briefing, Workshop / Logbook / Daily / Settings);
- *                     map QA: ?screen=brief|workshop|logbook|daily|settings, ?mockislands=N
+ *                     map QA: ?screen=brief|workshop|logbook|daily|settings|store, ?mockislands=N,
+ *                     ?store=<id> (store card for a paid island), ?iapmock=1 (mock store, mobile scope)
  *   ?level=l1c        play an island (deep link, skips the map; any debug param below defaults to l1c)
  *   &intro=1          show the island's story panels first (once; the map adds it on a first play)
  *   ?story=intro|outro QA: force the story panels (intro on load, outro after a win)
@@ -149,6 +150,15 @@ async function main(): Promise<void> {
     lookupLevel: getLevelById,
     applySaveModifiers: !isDebugScene,
   });
+  // Mobile builds (and ?iapmock=1): an island past the free version's scope (deep link, Daily
+  // Squall, Next Isle) goes to the world map with the store card open instead of playing.
+  if (!isDebugScene) {
+    const { canPlayIsland, storeHref } = await import('./ui/store2d.ts');
+    if (!canPlayIsland(run.levelId)) {
+      location.replace(storeHref(run.levelId));
+      return;
+    }
+  }
   const level = run.level;
   if (!level?.layout2d) {
     showError(t('boot.unknownIsland', { id: run.levelId }));

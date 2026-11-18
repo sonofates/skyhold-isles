@@ -6,7 +6,10 @@ import {
   endLayout,
   endStars,
   KIT_PLAQUE_SLOTS,
+  dodgeRects,
   evenAngles,
+  hudButtonsKeepOut,
+  hudButtonsLayout,
   layoutRadial,
   NO_INSETS,
   placeTooltip,
@@ -253,5 +256,67 @@ describe('tower ring (built tower in the middle)', () => {
     const b = towerRingAngles(3, 800, top.y + top.h * 0.55, r, 25, 125, 1600, 900, NO_INSETS, top);
     expect(Math.sin(b[0])).toBeGreaterThan(0.5); // upgrade below the tower
     expect(Math.abs(Math.sin(b[1])) + Math.abs(Math.sin(b[2]))).toBeLessThan(1e-9); // the others beside it
+  });
+});
+
+describe('ring keeps clear of the top-right HUD row (speed, pause, Guide + caption)', () => {
+  const UI3: readonly [string, number, number, Insets][] = [
+    ['1366x768', 1366, 768, NO_INSETS],
+    ['1600x900', 1600, 900, NO_INSETS],
+    ['1920x1080', 1920, 1080, NO_INSETS],
+    ['2560x1080', 2560, 1080, NO_INSETS],
+    ['844x390', 844, 390, NO_INSETS],
+    ['844x390 notch', 844, 390, { top: 0, right: 47, bottom: 21, left: 47 }],
+  ];
+
+  it('the keep-out covers all three buttons and the caption under the Guide button', () => {
+    for (const [name, w, h, ins] of UI3) {
+      const k = hudButtonsKeepOut(w, h, ins);
+      const hb = hudButtonsLayout(w, h, ins);
+      expect(k.x, name).toBeLessThan(hb.codexX - hb.r * 0.86);
+      expect(k.x + k.w, name).toBeGreaterThanOrEqual(hb.speedX + hb.r);
+      expect(k.y + k.h, name).toBeGreaterThan(hb.y + hb.r);
+      expect(k.h, name).toBeLessThan(h * 0.3);
+    }
+  });
+
+  it('build ring and tooltip never cover the HUD row, wherever the plot is', () => {
+    for (const [name, w, h, ins] of UI3) {
+      const r = tokenRFor(w, h);
+      const tag = r * 0.62;
+      const keep = hudButtonsKeepOut(w, h, ins);
+      for (let cy = 0; cy <= h; cy += h / 9) {
+        for (let cx = 0; cx <= w; cx += w / 13) {
+          const out: Pt[] = [];
+          const lay = layoutRadial(cx, cy, evenAngles(8), r, tag, w, h, ins, out, 6, 0, [keep]);
+          for (const p of out) {
+            const tr = tokenRect(p.x, p.y, r, tag);
+            expect(inside(tr, w, h, ins, 0.01), `${name} @${cx.toFixed(0)},${cy.toFixed(0)} off screen`).toBe(true);
+            expect(overlap(tr, keep), `${name} @${cx.toFixed(0)},${cy.toFixed(0)} under the HUD row`).toBe(0);
+          }
+          const tip = placeTooltip(lay.box, 260 * Math.min(1, w / 1400), 170 * Math.min(1, h / 760), w, h, ins, 10, 6, [keep]);
+          if (tip.side !== 'clamped') expect(overlap(tip, keep), `${name} tooltip @${cx.toFixed(0)},${cy.toFixed(0)}`).toBe(0);
+        }
+      }
+    }
+  });
+
+  it('a ring away from the HUD row does not move', () => {
+    const out: Pt[] = [];
+    const keep = hudButtonsKeepOut(1600, 900, NO_INSETS);
+    const lay = layoutRadial(700, 500, evenAngles(8), 40, 25, 1600, 900, NO_INSETS, out, 6, 0, [keep]);
+    expect(lay.cx).toBe(700);
+    expect(lay.cy).toBe(500);
+  });
+
+  it('dodgeRects takes the shortest move that clears the rect and stays in bounds', () => {
+    const rel = { x: -50, y: -50, w: 100, h: 100 };
+    // Box at (100,100) overlaps a rect at its top-right; the cheapest move is down.
+    const p = dodgeRects(100, 100, rel, [50, 950, 50, 950], [{ x: 120, y: 0, w: 200, h: 80 }], 6);
+    expect(p.x).toBe(100);
+    expect(p.y).toBeCloseTo(80 + 6 + 50, 9);
+    // No legal spot: stays put.
+    const q = dodgeRects(100, 100, rel, [100, 100, 100, 100], [{ x: 0, y: 0, w: 300, h: 300 }], 6);
+    expect(q).toEqual({ x: 100, y: 100 });
   });
 });

@@ -5,9 +5,10 @@ import { t as msg, type MsgKey } from '../i18n/index.ts';
 import type { LoadedArt } from './assets2d.ts';
 import { MIN_TOUCH } from './hud.ts';
 import { paintedText, setFontSize, setText } from './hudText.ts';
-import { easeOutBack, easeOutCubic, fitWidth, INK, INK_SOFT, inkText, kit, PRICE_RED, setInkSize } from './uiKit.ts';
+import { easeOutBack, easeOutCubic, fitWidth, hudKeepOuts, INK, INK_SOFT, inkText, kit, PRICE_RED, setInkSize } from './uiKit.ts';
 import {
   evenAngles,
+  hudButtonsKeepOut,
   layoutRadial,
   NO_INSETS,
   placeTooltip,
@@ -254,6 +255,7 @@ export class BuildRing {
   private readonly art: LoadedArt;
   private readonly gray = new ColorMatrixFilter();
   private box: Rect = { x: 0, y: 0, w: 0, h: 0 };
+  private avoid: Rect[] = [];
   private tokenR = 32;
   private count = 0;
   private originX = 0;
@@ -432,9 +434,19 @@ export class BuildRing {
     t.tagBg.tint = t.enabled ? 0xffffff : 0xd9d2c4;
   }
 
+  /**
+   * Screen areas the ring and its tooltip keep clear of: the top-right HUD row (speed, pause, the
+   * Guide button and its caption). The ring is hit-tested before the canvas HUD, but the Guide
+   * button is DOM on top of the canvas, so a medallion under it could be neither seen nor tapped.
+   */
+  private avoidRects(): Rect[] {
+    return [hudButtonsKeepOut(this.screenW, this.screenH, this.insets), ...hudKeepOuts()];
+  }
+
   private layout(cx: number, cy: number, angles: readonly number[], minRadius = 0): void {
     const r = this.tokenR;
-    const lay = layoutRadial(cx, cy, angles, r, r * TAG_H, this.screenW, this.screenH, this.insets, this.points, 6, minRadius);
+    this.avoid = this.avoidRects();
+    const lay = layoutRadial(cx, cy, angles, r, r * TAG_H, this.screenW, this.screenH, this.insets, this.points, 6, minRadius, this.avoid);
     this.box = lay.box;
     this.originX = cx;
     this.originY = cy;
@@ -574,7 +586,7 @@ export class BuildRing {
     const k = info.keepOut ?? null;
     const minR = Math.max(r3(r), k ? k.h * 0.55 + r * 1.5 + 4 : 0);
     const radius = Math.max(minR, ringRadius(evenAngles(i), r, r * TAG_H));
-    const angles = towerRingAngles(i, cx, cy, r, r * TAG_H, radius, this.screenW, this.screenH, this.insets, k);
+    const angles = towerRingAngles(i, cx, cy, r, r * TAG_H, radius, this.screenW, this.screenH, this.insets, k, 6, this.avoidRects());
     this.layout(cx, cy, angles, radius);
   }
 
@@ -636,7 +648,7 @@ export class BuildRing {
     else if (i !== this.selected) c.hint = msg('ring.tapChoose');
     else c.hint = t.action?.kind === 'build' ? msg('ring.tapBuild') : t.action?.kind === 'upgrade' ? msg('ring.tapUpgrade') : t.action?.kind === 'sell' ? msg('ring.tapSell') : '';
     this.tooltip.set(c, this.u);
-    const p = placeTooltip(this.box, this.tooltip.w, this.tooltip.h, this.screenW, this.screenH, this.insets);
+    const p = placeTooltip(this.box, this.tooltip.w, this.tooltip.h, this.screenW, this.screenH, this.insets, 10, 6, this.avoid);
     this.tooltip.root.position.set(p.x, p.y);
     this.tooltip.root.visible = true;
     this.tooltip.root.alpha = 0;

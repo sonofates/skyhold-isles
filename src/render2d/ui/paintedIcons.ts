@@ -53,7 +53,18 @@ export const ICONS = {
   next: svg(
     `<path d="M20 10 L34 24 L20 38" fill="none" stroke="${O}" stroke-width="10"/>` + `<path d="M20 10 L34 24 L20 38" fill="none" stroke="${C}" stroke-width="5"/>`,
   ),
-  /** Speaker with a red slash: no sound (yet). */
+  /** Treasure chest with a gold clasp and a blue gem: the "full adventure" lock and store item. */
+  chest: svg(
+    `<path d="M8 22 C8 13.5 15 9.5 24 9.5 C33 9.5 40 13.5 40 22 Z" fill="#a8622e" stroke="${O}" stroke-width="3.2"/>` +
+      `<rect x="8" y="22" width="32" height="17" rx="2.5" fill="#8a4a22" stroke="${O}" stroke-width="3.2"/>` +
+      `<path d="M15 11.5 V39 M33 11.5 V39" stroke="${O}" stroke-width="6"/>` +
+      `<path d="M15 11.5 V39 M33 11.5 V39" stroke="${G}" stroke-width="3"/>` +
+      `<path d="M9.5 22 H38.5" stroke="${O}" stroke-width="2.4"/>` +
+      `<rect x="19" y="18" width="10" height="12" rx="2.4" fill="${G}" stroke="${O}" stroke-width="2.8"/>` +
+      `<circle cx="24" cy="23" r="2.4" fill="#3d7bd6" stroke="${O}" stroke-width="1.4"/>` +
+      `<path d="M24 25.4 V28" stroke="${O}" stroke-width="2"/>`,
+  ),
+  /** Speaker with a red slash: no sound. */
   mute: svg(
     `<path d="M8 19 H15 L25 10 V38 L15 29 H8 Z" fill="${C}" stroke="${O}" stroke-width="3.2"/>` +
       `<path d="M30 17 C33 20 33 28 30 31 M35 13 C40 18 40 30 35 35" fill="none" stroke="${O}" stroke-width="3" opacity=".55"/>` +
