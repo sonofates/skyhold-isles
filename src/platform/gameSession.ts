@@ -77,6 +77,8 @@ import { isEndlessBestCrossing, isIslandMastered, starWallet } from '../game/pro
 import { badgesForWin, resolveRunConfig, type RunConfig } from '../game/runConfig.ts';
 import { earnedFeatIds, newlyEarnedFeats, type FeatDef } from '../game/feats.ts';
 import { dailyShareText } from '../game/share.ts';
+import { hydrateProgressFromCloud } from './cloudSync.ts';
+import { getPlatform } from './platform.ts';
 import { decodeSaveCode, describeMergeGain, encodeSaveCode, mergeProgress } from './saveCode.ts';
 
 /** Countdown / cooldown HUD refresh cadence when no event triggered a sync. */
@@ -138,6 +140,7 @@ export class GameSession {
   private uiSyncAccumSec = 0;
   private unbindSound: (() => void) | null = null;
   private unbindHaptics: (() => void) | null = null;
+  private unbindOverlay: (() => void) | null = null;
   private deps: SessionRuntimeDeps | null = null;
   private readonly quality: QualityController;
   /** Tile whose ghost tower the radial build ring is previewing (survives pointer-leave refreshes). */
@@ -161,6 +164,21 @@ export class GameSession {
       Math.min(LEVELS.length - 1, this.progress.unlockedLevelIndex),
     );
     this.simWorld = new SimWorld(LEVELS[this.currentLevelIndex], this.events);
+    const platform = getPlatform();
+    this.unbindOverlay = platform.onOverlayChange((active) => {
+      if (active) this.pauseIfRunning();
+    });
+    if (platform.isSteam) {
+      void hydrateProgressFromCloud(this.progress, LEVELS.length, platform).then(({ merged, updated }) => {
+        if (!updated) return;
+        Object.assign(this.progress, merged);
+        if (this.viewMode !== 'playing' && this.deps) {
+          this.deps.overlays.mainMenu.setOpen(this.viewMode === 'menu', this.progress);
+          this.deps.overlays.levelSelect.setOpen(this.viewMode === 'levelSelect', this.progress);
+          this.deps.overlays.workshop.setOpen(this.viewMode === 'workshop', this.progress);
+        }
+      });
+    }
   }
 
   attachRuntime(deps: SessionRuntimeDeps): void {
@@ -1312,5 +1330,7 @@ export class GameSession {
     this.unbindSound = null;
     this.unbindHaptics?.();
     this.unbindHaptics = null;
+    this.unbindOverlay?.();
+    this.unbindOverlay = null;
   }
 }

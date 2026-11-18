@@ -2,9 +2,12 @@ import type { GameSettings, ProgressData, QualityLevel } from '../core/types.ts'
 import { createDailyRecord, sanitizeDailyRecord } from '../data/daily.ts';
 import { sanitizeRanks } from '../data/workshop.ts';
 import { starWallet } from '../game/progression.ts';
+import { syncAchievementsFromProgress } from './achievements.ts';
+import { getPlatform } from './platform.ts';
 
 const SETTINGS_KEY = 'skyhold_isles_settings_v1';
 const PROGRESS_KEY = 'skyhold_isles_progress_v1';
+export const CLOUD_PROGRESS_SLOT = 'progress';
 const FLYER_TOAST_SEEN_KEY = 'skyhold_isles_flyer_toast_seen_v1';
 const UPGRADE_TOAST_SEEN_KEY = 'skyhold_isles_upgrade_toast_seen_v1';
 const ENEMY_INTROS_SEEN_KEY = 'skyhold_isles_enemy_intros_seen_v1';
@@ -267,11 +270,17 @@ export function loadProgress(levelCount: number): ProgressData {
 }
 
 export function saveProgress(progress: ProgressData): void {
+  progress.version = PROGRESS_SAVE_VERSION;
+  const raw = JSON.stringify(progress);
   try {
-    progress.version = PROGRESS_SAVE_VERSION;
-    localStorage.setItem(PROGRESS_KEY, JSON.stringify(progress));
+    localStorage.setItem(PROGRESS_KEY, raw);
   } catch {
     // Ignore storage quota / private mode failures
+  }
+  const platform = getPlatform();
+  if (platform.isSteam) {
+    void platform.cloudSave.write(CLOUD_PROGRESS_SLOT, raw);
+    void syncAchievementsFromProgress(progress, platform);
   }
 }
 

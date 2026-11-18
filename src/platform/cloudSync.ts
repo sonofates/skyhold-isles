@@ -1,0 +1,50 @@
+import type { ProgressData } from '../core/types.ts';
+import { LEVELS, type LevelDef } from '../data/levels/index.ts';
+import { syncAchievementsFromProgress } from './achievements.ts';
+import { getPlatform, type PlatformAdapter } from './platform.ts';
+import { mergeProgress } from './saveCode.ts';
+import { CLOUD_PROGRESS_SLOT, migrateProgress, saveProgress } from './storage.ts';
+
+export interface CloudHydrateResult {
+  readonly merged: ProgressData;
+  readonly updated: boolean;
+  readonly unlockedAchievements: string[];
+}
+
+/**
+ * Pulls the progress blob from `adapter.cloudSave`, merges it record-by-record with `localProgress`
+ * (best of both, never dropping earned progress), persists the merged save when either side gained
+ * records, and unlocks all satisfied Steam achievements.
+ */
+export async function hydrateProgressFromCloud(
+  localProgress: ProgressData,
+  levelCount = LEVELS.length,
+  adapter: PlatformAdapter = getPlatform(),
+  levels: readonly LevelDef[] = LEVELS,
+): Promise<CloudHydrateResult> {
+  const localRaw = JSON.stringify(localProgress);
+  let merged = localProgress;
+  let updated = false;
+
+  const cloudRaw = await adapter.cloudSave.read(CLOUD_PROGRESS_SLOT);
+  if (cloudRaw) {
+    try {
+      const parsed: unknown = JSON.parse(cloudRaw);
+      const cloudProgress = migrateProgress(parsed, levelCount);
+      merged = mergeProgress(localProgress, cloudProgress, levelCount);
+      const mergedRaw = JSON.stringify(merged);
+      if (mergedRaw !== localRaw || mergedRaw !== cloudRaw) {
+        updated = mergedRaw !== localRaw;
+        saveProgress(merged);
+      }
+    } catch {
+      // Corrupt cloud blob: keep local progress and overwrite cloud when local has progress.
+      await adapter.cloudSave.write(CLOUD_PROGRESS_SLOT, localRaw);
+    }
+  } else if (adapter.isSteam) {
+    await adapter.cloudSave.write(CLOUD_PROGRESS_SLOT, localRaw);
+  }
+
+  const unlockedAchievements = await syncAchievementsFromProgress(merged, adapter, levels);
+  return { merged, updated, unlockedAchievements };
+}

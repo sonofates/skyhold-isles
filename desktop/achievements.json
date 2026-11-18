@@ -1,0 +1,142 @@
+[
+  {
+    "id": "FEAT_FIRST_LANDING",
+    "name": "First Landing",
+    "description": "Clear your first island"
+  },
+  {
+    "id": "FEAT_ISLAND_HOPPER",
+    "name": "Island Hopper",
+    "description": "Clear 5 islands"
+  },
+  {
+    "id": "FEAT_SKY_CHARTED",
+    "name": "The Skies Charted",
+    "description": "Clear every island"
+  },
+  {
+    "id": "FEAT_STARCATCHER",
+    "name": "Starcatcher",
+    "description": "Earn 3 stars on any island"
+  },
+  {
+    "id": "FEAT_STARGAZER",
+    "name": "Stargazer",
+    "description": "Collect half of all campaign stars"
+  },
+  {
+    "id": "FEAT_FULL_FIRMAMENT",
+    "name": "Full Firmament",
+    "description": "Collect every campaign star"
+  },
+  {
+    "id": "FEAT_MASTER_STROKE",
+    "name": "Master Stroke",
+    "description": "Earn 3 stars on a Master island"
+  },
+  {
+    "id": "FEAT_BADGE_HUNTER",
+    "name": "Badge Hunter",
+    "description": "Win 6 island challenges"
+  },
+  {
+    "id": "FEAT_CROWNED",
+    "name": "Crowned",
+    "description": "Master an island (3 stars and both badges)"
+  },
+  {
+    "id": "FEAT_STORM_CHASER",
+    "name": "Storm Chaser",
+    "description": "Earn a Gold endless medal (10 endless waves on one island)"
+  },
+  {
+    "id": "FEAT_SQUALL_RIDER",
+    "name": "Squall Rider",
+    "description": "Win 7 Daily Squalls"
+  },
+  {
+    "id": "FEAT_STEADY_WINDS",
+    "name": "Steady Winds",
+    "description": "Reach a 3-day Daily Squall streak"
+  },
+  {
+    "id": "FEAT_VETERAN",
+    "name": "Seasoned Warden",
+    "description": "Win 30 battles"
+  },
+  {
+    "id": "STARS_BREEZY_SWEEP",
+    "name": "Breezy Star Sweep",
+    "description": "Earn 3 stars on every Breezy island (lose ≤ 2 lives)"
+  },
+  {
+    "id": "STARS_CHALLENGING_SWEEP",
+    "name": "Challenging Star Sweep",
+    "description": "Earn 3 stars on every Challenging island (lose ≤ 3 lives)"
+  },
+  {
+    "id": "STARS_HEROIC_SWEEP",
+    "name": "Heroic Star Sweep",
+    "description": "Earn 3 stars on every Heroic island (lose ≤ 5 lives)"
+  },
+  {
+    "id": "STARS_MASTER_SWEEP",
+    "name": "Master Star Sweep",
+    "description": "Earn 3 stars on every Master island (lose ≤ 7 lives)"
+  },
+  {
+    "id": "CHALLENGE_THAW",
+    "name": "Thaw",
+    "description": "Win an island with Thaw (Frost Towers cannot be built)"
+  },
+  {
+    "id": "CHALLENGE_QUIET_GUNS",
+    "name": "Quiet Guns",
+    "description": "Win an island with Quiet Guns (Cannons and Mortars cannot be built)"
+  },
+  {
+    "id": "CHALLENGE_BOWLESS",
+    "name": "Bowless",
+    "description": "Win an island with Bowless (Archer Towers cannot be built)"
+  },
+  {
+    "id": "CHALLENGE_STATIC_FREE",
+    "name": "Still Air",
+    "description": "Win an island with Still Air (Tesla Towers cannot be built)"
+  },
+  {
+    "id": "CHALLENGE_GALE_FORCE",
+    "name": "Gale Force",
+    "description": "Win an island with Gale Force (Foes move 12% faster)"
+  },
+  {
+    "id": "CHALLENGE_IRON_TIDE",
+    "name": "Iron Tide",
+    "description": "Win an island with Iron Tide (Foes have 12% more health)"
+  },
+  {
+    "id": "CHALLENGE_THIN_PURSE",
+    "name": "Thin Purse",
+    "description": "Win an island with Thin Purse (30% less starting gold, foes drop 15% less)"
+  },
+  {
+    "id": "CHALLENGE_GLASS_SANCTUARY",
+    "name": "Glass Sanctuary",
+    "description": "Win an island with Glass Sanctuary (Only 8 lives (Workshop lives ignored))"
+  },
+  {
+    "id": "CHALLENGE_SILENT_SKIES",
+    "name": "Silent Skies",
+    "description": "Win an island with Silent Skies (Meteor Strike and Overcharge are disabled)"
+  },
+  {
+    "id": "CHALLENGE_ALL_BADGES",
+    "name": "Archipelago Challenger",
+    "description": "Complete every island challenge badge across all campaign islands"
+  },
+  {
+    "id": "CROWN_ALL_ISLANDS",
+    "name": "Sovereign of the Skies",
+    "description": "Master every island (3 stars and all challenge badges on every island)"
+  }
+]

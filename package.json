@@ -2,6 +2,9 @@
   "name": "skyhold-isles-td",
   "private": true,
   "version": "1.0.0",
+  "description": "Skyhold Isles — hand-painted storybook tower defense across floating sky islands",
+  "author": "Skyhold Studio",
+  "main": "desktop/main.cjs",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -9,11 +12,17 @@
     "preview": "vite preview",
     "lint": "eslint src tests scripts",
     "test": "vitest run",
-    "sim:balance": "tsx scripts/balanceSim.ts"
+    "sim:balance": "tsx scripts/balanceSim.ts",
+    "desktop:dev": "npm run build && electron .",
+    "desktop:build:linux": "npm run build && electron-builder --config desktop/electron-builder.json --linux AppImage --publish never",
+    "desktop:build:win": "npm run build && electron-builder --config desktop/electron-builder.json --win nsis zip --publish never",
+    "desktop:build:mac": "npm run build && electron-builder --config desktop/electron-builder.json --mac dmg --publish never"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@types/three": "^0.187.0",
+    "electron": "^45.3.4",
+    "electron-builder": "^26.18.0",
     "eslint": "^10.15.0",
     "tsx": "^4.23.15",
     "typescript": "^5.9.3",
@@ -26,6 +35,7 @@
     "n8ao": "^2.0.2",
     "pixi.js": "^8.23.0",
     "postprocessing": "^6.39.6",
+    "steamworks.js": "^0.4.0",
     "three": "^0.187.0"
   }
 }
