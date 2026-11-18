@@ -26,12 +26,39 @@ export function qualityOverride(value: string | null): QualityTier | null {
 // Used at Pixi initialization too, so an explicit tier picks the correct map bake on first load.
 const initialTier = typeof location === 'undefined' ? null : qualityOverride(new URLSearchParams(location.search).get('quality'));
 
+/**
+ * Player graphics preferences (Settings → Graphics, set by `ui/graphicsSettings.ts` through
+ * `setGraphicsPrefs`). Neutral by default, so nothing changes until the player picks something.
+ */
+export interface GraphicsPrefs {
+  /** Player-locked tier (Quality preset); null = Auto (the frame-time governor decides). */
+  readonly lock: QualityTier | null;
+  /** Canvas resolution scale, 0.5..1 (Render resolution; 1 = Auto / full). */
+  readonly renderScale: number;
+  /** Frame-rate cap in fps (0 = none): the governor judges frames against the cap, not 60 fps. */
+  readonly fpsCap: number;
+}
+
+export const NEUTRAL_GRAPHICS_PREFS: GraphicsPrefs = { lock: null, renderScale: 1, fpsCap: 0 };
+let prefs: GraphicsPrefs = NEUTRAL_GRAPHICS_PREFS;
+let prefsRev = 0;
+
+/** Applies new graphics preferences; running `AdaptiveQuality`s pick them up on their next `observe`. */
+export function setGraphicsPrefs(p: GraphicsPrefs): void {
+  prefs = { lock: p.lock, renderScale: Math.max(0.5, Math.min(1, Number.isFinite(p.renderScale) ? p.renderScale : 1)), fpsCap: Math.max(0, p.fpsCap || 0) };
+  prefsRev++;
+}
+
+export function graphicsPrefs(): GraphicsPrefs {
+  return prefs;
+}
+
 export function renderResolution(w: number, h: number, dpr: number, override?: number, tier: QualityTier = initialTier ?? 'high'): number {
   const high = highResolution(w, h, dpr, override);
-  if (tier === 'high') return high;
+  if (tier === 'high') return high * prefs.renderScale;
   const medium = tier === 'med';
   const pixelBudget = medium ? 1_050_000 : 250_000;
-  return Math.min(high, medium ? 1.5 : 0.8, Math.sqrt(pixelBudget / Math.max(1, w * h)));
+  return Math.min(high, medium ? 1.5 : 0.8, Math.sqrt(pixelBudget / Math.max(1, w * h))) * prefs.renderScale;
 }
 
 /** Detects software WebGL rasterizers (ANGLE SwiftShader, LLVMpipe, Basic Render Driver). */
@@ -125,20 +152,32 @@ export class AdaptiveQuality {
   private smoothWindows = 0;
   private emergencyDrops = 0;
   private tierClimbs = 0;
+  /** Settings → Graphics: the prefs revision this governor last applied, and its Auto start tier. */
+  private seenPrefs = prefsRev;
+  private readonly autoTier: QualityTier;
 
   constructor(override: QualityTier | null, initialUnlockedTier: QualityTier = 'high', desktop = false) {
-    this.tier = override ?? initialUnlockedTier;
+    this.tier = override ?? prefs.lock ?? initialUnlockedTier;
+    this.autoTier = initialUnlockedTier;
     this.locked = override !== null;
     this.isDesktop = desktop;
   }
 
-  /** Tier that sets the canvas resolution: desktops stay at full resolution unless locked. */
+  /** Tier that sets the canvas resolution: desktops stay at full resolution unless `?quality=` locks it. */
   get resolutionTier(): QualityTier {
     return this.isDesktop && !this.locked ? 'high' : this.tier;
   }
 
+  /** `?quality=` or the player's Quality preset holds the tier (no boot calibration, no governor). */
   get isLocked(): boolean {
-    return this.locked;
+    return this.locked || prefs.lock !== null;
+  }
+
+  /** New graphics prefs: take the player's tier (or go back to Auto) and restart the windows. */
+  private applyPrefs(): void {
+    this.seenPrefs = prefsRev;
+    if (!this.locked) this.tier = prefs.lock ?? this.autoTier;
+    this.resetWindows();
   }
 
   private resetWindows(): void {
@@ -160,7 +199,7 @@ export class AdaptiveQuality {
    */
   calibrateBoot(renderMs: number, software: boolean, activeWorkload = true): boolean {
     this.resetWindows();
-    if (this.locked || this.resolutionScale < 1) return false;
+    if (this.isLocked || this.resolutionScale < 1) return false;
     if (!Number.isFinite(renderMs) || renderMs <= 0) return false;
     const threshold = software ? (activeWorkload ? 14.5 : 28) : 45;
     if (renderMs <= threshold) return false;
@@ -188,11 +227,18 @@ export class AdaptiveQuality {
   }
 
   observe(ms: number, visible: boolean): boolean {
-    if (this.locked) return false;
+    // Settings → Graphics changed: report it once so the game re-applies effects + resolution.
+    if (this.seenPrefs !== prefsRev) {
+      this.applyPrefs();
+      return true;
+    }
+    if (this.isLocked) return false;
     if (!visible || !Number.isFinite(ms) || ms <= 0) {
       this.resetWindows();
       return false;
     }
+    // A 30 fps cap makes every frame ~33 ms on purpose: judge frames against the cap instead.
+    if (prefs.fpsCap > 0 && prefs.fpsCap < 60) ms *= prefs.fpsCap / 60;
     if (this.isDesktop) return this.observeDesktop(ms);
     if (this.resolutionScale < 1) return false;
     // Two back-to-back severe stalls (> 85 ms, < 12 fps) drop straight to a playable tier

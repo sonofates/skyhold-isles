@@ -13,7 +13,13 @@ import type { EnemyType } from '../core/types.ts';
 import { FrameStats } from './frameStats.ts';
 import { Game2D, type Game2DHooks } from './game2d.ts';
 import { HUD_FONT } from './hudText.ts';
-import { detectSoftwareWebGL, isDesktopClient, qualityOverride, renderResolution, type QualityTier } from './renderResolution.ts';
+import { detectSoftwareWebGL, isDesktopClient, qualityOverride, renderResolution, setGraphicsPrefs, type QualityTier } from './renderResolution.ts';
+import { setFxPrefs } from './fxLayer.ts';
+import type { GameSettings } from '../core/types.ts';
+import { loadSettings } from '../platform/storage.ts';
+import { GRAPHICS_EVENT, graphicsEngineState, loadGraphics, type GraphicsEngineState, type GraphicsSettings } from './ui/graphicsSettings.ts';
+import type { AbilityBar2D } from './ui/abilityBar2d.ts';
+import type { AbilityId } from '../core/types.ts';
 import type { MapView } from './mapView.ts';
 import type { GateLayer } from './gateLayer.ts';
 import { MASTER_SCALE, maxMapScale, pickMapVariant } from './mapVariant.ts';
@@ -76,8 +82,30 @@ declare global {
       setGold?: (g: number) => void;
       setLives?: (n: number) => void;
       artcheck?: () => ReturnType<typeof artCheckSummary>;
+      /** QA: the ability bar (state, boxes, FX counters) and aiming as a button press would. */
+      abilities?: () => Record<string, unknown> | null;
+      aimAbility?: (id: AbilityId | null) => void;
+      /** QA: stop / restart the ticker (a frozen frame for mid-effect screenshots, no Paused plate). */
+      freeze?: (on: boolean) => void;
     };
   }
+}
+
+/**
+ * Settings → Graphics into the renderer (resolution / tier lock, effects density, reduced-motion
+ * flashes) and the page (reduced-motion class). Returns the engine state for the ticker cap.
+ */
+function applyGraphics(g: GraphicsSettings, quality: GameSettings['quality'], desktop: boolean): GraphicsEngineState {
+  const engine = graphicsEngineState(quality, g, desktop);
+  setGraphicsPrefs(engine.prefs);
+  setFxPrefs(engine.fx);
+  document.documentElement.classList.toggle('pu-reduce-motion', g.reducedMotion);
+  return engine;
+}
+
+/** Pixi skips a frame that comes a hair early: leave 8% slack so a 60 cap keeps every 60 Hz frame. */
+function tickerMaxFps(cap: number): number {
+  return cap > 0 ? cap * 1.08 : 0;
 }
 
 /** Counts WebGL draw calls per frame by wrapping the context's draw entry points. */
@@ -129,6 +157,9 @@ function bootLocale(): Promise<unknown> {
 async function main(): Promise<void> {
   const q = new URLSearchParams(location.search);
   const fontsReady = bootLocale();
+  const desktop = isDesktopClient(q);
+  let gfx = loadGraphics();
+  let engine = applyGraphics(gfx, loadSettings().quality, desktop);
   if (!GAME_PARAMS.some((k) => q.has(k))) {
     await fontsReady;
     const { mountWorldMap } = await import('./ui/worldMap.ts');
@@ -174,10 +205,11 @@ async function main(): Promise<void> {
   const explicitQuality = qualityOverride(q.get('quality'));
   const softwareWebGL = detectSoftwareWebGL();
   const startWave = Number(q.get('wave') ?? 0) || 0;
-  const bootTier: QualityTier =
-    explicitQuality ?? ((bench > 0 || startWave > 1) && softwareWebGL ? 'low' : 'high');
+  // `?quality=` wins over the player's Quality preset (Settings → Graphics), which wins over Auto.
+  const autoTier: QualityTier = explicitQuality ?? ((bench > 0 || startWave > 1) && softwareWebGL ? 'low' : 'high');
+  const bootTier: QualityTier = explicitQuality ?? engine.prefs.lock ?? autoTier;
   // Desktops always start (and stay) at full canvas resolution; the tier only trims effects there.
-  const bootResolutionTier: QualityTier = isDesktopClient(q) && !explicitQuality ? 'high' : bootTier;
+  const bootResolutionTier: QualityTier = desktop && !explicitQuality ? 'high' : bootTier;
   const app = new Application();
   await app.init({
     resizeTo: window,
@@ -316,11 +348,26 @@ async function main(): Promise<void> {
   let storyOpen = false;
   const routing = await import('./ui/inGame.ts');
   const baseHooks = hooks;
+  // Shared settings as the game reads them (every frame / hit): cached, re-read when Settings
+  // closes, on another tab's save / focus (capture, so before game2d's own refresh) and on a
+  // graphics change. Reduced motion turns the screen shake off whatever the Shake toggle says.
+  const readSettings = (): GameSettings => {
+    const s = loadSettings();
+    return gfx.reducedMotion ? { ...s, cameraShake: false } : s;
+  };
+  let liveSettings = readSettings();
+  const refreshLiveSettings = (): void => {
+    liveSettings = readSettings();
+  };
+  window.addEventListener('storage', refreshLiveSettings, { capture: true });
+  window.addEventListener('focus', refreshLiveSettings, { capture: true });
+  let abilities: AbilityBar2D | null = null;
   hooks = {
     ...baseHooks,
     modifiers: run.modifiers,
     startEndless: run.runConfig.endless,
-    initialUnlockedTier: bootTier,
+    initialUnlockedTier: autoTier,
+    getSettings: baseHooks.getSettings ?? (() => liveSettings),
     onBackgroundChange: (inBackground) => {
       if (inBackground) {
         // Keep the run paused on resume even if Codex or the intro story was open when backgrounded.
@@ -336,6 +383,7 @@ async function main(): Promise<void> {
     onEndPanel: (shown) => {
       codexRef?.setButtonVisible(!shown);
       settingsRef?.setButtonVisible(!shown);
+      abilities?.setVisible(!shown && !storyOpen);
       const w = gameRef?.world;
       if (!shown || !w) return;
       const won = w.outcome === 'won';
@@ -410,6 +458,23 @@ async function main(): Promise<void> {
   }
   draws?.take();
   document.getElementById('boot')?.remove();
+  // Settings → Graphics: frame-rate cap, FPS chip, and live re-apply while a run is open.
+  const { mountFpsCounter } = await import('./ui/fpsCounter.ts');
+  const fpsChip = mountFpsCounter();
+  fpsChip.setVisible(gfx.showFps);
+  app.ticker.maxFPS = tickerMaxFps(engine.maxFps);
+  window.addEventListener(GRAPHICS_EVENT, () => {
+    gfx = loadGraphics();
+    engine = applyGraphics(gfx, loadSettings().quality, desktop);
+    app.ticker.maxFPS = tickerMaxFps(engine.maxFps);
+    fpsChip.setVisible(gfx.showFps);
+    refreshLiveSettings();
+  });
+  if (bench === 0) {
+    // Global abilities (Meteor Strike, Overcharge): painted bar + aiming + FX (ui/abilityBar2d.ts).
+    const { mountAbilityBar2D, abilityArtFiles } = await import('./ui/abilityBar2d.ts');
+    abilities = mountAbilityBar2D(game, { desktop, art: abilityArtFiles(art.baseUrl), baseUrl: art.baseUrl });
+  }
   if (bench === 0) {
     const codex = mountCodex2D(art, (open) => {
       if (open) {
@@ -426,6 +491,7 @@ async function main(): Promise<void> {
           game.stepper.paused = true;
         } else {
           game.stepper.paused = settingsWasPaused;
+          refreshLiveSettings();
           game.refreshSettings();
         }
       },
@@ -442,6 +508,7 @@ async function main(): Promise<void> {
       g.stepper.paused = true;
       codex.setButtonVisible(false);
       settings.setButtonVisible(false);
+      abilities?.setVisible(false);
       storyOpen = true;
       void routing.playStoryOnce(level, 'intro', art.manifest, art.baseUrl, storyQ === 'intro').then(() => {
         storyOpen = false;
@@ -449,6 +516,7 @@ async function main(): Promise<void> {
         if (!g.end.visible) {
           codex.setButtonVisible(true);
           settings.setButtonVisible(true);
+          abilities?.setVisible(true);
         }
       });
     }
@@ -466,11 +534,14 @@ async function main(): Promise<void> {
       toScreen: (x: number, z: number) => ({ x: game.map.screenX(game.map.pxX(x)), y: game.map.screenY(game.map.pxY(z)) }),
     });
   }
+  let fpsTick = 0;
   app.ticker.add((t) => {
     if (draws) lastDraws = draws.take();
     const t0 = performance.now();
     stats.record(t.deltaMS, t0);
     if (!manual) game.frame(t.deltaMS / 1000);
+    abilities?.frame(t.deltaMS / 1000);
+    if (fpsChip.visible && ++fpsTick % 30 === 0) fpsChip.show(stats.snapshot(t0).fps);
     settingsRef?.setPausePlate(storyOpen || anySheetOpen() ? null : game.hud.pausePlate);
     zooLabels?.update();
     aimOverlay?.update();
@@ -490,6 +561,9 @@ async function main(): Promise<void> {
     skipToWave: (n) => game.world.debugSkipToWave(n),
     hudWave: () => game.hud.waveLabel,
     artcheck: () => artCheckSummary(art),
+    abilities: () => abilities?.debug() ?? null,
+    aimAbility: (id) => abilities?.aim(id),
+    freeze: (on) => (on ? app.ticker.stop() : app.ticker.start()),
     setGold: (g) => {
       game.world.gold = g;
       game.markHudDirty();

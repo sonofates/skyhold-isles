@@ -430,6 +430,87 @@ export function hudButtonsKeepOut(w: number, h: number, insets: Insets): Rect {
 }
 
 // ---------------------------------------------------------------------------------------------
+// Ability bar
+// ---------------------------------------------------------------------------------------------
+
+export interface AbilityBarSpot {
+  readonly x: number;
+  readonly y: number;
+  readonly vertical: boolean;
+  /** 0 = clear of every plot / tower and road; higher = worse (QA). */
+  readonly score: number;
+}
+
+export interface AbilityBarInput {
+  readonly w: number;
+  readonly h: number;
+  readonly insets: Insets;
+  readonly pad: number;
+  /** Bar size laid out horizontally (vertical candidates swap them). */
+  readonly long: number;
+  readonly short: number;
+  readonly gap: number;
+  /** HUD plaque (bottom-left) and wave banner (bottom-right), screen px. */
+  readonly plaque: Rect;
+  readonly banner: Rect;
+  /** Never cover: build plots with their towers, the horn, HUD pieces. */
+  readonly hard: readonly Rect[];
+  /** Rather not cover: points along the roads (enemies walk there). */
+  readonly soft: readonly Pt[];
+}
+
+/**
+ * Where the ability bar goes on this island: the first clear spot among the bottom band between
+ * the plaque and the wave banner (centre first, then sliding towards either end), just above the
+ * plaque / banner, or a column up the left / right edge. A spot covering a plot (or its tower) or
+ * a HUD piece is only taken when every spot does; then the least covered wins. Roads count a bit,
+ * the distance from the bottom centre breaks ties.
+ */
+export function abilityBarSpot(o: AbilityBarInput): AbilityBarSpot {
+  const { w, h, insets, pad, long, short, gap } = o;
+  const minX = insets.left + pad;
+  const maxX = w - insets.right - pad;
+  const minY = insets.top + pad;
+  const maxY = h - insets.bottom - pad;
+  const cands: { x: number; y: number; vertical: boolean; rank: number }[] = [];
+  const add = (x: number, y: number, vertical: boolean, rank: number): void => {
+    const bw = vertical ? short : long;
+    const bh = vertical ? long : short;
+    cands.push({ x: Math.max(minX, Math.min(maxX - bw, x)), y: Math.max(minY, Math.min(maxY - bh, y)), vertical, rank });
+  };
+  const bottomY = maxY - short;
+  const left = o.plaque.x + o.plaque.w + gap;
+  const right = o.banner.x - gap;
+  if (right - left >= long) {
+    add((left + right) / 2 - long / 2, bottomY, false, 0);
+    const steps = 8;
+    for (let i = 0; i <= steps; i++) add(left + ((right - left - long) * i) / steps, bottomY, false, 1);
+  }
+  add(o.plaque.x, o.plaque.y - gap - short, false, 2);
+  add(o.plaque.x + o.plaque.w - long, o.plaque.y - gap - short, false, 2);
+  add(o.banner.x + o.banner.w - long, o.banner.y - gap - short, false, 2);
+  add(o.banner.x, o.banner.y - gap - short, false, 2);
+  add(minX, o.plaque.y - gap - long, true, 3);
+  add(maxX - short, o.banner.y - gap - long, true, 3);
+  let best: AbilityBarSpot | null = null;
+  let bestScore = Infinity;
+  const cx = w / 2;
+  for (const c of cands) {
+    const box: Rect = { x: c.x, y: c.y, w: c.vertical ? short : long, h: c.vertical ? long : short };
+    let hard = 0;
+    for (const r of o.hard) hard += overlapArea(box, r);
+    let soft = 0;
+    for (const p of o.soft) if (p.x >= box.x && p.x <= box.x + box.w && p.y >= box.y && p.y <= box.y + box.h) soft++;
+    const score = hard * 1000 + soft * 40 + c.rank * 25 + Math.abs(box.x + box.w / 2 - cx) * 0.02 + (maxY - (box.y + box.h)) * 0.05;
+    if (score < bestScore) {
+      bestScore = score;
+      best = { x: c.x, y: c.y, vertical: c.vertical, score: Math.round(hard * 1000 + soft * 40) };
+    }
+  }
+  return best ?? { x: (w - long) / 2, y: bottomY, vertical: false, score: Infinity };
+}
+
+// ---------------------------------------------------------------------------------------------
 // End panel
 // ---------------------------------------------------------------------------------------------
 

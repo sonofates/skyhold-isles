@@ -51,6 +51,21 @@ const MAX_BOLTS = 16;
 const MAX_BEAMS = 24;
 const MAX_ZONES = 6;
 
+/** Settings → Graphics (set by ui/graphicsSettings.ts): effects density and reduced-motion flashes. */
+const fxPrefs = { density: 1, reduceFlashes: false };
+/** Largest flash (map px) drawn while Reduced motion is on. */
+const CALM_FLASH = 40;
+
+/** Effects density multiplier (0.5 Low / 1 Normal / 1.35 High); applied on the next `setQuality`. */
+export function setFxPrefs(p: { readonly density: number; readonly reduceFlashes: boolean }): void {
+  fxPrefs.density = Math.max(0.25, Math.min(1.5, p.density || 1));
+  fxPrefs.reduceFlashes = p.reduceFlashes;
+}
+
+export function fxPrefsNow(): { readonly density: number; readonly reduceFlashes: boolean } {
+  return fxPrefs;
+}
+
 /**
  * Pooled painted-looking FX in map px: smoke puffs, rings, coin pops, sparks, glows, shards,
  * ground craters, lightning bolts, light beams and burning-ground zones. Particle sprites grow
@@ -74,8 +89,9 @@ export class FxLayer {
   density = 1;
 
   setQuality(tier: QualityTier): void {
-    this.particleLimit = tier === 'high' ? MAX_PARTICLES : tier === 'med' ? 144 : 64;
-    this.density = tier === 'high' ? 1 : tier === 'med' ? 0.55 : 0.25;
+    const mul = fxPrefs.density;
+    this.particleLimit = Math.min(MAX_PARTICLES, Math.round((tier === 'high' ? MAX_PARTICLES : tier === 'med' ? 144 : 64) * mul));
+    this.density = (tier === 'high' ? 1 : tier === 'med' ? 0.55 : 0.25) * mul;
     // Decorative light sprites can share one additive batch on reduced tiers.
     if (tier !== 'high' && !this.additive) {
       this.additive = new Container();
@@ -171,6 +187,7 @@ export class FxLayer {
   spawn(kind: FxKind, px: number, py: number, size: number, vx = 0, vy = 0, life = 0.5, tint = 0xffffff): Particle | null {
     const i = this.pool.acquire(this.particleLimit);
     if (i < 0) return null;
+    if (kind === 'flash' && fxPrefs.reduceFlashes) size = Math.min(size, CALM_FLASH);
     let p = this.particles[i];
     if (!p) {
       const sprite = new Sprite(Texture.EMPTY);
