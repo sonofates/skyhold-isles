@@ -317,7 +317,7 @@ export function openDaily(ctx: MetaContext, nowMs = Date.now()): Sheet {
  * settings and reloads the map with Settings open again (every screen is rebuilt in the new
  * language; the map's screens are built once, so a reload is the simplest correct refresh).
  */
-function languagePicker(ctx: MetaContext): HTMLElement {
+function languagePicker(ctx: SettingsContext): HTMLElement {
   const box = el('div', 'pu-tabs pu-lang', { role: 'radiogroup', 'aria-label': t('set.language') });
   const cur = getLocale();
   for (const l of LOCALES) {
@@ -332,19 +332,32 @@ function languagePicker(ctx: MetaContext): HTMLElement {
   return box;
 }
 
-function switchLocale(l: Locale, ctx: MetaContext): void {
+function switchLocale(l: Locale, ctx: SettingsContext): void {
   saveLocaleSetting(l);
   if (l === getLocale()) return;
   setLocale(l);
   ctx.onChange();
   const q = new URLSearchParams(location.search);
   q.delete('lang');
-  q.set('screen', 'settings');
+  // In a run the island reloads (in the new language) with Settings open again.
+  q.set(ctx.inGame ? 'settings' : 'screen', ctx.inGame ? '1' : 'settings');
   location.assign(`${location.pathname}?${q.toString()}`);
 }
 
-export function openSettings(ctx: MetaContext): Sheet {
-  const sheet = openSheet(t('set.title'), { cls: 'pu-meta pu-settings', testid: 'settings2d' });
+/**
+ * What Settings needs: the island list (store row) and a change callback. `inGame` = opened over a
+ * run (the HUD button / pause plate): no progress reset or store rows, and a language change
+ * restarts the island (noted under the picker).
+ */
+export interface SettingsContext {
+  readonly levels: readonly LevelDef[];
+  onChange(): void;
+  readonly inGame?: boolean;
+  readonly onClose?: () => void;
+}
+
+export function openSettings(ctx: SettingsContext): Sheet {
+  const sheet = openSheet(t('set.title'), { cls: `pu-meta pu-settings${ctx.inGame ? ' pu-settings-ingame' : ''}`, testid: 'settings2d', onClose: ctx.onClose });
   const s: GameSettings = loadSettings();
   const save = (): void => {
     saveSettings(s);
@@ -396,7 +409,7 @@ export function openSettings(ctx: MetaContext): Sheet {
   mixRows.push(volRow, musicRow);
   dimWhenMuted();
   sheet.body.append(
-    row(t('set.language'), t('set.languageNote'), languagePicker(ctx)),
+    row(t('set.language'), ctx.inGame ? t('set.languageNoteInGame') : t('set.languageNote'), languagePicker(ctx)),
     row(
       t('set.sound'),
       t('set.soundNote'),
@@ -433,6 +446,7 @@ export function openSettings(ctx: MetaContext): Sheet {
       }),
     ),
   );
+  if (ctx.inGame) return sheet;
   // Mobile builds only: the store (Buy / Restore purchases must stay reachable after a purchase).
   if (storeEnabled()) {
     const shop = plank(t('set.storeOpen'), { kind: 'small', testid: 'set2d-store' });

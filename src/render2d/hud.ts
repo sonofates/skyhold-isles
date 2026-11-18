@@ -337,6 +337,13 @@ export class Hud {
     };
   }
 
+  /** Screen rect of the "Paused" plate while the player has paused (the Settings plank sits under it), else null. */
+  get pausePlate(): Rect | null {
+    if (this.lastBanner !== 'Paused' || !this.plate.visible) return null; // i18n-ignore (banner id)
+    const r = this.plate.getBounds();
+    return { x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.width), h: Math.round(r.height) };
+  }
+
   get hornPosition(): { x: number; y: number } {
     return { x: this.hornX, y: this.hornY };
   }

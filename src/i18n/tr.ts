@@ -124,6 +124,7 @@ export const TR: { readonly [K in MsgKey]: Msg } = {
   'hud.pausedSub': '▶ ile devam et',
   'hud.tapRoad': 'Yola dokun',
   'hud.tapRoadSub': 'toplanma bayrağını taşımak için',
+  'hud.settings': 'Ayarlar',
 
   // --- build ring + tooltip ------------------------------------------------------------------
   'ring.max': 'MAKS',
@@ -293,6 +294,7 @@ export const TR: { readonly [K in MsgKey]: Msg } = {
   'set.hapticsNote': 'Telefonda dokunuş ve vuruşlarda',
   'set.language': 'Dil',
   'set.languageNote': 'Adaların bütün ekranları',
+  'set.languageNoteInGame': 'Değiştirmek bu adayı baştan başlatır',
   'set.progress': 'Ada ilerlemesi',
   'set.progressNote': 'Bu adaların yıldızları, kilitleri ve Atölyesi',
   'set.reset': 'İlerlemeyi sıfırla',

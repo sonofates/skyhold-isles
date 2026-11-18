@@ -17,6 +17,8 @@ import { detectSoftwareWebGL, isDesktopClient, qualityOverride, renderResolution
 import type { MapView } from './mapView.ts';
 import { VARIANT_SLACK } from './mapVariant.ts';
 import { computeMapFit } from './viewFit.ts';
+import { mountSettings2D, type Settings2D } from './settingsButton2d.ts';
+import { anySheetOpen } from './ui/dom.ts';
 
 /**
  * 2d.html entry — the painted 2D renderer (Pixi v8) on the real sim.
@@ -41,6 +43,8 @@ import { computeMapFit } from './viewFit.ts';
  *   ?speed=2|3        start at 2× / 3× sim speed (QA recordings)
  *   ?end=won|lost     force the end panel shortly after load (UI QA)
  *   ?mapmips=1        QA: draw the map texture mipmapped (default: resolution variant, no mips)
+ *   &settings=1       open the in-game Settings on load (a language switch reloads with it)
+ *   ?desktop=1|0      QA: force the desktop / phone render-resolution policy (renderResolution.ts)
  */
 interface BenchStats {
   readonly fps: number;
@@ -263,9 +267,12 @@ async function main(): Promise<void> {
   // and shows the island's after-battle story once; QA / debug scenes record nothing.
   const plainPlay = Object.keys(hooks).length === 0 && !q.has('end') && bench === 0;
   let codexRef: { setButtonVisible(v: boolean): void } | null = null;
+  let settingsRef: Settings2D | null = null;
   let gameRef: Game2D | null = null;
   let codexWasPaused = false;
+  let settingsWasPaused = false;
   let introWasPaused = false;
+  let storyOpen = false;
   const routing = await import('./ui/inGame.ts');
   const baseHooks = hooks;
   hooks = {
@@ -277,6 +284,7 @@ async function main(): Promise<void> {
       if (inBackground) {
         // Keep the run paused on resume even if Codex or the intro story was open when backgrounded.
         codexWasPaused = true;
+        settingsWasPaused = true;
         introWasPaused = true;
         if (!isDebugScene) app.ticker.stop();
       } else if (!isDebugScene) {
@@ -286,6 +294,7 @@ async function main(): Promise<void> {
     },
     onEndPanel: (shown) => {
       codexRef?.setButtonVisible(!shown);
+      settingsRef?.setButtonVisible(!shown);
       const w = gameRef?.world;
       if (!shown || !w) return;
       const won = w.outcome === 'won';
@@ -369,7 +378,22 @@ async function main(): Promise<void> {
       } else game.stepper.paused = codexWasPaused;
     });
     codexRef = codex;
+    // In-game Settings (HUD row + the Paused plate): pauses the run while open.
+    const settings = mountSettings2D(
+      (open) => {
+        if (open) {
+          settingsWasPaused = game.stepper.paused;
+          game.stepper.paused = true;
+        } else {
+          game.stepper.paused = settingsWasPaused;
+          game.refreshSettings();
+        }
+      },
+      () => undefined,
+    );
+    settingsRef = settings;
     if (q.get('codex') === '1') codex.open();
+    else if (q.get('settings') === '1') settings.open();
     // Story panels before an island's first play (map → Play / Next Isle add &intro=1; ?story=intro forces them).
     const storyQ = q.get('story');
     if (q.get('intro') === '1' || storyQ === 'intro') {
@@ -377,9 +401,15 @@ async function main(): Promise<void> {
       introWasPaused = g.stepper.paused;
       g.stepper.paused = true;
       codex.setButtonVisible(false);
+      settings.setButtonVisible(false);
+      storyOpen = true;
       void routing.playStoryOnce(level, 'intro', art.manifest, art.baseUrl, storyQ === 'intro').then(() => {
+        storyOpen = false;
         g.stepper.paused = introWasPaused;
-        if (!g.end.visible) codex.setButtonVisible(true);
+        if (!g.end.visible) {
+          codex.setButtonVisible(true);
+          settings.setButtonVisible(true);
+        }
       });
     }
   }
@@ -401,6 +431,7 @@ async function main(): Promise<void> {
     const t0 = performance.now();
     stats.record(t.deltaMS, t0);
     if (!manual) game.frame(t.deltaMS / 1000);
+    settingsRef?.setPausePlate(storyOpen || anySheetOpen() ? null : game.hud.pausePlate);
     zooLabels?.update();
     aimOverlay?.update();
     renderStart = performance.now();

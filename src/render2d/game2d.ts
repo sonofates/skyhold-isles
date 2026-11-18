@@ -40,6 +40,7 @@ import { SoldierLayer, withBarracksArt } from './soldierLayer.ts';
 import { MeleeDirector } from './meleeDirector.ts';
 import { meleeLookFor } from './meleeLook.ts';
 import { TowerLayer } from './towerLayer.ts';
+import { anySheetOpen } from './ui/dom.ts';
 import { readSafeInsets } from './uiKit.ts';
 import { NO_INSETS, type Insets } from './uiLayout.ts';
 
@@ -906,6 +907,8 @@ export class Game2D {
       this.hooks.onBackgroundChange?.(true);
     }
     window.addEventListener('keydown', (e) => {
+      // Settings / Codex sheets own the keyboard while open (and keep the run paused).
+      if (anySheetOpen()) return;
       if (e.key === ' ') this.stepper.paused = !this.stepper.paused;
       else if (e.key === '1') this.stepper.speed = 1;
       else if (e.key === '2') this.stepper.speed = 2;
