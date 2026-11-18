@@ -142,6 +142,12 @@ export const TR: { readonly [K in MsgKey]: Msg } = {
   'replay.speed': 'Kayıt hızı {n}×',
   'replay.exit': 'Kayıttan çık',
   'replay.keys': 'Boşluk duraklat · 1 2 4 hız · Esc çık',
+  'wave.next': 'Sıradaki: {n}. dalga',
+  'wave.startHint': 'Başlamak için boruyu çal',
+  'wave.inSecs': '{n} sn sonra yola çıkar',
+  'wave.earlyBonus': 'Erken çağır: +{n}',
+  'wave.chip': '{n} × {name}',
+  'wave.elite': '{n} güçlenmiş',
 
   // --- build ring + tooltip ------------------------------------------------------------------
   'ring.max': 'MAKS',

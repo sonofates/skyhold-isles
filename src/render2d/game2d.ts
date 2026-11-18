@@ -212,7 +212,11 @@ export class Game2D {
     canCall: boolean;
     earlyBonus: number;
     banner: string;
-  } = { lives: 0, gold: 0, wave: 0, totalWaves: 0, paused: false, speed: 1, canCall: false, earlyBonus: 0, banner: '' };
+    countdown: number;
+    countdownFrac: number;
+  } = { lives: 0, gold: 0, wave: 0, totalWaves: 0, paused: false, speed: 1, canCall: false, earlyBonus: 0, banner: '', countdown: 0, countdownFrac: 0 };
+  /** Length of the running between-waves countdown (its first value seen). */
+  private countdownMax = 0;
 
   constructor(app: Application, art: LoadedArt, level: LevelDef, hooks: Game2DHooks = {}) {
     if (!level.layout2d) throw new Error(`${level.id} has no 2D layout`);
@@ -326,6 +330,16 @@ export class Game2D {
   /** Replay progress 0..1 (by sim tick), 0 in live play. */
   get replayProgress(): number {
     return this.replayCursor ? this.replayCursor.progress(this.ticks) : 0;
+  }
+
+  /** The HUD numbers as last synced (countdown, early bonus, …). */
+  debugHud(): Readonly<typeof this.hudState> {
+    return this.hudState;
+  }
+
+  /** The build ring is open. */
+  get ringOpen(): boolean {
+    return this.ring.isOpen;
   }
 
   /** Sim ticks run so far this run. */
@@ -812,6 +826,16 @@ export class Game2D {
     const rawBonus = s.canCall ? world.waveSystem.getEarlyCallBonus() : 0;
     s.earlyBonus = world.mods.waveBonusMul === 1 ? rawBonus : Math.max(0, Math.round(rawBonus * world.mods.waveBonusMul));
     s.banner = over ? '' : this.stepper.paused ? 'Paused' : this.rallyTower !== -1 ? 'Tap the road' : '';
+    const ws = world.waveSystem;
+    if (!over && ws.state === 'betweenWaves' && ws.interWaveTimer > 0) {
+      if (ws.interWaveTimer > this.countdownMax) this.countdownMax = ws.interWaveTimer;
+      s.countdown = ws.interWaveTimer;
+      s.countdownFrac = ws.interWaveTimer / Math.max(0.001, this.countdownMax);
+    } else {
+      this.countdownMax = 0;
+      s.countdown = 0;
+      s.countdownFrac = 0;
+    }
     this.hud.update(s as HudState, dtSec);
     return over;
   }

@@ -511,6 +511,67 @@ export function abilityBarSpot(o: AbilityBarInput): AbilityBarSpot {
 }
 
 // ---------------------------------------------------------------------------------------------
+// Cards beside a round HUD anchor (next-wave card at the horn)
+// ---------------------------------------------------------------------------------------------
+
+export interface BesideSpot {
+  readonly x: number;
+  readonly y: number;
+  readonly side: 'right' | 'left' | 'above' | 'below';
+  /** Overlap (px²) with the keep-outs; 0 = clear. */
+  readonly covered: number;
+}
+
+/**
+ * Where a card of size `card` goes next to a round anchor (centre + radius): right / left of it
+ * (centred, top- or bottom-aligned), below or above it, or diagonal. Inside the screen (margin),
+ * above `bottomLimit`; the spot covering the least of `hard` wins, then the preferred order.
+ */
+export function besideAnchorSpot(
+  anchor: { x: number; y: number; r: number },
+  card: { w: number; h: number },
+  screen: { w: number; h: number; bottomLimit: number },
+  hard: readonly Rect[],
+  margin = 8,
+): BesideSpot {
+  const { x: ax, y: ay, r } = anchor;
+  const { w, h } = card;
+  const g = r * 0.35 + 6;
+  const cands: { x: number; y: number; side: BesideSpot['side'] }[] = [
+    { x: ax + r + g, y: ay - h / 2, side: 'right' },
+    { x: ax - r - g - w, y: ay - h / 2, side: 'left' },
+    { x: ax + r + g, y: ay - r, side: 'right' },
+    { x: ax + r + g, y: ay + r - h, side: 'right' },
+    { x: ax - r - g - w, y: ay - r, side: 'left' },
+    { x: ax - r - g - w, y: ay + r - h, side: 'left' },
+    { x: ax - w / 2, y: ay + r * 1.75, side: 'below' },
+    { x: ax - w / 2, y: ay - r * 1.75 - h, side: 'above' },
+    { x: ax + r * 0.5, y: ay + r * 1.6, side: 'below' },
+    { x: ax - r * 0.5 - w, y: ay + r * 1.6, side: 'below' },
+    { x: ax + r * 0.5, y: ay - r * 1.6 - h, side: 'above' },
+    { x: ax - r * 0.5 - w, y: ay - r * 1.6 - h, side: 'above' },
+  ];
+  let best: BesideSpot | null = null;
+  let bestScore = Infinity;
+  cands.forEach((c, rank) => {
+    const x = Math.max(margin, Math.min(screen.w - margin - w, c.x));
+    const y = Math.max(margin, Math.min(screen.bottomLimit - margin - h, c.y));
+    const box: Rect = { x, y, w, h };
+    let covered = 0;
+    for (const k of hard) covered += overlapArea(box, k);
+    // Clamping can push a card over its own anchor: that counts as covering.
+    covered += overlapArea(box, { x: ax - r, y: ay - r, w: r * 2, h: r * 2 }) * 4;
+    const moved = Math.abs(x - c.x) + Math.abs(y - c.y);
+    const score = covered * 10 + rank * 30 + moved * 2;
+    if (score < bestScore) {
+      bestScore = score;
+      best = { x, y, side: c.side, covered: Math.round(covered) };
+    }
+  });
+  return best!;
+}
+
+// ---------------------------------------------------------------------------------------------
 // End panel
 // ---------------------------------------------------------------------------------------------
 

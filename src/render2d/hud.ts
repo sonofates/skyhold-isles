@@ -34,6 +34,10 @@ export interface HudState {
   /** Gold for calling it early (0 = none). */
   readonly earlyBonus: number;
   readonly banner: string;
+  /** Seconds until the next wave starts on its own (0 = no countdown running). */
+  readonly countdown?: number;
+  /** The countdown's remaining fraction 0..1 (drives the ring round the horn). */
+  readonly countdownFrac?: number;
 }
 
 interface RoundButton {
@@ -70,6 +74,11 @@ export class Hud {
   private readonly speedBtn: RoundButton;
   private readonly horn: Sprite;
   private readonly hornLabel = paintedText(20, 'center', '#ffe27a');
+  /** Countdown ring round the horn and its seconds under it (between waves). */
+  private readonly hornRing = new Graphics();
+  private readonly hornSecs = paintedText(18, 'center', '#fff4dc');
+  private lastSecs = -1;
+  private lastRingFrac = -1;
   private readonly plate: NineSliceSprite | Graphics;
   private readonly centre = inkText(40, 'center');
   private readonly sub = inkText(20, 'center', '#7a5532', '600');
@@ -122,8 +131,10 @@ export class Hud {
       this.waveText,
       this.pauseBtn.root,
       this.speedBtn.root,
+      this.hornRing,
       this.horn,
       this.hornLabel,
+      this.hornSecs,
       this.plate,
       this.centre,
       this.sub,
@@ -203,6 +214,9 @@ export class Hud {
     this.hornY = Math.max(minY, Math.min(pl.y - this.hornR - 30, hornAt.y));
     this.hornLabel.position.set(this.hornX, this.hornY - this.hornR - 12);
     setFontSize(this.hornLabel, Math.round(Math.max(15, 20 * u)));
+    setFontSize(this.hornSecs, Math.round(Math.max(14, 18 * u)));
+    this.hornSecs.position.set(this.hornX, this.hornY + this.hornR + Math.max(10, 12 * u));
+    this.lastRingFrac = -1;
 
     setInkSize(this.centre, Math.round(Math.max(24, 44 * u)));
     setInkSize(this.sub, Math.round(Math.max(14, 20 * u)));
@@ -310,6 +324,7 @@ export class Hud {
       this.lastHorn = hornKey;
       setText(this.hornLabel, hornKey > 0 ? `+${hornKey}` : hornKey === -1 ? t('hud.start') : '');
     }
+    this.drawCountdown(s.countdown ?? 0, s.countdownFrac ?? 0);
     if (s.banner !== this.lastBanner) {
       this.lastBanner = s.banner;
       const known = BANNERS[s.banner];
@@ -320,6 +335,45 @@ export class Hud {
       fitWidth(this.sub, this.screenW * 0.8);
       this.layoutPlate();
     }
+  }
+
+  /**
+   * Between waves: a gold ring round the horn runs down with the countdown, the seconds under it
+   * (pulsing red in the last 3 s). Redrawn only when the ring moves a visible step.
+   */
+  private drawCountdown(sec: number, frac: number): void {
+    const on = sec > 0 && frac > 0;
+    const f = on ? Math.round(frac * 240) / 240 : 0;
+    if (f !== this.lastRingFrac) {
+      this.lastRingFrac = f;
+      const g = this.hornRing;
+      g.clear();
+      if (on) {
+        const r = this.hornR * 1.12;
+        const w = Math.max(4, this.hornR * 0.13);
+        const a0 = -Math.PI / 2;
+        g.circle(this.hornX, this.hornY, r).stroke({ color: 0x2a1808, width: w + 3, alpha: 0.55 });
+        // moveTo first: an arc continues the current path (a stray line from the origin otherwise).
+        const sx = this.hornX + Math.cos(a0) * r;
+        const sy = this.hornY + Math.sin(a0) * r;
+        g.moveTo(sx, sy).arc(this.hornX, this.hornY, r, a0, a0 + Math.PI * 2 * f).stroke({ color: 0x3a2412, width: w + 2.5, cap: 'round' });
+        g.moveTo(sx, sy).arc(this.hornX, this.hornY, r, a0, a0 + Math.PI * 2 * f).stroke({ color: f < 0.25 ? 0xff9a5a : 0xf2c24a, width: w, cap: 'round' });
+      }
+    }
+    const whole = on ? Math.ceil(sec) : -1;
+    if (whole !== this.lastSecs) {
+      this.lastSecs = whole;
+      setText(this.hornSecs, whole > 0 ? t('ab.secs', { n: whole }) : '');
+      this.hornSecs.style.fill = whole > 0 && whole <= 3 ? '#ffb08a' : '#fff4dc';
+    }
+    this.hornSecs.visible = whole > 0;
+    if (whole > 0 && whole <= 3) this.hornSecs.scale.set(1 + 0.12 * Math.max(0, Math.sin(this.t * 9)));
+    else this.hornSecs.scale.set(1);
+  }
+
+  /** Horn radius (css px), for things anchored to it (next-wave card). */
+  get hornRadius(): number {
+    return this.hornR;
   }
 
   hit(x: number, y: number): HudAction {

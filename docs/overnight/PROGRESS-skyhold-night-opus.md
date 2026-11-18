@@ -31,12 +31,23 @@ QA: `npx vite preview --port 4381 --strictPort` in background (kill with TaskSto
     paused, leave, watch again to the end (**matched = true** on all 4 combos), pause menu, both
     confirms, restart. Shots in `docs/overnight/opus-shots/`. Last run: no problems.
 
+- **R1 backlog 2a — next-wave card + wave countdown — DONE.** `ui/wavePreview2d.ts|.css`: parchment
+  card beside the horn while the player decides (before wave 1, between waves, paused; never during
+  a fight): "Next: wave N", painted foe faces × count (elite star, boss red ring, flyers sky-blue),
+  "Marches in 11s" / "Blow the horn to begin", "Call early: +26". Placement `uiLayout.besideAnchorSpot`
+  (12 candidates round the horn, least overlap with plots+tower height, HUD, ability bar). Phones
+  (≤560 px tall): compact chips only. Click-through (pointer-events none). HUD: gold countdown ring
+  round the horn (orange in the last quarter) + seconds under it (pulsing ≤3 s). QA
+  `qa/waveshots.mjs` (all islands l1c…i24, sizes 1920/1366/844): desktop clean except edge cases
+  where the card grazes one plot (i14 1366, i13); phone compact card grazes 1-2 plots on
+  i04/i05/i13/i14 (dense maps, click-through, accepted). Tests `tests/render/flowUi2d.test.ts`.
+
 ## Next (backlog 2: missing basics) — candidates, in rough value order
-- next-wave preview (enemy icons + counts) on the horn / wave banner, call-early bonus already shows
 - enemy info card on tap; tower info card (stats, targeting, upgrade/sell with refund)
 - first-time coach marks on l1c; wave countdown; low-lives warning; victory stars breakdown
 - pause on window blur (desktop); keyboard shortcuts vs Controls page (add 3, replay keys)
-- Then backlog 3 (ability-bar placement on i12 desktop / l1c column), 4 polish.
+- Settings → Controls: add key 3 (3× speed) + replay keys.
+- Then backlog 3 (ability-bar placement: i12 at 1366x768 the bar sits ON the castle — castle is not a keep-out; l1c column), 4 polish.
 
 ## Decisions
 - Replay is kept in memory only (last run of this page). Persisting it across reloads would need

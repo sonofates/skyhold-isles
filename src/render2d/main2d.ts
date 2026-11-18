@@ -30,6 +30,8 @@ import type { GateLayer } from './gateLayer.ts';
 import { MASTER_SCALE, maxMapScale, pickMapVariant } from './mapVariant.ts';
 import { computeMapFit } from './viewFit.ts';
 import { mountSettings2D, type Settings2D } from './settingsButton2d.ts';
+import { hudKeepOuts, readSafeInsets } from './uiKit.ts';
+import { hudButtonsKeepOut } from './uiLayout.ts';
 import { anySheetOpen } from './ui/dom.ts';
 
 /**
@@ -92,6 +94,8 @@ declare global {
       artcheck?: () => ReturnType<typeof artCheckSummary>;
       /** QA: the ability bar (state, boxes, FX counters) and aiming as a button press would. */
       abilities?: () => Record<string, unknown> | null;
+      /** QA: the next-wave card beside the horn. */
+      waveCard?: () => Record<string, unknown> | null;
       aimAbility?: (id: AbilityId | null) => void;
       /** QA: stop / restart the ticker (a frozen frame for mid-effect screenshots, no Paused plate). */
       freeze?: (on: boolean) => void;
@@ -380,6 +384,7 @@ async function main(): Promise<void> {
   const plainPlay = Object.keys(hooks).length === 0 && !q.has('end') && bench === 0;
   let codexRef: { setButtonVisible(v: boolean): void } | null = null;
   let pauseMenu: import('./ui/runControls2d.ts').PauseMenu2D | null = null;
+  let waveCard: import('./ui/wavePreview2d.ts').WaveCard2D | null = null;
   let settingsRef: Settings2D | null = null;
   let gameRef: Game2D | null = null;
   let codexWasPaused = false;
@@ -645,6 +650,24 @@ async function main(): Promise<void> {
       REPLAY_SPEEDS,
       desktop,
     );
+    const { mountWaveCard } = await import('./ui/wavePreview2d.ts');
+    const { codexEnemyUrl } = await import('./codex2d.ts');
+    waveCard = mountWaveCard(
+      (type) => codexEnemyUrl(art, type),
+      () => {
+        // Plots with room for the tower standing on them, the HUD and the ability / hero bar.
+        const m = game.map;
+        const f = m.fit;
+        const r = game.hud.rects();
+        return [
+          ...game.plots.geometry.rects.map((p) => ({ x: f.offsetX + p.x * f.scale, y: f.offsetY + (p.y - p.w * 1.3) * f.scale, w: p.w * f.scale, h: (p.h + p.w * 1.3) * f.scale })),
+          r.plaque,
+          r.banner,
+          hudButtonsKeepOut(app.screen.width, app.screen.height, readSafeInsets()),
+          ...hudKeepOuts(),
+        ];
+      },
+    );
     if (q.get('codex') === '1') codex.open();
     else if (q.get('settings') === '1') settings.open();
     // Story panels before an island's first play (map → Play / Next Isle add &intro=1; ?story=intro forces them).
@@ -696,6 +719,22 @@ async function main(): Promise<void> {
       fpsChip.show(stats.snapshot(t0).fps);
     }
     pauseMenu?.setPlate(storyOpen || anySheetOpen() || game.replaying ? null : game.hud.pausePlate);
+    if (waveCard) {
+      const w = game.world;
+      const ws = w.waveSystem;
+      const calm = ws.state === 'preFirstWave' || ws.state === 'betweenWaves' || game.stepper.paused;
+      const hud = game.debugHud();
+      const visible = calm && !storyOpen && !anySheetOpen() && !game.end.visible && !game.ringOpen && w.outcome === 'ongoing' && ws.canStartNextWave();
+      waveCard.update({
+        visible,
+        preview: visible ? ws.getNextWavePreview() : null,
+        countdown: hud.countdown,
+        earlyBonus: hud.earlyBonus,
+        first: ws.state === 'preFirstWave',
+        horn: { ...game.hud.hornPosition, r: game.hud.hornRadius },
+        screen: { w: app.screen.width, h: app.screen.height, bottomLimit: visible ? game.hud.rects().plaque.y : app.screen.height },
+      });
+    }
     if (game.replaying && !game.end.visible) {
       replayBar?.update({ paused: game.stepper.paused, speed: game.stepper.speed, progress: game.replayProgress, wave: game.hud.waveLabel });
     }
@@ -718,6 +757,7 @@ async function main(): Promise<void> {
     hudWave: () => game.hud.waveLabel,
     artcheck: () => artCheckSummary(art),
     abilities: () => abilities?.debug() ?? null,
+    waveCard: () => waveCard?.debug() ?? null,
     aimAbility: (id) => abilities?.aim(id),
     freeze: (on) => (on ? app.ticker.stop() : app.ticker.start()),
     replay: {

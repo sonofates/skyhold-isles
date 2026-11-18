@@ -136,6 +136,12 @@ export const EN = {
   'replay.speed': 'Replay speed {n}×',
   'replay.exit': 'Leave the replay',
   'replay.keys': 'Space pause · 1 2 4 speed · Esc leave',
+  'wave.next': 'Next: wave {n}',
+  'wave.startHint': 'Blow the horn to begin',
+  'wave.inSecs': 'Marches in {n}s',
+  'wave.earlyBonus': 'Call early: +{n}',
+  'wave.chip': '{n} × {name}',
+  'wave.elite': '{n} empowered',
 
   // --- build ring + tooltip ------------------------------------------------------------------
   'ring.max': 'MAX',
