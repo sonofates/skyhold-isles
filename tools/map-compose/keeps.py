@@ -2,7 +2,7 @@
 import math
 
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageDraw
 
 from gates import facing_from_dir
 
@@ -206,7 +206,7 @@ class Keep:
                     rect=(left, top, left + self.im.width * k, top + self.im.height * k),
                     point=self.point, along=self.along, size=size, inset=inset)
 
-    def trim_road(self, mask, scale):
+    def trim_road(self, mask, scale, paths):
         """Round the terminal dirt shoulder under the shallow gatehouses' short sills."""
         if not self.compact:
             return
@@ -223,6 +223,17 @@ class Keep:
         # side. Pull just the edges back, under the stone apron.
         setback = 0.48*self.road*(cross/(self.road*0.53))**2-5
         keep = np.where(abs(cross) < self.road*0.68, np.clip((along-setback)/3, 0, 1), 1)
+        # A loop may have passed beside the sill earlier in the same lane.
+        # Only the final visit to this neighbourhood leads into the doorway.
+        previous = Image.new('L', (right-left, bottom-top))
+        draw = ImageDraw.Draw(previous)
+        for path in paths:
+            outside = next((i for i in range(len(path)-1, -1, -1)
+                            if max(abs(path[i][0]-gx), abs(path[i][1]-gy)) > radius+self.road), 0)
+            if outside > 0:
+                draw.line([(px*scale-left, py*scale-top) for px, py in path[:outside+1]],
+                          fill=255, width=round(self.road*scale), joint='curve')
+        keep = np.maximum(keep, np.asarray(previous)/255)
         dirt = np.asarray(mask.crop((left, top, right, bottom)))
         mask.paste(Image.fromarray((dirt*keep).astype('uint8')), (left, top))
 

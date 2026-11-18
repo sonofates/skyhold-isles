@@ -91,6 +91,8 @@ from gates import (  # noqa: E402
     blend_placement, clip_road_at_gate, contact_shadow, cut_front, entrance_dir, entrance_facing, gate_alpha_hit, goal_dir, goal_facing, output_box, output_sprite, place_gate, point_in_opening, resolve_prop,
 )
 import fords  # noqa: E402
+from banks import shore_foundation  # noqa: E402
+from masonry import marble_road, moat_wall  # noqa: E402
 from keeps import Keep  # noqa: E402
 from ground import Decals, DressingArea, brushed_surface, fine_detail, inner_band, ragged_mask, ring, road_fringe, scatter  # noqa: E402
 from ringfit import measure_ring  # noqa: E402
@@ -684,7 +686,7 @@ if land_mask:
             ground.alpha_composite(shelf, (round(x * S - shelf.width / 2), round(y * S - shelf.height * 0.43)))
 
     for px, py in plots:
-        foundation(px, py, 2.65 * PLOT_R, 2.8 * PLOT_RY)
+        shore_foundation(ground, land_mask, (iw, ih), islet, (px, py), (PLOT_R, PLOT_RY), S)
     # Put one footing under the gatehouse if its base crosses the terrain edge.
     left, top, right, bottom = castle['rect']
     width, height = right-left, bottom-top
@@ -707,6 +709,8 @@ if land_mask:
 
 ford_sites = dressing.get('fords', [])
 ford_patches = fords.prepare(ground, land_mask, (iw, ih), ford_sites, S)
+if dressing.get('moatWall'):
+    moat_wall(ground, land_mask, (iw, ih), spl_paths[0], ROAD_W, S, load('landmark-stone-bridge.webp'), SEED)
 
 # ---------------------------------------------------------------- road
 road_hard = Image.new('L', (W, H))
@@ -720,17 +724,20 @@ for path in spl_paths:
 # the road ends at each seated gate's threshold (no end cap peeking out under the gate)
 for G in GATES:
     clip_road_at_gate(road_hard, G['g'], S, rw)
-keep.trim_road(road_hard, S)
+keep.trim_road(road_hard, S, spl_paths)
 # crisp, slightly irregular painted edge (was a ~10-25 px Gaussian ramp: the main "blurry" cue)
 # Use the master's noise lattice at both scales so the painted contour stays in place.
 noise_scale = S / 2 if native_3x else 1
 road_mask = ragged_mask(road_hard, rw * 0.05, max(4, round(rw * 0.16 / noise_scale)), 0.22, SEED + 21, aa=1.1 if native_3x else 1.1 * W / 3692, noise_scale=noise_scale)
 road_material = load(dressing.get('roadMaterial', 'tex-dirt.png'))
-if not kit or dressing.get('brushRoad'):
+if dressing.get('layMarble'):
+    dirt = marble_road((W, H), road_material, spl_paths[0], ROAD_W, S, SEED + 23)
+elif not kit or dressing.get('brushRoad'):
     dirt = brushed_surface(road_material, (W, H), 0.45 * TEX, SEED + 23)
 else:
     dirt = tiled(road_material, W, H, 0.45 * TEX)
-dirt = fine_detail(dirt, road_material, round(1024 * 0.16 * TEX), 0.45, 7 * TEX)
+if not dressing.get('layMarble'):
+    dirt = fine_detail(dirt, road_material, round(1024 * 0.16 * TEX), 0.45, 7 * TEX)
 if 'branchMaterial' in dressing:
     lane, material = dressing['branchMaterial']
     first = catmull(SECTIONS[first_sections[lane]])

@@ -129,6 +129,7 @@
     ]
   },
   "i08": {
+    "moatWall": true,
     "gatehouseShelf": [-18, -7, 206, 90],
     "gatehouseView": "compact",
     "plots": 28,
@@ -139,7 +140,7 @@
     "biome": "terraces",
     "propWeights": [1, 0, 3, 3, 6, 4, 6],
     "crossings": [
-      ["stone-bridge", 951, 304, 110, 69, 99]
+      ["stone-bridge", 1017, 299, 169, 72, 94]
     ],
     "islet": "islet.webp",
     "gate-inset": 0.08,
@@ -150,6 +151,7 @@
     ]
   },
   "i09": {
+    "layMarble": true,
     "plots": 27,
     "seed": 409,
     "decals": 220,

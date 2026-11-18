@@ -1,14 +1,50 @@
 """Regression checks for map dressing. Run with python3 -B tools/map-compose/test_ground.py."""
 import unittest
 
-from PIL import Image, ImageDraw
+from PIL import Image, ImageChops, ImageDraw
 
 import fords
+from banks import shore_foundation
+from keeps import Keep
 
 from ground import Decals, DressingArea, brushed_surface, road_fringe, scatter
 
 
 class GroundTests(unittest.TestCase):
+    def test_shore_plot_checks_rim_and_interior_and_blends_into_land(self):
+        size = (192, 160)
+        x, y = 90, 80
+        islet = Image.new('RGBA', (120, 90), 'tan')
+        for scale in (1, 2, 3):
+            canvas = Image.new('RGBA', (size[0]*scale, size[1]*scale), 'teal')
+            untouched = canvas.copy()
+            land = Image.new('L', (96, 80), 255)
+            draw = ImageDraw.Draw(land)
+            # A wet pixel inside the bounding box, outside the ellipse.
+            draw.point((31,30), fill=0)
+            args = (canvas, land, size, islet, (x,y), (30,20), scale)
+            self.assertFalse(shore_foundation(*args))
+            self.assertIsNone(ImageChops.difference(canvas, untouched).convert('RGB').getbbox())
+            # First a stream inside the ellipse, then a broad bank at the rim.
+            draw.line((40,37,40,42), fill=0)
+            self.assertTrue(shore_foundation(*args))
+            draw.rectangle((57,0,95,79), fill=0)
+            self.assertTrue(shore_foundation(*args))
+            self.assertEqual(canvas.getpixel((119*scale,y*scale))[:3], (210,180,140))
+            self.assertEqual(canvas.getpixel((60*scale,y*scale)), untouched.getpixel((60*scale,y*scale)))
+
+    def test_trim_terminal_road_preserves_an_earlier_loop(self):
+        paths = [[(14,65), (91,65), (165,65), (160,120), (72,120), (72,80)]]
+        keep = Keep.__new__(Keep)
+        keep.compact, keep.point, keep.along, keep.road = True, (72,80), (0,1), 18
+        for scale in (1, 2, 3):
+            mask = Image.new('L', (180*scale,145*scale))
+            draw = ImageDraw.Draw(mask)
+            draw.line([(x*scale,y*scale) for x,y in paths[0]], fill=255, width=18*scale, joint='curve')
+            keep.trim_road(mask, scale, paths)
+            self.assertEqual(mask.getpixel((71*scale,65*scale)), 255)
+            self.assertLess(mask.getpixel((80*scale,81*scale)), 255)
+
     def test_painted_swatches_cover_fractional_tile_joins(self):
         color = (79, 103, 60, 255)
         paint = Image.new('RGBA', (53, 48), color)

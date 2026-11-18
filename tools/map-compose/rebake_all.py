@@ -8,10 +8,15 @@ Use --only-3x to add native high-resolution art to an existing set of bakes and 
 usage: /usr/bin/python3 tools/map-compose/rebake_all.py [ids,comma,separated] [--jobs 2] [--only-3x]
 """
 import json
+import filecmp
+import shutil
 import subprocess
 import sys
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from tempfile import TemporaryDirectory
+
+from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[2]
 args = sys.argv[1:]
@@ -20,20 +25,41 @@ pos = [a for i, a in enumerate(args) if not a.startswith('--') and (i == 0 or ar
 ids = pos[0].split(',') if pos else ['l1c'] + [f'i{n:02d}' for n in range(1, 17)]
 
 
-def out_name(lid):
-    L = json.loads((ROOT / f'src/data/levels2d/{lid}.json').read_text())
-    return L['image']
-
-
 def bake(lid):
-    cmd = ['/usr/bin/python3', '-B', 'tools/map-compose/compose.py', f'src/data/levels2d/{lid}.json', 'design/art-2d/v2/assets',
-           f'public/art2d/{out_name(lid)}.webp', '--bake', '--keep-plots']
-    passes = [] if '--only-3x' in args else [['--w', '3692', '--variants', '1,1.5', '--write-layout']]
-    for options in [*passes, ['--3x']]:
-        r = subprocess.run(cmd + options, cwd=ROOT, capture_output=True, text=True)
-        if r.returncode:
-            break
-    return lid, r.returncode, r.stdout + r.stderr
+    layout = ROOT / 'src/data/levels2d' / f'{lid}.json'
+    original = json.loads(layout.read_text())
+    art = ROOT / 'public/art2d'
+    stem = original['image']
+    # Encoding a native WebP takes long enough for an interrupted run to
+    # truncate a live game texture. Publish only after both passes decode.
+    with TemporaryDirectory(prefix=f'.bake-{lid}-', dir=ROOT / 'tools/map-compose') as scratch:
+        stage = Path(scratch)
+        staged_layout = stage / layout.name
+        shutil.copyfile(layout, staged_layout)
+        # The compositor preserves the shipped encoding for pixel-identical fronts.
+        for front in art.glob(f'{stem}-gate-*.webp'):
+            shutil.copyfile(front, stage / front.name)
+        cmd = ['/usr/bin/python3', '-B', 'tools/map-compose/compose.py', str(staged_layout),
+               'design/art-2d/v2/assets', str(stage / f'{stem}.webp'), '--bake', '--keep-plots']
+        passes = [] if '--only-3x' in args else [['--w', '3692', '--variants', '1,1.5', '--write-layout']]
+        for options in [*passes, ['--3x']]:
+            r = subprocess.run(cmd + options, cwd=ROOT, capture_output=True, text=True)
+            if r.returncode:
+                return lid, r.returncode, r.stdout + r.stderr
+        updated = json.loads(staged_layout.read_text())
+        if strip_gates(original) != strip_gates(updated):
+            return lid, 1, 'Staged bake changed gameplay geometry'
+        files = list(stage.glob('*.webp'))
+        for file in files:
+            with Image.open(file) as image:
+                image.load()
+        for file in files:
+            dest = art / file.name
+            if not dest.exists() or not filecmp.cmp(file, dest, shallow=False):
+                file.replace(dest)
+        if updated != original:
+            staged_layout.replace(layout)
+        return lid, 0, r.stdout + r.stderr
 
 
 def strip_gates(L):
