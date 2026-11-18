@@ -215,7 +215,7 @@ export class EndPanel {
       const d = L.starR * (i === 1 ? 2.3 : 2);
       st.empty.scale.set(d / Math.max(1, st.empty.texture.width));
     }
-    // Summary row: heart + lives (or the wave reached) and pouch + gold, centred.
+    // Summary row: heart + lives (or the wave reached) and coins + gold, centred.
     const f = L.fontBody;
     setInkSize(this.line1, f);
     setInkSize(this.line2, f);

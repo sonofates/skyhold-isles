@@ -98,6 +98,7 @@ interface Token {
 }
 
 interface TipContent {
+  cost?: number | null;
   title: string;
   role: string;
   rows: StatRow[] | null;
@@ -135,6 +136,8 @@ class RingTooltip {
   readonly root = new Container();
   private readonly bg: NineSliceSprite | Graphics;
   private readonly title = inkText(20);
+  private readonly cost = inkText(14);
+  private readonly coin: Sprite;
   private readonly role = inkText(14, 'left', INK_SOFT, '600');
   private readonly labels: Text[] = [];
   private readonly pips = new Graphics();
@@ -155,7 +158,9 @@ class RingTooltip {
     } else {
       this.bg = new Graphics();
     }
-    this.root.addChild(this.bg, this.title, this.role, this.pips, this.hint);
+    this.coin = new Sprite(art.ui.gold);
+    this.coin.anchor.set(0, 0.5);
+    this.root.addChild(this.bg, this.title, this.role, this.pips, this.hint, this.coin, this.cost);
     for (let i = 0; i < 15; i++) {
       const p = new Sprite(Texture.EMPTY);
       p.anchor.set(0.5);
@@ -194,7 +199,17 @@ class RingTooltip {
     fitWidth(this.title, W - pad * 2);
     y += fTitle * 0.62 + fBody * 0.75;
     this.role.position.set(pad, y);
-    fitWidth(this.role, W - pad * 2);
+    this.cost.visible = this.coin.visible = c.cost != null;
+    let costWidth = 0;
+    if (c.cost != null) {
+      setInkSize(this.cost, fBody);
+      setText(this.cost, String(c.cost));
+      this.coin.scale.set(fBody / this.coin.texture.height);
+      this.cost.position.set(W - pad - this.cost.width, y);
+      this.coin.position.set(this.cost.x - this.coin.width - 3, y);
+      costWidth = W - pad - this.coin.x + 5;
+    }
+    fitWidth(this.role, W - pad * 2 - costWidth);
     y += fBody * 0.6;
     const g = this.pips;
     g.clear();
@@ -671,6 +686,7 @@ export class BuildRing {
     }
     const c = t.tip;
     const poor = t.cost !== null && !t.enabled;
+    c.cost = t.cost;
     c.hintBad = t.banned ? msg('ring.banned') : poor ? msg('ring.needGold', { n: t.cost ?? 0 }) : '';
     const maxed = t.action?.kind === 'upgrade' && t.cost === null;
     if (maxed || t.banned) c.hint = '';

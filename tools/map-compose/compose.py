@@ -38,19 +38,18 @@ usage: /usr/bin/python3 tools/map-compose/compose.py <layout.json> <assets_dir> 
                 (entrances[i].gate, goalGate) — see src/data/levels2d/gates.ts.
   (mock mode)   without --bake the plots (and --towers / --enemies) are painted in, for design mocks.
 
-Gates (gates.py): a raider cave at every entrance with its mouth facing along the road's first
-segment, the castle gate at the goal facing back along the last one; the path end sits inside the
-dark mouth. Each gate's FRONT layer (rock lip / arch + mouth shading) is cut from the final
-composite into <out stem>-gate-<id>.webp; the renderer draws it above the walkers.
-  --gate-seat threshold (default; `<cave>/<castle>` to split, `exit` = the pre-2026-11-18 rule):
-                side (E / W) gates are 3/4-view, their opening's floor runs diagonally between the
-                posts. The road centreline is aimed through the midpoint of that floor line
-                (gates.mouth_threshold), the path end sits inside the dark on the same line, and
-                the painted road is cut flush with the floor line (no end cap under the gate).
-                With --keep-plots a gate only moves as far toward its seat as the kept plots, the
-                HUD corners and the safe area allow (printed as "seated <blend>").
-  --gate-bleed  how far (road widths) a gate's painted pixels may leave the safe area (0.6).
-Gates cast a silhouette contact shadow; the castle's door interior is lifted to a warm gradient.
+Entrance caves (gates.py) face along the first road segment. --gate-seat threshold (default)
+aims the road through the midpoint of the cave sill. --gate-seat exit uses the original anchor.
+With --keep-plots a cave can move partway toward its seat to respect the saved tower envelopes.
+--gate-bleed sets the maximum cave bleed beyond the safe area in road widths (default 0.6).
+
+Goal keeps (keeps.py) use the reverse tangent of the final segment. A keyed biome plan supplies
+the gate, walls and paving. The residential hall stays upright at every angle. The fit shortens
+curtain walls and the outer approach before reducing the whole footprint. A campaign keepFootprint
+lays out a compact gate and its individual return walls on a constrained site (postern.py).
+--castle-h sets the hall height in road widths. The stone plaza meets the road at the sill.
+The front layer uses the masonry and tunnel mask over the final map pixels, leaving the exterior
+floor clear for walkers. Castles must remain inside the safe area. Every gate casts a contact shadow.
 Re-bake every shipped island: /usr/bin/python3 tools/map-compose/rebake_all.py (checks that only
 gate fields of the layouts changed). Gate contact sheet: tools/map-compose/gate_sheet.py.
 Crisp ground (ground.py): fine brush detail, a ragged crisp road edge with a thin dark rim, grass
@@ -92,8 +91,9 @@ from PIL import Image, ImageChops, ImageDraw, ImageFilter
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import numpy as np  # noqa: E402
 from gates import (  # noqa: E402
-    blend_placement, clip_road_at_gate, contact_shadow, cut_front, entrance_dir, entrance_facing, gate_alpha_hit, goal_dir, goal_facing, light_interior, output_box, output_sprite, place_gate, point_in_opening, resolve_prop,
+    blend_placement, clip_road_at_gate, contact_shadow, cut_front, entrance_dir, entrance_facing, gate_alpha_hit, goal_dir, goal_facing, output_box, output_sprite, place_gate, point_in_opening, resolve_prop,
 )
+from keeps import Keep  # noqa: E402
 from ground import Decals, fine_detail, inner_band, nearest_dist, ragged_mask, ring, road_fringe, scatter  # noqa: E402
 from ringfit import measure_ring  # noqa: E402
 
@@ -257,8 +257,7 @@ def sprite_rect(im, x_center, y_bottom, height):
 # segment, the castle gate at the goal facing back along the last segment. The path end sits
 # GATE_INSET road widths inside the dark mouth, so walkers appear out of the darkness (front layer).
 CAVE_H, CASTLE_H, GATE_INSET = opt('--cave-h', 2.5), opt('--castle-h', 2.7), opt('--gate-inset', 0.42 if kit else 0.5)
-GATE_SEAT = opt('--gate-seat', 'threshold')  # <cave seat>[/<castle seat>], see gates.place_gate
-CAVE_SEAT, CASTLE_SEAT = (GATE_SEAT.split('/') + [GATE_SEAT])[:2]
+CAVE_SEAT = opt('--gate-seat', 'threshold').split('/')[0]  # accept older split-seat recipes
 GATES = []  # dict(role, lane, id, prop, facing, g = placement)
 for _i, _e in enumerate(L['entrances']):
     _f = entrance_facing(raw_paths[_i])
@@ -267,13 +266,6 @@ for _i, _e in enumerate(L['entrances']):
                     seat=CAVE_SEAT)
     _gx = place_gate(load(_file), _flip, (_e['x'], _e['y']), _f, ROAD_W * CAVE_H, ROAD_W * GATE_INSET, entrance_dir(raw_paths[_i]), fit_opening=bool(kit))
     GATES.append({'role': 'entrance', 'lane': _i, 'id': str(_e['id']), 'prop': _prop, 'facing': _f, 'g': _g, 'g_exit': _gx})
-_f = goal_facing(raw_paths[0])
-_prop, _file, _flip = resolve_prop('castle', _f, asset_file)
-_g = place_gate(load(_file), _flip, (gx, gy), _f, ROAD_W * CASTLE_H, ROAD_W * GATE_INSET, goal_dir(raw_paths[0]), fit_opening=bool(kit),
-                seat=CASTLE_SEAT)
-_gx = place_gate(load(_file), _flip, (gx, gy), _f, ROAD_W * CASTLE_H, ROAD_W * GATE_INSET, goal_dir(raw_paths[0]), fit_opening=bool(kit))
-GATES.append({'role': 'goal', 'lane': -1, 'id': 'goal', 'prop': _prop, 'facing': _f, 'g': _g, 'g_exit': _gx})
-
 LANDMARKS = []  # (name, layout x centre, layout y bottom, layout height)
 mill = opt('--windmill', '1609,298,2.7')
 if mill != 'none':
@@ -348,6 +340,31 @@ def gate_bleed(g):
     k = g['k']
     pr = (r[0] + bb[0] * k, r[1] + bb[1] * k, r[0] + bb[2] * k, r[1] + bb[3] * k) if bb else r
     return max(sx - pr[0], pr[2] - (sx + sw), sy - pr[1], pr[3] - (sy + sh), 0)
+
+
+# The goal stays fixed under the lintel. Shorten wall ends, then the barbican approach,
+# before reducing the keep on particularly tight sites. Use the same fit at every resolution.
+keep = Keep(assets.parent / 'keeps', biome, (gx, gy), goal_dir(raw_paths[0]), ROAD_W, ROAD_W * CASTLE_H, recipe.get('keepFootprint'))
+kept_zones = [plot_zone(*p) for p in L['plots']] if ('--keep-plots' in args or '--check-plots' in args) else []
+def fit_keep():
+    wall_fits = ((1, 1), (.5, 1), (.2, 1))
+    if not keep.footprint:
+        wall_fits += ((.2, .72), (.2, .48))
+    for size in (1, 0.92, 0.84, 0.76, 0.68, 0.60):
+        for wings, approach in wall_fits:
+            candidate = keep.place(wings, approach, size)
+            if gate_bleed(candidate) or any(rects_hit(candidate['rect'], hud) for hud in HUD_RECTS[:6]):
+                continue
+            if any(gate_alpha_hit(candidate, z) for z in kept_zones):
+                continue
+            return candidate
+    raise ValueError(f"No clear castle footprint on {L['id']}")
+
+castle = fit_keep()
+facing = goal_facing(raw_paths[0])
+GATES.append({'role': 'goal', 'lane': -1, 'id': 'goal', 'prop': f'keep-{keep.theme}-{facing.lower()}',
+              'facing': facing, 'g': castle})
+landmark_rects.append(castle['rect'])
 
 
 # Re-bakes keep their plots: a seated gate (threshold rule) moves only as far toward its seat as
@@ -576,6 +593,16 @@ for G in GATES:
     _k = G['g']['k']
     pr = (r[0] + _bb[0] * _k, r[1] + _bb[1] * _k, r[0] + _bb[2] * _k, r[1] + _bb[3] * _k) if _bb else r
     out = max(sx - pr[0], pr[2] - (sx + sw), sy - pr[1], pr[3] - (sy + sh), 0)
+    if G['role'] == 'goal':
+        # Test the actual occluding paint on the sim line, independently of any PNG bbox.
+        ux, uy = castle['along']
+        for distance, interior in ((0, True), (ROAD_W * .65, False)):
+            ix = round((gx + ux*distance - castle['left']) / castle['k'])
+            iy = round((gy + uy*distance - castle['top']) / castle['k'])
+            front = castle['front']
+            opacity = front.getpixel((ix, iy)) if 0 <= ix < front.width and 0 <= iy < front.height else 0
+            if (interior and opacity < 220) or (not interior and opacity > 20):
+                fails.append(f'castle threshold opacity {opacity} at {distance:.0f} px from goal')
     if G['role'] == 'goal' and out > 0:
         fails.append(f'castle gate rect {tuple(round(v) for v in r)} leaves the safe area by {out:.0f} px')
     elif out > ROAD_W * opt('--gate-bleed', 0.6):
@@ -590,7 +617,7 @@ reach = [dist_to_road(*p) for p in plots]
 if fails:
     sys.exit('PLOT RULES FAILED:\n  ' + '\n  '.join(fails))
 if '--check-plots' in args:
-    print(f'{layout_p}: {len(plots)} plots pass')
+    print(f"{layout_p}: {len(plots)} plots pass, keep {castle['size']:.2f}, walls {castle['wings']:.2f}, approach {castle['approach']:.2f}")
     sys.exit(0)
 
 # ---------------------------------------------------------------- ground (output px)
@@ -626,12 +653,14 @@ light = soft_noise(W, H, round(420 * TEX), SEED + 11).point(lambda v: max(0, min
 ground = Image.composite(Image.new('RGBA', (W, H), (196, 214, 120, 255)), ground, light.point(lambda v: int(v * 0.10)))
 # crisp painted detail: the high-pass of a finer tiling of the same grass (brush strokes at ~1/3
 # the scale), luminance only -> sharper at 100% without new colours or busier large shapes
+del dark, light, mask
 ground = fine_detail(ground, grass, round(1024 * 0.2 * TEX), 0.55, 9 * TEX)
 
 # An island's broad painted landforms sit over the fine repeating biome brushwork.
 if dressing:
     plate = load(f'terrain-{L["id"]}.webp').resize((W, H), Image.Resampling.BICUBIC)
     ground = Image.blend(ground, plate, 0.92)
+    del plate
 
 # Mask of water and chasm banks in the terrain painting. Keep rooted props on land.
 land_mask = load(f'land-{L["id"]}.webp').convert('L') if dressing.get('islet') else None
@@ -649,14 +678,23 @@ def on_land(x, y):
 if land_mask:
     islet = load(dressing['islet'])
 
-    def foundation(x, y, width, height):
-        if not on_land(x, y):
+    def foundation(x, y, width, height, force=False):
+        if force or not on_land(x, y):
             shelf = islet.resize((round(width * S), round(height * S)), Image.Resampling.LANCZOS)
             ground.alpha_composite(shelf, (round(x * S - shelf.width / 2), round(y * S - shelf.height * 0.43)))
 
     for px, py in plots:
         foundation(px, py, 2.65 * PLOT_R, 2.8 * PLOT_RY)
-    for left, top, right, bottom in landmark_rects:
+    shelf = keep.footprint.get('shelf')
+    if shelf:
+        # One continuous rock terrace supports the hall, curtain walls and portal where
+        # the terrain mask changes from land to water through the middle of the bailey.
+        dx, dy, width, height = shelf
+        foundation(gx + dx, gy + dy, width, height, force=True)
+    else:
+        for x, y, w in castle['sites']:
+            foundation(x, y, w * 1.28, w * .73)
+    for left, top, right, bottom in (landmark_rects[:-1] if shelf else landmark_rects):
         foundation((left + right) / 2, bottom - 5, (right - left) * 1.17, (right - left) * 0.49)
 
 # ---------------------------------------------------------------- road
@@ -665,8 +703,9 @@ dr = ImageDraw.Draw(road_hard)
 for path in spl_paths:
     pts = [P(p) for p in path]
     dr.line(pts, fill=255, width=round(rw), joint='curve')
-    for x, y in (pts[0], pts[-1]):
-        dr.ellipse((x - rw / 2, y - rw / 2, x + rw / 2, y + rw / 2), fill=255)
+    # The goal has a flush threshold under the cross-roof. A round end cap would show behind it.
+    x, y = pts[0]
+    dr.ellipse((x - rw / 2, y - rw / 2, x + rw / 2, y + rw / 2), fill=255)
 # the road ends at each seated gate's threshold (no end cap peeking out under the gate)
 for G in GATES:
     clip_road_at_gate(road_hard, G['g'], S, rw)
@@ -692,6 +731,9 @@ ground = Image.composite(Image.new('RGBA', (W, H), (74, 70, 30, 255)), ground, r
 ground = Image.composite(dirt, ground, road_mask)
 lip = inner_band(road_mask, max(2, round(rw * 0.06)), 1.2 * W / 3692)
 ground = Image.composite(Image.new('RGBA', (W, H), (122, 80, 42, 255)), ground, lip.point(lambda v: int(v * 0.30)))
+
+del shade, rim_band, lip, dirt, road_hard
+keep.apron(ground, castle, S, plots, PLOT_R, PLOT_RY, raw_paths[0])
 
 # Crossings share the road centreline. These deck stamps have no collision or sim geometry.
 crossing_rects = []
@@ -781,9 +823,6 @@ for n, x, yb, h in LANDMARKS:
 for G in GATES:
     gx0, gy0, gw_, gh_ = output_box(G['g'], S)
     _spr = output_sprite(G['g'], S)
-    if G['role'] == 'goal' and G['g'].get('seat') is not None:
-        _rgb = road_material.convert('RGB').resize((8, 8)).getpixel((4, 4))
-        _spr = light_interior(_spr, G['g'], _rgb)
     # gates cast their own silhouette shadow (contact_shadow) instead of the generic ellipse
     items.append((gy0 + gh_, _spr, gx0 + gw_ / 2, gy0 + gh_, False))
 
@@ -887,7 +926,12 @@ for v in variants:
 # gate front layers, cut from the final composite (same pixels as the bake underneath)
 gate_json = []
 for G in GATES:
-    front_im, (fx, fy) = cut_front(canvas, G['g'], S, exit_cut=G['role'] == 'entrance')
+    if G['role'] == 'goal':
+        fx, fy, fw, fh = output_box(castle, S)
+        front_im = canvas.crop((fx, fy, fx + fw, fy + fh))
+        front_im.putalpha(castle['front'].resize((fw, fh), Image.Resampling.LANCZOS))
+    else:
+        front_im, (fx, fy) = cut_front(canvas, G['g'], S)
     entry = {'prop': G['prop'], 'facing': G['facing'], 'front': None}
     if front_im is not None:
         key = f'{out_p.stem}-gate-{G["id"]}'
@@ -938,6 +982,8 @@ for k, f in variant_files.items():
 for G in GATES:
     fr = G['json']['front']
     _seat = 'exit' if G['g'].get('seat') is None else f"seated {G['g'].get('blend', 1.0):.2f}"
+    if G['role'] == 'goal':
+        _seat = f"aligned {castle['size']:.2f} walls {castle['wings']:.2f} approach {castle['approach']:.2f}"
     print(f'  gate {G["id"]}: {G["prop"]} facing {G["facing"]} {_seat} rect {tuple(round(v) for v in G["g"]["rect"])}'
           f' front {G.get("file")} {fr["rect"] if fr else None}')
 if fringe_n:

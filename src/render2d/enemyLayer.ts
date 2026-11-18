@@ -101,6 +101,7 @@ export class EnemyLayer {
   private readonly map: MapView;
   private readonly layers: WorldLayers;
   private readonly tex: ProcTextures;
+  private readonly hasGoalFront: boolean;
   private readonly fx: FxLayer | null;
   readonly specials: EnemySpecials;
   /** Melee fight state (facing, swings, hit flash); null in scenes without soldiers. */
@@ -109,6 +110,7 @@ export class EnemyLayer {
   constructor(art: LoadedArt, map: MapView, layers: WorldLayers, tex: ProcTextures, fx: FxLayer | null = null) {
     this.art = art;
     this.map = map;
+    this.hasGoalFront = map.layout.gates?.some(g => g.role === 'goal' && g.front !== null) ?? false;
     this.layers = layers;
     this.tex = tex;
     this.fx = fx;
@@ -200,7 +202,12 @@ export class EnemyLayer {
     const n = pool.getActiveCount();
     for (let i = 0; i < n; i++) {
       const idx = pool.getActiveIndex(i);
-      this.drawWalker(idx, pool.items[idx], alpha, dt, null);
+      const enemy = pool.items[idx];
+      // Tall heads and weapons can project above a low lintel. Carry them into the
+      // tunnel shadow with the feet, using remaining route distance even on crossing lanes.
+      const remainingPx = (enemy.totalDist - enemy.dist) * this.map.layout.pxPerUnit;
+      const passage = this.hasGoalFront && !enemy.flying ? Math.max(0, Math.min(1, (remainingPx - 3) / 21)) : 1;
+      this.drawWalker(idx, enemy, alpha, dt, null, passage * passage);
     }
     this.hideStale();
   }
@@ -230,7 +237,7 @@ export class EnemyLayer {
     return this.views.length;
   }
 
-  drawWalker(index: number, w: Walker, alpha: number, dt: number, artOverride: string | null): void {
+  drawWalker(index: number, w: Walker, alpha: number, dt: number, artOverride: string | null, passageAlpha = 1): void {
     const v = this.viewFor(index);
     if (v.uid !== w.uid || v.art === null) this.bind(v, w, artOverride);
     const art = v.art!;
@@ -363,6 +370,11 @@ export class EnemyLayer {
     layout.heightPx = heightPx;
     layout.shadowR = shR;
     this.specials.apply(v.ex, v.sp, art, w, layout, dt, out);
+    if (passageAlpha < 1) {
+      out.bodyAlpha *= passageAlpha;
+      out.shadowAlpha *= passageAlpha;
+      this.specials.hideAll(v.ex);
+    }
     // Hit flash: the sim's hitFlashTimer drives a warm tint (no per-sprite filters).
     if (w.hitFlashTimer > 0) out.tint = 0xff9c8c;
 
@@ -425,6 +437,7 @@ export class EnemyLayer {
     v.barBg.visible = damaged;
     v.barFill.visible = damaged;
     if (damaged) {
+      v.barBg.alpha = v.barFill.alpha = passageAlpha;
       const top = by - liftPx - heightPx - 6;
       v.barBg.position.set(bx - BAR_W / 2 - 1.5, top);
       v.barBg.width = BAR_W + 3;
