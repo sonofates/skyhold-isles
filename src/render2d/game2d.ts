@@ -1,7 +1,7 @@
 import { Container, Graphics, NineSliceSprite, Sprite, Text, Texture, type Application, type TextureSource } from 'pixi.js';
 import { EventBus } from '../core/eventBus.ts';
 import { FixedTimestepStepper } from '../core/gameLoop.ts';
-import type { GameSettings, SpeedMultiplier, TargetingMode, TowerType, Vec3 } from '../core/types.ts';
+import type { AbilityId, GameSettings, HeroSkillSlot, SpeedMultiplier, TargetingMode, TowerType, Vec3 } from '../core/types.ts';
 import { LEVELS } from '../data/levels/index.ts';
 import { BALANCE } from '../data/balance.ts';
 import type { LevelDef } from '../data/levels/types.ts';
@@ -10,7 +10,8 @@ import { getTowerTierStats, TOWER_DEFS } from '../data/towers.ts';
 import { bindHaptics, haptics } from '../platform/haptics.ts';
 import { isTouchDevice, loadSettings } from '../platform/storage.ts';
 import type { TowerEntity } from '../sim/entities.ts';
-import { computeSellRefund, SimWorld } from '../sim/world.ts';
+import type { HeroInitConfig, HeroRuntimeState } from '../sim/heroSystem.ts';
+import { computeSellRefund, SimWorld, type AbilityRuntimeState } from '../sim/world.ts';
 import { collectArtTextureSources, type LoadedArt } from './assets2d.ts';
 import { Audio2D, bindAudio2D, bindBackgroundLifecycle2D, screenPan, type BackgroundLifecycleHandle2D } from './audio2d.ts';
 import { AdaptiveQuality, isDesktopClient, isSoftwareRenderer, qualityOverride, renderResolution, type QualityTier } from './renderResolution.ts';
@@ -61,6 +62,8 @@ export interface Game2DHooks {
   endless?: boolean;
   /** Run modifiers (Workshop upgrades + challenge / Daily rules) passed to SimWorld. */
   modifiers?: RunModifiers;
+  /** Selected hero configuration passed to SimWorld (`null` / `undefined` = no hero). */
+  hero?: HeroInitConfig | null;
   /** Start SimWorld in Endless mode from wave 1 (`startEndlessFromStart()`), keeping normal defeat flow. */
   startEndless?: boolean;
   /** Optional settings provider (defaults to shared `loadSettings()` from `platform/storage`). */
@@ -212,7 +215,7 @@ export class Game2D {
       this.layers.projectiles,
       this.layers.shadows,
       this.tex,
-      (p) => this.towers.muzzleOf(p.towerId, p.towerType),
+      (p) => (p.towerId > 0 ? this.towers.muzzleOf(p.towerId, p.towerType) : p.startY),
       this.fx,
       (p) => this.towers.shotDelayOf(p.towerId),
       (p) => this.towers.muzzlePointOf(p.towerId),
@@ -280,7 +283,20 @@ export class Game2D {
     this.refreshSettings();
     this.events = new EventBus();
     this.unbindHaptics = bindHaptics(this.events);
-    this.world = new SimWorld(this.level, this.events, this.hooks.modifiers ?? NEUTRAL_RUN_MODIFIERS);
+    const heroCfg = this.hooks.hero;
+    this.world = new SimWorld(
+      this.level,
+      this.events,
+      this.hooks.modifiers ?? NEUTRAL_RUN_MODIFIERS,
+      heroCfg
+        ? {
+            heroId: heroCfg.heroId,
+            heroLevel: heroCfg.level,
+            heroSkills: heroCfg.skills,
+            seed: heroCfg.seed,
+          }
+        : undefined,
+    );
     if (this.hooks.startEndless) this.world.startEndlessFromStart();
     this.stepper.simActive = true;
     this.stepper.paused = false;
@@ -710,6 +726,51 @@ export class Game2D {
     else this.world.debugForceLose();
   }
 
+  /** Orders the active hero to walk along the ground road graph to world coordinates `(worldX, worldZ)`. */
+  commandHeroMove(worldX: number, worldZ: number): boolean {
+    return this.world.commandHeroMove(worldX, worldZ);
+  }
+
+  /** Orders the active hero to walk along the ground road graph to screen (css px) coordinates `(screenX, screenY)`. */
+  commandHeroMoveAtScreen(screenX: number, screenY: number): boolean {
+    return this.world.commandHeroMove(this.map.worldXFromScreen(screenX), this.map.worldZFromScreen(screenY));
+  }
+
+  /** Casts hero active skill `slot` (`0` or `1`) at optional world coordinates `(worldX, worldZ)`. */
+  castHeroSkill(slot: HeroSkillSlot, worldX = NaN, worldZ = NaN): boolean {
+    return this.world.castHeroSkill(slot, worldX, worldZ);
+  }
+
+  /** Casts hero active skill `slot` (`0` or `1`) targeting screen (css px) coordinates `(screenX, screenY)`. */
+  castHeroSkillAtScreen(slot: HeroSkillSlot, screenX: number, screenY: number): boolean {
+    return this.world.castHeroSkill(slot, this.map.worldXFromScreen(screenX), this.map.worldZFromScreen(screenY));
+  }
+
+  /** Casts a global active ability (`'meteor'` or `'overcharge'`) at optional world coordinates `(worldX, worldZ)`. */
+  castAbility(id: AbilityId, worldX = 0, worldZ = 0): boolean {
+    return this.world.castAbility(id, worldX, worldZ);
+  }
+
+  /** Casts a global active ability (`'meteor'` or `'overcharge'`) targeting screen (css px) coordinates `(screenX, screenY)`. */
+  castAbilityAtScreen(id: AbilityId, screenX: number, screenY: number): boolean {
+    return this.world.castAbility(id, this.map.worldXFromScreen(screenX), this.map.worldZFromScreen(screenY));
+  }
+
+  /** Snapshot of the active hero and its two skill cooldowns (`null` when running without a hero). */
+  getHeroState(): HeroRuntimeState | null {
+    return this.world.getHeroState();
+  }
+
+  /** Cooldown and usability state for a single global ability (`'meteor'` | `'overcharge'`). */
+  getAbilityState(id: AbilityId): AbilityRuntimeState {
+    return this.world.getAbilityState(id);
+  }
+
+  /** Cooldown and usability state for all global abilities (`['meteor', 'overcharge']`). */
+  getAbilitiesState(): readonly AbilityRuntimeState[] {
+    return this.world.getAbilitiesState();
+  }
+
   private closeRing(): void {
     this.ring.close();
     this.selectedTower = -1;
@@ -952,6 +1013,8 @@ export class Game2D {
       outcome: w.outcome,
       enemies: w.enemyPool.getActiveCount(),
       projectiles: w.projectilePool.getActiveCount(),
+      hero: w.getHeroState(),
+      abilities: w.getAbilitiesState(),
       paused: this.stepper.paused,
       speed: this.stepper.speed,
       towers: w.towers.map((t) => ({ id: t.id, type: t.type, tier: t.tier, plot: t.col, targeting: t.targetingMode })),

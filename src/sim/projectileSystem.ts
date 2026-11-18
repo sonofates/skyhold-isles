@@ -30,9 +30,27 @@ interface BurnZone {
   towerId: number;
 }
 
+export interface HeroShotParams {
+  readonly style: TowerType;
+  readonly startX: number;
+  readonly startY: number;
+  readonly startZ: number;
+  readonly target: EnemyEntity;
+  readonly damage: number;
+  readonly speed: number;
+  readonly splashRadius: number;
+  readonly armorPierce: number;
+  readonly slowRatio: number;
+  readonly slowDuration: number;
+  readonly hitsFlyers: boolean;
+  readonly lateral?: number;
+}
+
 export class ProjectileSystem {
   private readonly burnZones: BurnZone[] = [];
   private burnTickTimer = BURN_TICK_INTERVAL;
+  /** Invoked when a `fromHero` projectile deals positive damage to an enemy. */
+  onHeroHit: ((target: EnemyEntity, actualDamage: number, killed: boolean) => void) | null = null;
 
   private readonly projectilePool: ObjectPool<ProjectileEntity>;
   private readonly enemyPool: ObjectPool<EnemyEntity>;
@@ -210,6 +228,81 @@ export class ProjectileSystem {
     p.burnDamage = stats.burnDamage ?? 0;
     p.burnRadius = stats.burnRadius ?? 0;
     p.burnDuration = stats.burnDuration ?? 0;
+    p.fromHero = false;
+    p.hitsFlyersOverride = false;
+
+    p.startX = sx;
+    p.startY = sy;
+    p.startZ = sz;
+    p.endX = tx;
+    p.endY = ty;
+    p.endZ = tz;
+    p.progress = 0;
+    p.duration = Math.max(0.06, dist / p.speed);
+
+    p.x = sx;
+    p.y = sy;
+    p.z = sz;
+    p.prevX = sx;
+    p.prevY = sy;
+    p.prevZ = sz;
+    p.yaw = Math.atan2(tx - sx, tz - sz);
+    p.prevYaw = p.yaw;
+
+    return p;
+  }
+
+  /** Spawns a projectile fired by a ranged hero or deployed hero gizmo (`towerId = 0`). */
+  spawnHeroProjectile(params: HeroShotParams): ProjectileEntity | null {
+    const p = this.projectilePool.acquire();
+    if (!p) return null;
+
+    let sx = params.startX;
+    const sy = params.startY;
+    let sz = params.startZ;
+    const lateral = params.lateral ?? 0;
+    const target = params.target;
+    if (lateral !== 0) {
+      const ax = target.x - sx;
+      const az = target.z - sz;
+      const al = Math.hypot(ax, az);
+      if (al > 0.0001) {
+        sx += (-az / al) * lateral;
+        sz += (ax / al) * lateral;
+      }
+    }
+    const tx = target.x;
+    const ty = target.y + target.height * 0.55;
+    const tz = target.z;
+    const dist = Math.hypot(tx - sx, tz - sz);
+
+    p.towerType = params.style;
+    p.towerId = 0;
+    p.targetUid = target.uid;
+    p.targetPoolIndex = target.poolIndex;
+    p.damage = params.damage;
+    p.splashRadius = params.splashRadius;
+    p.splashFalloffMin = 0.6;
+    p.slowRatio = params.slowRatio;
+    p.slowDuration = params.slowDuration;
+    p.parabolic = false;
+    p.arcHeight = 0;
+    p.speed = Math.max(1, params.speed);
+    p.armorPierce = params.armorPierce;
+    p.pierceCount = 0;
+    p.pierceLength = 0;
+    p.pierceFalloff = 1;
+    p.brittle = 0;
+    p.clusterCount = 0;
+    p.clusterDamage = 0;
+    p.clusterRadius = 0;
+    p.clusterOffset = 0;
+    p.clusterSeed = 0;
+    p.burnDamage = 0;
+    p.burnRadius = 0;
+    p.burnDuration = 0;
+    p.fromHero = true;
+    p.hitsFlyersOverride = params.hitsFlyers;
 
     p.startX = sx;
     p.startY = sy;
@@ -315,15 +408,16 @@ export class ProjectileSystem {
   }
 
   private resolveImpact(p: ProjectileEntity, towers: readonly TowerEntity[]): void {
-    const sourceTower = this.findTowerById(towers, p.towerId);
+    const sourceTower = p.fromHero ? null : this.findTowerById(towers, p.towerId);
     const def = TOWER_DEFS[p.towerType];
+    const hitsFlyers = p.fromHero ? p.hitsFlyersOverride : def.hitsFlyers;
 
     let hitBoss = false;
 
     if (p.splashRadius > 0) {
-      hitBoss = this.applySplash(p, sourceTower, def.hitsFlyers, p.endX, p.endZ, p.splashRadius, 1, p.brittle);
+      hitBoss = this.applySplash(p, sourceTower, hitsFlyers, p.endX, p.endZ, p.splashRadius, 1, p.brittle);
       if (p.clusterCount > 0) {
-        this.resolveCluster(p, sourceTower, def.hitsFlyers);
+        this.resolveCluster(p, sourceTower, hitsFlyers);
       }
       if (p.burnDamage > 0) {
         this.spawnBurnZone(p);
@@ -339,9 +433,11 @@ export class ProjectileSystem {
         if (sourceTower) {
           sourceTower.totalDamageDealt += res.actualDamage;
           if (res.killed) sourceTower.kills++;
+        } else if (p.fromHero && res.actualDamage > 0) {
+          this.onHeroHit?.(target, res.actualDamage, res.killed);
         }
         if (p.pierceCount > 0) {
-          this.resolvePierce(p, target, sourceTower, def.hitsFlyers);
+          this.resolvePierce(p, target, sourceTower, hitsFlyers);
         }
       }
     }
@@ -393,7 +489,8 @@ export class ProjectileSystem {
       const falloff = computeSplashMultiplier(dist, radius, p.splashFalloffMin);
       const chill = brittle > 0 ? 1 + brittle * e.slowRatio : 1;
       const dmg = Math.round(p.damage * damageScale * falloff * chill);
-      const res = this.enemySystem.applyDamage(e, dmg);
+      const pierce = p.armorPierce > 0 ? Math.min(e.armor, p.armorPierce) : 0;
+      const res = this.enemySystem.applyDamage(e, dmg + pierce);
       if (e.type === 'boss' && res.actualDamage > 0) hitBoss = true;
       if (chill > 1.05 && res.actualDamage > 0) {
         this.events.emit('brittleCrack', { x: e.x, y: e.flying ? e.y : 0.5, z: e.z, bonus: chill - 1 });
@@ -404,6 +501,8 @@ export class ProjectileSystem {
       if (sourceTower) {
         sourceTower.totalDamageDealt += res.actualDamage;
         if (res.killed) sourceTower.kills++;
+      } else if (p.fromHero && res.actualDamage > 0) {
+        this.onHeroHit?.(e, res.actualDamage, res.killed);
       }
     }
     return hitBoss;

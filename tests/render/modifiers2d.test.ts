@@ -408,11 +408,17 @@ describe('modes2d pure UI helpers', () => {
       expect(dc.challenges).not.toContain('silentSkies');
     }
 
-    // SimWorld on a 2D plot map never allows casting active abilities even without silentSkies.
+    // SimWorld on a 2D plot map allows global abilities once a wave starts, unless disabled by modifier.
     const w2d = new SimWorld(LEVEL_L1C, new EventBus());
-    w2d.startNextWave();
     expect(w2d.castMeteor(0, 0)).toBe(false);
     expect(w2d.castOvercharge()).toBe(false);
+    w2d.startNextWave();
+    expect(w2d.castMeteor(0, 0)).toBe(true);
+    expect(w2d.castOvercharge()).toBe(true);
+    const w2dSilent = new SimWorld(LEVEL_L1C, new EventBus(), { ...NEUTRAL_RUN_MODIFIERS, abilitiesDisabled: true });
+    w2dSilent.startNextWave();
+    expect(w2dSilent.castMeteor(0, 0)).toBe(false);
+    expect(w2dSilent.castOvercharge()).toBe(false);
   });
 
   it('canPlayEndless requires at least one clear on a valid 2D island', () => {

@@ -13,7 +13,7 @@ export function acquireTarget(
   spatialHash: SpatialHashGrid,
 ): EnemyEntity | null {
   const def = TOWER_DEFS[tower.type];
-  const maxR = stats.range * (1 + tower.auraRange);
+  const maxR = stats.range * (1 + tower.auraRange + (tower.heroRangeBonus ?? 0));
   const maxRSq = maxR * maxR;
   const minRSq = stats.minRange * stats.minRange;
   const mode: TargetingMode = tower.targetingMode;

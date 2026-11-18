@@ -260,6 +260,12 @@ export class EnemySystem {
     entity.hexTargetId = -1;
     entity.blockers = 0;
     entity.meleeTimer = 0;
+    entity.stunTimer = 0;
+    entity.markTimer = 0;
+    entity.markVuln = 0;
+    entity.heroBlockers = 0;
+    entity.heroDamageReduction = 0;
+    entity.heroMeleeTimer = 0;
 
     this.events.emit('enemySpawned', {
       enemyId: entity.uid,
@@ -282,6 +288,9 @@ export class EnemySystem {
     let reduced = Math.round(
       ignoreArmor ? rawDamage : Math.max(BALANCE.minArmorDamage, rawDamage - entity.armor),
     );
+    if (entity.markTimer > 0 && entity.markVuln > 0) {
+      reduced = Math.max(1, Math.round(reduced * (1 + entity.markVuln)));
+    }
     entity.hitFlashTimer = 0.12;
     if (entity.shield > 0) {
       const absorbed = Math.min(entity.shield, reduced);
@@ -350,6 +359,24 @@ export class EnemySystem {
     const stacked = Math.min(BALANCE.maxSlowRatio, entity.slowRatio + slowRatio * 0.5);
     entity.slowRatio = Math.max(combined, stacked);
     entity.slowTimer = Math.max(entity.slowTimer, duration);
+  }
+
+  /** Stuns a surfaced ground foe (bosses take half stun duration; interrupts active hex channels). */
+  applyStun(entity: EnemyEntity, duration: number): void {
+    if (!entity.active || entity.hp <= 0 || entity.burrowed || duration <= 0) return;
+    const eff = ENEMY_DEFS[entity.type].isBoss ? duration * 0.5 : duration;
+    entity.stunTimer = Math.max(entity.stunTimer, eff);
+    if (entity.hexTargetId >= 0) {
+      entity.hexTargetId = -1;
+      entity.channelTimer = 0;
+    }
+  }
+
+  /** Marks an enemy so all hits deal `+(vuln * 100)%` extra post-armor damage for `duration` seconds. */
+  applyMark(entity: EnemyEntity, vuln: number, duration: number): void {
+    if (!entity.active || entity.hp <= 0 || entity.burrowed || vuln <= 0 || duration <= 0) return;
+    entity.markVuln = Math.max(entity.markVuln, vuln);
+    entity.markTimer = Math.max(entity.markTimer, duration);
   }
 
   update(
@@ -427,6 +454,20 @@ export class EnemySystem {
         }
       }
 
+      if (e.markTimer > 0) {
+        e.markTimer -= dt;
+        if (e.markTimer <= 0) {
+          e.markTimer = 0;
+          e.markVuln = 0;
+        }
+      }
+
+      let stunMul = 1;
+      if (e.stunTimer > 0) {
+        e.stunTimer = Math.max(0, e.stunTimer - dt);
+        stunMul = 0;
+      }
+
       if (e.type === 'burrower') {
         this.updateBurrow(e, dt);
       }
@@ -437,10 +478,11 @@ export class EnemySystem {
         e.channelTimer = Math.max(0, e.channelTimer - dt);
         channelMul = 0;
       }
-      let effectiveSpeed = e.speed * (1 - e.slowRatio) * burrowMul * channelMul;
-      if (e.blockers > 0) {
-        // Held by barracks soldiers (SoldierSystem): stopped, or slowed while short of holdCost.
-        effectiveSpeed *= Math.max(0, 1 - e.blockers / ENEMY_MELEE[e.type].holdCost);
+      let effectiveSpeed = e.speed * (1 - e.slowRatio) * burrowMul * channelMul * stunMul;
+      const totalBlockers = e.blockers + e.heroBlockers;
+      if (totalBlockers > 0) {
+        // Held by barracks soldiers or a melee hero: stopped, or slowed while short of holdCost.
+        effectiveSpeed *= Math.max(0, 1 - totalBlockers / ENEMY_MELEE[e.type].holdCost);
       }
       e.dist += effectiveSpeed * dt;
       e.walkPhase += effectiveSpeed * dt * 3.4;

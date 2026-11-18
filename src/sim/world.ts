@@ -1,8 +1,10 @@
 import type { EventBus } from '../core/eventBus.ts';
 import { ObjectPool } from '../core/pool.ts';
-import type { TargetingMode, TowerMvpSummary, TowerType } from '../core/types.ts';
+import type { AbilityId, HeroId, HeroSkillSlot, TargetingMode, TowerMvpSummary, TowerType } from '../core/types.ts';
+import { ABILITY_DEFS, ABILITY_IDS, type AbilityDef } from '../data/abilities.ts';
 import { BALANCE } from '../data/balance.ts';
 import { championLevel } from '../data/champions.ts';
+import { isHeroId } from '../data/heroes.ts';
 import type { LevelDef } from '../data/levels/index.ts';
 import { NEUTRAL_RUN_MODIFIERS, type RunModifiers } from '../data/runModifiers.ts';
 import { computeStarsForLivesLost, type Difficulty } from '../data/stars.ts';
@@ -18,11 +20,37 @@ import {
 } from './entities.ts';
 import { EnemySystem } from './enemySystem.ts';
 import { MapGrid } from './grid.ts';
+import { HeroSystem, type HeroEntity, type HeroRuntimeState } from './heroSystem.ts';
 import { CompiledPath } from './path.ts';
 import { ProjectileSystem } from './projectileSystem.ts';
 import { SoldierSystem } from './soldierSystem.ts';
 import { SpatialHashGrid } from './spatialHash.ts';
 import { WaveSystem } from './waveSystem.ts';
+
+export interface SimWorldOptions {
+  readonly heroId?: HeroId | null;
+  readonly heroLevel?: number;
+  readonly heroSkills?: readonly string[];
+  readonly seed?: number;
+  readonly modifiers?: RunModifiers;
+}
+
+export interface AbilityRuntimeState {
+  readonly id: AbilityId;
+  readonly name: string;
+  readonly cooldown: number;
+  readonly maxCooldown: number;
+  readonly ready: boolean;
+  readonly usable: boolean;
+  readonly requiresTarget: boolean;
+  readonly radius: number;
+  readonly activeRemaining: number;
+  readonly disabled: boolean;
+}
+
+function isRunModifiers(val: RunModifiers | SimWorldOptions): val is RunModifiers {
+  return 'startGoldMul' in val && 'enemyHpMul' in val;
+}
 
 const _hoverCandidates: number[] = [];
 
@@ -59,6 +87,8 @@ export class SimWorld {
   readonly abilitySystem: AbilitySystem;
   /** Barracks soldiers (idle on islands without a barracks). */
   readonly soldierSystem: SoldierSystem;
+  /** Deterministic hero system (idle when no hero is selected for the run). */
+  readonly heroSystem: HeroSystem;
   readonly events: EventBus;
   /** Workshop upgrades + challenge toggles applied to this run (neutral = classic rules). */
   readonly mods: RunModifiers;
@@ -73,7 +103,16 @@ export class SimWorld {
   enemiesKilledTotal = 0;
   outcome: 'ongoing' | 'won' | 'lost' = 'ongoing';
 
-  constructor(baseLevel: LevelDef, events: EventBus, mods: RunModifiers = NEUTRAL_RUN_MODIFIERS) {
+  constructor(
+    baseLevel: LevelDef,
+    events: EventBus,
+    modsOrOptions: RunModifiers | SimWorldOptions = NEUTRAL_RUN_MODIFIERS,
+    options?: SimWorldOptions,
+  ) {
+    const mods = isRunModifiers(modsOrOptions)
+      ? modsOrOptions
+      : (modsOrOptions.modifiers ?? NEUTRAL_RUN_MODIFIERS);
+    const opts = isRunModifiers(modsOrOptions) ? options : modsOrOptions;
     // Champion Host rewrites the story waves (a copy; the shared level data stays untouched).
     const level = mods.championWaves ? championLevel(baseLevel) : baseLevel;
     this.level = level;
@@ -143,6 +182,26 @@ export class SimWorld {
     this.waveSystem = new WaveSystem(level, events);
     this.abilitySystem = new AbilitySystem(events);
     this.soldierSystem = new SoldierSystem(this.enemyPool, this.spatialHash, this.enemySystem, events);
+    const heroCfg =
+      opts?.heroId && isHeroId(opts.heroId)
+        ? {
+            heroId: opts.heroId,
+            level: opts.heroLevel,
+            skills: opts.heroSkills,
+            seed: opts.seed,
+          }
+        : null;
+    this.heroSystem = new HeroSystem(
+      level.id,
+      [this.groundPath, ...this.extraGroundPaths],
+      this.enemyPool,
+      this.spatialHash,
+      this.enemySystem,
+      this.projectileSystem,
+      this.soldierSystem,
+      events,
+      heroCfg,
+    );
 
     this.abilitySystem.cooldownMul = mods.abilityCooldownMul;
     this.combatSystem.towerRateMul = mods.towerFireRateMul;
@@ -170,10 +229,31 @@ export class SimWorld {
     this.waveSystem.setAutoWave(enabled);
   }
 
-  /** Abilities are only usable once the first wave has started, and never on 2D plot maps (which have no active abilities). */
-  private canUseAbilities(): boolean {
+  /** Active hero entity in this run, or null when running without a hero. */
+  get hero(): HeroEntity | null {
+    return this.heroSystem.hero;
+  }
+
+  /** Orders the active hero to move along the ground road graph to `(x, z)`. */
+  commandHeroMove(x: number, z: number): boolean {
+    if (this.outcome !== 'ongoing') return false;
+    return this.heroSystem.commandMove(x, z);
+  }
+
+  /** Casts one of the active hero's two skills (`slot` = `0` or `1`). */
+  castHeroSkill(slot: HeroSkillSlot, x = NaN, z = NaN): boolean {
+    if (this.outcome !== 'ongoing') return false;
+    return this.heroSystem.castSkill(slot, x, z, this.towers);
+  }
+
+  /** Snapshot of the active hero's HP, state, XP, and skill cooldowns (null when no hero). */
+  getHeroState(): HeroRuntimeState | null {
+    return this.heroSystem.getRuntimeState(this.outcome === 'ongoing');
+  }
+
+  /** Abilities are usable once the first wave has started, unless disabled by a challenge modifier. */
+  canUseAbilities(): boolean {
     return (
-      !this.grid.isPlotMode &&
       !this.mods.abilitiesDisabled &&
       this.outcome === 'ongoing' &&
       this.waveSystem.state !== 'preFirstWave'
@@ -188,6 +268,38 @@ export class SimWorld {
   castOvercharge(): boolean {
     if (!this.canUseAbilities()) return false;
     return this.abilitySystem.castOvercharge(this.towers);
+  }
+
+  /** Unified global ability cast (`'meteor'` at `(x, z)` or `'overcharge'`). */
+  castAbility(id: AbilityId, x = 0, z = 0): boolean {
+    if (id === 'meteor') return this.castMeteor(x, z);
+    if (id === 'overcharge') return this.castOvercharge();
+    return false;
+  }
+
+  /** Cooldown and usability state for a global ability (`'meteor'` | `'overcharge'`). */
+  getAbilityState(id: AbilityId): AbilityRuntimeState {
+    const def: AbilityDef = ABILITY_DEFS[id];
+    const cd = this.abilitySystem.getCooldown(id);
+    const maxCd = this.abilitySystem.getMaxCooldown(id);
+    const ready = this.abilitySystem.canCast(id);
+    return {
+      id,
+      name: def.name,
+      cooldown: cd,
+      maxCooldown: maxCd,
+      ready,
+      usable: ready && this.canUseAbilities(),
+      requiresTarget: def.requiresTarget,
+      radius: def.radius ?? 0,
+      activeRemaining: id === 'overcharge' ? this.abilitySystem.getOverchargeRemaining() : 0,
+      disabled: this.mods.abilitiesDisabled,
+    };
+  }
+
+  /** Cooldown and usability state for all global abilities (`['meteor', 'overcharge']`). */
+  getAbilitiesState(): readonly AbilityRuntimeState[] {
+    return ABILITY_IDS.map((id) => this.getAbilityState(id));
   }
 
   /** Island card → Endless: the whole run is endless from wave 1 (no victory, no stars). */
@@ -250,9 +362,11 @@ export class SimWorld {
   debugForceWin(): void {
     if (this.outcome !== 'ongoing') return;
     if (this.lives <= 0) this.lives = 1;
+    const stars = this.computeStars();
+    this.heroSystem.onVictory(stars);
     this.outcome = 'won';
     this.events.emit('gameWon', {
-      stars: this.computeStars(),
+      stars,
       livesRemaining: this.lives,
     });
   }
@@ -448,13 +562,16 @@ export class SimWorld {
       },
       (bonus) => {
         this.gold += this.scaleWaveBonus(bonus);
+        this.heroSystem.onWaveCleared();
         this.events.emit('economyChanged', { gold: this.gold, lives: this.lives });
       },
       () => {
         if (this.outcome === 'ongoing' && this.lives > 0 && !this.waveSystem.isEndless) {
+          const stars = this.computeStars();
+          this.heroSystem.onVictory(stars);
           this.outcome = 'won';
           this.events.emit('gameWon', {
-            stars: this.computeStars(),
+            stars,
             livesRemaining: this.lives,
           });
         }
@@ -490,6 +607,7 @@ export class SimWorld {
       (killed) => {
         this.enemiesKilledTotal++;
         this.gold += killed.reward;
+        this.heroSystem.onEnemyKilled(killed);
         this.events.emit('economyChanged', { gold: this.gold, lives: this.lives });
       },
       this.towers,
@@ -502,13 +620,16 @@ export class SimWorld {
       () => this.enemyPool.getActiveCount(),
       (bonus) => {
         this.gold += this.scaleWaveBonus(bonus);
+        this.heroSystem.onWaveCleared();
         this.events.emit('economyChanged', { gold: this.gold, lives: this.lives });
       },
       () => {
         if (this.outcome === 'ongoing' && this.lives > 0 && !this.waveSystem.isEndless) {
+          const stars = this.computeStars();
+          this.heroSystem.onVictory(stars);
           this.outcome = 'won';
           this.events.emit('gameWon', {
-            stars: this.computeStars(),
+            stars,
             livesRemaining: this.lives,
           });
         }
@@ -517,8 +638,10 @@ export class SimWorld {
 
     if (this.outcome !== 'ongoing') return;
 
-    this.soldierSystem.update(dt, this.towers, this.abilitySystem.getFireRateMultiplier());
-    this.combatSystem.update(dt, this.towers, this.abilitySystem.getFireRateMultiplier());
+    const fireRateMul = this.abilitySystem.getFireRateMultiplier();
+    this.soldierSystem.update(dt, this.towers, fireRateMul);
+    this.heroSystem.update(dt, this.towers, fireRateMul);
+    this.combatSystem.update(dt, this.towers, fireRateMul);
     this.projectileSystem.update(dt, this.towers);
   }
 

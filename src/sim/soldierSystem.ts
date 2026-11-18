@@ -44,6 +44,10 @@ export interface SoldierEntity {
   holdCap: number;
   /** Render-facing only: the next blow was announced (`meleeSwing`); never read by the rules. */
   swingArmed: boolean;
+  /** Temporary armor bonus granted by hero abilities/auras this tick (Bran Rally / Sela Shell Ward). */
+  bonusArmor: number;
+  /** Temporary melee damage multiplier granted by hero abilities this tick (Bran Rally). */
+  damageMul: number;
 }
 
 export interface BarracksState {
@@ -339,6 +343,8 @@ export class SoldierSystem {
       targetUid: 0,
       holdCap: 1,
       swingArmed: false,
+      bonusArmor: 0,
+      damageMul: 1,
     };
     b.squad.push(s);
     this.soldiers.push(s);
@@ -424,7 +430,13 @@ export class SoldierSystem {
       const b = this.barracks[bi];
       const tower = this.findTower(towers, b.towerId);
       const jammed = tower !== null && tower.stunTimer > 0;
-      const aura = tower ? 1 + tower.auraRate : 1;
+      const aura =
+        tower
+          ? 1 +
+            tower.auraRate +
+            (tower.heroRateBonus ?? 0) +
+            ((tower.overhaulTimer ?? 0) > 0 ? (tower.overhaulRateBonus ?? 0) : 0)
+          : 1;
       for (let i = 0; i < b.squad.length; i++) {
         const s = b.squad[i];
         s.prevX = s.x;
@@ -563,7 +575,12 @@ export class SoldierSystem {
       if (!tower) continue;
       const stats = b.stats;
       const swingRate = Math.max(0.01, stats.soldierRate ?? 1);
-      const rateMul = rate * (1 + tower.auraRate);
+      const rateMul =
+        rate *
+        (1 +
+          tower.auraRate +
+          (tower.heroRateBonus ?? 0) +
+          ((tower.overhaulTimer ?? 0) > 0 ? (tower.overhaulRateBonus ?? 0) : 0));
       for (let i = 0; i < b.squad.length; i++) {
         const s = b.squad[i];
         if (s.state !== 'fighting') {
@@ -580,11 +597,12 @@ export class SoldierSystem {
           s.attackTimer += 1 / swingRate;
           if (s.attackTimer <= 0) s.attackTimer = 1 / swingRate;
           s.swingArmed = false;
-          this.strike(tower, s, e, stats.soldierDamage ?? 0, false);
+          const baseDmg = Math.round((stats.soldierDamage ?? 0) * s.damageMul);
+          this.strike(tower, s, e, baseDmg, false);
           const cleave = stats.soldierCleave ?? 0;
           if (cleave > 0) {
             const other = this.cleaveTarget(e);
-            if (other) this.strike(tower, s, other, Math.round((stats.soldierDamage ?? 0) * cleave), true);
+            if (other) this.strike(tower, s, other, Math.round(baseDmg * cleave), true);
           }
         }
         // Announce the next blow (render timing only; the swing stays even if this blow killed).
@@ -628,8 +646,8 @@ export class SoldierSystem {
         this.enemyArmed[e.poolIndex] = 0;
       }
       if (m.rate <= 0 || m.damage <= 0) continue;
-      // Chill slows the swing as much as the stride.
-      const drain = 1 - e.slowRatio;
+      // Chill slows the swing as much as the stride; stunned enemies cannot swing.
+      const drain = e.stunTimer > 0 ? 0 : 1 - e.slowRatio;
       e.meleeTimer -= dt * drain;
       if (e.meleeTimer <= 0) {
         e.meleeTimer += 1 / m.rate;
@@ -974,7 +992,8 @@ export class SoldierSystem {
   /** Returns the damage dealt. */
   private hurt(s: SoldierEntity, e: EnemyEntity, raw: number): number {
     const stats = this.getBarracks(s.towerId)?.stats;
-    const damage = Math.max(1, Math.round(raw - (stats?.soldierArmor ?? 0)));
+    const reducedRaw = e.heroDamageReduction > 0 ? raw * (1 - e.heroDamageReduction) : raw;
+    const damage = Math.max(1, Math.round(reducedRaw - ((stats?.soldierArmor ?? 0) + s.bonusArmor)));
     s.hp -= damage;
     s.hitFlashTimer = 0.12;
     s.sinceHurt = 0;

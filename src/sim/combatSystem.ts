@@ -95,6 +95,10 @@ export class CombatSystem {
       if (tower.popAnimTimer > 0) {
         tower.popAnimTimer = Math.max(0, tower.popAnimTimer - dt);
       }
+      if ((tower.overhaulTimer ?? 0) > 0) {
+        tower.overhaulTimer = Math.max(0, (tower.overhaulTimer ?? 0) - dt);
+        if (tower.overhaulTimer === 0) tower.overhaulRateBonus = 0;
+      }
       if (tower.stunTimer > 0) {
         tower.stunTimer = Math.max(0, tower.stunTimer - dt);
         if (tower.stunTimer > 0) {
@@ -124,10 +128,14 @@ export class CombatSystem {
       }
 
       if (tower.cooldownTimer > 0) {
+        const supportRate =
+          1 +
+          tower.auraRate +
+          (tower.heroRateBonus ?? 0) +
+          ((tower.overhaulTimer ?? 0) > 0 ? (tower.overhaulRateBonus ?? 0) : 0);
         tower.cooldownTimer = Math.max(
           0,
-          tower.cooldownTimer -
-            dt * rateMult * (1 + tower.auraRate) * (this.towerRateMul[tower.type] ?? 1),
+          tower.cooldownTimer - dt * rateMult * supportRate * (this.towerRateMul[tower.type] ?? 1),
         );
       }
 
