@@ -36,6 +36,12 @@ async function tapAt(page, view, x, y) {
 
 const state = (page) => page.evaluate(() => window.__p0.state());
 
+/** Build / upgrade / sell tokens select on the first tap and act on the second (painted radial ring). */
+async function confirmTap(page, view, x, y) {
+  await tapAt(page, view, x, y);
+  await tapAt(page, view, x, y);
+}
+
 async function playFlow(browser, view) {
   const { ctx, page } = await open(browser, view, '');
   const log = [];
@@ -46,11 +52,11 @@ async function playFlow(browser, view) {
   let s = await state(page);
   log.push({ step: 'ring on plot 11', ring: s.ring });
   await page.screenshot({ path: `${OUT}/${view}-ring.png` });
-  await tapAt(page, view, s.ring.tokens[0].x, s.ring.tokens[0].y);
+  await confirmTap(page, view, s.ring.tokens[0].x, s.ring.tokens[0].y);
   p = await plot(13);
   await tapAt(page, view, p.x, p.y);
   s = await state(page);
-  await tapAt(page, view, s.ring.tokens[1].x, s.ring.tokens[1].y);
+  await confirmTap(page, view, s.ring.tokens[1].x, s.ring.tokens[1].y);
   s = await state(page);
   log.push({ step: 'built', towers: s.towers, gold: s.gold });
   // Ring with too little gold: tesla (90) must be greyed at 75 gold.
@@ -86,14 +92,16 @@ async function playFlow(browser, view) {
   log.push({ step: 'panel', ring: s.ring });
   await page.screenshot({ path: `${OUT}/${view}-panel.png` });
   const upgradeTok = s.ring.tokens[0];
-  if (upgradeTok?.enabled) await tapAt(page, view, upgradeTok.x, upgradeTok.y);
+  if (upgradeTok?.enabled) await confirmTap(page, view, upgradeTok.x, upgradeTok.y);
   s = await state(page);
   log.push({ step: 'after upgrade', towers: s.towers, gold: s.gold });
   // Pause + speed buttons via keyboard-free taps: open panel again and sell.
   p = await plot(11);
   await tapAt(page, view, p.x, p.y);
   s = await state(page);
-  await tapAt(page, view, s.ring.tokens[1].x, s.ring.tokens[1].y);
+  // Tower ring: upgrade, targeting (attack towers) / rally (barracks), sell = last token.
+  const sellTok = s.ring.tokens[s.ring.tokens.length - 1];
+  await confirmTap(page, view, sellTok.x, sellTok.y);
   s = await state(page);
   log.push({ step: 'after sell', towers: s.towers, gold: s.gold });
   await page.waitForTimeout(4000);

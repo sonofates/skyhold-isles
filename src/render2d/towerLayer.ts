@@ -779,6 +779,15 @@ export class TowerLayer {
     return best;
   }
 
+  /** Map-px box of a tower's drawn body (same box as plotAtSprite), or null. */
+  spriteRect(towerId: number): { x: number; y: number; w: number; h: number } | null {
+    const v = this.views.get(towerId);
+    if (!v) return null;
+    const half = v.ring ? v.ring.width * 0.42 : this.map.layout.pxPerUnit * 0.9;
+    const bottom = v.ring ? v.ring.bottom : v.py + 10;
+    return { x: v.px - half, y: v.topY, w: half * 2, h: bottom - v.topY };
+  }
+
   /** QA: towers currently drawn with the jam marker / buff glow. */
   markers(): { jammed: number; buffed: number } {
     let jammed = 0;

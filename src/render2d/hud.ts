@@ -1,6 +1,8 @@
-import { Container, Graphics, Sprite, type Text } from 'pixi.js';
+import { Container, Graphics, NineSliceSprite, Sprite, type Text } from 'pixi.js';
 import type { LoadedArt } from './assets2d.ts';
 import { paintedText, setFontSize, setText } from './hudText.ts';
+import { fitWidth, hasKit, inkText, kit, setInkSize } from './uiKit.ts';
+import { KIT_PLAQUE_SLOTS, NO_INSETS, plaqueLayout, uiScale, type Insets, type PlaqueSlots, type Rect } from './uiLayout.ts';
 
 /** Minimum touch target edge in css px. */
 export const MIN_TOUCH = 48;
@@ -29,29 +31,44 @@ interface RoundButton {
   r: number;
 }
 
+/** The legacy plaque (empty board): icons are drawn inside it at these x fractions. */
+const OLD_PLAQUE_SLOTS: PlaqueSlots = { lives: [0.215, 0.45], gold: [0.6, 0.92], midY: 0.5 };
+const OLD_HEART_X = 0.13;
+const OLD_COIN_X = 0.52;
+
 /**
- * Painted in-canvas HUD in screen space (css px): lives/gold plaque, wave banner, round pause and
- * speed buttons, the horn that calls the next wave (with early-call bonus), and a centre banner
- * for pause / victory / defeat. Sizes scale with the viewport but never below MIN_TOUCH.
+ * Painted in-canvas HUD in screen space (css px): lives/gold plaque (bottom-left, inside the safe
+ * area), wave banner (bottom-right), round pause and speed buttons (top-right), the horn that calls
+ * the next wave (with early-call bonus), and a parchment plate for "Paused" / "Tap the road".
+ * Sizes scale with the viewport but never below MIN_TOUCH.
  */
 export class Hud {
   readonly root = new Container();
   private readonly plaque: Sprite;
   private readonly heart: Sprite;
   private readonly coin: Sprite;
-  private readonly livesText = paintedText(30);
-  private readonly goldText = paintedText(30);
+  private readonly kitPlaque: boolean;
+  private readonly slots: PlaqueSlots;
+  private readonly livesText = paintedText(30, 'center');
+  private readonly goldText = paintedText(30, 'center');
   private readonly banner: Sprite;
   private readonly waveText = paintedText(26, 'center');
   private readonly pauseBtn: RoundButton;
   private readonly speedBtn: RoundButton;
   private readonly horn: Sprite;
   private readonly hornLabel = paintedText(20, 'center', '#ffe27a');
-  private readonly centre = paintedText(48, 'center');
-  private readonly sub = paintedText(22, 'center');
+  private readonly plate: NineSliceSprite | Graphics;
+  private readonly centre = inkText(40, 'center');
+  private readonly sub = inkText(20, 'center', '#7a5532', '600');
+  private livesBox: Rect = { x: 0, y: 0, w: 0, h: 0 };
+  private goldBox: Rect = { x: 0, y: 0, w: 0, h: 0 };
+  private plateBorder = 1;
   private hornX = 0;
   private hornY = 0;
   private hornR = 40;
+  private bannerFont = 30;
+  private screenW = 1;
+  private screenH = 1;
   private t = 0;
   private lastPaused = -1;
   private lastSpeed = -1;
@@ -62,15 +79,25 @@ export class Hud {
   private lastBanner = '\u0000';
 
   constructor(art: LoadedArt) {
-    this.plaque = new Sprite(art.ui.plaque);
+    this.kitPlaque = hasKit(art, 'hudPlaque');
+    this.slots = this.kitPlaque ? KIT_PLAQUE_SLOTS : OLD_PLAQUE_SLOTS;
+    this.plaque = new Sprite(kit(art, 'hudPlaque', art.ui.plaque));
     this.heart = new Sprite(art.ui.heart);
     this.coin = new Sprite(art.ui.gold);
+    this.heart.visible = this.coin.visible = !this.kitPlaque;
     this.banner = new Sprite(art.ui.banner);
     this.horn = new Sprite(art.ui.horn);
     for (const s of [this.heart, this.coin, this.horn]) s.anchor.set(0.5);
     this.banner.anchor.set(0.5, 0);
     this.pauseBtn = this.makeButton(art);
     this.speedBtn = this.makeButton(art);
+    const tip = art.uiKit?.tooltip;
+    if (tip) {
+      this.plateBorder = Math.round(tip.width * 0.11);
+      const b = this.plateBorder;
+      this.plate = new NineSliceSprite({ texture: tip, leftWidth: b, rightWidth: b, topHeight: b, bottomHeight: b });
+    } else this.plate = new Graphics();
+    this.plate.visible = false;
     this.root.addChild(
       this.plaque,
       this.heart,
@@ -83,6 +110,7 @@ export class Hud {
       this.speedBtn.root,
       this.horn,
       this.hornLabel,
+      this.plate,
       this.centre,
       this.sub,
     );
@@ -90,7 +118,7 @@ export class Hud {
 
   private makeButton(art: LoadedArt): RoundButton {
     const root = new Container();
-    const bg = new Sprite(art.ui.button);
+    const bg = new Sprite(kit(art, 'buttonRound', art.ui.button));
     bg.anchor.set(0.5);
     const glyph = new Graphics();
     const label = paintedText(22, 'center');
@@ -99,64 +127,75 @@ export class Hud {
   }
 
   /** Lays out for a screen; `hornAt` = preferred horn position (screen px, e.g. near the entrances). */
-  layout(w: number, h: number, hornAt: { x: number; y: number }): void {
-    const u = Math.max(0.5, Math.min(1.15, Math.min(w / 1400, h / 760)));
+  layout(w: number, h: number, hornAt: { x: number; y: number }, insets: Insets = NO_INSETS): void {
+    this.screenW = w;
+    this.screenH = h;
+    const u = uiScale(w, h);
     const pad = Math.max(8, 14 * u);
-    const pw = Math.max(180, 260 * u);
-    const ph = (pw * this.plaque.texture.height) / this.plaque.texture.width;
-    // Lives/gold plaque bottom-left: painted maps keep gameplay out of the bottom cliff/cloud band,
-    // while the top edge carries roads and the entrance gates.
-    const py = h - pad - ph;
-    this.plaque.position.set(pad, py);
-    this.plaque.width = pw;
-    this.plaque.height = ph;
-    const icon = ph * 0.62;
-    const font = Math.round(Math.max(18, ph * 0.42));
-    this.heart.position.set(pad + pw * 0.15, py + ph / 2);
-    this.heart.height = icon;
-    this.heart.scale.x = this.heart.scale.y;
-    this.livesText.position.set(pad + pw * 0.24, py + ph / 2);
-    setFontSize(this.livesText, font);
-    this.coin.position.set(pad + pw * 0.53, py + ph / 2);
-    this.coin.height = icon * 1.05;
-    this.coin.scale.x = this.coin.scale.y;
-    this.goldText.position.set(pad + pw * 0.62, py + ph / 2);
-    setFontSize(this.goldText, font);
+    const tex = this.plaque.texture;
+    const pl = plaqueLayout(w, h, insets, tex.width / Math.max(1, tex.height), this.slots);
+    this.plaque.position.set(pl.x, pl.y);
+    this.plaque.width = pl.w;
+    this.plaque.height = pl.h;
+    this.livesBox = pl.livesBox;
+    this.goldBox = pl.goldBox;
+    if (!this.kitPlaque) {
+      const icon = pl.h * 0.6;
+      this.heart.position.set(pl.x + pl.w * OLD_HEART_X, pl.y + pl.h / 2);
+      this.heart.scale.set(icon / Math.max(1, this.heart.texture.height));
+      this.coin.position.set(pl.x + pl.w * OLD_COIN_X, pl.y + pl.h / 2);
+      this.coin.scale.set((icon * 1.04) / Math.max(1, this.coin.texture.height));
+    }
+    for (const [t, b] of [
+      [this.livesText, pl.livesBox],
+      [this.goldText, pl.goldBox],
+    ] as const) {
+      setFontSize(t, pl.fontSize);
+      t.position.set(b.x + b.w / 2, b.y + b.h / 2);
+    }
+    this.fitNumbers();
 
-    const r = Math.max(MIN_TOUCH / 2, 40 * u);
+    const r = Math.max(MIN_TOUCH / 2, 38 * u);
     this.speedBtn.r = r;
     this.pauseBtn.r = r;
-    this.speedBtn.root.position.set(w - pad - r, pad + r);
-    this.pauseBtn.root.position.set(w - pad - r * 3.2, pad + r);
+    const top = insets.top + pad + r;
+    this.speedBtn.root.position.set(w - insets.right - pad - r, top);
+    this.pauseBtn.root.position.set(w - insets.right - pad - r * 3.25, top);
     for (const b of [this.speedBtn, this.pauseBtn]) {
       b.bg.width = r * 2;
       b.bg.height = r * 2;
-      setFontSize(b.label, Math.round(r * 0.72));
+      setFontSize(b.label, Math.round(r * 0.66));
     }
 
     // Wave banner bottom-right, mirroring the plaque (bottom band = scenery only).
-    const bw = Math.max(150, 230 * u);
+    const bw = Math.max(150, Math.min(230 * u, (w - insets.left - insets.right) * 0.3));
     const bh = (bw * this.banner.texture.height) / this.banner.texture.width;
-    const bannerY = h - pad - bh;
-    this.banner.position.set(w - pad - bw / 2, bannerY);
+    const bannerY = h - insets.bottom - pad - bh;
+    this.banner.position.set(w - insets.right - pad - bw / 2, bannerY);
     this.banner.width = bw;
     this.banner.height = bh;
-    this.waveText.position.set(this.banner.x, bannerY + bh * 0.5);
-    setFontSize(this.waveText, Math.round(Math.max(16, bh * 0.4)));
+    this.waveText.position.set(this.banner.x, bannerY + bh * 0.47);
+    setFontSize(this.waveText, Math.round(Math.max(15, bh * 0.38)));
+    this.bannerFont = bw * 0.68;
 
     this.hornR = Math.max(MIN_TOUCH / 2 + 4, 44 * u);
-    const minY = pad + this.hornR + 4;
-    this.hornX = Math.max(pad + this.hornR, Math.min(w - pad - this.hornR, hornAt.x));
-    this.hornY = Math.max(minY, Math.min(h - pad - ph - this.hornR - 30, hornAt.y));
+    const minY = insets.top + pad + this.hornR + 4;
+    this.hornX = Math.max(insets.left + pad + this.hornR, Math.min(w - insets.right - pad - this.hornR, hornAt.x));
+    this.hornY = Math.max(minY, Math.min(pl.y - this.hornR - 30, hornAt.y));
     this.hornLabel.position.set(this.hornX, this.hornY + this.hornR + 10);
     setFontSize(this.hornLabel, Math.round(Math.max(15, 20 * u)));
 
-    this.centre.position.set(w / 2, h * 0.42);
-    setFontSize(this.centre, Math.round(Math.max(30, 56 * u)));
-    this.sub.position.set(w / 2, h * 0.42 + Math.max(34, 56 * u));
-    setFontSize(this.sub, Math.round(Math.max(16, 24 * u)));
+    setInkSize(this.centre, Math.round(Math.max(24, 44 * u)));
+    setInkSize(this.sub, Math.round(Math.max(14, 20 * u)));
     this.lastPaused = -1;
     this.lastSpeed = -1;
+    this.lastBanner = '\u0000';
+  }
+
+  /** Numbers never leave their slot in the wood (4-digit gold shrinks instead). */
+  private fitNumbers(): void {
+    fitWidth(this.livesText, this.livesBox.w);
+    fitWidth(this.goldText, this.goldBox.w);
   }
 
   private drawPauseGlyph(paused: boolean): void {
@@ -165,12 +204,38 @@ export class Hud {
     const r = b.r;
     g.clear();
     if (paused) {
-      g.moveTo(-r * 0.22, -r * 0.34).lineTo(r * 0.34, 0).lineTo(-r * 0.22, r * 0.34).closePath();
+      g.moveTo(-r * 0.2, -r * 0.32).lineTo(r * 0.32, 0).lineTo(-r * 0.2, r * 0.32).closePath();
     } else {
-      g.roundRect(-r * 0.3, -r * 0.34, r * 0.2, r * 0.68, r * 0.05);
-      g.roundRect(r * 0.1, -r * 0.34, r * 0.2, r * 0.68, r * 0.05);
+      g.roundRect(-r * 0.28, -r * 0.32, r * 0.19, r * 0.64, r * 0.05);
+      g.roundRect(r * 0.09, -r * 0.32, r * 0.19, r * 0.64, r * 0.05);
     }
     g.fill({ color: 0xfff4dc }).stroke({ color: 0x3a2412, width: Math.max(2, r * 0.08) });
+  }
+
+  private layoutPlate(): void {
+    const has = this.centre.text !== '';
+    this.plate.visible = has;
+    if (!has) return;
+    const cx = this.screenW / 2;
+    const cy = this.screenH * 0.42;
+    const subOn = this.sub.text !== '';
+    const tw = Math.max(this.centre.width, subOn ? this.sub.width : 0);
+    const fs = Number(this.centre.style.fontSize);
+    const pw = tw + fs * 1.6;
+    const ph = fs * (subOn ? 2.5 : 1.75);
+    this.centre.position.set(cx, cy - (subOn ? fs * 0.36 : 0));
+    this.sub.position.set(cx, cy + fs * 0.62);
+    const x = cx - pw / 2;
+    const y = cy - ph / 2;
+    if (this.plate instanceof NineSliceSprite) {
+      const s = Math.min(ph * 0.26, fs * 0.6) / this.plateBorder;
+      this.plate.scale.set(s);
+      this.plate.width = pw / s;
+      this.plate.height = ph / s;
+      this.plate.position.set(x, y);
+    } else {
+      this.plate.clear().roundRect(x, y, pw, ph, 12).fill({ color: 0xf6e7c4 }).stroke({ color: 0x8a5a2b, width: 3 });
+    }
   }
 
   update(s: HudState, dt: number): void {
@@ -179,14 +244,17 @@ export class Hud {
     if (s.lives !== this.lastLives) {
       this.lastLives = s.lives;
       setText(this.livesText, String(s.lives));
+      fitWidth(this.livesText, this.livesBox.w);
     }
     if (s.gold !== this.lastGold) {
       this.lastGold = s.gold;
       setText(this.goldText, String(s.gold));
+      fitWidth(this.goldText, this.goldBox.w);
     }
     if (s.wave * 1000 + s.totalWaves !== this.lastWave) {
       this.lastWave = s.wave * 1000 + s.totalWaves;
       setText(this.waveText, `Wave ${Math.max(1, s.wave)}/${s.totalWaves}`);
+      fitWidth(this.waveText, this.bannerFont);
     }
     const pausedKey = s.paused ? 1 : 0;
     if (pausedKey !== this.lastPaused) {
@@ -210,8 +278,8 @@ export class Hud {
     if (s.banner !== this.lastBanner) {
       this.lastBanner = s.banner;
       setText(this.centre, s.banner);
-      const over = s.banner === 'Victory!' || s.banner === 'Defeat';
-      setText(this.sub, s.banner === '' ? '' : over ? 'Tap to play again' : s.paused ? 'Tap ▶ to resume' : '');
+      setText(this.sub, s.banner === 'Paused' ? 'Tap ▶ to resume' : s.banner === 'Tap the road' ? 'to move the rally flag' : '');
+      this.layoutPlate();
     }
   }
 
@@ -239,5 +307,25 @@ export class Hud {
 
   get hornPosition(): { x: number; y: number } {
     return { x: this.hornX, y: this.hornY };
+  }
+
+  /** Screen rects of every HUD piece (QA: all must sit inside the viewport; numbers inside the plaque). */
+  rects(): Record<string, Rect> {
+    const b = (o: Container): Rect => {
+      const r = o.getBounds();
+      return { x: r.x, y: r.y, w: r.width, h: r.height };
+    };
+    return {
+      plaque: b(this.plaque),
+      lives: b(this.livesText),
+      gold: b(this.goldText),
+      livesSlot: this.livesBox,
+      goldSlot: this.goldBox,
+      banner: b(this.banner),
+      waveText: b(this.waveText),
+      pause: b(this.pauseBtn.root),
+      speed: b(this.speedBtn.root),
+      horn: { x: this.hornX - this.hornR, y: this.hornY - this.hornR, w: this.hornR * 2, h: this.hornR * 2 },
+    };
   }
 }

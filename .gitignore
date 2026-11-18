@@ -54,3 +54,7 @@ design/art-2d/veo/tower-clips/
 design/art-2d/out/anim-attack/*.png
 design/art-2d/out/anim-attack/*.gif
 design/art-2d/veo/attack-clips/
+
+# UI kit: raw image_gen output + copied references stay local; packed WebP in public/art2d/ui is committed
+design/art-2d/ui-kit/raw/
+design/art-2d/ui-kit/refs/

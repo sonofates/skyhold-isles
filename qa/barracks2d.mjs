@@ -69,6 +69,12 @@ async function blockingShots(browser, view) {
   await ctx.close();
 }
 
+/** Build / upgrade / sell tokens select on the first tap and act on the second (painted radial ring). */
+async function confirmTap(page, view, x, y) {
+  await tapAt(page, view, x, y);
+  await tapAt(page, view, x, y);
+}
+
 async function rallyFlow(browser, view) {
   const { ctx, page } = await open(browser, view, '');
   const log = [];
@@ -81,7 +87,7 @@ async function rallyFlow(browser, view) {
   log.push({ step: 'ring on plot 14', ring: s.ring });
   await page.screenshot({ path: `${OUT}/${view}-ring-barracks.png` });
   const tok = s.ring.tokens[s.ring.tokens.length - 1];
-  await tapAt(page, view, tok.x, tok.y);
+  await confirmTap(page, view, tok.x, tok.y);
   s = await state(page);
   log.push({ step: 'built', towers: s.towers, gold: s.gold, barracks: s.barracks });
   // Top-row plot: the build ring must stay inside the viewport (HUD topBand fix).
@@ -144,7 +150,7 @@ async function rallyFlow(browser, view) {
   p = await plot(14);
   await tapAt(page, view, p.x, p.y);
   s = await state(page);
-  await tapAt(page, view, s.ring.tokens[0].x, s.ring.tokens[0].y);
+  await confirmTap(page, view, s.ring.tokens[0].x, s.ring.tokens[0].y);
   await page.waitForTimeout(1200);
   s = await state(page);
   log.push({ step: 'upgraded', towers: s.towers, gold: s.gold, barracks: s.barracks });
