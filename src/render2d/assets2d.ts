@@ -75,6 +75,21 @@ export interface SheetRuntime {
   readonly anchor: readonly [number, number] | null;
 }
 
+/** A melee attack sheet (see EnemyArt.attack). */
+export interface AttackSheetRuntime {
+  readonly frames: readonly Texture[];
+  readonly fps: number;
+  /** Feet point (normalised), or null → the walk sheet's / art anchor. */
+  readonly anchor: readonly [number, number] | null;
+  /** Frame where the blow lands (null → middle frame). */
+  readonly impact: number | null;
+  /**
+   * Multiplier on the walk sheet's px scale so the character in attack frame 0 stands as tall as
+   * in the walk "down" sheet's first frame (measured from the alpha at load; 1 when unmeasurable).
+   */
+  readonly figScale: number;
+}
+
 export interface EnemyArtRuntime {
   readonly key: string;
   readonly spec: EnemyArt;
@@ -91,6 +106,8 @@ export interface EnemyArtRuntime {
   readonly backAnchor: readonly [number, number];
   /** Burrower underground mound texture, when the file exists. */
   readonly mound: Texture | null;
+  /** Melee attack sheet, when the manifest lists one and it loaded. */
+  readonly attack: AttackSheetRuntime | null;
   /** Fallback art: multiply tint / scale applied on top of the enemyMap entry. */
   readonly tintMul: number;
   readonly scaleMul: number;
@@ -155,6 +172,8 @@ async function tryJson(url: string): Promise<unknown | null> {
     try {
       const res = await fetch(url);
       if (res.status === 404) return null;
+      // A dev / preview server may answer a missing file with index.html (200): not retryable.
+      if ((res.headers.get('content-type') ?? '').includes('text/html')) return null;
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return (await res.json()) as unknown;
     } catch {
@@ -181,6 +200,7 @@ interface LoadedSeq {
   fps: number;
   anchor: readonly [number, number] | null;
   release: number | null;
+  impact: number | null;
   ringW: number | null;
   frameW: number;
   frameH: number;
@@ -202,6 +222,7 @@ async function loadSheetSeq(base: string, jsonPath: string, mips = false): Promi
       fps: sheet.fps,
       anchor: sheet.anchor,
       release: sheet.release,
+      impact: sheet.impact,
       ringW: sheet.ringW,
       frameW: sheet.frames[0].w,
       frameH: sheet.frames[0].h,
@@ -226,6 +247,42 @@ function texturePixels(tex: Texture): { data: Uint8ClampedArray; w: number; h: n
     if (!ctx) return null;
     ctx.drawImage(res, 0, 0);
     return { data: ctx.getImageData(0, 0, w, h).data, w, h };
+  } catch {
+    return null;
+  }
+}
+
+/** Opaque-pixel height (alpha > 40) of one sheet frame, or null when unreadable. */
+export function figureHeight(tex: Texture): number | null {
+  try {
+    const res = tex.source.resource as CanvasImageSource | undefined;
+    const f = tex.frame;
+    const w = Math.round(f.width);
+    const h = Math.round(f.height);
+    if (!res || w <= 0 || h <= 0) return null;
+    const c = document.createElement('canvas');
+    c.width = w;
+    c.height = h;
+    const ctx = c.getContext('2d', { willReadFrequently: true });
+    if (!ctx) return null;
+    ctx.drawImage(res, f.x, f.y, w, h, 0, 0, w, h);
+    const data = ctx.getImageData(0, 0, w, h).data;
+    let top = -1;
+    let bottom = -1;
+    for (let y = 0; y < h; y++) {
+      let any = false;
+      for (let x = 0; x < w; x++) {
+        if (data[(y * w + x) * 4 + 3] > 40) {
+          any = true;
+          break;
+        }
+      }
+      if (any) {
+        if (top < 0) top = y;
+        bottom = y;
+      }
+    }
+    return top < 0 ? null : bottom - top + 1;
   } catch {
     return null;
   }
@@ -284,6 +341,12 @@ async function loadEnemy(
     spec.back ? tex(spec.back) : Promise.resolve(null),
     spec.mound ? tex(spec.mound) : Promise.resolve(null),
   ]);
+  let attackSeq: LoadedSeq | null = null;
+  if (spec.attack) {
+    attackSeq = await loadSheetSeq(base, spec.attack);
+    if (attackSeq) present.add(spec.attack);
+    else notes.push(`enemy ${key}: attack sheet pending (${spec.attack}) → procedural swing`);
+  }
   let sheet: SheetRuntime | null = null;
   if (spec.sheet) {
     const [down, up] = await Promise.all([loadSheetSeq(base, spec.sheet.down), loadSheetSeq(base, spec.sheet.up)]);
@@ -294,6 +357,17 @@ async function loadEnemy(
     } else if (spec.mode === 'sheet' && (frontTex || down || up)) {
       notes.push(`enemy ${key}: walk sheets pending (${spec.sheet.down}, ${spec.sheet.up}) → cheap mode`);
     }
+  }
+  let attack: AttackSheetRuntime | null = null;
+  if (attackSeq) {
+    // Match the figure height of attack frame 0 to the walk "down" sheet (drawn at walkFrameH * 0.94 = art height).
+    let figScale = 1;
+    const walk0 = sheet?.seqs[0]?.[0];
+    const a = figureHeight(attackSeq.frames[0]);
+    const w = walk0 ? figureHeight(walk0) : null;
+    // figScale multiplies the walk px scale (heightPx / (walkFrameH * 0.94)) applied to attack frames.
+    if (a && w && walk0) figScale = w / a;
+    attack = { frames: attackSeq.frames, fps: attackSeq.fps, anchor: attackSeq.anchor, impact: attackSeq.impact, figScale };
   }
   // A sheet-only enemy (no front file yet) still needs a base sprite: its first walk frame.
   const baseTex = frontTex ?? sheet?.seqs[0]?.[0] ?? Texture.WHITE;
@@ -328,6 +402,7 @@ async function loadEnemy(
     back: backTex,
     backAnchor: backTex ? anchorOf(backTex) : spec.anchor,
     mound: moundTex,
+    attack,
     tintMul: 0xffffff,
     scaleMul: 1,
     fallbackOf: null,

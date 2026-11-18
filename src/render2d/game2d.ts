@@ -18,6 +18,8 @@ import { createProcTextures, type ProcTextures } from './procTextures.ts';
 import { ProjectileLayer } from './projectileLayer.ts';
 import { bindSpecialFx, createSpecialFxStats } from './specialFx.ts';
 import { SoldierLayer, withBarracksArt } from './soldierLayer.ts';
+import { MeleeDirector } from './meleeDirector.ts';
+import { meleeLookFor } from './meleeLook.ts';
 import { TowerLayer } from './towerLayer.ts';
 
 /** Tap = pointer released within this distance (css px) and time of the press. */
@@ -49,6 +51,8 @@ export class Game2D {
   readonly projectiles: ProjectileLayer;
   readonly fx: FxLayer;
   readonly soldiers: SoldierLayer;
+  /** Melee fight state shared by the enemy and soldier layers (swings, facing, spacing, flash). */
+  readonly melee: MeleeDirector;
   readonly hud: Hud;
   readonly ring: BuildRing;
   /** Event-FX counters (QA). */
@@ -122,6 +126,9 @@ export class Game2D {
       (p) => this.towers.muzzlePointOf(p.towerId),
     );
     this.soldiers = new SoldierLayer(art, this.map, this.layers, this.tex, this.fx);
+    this.melee = new MeleeDirector(meleeLookFor(art));
+    this.enemies.setMelee(this.melee);
+    this.soldiers.setMelee(this.melee);
     this.hud = new Hud(art);
     this.ring = new BuildRing(art);
     this.screen.addChild(this.hud.root, this.ring.root);
@@ -164,6 +171,7 @@ export class Game2D {
     this.enemies.reset();
     this.fx.clear();
     this.soldiers.reset();
+    this.melee.reset();
     this.rallyTower = -1;
     this.boltQueue.length = 0;
     this.wireEvents();
@@ -184,6 +192,7 @@ export class Game2D {
       },
       this.fxStats,
     );
+    this.melee.wire(ev);
     this.soldiers.wire(ev);
     ev.on('lightningChain', (e) => {
       // points[0] is the firing tower: draw the bolt at its painted release frame, from its muzzle.
@@ -254,6 +263,7 @@ export class Game2D {
       return t && this.towers.ringOf(t.type, t.tier) ? 'covered' : 'legacy';
     };
     this.plots.sync(plotState, this.hoverPlot, this.ring.isOpen ? this.ring.plot : -1, world.gold < this.minCost, dtSec);
+    this.melee.update(world.soldierSystem, world.enemyPool, alpha, simDt);
     this.enemies.syncPool(world.enemyPool, alpha, simDt);
     this.projectiles.sync(world.projectilePool, alpha);
     this.soldiers.sync(world.soldierSystem, alpha, simDt, dtSec, this.selectedTower, this.rallyTower);
@@ -470,7 +480,7 @@ export class Game2D {
         markers: this.towers.markers(),
         extras: this.enemies.specials.extrasCreated,
       },
-      barracks: { ...this.soldiers.debug(w.soldierSystem), rallyMode: this.rallyTower },
+      barracks: { ...this.soldiers.debug(w.soldierSystem), rallyMode: this.rallyTower, melee: { ...this.melee.stats } },
       turrets: { shots: this.towers.turretShots, views: this.towers.turretReport() },
       plots: {
         count: this.plots.geometry.rects.length,

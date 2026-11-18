@@ -1,19 +1,23 @@
 import { Sprite, Texture } from 'pixi.js';
-import type { EventBus } from '../core/eventBus.ts';
+import type { EventBus, GameEventMap } from '../core/eventBus.ts';
 import { SOLDIER_RULES } from '../data/soldiers.ts';
 import type { BarracksState, SoldierEntity, SoldierSystem } from '../sim/soldierSystem.ts';
-import type { EnemyArtRuntime, LoadedArt, TowerArtRuntime } from './assets2d.ts';
+import type { AttackSheetRuntime, EnemyArtRuntime, LoadedArt, TowerArtRuntime } from './assets2d.ts';
 import type { FxLayer } from './fxLayer.ts';
 import { HEIGHT_TO_SCREEN, type WorldLayers } from './layers.ts';
 import type { CheapWalkSpec, TowerArt } from './manifest.ts';
 import type { MapView } from './mapView.ts';
 import type { ProcTextures } from './procTextures.ts';
+import { swingFrame } from './meleeAnim.ts';
+import { HIT_FLASH, type FighterState, type MeleeDirector } from './meleeDirector.ts';
 import { cheapWalk, createAnimState, createPose, sheetSequence, sheetWalk, type AnimState, type WalkPose } from './walkAnim.ts';
 
 /**
  * Barracks soldiers in the 2D renderer: walking soldiers (procedural "cheap" walk, or a walk
- * sheet once one exists), melee lunges with slash FX, small friendly HP bars, falls on death, and
- * one rally flag per barracks.
+ * sheet once one exists), melee fights (swings timed to the sim's blows, facing / spacing and hit
+ * flash from MeleeDirector), the melee impact FX of both sides (slash, sparks, dust, heavy-blow
+ * ground slam), small friendly HP bars, falls on death, stepping out of the barracks door on
+ * (re)spawn, and one rally flag per barracks.
  *
  * Art comes from public/art2d/manifest.json when present, with painted-look procedural
  * placeholders until then (nothing else needs to change when the files land):
@@ -31,7 +35,7 @@ const BAR_W = 28;
 const BAR_H = 4;
 const HP_FRIEND = 0x6cc8ff;
 const HP_BG = 0x3a2412;
-const MAX_SLASHES = 24;
+const MAX_SLASHES = 32;
 const MAX_FALLEN = 12;
 
 // ---------------------------------------------------------------------------------------------
@@ -286,19 +290,41 @@ function drawBarracks(tier: number): HTMLCanvasElement {
   return c;
 }
 
-/** White crescent swoosh (tinted / additive at draw time). */
+/**
+ * Painted slash: a tapered crescent swoosh (thick bright middle, thin tips) with a soft warm rim,
+ * drawn once on a 128x128 canvas, arc opening to the right (tinted / additive at draw time).
+ */
 function drawSlash(): HTMLCanvasElement {
-  const [c, ctx] = canvas(64, 64);
-  const g = ctx.createLinearGradient(0, 0, 64, 64);
-  g.addColorStop(0, 'rgba(255,255,255,0)');
-  g.addColorStop(0.5, 'rgba(255,255,240,1)');
-  g.addColorStop(1, 'rgba(255,255,255,0)');
-  ctx.fillStyle = g;
-  ctx.beginPath();
-  ctx.arc(32, 32, 28, -Math.PI * 0.85, Math.PI * 0.15);
-  ctx.arc(28, 36, 20, Math.PI * 0.15, -Math.PI * 0.85, true);
-  ctx.closePath();
-  ctx.fill();
+  const [c, ctx] = canvas(128, 128);
+  const cx = 52;
+  const cy = 64;
+  const steps = 48;
+  const a0 = -Math.PI * 0.62;
+  const a1 = Math.PI * 0.62;
+  const ring = (rOuter: number, thick: number, fill: string, blur: number): void => {
+    ctx.save();
+    ctx.shadowColor = fill;
+    ctx.shadowBlur = blur;
+    ctx.beginPath();
+    for (let i = 0; i <= steps; i++) {
+      const a = a0 + ((a1 - a0) * i) / steps;
+      ctx.lineTo(cx + Math.cos(a) * rOuter, cy + Math.sin(a) * rOuter);
+    }
+    for (let i = steps; i >= 0; i--) {
+      const k = i / steps;
+      const a = a0 + (a1 - a0) * k;
+      // Thickest a little past the middle (the blade's sweep), tapering to points.
+      const w = thick * Math.pow(Math.sin(Math.PI * Math.min(1, k * 1.08)), 0.8);
+      ctx.lineTo(cx + Math.cos(a) * (rOuter - w), cy + Math.sin(a) * (rOuter - w));
+    }
+    ctx.closePath();
+    ctx.fillStyle = fill;
+    ctx.fill();
+    ctx.restore();
+  };
+  ring(50, 20, 'rgba(255,214,140,0.55)', 10);
+  ring(48, 13, 'rgba(255,246,220,0.95)', 4);
+  ring(46, 6, 'rgba(255,255,255,1)', 0);
   return c;
 }
 
@@ -369,6 +395,8 @@ interface SoldierArt {
   readonly shadow: number;
   readonly sheetFacing: { readonly down: boolean; readonly up: boolean };
   readonly stride: number | undefined;
+  /** Painted melee attack sheet (faces like the walk "down" sheet), or null → procedural swing. */
+  readonly attack: AttackSheetRuntime | null;
 }
 
 function soldierArt(art: LoadedArt): SoldierArt {
@@ -387,6 +415,7 @@ function soldierArt(art: LoadedArt): SoldierArt {
       shadow: m.spec.shadow,
       sheetFacing: { down: (spec?.facing ?? 'right') !== 'left', up: (spec?.facingUp ?? spec?.facing ?? 'right') !== 'left' },
       stride: spec?.stride,
+      attack: m.attack,
     };
   }
   const p = placeholders();
@@ -403,18 +432,19 @@ function soldierArt(art: LoadedArt): SoldierArt {
     shadow: SOLDIER_SHADOW,
     sheetFacing: { down: true, up: true },
     stride: undefined,
+    attack: null,
   };
 }
 
 interface SoldierView {
   readonly body: Sprite;
+  /** Additive copy of the body for the white hit flash. */
+  readonly flash: Sprite;
   readonly shadow: Sprite;
   readonly barBg: Sprite;
   readonly barFill: Sprite;
   readonly anim: AnimState;
   readonly pose: WalkPose;
-  /** 1 → 0 after a swing. */
-  lunge: number;
   lastX: number;
   lastZ: number;
   lastPx: number;
@@ -434,6 +464,8 @@ interface Slash {
   readonly sprite: Sprite;
   t: number;
   life: number;
+  face: number;
+  size: number;
   active: boolean;
 }
 
@@ -458,6 +490,7 @@ export class SoldierLayer {
   private frameNo = 0;
   private clock = 0;
   private unsubscribe: (() => void)[] = [];
+  private melee: MeleeDirector | null = null;
   /** Rally flag texture (also the build-ring "Rally" token icon). */
   readonly flagTexture: Texture;
   /** QA counters. */
@@ -484,7 +517,58 @@ export class SoldierLayer {
       sprite.visible = false;
       sprite.blendMode = 'add';
       layers.fx.addChild(sprite);
-      this.slashes.push({ sprite, t: 0, life: 0.16, active: false });
+      this.slashes.push({ sprite, t: 0, life: 0.16, face: 1, size: 1, active: false });
+    }
+  }
+
+  /** Fight state (swings, facing, spacing, hit flash) and the melee FX anchor points. */
+  setMelee(melee: MeleeDirector | null): void {
+    this.melee = melee;
+  }
+
+  /** Render feet point + height of a fighter (director state, else the event's sim point). */
+  private fighterAt(kind: 'soldier' | 'enemy', id: number, x: number, z: number, fallbackH: number): { x: number; z: number; h: number; st: FighterState | undefined } {
+    const st = kind === 'soldier' ? this.melee?.soldier(id) : this.melee?.enemy(id);
+    return st ? { x: st.x, z: st.z, h: st.height, st } : { x, z, h: fallbackH, st: undefined };
+  }
+
+  /**
+   * Melee impact FX at the contact point: a painted slash along the swing, sparks, a dust kick at
+   * the struck fighter's feet; heavy blows (golem, boss, tempest, sweeps) slam the ground.
+   */
+  private meleeImpact(e: GameEventMap['meleeHit']): void {
+    const m = this.map;
+    const ppu = m.layout.pxPerUnit;
+    const soldierH = this.look.height;
+    const a = this.fighterAt(e.attacker, e.attackerId, e.x, e.z, e.attacker === 'soldier' ? soldierH : 1.3);
+    const t = this.fighterAt(e.attacker === 'soldier' ? 'enemy' : 'soldier', e.targetId, e.targetX, e.targetZ, e.attacker === 'soldier' ? 1.3 : soldierH);
+    const heavy = e.attacker === 'enemy' && (e.sweep || a.h >= 1.8);
+    // Contact point: most of the way to the target, at about chest height of the smaller fighter.
+    const k = 0.62;
+    const lift = Math.min(a.h, t.h) * 0.5 * HEIGHT_TO_SCREEN * ppu;
+    const cx = m.pxX(a.x + (t.x - a.x) * k);
+    const cy = m.pxY(a.z + (t.z - a.z) * k) - lift;
+    const face = t.x >= a.x ? 1 : -1;
+    if (e.attacker === 'soldier') {
+      this.slash(cx, cy, face, e.cleave ? 0.75 : 1, e.cleave ? 0xffd27a : 0xffffff, 0.18);
+      this.fx.spawn('spark', cx, cy, e.cleave ? 9 : 12, 0, 0, 0.13, e.cleave ? 0xffd27a : 0xfff6dc);
+      this.fx.burst('spark', cx, cy, e.killed ? 6 : 3, 4, 70, 0.22, 0xffe2a0, 220);
+    } else {
+      const size = heavy ? 1.5 : Math.max(0.8, Math.min(1.2, a.h / 1.4));
+      this.slash(cx, cy, face, size, heavy ? 0xffc890 : 0xffe6c8, heavy ? 0.24 : 0.18);
+      this.fx.spawn('spark', cx, cy, heavy ? 16 : 11, 0, 0, 0.14, 0xfff0d8);
+      this.fx.burst('spark', cx, cy, heavy ? 6 : 3, 4, heavy ? 110 : 70, 0.24, 0xffd8a0, 220);
+    }
+    // Dust kicked up at the struck fighter's feet (pushed away from the blow).
+    this.fx.spawn('puff', m.pxX(t.x) + face * 4, m.pxY(t.z) - 3, 9, face * 40, -14, 0.38, 0xe9d8b4);
+    if (heavy) {
+      // Ground slam in front of the heavy hitter: shock ring, crack, dust ring.
+      const gx = m.pxX(a.x + (t.x - a.x) * 0.45);
+      const gy = m.pxY(a.z + (t.z - a.z) * 0.45);
+      const r = (0.9 + 0.25 * Math.min(3, e.struck)) * ppu;
+      this.fx.spawn('wring', gx, gy, r, 0, 0, 0.42, 0xfff0d0);
+      this.fx.spawn('crater', gx, gy, r * 0.45, 0, 0, 0.9, 0xffffff);
+      this.fx.puffs(gx, gy, 7, r * 0.7, 0xe9d8b4);
     }
   }
 
@@ -494,28 +578,18 @@ export class SoldierLayer {
     const m = this.map;
     const ppu = m.layout.pxPerUnit;
     this.unsubscribe = [
-      events.on('soldierAttack', (e) => {
+      events.on('soldierAttack', () => {
         this.swings++;
-        const v = this.views.get(e.soldierId);
-        if (v) {
-          v.lunge = 1;
-          const dx = e.targetX - e.x;
-          if (Math.abs(dx) > 0.05) v.anim.facing = dx > 0 ? 1 : -1;
-        }
-        const sx = m.pxX(e.x);
-        const sy = m.pxY(e.z);
-        const tx = m.pxX(e.targetX);
-        const ty = m.pxY(e.targetZ);
-        const hx = sx + (tx - sx) * 0.7;
-        const hy = sy + (ty - sy) * 0.7 - 0.55 * ppu * HEIGHT_TO_SCREEN;
-        this.slash(hx, hy, Math.atan2(ty - sy, tx - sx), e.cleave);
-        this.fx.spawn('spark', hx, hy, e.cleave ? 7 : 9, 0, 0, 0.14, e.cleave ? 0xffd27a : 0xffffff);
       }),
+      events.on('meleeHit', (e) => this.meleeImpact(e)),
       events.on('soldierDied', (e) => {
         this.falls++;
         const v = this.views.get(e.soldierId);
-        this.fall(e.x, e.z, v);
-        this.fx.puffs(m.pxX(e.x), m.pxY(e.z) - 10, 5, 10, 0xe9d8b4);
+        const st = this.melee?.soldier(e.soldierId);
+        const x = st ? st.x : e.x;
+        const z = st ? st.z : e.z;
+        this.fall(x, z, v, st && st.side !== 0 ? st.side : 0);
+        this.fx.puffs(m.pxX(x), m.pxY(z) - 6, 6, 12, 0xe9d8b4);
       }),
       events.on('soldierRemoved', (e) => this.fx.puffs(m.pxX(e.x), m.pxY(e.z) - 10, 4, 10, 0xe9d8b4)),
       events.on('soldierSpawned', (e) => this.fx.puffs(m.pxX(e.x), m.pxY(e.z) - 4, 3, 12, 0xe9d8b4)),
@@ -549,6 +623,7 @@ export class SoldierLayer {
 
   private destroyView(v: SoldierView): void {
     v.body.destroy();
+    v.flash.destroy();
     v.shadow.destroy();
     v.barBg.destroy();
     v.barFill.destroy();
@@ -558,6 +633,9 @@ export class SoldierLayer {
     let v = this.views.get(s.id);
     if (!v) {
       const body = new Sprite(this.look.base);
+      const flash = new Sprite(this.look.base);
+      flash.blendMode = 'add';
+      flash.visible = false;
       const shadow = new Sprite(this.tex.shadow);
       shadow.anchor.set(0.5);
       const barBg = new Sprite(Texture.WHITE);
@@ -566,17 +644,17 @@ export class SoldierLayer {
       barFill.tint = HP_FRIEND;
       barBg.anchor.set(0, 0.5);
       barFill.anchor.set(0, 0.5);
-      this.layers.actors.addChild(body);
+      this.layers.actors.addChild(body, flash);
       this.layers.shadows.addChild(shadow);
       this.layers.bars.addChild(barBg, barFill);
       v = {
         body,
+        flash,
         shadow,
         barBg,
         barFill,
         anim: createAnimState(s.id * 2.11),
         pose: createPose(),
-        lunge: 0,
         lastX: s.x,
         lastZ: s.z,
         lastPx: 0,
@@ -589,25 +667,38 @@ export class SoldierLayer {
     return v;
   }
 
-  private slash(px: number, py: number, angle: number, cleave: boolean): void {
+  /** A slash swoosh at (px, py) sweeping toward `face` (+1 right / −1 left). */
+  private slash(px: number, py: number, face: number, size: number, tint: number, life: number): void {
     const s = this.slashes.find((x) => !x.active);
     if (!s) return;
     s.active = true;
     s.t = 0;
-    s.life = cleave ? 0.14 : 0.17;
+    s.life = life;
+    s.face = face;
+    s.size = size;
     s.sprite.visible = true;
     s.sprite.position.set(px, py);
-    s.sprite.rotation = angle + Math.PI / 4;
-    s.sprite.tint = cleave ? 0xffd27a : 0xffffff;
-    s.sprite.scale.set((cleave ? 26 : 34) / 64);
+    s.sprite.tint = tint;
+    this.placeSlash(s, 0);
   }
 
-  private fall(x: number, z: number, v: SoldierView | undefined): void {
+  private placeSlash(s: Slash, k: number): void {
+    const ppu = this.map.layout.pxPerUnit;
+    // The arc sweeps down through the blow and widens; the crescent opens toward the foe.
+    const base = (s.size * 0.62 * ppu) / 128;
+    const grow = 0.75 + 0.45 * Math.min(1, k * 2.2);
+    s.sprite.scale.set(base * grow * s.face, base * grow * 0.8);
+    s.sprite.rotation = s.face * (-0.55 + 1.05 * Math.min(1, k * 1.8));
+    s.sprite.alpha = k < 0.35 ? 1 : Math.max(0, 1 - (k - 0.35) / 0.65);
+  }
+
+  /** A fallen soldier topples (away from its foe when `side` is known: +1 right, −1 left) and fades. */
+  private fall(x: number, z: number, v: SoldierView | undefined, side: number): void {
     const f = this.fallen.find((k) => !k.active);
     if (!f) return;
     f.active = true;
     f.t = 0;
-    f.dir = v ? (v.pose.flip ? 1 : -1) * (this.look.facesRight ? 1 : -1) : 1;
+    f.dir = side !== 0 ? side : v ? (v.pose.flip ? 1 : -1) * (this.look.facesRight ? 1 : -1) : 1;
     const sp = f.sprite;
     sp.texture = v ? v.body.texture : this.look.base;
     sp.anchor.set(0.5, 0.94);
@@ -639,13 +730,16 @@ export class SoldierLayer {
       v.body.visible = alive;
       v.shadow.visible = alive;
       if (!alive) {
+        v.flash.visible = false;
         v.barBg.visible = false;
         v.barFill.visible = false;
         v.fresh = true;
         continue;
       }
-      const ix = s.prevX + (s.x - s.prevX) * alpha;
-      const iz = s.prevZ + (s.z - s.prevZ) * alpha;
+      // Render position: interpolated sim position + the fight's stand-off / knockback offset.
+      const ms = this.melee?.soldier(s.id);
+      const ix = s.prevX + (s.x - s.prevX) * alpha + (ms ? ms.offX : 0);
+      const iz = s.prevZ + (s.z - s.prevZ) * alpha + (ms ? ms.offZ : 0);
       const px = map.pxX(ix);
       const py = map.pxY(iz);
       if (v.fresh) {
@@ -657,16 +751,26 @@ export class SoldierLayer {
       }
       const moved = Math.hypot(ix - v.lastX, iz - v.lastZ);
       const speedRatio = simDt > 0 ? moved / simDt / SOLDIER_RULES.speed : 0;
-      const dxImg = px - v.lastPx;
-      const dyImg = py - v.lastPy;
+      let dxImg = px - v.lastPx;
+      let dyImg = py - v.lastPy;
       v.lastX = ix;
       v.lastZ = iz;
       v.lastPx = px;
       v.lastPy = py;
+      // In a fight (or about to be): face the foe, front view; stepping into the spot keeps legs moving.
+      const fightFace = ms && ms.facing !== 0 ? ms.facing : 0;
+      const fighting = s.state === 'fighting' && fightFace !== 0;
+      if (fightFace !== 0) {
+        v.anim.facing = fightFace;
+        if (fighting) v.anim.seq = 0;
+        dxImg = 0;
+        dyImg = fighting ? 0 : dyImg;
+      }
 
       const pose = v.pose;
       let tex: Texture;
       let anchor: readonly [number, number];
+      let walkH: number;
       if (look.mode === 'sheet' && look.sheet) {
         const seqIdx = sheetSequence(v.anim.seq, dxImg, dyImg);
         const seq = look.sheet.seqs[seqIdx] ?? look.sheet.seqs[0];
@@ -674,47 +778,97 @@ export class SoldierLayer {
         sheetWalk(v.anim, seq.length, look.sheet.fps, look.stride, moved, speedRatio, dxImg, dyImg, simDt, facesRight, pose);
         tex = seq[pose.frame % seq.length];
         anchor = look.sheet.anchor ?? look.anchors[0] ?? [0.5, 0.94];
+        walkH = tex.height * 0.94;
       } else {
         cheapWalk(v.anim, look.cheap, moved, speedRatio, dxImg, dyImg, simDt, look.frames.length, look.facesRight, pose);
         tex = look.frames[pose.frame] ?? look.base;
         anchor = look.anchors[pose.frame] ?? [0.5, 0.94];
+        walkH = look.base.height;
       }
-      // Standing in a fight: face the foe.
-      if (s.state === 'fighting' && speedRatio < 0.05) {
-        const fx = Math.sin(s.yaw);
-        if (Math.abs(fx) > 0.15) v.anim.facing = fx > 0 ? 1 : -1;
-        pose.flip = (v.anim.facing > 0) !== look.facesRight;
+      // Swing: the painted attack sheet (its first frame is the stance between blows), else the
+      // procedural wind-up / lunge over the walk frame.
+      let painted = false;
+      let figScale = 1;
+      const atk = look.attack;
+      if (ms && atk) {
+        const f = swingFrame(ms.swing, atk.frames.length, atk.fps);
+        const frame = f !== null ? f : fighting ? 0 : -1;
+        if (frame >= 0) {
+          painted = true;
+          tex = atk.frames[frame];
+          anchor = atk.anchor ?? anchor;
+          figScale = atk.figScale;
+          pose.flip = (v.anim.facing > 0) !== look.sheetFacing.down;
+          pose.rotation = 0;
+          pose.scaleX = 1;
+          pose.scaleY = 1;
+          pose.lift = 0;
+        }
       }
       if (v.body.texture !== tex) v.body.texture = tex;
       v.body.anchor.set(anchor[0], anchor[1]);
 
       const heightPx = look.height * ppu;
-      const sc = heightPx / Math.max(1, look.mode === 'sheet' ? tex.height * 0.94 : look.base.height);
-      v.lunge = Math.max(0, v.lunge - simDt * 6);
-      const l = Math.sin(v.lunge * Math.PI); // out and back
+      const sc = (heightPx / Math.max(1, walkH)) * figScale;
       const face = v.anim.facing;
-      v.body.scale.set(sc * pose.scaleX * (pose.flip ? -1 : 1) * (1 + l * 0.05), sc * pose.scaleY * (1 - l * 0.04));
-      v.body.rotation = pose.rotation + face * l * 0.16;
+      let bx = px;
+      let rot = 0;
+      let sx = 1;
+      let sy = 1;
+      let lift = 0;
+      if (ms) {
+        const p = ms.pose;
+        const amt = painted ? 0.3 : 1;
+        bx += face * p.forward * amt * heightPx * 0.2;
+        rot = face * p.tilt * amt * 0.14;
+        sx = 1 + (p.scaleX - 1) * amt;
+        sy = 1 + (p.scaleY - 1) * amt;
+        lift = p.lift * amt * heightPx;
+        if (fighting && ms.swing.t < 0) {
+          const b = Math.sin(ms.idle * Math.PI * 2 * 1.7);
+          sy *= 1 + 0.025 * b;
+          sx *= 1 - 0.012 * b;
+        }
+      }
+      // Fresh out of the barracks door: steps out of the doorway shadow.
+      const age = ms ? ms.age : 99;
+      const emerge = Math.min(1, age / 0.35);
+      v.body.scale.set(sc * pose.scaleX * sx * (pose.flip ? -1 : 1) * (0.85 + 0.15 * emerge), sc * pose.scaleY * sy * (0.85 + 0.15 * emerge));
+      v.body.rotation = pose.rotation + rot;
       const liftPx = pose.lift * HEIGHT_TO_SCREEN * ppu;
-      v.body.position.set(px + face * l * 7, py - liftPx);
+      v.body.position.set(bx, py - liftPx - lift);
       v.body.zIndex = py;
-      v.body.tint = s.hitFlashTimer > 0 ? 0xff9c8c : 0xffffff;
+      v.body.alpha = 0.35 + 0.65 * emerge;
+      const shade = Math.round(0x50 + (0xff - 0x50) * emerge);
+      v.body.tint = s.hitFlashTimer > 0 ? 0xff9c8c : emerge < 1 ? (shade << 16) | (shade << 8) | shade : 0xffffff;
+      const fl = v.flash;
+      const flashK = ms ? ms.flash / HIT_FLASH : 0;
+      fl.visible = flashK > 0;
+      if (flashK > 0) {
+        fl.texture = v.body.texture;
+        fl.anchor.copyFrom(v.body.anchor);
+        fl.scale.copyFrom(v.body.scale);
+        fl.rotation = v.body.rotation;
+        fl.position.copyFrom(v.body.position);
+        fl.zIndex = py + 0.01;
+        fl.alpha = Math.min(1, flashK * 1.2);
+      }
 
       const sh = v.shadow;
       const shR = look.shadow * ppu;
-      sh.position.set(px, py);
+      sh.position.set(bx, py);
       sh.scale.set((shR * 2) / 128, (shR * 0.9) / 128);
-      sh.alpha = 0.85;
+      sh.alpha = 0.85 * emerge;
 
       const damaged = s.hp < s.maxHp;
       v.barBg.visible = damaged;
       v.barFill.visible = damaged;
       if (damaged) {
         const top = py - liftPx - heightPx - 5;
-        v.barBg.position.set(px - BAR_W / 2 - 1.5, top);
+        v.barBg.position.set(bx - BAR_W / 2 - 1.5, top);
         v.barBg.width = BAR_W + 3;
         v.barBg.height = BAR_H + 3;
-        v.barFill.position.set(px - BAR_W / 2, top);
+        v.barFill.position.set(bx - BAR_W / 2, top);
         v.barFill.width = Math.max(0.5, (BAR_W * s.hp) / s.maxHp);
         v.barFill.height = BAR_H;
       }
@@ -756,8 +910,7 @@ export class SoldierLayer {
         s.sprite.visible = false;
         continue;
       }
-      s.sprite.alpha = 1 - k;
-      s.sprite.rotation += fxDt * 9;
+      this.placeSlash(s, k);
     }
   }
 

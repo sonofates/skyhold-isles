@@ -134,6 +134,13 @@ export interface EnemyArt {
   readonly back?: string;
   /** Burrower only: the dirt mound drawn while it is underground. */
   readonly mound?: string;
+  /**
+   * Melee attack sheet JSON (grid sheet with `impact`: the frame where the blow lands): the unit
+   * swinging in place, facing down-right like the walk "down" sheet (mirrored for left). Played
+   * once per blow, timed so the impact frame lands on the sim's hit (meleeAnim.ts). Absent →
+   * procedural swing.
+   */
+  readonly attack?: string;
   /** Used while neither the front sprite nor a full walk sheet exists yet (art still on its way). */
   readonly fallback?: EnemyFallback;
   readonly height: number;
@@ -168,6 +175,8 @@ export interface GridSheetJson {
   readonly anchor?: readonly [number, number];
   /** Tower attack sheets: frame index where the shot leaves (projectile / bolt shown from there). */
   readonly release?: number;
+  /** Melee attack sheets: frame index where the blow lands. */
+  readonly impact?: number;
   /** Tower sheets: stone ring width in frame px (default: the tier sprite's ring width). */
   readonly ringW?: number;
 }
@@ -186,6 +195,8 @@ export interface ParsedSheet {
   readonly anchor: readonly [number, number] | null;
   /** Tower attack sheets: release frame, or null. */
   readonly release: number | null;
+  /** Melee attack sheets: impact frame, or null. */
+  readonly impact: number | null;
   /** Tower sheets: ring width in frame px, or null. */
   readonly ringW: number | null;
 }
@@ -329,6 +340,7 @@ export function parseManifest(raw: unknown): ArtManifest {
       ...(sheet ? { sheet } : {}),
       ...(typeof e.back === 'string' && e.back ? { back: e.back } : {}),
       ...(typeof e.mound === 'string' && e.mound ? { mound: e.mound } : {}),
+      ...(typeof e.attack === 'string' && e.attack ? { attack: e.attack } : {}),
       ...(e.fallback && typeof e.fallback === 'object'
         ? (() => {
             const f = e.fallback as Json;
@@ -444,8 +456,9 @@ export function parseSheetJson(raw: unknown, defaultImage = ''): ParsedSheet {
     }
     const image = typeof g.image === 'string' && g.image.length > 0 ? g.image : defaultImage;
     const release = typeof g.release === 'number' && Number.isFinite(g.release) ? Math.max(0, Math.min(frames.length - 1, Math.floor(g.release))) : null;
+    const impact = typeof g.impact === 'number' && Number.isFinite(g.impact) ? Math.max(0, Math.min(frames.length - 1, Math.floor(g.impact))) : null;
     const ringW = typeof g.ringW === 'number' && g.ringW > 0 ? g.ringW : null;
-    return { image: str(image, 'sheet.image'), frames, fps: numOr(g.fps, 12), anchor, release, ringW };
+    return { image: str(image, 'sheet.image'), frames, fps: numOr(g.fps, 12), anchor, release, impact, ringW };
   }
   // Pixi / TexturePacker JSON-hash or JSON-array.
   const meta = obj(j.meta, 'sheet.meta');
@@ -467,7 +480,7 @@ export function parseSheetJson(raw: unknown, defaultImage = ''): ParsedSheet {
     return { x: numOr(r.x, 0), y: numOr(r.y, 0), w: numOr(r.w, 1), h: numOr(r.h, 1) };
   });
   if (frames.length === 0) throw new ManifestError('sheet has no frames');
-  return { image: str(meta.image, 'sheet.meta.image'), frames, fps: numOr(j.fps, 12), anchor: null, release: null, ringW: null };
+  return { image: str(meta.image, 'sheet.meta.image'), frames, fps: numOr(j.fps, 12), anchor: null, release: null, impact: null, ringW: null };
 }
 
 /**

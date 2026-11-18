@@ -19,6 +19,8 @@ import {
 import type { FxLayer } from './fxLayer.ts';
 import { HEIGHT_TO_SCREEN, type WorldLayers } from './layers.ts';
 import { enemyArtFor } from './manifest.ts';
+import { HIT_FLASH, type FighterState, type MeleeDirector } from './meleeDirector.ts';
+import { swingFrame } from './meleeAnim.ts';
 import type { MapView } from './mapView.ts';
 import type { ProcTextures } from './procTextures.ts';
 import { cheapWalk, createAnimState, createPose, sheetSequence, sheetWalk, type AnimState, type WalkPose } from './walkAnim.ts';
@@ -51,6 +53,8 @@ const TELEPORT_UNITS = 2.2;
 /** One pooled enemy sprite set (body, soft shadow, hp bar, lazily created special overlays). */
 export class EnemyView {
   readonly body = new Sprite(Texture.EMPTY);
+  /** Additive copy of the body shown for a few frames when a melee blow lands (white hit flash). */
+  readonly flash = new Sprite(Texture.EMPTY);
   readonly shadow: Sprite;
   readonly barBg = new Sprite(Texture.WHITE);
   readonly barFill = new Sprite(Texture.WHITE);
@@ -77,6 +81,8 @@ export class EnemyView {
     this.shadow = new Sprite(shadowTex);
     this.shadow.anchor.set(0.5);
     this.body.anchor.set(0.5, 0.95);
+    this.flash.blendMode = 'add';
+    this.flash.visible = false;
     this.barBg.tint = HP_BG;
     this.barFill.tint = HP_GREEN;
     this.barBg.anchor.set(0, 0.5);
@@ -98,6 +104,8 @@ export class EnemyLayer {
   private readonly tex: ProcTextures;
   private readonly fx: FxLayer | null;
   readonly specials: EnemySpecials;
+  /** Melee fight state (facing, swings, hit flash); null in scenes without soldiers. */
+  private melee: MeleeDirector | null = null;
 
   constructor(art: LoadedArt, map: MapView, layers: WorldLayers, tex: ProcTextures, fx: FxLayer | null = null) {
     this.art = art;
@@ -110,6 +118,10 @@ export class EnemyLayer {
       tex,
       fx,
     );
+  }
+
+  setMelee(melee: MeleeDirector | null): void {
+    this.melee = melee;
   }
 
   private viewFor(index: number): EnemyView {
@@ -128,6 +140,7 @@ export class EnemyLayer {
     v.body.visible = on;
     v.shadow.visible = on;
     if (!on) {
+      v.flash.visible = false;
       v.barBg.visible = false;
       v.barFill.visible = false;
       this.specials.hideAll(v.ex);
@@ -157,6 +170,8 @@ export class EnemyLayer {
     this.specials.hideAll(v.ex);
     const parent = w.flying ? this.layers.air : this.layers.actors;
     if (v.body.parent !== parent) parent.addChild(v.body);
+    if (v.flash.parent !== parent) parent.addChild(v.flash);
+    v.flash.visible = false;
   }
 
   /** Forget all bindings (new run: sim uids start over). */
@@ -242,6 +257,16 @@ export class EnemyLayer {
     v.lastPx = px;
     v.lastPy = py;
 
+    // In a fight: face the soldier (front view), ignore the creep of a partial hold for facing.
+    const ms: FighterState | undefined = this.melee && !w.flying ? this.melee.enemy(w.uid) : undefined;
+    const fighting = ms !== undefined && ms.engaged && ms.facing !== 0;
+    if (fighting) {
+      v.anim.facing = ms.facing;
+      v.anim.seq = 0;
+      dxImg = 0;
+      dyImg = 0;
+    }
+
     const pose = v.pose;
     let tex: Texture;
     const facesRight = art.spec.facing === 'right';
@@ -263,10 +288,35 @@ export class EnemyLayer {
       backView = v.anim.seq === 1 && art.back !== null;
       tex = backView ? art.back! : (art.frames[pose.frame] ?? art.base);
     }
+    // Melee swing: the painted attack sheet when there is one (also its first frame as the
+    // fighting stance between blows), else the procedural wind-up / lunge on the walk frame.
+    const walkTex = tex;
+    let attackFrame = -1;
+    const atk = art.attack;
+    if (ms && atk) {
+      const f = swingFrame(ms.swing, atk.frames.length, atk.fps);
+      if (f !== null) attackFrame = f;
+      else if (fighting) attackFrame = 0;
+      if (attackFrame >= 0) {
+        tex = atk.frames[attackFrame];
+        // Attack sheets face like the walk "down" sheet; mirrored for the other side.
+        pose.flip = (v.anim.facing > 0) !== ((art.spec.sheet?.facing ?? art.spec.facing) !== 'left');
+        pose.rotation = 0;
+        pose.scaleX = 1;
+        pose.scaleY = 1;
+        pose.lift = 0;
+      }
+    }
     if (v.body.texture !== tex) {
       v.body.texture = tex;
-      if (art.mode !== 'sheet') {
+      if (attackFrame >= 0) {
+        const a = atk!.anchor ?? art.sheet?.anchor ?? art.spec.anchor;
+        v.body.anchor.set(a[0], a[1]);
+      } else if (art.mode !== 'sheet') {
         const a = backView ? art.backAnchor : (art.frameAnchors[pose.frame] ?? art.spec.anchor);
+        v.body.anchor.set(a[0], a[1]);
+      } else {
+        const a = art.sheet?.anchor ?? art.spec.anchor;
         v.body.anchor.set(a[0], a[1]);
       }
     }
@@ -286,7 +336,8 @@ export class EnemyLayer {
 
     // Constant px scale per art (from the base sprite / sheet frame) so frames never change size.
     const heightPx = art.spec.height * ppu * v.scale * (w.scaleOverride || 1);
-    const s = heightPx / Math.max(1, art.mode === 'sheet' ? tex.height * 0.94 : art.base.height);
+    // Attack frames use the walk sheet's px scale (same source framing), so the figure keeps its size.
+    const s = (heightPx / Math.max(1, art.mode === 'sheet' ? walkTex.height * 0.94 : art.base.height)) * (attackFrame >= 0 && atk ? atk.figScale : 1);
     const liftPx = (iy * HEIGHT_TO_SCREEN + pose.lift + fallLift) * ppu;
     const shR = art.spec.shadow * ppu * v.scale * (w.flying ? 0.85 : 1);
 
@@ -309,18 +360,54 @@ export class EnemyLayer {
     // Hit flash: the sim's hitFlashTimer drives a warm tint (no per-sprite filters).
     if (w.hitFlashTimer > 0) out.tint = 0xff9c8c;
 
-    v.body.scale.set(s * pose.scaleX * (pose.flip ? -1 : 1), s * pose.scaleY * out.squashY);
-    v.body.rotation = pose.rotation;
-    v.body.position.set(px, py - liftPx);
+    // Melee: knockback jolt (render offset), swing pose (procedural, lighter over painted frames), idle bob.
+    let bx = px;
+    let by = py;
+    let sx = 1;
+    let sy = 1;
+    let rot = 0;
+    let lift = 0;
+    if (ms) {
+      bx += ms.offX * ppu;
+      by += ms.offZ * ppu;
+      const face = v.anim.facing;
+      const p = ms.pose;
+      const amt = attackFrame >= 0 ? 0.3 : 1;
+      bx += face * p.forward * amt * heightPx * 0.16;
+      rot = face * p.tilt * amt * 0.12;
+      sx = 1 + (p.scaleX - 1) * amt;
+      sy = 1 + (p.scaleY - 1) * amt;
+      lift = p.lift * amt * heightPx;
+      if (fighting && ms.swing.t < 0) {
+        const b = Math.sin(ms.idle * Math.PI * 2 * 1.5);
+        sy *= 1 + 0.022 * b;
+        sx *= 1 - 0.01 * b;
+      }
+    }
+    v.body.scale.set(s * pose.scaleX * sx * (pose.flip ? -1 : 1), s * pose.scaleY * sy * out.squashY);
+    v.body.rotation = pose.rotation + rot;
+    v.body.position.set(bx, by - liftPx - lift);
     v.body.zIndex = py;
     v.body.tint = out.tint;
     v.body.alpha = out.bodyAlpha;
     v.body.visible = out.bodyVisible;
+    const fl = v.flash;
+    const flashK = ms && out.bodyVisible ? ms.flash / HIT_FLASH : 0;
+    fl.visible = flashK > 0;
+    if (flashK > 0) {
+      fl.texture = v.body.texture;
+      fl.anchor.copyFrom(v.body.anchor);
+      fl.scale.copyFrom(v.body.scale);
+      fl.rotation = v.body.rotation;
+      fl.position.copyFrom(v.body.position);
+      fl.zIndex = py + 0.01;
+      fl.alpha = Math.min(1, flashK * 1.2) * out.bodyAlpha;
+    }
 
     const sh = v.shadow;
     sh.visible = true;
     const shK = 0.5 + 0.5 * fallK;
-    sh.position.set(px, py);
+    sh.position.set(bx, by);
     sh.scale.set(((shR * 2) / 128) * shK, ((shR * 0.9) / 128) * shK);
     sh.alpha = (w.flying ? 0.8 : 0.85 - Math.min(0.3, pose.lift * 2)) * out.shadowAlpha * (0.4 + 0.6 * fallK);
 
@@ -328,11 +415,11 @@ export class EnemyLayer {
     v.barBg.visible = damaged;
     v.barFill.visible = damaged;
     if (damaged) {
-      const top = py - liftPx - heightPx - 6;
-      v.barBg.position.set(px - BAR_W / 2 - 1.5, top);
+      const top = by - liftPx - heightPx - 6;
+      v.barBg.position.set(bx - BAR_W / 2 - 1.5, top);
       v.barBg.width = BAR_W + 3;
       v.barBg.height = BAR_H + 3;
-      v.barFill.position.set(px - BAR_W / 2, top);
+      v.barFill.position.set(bx - BAR_W / 2, top);
       v.barFill.width = Math.max(0.5, (BAR_W * w.hp) / w.maxHp);
       v.barFill.height = BAR_H;
     }
