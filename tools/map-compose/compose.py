@@ -90,8 +90,9 @@ import numpy as np  # noqa: E402
 from gates import (  # noqa: E402
     blend_placement, clip_road_at_gate, contact_shadow, cut_front, entrance_dir, entrance_facing, gate_alpha_hit, goal_dir, goal_facing, output_box, output_sprite, place_gate, point_in_opening, resolve_prop,
 )
+import fords  # noqa: E402
 from keeps import Keep  # noqa: E402
-from ground import Decals, fine_detail, inner_band, nearest_dist, ragged_mask, ring, road_fringe, scatter  # noqa: E402
+from ground import Decals, DressingArea, brushed_surface, fine_detail, inner_band, ragged_mask, ring, road_fringe, scatter  # noqa: E402
 from ringfit import measure_ring  # noqa: E402
 
 args = sys.argv[1:]
@@ -639,8 +640,12 @@ rw = ROAD_W * S
 TEX = W / 2560  # texture scale reference: the approved mock was 2560 px wide
 grass = load(GRASS)
 grass_dark = load('tex-grass-dark.png') or grass
-ground = tiled(grass, W, H, 0.55 * TEX)
-dark = tiled(grass_dark, W, H, 0.55 * TEX)
+if dressing:  # The authored terrain plate supplies the island's broad landforms.
+    ground = tiled(grass, W, H, 0.55 * TEX)
+    dark = tiled(grass_dark, W, H, 0.55 * TEX)
+else:
+    ground = brushed_surface(grass, (W, H), 0.55 * TEX, SEED + 3)
+    dark = brushed_surface(grass_dark, (W, H), 0.55 * TEX, SEED + 4)
 mask = soft_noise(W, H, round(260 * TEX), SEED).point(lambda v: max(0, min(255, (v - 110) * 3)))
 ground = Image.composite(dark, ground, mask)
 # very soft, large light patches: breaks the tiling without adding detail
@@ -690,8 +695,18 @@ if land_mask:
     elif any(not on_land(base[0]+dx*width, base[1]+dy*height)
            for dx, dy in ((-.35,0), (.35,0), (0,.12), (0,-.15))):
         foundation(*base, width*1.28, max(width*.57, height*.43), force=True)
-    for left, top, right, bottom in landmark_rects[:-1]:
-        foundation((left + right) / 2, bottom - 5, (right - left) * 1.17, (right - left) * 0.49)
+    shelves = {f'landmark-{name}.webp': rect for name, rect in dressing.get('landmarkShelves', {}).items()}
+    for index, (left, top, right, bottom) in enumerate(landmark_rects[:-1]):
+        name = LANDMARKS[index][0] if index < len(LANDMARKS) else None
+        if name in shelves:
+            # Waterworks can span the natural channel directly (no rock shelf).
+            if shelves[name]:
+                foundation(*shelves[name], force=True)
+        else:
+            foundation((left + right) / 2, bottom - 5, (right - left) * 1.17, (right - left) * 0.49)
+
+ford_sites = dressing.get('fords', [])
+ford_patches = fords.prepare(ground, land_mask, (iw, ih), ford_sites, S)
 
 # ---------------------------------------------------------------- road
 road_hard = Image.new('L', (W, H))
@@ -711,7 +726,10 @@ keep.trim_road(road_hard, S)
 noise_scale = S / 2 if native_3x else 1
 road_mask = ragged_mask(road_hard, rw * 0.05, max(4, round(rw * 0.16 / noise_scale)), 0.22, SEED + 21, aa=1.1 if native_3x else 1.1 * W / 3692, noise_scale=noise_scale)
 road_material = load(dressing.get('roadMaterial', 'tex-dirt.png'))
-dirt = tiled(road_material, W, H, 0.45 * TEX)
+if not kit or dressing.get('brushRoad'):
+    dirt = brushed_surface(road_material, (W, H), 0.45 * TEX, SEED + 23)
+else:
+    dirt = tiled(road_material, W, H, 0.45 * TEX)
 dirt = fine_detail(dirt, road_material, round(1024 * 0.16 * TEX), 0.45, 7 * TEX)
 if 'branchMaterial' in dressing:
     lane, material = dressing['branchMaterial']
@@ -732,6 +750,10 @@ ground = Image.composite(Image.new('RGBA', (W, H), (122, 80, 42, 255)), ground, 
 del shade, rim_band, lip, dirt, road_hard
 keep.apron(ground, castle, S, plots, PLOT_R, PLOT_RY, raw_paths[0])
 
+if ford_patches:
+    fords.paint(ground, ford_patches, road_mask, ROAD_W, load('ford-stones.webp'),
+                [resample(catmull(section), 17) for section in SECTIONS.values()], S, SEED + 29)
+
 # Crossings share the road centreline. These deck stamps have no collision or sim geometry.
 crossing_rects = []
 for name, x, y, length, width, angle in dressing.get('crossings', []):
@@ -746,24 +768,28 @@ for name, x, y, length, width, angle in dressing.get('crossings', []):
     crossing_rects.append(sprite_rect(deck, x, y + deck.height / (2 * S), deck.height / S))
 
 # ---------------------------------------------------------------- crisp painted details
+area = DressingArea((iw, ih), spl_paths, ROAD_W, plots, PLOT_R, PLOT_RY,
+                    landmark_rects + crossing_rects)
+
+
+def grounded(rect):
+    if land_mask is None:
+        return True
+    left, top, right, bottom = rect
+    box = (math.floor(left * land_mask.width / iw), math.floor(top * land_mask.height / ih),
+           math.ceil(right * land_mask.width / iw), math.ceil(bottom * land_mask.height / ih))
+    return land_mask.crop(box).getextrema()[0] >= 128
+
+
 decals = Decals(load, themed=bool(kit))
 fringe_n = scatter_n = None
 if decals.ok and '--no-decals' not in args:
-    road_np = np.array([q for p in spl_paths for q in resample(p, 3.0)])
-    edge_polys = [resample(p, 4.0) for p in spl_paths]
-    fringe_n = road_fringe(ground, decals, edge_polys, road_np, ROAD_W / 2, S, SEED + 31, ok_at=on_land if land_mask else None)
-    plot_ells = [(px, py) for px, py in plots]
+    def decal_ok(rect):
+        return area.clear(rect) and grounded(rect)
 
-    def decal_ok(x, y, r):
-        if not on_land(x, y):
-            return False
-        if nearest_dist(road_np, x, y) < ROAD_W / 2 + r + 2:
-            return False
-        for px, py in plot_ells:
-            if ((x - px) / (PLOT_R + r)) ** 2 + ((y - py) / (PLOT_RY + r)) ** 2 < 1:
-                return False
-        return not any(rects_hit((x - r, y - r, x + r, y + r), z, 4) for z in landmark_rects)
-
+    # Shared lanes get a single verge, including after a multi-way merge.
+    edge_polys = [resample(catmull(section), 4.0) for section in SECTIONS.values()]
+    fringe_n = road_fringe(ground, decals, edge_polys, ROAD_W / 2, S, SEED + 31, decal_ok)
     scatter_n = scatter(ground, decals, iw, ih, decal_ok, S, SEED + 41, n=opt('--decals', 240))
 
 # ---------------------------------------------------------------- sprites (depth sorted)
@@ -832,7 +858,7 @@ prop_ims = {n: load(n) for n, _ in PROPS}
 rnd = random.Random(SEED)
 placed = []
 tries = 0
-zones = [plot_zone(*p) for p in plots] + landmark_rects + crossing_rects
+zones = [plot_zone(*p) for p in plots]
 prop_count = opt('--props', 70)
 while len(placed) < prop_count and tries < 12000:
     tries += 1
@@ -843,18 +869,20 @@ while len(placed) < prop_count and tries < 12000:
     if not margin and rnd.random() < 0.75:  # keep the play area calm
         continue
     name, rel = rnd.choices(PROPS, WEIGHTS)[0]
-    h = ROAD_W * rel
+    h = ROAD_W * rel * rnd.uniform(0.72, 1.12)
     rect = sprite_rect(prop_ims[name], x, y, h)
-    foot = (rect[0] + (rect[2] - rect[0]) * 0.2, rect[1] + (rect[3] - rect[1]) * 0.1, rect[2] - (rect[2] - rect[0]) * 0.2, rect[3])
-    if any(rects_hit(foot, z, 6) for z in zones):
+    if not area.clear(rect) or any(rects_hit(rect, zone, 4) for zone in zones):
         continue
-    if any(rects_hit(foot, p[1], -4) for p in placed):
+    # Keep trunks, stone bases and their contact shadows on a single bank.
+    radius = (rect[2] - rect[0]) * .32
+    if not grounded((x-radius, y-h*.14, x+radius, y+2)):
         continue
-    cx, cy = (foot[0] + foot[2]) / 2, (foot[1] + foot[3]) / 2
-    half = max(foot[2] - foot[0], foot[3] - foot[1]) / 2
-    if dist_to_road(cx, cy) < ROAD_W / 2 + half + 6:
+    # Leave complete silhouettes at the desktop crop as well as the phone edges.
+    if any(rect[0] < edge < rect[2] for edge in (sx, sx+sw)):
         continue
-    placed.append((name, foot))
+    if any(rects_hit(rect, other, 2) for _, other in placed):
+        continue
+    placed.append((name, rect))
     sprite(name, x * S, y * S, h * S, flip=rnd.random() < 0.5)
 
 if '--enemies' in args and not BAKE:
@@ -973,7 +1001,8 @@ if '--write-layout' in args:
             L['entrances'][G['lane']]['gate'] = G['json']
         else:
             L['goalGate'] = G['json']
-    layout_p.write_text(json.dumps(L, indent=1))
+    if L != json.loads(layout_p.read_text()):
+        layout_p.write_text(json.dumps(L, indent=1))
 for k, f in variant_files.items():
     print(f'  variant {k} -> {f}')
 for G in GATES:
@@ -983,8 +1012,8 @@ for G in GATES:
         _seat = f"aligned {castle['size']:.2f}"
     print(f'  gate {G["id"]}: {G["prop"]} facing {G["facing"]} {_seat} rect {tuple(round(v) for v in G["g"]["rect"])}'
           f' front {G.get("file")} {fr["rect"] if fr else None}')
-if fringe_n:
-    print(f'  road fringe tufts {fringe_n[0]} pebbles {fringe_n[1]}; decals {scatter_n}')
+if fringe_n is not None:
+    print(f'  verge decals {fringe_n}, field decals {scatter_n}')
 for w_ in warns:
     print('  warning: ' + w_)
 

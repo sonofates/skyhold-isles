@@ -2,6 +2,7 @@
   "i01": {
     "plots": 16,
     "seed": 31,
+    "brushRoad": true,
     "decals": 310,
     "props": 52,
     "windmill": "none",
@@ -52,19 +53,20 @@
     "props": 64,
     "windmill": "none",
     "biome": "terraces",
-    "propWeights": [1, 6, 4, 4, 1, 1, 2],
+    "propWeights": [3, 3, 2, 6, 2, 1, 4],
     "crossings": [
-      ["viaduct", 500, 339, 115, 74, -14]
+      ["viaduct", 504, 247, 90, 74, -9]
     ],
     "cave-h": 2.18,
     "castle-h": 2.3,
     "landmarks": [
-      ["anchors", 636, 369, 53]
+      ["anchors", 425, 302, 43]
     ]
   },
   "i05": {
     "plots": 19,
     "seed": 193,
+    "brushRoad": true,
     "decals": 280,
     "props": 72,
     "windmill": "665,506,2.7",
@@ -77,6 +79,13 @@
   },
   "i06": {
     "gatehouseShelf": [-18, 1, 203, 92],
+    "landmarkShelves": {
+      "lighthouse": [952, 388, 143, 107]
+    },
+    "crossings": [
+      ["gangway", 900, 410, 85, 76, 93],
+      ["bridge", 1046, 451, 154, 76, 57]
+    ],
     "gatehouseView": "compact",
     "plots": 24,
     "seed": 227,
@@ -161,24 +170,30 @@
   "i10": {
     "plots": 25,
     "seed": 461,
+    "landmarkShelves": {"sluice": null},
+    "fords": [[648, 262, 84], [802, 468, 121], [1420, 270, 73]],
     "decals": 265,
     "props": 48,
     "windmill": "none",
     "biome": "terraces",
-    "propWeights": [7, 1, 0, 4, 6, 5, 2],
+    "propWeights": [6, 1, 1, 6, 4, 0, 4],
     "crossings": [
-      ["stone-bridge", 906, 659, 120, 71, 103.5]
+      ["stone-bridge", 906, 659, 120, 71, 103.5],
+      ["viaduct", 1035, 389, 108, 79, -5]
     ],
     "islet": "islet.webp",
     "cave-h": 2.14,
     "castle-h": 2.58,
     "landmarks": [
-      ["sluice", 1078, 683, 91]
+      ["sluice", 961, 825, 62]
     ]
   },
   "i11": {
     "plots": 24,
     "seed": 503,
+    "crossings": [
+      ["stone-bridge", 387, 292, 116, 80, -29]
+    ],
     "decals": 145,
     "props": 59,
     "windmill": "none",
