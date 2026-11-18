@@ -85,6 +85,8 @@ export interface LevelDef {
   readonly startingGold: number;
   readonly enemyHpScale?: number;
   readonly waveHpGrowth?: number;
+  /** Optional hex casting reach in world units for maps with sheltered build sites. */
+  readonly hexRadius?: number;
   readonly waves: readonly WaveDef[];
   readonly scriptedBuildOrder?: readonly ScriptedBuildAction[];
   readonly weakBuildOrder?: readonly ScriptedBuildAction[];

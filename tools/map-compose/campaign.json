@@ -54,5 +54,87 @@
     "decals": 205,
     "props": 80,
     "windmill": "none"
+  },
+  "i09": {
+    "plots": 27,
+    "seed": 409,
+    "decals": 220,
+    "props": 65,
+    "windmill": "none"
+  },
+  "i10": {
+    "plots": 25,
+    "seed": 461,
+    "decals": 265,
+    "props": 48,
+    "windmill": "none"
+  },
+  "i11": {
+    "plots": 24,
+    "seed": 503,
+    "decals": 145,
+    "props": 77,
+    "windmill": "none"
+  },
+  "i12": {
+    "plots": 27,
+    "seed": 541,
+    "decals": 320,
+    "props": 60,
+    "windmill": "none",
+    "seedPlots": [
+      [590, 394],
+      [900, 391],
+      [1080, 395],
+      [720, 394],
+      [774, 189],
+      [1090, 190],
+      [982, 600],
+      [840, 735]
+    ]
+  },
+  "i13": {
+    "plots": 28,
+    "seed": 593,
+    "decals": 182,
+    "props": 84,
+    "windmill": "none",
+    "seedPlots": [
+      [644, 272],
+      [868, 448]
+    ]
+  },
+  "i14": {
+    "plots": 24,
+    "seed": 641,
+    "decals": 128,
+    "props": 39,
+    "windmill": "none"
+  },
+  "i15": {
+    "plots": 26,
+    "seed": 701,
+    "decals": 300,
+    "props": 69,
+    "windmill": "none",
+    "seedPlots": [
+      [420, 464],
+      [548, 272],
+      [651, 264],
+      [1027, 208]
+    ]
+  },
+  "i16": {
+    "plots": 26,
+    "seed": 757,
+    "decals": 190,
+    "props": 55,
+    "windmill": "none",
+    "seedPlots": [
+      [756, 608],
+      [884, 576],
+      [1428, 496],
+      [1588, 240]
+    ]
   }
 }
