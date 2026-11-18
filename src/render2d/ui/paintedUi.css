@@ -297,6 +297,7 @@
 
 /* The main action: a bigger plank with a warm gold glow. */
 .pu-plank.primary {
+  border-image-source: url('/art2d/ui/button-go.webp');
   --ph: calc(var(--s) * 5);
   min-width: calc(var(--s) * 13);
   font-size: calc(var(--s) * 2);
@@ -406,7 +407,7 @@
   height: 62%;
   transform: translate(-50%, -50%);
   border-radius: 50%;
-  background-color: #7cb84a;
+  background-color: #75b6b5;
   background-size: cover;
   background-repeat: no-repeat;
   box-shadow: inset 0 0 0 2px rgba(58, 36, 18, 0.55), inset 0 calc(var(--d) * 0.03) calc(var(--d) * 0.06) rgba(0, 0, 0, 0.35);
@@ -443,14 +444,23 @@
 }
 
 .pu-map-world {
+  background: url('/art2d/ui/sea.webp') left top / auto 100% repeat-x;
   position: relative;
   height: 100%;
 }
 
-.pu-sea {
+@media (max-height: 512px) and (max-resolution: 1dppx) {
+  .pu-map-world { background-image: url('/art2d/ui/sea@0.5x.webp'); }
+}
+
+.pu-map::after {
+  content: '';
   position: absolute;
-  left: 0;
-  top: 0;
+  right: max(var(--s), var(--safe-r));
+  bottom: max(var(--s), var(--safe-b));
+  width: calc(var(--s) * 6);
+  aspect-ratio: 1;
+  background: url('/art2d/ui/compass.webp') center / contain no-repeat;
   pointer-events: none;
 }
 
@@ -605,12 +615,12 @@
   border-bottom: 0.12em solid #f2b33d;
 }
 
-/* "You are here": the kit's rally flag planted on the frontier island. */
+/* The frontier ship sails just outside the island and its earned stars. */
 .pu-node-flag {
   position: absolute;
-  right: -4%;
-  bottom: 52%;
-  width: 46%;
+  right: -16%;
+  bottom: 49%;
+  width: 40%;
   height: auto;
   pointer-events: none;
   transform-origin: 30% 95%;
@@ -1017,6 +1027,7 @@
 /* ---- storybook panels ----------------------------------------------------------------------- */
 
 .pu-story {
+  border-image: url('/art2d/ui/story-frame.webp') 64 96 fill stretch;
   width: min(100%, calc(var(--s) * 92));
 }
 
@@ -1255,10 +1266,12 @@
 }
 
 .pu-tabs .pu-plank[aria-selected='false'] {
+  border-image: url('/art2d/ui/tab-idle.webp') 23 46 fill stretch;
   filter: brightness(0.78) saturate(0.7) drop-shadow(0 2px 1px rgba(30, 16, 4, 0.35));
 }
 
 .pu-tabs .pu-plank[aria-selected='true'] {
+  border-image: url('/art2d/ui/tab-active.webp') 23 46 fill stretch;
   filter: drop-shadow(0 0 calc(var(--s) * 0.45) rgba(255, 205, 90, 0.95));
 }
 
@@ -1543,7 +1556,7 @@
   transform: translateY(-50%);
   border-style: solid;
   border-width: calc(var(--s) * 0.55) calc(var(--s) * 0.8);
-  border-image: url('/art2d/ui-plaque.webp') 42 64 fill stretch;
+  border-image: url('/art2d/ui/slider-track.webp') 14 48 fill stretch;
 }
 
 .pu-slider-fill {
@@ -1561,7 +1574,7 @@
   width: calc(var(--s) * 3.4);
   height: calc(var(--s) * 3.4);
   transform: translate(-50%, -50%);
-  background: url('/art2d/ui/button-round.webp') center / contain no-repeat;
+  background: url('/art2d/ui/slider-knob.webp') center / contain no-repeat;
   filter: drop-shadow(0 2px 2px rgba(30, 16, 4, 0.5));
   pointer-events: none;
 }

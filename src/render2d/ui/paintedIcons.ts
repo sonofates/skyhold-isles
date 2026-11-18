@@ -1,8 +1,4 @@
-/**
- * Glyphs for the painted round buttons, drawn in the kit's lettering style: cream fill, thick
- * dark-brown outline, a touch of gold. Placeholders until painted icons exist (see
- * docs/p3-art-needs.md); they sit on the painted `button-round` disc, never on their own.
- */
+/** DOM button art. Secondary glyphs share the kit's cream, gold and brown palette. */
 const O = '#3a2412';
 const C = '#fff4dc';
 const G = '#f2b33d';
@@ -10,46 +6,19 @@ const G = '#f2b33d';
 const svg = (body: string, extra = ''): string =>
   `<svg viewBox="0 0 48 48" aria-hidden="true" ${extra} stroke-linejoin="round" stroke-linecap="round">${body}</svg>`;
 
+const painted = (name: string): string =>
+  `<img src="/art2d/ui/icon-${name}.webp" style="display:block;width:100%;height:100%;object-fit:contain" alt="" draggable="false" aria-hidden="true"/>`;
+
 export const ICONS = {
-  workshop: svg(
-    `<path d="M10 33 L27 16 L32 21 L15 38 Z" fill="${G}" stroke="${O}" stroke-width="3.4"/>` +
-      `<path d="M23 9 C29 7 36 9 39 14 L34 19 L29 14 L26 17 L21 12 Z" fill="${C}" stroke="${O}" stroke-width="3.4"/>`,
-  ),
-  logbook: svg(
-    `<path d="M9 10 C15 8 20 9 24 12 C28 9 33 8 39 10 V37 C33 35 28 36 24 39 C20 36 15 35 9 37 Z" fill="${C}" stroke="${O}" stroke-width="3.4"/>` +
-      `<path d="M24 12 V39" stroke="${O}" stroke-width="3"/>` +
-      `<path d="M13 17 H20 M13 22 H20 M28 17 H35 M28 22 H35" stroke="${O}" stroke-width="2.2" opacity=".55"/>` +
-      `<path d="M30 8 V18 L32.5 15.5 L35 18 V8.6" fill="#c8341f" stroke="${O}" stroke-width="2.2"/>`,
-  ),
-  daily: svg(
-    `<circle cx="18" cy="17" r="8.5" fill="${G}" stroke="${O}" stroke-width="3.2"/>` +
-      `<path d="M12 37 H36 C40 37 42 34 42 31 C42 27.5 39 25 35.6 25.4 C34.6 21.4 31 19 27 19.6 C23 20.2 20.4 23.4 20.4 27 C17 26.6 14 28.8 14 32 C14 34.6 12.6 37 12 37 Z" fill="${C}" stroke="${O}" stroke-width="3.2"/>`,
-  ),
-  settings: svg(
-    `<path d="M24 6 L28 6 L29 11.5 L33.4 13.6 L38 10.4 L40.8 13.2 L37.6 17.8 L39.6 22 L45 23 V27 L39.6 28 L37.6 32.4 L40.8 37 L38 39.8 L33.4 36.6 L29 38.6 L28 44 H24 L23 38.6 L18.6 36.6 L14 39.8 L11.2 37 L14.4 32.4 L12.4 28 L7 27 V23 L12.4 22 L14.4 17.8 L11.2 13.2 L14 10.4 L18.6 13.6 L23 11.5 Z" transform="translate(-2 -1)" fill="${C}" stroke="${O}" stroke-width="3"/>` +
-      `<circle cx="24" cy="24" r="5.6" fill="${G}" stroke="${O}" stroke-width="3"/>`,
-  ),
-  codex: svg(
-    `<path d="M11 8 H34 C36 8 37 9 37 11 V40 H14 C12 40 11 39 11 37 Z" fill="#8a3b1c" stroke="${O}" stroke-width="3.2"/>` +
-      `<path d="M14 34 H37 V40 H14 C12.4 40 11 38.8 11 37 C11 35.2 12.4 34 14 34 Z" fill="${C}" stroke="${O}" stroke-width="2.8"/>` +
-      `<path d="M18 14 C21 18 21 23 18 27 M24 13 C27 18 27 23 24 28 M30 14 C33 18 33 23 30 27" stroke="${G}" stroke-width="3.2" fill="none"/>`,
-  ),
-  close: svg(
-    `<path d="M14 14 L34 34 M34 14 L14 34" stroke="${O}" stroke-width="10"/>` +
-      `<path d="M14 14 L34 34 M34 14 L14 34" stroke="${C}" stroke-width="5"/>`,
-  ),
-  play: svg(`<path d="M16 10 L38 24 L16 38 Z" fill="${C}" stroke="${O}" stroke-width="3.6"/>`),
-  lock: svg(
-    `<path d="M16 22 V16 C16 11 19.6 8 24 8 C28.4 8 32 11 32 16 V22" fill="none" stroke="${O}" stroke-width="8"/>` +
-      `<path d="M16 22 V16 C16 11 19.6 8 24 8 C28.4 8 32 11 32 16 V22" fill="none" stroke="#b9b2a4" stroke-width="3.6"/>` +
-      `<rect x="11" y="21" width="26" height="20" rx="4" fill="${G}" stroke="${O}" stroke-width="3.4"/>` +
-      `<path d="M24 28 V34" stroke="${O}" stroke-width="3.6"/>`,
-  ),
-  map: svg(
-    `<path d="M7 12 L17 8 L31 12 L41 8 V36 L31 40 L17 36 L7 40 Z" fill="${C}" stroke="${O}" stroke-width="3.2"/>` +
-      `<path d="M17 8 V36 M31 12 V40" stroke="${O}" stroke-width="2.6"/>` +
-      `<path d="M11 30 C15 26 19 30 23 25 C26 21 30 24 34 18" stroke="#c8341f" stroke-width="2.6" stroke-dasharray="1 4" fill="none"/>`,
-  ),
+  workshop: painted('workshop'),
+  logbook: painted('logbook'),
+  daily: painted('daily'),
+  settings: painted('settings'),
+  codex: painted('codex'),
+  close: painted('close'),
+  play: painted('play'),
+  lock: painted('lock'),
+  map: painted('map'),
   next: svg(
     `<path d="M20 10 L34 24 L20 38" fill="none" stroke="${O}" stroke-width="10"/>` + `<path d="M20 10 L34 24 L20 38" fill="none" stroke="${C}" stroke-width="5"/>`,
   ),

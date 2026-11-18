@@ -24,7 +24,8 @@ export function showStory(level: LevelDef, part: StoryPart, beats: readonly Stor
   beats.forEach((b, i) => {
     const p = el('div', 'pu-panel pu-card pending', { 'data-beat': i });
     const v = el('div', 'pu-vignette');
-    if (mapUrl) v.style.backgroundImage = `url("${mapUrl}")`;
+    if (b.art) v.style.background = `center / cover no-repeat url("${b.art}")`;
+    else if (mapUrl) v.style.backgroundImage = `url("${mapUrl}")`;
     v.append(el('span', 'pu-vignette-num pu-letter', {}, String(i + 1)));
     const text = el('div', 'pu-panel-text');
     if (b.speaker) text.append(el('b', '', {}, b.speaker));
@@ -45,7 +46,7 @@ export function showStory(level: LevelDef, part: StoryPart, beats: readonly Stor
       // Layout size (not getBoundingClientRect: the card pops in with a scale transform).
       const bw = v.clientWidth;
       const bh = v.clientHeight;
-      if (bw < 2 || !mapUrl) return;
+      if (beats[i].art || bw < 2 || !mapUrl) return;
       const st = vignetteStyle(imageSize, beats[i].focus ?? defaultFocus(i, beats.length), bw, bh);
       v.style.backgroundSize = st.size;
       v.style.backgroundPosition = st.position;

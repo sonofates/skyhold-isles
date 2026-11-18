@@ -38,13 +38,13 @@
  ],
  "body": "archer-2-body.webp",
  "bodyMount": [
-  160.22,
-  175.38
+  233.0,
+  92.56
  ],
  "bodyRing": {
-  "ringWidthPx": 312.0,
-  "ringBottomPx": 508.0,
-  "ringCenterXPx": 160.0
+  "ringWidthPx": 456.0,
+  "ringBottomPx": 507.0,
+  "ringCenterXPx": 233.0
  },
- "scale": 0.8
+ "scale": 1.4262
 }

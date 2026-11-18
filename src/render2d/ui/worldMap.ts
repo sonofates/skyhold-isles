@@ -29,7 +29,6 @@ import { routePath, scrollToCentre, worldMapLayout, type WorldMapLayout } from '
 import { dailyFor2D, openDaily, openLogbook, openSettings, openWorkshop, type MetaContext } from './metaScreens.ts';
 import { availableChallenges, buildRunHref2D, canPlayEndless } from './modes2d.ts';
 import { islandStates, loadProgress2D, type IslandState } from './progress2d.ts';
-import { paintSea } from './seaPainter.ts';
 import { needsFullAdventure, openStore, storeEnabled } from './store2d.ts';
 
 declare global {
@@ -58,17 +57,19 @@ export async function mountWorldMap(q: URLSearchParams): Promise<void> {
   const mock = Math.max(0, Math.min(24, Number(q.get('mockislands') ?? 0) || 0));
   const levels: readonly LevelDef[] = mock > 0 ? [...LEVELS_2D, ...mockLevels(mock)] : LEVELS_2D;
   const manifest: MapsManifest | null = await fetchMapsManifest();
-  const thumb = (l: LevelDef): string | null => islandMapUrl(manifest, l);
+  const thumb = (level: LevelDef): string | null => {
+    const token = manifest?.paintedUi?.[`island-${level.id}`];
+    return token ? `/art2d/${token}` : islandMapUrl(manifest, level);
+  };
   let progress: ProgressData = loadProgress2D(levels);
 
   const root = el('div', 'pu pu-map', { 'data-testid': 'worldmap2d' });
   const scroll = el('div', 'pu-map-scroll');
   const world = el('div', 'pu-map-world');
-  const sea = el('canvas', 'pu-sea');
   const svgNS = 'http://www.w3.org/2000/svg';
   const route = document.createElementNS(svgNS, 'svg');
   route.setAttribute('class', 'pu-route');
-  world.append(sea, route);
+  world.append(route);
   scroll.append(world);
 
   // Top strip.
@@ -151,7 +152,7 @@ export async function mountWorldMap(q: URLSearchParams): Promise<void> {
             : t('map.nodeLocked', { name: islandName(st.level) }),
       });
       b.style.animationDelay = `${0.05 + i * 0.06}s`;
-      b.append(el('span', 'pu-node-shore'), medal(thumb(st.level), '100%', st.frontier && st.unlocked));
+      b.append(el('span', 'pu-node-shore'), medal(st.unlocked ? thumb(st.level) : '/art2d/ui/island-fog.webp', '100%', st.frontier && st.unlocked));
       if (st.unlocked && !isPaid) b.append(starsRow(st.stars, 'pu-stars pu-node-stars'));
       if (st.mastered) {
         const c = el('span', 'pu-node-crown');
@@ -171,7 +172,7 @@ export async function mountWorldMap(q: URLSearchParams): Promise<void> {
         lock.append(glyph('lock'));
         b.append(lock);
       }
-      if (st.frontier && st.unlocked && !isPaid) b.append(img(KIT.rally, '', 'pu-node-flag'));
+      if (st.frontier && st.unlocked && !isPaid) b.append(img('/art2d/ui/ship.webp', '', 'pu-node-flag'));
       b.addEventListener('click', () => openBrief(i));
       world.append(b);
       nodes.push(b);
@@ -207,7 +208,6 @@ export async function mountWorldMap(q: URLSearchParams): Promise<void> {
     const L = worldMapLayout(levels.length, w, h, { ...insets, top: 0 }, Math.max(bar.bottom, banner.getBoundingClientRect().bottom) + 6);
     layout = L;
     world.style.width = `${L.worldW}px`;
-    paintSea(sea, L.worldW, h, window.devicePixelRatio || 1);
     route.setAttribute('width', String(L.worldW));
     route.setAttribute('height', String(h));
     route.setAttribute('viewBox', `0 0 ${L.worldW} ${h}`);
