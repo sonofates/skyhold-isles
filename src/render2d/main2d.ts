@@ -115,7 +115,7 @@ function bootLocale(): Promise<unknown> {
   const boot = document.getElementById('boot');
   if (boot) boot.textContent = t('boot.loading');
   return Promise.all([
-    document.fonts.load(`700 32px ${HUD_FONT}`, 'Aa'),
+    document.fonts.load(`700 32px ${HUD_FONT}`, 'Aa'), // i18n-ignore (font probe)
     document.fonts.load(`700 32px ${HUD_FONT}`, 'ğşıİçöüĞŞÇÖÜ'),
   ]).catch(() => undefined);
 }

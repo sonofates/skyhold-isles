@@ -22,7 +22,7 @@ import {
   towerStrong,
   towerWeak,
 } from '../../i18n/data.ts';
-import { t, type MsgKey } from '../../i18n/index.ts';
+import { num, pct, t, type MsgKey } from '../../i18n/index.ts';
 import { allEnemyEntries, allTowerEntries, eliteEntry, speedClass, type CodexEliteEntry, type CodexEnemyEntry } from '../../ui/content/codexData.ts';
 import { ENEMY_DEFS } from '../../data/enemies.ts';
 import { el, glyph, img, KIT, openSheet, plank, type Sheet } from './dom.ts';
@@ -42,7 +42,6 @@ export interface CodexSheetOptions {
 type FoeEntry = CodexEnemyEntry | CodexEliteEntry;
 
 const ROMAN = ['I', 'II', 'III'] as const;
-const pct = (n: number): string => `${Math.round(n * 100)}%`;
 
 const SPEED_KEY: Record<ReturnType<typeof speedClass>, MsgKey> = {
   slow: 'codex.speed.slow',
@@ -58,11 +57,11 @@ export function tierLine(type: TowerType, tier: 1 | 2 | 3): string {
   if (TOWER_DEFS[type].role === 'support') {
     parts.push(t('codex.tier.fireRate', { p: pct(s.auraRate ?? 0) }));
     if (s.auraRange) parts.push(t('codex.tier.range', { p: pct(s.auraRange) }));
-    parts.push(t('codex.tier.aura', { r: s.range }));
+    parts.push(t('codex.tier.aura', { r: num(s.range) }));
     return parts.join(t('common.sep'));
   }
-  parts.push(t('codex.tier.dmg', { n: s.damage }), t('codex.tier.rate', { n: s.fireRate }), t('codex.tier.reach', { r: s.range }));
-  if (s.splashRadius > 0) parts.push(t('codex.tier.splash', { r: s.splashRadius }));
+  parts.push(t('codex.tier.dmg', { n: num(s.damage) }), t('codex.tier.rate', { n: num(s.fireRate) }), t('codex.tier.reach', { r: num(s.range) }));
+  if (s.splashRadius > 0) parts.push(t('codex.tier.splash', { r: num(s.splashRadius) }));
   if (s.slowRatio > 0) parts.push(t('codex.tier.slow', { p: pct(s.slowRatio) }));
   if (s.chainCount > 0) parts.push(t('codex.tier.jumps', { n: s.chainCount }));
   if (s.armorPierce) parts.push(t('codex.tier.pierce', { n: s.armorPierce }));
@@ -98,9 +97,9 @@ function towerStats(id: TowerType): HTMLElement {
   row.append(
     stat(t('codex.stat.cost'), t('codex.gold', { n: t1.upgradeCost })),
     stat(t('codex.stat.targets'), d.role === 'support' ? t('codex.targets.support') : d.hitsFlyers ? t('codex.targets.both') : t('codex.targets.ground')),
-    stat(t('codex.stat.range'), String(t1.range)),
+    stat(t('codex.stat.range'), num(t1.range)),
   );
-  if (d.role !== 'support') row.append(stat(t('codex.stat.damage'), String(t1.damage)));
+  if (d.role !== 'support') row.append(stat(t('codex.stat.damage'), num(t1.damage)));
   return row;
 }
 
@@ -123,7 +122,7 @@ export function openCodex2D(opts: CodexSheetOptions, tab: CodexTab2D = 'enemies'
   let selected = foes[0].id as string;
 
   const tabs = el('div', 'pu-tabs pu-cx-tabs', { role: 'tablist' });
-  const count = el('span', 'pu-cx-count pu-ink-soft');
+  const count = el('div', 'pu-cx-count pu-meta-foot pu-ink-soft');
   const grid = el('div', 'pu-cx-grid', { role: 'list' });
   const detail = el('div', 'pu-cx-detail pu-card', { 'data-testid': 'codex-detail' });
   const tabBtns = new Map<CodexTab2D, HTMLButtonElement>();
@@ -142,7 +141,7 @@ export function openCodex2D(opts: CodexSheetOptions, tab: CodexTab2D = 'enemies'
     tabBtns.set(id, b);
     tabs.append(b);
   }
-  sheet.body.append(el('div', 'pu-cx-top', {}, tabs, count), el('div', 'pu-cx', {}, grid, detail));
+  sheet.body.append(tabs, el('div', 'pu-cx', {}, el('div', 'pu-cx-side', {}, grid, count), detail));
 
   const tile = (id: string, label: string, url: string | null, locked: boolean, boss: boolean): HTMLButtonElement => {
     const b = el('button', `pu-cx-tile${id === selected ? ' active' : ''}${locked ? ' locked' : ''}${boss ? ' boss' : ''}`, {

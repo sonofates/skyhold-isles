@@ -1539,6 +1539,18 @@
   font-size: max(11px, calc(var(--s) * 1.05));
 }
 
+/* Big boards: the first settings row (Language) starts below the ribbon's hanging tails. */
+@media (min-height: 481px) {
+  .pu-settings .pu-sheet-body {
+    padding-top: calc(var(--s) * 3);
+  }
+}
+
+/* The first row sits next to the board's gold corner bracket: indent it on every size. */
+.pu-settings .pu-set-row:first-child {
+  padding-left: calc(var(--s) * 2.4);
+}
+
 /* Settings → Language: two planks, each language in its own name. */
 .pu-tabs.pu-lang {
   margin: 0;
@@ -1563,17 +1575,24 @@
   overflow: hidden;
 }
 
-.pu-cx-top {
-  position: relative;
+.pu-cx-tabs {
   flex: none;
 }
 
+/* Left column: the tile grid (scrolls) with the met / tower count under it. */
+.pu-cx-side {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.pu-cx-side .pu-cx-grid {
+  flex: 1;
+}
+
 .pu-cx-count {
-  position: absolute;
-  right: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  font-size: calc(var(--s) * 1.25);
+  flex: none;
+  padding-top: calc(var(--s) * 0.3);
 }
 
 .pu-cx {
@@ -1786,7 +1805,7 @@
   }
 
   .pu-set-row:first-child {
-    padding-left: calc(var(--s) * 1.4);
+    padding-left: calc(var(--s) * 2.4);
   }
 
   .pu-map-hint {

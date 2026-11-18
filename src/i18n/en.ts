@@ -25,6 +25,7 @@ export const EN = {
   'map.starsEarned': 'Stars earned',
   'map.workshop': 'Workshop',
   'map.logbook': 'Logbook',
+  'map.logbookShort': 'Logbook',
   'map.daily': 'Daily',
   'map.settings': 'Settings',
   'map.hint': 'Tap an island to set sail',

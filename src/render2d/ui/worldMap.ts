@@ -33,8 +33,8 @@ declare global {
   }
 }
 
-// QA-only stand-in names (?mockislands=N layout check), never shown to players. i18n-ignore
-const MOCK_NAMES = ['Gullrock Shoals', 'Ember Terraces', 'Mistveil Keys', 'Thornwood Rise', 'Saltmarsh Reach', 'Cinder Spire', 'Frostfen Ring', 'Lanternfall', 'Brambledeep', 'Coral Bastion', 'Stormcrown', 'Hollow Tide', 'Skyreach', 'Duskmoor', 'Last Lantern'];
+// QA-only stand-in names (?mockislands=N layout check), never shown to players.
+const MOCK_NAMES = ['Gullrock Shoals', 'Ember Terraces', 'Mistveil Keys', 'Thornwood Rise', 'Saltmarsh Reach', 'Cinder Spire', 'Frostfen Ring', 'Lanternfall', 'Brambledeep', 'Coral Bastion', 'Stormcrown', 'Hollow Tide', 'Skyreach', 'Duskmoor', 'Last Lantern']; // i18n-ignore (QA stand-ins)
 
 function mockLevels(n: number): LevelDef[] {
   const base = LEVELS_2D[0];
@@ -70,7 +70,7 @@ export async function mountWorldMap(q: URLSearchParams): Promise<void> {
   const banner = el('div', 'pu-title-banner pu-letter', {}, el('span', '', {}, t('map.title')));
   const tallyBox = el('div', 'pu-tally pu-letter', { 'data-testid': 'map2d-stars', title: t('map.starsEarned') });
   const wsBtn = roundButton('workshop', t('map.workshop'), 'map2d-workshop', t('map.workshop'));
-  const lbBtn = roundButton('logbook', t('map.logbook'), 'map2d-logbook', t('map.logbook'));
+  const lbBtn = roundButton('logbook', t('map.logbook'), 'map2d-logbook', t('map.logbookShort'));
   const dailyBtn = roundButton('daily', t('daily.title'), 'map2d-daily', t('map.daily'));
   const setBtn = roundButton('settings', t('map.settings'), 'map2d-settings', t('map.settings'));
   const right = el('div', 'pu-topbar-right', {}, tallyBox, wsBtn, lbBtn, dailyBtn, setBtn);

@@ -100,6 +100,27 @@ export function lower(s: string, l: Locale = current): string {
   return s.toLocaleLowerCase(l === 'tr' ? 'tr-TR' : 'en-US');
 }
 
+const numberFormats = new Map<string, Intl.NumberFormat>();
+function nf(l: Locale, opts: Intl.NumberFormatOptions, key: string): Intl.NumberFormat {
+  const k = `${l}|${key}`;
+  let f = numberFormats.get(k);
+  if (!f) {
+    f = new Intl.NumberFormat(l === 'tr' ? 'tr-TR' : 'en-US', opts);
+    numberFormats.set(k, f);
+  }
+  return f;
+}
+
+/** A number as the locale writes it, no grouping (EN 0.52 · TR 0,52). */
+export function num(n: number, l: Locale = current): string {
+  return nf(l, { maximumFractionDigits: 2, useGrouping: false }, 'num').format(n);
+}
+
+/** A ratio as a percentage (EN 12% · TR %12). */
+export function pct(ratio: number, l: Locale = current): string {
+  return nf(l, { style: 'percent', maximumFractionDigits: 0 }, 'pct').format(ratio);
+}
+
 /** Short UTC date for a day number (e.g. "Nov 18" / "18 Kas"). */
 export function shortDate(dayNumber: number, l: Locale = current): string {
   return new Date(dayNumber * 86_400_000).toLocaleDateString(l === 'tr' ? 'tr-TR' : 'en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });

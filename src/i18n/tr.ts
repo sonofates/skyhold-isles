@@ -32,6 +32,8 @@ export const TR: { readonly [K in MsgKey]: Msg } = {
   'map.starsEarned': 'Kazanılan yıldızlar',
   'map.workshop': 'Atölye',
   'map.logbook': 'Seyir Defteri',
+  /** Caption under the round button: the long name runs into its neighbours on desktop. */
+  'map.logbookShort': 'Defter',
   'map.daily': 'Günlük',
   'map.settings': 'Ayarlar',
   'map.hint': 'Yelken açmak için bir adaya dokun',

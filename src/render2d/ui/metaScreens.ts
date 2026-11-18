@@ -14,7 +14,7 @@ import { featStatuses, type FeatIcon } from '../../game/feats.ts';
 import { isIslandMastered, starWallet } from '../../game/progression.ts';
 import { loadSettings, saveSettings } from '../../platform/storage.ts';
 import { branchName, challengeDesc, challengeName, difficultyName, featDesc, featName, islandName, upgradeName, upgradeRankText } from '../../i18n/data.ts';
-import { getLocale, LANGUAGE_NAMES, LOCALES, setLocale, shortDate, t, type Locale } from '../../i18n/index.ts';
+import { getLocale, LANGUAGE_NAMES, LOCALES, pct, setLocale, shortDate, t, type Locale } from '../../i18n/index.ts';
 import { reapplyLocaleSetting, saveLocaleSetting } from '../../i18n/localeSetting.ts';
 import { ART, el, glyph, img, KIT, medal, openSheet, plank, slider, starsRow, toggle, type Sheet } from './dom.ts';
 import { endlessRecordText, tierColour } from './modeBits.ts';
@@ -379,7 +379,7 @@ function switchLocale(l: Locale, ctx: MetaContext): void {
 }
 
 export function openSettings(ctx: MetaContext): Sheet {
-  const sheet = openSheet(t('set.title'), { cls: 'pu-meta', testid: 'settings2d' });
+  const sheet = openSheet(t('set.title'), { cls: 'pu-meta pu-settings', testid: 'settings2d' });
   const s: GameSettings = loadSettings();
   const save = (): void => {
     saveSettings(s);
@@ -397,10 +397,10 @@ export function openSettings(ctx: MetaContext): Sheet {
     label.insertBefore(mute, label.querySelector('small'));
     return r;
   };
-  const val = el('span', 'pu-slider-val pu-ink', {}, `${Math.round(s.masterVolume * 100)}%`);
+  const val = el('span', 'pu-slider-val pu-ink', {}, pct(s.masterVolume));
   const vol = slider(s.masterVolume, t('set.volumeAria'), 'set2d-volume', (v) => {
     s.masterVolume = Math.round(v * 100) / 100;
-    val.textContent = `${Math.round(s.masterVolume * 100)}%`;
+    val.textContent = pct(s.masterVolume);
     save();
   });
   const volBox = el('div', '', {}, vol, val);
