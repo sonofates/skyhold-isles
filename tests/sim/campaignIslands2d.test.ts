@@ -1,6 +1,17 @@
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+
+/** The bake-rule check runs compose.py; skip it where Python lacks Pillow/numpy (e.g. the plain node CI image). */
+const PYTHON = process.env.PYTHON ?? 'python3';
+const hasPil = (() => {
+  try {
+    execFileSync(PYTHON, ['-c', 'import PIL, numpy'], { stdio: 'ignore' });
+    return true;
+  } catch {
+    return false;
+  }
+})();
 import { LEVELS, groundLaneCount } from '../../src/data/levels/index.ts';
 import { getLevelById, LEVELS_2D } from '../../src/data/levels2d/index.ts';
 import { parseLevel2D, type Level2DJson } from '../../src/data/levels2d/loader.ts';
@@ -50,11 +61,11 @@ describe.each(ids)('%s campaign plot map', (id) => {
     expect(layout.flightPath).not.toEqual(layout.paths[0]);
   });
 
-  it('satisfies the bake rules for plot count, clearance, spacing and route coverage', () => {
+  it.skipIf(!hasPil)('satisfies the bake rules for plot count, clearance, spacing and route coverage', () => {
     expect(json.plots.length).toBeGreaterThanOrEqual(16);
     expect(json.plots.length).toBeLessThanOrEqual(28);
     // Use the compositor itself to include the painted spline and the real gate alpha masks.
-    execFileSync(process.env.PYTHON ?? 'python3', [
+    execFileSync(PYTHON, [
       'tools/map-compose/compose.py', file, 'design/art-2d/v2/assets', '--check-plots',
     ], { env: { ...process.env, PYTHONDONTWRITEBYTECODE: '1' } });
   });
