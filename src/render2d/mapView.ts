@@ -41,6 +41,11 @@ export class MapView {
     return this.texture.source.pixelWidth / this.imageW;
   }
 
+  /** The current map texture's source (QA: its pixel size). */
+  get textureSource(): Texture['source'] {
+    return this.texture.source;
+  }
+
   /** Swaps in another bake of the same map (e.g. a bigger variant after the window grew). */
   setTexture(texture: Texture): void {
     if (texture === this.texture) return;

@@ -13,7 +13,7 @@ import type { EnemyType } from '../core/types.ts';
 import { FrameStats } from './frameStats.ts';
 import { Game2D, type Game2DHooks } from './game2d.ts';
 import { HUD_FONT } from './hudText.ts';
-import { detectSoftwareWebGL, qualityOverride, renderResolution, type QualityTier } from './renderResolution.ts';
+import { detectSoftwareWebGL, isDesktopClient, qualityOverride, renderResolution, type QualityTier } from './renderResolution.ts';
 import type { MapView } from './mapView.ts';
 import { VARIANT_SLACK } from './mapVariant.ts';
 import { computeMapFit } from './viewFit.ts';
@@ -171,6 +171,8 @@ async function main(): Promise<void> {
   const startWave = Number(q.get('wave') ?? 0) || 0;
   const bootTier: QualityTier =
     explicitQuality ?? ((bench > 0 || startWave > 1) && softwareWebGL ? 'low' : 'high');
+  // Desktops always start (and stay) at full canvas resolution; the tier only trims effects there.
+  const bootResolutionTier: QualityTier = isDesktopClient(q) && !explicitQuality ? 'high' : bootTier;
   const app = new Application();
   await app.init({
     resizeTo: window,
@@ -178,7 +180,7 @@ async function main(): Promise<void> {
     antialias: !softwareWebGL,
     autoDensity: true,
     autoStart: false,
-    resolution: renderResolution(window.innerWidth, window.innerHeight, window.devicePixelRatio || 1, dprOverride, bootTier),
+    resolution: renderResolution(window.innerWidth, window.innerHeight, window.devicePixelRatio || 1, dprOverride, bootResolutionTier),
     preference: 'webgl',
   });
   document.getElementById('stage')!.appendChild(app.canvas);
