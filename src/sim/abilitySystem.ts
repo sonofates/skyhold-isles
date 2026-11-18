@@ -40,6 +40,12 @@ export class AbilitySystem {
     this.pendingMeteors.length = 0;
   }
 
+  /** Drops in-flight meteors and active buffs at run end or wave skip while preserving cooldowns. */
+  clearPending(): void {
+    this.pendingMeteors.length = 0;
+    this.overchargeRemaining = 0;
+  }
+
   canCast(id: AbilityId): boolean {
     return this.cooldowns[id] <= 0;
   }

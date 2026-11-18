@@ -15,6 +15,7 @@ import { ENEMY_MELEE } from '../data/soldiers.ts';
 import { TOWER_DEFS } from '../data/towers.ts';
 import type { EnemyEntity, TowerEntity } from './entities.ts';
 import type { EnemySystem } from './enemySystem.ts';
+import type { MapGrid } from './grid.ts';
 import { GroundGraph, type GroundWaypoint } from './groundGraph.ts';
 import type { CompiledPath } from './path.ts';
 import { BURN_TICK_INTERVAL, type ProjectileSystem } from './projectileSystem.ts';
@@ -134,7 +135,11 @@ const _candidates: number[] = [];
 const _prevHeroBlockedIdx: number[] = [];
 const _prevHeroBlockedUid: number[] = [];
 const _prevTotalBlocked: number[] = [];
+const _extraHoldIndices: number[] = [];
+const _samplePt: Vec3 = { x: 0, y: 0, z: 0 };
 const _hitSet = new Set<number>();
+const GIZMO_DIST_OFFSETS: readonly number[] = [0, 0.45, -0.45, 0.9, -0.9, 1.35, -1.35, 1.8, -1.8, 2.3, -2.3, 2.8, -2.8];
+const GIZMO_LAT_OFFSETS: readonly number[] = [0, 0.45, -0.45, 0.85, -0.85, 1.1, -1.1];
 
 /** Deterministic FNV-1a string hash for default RNG seeding. */
 export function hashHeroSeed(levelId: string, heroId: string, level: number): number {
@@ -181,6 +186,20 @@ export class HeroSystem {
   private readonly projectileSystem: ProjectileSystem;
   private readonly soldierSystem: SoldierSystem;
   private readonly events: EventBus;
+  private readonly grid: MapGrid | null;
+  private readonly groundPaths: readonly CompiledPath[];
+
+  private readonly byUidAsc = (ia: number, ib: number): number =>
+    this.pool.items[ia].uid - this.pool.items[ib].uid;
+
+  private readonly byProgressDesc = (ia: number, ib: number): number => {
+    const a = this.pool.items[ia];
+    const b = this.pool.items[ib];
+    const pa = a.dist + a.laneProgressOffset;
+    const pb = b.dist + b.laneProgressOffset;
+    if (pb !== pa) return pb - pa;
+    return a.uid - b.uid;
+  };
 
   constructor(
     levelId: string,
@@ -192,6 +211,7 @@ export class HeroSystem {
     soldierSystem: SoldierSystem,
     events: EventBus,
     config?: HeroInitConfig | null,
+    grid?: MapGrid | null,
   ) {
     this.pool = pool;
     this.spatialHash = spatialHash;
@@ -199,6 +219,8 @@ export class HeroSystem {
     this.projectileSystem = projectileSystem;
     this.soldierSystem = soldierSystem;
     this.events = events;
+    this.grid = grid ?? null;
+    this.groundPaths = groundPaths;
     this.groundGraph = new GroundGraph(groundPaths);
 
     const n = pool.items.length;
@@ -289,6 +311,27 @@ export class HeroSystem {
   onVictory(stars: 1 | 2 | 3): void {
     if (!this.hero) return;
     this.grantXp(HERO_XP_RULES.winBase + stars * HERO_XP_RULES.perStar, 'victory', this.hero.x, this.hero.z);
+  }
+
+  /** Clears lingering ground zones, pending volleys, and burns at run end or wave skip. */
+  clearTransientZones(includeGizmos = false): void {
+    this.fireRings.length = 0;
+    this.pendingVolleys.length = 0;
+    this.burnLeft.fill(0);
+    this.burnDps.fill(0);
+    this.burnUid.fill(0);
+    this.burnTickTimer = BURN_TICK_INTERVAL;
+    if (includeGizmos) {
+      this.gizmos.length = 0;
+    }
+    if (this.hero) {
+      this.hero.targetPoolIndex = -1;
+      this.hero.targetUid = 0;
+      this.hero.waypoints.length = 0;
+      if (this.hero.state === 'engaging' || this.hero.state === 'fighting') {
+        this.hero.state = 'idle';
+      }
+    }
   }
 
   /** Read-only snapshot of the hero and its skill cooldowns for HUD / debug / QA. */
@@ -569,7 +612,7 @@ export class HeroSystem {
       }
 
       case 'deployGizmo': {
-        const clamped = this.groundGraph.clampToGround(tx, tz, 2.4);
+        const placed = this.resolveGizmoPlacement(tx, tz, h.x, h.z, act.range);
         const maxCount = act.count;
         while (this.gizmos.length >= maxCount) {
           // Replace the gizmo closest to expiring.
@@ -581,8 +624,8 @@ export class HeroSystem {
         }
         this.gizmos.push({
           id: this.nextGizmoId++,
-          x: clamped.x,
-          z: clamped.z,
+          x: placed.x,
+          z: placed.z,
           yaw: h.yaw,
           remainingSec: act.durationSec,
           cooldownTimer: 0.1,
@@ -718,6 +761,77 @@ export class HeroSystem {
         this.enemySystem.applySlow(e, 0.30, 2.0);
       }
     }
+  }
+
+  private isClearOfPlots(x: number, z: number): boolean {
+    const plots = this.grid?.plots;
+    if (!plots || plots.length === 0) return true;
+    const minSq = (this.grid.plotRadius * 1.28) ** 2;
+    for (let i = 0; i < plots.length; i++) {
+      const dx = x - plots[i].x;
+      const dz = z - plots[i].z;
+      if (dx * dx + dz * dz < minSq) return false;
+    }
+    return true;
+  }
+
+  /**
+   * Places Tobb's gizmo turret on/beside the road while guaranteeing it never overlaps any build
+   * plot (`grid.plots`), even when the player taps directly on top of a roadside plot.
+   */
+  private resolveGizmoPlacement(
+    tx: number,
+    tz: number,
+    hx: number,
+    hz: number,
+    maxCastRange: number,
+  ): { x: number; z: number } {
+    const initial = this.groundGraph.clampToGround(tx, tz, HERO_RULES.maxOffRoadDist);
+    if (this.isClearOfPlots(initial.x, initial.z)) {
+      return { x: initial.x, z: initial.z };
+    }
+
+    const maxRSq = maxCastRange > 0 ? (maxCastRange + 0.35) ** 2 : Infinity;
+    let bestX = initial.roadX;
+    let bestZ = initial.roadZ;
+    let bestScore = Infinity;
+    let found = false;
+
+    for (let lane = 0; lane < this.groundPaths.length; lane++) {
+      const path = this.groundPaths[lane];
+      if (path.totalLength <= 0) continue;
+      const baseDist = lane === initial.lane ? initial.dist : path.nearestDist(tx, tz);
+      for (let di = 0; di < GIZMO_DIST_OFFSETS.length; di++) {
+        const d = baseDist + GIZMO_DIST_OFFSETS[di];
+        if (d < 0 || d > path.totalLength) continue;
+        const yaw = path.sample(d, _samplePt);
+        const nx = Math.cos(yaw);
+        const nz = -Math.sin(yaw);
+        for (let li = 0; li < GIZMO_LAT_OFFSETS.length; li++) {
+          const lat = GIZMO_LAT_OFFSETS[li];
+          const cx = _samplePt.x + nx * lat;
+          const cz = _samplePt.z + nz * lat;
+          if ((cx - hx) ** 2 + (cz - hz) ** 2 > maxRSq) continue;
+          if (!this.isClearOfPlots(cx, cz)) continue;
+          // Prefer small distance from aimed point and slight spacing from already-active gizmos.
+          let penalty = (cx - tx) ** 2 + (cz - tz) ** 2;
+          for (let g = 0; g < this.gizmos.length; g++) {
+            if ((cx - this.gizmos[g].x) ** 2 + (cz - this.gizmos[g].z) ** 2 < 0.5 * 0.5) {
+              penalty += 4.0;
+            }
+          }
+          if (penalty < bestScore - 1e-9) {
+            bestScore = penalty;
+            bestX = cx;
+            bestZ = cz;
+            found = true;
+          }
+        }
+      }
+    }
+
+    if (found) return { x: bestX, z: bestZ };
+    return { x: initial.roadX, z: initial.roadZ };
   }
 
   private spawnFireRing(
@@ -1081,18 +1195,28 @@ export class HeroSystem {
   }
 
   private stepTowardPoint(h: HeroEntity, tx: number, tz: number, dt: number): boolean {
-    const dx = tx - h.x;
-    const dz = tz - h.z;
+    const clampedTarget = this.groundGraph.clampToGround(tx, tz, HERO_RULES.maxOffRoadDist);
+    const goalX = clampedTarget.x;
+    const goalZ = clampedTarget.z;
+    const dx = goalX - h.x;
+    const dz = goalZ - h.z;
     const d = Math.hypot(dx, dz);
     const step = h.stats.moveSpeed * dt;
     if (d <= step || d < 1e-6) {
-      h.x = tx;
-      h.z = tz;
+      h.x = goalX;
+      h.z = goalZ;
       return true;
     }
-    h.x += (dx / d) * step;
-    h.z += (dz / d) * step;
-    h.yaw = Math.atan2(dx, dz);
+    const nx = h.x + (dx / d) * step;
+    const nz = h.z + (dz / d) * step;
+    const clampedStep = this.groundGraph.clampToGround(nx, nz, HERO_RULES.maxOffRoadDist);
+    const movedDx = clampedStep.x - h.x;
+    const movedDz = clampedStep.z - h.z;
+    h.x = clampedStep.x;
+    h.z = clampedStep.z;
+    if (movedDx * movedDx + movedDz * movedDz > 1e-10) {
+      h.yaw = Math.atan2(movedDx, movedDz);
+    }
     return false;
   }
 
@@ -1364,8 +1488,14 @@ export class HeroSystem {
       return;
     }
 
-    // Idle / returning to guard post.
+    // Idle / returning to guard post along the walkable road graph.
     h.attackTimer = Math.max(0, h.attackTimer - dt * rateMul);
+    const postDist = Math.hypot(h.postX - h.x, h.postZ - h.z);
+    if (postDist > 1.4) {
+      const route = this.groundGraph.findPath(h.x, h.z, h.postX, h.postZ);
+      this.stepTowardPoint(h, route[0].x, route[0].z, dt);
+      return;
+    }
     const atPost = this.stepTowardPoint(h, h.postX, h.postZ, dt);
     if (atPost) {
       h.state = 'idle';
@@ -1375,50 +1505,53 @@ export class HeroSystem {
     }
   }
 
+  private assignSingleHeroHold(h: HeroEntity, e: EnemyEntity, red: number, budget: number): number {
+    const wasFree = e.blockers + e.heroBlockers === 0;
+    const needed = Math.max(1, ENEMY_MELEE[e.type].holdCost - e.blockers);
+    const give = Math.min(budget, needed);
+    e.heroBlockers += give;
+    if (red > e.heroDamageReduction) e.heroDamageReduction = red;
+    if (wasFree && !_prevHeroBlockedIdx.includes(e.poolIndex)) {
+      // Track in _prevHeroBlockedIdx so same-tick hero death still emits enemyUnblocked cleanly.
+      _prevHeroBlockedIdx.push(e.poolIndex);
+      _prevHeroBlockedUid.push(e.uid);
+      _prevTotalBlocked.push(give);
+      this.events.emit('enemyBlocked', {
+        enemyId: e.uid,
+        enemyType: e.type,
+        x: e.x,
+        y: e.y,
+        z: e.z,
+      });
+    }
+    void h;
+    return budget - give;
+  }
+
   private applyMeleeHolds(h: HeroEntity, primary: EnemyEntity): void {
     if (primary.hp <= 0) return;
     let budget = h.stats.holdCap;
     const red = h.stats.passive.kind === 'bulwark' ? h.stats.passive.power : 0;
 
-    const assignHold = (e: EnemyEntity): void => {
-      const wasFree = e.blockers + e.heroBlockers === 0;
-      const needed = Math.max(1, ENEMY_MELEE[e.type].holdCost - e.blockers);
-      const give = Math.min(budget, needed);
-      e.heroBlockers += give;
-      if (red > e.heroDamageReduction) e.heroDamageReduction = red;
-      budget -= give;
-      if (wasFree && !_prevHeroBlockedIdx.includes(e.poolIndex)) {
-        this.events.emit('enemyBlocked', {
-          enemyId: e.uid,
-          enemyType: e.type,
-          x: e.x,
-          y: e.y,
-          z: e.z,
-        });
-      }
-    };
-
-    assignHold(primary);
+    budget = this.assignSingleHeroHold(h, primary, red, budget);
     if (budget <= 0) return;
 
     this.spatialHash.query(h.x, h.z, HERO_RULES.meleeEngageRadius, _candidates);
-    const extras: EnemyEntity[] = [];
+    _extraHoldIndices.length = 0;
     const rSq = HERO_RULES.meleeEngageRadius * HERO_RULES.meleeEngageRadius;
     for (let i = 0; i < _candidates.length; i++) {
-      const cand = this.pool.items[_candidates[i]];
+      const idx = _candidates[i];
+      const cand = this.pool.items[idx];
       if (cand === primary || !this.isHoldable(cand)) continue;
       if (cand.blockers + cand.heroBlockers >= ENEMY_MELEE[cand.type].holdCost) continue;
       if ((cand.x - h.x) ** 2 + (cand.z - h.z) ** 2 > rSq) continue;
-      extras.push(cand);
+      _extraHoldIndices.push(idx);
     }
-    extras.sort((a, b) => {
-      const pa = a.dist + a.laneProgressOffset;
-      const pb = b.dist + b.laneProgressOffset;
-      if (pb !== pa) return pb - pa;
-      return a.uid - b.uid;
-    });
-    for (let i = 0; i < extras.length && budget > 0; i++) {
-      assignHold(extras[i]);
+    if (_extraHoldIndices.length > 1) {
+      _extraHoldIndices.sort(this.byProgressDesc);
+    }
+    for (let i = 0; i < _extraHoldIndices.length && budget > 0; i++) {
+      budget = this.assignSingleHeroHold(h, this.pool.items[_extraHoldIndices[i]], red, budget);
     }
   }
 
@@ -1545,8 +1678,10 @@ export class HeroSystem {
 
   private updateEnemyStrikesAgainstHero(h: HeroEntity, dt: number): void {
     this.spatialHash.query(h.x, h.z, 2.2, _candidates);
-    // Sort by uid so enemy swing order is strictly deterministic.
-    _candidates.sort((ia, ib) => this.pool.items[ia].uid - this.pool.items[ib].uid);
+    // Sort by uid so enemy swing order is strictly deterministic (zero closure alloc).
+    if (_candidates.length > 1) {
+      _candidates.sort(this.byUidAsc);
+    }
 
     const armor = h.stats.armor + (h.rallyBannerTimer > 0 ? h.stats.actives[1].armorBonus : 0);
     for (let i = 0; i < _candidates.length; i++) {

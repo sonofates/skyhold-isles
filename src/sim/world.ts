@@ -201,6 +201,7 @@ export class SimWorld {
       this.soldierSystem,
       events,
       heroCfg,
+      this.grid,
     );
 
     this.abilitySystem.cooldownMul = mods.abilityCooldownMul;
@@ -349,6 +350,9 @@ export class SimWorld {
     this.enemyPool.clear();
     this.projectilePool.clear();
     this.projectileSystem.clearBurnZones();
+    this.abilitySystem.clearPending();
+    this.heroSystem.clearTransientZones(false);
+    this.soldierSystem.clearCombatState();
     this.spatialHash.clear();
     if (this.lives <= 0) {
       this.lives = this.startingLives;
@@ -359,11 +363,32 @@ export class SimWorld {
     return ok;
   }
 
+  private clearVictoryTransients(): void {
+    this.projectilePool.clear();
+    this.projectileSystem.clearBurnZones();
+    this.abilitySystem.clearPending();
+    this.heroSystem.clearTransientZones(false);
+  }
+
+  /** Releases all pooled entities, ground zones, soldiers, gizmos, and spatial-hash buckets after a run. */
+  dispose(): void {
+    this.enemyPool.clear();
+    this.projectilePool.clear();
+    this.projectileSystem.clearBurnZones();
+    this.abilitySystem.reset();
+    this.heroSystem.clearTransientZones(true);
+    this.soldierSystem.clearAll();
+    this.spatialHash.clear();
+    this.grid.resetOccupancy();
+    this.towers.length = 0;
+  }
+
   debugForceWin(): void {
     if (this.outcome !== 'ongoing') return;
     if (this.lives <= 0) this.lives = 1;
     const stars = this.computeStars();
     this.heroSystem.onVictory(stars);
+    this.clearVictoryTransients();
     this.outcome = 'won';
     this.events.emit('gameWon', {
       stars,
@@ -529,6 +554,72 @@ export class SimWorld {
     return null;
   }
 
+  private readonly getActiveEnemiesFn = (): number => this.enemyPool.getActiveCount();
+
+  private readonly onWaveSpawnFn = (
+    enemyType: EnemyEntity['type'],
+    hpScale: number,
+    elite: boolean,
+    lane: number,
+  ): void => {
+    const fx = this.waveSystem.getEndlessMutatorEffects();
+    const spawned = this.enemySystem.spawnEnemy(
+      enemyType,
+      hpScale * this.mods.enemyHpMul * fx.hpMul,
+      elite,
+      lane,
+    );
+    if (spawned) {
+      spawned.reward = Math.max(
+        1,
+        Math.round(
+          spawned.reward *
+            this.waveSystem.getRewardMultiplier() *
+            this.mods.killGoldMul *
+            fx.killGoldMul,
+        ),
+      );
+    }
+  };
+
+  private readonly onWaveBonusFn = (bonus: number): void => {
+    this.gold += this.scaleWaveBonus(bonus);
+    this.heroSystem.onWaveCleared();
+    this.events.emit('economyChanged', { gold: this.gold, lives: this.lives });
+  };
+
+  private readonly onAllClearedWinFn = (): void => {
+    if (this.outcome === 'ongoing' && this.lives > 0 && !this.waveSystem.isEndless) {
+      const stars = this.computeStars();
+      this.heroSystem.onVictory(stars);
+      this.clearVictoryTransients();
+      this.outcome = 'won';
+      this.events.emit('gameWon', {
+        stars,
+        livesRemaining: this.lives,
+      });
+    }
+  };
+
+  private readonly onEnemyLeakedFn = (leaked: EnemyEntity): void => {
+    this.lives = Math.max(0, this.lives - leaked.livesCost);
+    this.events.emit('economyChanged', { gold: this.gold, lives: this.lives });
+    if (this.lives <= 0 && this.outcome === 'ongoing') {
+      this.outcome = 'lost';
+      this.events.emit('gameLost', {
+        waveIndex: Math.max(0, this.waveSystem.currentWaveIndex),
+        endless: this.waveSystem.isEndless,
+      });
+    }
+  };
+
+  private readonly onEnemyKilledFn = (killed: EnemyEntity): void => {
+    this.enemiesKilledTotal++;
+    this.gold += killed.reward;
+    this.heroSystem.onEnemyKilled(killed);
+    this.events.emit('economyChanged', { gold: this.gold, lives: this.lives });
+  };
+
   fixedTick(dt: number): void {
     if (this.outcome !== 'ongoing') return;
 
@@ -539,43 +630,10 @@ export class SimWorld {
 
     this.waveSystem.update(
       dt,
-      () => this.enemyPool.getActiveCount(),
-      (enemyType, hpScale, elite, lane) => {
-        const fx = this.waveSystem.getEndlessMutatorEffects();
-        const spawned = this.enemySystem.spawnEnemy(
-          enemyType,
-          hpScale * this.mods.enemyHpMul * fx.hpMul,
-          elite,
-          lane,
-        );
-        if (spawned) {
-          spawned.reward = Math.max(
-            1,
-            Math.round(
-              spawned.reward *
-                this.waveSystem.getRewardMultiplier() *
-                this.mods.killGoldMul *
-                fx.killGoldMul,
-            ),
-          );
-        }
-      },
-      (bonus) => {
-        this.gold += this.scaleWaveBonus(bonus);
-        this.heroSystem.onWaveCleared();
-        this.events.emit('economyChanged', { gold: this.gold, lives: this.lives });
-      },
-      () => {
-        if (this.outcome === 'ongoing' && this.lives > 0 && !this.waveSystem.isEndless) {
-          const stars = this.computeStars();
-          this.heroSystem.onVictory(stars);
-          this.outcome = 'won';
-          this.events.emit('gameWon', {
-            stars,
-            livesRemaining: this.lives,
-          });
-        }
-      },
+      this.getActiveEnemiesFn,
+      this.onWaveSpawnFn,
+      this.onWaveBonusFn,
+      this.onAllClearedWinFn,
     );
 
     if (this.outcome !== 'ongoing') return;
@@ -593,23 +651,8 @@ export class SimWorld {
 
     this.enemySystem.update(
       dt,
-      (leaked) => {
-        this.lives = Math.max(0, this.lives - leaked.livesCost);
-        this.events.emit('economyChanged', { gold: this.gold, lives: this.lives });
-        if (this.lives <= 0 && this.outcome === 'ongoing') {
-          this.outcome = 'lost';
-          this.events.emit('gameLost', {
-            waveIndex: Math.max(0, this.waveSystem.currentWaveIndex),
-            endless: this.waveSystem.isEndless,
-          });
-        }
-      },
-      (killed) => {
-        this.enemiesKilledTotal++;
-        this.gold += killed.reward;
-        this.heroSystem.onEnemyKilled(killed);
-        this.events.emit('economyChanged', { gold: this.gold, lives: this.lives });
-      },
+      this.onEnemyLeakedFn,
+      this.onEnemyKilledFn,
       this.towers,
       this.waveSystem.getCurrentWaveHpScale() * this.mods.enemyHpMul * waveFx.hpMul,
     );
@@ -617,23 +660,9 @@ export class SimWorld {
     if (this.outcome !== 'ongoing') return;
 
     this.waveSystem.checkCompletion(
-      () => this.enemyPool.getActiveCount(),
-      (bonus) => {
-        this.gold += this.scaleWaveBonus(bonus);
-        this.heroSystem.onWaveCleared();
-        this.events.emit('economyChanged', { gold: this.gold, lives: this.lives });
-      },
-      () => {
-        if (this.outcome === 'ongoing' && this.lives > 0 && !this.waveSystem.isEndless) {
-          const stars = this.computeStars();
-          this.heroSystem.onVictory(stars);
-          this.outcome = 'won';
-          this.events.emit('gameWon', {
-            stars,
-            livesRemaining: this.lives,
-          });
-        }
-      },
+      this.getActiveEnemiesFn,
+      this.onWaveBonusFn,
+      this.onAllClearedWinFn,
     );
 
     if (this.outcome !== 'ongoing') return;

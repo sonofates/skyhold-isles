@@ -153,6 +153,21 @@ export class SoldierSystem {
   private readonly enemySystem: EnemySystem;
   private readonly events: EventBus;
 
+  private readonly byExtraHoldOrder = (ia: number, ib: number): number => {
+    const a = this.pool.items[ia];
+    const b = this.pool.items[ib];
+    if (b.dist !== a.dist) return b.dist - a.dist;
+    return a.uid - b.uid;
+  };
+
+  private readonly bySpreadOrder = (ia: number, ib: number): number => {
+    const a = this.pool.items[ia];
+    const b = this.pool.items[ib];
+    if (a.lane !== b.lane) return a.lane - b.lane;
+    if (b.dist !== a.dist) return b.dist - a.dist;
+    return a.uid - b.uid;
+  };
+
   constructor(pool: ObjectPool<EnemyEntity>, spatialHash: SpatialHashGrid, enemySystem: EnemySystem, events: EventBus) {
     this.pool = pool;
     this.spatialHash = spatialHash;
@@ -306,6 +321,36 @@ export class SoldierSystem {
     this.dirty = true;
   }
 
+  /** Releases active soldier claims and blocked-spread offsets when waves are debug-skipped or reset. */
+  clearCombatState(): void {
+    for (let i = 0; i < this.soldiers.length; i++) {
+      const s = this.soldiers[i];
+      s.targetPoolIndex = -1;
+      s.targetUid = 0;
+      s.swingArmed = false;
+      if (s.state === 'engaging' || s.state === 'fighting') s.state = 'walking';
+    }
+    this.claims.fill(0);
+    this.wasBlocked.fill(0);
+    this.primary.fill(-1);
+    this.enemyArmed.fill(0);
+    this.spreadUid.fill(0);
+    this.spreadOffX.fill(0);
+    this.spreadOffZ.fill(0);
+    this.wantOffX.fill(0);
+    this.wantOffZ.fill(0);
+    this.isBlockedSlot.fill(0);
+    this.blockedCount = 0;
+    this.dirty = false;
+  }
+
+  /** Full post-run cleanup (`SimWorld.dispose`). */
+  clearAll(): void {
+    this.clearCombatState();
+    this.soldiers.length = 0;
+    this.barracks.length = 0;
+  }
+
   private layoutPosts(b: BarracksState, count: number): void {
     const form = SOLDIER_FORMATION[Math.min(count, SOLDIER_FORMATION.length - 1)] ?? [];
     const ax = Math.sin(b.rallyYaw);
@@ -376,7 +421,7 @@ export class SoldierSystem {
       const e = this.pool.items[s.targetPoolIndex];
       if (e.active && e.uid === s.targetUid && e.blockers > 0) {
         e.blockers--;
-        if (e.blockers === 0) this.emitBlock('enemyUnblocked', e);
+        if (e.blockers === 0 && e.heroBlockers === 0) this.emitBlock('enemyUnblocked', e);
       }
     }
     s.targetPoolIndex = -1;
@@ -641,7 +686,7 @@ export class SoldierSystem {
       const e = pool.items[_blockedList[k]];
       const m = ENEMY_MELEE[e.type];
       if (!this.wasBlocked[e.poolIndex]) {
-        this.emitBlock('enemyBlocked', e);
+        if (e.heroBlockers === 0) this.emitBlock('enemyBlocked', e);
         if (e.meleeTimer <= 0) e.meleeTimer = 0.5 / Math.max(0.01, m.rate);
         this.enemyArmed[e.poolIndex] = 0;
       }
@@ -716,7 +761,9 @@ export class SoldierSystem {
     for (let k = 0; k < _prevBlocked.length; k++) {
       const e = pool.items[_prevBlocked[k]];
       this.wasBlocked[_prevBlocked[k]] = 0;
-      if (e.active && e.uid === _prevBlockedUid[k] && e.blockers === 0) this.emitBlock('enemyUnblocked', e);
+      if (e.active && e.uid === _prevBlockedUid[k] && e.blockers === 0 && e.heroBlockers === 0) {
+        this.emitBlock('enemyUnblocked', e);
+      }
     }
 
     // 9. Deterministic spread for blocked / queued enemies along and across the road.
@@ -741,12 +788,7 @@ export class SoldierSystem {
       if (cand.dist > primary.dist + 0.35) continue;
       _extraHoldOrder.push(cand.poolIndex);
     }
-    _extraHoldOrder.sort((ia, ib) => {
-      const a = this.pool.items[ia];
-      const b = this.pool.items[ib];
-      if (b.dist !== a.dist) return b.dist - a.dist;
-      return a.uid - b.uid;
-    });
+    _extraHoldOrder.sort(this.byExtraHoldOrder);
     let added = 0;
     for (let k = 0; k < _extraHoldOrder.length && added < maxExtra; k++) {
       const cand = this.pool.items[_extraHoldOrder[k]];
@@ -778,13 +820,7 @@ export class SoldierSystem {
     }
 
     if (_spreadOrder.length > 1) {
-      _spreadOrder.sort((ia, ib) => {
-        const a = pool.items[ia];
-        const b = pool.items[ib];
-        if (a.lane !== b.lane) return a.lane - b.lane;
-        if (b.dist !== a.dist) return b.dist - a.dist;
-        return a.uid - b.uid;
-      });
+      _spreadOrder.sort(this.bySpreadOrder);
     }
 
     let clusterLane = -1;

@@ -172,16 +172,28 @@ export class GroundGraph {
     maxOffRoad: number = HERO_RULES.maxOffRoadDist,
   ): GroundWaypoint[] {
     const clamped = this.clampToGround(wantX, wantZ, maxOffRoad);
-    const destX = clamped.x;
-    const destZ = clamped.z;
+    let destX = clamped.x;
+    let destZ = clamped.z;
 
-    if (this.nodes.length === 0 || Math.hypot(destX - fromX, destZ - fromZ) <= DIRECT_WALK_DIST) {
+    if (this.nodes.length === 0) {
+      return [{ x: destX, z: destZ }];
+    }
+
+    const fromClamp = this.clampToGround(fromX, fromZ, Infinity);
+    const sameNeighborhood =
+      (fromClamp.lane === clamped.lane && Math.abs(fromClamp.dist - clamped.dist) <= DIRECT_WALK_DIST + 0.4) ||
+      Math.hypot(fromClamp.roadX - clamped.roadX, fromClamp.roadZ - clamped.roadZ) <= JUNCTION_DIST;
+
+    if (sameNeighborhood && Math.hypot(destX - fromX, destZ - fromZ) <= DIRECT_WALK_DIST) {
       return [{ x: destX, z: destZ }];
     }
 
     const startIdx = this.nearestNodeIndex(fromX, fromZ);
-    const endIdx = this.nearestNodeIndex(clamped.roadX, clamped.roadZ);
-    if (startIdx < 0 || endIdx < 0 || startIdx === endIdx) {
+    let endIdx = this.nearestNodeIndex(clamped.roadX, clamped.roadZ);
+    if (startIdx < 0 || endIdx < 0) {
+      return [{ x: destX, z: destZ }];
+    }
+    if (startIdx === endIdx) {
       return [{ x: destX, z: destZ }];
     }
 
@@ -215,7 +227,31 @@ export class GroundGraph {
     }
 
     if (!Number.isFinite(this.distBuf[endIdx])) {
-      return [{ x: destX, z: destZ }];
+      // Disconnected graph component fallback: route to the closest reachable node instead of crossing a chasm.
+      let bestReachIdx = startIdx;
+      let bestReachSq = Infinity;
+      for (let i = 0; i < count; i++) {
+        if (!Number.isFinite(this.distBuf[i])) continue;
+        const dSq = (this.nodes[i].x - wantX) ** 2 + (this.nodes[i].z - wantZ) ** 2;
+        if (dSq < bestReachSq - 1e-9) {
+          bestReachSq = dSq;
+          bestReachIdx = i;
+        }
+      }
+      endIdx = bestReachIdx;
+      const rn = this.nodes[endIdx];
+      const off = Math.hypot(wantX - rn.x, wantZ - rn.z);
+      if (off <= maxOffRoad || off < 1e-9) {
+        destX = wantX;
+        destZ = wantZ;
+      } else {
+        const s = maxOffRoad / off;
+        destX = rn.x + (wantX - rn.x) * s;
+        destZ = rn.z + (wantZ - rn.z) * s;
+      }
+      if (endIdx === startIdx) {
+        return [{ x: destX, z: destZ }];
+      }
     }
 
     const chain: number[] = [];

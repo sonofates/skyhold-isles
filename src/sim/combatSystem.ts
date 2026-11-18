@@ -198,7 +198,7 @@ export class CombatSystem {
   ): void {
     const extra = stats.volleyExtra ?? 0;
     const dmgMult = stats.volleyDamage ?? 0.6;
-    const range = stats.range * (1 + tower.auraRange);
+    const range = stats.range * (1 + tower.auraRange + (tower.heroRangeBonus ?? 0));
     this.spatialHash.query(primary.x, primary.z, 3.2, _chainCandidates);
     _volleyUsed.clear();
     _volleyUsed.add(primary.poolIndex);
