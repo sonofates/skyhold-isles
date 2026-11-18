@@ -554,6 +554,7 @@ export function mountAbilityBar2D(game: Game2D, opts: AbilityBarOptions): Abilit
         visible,
         aiming,
         bar: r(root),
+        spot,
         buttons: Object.fromEntries(slots.map((s) => [s.id, { ...r(s.btn), state: s.view?.state ?? null, secs: s.secs.textContent }])),
         hint: hint.hidden ? null : hint.textContent,
         tip: tip.hidden ? null : tip.textContent,

@@ -2197,6 +2197,12 @@
   flex: none;
 }
 
+/* The round knob hangs half outside the track at 100%: keep the value clear of it. */
+.pu-set-flex .pu-slider-val {
+  padding-left: calc(var(--s) * 0.9);
+  min-width: 4em;
+}
+
 /* Choice planks (Quality, Effects, FPS cap, Render resolution's Auto). */
 .pu-tabs.pu-choice {
   margin: 0;

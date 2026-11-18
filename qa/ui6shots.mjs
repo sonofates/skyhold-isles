@@ -194,5 +194,31 @@ if (what === 'settings' || what === 'all') {
   }
 }
 
+if (what === 'spots' || what === 'all') {
+  // Where the bar lands on every island (score 0 = clear of plots, towers' room and roads).
+  const ids = ['l1c', ...Array.from({ length: 16 }, (_, i) => `i${String(i + 1).padStart(2, '0')}`)];
+  for (const s of SIZES) {
+    for (const id of ids) {
+      const { ctx, page } = await open(s, `level=${id}&lang=en`);
+      const a = await ab(page);
+      console.log(`spot ${s.key} ${id}: ${JSON.stringify(a.spot)}`);
+      if (a.spot.score >= 1000) problems.push(`spot ${s.key} ${id}: covers a plot (${JSON.stringify(a.spot)})`);
+      if (id === 'i05' || id === 'i12' || id === 'i16') await shot(page, `spot-${id}-${s.key}`);
+      await ctx.close();
+    }
+  }
+  // The world map's Settings (General has the progress row there).
+  for (const s of SIZES) {
+    const ctx = await browser.newContext({ viewport: { width: s.w, height: s.h }, deviceScaleFactor: s.dpr, isMobile: !!s.touch, hasTouch: !!s.touch });
+    const page = await ctx.newPage();
+    page.on('pageerror', (e) => problems.push(`map settings ${s.key}: pageerror ${e.message}`));
+    await page.goto(`${BASE}/2d.html?screen=settings&lang=en&desktop=${s.desktop ? 1 : 0}`);
+    await page.waitForSelector('[data-testid="settings2d"]', { timeout: 60000 });
+    await page.waitForTimeout(500);
+    await shot(page, `set-map-en-${s.key}-general`);
+    await ctx.close();
+  }
+}
+
 await browser.close();
 console.log(problems.length ? `PROBLEMS:\n  ${problems.join('\n  ')}` : 'no problems');

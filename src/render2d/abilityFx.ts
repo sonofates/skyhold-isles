@@ -224,7 +224,11 @@ export class AbilityFx {
     if (art.meteorCrater) this.craterTex = art.meteorCrater;
     if (art.overchargeAura) {
       this.auraTex = art.overchargeAura;
-      for (const a of this.auras.values()) a.ring.texture = art.overchargeAura;
+      for (const a of this.auras.values()) {
+        a.ring.texture = art.overchargeAura;
+        a.ring.blendMode = 'normal';
+        a.ring.tint = 0xffffff;
+      }
     }
     if (art.targetRing) this.aim.texture = art.targetRing;
   }
@@ -462,8 +466,10 @@ export class AbilityFx {
         glow.tint = SURGE;
         const ring = new Sprite(this.auraTex);
         ring.anchor.set(0.5);
-        ring.blendMode = 'add';
-        ring.tint = this.auraTex === this.deps.tex.wring ? SURGE_GOLD : 0xffffff;
+        // The procedural white ring glows (additive, tinted); painted art is drawn as painted.
+        const painted = this.auraTex !== this.deps.tex.wring;
+        ring.blendMode = painted ? 'normal' : 'add';
+        ring.tint = painted ? 0xffffff : SURGE_GOLD;
         root.addChild(glow, ring);
         this.ground.addChild(root);
         a = { root, ring, glow, spark: 0, seen: true };

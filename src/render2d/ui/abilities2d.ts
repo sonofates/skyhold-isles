@@ -11,7 +11,7 @@
  */
 import type { AbilityId } from '../../core/types.ts';
 import { ABILITY_DEFS, ABILITY_IDS, computeMeteorDamage } from '../../data/abilities.ts';
-import { pct, t } from '../../i18n/index.ts';
+import { num, pct, t } from '../../i18n/index.ts';
 import type { SimWorld } from '../../sim/world.ts';
 
 export { ABILITY_IDS };
@@ -96,10 +96,10 @@ export function abilityName(id: AbilityId): string {
 export function abilityDesc(id: AbilityId, waveOneBased: number): string {
   if (id === 'meteor') {
     const d = ABILITY_DEFS.meteor;
-    return t('ab.meteorDesc', { dmg: computeMeteorDamage(Math.max(1, waveOneBased)), slow: pct(d.slowRatio), sec: d.slowDuration });
+    return t('ab.meteorDesc', { dmg: computeMeteorDamage(Math.max(1, waveOneBased)), slow: pct(d.slowRatio), sec: num(d.slowDuration) });
   }
   const d = ABILITY_DEFS.overcharge;
-  return t('ab.overchargeDesc', { pct: pct(d.fireRateMultiplier - 1), sec: d.durationSec });
+  return t('ab.overchargeDesc', { pct: pct(d.fireRateMultiplier - 1), sec: num(d.durationSec) });
 }
 
 /** Short status line under the name (tooltip, aria label). */

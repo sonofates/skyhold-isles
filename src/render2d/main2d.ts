@@ -51,6 +51,7 @@ import { anySheetOpen } from './ui/dom.ts';
  *   ?end=won|lost     force the end panel shortly after load (UI QA)
  *   ?mapmips=1        QA: draw the map texture mipmapped (default: resolution variant, no mips)
  *   &settings=1       open the in-game Settings on load (a language switch reloads with it)
+ *   &settab=general|audio|graphics|controls   the Settings section it opens on (QA; map too)
  *   ?desktop=1|0      QA: force the desktop / phone render-resolution policy (renderResolution.ts)
  */
 interface BenchStats {
@@ -534,14 +535,17 @@ async function main(): Promise<void> {
       toScreen: (x: number, z: number) => ({ x: game.map.screenX(game.map.pxX(x)), y: game.map.screenY(game.map.pxY(z)) }),
     });
   }
-  let fpsTick = 0;
+  let fpsShownAt = 0;
   app.ticker.add((t) => {
     if (draws) lastDraws = draws.take();
     const t0 = performance.now();
     stats.record(t.deltaMS, t0);
     if (!manual) game.frame(t.deltaMS / 1000);
     abilities?.frame(t.deltaMS / 1000);
-    if (fpsChip.visible && ++fpsTick % 30 === 0) fpsChip.show(stats.snapshot(t0).fps);
+    if (fpsChip.visible && t0 - fpsShownAt > 500) {
+      fpsShownAt = t0;
+      fpsChip.show(stats.snapshot(t0).fps);
+    }
     settingsRef?.setPausePlate(storyOpen || anySheetOpen() ? null : game.hud.pausePlate);
     zooLabels?.update();
     aimOverlay?.update();
