@@ -37,6 +37,17 @@ Gates (gates.py): a raider cave at every entrance with its mouth facing along th
 segment, the castle gate at the goal facing back along the last one; the path end sits inside the
 dark mouth. Each gate's FRONT layer (rock lip / arch + mouth shading) is cut from the final
 composite into <out stem>-gate-<id>.webp; the renderer draws it above the walkers.
+  --gate-seat threshold (default; `<cave>/<castle>` to split, `exit` = the pre-2026-11-18 rule):
+                side (E / W) gates are 3/4-view, their opening's floor runs diagonally between the
+                posts. The road centreline is aimed through the midpoint of that floor line
+                (gates.mouth_threshold), the path end sits inside the dark on the same line, and
+                the painted road is cut flush with the floor line (no end cap under the gate).
+                With --keep-plots a gate only moves as far toward its seat as the kept plots, the
+                HUD corners and the safe area allow (printed as "seated <blend>").
+  --gate-bleed  how far (road widths) a gate's painted pixels may leave the safe area (0.6).
+Gates cast a silhouette contact shadow; the castle's door interior is lifted to a warm gradient.
+Re-bake every shipped island: /usr/bin/python3 tools/map-compose/rebake_all.py (checks that only
+gate fields of the layouts changed). Gate contact sheet: tools/map-compose/gate_sheet.py.
 Crisp ground (ground.py): fine brush detail, a ragged crisp road edge with a thin dark rim, grass
 fringe and pebbles, sparse decals (assets/decal-*.png).
 
@@ -76,7 +87,7 @@ from PIL import Image, ImageChops, ImageDraw, ImageFilter
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import numpy as np  # noqa: E402
 from gates import (  # noqa: E402
-    cut_front, entrance_dir, entrance_facing, gate_alpha_hit, goal_dir, goal_facing, output_box, output_sprite, place_gate, resolve_prop,
+    blend_placement, clip_road_at_gate, contact_shadow, cut_front, entrance_dir, entrance_facing, gate_alpha_hit, goal_dir, goal_facing, light_interior, output_box, output_sprite, place_gate, point_in_opening, resolve_prop,
 )
 from ground import Decals, fine_detail, inner_band, nearest_dist, ragged_mask, ring, road_fringe, scatter  # noqa: E402
 from ringfit import measure_ring  # noqa: E402
@@ -230,16 +241,22 @@ def sprite_rect(im, x_center, y_bottom, height):
 # segment, the castle gate at the goal facing back along the last segment. The path end sits
 # GATE_INSET road widths inside the dark mouth, so walkers appear out of the darkness (front layer).
 CAVE_H, CASTLE_H, GATE_INSET = opt('--cave-h', 2.5), opt('--castle-h', 2.7), opt('--gate-inset', 0.42 if kit else 0.5)
+GATE_SEAT = opt('--gate-seat', 'threshold')  # <cave seat>[/<castle seat>], see gates.place_gate
+CAVE_SEAT, CASTLE_SEAT = (GATE_SEAT.split('/') + [GATE_SEAT])[:2]
 GATES = []  # dict(role, lane, id, prop, facing, g = placement)
 for _i, _e in enumerate(L['entrances']):
     _f = entrance_facing(raw_paths[_i])
     _prop, _file, _flip = resolve_prop('cave', _f, asset_file)
-    _g = place_gate(load(_file), _flip, (_e['x'], _e['y']), _f, ROAD_W * CAVE_H, ROAD_W * GATE_INSET, entrance_dir(raw_paths[_i]), fit_opening=bool(kit))
-    GATES.append({'role': 'entrance', 'lane': _i, 'id': str(_e['id']), 'prop': _prop, 'facing': _f, 'g': _g})
+    _g = place_gate(load(_file), _flip, (_e['x'], _e['y']), _f, ROAD_W * CAVE_H, ROAD_W * GATE_INSET, entrance_dir(raw_paths[_i]), fit_opening=bool(kit),
+                    seat=CAVE_SEAT)
+    _gx = place_gate(load(_file), _flip, (_e['x'], _e['y']), _f, ROAD_W * CAVE_H, ROAD_W * GATE_INSET, entrance_dir(raw_paths[_i]), fit_opening=bool(kit))
+    GATES.append({'role': 'entrance', 'lane': _i, 'id': str(_e['id']), 'prop': _prop, 'facing': _f, 'g': _g, 'g_exit': _gx})
 _f = goal_facing(raw_paths[0])
 _prop, _file, _flip = resolve_prop('castle', _f, asset_file)
-_g = place_gate(load(_file), _flip, (gx, gy), _f, ROAD_W * CASTLE_H, ROAD_W * GATE_INSET, goal_dir(raw_paths[0]), fit_opening=bool(kit))
-GATES.append({'role': 'goal', 'lane': -1, 'id': 'goal', 'prop': _prop, 'facing': _f, 'g': _g})
+_g = place_gate(load(_file), _flip, (gx, gy), _f, ROAD_W * CASTLE_H, ROAD_W * GATE_INSET, goal_dir(raw_paths[0]), fit_opening=bool(kit),
+                seat=CASTLE_SEAT)
+_gx = place_gate(load(_file), _flip, (gx, gy), _f, ROAD_W * CASTLE_H, ROAD_W * GATE_INSET, goal_dir(raw_paths[0]), fit_opening=bool(kit))
+GATES.append({'role': 'goal', 'lane': -1, 'id': 'goal', 'prop': _prop, 'facing': _f, 'g': _g, 'g_exit': _gx})
 
 LANDMARKS = []  # (name, layout x centre, layout y bottom, layout height)
 mill = opt('--windmill', '1609,298,2.7')
@@ -279,6 +296,7 @@ horn_y_high = max(82, min(672, ey_m - 8))
 HUD_RECTS.append((horn_x - 56, horn_y_low - 102, horn_x + 56, horn_y_high - 44))
 
 
+
 def rects_hit(a, b, pad=0.0):
     return a[0] - pad < b[2] and b[0] - pad < a[2] and a[1] - pad < b[3] and b[1] - pad < a[3]
 
@@ -305,6 +323,45 @@ def plot_ok(x, y):
     if not ellipse_clears_road(x, y, PLOT_R, PLOT_RY):
         return 'road'
     return ''
+
+
+def gate_bleed(g):
+    """How far (layout px) a placed gate's painted pixels leave the safe area."""
+    r = g['rect']
+    bb = g['im'].getchannel('A').point(lambda v: 255 if v > 40 else 0).getbbox()
+    k = g['k']
+    pr = (r[0] + bb[0] * k, r[1] + bb[1] * k, r[0] + bb[2] * k, r[1] + bb[3] * k) if bb else r
+    return max(sx - pr[0], pr[2] - (sx + sw), sy - pr[1], pr[3] - (sy + sh), 0)
+
+
+# Re-bakes keep their plots: a seated gate (threshold rule) moves only as far toward its seat as
+# the kept plots, the HUD corners and the safe area allow (blend 1 = fully seated, 0 = legacy exit
+# anchor). The path end stays inside the dark opening at every step.
+GATE_BLEED = opt('--gate-bleed', 0.6)
+if L.get('plots') and ('--keep-plots' in args or '--check-plots' in args):
+    _kept = [tuple(p) for p in L['plots']]
+    for G in GATES:
+        g_seat = G['g']
+        if g_seat.get('seat') is None:
+            continue
+        g_exit = G['g_exit']
+        for f in (1.0, 0.85, 0.7, 0.55, 0.4, 0.25, 0.1, 0.0):
+            cand = blend_placement(g_exit, g_seat, f)
+            r = cand['rect']
+            if any(gate_alpha_hit(cand, plot_zone(px, py), 0) for px, py in _kept):
+                continue
+            if any(rects_hit(r, z) for z in HUD_RECTS[:6]):
+                continue
+            b = gate_bleed(cand)
+            if (G['role'] == 'goal' and b > 0) or b > ROAD_W * GATE_BLEED:
+                continue
+            if f > 0 and not point_in_opening(cand, cand['point']):
+                continue
+            G['g'] = cand
+            break
+        else:
+            G['g'] = {**g_exit, 'seat': None, 'threshold': None, 'blend': 0.0}
+    landmark_rects[len(LANDMARKS):] = [G['g']['rect'] for G in GATES]
 
 
 def pair_ok(a, b):
@@ -498,10 +555,14 @@ for (n, x, yb, h), r in zip(LANDMARKS, landmark_rects):
         fails.append(f'{n} rect {tuple(round(v) for v in r)} is under the HUD')
 for G in GATES:
     r = G['g']['rect']
-    out = max(sx - r[0], r[2] - (sx + sw), sy - r[1], r[3] - (sy + sh), 0)
+    # painted pixels only (the sprite rect has transparent margins)
+    _bb = G['g']['im'].getchannel('A').point(lambda v: 255 if v > 40 else 0).getbbox()
+    _k = G['g']['k']
+    pr = (r[0] + _bb[0] * _k, r[1] + _bb[1] * _k, r[0] + _bb[2] * _k, r[1] + _bb[3] * _k) if _bb else r
+    out = max(sx - pr[0], pr[2] - (sx + sw), sy - pr[1], pr[3] - (sy + sh), 0)
     if G['role'] == 'goal' and out > 0:
         fails.append(f'castle gate rect {tuple(round(v) for v in r)} leaves the safe area by {out:.0f} px')
-    elif out > ROAD_W * 0.6:
+    elif out > ROAD_W * opt('--gate-bleed', 0.6):
         fails.append(f'gate {G["id"]} rect {tuple(round(v) for v in r)} leaves the safe area by {out:.0f} px')
     elif out > 0:
         warns.append(f'gate {G["id"]} bleeds {out:.0f} px past the safe area')
@@ -589,6 +650,9 @@ for path in spl_paths:
     dr.line(pts, fill=255, width=round(rw), joint='curve')
     for x, y in (pts[0], pts[-1]):
         dr.ellipse((x - rw / 2, y - rw / 2, x + rw / 2, y + rw / 2), fill=255)
+# the road ends at each seated gate's threshold (no end cap peeking out under the gate)
+for G in GATES:
+    clip_road_at_gate(road_hard, G['g'], S, rw)
 # crisp, slightly irregular painted edge (was a ~10-25 px Gaussian ramp: the main "blurry" cue)
 road_mask = ragged_mask(road_hard, rw * 0.05, max(4, round(rw * 0.16)), 0.22, SEED + 21, aa=1.1 * W / 3692)
 road_material = load(dressing.get('roadMaterial', 'tex-dirt.png'))
@@ -692,7 +756,12 @@ for n, x, yb, h in LANDMARKS:
     sprite(n, x * S, yb * S, h * S)
 for G in GATES:
     gx0, gy0, gw_, gh_ = output_box(G['g'], S)
-    items.append((gy0 + gh_, output_sprite(G['g'], S), gx0 + gw_ / 2, gy0 + gh_, True))
+    _spr = output_sprite(G['g'], S)
+    if G['role'] == 'goal' and G['g'].get('seat') is not None:
+        _rgb = road_material.convert('RGB').resize((8, 8)).getpixel((4, 4))
+        _spr = light_interior(_spr, G['g'], _rgb)
+    # gates cast their own silhouette shadow (contact_shadow) instead of the generic ellipse
+    items.append((gy0 + gh_, _spr, gx0 + gw_ / 2, gy0 + gh_, False))
 
 # scatter props (layout px), mostly on the margins, never on the road / plots / towers / landmarks
 PROPS = [('prop-tree-1.png', 2.1), ('prop-tree-2.png', 2.4), ('prop-tree-3.png', 1.9), ('prop-bush.png', 1.0),
@@ -744,6 +813,11 @@ for _, im, x, yb, sh_on in items:
     r = im.width * 0.42
     sd.ellipse((x - r, yb - r * 0.22, x + r, yb + r * 0.18), fill=95)
 shadow = shadow.filter(ImageFilter.GaussianBlur(rw * 0.12))
+for G in GATES:
+    _cs, (_cx, _cy) = contact_shadow(G['g'], S, rw)
+    _layer = Image.new('L', (W, H))
+    _layer.paste(_cs, (_cx, _cy))
+    shadow = ImageChops.lighter(shadow, _layer.point(lambda v: int(v * 0.62)))
 canvas = Image.composite(Image.new('RGBA', (W, H), (30, 40, 20, 255)), canvas, shadow.point(lambda v: int(v * 0.55)))
 for _, im, x, yb, _s in sorted(items, key=lambda t: t[0]):
     canvas.alpha_composite(im, (round(x - im.width / 2), round(yb - im.height)))
@@ -818,7 +892,8 @@ for k, f in variant_files.items():
     print(f'  variant {k} -> {f}')
 for G in GATES:
     fr = G['json']['front']
-    print(f'  gate {G["id"]}: {G["prop"]} facing {G["facing"]} rect {tuple(round(v) for v in G["g"]["rect"])}'
+    _seat = 'exit' if G['g'].get('seat') is None else f"seated {G['g'].get('blend', 1.0):.2f}"
+    print(f'  gate {G["id"]}: {G["prop"]} facing {G["facing"]} {_seat} rect {tuple(round(v) for v in G["g"]["rect"])}'
           f' front {G.get("file")} {fr["rect"] if fr else None}')
 if fringe_n:
     print(f'  road fringe tufts {fringe_n[0]} pebbles {fringe_n[1]}; decals {scatter_n}')

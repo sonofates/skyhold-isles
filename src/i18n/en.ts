@@ -118,6 +118,7 @@ export const EN = {
   'hud.pausedSub': 'Tap ▶ to resume',
   'hud.tapRoad': 'Tap the road',
   'hud.tapRoadSub': 'to move the rally flag',
+  'hud.settings': 'Settings',
 
   // --- build ring + tooltip ------------------------------------------------------------------
   'ring.max': 'MAX',
@@ -287,6 +288,7 @@ export const EN = {
   'set.hapticsNote': 'Taps and hits on phones',
   'set.language': 'Language',
   'set.languageNote': 'Every screen of the painted isles',
+  'set.languageNoteInGame': 'Changing it restarts this island',
   'set.progress': 'Painted isles progress',
   'set.progressNote': 'Stars, unlocks and Workshop of the 2D isles',
   'set.reset': 'Reset isles progress',

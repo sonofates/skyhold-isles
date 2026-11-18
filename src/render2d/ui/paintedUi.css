@@ -1682,6 +1682,14 @@
   font-size: max(11px, calc(var(--s) * 1.05));
 }
 
+/* Settings plank under the in-game "Paused" plate (settingsButton2d.ts places it). */
+.pu-plank.pu-pause-settings {
+  position: fixed;
+  z-index: 30;
+  transform: translateX(-50%);
+  min-height: 44px;
+}
+
 /* Big boards: the first settings row (Language) and the store's intro start below the ribbon's
    hanging tails. */
 @media (min-height: 481px) {

@@ -391,24 +391,28 @@ export interface HudButtonsLayout {
   /** Button radius and the margin from the safe edge. */
   readonly r: number;
   readonly pad: number;
-  /** Centre y of the row, and centre x of each button (right to left: speed, pause, codex). */
+  /** Centre y of the row, and centre x of each button (right to left: speed, pause, codex, settings). */
   readonly y: number;
   readonly speedX: number;
   readonly pauseX: number;
   readonly codexX: number;
+  readonly settingsX: number;
 }
 
-/** The top-right button row: speed at the edge, pause left of it, the Codex button left of pause. */
+/**
+ * The top-right button row: speed at the edge, pause left of it, the Codex (Guide) button left of
+ * pause, the Settings button left of that (Guide and Settings are captioned, a touch smaller).
+ */
 export function hudButtonsLayout(w: number, h: number, insets: Insets): HudButtonsLayout {
   const u = uiScale(w, h);
   const pad = Math.max(8, 14 * u);
   const r = Math.max(HUD_MIN_TOUCH / 2, 38 * u);
   const edge = w - insets.right - pad;
-  return { r, pad, y: insets.top + pad + r, speedX: edge - r, pauseX: edge - r * 3.25, codexX: edge - r * 5.5 };
+  return { r, pad, y: insets.top + pad + r, speedX: edge - r, pauseX: edge - r * 3.25, codexX: edge - r * 5.5, settingsX: edge - r * 7.75 };
 }
 
 /**
- * Screen area the top-right HUD row (speed, pause, the Guide button and its caption under it)
+ * Screen area the top-right HUD row (speed, pause, the Guide and Settings buttons and their captions)
  * takes, so the build ring and its tooltip can stay clear of it. The caption size follows the
  * painted-UI CSS (`--s`, `.pu-codex-btn .pu-round-label`); the Guide button reports its real box
  * on top of this (see `uiKit.hudKeepOuts`).
@@ -419,7 +423,7 @@ export function hudButtonsKeepOut(w: number, h: number, insets: Insets): Rect {
   const s = Math.max(8.5, Math.min(0.0095 * w, 0.0185 * h, 17));
   const capH = Math.max(11, s * 1.05) * 1.25;
   const capHalfW = Math.max(codexR, Math.max(11, s * 1.05) * 2.4);
-  const x = hb.codexX - capHalfW - 2;
+  const x = hb.settingsX - capHalfW - 2;
   const y = 0;
   const bottom = hb.y + Math.max(hb.r, codexR + capH * 0.9) + 2;
   return { x, y, w: w - x, h: bottom - y };

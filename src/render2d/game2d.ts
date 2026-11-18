@@ -13,7 +13,7 @@ import type { TowerEntity } from '../sim/entities.ts';
 import { computeSellRefund, SimWorld } from '../sim/world.ts';
 import { collectArtTextureSources, type LoadedArt } from './assets2d.ts';
 import { Audio2D, bindAudio2D, bindBackgroundLifecycle2D, screenPan, type BackgroundLifecycleHandle2D } from './audio2d.ts';
-import { AdaptiveQuality, isSoftwareRenderer, qualityOverride, renderResolution, type QualityTier } from './renderResolution.ts';
+import { AdaptiveQuality, isDesktopClient, isSoftwareRenderer, qualityOverride, renderResolution, type QualityTier } from './renderResolution.ts';
 import { BuildRing, type RingAction } from './buildRing.ts';
 import { DamageNumbers2D } from './damageNumbers2d.ts';
 import { EndPanel, endStars } from './endPanel.ts';
@@ -40,6 +40,7 @@ import { SoldierLayer, withBarracksArt } from './soldierLayer.ts';
 import { MeleeDirector } from './meleeDirector.ts';
 import { meleeLookFor } from './meleeLook.ts';
 import { TowerLayer } from './towerLayer.ts';
+import { anySheetOpen } from './ui/dom.ts';
 import { readSafeInsets } from './uiKit.ts';
 import { NO_INSETS, type Insets } from './uiLayout.ts';
 
@@ -174,7 +175,7 @@ export class Game2D {
     art = withBarracksArt(art);
     this.app = app;
     const query = new URLSearchParams(location.search);
-    this.quality = new AdaptiveQuality(qualityOverride(query.get('quality')), hooks.initialUnlockedTier ?? 'high');
+    this.quality = new AdaptiveQuality(qualityOverride(query.get('quality')), hooks.initialUnlockedTier ?? 'high', isDesktopClient(query));
     this.dprOverride = Number(query.get('dpr')) || undefined;
     this.benchWave = hooks.endless && Number(query.get('bench')) > 0 ? Number(query.get('wave')) : 0;
     this.art = art;
@@ -531,7 +532,7 @@ export class Game2D {
   }
 
   private applyResolution(w: number, h: number): void {
-    const resolution = renderResolution(w, h, window.devicePixelRatio, this.dprOverride, this.quality.tier) * this.quality.resolutionScale;
+    const resolution = renderResolution(w, h, window.devicePixelRatio, this.dprOverride, this.quality.resolutionTier) * this.quality.resolutionScale;
     if (this.app.renderer.resolution !== resolution) this.app.renderer.resolution = resolution;
   }
 
@@ -906,6 +907,8 @@ export class Game2D {
       this.hooks.onBackgroundChange?.(true);
     }
     window.addEventListener('keydown', (e) => {
+      // Settings / Codex sheets own the keyboard while open (and keep the run paused).
+      if (anySheetOpen()) return;
       if (e.key === ' ') this.stepper.paused = !this.stepper.paused;
       else if (e.key === '1') this.stepper.speed = 1;
       else if (e.key === '2') this.stepper.speed = 2;
@@ -957,7 +960,18 @@ export class Game2D {
       end: this.end.debug(),
       insets: this.insets,
       fit: this.map.fit,
-      mapInfo: { key: this.art.mapKey, texelScale: this.map.texelScale, gateFronts: this.gates.sprites.length },
+      mapInfo: {
+        key: this.art.mapKey,
+        texelScale: this.map.texelScale,
+        texturePx: [this.map.textureSource.pixelWidth, this.map.textureSource.pixelHeight],
+        gateFronts: this.gates.sprites.length,
+      },
+      render: {
+        resolution: this.app.renderer.resolution,
+        canvasPx: [this.app.canvas.width, this.app.canvas.height],
+        resolutionScale: this.quality.resolutionScale,
+        desktop: this.quality.isDesktop,
+      },
       enemyPx: this.enemyPx(),
       horn: this.hud.hornPosition,
       buttons: this.hud.buttonPositions,

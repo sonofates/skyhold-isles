@@ -14,6 +14,9 @@ const BANNERS: Readonly<Record<string, readonly [MsgKey, MsgKey]>> = {
   'Tap the road': ['hud.tapRoad', 'hud.tapRoadSub'], // i18n-ignore (banner id)
 };
 
+/** Vertical middle of the wave banner's cloth body, as a fraction of the banner art's height. */
+export const BANNER_CLOTH_MID = 0.6;
+
 /** Minimum touch target edge in css px. */
 export const MIN_TOUCH = HUD_MIN_TOUCH;
 
@@ -186,8 +189,12 @@ export class Hud {
     this.banner.position.set(w - insets.right - pad - bw / 2, bannerY);
     this.banner.width = bw;
     this.banner.height = bh;
-    this.waveText.position.set(this.banner.x, bannerY + bh * 0.47);
-    setFontSize(this.waveText, Math.round(Math.max(15, bh * 0.38)));
+    // Optical centre of the red cloth (ui-banner.webp: the rope and knots fill the top third, the
+    // solid cloth runs 36-86% of the height, ragged hem below), plus a nudge for the font's
+    // descender space so "Wave 1/10" / "Dalga 1/10" sits in the middle of the cloth.
+    const waveFont = Math.round(Math.max(15, bh * 0.36));
+    setFontSize(this.waveText, waveFont);
+    this.waveText.position.set(this.banner.x, bannerY + bh * BANNER_CLOTH_MID + waveFont * 0.05);
     this.bannerFont = bw * 0.68;
 
     this.hornR = Math.max(MIN_TOUCH / 2 + 4, 44 * u);
@@ -335,6 +342,13 @@ export class Hud {
       pause: { x: this.pauseBtn.root.x, y: this.pauseBtn.root.y },
       speed: { x: this.speedBtn.root.x, y: this.speedBtn.root.y },
     };
+  }
+
+  /** Screen rect of the "Paused" plate while the player has paused (the Settings plank sits under it), else null. */
+  get pausePlate(): Rect | null {
+    if (this.lastBanner !== 'Paused' || !this.plate.visible) return null; // i18n-ignore (banner id)
+    const r = this.plate.getBounds();
+    return { x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.width), h: Math.round(r.height) };
   }
 
   get hornPosition(): { x: number; y: number } {

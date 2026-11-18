@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   AdaptiveQuality,
+  DESKTOP_EMERGENCY_SCALE,
+  isDesktopClient,
   detectSoftwareWebGL,
   isSoftwareRenderer,
   qualityOverride,
@@ -104,6 +106,60 @@ describe('adaptive quality', () => {
     expect(swCalm.tier).toBe('high');
 
     expect(detectSoftwareWebGL()).toBe(false);
+  });
+
+  it('desktop keeps full canvas resolution while the tier only trims effects', () => {
+    const auto = new AdaptiveQuality(null, 'high', true);
+    const frames = (n: number, ms: number) => {
+      for (let i = 0; i < n; i++) auto.observe(ms, true);
+    };
+    expect(auto.isDesktop).toBe(true);
+    // Slow boot frames and severe stalls lower the effects tier, never the resolution.
+    expect(auto.calibrateBoot(120, true)).toBe(true);
+    expect(auto.tier).toBe('low');
+    expect(auto.resolutionTier).toBe('high');
+    expect(auto.resolutionScale).toBe(1);
+    expect(auto.observe(140, true)).toBe(false);
+    expect(auto.observe(130, true)).toBe(false);
+    expect(auto.resolutionScale).toBe(1);
+    // 25 fps for many seconds: still full resolution.
+    frames(25 * 10, 40);
+    expect(auto.resolutionScale).toBe(1);
+    // Under 20 fps for three seconds: still full; the fourth second triggers the emergency scale.
+    frames(16 * 3, 1000 / 16);
+    expect(auto.resolutionScale).toBe(1);
+    frames(16, 1000 / 16);
+    expect(auto.resolutionScale).toBe(DESKTOP_EMERGENCY_SCALE);
+    // ...and it recovers after five good seconds.
+    frames(50 * 4, 20);
+    expect(auto.resolutionScale).toBe(DESKTOP_EMERGENCY_SCALE);
+    frames(50, 20);
+    expect(auto.resolutionScale).toBe(1);
+    // Smooth 60 fps for ten seconds climbs the effects tier back up a step.
+    frames(60 * 10, 1000 / 60);
+    expect(auto.tier).toBe('med');
+    expect(renderResolution(1920, 1080, 1, undefined, auto.resolutionTier)).toBe(1);
+  });
+
+  it('desktop emergency drops stop recovering after two cycles', () => {
+    const auto = new AdaptiveQuality(null, 'low', true);
+    const frames = (n: number, ms: number) => {
+      for (let i = 0; i < n; i++) auto.observe(ms, true);
+    };
+    for (let cycle = 0; cycle < 2; cycle++) {
+      frames(16 * 4, 1000 / 16);
+      expect(auto.resolutionScale).toBe(DESKTOP_EMERGENCY_SCALE);
+      frames(50 * 5, 20);
+      expect(auto.resolutionScale).toBe(cycle === 0 ? 1 : DESKTOP_EMERGENCY_SCALE);
+    }
+    // A locked desktop tier is honoured as-is (QA overrides).
+    const locked = new AdaptiveQuality('med', 'high', true);
+    expect(locked.resolutionTier).toBe('med');
+  });
+
+  it('detects desktop clients from the query override', () => {
+    expect(isDesktopClient(new URLSearchParams('desktop=1'))).toBe(true);
+    expect(isDesktopClient(new URLSearchParams('desktop=0'))).toBe(false);
   });
 
   it('fast-drops straight to low on two consecutive severe stalls (> 85 ms)', () => {
