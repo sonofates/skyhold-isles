@@ -12,7 +12,7 @@ import { isTouchDevice, loadSettings } from '../platform/storage.ts';
 import type { TowerEntity } from '../sim/entities.ts';
 import { computeSellRefund, SimWorld } from '../sim/world.ts';
 import type { LoadedArt } from './assets2d.ts';
-import { Audio2D, bindAudio2D, screenPan } from './audio2d.ts';
+import { Audio2D, bindAudio2D, bindBackgroundLifecycle2D, screenPan, type BackgroundLifecycleHandle2D } from './audio2d.ts';
 import { AdaptiveQuality, qualityOverride, renderResolution } from './renderResolution.ts';
 import { BuildRing, type RingAction } from './buildRing.ts';
 import { DamageNumbers2D } from './damageNumbers2d.ts';
@@ -69,6 +69,8 @@ export interface Game2DHooks {
   onMenu?: () => void;
   /** The end panel opened / closed (DOM overlays, e.g. the Codex button, hide meanwhile). */
   onEndPanel?: (shown: boolean) => void;
+  /** Fired when active gameplay enters/leaves background (`platform.onPause` / `visibilitychange`). */
+  onBackgroundChange?: (inBackground: boolean) => void;
 }
 
 /**
@@ -123,6 +125,7 @@ export class Game2D {
   private readonly dprOverride: number | undefined;
   private readonly benchWave: number;
   private unbindHaptics: (() => void) | null = null;
+  private lifecycle: BackgroundLifecycleHandle2D | null = null;
   /** Tesla bolts waiting for their tower's painted release frame (sim seconds left). */
   private readonly boltQueue: { t: number; points: GameEventMap['lightningChain']['points']; overload: boolean; muzzle: number }[] = [];
   private hudState: {
@@ -434,6 +437,28 @@ export class Game2D {
     if (this.selectedTower !== -1 && !world.getTowerById(this.selectedTower)) this.closeRing();
     if (this.rallyTower !== -1 && !world.getTowerById(this.rallyTower)) this.closeRing();
 
+    const over = this.syncHud(dtSec);
+    if (over && !this.endShown) {
+      this.endShown = true;
+      this.closeRing();
+      const won = world.outcome === 'won';
+      this.end.show({
+        won,
+        stars: endStars(won, won ? world.computeStars() : 0),
+        lives: world.lives,
+        startLives: world.startingLives,
+        gold: world.gold,
+        wave: this.hudState.wave,
+        totalWaves: this.hudState.totalWaves,
+        hasNext: !!this.hooks.onNext,
+      });
+      this.hooks.onEndPanel?.(true);
+    }
+    this.end.update(dtSec);
+  }
+
+  private syncHud(dtSec: number): boolean {
+    const world = this.world;
     const s = this.hudState;
     s.lives = world.lives;
     s.gold = world.gold;
@@ -447,23 +472,24 @@ export class Game2D {
     const over = world.outcome !== 'ongoing' && !this.hooks.endless;
     s.banner = over ? '' : this.stepper.paused ? 'Paused' : this.rallyTower !== -1 ? 'Tap the road' : '';
     this.hud.update(s as HudState, dtSec);
-    if (over && !this.endShown) {
-      this.endShown = true;
-      this.closeRing();
-      const won = world.outcome === 'won';
-      this.end.show({
-        won,
-        stars: endStars(won, won ? world.computeStars() : 0),
-        lives: world.lives,
-        startLives: world.startingLives,
-        gold: world.gold,
-        wave: s.wave,
-        totalWaves: s.totalWaves,
-        hasNext: !!this.hooks.onNext,
-      });
-      this.hooks.onEndPanel?.(true);
-    }
-    this.end.update(dtSec);
+    return over;
+  }
+
+  /**
+   * Freezes active 2D play when the app is sent to the background (`getPlatform().onPause` or
+   * `document.visibilitychange`) and immediately updates the HUD to the existing `'Paused'` state,
+   * keeping play paused on resume until the player deliberately unpauses.
+   */
+  pauseForBackground(): boolean {
+    if (this.hooks.endless || this.endShown || this.world.outcome !== 'ongoing') return false;
+    this.down = null;
+    this.hoverPlot = -1;
+    this.closeRing();
+    this.stepper.paused = true;
+    this.stepper.resetAccumulator();
+    audio?.sound.setMusicDucked(true);
+    this.syncHud(0);
+    return true;
   }
 
   /** Range circle on the map: the tower the ring points at (selected / hovered), else the selected tower. */
@@ -675,6 +701,25 @@ export class Game2D {
     });
     window.addEventListener('storage', () => this.refreshSettings());
     window.addEventListener('focus', () => this.refreshSettings());
+    this.lifecycle?.dispose();
+    this.lifecycle = bindBackgroundLifecycle2D({
+      onBackground: () => {
+        this.pauseForBackground();
+        this.hooks.onBackgroundChange?.(true);
+      },
+      onForeground: () => {
+        this.refreshSettings();
+        // Deliberately keep `this.stepper.paused === true` and `'Paused'` banner on resume.
+        this.hooks.onBackgroundChange?.(false);
+      },
+      onOverlayPause: () => {
+        this.pauseForBackground();
+      },
+    });
+    if (this.lifecycle.inBackground) {
+      this.pauseForBackground();
+      this.hooks.onBackgroundChange?.(true);
+    }
     window.addEventListener('keydown', (e) => {
       if (e.key === ' ') this.stepper.paused = !this.stepper.paused;
       else if (e.key === '1') this.stepper.speed = 1;

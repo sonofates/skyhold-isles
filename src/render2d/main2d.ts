@@ -242,12 +242,25 @@ async function main(): Promise<void> {
   const plainPlay = Object.keys(hooks).length === 0 && !q.has('end') && bench === 0;
   let codexRef: { setButtonVisible(v: boolean): void } | null = null;
   let gameRef: Game2D | null = null;
+  let codexWasPaused = false;
+  let introWasPaused = false;
   const routing = await import('./ui/inGame.ts');
   const baseHooks = hooks;
   hooks = {
     ...baseHooks,
     modifiers: run.modifiers,
     startEndless: run.runConfig.endless,
+    onBackgroundChange: (inBackground) => {
+      if (inBackground) {
+        // Keep the run paused on resume even if Codex or the intro story was open when backgrounded.
+        codexWasPaused = true;
+        introWasPaused = true;
+        if (!isDebugScene) app.ticker.stop();
+      } else if (!isDebugScene) {
+        app.ticker.start();
+        app.render();
+      }
+    },
     onEndPanel: (shown) => {
       codexRef?.setButtonVisible(!shown);
       const w = gameRef?.world;
@@ -314,12 +327,11 @@ async function main(): Promise<void> {
   onResize();
   app.renderer.on('resize', onResize);
   if (bench === 0) {
-    let wasPaused = false;
     const codex = mountCodex2D(art, (open) => {
       if (open) {
-        wasPaused = game.stepper.paused;
+        codexWasPaused = game.stepper.paused;
         game.stepper.paused = true;
-      } else game.stepper.paused = wasPaused;
+      } else game.stepper.paused = codexWasPaused;
     });
     codexRef = codex;
     if (q.get('codex') === '1') codex.open();
@@ -327,11 +339,11 @@ async function main(): Promise<void> {
     const storyQ = q.get('story');
     if (q.get('intro') === '1' || storyQ === 'intro') {
       const g = game;
-      const was = g.stepper.paused;
+      introWasPaused = g.stepper.paused;
       g.stepper.paused = true;
       codex.setButtonVisible(false);
       void routing.playStoryOnce(level, 'intro', art.manifest, art.baseUrl, storyQ === 'intro').then(() => {
-        g.stepper.paused = was;
+        g.stepper.paused = introWasPaused;
         if (!g.end.visible) codex.setButtonVisible(true);
       });
     }

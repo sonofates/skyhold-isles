@@ -1,5 +1,6 @@
 import { SoundManager } from '../audio/soundManager.ts';
 import type { EventBus } from '../core/eventBus.ts';
+import { getPlatform, type PlatformAdapter } from '../platform/index.ts';
 import { audioSettings2d, type AudioSettings2D } from './settings2d.ts';
 
 export function screenPan(x: number, width: number): number {
@@ -43,50 +44,134 @@ export function bindAudio2D(
   };
 }
 
+export interface BackgroundLifecycleDeps2D {
+  readonly platform?: Pick<PlatformAdapter, 'onPause' | 'onResume'> & Partial<Pick<PlatformAdapter, 'onOverlayChange'>>;
+  readonly doc?: Pick<Document, 'hidden' | 'addEventListener' | 'removeEventListener'>;
+  readonly win?: Pick<Window, 'addEventListener' | 'removeEventListener'>;
+  readonly onBackground: () => void;
+  readonly onForeground?: () => void;
+  readonly onOverlayPause?: () => void;
+  readonly onUnload?: () => void;
+}
+
+export interface BackgroundLifecycleHandle2D {
+  readonly inBackground: boolean;
+  dispose(): void;
+}
+
+/**
+ * Unifies native mobile backgrounding (`getPlatform().onPause` / `onResume`), browser tab/lock
+ * visibility (`document.visibilitychange`, `pageshow`, `pagehide`), and Steam overlay pause.
+ * Enters background as soon as either native app state or document visibility goes inactive, and
+ * only fires `onForeground` once both are active again.
+ */
+export function bindBackgroundLifecycle2D(deps: BackgroundLifecycleDeps2D): BackgroundLifecycleHandle2D {
+  const platform = deps.platform ?? getPlatform();
+  const doc = deps.doc ?? (typeof document === 'undefined' ? undefined : document);
+  const win = deps.win ?? (typeof window === 'undefined' ? undefined : window);
+  let appPaused = false;
+  let disposed = false;
+  const computeBackground = (): boolean => appPaused || Boolean(doc?.hidden);
+  let inBackground = computeBackground();
+
+  const update = (forceBackground = false): void => {
+    if (disposed) return;
+    const next = forceBackground || computeBackground();
+    if (next === inBackground) return;
+    inBackground = next;
+    if (inBackground) deps.onBackground();
+    else deps.onForeground?.();
+  };
+
+  const offPause = platform.onPause(() => {
+    appPaused = true;
+    update();
+  });
+  const offResume = platform.onResume(() => {
+    appPaused = false;
+    update();
+  });
+  const offOverlay =
+    platform.onOverlayChange?.((active) => {
+      if (!disposed && active) deps.onOverlayPause?.();
+    }) ?? (() => undefined);
+
+  const onVisibility = (): void => update();
+  const onPageHide = (e: Event): void => {
+    if (disposed) return;
+    if ((e as PageTransitionEvent).persisted) update(true);
+    else deps.onUnload?.();
+  };
+
+  doc?.addEventListener('visibilitychange', onVisibility);
+  win?.addEventListener('pageshow', onVisibility);
+  win?.addEventListener('pagehide', onPageHide);
+
+  return {
+    get inBackground(): boolean {
+      return inBackground;
+    },
+    dispose(): void {
+      if (disposed) return;
+      disposed = true;
+      offPause();
+      offResume();
+      offOverlay();
+      doc?.removeEventListener('visibilitychange', onVisibility);
+      win?.removeEventListener('pageshow', onVisibility);
+      win?.removeEventListener('pagehide', onPageHide);
+    },
+  };
+}
+
 /** One mixer per 2D document, shared by the world map, settings sheets and every run. */
 export class Audio2D {
   readonly sound = new SoundManager(audioSettings2d());
   private muted: boolean | undefined;
   private volume = -1;
   private readonly listeners = new AbortController();
+  private readonly lifecycle: BackgroundLifecycleHandle2D;
 
-  constructor() {
+  constructor(deps: {
+    readonly platform?: Pick<PlatformAdapter, 'onPause' | 'onResume'> & Partial<Pick<PlatformAdapter, 'onOverlayChange'>>;
+    readonly doc?: Document;
+    readonly win?: Window;
+  } = {}) {
+    const doc = deps.doc ?? document;
+    const win = deps.win ?? window;
     const options = { signal: this.listeners.signal };
+    this.lifecycle = bindBackgroundLifecycle2D({
+      platform: deps.platform,
+      doc,
+      win,
+      onBackground: () => this.sound.suspendForBackground(),
+      onForeground: () => {
+        this.sync();
+        this.sound.resumeFromBackground();
+      },
+      onUnload: () => this.dispose(),
+    });
+    if (this.lifecycle.inBackground) this.sound.suspendForBackground();
+
     const unlock = () => {
-      if (document.hidden) return;
+      if (this.lifecycle.inBackground) return;
       this.sync();
       this.sound.unlock();
     };
     // iOS touch activation is granted on release. Keep the handlers for interrupted contexts.
     for (const event of ['pointerdown', 'pointerup', 'touchend', 'keydown']) {
-      document.addEventListener(event, unlock, { ...options, capture: true, passive: true });
+      doc.addEventListener(event, unlock, { ...options, capture: true, passive: true });
     }
     const sync = () => this.sync();
     // Settings saves synchronously on toggle, slider drag and keyboard steps. Same-document
     // writes do not emit a storage event. Bubble after the control has written its value.
-    document.addEventListener('click', sync, options);
-    document.addEventListener('keydown', sync, options);
-    document.addEventListener('pointerdown', sync, options);
-    document.addEventListener('pointermove', e => {
-      if (e.buttons && e.target instanceof Element && e.target.closest('[role=slider]')) sync();
+    doc.addEventListener('click', sync, options);
+    doc.addEventListener('keydown', sync, options);
+    doc.addEventListener('pointerdown', sync, options);
+    doc.addEventListener('pointermove', e => {
+      if ((e as PointerEvent).buttons && e.target instanceof Element && e.target.closest('[role=slider]')) sync();
     }, options);
-    window.addEventListener('storage', sync, options);
-    const visibility = () => {
-      if (document.hidden) this.sound.suspendForBackground();
-      else {
-        sync();
-        this.sound.resumeFromBackground();
-      }
-    };
-    document.addEventListener('visibilitychange', visibility, options);
-    window.addEventListener('pageshow', visibility, options);
-    window.addEventListener('pagehide', e => {
-      if (e.persisted) this.sound.suspendForBackground();
-      else {
-        this.listeners.abort();
-        this.sound.dispose();
-      }
-    }, options);
+    win.addEventListener('storage', sync, options);
   }
 
   sync(settings: AudioSettings2D = audioSettings2d()): void {
@@ -94,5 +179,11 @@ export class Audio2D {
     this.muted = settings.muted;
     this.volume = settings.effectiveSfxVolume;
     this.sound.updateSettings({ muted: settings.muted, masterVolume: settings.effectiveSfxVolume });
+  }
+
+  dispose(): void {
+    this.lifecycle.dispose();
+    this.listeners.abort();
+    this.sound.dispose();
   }
 }
