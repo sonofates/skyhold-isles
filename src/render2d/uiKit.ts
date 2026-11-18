@@ -1,7 +1,7 @@
 import { Text, TextStyle, Texture } from 'pixi.js';
 import type { LoadedArt } from './assets2d.ts';
 import { HUD_FONT } from './hudText.ts';
-import type { Insets } from './uiLayout.ts';
+import type { Insets, Rect } from './uiLayout.ts';
 
 /** Keys of the painted UI kit (manifest `uiKit`). */
 export type KitKey =
@@ -84,4 +84,27 @@ export function readSafeInsets(): Insets {
   const cs = getComputedStyle(probe);
   const n = (v: string): number => Math.max(0, parseFloat(v) || 0);
   return { top: n(cs.paddingTop), right: n(cs.paddingRight), bottom: n(cs.paddingBottom), left: n(cs.paddingLeft) };
+}
+
+type KeepOutSource = () => Rect | null;
+const keepOutSources = new Set<KeepOutSource>();
+
+/**
+ * DOM pieces drawn over the Pixi canvas (the in-game Guide button and its caption) report their
+ * screen box here, so canvas UI that pops up under them (the build ring, its tooltip) can stay
+ * clear. Returns an unregister function.
+ */
+export function addHudKeepOut(source: KeepOutSource): () => void {
+  keepOutSources.add(source);
+  return () => keepOutSources.delete(source);
+}
+
+/** Current boxes of the DOM HUD pieces (hidden ones report null and are skipped). */
+export function hudKeepOuts(): Rect[] {
+  const out: Rect[] = [];
+  for (const src of keepOutSources) {
+    const r = src();
+    if (r && r.w > 0 && r.h > 0) out.push(r);
+  }
+  return out;
 }

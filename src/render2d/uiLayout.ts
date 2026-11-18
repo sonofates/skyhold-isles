@@ -94,6 +94,7 @@ export function layoutRadial(
   out: Pt[],
   margin = 6,
   minRadius = 0,
+  avoid: readonly Rect[] = [],
 ): RingLayout {
   const radius = Math.max(minRadius, ringRadius(angles, tokenR, tagH));
   let minX = Infinity;
@@ -113,8 +114,13 @@ export function layoutRadial(
   const hiX = screenW - insets.right - margin - maxX;
   const loY = insets.top + margin - minY;
   const hiY = screenH - insets.bottom - margin - maxY;
-  const x = loX <= hiX ? Math.min(hiX, Math.max(loX, cx)) : (loX + hiX) / 2;
-  const y = loY <= hiY ? Math.min(hiY, Math.max(loY, cy)) : (loY + hiY) / 2;
+  let x = loX <= hiX ? Math.min(hiX, Math.max(loX, cx)) : (loX + hiX) / 2;
+  let y = loY <= hiY ? Math.min(hiY, Math.max(loY, cy)) : (loY + hiY) / 2;
+  if (avoid.length > 0) {
+    const p = dodgeRects(x, y, { x: minX, y: minY, w: maxX - minX, h: maxY - minY }, [loX, hiX, loY, hiY], avoid, margin);
+    x = p.x;
+    y = p.y;
+  }
   for (let i = 0; i < angles.length; i++) {
     const p = out[i] ?? (out[i] = { x: 0, y: 0 });
     p.x = x + Math.cos(angles[i]) * radius;
@@ -122,6 +128,40 @@ export function layoutRadial(
   }
   out.length = angles.length;
   return { cx: x, cy: y, radius, box: { x: x + minX, y: y + minY, w: maxX - minX, h: maxY - minY } };
+}
+
+/**
+ * Moves a box (offset `rel` from the point (x, y)) the shortest distance so it clears every rect
+ * in `avoid` (by `gap`) while (x, y) stays inside `[loX, hiX] × [loY, hiY]`. Candidate spots sit
+ * flush beside / above / below each rect (and their combinations). When no spot clears them all,
+ * the point is left where it was.
+ */
+export function dodgeRects(x: number, y: number, rel: Rect, bounds: readonly [number, number, number, number], avoid: readonly Rect[], gap = 6): Pt {
+  const [loX, hiX, loY, hiY] = bounds;
+  const box = (px: number, py: number): Rect => ({ x: px + rel.x, y: py + rel.y, w: rel.w, h: rel.h });
+  const clear = (px: number, py: number): boolean => avoid.every((a) => !rectsHit(box(px, py), a));
+  if (clear(x, y)) return { x, y };
+  const inRange = (v: number, lo: number, hi: number): boolean => (lo <= hi ? v >= lo - 0.5 && v <= hi + 0.5 : Math.abs(v - (lo + hi) / 2) < 0.5);
+  const xs = [x];
+  const ys = [y];
+  for (const a of avoid) {
+    xs.push(a.x - gap - (rel.x + rel.w), a.x + a.w + gap - rel.x);
+    ys.push(a.y - gap - (rel.y + rel.h), a.y + a.h + gap - rel.y);
+  }
+  let best: Pt | null = null;
+  let bestD = Infinity;
+  for (const px of xs) {
+    if (!inRange(px, loX, hiX)) continue;
+    for (const py of ys) {
+      if (!inRange(py, loY, hiY) || !clear(px, py)) continue;
+      const d = Math.hypot(px - x, py - y);
+      if (d < bestD) {
+        bestD = d;
+        best = { x: px, y: py };
+      }
+    }
+  }
+  return best ?? { x, y };
 }
 
 const DEG = Math.PI / 180;
@@ -174,13 +214,14 @@ export function towerRingAngles(
   insets: Insets,
   keepOut: Rect | null,
   margin = 6,
+  avoid: readonly Rect[] = [],
 ): readonly number[] {
   const cands = count >= 3 ? TOWER_RING_3 : TOWER_RING_2;
   const out: Pt[] = [];
   let best: readonly number[] = cands[0];
   let bestScore = Infinity;
   for (const angles of cands) {
-    const lay = layoutRadial(cx, cy, angles, tokenR, tagH, screenW, screenH, insets, out, margin, radius);
+    const lay = layoutRadial(cx, cy, angles, tokenR, tagH, screenW, screenH, insets, out, margin, radius, avoid);
     const shift = Math.hypot(lay.cx - cx, lay.cy - cy);
     const hitsTower = keepOut !== null && out.some((p) => rectsHit(tokenRect(p.x, p.y, tokenR, tagH), keepOut));
     if (shift < 0.5 && !hitsTower) return angles;
@@ -204,9 +245,10 @@ function overlapArea(a: Rect, b: Rect): number {
 /**
  * Tooltip beside the ring: right, left, below, then above — the first spot that is fully on
  * screen without covering the ring wins. If none fits (tiny screens) it takes the on-screen spot
- * that covers the least of the ring.
+ * that covers the least of the ring. Spots covering a rect in `avoid` (the HUD buttons) never
+ * count as fitting.
  */
-export function placeTooltip(ring: Rect, tipW: number, tipH: number, screenW: number, screenH: number, insets: Insets, gap = 10, margin = 6): Rect & { side: TipSide } {
+export function placeTooltip(ring: Rect, tipW: number, tipH: number, screenW: number, screenH: number, insets: Insets, gap = 10, margin = 6, avoid: readonly Rect[] = []): Rect & { side: TipSide } {
   const L = insets.left + margin;
   const R = screenW - insets.right - margin;
   const T = insets.top + margin;
@@ -220,9 +262,15 @@ export function placeTooltip(ring: Rect, tipW: number, tipH: number, screenW: nu
     { side: 'left', x: ring.x - gap - tipW, y: clampY(ccy - tipH / 2) },
     { side: 'below', x: clampX(ccx - tipW / 2), y: ring.y + ring.h + gap },
     { side: 'above', x: clampX(ccx - tipW / 2), y: ring.y - gap - tipH },
+    // Beside the ring but dropped under a HUD piece it would otherwise cover.
+    ...avoid.flatMap((a) => [
+      { side: 'right' as const, x: ring.x + ring.w + gap, y: clampY(a.y + a.h + gap) },
+      { side: 'left' as const, x: ring.x - gap - tipW, y: clampY(a.y + a.h + gap) },
+    ]),
   ];
   for (const c of cands) {
-    if (c.x >= L - 0.01 && c.x + tipW <= R + 0.01 && c.y >= T - 0.01 && c.y + tipH <= B + 0.01) {
+    const free = avoid.every((a) => !rectsHit({ x: c.x, y: c.y, w: tipW, h: tipH }, a));
+    if (free && c.x >= L - 0.01 && c.x + tipW <= R + 0.01 && c.y >= T - 0.01 && c.y + tipH <= B + 0.01) {
       return { x: c.x, y: c.y, w: tipW, h: tipH, side: c.side };
     }
   }
@@ -230,7 +278,7 @@ export function placeTooltip(ring: Rect, tipW: number, tipH: number, screenW: nu
   let bestCover = Infinity;
   for (const c of cands) {
     const r = { x: clampX(c.x), y: clampY(c.y), w: tipW, h: tipH };
-    const cover = overlapArea(r, ring);
+    const cover = overlapArea(r, ring) + avoid.reduce((sum, a) => sum + overlapArea(r, a), 0);
     if (cover < bestCover) {
       bestCover = cover;
       best = { ...r, side: 'clamped' };
@@ -357,6 +405,24 @@ export function hudButtonsLayout(w: number, h: number, insets: Insets): HudButto
   const r = Math.max(HUD_MIN_TOUCH / 2, 38 * u);
   const edge = w - insets.right - pad;
   return { r, pad, y: insets.top + pad + r, speedX: edge - r, pauseX: edge - r * 3.25, codexX: edge - r * 5.5 };
+}
+
+/**
+ * Screen area the top-right HUD row (speed, pause, the Guide button and its caption under it)
+ * takes, so the build ring and its tooltip can stay clear of it. The caption size follows the
+ * painted-UI CSS (`--s`, `.pu-codex-btn .pu-round-label`); the Guide button reports its real box
+ * on top of this (see `uiKit.hudKeepOuts`).
+ */
+export function hudButtonsKeepOut(w: number, h: number, insets: Insets): Rect {
+  const hb = hudButtonsLayout(w, h, insets);
+  const codexR = Math.max(22, hb.r * 0.86);
+  const s = Math.max(8.5, Math.min(0.0095 * w, 0.0185 * h, 17));
+  const capH = Math.max(11, s * 1.05) * 1.25;
+  const capHalfW = Math.max(codexR, Math.max(11, s * 1.05) * 2.4);
+  const x = hb.codexX - capHalfW - 2;
+  const y = 0;
+  const bottom = hb.y + Math.max(hb.r, codexR + capH * 0.9) + 2;
+  return { x, y, w: w - x, h: bottom - y };
 }
 
 // ---------------------------------------------------------------------------------------------
