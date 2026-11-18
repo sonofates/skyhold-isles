@@ -13,7 +13,6 @@ mouth (rock lip, arch, frame), plus a dark gradient over the mouth (opaque deep 
 the exit). The renderer draws it above the actors, so walkers appear out of the darkness.
 """
 import math
-from pathlib import Path
 
 import numpy as np
 from PIL import Image, ImageDraw, ImageFilter
@@ -62,19 +61,19 @@ def goal_facing(path):
     return facing_from_dir(*_first_step(path, len(path) - 1, -1))
 
 
-def resolve_prop(kind, facing, assets: Path):
+def resolve_prop(kind, facing, asset_file):
     """(file name, flip) of the gate art for `kind` (cave / castle) facing `facing`.
     Uses the mirrored art for E <-> W when only one exists; else the nearest available facing."""
-    if (assets / f'gate-{kind}-{facing.lower()}.png').exists():
+    if asset_file(f'gate-{kind}-{facing.lower()}.png').exists():
         return f'{kind}-{facing.lower()}', f'gate-{kind}-{facing.lower()}.png', False
     m = MIRROR[facing]
-    if m != facing and (assets / f'gate-{kind}-{m.lower()}.png').exists():
+    if m != facing and asset_file(f'gate-{kind}-{m.lower()}.png').exists():
         return f'{kind}-{facing.lower()}', f'gate-{kind}-{m.lower()}.png', True
     for f in ('S', 'E', 'W', 'N'):
-        if (assets / f'gate-{kind}-{f.lower()}.png').exists():
+        if asset_file(f'gate-{kind}-{f.lower()}.png').exists():
             print(f'  warning: no {kind} art facing {facing}, using {f}')
             return f'{kind}-{f.lower()}', f'gate-{kind}-{f.lower()}.png', False
-    raise FileNotFoundError(f'no gate-{kind}-*.png in {assets}')
+    raise FileNotFoundError(f'no directional art for {kind}')
 
 
 def measure_mouth(im: Image.Image, facing: str, dark=58):
@@ -131,7 +130,7 @@ def measure_mouth(im: Image.Image, facing: str, dark=58):
             'top_exit': top_exit}
 
 
-def place_gate(im_src: Image.Image, flip: bool, point, facing, height_layout, inset_layout, along=None):
+def place_gate(im_src: Image.Image, flip: bool, point, facing, height_layout, inset_layout, along=None, fit_opening=False):
     """Flip / measure a gate and compute where it goes (layout px).
 
     Returns dict(im (source px), k (source px -> layout px), left, top, rect, mouth, facing). The
@@ -147,6 +146,17 @@ def place_gate(im_src: Image.Image, flip: bool, point, facing, height_layout, in
     tx, ty = point[0] + ux * inset_layout, point[1] + uy * inset_layout
     left = tx - ax * k
     top = ty - ay * k
+    if fit_opening:
+        # A diagonal approach can put the intended inset below an oblique painted sill.
+        # Move the artwork just enough to seat the fixed endpoint inside the open aperture.
+        x, y = (point[0] - left) / k, (point[1] - top) / k
+        inside = mouth['mask'].filter(ImageFilter.MinFilter(9))
+        if not (0 <= round(x) < im.width and 0 <= round(y) < im.height and inside.getpixel((round(x), round(y)))):
+            ys, xs = np.nonzero(np.asarray(inside))
+            if not len(xs):
+                raise ValueError('gate opening is too narrow to seat the path endpoint')
+            nearest = np.argmin((xs - x) ** 2 + (ys - y) ** 2)
+            left, top = point[0] - xs[nearest] * k, point[1] - ys[nearest] * k
     return {'im': im, 'k': k, 'left': left, 'top': top, 'mouth': mouth, 'facing': facing,
             'rect': (left, top, left + im.width * k, top + im.height * k)}
 

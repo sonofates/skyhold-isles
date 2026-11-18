@@ -1,0 +1,11 @@
+{
+  "props": [
+    ["willow.webp", 1.5],
+    ["jade-cluster.webp", 1.05],
+    ["lantern-hook.webp", 1.14],
+    ["fern.webp", 0.63],
+    ["dry-stone-wall.webp", 0.65],
+    ["culvert.webp", 0.62],
+    ["cattails.webp", 0.64]
+  ]
+}

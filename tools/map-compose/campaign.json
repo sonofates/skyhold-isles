@@ -4,77 +4,201 @@
     "seed": 31,
     "decals": 310,
     "props": 52,
-    "windmill": "none"
+    "windmill": "none",
+    "biome": "orchard",
+    "propWeights": [6, 1, 3, 0, 3, 0, 7],
+    "cave-h": 2.1,
+    "castle-h": 2.3,
+    "landmarks": [
+      ["cottage", 1247, 621, 113]
+    ]
   },
   "i02": {
     "plots": 19,
     "seed": 73,
     "decals": 160,
     "props": 42,
-    "windmill": "none"
+    "windmill": "none",
+    "biome": "tidal",
+    "propWeights": [1, 2, 2, 5, 3, 3, 2],
+    "crossings": [
+      ["bridge", 965, 307, 181, 78, 96.5],
+      ["bridge", 967, 523, 182, 78, 90.4]
+    ],
+    "islet": "islet.webp",
+    "castle-h": 2.66,
+    "landmarks": [
+      ["shed", 1096, 746, 106]
+    ]
   },
   "i03": {
     "plots": 22,
     "seed": 107,
     "decals": 194,
     "props": 78,
-    "windmill": "none"
+    "windmill": "none",
+    "biome": "highlands",
+    "propWeights": [6, 2, 1, 3, 4, 4, 2],
+    "roadMaterial": "tex-gravel.webp",
+    "cave-h": 2.18,
+    "landmarks": [
+      ["keep", 743, 326, 130]
+    ]
   },
   "i04": {
     "plots": 20,
     "seed": 151,
     "decals": 270,
     "props": 64,
-    "windmill": "none"
+    "windmill": "none",
+    "biome": "terraces",
+    "propWeights": [1, 6, 4, 4, 1, 1, 2],
+    "crossings": [
+      ["viaduct", 500, 339, 115, 74, -14]
+    ],
+    "cave-h": 2.18,
+    "castle-h": 2.3,
+    "landmarks": [
+      ["anchors", 636, 369, 53]
+    ]
   },
   "i05": {
     "plots": 19,
     "seed": 193,
     "decals": 280,
     "props": 72,
-    "windmill": "665,506,2.7"
+    "windmill": "665,506,2.7",
+    "biome": "orchard",
+    "propWeights": [4, 0, 6, 6, 4, 0, 1],
+    "groundMaterial": "tex-wheat.webp",
+    "roadMaterial": "tex-orchard-loam.webp",
+    "cave-h": 2.14,
+    "castle-h": 2.26
   },
   "i06": {
     "plots": 24,
     "seed": 227,
     "decals": 135,
     "props": 45,
-    "windmill": "none"
+    "windmill": "none",
+    "biome": "tidal",
+    "propWeights": [5, 0, 1, 2, 1, 6, 6],
+    "roadMaterial": "tex-wet-sand.webp",
+    "islet": "sandbar.webp",
+    "cave-h": 2.14,
+    "castle-h": 2.26,
+    "landmarks": [
+      ["lighthouse", 936, 362, 70]
+    ]
   },
   "i07": {
     "plots": 26,
     "seed": 283,
     "decals": 155,
-    "props": 58,
-    "windmill": "none"
+    "props": 44,
+    "windmill": "none",
+    "biome": "highlands",
+    "propWeights": [1, 2, 2, 3, 7, 2, 5],
+    "crossings": [
+      ["stone-bridge", 936, 229, 176, 73, 83.4],
+      ["stone-bridge", 920, 564, 202, 74, 80.5]
+    ],
+    "islet": "islet.webp",
+    "sprites": {
+      "gate-cave-e.png": "storm-cave-e.webp",
+      "gate-cave-s.png": "storm-cave-s.webp",
+      "gate-castle-w.png": "storm-castle-w.webp",
+      "signal-post.webp": "torn-standard.webp",
+      "parapet.webp": "broken-wall.webp",
+      "snow-fir.webp": "storm-pine.webp"
+    },
+    "roadMaterial": "tex-gravel.webp",
+    "landmarks": [
+      ["fort", 868, 326, 58],
+      ["fort", 1044, 449, 49]
+    ]
   },
   "i08": {
     "plots": 28,
     "seed": 353,
     "decals": 205,
-    "props": 80,
-    "windmill": "none"
+    "props": 61,
+    "windmill": "none",
+    "biome": "terraces",
+    "sprites": {
+      "gate-castle-w.png": "bailey-gate.webp"
+    },
+    "propWeights": [1, 0, 3, 3, 6, 4, 6],
+    "crossings": [
+      ["stone-bridge", 951, 304, 110, 69, 99]
+    ],
+    "islet": "islet.webp",
+    "gate-inset": 0.08,
+    "cave-h": 1.9,
+    "castle-h": 2.05,
+    "landmarks": [
+      ["bastion", 757, 244, 48]
+    ]
   },
   "i09": {
     "plots": 27,
     "seed": 409,
     "decals": 220,
-    "props": 65,
-    "windmill": "none"
+    "props": 49,
+    "windmill": "none",
+    "biome": "orchard",
+    "propWeights": [0, 5, 0, 0, 4, 4, 1],
+    "roadMaterial": "tex-marble.webp",
+    "crossings": [
+      ["marble-bridge", 461, 394, 113, 70, -13]
+    ],
+    "sprites": {
+      "fence-corner.webp": "landmark-standard.webp",
+      "gate-castle-w.png": "crown-hall.webp"
+    },
+    "cave-h": 2.1,
+    "castle-h": 3.15
   },
   "i10": {
     "plots": 25,
     "seed": 461,
     "decals": 265,
     "props": 48,
-    "windmill": "none"
+    "windmill": "none",
+    "biome": "terraces",
+    "propWeights": [7, 1, 0, 4, 6, 5, 2],
+    "crossings": [
+      ["stone-bridge", 906, 659, 120, 71, 103.5]
+    ],
+    "islet": "islet.webp",
+    "cave-h": 2.14,
+    "castle-h": 2.58,
+    "landmarks": [
+      ["sluice", 1078, 683, 91]
+    ]
   },
   "i11": {
     "plots": 24,
     "seed": 503,
     "decals": 145,
-    "props": 77,
-    "windmill": "none"
+    "props": 59,
+    "windmill": "none",
+    "biome": "highlands",
+    "propWeights": [1, 2, 3, 5, 4, 1, 4],
+    "islet": "islet.webp",
+    "sprites": {
+      "gate-cave-e.png": "storm-cave-e.webp",
+      "gate-cave-s.png": "storm-cave-s.webp",
+      "gate-castle-w.png": "storm-castle-w.webp",
+      "signal-post.webp": "wind-vane.webp",
+      "parapet.webp": "broken-wall.webp",
+      "snow-fir.webp": "storm-pine.webp"
+    },
+    "roadMaterial": "tex-gravel.webp",
+    "landmarks": [
+      ["spire", 818, 185, 85],
+      ["spire", 1074, 503, 55]
+    ]
   },
   "i12": {
     "plots": 27,
@@ -91,17 +215,39 @@
       [1090, 190],
       [982, 600],
       [840, 735]
+    ],
+    "biome": "hollow",
+    "propWeights": [3, 7, 5, 5, 1, 1, 0],
+    "cave-h": 2.18,
+    "castle-h": 2.26,
+    "landmarks": [
+      ["shrine", 1124, 637, 81]
     ]
   },
   "i13": {
     "plots": 28,
     "seed": 593,
     "decals": 182,
-    "props": 84,
+    "props": 64,
     "windmill": "none",
     "seedPlots": [
       [644, 272],
       [868, 448]
+    ],
+    "biome": "highlands",
+    "propWeights": [1, 3, 2, 2, 4, 3, 1],
+    "sprites": {
+      "gate-cave-e.png": "storm-cave-e.webp",
+      "gate-cave-s.png": "storm-cave-s.webp",
+      "gate-castle-w.png": "storm-castle-w.webp",
+      "signal-post.webp": "split-spire.webp",
+      "shale-pine.webp": "storm-pine.webp",
+      "parapet.webp": "broken-wall.webp",
+      "snow-fir.webp": "torn-standard.webp"
+    },
+    "roadMaterial": "tex-gravel.webp",
+    "landmarks": [
+      ["altar", 873, 256, 48]
     ]
   },
   "i14": {
@@ -109,7 +255,22 @@
     "seed": 641,
     "decals": 128,
     "props": 39,
-    "windmill": "none"
+    "windmill": "none",
+    "biome": "ember",
+    "propWeights": [6, 0, 0, 6, 6, 1, 3],
+    "sprites": {
+      "gate-cave-e.png": "mesa-cave-e.webp",
+      "gate-cave-s.png": "mesa-cave-s.webp",
+      "gate-castle-w.png": "mesa-castle-w.webp",
+      "clinker.webp": "sandstone-column.webp"
+    },
+    "roadMaterial": "tex-buff-sand.webp",
+    "branchMaterial": [2, "tex-wash.webp"],
+    "cave-h": 2.42,
+    "castle-h": 2.66,
+    "landmarks": [
+      ["waystone", 904, 585, 65]
+    ]
   },
   "i15": {
     "plots": 26,
@@ -122,6 +283,14 @@
       [548, 272],
       [651, 264],
       [1027, 208]
+    ],
+    "biome": "hollow",
+    "propWeights": [1, 1, 1, 1, 6, 5, 7],
+    "islet": "islet.webp",
+    "roadMaterial": "tex-moonstone.webp",
+    "cave-h": 2.22,
+    "landmarks": [
+      ["well", 703, 506, 70]
     ]
   },
   "i16": {
@@ -135,6 +304,14 @@
       [884, 576],
       [1428, 496],
       [1588, 240]
-    ]
+    ],
+    "biome": "ember",
+    "propWeights": [0, 7, 5, 0, 0, 7, 1],
+    "roadMaterial": "tex-furnace-road.webp",
+    "cave-h": 1.98,
+    "castle-h": 3.15,
+    "sprites": {
+      "gate-castle-w.png": "furnace-sanctuary.webp"
+    }
   }
 }

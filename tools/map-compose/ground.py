@@ -79,8 +79,11 @@ def tint_paste(canvas: Image.Image, im: Image.Image, x: float, y_bottom: float, 
 
 
 class Decals:
-    def __init__(self, load):
-        self.src = {k: load(f'decal-{k}.png') for k in range(1, 9)}
+    def __init__(self, load, themed=False):
+        self.themed = themed
+        # The painted kits supply five pieces: tuft, foliage, two flowers and gravel.
+        roles = (1, 1, 3, 1, 5, 6, 6, 8) if themed else range(1, 9)
+        self.src = {k: load(f'decal-{role}.png') for k, role in enumerate(roles, 1)}
         self.ok = all(v is not None for v in self.src.values())
         self.cache = {}
 
@@ -92,7 +95,7 @@ class Decals:
             im = im.resize((max(1, round(im.width * s)), max(1, round(height_px))), Image.LANCZOS)
             if flip:
                 im = im.transpose(Image.FLIP_LEFT_RIGHT)
-            if k in TUFTS or k in CLOVER:
+            if not self.themed and (k in TUFTS or k in CLOVER):
                 # the painted tufts are a touch yellow against the meadow: pull them toward its greens
                 r, g, b, a = im.split()
                 im = Image.merge('RGBA', (r.point(lambda v: int(v * 0.80)), g.point(lambda v: int(v * 0.90)),
@@ -106,7 +109,7 @@ def nearest_dist(points: np.ndarray, qx: float, qy: float) -> float:
     return float(np.sqrt(d.min()))
 
 
-def road_fringe(canvas, decals: Decals, edge_polys, road_pts, half_w, S, seed):
+def road_fringe(canvas, decals: Decals, edge_polys, road_pts, half_w, S, seed, ok_at=None):
     """Grass tufts overlapping the road edge (both sides) and sparse pebbles on the road near it.
     edge_polys: road centrelines (layout px, densely resampled); road_pts: numpy (N, 2) layout px."""
     rnd = random.Random(seed)
@@ -123,7 +126,7 @@ def road_fringe(canvas, decals: Decals, edge_polys, road_pts, half_w, S, seed):
                 off = half_w + rnd.uniform(-1.5, 2.5)
                 x, y = poly[i][0] + nx * off * side, poly[i][1] + ny * off * side
                 # only real edges (not inside another stretch of road at merges / tight bends)
-                if nearest_dist(road_pts, x, y) < half_w - 3:
+                if (ok_at and not ok_at(x, y)) or nearest_dist(road_pts, x, y) < half_w - 3:
                     continue
                 if any((x - px) ** 2 + (y - py) ** 2 < 14 ** 2 for px, py in placed[-12:]):
                     continue

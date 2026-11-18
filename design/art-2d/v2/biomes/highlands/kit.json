@@ -1,0 +1,11 @@
+{
+  "props": [
+    ["snow-fir.webp", 1.9],
+    ["shale-pine.webp", 1.72],
+    ["signal-post.webp", 1.18],
+    ["silver-grass.webp", 0.59],
+    ["parapet.webp", 0.65],
+    ["cairn.webp", 0.72],
+    ["anchor-block.webp", 0.5]
+  ]
+}

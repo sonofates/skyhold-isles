@@ -1,0 +1,11 @@
+{
+  "props": [
+    ["mesa-pillar.webp", 1.5],
+    ["glass-shards.webp", 1.02],
+    ["brazier.webp", 1.12],
+    ["agave.webp", 0.64],
+    ["shale-fan.webp", 0.73],
+    ["clinker.webp", 0.68],
+    ["desert-scrub.webp", 0.57]
+  ]
+}
