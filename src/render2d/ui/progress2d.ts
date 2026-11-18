@@ -11,14 +11,25 @@
  * it, so a parallel change that inserts or reorders islands in `LEVELS_2D` remaps the records by id
  * instead of shifting stars onto the wrong island.
  */
-import type { ProgressData } from '../../core/types.ts';
+import type { HeroId, ProgressData } from '../../core/types.ts';
 import { challengesForLevel, type ChallengeId } from '../../data/challenges.ts';
 import { applyDailyWin, utcDayNumber } from '../../data/daily.ts';
+import { isHeroId } from '../../data/heroes.ts';
 import { LEVELS_2D } from '../../data/levels2d/index.ts';
 import type { LevelDef } from '../../data/levels/types.ts';
 import { applyEndlessRecord, applyWin, isIslandMastered, type WinRecord } from '../../game/progression.ts';
 import { badgesForWin, PLAIN_RUN, type RunConfig } from '../../game/runConfig.ts';
 import { createDefaultProgress, migrateProgress, PROGRESS_SAVE_VERSION } from '../../platform/storage.ts';
+import {
+  applyHeroXp,
+  applyNode,
+  createDefaultHeroSave,
+  migrateHeroSave,
+  respec,
+  selectHero,
+  xpForRun,
+  type HeroRunXpRecord,
+} from '../heroes2d.ts';
 
 export const PROGRESS_2D_KEY = 'skyhold_isles_progress2d_v1';
 export const STORY_SEEN_KEY = 'skyhold_isles_story2d_seen_v1';
@@ -42,9 +53,14 @@ function storage(): Storage | null {
  */
 export function remapProgress(raw: unknown, oldIds: readonly string[], levels: readonly Pick<LevelDef, 'id'>[]): ProgressData {
   const n = levels.length;
+  const rawHeroes = raw && typeof raw === 'object' ? (raw as { heroes?: unknown }).heroes : undefined;
   const old = migrateProgress(raw, Math.max(1, oldIds.length));
   const same = oldIds.length === n && oldIds.every((id, i) => levels[i]?.id === id);
-  if (same) return migrateProgress(raw, n);
+  if (same) {
+    const migrated = migrateProgress(raw, n);
+    migrated.heroes = migrateHeroSave(rawHeroes, migrated, levels);
+    return migrated;
+  }
   const out = createDefaultProgress(n);
   let frontier = 0;
   levels.forEach((lvl, i) => {
@@ -61,27 +77,35 @@ export function remapProgress(raw: unknown, oldIds: readonly string[], levels: r
   out.daily = { ...old.daily };
   out.unlockedLevelIndex = frontier;
   // Same walk-forward the campaign migration does: everything after a cleared island opens.
-  return migrateProgress(out, n);
+  const remapped = migrateProgress(out, n);
+  remapped.heroes = migrateHeroSave(rawHeroes, remapped, levels);
+  return remapped;
 }
 
 /** The 2D save, migrated to the current island list. Never throws. */
 export function loadProgress2D(levels: readonly LevelDef[] = LEVELS_2D): ProgressData {
   const ls = storage();
+  const makeFresh = (): ProgressData => {
+    const fresh = createDefaultProgress(levels.length);
+    fresh.heroes = createDefaultHeroSave();
+    return fresh;
+  };
   try {
     const raw = ls?.getItem(PROGRESS_2D_KEY);
-    if (!raw) return createDefaultProgress(levels.length);
+    if (!raw) return makeFresh();
     const parsed = JSON.parse(raw) as Partial<Stored2D>;
     const hasWrapper = parsed !== null && typeof parsed === 'object' && 'progress' in parsed;
     const payload = hasWrapper ? parsed.progress : parsed;
     const ids = Array.isArray(parsed?.ids) ? parsed.ids.filter((x): x is string => typeof x === 'string') : levels.map((l) => l.id);
     return remapProgress(payload, ids, levels);
   } catch {
-    return createDefaultProgress(levels.length);
+    return makeFresh();
   }
 }
 
 export function saveProgress2D(progress: ProgressData, levels: readonly LevelDef[] = LEVELS_2D): void {
   progress.version = PROGRESS_SAVE_VERSION;
+  progress.heroes = migrateHeroSave(progress.heroes, progress, levels);
   const ls = storage();
   try {
     const data: Stored2D = { ids: levels.map((l) => l.id), progress };
@@ -204,12 +228,34 @@ export interface RunOutcome2D {
   readonly runConfig?: Readonly<RunConfig>;
   /** Wall-clock timestamp (ms) used to judge Daily Squall completion (defaults to `Date.now()`). */
   readonly nowMs?: number;
+  /** Hero fielded in this run (awards persistent hero XP on wins, losses, and endless runs). */
+  readonly heroId?: HeroId | null;
+  readonly enemiesKilled?: number;
+  readonly wavesCleared?: number;
+  /** Exact in-run hero XP tracked by `SimWorld.heroSystem.runXp` (falls back to `xpForRun`). */
+  readonly heroXpEarned?: number;
 }
 
 export interface RunResultRecord2D {
   readonly win: WinRecord | null;
   readonly daily: { readonly counted: boolean; readonly streak: number } | null;
   readonly endless: EndlessRecord2D | null;
+  readonly hero?: HeroRunXpRecord;
+}
+
+function recordHeroOutcome(
+  progress: ProgressData,
+  outcome: RunOutcome2D,
+  levels: readonly LevelDef[],
+): HeroRunXpRecord | undefined {
+  if (!outcome.heroId || !isHeroId(outcome.heroId)) return undefined;
+  const xp =
+    typeof outcome.heroXpEarned === 'number' && Number.isFinite(outcome.heroXpEarned)
+      ? Math.max(0, Math.floor(outcome.heroXpEarned))
+      : xpForRun(outcome);
+  const applied = applyHeroXp(progress, outcome.heroId, xp, levels);
+  progress.heroes = applied.progress.heroes;
+  return applied.record;
 }
 
 /**
@@ -217,7 +263,8 @@ export interface RunResultRecord2D {
  * - Endless run: records `bestEndlessWaves` once past story waves; never awards campaign stars.
  * - Campaign / Challenge / Daily win: applies `applyWin` (with island challenge badges) and, when
  *   `runConfig.daily !== null`, `applyDailyWin`.
- * - Non-endless loss: mutates nothing.
+ * - Non-endless loss: mutates no island progress.
+ * - When `outcome.heroId` is set: awards persistent hero XP across all outcomes.
  */
 export function applyRunResult2D(
   progress: ProgressData,
@@ -228,18 +275,24 @@ export function applyRunResult2D(
   const i = indexOf2D(outcome.levelId, levels);
 
   if (cfg.endless) {
-    if (i < 0) return { win: null, daily: null, endless: null };
-    const wave = Number.isFinite(outcome.waveReached) ? Math.floor(outcome.waveReached) : 0;
-    if (wave <= levels[i].waves.length) {
-      const best = progress.bestEndlessWaves[i] ?? 0;
-      return { win: null, daily: null, endless: { best, previousBest: best, isNewBest: false, reachedEndless: false } };
+    let endless: EndlessRecord2D | null = null;
+    if (i >= 0) {
+      const wave = Number.isFinite(outcome.waveReached) ? Math.floor(outcome.waveReached) : 0;
+      if (wave <= levels[i].waves.length) {
+        const best = progress.bestEndlessWaves[i] ?? 0;
+        endless = { best, previousBest: best, isNewBest: false, reachedEndless: false };
+      } else {
+        const rec = applyEndlessRecord(progress, i, wave);
+        endless = { ...rec, reachedEndless: true };
+      }
     }
-    const rec = applyEndlessRecord(progress, i, wave);
-    return { win: null, daily: null, endless: { ...rec, reachedEndless: true } };
+    const hero = recordHeroOutcome(progress, outcome, levels);
+    return hero ? { win: null, daily: null, endless, hero } : { win: null, daily: null, endless };
   }
 
   if (!outcome.won) {
-    return { win: null, daily: null, endless: null };
+    const hero = recordHeroOutcome(progress, outcome, levels);
+    return hero ? { win: null, daily: null, endless: null, hero } : { win: null, daily: null, endless: null };
   }
 
   const stars = Math.max(1, Math.min(3, Math.round(outcome.stars))) as 1 | 2 | 3;
@@ -252,7 +305,8 @@ export function applyRunResult2D(
     cfg.daily !== null
       ? applyDailyWin(progress.daily, cfg.daily, utcDayNumber(outcome.nowMs ?? Date.now()))
       : null;
-  return { win, daily, endless: null };
+  const hero = recordHeroOutcome(progress, outcome, levels);
+  return hero ? { win, daily, endless: null, hero } : { win, daily, endless: null };
 }
 
 /** Loads the 2D save, applies `applyRunResult2D`, persists if anything changed, and returns the record. */
@@ -267,10 +321,41 @@ export function recordRunResult2D(
   const dailyChanged =
     Boolean(res.daily?.counted) || p.daily.lastDay !== prevDailyLast || p.daily.streak !== prevDailyStreak;
   const endlessChanged = Boolean(res.endless?.reachedEndless && res.endless.best !== res.endless.previousBest);
-  if (res.win !== null || dailyChanged || endlessChanged) {
+  const heroChanged = Boolean(res.hero && res.hero.xpGained > 0);
+  if (res.win !== null || dailyChanged || endlessChanged || heroChanged) {
     saveProgress2D(p, levels);
   }
   return res;
+}
+
+/** Selects `heroId` in the 2D save if unlocked and persists; returns updated `ProgressData` or `null`. */
+export function selectHero2D(heroId: HeroId, levels: readonly LevelDef[] = LEVELS_2D): ProgressData | null {
+  const p = loadProgress2D(levels);
+  const next = selectHero(p, heroId, levels);
+  if (!next) return null;
+  saveProgress2D(next, levels);
+  return next;
+}
+
+/** Unlocks `nodeId` on `heroId` in the 2D save and persists; returns updated `ProgressData` or `null`. */
+export function unlockHeroNode2D(
+  heroId: HeroId,
+  nodeId: string,
+  levels: readonly LevelDef[] = LEVELS_2D,
+): ProgressData | null {
+  const p = loadProgress2D(levels);
+  const next = applyNode(p, heroId, nodeId, levels);
+  if (!next) return null;
+  saveProgress2D(next, levels);
+  return next;
+}
+
+/** Free world-map skill-tree respec for `heroId`; persists and returns updated `ProgressData`. */
+export function respecHero2D(heroId: HeroId, levels: readonly LevelDef[] = LEVELS_2D): ProgressData {
+  const p = loadProgress2D(levels);
+  const next = respec(p, heroId, levels);
+  saveProgress2D(next, levels);
+  return next;
 }
 
 // --- story beats seen ------------------------------------------------------------------------

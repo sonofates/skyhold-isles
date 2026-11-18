@@ -12,6 +12,7 @@ import { ENEMY_TYPES } from '../data/enemies.ts';
 import type { EnemyType } from '../core/types.ts';
 import { FrameStats } from './frameStats.ts';
 import { Game2D, type Game2DHooks } from './game2d.ts';
+import { resolveHeroForRun } from './heroes2d.ts';
 import { HUD_FONT } from './hudText.ts';
 import { detectSoftwareWebGL, isDesktopClient, qualityOverride, renderResolution, type QualityTier } from './renderResolution.ts';
 import type { MapView } from './mapView.ts';
@@ -108,7 +109,7 @@ function showError(msg: string): void {
 }
 
 /** Query keys that start a game scene; without any of them 2d.html opens the world map. */
-const GAME_PARAMS = ['level', 'daily', 'challenge', 'endless', 'ab', 'bench', 'autoplay', 'raider', 'codex', 'artcheck', 'zoo', 'towers', 'melee', 'speed', 'end', 'mapmips'] as const;
+const GAME_PARAMS = ['level', 'hero', 'daily', 'challenge', 'endless', 'ab', 'bench', 'autoplay', 'raider', 'codex', 'artcheck', 'zoo', 'towers', 'melee', 'speed', 'end', 'mapmips'] as const;
 
 /**
  * Language first (before any text is built): `?lang=`, the stored setting, else the browser. The
@@ -150,11 +151,16 @@ async function main(): Promise<void> {
     import('./ui/progress2d.ts'),
     import('./ui/modes2d.ts'),
   ]);
-  const run = resolveQueryRun2D(q, loadProgress2D(), {
+  const progress2d = loadProgress2D();
+  const run = resolveQueryRun2D(q, progress2d, {
     nowMs: Date.now(),
     lookupLevel: getLevelById,
     applySaveModifiers: !isDebugScene,
   });
+  const heroSelection =
+    isDebugScene && !q.has('hero')
+      ? null
+      : resolveHeroForRun(progress2d, q.get('hero'), q.get('herolevel'));
   // Mobile builds (and ?iapmock=1): an island past the free version's scope (deep link, Daily
   // Squall, Next Isle) goes to the world map with the store card open instead of playing.
   if (!isDebugScene) {
@@ -319,6 +325,7 @@ async function main(): Promise<void> {
   hooks = {
     ...baseHooks,
     modifiers: run.modifiers,
+    hero: heroSelection,
     startEndless: run.runConfig.endless,
     initialUnlockedTier: bootTier,
     onBackgroundChange: (inBackground) => {
@@ -348,6 +355,10 @@ async function main(): Promise<void> {
           livesRemaining: w.lives,
           waveReached: w.waveSystem.currentWaveOneBased,
           runConfig: run.runConfig,
+          heroId: w.hero?.heroId ?? null,
+          enemiesKilled: w.enemiesKilledTotal,
+          wavesCleared: won ? level.waves.length : Math.max(0, w.waveSystem.currentWaveOneBased - 1),
+          heroXpEarned: w.heroSystem.runXp,
         });
         // Challenge badges, Daily Squall and Endless records go on the board.
         gameRef?.end.annotate(
@@ -374,6 +385,10 @@ async function main(): Promise<void> {
           livesRemaining: w.lives,
           waveReached: w.waveSystem.currentWaveOneBased,
           runConfig: run.runConfig,
+          heroId: w.hero?.heroId ?? null,
+          enemiesKilled: w.enemiesKilledTotal,
+          wavesCleared: Math.max(0, w.waveSystem.currentWaveOneBased - 1),
+          heroXpEarned: w.heroSystem.runXp,
         });
       }
       location.assign(routing.worldMapHref());
