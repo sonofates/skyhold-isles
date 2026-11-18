@@ -141,6 +141,7 @@ export class GameSession {
   private unbindSound: (() => void) | null = null;
   private unbindHaptics: (() => void) | null = null;
   private unbindOverlay: (() => void) | null = null;
+  private unbindPause: (() => void) | null = null;
   private deps: SessionRuntimeDeps | null = null;
   private readonly quality: QualityController;
   /** Tile whose ghost tower the radial build ring is previewing (survives pointer-leave refreshes). */
@@ -167,6 +168,9 @@ export class GameSession {
     const platform = getPlatform();
     this.unbindOverlay = platform.onOverlayChange((active) => {
       if (active) this.pauseIfRunning();
+    });
+    this.unbindPause = platform.onPause(() => {
+      this.enterBackground();
     });
     if (platform.isSteam) {
       void hydrateProgressFromCloud(this.progress, LEVELS.length, platform).then(({ merged, updated }) => {
@@ -1332,5 +1336,7 @@ export class GameSession {
     this.unbindHaptics = null;
     this.unbindOverlay?.();
     this.unbindOverlay = null;
+    this.unbindPause?.();
+    this.unbindPause = null;
   }
 }
