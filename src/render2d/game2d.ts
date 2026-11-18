@@ -9,7 +9,8 @@ import { NEUTRAL_RUN_MODIFIERS, type RunModifiers } from '../data/runModifiers.t
 import { getTowerTierStats, TOWER_DEFS } from '../data/towers.ts';
 import { bindHaptics, haptics } from '../platform/haptics.ts';
 import { isTouchDevice, loadSettings } from '../platform/storage.ts';
-import type { TowerEntity } from '../sim/entities.ts';
+import type { EnemyEntity, TowerEntity } from '../sim/entities.ts';
+import { enemyArtFor } from './manifest.ts';
 import type { HeroInitConfig, HeroRuntimeState } from '../sim/heroSystem.ts';
 import { computeSellRefund, SimWorld, type AbilityRuntimeState } from '../sim/world.ts';
 import { collectArtTextureSources, type LoadedArt } from './assets2d.ts';
@@ -151,6 +152,10 @@ export class Game2D {
   private rallyTower = -1;
   /** The hero is selected: the next map tap is a move order (heroInput.ts rules). */
   private heroSel = false;
+  /** The foe the player tapped for its info card (uid guards against pool reuse). */
+  private inspected: { e: EnemyEntity; uid: number } | null = null;
+  /** Gold dashed ring under the inspected foe. */
+  private readonly inspectRing = new Graphics();
   /** Fired when the hero selection changes (HUD portrait highlight). */
   onHeroSelect: ((selected: boolean) => void) | null = null;
   private down: { x: number; y: number; t: number } | null = null;
@@ -238,6 +243,8 @@ export class Game2D {
     this.rangeDisc.anchor.set(0.5);
     this.rangeDisc.visible = false;
     this.layers.groundFx.addChild(this.rangeDisc);
+    this.inspectRing.visible = false;
+    this.layers.groundFx.addChild(this.inspectRing);
     this.fx = new FxLayer(this.map, this.layers.groundFx, this.layers.fx, {
       puff: this.tex.puff,
       ring: this.tex.ring,
@@ -434,6 +441,8 @@ export class Game2D {
     this.endShown = false;
     this.selectedTower = -1;
     this.rangeDisc.visible = false;
+    this.inspected = null;
+    this.inspectRing.visible = false;
     this.enemies.reset();
     this.fx.clear();
     this.damageNumbers.clear();
@@ -755,6 +764,7 @@ export class Game2D {
     }
     this.ring.update(dtSec, world.gold);
     this.syncRangePreview();
+    this.syncInspectRing();
 
     // A selected tower could be sold or the run reset.
     if (this.selectedTower !== -1 && !world.getTowerById(this.selectedTower)) this.closeRing();
@@ -857,6 +867,94 @@ export class Game2D {
     audio?.sound.setMusicDucked(true);
     this.syncHud(0, true);
     return true;
+  }
+
+  /** The foe whose info card is open, while it lives (null otherwise). */
+  get inspectedEnemy(): EnemyEntity | null {
+    const i = this.inspected;
+    if (!i) return null;
+    if (!i.e.active || i.e.uid !== i.uid || i.e.hp <= 0) return null;
+    return i.e;
+  }
+
+  /** Was a foe being inspected (its card may say it fell)? */
+  get inspecting(): boolean {
+    return this.inspected !== null;
+  }
+
+  /** Closes the foe info card. */
+  clearInspect(): void {
+    this.inspected = null;
+    this.inspectRing.visible = false;
+  }
+
+  /** World height (units) of a foe's figure (from its art), for hit tests and anchoring. */
+  private enemyFigureHeight(e: EnemyEntity): number {
+    const entry = enemyArtFor(this.art.manifest, e.type, e.flying);
+    const h = this.art.enemies[entry.art]?.spec.height ?? 1.3;
+    return h * (entry.scale ?? 1);
+  }
+
+  /** Screen point (css px) at the middle of a foe's figure, and the figure's height in px. */
+  enemyScreen(e: EnemyEntity): { x: number; y: number; h: number } {
+    const ppu = this.level.layout2d!.pxPerUnit;
+    const hPx = this.enemyFigureHeight(e) * ppu;
+    const px = this.map.pxX(e.x);
+    const py = this.map.pxY(e.z) - e.y * 0.9 * ppu - hPx * 0.5;
+    return { x: this.map.screenX(px), y: this.map.screenY(py), h: hPx * this.map.fit.scale };
+  }
+
+  /** The live foe under a screen point (nearest figure centre within a touch-sized reach), or null. */
+  enemyAt(x: number, y: number): EnemyEntity | null {
+    const pool = this.world.enemyPool;
+    let best: EnemyEntity | null = null;
+    let bd = Infinity;
+    for (let i = 0; i < pool.getActiveCount(); i++) {
+      const e = pool.items[pool.getActiveIndex(i)];
+      if (!e.active || e.hp <= 0 || e.burrowed) continue;
+      const c = this.enemyScreen(e);
+      const reach = Math.max(26, c.h * 0.55);
+      const d = Math.hypot(x - c.x, (y - c.y) * 0.8);
+      if (d <= reach && d < bd) {
+        bd = d;
+        best = e;
+      }
+    }
+    return best;
+  }
+
+  private syncInspectRing(): void {
+    const e = this.inspectedEnemy;
+    const g = this.inspectRing;
+    if (!e) {
+      g.visible = false;
+      return;
+    }
+    const ppu = this.level.layout2d!.pxPerUnit;
+    const r = Math.max(0.55, this.enemyFigureHeight(e) * 0.42) * ppu;
+    const px = this.map.pxX(e.x);
+    const py = this.map.pxY(e.z);
+    if (!g.visible || g.label !== `r${Math.round(r)}`) {
+      g.clear();
+      const n = 14;
+      for (let k = 0; k < n; k++) {
+        const a0 = (k / n) * Math.PI * 2;
+        const a1 = a0 + (Math.PI * 2) / n * 0.55;
+        g.moveTo(Math.cos(a0) * r, Math.sin(a0) * r).arc(0, 0, r, a0, a1);
+      }
+      g.stroke({ color: 0x3a2412, width: 7, alpha: 0.55, cap: 'round' });
+      for (let k = 0; k < n; k++) {
+        const a0 = (k / n) * Math.PI * 2;
+        const a1 = a0 + (Math.PI * 2) / n * 0.55;
+        g.moveTo(Math.cos(a0) * r, Math.sin(a0) * r).arc(0, 0, r, a0, a1);
+      }
+      g.stroke({ color: 0xffd76a, width: 4, cap: 'round' });
+      g.label = `r${Math.round(r)}`;
+      g.scale.set(1, 0.5);
+    }
+    g.visible = true;
+    g.position.set(px, py);
+    g.rotation = 0;
   }
 
   /** Range circle on the map: the tower the ring points at (selected / hovered), else the selected tower. */
@@ -1159,6 +1257,16 @@ export class Game2D {
       return;
     }
     if (this.heroSel) this.setHeroSelected(false);
+    if (plot === -1 && !this.ring.isOpen) {
+      // A tap on a foe opens its info card; any other empty tap closes it.
+      const foe = this.enemyAt(x, y);
+      if (foe) {
+        haptics.pulse('tap');
+        this.inspected = { e: foe, uid: foe.uid };
+        return;
+      }
+    }
+    this.clearInspect();
     if (plot === -1 || (this.ring.isOpen && this.ring.plot === plot)) {
       this.closeRing();
       return;
@@ -1278,6 +1386,7 @@ export class Game2D {
       else if (e.key === 'Escape') {
         this.closeRing();
         this.setHeroSelected(false);
+        this.clearInspect();
       }
     });
   }

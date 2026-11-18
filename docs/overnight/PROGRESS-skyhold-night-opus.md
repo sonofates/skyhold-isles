@@ -47,8 +47,14 @@ QA: `npx vite preview --port 4381 --strictPort` in background (kill with TaskSto
   and stays warm red while low), pause on window blur (desktop), Settings → Controls lists 3 (3×)
   and a "Watching a replay" section. QA `qa/flowshots.mjs` (lives hit/low, key 3, blur, controls).
 
+- **R1 backlog 2c — foe info card — DONE:** tap a foe (not on a plot, ring closed) → parchment card
+  following it (`ui/enemyCard2d.ts|.css`): portrait, name, Boss/Flyer/Empowered tags, live HP bar
+  (+ ward shield), armour, speed word, lives cost, bounty, description, "How to stop it"; gold dashed
+  ring under the foe (game2d `inspectRing`); "Defeated!" + fade when it falls; Esc / any other tap
+  closes; keeps off the HUD buttons. Hit test from sim pos + art height (`game.enemyAt`).
+
 ## Next (backlog 2: missing basics) — candidates, in rough value order
-- enemy info card on tap; tower info card (stats, targeting, upgrade/sell with refund)
+- tower info card: the build ring tooltip already has stats/targeting/upgrade/sell+refund; review only
 - first-time coach marks on l1c; victory stars breakdown
 - Then backlog 3 (ability-bar placement: i12 at 1366x768 the bar sits ON the castle — castle is not a keep-out; l1c column), 4 polish.
 

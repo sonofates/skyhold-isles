@@ -137,6 +137,8 @@ export const EN = {
   'replay.exit': 'Leave the replay',
   'replay.keys': 'Space pause · 1 2 4 speed · Esc leave',
   'wave.next': 'Next: wave {n}',
+  'foe.empowered': 'Empowered',
+  'foe.fell': 'Defeated!',
   'wave.startHint': 'Blow the horn to begin',
   'wave.inSecs': 'Marches in {n}s',
   'wave.earlyBonus': 'Call early: +{n}',

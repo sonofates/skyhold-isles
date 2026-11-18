@@ -7,6 +7,9 @@ import { TR } from '../../src/i18n/tr.ts';
 import { SimWorld } from '../../src/sim/world.ts';
 import { nextSpeed, REPLAY_SPEEDS } from '../../src/render2d/game2d.ts';
 import { waveChips } from '../../src/render2d/ui/wavePreview2d.ts';
+import { foeFacts } from '../../src/render2d/ui/enemyCard2d.ts';
+import { livesLow } from '../../src/render2d/ui/lowLives2d.ts';
+import { ENEMY_DEFS, ENEMY_TYPES } from '../../src/data/enemies.ts';
 import { besideAnchorSpot } from '../../src/render2d/uiLayout.ts';
 
 afterEach(() => setLocale('en'));
@@ -63,8 +66,35 @@ describe('next-wave card', () => {
   });
 });
 
+describe('foe card + lives warning', () => {
+  it('every foe type has a name, speed word and stats in both languages', () => {
+    for (const lang of ['en', 'tr'] as const) {
+      setLocale(lang);
+      for (const type of ENEMY_TYPES) {
+        const d = ENEMY_DEFS[type];
+        const f = foeFacts({ type, flying: d.flying, elite: false, armor: d.armor, speed: d.speed });
+        expect(f.name, type).toBeTruthy();
+        expect(f.speed, type).not.toMatch(/^codex\./);
+        expect(f.lives).toBe(d.livesCost);
+        expect(f.bounty).toBe(d.reward);
+      }
+    }
+  });
+  it('tags: boss, flyer, empowered', () => {
+    const f = foeFacts({ type: 'flyer', flying: true, elite: true, armor: 0, speed: 3 });
+    expect(f.tags).toEqual(['Flyer', 'Empowered']);
+    expect(foeFacts({ type: 'boss', flying: false, elite: false, armor: 5, speed: 1 }).tags).toContain('Boss');
+  });
+  it('lives are low at a quarter of the start or 3, never at 0', () => {
+    expect(livesLow(5, 20)).toBe(true);
+    expect(livesLow(6, 20)).toBe(false);
+    expect(livesLow(3, 5)).toBe(true);
+    expect(livesLow(0, 20)).toBe(false);
+  });
+});
+
 describe('flow texts', () => {
-  const keys = Object.keys(EN).filter((k) => /^(pause|confirm|replay|wave)\./.test(k) || k === 'end.replay');
+  const keys = Object.keys(EN).filter((k) => /^(pause|confirm|replay|wave|foe)\./.test(k) || k === 'end.replay');
   it('every pause / confirm / replay / wave string exists in EN and TR, and differs', () => {
     expect(keys.length).toBeGreaterThan(20);
     for (const k of keys) {

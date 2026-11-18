@@ -97,6 +97,9 @@ declare global {
       /** QA: the next-wave card beside the horn. */
       waveCard?: () => Record<string, unknown> | null;
       lives?: () => Record<string, unknown> | null;
+      /** QA: the foe info card, and the screen point of a live foe to tap. */
+      foe?: () => Record<string, unknown> | null;
+      foeAt?: () => { x: number; y: number; h: number } | null;
       aimAbility?: (id: AbilityId | null) => void;
       /** QA: stop / restart the ticker (a frozen frame for mid-effect screenshots, no Paused plate). */
       freeze?: (on: boolean) => void;
@@ -387,6 +390,7 @@ async function main(): Promise<void> {
   let pauseMenu: import('./ui/runControls2d.ts').PauseMenu2D | null = null;
   let waveCard: import('./ui/wavePreview2d.ts').WaveCard2D | null = null;
   let livesWarn: import('./ui/lowLives2d.ts').LivesWarning | null = null;
+  let foeCard: import('./ui/enemyCard2d.ts').EnemyCard2D | null = null;
   let settingsRef: Settings2D | null = null;
   let gameRef: Game2D | null = null;
   let codexWasPaused = false;
@@ -655,6 +659,7 @@ async function main(): Promise<void> {
     const { mountWaveCard } = await import('./ui/wavePreview2d.ts');
     const { codexEnemyUrl } = await import('./codex2d.ts');
     livesWarn = (await import('./ui/lowLives2d.ts')).mountLivesWarning();
+    foeCard = (await import('./ui/enemyCard2d.ts')).mountEnemyCard((type) => codexEnemyUrl(art, type));
     waveCard = mountWaveCard(
       (type) => codexEnemyUrl(art, type),
       () => {
@@ -722,6 +727,12 @@ async function main(): Promise<void> {
       fpsChip.show(stats.snapshot(t0).fps);
     }
     pauseMenu?.setPlate(storyOpen || anySheetOpen() || game.replaying ? null : game.hud.pausePlate);
+    if (foeCard) {
+      const foe = game.inspectedEnemy;
+      const showFoe = game.inspecting && !game.end.visible && !anySheetOpen();
+      foeCard.update(showFoe ? foe : null, showFoe, foe ? game.enemyScreen(foe) : null, { w: app.screen.width, h: app.screen.height }, showFoe && foe ? [hudButtonsKeepOut(app.screen.width, app.screen.height, readSafeInsets()), ...hudKeepOuts()] : []);
+      if (game.inspecting && !foe && !foeCard.debug().shown) game.clearInspect();
+    }
     livesWarn?.update(game.world.lives, game.world.startingLives, !game.end.visible && !storyOpen && game.world.outcome === 'ongoing');
     if (waveCard) {
       const w = game.world;
@@ -763,6 +774,15 @@ async function main(): Promise<void> {
     abilities: () => abilities?.debug() ?? null,
     waveCard: () => waveCard?.debug() ?? null,
     lives: () => livesWarn?.debug() ?? null,
+    foe: () => foeCard?.debug() ?? null,
+    foeAt: () => {
+      const pool = game.world.enemyPool;
+      for (let i = 0; i < pool.getActiveCount(); i++) {
+        const e = pool.items[pool.getActiveIndex(i)];
+        if (e.active && e.hp > 0 && !e.burrowed) return game.enemyScreen(e);
+      }
+      return null;
+    },
     aimAbility: (id) => abilities?.aim(id),
     freeze: (on) => (on ? app.ticker.stop() : app.ticker.start()),
     replay: {

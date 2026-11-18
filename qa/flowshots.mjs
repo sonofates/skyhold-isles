@@ -30,12 +30,31 @@ for (const size of SIZES) {
     await page.goto(`${BASE}/2d.html?level=l1c&hero=bran&lang=${lang}&desktop=${size.desktop ? 1 : 0}`);
     await page.waitForFunction(() => window.__p0?.lives && !document.getElementById('boot'), null, { timeout: 60000 });
     await page.waitForTimeout(500);
-    // Low lives: drop to 4 of 20 (a hit flash, then the slow pulse).
+    // Foe info card: call wave 1, let foes walk out, tap one.
     await page.evaluate(() => {
       window.__p0.replay.cmd({ k: 'wave' });
-      window.__p0.setLives(4);
+      window.__p0.replay.step(40);
     });
-    await page.waitForTimeout(150);
+    await page.waitForTimeout(300);
+    await page.evaluate(() => window.__p0.freeze(true));
+    const at = await page.evaluate(() => window.__p0.foeAt());
+    if (!at) problems.push(`${tag}: no foe to tap`);
+    else {
+      await page.evaluate(([x, y]) => window.__p0.hero.tap(x, y), [at.x, at.y]);
+      await page.evaluate(() => window.__p0.freeze(false));
+      await page.waitForTimeout(400);
+      await page.evaluate(() => window.__p0.freeze(true));
+      const fc = await page.evaluate(() => window.__p0.foe());
+      ok(fc?.shown && fc.type, `${tag}: foe card not shown ${JSON.stringify(fc)}`);
+      await page.screenshot({ path: `${OUT}/${lang}-${size.key}-foe-card.jpg`, type: 'jpeg', quality: 84 });
+      await page.evaluate(() => window.__p0.freeze(false));
+      await page.keyboard.press('Escape');
+      await page.waitForTimeout(300);
+      ok(!(await page.evaluate(() => window.__p0.foe().shown)), `${tag}: Esc did not close the foe card`);
+    }
+    // Low lives: drop to 4 of 20 (a hit flash, then the slow pulse).
+    await page.evaluate(() => window.__p0.setLives(4));
+    await page.waitForFunction(() => window.__p0.lives().low, null, { timeout: 5000 }).catch(() => undefined);
     let lv = await page.evaluate(() => window.__p0.lives());
     ok(lv.low && lv.flashes >= 1, `${tag}: low lives not flagged ${JSON.stringify(lv)}`);
     await page.screenshot({ path: `${OUT}/${lang}-${size.key}-lives-hit.jpg`, type: 'jpeg', quality: 82 });

@@ -143,6 +143,8 @@ export const TR: { readonly [K in MsgKey]: Msg } = {
   'replay.exit': 'Kayıttan çık',
   'replay.keys': 'Boşluk duraklat · 1 2 4 hız · Esc çık',
   'wave.next': 'Sıradaki: {n}. dalga',
+  'foe.empowered': 'Güçlenmiş',
+  'foe.fell': 'Yere serildi!',
   'wave.startHint': 'Başlamak için boruyu çal',
   'wave.inSecs': '{n} sn sonra yola çıkar',
   'wave.earlyBonus': 'Erken çağır: +{n}',
