@@ -12,6 +12,23 @@
   "heart": "icon-heart.webp",
   "gold": "icon-gold.webp"
  },
+ "uiKit": {
+  "medallion": "ui/medallion.webp",
+  "medallionHi": "ui/medallion-hi.webp",
+  "priceTag": "ui/price-tag.webp",
+  "tooltip": "ui/tooltip.webp",
+  "iconConfirm": "ui/icon-confirm.webp",
+  "iconUpgrade": "ui/icon-upgrade.webp",
+  "iconSell": "ui/icon-sell.webp",
+  "iconRally": "ui/icon-rally.webp",
+  "iconTarget": "ui/icon-target.webp",
+  "star": "ui/star.webp",
+  "starEmpty": "ui/star-empty.webp",
+  "endPanel": "ui/end-panel.webp",
+  "endPanelDefeat": "ui/end-panel-defeat.webp",
+  "hudPlaque": "ui/hud-plaque.webp",
+  "buttonRound": "ui/button-round.webp"
+ },
  "towers": {
   "archer": {
    "tiers": [

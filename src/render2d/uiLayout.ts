@@ -1,0 +1,330 @@
+/**
+ * Pure layout math for the painted 2D UI (no Pixi): the radial build / tower ring, its tooltip,
+ * the lives + gold plaque and the end-of-run panel. Everything is in css px of the canvas and
+ * respects the device safe-area insets (notches, rounded corners) plus a small visual margin.
+ */
+import type { TowerType } from '../core/types.ts';
+import { getTowerTierStats, TOWER_DEFS } from '../data/towers.ts';
+
+export interface Insets {
+  readonly top: number;
+  readonly right: number;
+  readonly bottom: number;
+  readonly left: number;
+}
+
+export const NO_INSETS: Insets = { top: 0, right: 0, bottom: 0, left: 0 };
+
+export interface Rect {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+export interface Pt {
+  x: number;
+  y: number;
+}
+
+/** UI scale for a viewport: 1 at ~1400x760, clamped so phones and 4K stay readable. */
+export function uiScale(w: number, h: number): number {
+  return Math.max(0.5, Math.min(1.2, Math.min(w / 1400, h / 760)));
+}
+
+// ---------------------------------------------------------------------------------------------
+// Radial ring
+// ---------------------------------------------------------------------------------------------
+
+/** Minimum gap between two medallion discs (css px), on top of the price tag allowance. */
+const RING_GAP = 8;
+
+/** Angles (radians, screen space: 0 = right, π/2 = down) for `count` evenly spaced build medallions, first at the top, clockwise. */
+export function evenAngles(count: number): number[] {
+  const out: number[] = [];
+  for (let i = 0; i < count; i++) out.push(-Math.PI / 2 + (Math.PI * 2 * i) / Math.max(1, count));
+  return out;
+}
+
+/**
+ * Ring radius (centre → medallion centre) so neighbouring medallions — each a disc of `tokenR`
+ * with a price tag of height `tagH` hanging under it — never touch, and the plot in the middle
+ * stays visible.
+ */
+export function ringRadius(angles: readonly number[], tokenR: number, tagH: number): number {
+  let minStep = Math.PI * 2;
+  const n = angles.length;
+  if (n >= 2) {
+    const sorted = [...angles].map((a) => ((a % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2)).sort((a, b) => a - b);
+    for (let i = 0; i < n; i++) {
+      const next = i + 1 < n ? sorted[i + 1] : sorted[0] + Math.PI * 2;
+      minStep = Math.min(minStep, next - sorted[i]);
+    }
+  }
+  const need = tokenR * 2 + RING_GAP + tagH * 0.5;
+  const chordR = n >= 2 ? need / (2 * Math.sin(Math.min(Math.PI / 2, minStep / 2))) : 0;
+  return Math.max(tokenR * 2.35, chordR);
+}
+
+export interface RingLayout {
+  /** Where the ring is centred after the on-screen clamp (may differ from the plot). */
+  cx: number;
+  cy: number;
+  radius: number;
+  /** Bounding box of medallions + tags. */
+  box: Rect;
+}
+
+/**
+ * Places medallions at `angles` around (cx, cy) and shifts the whole ring (never squashes it) so
+ * every medallion and its price tag stays inside the screen minus the safe insets and `margin`.
+ * Writes centres to `out` (reused array) and returns the clamped centre + bounding box.
+ */
+export function layoutRadial(
+  cx: number,
+  cy: number,
+  angles: readonly number[],
+  tokenR: number,
+  tagH: number,
+  screenW: number,
+  screenH: number,
+  insets: Insets,
+  out: Pt[],
+  margin = 6,
+  minRadius = 0,
+): RingLayout {
+  const radius = Math.max(minRadius, ringRadius(angles, tokenR, tagH));
+  let minX = Infinity;
+  let maxX = -Infinity;
+  let minY = Infinity;
+  let maxY = -Infinity;
+  for (let i = 0; i < angles.length; i++) {
+    const dx = Math.cos(angles[i]) * radius;
+    const dy = Math.sin(angles[i]) * radius;
+    minX = Math.min(minX, dx - tokenR);
+    maxX = Math.max(maxX, dx + tokenR);
+    minY = Math.min(minY, dy - tokenR);
+    maxY = Math.max(maxY, dy + tokenR + tagH * 0.75);
+  }
+  if (angles.length === 0) minX = maxX = minY = maxY = 0;
+  const loX = insets.left + margin - minX;
+  const hiX = screenW - insets.right - margin - maxX;
+  const loY = insets.top + margin - minY;
+  const hiY = screenH - insets.bottom - margin - maxY;
+  const x = loX <= hiX ? Math.min(hiX, Math.max(loX, cx)) : (loX + hiX) / 2;
+  const y = loY <= hiY ? Math.min(hiY, Math.max(loY, cy)) : (loY + hiY) / 2;
+  for (let i = 0; i < angles.length; i++) {
+    const p = out[i] ?? (out[i] = { x: 0, y: 0 });
+    p.x = x + Math.cos(angles[i]) * radius;
+    p.y = y + Math.sin(angles[i]) * radius;
+  }
+  out.length = angles.length;
+  return { cx: x, cy: y, radius, box: { x: x + minX, y: y + minY, w: maxX - minX, h: maxY - minY } };
+}
+
+export type TipSide = 'right' | 'left' | 'below' | 'above' | 'clamped';
+
+function overlapArea(a: Rect, b: Rect): number {
+  const w = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x);
+  const h = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y);
+  return w > 0 && h > 0 ? w * h : 0;
+}
+
+/**
+ * Tooltip beside the ring: right, left, below, then above — the first spot that is fully on
+ * screen without covering the ring wins. If none fits (tiny screens) it takes the on-screen spot
+ * that covers the least of the ring.
+ */
+export function placeTooltip(ring: Rect, tipW: number, tipH: number, screenW: number, screenH: number, insets: Insets, gap = 10, margin = 6): Rect & { side: TipSide } {
+  const L = insets.left + margin;
+  const R = screenW - insets.right - margin;
+  const T = insets.top + margin;
+  const B = screenH - insets.bottom - margin;
+  const clampX = (x: number): number => Math.max(L, Math.min(R - tipW, x));
+  const clampY = (y: number): number => Math.max(T, Math.min(B - tipH, y));
+  const ccx = ring.x + ring.w / 2;
+  const ccy = ring.y + ring.h / 2;
+  const cands: { side: TipSide; x: number; y: number }[] = [
+    { side: 'right', x: ring.x + ring.w + gap, y: clampY(ccy - tipH / 2) },
+    { side: 'left', x: ring.x - gap - tipW, y: clampY(ccy - tipH / 2) },
+    { side: 'below', x: clampX(ccx - tipW / 2), y: ring.y + ring.h + gap },
+    { side: 'above', x: clampX(ccx - tipW / 2), y: ring.y - gap - tipH },
+  ];
+  for (const c of cands) {
+    if (c.x >= L - 0.01 && c.x + tipW <= R + 0.01 && c.y >= T - 0.01 && c.y + tipH <= B + 0.01) {
+      return { x: c.x, y: c.y, w: tipW, h: tipH, side: c.side };
+    }
+  }
+  let best: (Rect & { side: TipSide }) | null = null;
+  let bestCover = Infinity;
+  for (const c of cands) {
+    const r = { x: clampX(c.x), y: clampY(c.y), w: tipW, h: tipH };
+    const cover = overlapArea(r, ring);
+    if (cover < bestCover) {
+      bestCover = cover;
+      best = { ...r, side: 'clamped' };
+    }
+  }
+  return best!;
+}
+
+// ---------------------------------------------------------------------------------------------
+// Tower stat pips (tooltip)
+// ---------------------------------------------------------------------------------------------
+
+export interface StatRow {
+  readonly label: string;
+  /** 0..5 */
+  readonly pips: number;
+}
+
+function pipsFor(v: number, steps: readonly number[]): number {
+  let n = 0;
+  for (const s of steps) if (v >= s) n++;
+  return n;
+}
+
+const DMG_STEPS = [1, 15, 30, 60, 110] as const;
+const RATE_STEPS = [0.01, 0.5, 0.9, 1.3, 1.9] as const;
+const RANGE_STEPS = [0.1, 4.5, 5.5, 7.5, 10] as const;
+
+/** Three 0..5 pip rows for a tower tier (attack: damage / range / speed; support / barracks get their own). */
+export function statRows(type: TowerType, tier: 1 | 2 | 3): StatRow[] {
+  const def = TOWER_DEFS[type];
+  const s = getTowerTierStats(type, tier);
+  if (def.role === 'support') {
+    return [
+      { label: 'Haste', pips: pipsFor((s.auraRate ?? 0) * 100, [1, 10, 16, 22, 28]) },
+      { label: 'Reach', pips: pipsFor((s.auraRange ?? 0) * 100, [0.01, 5, 10, 15, 20]) },
+      { label: 'Aura', pips: pipsFor(s.range, [0.1, 3, 3.8, 4.4, 5.2]) },
+    ];
+  }
+  if (def.role === 'barracks') {
+    return [
+      { label: 'Soldiers', pips: Math.min(5, s.soldierCount ?? 0) },
+      { label: 'Toughness', pips: pipsFor(s.soldierHp ?? 0, [1, 100, 150, 210, 300]) },
+      { label: 'Damage', pips: pipsFor(s.soldierDamage ?? s.damage, [1, 10, 18, 25, 40]) },
+    ];
+  }
+  return [
+    { label: 'Damage', pips: pipsFor(s.damage, DMG_STEPS) },
+    { label: 'Range', pips: pipsFor(s.range, RANGE_STEPS) },
+    { label: 'Speed', pips: pipsFor(s.fireRate, RATE_STEPS) },
+  ];
+}
+
+const ROLE_LINES: Readonly<Record<TowerType, string>> = {
+  archer: 'Fast arrows · ground & air',
+  cannon: 'Splash shells · ground only',
+  frost: 'Chills and slows · ground & air',
+  tesla: 'Chain lightning · ground & air',
+  mortar: 'Huge range · close blind spot',
+  ballista: 'Armor-piercing bolts · ground & air',
+  beacon: 'Support · speeds up nearby towers',
+  barracks: 'Soldiers block the road',
+};
+
+export function roleLine(type: TowerType): string {
+  return ROLE_LINES[type] ?? TOWER_DEFS[type]?.shortDesc ?? '';
+}
+
+// ---------------------------------------------------------------------------------------------
+// HUD plaque
+// ---------------------------------------------------------------------------------------------
+
+/** Number areas of the plaque art, as fractions of its width / height (measured from the art). */
+export interface PlaqueSlots {
+  /** Left edge and right edge (fractions of width) of the lives / gold number areas. */
+  readonly lives: readonly [number, number];
+  readonly gold: readonly [number, number];
+  /** Vertical centre of the numbers (fraction of height). */
+  readonly midY: number;
+}
+
+export interface PlaqueLayout {
+  readonly x: number;
+  readonly y: number;
+  readonly w: number;
+  readonly h: number;
+  readonly livesBox: Rect;
+  readonly goldBox: Rect;
+  readonly fontSize: number;
+}
+
+/**
+ * Lives + gold plaque, bottom-left inside the safe area. Width scales with the viewport but never
+ * takes more than 40% of the usable width (the wave banner mirrors it on the right), and never
+ * gets smaller than what keeps a 4-digit gold readable.
+ */
+export function plaqueLayout(w: number, h: number, insets: Insets, aspect: number, slots: PlaqueSlots): PlaqueLayout {
+  const u = uiScale(w, h);
+  const pad = Math.max(8, 14 * u);
+  const usableW = w - insets.left - insets.right - pad * 2;
+  const pw = Math.max(170, Math.min(300 * u, usableW * 0.4));
+  const ph = pw / aspect;
+  const x = insets.left + pad;
+  const y = h - insets.bottom - pad - ph;
+  const box = (s: readonly [number, number]): Rect => ({ x: x + s[0] * pw, y: y + slots.midY * ph - ph * 0.3, w: (s[1] - s[0]) * pw, h: ph * 0.6 });
+  return { x, y, w: pw, h: ph, livesBox: box(slots.lives), goldBox: box(slots.gold), fontSize: Math.round(Math.max(15, ph * 0.4)) };
+}
+
+// ---------------------------------------------------------------------------------------------
+// End panel
+// ---------------------------------------------------------------------------------------------
+
+export interface EndLayout {
+  readonly panel: Rect;
+  /** Star centres (3) and their radius. */
+  readonly stars: readonly Pt[];
+  readonly starR: number;
+  /** Button centres (Retry / Next / Menu) and radius. */
+  readonly buttons: readonly Pt[];
+  readonly buttonR: number;
+  /** Title (on the ribbon) and the summary line. */
+  readonly title: Pt;
+  readonly summary: Pt;
+  readonly fontTitle: number;
+  readonly fontBody: number;
+}
+
+/**
+ * End-of-run panel centred in the safe area, as large as fits (art `aspect` = width / height),
+ * with stars, a summary line and a row of round buttons inside it. `ribbonFrac` = share of the
+ * art's height taken by the title ribbon at the top; `innerTop`/`innerBottom` = where the
+ * parchment interior starts / ends (fractions of height).
+ */
+export function endLayout(
+  w: number,
+  h: number,
+  insets: Insets,
+  aspect: number,
+  frame: { readonly ribbonMid: number; readonly innerTop: number; readonly innerBottom: number },
+): EndLayout {
+  const availW = w - insets.left - insets.right - 24;
+  const availH = h - insets.top - insets.bottom - 24;
+  const pw = Math.min(availW, availH * aspect, 720);
+  const ph = pw / aspect;
+  const px = insets.left + (w - insets.left - insets.right - pw) / 2;
+  const py = insets.top + (h - insets.top - insets.bottom - ph) / 2;
+  const top = py + ph * frame.innerTop;
+  const bottom = py + ph * frame.innerBottom;
+  const inner = bottom - top;
+  const starR = Math.max(16, Math.min(pw * 0.072, inner * 0.16));
+  const starY = top + inner * 0.18;
+  const stars = [-1, 0, 1].map((k) => ({ x: px + pw / 2 + k * starR * 2.4, y: starY + (k === 0 ? -starR * 0.25 : starR * 0.12) }));
+  const buttonR = Math.max(24, Math.min(pw * 0.062, inner * 0.13));
+  const btnY = top + inner * 0.74;
+  const buttons = [-1, 0, 1].map((k) => ({ x: px + pw / 2 + k * buttonR * 3.3, y: btnY }));
+  const fontBody = Math.round(Math.max(14, Math.min(26, inner * 0.085)));
+  return {
+    panel: { x: px, y: py, w: pw, h: ph },
+    stars,
+    starR,
+    buttons,
+    buttonR,
+    title: { x: px + pw / 2, y: py + ph * frame.ribbonMid },
+    summary: { x: px + pw / 2, y: top + inner * 0.42 },
+    fontTitle: Math.round(Math.max(22, Math.min(54, ph * 0.085))),
+    fontBody,
+  };
+}

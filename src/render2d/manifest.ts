@@ -14,6 +14,11 @@ export interface ArtManifest {
   /** Empty build plot sprite (drawn by the renderer on every free plot) and its stone ring. */
   readonly plot: PlotArt | null;
   readonly ui: UiArt;
+  /**
+   * Optional painted UI kit (radial ring medallions, price tag, tooltip panel, icons, stars, end
+   * panel, HUD plaque): key → file. Every key is optional; code falls back to the core `ui` art.
+   */
+  readonly uiKit?: Readonly<Record<string, string>>;
   readonly towers: Readonly<Partial<Record<TowerType, TowerArt>>>;
   /** Tower types offered in the build ring, in ring order. */
   readonly buildRing: readonly TowerType[];
@@ -398,6 +403,9 @@ export function parseManifest(raw: unknown): ArtManifest {
       heart: str(ui.heart, 'ui.heart'),
       gold: str(ui.gold, 'ui.gold'),
     },
+    ...(m.uiKit !== undefined && m.uiKit !== null
+      ? { uiKit: Object.fromEntries(Object.entries(obj(m.uiKit, 'uiKit')).map(([k, f]) => [k, str(f, `uiKit.${k}`)])) }
+      : {}),
     towers,
     buildRing,
     enemies,

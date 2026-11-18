@@ -1,6 +1,6 @@
 import '@fontsource-variable/fredoka';
 import { Application, UPDATE_PRIORITY } from 'pixi.js';
-import { getLevelById } from '../data/levels2d/index.ts';
+import { getLevelById, LEVELS_2D } from '../data/levels2d/index.ts';
 import { AbScene } from './abScene.ts';
 import { artCheckSummary, mountArtCheck } from './artCheck.ts';
 import { loadArt } from './assets2d.ts';
@@ -24,6 +24,7 @@ import { HUD_FONT } from './hudText.ts';
  *   ?towers=1[&tier=N] every tower type built and firing (cycles T1-T3 unless tier is given)
  *   ?towers=aim&type=cannon|archer|ballista[&tier=N]  turret aim QA (window.__aim, aim overlay)
  *   ?speed=2|3        start at 2× / 3× sim speed (QA recordings)
+ *   ?end=won|lost     force the end panel shortly after load (UI QA)
  */
 interface BenchStats {
   readonly fps: number;
@@ -46,6 +47,8 @@ declare global {
       mode: string;
       state: () => Record<string, unknown>;
       plotScreen?: (i: number) => { x: number; y: number };
+      forceEnd?: (o: 'won' | 'lost') => void;
+      setGold?: (g: number) => void;
       artcheck?: () => ReturnType<typeof artCheckSummary>;
     };
   }
@@ -137,7 +140,19 @@ async function main(): Promise<void> {
     hooks = aimHooks(type, tier, aimState, Math.max(0.5, Number(q.get('hold') ?? 1.6) || 1.6));
   } else if (q.get('towers') === '1') hooks = towersHooks(Math.max(0, Math.min(3, Number(q.get('tier') ?? 0) || 0)) || null);
   else if (q.get('autoplay') === '1') hooks = autoplayHooks(level.scriptedBuildOrder ?? []);
+  // End panel: Next = the following 2D island (hidden when there is none), Menu = the main game.
+  const idx2d = LEVELS_2D.findIndex((l) => l.id === level.id);
+  const next2d = idx2d >= 0 ? LEVELS_2D[idx2d + 1] : undefined;
+  hooks = {
+    ...hooks,
+    onMenu: () => location.assign('/'),
+    ...(next2d ? { onNext: () => location.assign(`${location.pathname}?level=${next2d.id}`) } : {}),
+  };
   const game = new Game2D(app, art, level, hooks);
+  if (q.get('end') === 'won' || q.get('end') === 'lost') {
+    const end = q.get('end') as 'won' | 'lost';
+    setTimeout(() => game.forceEnd(end), 300);
+  }
   game.attachInput(app.canvas);
   const startSpeed = Number(q.get('speed'));
   if (startSpeed === 2 || startSpeed === 3) game.stepper.speed = startSpeed;
@@ -175,7 +190,11 @@ async function main(): Promise<void> {
     mode: bench > 0 ? 'bench' : 'play',
     state: () => game.debugState(),
     plotScreen: (i) => game.plotScreen(i),
+    forceEnd: (o) => game.forceEnd(o),
     artcheck: () => artCheckSummary(art),
+    setGold: (g) => {
+      game.world.gold = g;
+    },
   };
   if (aimState) window.__aim = aimState;
   if (bench > 0) {

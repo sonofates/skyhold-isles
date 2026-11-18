@@ -1,13 +1,14 @@
 import { Container, Sprite, type Application } from 'pixi.js';
 import { EventBus, type GameEventMap } from '../core/eventBus.ts';
 import { FixedTimestepStepper } from '../core/gameLoop.ts';
-import type { SpeedMultiplier, TowerType } from '../core/types.ts';
+import type { SpeedMultiplier, TargetingMode, TowerType } from '../core/types.ts';
 import type { LevelDef } from '../data/levels/types.ts';
 import { getTowerTierStats, TOWER_DEFS } from '../data/towers.ts';
 import type { TowerEntity } from '../sim/entities.ts';
 import { computeSellRefund, SimWorld } from '../sim/world.ts';
 import type { LoadedArt } from './assets2d.ts';
 import { BuildRing, type RingAction } from './buildRing.ts';
+import { EndPanel, endStars } from './endPanel.ts';
 import { EnemyLayer } from './enemyLayer.ts';
 import { FxLayer } from './fxLayer.ts';
 import { Hud, type HudState } from './hud.ts';
@@ -19,6 +20,10 @@ import { ProjectileLayer } from './projectileLayer.ts';
 import { bindSpecialFx, createSpecialFxStats } from './specialFx.ts';
 import { SoldierLayer, withBarracksArt } from './soldierLayer.ts';
 import { TowerLayer } from './towerLayer.ts';
+import { readSafeInsets } from './uiKit.ts';
+import { NO_INSETS, type Insets } from './uiLayout.ts';
+
+const TARGET_CYCLE: readonly TargetingMode[] = ['first', 'last', 'strongest', 'closest'];
 
 /** Tap = pointer released within this distance (css px) and time of the press. */
 const TAP_SLOP = 14;
@@ -29,6 +34,9 @@ export interface Game2DHooks {
   beforeTick?: (world: SimWorld) => void;
   /** Disable the win/lose overlay + restart (bench). */
   endless?: boolean;
+  /** End panel "Next" (shown only when given) and "Menu" targets. */
+  onNext?: () => void;
+  onMenu?: () => void;
 }
 
 /**
@@ -51,6 +59,9 @@ export class Game2D {
   readonly soldiers: SoldierLayer;
   readonly hud: Hud;
   readonly ring: BuildRing;
+  readonly end: EndPanel;
+  private insets: Insets = NO_INSETS;
+  private endShown = false;
   /** Event-FX counters (QA). */
   readonly fxStats = createSpecialFxStats();
   readonly stepper = new FixedTimestepStepper();
@@ -124,7 +135,8 @@ export class Game2D {
     this.soldiers = new SoldierLayer(art, this.map, this.layers, this.tex, this.fx);
     this.hud = new Hud(art);
     this.ring = new BuildRing(art);
-    this.screen.addChild(this.hud.root, this.ring.root);
+    this.end = new EndPanel(art);
+    this.screen.addChild(this.hud.root, this.ring.root, this.end.root);
     app.stage.addChild(this.map.root, this.screen);
     for (const t of art.manifest.buildRing) this.costs.set(t, getTowerTierStats(t, 1).upgradeCost);
     this.minCost = Math.min(...this.costs.values());
@@ -159,6 +171,8 @@ export class Game2D {
     this.stepper.paused = false;
     this.stepper.resetAccumulator();
     this.ring.close();
+    this.end.hide();
+    this.endShown = false;
     this.selectedTower = -1;
     this.rangeDisc.visible = false;
     this.enemies.reset();
@@ -223,7 +237,10 @@ export class Game2D {
     }
     ex /= Math.max(1, ents.length);
     ez /= Math.max(1, ents.length);
-    this.hud.layout(w, h, { x: this.map.screenX(this.map.pxX(ex)) + 10, y: this.map.screenY(this.map.pxY(ez)) });
+    this.insets = readSafeInsets();
+    this.ring.insets = this.insets;
+    this.hud.layout(w, h, { x: this.map.screenX(this.map.pxX(ex)) + 10, y: this.map.screenY(this.map.pxY(ez)) }, this.insets);
+    this.end.layout(w, h, this.insets);
     this.ring.close();
     this.rangeDisc.visible = false;
   }
@@ -258,6 +275,8 @@ export class Game2D {
     this.projectiles.sync(world.projectilePool, alpha);
     this.soldiers.sync(world.soldierSystem, alpha, simDt, dtSec, this.selectedTower, this.rallyTower);
     this.fx.update(simDt > 0 ? simDt : dtSec * 0.25);
+    this.ring.update(dtSec, world.gold);
+    this.syncRangePreview();
 
     // A selected tower could be sold or the run reset.
     if (this.selectedTower !== -1 && !world.getTowerById(this.selectedTower)) this.closeRing();
@@ -272,17 +291,57 @@ export class Game2D {
     s.speed = this.stepper.speed;
     s.canCall = world.outcome === 'ongoing' && world.waveSystem.canStartNextWave();
     s.earlyBonus = s.canCall ? world.waveSystem.getEarlyCallBonus() : 0;
-    s.banner =
-      world.outcome === 'won' && !this.hooks.endless
-        ? 'Victory!'
-        : world.outcome === 'lost' && !this.hooks.endless
-          ? 'Defeat'
-          : this.stepper.paused
-            ? 'Paused'
-            : this.rallyTower !== -1
-              ? 'Tap the road'
-              : '';
+    const over = world.outcome !== 'ongoing' && !this.hooks.endless;
+    s.banner = over ? '' : this.stepper.paused ? 'Paused' : this.rallyTower !== -1 ? 'Tap the road' : '';
     this.hud.update(s as HudState, dtSec);
+    if (over && !this.endShown) {
+      this.endShown = true;
+      this.closeRing();
+      const won = world.outcome === 'won';
+      this.end.show({
+        won,
+        stars: endStars(won, won ? world.computeStars() : 0),
+        lives: world.lives,
+        startLives: world.startingLives,
+        gold: world.gold,
+        wave: s.wave,
+        totalWaves: s.totalWaves,
+        hasNext: !!this.hooks.onNext,
+      });
+    }
+    this.end.update(dtSec);
+  }
+
+  /** Range circle on the map: the tower the ring points at (selected / hovered), else the selected tower. */
+  private syncRangePreview(): void {
+    if (!this.ring.isOpen) return;
+    const pv = this.ring.preview;
+    const p = this.level.layout2d!.plots[this.ring.plot];
+    if (!p) return;
+    let type: TowerType | null = pv ? pv.type : null;
+    let tier: 1 | 2 | 3 = pv ? pv.tier : 1;
+    if (!type && this.selectedTower !== -1) {
+      const t = this.world.getTowerById(this.selectedTower);
+      if (t) {
+        type = t.type;
+        tier = t.tier as 1 | 2 | 3;
+      }
+    }
+    if (!type) {
+      this.rangeDisc.visible = false;
+      return;
+    }
+    const range = getTowerTierStats(type, tier).range;
+    const ppu = this.level.layout2d!.pxPerUnit;
+    this.rangeDisc.position.set(this.map.pxX(p.x), this.map.pxY(p.z));
+    this.rangeDisc.scale.set((range * ppu * 2) / this.tex.rangeDisc.width);
+    this.rangeDisc.visible = true;
+  }
+
+  /** QA / debug: ends the run now (`won` or `lost`). */
+  forceEnd(outcome: 'won' | 'lost'): void {
+    if (outcome === 'won') this.world.debugForceWin();
+    else this.world.debugForceLose();
   }
 
   private closeRing(): void {
@@ -327,6 +386,7 @@ export class Game2D {
         upgradeCost: next,
         refund: computeSellRefund(t.totalInvested),
         ...(t.type === 'barracks' ? { rallyIcon: this.soldiers.flagTexture } : {}),
+        ...(TOWER_DEFS[t.type].role === 'attack' ? { targeting: t.targetingMode } : {}),
       },
       world.gold,
       w,
@@ -347,6 +407,14 @@ export class Game2D {
       world.placeTowerOnPlot(plot, action.type);
     } else if (action.kind === 'upgrade') {
       if (this.selectedTower !== -1) world.upgradeTower(this.selectedTower);
+    } else if (action.kind === 'target') {
+      const t = this.selectedTower !== -1 ? world.getTowerById(this.selectedTower) : null;
+      if (t) {
+        const next = TARGET_CYCLE[(TARGET_CYCLE.indexOf(t.targetingMode) + 1) % TARGET_CYCLE.length];
+        world.setTowerTargeting(t.id, next);
+        this.ring.setTargetMode(next);
+      }
+      return;
     } else if (action.kind === 'rally') {
       // Keep the range disc up: the next tap inside it on the road plants the flag.
       const id = this.selectedTower;
@@ -362,10 +430,14 @@ export class Game2D {
   /** Handles a tap at screen (css px) coordinates. */
   tap(x: number, y: number): void {
     const world = this.world;
-    if (world.outcome !== 'ongoing' && !this.hooks.endless) {
-      this.newRun();
+    if (this.end.visible) {
+      const a = this.end.hit(x, y);
+      if (a === 'retry') this.newRun();
+      else if (a === 'next') this.hooks.onNext?.();
+      else if (a === 'menu') this.hooks.onMenu?.();
       return;
     }
+    if (world.outcome !== 'ongoing' && !this.hooks.endless) return;
     const ringHit = this.ring.hit(x, y);
     if (ringHit !== undefined) {
       if (ringHit) this.doRing(ringHit);
@@ -422,6 +494,11 @@ export class Game2D {
     canvas.addEventListener('pointermove', (e) => {
       if (e.pointerType !== 'mouse') return;
       const r = canvas.getBoundingClientRect();
+      if (this.ring.isOpen && this.ring.hover(e.clientX - r.left, e.clientY - r.top)) {
+        this.hoverPlot = -1;
+        canvas.style.cursor = 'pointer';
+        return;
+      }
       const mx = (e.clientX - r.left - this.map.fit.offsetX) / this.map.fit.scale;
       const my = (e.clientY - r.top - this.map.fit.offsetY) / this.map.fit.scale;
       this.hoverPlot = this.plots.plotAtPx(mx, my);
@@ -453,7 +530,10 @@ export class Game2D {
       paused: this.stepper.paused,
       speed: this.stepper.speed,
       towers: w.towers.map((t) => ({ id: t.id, type: t.type, tier: t.tier, plot: t.col })),
-      ring: { open: this.ring.isOpen, mode: this.ring.mode, plot: this.ring.plot, tokens: this.ring.tokenPositions() },
+      ring: { open: this.ring.isOpen, mode: this.ring.mode, plot: this.ring.plot, tokens: this.ring.tokenPositions(), layout: this.ring.layoutInfo, rangeShown: this.rangeDisc.visible },
+      hud: this.hud.rects(),
+      end: this.end.debug(),
+      insets: this.insets,
       fit: this.map.fit,
       horn: this.hud.hornPosition,
       buttons: this.hud.buttonPositions,

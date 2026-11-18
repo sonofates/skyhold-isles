@@ -106,6 +106,8 @@ export interface LoadedArt {
   /** Empty build plot sprite (null when the manifest has none / it failed to load). */
   readonly plot: PlotArtRuntime | null;
   readonly ui: Readonly<Record<keyof UiArt, Texture>>;
+  /** Painted UI kit textures that loaded (manifest `uiKit`; missing keys are simply absent). */
+  readonly uiKit?: Readonly<Record<string, Texture>>;
   readonly towers: Readonly<Partial<Record<TowerType, TowerArtRuntime>>>;
   readonly enemies: Readonly<Record<string, EnemyArtRuntime>>;
   /** Human-readable fallback notes (missing tiers, frames, sheets). */
@@ -447,11 +449,13 @@ export async function loadArt(
   if (!mapFile) throw new Error(`map ${mapKey} is not in the art manifest`);
 
   const uiKeys = Object.keys(manifest.ui) as (keyof UiArt)[];
+  const kitEntries = Object.entries(manifest.uiKit ?? {});
   const plotSpec = manifest.plot;
-  const [map, plotTex, uiTex, towerList, enemyList] = await Promise.all([
+  const [map, plotTex, uiTex, kitTex, towerList, enemyList] = await Promise.all([
     tryTexture(base + mapFile, true),
     plotSpec ? tryTexture(base + plotSpec.file, true) : Promise.resolve(null),
     Promise.all(uiKeys.map((k) => tryTexture(base + manifest.ui[k]))),
+    Promise.all(kitEntries.map(([, f]) => tryTexture(base + f, true))),
     Promise.all(
       Object.entries(manifest.towers).map(
         async ([type, spec]) => [type, await loadTower(base, spec as TowerArt, present)] as const,
@@ -468,6 +472,14 @@ export async function loadArt(
   else if (plotSpec) notes.push(`plot sprite ${plotSpec.file} missing → plots not drawn`);
   const plot: PlotArtRuntime | null = plotSpec && plotTex ? { texture: plotTex, ring: plotSpec.ring } : null;
   const ui = Object.fromEntries(uiKeys.map((k, i) => [k, uiTex[i] ?? Texture.WHITE])) as Record<keyof UiArt, Texture>;
+  const uiKit: Record<string, Texture> = {};
+  kitEntries.forEach(([k, f], i) => {
+    const t = kitTex[i];
+    if (t) {
+      uiKit[k] = t;
+      present.add(f);
+    } else notes.push(`ui kit ${k}: ${f} missing → core ui art`);
+  });
   const has = (p: string): boolean => present.has(p);
 
   // Enemies whose art has not landed yet draw a tinted raider / brute / kite (manifest fallback).
@@ -520,5 +532,5 @@ export async function loadArt(
     }
     towers[type as TowerType] = out;
   }
-  return { manifest, map, plot, ui, towers, enemies, notes, present, baseUrl: base };
+  return { manifest, map, plot, ui, uiKit, towers, enemies, notes, present, baseUrl: base };
 }
