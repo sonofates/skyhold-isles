@@ -78,6 +78,7 @@ export function markFlyerToastSeen(): void {
 }
 
 export function isTouchDevice(): boolean {
+  if (getPlatform().isMobile) return true;
   if (typeof window === 'undefined') return false;
   const hasTouchPoints = typeof navigator !== 'undefined' && navigator.maxTouchPoints > 0;
   const hasTouchEvent = 'ontouchstart' in window;

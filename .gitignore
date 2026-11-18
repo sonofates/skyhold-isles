@@ -61,3 +61,17 @@ design/art-2d/veo/attack-clips/
 # UI kit: raw image_gen output + copied references stay local; packed WebP in public/art2d/ui is committed
 design/art-2d/ui-kit/raw/
 design/art-2d/ui-kit/refs/
+
+# Mobile local toolchains & build artifacts (Capacitor / Android / iOS)
+.jdk/
+.android-sdk/
+.gradle-home/
+*.apk
+*.aab
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+ios/App/Pods/
+ios/App/build/
+ios/DerivedData/

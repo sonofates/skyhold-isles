@@ -1,14 +1,20 @@
 /**
- * Platform abstraction for desktop (Steam / Electron) vs browser builds.
+ * Platform abstraction for desktop (Steam / Electron), mobile (Capacitor iOS / Android),
+ * and standard browser builds.
  *
  * Renderer code talks exclusively to `PlatformAdapter` (`getPlatform()`):
  *  - `isSteam`: true only when running inside the Electron shell with an initialised Steamworks client
- *  - `overlayActive`: live Steam Shift+Tab overlay state (false on web)
- *  - `achievements.unlock(id)`: unlocks a Steam achievement (safe async no-op on web / Steam offline)
+ *  - `isMobile`: true only when running inside the native Capacitor iOS or Android shell
+ *  - `mobilePlatform`: `'ios' | 'android' | 'web'`
+ *  - `overlayActive`: live Steam Shift+Tab overlay state (false on web / mobile)
+ *  - `achievements.unlock(id)`: unlocks a Steam achievement (safe async no-op on web / mobile / Steam offline)
  *  - `cloudSave.read/write(slot, json)`: Steam Remote Storage when `isSteam`, `localStorage` fallback otherwise
+ *  - `triggerHaptic(feedback)`: native Capacitor Haptics when `isMobile`, false otherwise
+ *  - `onPause(cb)` / `onResume(cb)`: native app background / foreground lifecycle hooks
  *
  * Pure simulation layers (`src/sim`, `src/data`, `src/core`) must never import this module.
  */
+import { Capacitor } from '@capacitor/core';
 
 export interface SteamBridge {
   readonly isSteam: boolean;
@@ -18,6 +24,25 @@ export interface SteamBridge {
   cloudWrite(slot: string, json: string): Promise<boolean>;
   getOverlayActive?(): boolean;
   onOverlayChange?(listener: (active: boolean) => void): () => void;
+}
+
+export type MobilePlatformName = 'ios' | 'android' | 'web';
+
+export type NativeHapticFeedback =
+  | { readonly type: 'impact'; readonly style: 'LIGHT' | 'MEDIUM' | 'HEAVY' }
+  | { readonly type: 'notification'; readonly style: 'SUCCESS' | 'WARNING' | 'ERROR' };
+
+export interface MobileBridge {
+  /** True only when running inside a native Capacitor iOS or Android container. */
+  readonly isNative: boolean;
+  readonly platform: MobilePlatformName;
+  /** Triggers native Taptic Engine / Android haptic actuator feedback. */
+  triggerHaptic(feedback: NativeHapticFeedback): Promise<boolean>;
+  /**
+   * Subscribes to native app active/background transitions (`App.addListener('appStateChange')`).
+   * Calls `listener(false)` when paused/backgrounded and `listener(true)` when resumed/foregrounded.
+   */
+  onAppStateChange(listener: (isActive: boolean) => void): () => void;
 }
 
 export interface PlatformAchievements {
@@ -31,11 +56,27 @@ export interface PlatformCloudSave {
 
 export interface PlatformAdapter {
   readonly isSteam: boolean;
+  /** True when running inside the native Capacitor mobile wrapper (Android or iOS). */
+  readonly isMobile: boolean;
+  /** Underlying Capacitor platform identifier (`'ios'`, `'android'`, or `'web'`). */
+  readonly mobilePlatform: MobilePlatformName;
   readonly overlayActive: boolean;
   readonly achievements: PlatformAchievements;
   readonly cloudSave: PlatformCloudSave;
+  /** Triggers native mobile haptic feedback; returns false on non-mobile platforms. */
+  triggerHaptic(feedback: NativeHapticFeedback): Promise<boolean>;
   /** Registers a callback for Steam overlay open/close transitions; returns an unsubscribe function. */
   onOverlayChange(listener: (active: boolean) => void): () => void;
+  /**
+   * Registers a callback invoked when the app is paused / sent to the background on mobile.
+   * Returns an unsubscribe function.
+   *
+   * Game2D one-line hookup (for the `render2d` owner):
+   *   `getPlatform().onPause(() => { game.stepper.paused = true; });`
+   */
+  onPause(listener: () => void): () => void;
+  /** Registers a callback invoked when the mobile app returns to the foreground; returns an unsubscribe function. */
+  onResume(listener: () => void): () => void;
 }
 
 export interface CloudStorageLike {
@@ -75,6 +116,77 @@ function detectSteamBridge(): SteamBridge | undefined {
   }
 }
 
+/** Builds the live Capacitor bridge when running inside a native iOS or Android container. */
+function detectMobileBridge(): MobileBridge | undefined {
+  try {
+    if (!Capacitor.isNativePlatform()) return undefined;
+    const rawPlatform = Capacitor.getPlatform();
+    if (rawPlatform !== 'ios' && rawPlatform !== 'android') return undefined;
+
+    // Best-effort immersive status-bar hide alongside the native Activity / Info.plist config.
+    void import('@capacitor/status-bar')
+      .then(({ StatusBar }) => StatusBar.hide())
+      .catch(() => undefined);
+
+    return {
+      isNative: true,
+      platform: rawPlatform,
+      async triggerHaptic(feedback: NativeHapticFeedback): Promise<boolean> {
+        try {
+          const { Haptics, ImpactStyle, NotificationType } = await import('@capacitor/haptics');
+          if (feedback.type === 'impact') {
+            const style =
+              feedback.style === 'LIGHT'
+                ? ImpactStyle.Light
+                : feedback.style === 'MEDIUM'
+                  ? ImpactStyle.Medium
+                  : ImpactStyle.Heavy;
+            await Haptics.impact({ style });
+          } else {
+            const type =
+              feedback.style === 'SUCCESS'
+                ? NotificationType.Success
+                : feedback.style === 'WARNING'
+                  ? NotificationType.Warning
+                  : NotificationType.Error;
+            await Haptics.notification({ type });
+          }
+          return true;
+        } catch {
+          return false;
+        }
+      },
+      onAppStateChange(listener: (isActive: boolean) => void): () => void {
+        let disposed = false;
+        let removeHandle: (() => Promise<void>) | null = null;
+        void import('@capacitor/app')
+          .then(({ App }) =>
+            App.addListener('appStateChange', (state) => {
+              if (!disposed) listener(Boolean(state.isActive));
+            }),
+          )
+          .then((handle) => {
+            if (disposed) {
+              void handle.remove().catch(() => undefined);
+            } else {
+              removeHandle = () => handle.remove();
+            }
+          })
+          .catch(() => undefined);
+        return () => {
+          disposed = true;
+          if (removeHandle) {
+            void removeHandle().catch(() => undefined);
+            removeHandle = null;
+          }
+        };
+      },
+    };
+  } catch {
+    return undefined;
+  }
+}
+
 function readLocalSlot(storage: CloudStorageLike | null, safeSlot: string): string | null {
   if (!storage) return null;
   try {
@@ -99,6 +211,7 @@ function writeLocalSlot(storage: CloudStorageLike | null, safeSlot: string, json
 
 export interface CreatePlatformOptions {
   readonly bridge?: SteamBridge | null;
+  readonly mobile?: MobileBridge | null;
   readonly storage?: CloudStorageLike | null;
 }
 
@@ -107,9 +220,72 @@ export function createPlatformAdapter(options: CreatePlatformOptions = {}): Plat
   const bridge = options.bridge === undefined ? detectSteamBridge() : (options.bridge ?? undefined);
   const steamActive = Boolean(bridge && bridge.isSteam === true);
 
+  const mobileBridge = steamActive
+    ? undefined
+    : options.mobile === undefined
+      ? detectMobileBridge()
+      : (options.mobile ?? undefined);
+  const mobileActive = Boolean(
+    mobileBridge &&
+      mobileBridge.isNative === true &&
+      (mobileBridge.platform === 'ios' || mobileBridge.platform === 'android'),
+  );
+  const mobilePlatform: MobilePlatformName =
+    mobileActive && mobileBridge ? mobileBridge.platform : 'web';
+
+  const pauseListeners = new Set<() => void>();
+  const resumeListeners = new Set<() => void>();
+  if (mobileActive && mobileBridge) {
+    let appActive = true;
+    try {
+      mobileBridge.onAppStateChange((nextActive) => {
+        const active = Boolean(nextActive);
+        if (active === appActive) return;
+        appActive = active;
+        const targets = active ? resumeListeners : pauseListeners;
+        for (const fn of targets) {
+          try {
+            fn();
+          } catch {
+            // listener errors must never break the lifecycle bridge
+          }
+        }
+      });
+    } catch {
+      // ignore lifecycle subscription errors
+    }
+  }
+
+  const triggerHaptic = async (feedback: NativeHapticFeedback): Promise<boolean> => {
+    if (!mobileActive || !mobileBridge) return false;
+    try {
+      return Boolean(await mobileBridge.triggerHaptic(feedback));
+    } catch {
+      return false;
+    }
+  };
+
+  const onPause = (listener: () => void): (() => void) => {
+    if (!mobileActive) return () => undefined;
+    pauseListeners.add(listener);
+    return () => {
+      pauseListeners.delete(listener);
+    };
+  };
+
+  const onResume = (listener: () => void): (() => void) => {
+    if (!mobileActive) return () => undefined;
+    resumeListeners.add(listener);
+    return () => {
+      resumeListeners.delete(listener);
+    };
+  };
+
   if (!steamActive || !bridge) {
     return {
       isSteam: false,
+      isMobile: mobileActive,
+      mobilePlatform,
       overlayActive: false,
       achievements: {
         async unlock(): Promise<boolean> {
@@ -128,9 +304,12 @@ export function createPlatformAdapter(options: CreatePlatformOptions = {}): Plat
           return writeLocalSlot(storage, safe, json);
         },
       },
+      triggerHaptic,
       onOverlayChange(): () => void {
         return () => undefined;
       },
+      onPause,
+      onResume,
     };
   }
 
@@ -165,6 +344,12 @@ export function createPlatformAdapter(options: CreatePlatformOptions = {}): Plat
   return {
     get isSteam(): boolean {
       return true;
+    },
+    get isMobile(): boolean {
+      return false;
+    },
+    get mobilePlatform(): MobilePlatformName {
+      return 'web';
     },
     get overlayActive(): boolean {
       return overlayNow;
@@ -209,12 +394,15 @@ export function createPlatformAdapter(options: CreatePlatformOptions = {}): Plat
         }
       },
     },
+    triggerHaptic,
     onOverlayChange(listener: (active: boolean) => void): () => void {
       listeners.add(listener);
       return () => {
         listeners.delete(listener);
       };
     },
+    onPause,
+    onResume,
   };
 }
 
