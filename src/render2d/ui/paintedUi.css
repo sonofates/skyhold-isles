@@ -1254,6 +1254,11 @@
     max-height: 100%;
   }
 
+  /* The board's gold corner brackets reach further in than the thin phone frame. */
+  .pu-sheet-body {
+    padding: calc(var(--s) * 1.5) calc(var(--s) * 2.5) calc(var(--s) * 0.4);
+  }
+
   .pu-lb-totals {
     gap: calc(var(--s) * 1.2);
   }
