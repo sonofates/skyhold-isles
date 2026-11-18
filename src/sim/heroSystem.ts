@@ -1594,6 +1594,11 @@ export class HeroSystem {
         h.respawnTimer = h.stats.respawnSec;
         h.rallyBannerTimer = 0;
         h.waypoints.length = 0;
+        for (let k = 0; k < this.pool.getActiveCount(); k++) {
+          const held = this.pool.items[this.pool.getActiveIndex(k)];
+          held.heroBlockers = 0;
+          held.heroDamageReduction = 0;
+        }
         this.releaseCurrentMeleeHolds(false);
         this.events.emit('heroDied', {
           heroId: h.heroId,
