@@ -838,7 +838,7 @@ async function main(): Promise<void> {
         if (!e) return null;
         const r = e.getBoundingClientRect();
         if (r.width <= 0) return null;
-        if (e.closest('.vertical')) {
+        if (e.closest('.edge')) {
           const leftEdge = r.left + r.width / 2 < app.screen.width / 2;
           return leftEdge ? { x: r.right, y: r.top + r.height / 2, dir: 'left' } : { x: r.left, y: r.top + r.height / 2, dir: 'right' };
         }

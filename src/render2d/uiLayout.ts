@@ -434,14 +434,17 @@ export function hudButtonsKeepOut(w: number, h: number, insets: Insets): Rect {
 // Ability bar
 // ---------------------------------------------------------------------------------------------
 
-export type AbilityBarLayout = 'row' | 'column' | 'block';
+export type AbilityBarLayout = 'row' | 'column' | 'block' | 'stack';
 
 export interface AbilityBarSpot {
   readonly x: number;
   readonly y: number;
   /** Column up a screen edge (kept for callers that only know row / column). */
   readonly vertical: boolean;
-  /** Row, column, or the compact two-row block (hero group on top, abilities under it). */
+  /**
+   * Row, column, the compact two-row block (hero group on top, abilities under it), or the narrow
+   * three-row stack up a screen side (portrait / hero skills / abilities; short phone screens).
+   */
   readonly layout: AbilityBarLayout;
   /** 0 = clear of every plot / tower and road; higher = worse (QA). */
   readonly score: number;
@@ -458,11 +461,18 @@ export interface AbilityBarInput {
   readonly gap: number;
   /** The two-row block's size (no block candidates when absent). */
   readonly block?: { readonly w: number; readonly h: number };
+  /** The narrow three-row stack's size (no stack candidates when absent). */
+  readonly stack?: { readonly w: number; readonly h: number };
   /** HUD plaque (bottom-left) and wave banner (bottom-right), screen px. */
   readonly plaque: Rect;
   readonly banner: Rect;
-  /** Never cover: build plots with their towers, the horn, HUD pieces. */
+  /** Never cover: build plots with their towers (1000 per px²). */
   readonly hard: readonly Rect[];
+  /**
+   * Never ever cover: the horn and the HUD pieces (10000 per px²). A bar over the wave banner or a
+   * HUD button looks broken, so it loses to any spot that only grazes plots.
+   */
+  readonly hud?: readonly Rect[];
   /** Rather not cover: points along the roads (enemies walk there). */
   readonly soft: readonly Pt[];
   /** Painted landmarks with a weight per px² (castle heavier than a cave; plots count 1000). */
@@ -473,8 +483,8 @@ export interface AbilityBarInput {
  * Where the ability bar goes on this island. In order of preference: the bottom band between the
  * plaque and the wave banner (centre first, then sliding towards either end), just above the
  * plaque / banner, the compact two-row block above the plaque / banner or in a bottom corner, a
- * column up the left / right edge, a row along the top edge, then blocks / columns at other
- * heights. A spot covering a plot (or its tower), the castle / caves or a HUD piece is only taken
+ * column or the narrow three-row stack up the left / right edge, a row along the top edge, then
+ * blocks / stacks / columns at other heights. A spot covering a plot (or its tower), the castle / caves or a HUD piece is only taken
  * when every spot does; then the least covered wins. Roads count a bit, the preference order and
  * the distance from the bottom centre break ties.
  */
@@ -486,8 +496,8 @@ export function abilityBarSpot(o: AbilityBarInput): AbilityBarSpot {
   const maxY = h - insets.bottom - pad;
   const cands: { x: number; y: number; bw: number; bh: number; layout: AbilityBarLayout; rank: number }[] = [];
   const add = (x: number, y: number, layout: AbilityBarLayout, rank: number): void => {
-    const bw = layout === 'column' ? short : layout === 'block' ? o.block!.w : long;
-    const bh = layout === 'column' ? long : layout === 'block' ? o.block!.h : short;
+    const bw = layout === 'column' ? short : layout === 'block' ? o.block!.w : layout === 'stack' ? o.stack!.w : long;
+    const bh = layout === 'column' ? long : layout === 'block' ? o.block!.h : layout === 'stack' ? o.stack!.h : short;
     cands.push({ x: Math.max(minX, Math.min(maxX - bw, x)), y: Math.max(minY, Math.min(maxY - bh, y)), bw, bh, layout, rank });
   };
   const bottomY = maxY - short;
@@ -514,6 +524,16 @@ export function abilityBarSpot(o: AbilityBarInput): AbilityBarSpot {
   }
   add(minX, o.plaque.y - gap - long, 'column', 4);
   add(maxX - short, o.banner.y - gap - long, 'column', 4);
+  if (o.stack) {
+    // Up a side, above the plaque / banner, else anywhere along the sides (under the HUD buttons).
+    const st = o.stack;
+    add(minX, o.plaque.y - gap - st.h, 'stack', 4);
+    add(maxX - st.w, o.banner.y - gap - st.h, 'stack', 4);
+    for (let i = 0; i <= 6; i++) {
+      add(minX, minY + ((maxY - minY - st.h) * i) / 6, 'stack', 5);
+      add(maxX - st.w, minY + ((maxY - minY - st.h) * i) / 6, 'stack', 5);
+    }
+  }
   // Dense islands (plots along every edge of the bottom band): a row along the top edge (the HUD
   // buttons on the right are keep-outs), blocks and columns at other heights.
   const steps = 10;
@@ -538,6 +558,7 @@ export function abilityBarSpot(o: AbilityBarInput): AbilityBarSpot {
     const box: Rect = { x: c.x, y: c.y, w: c.bw, h: c.bh };
     let hard = 0;
     for (const r of o.hard) hard += overlapArea(box, r);
+    for (const r of o.hud ?? []) hard += overlapArea(box, r) * 10;
     let soft = 0;
     for (const p of o.soft) if (p.x >= box.x && p.x <= box.x + box.w && p.y >= box.y && p.y <= box.y + box.h) soft++;
     let land = 0;

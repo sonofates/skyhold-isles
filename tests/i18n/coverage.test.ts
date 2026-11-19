@@ -9,7 +9,7 @@ import { TOWER_DEFS } from '../../src/data/towers.ts';
 import { WORKSHOP_BRANCHES, WORKSHOP_UPGRADES } from '../../src/data/workshop.ts';
 import { FEATS } from '../../src/game/feats.ts';
 import { DATA_TR } from '../../src/i18n/dataTr.ts';
-import { challengeName, islandName, tagName, towerName, upgradeRankText } from '../../src/i18n/data.ts';
+import { challengeName, enemyCounter, islandName, stripKeyHints, tagName, towerName, upgradeRankText } from '../../src/i18n/data.ts';
 import { EN, type Msg } from '../../src/i18n/en.ts';
 import { localeFromTag, lower, setLocale, t, tIn, upper } from '../../src/i18n/index.ts';
 import { TR } from '../../src/i18n/tr.ts';
@@ -188,5 +188,14 @@ describe('no hardcoded English in the 2D UI', () => {
   it('no user-visible English string literals in the files the 2D UI owns', () => {
     const hits = UI_FILES.flatMap(englishLiterals);
     expect(hits).toEqual([]);
+  });
+
+  it('foe tips never name a 3D-only key (both languages)', () => {
+    expect(stripKeyHints('Only Archer can hit it. Press R to see the sky lane.')).toBe('Only Archer can hit it.');
+    expect(stripKeyHints('Yalnızca Okçu vurabilir. Hava yolunu görmek için R tuşuna bas.')).toBe('Yalnızca Okçu vurabilir.');
+    for (const lang of ['en', 'tr'] as const) {
+      setLocale(lang);
+      for (const id of Object.keys(ENEMY_DEFS)) expect(enemyCounter(id), `${lang} ${id}`).not.toMatch(/Press [A-Z0-9] |tuşuna bas/);
+    }
   });
 });

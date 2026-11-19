@@ -116,8 +116,21 @@ export function enemyDesc(id: string): string {
   return enemyTr(id)?.desc || enemyDef(id)?.description || '';
 }
 
+/**
+ * The shared lore was written for the 3D build, where some tips name its keys ("Press R to see the
+ * sky lane"). The 2D build has no such keys (R casts the hero's second skill), so those sentences
+ * are dropped here.
+ */
 export function enemyCounter(id: string): string {
-  return enemyTr(id)?.counter || ENEMY_LORE[id as keyof typeof ENEMY_LORE]?.counter || '';
+  const raw = enemyTr(id)?.counter || ENEMY_LORE[id as keyof typeof ENEMY_LORE]?.counter || '';
+  return stripKeyHints(raw);
+}
+
+export function stripKeyHints(text: string): string {
+  return text
+    .replace(/\s*Press [A-Z0-9] to [^.]*\./g, '')
+    .replace(/\s*[^.]*\b[A-Z0-9] tuşuna bas[^.]*\./g, '')
+    .trim();
 }
 
 /** A codex chip (lore tags are English words, not ids). */
