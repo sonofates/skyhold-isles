@@ -1,4 +1,4 @@
-import { Sprite, Texture } from 'pixi.js';
+import { Graphics, GraphicsContext, Sprite, Texture } from 'pixi.js';
 import type { Container } from 'pixi.js';
 import { CHAPTER_ENEMY_DEFS } from '../data/enemies.ts';
 import { mixTint } from './artResolve.ts';
@@ -10,6 +10,7 @@ import type { ProcTextures } from './procTextures.ts';
 export interface SpecialState {
   readonly type: string;
   readonly flying: boolean;
+  readonly yaw?: number;
   readonly hitFlashTimer: number;
   readonly burrowed: boolean;
   readonly elite?: boolean;
@@ -28,8 +29,40 @@ export interface SpecialState {
 
 export type ExtraSlot = 'glow' | 'bubble' | 'crack' | 'ring' | 'crown' | 'shieldBg' | 'shieldFill' | 'mound';
 
-/** Lazily created pooled overlay sprites of one enemy view. */
-export interface EnemyExtras {
+type ChapterCue = 'refrain' | 'note' | 'wake';
+
+/** Geometry is shared by every instance. The refrain arcs sit on the cleanse radius. */
+function drawChapterCue(cue: ChapterCue): GraphicsContext {
+  const g = new GraphicsContext();
+  if (cue === 'refrain') {
+    for (const [width, color] of [[2.4, 0x434528], [1.35, 0xffe993]]) {
+      g.beginPath();
+      for (let i = 0; i < 6; i++) {
+        const start = i * Math.PI / 3;
+        g.moveTo(100 * Math.cos(start), 100 * Math.sin(start)).arc(0, 0, 100, start, start + 0.79);
+      }
+      g.stroke({ width, color, cap: 'round' });
+    }
+  } else if (cue === 'note') {
+    // A joined pair of quavers, with a dark edge that survives bright grass and frost.
+    g.poly([-5, 4, -5, -9, 9, -13, 9, 1, 6, 1, 6, -7, -2, -5, -2, 4])
+      .fill(0xffeb9b).stroke({ width: 1.5, color: 0x4d4226, join: 'round' });
+    g.ellipse(-6.4, 4, 4.1, 2.9).fill(0xffeb9b).stroke({ width: 1.4, color: 0x4d4226 });
+    g.ellipse(4.6, 1, 4.1, 2.9).fill(0xffeb9b).stroke({ width: 1.4, color: 0x4d4226 });
+  } else {
+    // Two tapered wingtip trails in a local frame pointing right.
+    g.moveTo(-9, -7).bezierCurveTo(-32, -17, -51, -1, -83, -9)
+      .bezierCurveTo(-52, 2, -31, -10, -15, -4).closePath()
+      .fill(0xcaf2eb).stroke({ width: 1.1, color: 0x365d66, join: 'round' });
+    g.moveTo(-15, 6).bezierCurveTo(-33, 3, -41, 16, -65, 10)
+      .bezierCurveTo(-43, 19, -30, 9, -19, 10).closePath()
+      .fill(0x9fddd8).stroke({ width: 1, color: 0x365d66, join: 'round' });
+  }
+  return g;
+}
+
+/** Lazily created pooled overlays of one enemy view. */
+export interface EnemyExtras extends Record<ChapterCue, Graphics | null> {
   glow: Sprite | null;
   bubble: Sprite | null;
   crack: Sprite | null;
@@ -41,7 +74,7 @@ export interface EnemyExtras {
 }
 
 export function createExtras(): EnemyExtras {
-  return { glow: null, bubble: null, crack: null, ring: null, crown: null, shieldBg: null, shieldFill: null, mound: null };
+  return { glow: null, bubble: null, crack: null, ring: null, crown: null, shieldBg: null, shieldFill: null, mound: null, refrain: null, note: null, wake: null };
 }
 
 /** Seconds before a blink at which the rift starts to glow (matches the 3D telegraph). */
@@ -71,6 +104,8 @@ export interface SpecialLayout {
   readonly heightPx: number;
   readonly shadowR: number;
   readonly uiScale: number;
+  readonly pxPerUnit: number;
+  readonly facing: number;
 }
 
 export interface SpecialOut {
@@ -106,6 +141,7 @@ export class EnemySpecials {
   private readonly bars: Container;
   private readonly tex: ProcTextures;
   private readonly fx: FxLayer | null;
+  private readonly cueShapes: Partial<Record<ChapterCue, GraphicsContext>> = {};
   time = 0;
   /** Lifetime counters (QA): extra overlay sprites created. */
   extrasCreated = 0;
@@ -179,8 +215,25 @@ export class EnemySpecials {
     return s;
   }
 
+  private showCue(ex: EnemyExtras, cue: ChapterCue, active: boolean): Graphics | null {
+    let g = ex[cue];
+    if (!active) {
+      if (g) g.visible = false;
+      return null;
+    }
+    if (!g) {
+      g = new Graphics(this.cueShapes[cue] ??= drawChapterCue(cue));
+      const parent = cue === 'refrain' ? this.ground : this.overlays;
+      parent.addChild(g);
+      ex[cue] = g;
+      this.extrasCreated++;
+    }
+    g.visible = true;
+    return g;
+  }
+
   hideAll(ex: EnemyExtras): void {
-    for (const k of Object.keys(ex) as ExtraSlot[]) {
+    for (const k of Object.keys(ex) as (keyof EnemyExtras)[]) {
       const s = ex[k];
       if (s) s.visible = false;
     }
@@ -259,11 +312,6 @@ export class EnemySpecials {
       glowA = k * fl;
       glowScale = 1.1 + k * 0.9;
       tint = mixTint(tint, 0xbafff6, k * fl * 0.7);
-    } else if (type === 'draftwing') {
-      const wake = (w.abilityTimer ?? 0) / CHAPTER_ENEMY_DEFS.draftwing.ability.coastSec;
-      glowColor = 0x83d6e3;
-      glowA = 0.32 * wake;
-      glowScale = 1.28;
     } else if (type === 'bellrunner') {
       const run = (w.abilityTimer ?? 0) / CHAPTER_ENEMY_DEFS.bellrunner.ability.runUpSec;
       const beat = 0.5 + 0.5 * Math.sin(time * 17);
@@ -302,16 +350,40 @@ export class EnemySpecials {
       glow.zIndex = L.py + 0.3;
     }
 
+    if (type === 'draftwing') {
+      const strength = (w.abilityTimer ?? 0) / CHAPTER_ENEMY_DEFS.draftwing.ability.coastSec;
+      const wake = this.showCue(ex, 'wake', strength > 0);
+      if (wake) {
+        // The thorax sits below the centre of the frame even at the top of the wingbeat.
+        wake.position.set(L.px, L.cy + L.heightPx * 0.20);
+        // Path yaw is measured from +z. In map space +z is down the screen.
+        wake.rotation = Math.PI / 2 - (w.yaw ?? Math.PI / 2);
+        wake.scale.set(L.heightPx / 74 * (0.55 + 0.45 * strength), L.heightPx / 64);
+        wake.alpha = 0.85 * strength;
+        wake.zIndex = L.py - 0.1;
+      }
+    } else if (type === 'reedpiper') {
+      const ability = CHAPTER_ENEMY_DEFS.reedpiper.ability;
+      const remaining = w.channelTimer ?? 0;
+      const phrase = 1 - remaining / ability.channelSec;
+      const refrain = this.showCue(ex, 'refrain', remaining > 0);
+      const note = this.showCue(ex, 'note', remaining > 0);
+      if (refrain && note) {
+        refrain.position.set(L.px, L.py);
+        refrain.scale.set(ability.radius * L.pxPerUnit / 100);
+        refrain.alpha = 0.28 + 0.50 * phrase;
+        note.position.set(L.px + L.facing * L.heightPx * (0.34 + 0.17 * phrase), L.cy - L.heightPx * (0.14 + 0.34 * phrase));
+        note.scale.set(L.heightPx / 54);
+        note.rotation = -0.16 + 0.13 * phrase;
+        note.zIndex = L.py + 0.65;
+      }
+    }
+
     // ---- ground ring: elite, healer breath, boss aura ------------------------------------------
     let ringColor = 0;
     let ringA = 0;
     let ringR = L.shadowR;
-    if (type === 'reedpiper' && (w.channelTimer ?? 0) > 0) {
-      const phrase = 1 - (w.channelTimer ?? 0) / CHAPTER_ENEMY_DEFS.reedpiper.ability.channelSec;
-      ringColor = 0xd8e998;
-      ringA = 0.44 + 0.24 * Math.sin(phrase * Math.PI);
-      ringR = L.shadowR * (1.1 + 2.6 * phrase);
-    } else if (elite) {
+    if (elite) {
       ringColor = GOLD;
       ringA = 0.62 + 0.28 * Math.sin(time * 3.4 + L.px * 0.07);
       ringR = L.shadowR * (1.55 + 0.06 * Math.sin(time * 3.4));

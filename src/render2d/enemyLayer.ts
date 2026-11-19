@@ -106,7 +106,7 @@ export class EnemyLayer {
   private readonly views: (EnemyView | undefined)[] = [];
   private frameNo = 0;
   private readonly deaths: DeathView[] = [];
-  private readonly layoutScratch = { px: 0, py: 0, cy: 0, heightPx: 0, shadowR: 0, uiScale: 1 };
+  private readonly layoutScratch = { px: 0, py: 0, cy: 0, heightPx: 0, shadowR: 0, uiScale: 1, pxPerUnit: 1, facing: 1 };
   private readonly art: LoadedArt;
   private readonly map: MapView;
   private readonly layers: WorldLayers;
@@ -176,7 +176,8 @@ export class EnemyLayer {
     v.nominalSpeed = ENEMY_DEFS[w.type]?.speed ?? 2;
     v.fresh = true;
     v.anim.lean = 0;
-    v.anim.frameCursor = 0;
+    const moth = ENEMY_DEFS[w.type]?.ability?.kind === 'draft';
+    v.anim.frameCursor = moth ? (w.uid * 0.618034 % 1) * (art.sheet?.seqs[0].length ?? 1) : 0;
     v.anim.seq = 0;
     v.sp.burrowK = w.burrowed ? 1 : 0;
     v.sp.dustT = 0;
@@ -345,6 +346,7 @@ export class EnemyLayer {
       dyImg = 0;
     }
 
+    const ability = ENEMY_DEFS[w.type]?.ability;
     const pose = v.pose;
     let tex: Texture;
     const facesRight = art.spec.facing === 'right';
@@ -364,7 +366,13 @@ export class EnemyLayer {
       const seq = sheet.seqs[seqIdx] ?? sheet.seqs[0];
       const spec = art.spec.sheet;
       const facing = seqIdx === 1 ? (spec?.facingUp ?? spec?.facing) : spec?.facing;
-      sheetWalk(v.anim, seq.length, sheet.fps, spec?.stride, moved, speedRatio, dxImg, dyImg, dt, facing !== 'left', pose);
+      const moth = ability?.kind === 'draft';
+      // Moths keep beating their wings while slowed. A small height difference lets
+      // the eyes and wings of overtaking moths separate within their targeting radius.
+      const stride = moth ? undefined : spec?.stride;
+      const rate = moth ? 1 + 0.18 * (w.abilityTimer ?? 0) / ability.coastSec : speedRatio;
+      sheetWalk(v.anim, seq.length, sheet.fps, stride, moved, rate, dxImg, dyImg, dt, facing !== 'left', pose);
+      if (moth) pose.lift = (w.uid % 3 - 1) * 0.22;
       v.anim.seq = seqIdx;
       tex = seq[pose.frame % seq.length];
     } else {
@@ -379,7 +387,6 @@ export class EnemyLayer {
     const walkTex = tex;
     let attackFrame = -1;
     const atk = art.attack;
-    const ability = ENEMY_DEFS[w.type]?.ability;
     if (atk && ability?.kind === 'refrain' && (w.channelTimer ?? 0) > 0) {
       const phrase = 1 - (w.channelTimer ?? 0) / ability.channelSec;
       attackFrame = Math.max(0, Math.min(atk.frames.length - 1, Math.floor(phrase * atk.frames.length)));
@@ -444,6 +451,8 @@ export class EnemyLayer {
     layout.cy = py - liftPx - heightPx * 0.5;
     layout.heightPx = heightPx;
     layout.shadowR = shR;
+    layout.pxPerUnit = ppu;
+    layout.facing = v.anim.facing;
     this.specials.apply(v.ex, v.sp, art, w, layout, dt, out);
     if (passageAlpha < 1) {
       out.bodyAlpha *= passageAlpha;

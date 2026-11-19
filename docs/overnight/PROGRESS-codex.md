@@ -1,5 +1,30 @@
 # Content overnight · codex
 
+## Round 7 · 01:28–01:46 UTC · codex/night
+
+Started from `639cd2c`. The runner owns the commit.
+
+### Done
+
+- All eight chapter islands have painted landmarks on the voyage chart and in the briefing. The old circular crop on i24 showed an empty road bend. The new miniature shows the lit beacon, on i22 the cable ferry, and on i21 the weather kite and winding drum. The eight transparent 384 × 384 WebPs total 407,632 bytes, 69% smaller than the eight 1× battle maps previously requested for these thumbnails. The landmarks fit the medallion's circular inset including their pennants, branches and surf. [Chart and briefing before and after](maps-round7-chart.jpg) · [Asset paths and built-in ImageGen prompts](../../design/art-2d/chapter2/chart.md)
+- A Reed Piper now lifts two joined notes beside its flute while it plays. Broken gold arcs on the ground mark its full 3.2-unit cleanse radius throughout the phrase. Both marks disappear as soon as the channel ends or a stun interrupts it. The elite marker can remain visible during the phrase. On i22 wave seven, the capture shows a healer restoring HP beside a playing Piper, three simulation ticks after the healing pulse.
+- A drafting Slipstream Moth leaves two tapered wingtip trails. They turn with the sky lane and shorten and fade as the speed bonus expires. Wingbeats advance on simulation time while slowed and begin at a different phase for each moth. Three flight heights, within 0.22 world units of the sim altitude, distinguish overlapping moths. The shared geometry is built once per cue in the enemy layer, and views reuse it. [Same-tick combat comparisons on i18, i21 and i22](maps-round7-cues.jpg)
+
+### Verification
+
+- Played a later authored wave on every island i17–i24 at 1920 × 1080 DPR 1 and 2, and at 844 × 390 DPR 3. Each battle had 8–10 towers bought with earned gold and 11–22 live enemies. Compared all 24 final captures with the corresponding round-six code at the same wave tick. Enemy IDs, ground positions and ability timers matched across each pair. DPR 2 used the native 3× maps. The highest elite crown in the eight selected phone frames cleared the top by 20.7 CSS pixels. The measurement covers the eight sampled combat frames. [Desktop](maps-round7-play-desktop.jpg) · [Phone](maps-round7-play-phone.jpg)
+- Clicked all eight chart nodes and inspected their briefings on the three devices. Each final chart and briefing loaded its own 384 px landmark. A browser save that had cleared i16 on the 17-island campaign opened i17 and kept i18 locked. Clicking Play on that newly unlocked i17 opened the correct island. Five towers bought with starting gold killed a Belfry Hare and the painted death clip played. The four chapter bestiary cards each showed the matching portrait, English name and counter. These checks used the round-six local chapter preview and isolated browser saves. The production roster and story registrations are still pending.
+- Node 22 release gate passed TypeScript, ESLint, Vitest (1,186 passed, 11 skipped), all 41 balance targets and Vite. The 848-line balance report matches round six byte for byte, SHA-256 `a843de0e6d4ece932d0de94bac52f34d8a7ca5dcd5dcb11f8c4c4a23a22d6e47`. Vite printed its chunk-size advisory. The seven compositor tests and two sprite tests passed. The two new renderer tests cover radius, interruption, facing, coasting and reuse of cue graphics. Full-resolution before/after frames, browser fixtures, diagnostics and gate logs are under `/tmp/skyhold-codex-r7`.
+
+### Requests for other agents
+
+- The shipping campaign currently exposes 17 islands. The shared roster, melee registrations, side/death loader and kill callback are listed under round three. The eight chart landmarks now resolve automatically once those islands enter the shipping campaign.
+- Opus still owns the eight story registrations, the Turkish data lookups listed under rounds three through six, and the i21 horn position under round five. This round adds no player-facing strings.
+
+### Next round
+
+Start ambient map life on the chapter coasts. Inspect the i20 signal masts and i24 beacon in live play, choose one low-cost treatment that reads at phone size, and keep road edges, gates and combat cues clear. Check the 41-target balance output against the hash above. If the shared registrations land first, exercise chart → briefing → story → first kill through the production entry point and retire the preview-only registrations.
+
 ## Round 6 · 01:05–01:28 UTC · codex/night
 
 Started from `1605b47`. Changes are in the working tree for the overnight runner.
