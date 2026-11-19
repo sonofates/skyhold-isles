@@ -30,6 +30,7 @@ export class AbilitySystem {
   };
   private overchargeRemaining = 0;
   private readonly pendingMeteors: PendingMeteor[] = [];
+  private resetGen = 0;
   /** Scales every ability cooldown (Workshop upgrade); 1 = classic. */
   cooldownMul = 1;
 
@@ -38,6 +39,7 @@ export class AbilitySystem {
   }
 
   reset(): void {
+    this.resetGen++;
     this.cooldowns.meteor = 0;
     this.cooldowns.overcharge = 0;
     this.overchargeRemaining = 0;
@@ -46,6 +48,7 @@ export class AbilitySystem {
 
   /** Drops in-flight meteors and active buffs at run end or wave skip while preserving cooldowns. */
   clearPending(): void {
+    this.resetGen++;
     this.pendingMeteors.length = 0;
     this.overchargeRemaining = 0;
   }
@@ -154,8 +157,10 @@ export class AbilitySystem {
 
     // Pending meteor impacts resolve even if wave ends mid-flight; lethal hits set hp = 0
     // so EnemySystem.update processes kills, splits, rewards, and pool release uniformly.
+    const gen = this.resetGen;
     let i = 0;
     while (i < this.pendingMeteors.length) {
+      if (this.resetGen !== gen) return;
       const meteor = this.pendingMeteors[i];
       meteor.remaining -= dt;
       if (meteor.remaining > 0) {
@@ -168,6 +173,7 @@ export class AbilitySystem {
       spatialHash.query(meteor.x, meteor.z, meteor.radius, _meteorCandidates);
       const rSq = meteor.radius * meteor.radius;
       for (let k = 0; k < _meteorCandidates.length; k++) {
+        if (this.resetGen !== gen) return;
         const enemy = enemyPool.items[_meteorCandidates[k]];
         if (!enemy.active || enemy.hp <= 0 || enemy.burrowed) continue;
         const dx = enemy.x - meteor.x;
@@ -175,11 +181,13 @@ export class AbilitySystem {
         if (dx * dx + dz * dz > rSq) continue;
 
         enemySystem.applyDamage(enemy, meteor.damage, true);
+        if (this.resetGen !== gen) return;
         if (enemy.hp > 0 && meteor.slowRatio > 0) {
           enemySystem.applySlow(enemy, meteor.slowRatio, meteor.slowDuration);
         }
       }
 
+      if (this.resetGen !== gen) return;
       this.events.emit('meteorImpact', {
         x: meteor.x,
         y: 0.25,

@@ -29,10 +29,15 @@ export const MAX_ENEMY_STUCK_SEC = 5.0;
 export const MAX_WAVE_ACTIVE_SEC = 300.0;
 
 const _hashQueryBuf: number[] = [];
-const _poolStampBuf = new Uint32Array(1024);
+let _poolStampBuf = new Uint32Array(1024);
 let _poolStamp = 1;
 
-function nextStamp(): number {
+function nextStamp(requiredCapacity: number): number {
+  if (requiredCapacity > _poolStampBuf.length) {
+    _poolStampBuf = new Uint32Array(Math.max(requiredCapacity, _poolStampBuf.length * 2));
+    _poolStamp = 1;
+    return _poolStamp;
+  }
   _poolStamp = (_poolStamp + 1) >>> 0;
   if (_poolStamp === 0) {
     _poolStampBuf.fill(0);
@@ -75,7 +80,7 @@ function checkPoolIntegrity<T extends { active: boolean }>(
   if (activeCount < 0 || activeCount > cap) {
     return `${label}: invalid activeCount=${activeCount} (capacity=${cap})`;
   }
-  const stamp = nextStamp();
+  const stamp = nextStamp(cap);
   for (let p = 0; p < activeCount; p++) {
     const idx = pool.getActiveIndex(p);
     if (idx < 0 || idx >= cap) {

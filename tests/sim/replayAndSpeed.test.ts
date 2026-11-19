@@ -11,7 +11,7 @@ import {
 } from '../../src/core/gameLoop.ts';
 import { BALANCE } from '../../src/data/balance.ts';
 import { runModifiersFor } from '../../src/data/challenges.ts';
-import { defaultLevel20Skills } from '../../src/data/heroes.ts';
+import { defaultLevel20Skills, HERO_XP_RULES } from '../../src/data/heroes.ts';
 import { getLevelById, LEVEL_L1C } from '../../src/data/levels2d/index.ts';
 import { combineRunModifiers } from '../../src/data/runModifiers.ts';
 import { maxedWorkshopRanks, workshopModifiers } from '../../src/data/workshop.ts';
@@ -1695,5 +1695,256 @@ describe('EventBus re-entrancy & SoldierSystem towerFireRateMul', () => {
     expect(computeSimStateHash(hashA)).not.toBe(computeSimStateHash(hashB));
     hashB.hero!.waypoints.push({ x: 1.5, z: -2.0 });
     expect(computeSimStateHash(hashA)).toBe(computeSimStateHash(hashB));
+  });
+
+  it('aborts mid-step tower/projectile/hero transient spawns on terminal resets, grants 0-bonus wave XP, clamps modifier overflows, and revives disposed replays on seekToTick', () => {
+    // 1. CombatSystem.update: if Tower 0 (Tesla) kills an enemy whose listener calls debugForceWin(),
+    //    Tower 1 (Archer) must NOT spawn a new mid-flight projectile onto the won world.
+    const combatEvents = new EventBus();
+    const combatWorld = new SimWorld(LEVEL_L1C, combatEvents, { seed: 301 });
+    combatWorld.gold = 9000;
+    const tesla = combatWorld.placeTowerOnPlot(0, 'tesla')!;
+    const archer = combatWorld.placeTowerOnPlot(1, 'archer')!;
+    tesla.cooldownTimer = 0;
+    archer.cooldownTimer = 0;
+    combatWorld.startNextWave();
+    const e1 = combatWorld.enemySystem.spawnEnemy('grunt', 1, false, 0)!;
+    const e2 = combatWorld.enemySystem.spawnEnemy('grunt', 1, false, 0)!;
+    e1.hp = 1;
+    e1.x = tesla.x + 0.5;
+    e1.z = tesla.z;
+    e2.x = archer.x + 0.5;
+    e2.z = archer.z;
+    combatWorld.spatialHash.clear();
+    combatWorld.spatialHash.insert(e1.poolIndex, e1.x, e1.z);
+    combatWorld.spatialHash.insert(e2.poolIndex, e2.x, e2.z);
+    combatEvents.on('enemyHit', () => combatWorld.debugForceWin());
+    combatWorld.combatSystem.update(BALANCE.fixedDt, combatWorld.towers, 1);
+    expect(combatWorld.outcome).toBe('won');
+    expect(combatWorld.projectilePool.getActiveCount()).toBe(0);
+
+    // 2. ProjectileSystem.resolveImpact: Mortar T3 splash triggering debugForceLose() inside enemyHit
+    //    must NOT spawn a lingering burn zone onto the defeated world.
+    const projEvents = new EventBus();
+    const projWorld = new SimWorld(LEVEL_L1C, projEvents, { seed: 302 });
+    projWorld.gold = 9000;
+    const mortar = projWorld.placeTowerOnPlot(0, 'mortar')!;
+    projWorld.upgradeTower(mortar.id);
+    projWorld.upgradeTower(mortar.id);
+    projWorld.startNextWave();
+    const targetFoe = projWorld.enemySystem.spawnEnemy('grunt', 1, false, 0)!;
+    targetFoe.hp = 1;
+    targetFoe.x = mortar.x + 2.0;
+    targetFoe.z = mortar.z;
+    projWorld.spatialHash.clear();
+    projWorld.spatialHash.insert(targetFoe.poolIndex, targetFoe.x, targetFoe.z);
+    const shell = projWorld.projectileSystem.spawnProjectile(mortar, targetFoe, 0.5)!;
+    shell.endX = targetFoe.x;
+    shell.endZ = targetFoe.z;
+    shell.progress = 1;
+    projEvents.on('enemyHit', () => projWorld.debugForceLose());
+    projWorld.projectileSystem.update(BALANCE.fixedDt, projWorld.towers);
+    expect(projWorld.outcome).toBe('lost');
+    expect(projWorld.projectileSystem.getActiveBurnZoneCount()).toBe(0);
+
+    // 3. HeroSystem: Mira L20 Fire Ring / Wisp Burst and Wren L20 Volley ('doubleVolley') do not leak
+    //    fireRings or pendingVolleys when an enemyHit listener ends the run mid-cast, and Bran L20
+    //    ('holdCap >= 2') halts applyMeleeHolds immediately if 'enemyBlocked' orders commandHeroMove.
+    const miraEvents = new EventBus();
+    const miraWorld = new SimWorld(LEVEL_L1C, miraEvents, {
+      heroId: 'mira',
+      heroLevel: 20,
+      heroSkills: defaultLevel20Skills('mira'),
+      seed: 303,
+    });
+    miraWorld.startNextWave();
+    const mFoe = miraWorld.enemySystem.spawnEnemy('grunt', 1, false, 0)!;
+    mFoe.hp = 1;
+    mFoe.x = miraWorld.hero!.x + 1.5;
+    mFoe.z = miraWorld.hero!.z;
+    miraWorld.spatialHash.clear();
+    miraWorld.spatialHash.insert(mFoe.poolIndex, mFoe.x, mFoe.z);
+    miraEvents.on('enemyHit', () => miraWorld.debugForceWin());
+    expect(miraWorld.castHeroSkill(1, mFoe.x, mFoe.z)).toBe(true);
+    expect(miraWorld.outcome).toBe('won');
+    expect(miraWorld.heroSystem.fireRings).toHaveLength(0);
+
+    const wrenEvents = new EventBus();
+    const wrenWorld = new SimWorld(LEVEL_L1C, wrenEvents, {
+      heroId: 'wren',
+      heroLevel: 20,
+      heroSkills: defaultLevel20Skills('wren'),
+      seed: 304,
+    });
+    wrenWorld.startNextWave();
+    const wFoe = wrenWorld.enemySystem.spawnEnemy('grunt', 1, false, 0)!;
+    wFoe.hp = 1;
+    wFoe.x = wrenWorld.hero!.x + 1.5;
+    wFoe.z = wrenWorld.hero!.z;
+    wrenWorld.spatialHash.clear();
+    wrenWorld.spatialHash.insert(wFoe.poolIndex, wFoe.x, wFoe.z);
+    wrenEvents.on('enemyHit', () => wrenWorld.debugForceWin());
+    expect(wrenWorld.castHeroSkill(0, wFoe.x, wFoe.z)).toBe(true);
+    expect(wrenWorld.outcome).toBe('won');
+    expect(wrenWorld.heroSystem.getPendingVolleys()).toHaveLength(0);
+
+    const branEvents = new EventBus();
+    const branLog: string[] = [];
+    const branWorld = new SimWorld(LEVEL_L1C, branEvents, {
+      heroId: 'bran',
+      heroLevel: 20,
+      heroSkills: defaultLevel20Skills('bran'),
+      seed: 305,
+    });
+    branWorld.startNextWave();
+    const bStart = branWorld.groundPath.points[0];
+    const bGoal = branWorld.groundPath.points[branWorld.groundPath.points.length - 1];
+    branWorld.hero!.x = branWorld.hero!.postX = bStart.x;
+    branWorld.hero!.z = branWorld.hero!.postZ = bStart.z;
+    const bf1 = branWorld.enemySystem.spawnEnemy('grunt', 10, false, 0)!;
+    const bf2 = branWorld.enemySystem.spawnEnemy('grunt', 10, false, 0)!;
+    bf1.x = bf2.x = bStart.x;
+    bf1.z = bf2.z = bStart.z;
+    bf1.dist = 1.0;
+    bf2.dist = 0.8;
+    branWorld.spatialHash.clear();
+    branWorld.spatialHash.insert(bf1.poolIndex, bf1.x, bf1.z);
+    branWorld.spatialHash.insert(bf2.poolIndex, bf2.x, bf2.z);
+    branEvents.on('enemyBlocked', (ev) => {
+      branLog.push(`B:${ev.enemyId}`);
+      branWorld.commandHeroMove(bGoal.x, bGoal.z);
+    });
+    branEvents.on('enemyUnblocked', (ev) => branLog.push(`U:${ev.enemyId}`));
+    branWorld.heroSystem.update(BALANCE.fixedDt, branWorld.towers, 1);
+    expect(branWorld.hero!.state).toBe('moving');
+    expect(bf1.heroBlockers).toBe(0);
+    expect(bf2.heroBlockers).toBe(0);
+    expect(branLog).toEqual([`B:${bf1.uid}`, `U:${bf1.uid}`]);
+
+    // 4. SoldierSystem Step-7: selling inside 'enemyBlocked' leaves meleeTimer untouched on the freed foe,
+    //    and when primary soldier dies on counter-swing while s1 still holds, meleeSwing targets s1.id.
+    const solEvents = new EventBus();
+    const solWorld = new SimWorld(LEVEL_L1C, solEvents, { seed: 306 });
+    solWorld.gold = 9000;
+    const sBar = solWorld.placeTowerOnPlot(21, 'barracks')!;
+    solWorld.startNextWave();
+    const sb = solWorld.soldierSystem.getBarracks(sBar.id)!;
+    for (const s of sb.squad) {
+      s.x = s.prevX = sb.rallyX;
+      s.z = s.prevZ = sb.rallyZ;
+    }
+    const sFoe = solWorld.enemySystem.spawnEnemy('brute', 10, false, 0)!;
+    sFoe.x = sb.rallyX;
+    sFoe.z = sb.rallyZ;
+    sFoe.meleeTimer = 2.0;
+    solWorld.spatialHash.clear();
+    solWorld.spatialHash.insert(sFoe.poolIndex, sFoe.x, sFoe.z);
+    const unsubSell = solEvents.on('enemyBlocked', () => void solWorld.sellTower(sBar.id));
+    solWorld.soldierSystem.update(BALANCE.fixedDt, solWorld.towers, 1);
+    unsubSell();
+    expect(sFoe.blockers).toBe(0);
+    expect(sFoe.meleeTimer).toBe(2.0);
+
+    const sBar2 = solWorld.placeTowerOnPlot(21, 'barracks')!;
+    const sb2 = solWorld.soldierSystem.getBarracks(sBar2.id)!;
+    sb2.squad[0].hp = 1;
+    sb2.squad[1].hp = sb2.squad[1].maxHp;
+    for (const s of sb2.squad) {
+      s.x = s.prevX = sb2.rallyX;
+      s.z = s.prevZ = sb2.rallyZ;
+    }
+    sFoe.meleeTimer = 0.005;
+    let announcedTargetId = -1;
+    solEvents.on('meleeSwing', (ev) => {
+      if (ev.attacker === 'enemy') announcedTargetId = ev.targetId;
+    });
+    solWorld.soldierSystem.update(BALANCE.fixedDt, solWorld.towers, 1);
+    expect(sb2.squad[0].state).toBe('dead');
+    expect(sb2.squad[1].state).toBe('fighting');
+    expect(announcedTargetId).toBe(sb2.squad[1].id);
+
+    // 5. WaveSystem: clearing a clearBonus === 0 wave still awards HERO_XP_RULES.perWaveCleared XP,
+    //    and debugSkipToWave inside 'economyChanged' suppresses stale 'waveCompleted' emission.
+    const zeroBonusLevel = {
+      ...LEVEL_L1C,
+      id: 'zero-bonus-wave-xp',
+      waves: [
+        { groups: [{ enemyType: 'grunt' as const, count: 1, spawnInterval: 0.2, startDelay: 0 }], clearBonus: 0 },
+        { groups: [{ enemyType: 'grunt' as const, count: 1, spawnInterval: 0.2, startDelay: 0 }], clearBonus: 30 },
+      ],
+    };
+    const zbWorld = new SimWorld(zeroBonusLevel, new EventBus(), { heroId: 'bran', heroLevel: 1, seed: 307 });
+    zbWorld.startNextWave();
+    zbWorld.fixedTick(BALANCE.fixedDt);
+    expect(zbWorld.enemyPool.getActiveCount()).toBe(1);
+    zbWorld.enemyPool.clear();
+    zbWorld.fixedTick(BALANCE.fixedDt);
+    expect(zbWorld.waveSystem.state).toBe('betweenWaves');
+    expect(zbWorld.heroSystem.runXp).toBe(HERO_XP_RULES.perWaveCleared);
+
+    const skipEvents = new EventBus();
+    const completedWaves: number[] = [];
+    const skipLevel = {
+      ...LEVEL_L1C,
+      id: 'skip-in-bonus-wave',
+      waves: [
+        { groups: [{ enemyType: 'grunt' as const, count: 1, spawnInterval: 0.2, startDelay: 0 }], clearBonus: 25 },
+        { groups: [{ enemyType: 'grunt' as const, count: 1, spawnInterval: 0.2, startDelay: 0 }], clearBonus: 25 },
+        { groups: [{ enemyType: 'grunt' as const, count: 1, spawnInterval: 0.2, startDelay: 0 }], clearBonus: 25 },
+      ],
+    };
+    const skipWorld = new SimWorld(skipLevel, skipEvents, { seed: 308 });
+    skipWorld.startNextWave();
+    skipWorld.fixedTick(BALANCE.fixedDt);
+    skipWorld.enemyPool.clear();
+    let jumped = false;
+    skipEvents.on('economyChanged', () => {
+      if (!jumped) {
+        jumped = true;
+        skipWorld.debugSkipToWave(3);
+      }
+    });
+    skipEvents.on('waveCompleted', (ev) => completedWaves.push(ev.waveIndex));
+    skipWorld.fixedTick(BALANCE.fixedDt);
+    expect(skipWorld.waveSystem.currentWaveOneBased).toBe(3);
+    expect(completedWaves).toEqual([]);
+
+    // 6. combineRunModifiers & parseSimReplay clamp IEEE-754 overflows, and SimReplayPlayer.seekToTick(0)
+    //    cleanly revives a disposed player without firing muted events.
+    const hugeMods = combineRunModifiers(
+      { enemyHpMul: 1e200, startGoldBonus: 1e308, startGoldMul: 1e200, bonusLives: 1e308 },
+      { enemyHpMul: 1e200, startGoldBonus: 1e308, startGoldMul: 1e200, bonusLives: 1e308 },
+    );
+    expect(Number.isFinite(hugeMods.enemyHpMul) && hugeMods.enemyHpMul <= 1000).toBe(true);
+    expect(Number.isFinite(hugeMods.startGoldBonus)).toBe(true);
+    const hugeWorld = new SimWorld(LEVEL_L1C, new EventBus(), hugeMods);
+    expect(Number.isSafeInteger(hugeWorld.gold)).toBe(true);
+    expect(Number.isSafeInteger(hugeWorld.lives)).toBe(true);
+
+    const recWorld = new SimWorld(LEVEL_L1C, new EventBus(), { seed: 309, recordCommands: true });
+    recWorld.placeTowerOnPlot(0, 'archer');
+    recWorld.startNextWave();
+    for (let i = 0; i < 10; i++) recWorld.fixedTick(BALANCE.fixedDt);
+    const extremeReplay = parseSimReplay({
+      ...recWorld.exportReplay(),
+      modifiers: { ...recWorld.exportReplay().modifiers, startGoldMul: 1e308, bonusLives: 1e308 },
+    })!;
+    const playerEvents = new EventBus();
+    let builtEvents = 0;
+    const revPlayer = new SimReplayPlayer(LEVEL_L1C, extremeReplay, playerEvents);
+    expect(Number.isSafeInteger(revPlayer.world.gold)).toBe(true);
+    expect(revPlayer.world.towers).toHaveLength(1);
+    revPlayer.dispose();
+    expect(revPlayer.finished).toBe(true);
+    expect(revPlayer.stepTicks(5)).toBe(0);
+
+    playerEvents.on('towerBuilt', () => void builtEvents++);
+    revPlayer.seekToTick(0);
+    expect(revPlayer.finished).toBe(false);
+    expect(revPlayer.world.towers).toHaveLength(1);
+    expect(builtEvents).toBe(0);
+    revPlayer.seekToTick(5);
+    expect(revPlayer.currentTick).toBe(5);
+    revPlayer.dispose();
   });
 });

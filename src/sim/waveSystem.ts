@@ -283,6 +283,7 @@ export class WaveSystem {
   private mutatorCache: EndlessMutatorEffects = NO_ENDLESS_MUTATORS;
   private spawnCursor = 0;
   private currentWaveClearBonus = 0;
+  private skipGen = 0;
   /**
    * Seconds the between-wave countdown was cut short because auto-wave is on. Added back when
    * auto-wave is switched off so the manual countdown (and early-call bonus) is not lost.
@@ -391,6 +392,7 @@ export class WaveSystem {
 
   /** Transitions the wave state cleanly to `'finished'` when a story run is forced-won. */
   markFinished(): void {
+    this.skipGen++;
     this.currentWaveIndex = Math.max(this.currentWaveIndex, this.level.waves.length - 1);
     this.pendingClearBonus = 0;
     this.currentWaveClearBonus = 0;
@@ -509,6 +511,7 @@ export class WaveSystem {
 
   skipToWave(waveOneBased: number): boolean {
     if (this.totalWaves <= 0 && !this.endlessMode) return false;
+    this.skipGen++;
     const safeOneBased = Number.isFinite(waveOneBased) ? Math.floor(waveOneBased) : 1;
     const requestedIdx = Math.max(0, safeOneBased - 1);
     const clampedIdx = this.endlessMode
@@ -551,6 +554,7 @@ export class WaveSystem {
     onSpawn: (type: EnemyType, hpScale: number, elite: boolean, lane: number) => void,
     onAwardGold: (amount: number) => void,
     onAllClearedWin: () => void,
+    onWaveCleared?: () => void,
   ): void {
     if (this.state === 'finished' || this.state === 'preFirstWave') {
       return;
@@ -593,16 +597,18 @@ export class WaveSystem {
       return;
     }
 
-    this.checkCompletion(getActiveEnemiesCount, onAwardGold, onAllClearedWin);
+    this.checkCompletion(getActiveEnemiesCount, onAwardGold, onAllClearedWin, onWaveCleared);
   }
 
   checkCompletion(
     getActiveEnemiesCount: () => number,
     onAwardGold: (amount: number) => void,
     onAllClearedWin: () => void,
+    onWaveCleared?: () => void,
   ): void {
     if (this.state === 'clearing') {
       if (getActiveEnemiesCount() === 0) {
+        const gen = this.skipGen;
         const completedWaveIndex = this.currentWaveIndex;
         const bonus = this.pendingClearBonus;
         this.pendingClearBonus = 0;
@@ -610,7 +616,10 @@ export class WaveSystem {
         this.beginCountdown(BALANCE.interWaveCountdownSec, AUTO_WAVE_COUNTDOWN_SEC);
         if (bonus > 0) {
           onAwardGold(bonus);
+        } else {
+          onWaveCleared?.();
         }
+        if (this.skipGen !== gen) return;
         this.events.emit('waveCompleted', {
           waveIndex: completedWaveIndex,
           bonus,
@@ -621,6 +630,7 @@ export class WaveSystem {
 
     if (this.state === 'allSpawned') {
       if (getActiveEnemiesCount() === 0) {
+        const gen = this.skipGen;
         const completedWaveIndex = this.currentWaveIndex;
         const bonus = this.pendingClearBonus;
         this.pendingClearBonus = 0;
@@ -633,12 +643,15 @@ export class WaveSystem {
         }
         if (bonus > 0) {
           onAwardGold(bonus);
+        } else {
+          onWaveCleared?.();
         }
+        if (this.skipGen !== gen) return;
         this.events.emit('waveCompleted', {
           waveIndex: completedWaveIndex,
           bonus,
         });
-        if (!wasEndless && this.state === 'finished' && !this.endlessMode) {
+        if (!wasEndless && this.state === 'finished' && !this.endlessMode && this.skipGen === gen) {
           onAllClearedWin();
         }
       }

@@ -30,6 +30,7 @@ export class CombatSystem {
   private readonly enemySystem: EnemySystem;
   private readonly projectileSystem: ProjectileSystem;
   private readonly events: EventBus;
+  private resetGen = 0;
 
   constructor(
     enemyPool: ObjectPool<EnemyEntity>,
@@ -43,6 +44,11 @@ export class CombatSystem {
     this.enemySystem = enemySystem;
     this.projectileSystem = projectileSystem;
     this.events = events;
+  }
+
+  /** Aborts any in-flight `update()` tower loop when the world transitions to victory/defeat/skip/dispose. */
+  abortCurrentStep(): void {
+    this.resetGen++;
   }
 
   /**
@@ -84,6 +90,7 @@ export class CombatSystem {
   update(dt: number, towers: TowerEntity[], fireRateMultiplier = 1): void {
     const turnSpeed = 12.0;
     const rateMult = Math.max(0.01, fireRateMultiplier);
+    const gen = this.resetGen;
 
     this.applyBeaconAuras(towers);
 
@@ -93,6 +100,7 @@ export class CombatSystem {
     }
 
     for (let stepIdx = 0; stepIdx < _stepTowerIds.length; stepIdx++) {
+      if (this.resetGen !== gen) return;
       const wantId = _stepTowerIds[stepIdx];
       let tower: TowerEntity | undefined;
       if (stepIdx < towers.length && towers[stepIdx].id === wantId) {
@@ -142,6 +150,7 @@ export class CombatSystem {
             z: tower.z,
             radius: stats.range,
           });
+          if (this.resetGen !== gen) return;
         }
         continue;
       }
@@ -179,7 +188,8 @@ export class CombatSystem {
           let special = false;
           if (tower.type === 'tesla') {
             special = (stats.overloadEvery ?? 0) > 0 && tower.shotCount % stats.overloadEvery! === 0;
-            this.fireChainLightning(tower, target, stats, special);
+            this.fireChainLightning(tower, target, stats, special, gen);
+            if (this.resetGen !== gen) return;
           } else {
             this.projectileSystem.spawnProjectile(tower, target, stats.splashFalloffMin);
             if ((stats.volleyEvery ?? 0) > 0 && tower.shotCount % stats.volleyEvery! === 0) {
@@ -198,6 +208,7 @@ export class CombatSystem {
             yaw: tower.yaw,
             special,
           });
+          if (this.resetGen !== gen) return;
         }
       } else {
         // Gentle idle scan sweep
@@ -257,6 +268,7 @@ export class CombatSystem {
     initialTarget: EnemyEntity,
     stats: ReturnType<typeof getTowerTierStats>,
     overload = false,
+    gen = this.resetGen,
   ): void {
     const def = TOWER_DEFS.tesla;
     const points: Vec3[] = [{ x: tower.x, y: def.turretHeight + 0.35, z: tower.z }];
@@ -277,6 +289,7 @@ export class CombatSystem {
       const res = this.enemySystem.applyDamage(current, Math.round(currentDamage));
       tower.totalDamageDealt += res.actualDamage;
       if (res.killed) tower.kills++;
+      if (this.resetGen !== gen) return;
 
       if (jump === maxJumps - 1) break;
 

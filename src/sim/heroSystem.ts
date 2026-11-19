@@ -226,6 +226,7 @@ export class HeroSystem {
   private nextGizmoId = 1;
   private inUpdate = false;
   private abortedStep = false;
+  private resetGen = 0;
   private readonly pendingVolleys: PendingVolleyWave[] = [];
   private readonly burnLeft: Float64Array;
   private readonly burnDps: Float64Array;
@@ -382,6 +383,7 @@ export class HeroSystem {
 
   /** Clears lingering ground zones, pending volleys, active holds, and burns at run end or wave skip. */
   clearTransientZones(includeGizmos = false, towers?: readonly TowerEntity[], emitUnblocks = true): void {
+    this.resetGen++;
     if (this.inUpdate) {
       this.abortedStep = true;
     }
@@ -590,6 +592,7 @@ export class HeroSystem {
       }
     }
 
+    const gen = this.resetGen;
     const resolvedTarget = _resolvedCastTargets[slot];
     resolvedTarget.x = tx;
     resolvedTarget.z = tz;
@@ -597,8 +600,9 @@ export class HeroSystem {
       h.skillCooldowns[slot] = act.cooldownSec;
       onCommitted?.();
     };
-    const ok = this.executeActive(h, slot, act, tx, tz, towers, commitCast);
+    const ok = this.executeActive(h, slot, act, tx, tz, towers, commitCast, gen);
     if (!ok) return false;
+    if (this.resetGen !== gen) return true;
 
     if (Math.hypot(tx - h.x, tz - h.z) > 0.05) {
       h.yaw = Math.atan2(tx - h.x, tz - h.z);
@@ -625,6 +629,7 @@ export class HeroSystem {
     tz: number,
     towers: readonly TowerEntity[],
     commitCast: () => void,
+    gen = this.resetGen,
   ): boolean {
     const skillCandidates = slot === 0 ? _skillCandidates0 : _skillCandidates1;
     const hitSet = _hitSets[slot];
@@ -653,6 +658,7 @@ export class HeroSystem {
         const minCos = Math.cos((72 * Math.PI) / 180);
         const slowAfter = act.extras.has('bashSlow');
         for (let i = 0; i < skillCandidates.length; i++) {
+          if (this.resetGen !== gen) return true;
           const e = this.pool.items[skillCandidates[i]];
           if (!e.active || e.hp <= 0 || e.flying || e.burrowed) continue;
           const ex = e.x - h.x;
@@ -663,6 +669,7 @@ export class HeroSystem {
           const res = this.enemySystem.applyDamage(e, act.damage, true);
           h.totalDamageDealt += res.actualDamage;
           if (res.killed) h.kills++;
+          if (this.resetGen !== gen) return true;
           if (e.hp > 0) {
             this.enemySystem.applyStun(e, act.durationSec);
             if (slowAfter) this.enemySystem.applySlow(e, 0.35, act.durationSec + 2.5);
@@ -681,7 +688,8 @@ export class HeroSystem {
       case 'volley': {
         commitCast();
         const slow = act.extras.has('volleySlow');
-        this.applyVolleyStrike(h, tx, tz, act.radius, act.damage, slow, skillCandidates);
+        this.applyVolleyStrike(h, tx, tz, act.radius, act.damage, slow, skillCandidates, gen);
+        if (this.resetGen !== gen) return true;
         if (act.extras.has('doubleVolley')) {
           this.pendingVolleys.push({
             x: tx,
@@ -709,7 +717,17 @@ export class HeroSystem {
 
       case 'fireRing': {
         commitCast();
-        this.spawnFireRing(h, tx, tz, act.radius, act.damage, act.effect, act.durationSec, act.extras.has('ringSlow'));
+        this.spawnFireRing(
+          h,
+          tx,
+          tz,
+          act.radius,
+          act.damage,
+          act.effect,
+          act.durationSec,
+          act.extras.has('ringSlow'),
+          gen,
+        );
         return true;
       }
 
@@ -735,6 +753,7 @@ export class HeroSystem {
         const shatter = act.extras.has('shatterShields');
         hitSet.clear();
         for (let i = 0; i < skillCandidates.length; i++) {
+          if (this.resetGen !== gen) return true;
           const idx = skillCandidates[i];
           if (hitSet.has(idx)) continue;
           const e = this.pool.items[idx];
@@ -754,14 +773,17 @@ export class HeroSystem {
               y: e.y + e.height * 0.6,
               z: e.z,
             });
+            if (this.resetGen !== gen || !e.active || e.hp <= 0) continue;
           }
           const res = this.enemySystem.applyDamage(e, act.damage, true);
           h.totalDamageDealt += res.actualDamage;
           if (res.killed) h.kills++;
+          if (this.resetGen !== gen) return true;
           if (e.hp > 0) {
             this.igniteEnemy(e, h.stats.passive.power, h.stats.passive.durationSec);
           }
         }
+        if (this.resetGen !== gen) return true;
         if (act.extras.has('wispFireRing')) {
           const ringAct = h.stats.actives[0];
           this.spawnFireRing(
@@ -773,6 +795,7 @@ export class HeroSystem {
             Math.round(ringAct.effect * 0.55),
             2.0,
             ringAct.extras.has('ringSlow'),
+            gen,
           );
         }
         return true;
@@ -854,6 +877,7 @@ export class HeroSystem {
         const rSq = act.radius * act.radius;
         const slowRatio = Math.min(0.75, act.effect);
         for (let i = 0; i < skillCandidates.length; i++) {
+          if (this.resetGen !== gen) return true;
           const e = this.pool.items[skillCandidates[i]];
           if (!e.active || e.hp <= 0 || e.burrowed) continue;
           const dx = e.x - tx;
@@ -862,10 +886,12 @@ export class HeroSystem {
           const res = this.enemySystem.applyDamage(e, act.damage);
           h.totalDamageDealt += res.actualDamage;
           if (res.killed) h.kills++;
+          if (this.resetGen !== gen) return true;
           if (e.hp > 0) {
             this.enemySystem.applySlow(e, slowRatio, act.durationSec);
           }
         }
+        if (this.resetGen !== gen) return true;
         if (act.extras.has('undertowHeal')) {
           this.healNearbyAllies(h, 45);
         }
@@ -889,12 +915,14 @@ export class HeroSystem {
         hitSet.clear();
 
         for (let jump = 0; jump < maxJumps && current !== null; jump++) {
+          if (this.resetGen !== gen) return true;
           hitSet.add(current.poolIndex);
           points.push({ x: current.x, y: current.y + current.height * 0.55, z: current.z });
           const bonusMul = brittle && current.slowRatio > 0 ? 1.3 : 1;
           const res = this.enemySystem.applyDamage(current, Math.round(dmg * bonusMul), true);
           h.totalDamageDealt += res.actualDamage;
           if (res.killed) h.kills++;
+          if (this.resetGen !== gen) return true;
           if (stun && current.hp > 0 && !current.flying) {
             this.enemySystem.applyStun(current, 0.6);
           }
@@ -915,6 +943,7 @@ export class HeroSystem {
           current = nextTarget;
           dmg *= act.effect;
         }
+        if (this.resetGen !== gen) return true;
         this.events.emit('lightningChain', { points, overload: maxJumps >= 6 });
         return true;
       }
@@ -929,10 +958,12 @@ export class HeroSystem {
     damage: number,
     slow: boolean,
     scratch: number[],
+    gen = this.resetGen,
   ): void {
     this.spatialHash.query(cx, cz, radius, scratch);
     const rSq = radius * radius;
     for (let i = 0; i < scratch.length; i++) {
+      if (this.resetGen !== gen) return;
       const e = this.pool.items[scratch[i]];
       if (!e.active || e.hp <= 0 || e.burrowed) continue;
       const dSq = (e.x - cx) ** 2 + (e.z - cz) ** 2;
@@ -940,6 +971,7 @@ export class HeroSystem {
       const res = this.enemySystem.applyDamage(e, damage + Math.min(e.armor, 2));
       h.totalDamageDealt += res.actualDamage;
       if (res.killed) h.kills++;
+      if (this.resetGen !== gen) return;
       if (slow && e.hp > 0) {
         this.enemySystem.applySlow(e, 0.30, 2.0);
       }
@@ -1034,23 +1066,27 @@ export class HeroSystem {
     dps: number,
     durationSec: number,
     slowInside: boolean,
+    gen = this.resetGen,
   ): void {
     if (burstDamage > 0) {
       this.spatialHash.query(cx, cz, radius, _fireRingCandidates);
       const rSq = radius * radius;
       for (let i = 0; i < _fireRingCandidates.length; i++) {
+        if (this.resetGen !== gen) return;
         const e = this.pool.items[_fireRingCandidates[i]];
         if (!e.active || e.hp <= 0 || e.burrowed) continue;
         if ((e.x - cx) ** 2 + (e.z - cz) ** 2 > rSq) continue;
         const res = this.enemySystem.applyDamage(e, burstDamage, true);
         h.totalDamageDealt += res.actualDamage;
         if (res.killed) h.kills++;
+        if (this.resetGen !== gen) return;
         if (e.hp > 0) {
           this.igniteEnemy(e, h.stats.passive.power, h.stats.passive.durationSec);
           if (slowInside) this.enemySystem.applySlow(e, 0.25, 1.0);
         }
       }
     }
+    if (this.resetGen !== gen) return;
     this.fireRings.push({
       x: cx,
       z: cz,
@@ -1266,18 +1302,21 @@ export class HeroSystem {
   private updatePeriodicEffects(dt: number, h: HeroEntity): void {
     // Pending second Volley waves (Wren capstone).
     for (let i = this.pendingVolleys.length - 1; i >= 0; i--) {
+      if (this.abortedStep) return;
       if (i >= this.pendingVolleys.length) continue;
       const pv = this.pendingVolleys[i];
       pv.remainingSec -= dt;
       if (pv.remainingSec <= 0) {
         this.pendingVolleys.splice(i, 1);
         this.applyVolleyStrike(h, pv.x, pv.z, pv.radius, pv.damage, pv.slow, _periodicCandidates);
+        if (this.abortedStep) return;
       }
     }
 
     // Active Fire Rings & Kindling DoT ticks (synchronized every 0.5s).
     let anyFire = this.fireRings.length > 0;
     for (let i = this.fireRings.length - 1; i >= 0; i--) {
+      if (this.abortedStep) return;
       if (i >= this.fireRings.length) continue;
       const ring = this.fireRings[i];
       ring.remainingSec -= dt;
@@ -1287,6 +1326,7 @@ export class HeroSystem {
         this.spatialHash.query(ring.x, ring.z, ring.radius, _periodicCandidates);
         const rSq = ring.radius * ring.radius;
         for (let k = 0; k < _periodicCandidates.length; k++) {
+          if (this.abortedStep) return;
           const e = this.pool.items[_periodicCandidates[k]];
           if (e.active && e.hp > 0 && !e.burrowed && (e.x - ring.x) ** 2 + (e.z - ring.z) ** 2 <= rSq) {
             this.enemySystem.applySlow(e, ring.slowRatio, 0.6);
@@ -1317,11 +1357,13 @@ export class HeroSystem {
         this.burnTickTimer += BURN_TICK_INTERVAL;
         const ringCount = this.fireRings.length;
         for (let r = 0; r < ringCount && r < this.fireRings.length; r++) {
+          if (this.abortedStep) return;
           const ring = this.fireRings[r];
           this.spatialHash.query(ring.x, ring.z, ring.radius, _fireRingTickCandidates);
           const rSq = ring.radius * ring.radius;
           const tickDmg = Math.max(1, Math.round(ring.dps * BURN_TICK_INTERVAL));
           for (let k = 0; k < _fireRingTickCandidates.length; k++) {
+            if (this.abortedStep) return;
             const e = this.pool.items[_fireRingTickCandidates[k]];
             if (!e.active || e.hp <= 0 || e.burrowed) continue;
             if ((e.x - ring.x) ** 2 + (e.z - ring.z) ** 2 > rSq) continue;
@@ -1331,6 +1373,7 @@ export class HeroSystem {
           }
         }
         for (let i = 0; i < this.pool.getActiveCount(); i++) {
+          if (this.abortedStep) return;
           const idx = this.pool.getActiveIndex(i);
           if (this.burnLeft[idx] <= 0) continue;
           const e = this.pool.items[idx];
@@ -1699,6 +1742,7 @@ export class HeroSystem {
 
       if (h.state === 'fighting') {
         this.applyMeleeHolds(h, target);
+        if (this.abortedStep || h.state !== 'fighting') return;
         const bannerSpeedMul = h.rallyBannerTimer > 0 ? 1.06 : 1;
         h.attackTimer -= dt * rateMul * bannerSpeedMul;
         if (h.attackTimer <= 0) {
@@ -1710,6 +1754,7 @@ export class HeroSystem {
           const res = this.enemySystem.applyDamage(target, baseDmg + pierce);
           h.totalDamageDealt += res.actualDamage;
           if (res.killed) h.kills++;
+          if (this.abortedStep) return;
           this.events.emit('heroAttack', {
             heroId: h.heroId,
             mode: 'melee',
@@ -1723,6 +1768,7 @@ export class HeroSystem {
             crit: false,
             cleave: false,
           });
+          if (this.abortedStep || h.state !== 'fighting') return;
 
           if (h.stats.cleave > 0) {
             const other = this.findCleaveTarget(target);
@@ -1731,6 +1777,7 @@ export class HeroSystem {
               const cRes = this.enemySystem.applyDamage(other, cleaveDmg + Math.min(other.armor, h.stats.armorPierce));
               h.totalDamageDealt += cRes.actualDamage;
               if (cRes.killed) h.kills++;
+              if (this.abortedStep) return;
               this.events.emit('heroAttack', {
                 heroId: h.heroId,
                 mode: 'melee',
@@ -1804,7 +1851,7 @@ export class HeroSystem {
     const red = h.stats.passive.kind === 'bulwark' ? h.stats.passive.power : 0;
 
     budget = this.assignSingleHeroHold(h, primary, red, budget);
-    if (budget <= 0) return;
+    if (this.abortedStep || h.state !== 'fighting' || budget <= 0) return;
 
     this.spatialHash.query(h.x, h.z, HERO_RULES.meleeEngageRadius, _holdCandidates);
     _extraHoldIndices.length = 0;
@@ -1821,7 +1868,12 @@ export class HeroSystem {
       _extraHoldIndices.sort(this.byProgressDesc);
     }
     for (let i = 0; i < _extraHoldIndices.length && budget > 0; i++) {
-      budget = this.assignSingleHeroHold(h, this.pool.items[_extraHoldIndices[i]], red, budget);
+      const cand = this.pool.items[_extraHoldIndices[i]];
+      if (!this.isHoldable(cand) || cand.blockers + cand.heroBlockers >= ENEMY_MELEE[cand.type].holdCost) {
+        continue;
+      }
+      budget = this.assignSingleHeroHold(h, cand, red, budget);
+      if (this.abortedStep || h.state !== 'fighting') return;
     }
   }
 

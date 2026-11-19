@@ -629,6 +629,7 @@ export class SimReplayPlayer {
   private cmdIndex = 0;
   private accumulator = 0;
   private resetGen = 0;
+  private disposed = false;
 
   constructor(level: LevelDef, replay: SimReplayLog, events: EventBus = new EventBus()) {
     this.level = level;
@@ -676,6 +677,7 @@ export class SimReplayPlayer {
   }
 
   get finished(): boolean {
+    if (this.disposed) return true;
     if (this.world.tick >= this.totalTicks && this.cmdIndex >= this.replay.commands.length) {
       return true;
     }
@@ -717,6 +719,7 @@ export class SimReplayPlayer {
   /** Resets playback back to tick `0` and applies any pre-wave `tick === 0` commands. */
   reset(emitInitialEvents = true): void {
     this.resetGen++;
+    this.disposed = false;
     this.world?.dispose();
     this.cmdIndex = 0;
     this.accumulator = 0;
@@ -732,6 +735,7 @@ export class SimReplayPlayer {
 
   /** Advances replay by up to `count` fixed 60 Hz ticks, dispatching tick-stamped commands at exact boundaries. */
   stepTicks(count = 1): number {
+    if (this.disposed) return 0;
     const steps = Number.isFinite(count) ? Math.max(0, Math.floor(count)) : 0;
     const gen = this.resetGen;
     let executed = 0;
@@ -811,18 +815,16 @@ export class SimReplayPlayer {
       ? Math.max(0, Math.min(this.totalTicks, Math.floor(targetTick)))
       : 0;
     this.accumulator = 0;
-    if (clamped === this.world.tick) {
-      this.flushCommandsForCurrentTick();
-      return;
-    }
 
     const prevMuted = this.events.muted;
     this.events.muted = true;
     try {
-      if (clamped < this.world.tick) {
+      if (this.disposed || clamped < this.world.tick) {
         this.reset(false);
       }
-      if (clamped > this.world.tick) {
+      if (clamped === this.world.tick) {
+        this.flushCommandsForCurrentTick();
+      } else if (clamped > this.world.tick) {
         this.stepTicks(clamped - this.world.tick);
       }
     } finally {
@@ -856,6 +858,8 @@ export class SimReplayPlayer {
 
   /** Releases all pooled entities and subsystems in `this.world` when playback is closed. */
   dispose(): void {
+    this.disposed = true;
+    this.accumulator = 0;
     this.world?.dispose();
   }
 }

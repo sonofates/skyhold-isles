@@ -808,6 +808,7 @@ export class SoldierSystem {
           _prevBlockedUid.push(e.uid);
           this.emitBlock('enemyBlocked', e);
           if (this.abortedStep) return;
+          if (!e.active || e.hp <= 0 || e.blockers <= 0) continue;
         }
         if (e.meleeTimer <= 0) e.meleeTimer = 0.5 / Math.max(0.01, m.rate);
         this.enemyArmed[e.poolIndex] = 0;
@@ -876,8 +877,29 @@ export class SoldierSystem {
         }
       }
       // Announce the next blow while something still holds it (render timing only).
-      const next = this.getSoldierById(this.primary[e.poolIndex]);
-      if (!this.enemyArmed[e.poolIndex] && drain > 1e-6 && next && next.state === 'fighting') {
+      let next = this.getSoldierById(this.primary[e.poolIndex]);
+      if (
+        !next ||
+        next.state !== 'fighting' ||
+        next.targetPoolIndex !== e.poolIndex ||
+        next.targetUid !== e.uid
+      ) {
+        next = null;
+        if (e.blockers > 0) {
+          for (let i = 0; i < this.soldiers.length; i++) {
+            const cand = this.soldiers[i];
+            if (
+              cand.state === 'fighting' &&
+              cand.targetPoolIndex === e.poolIndex &&
+              cand.targetUid === e.uid
+            ) {
+              next = cand;
+              break;
+            }
+          }
+        }
+      }
+      if (!this.enemyArmed[e.poolIndex] && drain > 1e-6 && next) {
         this.enemyArmed[e.poolIndex] = 1;
         this.events.emit('meleeSwing', {
           attacker: 'enemy',

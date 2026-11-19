@@ -102,17 +102,22 @@ export function combineRunModifiers(...patches: readonly RunModifierPatch[]): Ru
     abilitiesDisabled = abilitiesDisabled || p.abilitiesDisabled === true;
     championWaves = championWaves || p.championWaves === true;
   }
+  const clampRange = (v: number, min: number, max: number, fb: number): number =>
+    Number.isFinite(v) ? Math.max(min, Math.min(max, v)) : fb;
+  for (const k of Object.keys(towerFireRateMul) as TowerType[]) {
+    towerFireRateMul[k] = clampRange(towerFireRateMul[k]!, 0.05, 1_000, 1);
+  }
   return {
-    startGoldBonus,
-    startGoldMul,
-    bonusLives,
-    maxLives,
-    abilityCooldownMul: Math.max(0.05, abilityCooldownMul),
-    killGoldMul,
-    waveBonusMul,
+    startGoldBonus: Math.round(clampRange(startGoldBonus, -1_000_000, 1_000_000, 0)),
+    startGoldMul: clampRange(startGoldMul, 0, 1_000, 1),
+    bonusLives: Math.round(clampRange(bonusLives, -10_000, 10_000, 0)),
+    maxLives: maxLives !== null ? Math.max(1, Math.min(10_000, maxLives)) : null,
+    abilityCooldownMul: clampRange(abilityCooldownMul, 0.05, 1_000, 1),
+    killGoldMul: clampRange(killGoldMul, 0, 1_000, 1),
+    waveBonusMul: clampRange(waveBonusMul, 0, 1_000, 1),
     towerFireRateMul,
-    enemySpeedMul: Math.max(0.05, enemySpeedMul),
-    enemyHpMul: Math.max(0.05, enemyHpMul),
+    enemySpeedMul: clampRange(enemySpeedMul, 0.05, 1_000, 1),
+    enemyHpMul: clampRange(enemyHpMul, 0.05, 1_000, 1),
     bannedTowers: [...banned],
     abilitiesDisabled,
     championWaves,

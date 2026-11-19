@@ -277,17 +277,23 @@ export class SimWorld {
     this.soldierSystem.towerRateMul = mods.towerFireRateMul;
     this.enemySystem.speedMul = mods.enemySpeedMul;
 
-    this.gold = Math.max(0, Math.round(level.startingGold * mods.startGoldMul) + mods.startGoldBonus);
-    this.startingLives = Math.max(
-      1,
-      mods.maxLives !== null ? mods.maxLives : BALANCE.startingLives + mods.bonusLives,
-    );
+    const rawGold =
+      Math.round(level.startingGold * (Number.isFinite(mods.startGoldMul) ? mods.startGoldMul : 1)) +
+      (Number.isFinite(mods.startGoldBonus) ? Math.round(mods.startGoldBonus) : 0);
+    this.gold = Number.isFinite(rawGold) ? Math.max(0, Math.min(10_000_000, rawGold)) : 0;
+    const rawLives =
+      mods.maxLives !== null && Number.isFinite(mods.maxLives)
+        ? Math.floor(mods.maxLives)
+        : BALANCE.startingLives + (Number.isFinite(mods.bonusLives) ? Math.round(mods.bonusLives) : 0);
+    this.startingLives = Math.max(1, Math.min(100_000, rawLives));
     this.lives = this.startingLives;
   }
 
   private scaleWaveBonus(bonus: number): number {
-    const mul = this.mods.waveBonusMul;
-    return mul === 1 ? bonus : Math.max(0, Math.round(bonus * mul));
+    const mul = Number.isFinite(this.mods.waveBonusMul) ? this.mods.waveBonusMul : 1;
+    if (mul === 1) return bonus;
+    const scaled = Math.round(bonus * mul);
+    return Number.isFinite(scaled) ? Math.max(0, Math.min(10_000_000, scaled)) : 0;
   }
 
   /** Elapsed deterministic simulation time in seconds (`tick * BALANCE.fixedDt`). */
@@ -544,6 +550,7 @@ export class SimWorld {
   }
 
   debugSkipToWave(waveOneBased: number): boolean {
+    this.combatSystem.abortCurrentStep();
     this.projectilePool.clear();
     this.projectileSystem.clearBurnZones();
     this.abilitySystem.clearPending();
@@ -561,6 +568,7 @@ export class SimWorld {
   }
 
   private clearVictoryTransients(): void {
+    this.combatSystem.abortCurrentStep();
     this.projectilePool.clear();
     this.projectileSystem.clearBurnZones();
     this.abilitySystem.clearPending();
@@ -571,6 +579,7 @@ export class SimWorld {
   }
 
   private clearDefeatTransients(): void {
+    this.combatSystem.abortCurrentStep();
     this.projectilePool.clear();
     this.projectileSystem.clearBurnZones();
     this.abilitySystem.clearPending();
@@ -580,6 +589,7 @@ export class SimWorld {
 
   /** Releases all pooled entities, ground zones, soldiers, gizmos, and spatial-hash buckets after a run. */
   dispose(): void {
+    this.combatSystem.abortCurrentStep();
     this.heroSystem.clearTransientZones(true, this.towers, false);
     this.soldierSystem.clearAll();
     this.enemyPool.clear();
@@ -853,6 +863,10 @@ export class SimWorld {
     this.events.emit('economyChanged', { gold: this.gold, lives: this.lives });
   };
 
+  private readonly onWaveClearedOnlyFn = (): void => {
+    this.heroSystem.onWaveCleared();
+  };
+
   private readonly onAllClearedWinFn = (): void => {
     if (this.outcome === 'ongoing' && this.lives > 0 && !this.waveSystem.isEndless) {
       const stars = this.computeStars();
@@ -915,6 +929,7 @@ export class SimWorld {
       this.onWaveSpawnFn,
       this.onWaveBonusFn,
       this.onAllClearedWinFn,
+      this.onWaveClearedOnlyFn,
     );
 
     if (this.outcome !== 'ongoing') return;
@@ -946,6 +961,7 @@ export class SimWorld {
       this.getActiveEnemiesFn,
       this.onWaveBonusFn,
       this.onAllClearedWinFn,
+      this.onWaveClearedOnlyFn,
     );
 
     if (this.outcome !== 'ongoing') return;
