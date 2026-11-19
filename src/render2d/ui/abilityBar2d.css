@@ -17,6 +17,23 @@
   flex-direction: column;
 }
 
+/* The dock's tray (hudDock.ts): a slim dark-wood plate with a gold rim behind the medallions, so
+   the bar reads as one fixed piece of the HUD, not buttons floating on the island. It stays inside
+   the tray's reserved slot (the map keeps 4 px clear of it). */
+.pu-abilities.tray::before {
+  content: '';
+  position: absolute;
+  inset: calc(var(--d, 60px) * -0.04);
+  z-index: -1;
+  border-radius: calc(var(--d, 60px) * 0.62);
+  background: linear-gradient(rgba(86, 54, 26, 0.62), rgba(44, 26, 10, 0.7));
+  box-shadow:
+    inset 0 0 0 2px rgba(222, 178, 104, 0.6),
+    inset 0 2px 0 3px rgba(255, 226, 160, 0.12),
+    0 3px 6px rgba(20, 10, 2, 0.35);
+  pointer-events: none;
+}
+
 /* Two rows on dense islands: the hero group on top, the abilities centred under it. */
 .pu-abilities.block {
   flex-wrap: wrap;

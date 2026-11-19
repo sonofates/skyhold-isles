@@ -143,9 +143,10 @@ export function hudDock(w: number, h: number, insets: Insets, o: HudDockOptions)
     }
     tray = { x: tx, y: ty, w: tw, h: th };
     trayLayout = 'row';
-    // Info slot top-left, as tall as the button band, up to half the screen.
+    // Info slot top-left, as tall as the button band; it ends before the top-centre column where the
+    // new-foe heads-up and the coach card appear (30 --s wide, centred), so they never meet.
     const ih = Math.max(buttons.y + buttons.h - top, s * 7);
-    info = { x: leftX, y: top, w: Math.max(0, Math.min(w * 0.5, buttons.x - gap - leftX)), h: ih };
+    info = { x: leftX, y: top, w: Math.max(0, Math.min(w / 2 - s * 15 - gap - leftX, buttons.x - gap - leftX)), h: ih };
   } else {
     // Right column: the horn stands on the banner's right end.
     horn = { x: banner.x + banner.w - r * 1.2, y: banner.y - gap * 0.4 - r * 1.2, r };

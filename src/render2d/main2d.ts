@@ -35,6 +35,7 @@ import { mountSettings2D, type Settings2D } from './settingsButton2d.ts';
 import { hudKeepOuts, readSafeInsets } from './uiKit.ts';
 import { gateKeepOutsPx, hudButtonsKeepOut } from './uiLayout.ts';
 import { uiUnit } from './hudDock.ts';
+import { hudCheck } from './hudCheck.ts';
 import { anySheetOpen } from './ui/dom.ts';
 
 /**
@@ -97,8 +98,10 @@ declare global {
       artcheck?: () => ReturnType<typeof artCheckSummary>;
       /** QA: the ability bar (state, boxes, FX counters) and aiming as a button press would. */
       abilities?: () => Record<string, unknown> | null;
-      /** QA: the next-wave card beside the horn. */
+      /** QA: the next-wave card (in the dock's info slot). */
       waveCard?: () => Record<string, unknown> | null;
+      /** QA: every HUD piece as drawn (screen px) and what playable shape each one covers (must be none). */
+      hudCheck?: () => import('./hudCheck.ts').HudCheck;
       /** QA: the caves / castle fronts on screen (`castle` = the goal). */
       gates?: () => { x: number; y: number; w: number; h: number; castle: boolean }[];
       lives?: () => Record<string, unknown> | null;
@@ -911,7 +914,7 @@ async function main(): Promise<void> {
           // Keep off the card (last frame's spot), the horn and the HUD pieces.
           const card = waveCard.box();
           const hr = game.hud.rects();
-          const avoid = [...(card ? [card] : []), hr.horn, hr.plaque, hr.banner, hudButtonsKeepOut(app.screen.width, app.screen.height, readSafeInsets()), ...hudKeepOuts()];
+          const avoid = [...(card ? [card] : []), hr.hornBox, hr.plaque, hr.banner, hudButtonsKeepOut(app.screen.width, app.screen.height, readSafeInsets()), ...hudKeepOuts()];
           const toScreen = (p: { x: number; z: number }): { x: number; y: number } => ({ x: game.map.screenX(game.map.pxX(p.x)), y: game.map.screenY(game.map.pxY(p.z)) });
           const unit = laneMod.kitUnit(app.screen.width, app.screen.height);
           for (const [lane, count] of laneCache.counts) {
@@ -954,6 +957,7 @@ async function main(): Promise<void> {
     artcheck: () => artCheckSummary(art),
     abilities: () => abilities?.debug() ?? null,
     waveCard: () => waveCard?.debug() ?? null,
+    hudCheck: () => hudCheck(game),
     gates: () => gateRectsRef?.() ?? [],
     lives: () => livesWarn?.debug() ?? null,
     foe: () => foeCard?.debug() ?? null,
