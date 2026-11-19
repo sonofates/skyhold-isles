@@ -17,6 +17,22 @@
   flex-direction: column;
 }
 
+/* Two rows on dense islands: the hero group on top, the abilities centred under it. */
+.pu-abilities.block {
+  flex-wrap: wrap;
+  justify-content: center;
+  width: var(--blockw, auto);
+  row-gap: calc(var(--gap, 14px) * 0.6);
+}
+
+/* Three rows up a side (short phone screens): portrait, hero skills, abilities. */
+.pu-abilities.stack {
+  flex-wrap: wrap;
+  justify-content: center;
+  width: var(--blockw, auto);
+  row-gap: calc(var(--gap, 14px) * 0.6);
+}
+
 .pu-abilities[hidden],
 .pu-ab-hint[hidden] {
   display: none !important;
@@ -258,6 +274,8 @@
 }
 
 .pu-ab-tip-key {
+  flex: none;
+  white-space: nowrap;
   font-size: 0.7em;
   padding: 0.1em 0.45em;
   border-radius: 6px;
@@ -287,12 +305,15 @@
   font-size: max(13px, calc(var(--s) * 1.3));
   font-weight: 700;
   line-height: 1.2;
+  /* Two even lines rather than one long one and an orphan word. */
+  text-wrap: balance;
 }
 
 .pu-ab-hint small {
   display: block;
   font-size: 0.78em;
   font-weight: 600;
+  text-wrap: balance;
 }
 
 .pu-ab-hint.nudge {

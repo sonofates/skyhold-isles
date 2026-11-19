@@ -1,0 +1,179 @@
+/* Foe info card (enemyCard2d.ts): the kit's gold-framed parchment, following the foe. */
+.pu-foe-card {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 25;
+  width: min(calc(var(--s) * 25), 70vw);
+  padding: calc(var(--s) * 0.15) calc(var(--s) * 0.4);
+  border-style: solid;
+  border-width: calc(var(--s) * 0.95);
+  border-image: url('/art2d/ui/tooltip.webp') 40 fill stretch;
+  filter: drop-shadow(0 3px 3px rgba(30, 16, 4, 0.45));
+  pointer-events: none;
+  font-size: calc(var(--s) * 1);
+  line-height: 1.25;
+  transition: opacity 0.4s;
+  will-change: transform;
+}
+
+.pu-foe-card.fell {
+  opacity: 0.55;
+  transition: opacity 1.1s ease-in;
+}
+
+.pu-foe-head {
+  display: flex;
+  gap: calc(var(--s) * 0.6);
+  align-items: center;
+}
+
+.pu-foe-face {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: calc(var(--s) * 3.6);
+  height: calc(var(--s) * 3.6);
+  min-width: 34px;
+  min-height: 34px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: radial-gradient(circle at 50% 35%, #e9f2d0, #9fbf7a 80%);
+  box-shadow: 0 0 0 2.5px #7a5532, inset 0 -3px 5px rgba(40, 60, 20, 0.35);
+}
+
+.pu-foe-face.flying {
+  background: radial-gradient(circle at 50% 35%, #eaf6ff, #9cc6e6 80%);
+}
+
+.pu-foe-face.boss {
+  background: radial-gradient(circle at 50% 35%, #ffe2c8, #e39a6a 80%);
+  box-shadow: 0 0 0 2.5px #b3261e, 0 0 calc(var(--s) * 0.6) rgba(220, 60, 40, 0.6);
+}
+
+.pu-foe-face > img {
+  width: 128%;
+  height: 128%;
+  object-fit: contain;
+  object-position: 50% 18%;
+  transform: translateY(8%);
+}
+
+.pu-foe-title {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--s) * 0.3);
+}
+
+.pu-foe-row {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--s) * 0.5);
+  min-width: 0;
+}
+
+.pu-foe-name {
+  font-size: calc(var(--s) * 1.3);
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pu-foe-tags {
+  display: flex;
+  gap: 0.3em;
+  flex-wrap: wrap;
+}
+
+.pu-foe-tag {
+  padding: 0.05em 0.5em;
+  border-radius: 999px;
+  font-size: calc(var(--s) * 0.85);
+  font-weight: 700;
+  color: #fff4dc;
+  background: #6a4a2a;
+  white-space: nowrap;
+}
+
+.pu-foe-tag.elite {
+  color: #4a2a12;
+  background: linear-gradient(#ffe39a, #e6a72e);
+}
+
+.pu-foe-hp {
+  position: relative;
+  flex: 1;
+  height: max(8px, calc(var(--s) * 0.75));
+  border-radius: 999px;
+  background: rgba(58, 36, 18, 0.85);
+  overflow: hidden;
+}
+
+.pu-foe-hp > i {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  border-radius: inherit;
+  transition: width 0.15s linear;
+}
+
+.pu-foe-hp-fill {
+  background: linear-gradient(#9be36b, #4e9e2c);
+}
+
+.pu-foe-hp-fill.low {
+  background: linear-gradient(#ff9a7a, #c8341f);
+}
+
+.pu-foe-hp-shield {
+  background: linear-gradient(rgba(160, 220, 255, 0.85), rgba(80, 150, 230, 0.85));
+}
+
+.pu-foe-hp-text {
+  flex: none;
+  font-size: calc(var(--s) * 0.95);
+  font-weight: 700;
+  min-width: 4.5em;
+  text-align: right;
+}
+
+.pu-foe-stats {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: calc(var(--s) * 0.9);
+  margin-top: calc(var(--s) * 0.45);
+  font-size: calc(var(--s) * 0.95);
+}
+
+.pu-foe-stats b {
+  color: #7a5532;
+  font-weight: 600;
+}
+
+.pu-foe-desc {
+  margin-top: calc(var(--s) * 0.35);
+  font-size: calc(var(--s) * 0.92);
+}
+
+.pu-foe-counter {
+  margin-top: calc(var(--s) * 0.3);
+  font-size: calc(var(--s) * 0.92);
+}
+
+.pu-foe-counter b {
+  color: #9a3b18;
+}
+
+/* Phones: the essentials only. */
+@media (max-height: 560px) {
+  .pu-foe-card {
+    width: min(250px, 60vw);
+  }
+  .pu-foe-desc {
+    display: none;
+  }
+}

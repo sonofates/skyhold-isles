@@ -28,6 +28,33 @@
   opacity: 0.85;
 }
 
+.pu-abilities.block .pu-hero-group {
+  flex-basis: 100%;
+  justify-content: center;
+}
+
+.pu-abilities.block .pu-hero-divider {
+  display: none;
+}
+
+.pu-abilities.stack .pu-hero-group {
+  flex-basis: 100%;
+  display: grid;
+  grid-template-columns: repeat(2, var(--d, 60px));
+  justify-content: center;
+  column-gap: var(--gap, 14px);
+  row-gap: calc(var(--gap, 14px) * 0.6);
+}
+
+.pu-abilities.stack .pu-hero-port {
+  grid-column: 1 / -1;
+  justify-self: center;
+}
+
+.pu-abilities.stack .pu-hero-divider {
+  display: none;
+}
+
 .pu-abilities.vertical .pu-hero-divider {
   width: calc(var(--d, 60px) * 0.7);
   height: calc(var(--d, 60px) * 0.12);

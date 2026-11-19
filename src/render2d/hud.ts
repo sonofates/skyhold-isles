@@ -3,7 +3,7 @@ import { t, type MsgKey } from '../i18n/index.ts';
 import type { LoadedArt } from './assets2d.ts';
 import { paintedText, setFontSize, setText } from './hudText.ts';
 import { fitWidth, hasKit, inkText, kit, setInkSize } from './uiKit.ts';
-import { HUD_MIN_TOUCH, hudButtonsLayout, KIT_PLAQUE_SLOTS, NO_INSETS, plaqueLayout, uiScale, type Insets, type PlaqueSlots, type Rect } from './uiLayout.ts';
+import { HUD_MIN_TOUCH, hudButtonsLayout, KIT_PLAQUE_SLOTS, NO_INSETS, plateCentreY, plaqueLayout, uiScale, type Insets, type PlaqueSlots, type Rect } from './uiLayout.ts';
 
 /**
  * game2d.ts sets `HudState.banner` to these English ids (its protocol, not display text); the HUD
@@ -34,6 +34,12 @@ export interface HudState {
   /** Gold for calling it early (0 = none). */
   readonly earlyBonus: number;
   readonly banner: string;
+  /** Lives the run started with (the number turns red when lives run low). */
+  readonly startLives?: number;
+  /** Seconds until the next wave starts on its own (0 = no countdown running). */
+  readonly countdown?: number;
+  /** The countdown's remaining fraction 0..1 (drives the ring round the horn). */
+  readonly countdownFrac?: number;
 }
 
 interface RoundButton {
@@ -56,6 +62,15 @@ const OLD_COIN_X = 0.52;
  * Sizes scale with the viewport but never below MIN_TOUCH.
  */
 export class Hud {
+  /** Mouse + hover client (game2d sets it): banners say "Click" instead of "Tap". */
+  desktop = false;
+  /**
+   * Screen box the centre plate must not cover (the rally range circle: the road the player has
+   * to tap is inside it). game2d sets it; the plate moves to the top or bottom band instead.
+   */
+  plateAvoid: Rect | null = null;
+  private plateAvoidKey = '';
+
   readonly root = new Container();
   private readonly plaque: Sprite;
   private readonly heart: Sprite;
@@ -70,6 +85,11 @@ export class Hud {
   private readonly speedBtn: RoundButton;
   private readonly horn: Sprite;
   private readonly hornLabel = paintedText(20, 'center', '#ffe27a');
+  /** Countdown ring round the horn and its seconds under it (between waves). */
+  private readonly hornRing = new Graphics();
+  private readonly hornSecs = paintedText(18, 'center', '#fff4dc');
+  private lastSecs = -1;
+  private lastRingFrac = -1;
   private readonly plate: NineSliceSprite | Graphics;
   private readonly centre = inkText(40, 'center');
   private readonly sub = inkText(20, 'center', '#7a5532', '600');
@@ -86,8 +106,18 @@ export class Hud {
   private lastPaused = -1;
   private lastSpeed = -1;
   private lastLives = NaN;
+  /** Seconds left of the lives number's "hit" pop, and its fitted scale. */
+  private livesHit = 0;
+  private livesBaseScale = 1;
+  private goldBump = 0;
+  private goldBaseScale = 1;
+  private goldTint = 0xffffff;
   private lastGold = NaN;
   private lastWave = NaN;
+  /** "Wave n" bump when a new wave marches (not on the first fill / a reset). */
+  private waveBump = 0;
+  private waveBaseScale = 1;
+  private prevWaveNum = NaN;
   private endlessAfter: number | null = null;
   private lastHorn = NaN;
   private lastBanner = '\u0000';
@@ -122,8 +152,10 @@ export class Hud {
       this.waveText,
       this.pauseBtn.root,
       this.speedBtn.root,
+      this.hornRing,
       this.horn,
       this.hornLabel,
+      this.hornSecs,
       this.plate,
       this.centre,
       this.sub,
@@ -203,6 +235,9 @@ export class Hud {
     this.hornY = Math.max(minY, Math.min(pl.y - this.hornR - 30, hornAt.y));
     this.hornLabel.position.set(this.hornX, this.hornY - this.hornR - 12);
     setFontSize(this.hornLabel, Math.round(Math.max(15, 20 * u)));
+    setFontSize(this.hornSecs, Math.round(Math.max(14, 18 * u)));
+    this.hornSecs.position.set(this.hornX, this.hornY + this.hornR + Math.max(10, 12 * u));
+    this.lastRingFrac = -1;
 
     setInkSize(this.centre, Math.round(Math.max(24, 44 * u)));
     setInkSize(this.sub, Math.round(Math.max(14, 20 * u)));
@@ -236,12 +271,12 @@ export class Hud {
     this.plate.visible = has;
     if (!has) return;
     const cx = this.screenW / 2;
-    const cy = this.screenH * 0.42;
     const subOn = this.sub.text !== '';
     const tw = Math.max(this.centre.width, subOn ? this.sub.width : 0);
     const fs = Number(this.centre.style.fontSize);
     const pw = tw + fs * 1.6;
     const ph = fs * (subOn ? 2.5 : 1.75);
+    const cy = plateCentreY(this.screenH, { x: cx - pw / 2, w: pw, h: ph }, this.plateAvoid);
     this.centre.position.set(cx, cy - (subOn ? fs * 0.36 : 0));
     this.sub.position.set(cx, cy + fs * 0.62);
     const x = cx - pw / 2;
@@ -272,17 +307,50 @@ export class Hud {
   }
 
   update(s: HudState, dt: number): void {
+    const ak = this.plateAvoid ? `${Math.round(this.plateAvoid.x)},${Math.round(this.plateAvoid.y)},${Math.round(this.plateAvoid.w)}` : '';
+    if (ak !== this.plateAvoidKey) {
+      this.plateAvoidKey = ak;
+      this.layoutPlate();
+    }
     this.t += dt;
     // Strings are only built when a value changes (no per-frame allocation).
     if (s.lives !== this.lastLives) {
+      if (s.lives < this.lastLives) this.livesHit = 0.5;
       this.lastLives = s.lives;
       setText(this.livesText, String(s.lives));
       fitWidth(this.livesText, this.livesBox.w);
+      this.livesBaseScale = this.livesText.scale.x;
+      const low = s.startLives !== undefined && s.lives > 0 && (s.lives <= 3 || s.lives <= Math.floor(s.startLives * 0.25));
+      this.livesText.style.fill = low ? '#ffb4a0' : '#fff4dc';
+    }
+    if (this.livesHit > 0) {
+      this.livesHit = Math.max(0, this.livesHit - dt);
+      const k = this.livesHit / 0.5;
+      this.livesText.scale.set(this.livesBaseScale * (1 + 0.28 * Math.sin(k * Math.PI)));
+      this.livesText.tint = k > 0 ? 0xff8a7a : 0xffffff;
+    } else if (this.livesText.tint !== 0xffffff) {
+      this.livesText.tint = 0xffffff;
+      this.livesText.scale.set(this.livesBaseScale);
     }
     if (s.gold !== this.lastGold) {
+      // Earn: a warm gold bump; spend: a short red dip (not on the first fill).
+      if (Number.isFinite(this.lastGold)) {
+        this.goldBump = 0.3;
+        this.goldTint = s.gold > this.lastGold ? 0xffe27a : 0xff9a8a;
+      }
       this.lastGold = s.gold;
       setText(this.goldText, String(s.gold));
       fitWidth(this.goldText, this.goldBox.w);
+      this.goldBaseScale = this.goldText.scale.x;
+    }
+    if (this.goldBump > 0) {
+      this.goldBump = Math.max(0, this.goldBump - dt);
+      const k = this.goldBump / 0.3;
+      this.goldText.scale.set(this.goldBaseScale * (1 + 0.14 * Math.sin(k * Math.PI)));
+      this.goldText.tint = k > 0.05 ? this.goldTint : 0xffffff;
+    } else if (this.goldText.tint !== 0xffffff) {
+      this.goldText.tint = 0xffffff;
+      this.goldText.scale.set(this.goldBaseScale);
     }
     if (s.wave * 1000 + s.totalWaves !== this.lastWave) {
       this.lastWave = s.wave * 1000 + s.totalWaves;
@@ -290,6 +358,18 @@ export class Hud {
       const story = this.endlessAfter;
       setText(this.waveText, story === null ? t('hud.wave', { n: w, total: s.totalWaves }) : w <= story ? t('hud.wave', { n: w, total: story }) : t('hud.endlessWave', { n: w }));
       fitWidth(this.waveText, this.bannerFont);
+      this.waveBaseScale = this.waveText.scale.x;
+      if (Number.isFinite(this.prevWaveNum) && s.wave > this.prevWaveNum && s.wave > 1) this.waveBump = 0.5;
+      this.prevWaveNum = s.wave;
+    }
+    if (this.waveBump > 0) {
+      this.waveBump = Math.max(0, this.waveBump - dt);
+      const k = this.waveBump / 0.5;
+      this.waveText.scale.set(this.waveBaseScale * (1 + 0.16 * Math.sin(k * Math.PI)));
+      this.waveText.tint = k > 0.05 ? 0xffe9a8 : 0xffffff;
+    } else if (this.waveText.tint !== 0xffffff) {
+      this.waveText.tint = 0xffffff;
+      this.waveText.scale.set(this.waveBaseScale);
     }
     const pausedKey = s.paused ? 1 : 0;
     if (pausedKey !== this.lastPaused) {
@@ -310,16 +390,58 @@ export class Hud {
       this.lastHorn = hornKey;
       setText(this.hornLabel, hornKey > 0 ? `+${hornKey}` : hornKey === -1 ? t('hud.start') : '');
     }
+    this.drawCountdown(s.countdown ?? 0, s.countdownFrac ?? 0);
     if (s.banner !== this.lastBanner) {
       this.lastBanner = s.banner;
       const known = BANNERS[s.banner];
-      setText(this.centre, known ? t(known[0]) : s.banner);
+      // With a mouse the rally banner says "Click the road".
+      const head = known && this.desktop && known[0] === 'hud.tapRoad' ? 'hud.clickRoad' : known?.[0];
+      setText(this.centre, head ? t(head) : s.banner);
       setText(this.sub, known ? t(known[1]) : '');
       // A long translation never runs off a phone screen.
       fitWidth(this.centre, this.screenW * 0.8);
       fitWidth(this.sub, this.screenW * 0.8);
       this.layoutPlate();
     }
+  }
+
+  /**
+   * Between waves: a gold ring round the horn runs down with the countdown, the seconds under it
+   * (pulsing red in the last 3 s). Redrawn only when the ring moves a visible step.
+   */
+  private drawCountdown(sec: number, frac: number): void {
+    const on = sec > 0 && frac > 0;
+    const f = on ? Math.round(frac * 240) / 240 : 0;
+    if (f !== this.lastRingFrac) {
+      this.lastRingFrac = f;
+      const g = this.hornRing;
+      g.clear();
+      if (on) {
+        const r = this.hornR * 1.12;
+        const w = Math.max(4, this.hornR * 0.13);
+        const a0 = -Math.PI / 2;
+        g.circle(this.hornX, this.hornY, r).stroke({ color: 0x2a1808, width: w + 3, alpha: 0.55 });
+        // moveTo first: an arc continues the current path (a stray line from the origin otherwise).
+        const sx = this.hornX + Math.cos(a0) * r;
+        const sy = this.hornY + Math.sin(a0) * r;
+        g.moveTo(sx, sy).arc(this.hornX, this.hornY, r, a0, a0 + Math.PI * 2 * f).stroke({ color: 0x3a2412, width: w + 2.5, cap: 'round' });
+        g.moveTo(sx, sy).arc(this.hornX, this.hornY, r, a0, a0 + Math.PI * 2 * f).stroke({ color: f < 0.25 ? 0xff9a5a : 0xf2c24a, width: w, cap: 'round' });
+      }
+    }
+    const whole = on ? Math.ceil(sec) : -1;
+    if (whole !== this.lastSecs) {
+      this.lastSecs = whole;
+      setText(this.hornSecs, whole > 0 ? t('ab.secs', { n: whole }) : '');
+      this.hornSecs.style.fill = whole > 0 && whole <= 3 ? '#ffb08a' : '#fff4dc';
+    }
+    this.hornSecs.visible = whole > 0;
+    if (whole > 0 && whole <= 3) this.hornSecs.scale.set(1 + 0.12 * Math.max(0, Math.sin(this.t * 9)));
+    else this.hornSecs.scale.set(1);
+  }
+
+  /** Horn radius (css px), for things anchored to it (next-wave card). */
+  get hornRadius(): number {
+    return this.hornR;
   }
 
   hit(x: number, y: number): HudAction {

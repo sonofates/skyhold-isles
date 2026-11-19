@@ -48,6 +48,23 @@ export const ICONS = {
       `<circle cx="24" cy="23" r="2.4" fill="#3d7bd6" stroke="${O}" stroke-width="1.4"/>` +
       `<path d="M24 25.4 V28" stroke="${O}" stroke-width="2"/>`,
   ),
+  /** Restart: a cream circular arrow (no painted equivalent in the kit). */
+  restart: svg(
+    `<path d="M36.5 17 A14 14 0 1 0 38 27" fill="none" stroke="${O}" stroke-width="9"/>` +
+      `<path d="M36.5 17 A14 14 0 1 0 38 27" fill="none" stroke="#fff4dc" stroke-width="4.5"/>` +
+      `<path d="M41 7 L40 21 L27 18 Z" fill="#fff4dc" stroke="${O}" stroke-width="3"/>`,
+  ),
+  /** Replay: a little picture frame on a stand with a red play triangle (matches the end panel). */
+  replay: svg(
+    `<path d="M18 37 L15 43 M30 37 L33 43" stroke="${O}" stroke-width="4"/>` +
+      `<rect x="6" y="9" width="36" height="28" rx="4" fill="#fff4dc" stroke="${O}" stroke-width="3.4"/>` +
+      `<path d="M20 16 L31 23 L20 30 Z" fill="#c8341f" stroke="${O}" stroke-width="2.4"/>`,
+  ),
+  /** Pause bars (cream on the wooden button). */
+  pause: svg(
+    `<rect x="12" y="9" width="9" height="30" rx="2.5" fill="#fff4dc" stroke="${O}" stroke-width="3.2"/>` +
+      `<rect x="27" y="9" width="9" height="30" rx="2.5" fill="#fff4dc" stroke="${O}" stroke-width="3.2"/>`,
+  ),
   /** Endless-record wave (no painted equivalent in the kit). */
   wave: svg(
     `<path d="M6 30 C10 24 14 24 18 30 C22 36 26 36 30 30 C34 24 38 24 42 30" fill="none" stroke="${O}" stroke-width="8"/>` +

@@ -1,0 +1,46 @@
+/* Lives warning (lowLives2d.ts): red light round the screen edge. */
+.pu-lives-vignette {
+  position: fixed;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+  opacity: 0;
+  /* An even red glow along all four edges (an ellipse gradient only reaches the corners). */
+  box-shadow: inset 0 0 16vmin 3.5vmin rgba(190, 20, 8, 0.95);
+}
+
+.pu-lives-vignette.low {
+  animation: pu-lives-low 1.6s ease-in-out infinite;
+}
+
+.pu-lives-flash.hit {
+  animation: pu-lives-hit 0.55s ease-out;
+}
+
+@keyframes pu-lives-hit {
+  0% {
+    opacity: 0.95;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes pu-lives-low {
+  0%,
+  100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 0.9;
+  }
+}
+
+.pu-reduce-motion .pu-lives-vignette.low {
+  animation: none;
+  opacity: 0.6;
+}
+
+.pu-reduce-motion .pu-lives-flash.hit {
+  animation: none;
+}

@@ -44,13 +44,30 @@ export interface TowerPanelInfo {
   readonly targeting?: TargetingMode;
   /** Screen box of the built tower: the ring arranges itself to stay off it. */
   readonly keepOut?: Rect;
+  /** This tower's battle record (shown in the targeting / rally / sell tooltips). */
+  readonly record?: { readonly kills: number; readonly damage: number };
 }
+
+const TARGET_NEXT: Readonly<Record<TargetingMode, TargetingMode>> = { first: 'last', last: 'strongest', strongest: 'closest', closest: 'first' };
 
 /** What the ring is pointing at right now (selected, else hovered): drives the range preview. */
 export interface RingPreview {
   readonly type: TowerType;
   readonly tier: 1 | 2 | 3;
 }
+
+/** Targeting token tooltip: the current mode, the tower's record, what a tap / click switches to. */
+function targetTip(mode: TargetingMode, record: string, desktop: boolean): TipContent {
+  return { title: msg('ring.targetTitle', { mode: msg(TARGET_LABEL[mode]) }), role: record, rows: null, next: null, hint: msg(desktop ? 'ring.targetHintClick' : 'ring.targetHint', { mode: msg(TARGET_LABEL[TARGET_NEXT[mode]]) }), hintBad: '', fixedHint: true };
+}
+
+/** "Tap …" on touch, "Click …" with a mouse. */
+const ACTION_HINT: Readonly<Record<'build' | 'upgrade' | 'sell' | 'choose', readonly [MsgKey, MsgKey]>> = {
+  build: ['ring.tapBuild', 'ring.clickBuild'],
+  upgrade: ['ring.tapUpgrade', 'ring.clickUpgrade'],
+  sell: ['ring.tapSell', 'ring.clickSell'],
+  choose: ['ring.tapChoose', 'ring.clickChoose'],
+};
 
 /** Short tower name (localised; see src/i18n/data.ts). */
 export function shortTowerName(type: string): string {
@@ -105,6 +122,8 @@ interface TipContent {
   next: StatRow[] | null;
   hint: string;
   hintBad: string;
+  /** Acts on the first tap (targeting / rally): keep this hint, never "tap to choose". */
+  fixedHint?: boolean;
 }
 
 /** Tower ring radius: clears a tower drawn above its plot (towers are ~2.7 medallion radii tall). */
@@ -210,7 +229,10 @@ class RingTooltip {
       costWidth = W - pad - this.coin.x + 5;
     }
     fitWidth(this.role, W - pad * 2 - costWidth);
-    y += fBody * 0.6;
+    // No role line (a fresh tower's targeting / rally tip): the hint moves up into its place.
+    const noRole = !c.role && c.cost == null && !c.rows;
+    this.role.visible = !noRole;
+    y += noRole ? -fBody * 1.3 : fBody * 0.6;
     const g = this.pips;
     g.clear();
     const painted = this.pipTex;
@@ -317,6 +339,13 @@ export class BuildRing {
   /** What the ring is open on: plot index, or -1. */
   plot = -1;
   mode: 'build' | 'tower' | null = null;
+
+  /** Mouse + hover client: hints say "Click" instead of "Tap" (game2d sets it). */
+  desktop = false;
+
+  private hint(what: keyof typeof ACTION_HINT): string {
+    return msg(ACTION_HINT[what][this.desktop ? 1 : 0]);
+  }
 
   constructor(art: LoadedArt) {
     this.art = art;
@@ -546,7 +575,7 @@ export class BuildRing {
       t.enabled = !banned && gold >= cost;
       t.confirm = true;
       t.preview = { type, tier: 1 };
-      t.tip = { title: towerName(type), role: roleLine(type), rows: statRows(type, 1), next: null, hint: msg('ring.tapBuild'), hintBad: '' };
+      t.tip = { title: towerName(type), role: roleLine(type), rows: statRows(type, 1), next: null, hint: this.hint('build'), hintBad: '' };
       this.applyEnabled(t);
     }
     this.layout(cx, cy, evenAngles(this.count));
@@ -564,6 +593,8 @@ export class BuildRing {
     const nextTier = Math.min(3, tier + 1) as 1 | 2 | 3;
     const name = towerName(info.type);
     const roman = ['I', 'II', 'III'];
+    // The battle record once the tower has done something (a fresh tower's "0 · 0" is noise).
+    const record = info.record && (info.record.kills > 0 || info.record.damage >= 1) ? msg('ring.record', { n: info.record.kills, d: Math.round(info.record.damage) }) : '';
     let i = 0;
     // Upgrade: next-tier portrait with an upgrade arrow badge.
     {
@@ -585,7 +616,7 @@ export class BuildRing {
             role: nextTier === 3 ? msg('ring.signature', { name: signatureName(info.type), desc: signatureDesc(info.type) }) : name,
             rows: statRows(info.type, tier),
             next: statRows(info.type, nextTier),
-            hint: msg('ring.tapUpgrade'),
+            hint: this.hint('upgrade'),
             hintBad: '',
           };
       this.applyEnabled(t);
@@ -602,6 +633,7 @@ export class BuildRing {
       t.enabled = true;
       t.confirm = false;
       t.preview = { type: info.type, tier };
+      t.tip = { title: msg('ring.rallyTitle'), role: record, rows: null, next: null, hint: msg(this.desktop ? 'ring.rallyHintClick' : 'ring.rallyHint'), hintBad: '', fixedHint: true };
       this.applyEnabled(t);
     } else if (info.targeting) {
       const t = this.resetToken(i++);
@@ -611,6 +643,7 @@ export class BuildRing {
       t.enabled = true;
       t.confirm = false;
       t.preview = { type: info.type, tier };
+      t.tip = targetTip(info.targeting, record, this.desktop);
       this.applyEnabled(t);
     }
     {
@@ -621,7 +654,7 @@ export class BuildRing {
       t.enabled = true;
       t.confirm = true;
       t.preview = { type: info.type, tier };
-      t.tip = { title: msg('ring.sell', { name }), role: msg('ring.refund', { n: info.refund }), rows: null, next: null, hint: msg('ring.tapSell'), hintBad: '' };
+      t.tip = { title: msg('ring.sell', { name }), role: record ? `${msg('ring.refund', { n: info.refund })} · ${record}` : msg('ring.refund', { n: info.refund }), rows: null, next: null, hint: this.hint('sell'), hintBad: '' };
       this.applyEnabled(t);
     }
     this.count = i;
@@ -638,7 +671,11 @@ export class BuildRing {
   setTargetMode(mode: TargetingMode): void {
     for (let i = 0; i < this.count; i++) {
       const t = this.tokens[i];
-      if (t.action?.kind === 'target') this.setTag(t, msg(TARGET_LABEL[mode]), false);
+      if (t.action?.kind === 'target') {
+        this.setTag(t, msg(TARGET_LABEL[mode]), false);
+        t.tip = targetTip(mode, t.tip?.role ?? '', this.desktop);
+        if (this.tooltip.root.visible) this.showTip(i);
+      }
     }
   }
 
@@ -689,9 +726,11 @@ export class BuildRing {
     c.cost = t.cost;
     c.hintBad = t.banned ? msg('ring.banned') : poor ? msg('ring.needGold', { n: t.cost ?? 0 }) : '';
     const maxed = t.action?.kind === 'upgrade' && t.cost === null;
-    if (maxed || t.banned) c.hint = '';
-    else if (i !== this.selected) c.hint = msg('ring.tapChoose');
-    else c.hint = t.action?.kind === 'build' ? msg('ring.tapBuild') : t.action?.kind === 'upgrade' ? msg('ring.tapUpgrade') : t.action?.kind === 'sell' ? msg('ring.tapSell') : '';
+    if (c.fixedHint) {
+      // targeting / rally: the hint was written with the tip
+    } else if (maxed || t.banned) c.hint = '';
+    else if (i !== this.selected) c.hint = this.hint('choose');
+    else c.hint = t.action?.kind === 'build' ? this.hint('build') : t.action?.kind === 'upgrade' ? this.hint('upgrade') : t.action?.kind === 'sell' ? this.hint('sell') : '';
     this.tooltip.set(c, this.u);
     const p = placeTooltip(this.box, this.tooltip.w, this.tooltip.h, this.screenW, this.screenH, this.insets, 10, 6, this.avoid);
     this.tooltip.root.position.set(p.x, p.y);

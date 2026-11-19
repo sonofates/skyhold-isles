@@ -2,16 +2,23 @@ import { Assets, Container, Graphics, Sprite, Texture, type Text } from 'pixi.js
 import { t, type MsgKey } from '../i18n/index.ts';
 import type { LoadedArt } from './assets2d.ts';
 import { paintedText, setFontSize, setText } from './hudText.ts';
-import { easeOutBack, easeOutCubic, fitWidth, inkText, kit, paintedUiTexture, setInkSize } from './uiKit.ts';
+import { easeOutBack, easeOutCubic, fitWidth, INK_SOFT, inkText, kit, paintedUiTexture, setInkSize } from './uiKit.ts';
 import { END_FRAME, endLayout, NO_INSETS, type EndLayout, type Insets, type Rect } from './uiLayout.ts';
 import type { EndModeNote } from './ui/modeBits.ts';
 
 export { endStars } from './uiLayout.ts';
 
-/** `menu` = back to the world map. */
-export type EndAction = 'retry' | 'next' | 'menu';
+/** `menu` = back to the world map; `replay` = watch the run just played. */
+export type EndAction = 'retry' | 'replay' | 'next' | 'menu';
 
-const END_LABELS: Readonly<Record<EndAction, MsgKey>> = { retry: 'end.retry', next: 'end.next', menu: 'end.menu' };
+const END_LABELS: Readonly<Record<EndAction, MsgKey>> = { retry: 'end.retry', replay: 'end.replay', next: 'end.next', menu: 'end.menu' };
+
+/** Everything the board shows, to put it back after a replay. */
+export interface EndSnapshot {
+  readonly summary: EndSummary;
+  readonly hero: EndHeroXp | null;
+  readonly note: EndModeNote | null;
+}
 
 export interface EndSummary {
   readonly won: boolean;
@@ -24,6 +31,10 @@ export interface EndSummary {
   readonly totalWaves: number;
   /** Show the Next button (there is a next island). */
   readonly hasNext: boolean;
+  /** Show the Watch replay button (the run was recorded). */
+  readonly hasReplay?: boolean;
+  /** Victory: lives lost and the island's 3- / 2-star limits (the "why" under the stars). */
+  readonly starRule?: { readonly lost: number; readonly three: number; readonly two: number };
 }
 
 /**
@@ -96,6 +107,8 @@ export class EndPanel {
   private readonly line1 = inkText(22, 'left');
   private readonly line2 = inkText(22, 'left');
   private readonly caption = inkText(20, 'center', '#7a5532', '600');
+  /** Victory: lives lost against the island's star limits (small, under the caption). */
+  private readonly rule = inkText(15, 'center', '#8a6a48', '600');
   private readonly buttons: Btn[] = [];
   private readonly art: LoadedArt;
   private lay: EndLayout | null = null;
@@ -121,7 +134,7 @@ export class EndPanel {
     this.heart = new Sprite(art.ui.heart);
     this.coin = new Sprite(art.ui.gold);
     for (const s of [this.heart, this.coin]) s.anchor.set(0.5);
-    this.board.addChild(this.panelFallback, this.panel, this.title, this.heart, this.coin, this.line1, this.line2, this.caption);
+    this.board.addChild(this.panelFallback, this.panel, this.title, this.heart, this.coin, this.line1, this.line2, this.caption, this.rule);
     for (let i = 0; i < 3; i++) {
       const empty = new Sprite(kit(art, 'starEmpty', Texture.EMPTY));
       const full = new Sprite(kit(art, 'star', Texture.EMPTY));
@@ -130,7 +143,7 @@ export class EndPanel {
       this.stars.push({ empty, full });
       this.board.addChild(empty, full);
     }
-    for (const action of ['retry', 'next', 'menu'] as const) {
+    for (const action of ['retry', 'replay', 'next', 'menu'] as const) {
       const root = new Container();
       const bg = new Sprite(kit(art, action === 'next' ? 'medallionHi' : 'buttonRound', art.ui.button));
       bg.anchor.set(0.5);
@@ -193,6 +206,8 @@ export class EndPanel {
     }
     setText(this.heroText, t('end.heroXp', { name: h.name, n: h.xpGained }));
     const up = h.toLevel > h.fromLevel;
+    // Rust accent for a level-up; a plain "Level n" in soft ink (red read like a warning).
+    this.heroLvl.style.fill = up ? '#9a3b18' : INK_SOFT;
     setText(this.heroLvl, up ? t('end.heroLevelUp', { n: h.toLevel }) + (h.skillPoints > 0 ? t('common.sep') + t('end.heroPoints', { n: h.skillPoints }) : '') : h.recorded ? t('end.heroLevel', { n: h.toLevel }) : '');
     this.layout(this.w, this.h);
   }
@@ -216,7 +231,10 @@ export class EndPanel {
       setText(this.line1, `${s.lives}/${s.startLives}`);
       setText(this.line2, String(s.gold));
       setText(this.caption, s.stars === 3 ? t('end.flawless') : s.stars === 2 ? t('end.well') : t('end.holds'));
+      const r = s.starRule;
+      setText(this.rule, r ? t('end.starRule', { n: r.lost, a: r.three, b: r.two }) : '');
     } else {
+      setText(this.rule, '');
       setText(this.line1, t('end.waveOf', { n: Math.max(1, s.wave), total: s.totalWaves }));
       setText(this.line2, String(s.gold));
       setText(this.caption, t('end.brokeThrough'));
@@ -257,6 +275,19 @@ export class EndPanel {
   hide(): void {
     this.root.visible = false;
     this.summary = null;
+  }
+
+  /** The board as shown (null when hidden). */
+  snapshot(): EndSnapshot | null {
+    if (!this.root.visible || !this.summary) return null;
+    return { summary: this.summary, hero: this.hero, note: this.note };
+  }
+
+  /** Shows a saved board again (the stars pop in again). */
+  restore(snap: EndSnapshot): void {
+    this.show(snap.summary);
+    if (snap.hero) this.setHero(snap.hero);
+    if (snap.note) this.annotate(snap.note);
   }
 
   layout(w: number, h: number, insets: Insets = this.insets): void {
@@ -319,24 +350,40 @@ export class EndPanel {
     this.line2.position.set(x, y);
     this.caption.position.set(L.summary.x, won ? y + f * 1.3 : y + f * 1.7);
     fitWidth(this.caption, P.w * 0.8);
+    this.rule.visible = won && this.rule.text !== '' && !this.note;
+    setInkSize(this.rule, Math.round(f * 0.68));
+    this.rule.position.set(L.summary.x, this.caption.y + f * 0.95);
+    fitWidth(this.rule, P.w * 0.74);
+    // Small boards (phones) with the hero row: no room for the extra line.
+    if (this.rule.visible && this.hero) {
+      const room = L.buttons[0].y - L.buttonR - (this.rule.y + this.rule.height / 2);
+      if (room < f * 2.6) this.rule.visible = false;
+    }
     this.layoutHero(L, f);
     // Buttons: Retry / Next Isle / World Map (Next hidden when there is no open next island).
     const hasNext = this.summary?.hasNext ?? false;
-    const shown = this.buttons.filter((b) => b.action !== 'next' || hasNext);
+    const hasReplay = this.summary?.hasReplay ?? false;
+    const shown = this.buttons.filter((b) => (b.action !== 'next' || hasNext) && (b.action !== 'replay' || hasReplay));
     for (const b of this.buttons) b.root.visible = shown.includes(b);
+    // Four buttons: a little smaller and closer so they stay on the parchment.
+    const four = shown.length >= 4;
+    const step = four ? 3.05 : 3.4;
     shown.forEach((b, i) => {
       const k = i - (shown.length - 1) / 2;
-      const r = L.buttonR;
+      const r = four ? L.buttonR * 0.9 : L.buttonR;
       b.r = r;
-      b.root.position.set(L.summary.x + k * r * 3.4, L.buttons[0].y);
+      b.root.position.set(L.summary.x + k * r * step, L.buttons[0].y);
       b.bg.width = r * 2;
       b.bg.height = r * 2;
       setInkSize(b.label, Math.round(Math.max(13, r * 0.42)));
       setText(b.label, t(END_LABELS[b.action]));
-      fitWidth(b.label, r * 3.1);
+      fitWidth(b.label, r * (step - 0.12));
       b.label.position.set(0, r * 1.38);
       this.drawGlyph(b);
     });
+    // One size for the row: a long label ("Sonraki Ada") no longer reads smaller than its neighbours.
+    const minScale = Math.min(1, ...shown.map((b) => b.label.scale.x));
+    for (const b of shown) b.label.scale.set(minScale);
   }
 
   /** Hero row between the caption and the buttons: portrait, "Bran +86 XP", level-up line, XP bar. */
@@ -345,7 +392,7 @@ export class EndPanel {
     this.heroRow.visible = !!h && this.root.visible;
     if (!h) return;
     const P = L.panel;
-    const capBottom = this.caption.y + this.caption.height / 2;
+    const capBottom = this.rule.visible ? this.rule.y + this.rule.height / 2 : this.caption.y + this.caption.height / 2;
     const btnTop = L.buttons[0].y - L.buttonR;
     const yMid = (capBottom + btnTop) / 2 - f * 0.05;
     const fs = Math.round(f * 0.8);
@@ -415,6 +462,13 @@ export class EndPanel {
     } else if (b.action === 'next') {
       g.moveTo(-r * 0.22, -r * 0.34).lineTo(r * 0.36, 0).lineTo(-r * 0.22, r * 0.34).closePath();
       g.fill({ color: 0xfff4dc }).stroke(line);
+    } else if (b.action === 'replay') {
+      // Watch: a little picture frame on a stand with a play triangle in it.
+      g.roundRect(-r * 0.42, -r * 0.32, r * 0.84, r * 0.58, r * 0.09).fill({ color: 0xfff4dc }).stroke(line);
+      g.moveTo(-r * 0.14, r * 0.26).lineTo(-r * 0.22, r * 0.42).moveTo(r * 0.14, r * 0.26).lineTo(r * 0.22, r * 0.42);
+      g.stroke({ color: 0x3a2412, width: Math.max(2, r * 0.08), cap: 'round' });
+      g.moveTo(-r * 0.1, -r * 0.17).lineTo(r * 0.17, -r * 0.03).lineTo(-r * 0.1, r * 0.11).closePath();
+      g.fill({ color: 0xc8341f }).stroke({ color: 0x3a2412, width: Math.max(1.5, r * 0.05) });
     } else {
       // World map: a folded chart (three panels) with a dotted red route.
       const x0 = -r * 0.4;

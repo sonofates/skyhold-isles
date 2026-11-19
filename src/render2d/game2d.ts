@@ -4,12 +4,14 @@ import { FixedTimestepStepper } from '../core/gameLoop.ts';
 import type { AbilityId, GameSettings, HeroSkillSlot, SpeedMultiplier, TargetingMode, TowerType, Vec3 } from '../core/types.ts';
 import { LEVELS } from '../data/levels/index.ts';
 import { BALANCE } from '../data/balance.ts';
+import { STAR_RULES } from '../data/stars.ts';
 import type { LevelDef } from '../data/levels/types.ts';
 import { NEUTRAL_RUN_MODIFIERS, type RunModifiers } from '../data/runModifiers.ts';
 import { getTowerTierStats, TOWER_DEFS } from '../data/towers.ts';
 import { bindHaptics, haptics } from '../platform/haptics.ts';
 import { isTouchDevice, loadSettings } from '../platform/storage.ts';
-import type { TowerEntity } from '../sim/entities.ts';
+import type { EnemyEntity, TowerEntity } from '../sim/entities.ts';
+import { enemyArtFor } from './manifest.ts';
 import type { HeroInitConfig, HeroRuntimeState } from '../sim/heroSystem.ts';
 import { computeSellRefund, SimWorld, type AbilityRuntimeState } from '../sim/world.ts';
 import { collectArtTextureSources, type LoadedArt } from './assets2d.ts';
@@ -46,7 +48,19 @@ import { meleeLookFor } from './meleeLook.ts';
 import { TowerLayer } from './towerLayer.ts';
 import { anySheetOpen } from './ui/dom.ts';
 import { readSafeInsets } from './uiKit.ts';
-import { NO_INSETS, type Insets } from './uiLayout.ts';
+import { gateKeepOutsPx, hornSpot, NO_INSETS, type Insets } from './uiLayout.ts';
+import { GoldPops2D } from './ui/goldPops2d.ts';
+import { applyRunCommand, ReplayCursor, RunRecorder, runFingerprint, sameFingerprint, type RunCommand, type RunReplay } from './ui/replay2d.ts';
+
+/** Replay viewer speeds (the live game cycles 1× / 2× / 3×). */
+export const REPLAY_SPEEDS = [1, 2, 4] as const;
+const LIVE_SPEEDS = [1, 2, 3] as const;
+
+/** The next speed in a cycle (unknown speeds restart it). */
+export function nextSpeed(cycle: readonly number[], s: number): number {
+  const i = cycle.indexOf(s);
+  return cycle[(i + 1) % cycle.length];
+}
 
 // This module is loaded by both routes of 2d.html, including the DOM-only world map.
 // Install gesture listeners before async artwork loading, so a tap during boot can unlock audio.
@@ -80,6 +94,8 @@ export interface Game2DHooks {
   onBackgroundChange?: (inBackground: boolean) => void;
   /** Default starting quality tier when no `?quality=` override is locked. */
   initialUnlockedTier?: QualityTier;
+  /** A replay started (true) or the game went back to live play (false). */
+  onReplay?: (on: boolean) => void;
 }
 
 const SYNC_PIXEL = new Uint8Array(4);
@@ -113,6 +129,8 @@ export class Game2D {
   readonly projectiles: ProjectileLayer;
   readonly fx: FxLayer;
   readonly damageNumbers: DamageNumbers2D;
+  /** "+N" gold rising from fallen foes. */
+  readonly goldPops: GoldPops2D;
   readonly soldiers: SoldierLayer;
   /** Melee fight state shared by the enemy and soldier layers (swings, facing, spacing, flash). */
   readonly melee: MeleeDirector;
@@ -123,11 +141,16 @@ export class Game2D {
   readonly ring: BuildRing;
   readonly end: EndPanel;
   private insets: Insets = NO_INSETS;
+  /** QA: how much the horn's spot covers (0 = clear). */
+  hornScore = 0;
   private endShown = false;
   /** Event-FX counters (QA). */
   readonly fxStats = createSpecialFxStats();
   readonly stepper = new FixedTimestepStepper();
   private readonly rangeDisc: Sprite;
+  /** Desktop: a fainter range disc under the built tower the mouse is over (ring closed). */
+  private readonly hoverDisc: Sprite;
+  private hoverTowerId = -1;
   private readonly screen = new Container();
   private readonly hooks: Game2DHooks;
   private readonly costs = new Map<TowerType, number>();
@@ -138,6 +161,10 @@ export class Game2D {
   private rallyTower = -1;
   /** The hero is selected: the next map tap is a move order (heroInput.ts rules). */
   private heroSel = false;
+  /** The foe the player tapped for its info card (uid guards against pool reuse). */
+  private inspected: { e: EnemyEntity; uid: number } | null = null;
+  /** Gold dashed ring under the inspected foe. */
+  private readonly inspectRing = new Graphics();
   /** Fired when the hero selection changes (HUD portrait highlight). */
   onHeroSelect: ((selected: boolean) => void) | null = null;
   private down: { x: number; y: number; t: number } | null = null;
@@ -159,11 +186,31 @@ export class Game2D {
   /** Tesla bolts waiting for their tower's painted release frame (pooled, sim seconds left). */
   private readonly boltQueue: { t: number; points: Vec3[]; count: number; view: Vec3[]; overload: boolean; muzzle: number }[] = [];
   private boltActive = 0;
+  private readonly cmdCounts = new Map<RunCommand['k'], number>();
+  /** Fixed sim ticks run this run (the replay clock). */
+  private ticks = 0;
+  /** Commands of the live run (null while a replay plays). */
+  private recorder: RunRecorder | null = null;
+  /** The replay being shown (stays set after it ends / is left, until the next live run). */
+  private replayCursor: ReplayCursor | null = null;
+  /** The last finished live run, ready to be watched. */
+  lastReplay: RunReplay | null = null;
+  /** The end board of that run (restored when the replay ends or is left). */
+  private lastEnd: ReturnType<EndPanel['snapshot']> = null;
+  /** Did the last replay reproduce its run exactly (null = not finished)? */
+  replayMatched: boolean | null = null;
   private readonly onFixedTick = (fixedDt: number): void => {
     this.simClockSec += fixedDt;
+    // The run clock stops with the run (the end tick must not depend on how frames chunk ticks).
+    if (this.world.outcome !== 'ongoing' && !this.hooks.endless) return;
+    this.replayCursor?.applyDue(this.world, this.ticks);
     this.hooks.beforeTick?.(this.world);
     this.world.fixedTick(fixedDt);
+    this.ticks++;
+    this.tickProbe?.(this.world, this.ticks);
   };
+  /** QA: called after every fixed tick (replay determinism traces). */
+  tickProbe: ((world: SimWorld, tick: number) => void) | null = null;
   private readonly plotStateFn = (i: number): PlotState => {
     const id = this.world.grid.getTowerIdAt(i, 0);
     if (id === -1) return 'free';
@@ -180,7 +227,12 @@ export class Game2D {
     canCall: boolean;
     earlyBonus: number;
     banner: string;
-  } = { lives: 0, gold: 0, wave: 0, totalWaves: 0, paused: false, speed: 1, canCall: false, earlyBonus: 0, banner: '' };
+    countdown: number;
+    countdownFrac: number;
+    startLives: number;
+  } = { startLives: 20, lives: 0, gold: 0, wave: 0, totalWaves: 0, paused: false, speed: 1, canCall: false, earlyBonus: 0, banner: '', countdown: 0, countdownFrac: 0 };
+  /** Length of the running between-waves countdown (its first value seen). */
+  private countdownMax = 0;
 
   constructor(app: Application, art: LoadedArt, level: LevelDef, hooks: Game2DHooks = {}) {
     if (!level.layout2d) throw new Error(`${level.id} has no 2D layout`);
@@ -201,6 +253,13 @@ export class Game2D {
     this.rangeDisc.anchor.set(0.5);
     this.rangeDisc.visible = false;
     this.layers.groundFx.addChild(this.rangeDisc);
+    this.hoverDisc = new Sprite(this.tex.rangeDisc);
+    this.hoverDisc.anchor.set(0.5);
+    this.hoverDisc.alpha = 0.5;
+    this.hoverDisc.visible = false;
+    this.layers.groundFx.addChild(this.hoverDisc);
+    this.inspectRing.visible = false;
+    this.layers.groundFx.addChild(this.inspectRing);
     this.fx = new FxLayer(this.map, this.layers.groundFx, this.layers.fx, {
       puff: this.tex.puff,
       ring: this.tex.ring,
@@ -215,6 +274,8 @@ export class Game2D {
     });
     this.fx.setQuality(this.quality.tier);
     this.damageNumbers = new DamageNumbers2D(this.map, this.layers.fx);
+    this.goldPops = new GoldPops2D(this.layers.fx);
+    this.goldPops.enabled = this.quality.tier !== 'low';
     this.enemies = new EnemyLayer(art, this.map, this.layers, this.tex, this.fx);
     this.plots = new PlotLayer(level.layout2d, art.plot, this.tex);
     this.layers.plots.addChild(this.plots.root);
@@ -236,6 +297,8 @@ export class Game2D {
     this.heroes = new HeroLayer(art, this.map, this.layers, this.tex, this.fx);
     this.hud = new Hud(art);
     this.ring = new BuildRing(art);
+    this.ring.desktop = this.quality.isDesktop;
+    this.hud.desktop = this.quality.isDesktop;
     this.end = new EndPanel(art);
     this.screen.addChild(this.hud.root, this.ring.root, this.end.root);
     app.stage.addChild(this.map.root, this.screen);
@@ -286,8 +349,101 @@ export class Game2D {
     haptics.setEnabled(shouldVibrate2D(this.currentSettings(), isTouchDevice()));
   }
 
-  /** Starts (or restarts) a run on the level. */
-  newRun(): void {
+  /** Live play: records every command for the replay. Replay: commands come from the recording only. */
+  get replaying(): boolean {
+    return this.replayCursor !== null;
+  }
+
+  /** Replay progress 0..1 (by sim tick), 0 in live play. */
+  get replayProgress(): number {
+    return this.replayCursor ? this.replayCursor.progress(this.ticks) : 0;
+  }
+
+  /** The HUD numbers as last synced (countdown, early bonus, …). */
+  debugHud(): Readonly<typeof this.hudState> {
+    return this.hudState;
+  }
+
+  /** The build ring is open. */
+  get ringOpen(): boolean {
+    return this.ring.isOpen;
+  }
+
+  /** The build ring is open on a free plot (choosing a tower to build). */
+  get buildRingOpen(): boolean {
+    return this.ring.isOpen && this.ring.mode === 'build';
+  }
+
+  /** Sim ticks run so far this run. */
+  get tickCount(): number {
+    return this.ticks;
+  }
+
+  /**
+   * The one way the UI changes the sim: records the command (live play) and applies it. While a
+   * replay plays, player commands are ignored (false).
+   */
+  command(c: RunCommand): boolean {
+    if (this.replayCursor) return false;
+    this.recorder?.push(this.ticks, c);
+    const ok = applyRunCommand(this.world, c);
+    if (ok) this.cmdCounts.set(c.k, (this.cmdCounts.get(c.k) ?? 0) + 1);
+    return ok;
+  }
+
+  /** How many commands of a kind the sim accepted this run (coach marks). */
+  commandsDone(k: RunCommand['k']): number {
+    return this.cmdCounts.get(k) ?? 0;
+  }
+
+  /** Watches the last finished run again from its first tick (same island, rules, hero and seed). */
+  startReplay(): boolean {
+    const r = this.lastReplay;
+    if (!r) return false;
+    this.newRun(r);
+    return true;
+  }
+
+  /** Leaves a replay: back to the run's end board (the world under it stays where the replay was). */
+  exitReplay(): void {
+    if (!this.replayCursor) return;
+    this.stepper.simActive = false;
+    this.showEnd();
+  }
+
+  /** Replay viewer speed (1× / 2× / 4×). */
+  setReplaySpeed(s: number): void {
+    if (!this.replayCursor) return;
+    (this.stepper as { speed: number }).speed = (REPLAY_SPEEDS as readonly number[]).includes(s) ? s : 1;
+  }
+
+  /** Sets the live game speed (1× / 2× / 3×) and records it. */
+  setSpeed(s: SpeedMultiplier): void {
+    if (this.replayCursor) {
+      this.setReplaySpeed(s);
+      return;
+    }
+    if (this.stepper.speed === s) return;
+    this.stepper.speed = s;
+    this.command({ k: 'speed', s });
+  }
+
+  /** Speed button / key cycle: 1×→2×→3× live, 1×→2×→4× in a replay. */
+  cycleSpeed(): void {
+    if (this.replayCursor) this.setReplaySpeed(nextSpeed(REPLAY_SPEEDS, this.stepper.speed));
+    else this.setSpeed(nextSpeed(LIVE_SPEEDS, this.stepper.speed) as SpeedMultiplier);
+  }
+
+  /** Starts (or restarts) a run on the level; with `replay`, plays that recorded run back instead. */
+  newRun(replay?: RunReplay): void {
+    const wasReplay = this.replayCursor !== null;
+    this.ticks = 0;
+    this.cmdCounts.clear();
+    this.replayCursor = replay ? new ReplayCursor(replay) : null;
+    this.recorder = replay ? null : new RunRecorder(this.level.id);
+    this.replayMatched = null;
+    // Entering / leaving a replay starts at 1× (a live retry keeps the player's speed).
+    if (wasReplay !== !!replay) this.stepper.speed = 1;
     this.unbindHaptics?.();
     this.unbindAudio?.();
     this.refreshSettings();
@@ -317,9 +473,12 @@ export class Game2D {
     this.endShown = false;
     this.selectedTower = -1;
     this.rangeDisc.visible = false;
+    this.inspected = null;
+    this.inspectRing.visible = false;
     this.enemies.reset();
     this.fx.clear();
     this.damageNumbers.clear();
+    this.goldPops.clear();
     resetShakeState2D(this.shake);
     this.map.root.position.set(0, 0);
     this.simClockSec = 0;
@@ -340,6 +499,7 @@ export class Game2D {
     }
     this.wireEvents();
     if (Number.isSafeInteger(this.benchWave) && this.benchWave > 0) this.world.debugSkipToWave(this.benchWave);
+    if (wasReplay !== !!replay) this.hooks.onReplay?.(!!replay);
   }
 
   private wireEvents(): void {
@@ -402,28 +562,50 @@ export class Game2D {
       if (this.hooks.endless) return;
       this.damageNumbers.spawn(e, this.simClockSec, this.currentSettings());
     });
+    // Calling a wave early pays: the bonus rises from the horn as a gold "+N" with a coin.
+    ev.on('waveStarted', (e) => {
+      if (!(e.earlyBonus > 0)) return;
+      const f = this.map.fit;
+      const hp = this.hud.hornPosition;
+      const px = (hp.x - f.offsetX) / f.scale;
+      const py = (hp.y - this.hud.hornRadius - f.offsetY) / f.scale;
+      this.fx.spawn('coin', px, py, 30, 0, -80, 0.9);
+      this.goldPops.spawn(e.earlyBonus, px + 10, py - 20);
+    });
     ev.on('enemyKilled', (e) => {
       const px = m.pxX(e.x);
       const py = m.pxY(e.z) - e.y * 0.9 * ppu;
       this.fx.puffs(px, py - 14, 7, 12);
       this.fx.spawn('coin', px, py - 30, 26, 0, -70, 0.8);
+      if (!this.hooks.endless) this.goldPops.spawn(e.reward, px + 26, py - 58);
       if (!this.hooks.endless && (e.enemyType === 'boss' || e.enemyType === 'tempest')) {
         triggerShake2D(this.shake, BALANCE.camera.bossHitShake, this.currentSettings());
       }
     });
     ev.on('towerBuilt', (e) => {
       this.hudGoldDirty = true;
-      this.fx.puffs(m.pxX(e.x), m.pxY(e.z), 10, 30, 0xe9d8b4);
+      const px = m.pxX(e.x);
+      const py = m.pxY(e.z);
+      this.fx.puffs(px, py, 10, 30, 0xe9d8b4);
+      // A dust ring rolling out from the plot as the tower lands.
+      this.fx.spawn('ring', px, py + 4, 46, 0, 0, 0.45, 0xf3e3c0);
     });
     ev.on('towerUpgraded', (e) => {
       this.hudGoldDirty = true;
-      this.fx.puffs(m.pxX(e.x), m.pxY(e.z), 8, 26, 0xfff0c0);
-      this.fx.spawn('flash', m.pxX(e.x), m.pxY(e.z) - 60, 50, 0, 0, 0.3);
+      const px = m.pxX(e.x);
+      const py = m.pxY(e.z);
+      this.fx.puffs(px, py, 8, 26, 0xfff0c0);
+      this.fx.spawn('flash', px, py - 60, 50, 0, 0, 0.3);
+      // Gold ring at the base and sparks rising up the tower: the new tier is in.
+      this.fx.spawn('ring', px, py + 4, 52, 0, 0, 0.55, 0xffd76a);
+      this.fx.burst('spark', px, py - 50, 9, 9, 120, 0.6, 0xffe08a, 160);
     });
     ev.on('towerSold', (e) => {
       this.hudGoldDirty = true;
       this.fx.puffs(m.pxX(e.x), m.pxY(e.z), 10, 30, 0xe9d8b4);
       this.fx.spawn('coin', m.pxX(e.x), m.pxY(e.z) - 40, 34, 0, -60, 0.9);
+      // The refund rises as a gold "+N", like a kill's bounty.
+      if (e.refund > 0) this.goldPops.spawn(e.refund, m.pxX(e.x) + 12, m.pxY(e.z) - 70);
     });
     ev.on('waveStarted', () => {
       this.hudGoldDirty = true;
@@ -585,7 +767,33 @@ export class Game2D {
     // midpoint): clear of both caves, the roads and the plots; its label goes above it.
     const hornPx = this.map.pxX(ex) + 30;
     const hornPy = this.map.pxY(ez) - 8;
-    this.hud.layout(w, h, { x: this.map.screenX(hornPx), y: this.map.screenY(hornPy) }, this.insets);
+    // First lay the HUD out at the old spot (sizes, plaque), then move the horn to the clearest
+    // spot near the caves: off plots (and the towers on them), caves, the castle and the roads.
+    const first = { x: this.map.screenX(hornPx), y: this.map.screenY(hornPy) };
+    this.hud.layout(w, h, first, this.insets);
+    const lay = this.level.layout2d!;
+    const f = this.map.fit;
+    const sx = (px: number): number => f.offsetX + px * f.scale;
+    const sy = (py: number): number => f.offsetY + py * f.scale;
+    const hard: { x: number; y: number; w: number; h: number }[] = this.plots.geometry.rects.map((p) => ({ x: sx(p.x), y: sy(p.y - p.w * 1.3), w: p.w * f.scale, h: (p.h + p.w * 1.3) * f.scale }));
+    const hr = this.hud.rects();
+    hard.push(hr.plaque, hr.banner, hr.pause, hr.speed);
+    // A cave edge under the horn is fine (it calls the raiders out of it); the keep is not.
+    const landmarks = gateKeepOutsPx(lay.gates ?? []).map((g) => ({ rect: { x: sx(g.x), y: sy(g.y), w: g.w * f.scale, h: g.h * f.scale }, weight: g.castle ? 600 : 60 }));
+    const roads: { x: number; y: number }[] = [];
+    for (const path of lay.paths) {
+      for (let i = 1; i < path.length; i++) {
+        const a = path[i - 1];
+        const b = path[i];
+        const n = Math.max(1, Math.ceil(Math.hypot(b.x - a.x, b.z - a.z) / 0.6));
+        for (let k = 0; k < n; k++) roads.push({ x: this.map.screenX(this.map.pxX(a.x + ((b.x - a.x) * k) / n)), y: this.map.screenY(this.map.pxY(a.z + ((b.z - a.z) * k) / n)) });
+      }
+    }
+    const r = this.hud.hornRadius;
+    const near = { x: this.map.screenX(this.map.pxX(ex)), y: this.map.screenY(this.map.pxY(ez)) };
+    const spot = hornSpot(near, first, r, { w, h, top: this.insets.top + 8 + r * 0.6, bottom: hr.plaque.y - 30, margin: this.insets.left + 8 }, hard, landmarks, roads);
+    this.hornScore = spot.score;
+    this.hud.layout(w, h, spot, this.insets);
     this.end.layout(w, h, this.insets);
     this.ring.close();
     this.rangeDisc.visible = false;
@@ -595,6 +803,7 @@ export class Game2D {
   frame(dtSec: number): void {
     if (this.quality.observe(this.app.ticker.elapsedMS, !document.hidden)) {
       this.fx.setQuality(this.quality.tier);
+      this.goldPops.enabled = this.quality.tier !== 'low';
       this.applyResolution(this.app.screen.width, this.app.screen.height);
     }
     audio?.sound.setMusicDucked(this.stepper.paused);
@@ -618,6 +827,7 @@ export class Game2D {
       }
     }
     this.plots.sync(this.plotStateFn, this.hoverPlot, this.ring.isOpen ? this.ring.plot : -1, world.gold < this.minCost, dtSec);
+    if (this.hoverTowerId !== -1 && (this.ring.isOpen || this.heroSel || this.replayCursor || !world.getTowerById(this.hoverTowerId))) this.setHoverTower(-1);
     this.melee.update(world.soldierSystem, world.enemyPool, alpha, simDt);
     this.enemies.syncPool(world.enemyPool, alpha, simDt);
     this.projectiles.sync(world.projectilePool, alpha);
@@ -625,6 +835,7 @@ export class Game2D {
     if (this.heroSel && (world.outcome !== 'ongoing' || !world.hero || world.hero.state === 'dead')) this.setHeroSelected(false);
     this.heroes.sync(world, alpha, simDt, dtSec);
     this.fx.update(simDt > 0 ? simDt : dtSec * 0.25);
+    this.goldPops.update(simDt > 0 ? dtSec : 0);
     this.activeDamagePopups = this.hooks.endless ? 0 : this.damageNumbers.update(simDt > 0 ? dtSec : 0, cfg);
     if (!this.hooks.endless) {
       stepShake2D(this.shake, simDt > 0 && !this.endShown ? dtSec : 0, cfg);
@@ -637,6 +848,7 @@ export class Game2D {
     }
     this.ring.update(dtSec, world.gold);
     this.syncRangePreview();
+    this.syncInspectRing();
 
     // A selected tower could be sold or the run reset.
     if (this.selectedTower !== -1 && !world.getTowerById(this.selectedTower)) this.closeRing();
@@ -644,22 +856,43 @@ export class Game2D {
 
     const over = this.syncHud(dtSec);
     if (over && !this.endShown) {
-      this.endShown = true;
-      this.closeRing();
-      const won = world.outcome === 'won';
-      this.end.show({
-        won,
-        stars: endStars(won, won ? world.computeStars() : 0),
-        lives: world.lives,
-        startLives: world.startingLives,
-        gold: world.gold,
-        wave: this.hudState.wave,
-        totalWaves: this.hudState.totalWaves,
-        hasNext: !!this.hooks.onNext,
-      });
-      this.hooks.onEndPanel?.(true);
+      if (this.replayCursor) {
+        this.replayMatched = sameFingerprint(runFingerprint(world, this.ticks), this.replayCursor.replay.end);
+        if (!this.replayMatched) console.warn('[replay] the replay did not reproduce the run', runFingerprint(world, this.ticks), this.replayCursor.replay.end);
+        this.showEnd();
+      } else {
+        if (this.recorder) this.lastReplay = this.recorder.finish(world, this.ticks);
+        this.endShown = true;
+        this.closeRing();
+        const won = world.outcome === 'won';
+        this.end.show({
+          won,
+          stars: endStars(won, won ? world.computeStars() : 0),
+          lives: world.lives,
+          startLives: world.startingLives,
+          gold: world.gold,
+          wave: this.hudState.wave,
+          totalWaves: this.hudState.totalWaves,
+          hasNext: !!this.hooks.onNext,
+          hasReplay: !!this.lastReplay && !this.hooks.endless,
+          ...(won ? { starRule: { lost: Math.max(0, world.startingLives - world.lives), three: (STAR_RULES[this.level.difficulty] ?? STAR_RULES.Breezy).threeStarMaxLost, two: (STAR_RULES[this.level.difficulty] ?? STAR_RULES.Breezy).twoStarMaxLost } } : {}),
+        });
+        // main2d fills in the hero XP / mode note in this callback; the board is kept after it.
+        this.hooks.onEndPanel?.(true);
+        this.lastEnd = this.end.snapshot();
+      }
     }
     this.end.update(dtSec);
+  }
+
+  /** Replay ended / left: the recorded run's own end board (hero XP, mode notes) comes back. */
+  private showEnd(): void {
+    if (this.endShown) return;
+    this.endShown = true;
+    this.closeRing();
+    this.setHeroSelected(false);
+    if (this.lastEnd) this.end.restore(this.lastEnd);
+    this.hooks.onEndPanel?.(true);
   }
 
   private syncHud(dtSec: number, force = false): boolean {
@@ -672,6 +905,7 @@ export class Game2D {
       s.gold = 9999;
     } else {
       s.lives = world.lives;
+      s.startLives = world.startingLives;
       this.hudGoldTimer += dtSec;
       const wsState = world.waveSystem.state;
       const combatWave = wsState === 'spawning' || wsState === 'allSpawned' || wsState === 'clearing';
@@ -689,6 +923,22 @@ export class Game2D {
     const rawBonus = s.canCall ? world.waveSystem.getEarlyCallBonus() : 0;
     s.earlyBonus = world.mods.waveBonusMul === 1 ? rawBonus : Math.max(0, Math.round(rawBonus * world.mods.waveBonusMul));
     s.banner = over ? '' : this.stepper.paused ? 'Paused' : this.rallyTower !== -1 ? 'Tap the road' : '';
+    // The rally plate keeps off the range circle (the road to tap is inside it).
+    if (s.banner === 'Tap the road' && this.rangeDisc.visible) {
+      const d = this.rangeDisc;
+      const sc = this.map.fit.scale;
+      this.hud.plateAvoid = { x: this.map.screenX(d.x - d.width / 2), y: this.map.screenY(d.y - d.height / 2), w: d.width * sc, h: d.height * sc };
+    } else this.hud.plateAvoid = null;
+    const ws = world.waveSystem;
+    if (!over && ws.state === 'betweenWaves' && ws.interWaveTimer > 0) {
+      if (ws.interWaveTimer > this.countdownMax) this.countdownMax = ws.interWaveTimer;
+      s.countdown = ws.interWaveTimer;
+      s.countdownFrac = ws.interWaveTimer / Math.max(0.001, this.countdownMax);
+    } else {
+      this.countdownMax = 0;
+      s.countdown = 0;
+      s.countdownFrac = 0;
+    }
     this.hud.update(s as HudState, dtSec);
     return over;
   }
@@ -699,7 +949,7 @@ export class Game2D {
    * keeping play paused on resume until the player deliberately unpauses.
    */
   pauseForBackground(): boolean {
-    if (this.hooks.endless || this.endShown || this.world.outcome !== 'ongoing') return false;
+    if (this.hooks.endless || this.endShown || this.world.outcome !== 'ongoing' || !this.stepper.simActive) return false;
     this.down = null;
     this.hoverPlot = -1;
     this.closeRing();
@@ -708,6 +958,94 @@ export class Game2D {
     audio?.sound.setMusicDucked(true);
     this.syncHud(0, true);
     return true;
+  }
+
+  /** The foe whose info card is open, while it lives (null otherwise). */
+  get inspectedEnemy(): EnemyEntity | null {
+    const i = this.inspected;
+    if (!i) return null;
+    if (!i.e.active || i.e.uid !== i.uid || i.e.hp <= 0) return null;
+    return i.e;
+  }
+
+  /** Was a foe being inspected (its card may say it fell)? */
+  get inspecting(): boolean {
+    return this.inspected !== null;
+  }
+
+  /** Closes the foe info card. */
+  clearInspect(): void {
+    this.inspected = null;
+    this.inspectRing.visible = false;
+  }
+
+  /** World height (units) of a foe's figure (from its art), for hit tests and anchoring. */
+  private enemyFigureHeight(e: EnemyEntity): number {
+    const entry = enemyArtFor(this.art.manifest, e.type, e.flying);
+    const h = this.art.enemies[entry.art]?.spec.height ?? 1.3;
+    return h * (entry.scale ?? 1);
+  }
+
+  /** Screen point (css px) at the middle of a foe's figure, and the figure's height in px. */
+  enemyScreen(e: EnemyEntity): { x: number; y: number; h: number } {
+    const ppu = this.level.layout2d!.pxPerUnit;
+    const hPx = this.enemyFigureHeight(e) * ppu;
+    const px = this.map.pxX(e.x);
+    const py = this.map.pxY(e.z) - e.y * 0.9 * ppu - hPx * 0.5;
+    return { x: this.map.screenX(px), y: this.map.screenY(py), h: hPx * this.map.fit.scale };
+  }
+
+  /** The live foe under a screen point (nearest figure centre within a touch-sized reach), or null. */
+  enemyAt(x: number, y: number): EnemyEntity | null {
+    const pool = this.world.enemyPool;
+    let best: EnemyEntity | null = null;
+    let bd = Infinity;
+    for (let i = 0; i < pool.getActiveCount(); i++) {
+      const e = pool.items[pool.getActiveIndex(i)];
+      if (!e.active || e.hp <= 0 || e.burrowed) continue;
+      const c = this.enemyScreen(e);
+      const reach = Math.max(26, c.h * 0.55);
+      const d = Math.hypot(x - c.x, (y - c.y) * 0.8);
+      if (d <= reach && d < bd) {
+        bd = d;
+        best = e;
+      }
+    }
+    return best;
+  }
+
+  private syncInspectRing(): void {
+    const e = this.inspectedEnemy;
+    const g = this.inspectRing;
+    if (!e) {
+      g.visible = false;
+      return;
+    }
+    const ppu = this.level.layout2d!.pxPerUnit;
+    const r = Math.max(0.55, this.enemyFigureHeight(e) * 0.42) * ppu;
+    const px = this.map.pxX(e.x);
+    const py = this.map.pxY(e.z);
+    if (!g.visible || g.label !== `r${Math.round(r)}`) {
+      g.clear();
+      const n = 14;
+      for (let k = 0; k < n; k++) {
+        const a0 = (k / n) * Math.PI * 2;
+        const a1 = a0 + (Math.PI * 2) / n * 0.55;
+        g.moveTo(Math.cos(a0) * r, Math.sin(a0) * r).arc(0, 0, r, a0, a1);
+      }
+      g.stroke({ color: 0x3a2412, width: 7, alpha: 0.55, cap: 'round' });
+      for (let k = 0; k < n; k++) {
+        const a0 = (k / n) * Math.PI * 2;
+        const a1 = a0 + (Math.PI * 2) / n * 0.55;
+        g.moveTo(Math.cos(a0) * r, Math.sin(a0) * r).arc(0, 0, r, a0, a1);
+      }
+      g.stroke({ color: 0xffd76a, width: 4, cap: 'round' });
+      g.label = `r${Math.round(r)}`;
+      g.scale.set(1, 0.5);
+    }
+    g.visible = true;
+    g.position.set(px, py);
+    g.rotation = 0;
   }
 
   /** Range circle on the map: the tower the ring points at (selected / hovered), else the selected tower. */
@@ -744,32 +1082,32 @@ export class Game2D {
 
   /** Orders the active hero to walk along the ground road graph to world coordinates `(worldX, worldZ)`. */
   commandHeroMove(worldX: number, worldZ: number): boolean {
-    return this.world.commandHeroMove(worldX, worldZ);
+    return this.command({ k: 'heroMove', x: worldX, z: worldZ });
   }
 
   /** Orders the active hero to walk along the ground road graph to screen (css px) coordinates `(screenX, screenY)`. */
   commandHeroMoveAtScreen(screenX: number, screenY: number): boolean {
-    return this.world.commandHeroMove(this.map.worldXFromScreen(screenX), this.map.worldZFromScreen(screenY));
+    return this.commandHeroMove(this.map.worldXFromScreen(screenX), this.map.worldZFromScreen(screenY));
   }
 
   /** Casts hero active skill `slot` (`0` or `1`) at optional world coordinates `(worldX, worldZ)`. */
   castHeroSkill(slot: HeroSkillSlot, worldX = NaN, worldZ = NaN): boolean {
-    return this.world.castHeroSkill(slot, worldX, worldZ);
+    return this.command({ k: 'heroSkill', slot, x: Number.isFinite(worldX) ? worldX : null, z: Number.isFinite(worldZ) ? worldZ : null });
   }
 
   /** Casts hero active skill `slot` (`0` or `1`) targeting screen (css px) coordinates `(screenX, screenY)`. */
   castHeroSkillAtScreen(slot: HeroSkillSlot, screenX: number, screenY: number): boolean {
-    return this.world.castHeroSkill(slot, this.map.worldXFromScreen(screenX), this.map.worldZFromScreen(screenY));
+    return this.castHeroSkill(slot, this.map.worldXFromScreen(screenX), this.map.worldZFromScreen(screenY));
   }
 
   /** Casts a global active ability (`'meteor'` or `'overcharge'`) at optional world coordinates `(worldX, worldZ)`. */
   castAbility(id: AbilityId, worldX = 0, worldZ = 0): boolean {
-    return this.world.castAbility(id, worldX, worldZ);
+    return id === 'meteor' ? this.command({ k: 'meteor', x: worldX, z: worldZ }) : this.command({ k: 'overcharge' });
   }
 
   /** Casts a global active ability (`'meteor'` or `'overcharge'`) targeting screen (css px) coordinates `(screenX, screenY)`. */
   castAbilityAtScreen(id: AbilityId, screenX: number, screenY: number): boolean {
-    return this.world.castAbility(id, this.map.worldXFromScreen(screenX), this.map.worldZFromScreen(screenY));
+    return this.castAbility(id, this.map.worldXFromScreen(screenX), this.map.worldZFromScreen(screenY));
   }
 
   /** Snapshot of the active hero and its two skill cooldowns (`null` when running without a hero). */
@@ -790,7 +1128,7 @@ export class Game2D {
   /** Selects / deselects the hero (move mode). Opening it closes the build ring. */
   setHeroSelected(on: boolean): void {
     const h = this.world?.hero;
-    const ok = on && !!h && h.state !== 'dead' && this.world.outcome === 'ongoing';
+    const ok = on && !!h && h.state !== 'dead' && this.world.outcome === 'ongoing' && !this.replayCursor;
     if (ok && this.ring.isOpen) this.closeRing();
     if (ok) this.rallyTower = -1;
     const was = this.heroSel;
@@ -808,6 +1146,12 @@ export class Game2D {
   heroScreen(): { x: number; y: number } | null {
     const f = this.heroes.feet();
     return f ? { x: this.map.screenX(f.x), y: this.map.screenY(f.y) } : null;
+  }
+
+  /** Screen (css px) top centre of the hero's body (the head), or null without a hero. */
+  heroHeadScreen(): { x: number; y: number } | null {
+    const b = this.heroes.bodyRect();
+    return b ? { x: this.map.screenX(b.x + b.w / 2), y: this.map.screenY(b.y) } : null;
   }
 
   /** Is the screen point on the hero (body box grown to a touch-sized target)? */
@@ -832,15 +1176,26 @@ export class Game2D {
       this.heroes.flashInvalid(wx, wz);
       return false;
     }
-    if (this.world.commandHeroMove(wx, wz)) haptics.pulse('tap');
+    if (this.commandHeroMove(wx, wz)) haptics.pulse('tap');
     return true;
   }
 
   /** Desktop right click: with the hero selected, a move order that keeps it selected. */
   rightClick(x: number, y: number): void {
-    if (this.end.visible || this.stepper.paused || !this.heroSel) return;
+    if (this.end.visible || this.stepper.paused || !this.heroSel || this.replayCursor) return;
     if (this.ring.isOpen) this.closeRing();
     this.heroMoveAt(x, y);
+  }
+
+  /** Desktop hover range of a built tower (-1 hides it). */
+  private setHoverTower(id: number): void {
+    const t = id !== -1 ? this.world.getTowerById(id) : null;
+    this.hoverTowerId = t ? id : -1;
+    this.hoverDisc.visible = !!t;
+    if (!t) return;
+    const ppu = this.level.layout2d!.pxPerUnit;
+    this.hoverDisc.position.set(this.map.pxX(t.x), this.map.pxY(t.z));
+    this.hoverDisc.scale.set((getTowerTierStats(t.type, t.tier).range * ppu * 2) / this.tex.rangeDisc.width);
   }
 
   private closeRing(): void {
@@ -897,6 +1252,7 @@ export class Game2D {
         ...(t.type === 'barracks' ? { rallyIcon: this.soldiers.flagTexture } : {}),
         ...(TOWER_DEFS[t.type].role === 'attack' ? { targeting: t.targetingMode } : {}),
         ...(keepOut ? { keepOut } : {}),
+        record: { kills: t.kills, damage: t.totalDamageDealt },
       },
       world.gold,
       w,
@@ -914,14 +1270,14 @@ export class Game2D {
     const world = this.world;
     const plot = this.ring.plot;
     if (action.kind === 'build') {
-      world.placeTowerOnPlot(plot, action.type);
+      this.command({ k: 'build', plot, type: action.type });
     } else if (action.kind === 'upgrade') {
-      if (this.selectedTower !== -1) world.upgradeTower(this.selectedTower);
+      if (this.selectedTower !== -1) this.command({ k: 'upgrade', id: this.selectedTower });
     } else if (action.kind === 'target') {
       const t = this.selectedTower !== -1 ? world.getTowerById(this.selectedTower) : null;
       if (t) {
         const next = TARGET_CYCLE[(TARGET_CYCLE.indexOf(t.targetingMode) + 1) % TARGET_CYCLE.length];
-        world.setTowerTargeting(t.id, next);
+        this.command({ k: 'target', id: t.id, mode: next });
         this.ring.setTargetMode(next);
       }
       return;
@@ -932,7 +1288,7 @@ export class Game2D {
       this.rallyTower = id;
       return;
     } else {
-      if (this.selectedTower !== -1) world.sellTower(this.selectedTower);
+      if (this.selectedTower !== -1) this.command({ k: 'sell', id: this.selectedTower });
     }
     this.closeRing();
   }
@@ -943,8 +1299,16 @@ export class Game2D {
     if (this.end.visible) {
       const a = this.end.hit(x, y);
       if (a === 'retry') this.newRun();
+      else if (a === 'replay') this.startReplay();
       else if (a === 'next') this.hooks.onNext?.();
       else if (a === 'menu') this.hooks.onMenu?.();
+      return;
+    }
+    if (this.replayCursor) {
+      // Watching: only the pause / speed buttons answer (the replay bar has the rest).
+      const hudHit = this.hud.hit(x, y);
+      if (hudHit === 'pause') this.stepper.paused = !this.stepper.paused;
+      else if (hudHit === 'speed') this.cycleSpeed();
       return;
     }
     if (world.outcome !== 'ongoing' && !this.hooks.endless) return;
@@ -957,15 +1321,15 @@ export class Game2D {
     if (hudHit) {
       this.closeRing();
       if (hudHit === 'pause') this.stepper.paused = !this.stepper.paused;
-      else if (hudHit === 'speed') this.stepper.speed = (this.stepper.speed === 1 ? 2 : 1) as SpeedMultiplier;
-      else if (hudHit === 'horn' && !this.stepper.paused) world.startNextWave();
+      else if (hudHit === 'speed') this.cycleSpeed();
+      else if (hudHit === 'horn' && !this.stepper.paused) this.command({ k: 'wave' });
       return;
     }
     if (this.stepper.paused) return;
     const wx = this.map.worldXFromScreen(x);
     const wz = this.map.worldZFromScreen(y);
     if (this.rallyTower !== -1) {
-      world.setRallyPoint(this.rallyTower, wx, wz);
+      this.command({ k: 'rally', id: this.rallyTower, x: wx, z: wz });
       this.closeRing();
       return;
     }
@@ -1002,6 +1366,16 @@ export class Game2D {
       return;
     }
     if (this.heroSel) this.setHeroSelected(false);
+    if (plot === -1 && !this.ring.isOpen) {
+      // A tap on a foe opens its info card; any other empty tap closes it.
+      const foe = this.enemyAt(x, y);
+      if (foe) {
+        haptics.pulse('tap');
+        this.inspected = { e: foe, uid: foe.uid };
+        return;
+      }
+    }
+    this.clearInspect();
     if (plot === -1 || (this.ring.isOpen && this.ring.plot === plot)) {
       this.closeRing();
       return;
@@ -1038,6 +1412,11 @@ export class Game2D {
     // Desktop hover: glow the free plot under the mouse (touch has no hover).
     canvas.addEventListener('pointermove', (e) => {
       if (e.pointerType !== 'mouse') return;
+      if (this.replayCursor) {
+        this.hoverPlot = -1;
+        canvas.style.cursor = '';
+        return;
+      }
       const r = canvas.getBoundingClientRect();
       if (this.ring.isOpen && this.ring.hover(e.clientX - r.left, e.clientY - r.top)) {
         this.hoverPlot = -1;
@@ -1061,11 +1440,21 @@ export class Game2D {
           this.heroes.setHover(valid ? { x: c.x, z: c.z, valid } : { x: wx, z: wz, valid });
         }
       }
-      canvas.style.cursor = overHero || (this.hoverPlot !== -1 && this.world.grid.getTowerIdAt(this.hoverPlot, 0) === -1) ? 'pointer' : this.heroSel ? 'crosshair' : '';
+      // A built tower under the mouse (ring closed, no hero order): pointer + its range, faint.
+      const towerPlot = !this.ring.isOpen && !this.heroSel && !overHero ? this.towers.plotAtSprite(mx, my, this.world.towers) : -1;
+      this.setHoverTower(towerPlot === -1 ? -1 : this.world.grid.getTowerIdAt(towerPlot, 0));
+      canvas.style.cursor =
+        overHero || this.hoverTowerId !== -1 || (this.hoverPlot !== -1 && this.world.grid.getTowerIdAt(this.hoverPlot, 0) === -1) ? 'pointer' : this.heroSel ? 'crosshair' : '';
     });
     canvas.addEventListener('pointerleave', () => {
       this.hoverPlot = -1;
       this.heroes.setHover(null);
+      this.setHoverTower(-1);
+    });
+    // Desktop: the run pauses when the window loses focus (alt-tab, another app on top), like
+    // backgrounding does; the player resumes on purpose. Touch devices pause via visibility already.
+    window.addEventListener('blur', () => {
+      if (!isTouchDevice() && this.stepper.simActive && !this.stepper.paused && !this.hooks.endless && !anySheetOpen()) this.pauseForBackground();
     });
     window.addEventListener('storage', () => this.refreshSettings());
     window.addEventListener('focus', () => this.refreshSettings());
@@ -1091,14 +1480,32 @@ export class Game2D {
     window.addEventListener('keydown', (e) => {
       // Settings / Codex sheets own the keyboard while open (and keep the run paused).
       if (anySheetOpen()) return;
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      if (this.replayCursor) {
+        // Replay viewer: Space pauses, 1 / 2 / 4 pick the speed, Esc leaves it.
+        if (this.endShown) return;
+        if (e.key === ' ') this.stepper.paused = !this.stepper.paused;
+        else if (e.key === '1' || e.key === '2' || e.key === '4') this.setReplaySpeed(Number(e.key));
+        else if (e.key === 'Escape') this.exitReplay();
+        else return;
+        e.preventDefault();
+        return;
+      }
       if (e.key === ' ') this.stepper.paused = !this.stepper.paused;
-      else if (e.key === '1') this.stepper.speed = 1;
-      else if (e.key === '2') this.stepper.speed = 2;
-      else if (e.key === 'n' || e.key === 'N') this.world.startNextWave();
+      else if (e.key === '1') this.setSpeed(1);
+      else if (e.key === '2') this.setSpeed(2);
+      else if (e.key === '3') this.setSpeed(3);
+      else if (e.key === 'n' || e.key === 'N') this.command({ k: 'wave' });
       else if ((e.key === 'h' || e.key === 'H') && !e.repeat && !e.ctrlKey && !e.metaKey && !this.stepper.paused) this.setHeroSelected(!this.heroSel);
       else if (e.key === 'Escape') {
+        // Esc closes what is open (ring, hero move mode, foe card); with nothing open it opens /
+        // closes the pause menu, as in most games. Synthetic Esc (the ability bar closing the
+        // ring) and an Esc that already cancelled an aim never pause.
+        const busy = this.ring.isOpen || this.heroSel || this.inspecting;
         this.closeRing();
         this.setHeroSelected(false);
+        this.clearInspect();
+        if (!busy && e.isTrusted && !e.defaultPrevented && !this.endShown && this.world.outcome === 'ongoing') this.stepper.paused = !this.stepper.paused;
       }
     });
   }
@@ -1142,6 +1549,15 @@ export class Game2D {
       abilities: w.getAbilitiesState(),
       paused: this.stepper.paused,
       speed: this.stepper.speed,
+      ticks: this.ticks,
+      replay: {
+        playing: !!this.replayCursor,
+        recorded: this.recorder?.count ?? 0,
+        last: this.lastReplay ? { commands: this.lastReplay.commands.length, endTick: this.lastReplay.endTick, end: this.lastReplay.end } : null,
+        applied: this.replayCursor?.applied ?? 0,
+        progress: this.replayProgress,
+        matched: this.replayMatched,
+      },
       towers: w.towers.map((t) => ({ id: t.id, type: t.type, tier: t.tier, plot: t.col, targeting: t.targetingMode })),
       ring: { open: this.ring.isOpen, mode: this.ring.mode, plot: this.ring.plot, tokens: this.ring.tokenPositions(), layout: this.ring.layoutInfo, rangeShown: this.rangeDisc.visible },
       hud: this.hud.rects(),
@@ -1163,6 +1579,9 @@ export class Game2D {
       },
       enemyPx: this.enemyPx(),
       horn: this.hud.hornPosition,
+      hornScore: this.hornScore,
+      plaque: this.hud.rects().plaque,
+      hoverTower: this.hoverTowerId,
       buttons: this.hud.buttonPositions,
       fx: {
         boltsDrawn: this.fx.boltsDrawn,
