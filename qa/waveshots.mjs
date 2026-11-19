@@ -18,6 +18,7 @@ const browser = await chromium.launch({ args: ARGS });
 const ALL_SIZES = [
   { key: '1920x1080', w: 1920, h: 1080, dpr: 1, desktop: true },
   { key: '1366x768', w: 1366, h: 768, dpr: 1, desktop: true },
+  { key: '2560x1080', w: 2560, h: 1080, dpr: 1, desktop: true },
   { key: '844x390', w: 844, h: 390, dpr: 2, touch: true },
 ];
 const SIZES = ALL_SIZES.filter((s) => (arg('size') ?? '1920x1080,844x390').split(',').includes(s.key));

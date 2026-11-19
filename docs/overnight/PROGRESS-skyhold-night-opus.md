@@ -145,9 +145,18 @@ Round 2: the background preview dies at its 2 h limit — use `python3 qa/withPr
   `&quality=high` under SwiftShader); Endless cave marks verified (`qa/endlessLanes.mjs`). Full
   replay QA re-run: matched on all 6 combos.
 
-## Next (backlog 2: missing basics) — candidates, in rough value order
-- tower info card: the build ring tooltip already has stats/targeting/upgrade/sell+refund; review only
-- Then backlog 4 polish (hero controls feel, juice, end panel/world map with 25 islands, TR pass).
+## Next — backlog 1–4 done; known small issues for a later round
+- Tower info card reviewed (ring tooltip: stats, targeting, upgrade / sell + refund, record) — OK.
+- Next-wave card still grazes one plot / tower top on dense i13 (1920 / 1366) between waves
+  (`qa/waveshots.mjs`); every spot round the horn touches something there.
+- Phone bar: remaining scores are tower-headroom grazes (side stack over l1c's windmill, i08 top
+  row); no HUD overlap left (`bar-sheet-844x390.jpg`).
+- First-play coach card on 1366 l1c sits under the top-row bar and covers two tower tops while
+  shown (transient); the top cave's mark can hide under it at "between" times.
+- New islands i17–i24 (Codex's branch): re-run `qa/waveshots.mjs`, `qa/barshots.mjs` and
+  `qa/endlessLanes.mjs --level=<multi-cave id>` after the merge — everything is data-driven.
+- Requests: the 3D lore text `src/ui/content/codexData.ts` (sky_skimmer counter) still says
+  "Press R to see the sky lane"; 2D strips it in `i18n/data.stripKeyHints`.
 
 ## Decisions
 - Replay is kept in memory only (last run of this page). Persisting it across reloads would need
@@ -161,7 +170,8 @@ Round 2: the background preview dies at its 2 h limit — use `python3 qa/withPr
 - `settingsButton2d.ts` is not in any ownership list; it is my earlier UI file, slimmed (card removed).
 
 ## Requests for other agents
-- (none yet)
+- (optional) `src/ui/content/codexData.ts`: drop "Press R to see the sky lane" from the
+  sky_skimmer counter if the 3D build no longer needs it (2D works around it).
 
 ## Problems / notes
 - Machine load ~10 (other agents): one PIL-based sim test timed out once at 5 s; reran green.
