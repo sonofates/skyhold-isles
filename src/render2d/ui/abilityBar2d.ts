@@ -22,7 +22,7 @@ import { haptics } from '../../platform/haptics.ts';
 import { AbilityFx, ABILITY_ART_KEYS, type AbilityArt, type AbilityArtKey, type FxTower } from '../abilityFx.ts';
 import type { Game2D } from '../game2d.ts';
 import { addHudKeepOut, hudKeepOuts, readSafeInsets } from '../uiKit.ts';
-import { abilityBarSpot, hudButtonsKeepOut, uiScale, type AbilityBarSpot, type Rect } from '../uiLayout.ts';
+import { abilityBarSpot, gateKeepOutsPx, hudButtonsKeepOut, uiScale, type AbilityBarSpot, type Rect } from '../uiLayout.ts';
 import {
   ABILITY_IDS,
   ABILITY_KEYS,
@@ -213,28 +213,43 @@ export function mountAbilityBar2D(game: Game2D, opts: AbilityBarOptions): Abilit
     const hard: Rect[] = game.plots.geometry.rects.map((p) => ({ x: sx(p.x), y: sy(p.y - p.w * 1.3), w: p.w * m.fit.scale, h: (p.h + p.w * 1.3) * m.fit.scale }));
     placing = true;
     hard.push(r.horn, r.plaque, r.banner, hudButtonsKeepOut(w, h, ins), ...hudKeepOuts());
+    // The castle keep and the caves (painted into the map): rather not under the bar (the keep
+    // weighs more; a cave edge is fine when nothing else is clear).
+    const landmarks = gateKeepOutsPx(game.level.layout2d?.gates ?? []).map((g) => ({ rect: { x: sx(g.x), y: sy(g.y), w: g.w * m.fit.scale, h: g.h * m.fit.scale }, weight: g.castle ? 400 : 120 }));
     placing = false;
     const soft = roadPts.map((p) => ({ x: sx(m.pxX(p.x)), y: sy(m.pxY(p.z)) }));
     // With the hero group the bar is long: shrink the buttons (never under 46 px) until a spot
     // covers nothing; else keep the size whose best spot covers least.
-    let best: { d: number; long: number; short: number; spot: AbilityBarSpot } | null = null;
+    let best: { d: number; long: number; short: number; spot: AbilityBarSpot; block?: { w: number; h: number } } | null = null;
     for (let dd = base; dd >= Math.min(base, 46); dd -= 2) {
-      const lg = dd * slots.length + gap * (slots.length - 1) + (opts.lead ? opts.lead.long(dd, gap) : 0);
+      // + one gap between the hero group and the abilities, + the key chips' overhang.
+      const lg = dd * slots.length + gap * (slots.length - 1) + (opts.lead ? opts.lead.long(dd, gap) + gap : 0) + Math.round(dd * 0.12);
       const sh = Math.max(dd, opts.lead?.short ? Math.ceil(opts.lead.short(dd)) : dd);
-      const sp = abilityBarSpot({ w, h, insets: ins, pad, long: lg, short: sh, gap, plaque: r.plaque, banner: r.banner, hard, soft });
-      if (!best || sp.score < best.spot.score) best = { d: dd, long: lg, short: sh, spot: sp };
-      if (sp.score === 0 || !opts.lead) break;
+      // Two rows: the hero group (no divider) over the abilities.
+      const block = opts.lead ? { w: Math.round(dd * 3.5 + gap * 2 + dd * 0.12), h: Math.round(dd * 1.5 + gap + dd + dd * 0.08) } : undefined;
+      const sp = abilityBarSpot({ w, h, insets: ins, pad, long: lg, short: sh, gap, plaque: r.plaque, banner: r.banner, hard, soft, landmarks, ...(block ? { block } : {}) });
+      // Prefer: clear spot, then a row / block over an edge column (owner: the column "at the edge"
+      // looked off), then the bigger buttons. A column is kept only if no row / block down to 70 %
+      // size is clear.
+      const better = (a: AbilityBarSpot, b: AbilityBarSpot): boolean =>
+        a.score !== b.score ? a.score < b.score : (a.layout === 'column' ? 1 : 0) < (b.layout === 'column' ? 1 : 0);
+      if (!best || better(sp, best.spot)) best = { d: dd, long: lg, short: sh, spot: sp, block };
+      if (!opts.lead || (sp.score === 0 && sp.layout !== 'column')) break;
+      if (best.spot.score === 0 && dd < base * 0.7) break;
     }
     d = best!.d;
     const long = best!.long;
     const short = best!.short;
     spot = best!.spot;
-    root.classList.toggle('vertical', spot.vertical);
+    root.classList.toggle('vertical', spot.layout === 'column');
+    root.classList.toggle('block', spot.layout === 'block');
+    const blk = best!.block;
+    if (spot.layout === 'block' && blk) root.style.setProperty('--blockw', `${blk.w}px`);
     root.style.setProperty('--d', `${d}px`);
     root.style.setProperty('--gap', `${gap}px`);
     root.style.left = `${Math.round(spot.x)}px`;
     root.style.top = `${Math.round(spot.y)}px`;
-    box = { x: spot.x, y: spot.y, w: spot.vertical ? short : long, h: spot.vertical ? long : short };
+    box = spot.layout === 'block' && blk ? { x: spot.x, y: spot.y, w: blk.w, h: blk.h } : { x: spot.x, y: spot.y, w: spot.vertical ? short : long, h: spot.vertical ? long : short };
     root.style.setProperty('--short', `${short}px`);
     placeHint();
   };
@@ -586,6 +601,8 @@ export function mountAbilityBar2D(game: Game2D, opts: AbilityBarOptions): Abilit
         aiming,
         bar: r(root),
         spot,
+        d,
+        box,
         buttons: Object.fromEntries(slots.map((s) => [s.id, { ...r(s.btn), state: s.view?.state ?? null, secs: s.secs.textContent }])),
         hint: hint.hidden ? null : hint.textContent,
         tip: tip.hidden ? null : tip.textContent,

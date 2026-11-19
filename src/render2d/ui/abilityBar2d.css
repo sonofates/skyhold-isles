@@ -17,6 +17,14 @@
   flex-direction: column;
 }
 
+/* Two rows on dense islands: the hero group on top, the abilities centred under it. */
+.pu-abilities.block {
+  flex-wrap: wrap;
+  justify-content: center;
+  width: var(--blockw, auto);
+  row-gap: calc(var(--gap, 14px) * 0.6);
+}
+
 .pu-abilities[hidden],
 .pu-ab-hint[hidden] {
   display: none !important;

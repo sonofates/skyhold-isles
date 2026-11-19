@@ -28,6 +28,15 @@
   opacity: 0.85;
 }
 
+.pu-abilities.block .pu-hero-group {
+  flex-basis: 100%;
+  justify-content: center;
+}
+
+.pu-abilities.block .pu-hero-divider {
+  display: none;
+}
+
 .pu-abilities.vertical .pu-hero-divider {
   width: calc(var(--d, 60px) * 0.7);
   height: calc(var(--d, 60px) * 0.12);

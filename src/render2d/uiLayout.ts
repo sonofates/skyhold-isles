@@ -7,6 +7,7 @@ import { towerRole } from '../i18n/data.ts';
 import { t } from '../i18n/index.ts';
 import type { TowerType } from '../core/types.ts';
 import { getTowerTierStats, TOWER_DEFS } from '../data/towers.ts';
+import type { Level2DGate } from '../data/levels2d/gates.ts';
 
 export interface Insets {
   readonly top: number;
@@ -433,10 +434,15 @@ export function hudButtonsKeepOut(w: number, h: number, insets: Insets): Rect {
 // Ability bar
 // ---------------------------------------------------------------------------------------------
 
+export type AbilityBarLayout = 'row' | 'column' | 'block';
+
 export interface AbilityBarSpot {
   readonly x: number;
   readonly y: number;
+  /** Column up a screen edge (kept for callers that only know row / column). */
   readonly vertical: boolean;
+  /** Row, column, or the compact two-row block (hero group on top, abilities under it). */
+  readonly layout: AbilityBarLayout;
   /** 0 = clear of every plot / tower and road; higher = worse (QA). */
   readonly score: number;
 }
@@ -450,6 +456,8 @@ export interface AbilityBarInput {
   readonly long: number;
   readonly short: number;
   readonly gap: number;
+  /** The two-row block's size (no block candidates when absent). */
+  readonly block?: { readonly w: number; readonly h: number };
   /** HUD plaque (bottom-left) and wave banner (bottom-right), screen px. */
   readonly plaque: Rect;
   readonly banner: Rect;
@@ -457,14 +465,18 @@ export interface AbilityBarInput {
   readonly hard: readonly Rect[];
   /** Rather not cover: points along the roads (enemies walk there). */
   readonly soft: readonly Pt[];
+  /** Painted landmarks with a weight per px² (castle heavier than a cave; plots count 1000). */
+  readonly landmarks?: readonly { readonly rect: Rect; readonly weight: number }[];
 }
 
 /**
- * Where the ability bar goes on this island: the first clear spot among the bottom band between
- * the plaque and the wave banner (centre first, then sliding towards either end), just above the
- * plaque / banner, or a column up the left / right edge. A spot covering a plot (or its tower) or
- * a HUD piece is only taken when every spot does; then the least covered wins. Roads count a bit,
- * the distance from the bottom centre breaks ties.
+ * Where the ability bar goes on this island. In order of preference: the bottom band between the
+ * plaque and the wave banner (centre first, then sliding towards either end), just above the
+ * plaque / banner, the compact two-row block above the plaque / banner or in a bottom corner, a
+ * column up the left / right edge, a row along the top edge, then blocks / columns at other
+ * heights. A spot covering a plot (or its tower), the castle / caves or a HUD piece is only taken
+ * when every spot does; then the least covered wins. Roads count a bit, the preference order and
+ * the distance from the bottom centre break ties.
  */
 export function abilityBarSpot(o: AbilityBarInput): AbilityBarSpot {
   const { w, h, insets, pad, long, short, gap } = o;
@@ -472,42 +484,99 @@ export function abilityBarSpot(o: AbilityBarInput): AbilityBarSpot {
   const maxX = w - insets.right - pad;
   const minY = insets.top + pad;
   const maxY = h - insets.bottom - pad;
-  const cands: { x: number; y: number; vertical: boolean; rank: number }[] = [];
-  const add = (x: number, y: number, vertical: boolean, rank: number): void => {
-    const bw = vertical ? short : long;
-    const bh = vertical ? long : short;
-    cands.push({ x: Math.max(minX, Math.min(maxX - bw, x)), y: Math.max(minY, Math.min(maxY - bh, y)), vertical, rank });
+  const cands: { x: number; y: number; bw: number; bh: number; layout: AbilityBarLayout; rank: number }[] = [];
+  const add = (x: number, y: number, layout: AbilityBarLayout, rank: number): void => {
+    const bw = layout === 'column' ? short : layout === 'block' ? o.block!.w : long;
+    const bh = layout === 'column' ? long : layout === 'block' ? o.block!.h : short;
+    cands.push({ x: Math.max(minX, Math.min(maxX - bw, x)), y: Math.max(minY, Math.min(maxY - bh, y)), bw, bh, layout, rank });
   };
   const bottomY = maxY - short;
   const left = o.plaque.x + o.plaque.w + gap;
   const right = o.banner.x - gap;
   if (right - left >= long) {
-    add((left + right) / 2 - long / 2, bottomY, false, 0);
+    add((left + right) / 2 - long / 2, bottomY, 'row', 0);
     const steps = 8;
-    for (let i = 0; i <= steps; i++) add(left + ((right - left - long) * i) / steps, bottomY, false, 1);
+    for (let i = 0; i <= steps; i++) add(left + ((right - left - long) * i) / steps, bottomY, 'row', 1);
   }
-  add(o.plaque.x, o.plaque.y - gap - short, false, 2);
-  add(o.plaque.x + o.plaque.w - long, o.plaque.y - gap - short, false, 2);
-  add(o.banner.x + o.banner.w - long, o.banner.y - gap - short, false, 2);
-  add(o.banner.x, o.banner.y - gap - short, false, 2);
-  add(minX, o.plaque.y - gap - long, true, 3);
-  add(maxX - short, o.banner.y - gap - long, true, 3);
+  add(o.plaque.x, o.plaque.y - gap - short, 'row', 2);
+  add(o.plaque.x + o.plaque.w - long, o.plaque.y - gap - short, 'row', 2);
+  add(o.banner.x + o.banner.w - long, o.banner.y - gap - short, 'row', 2);
+  add(o.banner.x, o.banner.y - gap - short, 'row', 2);
+  if (o.block) {
+    const b = o.block;
+    add(o.plaque.x, o.plaque.y - gap - b.h, 'block', 3);
+    add(o.banner.x + o.banner.w - b.w, o.banner.y - gap - b.h, 'block', 3);
+    if (right - left >= b.w) {
+      add(left, maxY - b.h, 'block', 3);
+      add(right - b.w, maxY - b.h, 'block', 3);
+      add((left + right) / 2 - b.w / 2, maxY - b.h, 'block', 3);
+    }
+  }
+  add(minX, o.plaque.y - gap - long, 'column', 4);
+  add(maxX - short, o.banner.y - gap - long, 'column', 4);
+  // Dense islands (plots along every edge of the bottom band): a row along the top edge (the HUD
+  // buttons on the right are keep-outs), blocks and columns at other heights.
+  const steps = 10;
+  for (let i = 0; i <= steps; i++) add(minX + ((maxX - minX - long) * i) / steps, minY, 'row', 5);
+  if (o.block) {
+    const b = o.block;
+    for (let i = 0; i <= 6; i++) {
+      add(minX, minY + ((maxY - minY - b.h) * i) / 6, 'block', 5);
+      add(maxX - b.w, minY + ((maxY - minY - b.h) * i) / 6, 'block', 5);
+      add(minX + ((maxX - minX - b.w) * i) / 6, minY, 'block', 5);
+    }
+  }
+  for (let i = 0; i <= 6; i++) {
+    const y = minY + ((maxY - minY - long) * i) / 6;
+    add(minX, y, 'column', 6);
+    add(maxX - short, y, 'column', 6);
+  }
   let best: AbilityBarSpot | null = null;
   let bestScore = Infinity;
   const cx = w / 2;
   for (const c of cands) {
-    const box: Rect = { x: c.x, y: c.y, w: c.vertical ? short : long, h: c.vertical ? long : short };
+    const box: Rect = { x: c.x, y: c.y, w: c.bw, h: c.bh };
     let hard = 0;
     for (const r of o.hard) hard += overlapArea(box, r);
     let soft = 0;
     for (const p of o.soft) if (p.x >= box.x && p.x <= box.x + box.w && p.y >= box.y && p.y <= box.y + box.h) soft++;
-    const score = hard * 1000 + soft * 40 + c.rank * 25 + Math.abs(box.x + box.w / 2 - cx) * 0.02 + (maxY - (box.y + box.h)) * 0.05;
+    let land = 0;
+    for (const l of o.landmarks ?? []) land += overlapArea(box, l.rect) * l.weight;
+    const score = hard * 1000 + land + soft * 40 + c.rank * 25 + Math.abs(box.x + box.w / 2 - cx) * 0.02 + (maxY - (box.y + box.h)) * 0.05;
     if (score < bestScore) {
       bestScore = score;
-      best = { x: c.x, y: c.y, vertical: c.vertical, score: Math.round(hard * 1000 + soft * 40) };
+      best = { x: c.x, y: c.y, vertical: c.layout === 'column', layout: c.layout, score: Math.round(hard * 1000 + land + soft * 40) };
     }
   }
-  return best ?? { x: (w - long) / 2, y: bottomY, vertical: false, score: Infinity };
+  return best ?? { x: (w - long) / 2, y: bottomY, vertical: false, layout: 'row', score: Infinity };
+}
+
+/**
+ * Map-image rects (px) of the painted landmarks a HUD piece should not cover: the castle keep and
+ * the raider caves. Only the gate's FRONT layer is in the level data; the building it belongs to
+ * stands behind the mouth (opposite its facing) and rises above it, so the rect grows that way.
+ */
+export function gateKeepOutsPx(gates: readonly Level2DGate[]): (Rect & { castle: boolean })[] {
+  const out: (Rect & { castle: boolean })[] = [];
+  for (const g of gates) {
+    if (!g.front) continue;
+    const [x, y, w, h] = g.front.rect;
+    const castle = g.role === 'goal';
+    const grow = castle ? 0.2 : 0.15;
+    // Castle v3 is one compact gatehouse-keep: it reaches a little behind and above its gate.
+    const back = castle ? 0.4 : 0.4;
+    const up = castle ? 0.6 : 0.3;
+    let x0 = x - w * grow;
+    let x1 = x + w * (1 + grow);
+    let y0 = y - h * (grow + up);
+    let y1 = y + h * (1 + grow);
+    if (g.facing === 'W') x1 += w * back;
+    else if (g.facing === 'E') x0 -= w * back;
+    else if (g.facing === 'N') y1 += h * back;
+    else y0 -= h * back;
+    out.push({ x: x0, y: y0, w: x1 - x0, h: y1 - y0, castle });
+  }
+  return out;
 }
 
 // ---------------------------------------------------------------------------------------------

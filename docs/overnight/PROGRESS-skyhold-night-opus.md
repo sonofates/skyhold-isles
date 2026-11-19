@@ -53,10 +53,22 @@ QA: `npx vite preview --port 4381 --strictPort` in background (kill with TaskSto
   ring under the foe (game2d `inspectRing`); "Defeated!" + fade when it falls; Esc / any other tap
   closes; keeps off the HUD buttons. Hit test from sim pos + art height (`game.enemyAt`).
 
+- **R1 backlog 3 — ability / hero bar placement — DONE (desktop), phone = deliberate left column.**
+  `uiLayout.abilityBarSpot`: new compact two-row **block** layout (hero group over the abilities),
+  more candidates (top row, blocks/columns at several heights), painted landmarks as weighted
+  keep-outs (`gateKeepOutsPx`: castle 400/px², caves 120/px², from the gate front rect + facing),
+  size loop prefers row/block over an edge column down to 70 % size. Planned width had a missing
+  gap (W key chip ran off-screen on l1c) — fixed. Results (`qa/barshots.mjs`, sheets
+  `docs/overnight/opus-shots/bar-sheet-*.jpg`): 1920/2560/1366 score 0 on every island except
+  1366 l1c/i13 (top row grazes a tower's headroom) and 1366 i12 (bottom band; dense map); edge
+  column only on 1920 i11/i15 (nothing else clear). l1c: row above the banner (1920), block in the
+  right margin (2560), top row (1366). Phone 844x390: left-edge column on most islands (thumb
+  reach; grazes caves on some), block on i05/i14/i16.
+
 ## Next (backlog 2: missing basics) — candidates, in rough value order
 - tower info card: the build ring tooltip already has stats/targeting/upgrade/sell+refund; review only
 - first-time coach marks on l1c; victory stars breakdown
-- Then backlog 3 (ability-bar placement: i12 at 1366x768 the bar sits ON the castle — castle is not a keep-out; l1c column), 4 polish.
+- Then backlog 4 polish (hero controls feel, juice, end panel/world map with 25 islands, TR pass).
 
 ## Decisions
 - Replay is kept in memory only (last run of this page). Persisting it across reloads would need

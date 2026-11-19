@@ -10,7 +10,7 @@ import { waveChips } from '../../src/render2d/ui/wavePreview2d.ts';
 import { foeFacts } from '../../src/render2d/ui/enemyCard2d.ts';
 import { livesLow } from '../../src/render2d/ui/lowLives2d.ts';
 import { ENEMY_DEFS, ENEMY_TYPES } from '../../src/data/enemies.ts';
-import { besideAnchorSpot } from '../../src/render2d/uiLayout.ts';
+import { abilityBarSpot, besideAnchorSpot, gateKeepOutsPx } from '../../src/render2d/uiLayout.ts';
 
 afterEach(() => setLocale('en'));
 
@@ -108,5 +108,35 @@ describe('flow texts', () => {
     expect(t('wave.inSecs', { n: 7 })).toContain('7');
     setLocale('en');
     expect(t('wave.earlyBonus', { n: 15 })).toBe('Call early: +15');
+  });
+});
+
+describe('ability bar placement (backlog 3)', () => {
+  const base = { w: 1920, h: 1080, insets: { top: 0, right: 0, bottom: 0, left: 0 }, pad: 19, long: 700, short: 110, gap: 22, plaque: { x: 19, y: 950, w: 400, h: 110 }, banner: { x: 1590, y: 970, w: 300, h: 90 }, soft: [] };
+  it('a crowded bottom band and edges: the two-row block finds the clear corner', () => {
+    // Plots along the whole bottom band and the top edge; only the space above the banner is free.
+    const hard = [
+      { x: 430, y: 850, w: 1150, h: 230 },
+      { x: 0, y: 0, w: 1920, h: 200 },
+      { x: 0, y: 200, w: 300, h: 740 },
+      { x: 1700, y: 200, w: 220, h: 450 },
+    ];
+    const s = abilityBarSpot({ ...base, hard, block: { w: 260, h: 180 } });
+    expect(s.layout).toBe('block');
+    expect(s.score).toBe(0);
+  });
+  it('the castle weighs as a landmark: the bar slides off it when it can', () => {
+    const castle = { rect: { x: 800, y: 900, w: 300, h: 180 }, weight: 400 };
+    const s = abilityBarSpot({ ...base, hard: [], landmarks: [castle] });
+    const box = { x: s.x, y: s.y, w: s.layout === 'column' ? base.short : base.long, h: s.layout === 'column' ? base.long : base.short };
+    const overlap = box.x < 1100 && box.x + box.w > 800 && box.y < 1080 && box.y + box.h > 900;
+    expect(overlap).toBe(false);
+  });
+  it('gate keep-outs grow behind the castle gate (facing W → to the east) and above it', () => {
+    const [k] = gateKeepOutsPx([{ role: 'goal', lane: -1, prop: 'castle-w', facing: 'W', front: { art: 'x', rect: [100, 100, 100, 80], baseY: 180 } }]);
+    expect(k.castle).toBe(true);
+    expect(k.x).toBeLessThan(100);
+    expect(k.x + k.w).toBeGreaterThan(200 + 30);
+    expect(k.y).toBeLessThan(100 - 40);
   });
 });
