@@ -18,6 +18,7 @@ const ARGS = ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swif
 const browser = await chromium.launch({ args: ARGS });
 const ALL_SIZES = [
   { key: '1920x1080', w: 1920, h: 1080, dpr: 1, desktop: true },
+  { key: '1920x1080@2', w: 1920, h: 1080, dpr: 2, desktop: true },
   { key: '844x390', w: 844, h: 390, dpr: 2, touch: true },
 ];
 const SIZES = ALL_SIZES.filter((s) => !arg('size') || arg('size').split(',').includes(s.key));

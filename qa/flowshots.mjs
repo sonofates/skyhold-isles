@@ -13,6 +13,7 @@ const ARGS = ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swif
 const browser = await chromium.launch({ args: ARGS });
 const ALL_SIZES = [
   { key: '1920x1080', w: 1920, h: 1080, dpr: 1, desktop: true },
+  { key: '1920x1080@2', w: 1920, h: 1080, dpr: 2, desktop: true },
   { key: '844x390', w: 844, h: 390, dpr: 2, touch: true },
 ];
 const SIZES = ALL_SIZES.filter((s) => !arg('size') || arg('size').split(',').includes(s.key));
@@ -42,7 +43,7 @@ for (const size of SIZES) {
     else {
       await page.evaluate(([x, y]) => window.__p0.hero.tap(x, y), [at.x, at.y]);
       await page.evaluate(() => window.__p0.freeze(false));
-      await page.waitForTimeout(400);
+      await page.waitForFunction(() => window.__p0.foe().shown, null, { timeout: 6000 }).catch(() => undefined);
       await page.evaluate(() => window.__p0.freeze(true));
       const fc = await page.evaluate(() => window.__p0.foe());
       ok(fc?.shown && fc.type, `${tag}: foe card not shown ${JSON.stringify(fc)}`);

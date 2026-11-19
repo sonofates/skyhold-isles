@@ -792,7 +792,17 @@ async function main(): Promise<void> {
     if (foeCard) {
       const foe = game.inspectedEnemy;
       const showFoe = game.inspecting && !game.end.visible && !anySheetOpen();
-      foeCard.update(showFoe ? foe : null, showFoe, foe ? game.enemyScreen(foe) : null, { w: app.screen.width, h: app.screen.height }, showFoe && foe ? [hudButtonsKeepOut(app.screen.width, app.screen.height, readSafeInsets()), ...hudKeepOuts()] : []);
+      const domRects = (): { x: number; y: number; w: number; h: number }[] => {
+        // The top-centre tip cards (coach, new foe) too: the foe card slides below them.
+        const out: { x: number; y: number; w: number; h: number }[] = [];
+        for (const e of Array.from(document.querySelectorAll<HTMLElement>('.pu-coach, .pu-newfoe'))) { // i18n-ignore (selector)
+          if (e.style.display === 'none') continue;
+          const r = e.getBoundingClientRect();
+          if (r.width > 0) out.push({ x: r.x, y: r.y, w: r.width, h: r.height });
+        }
+        return out;
+      };
+      foeCard.update(showFoe ? foe : null, showFoe, foe ? game.enemyScreen(foe) : null, { w: app.screen.width, h: app.screen.height }, showFoe && foe ? [hudButtonsKeepOut(app.screen.width, app.screen.height, readSafeInsets()), ...hudKeepOuts(), ...domRects()] : []);
       if (game.inspecting && !foe && !foeCard.debug().shown) game.clearInspect();
     }
     if (coach && coach.step !== 'done') {
