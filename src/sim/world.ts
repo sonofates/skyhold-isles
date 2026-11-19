@@ -81,6 +81,16 @@ function isRunModifiers(val: RunModifiers | SimWorldOptions): val is RunModifier
   return 'startGoldMul' in val && 'enemyHpMul' in val;
 }
 
+const VALID_TARGETING_MODES: readonly TargetingMode[] = ['first', 'last', 'strongest', 'closest'];
+
+function isValidTowerType(val: unknown): val is TowerType {
+  return typeof val === 'string' && Object.prototype.hasOwnProperty.call(TOWER_DEFS, val);
+}
+
+function isValidTargetingMode(val: unknown): val is TargetingMode {
+  return typeof val === 'string' && (VALID_TARGETING_MODES as readonly string[]).includes(val);
+}
+
 const _hoverCandidates: number[] = [];
 
 export function computeSellRefund(totalInvested: number): number {
@@ -589,6 +599,7 @@ export class SimWorld {
     if (this.lives <= 0) this.lives = 1;
     const stars = this.computeStars();
     this.heroSystem.onVictory(stars);
+    this.waveSystem.markFinished();
     this.clearVictoryTransients();
     this.outcome = 'won';
     this.events.emit('gameWon', {
@@ -611,6 +622,7 @@ export class SimWorld {
 
   /** Tower types a challenge forbids this run. */
   isTowerBanned(type: TowerType): boolean {
+    if (!isValidTowerType(type)) return false;
     return this.mods.bannedTowers.includes(type);
   }
 
@@ -620,6 +632,7 @@ export class SimWorld {
    */
   canPlaceTowerAt(col: number, row: number, type: TowerType): boolean {
     if (this.outcome !== 'ongoing') return false;
+    if (!isValidTowerType(type)) return false;
     if (this.isTowerBanned(type)) return false;
     if (!this.grid.canPlaceTower(col, row)) return false;
     const stats = getTowerTierStats(type, 1);
@@ -643,6 +656,7 @@ export class SimWorld {
     targetingMode: TargetingMode = 'first',
   ): TowerEntity | null {
     if (!this.canPlaceTowerAt(col, row, type)) return null;
+    const safeMode: TargetingMode = isValidTargetingMode(targetingMode) ? targetingMode : 'first';
     const stats = getTowerTierStats(type, 1);
     const x = this.grid.siteWorldX(col, row);
     const z = this.grid.siteWorldZ(col, row);
@@ -657,7 +671,7 @@ export class SimWorld {
       type,
       tier: 1,
       totalInvested: stats.upgradeCost,
-      targetingMode,
+      targetingMode: safeMode,
       cooldownTimer: 0.15,
       stunTimer: 0,
       yaw: 0,
@@ -685,8 +699,8 @@ export class SimWorld {
     });
     this.events.emit('economyChanged', { gold: this.gold, lives: this.lives });
     this.recordCommand(
-      targetingMode !== 'first'
-        ? { kind: 'placeTower', col, row, towerType: type, targetingMode }
+      safeMode !== 'first'
+        ? { kind: 'placeTower', col, row, towerType: type, targetingMode: safeMode }
         : { kind: 'placeTower', col, row, towerType: type },
     );
     return tower;
@@ -699,17 +713,18 @@ export class SimWorld {
     targetingMode: TargetingMode = 'first',
   ): TowerEntity | null {
     if (!this.grid.isPlotMode) return null;
+    const safeMode: TargetingMode = isValidTargetingMode(targetingMode) ? targetingMode : 'first';
     this.recordSuppressDepth++;
     let tower: TowerEntity | null;
     try {
-      tower = this.placeTower(plotIndex, 0, type, targetingMode);
+      tower = this.placeTower(plotIndex, 0, type, safeMode);
     } finally {
       this.recordSuppressDepth--;
     }
     if (tower) {
       this.recordCommand(
-        targetingMode !== 'first'
-          ? { kind: 'placeTowerOnPlot', plotIndex, towerType: type, targetingMode }
+        safeMode !== 'first'
+          ? { kind: 'placeTowerOnPlot', plotIndex, towerType: type, targetingMode: safeMode }
           : { kind: 'placeTowerOnPlot', plotIndex, towerType: type },
       );
     }
@@ -782,7 +797,7 @@ export class SimWorld {
   }
 
   setTowerTargeting(towerId: number, mode: TargetingMode): boolean {
-    if (this.outcome !== 'ongoing') return false;
+    if (this.outcome !== 'ongoing' || !isValidTargetingMode(mode)) return false;
     const tower = this.getTowerById(towerId);
     if (!tower) return false;
     if (tower.targetingMode !== mode) {
@@ -867,7 +882,7 @@ export class SimWorld {
   };
 
   fixedTick(dt: number): void {
-    if (this.outcome !== 'ongoing') return;
+    if (this.outcome !== 'ongoing' || !Number.isFinite(dt) || dt <= 0) return;
     this.tick++;
 
     // Run + endless-wave modifiers for everything spawned this tick (incl. escorts, raiders, mites).

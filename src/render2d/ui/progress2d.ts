@@ -210,6 +210,11 @@ export async function hydrateProgress2DFromCloud(
   let merged = normalizedLocal;
   let updated = false;
 
+  const isMock = levels.some((l) => l.id.startsWith('mock-'));
+  if (isMock) {
+    return { merged: normalizedLocal, updated: false, unlockedAchievements: [] };
+  }
+
   const cloudRaw = await adapter.cloudSave.read(CLOUD_PROGRESS_2D_SLOT);
   if (cloudRaw) {
     const parsedCloud = parseStored2DRaw(cloudRaw, levels);
@@ -238,7 +243,7 @@ export async function hydrateProgress2DFromCloud(
     } else if (hasAnyProgress(normalizedLocal)) {
       await adapter.cloudSave.write(CLOUD_PROGRESS_2D_SLOT, localRaw);
     }
-  } else if (adapter.isSteam) {
+  } else if (adapter.isSteam && hasAnyProgress(normalizedLocal)) {
     await adapter.cloudSave.write(CLOUD_PROGRESS_2D_SLOT, localRaw);
   }
 

@@ -962,4 +962,70 @@ describe('Daily Squall, Endless escalations, and Silent Skies + Hero interaction
     pool.releaseAtActivePos(0);
     expect(pool.getActiveCount()).toBe(0);
   });
+
+  it('re-attaches readSafeArea probe after DOM resets and deduplicates initDeviceClass media listeners', async () => {
+    const { readSafeArea } = await import('../../src/platform/safeArea.ts');
+    const { initDeviceClass } = await import('../../src/platform/deviceClass.ts');
+
+    // Without DOM globals, readSafeArea safely returns zeros.
+    expect(readSafeArea()).toEqual({ top: 0, right: 0, bottom: 0, left: 0 });
+
+    // Minimal mocked document/window to verify detached-probe recovery and listener deduplication.
+    let connected = false;
+    let appendCount = 0;
+    const mockProbe = {
+      style: { cssText: '' },
+      get isConnected(): boolean {
+        return connected;
+      },
+      setAttribute: () => {},
+    };
+    const prevDoc = (globalThis as Record<string, unknown>).document;
+    const prevWin = (globalThis as Record<string, unknown>).window;
+    const prevGetCS = (globalThis as Record<string, unknown>).getComputedStyle;
+    let addCalls = 0;
+    let removeCalls = 0;
+    try {
+      (globalThis as Record<string, unknown>).document = {
+        body: {
+          appendChild: () => {
+            connected = true;
+            appendCount++;
+          },
+        },
+        createElement: () => mockProbe,
+        documentElement: { classList: { toggle: () => {} } },
+      };
+      (globalThis as Record<string, unknown>).getComputedStyle = () =>
+        connected
+          ? { paddingTop: '12px', paddingRight: '4px', paddingBottom: '20px', paddingLeft: '8px' }
+          : { paddingTop: '', paddingRight: '', paddingBottom: '', paddingLeft: '' };
+      (globalThis as Record<string, unknown>).window = {
+        matchMedia: () => ({
+          matches: true,
+          addEventListener: () => void addCalls++,
+          removeEventListener: () => void removeCalls++,
+        }),
+      };
+
+      expect(readSafeArea()).toEqual({ top: 12, right: 4, bottom: 20, left: 8 });
+      expect(appendCount).toBe(1);
+      // Simulate document.body.innerHTML = '' detaching probe: next readSafeArea re-attaches it!
+      connected = false;
+      expect(readSafeArea()).toEqual({ top: 12, right: 4, bottom: 20, left: 8 });
+      expect(appendCount).toBe(2);
+
+      initDeviceClass();
+      initDeviceClass();
+      expect(addCalls).toBe(2);
+      expect(removeCalls).toBe(1);
+    } finally {
+      if (prevDoc === undefined) delete (globalThis as Record<string, unknown>).document;
+      else (globalThis as Record<string, unknown>).document = prevDoc;
+      if (prevWin === undefined) delete (globalThis as Record<string, unknown>).window;
+      else (globalThis as Record<string, unknown>).window = prevWin;
+      if (prevGetCS === undefined) delete (globalThis as Record<string, unknown>).getComputedStyle;
+      else (globalThis as Record<string, unknown>).getComputedStyle = prevGetCS;
+    }
+  });
 });

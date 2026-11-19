@@ -711,33 +711,15 @@ export class SimReplayPlayer {
     let executed = 0;
     for (let i = 0; i < steps; i++) {
       this.flushCommandsForCurrentTick();
-      if (this.world.tick >= this.totalTicks && this.cmdIndex >= this.replay.commands.length) break;
+      if (this.finished) break;
       if (this.world.outcome !== 'ongoing') {
-        if (this.world.outcome === 'won' && !this.finished) {
-          let resumed = false;
-          let resumeTick = this.world.tick;
-          while (this.cmdIndex < this.replay.commands.length) {
-            const entry = this.replay.commands[this.cmdIndex];
-            this.cmdIndex++;
-            const applied = this.world.applyCommand(entry.command);
-            if (entry.command.kind === 'enterEndless') {
-              resumed = applied;
-              resumeTick = entry.tick;
-              break;
-            }
-          }
-          if (!resumed) break;
-          while (
-            this.cmdIndex < this.replay.commands.length &&
-            this.replay.commands[this.cmdIndex].tick <= resumeTick
-          ) {
-            this.world.applyCommand(this.replay.commands[this.cmdIndex].command);
-            this.cmdIndex++;
-          }
-          if (this.world.tick >= this.totalTicks && this.cmdIndex >= this.replay.commands.length) break;
-        } else {
-          break;
+        if (this.world.outcome === 'won') {
+          this.world.tick++;
+          executed++;
+          this.flushCommandsForCurrentTick();
+          continue;
         }
+        break;
       }
       this.world.fixedTick(BALANCE.fixedDt);
       executed++;

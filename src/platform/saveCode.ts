@@ -1,6 +1,6 @@
 import type { HeroId, HeroSaveData, ProgressData } from '../core/types.ts';
 import { isChallengeId } from '../data/challenges.ts';
-import type { DailyRecord } from '../data/daily.ts';
+import { sanitizeDailyRecord, type DailyRecord } from '../data/daily.ts';
 import { HERO_IDS, mergeHeroSaveData, sanitizeHeroSaveData, totalHeroSaveXp } from '../data/heroes.ts';
 import { sanitizeRanks } from '../data/workshop.ts';
 import { starWallet } from '../game/progression.ts';
@@ -172,7 +172,12 @@ export function decodeSaveCode(code: string, levelCount: number): SaveCodeResult
  * same wins twice when a code is loaded again (merging must stay idempotent).
  */
 export function mergeDaily(a: DailyRecord, b: DailyRecord): DailyRecord {
-  const [early, late] = a.lastDay <= b.lastDay ? [a, b] : [b, a];
+  const ca = sanitizeDailyRecord(a);
+  const cb = sanitizeDailyRecord(b);
+  const [early, late] =
+    ca.lastDay < cb.lastDay || (ca.lastDay === cb.lastDay && ca.streak <= cb.streak)
+      ? [ca, cb]
+      : [cb, ca];
   const lateStart = late.lastDay - Math.max(0, late.streak) + 1;
   const earlyStart = early.lastDay - Math.max(0, early.streak) + 1;
   const chains = early.streak > 0 && late.streak > 0 && lateStart <= early.lastDay + 1;
@@ -180,8 +185,8 @@ export function mergeDaily(a: DailyRecord, b: DailyRecord): DailyRecord {
   return {
     lastDay: late.lastDay,
     streak,
-    bestStreak: Math.max(a.bestStreak, b.bestStreak, streak),
-    total: Math.max(a.total, b.total),
+    bestStreak: Math.max(ca.bestStreak, cb.bestStreak, streak),
+    total: Math.max(ca.total, cb.total),
   };
 }
 
@@ -250,6 +255,8 @@ export function describeMergeGain(before: ProgressData, after: ProgressData): st
   if (badges > 0) parts.push(`+${badges} badge${badges === 1 ? '' : 's'}`);
   const records = after.bestEndlessWaves.some((v, i) => v > (before.bestEndlessWaves[i] ?? 0));
   if (records) parts.push('new endless records');
+  const dailies = (after.daily?.total ?? 0) - (before.daily?.total ?? 0);
+  if (dailies > 0) parts.push(`+${dailies} daily win${dailies === 1 ? '' : 's'}`);
   if (totalHeroSaveXp(after.heroes) > totalHeroSaveXp(before.heroes)) parts.push('hero XP');
   return parts.length > 0 ? parts.join(', ') : 'nothing new — this save already had all of it';
 }

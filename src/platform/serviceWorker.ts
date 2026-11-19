@@ -54,7 +54,13 @@ export function registerServiceWorker(opts: ServiceWorkerOptions): void {
         document.addEventListener('visibilitychange', () => {
           if (!document.hidden) check();
         });
-        window.setInterval(check, (opts.checkEveryMin ?? 30) * 60_000);
+        const checkEveryMin =
+          typeof opts.checkEveryMin === 'number' &&
+          Number.isFinite(opts.checkEveryMin) &&
+          opts.checkEveryMin > 0
+            ? opts.checkEveryMin
+            : 30;
+        window.setInterval(check, checkEveryMin * 60_000);
       })
       .catch(() => undefined);
   };

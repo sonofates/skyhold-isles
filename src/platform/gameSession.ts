@@ -52,6 +52,7 @@ import type { RunModifiers } from '../data/runModifiers.ts';
 import {
   applyDailyWin,
   dailyChallengeFor,
+  liveStreak,
   utcDayNumber,
   type DailyChallenge,
 } from '../data/daily.ts';
@@ -147,6 +148,7 @@ export class GameSession {
   /** Tile whose ghost tower the radial build ring is previewing (survives pointer-leave refreshes). */
   private radialPreview: { type: TowerType; col: number; row: number } | null = null;
   private readonly starChimeTimers: number[] = [];
+  private disposed = false;
 
   constructor(renderWorld: RenderWorld, soundManager: SoundManager) {
     this.renderWorld = renderWorld;
@@ -174,13 +176,20 @@ export class GameSession {
     });
     if (platform.isSteam) {
       void hydrateProgressFromCloud(this.progress, LEVELS.length, platform).then(({ merged, updated }) => {
-        if (!updated) return;
-        if (merged.heroes === undefined) delete this.progress.heroes;
-        Object.assign(this.progress, merged);
-        if (this.viewMode !== 'playing' && this.deps) {
-          this.deps.overlays.mainMenu.setOpen(this.viewMode === 'menu', this.progress);
-          this.deps.overlays.levelSelect.setOpen(this.viewMode === 'levelSelect', this.progress);
-          this.deps.overlays.workshop.setOpen(this.viewMode === 'workshop', this.progress);
+        if (!updated || this.disposed) return;
+        const freshMerged = mergeProgress(this.progress, merged, LEVELS.length);
+        if (freshMerged.heroes === undefined) delete this.progress.heroes;
+        Object.assign(this.progress, freshMerged);
+        if (this.viewMode !== 'playing') {
+          this.currentLevelIndex = Math.max(
+            0,
+            Math.min(LEVELS.length - 1, this.progress.unlockedLevelIndex),
+          );
+          if (this.deps) {
+            this.deps.overlays.mainMenu.setOpen(this.viewMode === 'menu', this.progress);
+            this.deps.overlays.levelSelect.setOpen(this.viewMode === 'levelSelect', this.progress);
+            this.deps.overlays.workshop.setOpen(this.viewMode === 'workshop', this.progress);
+          }
         }
       });
     }
@@ -299,7 +308,11 @@ export class GameSession {
       wavesStarted: ws.currentWaveOneBased,
       gold: sim.gold,
       cheapestUpgrade,
-      meteorReady: ws.state !== 'preFirstWave' && sim.abilitySystem.canCast('meteor'),
+      meteorReady:
+        sim.outcome === 'ongoing' &&
+        !sim.mods.abilitiesDisabled &&
+        ws.state !== 'preFirstWave' &&
+        sim.abilitySystem.canCast('meteor'),
       meteorAiming: this.activeAbilityMode === 'meteor',
     };
   }
@@ -559,16 +572,27 @@ export class GameSession {
           badgesForWin(offered, this.runConfig.challenges),
         );
         let dailyStreak = 0;
+        let shareDailyStreak = 0;
         if (this.runConfig.daily !== null) {
+          const today = utcDayNumber(Date.now());
+          const prevLast = this.progress.daily.lastDay;
+          const prevStreak = this.progress.daily.streak;
           const res = applyDailyWin(
             this.progress.daily,
             this.runConfig.daily,
-            utcDayNumber(Date.now()),
+            today,
           );
           if (res.counted) {
             dailyStreak = res.streak;
+          }
+          if (
+            res.counted ||
+            this.progress.daily.lastDay !== prevLast ||
+            this.progress.daily.streak !== prevStreak
+          ) {
             saveProgress(this.progress);
           }
+          shareDailyStreak = liveStreak(this.progress.daily, today);
         }
         this.deps?.content?.onLevelWon(this.currentLevelIndex);
         this.deps?.radial?.close();
@@ -604,7 +628,7 @@ export class GameSession {
                     challenges: this.runConfig.challenges,
                     stars,
                     livesLost: Math.max(0, this.simWorld.startingLives - livesRemaining),
-                    streak: dailyStreak,
+                    streak: shareDailyStreak,
                   })
                 : undefined,
           },
@@ -1348,6 +1372,7 @@ export class GameSession {
   }
 
   dispose(): void {
+    this.disposed = true;
     this.cancelStarChimes();
     this.unbindSound?.();
     this.unbindSound = null;

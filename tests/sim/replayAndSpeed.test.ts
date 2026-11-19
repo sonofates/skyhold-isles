@@ -830,4 +830,141 @@ describe('EventBus re-entrancy & SoldierSystem towerFireRateMul', () => {
     alive.hp = 0;
     expect(hoverWorld.findHoveredEnemy(alive.x, alive.z, alive.x, alive.z)).toBeNull();
   });
+
+  it('prevents mid-tick listener duplicate enemyUnblocked, resolves heroSkillCast targets, and paces delayed enterEndless ticks exactly', () => {
+    // 1. Mid-tick 'heroHit' listener calling commandHeroMove emits enemyUnblocked once (never duplicated by reconcileHeroUnblocks).
+    const heroEvents = new EventBus();
+    let hBlocked = 0;
+    let hUnblocked = 0;
+    const branWorld = new SimWorld(LEVEL_L1C, heroEvents, { heroId: 'bran', heroLevel: 10, seed: 51 });
+    branWorld.startNextWave();
+    const roadEnd = branWorld.groundPath.points[branWorld.groundPath.points.length - 1];
+    const roadStart = branWorld.groundPath.points[0];
+    branWorld.hero!.x = branWorld.hero!.postX = roadStart.x;
+    branWorld.hero!.z = branWorld.hero!.postZ = roadStart.z;
+    const foe = branWorld.enemySystem.spawnEnemy('brute', 10, false, 0)!;
+    foe.x = foe.prevX = roadStart.x;
+    foe.z = foe.prevZ = roadStart.z;
+    foe.heroMeleeTimer = 0.005;
+    branWorld.spatialHash.clear();
+    branWorld.spatialHash.insert(foe.poolIndex, foe.x, foe.z);
+
+    heroEvents.on('enemyBlocked', () => void hBlocked++);
+    heroEvents.on('enemyUnblocked', () => void hUnblocked++);
+    heroEvents.on('heroHit', () => {
+      branWorld.commandHeroMove(roadEnd.x, roadEnd.z);
+    });
+
+    for (let i = 0; i < 30 && hUnblocked === 0; i++) {
+      branWorld.heroSystem.update(BALANCE.fixedDt, branWorld.towers, 1);
+    }
+    expect(hBlocked).toBe(1);
+    expect(hUnblocked).toBe(1);
+
+    // 2. Mid-tick 'meleeHit' listener calling setRallyPoint emits enemyUnblocked once (never duplicated by Step 8).
+    const solEvents = new EventBus();
+    let sBlocked = 0;
+    let sUnblocked = 0;
+    const solWorld = new SimWorld(LEVEL_L1C, solEvents, { seed: 52 });
+    solWorld.gold = 5000;
+    const bar = solWorld.placeTowerOnPlot(21, 'barracks')!;
+    solWorld.startNextWave();
+    const bState = solWorld.soldierSystem.getBarracks(bar.id)!;
+    for (const s of bState.squad) {
+      s.x = s.prevX = bState.rallyX;
+      s.z = s.prevZ = bState.rallyZ;
+    }
+    const brute = solWorld.enemySystem.spawnEnemy('brute', 10, false, 0)!;
+    brute.x = brute.prevX = bState.rallyX;
+    brute.z = brute.prevZ = bState.rallyZ;
+    brute.meleeTimer = 0.005;
+    solWorld.spatialHash.clear();
+    solWorld.spatialHash.insert(brute.poolIndex, brute.x, brute.z);
+
+    solEvents.on('enemyBlocked', () => void sBlocked++);
+    solEvents.on('enemyUnblocked', () => void sUnblocked++);
+    let ralliedInHit = false;
+    solEvents.on('meleeHit', (ev) => {
+      if (ev.attacker === 'enemy' && !ralliedInHit) {
+        ralliedInHit = true;
+        solWorld.setRallyPoint(bar.id, bar.x, bar.z);
+      }
+    });
+    solWorld.soldierSystem.update(BALANCE.fixedDt, solWorld.towers, 1);
+    expect(sBlocked).toBe(1);
+    expect(sUnblocked).toBe(1);
+
+    // 3. heroSkillCast emits resolved target coordinates (gizmo cleared off plot, overhaul snapped to tower, shieldBash in front of Bran).
+    const castTargets: Array<{ skillId: string; tx: number; tz: number }> = [];
+    const tobbEvents = new EventBus();
+    tobbEvents.on('heroSkillCast', (ev) => castTargets.push({ skillId: ev.skillId, tx: ev.targetX, tz: ev.targetZ }));
+    const tobbW = new SimWorld(LEVEL_L1C, tobbEvents, { heroId: 'tobb', heroLevel: 10, seed: 53 });
+    tobbW.gold = 5000;
+    const nearPlot = LEVEL_L1C.layout2d!.plots[3];
+    const builtTower = tobbW.placeTowerOnPlot(3, 'archer')!;
+    tobbW.hero!.x = tobbW.hero!.postX = nearPlot.x;
+    tobbW.hero!.z = tobbW.hero!.postZ = nearPlot.z;
+    expect(tobbW.castHeroSkill(0, nearPlot.x, nearPlot.z)).toBe(true); // deployGizmo aimed directly on plot 3
+    expect(tobbW.heroSystem.gizmos).toHaveLength(1);
+    expect(castTargets[0].tx).toBeCloseTo(tobbW.heroSystem.gizmos[0].x, 6);
+    expect(castTargets[0].tz).toBeCloseTo(tobbW.heroSystem.gizmos[0].z, 6);
+    expect(tobbW.castHeroSkill(1, nearPlot.x + 1.2, nearPlot.z - 0.9)).toBe(true); // overhaul snaps onto builtTower
+    expect(castTargets[1].tx).toBeCloseTo(builtTower.x, 6);
+    expect(castTargets[1].tz).toBeCloseTo(builtTower.z, 6);
+
+    // 4. SimWorld guards non-finite/non-positive fixedTick dt, invalid TowerType/TargetingMode, and debugForceWin wave state.
+    const guardW = new SimWorld(LEVEL_L1C, new EventBus(), { seed: 54 });
+    guardW.fixedTick(NaN);
+    guardW.fixedTick(0);
+    guardW.fixedTick(-1 / 60);
+    expect(guardW.tick).toBe(0);
+    expect(guardW.canPlaceTowerAt(0, 0, 'trebuchet' as never)).toBe(false);
+    expect(guardW.placeTowerOnPlot(0, 'trebuchet' as never)).toBeNull();
+    const validArch = guardW.placeTowerOnPlot(0, 'archer', 'bogus' as never)!;
+    expect(validArch.targetingMode).toBe('first');
+    expect(guardW.setTowerTargeting(validArch.id, 'bogus' as never)).toBe(false);
+    guardW.startNextWave();
+    guardW.waveSystem.pendingClearBonus = 99;
+    guardW.debugForceWin();
+    expect(guardW.waveSystem.state).toBe('finished');
+    expect(guardW.waveSystem.pendingClearBonus).toBe(0);
+    expect(guardW.waveSystem.getNextWavePreview()).toBeNull();
+
+    // 5. SimReplayPlayer seekToTick & post-endless command delta across a paused victory window.
+    const miniWin = {
+      ...LEVEL_L1C,
+      id: 'mini-exact-victory-wait',
+      waves: [{ groups: [{ enemyType: 'grunt' as const, count: 1, spawnInterval: 0.2, startDelay: 0 }], clearBonus: 80 }],
+    };
+    const baseWin = new SimWorld(miniWin, new EventBus(), { seed: 95, recordCommands: true });
+    const t0 = baseWin.placeTowerOnPlot(0, 'archer')!;
+    baseWin.startNextWave();
+    while (baseWin.outcome === 'ongoing') baseWin.fixedTick(BALANCE.fixedDt);
+    const wTick = baseWin.tick;
+    const exactWaitLog = parseSimReplay({
+      ...baseWin.exportReplay(),
+      commands: [
+        ...baseWin.getRecordedCommands(),
+        { tick: wTick + 10, seq: 0, command: { kind: 'setAutoWave', enabled: true } },
+        { tick: wTick + 20, seq: 0, command: { kind: 'enterEndless' } },
+        { tick: wTick + 35, seq: 0, command: { kind: 'sellTower', towerId: t0.id } },
+      ],
+      summary: { ...baseWin.exportReplay().summary, totalTicks: wTick + 40, outcome: 'ongoing' },
+    })!;
+    const waitPlayer = new SimReplayPlayer(miniWin, exactWaitLog);
+    waitPlayer.seekToTick(wTick + 5);
+    expect(waitPlayer.currentTick).toBe(wTick + 5);
+    expect(waitPlayer.world.outcome).toBe('won');
+    expect(waitPlayer.world.waveSystem.autoWave).toBe(false);
+    waitPlayer.seekToTick(wTick + 12);
+    expect(waitPlayer.currentTick).toBe(wTick + 12);
+    expect(waitPlayer.world.outcome).toBe('won');
+    expect(waitPlayer.world.waveSystem.autoWave).toBe(true);
+    waitPlayer.seekToTick(wTick + 25); // 5 ticks into endless, BEFORE sellTower at wTick + 35!
+    expect(waitPlayer.world.waveSystem.isEndless).toBe(true);
+    expect(waitPlayer.world.towers).toHaveLength(1);
+    waitPlayer.runToEnd();
+    expect(waitPlayer.currentTick).toBe(wTick + 40);
+    expect(waitPlayer.world.towers).toHaveLength(0);
+  });
 });

@@ -52,7 +52,7 @@ export async function hydrateProgressFromCloud(
         await adapter.cloudSave.write(CLOUD_PROGRESS_SLOT, localRaw);
       }
     }
-  } else if (adapter.isSteam) {
+  } else if (adapter.isSteam && hasAnyProgress(normalizedLocal)) {
     await adapter.cloudSave.write(CLOUD_PROGRESS_SLOT, localRaw);
   }
 

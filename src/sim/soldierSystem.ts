@@ -75,6 +75,7 @@ export interface RoadPoint {
 
 const _v: Vec3 = { x: 0, y: 0, z: 0 };
 const _baseVec: Vec3 = { x: 0, y: 0, z: 0 };
+const _rallyRoadPt: RoadPoint = { x: 0, z: 0, yaw: 0 };
 const _candidates: number[] = [];
 const _engageList: number[] = [];
 const _blockedList: number[] = [];
@@ -267,11 +268,10 @@ export class SoldierSystem {
     const b = this.getBarracks(tower.id);
     if (!b) return false;
     const stats = getTowerTierStats(tower.type, tower.tier);
-    const p: RoadPoint = { x: 0, z: 0, yaw: 0 };
-    if (!this.findRoadPoint(b.x, b.z, stats.range, x, z, p)) return false;
-    b.rallyX = p.x;
-    b.rallyZ = p.z;
-    b.rallyYaw = p.yaw;
+    if (!this.findRoadPoint(b.x, b.z, stats.range, x, z, _rallyRoadPt)) return false;
+    b.rallyX = _rallyRoadPt.x;
+    b.rallyZ = _rallyRoadPt.z;
+    b.rallyYaw = _rallyRoadPt.yaw;
     this.layoutPosts(b, stats.soldierCount ?? b.squad.length);
     for (let i = 0; i < b.squad.length; i++) {
       const s = b.squad[i];
@@ -433,7 +433,12 @@ export class SoldierSystem {
         e.blockers--;
         if (e.blockers === 0) {
           this.blockedCount = Math.max(0, this.blockedCount - 1);
-          if (e.heroBlockers === 0) this.emitBlock('enemyUnblocked', e);
+          if (e.heroBlockers === 0) {
+            for (let k = 0; k < _prevBlocked.length; k++) {
+              if (_prevBlocked[k] === e.poolIndex) _prevBlockedUid[k] = -1;
+            }
+            this.emitBlock('enemyUnblocked', e);
+          }
         }
       }
     }

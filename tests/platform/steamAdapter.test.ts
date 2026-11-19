@@ -439,6 +439,21 @@ describe('Steam achievements map, cloud hydration, and desktop config invariants
     expect(localStorage.getItem(PROGRESS_2D_RESET_BACKUP_KEY)).not.toBeNull();
     const resetCloud = JSON.parse(cloudSlots.get(CLOUD_PROGRESS_2D_SLOT) ?? '{}') as { progress: { bestStars: number[] } };
     expect(resetCloud.progress.bestStars.every((s) => s === 0)).toBe(true);
+
+    // Empty local boot when cloud slot is missing/offline must NOT write an empty save blob to Steam Cloud,
+    // and hydrateProgress2DFromCloud skips Steam Cloud / achievement IPC on mock-* QA rosters.
+    cloudSlots.clear();
+    unlockedIds.length = 0;
+    const empty2dHydrate = await hydrateProgress2DFromCloud(undefined, LEVELS_2D, steamAdapter);
+    expect(empty2dHydrate.updated).toBe(false);
+    expect(cloudSlots.has(CLOUD_PROGRESS_2D_SLOT)).toBe(false);
+    const empty3dHydrate = await hydrateProgressFromCloud(createDefaultProgress(LEVELS.length), LEVELS.length, steamAdapter, LEVELS);
+    expect(empty3dHydrate.updated).toBe(false);
+    expect(cloudSlots.has('progress')).toBe(false);
+
+    const mockHydrate = await hydrateProgress2DFromCloud(undefined, mockRoster, steamAdapter);
+    expect(mockHydrate.unlockedAchievements).toEqual([]);
+    expect(cloudSlots.has(CLOUD_PROGRESS_2D_SLOT)).toBe(false);
     setPlatformAdapter(null);
   });
 

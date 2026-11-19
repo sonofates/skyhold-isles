@@ -603,6 +603,8 @@ export class ProjectileSystem {
       if (sourceTower) {
         sourceTower.totalDamageDealt += res.actualDamage;
         if (res.killed) sourceTower.kills++;
+      } else if (p.fromHero && res.actualDamage > 0) {
+        this.onHeroHit?.(best, res.actualDamage, res.killed);
       }
     }
   }

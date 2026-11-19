@@ -369,11 +369,28 @@ export class WaveSystem {
   enterEndlessMode(): number {
     this.endlessMode = true;
     this.currentWaveIndex = Math.max(this.currentWaveIndex, this.level.waves.length - 1);
+    this.pendingClearBonus = 0;
+    this.currentWaveClearBonus = 0;
+    this.spawnQueue.length = 0;
+    this.spawnCursor = 0;
+    this.waveElapsed = 0;
     this.state = 'betweenWaves';
     this.beginCountdown(5.0, 0.8);
     const startingWave = this.currentWaveIndex + 2;
     this.events.emit('endlessEntered', { startingWave });
     return startingWave;
+  }
+
+  /** Transitions the wave state cleanly to `'finished'` when a story run is forced-won. */
+  markFinished(): void {
+    this.currentWaveIndex = Math.max(this.currentWaveIndex, this.level.waves.length - 1);
+    this.pendingClearBonus = 0;
+    this.currentWaveClearBonus = 0;
+    this.spawnQueue.length = 0;
+    this.spawnCursor = 0;
+    this.interWaveTimer = 0;
+    this.autoShortenedBy = 0;
+    this.state = 'finished';
   }
 
   private getWaveDef(waveIndex: number): WaveDef | null {

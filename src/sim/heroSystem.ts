@@ -177,6 +177,8 @@ const _heroShotScratch: {
 };
 const GIZMO_DIST_OFFSETS: readonly number[] = [0, 0.45, -0.45, 0.9, -0.9, 1.35, -1.35, 1.8, -1.8, 2.3, -2.3, 2.8, -2.8];
 const GIZMO_LAT_OFFSETS: readonly number[] = [0, 0.45, -0.45, 0.85, -0.85, 1.1, -1.1];
+const _gizmoPlacementOut = { x: 0, z: 0 };
+const _resolvedCastTarget = { x: 0, z: 0 };
 
 /** Deterministic FNV-1a string hash for default RNG seeding. */
 export function hashHeroSeed(levelId: string, heroId: string, level: number): number {
@@ -546,6 +548,8 @@ export class HeroSystem {
       }
     }
 
+    _resolvedCastTarget.x = tx;
+    _resolvedCastTarget.z = tz;
     const ok = this.executeActive(h, act, tx, tz, towers);
     if (!ok) return false;
 
@@ -559,8 +563,8 @@ export class HeroSystem {
       skillId: act.id,
       x: h.x,
       z: h.z,
-      targetX: tx,
-      targetZ: tz,
+      targetX: _resolvedCastTarget.x,
+      targetZ: _resolvedCastTarget.z,
       radius: act.radius,
       duration: act.durationSec,
     });
@@ -589,6 +593,9 @@ export class HeroSystem {
           }
         }
         const reach = act.radius;
+        const dirLen = Math.hypot(dirX, dirZ) || 1;
+        _resolvedCastTarget.x = h.x + (dirX / dirLen) * (reach * 0.65);
+        _resolvedCastTarget.z = h.z + (dirZ / dirLen) * (reach * 0.65);
         this.spatialHash.query(h.x, h.z, reach + 0.8, _candidates);
         const rSq = (reach + 0.45) * (reach + 0.45);
         const minCos = Math.cos((72 * Math.PI) / 180);
@@ -637,6 +644,8 @@ export class HeroSystem {
       case 'huntersMark': {
         const targets = this.pickEnemiesNear(tx, tz, act.radius, h.x, h.z, act.range, act.count, true);
         if (targets.length === 0) return false;
+        _resolvedCastTarget.x = targets[0].x;
+        _resolvedCastTarget.z = targets[0].z;
         for (let i = 0; i < targets.length; i++) {
           this.enemySystem.applyMark(targets[i], act.effect, act.durationSec);
         }
@@ -714,6 +723,8 @@ export class HeroSystem {
 
       case 'deployGizmo': {
         const placed = this.resolveGizmoPlacement(tx, tz, h.x, h.z, act.range);
+        _resolvedCastTarget.x = placed.x;
+        _resolvedCastTarget.z = placed.z;
         const maxCount = act.count;
         while (this.gizmos.length >= maxCount) {
           // Replace the gizmo closest to expiring.
@@ -744,6 +755,13 @@ export class HeroSystem {
         const chosen = this.pickTowersNear(towers, tx, tz, h.x, h.z, act.range, act.count);
         const boostGizmos = act.extras.has('overhaulGizmos') && this.gizmos.length > 0;
         if (chosen.length === 0 && !boostGizmos) return false;
+        if (chosen.length > 0) {
+          _resolvedCastTarget.x = chosen[0].x;
+          _resolvedCastTarget.z = chosen[0].z;
+        } else if (this.gizmos.length > 0) {
+          _resolvedCastTarget.x = this.gizmos[0].x;
+          _resolvedCastTarget.z = this.gizmos[0].z;
+        }
         for (let i = 0; i < chosen.length; i++) {
           const t = chosen[i];
           t.stunTimer = 0;
@@ -798,6 +816,8 @@ export class HeroSystem {
         const firstList = this.pickEnemiesNear(tx, tz, act.radius, h.x, h.z, act.range, 1, false);
         if (firstList.length === 0) return false;
         let current: EnemyEntity | null = firstList[0];
+        _resolvedCastTarget.x = current.x;
+        _resolvedCastTarget.z = current.z;
         let dmg = act.damage;
         const maxJumps = act.count;
         const chainRange = act.radius;
@@ -894,7 +914,9 @@ export class HeroSystem {
       _clampTarget,
     );
     if (this.isClearOfPlots(initial.x, initial.z)) {
-      return { x: initial.x, z: initial.z };
+      _gizmoPlacementOut.x = initial.x;
+      _gizmoPlacementOut.z = initial.z;
+      return _gizmoPlacementOut;
     }
 
     const maxRSq = maxCastRange > 0 ? (maxCastRange + 0.35) ** 2 : Infinity;
@@ -936,8 +958,9 @@ export class HeroSystem {
       }
     }
 
-    if (found) return { x: bestX, z: bestZ };
-    return { x: initial.roadX, z: initial.roadZ };
+    _gizmoPlacementOut.x = found ? bestX : initial.roadX;
+    _gizmoPlacementOut.z = found ? bestZ : initial.roadZ;
+    return _gizmoPlacementOut;
   }
 
   private spawnFireRing(
@@ -1102,6 +1125,9 @@ export class HeroSystem {
         if (e.heroBlockers > 0) {
           e.heroBlockers = 0;
           e.heroDamageReduction = 0;
+          for (let k = 0; k < _prevHeroBlockedIdx.length; k++) {
+            if (_prevHeroBlockedIdx[k] === e.poolIndex) _prevTotalBlocked[k] = 0;
+          }
           if (e.blockers === 0) {
             this.events.emit('enemyUnblocked', {
               enemyId: e.uid,
