@@ -395,6 +395,7 @@ async function main(): Promise<void> {
   let livesWarn: import('./ui/lowLives2d.ts').LivesWarning | null = null;
   let foeCard: import('./ui/enemyCard2d.ts').EnemyCard2D | null = null;
   let coach: import('./ui/coach2d.ts').Coach2D | null = null;
+  let hudTipsFrame: (() => void) | null = null;
   let coachPlot = -1;
   let settingsRef: Settings2D | null = null;
   let gameRef: Game2D | null = null;
@@ -664,6 +665,33 @@ async function main(): Promise<void> {
     const { mountWaveCard } = await import('./ui/wavePreview2d.ts');
     const { codexEnemyUrl } = await import('./codex2d.ts');
     livesWarn = (await import('./ui/lowLives2d.ts')).mountLivesWarning();
+    if (desktop) {
+      // Hover tooltips for the canvas HUD buttons (horn, pause, speed).
+      const tips = (await import('./ui/hudTips2d.ts')).mountHudTips();
+      let over: 'horn' | 'pause' | 'speed' | null = null;
+      app.canvas.addEventListener('pointermove', (e) => {
+        if (e.pointerType !== 'mouse') return;
+        const r = app.canvas.getBoundingClientRect();
+        const h = game.hud.hit(e.clientX - r.left, e.clientY - r.top);
+        over = h;
+        if (h) app.canvas.style.cursor = 'pointer';
+      });
+      app.canvas.addEventListener('pointerleave', () => {
+        over = null;
+      });
+      hudTipsFrame = () => {
+        const show = over && !game.end.visible && !anySheetOpen() && !storyOpen ? over : null;
+        const s = game.debugHud();
+        if (!show) {
+          tips.update(null, { paused: s.paused, speed: s.speed, canCall: s.canCall, earlyBonus: s.earlyBonus, first: false }, null);
+          return;
+        }
+        const b = game.hud.buttonPositions;
+        const hr = game.hud.rects();
+        const at = show === 'horn' ? { ...game.hud.hornPosition, r: game.hud.hornRadius } : show === 'pause' ? { ...b.pause, r: hr.pause.w / 2 } : show === 'speed' ? { ...b.speed, r: hr.speed.w / 2 } : null;
+        tips.update(show, { paused: s.paused, speed: s.speed, canCall: s.canCall, earlyBonus: s.earlyBonus, first: game.world.waveSystem.state === 'preFirstWave' }, at);
+      };
+    }
     foeCard = (await import('./ui/enemyCard2d.ts')).mountEnemyCard((type) => codexEnemyUrl(art, type));
     // First-play tips on the first island (plain play), or forced with ?coach=1 (QA).
     const coachMod = await import('./ui/coach2d.ts');
@@ -801,6 +829,7 @@ async function main(): Promise<void> {
       } else if (step === 'meteor') target = rectTop('[data-testid="ab2d-meteor"]');
       coach.update(obs, target, game.end.visible || storyOpen || anySheetOpen() || game.replaying);
     }
+    hudTipsFrame?.();
     livesWarn?.update(game.world.lives, game.world.startingLives, !game.end.visible && !storyOpen && game.world.outcome === 'ongoing');
     if (waveCard) {
       const w = game.world;

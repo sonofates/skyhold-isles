@@ -62,6 +62,12 @@ for (const size of SIZES) {
     await page.screenshot({ path: `${OUT}/${lang}-${size.key}-lives-low.jpg`, type: 'jpeg', quality: 82 });
     // Speed key 3 (desktop).
     if (size.desktop) {
+      // HUD hover tooltip on the horn.
+      const horn = await page.evaluate(() => window.__p0.state().horn);
+      await page.mouse.move(horn.x, horn.y);
+      await page.waitForFunction(() => !document.querySelector('[data-testid="hud2d-tip"]')?.hidden, null, { timeout: 5000 }).catch(() => problems.push(`${tag}: no horn tooltip`));
+      await page.screenshot({ path: `${OUT}/${lang}-${size.key}-tip-horn.jpg`, type: 'jpeg', quality: 84 });
+      await page.mouse.move(5, size.h / 2);
       await page.keyboard.press('3');
       await page.waitForTimeout(150);
       ok((await page.evaluate(() => window.__p0.state().speed)) === 3, `${tag}: key 3 did not set 3×`);

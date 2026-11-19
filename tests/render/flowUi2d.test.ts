@@ -8,6 +8,7 @@ import { SimWorld } from '../../src/sim/world.ts';
 import { nextSpeed, REPLAY_SPEEDS } from '../../src/render2d/game2d.ts';
 import { waveChips } from '../../src/render2d/ui/wavePreview2d.ts';
 import { foeFacts } from '../../src/render2d/ui/enemyCard2d.ts';
+import { hudTipText } from '../../src/render2d/ui/hudTips2d.ts';
 import { coachStep, coachText, type CoachObs } from '../../src/render2d/ui/coach2d.ts';
 import { livesLow } from '../../src/render2d/ui/lowLives2d.ts';
 import { ENEMY_DEFS, ENEMY_TYPES } from '../../src/data/enemies.ts';
@@ -95,7 +96,7 @@ describe('foe card + lives warning', () => {
 });
 
 describe('flow texts', () => {
-  const keys = Object.keys(EN).filter((k) => /^(pause|confirm|replay|wave|foe|coach)\./.test(k) || k === 'end.replay');
+  const keys = Object.keys(EN).filter((k) => /^(pause|confirm|replay|wave|foe|coach|tip)\./.test(k) || k === 'end.replay');
   it('every pause / confirm / replay / wave string exists in EN and TR, and differs', () => {
     expect(keys.length).toBeGreaterThan(20);
     for (const k of keys) {
@@ -170,5 +171,17 @@ describe('first-play coach (l1c)', () => {
     expect(coachText('upgrade', { ...o0, gold: 90, cheapestUpgrade: 90 }, true)?.text).toBe('coach.upgrade');
     expect(coachText('meteor', o0, true)).toBeNull();
     expect(coachText('build', o0, false)?.text).toBe('coach.buildMouse');
+  });
+});
+
+describe('HUD hover tooltips', () => {
+  const s = { paused: false, speed: 2, canCall: true, earlyBonus: 0, first: true };
+  it('horn: first wave, bonus, waiting; pause / resume; speed', () => {
+    expect(hudTipText('horn', s).desc).toBe('The raiders march as soon as the horn sounds.');
+    expect(hudTipText('horn', { ...s, first: false, earlyBonus: 30 }).desc).toBe('Call it now for +30 bonus gold.');
+    expect(hudTipText('horn', { ...s, canCall: false }).desc).toMatch(/between waves/);
+    expect(hudTipText('pause', s).head).toBe('Pause');
+    expect(hudTipText('pause', { ...s, paused: true }).head).toBe('Resume');
+    expect(hudTipText('speed', s).head).toBe('Game speed 2×');
   });
 });

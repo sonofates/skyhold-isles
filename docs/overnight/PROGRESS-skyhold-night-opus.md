@@ -83,6 +83,9 @@ QA: `npx vite preview --port 4381 --strictPort` in background (kill with TaskSto
   also shrinks before falling back to an edge column. World map checked with 25 islands
   (`qa/mapshots.mjs`, mockislands): paged route handles it, no change needed.
 
+- **R1 backlog 2f — HUD hover tooltips (desktop) — DONE** (`ui/hudTips2d.ts`): horn (first wave /
+  early bonus / wait), pause / resume (points at the pause menu), speed (1→2→3), with key chips.
+
 ## Next (backlog 2: missing basics) — candidates, in rough value order
 - tower info card: the build ring tooltip already has stats/targeting/upgrade/sell+refund; review only
 - Then backlog 4 polish (hero controls feel, juice, end panel/world map with 25 islands, TR pass).

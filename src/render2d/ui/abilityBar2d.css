@@ -266,6 +266,8 @@
 }
 
 .pu-ab-tip-key {
+  flex: none;
+  white-space: nowrap;
   font-size: 0.7em;
   padding: 0.1em 0.45em;
   border-radius: 6px;
