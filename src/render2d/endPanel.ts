@@ -471,7 +471,7 @@ export class EndPanel {
   private layoutDiffTag(L: EndLayout): void {
     if (!this.diffTag.visible) return;
     const P = L.panel;
-    const fs = Math.max(12, Math.round(L.fontBody * 0.72));
+    const fs = Math.max(12, Math.round(L.fontBody * 0.8));
     setInkSize(this.diffText, fs);
     const d = fs * 1.55;
     const padX = fs * 0.55;
@@ -480,7 +480,7 @@ export class EndPanel {
     const h = fs * 1.6;
     const cx = P.x + P.w / 2;
     // Between the ribbon and the parchment's inner top (END_FRAME.ribbonMid .. innerTop).
-    const cy = P.y + P.h * (END_FRAME.ribbonMid + (END_FRAME.innerTop - END_FRAME.ribbonMid) * 0.78);
+    const cy = P.y + P.h * (END_FRAME.ribbonMid + (END_FRAME.innerTop - END_FRAME.ribbonMid) * 0.64);
     const x0 = cx - w / 2;
     this.diffPill
       .clear()

@@ -369,7 +369,11 @@ export function recordWin2D(
   const safeStars = (Number.isFinite(stars) ? Math.max(1, Math.min(3, Math.round(stars))) : 1) as 1 | 2 | 3;
   const safeLives = Number.isFinite(livesLeft) ? Math.max(0, Math.floor(livesLeft)) : 0;
   const badges = badgesForWin(challengesForLevel(levels[i]), challenges);
+  // A plain win is a Normal win (read the record before applyWin moves bestStars).
+  const dw = difficultyWinsOf(p);
   const rec = applyWin(p, i, levels.length, safeStars, safeLives, badges);
+  dw.normal[i] = Math.max(dw.normal[i] ?? 0, safeStars);
+  p.difficultyWins = dw;
   saveProgress2D(p, levels);
   return rec;
 }

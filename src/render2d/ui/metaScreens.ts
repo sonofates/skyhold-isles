@@ -153,6 +153,11 @@ export function openLogbook(ctx: MetaContext, tab: 'islands' | 'feats' = 'island
     sheet.body.innerHTML = '';
     const total = (icon: FeatIcon, value: string, label: string): HTMLElement =>
       el('div', 'pu-lb-total', { 'data-testid': `lb2d-total-${icon}` }, seal(icon), el('div', '', {}, el('strong', 'pu-ink', {}, value), el('span', 'pu-ink-soft', {}, label)));
+    const trophy = total('trophy', String(wins), t('lb.victories'));
+    if (hardWins > 0) {
+      // "· 3 on Hard" after the victories label (large boards; phones keep the totals on one row).
+      trophy.lastElementChild?.lastElementChild?.append(el('span', 'pu-lb-hard', { 'data-testid': 'lb2d-hard-wins' }, t('common.sep') + t('diff.lbHard', { n: hardWins })));
+    }
     const totals = el(
       'div',
       'pu-lb-totals',
@@ -160,7 +165,7 @@ export function openLogbook(ctx: MetaContext, tab: 'islands' | 'feats' = 'island
       total('star', `${wallet.campaign}/${levels.length * 3}`, t('lb.stars')),
       total('medal', `${badges}/${badgesMax}`, t('lb.badges')),
       total('crown', `${mastered}/${levels.length}`, t('lb.mastered')),
-      total('trophy', String(wins), hardWins > 0 ? t('lb.victories') + t('common.sep') + t('diff.lbHard', { n: hardWins }) : t('lb.victories')),
+      trophy,
       total('daily', String(liveStreak(p.daily, utcDayNumber(Date.now()))), t('lb.streak', { n: p.daily.bestStreak })),
       total('endless', `${medals}/${levels.length * 3}`, t('lb.medals')),
     );

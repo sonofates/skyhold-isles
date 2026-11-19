@@ -73,8 +73,9 @@ export interface DifficultyBadge2D {
 }
 
 /**
- * In-run badge: the difficulty seal and name on a small parchment pill, centred just above the wave
- * banner (bottom-right HUD corner). Pointer-transparent; only touches the DOM when its spot moves.
+ * In-run badge: the difficulty seal and name on a small parchment pill hung on the wave banner's rope
+ * (bottom-right HUD corner, inside the banner's dock slot so it never covers the playfield).
+ * Pointer-transparent; only touches the DOM when its spot moves.
  */
 export function mountDifficultyBadge(id: DifficultyId): DifficultyBadge2D {
   const root = document.createElement('div');
@@ -97,10 +98,12 @@ export function mountDifficultyBadge(id: DifficultyId): DifficultyBadge2D {
         root.style.display = 'none';
         return;
       }
+      // A tag tied on the banner's rope (the art's top third), inside the banner's own dock slot.
+      const fs = Math.round(Math.max(9, Math.min(16, banner.h * 0.18)));
       root.style.display = '';
       root.style.left = `${banner.x + banner.w / 2}px`;
-      root.style.top = `${banner.y + banner.h * 0.06}px`;
-      root.style.setProperty('--fs', `${Math.round(Math.max(11, Math.min(17, banner.h * 0.2)))}px`);
+      root.style.top = `${banner.y + Math.max(banner.h * 0.15, fs * 0.78 + 1)}px`;
+      root.style.setProperty('--fs', `${fs}px`);
     },
     debug() {
       const r = root.getBoundingClientRect();

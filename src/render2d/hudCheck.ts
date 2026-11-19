@@ -100,6 +100,7 @@ export function hudCheck(game: Game2D): HudCheck {
     ['waveCard', '[data-testid="wave2d-card"]'],
     ['foeCard', '[data-testid="foe2d-card"]'],
     ['newFoe', '[data-testid="newfoe2d"]'],
+    ['diffBadge', '[data-testid="hud2d-diff"]'],
   ];
   for (const [name, sel] of dom) {
     const b = domBox(document.querySelector(sel));
@@ -111,7 +112,7 @@ export function hudCheck(game: Game2D): HudCheck {
     if (b) pieces[`round${i}`] = b;
   });
   const slots = dockPieces(k) as Record<string, Rect>;
-  const slotOf: Record<string, string> = { plaque: 'plaque', banner: 'banner', waveText: 'banner', pause: 'buttons', speed: 'buttons', horn: 'horn', tray: 'tray', waveCard: 'info', foeCard: 'info', newFoe: 'info' };
+  const slotOf: Record<string, string> = { plaque: 'plaque', banner: 'banner', waveText: 'banner', pause: 'buttons', speed: 'buttons', horn: 'horn', tray: 'tray', waveCard: 'info', foeCard: 'info', newFoe: 'info', diffBadge: 'banner' };
   const outside: Record<string, number> = {};
   for (const [name, r] of Object.entries(pieces)) {
     const s = slots[slotOf[name] ?? 'buttons'];
