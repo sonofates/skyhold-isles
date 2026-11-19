@@ -1947,4 +1947,249 @@ describe('EventBus re-entrancy & SoldierSystem towerFireRateMul', () => {
     expect(revPlayer.currentTick).toBe(5);
     revPlayer.dispose();
   });
+
+  it('credits stacked early-called wave XP, keeps gameWon->enterEndless replay bit-exact, and guards lethal soldierHurt & co-hold unblocks', () => {
+    // 1. Stacked early-called waves (startNextWave during 'clearing') credit full perWaveCleared XP for every wave.
+    const stackedWaveLevel = {
+      ...LEVEL_L1C,
+      id: 'stacked-early-wave-xp',
+      startingGold: 5000,
+      waves: [
+        { groups: [{ enemyType: 'grunt' as const, count: 1, spawnInterval: 0.2, startDelay: 0 }], clearBonus: 20 },
+        { groups: [{ enemyType: 'grunt' as const, count: 1, spawnInterval: 0.2, startDelay: 0 }], clearBonus: 0 },
+        { groups: [{ enemyType: 'grunt' as const, count: 1, spawnInterval: 0.2, startDelay: 0 }], clearBonus: 30 },
+      ],
+    };
+    const stackedWorld = new SimWorld(stackedWaveLevel, new EventBus(), {
+      heroId: 'wren',
+      heroLevel: 10,
+      seed: 401,
+      recordCommands: true,
+    });
+    const t0 = stackedWorld.placeTowerOnPlot(4, 'archer')!;
+    stackedWorld.upgradeTower(t0.id);
+    stackedWorld.upgradeTower(t0.id);
+    const t1 = stackedWorld.placeTowerOnPlot(5, 'archer')!;
+    stackedWorld.upgradeTower(t1.id);
+    stackedWorld.upgradeTower(t1.id);
+
+    // Start wave 1, tick once so its grunt spawns and wave 1 enters 'clearing', then early-call waves 2 & 3!
+    expect(stackedWorld.startNextWave()).toBe(true);
+    stackedWorld.fixedTick(BALANCE.fixedDt);
+    expect(stackedWorld.waveSystem.state).toBe('clearing');
+    expect(stackedWorld.waveSystem.getPendingClearedWaves()).toBe(1);
+
+    expect(stackedWorld.startNextWave()).toBe(true);
+    stackedWorld.fixedTick(BALANCE.fixedDt);
+    expect(stackedWorld.waveSystem.state).toBe('clearing');
+    expect(stackedWorld.waveSystem.getPendingClearedWaves()).toBe(2);
+
+    expect(stackedWorld.startNextWave()).toBe(true);
+    stackedWorld.fixedTick(BALANCE.fixedDt);
+    expect(stackedWorld.waveSystem.state).toBe('allSpawned');
+    expect(stackedWorld.waveSystem.getPendingClearedWaves()).toBe(3);
+
+    for (let i = 0; i < 60 * 60 && stackedWorld.outcome === 'ongoing'; i++) {
+      stackedWorld.fixedTick(BALANCE.fixedDt);
+    }
+    expect(stackedWorld.outcome).toBe('won');
+    const expectedStackedXp =
+      stackedWorld.enemiesKilledTotal * HERO_XP_RULES.perKill +
+      3 * HERO_XP_RULES.perWaveCleared +
+      HERO_XP_RULES.winBase +
+      stackedWorld.computeStars() * HERO_XP_RULES.perStar;
+    expect(stackedWorld.heroSystem.runXp).toBe(expectedStackedXp);
+
+    const stackedReplay = parseSimReplay(serializeSimReplay(stackedWorld.exportReplay()))!;
+    const stackedPlayer = new SimReplayPlayer(stackedWaveLevel, stackedReplay);
+    const stackedVerify = stackedPlayer.runToEnd();
+    expect(stackedVerify.matchesOutcome).toBe(true);
+    expect(stackedVerify.matchesHash).toBe(true);
+    stackedPlayer.dispose();
+
+    // 2. Synchronous 'gameWon' listener calling enterEndlessMode() + startNextWave() replays bit-for-bit!
+    const winEndlessEvents = new EventBus();
+    const oneWaveLevel = {
+      ...LEVEL_L1C,
+      id: 'sync-win-enter-endless',
+      startingGold: 4000,
+      waves: [{ groups: [{ enemyType: 'grunt' as const, count: 1, spawnInterval: 0.2, startDelay: 0 }], clearBonus: 25 }],
+    };
+    const syncEndlessWorld = new SimWorld(oneWaveLevel, winEndlessEvents, {
+      heroId: 'tobb',
+      heroLevel: 10,
+      seed: 402,
+      recordCommands: true,
+    });
+    const syncArch = syncEndlessWorld.placeTowerOnPlot(4, 'archer')!;
+    syncEndlessWorld.upgradeTower(syncArch.id);
+    syncEndlessWorld.upgradeTower(syncArch.id);
+    syncEndlessWorld.castHeroSkill(0, syncEndlessWorld.hero!.x + 0.5, syncEndlessWorld.hero!.z);
+
+    let enteredSyncEndless = false;
+    winEndlessEvents.on('gameWon', () => {
+      if (!enteredSyncEndless) {
+        enteredSyncEndless = true;
+        expect(syncEndlessWorld.enterEndlessMode()).toBe(true);
+        expect(syncEndlessWorld.startNextWave()).toBe(true);
+      }
+    });
+
+    syncEndlessWorld.startNextWave();
+    for (let i = 0; i < 60 * 40 && !enteredSyncEndless; i++) {
+      syncEndlessWorld.fixedTick(BALANCE.fixedDt);
+    }
+    expect(enteredSyncEndless).toBe(true);
+    expect(syncEndlessWorld.outcome).toBe('ongoing');
+    expect(syncEndlessWorld.waveSystem.isEndless).toBe(true);
+    for (let i = 0; i < 120; i++) {
+      syncEndlessWorld.fixedTick(BALANCE.fixedDt);
+    }
+
+    const syncReplay = parseSimReplay(serializeSimReplay(syncEndlessWorld.exportReplay()))!;
+    const syncPlayer = new SimReplayPlayer(oneWaveLevel, syncReplay);
+    const syncCheck = syncPlayer.runToEnd();
+    expect(syncCheck.matchesOutcome).toBe(true);
+    expect(syncCheck.matchesHash).toBe(true);
+    syncPlayer.dispose();
+
+    // 3. SoldierSystem: lethal 'soldierHurt' transitions soldier to dead/0-HP upfront, selling inside
+    //    lethal 'soldierHurt' never double-decrements blockers or emits 'soldierDied', and selling
+    //    inside 'soldierSpawned' never skips sibling barracks respawns.
+    const hurtEvents = new EventBus();
+    const hurtWorld = new SimWorld(LEVEL_L1C, hurtEvents, { seed: 403 });
+    hurtWorld.gold = 3000;
+    const barA = hurtWorld.placeTowerOnPlot(2, 'barracks')!;
+    const barB = hurtWorld.placeTowerOnPlot(3, 'barracks')!;
+    const stA = hurtWorld.soldierSystem.getBarracks(barA.id)!;
+    const stB = hurtWorld.soldierSystem.getBarracks(barB.id)!;
+    stB.rallyX = stA.rallyX;
+    stB.rallyZ = stA.rallyZ;
+
+    const brute = hurtWorld.enemySystem.spawnEnemy('brute', 5, false, 0)!;
+    const dRally = hurtWorld.groundPath.nearestDist(stA.rallyX, stA.rallyZ);
+    brute.dist = dRally;
+    brute.x = brute.prevX = stA.rallyX;
+    brute.z = brute.prevZ = stA.rallyZ;
+    hurtWorld.spatialHash.clear();
+    hurtWorld.spatialHash.insert(brute.poolIndex, brute.x, brute.z);
+
+    // Keep 1 soldier from barA (at 1 HP) and 1 soldier from barB (at full HP) fighting brute.
+    stA.squad[0].x = stA.squad[0].prevX = stA.rallyX;
+    stA.squad[0].z = stA.squad[0].prevZ = stA.rallyZ;
+    stA.squad[0].hp = 1;
+    for (let k = 1; k < stA.squad.length; k++) {
+      stA.squad[k].state = 'dead';
+      stA.squad[k].respawnTimer = 20;
+    }
+
+    stB.squad[0].x = stB.squad[0].prevX = stA.rallyX;
+    stB.squad[0].z = stB.squad[0].prevZ = stA.rallyZ;
+    for (let k = 1; k < stB.squad.length; k++) {
+      stB.squad[k].state = 'dead';
+      stB.squad[k].respawnTimer = 20;
+    }
+
+    hurtWorld.soldierSystem.update(BALANCE.fixedDt, hurtWorld.towers, 1);
+    expect(stA.squad[0].state).toBe('fighting');
+    expect(stB.squad[0].state).toBe('fighting');
+    expect(brute.blockers).toBe(2);
+
+    let hurtSawState = '';
+    let hurtSawHp = -999;
+    let diedEventsForA = 0;
+    let unblockedEvents = 0;
+    hurtEvents.on('soldierHurt', (ev) => {
+      if (ev.towerId === barA.id) {
+        hurtSawHp = stA.squad[0].hp;
+        hurtSawState = stA.squad[0].state;
+        hurtWorld.sellTower(barA.id);
+      }
+    });
+    hurtEvents.on('soldierDied', (ev) => {
+      if (ev.towerId === barA.id) diedEventsForA++;
+    });
+    hurtEvents.on('enemyUnblocked', () => void unblockedEvents++);
+
+    brute.meleeTimer = 0.005;
+    hurtWorld.soldierSystem.update(BALANCE.fixedDt, hurtWorld.towers, 1);
+    expect(hurtSawHp).toBe(0);
+    expect(hurtSawState).toBe('dead');
+    expect(diedEventsForA).toBe(0);
+    // barB's soldier is still holding brute -> blockers MUST be 1 (not double-decremented to 0)!
+    expect(brute.blockers).toBe(1);
+    expect(unblockedEvents).toBe(0);
+
+    // Sibling barracks respawn check when selling inside 'soldierSpawned':
+    const spEvents = new EventBus();
+    const spWorld = new SimWorld(LEVEL_L1C, spEvents, { seed: 404 });
+    spWorld.gold = 3000;
+    const spBar1 = spWorld.placeTowerOnPlot(2, 'barracks')!;
+    const spBar2 = spWorld.placeTowerOnPlot(3, 'barracks')!;
+    const spSt1 = spWorld.soldierSystem.getBarracks(spBar1.id)!;
+    const spSt2 = spWorld.soldierSystem.getBarracks(spBar2.id)!;
+    spSt1.squad[0].state = 'dead';
+    spSt1.squad[0].respawnTimer = 0.005;
+    spSt2.squad[0].state = 'dead';
+    spSt2.squad[0].respawnTimer = 0.005;
+    spEvents.on('soldierSpawned', (ev) => {
+      if (ev.towerId === spBar1.id) spWorld.sellTower(spBar1.id);
+    });
+    spWorld.soldierSystem.update(BALANCE.fixedDt, spWorld.towers, 1);
+    expect(spSt2.squad[0].state).toBe('walking');
+
+    // 4. Symmetric co-hold unblocks: selling barracks inside 'heroAttack' before Bran dies on the same tick
+    //    and selling barracks inside 'heroDied' both maintain strict 1-to-1 enemyBlocked/enemyUnblocked parity.
+    for (const sellPhase of ['heroAttack', 'heroDied'] as const) {
+      const coEvents = new EventBus();
+      let blockCount = 0;
+      let unblockCount = 0;
+      coEvents.on('enemyBlocked', () => void blockCount++);
+      coEvents.on('enemyUnblocked', () => void unblockCount++);
+
+      const coWorld = new SimWorld(LEVEL_L1C, coEvents, { heroId: 'bran', heroLevel: 1, seed: 405 });
+      coWorld.gold = 3000;
+      const coBar = coWorld.placeTowerOnPlot(2, 'barracks')!;
+      const coSt = coWorld.soldierSystem.getBarracks(coBar.id)!;
+      for (let k = 1; k < coSt.squad.length; k++) {
+        coSt.squad[k].state = 'dead';
+        coSt.squad[k].respawnTimer = 30;
+      }
+      coSt.squad[0].x = coSt.squad[0].prevX = coSt.rallyX;
+      coSt.squad[0].z = coSt.squad[0].prevZ = coSt.rallyZ;
+
+      const coFoe = coWorld.enemySystem.spawnEnemy('grunt', 20, false, 0)!;
+      coFoe.dist = coWorld.groundPath.nearestDist(coSt.rallyX, coSt.rallyZ);
+      coFoe.x = coFoe.prevX = coSt.rallyX;
+      coFoe.z = coFoe.prevZ = coSt.rallyZ;
+      coWorld.spatialHash.clear();
+      coWorld.spatialHash.insert(coFoe.poolIndex, coFoe.x, coFoe.z);
+
+      // Tick 1: Soldier grabs coFoe first while Bran is still away -> 1 enemyBlocked.
+      coWorld.soldierSystem.update(BALANCE.fixedDt, coWorld.towers, 1);
+      expect(blockCount).toBe(1);
+      expect(unblockCount).toBe(0);
+
+      // Now place Bran at 1 HP in contact with coFoe so Bran newly co-grabs coFoe (!wasFree), swings, and dies!
+      const bran = coWorld.hero!;
+      bran.x = bran.prevX = bran.postX = coFoe.x;
+      bran.z = bran.prevZ = bran.postZ = coFoe.z;
+      bran.state = 'fighting';
+      bran.targetPoolIndex = coFoe.poolIndex;
+      bran.targetUid = coFoe.uid;
+      bran.hp = 1;
+      bran.attackTimer = 0.001;
+      coFoe.heroMeleeTimer = 0.001;
+
+      coEvents.on(sellPhase, () => {
+        coWorld.sellTower(coBar.id);
+      });
+
+      coWorld.heroSystem.update(BALANCE.fixedDt, coWorld.towers, 1);
+      expect(bran.state).toBe('dead');
+      expect(coFoe.blockers + coFoe.heroBlockers).toBe(0);
+      expect(blockCount).toBe(1);
+      expect(unblockCount).toBe(1);
+    }
+  });
 });

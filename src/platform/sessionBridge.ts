@@ -127,7 +127,9 @@ export function recordEndlessProgress(
   waveReached: number,
 ): ReturnType<typeof applyEndlessRecord> {
   const result = applyEndlessRecord(progress, levelIndex, waveReached);
-  saveProgress(progress);
+  if (result.best !== result.previousBest) {
+    saveProgress(progress);
+  }
   return result;
 }
 

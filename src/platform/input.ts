@@ -258,6 +258,8 @@ export class InputManager {
         this.prevPinchDist = Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y);
         this.prevMidX = (pts[0].x + pts[1].x) * 0.5;
         this.prevMidY = (pts[0].y + pts[1].y) * 0.5;
+      } else if (this.pointers.size === 1) {
+        this.velocity.reset();
       } else if (this.pointers.size === 0) {
         this.isDragging = false;
         this.dragButton = -1;

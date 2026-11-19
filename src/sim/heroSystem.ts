@@ -333,6 +333,7 @@ export class HeroSystem {
           this.igniteEnemy(target, this.hero.stats.passive.power, this.hero.stats.passive.durationSec);
         }
       };
+      this.soldierSystem.isHeroHoldingEnemy = (poolIndex, uid) => this.isHoldingEnemy(poolIndex, uid);
     }
   }
 
@@ -357,9 +358,11 @@ export class HeroSystem {
     this.grantXp(HERO_XP_RULES.perKill, 'kill', enemy.x, enemy.z);
   }
 
-  onWaveCleared(): void {
+  onWaveCleared(waveCount = 1): void {
     if (!this.hero) return;
-    this.grantXp(HERO_XP_RULES.perWaveCleared, 'wave', this.hero.x, this.hero.z);
+    const count = Number.isFinite(waveCount) ? Math.max(0, Math.floor(waveCount)) : 0;
+    if (count <= 0) return;
+    this.grantXp(HERO_XP_RULES.perWaveCleared * count, 'wave', this.hero.x, this.hero.z);
   }
 
   onVictory(stars: 1 | 2 | 3): void {
@@ -1208,6 +1211,26 @@ export class HeroSystem {
     return m.trampleFromPhase === undefined || e.bossPhase < m.trampleFromPhase;
   }
 
+  /** True when `e` is currently held by the hero (including pending pre-recount holds inside `update()`). */
+  isHoldingEnemy(poolIndex: number, uid: number): boolean {
+    if (poolIndex < 0 || poolIndex >= this.pool.items.length) return false;
+    const e = this.pool.items[poolIndex];
+    if (!e.active || e.uid !== uid) return false;
+    if (e.heroBlockers > 0) return true;
+    if (this.inUpdate) {
+      for (let k = 0; k < _prevHeroBlockedIdx.length; k++) {
+        if (
+          _prevHeroBlockedIdx[k] === poolIndex &&
+          _prevHeroBlockedUid[k] === uid &&
+          _prevTotalBlocked[k] > 0
+        ) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
   private currentMeleeTarget(h: HeroEntity): EnemyEntity | null {
     if (h.targetPoolIndex < 0) return null;
     const e = this.pool.items[h.targetPoolIndex];
@@ -1828,18 +1851,21 @@ export class HeroSystem {
     const give = Math.min(budget, needed);
     e.heroBlockers += give;
     if (red > e.heroDamageReduction) e.heroDamageReduction = red;
-    if (wasFree && !_prevHeroBlockedIdx.includes(e.poolIndex)) {
-      // Track in _prevHeroBlockedIdx so same-tick hero death still emits enemyUnblocked cleanly.
+    if (!_prevHeroBlockedIdx.includes(e.poolIndex)) {
+      // Track in _prevHeroBlockedIdx (even when co-held alongside soldiers) so same-tick hero death
+      // or mid-tick barracks sell/rally always reconciles enemyUnblocked 1-to-1.
       _prevHeroBlockedIdx.push(e.poolIndex);
       _prevHeroBlockedUid.push(e.uid);
-      _prevTotalBlocked.push(give);
-      this.events.emit('enemyBlocked', {
-        enemyId: e.uid,
-        enemyType: e.type,
-        x: e.x,
-        y: e.y,
-        z: e.z,
-      });
+      _prevTotalBlocked.push(e.blockers + e.heroBlockers);
+      if (wasFree) {
+        this.events.emit('enemyBlocked', {
+          enemyId: e.uid,
+          enemyType: e.type,
+          x: e.x,
+          y: e.y,
+          z: e.z,
+        });
+      }
     }
     void h;
     return budget - give;

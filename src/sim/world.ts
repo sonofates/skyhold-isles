@@ -152,6 +152,7 @@ export class SimWorld {
   onCommandRecorded: ((entry: StampedSimCommand) => void) | null = null;
   private recordingCommands = false;
   private commandSeq = 0;
+  private tickAbortGen = 0;
   private readonly commandLog: StampedSimCommand[] = [];
 
   constructor(
@@ -550,6 +551,7 @@ export class SimWorld {
   }
 
   debugSkipToWave(waveOneBased: number): boolean {
+    this.tickAbortGen++;
     this.combatSystem.abortCurrentStep();
     this.projectilePool.clear();
     this.projectileSystem.clearBurnZones();
@@ -568,6 +570,7 @@ export class SimWorld {
   }
 
   private clearVictoryTransients(): void {
+    this.tickAbortGen++;
     this.combatSystem.abortCurrentStep();
     this.projectilePool.clear();
     this.projectileSystem.clearBurnZones();
@@ -579,6 +582,7 @@ export class SimWorld {
   }
 
   private clearDefeatTransients(): void {
+    this.tickAbortGen++;
     this.combatSystem.abortCurrentStep();
     this.projectilePool.clear();
     this.projectileSystem.clearBurnZones();
@@ -589,6 +593,7 @@ export class SimWorld {
 
   /** Releases all pooled entities, ground zones, soldiers, gizmos, and spatial-hash buckets after a run. */
   dispose(): void {
+    this.tickAbortGen++;
     this.combatSystem.abortCurrentStep();
     this.heroSystem.clearTransientZones(true, this.towers, false);
     this.soldierSystem.clearAll();
@@ -857,14 +862,16 @@ export class SimWorld {
     }
   };
 
-  private readonly onWaveBonusFn = (bonus: number): void => {
+  private readonly onWaveBonusFn = (bonus: number, clearedWaves = 0): void => {
     this.gold += this.scaleWaveBonus(bonus);
-    this.heroSystem.onWaveCleared();
+    if (clearedWaves > 0) {
+      this.heroSystem.onWaveCleared(clearedWaves);
+    }
     this.events.emit('economyChanged', { gold: this.gold, lives: this.lives });
   };
 
-  private readonly onWaveClearedOnlyFn = (): void => {
-    this.heroSystem.onWaveCleared();
+  private readonly onWaveClearedOnlyFn = (clearedWaves = 1): void => {
+    this.heroSystem.onWaveCleared(clearedWaves);
   };
 
   private readonly onAllClearedWinFn = (): void => {
@@ -917,6 +924,7 @@ export class SimWorld {
   fixedTick(dt: number): void {
     if (this.outcome !== 'ongoing' || !Number.isFinite(dt) || dt <= 0) return;
     this.tick++;
+    const gen = this.tickAbortGen;
 
     // Run + endless-wave modifiers for everything spawned this tick (incl. escorts, raiders, mites).
     const waveFx = this.waveSystem.getEndlessMutatorEffects();
@@ -932,7 +940,7 @@ export class SimWorld {
       this.onWaveClearedOnlyFn,
     );
 
-    if (this.outcome !== 'ongoing') return;
+    if (this.outcome !== 'ongoing' || this.tickAbortGen !== gen) return;
 
     const wsState = this.waveSystem.state;
     const isCombatActive =
@@ -945,7 +953,7 @@ export class SimWorld {
       this.enemySystem,
     );
 
-    if (this.outcome !== 'ongoing') return;
+    if (this.outcome !== 'ongoing' || this.tickAbortGen !== gen) return;
 
     this.enemySystem.update(
       dt,
@@ -955,7 +963,7 @@ export class SimWorld {
       this.waveSystem.getCurrentWaveHpScale() * this.mods.enemyHpMul * waveFx.hpMul,
     );
 
-    if (this.outcome !== 'ongoing') return;
+    if (this.outcome !== 'ongoing' || this.tickAbortGen !== gen) return;
 
     this.waveSystem.checkCompletion(
       this.getActiveEnemiesFn,
@@ -964,15 +972,15 @@ export class SimWorld {
       this.onWaveClearedOnlyFn,
     );
 
-    if (this.outcome !== 'ongoing') return;
+    if (this.outcome !== 'ongoing' || this.tickAbortGen !== gen) return;
 
     const fireRateMul = this.abilitySystem.getFireRateMultiplier();
     this.soldierSystem.update(dt, this.towers, fireRateMul);
-    if (this.outcome !== 'ongoing') return;
+    if (this.outcome !== 'ongoing' || this.tickAbortGen !== gen) return;
     this.heroSystem.update(dt, this.towers, fireRateMul);
-    if (this.outcome !== 'ongoing') return;
+    if (this.outcome !== 'ongoing' || this.tickAbortGen !== gen) return;
     this.combatSystem.update(dt, this.towers, fireRateMul);
-    if (this.outcome !== 'ongoing') return;
+    if (this.outcome !== 'ongoing' || this.tickAbortGen !== gen) return;
     this.projectileSystem.update(dt, this.towers);
   }
 

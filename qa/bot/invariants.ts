@@ -1,7 +1,7 @@
 import type { EventBus } from '../../src/core/eventBus.ts';
 import type { ObjectPool } from '../../src/core/pool.ts';
 import { BALANCE } from '../../src/data/balance.ts';
-import { HERO_RULES } from '../../src/data/heroes.ts';
+import { HERO_RULES, HERO_XP_RULES } from '../../src/data/heroes.ts';
 import { ENEMY_MELEE } from '../../src/data/soldiers.ts';
 import type { TowerEntity } from '../../src/sim/entities.ts';
 import type { SimWorld } from '../../src/sim/world.ts';
@@ -336,6 +336,36 @@ export class InvariantMonitor {
         );
       }
     });
+
+    events.on('soldierHurt', (ev) => {
+      this.assertFinite(ev.damage, 'event.soldierHurt.damage');
+      const soldiers = this.world.soldierSystem.soldiers;
+      for (let i = 0; i < soldiers.length; i++) {
+        const s = soldiers[i];
+        if (s.id !== ev.soldierId) continue;
+        if (s.hp < 0) {
+          this.record('entity_leak', this.currentTick, `soldierHurt observed negative s.hp=${s.hp}`);
+        } else if (s.hp === 0 && (s.state !== 'dead' || s.respawnTimer <= 0)) {
+          this.record(
+            'entity_leak',
+            this.currentTick,
+            `lethal soldierHurt observed inconsistent state=${s.state}, respawnTimer=${s.respawnTimer}`,
+          );
+        }
+        break;
+      }
+    });
+
+    events.on('soldierDied', (ev) => {
+      this.assertFinite(ev.respawnSec, 'event.soldierDied.respawnSec');
+      if (!this.world.soldierSystem.getBarracks(ev.towerId)) {
+        this.record(
+          'entity_leak',
+          this.currentTick,
+          `soldierDied emitted for missing barracks towerId=${ev.towerId}`,
+        );
+      }
+    });
   }
 
   /** Call immediately before `world.fixedTick(dt)`. */
@@ -445,6 +475,9 @@ export class InvariantMonitor {
       this.assertFinite(s.x, 'soldier.x');
       this.assertFinite(s.z, 'soldier.z');
       this.assertFinite(s.hp, 'soldier.hp');
+      if (s.hp < 0) {
+        this.record('entity_leak', tick, `soldier id=${s.id} has negative hp=${s.hp}`);
+      }
       this.assertFinite(s.maxHp, 'soldier.maxHp');
       this.assertFinite(s.respawnTimer, 'soldier.respawnTimer');
       this.assertFinite(s.attackTimer, 'soldier.attackTimer');
@@ -769,6 +802,20 @@ export class InvariantMonitor {
           tick,
           `won run left hero in active transient state=${w.hero.state}`,
         );
+      }
+      if (w.hero) {
+        const expectedXp =
+          w.enemiesKilledTotal * HERO_XP_RULES.perKill +
+          w.level.waves.length * HERO_XP_RULES.perWaveCleared +
+          HERO_XP_RULES.winBase +
+          w.computeStars() * HERO_XP_RULES.perStar;
+        if (w.heroSystem.runXp !== expectedXp) {
+          this.record(
+            'entity_leak',
+            tick,
+            `won run heroSystem.runXp=${w.heroSystem.runXp} !== expected ${expectedXp} (kills=${w.enemiesKilledTotal}, waves=${w.level.waves.length}, stars=${w.computeStars()})`,
+          );
+        }
       }
       if (this.blockedEventUids.size !== 0) {
         this.record(

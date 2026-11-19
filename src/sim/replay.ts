@@ -168,6 +168,7 @@ export function computeSimStateHash(world: SimWorld): string {
   h.f64(ws.getAutoShortenedBy());
   h.f64(ws.waveElapsed);
   h.f64(ws.pendingClearBonus);
+  h.u32(ws.getPendingClearedWaves());
   h.u32(ws.getSpawnCursor());
   h.f64(ws.getCurrentWaveClearBonus());
   h.u32(ws.isEndless ? 1 : 0);

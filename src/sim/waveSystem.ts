@@ -283,6 +283,7 @@ export class WaveSystem {
   private mutatorCache: EndlessMutatorEffects = NO_ENDLESS_MUTATORS;
   private spawnCursor = 0;
   private currentWaveClearBonus = 0;
+  private pendingClearedWaves = 0;
   private skipGen = 0;
   /**
    * Seconds the between-wave countdown was cut short because auto-wave is on. Added back when
@@ -320,6 +321,10 @@ export class WaveSystem {
 
   getCurrentWaveClearBonus(): number {
     return this.currentWaveClearBonus;
+  }
+
+  getPendingClearedWaves(): number {
+    return this.pendingClearedWaves;
   }
 
   setAutoWave(enabled: boolean): void {
@@ -379,6 +384,7 @@ export class WaveSystem {
     this.endlessMode = true;
     this.currentWaveIndex = Math.max(this.currentWaveIndex, this.level.waves.length - 1);
     this.pendingClearBonus = 0;
+    this.pendingClearedWaves = 0;
     this.currentWaveClearBonus = 0;
     this.spawnQueue.length = 0;
     this.spawnCursor = 0;
@@ -395,6 +401,7 @@ export class WaveSystem {
     this.skipGen++;
     this.currentWaveIndex = Math.max(this.currentWaveIndex, this.level.waves.length - 1);
     this.pendingClearBonus = 0;
+    this.pendingClearedWaves = 0;
     this.currentWaveClearBonus = 0;
     this.spawnQueue.length = 0;
     this.spawnCursor = 0;
@@ -518,6 +525,7 @@ export class WaveSystem {
       ? Math.min(10_000, requestedIdx)
       : Math.min(this.level.waves.length - 1, requestedIdx);
     this.pendingClearBonus = 0;
+    this.pendingClearedWaves = 0;
     this.interWaveTimer = 0;
     this.autoShortenedBy = 0;
     this.currentWaveIndex = clampedIdx - 1;
@@ -552,9 +560,9 @@ export class WaveSystem {
     dt: number,
     getActiveEnemiesCount: () => number,
     onSpawn: (type: EnemyType, hpScale: number, elite: boolean, lane: number) => void,
-    onAwardGold: (amount: number) => void,
+    onAwardGold: (amount: number, clearedWaves?: number) => void,
     onAllClearedWin: () => void,
-    onWaveCleared?: () => void,
+    onWaveCleared?: (clearedWaves: number) => void,
   ): void {
     if (this.state === 'finished' || this.state === 'preFirstWave') {
       return;
@@ -580,6 +588,7 @@ export class WaveSystem {
         this.spawnCursor >= this.spawnQueue.length
       ) {
         this.pendingClearBonus += this.currentWaveClearBonus;
+        this.pendingClearedWaves++;
         this.currentWaveClearBonus = 0;
         if (this.currentWaveIndex >= this.totalWaves - 1) {
           this.state = 'allSpawned';
@@ -592,7 +601,7 @@ export class WaveSystem {
     if (this.state === 'betweenWaves') {
       this.interWaveTimer -= dt;
       if (this.interWaveTimer <= 0) {
-        this.startNextWave(onAwardGold);
+        this.startNextWave((bonus) => onAwardGold(bonus, 0));
       }
       return;
     }
@@ -602,22 +611,24 @@ export class WaveSystem {
 
   checkCompletion(
     getActiveEnemiesCount: () => number,
-    onAwardGold: (amount: number) => void,
+    onAwardGold: (amount: number, clearedWaves?: number) => void,
     onAllClearedWin: () => void,
-    onWaveCleared?: () => void,
+    onWaveCleared?: (clearedWaves: number) => void,
   ): void {
     if (this.state === 'clearing') {
       if (getActiveEnemiesCount() === 0) {
         const gen = this.skipGen;
         const completedWaveIndex = this.currentWaveIndex;
         const bonus = this.pendingClearBonus;
+        const clearedWaves = Math.max(1, this.pendingClearedWaves);
         this.pendingClearBonus = 0;
+        this.pendingClearedWaves = 0;
         this.state = 'betweenWaves';
         this.beginCountdown(BALANCE.interWaveCountdownSec, AUTO_WAVE_COUNTDOWN_SEC);
         if (bonus > 0) {
-          onAwardGold(bonus);
+          onAwardGold(bonus, clearedWaves);
         } else {
-          onWaveCleared?.();
+          onWaveCleared?.(clearedWaves);
         }
         if (this.skipGen !== gen) return;
         this.events.emit('waveCompleted', {
@@ -633,7 +644,9 @@ export class WaveSystem {
         const gen = this.skipGen;
         const completedWaveIndex = this.currentWaveIndex;
         const bonus = this.pendingClearBonus;
+        const clearedWaves = Math.max(1, this.pendingClearedWaves);
         this.pendingClearBonus = 0;
+        this.pendingClearedWaves = 0;
         const wasEndless = this.endlessMode;
         if (wasEndless) {
           this.state = 'betweenWaves';
@@ -642,9 +655,9 @@ export class WaveSystem {
           this.state = 'finished';
         }
         if (bonus > 0) {
-          onAwardGold(bonus);
+          onAwardGold(bonus, clearedWaves);
         } else {
-          onWaveCleared?.();
+          onWaveCleared?.(clearedWaves);
         }
         if (this.skipGen !== gen) return;
         this.events.emit('waveCompleted', {

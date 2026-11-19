@@ -1930,5 +1930,18 @@ describe('Daily Squall, Endless escalations, and Silent Skies + Hero interaction
     });
     expect(planA.version).toBe(planB.version);
     expect(planA.core).toEqual(['/', '/index.html', '/assets/app.js']);
+
+    // 6. recordEndlessProgress writes to localStorage only when a new best wave record is set.
+    const { recordEndlessProgress } = await import('../../src/platform/sessionBridge.ts');
+    const store = installMemoryStorage();
+    const eProg = createDefaultProgress(LEVELS.length);
+    eProg.bestEndlessWaves[0] = 20;
+    store.clear();
+    const unchanged = recordEndlessProgress(eProg, 0, 18);
+    expect(unchanged).toEqual({ best: 20, previousBest: 20, isNewBest: false });
+    expect(store.size).toBe(0);
+    const improved = recordEndlessProgress(eProg, 0, 24);
+    expect(improved).toEqual({ best: 24, previousBest: 20, isNewBest: true });
+    expect(store.size).toBe(1);
   });
 });

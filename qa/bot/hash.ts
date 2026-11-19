@@ -69,6 +69,7 @@ export function hashWorldState(world: SimWorld): string {
   h.f64(ws.getAutoShortenedBy());
   h.f64(ws.waveElapsed);
   h.i32(ws.pendingClearBonus);
+  h.i32(ws.getPendingClearedWaves());
   h.i32(ws.getSpawnCursor());
   h.i32(ws.getCurrentWaveClearBonus());
   h.bool(ws.endlessMode);

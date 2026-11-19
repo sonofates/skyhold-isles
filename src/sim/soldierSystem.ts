@@ -144,6 +144,8 @@ export class SoldierSystem {
   blockedCount = 0;
   /** Per tower type attack-rate multiplier (Workshop / run modifiers); missing = 1. */
   towerRateMul: Readonly<Partial<Record<TowerType, number>>> = {};
+  /** Optional hero-hold check wired by `HeroSystem` so mid-`HeroSystem.update` barracks releases see co-holds. */
+  isHeroHoldingEnemy: ((poolIndex: number, uid: number) => boolean) | null = null;
   private readonly claims: Int16Array;
   private readonly wasBlocked: Uint8Array;
   private readonly primary: Int32Array;
@@ -359,6 +361,11 @@ export class SoldierSystem {
     return false;
   }
 
+  private heldByHero(e: EnemyEntity): boolean {
+    if (e.heroBlockers > 0) return true;
+    return this.isHeroHoldingEnemy ? this.isHeroHoldingEnemy(e.poolIndex, e.uid) : false;
+  }
+
   /** Releases active soldier claims and blocked-spread offsets when waves end, skip, or reset. */
   clearCombatState(emitUnblock = true): void {
     if (this.inUpdate) {
@@ -368,7 +375,7 @@ export class SoldierSystem {
       const e = this.pool.items[this.pool.getActiveIndex(i)];
       if (e.blockers > 0) {
         e.blockers = 0;
-        if (emitUnblock && e.heroBlockers === 0 && this.consumeBlockedTracking(e)) {
+        if (emitUnblock && !this.heldByHero(e) && this.consumeBlockedTracking(e)) {
           this.emitBlock('enemyUnblocked', e);
         }
       }
@@ -380,7 +387,7 @@ export class SoldierSystem {
         _prevBlockedUid[k] = -1;
         const e = this.pool.items[_prevBlocked[k]];
         e.blockers = 0;
-        if (emitUnblock && e.active && e.uid === uid && e.heroBlockers === 0) {
+        if (emitUnblock && e.active && e.uid === uid && !this.heldByHero(e)) {
           this.emitBlock('enemyUnblocked', e);
         }
       }
@@ -506,7 +513,7 @@ export class SoldierSystem {
         e.blockers--;
         if (e.blockers === 0) {
           this.blockedCount = Math.max(0, this.blockedCount - 1);
-          if (e.heroBlockers === 0 && this.consumeBlockedTracking(e)) {
+          if (!this.heldByHero(e) && this.consumeBlockedTracking(e)) {
             this.emitBlock('enemyUnblocked', e);
           }
         }
@@ -569,9 +576,14 @@ export class SoldierSystem {
       e.blockers = 0;
     }
 
-    // 1. Timers, respawns, regeneration, engagement validation.
+    // 1. Timers, respawns, regeneration, engagement validation (snapshot barracks IDs for sellTower safety).
+    _stepBarracksIds.length = 0;
     for (let bi = 0; bi < this.barracks.length; bi++) {
-      const b = this.barracks[bi];
+      _stepBarracksIds.push(this.barracks[bi].towerId);
+    }
+    for (let bi = 0; bi < _stepBarracksIds.length; bi++) {
+      const b = this.getBarracks(_stepBarracksIds[bi]);
+      if (!b) continue;
       const tower = this.findTower(towers, b.towerId);
       const jammed = tower !== null && tower.stunTimer > 0;
       const aura =
@@ -592,6 +604,7 @@ export class SoldierSystem {
             if (s.respawnTimer <= 0) {
               this.respawn(b, s);
               if (this.abortedStep) return;
+              if (b.squad.length === 0) break;
             }
           }
           continue;
@@ -1192,24 +1205,30 @@ export class SoldierSystem {
     const stats = this.getBarracks(s.towerId)?.stats;
     const reducedRaw = e.heroDamageReduction > 0 ? raw * (1 - e.heroDamageReduction) : raw;
     const damage = Math.max(1, Math.round(reducedRaw - ((stats?.soldierArmor ?? 0) + s.bonusArmor)));
-    s.hp -= damage;
+    s.hp = Math.max(0, s.hp - damage);
     s.hitFlashTimer = 0.12;
     s.sinceHurt = 0;
+    const killedSoldier = s.hp <= 0;
+    if (killedSoldier) {
+      s.hp = 0;
+      if (e.blockers > 0) e.blockers--;
+      s.state = 'dead';
+      s.swingArmed = false;
+      s.targetPoolIndex = -1;
+      s.targetUid = 0;
+      s.respawnTimer = stats?.soldierRespawnSec ?? 8;
+    }
     this.events.emit('soldierHurt', { soldierId: s.id, towerId: s.towerId, enemyId: e.uid, damage, x: s.x, z: s.z });
-    if (s.hp > 0) return damage;
-    s.hp = 0;
-    if (e.blockers > 0) e.blockers--;
-    s.state = 'dead';
-    s.targetPoolIndex = -1;
-    s.targetUid = 0;
-    s.respawnTimer = stats?.soldierRespawnSec ?? 8;
-    this.events.emit('soldierDied', {
-      soldierId: s.id,
-      towerId: s.towerId,
-      x: s.x,
-      z: s.z,
-      respawnSec: s.respawnTimer,
-    });
+    if (this.abortedStep || !killedSoldier) return damage;
+    if (this.getBarracks(s.towerId)) {
+      this.events.emit('soldierDied', {
+        soldierId: s.id,
+        towerId: s.towerId,
+        x: s.x,
+        z: s.z,
+        respawnSec: s.respawnTimer,
+      });
+    }
     return damage;
   }
 }

@@ -146,6 +146,15 @@ function executeOnce(
       if (buildCooldown <= 0 && stepBuildQueue()) {
         buildCooldown = COMBAT_BUILD_CADENCE;
       }
+      if (
+        scenario.heroPark === 'roam' &&
+        scenario.buildKind === 'greedy' &&
+        wsState === 'clearing' &&
+        world.waveSystem.canStartNextWave() &&
+        world.enemyPool.getActiveCount() <= 2
+      ) {
+        world.startNextWave();
+      }
     }
 
     if (world.hero) {
