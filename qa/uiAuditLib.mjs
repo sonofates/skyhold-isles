@@ -70,12 +70,15 @@ export function auditPage(opts) {
     if (!art.nine) {
       return (ax, ay) => [r.left + (ax / AW) * r.width, r.top + (ay / AH) * r.height];
     }
+    // A scaled / bobbing piece: border widths are untransformed, the box on screen is scaled.
+    const kx = e.offsetWidth > 0 ? r.width / e.offsetWidth : 1;
+    const ky = e.offsetHeight > 0 ? r.height / e.offsetHeight : 1;
     const sl = cs.borderImageSlice.replace('fill', '').trim().split(/\s+/).map(parseFloat);
     const [st, sr, sb, sll] = [sl[0], sl[1] ?? sl[0], sl[2] ?? sl[0], sl[3] ?? sl[1] ?? sl[0]];
-    const bt = parseFloat(cs.borderTopWidth);
-    const br = parseFloat(cs.borderRightWidth);
-    const bb = parseFloat(cs.borderBottomWidth);
-    const bl = parseFloat(cs.borderLeftWidth);
+    const bt = parseFloat(cs.borderTopWidth) * ky;
+    const br = parseFloat(cs.borderRightWidth) * kx;
+    const bb = parseFloat(cs.borderBottomWidth) * ky;
+    const bl = parseFloat(cs.borderLeftWidth) * kx;
     const one = (a, A, s0, s1, b0, b1, start, len) => {
       if (a <= s0) return start + (a / s0) * b0;
       if (a >= A - s1) return start + len - ((A - a) / s1) * b1;

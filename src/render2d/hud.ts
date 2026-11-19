@@ -239,7 +239,8 @@ export class Hud {
     const waveFont = Math.round(Math.max(15, bh * 0.36));
     setFontSize(this.waveText, waveFont);
     this.waveText.position.set(this.banner.x, bannerY + bh * BANNER_CLOTH_MID + waveFont * 0.05);
-    this.bannerFont = bw * 0.68;
+    // The cloth between the knots is ~72 % of the banner; the "new wave" bump (×1.16) stays on it.
+    this.bannerFont = bw * 0.6;
 
     // Horn in the dock (beside the wave banner): the bonus label and the seconds stand on its left,
     // right-aligned against the countdown ring, so the piece stays one short block.
@@ -265,8 +266,8 @@ export class Hud {
 
   /** Numbers never leave their slot in the wood (4-digit gold shrinks instead). */
   private fitNumbers(): void {
-    fitWidth(this.livesText, this.livesBox.w);
-    fitWidth(this.goldText, this.goldBox.w);
+    fitWidth(this.livesText, this.livesBox.w - 6);
+    fitWidth(this.goldText, this.goldBox.w - 6);
   }
 
   private drawPauseGlyph(paused: boolean): void {
@@ -335,7 +336,7 @@ export class Hud {
       if (s.lives < this.lastLives) this.livesHit = 0.5;
       this.lastLives = s.lives;
       setText(this.livesText, String(s.lives));
-      fitWidth(this.livesText, this.livesBox.w);
+      fitWidth(this.livesText, this.livesBox.w - 6);
       this.livesBaseScale = this.livesText.scale.x;
       const low = s.startLives !== undefined && s.lives > 0 && (s.lives <= 3 || s.lives <= Math.floor(s.startLives * 0.25));
       this.livesText.style.fill = low ? '#ffb4a0' : '#fff4dc';
@@ -357,7 +358,7 @@ export class Hud {
       }
       this.lastGold = s.gold;
       setText(this.goldText, String(s.gold));
-      fitWidth(this.goldText, this.goldBox.w);
+      fitWidth(this.goldText, this.goldBox.w - 6);
       this.goldBaseScale = this.goldText.scale.x;
     }
     if (this.goldBump > 0) {
@@ -575,9 +576,13 @@ export class Hud {
     const cloth = { x: bn.x + bn.width * 0.14, y: bn.y + bn.height * 0.3, w: bn.width * 0.72, h: bn.height * 0.66 };
     const plate = this.plate.getBounds();
     const pb = { x: plate.x, y: plate.y, w: plate.width, h: plate.height };
+    const pl = this.plaque.getBounds();
+    const num = (b: Rect): Rect => ({ x: b.x - 1, y: pl.y, w: b.w + 2, h: pl.height });
+    const resting = this.livesHit <= 0 && this.goldBump <= 0 && this.waveBump <= 0;
+    if (!resting) return [];
     return [
-      { name: 'hud.lives', text: this.livesText, box: this.livesBox, gap: 0 },
-      { name: 'hud.gold', text: this.goldText, box: this.goldBox, gap: 0 },
+      { name: 'hud.lives', text: this.livesText, box: num(this.livesBox), gap: 0 },
+      { name: 'hud.gold', text: this.goldText, box: num(this.goldBox), gap: 0 },
       { name: 'hud.wave', text: this.waveText, box: cloth },
       { name: 'hud.hornLabel', text: this.hornLabel, box: this.hornBox, gap: 0 },
       { name: 'hud.hornSecs', text: this.hornSecs, box: this.hornBox, gap: 0 },

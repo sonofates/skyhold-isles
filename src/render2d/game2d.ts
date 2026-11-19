@@ -54,7 +54,7 @@ import { NO_INSETS, type Insets } from './uiLayout.ts';
 import { dockPieces, hudDock, type HudDock } from './hudDock.ts';
 import { hornNearCave, rectsTouch, roadMouths } from './hornSpot.ts';
 import { distSegRect, type Seg } from './playfield.ts';
-import { pointAlong, waveLaneCounts } from './ui/laneMarks2d.ts';
+import { pointAlong, waveLaneCounts } from './lanePath.ts';
 import { buildEndlessWaveDef } from '../sim/waveSystem.ts';
 import { fullBleedFit, hardOverlaps, hardShapes, type FullBleedFit, type HardShapes } from './fullBleed.ts';
 import { GoldPops2D } from './ui/goldPops2d.ts';

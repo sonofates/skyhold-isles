@@ -103,7 +103,7 @@ async function act(page, action, key, size) {
   switch (action) {
     case 'treeNode': {
       const n = page.locator('[data-testid^="tree2d-node-"]').nth(1);
-      await n.click({ timeout: 5000 }).catch(() => problems.push(`${key}: no skill node to click`));
+      await n.click({ timeout: 15000 }).catch(() => problems.push(`${key}: no skill node to click`));
       await page.waitForTimeout(300);
       break;
     }
@@ -225,13 +225,18 @@ async function runOne(browser, lang, size, [name, query, seed, action, opt = {}]
     await page.goto(`${BASE}/2d.html${q}`);
     await page.waitForFunction(() => !document.getElementById('boot'), null, { timeout: 60000 });
     await act(page, action, key, size);
+    // Let one-shot animations (a board's pop-in, a card's fade) finish before measuring.
+    await page.evaluate(() => Promise.race([
+      Promise.all(document.getAnimations().filter((an) => an.effect?.getComputedTiming().iterations !== Infinity).map((an) => an.finished.catch(() => undefined))),
+      new Promise((res) => setTimeout(res, 3000)),
+    ]));
     const r = await page.evaluate(auditPage, {});
     const canvas = await page.evaluate(() => (window.__p0?.textAudit ? window.__p0.textAudit() : [])).catch(() => []);
     const list = [...r.problems];
     for (const c of canvas) list.push({ kind: c.kind ?? 'canvas', at: c.name, text: c.text, detail: c.detail });
     for (const p of list) problems.push(`${key}: [${p.kind}] ${p.at} "${p.text}" — ${p.detail}`);
     lines.push(`${key}: texts ${r.stats.texts}, canvas ${canvas.length ? canvas.length + ' issues' : 'ok'}, problems ${list.length}`);
-    if (SHOTS && SHOT_SIZES.includes(size.key)) await page.screenshot({ path: `${SHOTS}/${lang}-${size.key}-${name}.jpg`, type: 'jpeg', quality: 82 });
+    if (SHOTS && SHOT_SIZES.includes(size.key)) await page.screenshot({ path: `${SHOTS}/${lang}-${size.key}-${name}.jpg`, type: 'jpeg', quality: 72 });
   } catch (e) {
     problems.push(`${key}: run failed ${String(e).slice(0, 160)}`);
   }

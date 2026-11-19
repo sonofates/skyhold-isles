@@ -171,7 +171,7 @@
     grid-template-columns: minmax(0, 1fr) auto;
     grid-template-areas:
       'row play'
-      'desc play';
+      'desc desc';
     align-items: start;
     column-gap: calc(var(--s) * 1.4);
     row-gap: calc(var(--s) * 0.3);
@@ -197,8 +197,10 @@
     gap: calc(var(--s) * 0.5);
   }
 
+  /* Under the planks and Play, the card's full width: Hard's rule line stays on one line. */
   .pu-diff-desc {
     grid-area: desc;
+    justify-self: center;
     font-size: calc(var(--s) * 1.15);
   }
 
