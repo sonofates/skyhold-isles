@@ -182,6 +182,7 @@ export const EN = {
   'wave.startHint': 'Blow the horn to begin',
   'wave.inSecs': 'Marches in {n}s',
   'wave.earlyBonus': 'Call early: +{n}',
+  'wave.laneCount': '×{n}',
   'wave.chip': '{n} × {name}',
   'wave.elite': '{n} empowered',
 

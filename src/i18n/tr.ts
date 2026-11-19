@@ -188,6 +188,7 @@ export const TR: { readonly [K in MsgKey]: Msg } = {
   'wave.startHint': 'Başlamak için boruyu çal',
   'wave.inSecs': '{n} sn sonra yola çıkar',
   'wave.earlyBonus': 'Erken çağır: +{n}',
+  'wave.laneCount': '×{n}',
   'wave.chip': '{n} × {name}',
   'wave.elite': '{n} güçlenmiş',
 

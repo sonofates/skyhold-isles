@@ -55,6 +55,8 @@ export interface WaveCard2D {
   update(s: WaveCardState): void;
   readonly el: HTMLElement;
   debug(): { shown: boolean; chips: number; covered: number; rect: { x: number; y: number; w: number; h: number } | null };
+  /** Where the card stands while shown (no layout read; the lane marks keep off it). */
+  box(): Rect | null;
 }
 
 /**
@@ -73,6 +75,7 @@ export function mountWaveCard(enemyUrl: (type: EnemyType) => string | null, keep
   let footKey = '';
   let placeKey = '';
   let covered = 0;
+  let placed: Rect | null = null;
   let shown = false;
   let chipCount = 0;
   const build = (p: WavePreview): void => {
@@ -131,10 +134,12 @@ export function mountWaveCard(enemyUrl: (type: EnemyType) => string | null, keep
         const spot = besideAnchorSpot(s.horn, { w: cw, h: ch }, s.screen, ko);
         card.style.left = `${Math.round(spot.x)}px`;
         card.style.top = `${Math.round(spot.y)}px`;
+        placed = { x: spot.x, y: spot.y, w: cw, h: ch };
         card.dataset.side = spot.side;
         covered = spot.covered;
       }
     },
+    box: () => (shown ? placed : null),
     debug() {
       if (!shown) return { shown, chips: chipCount, covered, rect: null };
       const r = card.getBoundingClientRect();

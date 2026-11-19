@@ -1,6 +1,7 @@
 import '@fontsource-variable/fredoka';
 import { Application, UPDATE_PRIORITY } from 'pixi.js';
 import { getLevelById } from '../data/levels2d/index.ts';
+import { buildEndlessWaveDef } from '../sim/waveSystem.ts';
 import { AbScene } from './abScene.ts';
 import { artCheckSummary, mountArtCheck } from './artCheck.ts';
 import { changeMapVariant, loadArt } from './assets2d.ts';
@@ -105,6 +106,7 @@ declare global {
       newFoe?: () => Record<string, unknown> | null;
       callout?: () => Record<string, unknown> | null;
       calloutAgain?: () => void;
+      laneMarks?: () => Record<string, unknown> | null;
       foeAt?: () => { x: number; y: number; h: number } | null;
       aimAbility?: (id: AbilityId | null) => void;
       /** QA: stop / restart the ticker (a frozen frame for mid-effect screenshots, no Paused plate). */
@@ -404,6 +406,10 @@ async function main(): Promise<void> {
   let waveTypesOf: ((waveIndex: number) => import('../core/types.ts').EnemyType[]) | null = null;
   let lastWaveSeen = 0;
   let waveBanner: import('./ui/waveBanner2d.ts').WaveBanner2D | null = null;
+  let laneMarks: import('./ui/laneMarks2d.ts').LaneMarks2D | null = null;
+  let laneMod: typeof import('./ui/laneMarks2d.ts') | null = null;
+  /** Foes per lane of the next wave, cached per wave index (Endless builds its waves). */
+  let laneCache: { idx: number; counts: Map<number, number> } | null = null;
   let calloutFor: ((waveIndex: number) => import('./ui/waveBanner2d.ts').WaveCallout) | null = null;
   let coachPlot = -1;
   let settingsRef: Settings2D | null = null;
@@ -739,6 +745,8 @@ async function main(): Promise<void> {
     foesSeen = new nf.FoesSeen(nf.seenFromCleared(LEVELS_2D, (i) => (progress2d.bestStars[i] ?? 0) > 0));
     const seenRef = foesSeen;
     newFoeToast = nf.mountNewFoeToast((type) => codexEnemyUrl(art, type));
+    laneMod = await import('./ui/laneMarks2d.ts');
+    laneMarks = laneMod.mountLaneMarks();
     const wb = await import('./ui/waveBanner2d.ts');
     waveBanner = wb.mountWaveBanner();
     calloutFor = (i) => wb.waveCallout(nf.waveTypes(game.world.level, i), i, game.world.level.waves.length, game.world.waveSystem.isEndless);
@@ -900,9 +908,34 @@ async function main(): Promise<void> {
       const calm = ws.state === 'preFirstWave' || ws.state === 'betweenWaves' || game.stepper.paused;
       const hud = game.debugHud();
       const visible = calm && !storyOpen && !anySheetOpen() && !game.end.visible && !game.ringOpen && w.outcome === 'ongoing' && ws.canStartNextWave();
+      const pv = visible ? ws.getNextWavePreview() : null;
+      // Multi-cave islands: which caves the next wave marches out of (with the card).
+      const lay = w.level.layout2d;
+      if (laneMarks && laneMod) {
+        let marks: import('./ui/laneMarks2d.ts').LaneMark[] | null = null;
+        if (pv && lay && lay.paths.length > 1) {
+          const idx = pv.waveOneBased - 1;
+          if (laneCache?.idx !== idx) {
+            const def = idx < w.level.waves.length ? w.level.waves[idx] : ws.isEndless ? buildEndlessWaveDef(idx, w.level) : null;
+            laneCache = { idx, counts: def ? laneMod.waveLaneCounts(def.groups) : new Map() };
+          }
+          marks = [];
+          // Keep off the card (last frame's spot), the horn and the HUD pieces.
+          const card = waveCard.box();
+          const hr = game.hud.rects();
+          const avoid = [...(card ? [card] : []), hr.horn, hr.plaque, hr.banner, hudButtonsKeepOut(app.screen.width, app.screen.height, readSafeInsets()), ...hudKeepOuts()];
+          const toScreen = (p: { x: number; z: number }): { x: number; y: number } => ({ x: game.map.screenX(game.map.pxX(p.x)), y: game.map.screenY(game.map.pxY(p.z)) });
+          const unit = laneMod.kitUnit(app.screen.width, app.screen.height);
+          for (const [lane, count] of laneCache.counts) {
+            const at = laneMod.laneMarkSpot(lay.paths[lane] ?? [], toScreen, avoid, unit);
+            if (at) marks.push({ lane, count, ...at });
+          }
+        }
+        laneMarks.update(marks);
+      }
       waveCard.update({
         visible,
-        preview: visible ? ws.getNextWavePreview() : null,
+        preview: pv,
         countdown: hud.countdown,
         earlyBonus: hud.earlyBonus,
         first: ws.state === 'preFirstWave',
@@ -939,6 +972,7 @@ async function main(): Promise<void> {
     goldPops: () => ({ active: game.goldPops.active, spawned: game.goldPops.spawned }),
     newFoe: () => newFoeToast?.debug() ?? null,
     callout: () => waveBanner?.debug() ?? null,
+    laneMarks: () => laneMarks?.debug() ?? null,
     calloutAgain: () => waveBanner?.again(),
     foeAt: () => {
       const pool = game.world.enemyPool;

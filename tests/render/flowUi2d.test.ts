@@ -12,6 +12,7 @@ import { hudTipText } from '../../src/render2d/ui/hudTips2d.ts';
 import { seenFromCleared, waveTypes } from '../../src/render2d/ui/newFoes2d.ts';
 import { coachCardSpot, coachStep, coachText, type CoachObs } from '../../src/render2d/ui/coach2d.ts';
 import { waveCallout } from '../../src/render2d/ui/waveBanner2d.ts';
+import { laneMarkSpot, pointAlong, waveLaneCounts } from '../../src/render2d/ui/laneMarks2d.ts';
 import { livesLow } from '../../src/render2d/ui/lowLives2d.ts';
 import { ENEMY_DEFS, ENEMY_TYPES } from '../../src/data/enemies.ts';
 import { abilityBarSpot, besideAnchorSpot, gateKeepOutsPx, hornSpot, plateCentreY } from '../../src/render2d/uiLayout.ts';
@@ -103,7 +104,7 @@ describe('flow texts', () => {
     expect(keys.length).toBeGreaterThan(20);
     for (const k of keys) {
       expect(TR[k as keyof typeof TR], k).toBeTruthy();
-      if (!['wave.chip'].includes(k)) expect(TR[k as keyof typeof TR], k).not.toBe(EN[k as keyof typeof EN]);
+      if (!['wave.chip', 'wave.laneCount'].includes(k)) expect(TR[k as keyof typeof TR], k).not.toBe(EN[k as keyof typeof EN]);
     }
   });
   it('placeholders format in both languages', () => {
@@ -281,5 +282,34 @@ describe('centre plate', () => {
     expect(plateCentreY(1080, plate, { x: 670, y: 110, w: 400, h: 400 })).toBeCloseTo(1080 * 0.8);
     // A circle low on the screen: the top band.
     expect(plateCentreY(1080, plate, { x: 700, y: 380, w: 500, h: 600 })).toBeCloseTo(1080 * 0.17);
+  });
+});
+
+describe('next-wave caves', () => {
+  it('counts foes per lane (no lane = lane 0) and walks a point along a road', () => {
+    const c = waveLaneCounts([{ count: 6, lane: 0 }, { count: 6, lane: 1 }, { count: 4 }]);
+    expect([...c.entries()].sort()).toEqual([
+      [0, 10],
+      [1, 6],
+    ]);
+    const path = [
+      { x: 0, z: 0 },
+      { x: 2, z: 0 },
+      { x: 2, z: 4 },
+    ];
+    expect(pointAlong(path, 1)).toEqual({ x: 1, z: 0 });
+    expect(pointAlong(path, 3)).toEqual({ x: 2, z: 1 });
+    expect(pointAlong(path, 99)).toEqual({ x: 2, z: 4 });
+  });
+  it('a mark slides along its road off the next-wave card', () => {
+    const path = [
+      { x: 0, z: 0 },
+      { x: 10, z: 0 },
+    ];
+    const toScreen = (p: { x: number; z: number }): { x: number; y: number } => ({ x: 100 + p.x * 40, y: 300 });
+    expect(laneMarkSpot(path, toScreen, [], 10)?.x).toBe(164);
+    // A card over the first two spots: the mark moves on to the third (3.6 units out).
+    const at = laneMarkSpot(path, toScreen, [{ x: 140, y: 200, w: 70, h: 120 }], 10);
+    expect(at?.x).toBe(244);
   });
 });
