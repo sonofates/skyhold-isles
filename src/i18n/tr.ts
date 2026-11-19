@@ -442,7 +442,7 @@ export const TR: { readonly [K in MsgKey]: Msg } = {
   'key.wave': 'Sıradaki dalgayı çağır',
   'key.meteor': 'Meteor Yağmuru için nişan al',
   'key.overcharge': 'Aşırı Şarj için nişan al',
-  'key.cancel': 'Nişanı bırak, menüyü kapat',
+  'key.cancel': 'Nişanı bırak, menüyü kapat ya da duraklatma menüsünü aç',
   'key.cancelAim': 'Nişanı bırak',
   'touch.build': 'Kule kurmak için boş alana, geliştirmek ya da satmak için kuleye dokun',
   'touch.ability': 'Bir yeteneğe, sonra haritaya ya da bir kuleye dokun',

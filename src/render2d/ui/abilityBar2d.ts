@@ -517,7 +517,11 @@ export function mountAbilityBar2D(game: Game2D, opts: AbilityBarOptions): Abilit
     (e) => {
       if (synthetic || anySheetOpen() || game.replaying || e.ctrlKey || e.metaKey || e.altKey) return;
       if (e.key === 'Escape') {
-        if (aiming) setAim(null);
+        // Handled: game2d's Esc must not also open the pause menu.
+        if (aiming) {
+          setAim(null);
+          e.preventDefault();
+        }
         return;
       }
       if (e.repeat) return;

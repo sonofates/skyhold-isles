@@ -52,6 +52,7 @@ for (const size of SIZES) {
       await page.keyboard.press('Escape');
       await page.waitForTimeout(300);
       ok(!(await page.evaluate(() => window.__p0.foe().shown)), `${tag}: Esc did not close the foe card`);
+      ok(!(await page.evaluate(() => window.__p0.state().paused)), `${tag}: Esc that closed the foe card also paused`);
     }
     // Low lives: drop to 4 of 20 (a hit flash, then the slow pulse).
     await page.evaluate(() => window.__p0.setLives(4));
@@ -84,6 +85,25 @@ for (const size of SIZES) {
         await page.screenshot({ path: `${OUT}/${lang}-${size.key}-ring-target-tip.jpg`, type: 'jpeg', quality: 84 });
       }
       await page.keyboard.press('Escape');
+      await page.waitForTimeout(150);
+      ok(!(await page.evaluate(() => window.__p0.state().paused)), `${tag}: Esc that closed the ring also paused`);
+      // Esc with nothing open: the pause menu, Esc again: back to the battle.
+      await page.keyboard.press('Escape');
+      await page.waitForTimeout(250);
+      ok(await page.evaluate(() => window.__p0.state().paused), `${tag}: Esc with nothing open did not pause`);
+      await page.screenshot({ path: `${OUT}/${lang}-${size.key}-esc-pause.jpg`, type: 'jpeg', quality: 80 });
+      await page.keyboard.press('Escape');
+      await page.waitForTimeout(150);
+      ok(!(await page.evaluate(() => window.__p0.state().paused)), `${tag}: second Esc did not resume`);
+      // Esc that cancels an ability aim does not pause.
+      const ab = await page.evaluate(() => window.__p0.abilities());
+      if (ab?.buttons?.overcharge?.state === 'ready' || ab?.buttons?.meteor?.state === 'ready') {
+        await page.keyboard.press(ab.buttons.meteor.state === 'ready' ? 'q' : 'w');
+        await page.waitForTimeout(100);
+        await page.keyboard.press('Escape');
+        await page.waitForTimeout(150);
+        ok(!(await page.evaluate(() => window.__p0.state().paused)), `${tag}: Esc that cancelled an aim also paused`);
+      } else console.log(`${tag}: no ability ready, aim + Esc not checked`);
       await page.keyboard.press('3');
       await page.waitForTimeout(150);
       ok((await page.evaluate(() => window.__p0.state().speed)) === 3, `${tag}: key 3 did not set 3×`);

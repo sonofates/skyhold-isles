@@ -436,7 +436,7 @@ export const EN = {
   'key.wave': 'Call the next wave',
   'key.meteor': 'Aim Meteor Strike',
   'key.overcharge': 'Aim Overcharge',
-  'key.cancel': 'Cancel aiming, close a menu',
+  'key.cancel': 'Cancel aiming, close a menu, or open the pause menu',
   'key.cancelAim': 'Cancel aiming',
   'touch.build': 'Tap a plot to build, a tower to upgrade or sell',
   'touch.ability': 'Tap an ability, then the map or a tower',

@@ -1453,9 +1453,14 @@ export class Game2D {
       else if (e.key === 'n' || e.key === 'N') this.command({ k: 'wave' });
       else if ((e.key === 'h' || e.key === 'H') && !e.repeat && !e.ctrlKey && !e.metaKey && !this.stepper.paused) this.setHeroSelected(!this.heroSel);
       else if (e.key === 'Escape') {
+        // Esc closes what is open (ring, hero move mode, foe card); with nothing open it opens /
+        // closes the pause menu, as in most games. Synthetic Esc (the ability bar closing the
+        // ring) and an Esc that already cancelled an aim never pause.
+        const busy = this.ring.isOpen || this.heroSel || this.inspecting;
         this.closeRing();
         this.setHeroSelected(false);
         this.clearInspect();
+        if (!busy && e.isTrusted && !e.defaultPrevented && !this.endShown && this.world.outcome === 'ongoing') this.stepper.paused = !this.stepper.paused;
       }
     });
   }

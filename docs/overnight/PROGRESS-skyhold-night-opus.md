@@ -112,6 +112,13 @@ QA: `npx vite preview --port 4381 --strictPort` in background (kill with TaskSto
 - **R2 — foe tips:** the shared 3D lore says "Press R to see the sky lane" (R = hero skill in 2D, no
   sky lane view) → `i18n/data.stripKeyHints` drops such sentences (EN data not mine; TR edited).
 
+- **R2 — smaller polish:** final-wave call-out names the boss leading it (all islands but l1c end on
+  a boss); coach "command the hero" arrow points at the hero's head (was a fixed 82 px, far off on
+  phones); `text-wrap: balance` on aim / move hints and `pretty` on soft body text (no orphan
+  words); **Esc** with nothing open toggles the pause menu (an Esc that closes the ring / foe card /
+  hero mode or cancels an aim never pauses; synthetic Esc ignored), Controls page text updated;
+  QA checks in `qa/flowshots.mjs`.
+
 ## Next (backlog 2: missing basics) — candidates, in rough value order
 - tower info card: the build ring tooltip already has stats/targeting/upgrade/sell+refund; review only
 - Then backlog 4 polish (hero controls feel, juice, end panel/world map with 25 islands, TR pass).
