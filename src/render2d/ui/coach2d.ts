@@ -8,6 +8,8 @@
  */
 import './coach2d.css';
 import { t, type MsgKey } from '../../i18n/index.ts';
+import { addHudKeepOut, hudKeepOuts } from '../uiKit.ts';
+import type { Rect } from '../uiLayout.ts';
 import { el } from './dom.ts';
 
 export type CoachStep = 'build' | 'pick' | 'wave' | 'upgrade' | 'hero' | 'meteor' | 'done';
@@ -99,6 +101,38 @@ function markDone(): void {
   }
 }
 
+const overlap = (a: Rect, b: Rect): number => Math.max(0, Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x)) * Math.max(0, Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y));
+
+/**
+ * Where the coach card goes: its home spot (top centre) unless that covers a HUD piece (the
+ * ability / hero bar can sit in the top band on dense islands — and the tips point at it). Then
+ * beside the piece it covers, else under it; the card stays on screen. Pure (QA / tests).
+ */
+export function coachCardSpot(home: Rect, keepOuts: readonly Rect[], screen: { readonly w: number; readonly h: number }, gap = 10): { x: number; y: number } {
+  const hits = keepOuts.filter((k) => overlap(home, k) > 0);
+  if (hits.length === 0) return { x: home.x, y: home.y };
+  const clampX = (x: number): number => Math.max(gap, Math.min(screen.w - gap - home.w, x));
+  const cands: { x: number; y: number }[] = [];
+  for (const k of hits) {
+    cands.push({ x: clampX(k.x + k.w + gap), y: home.y }, { x: clampX(k.x - gap - home.w), y: home.y });
+  }
+  const below = Math.max(...hits.map((k) => k.y + k.h)) + gap;
+  cands.push({ x: home.x, y: below });
+  let best = { x: home.x, y: home.y };
+  let bestA = Infinity;
+  for (const c of cands) {
+    const box = { x: c.x, y: c.y, w: home.w, h: home.h };
+    if (box.y + box.h > screen.h) continue;
+    const a = keepOuts.reduce((sum, k) => sum + overlap(box, k), 0);
+    // Least covered; ties keep the earlier (same height) spot.
+    if (a < bestA) {
+      bestA = a;
+      best = c;
+    }
+  }
+  return best;
+}
+
 export interface Coach2D {
   /** Every frame. `target` = screen point to point at (null = no arrow); `hidden` = a sheet / end panel / story is up. */
   update(o: CoachObs, target: { x: number; y: number; dir?: 'down' | 'left' | 'right' } | null, hidden: boolean): void;
@@ -121,9 +155,40 @@ export function mountCoach(touch: boolean, heroName: string): Coach2D {
   let key = '';
   let shown = false;
   let arrowAt: { x: number; y: number } | null = null;
+  /** The card's home box (top centre), measured when its text or the window changes. */
+  let home: Rect | null = null;
+  let homeFor = '';
+  /** Where the card stands while shown: a HUD keep-out for the next-wave card / foe card. */
+  let cardBox: Rect | null = null;
+  let placing = false;
+  const dropKeepOut = addHudKeepOut(() => (shown && !placing && cardBox ? { x: cardBox.x - 6, y: cardBox.y - 6, w: cardBox.w + 12, h: cardBox.h + 12 } : null));
+  const place = (): void => {
+    const sizeKey = `${key}|${window.innerWidth}x${window.innerHeight}`;
+    if (sizeKey !== homeFor || !home) {
+      homeFor = sizeKey;
+      card.classList.remove('moved');
+      card.style.left = '';
+      card.style.top = '';
+      // Layout values (the pop animation's transform must not count): CSS centres it on `left`.
+      const cs = getComputedStyle(card);
+      const w = card.offsetWidth;
+      home = { x: parseFloat(cs.left) - w / 2, y: parseFloat(cs.top), w, h: card.offsetHeight };
+    }
+    placing = true;
+    const at = coachCardSpot(home, hudKeepOuts(), { w: window.innerWidth, h: window.innerHeight });
+    placing = false;
+    const moved = at.x !== home.x || at.y !== home.y;
+    cardBox = { x: at.x, y: at.y, w: home.w, h: home.h };
+    // Off its home spot: plain left / top (the pop animation's translateX(-50%) assumes the home spot).
+    card.classList.toggle('moved', moved);
+    card.style.left = moved ? `${Math.round(at.x)}px` : '';
+    card.style.top = moved ? `${Math.round(at.y)}px` : '';
+  };
   const finish = (): void => {
     step = 'done';
+    shown = false;
     markDone();
+    dropKeepOut();
     card.remove();
     arrow.remove();
   };
@@ -153,6 +218,7 @@ export function mountCoach(touch: boolean, heroName: string): Coach2D {
           void card.offsetWidth;
           card.classList.add('pop');
         }
+        place();
       }
       arrowAt = msg && target ? target : null;
       arrow.style.display = arrowAt ? '' : 'none';

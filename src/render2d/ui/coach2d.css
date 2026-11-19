@@ -18,6 +18,22 @@
   animation: pu-coach-pop 0.35s ease-out;
 }
 
+/* Moved off its home spot (a HUD piece sits there): left / top are the card's own corner. */
+.pu-coach.moved {
+  transform: none;
+}
+
+.pu-coach.moved.pop {
+  animation-name: pu-coach-pop-moved;
+}
+
+@keyframes pu-coach-pop-moved {
+  from {
+    opacity: 0;
+    transform: translateY(-12px) scale(0.96);
+  }
+}
+
 @keyframes pu-coach-pop {
   from {
     opacity: 0;

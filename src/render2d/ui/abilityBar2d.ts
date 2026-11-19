@@ -229,8 +229,9 @@ export function mountAbilityBar2D(game: Game2D, opts: AbilityBarOptions): Abilit
       // Two rows: the hero group (no divider) over the abilities.
       const block = opts.lead ? { w: Math.round(dd * 3.5 + gap * 2 + dd * 0.12), h: Math.round(dd * 1.5 + gap + dd + dd * 0.08) } : undefined;
       // Three rows up a side (portrait / hero skills / abilities): fits a short phone screen's edge
-      // between the HUD buttons and the banner, where the one-file column does not.
-      const stack = opts.lead ? { w: Math.round(dd * 2 + gap + dd * 0.12), h: Math.round(dd * 1.5 + dd * 2 + gap * 1.2 + dd * 0.08) } : undefined;
+      // between the HUD buttons and the banner, where the one-file column does not. Phones only:
+      // on desktop a row / block always fits somewhere and reads better.
+      const stack = opts.lead && h <= 560 ? { w: Math.round(dd * 2 + gap + dd * 0.12), h: Math.round(dd * 1.5 + dd * 2 + gap * 1.2 + dd * 0.08) } : undefined;
       const sp = abilityBarSpot({ w, h, insets: ins, pad, long: lg, short: sh, gap, plaque: r.plaque, banner: r.banner, hard, hud, soft, landmarks, ...(block ? { block } : {}), ...(stack ? { stack } : {}) });
       // Prefer: clear spot, then a row / block over an edge column (owner: the column "at the edge"
       // looked off), then the bigger buttons. A column is kept only if no row / block down to 70 %

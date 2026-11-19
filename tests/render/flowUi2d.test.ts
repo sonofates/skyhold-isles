@@ -10,7 +10,8 @@ import { waveChips } from '../../src/render2d/ui/wavePreview2d.ts';
 import { foeFacts } from '../../src/render2d/ui/enemyCard2d.ts';
 import { hudTipText } from '../../src/render2d/ui/hudTips2d.ts';
 import { seenFromCleared, waveTypes } from '../../src/render2d/ui/newFoes2d.ts';
-import { coachStep, coachText, type CoachObs } from '../../src/render2d/ui/coach2d.ts';
+import { coachCardSpot, coachStep, coachText, type CoachObs } from '../../src/render2d/ui/coach2d.ts';
+import { waveCallout } from '../../src/render2d/ui/waveBanner2d.ts';
 import { livesLow } from '../../src/render2d/ui/lowLives2d.ts';
 import { ENEMY_DEFS, ENEMY_TYPES } from '../../src/data/enemies.ts';
 import { abilityBarSpot, besideAnchorSpot, gateKeepOutsPx, hornSpot } from '../../src/render2d/uiLayout.ts';
@@ -135,6 +136,30 @@ describe('ability bar placement (backlog 3)', () => {
     const overlap = box.x < 1100 && box.x + box.w > 800 && box.y < 1080 && box.y + box.h > 900;
     expect(overlap).toBe(false);
   });
+  it('phone: a long bar that fits no side runs as the three-row stack between the HUD buttons and the banner', () => {
+    // 844x390: plots fill the bottom band and the left; the right side is clear under the buttons.
+    const phone = { w: 844, h: 390, insets: { top: 0, right: 0, bottom: 0, left: 0 }, pad: 8, long: 315, short: 69, gap: 10, plaque: { x: 8, y: 330, w: 170, h: 52 }, banner: { x: 690, y: 335, w: 146, h: 47 }, soft: [] };
+    const hard = [
+      { x: 180, y: 250, w: 500, h: 140 },
+      { x: 0, y: 0, w: 600, h: 320 },
+    ];
+    const hud = [phone.plaque, phone.banner, { x: 620, y: 0, w: 224, h: 64 }];
+    const s = abilityBarSpot({ ...phone, hard, hud, block: { w: 187, h: 129 }, stack: { w: 108, h: 177 } });
+    expect(s.layout).toBe('stack');
+    expect(s.score).toBe(0);
+    expect(s.x + 108).toBeLessThanOrEqual(844);
+    expect(s.y + 177).toBeLessThanOrEqual(335);
+  });
+  it('a HUD piece weighs far more than a plot: the bar grazes a plot rather than the wave banner', () => {
+    const phone = { w: 844, h: 390, insets: { top: 0, right: 0, bottom: 0, left: 0 }, pad: 8, long: 315, short: 69, gap: 10, plaque: { x: 8, y: 330, w: 170, h: 52 }, banner: { x: 690, y: 335, w: 146, h: 47 }, soft: [] };
+    // Plots everywhere except a strip down the right edge that runs into the banner.
+    const hard = [{ x: 0, y: 0, w: 760, h: 390 }];
+    const hud = [phone.plaque, phone.banner, { x: 620, y: 0, w: 224, h: 64 }];
+    const s = abilityBarSpot({ ...phone, hard, hud });
+    const box = { x: s.x, y: s.y, w: s.vertical ? 69 : 315, h: s.vertical ? 315 : 69 };
+    const onBanner = box.x < 836 && box.x + box.w > 690 && box.y < 382 && box.y + box.h > 335;
+    expect(onBanner).toBe(false);
+  });
   it('gate keep-outs grow behind the castle gate (facing W → to the east) and above it', () => {
     const [k] = gateKeepOutsPx([{ role: 'goal', lane: -1, prop: 'castle-w', facing: 'W', front: { art: 'x', rect: [100, 100, 100, 80], baseY: 180 } }]);
     expect(k.castle).toBe(true);
@@ -209,5 +234,31 @@ describe('horn placement', () => {
     const s = hornSpot({ x: 300, y: 400 }, { x: 330, y: 392 }, 40, screen, [plot], [cave], []);
     expect(s.score).toBe(0);
     expect(Math.hypot(s.x - 300, s.y - 400)).toBeLessThan(40 * 6);
+  });
+});
+
+describe('coach card and wave call-out', () => {
+  it('the coach card keeps its home spot when clear, else slides beside the bar it would cover', () => {
+    const home = { x: 490, y: 12, w: 385, h: 96 };
+    const screen = { w: 1366, h: 768 };
+    expect(coachCardSpot(home, [{ x: 1030, y: 0, w: 336, h: 100 }], screen)).toEqual({ x: 490, y: 12 });
+    const bar = { x: 405, y: 8, w: 357, h: 81 };
+    const at = coachCardSpot(home, [bar, { x: 1030, y: 0, w: 336, h: 100 }], screen);
+    const box = { x: at.x, y: at.y, w: home.w, h: home.h };
+    const hits = box.x < bar.x + bar.w && box.x + box.w > bar.x && box.y < bar.y + bar.h && box.y + box.h > bar.y;
+    expect(hits).toBe(false);
+    expect(box.x).toBeGreaterThanOrEqual(10);
+    expect(box.x + box.w).toBeLessThanOrEqual(1366 - 10);
+  });
+  it('call-out: a boss wave names the boss; the last story wave is "final"; ordinary and Endless waves get none', () => {
+    setLocale('en');
+    expect(waveCallout(['grunt'], 9, 10, false)).toEqual({ kind: 'final' });
+    expect(waveCallout(['grunt'], 3, 10, false)).toBeNull();
+    expect(waveCallout(['grunt'], 9, 10, true)).toBeNull();
+    const boss = waveCallout(['grunt', 'boss'], 4, 10, false);
+    expect(boss?.kind).toBe('boss');
+    expect(t('callout.boss')).toBe('Boss incoming!');
+    setLocale('tr');
+    expect(t('callout.final')).toBe('Son dalga!');
   });
 });

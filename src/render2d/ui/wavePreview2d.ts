@@ -119,13 +119,16 @@ export function mountWaveCard(enemyUrl: (type: EnemyType) => string | null, keep
         if (line) foot.append(el('span', '', {}, line));
         if (s.earlyBonus > 0) foot.append(el('span', 'pu-wave-bonus', {}, img(KIT.gold), t('wave.earlyBonus', { n: s.earlyBonus })));
       }
-      // Measure (a forced layout) only when the text or the anchor changed, not every frame.
-      const pk = `${key}|${footKey}|${Math.round(s.horn.x)}|${Math.round(s.horn.y)}|${s.screen.w}|${s.screen.h}`;
+      // Measure (a forced layout) only when the text, the anchor or what to keep off changed
+      // (a coach card coming / going), not every frame.
+      const ko = keepOuts();
+      const kk = ko.map((r) => `${Math.round(r.x)},${Math.round(r.y)},${Math.round(r.w)},${Math.round(r.h)}`).join(';');
+      const pk = `${key}|${footKey}|${Math.round(s.horn.x)}|${Math.round(s.horn.y)}|${s.screen.w}|${s.screen.h}|${kk}`;
       if (pk !== placeKey) {
         placeKey = pk;
         const cw = card.offsetWidth;
         const ch = card.offsetHeight;
-        const spot = besideAnchorSpot(s.horn, { w: cw, h: ch }, s.screen, keepOuts());
+        const spot = besideAnchorSpot(s.horn, { w: cw, h: ch }, s.screen, ko);
         card.style.left = `${Math.round(spot.x)}px`;
         card.style.top = `${Math.round(spot.y)}px`;
         card.dataset.side = spot.side;
