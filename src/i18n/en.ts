@@ -115,7 +115,7 @@ export const EN = {
   'hud.endlessWave': 'Endless · Wave {n}',
   'hud.start': 'Start!',
   'hud.paused': 'Paused',
-  'hud.pausedSub': 'Tap ▶ to resume',
+  'hud.pausedSub': 'The battle waits for you',
   'hud.tapRoad': 'Tap the road',
   'hud.tapRoadSub': 'to move the rally flag',
   'hud.settings': 'Settings',

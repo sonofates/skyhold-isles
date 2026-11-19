@@ -121,7 +121,7 @@ export const TR: { readonly [K in MsgKey]: Msg } = {
   'hud.endlessWave': 'Sonsuz · Dalga {n}',
   'hud.start': 'Başla!',
   'hud.paused': 'Duraklatıldı',
-  'hud.pausedSub': '▶ ile devam et',
+  'hud.pausedSub': 'Savaş seni bekliyor',
   'hud.tapRoad': 'Yola dokun',
   'hud.tapRoadSub': 'toplanma bayrağını taşımak için',
   'hud.settings': 'Ayarlar',
