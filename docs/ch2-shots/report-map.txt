@@ -1,0 +1,44 @@
+desk en map-after-i16: 25 islands, unlocked l1c,i01,i02,i03,i04,i05,i06,i07,i08,i09,i10,i11,i12,i13,i14,i15,i16,i17
+desk en map-all-open: 25 islands, unlocked l1c,i01,i02,i03,i04,i05,i06,i07,i08,i09,i10,i11,i12,i13,i14,i15,i16,i17,i18,i19,i20,i21,i22,i23,i24
+desk en brief i17: Cloudbell CloisterTwo roads meet below the broken belfry. The hares have stolen its clappers.Heroic10 waves3★: lose ≤ 5 livesWin this isle once to open its chal
+desk en brief i18: Lantern GlassworksThe kiln fires have gone dark. Follow the ore road around the crystal vault.Master11 waves3★: lose ≤ 7 livesWin this isle once to open its cha
+desk en brief i19: Lanternseed FigThe seed baskets are falling. Follow the two root roads around the old fig tree.Master11 waves3★: lose ≤ 7 livesWin this isle once to open its ch
+desk en brief i20: Three Pennants HeadThree storm flags have torn loose. Hold the headland until the boats clear the reef.Master12 waves3★: lose ≤ 7 livesWin this isle once to ope
+desk en brief i21: Kitewright DownThe weather kite is down. Hold the chalk bends while the kitewright winds in the broken line.Master12 waves3★: lose ≤ 7 livesWin this isle once t
+desk en brief i22: Brineglass FerryThe ferry cable has snapped. Guard the two salt roads until the last load crosses the pool.Master13 waves3★: lose ≤ 7 livesWin this isle once to
+desk en brief i23: Waxlight OrchardThe beacon needs a flame. Keep the orchard roads clear for the last cart of beeswax.Master13 waves3★: lose ≤ 7 livesWin this isle once to open i
+desk en brief i24: Lastlight HeadThe beacon has gone dark. Hold the sea fort and both landings while the keeper lights the lens.Master14 waves3★: lose ≤ 7 livesWin this isle once 
+desk tr map-after-i16: 25 islands, unlocked l1c,i01,i02,i03,i04,i05,i06,i07,i08,i09,i10,i11,i12,i13,i14,i15,i16,i17
+desk tr map-all-open: 25 islands, unlocked l1c,i01,i02,i03,i04,i05,i06,i07,i08,i09,i10,i11,i12,i13,i14,i15,i16,i17,i18,i19,i20,i21,i22,i23,i24
+desk tr brief i17: Bulut Çanı ManastırıYıkık çan kulesinin altında iki yol birleşiyor. Tavşanlar çanların tokmaklarını kaçırmış.Destansı10 dalga3★: en çok 5 can kaybetMeydan okuma
+desk tr brief i18: Cam Fener AtölyesiFırınlar sönmüş. Cevher yolunu izleyip kristal mağaranın çevresini dolaş.Usta11 dalga3★: en çok 7 can kaybetMeydan okumalar ve Sonsuz mod için
+desk tr brief i19: Fener İnciriTohum sepetleri düşüyor. Yaşlı incir ağacının çevresini dolanan iki kök yolunu izle.Usta11 dalga3★: en çok 7 can kaybetMeydan okumalar ve Sonsuz mod
+desk tr brief i20: Üç Flama BurnuÜç fırtına flaması ipinden kopmuş. Tekneler kayalıkları geçene kadar burnu savun.Usta12 dalga3★: en çok 7 can kaybetMeydan okumalar ve Sonsuz mod 
+desk tr brief i21: Uçurtmacı ÇayırıRüzgârı ölçen uçurtma düştü. Uçurtmacı kopan ipi sarana dek kayalıklardaki virajları savun.Usta12 dalga3★: en çok 7 can kaybetMeydan okumalar ve
+desk tr brief i22: Tuzcam SalıSalın halatı koptu. Son yük karşı kıyıya varana kadar iki tuz yolunu da savun.Usta13 dalga3★: en çok 7 can kaybetMeydan okumalar ve Sonsuz mod için b
+desk tr brief i23: Mum Işığı BahçesiDeniz fenerini yeniden yakmak için bir alev gerek. Son balmumu arabası geçene dek armut bahçesinin yollarını açık tut.Usta13 dalga3★: en çok 7 
+desk tr brief i24: Son Işık BurnuDeniz feneri söndü. Fenerci lambayı yeniden yakana dek deniz kalesini ve iki iskeleyi savun.Usta14 dalga3★: en çok 7 can kaybetMeydan okumalar ve 
+phone en map-after-i16: 25 islands, unlocked l1c,i01,i02,i03,i04,i05,i06,i07,i08,i09,i10,i11,i12,i13,i14,i15,i16,i17
+phone en map-all-open: 25 islands, unlocked l1c,i01,i02,i03,i04,i05,i06,i07,i08,i09,i10,i11,i12,i13,i14,i15,i16,i17,i18,i19,i20,i21,i22,i23,i24
+phone en brief i17: Cloudbell CloisterTwo roads meet below the broken belfry. The hares have stolen its clappers.Heroic10 waves3★: lose ≤ 5 livesWin this isle once to open its chal
+phone en brief i18: Lantern GlassworksThe kiln fires have gone dark. Follow the ore road around the crystal vault.Master11 waves3★: lose ≤ 7 livesWin this isle once to open its cha
+phone en brief i19: Lanternseed FigThe seed baskets are falling. Follow the two root roads around the old fig tree.Master11 waves3★: lose ≤ 7 livesWin this isle once to open its ch
+phone en brief i20: Three Pennants HeadThree storm flags have torn loose. Hold the headland until the boats clear the reef.Master12 waves3★: lose ≤ 7 livesWin this isle once to ope
+phone en brief i21: Kitewright DownThe weather kite is down. Hold the chalk bends while the kitewright winds in the broken line.Master12 waves3★: lose ≤ 7 livesWin this isle once t
+phone en brief i22: Brineglass FerryThe ferry cable has snapped. Guard the two salt roads until the last load crosses the pool.Master13 waves3★: lose ≤ 7 livesWin this isle once to
+phone en brief i23: Waxlight OrchardThe beacon needs a flame. Keep the orchard roads clear for the last cart of beeswax.Master13 waves3★: lose ≤ 7 livesWin this isle once to open i
+phone en brief i24: Lastlight HeadThe beacon has gone dark. Hold the sea fort and both landings while the keeper lights the lens.Master14 waves3★: lose ≤ 7 livesWin this isle once 
+phone tr map-after-i16: 25 islands, unlocked l1c,i01,i02,i03,i04,i05,i06,i07,i08,i09,i10,i11,i12,i13,i14,i15,i16,i17
+phone tr map-all-open: 25 islands, unlocked l1c,i01,i02,i03,i04,i05,i06,i07,i08,i09,i10,i11,i12,i13,i14,i15,i16,i17,i18,i19,i20,i21,i22,i23,i24
+phone tr brief i17: Bulut Çanı ManastırıYıkık çan kulesinin altında iki yol birleşiyor. Tavşanlar çanların tokmaklarını kaçırmış.Destansı10 dalga3★: en çok 5 can kaybetMeydan okuma
+phone tr brief i18: Cam Fener AtölyesiFırınlar sönmüş. Cevher yolunu izleyip kristal mağaranın çevresini dolaş.Usta11 dalga3★: en çok 7 can kaybetMeydan okumalar ve Sonsuz mod için
+phone tr brief i19: Fener İnciriTohum sepetleri düşüyor. Yaşlı incir ağacının çevresini dolanan iki kök yolunu izle.Usta11 dalga3★: en çok 7 can kaybetMeydan okumalar ve Sonsuz mod
+phone tr brief i20: Üç Flama BurnuÜç fırtına flaması ipinden kopmuş. Tekneler kayalıkları geçene kadar burnu savun.Usta12 dalga3★: en çok 7 can kaybetMeydan okumalar ve Sonsuz mod 
+phone tr brief i21: Uçurtmacı ÇayırıRüzgârı ölçen uçurtma düştü. Uçurtmacı kopan ipi sarana dek kayalıklardaki virajları savun.Usta12 dalga3★: en çok 7 can kaybetMeydan okumalar ve
+phone tr brief i22: Tuzcam SalıSalın halatı koptu. Son yük karşı kıyıya varana kadar iki tuz yolunu da savun.Usta13 dalga3★: en çok 7 can kaybetMeydan okumalar ve Sonsuz mod için b
+phone tr brief i23: Mum Işığı BahçesiDeniz fenerini yeniden yakmak için bir alev gerek. Son balmumu arabası geçene dek armut bahçesinin yollarını açık tut.Usta13 dalga3★: en çok 7 
+phone tr brief i24: Son Işık BurnuDeniz feneri söndü. Fenerci lambayı yeniden yakana dek deniz kalesini ve iki iskeleyi savun.Usta14 dalga3★: en çok 7 can kaybetMeydan okumalar ve 
+en codex tiles: Raider Grunt | Zephyr Runner | Iron Brute | Sky Skimmer | Grove Mender | Cinder Splitling | Aegis Warden | Loam Burrower | Cloud Hauler | Rift Blinker | Basalt Golem | Scuttle Mite | Gloam Hexer | Belfry Hare | Kilnback Tortoise | Reed Piper | Slipstream Moth | Tempest Colossus | Skyhold Dreadnought | Elites
+tr codex tiles: Akıncı Er | Meltem Koşucusu | Demir Zorba | Gök Süzücüsü | Koru Şifacısı | Kor Bölünen | Kalkan Muhafızı | Toprak Kazıcı | Bulut Taşıyıcı | Yarık Sıçrayıcı | Bazalt Golem | Tıkırtı Böceği | Alacakaranlık Lanetçisi | Çan Tavşanı | Fırın Sırtlı Kaplumbağa | Kamış Kavalcısı | Esinti Güvesi | Fırtına Devi | Skyhold Dehşeti | Seçkinler
+
+PROBLEMS:

@@ -112,6 +112,11 @@ function flushGpu(gl: WebGLRenderingContext | WebGL2RenderingContext | undefined
   }
 }
 
+/** A built tower's reach as the sim uses it: tier range × (1 + beacon aura + hero bonus). */
+function towerReach(t: TowerEntity, tier: 1 | 2 | 3 = t.tier as 1 | 2 | 3): number {
+  return getTowerTierStats(t.type, tier).range * (1 + t.auraRange + (t.heroRangeBonus ?? 0));
+}
+
 /**
  * The playable 2D slice: the real SimWorld (fixed 60 Hz stepper, pause, 1×/2×) rendered with
  * Pixi on the painted map. Owns input (tap a free plot → build ring; tap a tower → upgrade/sell;
@@ -322,12 +327,12 @@ export class Game2D {
     const def = TOWER_DEFS[t.type];
     if (def.role !== 'attack') return false;
     const st = getTowerTierStats(t.type, t.tier);
-    const maxSq = (st.range * (1 + t.auraRange)) ** 2;
+    const maxSq = towerReach(t) ** 2;
     const minSq = st.minRange * st.minRange;
     const pool = this.world.enemyPool;
     for (let i = 0; i < pool.getActiveCount(); i++) {
       const e = pool.items[pool.getActiveIndex(i)];
-      if (!e.active || e.hp <= 0 || (e.flying && !def.hitsFlyers)) continue;
+      if (!e.active || e.hp <= 0 || e.burrowed || (e.flying && !def.hitsFlyers)) continue;
       const d = (e.x - t.x) ** 2 + (e.z - t.z) ** 2;
       if (d <= maxSq && d >= minSq) return true;
     }
@@ -534,7 +539,7 @@ export class Game2D {
           break;
         }
       }
-      const muzzle = t ? this.towers.muzzleOf(t.id, t.type) : this.towers.muzzleHeight('tesla');
+      const muzzle = t ? this.towers.muzzleOf(t.id, t.type) : p0.y;
       const delay = t ? this.towers.predictShotDelay(t.id, t.type, t.tier) : 0;
       if (delay > 0) this.enqueueBolt(delay, e.points, e.overload === true, muzzle);
       else this.fx.bolt(e.points, e.overload === true, muzzle);
@@ -1059,18 +1064,16 @@ export class Game2D {
     if (!p) return;
     let type: TowerType | null = pv ? pv.type : null;
     let tier: 1 | 2 | 3 = pv ? pv.tier : 1;
-    if (!type && this.selectedTower !== -1) {
-      const t = this.world.getTowerById(this.selectedTower);
-      if (t) {
-        type = t.type;
-        tier = t.tier as 1 | 2 | 3;
-      }
+    const built = this.selectedTower !== -1 ? this.world.getTowerById(this.selectedTower) : null;
+    if (!type && built) {
+      type = built.type;
+      tier = built.tier as 1 | 2 | 3;
     }
     if (!type) {
       this.rangeDisc.visible = false;
       return;
     }
-    const range = getTowerTierStats(type, tier).range;
+    const range = built && built.type === type ? towerReach(built, tier) : getTowerTierStats(type, tier).range;
     const ppu = this.level.layout2d!.pxPerUnit;
     this.rangeDisc.position.set(this.map.pxX(p.x), this.map.pxY(p.z));
     this.rangeDisc.scale.set((range * ppu * 2) / this.tex.rangeDisc.width);
@@ -1198,7 +1201,7 @@ export class Game2D {
     if (!t) return;
     const ppu = this.level.layout2d!.pxPerUnit;
     this.hoverDisc.position.set(this.map.pxX(t.x), this.map.pxY(t.z));
-    this.hoverDisc.scale.set((getTowerTierStats(t.type, t.tier).range * ppu * 2) / this.tex.rangeDisc.width);
+    this.hoverDisc.scale.set((towerReach(t) * ppu * 2) / this.tex.rangeDisc.width);
   }
 
   private closeRing(): void {
@@ -1262,7 +1265,7 @@ export class Game2D {
       h,
       this.hud.topBand,
     );
-    const range = getTowerTierStats(t.type, t.tier).range;
+    const range = towerReach(t);
     const ppu = this.level.layout2d!.pxPerUnit;
     this.rangeDisc.position.set(this.map.pxX(t.x), this.map.pxY(t.z));
     this.rangeDisc.scale.set((range * ppu * 2) / this.tex.rangeDisc.width);
