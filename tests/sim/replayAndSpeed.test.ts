@@ -718,4 +718,116 @@ describe('EventBus re-entrancy & SoldierSystem towerFireRateMul', () => {
     expect(player2.world.waveSystem.autoWave).toBe(true);
     expect(player2.finished).toBe(true);
   });
+
+  it('keeps SoldierSystem block/unblock 1-to-1 on same-tick counter-kills, flushes delayed enterEndless siblings, and guards findHoveredEnemy', () => {
+    // 1. Newly-blocking 1-HP soldier killed on the exact counter-attack tick still emits enemyUnblocked 1-to-1,
+    //    and selling / rallying immediately decrements soldierSystem.blockedCount.
+    const events = new EventBus();
+    let blocked = 0;
+    let unblocked = 0;
+    events.on('enemyBlocked', () => void blocked++);
+    events.on('enemyUnblocked', () => void unblocked++);
+
+    const w = new SimWorld(LEVEL_L1C, events, { seed: 777 });
+    w.gold = 9000;
+    const bTower = w.placeTowerOnPlot(21, 'barracks')!;
+    w.startNextWave();
+    const bState = w.soldierSystem.getBarracks(bTower.id)!;
+
+    // Keep only slot 0 alive at 1 HP right on the rally point; put slot 1 dead with long respawn.
+    const s0 = bState.squad[0];
+    const s1 = bState.squad[1];
+    s0.hp = 1;
+    s0.x = s0.prevX = bState.rallyX;
+    s0.z = s0.prevZ = bState.rallyZ;
+    s0.state = 'idle';
+    s1.state = 'dead';
+    s1.respawnTimer = 999;
+
+    // Brute was previously held and released with residual meleeTimer = 0.005s (> 0, <= fixedDt).
+    const brute = w.enemySystem.spawnEnemy('brute', 10, false, 0)!;
+    brute.x = brute.prevX = bState.rallyX;
+    brute.z = brute.prevZ = bState.rallyZ;
+    brute.meleeTimer = 0.005;
+    w.spatialHash.clear();
+    w.spatialHash.insert(brute.poolIndex, brute.x, brute.z);
+
+    w.soldierSystem.update(BALANCE.fixedDt, w.towers, 1);
+    expect(s0.state).toBe('dead');
+    expect(brute.blockers).toBe(0);
+    expect(w.soldierSystem.blockedCount).toBe(0);
+    expect(blocked).toBe(1);
+    expect(unblocked).toBe(1);
+
+    // Revive s0 at full HP, let it block brute, then sell the barracks -> blockedCount drops to 0 immediately.
+    s0.state = 'idle';
+    s0.hp = s0.maxHp;
+    s0.x = s0.prevX = bState.rallyX;
+    s0.z = s0.prevZ = bState.rallyZ;
+    brute.meleeTimer = 5.0;
+    w.soldierSystem.update(BALANCE.fixedDt, w.towers, 1);
+    expect(w.soldierSystem.blockedCount).toBe(1);
+    expect(blocked).toBe(2);
+    expect(unblocked).toBe(1);
+    w.sellTower(bTower.id);
+    expect(w.soldierSystem.blockedCount).toBe(0);
+    expect(unblocked).toBe(2);
+
+    // 2. SimReplayPlayer flushes sibling commands (startWave, placeTowerOnPlot) stamped on the same delayed tick as enterEndless.
+    const miniWin = {
+      ...LEVEL_L1C,
+      id: 'mini-delayed-endless-siblings',
+      waves: [{ groups: [{ enemyType: 'grunt' as const, count: 1, spawnInterval: 0.2, startDelay: 0 }], clearBonus: 80 }],
+    };
+    const baseWin = new SimWorld(miniWin, new EventBus(), { seed: 91, recordCommands: true });
+    baseWin.placeTowerOnPlot(0, 'archer');
+    baseWin.startNextWave();
+    while (baseWin.outcome === 'ongoing') baseWin.fixedTick(BALANCE.fixedDt);
+    const wTick = baseWin.tick;
+    const siblingReplay = parseSimReplay({
+      ...baseWin.exportReplay(),
+      commands: [
+        ...baseWin.getRecordedCommands(),
+        { tick: wTick + 15, seq: 0, command: { kind: 'enterEndless' } },
+        { tick: wTick + 15, seq: 1, command: { kind: 'placeTowerOnPlot', plotIndex: 1, towerType: 'frost' } },
+        { tick: wTick + 15, seq: 2, command: { kind: 'startWave' } },
+      ],
+      summary: { ...baseWin.exportReplay().summary, totalTicks: wTick + 15, outcome: 'ongoing' },
+    })!;
+    const sibPlayer = new SimReplayPlayer(miniWin, siblingReplay);
+    sibPlayer.runToEnd();
+    expect(sibPlayer.world.waveSystem.isEndless).toBe(true);
+    expect(sibPlayer.world.towers.length).toBe(2);
+    expect(sibPlayer.world.waveSystem.currentWaveOneBased).toBe(2);
+
+    // 3. WaveSystem autoShortenedBy is captured in computeSimStateHash and cleared by skipToWave,
+    //    and findHoveredEnemy ignores 0-HP corpses and burrowed enemies.
+    const hoverWorld = new SimWorld(LEVEL_L1C, new EventBus(), { seed: 12 });
+    hoverWorld.waveSystem.state = 'betweenWaves';
+    hoverWorld.waveSystem.interWaveTimer = 0.75;
+    const hashBeforeAuto = computeSimStateHash(hoverWorld);
+    hoverWorld.waveSystem.interWaveTimer = 8.0;
+    hoverWorld.waveSystem.setAutoWave(true); // interWaveTimer -> 0.75, autoShortenedBy -> 7.25
+    hoverWorld.waveSystem.setAutoWave(false); // interWaveTimer -> 8.0, autoShortenedBy -> 0
+    hoverWorld.waveSystem.setAutoWave(true); // interWaveTimer -> 0.75, autoShortenedBy -> 7.25
+    // Compare against a world at interWaveTimer=0.75 with autoWave=true but autoShortenedBy=0:
+    const hoverWorldNoShorten = new SimWorld(LEVEL_L1C, new EventBus(), { seed: 12 });
+    hoverWorldNoShorten.waveSystem.setAutoWave(true);
+    hoverWorldNoShorten.waveSystem.state = 'betweenWaves';
+    hoverWorldNoShorten.waveSystem.interWaveTimer = 0.75;
+    expect(hashBeforeAuto).not.toBe(computeSimStateHash(hoverWorld));
+    expect(computeSimStateHash(hoverWorld)).not.toBe(computeSimStateHash(hoverWorldNoShorten));
+    hoverWorld.debugSkipToWave(1);
+    expect(hoverWorld.waveSystem.getAutoShortenedBy()).toBe(0);
+
+    const alive = hoverWorld.enemySystem.spawnEnemy('grunt', 1, false, 0)!;
+    hoverWorld.spatialHash.clear();
+    hoverWorld.spatialHash.insert(alive.poolIndex, alive.x, alive.z);
+    expect(hoverWorld.findHoveredEnemy(alive.x, alive.z, alive.x, alive.z)).toBe(alive);
+    alive.burrowed = true;
+    expect(hoverWorld.findHoveredEnemy(alive.x, alive.z, alive.x, alive.z)).toBeNull();
+    alive.burrowed = false;
+    alive.hp = 0;
+    expect(hoverWorld.findHoveredEnemy(alive.x, alive.z, alive.x, alive.z)).toBeNull();
+  });
 });

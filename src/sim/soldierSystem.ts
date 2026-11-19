@@ -431,7 +431,10 @@ export class SoldierSystem {
       const e = this.pool.items[s.targetPoolIndex];
       if (e.active && e.uid === s.targetUid && e.blockers > 0) {
         e.blockers--;
-        if (e.blockers === 0 && e.heroBlockers === 0) this.emitBlock('enemyUnblocked', e);
+        if (e.blockers === 0) {
+          this.blockedCount = Math.max(0, this.blockedCount - 1);
+          if (e.heroBlockers === 0) this.emitBlock('enemyUnblocked', e);
+        }
       }
     }
     s.targetPoolIndex = -1;
@@ -697,7 +700,12 @@ export class SoldierSystem {
       const e = pool.items[_blockedList[k]];
       const m = ENEMY_MELEE[e.type];
       if (!this.wasBlocked[e.poolIndex]) {
-        if (e.heroBlockers === 0) this.emitBlock('enemyBlocked', e);
+        if (e.heroBlockers === 0) {
+          // Track in _prevBlocked so same-tick counter-attack soldier death emits enemyUnblocked cleanly.
+          _prevBlocked.push(e.poolIndex);
+          _prevBlockedUid.push(e.uid);
+          this.emitBlock('enemyBlocked', e);
+        }
         if (e.meleeTimer <= 0) e.meleeTimer = 0.5 / Math.max(0.01, m.rate);
         this.enemyArmed[e.poolIndex] = 0;
       }

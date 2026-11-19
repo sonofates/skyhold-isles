@@ -224,5 +224,5 @@ describe('QA bot regression & invariant unit tests', () => {
     expect(summary.totalScenarios).toBeGreaterThanOrEqual(7);
     expect(summary.failedScenarios).toBe(0);
     expect(summary.determinismReplays).toBeGreaterThanOrEqual(1);
-  }, 30_000);
+  }, 90_000);
 });

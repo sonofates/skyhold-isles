@@ -157,29 +157,62 @@ function defaultStorage(): CloudStorageLike | null {
   }
 }
 
-function sanitizeIdList(raw: unknown): string[] {
+const SAFE_ENTITLEMENT_RE = /^[a-zA-Z0-9_.-]{1,80}$/;
+
+function lookupInCatalogue(
+  idOrSku: string,
+  catalogue: readonly IapProductDef[],
+): IapProductDef | undefined {
+  const clean = idOrSku.trim();
+  if (!clean) return undefined;
+  return catalogue.find(
+    (p) => p.id === clean || p.storeProductId === clean || p.entitlementId === clean,
+  );
+}
+
+function normalizeEntitlementId(
+  raw: unknown,
+  catalogue: readonly IapProductDef[] = IAP_PRODUCTS,
+): string | null {
+  if (typeof raw !== 'string') return null;
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  const mapped =
+    lookupInCatalogue(trimmed, catalogue)?.entitlementId ??
+    findIapProduct(trimmed)?.entitlementId ??
+    trimmed;
+  return SAFE_ENTITLEMENT_RE.test(mapped) ? mapped : null;
+}
+
+function sanitizeIdList(
+  raw: unknown,
+  catalogue: readonly IapProductDef[] = IAP_PRODUCTS,
+): string[] {
   if (!Array.isArray(raw)) return [];
   const out: string[] = [];
   for (const item of raw) {
-    if (typeof item !== 'string') continue;
-    const trimmed = item.trim();
-    if (/^[a-zA-Z0-9_.-]{1,80}$/.test(trimmed) && !out.includes(trimmed)) {
-      out.push(trimmed);
+    const clean = normalizeEntitlementId(item, catalogue);
+    if (clean && !out.includes(clean)) {
+      out.push(clean);
     }
   }
   return out;
 }
 
-function readIdSetFromKey(storage: CloudStorageLike | null, key: string): Set<string> {
+function readIdSetFromKey(
+  storage: CloudStorageLike | null,
+  key: string,
+  catalogue: readonly IapProductDef[] = IAP_PRODUCTS,
+): Set<string> {
   if (!storage) return new Set();
   try {
     const raw = storage.getItem(key);
     if (!raw) return new Set();
     const parsed: unknown = JSON.parse(raw);
-    if (Array.isArray(parsed)) return new Set(sanitizeIdList(parsed));
+    if (Array.isArray(parsed)) return new Set(sanitizeIdList(parsed, catalogue));
     if (parsed && typeof parsed === 'object') {
       const list = (parsed as { entitlements?: unknown }).entitlements;
-      return new Set(sanitizeIdList(list));
+      return new Set(sanitizeIdList(list, catalogue));
     }
     return new Set();
   } catch {
@@ -192,11 +225,12 @@ function writeIdSetToKey(
   key: string,
   ids: Iterable<string>,
   nowMs: () => number,
+  catalogue: readonly IapProductDef[] = IAP_PRODUCTS,
 ): boolean {
   if (!storage) return false;
   const payload: StoredEntitlementCache = {
     version: IAP_SAVE_VERSION,
-    entitlements: sanitizeIdList([...ids]),
+    entitlements: sanitizeIdList([...ids], catalogue),
     updatedAt: nowMs(),
   };
   try {
@@ -261,13 +295,13 @@ export function createMockIapBackend(options: CreateMockBackendOptions = {}): Mo
   const catalogue = options.catalogue ?? IAP_PRODUCTS;
   const ledgerStorage = options.ledgerStorage ?? null;
   const now = options.now ?? (() => Date.now());
-  const remoteLedger = readIdSetFromKey(ledgerStorage, IAP_MOCK_LEDGER_KEY);
+  const remoteLedger = readIdSetFromKey(ledgerStorage, IAP_MOCK_LEDGER_KEY, catalogue);
   for (const id of options.initialOwned ?? []) {
-    const clean = findIapProduct(id)?.entitlementId ?? id.trim();
+    const clean = normalizeEntitlementId(id, catalogue);
     if (clean) remoteLedger.add(clean);
   }
   if (remoteLedger.size > 0) {
-    writeIdSetToKey(ledgerStorage, IAP_MOCK_LEDGER_KEY, remoteLedger, now);
+    writeIdSetToKey(ledgerStorage, IAP_MOCK_LEDGER_KEY, remoteLedger, now, catalogue);
   }
 
   let nextOutcome: 'purchased' | 'cancelled' | 'error' = 'purchased';
@@ -303,8 +337,9 @@ export function createMockIapBackend(options: CreateMockBackendOptions = {}): Mo
         };
       }
       if (product.kind === 'non_consumable') {
-        remoteLedger.add(product.entitlementId);
-        writeIdSetToKey(ledgerStorage, IAP_MOCK_LEDGER_KEY, remoteLedger, now);
+        const clean = normalizeEntitlementId(product.entitlementId, catalogue);
+        if (clean) remoteLedger.add(clean);
+        writeIdSetToKey(ledgerStorage, IAP_MOCK_LEDGER_KEY, remoteLedger, now, catalogue);
       }
       return { status: 'purchased', entitlements: [...remoteLedger] };
     },
@@ -324,10 +359,10 @@ export function createMockIapBackend(options: CreateMockBackendOptions = {}): Mo
       nextRestoreError = errorMsg;
     },
     grantRemoteEntitlement(entitlementId: string): void {
-      const clean = findIapProduct(entitlementId)?.entitlementId ?? entitlementId.trim();
+      const clean = normalizeEntitlementId(entitlementId, catalogue);
       if (!clean) return;
       remoteLedger.add(clean);
-      writeIdSetToKey(ledgerStorage, IAP_MOCK_LEDGER_KEY, remoteLedger, now);
+      writeIdSetToKey(ledgerStorage, IAP_MOCK_LEDGER_KEY, remoteLedger, now, catalogue);
     },
   };
 }
@@ -358,14 +393,16 @@ export function extractEntitlementsFromCustomerInfo(
   const active = customerInfo.entitlements?.active ?? {};
   for (const [entId, info] of Object.entries(active)) {
     if (info && info.isActive) {
-      const mapped = findIapProduct(entId)?.entitlementId ?? entId.trim();
+      const mapped = normalizeEntitlementId(entId, catalogue);
       if (mapped) out.add(mapped);
     }
   }
   for (const sku of customerInfo.allPurchasedProductIdentifiers ?? []) {
-    const def = catalogue.find((p) => p.storeProductId === sku || p.id === sku);
+    if (typeof sku !== 'string') continue;
+    const def = lookupInCatalogue(sku, catalogue);
     if (def && def.kind === 'non_consumable') {
-      out.add(def.entitlementId);
+      const mapped = normalizeEntitlementId(def.entitlementId, catalogue);
+      if (mapped) out.add(mapped);
     }
   }
   return [...out];
@@ -490,24 +527,19 @@ export function createIapStore(options: CreateIapStoreOptions = {}): IapStoreAda
   }
 
   // Hydrate persistent entitlement cache from save storage immediately on boot.
-  const cachedEntitlements = readIdSetFromKey(storage, IAP_SAVE_KEY);
+  const cachedEntitlements = readIdSetFromKey(storage, IAP_SAVE_KEY, catalogue);
 
   const persistEntitlements = (incoming: Iterable<string>): string[] => {
     for (const id of incoming) {
-      const clean = findIapProduct(id)?.entitlementId ?? id.trim();
+      const clean = normalizeEntitlementId(id, catalogue);
       if (clean) cachedEntitlements.add(clean);
     }
-    writeIdSetToKey(storage, IAP_SAVE_KEY, cachedEntitlements, now);
+    writeIdSetToKey(storage, IAP_SAVE_KEY, cachedEntitlements, now, catalogue);
     return [...cachedEntitlements];
   };
 
-  const resolveCatalogueProduct = (idOrSku: string): IapProductDef | undefined => {
-    const clean = idOrSku.trim();
-    if (!clean) return undefined;
-    return catalogue.find(
-      (p) => p.id === clean || p.storeProductId === clean || p.entitlementId === clean,
-    );
-  };
+  const resolveCatalogueProduct = (idOrSku: string): IapProductDef | undefined =>
+    lookupInCatalogue(idOrSku, catalogue);
 
   const owned = (id: string): boolean => {
     const clean = id.trim();

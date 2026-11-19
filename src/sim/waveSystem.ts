@@ -309,6 +309,10 @@ export class WaveSystem {
     return Math.max(0, this.currentWaveIndex + 1);
   }
 
+  getAutoShortenedBy(): number {
+    return this.autoShortenedBy;
+  }
+
   setAutoWave(enabled: boolean): void {
     const wasEnabled = this.autoWave;
     this.autoWave = enabled;
@@ -485,6 +489,7 @@ export class WaveSystem {
       : Math.min(this.level.waves.length - 1, requestedIdx);
     this.pendingClearBonus = 0;
     this.interWaveTimer = 0;
+    this.autoShortenedBy = 0;
     this.currentWaveIndex = clampedIdx - 1;
     this.state = 'preFirstWave';
     return this.startNextWave(() => {});

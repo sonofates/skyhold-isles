@@ -138,5 +138,18 @@ describe('InputManager tap resolution', () => {
     vi.advanceTimersByTime(1000);
     expect(onLongPress).not.toHaveBeenCalled();
     expect(handlers.onPointerLeave).toHaveBeenCalledTimes(1);
+
+    // 3->2 finger transition re-anchors pinch midpoint/distance so the next 2-finger move never jumps.
+    handlers.onPanScreenDelta.mockClear();
+    handlers.onZoomDelta.mockClear();
+    fire('pointerdown', ev('pointerdown', 10, 100, 100, 10));
+    fire('pointerdown', ev('pointerdown', 11, 200, 100, 20)); // initial midpoint = (150, 100), dist = 100
+    fire('pointerdown', ev('pointerdown', 12, 500, 500, 30)); // 3rd finger far away
+    fire('pointerup', ev('pointerup', 10, 100, 100, 40)); // remaining fingers 11 & 12 have midpoint (350, 300)
+    fire('pointermove', ev('pointermove', 11, 202, 100, 50)); // tiny 2px move -> midpoint (351, 300)
+    expect(handlers.onPanScreenDelta).toHaveBeenCalledTimes(1);
+    const [panDx, panDy] = handlers.onPanScreenDelta.mock.calls[0] as [number, number];
+    expect(Math.abs(panDx)).toBeLessThan(5);
+    expect(Math.abs(panDy)).toBeLessThan(5);
   });
 });

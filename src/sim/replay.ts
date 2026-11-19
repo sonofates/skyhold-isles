@@ -165,6 +165,7 @@ export function computeSimStateHash(world: SimWorld): string {
   h.str(ws.state);
   h.f64(ws.currentWaveIndex);
   h.f64(ws.interWaveTimer);
+  h.f64(ws.getAutoShortenedBy());
   h.f64(ws.waveElapsed);
   h.f64(ws.pendingClearBonus);
   h.u32(ws.isEndless ? 1 : 0);
@@ -714,16 +715,26 @@ export class SimReplayPlayer {
       if (this.world.outcome !== 'ongoing') {
         if (this.world.outcome === 'won' && !this.finished) {
           let resumed = false;
+          let resumeTick = this.world.tick;
           while (this.cmdIndex < this.replay.commands.length) {
-            const cmd = this.replay.commands[this.cmdIndex].command;
+            const entry = this.replay.commands[this.cmdIndex];
             this.cmdIndex++;
-            const applied = this.world.applyCommand(cmd);
-            if (cmd.kind === 'enterEndless') {
+            const applied = this.world.applyCommand(entry.command);
+            if (entry.command.kind === 'enterEndless') {
               resumed = applied;
+              resumeTick = entry.tick;
               break;
             }
           }
           if (!resumed) break;
+          while (
+            this.cmdIndex < this.replay.commands.length &&
+            this.replay.commands[this.cmdIndex].tick <= resumeTick
+          ) {
+            this.world.applyCommand(this.replay.commands[this.cmdIndex].command);
+            this.cmdIndex++;
+          }
+          if (this.world.tick >= this.totalTicks && this.cmdIndex >= this.replay.commands.length) break;
         } else {
           break;
         }

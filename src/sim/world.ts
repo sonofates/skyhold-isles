@@ -933,7 +933,7 @@ export class SimWorld {
     this.spatialHash.query(flyerHitX, flyerHitZ, 1.4, _hoverCandidates);
     for (let i = 0; i < _hoverCandidates.length; i++) {
       const e = this.enemyPool.items[_hoverCandidates[i]];
-      if (!e.active || !e.flying) continue;
+      if (!e.active || e.hp <= 0 || !e.flying) continue;
       const dx = e.x - flyerHitX;
       const dz = e.z - flyerHitZ;
       const dSq = dx * dx + dz * dz;
@@ -948,7 +948,7 @@ export class SimWorld {
     this.spatialHash.query(groundHitX, groundHitZ, 1.4, _hoverCandidates);
     for (let i = 0; i < _hoverCandidates.length; i++) {
       const e = this.enemyPool.items[_hoverCandidates[i]];
-      if (!e.active || e.flying) continue;
+      if (!e.active || e.hp <= 0 || e.flying || e.burrowed) continue;
       const dx = e.x - groundHitX;
       const dz = e.z - groundHitZ;
       const dSq = dx * dx + dz * dz;

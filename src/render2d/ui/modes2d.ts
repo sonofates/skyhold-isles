@@ -18,7 +18,7 @@ import {
 import { dailyChallengeFor, utcDayNumber, type DailyChallenge } from '../../data/daily.ts';
 import { getLevelById, LEVELS_2D } from '../../data/levels2d/index.ts';
 import type { LevelDef } from '../../data/levels/types.ts';
-import { NEUTRAL_RUN_MODIFIERS, type RunModifiers } from '../../data/runModifiers.ts';
+import { isNeutralRun, NEUTRAL_RUN_MODIFIERS, type RunModifiers } from '../../data/runModifiers.ts';
 import { workshopModifiers, type WorkshopRanks } from '../../data/workshop.ts';
 import type { RunConfig } from '../../game/runConfig.ts';
 import { indexOf2D } from './progress2d.ts';
@@ -268,10 +268,11 @@ export function resolveQueryRun2D(
 
   const workshop = applySaveModifiers ? (progress.workshop ?? {}) : {};
   const hasWorkshop = Object.keys(workshop).length > 0;
-  const modifiers =
+  const composed =
     !hasWorkshop && runConfig.challenges.length === 0
       ? NEUTRAL_RUN_MODIFIERS
       : composeRunModifiers2D(workshop, runConfig.challenges);
+  const modifiers = isNeutralRun(composed) ? NEUTRAL_RUN_MODIFIERS : composed;
 
   return { levelId, level, runConfig, modifiers };
 }

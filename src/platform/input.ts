@@ -253,7 +253,12 @@ export class InputManager {
         if (Math.hypot(vx, vy) >= FLING_MIN_SPEED) this.handlers.onFling?.(vx, vy);
       }
       this.pointers.delete(e.pointerId);
-      if (this.pointers.size === 0) {
+      if (this.pointers.size === 2) {
+        const pts = Array.from(this.pointers.values());
+        this.prevPinchDist = Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y);
+        this.prevMidX = (pts[0].x + pts[1].x) * 0.5;
+        this.prevMidY = (pts[0].y + pts[1].y) * 0.5;
+      } else if (this.pointers.size === 0) {
         this.isDragging = false;
         this.dragButton = -1;
         this.longPressFired = false;

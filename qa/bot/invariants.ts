@@ -213,10 +213,24 @@ export class InvariantMonitor {
     });
 
     events.on('enemyBlocked', (ev) => {
+      if (this.blockedEventUids.has(ev.enemyId)) {
+        this.record(
+          'entity_leak',
+          this.currentTick,
+          `duplicate enemyBlocked for uid=${ev.enemyId} (${ev.enemyType}) without intervening enemyUnblocked`,
+        );
+      }
       this.blockedEventUids.add(ev.enemyId);
     });
 
     events.on('enemyUnblocked', (ev) => {
+      if (!this.blockedEventUids.has(ev.enemyId)) {
+        this.record(
+          'entity_leak',
+          this.currentTick,
+          `orphan enemyUnblocked for uid=${ev.enemyId} (${ev.enemyType}) without prior enemyBlocked`,
+        );
+      }
       this.blockedEventUids.delete(ev.enemyId);
     });
 
@@ -774,6 +788,14 @@ export class InvariantMonitor {
             'entity_leak',
             tick,
             `lost run left enemy uid=${e.uid} with stale blockers=${e.blockers}+${e.heroBlockers}`,
+          );
+          break;
+        }
+        if (this.blockedEventUids.has(e.uid)) {
+          this.record(
+            'entity_leak',
+            tick,
+            `lost run left active enemy uid=${e.uid} without matching enemyUnblocked`,
           );
           break;
         }
