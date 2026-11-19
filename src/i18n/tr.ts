@@ -192,7 +192,7 @@ export const TR: { readonly [K in MsgKey]: Msg } = {
   'ring.signature': '{name}: {desc}',
   'ring.sell': 'Sat: {name}',
   'ring.refund': 'İade: {n} altın',
-  'ring.record': { one: '{k} düşman yenildi · {d} hasar', other: '{k} düşman yenildi · {d} hasar' },
+  'ring.record': { one: '{n} düşman yenildi · {d} hasar', other: '{n} düşman yenildi · {d} hasar' },
   'ring.targetTitle': 'Hedef: {mode}',
   'ring.targetHint': 'Dokun, hedef {mode} olsun',
   'ring.rallyTitle': 'Toplanma noktası',

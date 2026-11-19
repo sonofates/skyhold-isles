@@ -186,7 +186,7 @@ export const EN = {
   'ring.signature': '{name}: {desc}',
   'ring.sell': 'Sell {name}',
   'ring.refund': 'Refund: {n} gold',
-  'ring.record': { one: '{k} foe defeated · {d} damage', other: '{k} foes defeated · {d} damage' },
+  'ring.record': { one: '{n} foe defeated · {d} damage', other: '{n} foes defeated · {d} damage' },
   'ring.targetTitle': 'Targeting: {mode}',
   'ring.targetHint': 'Tap to switch to {mode}',
   'ring.rallyTitle': 'Rally point',

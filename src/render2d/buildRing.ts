@@ -575,7 +575,7 @@ export class BuildRing {
     const nextTier = Math.min(3, tier + 1) as 1 | 2 | 3;
     const name = towerName(info.type);
     const roman = ['I', 'II', 'III'];
-    const record = info.record ? msg('ring.record', { k: info.record.kills, d: Math.round(info.record.damage) }) : '';
+    const record = info.record ? msg('ring.record', { n: info.record.kills, d: Math.round(info.record.damage) }) : '';
     let i = 0;
     // Upgrade: next-tier portrait with an upgrade arrow badge.
     {
