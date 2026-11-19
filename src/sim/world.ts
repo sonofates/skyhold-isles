@@ -348,7 +348,7 @@ export class SimWorld {
       case 'castHeroSkill':
         return this.castHeroSkill(command.slot, command.x ?? NaN, command.z ?? NaN);
       case 'castAbility':
-        return this.castAbility(command.id, command.x ?? 0, command.z ?? 0);
+        return this.castAbility(command.id, command.x ?? NaN, command.z ?? NaN);
       case 'startEndlessFromStart':
         return this.startEndlessFromStart();
       case 'enterEndless':
@@ -453,7 +453,7 @@ export class SimWorld {
   }
 
   /** Unified global ability cast (`'meteor'` at `(x, z)` or `'overcharge'`). */
-  castAbility(id: AbilityId, x = 0, z = 0): boolean {
+  castAbility(id: AbilityId, x = NaN, z = NaN): boolean {
     if (id === 'meteor') return this.castMeteor(x, z);
     if (id === 'overcharge') return this.castOvercharge();
     return false;

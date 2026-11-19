@@ -264,9 +264,23 @@ describe('Tick-stamped SimCommand recording & SimReplayPlayer', () => {
       { version: 1, levelId: 'l1c', seed: 1, commands: [{ tick: -1, command: { kind: 'startWave' } }] },
       { version: 1, levelId: 'l1c', seed: 1, commands: [{ tick: 0, command: { kind: 'unknown' } }] },
       { version: 1, levelId: 'l1c', seed: 1, commands: [{ tick: 0, command: { kind: 'moveHero', x: NaN, z: 0 } }] },
+      { version: 1, levelId: 'l1c', seed: 1, commands: [{ tick: 0, command: { kind: 'castHeroSkill', slot: 0, x: NaN, z: 0 } }] },
+      { version: 1, levelId: 'l1c', seed: 1, commands: [{ tick: 0, command: { kind: 'castHeroSkill', slot: 0, x: 1 } }] },
+      { version: 1, levelId: 'l1c', seed: 1, commands: [{ tick: 0, command: { kind: 'castAbility', id: 'meteor' } }] },
+      { version: 1, levelId: 'l1c', seed: 1, commands: [{ tick: 0, command: { kind: 'castAbility', id: 'meteor', x: Infinity, z: 0 } }] },
     ]) {
       expect(parseSimReplay(bad)).toBeNull();
     }
+
+    // Unknown or duplicate hero skill IDs in a replay payload are stripped cleanly.
+    const sanitizedHeroReplay = parseSimReplay({
+      version: 1,
+      levelId: 'l1c',
+      seed: 7,
+      hero: { heroId: 'wren', level: 5, skills: ['wren_bow_1', 'bogus_node', 'wren_bow_1'] },
+      commands: [{ tick: 0, seq: 0, command: { kind: 'castAbility', id: 'overcharge' } }],
+    });
+    expect(sanitizedHeroReplay?.hero?.skills).toEqual(['wren_bow_1']);
 
     const root = join(__dirname, '../..');
     for (const rel of ['src/sim/replay.ts', 'src/sim/world.ts', 'src/core/gameLoop.ts']) {

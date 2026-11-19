@@ -131,11 +131,6 @@ export interface HeroRunSelection {
   readonly skills: readonly string[];
 }
 
-function sanitizeXp(val: unknown): number {
-  if (typeof val !== 'number' || !Number.isFinite(val)) return 0;
-  return Math.max(0, Math.min(MAX_HERO_XP, Math.floor(val)));
-}
-
 /** Cumulative XP threshold required to reach `level` (`1..20`). */
 export function xpForHeroLevel(level: number): number {
   const clamped = Math.max(1, Math.min(HERO_MAX_LEVEL, Math.floor(Number.isFinite(level) ? level : 1)));
@@ -144,19 +139,13 @@ export function xpForHeroLevel(level: number): number {
 
 /** Hero level (`1..20`) for a total persistent XP count. */
 export function heroLevel(xp: number): number {
-  const cleanXp = sanitizeXp(xp);
-  let lvl = 1;
-  for (let i = 1; i < HERO_LEVEL_XP.length; i++) {
-    if (cleanXp >= HERO_LEVEL_XP[i]) lvl = i + 1;
-    else break;
-  }
-  return lvl;
+  return heroLevelFromXp(xp);
 }
 
 /** Detailed level & XP-bar progress for a given total XP count. */
 export function heroLevelProgress(xp: number): HeroLevelProgress {
-  const cleanXp = sanitizeXp(xp);
-  const level = heroLevel(cleanXp);
+  const cleanXp = sanitizeHeroXp(xp);
+  const level = heroLevelFromXp(cleanXp);
   const currentLevelXp = HERO_LEVEL_XP[level - 1] ?? 0;
   const nextLevelXp = level < HERO_MAX_LEVEL ? (HERO_LEVEL_XP[level] ?? null) : null;
   const xpIntoLevel = cleanXp - currentLevelXp;
@@ -199,16 +188,13 @@ export function isHeroUnlocked(
   const rule = HERO_DEFS[heroId].unlock;
   if (rule.kind === 'starter') return true;
   const cleared = clearedIslandsCount2D(progress, levels);
-  return cleared >= rule.count || progress.unlockedLevelIndex >= rule.count;
+  const frontier = Number.isFinite(progress.unlockedLevelIndex) ? progress.unlockedLevelIndex : 0;
+  return cleared >= rule.count || frontier >= rule.count;
 }
 
 /** Fresh default `HeroSaveData` (`bran` selected, 0 XP and empty skill trees for all 5 heroes). */
 export function createDefaultHeroSave(): HeroSaveData {
-  const roster: Partial<Record<HeroId, HeroProgressEntry>> = {};
-  for (let i = 0; i < HERO_IDS.length; i++) {
-    roster[HERO_IDS[i]] = { xp: 0, skills: [] };
-  }
-  return { selectedHero: 'bran', roster };
+  return createFreshHeroSaveData();
 }
 
 /** True when `unlockedSkills` satisfies `node`'s prerequisite rule (`all` or `minPrerequisites`). */
@@ -216,28 +202,12 @@ export function arePrerequisitesMet(
   node: HeroSkillNodeDef,
   unlockedSkills: readonly string[],
 ): boolean {
-  const needed = node.minPrerequisites ?? node.prerequisites.length;
-  if (needed <= 0) return true;
-  let count = 0;
-  for (let i = 0; i < node.prerequisites.length; i++) {
-    if (unlockedSkills.includes(node.prerequisites[i])) count++;
-  }
-  return count >= needed;
+  return areHeroNodePrerequisitesMet(node, unlockedSkills);
 }
 
 /** Total skill points spent across `unlockedSkills` for `heroId`. */
 export function heroSkillPointsSpent(heroId: HeroId, unlockedSkills: readonly string[]): number {
-  let spent = 0;
-  const seen = new Set<string>();
-  for (let i = 0; i < unlockedSkills.length; i++) {
-    const id = unlockedSkills[i];
-    if (seen.has(id)) continue;
-    const node = getHeroSkillNode(heroId, id);
-    if (!node) continue;
-    seen.add(id);
-    spent += node.cost;
-  }
-  return spent;
+  return countHeroSkillPointsSpent(heroId, unlockedSkills);
 }
 
 /**
@@ -250,31 +220,7 @@ export function sanitizeHeroSkills(
   rawSkills: unknown,
   maxSkillPoints: number,
 ): string[] {
-  if (!Array.isArray(rawSkills)) return [];
-  const candidates: HeroSkillNodeDef[] = [];
-  const seen = new Set<string>();
-  for (let i = 0; i < rawSkills.length; i++) {
-    const id: unknown = rawSkills[i];
-    if (typeof id !== 'string' || seen.has(id)) continue;
-    const node = getHeroSkillNode(heroId, id);
-    if (!node) continue;
-    seen.add(id);
-    candidates.push(node);
-  }
-  if (candidates.length === 0) return [];
-
-  // Sort by ascending tier so lower tiers are validated before higher tiers / capstones.
-  candidates.sort((a, b) => a.tier - b.tier);
-  const accepted: string[] = [];
-  let costSum = 0;
-  for (let i = 0; i < candidates.length; i++) {
-    const node = candidates[i];
-    if (!arePrerequisitesMet(node, accepted)) return [];
-    costSum += node.cost;
-    if (costSum > maxSkillPoints) return [];
-    accepted.push(node.id);
-  }
-  return accepted;
+  return sanitizeHeroSkillsForBudget(heroId, rawSkills, maxSkillPoints);
 }
 
 /**
@@ -286,28 +232,10 @@ export function migrateHeroSave(
   progress?: ProgressData,
   levels: readonly Pick<LevelDef, 'id'>[] = LEVELS_2D,
 ): HeroSaveData {
-  const out = createDefaultHeroSave();
-  if (!raw || typeof raw !== 'object') return out;
-  const obj = raw as { selectedHero?: unknown; roster?: unknown };
-  const rawRoster =
-    obj.roster && typeof obj.roster === 'object' ? (obj.roster as Record<string, unknown>) : {};
-
-  for (let i = 0; i < HERO_IDS.length; i++) {
-    const id = HERO_IDS[i];
-    const entryRaw = rawRoster[id];
-    if (!entryRaw || typeof entryRaw !== 'object') continue;
-    const e = entryRaw as { xp?: unknown; skills?: unknown };
-    const xp = sanitizeXp(e.xp);
-    const pts = heroSkillPointsForLevel(heroLevel(xp));
-    const skills = sanitizeHeroSkills(id, e.skills, pts);
-    out.roster[id] = { xp, skills };
-  }
-
-  if (isHeroId(obj.selectedHero)) {
-    const ok = progress ? isHeroUnlocked(progress, obj.selectedHero, levels) : true;
-    out.selectedHero = ok ? obj.selectedHero : 'bran';
-  }
-  return out;
+  if (!progress) return sanitizeHeroSaveData(raw);
+  const cleared = clearedIslandsCount2D(progress, levels);
+  const frontier = Number.isFinite(progress.unlockedLevelIndex) ? progress.unlockedLevelIndex : 0;
+  return sanitizeHeroSaveData(raw, cleared, frontier);
 }
 
 function cloneWithHeroes(progress: ProgressData, heroes: HeroSaveData): ProgressData {

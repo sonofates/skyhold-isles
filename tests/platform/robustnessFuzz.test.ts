@@ -2,8 +2,11 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { EventBus } from '../../src/core/eventBus.ts';
 import { SeededRng } from '../../src/core/rng.ts';
 import type { HeroId, ProgressData } from '../../src/core/types.ts';
+import { computeMeteorDamage } from '../../src/data/abilities.ts';
 import { BALANCE } from '../../src/data/balance.ts';
 import { CHALLENGE_IDS, challengeModifiers, runModifiersFor } from '../../src/data/challenges.ts';
+import { combineRunModifiers } from '../../src/data/runModifiers.ts';
+import { LEVELS } from '../../src/data/levels/index.ts';
 import {
   applyDailyWin,
   createDailyRecord,
@@ -13,6 +16,7 @@ import {
   utcDayNumber,
 } from '../../src/data/daily.ts';
 import {
+  isHeroUnlocked,
   countHeroSkillPointsSpent,
   defaultLevel20Skills,
   HERO_IDS,
@@ -21,8 +25,9 @@ import {
   xpForHeroLevel,
 } from '../../src/render2d/heroes2d.ts';
 import { LEVEL_L1C, LEVELS_2D } from '../../src/data/levels2d/index.ts';
-import { maxedWorkshopRanks, WORKSHOP_UPGRADES, workshopModifiers } from '../../src/data/workshop.ts';
+import { buyRank, maxedWorkshopRanks, WORKSHOP_UPGRADES, workshopModifiers } from '../../src/data/workshop.ts';
 import { starWallet } from '../../src/game/progression.ts';
+import { DoubleTapDetector, VelocityTracker } from '../../src/platform/gestures.ts';
 import {
   decodeSaveCode,
   describeMergeGain,
@@ -43,7 +48,7 @@ import {
   recordWin2D,
   remapProgress,
 } from '../../src/render2d/ui/progress2d.ts';
-import { buildEndlessWaveDef } from '../../src/sim/waveSystem.ts';
+import { buildEndlessWaveDef, computeEarlyCallBonus } from '../../src/sim/waveSystem.ts';
 import { SimWorld } from '../../src/sim/world.ts';
 
 function installMemoryStorage(): Map<string, string> {
@@ -604,5 +609,135 @@ describe('Daily Squall, Endless escalations, and Silent Skies + Hero interaction
     }
     expect(performance.now() - t0).toBeLessThan(1500);
     expect(Number.isFinite(world.gold)).toBe(true);
+  });
+
+  it('preserves positional island alignment in loadProgress2D when stored ids contain corrupted slots', () => {
+    const store = installMemoryStorage();
+    const subset = LEVELS_2D.slice(0, 3); // ['l1c', 'i01', 'i02']
+    store.set(
+      PROGRESS_2D_KEY,
+      JSON.stringify({
+        ids: [subset[0].id, null, subset[2].id],
+        progress: {
+          version: 2,
+          unlockedLevelIndex: 2,
+          bestStars: [3, 2, 1],
+          clears: [1, 1, 1],
+          bestLives: [20, 15, 11],
+          bestEndlessWaves: [0, 18, 14],
+          challengeClears: [['bowless'], ['quietGuns'], ['thaw']],
+        },
+      }),
+    );
+
+    const loaded = loadProgress2D(subset);
+    // Slot 0 ('l1c') keeps 3★, slot 1 ('i01' was missing/null in stored ids) stays 0★,
+    // and slot 2 ('i02') keeps its own 1★ / wave 14 instead of shifting onto slot 1's 2★!
+    expect(loaded.bestStars).toEqual([3, 0, 1]);
+    expect(loaded.bestEndlessWaves).toEqual([0, 0, 14]);
+    expect(loaded.challengeClears[2]).toEqual(['thaw']);
+  });
+
+  it('guards NaN/Infinity traps across buyRank, meteor/early-call math, combineRunModifiers, gestures, and tile grid', () => {
+    expect(buyRank({}, 'treasury', NaN)).toBeNull();
+    expect(buyRank({}, 'treasury', Infinity)).toBeNull();
+    expect(buyRank({}, 'treasury', -5)).toBeNull();
+    expect(buyRank({}, 'treasury', 1)).toEqual({ treasury: 1 });
+
+    expect(computeMeteorDamage(NaN)).toBe(185);
+    expect(computeMeteorDamage(Infinity)).toBe(185);
+    expect(computeEarlyCallBonus(NaN, false)).toBe(0);
+    expect(computeEarlyCallBonus(Infinity, false)).toBe(0);
+
+    const combined = combineRunModifiers({
+      startGoldBonus: NaN,
+      startGoldMul: Infinity,
+      maxLives: NaN,
+      towerFireRateMul: { archer: NaN, cannon: 1.05 },
+    });
+    expect(combined.startGoldBonus).toBe(0);
+    expect(combined.startGoldMul).toBe(1);
+    expect(combined.maxLives).toBeNull();
+    expect(combined.towerFireRateMul.archer).toBeUndefined();
+    expect(combined.towerFireRateMul.cannon).toBe(1.05);
+
+    const unmigrated = createDefaultProgress(LEVELS_2D.length);
+    (unmigrated as { unlockedLevelIndex: number }).unlockedLevelIndex = Infinity;
+    expect(isHeroUnlocked(unmigrated, 'sela', LEVELS_2D)).toBe(false);
+
+    const vt = new VelocityTracker();
+    vt.add(0, 0, 0);
+    vt.add(NaN, 10, 50);
+    vt.add(100, 0, 50);
+    expect(vt.velocity().vx).toBe(2000);
+
+    const dt = new DoubleTapDetector();
+    expect(dt.register(10, 10, 100)).toBe(false);
+    expect(dt.register(NaN, 10, 150)).toBe(false);
+    expect(dt.register(12, 12, 200)).toBe(true);
+
+    // 3D tile grid rejects fractional coordinates instead of truncating into Int32Array slots.
+    const tileWorld = new SimWorld(LEVELS[0], new EventBus());
+    tileWorld.gold = 9999;
+    let grassCol = -1;
+    let grassRow = -1;
+    for (let r = 0; r < tileWorld.grid.rows && grassCol === -1; r++) {
+      for (let c = 0; c < tileWorld.grid.cols; c++) {
+        if (tileWorld.grid.canPlaceTower(c, r)) {
+          grassCol = c;
+          grassRow = r;
+          break;
+        }
+      }
+    }
+    expect(grassCol).toBeGreaterThanOrEqual(0);
+    expect(tileWorld.grid.isInside(grassCol + 0.5, grassRow)).toBe(false);
+    expect(tileWorld.placeTower(grassCol + 0.5, grassRow, 'archer')).toBeNull();
+    expect(tileWorld.grid.getTowerIdAt(grassCol, grassRow)).toBe(-1);
+  });
+
+  it('settles moving heroes on victory and skips spurious armorCracked on lethal slow hits', () => {
+    const events = new EventBus();
+    const world = new SimWorld(LEVEL_L1C, events, {
+      heroId: 'wren',
+      heroLevel: 20,
+      heroSkills: defaultLevel20Skills('wren'),
+    });
+    world.gold = 5000;
+    world.placeTowerOnPlot(0, 'frost');
+    world.startNextWave();
+
+    // Reject partial-NaN / ±Infinity hero skill & targetless Meteor coordinates cleanly.
+    expect(world.castHeroSkill(0, Infinity, 0)).toBe(false);
+    expect(world.castHeroSkill(0, 1, NaN)).toBe(false);
+    expect(world.castAbility('meteor')).toBe(false);
+
+    // Start a long hero move order and win mid-walk: hero settles to 'idle' with 0 waypoints.
+    const farPt = world.groundPath.points[0];
+    expect(world.commandHeroMove(farPt.x, farPt.z)).toBe(true);
+    expect(world.hero!.state).toBe('moving');
+    world.debugForceWin();
+    expect(world.hero!.state).toBe('idle');
+    expect(world.hero!.waypoints).toHaveLength(0);
+
+    // Lethal slow hit on a low-HP Golem does not emit spurious armorCracked on its corpse.
+    const crackEvents: number[] = [];
+    const golemEvents = new EventBus();
+    golemEvents.on('armorCracked', (ev) => crackEvents.push(ev.enemyId));
+    const golemWorld = new SimWorld(LEVEL_L1C, golemEvents);
+    golemWorld.gold = 2000;
+    const frostTower = golemWorld.placeTowerOnPlot(0, 'frost')!;
+    golemWorld.startNextWave();
+    const golem = golemWorld.enemySystem.spawnEnemy('golem', 1, false, 0)!;
+    golem.hp = 1;
+    golem.x = frostTower.x + 1.0;
+    golem.z = frostTower.z;
+    golemWorld.spatialHash.clear();
+    golemWorld.spatialHash.insert(golem.poolIndex, golem.x, golem.z);
+    const frostBolt = golemWorld.projectileSystem.spawnProjectile(frostTower, golem, 0.75)!;
+    frostBolt.progress = 1;
+    golemWorld.projectileSystem.update(BALANCE.fixedDt, golemWorld.towers);
+    expect(golem.hp).toBe(0);
+    expect(crackEvents).toHaveLength(0);
   });
 });

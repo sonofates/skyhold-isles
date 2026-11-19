@@ -49,7 +49,7 @@ export function computeEarlyCallBonus(
   if (isClearingWave) {
     return BALANCE.earlyWaveBonusMaxGold;
   }
-  if (remainingCountdownSec <= 0) {
+  if (!Number.isFinite(remainingCountdownSec) || remainingCountdownSec <= 0) {
     return 0;
   }
   const ratio = Math.min(1, remainingCountdownSec / BALANCE.interWaveCountdownSec);

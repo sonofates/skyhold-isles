@@ -93,14 +93,21 @@ export class MapGrid {
   }
 
   getTile(col: number, row: number): TileType {
-    if (col < 0 || col >= this.cols || row < 0 || row >= this.rows) {
+    if (!this.isInside(col, row)) {
       return 'empty';
     }
     return this.tiles[row][col];
   }
 
   isInside(col: number, row: number): boolean {
-    return col >= 0 && col < this.cols && row >= 0 && row < this.rows;
+    return (
+      Number.isInteger(col) &&
+      Number.isInteger(row) &&
+      col >= 0 &&
+      col < this.cols &&
+      row >= 0 &&
+      row < this.rows
+    );
   }
 
   getTowerIdAt(col: number, row: number): number {

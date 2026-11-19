@@ -177,7 +177,7 @@ export function buyRank(
   availableStars: number,
 ): Record<string, number> | null {
   const cost = nextRankCost(ranks, id);
-  if (cost === null || cost > availableStars) return null;
+  if (cost === null || !Number.isFinite(availableStars) || availableStars < cost) return null;
   return { ...sanitizeRanks(ranks), [id]: rankOf(ranks, id) + 1 };
 }
 

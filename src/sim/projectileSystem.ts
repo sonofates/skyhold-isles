@@ -446,7 +446,7 @@ export class ProjectileSystem {
       if (target.active && target.uid === p.targetUid && target.hp > 0) {
         const res = this.enemySystem.applyDamage(target, p.damage + Math.min(target.armor, p.armorPierce));
         if (target.type === 'boss' && res.actualDamage > 0) hitBoss = true;
-        if (p.slowRatio > 0) {
+        if (p.slowRatio > 0 && target.hp > 0) {
           this.enemySystem.applySlow(target, p.slowRatio, p.slowDuration);
         }
         if (sourceTower) {
@@ -514,7 +514,7 @@ export class ProjectileSystem {
       if (chill > 1.05 && res.actualDamage > 0) {
         this.events.emit('brittleCrack', { x: e.x, y: e.flying ? e.y : 0.5, z: e.z, bonus: chill - 1 });
       }
-      if (p.slowRatio > 0) {
+      if (p.slowRatio > 0 && e.hp > 0) {
         this.enemySystem.applySlow(e, p.slowRatio, p.slowDuration);
       }
       if (sourceTower) {

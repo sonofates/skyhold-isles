@@ -122,12 +122,16 @@ export interface HeroRuntimeState {
   readonly skills: readonly [HeroSkillRuntimeState, HeroSkillRuntimeState];
 }
 
-interface PendingVolleyWave {
+export interface ReadonlyPendingVolley {
   readonly x: number;
   readonly z: number;
   readonly radius: number;
   readonly damage: number;
   readonly slow: boolean;
+  readonly remainingSec: number;
+}
+
+interface PendingVolleyWave extends ReadonlyPendingVolley {
   remainingSec: number;
 }
 
@@ -361,10 +365,30 @@ export class HeroSystem {
       this.hero.targetPoolIndex = -1;
       this.hero.targetUid = 0;
       this.hero.waypoints.length = 0;
-      if (this.hero.state === 'engaging' || this.hero.state === 'fighting') {
+      if (
+        this.hero.state === 'engaging' ||
+        this.hero.state === 'fighting' ||
+        this.hero.state === 'moving'
+      ) {
         this.hero.state = 'idle';
+        this.hero.postX = this.hero.x;
+        this.hero.postZ = this.hero.z;
       }
     }
+  }
+
+  getPendingVolleys(): readonly ReadonlyPendingVolley[] {
+    return this.pendingVolleys;
+  }
+
+  getEnemyBurnRemaining(poolIndex: number, uid: number): number {
+    if (poolIndex < 0 || poolIndex >= this.burnLeft.length) return 0;
+    return this.burnUid[poolIndex] === uid ? this.burnLeft[poolIndex] : 0;
+  }
+
+  getEnemyBurnDps(poolIndex: number, uid: number): number {
+    if (poolIndex < 0 || poolIndex >= this.burnDps.length) return 0;
+    return this.burnUid[poolIndex] === uid && this.burnLeft[poolIndex] > 0 ? this.burnDps[poolIndex] : 0;
   }
 
   /** Read-only snapshot of the hero and its skill cooldowns for HUD / debug / QA. */
@@ -454,7 +478,11 @@ export class HeroSystem {
     let tz = h.z;
 
     if (act.targetMode === 'point') {
-      if (Number.isFinite(wantX) && Number.isFinite(wantZ)) {
+      const autoAim = Number.isNaN(wantX) && Number.isNaN(wantZ);
+      if (!autoAim && (!Number.isFinite(wantX) || !Number.isFinite(wantZ))) {
+        return false;
+      }
+      if (!autoAim) {
         tx = wantX;
         tz = wantZ;
       } else {

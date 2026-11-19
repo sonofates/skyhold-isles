@@ -67,23 +67,27 @@ export function combineRunModifiers(...patches: readonly RunModifierPatch[]): Ru
   const banned = new Set<TowerType>();
   let abilitiesDisabled = false;
   let championWaves = false;
+  const fin = (v: number | undefined, fb: number): number =>
+    typeof v === 'number' && Number.isFinite(v) ? v : fb;
   for (const p of patches) {
-    startGoldBonus += p.startGoldBonus ?? 0;
-    startGoldMul *= p.startGoldMul ?? 1;
-    bonusLives += p.bonusLives ?? 0;
-    if (p.maxLives !== undefined && p.maxLives !== null) {
+    startGoldBonus += fin(p.startGoldBonus, 0);
+    startGoldMul *= fin(p.startGoldMul, 1);
+    bonusLives += fin(p.bonusLives, 0);
+    if (p.maxLives !== undefined && p.maxLives !== null && Number.isFinite(p.maxLives)) {
       maxLives = maxLives === null ? p.maxLives : Math.min(maxLives, p.maxLives);
     }
-    abilityCooldownMul *= p.abilityCooldownMul ?? 1;
-    killGoldMul *= p.killGoldMul ?? 1;
-    waveBonusMul *= p.waveBonusMul ?? 1;
+    abilityCooldownMul *= fin(p.abilityCooldownMul, 1);
+    killGoldMul *= fin(p.killGoldMul, 1);
+    waveBonusMul *= fin(p.waveBonusMul, 1);
     if (p.towerFireRateMul) {
       for (const [type, mul] of Object.entries(p.towerFireRateMul) as [TowerType, number][]) {
-        towerFireRateMul[type] = (towerFireRateMul[type] ?? 1) * mul;
+        if (typeof mul === 'number' && Number.isFinite(mul)) {
+          towerFireRateMul[type] = (towerFireRateMul[type] ?? 1) * mul;
+        }
       }
     }
-    enemySpeedMul *= p.enemySpeedMul ?? 1;
-    enemyHpMul *= p.enemyHpMul ?? 1;
+    enemySpeedMul *= fin(p.enemySpeedMul, 1);
+    enemyHpMul *= fin(p.enemyHpMul, 1);
     for (const t of p.bannedTowers ?? []) banned.add(t);
     abilitiesDisabled = abilitiesDisabled || p.abilitiesDisabled === true;
     championWaves = championWaves || p.championWaves === true;

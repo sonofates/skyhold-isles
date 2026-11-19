@@ -48,5 +48,6 @@ export const ABILITY_DEFS = {
 
 export function computeMeteorDamage(waveOneBased: number): number {
   const def = ABILITY_DEFS.meteor;
-  return Math.round(def.baseDamage * (1 + Math.max(0, waveOneBased - 1) * def.waveDamageScale));
+  const w = Number.isFinite(waveOneBased) ? Math.max(1, Math.min(10_000, Math.floor(waveOneBased))) : 1;
+  return Math.round(def.baseDamage * (1 + (w - 1) * def.waveDamageScale));
 }

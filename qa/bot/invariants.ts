@@ -666,6 +666,20 @@ export class InvariantMonitor {
           `won run leaked ${w.heroSystem.fireRings.length} hero fireRings`,
         );
       }
+      if (w.heroSystem.getPendingVolleys().length !== 0) {
+        this.record(
+          'entity_leak',
+          tick,
+          `won run leaked ${w.heroSystem.getPendingVolleys().length} pendingVolleys`,
+        );
+      }
+      if (w.hero && (w.hero.state === 'moving' || w.hero.state === 'engaging' || w.hero.state === 'fighting')) {
+        this.record(
+          'entity_leak',
+          tick,
+          `won run left hero in active transient state=${w.hero.state}`,
+        );
+      }
       w.spatialHash.query(0, 0, 500, _hashQueryBuf);
       if (_hashQueryBuf.length !== 0) {
         this.record(

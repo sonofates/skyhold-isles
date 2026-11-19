@@ -6,9 +6,9 @@ import type {
   TargetingMode,
   TowerType,
 } from '../core/types.ts';
-import { ABILITY_IDS } from '../data/abilities.ts';
+import { ABILITY_DEFS, ABILITY_IDS } from '../data/abilities.ts';
 import { BALANCE } from '../data/balance.ts';
-import { isHeroId } from '../data/heroes.ts';
+import { getHeroSkillNode, isHeroId } from '../data/heroes.ts';
 import type { LevelDef } from '../data/levels/types.ts';
 import {
   combineRunModifiers,
@@ -220,6 +220,7 @@ export function computeSimStateHash(world: SimWorld): string {
   }
 
   const hero = world.hero;
+  h.u32(world.heroSystem.rng.getState());
   if (hero) {
     h.u32(1);
     h.str(hero.heroId);
@@ -227,8 +228,11 @@ export function computeSimStateHash(world: SimWorld): string {
     h.str(hero.state);
     h.f64(hero.x);
     h.f64(hero.z);
+    h.f64(hero.postX);
+    h.f64(hero.postZ);
     h.f64(hero.hp);
     h.f64(hero.respawnTimer);
+    h.f64(hero.rallyBannerTimer);
     h.f64(hero.skillCooldowns[0]);
     h.f64(hero.skillCooldowns[1]);
     h.f64(hero.totalDamageDealt);
@@ -257,6 +261,16 @@ export function computeSimStateHash(world: SimWorld): string {
     h.f64(r.dps);
   }
 
+  const pendingVolleys = world.heroSystem.getPendingVolleys();
+  h.u32(pendingVolleys.length);
+  for (let i = 0; i < pendingVolleys.length; i++) {
+    const pv = pendingVolleys[i];
+    h.f64(pv.x);
+    h.f64(pv.z);
+    h.f64(pv.remainingSec);
+    h.f64(pv.damage);
+  }
+
   const burnZones = world.projectileSystem.getBurnZones();
   h.u32(world.projectileSystem.getActiveBurnZoneCount());
   for (let i = 0; i < burnZones.length; i++) {
@@ -270,12 +284,20 @@ export function computeSimStateHash(world: SimWorld): string {
 
   _activeEnemyOrder.length = 0;
   for (let i = 0; i < world.enemyPool.getActiveCount(); i++) {
-    _activeEnemyOrder.push(world.enemyPool.getActiveIndex(i));
+    const idx = world.enemyPool.getActiveIndex(i);
+    const uid = world.enemyPool.items[idx].uid;
+    let pos = _activeEnemyOrder.length;
+    _activeEnemyOrder.push(idx);
+    while (pos > 0 && world.enemyPool.items[_activeEnemyOrder[pos - 1]].uid > uid) {
+      _activeEnemyOrder[pos] = _activeEnemyOrder[pos - 1];
+      pos--;
+    }
+    _activeEnemyOrder[pos] = idx;
   }
-  _activeEnemyOrder.sort((ia, ib) => world.enemyPool.items[ia].uid - world.enemyPool.items[ib].uid);
   h.u32(_activeEnemyOrder.length);
   for (let i = 0; i < _activeEnemyOrder.length; i++) {
-    const e = world.enemyPool.items[_activeEnemyOrder[i]];
+    const idx = _activeEnemyOrder[i];
+    const e = world.enemyPool.items[idx];
     h.u32(e.uid);
     h.str(e.type);
     h.f64(e.x);
@@ -285,13 +307,21 @@ export function computeSimStateHash(world: SimWorld): string {
     h.f64(e.shield);
     h.f64(e.slowRatio);
     h.f64(e.stunTimer);
+    h.f64(world.heroSystem.getEnemyBurnRemaining(idx, e.uid));
+    h.f64(world.heroSystem.getEnemyBurnDps(idx, e.uid));
   }
 
   _activeProjOrder.length = 0;
   for (let i = 0; i < world.projectilePool.getActiveCount(); i++) {
-    _activeProjOrder.push(world.projectilePool.getActiveIndex(i));
+    const idx = world.projectilePool.getActiveIndex(i);
+    let pos = _activeProjOrder.length;
+    _activeProjOrder.push(idx);
+    while (pos > 0 && _activeProjOrder[pos - 1] > idx) {
+      _activeProjOrder[pos] = _activeProjOrder[pos - 1];
+      pos--;
+    }
+    _activeProjOrder[pos] = idx;
   }
-  _activeProjOrder.sort((a, b) => a - b);
   h.u32(_activeProjOrder.length);
   for (let i = 0; i < _activeProjOrder.length; i++) {
     const p = world.projectilePool.items[_activeProjOrder[i]];
@@ -368,17 +398,26 @@ function parseSimCommand(raw: unknown): SimCommand | null {
         : null;
     case 'castHeroSkill': {
       if (c.slot !== 0 && c.slot !== 1) return null;
-      const hasCoords =
-        typeof c.x === 'number' && Number.isFinite(c.x) && typeof c.z === 'number' && Number.isFinite(c.z);
-      return hasCoords
+      const hasX = c.x !== undefined;
+      const hasZ = c.z !== undefined;
+      if (hasX !== hasZ) return null;
+      if (hasX && (typeof c.x !== 'number' || !Number.isFinite(c.x) || typeof c.z !== 'number' || !Number.isFinite(c.z))) {
+        return null;
+      }
+      return hasX
         ? { kind: 'castHeroSkill', slot: c.slot, x: c.x as number, z: c.z as number }
         : { kind: 'castHeroSkill', slot: c.slot };
     }
     case 'castAbility': {
       if (!isAbilityId(c.id)) return null;
-      const hasCoords =
-        typeof c.x === 'number' && Number.isFinite(c.x) && typeof c.z === 'number' && Number.isFinite(c.z);
-      return hasCoords
+      const hasX = c.x !== undefined;
+      const hasZ = c.z !== undefined;
+      if (hasX !== hasZ) return null;
+      if (hasX && (typeof c.x !== 'number' || !Number.isFinite(c.x) || typeof c.z !== 'number' || !Number.isFinite(c.z))) {
+        return null;
+      }
+      if (ABILITY_DEFS[c.id].requiresTarget && !hasX) return null;
+      return hasX
         ? { kind: 'castAbility', id: c.id, x: c.x as number, z: c.z as number }
         : { kind: 'castAbility', id: c.id };
     }
@@ -451,7 +490,18 @@ export function parseSimReplay(input: unknown): SimReplayLog | null {
     if (!isHeroId(h.heroId)) return null;
     const level =
       typeof h.level === 'number' && Number.isFinite(h.level) ? Math.max(1, Math.min(20, Math.floor(h.level))) : 1;
-    const skills = Array.isArray(h.skills) ? h.skills.filter((x): x is string => typeof x === 'string') : [];
+    const skills: string[] = [];
+    if (Array.isArray(h.skills)) {
+      const seen = new Set<string>();
+      for (let k = 0; k < h.skills.length; k++) {
+        const sid: unknown = h.skills[k];
+        if (typeof sid !== 'string' || seen.has(sid)) continue;
+        if (getHeroSkillNode(h.heroId, sid)) {
+          seen.add(sid);
+          skills.push(sid);
+        }
+      }
+    }
     hero = { heroId: h.heroId, level, skills };
   }
 

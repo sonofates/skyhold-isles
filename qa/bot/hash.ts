@@ -116,11 +116,18 @@ export function hashWorldState(world: SimWorld): string {
   for (let i = 0; i < eCount; i++) {
     const poolIdx = ep.getActiveIndex(i);
     h.i32(poolIdx);
+    const uid = ep.items[poolIdx].uid;
+    let pos = _sortedEnemyIndices.length;
     _sortedEnemyIndices.push(poolIdx);
+    while (pos > 0 && ep.items[_sortedEnemyIndices[pos - 1]].uid > uid) {
+      _sortedEnemyIndices[pos] = _sortedEnemyIndices[pos - 1];
+      pos--;
+    }
+    _sortedEnemyIndices[pos] = poolIdx;
   }
-  _sortedEnemyIndices.sort((ia, ib) => ep.items[ia].uid - ep.items[ib].uid);
   for (let i = 0; i < _sortedEnemyIndices.length; i++) {
-    const e = ep.items[_sortedEnemyIndices[i]];
+    const idx = _sortedEnemyIndices[i];
+    const e = ep.items[idx];
     h.i32(e.poolIndex);
     h.i32(e.uid);
     h.str(e.type);
@@ -158,6 +165,8 @@ export function hashWorldState(world: SimWorld): string {
     h.i32(e.heroBlockers);
     h.f64(e.heroDamageReduction);
     h.f64(e.heroMeleeTimer);
+    h.f64(world.heroSystem.getEnemyBurnRemaining(idx, e.uid));
+    h.f64(world.heroSystem.getEnemyBurnDps(idx, e.uid));
   }
 
   const pp = world.projectilePool;
@@ -176,6 +185,26 @@ export function hashWorldState(world: SimWorld): string {
     h.f64(p.progress);
     h.f64(p.duration);
     h.bool(p.fromHero);
+  }
+
+  const burnZones = world.projectileSystem.getBurnZones();
+  h.i32(world.projectileSystem.getActiveBurnZoneCount());
+  for (let i = 0; i < burnZones.length; i++) {
+    const z = burnZones[i];
+    if (!z.active) continue;
+    h.f64(z.x);
+    h.f64(z.z);
+    h.f64(z.timeLeft);
+    h.f64(z.damage);
+  }
+
+  const barracks = world.soldierSystem.barracks;
+  h.i32(barracks.length);
+  for (let i = 0; i < barracks.length; i++) {
+    const b = barracks[i];
+    h.i32(b.towerId);
+    h.f64(b.rallyX);
+    h.f64(b.rallyZ);
   }
 
   const soldiers = world.soldierSystem.soldiers;
@@ -198,6 +227,7 @@ export function hashWorldState(world: SimWorld): string {
     h.f64(s.damageMul);
   }
 
+  h.i32(world.heroSystem.rng.getState());
   const hero = world.hero;
   h.bool(hero !== null);
   if (hero) {
@@ -244,6 +274,16 @@ export function hashWorldState(world: SimWorld): string {
       h.f64(r.z);
       h.f64(r.remainingSec);
       h.f64(r.dps);
+    }
+
+    const volleys = world.heroSystem.getPendingVolleys();
+    h.i32(volleys.length);
+    for (let i = 0; i < volleys.length; i++) {
+      const pv = volleys[i];
+      h.f64(pv.x);
+      h.f64(pv.z);
+      h.f64(pv.remainingSec);
+      h.f64(pv.damage);
     }
   }
 

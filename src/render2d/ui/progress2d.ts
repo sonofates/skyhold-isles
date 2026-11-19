@@ -108,10 +108,11 @@ export function loadProgress2D(levels: readonly LevelDef[] = LEVELS_2D): Progres
     const obj = parsed as Partial<Stored2D>;
     const hasWrapper = 'progress' in obj;
     const payload = hasWrapper ? obj.progress : obj;
-    const validIds = Array.isArray(obj.ids)
-      ? obj.ids.filter((x): x is string => typeof x === 'string' && x.length > 0)
+    const mappedIds = Array.isArray(obj.ids)
+      ? obj.ids.map((x) => (typeof x === 'string' ? x : ''))
       : [];
-    const ids = validIds.length > 0 ? validIds : levels.map((l) => l.id);
+    const hasAnyValidId = mappedIds.some((x) => x.length > 0);
+    const ids = hasAnyValidId ? mappedIds : levels.map((l) => l.id);
     return remapProgress(payload, ids, levels);
   } catch {
     return makeFresh();
