@@ -30,7 +30,6 @@ import type { AbilityId } from '../core/types.ts';
 import type { MapView } from './mapView.ts';
 import type { GateLayer } from './gateLayer.ts';
 import { MASTER_SCALE, maxMapScale, pickMapVariant } from './mapVariant.ts';
-import { computeMapFit } from './viewFit.ts';
 import { mountSettings2D, type Settings2D } from './settingsButton2d.ts';
 import { hudKeepOuts, readSafeInsets } from './uiKit.ts';
 import { gateKeepOutsPx, hudButtonsKeepOut } from './uiLayout.ts';
@@ -288,9 +287,10 @@ async function main(): Promise<void> {
 
   await fontsReady;
   const layout2d = level.layout2d;
-  // Device px per layout px at a screen size: picks the map bake (resolution variant) to load.
+  // Device px per layout px at a screen size: picks the map bake (resolution variant) to load. The
+  // map covers the screen (fullBleed.ts; it only ever shrinks from this).
   const mapNeed = (w: number, h: number): number =>
-    computeMapFit(w, h, layout2d.imageSize[0], layout2d.imageSize[1], layout2d.safeArea).scale * app.renderer.resolution;
+    Math.max(w / layout2d.imageSize[0], h / layout2d.imageSize[1]) * app.renderer.resolution;
   const textureLimit = gl ? Number(gl.getParameter(gl.MAX_TEXTURE_SIZE)) : 4096;
   const maxScale = maxMapScale(isDesktopClient(q), textureLimit, layout2d.imageSize);
   const fronts = ab ? [] : layout2d.gates?.flatMap((gate) => gate.front ? [gate.front.art] : []) ?? [];
@@ -825,7 +825,7 @@ async function main(): Promise<void> {
       const showFoe = game.inspecting && !game.end.visible && !anySheetOpen();
       // Docked in the info slot (it takes it over from the next-wave card while it is open).
       const dk = game.dock;
-      foeCard.update(showFoe ? foe : null, showFoe, dk.info, dk.form === 'bands' ? Math.min(dk.info.w, uiUnit(app.screen.width, app.screen.height) * 46) : dk.info.w, dk.form === 'bands');
+      foeCard.update(showFoe ? foe : null, showFoe, dk.info, dk.info.w, false);
       if (game.inspecting && !foe && !foeCard.debug().shown) game.clearInspect();
     }
     if (coach && coach.step !== 'done') {
@@ -895,7 +895,7 @@ async function main(): Promise<void> {
       // In the dock's info slot: a tapped foe's card has it first, the next-wave card waits for it.
       const dk = game.dock;
       const unit = uiUnit(app.screen.width, app.screen.height);
-      newFoeToast.update(t.deltaMS / 1000, game.end.visible || anySheetOpen() || storyOpen || !!foeCard?.debug().shown, dk.info, dk.form === 'bands' ? Math.min(dk.info.w, unit * 30) : dk.info.w);
+      newFoeToast.update(t.deltaMS / 1000, game.end.visible || anySheetOpen() || storyOpen || !!foeCard?.debug().shown, dk.info, Math.min(dk.info.w, unit * 30));
     }
     livesWarn?.update(game.world.lives, game.world.startingLives, !game.end.visible && !storyOpen && game.world.outcome === 'ongoing');
     if (waveCard) {

@@ -369,11 +369,11 @@ export interface PlaqueLayout {
  * takes more than 40% of the usable width (the wave banner mirrors it on the right), and never
  * gets smaller than what keeps a 4-digit gold readable.
  */
-export function plaqueLayout(w: number, h: number, insets: Insets, aspect: number, slots: PlaqueSlots): PlaqueLayout {
+export function plaqueLayout(w: number, h: number, insets: Insets, aspect: number, slots: PlaqueSlots, size = 1): PlaqueLayout {
   const u = uiScale(w, h);
   const pad = Math.max(8, 14 * u);
   const usableW = w - insets.left - insets.right - pad * 2;
-  const pw = Math.max(170, Math.min(300 * u, usableW * 0.4));
+  const pw = Math.max(170, Math.min(300 * u * size, usableW * 0.4));
   const ph = pw / aspect;
   const x = insets.left + pad;
   const y = h - insets.bottom - pad - ph;
@@ -407,7 +407,8 @@ export interface HudButtonsLayout {
 export function hudButtonsLayout(w: number, h: number, insets: Insets): HudButtonsLayout {
   const u = uiScale(w, h);
   const pad = Math.max(8, 14 * u);
-  const r = Math.max(HUD_MIN_TOUCH / 2, 38 * u);
+  // Compact (the map runs full-bleed under the corner HUD).
+  const r = Math.max(HUD_MIN_TOUCH / 2, 32 * u);
   const edge = w - insets.right - pad;
   return { r, pad, y: insets.top + pad + r, speedX: edge - r, pauseX: edge - r * 3.25, codexX: edge - r * 5.5, settingsX: edge - r * 7.75 };
 }

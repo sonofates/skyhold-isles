@@ -20,9 +20,12 @@ export const BACKDROP_W = 160;
 /** Box-blur radius (backdrop px) and passes: three passes ≈ a Gaussian of σ ≈ 5 % of the width. */
 export const BACKDROP_BLUR_R = 8;
 export const BACKDROP_BLUR_PASSES = 3;
-/** Grade: keep this share of the colour (rest goes to grey), then scale the brightness. */
-export const BACKDROP_SATURATION = 0.6;
-export const BACKDROP_BRIGHTNESS = 0.6;
+/**
+ * Grade: keep this share of the colour (rest goes to grey), then scale the brightness. Light
+ * (full-bleed: a band is rare and thin, and must read as the island's own art, not a dark wall).
+ */
+export const BACKDROP_SATURATION = 0.85;
+export const BACKDROP_BRIGHTNESS = 0.86;
 
 /**
  * Separable box blur of an RGBA buffer in place (edges clamped), `passes` times per axis. Alpha is
@@ -170,8 +173,8 @@ export function buildVignetteTexture(): Texture | null {
   if (!c || !ctx) return null;
   const g = ctx.createRadialGradient(size / 2, size / 2, size * 0.32, size / 2, size / 2, size * 0.72);
   g.addColorStop(0, 'rgba(0,0,0,0)');
-  g.addColorStop(0.5, 'rgba(0,0,0,0.12)');
-  g.addColorStop(1, 'rgba(0,0,0,0.42)');
+  g.addColorStop(0.5, 'rgba(0,0,0,0.06)');
+  g.addColorStop(1, 'rgba(0,0,0,0.24)');
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, size, size);
   return canvasTexture(c);

@@ -1,8 +1,8 @@
 /**
  * The painted ability bar of a 2D run (Meteor Strike, Overcharge) and its aiming.
  *
- * - Bar: two medallion buttons in the HUD dock's tray (hudDock.ts: bottom centre, or a stack over
- *   the plaque on phones), behind the hero group, with a dark recharge sweep + seconds, a gold "ready" glow, the
+ * - Bar: two medallion buttons in the HUD dock's tray (hudDock.ts: one row at the bottom centre),
+ *   behind the hero group, with a dark recharge sweep + seconds, a gold "ready" glow, the
  *   Overcharge surge ring while it lasts, a key chip on desktops (Q / W) and a parchment tooltip on
  *   hover / focus (rules text from src/data/abilities.ts). Disabled look when the run's rules forbid
  *   abilities, dimmed before the first wave and (Overcharge) with no tower built.
@@ -183,27 +183,22 @@ export function mountAbilityBar2D(game: Game2D, opts: AbilityBarOptions): Abilit
 
   let visible = true;
   let box: Rect = { x: 0, y: 0, w: 0, h: 0 };
-  let spot: { x: number; y: number; layout: 'row' | 'stack'; form: string } | null = null;
+  let spot: { x: number; y: number; layout: 'row'; form: string } | null = null;
   let edge = false;
   let d = 60;
   /**
-   * The tray's slot in the HUD dock (hudDock.ts): bottom centre in a row on 16:9-ish screens, a
-   * three-row stack over the plaque on phones / ultrawide. The same on every island; the map is
-   * fitted so nothing playable lies under it.
+   * The tray's slot in the HUD dock (hudDock.ts): one row at the bottom centre on every screen,
+   * slid along the bottom on an island where the centre would cover a plot / road / castle.
    */
   const place = (): void => {
     const k = game.dock;
     d = k.d;
     const gap = k.gap;
     spot = { x: k.tray.x, y: k.tray.y, layout: k.trayLayout, form: k.form };
-    root.classList.remove('vertical', 'block');
-    root.classList.toggle('stack', k.trayLayout === 'stack');
+    root.classList.remove('vertical', 'block', 'stack', 'edge');
     root.classList.toggle('tray', true);
-    // Up a screen side: tooltips / hints / coach arrows go beside it, towards the middle.
-    edge = k.trayLayout === 'stack';
-    root.classList.toggle('edge', edge);
-    if (k.trayLayout === 'stack') root.style.setProperty('--blockw', `${Math.round(k.tray.w)}px`);
-    else root.style.removeProperty('--blockw');
+    edge = false;
+    root.style.removeProperty('--blockw');
     root.style.setProperty('--d', `${d}px`);
     root.style.setProperty('--gap', `${gap}px`);
     root.style.left = `${Math.round(k.tray.x)}px`;

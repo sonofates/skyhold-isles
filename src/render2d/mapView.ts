@@ -3,15 +3,13 @@ import type { Level2DLayout } from '../data/levels/types.ts';
 import {
   backdropPlacement, borderWidth, buildBackdropTexture, buildShadowTextures, buildVignetteTexture, shadowReach,
 } from './mapFrame.ts';
-import { playfieldBoxes, playfieldShapes } from './playfield.ts';
 import type { QualityTier } from './renderResolution.ts';
-import type { Rect } from './uiLayout.ts';
-import { computeMapFit, fitAroundHud, type MapFit } from './viewFit.ts';
+import { computeMapFit, type MapFit } from './viewFit.ts';
 
 /**
  * Painted map + world container. Children of `world` are positioned in map image px; the
  * container carries the fit (scale + offset), so sprite sizes stay locked to the painting.
- * Letterbox bands (the safe-area clamp, or the map shrunk to clear the HUD dock) are a frame
+ * Letterbox bands (an extreme aspect, or the map shrunk to clear the corner HUD) are a frame
  * (mapFrame.ts): the map itself blurred, darkened and desaturated behind everything, a soft shadow
  * and a thin painted border around the image, a light screen vignette.
  */
@@ -96,19 +94,13 @@ export class MapView {
     return this.layout.imageSize[1];
   }
 
-  /** Playfield boxes (roads, plots, caves / castle + headroom, image px), built on first use. */
-  private boxes: Rect[] | null = null;
-
   /**
-   * Fits the map to the screen. With `hud` (the dock's reserved rects, screen px) the map shrinks /
-   * shifts just enough that no road, plot, cave or castle lies under them (viewFit `fitAroundHud`).
+   * Fits the map to the screen: `fit` when the caller placed it (the full-bleed fit around the
+   * corner HUD, fullBleed.ts), else the plain fit (computeMapFit).
    */
-  resize(screenW: number, screenH: number, hud: readonly Rect[] = []): void {
+  resize(screenW: number, screenH: number, fit?: MapFit): void {
     const [iw, ih] = this.layout.imageSize;
-    if (hud.length > 0) {
-      this.boxes ??= playfieldBoxes(playfieldShapes(this.layout));
-      this.fit = fitAroundHud(screenW, screenH, iw, ih, this.layout.safeArea, this.boxes, hud);
-    } else this.fit = computeMapFit(screenW, screenH, iw, ih, this.layout.safeArea);
+    this.fit = fit ?? computeMapFit(screenW, screenH, iw, ih, this.layout.safeArea);
     this.screenW = screenW;
     this.screenH = screenH;
     const f = this.fit;
