@@ -30,7 +30,10 @@ Not touched: `src/sim/**`, `src/data/heroes.ts` (agy's respawn work), `src/data/
   cave (multi-cave islands; the lane marks still show every cave). `state().hornSpot` = `cave` / `dock`.
 - Label "Start!" / "Başla!" (17–22 px+, gold) and the early-call bonus "+N"; the seconds under it.
   Key **N** (tooltip says so). Coach mark, tooltip, gold pop, lane marks follow the horn.
-- `qa/hornprobe.mjs`: all 25 islands × sizes — beside the cave on RESULT_HORN; hudCheck overlaps 0.
+- `qa/hornprobe.mjs`: all 25 islands × sizes — beside the cave on 23/25 islands at 1920x1080, 2000x991 and 1600x900, 21/25 at
+  1366x768, 19/25 at 932x430, 17/25 at 844x390 (the rest keep the dock corner: no clear spot by the
+  cave, e.g. l1c's cave sits between the road, a plot and the second cave); hudCheck overlaps 0,
+  no HUD piece outside its slot, no canvas-text problem, on all 150 island × size runs.
 
 ## Hero + ability tray
 - `hudDock.ts`: `TRAY_PORTRAIT` 1.18 d (HP ring inside that box), skills/abilities d, divider
@@ -58,7 +61,34 @@ from the patch, so a retune follows. Test in tests/render/difficulty2d.test.ts.
   `qa/hornprobe.mjs`, `qa/horndebug.mjs`.
 
 ## Verification
-RESULT_GATE
+- Gate (`python3 qa/gate.py`): **GATE OK** — tsc 0 errors, lint clean, tests **1339 passed / 11
+  skipped** (101 files + 1 skipped; base 1316+20 → +9 new in tests/render/uiPolish.test.ts, +1 in
+  difficulty2d.test.ts), sim:balance PASSED 41 levels (untouched), build OK (only the two old
+  INEFFECTIVE_DYNAMIC_IMPORT notes; the one this branch added for laneMarks2d is gone, lanePath.ts).
+- `qa/uiaudit.mjs` full run, 432 screens (36 × 6 sizes × EN/TR): **problems 0** (one run had a
+  screenshot timeout under load, re-run alone: 0) — report.txt. Phone briefings re-shot after the
+  last fix: report-rerun-phone-briefs.txt, 0. Before this branch the same checks found 842
+  problems on 88 map screens alone (2 sizes): text under the ribbon tails / brackets, text on the
+  plank caps / tab notches, truncated names, hero chip spill, badge over text, Turkish letters in
+  a fallback font on every TR screen.
+- `qa/hornprobe.mjs` (6 sizes × 25 islands): problems 0 (numbers above).
+- Looked at every shot in docs/ui-polish-shots (145: 36 screens × EN/TR × 2000x991 / 844x390, +1).
 
 ## Open points
-RESULT_OPEN
+- **Horn on the dock corner on 2–8 islands per size** (dense islands, mostly phones): no spot by the
+  cave clears plots / caves / road mouths and the other HUD pieces. Allowing a smaller horn by the
+  cave on phones, or letting the fit reserve room there, would raise it; I kept the rules strict.
+- **Info cards on small slots**: the foe card now drops its description and stat line before it
+  would shrink below 0.88 (stats stay in the Codex); the new-foe toast drops its tips the same
+  way. A taller info slot reads better but costs map coverage (tests/render/hudDock.test.ts
+  coverage ≥ 97 % fails at 8.6 s) — an owner call.
+- **Skill tree on 1366x768 and phones scrolls** (four tiers + capstone); the scroll edge fades now.
+  A compact tree layout for short screens would avoid it.
+- Workshop cards on phones are tight but inside their frames (audit 0); fine-tuning possible.
+- The Hard line now also lists "+30% gold per foe" and "abilities recharge 25% slower" (both in
+  the patch, the old line showed neither, so "−13% gold" read wrong). If the owner wants only the
+  gold, drop the two `parts.push` lines in difficulty2d.ts.
+- `scripts/fredokaTr.mjs` needs `npm install --no-save fontkit opentype.js` to re-run (dev only;
+  the built .otf files are committed). A future Fredoka release with Turkish glyphs would make
+  'Fredoka TR' unnecessary (the stack order keeps Fredoka's own first).
+- Playwright / fontkit are `--no-save` installs as before (not in package.json).

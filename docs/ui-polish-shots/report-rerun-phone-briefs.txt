@@ -1,0 +1,18 @@
+UI audit: 14 screens (en+tr x 844x390)
+problems 0 {}
+
+
+brief-844x390-en: texts 33, canvas ok, problems 0
+brief-844x390-tr: texts 33, canvas ok, problems 0
+brief-easy-844x390-en: texts 34, canvas ok, problems 0
+brief-easy-844x390-tr: texts 34, canvas ok, problems 0
+brief-endless-844x390-en: texts 33, canvas ok, problems 0
+brief-endless-844x390-tr: texts 33, canvas ok, problems 0
+brief-frontier-844x390-en: texts 18, canvas ok, problems 0
+brief-frontier-844x390-tr: texts 18, canvas ok, problems 0
+brief-hard-844x390-en: texts 34, canvas ok, problems 0
+brief-hard-844x390-tr: texts 34, canvas ok, problems 0
+brief-locked-844x390-en: texts 7, canvas ok, problems 0
+brief-locked-844x390-tr: texts 7, canvas ok, problems 0
+brief-modes-844x390-en: texts 34, canvas ok, problems 0
+brief-modes-844x390-tr: texts 34, canvas ok, problems 0
