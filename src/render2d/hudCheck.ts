@@ -1,7 +1,8 @@
 /**
  * QA (`window.__p0.hudCheck()`): every HUD piece as it is really drawn — the canvas HUD (plaque,
  * banner, pause / speed, horn with its label and seconds), the DOM buttons with their captions
- * (Codex, Settings), the hero / ability tray and the info cards when shown — and the road, plot,
+ * (Codex, Settings), the hero / ability tray and the info cards when shown (next wave, tapped foe,
+ * new-foe heads-up) — and the road, plot,
  * cave and castle shapes each one covers under the current map fit. `overlaps` must be empty.
  */
 import type { Game2D } from './game2d.ts';
@@ -39,20 +40,36 @@ function union(rects: Rect[]): Rect | null {
   return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
 }
 
-/** Visible boxes of an element and its descendants (tooltips / hints excluded), unioned. */
+function intersect(a: Rect, b: Rect | null): Rect | null {
+  if (!b) return a;
+  const x0 = Math.max(a.x, b.x);
+  const y0 = Math.max(a.y, b.y);
+  const x1 = Math.min(a.x + a.w, b.x + b.w);
+  const y1 = Math.min(a.y + a.h, b.y + b.h);
+  return x1 > x0 && y1 > y0 ? { x: x0, y: y0, w: x1 - x0, h: y1 - y0 } : null;
+}
+
+/**
+ * Visible boxes of an element and its descendants (tooltips / hints excluded), unioned. A child
+ * inside an `overflow: hidden / clip` parent (a portrait cropped by its round frame) counts only
+ * where it shows.
+ */
 function domBox(root: Element | null): Rect | null {
   if (!root || !(root instanceof HTMLElement) || root.hidden || getComputedStyle(root).display === 'none') return null;
   const out: Rect[] = [];
-  const walk = (e: Element): void => {
+  const walk = (e: Element, clip: Rect | null): void => {
     if (!(e instanceof HTMLElement) && !(e instanceof SVGElement)) return;
     if (e instanceof HTMLElement && (e.hidden || e.getAttribute('role') === 'tooltip')) return;
     const cs = getComputedStyle(e);
     if (cs.display === 'none' || cs.visibility === 'hidden') return;
     const b = e.getBoundingClientRect();
-    if (b.width > 0 && b.height > 0) out.push({ x: b.x, y: b.y, w: b.width, h: b.height });
-    if (e instanceof HTMLElement) for (const c of Array.from(e.children)) walk(c);
+    const own = b.width > 0 && b.height > 0 ? intersect({ x: b.x, y: b.y, w: b.width, h: b.height }, clip) : null;
+    if (own) out.push(own);
+    const clips = cs.overflowX !== 'visible' || cs.overflowY !== 'visible';
+    if (clips && !own) return;
+    if (e instanceof HTMLElement) for (const c of Array.from(e.children)) walk(c, clips ? own : clip);
   };
-  walk(root);
+  walk(root, null);
   return union(out);
 }
 
@@ -73,6 +90,7 @@ export function hudCheck(game: Game2D): HudCheck {
     ['tray', '[data-testid="ab2d-bar"]'],
     ['waveCard', '[data-testid="wave2d-card"]'],
     ['foeCard', '[data-testid="foe2d-card"]'],
+    ['newFoe', '[data-testid="newfoe2d"]'],
   ];
   for (const [name, sel] of dom) {
     const b = domBox(document.querySelector(sel));
@@ -84,7 +102,7 @@ export function hudCheck(game: Game2D): HudCheck {
     if (b) pieces[`round${i}`] = b;
   });
   const slots = dockPieces(k) as Record<string, Rect>;
-  const slotOf: Record<string, string> = { plaque: 'plaque', banner: 'banner', waveText: 'banner', pause: 'buttons', speed: 'buttons', horn: 'horn', tray: 'tray', waveCard: 'info', foeCard: 'info' };
+  const slotOf: Record<string, string> = { plaque: 'plaque', banner: 'banner', waveText: 'banner', pause: 'buttons', speed: 'buttons', horn: 'horn', tray: 'tray', waveCard: 'info', foeCard: 'info', newFoe: 'info' };
   const outside: Record<string, number> = {};
   for (const [name, r] of Object.entries(pieces)) {
     const s = slots[slotOf[name] ?? 'buttons'];

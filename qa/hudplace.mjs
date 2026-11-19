@@ -3,7 +3,8 @@
 // their width), plot circles and cave / castle rects under the live map fit (`__p0.hudCheck()`).
 //   --part=check  all 25 islands at 1920x1080, 2560x1080, 1366x768, 1600x900 (desktop) and 844x390,
 //                 932x430 (phone, touch, DPR 2): at the start (next-wave card up), then in wave 2 with
-//                 a foe tapped (foe card up). Exits 1 on any overlap or a piece outside its slot.
+//                 a foe tapped (foe card up); the new-foe heads-up whenever a never-seen foe marches.
+//                 Exits 1 on any overlap or a piece outside its slot.
 //   --part=shots  i24 boss wave, i12, l1c, i16 at 1920x1080 and 844x390 into docs/hud-shots/.
 // Usage: python3 qa/withPreview.py node qa/hudplace.mjs --part=check [--ids=l1c,i24] [--sizes=1920x1080]
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -27,6 +28,7 @@ const ARGS = ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swif
 const browser = await chromium.launch({ args: ARGS });
 const problems = [];
 const report = [];
+let toasts = 0;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 mkdirSync(OUT, { recursive: true });
 
@@ -76,6 +78,13 @@ async function check() {
           window.__p0.replay.cmd({ k: 'wave' });
           window.__p0.replay.step(50);
         });
+        // A never-seen foe just marched: the new-foe heads-up sits in the info slot.
+        await page.waitForFunction(() => window.__p0.newFoe()?.visible, null, { timeout: 1500 }).catch(() => undefined);
+        const nf = await page.evaluate(() => window.__p0.newFoe());
+        if (nf?.visible) {
+          toasts++;
+          judge(`${tag} new-foe`, await page.evaluate(() => window.__p0.hudCheck()));
+        }
         await page.evaluate(() => window.__p0.freeze(true));
         const at = await page.evaluate(() => window.__p0.foeAt());
         let foe = null;
@@ -98,7 +107,7 @@ async function check() {
     }
     await ctx.close();
   }
-  report.push(...rows);
+  report.push(...rows, `new-foe heads-up checked in the info slot: ${toasts}`);
 }
 
 async function shot(page, name) {

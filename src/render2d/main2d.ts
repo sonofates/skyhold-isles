@@ -890,7 +890,10 @@ async function main(): Promise<void> {
         if (calloutFor && !game.end.visible) waveBanner?.show(calloutFor(n - 1));
         lastWaveSeen = n;
       }
-      newFoeToast.update(t.deltaMS / 1000, game.end.visible || anySheetOpen() || storyOpen);
+      // In the dock's info slot: a tapped foe's card has it first, the next-wave card waits for it.
+      const dk = game.dock;
+      const unit = uiUnit(app.screen.width, app.screen.height);
+      newFoeToast.update(t.deltaMS / 1000, game.end.visible || anySheetOpen() || storyOpen || !!foeCard?.debug().shown, dk.info, dk.form === 'bands' ? Math.min(dk.info.w, unit * 30) : dk.info.w);
     }
     livesWarn?.update(game.world.lives, game.world.startingLives, !game.end.visible && !storyOpen && game.world.outcome === 'ongoing');
     if (waveCard) {
@@ -898,7 +901,7 @@ async function main(): Promise<void> {
       const ws = w.waveSystem;
       const calm = ws.state === 'preFirstWave' || ws.state === 'betweenWaves' || game.stepper.paused;
       const hud = game.debugHud();
-      const visible = calm && !storyOpen && !anySheetOpen() && !game.end.visible && !game.ringOpen && w.outcome === 'ongoing' && ws.canStartNextWave() && !foeCard?.debug().shown;
+      const visible = calm && !storyOpen && !anySheetOpen() && !game.end.visible && !game.ringOpen && w.outcome === 'ongoing' && ws.canStartNextWave() && !foeCard?.debug().shown && !newFoeToast?.debug().visible;
       const pv = visible ? ws.getNextWavePreview() : null;
       // Multi-cave islands: which caves the next wave marches out of (with the card).
       const lay = w.level.layout2d;

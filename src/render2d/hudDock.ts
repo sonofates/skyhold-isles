@@ -6,7 +6,7 @@
  * Two forms, by screen shape:
  *
  * `bands` (16:9, 16:10, 4:3 … — the map fills the width, so the HUD takes thin top / bottom bands)
- *   ┌ info card slot (next wave / tapped foe) ──────────── Settings Codex Pause Speed ┐
+ *   ┌ info card slot (next wave / tapped foe / new foe) ── Settings Codex Pause Speed ┐
  *   │                               (the island)                                     │
  *   └ lives+gold plaque ─── [hero | skills ‖ abilities] tray ─── horn ─ wave banner ─┘
  *
@@ -69,7 +69,7 @@ export interface HudDock {
   readonly gap: number;
   /** Top-right round buttons (speed, pause, Codex, Settings) with their captions. */
   readonly buttons: Rect;
-  /** Slot of the info cards (next-wave card, tapped-foe card): top-left. */
+  /** Slot of the info cards (next-wave card, tapped-foe card, new-foe heads-up): top-left. */
   readonly info: Rect;
   readonly plaque: PlaqueLayout;
   readonly banner: Rect;
@@ -144,7 +144,7 @@ export function hudDock(w: number, h: number, insets: Insets, o: HudDockOptions)
     tray = { x: tx, y: ty, w: tw, h: th };
     trayLayout = 'row';
     // Info slot top-left, as tall as the button band; it ends before the top-centre column where the
-    // new-foe heads-up and the coach card appear (30 --s wide, centred), so they never meet.
+    // first-island coach card appears (30 --s wide, centred), so they never meet.
     const ih = Math.max(buttons.y + buttons.h - top, s * 7);
     info = { x: leftX, y: top, w: Math.max(0, Math.min(w / 2 - s * 15 - gap - leftX, buttons.x - gap - leftX)), h: ih };
   } else {
