@@ -1,4 +1,4 @@
-/* Next-wave card beside the horn (wavePreview2d.ts): the kit's gold-framed parchment tag. */
+/* Next-wave card in the dock's info slot (wavePreview2d.ts): the kit's gold-framed parchment tag. */
 .pu-wave-card {
   position: fixed;
   z-index: 24;
@@ -16,11 +16,16 @@
   pointer-events: none;
 }
 
+/* Opacity only: the dock scales the card with `transform` (ui/dockCard.ts). */
 @keyframes pu-wave-in {
   from {
     opacity: 0;
-    transform: scale(0.92);
   }
+}
+
+/* Optional parts the dock hid to keep the card readable in a small slot. */
+.pu-dock-drop {
+  display: none !important;
 }
 
 .pu-wave-head {

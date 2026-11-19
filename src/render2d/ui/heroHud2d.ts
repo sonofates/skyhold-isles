@@ -30,10 +30,8 @@ import './heroHud2d.css';
 
 export { HERO_KEYS };
 
-/** Width (or height, in a column) of the hero group at button size `d` and spacing `gap`. */
-export function heroGroupLong(d: number, gap: number): number {
-  return Math.round(d * 1.5 + d * 2 + d * 0.12 + gap * 3);
-}
+/** Width of the hero group in the tray (the dock sizes the tray from it). */
+export { heroGroupLong } from '../hudDock.ts';
 
 export type HeroSkillViewState = 'ready' | 'cooldown' | 'down' | 'over' | 'paused';
 

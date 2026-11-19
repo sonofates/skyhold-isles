@@ -1,13 +1,18 @@
 import { Container, Rectangle, Sprite, Texture } from 'pixi.js';
 import type { Level2DLayout } from '../data/levels/types.ts';
-import { computeMapFit, type MapFit } from './viewFit.ts';
+import { playfieldBoxes, playfieldShapes } from './playfield.ts';
+import type { Rect } from './uiLayout.ts';
+import { computeMapFit, fitAroundHud, type MapFit } from './viewFit.ts';
 
 /**
  * Painted map + world container. Children of `world` are positioned in map image px; the
  * container carries the fit (scale + offset), so sprite sizes stay locked to the painting.
- * Letterbox bands (only when the safe-area clamp stops the map covering the screen) are filled
- * with mirrored strips of the map's own edges, slightly dimmed — no flat colour bars.
+ * Letterbox bands (the safe-area clamp, or the map shrunk to clear the HUD dock) are filled with
+ * the map's own outermost pixels stretched across them, dimmed — no flat colour bars, no repeats.
  */
+/** Edge strip (layout px) stretched across the letterbox bands. */
+const EDGE_PX = 2;
+
 export class MapView {
   readonly root = new Container();
   /** Map-px space: everything that lives on the map goes in here. */
@@ -25,10 +30,11 @@ export class MapView {
     this.mapSprite = new Sprite(texture);
     this.world.addChild(this.mapSprite);
     this.root.addChild(this.bands, this.world);
-    for (let i = 0; i < 4; i++) {
+    // Left, right, top, bottom, then the four corners.
+    for (let i = 0; i < 8; i++) {
       const s = new Sprite(Texture.EMPTY);
       s.visible = false;
-      s.tint = 0xf2efe8; // barely dimmed: hints the edge without a visible seam
+      s.tint = 0xc4bdb2; // dimmed: reads as the frame around the island, not more island
       this.bandSprites.push(s);
       this.bands.addChild(s);
     }
@@ -64,9 +70,19 @@ export class MapView {
     return this.layout.imageSize[1];
   }
 
-  resize(screenW: number, screenH: number): void {
+  /** Playfield boxes (roads, plots, caves / castle + headroom, image px), built on first use. */
+  private boxes: Rect[] | null = null;
+
+  /**
+   * Fits the map to the screen. With `hud` (the dock's reserved rects, screen px) the map shrinks /
+   * shifts just enough that no road, plot, cave or castle lies under them (viewFit `fitAroundHud`).
+   */
+  resize(screenW: number, screenH: number, hud: readonly Rect[] = []): void {
     const [iw, ih] = this.layout.imageSize;
-    this.fit = computeMapFit(screenW, screenH, iw, ih, this.layout.safeArea);
+    if (hud.length > 0) {
+      this.boxes ??= playfieldBoxes(playfieldShapes(this.layout));
+      this.fit = fitAroundHud(screenW, screenH, iw, ih, this.layout.safeArea, this.boxes, hud);
+    } else this.fit = computeMapFit(screenW, screenH, iw, ih, this.layout.safeArea);
     const f = this.fit;
     this.world.scale.set(f.scale);
     this.world.position.set(f.offsetX, f.offsetY);
@@ -94,9 +110,6 @@ export class MapView {
     const f = this.fit;
     const s = f.scale;
     const [iw, ih] = this.layout.imageSize;
-    // Strip frames use texture units (the unqualified master has two per layout pixel).
-    const stripScaleX = s * iw / this.texture.width;
-    const stripScaleY = s * ih / this.texture.height;
     const mapTop = f.offsetY;
     const mapLeft = f.offsetX;
     const mapW = iw * s;
@@ -106,35 +119,31 @@ export class MapView {
       b.texture = Texture.EMPTY;
       b.visible = false;
     }
-    const [left, right, top, bottom] = this.bandSprites;
-    if (f.bandLeft > 0.5) {
-      const w = Math.min(iw, f.bandLeft / s + 1);
-      left.texture = this.stripTexture(0, 0, w, ih);
-      left.scale.set(-stripScaleX, stripScaleY);
-      left.position.set(mapLeft + 0.5, mapTop);
-      left.visible = true;
-    }
-    if (f.bandRight > 0.5) {
-      const w = Math.min(iw, f.bandRight / s + 1);
-      right.texture = this.stripTexture(iw - w, 0, w, ih);
-      right.scale.set(-stripScaleX, stripScaleY);
-      right.position.set(mapLeft + mapW + w * s - 0.5, mapTop);
-      right.visible = true;
-    }
-    if (f.bandTop > 0.5) {
-      const h = Math.min(ih, f.bandTop / s + 1);
-      top.texture = this.stripTexture(0, 0, iw, h);
-      top.scale.set(stripScaleX, -stripScaleY);
-      top.position.set(mapLeft, mapTop + 0.5);
-      top.visible = true;
-    }
-    if (f.bandBottom > 0.5) {
-      const h = Math.min(ih, f.bandBottom / s + 1);
-      bottom.texture = this.stripTexture(0, ih - h, iw, h);
-      bottom.scale.set(stripScaleX, -stripScaleY);
-      bottom.position.set(mapLeft, mapTop + mapH + h * s - 0.5);
-      bottom.visible = true;
-    }
+    // The map's outermost EDGE_PX stretched across each band (and its corner texels across the
+    // corners): ground colour without repeating anything recognisable — a mirrored strip showed a
+    // second castle / cave / road under the HUD once the map shrinks to clear the dock.
+    const k = EDGE_PX;
+    const L = f.bandLeft > 0.5 ? f.bandLeft + 1 : 0;
+    const R = f.bandRight > 0.5 ? f.bandRight + 1 : 0;
+    const T = f.bandTop > 0.5 ? f.bandTop + 1 : 0;
+    const B = f.bandBottom > 0.5 ? f.bandBottom + 1 : 0;
+    const put = (i: number, frame: [number, number, number, number], x: number, y: number, w: number, h: number): void => {
+      if (w <= 0 || h <= 0) return;
+      const sp = this.bandSprites[i];
+      sp.texture = this.stripTexture(...frame);
+      sp.position.set(x, y);
+      sp.width = w;
+      sp.height = h;
+      sp.visible = true;
+    };
+    put(0, [0, 0, k, ih], mapLeft - L + 0.5, mapTop, L, mapH);
+    put(1, [iw - k, 0, k, ih], mapLeft + mapW - 0.5, mapTop, R, mapH);
+    put(2, [0, 0, iw, k], mapLeft, mapTop - T + 0.5, mapW, T);
+    put(3, [0, ih - k, iw, k], mapLeft, mapTop + mapH - 0.5, mapW, B);
+    put(4, [0, 0, k, k], mapLeft - L + 0.5, mapTop - T + 0.5, L, T);
+    put(5, [iw - k, 0, k, k], mapLeft + mapW - 0.5, mapTop - T + 0.5, R, T);
+    put(6, [0, ih - k, k, k], mapLeft - L + 0.5, mapTop + mapH - 0.5, L, B);
+    put(7, [iw - k, ih - k, k, k], mapLeft + mapW - 0.5, mapTop + mapH - 0.5, R, B);
   }
 
   /** World units → map px. */

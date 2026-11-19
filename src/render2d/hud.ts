@@ -3,7 +3,8 @@ import { t, type MsgKey } from '../i18n/index.ts';
 import type { LoadedArt } from './assets2d.ts';
 import { paintedText, setFontSize, setText } from './hudText.ts';
 import { fitWidth, hasKit, inkText, kit, setInkSize } from './uiKit.ts';
-import { HUD_MIN_TOUCH, hudButtonsLayout, KIT_PLAQUE_SLOTS, NO_INSETS, plateCentreY, plaqueLayout, uiScale, type Insets, type PlaqueSlots, type Rect } from './uiLayout.ts';
+import { hudDock, type HudDock, type HudDockOptions } from './hudDock.ts';
+import { HUD_MIN_TOUCH, hudButtonsLayout, KIT_PLAQUE_SLOTS, NO_INSETS, plateCentreY, uiScale, type Insets, type PlaqueSlots, type Rect } from './uiLayout.ts';
 
 /**
  * game2d.ts sets `HudState.banner` to these English ids (its protocol, not display text); the HUD
@@ -84,10 +85,10 @@ export class Hud {
   private readonly pauseBtn: RoundButton;
   private readonly speedBtn: RoundButton;
   private readonly horn: Sprite;
-  private readonly hornLabel = paintedText(20, 'center', '#ffe27a');
+  private readonly hornLabel = paintedText(20, 'right', '#ffe27a');
   /** Countdown ring round the horn and its seconds under it (between waves). */
   private readonly hornRing = new Graphics();
-  private readonly hornSecs = paintedText(18, 'center', '#fff4dc');
+  private readonly hornSecs = paintedText(18, 'right', '#fff4dc');
   private lastSecs = -1;
   private lastRingFrac = -1;
   private readonly plate: NineSliceSprite | Graphics;
@@ -99,6 +100,8 @@ export class Hud {
   private hornX = 0;
   private hornY = 0;
   private hornR = 40;
+  private hornTextW = 60;
+  private hornBox: Rect = { x: 0, y: 0, w: 0, h: 0 };
   private bannerFont = 30;
   private screenW = 1;
   private screenH = 1;
@@ -172,14 +175,19 @@ export class Hud {
     return { root, bg, glyph, label, r: 30 };
   }
 
-  /** Lays out for a screen; `hornAt` = preferred horn position (screen px, e.g. near the entrances). */
-  layout(w: number, h: number, hornAt: { x: number; y: number }, insets: Insets = NO_INSETS): void {
+  /** What the dock needs to know about this HUD's art (hudDock.ts). */
+  dockOptions(hero: boolean): HudDockOptions {
+    const p = this.plaque.texture;
+    const b = this.banner.texture;
+    return { plaqueAspect: p.width / Math.max(1, p.height), plaqueSlots: this.slots, bannerAspect: b.width / Math.max(1, b.height), hero };
+  }
+
+  /** Lays out for a screen: every piece at its place in the dock (the same on every island). */
+  layout(w: number, h: number, dock: HudDock = hudDock(w, h, NO_INSETS, this.dockOptions(false)), insets: Insets = NO_INSETS): void {
     this.screenW = w;
     this.screenH = h;
     const u = uiScale(w, h);
-    const pad = Math.max(8, 14 * u);
-    const tex = this.plaque.texture;
-    const pl = plaqueLayout(w, h, insets, tex.width / Math.max(1, tex.height), this.slots);
+    const pl = dock.plaque;
     this.plaque.position.set(pl.x, pl.y);
     this.plaque.width = pl.w;
     this.plaque.height = pl.h;
@@ -214,11 +222,11 @@ export class Hud {
       setFontSize(b.label, Math.round(r * 0.66));
     }
 
-    // Wave banner bottom-right, mirroring the plaque (bottom band = scenery only).
-    const bw = Math.max(150, Math.min(230 * u, (w - insets.left - insets.right) * 0.3));
-    const bh = (bw * this.banner.texture.height) / this.banner.texture.width;
-    const bannerY = h - insets.bottom - pad - bh;
-    this.banner.position.set(w - insets.right - pad - bw / 2, bannerY);
+    // Wave banner bottom-right, mirroring the plaque.
+    const bw = dock.banner.w;
+    const bh = dock.banner.h;
+    const bannerY = dock.banner.y;
+    this.banner.position.set(dock.banner.x + bw / 2, bannerY);
     this.banner.width = bw;
     this.banner.height = bh;
     // Optical centre of the red cloth (ui-banner.webp: the rope and knots fill the top third, the
@@ -229,14 +237,21 @@ export class Hud {
     this.waveText.position.set(this.banner.x, bannerY + bh * BANNER_CLOTH_MID + waveFont * 0.05);
     this.bannerFont = bw * 0.68;
 
-    this.hornR = Math.max(MIN_TOUCH / 2 + 4, 44 * u);
-    const minY = insets.top + pad + this.hornR + 4;
-    this.hornX = Math.max(insets.left + pad + this.hornR, Math.min(w - insets.right - pad - this.hornR, hornAt.x));
-    this.hornY = Math.max(minY, Math.min(pl.y - this.hornR - 30, hornAt.y));
-    this.hornLabel.position.set(this.hornX, this.hornY - this.hornR - 12);
+    // Horn in the dock (beside the wave banner): the bonus label and the seconds stand on its left,
+    // right-aligned against the countdown ring, so the piece stays one short block.
+    this.hornR = dock.horn.r;
+    this.hornX = dock.horn.x;
+    this.hornY = dock.horn.y;
+    this.hornTextW = dock.hornTextW;
+    this.hornBox = dock.hornBox;
+    const tx = this.hornX - this.hornR * 1.2 - 2;
     setFontSize(this.hornLabel, Math.round(Math.max(15, 20 * u)));
     setFontSize(this.hornSecs, Math.round(Math.max(14, 18 * u)));
-    this.hornSecs.position.set(this.hornX, this.hornY + this.hornR + Math.max(10, 12 * u));
+    this.hornLabel.position.set(tx, this.hornY - this.hornR * 0.42);
+    this.hornSecs.position.set(tx, this.hornY + this.hornR * 0.42);
+    fitWidth(this.hornLabel, this.hornTextW);
+    this.lastHorn = NaN;
+    this.lastSecs = -1;
     this.lastRingFrac = -1;
 
     setInkSize(this.centre, Math.round(Math.max(24, 44 * u)));
@@ -389,6 +404,7 @@ export class Hud {
     if (hornKey !== this.lastHorn) {
       this.lastHorn = hornKey;
       setText(this.hornLabel, hornKey > 0 ? `+${hornKey}` : hornKey === -1 ? t('hud.start') : '');
+      fitWidth(this.hornLabel, this.hornTextW);
     }
     this.drawCountdown(s.countdown ?? 0, s.countdownFrac ?? 0);
     if (s.banner !== this.lastBanner) {
@@ -494,6 +510,8 @@ export class Hud {
       pause: b(this.pauseBtn.root),
       speed: b(this.speedBtn.root),
       horn: { x: this.hornX - this.hornR, y: this.hornY - this.hornR, w: this.hornR * 2, h: this.hornR * 2 },
+      /** The horn with its countdown ring and the label / seconds beside it (its dock slot). */
+      hornBox: this.hornBox,
     };
   }
 }

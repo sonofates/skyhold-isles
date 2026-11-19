@@ -1,0 +1,172 @@
+1920x1080 i02: (no foe card: tap missed)
+1920x1080 i06: (no foe card: tap missed)
+1920x1080 i21: (no foe card: tap missed)
+2560x1080 i06: (no foe card: tap missed)
+2560x1080 i21: (no foe card: tap missed)
+1366x768 i02: (no foe card: tap missed)
+1366x768 i06: (no foe card: tap missed)
+1366x768 i15: (no foe card: tap missed)
+1366x768 i21: (no foe card: tap missed)
+1600x900 i02: (no foe card: tap missed)
+1600x900 i06: (no foe card: tap missed)
+1600x900 i15: (no foe card: tap missed)
+1600x900 i21: (no foe card: tap missed)
+844x390 i02: (no foe card: tap missed)
+844x390 i06: (no foe card: tap missed)
+844x390 i21: (no foe card: tap missed)
+932x430 i02: (no foe card: tap missed)
+932x430 i06: (no foe card: tap missed)
+932x430 i21: (no foe card: tap missed)
+1920x1080 l1c    bands   scale  74%  pieces 10/10  overlaps 0  wave-card k=0.87  foe-card k=0.88
+1920x1080 i01    bands   scale  87%  pieces 10/10  overlaps 0  wave-card k=0.92  foe-card k=0.88
+1920x1080 i02    bands   scale  74%  pieces 10/9  overlaps 0  wave-card k=0.92  foe-card -
+1920x1080 i03    bands   scale  79%  pieces 10/10  overlaps 0  wave-card k=0.87  foe-card k=0.88
+1920x1080 i04    bands   scale  84%  pieces 10/10  overlaps 0  wave-card k=0.92  foe-card k=0.88
+1920x1080 i05    bands   scale  79%  pieces 10/10  overlaps 0  wave-card k=0.92  foe-card k=0.88
+1920x1080 i06    bands   scale  79%  pieces 10/9  overlaps 0  wave-card k=0.92  foe-card -
+1920x1080 i07    bands   scale  74%  pieces 10/10  overlaps 0  wave-card k=0.92  foe-card k=0.88
+1920x1080 i08    bands   scale  75%  pieces 10/10  overlaps 0  wave-card k=0.92  foe-card k=0.88
+1920x1080 i09    bands   scale  80%  pieces 10/10  overlaps 0  wave-card k=0.92  foe-card k=0.88
+1920x1080 i10    bands   scale  74%  pieces 10/10  overlaps 0  wave-card k=0.92  foe-card k=0.88
+1920x1080 i11    bands   scale  75%  pieces 10/10  overlaps 0  wave-card k=0.92  foe-card k=0.88
+1920x1080 i12    bands   scale  77%  pieces 10/10  overlaps 0  wave-card k=0.92  foe-card k=0.88
+1920x1080 i13    bands   scale  74%  pieces 10/10  overlaps 0  wave-card k=0.92  foe-card k=0.88
+1920x1080 i14    bands   scale  74%  pieces 10/10  overlaps 0  wave-card k=0.92  foe-card k=0.88
+1920x1080 i15    bands   scale  77%  pieces 10/10  overlaps 0  wave-card k=0.92  foe-card k=0.88
+1920x1080 i16    bands   scale  77%  pieces 10/10  overlaps 0  wave-card k=0.92  foe-card k=0.88
+1920x1080 i17    bands   scale  87%  pieces 10/10  overlaps 0  wave-card k=0.87  foe-card k=0.88
+1920x1080 i18    bands   scale  86%  pieces 10/10  overlaps 0  wave-card k=0.87  foe-card k=0.89
+1920x1080 i19    bands   scale  77%  pieces 10/10  overlaps 0  wave-card k=0.87  foe-card k=0.88
+1920x1080 i20    bands   scale  92%  pieces 10/10  overlaps 0  wave-card k=0.92  foe-card k=0.88
+1920x1080 i21    bands   scale  82%  pieces 10/9  overlaps 0  wave-card k=0.92  foe-card -
+1920x1080 i22    bands   scale  82%  pieces 10/10  overlaps 0  wave-card k=0.92  foe-card k=0.89
+1920x1080 i23    bands   scale  86%  pieces 10/10  overlaps 0  wave-card k=0.92  foe-card k=0.88
+1920x1080 i24    bands   scale  75%  pieces 10/10  overlaps 0  wave-card k=0.92  foe-card k=0.88
+2560x1080 l1c    columns scale  82%  pieces 10/10  overlaps 0  wave-card k=1.00  foe-card k=1.00
+2560x1080 i01    columns scale  81%  pieces 10/10  overlaps 0  wave-card k=1.00  foe-card k=1.00
+2560x1080 i02    columns scale 100%  pieces 10/10  overlaps 0  wave-card k=1.00  foe-card k=1.00
+2560x1080 i03    columns scale  80%  pieces 10/10  overlaps 0  wave-card k=1.00  foe-card k=1.00
+2560x1080 i04    columns scale  94%  pieces 10/10  overlaps 0  wave-card k=1.00  foe-card k=1.00
+2560x1080 i05    columns scale  94%  pieces 10/10  overlaps 0  wave-card k=1.00  foe-card k=1.00
+2560x1080 i06    columns scale  99%  pieces 10/9  overlaps 0  wave-card k=1.00  foe-card -
+2560x1080 i07    columns scale  95%  pieces 10/10  overlaps 0  wave-card k=1.00  foe-card k=1.00
+2560x1080 i08    columns scale  97%  pieces 10/10  overlaps 0  wave-card k=1.00  foe-card k=1.00
+2560x1080 i09    columns scale  94%  pieces 10/10  overlaps 0  wave-card k=1.00  foe-card k=1.00
+2560x1080 i10    columns scale  94%  pieces 10/10  overlaps 0  wave-card k=1.00  foe-card k=1.00
+2560x1080 i11    columns scale 100%  pieces 10/10  overlaps 0  wave-card k=1.00  foe-card k=1.00
+2560x1080 i12    columns scale  81%  pieces 10/10  overlaps 0  wave-card k=1.00  foe-card k=1.00
+2560x1080 i13    columns scale 100%  pieces 10/10  overlaps 0  wave-card k=1.00  foe-card k=1.00
+2560x1080 i14    columns scale  94%  pieces 10/10  overlaps 0  wave-card k=1.00  foe-card k=1.00
+2560x1080 i15    columns scale  90%  pieces 10/10  overlaps 0  wave-card k=1.00  foe-card k=1.00
+2560x1080 i16    columns scale  81%  pieces 10/10  overlaps 0  wave-card k=1.00  foe-card k=1.00
+2560x1080 i17    columns scale  86%  pieces 10/10  overlaps 0  wave-card k=1.00  foe-card k=1.00
+2560x1080 i18    columns scale 100%  pieces 10/10  overlaps 0  wave-card k=1.00  foe-card k=1.00
+2560x1080 i19    columns scale 100%  pieces 10/10  overlaps 0  wave-card k=1.00  foe-card k=1.00
+2560x1080 i20    columns scale  94%  pieces 10/10  overlaps 0  wave-card k=1.00  foe-card k=1.00
+2560x1080 i21    columns scale 100%  pieces 10/9  overlaps 0  wave-card k=1.00  foe-card -
+2560x1080 i22    columns scale 100%  pieces 10/10  overlaps 0  wave-card k=1.00  foe-card k=1.00
+2560x1080 i23    columns scale 100%  pieces 10/10  overlaps 0  wave-card k=1.00  foe-card k=1.00
+2560x1080 i24    columns scale  99%  pieces 10/10  overlaps 0  wave-card k=1.00  foe-card k=1.00
+1366x768 l1c     bands   scale  73%  pieces 10/10  overlaps 0  wave-card k=0.82  foe-card k=0.84
+1366x768 i01     bands   scale  86%  pieces 10/10  overlaps 0  wave-card k=0.87  foe-card k=0.84
+1366x768 i02     bands   scale  73%  pieces 10/9  overlaps 0  wave-card k=0.87  foe-card -
+1366x768 i03     bands   scale  78%  pieces 10/10  overlaps 0  wave-card k=0.82  foe-card k=0.84
+1366x768 i04     bands   scale  84%  pieces 10/10  overlaps 0  wave-card k=0.87  foe-card k=0.84
+1366x768 i05     bands   scale  79%  pieces 10/10  overlaps 0  wave-card k=0.87  foe-card k=0.84
+1366x768 i06     bands   scale  79%  pieces 10/9  overlaps 0  wave-card k=0.87  foe-card -
+1366x768 i07     bands   scale  73%  pieces 10/10  overlaps 0  wave-card k=0.87  foe-card k=0.84
+1366x768 i08     bands   scale  74%  pieces 10/10  overlaps 0  wave-card k=0.87  foe-card k=0.84
+1366x768 i09     bands   scale  79%  pieces 10/10  overlaps 0  wave-card k=0.87  foe-card k=0.84
+1366x768 i10     bands   scale  73%  pieces 10/10  overlaps 0  wave-card k=0.87  foe-card k=0.84
+1366x768 i11     bands   scale  74%  pieces 10/10  overlaps 0  wave-card k=0.87  foe-card k=0.84
+1366x768 i12     bands   scale  76%  pieces 10/10  overlaps 0  wave-card k=0.87  foe-card k=0.84
+1366x768 i13     bands   scale  73%  pieces 10/10  overlaps 0  wave-card k=0.87  foe-card k=0.84
+1366x768 i14     bands   scale  73%  pieces 10/10  overlaps 0  wave-card k=0.87  foe-card k=0.84
+1366x768 i15     bands   scale  76%  pieces 10/9  overlaps 0  wave-card k=0.87  foe-card -
+1366x768 i16     bands   scale  77%  pieces 10/10  overlaps 0  wave-card k=0.87  foe-card k=0.84
+1366x768 i17     bands   scale  86%  pieces 10/10  overlaps 0  wave-card k=0.82  foe-card k=0.84
+1366x768 i18     bands   scale  86%  pieces 10/10  overlaps 0  wave-card k=0.82  foe-card k=0.84
+1366x768 i19     bands   scale  77%  pieces 10/10  overlaps 0  wave-card k=0.82  foe-card k=0.84
+1366x768 i20     bands   scale  91%  pieces 10/10  overlaps 0  wave-card k=0.87  foe-card k=0.84
+1366x768 i21     bands   scale  82%  pieces 10/9  overlaps 0  wave-card k=0.87  foe-card -
+1366x768 i22     bands   scale  82%  pieces 10/10  overlaps 0  wave-card k=0.87  foe-card k=0.84
+1366x768 i23     bands   scale  85%  pieces 10/10  overlaps 0  wave-card k=0.87  foe-card k=0.84
+1366x768 i24     bands   scale  74%  pieces 10/10  overlaps 0  wave-card k=0.87  foe-card k=0.84
+1600x900 l1c     bands   scale  73%  pieces 10/10  overlaps 0  wave-card k=0.83  foe-card k=0.84
+1600x900 i01     bands   scale  87%  pieces 10/10  overlaps 0  wave-card k=0.88  foe-card k=0.84
+1600x900 i02     bands   scale  73%  pieces 10/9  overlaps 0  wave-card k=0.88  foe-card -
+1600x900 i03     bands   scale  79%  pieces 10/10  overlaps 0  wave-card k=0.83  foe-card k=0.84
+1600x900 i04     bands   scale  84%  pieces 10/10  overlaps 0  wave-card k=0.88  foe-card k=0.84
+1600x900 i05     bands   scale  79%  pieces 10/10  overlaps 0  wave-card k=0.88  foe-card k=0.84
+1600x900 i06     bands   scale  79%  pieces 10/9  overlaps 0  wave-card k=0.88  foe-card -
+1600x900 i07     bands   scale  73%  pieces 10/10  overlaps 0  wave-card k=0.88  foe-card k=0.84
+1600x900 i08     bands   scale  74%  pieces 10/10  overlaps 0  wave-card k=0.88  foe-card k=0.84
+1600x900 i09     bands   scale  79%  pieces 10/10  overlaps 0  wave-card k=0.88  foe-card k=0.84
+1600x900 i10     bands   scale  73%  pieces 10/10  overlaps 0  wave-card k=0.88  foe-card k=0.84
+1600x900 i11     bands   scale  74%  pieces 10/10  overlaps 0  wave-card k=0.88  foe-card k=0.84
+1600x900 i12     bands   scale  76%  pieces 10/10  overlaps 0  wave-card k=0.88  foe-card k=0.84
+1600x900 i13     bands   scale  73%  pieces 10/10  overlaps 0  wave-card k=0.88  foe-card k=0.84
+1600x900 i14     bands   scale  73%  pieces 10/10  overlaps 0  wave-card k=0.88  foe-card k=0.84
+1600x900 i15     bands   scale  77%  pieces 10/9  overlaps 0  wave-card k=0.88  foe-card -
+1600x900 i16     bands   scale  77%  pieces 10/10  overlaps 0  wave-card k=0.88  foe-card k=0.84
+1600x900 i17     bands   scale  86%  pieces 10/10  overlaps 0  wave-card k=0.83  foe-card k=0.83
+1600x900 i18     bands   scale  86%  pieces 10/10  overlaps 0  wave-card k=0.83  foe-card k=0.84
+1600x900 i19     bands   scale  77%  pieces 10/10  overlaps 0  wave-card k=0.83  foe-card k=0.83
+1600x900 i20     bands   scale  92%  pieces 10/10  overlaps 0  wave-card k=0.88  foe-card k=0.84
+1600x900 i21     bands   scale  82%  pieces 10/9  overlaps 0  wave-card k=0.88  foe-card -
+1600x900 i22     bands   scale  82%  pieces 10/10  overlaps 0  wave-card k=0.88  foe-card k=0.84
+1600x900 i23     bands   scale  85%  pieces 10/10  overlaps 0  wave-card k=0.88  foe-card k=0.83
+1600x900 i24     bands   scale  75%  pieces 10/10  overlaps 0  wave-card k=0.88  foe-card k=0.84
+844x390 l1c      columns scale  73%  pieces 10/10  overlaps 0  wave-card k=1.00  foe-card k=1.00
+844x390 i01      columns scale  72%  pieces 10/10  overlaps 0  wave-card k=1.00  foe-card k=1.00
+844x390 i02      columns scale  85%  pieces 10/9  overlaps 0  wave-card k=1.00  foe-card -
+844x390 i03      columns scale  72%  pieces 10/10  overlaps 0  wave-card k=1.00  foe-card k=1.00
+844x390 i04      columns scale  73%  pieces 10/10  overlaps 0  wave-card k=1.00  foe-card k=1.00
+844x390 i05      columns scale  73%  pieces 10/10  overlaps 0  wave-card k=1.00  foe-card k=1.00
+844x390 i06      columns scale  72%  pieces 10/9  overlaps 0  wave-card k=1.00  foe-card -
+844x390 i07      columns scale  73%  pieces 10/10  overlaps 0  wave-card k=1.00  foe-card k=1.00
+844x390 i08      columns scale  73%  pieces 10/10  overlaps 0  wave-card k=1.00  foe-card k=1.00
+844x390 i09      columns scale  73%  pieces 10/10  overlaps 0  wave-card k=1.00  foe-card k=1.00
+844x390 i10      columns scale  73%  pieces 10/10  overlaps 0  wave-card k=1.00  foe-card k=1.00
+844x390 i11      columns scale  95%  pieces 10/10  overlaps 0  wave-card k=1.00  foe-card k=1.00
+844x390 i12      columns scale  72%  pieces 10/10  overlaps 0  wave-card k=1.00  foe-card k=1.00
+844x390 i13      columns scale  75%  pieces 10/10  overlaps 0  wave-card k=1.00  foe-card k=1.00
+844x390 i14      columns scale  72%  pieces 10/10  overlaps 0  wave-card k=1.00  foe-card k=1.00
+844x390 i15      columns scale  73%  pieces 10/10  overlaps 0  wave-card k=1.00  foe-card k=1.00
+844x390 i16      columns scale  73%  pieces 10/10  overlaps 0  wave-card k=1.00  foe-card k=1.00
+844x390 i17      columns scale  77%  pieces 10/10  overlaps 0  wave-card k=1.00  foe-card k=1.00
+844x390 i18      columns scale  94%  pieces 10/10  overlaps 0  wave-card k=1.00  foe-card k=1.00
+844x390 i19      columns scale  87%  pieces 10/10  overlaps 0  wave-card k=1.00  foe-card k=1.00
+844x390 i20      columns scale  81%  pieces 10/10  overlaps 0  wave-card k=1.00  foe-card k=1.00
+844x390 i21      columns scale  74%  pieces 10/9  overlaps 0  wave-card k=1.00  foe-card -
+844x390 i22      columns scale  85%  pieces 10/10  overlaps 0  wave-card k=1.00  foe-card k=1.00
+844x390 i23      columns scale  89%  pieces 10/10  overlaps 0  wave-card k=1.00  foe-card k=1.00
+844x390 i24      columns scale  89%  pieces 10/10  overlaps 0  wave-card k=1.00  foe-card k=1.00
+932x430 l1c      columns scale  73%  pieces 10/10  overlaps 0  wave-card k=1.00  foe-card k=1.00
+932x430 i01      columns scale  73%  pieces 10/10  overlaps 0  wave-card k=1.00  foe-card k=1.00
+932x430 i02      columns scale  90%  pieces 10/9  overlaps 0  wave-card k=1.00  foe-card -
+932x430 i03      columns scale  73%  pieces 10/10  overlaps 0  wave-card k=1.00  foe-card k=1.00
+932x430 i04      columns scale  75%  pieces 10/10  overlaps 0  wave-card k=1.00  foe-card k=1.00
+932x430 i05      columns scale  76%  pieces 10/10  overlaps 0  wave-card k=1.00  foe-card k=1.00
+932x430 i06      columns scale  75%  pieces 10/9  overlaps 0  wave-card k=1.00  foe-card -
+932x430 i07      columns scale  77%  pieces 10/10  overlaps 0  wave-card k=1.00  foe-card k=1.00
+932x430 i08      columns scale  78%  pieces 10/10  overlaps 0  wave-card k=1.00  foe-card k=1.00
+932x430 i09      columns scale  76%  pieces 10/10  overlaps 0  wave-card k=1.00  foe-card k=1.00
+932x430 i10      columns scale  76%  pieces 10/10  overlaps 0  wave-card k=1.00  foe-card k=1.00
+932x430 i11      columns scale  95%  pieces 10/10  overlaps 0  wave-card k=1.00  foe-card k=1.00
+932x430 i12      columns scale  73%  pieces 10/10  overlaps 0  wave-card k=1.00  foe-card k=1.00
+932x430 i13      columns scale  79%  pieces 10/10  overlaps 0  wave-card k=1.00  foe-card k=1.00
+932x430 i14      columns scale  75%  pieces 10/10  overlaps 0  wave-card k=1.00  foe-card k=1.00
+932x430 i15      columns scale  76%  pieces 10/10  overlaps 0  wave-card k=1.00  foe-card k=1.00
+932x430 i16      columns scale  73%  pieces 10/10  overlaps 0  wave-card k=1.00  foe-card k=1.00
+932x430 i17      columns scale  78%  pieces 10/10  overlaps 0  wave-card k=1.00  foe-card k=1.00
+932x430 i18      columns scale  96%  pieces 10/10  overlaps 0  wave-card k=1.00  foe-card k=1.00
+932x430 i19      columns scale  90%  pieces 10/10  overlaps 0  wave-card k=1.00  foe-card k=1.00
+932x430 i20      columns scale  85%  pieces 10/10  overlaps 0  wave-card k=1.00  foe-card k=1.00
+932x430 i21      columns scale  81%  pieces 10/9  overlaps 0  wave-card k=1.00  foe-card -
+932x430 i22      columns scale  88%  pieces 10/10  overlaps 0  wave-card k=1.00  foe-card k=1.00
+932x430 i23      columns scale  92%  pieces 10/10  overlaps 0  wave-card k=1.00  foe-card k=1.00
+932x430 i24      columns scale  90%  pieces 10/10  overlaps 0  wave-card k=1.00  foe-card k=1.00
+new-foe heads-up checked in the info slot: 30
+
+problems: 0

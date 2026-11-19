@@ -34,6 +34,8 @@ import { computeMapFit } from './viewFit.ts';
 import { mountSettings2D, type Settings2D } from './settingsButton2d.ts';
 import { hudKeepOuts, readSafeInsets } from './uiKit.ts';
 import { gateKeepOutsPx, hudButtonsKeepOut } from './uiLayout.ts';
+import { uiUnit } from './hudDock.ts';
+import { hudCheck } from './hudCheck.ts';
 import { anySheetOpen } from './ui/dom.ts';
 
 /**
@@ -96,8 +98,10 @@ declare global {
       artcheck?: () => ReturnType<typeof artCheckSummary>;
       /** QA: the ability bar (state, boxes, FX counters) and aiming as a button press would. */
       abilities?: () => Record<string, unknown> | null;
-      /** QA: the next-wave card beside the horn. */
+      /** QA: the next-wave card (in the dock's info slot). */
       waveCard?: () => Record<string, unknown> | null;
+      /** QA: every HUD piece as drawn (screen px) and what playable shape each one covers (must be none). */
+      hudCheck?: () => import('./hudCheck.ts').HudCheck;
       /** QA: the caves / castle fronts on screen (`castle` = the goal). */
       gates?: () => { x: number; y: number; w: number; h: number; castle: boolean }[];
       lives?: () => Record<string, unknown> | null;
@@ -604,13 +608,13 @@ async function main(): Promise<void> {
     // Global abilities (Meteor Strike, Overcharge): painted bar + aiming + FX (ui/abilityBar2d.ts).
     const { mountAbilityBar2D, abilityArtFiles } = await import('./ui/abilityBar2d.ts');
     // The hero's portrait + skill buttons sit in front of the abilities as one bar (ui/heroHud2d.ts).
-    const [{ createHeroHud2D, heroGroupLong }, { heroArtFiles }] = await Promise.all([import('./ui/heroHud2d.ts'), import('./ui/heroBits.ts')]);
+    const [{ createHeroHud2D }, { heroArtFiles }] = await Promise.all([import('./ui/heroHud2d.ts'), import('./ui/heroBits.ts')]);
     heroHud = createHeroHud2D(game, { desktop, files: heroArtFiles(), onAimStart: () => abilities?.aim(null) });
     abilities = mountAbilityBar2D(game, {
       desktop,
       art: abilityArtFiles(art.baseUrl),
       baseUrl: art.baseUrl,
-      ...(heroHud ? { lead: { el: heroHud.el, long: heroGroupLong, short: (d) => d * 1.5 }, onAimStart: () => heroHud?.aim(null) } : {}),
+      ...(heroHud ? { lead: { el: heroHud.el }, onAimStart: () => heroHud?.aim(null) } : {}),
     });
     if (q.get('herosel') === '1') game.setHeroSelected(true);
   }
@@ -761,40 +765,8 @@ async function main(): Promise<void> {
     waveBanner = wb.mountWaveBanner();
     calloutFor = (i) => wb.waveCallout(nf.waveTypes(game.world.level, i), i, game.world.level.waves.length, game.world.waveSystem.isEndless);
     waveTypesOf = (i) => nf.waveTypes(game.world.level, i);
-    waveCard = mountWaveCard(
-      (type) => codexEnemyUrl(art, type),
-      () => {
-        // Plots with room for the tower standing on them, the HUD and the ability / hero bar.
-        const m = game.map;
-        const f = m.fit;
-        const r = game.hud.rects();
-        return [
-          ...game.plots.geometry.rects.map((p) => ({ x: f.offsetX + p.x * f.scale, y: f.offsetY + (p.y - p.w * 1.3) * f.scale, w: p.w * f.scale, h: (p.h + p.w * 1.3) * f.scale })),
-          r.plaque,
-          r.banner,
-          hudButtonsKeepOut(app.screen.width, app.screen.height, readSafeInsets()),
-          ...hudKeepOuts(),
-        ];
-      },
-      (type) => !seenRef.has(type),
-      undefined,
-      () => {
-        // Plot rings 3× (worse than a tower's headroom), a plot's middle 30× more (never over a
-        // ring's centre); HUD pieces 12× (never over the bar); the middle of a cave / the castle
-        // 2× (the player watches where the next wave comes out) — a nicety, after the plots.
-        const f = game.map.fit;
-        const r = game.hud.rects();
-        const hud = [r.plaque, r.banner, hudButtonsKeepOut(app.screen.width, app.screen.height, readSafeInsets()), ...hudKeepOuts()];
-        const core = (q: { x: number; y: number; w: number; h: number }, k: number) => ({ x: q.x + (q.w * (1 - k)) / 2, y: q.y + (q.h * (1 - k)) / 2, w: q.w * k, h: q.h * k });
-        const plots = game.plots.geometry.rects.map((p) => ({ x: f.offsetX + p.x * f.scale, y: f.offsetY + p.y * f.scale, w: p.w * f.scale, h: p.h * f.scale }));
-        return [
-          ...plots.map((rect) => ({ rect, weight: 3 })),
-          ...plots.map((p) => ({ rect: core(p, 0.3), weight: 30 })),
-          ...hud.map((rect) => ({ rect, weight: 12 })),
-          ...gateRects().map((g) => ({ rect: core(g, 0.6), weight: 2 })),
-        ];
-      },
-    );
+    // In the dock's info slot (top-left, hudDock.ts), like the foe card.
+    waveCard = mountWaveCard((type) => codexEnemyUrl(art, type), (type) => !seenRef.has(type));
     if (q.get('codex') === '1') codex.open();
     else if (q.get('settings') === '1') settings.open();
     // Story panels before an island's first play (map → Play / Next Isle add &intro=1; ?story=intro forces them).
@@ -849,17 +821,9 @@ async function main(): Promise<void> {
     if (foeCard) {
       const foe = game.inspectedEnemy;
       const showFoe = game.inspecting && !game.end.visible && !anySheetOpen();
-      const domRects = (): { x: number; y: number; w: number; h: number }[] => {
-        // The top-centre tip cards (coach, new foe) too: the foe card slides below them.
-        const out: { x: number; y: number; w: number; h: number }[] = [];
-        for (const e of Array.from(document.querySelectorAll<HTMLElement>('.pu-coach, .pu-newfoe'))) { // i18n-ignore (selector)
-          if (e.style.display === 'none') continue;
-          const r = e.getBoundingClientRect();
-          if (r.width > 0) out.push({ x: r.x, y: r.y, w: r.width, h: r.height });
-        }
-        return out;
-      };
-      foeCard.update(showFoe ? foe : null, showFoe, foe ? game.enemyScreen(foe) : null, { w: app.screen.width, h: app.screen.height }, showFoe && foe ? [hudButtonsKeepOut(app.screen.width, app.screen.height, readSafeInsets()), ...hudKeepOuts(), ...domRects()] : []);
+      // Docked in the info slot (it takes it over from the next-wave card while it is open).
+      const dk = game.dock;
+      foeCard.update(showFoe ? foe : null, showFoe, dk.info, dk.form === 'bands' ? Math.min(dk.info.w, uiUnit(app.screen.width, app.screen.height) * 46) : dk.info.w, dk.form === 'bands');
       if (game.inspecting && !foe && !foeCard.debug().shown) game.clearInspect();
     }
     if (coach && coach.step !== 'done') {
@@ -926,7 +890,10 @@ async function main(): Promise<void> {
         if (calloutFor && !game.end.visible) waveBanner?.show(calloutFor(n - 1));
         lastWaveSeen = n;
       }
-      newFoeToast.update(t.deltaMS / 1000, game.end.visible || anySheetOpen() || storyOpen);
+      // In the dock's info slot: a tapped foe's card has it first, the next-wave card waits for it.
+      const dk = game.dock;
+      const unit = uiUnit(app.screen.width, app.screen.height);
+      newFoeToast.update(t.deltaMS / 1000, game.end.visible || anySheetOpen() || storyOpen || !!foeCard?.debug().shown, dk.info, dk.form === 'bands' ? Math.min(dk.info.w, unit * 30) : dk.info.w);
     }
     livesWarn?.update(game.world.lives, game.world.startingLives, !game.end.visible && !storyOpen && game.world.outcome === 'ongoing');
     if (waveCard) {
@@ -934,7 +901,7 @@ async function main(): Promise<void> {
       const ws = w.waveSystem;
       const calm = ws.state === 'preFirstWave' || ws.state === 'betweenWaves' || game.stepper.paused;
       const hud = game.debugHud();
-      const visible = calm && !storyOpen && !anySheetOpen() && !game.end.visible && !game.ringOpen && w.outcome === 'ongoing' && ws.canStartNextWave();
+      const visible = calm && !storyOpen && !anySheetOpen() && !game.end.visible && !game.ringOpen && w.outcome === 'ongoing' && ws.canStartNextWave() && !foeCard?.debug().shown && !newFoeToast?.debug().visible;
       const pv = visible ? ws.getNextWavePreview() : null;
       // Multi-cave islands: which caves the next wave marches out of (with the card).
       const lay = w.level.layout2d;
@@ -950,7 +917,7 @@ async function main(): Promise<void> {
           // Keep off the card (last frame's spot), the horn and the HUD pieces.
           const card = waveCard.box();
           const hr = game.hud.rects();
-          const avoid = [...(card ? [card] : []), hr.horn, hr.plaque, hr.banner, hudButtonsKeepOut(app.screen.width, app.screen.height, readSafeInsets()), ...hudKeepOuts()];
+          const avoid = [...(card ? [card] : []), hr.hornBox, hr.plaque, hr.banner, hudButtonsKeepOut(app.screen.width, app.screen.height, readSafeInsets()), ...hudKeepOuts()];
           const toScreen = (p: { x: number; z: number }): { x: number; y: number } => ({ x: game.map.screenX(game.map.pxX(p.x)), y: game.map.screenY(game.map.pxY(p.z)) });
           const unit = laneMod.kitUnit(app.screen.width, app.screen.height);
           for (const [lane, count] of laneCache.counts) {
@@ -966,8 +933,8 @@ async function main(): Promise<void> {
         countdown: hud.countdown,
         earlyBonus: hud.earlyBonus,
         first: ws.state === 'preFirstWave',
-        horn: { ...game.hud.hornPosition, r: game.hud.hornRadius },
-        screen: { w: app.screen.width, h: app.screen.height, bottomLimit: visible ? game.hud.rects().plaque.y : app.screen.height },
+        slot: game.dock.info,
+        maxW: uiUnit(app.screen.width, app.screen.height) * 30,
       });
     }
     if (game.replaying && !game.end.visible) {
@@ -993,6 +960,7 @@ async function main(): Promise<void> {
     artcheck: () => artCheckSummary(art),
     abilities: () => abilities?.debug() ?? null,
     waveCard: () => waveCard?.debug() ?? null,
+    hudCheck: () => hudCheck(game),
     gates: () => gateRectsRef?.() ?? [],
     lives: () => livesWarn?.debug() ?? null,
     foe: () => foeCard?.debug() ?? null,

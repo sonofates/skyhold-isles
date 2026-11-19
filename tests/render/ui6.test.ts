@@ -8,7 +8,6 @@ import { getDefaultSettings, loadSettings, saveSettings } from '../../src/platfo
 import { SimWorld } from '../../src/sim/world.ts';
 import { fxPrefsNow, setFxPrefs } from '../../src/render2d/fxLayer.ts';
 import { AdaptiveQuality, graphicsPrefs, NEUTRAL_GRAPHICS_PREFS, renderResolution, setGraphicsPrefs } from '../../src/render2d/renderResolution.ts';
-import { abilityBarSpot, type Rect } from '../../src/render2d/uiLayout.ts';
 import {
   ABILITY_KEYS,
   abilityDesc,
@@ -218,45 +217,5 @@ describe('graphics prefs in the renderer (UI round 6)', () => {
   it('effects density and calm flashes are clamped module prefs', () => {
     setFxPrefs({ density: 9, reduceFlashes: true });
     expect(fxPrefsNow()).toEqual({ density: 1.5, reduceFlashes: true });
-  });
-});
-
-describe('ability bar placement (UI round 6)', () => {
-  const base = {
-    w: 1920,
-    h: 1080,
-    insets: { top: 0, right: 0, bottom: 0, left: 0 },
-    pad: 19,
-    long: 230,
-    short: 104,
-    gap: 22,
-    plaque: { x: 19, y: 950, w: 411, h: 111 },
-    banner: { x: 1590, y: 965, w: 315, h: 96 },
-  };
-  const hits = (a: Rect, b: Rect): boolean => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
-
-  it('takes the bottom centre when it is clear', () => {
-    const s = abilityBarSpot({ ...base, hard: [], soft: [] });
-    expect(s.vertical).toBe(false);
-    expect(s.score).toBe(0);
-    // Centred between the plaque (right edge 430) and the banner (left edge 1590), one gap off each.
-    expect(s.x + base.long / 2).toBeCloseTo((430 + 22 + 1590 - 22) / 2, 0);
-    expect(s.y + base.short).toBeCloseTo(1080 - 19);
-  });
-
-  it('moves off build plots (l1c has a row of them along the bottom)', () => {
-    const plots: Rect[] = [600, 880, 1160].map((x) => ({ x, y: 900, w: 120, h: 160 }));
-    const s = abilityBarSpot({ ...base, hard: plots, soft: [] });
-    const box = { x: s.x, y: s.y, w: s.vertical ? base.short : base.long, h: s.vertical ? base.long : base.short };
-    expect(plots.some((p) => hits(box, p))).toBe(false);
-    expect(s.score).toBe(0);
-    expect(box.x).toBeGreaterThanOrEqual(0);
-    expect(box.y + box.h).toBeLessThanOrEqual(1080);
-  });
-
-  it('when every spot covers something, the least covered wins', () => {
-    const wall: Rect[] = [{ x: 0, y: 0, w: 1920, h: 1080 }];
-    const s = abilityBarSpot({ ...base, hard: wall, soft: [] });
-    expect(Number.isFinite(s.x) && Number.isFinite(s.y)).toBe(true);
   });
 });

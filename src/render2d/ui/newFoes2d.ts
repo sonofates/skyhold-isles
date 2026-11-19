@@ -9,6 +9,8 @@ import type { EnemyType } from '../../core/types.ts';
 import type { LevelDef } from '../../data/levels/types.ts';
 import { enemyCounter, enemyName } from '../../i18n/data.ts';
 import { t } from '../../i18n/index.ts';
+import type { Rect } from '../uiLayout.ts';
+import { dockCard } from './dockCard.ts';
 import { el, img } from './dom.ts';
 
 export const FOES_SEEN_KEY = 'skyhold2d_foes_seen_v1';
@@ -66,17 +68,31 @@ export class FoesSeen {
 
 export interface NewFoeToast {
   show(types: readonly EnemyType[]): void;
-  update(dt: number, hidden: boolean): void;
-  debug(): { shown: boolean; types: string[] };
+  /**
+   * Counts the toast down; while `hidden` (a sheet, the end screen, the tapped-foe card in the slot)
+   * it keeps counting but is not drawn. Docked in `slot` (the HUD dock's info slot), up to `maxW` wide.
+   */
+  update(dt: number, hidden: boolean, slot: Rect, maxW: number): void;
+  debug(): { shown: boolean; visible: boolean; types: string[]; scale: number; rect: Rect | null };
 }
 
-/** A parchment toast under the top HUD row: portrait, "New foe: Name", how to stop it. */
+/** Below this slot width the tip goes under the face and name instead of beside them (phones). */
+const NARROW_SLOT = 240;
+
+/**
+ * A parchment toast in the HUD dock's info slot (top-left, the same place as the next-wave and
+ * tapped-foe cards, so it never lies over a road): portrait, "New foe: Name", how to stop it.
+ */
 export function mountNewFoeToast(portrait: (type: EnemyType) => string | null): NewFoeToast {
   const box = el('div', 'pu pu-newfoe', { role: 'status', 'aria-live': 'polite', 'data-testid': 'newfoe2d' });
   box.style.display = 'none';
   document.body.append(box);
   let left = 0;
   let types: EnemyType[] = [];
+  let placeKey = '';
+  let visible = false;
+  let scale = 1;
+  let dockedBox: Rect | null = null;
   return {
     show(list) {
       if (list.length === 0) return;
@@ -95,14 +111,28 @@ export function mountNewFoeToast(portrait: (type: EnemyType) => string | null): 
         }),
       );
       left = 6.5;
+      placeKey = '';
       box.classList.remove('in');
       void box.offsetWidth;
       box.classList.add('in');
     },
-    update(dt, hidden) {
+    update(dt, hidden, slot, maxW) {
       if (left > 0) left -= dt;
-      box.style.display = left > 0 && !hidden ? '' : 'none';
+      const show = left > 0 && !hidden;
+      if (show !== visible) {
+        visible = show;
+        box.style.display = show ? '' : 'none';
+        if (!show) placeKey = '';
+      }
+      if (!show) return;
+      const pk = `${types.join(',')}|${Math.round(slot.x)},${Math.round(slot.y)},${Math.round(slot.w)},${Math.round(slot.h)}|${Math.round(maxW)}`;
+      if (pk === placeKey) return;
+      placeKey = pk;
+      box.classList.toggle('narrow', slot.w < NARROW_SLOT);
+      const docked = dockCard(box, slot, maxW);
+      scale = docked.scale;
+      dockedBox = docked.box;
     },
-    debug: () => ({ shown: left > 0, types }),
+    debug: () => ({ shown: left > 0, visible, types, scale, rect: visible ? dockedBox : null }),
   };
 }

@@ -1,0 +1,16 @@
+i12-desk-start: bands scale 77% overlaps 0
+i12-desk-battle: bands scale 77% overlaps 0
+l1c-desk-start: bands scale 74% overlaps 0
+l1c-desk-battle: bands scale 74% overlaps 0
+i16-desk-start: bands scale 77% overlaps 0
+i16-desk-battle: bands scale 77% overlaps 0
+i24-desk-boss: bands scale 75% overlaps 0
+i12-phone-start: columns scale 72% overlaps 0
+i12-phone-battle: columns scale 72% overlaps 0
+l1c-phone-start: columns scale 73% overlaps 0
+l1c-phone-battle: columns scale 73% overlaps 0
+i16-phone-start: columns scale 73% overlaps 0
+i16-phone-battle: columns scale 73% overlaps 0
+i24-phone-boss: columns scale 89% overlaps 0
+
+problems: 0

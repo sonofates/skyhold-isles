@@ -1,5 +1,5 @@
 /**
- * Next-wave card beside the horn (genre basic the 2D game was missing): the foes of the coming
+ * Next-wave card in the HUD dock's info slot (top-left, hudDock.ts; genre basic the 2D game was missing): the foes of the coming
  * wave as painted portraits with counts (empowered elites starred, bosses in a red ring), the
  * countdown / "blow the horn" line and the early-call bonus. Shown while the player is choosing
  * when to call the wave (before the first wave, between waves, or paused), never during a fight,
@@ -12,7 +12,8 @@ import { ENEMY_DEFS } from '../../data/enemies.ts';
 import { enemyName } from '../../i18n/data.ts';
 import { t } from '../../i18n/index.ts';
 import type { WavePreview } from '../../sim/waveSystem.ts';
-import { besideAnchorSpot, type Rect } from '../uiLayout.ts';
+import type { Rect } from '../uiLayout.ts';
+import { dockCard } from './dockCard.ts';
 import { el, img, KIT } from './dom.ts';
 
 export interface WaveChip {
@@ -46,30 +47,24 @@ export interface WaveCardState {
   readonly countdown: number;
   readonly earlyBonus: number;
   readonly first: boolean;
-  /** Horn centre and radius (css px), screen size. */
-  readonly horn: { x: number; y: number; r: number };
-  readonly screen: { w: number; h: number; bottomLimit: number };
+  /** The dock's info slot (css px); the card never leaves it. */
+  readonly slot: Rect;
+  /** Widest the card gets (css px; it wraps / scales inside the slot). */
+  readonly maxW: number;
 }
 
 export interface WaveCard2D {
   update(s: WaveCardState): void;
   readonly el: HTMLElement;
-  debug(): { shown: boolean; chips: number; covered: number; rect: { x: number; y: number; w: number; h: number } | null };
+  debug(): { shown: boolean; chips: number; scale: number; rect: { x: number; y: number; w: number; h: number } | null };
   /** Where the card stands while shown (no layout read; the lane marks keep off it). */
   box(): Rect | null;
 }
 
-/**
- * `keepOuts()` = screen rects the card must not cover (plots with their towers, HUD pieces, the
- * ability bar); read only when the card's size or the screen changes.
- */
 export function mountWaveCard(
   enemyUrl: (type: EnemyType) => string | null,
-  keepOuts: () => Rect[],
   isNew: (type: EnemyType) => boolean = () => false,
   onChip?: (type: EnemyType) => void,
-  /** Rects with their own weight on top of `keepOuts` (plot rings, HUD pieces). */
-  weighted: () => { rect: Rect; weight: number }[] = () => [],
 ): WaveCard2D {
   const card = el('div', 'pu pu-wave-card', { 'data-testid': 'wave2d-card', 'aria-live': 'polite' });
   const head = el('div', 'pu-wave-head pu-ink');
@@ -81,7 +76,7 @@ export function mountWaveCard(
   let key = '';
   let footKey = '';
   let placeKey = '';
-  let covered = 0;
+  let scale = 1;
   let placed: Rect | null = null;
   let shown = false;
   let chipCount = 0;
@@ -129,28 +124,21 @@ export function mountWaveCard(
         if (line) foot.append(el('span', '', {}, line));
         if (s.earlyBonus > 0) foot.append(el('span', 'pu-wave-bonus', {}, img(KIT.gold), t('wave.earlyBonus', { n: s.earlyBonus })));
       }
-      // Measure (a forced layout) only when the text, the anchor or what to keep off changed
-      // (a coach card coming / going), not every frame.
-      const ko = keepOuts();
-      const kk = ko.map((r) => `${Math.round(r.x)},${Math.round(r.y)},${Math.round(r.w)},${Math.round(r.h)}`).join(';');
-      const pk = `${key}|${footKey}|${Math.round(s.horn.x)}|${Math.round(s.horn.y)}|${s.screen.w}|${s.screen.h}|${kk}`;
+      // Measure (a forced layout) only when the text or the slot changed, not every frame.
+      const q = s.slot;
+      const pk = `${key}|${footKey}|${Math.round(q.x)},${Math.round(q.y)},${Math.round(q.w)},${Math.round(q.h)}|${Math.round(s.maxW)}`;
       if (pk !== placeKey) {
         placeKey = pk;
-        const cw = card.offsetWidth;
-        const ch = card.offsetHeight;
-        const spot = besideAnchorSpot(s.horn, { w: cw, h: ch }, s.screen, ko, 8, weighted());
-        card.style.left = `${Math.round(spot.x)}px`;
-        card.style.top = `${Math.round(spot.y)}px`;
-        placed = { x: spot.x, y: spot.y, w: cw, h: ch };
-        card.dataset.side = spot.side;
-        covered = spot.covered;
+        const docked = dockCard(card, q, s.maxW, [foot, head]);
+        placed = docked.box;
+        scale = docked.scale;
       }
     },
     box: () => (shown ? placed : null),
     debug() {
-      if (!shown) return { shown, chips: chipCount, covered, rect: null };
+      if (!shown) return { shown, chips: chipCount, scale, rect: null };
       const r = card.getBoundingClientRect();
-      return { shown, chips: chipCount, covered, rect: { x: r.x, y: r.y, w: r.width, h: r.height } };
+      return { shown, chips: chipCount, scale, rect: { x: r.x, y: r.y, w: r.width, h: r.height } };
     },
   };
 }

@@ -1,5 +1,6 @@
 /**
- * Foe info card: tap a foe on the map and a parchment card follows it — painted portrait, name,
+ * Foe info card: tap a foe on the map and a parchment card opens in the HUD dock's info slot
+ * (top-left, hudDock.ts; never over the island) — painted portrait, name,
  * Flyer / Empowered / Boss tags, a live health bar (with its ward shield), armour, speed, lives it
  * costs, bounty, what it does and how to stop it. All from the enemy data + codex texts, so new
  * foes need nothing here. When it falls the card says so and fades. Tap elsewhere / Esc closes it.
@@ -10,6 +11,8 @@ import { enemyCounter, enemyDesc, enemyName } from '../../i18n/data.ts';
 import { num, t } from '../../i18n/index.ts';
 import type { EnemyEntity } from '../../sim/entities.ts';
 import { speedClass } from '../../ui/content/codexData.ts';
+import type { Rect } from '../uiLayout.ts';
+import { dockCard } from './dockCard.ts';
 import { el, img } from './dom.ts';
 
 export interface FoeFacts {
@@ -43,10 +46,13 @@ export function foeFacts(e: Pick<EnemyEntity, 'type' | 'flying' | 'elite' | 'arm
 }
 
 export interface EnemyCard2D {
-  /** Every frame: the inspected foe (null = none / fell) and its screen anchor. */
-  update(e: EnemyEntity | null, inspecting: boolean, at: { x: number; y: number; h: number } | null, screen: { w: number; h: number }, avoid?: readonly { x: number; y: number; w: number; h: number }[]): void;
+  /**
+   * Every frame: the inspected foe (null = none / fell), the dock's info slot, the widest the card
+   * may get and whether the slot is a wide band (two columns) or a narrow side column.
+   */
+  update(e: EnemyEntity | null, inspecting: boolean, slot: Rect, maxW: number, wide: boolean): void;
   readonly el: HTMLElement;
-  debug(): { shown: boolean; type: string | null; hpFrac: number; fell: boolean };
+  debug(): { shown: boolean; type: string | null; hpFrac: number; fell: boolean; scale: number; rect: Rect | null };
 }
 
 export function mountEnemyCard(portrait: (type: string) => string | null): EnemyCard2D {
@@ -63,14 +69,17 @@ export function mountEnemyCard(portrait: (type: string) => string | null): Enemy
   const counter = el('div', 'pu-foe-counter pu-ink');
   const head = el('div', 'pu-foe-head', {}, face, el('div', 'pu-foe-title', {}, el('div', 'pu-foe-row', {}, name, tags), el('div', 'pu-foe-row', {}, bar, hpText)));
   card.append(head, stats, desc, counter);
+  card.classList.add('docked');
   card.style.display = 'none';
   document.body.append(card);
+  let placeKey = '';
+  let scale = 1;
+  let box: Rect | null = null;
 
   let uid = -1;
   let shown = false;
   let fell = false;
   let fellT = 0;
-  let side: 'right' | 'left' = 'right';
   let hpKey = '';
   let hpFrac = 0;
   let type: string | null = null;
@@ -103,7 +112,7 @@ export function mountEnemyCard(portrait: (type: string) => string | null): Enemy
 
   return {
     el: card,
-    update(e, inspecting, at, screen, avoid = []) {
+    update(e, inspecting, slot, maxW, wide) {
       if (!inspecting) {
         uid = -1;
         fell = false;
@@ -115,7 +124,7 @@ export function mountEnemyCard(portrait: (type: string) => string | null): Enemy
         fell = false;
         hpKey = '';
         fill(e);
-        if (at) side = at.x < screen.w * 0.62 ? 'right' : 'left';
+        placeKey = '';
       }
       if (!e) {
         // It fell (or burrowed out of reach): say so, fade, close.
@@ -141,27 +150,17 @@ export function mountEnemyCard(portrait: (type: string) => string | null): Enemy
         barShield.style.width = `${Math.min(100, (e.shield / max) * 100).toFixed(1)}%`;
         hpText.textContent = `${num(Math.ceil(e.hp))}/${num(Math.round(e.maxHp))}`;
       }
-      if (at) {
-        const w = card.offsetWidth;
-        const h = card.offsetHeight;
-        const gap = Math.max(18, at.h * 0.35);
-        let x = side === 'right' ? at.x + gap : at.x - gap - w;
-        if (x < 8 || x + w > screen.w - 8) {
-          side = side === 'right' ? 'left' : 'right';
-          x = side === 'right' ? at.x + gap : at.x - gap - w;
-        }
-        x = Math.max(8, Math.min(screen.w - 8 - w, x));
-        let y = Math.max(8, Math.min(screen.h - 8 - h, at.y - h / 2));
-        // Keep off the HUD buttons (top-right row) and other DOM HUD: slide below / above them.
-        for (const r of avoid) {
-          if (x < r.x + r.w && r.x < x + w && y < r.y + r.h && r.y < y + h) {
-            const below = r.y + r.h + 6;
-            y = below + h <= screen.h - 8 ? below : Math.max(8, r.y - 6 - h);
-          }
-        }
-        card.style.transform = `translate(${Math.round(x)}px, ${Math.round(y)}px)`; // i18n-ignore (css)
+      // Docked in the info slot; measured again only when the foe or the slot changes (the HP bar
+      // and its numbers keep their size).
+      const pk = `${uid}|${Math.round(slot.x)},${Math.round(slot.y)},${Math.round(slot.w)},${Math.round(slot.h)}|${Math.round(maxW)}|${wide ? 1 : 0}`;
+      if (pk !== placeKey) {
+        placeKey = pk;
+        card.classList.toggle('wide', wide);
+        const docked = dockCard(card, slot, maxW, [desc]);
+        scale = docked.scale;
+        box = docked.box;
       }
     },
-    debug: () => ({ shown, type, hpFrac, fell }),
+    debug: () => ({ shown, type, hpFrac, fell, scale, rect: shown ? box : null }),
   };
 }
