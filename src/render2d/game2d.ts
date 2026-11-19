@@ -289,6 +289,7 @@ export class Game2D {
     this.heroes = new HeroLayer(art, this.map, this.layers, this.tex, this.fx);
     this.hud = new Hud(art);
     this.ring = new BuildRing(art);
+    this.ring.desktop = this.quality.isDesktop;
     this.end = new EndPanel(art);
     this.screen.addChild(this.hud.root, this.ring.root, this.end.root);
     app.stage.addChild(this.map.root, this.screen);
