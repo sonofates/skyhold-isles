@@ -4,8 +4,10 @@
  * overlap left (must be none). Pure math, the same functions the game uses.
  *
  *   npx tsx scripts/hudFit.ts            # table
- *   VERBOSE=1 npx tsx scripts/hudFit.ts  # per island: coverage, shrink, moved pieces
+ *   npx tsx scripts/hudFit.ts --verbose  # per island: coverage, shrink, moved pieces
+ *   npx tsx scripts/hudFit.ts --hero --out=docs/fullbleed-shots/report-fit.txt
  */
+import { writeFileSync } from 'node:fs';
 import { LEVELS_2D } from '../src/data/levels2d/index.ts';
 import { fullBleedFit, hardOverlaps, hardShapes } from '../src/render2d/fullBleed.ts';
 import { dockPieces, hudDock } from '../src/render2d/hudDock.ts';
@@ -25,6 +27,12 @@ export const QA_SIZES: readonly (readonly [number, number])[] = [
 
 const verbose = !!process.env.VERBOSE || process.argv.includes('--verbose');
 const heroOnly = process.argv.includes('--hero');
+const outFile = process.argv.find((a) => a.startsWith('--out='))?.slice(6);
+const lines: string[] = [];
+const log = (t: string): void => {
+  lines.push(t);
+  console.log(t);
+};
 const t0 = performance.now();
 let fails = 0;
 for (const hero of heroOnly ? [true] : [true, false]) {
@@ -51,8 +59,9 @@ for (const hero of heroOnly ? [true] : [true, false]) {
       line.push(`${l.id}:${Math.round(fit.coverage * 100)}${fit.shrink < 0.999 ? `(s${Math.round(fit.shrink * 100)})` : ''}${mv.length && verbose ? `[${mv.join(',')}]` : ''}${ov ? `!${ov}` : ''}${fit.clear ? '' : 'X'}`);
     }
     const r = (q: { w: number; h: number }): string => `${Math.round(q.w)}x${Math.round(q.h)}`;
-    console.log(`${w}x${h}${hero ? ' hero' : ''} d=${home.d} tray=${r(home.tray)} info=${r(home.info)} plaque=${r(home.plaque)} banner=${r(home.banner)} cover avg=${Math.round((sum / LEVELS_2D.length) * 1000) / 10} worst=${Math.round(worst * 1000) / 10} moved=${moved}`);
-    console.log(`  ${line.join(' ')}`);
+    log(`${w}x${h}${hero ? ' hero' : ''} d=${home.d} tray=${r(home.tray)} info=${r(home.info)} plaque=${r(home.plaque)} banner=${r(home.banner)} cover avg=${Math.round((sum / LEVELS_2D.length) * 1000) / 10} worst=${Math.round(worst * 1000) / 10} moved=${moved}`);
+    log(`  ${line.join(' ')}`);
   }
 }
-console.log(`${fails} with overlap / not clear, ${Math.round(performance.now() - t0)} ms`);
+log(`${fails} with overlap / not clear, ${Math.round(performance.now() - t0)} ms`);
+if (outFile) writeFileSync(outFile, lines.join('\n') + '\n');

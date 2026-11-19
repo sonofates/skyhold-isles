@@ -1,0 +1,30 @@
+l1c-1920x1080-start: cover 95.1% shrink 95% hard 0 outer-road 0
+l1c-1920x1080-battle: cover 95.1% shrink 95% hard 0 outer-road 0
+i12-1920x1080-start: cover 88% shrink 88% hard 0 outer-road 0
+i12-1920x1080-battle: cover 88% shrink 88% hard 0 outer-road 0
+i16-1920x1080-start: cover 99.3% shrink 100% hard 0 outer-road 0
+i16-1920x1080-battle: cover 99.3% shrink 100% hard 0 outer-road 0
+i24-1920x1080-boss: cover 100% shrink 100% hard 0 outer-road 0
+l1c-2000x991-start: cover 88.7% shrink 93% hard 0 outer-road 0
+l1c-2000x991-battle: cover 88.7% shrink 93% hard 0 outer-road 0
+i12-2000x991-start: cover 84.5% shrink 93% hard 0 outer-road 0
+i12-2000x991-battle: cover 84.5% shrink 93% hard 0 outer-road 0
+i16-2000x991-start: cover 100% shrink 100% hard 0 outer-road 0
+i16-2000x991-battle: cover 100% shrink 100% hard 0 outer-road 0
+i24-2000x991-boss: cover 100% shrink 100% hard 0 outer-road 0
+l1c-2560x1080-start: cover 89.6% shrink 93% hard 0 outer-road 0
+l1c-2560x1080-battle: cover 89.6% shrink 93% hard 0 outer-road 0
+i12-2560x1080-start: cover 88.6% shrink 95% hard 0 outer-road 0
+i12-2560x1080-battle: cover 88.6% shrink 95% hard 0 outer-road 0
+i16-2560x1080-start: cover 100% shrink 100% hard 0 outer-road 0
+i16-2560x1080-battle: cover 100% shrink 100% hard 0 outer-road 0
+i24-2560x1080-boss: cover 100% shrink 100% hard 0 outer-road 0
+l1c-phone844x390-start: cover 55.5% shrink 74% hard 0 outer-road 0
+l1c-phone844x390-battle: cover 55.5% shrink 74% hard 0 outer-road 0
+i12-phone844x390-start: cover 47.4% shrink 73% hard 0 outer-road 0
+i12-phone844x390-battle: cover 47.4% shrink 73% hard 0 outer-road 0
+i16-phone844x390-start: cover 67.6% shrink 85% hard 0 outer-road 0
+i16-phone844x390-battle: cover 67.6% shrink 85% hard 0 outer-road 0
+i24-phone844x390-boss: cover 74.7% shrink 88% hard 0 outer-road 0
+
+problems: 0
