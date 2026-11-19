@@ -101,7 +101,7 @@
   border-style: solid;
   border-width: calc(var(--ph) * 0.28) calc(var(--ph) * 0.42);
   border-image: url('/art2d/ui-plaque.webp') 42 64 fill stretch;
-  padding: 0 calc(var(--s) * 0.2);
+  padding: 0 calc(var(--s) * 0.5);
   font-size: calc(var(--s) * 1.45);
   line-height: 1;
   white-space: nowrap;
@@ -216,6 +216,15 @@
 
   .pu-brief:has(.pu-diff) .pu-brief-info {
     gap: calc(var(--s) * 0.45);
+  }
+
+  /* With run modes the island's column also holds the hero: a smaller medallion gives it room. */
+  .pu-brief.has-modes .pu-brief-medal {
+    --d: calc(var(--s) * 10.5) !important;
+  }
+
+  .pu-brief.has-modes .pu-brief-main {
+    gap: calc(var(--s) * 1.1);
   }
 
   .pu-brief-actions:has(> .pu-diff) {

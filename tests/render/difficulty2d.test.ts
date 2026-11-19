@@ -286,4 +286,18 @@ describe('selector wording', () => {
     expect(difficultyRuleText('hard')).toContain('Zor nişanı');
     expect(difficultyRuleText('easy')).toContain('en çok 1★');
   });
+
+  it("shows Hard's flat starting-gold cut next to its percentage (and the kill gold / recharge)", () => {
+    setLocale('en');
+    const p = DIFFICULTIES.hard.patch;
+    const n = Math.round((1 - (p.startGoldMul ?? 1)) * 100);
+    const g = -(p.startGoldBonus ?? 0);
+    expect(g).toBeGreaterThan(0);
+    expect(difficultyRuleText('hard')).toContain(`starting gold −${n}% −${g}`);
+    if ((p.killGoldMul ?? 1) > 1) expect(difficultyRuleText('hard')).toContain(`+${Math.round(((p.killGoldMul ?? 1) - 1) * 100)}% gold per foe`);
+    if ((p.abilityCooldownMul ?? 1) > 1) expect(difficultyRuleText('hard')).toContain('abilities recharge');
+    setLocale('tr');
+    expect(difficultyRuleText('hard')).toContain(`başlangıç altını −%${n} −${g}`);
+    setLocale('en');
+  });
 });

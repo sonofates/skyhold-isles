@@ -160,7 +160,29 @@ export function openSheet(
   window.addEventListener('keydown', onKey);
   document.body.append(overlay);
   openSheets++;
+  watchScrollEdges(body);
   return { overlay, sheet, body, close };
+}
+
+/**
+ * A board whose body scrolls fades its cut edge (`more-above` / `more-below`), so a row half under
+ * the frame reads as "more this way" rather than as a clipped box.
+ */
+export function watchScrollEdges(box: HTMLElement): void {
+  const update = (): void => {
+    const max = box.scrollHeight - box.clientHeight;
+    box.classList.toggle('more-above', max > 2 && box.scrollTop > 2);
+    box.classList.toggle('more-below', max > 2 && box.scrollTop < max - 2);
+  };
+  box.addEventListener('scroll', update, { passive: true });
+  if (typeof ResizeObserver === 'function') {
+    const ro = new ResizeObserver(update);
+    ro.observe(box);
+    // Content changes (tabs, a picked node) resize the inner rows, not the box.
+    const mo = new MutationObserver(() => requestAnimationFrame(update));
+    mo.observe(box, { childList: true, subtree: true });
+  }
+  requestAnimationFrame(update);
 }
 
 export function anySheetOpen(): boolean {

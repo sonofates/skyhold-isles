@@ -1,3 +1,4 @@
+/* global process, console, Buffer */
 // Builds the Turkish letters Fredoka lacks (ş Ş ğ Ğ İ) from Fredoka's own parts and writes small
 // static fonts that join the 'Fredoka Variable' family by unicode-range (src/render2d/ui/fredokaTr.css):
 //   ş Ş = s S + the cedilla of ç Ç (same depth and offset as in ç Ç),

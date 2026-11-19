@@ -125,10 +125,18 @@
 
 /* ---- the ribbon board (end-panel art, 9-sliced) --------------------------------------------- */
 
+/*
+ * end-panel.webp (1024x674) is sliced so every painted bit stays in the border at the art's own
+ * scale: the ribbon with its curled tails (top 206 px), the gold frame with the corner brackets
+ * (sides 146 px), the frame's foot (bottom 84 px). Only plain parchment stretches, so content can
+ * use the whole inner box: nothing runs under a ribbon tail or a bracket on any board size.
+ * `--k` = css px per art px.
+ */
 .pu-sheet {
-  --side: calc(var(--s) * 3.4);
-  --top: calc(var(--side) * 1.65);
-  --bottom: calc(var(--side) * 0.8);
+  --k: calc(var(--s) * 0.034);
+  --side: calc(var(--k) * 146);
+  --top: calc(var(--k) * 206);
+  --bottom: calc(var(--k) * 84);
   position: relative;
   display: flex;
   flex-direction: column;
@@ -139,7 +147,7 @@
   border-style: solid;
   border-width: var(--top) var(--side) var(--bottom);
   border-image-source: url('/art2d/ui/end-panel.webp');
-  border-image-slice: 165 100 80 100 fill;
+  border-image-slice: 206 146 84 146 fill;
   border-image-repeat: stretch;
   filter: drop-shadow(0 calc(var(--s) * 0.5) calc(var(--s) * 0.6) rgba(30, 16, 4, 0.45));
   animation: pu-pop 0.32s cubic-bezier(0.2, 0.9, 0.3, 1.2);
@@ -149,13 +157,13 @@
   border-image-source: url('/art2d/ui/end-panel-defeat.webp');
 }
 
-/* Title lettering sits on the ribbon (its middle is ~43% down the top border). */
+/* Title lettering sits on the ribbon's front band (its middle at art y ≈ 72). */
 .pu-sheet-title {
   position: absolute;
   left: 50%;
-  top: calc(var(--top) * -0.57);
+  top: calc(var(--k) * -134);
   transform: translate(-50%, -50%);
-  max-width: 72%;
+  max-width: 78%;
   font-size: calc(var(--s) * 2.15);
   line-height: 1;
   white-space: nowrap;
@@ -170,14 +178,30 @@
   overscroll-behavior: contain;
   scrollbar-width: thin;
   scrollbar-color: #b08a5a transparent;
-  padding: calc(var(--s) * 0.4) calc(var(--s) * 1.1);
+  padding: calc(var(--s) * 0.5) calc(var(--s) * 0.6);
+  --fade-a: 0px;
+  --fade-b: 0px;
 }
 
-/* Round close button hanging on the board's top-right corner. */
+/* More rows above / below (dom.ts watchScrollEdges): the cut edge fades out (no mask otherwise). */
+.pu-sheet-body.more-above {
+  --fade-a: calc(var(--s) * 1.8);
+}
+
+.pu-sheet-body.more-below {
+  --fade-b: calc(var(--s) * 1.8);
+}
+
+.pu-sheet-body:is(.more-above, .more-below) {
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 var(--fade-a), #000 calc(100% - var(--fade-b)), transparent 100%);
+  mask-image: linear-gradient(to bottom, transparent 0, #000 var(--fade-a), #000 calc(100% - var(--fade-b)), transparent 100%);
+}
+
+/* Round close button hanging on the board's top-right corner (art x ≈ 979, y ≈ 16). */
 .pu-round.pu-sheet-close {
   position: absolute;
-  right: calc(var(--side) * -0.55);
-  top: calc(var(--top) * -0.9);
+  right: calc(var(--k) * -101);
+  top: calc(var(--k) * -190);
   width: calc(var(--s) * 4.2);
   height: calc(var(--s) * 4.2);
   z-index: 2;
@@ -287,7 +311,8 @@
   border-style: solid;
   border-width: calc(var(--ph) * 0.3) calc(var(--ph) * 0.45);
   border-image: url('/art2d/ui-plaque.webp') 42 64 fill stretch;
-  padding: 0 calc(var(--s) * 0.4);
+  /* Lettering keeps clear of the iron corner caps (and a tab's notch / scroll roll). */
+  padding: 0 max(0.45em, calc(var(--s) * 0.5));
   font-size: calc(var(--s) * 1.6);
   line-height: 1;
   white-space: nowrap;
@@ -353,7 +378,7 @@
   border-style: solid;
   border-width: calc(var(--s) * 1.1);
   border-image: url('/art2d/ui/tooltip.webp') 40 fill stretch;
-  padding: calc(var(--s) * 0.35) calc(var(--s) * 0.5);
+  padding: calc(var(--s) * 0.6) calc(var(--s) * 0.8);
 }
 
 /* ---- gold name tag (price-tag art: ring on the left, 9-sliced body) ------------------------- */
@@ -367,7 +392,7 @@
   border-style: solid;
   border-width: calc(var(--th) * 0.31) calc(var(--th) * 0.52) calc(var(--th) * 0.31) calc(var(--th) * 0.85);
   border-image: url('/art2d/ui/price-tag.webp') 40 68 40 110 fill stretch;
-  padding: 0 0.2em 0 0.15em;
+  padding: 0 0.45em 0 0.4em;
   font-size: calc(var(--th) * 0.4);
   line-height: 1;
   white-space: nowrap;
@@ -567,9 +592,12 @@
 }
 
 .pu-node-name .pu-ink {
-  max-width: calc(var(--d) * 1.25);
+  max-width: calc(var(--d) * 1.55);
   overflow: hidden;
   text-overflow: ellipsis;
+  /* Room for descenders (g, y, ş) inside the clipping box. */
+  line-height: 1.25;
+  padding: 0.05em 0;
 }
 
 .pu-node-lock {
@@ -679,21 +707,29 @@
   pointer-events: auto;
 }
 
+/*
+ * The title on the red cloth between the two rope knots (ui-banner.webp 512x152: the cloth's
+ * lettering band is x 80-432, y 36-116). worldMap.ts measures the title and sets `--bw` so the
+ * cloth is always wider than the word (the art stretches sideways a little for a long title).
+ */
 .pu-title-banner {
+  --bh: calc(var(--s) * 5.8);
   position: relative;
-  width: calc(var(--s) * 24);
-  aspect-ratio: 512 / 152;
+  height: var(--bh);
+  width: max(calc(var(--bh) * 3.37), var(--bw, 0px));
   background: url('/art2d/ui-banner.webp') center / 100% 100% no-repeat;
-  display: grid;
-  place-items: center;
-  padding-bottom: calc(var(--s) * 0.9);
-  font-size: calc(var(--s) * 2.4);
+  font-size: calc(var(--s) * 1.95);
   filter: drop-shadow(0 3px 2px rgba(30, 16, 4, 0.4));
   flex: none;
 }
 
 .pu-title-banner span {
-  transform: translateY(8%);
+  position: absolute;
+  left: 50%;
+  top: 52%;
+  transform: translate(-50%, -50%);
+  line-height: 1.05;
+  white-space: nowrap;
 }
 
 .pu-topbar-right {
@@ -711,6 +747,7 @@
   border-style: solid;
   border-width: calc(var(--ph) * 0.3) calc(var(--ph) * 0.45);
   border-image: url('/art2d/ui-plaque.webp') 42 64 fill stretch;
+  padding: 0 0.4em;
   font-size: calc(var(--s) * 1.7);
   line-height: 1;
   white-space: nowrap;
@@ -1042,6 +1079,9 @@
 /* ---- storybook panels ----------------------------------------------------------------------- */
 
 .pu-story {
+  --top: calc(var(--k) * 165);
+  --side: calc(var(--k) * 100);
+  --bottom: calc(var(--k) * 80);
   border-image: url('/art2d/ui/story-frame.webp') 64 96 fill stretch;
   width: min(100%, calc(var(--s) * 92));
 }
@@ -1464,7 +1504,7 @@
 /* Progress bar: a thin wood plank with a gold fill. */
 .pu-bar {
   position: relative;
-  height: calc(var(--s) * 1.7);
+  height: calc(var(--s) * 2);
   border-style: solid;
   border-width: calc(var(--s) * 0.5) calc(var(--s) * 0.75);
   border-image: url('/art2d/ui-plaque.webp') 42 64 fill stretch;
@@ -1487,6 +1527,7 @@
   display: grid;
   place-items: center;
   font-size: calc(var(--s) * 1.05);
+  line-height: 1;
 }
 
 /* Daily */
@@ -1665,25 +1706,6 @@
 
 .pu-codex-btn .pu-round-label {
   font-size: max(11px, calc(var(--s) * 1.05));
-}
-
-/* Big boards: the first settings row (Language) and the store's intro start below the ribbon's
-   hanging tails. */
-@media (min-height: 481px) {
-  .pu-settings .pu-sheet-body,
-  .pu-store .pu-sheet-body {
-    padding-top: calc(var(--s) * 3);
-  }
-}
-
-/* The first row sits next to the board's gold corner bracket: indent it on every size (a tall
-   board, with the store row, stretches the bracket a little further in). */
-.pu-settings .pu-set-row:first-child {
-  padding-left: calc(var(--s) * 3.2);
-}
-
-.pu-store .pu-store-intro {
-  padding: 0 calc(var(--s) * 2.6);
 }
 
 /* Settings → Language: two planks, each language in its own name. */
@@ -1923,24 +1945,19 @@
 
 @media (max-height: 480px) {
   .pu-sheet {
-    --side: calc(var(--s) * 3);
+    --k: calc(var(--s) * 0.03);
   }
 
   .pu-meta {
     max-height: 100%;
   }
 
-  /* The board's gold corner brackets reach further in than the thin phone frame. */
   .pu-sheet-body {
-    padding: calc(var(--s) * 1.5) calc(var(--s) * 2.5) calc(var(--s) * 0.4);
+    padding: calc(var(--s) * 0.4) calc(var(--s) * 0.6) calc(var(--s) * 0.3);
   }
 
   .pu-lb-totals {
     gap: calc(var(--s) * 1.2);
-  }
-
-  .pu-set-row:first-child {
-    padding-left: calc(var(--s) * 3.2);
   }
 
   .pu-map-hint {
@@ -2037,7 +2054,7 @@
   align-items: center;
   box-sizing: border-box;
   height: var(--tag-h);
-  padding: 0 0.15em 0 0.25em;
+  padding: 0 0.5em 0 0.7em;
   font-size: calc(var(--s) * 1.45);
   color: var(--ink);
   white-space: nowrap;
@@ -2145,26 +2162,16 @@
   height: min(100%, calc(var(--s) * 58));
 }
 
-/* The tab row sits above the scrolling body, under the ribbon's hanging tails. */
+/* The tab row sits above the scrolling body. */
 .pu-set-tabs {
   flex: none;
-  margin: calc(var(--s) * 2.6) 0 calc(var(--s) * 0.2);
+  margin: calc(var(--s) * 0.5) 0 calc(var(--s) * 0.3);
   gap: calc(var(--s) * 0.5);
   flex-wrap: wrap;
 }
 
 .pu-set-tabs .pu-plank {
   min-width: calc(var(--s) * 9);
-}
-
-@media (min-height: 481px) {
-  .pu-settings.tabbed .pu-sheet-body {
-    padding-top: calc(var(--s) * 0.4);
-  }
-}
-
-.pu-settings.tabbed .pu-set-row:first-child {
-  padding-left: calc(var(--s) * 0.4);
 }
 
 .pu-set-flex {
@@ -2252,15 +2259,7 @@
   }
 
   .pu-set-tabs {
-    margin-top: calc(var(--s) * 1.4);
-  }
-
-  .pu-settings.tabbed .pu-sheet-body {
-    padding-top: calc(var(--s) * 0.5);
-  }
-
-  .pu-settings.tabbed .pu-set-row:first-child {
-    padding-left: calc(var(--s) * 0.4);
+    margin-top: calc(var(--s) * 0.3);
   }
 
   .pu-settings [data-testid='set2d-res'] {

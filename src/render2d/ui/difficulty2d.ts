@@ -48,7 +48,14 @@ export function difficultyRuleText(id: DifficultyId): string {
   const parts: string[] = [];
   if (p.enemyHpMul !== undefined && pct(p.enemyHpMul) > 0) parts.push(t(p.enemyHpMul > 1 ? 'diff.hpUp' : 'diff.hpDown', { n: pct(p.enemyHpMul) }));
   if (p.enemySpeedMul !== undefined && pct(p.enemySpeedMul) > 0) parts.push(t(p.enemySpeedMul > 1 ? 'diff.speedUp' : 'diff.speedDown', { n: pct(p.enemySpeedMul) }));
-  if (p.startGoldMul !== undefined && pct(p.startGoldMul) > 0) parts.push(t(p.startGoldMul > 1 ? 'diff.goldUp' : 'diff.goldDown', { n: pct(p.startGoldMul) }));
+  // Starting gold: the percentage and Hard's flat cut together ("starting gold −13% −250").
+  const flat = Math.round(p.startGoldBonus ?? 0);
+  if (p.startGoldMul !== undefined && pct(p.startGoldMul) > 0) {
+    if (flat < 0 && p.startGoldMul < 1) parts.push(t('diff.startGoldDown', { n: pct(p.startGoldMul), g: -flat }));
+    else parts.push(t(p.startGoldMul > 1 ? 'diff.goldUp' : 'diff.goldDown', { n: pct(p.startGoldMul) }));
+  }
+  if (p.killGoldMul !== undefined && p.killGoldMul > 1 && pct(p.killGoldMul) > 0) parts.push(t('diff.killGoldUp', { n: pct(p.killGoldMul) }));
+  if (p.abilityCooldownMul !== undefined && p.abilityCooldownMul > 1 && pct(p.abilityCooldownMul) > 0) parts.push(t('diff.cooldownSlow', { n: pct(p.abilityCooldownMul) }));
   if (p.maxLives !== undefined && p.maxLives !== null) parts.push(t('diff.livesCap', { n: p.maxLives }));
   else if (p.bonusLives) parts.push(t('diff.livesPlus', { n: p.bonusLives }));
   if (p.heroRespawnMul !== undefined && p.heroRespawnMul > 1 && pct(p.heroRespawnMul) > 0) parts.push(t('diff.respawnSlow', { n: pct(p.heroRespawnMul) }));

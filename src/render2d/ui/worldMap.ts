@@ -93,6 +93,28 @@ function routeSvg(L: WorldMapLayout, frontier: number): string {
   return group(false) + group(true);
 }
 
+/** The cloth's lettering band of ui-banner.webp, as a share of the art's width (x 80-432 of 512). */
+const BANNER_CLOTH = 352 / 512;
+
+/**
+ * Sizes the title banner to its word: the cloth between the rope knots is always wider than the
+ * title plus a margin (the art stretches sideways a little for a long title), and the banner never
+ * takes more than ~34 % of the screen's width (a long title gets a smaller size instead).
+ */
+export function titleBannerWidth(textW: number, fontPx: number, screenW: number): { width: number; scale: number } {
+  const want = (textW + fontPx * 0.9) / BANNER_CLOTH;
+  const max = Math.max(160, screenW * 0.34);
+  return want <= max ? { width: Math.ceil(want), scale: 1 } : { width: Math.floor(max), scale: Math.max(0.72, max / want) };
+}
+
+function fitTitleBanner(banner: HTMLElement, text: HTMLElement, screenW: number): void {
+  text.style.fontSize = '';
+  const fs = parseFloat(getComputedStyle(banner).fontSize) || 16;
+  const fit = titleBannerWidth(text.getBoundingClientRect().width, fs, screenW);
+  banner.style.setProperty('--bw', `${fit.width}px`);
+  if (fit.scale < 1) text.style.fontSize = `${(fs * fit.scale).toFixed(1)}px`;
+}
+
 export async function mountWorldMap(q: URLSearchParams): Promise<void> {
   const mock = Math.max(0, Math.min(24, Number(q.get('mockislands') ?? 0) || 0));
   const levels: readonly LevelDef[] = mock > 0 ? [...LEVELS_2D, ...mockLevels(mock)] : LEVELS_2D;
@@ -114,7 +136,8 @@ export async function mountWorldMap(q: URLSearchParams): Promise<void> {
   scroll.append(world);
 
   // Top strip.
-  const banner = el('div', 'pu-title-banner pu-letter', {}, el('span', '', {}, t('map.title')));
+  const bannerText = el('span', '', {}, t('map.title'));
+  const banner = el('div', 'pu-title-banner pu-letter', {}, bannerText);
   const tallyBox = el('div', 'pu-tally pu-letter', { 'data-testid': 'map2d-stars', title: t('map.starsEarned') });
   const wsBtn = roundButton('workshop', t('map.workshop'), 'map2d-workshop', t('map.workshop'));
   const lbBtn = roundButton('logbook', t('map.logbook'), 'map2d-logbook', t('map.logbookShort'));
@@ -258,6 +281,7 @@ export async function mountWorldMap(q: URLSearchParams): Promise<void> {
     if (!force && w === lastW && h === lastH) return;
     lastW = w;
     lastH = h;
+    fitTitleBanner(banner, bannerText, w);
     const insets = readSafeInsets();
     const bar = topbar.getBoundingClientRect();
     // The free band starts under the title banner (the round buttons' captions may overhang a bit).

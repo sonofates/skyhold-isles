@@ -255,7 +255,11 @@ export function showBriefing(
     const diff: DifficultyId = endless ? 'normal' : difficulty;
     onPlay({ challenges: endless || !DIFFICULTIES[diff].allowsChallenges ? [] : [...chosen], endless, difficulty: diff });
   });
-  if (hero && st.unlocked) info.append(hero);
+  // The hero is part of the run's setup: with run modes it closes the modes column on a tall
+  // screen (the two columns stay level and Play stays on screen); on a landscape phone the modes
+  // fill their column, so it closes the island's info there (and without modes).
+  const short = typeof matchMedia === 'function' && matchMedia('(max-height: 480px)').matches;
+  if (hero && st.unlocked) (modesBox && !short ? modesBox : info).append(hero);
   const left = el('div', 'pu-brief-main', {}, thumbBox, info);
   sheet.body.append(el('div', 'pu-brief-body', {}, left, modesBox), el('div', 'pu-brief-actions', {}, diffBox, play));
   requestAnimationFrame(() => play.focus({ preventScroll: true }));
