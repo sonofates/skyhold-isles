@@ -81,6 +81,30 @@ def stone_quad(img, corners, paint, scale):
     img.paste(tile, (left, top), clip)
 
 
+def brick_spur(surface, path, paint, width, scale):
+    """Lay firebrick courses along a branch, ending in a transverse row before the junction."""
+    course = RoadCourse(path)
+    end = course.length - width
+    if end <= 0:
+        return
+    density = 3
+    half = width * .62
+    # The centre six courses of the painting fill the lane. Extend the strip
+    # past its painted end to support bilinear sampling at the final joint.
+    height = math.ceil(2 * half * density) + 1
+    strip = Image.new('RGB', (math.ceil(end * density) + 2, height))
+    period = round(2 * width * density)
+    tile = paint.convert('RGB').resize((period, period), Image.Resampling.LANCZOS)
+    row = tile.crop((0, (period-height)//2, period, (period-height)//2 + height))
+    for offset in range(0, strip.width, period):
+        strip.paste(row, (offset, 0))
+    # Cut the transverse end course from the middle of a painted row.
+    header = tile.transpose(Image.Transpose.ROTATE_90)
+    cap = min(strip.width, max(1, round(width * .19 * density)))
+    strip.paste(header.crop((period//2, 0, period//2 + cap, height)), (strip.width-cap, 0))
+    project_strip(surface, strip, course, half, scale, density, end=end)
+
+
 def marble_road(size, paint, path, width, scale, seed):
     # The source has a mirrored centre medallion. Cut individual uninterrupted
     # veined slabs, including their top bevels, from elsewhere in that painting.
@@ -116,6 +140,13 @@ def marble_road(size, paint, path, width, scale, seed):
             s = end
 
     result = Image.new('RGBA', size, (210, 192, 164, 255))
+    project_strip(result, strip, course, half, scale, density)
+    return result
+
+
+def project_strip(surface, strip, course, half, scale, density, end=None):
+    """Sample a continuous course of paving along the road's local tangent."""
+    size = surface.size
     texture = np.asarray(strip)
     # Project small image tiles onto nearby segments; peak memory stays
     # independent of island size. Short chords follow the original spline.
@@ -151,8 +182,11 @@ def marble_road(size, paint, path, width, scale, seed):
             fx, fy = (u-ix)[:,:,None], (v-iy)[:,:,None]
             upper = texture[iy,ix]*(1-fx) + texture[iy,ix+1]*fx
             lower = texture[iy+1,ix]*(1-fx) + texture[iy+1,ix+1]*fx
-            result.paste(Image.fromarray(np.uint8(upper*(1-fy)+lower*fy)), (x0,y0))
-    return result
+            tile = Image.fromarray(np.uint8(upper*(1-fy)+lower*fy))
+            mask = None
+            if end is not None:
+                mask = Image.fromarray(np.uint8((along < end) & (best <= half**2)) * 255)
+            surface.paste(tile, (x0,y0), mask)
 
 
 def moat_wall(ground, land, layout_size, path, width, scale, bridge_paint, seed):

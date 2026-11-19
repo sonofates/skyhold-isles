@@ -312,7 +312,7 @@
     "plots": 26,
     "seed": 757,
     "decals": 190,
-    "props": 55,
+    "props": 32,
     "windmill": "none",
     "seedPlots": [
       [756, 608],
@@ -321,12 +321,25 @@
       [1588, 240]
     ],
     "biome": "ember",
-    "propWeights": [0, 7, 5, 0, 0, 7, 1],
+    "propWeights": [0, 2, 0, 0, 4, 6, 1],
+    "dressingMask": "land-i16.webp",
+    "roadPlate": true,
+    "brickSpur": [2, "tex-firebrick.webp"],
+    "thresholdRoad": true,
+    "entranceFinishes": {"B": "cooling-wall-e.webp", "C": "firebox-w.webp"},
     "roadMaterial": "tex-furnace-road.webp",
     "cave-h": 1.98,
     "castle-h": 3.15,
+    "landmarks": [
+      ["ore-whim", 248, 204, 66],
+      ["annealing-rack", 247, 676, 55],
+      ["furnace-bellows", 1587, 441, 77],
+      ["brazier", 1514, 281, 42],
+      ["brazier", 1640, 485, 48]
+    ],
     "sprites": {
-      "gate-castle-w.png": "furnace-sanctuary.webp"
+      "gate-castle-w.png": "furnace-sanctuary.webp",
+      "landmark-brazier.webp": "brazier.webp"
     }
   },
   "i17": {

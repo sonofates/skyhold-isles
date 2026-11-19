@@ -5,14 +5,46 @@ from PIL import Image, ImageChops, ImageDraw
 
 import fords
 from banks import shore_foundation
-from gates import draw_threshold_road
+from gates import draw_threshold_road, output_sprite
 from keeps import Keep
-from masonry import cart_tracks
+from masonry import brick_spur, cart_tracks
 
 from ground import Decals, DressingArea, brushed_surface, paint_over_road, road_footprint, road_fringe, scatter
 
 
 class GroundTests(unittest.TestCase):
+    def test_furnace_finish_preserves_opening_and_silhouette(self):
+        art = Image.new('RGBA', (48, 32))
+        ink = ImageDraw.Draw(art)
+        ink.rectangle((3, 3, 44, 29), fill='tan')
+        ink.rectangle((28, 14, 40, 29), fill='black')
+        aperture = Image.new('L', art.size)
+        ImageDraw.Draw(aperture).rectangle((28, 14, 40, 29), fill=255)
+        gate = {'im': art, 'left': 30, 'top': 8, 'k': 1, 'mouth': {'mask': aperture}}
+        wall = Image.new('RGBA', art.size, 'turquoise')
+        for scale in (1, 2, 3):
+            original = output_sprite(gate, scale)
+            painted = output_sprite(gate, scale, wall)
+            self.assertEqual(painted.getchannel('A').tobytes(), original.getchannel('A').tobytes())
+            self.assertEqual(painted.getpixel((33*scale, 20*scale)), (0, 0, 0, 255))
+            self.assertEqual(painted.getpixel((15*scale, 12*scale)), wall.getpixel((15, 12)))
+        with self.assertRaises(ValueError):
+            output_sprite(gate, 1, wall.crop((0, 0, 8, 8)))
+
+    def test_spur_pavers_follow_bend_and_stop_before_shared_road(self):
+        path = [(20, 80), (72, 80), (92, 60), (92, 20)]
+        tile = Image.new('RGB', (60, 60), 'firebrick')
+        for scale in (1, 2, 3):
+            ground = Image.new('RGB', (140*scale, 110*scale), 'tan')
+            blank = ground.copy()
+            brick_spur(ground, path, tile, 20, scale)
+            for x, y in ((22, 80), (69, 72), (76, 74), (86, 67), (92, 53), (92, 41)):
+                self.assertEqual(ground.getpixel((x*scale, y*scale)), tile.getpixel((0, 0)))
+            for x, y in ((92, 22), (92, 35), (68, 59), (116, 55)):
+                self.assertEqual(ground.getpixel((x*scale, y*scale)), blank.getpixel((x*scale, y*scale)))
+            brick_spur(blank, [(20, 20), (32, 20)], tile, 20, scale)
+            self.assertEqual(blank.getcolors(), [(blank.width * blank.height, (210, 180, 140))])
+
     def test_authored_scenery_only_fouls_a_bend_where_its_paint_covers_the_lane(self):
         lane = road_footprint((100, 100), [[(0, 75), (75, 75), (75, 0)]], 12)
         rect = (40, 40, 80, 80)

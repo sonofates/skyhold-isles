@@ -92,7 +92,7 @@ from gates import (  # noqa: E402
 )
 import fords  # noqa: E402
 from banks import shore_foundation  # noqa: E402
-from masonry import cart_tracks, marble_road, moat_wall  # noqa: E402
+from masonry import brick_spur, cart_tracks, marble_road, moat_wall  # noqa: E402
 from keeps import Keep  # noqa: E402
 from ground import (  # noqa: E402
     Decals, DressingArea, brushed_surface, fine_detail, inner_band, paint_over_road, ragged_mask,
@@ -757,17 +757,24 @@ keep.trim_road(road_hard, S, spl_paths)
 noise_scale = S / 2 if native_3x else 1
 road_mask = ragged_mask(road_hard, rw * 0.05, max(4, round(rw * 0.16 / noise_scale)), 0.22, SEED + 21, aa=1.1 if native_3x else 1.1 * W / 3692, noise_scale=noise_scale)
 road_material = load(dressing.get('roadMaterial', 'tex-dirt.png'))
-if dressing.get('layMarble'):
+if dressing.get('roadPlate'):
+    dirt = road_material.resize((W, H), Image.Resampling.BICUBIC)
+elif dressing.get('layMarble'):
     dirt = marble_road((W, H), road_material, spl_paths[0], ROAD_W, S, SEED + 23)
 elif not kit or dressing.get('brushRoad'):
     dirt = brushed_surface(road_material, (W, H), 0.45 * TEX, SEED + 23)
 else:
     dirt = tiled(road_material, W, H, 0.45 * TEX)
-if not dressing.get('layMarble'):
+if not dressing.get('layMarble') and not dressing.get('roadPlate'):
     dirt = fine_detail(dirt, road_material, round(1024 * 0.16 * TEX), 0.45, 7 * TEX)
 if 'cartLane' in dressing:
     cart_tracks(dirt, spl_paths[dressing['cartLane']], ROAD_W, S, SEED + 37)
 entrance_floors = {}
+if 'brickSpur' in dressing:
+    lane, material = dressing['brickSpur']
+    brick = load(material)
+    brick_spur(dirt, catmull(SECTIONS[first_sections[lane]]), brick, ROAD_W, S)
+    entrance_floors[lane] = brick
 if 'branchMaterial' in dressing:
     branch_lane, material = dressing['branchMaterial']
     first = catmull(SECTIONS[first_sections[branch_lane]])
@@ -897,7 +904,8 @@ for n, x, yb, h in LANDMARKS:
     sprite(n, x * S, yb * S, h * S, flat=(n, x, yb, h) in ground_paint)
 for G in GATES:
     gx0, gy0, gw_, gh_ = output_box(G['g'], S)
-    _spr = output_sprite(G['g'], S)
+    finish = dressing.get('entranceFinishes', {}).get(G['id']) if G['role'] == 'entrance' else None
+    _spr = output_sprite(G['g'], S, Image.open(asset_file(finish)).convert('RGBA') if finish else None)
     if G['role'] == 'entrance' and dressing.get('thresholdRoad'):
         floor_paint = entrance_floors.get(G['lane'], road_material)
         _spr = light_interior(_spr, G['g'], floor_rgb=floor_paint.resize((1, 1)).getpixel((0, 0))[:3])

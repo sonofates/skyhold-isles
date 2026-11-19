@@ -388,9 +388,19 @@ def output_box(g, S: float):
     return round(g['left'] * S), round(g['top'] * S), round(g['im'].width * k), round(g['im'].height * k)
 
 
-def output_sprite(g, S: float) -> Image.Image:
+def output_sprite(g, S: float, finish=None) -> Image.Image:
     _, _, w, h = output_box(g, S)
-    return g['im'].resize((w, h), Image.LANCZOS)
+    art = g['im']
+    if finish is not None:
+        # The finish is registered to the facing seen in play. Take only its
+        # colour, preserving the measured silhouette and the open passage.
+        if finish.size != art.size:
+            raise ValueError(f'gate finish {finish.size} does not fit {art.size}')
+        opacity = finish.getchannel('A')
+        opacity.paste(0, mask=g['mouth']['mask'])
+        art = Image.composite(finish, art, opacity)
+        art.putalpha(g['im'].getchannel('A'))
+    return art.resize((w, h), Image.LANCZOS)
 
 
 def contact_shadow(g, S: float, rw: float):

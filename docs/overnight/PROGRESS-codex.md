@@ -1,5 +1,29 @@
 # Content overnight · codex
 
+## Round 9 · 02:05–02:27 UTC · codex/night
+
+Started from `eab2202`. The runner owns the commit.
+
+### Done
+
+- **i16 Emberglass Sanctum.** The upper west ore tunnel has a winding drum and loaded skip. The lower west cooling chamber has glazed masonry and three cast-glass discs on a trestle. At the east furnace a leather bellows plugs into the copper socket of a glowing barred firebox. Two braziers serve the furnace yard. The former ring of identical perimeter fires is gone.
+- A full courtyard painting supplies the flagstones on the two long approaches. Firebrick courses follow the short eastern lane, ending with a transverse row before the three-way junction. The terrace has bedded tuff, cooled lava and fractured black glass at its outer edge. A new ash mask keeps scattered props off these formations. The lower rock lip was fitted below the three existing southern pads.
+- The compositor supports painted finishes on measured cave faces. Colours can change while the opening, silhouette and actor depth mask retain their original registration. Two regressions exercise that behaviour and check the brick courses at a bend and just before a shared road, at 1×, 2× and 3×. [Paintings and art briefs](../../design/art-2d/v2/biomes/ember/sanctum.md)
+
+### Verification
+
+- Re-baked the four map sizes and eight gate foregrounds with `--keep-plots`. All 25 saved layouts match the starting revision byte for byte and pass their geometry checks. Decoded 100 maps and 132 gate fronts at their registered dimensions. All eight i16 foreground alpha channels match the original pixels. The twelve i16 shipping textures together use 111,298 fewer bytes.
+- Captured the optimized production campaign before and after, using its scripted autoplay to buy towers with earned gold. Gatecrash at wave tick 368 had six towers and five ground enemies across all three lanes. Heart of the Sanctum at wave tick 552 had 24 towers, 27 ground enemies and 13 flyers. On all six pairs, the tick, ground positions, tower builds, gold, lives, total enemy count, camera fit and gate texture widths matched. Desktop ran at 1920 × 1080 DPR 1 and 2, phone at 844 × 390 DPR 3. Both DPR 2 frames loaded the 3× map. [Before and after maps and native 2× gate details](maps-round9-sanctum.jpg) · [Desktop combat](maps-round9-desktop.jpg) · [Phone combat at CSS size](maps-round9-phone.jpg)
+- The final Node 22 gate passed TypeScript, lint, Vitest (1,186 passed, 11 skipped), all 41 balance targets and Vite. Vite printed its chunk-size advisory. The complete 848-line balance output is byte-identical to round eight, SHA-256 `a843de0e6d4ece932d0de94bac52f34d8a7ca5dcd5dcb11f8c4c4a23a22d6e47`. Ten Python compositor tests and two sprite tests passed. A clean second bake reproduced all twelve i16 textures byte for byte. The same check on i09 reproduced all eight of its existing map and gate textures after extracting the shared paving sampler. Full-resolution frames, diagnostics and gate logs are under `/tmp/skyhold-codex-r9`.
+
+### Requests for other agents
+
+The chapter-two roster activation, clip loader, kill callback, story registrations, i21 horn placement and Turkish lookups from earlier rounds remain pending on this branch. Round nine adds scenery to a shipping chapter-one island and introduces no UI strings.
+
+### Next round
+
+Inspect i13 Stormcrown Citadel’s spiral in a late wave. The altar in the northern court is very small and the yellow standard at the southeast rim sits among scattered rubble. Check both at phone scale. Give the storm watch an identifiable station at one of these sites, retaining the two entrances, inner keep and all 28 plots. If the shared chapter registrations land first, verify chapter-two unlock, story, enemy kills and Turkish lookups in production.
+
 ## Round 8 · 01:46–02:05 UTC · codex/night
 
 Started from `1d526a4`. Changes are in the working tree for the overnight runner.
