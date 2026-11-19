@@ -1,6 +1,6 @@
 import type { EventBus } from '../core/eventBus.ts';
 import type { ObjectPool } from '../core/pool.ts';
-import type { Vec3 } from '../core/types.ts';
+import type { TowerType, Vec3 } from '../core/types.ts';
 import { ENEMY_DEFS } from '../data/enemies.ts';
 import { ENEMY_MELEE, SOLDIER_FORMATION, SOLDIER_RULES } from '../data/soldiers.ts';
 import { getTowerTierStats, type TowerTierStats } from '../data/towers.ts';
@@ -135,6 +135,8 @@ export class SoldierSystem {
   private dirty = false;
   /** Enemies held at the end of the last update (QA / renderer). */
   blockedCount = 0;
+  /** Per tower type attack-rate multiplier (Workshop / run modifiers); missing = 1. */
+  towerRateMul: Readonly<Partial<Record<TowerType, number>>> = {};
   private readonly claims: Int16Array;
   private readonly wasBlocked: Uint8Array;
   private readonly primary: Int32Array;
@@ -623,6 +625,7 @@ export class SoldierSystem {
       const swingRate = Math.max(0.01, stats.soldierRate ?? 1);
       const rateMul =
         rate *
+        (this.towerRateMul[tower.type] ?? 1) *
         (1 +
           tower.auraRate +
           (tower.heroRateBonus ?? 0) +

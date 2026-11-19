@@ -132,6 +132,8 @@ interface PendingVolleyWave {
 }
 
 const _candidates: number[] = [];
+const _pickedEnemies: EnemyEntity[] = [];
+const _pickedTowers: TowerEntity[] = [];
 const _prevHeroBlockedIdx: number[] = [];
 const _prevHeroBlockedUid: number[] = [];
 const _prevTotalBlocked: number[] = [];
@@ -817,7 +819,12 @@ export class HeroSystem {
     hz: number,
     maxCastRange: number,
   ): { x: number; z: number } {
-    const initial = this.groundGraph.clampToGround(tx, tz, HERO_RULES.maxOffRoadDist);
+    const initial = this.groundGraph.clampToGroundOut(
+      tx,
+      tz,
+      HERO_RULES.maxOffRoadDist,
+      _clampTarget,
+    );
     if (this.isClearOfPlots(initial.x, initial.z)) {
       return { x: initial.x, z: initial.z };
     }
@@ -921,6 +928,36 @@ export class HeroSystem {
     this.burnLeft[idx] = Math.max(this.burnLeft[idx], durationSec);
   }
 
+  private fillPickedEnemies(cx: number, cz: number, r: number, preferStrongest: boolean): void {
+    this.spatialHash.query(cx, cz, r, _candidates);
+    const rSq = r * r;
+    _pickedEnemies.length = 0;
+    for (let i = 0; i < _candidates.length; i++) {
+      const e = this.pool.items[_candidates[i]];
+      if (!e.active || e.hp <= 0 || e.burrowed) continue;
+      if ((e.x - cx) ** 2 + (e.z - cz) ** 2 <= rSq) _pickedEnemies.push(e);
+    }
+    for (let i = 1; i < _pickedEnemies.length; i++) {
+      const cur = _pickedEnemies[i];
+      const dCur = (cur.x - cx) ** 2 + (cur.z - cz) ** 2;
+      let j = i - 1;
+      while (j >= 0) {
+        const prev = _pickedEnemies[j];
+        let cmp: number;
+        if (preferStrongest && cur.hp !== prev.hp) {
+          cmp = prev.hp - cur.hp;
+        } else {
+          const dPrev = (prev.x - cx) ** 2 + (prev.z - cz) ** 2;
+          cmp = Math.abs(dCur - dPrev) > 1e-6 ? dCur - dPrev : cur.uid - prev.uid;
+        }
+        if (cmp >= 0) break;
+        _pickedEnemies[j + 1] = prev;
+        j--;
+      }
+      _pickedEnemies[j + 1] = cur;
+    }
+  }
+
   private pickEnemiesNear(
     tx: number,
     tz: number,
@@ -930,31 +967,13 @@ export class HeroSystem {
     fallbackRange: number,
     count: number,
     preferStrongest: boolean,
-  ): EnemyEntity[] {
-    const queryAndSort = (cx: number, cz: number, r: number): EnemyEntity[] => {
-      this.spatialHash.query(cx, cz, r, _candidates);
-      const rSq = r * r;
-      const list: EnemyEntity[] = [];
-      for (let i = 0; i < _candidates.length; i++) {
-        const e = this.pool.items[_candidates[i]];
-        if (!e.active || e.hp <= 0 || e.burrowed) continue;
-        if ((e.x - cx) ** 2 + (e.z - cz) ** 2 <= rSq) list.push(e);
-      }
-      list.sort((a, b) => {
-        if (preferStrongest && b.hp !== a.hp) return b.hp - a.hp;
-        const da = (a.x - cx) ** 2 + (a.z - cz) ** 2;
-        const db = (b.x - cx) ** 2 + (b.z - cz) ** 2;
-        if (Math.abs(da - db) > 1e-6) return da - db;
-        return a.uid - b.uid;
-      });
-      return list;
-    };
-
-    let found = queryAndSort(tx, tz, searchRadius);
-    if (found.length === 0 && fallbackRange > 0) {
-      found = queryAndSort(hx, hz, fallbackRange);
+  ): readonly EnemyEntity[] {
+    this.fillPickedEnemies(tx, tz, searchRadius, preferStrongest);
+    if (_pickedEnemies.length === 0 && fallbackRange > 0) {
+      this.fillPickedEnemies(hx, hz, fallbackRange, preferStrongest);
     }
-    return found.slice(0, count);
+    if (_pickedEnemies.length > count) _pickedEnemies.length = count;
+    return _pickedEnemies;
   }
 
   private pickTowersNear(
@@ -965,23 +984,32 @@ export class HeroSystem {
     hz: number,
     maxHeroRange: number,
     count: number,
-  ): TowerEntity[] {
-    const candidates: TowerEntity[] = [];
+  ): readonly TowerEntity[] {
+    _pickedTowers.length = 0;
     const rSq = maxHeroRange * maxHeroRange;
     for (let i = 0; i < towers.length; i++) {
       const t = towers[i];
       if (t.type === 'beacon') continue;
       if ((t.x - hx) ** 2 + (t.z - hz) ** 2 <= rSq) {
-        candidates.push(t);
+        _pickedTowers.push(t);
       }
     }
-    candidates.sort((a, b) => {
-      const da = (a.x - tx) ** 2 + (a.z - tz) ** 2;
-      const db = (b.x - tx) ** 2 + (b.z - tz) ** 2;
-      if (Math.abs(da - db) > 1e-6) return da - db;
-      return a.id - b.id;
-    });
-    return candidates.slice(0, count);
+    for (let i = 1; i < _pickedTowers.length; i++) {
+      const cur = _pickedTowers[i];
+      const dCur = (cur.x - tx) ** 2 + (cur.z - tz) ** 2;
+      let j = i - 1;
+      while (j >= 0) {
+        const prev = _pickedTowers[j];
+        const dPrev = (prev.x - tx) ** 2 + (prev.z - tz) ** 2;
+        const cmp = Math.abs(dCur - dPrev) > 1e-6 ? dCur - dPrev : cur.id - prev.id;
+        if (cmp >= 0) break;
+        _pickedTowers[j + 1] = prev;
+        j--;
+      }
+      _pickedTowers[j + 1] = cur;
+    }
+    if (_pickedTowers.length > count) _pickedTowers.length = count;
+    return _pickedTowers;
   }
 
   private isHoldable(e: EnemyEntity): boolean {

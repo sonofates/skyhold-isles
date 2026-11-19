@@ -345,6 +345,7 @@ type Listener<T> = (payload: T) => void;
 
 export class EventBus {
   private listeners: { [K in keyof GameEventMap]?: Array<Listener<GameEventMap[K]>> } = {};
+  private emitDepth = 0;
   /** Suppresses listener dispatch during fast-forward replay seeks when `true`. */
   muted = false;
 
@@ -356,9 +357,15 @@ export class EventBus {
     }
     list.push(listener);
     return () => {
-      const idx = list.indexOf(listener);
-      if (idx !== -1) {
-        list.splice(idx, 1);
+      const cur = this.listeners[event];
+      if (!cur) return;
+      const idx = cur.indexOf(listener);
+      if (idx === -1) return;
+      if (this.emitDepth > 0) {
+        (this.listeners as Record<K, Array<Listener<GameEventMap[K]>> | undefined>)[event] =
+          cur.filter((_, k) => k !== idx);
+      } else {
+        cur.splice(idx, 1);
       }
     };
   }
@@ -366,9 +373,17 @@ export class EventBus {
   emit<K extends keyof GameEventMap>(event: K, payload: GameEventMap[K]): void {
     if (this.muted) return;
     const list = this.listeners[event];
-    if (!list) return;
-    for (let i = 0; i < list.length; i++) {
-      list[i](payload);
+    if (!list || list.length === 0) return;
+    this.emitDepth++;
+    try {
+      for (let i = 0; i < list.length; i++) {
+        const fn = list[i];
+        const cur = this.listeners[event];
+        if (cur !== list && (!cur || !cur.includes(fn))) continue;
+        fn(payload);
+      }
+    } finally {
+      this.emitDepth--;
     }
   }
 

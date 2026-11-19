@@ -165,7 +165,9 @@ export function loadSettings(): GameSettings {
   try {
     const raw = localStorage.getItem(SETTINGS_KEY);
     if (!raw) return defaults;
-    const parsed = JSON.parse(raw) as Partial<GameSettings> & { v?: number };
+    const rawParsed: unknown = JSON.parse(raw);
+    if (!rawParsed || typeof rawParsed !== 'object' || Array.isArray(rawParsed)) return defaults;
+    const parsed = rawParsed as Partial<GameSettings> & { v?: number };
     let quality = parseQuality(parsed.quality, defaults.quality);
     // v1 (pre-Auto) defaulted touch devices to 'low', so a stored 'low' on a touch device is
     // almost always that old default rather than a choice: move it to Auto. Explicit choices

@@ -261,6 +261,7 @@ export class SimWorld {
 
     this.abilitySystem.cooldownMul = mods.abilityCooldownMul;
     this.combatSystem.towerRateMul = mods.towerFireRateMul;
+    this.soldierSystem.towerRateMul = mods.towerFireRateMul;
     this.enemySystem.speedMul = mods.enemySpeedMul;
 
     this.gold = Math.max(0, Math.round(level.startingGold * mods.startGoldMul) + mods.startGoldBonus);

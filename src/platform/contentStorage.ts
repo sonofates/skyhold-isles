@@ -81,7 +81,11 @@ export class ContentStore {
     try {
       const raw = s.getItem(CODEX_KEY);
       if (raw) {
-        const parsed = JSON.parse(raw) as Partial<CodexSave>;
+        const rawParsed: unknown = JSON.parse(raw);
+        const parsed =
+          rawParsed && typeof rawParsed === 'object' && !Array.isArray(rawParsed)
+            ? (rawParsed as Partial<CodexSave>)
+            : null;
         if (parsed && Array.isArray(parsed.seen)) {
           for (const v of parsed.seen) if (typeof v === 'string') this.seen.add(v);
           if (Array.isArray(parsed.viewed)) {
@@ -99,8 +103,15 @@ export class ContentStore {
     try {
       const raw = s.getItem(ONBOARDING_KEY);
       if (raw) {
-        const parsed = JSON.parse(raw) as { v?: number; status?: unknown };
-        if (parsed.status === 'pending' || parsed.status === 'done' || parsed.status === 'skipped') {
+        const rawParsed: unknown = JSON.parse(raw);
+        const parsed =
+          rawParsed && typeof rawParsed === 'object' && !Array.isArray(rawParsed)
+            ? (rawParsed as { v?: number; status?: unknown })
+            : null;
+        if (
+          parsed &&
+          (parsed.status === 'pending' || parsed.status === 'done' || parsed.status === 'skipped')
+        ) {
           this.status = parsed.status;
           this.statusKnown = true;
         }

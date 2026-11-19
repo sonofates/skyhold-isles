@@ -6,12 +6,16 @@ import type { EnemyEntity, TowerEntity } from './entities.ts';
 import type { EnemySystem } from './enemySystem.ts';
 import type { SpatialHashGrid } from './spatialHash.ts';
 
-interface PendingMeteor {
+export interface ReadonlyPendingMeteor {
   readonly x: number;
   readonly z: number;
-  remaining: number;
+  readonly remaining: number;
   readonly radius: number;
   readonly damage: number;
+}
+
+interface PendingMeteor extends ReadonlyPendingMeteor {
+  remaining: number;
   readonly slowRatio: number;
   readonly slowDuration: number;
 }
@@ -44,6 +48,14 @@ export class AbilitySystem {
   clearPending(): void {
     this.pendingMeteors.length = 0;
     this.overchargeRemaining = 0;
+  }
+
+  getPendingMeteorCount(): number {
+    return this.pendingMeteors.length;
+  }
+
+  getPendingMeteors(): readonly ReadonlyPendingMeteor[] {
+    return this.pendingMeteors;
   }
 
   canCast(id: AbilityId): boolean {

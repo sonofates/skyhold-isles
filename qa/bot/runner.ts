@@ -221,7 +221,10 @@ function executeOnce(
   if (
     world.enemyPool.getActiveCount() !== 0 ||
     world.projectilePool.getActiveCount() !== 0 ||
+    world.projectileSystem.getActiveBurnZoneCount() !== 0 ||
+    world.abilitySystem.getPendingMeteorCount() !== 0 ||
     world.soldierSystem.soldiers.length !== 0 ||
+    world.soldierSystem.barracks.length !== 0 ||
     world.heroSystem.gizmos.length !== 0 ||
     world.heroSystem.fireRings.length !== 0 ||
     world.towers.length !== 0

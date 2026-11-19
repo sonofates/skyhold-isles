@@ -10,7 +10,7 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "lint": "eslint src tests scripts",
+    "lint": "eslint src tests scripts qa/bot",
     "test": "vitest run",
     "sim:balance": "tsx scripts/balanceSim.ts",
     "sim:heroes": "tsx scripts/heroBalance.ts",

@@ -74,4 +74,14 @@ describe('settings load / migration', () => {
     asTouchDevice(true);
     expect(loadSettings().quality).toBe('auto');
   });
+
+  it('returns clean defaults when stored JSON is a primitive, null, array, or NaN fields', () => {
+    for (const raw of ['null', '123', 'true', '"str"', '[1,2,3]', '{broken']) {
+      store.set(KEY, raw);
+      const s = loadSettings();
+      expect(s.masterVolume).toBe(0.65);
+      expect(s.quality).toBe('auto');
+      expect(s.muted).toBe(false);
+    }
+  });
 });

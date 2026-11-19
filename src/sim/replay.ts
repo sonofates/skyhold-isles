@@ -174,6 +174,15 @@ export function computeSimStateHash(world: SimWorld): string {
     h.f64(world.abilitySystem.getCooldown(id));
   }
   h.f64(world.abilitySystem.getOverchargeRemaining());
+  const pendingMeteors = world.abilitySystem.getPendingMeteors();
+  h.u32(pendingMeteors.length);
+  for (let i = 0; i < pendingMeteors.length; i++) {
+    const m = pendingMeteors[i];
+    h.f64(m.x);
+    h.f64(m.z);
+    h.f64(m.remaining);
+    h.f64(m.damage);
+  }
 
   h.u32(world.towers.length);
   for (let i = 0; i < world.towers.length; i++) {
@@ -187,6 +196,15 @@ export function computeSimStateHash(world: SimWorld): string {
     h.f64(t.totalDamageDealt);
     h.u32(t.kills);
     h.u32(t.shotCount);
+  }
+
+  const barracks = world.soldierSystem.barracks;
+  h.u32(barracks.length);
+  for (let i = 0; i < barracks.length; i++) {
+    const b = barracks[i];
+    h.u32(b.towerId);
+    h.f64(b.rallyX);
+    h.f64(b.rallyZ);
   }
 
   const soldiers = world.soldierSystem.soldiers;
@@ -227,6 +245,27 @@ export function computeSimStateHash(world: SimWorld): string {
     h.f64(g.x);
     h.f64(g.z);
     h.f64(g.remainingSec);
+  }
+
+  const fireRings = world.heroSystem.fireRings;
+  h.u32(fireRings.length);
+  for (let i = 0; i < fireRings.length; i++) {
+    const r = fireRings[i];
+    h.f64(r.x);
+    h.f64(r.z);
+    h.f64(r.remainingSec);
+    h.f64(r.dps);
+  }
+
+  const burnZones = world.projectileSystem.getBurnZones();
+  h.u32(world.projectileSystem.getActiveBurnZoneCount());
+  for (let i = 0; i < burnZones.length; i++) {
+    const z = burnZones[i];
+    if (!z.active) continue;
+    h.f64(z.x);
+    h.f64(z.z);
+    h.f64(z.timeLeft);
+    h.f64(z.damage);
   }
 
   _activeEnemyOrder.length = 0;
@@ -523,7 +562,8 @@ export class SimReplayPlayer {
   }
 
   get finished(): boolean {
-    return this.world.tick >= this.totalTicks && this.cmdIndex >= this.replay.commands.length;
+    if (this.cmdIndex < this.replay.commands.length) return false;
+    return this.world.tick >= this.totalTicks || this.world.outcome !== 'ongoing';
   }
 
   private createWorld(): SimWorld {

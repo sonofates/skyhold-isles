@@ -521,10 +521,13 @@ export function resolveHeroForRun(
   const parsedLevel = levelParam ? Number(levelParam) : NaN;
   if (Number.isFinite(parsedLevel) && parsedLevel >= 1) {
     const forcedLevel = Math.max(1, Math.min(HERO_MAX_LEVEL, Math.floor(parsedLevel)));
+    const savedLevel = heroLevel(entry.xp);
+    const budget = heroSkillPointsForLevel(forcedLevel);
+    const validSaved = sanitizeHeroSkills(heroId, entry.skills, budget);
     const skills =
-      forcedLevel > 1 && entry.skills.length === 0
-        ? defaultSkillsForLevel(heroId, forcedLevel)
-        : entry.skills;
+      forcedLevel <= savedLevel && validSaved.length > 0
+        ? validSaved
+        : defaultSkillsForLevel(heroId, forcedLevel);
     return { heroId, level: forcedLevel, skills: [...skills] };
   }
   return {

@@ -21,7 +21,17 @@ const _impactOut = { x: 0, z: 0 };
 const SHELL_LEAD_FACTOR = 0.8;
 const SHELL_LEAD_ITERATIONS = 5;
 
-interface BurnZone {
+export interface ReadonlyBurnZone {
+  readonly active: boolean;
+  readonly x: number;
+  readonly z: number;
+  readonly radius: number;
+  readonly timeLeft: number;
+  readonly damage: number;
+  readonly towerId: number;
+}
+
+interface BurnZone extends ReadonlyBurnZone {
   active: boolean;
   x: number;
   z: number;
@@ -80,6 +90,10 @@ export class ProjectileSystem {
     let n = 0;
     for (let i = 0; i < this.burnZones.length; i++) if (this.burnZones[i].active) n++;
     return n;
+  }
+
+  getBurnZones(): readonly ReadonlyBurnZone[] {
+    return this.burnZones;
   }
 
   clearBurnZones(): void {

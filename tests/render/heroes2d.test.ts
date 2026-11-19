@@ -304,5 +304,23 @@ describe('2D save persistence, migration & run-end XP recording', () => {
     expect(forced20.heroId).toBe('sela');
     expect(forced20.level).toBe(20);
     expect([...forced20.skills].sort()).toEqual([...defaultLevel20Skills('sela')].sort());
+
+    // When a save already has spent skills at L10, ?herolevel=1 resets to [] (never leaks overspent skills),
+    // ?herolevel=10 keeps the player's chosen L10 nodes, and ?herolevel=20 expands to a full 19-point build!
+    let customL10 = applyHeroXp(saved, 'bran', xpForHeroLevel(10), LEVELS_2D).progress;
+    customL10 = applyNode(customL10, 'bran', 'bran_van_1', LEVELS_2D)!;
+    customL10 = applyNode(customL10, 'bran', 'bran_van_2', LEVELS_2D)!;
+    expect(resolveHeroForRun(customL10, 'bran', '1', LEVELS_2D)).toEqual({
+      heroId: 'bran',
+      level: 1,
+      skills: [],
+    });
+    expect(resolveHeroForRun(customL10, 'bran', '10', LEVELS_2D)?.skills).toEqual([
+      'bran_van_1',
+      'bran_van_2',
+    ]);
+    expect([...resolveHeroForRun(customL10, 'bran', '20', LEVELS_2D)!.skills].sort()).toEqual(
+      [...defaultLevel20Skills('bran')].sort(),
+    );
   });
 });

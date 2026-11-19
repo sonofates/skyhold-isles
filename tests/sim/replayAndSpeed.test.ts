@@ -276,4 +276,149 @@ describe('Tick-stamped SimCommand recording & SimReplayPlayer', () => {
       expect(src).not.toMatch(/\b(document|window|localStorage)\b/);
     }
   });
+
+  it('replays a full story victory -> enterEndless -> endless wave transition and handles terminal totalTicks', () => {
+    const miniLevel = {
+      ...LEVEL_L1C,
+      id: 'mini-replay-win',
+      waves: [
+        {
+          groups: [{ enemyType: 'grunt' as const, count: 3, spawnInterval: 0.35, startDelay: 0 }],
+          clearBonus: 30,
+        },
+      ],
+    };
+    const world = new SimWorld(miniLevel, new EventBus(), {
+      heroId: 'mira',
+      heroLevel: 20,
+      heroSkills: defaultLevel20Skills('mira'),
+      seed: 4242,
+      recordCommands: true,
+    });
+    expect(world.placeTowerOnPlot(0, 'archer')).not.toBeNull();
+    expect(world.placeTowerOnPlot(1, 'cannon')).not.toBeNull();
+    expect(world.startNextWave()).toBe(true);
+
+    for (let guard = 0; guard < 4000 && world.outcome === 'ongoing'; guard++) {
+      world.fixedTick(BALANCE.fixedDt);
+    }
+    expect(world.outcome).toBe('won');
+    const victoryTick = world.tick;
+    const preEndlessHash = computeSimStateHash(world);
+
+    // Player clicks Enter Endless on the victory card, starts wave 2 (endless), and plays 180 ticks!
+    expect(world.enterEndlessMode()).toBe(true);
+    expect(world.startNextWave()).toBe(true);
+    for (let t = 0; t < 180 && world.outcome === 'ongoing'; t++) {
+      if (t === 30) world.castHeroSkill(0);
+      if (t === 45) world.castAbility('meteor', world.groundPath.points[0].x, world.groundPath.points[0].z);
+      world.fixedTick(BALANCE.fixedDt);
+    }
+
+    const replay = parseSimReplay(serializeSimReplay(world.exportReplay()))!;
+    const player = new SimReplayPlayer(miniLevel, replay);
+    const res = player.runToEnd();
+    expect(res.matchesOutcome).toBe(true);
+    expect(res.matchesHash).toBe(true);
+    expect(player.world.waveSystem.isEndless).toBe(true);
+    expect(player.currentTick).toBe(world.tick);
+
+    // Seeking past the victory tick and back to before victory stays bit-exact!
+    player.seekToTick(Math.max(1, victoryTick - 5));
+    expect(player.world.outcome).toBe('ongoing');
+    expect(player.world.waveSystem.isEndless).toBe(false);
+    const resumed = player.runToEnd();
+    expect(resumed.matchesHash).toBe(true);
+    expect(computeSimStateHash(player.world)).not.toBe(preEndlessHash);
+
+    // Terminal run whose summary.totalTicks was inflated still reports finished=true once outcome !== 'ongoing'.
+    const terminalWorld = new SimWorld(miniLevel, new EventBus(), { seed: 11, recordCommands: true });
+    terminalWorld.placeTowerOnPlot(0, 'tesla');
+    terminalWorld.placeTowerOnPlot(1, 'archer');
+    terminalWorld.startNextWave();
+    while (terminalWorld.outcome === 'ongoing' && terminalWorld.tick < 4000) {
+      terminalWorld.fixedTick(BALANCE.fixedDt);
+    }
+    expect(terminalWorld.outcome).toBe('won');
+    const rawLog = terminalWorld.exportReplay();
+    const inflated = parseSimReplay({
+      ...rawLog,
+      summary: { ...rawLog.summary, totalTicks: rawLog.summary.totalTicks + 5000 },
+    })!;
+    const termPlayer = new SimReplayPlayer(miniLevel, inflated);
+    termPlayer.stepFrame(0.05, 8, false);
+    termPlayer.runToEnd();
+    expect(termPlayer.world.outcome).toBe('won');
+    expect(termPlayer.finished).toBe(true);
+  });
+});
+
+describe('EventBus re-entrancy & SoldierSystem towerFireRateMul', () => {
+  it('never skips sibling listeners on self-unsubscribe, honors cross-unsubscribe, and stops on clear()', () => {
+    const bus = new EventBus();
+    const order: string[] = [];
+    const offA = bus.on('waveCompleted', () => {
+      order.push('A');
+      offA();
+    });
+    bus.on('waveCompleted', () => {
+      order.push('B');
+    });
+    bus.emit('waveCompleted', { waveIndex: 0, bonus: 10 });
+    expect(order).toEqual(['A', 'B']);
+
+    order.length = 0;
+    bus.emit('waveCompleted', { waveIndex: 1, bonus: 10 });
+    expect(order).toEqual(['B']);
+
+    // Cross-unsubscribe during emit suppresses not-yet-invoked listener C2.
+    const crossOrder: string[] = [];
+    let offC2: () => void = () => {};
+    bus.on('economyChanged', () => {
+      crossOrder.push('C1');
+      offC2();
+    });
+    offC2 = bus.on('economyChanged', () => {
+      crossOrder.push('C2');
+    });
+    bus.on('economyChanged', () => {
+      crossOrder.push('C3');
+    });
+    bus.emit('economyChanged', { gold: 100, lives: 20 });
+    expect(crossOrder).toEqual(['C1', 'C3']);
+
+    // clear() inside listener stops remaining listeners in the same emit.
+    const clearOrder: string[] = [];
+    bus.on('gameLost', () => {
+      clearOrder.push('L1');
+      bus.clear();
+    });
+    bus.on('gameLost', () => {
+      clearOrder.push('L2');
+    });
+    bus.emit('gameLost', { waveIndex: 0 });
+    expect(clearOrder).toEqual(['L1']);
+  });
+
+  it('applies RunModifiers.towerFireRateMul.barracks to barracks soldier melee swing cadence', () => {
+    const runBarracksDamage = (barracksRateMul: number): number => {
+      const mods = {
+        ...workshopModifiers({}),
+        towerFireRateMul: barracksRateMul === 1 ? {} : { barracks: barracksRateMul },
+      };
+      const world = new SimWorld(LEVEL_L1C, new EventBus(), mods, { seed: 55 });
+      const b = world.placeTowerOnPlot(2, 'barracks')!;
+      expect(b).not.toBeNull();
+      world.startNextWave();
+      for (let t = 0; t < 900 && world.outcome === 'ongoing'; t++) {
+        world.fixedTick(BALANCE.fixedDt);
+      }
+      return b.totalDamageDealt;
+    };
+
+    const baseDmg = runBarracksDamage(1.0);
+    const boostedDmg = runBarracksDamage(1.6);
+    expect(baseDmg).toBeGreaterThan(0);
+    expect(boostedDmg).toBeGreaterThan(baseDmg);
+  });
 });

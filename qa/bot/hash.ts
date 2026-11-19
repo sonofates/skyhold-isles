@@ -74,6 +74,15 @@ export function hashWorldState(world: SimWorld): string {
   h.f64(world.abilitySystem.getCooldown('meteor'));
   h.f64(world.abilitySystem.getCooldown('overcharge'));
   h.f64(world.abilitySystem.getOverchargeRemaining());
+  const pendingMeteors = world.abilitySystem.getPendingMeteors();
+  h.i32(pendingMeteors.length);
+  for (let i = 0; i < pendingMeteors.length; i++) {
+    const m = pendingMeteors[i];
+    h.f64(m.x);
+    h.f64(m.z);
+    h.f64(m.remaining);
+    h.f64(m.damage);
+  }
 
   h.i32(world.towers.length);
   for (let i = 0; i < world.towers.length; i++) {

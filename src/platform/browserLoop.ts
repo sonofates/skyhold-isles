@@ -52,8 +52,9 @@ export class GameLoop {
       // Schedule the next frame first so a single thrown frame cannot kill the loop forever.
       // If stop() is called from inside a callback it cancels this pending request.
       this.rafId = requestAnimationFrame(tick);
-      const rawDt = Math.min((now - this.lastTimestamp) / 1000, 0.1);
-      this.lastTimestamp = now;
+      const deltaSec = Number.isFinite(now) ? (now - this.lastTimestamp) / 1000 : 0;
+      const rawDt = Math.max(0, Math.min(deltaSec, 0.1));
+      if (Number.isFinite(now)) this.lastTimestamp = now;
       try {
         const { alpha, elapsedVisualTime } = this.stepper.step(
           rawDt,
