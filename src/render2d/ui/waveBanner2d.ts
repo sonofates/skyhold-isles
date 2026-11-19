@@ -30,7 +30,9 @@ export function waveCallout(types: readonly EnemyType[], waveIndex: number, stor
 
 export interface WaveBanner2D {
   show(c: WaveCallout): void;
-  debug(): { text: string; shown: boolean };
+  /** QA: show the last call-out again (screenshots on slow software GL). */
+  again(): void;
+  debug(): { text: string; shown: boolean; count: number };
 }
 
 export function mountWaveBanner(): WaveBanner2D {
@@ -41,9 +43,13 @@ export function mountWaveBanner(): WaveBanner2D {
   root.style.display = 'none';
   document.body.append(root);
   let timer = 0;
+  let count = 0;
+  let last: WaveCallout = null;
   return {
     show(c) {
       if (!c) return;
+      count++;
+      last = c;
       head.textContent = c.kind === 'boss' ? t('callout.boss') : t('callout.final');
       sub.textContent = c.kind === 'boss' ? c.name : c.boss ? t('callout.finalBoss', { name: c.boss }) : t('callout.finalSub');
       // A boss leading the final wave gets the boss's red glow.
@@ -57,6 +63,9 @@ export function mountWaveBanner(): WaveBanner2D {
         root.style.display = 'none';
       }, 2600);
     },
-    debug: () => ({ text: `${head.textContent} ${sub.textContent}`, shown: root.style.display !== 'none' }),
+    again() {
+      if (last) this.show(last);
+    },
+    debug: () => ({ text: `${head.textContent} ${sub.textContent}`, shown: root.style.display !== 'none', count }),
   };
 }

@@ -104,6 +104,7 @@ declare global {
       goldPops?: () => { active: number; spawned: number };
       newFoe?: () => Record<string, unknown> | null;
       callout?: () => Record<string, unknown> | null;
+      calloutAgain?: () => void;
       foeAt?: () => { x: number; y: number; h: number } | null;
       aimAbility?: (id: AbilityId | null) => void;
       /** QA: stop / restart the ticker (a frozen frame for mid-effect screenshots, no Paused plate). */
@@ -870,8 +871,8 @@ async function main(): Promise<void> {
           const fresh = foesSeen.mark(waveTypesOf(w));
           if (fresh.length > 0 && !coach?.debug().shown) newFoeToast.show(fresh);
         }
-        // The wave that just marched: a boss or the final wave gets the big call-out.
-        if (n - lastWaveSeen === 1 && calloutFor && !game.end.visible) waveBanner?.show(calloutFor(n - 1));
+        // The newest wave that marched: a boss or the final wave gets the big call-out.
+        if (calloutFor && !game.end.visible) waveBanner?.show(calloutFor(n - 1));
         lastWaveSeen = n;
       }
       newFoeToast.update(t.deltaMS / 1000, game.end.visible || anySheetOpen() || storyOpen);
@@ -922,6 +923,7 @@ async function main(): Promise<void> {
     goldPops: () => ({ active: game.goldPops.active, spawned: game.goldPops.spawned }),
     newFoe: () => newFoeToast?.debug() ?? null,
     callout: () => waveBanner?.debug() ?? null,
+    calloutAgain: () => waveBanner?.again(),
     foeAt: () => {
       const pool = game.world.enemyPool;
       for (let i = 0; i < pool.getActiveCount(); i++) {

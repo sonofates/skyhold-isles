@@ -146,7 +146,11 @@ for (const size of SIZES) {
         for (let i = 0; i < 400 && !['clearing', 'betweenWaves'].includes(p.state().waveState); i++) p.replay.step(3);
         p.replay.cmd({ k: 'wave' });
       });
-      await p5.waitForFunction(() => window.__p0.callout().shown, null, { timeout: 8000 }).catch(() => problems.push(`${tag}: no final / boss call-out on ${lvl}`));
+      // A slow software-GL frame can outlast the 2.6 s call-out: wait on its show count, then
+      // show the last one again for the shot.
+      await p5.waitForFunction(() => window.__p0.callout().count > 0, null, { timeout: 8000 }).catch(() => problems.push(`${tag}: no final / boss call-out on ${lvl}`));
+      const co = await p5.evaluate(() => window.__p0.callout());
+      if (!co.shown) await p5.evaluate(() => window.__p0.calloutAgain?.());
       await p5.waitForTimeout(500);
       await p5.screenshot({ path: `${OUT}/${lang}-${size.key}-callout${suffix}.jpg`, type: 'jpeg', quality: 80 });
       await ctx5.close();
