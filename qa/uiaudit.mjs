@@ -236,7 +236,7 @@ async function runOne(browser, lang, size, [name, query, seed, action, opt = {}]
     for (const c of canvas) list.push({ kind: c.kind ?? 'canvas', at: c.name, text: c.text, detail: c.detail });
     for (const p of list) problems.push(`${key}: [${p.kind}] ${p.at} "${p.text}" — ${p.detail}`);
     lines.push(`${key}: texts ${r.stats.texts}, canvas ${canvas.length ? canvas.length + ' issues' : 'ok'}, problems ${list.length}`);
-    if (SHOTS && SHOT_SIZES.includes(size.key)) await page.screenshot({ path: `${SHOTS}/${lang}-${size.key}-${name}.jpg`, type: 'jpeg', quality: 82 });
+    if (SHOTS && SHOT_SIZES.includes(size.key)) await page.screenshot({ path: `${SHOTS}/${lang}-${size.key}-${name}.jpg`, type: 'jpeg', quality: 72 });
   } catch (e) {
     problems.push(`${key}: run failed ${String(e).slice(0, 160)}`);
   }
