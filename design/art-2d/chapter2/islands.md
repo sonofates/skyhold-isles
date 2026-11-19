@@ -52,3 +52,75 @@ Production fantasy storybook gouache panel for Skyhold Isles. Wide 2:1. Inside a
 
 Original Skyhold Isles story panel, wide landscape 2:1 full bleed. A young glassblower with rolled-up dark blue sleeves raises a newly blown luminous teal glass lantern in the foreground right; below on the cavern floor a row of much smaller lanterns one after another lights a stair descending into the mountain. The nearby copper smelting kiln glows warmly again, water in a shallow rock pool mirrors pinpricks of teal, distant amethyst cave crystals. Relief and wonder, memorable silhouette and warm face, rich contrast of midnight blue slate and amber-gold, storybook gouache and fine restrained ink accents. A single complete painting with no frame, no words or typography, no UI. Original fantasy environment.
 
+
+## Lanternseed Fig
+
+### Production paintings
+
+The built-in image generator supplied the canopy terrain, material, entrances, four scenery pieces and two story panels. The figwood mask protects the central tree and cliff edges. The two story panels are `public/art2d/ui/story-i19-{intro,outro}-1.webp`. [Figwood biome kit](../v2/biomes/figwood/)
+
+### Terrain
+
+Wide landscape 2.17:1 game terrain painting for Skyhold Isles. Steep bird's-eye view over a tropical cloud forest clearing on an enormous flat mountain shelf. The central 82 percent is spacious almost level, pale moss green and ochre clay ground, varied with dispersed little tufts and scattered leaves. A single magnificent ancient fig tree grows at EXACT CENTER with a broad roughly round umbrella of dense emerald leaves, coral orchids and buttress roots. Tree crown occupies ONLY 15 percent of image width and 32 percent of height. The tree's soil extends seamlessly into the clearing on all sides. Most land around it is completely open for adding winding roads and towers later. Dramatic thick jungle and trees, rope-and-wicker seed baskets suspended from boughs and layered atmospheric turquoise canopy below cliffs along extreme left and right margins. Cozy original hand-painted gouache, storybook scenery, defined chunky shapes, fine dark brown ink accents, dappled sunny lime foliage and turquoise shadows, clusters of color, intimate detail, uniform overhead perspective. No roads, paths, structures in clearing, gates, towers, circles, plots, lettering, border, figures or UI. Edge-to-edge landscape.
+
+### Scenery
+
+A wide horizontal painted production sprite atlas, true transparent background, 4 isolated separate whole objects arranged left to right in equal cells with generous empty gutters and all parts within their cell. All drawn at same steep three-quarter top-down perspective, sunlight from upper left, chunky storybook gouache, warm ink edging, dense turquoise shadow. Left to right: a short forked moss-covered fig stump with one hanging wicker seed basket full of orange seed pods; a clump of broad jungle bromeliad leaves with coral-red flower spikes; an overturned empty wicker seed basket with three orange seeds beside it; a tiny fern growing on a curved silvery mossy root. Little full-bodied environment miniatures to scatter in a jungle game map. Clear readable cohesive silhouettes with grounded bases. No characters, rocks behind objects, lettering, labels, panels, rectangle floor or UI.
+
+### Road
+
+Square seamless hand-painted original fantasy game surface texture. Orthographic directly overhead flat worn red laterite earth path material in a jungle. Warm muted terracotta and rusty buff compact earth, with sparse inset irregular flat sandstone pebbles, many tiny broken plant fibers, a few silvery thin rootlets and umbrella-shaped leaf impressions in the clay. The road should be medium value, with a readable varied painted mosaic of small ochre patches. Varied brush shapes with warm gouache highlights and small umber edges. Several meters across. Continuous material fills every pixel, no border, no grass, no objects, no circular symbols, no side edges or road drawn within tile, no lettering, no horizon or perspective, original game art.
+
+### Root tunnel
+
+A single cutout game terrain sprite, genuine transparent background. A broad squat tunnel entrance beneath gnarled living fig tree roots. Isometric 3/4 from ABOVE and in FRONT and to the RIGHT. Raised mossy earthen mound on LEFT, door-sized very dark almost black hollow on the RIGHT facing east and slightly toward viewer. Large simple unobstructed black opening occupies rightmost third of object, all the way down to open ground at bottom right. Roots arch overhead like a lintel, gold-orange seed pods, one small hanging basket on left, moss and little tropical green leaves. No full tree crown. Warm defined chunky outlines, crisp storybook gouache game art, warm olive and russet colours, shiny muted dark teal foliage. No ground tile, cast shadow, road extending from it, words, UI or other objects. Entire isolated mound with complete silhouette, generous transparent margin.
+
+### Nursery log
+
+Isolated sprite, original painted fantasy jungle game. Compact fallen hollow fig log with one very large black opening in its right-hand cut end, facing right and downstage at three-quarter angle. The visible log slopes away left, overgrown with moss and small coral bromeliads. A broken wicker harvest basket and three tiny amber seeds caught in a twisted root at its foot on the left. The opening is a broad door-sized threshold in the side of a nursery, its floor clear all the way out on the right. Crisp storybook gouache and ink, top-down 3/4 game perspective, warm upper left sun. Make the threshold distinctly diagonal from lower left to upper right, giving the road a way out toward the right. Entire asset isolated on true transparent background, no floor tile, walkway extending from it, scenery, words or people.
+
+### Intro
+
+Wide landscape 2:1 full bleed original gouache storybook illustration, Skyhold Isles. High in tropical cloud forest a young brown-skinned canopy keeper with red bandana leans from a tree platform and catches a single glowing orange seed falling out of a torn wicker seed basket. More seeds tumble far down toward misty treetops. Ancient fig tree with long rope roots, coral orchids, quiet turquoise mist, a flock of little blue-green moths in distance. Dawn light raking through the leaves, readable silhouette, close framing, defined painterly dark outlines, original richly painted storybook illustration, no words or border.
+
+### Outro
+
+Wide cinematic 2:1 original Skyhold Isles storybook gouache painting, full bleed. At evening under the giant fig tree a brown-skinned canopy keeper with a red bandana is handing a replanted wicker seed basket up to a child on a rope ladder. Strong silhouettes against luminous distant rainforest; many round orange glowing seed pods hang safely in the boughs like lanterns, warm reflected light and deep jade foliage, muted violet sky, coral orchids. Intimate joyful scene with thick brushwork, restrained dark ink contours, art-book finish. No writing, frame or UI.
+
+## Three Pennants Head
+
+### Production paintings
+
+The built-in image generator supplied the headland terrain, material, three entrances, four scenery pieces and both story panels. The squall kit reuses the tidal keep. The story panels are `public/art2d/ui/story-i20-{intro,outro}-1.webp`. [Squall biome kit](../v2/biomes/squall/)
+
+### Terrain
+
+Skyhold Isles game terrain painting. Panoramic 2.17:1 view looking steeply DOWN onto a wide storm coast headland. Entire central 80 percent is broad flat storm-weathered grassy turf in grey-green, with cool dark turf shadows and dusty worn tawny patches. The sea cuts a narrow inlet into the extreme TOP CENTER of the picture: tidal sea occupying the top edge x=40% to 55%, and extending no lower than 20% of height. Distant low tide foam and jagged tilted basalt ribs at far left and right margins and front rim along bottom edge. Far lower left only, a tiny weather station wind vane on rocks with old yellow storm flags bending in the wind. Broad continuous empty land in middle. Original chunky fantasy storybook gouache painting in a bold storm palette, strong wind and white seafoam against blue-black rocks, muted gold grasses catching a shaft of sunlight. Locally varied brushwork, recognisable silhouettes of rocks and waves on margins, low contrast in central buildable ground. Absolutely no roads, trails, paths, houses, gates or buildings in middle, circles, plots, characters, letters, UI or border. Overhead, no horizon.
+
+### Scenery
+
+Four whole isolated three-quarter top-down miniature storm coast props on an absolutely transparent background, separate items in four equal columns, generous whitespace. Left to right: a wind-bent forked wooden signal pole with one tattered yellow pennant; three leaning dark slate basalt ribs with soft sea-green lichen at base; a low tuft of golden marram grass with bent seed heads; a coiled thick rope and a single red net float together. Original Skyhold Isles storybook gouache assets, clear ink shapes and soft cel shading, warm light on top left, strong readable silhouettes. Each object entire, generous gaps, absolutely no ground tiles, scenic backdrop, words, labels, border or UI.
+
+### Road
+
+Square seamless game surface texture, top-down orthographic full bleed. Hard-packed coastal gravel with rounded silvery slate pebbles bedded in warm brown-grey fine shingle, a few irregular cracks where deeper blue grey basalt shows through, places worn to a flat satin sheen by feet and cart wheels. Soft hints of reflections from overcast sky, visibly grouped shapes, medium value, painterly warm grey against cool charcoal details, original storybook gouache brushwork. Several meters across, no large foreground stones, no grass, no road edges, no shore, no borders or symbols, no writing, a continuous playable road material filling the whole image.
+
+### Yellow flag shelter
+
+Single isometric three-quarter top-down painted cutout asset, fully transparent background. A storm-shelter tunnel built into a mound of weathered slate and BASALT on a sea cliff. Mound slopes away to LEFT. Entrance is on RIGHT FACING EAST and a little toward camera. Large clear open arched mouth pure dark brown-black, extends to ground on the right edge. Chunky tilted bluish charcoal basalt columns, slim barnacle bands, a low mustard-yellow weather pennant tied at top, short aged driftwood crosspiece and two stout posts bracing the opening. Small touches of soft grey lichen on stones, warm top lighting. Above the opening is rock, below is an empty threshold. Keep all surrounding rock brighter than the tunnel interior. Classic hand-inked storybook gouache, readable chunky silhouettes. True transparent background no scenery, floor rectangle, shadow halo, path, text, people or UI. Whole asset with margin.
+
+### Red flag cave
+
+One isolated original game sprite on a transparent background. Storm-coast cave mouth in a group of leaning faceted blue-grey basalt columns, topped by a short old weather-beaten signal mast with ONE RED pennant. Right-hand opening framed by jagged stone, barrels and a single coil of rope on the LEFT. The dark entrance occupying the right third is clear and open at floor and faces RIGHT (east), a strongly oblique three quarter view down on the portal, threshold slopes diagonally upward to right. Mound slopes down to left. Robust readable silhouettes, warm light touches, brooding maritime hand-painted storybook gouache and fine outlines. Full object visible, no sea, no ground rectangle, no extending path, no scenery, no letters or border.
+
+### Blue flag boat shelter
+
+One isolated game sprite on a transparent background. A storm shelter made from a salvaged upturned wooden fishing boat pulled over one small rocky hollow. Hull like a roof with exposed weathered grey wooden ribs; a faded BLUE signal pennant and one red cork fishing float against the left side. On the RIGHT a wide deep-black tunnel mouth framed by old timbers; full opening clear at floor, facing EAST and slightly toward us. Terrain object, three-quarter isometric view from above and from the right, so the sill is a diagonal line across the side. Bluish basalt, warm worn oak, muted greens, storybook gouache with crisp dark edges, warm upper left light. Compact silhouette, complete object, no floor tile, sea, vehicles in motion, people, letters, UI or background.
+
+### Intro
+
+Original Skyhold Isles story chapter painting, full bleed wide 2:1 storybook gouache, expressive ink edges and large readable brush shapes. On a coastal basalt headland in an oncoming squall, a stout older storm watcher in a mustard oilskin braces with his shoulder against an old black wooden signal mast snapped in half, holding a wet red pennant in his other hand. Through driving rain below, three little sailing boats approach the dark reefs. Intense teal and indigo surf, blown strands of white foam, a shaft of pale cold light behind pennant. Single scene, no lettering, no frame or UI.
+
+### Outro
+
+Original wide 2:1 storybook gouache chapter painting for Skyhold Isles, cinematic low viewpoint from the water. Three weathered colourful fishing boats pass safely between jagged dark basalt rocks into a quiet harbour in rosy light after a storm. High on the headland behind them the newly straightened wooden signal mast flies a string of yellow and red storm flags, tiny silhouette of old watcher. Distant silver rain, cool viridian and indigo sea, broad bold painted shapes with restrained dark ink accents, strong visual storytelling and human scale. Full bleed, no lettering, no decorative frame or UI.

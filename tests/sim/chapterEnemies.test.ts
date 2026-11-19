@@ -170,8 +170,8 @@ describe('chapter two enemy decisions', () => {
 });
 
 describe('chapter two balance', () => {
-  it('meets the release simulator targets with the staged roster and a maxed Workshop', () => {
-    const ids = new Set(['i17', 'i18']);
+  it.each(['i17', 'i18', 'i19', 'i20'])('%s meets the release simulator targets with the staged roster and a maxed Workshop', id => {
+    const ids = new Set([id]);
     const base = evaluateBalance(ids, false);
     expect(base.summary).toHaveLength(ids.size);
     expect(base.failures).toEqual([]);

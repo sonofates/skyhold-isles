@@ -355,5 +355,38 @@
     "props": 22,
     "propWeights": [5, 1, 4, 2],
     "groundDecals": false
+  },
+  "i19": {
+    "plots": 18,
+    "seed": 1019,
+    "biome": "figwood",
+    "entranceArt": {"B": "hollow-log"},
+    "thresholdRoad": true,
+    "dressingMask": "land-i19.webp",
+    "windmill": "none",
+    "brushRoad": true,
+    "roadMaterial": "tex-root-road.webp",
+    "cave-h": 2.02,
+    "castle-h": 2.52,
+    "props": 24,
+    "propWeights": [1, 5, 2, 4],
+    "groundDecals": false
+  },
+  "i20": {
+    "seedPlots": [[515, 380], [535, 536]],
+    "plots": 20,
+    "seed": 1069,
+    "biome": "squall",
+    "entranceArt": {"B": "reef-cave", "C": "boat-shelter"},
+    "thresholdRoad": true,
+    "dressingMask": "land-i20.webp",
+    "windmill": "none",
+    "brushRoad": true,
+    "roadMaterial": "tex-shingle.webp",
+    "cave-h": 2.02,
+    "castle-h": 2.52,
+    "props": 24,
+    "propWeights": [2, 4, 6, 2],
+    "groundDecals": false
   }
 }

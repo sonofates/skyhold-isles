@@ -88,7 +88,7 @@ from PIL import Image, ImageChops, ImageDraw, ImageFilter
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import numpy as np  # noqa: E402
 from gates import (  # noqa: E402
-    blend_placement, clip_road_at_gate, contact_shadow, cut_front, entrance_dir, entrance_facing, gate_alpha_hit, goal_dir, goal_facing, output_box, output_sprite, place_gate, point_in_opening, resolve_prop,
+    blend_placement, clip_road_at_gate, contact_shadow, cut_front, draw_threshold_road, entrance_dir, entrance_facing, gate_alpha_hit, goal_dir, goal_facing, light_interior, output_box, output_sprite, place_gate, point_in_opening, resolve_prop,
 )
 import fords  # noqa: E402
 from banks import shore_foundation  # noqa: E402
@@ -264,7 +264,8 @@ CAVE_SEAT = opt('--gate-seat', 'threshold').split('/')[0]  # accept older split-
 GATES = []  # dict(role, lane, id, prop, facing, g = placement)
 for _i, _e in enumerate(L['entrances']):
     _f = entrance_facing(raw_paths[_i])
-    _prop, _file, _flip = resolve_prop('cave', _f, asset_file)
+    _kind = dressing.get('entranceArt', {}).get(_e['id'], 'cave')
+    _prop, _file, _flip = resolve_prop(_kind, _f, asset_file)
     _g = place_gate(load(_file), _flip, (_e['x'], _e['y']), _f, ROAD_W * CAVE_H, ROAD_W * GATE_INSET, entrance_dir(raw_paths[_i]), fit_opening=bool(kit),
                     seat=CAVE_SEAT)
     _gx = place_gate(load(_file), _flip, (_e['x'], _e['y']), _f, ROAD_W * CAVE_H, ROAD_W * GATE_INSET, entrance_dir(raw_paths[_i]), fit_opening=bool(kit))
@@ -724,15 +725,20 @@ if dressing.get('moatWall'):
 # ---------------------------------------------------------------- road
 road_hard = Image.new('L', (W, H))
 dr = ImageDraw.Draw(road_hard)
-for path in spl_paths:
+shaped_entrances = set()
+for lane, path in enumerate(spl_paths):
     pts = [P(p) for p in path]
+    if dressing.get('thresholdRoad') and draw_threshold_road(dr, pts, GATES[lane]['g'], S, rw):
+        shaped_entrances.add(lane)
+        continue
     dr.line(pts, fill=255, width=round(rw), joint='curve')
     # The goal has a flush threshold under the cross-roof. A round end cap would show behind it.
     x, y = pts[0]
     dr.ellipse((x - rw / 2, y - rw / 2, x + rw / 2, y + rw / 2), fill=255)
 # the road ends at each seated gate's threshold (no end cap peeking out under the gate)
 for G in GATES:
-    clip_road_at_gate(road_hard, G['g'], S, rw)
+    if G['lane'] not in shaped_entrances:
+        clip_road_at_gate(road_hard, G['g'], S, rw)
 keep.trim_road(road_hard, S, spl_paths)
 # crisp, slightly irregular painted edge (was a ~10-25 px Gaussian ramp: the main "blurry" cue)
 # Use the master's noise lattice at both scales so the painted contour stays in place.
@@ -864,6 +870,8 @@ for n, x, yb, h in LANDMARKS:
 for G in GATES:
     gx0, gy0, gw_, gh_ = output_box(G['g'], S)
     _spr = output_sprite(G['g'], S)
+    if G['role'] == 'entrance' and dressing.get('thresholdRoad'):
+        _spr = light_interior(_spr, G['g'], floor_rgb=road_material.resize((1, 1)).getpixel((0, 0))[:3])
     # gates cast their own silhouette shadow (contact_shadow) instead of the generic ellipse
     items.append((gy0 + gh_, _spr, gx0 + gw_ / 2, gy0 + gh_, False))
 

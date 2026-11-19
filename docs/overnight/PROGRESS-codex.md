@@ -1,5 +1,47 @@
 # Content overnight · codex
 
+## Round 4 · 00:15–00:42 UTC · codex/night
+
+Started from `e406588`. The working tree is ready for the overnight runner.
+
+### Done
+
+- **i19 Lanternseed Fig** has 18 plots, two root roads around an old fig tree, an aerial shortcut across its crown and eleven hand-written waves. The upper lane brings hares out of a living root tunnel. The hollow nursery log opens onto the lower lane. Elite Kilnbacks travel with a Reed Piper there while the hares draw fire on the upper road.
+- **i20 Three Pennants Head** has 20 plots and twelve hand-written waves. Yellow, red and blue flags identify the west shelter, east reef cave and upturned fishing boat. The boat road reaches the three-way junction first. The eastern road takes the long hook, giving players time to thin the boss escort before it meets the short-lane reinforcements.
+- Both islands have original painted terrain, road material, four scenery pieces, entrance art for each lane, and an intro and outro panel. The keep paintings come from the orchard and tidal kits. Four map resolutions and separate 2× and 3× foregrounds ship for each island. The tree and the coastal inlet have their own plot and scenery exclusion masks. [Finished maps and story panels](maps-round4-islands.jpg) · [Asset locations and complete built-in imagegen prompts](../../design/art-2d/chapter2/islands.md)
+- The compositor can now choose entrance art by lane and draw the approach from the actual feet of the jambs. On the first canopy bake, a square road end stopped beside the door and left grass in front of the black opening. Both verge curves now emerge from beneath the painting and meet the full road tangent. The new kits also reflect some of the road colour inside the mouth. The older recipes retain their original rendering. [Matched 2× threshold details](maps-round4-thresholds.jpg)
+
+### Verification
+
+| Master island | Greedy | Weak | Workshop-maxed lives lost | Greedy lives at −3%, −1.5%, baseline, +1.5%, +3% HP |
+| --- | --- | --- | --- | --- |
+| i19 | 9 lives, 2 stars | Lost on wave 8 of 11 | 4 | 5, 9, 9, 9, 8 |
+| i20 | 6 lives, 2 stars | Lost on wave 7 of 12 | 8 | 10, 8, 6, 6, 5 |
+
+- Chromium played the real opening and a later authored wave on both maps at 1920 × 1080 DPR 1 and 2 and 844 × 390 DPR 3. The fixture bought the level's scripted defenses with earned gold. Lanternseed Fig's sixth wave had 22 live foes and eight towers. The headland's fourth had 14 foes and seven towers. Each desktop DPR 2 capture waited for the native 3× map, and the recorded foreground texture widths confirm the native set. Twelve final frames and the reusable Vite fixture are in `/tmp/skyhold-codex-r4`. The fixture installed the round-three enemy registration, side/death sequences and kill callback in browser memory. [Canopy combat](maps-round4-i19-play.jpg) · [Storm coast combat](maps-round4-i20-play.jpg)
+- All 21 saved layouts passed geometry checks. Decoded all 84 map textures, all 108 foregrounds and the four new story panels and checked their dimensions. A fresh staged `--only-3x` rebuild matched both published maps and all seven native gate fronts byte for byte. Six compositor tests and both sprite tests passed. The new test checks a shallow threshold from both directions at 1×, 2× and 3×.
+- Node 22 release gate passed TypeScript, ESLint, Vitest (1,171 passed, 11 skipped), all 37 balance targets and the Vite production build. Vite emitted its chunk-size advisory. The 751-line balance stdout has SHA-256 `53ff4deb38dd32b69c54d5c5840fc65818c8f6e0bdfc7336ff254d57762e5c26`. Removing the two new reports and restoring the previous target count reproduces the entire round-three stdout byte for byte, including Endless and Workshop.
+
+### Requests for other agents
+
+- **Integrator / sim and loader owners.** The round-three activation request below still applies. The chapter data now orders i17, i18, i19 and i20 directly after i16. The shared enemy roster and melee profiles determine when these four become selectable in the shipping campaign. The balance CLI and chapter tests already exercise them.
+- **Opus / story.** Include all four ids in `GENERIC_STORY_ISLANDS` in `src/render2d/ui/storyBeats.ts`. All eight panels are present in `paintedUi`. The existing world-map thumbnail fallback can read their layered maps.
+- **Opus / i18n.** Add these two entries to `DATA_TR.islands` in `src/i18n/dataTr.ts`, alongside the round-three entries for i17 and i18 and the four enemy definitions. English strings are in the island data.
+
+```ts
+i19: { name: 'Fener İnciri', subtitle: 'Tohum sepetleri düşüyor. Yaşlı incir ağacının çevresini dolanan iki kök yolunu izle.' },
+i20: { name: 'Üç Flama Burnu', subtitle: 'Üç fırtına flaması ipinden kopmuş. Tekneler kayalıkları geçene kadar burnu savun.' },
+```
+
+Turkish wave names in play order for surfaces that display the authored titles.
+
+- i19 — Yırtık Sepet · Köklerin Altında · Dallardaki Kanatlar · Kabuk ve Kil · Üst Dal · Alt Dal · İp Merdiven · Kovuk Dal · Dökülen Meyveler · Kalın Kökler · İncirlerdeki Son Işık
+- i20 — İlk Flama · Rüzgâr Altındaki Bayrak · Resif Kuşları · Üç Gözcü · İskandil İpi · Yan Rüzgâr · Dış Sığlık · Orta Sığlık · İç Sığlık · Direk Kırılıyor · Sığlıktaki Tekneler · Son Flama
+
+### Next round
+
+Build i21 and i22, then i23 and the i24 boss island. Use the four existing chapter kits where they fit, with new terrain paintings, distinct ground and air routes, and late waves that make the four enemies' counters matter. Keep the existing 37 balance reports byte-identical when adding targets. The last four islands, shared roster activation, story selection and Turkish lookup integration remain open.
+
 ## Round 3 · 23:46 UTC–00:14 UTC · codex/night
 
 Started from `d668b3a`. The runner owns the commit.

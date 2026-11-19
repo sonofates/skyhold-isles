@@ -5,12 +5,31 @@ from PIL import Image, ImageChops, ImageDraw
 
 import fords
 from banks import shore_foundation
+from gates import draw_threshold_road
 from keeps import Keep
 
 from ground import Decals, DressingArea, brushed_surface, road_fringe, scatter
 
 
 class GroundTests(unittest.TestCase):
+    def test_shallow_doorway_joins_the_lane_from_both_jambs(self):
+        # Both jambs stand below the interior floor. Their road needs to round
+        # the corner without leaving a grass notch in front of the opening.
+        sprite = Image.new('RGBA', (41, 35))
+        ImageDraw.Draw(sprite).rectangle((0, 0, 40, 29), fill='black')
+        for direction in (1, -1):
+            gate = {'im': sprite, 'left': 60, 'top': 12, 'k': 1,
+                    'threshold': {'a': (5, 25), 'b': (35, 25)}}
+            for scale in (1, 2, 3):
+                road = Image.new('L', (160 * scale, 84 * scale))
+                path = [((80 + direction * step) * scale, 40 * scale) for step in range(70)]
+                self.assertTrue(draw_threshold_road(ImageDraw.Draw(road), path, gate, scale, 24 * scale))
+                for y in (38, 42):
+                    for x in range(69, 92):
+                        self.assertEqual(road.getpixel((x * scale, y * scale)), 255)
+                self.assertEqual(road.getpixel(((80 - direction * 26) * scale, 44 * scale)), 0)
+                self.assertEqual(road.getpixel(((80 + direction * 55) * scale, 50 * scale)), 255)
+
     def test_shore_plot_checks_rim_and_interior_and_blends_into_land(self):
         size = (192, 160)
         x, y = 90, 80

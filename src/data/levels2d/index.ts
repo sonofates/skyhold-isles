@@ -22,9 +22,11 @@ import { I15 } from './i15.ts';
 import { I16 } from './i16.ts';
 import { I17 } from './i17.ts';
 import { I18 } from './i18.ts';
+import { I19 } from './i19.ts';
+import { I20 } from './i20.ts';
 import type { ChapterIsland } from './chapterIsland.ts';
 
-const chapterTwo: readonly ChapterIsland[] = [I17, I18];
+const chapterTwo: readonly ChapterIsland[] = [I17, I18, I19, I20];
 
 /** A chapter island can enter the campaign once every enemy in its waves has joined the roster. */
 export function registeredChapterIslands(): LevelDef[] {
