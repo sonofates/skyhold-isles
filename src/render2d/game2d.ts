@@ -48,7 +48,7 @@ import { meleeLookFor } from './meleeLook.ts';
 import { TowerLayer } from './towerLayer.ts';
 import { anySheetOpen } from './ui/dom.ts';
 import { readSafeInsets } from './uiKit.ts';
-import { NO_INSETS, type Insets } from './uiLayout.ts';
+import { gateKeepOutsPx, hornSpot, NO_INSETS, type Insets } from './uiLayout.ts';
 import { GoldPops2D } from './ui/goldPops2d.ts';
 import { applyRunCommand, ReplayCursor, RunRecorder, runFingerprint, sameFingerprint, type RunCommand, type RunReplay } from './ui/replay2d.ts';
 
@@ -141,6 +141,8 @@ export class Game2D {
   readonly ring: BuildRing;
   readonly end: EndPanel;
   private insets: Insets = NO_INSETS;
+  /** QA: how much the horn's spot covers (0 = clear). */
+  hornScore = 0;
   private endShown = false;
   /** Event-FX counters (QA). */
   readonly fxStats = createSpecialFxStats();
@@ -743,7 +745,33 @@ export class Game2D {
     // midpoint): clear of both caves, the roads and the plots; its label goes above it.
     const hornPx = this.map.pxX(ex) + 30;
     const hornPy = this.map.pxY(ez) - 8;
-    this.hud.layout(w, h, { x: this.map.screenX(hornPx), y: this.map.screenY(hornPy) }, this.insets);
+    // First lay the HUD out at the old spot (sizes, plaque), then move the horn to the clearest
+    // spot near the caves: off plots (and the towers on them), caves, the castle and the roads.
+    const first = { x: this.map.screenX(hornPx), y: this.map.screenY(hornPy) };
+    this.hud.layout(w, h, first, this.insets);
+    const lay = this.level.layout2d!;
+    const f = this.map.fit;
+    const sx = (px: number): number => f.offsetX + px * f.scale;
+    const sy = (py: number): number => f.offsetY + py * f.scale;
+    const hard: { x: number; y: number; w: number; h: number }[] = this.plots.geometry.rects.map((p) => ({ x: sx(p.x), y: sy(p.y - p.w * 1.3), w: p.w * f.scale, h: (p.h + p.w * 1.3) * f.scale }));
+    const hr = this.hud.rects();
+    hard.push(hr.plaque, hr.banner, hr.pause, hr.speed);
+    // A cave edge under the horn is fine (it calls the raiders out of it); the keep is not.
+    const landmarks = gateKeepOutsPx(lay.gates ?? []).map((g) => ({ rect: { x: sx(g.x), y: sy(g.y), w: g.w * f.scale, h: g.h * f.scale }, weight: g.castle ? 600 : 60 }));
+    const roads: { x: number; y: number }[] = [];
+    for (const path of lay.paths) {
+      for (let i = 1; i < path.length; i++) {
+        const a = path[i - 1];
+        const b = path[i];
+        const n = Math.max(1, Math.ceil(Math.hypot(b.x - a.x, b.z - a.z) / 0.6));
+        for (let k = 0; k < n; k++) roads.push({ x: this.map.screenX(this.map.pxX(a.x + ((b.x - a.x) * k) / n)), y: this.map.screenY(this.map.pxY(a.z + ((b.z - a.z) * k) / n)) });
+      }
+    }
+    const r = this.hud.hornRadius;
+    const near = { x: this.map.screenX(this.map.pxX(ex)), y: this.map.screenY(this.map.pxY(ez)) };
+    const spot = hornSpot(near, first, r, { w, h, top: this.insets.top + 8 + r * 0.6, bottom: hr.plaque.y - 30, margin: this.insets.left + 8 }, hard, landmarks, roads);
+    this.hornScore = spot.score;
+    this.hud.layout(w, h, spot, this.insets);
     this.end.layout(w, h, this.insets);
     this.ring.close();
     this.rangeDisc.visible = false;
@@ -1494,6 +1522,7 @@ export class Game2D {
       },
       enemyPx: this.enemyPx(),
       horn: this.hud.hornPosition,
+      hornScore: this.hornScore,
       buttons: this.hud.buttonPositions,
       fx: {
         boltsDrawn: this.fx.boltsDrawn,

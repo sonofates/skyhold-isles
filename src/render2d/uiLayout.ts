@@ -579,6 +579,50 @@ export function gateKeepOutsPx(gates: readonly Level2DGate[]): (Rect & { castle:
   return out;
 }
 
+/**
+ * Where the wave horn goes (screen px): near the raider caves (it calls them out), on a ring of
+ * spots around `near`, clear of plots (+ their towers), the caves / castle, the roads and the HUD.
+ * `first` is the old fixed spot, kept when it is clear.
+ */
+export function hornSpot(
+  near: Pt,
+  first: Pt,
+  r: number,
+  screen: { w: number; h: number; top: number; bottom: number; margin: number },
+  hard: readonly Rect[],
+  landmarks: readonly { readonly rect: Rect; readonly weight: number }[],
+  roads: readonly Pt[],
+): Pt & { score: number } {
+  const cands: { x: number; y: number; rank: number }[] = [{ x: first.x, y: first.y, rank: 0 }];
+  for (const k of [1.7, 2.5, 3.4, 4.5, 5.8]) {
+    for (let a = 0; a < 12; a++) {
+      const ang = (a / 12) * Math.PI * 2;
+      cands.push({ x: near.x + Math.cos(ang) * r * k, y: near.y + Math.sin(ang) * r * k * 0.8, rank: k });
+    }
+  }
+  let best: (Pt & { score: number }) | null = null;
+  let bestScore = Infinity;
+  for (const c of cands) {
+    const x = Math.max(screen.margin + r, Math.min(screen.w - screen.margin - r, c.x));
+    const y = Math.max(screen.top + r, Math.min(screen.bottom - r, c.y));
+    // The horn plus its label above and the seconds below.
+    const box: Rect = { x: x - r, y: y - r * 1.35, w: r * 2, h: r * 2.5 };
+    let hardA = 0;
+    for (const k of hard) hardA += overlapArea(box, k);
+    let land = 0;
+    for (const k of landmarks) land += overlapArea(box, k.rect) * k.weight;
+    let road = 0;
+    for (const p of roads) if ((p.x - x) ** 2 + (p.y - y) ** 2 <= r * r * 1.1) road++;
+    const clean = hardA * 1000 + land + road * 120;
+    const score = clean + c.rank * 40 + Math.hypot(x - near.x, y - near.y) * 0.3;
+    if (score < bestScore) {
+      bestScore = score;
+      best = { x, y, score: Math.round(clean) };
+    }
+  }
+  return best!;
+}
+
 // ---------------------------------------------------------------------------------------------
 // Cards beside a round HUD anchor (next-wave card at the horn)
 // ---------------------------------------------------------------------------------------------

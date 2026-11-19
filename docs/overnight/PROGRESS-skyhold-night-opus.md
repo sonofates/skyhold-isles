@@ -91,6 +91,11 @@ QA: `npx vite preview --port 4381 --strictPort` in background (kill with TaskSto
   under the top HUD (suppressed while a coach tip shows; never in a replay). Seen set in its own key
   `skyhold2d_foes_seen_v1`, seeded from cleared islands.
 
+- **R1 backlog 3b — horn placement — DONE** (`uiLayout.hornSpot`, game2d.resize): the old fixed spot
+  (right of the cave midpoint) is kept when clear, else the clearest of 60 spots on rings around the
+  caves (plots + tower room 1000/px², castle 600, caves 60, roads 120/point, HUD). i09 horn no
+  longer sits on the cave mouth; l1c/i14 on open grass. `state().hornScore` for QA.
+
 ## Next (backlog 2: missing basics) — candidates, in rough value order
 - tower info card: the build ring tooltip already has stats/targeting/upgrade/sell+refund; review only
 - Then backlog 4 polish (hero controls feel, juice, end panel/world map with 25 islands, TR pass).

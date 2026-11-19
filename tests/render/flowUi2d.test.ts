@@ -13,7 +13,7 @@ import { seenFromCleared, waveTypes } from '../../src/render2d/ui/newFoes2d.ts';
 import { coachStep, coachText, type CoachObs } from '../../src/render2d/ui/coach2d.ts';
 import { livesLow } from '../../src/render2d/ui/lowLives2d.ts';
 import { ENEMY_DEFS, ENEMY_TYPES } from '../../src/data/enemies.ts';
-import { abilityBarSpot, besideAnchorSpot, gateKeepOutsPx } from '../../src/render2d/uiLayout.ts';
+import { abilityBarSpot, besideAnchorSpot, gateKeepOutsPx, hornSpot } from '../../src/render2d/uiLayout.ts';
 
 afterEach(() => setLocale('en'));
 
@@ -194,5 +194,20 @@ describe('new-foe heads-up', () => {
     expect(waveTypes(lvl, 5)).toEqual([]);
     expect([...seenFromCleared([lvl], () => true)].sort()).toEqual(['brute', 'grunt', 'runner']);
     expect(seenFromCleared([lvl], () => false).size).toBe(0);
+  });
+});
+
+describe('horn placement', () => {
+  const screen = { w: 1920, h: 1080, top: 40, bottom: 900, margin: 8 };
+  it('keeps the old spot when it is clear', () => {
+    const s = hornSpot({ x: 300, y: 400 }, { x: 330, y: 392 }, 40, screen, [], [], []);
+    expect(s).toMatchObject({ x: 330, y: 392, score: 0 });
+  });
+  it('moves off a plot / cave under the old spot to a clear one nearby', () => {
+    const plot = { x: 290, y: 330, w: 90, h: 120 };
+    const cave = { rect: { x: 250, y: 340, w: 60, h: 80 }, weight: 60 };
+    const s = hornSpot({ x: 300, y: 400 }, { x: 330, y: 392 }, 40, screen, [plot], [cave], []);
+    expect(s.score).toBe(0);
+    expect(Math.hypot(s.x - 300, s.y - 400)).toBeLessThan(40 * 6);
   });
 });

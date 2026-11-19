@@ -39,6 +39,8 @@ for (const size of SIZES) {
     }
     await page.waitForTimeout(700);
     const a = await page.evaluate(() => window.__p0.abilities());
+    const hornScore = await page.evaluate(() => window.__p0.state().hornScore);
+    if (hornScore > 0) console.log(`${size.key} ${id}: horn covers something (score ${hornScore})`);
     const spot = a.spot ?? {};
     rows.push({ size: size.key, id, score: spot.score, vertical: spot.vertical, d: a.d ?? a.size ?? null, box: a.box });
     console.log(`${size.key} ${id}: score ${spot.score} ${spot.layout} d=${a.d ?? '?'} box=${JSON.stringify(a.box)}`);
