@@ -49,6 +49,7 @@ import { TowerLayer } from './towerLayer.ts';
 import { anySheetOpen } from './ui/dom.ts';
 import { readSafeInsets } from './uiKit.ts';
 import { NO_INSETS, type Insets } from './uiLayout.ts';
+import { GoldPops2D } from './ui/goldPops2d.ts';
 import { applyRunCommand, ReplayCursor, RunRecorder, runFingerprint, sameFingerprint, type RunCommand, type RunReplay } from './ui/replay2d.ts';
 
 /** Replay viewer speeds (the live game cycles 1× / 2× / 3×). */
@@ -128,6 +129,8 @@ export class Game2D {
   readonly projectiles: ProjectileLayer;
   readonly fx: FxLayer;
   readonly damageNumbers: DamageNumbers2D;
+  /** "+N" gold rising from fallen foes. */
+  readonly goldPops: GoldPops2D;
   readonly soldiers: SoldierLayer;
   /** Melee fight state shared by the enemy and soldier layers (swings, facing, spacing, flash). */
   readonly melee: MeleeDirector;
@@ -261,6 +264,8 @@ export class Game2D {
     });
     this.fx.setQuality(this.quality.tier);
     this.damageNumbers = new DamageNumbers2D(this.map, this.layers.fx);
+    this.goldPops = new GoldPops2D(this.layers.fx);
+    this.goldPops.enabled = this.quality.tier !== 'low';
     this.enemies = new EnemyLayer(art, this.map, this.layers, this.tex, this.fx);
     this.plots = new PlotLayer(level.layout2d, art.plot, this.tex);
     this.layers.plots.addChild(this.plots.root);
@@ -461,6 +466,7 @@ export class Game2D {
     this.enemies.reset();
     this.fx.clear();
     this.damageNumbers.clear();
+    this.goldPops.clear();
     resetShakeState2D(this.shake);
     this.map.root.position.set(0, 0);
     this.simClockSec = 0;
@@ -549,18 +555,28 @@ export class Game2D {
       const py = m.pxY(e.z) - e.y * 0.9 * ppu;
       this.fx.puffs(px, py - 14, 7, 12);
       this.fx.spawn('coin', px, py - 30, 26, 0, -70, 0.8);
+      if (!this.hooks.endless) this.goldPops.spawn(e.reward, px + 26, py - 58);
       if (!this.hooks.endless && (e.enemyType === 'boss' || e.enemyType === 'tempest')) {
         triggerShake2D(this.shake, BALANCE.camera.bossHitShake, this.currentSettings());
       }
     });
     ev.on('towerBuilt', (e) => {
       this.hudGoldDirty = true;
-      this.fx.puffs(m.pxX(e.x), m.pxY(e.z), 10, 30, 0xe9d8b4);
+      const px = m.pxX(e.x);
+      const py = m.pxY(e.z);
+      this.fx.puffs(px, py, 10, 30, 0xe9d8b4);
+      // A dust ring rolling out from the plot as the tower lands.
+      this.fx.spawn('ring', px, py + 4, 46, 0, 0, 0.45, 0xf3e3c0);
     });
     ev.on('towerUpgraded', (e) => {
       this.hudGoldDirty = true;
-      this.fx.puffs(m.pxX(e.x), m.pxY(e.z), 8, 26, 0xfff0c0);
-      this.fx.spawn('flash', m.pxX(e.x), m.pxY(e.z) - 60, 50, 0, 0, 0.3);
+      const px = m.pxX(e.x);
+      const py = m.pxY(e.z);
+      this.fx.puffs(px, py, 8, 26, 0xfff0c0);
+      this.fx.spawn('flash', px, py - 60, 50, 0, 0, 0.3);
+      // Gold ring at the base and sparks rising up the tower: the new tier is in.
+      this.fx.spawn('ring', px, py + 4, 52, 0, 0, 0.55, 0xffd76a);
+      this.fx.burst('spark', px, py - 50, 9, 9, 120, 0.6, 0xffe08a, 160);
     });
     ev.on('towerSold', (e) => {
       this.hudGoldDirty = true;
@@ -737,6 +753,7 @@ export class Game2D {
   frame(dtSec: number): void {
     if (this.quality.observe(this.app.ticker.elapsedMS, !document.hidden)) {
       this.fx.setQuality(this.quality.tier);
+      this.goldPops.enabled = this.quality.tier !== 'low';
       this.applyResolution(this.app.screen.width, this.app.screen.height);
     }
     audio?.sound.setMusicDucked(this.stepper.paused);
@@ -767,6 +784,7 @@ export class Game2D {
     if (this.heroSel && (world.outcome !== 'ongoing' || !world.hero || world.hero.state === 'dead')) this.setHeroSelected(false);
     this.heroes.sync(world, alpha, simDt, dtSec);
     this.fx.update(simDt > 0 ? simDt : dtSec * 0.25);
+    this.goldPops.update(simDt > 0 ? dtSec : 0);
     this.activeDamagePopups = this.hooks.endless ? 0 : this.damageNumbers.update(simDt > 0 ? dtSec : 0, cfg);
     if (!this.hooks.endless) {
       stepShake2D(this.shake, simDt > 0 && !this.endShown ? dtSec : 0, cfg);

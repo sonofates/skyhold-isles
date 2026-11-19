@@ -234,7 +234,7 @@ export function mountAbilityBar2D(game: Game2D, opts: AbilityBarOptions): Abilit
       const better = (a: AbilityBarSpot, b: AbilityBarSpot): boolean =>
         a.score !== b.score ? a.score < b.score : (a.layout === 'column' ? 1 : 0) < (b.layout === 'column' ? 1 : 0);
       if (!best || better(sp, best.spot)) best = { d: dd, long: lg, short: sh, spot: sp, block };
-      if (!opts.lead || (sp.score === 0 && sp.layout !== 'column')) break;
+      if (sp.score === 0 && sp.layout !== 'column') break;
       if (best.spot.score === 0 && dd < base * 0.7) break;
     }
     d = best!.d;

@@ -100,6 +100,9 @@ export class Hud {
   /** Seconds left of the lives number's "hit" pop, and its fitted scale. */
   private livesHit = 0;
   private livesBaseScale = 1;
+  private goldBump = 0;
+  private goldBaseScale = 1;
+  private goldTint = 0xffffff;
   private lastGold = NaN;
   private lastWave = NaN;
   private endlessAfter: number | null = null;
@@ -312,9 +315,24 @@ export class Hud {
       this.livesText.scale.set(this.livesBaseScale);
     }
     if (s.gold !== this.lastGold) {
+      // Earn: a warm gold bump; spend: a short red dip (not on the first fill).
+      if (Number.isFinite(this.lastGold)) {
+        this.goldBump = 0.3;
+        this.goldTint = s.gold > this.lastGold ? 0xffe27a : 0xff9a8a;
+      }
       this.lastGold = s.gold;
       setText(this.goldText, String(s.gold));
       fitWidth(this.goldText, this.goldBox.w);
+      this.goldBaseScale = this.goldText.scale.x;
+    }
+    if (this.goldBump > 0) {
+      this.goldBump = Math.max(0, this.goldBump - dt);
+      const k = this.goldBump / 0.3;
+      this.goldText.scale.set(this.goldBaseScale * (1 + 0.14 * Math.sin(k * Math.PI)));
+      this.goldText.tint = k > 0.05 ? this.goldTint : 0xffffff;
+    } else if (this.goldText.tint !== 0xffffff) {
+      this.goldText.tint = 0xffffff;
+      this.goldText.scale.set(this.goldBaseScale);
     }
     if (s.wave * 1000 + s.totalWaves !== this.lastWave) {
       this.lastWave = s.wave * 1000 + s.totalWaves;

@@ -101,6 +101,7 @@ declare global {
       /** QA: the foe info card, and the screen point of a live foe to tap. */
       foe?: () => Record<string, unknown> | null;
       coach?: () => Record<string, unknown> | null;
+      goldPops?: () => { active: number; spawned: number };
       foeAt?: () => { x: number; y: number; h: number } | null;
       aimAbility?: (id: AbilityId | null) => void;
       /** QA: stop / restart the ticker (a frozen frame for mid-effect screenshots, no Paused plate). */
@@ -843,6 +844,7 @@ async function main(): Promise<void> {
     lives: () => livesWarn?.debug() ?? null,
     foe: () => foeCard?.debug() ?? null,
     coach: () => coach?.debug() ?? null,
+    goldPops: () => ({ active: game.goldPops.active, spawned: game.goldPops.spawned }),
     foeAt: () => {
       const pool = game.world.enemyPool;
       for (let i = 0; i < pool.getActiveCount(); i++) {
@@ -861,6 +863,7 @@ async function main(): Promise<void> {
       cmd: (c) => game.command(c),
       step: (frames) => {
         for (let i = 0; i < frames; i++) game.frame(0.1);
+        app.render();
       },
       probe: (fn) => {
         game.tickProbe = fn;

@@ -77,6 +77,12 @@ QA: `npx vite preview --port 4381 --strictPort` in background (kill with TaskSto
   hidden on cramped boards (phone with the hero row) and under mode notes. No ★ glyph in canvas text
   (Fredoka latin subset has none).
 
+- **R1 backlog 4a — juice + world map — DONE:** gold "+N" pops rising from fallen foes
+  (`ui/goldPops2d.ts`, pooled, ≤14/s, off on Low effects), HUD gold number bumps warm on earn / dips
+  red on spend, dust ring on build, gold ring + rising sparks on upgrade. Ability bar without a hero
+  also shrinks before falling back to an edge column. World map checked with 25 islands
+  (`qa/mapshots.mjs`, mockislands): paged route handles it, no change needed.
+
 ## Next (backlog 2: missing basics) — candidates, in rough value order
 - tower info card: the build ring tooltip already has stats/targeting/upgrade/sell+refund; review only
 - Then backlog 4 polish (hero controls feel, juice, end panel/world map with 25 islands, TR pass).
