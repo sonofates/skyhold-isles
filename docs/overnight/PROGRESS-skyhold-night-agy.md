@@ -36,8 +36,10 @@
     - **Rationale:** Matches `docs/hero-spec.md` ("global active abilities are separate from hero skills"), matches EN/TR `CHALLENGES.silentSkies` copy ("Meteor Strike and Overcharge are disabled"), and matches Opus's `abilityBar2d.ts` / `heroHud2d.ts` UI without stripping hero identity on `i05`/`i08`/`i11`/`i15`. Verified across all 5 heroes in `tests/platform/robustnessFuzz.test.ts`.
   - **Zero Per-Tick Allocations in Owned `src/sim/**` Hot Paths:**
     - Added `GroundGraph.clampToGroundOut` & `findPathInto` (`_clampTarget`, `_clampStep`, `_chainScratch`), cached post-return routes into `h.waypoints`, reused `_heroShotScratch` for hero & Tobb gizmo projectiles, and reused `_impactOut` in `ProjectileSystem.predictImpactPoint` (in addition to the 9 per-tick `SimWorld.fixedTick` closures and `HeroSystem`/`SoldierSystem` sort closures eliminated in Step 1).
-- [ ] **4. Speed 3× & Deterministic Replay Command API (`src/core/**`, `src/sim/**`, `src/platform/**`)** — *Next*
-  - Verify 3× speed support and expose tick-stamped command recording & deterministic replay hooks on `SimWorld` for Opus; document exact API below.
+- [x] **4. Speed 3× & Deterministic Replay Command API (`src/core/**`, `src/sim/**`, `src/platform/**`)** — *DONE (Round 2)*
+  - Added `SPEED_MULTIPLIERS`, `isSpeedMultiplier`, `clampSpeedMultiplier`, `nextSpeedMultiplier` (`1 -> 2 -> 3 -> 1`), `stepper.setSpeed(...)`, `stepper.cycleSpeed()`, and `NaN` `rawDt` guards in `src/core/gameLoop.ts` + `GameLoop.cycleSpeed()` in `src/platform/browserLoop.ts`.
+  - Built `src/sim/replay.ts` + `SimWorld` command hooks (`world.tick`, `world.elapsedSimSec`, `world.seed`, `SimCommand`, `StampedSimCommand`, `SimReplayLog`, `world.applyCommand`, automatic `recordCommands` interception, `world.exportReplay`, `serializeSimReplay`, `parseSimReplay`, `computeSimStateHash`, and `SimReplayPlayer` with `1×–8×` `stepFrame` + silent `seekToTick` timeline scrubbing via `EventBus.muted`).
+  - Integrated `SimReplayPlayer` round-trip verification into `qa/bot/runner.ts` determinism checks and added `tests/sim/replayAndSpeed.test.ts`.
 
 ---
 
@@ -73,3 +75,75 @@
   - Every hero at L20 turns `l1c` Weak (`11L 2★` baseline) into `20L 3★`, turns `i05` Weak (`Loss 0L` baseline) into a victory (`9L–20L`), and upgrades **both** Master `i10` Greedy (`5L 1★` baseline) and Master `i16` Greedy (`5L 1★` baseline) to **3★ clears** (`bran` L20 now clears `i10` at `13L 3★` and `i16` at `13L 3★`; `wren`/`mira`/`tobb`/`sela` L20 all clear at `20L 3★`).
   - Master `i10` L20 Greedy hero damage band narrowed from `26.1k–63.5k` (`2.44×` spread) to `28.0k–66.7k` with every hero earning 3★, and no hero solo-carries Master Weak (`L 0L` on `i10`/`i16` weak across all 5 heroes).
   - Kept all `src/i18n/heroesTr.ts` node percentage strings untouched by tuning `baseStats`, `levelGrowth`, passive base power (`Kindling` / `Calm Waters`), and active base damage/cooldowns/radii.
+
+---
+
+## Speed 3× & Deterministic Replay Command API (for Opus)
+
+### 1. Speed 3× Helpers (`src/core/gameLoop.ts`, `src/platform/browserLoop.ts`)
+- `FixedTimestepStepper` already runs up to `MAX_STEPS_PER_FRAME = 18` fixed 60 Hz ticks per 100 ms frame (zero sim-time loss at `3×` speed, bit-identical to `1×` and `2×`).
+- New helpers exported from `src/core/gameLoop.ts`:
+  ```ts
+  import {
+    SPEED_MULTIPLIERS,     // readonly [1, 2, 3]
+    isSpeedMultiplier,     // (val: unknown) => val is 1 | 2 | 3
+    clampSpeedMultiplier,  // (val: unknown, fallback?: SpeedMultiplier) => 1 | 2 | 3
+    nextSpeedMultiplier,   // 1 -> 2 -> 3 -> 1
+  } from '../core/gameLoop.ts';
+
+  // Drop-in replacement in Game2D.tap() (src/render2d/game2d.ts line 960):
+  else if (hudHit === 'speed') this.stepper.cycleSpeed();
+  // Direct keyboard hotkey (e.g. Digit1/Digit2/Digit3):
+  this.stepper.setSpeed(3);
+  ```
+
+### 2. Recording a Run (`src/sim/world.ts`, `src/sim/replay.ts`)
+- **Zero-touch recording:** Pass `recordCommands: true` in `SimWorldOptions` (or call `world.setCommandRecording(true)`). Every successful call on `SimWorld` (`placeTower`, `placeTowerOnPlot`, `upgradeTower`, `sellTower`, `setTowerTargeting`, `setRallyPoint`, `startNextWave`, `setAutoWave`, `commandHeroMove`, `castHeroSkill`, `castMeteor`, `castOvercharge`, `castAbility`, `startEndlessFromStart`, `enterEndlessMode`, or `world.applyCommand(cmd)`) automatically appends a `{ tick, seq, command }` entry!
+  ```ts
+  import {
+    SimWorld,
+    SimReplayPlayer,
+    serializeSimReplay,
+    parseSimReplay,
+    type SimCommand,
+    type StampedSimCommand,
+    type SimReplayLog,
+  } from '../sim/world.ts';
+
+  const world = new SimWorld(level, events, modifiers, {
+    heroId: hero?.heroId,
+    heroLevel: hero?.level,
+    heroSkills: hero?.skills,
+    seed: hero?.seed,
+    recordCommands: true,
+  });
+
+  // Optional live feed hook for a replay/action timeline UI:
+  world.onCommandRecorded = (entry: StampedSimCommand) => {
+    // entry = { tick: world.tick, seq, command }
+  };
+
+  // At run end (or any time): export self-contained JSON-serializable replay log (with 64-bit FNV-1a stateHash):
+  const replay: SimReplayLog = world.exportReplay();
+  const json: string = serializeSimReplay(replay);
+  ```
+
+### 3. Playing Back & Scrubbing a Replay (`SimReplayPlayer`)
+- `SimReplayPlayer` reconstructs `SimWorld` with exact `seed`, `modifiers`, and `hero`, dispatches commands at exact `(tick, seq)` boundaries, supports `1×–8×` playback in a Pixi RAF loop, and mutes `EventBus` automatically during `seekToTick` timeline scrubs so audio/FX listeners are never spammed:
+  ```ts
+  const parsed = parseSimReplay(json); // returns SimReplayLog | null (never throws)
+  if (parsed) {
+    const player = new SimReplayPlayer(level, parsed, events);
+    // Render `player.world` with the exact same Game2D layers!
+
+    // Per Pixi frame (supports speedMultiplier = 1, 2, 3, 4, 8, and paused):
+    const { alpha, currentTick, finished } = player.stepFrame(dtSec, replaySpeed, replayPaused);
+    const progress01 = player.progress; // currentTick / player.totalTicks
+
+    // Timeline scrubber (forward or backward rewind to any tick 0..player.totalTicks):
+    player.seekToTick(targetTick);
+
+    // Optional integrity check at replay end:
+    const check = player.verifyState(); // { matchesOutcome, matchesHash, actualHash, expectedHash }
+  }
+  ```

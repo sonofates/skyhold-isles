@@ -21,7 +21,12 @@ export class GameLoop {
   }
 
   set speed(val: SpeedMultiplier) {
-    this.stepper.speed = val;
+    this.stepper.setSpeed(val);
+  }
+
+  /** Cycles gameplay speed `1x -> 2x -> 3x -> 1x` and returns the new multiplier. */
+  cycleSpeed(): SpeedMultiplier {
+    return this.stepper.cycleSpeed();
   }
 
   get paused(): boolean {

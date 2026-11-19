@@ -345,6 +345,8 @@ type Listener<T> = (payload: T) => void;
 
 export class EventBus {
   private listeners: { [K in keyof GameEventMap]?: Array<Listener<GameEventMap[K]>> } = {};
+  /** Suppresses listener dispatch during fast-forward replay seeks when `true`. */
+  muted = false;
 
   on<K extends keyof GameEventMap>(event: K, listener: Listener<GameEventMap[K]>): () => void {
     let list = this.listeners[event];
@@ -362,6 +364,7 @@ export class EventBus {
   }
 
   emit<K extends keyof GameEventMap>(event: K, payload: GameEventMap[K]): void {
+    if (this.muted) return;
     const list = this.listeners[event];
     if (!list) return;
     for (let i = 0; i < list.length; i++) {

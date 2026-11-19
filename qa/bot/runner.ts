@@ -1,6 +1,12 @@
 import { EventBus } from '../../src/core/eventBus.ts';
 import { BALANCE } from '../../src/data/balance.ts';
-import { SimWorld } from '../../src/sim/world.ts';
+import {
+  parseSimReplay,
+  serializeSimReplay,
+  SimReplayPlayer,
+  SimWorld,
+  type SimReplayLog,
+} from '../../src/sim/world.ts';
 import { hashWorldState } from './hash.ts';
 import { InvariantMonitor, type InvariantViolation } from './invariants.ts';
 import {
@@ -29,7 +35,10 @@ export interface ScenarioResult {
   readonly durationMs: number;
 }
 
-function executeOnce(scenario: BotScenario): Omit<ScenarioResult, 'determinismVerified' | 'durationMs'> {
+function executeOnce(
+  scenario: BotScenario,
+  recordReplay = false,
+): Omit<ScenarioResult, 'determinismVerified' | 'durationMs'> & { readonly exportedReplay?: SimReplayLog } {
   const events = new EventBus();
   const world = new SimWorld(
     scenario.level,
@@ -41,8 +50,9 @@ function executeOnce(scenario: BotScenario): Omit<ScenarioResult, 'determinismVe
           heroLevel: scenario.heroLevel,
           heroSkills: scenario.heroSkills,
           seed: scenario.seed,
+          recordCommands: recordReplay,
         }
-      : { seed: scenario.seed },
+      : { seed: scenario.seed, recordCommands: recordReplay },
   );
 
   if (scenario.startEndlessFromWave1) {
@@ -201,6 +211,7 @@ function executeOnce(scenario: BotScenario): Omit<ScenarioResult, 'determinismVe
   const expectTerminated = !scenario.startEndlessFromWave1 && scenario.endlessWaves === 0;
   monitor.checkRunEnd(tick, expectTerminated);
   const stateHash = hashWorldState(world);
+  const exportedReplay = recordReplay ? world.exportReplay() : undefined;
 
   // Verify post-run teardown leaves zero entities in any pool or subsystem.
   const finalLives = world.lives;
@@ -234,17 +245,18 @@ function executeOnce(scenario: BotScenario): Omit<ScenarioResult, 'determinismVe
     stateHash,
     waveHashes,
     violations: monitor.violations,
+    exportedReplay,
   };
 }
 
 export function runBotScenario(scenario: BotScenario): ScenarioResult {
   const t0 = performance.now();
-  const first = executeOnce(scenario);
+  const first = executeOnce(scenario, scenario.verifyDeterminism);
   const violations: InvariantViolation[] = [...first.violations];
   let determinismVerified = false;
 
   if (scenario.verifyDeterminism && violations.length === 0) {
-    const replay = executeOnce(scenario);
+    const replay = executeOnce(scenario, false);
     determinismVerified = true;
     if (replay.stateHash !== first.stateHash || replay.ticks !== first.ticks || replay.outcome !== first.outcome) {
       violations.push({
@@ -270,10 +282,41 @@ export function runBotScenario(scenario: BotScenario): ScenarioResult {
         }
       }
     }
+
+    if (violations.length === 0 && first.exportedReplay) {
+      const parsed = parseSimReplay(serializeSimReplay(first.exportedReplay));
+      if (!parsed) {
+        violations.push({
+          kind: 'determinism',
+          tick: first.ticks,
+          message: 'exported SimReplayLog failed JSON round-trip parse',
+        });
+      } else {
+        const player = new SimReplayPlayer(scenario.level, parsed);
+        const check = player.runToEnd();
+        if (!check.matchesOutcome || !check.matchesHash) {
+          violations.push({
+            kind: 'determinism',
+            tick: first.ticks,
+            message: `SimReplayPlayer mismatch: hash ${check.actualHash} vs ${check.expectedHash} (outcome ${check.actualOutcome} vs ${check.expectedOutcome})`,
+          });
+        }
+        player.world.dispose();
+      }
+    }
   }
 
   return {
-    ...first,
+    id: first.id,
+    family: first.family,
+    levelId: first.levelId,
+    outcome: first.outcome,
+    ticks: first.ticks,
+    finalLives: first.finalLives,
+    finalGold: first.finalGold,
+    wavesReached: first.wavesReached,
+    stateHash: first.stateHash,
+    waveHashes: first.waveHashes,
     violations,
     determinismVerified,
     durationMs: performance.now() - t0,
