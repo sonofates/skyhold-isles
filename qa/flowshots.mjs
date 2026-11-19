@@ -106,28 +106,31 @@ for (const size of SIZES) {
     await p4.waitForTimeout(600);
     await p4.screenshot({ path: `${OUT}/${lang}-${size.key}-newfoe-toast.jpg`, type: 'jpeg', quality: 84 });
     await ctx4.close();
-    // Final-wave / boss call-out: jump near the end of l1c, then call the last wave(s).
-    const ctx5 = await browser.newContext({ viewport: { width: size.w, height: size.h }, deviceScaleFactor: size.dpr, isMobile: !!size.touch, hasTouch: !!size.touch });
-    await ctx5.addInitScript(() => localStorage.setItem('skyhold2d_coach_v1', 'done'));
-    const p5 = await ctx5.newPage();
-    await p5.goto(`${BASE}/2d.html?level=l1c&hero=bran&lang=${lang}&desktop=${size.desktop ? 1 : 0}`);
-    await p5.waitForFunction(() => window.__p0?.callout && !document.getElementById('boot'), null, { timeout: 60000 });
-    await p5.evaluate(() => {
-      const p = window.__p0;
-      const n = Number(String(p.hudWave()).split('/')[1]) || 10;
-      p.skipToWave(n - 1);
-      p.replay.step(2);
-    });
-    await p5.evaluate(() => {
-      // Wave n-1 spawns first: run until the horn can call the last one, then call it.
-      const p = window.__p0;
-      for (let i = 0; i < 400 && !['clearing', 'betweenWaves'].includes(p.state().waveState); i++) p.replay.step(3);
-      p.replay.cmd({ k: 'wave' });
-    });
-    await p5.waitForFunction(() => window.__p0.callout().shown, null, { timeout: 8000 }).catch(() => problems.push(`${tag}: no final / boss call-out`));
-    await p5.waitForTimeout(500);
-    await p5.screenshot({ path: `${OUT}/${lang}-${size.key}-callout.jpg`, type: 'jpeg', quality: 80 });
-    await ctx5.close();
+    // Final-wave / boss call-out: jump near the end of l1c (plain final) and i01 (a boss leads it),
+    // then call the last wave.
+    for (const [lvl, suffix] of [['l1c', ''], ['i01', '-boss']]) {
+      const ctx5 = await browser.newContext({ viewport: { width: size.w, height: size.h }, deviceScaleFactor: size.dpr, isMobile: !!size.touch, hasTouch: !!size.touch });
+      await ctx5.addInitScript(() => localStorage.setItem('skyhold2d_coach_v1', 'done'));
+      const p5 = await ctx5.newPage();
+      await p5.goto(`${BASE}/2d.html?level=${lvl}&hero=bran&lang=${lang}&desktop=${size.desktop ? 1 : 0}`);
+      await p5.waitForFunction(() => window.__p0?.callout && !document.getElementById('boot'), null, { timeout: 60000 });
+      await p5.evaluate(() => {
+        const p = window.__p0;
+        const n = Number(String(p.hudWave()).split('/')[1]) || 10;
+        p.skipToWave(n - 1);
+        p.replay.step(2);
+      });
+      await p5.evaluate(() => {
+        // Wave n-1 spawns first: run until the horn can call the last one, then call it.
+        const p = window.__p0;
+        for (let i = 0; i < 400 && !['clearing', 'betweenWaves'].includes(p.state().waveState); i++) p.replay.step(3);
+        p.replay.cmd({ k: 'wave' });
+      });
+      await p5.waitForFunction(() => window.__p0.callout().shown, null, { timeout: 8000 }).catch(() => problems.push(`${tag}: no final / boss call-out on ${lvl}`));
+      await p5.waitForTimeout(500);
+      await p5.screenshot({ path: `${OUT}/${lang}-${size.key}-callout${suffix}.jpg`, type: 'jpeg', quality: 80 });
+      await ctx5.close();
+    }
     // Victory board with the star rule (5 lives lost).
     const ctx3 = await browser.newContext({ viewport: { width: size.w, height: size.h }, deviceScaleFactor: size.dpr, isMobile: !!size.touch, hasTouch: !!size.touch });
     const p3 = await ctx3.newPage();

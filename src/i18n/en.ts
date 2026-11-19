@@ -142,6 +142,7 @@ export const EN = {
   'callout.boss': 'Boss incoming!',
   'callout.final': 'Final wave!',
   'callout.finalSub': 'Hold the keep one last time',
+  'callout.finalBoss': '{name} leads the charge',
   'tip.horn': 'Call the next wave',
   'tip.hornFirst': 'The raiders march as soon as the horn sounds.',
   'tip.hornBonus': 'Call it now for +{n} bonus gold.',

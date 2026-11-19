@@ -99,6 +99,19 @@ QA: `npx vite preview --port 4381 --strictPort` in background (kill with TaskSto
 - **R1 — Settings → General "Tips · Show again"** (clears the coach + seen-foes keys). Wave card now
   measures only on change (no per-frame layout). Foe card keeps off the coach / new-foe cards.
 
+- **R2 — boss / final-wave call-out — DONE** (`ui/waveBanner2d.ts|.css`): big storybook lettering in
+  the middle ("Boss incoming!" + boss name / "Final wave!" + "Hold the keep one last time"), scales
+  in and fades in 2.6 s, click-through, calm fade under Reduced motion. QA in `qa/flowshots.mjs`.
+- **R2 — phone bar / coach layout fixes — DONE.** Phone 844x390 l1c + i08: the right-edge column
+  ran over the wave banner. New narrow **stack** layout (portrait / hero skills / abilities, phones
+  only, `h <= 560`), HUD pieces (horn, plaque, banner, buttons, keep-outs) now weigh 10× a plot.
+  Phone: no bar touches the HUD any more; remaining scores are tower-headroom grazes. Desktop
+  unchanged (rows / blocks). 1366 l1c: the coach card hid the skills (bar in the top row) →
+  `coach2d.coachCardSpot` slides the card beside / under any HUD keep-out; the card is a keep-out
+  while shown; the next-wave card re-places when keep-outs change. Sheets refreshed.
+- **R2 — foe tips:** the shared 3D lore says "Press R to see the sky lane" (R = hero skill in 2D, no
+  sky lane view) → `i18n/data.stripKeyHints` drops such sentences (EN data not mine; TR edited).
+
 ## Next (backlog 2: missing basics) — candidates, in rough value order
 - tower info card: the build ring tooltip already has stats/targeting/upgrade/sell+refund; review only
 - Then backlog 4 polish (hero controls feel, juice, end panel/world map with 25 islands, TR pass).

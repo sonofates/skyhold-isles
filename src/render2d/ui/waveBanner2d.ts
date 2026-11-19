@@ -11,13 +11,20 @@ import { enemyName } from '../../i18n/data.ts';
 import { t } from '../../i18n/index.ts';
 import { el } from './dom.ts';
 
-export type WaveCallout = { readonly kind: 'boss'; readonly name: string } | { readonly kind: 'final' } | null;
+export type WaveCallout =
+  | { readonly kind: 'boss'; readonly name: string }
+  | { readonly kind: 'final'; readonly boss?: string }
+  | null;
 
-/** What a starting wave deserves: a boss call-out wins over "final wave"; ordinary waves get none. */
+/**
+ * What a starting wave deserves: a boss wave names its boss, the island's last wave is "final"
+ * (naming the boss that leads it, most islands end on one); ordinary and Endless waves get none.
+ */
 export function waveCallout(types: readonly EnemyType[], waveIndex: number, storyWaves: number, endless: boolean): WaveCallout {
   const boss = types.find((ty) => ty === 'boss' || ty === 'tempest' || ENEMY_DEFS[ty]?.type === 'boss');
+  const final = !endless && storyWaves > 1 && waveIndex === storyWaves - 1;
+  if (final) return boss ? { kind: 'final', boss: enemyName(boss) } : { kind: 'final' };
   if (boss) return { kind: 'boss', name: enemyName(boss) };
-  if (!endless && storyWaves > 1 && waveIndex === storyWaves - 1) return { kind: 'final' };
   return null;
 }
 
@@ -38,8 +45,9 @@ export function mountWaveBanner(): WaveBanner2D {
     show(c) {
       if (!c) return;
       head.textContent = c.kind === 'boss' ? t('callout.boss') : t('callout.final');
-      sub.textContent = c.kind === 'boss' ? c.name : t('callout.finalSub');
-      root.dataset.kind = c.kind;
+      sub.textContent = c.kind === 'boss' ? c.name : c.boss ? t('callout.finalBoss', { name: c.boss }) : t('callout.finalSub');
+      // A boss leading the final wave gets the boss's red glow.
+      root.dataset.kind = c.kind === 'final' && c.boss ? 'boss' : c.kind;
       root.style.display = '';
       root.classList.remove('go');
       void root.offsetWidth;

@@ -148,6 +148,7 @@ export const TR: { readonly [K in MsgKey]: Msg } = {
   'callout.boss': 'Elebaşı geliyor!',
   'callout.final': 'Son dalga!',
   'callout.finalSub': 'Kaleyi son bir kez savun',
+  'callout.finalBoss': 'Hücumun başında {name} var',
   'tip.horn': 'Sıradaki dalgayı çağır',
   'tip.hornFirst': 'Boru çalar çalmaz akıncılar yola çıkar.',
   'tip.hornBonus': 'Şimdi çağırırsan +{n} altın ödül kazanırsın.',

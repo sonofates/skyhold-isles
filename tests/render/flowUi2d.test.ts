@@ -257,6 +257,11 @@ describe('coach card and wave call-out', () => {
     expect(waveCallout(['grunt'], 9, 10, true)).toBeNull();
     const boss = waveCallout(['grunt', 'boss'], 4, 10, false);
     expect(boss?.kind).toBe('boss');
+    // The last wave stays "final" and names the boss leading it.
+    const last = waveCallout(['grunt', 'boss'], 9, 10, false);
+    expect(last?.kind).toBe('final');
+    expect(last && last.kind === 'final' ? last.boss : '').toBeTruthy();
+    expect(t('callout.finalBoss', { name: 'X' })).toBe('X leads the charge');
     expect(t('callout.boss')).toBe('Boss incoming!');
     setLocale('tr');
     expect(t('callout.final')).toBe('Son dalga!');
