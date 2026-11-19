@@ -12,7 +12,7 @@ changed.** Everything is data-driven (any number of islands / foe types). Day-by
   through one recorded path with the fixed-tick count. The ability bar and hero HUD now call
   `game.castAbility` / `game.castHeroSkill` (same rules as before).
 - **Replay**: the sim is deterministic (seeded hero RNG, fixed ticks), so the last finished run
-  replays from the same setup + recorded commands. End board → **Replay / İzle** (4th button,
+  replays from the same setup + recorded commands. End board → **Watch / İzle** (4th button,
   framed-play glyph). Player bar at the top: badge, wave, progress line, pause/play, 1×/2×/4×,
   leave ✕; keys Space / 1 2 4 / Esc. Input is blocked while watching; the run's own end board
   (hero XP, mode notes) comes back at the end or on leave; nothing is recorded twice. A fingerprint

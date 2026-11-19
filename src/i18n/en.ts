@@ -209,7 +209,7 @@ export const EN = {
   // --- end panel -----------------------------------------------------------------------------
   'end.retry': 'Retry',
   'end.next': 'Next Isle',
-  'end.replay': 'Replay',
+  'end.replay': 'Watch',
   'end.menu': 'World Map',
   'end.victory': 'Victory!',
   'end.defeat': 'Defeat',
