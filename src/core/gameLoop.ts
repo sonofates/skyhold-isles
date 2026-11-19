@@ -67,10 +67,15 @@ export class FixedTimestepStepper {
     if (this.simActive && !this.paused) {
       const mult = clampSpeedMultiplier(this.speed, 1);
       this.accumulator += clampedDt * mult;
-      while (this.accumulator >= BALANCE.fixedDt && ticksExecuted < MAX_STEPS_PER_FRAME) {
-        onFixedTick(BALANCE.fixedDt);
+      while (
+        this.simActive &&
+        !this.paused &&
+        this.accumulator >= BALANCE.fixedDt &&
+        ticksExecuted < MAX_STEPS_PER_FRAME
+      ) {
         this.accumulator -= BALANCE.fixedDt;
         ticksExecuted++;
+        onFixedTick(BALANCE.fixedDt);
       }
       // Carry any backlog to the next frame instead of dropping sim time, but bound it so a
       // long stall cannot trigger a spiral of catch-up frames.

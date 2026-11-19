@@ -112,7 +112,7 @@ export function remapProgress(raw: unknown, oldIds: readonly string[], levels: r
 function parseStored2DRaw(
   raw: string,
   levels: readonly Pick<LevelDef, 'id'>[],
-): { progress: ProgressData; rawSelectedHero?: HeroId } | null {
+): { progress: ProgressData; rawSelectedHero?: HeroId; rawWorkshop?: Record<string, number> } | null {
   try {
     const parsed: unknown = JSON.parse(raw);
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
@@ -133,7 +133,13 @@ function parseStored2DRaw(
       : [];
     const hasAnyValidId = mappedIds.some((x) => x.length > 0);
     const ids = hasAnyValidId ? mappedIds : levels.map((l) => l.id);
-    return { progress: remapProgress(payload, ids, levels), rawSelectedHero };
+    const preRemapWorkshop = migrateProgress(payload, Math.max(1, ids.length)).workshop;
+    const progress = remapProgress(payload, ids, levels);
+    const rawWorkshop =
+      Object.keys(preRemapWorkshop).length > Object.keys(progress.workshop).length
+        ? preRemapWorkshop
+        : undefined;
+    return { progress, rawSelectedHero, rawWorkshop };
   } catch {
     return null;
   }
@@ -229,6 +235,9 @@ export async function hydrateProgress2DFromCloud(
           ...incoming,
           heroes: { ...incoming.heroes, selectedHero: parsedCloud.rawSelectedHero },
         };
+      }
+      if (parsedCloud.rawWorkshop) {
+        incoming = { ...incoming, workshop: parsedCloud.rawWorkshop };
       }
       merged = mergeProgress(normalizedLocal, incoming, levels.length);
       merged.heroes = migrateHeroSave(merged.heroes, merged, levels);
@@ -464,11 +473,14 @@ export function recordRunResult2D(
   const p = loadProgress2D(levels);
   const prevDailyLast = p.daily.lastDay;
   const prevDailyStreak = p.daily.streak;
+  const prevSelectedHero = p.heroes?.selectedHero;
   const res = applyRunResult2D(p, outcome, levels);
   const dailyChanged =
     Boolean(res.daily?.counted) || p.daily.lastDay !== prevDailyLast || p.daily.streak !== prevDailyStreak;
   const endlessChanged = Boolean(res.endless?.reachedEndless && res.endless.best !== res.endless.previousBest);
-  const heroChanged = Boolean(res.hero && res.hero.xpGained > 0);
+  const heroChanged = Boolean(
+    res.hero && (res.hero.xpGained > 0 || p.heroes?.selectedHero !== prevSelectedHero),
+  );
   if (res.win !== null || dailyChanged || endlessChanged || heroChanged) {
     saveProgress2D(p, levels);
   }
@@ -585,13 +597,19 @@ export function importSaveCode2D(
   const res = decodeSaveCode2D(code, levels);
   if (!res.ok) return res;
   let incoming = res.progress;
-  if (res.levelIds && res.levelIds.length > 0 && incoming.heroes) {
-    // Preserve the pre-remap selectedHero candidate so mergeProgress evaluates unlock milestones
-    // against the combined (local + imported) cleared islands rather than the remapped slice alone.
+  if (res.levelIds && res.levelIds.length > 0) {
+    // Preserve pre-remap selectedHero and Workshop candidates so mergeProgress evaluates unlock
+    // milestones and star affordability against the combined (local + imported) cleared islands.
     const rawSized = decodeSaveCode(code, res.levelIds.length);
-    const rawSelected = rawSized.ok ? rawSized.progress.heroes?.selectedHero : undefined;
-    if (rawSelected && rawSelected !== incoming.heroes.selectedHero) {
-      incoming = { ...incoming, heroes: { ...incoming.heroes, selectedHero: rawSelected } };
+    if (rawSized.ok) {
+      const rawSelected = rawSized.progress.heroes?.selectedHero;
+      const rawWorkshop = rawSized.progress.workshop;
+      if (incoming.heroes && rawSelected && rawSelected !== incoming.heroes.selectedHero) {
+        incoming = { ...incoming, heroes: { ...incoming.heroes, selectedHero: rawSelected } };
+      }
+      if (Object.keys(rawWorkshop).length > Object.keys(incoming.workshop).length) {
+        incoming = { ...incoming, workshop: rawWorkshop };
+      }
     }
   }
   const ls = storage();

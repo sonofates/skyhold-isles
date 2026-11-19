@@ -343,29 +343,37 @@ export interface GameEventMap {
 
 type Listener<T> = (payload: T) => void;
 
+interface ListenerEntry<T> {
+  readonly fn: Listener<T>;
+  active: boolean;
+}
+
 export class EventBus {
-  private listeners: { [K in keyof GameEventMap]?: Array<Listener<GameEventMap[K]>> } = {};
+  private listeners: { [K in keyof GameEventMap]?: Array<ListenerEntry<GameEventMap[K]>> } = {};
   private emitDepth = 0;
   /** Suppresses listener dispatch during fast-forward replay seeks when `true`. */
   muted = false;
 
   on<K extends keyof GameEventMap>(event: K, listener: Listener<GameEventMap[K]>): () => void {
-    const map = this.listeners as Record<K, Array<Listener<GameEventMap[K]>> | undefined>;
+    const map = this.listeners as Record<K, Array<ListenerEntry<GameEventMap[K]>> | undefined>;
+    const entry: ListenerEntry<GameEventMap[K]> = { fn: listener, active: true };
     const curList = map[event];
     if (!curList) {
-      map[event] = [listener];
+      map[event] = [entry];
     } else if (this.emitDepth > 0) {
-      map[event] = [...curList, listener];
+      map[event] = [...curList, entry];
     } else {
-      curList.push(listener);
+      curList.push(entry);
     }
     return () => {
+      if (!entry.active) return;
+      entry.active = false;
       const cur = map[event];
       if (!cur) return;
-      const idx = cur.indexOf(listener);
+      const idx = cur.indexOf(entry);
       if (idx === -1) return;
       if (this.emitDepth > 0) {
-        map[event] = cur.filter((_, k) => k !== idx);
+        map[event] = cur.filter((e) => e !== entry);
       } else {
         cur.splice(idx, 1);
       }
@@ -380,10 +388,8 @@ export class EventBus {
     this.emitDepth++;
     try {
       for (let i = 0; i < len; i++) {
-        const fn = list[i];
-        const cur = this.listeners[event];
-        if (cur !== list && (!cur || !cur.includes(fn))) continue;
-        fn(payload);
+        const entry = list[i];
+        if (entry.active) entry.fn(payload);
       }
     } finally {
       this.emitDepth--;
@@ -391,6 +397,14 @@ export class EventBus {
   }
 
   clear(): void {
+    const keys = Object.keys(this.listeners) as Array<keyof GameEventMap>;
+    for (let k = 0; k < keys.length; k++) {
+      const list = this.listeners[keys[k]];
+      if (!list) continue;
+      for (let i = 0; i < list.length; i++) {
+        list[i].active = false;
+      }
+    }
     this.listeners = {};
   }
 }

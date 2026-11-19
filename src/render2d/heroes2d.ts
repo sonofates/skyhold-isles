@@ -368,6 +368,21 @@ export function applyHeroXp(
   xpGained: number,
   levels: readonly Pick<LevelDef, 'id'>[] = LEVELS_2D,
 ): { progress: ProgressData; record: HeroRunXpRecord } {
+  if (!isHeroId(heroId)) {
+    return {
+      progress,
+      record: {
+        heroId,
+        xpGained: 0,
+        previousXp: 0,
+        newXp: 0,
+        previousLevel: 1,
+        newLevel: 1,
+        leveledUp: false,
+        skillPointsGained: 0,
+      },
+    };
+  }
   const save = readHeroSave(progress, levels);
   const entry = save.roster[heroId] ?? { xp: 0, skills: [] };
   const added = Math.max(0, Math.floor(Number.isFinite(xpGained) ? xpGained : 0));

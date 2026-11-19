@@ -1135,4 +1135,119 @@ describe('Daily Squall, Endless escalations, and Silent Skies + Hero interaction
     expect(canPlayEndless(LEVELS_2D[0].id, v1Prog, LEVELS_2D)).toBe(true);
     expect(availableChallenges(LEVELS_2D[0].id, v1Prog, LEVELS_2D)).toHaveLength(2);
   });
+
+  it('guards non-object JSON in hydrateProgressFromCloud, preserves pre-remap Workshop on 2D merges, and persists 0-XP selectedHero switches', async () => {
+    const { hydrateProgressFromCloud } = await import('../../src/platform/cloudSync.ts');
+    const { hydrateProgress2DFromCloud, recordRunResult2D } = await import('../../src/render2d/ui/progress2d.ts');
+    const { applyHeroXp } = await import('../../src/render2d/heroes2d.ts');
+    installMemoryStorage();
+
+    // 1. hydrateProgressFromCloud rejects "null" / primitive / array JSON without overwriting cloud when local is empty.
+    const cloudWrites: string[] = [];
+    const emptyLocal = createDefaultProgress(LEVELS.length);
+    for (const nonObjJson of ['null', '42', '"hello"', '[1,2,3]']) {
+      const res = await hydrateProgressFromCloud(
+        emptyLocal,
+        LEVELS.length,
+        {
+          id: 'steam',
+          isSteam: true,
+          isMobile: false,
+          achievements: { unlock: async () => false, isUnlocked: async () => false },
+          cloudSave: {
+            read: async () => nonObjJson,
+            write: async (_slot, data) => {
+              cloudWrites.push(data);
+              return true;
+            },
+          },
+          onOverlayChange: () => () => {},
+          onPause: () => () => {},
+          onResume: () => () => {},
+        },
+        LEVELS,
+      );
+      expect(res.updated).toBe(false);
+    }
+    expect(cloudWrites).toEqual([]);
+
+    // 2. importSaveCode2D & hydrateProgress2DFromCloud keep pre-remap Workshop upgrades when combined stars can afford them.
+    const oldLevels = [
+      ...LEVELS_2D.slice(0, 2),
+      { ...LEVEL_L1C, id: 'retired_isle_a' },
+      { ...LEVEL_L1C, id: 'retired_isle_b' },
+    ];
+    const curLevels = LEVELS_2D.slice(0, 4);
+
+    // Remote save earned 6★ (3★ on l1c + 3★ on retired_isle_a) and bought { treasury: 2, bastion: 1 } = 1+2+2 = 5★.
+    // Remapped alone onto curLevels it has only 3★ (< 5★), which standalone decode refunds to {}.
+    const remoteSave = createDefaultProgress(oldLevels.length);
+    remoteSave.bestStars = [3, 0, 3, 0];
+    remoteSave.clears = [1, 0, 1, 0];
+    remoteSave.workshop = { treasury: 2, bastion: 1 };
+    const code = encodeSaveCode2D(remoteSave, oldLevels);
+    const standalone = decodeSaveCode2D(code, curLevels);
+    expect(standalone.ok).toBe(true);
+    if (standalone.ok) expect(standalone.progress.workshop).toEqual({});
+
+    // Local save earned 3★ on curLevels[1] (with workshop = {}): combined 3★ + 3★ = 6★ >= 5★ -> Workshop preserved!
+    const localSave = createDefaultProgress(curLevels.length);
+    localSave.bestStars = [0, 3, 0, 0];
+    localSave.clears = [0, 1, 0, 0];
+    saveProgress2D(localSave, curLevels);
+    const imported = importSaveCode2D(code, curLevels);
+    expect(imported.ok).toBe(true);
+    if (imported.ok) {
+      expect(imported.progress.workshop).toEqual({ treasury: 2, bastion: 1 });
+      expect(starWallet(imported.progress).available).toBe(1);
+    }
+
+    // Same preservation through hydrateProgress2DFromCloud:
+    saveProgress2D(localSave, curLevels);
+    const cloudBlob = JSON.stringify({ ids: oldLevels.map((l) => l.id), progress: remoteSave });
+    const hydrated2d = await hydrateProgress2DFromCloud(
+      undefined,
+      curLevels,
+      {
+        id: 'steam',
+        isSteam: true,
+        isMobile: false,
+        achievements: { unlock: async () => false, isUnlocked: async () => false },
+        cloudSave: {
+          read: async () => cloudBlob,
+          write: async () => true,
+        },
+        onOverlayChange: () => () => {},
+        onPause: () => () => {},
+        onResume: () => () => {},
+      },
+    );
+    expect(hydrated2d.merged.workshop).toEqual({ treasury: 2, bastion: 1 });
+
+    // 3. recordRunResult2D persists selectedHero switch even when xpGained === 0, and applyHeroXp guards invalid heroId.
+    const twoCleared = createDefaultProgress(curLevels.length);
+    twoCleared.bestStars = [3, 3, 0, 0];
+    twoCleared.clears = [1, 1, 0, 0];
+    twoCleared.unlockedLevelIndex = 2; // unlocks 'wren' (2 islands cleared)
+    saveProgress2D(twoCleared, curLevels);
+    expect(loadProgress2D(curLevels).heroes?.selectedHero).toBe('bran');
+
+    recordRunResult2D(
+      {
+        levelId: curLevels[0].id,
+        won: false,
+        stars: 0,
+        livesRemaining: 0,
+        waveReached: 1,
+        heroId: 'wren',
+        heroXpEarned: 0,
+      },
+      curLevels,
+    );
+    expect(loadProgress2D(curLevels).heroes?.selectedHero).toBe('wren');
+
+    const unchanged = applyHeroXp(twoCleared, 'not_a_hero' as never, 250, curLevels);
+    expect(unchanged.progress).toBe(twoCleared);
+    expect(unchanged.record.xpGained).toBe(0);
+  });
 });

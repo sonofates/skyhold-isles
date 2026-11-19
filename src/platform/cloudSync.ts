@@ -36,15 +36,21 @@ export async function hydrateProgressFromCloud(
   if (cloudRaw) {
     try {
       const parsed: unknown = JSON.parse(cloudRaw);
-      const cloudProgress = migrateProgress(parsed, levelCount);
-      merged = mergeProgress(normalizedLocal, cloudProgress, levelCount);
-      const mergedRaw = JSON.stringify(merged);
-      if (mergedRaw !== localRaw) {
-        updated = true;
-        saveLocalProgress(merged);
-      }
-      if (mergedRaw !== cloudRaw) {
-        await adapter.cloudSave.write(CLOUD_PROGRESS_SLOT, mergedRaw);
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+        if (hasAnyProgress(normalizedLocal)) {
+          await adapter.cloudSave.write(CLOUD_PROGRESS_SLOT, localRaw);
+        }
+      } else {
+        const cloudProgress = migrateProgress(parsed, levelCount);
+        merged = mergeProgress(normalizedLocal, cloudProgress, levelCount);
+        const mergedRaw = JSON.stringify(merged);
+        if (mergedRaw !== localRaw) {
+          updated = true;
+          saveLocalProgress(merged);
+        }
+        if (mergedRaw !== cloudRaw) {
+          await adapter.cloudSave.write(CLOUD_PROGRESS_SLOT, mergedRaw);
+        }
       }
     } catch {
       // Corrupt cloud blob: keep local progress and overwrite cloud when local has progress.

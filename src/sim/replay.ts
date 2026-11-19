@@ -742,10 +742,16 @@ export class SimReplayPlayer {
     let ticksExecuted = 0;
 
     if (!paused && !this.finished && speed > 0) {
+      const wasPlayerPaused = this.paused;
       this.accumulator += safeDt * speed;
-      while (this.accumulator >= BALANCE.fixedDt && ticksExecuted < MAX_REPLAY_STEPS_PER_FRAME && !this.finished) {
-        const ran = this.stepTicks(1);
+      while (
+        this.accumulator >= BALANCE.fixedDt &&
+        ticksExecuted < MAX_REPLAY_STEPS_PER_FRAME &&
+        !this.finished &&
+        !(this.paused && !wasPlayerPaused)
+      ) {
         this.accumulator -= BALANCE.fixedDt;
+        const ran = this.stepTicks(1);
         ticksExecuted += ran;
         if (ran === 0) {
           this.accumulator = 0;

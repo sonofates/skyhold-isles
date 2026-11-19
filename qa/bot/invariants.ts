@@ -285,6 +285,31 @@ export class InvariantMonitor {
       this.assertFinite(ev.targetX, 'event.heroSkillCast.targetX');
       this.assertFinite(ev.targetZ, 'event.heroSkillCast.targetZ');
     });
+
+    events.on('heroHit', (ev) => {
+      this.assertFinite(ev.damage, 'event.heroHit.damage');
+      this.assertFinite(ev.hp, 'event.heroHit.hp');
+      const hs = this.world.getHeroState();
+      if (hs && ev.hp <= 0 && (hs.alive || hs.state !== 'dead' || hs.respawnRemaining <= 0)) {
+        this.record(
+          'entity_leak',
+          this.currentTick,
+          `lethal heroHit observed inconsistent getHeroState: alive=${hs.alive}, state=${hs.state}, respawnRemaining=${hs.respawnRemaining}`,
+        );
+      }
+    });
+
+    events.on('heroDied', (ev) => {
+      this.assertFinite(ev.respawnSec, 'event.heroDied.respawnSec');
+      const hs = this.world.getHeroState();
+      if (!hs || hs.alive || hs.state !== 'dead' || hs.hp !== 0 || hs.respawnRemaining <= 0) {
+        this.record(
+          'entity_leak',
+          this.currentTick,
+          `heroDied observed inconsistent getHeroState: ${JSON.stringify(hs)}`,
+        );
+      }
+    });
   }
 
   /** Call immediately before `world.fixedTick(dt)`. */

@@ -537,12 +537,16 @@ export class GameSession {
     this.cancelStarChimes();
     for (let i = 0; i < stars; i++) {
       const delay = STAR_REVEAL_DELAYS_MS[i] ?? 0;
-      this.starChimeTimers.push(window.setTimeout(() => this.soundManager.playStarChime(i), delay));
+      this.starChimeTimers.push(
+        globalThis.setTimeout(() => {
+          if (!this.disposed) this.soundManager.playStarChime(i);
+        }, delay) as unknown as number,
+      );
     }
   }
 
   private cancelStarChimes(): void {
-    for (const t of this.starChimeTimers) window.clearTimeout(t);
+    for (const t of this.starChimeTimers) globalThis.clearTimeout(t);
     this.starChimeTimers.length = 0;
   }
 
@@ -711,7 +715,7 @@ export class GameSession {
   selectIsland(levelIndex: number): void {
     this.soundManager.unlock();
     const idx = Math.max(0, Math.min(LEVELS.length - 1, levelIndex));
-    if ((this.progress.clears[idx] ?? 0) > 0) {
+    if ((this.progress.clears[idx] ?? 0) > 0 || (this.progress.bestStars[idx] ?? 0) > 0) {
       this.d.overlays.islandBriefing.show(idx, this.progress);
       return;
     }
@@ -755,7 +759,9 @@ export class GameSession {
   /** Today's Daily Squall (UTC day), or null until an island has been cleared. */
   todaysDaily(): DailyChallenge | null {
     const cleared: number[] = [];
-    for (let i = 0; i < LEVELS.length; i++) if ((this.progress.clears[i] ?? 0) > 0) cleared.push(i);
+    for (let i = 0; i < LEVELS.length; i++) {
+      if ((this.progress.clears[i] ?? 0) > 0 || (this.progress.bestStars[i] ?? 0) > 0) cleared.push(i);
+    }
     return dailyChallengeFor(utcDayNumber(Date.now()), cleared);
   }
 
@@ -909,7 +915,9 @@ export class GameSession {
     this.currentLevelIndex = Math.max(0, Math.min(LEVELS.length - 1, levelIndex));
     const level = LEVELS[this.currentLevelIndex];
     // Challenges and island-card Endless unlock after the first clear.
-    const cleared = (this.progress.clears[this.currentLevelIndex] ?? 0) > 0;
+    const cleared =
+      (this.progress.clears[this.currentLevelIndex] ?? 0) > 0 ||
+      (this.progress.bestStars[this.currentLevelIndex] ?? 0) > 0;
     this.runConfig = resolveRunConfig(level, cleared, config);
     this.clearTransientPlayState();
     this.simWorld.dispose();

@@ -1121,4 +1121,136 @@ describe('EventBus re-entrancy & SoldierSystem towerFireRateMul', () => {
     burWorld.debugForceLose();
     expect(burWorld.applyCommand({ kind: 'setAutoWave', enabled: true })).toBe(false);
   });
+
+  it('halts multi-tick 3x frames on mid-tick pause/reset, keeps EventBus duplicate unsubs independent, and reports dead getHeroState on lethal heroHit', () => {
+    // 1. FixedTimestepStepper stops remaining 3x catch-up ticks on mid-tick pause and keeps accumulator >= 0 on resetAccumulator.
+    const stepper = new FixedTimestepStepper();
+    stepper.simActive = true;
+    stepper.setSpeed(3);
+    let ticksOnPause = 0;
+    stepper.step(0.1, () => {
+      ticksOnPause++;
+      if (ticksOnPause === 2) stepper.paused = true;
+    });
+    expect(ticksOnPause).toBe(2);
+
+    stepper.paused = false;
+    stepper.resetAccumulator();
+    const afterReset = stepper.step(BALANCE.fixedDt, () => {
+      stepper.resetAccumulator();
+    });
+    expect(afterReset.ticksExecuted).toBe(1);
+    expect(afterReset.alpha).toBe(0);
+
+    // 2. SimReplayPlayer.stepFrame halts on mid-frame player.paused = true and keeps alpha = 0 on mid-frame reset.
+    const miniLvl = {
+      ...LEVEL_L1C,
+      id: 'mini-stepframe-pause',
+      waves: [{ groups: [{ enemyType: 'grunt' as const, count: 3, spawnInterval: 0.5, startDelay: 0 }], clearBonus: 20 }],
+    };
+    const recWorld = new SimWorld(miniLvl, new EventBus(), { seed: 19, recordCommands: true });
+    recWorld.startNextWave();
+    for (let i = 0; i < 60; i++) recWorld.fixedTick(BALANCE.fixedDt);
+    const replayEvents = new EventBus();
+    const player = new SimReplayPlayer(miniLvl, recWorld.exportReplay(), replayEvents);
+    player.setSpeed(8);
+    let spawnedSeen = 0;
+    const offSpawn = replayEvents.on('enemySpawned', () => {
+      spawnedSeen++;
+      player.paused = true;
+    });
+    const pausedStep = player.stepFrame(0.1);
+    expect(spawnedSeen).toBe(1);
+    expect(pausedStep.ticksExecuted).toBe(1);
+    offSpawn();
+
+    player.paused = false;
+    player.reset(false);
+    const offReset = replayEvents.on('enemySpawned', () => {
+      offReset();
+      player.reset(false);
+    });
+    const resetStep = player.stepFrame(BALANCE.fixedDt, 1, false);
+    expect(resetStep.alpha).toBe(0);
+
+    // 3. EventBus duplicate callback registrations stay independent on double-off and mid-emit off.
+    const bus = new EventBus();
+    const calls: string[] = [];
+    const shared = (): void => {
+      calls.push('shared');
+    };
+    const off1 = bus.on('economyChanged', shared);
+    const off2 = bus.on('economyChanged', shared);
+    off1();
+    off1(); // idempotent: must NOT unsubscribe off2!
+    bus.emit('economyChanged', { gold: 10, lives: 20 });
+    expect(calls).toEqual(['shared']);
+    off2();
+
+    calls.length = 0;
+    let unsubA: () => void = () => {};
+    bus.on('economyChanged', () => {
+      unsubA(); // unsubscribes first shared registration mid-emit; second must still fire once!
+    });
+    unsubA = bus.on('economyChanged', shared);
+    bus.on('economyChanged', shared);
+    bus.emit('economyChanged', { gold: 10, lives: 20 });
+    expect(calls).toEqual(['shared']);
+
+    // 4. Lethal 'heroHit' observes dead HeroRuntimeState (alive: false, state: 'dead', respawnRemaining > 0) before 'heroDied'.
+    const hitEvents = new EventBus();
+    const order: string[] = [];
+    const heroW = new SimWorld(LEVEL_L1C, hitEvents, { heroId: 'wren', heroLevel: 5, seed: 31 });
+    heroW.startNextWave();
+    heroW.hero!.hp = 1;
+    const brute = heroW.enemySystem.spawnEnemy('brute', 10, false, 0)!;
+    brute.x = brute.prevX = heroW.hero!.x;
+    brute.z = brute.prevZ = heroW.hero!.z;
+    brute.heroMeleeTimer = 0.005;
+    heroW.spatialHash.clear();
+    heroW.spatialHash.insert(brute.poolIndex, brute.x, brute.z);
+
+    hitEvents.on('heroHit', (ev) => {
+      order.push('heroHit');
+      const hs = heroW.getHeroState()!;
+      expect(ev.hp).toBe(0);
+      expect(hs.alive).toBe(false);
+      expect(hs.state).toBe('dead');
+      expect(hs.hp).toBe(0);
+      expect(hs.respawnRemaining).toBeGreaterThan(0);
+    });
+    hitEvents.on('heroDied', () => {
+      order.push('heroDied');
+    });
+    heroW.heroSystem.update(BALANCE.fixedDt, heroW.towers, 1);
+    expect(order).toEqual(['heroHit', 'heroDied']);
+
+    // 5. SoldierSystem.setRally scales barracks rally reach with auraRange / heroRangeBonus.
+    const rallyW = new SimWorld(LEVEL_L1C, new EventBus(), { seed: 32 });
+    rallyW.gold = 9999;
+    const builtBarracks = rallyW.placeTowerOnPlot(21, 'barracks')!;
+    expect(builtBarracks).not.toBeNull();
+    // Find a road sample beyond base range (3.2u) but within +18% range (~3.77u).
+    let boostedPt: { x: number; z: number } | null = null;
+    const sample = { x: 0, y: 0, z: 0 };
+    for (let d = 0; d <= rallyW.groundPath.totalLength; d += 0.15) {
+      rallyW.groundPath.sample(d, sample);
+      const dist = Math.hypot(sample.x - builtBarracks.x, sample.z - builtBarracks.z);
+      if (dist > 3.28 && dist <= 3.72) {
+        boostedPt = { x: sample.x, z: sample.z };
+        break;
+      }
+    }
+    expect(boostedPt).not.toBeNull();
+    // Without range aura, aiming at boostedPt clamps inside <= 3.2u; with +18% range aura, rally reaches > 3.25u!
+    rallyW.setRallyPoint(builtBarracks.id, boostedPt!.x, boostedPt!.z);
+    const bUnbuffed = rallyW.soldierSystem.getBarracks(builtBarracks.id)!;
+    expect(Math.hypot(bUnbuffed.rallyX - builtBarracks.x, bUnbuffed.rallyZ - builtBarracks.z)).toBeLessThanOrEqual(3.2001);
+
+    builtBarracks.auraRange = 0.1;
+    builtBarracks.heroRangeBonus = 0.08;
+    expect(rallyW.setRallyPoint(builtBarracks.id, boostedPt!.x, boostedPt!.z)).toBe(true);
+    const bAfter = rallyW.soldierSystem.getBarracks(builtBarracks.id)!;
+    expect(Math.hypot(bAfter.rallyX - builtBarracks.x, bAfter.rallyZ - builtBarracks.z)).toBeGreaterThan(3.25);
+  });
 });

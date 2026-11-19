@@ -266,7 +266,8 @@ export class SoldierSystem {
     const b = this.getBarracks(tower.id);
     if (!b) return false;
     const stats = getTowerTierStats(tower.type, tower.tier);
-    if (!this.findRoadPoint(b.x, b.z, stats.range, x, z, _rallyRoadPt)) return false;
+    const effRange = stats.range * (1 + tower.auraRange + (tower.heroRangeBonus ?? 0));
+    if (!this.findRoadPoint(b.x, b.z, effRange, x, z, _rallyRoadPt)) return false;
     const rx = _rallyRoadPt.x;
     const rz = _rallyRoadPt.z;
     const ryaw = _rallyRoadPt.yaw;

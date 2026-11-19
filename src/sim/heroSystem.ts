@@ -1914,18 +1914,9 @@ export class HeroSystem {
       h.hp = Math.max(0, h.hp - damage);
       h.sinceHurt = 0;
       h.hitFlashTimer = 0.12;
+      const killedHero = h.hp <= 0;
 
-      this.events.emit('heroHit', {
-        heroId: h.heroId,
-        enemyId: e.uid,
-        damage,
-        hp: Math.ceil(h.hp),
-        maxHp: h.maxHp,
-        x: h.x,
-        z: h.z,
-      });
-
-      if (h.hp <= 0) {
+      if (killedHero) {
         h.hp = 0;
         h.state = 'dead';
         h.respawnTimer = h.stats.respawnSec;
@@ -1938,6 +1929,19 @@ export class HeroSystem {
           held.heroDamageReduction = 0;
         }
         this.releaseCurrentMeleeHolds(false);
+      }
+
+      this.events.emit('heroHit', {
+        heroId: h.heroId,
+        enemyId: e.uid,
+        damage,
+        hp: Math.ceil(h.hp),
+        maxHp: h.maxHp,
+        x: h.x,
+        z: h.z,
+      });
+
+      if (killedHero) {
         this.events.emit('heroDied', {
           heroId: h.heroId,
           x: h.x,
