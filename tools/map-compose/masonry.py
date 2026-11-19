@@ -196,6 +196,18 @@ def marble_road(size, paint, path, width, scale, seed):
     return result
 
 
+def paved_road(size, paint, path, width, scale):
+    """Unroll a painted strip from entrance to keep, preserving each course on bends."""
+    course = RoadCourse(path)
+    half = width * .62
+    density = (paint.height - 1) / (2 * half)
+    strip = paint.convert('RGB').resize((max(2, math.ceil(course.length * density) + 1), paint.height),
+                                        Image.Resampling.LANCZOS)
+    surface = Image.new('RGBA', size, strip.getpixel((0, strip.height // 2)) + (255,))
+    project_strip(surface, strip, course, half, scale, density)
+    return surface
+
+
 def project_strip(surface, strip, course, half, scale, density, end=None):
     """Sample a continuous course of paving along the road's local tangent."""
     size = surface.size

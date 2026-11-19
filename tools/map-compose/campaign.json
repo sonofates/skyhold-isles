@@ -35,15 +35,26 @@
   "i03": {
     "plots": 22,
     "seed": 107,
-    "decals": 194,
-    "props": 78,
+    "decals": 56,
+    "props": 15,
     "windmill": "none",
     "biome": "highlands",
-    "propWeights": [6, 2, 1, 3, 4, 4, 2],
-    "roadMaterial": "tex-gravel.webp",
+    "scatterProps": [["snow-spruces.webp", 1.55], ["winter-rowan.webp", 0.73], ["silver-grass.webp", 0.38]],
+    "propWeights": [6, 3, 1],
+    "repeatGap": 125,
+    "entranceFinishes": {"A": "fir-postern-e.webp"},
+    "roadMaterial": "tex-frost-setts.webp",
+    "dressingMask": "dressing-i03.webp",
+    "roadStrip": true,
+    "snowShoulders": true,
+    "thresholdRoad": true,
+    "sillLaneBlend": {"A": 0.8},
     "cave-h": 2.18,
+    "groundPaint": [["snow-steps", 1148, 381, 31]],
     "landmarks": [
-      ["keep", 743, 326, 130]
+      ["fir-hall", 742, 329, 132],
+      ["fir-beacon", 1274, 349, 86],
+      ["kindling-sled", 1201, 350, 38]
     ]
   },
   "i04": {

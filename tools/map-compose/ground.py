@@ -105,6 +105,19 @@ def dusty_road_coverage(mask, scale, seed):
     return ImageChops.multiply(mask, edge)
 
 
+def windblown_road_coverage(mask, scale, seed):
+    """Expose the paving between tongues of windblown snow at the road edge."""
+    w, h = mask.size
+    # A gust runs farther along the plateau than across it. Sample the same
+    # drift in layout coordinates for the master and the native 3x map.
+    gusts = value_noise(max(1, round(w / 3)), h, 12, seed, scale).resize(mask.size, Image.Resampling.BICUBIC)
+    powder = value_noise(w, h, 3, seed + 1, scale)
+    depth = Image.blend(gusts, powder, .18).point(lambda v: round(v * .39))
+    soft = mask.filter(ImageFilter.GaussianBlur(7 * scale))
+    exposed = ImageChops.subtract(soft, depth).point(lambda v: (v - 106) * 11)
+    return ImageChops.multiply(mask, exposed)
+
+
 def ring(mask: Image.Image, grow: int, blur: float) -> Image.Image:
     """Band just outside `mask`, `grow` px wide, lightly blurred."""
     g = mask.filter(ImageFilter.MaxFilter(2 * grow + 1))

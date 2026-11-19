@@ -1,5 +1,29 @@
 # Content overnight · codex
 
+## Round 12 · 03:06–03:35 UTC · codex/night
+
+Started from `0274da1`. The working tree is for the overnight runner.
+
+### Done
+
+- **i03 Highland Citadel.** Meltwater passes under a stone packhorse bridge below the west postern, drops into a plunge pool and spills into a second gorge. Spruce, rowan and snow-covered granite replace the loose parapets and cairns that previously stood in the eastern stream. The cliff and water mask reserves both banks from scatter. Pulled the western lip clear of plots 0 and 17. In the first phone battle the Overcharge button hid the whitewater entering the pool. Raising the pool by about 62 layout pixels brought the impact and foam above the button. The lower waterfall continues behind the ability bar. [Whole island and native 2× details](maps-round12-highland.jpg)
+- The timber postern and garrison hall carry the fir banner from the story. In the eastern court a loaded sledge stands beside the unlit beacon, with a trail of boot prints leading to its tow rope. The sledge clears the stone steps. A single strip of granite setts follows the spiral through both hairpins. Windblown snow covers short stretches of its shoulders. [Source paintings, art briefs and rebuild command](../../design/art-2d/v2/biomes/highlands/highland-citadel.md)
+
+### Verification
+
+- Played Eagle Hunt at wave tick 181 with five towers and five enemies, and Fall of the Citadel at tick 510 with 14 towers and 44 enemies. A review of the initial DPR 2 pair caught the gold counter advancing between the simulation snapshot and the screenshot. The final captures stop the ticker after startup and check the live tick, gold, lives and enemy positions again after each screenshot. The baseline browser loads the archived round-eleven i03 textures. All six final before/after pairs matched on tick, ground-enemy positions, enemy count, builds, gold, lives, camera fit and gate texture widths. Desktop ran at 1920 × 1080 at DPR 1 and 2, phone at 844 × 390 at DPR 3. Both DPR 2 frames loaded the native 3× map. [Desktop battles](maps-round12-desktop.jpg) · [Phone battles at CSS size](maps-round12-phone.jpg)
+- Re-baked with `--keep-plots`. A clean second bake reproduced all eight i03 textures byte for byte. All 25 saved layouts are byte-identical to the starting revision and passed the geometry checks. Decoded all 100 map and 132 gate textures at their registered sizes. The alpha channels of all four i03 fronts match the originals. The west postern retains its existing 34 px bleed at the desktop safe-area edge. The eight shipping textures grew by 438,782 bytes in total, including 69,680 bytes for the 1.5× map loaded on phone.
+- Sixteen Python compositor regressions and both sprite tests passed. Two new regressions follow paving through a turn and compare the depth of windblown snow at three bake resolutions. Full captures, browser snapshots, independent bakes and release logs are under `/tmp/skyhold-codex-r12`.
+- The Node 22 gate passed TypeScript, ESLint, Vitest (1,186 passed, 11 skipped), all 41 balance targets and the Vite production build. Vite printed its chunk-size advisory. The entire 848-line balance stdout matches round eleven byte for byte, SHA-256 `a843de0e6d4ece932d0de94bac52f34d8a7ca5dcd5dcb11f8c4c4a23a22d6e47`.
+
+### Requests for other agents
+
+Chapter two still awaits the shared roster, clip loader, death callback, story and Turkish registrations from earlier rounds, plus the i21 horn placement. Round twelve adds no player-facing strings.
+
+### Next round
+
+Inspect i01 Sunlit Meadow, the first numbered island. Its intro shows the cottage, a carved sun stone and a field of red poppies. The battle map has bare turf and repeated freestanding trellises along the margins. Give the wildflowers a natural headland and check the cottage and sun carving with towers on phone. Keep its single entrance, gatehouse and 16 plots. If the shared chapter registrations have landed, verify the production unlock, stories and first kills first.
+
 ## Round 11 · 02:49–03:06 UTC · codex/night
 
 Started from `0b11b4f`. The working tree is ready for the overnight runner.

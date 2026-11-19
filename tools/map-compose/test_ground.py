@@ -8,12 +8,41 @@ import fords
 from banks import shore_foundation
 from gates import draw_threshold_road, output_sprite
 from keeps import Keep, sample
-from masonry import RoadArcade, brick_spur, cart_tracks
+from masonry import RoadArcade, brick_spur, cart_tracks, paved_road
 
 from ground import Decals, DressingArea, brushed_surface, dusty_road_coverage, paint_over_road, road_footprint, road_fringe, scatter
+from ground import windblown_road_coverage
 
 
 class GroundTests(unittest.TestCase):
+    def test_paving_strip_runs_once_from_the_entrance_and_turns_with_the_lane(self):
+        paint = Image.new('RGB', (94, 21), 'slategray')
+        ink = ImageDraw.Draw(paint)
+        ink.rectangle((0, 0, 30, 20), fill='wheat')
+        ink.rectangle((68, 0, 93, 20), fill='tan')
+        ink.rectangle((0, 0, 93, 6), fill='ivory')
+        for scale in (1, 2, 3):
+            paved = paved_road((90*scale, 80*scale), paint, [(8, 58), (65, 58), (65, 8)], 18, scale)
+            for x, y, color in ((11, 58, 'wheat'), (58, 58, 'slategray'), (65, 11, 'tan'),
+                                (21, 50, 'ivory'), (57, 21, 'ivory')):
+                self.assertEqual(paved.getpixel((x*scale, y*scale)), ImageColor.getrgb(color) + (255,))
+
+    def test_snow_drifts_have_variable_depth_and_follow_the_same_shoulder_at_each_scale(self):
+        profiles = []
+        for scale in (1, 2, 3):
+            mask = Image.new('L', (258*scale, 118*scale))
+            ImageDraw.Draw(mask).rectangle((0, 28*scale, mask.width-1, 86*scale-1), fill=255)
+            paving = windblown_road_coverage(mask, scale, 18)
+            self.assertIsNone(ImageChops.subtract(paving, mask).getbbox())
+            self.assertEqual(paving.crop((0, 47*scale, mask.width, 67*scale)).getextrema(), (255, 255))
+            # Integrate the snow across the upper verge in layout pixels.
+            reduced = np.asarray(paving.resize((258, 118), Image.Resampling.BOX))
+            depth = (255 - reduced[28:47]).sum(axis=0) / 255
+            self.assertGreater(depth.max() - depth.min(), 3)
+            profiles.append(depth)
+        for profile in profiles[1:]:
+            np.testing.assert_allclose(profile, profiles[0], atol=.5)
+
     def test_dusty_shoulder_keeps_lane_centre_and_respects_road_boundary(self):
         profiles = []
         for scale in (1, 2, 3):

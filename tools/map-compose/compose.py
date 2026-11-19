@@ -92,11 +92,11 @@ from gates import (  # noqa: E402
 )
 import fords  # noqa: E402
 from banks import shore_foundation  # noqa: E402
-from masonry import RoadArcade, brick_spur, cart_tracks, marble_road, moat_wall  # noqa: E402
+from masonry import RoadArcade, brick_spur, cart_tracks, marble_road, moat_wall, paved_road  # noqa: E402
 from keeps import Keep  # noqa: E402
 from ground import (  # noqa: E402
     Decals, DressingArea, brushed_surface, dusty_road_coverage, fine_detail, inner_band, paint_over_road, ragged_mask,
-    ring, road_footprint, road_fringe, scatter,
+    ring, road_footprint, road_fringe, scatter, windblown_road_coverage,
 )
 from ringfit import measure_ring  # noqa: E402
 
@@ -771,13 +771,15 @@ road_mask = ragged_mask(road_hard, rw * 0.05, max(4, round(rw * 0.16 / noise_sca
 road_material = load(dressing.get('roadMaterial', 'tex-dirt.png'))
 if dressing.get('roadPlate'):
     dirt = road_material.resize((W, H), Image.Resampling.BICUBIC)
+elif dressing.get('roadStrip'):
+    dirt = paved_road((W, H), road_material, spl_paths[0], ROAD_W, S)
 elif dressing.get('layMarble'):
     dirt = marble_road((W, H), road_material, spl_paths[0], ROAD_W, S, SEED + 23)
 elif not kit or dressing.get('brushRoad'):
     dirt = brushed_surface(road_material, (W, H), 0.45 * TEX, SEED + 23)
 else:
     dirt = tiled(road_material, W, H, 0.45 * TEX)
-if not dressing.get('layMarble') and not dressing.get('roadPlate'):
+if not any(dressing.get(mode) for mode in ('layMarble', 'roadPlate', 'roadStrip')):
     dirt = fine_detail(dirt, road_material, round(1024 * 0.16 * TEX), 0.45, 7 * TEX)
 if 'cartLane' in dressing:
     cart_tracks(dirt, spl_paths[dressing['cartLane']], ROAD_W, S, SEED + 37)
@@ -803,7 +805,9 @@ if 'branchMaterial' in dressing:
     ImageDraw.Draw(branch).line([P(p) for p in first], fill=255, width=round(rw * 1.6), joint='curve')
     dirt = Image.composite(branch_paint, dirt, branch.filter(ImageFilter.GaussianBlur(rw * 0.1)))
     del branch_paint, branch
-if dressing.get('dustyShoulders'):
+if dressing.get('snowShoulders'):
+    ground = Image.composite(dirt, ground, windblown_road_coverage(road_mask, S, SEED + 51))
+elif dressing.get('dustyShoulders'):
     ground = Image.composite(dirt, ground, dusty_road_coverage(road_mask, S, SEED + 51))
 else:
     # Shade the grass, trace the rim, then lay the road and its shallow inside lip.
@@ -934,6 +938,7 @@ PROPS = [('prop-tree-1.png', 2.1), ('prop-tree-2.png', 2.4), ('prop-tree-3.png',
          ('prop-rock-1.png', 0.9), ('prop-rock-2.png', 0.8), ('prop-flowers.png', 0.55)]
 PROPS = dressing.get('scatterProps', kit_spec.get('props', PROPS))
 WEIGHTS = dressing.get('propWeights', [5, 3, 2, 4, 2, 2, 2])
+repeat_gap = dressing.get('repeatGap', kit_spec.get('repeatGap', 2))
 prop_ims = {n: load(n) for n, _ in PROPS}
 rnd = random.Random(SEED)
 placed = []
@@ -960,7 +965,7 @@ while len(placed) < prop_count and tries < 12000:
     # Leave complete silhouettes at the desktop crop as well as the phone edges.
     if any(rect[0] < edge < rect[2] for edge in (sx, sx+sw)):
         continue
-    if any(rects_hit(rect, other, kit_spec.get('repeatGap', 2) if previous == name else 2)
+    if any(rects_hit(rect, other, repeat_gap if previous == name else 2)
            for previous, other in placed):
         continue
     placed.append((name, rect))
