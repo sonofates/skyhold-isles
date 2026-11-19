@@ -3,9 +3,9 @@ import { campaignIsland } from './campaignIsland.ts';
 import layout from './i16.json';
 
 export const I16 = campaignIsland(LEVEL_16, layout, {
-  startingGold: 395,
-  enemyHpScale: 1.4526,
-  waveHpGrowth: 0.12,
+  startingGold: 100,
+  enemyHpScale: 2.0336,
+  waveHpGrowth: 0.066,
   sites: {
     '7,4': 23,
     '4,9': 8,

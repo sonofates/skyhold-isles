@@ -191,11 +191,14 @@ describe('chapter two balance', () => {
     }
   });
 
-  it.each(islands)('%s meets the release simulator targets with the shipping roster and a maxed Workshop', id => {
-    const ids = new Set([id]);
-    const base = evaluateBalance(ids, false);
-    expect(base.summary).toHaveLength(ids.size);
-    expect(base.failures).toEqual([]);
-    expect(evaluateWorkshopMax(ids).failures).toEqual([]);
-  });
+  it('meets the campaign-kit and Workshop targets on every chapter two island', () => {
+    // Run the first-clear progression once so every island inherits the preceding XP and stars.
+    const ids = new Set(islands);
+    const campaign = evaluateBalance(ids, false);
+    expect(campaign.summary.map(line => line.split(' ')[0])).toEqual(islands);
+    expect(campaign.failures).toEqual([]);
+    const workshop = evaluateWorkshopMax(ids);
+    expect(workshop.lines.map(line => line.split(' ')[0])).toEqual(islands);
+    expect(workshop.failures).toEqual([]);
+  }, 90_000);
 });

@@ -18,7 +18,7 @@ export const I17 = {
   flightPath: [],
   decorationSeed: 887,
   startingGold: 350,
-  enemyHpScale: 1.36,
+  enemyHpScale: 2.0128,
   waveHpGrowth: 0.095,
   waves: [
     { name: 'The Stolen Clappers', clearBonus: 24, groups: [
@@ -59,6 +59,7 @@ export const I17 = {
       group('boss', 1, 1, 0, 1), group('warden', 3, 1.7, 1.2, 1),
       group('bellrunner', 15, 0.45, 1.6), group('draftwing', 5, 0.5, 6.2),
       group('golem', 4, 1.3, 8),
+      { ...group('golem', 12, 0.85, 4, 1), elite: true },
     ] },
   ],
   scriptedBuildOrder: [

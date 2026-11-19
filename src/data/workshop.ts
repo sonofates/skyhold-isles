@@ -7,9 +7,8 @@ import { combineRunModifiers, type RunModifierPatch, type RunModifiers } from '.
  * Power budget (all ranks owned): +20 start gold, +4% kill gold, +2 lives, −15% ability cooldowns
  * and +2% fire rate for every attacking tower — roughly +5% effective strength. The level balance
  * is knife-edge (a +6% fire-rate test wiped out every lost life on some Master islands), so the
- * budget is deliberately below the ~10% ceiling; lives/cooldowns carry most of the felt value. The balance sim
- * runs with NO upgrades (baseline) and separately checks that a fully upgraded greedy script still
- * loses lives on every Master island (`scripts/balanceSim.ts`, "Workshop max" section).
+ * budget is deliberately below the ~10% ceiling; lives/cooldowns carry most of the felt value. The 2D balance gate spends stars earned on prior islands.
+ * The separate Workshop-max check measures these upgrades on their own.
  */
 export type WorkshopBranch = 'economy' | 'defense' | 'towers';
 

@@ -4,7 +4,7 @@ import layout from './i07.json';
 
 export const I07 = campaignIsland(LEVEL_7, layout, {
   startingGold: 290,
-  enemyHpScale: 1.222,
+  enemyHpScale: 1.7108,
   waveHpGrowth: 0.18,
   sites: {
     '3,3': 4,

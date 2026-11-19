@@ -17,7 +17,7 @@ export const I24 = {
   flightPath: [],
   decorationSeed: 1291,
   startingGold: 410,
-  enemyHpScale: 1.1,
+  enemyHpScale: 1.965,
   waveHpGrowth: 0.1,
   waves: [
     { name: 'A Light Goes Out', clearBonus: 25, groups: [
@@ -100,6 +100,7 @@ export const I24 = {
       group('reedpiper', 4, 1.25, 9.5, 2),
       { ...group('bellrunner', 13, 0.53, 12, 1), elite: true },
       group('draftwing', 6, 0.5, 17),
+      { ...group('golem', 4, 0.85, 12, 2), elite: true },
     ] },
   ],
   scriptedBuildOrder: [

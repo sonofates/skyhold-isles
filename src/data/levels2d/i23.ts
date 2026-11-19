@@ -17,7 +17,7 @@ export const I23 = {
   flightPath: [],
   decorationSeed: 1229,
   startingGold: 400,
-  enemyHpScale: 1.94,
+  enemyHpScale: 2.4832,
   waveHpGrowth: 0.1,
   waves: [
     { name: 'First Pickings', clearBonus: 25, groups: [
@@ -50,6 +50,7 @@ export const I23 = {
       group('reedpiper', 3, 1.54, 0.9, 1),
       group('draftwing', 6, 0.49, 2.2),
       group('grunt', 12, 0.42, 4.3),
+      { ...group('golem', 10, 0.9, 0, 1), elite: true },
     ] },
     { name: 'The Honey Press', clearBonus: 35, groups: [
       group('carrier', 2, 2.21),
