@@ -313,6 +313,14 @@ export class WaveSystem {
     return this.autoShortenedBy;
   }
 
+  getSpawnCursor(): number {
+    return this.spawnCursor;
+  }
+
+  getCurrentWaveClearBonus(): number {
+    return this.currentWaveClearBonus;
+  }
+
   setAutoWave(enabled: boolean): void {
     const wasEnabled = this.autoWave;
     this.autoWave = enabled;

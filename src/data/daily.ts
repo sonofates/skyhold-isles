@@ -93,11 +93,22 @@ export function createDailyRecord(): DailyRecord {
   return { lastDay: -1, streak: 0, bestStreak: 0, total: 0 };
 }
 
+function repairDailyFieldsInPlace(rec: DailyRecord): void {
+  rec.lastDay = Number.isFinite(rec.lastDay) ? Math.max(-1, Math.floor(rec.lastDay)) : -1;
+  rec.streak = Number.isFinite(rec.streak) ? Math.max(0, Math.floor(rec.streak)) : 0;
+  rec.total = Number.isFinite(rec.total) ? Math.max(0, Math.floor(rec.total)) : 0;
+  rec.bestStreak = Math.max(
+    Number.isFinite(rec.bestStreak) ? Math.max(0, Math.floor(rec.bestStreak)) : 0,
+    rec.streak,
+  );
+}
+
 /**
  * Repairs a record written with a clock that ran ahead (lastDay in the future): otherwise the
  * Daily would stay "won" and unpaid until that date. Returns the same object.
  */
 export function normalizeDailyRecord(rec: DailyRecord, today: number): DailyRecord {
+  repairDailyFieldsInPlace(rec);
   if (!Number.isFinite(today)) return rec;
   const cleanToday = Math.floor(today);
   if (rec.lastDay > cleanToday) {
@@ -109,10 +120,13 @@ export function normalizeDailyRecord(rec: DailyRecord, today: number): DailyReco
 
 /** Streak still alive today? (completed yesterday or today) */
 export function liveStreak(rec: DailyRecord, today: number): number {
-  if (!Number.isFinite(today)) return 0;
+  if (!Number.isFinite(today) || !Number.isFinite(rec.lastDay) || !Number.isFinite(rec.streak)) {
+    return 0;
+  }
   const cleanToday = Math.floor(today);
-  if (rec.lastDay > cleanToday) return 0;
-  return rec.lastDay === cleanToday || rec.lastDay === cleanToday - 1 ? Math.max(0, rec.streak) : 0;
+  const lastDay = Math.floor(rec.lastDay);
+  if (lastDay > cleanToday) return 0;
+  return lastDay === cleanToday || lastDay === cleanToday - 1 ? Math.max(0, Math.floor(rec.streak)) : 0;
 }
 
 /**
@@ -125,19 +139,20 @@ export function applyDailyWin(
   day: number,
   today: number,
 ): { counted: boolean; streak: number } {
+  repairDailyFieldsInPlace(rec);
   if (!Number.isFinite(day) || !Number.isFinite(today)) {
-    return { counted: false, streak: Math.max(0, rec.streak) };
+    return { counted: false, streak: rec.streak };
   }
   const cleanDay = Math.floor(day);
   const cleanToday = Math.floor(today);
   normalizeDailyRecord(rec, cleanToday);
   if (cleanDay > cleanToday || cleanDay < cleanToday - 1 || cleanDay <= rec.lastDay) {
-    return { counted: false, streak: Math.max(0, rec.streak) };
+    return { counted: false, streak: rec.streak };
   }
-  rec.streak = rec.lastDay === cleanDay - 1 ? Math.max(0, rec.streak) + 1 : 1;
+  rec.streak = rec.lastDay === cleanDay - 1 ? rec.streak + 1 : 1;
   rec.lastDay = cleanDay;
   rec.bestStreak = Math.max(rec.bestStreak, rec.streak);
-  rec.total = Math.max(0, rec.total) + 1;
+  rec.total = rec.total + 1;
   return { counted: true, streak: rec.streak };
 }
 

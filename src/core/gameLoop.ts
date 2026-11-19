@@ -58,18 +58,20 @@ export class FixedTimestepStepper {
   step(
     rawDt: number,
     onFixedTick: (fixedDt: number) => void,
+    shouldContinue?: () => boolean,
   ): { alpha: number; elapsedVisualTime: number; ticksExecuted: number } {
     const safeDt = Number.isFinite(rawDt) ? rawDt : 0;
     const clampedDt = Math.min(Math.max(0, safeDt), BALANCE.maxFrameDt);
     this.elapsedVisualTime += clampedDt;
 
     let ticksExecuted = 0;
-    if (this.simActive && !this.paused) {
+    if (this.simActive && !this.paused && (!shouldContinue || shouldContinue())) {
       const mult = clampSpeedMultiplier(this.speed, 1);
       this.accumulator += clampedDt * mult;
       while (
         this.simActive &&
         !this.paused &&
+        (!shouldContinue || shouldContinue()) &&
         this.accumulator >= BALANCE.fixedDt &&
         ticksExecuted < MAX_STEPS_PER_FRAME
       ) {

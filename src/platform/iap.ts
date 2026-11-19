@@ -543,11 +543,8 @@ export function createIapStore(options: CreateIapStoreOptions = {}): IapStoreAda
     typeof idOrSku === 'string' ? lookupInCatalogue(idOrSku, catalogue) : undefined;
 
   const owned = (id: string): boolean => {
-    const clean = typeof id === 'string' ? id.trim() : '';
-    if (!clean) return false;
-    const def = resolveCatalogueProduct(clean);
-    const key = def ? def.entitlementId : clean;
-    return cachedEntitlements.has(key);
+    const key = normalizeEntitlementId(id, catalogue);
+    return key !== null && cachedEntitlements.has(key);
   };
 
   const entitlements = (): ReadonlySet<string> => new Set(cachedEntitlements);

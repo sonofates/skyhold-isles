@@ -1777,4 +1777,158 @@ describe('Daily Squall, Endless escalations, and Silent Skies + Hero interaction
       MAX_HERO_XP,
     );
   });
+
+  it('repairs NaN DailyRecord fields, guards GameLoop stop/restart RAF generations & ObjectPool NaN capacity, and keeps planPrecache order-independent', async () => {
+    const { GameLoop } = await import('../../src/platform/browserLoop.ts');
+    const { GameSession } = await import('../../src/platform/gameSession.ts');
+    const { planPrecache } = await import('../../scripts/pwa/swBuilder.ts');
+    installMemoryStorage();
+
+    // 1. DailyRecord with NaN fields never returns or persists NaN across liveStreak / normalizeDailyRecord / applyDailyWin.
+    const nanDaily = { lastDay: NaN, streak: NaN, bestStreak: NaN, total: NaN };
+    expect(liveStreak(nanDaily, 20_500)).toBe(0);
+    normalizeDailyRecord(nanDaily, 20_500);
+    expect(nanDaily).toEqual({ lastDay: -1, streak: 0, bestStreak: 0, total: 0 });
+    const nanDaily2 = { lastDay: NaN, streak: NaN, bestStreak: NaN, total: NaN };
+    const winRes = applyDailyWin(nanDaily2, 20_500, 20_500);
+    expect(winRes).toEqual({ counted: true, streak: 1 });
+    expect(nanDaily2).toEqual({ lastDay: 20_500, streak: 1, bestStreak: 1, total: 1 });
+
+    // 2. ObjectPool constructor safely clamps negative / NaN capacity to 0 without RangeError.
+    const zeroPoolA = new ObjectPool(NaN, (id) => ({ id, active: false }));
+    const zeroPoolB = new ObjectPool(-5, (id) => ({ id, active: false }));
+    expect(zeroPoolA.items).toHaveLength(0);
+    expect(zeroPoolA.acquire()).toBeNull();
+    expect(zeroPoolB.items).toHaveLength(0);
+
+    // 3. GameLoop.stop() inside onFixedTick skips onRender in that frame, and stale RAF callbacks cannot resurrect a stopped loop.
+    const prevRaf = (globalThis as Record<string, unknown>).requestAnimationFrame;
+    const prevCaf = (globalThis as Record<string, unknown>).cancelAnimationFrame;
+    const queuedRaf = new Map<number, (now: number) => void>();
+    let nextRaf = 1;
+    try {
+      (globalThis as Record<string, unknown>).requestAnimationFrame = (cb: (now: number) => void): number => {
+        const id = nextRaf++;
+        queuedRaf.set(id, cb);
+        return id;
+      };
+      (globalThis as Record<string, unknown>).cancelAnimationFrame = (id: number): void => {
+        queuedRaf.delete(id);
+      };
+
+      let renderCount = 0;
+      let fixedCount = 0;
+      const loopRef: InstanceType<typeof GameLoop> = new GameLoop({
+        onFixedTick: () => {
+          fixedCount++;
+          loopRef.stop();
+        },
+        onRender: () => {
+          renderCount++;
+        },
+      });
+      loopRef.simActive = true;
+      const t0 = performance.now();
+      loopRef.start();
+      expect(queuedRaf.size).toBe(1);
+      const firstCb = [...queuedRaf.values()][0]!;
+      queuedRaf.clear();
+      // Advance 50ms -> runs 1 fixed tick which calls stop() -> onRender MUST be skipped and no new RAF remains!
+      firstCb(t0 + 50);
+      expect(fixedCount).toBe(1);
+      expect(renderCount).toBe(0);
+      expect(queuedRaf.size).toBe(0);
+
+      // Invoking the stale firstCb again after stop() is a complete no-op (cannot resurrect RAF).
+      firstCb(t0 + 100);
+      expect(queuedRaf.size).toBe(0);
+    } finally {
+      if (prevRaf === undefined) delete (globalThis as Record<string, unknown>).requestAnimationFrame;
+      else (globalThis as Record<string, unknown>).requestAnimationFrame = prevRaf;
+      if (prevCaf === undefined) delete (globalThis as Record<string, unknown>).cancelAnimationFrame;
+      else (globalThis as Record<string, unknown>).cancelAnimationFrame = prevCaf;
+    }
+
+    // 4. GameSession.importSaveCode updates currentLevelIndex and refreshes open menu/levelSelect/workshop overlays.
+    const levelSelectOpens: boolean[] = [];
+    const mockRw = {
+      setQuality: () => {},
+      overlayIndicators: { setSelectedTowerRing: () => {} },
+      setPlacementPreview: () => {},
+      setPlacementGridActive: () => {},
+      setFlightPathHighlight: () => {},
+      setRoutesPinned: () => {},
+      setMeteorTargetPreview: () => {},
+      setHoveredTowerId: () => {},
+      setCanvasCursor: () => {},
+      loadLevel: () => {},
+      cameraController: { setShowcaseMode: () => {}, setHudRects: () => {}, getViewVersion: () => 0 },
+    };
+    const mockSm = {
+      unlock: () => {},
+      bindEvents: () => () => {},
+      setMusicDucked: () => {},
+      setMusicContext: () => {},
+      playUiConfirm: () => {},
+      playUiBack: () => {},
+      playStarChime: () => {},
+      playBossPulse: () => {},
+      suspendForBackground: () => {},
+      resumeFromBackground: () => {},
+      updateSettings: () => {},
+    };
+    const gs = new GameSession(mockRw as never, mockSm as never);
+    gs.viewMode = 'levelSelect';
+    gs.attachRuntime({
+      overlays: {
+        isModalOpen: () => false,
+        setPlayVisibility: () => {},
+        syncInPlay: () => {},
+        closeModals: () => {},
+        mainMenu: { setOpen: () => {} },
+        levelSelect: { setOpen: (open: boolean) => levelSelectOpens.push(open) },
+        workshop: { setOpen: () => {} },
+        toast: { show: () => {}, hide: () => {}, update: () => {} },
+        tooltip: { hide: () => {} },
+        floatingTextPool: { clear: () => {}, update: () => {} },
+        towerPanel: { setSellConfirmArmed: () => {} },
+        pauseMenu: { isOpen: () => false, setOpen: () => {} },
+        settingsModal: { isOpen: () => false, setOpen: () => {} },
+        outcomeOverlay: { isOpen: () => false },
+        islandBriefing: { isOpen: () => false },
+        logbook: { isOpen: () => false },
+        daily: { isOpen: () => false },
+      } as never,
+      inputManager: { setEnabled: () => {}, setModalOpen: () => {} } as never,
+      loop: { speed: 1, paused: false, simActive: false, resetAccumulator: () => {}, cycleSpeed: () => 2 } as never,
+      setDebugVisible: () => {},
+    });
+    const importedProg = createDefaultProgress(LEVELS.length);
+    importedProg.bestStars[0] = 3;
+    importedProg.bestStars[1] = 3;
+    importedProg.clears[0] = 1;
+    importedProg.clears[1] = 1;
+    importedProg.unlockedLevelIndex = 2;
+    const resImport = gs.importSaveCode(encodeSaveCode(importedProg));
+    expect(resImport.ok).toBe(true);
+    expect(gs.currentLevelIndex).toBe(2);
+    expect(levelSelectOpens).toContain(true);
+    gs.dispose();
+
+    // 5. planPrecache produces deterministic version hashes regardless of publicUrls order or duplicate bundleFiles.
+    const planA = planPrecache({
+      bundleFiles: ['index.html', 'assets/app.js', 'assets/app.js'],
+      publicUrls: ['/icons/b.png', '/icons/a.png'],
+      publicContent: (u) => new TextEncoder().encode(u),
+      salt: 'v1',
+    });
+    const planB = planPrecache({
+      bundleFiles: ['assets/app.js'],
+      publicUrls: ['/icons/a.png', '/icons/b.png'],
+      publicContent: (u) => new TextEncoder().encode(u),
+      salt: 'v1',
+    });
+    expect(planA.version).toBe(planB.version);
+    expect(planA.core).toEqual(['/', '/index.html', '/assets/app.js']);
+  });
 });

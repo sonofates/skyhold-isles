@@ -138,6 +138,8 @@ export class SoldierSystem {
   private dirty = false;
   /** True while `update()` is executing (guards mid-tick re-entrant unblock emissions). */
   private inUpdate = false;
+  /** Set when `clearCombatState` runs inside `update()` so the remaining tick steps abort cleanly. */
+  private abortedStep = false;
   /** Enemies held at the end of the last update (QA / renderer). */
   blockedCount = 0;
   /** Per tower type attack-rate multiplier (Workshop / run modifiers); missing = 1. */
@@ -343,13 +345,42 @@ export class SoldierSystem {
     this.dirty = true;
   }
 
+  /** True when `e` is currently held by soldiers (including pending pre-recount holds inside `update()`). */
+  isHoldingEnemy(poolIndex: number, uid: number): boolean {
+    if (poolIndex < 0 || poolIndex >= this.pool.items.length) return false;
+    const e = this.pool.items[poolIndex];
+    if (!e.active || e.uid !== uid) return false;
+    if (e.blockers > 0) return true;
+    if (this.inUpdate) {
+      for (let k = 0; k < _prevBlocked.length; k++) {
+        if (_prevBlocked[k] === poolIndex && _prevBlockedUid[k] === uid) return true;
+      }
+    }
+    return false;
+  }
+
   /** Releases active soldier claims and blocked-spread offsets when waves end, skip, or reset. */
-  clearCombatState(): void {
+  clearCombatState(emitUnblock = true): void {
+    if (this.inUpdate) {
+      this.abortedStep = true;
+    }
     for (let i = 0; i < this.pool.getActiveCount(); i++) {
       const e = this.pool.items[this.pool.getActiveIndex(i)];
       if (e.blockers > 0) {
         e.blockers = 0;
-        if (e.heroBlockers === 0 && this.consumeBlockedTracking(e)) {
+        if (emitUnblock && e.heroBlockers === 0 && this.consumeBlockedTracking(e)) {
+          this.emitBlock('enemyUnblocked', e);
+        }
+      }
+    }
+    if (this.inUpdate) {
+      for (let k = 0; k < _prevBlocked.length; k++) {
+        const uid = _prevBlockedUid[k];
+        if (uid < 0) continue;
+        _prevBlockedUid[k] = -1;
+        const e = this.pool.items[_prevBlocked[k]];
+        e.blockers = 0;
+        if (emitUnblock && e.active && e.uid === uid && e.heroBlockers === 0) {
           this.emitBlock('enemyUnblocked', e);
         }
       }
@@ -380,7 +411,7 @@ export class SoldierSystem {
 
   /** Full post-run cleanup (`SimWorld.dispose`). */
   clearAll(): void {
-    this.clearCombatState();
+    this.clearCombatState(false);
     this.soldiers.length = 0;
     this.barracks.length = 0;
   }
@@ -511,10 +542,12 @@ export class SoldierSystem {
   update(dt: number, towers: readonly TowerEntity[], fireRateMultiplier = 1): void {
     if (this.soldiers.length === 0 && !this.dirty) return;
     this.inUpdate = true;
+    this.abortedStep = false;
     try {
       this.updateStep(dt, towers, fireRateMultiplier);
     } finally {
       this.inUpdate = false;
+      this.abortedStep = false;
     }
   }
 
@@ -556,7 +589,10 @@ export class SoldierSystem {
         if (s.state === 'dead') {
           if (!jammed) {
             s.respawnTimer -= dt * aura;
-            if (s.respawnTimer <= 0) this.respawn(b, s);
+            if (s.respawnTimer <= 0) {
+              this.respawn(b, s);
+              if (this.abortedStep) return;
+            }
           }
           continue;
         }
@@ -716,12 +752,14 @@ export class SoldierSystem {
           s.swingArmed = false;
           const baseDmg = Math.round((stats.soldierDamage ?? 0) * s.damageMul);
           this.strike(tower, s, e, baseDmg, false);
+          if (this.abortedStep) return;
           if (s.state !== 'fighting') continue;
           const cleave = stats.soldierCleave ?? 0;
           if (cleave > 0) {
             const other = this.cleaveTarget(e);
             if (other) {
               this.strike(tower, s, other, Math.round(baseDmg * cleave), true);
+              if (this.abortedStep) return;
               if (s.state !== 'fighting') continue;
             }
           }
@@ -736,6 +774,7 @@ export class SoldierSystem {
             impactIn: s.attackTimer / rateMul,
             sweep: false,
           });
+          if (this.abortedStep) return;
         }
       }
     }
@@ -768,6 +807,7 @@ export class SoldierSystem {
           _prevBlocked.push(e.poolIndex);
           _prevBlockedUid.push(e.uid);
           this.emitBlock('enemyBlocked', e);
+          if (this.abortedStep) return;
         }
         if (e.meleeTimer <= 0) e.meleeTimer = 0.5 / Math.max(0.01, m.rate);
         this.enemyArmed[e.poolIndex] = 0;
@@ -799,6 +839,7 @@ export class SoldierSystem {
             const s = _sweepSoldiers[i];
             if (s.state === 'fighting' && s.targetPoolIndex === e.poolIndex && s.targetUid === e.uid) {
               const r = this.hurt(s, e, m.damage * scale);
+              if (this.abortedStep) return;
               if (struck === 0) dealt = r;
               struck++;
               killed = killed || s.hp <= 0;
@@ -812,6 +853,7 @@ export class SoldierSystem {
           first.targetUid === e.uid
         ) {
           dealt = this.hurt(first, e, m.damage * scale);
+          if (this.abortedStep) return;
           struck = 1;
           killed = first.hp <= 0;
         }
@@ -830,6 +872,7 @@ export class SoldierSystem {
             sweep: m.sweep === true,
             killed,
           });
+          if (this.abortedStep) return;
         }
       }
       // Announce the next blow while something still holds it (render timing only).
@@ -843,6 +886,7 @@ export class SoldierSystem {
           impactIn: e.meleeTimer / drain,
           sweep: m.sweep === true,
         });
+        if (this.abortedStep) return;
       }
     }
     for (let k = 0; k < _blockedList.length; k++) this.primary[_blockedList[k]] = -1;
@@ -858,6 +902,7 @@ export class SoldierSystem {
       this.wasBlocked[_prevBlocked[k]] = 0;
       if (e.active && e.uid === _prevBlockedUid[k] && e.blockers === 0 && e.heroBlockers === 0) {
         this.emitBlock('enemyUnblocked', e);
+        if (this.abortedStep) return;
       }
     }
 

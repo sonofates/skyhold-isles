@@ -168,6 +168,8 @@ export function computeSimStateHash(world: SimWorld): string {
   h.f64(ws.getAutoShortenedBy());
   h.f64(ws.waveElapsed);
   h.f64(ws.pendingClearBonus);
+  h.u32(ws.getSpawnCursor());
+  h.f64(ws.getCurrentWaveClearBonus());
   h.u32(ws.isEndless ? 1 : 0);
   h.u32(ws.autoWave ? 1 : 0);
 
@@ -223,6 +225,10 @@ export function computeSimStateHash(world: SimWorld): string {
     h.f64(s.z);
     h.f64(s.hp);
     h.f64(s.respawnTimer);
+    h.f64(s.attackTimer);
+    h.f64(s.sinceHurt);
+    h.f64(s.targetPoolIndex);
+    h.u32(s.targetUid);
   }
 
   const hero = world.hero;
@@ -244,9 +250,18 @@ export function computeSimStateHash(world: SimWorld): string {
     h.f64(hero.rallyBannerTimer);
     h.f64(hero.skillCooldowns[0]);
     h.f64(hero.skillCooldowns[1]);
+    h.f64(hero.targetPoolIndex);
+    h.u32(hero.targetUid);
+    h.u32(hero.waypoints.length);
+    for (let i = 0; i < hero.waypoints.length; i++) {
+      h.f64(hero.waypoints[i].x);
+      h.f64(hero.waypoints[i].z);
+    }
     h.f64(hero.totalDamageDealt);
     h.u32(hero.kills);
     h.u32(world.heroSystem.runXp);
+    h.f64(world.heroSystem.getBurnTickTimer());
+    h.f64(world.heroSystem.getCalmHealTimer());
   } else {
     h.u32(0);
   }
@@ -284,6 +299,7 @@ export function computeSimStateHash(world: SimWorld): string {
 
   const burnZones = world.projectileSystem.getBurnZones();
   h.u32(world.projectileSystem.getActiveBurnZoneCount());
+  h.f64(world.projectileSystem.getBurnTickTimer());
   for (let i = 0; i < burnZones.length; i++) {
     const z = burnZones[i];
     if (!z.active) continue;
@@ -318,6 +334,7 @@ export function computeSimStateHash(world: SimWorld): string {
     h.f64(e.armor);
     h.f64(e.armorBreakTimer);
     h.f64(e.shield);
+    h.f64(e.slowTimer);
     h.f64(e.slowRatio);
     h.f64(e.stunTimer);
     h.f64(e.markTimer);
@@ -328,7 +345,10 @@ export function computeSimStateHash(world: SimWorld): string {
     h.f64(e.bossPhase);
     h.f64(e.hexTargetId);
     h.f64(e.blockers);
+    h.f64(e.meleeTimer);
     h.f64(e.heroBlockers);
+    h.f64(e.heroDamageReduction);
+    h.f64(e.heroMeleeTimer);
     h.f64(world.heroSystem.getEnemyBurnRemaining(idx, e.uid));
     h.f64(world.heroSystem.getEnemyBurnDps(idx, e.uid));
   }

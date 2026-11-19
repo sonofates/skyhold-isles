@@ -99,6 +99,10 @@ export class ProjectileSystem {
     return this.burnZones;
   }
 
+  getBurnTickTimer(): number {
+    return this.burnTickTimer;
+  }
+
   clearBurnZones(): void {
     for (let i = 0; i < this.burnZones.length; i++) this.burnZones[i].active = false;
     this.burnTickTimer = BURN_TICK_INTERVAL;

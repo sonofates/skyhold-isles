@@ -744,7 +744,11 @@ export class GameSession {
     this.currentLevelIndex = 0;
     this.runConfig = { endless: false, challenges: [], daily: null };
     this.soundManager.playUiBack();
-    this.d.overlays.mainMenu.setOpen(this.viewMode === 'menu', this.progress);
+    if (this.viewMode !== 'playing') {
+      this.d.overlays.mainMenu.setOpen(this.viewMode === 'menu', this.progress);
+      this.d.overlays.levelSelect.setOpen(this.viewMode === 'levelSelect', this.progress);
+      this.d.overlays.workshop.setOpen(this.viewMode === 'workshop', this.progress);
+    }
     this.d.overlays.toast.show('Progress reset — a backup of the old save was kept.', 3);
   }
 
@@ -766,7 +770,15 @@ export class GameSession {
     Object.assign(this.progress, merged);
     saveProgress(this.progress);
     this.soundManager.playUiConfirm();
-    this.d.overlays.mainMenu.setOpen(this.viewMode === 'menu', this.progress);
+    if (this.viewMode !== 'playing') {
+      this.currentLevelIndex = Math.max(
+        0,
+        Math.min(LEVELS.length - 1, this.progress.unlockedLevelIndex),
+      );
+      this.d.overlays.mainMenu.setOpen(this.viewMode === 'menu', this.progress);
+      this.d.overlays.levelSelect.setOpen(this.viewMode === 'levelSelect', this.progress);
+      this.d.overlays.workshop.setOpen(this.viewMode === 'workshop', this.progress);
+    }
     return { ok: true, message: `Loaded: ${gain}.` };
   }
 
@@ -934,6 +946,10 @@ export class GameSession {
       (this.progress.bestStars[this.currentLevelIndex] ?? 0) > 0;
     this.runConfig = resolveRunConfig(level, cleared, config);
     this.clearTransientPlayState();
+    this.unbindSound?.();
+    this.unbindSound = null;
+    this.unbindHaptics?.();
+    this.unbindHaptics = null;
     this.simWorld.dispose();
     this.events.clear();
     this.events = new EventBus();
@@ -1406,6 +1422,9 @@ export class GameSession {
     this.unbindPause = null;
     this.unbindResume?.();
     this.unbindResume = null;
+    if (typeof document !== 'undefined') {
+      delete document.documentElement.dataset.bannedTowers;
+    }
     this.simWorld.dispose();
     this.events.clear();
   }

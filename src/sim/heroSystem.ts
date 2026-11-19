@@ -224,6 +224,8 @@ export class HeroSystem {
   runXp = 0;
 
   private nextGizmoId = 1;
+  private inUpdate = false;
+  private abortedStep = false;
   private readonly pendingVolleys: PendingVolleyWave[] = [];
   private readonly burnLeft: Float64Array;
   private readonly burnDps: Float64Array;
@@ -379,7 +381,10 @@ export class HeroSystem {
   }
 
   /** Clears lingering ground zones, pending volleys, active holds, and burns at run end or wave skip. */
-  clearTransientZones(includeGizmos = false, towers?: readonly TowerEntity[]): void {
+  clearTransientZones(includeGizmos = false, towers?: readonly TowerEntity[], emitUnblocks = true): void {
+    if (this.inUpdate) {
+      this.abortedStep = true;
+    }
     this.fireRings.length = 0;
     this.pendingVolleys.length = 0;
     this.burnLeft.fill(0);
@@ -388,10 +393,23 @@ export class HeroSystem {
     this.burnTickTimer = BURN_TICK_INTERVAL;
     if (includeGizmos) {
       this.gizmos.length = 0;
+      this.calmHealTimer = 1.0;
     }
     this.clearHeroBuffs(towers);
     if (this.hero) {
-      this.releaseCurrentMeleeHolds(true);
+      if (emitUnblocks) {
+        this.releaseCurrentMeleeHolds(true);
+      } else {
+        for (let i = 0; i < this.pool.getActiveCount(); i++) {
+          const e = this.pool.items[this.pool.getActiveIndex(i)];
+          e.heroBlockers = 0;
+          e.heroDamageReduction = 0;
+        }
+        this.releaseCurrentMeleeHolds(false);
+      }
+      _prevHeroBlockedIdx.length = 0;
+      _prevHeroBlockedUid.length = 0;
+      _prevTotalBlocked.length = 0;
       this.hero.rallyBannerTimer = 0;
       this.hero.waypoints.length = 0;
       if (
@@ -408,6 +426,14 @@ export class HeroSystem {
 
   getPendingVolleys(): readonly ReadonlyPendingVolley[] {
     return this.pendingVolleys;
+  }
+
+  getBurnTickTimer(): number {
+    return this.burnTickTimer;
+  }
+
+  getCalmHealTimer(): number {
+    return this.calmHealTimer;
   }
 
   getEnemyBurnRemaining(poolIndex: number, uid: number): number {
@@ -1164,7 +1190,27 @@ export class HeroSystem {
           for (let k = 0; k < _prevHeroBlockedIdx.length; k++) {
             if (_prevHeroBlockedIdx[k] === e.poolIndex) _prevTotalBlocked[k] = 0;
           }
-          if (e.blockers === 0) {
+          if (!this.soldierSystem.isHoldingEnemy(e.poolIndex, e.uid)) {
+            this.events.emit('enemyUnblocked', {
+              enemyId: e.uid,
+              enemyType: e.type,
+              x: e.x,
+              y: e.y,
+              z: e.z,
+            });
+          }
+        }
+      }
+      if (this.inUpdate) {
+        for (let k = 0; k < _prevHeroBlockedIdx.length; k++) {
+          if (_prevTotalBlocked[k] <= 0) continue;
+          _prevTotalBlocked[k] = 0;
+          const idx = _prevHeroBlockedIdx[k];
+          const uid = _prevHeroBlockedUid[k];
+          const e = this.pool.items[idx];
+          e.heroBlockers = 0;
+          e.heroDamageReduction = 0;
+          if (e.active && e.uid === uid && !this.soldierSystem.isHoldingEnemy(idx, uid)) {
             this.events.emit('enemyUnblocked', {
               enemyId: e.uid,
               enemyType: e.type,
@@ -1425,7 +1471,17 @@ export class HeroSystem {
   update(dt: number, towers: readonly TowerEntity[], fireRateMultiplier = 1): void {
     const h = this.hero;
     if (!h || dt <= 0) return;
+    this.inUpdate = true;
+    this.abortedStep = false;
+    try {
+      this.updateStep(dt, h, towers, fireRateMultiplier);
+    } finally {
+      this.inUpdate = false;
+      this.abortedStep = false;
+    }
+  }
 
+  private updateStep(dt: number, h: HeroEntity, towers: readonly TowerEntity[], fireRateMultiplier: number): void {
     // 1. Snapshot last tick's hero holds & reset transient per-tick buffs.
     _prevHeroBlockedIdx.length = 0;
     _prevHeroBlockedUid.length = 0;
@@ -1458,7 +1514,9 @@ export class HeroSystem {
       }
     }
     this.updatePeriodicEffects(dt, h);
+    if (this.abortedStep) return;
     this.updateGizmos(dt, fireRateMultiplier);
+    if (this.abortedStep) return;
 
     // 3. Respawn countdown while dead.
     if (h.state === 'dead') {
@@ -1483,6 +1541,7 @@ export class HeroSystem {
           hp: h.hp,
           maxHp: h.maxHp,
         });
+        if (this.abortedStep) return;
       }
       this.reconcileHeroUnblocks();
       return;
@@ -1551,9 +1610,11 @@ export class HeroSystem {
     } else {
       this.updateRangedCombat(h, dt, rateMul);
     }
+    if (this.abortedStep) return;
 
     // 6. Enemy melee counter-attacks on the hero (blocked foes or unblocked ground foes stepping onto the hero).
     this.updateEnemyStrikesAgainstHero(h, dt, towers);
+    if (this.abortedStep) return;
 
     // 7. Emit block / unblock transitions for melee hero holds.
     this.reconcileHeroUnblocks();
@@ -1944,6 +2005,7 @@ export class HeroSystem {
         x: h.x,
         z: h.z,
       });
+      if (this.abortedStep) return;
 
       if (killedHero) {
         this.events.emit('heroDied', {
@@ -1959,6 +2021,7 @@ export class HeroSystem {
 
   private reconcileHeroUnblocks(): void {
     for (let i = 0; i < _prevHeroBlockedIdx.length; i++) {
+      if (this.abortedStep) return;
       const e = this.pool.items[_prevHeroBlockedIdx[i]];
       if (
         e.active &&

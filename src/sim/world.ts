@@ -544,12 +544,12 @@ export class SimWorld {
   }
 
   debugSkipToWave(waveOneBased: number): boolean {
-    this.enemyPool.clear();
     this.projectilePool.clear();
     this.projectileSystem.clearBurnZones();
     this.abilitySystem.clearPending();
-    this.heroSystem.clearTransientZones(false, this.towers);
-    this.soldierSystem.clearCombatState();
+    this.heroSystem.clearTransientZones(false, this.towers, true);
+    this.soldierSystem.clearCombatState(true);
+    this.enemyPool.clear();
     this.spatialHash.clear();
     if (this.lives <= 0) {
       this.lives = this.startingLives;
@@ -561,31 +561,31 @@ export class SimWorld {
   }
 
   private clearVictoryTransients(): void {
-    this.enemyPool.clear();
-    this.spatialHash.clear();
     this.projectilePool.clear();
     this.projectileSystem.clearBurnZones();
     this.abilitySystem.clearPending();
-    this.heroSystem.clearTransientZones(false, this.towers);
-    this.soldierSystem.clearCombatState();
+    this.heroSystem.clearTransientZones(false, this.towers, true);
+    this.soldierSystem.clearCombatState(true);
+    this.enemyPool.clear();
+    this.spatialHash.clear();
   }
 
   private clearDefeatTransients(): void {
     this.projectilePool.clear();
     this.projectileSystem.clearBurnZones();
     this.abilitySystem.clearPending();
-    this.heroSystem.clearTransientZones(false, this.towers);
-    this.soldierSystem.clearCombatState();
+    this.heroSystem.clearTransientZones(false, this.towers, true);
+    this.soldierSystem.clearCombatState(true);
   }
 
   /** Releases all pooled entities, ground zones, soldiers, gizmos, and spatial-hash buckets after a run. */
   dispose(): void {
+    this.heroSystem.clearTransientZones(true, this.towers, false);
+    this.soldierSystem.clearAll();
     this.enemyPool.clear();
     this.projectilePool.clear();
     this.projectileSystem.clearBurnZones();
     this.abilitySystem.reset();
-    this.heroSystem.clearTransientZones(true, this.towers);
-    this.soldierSystem.clearAll();
     this.spatialHash.clear();
     this.grid.resetOccupancy();
     this.towers.length = 0;

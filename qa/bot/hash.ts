@@ -69,6 +69,8 @@ export function hashWorldState(world: SimWorld): string {
   h.f64(ws.getAutoShortenedBy());
   h.f64(ws.waveElapsed);
   h.i32(ws.pendingClearBonus);
+  h.i32(ws.getSpawnCursor());
+  h.i32(ws.getCurrentWaveClearBonus());
   h.bool(ws.endlessMode);
   h.bool(ws.autoWave);
 
@@ -190,6 +192,7 @@ export function hashWorldState(world: SimWorld): string {
 
   const burnZones = world.projectileSystem.getBurnZones();
   h.i32(world.projectileSystem.getActiveBurnZoneCount());
+  h.f64(world.projectileSystem.getBurnTickTimer());
   for (let i = 0; i < burnZones.length; i++) {
     const z = burnZones[i];
     if (!z.active) continue;
@@ -222,6 +225,7 @@ export function hashWorldState(world: SimWorld): string {
     h.f64(s.maxHp);
     h.f64(s.respawnTimer);
     h.f64(s.attackTimer);
+    h.f64(s.sinceHurt);
     h.i32(s.targetPoolIndex);
     h.i32(s.targetUid);
     h.f64(s.bonusArmor);
@@ -251,9 +255,16 @@ export function hashWorldState(world: SimWorld): string {
     h.f64(hero.rallyBannerTimer);
     h.i32(hero.targetPoolIndex);
     h.i32(hero.targetUid);
+    h.i32(hero.waypoints.length);
+    for (let i = 0; i < hero.waypoints.length; i++) {
+      h.f64(hero.waypoints[i].x);
+      h.f64(hero.waypoints[i].z);
+    }
     h.f64(hero.totalDamageDealt);
     h.i32(hero.kills);
     h.i32(world.heroSystem.runXp);
+    h.f64(world.heroSystem.getBurnTickTimer());
+    h.f64(world.heroSystem.getCalmHealTimer());
 
     const gizmos = world.heroSystem.gizmos;
     h.i32(gizmos.length);

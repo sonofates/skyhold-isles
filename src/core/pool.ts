@@ -7,15 +7,16 @@ export class ObjectPool<T extends { active: boolean }> {
   private freeIndices: number[];
 
   constructor(capacity: number, factory: (id: number) => T) {
-    this.items = new Array<T>(capacity);
+    const safeCap = Number.isFinite(capacity) ? Math.max(0, Math.floor(capacity)) : 0;
+    this.items = new Array<T>(safeCap);
     this.activeIndices = [];
-    this.freeIndices = new Array<number>(capacity);
+    this.freeIndices = new Array<number>(safeCap);
 
-    for (let i = 0; i < capacity; i++) {
+    for (let i = 0; i < safeCap; i++) {
       this.items[i] = factory(i);
       this.items[i].active = false;
       // Pop from end gives lowest index first
-      this.freeIndices[i] = capacity - 1 - i;
+      this.freeIndices[i] = safeCap - 1 - i;
     }
   }
 

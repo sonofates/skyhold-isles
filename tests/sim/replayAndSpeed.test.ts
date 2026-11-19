@@ -1569,4 +1569,131 @@ describe('EventBus re-entrancy & SoldierSystem towerFireRateMul', () => {
     expect(rPlayer.world.towers).toHaveLength(2);
     rPlayer.dispose();
   });
+
+  it('emits 1-to-1 enemyUnblocked on mid-wave debugForceWin/debugSkipToWave and mid-step combat resets, keeps dispose silent, and hashes sub-tick timers', () => {
+    // 1. Mid-wave debugForceWin() and debugSkipToWave() emit enemyUnblocked before clearing enemyPool,
+    //    while dispose() tears down held enemies silently without emitting enemyUnblocked.
+    const mwEvents = new EventBus();
+    const mwLog: string[] = [];
+    mwEvents.on('enemyBlocked', (ev) => mwLog.push(`B:${ev.enemyId}`));
+    mwEvents.on('enemyUnblocked', (ev) => mwLog.push(`U:${ev.enemyId}`));
+    const mwWorld = new SimWorld(LEVEL_L1C, mwEvents, { heroId: 'bran', heroLevel: 10, seed: 201 });
+    mwWorld.gold = 9000;
+    const bar = mwWorld.placeTowerOnPlot(21, 'barracks')!;
+    mwWorld.startNextWave();
+    const bState = mwWorld.soldierSystem.getBarracks(bar.id)!;
+    mwWorld.hero!.x = mwWorld.hero!.postX = bState.rallyX;
+    mwWorld.hero!.z = mwWorld.hero!.postZ = bState.rallyZ;
+    for (const s of bState.squad) {
+      s.x = s.prevX = bState.rallyX;
+      s.z = s.prevZ = bState.rallyZ;
+    }
+    const g1 = mwWorld.enemySystem.spawnEnemy('brute', 15, false, 0)!;
+    const uid1 = g1.uid;
+    g1.x = g1.prevX = bState.rallyX;
+    g1.z = g1.prevZ = bState.rallyZ;
+    mwWorld.spatialHash.clear();
+    mwWorld.spatialHash.insert(g1.poolIndex, g1.x, g1.z);
+    mwWorld.soldierSystem.update(BALANCE.fixedDt, mwWorld.towers, 1);
+    mwWorld.heroSystem.update(BALANCE.fixedDt, mwWorld.towers, 1);
+    expect(mwLog).toEqual([`B:${uid1}`]);
+    mwWorld.debugSkipToWave(2);
+    expect(mwLog).toEqual([`B:${uid1}`, `U:${uid1}`]);
+
+    // Block a second foe and call debugForceWin() mid-wave -> emits U:uid2 exactly once before clearing pool!
+    const g2 = mwWorld.enemySystem.spawnEnemy('brute', 15, false, 0)!;
+    const uid2 = g2.uid;
+    g2.x = g2.prevX = bState.rallyX;
+    g2.z = g2.prevZ = bState.rallyZ;
+    for (const s of bState.squad) {
+      s.x = s.prevX = bState.rallyX;
+      s.z = s.prevZ = bState.rallyZ;
+    }
+    mwWorld.spatialHash.clear();
+    mwWorld.spatialHash.insert(g2.poolIndex, g2.x, g2.z);
+    mwWorld.soldierSystem.update(BALANCE.fixedDt, mwWorld.towers, 1);
+    mwWorld.heroSystem.update(BALANCE.fixedDt, mwWorld.towers, 1);
+    expect(mwLog).toEqual([`B:${uid1}`, `U:${uid1}`, `B:${uid2}`]);
+    mwWorld.debugForceWin();
+    expect(mwLog).toEqual([`B:${uid1}`, `U:${uid1}`, `B:${uid2}`, `U:${uid2}`]);
+
+    // Enter endless, block g3, and call dispose() -> tears down silently with zero extra unblock events!
+    mwWorld.enterEndlessMode();
+    mwWorld.startNextWave();
+    const g3 = mwWorld.enemySystem.spawnEnemy('brute', 15, false, 0)!;
+    const uid3 = g3.uid;
+    g3.x = g3.prevX = bState.rallyX;
+    g3.z = g3.prevZ = bState.rallyZ;
+    for (const s of bState.squad) {
+      s.x = s.prevX = bState.rallyX;
+      s.z = s.prevZ = bState.rallyZ;
+    }
+    mwWorld.spatialHash.clear();
+    mwWorld.spatialHash.insert(g3.poolIndex, g3.x, g3.z);
+    mwWorld.soldierSystem.update(BALANCE.fixedDt, mwWorld.towers, 1);
+    expect(mwLog).toEqual([`B:${uid1}`, `U:${uid1}`, `B:${uid2}`, `U:${uid2}`, `B:${uid3}`]);
+    mwWorld.dispose();
+    expect(mwLog).toHaveLength(5);
+
+    // 2. Mid-'soldierAttack' co-hold: commandHeroMove does NOT emit premature enemyUnblocked while soldier still holds,
+    //    and debugForceLose() inside 'soldierAttack' emits 1-to-1 enemyUnblocked and aborts remaining step cleanly.
+    const coEvents = new EventBus();
+    const coLog: string[] = [];
+    coEvents.on('enemyBlocked', (ev) => coLog.push(`B:${ev.enemyId}`));
+    coEvents.on('enemyUnblocked', (ev) => coLog.push(`U:${ev.enemyId}`));
+    const coWorld = new SimWorld(LEVEL_L1C, coEvents, { heroId: 'bran', heroLevel: 10, seed: 202 });
+    coWorld.gold = 9000;
+    const coBar = coWorld.placeTowerOnPlot(21, 'barracks')!;
+    coWorld.startNextWave();
+    const coBState = coWorld.soldierSystem.getBarracks(coBar.id)!;
+    const roadStart = coWorld.groundPath.points[0];
+    coWorld.hero!.x = coWorld.hero!.postX = coBState.rallyX;
+    coWorld.hero!.z = coWorld.hero!.postZ = coBState.rallyZ;
+    for (const s of coBState.squad) {
+      s.x = s.prevX = coBState.rallyX;
+      s.z = s.prevZ = coBState.rallyZ;
+    }
+    const coFoe = coWorld.enemySystem.spawnEnemy('brute', 30, false, 0)!;
+    coFoe.dist = coWorld.groundPath.nearestDist(coBState.rallyX, coBState.rallyZ);
+    coFoe.x = coFoe.prevX = coBState.rallyX;
+    coFoe.z = coFoe.prevZ = coBState.rallyZ;
+    coWorld.spatialHash.clear();
+    coWorld.spatialHash.insert(coFoe.poolIndex, coFoe.x, coFoe.z);
+    coWorld.soldierSystem.update(BALANCE.fixedDt, coWorld.towers, 1);
+    coWorld.heroSystem.update(BALANCE.fixedDt, coWorld.towers, 1);
+    expect(coFoe.blockers).toBeGreaterThan(0);
+    expect(coFoe.heroBlockers).toBeGreaterThan(0);
+    expect(coLog).toEqual([`B:${coFoe.uid}`]);
+
+    // Force soldier 0 to swing on the next tick; first swing moves Bran away, second swing forces defeat.
+    let swingPhase = 0;
+    coEvents.on('soldierAttack', () => {
+      swingPhase++;
+      if (swingPhase === 1) {
+        coWorld.commandHeroMove(roadStart.x, roadStart.z);
+      } else if (swingPhase === 2) {
+        coWorld.debugForceLose();
+      }
+    });
+    coBState.squad[0].attackTimer = 0.001;
+    coWorld.soldierSystem.update(BALANCE.fixedDt, coWorld.towers, 1);
+    // Soldier still holds coFoe after Bran moved away -> NO premature U:coFoe!
+    expect(coLog).toEqual([`B:${coFoe.uid}`]);
+    expect(coFoe.blockers).toBeGreaterThan(0);
+
+    coBState.squad[0].attackTimer = 0.001;
+    coWorld.soldierSystem.update(BALANCE.fixedDt, coWorld.towers, 1);
+    expect(coWorld.outcome).toBe('lost');
+    expect(coFoe.blockers).toBe(0);
+    expect(coLog).toEqual([`B:${coFoe.uid}`, `U:${coFoe.uid}`]);
+
+    // 3. computeSimStateHash captures sub-tick hero waypoints and soldier attackTimer differences.
+    const hashA = new SimWorld(LEVEL_L1C, new EventBus(), { heroId: 'sela', heroLevel: 5, seed: 203 });
+    const hashB = new SimWorld(LEVEL_L1C, new EventBus(), { heroId: 'sela', heroLevel: 5, seed: 203 });
+    expect(computeSimStateHash(hashA)).toBe(computeSimStateHash(hashB));
+    hashA.hero!.waypoints.push({ x: 1.5, z: -2.0 });
+    expect(computeSimStateHash(hashA)).not.toBe(computeSimStateHash(hashB));
+    hashB.hero!.waypoints.push({ x: 1.5, z: -2.0 });
+    expect(computeSimStateHash(hashA)).toBe(computeSimStateHash(hashB));
+  });
 });
