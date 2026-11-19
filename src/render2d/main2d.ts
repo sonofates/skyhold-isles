@@ -33,7 +33,7 @@ import { MASTER_SCALE, maxMapScale, pickMapVariant } from './mapVariant.ts';
 import { computeMapFit } from './viewFit.ts';
 import { mountSettings2D, type Settings2D } from './settingsButton2d.ts';
 import { hudKeepOuts, readSafeInsets } from './uiKit.ts';
-import { hudButtonsKeepOut } from './uiLayout.ts';
+import { gateKeepOutsPx, hudButtonsKeepOut } from './uiLayout.ts';
 import { anySheetOpen } from './ui/dom.ts';
 
 /**
@@ -727,7 +727,12 @@ async function main(): Promise<void> {
     const coachMod = await import('./ui/coach2d.ts');
     if ((level.id === 'l1c' && plainPlay && !coachMod.coachDone()) || q.get('coach') === '1') {
       const hero = game.world.hero;
-      coach = coachMod.mountCoach(!desktop || isTouchDevice(), hero ? heroName(hero.heroId).split(' ')[0] : '');
+      // The caves / castle: the card keeps off them when it has to leave its home spot.
+      const gateRects = (): import('./uiLayout.ts').Rect[] => {
+        const f = game.map.fit;
+        return gateKeepOutsPx(level.layout2d?.gates ?? []).map((g) => ({ x: f.offsetX + g.x * f.scale, y: f.offsetY + g.y * f.scale, w: g.w * f.scale, h: g.h * f.scale }));
+      };
+      coach = coachMod.mountCoach(!desktop || isTouchDevice(), hero ? heroName(hero.heroId).split(' ')[0] : '', gateRects);
       // Suggested first plot: the one with the most road within reach of an archer.
       const lay = level.layout2d!;
       let best = -1;

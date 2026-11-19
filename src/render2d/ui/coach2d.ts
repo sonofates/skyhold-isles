@@ -108,7 +108,14 @@ const overlap = (a: Rect, b: Rect): number => Math.max(0, Math.min(a.x + a.w, b.
  * ability / hero bar can sit in the top band on dense islands — and the tips point at it). Then
  * beside the piece it covers, else under it; the card stays on screen. Pure (QA / tests).
  */
-export function coachCardSpot(home: Rect, keepOuts: readonly Rect[], screen: { readonly w: number; readonly h: number }, gap = 10): { x: number; y: number } {
+export function coachCardSpot(
+  home: Rect,
+  keepOuts: readonly Rect[],
+  screen: { readonly w: number; readonly h: number },
+  gap = 10,
+  /** Rather not covered once the card has to move (the caves / castle, 1/4 weight of a HUD piece). */
+  landmarks: readonly Rect[] = [],
+): { x: number; y: number } {
   const hits = keepOuts.filter((k) => overlap(home, k) > 0);
   if (hits.length === 0) return { x: home.x, y: home.y };
   const clampX = (x: number): number => Math.max(gap, Math.min(screen.w - gap - home.w, x));
@@ -123,7 +130,7 @@ export function coachCardSpot(home: Rect, keepOuts: readonly Rect[], screen: { r
   for (const c of cands) {
     const box = { x: c.x, y: c.y, w: home.w, h: home.h };
     if (box.y + box.h > screen.h) continue;
-    const a = keepOuts.reduce((sum, k) => sum + overlap(box, k), 0);
+    const a = keepOuts.reduce((sum, k) => sum + overlap(box, k), 0) + landmarks.reduce((sum, k) => sum + overlap(box, k) * 0.25, 0);
     // Least covered; ties keep the earlier (same height) spot.
     if (a < bestA) {
       bestA = a;
@@ -140,7 +147,7 @@ export interface Coach2D {
   debug(): { step: CoachStep; shown: boolean; arrow: { x: number; y: number } | null };
 }
 
-export function mountCoach(touch: boolean, heroName: string): Coach2D {
+export function mountCoach(touch: boolean, heroName: string, landmarks: () => Rect[] = () => []): Coach2D {
   const card = el('div', 'pu pu-coach', { role: 'status', 'aria-live': 'polite', 'data-testid': 'coach2d-card' });
   const count = el('span', 'pu-coach-n pu-letter');
   const title = el('div', 'pu-coach-title pu-ink');
@@ -176,7 +183,7 @@ export function mountCoach(touch: boolean, heroName: string): Coach2D {
       home = { x: parseFloat(cs.left) - w / 2, y: parseFloat(cs.top), w, h: card.offsetHeight };
     }
     placing = true;
-    const at = coachCardSpot(home, hudKeepOuts(), { w: window.innerWidth, h: window.innerHeight });
+    const at = coachCardSpot(home, hudKeepOuts(), { w: window.innerWidth, h: window.innerHeight }, 10, landmarks());
     placing = false;
     const moved = at.x !== home.x || at.y !== home.y;
     cardBox = { x: at.x, y: at.y, w: home.w, h: home.h };
