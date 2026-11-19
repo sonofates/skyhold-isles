@@ -1,8 +1,29 @@
-"""Fit painted shelves to shore plots in layout coordinates, at any bake size."""
+"""Place shore foundations and water reflections at map resolution."""
 import math
 
 import numpy as np
 from PIL import Image, ImageChops, ImageFilter
+
+
+def water_reflection(ground, sprite, left, bottom, land, scale):
+    """Reflect a flooded ruin across its lowest course, breaking the image into ripples."""
+    width, height = sprite.size
+    depth = max(1, round(height * .54))
+    waterline = bottom - round(height * .045)
+    y, x = np.ogrid[:depth, :width]
+    distance = y / scale
+    phase = distance * .91 + .8 * np.sin(x / (scale * 23))
+    shift = scale * (1.4 + 3.2 * y / depth) * (np.sin(phase) + .43 * np.sin(distance * 1.83))
+    u = np.rint(x + shift).astype(int)
+    v = np.clip(np.rint(height * .955 - y / .54).astype(int), 0, height-1)
+    pixels = np.asarray(sprite)[v, u.clip(0, width-1)].copy()
+    strength = (.66 - .27 * y / depth) * (.80 + .20 * np.sin(phase))
+    # Let the painted water and its reed banks show through at every bake density.
+    mx, my = land.width / ground.width, land.height / ground.height
+    box = (left*mx, waterline*my, (left+width)*mx, (waterline+depth)*my)
+    bank = land.transform((width, depth), Image.Transform.EXTENT, box, Image.Resampling.BILINEAR)
+    pixels[:, :, 3] = pixels[:, :, 3] * strength * (1 - np.asarray(bank)/255) * (u >= 0) * (u < width)
+    ground.alpha_composite(Image.fromarray(pixels), (left, waterline))
 
 
 def shore_foundation(ground, land, layout_size, islet, centre, radii, scale):

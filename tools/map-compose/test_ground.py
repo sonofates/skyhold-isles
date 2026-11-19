@@ -8,7 +8,7 @@ import numpy as np
 from PIL import Image, ImageChops, ImageColor, ImageDraw
 
 import fords
-from banks import shore_foundation
+from banks import shore_foundation, water_reflection
 from gates import draw_threshold_road, output_sprite
 from keeps import Keep, sample
 from masonry import RoadArcade, arch_bridge, brick_spur, cart_tracks, paved_road
@@ -18,7 +18,7 @@ from ground import windblown_road_coverage
 
 
 class GroundTests(unittest.TestCase):
-    def load_crossings_and_check_rings(self, island):
+    def load_recipe_and_check_rings(self, island):
         compose = Path(__file__).resolve().parent
         root = compose.parents[1]
         recipe = json.loads((compose / 'campaign.json').read_text())[island]
@@ -34,11 +34,48 @@ class GroundTests(unittest.TestCase):
         for x, y in layout['plots']:
             draw.ellipse((x-rx-4, y-ry-4, x+rx+4, y+ry+4), fill=255)
         self.assertIsNone(ImageChops.subtract(rings, land).getbbox())
-        return recipe['crossings'], kit, layout, land
+        return recipe, kit, layout, land
+
+    def test_bastion_drawbridge_spans_the_moat_and_keeps_both_landings_dry(self):
+        recipe, _, layout, land = self.load_recipe_and_check_rings('i08')
+        [(_, start, end, above, below, _)] = recipe['archBridges']
+        x0, y0 = start
+        x1, y1 = end
+
+        def deck(u, v):
+            return round(x0 + (x1-x0)*u), round(y0 + (y1-y0)*u - above + (above+below)*v)
+
+        for u in (.04, .96):
+            for v in (.25, .73):
+                self.assertEqual(land.getpixel(deck(u, v)), 255)
+        for v in (.25, .5, .73):
+            self.assertEqual(land.getpixel(deck(.5, v)), 0)
+
+        supported = land.copy()
+        ImageDraw.Draw(supported).polygon([deck(u, v) for u, v in
+            [(0, .20), (1, .20), (1, .78), (0, .78)]], fill=255)
+        road = Image.new('L', land.size)
+        ImageDraw.Draw(road).line([tuple(p) for p in layout['paths'][0]],
+                                  fill=255, width=round(.068 * land.height), joint='curve')
+        self.assertIsNone(ImageChops.subtract(road, supported).getbbox())
+
+    def test_ruin_reflection_preserves_the_shore_and_open_arch(self):
+        land = Image.new('L', (80, 90))
+        ImageDraw.Draw(land).rectangle((36, 0, 79, 89), fill=255)
+        for scale in (1, 2, 3):
+            ground = Image.new('RGBA', (80*scale, 90*scale), 'teal')
+            before = ground.copy()
+            stones = Image.new('RGBA', (44*scale, 46*scale), 'tan')
+            ImageDraw.Draw(stones).rectangle((13*scale, 12*scale, 34*scale, 46*scale), fill=(0, 0, 0, 0))
+            water_reflection(ground, stones, 10*scale, 53*scale, land, scale)
+            changed = ImageChops.difference(ground, before).convert('RGB')
+            self.assertIsNotNone(changed.crop((15*scale, 55*scale, 21*scale, 66*scale)).getbbox())
+            for box in ((0, 0, 80, 49), (27, 54, 32, 66), (37, 0, 80, 90), (0, 82, 80, 90)):
+                self.assertIsNone(changed.crop(tuple(v*scale for v in box)).getbbox())
 
     def test_galewatch_road_only_leaves_its_ledge_on_the_bridge(self):
-        crossings, kit, layout, land = self.load_crossings_and_check_rings('i11')
-        [(name, x, y, length, width, angle)] = crossings
+        recipe, kit, layout, land = self.load_recipe_and_check_rings('i11')
+        [(name, x, y, length, width, angle)] = recipe['crossings']
         cos, sin = math.cos(math.radians(angle)), math.sin(math.radians(angle))
 
         def on_map(u, v):
@@ -62,7 +99,8 @@ class GroundTests(unittest.TestCase):
         self.assertIsNone(ImageChops.subtract(road, supported).getbbox())
 
     def test_emerald_crossings_have_dry_landings_and_span_open_water(self):
-        crossings, kit, _, land = self.load_crossings_and_check_rings('i04')
+        recipe, kit, _, land = self.load_recipe_and_check_rings('i04')
+        crossings = recipe['crossings']
         # Probe the timber feet. A centreline check missed the post beside the waterfall.
         landings = {
             'rope-span': [(0.21, .14), (.75, .16), (.12, .92), (.81, .94)],

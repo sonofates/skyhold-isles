@@ -91,7 +91,7 @@ from gates import (  # noqa: E402
     blend_placement, clip_road_at_gate, contact_shadow, cut_front, draw_threshold_road, entrance_dir, entrance_facing, gate_alpha_hit, goal_dir, goal_facing, light_interior, output_box, output_sprite, place_gate, point_in_opening, resolve_prop,
 )
 import fords  # noqa: E402
-from banks import shore_foundation  # noqa: E402
+from banks import shore_foundation, water_reflection  # noqa: E402
 from masonry import RoadArcade, arch_bridge, brick_spur, cart_tracks, marble_road, moat_wall, paved_road  # noqa: E402
 from keeps import Keep  # noqa: E402
 from ground import (  # noqa: E402
@@ -695,7 +695,7 @@ if dressing:
 
 # Mask of water and chasm banks in the terrain painting. Keep rooted props on land.
 land_mask = (load(f'land-{L["id"]}.webp').convert('L')
-             if dressing.get('islet') or dressing.get('waterCrossings') else None)
+             if any(dressing.get(key) for key in ('islet', 'waterCrossings', 'waterReflections')) else None)
 
 
 def on_land(x, y):
@@ -894,7 +894,10 @@ def sprite(name, x, y_bottom, height_px, flip=False, flat=False):
     if flip:
         im = im.transpose(Image.FLIP_LEFT_RIGHT)
     if flat:
-        ground.alpha_composite(im, (round(x - im.width / 2), round(y_bottom - im.height)))
+        left, bottom = round(x - im.width / 2), round(y_bottom)
+        if name in dressing.get('waterReflections', []):
+            water_reflection(ground, im, left, bottom, land_mask, S)
+        ground.alpha_composite(im, (left, round(y_bottom - im.height)))
     else:
         items.append((y_bottom, im, x, y_bottom, True))
 

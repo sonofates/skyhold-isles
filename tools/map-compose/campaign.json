@@ -201,26 +201,32 @@
     ]
   },
   "i08": {
-    "moatWall": true,
-    "gatehouseShelf": [-18, -7, 206, 90],
     "gatehouseView": "compact",
     "plots": 28,
     "seed": 353,
-    "decals": 205,
-    "props": 61,
+    "decals": 42,
+    "props": 13,
     "windmill": "none",
     "biome": "terraces",
-    "propWeights": [1, 0, 3, 3, 6, 4, 6],
-    "crossings": [
-      ["stone-bridge", 1017, 299, 169, 72, 94]
+    "scatterProps": [["willow.webp", 1.18], ["fern.webp", 0.43], ["cattails.webp", 0.52]],
+    "propWeights": [1, 4, 3],
+    "repeatGap": 105,
+    "archBridges": [
+      ["marsh-drawbridge", [915, 306], [1110, 294], 58, 59, 32]
     ],
-    "islet": "islet.webp",
+    "waterCrossings": true,
+    "brushRoad": true,
+    "dustyShoulders": true,
+    "thresholdRoad": true,
+    "roadMaterial": "tex-moat-road.webp",
+    "dressingMask": "dressing-i08.webp",
+    "entranceFinishes": {"A": "marsh-postern-e.webp"},
     "gate-inset": 0.08,
     "cave-h": 1.9,
     "castle-h": 2.95,
-    "landmarks": [
-      ["bastion", 757, 244, 48]
-    ]
+    "groundPaint": [["drowned-arch", 252, 162, 113], ["flooded-piers", 663, 341, 40]],
+    "waterReflections": ["landmark-drowned-arch.webp", "landmark-flooded-piers.webp"],
+    "landmarks": [["marsh-light", 538, 733, 85]]
   },
   "i09": {
     "layMarble": true,

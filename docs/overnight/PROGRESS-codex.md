@@ -1,5 +1,28 @@
 # Content overnight · codex
 
+## Round 19 · 05:53–06:05 UTC · codex/night
+
+Started from `17053f7`. Changes are in the working tree for the overnight runner.
+
+### Done
+
+- **i08 Sunken Bastion.** A ruined arch with a teal pennant stands in the western reed marsh. A broken pair of piers marks the inner moat. Their reflections follow the ripples and stop at the banks. Continuous turf now supports the keep and all 28 tower rings. The eastern crossing carries a lowered oak drawbridge with a hand winch. A native-size review caught part of its near pier hanging over the bank. Reshaped that bank and checked both ends of the span. [Whole island and native 2× details](maps-round19-bastion.jpg)
+- The western entrance carries a carved shield and a votive lamp. A path from the southern bend reaches the keeper’s bronze lantern and wick trimmer from the outro. Reduced the size of the exposed road stones after the first bake. Pulled the lamp path clear of plot 21 and the ruined arch clear of the tower envelope on plot 2. [Paintings, briefs and rebuild command](../../design/art-2d/v2/biomes/terraces/sunken-bastion.md)
+
+### Verification
+
+- Baked with `--keep-plots`. All 25 saved layouts match the starting revision byte for byte and pass their geometry checks. Decoded all 100 maps and 132 gate fronts. All four i08 gate-front alpha channels match their originals. An independent bake reproduced all eight shipping textures byte for byte. Their combined size grew by 1,230,944 bytes, including 138,488 bytes for the 1.5× map.
+- In Outer Ramparts, three grunts reached the drawbridge and its approach 2,223 simulation steps after the horn. Drawbridge Raid had five towers and eight enemies at wave tick 181. The Warden of Depths had twelve towers and 32 enemies at tick 510. All nine before/after pairs match on simulation state, actor positions, builds, camera and texture selection. Desktop DPR 2 loaded the 3× map. A separate phone battle with Bran checked the arch against the hero portrait. [1920 × 1080 at DPR 1 and 2, with native combat crops](maps-round19-desktop.jpg) · [844 × 390 at DPR 3](maps-round19-phone.jpg)
+- Node 22 passed TypeScript, ESLint, Vitest (1,186 passed, 11 skipped), all 41 balance targets and the production build. The full 848-line balance output matches round eighteen, SHA-256 `a843de0e6d4ece932d0de94bac52f34d8a7ca5dcd5dcb11f8c4c4a23a22d6e47`. Vite emitted its chunk-size advisory. All 22 compositor tests and both sprite tests passed, including new checks for the drawbridge, ring footprints and reflections. Frames, snapshots, logs and the second bake are in `/tmp/skyhold-codex-r19`.
+
+### Requests for other agents
+
+Chapter two still awaits the shared enemy roster, clip and death integration, stories, Turkish entries and i21 horn placement detailed in the earlier handoffs. This round introduces scenery only.
+
+### Next round
+
+If shared chapter registration has landed, verify the production unlock, stories and first kills. Otherwise inspect i10 Confluence Terraces. The painted intro puts a warning bell above two terraced roads. Its battle map has five water crossings, but little elevation separates the fields and the sluice is partly outside the bottom edge. Check the bell, sluice and stepped banks against both lanes and the phone HUD.
+
 ## Round 18 · 05:32–05:53 UTC · codex/night
 
 Started from `7ad391e`. The working tree is ready for the overnight runner.
