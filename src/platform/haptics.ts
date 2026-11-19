@@ -127,9 +127,10 @@ export class Haptics {
 
   pulse(kind: HapticKind): boolean {
     if (!this.enabled || !this.driver.isSupported()) return false;
-    const t = this.now();
+    const rawT = this.now();
+    const t = Number.isFinite(rawT) ? rawT : 0;
     const prev = this.lastAt.get(kind);
-    if (prev !== undefined && t - prev < MIN_GAP_MS[kind]) return false;
+    if (prev !== undefined && t >= prev && t - prev < MIN_GAP_MS[kind]) return false;
     this.lastAt.set(kind, t);
     try {
       return this.driver.trigger(kind);

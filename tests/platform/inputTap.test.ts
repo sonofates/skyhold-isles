@@ -50,10 +50,10 @@ function makeEnv() {
     target: canvas,
   });
   const fire = (type: string, e: unknown): void => {
-    if (type === 'pointerdown') canvasListeners.get(type)?.(e);
+    if (type === 'pointerdown' || type === 'wheel') canvasListeners.get(type)?.(e);
     else for (const fn of winListeners.get(type) ?? []) fn(e);
   };
-  return { input, handlers, ev, fire };
+  return { input, handlers, canvas, ev, fire };
 }
 
 describe('InputManager tap resolution', () => {
@@ -95,5 +95,48 @@ describe('InputManager tap resolution', () => {
     fire('pointerup', ev('pointerup', 2, 100, 300, 1100));
     fire('pointerup', ev('pointerup', 3, 200, 300, 1110));
     expect(handlers.onPrimaryTapNdc).not.toHaveBeenCalled();
+  });
+
+  it('ignores horizontal-only or non-finite wheel events and clears long-press on window blur', () => {
+    const { handlers, canvas, ev, fire } = makeEnv();
+    const onLongPress = vi.fn();
+    (handlers as { onLongPressNdc?: (x: number, y: number) => void }).onLongPressNdc = onLongPress;
+
+    // Horizontal trackpad scroll (deltaY === 0) and NaN deltaY must not zoom the camera.
+    fire('wheel', {
+      target: canvas,
+      clientX: 200,
+      clientY: 400,
+      deltaX: 48,
+      deltaY: 0,
+      preventDefault: vi.fn(),
+    });
+    fire('wheel', {
+      target: canvas,
+      clientX: 200,
+      clientY: 400,
+      deltaX: 0,
+      deltaY: NaN,
+      preventDefault: vi.fn(),
+    });
+    expect(handlers.onZoomDelta).not.toHaveBeenCalled();
+
+    // Real vertical wheel zooms as expected.
+    fire('wheel', {
+      target: canvas,
+      clientX: 200,
+      clientY: 400,
+      deltaX: 0,
+      deltaY: -100,
+      preventDefault: vi.fn(),
+    });
+    expect(handlers.onZoomDelta).toHaveBeenCalledTimes(1);
+
+    // Touch hold interrupted by window blur cancels pending long-press and resets transient state.
+    fire('pointerdown', ev('pointerdown', 5, 120, 160, 0));
+    fire('blur', {});
+    vi.advanceTimersByTime(1000);
+    expect(onLongPress).not.toHaveBeenCalled();
+    expect(handlers.onPointerLeave).toHaveBeenCalledTimes(1);
   });
 });

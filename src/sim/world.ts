@@ -560,6 +560,12 @@ export class SimWorld {
     this.soldierSystem.clearCombatState();
   }
 
+  private clearDefeatTransients(): void {
+    this.projectilePool.clear();
+    this.abilitySystem.clearPending();
+    this.heroSystem.clearTransientZones(false);
+  }
+
   /** Releases all pooled entities, ground zones, soldiers, gizmos, and spatial-hash buckets after a run. */
   dispose(): void {
     this.enemyPool.clear();
@@ -589,9 +595,13 @@ export class SimWorld {
   debugForceLose(): void {
     if (this.outcome !== 'ongoing') return;
     this.lives = 0;
+    this.clearDefeatTransients();
     this.outcome = 'lost';
     this.events.emit('economyChanged', { gold: this.gold, lives: this.lives });
-    this.events.emit('gameLost', { waveIndex: Math.max(0, this.waveSystem.currentWaveIndex) });
+    this.events.emit('gameLost', {
+      waveIndex: Math.max(0, this.waveSystem.currentWaveIndex),
+      endless: this.waveSystem.isEndless,
+    });
   }
 
   /** Tower types a challenge forbids this run. */
@@ -822,6 +832,7 @@ export class SimWorld {
     this.lives = Math.max(0, this.lives - leaked.livesCost);
     this.events.emit('economyChanged', { gold: this.gold, lives: this.lives });
     if (this.lives <= 0 && this.outcome === 'ongoing') {
+      this.clearDefeatTransients();
       this.outcome = 'lost';
       this.events.emit('gameLost', {
         waveIndex: Math.max(0, this.waveSystem.currentWaveIndex),

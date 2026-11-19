@@ -713,6 +713,38 @@ export class InvariantMonitor {
           `won run leaked ${_hashQueryBuf.length} spatialHash entries`,
         );
       }
+    } else if (w.outcome === 'lost') {
+      if (w.projectilePool.getActiveCount() !== 0) {
+        this.record(
+          'entity_leak',
+          tick,
+          `lost run leaked ${w.projectilePool.getActiveCount()} mid-flight projectiles`,
+        );
+      }
+      if (w.abilitySystem.getPendingMeteorCount() !== 0) {
+        this.record(
+          'entity_leak',
+          tick,
+          `lost run leaked ${w.abilitySystem.getPendingMeteorCount()} pendingMeteors`,
+        );
+      }
+      if (w.heroSystem.getPendingVolleys().length !== 0) {
+        this.record(
+          'entity_leak',
+          tick,
+          `lost run leaked ${w.heroSystem.getPendingVolleys().length} pendingVolleys`,
+        );
+      }
+      if (
+        w.hero &&
+        (w.hero.state === 'moving' || w.hero.state === 'engaging' || w.hero.state === 'fighting')
+      ) {
+        this.record(
+          'entity_leak',
+          tick,
+          `lost run left hero in active transient state=${w.hero.state}`,
+        );
+      }
     }
   }
 }

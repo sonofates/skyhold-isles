@@ -3,7 +3,12 @@ import { LEVELS, type LevelDef } from '../data/levels/index.ts';
 import { syncAchievementsFromProgress } from './achievements.ts';
 import { getPlatform, type PlatformAdapter } from './platform.ts';
 import { mergeProgress } from './saveCode.ts';
-import { CLOUD_PROGRESS_SLOT, migrateProgress, saveProgress } from './storage.ts';
+import {
+  CLOUD_PROGRESS_SLOT,
+  hasAnyProgress,
+  migrateProgress,
+  saveLocalProgress,
+} from './storage.ts';
 
 export interface CloudHydrateResult {
   readonly merged: ProgressData;
@@ -22,8 +27,9 @@ export async function hydrateProgressFromCloud(
   adapter: PlatformAdapter = getPlatform(),
   levels: readonly LevelDef[] = LEVELS,
 ): Promise<CloudHydrateResult> {
-  const localRaw = JSON.stringify(localProgress);
-  let merged = localProgress;
+  const normalizedLocal = migrateProgress(localProgress, levelCount);
+  const localRaw = JSON.stringify(normalizedLocal);
+  let merged = normalizedLocal;
   let updated = false;
 
   const cloudRaw = await adapter.cloudSave.read(CLOUD_PROGRESS_SLOT);
@@ -31,15 +37,20 @@ export async function hydrateProgressFromCloud(
     try {
       const parsed: unknown = JSON.parse(cloudRaw);
       const cloudProgress = migrateProgress(parsed, levelCount);
-      merged = mergeProgress(localProgress, cloudProgress, levelCount);
+      merged = mergeProgress(normalizedLocal, cloudProgress, levelCount);
       const mergedRaw = JSON.stringify(merged);
-      if (mergedRaw !== localRaw || mergedRaw !== cloudRaw) {
-        updated = mergedRaw !== localRaw;
-        saveProgress(merged);
+      if (mergedRaw !== localRaw) {
+        updated = true;
+        saveLocalProgress(merged);
+      }
+      if (mergedRaw !== cloudRaw) {
+        await adapter.cloudSave.write(CLOUD_PROGRESS_SLOT, mergedRaw);
       }
     } catch {
       // Corrupt cloud blob: keep local progress and overwrite cloud when local has progress.
-      await adapter.cloudSave.write(CLOUD_PROGRESS_SLOT, localRaw);
+      if (hasAnyProgress(normalizedLocal)) {
+        await adapter.cloudSave.write(CLOUD_PROGRESS_SLOT, localRaw);
+      }
     }
   } else if (adapter.isSteam) {
     await adapter.cloudSave.write(CLOUD_PROGRESS_SLOT, localRaw);

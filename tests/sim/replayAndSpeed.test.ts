@@ -528,4 +528,65 @@ describe('EventBus re-entrancy & SoldierSystem towerFireRateMul', () => {
     expect(baseDmg).toBeGreaterThan(0);
     expect(boostedDmg).toBeGreaterThan(baseDmg);
   });
+
+  it('cleans defeat transients, tags debugForceLose endless flag, and handles post-victory delayed enterEndless in SimReplayPlayer', () => {
+    const events = new EventBus();
+    const lostEvents: Array<{ waveIndex: number; endless?: boolean }> = [];
+    events.on('gameLost', (ev) => lostEvents.push(ev));
+
+    const world = new SimWorld(LEVEL_L1C, events, {
+      heroId: 'wren',
+      heroLevel: 20,
+      heroSkills: defaultLevel20Skills('wren'),
+      seed: 909,
+    });
+    expect(world.startEndlessFromStart()).toBe(true);
+    expect(world.startNextWave()).toBe(true);
+    world.fixedTick(BALANCE.fixedDt);
+
+    // Put hero in 'moving', spawn a pending meteor, and spawn a pending doubleVolley wave.
+    const endPt = world.groundPath.points[0];
+    expect(world.commandHeroMove(endPt.x, endPt.z)).toBe(true);
+    expect(world.hero!.state).toBe('moving');
+    expect(world.castAbility('meteor', endPt.x, endPt.z)).toBe(true);
+    expect(world.castHeroSkill(0, endPt.x, endPt.z)).toBe(true);
+    expect(world.abilitySystem.getPendingMeteorCount()).toBe(1);
+    expect(world.heroSystem.getPendingVolleys().length).toBe(1);
+
+    world.debugForceLose();
+    expect(world.outcome).toBe('lost');
+    expect(lostEvents).toEqual([{ waveIndex: 0, endless: true }]);
+    expect(world.abilitySystem.getPendingMeteorCount()).toBe(0);
+    expect(world.heroSystem.getPendingVolleys().length).toBe(0);
+    expect(world.hero!.state).toBe('idle');
+
+    // SimReplayPlayer: delayed enterEndless stamped past winTick still transitions into Endless,
+    // and a terminal 'lost' replay finishes cleanly even if trailing commands exist.
+    const miniWin = {
+      ...LEVEL_L1C,
+      id: 'mini-delayed-endless',
+      waves: [{ groups: [{ enemyType: 'grunt' as const, count: 1, spawnInterval: 0.2, startDelay: 0 }], clearBonus: 20 }],
+    };
+    const w2 = new SimWorld(miniWin, new EventBus(), { seed: 77, recordCommands: true });
+    w2.placeTowerOnPlot(0, 'archer');
+    w2.startNextWave();
+    while (w2.outcome === 'ongoing') w2.fixedTick(BALANCE.fixedDt);
+    expect(w2.outcome).toBe('won');
+    const winTick = w2.tick;
+
+    const delayedEndlessLog = parseSimReplay({
+      ...w2.exportReplay(),
+      commands: [
+        ...w2.getRecordedCommands(),
+        { tick: winTick + 30, seq: 99, command: { kind: 'enterEndless' } },
+        { tick: winTick + 30, seq: 100, command: { kind: 'startWave' } },
+      ],
+      summary: { ...w2.exportReplay().summary, totalTicks: winTick + 60, outcome: 'ongoing' },
+    })!;
+    const player = new SimReplayPlayer(miniWin, delayedEndlessLog);
+    player.runToEnd();
+    expect(player.world.waveSystem.isEndless).toBe(true);
+    expect(player.world.waveSystem.currentWaveOneBased).toBe(2);
+    expect(player.finished).toBe(true);
+  });
 });

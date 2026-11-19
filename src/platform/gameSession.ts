@@ -856,6 +856,11 @@ export class GameSession {
     if (reloadShowcase) {
       feats = this.recordEndlessIfActive();
       this.clearTransientPlayState();
+      this.unbindSound?.();
+      this.unbindSound = null;
+      this.unbindHaptics?.();
+      this.unbindHaptics = null;
+      this.simWorld.dispose();
       this.events.clear();
       this.events = new EventBus();
       this.simWorld = new SimWorld(LEVELS[this.currentLevelIndex], this.events);
@@ -1343,6 +1348,7 @@ export class GameSession {
   }
 
   dispose(): void {
+    this.cancelStarChimes();
     this.unbindSound?.();
     this.unbindSound = null;
     this.unbindHaptics?.();
@@ -1351,5 +1357,7 @@ export class GameSession {
     this.unbindOverlay = null;
     this.unbindPause?.();
     this.unbindPause = null;
+    this.simWorld.dispose();
+    this.events.clear();
   }
 }

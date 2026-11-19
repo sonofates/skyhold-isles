@@ -285,7 +285,8 @@ export function loadProgress(levelCount: number): ProgressData {
   }
 }
 
-export function saveProgress(progress: ProgressData): void {
+/** Persists `progress` to `localStorage` only (without triggering fire-and-forget Steam Cloud/achievement IPC). */
+export function saveLocalProgress(progress: ProgressData): string {
   progress.version = PROGRESS_SAVE_VERSION;
   const raw = JSON.stringify(progress);
   try {
@@ -293,6 +294,11 @@ export function saveProgress(progress: ProgressData): void {
   } catch {
     // Ignore storage quota / private mode failures
   }
+  return raw;
+}
+
+export function saveProgress(progress: ProgressData): void {
+  const raw = saveLocalProgress(progress);
   const platform = getPlatform();
   if (platform.isSteam) {
     void platform.cloudSave.write(CLOUD_PROGRESS_SLOT, raw);

@@ -93,6 +93,7 @@ export class InputManager {
     this.clearLongPress();
     this.longPressFired = false;
     this.pinched = false;
+    this.dragButton = -1;
     this.keysDown.clear();
     this.pointers.clear();
     this.isDragging = false;
@@ -264,6 +265,7 @@ export class InputManager {
       if (!this.enabled || this.modalOpen) return;
       if (e.target !== this.canvas) return;
       e.preventDefault();
+      if (!Number.isFinite(e.deltaY) || e.deltaY === 0) return;
       const ndc = this.toNdc(e.clientX, e.clientY);
       const direction = e.deltaY < 0 ? 1 : -1;
       const magnitude = Math.min(1.6, Math.max(0.4, Math.abs(e.deltaY) / 100));
@@ -375,10 +377,7 @@ export class InputManager {
     };
 
     const onBlur = (): void => {
-      this.keysDown.clear();
-      this.pointers.clear();
-      this.isDragging = false;
-      updateKeyPan();
+      this.resetTransientState();
       this.handlers.onPointerLeave();
     };
 

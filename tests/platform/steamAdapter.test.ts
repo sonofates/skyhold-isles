@@ -297,6 +297,53 @@ describe('Steam achievements map, cloud hydration, and desktop config invariants
     expect(JSON.parse(cloudBlob ?? '{}').bestStars[1]).toBe(3);
   });
 
+  it('hydrateProgressFromCloud awaits explicit adapter cloud writes and guards corrupt cloud overwrites', async () => {
+    let remoteBlob: string | null = '{corrupt-json';
+    let writeCount = 0;
+    const explicitAdapter = createPlatformAdapter({
+      storage: createMemStorage(),
+      bridge: {
+        isSteam: true,
+        unlockAchievement: async () => true,
+        cloudRead: async () => remoteBlob,
+        cloudWrite: async (_slot, json) => {
+          await new Promise((r) => setTimeout(r, 5));
+          writeCount++;
+          remoteBlob = json;
+          return true;
+        },
+      },
+    });
+    // Deliberately leave global singleton unset (web no-op) to prove explicit adapter is used.
+    setPlatformAdapter(null);
+
+    // Empty local save must NOT clobber a corrupt cloud slot.
+    const emptyLocal = createDefaultProgress(LEVELS.length);
+    await hydrateProgressFromCloud(emptyLocal, LEVELS.length, explicitAdapter, LEVELS);
+    expect(writeCount).toBe(0);
+    expect(remoteBlob).toBe('{corrupt-json');
+
+    // Non-empty local save repairs the corrupt cloud slot and awaits completion.
+    const realLocal = createDefaultProgress(LEVELS.length);
+    realLocal.bestStars[0] = 2;
+    realLocal.clears[0] = 1;
+    await hydrateProgressFromCloud(realLocal, LEVELS.length, explicitAdapter, LEVELS);
+    expect(writeCount).toBe(1);
+    expect(JSON.parse(remoteBlob ?? '{}').bestStars[0]).toBe(2);
+
+    // Merging newer local progress into an older valid cloud save writes merged result back via explicitAdapter.
+    const olderRemote = createDefaultProgress(LEVELS.length);
+    olderRemote.bestStars[0] = 1;
+    olderRemote.clears[0] = 1;
+    remoteBlob = JSON.stringify(olderRemote);
+    realLocal.bestStars[2] = 3;
+    realLocal.clears[2] = 1;
+    const mergedRes = await hydrateProgressFromCloud(realLocal, LEVELS.length, explicitAdapter, LEVELS);
+    expect(mergedRes.updated).toBe(false);
+    expect(writeCount).toBe(2);
+    expect(JSON.parse(remoteBlob ?? '{}').bestStars[2]).toBe(3);
+  });
+
   it('enforces Electron security flags and keeps src/sim isolated from src/platform', () => {
     const mainSrc = readFileSync(resolve(ROOT, 'desktop/main.cjs'), 'utf8');
     const preloadSrc = readFileSync(resolve(ROOT, 'desktop/preload.cjs'), 'utf8');

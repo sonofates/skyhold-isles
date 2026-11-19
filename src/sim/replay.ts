@@ -654,8 +654,17 @@ export class SimReplayPlayer {
   }
 
   get finished(): boolean {
-    if (this.cmdIndex < this.replay.commands.length) return false;
-    return this.world.tick >= this.totalTicks || this.world.outcome !== 'ongoing';
+    if (this.world.tick >= this.totalTicks && this.cmdIndex >= this.replay.commands.length) {
+      return true;
+    }
+    if (this.world.outcome === 'lost') return true;
+    if (this.world.outcome === 'won') {
+      for (let i = this.cmdIndex; i < this.replay.commands.length; i++) {
+        if (this.replay.commands[i].command.kind === 'enterEndless') return false;
+      }
+      return true;
+    }
+    return false;
   }
 
   private createWorld(): SimWorld {
@@ -702,7 +711,19 @@ export class SimReplayPlayer {
     for (let i = 0; i < steps; i++) {
       this.flushCommandsForCurrentTick();
       if (this.world.tick >= this.totalTicks && this.cmdIndex >= this.replay.commands.length) break;
-      if (this.world.outcome !== 'ongoing') break;
+      if (this.world.outcome !== 'ongoing') {
+        if (
+          this.world.outcome === 'won' &&
+          this.cmdIndex < this.replay.commands.length &&
+          this.replay.commands[this.cmdIndex].command.kind === 'enterEndless'
+        ) {
+          const resumed = this.world.applyCommand(this.replay.commands[this.cmdIndex].command);
+          this.cmdIndex++;
+          if (!resumed) break;
+        } else {
+          break;
+        }
+      }
       this.world.fixedTick(BALANCE.fixedDt);
       executed++;
       this.flushCommandsForCurrentTick();
@@ -776,7 +797,7 @@ export class SimReplayPlayer {
 
   /** Steps all remaining ticks to `totalTicks` and returns verification results against `replay.summary`. */
   runToEnd(): ReplayVerificationResult {
-    while (!this.finished && this.world.outcome === 'ongoing') {
+    while (!this.finished) {
       const ran = this.stepTicks(1);
       if (ran === 0) break;
     }

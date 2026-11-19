@@ -46,6 +46,23 @@ describe('Haptics', () => {
     });
     expect(h.pulse('tap')).toBe(false);
   });
+
+  it('survives NaN and rolled-back clock values without breaking rate limiting', () => {
+    const { h, calls, clock } = rig();
+    clock.t = NaN;
+    expect(h.pulse('leak')).toBe(true);
+    // Same effective 0ms timestamp is rate-limited instead of poisoned by NaN.
+    expect(h.pulse('leak')).toBe(false);
+
+    clock.t = 5000;
+    expect(h.pulse('leak')).toBe(true);
+    // Clock rollback (e.g. context reset) still allows a fresh pulse instead of muting for 5000ms.
+    clock.t = 100;
+    expect(h.pulse('leak')).toBe(true);
+    expect(clock.t += 100).toBe(200);
+    expect(h.pulse('leak')).toBe(false);
+    expect(calls).toHaveLength(3);
+  });
 });
 
 describe('bindHaptics', () => {
