@@ -872,7 +872,8 @@ async function main(): Promise<void> {
         // arrow's tip already floats a little above its target.
         target = game.heroHeadScreen();
       } else if (step === 'meteor') target = rectTop('[data-testid="ab2d-meteor"]');
-      coach.update(obs, target, game.end.visible || storyOpen || anySheetOpen() || game.replaying);
+      // Hidden under the pause menu too (the card and its arrow cluttered it on phones).
+      coach.update(obs, target, game.end.visible || storyOpen || anySheetOpen() || game.replaying || game.stepper.paused);
     }
     hudTipsFrame?.();
     if (foesSeen && newFoeToast && waveTypesOf) {
