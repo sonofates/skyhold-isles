@@ -69,6 +69,19 @@ describe('next-wave card', () => {
     const overHorn = edge.x < 1020 && edge.x + card.w > 940 && edge.y < 80 && edge.y + card.h > 0;
     expect(overHorn).toBe(false);
   });
+  it('weighted keep-outs: a HUD piece outweighs a plot ring, a plot ring outweighs empty headroom', () => {
+    const screen = { w: 1000, h: 600, bottomLimit: 560 };
+    const horn = { x: 500, y: 300, r: 40 };
+    const card = { w: 220, h: 90 };
+    // Left: a plot ring (3x). Right: a bit of the hero bar (12x). The ring side wins.
+    const ring = { rect: { x: 240, y: 240, w: 60, h: 60 }, weight: 3 };
+    const bar = { rect: { x: 560, y: 220, w: 160, h: 160 }, weight: 12 };
+    const hard = [{ x: 240, y: 240, w: 60, h: 60 }];
+    const s = besideAnchorSpot(horn, card, screen, hard, 8, [ring, bar]);
+    const box = { x: s.x, y: s.y, w: card.w, h: card.h };
+    const onBar = box.x < 720 && box.x + box.w > 560 && box.y < 380 && box.y + box.h > 220;
+    expect(onBar).toBe(false);
+  });
 });
 
 describe('foe card + lives warning', () => {

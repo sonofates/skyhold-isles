@@ -63,7 +63,14 @@ export interface WaveCard2D {
  * `keepOuts()` = screen rects the card must not cover (plots with their towers, HUD pieces, the
  * ability bar); read only when the card's size or the screen changes.
  */
-export function mountWaveCard(enemyUrl: (type: EnemyType) => string | null, keepOuts: () => Rect[], isNew: (type: EnemyType) => boolean = () => false, onChip?: (type: EnemyType) => void): WaveCard2D {
+export function mountWaveCard(
+  enemyUrl: (type: EnemyType) => string | null,
+  keepOuts: () => Rect[],
+  isNew: (type: EnemyType) => boolean = () => false,
+  onChip?: (type: EnemyType) => void,
+  /** Rects with their own weight on top of `keepOuts` (plot rings, HUD pieces). */
+  weighted: () => { rect: Rect; weight: number }[] = () => [],
+): WaveCard2D {
   const card = el('div', 'pu pu-wave-card', { 'data-testid': 'wave2d-card', 'aria-live': 'polite' });
   const head = el('div', 'pu-wave-head pu-ink');
   const chips = el('div', 'pu-wave-chips');
@@ -131,7 +138,7 @@ export function mountWaveCard(enemyUrl: (type: EnemyType) => string | null, keep
         placeKey = pk;
         const cw = card.offsetWidth;
         const ch = card.offsetHeight;
-        const spot = besideAnchorSpot(s.horn, { w: cw, h: ch }, s.screen, ko);
+        const spot = besideAnchorSpot(s.horn, { w: cw, h: ch }, s.screen, ko, 8, weighted());
         card.style.left = `${Math.round(spot.x)}px`;
         card.style.top = `${Math.round(spot.y)}px`;
         placed = { x: spot.x, y: spot.y, w: cw, h: ch };

@@ -767,6 +767,17 @@ async function main(): Promise<void> {
         ];
       },
       (type) => !seenRef.has(type),
+      undefined,
+      () => {
+        // Plot rings 3× (worse than a tower's headroom); HUD pieces 12× (never over the bar).
+        const f = game.map.fit;
+        const r = game.hud.rects();
+        const hud = [r.plaque, r.banner, hudButtonsKeepOut(app.screen.width, app.screen.height, readSafeInsets()), ...hudKeepOuts()];
+        return [
+          ...game.plots.geometry.rects.map((p) => ({ rect: { x: f.offsetX + p.x * f.scale, y: f.offsetY + p.y * f.scale, w: p.w * f.scale, h: p.h * f.scale }, weight: 3 })),
+          ...hud.map((rect) => ({ rect, weight: 12 })),
+        ];
+      },
     );
     if (q.get('codex') === '1') codex.open();
     else if (q.get('settings') === '1') settings.open();

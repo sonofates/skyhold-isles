@@ -686,6 +686,11 @@ export function besideAnchorSpot(
   screen: { w: number; h: number; bottomLimit: number },
   hard: readonly Rect[],
   margin = 8,
+  /**
+   * Covered on top of `hard`, each with its own weight: the plots' stone rings (worse than a
+   * tower's headroom), HUD pieces (far worse: a card over the bar or a button looks broken).
+   */
+  weighted: readonly { readonly rect: Rect; readonly weight: number }[] = [],
 ): BesideSpot {
   const { x: ax, y: ay, r } = anchor;
   const { w, h } = card;
@@ -712,8 +717,9 @@ export function besideAnchorSpot(
     const box: Rect = { x, y, w, h };
     let covered = 0;
     for (const k of hard) covered += overlapArea(box, k);
-    // Clamping can push a card over its own anchor: that counts as covering.
-    covered += overlapArea(box, { x: ax - r, y: ay - r, w: r * 2, h: r * 2 }) * 4;
+    for (const k of weighted) covered += overlapArea(box, k.rect) * k.weight;
+    // Clamping can push a card over its own anchor: that counts as covering (as a HUD piece).
+    covered += overlapArea(box, { x: ax - r, y: ay - r, w: r * 2, h: r * 2 }) * 12;
     const moved = Math.abs(x - c.x) + Math.abs(y - c.y);
     const score = covered * 10 + rank * 30 + moved * 2;
     if (score < bestScore) {
