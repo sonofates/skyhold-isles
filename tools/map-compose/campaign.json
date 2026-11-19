@@ -388,5 +388,42 @@
     "props": 24,
     "propWeights": [2, 4, 6, 2],
     "groundDecals": false
+  },
+  "i21": {
+    "plots": 20,
+    "seed": 1117,
+    "biome": "cloister",
+    "entranceArt": {"A": "kite-store"},
+    "thresholdRoad": true,
+    "dressingMask": "land-i21.webp",
+    "windmill": "none",
+    "brushRoad": true,
+    "roadMaterial": "tex-chalk.webp",
+    "cave-h": 2.08,
+    "castle-h": 2.52,
+    "landmarks": [["windlass", 1080, 453, 63], ["kite-spars", 294, 326, 25]],
+    "props": 19,
+    "scatterProps": [["wild-thyme.webp", 0.48], ["bobbin.webp", 0.50], ["gold-spray.webp", 0.44], ["capital.webp", 0.56]],
+    "propWeights": [6, 1, 4, 1],
+    "groundDecals": false
+  },
+  "i22": {
+    "seedPlots": [[560, 364], [477, 589], [1615, 555], [1320, 620]],
+    "plots": 20,
+    "seed": 1171,
+    "biome": "glassworks",
+    "entranceArt": {"A": "salt-mine", "B": "freight"},
+    "thresholdRoad": true,
+    "dressingMask": "land-i22.webp",
+    "windmill": "none",
+    "brushRoad": true,
+    "roadMaterial": "tex-ore-road.webp",
+    "cave-h": 1.99,
+    "castle-h": 2.58,
+    "landmarks": [["cable-ferry", 936, 460, 62], ["bollard", 662, 417, 38], ["salt-bales", 292, 525, 38]],
+    "props": 15,
+    "scatterProps": [["halite.webp", 0.62], ["fungi.webp", 0.46], ["cart.webp", 0.67]],
+    "propWeights": [6, 4, 1],
+    "groundDecals": false
   }
 }

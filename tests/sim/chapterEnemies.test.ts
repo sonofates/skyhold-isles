@@ -6,6 +6,7 @@ import { EventBus } from '../../src/core/eventBus.ts';
 import { BALANCE } from '../../src/data/balance.ts';
 import { CHAPTER_ENEMY_DEFS, type ChapterEnemyType } from '../../src/data/enemies.ts';
 import { I16 } from '../../src/data/levels2d/i16.ts';
+import { getLevelById, LEVELS_2D } from '../../src/data/levels2d/index.ts';
 import { SimWorld } from '../../src/sim/world.ts';
 
 // Exercise real IDs, spawn, movement, hit resolution and pool reuse while shared registration is pending.
@@ -170,7 +171,24 @@ describe('chapter two enemy decisions', () => {
 });
 
 describe('chapter two balance', () => {
-  it.each(['i17', 'i18', 'i19', 'i20'])('%s meets the release simulator targets with the staged roster and a maxed Workshop', id => {
+  const islands = ['i17', 'i18', 'i19', 'i20', 'i21', 'i22'];
+
+  it.each(islands)('%s opens in campaign order and routes every convoy through an authored entrance', id => {
+    const level = getLevelById(id)!;
+    expect(level).toBe(LEVELS_2D[Number(id.slice(1))]);
+    const layout = level.layout2d!;
+    layout.paths.forEach((path, lane) => {
+      expect(layout.entrances[lane]).toMatchObject(path[0]);
+      expect(path.at(-1)).toEqual(layout.goal);
+    });
+    expect(layout.flightPath.at(-1)).toEqual(layout.goal);
+    expect(layout.paths).not.toContainEqual(layout.flightPath);
+    for (const wave of level.waves) {
+      for (const group of wave.groups) expect(layout.paths[group.lane ?? 0]).toBeDefined();
+    }
+  });
+
+  it.each(islands)('%s meets the release simulator targets with the staged roster and a maxed Workshop', id => {
     const ids = new Set([id]);
     const base = evaluateBalance(ids, false);
     expect(base.summary).toHaveLength(ids.size);

@@ -124,3 +124,63 @@ Original Skyhold Isles story chapter painting, full bleed wide 2:1 storybook gou
 ### Outro
 
 Original wide 2:1 storybook gouache chapter painting for Skyhold Isles, cinematic low viewpoint from the water. Three weathered colourful fishing boats pass safely between jagged dark basalt rocks into a quiet harbour in rosy light after a storm. High on the headland behind them the newly straightened wooden signal mast flies a string of yellow and red storm flags, tiny silhouette of old watcher. Distant silver rain, cool viridian and indigo sea, broad bold painted shapes with restrained dark ink accents, strong visual storytelling and human scale. Full bleed, no lettering, no decorative frame or UI.
+
+## Kitewright Down
+
+The built-in image generator supplied the terrain, entrance and scenery paintings and both narrative panels. The cloister kit supplies the road and keep. The island recipe selects its own scatter from new paintings and the existing biome kit. The terrain mask reserves the fallen kite, its thread and the chalk rim from plots and scatter. [cloister kit and terrain](../v2/biomes/cloister/) · [Intro](../../../public/art2d/ui/story-i21-intro-1.webp) · [Outro](../../../public/art2d/ui/story-i21-outro-1.webp)
+
+### Terrain
+
+Use case: illustration-story. Original hand-painted storybook tower-defense art. Broad confident gouache strokes, inked details with coloured edges, readable soft cast shadows, no lettering, numbers, UI, borders or watermark. Ultrawide landscape, 2.17:1 composition. A playable terrain background, looking almost straight down onto a large flat grassy kite-making yard on a floating chalk island, delicate dawn clouds far below. Muted juniper and straw grasses, weathered cream chalk outcrops with wind-sculpted horizontal striations, an edge of pink thyme. World fills the frame, cliffs confined to extreme outermost 8 percent of each edge, open playable grass from 13% to 88% width and 10% to 91% height. One memorable small triangular scarlet-and-ochre diamond kite lying flat almost exactly in the centre (within x 46-54%, y 42-54%) beside a little uncoiled thread, no human or structure nearby. Ground plane viewed overhead, clean midvalue short turf small loose clumps in clustered patches, a few distant pines on outermost corners only. No roads, trails, terraces, paths, rings, buildings, dungeon entrances, grids or scenery interrupting the open grass.
+
+### Storage tunnel
+
+Isolated sprite for an original painted fantasy tower defense game: on a floating chalk plateau, a compact bank of weathered creamy white chalk and turf roofs a kite-makers storage tunnel. Mound slopes away to LEFT, on the RIGHT side a large completely dark OPEN doorway faces right and slightly toward camera; ample opening fully clear to ground, diagonal sill on right flank. On left slope rolled rusty red sailcloth and wooden spars, gold thyme grass on top. Three-quarter view from above. Bold readable silhouette, storybook gouache, rich but muted colours, outline ink, upper left sunlight. Entire object isolated on a fully transparent background. No ground tile or entry road, no backdrop, figures or lettering.
+
+### Windlass
+
+One isolated game prop sprite of a large wooden kite-flying windlass. A wide ochre reel wrapped with cream cord mounted sideways between two stout wooden trestles, a few scarlet fabric bows tied on the winder, three-quarter view from above, soft upper-left sunshine. It should be extremely legible at a small size, with three large shapes, readable dark outline and warm gouache brushwork. Original storybook world, no figures or ground tile, short feet sit flat on ground. Transparent background, object complete with generous margin, only one object.
+
+### Ground props
+
+Original painted fantasy strategy game sprites. One transparent production atlas, ultra-wide 3:1 strip, exactly three isolated ground props side by side separated by wide empty gutters. (1) LEFT: a little unpacked bundle of three tan bamboo kite spars tied with one scarlet bow, lying low diagonally on turf, no grass base. (2) CENTER: low vivid cushion of wild pink thyme in flower, dark narrow leaves, feathery grass blades. (3) RIGHT: a single squat wooden thread bobbin lying on its side with a little blue cord coiled on the ground and a single fabric tail bow. Three-quarter top-down isometric view, enough solidity to read at 30 px tall, moderately fine hand-painted storybook gouache, outdoor daylight from top left, burnt umber outlines, no ground tiles, cast shadow halo, text, borders, connecting elements, backing or scenery. All three objects whole on true transparent background.
+
+### Intro
+
+Use case: illustration-story. Original hand-painted storybook tower-defense art. Broad confident gouache strokes, inked details with coloured edges, readable soft cast shadows, no lettering, numbers, UI, borders or watermark. Ultrawide landscape, 2.17:1 composition. Narrative landscape illustration at eye level. At dawn an apprentice kite-maker in a green smock and red headscarf on a chalk cliff grabs a wooden windlass as a huge ochre-and-vermilion diamond weather kite pitches out of the sky. A wild white long-eared hare trailing stolen bright thread darts across the grass, far blue floating islands in haze. Wind sweeps pink thyme toward the cliff. Dynamic triangular composition and wiry thread a delicate pale line against the sky. Intimate fairytale editorial painting, clear silhouettes, rich paint.
+
+### Outro
+
+Use case: illustration-story. Original hand-painted storybook tower-defense art. Broad confident gouache strokes, inked details with coloured edges, readable soft cast shadows, no lettering, numbers, UI, borders or watermark. Ultrawide landscape, 2.17:1 composition. Narrative landscape illustration from below the lip of a white chalk island at sunrise. An enormous repaired ochre and scarlet diamond weather kite soars above the cliff, four smaller kites marking a safe airway for a little wooden flying mail skiff. The green-smocked kite-maker with red headscarf waves from the turf; tiny workers hold wooden reels. Pink thyme, soft blue distances. Kinetic, airy, hopeful, theatrical gouache painting.
+
+## Brineglass Ferry
+
+The built-in image generator supplied the terrain, entrance and scenery paintings and both narrative panels. The glassworks kit supplies the road and keep. The island recipe selects its own scatter from new paintings and the existing biome kit. The terrain mask reserves the brine pool and the salt cavern walls from plots and scatter. [glassworks kit and terrain](../v2/biomes/glassworks/) · [Intro](../../../public/art2d/ui/story-i22-intro-1.webp) · [Outro](../../../public/art2d/ui/story-i22-outro-1.webp)
+
+### Terrain
+
+Use case: illustration-story. Original hand-painted storybook tower-defense art. Broad confident gouache strokes, inked details with coloured edges, readable soft cast shadows, no lettering, numbers, UI, borders or watermark. Ultrawide landscape, 2.17:1 composition. An overhead playable terrain background for a subterranean salt cavern where an old underground ferry worked. Grey jade and lavender stone floor of broad worn dry salt pans with delicate polygonal hairline seams and subtle mica highlights. A small narrow oval deep emerald brine pool with TWO ochre wooden pilings protruding and glistening dark inner walls isolated in the very centre (entire pool within x 44-56%, y 36-57%). Dry continuous spacious playable ground surrounding pool fills x 10-90% width, y 8-92% height. Framing only at extreme image edges: top-left plum shale ceiling, lower-right faceted white salt deposits, lower-left coils of old rope, small turquoise mineral drips in corners. Spooky reflected mineral light from upper left but floor is moderately warm, medium-value and legible. No horizon, roads, walkways, ropes across pool, buildings, other pools, symbols, grid or characters.
+
+### Salt mine
+
+Single isolated sprite for an original painted storybook fantasy game, a salt mine working entrance cut out of blue-grey shale and bands of faceted ivory salt. The mound tapers to LEFT, iron-braced squared timber opening in RIGHT side faces right and slightly toward camera, threshold set diagonally in perspective; tall wide nearly BLACK unobstructed opening all the way to ground. One tiny lit amber miner lamp attached to left jamb, two old empty salt baskets at far left, damp green-purple highlights on rock, directional upper-left light. Classic gouache with rich dark ink outlines, high three-quarter overhead view. Entire prop on a truly transparent background, no environment, roads or ground tile, no text or letters.
+
+### Freight shed
+
+A single complete isometric strategy game sprite on a transparent background. A low abandoned freight entrance to an old cave ferry landing. Overhead three-quarter view, compact little salt-grey dry-stone shed abutting a low bank of slate. Thin muted teal canvas awning weighted with small stones over its roof, a few pale rectangular salt bales tied with twine stacked beside its LEFT wall. On its RIGHT side a broad nearly black door-sized OPENING leads underground, fully unobstructed all the way to ground between two weathered square mooring posts. The face with the opening points right and toward viewer. Foot of the jambs forms a clearly diagonal threshold receding toward upper right. Mound extends out left behind the opening. Pictorial storybook gouache, warm lamp on one pier, desaturated lavender limestone and warm honey oak, shadows inked. No round barrels, wheels, sails, outlying piles, foreground path, floor tile, water, reflection, people, typography or frame. Full shape, true transparency, ample clear margin.
+
+### Cable ferry
+
+An isolated little flat-bottomed wooden cable ferry in a salt cave, seen from a high three-quarter angle, bow points slightly toward lower right. One wooden deck with low rails, pulley arm and two square ivory salt bales, small amber pole lantern. Empty unmanned boat painted in rich original storybook gouache, broad shapes for small game-size rendering, moderate contrast, warm upper left light, turquoise bounced light on hull. Full object centred, generous margins. Fully transparent background with NO water, ground, reflections, environment, text or borders.
+
+### Ground props
+
+Original hand-painted fantasy storybook strategy game art. ONE transparent 3:1 wide production atlas of exactly THREE independent isometric tabletop-scale sprites on same baseline, equal widths, large clear empty gutters, entire objects visible. LEFT: two squared ivory salt bales wrapped in ochre twine sitting together, a little white salt spilt on the ground. MIDDLE: low stump of an old timber mooring bollard with a coil of old rope at its foot, cool purple weathering. RIGHT: small natural fan of opaque pale rose and ivory cubic rock salt crystals on a low violet shale base, chunky irregular cubes. Seen from high three-quarter angle, muted warm upper left light, cool jade reflected underlight, small crisp dark contours and gouache strokes; hold detail at 35px. No figures, water, ground tile, shadows around the props, writing or border. Isolated on real transparency.
+
+### Intro
+
+Use case: illustration-story. Original hand-painted storybook tower-defense art. Broad confident gouache strokes, inked details with coloured edges, readable soft cast shadows, no lettering, numbers, UI, borders or watermark. Ultrawide landscape, 2.17:1 composition. Narrative wide eye-level scene. On a subterranean ferry landing, an older ferryman in a plum oilcloth leans his lantern over an empty ochre timber mooring post; the frayed ferry rope has parted and the small wooden ferry is adrift in the middle of a deep jade brine pool. Pale salt crystals on violet shale, distant soft green reflections. Quiet tension, striking luminous composition, warm flame and rich cool shadow.
+
+### Outro
+
+Use case: illustration-story. Original hand-painted storybook tower-defense art. Broad confident gouache strokes, inked details with coloured edges, readable soft cast shadows, no lettering, numbers, UI, borders or watermark. Ultrawide landscape, 2.17:1 composition. Narrative wide story illustration. A squat wooden cable ferry has reached its far landing in a cavern of luminous jade brine, laden with neatly bundled pale salt and two young workers. An elderly ferryman in a plum coat ties a new thick rope to an ochre timber piling; his companion lifts a warm lamp reflecting as a bright vertical streak in the water. Intimate, warm expression and hands at work, ivory crystal formations receding into lavender shadow. The mood is relief.

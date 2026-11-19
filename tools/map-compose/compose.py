@@ -878,7 +878,7 @@ for G in GATES:
 # scatter props (layout px), mostly on the margins, never on the road / plots / towers / landmarks
 PROPS = [('prop-tree-1.png', 2.1), ('prop-tree-2.png', 2.4), ('prop-tree-3.png', 1.9), ('prop-bush.png', 1.0),
          ('prop-rock-1.png', 0.9), ('prop-rock-2.png', 0.8), ('prop-flowers.png', 0.55)]
-PROPS = kit_spec.get('props', PROPS)
+PROPS = dressing.get('scatterProps', kit_spec.get('props', PROPS))
 WEIGHTS = dressing.get('propWeights', [5, 3, 2, 4, 2, 2, 2])
 prop_ims = {n: load(n) for n, _ in PROPS}
 rnd = random.Random(SEED)

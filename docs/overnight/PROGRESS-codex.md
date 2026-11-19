@@ -1,5 +1,47 @@
 # Content overnight · codex
 
+## Round 5 · 00:42–01:04 UTC · codex/night
+
+Started from `d2162b4`. The runner owns the commit.
+
+### Done
+
+- **i21 Kitewright Down** has one ground road that folds back twice beside a fallen weather kite. Barracks inside the lower bend can hold ground troops while towers on the chalk ridge cover the flight line. In wave six, elite Slipstream Moths cross the kite as Belfry Hares sprint along the outer road. Wave seven follows with elite Kilnbacks and Reed Pipers. There are 20 build plots and 12 hand-written waves. [Desktop and phone combat](maps-round5-i21-play.jpg)
+- **i22 Brineglass Ferry** has two entrances. The mine convoy circles the brine pool. The lower freight shed opens onto a much shorter road, letting its blinkers arrive while the mine's Kilnbacks, healers and pipers are still on the north bank. In the finale, a boss takes the long route and nine elite Kilnbacks depart the lower landing. There are 20 plots and 13 hand-written waves. [Desktop and phone combat](maps-round5-i22-play.jpg)
+- Both islands have a new terrain painting, terrain exclusion mask, entrance paintings, working equipment, three new small props apiece and two story panels. They reuse the cloister and glassworks roads and keeps. A recipe can now select its own scatter paintings from a shared kit. Kite spars sit by the storage tunnel, salt bales beside the freight shed and a mooring bollard beside the water. All four map sizes and all five gate foregrounds at 2× and 3× are registered. [Maps and story panels](maps-round5-islands.jpg) · [First and final bakes with 2× details](maps-round5-detail.jpg) · [Asset locations and built-in imagegen prompts](../../design/art-2d/chapter2/islands.md)
+- Six chapter tests now check campaign ordering under the staged roster, both ends of the ground routes, the separate flight route and the lane selected by every wave group. This catches a lane typo even when the simulator falls back to a playable route.
+
+### Verification
+
+| Master island | Greedy | Weak | Workshop-maxed lives lost | Greedy lives at −3%, −1.5%, baseline, +1.5%, +3% HP |
+| --- | --- | --- | --- | --- |
+| i21 | 8 lives, 2 stars | Lost on wave 6 of 12 | 10 | 8, 8, 8, 7, 5 |
+| i22 | 7 lives, 2 stars | Lost on wave 8 of 13 | 3 | 10, 5, 7, 5, 6 |
+
+- TypeScript, ESLint, Vitest (1,179 passed, 11 skipped), all 39 balance targets and the Vite build passed on Node 22. Vite issued its chunk-size advisory. The full 800-line balance stdout has SHA-256 `d9eff69f8d322e341f6023124b19550ddc7735ea5a16c749e5cb5f143eac34c6`. Removing the two new reports and restoring the target count reproduces round four byte for byte.
+- Checked every saved layout, decoded 92 map textures, 118 foreground textures and the four new story images, and verified their dimensions. A clean native rebuild reproduced both 3× maps and all five 3× fronts byte for byte. All six compositor and two sprite tests passed.
+- Chromium captured the real opening waves and later combat at 1920 × 1080 DPR 1 and 2 and 844 × 390 DPR 3. Both desktop DPR 2 captures used the native 3× map and gate fronts. Each later battle had 15 live enemies, with eight towers on i21 and nine on i22. The Vite fixture staged the chapter roster, optional enemy clips and kill callback in browser memory as in round four. Twelve full-size combat/opening frames and the fixture are under `/tmp/skyhold-codex-r5`.
+
+### Requests for other agents
+
+- **Integrator / sim and loader owners.** The shared registrations listed in round three are still needed for the shipping campaign. The six authored chapter islands are ordered immediately after i16 when the roster is present. The unmodified shipping roster exposes the original 17 islands.
+- **Opus / story and HUD.** Add i21 and i22 to `GENERIC_STORY_ISLANDS` with the four previous chapter ids. The wave horn on i21 covers the storage doorway and emerging troops. In a browser-only preview, passing map pixel **(257, 388)** to the HUD through `map.screenX/Y` seats the horn on open grass below the workshop at all three device settings. The shipping HUD still uses its shared entrance offset. [Current and proposed positions](maps-round5-horn.jpg)
+- **Opus / i18n.** Add these entries to `DATA_TR.islands` in `src/i18n/dataTr.ts`. English names and subtitles are in the island files.
+
+```ts
+i21: { name: 'Uçurtmacı Çayırı', subtitle: 'Rüzgârı ölçen uçurtma düştü. Uçurtmacı kopan ipi sarana dek kayalıklardaki virajları savun.' },
+i22: { name: 'Tuzcam Salı', subtitle: 'Salın halatı koptu. Son yük karşı kıyıya varana kadar iki tuz yolunu da savun.' },
+```
+
+Turkish wave names in play order for surfaces that display the authored titles.
+
+- i21 — Kırık Çıta · Makara Boşalıyor · Yükselen Hava Akımı · Gerilmiş İki İp · Çıkrık Sıkışıyor · Tebeşir Kayalıklarından Geçiş · İpte Düğüm · Makarada Son Bir Tur · Uçurtma Havalanıyor · Çıtanın Üstünde · Kuyruk Fiyonkları · Posta Seferi
+- i22 — Kopan Halat · Boş Tuz Çuvalları · Kuyudaki Işıklar · Sığ İskele · Yük Listesi · Tuzlu Suyun Üstünde Kanatlar · Maden Yolu Boyunca · Asılın Halata · Beyaz Altın · Karşı Ağırlık · Derin İskele · Suda Fener Işığı · Son Geçiş
+
+### Next round
+
+Build i23 and the i24 chapter boss island. Preserve the 39 existing balance reports. Make the final boss and its reinforcements take visibly different routes, and use the existing four enemy behaviours to distinguish the later waves. Shared roster activation, story selection, the Turkish lookups and i21's horn placement remain with the owners above.
+
 ## Round 4 · 00:15–00:42 UTC · codex/night
 
 Started from `e406588`. The working tree is ready for the overnight runner.
