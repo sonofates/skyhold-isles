@@ -708,6 +708,13 @@ export function besideAnchorSpot(
     { x: ax - r * 0.5 - w, y: ay + r * 1.6, side: 'below' },
     { x: ax + r * 0.5, y: ay - r * 1.6 - h, side: 'above' },
     { x: ax - r * 0.5 - w, y: ay - r * 1.6 - h, side: 'above' },
+    // A step further out (dense islands: every spot hugging the horn touches a plot).
+    { x: ax - w / 2, y: ay + r * 2.9, side: 'below' },
+    { x: ax - w / 2, y: ay - r * 2.9 - h, side: 'above' },
+    { x: ax + r * 1.4, y: ay + r * 2.4, side: 'below' },
+    { x: ax - r * 1.4 - w, y: ay + r * 2.4, side: 'below' },
+    { x: ax + r * 1.4, y: ay - r * 2.4 - h, side: 'above' },
+    { x: ax - r * 1.4 - w, y: ay - r * 2.4 - h, side: 'above' },
   ];
   let best: BesideSpot | null = null;
   let bestScore = Infinity;

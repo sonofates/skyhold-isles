@@ -145,10 +145,18 @@ Round 2: the background preview dies at its 2 h limit — use `python3 qa/withPr
   `&quality=high` under SwiftShader); Endless cave marks verified (`qa/endlessLanes.mjs`). Full
   replay QA re-run: matched on all 6 combos.
 
+- **R3 — next-wave card:** six candidates a step further out from the horn (dense islands;
+  phone grazes on i04 / i05 / i14 gone). The card also keeps off the middle of the caves / castle
+  (2×; a plot's middle weighs 30× so plots still win): it sat on the top cave on l1c 1920 and on
+  i13's lower cave (22 foes) / i02's cave. `__p0.gates()` = screen rects of caves / castle;
+  waveshots flags a card over > 1/3 of a cave / castle and tests the horn as a circle. Full sweep
+  (all islands × 4 sizes): left are i13 between (card's edge over half a ring, 1920 / 1366) and
+  i02 phone (card ~5 px into the horn's ring) — both better than hiding a cave; accepted. TR: hero move / aim hints and the hero
+  unlock progress read more naturally ("Yola tıkla, Bran oraya gitsin", "{skill} nereye gitsin?
+  Oraya dokun", "3/5 ada temizlendi").
+
 ## Next — backlog 1–4 done; known small issues for a later round
 - Tower info card reviewed (ring tooltip: stats, targeting, upgrade / sell + refund, record) — OK.
-- Next-wave card still grazes one plot / tower top on dense i13 (1920 / 1366) between waves
-  (`qa/waveshots.mjs`); every spot round the horn touches something there.
 - Phone bar: remaining scores are tower-headroom grazes (side stack over l1c's windmill, i08 top
   row); no HUD overlap left (`bar-sheet-844x390.jpg`).
 - First-play coach card on 1366 l1c sits under the top-row bar and covers two tower tops while

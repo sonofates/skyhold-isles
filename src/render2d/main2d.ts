@@ -98,6 +98,8 @@ declare global {
       abilities?: () => Record<string, unknown> | null;
       /** QA: the next-wave card beside the horn. */
       waveCard?: () => Record<string, unknown> | null;
+      /** QA: the caves / castle fronts on screen (`castle` = the goal). */
+      gates?: () => { x: number; y: number; w: number; h: number; castle: boolean }[];
       lives?: () => Record<string, unknown> | null;
       /** QA: the foe info card, and the screen point of a live foe to tap. */
       foe?: () => Record<string, unknown> | null;
@@ -400,6 +402,7 @@ async function main(): Promise<void> {
   let livesWarn: import('./ui/lowLives2d.ts').LivesWarning | null = null;
   let foeCard: import('./ui/enemyCard2d.ts').EnemyCard2D | null = null;
   let coach: import('./ui/coach2d.ts').Coach2D | null = null;
+  let gateRectsRef: (() => (import('./uiLayout.ts').Rect & { castle: boolean })[]) | null = null;
   let hudTipsFrame: (() => void) | null = null;
   let foesSeen: import('./ui/newFoes2d.ts').FoesSeen | null = null;
   let newFoeToast: import('./ui/newFoes2d.ts').NewFoeToast | null = null;
@@ -678,6 +681,12 @@ async function main(): Promise<void> {
       desktop,
     );
     const { mountWaveCard } = await import('./ui/wavePreview2d.ts');
+    // The painted caves / castle on screen (their fronts, grown a little; `castle` = the goal).
+    const gateRects = (): (import('./uiLayout.ts').Rect & { castle: boolean })[] => {
+      const f = game.map.fit;
+      return gateKeepOutsPx(level.layout2d?.gates ?? []).map((g) => ({ x: f.offsetX + g.x * f.scale, y: f.offsetY + g.y * f.scale, w: g.w * f.scale, h: g.h * f.scale, castle: g.castle }));
+    };
+    gateRectsRef = gateRects;
     const { codexEnemyUrl } = await import('./codex2d.ts');
     livesWarn = (await import('./ui/lowLives2d.ts')).mountLivesWarning();
     if (desktop) {
@@ -728,10 +737,6 @@ async function main(): Promise<void> {
     if ((level.id === 'l1c' && plainPlay && !coachMod.coachDone()) || q.get('coach') === '1') {
       const hero = game.world.hero;
       // The caves / castle: the card keeps off them when it has to leave its home spot.
-      const gateRects = (): import('./uiLayout.ts').Rect[] => {
-        const f = game.map.fit;
-        return gateKeepOutsPx(level.layout2d?.gates ?? []).map((g) => ({ x: f.offsetX + g.x * f.scale, y: f.offsetY + g.y * f.scale, w: g.w * f.scale, h: g.h * f.scale }));
-      };
       coach = coachMod.mountCoach(!desktop || isTouchDevice(), hero ? heroName(hero.heroId).split(' ')[0] : '', gateRects);
       // Suggested first plot: the one with the most road within reach of an archer.
       const lay = level.layout2d!;
@@ -774,13 +779,19 @@ async function main(): Promise<void> {
       (type) => !seenRef.has(type),
       undefined,
       () => {
-        // Plot rings 3× (worse than a tower's headroom); HUD pieces 12× (never over the bar).
+        // Plot rings 3× (worse than a tower's headroom), a plot's middle 30× more (never over a
+        // ring's centre); HUD pieces 12× (never over the bar); the middle of a cave / the castle
+        // 2× (the player watches where the next wave comes out) — a nicety, after the plots.
         const f = game.map.fit;
         const r = game.hud.rects();
         const hud = [r.plaque, r.banner, hudButtonsKeepOut(app.screen.width, app.screen.height, readSafeInsets()), ...hudKeepOuts()];
+        const core = (q: { x: number; y: number; w: number; h: number }, k: number) => ({ x: q.x + (q.w * (1 - k)) / 2, y: q.y + (q.h * (1 - k)) / 2, w: q.w * k, h: q.h * k });
+        const plots = game.plots.geometry.rects.map((p) => ({ x: f.offsetX + p.x * f.scale, y: f.offsetY + p.y * f.scale, w: p.w * f.scale, h: p.h * f.scale }));
         return [
-          ...game.plots.geometry.rects.map((p) => ({ rect: { x: f.offsetX + p.x * f.scale, y: f.offsetY + p.y * f.scale, w: p.w * f.scale, h: p.h * f.scale }, weight: 3 })),
+          ...plots.map((rect) => ({ rect, weight: 3 })),
+          ...plots.map((p) => ({ rect: core(p, 0.3), weight: 30 })),
           ...hud.map((rect) => ({ rect, weight: 12 })),
+          ...gateRects().map((g) => ({ rect: core(g, 0.6), weight: 2 })),
         ];
       },
     );
@@ -982,6 +993,7 @@ async function main(): Promise<void> {
     artcheck: () => artCheckSummary(art),
     abilities: () => abilities?.debug() ?? null,
     waveCard: () => waveCard?.debug() ?? null,
+    gates: () => gateRectsRef?.() ?? [],
     lives: () => livesWarn?.debug() ?? null,
     foe: () => foeCard?.debug() ?? null,
     coach: () => coach?.debug() ?? null,

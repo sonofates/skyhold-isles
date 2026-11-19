@@ -36,12 +36,28 @@ async function check(page, tag, label) {
     const s = window.__p0.state();
     const plots = [];
     for (let i = 0; i < s.plots.count; i++) plots.push(window.__p0.plotScreen(i));
-    return { plots, hud: s.hud, vw: innerWidth, vh: innerHeight };
+    return { plots, hud: s.hud, gates: window.__p0.gates?.() ?? [], vw: innerWidth, vh: innerHeight };
   });
+  // A cave / the castle more than a third under the card: the player loses where foes come out.
+  for (const g of st.gates) {
+    const ox = Math.max(0, Math.min(r.x + r.w, g.x + g.w) - Math.max(r.x, g.x));
+    const oy = Math.max(0, Math.min(r.y + r.h, g.y + g.h) - Math.max(r.y, g.y));
+    const share = (ox * oy) / Math.max(1, g.w * g.h);
+    if (share > 0.33) problems.push(`${tag} ${label}: card covers ${Math.round(share * 100)}% of the ${g.castle ? 'castle' : 'cave'}`);
+  }
   if (r.x < 0 || r.y < 0 || r.x + r.w > st.vw || r.y + r.h > st.vh) problems.push(`${tag} ${label}: card off screen ${JSON.stringify(r)}`);
   const covered = st.plots.filter((p) => p.x > r.x && p.x < r.x + r.w && p.y > r.y && p.y < r.y + r.h).length;
   if (covered) problems.push(`${tag} ${label}: card covers ${covered} plot centre(s)`);
-  for (const k of ['horn', 'plaque', 'banner', 'pause', 'speed']) if (st.hud[k] && inter(r, st.hud[k])) problems.push(`${tag} ${label}: card overlaps ${k}`);
+  for (const k of ['plaque', 'banner', 'pause', 'speed']) if (st.hud[k] && inter(r, st.hud[k])) problems.push(`${tag} ${label}: card overlaps ${k}`);
+  // The horn is round: a card past the corner of its box does not touch it.
+  const hn = st.hud.horn;
+  if (hn) {
+    const cx = hn.x + hn.w / 2;
+    const cy = hn.y + hn.h / 2;
+    const nx = Math.max(r.x, Math.min(cx, r.x + r.w));
+    const ny = Math.max(r.y, Math.min(cy, r.y + r.h));
+    if (Math.hypot(nx - cx, ny - cy) < hn.w / 2) problems.push(`${tag} ${label}: card overlaps horn`);
+  }
 }
 
 for (const size of SIZES) {
