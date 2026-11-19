@@ -117,6 +117,8 @@ interface Twinkle {
 }
 
 const WHALE_LIFE = 7;
+/** Minimum ms between water frames. */
+const WATER_MIN_MS = 1000 / 30;
 /** Clouds move this much faster than the chart when it pans (they are nearer the eye). */
 const CLOUD_PARALLAX = 0.22;
 const LIFE_PIXEL_BUDGET = 4_000_000;
@@ -145,6 +147,8 @@ export function mountSea(root: HTMLElement, world: HTMLElement, scroll: HTMLElem
   let cfg: SeaConfig = seaConfig(inputs);
   const rand = seaRng(Number(q.get('seaseed')) || (Date.now() & 0xffffff));
   const qaWhale = q.get('seawhale') === '1';
+  // QA cost probes: ?seadebug=nowater,nolife,nobg
+  const dbg = (q.get('seadebug') ?? '').split(',');
 
   const layer = el('div', 'pu-sea', { 'aria-hidden': 'true' });
   const water = new SeaWater((lost) => {
@@ -153,10 +157,15 @@ export function mountSea(root: HTMLElement, world: HTMLElement, scroll: HTMLElem
   });
   const lifeCanvas = document.createElement('canvas');
   lifeCanvas.className = 'pu-sea-life';
-  layer.append(water.canvas, lifeCanvas);
+  if (!dbg.includes('nowater')) layer.append(water.canvas);
+  if (!dbg.includes('nolife')) layer.append(lifeCanvas);
+  root.classList.toggle('sea-nobg', dbg.includes('nobg'));
   world.prepend(layer);
   const g = lifeCanvas.getContext('2d');
-  const glOk = water.init();
+  let waterInit = false;
+  /** The governor turned the water off (Auto, already at the low tier and still slow). */
+  let waterOff = false;
+  const wantWater = (): boolean => cfg.water && !waterOff && !dbg.includes('nowater');
 
   let sprites: SeaSprites = {};
   let seaAspect = 2;
@@ -578,7 +587,7 @@ export function mountSea(root: HTMLElement, world: HTMLElement, scroll: HTMLElem
 
   // ---- one frame
   const drawWater = (): void => {
-    if (!water.ready || !L) return;
+    if (!wantWater() || !water.ready || !L) return;
     wf.x0 = anchor;
     wf.y0 = 0;
     wf.w = cw;
@@ -599,14 +608,19 @@ export function mountSea(root: HTMLElement, world: HTMLElement, scroll: HTMLElem
     if (water.draw(wf) && !root.classList.contains('sea-live')) root.classList.add('sea-live');
   };
 
+  let lastWater = -1e9;
   const frame = (dtMs: number): void => {
     const t0 = performance.now();
     if (!cfg.still) {
       clock = advanceClock(clock, dtMs);
       life += Math.min(Math.max(dtMs, 0), 100) / 1000;
     }
-    ensureAnchor();
-    drawWater();
+    // The water moves slowly: 30 fps is enough for it on every tier (half the GPU work on a 60 Hz
+    // screen); gulls and clouds keep the display's rate. A moved layer must redraw at once.
+    if (ensureAnchor() || cfg.still || t0 - lastWater >= WATER_MIN_MS - 3) {
+      lastWater = t0;
+      drawWater();
+    }
     updateLife(Math.min(Math.max(dtMs, 0), 100) / 1000);
     lifeFrame();
     domFrames();
@@ -673,6 +687,10 @@ export function mountSea(root: HTMLElement, world: HTMLElement, scroll: HTMLElem
         govSteps++;
         tierNow = next;
         reconfigure();
+      } else if (wantWater()) {
+        govSteps++;
+        waterOff = true;
+        ensureWater();
       }
     }
   };
@@ -690,6 +708,7 @@ export function mountSea(root: HTMLElement, world: HTMLElement, scroll: HTMLElem
       twinkles.length = 0;
       requestStill();
     } else start();
+    ensureWater();
   };
 
   // ---- events
@@ -716,7 +735,17 @@ export function mountSea(root: HTMLElement, world: HTMLElement, scroll: HTMLElem
   });
 
   // ---- assets
-  if (glOk) {
+  /** Starts the water when wanted (first time: WebGL + the painting), hides it when not. */
+  function ensureWater(): void {
+    const on = wantWater();
+    water.canvas.hidden = !on;
+    if (!on) {
+      root.classList.remove('sea-live');
+      return;
+    }
+    if (waterInit) return;
+    waterInit = true;
+    if (!water.init()) return;
     const img = new Image();
     img.decoding = 'async';
     img.onload = () => {
@@ -729,6 +758,7 @@ export function mountSea(root: HTMLElement, world: HTMLElement, scroll: HTMLElem
     };
     img.src = seaTextureUrl(manifest, cfg.tier === 'low');
   }
+  ensureWater();
   const cloudRand = seaRng(0xc10d);
   for (let i = 0; i < 3; i++) {
     const puffs = cloudPuffs(cloudRand, 360, 150);
@@ -766,7 +796,7 @@ export function mountSea(root: HTMLElement, world: HTMLElement, scroll: HTMLElem
       return {
         tier: cfg.tier,
         still: cfg.still,
-        gl: water.ready,
+        gl: water.ready && wantWater(),
         waterPx: [water.canvas.width, water.canvas.height],
         lifePx: [lifeCanvas.width, lifeCanvas.height],
         frames: st.frames,
@@ -812,14 +842,10 @@ export function mountSea(root: HTMLElement, world: HTMLElement, scroll: HTMLElem
       flights.length = 0;
       twinkles.length = 0;
       whale = null;
-      if (water.ready) {
-        start();
-        requestStill();
-      } else if (!glOk) {
-        // no WebGL: the CSS painting stays; the life layer still runs
-        start();
-        requestStill();
-      }
+      // the life layer runs at once; the water fades in over the CSS painting when it is ready
+      // (no WebGL / water off: the painting simply stays)
+      start();
+      requestStill();
     },
     decorateNode(b, i, frontier) {
       b.style.setProperty('--bob', `${(-((i * 1.37) % 6.2)).toFixed(2)}s`);

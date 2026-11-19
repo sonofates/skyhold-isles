@@ -49,6 +49,11 @@ export interface SeaConfig {
   readonly whale: boolean;
   /** Island medallions bob: every island, only the frontier one, or none. */
   readonly bob: 'all' | 'frontier' | 'none';
+  /**
+   * The WebGL water runs. Off on Auto with a software rasteriser (no real GPU: the full-screen
+   * pass costs a CPU core there) — the painted sea stays, the clouds, gulls and islands still move.
+   */
+  readonly water: boolean;
 }
 
 const TIER_ORDER: readonly QualityTier[] = ['low', 'med', 'high'];
@@ -79,6 +84,7 @@ export function seaConfig(i: SeaInputs, tierOverride?: QualityTier): SeaConfig {
     gulls: !i.reducedMotion,
     whale: !i.reducedMotion,
     bob: i.reducedMotion ? 'none' : tier === 'low' ? 'frontier' : 'all',
+    water: !(base.auto && i.software),
   };
 }
 

@@ -32,6 +32,10 @@
   opacity: 1;
 }
 
+.pu-map.sea-live.sea-nobg .pu-map-world {
+  background: #2f7f98;
+}
+
 .pu-map.sea-paused * {
   animation-play-state: paused !important;
 }

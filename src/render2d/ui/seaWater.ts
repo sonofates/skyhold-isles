@@ -15,7 +15,8 @@ void main() {
   gl_Position = vec4(aPos, 0.0, 1.0);
 }`;
 
-const FRAG = `
+/** Fragment shader source (exported for the seamless-loop test). */
+export const SEA_FRAGMENT_SHADER = `
 #ifdef GL_FRAGMENT_PRECISION_HIGH
 precision highp float;
 #else
@@ -206,7 +207,7 @@ export class SeaWater {
     const gl = (this.canvas.getContext('webgl', attrs) ?? this.canvas.getContext('experimental-webgl', attrs)) as WebGLRenderingContext | null;
     if (!gl) return false;
     const vs = compile(gl, gl.VERTEX_SHADER, VERT);
-    const fs = compile(gl, gl.FRAGMENT_SHADER, FRAG);
+    const fs = compile(gl, gl.FRAGMENT_SHADER, SEA_FRAGMENT_SHADER);
     if (!vs || !fs) return false;
     const prog = gl.createProgram();
     if (!prog) return false;
