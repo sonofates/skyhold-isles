@@ -42,6 +42,9 @@ export class SpatialHashGrid {
   }
 
   insert(entityIdx: number, x: number, z: number): void {
+    if (entityIdx < 0 || entityIdx >= this.next.length || !Number.isFinite(x) || !Number.isFinite(z)) {
+      return;
+    }
     const cx = this.cellCoordX(x);
     const cz = this.cellCoordZ(z);
     const bucket = cz * this.gridCols + cx;
@@ -55,6 +58,9 @@ export class SpatialHashGrid {
    */
   query(x: number, z: number, radius: number, out: number[]): void {
     out.length = 0;
+    if (!Number.isFinite(x) || !Number.isFinite(z) || !(radius >= 0)) {
+      return;
+    }
     const minCx = this.cellCoordX(x - radius);
     const maxCx = this.cellCoordX(x + radius);
     const minCz = this.cellCoordZ(z - radius);

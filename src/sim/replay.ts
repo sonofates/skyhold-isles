@@ -166,6 +166,7 @@ export function computeSimStateHash(world: SimWorld): string {
   h.f64(ws.currentWaveIndex);
   h.f64(ws.interWaveTimer);
   h.f64(ws.waveElapsed);
+  h.f64(ws.pendingClearBonus);
   h.u32(ws.isEndless ? 1 : 0);
   h.u32(ws.autoWave ? 1 : 0);
 
@@ -188,6 +189,8 @@ export function computeSimStateHash(world: SimWorld): string {
   for (let i = 0; i < world.towers.length; i++) {
     const t = world.towers[i];
     h.u32(t.id);
+    h.f64(t.col);
+    h.f64(t.row);
     h.str(t.type);
     h.u32(t.tier);
     h.str(t.targetingMode);
@@ -196,6 +199,8 @@ export function computeSimStateHash(world: SimWorld): string {
     h.f64(t.totalDamageDealt);
     h.u32(t.kills);
     h.u32(t.shotCount);
+    h.f64(t.overhaulTimer ?? 0);
+    h.f64(t.overhaulRateBonus ?? 0);
   }
 
   const barracks = world.soldierSystem.barracks;
@@ -232,6 +237,9 @@ export function computeSimStateHash(world: SimWorld): string {
     h.f64(hero.postZ);
     h.f64(hero.hp);
     h.f64(hero.respawnTimer);
+    h.f64(hero.attackTimer);
+    h.f64(hero.sinceHurt);
+    h.u32(hero.shotCount);
     h.f64(hero.rallyBannerTimer);
     h.f64(hero.skillCooldowns[0]);
     h.f64(hero.skillCooldowns[1]);
@@ -249,6 +257,8 @@ export function computeSimStateHash(world: SimWorld): string {
     h.f64(g.x);
     h.f64(g.z);
     h.f64(g.remainingSec);
+    h.f64(g.cooldownTimer);
+    h.f64(g.boostTimer);
   }
 
   const fireRings = world.heroSystem.fireRings;
@@ -304,9 +314,20 @@ export function computeSimStateHash(world: SimWorld): string {
     h.f64(e.z);
     h.f64(e.dist);
     h.f64(e.hp);
+    h.f64(e.armor);
+    h.f64(e.armorBreakTimer);
     h.f64(e.shield);
     h.f64(e.slowRatio);
     h.f64(e.stunTimer);
+    h.f64(e.markTimer);
+    h.f64(e.markVuln);
+    h.u32(e.burrowed ? 1 : 0);
+    h.f64(e.abilityTimer);
+    h.f64(e.channelTimer);
+    h.f64(e.bossPhase);
+    h.f64(e.hexTargetId);
+    h.f64(e.blockers);
+    h.f64(e.heroBlockers);
     h.f64(world.heroSystem.getEnemyBurnRemaining(idx, e.uid));
     h.f64(world.heroSystem.getEnemyBurnDps(idx, e.uid));
   }
@@ -579,6 +600,10 @@ export class SimReplayPlayer {
   readonly replay: SimReplayLog;
   readonly events: EventBus;
   world!: SimWorld;
+  /** Default playback speed (`1`..`8`) used when `stepFrame` omits `speedMultiplier`. */
+  speed = 1;
+  /** Default pause state used when `stepFrame` omits `paused`. */
+  paused = false;
 
   private cmdIndex = 0;
   private accumulator = 0;
@@ -588,6 +613,23 @@ export class SimReplayPlayer {
     this.replay = replay;
     this.events = events;
     this.reset(true);
+  }
+
+  /** Sets default replay speed (`0.25`..`8`) and returns the clamped multiplier. */
+  setSpeed(speed: number): number {
+    if (Number.isFinite(speed) && speed > 0) {
+      this.speed = Math.max(0.25, Math.min(8, speed));
+    }
+    return this.speed;
+  }
+
+  /** Cycles replay speed `1x -> 2x -> 3x -> 4x -> 1x` and returns the new multiplier. */
+  cycleSpeed(): number {
+    if (this.speed < 2) this.speed = 2;
+    else if (this.speed < 3) this.speed = 3;
+    else if (this.speed < 4) this.speed = 4;
+    else this.speed = 1;
+    return this.speed;
   }
 
   get currentTick(): number {
@@ -674,8 +716,8 @@ export class SimReplayPlayer {
    */
   stepFrame(
     rawDt: number,
-    speedMultiplier = 1,
-    paused = false,
+    speedMultiplier = this.speed,
+    paused = this.paused,
   ): { alpha: number; ticksExecuted: number; currentTick: number; finished: boolean } {
     const safeDt = Number.isFinite(rawDt) ? Math.min(Math.max(0, rawDt), BALANCE.maxFrameDt) : 0;
     const speed = Number.isFinite(speedMultiplier) ? Math.max(0, Math.min(8, speedMultiplier)) : 1;
@@ -712,6 +754,7 @@ export class SimReplayPlayer {
     const clamped = Number.isFinite(targetTick)
       ? Math.max(0, Math.min(this.totalTicks, Math.floor(targetTick)))
       : 0;
+    this.accumulator = 0;
     if (clamped === this.world.tick) {
       this.flushCommandsForCurrentTick();
       return;

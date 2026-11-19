@@ -4,7 +4,7 @@ import type { AbilityId, HeroId, HeroSkillSlot, TargetingMode, TowerMvpSummary, 
 import { ABILITY_DEFS, ABILITY_IDS, type AbilityDef } from '../data/abilities.ts';
 import { BALANCE } from '../data/balance.ts';
 import { championLevel } from '../data/champions.ts';
-import { isHeroId } from '../data/heroes.ts';
+import { HERO_MAX_LEVEL, isHeroId } from '../data/heroes.ts';
 import type { LevelDef } from '../data/levels/index.ts';
 import { NEUTRAL_RUN_MODIFIERS, type RunModifiers } from '../data/runModifiers.ts';
 import { computeStarsForLivesLost, type Difficulty } from '../data/stars.ts';
@@ -224,9 +224,13 @@ export class SimWorld {
     this.waveSystem = new WaveSystem(level, events);
     this.abilitySystem = new AbilitySystem(events);
     this.soldierSystem = new SoldierSystem(this.enemyPool, this.spatialHash, this.enemySystem, events);
-    const resolvedHeroLevel = opts?.heroLevel ?? 1;
+    const rawHeroLevel = opts?.heroLevel;
+    const resolvedHeroLevel =
+      typeof rawHeroLevel === 'number' && Number.isFinite(rawHeroLevel)
+        ? Math.max(1, Math.min(HERO_MAX_LEVEL, Math.floor(rawHeroLevel)))
+        : 1;
     this.seed =
-      opts?.seed !== undefined
+      typeof opts?.seed === 'number' && Number.isFinite(opts.seed)
         ? opts.seed >>> 0
         : hashHeroSeed(level.id, opts?.heroId ?? 'none', resolvedHeroLevel);
     this.heroConfig =
@@ -553,6 +557,7 @@ export class SimWorld {
     this.projectileSystem.clearBurnZones();
     this.abilitySystem.clearPending();
     this.heroSystem.clearTransientZones(false);
+    this.soldierSystem.clearCombatState();
   }
 
   /** Releases all pooled entities, ground zones, soldiers, gizmos, and spatial-hash buckets after a run. */

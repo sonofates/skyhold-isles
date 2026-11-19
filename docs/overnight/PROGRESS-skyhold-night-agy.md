@@ -51,6 +51,16 @@
   - **`Workshop.buyRank` & Math `NaN`/`Infinity` Traps (`src/data/workshop.ts`, `src/data/abilities.ts`, `src/data/runModifiers.ts`, `src/sim/waveSystem.ts`, `src/platform/gestures.ts`):** Fixed `buyRank(..., availableStars = NaN)` bypassing `cost > availableStars` (`cost > NaN === false` in IEEE-754) and purchasing upgrades with `NaN`/`Infinity` stars; guarded `computeMeteorDamage`, `computeEarlyCallBonus`, `combineRunModifiers`, `VelocityTracker`, and `DoubleTapDetector` against non-finite inputs.
   - **`HeroSystem` Victory Walk-State & Lethal Slow Event Fixes (`src/sim/heroSystem.ts`, `src/sim/projectileSystem.ts`, `qa/bot/invariants.ts`):** `clearTransientZones` previously cleared `waypoints` while leaving `hero.state === 'moving'`, causing `HeroLayer` in 2D to run walk frames in place and keep the yellow move pennant (`moveMarker`) pinned on the Victory screen; now transitions `'moving'` cleanly to `'idle'` at `(x, z)` (enforced by `qa/bot` post-victory invariant). Also guarded `ProjectileSystem` `applySlow` with `hp > 0` (matching `AbilitySystem` and `HeroSystem`) so lethal frost/chill hits never emit spurious `armorCracked` events on dead Stone Golems (`sim:balance` stays 100% byte-identical across all 33 levels).
   - **Command, Grid & Replay Hardening + PRNG Digest Completeness (`src/core/rng.ts`, `src/sim/{grid,heroSystem,world,replay}.ts`, `src/render2d/heroes2d.ts`, `qa/bot/hash.ts`):** Enforced integer `(col, row)` in `MapGrid.isInside` (closing TypedArray index truncation on 3D tile maps), required target `(x, z)` for `'meteor'` in `SimWorld.castAbility` & `parseSimReplay`, rejected partial-`NaN`/`±Infinity` coordinates in `castHeroSkill` & `parseSimReplay`, deduplicated/validated `hero.skills` in `parseSimReplay`, deduplicated `heroes2d.ts` pure helpers onto `src/data/heroes.ts`, and added zero-allocation `SeededRng.getState()`, `pendingVolleys`, and Kindling DoT digests to `computeSimStateHash` & `hashWorldState`.
+- [x] **7. Round 4 Deep Audit — Victory Soldier Reset, 2D Reset/Save-Code Safety, `EventBus` `on()` Re-Entrancy & Replay Polish (`src/core/**`, `src/sim/**`, `src/platform/**`, `src/render2d/ui/{progress2d,modes2d}.ts`, `qa/bot/**`)** — *DONE (Round 4)*
+  - **Barracks Soldier Post-Victory Combat Freeze (`src/sim/world.ts`, `qa/bot/invariants.ts`):** When the final enemy of a story run died after `SoldierSystem.update` in tick `K-1`, `fixedTick` returned early at victory on tick `K` before `SoldierSystem.update` ran, leaving fighting/engaging soldiers frozen in `'fighting'` / `'engaging'` targeting released pool slots on the Victory screen. Added `this.soldierSystem.clearCombatState()` to `SimWorld.clearVictoryTransients()` and enforced zero post-victory soldier combat states / `blockedCount` / `pendingMeteors` in `qa/bot/invariants.ts`.
+  - **2D Save Reset Backups, Remappable 2D Save Codes & `mergeProgress` Frontier Walk (`src/render2d/ui/{progress2d,modes2d}.ts`, `src/platform/{saveCode,gameSession}.ts`):**
+    - `resetProgress2D()` now backs up non-empty 2D saves (including persistent hero XP & skill trees) to `PROGRESS_2D_RESET_BACKUP_KEY` before erasing and never overwrites an existing real backup on an empty reset (matching 3D `resetProgressSave`).
+    - Added `encodeSaveCode2D`, `decodeSaveCode2D`, `exportSaveCode2D`, and `importSaveCode2D` (preserving 2D `ids` for island-insertion/reordering remapping and backing up pre-import saves to `PROGRESS_2D_IMPORT_BACKUP_KEY`), while keeping 3D `encodeSaveCode(progress)` byte-identical.
+    - Fixed `GameSession.resetProgress` / `importSaveCode` / `hydrateProgressFromCloud` `Object.assign(this.progress, ...)` leaving stale `this.progress.heroes` behind when assigning a hero-less `ProgressData`, added `GameSession.cycleSpeed()`, walked `unlockedLevelIndex` forward across contiguous cleared islands in `mergeProgress` (with `sanitizeRanks`), and guarded `nowMs` against `NaN`/`±Infinity` in `resolveQueryRun2D` and `recordDailyWin2D`.
+  - **`EventBus` Mid-Emit `on()` Subscription Isolation (`src/core/eventBus.ts`):** Added copy-on-write on `on()` when `emitDepth > 0` and snapshotted `const len = list.length` in `emit()` so listeners subscribed mid-emit never fire spuriously on the already-in-flight event (zero allocations on normal ticks).
+  - **Geometry `NaN` / Negative-Slack Guards & Replay/Hero Polish (`src/sim/{grid,path,spatialHash,heroSystem,world,replay}.ts`):**
+    - Guarded `worldToGridCoord` (previously returned `{ col: NaN, row }` for `NaN`), `MapGrid.findPlotAt` (negative slack squared positive), `CompiledPath.sample(NaN)` / `nearestDist(NaN)`, and `SpatialHashGrid.insert/query`.
+    - Normalized non-finite/out-of-range `heroLevel` and `seed` in `SimWorld` constructor (`heroConfig` parity with `hero.level`), zeroed `SimReplayPlayer` fractional `accumulator` (`alpha = 0`) on forward/same-tick `seekToTick` scrubs, added stateful `player.speed` / `player.paused` / `player.setSpeed()` / `player.cycleSpeed()` convenience hooks, expanded `computeSimStateHash`, and improved Tobb's targetless `Overhaul` auto-aim (`castHeroSkill(1)`) to prioritize cleansing stunned towers (including stunned Beacons) while skipping idle Beacons.
 
 ---
 
@@ -147,11 +157,11 @@
     const player = new SimReplayPlayer(level, parsed, events);
     // Render `player.world` with the exact same Game2D layers!
 
-    // Per Pixi frame (supports speedMultiplier = 1, 2, 3, 4, 8, and paused):
+    // Per Pixi frame (supports speedMultiplier = 1, 2, 3, 4, 8, and paused; or stateful player.speed / player.paused / player.cycleSpeed()):
     const { alpha, currentTick, finished } = player.stepFrame(dtSec, replaySpeed, replayPaused);
     const progress01 = player.progress; // currentTick / player.totalTicks
 
-    // Timeline scrubber (forward or backward rewind to any tick 0..player.totalTicks):
+    // Timeline scrubber (forward or backward rewind to any tick 0..player.totalTicks; snaps alpha to 0):
     player.seekToTick(targetTick);
 
     // Optional integrity check at replay end:

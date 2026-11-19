@@ -175,6 +175,7 @@ export class GameSession {
     if (platform.isSteam) {
       void hydrateProgressFromCloud(this.progress, LEVELS.length, platform).then(({ merged, updated }) => {
         if (!updated) return;
+        if (merged.heroes === undefined) delete this.progress.heroes;
         Object.assign(this.progress, merged);
         if (this.viewMode !== 'playing' && this.deps) {
           this.deps.overlays.mainMenu.setOpen(this.viewMode === 'menu', this.progress);
@@ -697,6 +698,7 @@ export class GameSession {
   /** Settings (menu) → Reset progress, after the in-dialog confirm. The old save is backed up. */
   resetProgress(): void {
     const fresh = resetProgressSave(LEVELS.length);
+    delete this.progress.heroes;
     Object.assign(this.progress, fresh);
     this.currentLevelIndex = 0;
     this.runConfig = { endless: false, challenges: [], daily: null };
@@ -719,6 +721,7 @@ export class GameSession {
     const merged = mergeProgress(this.progress, res.progress, LEVELS.length);
     const gain = describeMergeGain(this.progress, merged);
     backupProgressBeforeImport();
+    if (merged.heroes === undefined) delete this.progress.heroes;
     Object.assign(this.progress, merged);
     saveProgress(this.progress);
     this.soundManager.playUiConfirm();
@@ -968,6 +971,16 @@ export class GameSession {
     if (this.userPaused) this.userPaused = false;
     this.syncLoopAndInput();
     this.syncUi();
+  }
+
+  /** Cycles gameplay speed `1x -> 2x -> 3x -> 1x` and unpauses if user-paused. */
+  cycleSpeed(): SpeedMultiplier {
+    this.soundManager.unlock();
+    const next = this.d.loop.cycleSpeed();
+    if (this.userPaused) this.userPaused = false;
+    this.syncLoopAndInput();
+    this.syncUi();
+    return next;
   }
 
   /**

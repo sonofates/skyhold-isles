@@ -485,6 +485,31 @@ export class HeroSystem {
       if (!autoAim) {
         tx = wantX;
         tz = wantZ;
+      } else if (act.kind === 'overhaul') {
+        const maxRSq = act.range * act.range;
+        let bestTower: TowerEntity | null = null;
+        let bestStunned = false;
+        let bestSq = Infinity;
+        for (let i = 0; i < towers.length; i++) {
+          const t = towers[i];
+          if (t.type === 'beacon' && t.stunTimer <= 0) continue;
+          const dSq = (t.x - h.x) ** 2 + (t.z - h.z) ** 2;
+          if (dSq > maxRSq) continue;
+          const stunned = t.stunTimer > 0;
+          if (
+            !bestTower ||
+            (stunned && !bestStunned) ||
+            (stunned === bestStunned && (dSq < bestSq - 1e-6 || (Math.abs(dSq - bestSq) <= 1e-6 && t.id < bestTower.id)))
+          ) {
+            bestTower = t;
+            bestStunned = stunned;
+            bestSq = dSq;
+          }
+        }
+        if (bestTower) {
+          tx = bestTower.x;
+          tz = bestTower.z;
+        }
       } else {
         const auto = this.acquireRangedTarget(h.x, h.z, Math.max(act.range, h.stats.range), true);
         if (auto) {
@@ -1017,7 +1042,7 @@ export class HeroSystem {
     const rSq = maxHeroRange * maxHeroRange;
     for (let i = 0; i < towers.length; i++) {
       const t = towers[i];
-      if (t.type === 'beacon') continue;
+      if (t.type === 'beacon' && t.stunTimer <= 0) continue;
       if ((t.x - hx) ** 2 + (t.z - hz) ** 2 <= rSq) {
         _pickedTowers.push(t);
       }

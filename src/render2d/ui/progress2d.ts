@@ -19,7 +19,18 @@ import { LEVELS_2D } from '../../data/levels2d/index.ts';
 import type { LevelDef } from '../../data/levels/types.ts';
 import { applyEndlessRecord, applyWin, isIslandMastered, type WinRecord } from '../../game/progression.ts';
 import { badgesForWin, PLAIN_RUN, type RunConfig } from '../../game/runConfig.ts';
-import { createDefaultProgress, migrateProgress, PROGRESS_SAVE_VERSION } from '../../platform/storage.ts';
+import {
+  decodeSaveCode,
+  encodeSaveCode,
+  mergeProgress,
+  type SaveCodeResult,
+} from '../../platform/saveCode.ts';
+import {
+  createDefaultProgress,
+  hasAnyProgress,
+  migrateProgress,
+  PROGRESS_SAVE_VERSION,
+} from '../../platform/storage.ts';
 import {
   applyHeroXp,
   applyNode,
@@ -33,6 +44,8 @@ import {
 
 export const PROGRESS_2D_KEY = 'skyhold_isles_progress2d_v1';
 export const STORY_SEEN_KEY = 'skyhold_isles_story2d_seen_v1';
+export const PROGRESS_2D_RESET_BACKUP_KEY = 'skyhold_isles_progress2d_reset_backup';
+export const PROGRESS_2D_IMPORT_BACKUP_KEY = 'skyhold_isles_progress2d_import_backup';
 
 interface Stored2D {
   readonly ids: readonly string[];
@@ -200,7 +213,8 @@ export function recordDailyWin2D(
   const p = loadProgress2D(levels);
   const prevLast = p.daily.lastDay;
   const prevStreak = p.daily.streak;
-  const res = applyDailyWin(p.daily, day, utcDayNumber(nowMs));
+  const safeNowMs = typeof nowMs === 'number' && Number.isFinite(nowMs) ? nowMs : Date.now();
+  const res = applyDailyWin(p.daily, day, utcDayNumber(safeNowMs));
   if (res.counted || p.daily.lastDay !== prevLast || p.daily.streak !== prevStreak) {
     saveProgress2D(p, levels);
   }
@@ -410,11 +424,87 @@ export function markStorySeen(levelId: string, part: 'intro' | 'outro'): void {
   }
 }
 
-/** Erases the 2D isles save and the story flags (Settings → reset). The 3D campaign save is untouched. */
-export function resetProgress2D(): void {
+/** Encodes a 2D `ProgressData` (including island ID ordering and hero roster) into a `SKY2-...` code. */
+export function encodeSaveCode2D(
+  progress: ProgressData,
+  levels: readonly Pick<LevelDef, 'id'>[] = LEVELS_2D,
+): string {
+  const clean: ProgressData = {
+    ...progress,
+    heroes: migrateHeroSave(progress.heroes, progress, levels),
+  };
+  return encodeSaveCode(
+    clean,
+    levels.map((l) => l.id),
+  );
+}
+
+/** Decodes a `SKY2-...` save code onto `levels`, remapping by island ID when carried in the code. */
+export function decodeSaveCode2D(
+  code: string,
+  levels: readonly Pick<LevelDef, 'id'>[] = LEVELS_2D,
+): SaveCodeResult {
+  const head = decodeSaveCode(code, Math.max(levels.length, 32));
+  if (!head.ok) return head;
+  if (head.levelIds && head.levelIds.length > 0) {
+    const sized = decodeSaveCode(code, head.levelIds.length);
+    if (!sized.ok) return sized;
+    return {
+      ok: true,
+      progress: remapProgress(sized.progress, head.levelIds, levels),
+      levelIds: head.levelIds,
+    };
+  }
+  const direct = decodeSaveCode(code, levels.length);
+  if (!direct.ok) return direct;
+  direct.progress.heroes = migrateHeroSave(direct.progress.heroes, direct.progress, levels);
+  return direct;
+}
+
+/** Exports the persisted 2D save as a copy-paste `SKY2-...` save code. */
+export function exportSaveCode2D(levels: readonly LevelDef[] = LEVELS_2D): string {
+  return encodeSaveCode2D(loadProgress2D(levels), levels);
+}
+
+export type ImportSaveCode2DResult =
+  | { readonly ok: true; readonly progress: ProgressData; readonly previous: ProgressData }
+  | { readonly ok: false; readonly error: string };
+
+/** Merges a `SKY2-...` save code into the 2D save (backing up the pre-import save first). */
+export function importSaveCode2D(
+  code: string,
+  levels: readonly LevelDef[] = LEVELS_2D,
+): ImportSaveCode2DResult {
+  const res = decodeSaveCode2D(code, levels);
+  if (!res.ok) return res;
+  const ls = storage();
+  const current = loadProgress2D(levels);
+  const merged = mergeProgress(current, res.progress, levels.length);
+  merged.heroes = migrateHeroSave(merged.heroes, merged, levels);
   try {
-    storage()?.removeItem(PROGRESS_2D_KEY);
-    storage()?.removeItem(STORY_SEEN_KEY);
+    const raw = ls?.getItem(PROGRESS_2D_KEY);
+    if (raw) ls?.setItem(PROGRESS_2D_IMPORT_BACKUP_KEY, raw);
+  } catch {
+    // ignore storage errors
+  }
+  saveProgress2D(merged, levels);
+  return { ok: true, progress: merged, previous: current };
+}
+
+/**
+ * Erases the 2D isles save and the story flags (Settings → reset), backing up non-empty 2D
+ * progress to `PROGRESS_2D_RESET_BACKUP_KEY` first. Never overwrites a real backup with an empty save.
+ * The 3D campaign save is untouched.
+ */
+export function resetProgress2D(levels: readonly LevelDef[] = LEVELS_2D): void {
+  const ls = storage();
+  try {
+    const raw = ls?.getItem(PROGRESS_2D_KEY);
+    if (raw && hasAnyProgress(loadProgress2D(levels))) {
+      ls?.setItem(PROGRESS_2D_RESET_BACKUP_KEY, raw);
+    }
+    ls?.removeItem(PROGRESS_2D_KEY);
+    ls?.removeItem(STORY_SEEN_KEY);
   } catch {
     // ignore
   }

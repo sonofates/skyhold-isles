@@ -2,6 +2,7 @@ import type { HeroId, HeroSaveData, ProgressData } from '../core/types.ts';
 import { isChallengeId } from '../data/challenges.ts';
 import type { DailyRecord } from '../data/daily.ts';
 import { HERO_IDS, mergeHeroSaveData, sanitizeHeroSaveData, totalHeroSaveXp } from '../data/heroes.ts';
+import { sanitizeRanks } from '../data/workshop.ts';
 import { starWallet } from '../game/progression.ts';
 import { migrateProgress } from './storage.ts';
 
@@ -92,7 +93,7 @@ function decodeHeroPayload(raw: unknown): HeroSaveData | undefined {
   return sanitizeHeroSaveData({ selectedHero: obj.s, roster });
 }
 
-export function encodeSaveCode(progress: ProgressData): string {
+export function encodeSaveCode(progress: ProgressData, levelIds?: readonly string[]): string {
   const payload: Record<string, unknown> = {
     v: progress.version,
     u: progress.unlockedLevelIndex,
@@ -107,12 +108,15 @@ export function encodeSaveCode(progress: ProgressData): string {
   if (progress.heroes !== undefined) {
     payload.h = encodeHeroPayload(progress.heroes);
   }
+  if (levelIds && levelIds.length > 0) {
+    payload.i = [...levelIds];
+  }
   const body = toBase64Url(JSON.stringify(payload));
   return `${PREFIX}${body}-${checksum(body)}`;
 }
 
 export type SaveCodeResult =
-  | { readonly ok: true; readonly progress: ProgressData }
+  | { readonly ok: true; readonly progress: ProgressData; readonly levelIds?: readonly string[] }
   | { readonly ok: false; readonly error: string };
 
 export function decodeSaveCode(code: string, levelCount: number): SaveCodeResult {
@@ -136,6 +140,10 @@ export function decodeSaveCode(code: string, levelCount: number): SaveCodeResult
   }
   const r = raw as Record<string, unknown>;
   const decodedHeroes = r.h !== undefined ? decodeHeroPayload(r.h) : undefined;
+  const levelIds = Array.isArray(r.i)
+    ? r.i.map((x) => (typeof x === 'string' ? x : ''))
+    : undefined;
+  const hasValidIds = levelIds !== undefined && levelIds.some((id) => id.length > 0);
   const progress = migrateProgress(
     {
       version: r.v,
@@ -154,7 +162,7 @@ export function decodeSaveCode(code: string, levelCount: number): SaveCodeResult
   // Only real challenge ids travel between saves (a hand-made code could carry anything).
   progress.challengeClears = progress.challengeClears.map((list) => list.filter((id) => isChallengeId(id)));
   if (starWallet(progress).available < 0) progress.workshop = {};
-  return { ok: true, progress };
+  return hasValidIds ? { ok: true, progress, levelIds } : { ok: true, progress };
 }
 
 /**
@@ -191,7 +199,18 @@ export function mergeProgress(a: ProgressData, b: ProgressData, levelCount: numb
   const maxIdx = Math.max(0, count - 1);
   const bestStars = maxList(a.bestStars, b.bestStars);
   const clears = maxList(a.clears, b.clears);
-  const unlockedLevelIndex = Math.min(maxIdx, Math.max(0, a.unlockedLevelIndex, b.unlockedLevelIndex));
+  const rawMaxUnlock = Math.max(
+    0,
+    Number.isFinite(a.unlockedLevelIndex) ? Math.floor(a.unlockedLevelIndex) : 0,
+    Number.isFinite(b.unlockedLevelIndex) ? Math.floor(b.unlockedLevelIndex) : 0,
+  );
+  let unlockedLevelIndex = Math.min(maxIdx, rawMaxUnlock);
+  while (
+    unlockedLevelIndex < maxIdx &&
+    (bestStars[unlockedLevelIndex] > 0 || clears[unlockedLevelIndex] > 0)
+  ) {
+    unlockedLevelIndex++;
+  }
   let clearedCount = 0;
   for (let i = 0; i < count; i++) {
     if (clears[i] > 0 || bestStars[i] > 0) clearedCount++;
@@ -204,7 +223,7 @@ export function mergeProgress(a: ProgressData, b: ProgressData, levelCount: numb
     bestEndlessWaves: maxList(a.bestEndlessWaves, b.bestEndlessWaves),
     bestLives: maxList(a.bestLives, b.bestLives),
     clears,
-    workshop: { ...(spentB > spentA ? b.workshop : a.workshop) },
+    workshop: sanitizeRanks(spentB > spentA ? b.workshop : a.workshop),
     challengeClears: Array.from({ length: count }, (_, i) => {
       const out = [...(a.challengeClears[i] ?? [])];
       for (const id of b.challengeClears[i] ?? []) if (!out.includes(id)) out.push(id);

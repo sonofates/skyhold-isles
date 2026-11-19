@@ -673,6 +673,31 @@ export class InvariantMonitor {
           `won run leaked ${w.heroSystem.getPendingVolleys().length} pendingVolleys`,
         );
       }
+      if (w.abilitySystem.getPendingMeteorCount() !== 0) {
+        this.record(
+          'entity_leak',
+          tick,
+          `won run leaked ${w.abilitySystem.getPendingMeteorCount()} pendingMeteors`,
+        );
+      }
+      if (w.soldierSystem.blockedCount !== 0) {
+        this.record(
+          'entity_leak',
+          tick,
+          `won run left soldierSystem.blockedCount=${w.soldierSystem.blockedCount}`,
+        );
+      }
+      for (let i = 0; i < w.soldierSystem.soldiers.length; i++) {
+        const s = w.soldierSystem.soldiers[i];
+        if (s.state === 'fighting' || s.state === 'engaging') {
+          this.record(
+            'entity_leak',
+            tick,
+            `won run left soldier id=${s.id} in combat state=${s.state}`,
+          );
+          break;
+        }
+      }
       if (w.hero && (w.hero.state === 'moving' || w.hero.state === 'engaging' || w.hero.state === 'fighting')) {
         this.record(
           'entity_leak',

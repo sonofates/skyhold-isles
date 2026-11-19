@@ -42,12 +42,23 @@ import {
 } from '../../src/platform/storage.ts';
 import {
   applyRunResult2D,
+  decodeSaveCode2D,
+  encodeSaveCode2D,
+  exportSaveCode2D,
+  importSaveCode2D,
   islandStates,
   loadProgress2D,
+  PROGRESS_2D_IMPORT_BACKUP_KEY,
   PROGRESS_2D_KEY,
+  PROGRESS_2D_RESET_BACKUP_KEY,
+  recordDailyWin2D,
   recordWin2D,
   remapProgress,
+  resetProgress2D,
+  saveProgress2D,
 } from '../../src/render2d/ui/progress2d.ts';
+import { resolveQueryRun2D } from '../../src/render2d/ui/modes2d.ts';
+import { worldToGridCoord } from '../../src/sim/grid.ts';
 import { buildEndlessWaveDef, computeEarlyCallBonus } from '../../src/sim/waveSystem.ts';
 import { SimWorld } from '../../src/sim/world.ts';
 
@@ -739,5 +750,93 @@ describe('Daily Squall, Endless escalations, and Silent Skies + Hero interaction
     golemWorld.projectileSystem.update(BALANCE.fixedDt, golemWorld.towers);
     expect(golem.hp).toBe(0);
     expect(crackEvents).toHaveLength(0);
+  });
+
+  it('backs up 2D saves on reset/import, remaps 2D save codes across island insertions, walks mergeProgress frontiers, and guards NaN geometry queries', () => {
+    const store = installMemoryStorage();
+    const subsetOld = LEVELS_2D.slice(1, 4); // ['i01', 'i02', 'i03']
+    const subsetNew = LEVELS_2D.slice(0, 4); // ['l1c', 'i01', 'i02', 'i03'] (l1c inserted at index 0)
+
+    const pOld = createDefaultProgress(subsetOld.length);
+    pOld.unlockedLevelIndex = 2;
+    pOld.bestStars = [3, 2, 0];
+    pOld.clears = [1, 1, 0];
+    pOld.heroes = {
+      selectedHero: 'wren',
+      roster: {
+        bran: { xp: 150, skills: ['bran_oak_1'] },
+        wren: { xp: xpForHeroLevel(5), skills: ['wren_bow_1', 'wren_bow_2'] },
+      },
+    };
+    saveProgress2D(pOld, subsetOld);
+
+    // 1. Export 2D save code from 3-island list, reset (creating backup), verify empty second reset preserves backup.
+    const code2d = exportSaveCode2D(subsetOld);
+    resetProgress2D(subsetOld);
+    const savedBackup = store.get(PROGRESS_2D_RESET_BACKUP_KEY);
+    expect(savedBackup).toBeTruthy();
+    expect(store.get(PROGRESS_2D_KEY)).toBeUndefined();
+    // Second reset on empty storage must NOT overwrite the backup!
+    resetProgress2D(subsetOld);
+    expect(store.get(PROGRESS_2D_RESET_BACKUP_KEY)).toBe(savedBackup);
+
+    // 2. Import that old 3-island code onto the 4-island list (with 'l1c' inserted before 'i01'):
+    //    stars & unlocks remap cleanly by island ID onto indices 1 & 2, and hero XP/skills survive!
+    saveProgress2D(createDefaultProgress(subsetNew.length), subsetNew);
+    const imported = importSaveCode2D(code2d, subsetNew);
+    expect(imported.ok).toBe(true);
+    expect(store.get(PROGRESS_2D_IMPORT_BACKUP_KEY)).toBeTruthy();
+    const afterImport = loadProgress2D(subsetNew);
+    expect(afterImport.bestStars).toEqual([0, 3, 2, 0]);
+    expect(afterImport.unlockedLevelIndex).toBe(3);
+    expect(afterImport.heroes?.selectedHero).toBe('wren');
+    expect(afterImport.heroes?.roster.wren?.xp).toBe(xpForHeroLevel(5));
+
+    const roundTrip2d = decodeSaveCode2D(encodeSaveCode2D(afterImport, subsetNew), subsetNew);
+    expect(roundTrip2d.ok).toBe(true);
+    if (roundTrip2d.ok) expect(roundTrip2d.progress).toEqual(afterImport);
+
+    // 3. mergeProgress walks unlockedLevelIndex forward across merged clears & sanitizes workshop junk.
+    const shortSave = createDefaultProgress(3);
+    shortSave.unlockedLevelIndex = 2;
+    shortSave.bestStars = [3, 3, 3];
+    shortSave.clears = [1, 1, 1];
+    (shortSave.workshop as Record<string, number>).bogusUpgrade = 99;
+    const mergedExpanded = mergeProgress(createDefaultProgress(5), shortSave, 5);
+    expect(mergedExpanded.unlockedLevelIndex).toBe(3);
+    expect(mergedExpanded.workshop).toEqual({});
+
+    // 4. resolveQueryRun2D and recordDailyWin2D handle NaN nowMs cleanly.
+    const clearedProg = createDefaultProgress(LEVELS_2D.length);
+    clearedProg.clears[0] = 1;
+    const dailyRun = resolveQueryRun2D(new URLSearchParams('daily=1'), clearedProg, {
+      nowMs: NaN,
+      levels: LEVELS_2D,
+    });
+    expect(dailyRun.runConfig.daily).not.toBeNull();
+    const todayDay = utcDayNumber(Date.now());
+    expect(recordDailyWin2D(todayDay, NaN, LEVELS_2D).counted).toBe(true);
+
+    // 5. Geometry & SpatialHashGrid guard non-finite coordinates and negative slack/radius.
+    expect(worldToGridCoord(NaN, 0, 16, 10)).toBeNull();
+    expect(worldToGridCoord(0, Infinity, 16, 10)).toBeNull();
+    const sim = new SimWorld(LEVEL_L1C, new EventBus());
+    const p0 = LEVEL_L1C.layout2d!.plots[0];
+    expect(sim.grid.findPlotAt(p0.x, p0.z, -1)).toBe(-1);
+    expect(sim.grid.findPlotAt(NaN, p0.z, 1)).toBe(-1);
+
+    const sampleOut = { x: 99, y: 99, z: 99 };
+    const yawNan = sim.groundPath.sample(NaN, sampleOut);
+    expect(Number.isFinite(yawNan)).toBe(true);
+    expect(Number.isFinite(sampleOut.x) && Number.isFinite(sampleOut.z)).toBe(true);
+    expect(sim.groundPath.nearestDist(NaN, 0)).toBe(0);
+
+    const qOut = [1, 2];
+    sim.spatialHash.insert(-1, 0, 0);
+    sim.spatialHash.insert(0, NaN, 0);
+    sim.spatialHash.query(NaN, 0, 3, qOut);
+    expect(qOut).toEqual([]);
+    sim.spatialHash.query(0, 0, -5, qOut);
+    expect(qOut).toEqual([]);
   });
 });

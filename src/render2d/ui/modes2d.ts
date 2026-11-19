@@ -159,7 +159,7 @@ export function resolveQueryRun2D(
   progress: ProgressData,
   opts: ResolveQueryOptions2D = {},
 ): ResolvedRun2D {
-  const nowMs = opts.nowMs ?? Date.now();
+  const nowMs = typeof opts.nowMs === 'number' && Number.isFinite(opts.nowMs) ? opts.nowMs : Date.now();
   const levels = opts.levels ?? LEVELS_2D;
   const lookup = opts.lookupLevel ?? getLevelById;
   const warn = opts.warn ?? ((msg: string): void => console.warn(msg));
@@ -266,7 +266,7 @@ export function resolveQueryRun2D(
     runConfig = { endless: false, challenges: challengesReq, daily: null };
   }
 
-  const workshop = applySaveModifiers ? progress.workshop : {};
+  const workshop = applySaveModifiers ? (progress.workshop ?? {}) : {};
   const hasWorkshop = Object.keys(workshop).length > 0;
   const modifiers =
     !hasWorkshop && runConfig.challenges.length === 0

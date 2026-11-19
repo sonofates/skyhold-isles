@@ -412,6 +412,99 @@ describe('EventBus re-entrancy & SoldierSystem towerFireRateMul', () => {
     });
     bus.emit('gameLost', { waveIndex: 0 });
     expect(clearOrder).toEqual(['L1']);
+
+    // Mid-emit on() subscription never fires during the already-in-flight emit.
+    const addOrder: string[] = [];
+    bus.on('waveStarted', () => {
+      addOrder.push('W1');
+      bus.on('waveStarted', () => {
+        addOrder.push('W2-late');
+      });
+    });
+    bus.emit('waveStarted', { waveIndex: 0, totalWaves: 5, earlyBonus: 0 });
+    expect(addOrder).toEqual(['W1']);
+    bus.emit('waveStarted', { waveIndex: 1, totalWaves: 5, earlyBonus: 0 });
+    expect(addOrder).toEqual(['W1', 'W1', 'W2-late']);
+  });
+
+  it('settles fighting barracks soldiers on story victory, normalizes replay hero/seed, zeroes seek alpha, and auto-aims Overhaul onto stunned towers & beacons', () => {
+    // 1. Barracks soldiers holding the last enemy reset out of 'fighting' immediately on story win.
+    const world = new SimWorld(LEVEL_L1C, new EventBus(), {
+      heroId: 'tobb',
+      heroLevel: 99.8,
+      heroSkills: defaultLevel20Skills('tobb'),
+      seed: NaN,
+      recordCommands: true,
+    });
+    expect(world.heroConfig?.level).toBe(20);
+    expect(world.hero?.level).toBe(20);
+    expect(Number.isFinite(world.seed) && world.seed > 0).toBe(true);
+
+    world.gold = 5000;
+    const barracks = world.placeTowerOnPlot(21, 'barracks')!;
+    expect(barracks).not.toBeNull();
+    world.startNextWave();
+    const foe = world.enemySystem.spawnEnemy('brute', 2, false, 0)!;
+    const bState = world.soldierSystem.getBarracks(barracks.id)!;
+    foe.x = foe.prevX = bState.rallyX;
+    foe.z = foe.prevZ = bState.rallyZ;
+    world.spatialHash.clear();
+    world.spatialHash.insert(foe.poolIndex, foe.x, foe.z);
+    for (
+      let i = 0;
+      i < 240 && !world.soldierSystem.soldiers.some((s) => s.state === 'fighting');
+      i++
+    ) {
+      world.soldierSystem.update(BALANCE.fixedDt, world.towers, 1);
+    }
+    expect(world.soldierSystem.soldiers.some((s) => s.state === 'fighting')).toBe(true);
+
+    world.debugForceWin();
+    expect(world.outcome).toBe('won');
+    expect(world.soldierSystem.blockedCount).toBe(0);
+    expect(world.soldierSystem.soldiers.every((s) => s.state !== 'fighting' && s.state !== 'engaging')).toBe(true);
+
+    // 2. SimReplayPlayer stateful speed/pause helpers & seekToTick zeroing fractional alpha on forward seek.
+    const ongoingWorld = new SimWorld(LEVEL_L1C, new EventBus(), { seed: 314, recordCommands: true });
+    ongoingWorld.placeTowerOnPlot(11, 'archer');
+    ongoingWorld.startNextWave();
+    for (let t = 0; t < 180; t++) ongoingWorld.fixedTick(BALANCE.fixedDt);
+    const replay = parseSimReplay(serializeSimReplay(ongoingWorld.exportReplay()))!;
+    const player = new SimReplayPlayer(LEVEL_L1C, replay);
+    expect(player.cycleSpeed()).toBe(2);
+    expect(player.cycleSpeed()).toBe(3);
+    expect(player.cycleSpeed()).toBe(4);
+    expect(player.cycleSpeed()).toBe(1);
+    expect(player.setSpeed(2)).toBe(2);
+    // Feed half a tick at 1x so accumulator holds 0.5 * fixedDt (alpha ~ 0.5), then seek forward.
+    const halfStep = player.stepFrame(BALANCE.fixedDt * 0.5, 1, false);
+    expect(halfStep.alpha).toBeGreaterThan(0.4);
+    player.seekToTick(60);
+    expect(player.currentTick).toBe(60);
+    expect(player.stepFrame(0, 1, true).alpha).toBe(0);
+
+    // 3. Tobb Overhaul auto-aim cleanses a stunned Beacon (or stunned attack tower) while ignoring idle Beacons.
+    const tobbWorld = new SimWorld(LEVEL_L1C, new EventBus(), {
+      heroId: 'tobb',
+      heroLevel: 10,
+      seed: 123,
+    });
+    tobbWorld.gold = 5000;
+    const idleBeacon = tobbWorld.placeTowerOnPlot(20, 'beacon')!;
+    const farArcher = tobbWorld.placeTowerOnPlot(21, 'archer')!;
+    tobbWorld.hero!.x = tobbWorld.hero!.postX = idleBeacon.x;
+    tobbWorld.hero!.z = tobbWorld.hero!.postZ = idleBeacon.z;
+    // Un-stunned Beacon is skipped so Overhaul surges the nearby Archer instead.
+    expect(tobbWorld.castHeroSkill(1)).toBe(true);
+    expect(farArcher.overhaulTimer).toBeGreaterThan(0);
+    expect(idleBeacon.overhaulTimer ?? 0).toBe(0);
+
+    // When the Beacon IS stunned by a Hexer/Boss, targetless Overhaul prioritizes cleansing it!
+    tobbWorld.hero!.skillCooldowns[1] = 0;
+    farArcher.overhaulTimer = 0;
+    idleBeacon.stunTimer = 3.5;
+    expect(tobbWorld.castHeroSkill(1)).toBe(true);
+    expect(idleBeacon.stunTimer).toBe(0);
   });
 
   it('applies RunModifiers.towerFireRateMul.barracks to barracks soldier melee swing cadence', () => {

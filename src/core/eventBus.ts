@@ -350,20 +350,22 @@ export class EventBus {
   muted = false;
 
   on<K extends keyof GameEventMap>(event: K, listener: Listener<GameEventMap[K]>): () => void {
-    let list = this.listeners[event];
-    if (!list) {
-      list = [];
-      this.listeners[event] = list;
+    const map = this.listeners as Record<K, Array<Listener<GameEventMap[K]>> | undefined>;
+    const curList = map[event];
+    if (!curList) {
+      map[event] = [listener];
+    } else if (this.emitDepth > 0) {
+      map[event] = [...curList, listener];
+    } else {
+      curList.push(listener);
     }
-    list.push(listener);
     return () => {
-      const cur = this.listeners[event];
+      const cur = map[event];
       if (!cur) return;
       const idx = cur.indexOf(listener);
       if (idx === -1) return;
       if (this.emitDepth > 0) {
-        (this.listeners as Record<K, Array<Listener<GameEventMap[K]>> | undefined>)[event] =
-          cur.filter((_, k) => k !== idx);
+        map[event] = cur.filter((_, k) => k !== idx);
       } else {
         cur.splice(idx, 1);
       }
@@ -374,9 +376,10 @@ export class EventBus {
     if (this.muted) return;
     const list = this.listeners[event];
     if (!list || list.length === 0) return;
+    const len = list.length;
     this.emitDepth++;
     try {
-      for (let i = 0; i < list.length; i++) {
+      for (let i = 0; i < len; i++) {
         const fn = list[i];
         const cur = this.listeners[event];
         if (cur !== list && (!cur || !cur.includes(fn))) continue;
