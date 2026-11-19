@@ -649,24 +649,7 @@
   border-bottom: 0.12em solid #f2b33d;
 }
 
-/* The frontier ship sails just outside the island and its earned stars. */
-.pu-node-flag {
-  position: absolute;
-  right: -16%;
-  bottom: 49%;
-  width: 40%;
-  height: auto;
-  pointer-events: none;
-  transform-origin: 30% 95%;
-  animation: pu-flag 2.6s ease-in-out infinite;
-  filter: drop-shadow(0 2px 1px rgba(30, 16, 4, 0.45));
-}
-
-@keyframes pu-flag {
-  50% {
-    transform: rotate(-5deg);
-  }
-}
+/* The frontier ship sails just outside the island and its earned stars: .pu-ship in seaLife.css. */
 
 .pu-node-crown {
   position: absolute;

@@ -1,0 +1,211 @@
+/* The living sea under the world map (seaLife.ts). Root classes on .pu-map:
+   sea-live   the WebGL water is drawing (else the CSS painting on .pu-map-world shows, still)
+   sea-anim   motion allowed (not Settings → Reduced motion)   sea-still  reduced motion
+   sea-lite   low tier                                          sea-paused tab hidden
+   sea-bob / sea-bob-frontier  which island medallions bob */
+
+.pu-sea {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  pointer-events: none;
+  contain: strict;
+}
+
+.pu-sea > canvas {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* The water fades in over the identical CSS painting once its first frame is drawn. */
+.pu-sea-water {
+  opacity: 0;
+  transition: opacity 0.9s ease;
+}
+
+.pu-map.sea-live .pu-sea-water {
+  opacity: 1;
+}
+
+.pu-map.sea-paused * {
+  animation-play-state: paused !important;
+}
+
+/* ---- island medallions: a slow bob, each island on its own phase (--bob) -------------------- */
+
+.pu-map.sea-bob .pu-node .pu-medal,
+.pu-map.sea-bob-frontier .pu-node.frontier .pu-medal {
+  animation: pu-medal-bob 6.2s ease-in-out var(--bob, 0s) infinite;
+}
+
+@keyframes pu-medal-bob {
+  0%,
+  100% {
+    translate: 0 0;
+    rotate: -0.5deg;
+  }
+  50% {
+    translate: 0 calc(var(--d) * -0.018);
+    rotate: 0.5deg;
+  }
+}
+
+/* ---- the frontier island's ripple ring -------------------------------------------------------- */
+
+.pu-node-ripple {
+  position: absolute;
+  left: 50%;
+  top: 54%;
+  width: 172%;
+  height: 142%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.pu-node-ripple > i {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: max(2px, calc(var(--d) * 0.016)) solid rgba(236, 248, 242, 0.8);
+  opacity: 0;
+  background-repeat: no-repeat;
+}
+
+.pu-map.sea-anim .pu-node-ripple > i {
+  animation: pu-ripple 4.4s ease-out infinite;
+}
+
+.pu-map.sea-anim .pu-node-ripple > i + i {
+  animation-delay: -2.2s;
+}
+
+@keyframes pu-ripple {
+  0% {
+    transform: scale(0.8);
+    opacity: 0;
+  }
+  18% {
+    opacity: 0.75;
+  }
+  100% {
+    transform: scale(1.18);
+    opacity: 0;
+  }
+}
+
+/* Painted ripple: one image scaled and faded like the stand-in ring, or a strip played by seaLife.ts. */
+.pu-node-ripple.painted > i {
+  border: 0;
+  border-radius: 0;
+}
+
+.pu-node-ripple.painted.strip > i {
+  opacity: 0.85;
+  animation: none !important;
+}
+
+.pu-node-ripple.painted.strip > i + i {
+  display: none;
+}
+
+.pu-map.sea-still .pu-node-ripple {
+  display: none;
+}
+
+/* ---- the frontier ship: bobs and rocks; its pennant flutters, its sail breathes ---------------- */
+
+.pu-ship {
+  position: absolute;
+  right: -16%;
+  bottom: 49%;
+  width: 40%;
+  aspect-ratio: 1;
+  pointer-events: none;
+  transform-origin: 50% 90%;
+  filter: drop-shadow(0 2px 1px rgba(30, 16, 4, 0.45));
+}
+
+.pu-ship > img,
+.pu-ship > span {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  background-repeat: no-repeat;
+}
+
+/* The hull painting with a hole where the pennant is (the pennant is its own fluttering copy). */
+.pu-ship-hull {
+  clip-path: polygon(evenodd, 0 0, 100% 0, 100% 100%, 0 100%, 0 0, 28% 5%, 48.8% 5%, 48.8% 20%, 28% 20%, 28% 5%);
+}
+
+.pu-ship-pennant {
+  clip-path: inset(5% 51.2% 80% 28%);
+  transform-origin: 49% 12.5%;
+}
+
+/* The sail's copy only ever grows from the mast and the yard, so the painting under it never peeks. */
+.pu-ship-sail {
+  clip-path: inset(25.5% 27% 35% 33%);
+  transform-origin: 52% 25.5%;
+}
+
+.pu-map.sea-anim .pu-ship {
+  animation: pu-ship-bob 3.8s ease-in-out infinite;
+}
+
+.pu-map.sea-anim .pu-ship-pennant {
+  animation: pu-pennant 0.95s ease-in-out infinite;
+}
+
+.pu-map.sea-anim:not(.sea-lite) .pu-ship-sail {
+  animation: pu-sail 3.3s ease-in-out infinite;
+}
+
+/* A painted sail strip replaces both copies (its frames are the whole ship's box). */
+.pu-ship.painted-sail .pu-ship-sail,
+.pu-ship.painted-sail .pu-ship-pennant {
+  display: none;
+}
+
+.pu-ship.painted-sail .pu-ship-hull {
+  clip-path: none;
+}
+
+@keyframes pu-ship-bob {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-2deg);
+  }
+  50% {
+    transform: translateY(-4%) rotate(2.5deg);
+  }
+}
+
+@keyframes pu-pennant {
+  0%,
+  100% {
+    transform: scaleX(1) skewY(0deg);
+  }
+  35% {
+    transform: scaleX(0.9) skewY(-6deg);
+  }
+  70% {
+    transform: scaleX(1.04) skewY(4deg);
+  }
+}
+
+@keyframes pu-sail {
+  0%,
+  100% {
+    transform: scale(1, 1);
+  }
+  50% {
+    transform: scale(1.035, 1.03);
+  }
+}
