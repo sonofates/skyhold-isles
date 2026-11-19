@@ -30,7 +30,7 @@ export interface DifficultyDef {
 export const DIFFICULTIES: Readonly<Record<DifficultyId, DifficultyDef>> = {
   easy: {
     id: 'easy',
-    patch: { enemyHpMul: 0.75, enemySpeedMul: 0.92, startGoldMul: 1.25, bonusLives: 5 },
+    patch: { enemyHpMul: 0.65, enemySpeedMul: 0.92, startGoldMul: 1.25, bonusLives: 5 },
     maxStars: 1,
     allowsChallenges: false,
   },
@@ -42,7 +42,11 @@ export const DIFFICULTIES: Readonly<Record<DifficultyId, DifficultyDef>> = {
   },
   hard: {
     id: 'hard',
-    patch: { enemyHpMul: 1.1, startGoldMul: 0.9, heroRespawnMul: 1.25 },
+    patch: {
+      enemyHpMul: 1.09,
+      startGoldMul: 0.87, startGoldBonus: -250, killGoldMul: 1.3,
+      abilityCooldownMul: 1.25, heroRespawnMul: 1.25,
+    },
     maxStars: 3,
     allowsChallenges: true,
   },

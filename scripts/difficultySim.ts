@@ -1,163 +1,146 @@
 /**
- * Difficulty pass (informational, NOT part of the sim:balance gate): every 2D island on Easy /
- * Normal / Hard (src/data/difficulty.ts patches on top of the island's own tuning) with a few
- * player kits, so the difficulty numbers can be re-checked whenever the islands are retuned.
- *
- * Kits (all use the island's greedy build script; `weak` uses its weak script):
- *   bare    no hero, no Workshop       (the sim:balance gate's reference run)
- *   bran1   the default hero (Bran) at level 1, default skills, scripted to hold the merge point
- *   bran10  Bran at level 10
- *   vet     Bran 10 + every Workshop upgrade at max (a veteran who picks Hard)
- *   weak    weak script, no hero        (a clumsy player — Easy should carry them further)
- *
- * Targets (docs/difficulty.md): Easy — bare greedy wins every island with lives to spare; Hard —
- * a kitted greedy player (bran10 / vet) wins most islands but loses lives doing it.
- *
- *   npm run sim:difficulty                         table + verdict over all 2D islands
- *   npm run sim:difficulty -- --levels=l1c,i05     a few islands
- *   npm run sim:difficulty -- --md                 markdown table (docs/difficulty.md)
- *   npm run sim:difficulty -- --sweep=hard --kit=bran10   candidate Hard patches
- *   npm run sim:difficulty -- --sweep=easy                candidate Easy patches
+ * npm run sim:difficulty                         full campaign verdict
+ * npm run sim:difficulty -- --md                 Markdown results table
+ * npm run sim:difficulty -- --levels=l1c,i24     selected islands with full entry progression
+ * npm run sim:difficulty -- --sweep=hard         probe nearby patches (--kit=campaign|weak|bare)
  */
-import { BALANCE } from '../src/data/balance.ts';
-import { DIFFICULTIES, DIFFICULTY_IDS, withDifficulty, type DifficultyId } from '../src/data/difficulty.ts';
+import { DIFFICULTIES, DIFFICULTY_IDS, starsAwarded, type DifficultyId } from '../src/data/difficulty.ts';
 import type { LevelDef } from '../src/data/levels/index.ts';
-import { LEVELS_2D } from '../src/data/levels2d/index.ts';
-import { combineRunModifiers, NEUTRAL_RUN_MODIFIERS, type RunModifierPatch, type RunModifiers } from '../src/data/runModifiers.ts';
-import { maxedWorkshopRanks, workshopModifiers } from '../src/data/workshop.ts';
-import { runLevelBalanceSim } from './balanceSim.ts';
-import { runHeroIslandSim } from './heroBalance.ts';
+import { LEVELS_2D, registeredChapterIslands } from '../src/data/levels2d/index.ts';
+import { combineRunModifiers, type RunModifierPatch } from '../src/data/runModifiers.ts';
+import { runLevelBalanceSim, type SimRunResult } from './balanceSim.ts';
+import { campaignKit, type CampaignKit } from './lib/campaignKit.ts';
 
-type Kit = 'bare' | 'bran1' | 'bran10' | 'vet' | 'weak';
-const KITS: readonly Kit[] = ['bare', 'bran1', 'bran10', 'vet', 'weak'];
+type Profile = 'campaign' | 'weak' | 'bare';
+const PROFILES: readonly Profile[] = ['campaign', 'weak', 'bare'];
 
-interface Cell {
-  readonly won: boolean;
-  readonly lost: number;
-  readonly start: number;
-  readonly wave: number;
-  readonly stars: number;
+function play(level: LevelDef, profile: Profile, kit: CampaignKit, patch: RunModifierPatch) {
+  const weak = profile === 'weak';
+  const loadout = profile === 'bare' ? combineRunModifiers(patch)
+    : { ...kit, modifiers: combineRunModifiers(kit.modifiers, patch) };
+  return runLevelBalanceSim(level, weak ? 'weak' : 'greedy',
+    (weak ? level.weakBuildOrder : level.scriptedBuildOrder) ?? [], loadout);
 }
 
-const WORKSHOP_MAX = workshopModifiers(maxedWorkshopRanks());
-
-/** One run of `level` with `kit` and the difficulty / candidate patch `extra` on top. */
-function run(level: LevelDef, kit: Kit, extra: RunModifierPatch | DifficultyId): Cell {
-  const base: RunModifiers = kit === 'vet' ? WORKSHOP_MAX : NEUTRAL_RUN_MODIFIERS;
-  const mods = typeof extra === 'string' ? withDifficulty(base, extra) : combineRunModifiers(base, extra);
-  const start = mods.maxLives ?? BALANCE.startingLives + mods.bonusLives;
-  let won: boolean;
-  let lives: number;
-  let wave: number;
-  let stars: number;
-  if (kit === 'bare' || kit === 'weak') {
-    const r = runLevelBalanceSim(level, kit === 'bare' ? 'greedy' : 'weak', (kit === 'bare' ? level.scriptedBuildOrder : level.weakBuildOrder) ?? [], mods);
-    won = r.outcome === 'won';
-    lives = r.finalLives;
-    wave = r.waves.length;
-    stars = r.stars;
-  } else {
-    const r = runHeroIslandSim(level, 'greedy', 'bran', kit === 'bran1' ? 1 : 10, undefined, mods);
-    won = r.outcome === 'won';
-    lives = r.finalLives;
-    wave = r.wavesReached;
-    stars = r.stars;
-  }
-  return { won, lost: won ? start - lives : start, start, wave, stars: won ? stars : 0 };
+/** A fresh greedy clear earns the next island's hero XP and spendable Workshop stars. */
+function firstClears(levels: readonly LevelDef[], difficulty: 'normal' | 'easy', patch: RunModifierPatch) {
+  let xp = 0;
+  let stars = 0;
+  return levels.map(level => {
+    const kit = campaignKit(xp, stars);
+    const result = play(level, 'campaign', kit, patch);
+    xp += result.heroXp;
+    if (result.outcome === 'won') stars += starsAwarded(result.stars, difficulty);
+    return { kit, result };
+  });
 }
 
-const fmt = (c: Cell): string => (c.won ? `W ${String(c.start - c.lost).padStart(2)}/${c.start} ${c.stars}*` : `L @${c.wave}`);
+function fmt(r: SimRunResult, d: DifficultyId): string {
+  return r.outcome === 'won' ? `W ${r.finalLives}/${r.startingLives} ${starsAwarded(r.stars, d)}★` : `L @${r.waves.length}`;
+}
 
-function sweep(which: 'hard' | 'easy', kit: Kit, levels: readonly LevelDef[]): void {
-  const grid: RunModifierPatch[] = [];
-  if (which === 'hard') {
-    for (const hp of [1.1, 1.15, 1.2, 1.3])
-      for (const sp of [1, 1.04])
-        for (const gold of [0.9, 1])
-          for (const lives of [null, 15, 10]) grid.push({ enemyHpMul: hp, enemySpeedMul: sp, startGoldMul: gold, maxLives: lives, heroRespawnMul: 1.25 });
-  } else {
-    for (const hp of [0.75, 0.7, 0.65])
-      for (const gold of [1.25, 1.4])
-        for (const lives of [5, 10]) grid.push({ enemyHpMul: hp, enemySpeedMul: 0.92, startGoldMul: gold, bonusLives: lives });
-  }
-  console.log(`sweep ${which}, kit ${kit}, ${levels.length} islands`);
-  for (const patch of grid) {
-    let wins = 0;
-    let bleed = 0;
-    let lostSum = 0;
-    let minLeft = Infinity;
-    const lostOn: string[] = [];
-    for (const level of levels) {
-      const c = run(level, kit, patch);
-      lostSum += c.lost;
-      if (c.won) {
-        wins++;
-        if (c.lost > 0) bleed++;
-        minLeft = Math.min(minLeft, c.start - c.lost);
-      } else lostOn.push(level.id);
+function sweep(d: 'easy' | 'hard', profile: Profile, levels: readonly LevelDef[], selected: ReadonlySet<LevelDef>) {
+  const base = DIFFICULTIES[d].patch;
+  const normal = d === 'hard' ? firstClears(levels, 'normal', DIFFICULTIES.normal.patch) : null;
+  for (const deltaHp of [-0.02, 0, 0.02]) {
+    for (const deltaGold of [-0.05, 0, 0.05]) {
+      const patch = { ...base, enemyHpMul: (base.enemyHpMul ?? 1) + deltaHp, startGoldMul: (base.startGoldMul ?? 1) + deltaGold };
+      const entries = normal ?? firstClears(levels, 'easy', patch);
+      const cells = levels.flatMap((level, i) => {
+        if (!selected.has(level)) return [];
+        const { kit, result } = entries[i];
+        const r = d === 'easy' && profile === 'campaign' ? result : play(level, profile, kit, patch);
+        return [{ level, r }];
+      });
+      const wins = cells.filter(({ r }) => r.outcome === 'won');
+      console.log(`${d} ${profile} HP ×${patch.enemyHpMul.toFixed(2)} gold ×${patch.startGoldMul.toFixed(2)}`
+        + ` wins ${wins.length}/${cells.length} | ${cells.map(({ level, r }) => `${level.id} ${fmt(r, d)}`).join(' | ')}`);
     }
-    console.log(
-      `${JSON.stringify(patch).padEnd(110)} W ${String(wins).padStart(2)}/${levels.length} bleed ${String(bleed).padStart(2)} avgLost ${(lostSum / levels.length).toFixed(1).padStart(4)} minLeft ${minLeft === Infinity ? '-' : minLeft}  lostOn ${lostOn.join(',')}`,
-    );
   }
+}
+
+type Runs = Record<DifficultyId, Record<Profile, SimRunResult>>;
+interface Row { level: LevelDef; runs: Runs }
+
+function verdict(rows: Row[]): void {
+  const chapterTwo = new Set(registeredChapterIslands());
+  const one = rows.filter(r => !chapterTwo.has(r.level));
+  const two = rows.filter(r => chapterTwo.has(r.level));
+  const wins = (group: Row[], p: Profile, d: DifficultyId) => group.map(r => r.runs[d][p]).filter(r => r.outcome === 'won');
+  const easy = wins(rows, 'campaign', 'easy');
+  const comfortable = easy.filter(r => r.finalLives >= 12);
+  const weakEasy = wins(one, 'weak', 'easy');
+  const normal = wins(rows, 'campaign', 'normal');
+  const hardOne = wins(one, 'campaign', 'hard');
+  const hardTwo = wins(two, 'campaign', 'hard');
+  const hard = [...hardOne, ...hardTwo];
+  const narrow = hard.filter(r => r.finalLives < r.startingLives && r.stars <= 2);
+  const finale = rows.find(r => r.level.id === 'i24')?.runs.hard.campaign;
+  const weakHard = wins(rows, 'weak', 'hard');
+  function check(ok: boolean, label: string) {
+    console.log(`${ok ? 'PASS' : 'FAIL'}  ${label}`);
+    if (!ok) process.exitCode = 1;
+  }
+  check(easy.length === 25 && comfortable.length > rows.length / 2,
+    `Easy campaign clears all 25 islands, most with ≥12 lives: ${easy.length}/25 wins, ${comfortable.length}/25 with ≥12`);
+  check(weakEasy.length > one.length / 2, `Easy weak clears most of chapter one: ${weakEasy.length}/${one.length}`);
+  check(Object.keys(DIFFICULTIES.normal.patch).length === 0 && normal.length === rows.length,
+    `Normal uses the island tuning and clears the campaign: ${normal.length}/${rows.length}`);
+  check(hardOne.length > one.length / 2, `Hard campaign clears most of chapter one: ${hardOne.length}/${one.length}`);
+  check(Math.abs(hardTwo.length - two.length / 2) <= 1,
+    `Hard campaign clears about half of chapter two: ${hardTwo.length}/${two.length} (target 3–5)`);
+  check(hard.length > 0 && narrow.length === hard.length,
+    `Hard campaign loses lives and earns 1–2★ on every win: ${narrow.length}/${hard.length}`);
+  check(!!finale && finale.outcome === 'won' && finale.stars === 1 && finale.finalLives <= 5,
+    `Hard campaign clears i24 with 1★ and ≤5 lives: ${finale ? fmt(finale, 'hard') : 'missing'}`);
+  check(weakHard.length <= 3, `Hard weak loses almost everywhere: ${weakHard.length}/${rows.length} wins (at most 3)`);
 }
 
 function main(): void {
-  const argOf = (k: string): string | undefined => process.argv.find((a) => a.startsWith(`--${k}=`))?.slice(k.length + 3);
-  const levelArg = argOf('levels');
-  const filter = levelArg ? new Set(levelArg.split(',').map((s) => s.trim())) : null;
-  const levels = LEVELS_2D.filter((l) => !filter || filter.has(l.id));
-  const sweepArg = argOf('sweep');
+  const arg = (key: string) => process.argv.find(a => a.startsWith(`--${key}=`))?.slice(key.length + 3);
+  const ids = arg('levels')?.split(',').map(s => s.trim());
+  if (ids?.some(id => !LEVELS_2D.some(level => level.id === id))) throw new Error('Unknown island in --levels');
+  const selected = new Set(LEVELS_2D.filter(level => !ids || ids.includes(level.id)));
+  const levels = LEVELS_2D.slice(0, LEVELS_2D.findLastIndex(level => selected.has(level)) + 1);
+  const sweepArg = arg('sweep');
   if (sweepArg === 'hard' || sweepArg === 'easy') {
-    const kitArg = argOf('kit') as Kit | undefined;
-    sweep(sweepArg, kitArg && KITS.includes(kitArg) ? kitArg : 'bare', levels);
+    const profile = arg('kit') ?? 'campaign';
+    if (profile !== 'campaign' && profile !== 'weak' && profile !== 'bare') throw new Error('Unknown --kit');
+    sweep(sweepArg, profile, levels, selected);
     return;
   }
+
+  const normal = firstClears(levels, 'normal', DIFFICULTIES.normal.patch);
+  const easy = firstClears(levels, 'easy', DIFFICULTIES.easy.patch);
   const md = process.argv.includes('--md');
-  /** Columns: kit × difficulty. */
-  const COLS: readonly [Kit, DifficultyId][] = [
-    ['bare', 'easy'],
-    ['bare', 'normal'],
-    ['bare', 'hard'],
-    ['bran1', 'normal'],
-    ['bran1', 'hard'],
-    ['bran10', 'normal'],
-    ['bran10', 'hard'],
-    ['vet', 'normal'],
-    ['vet', 'hard'],
-    ['weak', 'easy'],
-    ['weak', 'normal'],
-  ];
-  const rows: { id: string; tier: string; cells: Cell[] }[] = [];
-  if (md) {
-    console.log(`| Island | Tier | ${COLS.map(([k, d]) => `${k} ${d}`).join(' | ')} |`);
-    console.log(`|---|---|${COLS.map(() => '---').join('|')}|`);
-  } else console.log(`island tier        ${COLS.map(([k, d]) => `${k} ${d}`.padEnd(13)).join(' ')}`);
-  for (const level of levels) {
-    const cells = COLS.map(([k, d]) => run(level, k, d));
-    rows.push({ id: level.id, tier: level.difficulty, cells });
-    if (md) console.log(`| ${level.id} | ${level.difficulty} | ${cells.map(fmt).join(' | ')} |`);
-    else console.log(`${level.id.padEnd(6)} ${level.difficulty.padEnd(11)} ${cells.map((c) => fmt(c).padEnd(13)).join(' ')}`);
+  const columns = PROFILES.flatMap(p => DIFFICULTY_IDS.map(d => ({ p, d })));
+  const line = (cells: string[]) => console.log(md ? `| ${cells.join(' | ')} |` : cells.map(s => s.padEnd(15)).join(' ').trimEnd());
+  line(['Island', ...columns.map(({ p, d }) => `${p} ${d}`)]);
+  if (md) line(['---', ...columns.map(() => '---')]);
+  const rows: Row[] = [];
+  for (const [i, level] of levels.entries()) {
+    if (!selected.has(level)) continue;
+    function compare(d: DifficultyId) {
+      const entry = d === 'easy' ? easy[i] : normal[i];
+      const patch = DIFFICULTIES[d].patch;
+      return {
+        campaign: d === 'hard' ? play(level, 'campaign', entry.kit, patch) : entry.result,
+        weak: play(level, 'weak', entry.kit, patch),
+        bare: play(level, 'bare', entry.kit, patch),
+      };
+    }
+    const runs = { easy: compare('easy'), normal: compare('normal'), hard: compare('hard') };
+    rows.push({ level, runs });
+    line([level.id, ...columns.map(({ p, d }) => fmt(runs[d][p], d))]);
   }
-  const n = rows.length;
   console.log('');
-  for (const d of DIFFICULTY_IDS) console.log(`${d.padEnd(6)} patch ${JSON.stringify(DIFFICULTIES[d].patch)}`);
+  for (const p of PROFILES) {
+    const totals = DIFFICULTY_IDS.map(d => `${d} ${rows.filter(row => row.runs[d][p].outcome === 'won').length}/${rows.length}`);
+    console.log(`${p} wins   ${totals.join('   ')}`);
+  }
   console.log('');
-  COLS.forEach(([k, d], ci) => {
-    const cs = rows.map((r) => r.cells[ci]);
-    const wins = cs.filter((c) => c.won);
-    const avgLost = cs.reduce((s, c) => s + c.lost, 0) / Math.max(1, n);
-    console.log(
-      `${`${k} ${d}`.padEnd(13)} wins ${String(wins.length).padStart(2)}/${n}  bleeding wins ${String(wins.filter((c) => c.lost > 0).length).padStart(2)}  flawless ${String(wins.filter((c) => c.lost === 0).length).padStart(2)}  avg lives lost ${avgLost.toFixed(1)}`,
-    );
-  });
-  const col = (k: Kit, d: DifficultyId): Cell[] => rows.map((r) => r.cells[COLS.findIndex(([a, b]) => a === k && b === d)]);
-  const easyOk = col('bare', 'easy').every((c) => c.won && c.start - c.lost >= 15);
-  const hard = col('bran10', 'hard');
-  const vet = col('vet', 'hard');
-  console.log('');
-  console.log(`Easy: bare greedy wins every island with >= 15 lives left: ${easyOk ? 'yes' : 'NO'}`);
-  console.log(`Hard: bran10 greedy wins ${hard.filter((c) => c.won).length}/${n} (losing lives on ${hard.filter((c) => c.won && c.lost > 0).length}); vet wins ${vet.filter((c) => c.won).length}/${n} (losing lives on ${vet.filter((c) => c.won && c.lost > 0).length})`);
+  if (selected.size === LEVELS_2D.length) verdict(rows);
+  else console.log('Campaign verdict requires all islands.');
 }
 
 main();
