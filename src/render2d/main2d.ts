@@ -102,6 +102,8 @@ declare global {
       waveCard?: () => Record<string, unknown> | null;
       /** QA: every HUD piece as drawn (screen px) and what playable shape each one covers (must be none). */
       hudCheck?: () => import('./hudCheck.ts').HudCheck;
+      /** QA: what fills the letterbox bands (blurred backdrop, shadow, vignette, border). */
+      mapFrame?: () => ReturnType<import('./mapView.ts').MapView['frameInfo']>;
       /** QA: the caves / castle fronts on screen (`castle` = the goal). */
       gates?: () => { x: number; y: number; w: number; h: number; castle: boolean }[];
       lives?: () => Record<string, unknown> | null;
@@ -961,6 +963,7 @@ async function main(): Promise<void> {
     abilities: () => abilities?.debug() ?? null,
     waveCard: () => waveCard?.debug() ?? null,
     hudCheck: () => hudCheck(game),
+    mapFrame: () => game.map.frameInfo(),
     gates: () => gateRectsRef?.() ?? [],
     lives: () => livesWarn?.debug() ?? null,
     foe: () => foeCard?.debug() ?? null,
