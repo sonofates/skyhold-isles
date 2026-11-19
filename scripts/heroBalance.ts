@@ -6,6 +6,7 @@ import {
   defaultSkillsForLevel,
   HERO_DEFS,
   HERO_IDS,
+  HERO_RULES,
   resolveHeroStats,
 } from '../src/data/heroes.ts';
 import type { LevelDef, ScriptedBuildAction } from '../src/data/levels/index.ts';
@@ -73,14 +74,18 @@ function pickEnemyInReach(world: SimWorld, cx: number, cz: number, range: number
 
 /**
  * Simple scripted hero AI:
- * - Walks to the road merge point at run start (and after respawning at the castle).
+ * - Walks to the road merge point at run start (and returns once idle if a contested respawn stepped back).
  * - Casts both active skills on cooldown whenever a valid target / combat trigger is in range.
  */
 export function driveScriptedHero(world: SimWorld, mergeX: number, mergeZ: number): void {
   const h = world.hero;
   if (!h || h.state === 'dead') return;
 
-  if (h.state !== 'moving' && Math.hypot(h.postX - mergeX, h.postZ - mergeZ) > 0.25) {
+  if (
+    h.state === 'idle' &&
+    h.invulnTimer <= 0 &&
+    Math.hypot(h.postX - mergeX, h.postZ - mergeZ) > 0.25
+  ) {
     world.commandHeroMove(mergeX, mergeZ);
   }
 
@@ -167,8 +172,14 @@ export function runHeroIslandSim(
   events.on('heroDied', () => {
     deaths++;
   });
-  events.on('heroRespawn', () => {
-    world.commandHeroMove(merge.x, merge.z);
+  events.on('heroRespawn', (ev) => {
+    const c = world.heroSystem.groundGraph.clampToGround(ev.x, ev.z, Infinity);
+    const offRoad = Math.hypot(ev.x - c.roadX, ev.z - c.roadZ);
+    if (!Number.isFinite(offRoad) || offRoad > HERO_RULES.maxOffRoadDist + 0.08) {
+      throw new Error(
+        `heroRespawn (${ev.heroId}) off walkable road graph on ${level.id}: offRoad=${offRoad.toFixed(3)} at (${ev.x.toFixed(2)}, ${ev.z.toFixed(2)})`,
+      );
+    }
   });
 
   if (world.hero) {

@@ -243,11 +243,15 @@ export function hashWorldState(world: SimWorld): string {
     h.f64(hero.x);
     h.f64(hero.z);
     h.f64(hero.yaw);
+    h.bool(hero.hasRallyPoint);
+    h.f64(hero.rallyX);
+    h.f64(hero.rallyZ);
     h.f64(hero.postX);
     h.f64(hero.postZ);
     h.f64(hero.hp);
     h.f64(hero.maxHp);
     h.f64(hero.respawnTimer);
+    h.f64(hero.invulnTimer);
     h.f64(hero.attackTimer);
     h.f64(hero.sinceHurt);
     h.i32(hero.shotCount);

@@ -65,14 +65,8 @@ function executeOnce(
   events.on('waveCompleted', () => {
     waveHashes.push(hashWorldState(world));
   });
-  events.on('heroRespawn', () => {
-    if (!world.hero) return;
-    const mode = scenario.heroPark === 'roam' ? 'merge' : scenario.heroPark;
-    const post = computeHeroPost(world, mode);
-    world.commandHeroMove(post.x, post.z);
-  });
 
-  if (world.hero) {
+  if (world.hero && scenario.heroPark !== 'castle') {
     const initialMode = scenario.heroPark === 'roam' ? 'front' : scenario.heroPark;
     const post = computeHeroPost(world, initialMode);
     world.commandHeroMove(post.x, post.z);

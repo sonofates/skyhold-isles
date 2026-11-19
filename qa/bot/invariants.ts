@@ -328,6 +328,23 @@ export class InvariantMonitor {
       this.assertFinite(ev.x, 'event.heroRespawn.x');
       this.assertFinite(ev.z, 'event.heroRespawn.z');
       this.assertFinite(ev.hp, 'event.heroRespawn.hp');
+      const c = this.world.heroSystem.groundGraph.clampToGround(ev.x, ev.z, Infinity);
+      const offRoad = Math.hypot(ev.x - c.roadX, ev.z - c.roadZ);
+      if (offRoad > HERO_RULES.maxOffRoadDist + 0.08) {
+        this.record(
+          'hero_walkable_graph',
+          this.currentTick,
+          `heroRespawn (${ev.heroId}) landed off walkable road graph: offRoad=${offRoad.toFixed(3)}u > maxOffRoadDist=${HERO_RULES.maxOffRoadDist}u at (${ev.x.toFixed(2)}, ${ev.z.toFixed(2)})`,
+        );
+      }
+      const h = this.world.hero;
+      if (h && (Math.hypot(h.x - ev.x, h.z - ev.z) > 1e-6 || !(h.invulnTimer > 0))) {
+        this.record(
+          'hero_walkable_graph',
+          this.currentTick,
+          `heroRespawn (${ev.heroId}) mismatched hero state: ev=(${ev.x.toFixed(2)},${ev.z.toFixed(2)}) hero=(${h.x.toFixed(2)},${h.z.toFixed(2)}) invulnTimer=${h.invulnTimer}`,
+        );
+      }
     });
 
     events.on('heroMoved', (ev) => {
@@ -347,6 +364,13 @@ export class InvariantMonitor {
     events.on('heroHit', (ev) => {
       this.assertFinite(ev.damage, 'event.heroHit.damage');
       this.assertFinite(ev.hp, 'event.heroHit.hp');
+      if (this.world.hero && this.world.hero.invulnTimer > 0) {
+        this.record(
+          'entity_leak',
+          this.currentTick,
+          `heroHit emitted while hero invulnTimer=${this.world.hero.invulnTimer.toFixed(3)}s > 0`,
+        );
+      }
       const hs = this.world.getHeroState();
       if (hs && ev.hp <= 0 && (hs.alive || hs.state !== 'dead' || hs.respawnRemaining <= 0)) {
         this.record(
@@ -666,9 +690,12 @@ export class InvariantMonitor {
       this.assertFinite(h.yaw, 'hero.yaw');
       this.assertFinite(h.postX, 'hero.postX');
       this.assertFinite(h.postZ, 'hero.postZ');
+      this.assertFinite(h.rallyX, 'hero.rallyX');
+      this.assertFinite(h.rallyZ, 'hero.rallyZ');
       this.assertFinite(h.hp, 'hero.hp');
       this.assertFinite(h.maxHp, 'hero.maxHp');
       this.assertFinite(h.respawnTimer, 'hero.respawnTimer');
+      this.assertFinite(h.invulnTimer, 'hero.invulnTimer');
       this.assertFinite(h.attackTimer, 'hero.attackTimer');
       this.assertFinite(h.skillCooldowns[0], 'hero.skillCooldowns[0]');
       this.assertFinite(h.skillCooldowns[1], 'hero.skillCooldowns[1]');
