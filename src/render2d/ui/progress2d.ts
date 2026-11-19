@@ -477,9 +477,19 @@ export function importSaveCode2D(
 ): ImportSaveCode2DResult {
   const res = decodeSaveCode2D(code, levels);
   if (!res.ok) return res;
+  let incoming = res.progress;
+  if (res.levelIds && res.levelIds.length > 0 && incoming.heroes) {
+    // Preserve the pre-remap selectedHero candidate so mergeProgress evaluates unlock milestones
+    // against the combined (local + imported) cleared islands rather than the remapped slice alone.
+    const rawSized = decodeSaveCode(code, res.levelIds.length);
+    const rawSelected = rawSized.ok ? rawSized.progress.heroes?.selectedHero : undefined;
+    if (rawSelected && rawSelected !== incoming.heroes.selectedHero) {
+      incoming = { ...incoming, heroes: { ...incoming.heroes, selectedHero: rawSelected } };
+    }
+  }
   const ls = storage();
   const current = loadProgress2D(levels);
-  const merged = mergeProgress(current, res.progress, levels.length);
+  const merged = mergeProgress(current, incoming, levels.length);
   merged.heroes = migrateHeroSave(merged.heroes, merged, levels);
   try {
     const raw = ls?.getItem(PROGRESS_2D_KEY);

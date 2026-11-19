@@ -161,13 +161,19 @@ export class GroundGraph {
     out.lane = bestLane;
     out.dist = bestDist;
 
+    const safeMaxOff =
+      maxOffRoad === Infinity
+        ? Infinity
+        : Number.isFinite(maxOffRoad)
+          ? Math.max(0, maxOffRoad)
+          : HERO_RULES.maxOffRoadDist;
     const offset = Math.sqrt(bestSq);
-    if (!Number.isFinite(offset) || offset <= maxOffRoad || offset < 1e-9) {
+    if (!Number.isFinite(offset) || offset <= safeMaxOff || offset < 1e-9) {
       out.x = wantX;
       out.z = wantZ;
       return out;
     }
-    const scale = maxOffRoad / offset;
+    const scale = safeMaxOff / offset;
     out.x = bestRoadX + (wantX - bestRoadX) * scale;
     out.z = bestRoadZ + (wantZ - bestRoadZ) * scale;
     return out;

@@ -712,13 +712,17 @@ export class SimReplayPlayer {
       this.flushCommandsForCurrentTick();
       if (this.world.tick >= this.totalTicks && this.cmdIndex >= this.replay.commands.length) break;
       if (this.world.outcome !== 'ongoing') {
-        if (
-          this.world.outcome === 'won' &&
-          this.cmdIndex < this.replay.commands.length &&
-          this.replay.commands[this.cmdIndex].command.kind === 'enterEndless'
-        ) {
-          const resumed = this.world.applyCommand(this.replay.commands[this.cmdIndex].command);
-          this.cmdIndex++;
+        if (this.world.outcome === 'won' && !this.finished) {
+          let resumed = false;
+          while (this.cmdIndex < this.replay.commands.length) {
+            const cmd = this.replay.commands[this.cmdIndex].command;
+            this.cmdIndex++;
+            const applied = this.world.applyCommand(cmd);
+            if (cmd.kind === 'enterEndless') {
+              resumed = applied;
+              break;
+            }
+          }
           if (!resumed) break;
         } else {
           break;

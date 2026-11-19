@@ -589,4 +589,133 @@ describe('EventBus re-entrancy & SoldierSystem towerFireRateMul', () => {
     expect(player.world.waveSystem.currentWaveOneBased).toBe(2);
     expect(player.finished).toBe(true);
   });
+
+  it('clears burn zones, co-held blockers, and hero aura buffs on defeat/hero-death, and replays pre-endless setAutoWave', () => {
+    // 1. Co-held enemy (Bran + Barracks soldier) + Mortar T3 burn zone on defeat:
+    //    enemyBlocked / enemyUnblocked remain 1-to-1, burn zones clear, and no stale blockers remain.
+    const events = new EventBus();
+    let blockedCount = 0;
+    let unblockedCount = 0;
+    events.on('enemyBlocked', () => void blockedCount++);
+    events.on('enemyUnblocked', () => void unblockedCount++);
+
+    const defeatWorld = new SimWorld(LEVEL_L1C, events, {
+      heroId: 'bran',
+      heroLevel: 20,
+      heroSkills: defaultLevel20Skills('bran'),
+      seed: 2026,
+      recordCommands: true,
+    });
+    defeatWorld.gold = 9000;
+    const barracks = defeatWorld.placeTowerOnPlot(21, 'barracks')!;
+    const mortar = defeatWorld.placeTowerOnPlot(0, 'mortar')!;
+    defeatWorld.upgradeTower(mortar.id);
+    defeatWorld.upgradeTower(mortar.id);
+    defeatWorld.startNextWave();
+
+    const bState = defeatWorld.soldierSystem.getBarracks(barracks.id)!;
+    defeatWorld.hero!.x = defeatWorld.hero!.postX = bState.rallyX;
+    defeatWorld.hero!.z = defeatWorld.hero!.postZ = bState.rallyZ;
+
+    const heldFoe = defeatWorld.enemySystem.spawnEnemy('brute', 100, false, 0)!;
+    heldFoe.dist = defeatWorld.groundPath.nearestDist(bState.rallyX, bState.rallyZ);
+    heldFoe.x = heldFoe.prevX = bState.rallyX;
+    heldFoe.z = heldFoe.prevZ = bState.rallyZ;
+    defeatWorld.spatialHash.clear();
+    defeatWorld.spatialHash.insert(heldFoe.poolIndex, heldFoe.x, heldFoe.z);
+
+    // Spawn a Mortar T3 shell and resolve impact to create an active ground burn zone.
+    const shell = defeatWorld.projectileSystem.spawnProjectile(mortar, heldFoe, 0.55)!;
+    shell.progress = 1;
+    defeatWorld.projectileSystem.update(BALANCE.fixedDt, defeatWorld.towers);
+    expect(defeatWorld.projectileSystem.getActiveBurnZoneCount()).toBeGreaterThan(0);
+
+    for (let i = 0; i < 240 && (heldFoe.blockers === 0 || heldFoe.heroBlockers === 0); i++) {
+      defeatWorld.soldierSystem.update(BALANCE.fixedDt, defeatWorld.towers, 1);
+      defeatWorld.heroSystem.update(BALANCE.fixedDt, defeatWorld.towers, 1);
+    }
+    expect(heldFoe.blockers).toBeGreaterThan(0);
+    expect(heldFoe.heroBlockers).toBeGreaterThan(0);
+    expect(blockedCount).toBe(1);
+    expect(unblockedCount).toBe(0);
+
+    const cmdsBeforeLose = defeatWorld.getRecordedCommands().length;
+    defeatWorld.debugForceLose();
+    expect(defeatWorld.outcome).toBe('lost');
+    expect(defeatWorld.projectileSystem.getActiveBurnZoneCount()).toBe(0);
+    expect(defeatWorld.soldierSystem.blockedCount).toBe(0);
+    expect(defeatWorld.soldierSystem.soldiers.every((s) => s.state !== 'fighting' && s.state !== 'engaging')).toBe(true);
+    expect(heldFoe.blockers).toBe(0);
+    expect(heldFoe.heroBlockers).toBe(0);
+    expect(unblockedCount).toBe(1);
+
+    // Post-defeat setAutoWave is ignored and never appends dead commands to commandLog.
+    defeatWorld.setAutoWave(true);
+    expect(defeatWorld.getRecordedCommands().length).toBe(cmdsBeforeLose);
+
+    // 2. Hero death immediately zeroes Tobb Tinker tower bonuses and soldier Rally/Calm buffs on the same tick.
+    const tobbWorld = new SimWorld(LEVEL_L1C, new EventBus(), {
+      heroId: 'tobb',
+      heroLevel: 20,
+      heroSkills: defaultLevel20Skills('tobb'),
+      seed: 303,
+    });
+    tobbWorld.gold = 5000;
+    const archer = tobbWorld.placeTowerOnPlot(21, 'archer')!;
+    tobbWorld.hero!.x = tobbWorld.hero!.postX = archer.x;
+    tobbWorld.hero!.z = tobbWorld.hero!.postZ = archer.z;
+    tobbWorld.startNextWave();
+    tobbWorld.heroSystem.update(BALANCE.fixedDt, tobbWorld.towers, 1);
+    expect(archer.heroRateBonus).toBeGreaterThan(0);
+    expect(archer.heroRangeBonus).toBeGreaterThan(0);
+
+    // Put Tobb at 1 HP in melee reach of a Brute and run heroSystem.update until Tobb falls.
+    tobbWorld.hero!.hp = 1;
+    const killer = tobbWorld.enemySystem.spawnEnemy('brute', 5, false, 0)!;
+    killer.x = killer.prevX = tobbWorld.hero!.x;
+    killer.z = killer.prevZ = tobbWorld.hero!.z;
+    tobbWorld.spatialHash.clear();
+    tobbWorld.spatialHash.insert(killer.poolIndex, killer.x, killer.z);
+    for (let i = 0; i < 90 && tobbWorld.hero!.state !== 'dead'; i++) {
+      tobbWorld.heroSystem.update(BALANCE.fixedDt, tobbWorld.towers, 1);
+    }
+    expect(tobbWorld.hero!.state).toBe('dead');
+    expect(archer.heroRateBonus).toBe(0);
+    expect(archer.heroRangeBonus).toBe(0);
+
+    // 3. Forced mid-wave win clears enemyPool so enterEndlessMode starts clean, and SimReplayPlayer
+    //    flushes pre-endless setAutoWave commands before delayed enterEndless.
+    const midWaveWin = new SimWorld(LEVEL_L1C, new EventBus(), { seed: 44 });
+    midWaveWin.startNextWave();
+    midWaveWin.enemySystem.spawnEnemy('grunt', 1, false, 0);
+    expect(midWaveWin.enemyPool.getActiveCount()).toBe(1);
+    midWaveWin.debugForceWin();
+    expect(midWaveWin.enemyPool.getActiveCount()).toBe(0);
+    expect(midWaveWin.enterEndlessMode()).toBe(true);
+
+    const miniWin = {
+      ...LEVEL_L1C,
+      id: 'mini-pre-endless-autowave',
+      waves: [{ groups: [{ enemyType: 'grunt' as const, count: 1, spawnInterval: 0.2, startDelay: 0 }], clearBonus: 20 }],
+    };
+    const baseWin = new SimWorld(miniWin, new EventBus(), { seed: 88, recordCommands: true });
+    baseWin.placeTowerOnPlot(0, 'archer');
+    baseWin.startNextWave();
+    while (baseWin.outcome === 'ongoing') baseWin.fixedTick(BALANCE.fixedDt);
+    const wTick = baseWin.tick;
+    const autoBeforeEndless = parseSimReplay({
+      ...baseWin.exportReplay(),
+      commands: [
+        ...baseWin.getRecordedCommands(),
+        { tick: wTick + 10, seq: 10, command: { kind: 'setAutoWave', enabled: true } },
+        { tick: wTick + 20, seq: 11, command: { kind: 'enterEndless' } },
+      ],
+      summary: { ...baseWin.exportReplay().summary, totalTicks: wTick + 90, outcome: 'ongoing' },
+    })!;
+    const player2 = new SimReplayPlayer(miniWin, autoBeforeEndless);
+    player2.runToEnd();
+    expect(player2.world.waveSystem.isEndless).toBe(true);
+    expect(player2.world.waveSystem.autoWave).toBe(true);
+    expect(player2.finished).toBe(true);
+  });
 });

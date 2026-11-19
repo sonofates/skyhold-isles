@@ -308,8 +308,7 @@ export class GameSession {
     const inPlayAndInside = this.viewMode === 'playing' && this.pointerInside;
     if (this.radialPreview && this.viewMode === 'playing') {
       const rp = this.radialPreview;
-      const cost = TOWER_DEFS[rp.type].tiers[0].upgradeCost;
-      const valid = this.simWorld.grid.canPlaceTower(rp.col, rp.row) && this.simWorld.gold >= cost;
+      const valid = this.simWorld.canPlaceTowerAt(rp.col, rp.row, rp.type);
       this.renderWorld.setPlacementPreview(
         true,
         rp.type,
@@ -889,6 +888,7 @@ export class GameSession {
     const cleared = (this.progress.clears[this.currentLevelIndex] ?? 0) > 0;
     this.runConfig = resolveRunConfig(level, cleared, config);
     this.clearTransientPlayState();
+    this.simWorld.dispose();
     this.events.clear();
     this.events = new EventBus();
     this.simWorld = new SimWorld(level, this.events, this.buildRunModifiers(this.runConfig.challenges));

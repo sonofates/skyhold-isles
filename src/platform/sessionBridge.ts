@@ -7,7 +7,6 @@ import { applyEndlessRecord, applyWin, type WinRecord } from '../game/progressio
 import { BALANCE } from '../data/balance.ts';
 import { ENEMY_DEFS } from '../data/enemies.ts';
 import { LEVELS } from '../data/levels/index.ts';
-import { getTowerTierStats } from '../data/towers.ts';
 import type { RenderWorld } from '../render/renderWorld.ts';
 import { getTowerPickHeight } from '../render/towerPicking.ts';
 import type { SimWorld } from '../sim/world.ts';
@@ -234,8 +233,7 @@ export function updatePlacementPreviewFromNdc(
   }
   const wx = simWorld.grid.gridToWorldX(coord.col);
   const wz = simWorld.grid.gridToWorldZ(coord.row);
-  const cost = getTowerTierStats(placementType, 1).upgradeCost;
-  const valid = simWorld.grid.canPlaceTower(coord.col, coord.row) && simWorld.gold >= cost;
+  const valid = simWorld.canPlaceTowerAt(coord.col, coord.row, placementType);
   renderWorld.setPlacementPreview(true, placementType, wx, wz, valid);
 }
 

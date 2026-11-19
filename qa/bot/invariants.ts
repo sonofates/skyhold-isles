@@ -721,6 +721,20 @@ export class InvariantMonitor {
           `lost run leaked ${w.projectilePool.getActiveCount()} mid-flight projectiles`,
         );
       }
+      if (w.projectileSystem.getActiveBurnZoneCount() !== 0) {
+        this.record(
+          'entity_leak',
+          tick,
+          `lost run leaked ${w.projectileSystem.getActiveBurnZoneCount()} active burn zones`,
+        );
+      }
+      if (w.heroSystem.fireRings.length !== 0) {
+        this.record(
+          'entity_leak',
+          tick,
+          `lost run leaked ${w.heroSystem.fireRings.length} hero fireRings`,
+        );
+      }
       if (w.abilitySystem.getPendingMeteorCount() !== 0) {
         this.record(
           'entity_leak',
@@ -734,6 +748,35 @@ export class InvariantMonitor {
           tick,
           `lost run leaked ${w.heroSystem.getPendingVolleys().length} pendingVolleys`,
         );
+      }
+      if (w.soldierSystem.blockedCount !== 0) {
+        this.record(
+          'entity_leak',
+          tick,
+          `lost run left soldierSystem.blockedCount=${w.soldierSystem.blockedCount}`,
+        );
+      }
+      for (let i = 0; i < w.soldierSystem.soldiers.length; i++) {
+        const s = w.soldierSystem.soldiers[i];
+        if (s.state === 'fighting' || s.state === 'engaging') {
+          this.record(
+            'entity_leak',
+            tick,
+            `lost run left soldier id=${s.id} in combat state=${s.state}`,
+          );
+          break;
+        }
+      }
+      for (let i = 0; i < w.enemyPool.getActiveCount(); i++) {
+        const e = w.enemyPool.items[w.enemyPool.getActiveIndex(i)];
+        if (e.blockers > 0 || e.heroBlockers > 0) {
+          this.record(
+            'entity_leak',
+            tick,
+            `lost run left enemy uid=${e.uid} with stale blockers=${e.blockers}+${e.heroBlockers}`,
+          );
+          break;
+        }
       }
       if (
         w.hero &&

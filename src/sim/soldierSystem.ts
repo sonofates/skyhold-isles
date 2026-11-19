@@ -324,8 +324,15 @@ export class SoldierSystem {
     this.dirty = true;
   }
 
-  /** Releases active soldier claims and blocked-spread offsets when waves are debug-skipped or reset. */
+  /** Releases active soldier claims and blocked-spread offsets when waves end, skip, or reset. */
   clearCombatState(): void {
+    for (let i = 0; i < this.pool.getActiveCount(); i++) {
+      const e = this.pool.items[this.pool.getActiveIndex(i)];
+      if (e.blockers > 0) {
+        e.blockers = 0;
+        if (e.heroBlockers === 0) this.emitBlock('enemyUnblocked', e);
+      }
+    }
     for (let i = 0; i < this.soldiers.length; i++) {
       const s = this.soldiers[i];
       s.targetPoolIndex = -1;

@@ -237,7 +237,13 @@ export function migrateProgress(parsed: unknown, levelCount: number): ProgressDa
   // A non-finite stored index (corrupted save, e.g. 1e500 -> Infinity) starts at island 0 and is not walked.
   const storedIndexOk = typeof storedIndex === 'number' && Number.isFinite(storedIndex);
   let unlocked = storedIndexOk ? unlockedLevelIndex : 0;
-  while (storedIndexOk && unlocked < bestStars.length - 1 && bestStars[unlocked] > 0) unlocked++;
+  while (
+    storedIndexOk &&
+    unlocked < bestStars.length - 1 &&
+    (bestStars[unlocked] > 0 || clears[unlocked] > 0)
+  ) {
+    unlocked++;
+  }
   const progress: ProgressData = {
     version: PROGRESS_SAVE_VERSION,
     unlockedLevelIndex: unlocked,

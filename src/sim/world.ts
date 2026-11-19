@@ -399,6 +399,7 @@ export class SimWorld {
   }
 
   setAutoWave(enabled: boolean): void {
+    if (this.outcome === 'lost') return;
     const changed = this.waveSystem.autoWave !== enabled;
     this.waveSystem.setAutoWave(enabled);
     if (changed) this.recordCommand({ kind: 'setAutoWave', enabled });
@@ -540,7 +541,7 @@ export class SimWorld {
     this.projectilePool.clear();
     this.projectileSystem.clearBurnZones();
     this.abilitySystem.clearPending();
-    this.heroSystem.clearTransientZones(false);
+    this.heroSystem.clearTransientZones(false, this.towers);
     this.soldierSystem.clearCombatState();
     this.spatialHash.clear();
     if (this.lives <= 0) {
@@ -553,17 +554,21 @@ export class SimWorld {
   }
 
   private clearVictoryTransients(): void {
+    this.enemyPool.clear();
+    this.spatialHash.clear();
     this.projectilePool.clear();
     this.projectileSystem.clearBurnZones();
     this.abilitySystem.clearPending();
-    this.heroSystem.clearTransientZones(false);
+    this.heroSystem.clearTransientZones(false, this.towers);
     this.soldierSystem.clearCombatState();
   }
 
   private clearDefeatTransients(): void {
     this.projectilePool.clear();
+    this.projectileSystem.clearBurnZones();
     this.abilitySystem.clearPending();
-    this.heroSystem.clearTransientZones(false);
+    this.heroSystem.clearTransientZones(false, this.towers);
+    this.soldierSystem.clearCombatState();
   }
 
   /** Releases all pooled entities, ground zones, soldiers, gizmos, and spatial-hash buckets after a run. */
@@ -572,7 +577,7 @@ export class SimWorld {
     this.projectilePool.clear();
     this.projectileSystem.clearBurnZones();
     this.abilitySystem.reset();
-    this.heroSystem.clearTransientZones(true);
+    this.heroSystem.clearTransientZones(true, this.towers);
     this.soldierSystem.clearAll();
     this.spatialHash.clear();
     this.grid.resetOccupancy();
@@ -610,6 +615,24 @@ export class SimWorld {
   }
 
   /**
+   * True when `type` can be built and afforded at `(col, row)` right now
+   * (checks run outcome, challenge bans, tile/plot occupancy, gold cost, and barracks road reach).
+   */
+  canPlaceTowerAt(col: number, row: number, type: TowerType): boolean {
+    if (this.outcome !== 'ongoing') return false;
+    if (this.isTowerBanned(type)) return false;
+    if (!this.grid.canPlaceTower(col, row)) return false;
+    const stats = getTowerTierStats(type, 1);
+    if (this.gold < stats.upgradeCost) return false;
+    if (TOWER_DEFS[type].role === 'barracks') {
+      const x = this.grid.siteWorldX(col, row);
+      const z = this.grid.siteWorldZ(col, row);
+      if (!this.soldierSystem.hasRoadInRange(x, z, stats.range)) return false;
+    }
+    return true;
+  }
+
+  /**
    * Builds a tower on a site: a grass tile (col, row), or on plot levels plot `col` (row 0) —
    * see `placeTowerOnPlot`.
    */
@@ -619,15 +642,10 @@ export class SimWorld {
     type: TowerType,
     targetingMode: TargetingMode = 'first',
   ): TowerEntity | null {
-    if (this.outcome !== 'ongoing') return null;
-    if (this.isTowerBanned(type)) return null;
-    if (!this.grid.canPlaceTower(col, row)) return null;
+    if (!this.canPlaceTowerAt(col, row, type)) return null;
     const stats = getTowerTierStats(type, 1);
-    if (this.gold < stats.upgradeCost) return null;
     const x = this.grid.siteWorldX(col, row);
     const z = this.grid.siteWorldZ(col, row);
-    // A barracks needs a stretch of road within its rally range.
-    if (TOWER_DEFS[type].role === 'barracks' && !this.soldierSystem.hasRoadInRange(x, z, stats.range)) return null;
 
     this.gold -= stats.upgradeCost;
     const tower: TowerEntity = {

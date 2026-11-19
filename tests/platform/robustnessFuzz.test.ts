@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { EventBus } from '../../src/core/eventBus.ts';
+import { ObjectPool } from '../../src/core/pool.ts';
 import { SeededRng } from '../../src/core/rng.ts';
 import type { HeroId, ProgressData } from '../../src/core/types.ts';
 import { computeMeteorDamage } from '../../src/data/abilities.ts';
@@ -28,6 +29,7 @@ import { LEVEL_L1C, LEVELS_2D } from '../../src/data/levels2d/index.ts';
 import { buyRank, maxedWorkshopRanks, WORKSHOP_UPGRADES, workshopModifiers } from '../../src/data/workshop.ts';
 import { starWallet } from '../../src/game/progression.ts';
 import { DoubleTapDetector, VelocityTracker } from '../../src/platform/gestures.ts';
+import { updatePlacementPreviewFromNdc } from '../../src/platform/sessionBridge.ts';
 import {
   decodeSaveCode,
   describeMergeGain,
@@ -838,5 +840,126 @@ describe('Daily Squall, Endless escalations, and Silent Skies + Hero interaction
     expect(qOut).toEqual([]);
     sim.spatialHash.query(0, 0, -5, qOut);
     expect(qOut).toEqual([]);
+  });
+
+  it('preserves cross-device selectedHero unlocks in importSaveCode2D, validates Barracks road-reach in placement previews, and guards pool/modifier/clamp bounds', () => {
+    installMemoryStorage();
+
+    // 1. Cross-device importSaveCode2D: Device B had 10 cleared islands across an older 12-island roster
+    //    ('sela' unlocks at 10 islands & was selected); 4 of those old islands vanished, while Device A
+    //    cleared 4 new islands (6 remapped + 4 local = 10 combined cleared islands -> 'sela' stays selected!).
+    const oldLevels = [
+      ...LEVELS_2D.slice(0, 6),
+      ...Array.from({ length: 6 }, (_, k) => ({ ...LEVEL_L1C, id: `retired_${k}` })),
+    ];
+    const newLevels = LEVELS_2D.slice(0, 12);
+
+    const deviceBSave = createDefaultProgress(oldLevels.length);
+    deviceBSave.unlockedLevelIndex = 10;
+    for (let i = 0; i < 10; i++) {
+      deviceBSave.bestStars[i] = 3;
+      deviceBSave.clears[i] = 1;
+    }
+    deviceBSave.heroes = {
+      selectedHero: 'sela',
+      roster: { sela: { xp: xpForHeroLevel(8), skills: ['sela_tide_1'] } },
+    };
+    const codeFromB = encodeSaveCode2D(deviceBSave, oldLevels);
+
+    // Standalone decode onto newLevels only has 6 cleared islands (< 10), so standalone clamps to 'bran'.
+    const standalone = decodeSaveCode2D(codeFromB, newLevels);
+    expect(standalone.ok).toBe(true);
+    if (standalone.ok) expect(standalone.progress.heroes?.selectedHero).toBe('bran');
+
+    // Device A already cleared islands 6..9 (4 islands): 6 + 4 = 10 combined clears -> 'sela' stays selected!
+    const deviceASave = createDefaultProgress(newLevels.length);
+    for (let i = 6; i < 10; i++) {
+      deviceASave.bestStars[i] = 2;
+      deviceASave.clears[i] = 1;
+    }
+    saveProgress2D(deviceASave, newLevels);
+    const mergedImport = importSaveCode2D(codeFromB, newLevels);
+    expect(mergedImport.ok).toBe(true);
+    if (mergedImport.ok) {
+      expect(mergedImport.progress.heroes?.selectedHero).toBe('sela');
+      expect(mergedImport.progress.heroes?.roster.sela?.xp).toBe(xpForHeroLevel(8));
+    }
+
+    // 2. SimWorld.canPlaceTowerAt + updatePlacementPreviewFromNdc reject out-of-reach Barracks & banned towers.
+    const bannedArcherMods = challengeModifiers(['bowless']);
+    const tileSim = new SimWorld(LEVELS[0], new EventBus(), bannedArcherMods);
+    tileSim.gold = 5000;
+    let farCol = -1;
+    let farRow = -1;
+    let nearCol = -1;
+    let nearRow = -1;
+    for (let r = 0; r < tileSim.grid.rows; r++) {
+      for (let c = 0; c < tileSim.grid.cols; c++) {
+        if (!tileSim.grid.canPlaceTower(c, r)) continue;
+        if (tileSim.canPlaceTowerAt(c, r, 'barracks')) {
+          if (nearCol === -1) {
+            nearCol = c;
+            nearRow = r;
+          }
+        } else if (farCol === -1) {
+          farCol = c;
+          farRow = r;
+        }
+      }
+    }
+    expect(nearCol).toBeGreaterThanOrEqual(0);
+    expect(farCol).toBeGreaterThanOrEqual(0);
+    expect(tileSim.canPlaceTowerAt(farCol, farRow, 'cannon')).toBe(true);
+    expect(tileSim.canPlaceTowerAt(farCol, farRow, 'barracks')).toBe(false);
+    expect(tileSim.canPlaceTowerAt(nearCol, nearRow, 'archer')).toBe(false); // banned by 'bowless'
+
+    const previews: boolean[] = [];
+    const mockRenderWorld = {
+      cameraController: {
+        screenNdcToPlane: () => ({
+          x: tileSim.grid.gridToWorldX(farCol),
+          z: tileSim.grid.gridToWorldZ(farRow),
+        }),
+      },
+      setPlacementPreview: (_vis: boolean, _t: unknown, _x: number, _z: number, valid: boolean) => {
+        previews.push(valid);
+      },
+    };
+    updatePlacementPreviewFromNdc(true, 'cannon', 0, 0, mockRenderWorld as never, tileSim);
+    updatePlacementPreviewFromNdc(true, 'barracks', 0, 0, mockRenderWorld as never, tileSim);
+    updatePlacementPreviewFromNdc(true, 'archer', 0, 0, mockRenderWorld as never, tileSim);
+    expect(previews).toEqual([true, false, false]);
+
+    // 3. migrateProgress walks clears-only frontiers, combineRunModifiers drops non-positive/unknown rates & bans,
+    //    GroundGraph.clampToGround guards NaN/negative maxOffRoad, and ObjectPool guards out-of-bounds release.
+    const clearsOnly = migrateProgress(
+      { version: 2, unlockedLevelIndex: 0, bestStars: [0, 0, 0], clears: [1, 1, 0] },
+      3,
+    );
+    expect(clearsOnly.unlockedLevelIndex).toBe(2);
+
+    const modClean = combineRunModifiers({
+      bannedTowers: ['archer', 'notATower' as never],
+      towerFireRateMul: { archer: 0, cannon: -2, frost: 1.1 },
+    });
+    expect(modClean.bannedTowers).toEqual(['archer']);
+    expect(modClean.towerFireRateMul).toEqual({ frost: 1.1 });
+
+    const sim2d = new SimWorld(LEVEL_L1C, new EventBus());
+    const gg = sim2d.heroSystem.groundGraph;
+    const cNeg = gg.clampToGround(5, 5, -10);
+    expect(cNeg.x).toBeCloseTo(cNeg.roadX, 6);
+    expect(cNeg.z).toBeCloseTo(cNeg.roadZ, 6);
+    const cNan = gg.clampToGround(5, 5, NaN);
+    expect(Number.isFinite(cNan.x) && Number.isFinite(cNan.z)).toBe(true);
+
+    const pool = new ObjectPool(2, (id) => ({ id, active: false }));
+    const a0 = pool.acquire()!;
+    pool.releaseAtActivePos(-1);
+    pool.releaseAtActivePos(99);
+    expect(pool.getActiveCount()).toBe(1);
+    expect(a0.active).toBe(true);
+    pool.releaseAtActivePos(0);
+    expect(pool.getActiveCount()).toBe(0);
   });
 });

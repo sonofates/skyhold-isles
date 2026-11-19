@@ -49,6 +49,9 @@ export const NEUTRAL_RUN_MODIFIERS: RunModifiers = Object.freeze({
 /** Partial description used by data tables; missing fields are neutral. */
 export type RunModifierPatch = Partial<RunModifiers>;
 
+const is2DTower = (t: unknown): t is TowerType =>
+  typeof t === 'string' && Object.prototype.hasOwnProperty.call(TOWER_DEFS, t);
+
 /**
  * Stacks modifier patches: flat values add, multipliers multiply, `maxLives` takes the lowest,
  * bans union, `abilitiesDisabled` / `championWaves` OR.
@@ -80,15 +83,17 @@ export function combineRunModifiers(...patches: readonly RunModifierPatch[]): Ru
     killGoldMul *= fin(p.killGoldMul, 1);
     waveBonusMul *= fin(p.waveBonusMul, 1);
     if (p.towerFireRateMul) {
-      for (const [type, mul] of Object.entries(p.towerFireRateMul) as [TowerType, number][]) {
-        if (typeof mul === 'number' && Number.isFinite(mul)) {
+      for (const [type, mul] of Object.entries(p.towerFireRateMul)) {
+        if (is2DTower(type) && typeof mul === 'number' && Number.isFinite(mul) && mul > 0) {
           towerFireRateMul[type] = (towerFireRateMul[type] ?? 1) * mul;
         }
       }
     }
     enemySpeedMul *= fin(p.enemySpeedMul, 1);
     enemyHpMul *= fin(p.enemyHpMul, 1);
-    for (const t of p.bannedTowers ?? []) banned.add(t);
+    for (const t of p.bannedTowers ?? []) {
+      if (is2DTower(t)) banned.add(t);
+    }
     abilitiesDisabled = abilitiesDisabled || p.abilitiesDisabled === true;
     championWaves = championWaves || p.championWaves === true;
   }
@@ -127,9 +132,6 @@ export function isNeutralRun(m: RunModifiers): boolean {
     !m.championWaves
   );
 }
-
-const is2DTower = (t: string): t is TowerType =>
-  Object.prototype.hasOwnProperty.call(TOWER_DEFS, t);
 
 /**
  * True when `patch` changes at least one gameplay rule active in the 2D build.

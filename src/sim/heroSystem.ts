@@ -350,8 +350,22 @@ export class HeroSystem {
     this.grantXp(HERO_XP_RULES.winBase + stars * HERO_XP_RULES.perStar, 'victory', this.hero.x, this.hero.z);
   }
 
-  /** Clears lingering ground zones, pending volleys, and burns at run end or wave skip. */
-  clearTransientZones(includeGizmos = false): void {
+  private clearHeroBuffs(towers?: readonly TowerEntity[]): void {
+    const soldiers = this.soldierSystem.soldiers;
+    for (let i = 0; i < soldiers.length; i++) {
+      soldiers[i].bonusArmor = 0;
+      soldiers[i].damageMul = 1;
+    }
+    if (towers) {
+      for (let i = 0; i < towers.length; i++) {
+        towers[i].heroRateBonus = 0;
+        towers[i].heroRangeBonus = 0;
+      }
+    }
+  }
+
+  /** Clears lingering ground zones, pending volleys, active holds, and burns at run end or wave skip. */
+  clearTransientZones(includeGizmos = false, towers?: readonly TowerEntity[]): void {
     this.fireRings.length = 0;
     this.pendingVolleys.length = 0;
     this.burnLeft.fill(0);
@@ -361,9 +375,10 @@ export class HeroSystem {
     if (includeGizmos) {
       this.gizmos.length = 0;
     }
+    this.clearHeroBuffs(towers);
     if (this.hero) {
-      this.hero.targetPoolIndex = -1;
-      this.hero.targetUid = 0;
+      this.releaseCurrentMeleeHolds(true);
+      this.hero.rallyBannerTimer = 0;
       this.hero.waypoints.length = 0;
       if (
         this.hero.state === 'engaging' ||
@@ -1473,7 +1488,7 @@ export class HeroSystem {
     }
 
     // 6. Enemy melee counter-attacks on the hero (blocked foes or unblocked ground foes stepping onto the hero).
-    this.updateEnemyStrikesAgainstHero(h, dt);
+    this.updateEnemyStrikesAgainstHero(h, dt, towers);
 
     // 7. Emit block / unblock transitions for melee hero holds.
     this.reconcileHeroUnblocks();
@@ -1797,7 +1812,11 @@ export class HeroSystem {
     return best;
   }
 
-  private updateEnemyStrikesAgainstHero(h: HeroEntity, dt: number): void {
+  private updateEnemyStrikesAgainstHero(
+    h: HeroEntity,
+    dt: number,
+    towers: readonly TowerEntity[],
+  ): void {
     this.spatialHash.query(h.x, h.z, 2.2, _candidates);
     // Sort by uid so enemy swing order is strictly deterministic (zero closure alloc).
     if (_candidates.length > 1) {
@@ -1850,6 +1869,7 @@ export class HeroSystem {
         h.respawnTimer = h.stats.respawnSec;
         h.rallyBannerTimer = 0;
         h.waypoints.length = 0;
+        this.clearHeroBuffs(towers);
         for (let k = 0; k < this.pool.getActiveCount(); k++) {
           const held = this.pool.items[this.pool.getActiveIndex(k)];
           held.heroBlockers = 0;
