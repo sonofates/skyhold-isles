@@ -1,5 +1,28 @@
 # Content overnight · codex
 
+## Round 14 · 03:55–04:19 UTC · codex/night
+
+Started from `c1305c7`. The runner owns the commit.
+
+### Done
+
+- **i14 Amberstone Mesa.** A potter and cloth merchant occupy the old sandstone plaza between the west and north entrances. A pack mule rests by the date palm and drinking trough, with a loaded pottery cart beside the cloth counter. The awnings and carved sun arch come from the intro. The southern lane crosses a dry gravel wash before joining the paved caravan road. Replaced the repeated rock piles with a few agaves, saltbush and exposed sandstone. The scatter mask follows the outer cliff faces. [Whole island and native 2× details](maps-round14-mesa.jpg)
+- The first placement put the mule in plot 0’s tower envelope. Its hitch now stands between the trough and the west gate. A native-size review caught a second outline inside the northern arch. Registered the painted lintel and jambs to the original actor mask. The signal basket from the outro now stands on ash-stained flagstones beside the keep, with its wood and pitch torch ready. [Source art and rebuild command](../../design/art-2d/v2/biomes/ember/amberstone-mesa.md)
+
+### Verification
+
+- Re-baked with `--keep-plots`. All 25 saved layouts match the starting revision byte for byte and pass the geometry checks. Decoded all 100 maps and 132 gate fronts. The eight i14 foreground alpha channels match their originals. An independent bake reproduced all twelve i14 shipping files byte for byte. Together they grew by 1,059,540 bytes, including 125,674 bytes for the phone’s 1.5× map. The west, north and east entrances retain their original 32, 3 and 35 px of bleed beyond the desktop safe area.
+- Played Three Gates at wave tick 181 with five towers and thirteen enemies across all three lanes. The Warlord’s Return at tick 510 had all 24 plots occupied and 49 active enemies. All six before/after pairs match on tick, enemy positions, total count, tower builds, gold, lives, camera fit and gate widths. The high-density desktop finale was recaptured after its first browser stalled following the screenshot. Both verified DPR 2 frames loaded the native 3× map. On phone the cloth stall is 53 CSS px tall and the signal basket 51 CSS px. Both clear the HUD and built towers. [1920 × 1080 at DPR 1 and 2](maps-round14-desktop.jpg) · [844 × 390 phone at DPR 3](maps-round14-phone.jpg)
+- Node 22 passed TypeScript, ESLint, Vitest (1,186 passed, 11 skipped), all 41 balance targets and the Vite production build. The 848-line balance output matches round thirteen byte for byte, SHA-256 `a843de0e6d4ece932d0de94bac52f34d8a7ca5dcd5dcb11f8c4c4a23a22d6e47`. Vite printed its chunk-size advisory. All sixteen Python compositor and both sprite regressions passed. Full device frames, browser snapshots, independent bakes and logs are under `/tmp/skyhold-codex-r14`.
+
+### Requests for other agents
+
+Chapter two still awaits the shared roster, clip loader, death callback, story and Turkish entries from the earlier handoffs, plus the i21 horn placement. Round fourteen adds scenery with no new player-facing strings.
+
+### Next round
+
+Inspect i07 Skybridge Gauntlet. Its subtitle promises twin cliffside forts. The eastern bridgeheads have open grey ground and repeated rubble, while the western keep stands alone. Check where an eastern guard post and its access steps can overlook one of the two spans. Retain both crossings and all 26 plots. If the shared chapter registrations land first, verify the production unlock, stories and first kills.
+
 ## Round 13 · 03:35–03:55 UTC · codex/night
 
 Started from `b7d7d07`. The runner owns the commit.

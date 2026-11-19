@@ -318,21 +318,35 @@
   "i14": {
     "plots": 24,
     "seed": 641,
-    "decals": 128,
-    "props": 39,
+    "decals": 80,
+    "props": 16,
     "windmill": "none",
     "biome": "ember",
-    "propWeights": [6, 0, 0, 6, 6, 1, 3],
+    "scatterProps": [["agave.webp", 0.54], ["desert-scrub.webp", 0.46], ["sandstone-column.webp", 0.85]],
+    "propWeights": [5, 5, 1],
+    "repeatGap": 140,
     "sprites": {
       "gate-cave-e.png": "mesa-cave-e.webp",
-      "gate-cave-s.png": "mesa-cave-s.webp",
-      "clinker.webp": "sandstone-column.webp"
+      "gate-cave-s.png": "mesa-cave-s.webp"
     },
-    "roadMaterial": "tex-buff-sand.webp",
-    "branchMaterial": [2, "tex-wash.webp"],
+    "entranceFinishes": {"A": "cloth-gate-e.webp", "B": "sun-gate-s.webp"},
+    "roadMaterial": "tex-caravan-road.webp",
+    "branchMaterial": [2, "tex-alluvium.webp"],
+    "dressingMask": "dressing-i14.webp",
+    "brushRoad": true,
+    "dustyShoulders": true,
+    "thresholdRoad": true,
+    "sillLaneBlend": {"A": 0.9, "B": 0.8, "C": 0.95},
     "cave-h": 2.42,
     "castle-h": 2.66,
+    "groundPaint": [["beacon-footing", 1598, 277, 44]],
     "landmarks": [
+      ["potter", 295, 243, 90],
+      ["cloth-merchant", 477, 326, 116],
+      ["pot-cart", 488, 414, 60],
+      ["date-trough", 252, 398, 137],
+      ["pack-mule", 291, 459, 53],
+      ["signal-basket", 1596, 262, 112],
       ["waystone", 904, 585, 65]
     ]
   },
