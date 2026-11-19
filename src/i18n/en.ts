@@ -28,7 +28,7 @@ export const EN = {
   'map.logbookShort': 'Logbook',
   'map.daily': 'Daily',
   'map.settings': 'Settings',
-  'map.hint': 'Tap an island to set sail',
+  'map.hint': 'Pick an island to set sail',
   'map.panWest': 'Sail west along the route',
   'map.panEast': 'Sail east along the route',
   'map.nodeOpen': '{name}, {n} of 3 stars',
@@ -370,7 +370,7 @@ export const EN = {
   'set.progress': 'Painted isles progress',
   'set.progressNote': 'Stars, unlocks and Workshop of the 2D isles',
   'set.reset': 'Reset isles progress',
-  'set.resetArmed': 'Tap again to erase',
+  'set.resetArmed': 'Press again to erase',
   'set.resetDone': 'Progress erased',
 
   // --- store (mobile builds: free-version scope) ---------------------------------------------
@@ -521,7 +521,7 @@ export const EN = {
   'hero.verbClick': 'Click',
   'hero.noTarget': 'No foe there, try another spot',
   'hero.treeTitle': 'Hero skills',
-  'hero.treeHint': 'Tap a skill to read it. Heroes earn a skill point every level; resetting is free here on the map.',
+  'hero.treeHint': 'Pick a skill to read it. Heroes earn a skill point every level; resetting is free here on the map.',
   'hero.reset': 'Reset (free)',
   'hero.resetArmed': { one: 'Tap again: refund {n} point', other: 'Tap again: refund {n} points' },
   'hero.resetNote': 'Refunds every skill point of this hero, free on the world map',

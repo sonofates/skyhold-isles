@@ -123,6 +123,11 @@ QA: `npx vite preview --port 4381 --strictPort` in background (kill with TaskSto
   meteor tips have mouse variants (meteor names Q); TR: "Dokununca hedef: {mode}", hero tip without
   a suffix after the name ("Önce kahramanına, sonra yola dokun: {hero} …"); coach "Skip tips" moved
   onto the title row. Call-out trigger fixed for two waves starting within one frame (QA flake).
+- **R2 — more desktop wording / HUD:** lives + gold hover tips on the plaque; rally banner "Click
+  the road" with a mouse and the centre plate moves to the top / bottom band when it would cover
+  the barracks' range circle (`uiLayout.plateCentreY`, `qa/rallyBanner.mjs`); input-neutral
+  wording for the map hint, Workshop refund confirm, settings reset confirm, hero tree hint.
+  Replay QA: pause-menu check polls (DPR-2 flake).
 
 ## Next (backlog 2: missing basics) — candidates, in rough value order
 - tower info card: the build ring tooltip already has stats/targeting/upgrade/sell+refund; review only

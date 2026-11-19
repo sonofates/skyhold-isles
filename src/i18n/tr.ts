@@ -36,7 +36,7 @@ export const TR: { readonly [K in MsgKey]: Msg } = {
   'map.logbookShort': 'Defter',
   'map.daily': 'Günlük',
   'map.settings': 'Ayarlar',
-  'map.hint': 'Yelken açmak için bir adaya dokun',
+  'map.hint': 'Yelken açmak için bir ada seç',
   'map.panWest': 'Rota boyunca batıya yelken aç',
   'map.panEast': 'Rota boyunca doğuya yelken aç',
   'map.nodeOpen': '{name}, 3 yıldızdan {n}',
@@ -376,7 +376,7 @@ export const TR: { readonly [K in MsgKey]: Msg } = {
   'set.progress': 'Ada ilerlemesi',
   'set.progressNote': 'Bu adaların yıldızları, kilitleri ve Atölyesi',
   'set.reset': 'İlerlemeyi sıfırla',
-  'set.resetArmed': 'Silmek için yine dokun',
+  'set.resetArmed': 'Silmek için yine bas',
   'set.resetDone': 'İlerleme silindi',
 
   // --- store (mobile builds: free-version scope) ---------------------------------------------
@@ -527,7 +527,7 @@ export const TR: { readonly [K in MsgKey]: Msg } = {
   'hero.verbClick': 'tıkla',
   'hero.noTarget': 'Orada düşman yok, başka bir yer dene',
   'hero.treeTitle': 'Kahraman yetenekleri',
-  'hero.treeHint': 'Okumak için bir yeteneğe dokun. Kahramanlar her seviyede bir yetenek puanı kazanır; haritada sıfırlamak ücretsizdir.',
+  'hero.treeHint': 'Ayrıntısını görmek için bir yetenek seç. Kahramanlar her seviyede bir yetenek puanı kazanır; haritada sıfırlamak ücretsizdir.',
   'hero.reset': 'Sıfırla (ücretsiz)',
   'hero.resetArmed': { one: 'Yeniden dokun: {n} puan iade', other: 'Yeniden dokun: {n} puan iade' },
   'hero.resetNote': 'Bu kahramanın tüm yetenek puanlarını iade eder, dünya haritasında ücretsiz',
