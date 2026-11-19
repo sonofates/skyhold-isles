@@ -69,6 +69,21 @@ for (const size of SIZES) {
       await page.waitForFunction(() => !document.querySelector('[data-testid="hud2d-tip"]')?.hidden, null, { timeout: 5000 }).catch(() => problems.push(`${tag}: no horn tooltip`));
       await page.screenshot({ path: `${OUT}/${lang}-${size.key}-tip-horn.jpg`, type: 'jpeg', quality: 84 });
       await page.mouse.move(5, size.h / 2);
+      // Tower ring: the targeting token's tooltip (mode, record, next mode).
+      await page.evaluate(() => {
+        window.__p0.setGold(900);
+        window.__p0.replay.cmd({ k: 'build', plot: 6, type: 'archer' });
+      });
+      const pl = await page.evaluate(() => window.__p0.plotScreen(6));
+      await page.mouse.click(pl.x, pl.y - 30);
+      await page.waitForFunction(() => window.__p0.state().ring.open, null, { timeout: 5000 }).catch(() => problems.push(`${tag}: tower ring did not open`));
+      const toks = await page.evaluate(() => window.__p0.state().ring.tokens);
+      if (toks?.[1]) {
+        await page.mouse.move(toks[1].x, toks[1].y);
+        await page.waitForTimeout(500);
+        await page.screenshot({ path: `${OUT}/${lang}-${size.key}-ring-target-tip.jpg`, type: 'jpeg', quality: 84 });
+      }
+      await page.keyboard.press('Escape');
       await page.keyboard.press('3');
       await page.waitForTimeout(150);
       ok((await page.evaluate(() => window.__p0.state().speed)) === 3, `${tag}: key 3 did not set 3×`);

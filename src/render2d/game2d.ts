@@ -1206,6 +1206,7 @@ export class Game2D {
         ...(t.type === 'barracks' ? { rallyIcon: this.soldiers.flagTexture } : {}),
         ...(TOWER_DEFS[t.type].role === 'attack' ? { targeting: t.targetingMode } : {}),
         ...(keepOut ? { keepOut } : {}),
+        record: { kills: t.kills, damage: t.totalDamageDealt },
       },
       world.gold,
       w,

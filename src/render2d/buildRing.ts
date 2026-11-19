@@ -44,12 +44,21 @@ export interface TowerPanelInfo {
   readonly targeting?: TargetingMode;
   /** Screen box of the built tower: the ring arranges itself to stay off it. */
   readonly keepOut?: Rect;
+  /** This tower's battle record (shown in the targeting / rally / sell tooltips). */
+  readonly record?: { readonly kills: number; readonly damage: number };
 }
+
+const TARGET_NEXT: Readonly<Record<TargetingMode, TargetingMode>> = { first: 'last', last: 'strongest', strongest: 'closest', closest: 'first' };
 
 /** What the ring is pointing at right now (selected, else hovered): drives the range preview. */
 export interface RingPreview {
   readonly type: TowerType;
   readonly tier: 1 | 2 | 3;
+}
+
+/** Targeting token tooltip: the current mode, the tower's record, what a tap switches to. */
+function targetTip(mode: TargetingMode, record: string): TipContent {
+  return { title: msg('ring.targetTitle', { mode: msg(TARGET_LABEL[mode]) }), role: record, rows: null, next: null, hint: msg('ring.targetHint', { mode: msg(TARGET_LABEL[TARGET_NEXT[mode]]) }), hintBad: '', fixedHint: true };
 }
 
 /** Short tower name (localised; see src/i18n/data.ts). */
@@ -105,6 +114,8 @@ interface TipContent {
   next: StatRow[] | null;
   hint: string;
   hintBad: string;
+  /** Acts on the first tap (targeting / rally): keep this hint, never "tap to choose". */
+  fixedHint?: boolean;
 }
 
 /** Tower ring radius: clears a tower drawn above its plot (towers are ~2.7 medallion radii tall). */
@@ -564,6 +575,7 @@ export class BuildRing {
     const nextTier = Math.min(3, tier + 1) as 1 | 2 | 3;
     const name = towerName(info.type);
     const roman = ['I', 'II', 'III'];
+    const record = info.record ? msg('ring.record', { k: info.record.kills, d: Math.round(info.record.damage) }) : '';
     let i = 0;
     // Upgrade: next-tier portrait with an upgrade arrow badge.
     {
@@ -602,6 +614,7 @@ export class BuildRing {
       t.enabled = true;
       t.confirm = false;
       t.preview = { type: info.type, tier };
+      t.tip = { title: msg('ring.rallyTitle'), role: record, rows: null, next: null, hint: msg('ring.rallyHint'), hintBad: '', fixedHint: true };
       this.applyEnabled(t);
     } else if (info.targeting) {
       const t = this.resetToken(i++);
@@ -611,6 +624,7 @@ export class BuildRing {
       t.enabled = true;
       t.confirm = false;
       t.preview = { type: info.type, tier };
+      t.tip = targetTip(info.targeting, record);
       this.applyEnabled(t);
     }
     {
@@ -621,7 +635,7 @@ export class BuildRing {
       t.enabled = true;
       t.confirm = true;
       t.preview = { type: info.type, tier };
-      t.tip = { title: msg('ring.sell', { name }), role: msg('ring.refund', { n: info.refund }), rows: null, next: null, hint: msg('ring.tapSell'), hintBad: '' };
+      t.tip = { title: msg('ring.sell', { name }), role: record ? `${msg('ring.refund', { n: info.refund })} · ${record}` : msg('ring.refund', { n: info.refund }), rows: null, next: null, hint: msg('ring.tapSell'), hintBad: '' };
       this.applyEnabled(t);
     }
     this.count = i;
@@ -638,7 +652,11 @@ export class BuildRing {
   setTargetMode(mode: TargetingMode): void {
     for (let i = 0; i < this.count; i++) {
       const t = this.tokens[i];
-      if (t.action?.kind === 'target') this.setTag(t, msg(TARGET_LABEL[mode]), false);
+      if (t.action?.kind === 'target') {
+        this.setTag(t, msg(TARGET_LABEL[mode]), false);
+        t.tip = targetTip(mode, t.tip?.role ?? '');
+        if (this.tooltip.root.visible) this.showTip(i);
+      }
     }
   }
 
@@ -689,7 +707,9 @@ export class BuildRing {
     c.cost = t.cost;
     c.hintBad = t.banned ? msg('ring.banned') : poor ? msg('ring.needGold', { n: t.cost ?? 0 }) : '';
     const maxed = t.action?.kind === 'upgrade' && t.cost === null;
-    if (maxed || t.banned) c.hint = '';
+    if (c.fixedHint) {
+      // targeting / rally: the hint was written with the tip
+    } else if (maxed || t.banned) c.hint = '';
     else if (i !== this.selected) c.hint = msg('ring.tapChoose');
     else c.hint = t.action?.kind === 'build' ? msg('ring.tapBuild') : t.action?.kind === 'upgrade' ? msg('ring.tapUpgrade') : t.action?.kind === 'sell' ? msg('ring.tapSell') : '';
     this.tooltip.set(c, this.u);
