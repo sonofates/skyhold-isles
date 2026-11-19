@@ -1,0 +1,228 @@
+1920x1080 i02: (no foe card: tap missed)
+1920x1080 i13: (no foe card: tap missed)
+1920x1080 i21: (no foe card: tap missed)
+2560x1080 i02: (no foe card: tap missed)
+2560x1080 i06: (no foe card: tap missed)
+2560x1080 i13: (no foe card: tap missed)
+2560x1080 i21: (no foe card: tap missed)
+1366x768 i02: (no foe card: tap missed)
+1366x768 i06: (no foe card: tap missed)
+1366x768 i21: (no foe card: tap missed)
+1600x900 i06: (no foe card: tap missed)
+1440x900 i02: (no foe card: tap missed)
+1440x900 i06: (no foe card: tap missed)
+844x390 i06: (no foe card: tap missed)
+844x390 i21: (no foe card: tap missed)
+932x430 i06: (no foe card: tap missed)
+932x430 i21: (no foe card: tap missed)
+1920x1080 l1c    cover  95.1%  shrink  95%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.86  foe-card k=0.75
+1920x1080 i01    cover   100%  shrink 100%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.91  foe-card k=0.75
+1920x1080 i02    cover  92.3%  shrink  98%  pieces 10/9  hard 0  outer-road 0  wave-card k=0.91  foe-card -
+1920x1080 i03    cover  98.4%  shrink 100%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.86  foe-card k=0.75
+1920x1080 i04    cover   100%  shrink 100%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.91  foe-card k=0.75
+1920x1080 i05    cover  96.4%  shrink  99%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.91  foe-card k=0.75
+1920x1080 i06    cover  98.3%  shrink 100%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.91  foe-card k=0.75
+1920x1080 i07    cover  96.8%  shrink  97%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.91  foe-card k=0.75
+1920x1080 i08    cover  99.9%  shrink 100%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.91  foe-card k=0.75
+1920x1080 i09    cover  93.9%  shrink  94%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.91  foe-card k=0.75
+1920x1080 i10    cover   100%  shrink 100%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.91  foe-card k=0.75
+1920x1080 i11    cover    93%  shrink  98%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.91  foe-card k=0.75
+1920x1080 i12    cover    88%  shrink  88%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.91  foe-card k=0.75
+1920x1080 i13    cover    93%  shrink  95%  pieces 10/9  hard 0  outer-road 0  wave-card k=0.91  foe-card -
+1920x1080 i14    cover   100%  shrink 100%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.91  foe-card k=0.75
+1920x1080 i15    cover  97.4%  shrink  99%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.91  foe-card k=0.75
+1920x1080 i16    cover  99.3%  shrink 100%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.91  foe-card k=0.75
+1920x1080 i17    cover   100%  shrink 100%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.86  foe-card k=0.75
+1920x1080 i18    cover   100%  shrink 100%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.86  foe-card k=0.75
+1920x1080 i19    cover   100%  shrink 100%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.86  foe-card k=0.75
+1920x1080 i20    cover  99.3%  shrink 100%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.91  foe-card k=0.75
+1920x1080 i21    cover   100%  shrink 100%  pieces 10/9  hard 0  outer-road 0  wave-card k=0.91  foe-card -
+1920x1080 i22    cover   100%  shrink 100%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.91  foe-card k=0.75
+1920x1080 i23    cover   100%  shrink 100%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.91  foe-card k=0.75
+1920x1080 i24    cover   100%  shrink 100%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.91  foe-card k=0.75
+2000x991 l1c     cover  88.7%  shrink  93%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.86  foe-card k=0.75
+2000x991 i01     cover   100%  shrink 100%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.91  foe-card k=0.75
+2000x991 i02     cover   100%  shrink 100%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.91  foe-card k=0.75
+2000x991 i03     cover  98.4%  shrink 100%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.86  foe-card k=0.75
+2000x991 i04     cover   100%  shrink 100%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.91  foe-card k=0.75
+2000x991 i05     cover  95.8%  shrink  99%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.91  foe-card k=0.75
+2000x991 i06     cover    98%  shrink 100%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.91  foe-card k=0.75
+2000x991 i07     cover   100%  shrink 100%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.91  foe-card k=0.75
+2000x991 i08     cover  99.9%  shrink 100%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.91  foe-card k=0.75
+2000x991 i09     cover  98.5%  shrink 100%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.91  foe-card k=0.75
+2000x991 i10     cover   100%  shrink 100%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.91  foe-card k=0.75
+2000x991 i11     cover  99.9%  shrink 100%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.91  foe-card k=0.75
+2000x991 i12     cover  84.5%  shrink  93%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.91  foe-card k=0.75
+2000x991 i13     cover  92.8%  shrink  97%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.91  foe-card k=0.75
+2000x991 i14     cover   100%  shrink 100%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.91  foe-card k=0.75
+2000x991 i15     cover  96.8%  shrink  98%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.91  foe-card k=0.75
+2000x991 i16     cover   100%  shrink 100%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.91  foe-card k=0.75
+2000x991 i17     cover   100%  shrink 100%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.86  foe-card k=0.75
+2000x991 i18     cover   100%  shrink 100%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.86  foe-card k=0.75
+2000x991 i19     cover   100%  shrink 100%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.86  foe-card k=0.75
+2000x991 i20     cover  98.2%  shrink 100%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.91  foe-card k=0.75
+2000x991 i21     cover   100%  shrink 100%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.91  foe-card k=0.75
+2000x991 i22     cover  97.6%  shrink 100%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.91  foe-card k=0.75
+2000x991 i23     cover  95.1%  shrink  99%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.91  foe-card k=0.75
+2000x991 i24     cover   100%  shrink 100%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.91  foe-card k=0.75
+2560x1080 l1c    cover  89.6%  shrink  93%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.86  foe-card k=0.75
+2560x1080 i01    cover   100%  shrink 100%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.91  foe-card k=0.75
+2560x1080 i02    cover  98.6%  shrink  99%  pieces 10/9  hard 0  outer-road 0  wave-card k=0.91  foe-card -
+2560x1080 i03    cover  99.4%  shrink 100%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.86  foe-card k=0.75
+2560x1080 i04    cover   100%  shrink 100%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.91  foe-card k=0.75
+2560x1080 i05    cover  98.2%  shrink 100%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.91  foe-card k=0.75
+2560x1080 i06    cover   100%  shrink 100%  pieces 10/9  hard 0  outer-road 0  wave-card k=0.91  foe-card -
+2560x1080 i07    cover  97.6%  shrink  98%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.91  foe-card k=0.75
+2560x1080 i08    cover  91.3%  shrink  91%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.91  foe-card k=0.75
+2560x1080 i09    cover  99.9%  shrink 100%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.91  foe-card k=0.75
+2560x1080 i10    cover   100%  shrink 100%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.91  foe-card k=0.75
+2560x1080 i11    cover  91.3%  shrink  91%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.91  foe-card k=0.75
+2560x1080 i12    cover  88.6%  shrink  95%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.91  foe-card k=0.75
+2560x1080 i13    cover  95.9%  shrink  97%  pieces 10/9  hard 0  outer-road 0  wave-card k=0.91  foe-card -
+2560x1080 i14    cover   100%  shrink 100%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.91  foe-card k=0.75
+2560x1080 i15    cover  84.5%  shrink  96%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.91  foe-card k=0.75
+2560x1080 i16    cover   100%  shrink 100%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.91  foe-card k=0.75
+2560x1080 i17    cover   100%  shrink 100%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.86  foe-card k=0.75
+2560x1080 i18    cover   100%  shrink 100%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.86  foe-card k=0.75
+2560x1080 i19    cover   100%  shrink 100%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.86  foe-card k=0.75
+2560x1080 i20    cover   100%  shrink 100%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.91  foe-card k=0.75
+2560x1080 i21    cover   100%  shrink 100%  pieces 10/9  hard 0  outer-road 0  wave-card k=0.91  foe-card -
+2560x1080 i22    cover   100%  shrink 100%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.91  foe-card k=0.75
+2560x1080 i23    cover   100%  shrink 100%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.91  foe-card k=0.75
+2560x1080 i24    cover   100%  shrink 100%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.91  foe-card k=0.75
+1366x768 l1c     cover  92.9%  shrink  93%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.86  foe-card k=0.74
+1366x768 i01     cover   100%  shrink 100%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.91  foe-card k=0.74
+1366x768 i02     cover  91.7%  shrink  96%  pieces 10/9  hard 0  outer-road 0  wave-card k=0.91  foe-card -
+1366x768 i03     cover  98.1%  shrink 100%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.86  foe-card k=0.74
+1366x768 i04     cover   100%  shrink 100%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.91  foe-card k=0.74
+1366x768 i05     cover    96%  shrink  98%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.91  foe-card k=0.74
+1366x768 i06     cover    98%  shrink 100%  pieces 10/9  hard 0  outer-road 0  wave-card k=0.91  foe-card -
+1366x768 i07     cover  95.5%  shrink  96%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.91  foe-card k=0.74
+1366x768 i08     cover  99.9%  shrink 100%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.91  foe-card k=0.74
+1366x768 i09     cover  92.9%  shrink  93%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.91  foe-card k=0.74
+1366x768 i10     cover   100%  shrink 100%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.91  foe-card k=0.74
+1366x768 i11     cover  92.7%  shrink  96%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.91  foe-card k=0.74
+1366x768 i12     cover  86.2%  shrink  86%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.91  foe-card k=0.74
+1366x768 i13     cover  92.3%  shrink  94%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.91  foe-card k=0.74
+1366x768 i14     cover   100%  shrink 100%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.91  foe-card k=0.74
+1366x768 i15     cover    97%  shrink  98%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.91  foe-card k=0.74
+1366x768 i16     cover  98.9%  shrink 100%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.91  foe-card k=0.74
+1366x768 i17     cover   100%  shrink 100%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.86  foe-card k=0.74
+1366x768 i18     cover   100%  shrink 100%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.86  foe-card k=0.74
+1366x768 i19     cover   100%  shrink 100%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.86  foe-card k=0.74
+1366x768 i20     cover  98.8%  shrink 100%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.91  foe-card k=0.74
+1366x768 i21     cover   100%  shrink 100%  pieces 10/9  hard 0  outer-road 0  wave-card k=0.91  foe-card -
+1366x768 i22     cover   100%  shrink 100%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.91  foe-card k=0.74
+1366x768 i23     cover  97.1%  shrink  97%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.91  foe-card k=0.74
+1366x768 i24     cover  95.6%  shrink 100%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.91  foe-card k=0.74
+1600x900 l1c     cover  93.5%  shrink  94%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.87  foe-card k=0.75
+1600x900 i01     cover   100%  shrink 100%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.92  foe-card k=0.75
+1600x900 i02     cover  92.2%  shrink  97%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.92  foe-card k=0.75
+1600x900 i03     cover  98.2%  shrink 100%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.87  foe-card k=0.75
+1600x900 i04     cover  99.2%  shrink 100%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.92  foe-card k=0.75
+1600x900 i05     cover  96.1%  shrink  99%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.92  foe-card k=0.75
+1600x900 i06     cover  98.4%  shrink 100%  pieces 10/9  hard 0  outer-road 0  wave-card k=0.92  foe-card -
+1600x900 i07     cover  95.5%  shrink  96%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.92  foe-card k=0.75
+1600x900 i08     cover  99.9%  shrink 100%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.92  foe-card k=0.75
+1600x900 i09     cover  93.7%  shrink  94%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.92  foe-card k=0.75
+1600x900 i10     cover   100%  shrink 100%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.92  foe-card k=0.75
+1600x900 i11     cover  92.9%  shrink  98%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.92  foe-card k=0.75
+1600x900 i12     cover  86.5%  shrink  86%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.92  foe-card k=0.75
+1600x900 i13     cover  92.8%  shrink  94%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.92  foe-card k=0.75
+1600x900 i14     cover   100%  shrink 100%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.92  foe-card k=0.75
+1600x900 i15     cover  97.1%  shrink  98%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.92  foe-card k=0.75
+1600x900 i16     cover  99.3%  shrink 100%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.92  foe-card k=0.75
+1600x900 i17     cover   100%  shrink 100%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.87  foe-card k=0.75
+1600x900 i18     cover   100%  shrink 100%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.87  foe-card k=0.75
+1600x900 i19     cover  95.5%  shrink 100%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.87  foe-card k=0.75
+1600x900 i20     cover  98.8%  shrink 100%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.92  foe-card k=0.75
+1600x900 i21     cover  99.6%  shrink 100%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.92  foe-card k=0.75
+1600x900 i22     cover   100%  shrink 100%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.92  foe-card k=0.75
+1600x900 i23     cover  97.9%  shrink  98%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.92  foe-card k=0.75
+1600x900 i24     cover   100%  shrink 100%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.92  foe-card k=0.75
+1440x900 l1c     cover    90%  shrink  90%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.88  foe-card k=0.76
+1440x900 i01     cover  93.5%  shrink  94%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.93  foe-card k=0.76
+1440x900 i02     cover  92.5%  shrink  93%  pieces 10/9  hard 0  outer-road 0  wave-card k=0.93  foe-card -
+1440x900 i03     cover  96.1%  shrink  96%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.88  foe-card k=0.76
+1440x900 i04     cover  96.8%  shrink  97%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.93  foe-card k=0.76
+1440x900 i05     cover  97.3%  shrink  99%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.93  foe-card k=0.76
+1440x900 i06     cover  93.6%  shrink  95%  pieces 10/9  hard 0  outer-road 0  wave-card k=0.93  foe-card -
+1440x900 i07     cover  87.4%  shrink  88%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.93  foe-card k=0.76
+1440x900 i08     cover    94%  shrink  94%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.93  foe-card k=0.76
+1440x900 i09     cover  95.6%  shrink  96%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.93  foe-card k=0.76
+1440x900 i10     cover  98.5%  shrink  99%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.93  foe-card k=0.76
+1440x900 i11     cover  90.8%  shrink  96%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.93  foe-card k=0.76
+1440x900 i12     cover  89.7%  shrink  90%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.93  foe-card k=0.76
+1440x900 i13     cover  86.7%  shrink  87%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.93  foe-card k=0.76
+1440x900 i14     cover  92.5%  shrink  93%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.93  foe-card k=0.76
+1440x900 i15     cover  96.2%  shrink  96%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.93  foe-card k=0.76
+1440x900 i16     cover  95.4%  shrink  96%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.93  foe-card k=0.76
+1440x900 i17     cover   100%  shrink 100%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.88  foe-card k=0.76
+1440x900 i18     cover   100%  shrink 100%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.88  foe-card k=0.76
+1440x900 i19     cover  96.4%  shrink 100%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.88  foe-card k=0.76
+1440x900 i20     cover   100%  shrink 100%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.93  foe-card k=0.76
+1440x900 i21     cover  98.8%  shrink 100%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.93  foe-card k=0.76
+1440x900 i22     cover   100%  shrink 100%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.93  foe-card k=0.76
+1440x900 i23     cover  99.6%  shrink 100%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.93  foe-card k=0.76
+1440x900 i24     cover  96.1%  shrink 100%  pieces 10/10  hard 0  outer-road 0  wave-card k=0.93  foe-card k=0.76
+844x390 l1c      cover  55.5%  shrink  74%  pieces 10/10  hard 0  outer-road 0  wave-card k=1.00  foe-card k=0.71
+844x390 i01      cover  94.5%  shrink 100%  pieces 10/10  hard 0  outer-road 0  wave-card k=1.00  foe-card k=0.71
+844x390 i02      cover  72.6%  shrink  87%  pieces 10/10  hard 0  outer-road 0  wave-card k=1.00  foe-card k=0.71
+844x390 i03      cover  66.7%  shrink  82%  pieces 10/10  hard 0  outer-road 0  wave-card k=1.00  foe-card k=0.71
+844x390 i04      cover  82.6%  shrink  96%  pieces 10/10  hard 0  outer-road 0  wave-card k=1.00  foe-card k=0.71
+844x390 i05      cover  71.2%  shrink  88%  pieces 10/10  hard 0  outer-road 0  wave-card k=1.00  foe-card k=0.71
+844x390 i06      cover  75.6%  shrink  90%  pieces 10/9  hard 0  outer-road 0  wave-card k=1.00  foe-card -
+844x390 i07      cover  62.7%  shrink  79%  pieces 10/10  hard 0  outer-road 0  wave-card k=1.00  foe-card k=0.71
+844x390 i08      cover    69%  shrink  86%  pieces 10/10  hard 0  outer-road 0  wave-card k=1.00  foe-card k=0.71
+844x390 i09      cover    72%  shrink  91%  pieces 10/10  hard 0  outer-road 0  wave-card k=1.00  foe-card k=0.71
+844x390 i10      cover  87.2%  shrink  97%  pieces 10/10  hard 0  outer-road 0  wave-card k=1.00  foe-card k=0.71
+844x390 i11      cover  68.8%  shrink  85%  pieces 10/10  hard 0  outer-road 0  wave-card k=1.00  foe-card k=0.71
+844x390 i12      cover  47.4%  shrink  73%  pieces 10/10  hard 0  outer-road 0  wave-card k=1.00  foe-card k=0.71
+844x390 i13      cover  66.9%  shrink  82%  pieces 10/10  hard 0  outer-road 0  wave-card k=1.00  foe-card k=0.71
+844x390 i14      cover  69.2%  shrink  86%  pieces 10/10  hard 0  outer-road 0  wave-card k=1.00  foe-card k=0.71
+844x390 i15      cover    70%  shrink  84%  pieces 10/10  hard 0  outer-road 0  wave-card k=1.00  foe-card k=0.71
+844x390 i16      cover  67.6%  shrink  85%  pieces 10/10  hard 0  outer-road 0  wave-card k=1.00  foe-card k=0.71
+844x390 i17      cover    72%  shrink  92%  pieces 10/10  hard 0  outer-road 0  wave-card k=1.00  foe-card k=0.71
+844x390 i18      cover  76.7%  shrink  99%  pieces 10/10  hard 0  outer-road 0  wave-card k=1.00  foe-card k=0.71
+844x390 i19      cover  71.7%  shrink  87%  pieces 10/10  hard 0  outer-road 0  wave-card k=1.00  foe-card k=0.71
+844x390 i20      cover  71.1%  shrink  87%  pieces 10/10  hard 0  outer-road 0  wave-card k=1.00  foe-card k=0.71
+844x390 i21      cover  73.2%  shrink  86%  pieces 10/9  hard 0  outer-road 0  wave-card k=1.00  foe-card -
+844x390 i22      cover  65.8%  shrink  87%  pieces 10/10  hard 0  outer-road 0  wave-card k=1.00  foe-card k=0.71
+844x390 i23      cover  73.2%  shrink  85%  pieces 10/10  hard 0  outer-road 0  wave-card k=1.00  foe-card k=0.71
+844x390 i24      cover  74.7%  shrink  88%  pieces 10/10  hard 0  outer-road 0  wave-card k=1.00  foe-card k=0.71
+932x430 l1c      cover  61.1%  shrink  82%  pieces 10/10  hard 0  outer-road 0  wave-card k=1.00  foe-card k=0.71
+932x430 i01      cover  95.4%  shrink 100%  pieces 10/10  hard 0  outer-road 0  wave-card k=1.00  foe-card k=0.71
+932x430 i02      cover  69.2%  shrink  92%  pieces 10/10  hard 0  outer-road 0  wave-card k=1.00  foe-card k=0.71
+932x430 i03      cover  73.3%  shrink  86%  pieces 10/10  hard 0  outer-road 0  wave-card k=1.00  foe-card k=0.71
+932x430 i04      cover  91.5%  shrink 100%  pieces 10/10  hard 0  outer-road 0  wave-card k=1.00  foe-card k=0.71
+932x430 i05      cover  84.6%  shrink  95%  pieces 10/10  hard 0  outer-road 0  wave-card k=1.00  foe-card k=0.71
+932x430 i06      cover  83.8%  shrink  97%  pieces 10/9  hard 0  outer-road 0  wave-card k=1.00  foe-card -
+932x430 i07      cover  72.9%  shrink  85%  pieces 10/10  hard 0  outer-road 0  wave-card k=1.00  foe-card k=0.71
+932x430 i08      cover  75.9%  shrink  93%  pieces 10/10  hard 0  outer-road 0  wave-card k=1.00  foe-card k=0.71
+932x430 i09      cover  74.3%  shrink  96%  pieces 10/10  hard 0  outer-road 0  wave-card k=1.00  foe-card k=0.71
+932x430 i10      cover  97.2%  shrink 100%  pieces 10/10  hard 0  outer-road 0  wave-card k=1.00  foe-card k=0.71
+932x430 i11      cover  75.3%  shrink  93%  pieces 10/10  hard 0  outer-road 0  wave-card k=1.00  foe-card k=0.71
+932x430 i12      cover  56.1%  shrink  78%  pieces 10/10  hard 0  outer-road 0  wave-card k=1.00  foe-card k=0.71
+932x430 i13      cover    74%  shrink  88%  pieces 10/10  hard 0  outer-road 0  wave-card k=1.00  foe-card k=0.71
+932x430 i14      cover  74.3%  shrink  93%  pieces 10/10  hard 0  outer-road 0  wave-card k=1.00  foe-card k=0.71
+932x430 i15      cover  77.9%  shrink  88%  pieces 10/10  hard 0  outer-road 0  wave-card k=1.00  foe-card k=0.71
+932x430 i16      cover    76%  shrink  93%  pieces 10/10  hard 0  outer-road 0  wave-card k=1.00  foe-card k=0.71
+932x430 i17      cover  99.3%  shrink 100%  pieces 10/10  hard 0  outer-road 0  wave-card k=1.00  foe-card k=0.71
+932x430 i18      cover  83.2%  shrink 100%  pieces 10/10  hard 0  outer-road 0  wave-card k=1.00  foe-card k=0.71
+932x430 i19      cover  77.7%  shrink  94%  pieces 10/10  hard 0  outer-road 0  wave-card k=1.00  foe-card k=0.71
+932x430 i20      cover  78.6%  shrink  94%  pieces 10/10  hard 0  outer-road 0  wave-card k=1.00  foe-card k=0.71
+932x430 i21      cover  89.7%  shrink  95%  pieces 10/9  hard 0  outer-road 0  wave-card k=1.00  foe-card -
+932x430 i22      cover  70.7%  shrink  92%  pieces 10/10  hard 0  outer-road 0  wave-card k=1.00  foe-card k=0.71
+932x430 i23      cover  83.7%  shrink  92%  pieces 10/10  hard 0  outer-road 0  wave-card k=1.00  foe-card k=0.71
+932x430 i24      cover  78.1%  shrink  95%  pieces 10/10  hard 0  outer-road 0  wave-card k=1.00  foe-card k=0.71
+new-foe heads-up checked in the info slot: 40
+1920x1080: map covers 97.6% of the screen on average (worst 88%, 17/25 islands >= 97%)
+2000x991: map covers 97.8% of the screen on average (worst 84.5%, 19/25 islands >= 97%)
+2560x1080: map covers 97.4% of the screen on average (worst 84.5%, 19/25 islands >= 97%)
+1366x768: map covers 96.9% of the screen on average (worst 86.2%, 15/25 islands >= 97%)
+1600x900: map covers 97.1% of the screen on average (worst 86.5%, 16/25 islands >= 97%)
+1440x900: map covers 95.1% of the screen on average (worst 86.7%, 8/25 islands >= 97%)
+844x390: map covers 71.1% of the screen on average (worst 47.4%, 0/25 islands >= 97%)
+932x430: map covers 79% of the screen on average (worst 56.1%, 2/25 islands >= 97%)
+
+problems: 0

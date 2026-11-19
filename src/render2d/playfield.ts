@@ -2,11 +2,8 @@
  * What the HUD must never cover (pure, no Pixi): the island's roads (with their painted width),
  * the build plots and the caves / castle. In map image px; `toScreen` maps them through a fit.
  *
- * Two forms:
- * - `playfieldShapes`: the exact shapes (road capsules, plot circles, gate rects). The overlap
- *   check (`shapesOverlap`) and the QA / tests use these.
- * - `playfieldBoxes`: conservative boxes for the map fit (hudFit.ts), grown upward by the height of
- *   what stands on them (walkers on a road, a tower on a plot), so the top band never hides a head.
+ * `playfieldShapes`: the exact shapes (road capsules, plot circles, gate rects). The overlap check
+ * (`shapesOverlap`), the full-bleed fit (fullBleed.ts) and the QA / tests use these.
  */
 import type { Level2DLayout } from '../data/levels/types.ts';
 import { gateKeepOutsPx, type Rect } from './uiLayout.ts';
@@ -59,46 +56,6 @@ export function playfieldShapes(layout: Level2DLayout): PlayShapes {
     plots: layout.plots.map((p) => ({ x: px(p.x), y: py(p.z), r })),
     gates: gates.filter((g) => g.w > 0 && g.h > 0),
   };
-}
-
-export interface BoxOptions {
-  /** Height (road widths) of the walkers above the road: their bodies must clear the HUD too. */
-  readonly walkerUp: number;
-  /** Height (plot radii) of a tower above its plot's centre. */
-  readonly towerUp: number;
-}
-
-/** Default headroom: a walker is about 1.5 road widths tall, a tower about 2.6 plot radii. */
-export const PLAYFIELD_HEADROOM: BoxOptions = { walkerUp: 1.5, towerUp: 2.6 };
-
-/**
- * Conservative boxes (image px) covering the shapes plus the headroom above them: roads cut into
- * pieces no longer than a road width (each piece's box holds its capsule), plots with their tower,
- * the gates as they are.
- */
-export function playfieldBoxes(s: PlayShapes, o: BoxOptions = PLAYFIELD_HEADROOM): Rect[] {
-  const out: Rect[] = [];
-  const rr = s.roadR;
-  const up = o.walkerUp * rr * 2;
-  for (const g of s.roads) {
-    const len = Math.hypot(g.bx - g.ax, g.by - g.ay);
-    const n = Math.max(1, Math.ceil(len / (rr * 2)));
-    for (let i = 0; i < n; i++) {
-      const x0 = g.ax + ((g.bx - g.ax) * i) / n;
-      const y0 = g.ay + ((g.by - g.ay) * i) / n;
-      const x1 = g.ax + ((g.bx - g.ax) * (i + 1)) / n;
-      const y1 = g.ay + ((g.by - g.ay) * (i + 1)) / n;
-      const lx = Math.min(x0, x1) - rr;
-      const ty = Math.min(y0, y1) - Math.max(rr, up);
-      out.push({ x: lx, y: ty, w: Math.max(x0, x1) + rr - lx, h: Math.max(y0, y1) + rr - ty });
-    }
-  }
-  for (const p of s.plots) {
-    const top = p.y - Math.max(p.r, o.towerUp * p.r);
-    out.push({ x: p.x - p.r, y: top, w: p.r * 2, h: p.y + p.r - top });
-  }
-  for (const g of s.gates) out.push({ x: g.x, y: g.y, w: g.w, h: g.h });
-  return out;
 }
 
 /** Shortest distance from point (px, py) to the segment a-b. */

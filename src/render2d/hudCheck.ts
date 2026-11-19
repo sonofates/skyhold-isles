@@ -2,25 +2,32 @@
  * QA (`window.__p0.hudCheck()`): every HUD piece as it is really drawn — the canvas HUD (plaque,
  * banner, pause / speed, horn with its label and seconds), the DOM buttons with their captions
  * (Codex, Settings), the hero / ability tray and the info cards when shown (next wave, tapped foe,
- * new-foe heads-up) — and the road, plot,
- * cave and castle shapes each one covers under the current map fit. `overlaps` must be empty.
+ * new-foe heads-up) — and what each one covers under the current map fit.
+ *
+ * Rules (fullBleed.ts): a piece may lie over the map's decorative art, never over a plot, a cave
+ * or the castle (`overlaps`, hard fail), and over a road only where it runs outside the safe area
+ * (the outer decorative margin: `outerRoads`, allowed, reported). `overlaps` must be empty.
  */
 import type { Game2D } from './game2d.ts';
+import { hardOverlaps, hardShapes, type HardKind } from './fullBleed.ts';
 import { dockPieces } from './hudDock.ts';
-import { playfieldShapes, shapesOverlap, type Overlap } from './playfield.ts';
+import { playfieldShapes, shapesOverlap } from './playfield.ts';
 import type { Rect } from './uiLayout.ts';
 
 export interface HudCheck {
   readonly screen: { w: number; h: number };
   readonly form: string;
-  readonly fit: { scale: number; offsetX: number; offsetY: number; shrink: number };
+  readonly fit: { scale: number; offsetX: number; offsetY: number; shrink: number; coverage: number; clear: boolean };
   /** Drawn pieces (screen px). */
   readonly pieces: Record<string, Rect>;
   /** The dock's slots (screen px). */
   readonly slots: Record<string, Rect>;
   /** Drawn pieces that stick out of their slot (px; ≤ 1 is rounding). */
   readonly outside: Record<string, number>;
-  readonly overlaps: { piece: string; kind: Overlap['kind']; index: number; depth: number }[];
+  /** Hard: a piece over a plot, cave, castle or a road inside the safe area. */
+  readonly overlaps: { piece: string; kind: HardKind; index: number; depth: number }[];
+  /** Allowed: a piece over a road where it runs outside the safe area. */
+  readonly outerRoads: { piece: string; index: number }[];
 }
 
 const r4 = (r: Rect): Rect => ({ x: Math.round(r.x * 10) / 10, y: Math.round(r.y * 10) / 10, w: Math.round(r.w * 10) / 10, h: Math.round(r.h * 10) / 10 });
@@ -75,8 +82,10 @@ function domBox(root: Element | null): Rect | null {
 
 export function hudCheck(game: Game2D): HudCheck {
   const k = game.dock;
-  const fit = game.map.fit as typeof game.map.fit & { shrink?: number };
-  const shapes = playfieldShapes(game.level.layout2d!);
+  const fit = game.map.fit;
+  const fb = game.fullBleed;
+  const hard = hardShapes(game.level.layout2d!);
+  const all = playfieldShapes(game.level.layout2d!);
   const hr = game.hud.rects();
   const pieces: Record<string, Rect> = {
     plaque: hr.plaque,
@@ -109,16 +118,22 @@ export function hudCheck(game: Game2D): HudCheck {
     outside[name] = Math.round(Math.max(0, s.x - r.x, r.x + r.w - (s.x + s.w), s.y - r.y, r.y + r.h - (s.y + s.h)) * 10) / 10;
   }
   const overlaps: HudCheck['overlaps'] = [];
+  const outerRoads: HudCheck['outerRoads'] = [];
   for (const [name, r] of Object.entries(pieces)) {
-    for (const o of shapesOverlap(shapes, fit, r)) overlaps.push({ piece: name, ...o });
+    const h = hardOverlaps(hard, fit, r);
+    for (const o of h) overlaps.push({ piece: name, ...o });
+    for (const o of shapesOverlap(all, fit, r)) {
+      if (o.kind === 'road' && !h.some((q) => q.kind === 'road' && q.index === o.index)) outerRoads.push({ piece: name, index: o.index });
+    }
   }
   return {
     screen: { w: game.app.screen.width, h: game.app.screen.height },
     form: k.form,
-    fit: { scale: fit.scale, offsetX: fit.offsetX, offsetY: fit.offsetY, shrink: fit.shrink ?? 1 },
+    fit: { scale: fit.scale, offsetX: fit.offsetX, offsetY: fit.offsetY, shrink: fb?.shrink ?? 1, coverage: fb?.coverage ?? 1, clear: fb?.clear ?? true },
     pieces: Object.fromEntries(Object.entries(pieces).map(([n, r]) => [n, r4(r)])),
     slots: Object.fromEntries(Object.entries(slots).map(([n, r]) => [n, r4(r)])),
     outside,
     overlaps,
+    outerRoads,
   };
 }

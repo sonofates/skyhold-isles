@@ -1,26 +1,31 @@
-// HUD dock play-check against `vite preview`: every HUD piece as really drawn (canvas HUD, DOM
-// buttons + captions, hero / ability tray, next-wave card, foe card) vs the island's roads (with
-// their width), plot circles and cave / castle rects under the live map fit (`__p0.hudCheck()`).
-//   --part=check  all 25 islands at 1920x1080, 2560x1080, 1366x768, 1600x900 (desktop) and 844x390,
-//                 932x430 (phone, touch, DPR 2): at the start (next-wave card up), then in wave 2 with
-//                 a foe tapped (foe card up); the new-foe heads-up whenever a never-seen foe marches.
-//                 Exits 1 on any overlap or a piece outside its slot.
-//   --part=shots  i24 boss wave, i12, l1c, i16 at 1920x1080 and 844x390 into docs/hud-shots/.
-// Usage: python3 qa/withPreview.py node qa/hudplace.mjs --part=check [--ids=l1c,i24] [--sizes=1920x1080]
+// Full-bleed map + corner HUD play-check against `vite preview`: every HUD piece as really drawn
+// (canvas HUD, DOM buttons + captions, hero / ability tray, next-wave card, foe card, new-foe
+// heads-up) vs the island under the live map fit (`__p0.hudCheck()`): plots, caves, the castle and
+// roads inside the safe area are hard fails; roads in the outer decorative margin are allowed.
+//   --part=check  all 25 islands at 1920x1080, 2000x991, 2560x1080, 1366x768, 1600x900, 1440x900
+//                 (desktop) and 844x390, 932x430 (phone, touch, DPR 2): at the start (next-wave card
+//                 up), then in wave 2 with a foe tapped (foe card up); the new-foe heads-up whenever a
+//                 never-seen foe marches. Reports the map's screen coverage. Exits 1 on any hard
+//                 overlap, a piece outside its slot or a fit that found no clear placement.
+//   --part=shots  l1c, i12, i16 (start + battle) and i24 boss wave at 2000x991, 1920x1080, 2560x1080
+//                 and 844x390 into docs/fullbleed-shots/.
+// Usage: python3 qa/withPreview.py --port=4391 node qa/hudplace.mjs --part=check [--ids=l1c,i24] [--sizes=1920x1080]
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { chromium } from 'playwright';
 
 const arg = (k) => process.argv.find((a) => a.startsWith(`--${k}=`))?.slice(k.length + 3);
 const BASE = arg('base') ?? 'http://127.0.0.1:4381';
-const OUT = arg('out') ?? 'docs/hud-shots';
+const OUT = arg('out') ?? 'docs/fullbleed-shots';
 const PART = arg('part') ?? 'check';
 const ALL = ['l1c', ...Array.from({ length: 24 }, (_, i) => `i${String(i + 1).padStart(2, '0')}`)];
 const IDS = (arg('ids') ?? ALL.join(',')).split(',');
 const SIZES = [
   { key: '1920x1080', w: 1920, h: 1080, dpr: 1, desktop: 1 },
+  { key: '2000x991', w: 2000, h: 991, dpr: 1, desktop: 1 },
   { key: '2560x1080', w: 2560, h: 1080, dpr: 1, desktop: 1 },
   { key: '1366x768', w: 1366, h: 768, dpr: 1, desktop: 1 },
   { key: '1600x900', w: 1600, h: 900, dpr: 1, desktop: 1 },
+  { key: '1440x900', w: 1440, h: 900, dpr: 1, desktop: 1 },
   { key: '844x390', w: 844, h: 390, dpr: 2, desktop: 0, touch: true },
   { key: '932x430', w: 932, h: 430, dpr: 2, desktop: 0, touch: true },
 ].filter((s) => !arg('sizes') || arg('sizes').split(',').includes(s.key));
@@ -45,7 +50,7 @@ async function context(size) {
 }
 
 async function load(page, id, size, extra = '') {
-  await page.goto(`${BASE}/2d.html?level=${id}&hero=bran&lang=en&desktop=${size.desktop}${extra}`);
+  await page.goto(`${BASE}/2d.html?level=${id}&hero=bran&lang=en&quality=high&desktop=${size.desktop}${extra}`);
   await page.waitForFunction(() => window.__p0?.hudCheck && !document.getElementById('boot'), null, { timeout: 90000 });
   await sleep(600);
 }
@@ -54,9 +59,12 @@ function judge(tag, c) {
   const bad = [];
   for (const o of c.overlaps) bad.push(`${o.piece} over ${o.kind}#${o.index} (${o.depth})`);
   for (const [p, d] of Object.entries(c.outside)) if (d > 1.5) bad.push(`${p} ${d}px outside its slot`);
+  if (!c.fit.clear) bad.push('fit found no clear placement');
   if (bad.length) problems.push(`${tag}: ${bad.join('; ')}`);
   return bad.length;
 }
+
+const cover = {};
 
 async function check() {
   const rows = [];
@@ -100,7 +108,8 @@ async function check() {
         if (!foe?.shown) report.push(`${tag}: (no foe card: ${at ? 'tap missed' : 'no foe on screen'})`);
         judge(`${tag} wave`, b);
         const pieces = Object.keys(b.pieces).length;
-        rows.push(`${tag.padEnd(16)} ${a.form.padEnd(7)} scale ${String(Math.round(a.fit.shrink * 100)).padStart(3)}%  pieces ${Object.keys(a.pieces).length}/${pieces}  overlaps ${a.overlaps.length + b.overlaps.length}  wave-card ${wave?.shown ? `k=${wave.scale.toFixed(2)}` : '-'}  foe-card ${foe?.shown ? `k=${foe.scale.toFixed(2)}` : '-'}`);
+        (cover[size.key] ??= []).push(a.fit.coverage);
+        rows.push(`${tag.padEnd(16)} cover ${String(Math.round(a.fit.coverage * 1000) / 10).padStart(5)}%  shrink ${String(Math.round(a.fit.shrink * 100)).padStart(3)}%  pieces ${Object.keys(a.pieces).length}/${pieces}  hard ${a.overlaps.length + b.overlaps.length}  outer-road ${a.outerRoads.length + b.outerRoads.length}  wave-card ${wave?.shown ? `k=${wave.scale.toFixed(2)}` : '-'}  foe-card ${foe?.shown ? `k=${foe.scale.toFixed(2)}` : '-'}`);
       } catch (e) {
         problems.push(`${tag}: ${e.message}`);
       }
@@ -108,23 +117,28 @@ async function check() {
     await ctx.close();
   }
   report.push(...rows, `new-foe heads-up checked in the info slot: ${toasts}`);
+  for (const [k, xs] of Object.entries(cover)) {
+    const avg = xs.reduce((p, q) => p + q, 0) / xs.length;
+    report.push(`${k}: map covers ${Math.round(avg * 1000) / 10}% of the screen on average (worst ${Math.round(Math.min(...xs) * 1000) / 10}%, ${xs.filter((x) => x >= 0.97).length}/${xs.length} islands >= 97%)`);
+  }
 }
 
 async function shot(page, name) {
   await page.screenshot({ path: `${OUT}/${name}.jpg`, type: 'jpeg', quality: 84 });
   const c = await page.evaluate(() => window.__p0.hudCheck());
   judge(name, c);
-  report.push(`${name}: ${c.form} scale ${Math.round(c.fit.shrink * 100)}% overlaps ${c.overlaps.length}`);
+  report.push(`${name}: cover ${Math.round(c.fit.coverage * 1000) / 10}% shrink ${Math.round(c.fit.shrink * 100)}% hard ${c.overlaps.length} outer-road ${c.outerRoads.length}`);
 }
 
 async function shots() {
-  for (const size of SIZES.filter((s) => s.key === '1920x1080' || s.key === '844x390')) {
-    const k = size.touch ? 'phone' : 'desk';
+  const want = arg('sizes') ? SIZES.map((s) => s.key) : ['2000x991', '1920x1080', '2560x1080', '844x390'];
+  for (const size of SIZES.filter((s) => want.includes(s.key))) {
+    const k = size.touch ? `phone${size.w}x${size.h}` : `${size.w}x${size.h}`;
     const ctx = await context(size);
     const page = await ctx.newPage();
     page.on('pageerror', (e) => problems.push(`${k}: pageerror ${e.message}`));
     try {
-      for (const id of ['i12', 'l1c', 'i16']) {
+      for (const id of ['l1c', 'i12', 'i16'].filter((i) => !arg('ids') || IDS.includes(i))) {
         await load(page, id, size, '&autoplay=1&speed=3');
         await page.waitForFunction(() => window.__p0.waveCard()?.shown, null, { timeout: 8000 }).catch(() => undefined);
         await shot(page, `${id}-${k}-start`);
@@ -147,6 +161,10 @@ async function shots() {
         await page.evaluate(() => window.__p0.freeze(false));
       }
       // i24: skip to the boss wave and let the Colossus walk the north road.
+      if (arg('ids') && !IDS.includes('i24')) {
+        await ctx.close();
+        continue;
+      }
       await load(page, 'i24', size, '&autoplay=1&speed=3');
       const label = await page.evaluate(() => window.__p0.hudWave());
       const last = Number(/(\d+)\s*\/\s*(\d+)/.exec(label)?.[2] ?? 14);
@@ -164,9 +182,6 @@ async function shots() {
           await sleep(4000);
           await shot(page, `i24-${k}-boss`);
           shotSpawn = true;
-        }
-        if (b && b.phase >= 1) {
-          await shot(page, `i24-${k}-boss-stormwall`);
           break;
         }
         if (s.outcome !== 'ongoing') break;

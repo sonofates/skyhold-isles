@@ -51,7 +51,7 @@ import { anySheetOpen } from './ui/dom.ts';
 import { readSafeInsets } from './uiKit.ts';
 import { NO_INSETS, type Insets } from './uiLayout.ts';
 import { dockPieces, hudDock, type HudDock } from './hudDock.ts';
-import { playfieldShapes, shapesOverlap, type PlayShapes } from './playfield.ts';
+import { fullBleedFit, hardOverlaps, hardShapes, type FullBleedFit, type HardShapes } from './fullBleed.ts';
 import { GoldPops2D } from './ui/goldPops2d.ts';
 import { applyRunCommand, ReplayCursor, RunRecorder, runFingerprint, sameFingerprint, type RunCommand, type RunReplay } from './ui/replay2d.ts';
 
@@ -149,11 +149,13 @@ export class Game2D {
   readonly ring: BuildRing;
   readonly end: EndPanel;
   private insets: Insets = NO_INSETS;
-  /** QA: how many road / plot / cave / castle shapes the dock pieces cover (0 = clear). */
+  /** QA: how many plot / cave / castle / safe-area road shapes the dock pieces cover (0 = clear). */
   hornScore = 0;
-  /** Where every HUD piece sits (set by resize; the same on every island). */
+  /** QA: the full-bleed fit of the last resize (coverage, shrink, clear). */
+  fullBleed: FullBleedFit | null = null;
+  /** Where every HUD piece sits (set by resize: its corner, nudged per island if it must be). */
   dock: HudDock = hudDock(1, 1, NO_INSETS, { plaqueAspect: 3.5, plaqueSlots: { lives: [0, 0], gold: [0, 0], midY: 0.5 }, bannerAspect: 3.4, hero: false });
-  private playShapes: PlayShapes | null = null;
+  private playShapes: HardShapes | null = null;
   private endShown = false;
   /** Event-FX counters (QA). */
   readonly fxStats = createSpecialFxStats();
@@ -767,14 +769,17 @@ export class Game2D {
     this.applyResolution(w, h);
     this.insets = readSafeInsets();
     this.ring.insets = this.insets;
-    // The HUD dock (the same place for every piece on every island), then the map fitted around it:
-    // no road, plot, cave or castle under a HUD piece (hudDock.ts, viewFit.ts fitAroundHud).
-    this.dock = hudDock(w, h, this.insets, this.hud.dockOptions(!!this.hooks.hero));
-    this.map.resize(w, h, this.dock.reserved);
+    // The map covers the screen (full bleed) and the HUD sits in its corners over the decorative
+    // edges; a piece slides along its edge (or the map shrinks a little) only where it would cover
+    // a plot, cave, castle or a safe-area road (fullBleed.ts).
+    const shapes = (this.playShapes ??= hardShapes(this.level.layout2d!));
+    const placed = fullBleedFit(w, h, this.level.layout2d!, hudDock(w, h, this.insets, this.hud.dockOptions(!!this.hooks.hero)), shapes);
+    this.dock = placed.dock;
+    this.fullBleed = placed.fit;
+    this.map.resize(w, h, placed.fit);
     this.hud.layout(w, h, this.dock, this.insets);
     // QA: what any dock piece still covers (exact shapes; 0 = clear).
-    const shapes = (this.playShapes ??= playfieldShapes(this.level.layout2d!));
-    this.hornScore = Object.values(dockPieces(this.dock)).reduce((n, rect) => n + shapesOverlap(shapes, this.map.fit, rect).length, 0);
+    this.hornScore = Object.values(dockPieces(this.dock)).reduce((n, rect) => n + hardOverlaps(shapes, this.map.fit, rect).length, 0);
     this.end.layout(w, h, this.insets);
     this.ring.close();
     this.rangeDisc.visible = false;

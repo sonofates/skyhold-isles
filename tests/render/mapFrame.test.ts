@@ -4,9 +4,8 @@ import { hudDock } from '../../src/render2d/hudDock.ts';
 import {
   backdropPlacement, borderWidth, boxBlurRGBA, buildBackdropTexture, gradeRGBA, shadowReach,
 } from '../../src/render2d/mapFrame.ts';
-import { playfieldBoxes, playfieldShapes } from '../../src/render2d/playfield.ts';
+import { fullBleedFit, hardShapes } from '../../src/render2d/fullBleed.ts';
 import { KIT_PLAQUE_SLOTS, NO_INSETS } from '../../src/render2d/uiLayout.ts';
-import { fitAroundHud } from '../../src/render2d/viewFit.ts';
 
 function rgba(w: number, h: number, f: (x: number, y: number) => [number, number, number]): Uint8ClampedArray {
   const d = new Uint8ClampedArray(w * h * 4);
@@ -68,7 +67,7 @@ describe('mapFrame pixel helpers', () => {
 });
 
 describe('backdrop placement', () => {
-  const SIZES: readonly [number, number][] = [[1920, 1080], [2560, 1080], [1366, 768], [1600, 900], [844, 390], [932, 430]];
+  const SIZES: readonly [number, number][] = [[1920, 1080], [2000, 991], [2560, 1080], [1366, 768], [1440, 900], [844, 390], [932, 430]];
   const OVER = 20;
 
   it('covers the whole screen (+ shake overscan) and shares the map centre, on every island and screen', () => {
@@ -76,10 +75,10 @@ describe('backdrop placement', () => {
       const layout = level.layout2d;
       if (!layout) continue;
       const [iw, ih] = layout.imageSize;
-      const boxes = playfieldBoxes(playfieldShapes(layout));
+      const shapes = hardShapes(layout);
       for (const [w, h] of SIZES) {
         const dock = hudDock(w, h, NO_INSETS, { plaqueAspect: 1024 / 294, plaqueSlots: KIT_PLAQUE_SLOTS, bannerAspect: 512 / 152, hero: true });
-        const fit = fitAroundHud(w, h, iw, ih, layout.safeArea, boxes, dock.reserved);
+        const { fit } = fullBleedFit(w, h, layout, dock, shapes);
         const p = backdropPlacement(w, h, iw, ih, fit, OVER);
         const tag = `${level.id} ${w}x${h}`;
         expect(p.x, tag).toBeLessThanOrEqual(-OVER + 1e-6);

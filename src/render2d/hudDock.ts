@@ -1,30 +1,20 @@
 /**
- * The HUD dock (pure, no Pixi / DOM): one fixed place for every HUD piece, derived from the screen
- * size alone, so it is the same on every island. The map is then fitted around it (viewFit.ts
- * `fitAroundHud`): no road, plot, cave or castle ever lies under a HUD piece.
+ * The HUD dock (pure, no Pixi / DOM): compact corner pieces over a full-bleed map. One form on
+ * every screen shape, desktop to phone (sizes follow the screen):
  *
- * Two forms, by screen shape:
+ *   ┌ info card (next wave / tapped foe / new foe) ·········· Settings Codex Pause Speed ┐
+ *   │                                                                                   │
+ *   │                              (the island, edge to edge)                     horn  │
+ *   └ lives+gold plaque ········ [hero | skills ‖ abilities] tray ········ wave banner ──┘
  *
- * `bands` (16:9, 16:10, 4:3 … — the map fills the width, so the HUD takes thin top / bottom bands)
- *   ┌ info card slot (next wave / tapped foe / new foe) ── Settings Codex Pause Speed ┐
- *   │                               (the island)                                     │
- *   └ lives+gold plaque ─── [hero | skills ‖ abilities] tray ─── horn ─ wave banner ─┘
- *
- * `columns` (phones in landscape, ultrawide — wider than the map, so the HUD takes the sides)
- *   ┌ info ┐                                              Settings Codex Pause Speed ┐
- *   │ slot │                                                                        │
- *   │ hero │                     (the island)                                       │
- *   │skills│                                                                  horn  │
- *   └ plaque (lives+gold)                                                  wave banner┘
- *
- * Measured with scripts/hudFit.ts: one band form on the top and bottom costs ~20 % of map scale on
- * 16:9 (the painted islands run edge to edge), the columns cost ~20 % on phones and ~2 % on 21:9;
- * every other arrangement tried (corner clusters, everything on top, a bottom-centre tray on
- * phones) cost more.
+ * The map covers the screen (fullBleed.ts) and the pieces lie over its decorative edges. A piece
+ * never covers a plot, a cave, the castle or a road inside the safe area: per island the info card
+ * may slide right along the top, the tray along the bottom, the horn may stand left of the banner
+ * (`hornAlt`); only if that is not enough the map shrinks a little (fullBleed.ts).
  */
 import { HUD_MIN_TOUCH, hudButtonsKeepOut, plaqueLayout, uiScale, type Insets, type PlaqueLayout, type PlaqueSlots, type Rect } from './uiLayout.ts';
 
-/** Width (or height, in a column) of the hero group at button size `d` and spacing `gap`. */
+/** Width of the hero group at button size `d` and spacing `gap`. */
 export function heroGroupLong(d: number, gap: number): number {
   return Math.round(d * 1.5 + d * 2 + d * 0.12 + gap * 3);
 }
@@ -39,19 +29,7 @@ export function trayShort(d: number, hero: boolean): number {
   return Math.ceil((hero ? d * 1.5 : d) + d * 0.08);
 }
 
-/** The three-row stack up a side (portrait / hero skills / abilities; abilities only without a hero). */
-export function trayStack(d: number, gap: number, hero: boolean): { w: number; h: number } {
-  return { w: Math.ceil(d * 2 + gap + d * 0.12), h: Math.ceil(hero ? d * 3.5 + gap * 1.2 + d * 0.08 : d * 1.08) };
-}
-
-export type DockForm = 'bands' | 'columns';
-
-/** Screens at least this much wider than tall get the side columns. */
-export const COLUMNS_ASPECT = 1.9;
-
-export function dockForm(w: number, h: number): DockForm {
-  return w / Math.max(1, h) >= COLUMNS_ASPECT ? 'columns' : 'bands';
-}
+export type DockForm = 'corners';
 
 export interface HudDockOptions {
   /** Plaque art width / height and its number slots (hud.ts picks the kit or the legacy plaque). */
@@ -63,7 +41,12 @@ export interface HudDockOptions {
   readonly hero: boolean;
 }
 
-export interface HudDock {
+export interface HornSpot {
+  readonly horn: { readonly x: number; readonly y: number; readonly r: number };
+  readonly hornBox: Rect;
+}
+
+export interface HudDock extends HornSpot {
   readonly form: DockForm;
   readonly pad: number;
   readonly gap: number;
@@ -71,103 +54,90 @@ export interface HudDock {
   readonly buttons: Rect;
   /** Slot of the info cards (next-wave card, tapped-foe card, new-foe heads-up): top-left. */
   readonly info: Rect;
+  /** Left edges the info slot may slide between (along the top). */
+  readonly infoRange: readonly [number, number];
   readonly plaque: PlaqueLayout;
   readonly banner: Rect;
-  /** Horn centre / radius. Its box holds the countdown ring and, on its left, the label / seconds. */
-  readonly horn: { readonly x: number; readonly y: number; readonly r: number };
-  readonly hornBox: Rect;
   /** Width of the label / seconds column left of the horn. */
   readonly hornTextW: number;
-  /** Hero + ability tray (the bar's box), its arrangement and button size. */
+  /** The horn's other spot: left of the banner, on the bottom line. */
+  readonly hornAlt: HornSpot | null;
+  /** Hero + ability tray (the bar's box), always one row; button size `d`. */
   readonly tray: Rect;
-  readonly trayLayout: 'row' | 'stack';
+  /** Left edges the tray may slide between (along the bottom, plaque to banner). */
+  readonly trayRange: readonly [number, number];
+  readonly trayLayout: 'row';
   readonly d: number;
-  /** Every piece, grown by DOCK_MARGIN: the map keeps the playfield out of these. */
-  readonly reserved: readonly Rect[];
 }
 
 /** Horn radius at a UI scale (never under a comfortable touch target). */
 export function dockHornR(u: number): number {
-  return Math.max(HUD_MIN_TOUCH / 2 + 4, 34 * u);
+  return Math.max(HUD_MIN_TOUCH / 2 + 4, 32 * u);
 }
-
-/** Space the map keeps between the playfield and a HUD piece (css px). */
-export const DOCK_MARGIN = 4;
 
 /** The painted-UI unit `--s` (paintedUi.css) at a screen size. */
 export function uiUnit(w: number, h: number): number {
   return Math.max(8.5, Math.min(0.0095 * w, 0.0185 * h, 17));
 }
 
+/** Corner pieces are this much smaller than the old bands (compact HUD over a full-bleed map). */
+export const DOCK_COMPACT = 0.86;
+
 export function hudDock(w: number, h: number, insets: Insets, o: HudDockOptions): HudDock {
-  const form = dockForm(w, h);
   const u = uiScale(w, h);
+  const cu = u * DOCK_COMPACT;
   const s = uiUnit(w, h);
   const pad = Math.max(8, 14 * u);
-  const gap = Math.round(Math.max(10, 16 * u));
+  const gap = Math.round(Math.max(10, 14 * u));
   const buttons = hudButtonsKeepOut(w, h, insets);
-  const plaque = plaqueLayout(w, h, insets, o.plaqueAspect, o.plaqueSlots);
+  const plaque = plaqueLayout(w, h, insets, o.plaqueAspect, o.plaqueSlots, DOCK_COMPACT);
   const bottom = h - insets.bottom - pad;
   const top = insets.top + Math.max(6, pad * 0.5);
   const leftX = insets.left + pad;
   // Wave banner bottom-right, mirroring the plaque.
-  const bw = Math.max(150, Math.min(230 * u, (w - insets.left - insets.right) * 0.3));
+  const bw = Math.max(150, Math.min(230 * cu, (w - insets.left - insets.right) * 0.28));
   const bh = bw / o.bannerAspect;
   const banner: Rect = { x: w - insets.right - pad - bw, y: bottom - bh, w: bw, h: bh };
   const r = dockHornR(u);
   const hornTextW = Math.round(Math.max(15, 20 * u) * 2.8);
-  const want = Math.round(Math.max(46, 52 * u));
-  let horn: { x: number; y: number; r: number };
+  const box = (x: number, y: number): Rect => ({ x: x - r * 1.2 - hornTextW, y: y - r * 1.2, w: r * 2.4 + hornTextW, h: r * 2.4 });
+  // Home: the horn stands on the banner's right end (one compact corner). Alt: left of the banner.
+  const hx = banner.x + banner.w - r * 1.2;
+  const hy = banner.y - gap * 0.4 - r * 1.2;
+  const ax = banner.x - gap * 0.5 - r * 1.2;
+  const ay = bottom - r * 1.2;
+  const hornAlt: HornSpot = { horn: { x: ax, y: ay, r }, hornBox: box(ax, ay) };
+  // Tray: one row between the plaque and the banner, centred on the screen when it can be.
+  const want = Math.round(Math.max(40, 46 * cu));
+  const left = plaque.x + plaque.w + gap;
+  const right = banner.x - gap;
+  const coef = o.hero ? 1.5 + 2 + 0.12 + 2 + 0.12 : 2.12;
+  const fitD = Math.floor((right - left - (o.hero ? 5 : 1) * gap - 2) / coef);
+  const d = Math.max(40, Math.min(want, fitD));
+  const tw = trayLong(d, gap, o.hero);
+  const th = trayShort(d, o.hero);
   let tray: Rect;
-  let info: Rect;
-  let d: number;
-  let trayLayout: 'row' | 'stack';
-  if (form === 'bands') {
-    // Horn just left of the banner, on the bottom line.
-    horn = { x: banner.x - gap * 0.5 - r * 1.2, y: bottom - r * 1.2, r };
-    const hornLeft = horn.x - r * 1.2 - hornTextW;
-    // Tray between the plaque and the horn, centred on the screen when it fits there.
-    const left = plaque.x + plaque.w + gap;
-    const right = hornLeft - gap;
-    const coef = o.hero ? 1.5 + 2 + 0.12 + 2 + 0.12 : 2.12;
-    const fitD = Math.floor((right - left - (o.hero ? 5 : 1) * gap - 2) / coef);
-    d = Math.max(40, Math.min(want, fitD));
-    const tw = trayLong(d, gap, o.hero);
-    const th = trayShort(d, o.hero);
-    let tx = Math.max(left, Math.min(right - tw, w / 2 - tw / 2));
-    let ty = bottom - th;
-    // A screen too narrow for one row (portrait): the tray rides above the plaque.
-    if (right - left < tw) {
-      tx = plaque.x;
-      ty = plaque.y - gap - th;
-    }
-    tray = { x: tx, y: ty, w: tw, h: th };
-    trayLayout = 'row';
-    // Info slot top-left, as tall as the button band; it ends before the top-centre column where the
-    // first-island coach card appears (30 --s wide, centred), so they never meet.
-    const ih = Math.max(buttons.y + buttons.h - top, s * 7);
-    info = { x: leftX, y: top, w: Math.max(0, Math.min(w / 2 - s * 15 - gap - leftX, buttons.x - gap - leftX)), h: ih };
+  let trayRange: [number, number];
+  if (right - left >= tw) {
+    const tx = Math.max(left, Math.min(right - tw, w / 2 - tw / 2));
+    tray = { x: tx, y: bottom - th, w: tw, h: th };
+    trayRange = [left, right - tw];
   } else {
-    // Right column: the horn stands on the banner's right end.
-    horn = { x: banner.x + banner.w - r * 1.2, y: banner.y - gap * 0.4 - r * 1.2, r };
-    // Left column: the tray stack on the plaque, the info slot above it. The stack's buttons shrink
-    // (never under 40 px) so the info slot keeps ~7 lines of card.
-    const minInfo = Math.max(84, s * 9);
-    let dd = want;
-    while (dd > 40 && plaque.y - gap * 0.6 - trayStack(dd, gap, o.hero).h - gap * 0.6 - top < minInfo) dd -= 2;
-    d = dd;
-    const st = trayStack(d, gap, o.hero);
-    tray = { x: leftX, y: plaque.y - gap * 0.6 - st.h, w: st.w, h: st.h };
-    trayLayout = 'stack';
-    // Narrow (the column's width on phones, ~1/8 of an ultrawide): every px of it costs map scale.
-    const iw = Math.max(st.w, Math.min(w * 0.13, s * 22));
-    info = { x: leftX, y: top, w: iw, h: Math.min(s * 18, Math.max(40, tray.y - gap * 0.6 - top)) };
+    // A screen too narrow for one row (portrait): the tray rides above the plaque.
+    tray = { x: plaque.x, y: plaque.y - gap - th, w: tw, h: th };
+    trayRange = [plaque.x, plaque.x];
   }
-  const hornBox: Rect = { x: horn.x - r * 1.2 - hornTextW, y: horn.y - r * 1.2, w: r * 2.4 + hornTextW, h: r * 2.4 };
-  const m = DOCK_MARGIN;
-  const grow = (q: Rect): Rect => ({ x: q.x - m, y: q.y - m, w: q.w + m * 2, h: q.h + m * 2 });
-  const reserved = [buttons, info, { x: plaque.x, y: plaque.y, w: plaque.w, h: plaque.h }, banner, hornBox, tray].map(grow);
-  return { form, pad, gap, buttons, info, plaque, banner, horn, hornBox, hornTextW, tray, trayLayout, d, reserved };
+  // Info slot top-left: compact, may slide right up to the top-centre column (the first-island
+  // coach card, 30 --s wide) and never into the buttons.
+  const stop = Math.min(w / 2 - s * 15 - gap, buttons.x - gap);
+  const iw = Math.max(Math.min(110, stop - leftX), Math.min(s * 17, w * 0.21, stop - leftX));
+  const ih = Math.max(s * 7.5, 64);
+  const info: Rect = { x: leftX, y: top, w: iw, h: ih };
+  const infoRange: [number, number] = [leftX, Math.max(leftX, stop - iw)];
+  return {
+    form: 'corners', pad, gap, buttons, info, infoRange, plaque, banner, horn: { x: hx, y: hy, r }, hornBox: box(hx, hy), hornTextW, hornAlt,
+    tray, trayRange, trayLayout: 'row', d,
+  };
 }
 
 /** The dock's pieces by name (QA / tests: each must cover nothing). */
