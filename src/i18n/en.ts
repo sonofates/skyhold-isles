@@ -294,7 +294,7 @@ export const EN = {
 
   // --- workshop ------------------------------------------------------------------------------
   'ws.title': 'Workshop',
-  'ws.refundArmed': 'Tap again · refund {n}★',
+  'ws.refundArmed': 'Sure? Refund {n}★',
   'ws.refundAll': 'Refund all',
   'ws.toSpend': 'to spend',
   'ws.note': 'Spend stars on lasting upgrades. Refund any time.',

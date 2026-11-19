@@ -300,7 +300,7 @@ export const TR: { readonly [K in MsgKey]: Msg } = {
 
   // --- workshop ------------------------------------------------------------------------------
   'ws.title': 'Atölye',
-  'ws.refundArmed': 'Yine dokun · {n}★ iade',
+  'ws.refundArmed': 'Emin misin? {n}★ iade',
   'ws.refundAll': 'Hepsini iade et',
   'ws.toSpend': 'harcanabilir',
   'ws.note': 'Yıldızlarını kalıcı geliştirmelere harca. İstediğin an geri alabilirsin.',
