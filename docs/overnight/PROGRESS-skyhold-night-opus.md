@@ -72,9 +72,13 @@ QA: `npx vite preview --port 4381 --strictPort` in background (kill with TaskSto
   once (`localStorage skyhold2d_coach_v1 = done`); `?coach=1` forces it (QA). Game2D counts accepted
   commands (`commandsDone`). QA `qa/coachshots.mjs` (EN+TR, desktop+phone): no problems.
 
+- **R1 backlog 2e — victory star rule — DONE:** small line under the victory caption: "5 lives lost ·
+  3 stars up to 2 lost, 2 stars up to 10" (from `data/stars.ts STAR_RULES` by island difficulty);
+  hidden on cramped boards (phone with the hero row) and under mode notes. No ★ glyph in canvas text
+  (Fredoka latin subset has none).
+
 ## Next (backlog 2: missing basics) — candidates, in rough value order
 - tower info card: the build ring tooltip already has stats/targeting/upgrade/sell+refund; review only
-- victory stars breakdown (why 2 stars: lives lost thresholds)
 - Then backlog 4 polish (hero controls feel, juice, end panel/world map with 25 islands, TR pass).
 
 ## Decisions

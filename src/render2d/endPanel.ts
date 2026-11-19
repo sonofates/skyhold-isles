@@ -33,6 +33,8 @@ export interface EndSummary {
   readonly hasNext: boolean;
   /** Show the Watch replay button (the run was recorded). */
   readonly hasReplay?: boolean;
+  /** Victory: lives lost and the island's 3- / 2-star limits (the "why" under the stars). */
+  readonly starRule?: { readonly lost: number; readonly three: number; readonly two: number };
 }
 
 /**
@@ -105,6 +107,8 @@ export class EndPanel {
   private readonly line1 = inkText(22, 'left');
   private readonly line2 = inkText(22, 'left');
   private readonly caption = inkText(20, 'center', '#7a5532', '600');
+  /** Victory: lives lost against the island's star limits (small, under the caption). */
+  private readonly rule = inkText(15, 'center', '#8a6a48', '600');
   private readonly buttons: Btn[] = [];
   private readonly art: LoadedArt;
   private lay: EndLayout | null = null;
@@ -130,7 +134,7 @@ export class EndPanel {
     this.heart = new Sprite(art.ui.heart);
     this.coin = new Sprite(art.ui.gold);
     for (const s of [this.heart, this.coin]) s.anchor.set(0.5);
-    this.board.addChild(this.panelFallback, this.panel, this.title, this.heart, this.coin, this.line1, this.line2, this.caption);
+    this.board.addChild(this.panelFallback, this.panel, this.title, this.heart, this.coin, this.line1, this.line2, this.caption, this.rule);
     for (let i = 0; i < 3; i++) {
       const empty = new Sprite(kit(art, 'starEmpty', Texture.EMPTY));
       const full = new Sprite(kit(art, 'star', Texture.EMPTY));
@@ -225,7 +229,10 @@ export class EndPanel {
       setText(this.line1, `${s.lives}/${s.startLives}`);
       setText(this.line2, String(s.gold));
       setText(this.caption, s.stars === 3 ? t('end.flawless') : s.stars === 2 ? t('end.well') : t('end.holds'));
+      const r = s.starRule;
+      setText(this.rule, r ? t('end.starRule', { n: r.lost, a: r.three, b: r.two }) : '');
     } else {
+      setText(this.rule, '');
       setText(this.line1, t('end.waveOf', { n: Math.max(1, s.wave), total: s.totalWaves }));
       setText(this.line2, String(s.gold));
       setText(this.caption, t('end.brokeThrough'));
@@ -341,6 +348,15 @@ export class EndPanel {
     this.line2.position.set(x, y);
     this.caption.position.set(L.summary.x, won ? y + f * 1.3 : y + f * 1.7);
     fitWidth(this.caption, P.w * 0.8);
+    this.rule.visible = won && this.rule.text !== '' && !this.note;
+    setInkSize(this.rule, Math.round(f * 0.68));
+    this.rule.position.set(L.summary.x, this.caption.y + f * 0.95);
+    fitWidth(this.rule, P.w * 0.74);
+    // Small boards (phones) with the hero row: no room for the extra line.
+    if (this.rule.visible && this.hero) {
+      const room = L.buttons[0].y - L.buttonR - (this.rule.y + this.rule.height / 2);
+      if (room < f * 2.6) this.rule.visible = false;
+    }
     this.layoutHero(L, f);
     // Buttons: Retry / Next Isle / World Map (Next hidden when there is no open next island).
     const hasNext = this.summary?.hasNext ?? false;
@@ -371,7 +387,7 @@ export class EndPanel {
     this.heroRow.visible = !!h && this.root.visible;
     if (!h) return;
     const P = L.panel;
-    const capBottom = this.caption.y + this.caption.height / 2;
+    const capBottom = this.rule.visible ? this.rule.y + this.rule.height / 2 : this.caption.y + this.caption.height / 2;
     const btnTop = L.buttons[0].y - L.buttonR;
     const yMid = (capBottom + btnTop) / 2 - f * 0.05;
     const fs = Math.round(f * 0.8);

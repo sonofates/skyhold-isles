@@ -200,6 +200,7 @@ export const EN = {
   'end.flawless': 'Flawless defence!',
   'end.well': 'Well defended!',
   'end.holds': 'The isle holds!',
+  'end.starRule': { one: '{n} life lost · 3 stars up to {a} lost, 2 stars up to {b}', other: '{n} lives lost · 3 stars up to {a} lost, 2 stars up to {b}' },
   'end.waveOf': 'Wave {n}/{total}',
   'end.brokeThrough': 'The raiders broke through',
 

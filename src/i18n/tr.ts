@@ -206,6 +206,7 @@ export const TR: { readonly [K in MsgKey]: Msg } = {
   'end.flawless': 'Kusursuz savunma!',
   'end.well': 'İyi savundun!',
   'end.holds': 'Ada ayakta!',
+  'end.starRule': { one: '{n} can kaybı · 3 yıldız için en çok {a}, 2 yıldız için en çok {b}', other: '{n} can kaybı · 3 yıldız için en çok {a}, 2 yıldız için en çok {b}' },
   'end.waveOf': 'Dalga {n}/{total}',
   'end.brokeThrough': 'Akıncılar savunmayı yardı',
 

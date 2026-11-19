@@ -71,6 +71,21 @@ for (const size of SIZES) {
       ok(await page.evaluate(() => window.__p0.state().paused), `${tag}: blur did not pause`);
     }
     await ctx.close();
+    // Victory board with the star rule (5 lives lost).
+    const ctx3 = await browser.newContext({ viewport: { width: size.w, height: size.h }, deviceScaleFactor: size.dpr, isMobile: !!size.touch, hasTouch: !!size.touch });
+    const p3 = await ctx3.newPage();
+    await p3.goto(`${BASE}/2d.html?level=l1c&hero=bran&lang=${lang}&desktop=${size.desktop ? 1 : 0}`);
+    await p3.waitForFunction(() => window.__p0?.forceEnd && !document.getElementById('boot'), null, { timeout: 60000 });
+    await p3.evaluate(() => {
+      window.__p0.setLives(15);
+      window.__p0.forceEnd('won');
+    });
+    await p3.waitForFunction(() => !!window.__p0.state().end, null, { timeout: 10000 }).catch(() => problems.push(`${tag}: no victory board`));
+    // A plain-play win shows the island's after-battle story first: skip it.
+    await p3.locator('[data-testid="story2d-skip"]').click({ timeout: 8000 }).catch(() => undefined);
+    await p3.waitForTimeout(2500);
+    await p3.screenshot({ path: `${OUT}/${lang}-${size.key}-end-stars.jpg`, type: 'jpeg', quality: 84 });
+    await ctx3.close();
     // Controls page.
     const ctx2 = await browser.newContext({ viewport: { width: size.w, height: size.h }, deviceScaleFactor: size.dpr, isMobile: !!size.touch, hasTouch: !!size.touch });
     const p2 = await ctx2.newPage();

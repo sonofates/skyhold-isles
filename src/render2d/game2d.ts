@@ -4,6 +4,7 @@ import { FixedTimestepStepper } from '../core/gameLoop.ts';
 import type { AbilityId, GameSettings, HeroSkillSlot, SpeedMultiplier, TargetingMode, TowerType, Vec3 } from '../core/types.ts';
 import { LEVELS } from '../data/levels/index.ts';
 import { BALANCE } from '../data/balance.ts';
+import { STAR_RULES } from '../data/stars.ts';
 import type { LevelDef } from '../data/levels/types.ts';
 import { NEUTRAL_RUN_MODIFIERS, type RunModifiers } from '../data/runModifiers.ts';
 import { getTowerTierStats, TOWER_DEFS } from '../data/towers.ts';
@@ -805,6 +806,7 @@ export class Game2D {
           totalWaves: this.hudState.totalWaves,
           hasNext: !!this.hooks.onNext,
           hasReplay: !!this.lastReplay && !this.hooks.endless,
+          ...(won ? { starRule: { lost: Math.max(0, world.startingLives - world.lives), three: (STAR_RULES[this.level.difficulty] ?? STAR_RULES.Breezy).threeStarMaxLost, two: (STAR_RULES[this.level.difficulty] ?? STAR_RULES.Breezy).twoStarMaxLost } } : {}),
         });
         // main2d fills in the hero XP / mode note in this callback; the board is kept after it.
         this.hooks.onEndPanel?.(true);
