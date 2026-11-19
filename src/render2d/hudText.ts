@@ -1,6 +1,7 @@
 import { Text, TextStyle } from 'pixi.js';
 
-export const HUD_FONT = '"Fredoka Variable", "Trebuchet MS", "Arial Rounded MT Bold", sans-serif';
+/** 'Fredoka TR' supplies the Turkish letters Fredoka lacks (ş Ş ğ Ğ İ; ui/fredokaTr.css). */
+export const HUD_FONT = '"Fredoka Variable", "Fredoka TR", "Trebuchet MS", "Arial Rounded MT Bold", sans-serif';
 
 /** Cream lettering with a thick dark-brown outline (matches the painted UI kit). */
 export function paintedText(size: number, align: 'left' | 'center' | 'right' = 'left', fill = '#fff4dc'): Text {

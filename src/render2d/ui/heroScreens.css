@@ -96,15 +96,27 @@
 
 /* ---- briefing chip --------------------------------------------------------------------------- */
 
+/*
+ * Portrait | kicker, name, title, XP bar | Change + Skill tree. The name and the title each have
+ * their own line (no ellipsis: "Bran Demirmeşe" / "Kalkan Şövalyesi"); in a narrow card the two
+ * planks move under the text in a row (container query).
+ */
 .pu-hero-chip {
-  display: flex;
-  align-items: center;
-  gap: calc(var(--s) * 1);
+  container-type: inline-size;
+  /* 1em = the UI unit, so the container query below reads in --s. */
+  font-size: var(--s);
   margin-top: calc(var(--s) * 0.6);
-  padding: calc(var(--s) * 0.5) calc(var(--s) * 0.7);
   border-radius: calc(var(--s) * 1);
   background: rgba(255, 244, 220, 0.45);
   box-shadow: inset 0 0 0 2px rgba(122, 85, 50, 0.35);
+}
+
+.pu-hero-chip-in {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: calc(var(--s) * 0.6) calc(var(--s) * 1.1);
+  padding: calc(var(--s) * 0.7) calc(var(--s) * 1);
 }
 
 .pu-hero-chip-face {
@@ -113,35 +125,76 @@
 }
 
 .pu-hero-chip-text {
-  flex: 1 1 auto;
+  flex: 1 1 calc(var(--s) * 10);
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: calc(var(--s) * 0.25);
+  gap: calc(var(--s) * 0.2);
 }
 
 .pu-hero-chip-kicker {
   font-size: calc(var(--s) * 1);
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.04em;
 }
 
 .pu-hero-chip-name {
   font-size: calc(var(--s) * 1.45);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
 }
 
-.pu-hero-chip-name small {
-  margin-left: 0.5em;
-  font-size: 0.75em;
+.pu-hero-chip-title {
+  font-size: calc(var(--s) * 1.1);
+  line-height: 1.15;
+}
+
+.pu-hero-chip-text .pu-bar {
+  margin-top: calc(var(--s) * 0.25);
 }
 
 .pu-hero-chip-actions {
+  flex: none;
   display: flex;
   flex-direction: column;
-  gap: calc(var(--s) * 0.4);
+  gap: calc(var(--s) * 0.45);
+}
+
+.pu-hero-chip-actions .pu-plank {
+  width: 100%;
+}
+
+/* Landscape phones: the chip shares the island's column with the records; keep it short. */
+@media (max-height: 480px) {
+  .pu-hero-chip {
+    margin-top: calc(var(--s) * 0.3);
+  }
+
+  .pu-hero-chip-in {
+    gap: calc(var(--s) * 0.4) calc(var(--s) * 0.9);
+    padding: calc(var(--s) * 0.45) calc(var(--s) * 0.8);
+  }
+
+  .pu-hero-chip-kicker {
+    display: none;
+  }
+
+  .pu-hero-chip-face {
+    width: calc(var(--s) * 4.2);
+    height: calc(var(--s) * 4.2);
+  }
+}
+
+@container (max-width: 32em) {
+  .pu-hero-chip-actions {
+    flex: 1 1 100%;
+    flex-direction: row;
+    justify-content: center;
+  }
+
+  .pu-hero-chip-actions .pu-plank {
+    width: auto;
+  }
 }
 
 /* ---- choose your hero ------------------------------------------------------------------------ */

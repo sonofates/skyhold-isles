@@ -1,0 +1,43 @@
+/*
+ * Fredoka has no ş Ş ğ Ğ İ (its latin-ext subset is 30 glyphs): without these faces the browser
+ * draws them in the next font of the stack (Trebuchet MS / sans-serif), so Turkish words mixed two
+ * typefaces. 'Fredoka TR' holds just those five letters, built from Fredoka's own s / g / S / G / I,
+ * the cedilla of ç / Ç, a breve in Fredoka's stroke and the dot of Ö (scripts/fredokaTr.mjs), one
+ * static face per weight the UI uses. It sits right after 'Fredoka Variable' in every font stack
+ * (paintedUi.css, hudText.ts HUD_FONT), so only those letters come from it.
+ */
+@font-face {
+  font-family: 'Fredoka TR';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/fredoka-tr-400.otf') format('opentype');
+  unicode-range: U+011E-011F, U+0130, U+015E-015F;
+}
+
+@font-face {
+  font-family: 'Fredoka TR';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('/fonts/fredoka-tr-500.otf') format('opentype');
+  unicode-range: U+011E-011F, U+0130, U+015E-015F;
+}
+
+@font-face {
+  font-family: 'Fredoka TR';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('/fonts/fredoka-tr-600.otf') format('opentype');
+  unicode-range: U+011E-011F, U+0130, U+015E-015F;
+}
+
+@font-face {
+  font-family: 'Fredoka TR';
+  font-style: normal;
+  font-weight: 700 900;
+  font-display: swap;
+  src: url('/fonts/fredoka-tr-700.otf') format('opentype');
+  unicode-range: U+011E-011F, U+0130, U+015E-015F;
+}

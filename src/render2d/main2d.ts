@@ -1,4 +1,5 @@
 import '@fontsource-variable/fredoka';
+import './ui/fredokaTr.css';
 import { Application, UPDATE_PRIORITY } from 'pixi.js';
 import { getLevelById } from '../data/levels2d/index.ts';
 import { buildEndlessWaveDef } from '../sim/waveSystem.ts';
@@ -35,6 +36,7 @@ import { hudKeepOuts, readSafeInsets } from './uiKit.ts';
 import { gateKeepOutsPx, hudButtonsKeepOut } from './uiLayout.ts';
 import { uiUnit } from './hudDock.ts';
 import { hudCheck } from './hudCheck.ts';
+import { auditCanvasTexts } from './qaText.ts';
 import { anySheetOpen } from './ui/dom.ts';
 
 /**
@@ -101,6 +103,8 @@ declare global {
       waveCard?: () => Record<string, unknown> | null;
       /** QA: every HUD piece as drawn (screen px) and what playable shape each one covers (must be none). */
       hudCheck?: () => import('./hudCheck.ts').HudCheck;
+      /** QA: canvas lettering against its painted box (qaText.ts); empty = all inside. */
+      textAudit?: () => import('./qaText.ts').QaTextProblem[];
       /** QA: what fills the letterbox bands (blurred backdrop, shadow, vignette, border). */
       mapFrame?: () => ReturnType<import('./mapView.ts').MapView['frameInfo']>;
       /** QA: the caves / castle fronts on screen (`castle` = the goal). */
@@ -199,8 +203,9 @@ const GAME_PARAMS = ['level', 'hero', 'daily', 'challenge', 'endless', 'ab', 'be
 
 /**
  * Language first (before any text is built): `?lang=`, the stored setting, else the browser. The
- * boot line and the page title follow it, and Fredoka's latin-ext subset (ğ ş ı İ) is fetched with
- * the latin one, so canvas text never falls back to another font for Turkish letters.
+ * boot line and the page title follow it, and the Turkish letters Fredoka lacks (ğ ş İ, served by
+ * the 'Fredoka TR' faces of ui/fredokaTr.css) are fetched up front, so canvas text never falls
+ * back to another font for them.
  */
 function bootLocale(): Promise<unknown> {
   initLocale();
@@ -210,6 +215,7 @@ function bootLocale(): Promise<unknown> {
   return Promise.all([
     document.fonts.load(`700 32px ${HUD_FONT}`, 'Aa'), // i18n-ignore (font probe)
     document.fonts.load(`700 32px ${HUD_FONT}`, 'ğşıİçöüĞŞÇÖÜ'),
+    document.fonts.load(`600 32px ${HUD_FONT}`, 'ğşıİçöüĞŞÇÖÜ'),
   ]).catch(() => undefined);
 }
 
@@ -973,6 +979,7 @@ async function main(): Promise<void> {
     abilities: () => abilities?.debug() ?? null,
     waveCard: () => waveCard?.debug() ?? null,
     hudCheck: () => hudCheck(game),
+    textAudit: () => auditCanvasTexts([...game.hud.qaTexts(), ...game.end.qaTexts(), ...game.ring.qaTexts()], app.screen.width, app.screen.height),
     mapFrame: () => game.map.frameInfo(),
     gates: () => gateRectsRef?.() ?? [],
     lives: () => livesWarn?.debug() ?? null,

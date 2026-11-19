@@ -1,9 +1,11 @@
-import { Container, Graphics, NineSliceSprite, Sprite, type Text } from 'pixi.js';
+import { CanvasTextMetrics, Container, Graphics, NineSliceSprite, Sprite, type Text } from 'pixi.js';
 import { t, type MsgKey } from '../i18n/index.ts';
 import type { LoadedArt } from './assets2d.ts';
 import { paintedText, setFontSize, setText } from './hudText.ts';
 import { fitWidth, hasKit, inkText, kit, setInkSize } from './uiKit.ts';
 import { hudDock, type HudDock, type HudDockOptions } from './hudDock.ts';
+import type { QaTextItem } from './qaText.ts';
+import { hornStackText, type HornLabelSize, type HornPlacement } from './hornSpot.ts';
 import { HUD_MIN_TOUCH, hudButtonsLayout, KIT_PLAQUE_SLOTS, NO_INSETS, plateCentreY, uiScale, type Insets, type PlaqueSlots, type Rect } from './uiLayout.ts';
 
 /**
@@ -102,6 +104,8 @@ export class Hud {
   private hornR = 40;
   private hornTextW = 60;
   private hornBox: Rect = { x: 0, y: 0, w: 0, h: 0 };
+  private hornAtCave = false;
+  private dockHorn: { x: number; y: number; r: number; box: Rect; textW: number } = { x: 0, y: 0, r: 40, box: { x: 0, y: 0, w: 0, h: 0 }, textW: 60 };
   private bannerFont = 30;
   private screenW = 1;
   private screenH = 1;
@@ -244,12 +248,10 @@ export class Hud {
     this.hornY = dock.horn.y;
     this.hornTextW = dock.hornTextW;
     this.hornBox = dock.hornBox;
-    const tx = this.hornX - this.hornR * 1.2 - 2;
-    setFontSize(this.hornLabel, Math.round(Math.max(15, 20 * u)));
+    this.dockHorn = { x: this.hornX, y: this.hornY, r: this.hornR, box: this.hornBox, textW: this.hornTextW };
+    setFontSize(this.hornLabel, Math.round(Math.max(17, 22 * u)));
     setFontSize(this.hornSecs, Math.round(Math.max(14, 18 * u)));
-    this.hornLabel.position.set(tx, this.hornY - this.hornR * 0.42);
-    this.hornSecs.position.set(tx, this.hornY + this.hornR * 0.42);
-    fitWidth(this.hornLabel, this.hornTextW);
+    this.placeHornText('side');
     this.lastHorn = NaN;
     this.lastSecs = -1;
     this.lastRingFrac = -1;
@@ -404,7 +406,7 @@ export class Hud {
     if (hornKey !== this.lastHorn) {
       this.lastHorn = hornKey;
       setText(this.hornLabel, hornKey > 0 ? `+${hornKey}` : hornKey === -1 ? t('hud.start') : '');
-      fitWidth(this.hornLabel, this.hornTextW);
+      fitWidth(this.hornLabel, this.hornTextW - 6);
     }
     this.drawCountdown(s.countdown ?? 0, s.countdownFrac ?? 0);
     if (s.banner !== this.lastBanner) {
@@ -491,6 +493,97 @@ export class Hud {
 
   get hornPosition(): { x: number; y: number } {
     return { x: this.hornX, y: this.hornY };
+  }
+
+  /** Sizes of the horn's label (its widest text) and seconds, for a spot beside a cave (hornSpot.ts). */
+  hornLabelSize(): HornLabelSize {
+    const ls = this.hornLabel.style;
+    const widest = Math.max(...[t('hud.start'), '+888'].map((s) => CanvasTextMetrics.measureText(s, ls).width));
+    const lf = Number(ls.fontSize);
+    const sf = Number(this.hornSecs.style.fontSize);
+    // Pixi's bounds include the outline stroke (0.2 × size) and the line's ascent / descent.
+    return { labelW: Math.ceil(widest + lf * 0.25), labelH: Math.ceil(lf * 1.5), secsH: Math.ceil(sf * 1.45) };
+  }
+
+  /** The horn beside the next wave's cave (null: back to its dock spot). */
+  setHornPlacement(p: HornPlacement | null): void {
+    this.hornAtCave = !!p;
+    if (p) {
+      this.hornX = p.horn.x;
+      this.hornY = p.horn.y;
+      this.hornR = p.horn.r;
+      this.hornBox = p.hornBox;
+      this.hornTextW = p.shape === 'stack' ? p.hornBox.w : p.hornBox.w - p.horn.r * 2.44;
+      this.placeHornText(p.shape === 'stack' ? 'stack' : p.shape === 'left' ? 'side' : 'right');
+    } else {
+      const d = this.dockHorn;
+      this.hornX = d.x;
+      this.hornY = d.y;
+      this.hornR = d.r;
+      this.hornBox = d.box;
+      this.hornTextW = d.textW;
+      this.placeHornText('side');
+    }
+    this.lastHorn = NaN;
+    this.lastSecs = -1;
+    this.lastRingFrac = -1;
+  }
+
+  /** Where the horn's label and seconds stand for its current spot. */
+  /** 'side': label and seconds left of the horn; 'right': right of it; 'stack': above / below it. */
+  private placeHornText(mode: 'side' | 'stack' | 'right'): void {
+    if (mode === 'right') {
+      const tx = this.hornX + this.hornR * 1.2 + 2;
+      for (const tt of [this.hornLabel, this.hornSecs]) {
+        tt.anchor.set(0, 0.5);
+        tt.style.align = 'left';
+      }
+      this.hornLabel.position.set(tx + 3, this.hornY - this.hornR * 0.42);
+      this.hornSecs.position.set(tx + 3, this.hornY + this.hornR * 0.42);
+    } else if (mode === 'side') {
+      const tx = this.hornX - this.hornR * 1.2 - 2;
+      for (const tt of [this.hornLabel, this.hornSecs]) {
+        tt.anchor.set(1, 0.5);
+        tt.style.align = 'right';
+      }
+      this.hornLabel.position.set(tx - 3, this.hornY - this.hornR * 0.42);
+      this.hornSecs.position.set(tx - 3, this.hornY + this.hornR * 0.42);
+    } else {
+      const ys = hornStackText(this.hornY, this.hornR, this.hornLabelSize());
+      for (const tt of [this.hornLabel, this.hornSecs]) {
+        tt.anchor.set(0.5, 0.5);
+        tt.style.align = 'center';
+      }
+      this.hornLabel.position.set(this.hornX, ys.labelY);
+      this.hornSecs.position.set(this.hornX, ys.secsY);
+    }
+    fitWidth(this.hornLabel, this.hornTextW - 6);
+  }
+
+  /** Where the horn stands now: at its dock corner ('dock') or beside the next wave's cave ('cave'). */
+  get hornSpot(): 'dock' | 'cave' {
+    return this.hornAtCave ? 'cave' : 'dock';
+  }
+
+  /**
+   * QA (qaText.ts): the numbers in their plaque slots, "Wave n/N" on the banner's cloth (between
+   * the rope knots, above the ragged hem), the horn's label and seconds in its piece, the Paused
+   * plate's lines on the plate.
+   */
+  qaTexts(): QaTextItem[] {
+    const bn = this.banner.getBounds();
+    const cloth = { x: bn.x + bn.width * 0.14, y: bn.y + bn.height * 0.3, w: bn.width * 0.72, h: bn.height * 0.66 };
+    const plate = this.plate.getBounds();
+    const pb = { x: plate.x, y: plate.y, w: plate.width, h: plate.height };
+    return [
+      { name: 'hud.lives', text: this.livesText, box: this.livesBox, gap: 0 },
+      { name: 'hud.gold', text: this.goldText, box: this.goldBox, gap: 0 },
+      { name: 'hud.wave', text: this.waveText, box: cloth },
+      { name: 'hud.hornLabel', text: this.hornLabel, box: this.hornBox, gap: 0 },
+      { name: 'hud.hornSecs', text: this.hornSecs, box: this.hornBox, gap: 0 },
+      { name: 'hud.plate', text: this.centre, box: pb, gap: 4 },
+      { name: 'hud.plateSub', text: this.sub, box: pb, gap: 4 },
+    ];
   }
 
   /** Screen rects of every HUD piece (QA: all must sit inside the viewport; numbers inside the plaque). */

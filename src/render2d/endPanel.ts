@@ -7,6 +7,7 @@ import { END_FRAME, endLayout, NO_INSETS, type EndLayout, type Insets, type Rect
 import type { EndModeNote } from './ui/modeBits.ts';
 import type { DifficultyId } from '../data/difficulty.ts';
 import { DIFFICULTY_EMBLEMS } from './ui/difficultyEmblems.ts';
+import type { QaTextItem } from './qaText.ts';
 
 export { endStars } from './uiLayout.ts';
 
@@ -636,6 +637,16 @@ export class EndPanel {
       if (dx * dx + dy * dy <= (b.r * 1.15) ** 2 || (Math.abs(dx) < b.r && dy > 0 && dy < b.r * 1.7)) return b.action;
     }
     return null;
+  }
+
+  /** QA (qaText.ts): the title on the ribbon's front band, every other line on the parchment. */
+  qaTexts(): QaTextItem[] {
+    if (!this.root.visible || !this.lay || this.t < 0.6) return [];
+    const P = this.lay.panel;
+    const ribbon: Rect = { x: P.x + P.w * 0.2, y: P.y, w: P.w * 0.6, h: P.h * END_FRAME.innerTop };
+    const parchment: Rect = { x: P.x + P.w * 0.09, y: P.y + P.h * (END_FRAME.innerTop - 0.03), w: P.w * 0.82, h: P.h * (END_FRAME.innerBottom - END_FRAME.innerTop + 0.05) };
+    const body = [this.line1, this.line2, this.caption, this.rule, this.heroText, this.heroLvl, ...this.buttons.map((b) => b.label)];
+    return [{ name: 'end.title', text: this.title, box: ribbon }, ...body.map((text, i) => ({ name: `end.text${i}`, text, box: parchment }))];
   }
 
   /** QA hooks: panel rect, button centres, stars shown. */

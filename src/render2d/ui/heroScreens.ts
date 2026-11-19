@@ -86,16 +86,22 @@ export function heroChip(ctx: HeroScreenCtx, files: HeroArtFiles): HeroChip {
     const face = portrait(files, r.id, 'pu-hero-chip-face');
     face.append(levelBadge(r.level, 'pu-hero-face-lvl'));
     box.replaceChildren(
-      face,
       el(
         'div',
-        'pu-hero-chip-text',
+        'pu-hero-chip-in',
         {},
-        el('div', 'pu-hero-chip-kicker pu-ink-soft', {}, t('hero.yourHero')),
-        el('div', 'pu-hero-chip-name pu-ink', {}, heroName(r.id), el('small', 'pu-ink-soft', {}, heroTitle(r.id))),
-        xpBar(r.xpProgress),
+        face,
+        el(
+          'div',
+          'pu-hero-chip-text',
+          {},
+          el('div', 'pu-hero-chip-kicker pu-ink-soft', {}, t('hero.yourHero')),
+          el('div', 'pu-hero-chip-name pu-ink', {}, heroName(r.id)),
+          el('div', 'pu-hero-chip-title pu-ink-soft', {}, heroTitle(r.id)),
+          xpBar(r.xpProgress),
+        ),
+        el('div', 'pu-hero-chip-actions', {}, change, skills),
       ),
-      el('div', 'pu-hero-chip-actions', {}, change, skills),
     );
   };
   refresh();

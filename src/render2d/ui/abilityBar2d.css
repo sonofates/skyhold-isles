@@ -17,15 +17,15 @@
   flex-direction: column;
 }
 
-/* The dock's tray (hudDock.ts): a slim dark-wood plate with a gold rim behind the medallions, so
-   the bar reads as one fixed piece of the HUD, not buttons floating on the island. It stays inside
-   the tray's reserved slot (the map keeps 4 px clear of it). */
+/* The dock's tray (hudDock.ts): a dark-wood pill with a gold rim behind the medallions, so the bar
+   reads as one fixed piece of the HUD, not buttons floating on the island. It is exactly the tray's
+   slot: TRAY_PAD × d around the row on every side (the row sits that far inside the slot). */
 .pu-abilities.tray::before {
   content: '';
   position: absolute;
-  inset: calc(var(--d, 60px) * -0.04);
+  inset: calc(var(--d, 60px) * -0.14);
   z-index: -1;
-  border-radius: calc(var(--d, 60px) * 0.62);
+  border-radius: 999px;
   background: linear-gradient(rgba(86, 54, 26, 0.62), rgba(44, 26, 10, 0.7));
   box-shadow:
     inset 0 0 0 2px rgba(222, 178, 104, 0.6),
@@ -140,17 +140,19 @@
   font-weight: 700;
 }
 
+/* Key badge: one size on every tray button (portrait included), on each button's lower right. */
 .pu-ab-key {
   position: absolute;
-  right: -6%;
-  bottom: -6%;
-  min-width: 34%;
-  height: 34%;
+  right: calc(var(--d, 60px) * -0.07);
+  bottom: calc(var(--d, 60px) * -0.07);
+  min-width: calc(var(--d, 60px) * 0.36);
+  height: calc(var(--d, 60px) * 0.36);
   display: grid;
   place-items: center;
   padding: 0 0.25em;
-  font-size: calc(var(--d, 60px) * 0.2);
-  border-radius: 8px;
+  font-size: calc(var(--d, 60px) * 0.21);
+  line-height: 1;
+  border-radius: calc(var(--d, 60px) * 0.11);
   background: linear-gradient(#a8743e, #7a4c22);
   box-shadow: 0 0 0 2px var(--outline), inset 0 1px 0 rgba(255, 230, 180, 0.5);
 }
@@ -275,8 +277,8 @@
   position: fixed;
   z-index: 27;
   width: max-content;
-  max-width: min(360px, 70vw);
-  padding: 2px 6px;
+  max-width: min(380px, 70vw);
+  padding: max(4px, calc(var(--s) * 0.35)) max(8px, calc(var(--s) * 0.65));
   font-size: max(12px, calc(var(--s) * 1.15));
   line-height: 1.25;
 }
@@ -316,8 +318,8 @@
   position: fixed;
   z-index: 26;
   width: max-content;
-  max-width: min(440px, 80vw);
-  padding: 0 8px;
+  max-width: min(460px, 80vw);
+  padding: max(3px, calc(var(--s) * 0.25)) max(10px, calc(var(--s) * 0.7));
   text-align: center;
   font-size: max(13px, calc(var(--s) * 1.3));
   font-weight: 700;

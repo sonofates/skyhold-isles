@@ -14,19 +14,29 @@
  */
 import { HUD_MIN_TOUCH, hudButtonsKeepOut, plaqueLayout, uiScale, type Insets, type PlaqueLayout, type PlaqueSlots, type Rect } from './uiLayout.ts';
 
-/** Width of the hero group at button size `d` and spacing `gap`. */
+/**
+ * The hero + ability tray at button size `d` (hero skills and abilities are `d` wide): the hero's
+ * portrait is a little larger (TRAY_PORTRAIT × d, its HP ring inside that box), a slim divider
+ * stands between the hero's buttons and the abilities, every gap is the dock's `gap`, and the
+ * painted backing keeps TRAY_PAD × d on every side (abilityBar2d.css / heroHud2d.css draw it).
+ */
+export const TRAY_PORTRAIT = 1.18;
+export const TRAY_PAD = 0.14;
+export const TRAY_DIVIDER = 0.08;
+
+/** Width of the hero group (portrait, two skills, divider) at button size `d` and spacing `gap`. */
 export function heroGroupLong(d: number, gap: number): number {
-  return Math.round(d * 1.5 + d * 2 + d * 0.12 + gap * 3);
+  return Math.round(d * TRAY_PORTRAIT + d * 2 + d * TRAY_DIVIDER + gap * 3);
 }
 
-/** Length of the tray in a row: hero group (if any), a gap, the two abilities, key-chip overhang. */
+/** Length of the tray in a row: hero group (if any), a gap, the two abilities, the backing's padding. */
 export function trayLong(d: number, gap: number, hero: boolean): number {
-  return (hero ? heroGroupLong(d, gap) + gap : 0) + d * 2 + gap + Math.round(d * 0.12);
+  return Math.round((hero ? heroGroupLong(d, gap) + gap : 0) + d * 2 + gap + d * TRAY_PAD * 2);
 }
 
-/** Height of the tray in a row: the hero portrait (1.5 d with its margin) or a button, + chip overhang. */
+/** Height of the tray in a row: the hero portrait (or a button) and the backing's padding. */
 export function trayShort(d: number, hero: boolean): number {
-  return Math.ceil((hero ? d * 1.5 : d) + d * 0.08);
+  return Math.ceil((hero ? d * TRAY_PORTRAIT : d) + d * TRAY_PAD * 2);
 }
 
 export type DockForm = 'corners';
@@ -108,10 +118,11 @@ export function hudDock(w: number, h: number, insets: Insets, o: HudDockOptions)
   const ay = bottom - r * 1.2;
   const hornAlt: HornSpot = { horn: { x: ax, y: ay, r }, hornBox: box(ax, ay) };
   // Tray: one row between the plaque and the banner, centred on the screen when it can be.
-  const want = Math.round(Math.max(40, 46 * cu));
+  // Buttons about as weighty as the portrait (owner feedback 2026-11-19: the skills read small).
+  const want = Math.round(Math.max(44, 50 * cu));
   const left = plaque.x + plaque.w + gap;
   const right = banner.x - gap;
-  const coef = o.hero ? 1.5 + 2 + 0.12 + 2 + 0.12 : 2.12;
+  const coef = (o.hero ? TRAY_PORTRAIT + 2 + TRAY_DIVIDER + 2 : 2) + TRAY_PAD * 2;
   const fitD = Math.floor((right - left - (o.hero ? 5 : 1) * gap - 2) / coef);
   const d = Math.max(40, Math.min(want, fitD));
   const tw = trayLong(d, gap, o.hero);
