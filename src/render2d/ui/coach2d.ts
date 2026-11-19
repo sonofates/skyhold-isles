@@ -146,7 +146,8 @@ export function mountCoach(touch: boolean, heroName: string): Coach2D {
   const title = el('div', 'pu-coach-title pu-ink');
   const text = el('div', 'pu-coach-text pu-ink-soft');
   const skip = el('button', 'pu-coach-skip pu-ink-soft', { type: 'button', 'data-testid': 'coach2d-skip' }, t('coach.skip'));
-  card.append(el('div', 'pu-coach-head', {}, count, title), text, skip);
+  // "Skip tips" rides on the title row (right) so the card stays two lines tall.
+  card.append(el('div', 'pu-coach-head', {}, count, title, skip), text);
   const arrow = el('div', 'pu pu-coach-arrow', { 'aria-hidden': 'true', 'data-testid': 'coach2d-arrow' });
   card.style.display = 'none';
   arrow.style.display = 'none';

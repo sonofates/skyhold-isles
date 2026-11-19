@@ -61,6 +61,7 @@
 }
 
 .pu-coach-title {
+  min-width: 0;
   font-size: calc(var(--s) * 1.35);
   font-weight: 700;
 }
@@ -73,7 +74,8 @@
 
 .pu-coach-skip {
   display: block;
-  margin: calc(var(--s) * 0.2) 0 0 auto;
+  flex: none;
+  margin: 0 0 0 auto;
   min-height: 28px;
   padding: 0 0.5em;
   font-size: calc(var(--s) * 0.95);
