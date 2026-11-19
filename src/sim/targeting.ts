@@ -25,7 +25,7 @@ export function acquireTarget(
 
   for (let i = 0; i < _candidates.length; i++) {
     const e = enemyPool.items[_candidates[i]];
-    if (!e.active || e.hp <= 0) continue;
+    if (!e.active || e.hp <= 0 || e.burrowed) continue;
     if (e.flying && !def.hitsFlyers) continue;
 
     const dx = e.x - tower.x;

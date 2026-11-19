@@ -160,7 +160,7 @@ export class ProjectileSystem {
         const idx = _splashCandidates[k];
         if (_burnHit.has(idx)) continue;
         const e = this.enemyPool.items[idx];
-        if (!e.active || e.hp <= 0 || e.flying) continue;
+        if (!e.active || e.hp <= 0 || e.flying || e.burrowed) continue;
         const dx = e.x - z.x;
         const dz = e.z - z.z;
         if (dx * dx + dz * dz > rSq) continue;
@@ -443,7 +443,7 @@ export class ProjectileSystem {
       }
     } else if (p.targetPoolIndex >= 0) {
       const target = this.enemyPool.items[p.targetPoolIndex];
-      if (target.active && target.uid === p.targetUid && target.hp > 0) {
+      if (target.active && target.uid === p.targetUid && target.hp > 0 && !target.burrowed) {
         const res = this.enemySystem.applyDamage(target, p.damage + Math.min(target.armor, p.armorPierce));
         if (target.type === 'boss' && res.actualDamage > 0) hitBoss = true;
         if (p.slowRatio > 0 && target.hp > 0) {
@@ -496,7 +496,7 @@ export class ProjectileSystem {
     const rSq = radius * radius;
     for (let i = 0; i < _splashCandidates.length; i++) {
       const e = this.enemyPool.items[_splashCandidates[i]];
-      if (!e.active || e.hp <= 0) continue;
+      if (!e.active || e.hp <= 0 || e.burrowed) continue;
       if (e.flying && !hitsFlyers) continue;
 
       const dx = e.x - cx;
@@ -584,7 +584,7 @@ export class ProjectileSystem {
         const idx = _splashCandidates[i];
         if (idx === primary.poolIndex || _pierceUsed.has(idx)) continue;
         const e = this.enemyPool.items[idx];
-        if (!e.active || e.hp <= 0) continue;
+        if (!e.active || e.hp <= 0 || e.burrowed) continue;
         if (e.flying && !hitsFlyers) continue;
         const rx = e.x - primary.x;
         const rz = e.z - primary.z;

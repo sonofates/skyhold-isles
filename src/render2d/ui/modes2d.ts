@@ -51,6 +51,10 @@ export interface ResolveQueryOptions2D {
   readonly applySaveModifiers?: boolean;
 }
 
+function isIslandCleared(progress: ProgressData, index: number): boolean {
+  return (progress.clears[index] ?? 0) > 0 || (progress.bestStars[index] ?? 0) > 0;
+}
+
 /**
  * Island challenges offered on `levelId` for the briefing card.
  * Locked (returns `[]`) until the island has been cleared at least once, matching the 3D briefing.
@@ -61,7 +65,7 @@ export function availableChallenges(
   levels: readonly LevelDef[] = LEVELS_2D,
 ): AvailableChallenge2D[] {
   const i = indexOf2D(levelId, levels);
-  if (i < 0 || (progress.clears[i] ?? 0) <= 0) return [];
+  if (i < 0 || !isIslandCleared(progress, i)) return [];
   const done = progress.challengeClears[i] ?? [];
   return challengesForLevel(levels[i]).map((id) => ({
     ...CHALLENGES[id],
@@ -84,7 +88,7 @@ export function dailyForToday(
   const cleared: number[] = [];
   if (progress) {
     levels.forEach((_, i) => {
-      if ((progress.clears[i] ?? 0) > 0) cleared.push(i);
+      if (isIslandCleared(progress, i)) cleared.push(i);
     });
   } else {
     levels.forEach((_, i) => cleared.push(i));
@@ -106,7 +110,7 @@ export function canPlayEndless(
   levels: readonly LevelDef[] = LEVELS_2D,
 ): boolean {
   const i = indexOf2D(levelId, levels);
-  return i >= 0 && (progress.clears[i] ?? 0) > 0;
+  return i >= 0 && isIslandCleared(progress, i);
 }
 
 /**

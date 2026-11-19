@@ -72,16 +72,21 @@ export function combineRunModifiers(...patches: readonly RunModifierPatch[]): Ru
   let championWaves = false;
   const fin = (v: number | undefined, fb: number): number =>
     typeof v === 'number' && Number.isFinite(v) ? v : fb;
+  const finNonNeg = (v: number | undefined, fb: number): number =>
+    typeof v === 'number' && Number.isFinite(v) && v >= 0 ? v : fb;
+  const finPos = (v: number | undefined, fb: number): number =>
+    typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : fb;
   for (const p of patches) {
-    startGoldBonus += fin(p.startGoldBonus, 0);
-    startGoldMul *= fin(p.startGoldMul, 1);
-    bonusLives += fin(p.bonusLives, 0);
-    if (p.maxLives !== undefined && p.maxLives !== null && Number.isFinite(p.maxLives)) {
-      maxLives = maxLives === null ? p.maxLives : Math.min(maxLives, p.maxLives);
+    startGoldBonus += Math.round(fin(p.startGoldBonus, 0));
+    startGoldMul *= finNonNeg(p.startGoldMul, 1);
+    bonusLives += Math.round(fin(p.bonusLives, 0));
+    if (p.maxLives !== undefined && p.maxLives !== null && Number.isFinite(p.maxLives) && p.maxLives >= 1) {
+      const cleanMax = Math.floor(p.maxLives);
+      maxLives = maxLives === null ? cleanMax : Math.min(maxLives, cleanMax);
     }
-    abilityCooldownMul *= fin(p.abilityCooldownMul, 1);
-    killGoldMul *= fin(p.killGoldMul, 1);
-    waveBonusMul *= fin(p.waveBonusMul, 1);
+    abilityCooldownMul *= finPos(p.abilityCooldownMul, 1);
+    killGoldMul *= finNonNeg(p.killGoldMul, 1);
+    waveBonusMul *= finNonNeg(p.waveBonusMul, 1);
     if (p.towerFireRateMul) {
       for (const [type, mul] of Object.entries(p.towerFireRateMul)) {
         if (is2DTower(type) && typeof mul === 'number' && Number.isFinite(mul) && mul > 0) {
@@ -89,8 +94,8 @@ export function combineRunModifiers(...patches: readonly RunModifierPatch[]): Ru
         }
       }
     }
-    enemySpeedMul *= fin(p.enemySpeedMul, 1);
-    enemyHpMul *= fin(p.enemyHpMul, 1);
+    enemySpeedMul *= finPos(p.enemySpeedMul, 1);
+    enemyHpMul *= finPos(p.enemyHpMul, 1);
     for (const t of p.bannedTowers ?? []) {
       if (is2DTower(t)) banned.add(t);
     }
@@ -102,12 +107,12 @@ export function combineRunModifiers(...patches: readonly RunModifierPatch[]): Ru
     startGoldMul,
     bonusLives,
     maxLives,
-    abilityCooldownMul,
+    abilityCooldownMul: Math.max(0.05, abilityCooldownMul),
     killGoldMul,
     waveBonusMul,
     towerFireRateMul,
-    enemySpeedMul,
-    enemyHpMul,
+    enemySpeedMul: Math.max(0.05, enemySpeedMul),
+    enemyHpMul: Math.max(0.05, enemyHpMul),
     bannedTowers: [...banned],
     abilitiesDisabled,
     championWaves,

@@ -12,6 +12,7 @@ import { acquireTarget } from './targeting.ts';
 export const BEACON_PULSE_INTERVAL = 2.6;
 
 const _chainCandidates: number[] = [];
+const _volleyCandidates: number[] = [];
 const _hitPoolIndices = new Set<number>();
 const _volleyUsed = new Set<number>();
 
@@ -198,18 +199,20 @@ export class CombatSystem {
   ): void {
     const extra = stats.volleyExtra ?? 0;
     const dmgMult = stats.volleyDamage ?? 0.6;
+    const def = TOWER_DEFS[tower.type];
     const range = stats.range * (1 + tower.auraRange + (tower.heroRangeBonus ?? 0));
-    this.spatialHash.query(primary.x, primary.z, 3.2, _chainCandidates);
+    this.spatialHash.query(primary.x, primary.z, 3.2, _volleyCandidates);
     _volleyUsed.clear();
     _volleyUsed.add(primary.poolIndex);
     for (let n = 0; n < extra; n++) {
       let best: EnemyEntity | null = null;
       let bestSq = Infinity;
-      for (let k = 0; k < _chainCandidates.length; k++) {
-        const idx = _chainCandidates[k];
+      for (let k = 0; k < _volleyCandidates.length; k++) {
+        const idx = _volleyCandidates[k];
         if (_volleyUsed.has(idx)) continue;
         const e = this.enemyPool.items[idx];
-        if (!e.active || e.hp <= 0) continue;
+        if (!e.active || e.hp <= 0 || e.burrowed) continue;
+        if (e.flying && !def.hitsFlyers) continue;
         if (Math.hypot(e.x - tower.x, e.z - tower.z) > range) continue;
         const dx = e.x - primary.x;
         const dz = e.z - primary.z;
@@ -270,6 +273,7 @@ export class CombatSystem {
         if (
           !candidate.active ||
           candidate.hp <= 0 ||
+          candidate.burrowed ||
           _hitPoolIndices.has(candidate.poolIndex)
         ) {
           continue;

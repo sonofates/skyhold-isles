@@ -1,10 +1,16 @@
 import type { HeroId, HeroSaveData, ProgressData } from '../core/types.ts';
 import { isChallengeId } from '../data/challenges.ts';
 import { sanitizeDailyRecord, type DailyRecord } from '../data/daily.ts';
-import { HERO_IDS, mergeHeroSaveData, sanitizeHeroSaveData, totalHeroSaveXp } from '../data/heroes.ts';
-import { sanitizeRanks } from '../data/workshop.ts';
+import {
+  countHeroSkillPointsSpent,
+  HERO_IDS,
+  mergeHeroSaveData,
+  sanitizeHeroSaveData,
+  totalHeroSaveXp,
+} from '../data/heroes.ts';
+import { sanitizeRanks, workshopStarsSpent } from '../data/workshop.ts';
 import { starWallet } from '../game/progression.ts';
-import { migrateProgress } from './storage.ts';
+import { migrateProgress, PROGRESS_SAVE_VERSION } from './storage.ts';
 
 /**
  * Save codes: the campaign save as a copy-paste string, to move progress between devices or keep a
@@ -196,14 +202,25 @@ export function mergeDaily(a: DailyRecord, b: DailyRecord): DailyRecord {
  */
 export function mergeProgress(a: ProgressData, b: ProgressData, levelCount: number): ProgressData {
   const count = Number.isFinite(levelCount) ? Math.max(0, Math.floor(levelCount)) : 0;
-  const maxList = (x: readonly number[], y: readonly number[]): number[] =>
-    Array.from({ length: count }, (_, i) => Math.max(x[i] ?? 0, y[i] ?? 0));
+  const safeInt = (v: unknown, max = Number.MAX_SAFE_INTEGER): number =>
+    typeof v === 'number' && Number.isFinite(v) ? Math.max(0, Math.min(max, Math.floor(v))) : 0;
+  const maxList = (
+    x: readonly number[] | undefined,
+    y: readonly number[] | undefined,
+    max = Number.MAX_SAFE_INTEGER,
+  ): number[] =>
+    Array.from({ length: count }, (_, i) => Math.max(safeInt(x?.[i], max), safeInt(y?.[i], max)));
   const daily = mergeDaily(a.daily, b.daily);
-  const spentA = starWallet(a).spent;
-  const spentB = starWallet(b).spent;
+  const workshopA = sanitizeRanks(a.workshop);
+  const workshopB = sanitizeRanks(b.workshop);
+  const spentA = workshopStarsSpent(workshopA);
+  const spentB = workshopStarsSpent(workshopB);
   const maxIdx = Math.max(0, count - 1);
-  const bestStars = maxList(a.bestStars, b.bestStars);
+  const bestStars = maxList(a.bestStars, b.bestStars, 3);
   const clears = maxList(a.clears, b.clears);
+  for (let i = 0; i < count; i++) {
+    if (bestStars[i] > 0 && clears[i] === 0) clears[i] = 1;
+  }
   const rawMaxUnlock = Math.max(
     0,
     Number.isFinite(a.unlockedLevelIndex) ? Math.floor(a.unlockedLevelIndex) : 0,
@@ -221,23 +238,35 @@ export function mergeProgress(a: ProgressData, b: ProgressData, levelCount: numb
     if (clears[i] > 0 || bestStars[i] > 0) clearedCount++;
   }
   const mergedHeroes = mergeHeroSaveData(a.heroes, b.heroes, clearedCount, unlockedLevelIndex);
+  const verA = safeInt(a.version) || PROGRESS_SAVE_VERSION;
+  const verB = safeInt(b.version) || PROGRESS_SAVE_VERSION;
   const merged: ProgressData = {
-    version: Math.max(a.version, b.version),
+    version: Math.max(PROGRESS_SAVE_VERSION, verA, verB),
     unlockedLevelIndex,
     bestStars,
     bestEndlessWaves: maxList(a.bestEndlessWaves, b.bestEndlessWaves),
     bestLives: maxList(a.bestLives, b.bestLives),
     clears,
-    workshop: sanitizeRanks(spentB > spentA ? b.workshop : a.workshop),
+    workshop: spentB > spentA ? workshopB : workshopA,
     challengeClears: Array.from({ length: count }, (_, i) => {
-      const out = [...(a.challengeClears[i] ?? [])];
-      for (const id of b.challengeClears[i] ?? []) if (!out.includes(id)) out.push(id);
+      const out: string[] = [];
+      for (const src of [a.challengeClears?.[i], b.challengeClears?.[i]]) {
+        if (!Array.isArray(src)) continue;
+        for (const id of src) {
+          if (typeof id === 'string' && id.length > 0 && id.length <= 40 && !out.includes(id)) {
+            out.push(id);
+          }
+        }
+      }
       return out;
     }),
     daily,
     ...(mergedHeroes !== undefined ? { heroes: mergedHeroes } : {}),
   };
-  if (starWallet(merged).available < 0) merged.workshop = {};
+  if (starWallet(merged).available < 0) {
+    merged.workshop = spentB > spentA ? workshopA : workshopB;
+    if (starWallet(merged).available < 0) merged.workshop = {};
+  }
   return merged;
 }
 
@@ -246,7 +275,8 @@ export function describeMergeGain(before: ProgressData, after: ProgressData): st
   const stars = starWallet(after).campaign - starWallet(before).campaign;
   const islands = after.unlockedLevelIndex - before.unlockedLevelIndex;
   let badges = 0;
-  for (let i = 0; i < after.challengeClears.length; i++) {
+  const badgeLen = Math.max(before.challengeClears.length, after.challengeClears.length);
+  for (let i = 0; i < badgeLen; i++) {
     badges += (after.challengeClears[i]?.length ?? 0) - (before.challengeClears[i]?.length ?? 0);
   }
   const parts: string[] = [];
@@ -257,6 +287,17 @@ export function describeMergeGain(before: ProgressData, after: ProgressData): st
   if (records) parts.push('new endless records');
   const dailies = (after.daily?.total ?? 0) - (before.daily?.total ?? 0);
   if (dailies > 0) parts.push(`+${dailies} daily win${dailies === 1 ? '' : 's'}`);
-  if (totalHeroSaveXp(after.heroes) > totalHeroSaveXp(before.heroes)) parts.push('hero XP');
+  if (totalHeroSaveXp(after.heroes) > totalHeroSaveXp(before.heroes)) {
+    parts.push('hero XP');
+  } else if (after.heroes) {
+    let spentBefore = 0;
+    let spentAfter = 0;
+    for (let i = 0; i < HERO_IDS.length; i++) {
+      const id = HERO_IDS[i];
+      spentBefore += countHeroSkillPointsSpent(id, before.heroes?.roster?.[id]?.skills ?? []);
+      spentAfter += countHeroSkillPointsSpent(id, after.heroes.roster?.[id]?.skills ?? []);
+    }
+    if (spentAfter > spentBefore) parts.push('hero skills');
+  }
   return parts.length > 0 ? parts.join(', ') : 'nothing new — this save already had all of it';
 }

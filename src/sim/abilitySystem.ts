@@ -167,7 +167,7 @@ export class AbilitySystem {
       const rSq = meteor.radius * meteor.radius;
       for (let k = 0; k < _meteorCandidates.length; k++) {
         const enemy = enemyPool.items[_meteorCandidates[k]];
-        if (!enemy.active || enemy.hp <= 0) continue;
+        if (!enemy.active || enemy.hp <= 0 || enemy.burrowed) continue;
         const dx = enemy.x - meteor.x;
         const dz = enemy.z - meteor.z;
         if (dx * dx + dz * dz > rSq) continue;

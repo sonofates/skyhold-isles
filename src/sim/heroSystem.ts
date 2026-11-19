@@ -135,7 +135,15 @@ interface PendingVolleyWave extends ReadonlyPendingVolley {
   remainingSec: number;
 }
 
-const _candidates: number[] = [];
+const _queryCandidates: number[] = [];
+const _skillCandidates0: number[] = [];
+const _skillCandidates1: number[] = [];
+const _fireRingCandidates: number[] = [];
+const _pickCandidates: number[] = [];
+const _periodicCandidates: number[] = [];
+const _strikeCandidates: number[] = [];
+const _holdCandidates: number[] = [];
+const _cleaveCandidates: number[] = [];
 const _pickedEnemies: EnemyEntity[] = [];
 const _pickedTowers: TowerEntity[] = [];
 const _prevHeroBlockedIdx: number[] = [];
@@ -143,7 +151,7 @@ const _prevHeroBlockedUid: number[] = [];
 const _prevTotalBlocked: number[] = [];
 const _extraHoldIndices: number[] = [];
 const _samplePt: Vec3 = { x: 0, y: 0, z: 0 };
-const _hitSet = new Set<number>();
+const _hitSets = [new Set<number>(), new Set<number>()] as const;
 const _clampTarget: GroundClampResult = { x: 0, z: 0, roadX: 0, roadZ: 0, lane: 0, dist: 0 };
 const _clampStep: GroundClampResult = { x: 0, z: 0, roadX: 0, roadZ: 0, lane: 0, dist: 0 };
 const _heroShotScratch: {
@@ -178,7 +186,10 @@ const _heroShotScratch: {
 const GIZMO_DIST_OFFSETS: readonly number[] = [0, 0.45, -0.45, 0.9, -0.9, 1.35, -1.35, 1.8, -1.8, 2.3, -2.3, 2.8, -2.8];
 const GIZMO_LAT_OFFSETS: readonly number[] = [0, 0.45, -0.45, 0.85, -0.85, 1.1, -1.1];
 const _gizmoPlacementOut = { x: 0, z: 0 };
-const _resolvedCastTarget = { x: 0, z: 0 };
+const _resolvedCastTargets: readonly [{ x: number; z: number }, { x: number; z: number }] = [
+  { x: 0, z: 0 },
+  { x: 0, z: 0 },
+];
 
 /** Deterministic FNV-1a string hash for default RNG seeding. */
 export function hashHeroSeed(levelId: string, heroId: string, level: number): number {
@@ -413,7 +424,7 @@ export class HeroSystem {
     const h = this.hero;
     if (!h) return null;
     const def = HERO_DEFS[h.heroId];
-    const alive = h.state !== 'dead';
+    const alive = h.state !== 'dead' && h.hp > 0;
     const mkSkill = (slot: HeroSkillSlot): HeroSkillRuntimeState => {
       const a = h.stats.actives[slot];
       const base = def.actives[slot];
@@ -454,10 +465,13 @@ export class HeroSystem {
   }
 
   /** Orders the hero to walk along the ground road graph to `(wantX, wantZ)`. */
-  commandMove(wantX: number, wantZ: number): boolean {
+  commandMove(wantX: number, wantZ: number, onCommitted?: () => void): boolean {
     const h = this.hero;
-    if (!h || h.state === 'dead' || !Number.isFinite(wantX) || !Number.isFinite(wantZ)) return false;
+    if (!h || h.state === 'dead' || h.hp <= 0 || !Number.isFinite(wantX) || !Number.isFinite(wantZ)) {
+      return false;
+    }
 
+    onCommitted?.();
     this.releaseCurrentMeleeHolds(true);
     const waypoints = this.groundGraph.findPath(h.x, h.z, wantX, wantZ);
     const last = waypoints[waypoints.length - 1];
@@ -484,9 +498,10 @@ export class HeroSystem {
     wantX = NaN,
     wantZ = NaN,
     towers: readonly TowerEntity[] = [],
+    onCommitted?: () => void,
   ): boolean {
     const h = this.hero;
-    if (!h || h.state === 'dead') return false;
+    if (!h || h.state === 'dead' || h.hp <= 0) return false;
     if (slot !== 0 && slot !== 1) return false;
     if (h.skillCooldowns[slot] > 0) return false;
 
@@ -548,12 +563,16 @@ export class HeroSystem {
       }
     }
 
-    _resolvedCastTarget.x = tx;
-    _resolvedCastTarget.z = tz;
-    const ok = this.executeActive(h, act, tx, tz, towers);
+    const resolvedTarget = _resolvedCastTargets[slot];
+    resolvedTarget.x = tx;
+    resolvedTarget.z = tz;
+    const commitCast = (): void => {
+      h.skillCooldowns[slot] = act.cooldownSec;
+      onCommitted?.();
+    };
+    const ok = this.executeActive(h, slot, act, tx, tz, towers, commitCast);
     if (!ok) return false;
 
-    h.skillCooldowns[slot] = act.cooldownSec;
     if (Math.hypot(tx - h.x, tz - h.z) > 0.05) {
       h.yaw = Math.atan2(tx - h.x, tz - h.z);
     }
@@ -563,8 +582,8 @@ export class HeroSystem {
       skillId: act.id,
       x: h.x,
       z: h.z,
-      targetX: _resolvedCastTarget.x,
-      targetZ: _resolvedCastTarget.z,
+      targetX: resolvedTarget.x,
+      targetZ: resolvedTarget.z,
       radius: act.radius,
       duration: act.durationSec,
     });
@@ -573,13 +592,19 @@ export class HeroSystem {
 
   private executeActive(
     h: HeroEntity,
+    slot: HeroSkillSlot,
     act: ResolvedHeroActive,
     tx: number,
     tz: number,
     towers: readonly TowerEntity[],
+    commitCast: () => void,
   ): boolean {
+    const skillCandidates = slot === 0 ? _skillCandidates0 : _skillCandidates1;
+    const hitSet = _hitSets[slot];
+    const resolvedTarget = _resolvedCastTargets[slot];
     switch (act.kind) {
       case 'shieldBash': {
+        commitCast();
         let dirX = tx - h.x;
         let dirZ = tz - h.z;
         if (Math.hypot(dirX, dirZ) < 0.05) {
@@ -594,14 +619,14 @@ export class HeroSystem {
         }
         const reach = act.radius;
         const dirLen = Math.hypot(dirX, dirZ) || 1;
-        _resolvedCastTarget.x = h.x + (dirX / dirLen) * (reach * 0.65);
-        _resolvedCastTarget.z = h.z + (dirZ / dirLen) * (reach * 0.65);
-        this.spatialHash.query(h.x, h.z, reach + 0.8, _candidates);
+        resolvedTarget.x = h.x + (dirX / dirLen) * (reach * 0.65);
+        resolvedTarget.z = h.z + (dirZ / dirLen) * (reach * 0.65);
+        this.spatialHash.query(h.x, h.z, reach + 0.8, skillCandidates);
         const rSq = (reach + 0.45) * (reach + 0.45);
         const minCos = Math.cos((72 * Math.PI) / 180);
         const slowAfter = act.extras.has('bashSlow');
-        for (let i = 0; i < _candidates.length; i++) {
-          const e = this.pool.items[_candidates[i]];
+        for (let i = 0; i < skillCandidates.length; i++) {
+          const e = this.pool.items[skillCandidates[i]];
           if (!e.active || e.hp <= 0 || e.flying || e.burrowed) continue;
           const ex = e.x - h.x;
           const ez = e.z - h.z;
@@ -620,14 +645,16 @@ export class HeroSystem {
       }
 
       case 'rallyBanner': {
+        commitCast();
         h.rallyBannerTimer = act.durationSec;
         this.applyRallyAura(h, 0);
         return true;
       }
 
       case 'volley': {
+        commitCast();
         const slow = act.extras.has('volleySlow');
-        this.applyVolleyStrike(h, tx, tz, act.radius, act.damage, slow);
+        this.applyVolleyStrike(h, tx, tz, act.radius, act.damage, slow, skillCandidates);
         if (act.extras.has('doubleVolley')) {
           this.pendingVolleys.push({
             x: tx,
@@ -644,8 +671,9 @@ export class HeroSystem {
       case 'huntersMark': {
         const targets = this.pickEnemiesNear(tx, tz, act.radius, h.x, h.z, act.range, act.count, true);
         if (targets.length === 0) return false;
-        _resolvedCastTarget.x = targets[0].x;
-        _resolvedCastTarget.z = targets[0].z;
+        resolvedTarget.x = targets[0].x;
+        resolvedTarget.z = targets[0].z;
+        commitCast();
         for (let i = 0; i < targets.length; i++) {
           this.enemySystem.applyMark(targets[i], act.effect, act.durationSec);
         }
@@ -653,11 +681,13 @@ export class HeroSystem {
       }
 
       case 'fireRing': {
+        commitCast();
         this.spawnFireRing(h, tx, tz, act.radius, act.damage, act.effect, act.durationSec, act.extras.has('ringSlow'));
         return true;
       }
 
       case 'wispBurst': {
+        commitCast();
         let dx = tx - h.x;
         let dz = tz - h.z;
         let len = Math.hypot(dx, dz);
@@ -674,12 +704,12 @@ export class HeroSystem {
         const endZ = h.z + dz * dashLen;
         const midX = (h.x + endX) * 0.5;
         const midZ = (h.z + endZ) * 0.5;
-        this.spatialHash.query(midX, midZ, dashLen * 0.5 + halfWidth + 0.9, _candidates);
+        this.spatialHash.query(midX, midZ, dashLen * 0.5 + halfWidth + 0.9, skillCandidates);
         const shatter = act.extras.has('shatterShields');
-        _hitSet.clear();
-        for (let i = 0; i < _candidates.length; i++) {
-          const idx = _candidates[i];
-          if (_hitSet.has(idx)) continue;
+        hitSet.clear();
+        for (let i = 0; i < skillCandidates.length; i++) {
+          const idx = skillCandidates[i];
+          if (hitSet.has(idx)) continue;
           const e = this.pool.items[idx];
           if (!e.active || e.hp <= 0 || e.burrowed) continue;
           const rx = e.x - h.x;
@@ -688,7 +718,7 @@ export class HeroSystem {
           if (along < -0.35 || along > dashLen + 0.35) continue;
           const perp = Math.abs(rx * dz - rz * dx);
           if (perp > halfWidth + e.radius) continue;
-          _hitSet.add(idx);
+          hitSet.add(idx);
           if (shatter && e.shield > 0) {
             e.shield = 0;
             this.events.emit('shieldBroken', {
@@ -722,9 +752,10 @@ export class HeroSystem {
       }
 
       case 'deployGizmo': {
+        commitCast();
         const placed = this.resolveGizmoPlacement(tx, tz, h.x, h.z, act.range);
-        _resolvedCastTarget.x = placed.x;
-        _resolvedCastTarget.z = placed.z;
+        resolvedTarget.x = placed.x;
+        resolvedTarget.z = placed.z;
         const maxCount = act.count;
         while (this.gizmos.length >= maxCount) {
           // Replace the gizmo closest to expiring.
@@ -756,12 +787,13 @@ export class HeroSystem {
         const boostGizmos = act.extras.has('overhaulGizmos') && this.gizmos.length > 0;
         if (chosen.length === 0 && !boostGizmos) return false;
         if (chosen.length > 0) {
-          _resolvedCastTarget.x = chosen[0].x;
-          _resolvedCastTarget.z = chosen[0].z;
+          resolvedTarget.x = chosen[0].x;
+          resolvedTarget.z = chosen[0].z;
         } else if (this.gizmos.length > 0) {
-          _resolvedCastTarget.x = this.gizmos[0].x;
-          _resolvedCastTarget.z = this.gizmos[0].z;
+          resolvedTarget.x = this.gizmos[0].x;
+          resolvedTarget.z = this.gizmos[0].z;
         }
+        commitCast();
         for (let i = 0; i < chosen.length; i++) {
           const t = chosen[i];
           t.stunTimer = 0;
@@ -790,11 +822,12 @@ export class HeroSystem {
       }
 
       case 'undertow': {
-        this.spatialHash.query(tx, tz, act.radius, _candidates);
+        commitCast();
+        this.spatialHash.query(tx, tz, act.radius, skillCandidates);
         const rSq = act.radius * act.radius;
         const slowRatio = Math.min(0.75, act.effect);
-        for (let i = 0; i < _candidates.length; i++) {
-          const e = this.pool.items[_candidates[i]];
+        for (let i = 0; i < skillCandidates.length; i++) {
+          const e = this.pool.items[skillCandidates[i]];
           if (!e.active || e.hp <= 0 || e.burrowed) continue;
           const dx = e.x - tx;
           const dz = e.z - tz;
@@ -816,8 +849,9 @@ export class HeroSystem {
         const firstList = this.pickEnemiesNear(tx, tz, act.radius, h.x, h.z, act.range, 1, false);
         if (firstList.length === 0) return false;
         let current: EnemyEntity | null = firstList[0];
-        _resolvedCastTarget.x = current.x;
-        _resolvedCastTarget.z = current.z;
+        resolvedTarget.x = current.x;
+        resolvedTarget.z = current.z;
+        commitCast();
         let dmg = act.damage;
         const maxJumps = act.count;
         const chainRange = act.radius;
@@ -825,10 +859,10 @@ export class HeroSystem {
         const stun = act.extras.has('thunderStun');
         const brittle = act.extras.has('thunderBrittle');
         const points: Vec3[] = [{ x: h.x, y: 1.1, z: h.z }];
-        _hitSet.clear();
+        hitSet.clear();
 
         for (let jump = 0; jump < maxJumps && current !== null; jump++) {
-          _hitSet.add(current.poolIndex);
+          hitSet.add(current.poolIndex);
           points.push({ x: current.x, y: current.y + current.height * 0.55, z: current.z });
           const bonusMul = brittle && current.slowRatio > 0 ? 1.3 : 1;
           const res = this.enemySystem.applyDamage(current, Math.round(dmg * bonusMul), true);
@@ -839,12 +873,12 @@ export class HeroSystem {
           }
           if (jump === maxJumps - 1) break;
 
-          this.spatialHash.query(current.x, current.z, chainRange, _candidates);
+          this.spatialHash.query(current.x, current.z, chainRange, skillCandidates);
           let nextTarget: EnemyEntity | null = null;
           let bestSq = Infinity;
-          for (let k = 0; k < _candidates.length; k++) {
-            const cand = this.pool.items[_candidates[k]];
-            if (!cand.active || cand.hp <= 0 || cand.burrowed || _hitSet.has(cand.poolIndex)) continue;
+          for (let k = 0; k < skillCandidates.length; k++) {
+            const cand = this.pool.items[skillCandidates[k]];
+            if (!cand.active || cand.hp <= 0 || cand.burrowed || hitSet.has(cand.poolIndex)) continue;
             const dSq = (cand.x - current.x) ** 2 + (cand.z - current.z) ** 2;
             if (dSq <= maxRSq && (dSq < bestSq - 1e-9 || (Math.abs(dSq - bestSq) <= 1e-9 && nextTarget && cand.uid < nextTarget.uid))) {
               bestSq = dSq;
@@ -867,11 +901,12 @@ export class HeroSystem {
     radius: number,
     damage: number,
     slow: boolean,
+    scratch: number[],
   ): void {
-    this.spatialHash.query(cx, cz, radius, _candidates);
+    this.spatialHash.query(cx, cz, radius, scratch);
     const rSq = radius * radius;
-    for (let i = 0; i < _candidates.length; i++) {
-      const e = this.pool.items[_candidates[i]];
+    for (let i = 0; i < scratch.length; i++) {
+      const e = this.pool.items[scratch[i]];
       if (!e.active || e.hp <= 0 || e.burrowed) continue;
       const dSq = (e.x - cx) ** 2 + (e.z - cz) ** 2;
       if (dSq > rSq) continue;
@@ -974,10 +1009,10 @@ export class HeroSystem {
     slowInside: boolean,
   ): void {
     if (burstDamage > 0) {
-      this.spatialHash.query(cx, cz, radius, _candidates);
+      this.spatialHash.query(cx, cz, radius, _fireRingCandidates);
       const rSq = radius * radius;
-      for (let i = 0; i < _candidates.length; i++) {
-        const e = this.pool.items[_candidates[i]];
+      for (let i = 0; i < _fireRingCandidates.length; i++) {
+        const e = this.pool.items[_fireRingCandidates[i]];
         if (!e.active || e.hp <= 0 || e.burrowed) continue;
         if ((e.x - cx) ** 2 + (e.z - cz) ** 2 > rSq) continue;
         const res = this.enemySystem.applyDamage(e, burstDamage, true);
@@ -1020,11 +1055,11 @@ export class HeroSystem {
   }
 
   private fillPickedEnemies(cx: number, cz: number, r: number, preferStrongest: boolean): void {
-    this.spatialHash.query(cx, cz, r, _candidates);
+    this.spatialHash.query(cx, cz, r, _pickCandidates);
     const rSq = r * r;
     _pickedEnemies.length = 0;
-    for (let i = 0; i < _candidates.length; i++) {
-      const e = this.pool.items[_candidates[i]];
+    for (let i = 0; i < _pickCandidates.length; i++) {
+      const e = this.pool.items[_pickCandidates[i]];
       if (!e.active || e.hp <= 0 || e.burrowed) continue;
       if ((e.x - cx) ** 2 + (e.z - cz) ** 2 <= rSq) _pickedEnemies.push(e);
     }
@@ -1187,7 +1222,7 @@ export class HeroSystem {
       const pv = this.pendingVolleys[i];
       pv.remainingSec -= dt;
       if (pv.remainingSec <= 0) {
-        this.applyVolleyStrike(h, pv.x, pv.z, pv.radius, pv.damage, pv.slow);
+        this.applyVolleyStrike(h, pv.x, pv.z, pv.radius, pv.damage, pv.slow, _periodicCandidates);
         this.pendingVolleys.splice(i, 1);
       }
     }
@@ -1200,10 +1235,10 @@ export class HeroSystem {
       if (ring.remainingSec <= 0) {
         this.fireRings.splice(i, 1);
       } else if (ring.slowRatio > 0) {
-        this.spatialHash.query(ring.x, ring.z, ring.radius, _candidates);
+        this.spatialHash.query(ring.x, ring.z, ring.radius, _periodicCandidates);
         const rSq = ring.radius * ring.radius;
-        for (let k = 0; k < _candidates.length; k++) {
-          const e = this.pool.items[_candidates[k]];
+        for (let k = 0; k < _periodicCandidates.length; k++) {
+          const e = this.pool.items[_periodicCandidates[k]];
           if (e.active && e.hp > 0 && !e.burrowed && (e.x - ring.x) ** 2 + (e.z - ring.z) ** 2 <= rSq) {
             this.enemySystem.applySlow(e, ring.slowRatio, 0.6);
           }
@@ -1233,11 +1268,11 @@ export class HeroSystem {
         this.burnTickTimer += BURN_TICK_INTERVAL;
         for (let r = 0; r < this.fireRings.length; r++) {
           const ring = this.fireRings[r];
-          this.spatialHash.query(ring.x, ring.z, ring.radius, _candidates);
+          this.spatialHash.query(ring.x, ring.z, ring.radius, _periodicCandidates);
           const rSq = ring.radius * ring.radius;
           const tickDmg = Math.max(1, Math.round(ring.dps * BURN_TICK_INTERVAL));
-          for (let k = 0; k < _candidates.length; k++) {
-            const e = this.pool.items[_candidates[k]];
+          for (let k = 0; k < _periodicCandidates.length; k++) {
+            const e = this.pool.items[_periodicCandidates[k]];
             if (!e.active || e.hp <= 0 || e.burrowed) continue;
             if ((e.x - ring.x) ** 2 + (e.z - ring.z) ** 2 > rSq) continue;
             const res = this.enemySystem.applyDamage(e, tickDmg, true);
@@ -1305,12 +1340,12 @@ export class HeroSystem {
     range: number,
     hitsFlyers: boolean,
   ): EnemyEntity | null {
-    this.spatialHash.query(cx, cz, range, _candidates);
+    this.spatialHash.query(cx, cz, range, _queryCandidates);
     const maxRSq = range * range;
     let best: EnemyEntity | null = null;
     let bestScore = -Infinity;
-    for (let i = 0; i < _candidates.length; i++) {
-      const e = this.pool.items[_candidates[i]];
+    for (let i = 0; i < _queryCandidates.length; i++) {
+      const e = this.pool.items[_queryCandidates[i]];
       if (!e.active || e.hp <= 0 || e.burrowed) continue;
       if (e.flying && !hitsFlyers) continue;
       const dSq = (e.x - cx) ** 2 + (e.z - cz) ** 2;
@@ -1534,12 +1569,12 @@ export class HeroSystem {
     }
 
     if (!target) {
-      this.spatialHash.query(h.postX, h.postZ, HERO_RULES.meleeEngageRadius, _candidates);
+      this.spatialHash.query(h.postX, h.postZ, HERO_RULES.meleeEngageRadius, _holdCandidates);
       const rSq = HERO_RULES.meleeEngageRadius * HERO_RULES.meleeEngageRadius;
       let best: EnemyEntity | null = null;
       let bestNeeds = false;
-      for (let i = 0; i < _candidates.length; i++) {
-        const e = this.pool.items[_candidates[i]];
+      for (let i = 0; i < _holdCandidates.length; i++) {
+        const e = this.pool.items[_holdCandidates[i]];
         if (!this.isHoldable(e)) continue;
         if ((e.x - h.postX) ** 2 + (e.z - h.postZ) ** 2 > rSq) continue;
         const needs = e.blockers < ENEMY_MELEE[e.type].holdCost;
@@ -1706,11 +1741,11 @@ export class HeroSystem {
     budget = this.assignSingleHeroHold(h, primary, red, budget);
     if (budget <= 0) return;
 
-    this.spatialHash.query(h.x, h.z, HERO_RULES.meleeEngageRadius, _candidates);
+    this.spatialHash.query(h.x, h.z, HERO_RULES.meleeEngageRadius, _holdCandidates);
     _extraHoldIndices.length = 0;
     const rSq = HERO_RULES.meleeEngageRadius * HERO_RULES.meleeEngageRadius;
-    for (let i = 0; i < _candidates.length; i++) {
-      const idx = _candidates[i];
+    for (let i = 0; i < _holdCandidates.length; i++) {
+      const idx = _holdCandidates[i];
       const cand = this.pool.items[idx];
       if (cand === primary || !this.isHoldable(cand)) continue;
       if (cand.blockers + cand.heroBlockers >= ENEMY_MELEE[cand.type].holdCost) continue;
@@ -1727,12 +1762,12 @@ export class HeroSystem {
 
   private findCleaveTarget(primary: EnemyEntity): EnemyEntity | null {
     const r = HERO_RULES.cleaveRadius;
-    this.spatialHash.query(primary.x, primary.z, r, _candidates);
+    this.spatialHash.query(primary.x, primary.z, r, _cleaveCandidates);
     const rSq = r * r;
     let best: EnemyEntity | null = null;
     let bestSq = rSq;
-    for (let i = 0; i < _candidates.length; i++) {
-      const e = this.pool.items[_candidates[i]];
+    for (let i = 0; i < _cleaveCandidates.length; i++) {
+      const e = this.pool.items[_cleaveCandidates[i]];
       if (e === primary || !e.active || e.hp <= 0 || e.flying || e.burrowed) continue;
       const dSq = (e.x - primary.x) ** 2 + (e.z - primary.z) ** 2;
       if (dSq < bestSq || (dSq === bestSq && best !== null && e.uid < best.uid)) {
@@ -1820,12 +1855,12 @@ export class HeroSystem {
   }
 
   private findSecondRangedTarget(h: HeroEntity, primary: EnemyEntity): EnemyEntity | null {
-    this.spatialHash.query(primary.x, primary.z, 3.2, _candidates);
+    this.spatialHash.query(primary.x, primary.z, 3.2, _queryCandidates);
     const maxRSq = h.stats.range * h.stats.range;
     let best: EnemyEntity | null = null;
     let bestSq = Infinity;
-    for (let i = 0; i < _candidates.length; i++) {
-      const e = this.pool.items[_candidates[i]];
+    for (let i = 0; i < _queryCandidates.length; i++) {
+      const e = this.pool.items[_queryCandidates[i]];
       if (e === primary || !e.active || e.hp <= 0 || e.burrowed) continue;
       if (e.flying && !h.stats.hitsFlyers) continue;
       if ((e.x - h.x) ** 2 + (e.z - h.z) ** 2 > maxRSq) continue;
@@ -1843,15 +1878,15 @@ export class HeroSystem {
     dt: number,
     towers: readonly TowerEntity[],
   ): void {
-    this.spatialHash.query(h.x, h.z, 2.2, _candidates);
+    this.spatialHash.query(h.x, h.z, 2.2, _strikeCandidates);
     // Sort by uid so enemy swing order is strictly deterministic (zero closure alloc).
-    if (_candidates.length > 1) {
-      _candidates.sort(this.byUidAsc);
+    if (_strikeCandidates.length > 1) {
+      _strikeCandidates.sort(this.byUidAsc);
     }
 
-    const armor = h.stats.armor + (h.rallyBannerTimer > 0 ? h.stats.actives[1].armorBonus : 0);
-    for (let i = 0; i < _candidates.length; i++) {
-      const e = this.pool.items[_candidates[i]];
+    for (let i = 0; i < _strikeCandidates.length; i++) {
+      if (h.state === 'dead' || h.hp <= 0) return;
+      const e = this.pool.items[_strikeCandidates[i]];
       if (!this.isHoldable(e)) continue;
       const m = ENEMY_MELEE[e.type];
       if (m.rate <= 0 || m.damage <= 0 || e.stunTimer > 0) continue;
@@ -1872,6 +1907,7 @@ export class HeroSystem {
       e.heroMeleeTimer += 1 / m.rate;
       if (e.heroMeleeTimer <= 0) e.heroMeleeTimer = 1 / m.rate;
 
+      const armor = h.stats.armor + (h.rallyBannerTimer > 0 ? h.stats.actives[1].armorBonus : 0);
       const hpScale = Math.sqrt(Math.max(0.01, e.maxHp / ENEMY_DEFS[e.type].maxHp));
       const raw = m.damage * hpScale * (1 - e.heroDamageReduction);
       const damage = Math.max(1, Math.round(raw - armor));

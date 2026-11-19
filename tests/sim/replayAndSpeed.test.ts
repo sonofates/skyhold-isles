@@ -967,4 +967,158 @@ describe('EventBus re-entrancy & SoldierSystem towerFireRateMul', () => {
     expect(waitPlayer.currentTick).toBe(wTick + 40);
     expect(waitPlayer.world.towers).toHaveLength(0);
   });
+
+  it('guards re-entrant hero skill casts/scratches, preserves causal command seq across synchronous listeners, and skips burrowed foes in combat subsystems', () => {
+    // 1. Re-entrant castHeroSkill(0) inside 'enemyHit' sees cooldown > 0 immediately (no recursion),
+    //    while chaining castHeroSkill(1) inside 'enemyHit' uses isolated scratch buffers and resolved targets.
+    const chainEvents = new EventBus();
+    const castEvents: Array<{ slot: number; tx: number; tz: number }> = [];
+    let slot0RecastResult: boolean | null = null;
+    let slot1ChainResult: boolean | null = null;
+    const selaW = new SimWorld(LEVEL_L1C, chainEvents, { heroId: 'sela', heroLevel: 20, seed: 71 });
+    selaW.startNextWave();
+    const r0 = selaW.groundPath.points[0];
+    selaW.hero!.x = selaW.hero!.postX = r0.x;
+    selaW.hero!.z = selaW.hero!.postZ = r0.z;
+    const e1 = selaW.enemySystem.spawnEnemy('brute', 10, false, 0)!;
+    const e2 = selaW.enemySystem.spawnEnemy('brute', 10, false, 0)!;
+    e1.x = r0.x + 0.4;
+    e1.z = r0.z;
+    e2.x = r0.x + 0.9;
+    e2.z = r0.z + 0.3;
+    selaW.spatialHash.clear();
+    selaW.spatialHash.insert(e1.poolIndex, e1.x, e1.z);
+    selaW.spatialHash.insert(e2.poolIndex, e2.x, e2.z);
+
+    let hitTriggered = false;
+    chainEvents.on('heroSkillCast', (ev) => castEvents.push({ slot: ev.slot, tx: ev.targetX, tz: ev.targetZ }));
+    chainEvents.on('enemyHit', () => {
+      if (hitTriggered) return;
+      hitTriggered = true;
+      slot0RecastResult = selaW.castHeroSkill(0, e1.x, e1.z); // must fail: slot 0 is already on cooldown
+      slot1ChainResult = selaW.castHeroSkill(1, e2.x, e2.z); // Thunder Call on slot 1 succeeds cleanly
+    });
+
+    expect(selaW.castHeroSkill(0, e1.x, e1.z)).toBe(true); // Undertow hits e1 AND e2 without scratch clobbering
+    expect(slot0RecastResult).toBe(false);
+    expect(slot1ChainResult).toBe(true);
+    expect(e1.slowRatio).toBeGreaterThan(0);
+    expect(e2.slowRatio).toBeGreaterThan(0);
+    expect(castEvents.map((c) => c.slot)).toEqual([1, 0]);
+    expect(castEvents[1].tx).toBeCloseTo(e1.x, 6);
+    expect(castEvents[1].tz).toBeCloseTo(e1.z, 6);
+
+    // 2. Lethal 'heroHit' marks getHeroState().alive === false and blocks 0-HP resurrection casts.
+    const lethalEvents = new EventBus();
+    let stateInLethalHit: ReturnType<SimWorld['getHeroState']> = null;
+    let castAtZeroHp = true;
+    let moveAtZeroHp = true;
+    const dyingSela = new SimWorld(LEVEL_L1C, lethalEvents, {
+      heroId: 'sela',
+      heroLevel: 20,
+      heroSkills: ['sela_tide_1', 'sela_tide_2', 'sela_tide_3'],
+      seed: 72,
+    });
+    dyingSela.startNextWave();
+    dyingSela.hero!.x = dyingSela.hero!.postX = r0.x;
+    dyingSela.hero!.z = dyingSela.hero!.postZ = r0.z;
+    dyingSela.hero!.hp = 1;
+    const killer = dyingSela.enemySystem.spawnEnemy('brute', 10, false, 0)!;
+    killer.x = r0.x;
+    killer.z = r0.z;
+    killer.heroMeleeTimer = 0.001;
+    dyingSela.spatialHash.clear();
+    dyingSela.spatialHash.insert(killer.poolIndex, killer.x, killer.z);
+    lethalEvents.on('heroHit', () => {
+      stateInLethalHit = dyingSela.getHeroState();
+      castAtZeroHp = dyingSela.castHeroSkill(0, r0.x, r0.z);
+      moveAtZeroHp = dyingSela.commandHeroMove(r0.x + 2, r0.z);
+    });
+    dyingSela.heroSystem.update(BALANCE.fixedDt, dyingSela.towers, 1);
+    expect(stateInLethalHit?.hp).toBe(0);
+    expect(stateInLethalHit?.alive).toBe(false);
+    expect(castAtZeroHp).toBe(false);
+    expect(moveAtZeroHp).toBe(false);
+    expect(dyingSela.hero!.state).toBe('dead');
+
+    // 3. Causal command seq recording when synchronous EventBus listeners issue follow-up commands
+    //    (towerBuilt from placeTowerOnPlot -> upgradeTower; towerSold refund -> placeTowerOnPlot; endlessEntered -> startNextWave).
+    const miniCausal = {
+      ...LEVEL_L1C,
+      id: 'mini-causal-seq',
+      startingGold: 220, // Archer T1 (70) + T2 (110) = 180, leaving 40; selling refunds 126 -> 166 (>= Cannon 100)
+      waves: [{ groups: [{ enemyType: 'grunt' as const, count: 1, spawnInterval: 0.2, startDelay: 0 }], clearBonus: 60 }],
+    };
+    const causalEvents = new EventBus();
+    const liveW = new SimWorld(miniCausal, causalEvents, { seed: 73, recordCommands: true });
+    let upgradedOnBuild = false;
+    causalEvents.on('towerBuilt', (ev) => {
+      if (!upgradedOnBuild && ev.type === 'archer') {
+        upgradedOnBuild = true;
+        liveW.upgradeTower(ev.towerId);
+      }
+    });
+    causalEvents.on('towerSold', () => {
+      // Spend the sell refund immediately on the freed plot 0!
+      liveW.placeTowerOnPlot(0, 'cannon');
+    });
+    causalEvents.on('endlessEntered', () => {
+      liveW.startNextWave();
+    });
+
+    const arch = liveW.placeTowerOnPlot(0, 'archer')!;
+    expect(arch.tier).toBe(2);
+    liveW.sellTower(arch.id);
+    expect(liveW.towers).toHaveLength(1);
+    expect(liveW.towers[0].type).toBe('cannon');
+    liveW.startNextWave();
+    while (liveW.outcome === 'ongoing') liveW.fixedTick(BALANCE.fixedDt);
+    expect(liveW.outcome).toBe('won');
+    expect(liveW.enterEndlessMode()).toBe(true);
+    expect(liveW.waveSystem.state).toBe('spawning');
+    for (let i = 0; i < 30; i++) liveW.fixedTick(BALANCE.fixedDt);
+
+    const causalLog = liveW.exportReplay();
+    expect(causalLog.commands.map((c) => c.command.kind)).toEqual([
+      'placeTowerOnPlot',
+      'upgradeTower',
+      'sellTower',
+      'placeTowerOnPlot',
+      'startWave',
+      'enterEndless',
+      'startWave',
+    ]);
+    const causalPlayer = new SimReplayPlayer(miniCausal, parseSimReplay(serializeSimReplay(causalLog))!);
+    const causalVerify = causalPlayer.runToEnd();
+    expect(causalVerify.matchesOutcome).toBe(true);
+    expect(causalVerify.matchesHash).toBe(true);
+
+    // 4. applyCommand('setAutoWave') returns false once lost, and combat subsystems ignore burrowed foes in spatialHash.
+    const burWorld = new SimWorld(LEVEL_L1C, new EventBus(), { seed: 74 });
+    burWorld.gold = 9999;
+    const tesla = burWorld.placeTowerOnPlot(0, 'tesla')!;
+    burWorld.upgradeTower(tesla.id);
+    burWorld.upgradeTower(tesla.id);
+    const ballista = burWorld.placeTowerOnPlot(1, 'ballista')!;
+    burWorld.upgradeTower(ballista.id);
+    burWorld.upgradeTower(ballista.id);
+    burWorld.startNextWave();
+    const bur = burWorld.enemySystem.spawnEnemy('burrower', 5, false, 0)!;
+    bur.x = tesla.x + 0.5;
+    bur.z = tesla.z;
+    bur.burrowed = true;
+    burWorld.spatialHash.clear();
+    burWorld.spatialHash.insert(bur.poolIndex, bur.x, bur.z);
+    const hpBefore = bur.hp;
+    burWorld.combatSystem.update(0.5, burWorld.towers, 1);
+    burWorld.abilitySystem.castMeteor(bur.x, bur.z, 1);
+    burWorld.abilitySystem.update(1.0, true, burWorld.enemyPool, burWorld.spatialHash, burWorld.enemySystem);
+    const bolt = burWorld.projectileSystem.spawnProjectile(ballista, bur, 1)!;
+    bolt.progress = 1;
+    burWorld.projectileSystem.update(BALANCE.fixedDt, burWorld.towers);
+    expect(bur.hp).toBe(hpBefore);
+
+    burWorld.debugForceLose();
+    expect(burWorld.applyCommand({ kind: 'setAutoWave', enabled: true })).toBe(false);
+  });
 });

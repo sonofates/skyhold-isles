@@ -231,22 +231,20 @@ export class SoldierSystem {
 
   /** True when a barracks at (x, z) with this rally range would reach the road. */
   hasRoadInRange(x: number, z: number, range: number): boolean {
-    const p: RoadPoint = { x: 0, z: 0, yaw: 0 };
-    return this.findRoadPoint(x, z, range, x, z, p);
+    return this.findRoadPoint(x, z, range, x, z, _rallyRoadPt);
   }
 
   /** New barracks: rally on the nearest road point, squad steps out of the gate. */
   addBarracks(tower: TowerEntity): BarracksState | null {
     const stats = getTowerTierStats(tower.type, tower.tier);
-    const p: RoadPoint = { x: 0, z: 0, yaw: 0 };
-    if (!this.findRoadPoint(tower.x, tower.z, stats.range, tower.x, tower.z, p)) return null;
+    if (!this.findRoadPoint(tower.x, tower.z, stats.range, tower.x, tower.z, _rallyRoadPt)) return null;
     const b: BarracksState = {
       towerId: tower.id,
       x: tower.x,
       z: tower.z,
-      rallyX: p.x,
-      rallyZ: p.z,
-      rallyYaw: p.yaw,
+      rallyX: _rallyRoadPt.x,
+      rallyZ: _rallyRoadPt.z,
+      rallyYaw: _rallyRoadPt.yaw,
       postX: [],
       postZ: [],
       squad: [],
@@ -263,15 +261,19 @@ export class SoldierSystem {
    * Player order: move the rally point (clamped to the barracks range and onto the road). The
    * squad lets go of its fights and walks to the new posts. False if the barracks is unknown.
    */
-  setRally(tower: TowerEntity, x: number, z: number): boolean {
+  setRally(tower: TowerEntity, x: number, z: number, onCommitted?: () => void): boolean {
     if (!Number.isFinite(x) || !Number.isFinite(z)) return false;
     const b = this.getBarracks(tower.id);
     if (!b) return false;
     const stats = getTowerTierStats(tower.type, tower.tier);
     if (!this.findRoadPoint(b.x, b.z, stats.range, x, z, _rallyRoadPt)) return false;
-    b.rallyX = _rallyRoadPt.x;
-    b.rallyZ = _rallyRoadPt.z;
-    b.rallyYaw = _rallyRoadPt.yaw;
+    const rx = _rallyRoadPt.x;
+    const rz = _rallyRoadPt.z;
+    const ryaw = _rallyRoadPt.yaw;
+    onCommitted?.();
+    b.rallyX = rx;
+    b.rallyZ = rz;
+    b.rallyYaw = ryaw;
     this.layoutPosts(b, stats.soldierCount ?? b.squad.length);
     for (let i = 0; i < b.squad.length; i++) {
       const s = b.squad[i];

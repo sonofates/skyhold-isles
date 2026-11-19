@@ -1028,4 +1028,111 @@ describe('Daily Squall, Endless escalations, and Silent Skies + Hero interaction
       else (globalThis as Record<string, unknown>).getComputedStyle = prevGetCS;
     }
   });
+
+  it('hardens mergeProgress NaN/workshop fallbacks, combineRunModifiers bounds, platform listener snapshots, QualityController frame guards, and v1 modes2d clears', async () => {
+    const { createPlatformAdapter, sanitizeCloudSlot } = await import('../../src/platform/platform.ts');
+    const { QualityController } = await import('../../src/platform/qualityController.ts');
+    const { availableChallenges, canPlayEndless } = await import('../../src/render2d/ui/modes2d.ts');
+
+    // 1. mergeProgress sanitizes NaN/out-of-range array entries, infers clears from v1 bestStars,
+    //    and falls back to the affordable side's workshop when the higher-spent side is unaffordable.
+    const goodLocal = createDefaultProgress(4);
+    goodLocal.bestStars = [3, 0, 0, 0]; // 3 earned stars, v1-style clears = 0
+    goodLocal.clears = [0, 0, 0, 0];
+    goodLocal.workshop = { treasury: 1 }; // costs 1 star (affordable!)
+
+    const corruptRemote = createDefaultProgress(4);
+    corruptRemote.version = NaN;
+    corruptRemote.bestStars = [NaN, 99, -4, 0]; // clamps to [0, 3, 0, 0] -> merged has 3 + 3 = 6 stars
+    corruptRemote.bestEndlessWaves = [NaN, 18.9, -2, 0];
+    corruptRemote.bestLives = [NaN, 20, -1, 0];
+    corruptRemote.challengeClears = [['bowless', 42 as unknown as string, ''], 'bad' as unknown as string[], [], []];
+    corruptRemote.workshop = { treasury: 2, bastion: 2, storm: 2 }; // costs 3 + 5 + 5 = 13 stars (> 6 earned!)
+
+    const mergedSafe = mergeProgress(goodLocal, corruptRemote, 4);
+    expect(mergedSafe.version).toBeGreaterThanOrEqual(2);
+    expect(mergedSafe.bestStars).toEqual([3, 3, 0, 0]);
+    expect(mergedSafe.clears).toEqual([1, 1, 0, 0]);
+    expect(mergedSafe.unlockedLevelIndex).toBe(2);
+    expect(mergedSafe.bestEndlessWaves).toEqual([0, 18, 0, 0]);
+    expect(mergedSafe.challengeClears[0]).toEqual(['bowless']);
+    // Kept goodLocal's affordable { treasury: 1 } instead of wiping workshop to {} (3 + 3 campaign + 1 badge - 1 spent = 6)!
+    expect(mergedSafe.workshop).toEqual({ treasury: 1 });
+    expect(starWallet(mergedSafe).available).toBe(6);
+
+    // describeMergeGain reports 'hero skills' when XP is unchanged but new nodes are unlocked.
+    const beforeSkills = createDefaultProgress(4);
+    beforeSkills.heroes = { selectedHero: 'bran', roster: { bran: { xp: xpForHeroLevel(5), skills: [] } } };
+    const afterSkills = createDefaultProgress(4);
+    afterSkills.heroes = {
+      selectedHero: 'bran',
+      roster: { bran: { xp: xpForHeroLevel(5), skills: ['bran_oak_1', 'bran_oak_2'] } },
+    };
+    expect(describeMergeGain(beforeSkills, afterSkills)).toContain('hero skills');
+
+    // 2. combineRunModifiers clamps/ignores zero or negative multipliers and non-positive maxLives.
+    const clampedMods = combineRunModifiers({
+      startGoldBonus: 9.6,
+      startGoldMul: -2,
+      bonusLives: 1.8,
+      maxLives: 0,
+      abilityCooldownMul: 0,
+      killGoldMul: -0.5,
+      waveBonusMul: -1,
+      enemySpeedMul: -3,
+      enemyHpMul: 0,
+    });
+    expect(clampedMods.startGoldBonus).toBe(10);
+    expect(clampedMods.startGoldMul).toBe(1);
+    expect(clampedMods.bonusLives).toBe(2);
+    expect(clampedMods.maxLives).toBeNull();
+    expect(clampedMods.abilityCooldownMul).toBe(1);
+    expect(clampedMods.killGoldMul).toBe(1);
+    expect(clampedMods.waveBonusMul).toBe(1);
+    expect(clampedMods.enemySpeedMul).toBe(1);
+    expect(clampedMods.enemyHpMul).toBe(1);
+
+    // 3. PlatformAdapter snapshots listener sets so mid-dispatch subscriptions do not fire in-flight.
+    expect(sanitizeCloudSlot(null as unknown as string)).toBeNull();
+    let overlayTrigger: ((active: boolean) => void) | null = null;
+    const steamAdapter = createPlatformAdapter({
+      bridge: {
+        isSteam: true,
+        unlockAchievement: async () => true,
+        cloudRead: async () => null,
+        cloudWrite: async () => true,
+        onOverlayChange: (cb) => {
+          overlayTrigger = cb;
+          return () => {};
+        },
+      },
+      storage: null,
+    });
+    expect(await steamAdapter.achievements.unlock(null as unknown as string)).toBe(false);
+    let lateOverlayCalls = 0;
+    steamAdapter.onOverlayChange(() => {
+      steamAdapter.onOverlayChange(() => void lateOverlayCalls++);
+    });
+    overlayTrigger!(true);
+    expect(lateOverlayCalls).toBe(0);
+    overlayTrigger!(false);
+    expect(lateOverlayCalls).toBe(1);
+
+    // 4. QualityController ignores NaN / Infinity frame samples without poisoning governor clock.
+    const appliedTiers: string[] = [];
+    const qc = new QualityController((tier) => appliedTiers.push(tier), () => false);
+    qc.setSetting('invalid' as never);
+    expect(qc.isAuto).toBe(true);
+    qc.frame(Infinity);
+    qc.frame(NaN);
+    qc.frame(-16);
+    for (let i = 0; i < 120; i++) qc.frame(50); // slow frames still step down cleanly after Infinity
+    expect(qc.tier).not.toBe('high');
+
+    // 5. modes2d helpers recognize v1 star-only clears (bestStars > 0 with clears = 0).
+    const v1Prog = createDefaultProgress(LEVELS_2D.length);
+    v1Prog.bestStars[0] = 2;
+    expect(canPlayEndless(LEVELS_2D[0].id, v1Prog, LEVELS_2D)).toBe(true);
+    expect(availableChallenges(LEVELS_2D[0].id, v1Prog, LEVELS_2D)).toHaveLength(2);
+  });
 });

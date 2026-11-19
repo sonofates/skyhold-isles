@@ -151,7 +151,6 @@ export class SimWorld {
   /** Optional live observer fired whenever a command is appended to the replay log. */
   onCommandRecorded: ((entry: StampedSimCommand) => void) | null = null;
   private recordingCommands = false;
-  private recordSuppressDepth = 0;
   private commandSeq = 0;
   private readonly commandLog: StampedSimCommand[] = [];
 
@@ -318,7 +317,7 @@ export class SimWorld {
   }
 
   private recordCommand(command: SimCommand): void {
-    if (!this.recordingCommands || this.recordSuppressDepth > 0) return;
+    if (!this.recordingCommands) return;
     const entry: StampedSimCommand = {
       tick: this.tick,
       seq: this.commandSeq++,
@@ -334,6 +333,7 @@ export class SimWorld {
       case 'startWave':
         return this.startNextWave();
       case 'setAutoWave':
+        if (this.outcome === 'lost') return false;
         this.setAutoWave(command.enabled);
         return true;
       case 'placeTower':
@@ -410,9 +410,10 @@ export class SimWorld {
 
   setAutoWave(enabled: boolean): void {
     if (this.outcome === 'lost') return;
-    const changed = this.waveSystem.autoWave !== enabled;
-    this.waveSystem.setAutoWave(enabled);
-    if (changed) this.recordCommand({ kind: 'setAutoWave', enabled });
+    const next = Boolean(enabled);
+    const changed = this.waveSystem.autoWave !== next;
+    if (changed) this.recordCommand({ kind: 'setAutoWave', enabled: next });
+    this.waveSystem.setAutoWave(next);
   }
 
   /** Active hero entity in this run, or null when running without a hero. */
@@ -423,20 +424,18 @@ export class SimWorld {
   /** Orders the active hero to move along the ground road graph to `(x, z)`. */
   commandHeroMove(x: number, z: number): boolean {
     if (this.outcome !== 'ongoing') return false;
-    const ok = this.heroSystem.commandMove(x, z);
-    if (ok) this.recordCommand({ kind: 'moveHero', x, z });
-    return ok;
+    return this.heroSystem.commandMove(x, z, () => {
+      this.recordCommand({ kind: 'moveHero', x, z });
+    });
   }
 
   /** Casts one of the active hero's two skills (`slot` = `0` or `1`). */
   castHeroSkill(slot: HeroSkillSlot, x = NaN, z = NaN): boolean {
     if (this.outcome !== 'ongoing') return false;
-    const ok = this.heroSystem.castSkill(slot, x, z, this.towers);
-    if (ok) {
-      const hasCoords = Number.isFinite(x) && Number.isFinite(z);
+    const hasCoords = Number.isFinite(x) && Number.isFinite(z);
+    return this.heroSystem.castSkill(slot, x, z, this.towers, () => {
       this.recordCommand(hasCoords ? { kind: 'castHeroSkill', slot, x, z } : { kind: 'castHeroSkill', slot });
-    }
-    return ok;
+    });
   }
 
   /** Snapshot of the active hero's HP, state, XP, and skill cooldowns (null when no hero). */
@@ -455,16 +454,15 @@ export class SimWorld {
 
   castMeteor(x: number, z: number): boolean {
     if (!this.canUseAbilities()) return false;
-    const ok = this.abilitySystem.castMeteor(x, z, Math.max(1, this.waveSystem.currentWaveOneBased));
-    if (ok) this.recordCommand({ kind: 'castAbility', id: 'meteor', x, z });
-    return ok;
+    if (!Number.isFinite(x) || !Number.isFinite(z) || !this.abilitySystem.canCast('meteor')) return false;
+    this.recordCommand({ kind: 'castAbility', id: 'meteor', x, z });
+    return this.abilitySystem.castMeteor(x, z, Math.max(1, this.waveSystem.currentWaveOneBased));
   }
 
   castOvercharge(): boolean {
-    if (!this.canUseAbilities()) return false;
-    const ok = this.abilitySystem.castOvercharge(this.towers);
-    if (ok) this.recordCommand({ kind: 'castAbility', id: 'overcharge' });
-    return ok;
+    if (!this.canUseAbilities() || !this.abilitySystem.canCast('overcharge')) return false;
+    this.recordCommand({ kind: 'castAbility', id: 'overcharge' });
+    return this.abilitySystem.castOvercharge(this.towers);
   }
 
   /** Unified global ability cast (`'meteor'` at `(x, z)` or `'overcharge'`). */
@@ -502,16 +500,16 @@ export class SimWorld {
   /** Island card → Endless: the whole run is endless from wave 1 (no victory, no stars). */
   startEndlessFromStart(): boolean {
     if (this.outcome !== 'ongoing' || this.waveSystem.state !== 'preFirstWave') return false;
-    this.waveSystem.startEndlessFromStart();
     this.recordCommand({ kind: 'startEndlessFromStart' });
+    this.waveSystem.startEndlessFromStart();
     return true;
   }
 
   enterEndlessMode(): boolean {
     if (this.outcome !== 'won' || this.waveSystem.isEndless) return false;
+    this.recordCommand({ kind: 'enterEndless' });
     this.outcome = 'ongoing';
     this.waveSystem.enterEndlessMode();
-    this.recordCommand({ kind: 'enterEndless' });
     return true;
   }
 
@@ -537,13 +535,12 @@ export class SimWorld {
   }
 
   startNextWave(): boolean {
-    if (this.outcome !== 'ongoing') return false;
-    const ok = this.waveSystem.startNextWave((bonus) => {
+    if (this.outcome !== 'ongoing' || !this.waveSystem.canStartNextWave()) return false;
+    this.recordCommand({ kind: 'startWave' });
+    return this.waveSystem.startNextWave((bonus) => {
       this.gold += this.scaleWaveBonus(bonus);
       this.events.emit('economyChanged', { gold: this.gold, lives: this.lives });
     });
-    if (ok) this.recordCommand({ kind: 'startWave' });
-    return ok;
   }
 
   debugSkipToWave(waveOneBased: number): boolean {
@@ -645,18 +642,14 @@ export class SimWorld {
     return true;
   }
 
-  /**
-   * Builds a tower on a site: a grass tile (col, row), or on plot levels plot `col` (row 0) —
-   * see `placeTowerOnPlot`.
-   */
-  placeTower(
+  private placeTowerInternal(
     col: number,
     row: number,
     type: TowerType,
-    targetingMode: TargetingMode = 'first',
+    safeMode: TargetingMode,
+    commandToRecord: SimCommand,
   ): TowerEntity | null {
     if (!this.canPlaceTowerAt(col, row, type)) return null;
-    const safeMode: TargetingMode = isValidTargetingMode(targetingMode) ? targetingMode : 'first';
     const stats = getTowerTierStats(type, 1);
     const x = this.grid.siteWorldX(col, row);
     const z = this.grid.siteWorldZ(col, row);
@@ -688,6 +681,7 @@ export class SimWorld {
 
     this.towers.push(tower);
     this.grid.setTowerAt(col, row, tower.id);
+    this.recordCommand(commandToRecord);
     if (TOWER_DEFS[type].role === 'barracks') this.soldierSystem.addBarracks(tower);
 
     this.events.emit('towerBuilt', {
@@ -698,12 +692,29 @@ export class SimWorld {
       z,
     });
     this.events.emit('economyChanged', { gold: this.gold, lives: this.lives });
-    this.recordCommand(
+    return tower;
+  }
+
+  /**
+   * Builds a tower on a site: a grass tile (col, row), or on plot levels plot `col` (row 0) —
+   * see `placeTowerOnPlot`.
+   */
+  placeTower(
+    col: number,
+    row: number,
+    type: TowerType,
+    targetingMode: TargetingMode = 'first',
+  ): TowerEntity | null {
+    const safeMode: TargetingMode = isValidTargetingMode(targetingMode) ? targetingMode : 'first';
+    return this.placeTowerInternal(
+      col,
+      row,
+      type,
+      safeMode,
       safeMode !== 'first'
         ? { kind: 'placeTower', col, row, towerType: type, targetingMode: safeMode }
         : { kind: 'placeTower', col, row, towerType: type },
     );
-    return tower;
   }
 
   /** Plot levels: builds on plot `plotIndex` (one tower per plot; selling frees it). */
@@ -714,21 +725,15 @@ export class SimWorld {
   ): TowerEntity | null {
     if (!this.grid.isPlotMode) return null;
     const safeMode: TargetingMode = isValidTargetingMode(targetingMode) ? targetingMode : 'first';
-    this.recordSuppressDepth++;
-    let tower: TowerEntity | null;
-    try {
-      tower = this.placeTower(plotIndex, 0, type, safeMode);
-    } finally {
-      this.recordSuppressDepth--;
-    }
-    if (tower) {
-      this.recordCommand(
-        safeMode !== 'first'
-          ? { kind: 'placeTowerOnPlot', plotIndex, towerType: type, targetingMode: safeMode }
-          : { kind: 'placeTowerOnPlot', plotIndex, towerType: type },
-      );
-    }
-    return tower;
+    return this.placeTowerInternal(
+      plotIndex,
+      0,
+      type,
+      safeMode,
+      safeMode !== 'first'
+        ? { kind: 'placeTowerOnPlot', plotIndex, towerType: type, targetingMode: safeMode }
+        : { kind: 'placeTowerOnPlot', plotIndex, towerType: type },
+    );
   }
 
   upgradeTower(towerId: number): boolean {
@@ -744,6 +749,7 @@ export class SimWorld {
     tower.tier = nextTier;
     tower.totalInvested += nextStats.upgradeCost;
     tower.popAnimTimer = 0.32;
+    this.recordCommand({ kind: 'upgradeTower', towerId });
     if (TOWER_DEFS[tower.type].role === 'barracks') this.soldierSystem.onUpgrade(tower);
 
     this.events.emit('towerUpgraded', {
@@ -754,7 +760,6 @@ export class SimWorld {
       z: tower.z,
     });
     this.events.emit('economyChanged', { gold: this.gold, lives: this.lives });
-    this.recordCommand({ kind: 'upgradeTower', towerId });
     return true;
   }
 
@@ -768,6 +773,7 @@ export class SimWorld {
     this.gold += refund;
     this.grid.clearTowerAt(tower.col, tower.row);
     this.towers.splice(idx, 1);
+    this.recordCommand({ kind: 'sellTower', towerId });
     if (TOWER_DEFS[tower.type].role === 'barracks') this.soldierSystem.removeBarracks(tower.id);
 
     this.events.emit('towerSold', {
@@ -779,7 +785,6 @@ export class SimWorld {
       z: tower.z,
     });
     this.events.emit('economyChanged', { gold: this.gold, lives: this.lives });
-    this.recordCommand({ kind: 'sellTower', towerId });
     return refund;
   }
 
@@ -791,9 +796,9 @@ export class SimWorld {
     if (this.outcome !== 'ongoing') return false;
     const tower = this.getTowerById(towerId);
     if (!tower || TOWER_DEFS[tower.type].role !== 'barracks') return false;
-    const ok = this.soldierSystem.setRally(tower, x, z);
-    if (ok) this.recordCommand({ kind: 'setRally', towerId, x, z });
-    return ok;
+    return this.soldierSystem.setRally(tower, x, z, () => {
+      this.recordCommand({ kind: 'setRally', towerId, x, z });
+    });
   }
 
   setTowerTargeting(towerId: number, mode: TargetingMode): boolean {

@@ -32,19 +32,23 @@ export class QualityController {
   }
 
   setSetting(setting: QualityLevel): void {
+    const cleanSetting: QualityLevel =
+      setting === 'auto' || setting === 'high' || setting === 'medium' || setting === 'low'
+        ? setting
+        : 'auto';
     // Re-applying an unchanged setting (e.g. the sound slider saves all settings) must not
     // throw away what the governor has learned.
-    if (setting === this.setting && this.applied !== null) return;
-    this.setting = setting;
-    const tier = initialTier(setting, this.isTouch());
+    if (cleanSetting === this.setting && this.applied !== null) return;
+    this.setting = cleanSetting;
+    const tier = initialTier(cleanSetting, this.isTouch());
     this.governor.setTier(tier);
-    this.governor.setActive(setting === 'auto');
+    this.governor.setActive(cleanSetting === 'auto');
     this.commit(tier);
   }
 
   /** Feed the frame time (ms) of a rendered frame. */
   frame(frameMs: number): void {
-    if (this.setting !== 'auto') return;
+    if (this.setting !== 'auto' || !Number.isFinite(frameMs) || frameMs <= 0) return;
     const next = this.governor.sample(frameMs);
     if (next) this.commit(next);
   }
