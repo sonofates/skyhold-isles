@@ -52,6 +52,7 @@ import type { RunModifiers } from '../data/runModifiers.ts';
 import {
   applyDailyWin,
   dailyChallengeFor,
+  liveStreak,
   utcDayNumber,
   type DailyChallenge,
 } from '../data/daily.ts';
@@ -142,11 +143,13 @@ export class GameSession {
   private unbindHaptics: (() => void) | null = null;
   private unbindOverlay: (() => void) | null = null;
   private unbindPause: (() => void) | null = null;
+  private unbindResume: (() => void) | null = null;
   private deps: SessionRuntimeDeps | null = null;
   private readonly quality: QualityController;
   /** Tile whose ghost tower the radial build ring is previewing (survives pointer-leave refreshes). */
   private radialPreview: { type: TowerType; col: number; row: number } | null = null;
   private readonly starChimeTimers: number[] = [];
+  private disposed = false;
 
   constructor(renderWorld: RenderWorld, soundManager: SoundManager) {
     this.renderWorld = renderWorld;
@@ -172,16 +175,35 @@ export class GameSession {
     this.unbindPause = platform.onPause(() => {
       this.enterBackground();
     });
+    this.unbindResume = platform.onResume(() => {
+      this.returnFromBackground();
+    });
     if (platform.isSteam) {
-      void hydrateProgressFromCloud(this.progress, LEVELS.length, platform).then(({ merged, updated }) => {
-        if (!updated) return;
-        Object.assign(this.progress, merged);
-        if (this.viewMode !== 'playing' && this.deps) {
-          this.deps.overlays.mainMenu.setOpen(this.viewMode === 'menu', this.progress);
-          this.deps.overlays.levelSelect.setOpen(this.viewMode === 'levelSelect', this.progress);
-          this.deps.overlays.workshop.setOpen(this.viewMode === 'workshop', this.progress);
-        }
-      });
+      void hydrateProgressFromCloud(this.progress, LEVELS.length, platform)
+        .then(({ merged, updated }) => {
+          if (!updated || this.disposed) return;
+          const freshMerged = mergeProgress(this.progress, merged, LEVELS.length);
+          const inMemoryDiverged = JSON.stringify(freshMerged) !== JSON.stringify(merged);
+          if (freshMerged.heroes === undefined) delete this.progress.heroes;
+          Object.assign(this.progress, freshMerged);
+          if (inMemoryDiverged) {
+            saveProgress(this.progress);
+          }
+          if (this.viewMode !== 'playing') {
+            this.currentLevelIndex = Math.max(
+              0,
+              Math.min(LEVELS.length - 1, this.progress.unlockedLevelIndex),
+            );
+            if (this.deps) {
+              this.deps.overlays.mainMenu.setOpen(this.viewMode === 'menu', this.progress);
+              this.deps.overlays.levelSelect.setOpen(this.viewMode === 'levelSelect', this.progress);
+              this.deps.overlays.workshop.setOpen(this.viewMode === 'workshop', this.progress);
+            }
+          }
+        })
+        .catch(() => {
+          // Offline / IPC errors degrade silently to local save.
+        });
     }
   }
 
@@ -298,7 +320,11 @@ export class GameSession {
       wavesStarted: ws.currentWaveOneBased,
       gold: sim.gold,
       cheapestUpgrade,
-      meteorReady: ws.state !== 'preFirstWave' && sim.abilitySystem.canCast('meteor'),
+      meteorReady:
+        sim.outcome === 'ongoing' &&
+        !sim.mods.abilitiesDisabled &&
+        ws.state !== 'preFirstWave' &&
+        sim.abilitySystem.canCast('meteor'),
       meteorAiming: this.activeAbilityMode === 'meteor',
     };
   }
@@ -307,8 +333,7 @@ export class GameSession {
     const inPlayAndInside = this.viewMode === 'playing' && this.pointerInside;
     if (this.radialPreview && this.viewMode === 'playing') {
       const rp = this.radialPreview;
-      const cost = TOWER_DEFS[rp.type].tiers[0].upgradeCost;
-      const valid = this.simWorld.grid.canPlaceTower(rp.col, rp.row) && this.simWorld.gold >= cost;
+      const valid = this.simWorld.canPlaceTowerAt(rp.col, rp.row, rp.type);
       this.renderWorld.setPlacementPreview(
         true,
         rp.type,
@@ -524,12 +549,16 @@ export class GameSession {
     this.cancelStarChimes();
     for (let i = 0; i < stars; i++) {
       const delay = STAR_REVEAL_DELAYS_MS[i] ?? 0;
-      this.starChimeTimers.push(window.setTimeout(() => this.soundManager.playStarChime(i), delay));
+      this.starChimeTimers.push(
+        globalThis.setTimeout(() => {
+          if (!this.disposed) this.soundManager.playStarChime(i);
+        }, delay) as unknown as number,
+      );
     }
   }
 
   private cancelStarChimes(): void {
-    for (const t of this.starChimeTimers) window.clearTimeout(t);
+    for (const t of this.starChimeTimers) globalThis.clearTimeout(t);
     this.starChimeTimers.length = 0;
   }
 
@@ -547,6 +576,7 @@ export class GameSession {
       getSimClock: () => this.simClockSec,
       onSyncUi: this.syncUi,
       onGameWon: (stars, livesRemaining) => {
+        this.pendingDebugSpawns.length = 0;
         // Island badges only for the island's own challenges (a Daily may use others).
         const offered = challengesForLevel(LEVELS[this.currentLevelIndex]);
         const masteredBefore = isIslandMastered(this.progress, this.currentLevelIndex, offered);
@@ -559,16 +589,27 @@ export class GameSession {
           badgesForWin(offered, this.runConfig.challenges),
         );
         let dailyStreak = 0;
+        let shareDailyStreak = 0;
         if (this.runConfig.daily !== null) {
+          const today = utcDayNumber(Date.now());
+          const prevLast = this.progress.daily.lastDay;
+          const prevStreak = this.progress.daily.streak;
           const res = applyDailyWin(
             this.progress.daily,
             this.runConfig.daily,
-            utcDayNumber(Date.now()),
+            today,
           );
           if (res.counted) {
             dailyStreak = res.streak;
+          }
+          if (
+            res.counted ||
+            this.progress.daily.lastDay !== prevLast ||
+            this.progress.daily.streak !== prevStreak
+          ) {
             saveProgress(this.progress);
           }
+          shareDailyStreak = liveStreak(this.progress.daily, today);
         }
         this.deps?.content?.onLevelWon(this.currentLevelIndex);
         this.deps?.radial?.close();
@@ -604,7 +645,7 @@ export class GameSession {
                     challenges: this.runConfig.challenges,
                     stars,
                     livesLost: Math.max(0, this.simWorld.startingLives - livesRemaining),
-                    streak: dailyStreak,
+                    streak: shareDailyStreak,
                   })
                 : undefined,
           },
@@ -614,6 +655,7 @@ export class GameSession {
         this.syncUi();
       },
       onGameLost: (waveIndex, endless) => {
+        this.pendingDebugSpawns.length = 0;
         this.deps?.radial?.close();
         this.activeAbilityMode = null;
         this.setPlacementMode(null);
@@ -687,7 +729,7 @@ export class GameSession {
   selectIsland(levelIndex: number): void {
     this.soundManager.unlock();
     const idx = Math.max(0, Math.min(LEVELS.length - 1, levelIndex));
-    if ((this.progress.clears[idx] ?? 0) > 0) {
+    if ((this.progress.clears[idx] ?? 0) > 0 || (this.progress.bestStars[idx] ?? 0) > 0) {
       this.d.overlays.islandBriefing.show(idx, this.progress);
       return;
     }
@@ -697,11 +739,16 @@ export class GameSession {
   /** Settings (menu) → Reset progress, after the in-dialog confirm. The old save is backed up. */
   resetProgress(): void {
     const fresh = resetProgressSave(LEVELS.length);
+    delete this.progress.heroes;
     Object.assign(this.progress, fresh);
     this.currentLevelIndex = 0;
     this.runConfig = { endless: false, challenges: [], daily: null };
     this.soundManager.playUiBack();
-    this.d.overlays.mainMenu.setOpen(this.viewMode === 'menu', this.progress);
+    if (this.viewMode !== 'playing') {
+      this.d.overlays.mainMenu.setOpen(this.viewMode === 'menu', this.progress);
+      this.d.overlays.levelSelect.setOpen(this.viewMode === 'levelSelect', this.progress);
+      this.d.overlays.workshop.setOpen(this.viewMode === 'workshop', this.progress);
+    }
     this.d.overlays.toast.show('Progress reset — a backup of the old save was kept.', 3);
   }
 
@@ -719,17 +766,28 @@ export class GameSession {
     const merged = mergeProgress(this.progress, res.progress, LEVELS.length);
     const gain = describeMergeGain(this.progress, merged);
     backupProgressBeforeImport();
+    if (merged.heroes === undefined) delete this.progress.heroes;
     Object.assign(this.progress, merged);
     saveProgress(this.progress);
     this.soundManager.playUiConfirm();
-    this.d.overlays.mainMenu.setOpen(this.viewMode === 'menu', this.progress);
+    if (this.viewMode !== 'playing') {
+      this.currentLevelIndex = Math.max(
+        0,
+        Math.min(LEVELS.length - 1, this.progress.unlockedLevelIndex),
+      );
+      this.d.overlays.mainMenu.setOpen(this.viewMode === 'menu', this.progress);
+      this.d.overlays.levelSelect.setOpen(this.viewMode === 'levelSelect', this.progress);
+      this.d.overlays.workshop.setOpen(this.viewMode === 'workshop', this.progress);
+    }
     return { ok: true, message: `Loaded: ${gain}.` };
   }
 
   /** Today's Daily Squall (UTC day), or null until an island has been cleared. */
   todaysDaily(): DailyChallenge | null {
     const cleared: number[] = [];
-    for (let i = 0; i < LEVELS.length; i++) if ((this.progress.clears[i] ?? 0) > 0) cleared.push(i);
+    for (let i = 0; i < LEVELS.length; i++) {
+      if ((this.progress.clears[i] ?? 0) > 0 || (this.progress.bestStars[i] ?? 0) > 0) cleared.push(i);
+    }
     return dailyChallengeFor(utcDayNumber(Date.now()), cleared);
   }
 
@@ -853,6 +911,11 @@ export class GameSession {
     if (reloadShowcase) {
       feats = this.recordEndlessIfActive();
       this.clearTransientPlayState();
+      this.unbindSound?.();
+      this.unbindSound = null;
+      this.unbindHaptics?.();
+      this.unbindHaptics = null;
+      this.simWorld.dispose();
       this.events.clear();
       this.events = new EventBus();
       this.simWorld = new SimWorld(LEVELS[this.currentLevelIndex], this.events);
@@ -878,9 +941,16 @@ export class GameSession {
     this.currentLevelIndex = Math.max(0, Math.min(LEVELS.length - 1, levelIndex));
     const level = LEVELS[this.currentLevelIndex];
     // Challenges and island-card Endless unlock after the first clear.
-    const cleared = (this.progress.clears[this.currentLevelIndex] ?? 0) > 0;
+    const cleared =
+      (this.progress.clears[this.currentLevelIndex] ?? 0) > 0 ||
+      (this.progress.bestStars[this.currentLevelIndex] ?? 0) > 0;
     this.runConfig = resolveRunConfig(level, cleared, config);
     this.clearTransientPlayState();
+    this.unbindSound?.();
+    this.unbindSound = null;
+    this.unbindHaptics?.();
+    this.unbindHaptics = null;
+    this.simWorld.dispose();
     this.events.clear();
     this.events = new EventBus();
     this.simWorld = new SimWorld(level, this.events, this.buildRunModifiers(this.runConfig.challenges));
@@ -968,6 +1038,16 @@ export class GameSession {
     if (this.userPaused) this.userPaused = false;
     this.syncLoopAndInput();
     this.syncUi();
+  }
+
+  /** Cycles gameplay speed `1x -> 2x -> 3x -> 1x` and unpauses if user-paused. */
+  cycleSpeed(): SpeedMultiplier {
+    this.soundManager.unlock();
+    const next = this.d.loop.cycleSpeed();
+    if (this.userPaused) this.userPaused = false;
+    this.syncLoopAndInput();
+    this.syncUi();
+    return next;
   }
 
   /**
@@ -1264,6 +1344,7 @@ export class GameSession {
   fixedTick(dt: number): void {
     // A first-sighting card opened mid-frame: drop the rest of this frame's catch-up ticks.
     if (this.deps?.content?.isBlocking()) return;
+    if (this.simWorld.outcome !== 'ongoing' || !Number.isFinite(dt) || dt <= 0) return;
     this.simClockSec += dt;
     stepPendingSpawns(this.pendingDebugSpawns, this.simWorld, dt);
     this.simWorld.fixedTick(dt);
@@ -1330,6 +1411,8 @@ export class GameSession {
   }
 
   dispose(): void {
+    this.disposed = true;
+    this.cancelStarChimes();
     this.unbindSound?.();
     this.unbindSound = null;
     this.unbindHaptics?.();
@@ -1338,5 +1421,12 @@ export class GameSession {
     this.unbindOverlay = null;
     this.unbindPause?.();
     this.unbindPause = null;
+    this.unbindResume?.();
+    this.unbindResume = null;
+    if (typeof document !== 'undefined') {
+      delete document.documentElement.dataset.bannedTowers;
+    }
+    this.simWorld.dispose();
+    this.events.clear();
   }
 }

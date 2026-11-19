@@ -8,6 +8,7 @@ import {
   createMockIapBackend,
   createPlatformAdapter,
   createRevenueCatBridge,
+  extractEntitlementsFromCustomerInfo,
   FREE_ISLANDS,
   IAP_PRODUCT_IDS,
   IAP_PRODUCTS,
@@ -350,6 +351,61 @@ describe('IAP store adapter: native RevenueCat bridge', () => {
     expect(restored.restored).toEqual(['remove_ads']);
     expect(store.owned('remove_ads')).toBe(true);
     expect(store.owned('full_unlock')).toBe(true);
+  });
+
+  it('normalizes stored SKU caches, honors custom catalogues, and rejects malformed entitlement tokens in memory', async () => {
+    const storage = createMemStorage();
+    // Simulate an older cache that stored the full store SKU instead of canonical entitlementId.
+    storage.setItem(
+      IAP_SAVE_KEY,
+      JSON.stringify({ version: 1, entitlements: [`${MOBILE_APP_ID}.full_unlock`, 'bad token!'], updatedAt: 1 }),
+    );
+    const customCatalogue = [
+      ...IAP_PRODUCTS,
+      {
+        id: 'full_unlock' as const,
+        kind: 'non_consumable' as const,
+        storeProductId: 'custom.sku.expansion',
+        entitlementId: 'custom_expansion_ent',
+      },
+    ];
+    const mockBackend = createMockIapBackend({
+      catalogue: customCatalogue,
+      initialOwned: ['custom.sku.expansion', 'unsafe spaces!'],
+      ledgerStorage: storage,
+    });
+    const store = createIapStore({
+      mode: 'mock',
+      storage,
+      catalogue: customCatalogue,
+      mockBackend,
+    });
+
+    // Stored SKU was normalized on boot to 'full_unlock', and 'bad token!' was rejected.
+    expect(store.owned('full_unlock')).toBe(true);
+    expect(store.owned('bad token!')).toBe(false);
+
+    // Custom catalogue SKU mapped cleanly to 'custom_expansion_ent' and unsafe token was rejected in memory too.
+    const res = await store.restore();
+    expect(res.ok).toBe(true);
+    expect(store.owned('custom_expansion_ent')).toBe(true);
+    expect(store.entitlements().has('unsafe spaces!')).toBe(false);
+
+    const extracted = extractEntitlementsFromCustomerInfo(
+      {
+        entitlements: {
+          active: {
+            'custom.sku.expansion': { isActive: true } as never,
+            'bad id!': { isActive: true } as never,
+          },
+          all: {},
+          verification: 'NOT_REQUESTED' as never,
+        },
+        allPurchasedProductIdentifiers: ['custom.sku.expansion'],
+      },
+      customCatalogue,
+    );
+    expect(extracted).toEqual(['custom_expansion_ent']);
   });
 });
 

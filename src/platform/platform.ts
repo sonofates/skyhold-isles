@@ -95,6 +95,7 @@ const LEGACY_PROGRESS_KEY = 'skyhold_isles_progress_v1';
 
 /** Restricts slot identifiers to safe ASCII tokens (prevents path traversal and malformed keys). */
 export function sanitizeCloudSlot(slot: string): string | null {
+  if (typeof slot !== 'string') return null;
   const trimmed = slot.trim();
   if (!/^[a-zA-Z0-9_-]{1,64}$/.test(trimmed)) return null;
   return trimmed;
@@ -243,7 +244,8 @@ export function createPlatformAdapter(options: CreatePlatformOptions = {}): Plat
         if (active === appActive) return;
         appActive = active;
         const targets = active ? resumeListeners : pauseListeners;
-        for (const fn of targets) {
+        for (const fn of [...targets]) {
+          if (!targets.has(fn)) continue;
           try {
             fn();
           } catch {
@@ -326,7 +328,8 @@ export function createPlatformAdapter(options: CreatePlatformOptions = {}): Plat
         const next = Boolean(active);
         if (next === overlayNow) return;
         overlayNow = next;
-        for (const fn of listeners) {
+        for (const fn of [...listeners]) {
+          if (!listeners.has(fn)) continue;
           try {
             fn(overlayNow);
           } catch {
@@ -356,6 +359,7 @@ export function createPlatformAdapter(options: CreatePlatformOptions = {}): Plat
     },
     achievements: {
       async unlock(id: string): Promise<boolean> {
+        if (typeof id !== 'string') return false;
         const clean = id.trim();
         if (!clean || clean.length > 64) return false;
         if (unlockedInSession.has(clean)) return true;

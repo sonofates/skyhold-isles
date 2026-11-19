@@ -86,7 +86,7 @@ describe.each(ids)('%s campaign plot map', (id) => {
     execFileSync(PYTHON, [
       'tools/map-compose/compose.py', file, 'design/art-2d/v2/assets', '--check-plots',
     ], { env: { ...process.env, PYTHONDONTWRITEBYTECODE: '1' } });
-  });
+  }, 20_000);
 
   it('selects this map at every resolution and supplies its gate fronts', () => {
     expect(layout.image).toBe(`map-${id}-layered`);

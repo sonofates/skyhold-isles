@@ -7,7 +7,6 @@ import { applyEndlessRecord, applyWin, type WinRecord } from '../game/progressio
 import { BALANCE } from '../data/balance.ts';
 import { ENEMY_DEFS } from '../data/enemies.ts';
 import { LEVELS } from '../data/levels/index.ts';
-import { getTowerTierStats } from '../data/towers.ts';
 import type { RenderWorld } from '../render/renderWorld.ts';
 import { getTowerPickHeight } from '../render/towerPicking.ts';
 import type { SimWorld } from '../sim/world.ts';
@@ -43,58 +42,71 @@ const INTRO_TOAST_SEC = 7.0;
 
 export function bindSimEventBridge(h: SimBridgeHandlers): () => void {
   const unbindSound = h.soundManager.bindEvents(h.bus);
-  h.bus.on('economyChanged', h.onSyncUi);
-  h.bus.on('waveStarted', h.onSyncUi);
-  h.bus.on('waveCompleted', h.onSyncUi);
-  h.bus.on('towerBuilt', h.onSyncUi);
-  h.bus.on('towerUpgraded', (e) => {
-    h.onSyncUi();
-    if (e.tier === 2 || e.tier === 3) {
-      const topY = getTowerPickHeight(e.type, e.tier) + 0.35;
-      h.overlays.floatingTextPool.spawnUpgradeTier(e.tier, e.x, topY, e.z, h.getSimClock());
-    }
-  });
-  h.bus.on('towerSold', h.onSyncUi);
   // Wall-clock time of the last "New foe" hint: a second new type (or the flyer hint) arriving while
   // it is still on screen — at any game speed — waits for a later spawn instead of wiping it
   // (a hint is only marked seen once it was actually shown).
   const realClock = h.getRealClock ?? ((): number => performance.now() / 1000);
   let lastIntroAt = -Infinity;
-  const introOnScreen = (): boolean => realClock() - lastIntroAt < INTRO_TOAST_SEC;
-  h.bus.on('enemySpawned', (e) => {
-    if (h.suppressIntroToasts) return;
-    // First encounter with a newer archetype: one-time counterplay hint.
-    const hint = ENEMY_DEFS[e.enemyType].counterHint;
-    if (hint && !hasSeenEnemyIntro(e.enemyType)) {
-      if (!introOnScreen()) {
-        lastIntroAt = realClock();
-        markEnemyIntroSeen(e.enemyType);
-        h.overlays.toast.show(`New foe — ${ENEMY_DEFS[e.enemyType].name}: ${hint}`, INTRO_TOAST_SEC);
-      }
-      return;
+  const introOnScreen = (): boolean => {
+    const now = realClock();
+    if (!Number.isFinite(now)) return false;
+    if (now < lastIntroAt) {
+      lastIntroAt = -Infinity;
+      return false;
     }
-    if (!e.flying || hasSeenFlyerToast() || introOnScreen()) return;
-    markFlyerToastSeen();
-    h.overlays.toast.show('Flyers incoming! Only Archer, Frost, Tesla and Ballista can hit them.');
-  });
-  h.bus.on('enemyHit', (e) => {
-    if (!h.getSettings().damageNumbers) return;
-    h.overlays.floatingTextPool.spawnDamage(
-      e.enemyId,
-      e.damage,
-      e.x,
-      e.y,
-      e.z,
-      h.getSimClock(),
-      e.isBoss || e.damage >= 55,
-    );
-  });
-  h.bus.on('enemyKilled', (e) => {
-    h.overlays.floatingTextPool.spawnGold(e.reward, e.x, e.y + 0.35, e.z, h.getSimClock());
-  });
-  h.bus.on('gameWon', (ev) => h.onGameWon(ev.stars, ev.livesRemaining));
-  h.bus.on('gameLost', (ev) => h.onGameLost(ev.waveIndex, ev.endless));
-  return unbindSound;
+    return now - lastIntroAt < INTRO_TOAST_SEC;
+  };
+  const unsubs = [
+    unbindSound,
+    h.bus.on('economyChanged', h.onSyncUi),
+    h.bus.on('waveStarted', h.onSyncUi),
+    h.bus.on('waveCompleted', h.onSyncUi),
+    h.bus.on('towerBuilt', h.onSyncUi),
+    h.bus.on('towerUpgraded', (e) => {
+      h.onSyncUi();
+      if (e.tier === 2 || e.tier === 3) {
+        const topY = getTowerPickHeight(e.type, e.tier) + 0.35;
+        h.overlays.floatingTextPool.spawnUpgradeTier(e.tier, e.x, topY, e.z, h.getSimClock());
+      }
+    }),
+    h.bus.on('towerSold', h.onSyncUi),
+    h.bus.on('enemySpawned', (e) => {
+      if (h.suppressIntroToasts) return;
+      // First encounter with a newer archetype: one-time counterplay hint.
+      const hint = ENEMY_DEFS[e.enemyType].counterHint;
+      if (hint && !hasSeenEnemyIntro(e.enemyType)) {
+        if (!introOnScreen()) {
+          lastIntroAt = realClock();
+          markEnemyIntroSeen(e.enemyType);
+          h.overlays.toast.show(`New foe — ${ENEMY_DEFS[e.enemyType].name}: ${hint}`, INTRO_TOAST_SEC);
+        }
+        return;
+      }
+      if (!e.flying || hasSeenFlyerToast() || introOnScreen()) return;
+      markFlyerToastSeen();
+      h.overlays.toast.show('Flyers incoming! Only Archer, Frost, Tesla and Ballista can hit them.');
+    }),
+    h.bus.on('enemyHit', (e) => {
+      if (!h.getSettings().damageNumbers) return;
+      h.overlays.floatingTextPool.spawnDamage(
+        e.enemyId,
+        e.damage,
+        e.x,
+        e.y,
+        e.z,
+        h.getSimClock(),
+        e.isBoss || e.damage >= 55,
+      );
+    }),
+    h.bus.on('enemyKilled', (e) => {
+      h.overlays.floatingTextPool.spawnGold(e.reward, e.x, e.y + 0.35, e.z, h.getSimClock());
+    }),
+    h.bus.on('gameWon', (ev) => h.onGameWon(ev.stars, ev.livesRemaining)),
+    h.bus.on('gameLost', (ev) => h.onGameLost(ev.waveIndex, ev.endless)),
+  ];
+  return () => {
+    for (let i = 0; i < unsubs.length; i++) unsubs[i]();
+  };
 }
 
 export function recordWinProgress(
@@ -115,7 +127,9 @@ export function recordEndlessProgress(
   waveReached: number,
 ): ReturnType<typeof applyEndlessRecord> {
   const result = applyEndlessRecord(progress, levelIndex, waveReached);
-  saveProgress(progress);
+  if (result.best !== result.previousBest) {
+    saveProgress(progress);
+  }
   return result;
 }
 
@@ -229,8 +243,7 @@ export function updatePlacementPreviewFromNdc(
   }
   const wx = simWorld.grid.gridToWorldX(coord.col);
   const wz = simWorld.grid.gridToWorldZ(coord.row);
-  const cost = getTowerTierStats(placementType, 1).upgradeCost;
-  const valid = simWorld.grid.canPlaceTower(coord.col, coord.row) && simWorld.gold >= cost;
+  const valid = simWorld.canPlaceTowerAt(coord.col, coord.row, placementType);
   renderWorld.setPlacementPreview(true, placementType, wx, wz, valid);
 }
 
@@ -239,12 +252,22 @@ export function stepPendingSpawns(
   simWorld: SimWorld,
   dt: number,
 ): void {
+  if (simWorld.outcome !== 'ongoing') {
+    queue.length = 0;
+    return;
+  }
+  if (!Number.isFinite(dt) || dt <= 0) return;
   let p = 0;
   while (p < queue.length) {
+    if (simWorld.outcome !== 'ongoing') {
+      queue.length = 0;
+      return;
+    }
     queue[p].delay -= dt;
     if (queue[p].delay <= 0) {
-      simWorld.enemySystem.spawnEnemy(queue[p].type);
+      const type = queue[p].type;
       queue.splice(p, 1);
+      simWorld.enemySystem.spawnEnemy(type);
     } else {
       p++;
     }

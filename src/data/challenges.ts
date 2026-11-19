@@ -167,12 +167,14 @@ export function sanitizeChallengeSelection(
   level: Pick<LevelDef, 'id' | 'difficulty'> & { readonly layout2d?: unknown },
   selected: readonly unknown[],
 ): ChallengeId[] {
+  if (!Array.isArray(selected)) return [];
   const offered = challengesForLevel(level);
   return offered.filter((id) => selected.includes(id));
 }
 
 export function challengeModifiers(ids: readonly ChallengeId[]): RunModifiers {
-  return combineRunModifiers(...ids.map((id) => CHALLENGES[id].patch));
+  if (!Array.isArray(ids) || ids.length === 0) return combineRunModifiers();
+  return combineRunModifiers(...ids.filter(isChallengeId).map((id) => CHALLENGES[id].patch));
 }
 
 /** Workshop upgrades + the run's challenges (challenges' `maxLives` overrides Workshop lives). */
@@ -180,6 +182,8 @@ export function runModifiersFor(
   workshop: RunModifiers,
   challenges: readonly ChallengeId[],
 ): RunModifiers {
-  if (challenges.length === 0) return workshop;
-  return combineRunModifiers(workshop, ...challenges.map((id) => CHALLENGES[id].patch));
+  if (!Array.isArray(challenges) || challenges.length === 0) return workshop;
+  const valid = challenges.filter(isChallengeId);
+  if (valid.length === 0) return workshop;
+  return combineRunModifiers(workshop, ...valid.map((id) => CHALLENGES[id].patch));
 }

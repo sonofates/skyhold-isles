@@ -1,8 +1,16 @@
-import type { ProgressData } from '../core/types.ts';
+import type { HeroId, HeroSaveData, ProgressData } from '../core/types.ts';
 import { isChallengeId } from '../data/challenges.ts';
-import type { DailyRecord } from '../data/daily.ts';
+import { sanitizeDailyRecord, type DailyRecord } from '../data/daily.ts';
+import {
+  countHeroSkillPointsSpent,
+  HERO_IDS,
+  mergeHeroSaveData,
+  sanitizeHeroSaveData,
+  totalHeroSaveXp,
+} from '../data/heroes.ts';
+import { rankOf, sanitizeRanks, WORKSHOP_UPGRADES, workshopStarsSpent } from '../data/workshop.ts';
 import { starWallet } from '../game/progression.ts';
-import { migrateProgress } from './storage.ts';
+import { migrateProgress, PROGRESS_SAVE_VERSION } from './storage.ts';
 
 /**
  * Save codes: the campaign save as a copy-paste string, to move progress between devices or keep a
@@ -49,8 +57,50 @@ function trimLists(list: readonly string[][]): string[][] {
   return list.slice(0, end).map((l) => [...l]);
 }
 
-export function encodeSaveCode(progress: ProgressData): string {
-  const payload = {
+interface CompactHeroPayload {
+  readonly s: HeroId;
+  readonly r?: Partial<Record<HeroId, { readonly x: number; readonly k?: readonly string[] }>>;
+}
+
+function encodeHeroPayload(heroes: HeroSaveData): CompactHeroPayload {
+  const clean = sanitizeHeroSaveData(heroes);
+  const r: Partial<Record<HeroId, { readonly x: number; readonly k?: readonly string[] }>> = {};
+  let hasAny = false;
+  for (let i = 0; i < HERO_IDS.length; i++) {
+    const id = HERO_IDS[i];
+    const e = clean.roster[id];
+    if (!e || (e.xp === 0 && e.skills.length === 0)) continue;
+    r[id] = e.skills.length > 0 ? { x: e.xp, k: [...e.skills] } : { x: e.xp };
+    hasAny = true;
+  }
+  return hasAny ? { s: clean.selectedHero, r } : { s: clean.selectedHero };
+}
+
+function decodeHeroPayload(raw: unknown): HeroSaveData | undefined {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined;
+  const obj = raw as Record<string, unknown>;
+  // Accept either compact `{ s, r: { bran: { x, k } } }` or full `{ selectedHero, roster }`.
+  if ('selectedHero' in obj || 'roster' in obj) {
+    return sanitizeHeroSaveData(obj);
+  }
+  const rawR =
+    obj.r && typeof obj.r === 'object' && !Array.isArray(obj.r)
+      ? (obj.r as Record<string, unknown>)
+      : {};
+  const roster: Record<string, { xp: unknown; skills: unknown }> = {};
+  for (let i = 0; i < HERO_IDS.length; i++) {
+    const id = HERO_IDS[i];
+    const ce = rawR[id];
+    if (ce && typeof ce === 'object' && !Array.isArray(ce)) {
+      const c = ce as { x?: unknown; k?: unknown };
+      roster[id] = { xp: c.x ?? 0, skills: c.k ?? [] };
+    }
+  }
+  return sanitizeHeroSaveData({ selectedHero: obj.s, roster });
+}
+
+export function encodeSaveCode(progress: ProgressData, levelIds?: readonly string[]): string {
+  const payload: Record<string, unknown> = {
     v: progress.version,
     u: progress.unlockedLevelIndex,
     s: trimZeros(progress.bestStars),
@@ -61,12 +111,18 @@ export function encodeSaveCode(progress: ProgressData): string {
     b: trimLists(progress.challengeClears),
     d: progress.daily,
   };
+  if (progress.heroes !== undefined) {
+    payload.h = encodeHeroPayload(progress.heroes);
+  }
+  if (levelIds && levelIds.length > 0) {
+    payload.i = [...levelIds];
+  }
   const body = toBase64Url(JSON.stringify(payload));
   return `${PREFIX}${body}-${checksum(body)}`;
 }
 
 export type SaveCodeResult =
-  | { readonly ok: true; readonly progress: ProgressData }
+  | { readonly ok: true; readonly progress: ProgressData; readonly levelIds?: readonly string[] }
   | { readonly ok: false; readonly error: string };
 
 export function decodeSaveCode(code: string, levelCount: number): SaveCodeResult {
@@ -85,8 +141,15 @@ export function decodeSaveCode(code: string, levelCount: number): SaveCodeResult
   } catch {
     return { ok: false, error: 'The code could not be read.' };
   }
-  if (!raw || typeof raw !== 'object') return { ok: false, error: 'The code could not be read.' };
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+    return { ok: false, error: 'The code could not be read.' };
+  }
   const r = raw as Record<string, unknown>;
+  const decodedHeroes = r.h !== undefined ? decodeHeroPayload(r.h) : undefined;
+  const levelIds = Array.isArray(r.i)
+    ? r.i.map((x) => (typeof x === 'string' ? x : ''))
+    : undefined;
+  const hasValidIds = levelIds !== undefined && levelIds.some((id) => id.length > 0);
   const progress = migrateProgress(
     {
       version: r.v,
@@ -98,12 +161,14 @@ export function decodeSaveCode(code: string, levelCount: number): SaveCodeResult
       workshop: r.w,
       challengeClears: r.b,
       daily: r.d,
+      ...(decodedHeroes !== undefined ? { heroes: decodedHeroes } : {}),
     },
     levelCount,
   );
   // Only real challenge ids travel between saves (a hand-made code could carry anything).
   progress.challengeClears = progress.challengeClears.map((list) => list.filter((id) => isChallengeId(id)));
-  return { ok: true, progress };
+  if (starWallet(progress).available < 0) progress.workshop = {};
+  return hasValidIds ? { ok: true, progress, levelIds } : { ok: true, progress };
 }
 
 /**
@@ -113,7 +178,12 @@ export function decodeSaveCode(code: string, levelCount: number): SaveCodeResult
  * same wins twice when a code is loaded again (merging must stay idempotent).
  */
 export function mergeDaily(a: DailyRecord, b: DailyRecord): DailyRecord {
-  const [early, late] = a.lastDay <= b.lastDay ? [a, b] : [b, a];
+  const ca = sanitizeDailyRecord(a);
+  const cb = sanitizeDailyRecord(b);
+  const [early, late] =
+    ca.lastDay < cb.lastDay || (ca.lastDay === cb.lastDay && ca.streak <= cb.streak)
+      ? [ca, cb]
+      : [cb, ca];
   const lateStart = late.lastDay - Math.max(0, late.streak) + 1;
   const earlyStart = early.lastDay - Math.max(0, early.streak) + 1;
   const chains = early.streak > 0 && late.streak > 0 && lateStart <= early.lastDay + 1;
@@ -121,8 +191,8 @@ export function mergeDaily(a: DailyRecord, b: DailyRecord): DailyRecord {
   return {
     lastDay: late.lastDay,
     streak,
-    bestStreak: Math.max(a.bestStreak, b.bestStreak, streak),
-    total: Math.max(a.total, b.total),
+    bestStreak: Math.max(ca.bestStreak, cb.bestStreak, streak),
+    total: Math.max(ca.total, cb.total),
   };
 }
 
@@ -131,27 +201,90 @@ export function mergeDaily(a: DailyRecord, b: DailyRecord): DailyRecord {
  * whichever save had spent more (refunded if the merged wallet somehow cannot pay for them).
  */
 export function mergeProgress(a: ProgressData, b: ProgressData, levelCount: number): ProgressData {
-  const maxList = (x: readonly number[], y: readonly number[]): number[] =>
-    Array.from({ length: levelCount }, (_, i) => Math.max(x[i] ?? 0, y[i] ?? 0));
+  const count = Number.isFinite(levelCount) ? Math.max(0, Math.floor(levelCount)) : 0;
+  const safeInt = (v: unknown, max = Number.MAX_SAFE_INTEGER): number =>
+    typeof v === 'number' && Number.isFinite(v) ? Math.max(0, Math.min(max, Math.floor(v))) : 0;
+  const maxList = (
+    x: readonly number[] | undefined,
+    y: readonly number[] | undefined,
+    max = Number.MAX_SAFE_INTEGER,
+  ): number[] =>
+    Array.from({ length: count }, (_, i) => Math.max(safeInt(x?.[i], max), safeInt(y?.[i], max)));
   const daily = mergeDaily(a.daily, b.daily);
-  const spentA = starWallet(a).spent;
-  const spentB = starWallet(b).spent;
+  const workshopA = sanitizeRanks(a.workshop);
+  const workshopB = sanitizeRanks(b.workshop);
+  const unionWorkshop: Record<string, number> = {};
+  for (const def of WORKSHOP_UPGRADES) {
+    const r = Math.max(rankOf(workshopA, def.id), rankOf(workshopB, def.id));
+    if (r > 0) unionWorkshop[def.id] = r;
+  }
+  const spentA = workshopStarsSpent(workshopA);
+  const spentB = workshopStarsSpent(workshopB);
+  const [primaryWorkshop, secondaryWorkshop] =
+    spentB > spentA || (spentB === spentA && JSON.stringify(workshopB) > JSON.stringify(workshopA))
+      ? [workshopB, workshopA]
+      : [workshopA, workshopB];
+  const maxIdx = Math.max(0, count - 1);
+  const bestStars = maxList(a.bestStars, b.bestStars, 3);
+  const clears = maxList(a.clears, b.clears);
+  for (let i = 0; i < count; i++) {
+    if (bestStars[i] > 0 && clears[i] === 0) clears[i] = 1;
+  }
+  const rawMaxUnlock = Math.max(
+    0,
+    Number.isFinite(a.unlockedLevelIndex) ? Math.floor(a.unlockedLevelIndex) : 0,
+    Number.isFinite(b.unlockedLevelIndex) ? Math.floor(b.unlockedLevelIndex) : 0,
+  );
+  let unlockedLevelIndex = Math.min(maxIdx, rawMaxUnlock);
+  while (
+    unlockedLevelIndex < maxIdx &&
+    (bestStars[unlockedLevelIndex] > 0 || clears[unlockedLevelIndex] > 0)
+  ) {
+    unlockedLevelIndex++;
+  }
+  let clearedCount = 0;
+  for (let i = 0; i < count; i++) {
+    if (clears[i] > 0 || bestStars[i] > 0) clearedCount++;
+  }
+  const mergedHeroes = mergeHeroSaveData(a.heroes, b.heroes, clearedCount, unlockedLevelIndex);
+  const verA = safeInt(a.version) || PROGRESS_SAVE_VERSION;
+  const verB = safeInt(b.version) || PROGRESS_SAVE_VERSION;
   const merged: ProgressData = {
-    version: Math.max(a.version, b.version),
-    unlockedLevelIndex: Math.min(levelCount - 1, Math.max(a.unlockedLevelIndex, b.unlockedLevelIndex)),
-    bestStars: maxList(a.bestStars, b.bestStars),
+    version: Math.max(PROGRESS_SAVE_VERSION, verA, verB),
+    unlockedLevelIndex,
+    bestStars,
     bestEndlessWaves: maxList(a.bestEndlessWaves, b.bestEndlessWaves),
     bestLives: maxList(a.bestLives, b.bestLives),
-    clears: maxList(a.clears, b.clears),
-    workshop: { ...(spentB > spentA ? b.workshop : a.workshop) },
-    challengeClears: Array.from({ length: levelCount }, (_, i) => {
-      const out = [...(a.challengeClears[i] ?? [])];
-      for (const id of b.challengeClears[i] ?? []) if (!out.includes(id)) out.push(id);
-      return out;
+    clears,
+    workshop: unionWorkshop,
+    challengeClears: Array.from({ length: count }, (_, i) => {
+      const cleanList = (src: unknown): string[] => {
+        if (!Array.isArray(src)) return [];
+        const list: string[] = [];
+        for (const id of src) {
+          if (typeof id === 'string' && id.length > 0 && id.length <= 40 && !list.includes(id)) {
+            list.push(id);
+          }
+        }
+        return list;
+      };
+      const la = cleanList(a.challengeClears?.[i]);
+      const lb = cleanList(b.challengeClears?.[i]);
+      if (la.length === lb.length && la.every((id, idx) => lb[idx] === id)) return la;
+      if (lb.length < la.length && lb.every((id) => la.includes(id))) return la;
+      if (la.length < lb.length && la.every((id) => lb.includes(id))) return lb;
+      return [...new Set([...la, ...lb])].sort();
     }),
     daily,
+    ...(mergedHeroes !== undefined ? { heroes: mergedHeroes } : {}),
   };
-  if (starWallet(merged).available < 0) merged.workshop = {};
+  if (starWallet(merged).available < 0) {
+    merged.workshop = primaryWorkshop;
+    if (starWallet(merged).available < 0) {
+      merged.workshop = secondaryWorkshop;
+      if (starWallet(merged).available < 0) merged.workshop = {};
+    }
+  }
   return merged;
 }
 
@@ -160,7 +293,8 @@ export function describeMergeGain(before: ProgressData, after: ProgressData): st
   const stars = starWallet(after).campaign - starWallet(before).campaign;
   const islands = after.unlockedLevelIndex - before.unlockedLevelIndex;
   let badges = 0;
-  for (let i = 0; i < after.challengeClears.length; i++) {
+  const badgeLen = Math.max(before.challengeClears.length, after.challengeClears.length);
+  for (let i = 0; i < badgeLen; i++) {
     badges += (after.challengeClears[i]?.length ?? 0) - (before.challengeClears[i]?.length ?? 0);
   }
   const parts: string[] = [];
@@ -169,5 +303,22 @@ export function describeMergeGain(before: ProgressData, after: ProgressData): st
   if (badges > 0) parts.push(`+${badges} badge${badges === 1 ? '' : 's'}`);
   const records = after.bestEndlessWaves.some((v, i) => v > (before.bestEndlessWaves[i] ?? 0));
   if (records) parts.push('new endless records');
+  const dailies = (after.daily?.total ?? 0) - (before.daily?.total ?? 0);
+  if (dailies > 0) parts.push(`+${dailies} daily win${dailies === 1 ? '' : 's'}`);
+  if (workshopStarsSpent(sanitizeRanks(after.workshop)) > workshopStarsSpent(sanitizeRanks(before.workshop))) {
+    parts.push('workshop upgrades');
+  }
+  if (totalHeroSaveXp(after.heroes) > totalHeroSaveXp(before.heroes)) {
+    parts.push('hero XP');
+  } else if (after.heroes) {
+    let spentBefore = 0;
+    let spentAfter = 0;
+    for (let i = 0; i < HERO_IDS.length; i++) {
+      const id = HERO_IDS[i];
+      spentBefore += countHeroSkillPointsSpent(id, before.heroes?.roster?.[id]?.skills ?? []);
+      spentAfter += countHeroSkillPointsSpent(id, after.heroes.roster?.[id]?.skills ?? []);
+    }
+    if (spentAfter > spentBefore) parts.push('hero skills');
+  }
   return parts.length > 0 ? parts.join(', ') : 'nothing new — this save already had all of it';
 }

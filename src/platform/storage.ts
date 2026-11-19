@@ -1,5 +1,6 @@
 import type { GameSettings, ProgressData, QualityLevel } from '../core/types.ts';
 import { createDailyRecord, sanitizeDailyRecord } from '../data/daily.ts';
+import { hasHeroSaveProgress, sanitizeHeroSaveData } from '../data/heroes.ts';
 import { sanitizeRanks } from '../data/workshop.ts';
 import { starWallet } from '../game/progression.ts';
 import { syncAchievementsFromProgress } from './achievements.ts';
@@ -111,15 +112,16 @@ export const PROGRESS_SAVE_VERSION = 2;
 const PROGRESS_BACKUP_KEY = 'skyhold_isles_progress_backup_v1';
 
 export function createDefaultProgress(levelCount: number): ProgressData {
+  const count = Number.isFinite(levelCount) ? Math.max(0, Math.floor(levelCount)) : 0;
   return {
     version: PROGRESS_SAVE_VERSION,
     unlockedLevelIndex: 0,
-    bestStars: new Array<number>(levelCount).fill(0),
-    bestEndlessWaves: new Array<number>(levelCount).fill(0),
-    bestLives: new Array<number>(levelCount).fill(0),
-    clears: new Array<number>(levelCount).fill(0),
+    bestStars: new Array<number>(count).fill(0),
+    bestEndlessWaves: new Array<number>(count).fill(0),
+    bestLives: new Array<number>(count).fill(0),
+    clears: new Array<number>(count).fill(0),
     workshop: {},
-    challengeClears: Array.from({ length: levelCount }, () => []),
+    challengeClears: Array.from({ length: count }, () => []),
     daily: createDailyRecord(),
   };
 }
@@ -163,7 +165,9 @@ export function loadSettings(): GameSettings {
   try {
     const raw = localStorage.getItem(SETTINGS_KEY);
     if (!raw) return defaults;
-    const parsed = JSON.parse(raw) as Partial<GameSettings> & { v?: number };
+    const rawParsed: unknown = JSON.parse(raw);
+    if (!rawParsed || typeof rawParsed !== 'object' || Array.isArray(rawParsed)) return defaults;
+    const parsed = rawParsed as Partial<GameSettings> & { v?: number };
     let quality = parseQuality(parsed.quality, defaults.quality);
     // v1 (pre-Auto) defaulted touch devices to 'low', so a stored 'low' on a touch device is
     // almost always that old default rather than a choice: move it to Auto. Explicit choices
@@ -174,7 +178,7 @@ export function loadSettings(): GameSettings {
     if ((parsed.v === undefined || parsed.v < 3) && quality === 'high' && !isTouchDevice()) quality = 'auto';
     return {
       masterVolume:
-        typeof parsed.masterVolume === 'number'
+        typeof parsed.masterVolume === 'number' && Number.isFinite(parsed.masterVolume)
           ? Math.max(0, Math.min(1, parsed.masterVolume))
           : defaults.masterVolume,
       muted: typeof parsed.muted === 'boolean' ? parsed.muted : defaults.muted,
@@ -206,20 +210,24 @@ export function saveSettings(settings: GameSettings): void {
  * are kept, unknown junk becomes 0.
  */
 export function migrateProgress(parsed: unknown, levelCount: number): ProgressData {
-  if (!parsed || typeof parsed !== 'object') return createDefaultProgress(levelCount);
+  const count = Number.isFinite(levelCount) ? Math.max(0, Math.floor(levelCount)) : 0;
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    return createDefaultProgress(count);
+  }
   const raw = parsed as Record<string, unknown>;
-  const bestStars = parseIslandInts(raw.bestStars, levelCount, 3);
-  const bestEndlessWaves = parseIslandInts(raw.bestEndlessWaves, levelCount);
-  const bestLives = parseIslandInts(raw.bestLives, levelCount);
-  const clears = parseIslandInts(raw.clears, levelCount);
+  const bestStars = parseIslandInts(raw.bestStars, count, 3);
+  const bestEndlessWaves = parseIslandInts(raw.bestEndlessWaves, count);
+  const bestLives = parseIslandInts(raw.bestLives, count);
+  const clears = parseIslandInts(raw.clears, count);
   // v1 saves never counted clears: an island with stars was won at least once.
-  for (let i = 0; i < levelCount; i++) {
+  for (let i = 0; i < count; i++) {
     if (bestStars[i] > 0 && clears[i] === 0) clears[i] = 1;
   }
   const storedIndex = raw.unlockedLevelIndex;
+  const maxIndex = Math.max(0, count - 1);
   const unlockedLevelIndex =
     typeof storedIndex === 'number' && Number.isFinite(storedIndex)
-      ? Math.max(0, Math.min(levelCount - 1, Math.floor(storedIndex)))
+      ? Math.max(0, Math.min(maxIndex, Math.floor(storedIndex)))
       : 0;
 
   // Walk forward from the stored unlock across islands the player has already cleared. Saves
@@ -229,7 +237,13 @@ export function migrateProgress(parsed: unknown, levelCount: number): ProgressDa
   // A non-finite stored index (corrupted save, e.g. 1e500 -> Infinity) starts at island 0 and is not walked.
   const storedIndexOk = typeof storedIndex === 'number' && Number.isFinite(storedIndex);
   let unlocked = storedIndexOk ? unlockedLevelIndex : 0;
-  while (storedIndexOk && unlocked < bestStars.length - 1 && bestStars[unlocked] > 0) unlocked++;
+  while (
+    storedIndexOk &&
+    unlocked < bestStars.length - 1 &&
+    (bestStars[unlocked] > 0 || clears[unlocked] > 0)
+  ) {
+    unlocked++;
+  }
   const progress: ProgressData = {
     version: PROGRESS_SAVE_VERSION,
     unlockedLevelIndex: unlocked,
@@ -238,9 +252,16 @@ export function migrateProgress(parsed: unknown, levelCount: number): ProgressDa
     bestLives,
     clears,
     workshop: sanitizeRanks(raw.workshop),
-    challengeClears: parseIslandIdLists(raw.challengeClears, levelCount),
+    challengeClears: parseIslandIdLists(raw.challengeClears, count),
     daily: sanitizeDailyRecord(raw.daily),
   };
+  if (raw.heroes && typeof raw.heroes === 'object' && !Array.isArray(raw.heroes)) {
+    let clearedCount = 0;
+    for (let i = 0; i < count; i++) {
+      if (clears[i] > 0 || bestStars[i] > 0) clearedCount++;
+    }
+    progress.heroes = sanitizeHeroSaveData(raw.heroes, clearedCount, unlocked);
+  }
   // Upgrades are always refundable: if a save somehow spends more stars than it has earned
   // (edited save, retuned costs), refund everything instead of keeping an impossible state.
   if (starWallet(progress).available < 0) progress.workshop = {};
@@ -270,7 +291,17 @@ export function loadProgress(levelCount: number): ProgressData {
   }
 }
 
-export function saveProgress(progress: ProgressData): void {
+/** Reads the raw `PROGRESS_KEY` string from `localStorage` without parsing (`null` if absent/unavailable). */
+export function readLocalProgressRaw(): string | null {
+  try {
+    return typeof localStorage === 'undefined' ? null : localStorage.getItem(PROGRESS_KEY);
+  } catch {
+    return null;
+  }
+}
+
+/** Persists `progress` to `localStorage` only (without triggering fire-and-forget Steam Cloud/achievement IPC). */
+export function saveLocalProgress(progress: ProgressData): string {
   progress.version = PROGRESS_SAVE_VERSION;
   const raw = JSON.stringify(progress);
   try {
@@ -278,6 +309,11 @@ export function saveProgress(progress: ProgressData): void {
   } catch {
     // Ignore storage quota / private mode failures
   }
+  return raw;
+}
+
+export function saveProgress(progress: ProgressData): void {
+  const raw = saveLocalProgress(progress);
   const platform = getPlatform();
   if (platform.isSteam) {
     void platform.cloudSave.write(CLOUD_PROGRESS_SLOT, raw);
@@ -325,6 +361,7 @@ export function hasAnyProgress(p: ProgressData): boolean {
     p.bestEndlessWaves.some((v) => v > 0) ||
     p.challengeClears.some((l) => l.length > 0) ||
     p.daily.total > 0 ||
-    Object.keys(p.workshop).length > 0
+    Object.keys(p.workshop).length > 0 ||
+    hasHeroSaveProgress(p.heroes)
   );
 }

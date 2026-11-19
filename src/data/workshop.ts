@@ -136,6 +136,7 @@ export function maxRank(def: WorkshopUpgradeDef): number {
 
 /** Clamped owned rank of an upgrade (0..max). */
 export function rankOf(ranks: WorkshopRanks, id: WorkshopUpgradeId): number {
+  if (!ranks || typeof ranks !== 'object') return 0;
   const def = BY_ID.get(id);
   const raw = ranks[id];
   if (!def || typeof raw !== 'number' || !Number.isFinite(raw)) return 0;
@@ -177,7 +178,7 @@ export function buyRank(
   availableStars: number,
 ): Record<string, number> | null {
   const cost = nextRankCost(ranks, id);
-  if (cost === null || cost > availableStars) return null;
+  if (cost === null || !Number.isFinite(availableStars) || availableStars < cost) return null;
   return { ...sanitizeRanks(ranks), [id]: rankOf(ranks, id) + 1 };
 }
 

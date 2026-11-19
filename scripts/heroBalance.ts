@@ -2,7 +2,8 @@ import { EventBus } from '../src/core/eventBus.ts';
 import type { HeroId, HeroSkillSlot } from '../src/core/types.ts';
 import { BALANCE } from '../src/data/balance.ts';
 import {
-  defaultLevel20Skills,
+  buildLevel20Specialization,
+  defaultSkillsForLevel,
   HERO_DEFS,
   HERO_IDS,
   resolveHeroStats,
@@ -27,6 +28,7 @@ export interface HeroIslandRunSummary {
   readonly wavesReached: number;
   readonly totalWaves: number;
   readonly heroDamage: number;
+  readonly totalTeamDamage: number;
   readonly heroKills: number;
   readonly skillCasts: readonly [number, number];
   readonly heroDeaths: number;
@@ -127,9 +129,13 @@ export function runHeroIslandSim(
   scriptKind: 'greedy' | 'weak',
   heroId: HeroId | 'none',
   heroLevel: number,
+  skillOverride?: readonly string[],
 ): HeroIslandRunSummary {
   const events = new EventBus();
-  const skills = heroId !== 'none' && heroLevel >= 20 ? defaultLevel20Skills(heroId) : [];
+  const skills =
+    heroId === 'none'
+      ? []
+      : (skillOverride ?? defaultSkillsForLevel(heroId, heroLevel));
   const world = new SimWorld(
     level,
     events,
@@ -176,7 +182,6 @@ export function runHeroIslandSim(
     return false;
   };
 
-  // Pre-wave 1: walk hero to merge point & spend initial gold just like balanceSim.
   for (let pre = 0; pre < 60 * 12 && world.hero?.state === 'moving'; pre++) {
     world.heroSystem.update(BALANCE.fixedDt, world.towers, 1);
   }
@@ -211,6 +216,10 @@ export function runHeroIslandSim(
   }
 
   const h = world.hero;
+  let towerDmg = 0;
+  for (let i = 0; i < world.towers.length; i++) towerDmg += world.towers[i].totalDamageDealt;
+  const heroDmg = h ? h.totalDamageDealt : 0;
+
   return {
     levelId: level.id,
     heroId,
@@ -221,7 +230,8 @@ export function runHeroIslandSim(
     stars: world.outcome === 'won' ? computeStarRating(world.lives, level.difficulty, world.startingLives) : 0,
     wavesReached: wavesStarted,
     totalWaves: level.waves.length,
-    heroDamage: h ? Math.round(h.totalDamageDealt) : 0,
+    heroDamage: Math.round(heroDmg),
+    totalTeamDamage: Math.round(towerDmg + heroDmg),
     heroKills: h ? h.kills : 0,
     skillCasts: casts,
     heroDeaths: deaths,
@@ -230,10 +240,10 @@ export function runHeroIslandSim(
 }
 
 /**
- * Controlled 60-second combat benchmark on L1c comparing:
+ * Controlled 55-second combat benchmark on L1c comparing:
  *  - Reference 1: one Tier-2 Barracks (140g)
  *  - Reference 2: two Tier-3 Towers (T3 Archer + T3 Cannon = 500g)
- *  - Each hero solo at Level 1 and Level 20 (with one T1 archer nearby so Tobb/Wren/Bran/Sela support effects register).
+ *  - Each hero at Level 1, Level 10, and Level 20 (including all 3 branch-pair specializations).
  */
 function printUnitEquivalenceTable(): void {
   const base = getLevelById('l1c');
@@ -255,7 +265,6 @@ function printUnitEquivalenceTable(): void {
     ],
   };
 
-  // Pick a plot right beside the L1c merge point.
   const measureWorld = new SimWorld(benchLevel, new EventBus());
   const merge = findMergePoint([measureWorld.groundPath, ...measureWorld.extraGroundPaths]);
   let bestPlot = 0;
@@ -316,15 +325,14 @@ function printUnitEquivalenceTable(): void {
   });
 
   console.log('=== Unit Power Equivalence Benchmark (55s mixed ground/armored/flyer wave on l1c) ===');
-  console.log(`  Ref: 1x Tier-2 Barracks (140g)            -> ${String(t2Barracks.dmg).padStart(5)} dmg | ${String(t2Barracks.kills).padStart(2)} kills`);
-  console.log(`  Ref: 2x Tier-3 Towers (Archer+Cannon 500g)-> ${String(twoT3Towers.dmg).padStart(5)} dmg | ${String(twoT3Towers.kills).padStart(2)} kills`);
+  console.log(`  Ref L1 : 1x Tier-2 Barracks (140g)             -> ${String(t2Barracks.dmg).padStart(5)} dmg | ${String(t2Barracks.kills).padStart(2)} kills`);
+  console.log(`  Ref L20: 2x Tier-3 Towers (Archer+Cannon 500g) -> ${String(twoT3Towers.dmg).padStart(5)} dmg | ${String(twoT3Towers.kills).padStart(2)} kills`);
   console.log('');
-  console.log('  Hero     | L1 Stats (HP/Arm/DPS) | L1 Marginal Dmg | L20 Stats (HP/Arm/DPS) | L20 Marginal Dmg');
-  console.log('  ---------+-----------------------+-----------------+------------------------+-----------------');
+  console.log('  Hero     | L1 Stats     | L1 Dmg   | L10 Dmg  | L20 Stats     | L20 Dmg (B0+1 / B0+2 / B1+2)');
+  console.log('  ---------+--------------+----------+----------+---------------+-------------------------------');
 
   for (const id of HERO_IDS) {
-    const runHeroBench = (lvl: number): number => {
-      const skills = lvl >= 20 ? defaultLevel20Skills(id) : [];
+    const runHeroBench = (lvl: number, skills: readonly string[]): number => {
       const w = new SimWorld(benchLevel, new EventBus(), { heroId: id, heroLevel: lvl, heroSkills: skills, seed: 77 });
       w.placeTowerOnPlot(bestPlot, 'archer');
       w.placeTowerOnPlot(secondPlot, 'barracks');
@@ -343,15 +351,19 @@ function printUnitEquivalenceTable(): void {
     };
 
     const s1 = resolveHeroStats(id, 1, []);
-    const s20 = resolveHeroStats(id, 20, defaultLevel20Skills(id));
+    const s20 = resolveHeroStats(id, 20, defaultSkillsForLevel(id, 20));
     const dps1 = (s1.damage * s1.attackSpeed).toFixed(0);
     const dps20 = (s20.damage * s20.attackSpeed).toFixed(0);
-    const m1 = runHeroBench(1);
-    const m20 = runHeroBench(20);
+    const m1 = runHeroBench(1, []);
+    const m10 = runHeroBench(10, defaultSkillsForLevel(id, 10));
+    const m20a = runHeroBench(20, buildLevel20Specialization(id, [0, 1]));
+    const m20b = runHeroBench(20, buildLevel20Specialization(id, [0, 2]));
+    const m20c = runHeroBench(20, buildLevel20Specialization(id, [1, 2]));
     console.log(
-      `  ${id.padEnd(8)} | ${String(s1.maxHp).padStart(4)}/${String(s1.armor).padStart(2)}/${dps1.padStart(3)} dps       | ` +
-        `${String(m1).padStart(11)} dmg | ${String(s20.maxHp).padStart(4)}/${String(s20.armor).padStart(2)}/${dps20.padStart(3)} dps        | ` +
-        `${String(m20).padStart(12)} dmg`,
+      `  ${id.padEnd(8)} | ${String(s1.maxHp).padStart(3)}/${String(s1.armor).padStart(1)}/${dps1.padStart(3)}dps | ` +
+        `${String(m1).padStart(8)} | ${String(m10).padStart(8)} | ` +
+        `${String(s20.maxHp).padStart(4)}/${String(s20.armor).padStart(2)}/${dps20.padStart(3)}dps | ` +
+        `${String(m20a).padStart(6)} / ${String(m20b).padStart(6)} / ${String(m20c).padStart(6)}`,
     );
   }
   console.log('');
@@ -365,6 +377,7 @@ function fmtOutcome(r: HeroIslandRunSummary): string {
 function main(): void {
   console.log('=== Skyhold Isles Hero Balance Report (Informational) ===\n');
   printUnitEquivalenceTable();
+  if (process.argv.includes('--bench-only')) return;
 
   for (const levelId of REPORT_ISLANDS) {
     const level = getLevelById(levelId);
@@ -377,26 +390,26 @@ function main(): void {
 
     console.log(`=== Island ${level.id} — ${level.name} (${level.difficulty}, ${level.waves.length} waves) ===`);
     console.log(
-      `  Baseline (no hero):  greedy ${fmtOutcome(baseGreedy)}  |  weak ${fmtOutcome(baseWeak)}`,
+      `  Baseline (no hero):  greedy ${fmtOutcome(baseGreedy)} [team ${baseGreedy.totalTeamDamage} dmg]  |  weak ${fmtOutcome(baseWeak)}`,
     );
     console.log(
-      '  Hero               | Lv | Greedy Result      | Weak Result        | HeroDmg (G / W)     | Kills (G/W) | Casts G    | Deaths G/W | XP G',
+      '  Hero               | Lv | Greedy Result      | Weak Result        | HeroDmg (G / W)     | TeamGain G | Kills G | Deaths G/W | XP G',
     );
     console.log(
-      '  -------------------+----+--------------------+--------------------+---------------------+-------------+------------+------------+------',
+      '  -------------------+----+--------------------+--------------------+---------------------+------------+---------+------------+------',
     );
 
     for (const heroId of HERO_IDS) {
       const def = HERO_DEFS[heroId];
-      for (const heroLevel of [1, 20] as const) {
+      for (const heroLevel of [1, 10, 20] as const) {
         const g = runHeroIslandSim(level, 'greedy', heroId, heroLevel);
         const w = runHeroIslandSim(level, 'weak', heroId, heroLevel);
-        const casts = `${g.skillCasts[0]}+${g.skillCasts[1]}`;
+        const teamGain = g.totalTeamDamage - baseGreedy.totalTeamDamage;
+        const gainStr = `${teamGain >= 0 ? '+' : ''}${teamGain}`;
         console.log(
           `  ${def.name.padEnd(18)} | ${String(heroLevel).padStart(2)} | ${fmtOutcome(g).padEnd(18)} | ${fmtOutcome(w).padEnd(18)} | ` +
             `${String(g.heroDamage).padStart(7)} / ${String(w.heroDamage).padStart(7)} | ` +
-            `${String(g.heroKills).padStart(4)} / ${String(w.heroKills).padStart(4)} | ` +
-            `${casts.padStart(10)} | ${String(g.heroDeaths).padStart(4)} / ${String(w.heroDeaths).padStart(3)} | ` +
+            `${gainStr.padStart(10)} | ${String(g.heroKills).padStart(7)} | ${String(g.heroDeaths).padStart(4)} / ${String(w.heroDeaths).padStart(3)} | ` +
             `${String(g.heroRunXp).padStart(5)}`,
         );
       }

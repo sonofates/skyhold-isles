@@ -8,6 +8,11 @@ export class SeededRng {
     this.state = seed >>> 0;
   }
 
+  /** Read-only snapshot of internal uint32 PRNG state (for deterministic state digests). */
+  getState(): number {
+    return this.state >>> 0;
+  }
+
   /** Returns float in [0, 1). */
   next(): number {
     this.state = (this.state + 0x6d2b79f5) | 0;

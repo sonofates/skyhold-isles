@@ -37,7 +37,7 @@ export interface SwPlan {
 export function planPrecache(inputs: SwInputs): SwPlan {
   const bundle = inputs.bundleFiles.map((f) => `/${f}`).filter((u) => u !== '/sw.js');
   // index.html is emitted by Vite's html plugin after this hook runs, so name it explicitly.
-  const core = ['/', '/index.html', ...bundle.filter((u) => u.startsWith('/assets/'))];
+  const core = Array.from(new Set(['/', '/index.html', ...bundle.filter((u) => u.startsWith('/assets/'))]));
   const coreSet = new Set(core);
   const extra = [...bundle, ...inputs.publicUrls]
     .filter((u) => u !== '/sw.js' && !coreSet.has(u))
@@ -46,7 +46,7 @@ export function planPrecache(inputs: SwInputs): SwPlan {
   const h = createHash('sha1');
   h.update(inputs.salt ?? '');
   for (const u of [...core].sort()) h.update(`${u}\n`);
-  for (const u of inputs.publicUrls) {
+  for (const u of Array.from(new Set(inputs.publicUrls)).sort()) {
     h.update(`${u}:`);
     h.update(inputs.publicContent(u));
   }

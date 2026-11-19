@@ -5,7 +5,9 @@ import { EventBus, type GameEventMap } from '../../src/core/eventBus.ts';
 import type { EnemyType, HeroId } from '../../src/core/types.ts';
 import { BALANCE } from '../../src/data/balance.ts';
 import {
+  buildLevel20Specialization,
   defaultLevel20Skills,
+  defaultSkillsForLevel,
   getHeroDef,
   getHeroSkillNode,
   HERO_DEFS,
@@ -197,6 +199,27 @@ describe('hero data validity & skill-tree DAGs', () => {
       expect(sanitizeHeroSkills(heroId, build20, heroSkillPointsForLevel(HERO_MAX_LEVEL)).sort()).toEqual(
         [...build20].sort(),
       );
+
+      for (const pair of [
+        [0, 1],
+        [0, 2],
+        [1, 2],
+      ] as const) {
+        const spec = buildLevel20Specialization(heroId, pair);
+        const specCost = spec.reduce((sum, id) => sum + (getHeroSkillNode(heroId, id)?.cost ?? 0), 0);
+        expect(specCost).toBe(heroSkillPointsForLevel(HERO_MAX_LEVEL));
+        expect(sanitizeHeroSkills(heroId, spec, heroSkillPointsForLevel(HERO_MAX_LEVEL)).sort()).toEqual(
+          [...spec].sort(),
+        );
+      }
+
+      for (let lvl = 1; lvl <= HERO_MAX_LEVEL; lvl++) {
+        const auto = defaultSkillsForLevel(heroId, lvl);
+        const budget = heroSkillPointsForLevel(lvl);
+        const spent = auto.reduce((sum, id) => sum + (getHeroSkillNode(heroId, id)?.cost ?? 0), 0);
+        expect(spent).toBeLessThanOrEqual(budget);
+        expect(sanitizeHeroSkills(heroId, auto, budget)).toEqual(auto);
+      }
     }
   });
 

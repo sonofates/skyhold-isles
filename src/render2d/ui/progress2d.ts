@@ -15,11 +15,26 @@ import type { HeroId, ProgressData } from '../../core/types.ts';
 import { challengesForLevel, type ChallengeId } from '../../data/challenges.ts';
 import { applyDailyWin, utcDayNumber } from '../../data/daily.ts';
 import { isHeroId } from '../../data/heroes.ts';
+import { workshopStarsSpent } from '../../data/workshop.ts';
 import { LEVELS_2D } from '../../data/levels2d/index.ts';
 import type { LevelDef } from '../../data/levels/types.ts';
 import { applyEndlessRecord, applyWin, isIslandMastered, type WinRecord } from '../../game/progression.ts';
 import { badgesForWin, PLAIN_RUN, type RunConfig } from '../../game/runConfig.ts';
-import { createDefaultProgress, migrateProgress, PROGRESS_SAVE_VERSION } from '../../platform/storage.ts';
+import { syncAchievementsFromProgress } from '../../platform/achievements.ts';
+import type { CloudHydrateResult } from '../../platform/cloudSync.ts';
+import { getPlatform, type PlatformAdapter } from '../../platform/platform.ts';
+import {
+  decodeSaveCode,
+  encodeSaveCode,
+  mergeProgress,
+  type SaveCodeResult,
+} from '../../platform/saveCode.ts';
+import {
+  createDefaultProgress,
+  hasAnyProgress,
+  migrateProgress,
+  PROGRESS_SAVE_VERSION,
+} from '../../platform/storage.ts';
 import {
   applyHeroXp,
   applyNode,
@@ -32,7 +47,10 @@ import {
 } from '../heroes2d.ts';
 
 export const PROGRESS_2D_KEY = 'skyhold_isles_progress2d_v1';
+export const CLOUD_PROGRESS_2D_SLOT = 'progress2d';
 export const STORY_SEEN_KEY = 'skyhold_isles_story2d_seen_v1';
+export const PROGRESS_2D_RESET_BACKUP_KEY = 'skyhold_isles_progress2d_reset_backup';
+export const PROGRESS_2D_IMPORT_BACKUP_KEY = 'skyhold_isles_progress2d_import_backup';
 
 interface Stored2D {
   readonly ids: readonly string[];
@@ -53,9 +71,16 @@ function storage(): Storage | null {
  */
 export function remapProgress(raw: unknown, oldIds: readonly string[], levels: readonly Pick<LevelDef, 'id'>[]): ProgressData {
   const n = levels.length;
-  const rawHeroes = raw && typeof raw === 'object' ? (raw as { heroes?: unknown }).heroes : undefined;
-  const old = migrateProgress(raw, Math.max(1, oldIds.length));
-  const same = oldIds.length === n && oldIds.every((id, i) => levels[i]?.id === id);
+  const rawHeroes =
+    raw && typeof raw === 'object' && !Array.isArray(raw) ? (raw as { heroes?: unknown }).heroes : undefined;
+  if (n === 0) {
+    const empty = createDefaultProgress(0);
+    empty.heroes = migrateHeroSave(rawHeroes, empty, levels);
+    return empty;
+  }
+  const effectiveOldIds = oldIds.length > 0 ? oldIds : levels.map((l) => l.id);
+  const old = migrateProgress(raw, Math.max(1, effectiveOldIds.length));
+  const same = effectiveOldIds.length === n && effectiveOldIds.every((id, i) => levels[i]?.id === id);
   if (same) {
     const migrated = migrateProgress(raw, n);
     migrated.heroes = migrateHeroSave(rawHeroes, migrated, levels);
@@ -64,14 +89,17 @@ export function remapProgress(raw: unknown, oldIds: readonly string[], levels: r
   const out = createDefaultProgress(n);
   let frontier = 0;
   levels.forEach((lvl, i) => {
-    const j = oldIds.indexOf(lvl.id);
-    if (j < 0) return;
-    out.bestStars[i] = old.bestStars[j] ?? 0;
-    out.bestEndlessWaves[i] = old.bestEndlessWaves[j] ?? 0;
-    out.bestLives[i] = old.bestLives[j] ?? 0;
-    out.clears[i] = old.clears[j] ?? 0;
-    out.challengeClears[i] = [...(old.challengeClears[j] ?? [])];
-    if (j <= old.unlockedLevelIndex) frontier = Math.max(frontier, i);
+    for (let j = 0; j < effectiveOldIds.length; j++) {
+      if (effectiveOldIds[j] !== lvl.id) continue;
+      out.bestStars[i] = Math.max(out.bestStars[i], old.bestStars[j] ?? 0);
+      out.bestEndlessWaves[i] = Math.max(out.bestEndlessWaves[i], old.bestEndlessWaves[j] ?? 0);
+      out.bestLives[i] = Math.max(out.bestLives[i], old.bestLives[j] ?? 0);
+      out.clears[i] = Math.max(out.clears[i], old.clears[j] ?? 0);
+      for (const ch of old.challengeClears[j] ?? []) {
+        if (!out.challengeClears[i].includes(ch)) out.challengeClears[i].push(ch);
+      }
+      if (j <= old.unlockedLevelIndex) frontier = Math.max(frontier, i);
+    }
   });
   out.workshop = { ...old.workshop };
   out.daily = { ...old.daily };
@@ -80,6 +108,52 @@ export function remapProgress(raw: unknown, oldIds: readonly string[], levels: r
   const remapped = migrateProgress(out, n);
   remapped.heroes = migrateHeroSave(rawHeroes, remapped, levels);
   return remapped;
+}
+
+function parseStored2DRaw(
+  raw: string,
+  levels: readonly Pick<LevelDef, 'id'>[],
+): { progress: ProgressData; rawSelectedHero?: HeroId; rawWorkshop?: Record<string, number> } | null {
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
+    const obj = parsed as Partial<Stored2D>;
+    const hasWrapper = 'progress' in obj;
+    const payload = hasWrapper ? obj.progress : obj;
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return null;
+    const rawHeroes = (payload as { heroes?: unknown }).heroes;
+    const rawSelectedHero =
+      rawHeroes &&
+      typeof rawHeroes === 'object' &&
+      !Array.isArray(rawHeroes) &&
+      isHeroId((rawHeroes as { selectedHero?: unknown }).selectedHero)
+        ? (rawHeroes as { selectedHero: HeroId }).selectedHero
+        : undefined;
+    const mappedIds = Array.isArray(obj.ids)
+      ? obj.ids.map((x) => (typeof x === 'string' ? x : ''))
+      : [];
+    const hasAnyValidId = mappedIds.some((x) => x.length > 0);
+    const ids = hasAnyValidId ? mappedIds : levels.map((l) => l.id);
+    const preRemapWorkshop = migrateProgress(payload, Math.max(1, ids.length)).workshop;
+    const progress = remapProgress(payload, ids, levels);
+    const rawWorkshop =
+      workshopStarsSpent(preRemapWorkshop) > workshopStarsSpent(progress.workshop)
+        ? preRemapWorkshop
+        : undefined;
+    return { progress, rawSelectedHero, rawWorkshop };
+  } catch {
+    return null;
+  }
+}
+
+function serializeStored2D(
+  progress: ProgressData,
+  levels: readonly Pick<LevelDef, 'id'>[],
+): string {
+  progress.version = PROGRESS_SAVE_VERSION;
+  progress.heroes = migrateHeroSave(progress.heroes, progress, levels);
+  const data: Stored2D = { ids: levels.map((l) => l.id), progress };
+  return JSON.stringify(data);
 }
 
 /** The 2D save, migrated to the current island list. Never throws. */
@@ -93,26 +167,139 @@ export function loadProgress2D(levels: readonly LevelDef[] = LEVELS_2D): Progres
   try {
     const raw = ls?.getItem(PROGRESS_2D_KEY);
     if (!raw) return makeFresh();
-    const parsed = JSON.parse(raw) as Partial<Stored2D>;
-    const hasWrapper = parsed !== null && typeof parsed === 'object' && 'progress' in parsed;
-    const payload = hasWrapper ? parsed.progress : parsed;
-    const ids = Array.isArray(parsed?.ids) ? parsed.ids.filter((x): x is string => typeof x === 'string') : levels.map((l) => l.id);
-    return remapProgress(payload, ids, levels);
+    return parseStored2DRaw(raw, levels)?.progress ?? makeFresh();
   } catch {
     return makeFresh();
   }
 }
 
-export function saveProgress2D(progress: ProgressData, levels: readonly LevelDef[] = LEVELS_2D): void {
-  progress.version = PROGRESS_SAVE_VERSION;
-  progress.heroes = migrateHeroSave(progress.heroes, progress, levels);
+/** Persists `progress` to `localStorage` (`PROGRESS_2D_KEY`) only, without Steam Cloud/achievement IPC. */
+export function saveLocalProgress2D(
+  progress: ProgressData,
+  levels: readonly LevelDef[] = LEVELS_2D,
+): string {
+  const raw = serializeStored2D(progress, levels);
   const ls = storage();
   try {
-    const data: Stored2D = { ids: levels.map((l) => l.id), progress };
-    ls?.setItem(PROGRESS_2D_KEY, JSON.stringify(data));
+    ls?.setItem(PROGRESS_2D_KEY, raw);
   } catch {
     // quota / private mode: progress just is not kept
   }
+  return raw;
+}
+
+export function saveProgress2D(progress: ProgressData, levels: readonly LevelDef[] = LEVELS_2D): void {
+  const raw = saveLocalProgress2D(progress, levels);
+  const platform = getPlatform();
+  if (platform.isSteam && !levels.some((l) => l.id.startsWith('mock-'))) {
+    void platform.cloudSave.write(CLOUD_PROGRESS_2D_SLOT, raw);
+    void syncAchievementsFromProgress(progress, platform, levels);
+  }
+}
+
+function readLocalProgress2DRaw(): string | null {
+  try {
+    return storage()?.getItem(PROGRESS_2D_KEY) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Pulls the 2D progress blob (`progress2d`) from `adapter.cloudSave`, remaps island IDs, merges
+ * monotonically with `localProgress` (including persistent hero XP, skill trees, and unlocked
+ * `selectedHero`), persists when either side gained records, and unlocks earned Steam achievements.
+ */
+export async function hydrateProgress2DFromCloud(
+  localProgress?: ProgressData,
+  levels: readonly LevelDef[] = LEVELS_2D,
+  adapter: PlatformAdapter = getPlatform(),
+): Promise<CloudHydrateResult> {
+  const baseLocal = localProgress ?? loadProgress2D(levels);
+  let normalizedLocal = remapProgress(
+    baseLocal,
+    levels.map((l) => l.id),
+    levels,
+  );
+  const isMock = levels.some((l) => l.id.startsWith('mock-'));
+  if (isMock) {
+    return { merged: normalizedLocal, updated: false, unlockedAchievements: [] };
+  }
+
+  const callerRaw = serializeStored2D(normalizedLocal, levels);
+  const diskRawBefore = readLocalProgress2DRaw();
+  const cloudRaw = await adapter.cloudSave.read(CLOUD_PROGRESS_2D_SLOT);
+  const diskRawAfter = readLocalProgress2DRaw();
+  const concurrentHappened = diskRawAfter !== null && diskRawAfter !== diskRawBefore;
+  if (concurrentHappened) {
+    const concurrent = parseStored2DRaw(diskRawAfter, levels);
+    if (concurrent) {
+      let concurrentIncoming = concurrent.progress;
+      if (
+        concurrent.rawSelectedHero &&
+        concurrentIncoming.heroes &&
+        concurrent.rawSelectedHero !== concurrentIncoming.heroes.selectedHero
+      ) {
+        concurrentIncoming = {
+          ...concurrentIncoming,
+          heroes: { ...concurrentIncoming.heroes, selectedHero: concurrent.rawSelectedHero },
+        };
+      }
+      if (concurrent.rawWorkshop) {
+        concurrentIncoming = { ...concurrentIncoming, workshop: concurrent.rawWorkshop };
+      }
+      normalizedLocal = mergeProgress(normalizedLocal, concurrentIncoming, levels.length);
+      normalizedLocal.heroes = migrateHeroSave(normalizedLocal.heroes, normalizedLocal, levels);
+    }
+  }
+
+  const localRaw = serializeStored2D(normalizedLocal, levels);
+  let merged = normalizedLocal;
+  let updated = false;
+
+  if (cloudRaw) {
+    const parsedCloud = parseStored2DRaw(cloudRaw, levels);
+    if (parsedCloud) {
+      let incoming = parsedCloud.progress;
+      if (
+        parsedCloud.rawSelectedHero &&
+        incoming.heroes &&
+        parsedCloud.rawSelectedHero !== incoming.heroes.selectedHero
+      ) {
+        incoming = {
+          ...incoming,
+          heroes: { ...incoming.heroes, selectedHero: parsedCloud.rawSelectedHero },
+        };
+      }
+      if (parsedCloud.rawWorkshop) {
+        incoming = { ...incoming, workshop: parsedCloud.rawWorkshop };
+      }
+      merged = mergeProgress(normalizedLocal, incoming, levels.length);
+      merged.heroes = migrateHeroSave(merged.heroes, merged, levels);
+      const mergedRaw = serializeStored2D(merged, levels);
+      if (mergedRaw !== localRaw) {
+        saveLocalProgress2D(merged, levels);
+      }
+      if (mergedRaw !== cloudRaw) {
+        await adapter.cloudSave.write(CLOUD_PROGRESS_2D_SLOT, mergedRaw);
+      }
+    } else if (hasAnyProgress(normalizedLocal)) {
+      await adapter.cloudSave.write(CLOUD_PROGRESS_2D_SLOT, localRaw);
+    }
+  } else if (adapter.isSteam && hasAnyProgress(normalizedLocal)) {
+    await adapter.cloudSave.write(CLOUD_PROGRESS_2D_SLOT, localRaw);
+  }
+
+  const finalMergedRaw = serializeStored2D(merged, levels);
+  if (finalMergedRaw !== callerRaw) {
+    updated = true;
+  }
+  if (concurrentHappened && finalMergedRaw !== diskRawAfter && hasAnyProgress(merged)) {
+    saveLocalProgress2D(merged, levels);
+  }
+
+  const unlockedAchievements = await syncAchievementsFromProgress(merged, adapter, levels);
+  return { merged, updated, unlockedAchievements };
 }
 
 export interface IslandState {
@@ -130,6 +317,7 @@ export interface IslandState {
 }
 
 export function islandStates(progress: ProgressData, levels: readonly LevelDef[] = LEVELS_2D): IslandState[] {
+  if (levels.length === 0) return [];
   const frontier = Math.max(0, Math.min(levels.length - 1, progress.unlockedLevelIndex));
   return levels.map((level, i) => ({
     index: i,
@@ -166,8 +354,10 @@ export function recordWin2D(
   const i = indexOf2D(levelId, levels);
   if (i < 0) return null;
   const p = loadProgress2D(levels);
+  const safeStars = (Number.isFinite(stars) ? Math.max(1, Math.min(3, Math.round(stars))) : 1) as 1 | 2 | 3;
+  const safeLives = Number.isFinite(livesLeft) ? Math.max(0, Math.floor(livesLeft)) : 0;
   const badges = badgesForWin(challengesForLevel(levels[i]), challenges);
-  const rec = applyWin(p, i, levels.length, stars, livesLeft, badges);
+  const rec = applyWin(p, i, levels.length, safeStars, safeLives, badges);
   saveProgress2D(p, levels);
   return rec;
 }
@@ -181,7 +371,8 @@ export function recordDailyWin2D(
   const p = loadProgress2D(levels);
   const prevLast = p.daily.lastDay;
   const prevStreak = p.daily.streak;
-  const res = applyDailyWin(p.daily, day, utcDayNumber(nowMs));
+  const safeNowMs = typeof nowMs === 'number' && Number.isFinite(nowMs) ? nowMs : Date.now();
+  const res = applyDailyWin(p.daily, day, utcDayNumber(safeNowMs));
   if (res.counted || p.daily.lastDay !== prevLast || p.daily.streak !== prevStreak) {
     saveProgress2D(p, levels);
   }
@@ -295,15 +486,22 @@ export function applyRunResult2D(
     return hero ? { win: null, daily: null, endless: null, hero } : { win: null, daily: null, endless: null };
   }
 
-  const stars = Math.max(1, Math.min(3, Math.round(outcome.stars))) as 1 | 2 | 3;
+  const stars = (
+    Number.isFinite(outcome.stars) ? Math.max(1, Math.min(3, Math.round(outcome.stars))) : 1
+  ) as 1 | 2 | 3;
+  const safeLives = Number.isFinite(outcome.livesRemaining)
+    ? Math.max(0, Math.floor(outcome.livesRemaining))
+    : 0;
   let win: WinRecord | null = null;
   if (i >= 0) {
     const badges = badgesForWin(challengesForLevel(levels[i]), cfg.challenges);
-    win = applyWin(progress, i, levels.length, stars, outcome.livesRemaining, badges);
+    win = applyWin(progress, i, levels.length, stars, safeLives, badges);
   }
+  const nowMs =
+    typeof outcome.nowMs === 'number' && Number.isFinite(outcome.nowMs) ? outcome.nowMs : Date.now();
   const daily =
-    cfg.daily !== null
-      ? applyDailyWin(progress.daily, cfg.daily, utcDayNumber(outcome.nowMs ?? Date.now()))
+    cfg.daily !== null && Number.isFinite(cfg.daily)
+      ? applyDailyWin(progress.daily, cfg.daily, utcDayNumber(nowMs))
       : null;
   const hero = recordHeroOutcome(progress, outcome, levels);
   return hero ? { win, daily, endless: null, hero } : { win, daily, endless: null };
@@ -317,11 +515,14 @@ export function recordRunResult2D(
   const p = loadProgress2D(levels);
   const prevDailyLast = p.daily.lastDay;
   const prevDailyStreak = p.daily.streak;
+  const prevSelectedHero = p.heroes?.selectedHero;
   const res = applyRunResult2D(p, outcome, levels);
   const dailyChanged =
     Boolean(res.daily?.counted) || p.daily.lastDay !== prevDailyLast || p.daily.streak !== prevDailyStreak;
   const endlessChanged = Boolean(res.endless?.reachedEndless && res.endless.best !== res.endless.previousBest);
-  const heroChanged = Boolean(res.hero && res.hero.xpGained > 0);
+  const heroChanged = Boolean(
+    res.hero && (res.hero.xpGained > 0 || p.heroes?.selectedHero !== prevSelectedHero),
+  );
   if (res.win !== null || dailyChanged || endlessChanged || heroChanged) {
     saveProgress2D(p, levels);
   }
@@ -384,12 +585,110 @@ export function markStorySeen(levelId: string, part: 'intro' | 'outro'): void {
   }
 }
 
-/** Erases the 2D isles save and the story flags (Settings → reset). The 3D campaign save is untouched. */
-export function resetProgress2D(): void {
+/** Encodes a 2D `ProgressData` (including island ID ordering and hero roster) into a `SKY2-...` code. */
+export function encodeSaveCode2D(
+  progress: ProgressData,
+  levels: readonly Pick<LevelDef, 'id'>[] = LEVELS_2D,
+): string {
+  const clean: ProgressData = {
+    ...progress,
+    heroes: migrateHeroSave(progress.heroes, progress, levels),
+  };
+  return encodeSaveCode(
+    clean,
+    levels.map((l) => l.id),
+  );
+}
+
+/** Decodes a `SKY2-...` save code onto `levels`, remapping by island ID when carried in the code. */
+export function decodeSaveCode2D(
+  code: string,
+  levels: readonly Pick<LevelDef, 'id'>[] = LEVELS_2D,
+): SaveCodeResult {
+  const head = decodeSaveCode(code, Math.max(levels.length, 32));
+  if (!head.ok) return head;
+  if (head.levelIds && head.levelIds.length > 0) {
+    const sized = decodeSaveCode(code, head.levelIds.length);
+    if (!sized.ok) return sized;
+    return {
+      ok: true,
+      progress: remapProgress(sized.progress, head.levelIds, levels),
+      levelIds: head.levelIds,
+    };
+  }
+  const direct = decodeSaveCode(code, levels.length);
+  if (!direct.ok) return direct;
+  direct.progress.heroes = migrateHeroSave(direct.progress.heroes, direct.progress, levels);
+  return direct;
+}
+
+/** Exports the persisted 2D save as a copy-paste `SKY2-...` save code. */
+export function exportSaveCode2D(levels: readonly LevelDef[] = LEVELS_2D): string {
+  return encodeSaveCode2D(loadProgress2D(levels), levels);
+}
+
+export type ImportSaveCode2DResult =
+  | { readonly ok: true; readonly progress: ProgressData; readonly previous: ProgressData }
+  | { readonly ok: false; readonly error: string };
+
+/** Merges a `SKY2-...` save code into the 2D save (backing up the pre-import save first). */
+export function importSaveCode2D(
+  code: string,
+  levels: readonly LevelDef[] = LEVELS_2D,
+): ImportSaveCode2DResult {
+  const res = decodeSaveCode2D(code, levels);
+  if (!res.ok) return res;
+  let incoming = res.progress;
+  if (res.levelIds && res.levelIds.length > 0) {
+    // Preserve pre-remap selectedHero and Workshop candidates so mergeProgress evaluates unlock
+    // milestones and star affordability against the combined (local + imported) cleared islands.
+    const rawSized = decodeSaveCode(code, res.levelIds.length);
+    if (rawSized.ok) {
+      const rawSelected = rawSized.progress.heroes?.selectedHero;
+      const rawWorkshop = rawSized.progress.workshop;
+      if (incoming.heroes && rawSelected && rawSelected !== incoming.heroes.selectedHero) {
+        incoming = { ...incoming, heroes: { ...incoming.heroes, selectedHero: rawSelected } };
+      }
+      if (workshopStarsSpent(rawWorkshop) > workshopStarsSpent(incoming.workshop)) {
+        incoming = { ...incoming, workshop: rawWorkshop };
+      }
+    }
+  }
+  const ls = storage();
+  const current = loadProgress2D(levels);
+  const merged = mergeProgress(current, incoming, levels.length);
+  merged.heroes = migrateHeroSave(merged.heroes, merged, levels);
   try {
-    storage()?.removeItem(PROGRESS_2D_KEY);
-    storage()?.removeItem(STORY_SEEN_KEY);
+    const raw = ls?.getItem(PROGRESS_2D_KEY);
+    if (raw) ls?.setItem(PROGRESS_2D_IMPORT_BACKUP_KEY, raw);
+  } catch {
+    // ignore storage errors
+  }
+  saveProgress2D(merged, levels);
+  return { ok: true, progress: merged, previous: current };
+}
+
+/**
+ * Erases the 2D isles save and the story flags (Settings → reset), backing up non-empty 2D
+ * progress to `PROGRESS_2D_RESET_BACKUP_KEY` first. Never overwrites a real backup with an empty save.
+ * The 3D campaign save is untouched.
+ */
+export function resetProgress2D(levels: readonly LevelDef[] = LEVELS_2D): void {
+  const ls = storage();
+  try {
+    const raw = ls?.getItem(PROGRESS_2D_KEY);
+    if (raw && hasAnyProgress(loadProgress2D(levels))) {
+      ls?.setItem(PROGRESS_2D_RESET_BACKUP_KEY, raw);
+    }
+    ls?.removeItem(PROGRESS_2D_KEY);
+    ls?.removeItem(STORY_SEEN_KEY);
   } catch {
     // ignore
+  }
+  const platform = getPlatform();
+  if (platform.isSteam && !levels.some((l) => l.id.startsWith('mock-'))) {
+    const fresh = createDefaultProgress(levels.length);
+    fresh.heroes = createDefaultHeroSave();
+    void platform.cloudSave.write(CLOUD_PROGRESS_2D_SLOT, serializeStored2D(fresh, levels));
   }
 }

@@ -93,6 +93,7 @@ export class InputManager {
     this.clearLongPress();
     this.longPressFired = false;
     this.pinched = false;
+    this.dragButton = -1;
     this.keysDown.clear();
     this.pointers.clear();
     this.isDragging = false;
@@ -252,7 +253,14 @@ export class InputManager {
         if (Math.hypot(vx, vy) >= FLING_MIN_SPEED) this.handlers.onFling?.(vx, vy);
       }
       this.pointers.delete(e.pointerId);
-      if (this.pointers.size === 0) {
+      if (this.pointers.size === 2) {
+        const pts = Array.from(this.pointers.values());
+        this.prevPinchDist = Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y);
+        this.prevMidX = (pts[0].x + pts[1].x) * 0.5;
+        this.prevMidY = (pts[0].y + pts[1].y) * 0.5;
+      } else if (this.pointers.size === 1) {
+        this.velocity.reset();
+      } else if (this.pointers.size === 0) {
         this.isDragging = false;
         this.dragButton = -1;
         this.longPressFired = false;
@@ -264,6 +272,7 @@ export class InputManager {
       if (!this.enabled || this.modalOpen) return;
       if (e.target !== this.canvas) return;
       e.preventDefault();
+      if (!Number.isFinite(e.deltaY) || e.deltaY === 0) return;
       const ndc = this.toNdc(e.clientX, e.clientY);
       const direction = e.deltaY < 0 ? 1 : -1;
       const magnitude = Math.min(1.6, Math.max(0.4, Math.abs(e.deltaY) / 100));
@@ -375,10 +384,7 @@ export class InputManager {
     };
 
     const onBlur = (): void => {
-      this.keysDown.clear();
-      this.pointers.clear();
-      this.isDragging = false;
-      updateKeyPan();
+      this.resetTransientState();
       this.handlers.onPointerLeave();
     };
 
@@ -414,7 +420,17 @@ export class InputManager {
   }
 
   dispose(): void {
+    const hadKeyPan = this.keysDown.size > 0;
     this.clearLongPress();
+    this.longPressFired = false;
+    this.pinched = false;
+    this.dragButton = -1;
+    this.isDragging = false;
+    this.keysDown.clear();
+    this.pointers.clear();
+    if (hadKeyPan) {
+      this.handlers.onKeyPanState(0, 0);
+    }
     for (let i = 0; i < this.cleanupFns.length; i++) {
       this.cleanupFns[i]();
     }

@@ -12,6 +12,8 @@ import { acquireTarget } from './targeting.ts';
 export const BEACON_PULSE_INTERVAL = 2.6;
 
 const _chainCandidates: number[] = [];
+const _volleyCandidates: number[] = [];
+const _stepTowerIds: number[] = [];
 const _hitPoolIndices = new Set<number>();
 const _volleyUsed = new Set<number>();
 
@@ -28,6 +30,7 @@ export class CombatSystem {
   private readonly enemySystem: EnemySystem;
   private readonly projectileSystem: ProjectileSystem;
   private readonly events: EventBus;
+  private resetGen = 0;
 
   constructor(
     enemyPool: ObjectPool<EnemyEntity>,
@@ -41,6 +44,11 @@ export class CombatSystem {
     this.enemySystem = enemySystem;
     this.projectileSystem = projectileSystem;
     this.events = events;
+  }
+
+  /** Aborts any in-flight `update()` tower loop when the world transitions to victory/defeat/skip/dispose. */
+  abortCurrentStep(): void {
+    this.resetGen++;
   }
 
   /**
@@ -82,11 +90,30 @@ export class CombatSystem {
   update(dt: number, towers: TowerEntity[], fireRateMultiplier = 1): void {
     const turnSpeed = 12.0;
     const rateMult = Math.max(0.01, fireRateMultiplier);
+    const gen = this.resetGen;
 
     this.applyBeaconAuras(towers);
 
+    _stepTowerIds.length = 0;
     for (let i = 0; i < towers.length; i++) {
-      const tower = towers[i];
+      _stepTowerIds.push(towers[i].id);
+    }
+
+    for (let stepIdx = 0; stepIdx < _stepTowerIds.length; stepIdx++) {
+      if (this.resetGen !== gen) return;
+      const wantId = _stepTowerIds[stepIdx];
+      let tower: TowerEntity | undefined;
+      if (stepIdx < towers.length && towers[stepIdx].id === wantId) {
+        tower = towers[stepIdx];
+      } else {
+        for (let k = 0; k < towers.length; k++) {
+          if (towers[k].id === wantId) {
+            tower = towers[k];
+            break;
+          }
+        }
+      }
+      if (!tower) continue;
       tower.prevYaw = tower.yaw;
 
       if (tower.recoil > 0) {
@@ -123,6 +150,7 @@ export class CombatSystem {
             z: tower.z,
             radius: stats.range,
           });
+          if (this.resetGen !== gen) return;
         }
         continue;
       }
@@ -160,7 +188,8 @@ export class CombatSystem {
           let special = false;
           if (tower.type === 'tesla') {
             special = (stats.overloadEvery ?? 0) > 0 && tower.shotCount % stats.overloadEvery! === 0;
-            this.fireChainLightning(tower, target, stats, special);
+            this.fireChainLightning(tower, target, stats, special, gen);
+            if (this.resetGen !== gen) return;
           } else {
             this.projectileSystem.spawnProjectile(tower, target, stats.splashFalloffMin);
             if ((stats.volleyEvery ?? 0) > 0 && tower.shotCount % stats.volleyEvery! === 0) {
@@ -179,6 +208,7 @@ export class CombatSystem {
             yaw: tower.yaw,
             special,
           });
+          if (this.resetGen !== gen) return;
         }
       } else {
         // Gentle idle scan sweep
@@ -198,18 +228,20 @@ export class CombatSystem {
   ): void {
     const extra = stats.volleyExtra ?? 0;
     const dmgMult = stats.volleyDamage ?? 0.6;
-    const range = stats.range * (1 + tower.auraRange);
-    this.spatialHash.query(primary.x, primary.z, 3.2, _chainCandidates);
+    const def = TOWER_DEFS[tower.type];
+    const range = stats.range * (1 + tower.auraRange + (tower.heroRangeBonus ?? 0));
+    this.spatialHash.query(primary.x, primary.z, 3.2, _volleyCandidates);
     _volleyUsed.clear();
     _volleyUsed.add(primary.poolIndex);
     for (let n = 0; n < extra; n++) {
       let best: EnemyEntity | null = null;
       let bestSq = Infinity;
-      for (let k = 0; k < _chainCandidates.length; k++) {
-        const idx = _chainCandidates[k];
+      for (let k = 0; k < _volleyCandidates.length; k++) {
+        const idx = _volleyCandidates[k];
         if (_volleyUsed.has(idx)) continue;
         const e = this.enemyPool.items[idx];
-        if (!e.active || e.hp <= 0) continue;
+        if (!e.active || e.hp <= 0 || e.burrowed) continue;
+        if (e.flying && !def.hitsFlyers) continue;
         if (Math.hypot(e.x - tower.x, e.z - tower.z) > range) continue;
         const dx = e.x - primary.x;
         const dz = e.z - primary.z;
@@ -236,6 +268,7 @@ export class CombatSystem {
     initialTarget: EnemyEntity,
     stats: ReturnType<typeof getTowerTierStats>,
     overload = false,
+    gen = this.resetGen,
   ): void {
     const def = TOWER_DEFS.tesla;
     const points: Vec3[] = [{ x: tower.x, y: def.turretHeight + 0.35, z: tower.z }];
@@ -256,6 +289,7 @@ export class CombatSystem {
       const res = this.enemySystem.applyDamage(current, Math.round(currentDamage));
       tower.totalDamageDealt += res.actualDamage;
       if (res.killed) tower.kills++;
+      if (this.resetGen !== gen) return;
 
       if (jump === maxJumps - 1) break;
 
@@ -270,6 +304,7 @@ export class CombatSystem {
         if (
           !candidate.active ||
           candidate.hp <= 0 ||
+          candidate.burrowed ||
           _hitPoolIndices.has(candidate.poolIndex)
         ) {
           continue;

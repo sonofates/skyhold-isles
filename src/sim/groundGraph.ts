@@ -7,6 +7,15 @@ export interface GroundWaypoint {
   readonly z: number;
 }
 
+export interface GroundClampResult {
+  x: number;
+  z: number;
+  roadX: number;
+  roadZ: number;
+  lane: number;
+  dist: number;
+}
+
 interface GraphEdge {
   readonly to: number;
   readonly cost: number;
@@ -24,6 +33,9 @@ const JUNCTION_DIST = 1.05;
 const DIRECT_WALK_DIST = 1.4;
 const _v: Vec3 = { x: 0, y: 0, z: 0 };
 const _v2: Vec3 = { x: 0, y: 0, z: 0 };
+const _findClampDest: GroundClampResult = { x: 0, z: 0, roadX: 0, roadZ: 0, lane: 0, dist: 0 };
+const _findClampFrom: GroundClampResult = { x: 0, z: 0, roadX: 0, roadZ: 0, lane: 0, dist: 0 };
+const _chainScratch: number[] = [];
 
 /**
  * Undirected road graph built from a level's ground polylines (`groundPath` + `extraGroundPaths`).
@@ -100,14 +112,27 @@ export class GroundGraph {
   }
 
   /**
-   * Clamps an arbitrary world point `(wantX, wantZ)` onto the road or its shoulder verge
-   * (within `maxOffRoad` of the nearest road segment across all ground lanes).
+   * Zero-allocation clamp of `(wantX, wantZ)` onto the road or its shoulder verge into `out`.
    */
-  clampToGround(
+  clampToGroundOut(
     wantX: number,
     wantZ: number,
-    maxOffRoad: number = HERO_RULES.maxOffRoadDist,
-  ): { x: number; z: number; roadX: number; roadZ: number; lane: number; dist: number } {
+    maxOffRoad: number,
+    out: GroundClampResult,
+  ): GroundClampResult {
+    if (!Number.isFinite(wantX) || !Number.isFinite(wantZ)) {
+      const n0 = this.nodes[0];
+      const fx = n0 ? n0.x : 0;
+      const fz = n0 ? n0.z : 0;
+      out.x = fx;
+      out.z = fz;
+      out.roadX = fx;
+      out.roadZ = fz;
+      out.lane = n0 ? n0.lane : 0;
+      out.dist = 0;
+      return out;
+    }
+
     let bestLane = 0;
     let bestDist = 0;
     let bestRoadX = wantX;
@@ -131,19 +156,44 @@ export class GroundGraph {
       }
     }
 
+    out.roadX = bestRoadX;
+    out.roadZ = bestRoadZ;
+    out.lane = bestLane;
+    out.dist = bestDist;
+
+    const safeMaxOff =
+      maxOffRoad === Infinity
+        ? Infinity
+        : Number.isFinite(maxOffRoad)
+          ? Math.max(0, maxOffRoad)
+          : HERO_RULES.maxOffRoadDist;
     const offset = Math.sqrt(bestSq);
-    if (!Number.isFinite(offset) || offset <= maxOffRoad || offset < 1e-9) {
-      return { x: wantX, z: wantZ, roadX: bestRoadX, roadZ: bestRoadZ, lane: bestLane, dist: bestDist };
+    if (!Number.isFinite(offset) || offset <= safeMaxOff || offset < 1e-9) {
+      out.x = wantX;
+      out.z = wantZ;
+      return out;
     }
-    const scale = maxOffRoad / offset;
-    return {
-      x: bestRoadX + (wantX - bestRoadX) * scale,
-      z: bestRoadZ + (wantZ - bestRoadZ) * scale,
-      roadX: bestRoadX,
-      roadZ: bestRoadZ,
-      lane: bestLane,
-      dist: bestDist,
-    };
+    const scale = safeMaxOff / offset;
+    out.x = bestRoadX + (wantX - bestRoadX) * scale;
+    out.z = bestRoadZ + (wantZ - bestRoadZ) * scale;
+    return out;
+  }
+
+  /**
+   * Clamps an arbitrary world point `(wantX, wantZ)` onto the road or its shoulder verge
+   * (within `maxOffRoad` of the nearest road segment across all ground lanes).
+   */
+  clampToGround(
+    wantX: number,
+    wantZ: number,
+    maxOffRoad: number = HERO_RULES.maxOffRoadDist,
+  ): GroundClampResult {
+    return this.clampToGroundOut(
+      wantX,
+      wantZ,
+      maxOffRoad,
+      { x: 0, z: 0, roadX: 0, roadZ: 0, lane: 0, dist: 0 },
+    );
   }
 
   private nearestNodeIndex(x: number, z: number): number {
@@ -161,28 +211,52 @@ export class GroundGraph {
   }
 
   /**
-   * Computes a deterministic waypoint list along the ground road graph from `(fromX, fromZ)`
-   * to the clamped ground point for `(wantX, wantZ)`.
+   * Populates `out` in-place with deterministic waypoints along the ground road graph from
+   * `(fromX, fromZ)` to the clamped ground point for `(wantX, wantZ)`.
    */
-  findPath(
+  findPathInto(
     fromX: number,
     fromZ: number,
     wantX: number,
     wantZ: number,
-    maxOffRoad: number = HERO_RULES.maxOffRoadDist,
+    maxOffRoad: number,
+    out: GroundWaypoint[],
   ): GroundWaypoint[] {
-    const clamped = this.clampToGround(wantX, wantZ, maxOffRoad);
-    const destX = clamped.x;
-    const destZ = clamped.z;
+    out.length = 0;
+    const safeMaxOff =
+      maxOffRoad === Infinity
+        ? Infinity
+        : Number.isFinite(maxOffRoad)
+          ? Math.max(0, maxOffRoad)
+          : HERO_RULES.maxOffRoadDist;
+    const clamped = this.clampToGroundOut(wantX, wantZ, safeMaxOff, _findClampDest);
+    let destX = clamped.x;
+    let destZ = clamped.z;
+    const targetX = Number.isFinite(wantX) && Number.isFinite(wantZ) ? wantX : destX;
+    const targetZ = Number.isFinite(wantX) && Number.isFinite(wantZ) ? wantZ : destZ;
 
-    if (this.nodes.length === 0 || Math.hypot(destX - fromX, destZ - fromZ) <= DIRECT_WALK_DIST) {
-      return [{ x: destX, z: destZ }];
+    if (this.nodes.length === 0) {
+      out.push({ x: destX, z: destZ });
+      return out;
     }
 
-    const startIdx = this.nearestNodeIndex(fromX, fromZ);
-    const endIdx = this.nearestNodeIndex(clamped.roadX, clamped.roadZ);
+    const fromClamp = this.clampToGroundOut(fromX, fromZ, Infinity, _findClampFrom);
+    const startX = Number.isFinite(fromX) && Number.isFinite(fromZ) ? fromX : fromClamp.x;
+    const startZ = Number.isFinite(fromX) && Number.isFinite(fromZ) ? fromZ : fromClamp.z;
+    const sameNeighborhood =
+      (fromClamp.lane === clamped.lane && Math.abs(fromClamp.dist - clamped.dist) <= DIRECT_WALK_DIST + 0.4) ||
+      Math.hypot(fromClamp.roadX - clamped.roadX, fromClamp.roadZ - clamped.roadZ) <= JUNCTION_DIST;
+
+    if (sameNeighborhood && Math.hypot(destX - startX, destZ - startZ) <= DIRECT_WALK_DIST) {
+      out.push({ x: destX, z: destZ });
+      return out;
+    }
+
+    const startIdx = this.nearestNodeIndex(startX, startZ);
+    let endIdx = this.nearestNodeIndex(clamped.roadX, clamped.roadZ);
     if (startIdx < 0 || endIdx < 0 || startIdx === endIdx) {
-      return [{ x: destX, z: destZ }];
+      out.push({ x: destX, z: destZ });
+      return out;
     }
 
     const count = this.nodes.length;
@@ -215,53 +289,92 @@ export class GroundGraph {
     }
 
     if (!Number.isFinite(this.distBuf[endIdx])) {
-      return [{ x: destX, z: destZ }];
-    }
-
-    const chain: number[] = [];
-    for (let cur = endIdx; cur !== -1; cur = this.prevBuf[cur]) {
-      chain.push(cur);
-      if (cur === startIdx) break;
-    }
-    chain.reverse();
-
-    // Trim the first graph node if stepping straight to chain[1] avoids a tiny backtrack.
-    if (chain.length >= 2) {
-      const n0 = this.nodes[chain[0]];
-      const n1 = this.nodes[chain[1]];
-      const segDx = n1.x - n0.x;
-      const segDz = n1.z - n0.z;
-      const fromDx = fromX - n0.x;
-      const fromDz = fromZ - n0.z;
-      if (fromDx * segDx + fromDz * segDz > 0) {
-        chain.shift();
+      // Disconnected graph component fallback: route to the closest reachable node instead of crossing a chasm.
+      let bestReachIdx = startIdx;
+      let bestReachSq = Infinity;
+      for (let i = 0; i < count; i++) {
+        if (!Number.isFinite(this.distBuf[i])) continue;
+        const dSq = (this.nodes[i].x - targetX) ** 2 + (this.nodes[i].z - targetZ) ** 2;
+        if (dSq < bestReachSq - 1e-9) {
+          bestReachSq = dSq;
+          bestReachIdx = i;
+        }
+      }
+      endIdx = bestReachIdx;
+      const rn = this.nodes[endIdx];
+      const off = Math.hypot(targetX - rn.x, targetZ - rn.z);
+      if (off <= safeMaxOff || off < 1e-9) {
+        destX = targetX;
+        destZ = targetZ;
+      } else {
+        const s = safeMaxOff / off;
+        destX = rn.x + (targetX - rn.x) * s;
+        destZ = rn.z + (targetZ - rn.z) * s;
+      }
+      if (endIdx === startIdx) {
+        out.push({ x: destX, z: destZ });
+        return out;
       }
     }
 
-    // Trim the last graph node if `dest` lies between `chain[last - 1]` and `chain[last]`.
-    if (chain.length >= 2) {
-      const prev = this.nodes[chain[chain.length - 2]];
-      const last = this.nodes[chain[chain.length - 1]];
+    _chainScratch.length = 0;
+    for (let cur = endIdx; cur !== -1; cur = this.prevBuf[cur]) {
+      _chainScratch.push(cur);
+      if (cur === startIdx) break;
+    }
+    _chainScratch.reverse();
+
+    // Trim the first graph node if stepping straight to _chainScratch[1] avoids a tiny backtrack.
+    if (_chainScratch.length >= 2) {
+      const n0 = this.nodes[_chainScratch[0]];
+      const n1 = this.nodes[_chainScratch[1]];
+      const segDx = n1.x - n0.x;
+      const segDz = n1.z - n0.z;
+      const fromDx = startX - n0.x;
+      const fromDz = startZ - n0.z;
+      if (fromDx * segDx + fromDz * segDz > 0) {
+        _chainScratch.shift();
+      }
+    }
+
+    // Trim the last graph node if `dest` lies between `_chainScratch[last - 1]` and `_chainScratch[last]`.
+    if (_chainScratch.length >= 2) {
+      const prev = this.nodes[_chainScratch[_chainScratch.length - 2]];
+      const last = this.nodes[_chainScratch[_chainScratch.length - 1]];
       const segDx = last.x - prev.x;
       const segDz = last.z - prev.z;
       const destDx = destX - last.x;
       const destDz = destZ - last.z;
       if (destDx * segDx + destDz * segDz < 0) {
-        chain.pop();
+        _chainScratch.pop();
       }
     }
 
-    const out: GroundWaypoint[] = [];
-    for (let i = 0; i < chain.length; i++) {
-      const n = this.nodes[chain[i]];
-      if (Math.hypot(n.x - fromX, n.z - fromZ) < 0.05) continue;
+    for (let i = 0; i < _chainScratch.length; i++) {
+      const n = this.nodes[_chainScratch[i]];
+      if (Math.hypot(n.x - startX, n.z - startZ) < 0.05) continue;
       out.push({ x: n.x, z: n.z });
     }
     const prevWp = out[out.length - 1];
     if (!prevWp || Math.hypot(destX - prevWp.x, destZ - prevWp.z) > 0.03) {
       out.push({ x: destX, z: destZ });
     }
-    return out.length > 0 ? out : [{ x: destX, z: destZ }];
+    if (out.length === 0) out.push({ x: destX, z: destZ });
+    return out;
+  }
+
+  /**
+   * Computes a deterministic waypoint list along the ground road graph from `(fromX, fromZ)`
+   * to the clamped ground point for `(wantX, wantZ)`.
+   */
+  findPath(
+    fromX: number,
+    fromZ: number,
+    wantX: number,
+    wantZ: number,
+    maxOffRoad: number = HERO_RULES.maxOffRoadDist,
+  ): GroundWaypoint[] {
+    return this.findPathInto(fromX, fromZ, wantX, wantZ, maxOffRoad, []);
   }
 }
 

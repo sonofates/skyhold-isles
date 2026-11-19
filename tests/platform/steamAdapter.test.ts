@@ -3,6 +3,7 @@ import { resolve } from 'node:path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { challengesForLevel } from '../../src/data/challenges.ts';
 import { LEVELS } from '../../src/data/levels/index.ts';
+import { LEVELS_2D } from '../../src/data/levels2d/index.ts';
 import {
   createPlatformAdapter,
   earnedSteamAchievementIds,
@@ -17,6 +18,16 @@ import {
   type SteamBridge,
 } from '../../src/platform/index.ts';
 import { createDefaultProgress, saveProgress } from '../../src/platform/storage.ts';
+import {
+  CLOUD_PROGRESS_2D_SLOT,
+  hydrateProgress2DFromCloud,
+  loadProgress2D,
+  PROGRESS_2D_KEY,
+  PROGRESS_2D_RESET_BACKUP_KEY,
+  recordRunResult2D,
+  resetProgress2D,
+  saveProgress2D,
+} from '../../src/render2d/ui/progress2d.ts';
 
 const ROOT = resolve(import.meta.dirname, '../..');
 
@@ -295,6 +306,155 @@ describe('Steam achievements map, cloud hydration, and desktop config invariants
     saveProgress(res.merged);
     await Promise.resolve();
     expect(JSON.parse(cloudBlob ?? '{}').bestStars[1]).toBe(3);
+  });
+
+  it('hydrateProgressFromCloud awaits explicit adapter cloud writes and guards corrupt cloud overwrites', async () => {
+    let remoteBlob: string | null = '{corrupt-json';
+    let writeCount = 0;
+    const explicitAdapter = createPlatformAdapter({
+      storage: createMemStorage(),
+      bridge: {
+        isSteam: true,
+        unlockAchievement: async () => true,
+        cloudRead: async () => remoteBlob,
+        cloudWrite: async (_slot, json) => {
+          await new Promise((r) => setTimeout(r, 5));
+          writeCount++;
+          remoteBlob = json;
+          return true;
+        },
+      },
+    });
+    // Deliberately leave global singleton unset (web no-op) to prove explicit adapter is used.
+    setPlatformAdapter(null);
+
+    // Empty local save must NOT clobber a corrupt cloud slot.
+    const emptyLocal = createDefaultProgress(LEVELS.length);
+    await hydrateProgressFromCloud(emptyLocal, LEVELS.length, explicitAdapter, LEVELS);
+    expect(writeCount).toBe(0);
+    expect(remoteBlob).toBe('{corrupt-json');
+
+    // Non-empty local save repairs the corrupt cloud slot and awaits completion.
+    const realLocal = createDefaultProgress(LEVELS.length);
+    realLocal.bestStars[0] = 2;
+    realLocal.clears[0] = 1;
+    await hydrateProgressFromCloud(realLocal, LEVELS.length, explicitAdapter, LEVELS);
+    expect(writeCount).toBe(1);
+    expect(JSON.parse(remoteBlob ?? '{}').bestStars[0]).toBe(2);
+
+    // Merging newer local progress into an older valid cloud save writes merged result back via explicitAdapter.
+    const olderRemote = createDefaultProgress(LEVELS.length);
+    olderRemote.bestStars[0] = 1;
+    olderRemote.clears[0] = 1;
+    remoteBlob = JSON.stringify(olderRemote);
+    realLocal.bestStars[2] = 3;
+    realLocal.clears[2] = 1;
+    const mergedRes = await hydrateProgressFromCloud(realLocal, LEVELS.length, explicitAdapter, LEVELS);
+    expect(mergedRes.updated).toBe(false);
+    expect(writeCount).toBe(2);
+    expect(JSON.parse(remoteBlob ?? '{}').bestStars[2]).toBe(3);
+  });
+
+  it('saveProgress2D, resetProgress2D, and hydrateProgress2DFromCloud sync 2D Steam Cloud and Steam achievements cleanly', async () => {
+    const cloudSlots = new Map<string, string>();
+    const unlockedIds: string[] = [];
+    const steamAdapter = createPlatformAdapter({
+      storage: createMemStorage(),
+      bridge: {
+        isSteam: true,
+        unlockAchievement: async (id) => {
+          if (!unlockedIds.includes(id)) unlockedIds.push(id);
+          return true;
+        },
+        cloudRead: async (slot) => cloudSlots.get(slot) ?? null,
+        cloudWrite: async (slot, json) => {
+          cloudSlots.set(slot, json);
+          return true;
+        },
+      },
+    });
+    setPlatformAdapter(steamAdapter);
+
+    // Recording a 3★ 2D win on l1c writes to 'progress2d' (leaving 3D 'progress' untouched) and unlocks Steam feats.
+    recordRunResult2D({
+      levelId: 'l1c',
+      won: true,
+      stars: 3,
+      livesRemaining: 20,
+      waveReached: LEVELS_2D[0].waves.length,
+      heroId: 'bran',
+      heroXpEarned: 180,
+    });
+    await new Promise((r) => setTimeout(r, 10));
+
+    expect(cloudSlots.has('progress')).toBe(false);
+    expect(cloudSlots.has(CLOUD_PROGRESS_2D_SLOT)).toBe(true);
+    expect(unlockedIds).toContain('FEAT_FIRST_LANDING');
+    expect(unlockedIds).toContain('FEAT_STARCATCHER');
+
+    // Mock QA islands (?mockislands=N) never write to Steam Cloud or unlock achievements.
+    const rawLocalBeforeMock = localStorage.getItem(PROGRESS_2D_KEY)!;
+    const cloudBeforeMock = cloudSlots.get(CLOUD_PROGRESS_2D_SLOT);
+    const mockRoster = [...LEVELS_2D, { ...LEVELS_2D[0], id: 'mock-1' }];
+    const mockSave = loadProgress2D(mockRoster);
+    mockSave.bestStars[mockRoster.length - 1] = 3;
+    saveProgress2D(mockSave, mockRoster);
+    await new Promise((r) => setTimeout(r, 10));
+    expect(cloudSlots.get(CLOUD_PROGRESS_2D_SLOT)).toBe(cloudBeforeMock);
+    localStorage.setItem(PROGRESS_2D_KEY, rawLocalBeforeMock);
+
+    // Cross-device Steam Cloud merge: remote 'progress2d' carries reordered subset IDs + Wren selected & leveled.
+    const remoteSubset = [LEVELS_2D[1], LEVELS_2D[2]]; // i01, i02 cleared -> combined with local l1c = 3 cleared (unlocks Wren @ 2!)
+    const remoteProg = createDefaultProgress(2);
+    remoteProg.bestStars[0] = 3;
+    remoteProg.clears[0] = 1;
+    remoteProg.bestStars[1] = 2;
+    remoteProg.clears[1] = 1;
+    remoteProg.heroes = {
+      selectedHero: 'wren',
+      roster: {
+        bran: { xp: 50, skills: [] },
+        wren: { xp: 520, skills: ['wren_bow_1', 'wren_bow_2'] },
+      },
+    };
+    cloudSlots.set(
+      CLOUD_PROGRESS_2D_SLOT,
+      JSON.stringify({ ids: remoteSubset.map((l) => l.id), progress: remoteProg }),
+    );
+
+    const hydrated = await hydrateProgress2DFromCloud(undefined, LEVELS_2D, steamAdapter);
+    expect(hydrated.updated).toBe(true);
+    expect(hydrated.merged.bestStars[0]).toBe(3); // l1c from local
+    expect(hydrated.merged.bestStars[1]).toBe(3); // i01 from cloud
+    expect(hydrated.merged.bestStars[2]).toBe(2); // i02 from cloud
+    expect(hydrated.merged.heroes?.roster.bran?.xp).toBe(180); // monotonic max(180, 50)
+    expect(hydrated.merged.heroes?.roster.wren?.xp).toBe(520);
+    expect(hydrated.merged.heroes?.selectedHero).toBe('wren'); // preserved across remapped merge!
+    expect(loadProgress2D().heroes?.selectedHero).toBe('wren');
+
+    // Resetting 2D progress backs up local save and writes fresh state to 'progress2d' on Steam Cloud.
+    resetProgress2D();
+    await new Promise((r) => setTimeout(r, 10));
+    expect(localStorage.getItem(PROGRESS_2D_KEY)).toBeNull();
+    expect(localStorage.getItem(PROGRESS_2D_RESET_BACKUP_KEY)).not.toBeNull();
+    const resetCloud = JSON.parse(cloudSlots.get(CLOUD_PROGRESS_2D_SLOT) ?? '{}') as { progress: { bestStars: number[] } };
+    expect(resetCloud.progress.bestStars.every((s) => s === 0)).toBe(true);
+
+    // Empty local boot when cloud slot is missing/offline must NOT write an empty save blob to Steam Cloud,
+    // and hydrateProgress2DFromCloud skips Steam Cloud / achievement IPC on mock-* QA rosters.
+    cloudSlots.clear();
+    unlockedIds.length = 0;
+    const empty2dHydrate = await hydrateProgress2DFromCloud(undefined, LEVELS_2D, steamAdapter);
+    expect(empty2dHydrate.updated).toBe(false);
+    expect(cloudSlots.has(CLOUD_PROGRESS_2D_SLOT)).toBe(false);
+    const empty3dHydrate = await hydrateProgressFromCloud(createDefaultProgress(LEVELS.length), LEVELS.length, steamAdapter, LEVELS);
+    expect(empty3dHydrate.updated).toBe(false);
+    expect(cloudSlots.has('progress')).toBe(false);
+
+    const mockHydrate = await hydrateProgress2DFromCloud(undefined, mockRoster, steamAdapter);
+    expect(mockHydrate.unlockedAchievements).toEqual([]);
+    expect(cloudSlots.has(CLOUD_PROGRESS_2D_SLOT)).toBe(false);
+    setPlatformAdapter(null);
   });
 
   it('enforces Electron security flags and keeps src/sim isolated from src/platform', () => {
