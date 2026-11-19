@@ -23,7 +23,7 @@
   --safe-r: env(safe-area-inset-right, 0px);
   --safe-b: env(safe-area-inset-bottom, 0px);
   --safe-l: env(safe-area-inset-left, 0px);
-  font-family: 'Fredoka Variable', 'Trebuchet MS', 'Arial Rounded MT Bold', sans-serif;
+  font-family: 'Fredoka Variable', 'Fredoka TR', 'Trebuchet MS', 'Arial Rounded MT Bold', sans-serif;
   color: var(--ink);
   -webkit-user-select: none;
   user-select: none;
