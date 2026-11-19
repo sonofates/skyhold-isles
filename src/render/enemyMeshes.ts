@@ -821,6 +821,74 @@ export class EnemyRenderer {
         break;
       }
 
+      case 'bellrunner': {
+        // Chapter two (2D-first; this figurine only serves 3D debug spawns). Tawny hare, bell harness.
+        parts = [
+          { geometry: chamfer, colorHex: 0x7a4f2c, position: [-0.12, 0.13, 0.04], scale: [0.13, 0.26, 0.3] },
+          { geometry: chamfer, colorHex: 0x7a4f2c, position: [0.12, 0.13, 0.04], scale: [0.13, 0.26, 0.3] },
+          { geometry: icoSmooth, colorHex: 0xc98a4b, position: [0, 0.44, -0.04], scale: [0.4, 0.4, 0.52] },
+          { geometry: icoSmooth, colorHex: PALETTE_HEX.cream, position: [0, 0.4, 0.12], scale: [0.26, 0.28, 0.24] },
+          { geometry: box, colorHex: 0x8a3b2a, position: [0, 0.56, 0.04], scale: [0.44, 0.06, 0.46] },
+          { geometry: ico, colorHex: PALETTE_HEX.gold, position: [0, 0.5, 0.26], scale: [0.1, 0.1, 0.1] },
+          { geometry: chamfer, colorHex: 0xc98a4b, position: [0, 0.76, 0.12], scale: [0.28, 0.26, 0.28] },
+          { geometry: cone, colorHex: 0xb57a3f, position: [-0.07, 1.0, 0.06], rotation: [-0.2, 0, 0.15], scale: [0.08, 0.36, 0.06] },
+          { geometry: cone, colorHex: 0xb57a3f, position: [0.07, 1.0, 0.06], rotation: [-0.2, 0, -0.15], scale: [0.08, 0.36, 0.06] },
+        ];
+        addEyes(parts, ico, 0.8, 0.26, 0.07, 0.032, eyeDark);
+        break;
+      }
+
+      case 'kilnback': {
+        // Fired-clay tortoise: terracotta dome with cream rim and a kiln-chimney knob
+        parts = [
+          { geometry: chamfer, colorHex: 0x5d4a35, position: [-0.32, 0.12, 0.26], scale: [0.18, 0.24, 0.18] },
+          { geometry: chamfer, colorHex: 0x5d4a35, position: [0.32, 0.12, 0.26], scale: [0.18, 0.24, 0.18] },
+          { geometry: chamfer, colorHex: 0x5d4a35, position: [-0.32, 0.12, -0.26], scale: [0.18, 0.24, 0.18] },
+          { geometry: chamfer, colorHex: 0x5d4a35, position: [0.32, 0.12, -0.26], scale: [0.18, 0.24, 0.18] },
+          { geometry: cyl, colorHex: PALETTE_HEX.cream, position: [0, 0.3, 0], scale: [0.96, 0.08, 1.06] },
+          { geometry: icoSmooth, colorHex: 0xc0643a, position: [0, 0.56, 0], scale: [0.9, 0.62, 1.0] },
+          { geometry: box, colorHex: 0x8f3f22, position: [0, 0.82, 0], scale: [0.06, 0.04, 0.8] },
+          { geometry: box, colorHex: 0x8f3f22, position: [0, 0.8, 0], scale: [0.7, 0.04, 0.06] },
+          { geometry: cyl, colorHex: 0x7a3a22, position: [0, 0.98, -0.06], scale: [0.16, 0.2, 0.16] },
+          { geometry: cyl, colorHex: 0xffb347, position: [0, 1.09, -0.06], scale: [0.1, 0.03, 0.1] },
+          { geometry: chamfer, colorHex: 0x7d6a4c, position: [0, 0.34, 0.58], scale: [0.26, 0.22, 0.24] },
+        ];
+        addEyes(parts, ico, 0.38, 0.7, 0.07, 0.03, eyeDark);
+        break;
+      }
+
+      case 'reedpiper': {
+        // Reed-cloaked piper in a wide straw hat, holding a long flute across the chest
+        parts = [
+          { geometry: chamfer, colorHex: 0x3d4a2a, position: [-0.1, 0.12, 0], scale: [0.12, 0.24, 0.16] },
+          { geometry: chamfer, colorHex: 0x3d4a2a, position: [0.1, 0.12, 0], scale: [0.12, 0.24, 0.16] },
+          { geometry: cone, colorHex: 0x6f8f3a, position: [0, 0.5, 0], scale: [0.4, 0.74, 0.36] },
+          { geometry: chamfer, colorHex: skinWarm, position: [0, 0.88, 0.03], scale: [0.25, 0.24, 0.24] },
+          { geometry: cyl, colorHex: 0xe2c46f, position: [0, 1.02, 0.01], scale: [0.5, 0.04, 0.5] },
+          { geometry: cone, colorHex: 0xd7b257, position: [0, 1.1, 0.01], scale: [0.22, 0.16, 0.22] },
+          { geometry: cyl, colorHex: 0xc9a25a, position: [0.04, 0.72, 0.2], rotation: [0, 0, Math.PI / 2 - 0.25], scale: [0.035, 0.56, 0.035] },
+          { geometry: ico, colorHex: PALETTE_HEX.gold, position: [-0.06, 0.62, 0.22], scale: [0.06, 0.06, 0.06] },
+        ];
+        addEyes(parts, ico, 0.9, 0.16, 0.06, 0.03, eyeDark);
+        break;
+      }
+
+      case 'draftwing': {
+        // Pale slipstream moth: furry cream body, dusky violet wings with gold eyespots
+        parts = [
+          { geometry: icoSmooth, colorHex: PALETTE_HEX.cream, position: [0, 0.48, 0], scale: [0.18, 0.2, 0.46] },
+          { geometry: chamfer, colorHex: 0x6d5a8f, position: [-0.32, 0.6, 0.02], rotation: [0, 0, 0.55], scale: [0.5, 0.05, 0.42] },
+          { geometry: chamfer, colorHex: 0x6d5a8f, position: [0.32, 0.6, 0.02], rotation: [0, 0, -0.55], scale: [0.5, 0.05, 0.42] },
+          { geometry: ico, colorHex: PALETTE_HEX.gold, position: [-0.36, 0.64, 0.04], scale: [0.1, 0.06, 0.1] },
+          { geometry: ico, colorHex: PALETTE_HEX.gold, position: [0.36, 0.64, 0.04], scale: [0.1, 0.06, 0.1] },
+          { geometry: cone, colorHex: 0xe9dcc0, position: [-0.06, 0.72, 0.24], rotation: [0.6, 0, 0.3], scale: [0.03, 0.22, 0.03] },
+          { geometry: cone, colorHex: 0xe9dcc0, position: [0.06, 0.72, 0.24], rotation: [0.6, 0, -0.3], scale: [0.03, 0.22, 0.03] },
+          { geometry: cone, colorHex: 0xbfae8f, position: [0, 0.22, -0.16], rotation: [Math.PI, 0, 0], scale: [0.06, 0.18, 0.06] },
+        ];
+        addEyes(parts, ico, 0.52, 0.22, 0.06, 0.03, eyeDark);
+        break;
+      }
+
       case 'boss':
       default: {
         // Large dark-crimson Dread Warlord with burnished gold armor trim, crown, pauldrons, and banners

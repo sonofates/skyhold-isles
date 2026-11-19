@@ -4,7 +4,7 @@ import { ENEMY_DEFS } from '../data/enemies.ts';
 import type { EnemyEntity } from '../sim/entities.ts';
 import type { ObjectPool } from '../core/pool.ts';
 import { mulTint } from './artResolve.ts';
-import type { AttackSheetRuntime, EnemyArtRuntime, LoadedArt } from './assets2d.ts';
+import type { DeathSheetRuntime, EnemyArtRuntime, LoadedArt } from './assets2d.ts';
 import {
   createExtras,
   createSpecialAnim,
@@ -43,7 +43,7 @@ export interface Walker extends SpecialState {
   readonly burrowed: boolean;
 }
 
-type DeathClip = Pick<AttackSheetRuntime, 'frames' | 'fps' | 'anchor'>;
+type DeathClip = DeathSheetRuntime;
 interface DeathView {
   body: Sprite;
   clip: DeathClip | null;
@@ -106,6 +106,9 @@ export class EnemyLayer {
   private readonly views: (EnemyView | undefined)[] = [];
   private frameNo = 0;
   private readonly deaths: DeathView[] = [];
+  /** QA counters: painted death clips started, and frames drawn from the side walk sequence. */
+  deathsPlayed = 0;
+  sideFrames = 0;
   private readonly layoutScratch = { px: 0, py: 0, cy: 0, heightPx: 0, shadowR: 0, uiScale: 1, pxPerUnit: 1, facing: 1 };
   private readonly art: LoadedArt;
   private readonly map: MapView;
@@ -198,7 +201,7 @@ export class EnemyLayer {
   /** Snapshot the last painted pose before the sim recycles the enemy's pool slot. */
   playDeath(uid: number): void {
     const v = this.views.find(view => view?.uid === uid);
-    const art: (EnemyArtRuntime & { death?: DeathClip | null }) | null = v?.art ?? null;
+    const art = v?.art ?? null;
     const clip = art?.death;
     if (!v?.body.visible || !art || !clip?.frames.length || !v.body.parent) return;
 
@@ -221,6 +224,7 @@ export class EnemyLayer {
     body.visible = true;
     d.clip = clip;
     d.elapsed = 0;
+    this.deathsPlayed++;
     d.startY = body.y;
     d.groundY = v.flying ? v.shadow.y : body.y;
   }
@@ -374,6 +378,7 @@ export class EnemyLayer {
       sheetWalk(v.anim, seq.length, sheet.fps, stride, moved, rate, dxImg, dyImg, dt, facing !== 'left', pose);
       if (moth) pose.lift = (w.uid % 3 - 1) * 0.22;
       v.anim.seq = seqIdx;
+      if (seqIdx === 2) this.sideFrames++;
       tex = seq[pose.frame % seq.length];
     } else {
       cheapWalk(v.anim, art.spec.cheap, moved, speedRatio, dxImg, dyImg, dt, art.frames.length, facesRight, pose);

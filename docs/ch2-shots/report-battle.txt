@@ -1,0 +1,30 @@
+phone i18 battle shot: {"wave":3,"waveState":"spawning","outcome":"ongoing","enemies":9,"lives":20,"gold":72,"towers":5,"foes":{"reedpiper":2,"runner":5,"brute":2},"bosses":[],"deathClips":13,"sideFrames":1121,"speed":3}
+phone i18 end of check: wave 3 lives 20 towers 5 deathClips 13 sideFrames 1121
+desk i18 battle shot: {"wave":3,"waveState":"spawning","outcome":"ongoing","enemies":10,"lives":20,"gold":72,"towers":5,"foes":{"reedpiper":2,"runner":6,"brute":2},"bosses":[],"deathClips":13,"sideFrames":1118,"speed":3}
+desk i18 end of check: wave 3 lives 20 towers 5 deathClips 13 sideFrames 1118
+desk i19 battle shot: {"wave":3,"waveState":"spawning","outcome":"ongoing","enemies":8,"lives":20,"gold":60,"towers":6,"foes":{"draftwing":5,"reedpiper":1,"brute":2},"bosses":[],"deathClips":10,"sideFrames":422,"speed":3}
+desk i19 end of check: wave 3 lives 20 towers 6 deathClips 10 sideFrames 422
+phone i19 battle shot: {"wave":3,"waveState":"spawning","outcome":"ongoing","enemies":12,"lives":20,"gold":60,"towers":6,"foes":{"draftwing":6,"reedpiper":2,"brute":4},"bosses":[],"deathClips":10,"sideFrames":475,"speed":3}
+phone i19 end of check: wave 3 lives 20 towers 6 deathClips 10 sideFrames 475
+desk i20 battle shot: {"wave":3,"waveState":"spawning","outcome":"ongoing","enemies":9,"lives":20,"gold":83,"towers":6,"foes":{"draftwing":5,"reedpiper":1,"grunt":3},"bosses":[],"deathClips":8,"sideFrames":464,"speed":3}
+desk i20 end of check: wave 3 lives 20 towers 6 deathClips 8 sideFrames 464
+phone i20 battle shot: {"wave":3,"waveState":"spawning","outcome":"ongoing","enemies":12,"lives":20,"gold":83,"towers":6,"foes":{"draftwing":6,"reedpiper":2,"grunt":4},"bosses":[],"deathClips":8,"sideFrames":499,"speed":3}
+phone i20 end of check: wave 3 lives 20 towers 6 deathClips 8 sideFrames 499
+desk i21 battle shot: {"wave":3,"waveState":"spawning","outcome":"ongoing","enemies":9,"lives":20,"gold":0,"towers":7,"foes":{"bellrunner":5,"flyer":4},"bosses":[],"deathClips":11,"sideFrames":344,"speed":3}
+desk i21 end of check: wave 3 lives 20 towers 7 deathClips 11 sideFrames 344
+phone i21 battle shot: {"wave":3,"waveState":"spawning","outcome":"ongoing","enemies":10,"lives":20,"gold":0,"towers":7,"foes":{"bellrunner":6,"flyer":4},"bosses":[],"deathClips":11,"sideFrames":347,"speed":3}
+phone i21 end of check: wave 3 lives 20 towers 7 deathClips 11 sideFrames 347
+desk i22 battle shot: {"wave":3,"waveState":"spawning","outcome":"ongoing","enemies":9,"lives":20,"gold":93,"towers":6,"foes":{"burrower":3,"draftwing":5,"brute":1},"bosses":[],"deathClips":10,"sideFrames":500,"speed":3}
+desk i22 end of check: wave 3 lives 20 towers 6 deathClips 10 sideFrames 500
+phone i22 battle shot: {"wave":3,"waveState":"spawning","outcome":"ongoing","enemies":10,"lives":20,"gold":93,"towers":6,"foes":{"burrower":4,"draftwing":5,"brute":1},"bosses":[],"deathClips":10,"sideFrames":507,"speed":3}
+phone i22 end of check: wave 3 lives 20 towers 6 deathClips 10 sideFrames 507
+phone i23 battle shot: {"wave":4,"waveState":"spawning","outcome":"ongoing","enemies":9,"lives":20,"gold":0,"towers":7,"foes":{"splitter":6,"healer":2,"bellrunner":1},"bosses":[],"deathClips":17,"sideFrames":899,"speed":3}
+phone i23 end of check: wave 4 lives 20 towers 7 deathClips 17 sideFrames 899
+desk i23 battle shot: {"wave":4,"waveState":"spawning","outcome":"ongoing","enemies":12,"lives":20,"gold":0,"towers":7,"foes":{"splitter":7,"healer":2,"bellrunner":3},"bosses":[],"deathClips":17,"sideFrames":928,"speed":3}
+desk i23 end of check: wave 4 lives 20 towers 7 deathClips 17 sideFrames 928
+desk i24 battle shot: {"wave":4,"waveState":"spawning","outcome":"ongoing","enemies":12,"lives":20,"gold":8,"towers":7,"foes":{"splitter":6,"healer":2,"burrower":3,"bellrunner":1},"bosses":[],"deathClips":16,"sideFrames":402,"speed":3}
+desk i24 end of check: wave 4 lives 20 towers 7 deathClips 16 sideFrames 402
+phone i24 battle shot: {"wave":4,"waveState":"spawning","outcome":"ongoing","enemies":8,"lives":20,"gold":8,"towers":7,"foes":{"splitter":4,"healer":2,"burrower":2},"bosses":[],"deathClips":16,"sideFrames":424,"speed":3}
+phone i24 end of check: wave 4 lives 20 towers 7 deathClips 16 sideFrames 424
+
+PROBLEMS:

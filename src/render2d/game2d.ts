@@ -5,6 +5,7 @@ import type { AbilityId, GameSettings, HeroSkillSlot, SpeedMultiplier, Targeting
 import { LEVELS } from '../data/levels/index.ts';
 import { BALANCE } from '../data/balance.ts';
 import { STAR_RULES } from '../data/stars.ts';
+import { ENEMY_DEFS } from '../data/enemies.ts';
 import type { LevelDef } from '../data/levels/types.ts';
 import { NEUTRAL_RUN_MODIFIERS, type RunModifiers } from '../data/runModifiers.ts';
 import { getTowerTierStats, TOWER_DEFS } from '../data/towers.ts';
@@ -109,6 +110,11 @@ function flushGpu(gl: WebGLRenderingContext | WebGL2RenderingContext | undefined
   } catch {
     // ignore lost context or mock GL in headless tests
   }
+}
+
+/** A built tower's reach as the sim uses it: tier range × (1 + beacon aura + hero bonus). */
+function towerReach(t: TowerEntity, tier: 1 | 2 | 3 = t.tier as 1 | 2 | 3): number {
+  return getTowerTierStats(t.type, tier).range * (1 + t.auraRange + (t.heroRangeBonus ?? 0));
 }
 
 /**
@@ -321,12 +327,12 @@ export class Game2D {
     const def = TOWER_DEFS[t.type];
     if (def.role !== 'attack') return false;
     const st = getTowerTierStats(t.type, t.tier);
-    const maxSq = (st.range * (1 + t.auraRange)) ** 2;
+    const maxSq = towerReach(t) ** 2;
     const minSq = st.minRange * st.minRange;
     const pool = this.world.enemyPool;
     for (let i = 0; i < pool.getActiveCount(); i++) {
       const e = pool.items[pool.getActiveIndex(i)];
-      if (!e.active || e.hp <= 0 || (e.flying && !def.hitsFlyers)) continue;
+      if (!e.active || e.hp <= 0 || e.burrowed || (e.flying && !def.hitsFlyers)) continue;
       const d = (e.x - t.x) ** 2 + (e.z - t.z) ** 2;
       if (d <= maxSq && d >= minSq) return true;
     }
@@ -533,7 +539,7 @@ export class Game2D {
           break;
         }
       }
-      const muzzle = t ? this.towers.muzzleOf(t.id, t.type) : this.towers.muzzleHeight('tesla');
+      const muzzle = t ? this.towers.muzzleOf(t.id, t.type) : p0.y;
       const delay = t ? this.towers.predictShotDelay(t.id, t.type, t.tier) : 0;
       if (delay > 0) this.enqueueBolt(delay, e.points, e.overload === true, muzzle);
       else this.fx.bolt(e.points, e.overload === true, muzzle);
@@ -573,6 +579,8 @@ export class Game2D {
       this.goldPops.spawn(e.earlyBonus, px + 10, py - 20);
     });
     ev.on('enemyKilled', (e) => {
+      // Painted death clip (enemies whose manifest lists one); snapshots the pose before the pool reuses the slot.
+      this.enemies.playDeath(e.enemyId);
       const px = m.pxX(e.x);
       const py = m.pxY(e.z) - e.y * 0.9 * ppu;
       this.fx.puffs(px, py - 14, 7, 12);
@@ -1056,18 +1064,16 @@ export class Game2D {
     if (!p) return;
     let type: TowerType | null = pv ? pv.type : null;
     let tier: 1 | 2 | 3 = pv ? pv.tier : 1;
-    if (!type && this.selectedTower !== -1) {
-      const t = this.world.getTowerById(this.selectedTower);
-      if (t) {
-        type = t.type;
-        tier = t.tier as 1 | 2 | 3;
-      }
+    const built = this.selectedTower !== -1 ? this.world.getTowerById(this.selectedTower) : null;
+    if (!type && built) {
+      type = built.type;
+      tier = built.tier as 1 | 2 | 3;
     }
     if (!type) {
       this.rangeDisc.visible = false;
       return;
     }
-    const range = getTowerTierStats(type, tier).range;
+    const range = built && built.type === type ? towerReach(built, tier) : getTowerTierStats(type, tier).range;
     const ppu = this.level.layout2d!.pxPerUnit;
     this.rangeDisc.position.set(this.map.pxX(p.x), this.map.pxY(p.z));
     this.rangeDisc.scale.set((range * ppu * 2) / this.tex.rangeDisc.width);
@@ -1195,7 +1201,7 @@ export class Game2D {
     if (!t) return;
     const ppu = this.level.layout2d!.pxPerUnit;
     this.hoverDisc.position.set(this.map.pxX(t.x), this.map.pxY(t.z));
-    this.hoverDisc.scale.set((getTowerTierStats(t.type, t.tier).range * ppu * 2) / this.tex.rangeDisc.width);
+    this.hoverDisc.scale.set((towerReach(t) * ppu * 2) / this.tex.rangeDisc.width);
   }
 
   private closeRing(): void {
@@ -1259,7 +1265,7 @@ export class Game2D {
       h,
       this.hud.topBand,
     );
-    const range = getTowerTierStats(t.type, t.tier).range;
+    const range = towerReach(t);
     const ppu = this.level.layout2d!.pxPerUnit;
     this.rangeDisc.position.set(this.map.pxX(t.x), this.map.pxY(t.z));
     this.rangeDisc.scale.set((range * ppu * 2) / this.tex.rangeDisc.width);
@@ -1595,7 +1601,27 @@ export class Game2D {
         trails: this.projectiles.trailsRequested,
         markers: this.towers.markers(),
         extras: this.enemies.specials.extrasCreated,
+        deathClips: this.enemies.deathsPlayed,
+        sideFrames: this.enemies.sideFrames,
       },
+      foes: (() => {
+        const n: Record<string, number> = {};
+        const pool = w.enemyPool;
+        for (let i = 0; i < pool.getActiveCount(); i++) {
+          const e = pool.items[pool.getActiveIndex(i)];
+          if (e.active) n[e.type] = (n[e.type] ?? 0) + 1;
+        }
+        return n;
+      })(),
+      bosses: (() => {
+        const out: { type: string; hp: number; phase: number; elite: boolean }[] = [];
+        const pool = w.enemyPool;
+        for (let i = 0; i < pool.getActiveCount(); i++) {
+          const e = pool.items[pool.getActiveIndex(i)];
+          if (e.active && ENEMY_DEFS[e.type].isBoss) out.push({ type: e.type, hp: e.hp / e.maxHp, phase: e.bossPhase ?? 0, elite: e.elite });
+        }
+        return out;
+      })(),
       barracks: { ...this.soldiers.debug(w.soldierSystem), rallyMode: this.rallyTower, melee: { ...this.melee.stats } },
       heroView: { ...this.heroes.debug(), screen: this.heroScreen() },
       turrets: { shots: this.towers.turretShots, views: this.towers.turretReport() },

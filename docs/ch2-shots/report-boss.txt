@@ -1,0 +1,10 @@
+desk i24-boss spawn: {"wave":14,"waveState":"spawning","outcome":"ongoing","enemies":1,"lives":19,"gold":44,"towers":10,"foes":{"tempest":1},"bosses":[{"type":"tempest","hp":0.9905207723815097,"phase":0,"elite":true}],"deathClips":126,"sideFrames":4811,"speed":3}
+phone i24-boss spawn: {"wave":14,"waveState":"spawning","outcome":"ongoing","enemies":1,"lives":19,"gold":44,"towers":10,"foes":{"tempest":1},"bosses":[{"type":"tempest","hp":0.9863077823288473,"phase":0,"elite":true}],"deathClips":126,"sideFrames":4758,"speed":3}
+desk i24-boss stormwall: {"wave":14,"waveState":"spawning","outcome":"ongoing","enemies":19,"lives":19,"gold":72,"towers":10,"foes":{"tempest":1,"kilnback":7,"bellrunner":9,"reedpiper":2},"bosses":[{"type":"tempest","hp":0.6546518431831481,"phase":1,"elite":true}],"deathClips":129,"sideFrames":5087,"speed":3}
+phone i24-boss stormwall: {"wave":14,"waveState":"spawning","outcome":"ongoing","enemies":18,"lives":19,"gold":72,"towers":10,"foes":{"tempest":1,"kilnback":7,"bellrunner":8,"reedpiper":2},"bosses":[{"type":"tempest","hp":0.6546518431831481,"phase":1,"elite":true}],"deathClips":129,"sideFrames":5008,"speed":3}
+desk i24-boss enrage: {"wave":14,"waveState":"allSpawned","outcome":"ongoing","enemies":1,"lives":19,"gold":182,"towers":10,"foes":{"tempest":1},"bosses":[{"type":"tempest","hp":0.24903452311293153,"phase":2,"elite":true}],"deathClips":157,"sideFrames":5649,"speed":3}
+phone i24-boss enrage: {"wave":14,"waveState":"allSpawned","outcome":"ongoing","enemies":1,"lives":19,"gold":182,"towers":10,"foes":{"tempest":1},"bosses":[{"type":"tempest","hp":0.26963136337039206,"phase":2,"elite":true}],"deathClips":157,"sideFrames":5673,"speed":3}
+desk i24-boss end: {"wave":14,"waveState":"finished","outcome":"won","enemies":0,"lives":19,"gold":332,"towers":10,"foes":{},"bosses":[],"deathClips":157,"sideFrames":5649,"speed":3}
+phone i24-boss end: {"wave":14,"waveState":"finished","outcome":"won","enemies":0,"lives":19,"gold":332,"towers":10,"foes":{},"bosses":[],"deathClips":157,"sideFrames":5673,"speed":3}
+
+PROBLEMS:

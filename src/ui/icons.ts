@@ -157,6 +157,10 @@ export const ENEMY_BADGE_META: Record<EnemyType, { label: string; color: string 
   hexer: { label: 'Hexer', color: '#a63d8f' },
   tempest: { label: 'Colossus', color: '#2f4f86' },
   boss: { label: 'Boss', color: PALETTE.indigo },
+  bellrunner: { label: 'Hare', color: '#c98a4b' },
+  kilnback: { label: 'Kilnback', color: '#c0643a' },
+  reedpiper: { label: 'Piper', color: '#6f8f3a' },
+  draftwing: { label: 'Moth', color: '#7a68a0' },
 };
 
 /** Tiny faceted enemy glyphs for the wave preview strip (24px grid, ink outline, flat fills). */
@@ -224,5 +228,25 @@ export const ENEMY_ICON_SVGS: Record<EnemyType, string> = {
   boss: `<svg viewBox="0 0 24 24" aria-hidden="true">
     <path d="M3 19L4.5 6L9 11L12 3.5L15 11L19.5 6L21 19H3Z" fill="${PALETTE.indigo}" stroke="${PALETTE.gold}" stroke-width="1.8" stroke-linejoin="round"/>
     <circle cx="9.5" cy="14.5" r="1.5" fill="${PALETTE.gold}"/><circle cx="14.5" cy="14.5" r="1.5" fill="${PALETTE.gold}"/>
+  </svg>`,
+  bellrunner: `<svg viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M8 9L7 2.5L10.5 8M14 8L16 2.5L16.5 9" fill="#c98a4b" stroke="${PALETTE.indigo}" stroke-width="1.6" stroke-linejoin="round"/>
+    <path d="M5 15C5 10.5 8 8 12 8C16 8 19 10.5 19 15C19 18.5 16 20.5 12 20.5C8 20.5 5 18.5 5 15Z" fill="#c98a4b" stroke="${PALETTE.indigo}" stroke-width="1.8" stroke-linejoin="round"/>
+    <circle cx="12" cy="17" r="2" fill="${PALETTE.gold}" stroke="${PALETTE.indigo}" stroke-width="1.2"/>
+  </svg>`,
+  kilnback: `<svg viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M2.5 16C2.5 9.5 7 5.5 12 5.5C17 5.5 21.5 9.5 21.5 16H2.5Z" fill="#c0643a" stroke="${PALETTE.indigo}" stroke-width="1.8" stroke-linejoin="round"/>
+    <path d="M7 16L9 9.5M17 16L15 9.5M9 9.5H15" stroke="${PALETTE.cream}" stroke-width="1.5" stroke-linecap="round"/>
+    <path d="M5 16V19.5M19 16V19.5" stroke="${PALETTE.indigo}" stroke-width="2" stroke-linecap="round"/>
+  </svg>`,
+  reedpiper: `<svg viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M12 7L18.5 21H5.5L12 7Z" fill="#6f8f3a" stroke="${PALETTE.indigo}" stroke-width="1.8" stroke-linejoin="round"/>
+    <path d="M3.5 7.5H20.5L12 3L3.5 7.5Z" fill="${PALETTE.gold}" stroke="${PALETTE.indigo}" stroke-width="1.6" stroke-linejoin="round"/>
+    <path d="M6 15L19 11" stroke="${PALETTE.cream}" stroke-width="2" stroke-linecap="round"/>
+  </svg>`,
+  draftwing: `<svg viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M12 7L3 4.5L4.5 14L12 16L19.5 14L21 4.5L12 7Z" fill="#7a68a0" stroke="${PALETTE.indigo}" stroke-width="1.8" stroke-linejoin="round"/>
+    <path d="M12 6V20.5" stroke="${PALETTE.cream}" stroke-width="2.4" stroke-linecap="round"/>
+    <circle cx="7" cy="9" r="1.5" fill="${PALETTE.gold}"/><circle cx="17" cy="9" r="1.5" fill="${PALETTE.gold}"/>
   </svg>`,
 };

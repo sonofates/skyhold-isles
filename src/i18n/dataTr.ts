@@ -38,6 +38,15 @@ export const DATA_TR: DataTr = {
     i14: { name: 'Kehribartaş Yaylası', subtitle: 'Üç çöl kapısı güneşte kavrulan tek bir yola akar ve meydan hepsini birden görür' },
     i15: { name: 'Ayçeşmesi Geçidi', subtitle: 'Ayçeşmesinde kendi üstünden geçen düğüm gibi bir yol ve onu atlayan geç bir kapı' },
     i16: { name: 'Közcam Tapınağı', subtitle: 'İki ordunun ters yönlerde döndüğü halka bir kale; kuzey kapısı çoktan açık' },
+    // Chapter two.
+    i17: { name: 'Bulut Çanı Manastırı', subtitle: 'Yıkık çan kulesinin altında iki yol birleşiyor. Tavşanlar çanların tokmaklarını kaçırmış.' },
+    i18: { name: 'Cam Fener Atölyesi', subtitle: 'Fırınlar sönmüş. Cevher yolunu izleyip kristal mağaranın çevresini dolaş.' },
+    i19: { name: 'Fener İnciri', subtitle: 'Tohum sepetleri düşüyor. Yaşlı incir ağacının çevresini dolanan iki kök yolunu izle.' },
+    i20: { name: 'Üç Flama Burnu', subtitle: 'Üç fırtına flaması ipinden kopmuş. Tekneler kayalıkları geçene kadar burnu savun.' },
+    i21: { name: 'Uçurtmacı Çayırı', subtitle: 'Rüzgârı ölçen uçurtma düştü. Uçurtmacı kopan ipi sarana dek kayalıklardaki virajları savun.' },
+    i22: { name: 'Tuzcam Salı', subtitle: 'Salın halatı koptu. Son yük karşı kıyıya varana kadar iki tuz yolunu da savun.' },
+    i23: { name: 'Mum Işığı Bahçesi', subtitle: 'Deniz fenerini yeniden yakmak için bir alev gerek. Son balmumu arabası geçene dek armut bahçesinin yollarını açık tut.' },
+    i24: { name: 'Son Işık Burnu', subtitle: 'Deniz feneri söndü. Fenerci lambayı yeniden yakana dek deniz kalesini ve iki iskeleyi savun.' },
   },
   towers: {
     archer: {
@@ -196,6 +205,27 @@ export const DATA_TR: DataTr = {
       name: 'Skyhold Dehşeti',
       desc: 'Devasa, zırhlı bir savaş beyi. Canı yarıya inince muhafızlarını çağırır, dalgalar yayarak yakındaki kuleleri tıkar. Sığınağa ulaşırsa 5 can götürür.',
       counter: 'Balista ve Havan yığ, tıkamaları açmak için Aşırı Şarj hazır olsun; muhafızlarıyla toplandığında Meteor indir.',
+    },
+    // Chapter two.
+    bellrunner: {
+      name: 'Çan Tavşanı',
+      desc: 'Açık yolda hızlandıkça koşumundaki çanlar da sıklaşan adımlarına ayak uydurur.',
+      counter: 'Önüne bir asker çıkar ya da ayazla hızını kes. Yeniden hızlanması zaman alır.',
+    },
+    kilnback: {
+      name: 'Fırın Sırtlı Kaplumbağa',
+      desc: 'Kabuğuna ulaşan her darbe, pişmiş toprak plakalarından birini gevşetir. Ateş kesilince plakalar yeniden yerine oturur.',
+      counter: 'Hızlı atışlarla kabuğunu gevşet, ardından plakalar yerine oturmadan ağır bir darbe indir.',
+    },
+    reedpiper: {
+      name: 'Kamış Kavalcısı',
+      desc: 'Durup kaval çalar. Son notası, yakındaki kara birliklerini yavaşlatan ayazı dağıtır.',
+      counter: 'Çalarken sersemlet ya da ayaz saldırısını son notadan sonraya sakla.',
+    },
+    draftwing: {
+      name: 'Esinti Güvesi',
+      desc: 'Gök yolunda önündeki güvenin kanat çırpışlarıyla oluşan hava akımına girip hızlanır.',
+      counter: 'Zincirleme yıldırımla sürüyü dağıt. Öndeki güveyi düşürürsen arkasındaki de yavaşlar.',
     },
   },
   tags: {

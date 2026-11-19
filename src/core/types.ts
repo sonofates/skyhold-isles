@@ -30,6 +30,11 @@ export type EnemyType =
   | 'golem'
   | 'mite'
   | 'hexer'
+  /** Chapter two (i17–i24): see CHAPTER_ENEMY_DEFS in src/data/enemies.ts. */
+  | 'bellrunner'
+  | 'kilnback'
+  | 'reedpiper'
+  | 'draftwing'
   | 'tempest'
   | 'boss';
 

@@ -13,6 +13,7 @@ const DEATH_PITCH: Record<EnemyType, number> = {
   grunt: 230, runner: 330, brute: 125, flyer: 490, healer: 620,
   splitter: 400, warden: 175, burrower: 145, carrier: 270, blinker: 720,
   golem: 100, mite: 570, hexer: 370, tempest: 82, boss: 70,
+  bellrunner: 440, kilnback: 115, reedpiper: 520, draftwing: 680,
 };
 
 const FIRE_INTERVAL_MS: Partial<Record<TowerType, number>> = {

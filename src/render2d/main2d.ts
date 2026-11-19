@@ -50,7 +50,7 @@ import { anySheetOpen } from './ui/dom.ts';
  *   ?raider=veo31q    raider walk-cycle variant (default omni12; `cheap` = procedural)
  *   ?codex=1          opens the codex (painted art) on load; a Codex button is always top-left
  *   ?artcheck=1       overlay: which manifest art files are present / missing (and the stand-ins)
- *   ?zoo=1            all 15 enemy types walking, specials triggered periodically (labelled)
+ *   ?zoo=1            all 19 enemy types walking, specials triggered periodically (labelled)
  *   ?towers=1[&tier=N] every tower type built and firing (cycles T1-T3 unless tier is given)
  *   ?towers=aim&type=cannon|archer|ballista|mortar[&tier=N]  turret aim QA (window.__aim, aim overlay)
  *   ?melee=1[&tier=N][&types=a,b][&plot=N][&die=1][&kill=1][&crowd=N]  barracks melee QA

@@ -103,6 +103,10 @@ const _enemyShardColors: Record<EnemyType, number> = {
   hexer: 0x8a2f62,
   tempest: 0x3b5a8c,
   boss: PALETTE_HEX.indigo,
+  bellrunner: 0xc98a4b,
+  kilnback: 0xc0643a,
+  reedpiper: 0x6f8f3a,
+  draftwing: 0x6d5a8f,
 };
 
 export class EffectsRenderer {
