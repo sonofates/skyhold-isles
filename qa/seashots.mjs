@@ -97,6 +97,8 @@ function cpuTicks() {
 async function open(size, q, extra = '') {
   const ctx = await browser.newContext({ viewport: { width: size.w, height: size.h }, deviceScaleFactor: size.dpr, isMobile: !!size.touch, hasTouch: !!size.touch });
   await ctx.addInitScript((v) => localStorage.setItem('skyhold_isles_progress2d_v1', v), save(7));
+  // --reduced=1: Settings → Reduced motion on
+  if (arg('reduced') === '1') await ctx.addInitScript(() => localStorage.setItem('skyhold_isles_graphics_v1', JSON.stringify({ reducedMotion: true })));
   if (arg('killanim')) {
     // cost probe: stop the animations of one selector (e.g. --killanim=.pu-ship-pennant)
     await ctx.addInitScript((sel) => {
@@ -206,7 +208,7 @@ async function shots(size, q) {
   const { ctx, page } = await open(size, q);
   const name = `${size.key.replace('@', '-dpr')}-${q}${arg('name') ?? ''}`;
   await page.screenshot({ path: `${OUT}/${name}.jpg`, type: 'jpeg', quality: 88 });
-  for (let i = 0; i < 6; i++) {
+  for (let i = 0; i < (arg('seq') === '0' ? 0 : 6); i++) {
     await page.screenshot({ path: `${OUT}/${name}-seq${i}.jpg`, type: 'jpeg', quality: 82 });
     await sleep(500);
   }
