@@ -13,6 +13,7 @@ import { BALANCE } from '../../src/data/balance.ts';
 import { runModifiersFor } from '../../src/data/challenges.ts';
 import { defaultLevel20Skills } from '../../src/data/heroes.ts';
 import { getLevelById, LEVEL_L1C } from '../../src/data/levels2d/index.ts';
+import { combineRunModifiers } from '../../src/data/runModifiers.ts';
 import { maxedWorkshopRanks, workshopModifiers } from '../../src/data/workshop.ts';
 import { GameLoop } from '../../src/platform/browserLoop.ts';
 import { findMergePoint } from '../../src/sim/groundGraph.ts';
@@ -1252,5 +1253,151 @@ describe('EventBus re-entrancy & SoldierSystem towerFireRateMul', () => {
     expect(rallyW.setRallyPoint(builtBarracks.id, boostedPt!.x, boostedPt!.z)).toBe(true);
     const bAfter = rallyW.soldierSystem.getBarracks(builtBarracks.id)!;
     expect(Math.hypot(bAfter.rallyX - builtBarracks.x, bAfter.rallyZ - builtBarracks.z)).toBeGreaterThan(3.25);
+  });
+
+  it('handles mid-tick sellTower re-entrancy in SoldierSystem & CombatSystem, Ballista pierce boss hits, and 0.05..0.1 replay modifiers', () => {
+    // 1. Mid-swing sellTower inside 'soldierAttack' (T3 barracks with cleave + second barracks):
+    //    sold barracks stops immediately (no phantom cleave/meleeSwing), and the second barracks still swings this tick!
+    const solEvents = new EventBus();
+    const attacksByTower: number[] = [];
+    const swingsBySoldier: number[] = [];
+    const solW = new SimWorld(LEVEL_L1C, solEvents, { seed: 81 });
+    solW.gold = 99999;
+    // Find two plots within barracks road range:
+    const barracksPlots: number[] = [];
+    for (let p = 0; p < solW.grid.plotCount && barracksPlots.length < 2; p++) {
+      if (solW.canPlaceTowerAt(p, 0, 'barracks')) barracksPlots.push(p);
+    }
+    expect(barracksPlots.length).toBe(2);
+    const b1 = solW.placeTowerOnPlot(barracksPlots[0], 'barracks')!;
+    solW.upgradeTower(b1.id);
+    solW.upgradeTower(b1.id); // T3 cleave
+    const b2 = solW.placeTowerOnPlot(barracksPlots[1], 'barracks')!;
+    solW.startNextWave();
+
+    const bs1 = solW.soldierSystem.getBarracks(b1.id)!;
+    const bs2 = solW.soldierSystem.getBarracks(b2.id)!;
+    const b1SoldierIds = new Set(bs1.squad.map((s) => s.id));
+
+    const foe1a = solW.enemySystem.spawnEnemy('brute', 20, false, 0)!;
+    const foe1b = solW.enemySystem.spawnEnemy('brute', 20, false, 0)!;
+    const d1 = solW.groundPath.nearestDist(bs1.rallyX, bs1.rallyZ);
+    foe1a.dist = d1;
+    foe1b.dist = Math.max(0, d1 - 0.25);
+    foe1a.x = foe1a.prevX = bs1.rallyX;
+    foe1a.z = foe1a.prevZ = bs1.rallyZ;
+    foe1b.x = foe1b.prevX = bs1.rallyX + 0.3;
+    foe1b.z = foe1b.prevZ = bs1.rallyZ;
+
+    const foe2 = solW.enemySystem.spawnEnemy('brute', 20, false, 0)!;
+    foe2.dist = solW.groundPath.nearestDist(bs2.rallyX, bs2.rallyZ);
+    foe2.x = foe2.prevX = bs2.rallyX;
+    foe2.z = foe2.prevZ = bs2.rallyZ;
+
+    // Walk soldiers onto their posts first, then step into contact and force swing:
+    for (let i = 0; i < 60; i++) solW.soldierSystem.update(BALANCE.fixedDt, solW.towers, 1);
+    solW.spatialHash.clear();
+    solW.spatialHash.insert(foe1a.poolIndex, foe1a.x, foe1a.z);
+    solW.spatialHash.insert(foe1b.poolIndex, foe1b.x, foe1b.z);
+    solW.spatialHash.insert(foe2.poolIndex, foe2.x, foe2.z);
+    for (let i = 0; i < 30; i++) solW.soldierSystem.update(BALANCE.fixedDt, solW.towers, 1);
+    for (const s of solW.soldierSystem.soldiers) s.attackTimer = 0.001;
+
+    let soldMidSwing = false;
+    solEvents.on('soldierAttack', (ev) => {
+      attacksByTower.push(ev.towerId);
+      if (!soldMidSwing && ev.towerId === b1.id) {
+        soldMidSwing = true;
+        solW.sellTower(b1.id);
+      }
+    });
+    solEvents.on('meleeSwing', (ev) => {
+      if (ev.attacker === 'soldier') swingsBySoldier.push(ev.attackerId);
+    });
+
+    solW.soldierSystem.update(BALANCE.fixedDt, solW.towers, 1);
+    expect(soldMidSwing).toBe(true);
+    // b1 only landed its single primary blow before being sold (no post-sell cleave or squadmate blows),
+    // and b2 WAS NOT SKIPPED despite b1 being spliced out of this.barracks!
+    expect(attacksByTower.filter((id) => id === b1.id)).toHaveLength(1);
+    expect(attacksByTower.filter((id) => id === b2.id).length).toBeGreaterThan(0);
+    expect(swingsBySoldier.some((sid) => b1SoldierIds.has(sid))).toBe(false);
+
+    // 2. Mid-shot sellTower inside CombatSystem ('towerFired') does NOT skip the next tower in world.towers!
+    const combatEvents = new EventBus();
+    const firedIds: number[] = [];
+    const combatW = new SimWorld(LEVEL_L1C, combatEvents, { seed: 82 });
+    combatW.gold = 99999;
+    const tFirst = combatW.placeTowerOnPlot(0, 'archer')!;
+    const tSecond = combatW.placeTowerOnPlot(1, 'archer')!;
+    combatW.startNextWave();
+    tFirst.cooldownTimer = 0;
+    tSecond.cooldownTimer = 0;
+    const targetFoe = combatW.enemySystem.spawnEnemy('brute', 30, false, 0)!;
+    targetFoe.x = (tFirst.x + tSecond.x) * 0.5;
+    targetFoe.z = (tFirst.z + tSecond.z) * 0.5;
+    combatW.spatialHash.clear();
+    combatW.spatialHash.insert(targetFoe.poolIndex, targetFoe.x, targetFoe.z);
+
+    combatEvents.on('towerFired', (ev) => {
+      firedIds.push(ev.towerId);
+      if (ev.towerId === tFirst.id) {
+        combatW.sellTower(tFirst.id);
+      }
+    });
+    combatW.combatSystem.update(BALANCE.fixedDt, combatW.towers, 1);
+    expect(firedIds).toEqual([tFirst.id, tSecond.id]);
+
+    // 3. Ballista T3 piercing bolt hitting a boss behind a grunt sets projectileImpact.isBossHit = true.
+    const impactEvents = new EventBus();
+    let bossPierceImpact = false;
+    impactEvents.on('projectileImpact', (ev) => {
+      if (ev.isBossHit) bossPierceImpact = true;
+    });
+    const pierceW = new SimWorld(LEVEL_L1C, impactEvents, { seed: 83 });
+    pierceW.gold = 99999;
+    const ballista = pierceW.placeTowerOnPlot(0, 'ballista')!;
+    pierceW.upgradeTower(ballista.id);
+    pierceW.upgradeTower(ballista.id);
+    pierceW.startNextWave();
+    const frontGrunt = pierceW.enemySystem.spawnEnemy('grunt', 5, false, 0)!;
+    const rearBoss = pierceW.enemySystem.spawnEnemy('boss', 5, false, 0)!;
+    frontGrunt.x = ballista.x + 2.0;
+    frontGrunt.z = ballista.z;
+    rearBoss.x = ballista.x + 3.5;
+    rearBoss.z = ballista.z;
+    pierceW.spatialHash.clear();
+    pierceW.spatialHash.insert(frontGrunt.poolIndex, frontGrunt.x, frontGrunt.z);
+    pierceW.spatialHash.insert(rearBoss.poolIndex, rearBoss.x, rearBoss.z);
+    const skewerBolt = pierceW.projectileSystem.spawnProjectile(ballista, frontGrunt, 1)!;
+    skewerBolt.progress = 1;
+    pierceW.projectileSystem.update(BALANCE.fixedDt, pierceW.towers);
+    expect(bossPierceImpact).toBe(true);
+
+    // 4. parseSimReplay preserves valid 0.05..0.1 modifiers and falls back <= 0 corrupt values to 1; player.dispose() cleans up.
+    const extremeMods = combineRunModifiers({
+      abilityCooldownMul: 0.06,
+      enemySpeedMul: 0.07,
+      enemyHpMul: 0.08,
+    });
+    const modWorld = new SimWorld(LEVEL_L1C, new EventBus(), extremeMods, { seed: 84, recordCommands: true });
+    modWorld.startNextWave();
+    for (let i = 0; i < 30; i++) modWorld.fixedTick(BALANCE.fixedDt);
+    const parsedExtreme = parseSimReplay(serializeSimReplay(modWorld.exportReplay()))!;
+    expect(parsedExtreme.modifiers.abilityCooldownMul).toBeCloseTo(0.06, 6);
+    expect(parsedExtreme.modifiers.enemySpeedMul).toBeCloseTo(0.07, 6);
+    expect(parsedExtreme.modifiers.enemyHpMul).toBeCloseTo(0.08, 6);
+    const extremePlayer = new SimReplayPlayer(LEVEL_L1C, parsedExtreme);
+    expect(extremePlayer.runToEnd().matchesHash).toBe(true);
+    extremePlayer.dispose();
+    expect(extremePlayer.world.enemyPool.getActiveCount()).toBe(0);
+
+    const corruptModLog = parseSimReplay({
+      ...modWorld.exportReplay(),
+      modifiers: { abilityCooldownMul: 0, enemySpeedMul: -5, enemyHpMul: 0 },
+    })!;
+    expect(corruptModLog.modifiers.abilityCooldownMul).toBe(1);
+    expect(corruptModLog.modifiers.enemySpeedMul).toBe(1);
+    expect(corruptModLog.modifiers.enemyHpMul).toBe(1);
   });
 });

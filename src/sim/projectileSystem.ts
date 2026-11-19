@@ -456,7 +456,7 @@ export class ProjectileSystem {
           this.onHeroHit?.(target, res.actualDamage, res.killed);
         }
         if (p.pierceCount > 0) {
-          this.resolvePierce(p, target, sourceTower, hitsFlyers);
+          if (this.resolvePierce(p, target, sourceTower, hitsFlyers)) hitBoss = true;
         }
       }
     }
@@ -560,11 +560,12 @@ export class ProjectileSystem {
     primary: EnemyEntity,
     sourceTower: TowerEntity | null,
     hitsFlyers: boolean,
-  ): void {
+  ): boolean {
+    let hitBoss = false;
     let dirX = p.endX - p.startX;
     let dirZ = p.endZ - p.startZ;
     const dirLen = Math.hypot(dirX, dirZ);
-    if (dirLen < 0.0001) return;
+    if (dirLen < 0.0001) return false;
     dirX /= dirLen;
     dirZ /= dirLen;
 
@@ -600,6 +601,7 @@ export class ProjectileSystem {
       if (!best) break;
       _pierceUsed.add(best.poolIndex);
       const res = this.enemySystem.applyDamage(best, dmg + Math.min(best.armor, p.armorPierce));
+      if (best.type === 'boss' && res.actualDamage > 0) hitBoss = true;
       if (sourceTower) {
         sourceTower.totalDamageDealt += res.actualDamage;
         if (res.killed) sourceTower.kills++;
@@ -607,6 +609,7 @@ export class ProjectileSystem {
         this.onHeroHit?.(best, res.actualDamage, res.killed);
       }
     }
+    return hitBoss;
   }
 
   private findTowerById(towers: readonly TowerEntity[], id: number): TowerEntity | null {

@@ -13,6 +13,7 @@ export const BEACON_PULSE_INTERVAL = 2.6;
 
 const _chainCandidates: number[] = [];
 const _volleyCandidates: number[] = [];
+const _stepTowerIds: number[] = [];
 const _hitPoolIndices = new Set<number>();
 const _volleyUsed = new Set<number>();
 
@@ -86,8 +87,25 @@ export class CombatSystem {
 
     this.applyBeaconAuras(towers);
 
+    _stepTowerIds.length = 0;
     for (let i = 0; i < towers.length; i++) {
-      const tower = towers[i];
+      _stepTowerIds.push(towers[i].id);
+    }
+
+    for (let stepIdx = 0; stepIdx < _stepTowerIds.length; stepIdx++) {
+      const wantId = _stepTowerIds[stepIdx];
+      let tower: TowerEntity | undefined;
+      if (stepIdx < towers.length && towers[stepIdx].id === wantId) {
+        tower = towers[stepIdx];
+      } else {
+        for (let k = 0; k < towers.length; k++) {
+          if (towers[k].id === wantId) {
+            tower = towers[k];
+            break;
+          }
+        }
+      }
+      if (!tower) continue;
       tower.prevYaw = tower.yaw;
 
       if (tower.recoil > 0) {

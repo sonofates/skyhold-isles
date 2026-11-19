@@ -1586,7 +1586,10 @@ export function mergeHeroSaveData(
       const vb = sanitizeHeroSkillsForBudget(id, eb.skills, budget);
       const spentA = countHeroSkillPointsSpent(id, va);
       const spentB = countHeroSkillPointsSpent(id, vb);
-      skills = spentB > spentA ? vb : va;
+      skills =
+        spentB > spentA || (spentB === spentA && JSON.stringify(vb) > JSON.stringify(va))
+          ? vb
+          : va;
     }
     roster[id] = { xp, skills };
   }
@@ -1601,7 +1604,12 @@ export function mergeHeroSaveData(
   if (candA !== 'bran' && candB === 'bran') selectedHero = candA;
   else if (candB !== 'bran' && candA === 'bran') selectedHero = candB;
   else if (candA !== 'bran' && candB !== 'bran') {
-    selectedHero = totalHeroSaveXp(sb) > totalHeroSaveXp(sa) ? candB : candA;
+    const xpA = totalHeroSaveXp(sa);
+    const xpB = totalHeroSaveXp(sb);
+    selectedHero =
+      xpB > xpA || (xpB === xpA && HERO_IDS.indexOf(candB) > HERO_IDS.indexOf(candA))
+        ? candB
+        : candA;
   }
 
   return { selectedHero, roster };

@@ -83,6 +83,8 @@ const _prevBlocked: number[] = [];
 const _prevBlockedUid: number[] = [];
 const _spreadOrder: number[] = [];
 const _extraHoldOrder: number[] = [];
+const _stepBarracksIds: number[] = [];
+const _sweepSoldiers: SoldierEntity[] = [];
 
 /** Golden-ratio conjugate: spreads consecutive integer uids evenly across [-1, 1] with zero RNG. */
 const GOLDEN_CONJUGATE = 0.6180339887498949;
@@ -192,6 +194,14 @@ export class SoldierSystem {
   getBarracks(towerId: number): BarracksState | null {
     for (let i = 0; i < this.barracks.length; i++) {
       if (this.barracks[i].towerId === towerId) return this.barracks[i];
+    }
+    return null;
+  }
+
+  private getSoldierById(id: number): SoldierEntity | null {
+    if (id < 0) return null;
+    for (let i = 0; i < this.soldiers.length; i++) {
+      if (this.soldiers[i].id === id) return this.soldiers[i];
     }
     return null;
   }
@@ -313,16 +323,20 @@ export class SoldierSystem {
     const bi = this.barracks.findIndex((b) => b.towerId === towerId);
     if (bi === -1) return;
     const b = this.barracks[bi];
-    for (let i = 0; i < b.squad.length; i++) {
-      const s = b.squad[i];
-      if (s.state !== 'dead') {
-        this.release(s, true);
-        this.events.emit('soldierRemoved', { soldierId: s.id, towerId, x: s.x, z: s.z });
-      }
-    }
+    const squadCopy = b.squad.slice();
+    b.squad.length = 0;
     this.barracks.splice(bi, 1);
     for (let i = this.soldiers.length - 1; i >= 0; i--) {
       if (this.soldiers[i].towerId === towerId) this.soldiers.splice(i, 1);
+    }
+    for (let i = 0; i < squadCopy.length; i++) {
+      const s = squadCopy[i];
+      if (s.state !== 'dead') {
+        this.release(s, true);
+        s.state = 'dead';
+        s.swingArmed = false;
+        this.events.emit('soldierRemoved', { soldierId: s.id, towerId, x: s.x, z: s.z });
+      }
     }
     this.dirty = true;
   }
@@ -633,10 +647,15 @@ export class SoldierSystem {
       }
     }
 
-    // 5. Soldier swings.
+    // 5. Soldier swings (snapshot barracks IDs so mid-swing sellTower never shifts iteration).
     const rate = Math.max(0.01, fireRateMultiplier);
+    _stepBarracksIds.length = 0;
     for (let bi = 0; bi < this.barracks.length; bi++) {
-      const b = this.barracks[bi];
+      _stepBarracksIds.push(this.barracks[bi].towerId);
+    }
+    for (let bi = 0; bi < _stepBarracksIds.length; bi++) {
+      const b = this.getBarracks(_stepBarracksIds[bi]);
+      if (!b) continue;
       const tower = this.findTower(towers, b.towerId);
       if (!tower) continue;
       const stats = b.stats;
@@ -666,14 +685,18 @@ export class SoldierSystem {
           s.swingArmed = false;
           const baseDmg = Math.round((stats.soldierDamage ?? 0) * s.damageMul);
           this.strike(tower, s, e, baseDmg, false);
+          if (s.state !== 'fighting') continue;
           const cleave = stats.soldierCleave ?? 0;
           if (cleave > 0) {
             const other = this.cleaveTarget(e);
-            if (other) this.strike(tower, s, other, Math.round(baseDmg * cleave), true);
+            if (other) {
+              this.strike(tower, s, other, Math.round(baseDmg * cleave), true);
+              if (s.state !== 'fighting') continue;
+            }
           }
         }
         // Announce the next blow (render timing only; the swing stays even if this blow killed).
-        if (!s.swingArmed && e.hp > 0) {
+        if (!s.swingArmed && s.state === 'fighting' && e.hp > 0) {
           s.swingArmed = true;
           this.events.emit('meleeSwing', {
             attacker: 'soldier',
@@ -695,11 +718,11 @@ export class SoldierSystem {
       if (!e || e.hp <= 0) continue;
       if (e.blockers === 0) {
         _blockedList.push(e.poolIndex);
-        this.primary[e.poolIndex] = i;
+        this.primary[e.poolIndex] = s.id;
       }
       e.blockers++;
       if (s.holdCap > 1) {
-        this.applyExtraHolds(s, i, e);
+        this.applyExtraHolds(s, s.id, e);
       }
     }
 
@@ -726,15 +749,22 @@ export class SoldierSystem {
         if (e.meleeTimer <= 0) e.meleeTimer = 1 / m.rate;
         this.enemyArmed[e.poolIndex] = 0;
         const scale = Math.sqrt(Math.max(0.01, e.maxHp / ENEMY_DEFS[e.type].maxHp));
-        const first = this.soldiers[this.primary[e.poolIndex]];
+        const first = this.getSoldierById(this.primary[e.poolIndex]);
         const fx = first ? first.x : e.x;
         const fz = first ? first.z : e.z;
         let struck = 0;
         let dealt = 0;
         let killed = false;
         if (m.sweep) {
+          _sweepSoldiers.length = 0;
           for (let i = 0; i < this.soldiers.length; i++) {
             const s = this.soldiers[i];
+            if (s.state === 'fighting' && s.targetPoolIndex === e.poolIndex && s.targetUid === e.uid) {
+              _sweepSoldiers.push(s);
+            }
+          }
+          for (let i = 0; i < _sweepSoldiers.length; i++) {
+            const s = _sweepSoldiers[i];
             if (s.state === 'fighting' && s.targetPoolIndex === e.poolIndex && s.targetUid === e.uid) {
               const r = this.hurt(s, e, m.damage * scale);
               if (struck === 0) dealt = r;
@@ -742,7 +772,13 @@ export class SoldierSystem {
               killed = killed || s.hp <= 0;
             }
           }
-        } else if (first) {
+          _sweepSoldiers.length = 0;
+        } else if (
+          first &&
+          first.state === 'fighting' &&
+          first.targetPoolIndex === e.poolIndex &&
+          first.targetUid === e.uid
+        ) {
           dealt = this.hurt(first, e, m.damage * scale);
           struck = 1;
           killed = first.hp <= 0;
@@ -765,7 +801,7 @@ export class SoldierSystem {
         }
       }
       // Announce the next blow while something still holds it (render timing only).
-      const next = this.soldiers[this.primary[e.poolIndex]];
+      const next = this.getSoldierById(this.primary[e.poolIndex]);
       if (!this.enemyArmed[e.poolIndex] && drain > 1e-6 && next && next.state === 'fighting') {
         this.enemyArmed[e.poolIndex] = 1;
         this.events.emit('meleeSwing', {
@@ -802,7 +838,7 @@ export class SoldierSystem {
    * Optional multi-hold capacity on a single soldier (`holdCap > 1`; shipped barracks use 1):
    * holds additional ground enemies queued right behind the primary blocked target on the same lane.
    */
-  private applyExtraHolds(s: SoldierEntity, soldierIndex: number, primary: EnemyEntity): void {
+  private applyExtraHolds(s: SoldierEntity, soldierId: number, primary: EnemyEntity): void {
     const maxExtra = s.holdCap - 1;
     if (maxExtra <= 0) return;
     const reach = Math.max(SOLDIER_RULES.engageRadius, (s.holdCap + 1) * BLOCK_QUEUE_SPACING + 0.4);
@@ -823,7 +859,7 @@ export class SoldierSystem {
       if (cand.dist < queueStopDist - 0.12) continue;
       if (cand.blockers === 0) {
         _blockedList.push(cand.poolIndex);
-        this.primary[cand.poolIndex] = soldierIndex;
+        this.primary[cand.poolIndex] = soldierId;
       }
       cand.blockers++;
       added++;

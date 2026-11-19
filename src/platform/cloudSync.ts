@@ -7,6 +7,7 @@ import {
   CLOUD_PROGRESS_SLOT,
   hasAnyProgress,
   migrateProgress,
+  readLocalProgressRaw,
   saveLocalProgress,
 } from './storage.ts';
 
@@ -27,12 +28,31 @@ export async function hydrateProgressFromCloud(
   adapter: PlatformAdapter = getPlatform(),
   levels: readonly LevelDef[] = LEVELS,
 ): Promise<CloudHydrateResult> {
-  const normalizedLocal = migrateProgress(localProgress, levelCount);
-  const localRaw = JSON.stringify(normalizedLocal);
-  let merged = normalizedLocal;
+  let normalizedLocal = migrateProgress(localProgress, levelCount);
+  const diskRawBefore = readLocalProgressRaw();
   let updated = false;
 
   const cloudRaw = await adapter.cloudSave.read(CLOUD_PROGRESS_SLOT);
+
+  const diskRawAfter = readLocalProgressRaw();
+  if (diskRawAfter !== null && diskRawAfter !== diskRawBefore) {
+    try {
+      const concurrentParsed: unknown = JSON.parse(diskRawAfter);
+      if (concurrentParsed && typeof concurrentParsed === 'object' && !Array.isArray(concurrentParsed)) {
+        normalizedLocal = mergeProgress(
+          normalizedLocal,
+          migrateProgress(concurrentParsed, levelCount),
+          levelCount,
+        );
+      }
+    } catch {
+      // Ignore corrupt concurrent write
+    }
+  }
+
+  const localRaw = JSON.stringify(normalizedLocal);
+  let merged = normalizedLocal;
+
   if (cloudRaw) {
     try {
       const parsed: unknown = JSON.parse(cloudRaw);

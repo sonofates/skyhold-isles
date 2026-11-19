@@ -304,7 +304,7 @@ export function runBotScenario(scenario: BotScenario): ScenarioResult {
             message: `SimReplayPlayer mismatch: hash ${check.actualHash} vs ${check.expectedHash} (outcome ${check.actualOutcome} vs ${check.expectedOutcome})`,
           });
         }
-        player.world.dispose();
+        player.dispose();
       }
     }
   }

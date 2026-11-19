@@ -8,7 +8,7 @@ import {
   sanitizeHeroSaveData,
   totalHeroSaveXp,
 } from '../data/heroes.ts';
-import { sanitizeRanks, workshopStarsSpent } from '../data/workshop.ts';
+import { rankOf, sanitizeRanks, WORKSHOP_UPGRADES, workshopStarsSpent } from '../data/workshop.ts';
 import { starWallet } from '../game/progression.ts';
 import { migrateProgress, PROGRESS_SAVE_VERSION } from './storage.ts';
 
@@ -213,8 +213,17 @@ export function mergeProgress(a: ProgressData, b: ProgressData, levelCount: numb
   const daily = mergeDaily(a.daily, b.daily);
   const workshopA = sanitizeRanks(a.workshop);
   const workshopB = sanitizeRanks(b.workshop);
+  const unionWorkshop: Record<string, number> = {};
+  for (const def of WORKSHOP_UPGRADES) {
+    const r = Math.max(rankOf(workshopA, def.id), rankOf(workshopB, def.id));
+    if (r > 0) unionWorkshop[def.id] = r;
+  }
   const spentA = workshopStarsSpent(workshopA);
   const spentB = workshopStarsSpent(workshopB);
+  const [primaryWorkshop, secondaryWorkshop] =
+    spentB > spentA || (spentB === spentA && JSON.stringify(workshopB) > JSON.stringify(workshopA))
+      ? [workshopB, workshopA]
+      : [workshopA, workshopB];
   const maxIdx = Math.max(0, count - 1);
   const bestStars = maxList(a.bestStars, b.bestStars, 3);
   const clears = maxList(a.clears, b.clears);
@@ -247,7 +256,7 @@ export function mergeProgress(a: ProgressData, b: ProgressData, levelCount: numb
     bestEndlessWaves: maxList(a.bestEndlessWaves, b.bestEndlessWaves),
     bestLives: maxList(a.bestLives, b.bestLives),
     clears,
-    workshop: spentB > spentA ? workshopB : workshopA,
+    workshop: unionWorkshop,
     challengeClears: Array.from({ length: count }, (_, i) => {
       const out: string[] = [];
       for (const src of [a.challengeClears?.[i], b.challengeClears?.[i]]) {
@@ -264,8 +273,11 @@ export function mergeProgress(a: ProgressData, b: ProgressData, levelCount: numb
     ...(mergedHeroes !== undefined ? { heroes: mergedHeroes } : {}),
   };
   if (starWallet(merged).available < 0) {
-    merged.workshop = spentB > spentA ? workshopA : workshopB;
-    if (starWallet(merged).available < 0) merged.workshop = {};
+    merged.workshop = primaryWorkshop;
+    if (starWallet(merged).available < 0) {
+      merged.workshop = secondaryWorkshop;
+      if (starWallet(merged).available < 0) merged.workshop = {};
+    }
   }
   return merged;
 }
@@ -287,6 +299,9 @@ export function describeMergeGain(before: ProgressData, after: ProgressData): st
   if (records) parts.push('new endless records');
   const dailies = (after.daily?.total ?? 0) - (before.daily?.total ?? 0);
   if (dailies > 0) parts.push(`+${dailies} daily win${dailies === 1 ? '' : 's'}`);
+  if (workshopStarsSpent(sanitizeRanks(after.workshop)) > workshopStarsSpent(sanitizeRanks(before.workshop))) {
+    parts.push('workshop upgrades');
+  }
   if (totalHeroSaveXp(after.heroes) > totalHeroSaveXp(before.heroes)) {
     parts.push('hero XP');
   } else if (after.heroes) {

@@ -15,6 +15,7 @@ import type { HeroId, ProgressData } from '../../core/types.ts';
 import { challengesForLevel, type ChallengeId } from '../../data/challenges.ts';
 import { applyDailyWin, utcDayNumber } from '../../data/daily.ts';
 import { isHeroId } from '../../data/heroes.ts';
+import { workshopStarsSpent } from '../../data/workshop.ts';
 import { LEVELS_2D } from '../../data/levels2d/index.ts';
 import type { LevelDef } from '../../data/levels/types.ts';
 import { applyEndlessRecord, applyWin, isIslandMastered, type WinRecord } from '../../game/progression.ts';
@@ -136,7 +137,7 @@ function parseStored2DRaw(
     const preRemapWorkshop = migrateProgress(payload, Math.max(1, ids.length)).workshop;
     const progress = remapProgress(payload, ids, levels);
     const rawWorkshop =
-      Object.keys(preRemapWorkshop).length > Object.keys(progress.workshop).length
+      workshopStarsSpent(preRemapWorkshop) > workshopStarsSpent(progress.workshop)
         ? preRemapWorkshop
         : undefined;
     return { progress, rawSelectedHero, rawWorkshop };
@@ -196,6 +197,14 @@ export function saveProgress2D(progress: ProgressData, levels: readonly LevelDef
   }
 }
 
+function readLocalProgress2DRaw(): string | null {
+  try {
+    return storage()?.getItem(PROGRESS_2D_KEY) ?? null;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Pulls the 2D progress blob (`progress2d`) from `adapter.cloudSave`, remaps island IDs, merges
  * monotonically with `localProgress` (including persistent hero XP, skill trees, and unlocked
@@ -207,21 +216,31 @@ export async function hydrateProgress2DFromCloud(
   adapter: PlatformAdapter = getPlatform(),
 ): Promise<CloudHydrateResult> {
   const baseLocal = localProgress ?? loadProgress2D(levels);
-  const normalizedLocal = remapProgress(
+  let normalizedLocal = remapProgress(
     baseLocal,
     levels.map((l) => l.id),
     levels,
   );
-  const localRaw = serializeStored2D(normalizedLocal, levels);
-  let merged = normalizedLocal;
-  let updated = false;
-
   const isMock = levels.some((l) => l.id.startsWith('mock-'));
   if (isMock) {
     return { merged: normalizedLocal, updated: false, unlockedAchievements: [] };
   }
 
+  const diskRawBefore = readLocalProgress2DRaw();
   const cloudRaw = await adapter.cloudSave.read(CLOUD_PROGRESS_2D_SLOT);
+  const diskRawAfter = readLocalProgress2DRaw();
+  if (diskRawAfter !== null && diskRawAfter !== diskRawBefore) {
+    const concurrent = parseStored2DRaw(diskRawAfter, levels);
+    if (concurrent) {
+      normalizedLocal = mergeProgress(normalizedLocal, concurrent.progress, levels.length);
+      normalizedLocal.heroes = migrateHeroSave(normalizedLocal.heroes, normalizedLocal, levels);
+    }
+  }
+
+  const localRaw = serializeStored2D(normalizedLocal, levels);
+  let merged = normalizedLocal;
+  let updated = false;
+
   if (cloudRaw) {
     const parsedCloud = parseStored2DRaw(cloudRaw, levels);
     if (parsedCloud) {
@@ -607,7 +626,7 @@ export function importSaveCode2D(
       if (incoming.heroes && rawSelected && rawSelected !== incoming.heroes.selectedHero) {
         incoming = { ...incoming, heroes: { ...incoming.heroes, selectedHero: rawSelected } };
       }
-      if (Object.keys(rawWorkshop).length > Object.keys(incoming.workshop).length) {
+      if (workshopStarsSpent(rawWorkshop) > workshopStarsSpent(incoming.workshop)) {
         incoming = { ...incoming, workshop: rawWorkshop };
       }
     }

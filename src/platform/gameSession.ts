@@ -175,23 +175,31 @@ export class GameSession {
       this.enterBackground();
     });
     if (platform.isSteam) {
-      void hydrateProgressFromCloud(this.progress, LEVELS.length, platform).then(({ merged, updated }) => {
-        if (!updated || this.disposed) return;
-        const freshMerged = mergeProgress(this.progress, merged, LEVELS.length);
-        if (freshMerged.heroes === undefined) delete this.progress.heroes;
-        Object.assign(this.progress, freshMerged);
-        if (this.viewMode !== 'playing') {
-          this.currentLevelIndex = Math.max(
-            0,
-            Math.min(LEVELS.length - 1, this.progress.unlockedLevelIndex),
-          );
-          if (this.deps) {
-            this.deps.overlays.mainMenu.setOpen(this.viewMode === 'menu', this.progress);
-            this.deps.overlays.levelSelect.setOpen(this.viewMode === 'levelSelect', this.progress);
-            this.deps.overlays.workshop.setOpen(this.viewMode === 'workshop', this.progress);
+      void hydrateProgressFromCloud(this.progress, LEVELS.length, platform)
+        .then(({ merged, updated }) => {
+          if (!updated || this.disposed) return;
+          const freshMerged = mergeProgress(this.progress, merged, LEVELS.length);
+          const inMemoryDiverged = JSON.stringify(freshMerged) !== JSON.stringify(merged);
+          if (freshMerged.heroes === undefined) delete this.progress.heroes;
+          Object.assign(this.progress, freshMerged);
+          if (inMemoryDiverged) {
+            saveProgress(this.progress);
           }
-        }
-      });
+          if (this.viewMode !== 'playing') {
+            this.currentLevelIndex = Math.max(
+              0,
+              Math.min(LEVELS.length - 1, this.progress.unlockedLevelIndex),
+            );
+            if (this.deps) {
+              this.deps.overlays.mainMenu.setOpen(this.viewMode === 'menu', this.progress);
+              this.deps.overlays.levelSelect.setOpen(this.viewMode === 'levelSelect', this.progress);
+              this.deps.overlays.workshop.setOpen(this.viewMode === 'workshop', this.progress);
+            }
+          }
+        })
+        .catch(() => {
+          // Offline / IPC errors degrade silently to local save.
+        });
     }
   }
 

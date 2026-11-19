@@ -455,8 +455,8 @@ function parseSimCommand(raw: unknown): SimCommand | null {
 function sanitizeReplayModifiers(raw: unknown): RunModifiers {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return NEUTRAL_RUN_MODIFIERS;
   const r = raw as Record<string, unknown>;
-  const num = (v: unknown, fallback: number): number =>
-    typeof v === 'number' && Number.isFinite(v) ? v : fallback;
+  const optNum = (v: unknown): number | undefined =>
+    typeof v === 'number' && Number.isFinite(v) ? v : undefined;
   const banned = Array.isArray(r.bannedTowers) ? r.bannedTowers.filter(isTowerType) : [];
   const rates: Partial<Record<TowerType, number>> = {};
   if (r.towerFireRateMul && typeof r.towerFireRateMul === 'object' && !Array.isArray(r.towerFireRateMul)) {
@@ -465,19 +465,19 @@ function sanitizeReplayModifiers(raw: unknown): RunModifiers {
     }
   }
   const patch: RunModifierPatch = {
-    startGoldBonus: num(r.startGoldBonus, 0),
-    startGoldMul: Math.max(0, num(r.startGoldMul, 1)),
-    bonusLives: Math.floor(num(r.bonusLives, 0)),
+    startGoldBonus: optNum(r.startGoldBonus),
+    startGoldMul: optNum(r.startGoldMul),
+    bonusLives: optNum(r.bonusLives),
     maxLives:
-      typeof r.maxLives === 'number' && Number.isFinite(r.maxLives)
-        ? Math.max(1, Math.floor(r.maxLives))
+      typeof r.maxLives === 'number' && Number.isFinite(r.maxLives) && r.maxLives >= 1
+        ? Math.floor(r.maxLives)
         : null,
-    abilityCooldownMul: Math.max(0.1, num(r.abilityCooldownMul, 1)),
-    killGoldMul: Math.max(0, num(r.killGoldMul, 1)),
-    waveBonusMul: Math.max(0, num(r.waveBonusMul, 1)),
+    abilityCooldownMul: optNum(r.abilityCooldownMul),
+    killGoldMul: optNum(r.killGoldMul),
+    waveBonusMul: optNum(r.waveBonusMul),
     towerFireRateMul: rates,
-    enemySpeedMul: Math.max(0.1, num(r.enemySpeedMul, 1)),
-    enemyHpMul: Math.max(0.1, num(r.enemyHpMul, 1)),
+    enemySpeedMul: optNum(r.enemySpeedMul),
+    enemyHpMul: optNum(r.enemyHpMul),
     bannedTowers: banned,
     abilitiesDisabled: r.abilitiesDisabled === true,
     championWaves: r.championWaves === true,
@@ -820,5 +820,10 @@ export class SimReplayPlayer {
       actualHash,
       expectedHash,
     };
+  }
+
+  /** Releases all pooled entities and subsystems in `this.world` when playback is closed. */
+  dispose(): void {
+    this.world?.dispose();
   }
 }

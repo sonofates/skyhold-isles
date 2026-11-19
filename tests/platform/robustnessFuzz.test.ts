@@ -1250,4 +1250,135 @@ describe('Daily Squall, Endless escalations, and Silent Skies + Hero interaction
     expect(unchanged.progress).toBe(twoCleared);
     expect(unchanged.record.xpGained).toBe(0);
   });
+
+  it('unions affordable cross-device Workshop upgrades commutatively, folds concurrent local writes during cloud hydration, and hardens ContentStore/IAP', async () => {
+    const { hydrateProgressFromCloud } = await import('../../src/platform/cloudSync.ts');
+    const { saveLocalProgress } = await import('../../src/platform/storage.ts');
+    const { ContentStore, inferSeenFromProgress } = await import('../../src/platform/contentStorage.ts');
+    const { createIapStore, isUnlocked: isMobileLevelUnlocked } = await import('../../src/platform/iap.ts');
+    const { hydrateProgress2DFromCloud } = await import('../../src/render2d/ui/progress2d.ts');
+    installMemoryStorage();
+
+    // 1. mergeProgress unions non-overlapping Workshop upgrades when combined stars can afford both,
+    //    is strictly commutative across Workshop & Hero ties, and describeMergeGain reports 'workshop upgrades'.
+    const devA = createDefaultProgress(6);
+    devA.bestStars = [3, 3, 0, 0, 0, 0]; // 6★
+    devA.clears = [1, 1, 0, 0, 0, 0];
+    devA.unlockedLevelIndex = 2;
+    devA.workshop = { treasury: 2, fletcher: 1 }; // 3 + 2 = 5★
+    devA.heroes = { selectedHero: 'wren', roster: { wren: { xp: 300, skills: ['wren_bow_1'] } } };
+
+    const devB = createDefaultProgress(6);
+    devB.bestStars = [0, 0, 3, 3, 0, 0]; // 6★ -> combined 12★!
+    devB.clears = [0, 0, 1, 1, 0, 0];
+    devB.unlockedLevelIndex = 4;
+    devB.workshop = { bastion: 2 }; // 5★ -> union costs 10★ <= 12★!
+    devB.heroes = { selectedHero: 'mira', roster: { mira: { xp: 300, skills: ['mira_emb_1'] } } };
+
+    const ab = mergeProgress(devA, devB, 6);
+    const ba = mergeProgress(devB, devA, 6);
+    expect(ab.workshop).toEqual({ treasury: 2, fletcher: 1, bastion: 2 });
+    expect(ba.workshop).toEqual(ab.workshop);
+    expect(ab.heroes?.selectedHero).toBe('mira');
+    expect(ba.heroes?.selectedHero).toBe('mira');
+
+    // Equal-star save gaining Workshop upgrades reports 'workshop upgrades' in describeMergeGain.
+    const sameStarsBase = createDefaultProgress(4);
+    sameStarsBase.bestStars = [3, 3, 0, 0];
+    sameStarsBase.clears = [1, 1, 0, 0];
+    const sameStarsBought = { ...sameStarsBase, workshop: { treasury: 2 } };
+    expect(describeMergeGain(sameStarsBase, mergeProgress(sameStarsBase, sameStarsBought, 4))).toContain(
+      'workshop upgrades',
+    );
+
+    // 2. Concurrent localStorage writes while cloudSave.read is awaiting IPC are folded in monotonically (zero data loss)!
+    const initial2d = createDefaultProgress(LEVELS_2D.length);
+    saveProgress2D(initial2d, LEVELS_2D);
+    const remote2d = createDefaultProgress(LEVELS_2D.length);
+    remote2d.bestStars[1] = 3;
+    remote2d.clears[1] = 1;
+    const remote2dBlob = JSON.stringify({ ids: LEVELS_2D.map((l) => l.id), progress: remote2d });
+
+    const race2d = await hydrateProgress2DFromCloud(
+      undefined,
+      LEVELS_2D,
+      {
+        id: 'steam',
+        isSteam: true,
+        isMobile: false,
+        achievements: { unlock: async () => false, isUnlocked: async () => false },
+        cloudSave: {
+          read: async () => {
+            // Simulate player winning l1c and selecting a skill while cloudSave.read is in flight!
+            const midFlight = loadProgress2D(LEVELS_2D);
+            midFlight.bestStars[0] = 3;
+            midFlight.clears[0] = 1;
+            midFlight.workshop = { treasury: 1 };
+            saveProgress2D(midFlight, LEVELS_2D);
+            return remote2dBlob;
+          },
+          write: async () => true,
+        },
+        onOverlayChange: () => () => {},
+        onPause: () => () => {},
+        onResume: () => () => {},
+      },
+    );
+    expect(race2d.merged.bestStars[0]).toBe(3); // mid-flight local win preserved!
+    expect(race2d.merged.bestStars[1]).toBe(3); // remote cloud win merged!
+    expect(race2d.merged.workshop).toEqual({ treasury: 1 });
+    expect(loadProgress2D(LEVELS_2D).bestStars.slice(0, 2)).toEqual([3, 3]);
+
+    // Same concurrent-write protection in 3D hydrateProgressFromCloud:
+    const initial3d = createDefaultProgress(LEVELS.length);
+    saveLocalProgress(initial3d);
+    const remote3d = createDefaultProgress(LEVELS.length);
+    remote3d.bestStars[1] = 2;
+    remote3d.clears[1] = 1;
+    const race3d = await hydrateProgressFromCloud(
+      initial3d,
+      LEVELS.length,
+      {
+        id: 'steam',
+        isSteam: true,
+        isMobile: false,
+        achievements: { unlock: async () => false, isUnlocked: async () => false },
+        cloudSave: {
+          read: async () => {
+            const concurrent3d = createDefaultProgress(LEVELS.length);
+            concurrent3d.bestStars[0] = 3;
+            concurrent3d.clears[0] = 1;
+            saveLocalProgress(concurrent3d);
+            return JSON.stringify(remote3d);
+          },
+          write: async () => true,
+        },
+        onOverlayChange: () => () => {},
+        onPause: () => () => {},
+        onResume: () => () => {},
+      },
+      LEVELS,
+    );
+    expect(race3d.merged.bestStars[0]).toBe(3);
+    expect(race3d.merged.bestStars[1]).toBe(2);
+
+    // 3. ContentStore & IAP guard non-finite unlockedLevelIndex, clears-only saves, and non-string IDs.
+    const infProg = { unlockedLevelIndex: Infinity, bestStars: [0, 0] };
+    expect(inferSeenFromProgress(LEVELS.slice(0, 2), infProg)).toEqual([]);
+    const clearsProg = { unlockedLevelIndex: 0, bestStars: [0], clears: [1] };
+    expect(inferSeenFromProgress(LEVELS.slice(0, 1), clearsProg).length).toBeGreaterThan(0);
+
+    const cs = new ContentStore(null);
+    expect(cs.markSeen('' as never)).toBe(false);
+    expect(cs.markSeen(null as never)).toBe(false);
+    cs.setOnboardingStatus('bogus' as never);
+    expect(cs.getOnboardingStatus()).toBe('pending');
+    cs.adoptProgress(LEVELS.slice(0, 1), clearsProg);
+    expect(cs.getOnboardingStatus()).toBe('done');
+
+    expect(isMobileLevelUnlocked(null as never, ['full_unlock'])).toBe(false);
+    const mockIap = createIapStore({ mode: 'mock', storage: null });
+    expect(mockIap.owned(null as never)).toBe(false);
+    expect((await mockIap.purchase(null as never)).status).toBe('unknown_product');
+  });
 });

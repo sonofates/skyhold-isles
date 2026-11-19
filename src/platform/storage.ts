@@ -291,6 +291,15 @@ export function loadProgress(levelCount: number): ProgressData {
   }
 }
 
+/** Reads the raw `PROGRESS_KEY` string from `localStorage` without parsing (`null` if absent/unavailable). */
+export function readLocalProgressRaw(): string | null {
+  try {
+    return typeof localStorage === 'undefined' ? null : localStorage.getItem(PROGRESS_KEY);
+  } catch {
+    return null;
+  }
+}
+
 /** Persists `progress` to `localStorage` only (without triggering fire-and-forget Steam Cloud/achievement IPC). */
 export function saveLocalProgress(progress: ProgressData): string {
   progress.version = PROGRESS_SAVE_VERSION;

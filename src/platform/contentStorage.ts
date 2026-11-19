@@ -31,16 +31,39 @@ const LEGACY_TOAST_TYPES: readonly EnemyType[] = [
   'healer', 'splitter', 'warden', 'burrower', 'carrier', 'blinker', 'golem', 'mite', 'hexer', 'tempest',
 ];
 
+function safeUnlockedFrontier(val: unknown): number {
+  return typeof val === 'number' && Number.isFinite(val) ? Math.max(0, Math.floor(val)) : 0;
+}
+
+function isVeteranProgress(
+  progress: Pick<ProgressData, 'unlockedLevelIndex' | 'bestStars'> &
+    Partial<Pick<ProgressData, 'clears'>>,
+): boolean {
+  return (
+    safeUnlockedFrontier(progress.unlockedLevelIndex) > 0 ||
+    progress.bestStars.some((n) => typeof n === 'number' && Number.isFinite(n) && n > 0) ||
+    (Array.isArray(progress.clears) &&
+      progress.clears.some((n) => typeof n === 'number' && Number.isFinite(n) && n > 0))
+  );
+}
+
 /** Ids a returning player has already met, inferred from how far their save got. */
 export function inferSeenFromProgress(
   levels: readonly Pick<LevelDef, 'waves'>[],
-  progress: Pick<ProgressData, 'unlockedLevelIndex' | 'bestStars'>,
+  progress: Pick<ProgressData, 'unlockedLevelIndex' | 'bestStars'> &
+    Partial<Pick<ProgressData, 'clears'>>,
   legacyEnemyIntroSeen: (type: string) => boolean = () => false,
 ): SeenId[] {
   const out = new Set<SeenId>();
+  const frontier = safeUnlockedFrontier(progress.unlockedLevelIndex);
   for (let i = 0; i < levels.length; i++) {
     // Cleared islands, and every island before the frontier, were played through.
-    const played = (progress.bestStars[i] ?? 0) > 0 || i < progress.unlockedLevelIndex;
+    const stars = progress.bestStars[i];
+    const clears = progress.clears?.[i];
+    const played =
+      (typeof stars === 'number' && Number.isFinite(stars) && stars > 0) ||
+      (typeof clears === 'number' && Number.isFinite(clears) && clears > 0) ||
+      i < frontier;
     if (!played) continue;
     for (const wave of levels[i].waves) {
       for (const g of wave.groups) {
@@ -124,10 +147,11 @@ export class ContentStore {
   /** First launch of this feature: seed from the player's existing progress so veterans see no recap. */
   migrate(
     levels: readonly Pick<LevelDef, 'waves'>[],
-    progress: Pick<ProgressData, 'unlockedLevelIndex' | 'bestStars'>,
+    progress: Pick<ProgressData, 'unlockedLevelIndex' | 'bestStars'> &
+      Partial<Pick<ProgressData, 'clears'>>,
     legacyEnemyIntroSeen?: (type: string) => boolean,
   ): void {
-    const veteran = progress.unlockedLevelIndex > 0 || progress.bestStars.some((n) => n > 0);
+    const veteran = isVeteranProgress(progress);
     if (!this.codexKnown) {
       for (const id of inferSeenFromProgress(levels, progress, legacyEnemyIntroSeen)) {
         this.seen.add(id);
@@ -144,12 +168,12 @@ export class ContentStore {
   }
 
   hasSeen(id: SeenId): boolean {
-    return this.seen.has(id);
+    return typeof id === 'string' && this.seen.has(id);
   }
 
   /** Returns true when `id` was newly recorded. */
   markSeen(id: SeenId): boolean {
-    if (this.seen.has(id)) return false;
+    if (typeof id !== 'string' || id.length === 0 || this.seen.has(id)) return false;
     this.seen.add(id);
     this.saveSeen();
     return true;
@@ -157,18 +181,18 @@ export class ContentStore {
 
   /** Takes back a `markSeen` (an introduction that was queued but never actually shown). */
   unmarkSeen(id: SeenId): void {
-    if (!this.seen.delete(id)) return;
+    if (typeof id !== 'string' || !this.seen.delete(id)) return;
     this.viewed.delete(id);
     this.saveSeen();
   }
 
   /** Seen but never opened in the codex. */
   isNew(id: SeenId): boolean {
-    return this.seen.has(id) && !this.viewed.has(id);
+    return typeof id === 'string' && this.seen.has(id) && !this.viewed.has(id);
   }
 
   markViewed(id: SeenId): void {
-    if (this.viewed.has(id) || !this.seen.has(id)) return;
+    if (typeof id !== 'string' || this.viewed.has(id) || !this.seen.has(id)) return;
     this.viewed.add(id);
     this.saveSeen();
   }
@@ -185,9 +209,10 @@ export class ContentStore {
   /** After a save code is loaded: a player who now has progress skips the tutorial and keeps no "new" backlog. */
   adoptProgress(
     levels: readonly Pick<LevelDef, 'waves'>[],
-    progress: Pick<ProgressData, 'unlockedLevelIndex' | 'bestStars'>,
+    progress: Pick<ProgressData, 'unlockedLevelIndex' | 'bestStars'> &
+      Partial<Pick<ProgressData, 'clears'>>,
   ): void {
-    const veteran = progress.unlockedLevelIndex > 0 || progress.bestStars.some((n) => n > 0);
+    const veteran = isVeteranProgress(progress);
     if (!veteran) return;
     for (const id of inferSeenFromProgress(levels, progress)) {
       if (!this.seen.has(id)) {
@@ -208,6 +233,7 @@ export class ContentStore {
   }
 
   setOnboardingStatus(status: OnboardingStatus): void {
+    if (status !== 'pending' && status !== 'done' && status !== 'skipped') return;
     this.status = status;
     this.statusKnown = true;
     this.saveStatus();

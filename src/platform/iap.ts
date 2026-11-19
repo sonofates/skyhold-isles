@@ -135,7 +135,7 @@ export function isUnlocked(
   entitlements: EntitlementCollection,
   freeIslands: readonly string[] = FREE_ISLANDS,
 ): boolean {
-  const cleanId = levelId.trim();
+  const cleanId = typeof levelId === 'string' ? levelId.trim() : '';
   if (!cleanId) return false;
   if (freeIslands.includes(cleanId)) return true;
   return hasFullUnlockEntitlement(entitlements);
@@ -507,10 +507,11 @@ export function createIapStore(options: CreateIapStoreOptions = {}): IapStoreAda
         return [];
       },
       async purchase(id: string): Promise<IapPurchaseResult> {
+        const safeId = typeof id === 'string' ? id.trim() : '';
         return {
           ok: false,
           status: 'unavailable',
-          productId: id.trim(),
+          productId: safeId,
           entitlements: [],
         };
       },
@@ -539,10 +540,10 @@ export function createIapStore(options: CreateIapStoreOptions = {}): IapStoreAda
   };
 
   const resolveCatalogueProduct = (idOrSku: string): IapProductDef | undefined =>
-    lookupInCatalogue(idOrSku, catalogue);
+    typeof idOrSku === 'string' ? lookupInCatalogue(idOrSku, catalogue) : undefined;
 
   const owned = (id: string): boolean => {
-    const clean = id.trim();
+    const clean = typeof id === 'string' ? id.trim() : '';
     if (!clean) return false;
     const def = resolveCatalogueProduct(clean);
     const key = def ? def.entitlementId : clean;
@@ -564,12 +565,13 @@ export function createIapStore(options: CreateIapStoreOptions = {}): IapStoreAda
       mode: 'mock',
       products: () => mock.products(),
       async purchase(id: string): Promise<IapPurchaseResult> {
-        const def = resolveCatalogueProduct(id);
+        const safeId = typeof id === 'string' ? id.trim() : '';
+        const def = resolveCatalogueProduct(safeId);
         if (!def) {
           return {
             ok: false,
             status: 'unknown_product',
-            productId: id.trim(),
+            productId: safeId,
             entitlements: [...cachedEntitlements],
           };
         }
@@ -653,12 +655,13 @@ export function createIapStore(options: CreateIapStoreOptions = {}): IapStoreAda
       }
     },
     async purchase(id: string): Promise<IapPurchaseResult> {
-      const def = resolveCatalogueProduct(id);
+      const safeId = typeof id === 'string' ? id.trim() : '';
+      const def = resolveCatalogueProduct(safeId);
       if (!def) {
         return {
           ok: false,
           status: 'unknown_product',
-          productId: id.trim(),
+          productId: safeId,
           entitlements: [...cachedEntitlements],
         };
       }

@@ -125,6 +125,16 @@
     - `SoldierSystem.setRally` now scales barracks rally placement range by `1 + tower.auraRange + (tower.heroRangeBonus ?? 0)` (matching `acquireTarget` and `CombatSystem.fireVolley`).
   - **Cloud Non-Object JSON Guard, Pre-Remap 2D Workshop Merges & 0-XP `selectedHero` Persistence (`src/platform/{cloudSync,gameSession}.ts`, `src/render2d/{heroes2d,ui/progress2d}.ts`):**
     - Guarded `hydrateProgressFromCloud` against valid non-object JSON (`"null"`, `"42"`, `"[]"`) so an empty local save never overwrites `CLOUD_PROGRESS_SLOT`; preserved pre-remap `workshop` candidates in `importSaveCode2D` and `hydrateProgress2DFromCloud` when combined stars can afford them; persisted `selectedHero` changes on 0-XP / `MAX_HERO_XP` runs in `recordRunResult2D`; guarded invalid `heroId`s in `applyHeroXp`; and aligned `GameSession` (`selectIsland`, `todaysDaily`, `startLevel`) with v1 star-only clears.
+- [x] **14. Round 11 Deep Audit — Mid-Tick `sellTower` Re-Entrancy in `SoldierSystem`/`CombatSystem`, Cross-Device `mergeProgress` Workshop Unions, Async Cloud-Read Race Protection & Replay/Platform Hardening (`src/sim/{soldierSystem,combatSystem,projectileSystem,replay}.ts`, `src/data/heroes.ts`, `src/platform/{saveCode,storage,cloudSync,gameSession,contentStorage,iap}.ts`, `src/render2d/ui/progress2d.ts`, `qa/bot/runner.ts`)** — *DONE (Round 11)*
+  - **Mid-Tick `sellTower` / `placeTower` Re-Entrancy Safety (`src/sim/{soldierSystem,combatSystem,projectileSystem}.ts`):**
+    - `SoldierSystem.removeBarracks` previously left removed squad soldiers in `'fighting'` and spliced `this.barracks` / `this.soldiers` mid-loop while `this.primary[e.poolIndex]` held a raw mutable array index: selling a barracks inside `'soldierAttack'`, `'soldierHurt'`, `'soldierDied'`, or `'meleeHit'` could fire post-removal T3 `cleave` / `'meleeSwing'` events, skip the next barracks's swings, or misroute `'meleeSwing'` onto another barracks's soldier. Fixed by marking removed squad members `'dead'`, snapshotting `_stepBarracksIds` & `_sweepSoldiers`, and storing monotonic `soldier.id` in `this.primary` (`getSoldierById`).
+    - `CombatSystem.update` now snapshots `_stepTowerIds` (zero per-tick allocations) so selling or building a tower inside `'beaconPulse'` / `'towerFired'` / `'enemyHit'` / `'lightningChain'` never skips or double-ticks sibling towers. Also propagated `isBossHit` on Ballista T2/T3 piercing impacts (`ProjectileSystem.resolvePierce`).
+  - **Commutative `mergeProgress` Workshop Unions & `describeMergeGain` (`src/platform/saveCode.ts`, `src/data/heroes.ts`, `src/render2d/ui/progress2d.ts`):**
+    - `mergeProgress` now unions non-overlapping Workshop ranks (`Math.max` per upgrade) whenever the merged `starWallet` can afford them (falling back deterministically to the higher-spent side, then the affordable side, then `{}`), keeps `mergeHeroSaveData` tie-breaking commutative across equal-XP saves, compares `workshopStarsSpent` on pre-remap 2D saves, and reports `'workshop upgrades'` in `describeMergeGain`.
+  - **Concurrent Local-Write Protection Across Async Cloud Hydration (`src/platform/{cloudSync,storage,gameSession}.ts`, `src/render2d/ui/progress2d.ts`):**
+    - Both `hydrateProgressFromCloud` and `hydrateProgress2DFromCloud` now detect `localStorage` writes that happened while `await adapter.cloudSave.read(...)` was in flight (`diskRawAfter !== diskRawBefore`) and fold them monotonically into `normalizedLocal` before persisting, and `GameSession` persists diverged in-memory progress and catches rejected cloud promises cleanly.
+  - **Replay `0.05..0.1` Modifier Fidelity, `SimReplayPlayer.dispose()`, `ContentStore` & `IAP` Guards (`src/sim/replay.ts`, `src/platform/{contentStorage,iap}.ts`, `qa/bot/runner.ts`):**
+    - Delegated `sanitizeReplayModifiers` directly to `combineRunModifiers` so valid `0.05..0.1` multipliers round-trip bit-for-bit while corrupt `<= 0` replay modifiers fall back to `1`; added `SimReplayPlayer.dispose()`; and hardened `ContentStore` (`clears`-only saves, `Infinity` frontiers, non-string IDs/statuses) and `IAP` (`null`/non-string IDs).
 
 ---
 
@@ -229,7 +239,8 @@
     // Timeline scrubber (forward or backward rewind to any tick 0..player.totalTicks; snaps alpha to 0):
     player.seekToTick(targetTick);
 
-    // Optional integrity check at replay end:
+    // Optional integrity check at replay end, then release pooled entities:
     const check = player.verifyState(); // { matchesOutcome, matchesHash, actualHash, expectedHash }
+    player.dispose();
   }
   ```
