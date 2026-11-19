@@ -9,10 +9,21 @@ from gates import draw_threshold_road
 from keeps import Keep
 from masonry import cart_tracks
 
-from ground import Decals, DressingArea, brushed_surface, road_fringe, scatter
+from ground import Decals, DressingArea, brushed_surface, paint_over_road, road_footprint, road_fringe, scatter
 
 
 class GroundTests(unittest.TestCase):
+    def test_authored_scenery_only_fouls_a_bend_where_its_paint_covers_the_lane(self):
+        lane = road_footprint((100, 100), [[(0, 75), (75, 75), (75, 0)]], 12)
+        rect = (40, 40, 80, 80)
+        for scale in (1, 2, 3):
+            art = Image.new('RGBA', (40 * scale, 40 * scale))
+            ink = ImageDraw.Draw(art)
+            ink.rectangle((0, 0, 18 * scale, 28 * scale), fill='navy')
+            self.assertFalse(paint_over_road(lane, art, rect))
+            ink.polygon([(10 * scale, 0), (36 * scale, 5 * scale), (10 * scale, 15 * scale)], fill='navy')
+            self.assertTrue(paint_over_road(lane, art, rect))
+
     def test_cart_wheels_leave_broken_parallel_tracks_and_clear_thresholds(self):
         for scale in (1, 2, 3):
             size = (360 * scale, 90 * scale)

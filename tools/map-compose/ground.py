@@ -9,7 +9,7 @@ import math
 import random
 
 import numpy as np
-from PIL import Image, ImageDraw, ImageFilter
+from PIL import Image, ImageChops, ImageDraw, ImageFilter
 
 # decal-1..8: 1-4 grass (tuft, low tuft, clover, tall blades), 5 flowers, 6 pebbles, 7 mossy stone, 8 yellow flowers
 TUFTS = (1, 2, 4)
@@ -144,17 +144,37 @@ class Decals:
         return self.cache[key]
 
 
+def road_footprint(size, paths, width):
+    mask = Image.new('1', size)
+    draw = ImageDraw.Draw(mask)
+    width = math.ceil(width)
+    for path in paths:
+        draw.line(path, fill=1, width=width, joint='curve')
+        for x, y in (path[0], path[-1]):
+            draw.ellipse((x-width/2, y-width/2, x+width/2, y+width/2), fill=1)
+    return mask
+
+
+def paint_over_road(mask, image, rect):
+    """Test the visible silhouette; an empty corner of a pennant can hang over a bend."""
+    left, top, right, bottom = rect
+    w, h = max(1, round(right - left)), max(1, round(bottom - top))
+    # Match sprite()'s bottom-centre registration at layout resolution.
+    x, y = round((left + right - w) / 2), round(bottom - h)
+    road = mask.crop((x, y, x + w, y + h))
+    if not road.getbbox():
+        return False
+    alpha = image.getchannel('A').resize(road.size, Image.Resampling.LANCZOS)
+    coverage = alpha.point(lambda v: 255 if v > 32 else 0)
+    return ImageChops.multiply(coverage, road.convert('L')).getbbox() is not None
+
+
 class DressingArea:
     """Layout-pixel clearance for the whole painted bounds of props and ground decals."""
     def __init__(self, size, paths, road_width, plots, rx, ry, structures):
-        self.mask = Image.new('1', size)
-        draw = ImageDraw.Draw(self.mask)
         # Include the ragged verge and rounding error at the smallest output size.
-        width = math.ceil(road_width + 8)
-        for path in paths:
-            draw.line(path, fill=1, width=width, joint='curve')
-            for x, y in (path[0], path[-1]):
-                draw.ellipse((x-width/2, y-width/2, x+width/2, y+width/2), fill=1)
+        self.mask = road_footprint(size, paths, road_width + 8)
+        draw = ImageDraw.Draw(self.mask)
         for x, y in plots:
             draw.ellipse((x-rx-3, y-ry-3, x+rx+3, y+ry+3), fill=1)
         for left, top, right, bottom in structures:

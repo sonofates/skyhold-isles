@@ -1,5 +1,30 @@
 # Content overnight · codex
 
+## Round 8 · 01:46–02:05 UTC · codex/night
+
+Started from `1d526a4`. Changes are in the working tree for the overnight runner.
+
+### Done
+
+- **i06 Crescent Lagoon.** An oystercatcher feeds in the shallow surf west of the keep. The painted legs and bill break the surface in three places. The lagoon shows through the ripple gaps. This island is available in the shipping campaign.
+- **i20 Three Pennants Head.** A saffron triangle marks the west shelter, a red square with an ivory diagonal marks the reef cave, and two blue streamers mark the boat. The shapes read in the phone battle while the units emerge from their gates. Loose scattered copies of the yellow signal pole have given way to marram, sea pinks, basalt and fishing floats. The small streamer on the west-facing reef gate now follows the same wind as its signal mast on both coastal maps. Every painted pixel below that mast joint matches the mirrored original.
+- **i24 Lastlight Head.** Two terns roost on a slate ledge in the western cliffs. The keeper's beacon now has an extinguished lens during battle, an open service door and six stepping stones from the door to the verge. The outro shows the rekindled lamp. On the first placement the slates entered plot 19's reserved tower clearance. Moving the walk three layout pixels west cleared it. [Full before and after maps](maps-round8-coasts.jpg) · [Native 2× details](maps-round8-details.jpg) · [Source paintings and five built-in ImageGen prompts](../../design/art-2d/chapter2/islands.md#coastal-signals-birds-and-the-keepers-entrance)
+- Recipes can place `groundPaint` with the same coordinates and size as landmarks. This reserves room for the painting and bakes it directly onto the terrain. Water reflections and stones set flush into turf can carry their own contact details. The compositor also checks each authored landmark's visible silhouette against the road, including on bends. The new regression exercises both a transparent corner and a pennant tip extending into the lane.
+
+### Verification
+
+- Played authored waves at 1920 × 1080 DPR 1 and 2 and 844 × 390 DPR 3. The final frames match the before frames on wave tick, tower builds, enemy IDs, positions, facing and ability timers. The i06 fifth wave had five towers and ten enemies. The i20 finale had ten towers and eleven enemies. The i24 thirteenth wave had ten towers and fifteen enemies. All three desktop DPR 2 captures loaded the native 3× maps. The chapter captures used the local roster preview. The optimized production build also loaded i06 at all three device settings. [Phone before and after at CSS size](maps-round8-phone.jpg) · [Both desktop resolutions](maps-round8-desktop.jpg)
+- Re-baked all four map sizes with `--keep-plots`. All 25 layout JSON files are byte-identical to the starting revision, including gate records and every plot. All 25 passed the revised layout check. Decoded all 100 map and 132 gate textures and verified their dimensions. A clean second bake reproduced all 32 map and gate textures for the three islands byte for byte. Together they use 11,074 fewer bytes of shipping art. Their wildlife and signals use the existing map texture requests.
+- The Node 22 release gate passed TypeScript, ESLint, Vitest (1,186 passed, 11 skipped), 41 balance targets and Vite. Vite printed its chunk-size advisory. The 848-line balance stdout matches round seven byte for byte, SHA-256 `a843de0e6d4ece932d0de94bac52f34d8a7ca5dcd5dcb11f8c4c4a23a22d6e47`. Eight compositor tests and two sprite tests passed. Full device frames, audit scripts and gate logs are under `/tmp/skyhold-codex-r8`.
+
+### Requests for other agents
+
+The shipping roster still exposes 17 islands. The shared enemy registrations, clip loader and kill callback remain with the owners listed in round three. Story registration, the i21 horn and the chapter's Turkish data lookups remain with Opus. All round-eight changes are visual.
+
+### Next round
+
+Inspect i16's three cave mouths and perimeter braziers at actual wave density. Its two western mouths use the same painting, and the eastern one mirrors it. Give the approaches a distinct purpose in the furnace scene while preserving the doors, gate fronts, roads and 26 plots. Use the production entry point for chapter one. If shared registration arrives first, verify chapter-two navigation, stories, kills and Turkish data in the shipping campaign.
+
 ## Round 7 · 01:28–01:46 UTC · codex/night
 
 Started from `639cd2c`. The runner owns the commit.

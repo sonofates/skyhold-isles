@@ -94,7 +94,10 @@ import fords  # noqa: E402
 from banks import shore_foundation  # noqa: E402
 from masonry import cart_tracks, marble_road, moat_wall  # noqa: E402
 from keeps import Keep  # noqa: E402
-from ground import Decals, DressingArea, brushed_surface, fine_detail, inner_band, ragged_mask, ring, road_fringe, scatter  # noqa: E402
+from ground import (  # noqa: E402
+    Decals, DressingArea, brushed_surface, fine_detail, inner_band, paint_over_road, ragged_mask,
+    ring, road_footprint, road_fringe, scatter,
+)
 from ringfit import measure_ring  # noqa: E402
 
 args = sys.argv[1:]
@@ -277,6 +280,10 @@ if mill != 'none':
     LANDMARKS.append(('prop-windmill.png', mx, my, ROAD_W * mh))
 for name, x, yb, h in dressing.get('landmarks', []):
     LANDMARKS.append((f'landmark-{name}.webp', x, yb, h))
+# Flat paintings carry their own contact details (e.g. ripples). Reserve their full footprint
+# against plots and scatter along with the standing scenery.
+ground_paint = [(f'landmark-{name}.webp', x, yb, h) for name, x, yb, h in dressing.get('groundPaint', [])]
+LANDMARKS.extend(ground_paint)
 landmark_rects = [sprite_rect(load(n), x, yb, h) for n, x, yb, h in LANDMARKS] + [G['g']['rect'] for G in GATES]
 
 
@@ -589,7 +596,10 @@ if dev > ROAD_W * 0.3:
 # screen shows) nor sit under the HUD. Entrance caves may bleed a little past the left / right edge
 # (a rock mound running off-screen reads fine); their mouth must be on screen.
 warns = []
+road_core = road_footprint((iw, ih), spl_paths, ROAD_W)
 for (n, x, yb, h), r in zip(LANDMARKS, landmark_rects):
+    if paint_over_road(road_core, load(n), r):
+        fails.append(f'{n} covers the painted road at {tuple(round(v) for v in r)}')
     if r[0] < sx or r[2] > sx + sw or r[1] < sy or r[3] > sy + sh:
         fails.append(f'{n} rect {tuple(round(v) for v in r)} leaves the safe area')
     if any(rects_hit(r, z) for z in HUD_RECTS[:6]):
@@ -709,6 +719,8 @@ if land_mask:
         foundation(*base, width*1.28, max(width*.57, height*.43), force=True)
     shelves = {f'landmark-{name}.webp': rect for name, rect in dressing.get('landmarkShelves', {}).items()}
     for index, (left, top, right, bottom) in enumerate(landmark_rects[:-1]):
+        if index < len(LANDMARKS) and LANDMARKS[index] in ground_paint:
+            continue
         name = LANDMARKS[index][0] if index < len(LANDMARKS) else None
         if name in shelves:
             # Waterworks can span the natural channel directly (no rock shelf).
@@ -833,7 +845,7 @@ if decals.ok and '--no-decals' not in args and dressing.get('groundDecals', True
 items = []  # (sort_y, img, x_center, y_bottom, shadow)
 
 
-def sprite(name, x, y_bottom, height_px, flip=False, shadow=True):
+def sprite(name, x, y_bottom, height_px, flip=False, flat=False):
     im = load(name)
     if im is None:
         return
@@ -841,7 +853,10 @@ def sprite(name, x, y_bottom, height_px, flip=False, shadow=True):
     im = im.resize((max(1, round(im.width * s)), max(1, round(height_px))), Image.LANCZOS)
     if flip:
         im = im.transpose(Image.FLIP_LEFT_RIGHT)
-    items.append((y_bottom, im, x, y_bottom, shadow))
+    if flat:
+        ground.alpha_composite(im, (round(x - im.width / 2), round(y_bottom - im.height)))
+    else:
+        items.append((y_bottom, im, x, y_bottom, True))
 
 
 if not BAKE:
@@ -879,7 +894,7 @@ if not BAKE:
             items.append((y - 9999, base_img, x, top + bh, False))
 
 for n, x, yb, h in LANDMARKS:
-    sprite(n, x * S, yb * S, h * S)
+    sprite(n, x * S, yb * S, h * S, flat=(n, x, yb, h) in ground_paint)
 for G in GATES:
     gx0, gy0, gw_, gh_ = output_box(G['g'], S)
     _spr = output_sprite(G['g'], S)
