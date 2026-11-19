@@ -1536,6 +1536,7 @@ export class Game2D {
       enemyPx: this.enemyPx(),
       horn: this.hud.hornPosition,
       hornScore: this.hornScore,
+      plaque: this.hud.rects().plaque,
       buttons: this.hud.buttonPositions,
       fx: {
         boltsDrawn: this.fx.boltsDrawn,

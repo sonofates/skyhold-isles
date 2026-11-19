@@ -210,6 +210,10 @@ describe('HUD hover tooltips', () => {
     expect(hudTipText('pause', { ...s, paused: true }).head).toBe('Resume');
     expect(hudTipText('speed', s).head).toBe('Game speed 2×');
   });
+  it('the plaque: lives and gold explain themselves, without a key chip', () => {
+    expect(hudTipText('lives', s)).toMatchObject({ head: 'Lives', key: '' });
+    expect(hudTipText('gold', s).desc).toMatch(/early wave/);
+  });
 });
 
 describe('new-foe heads-up', () => {

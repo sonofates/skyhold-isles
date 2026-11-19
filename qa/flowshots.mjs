@@ -69,6 +69,13 @@ for (const size of SIZES) {
       await page.mouse.move(horn.x, horn.y);
       await page.waitForFunction(() => !document.querySelector('[data-testid="hud2d-tip"]')?.hidden, null, { timeout: 5000 }).catch(() => problems.push(`${tag}: no horn tooltip`));
       await page.screenshot({ path: `${OUT}/${lang}-${size.key}-tip-horn.jpg`, type: 'jpeg', quality: 84 });
+      // The plaque's gold half.
+      const plq = await page.evaluate(() => window.__p0.state().plaque ?? null);
+      if (plq) {
+        await page.mouse.move(plq.x + plq.w * 0.75, plq.y + plq.h / 2);
+        await page.waitForFunction(() => !document.querySelector('[data-testid="hud2d-tip"]')?.hidden, null, { timeout: 5000 }).catch(() => problems.push(`${tag}: no gold tooltip`));
+        await page.screenshot({ path: `${OUT}/${lang}-${size.key}-tip-gold.jpg`, type: 'jpeg', quality: 84 });
+      } else problems.push(`${tag}: state() has no plaque rect`);
       await page.mouse.move(5, size.h / 2);
       // Tower ring: the targeting token's tooltip (mode, record, next mode).
       await page.evaluate(() => {

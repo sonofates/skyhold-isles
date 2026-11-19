@@ -1,11 +1,12 @@
 /**
- * Desktop hover tooltips for the canvas HUD buttons (horn, pause, speed) in the same parchment as
- * the ability tooltips: what it does, its key, and the live state (early-call bonus, speed).
+ * Desktop hover tooltips for the canvas HUD (horn, pause, speed, the lives / gold plaque) in the
+ * same parchment as the ability tooltips: what it does, its key, and the live state (early-call
+ * bonus, speed).
  */
 import { t } from '../../i18n/index.ts';
 import { el } from './dom.ts';
 
-export type HudTipFor = 'horn' | 'pause' | 'speed';
+export type HudTipFor = 'horn' | 'pause' | 'speed' | 'lives' | 'gold';
 
 export interface HudTipState {
   readonly paused: boolean;
@@ -22,6 +23,8 @@ export function hudTipText(what: HudTipFor, s: HudTipState): { head: string; key
     return { head: t('tip.horn'), key: 'N', desc };
   }
   if (what === 'pause') return { head: s.paused ? t('tip.resume') : t('tip.pause'), key: t('key.space'), desc: t('tip.pauseDesc') };
+  if (what === 'lives') return { head: t('tip.lives'), key: '', desc: t('tip.livesDesc') };
+  if (what === 'gold') return { head: t('tip.gold'), key: '', desc: t('tip.goldDesc') };
   return { head: t('tip.speed', { n: s.speed }), key: '1 2 3', desc: t('tip.speedDesc') };
 }
 
@@ -47,7 +50,7 @@ export function mountHudTips(): HudTips2D {
       if (k !== key) {
         key = k;
         tip.replaceChildren(
-          el('div', 'pu-ab-tip-head pu-ink', {}, txt.head, el('span', 'pu-ab-tip-key pu-letter', {}, t('ab.key', { key: txt.key }))),
+          el('div', 'pu-ab-tip-head pu-ink', {}, txt.head, txt.key ? el('span', 'pu-ab-tip-key pu-letter', {}, t('ab.key', { key: txt.key })) : null),
           el('div', 'pu-ab-tip-desc pu-ink-soft', {}, txt.desc),
         );
       }

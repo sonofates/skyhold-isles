@@ -118,6 +118,11 @@ QA: `npx vite preview --port 4381 --strictPort` in background (kill with TaskSto
   words); **Esc** with nothing open toggles the pause menu (an Esc that closes the ring / foe card /
   hero mode or cancels an aim never pauses; synthetic Esc ignored), Controls page text updated;
   QA checks in `qa/flowshots.mjs`.
+- **R2 — ring / coach / TR:** tower ring says "Click …" with a mouse (`BuildRing.desktop`), a fresh
+  tower's "0 foes · 0 damage" is hidden and the tooltip closes the gap; coach pick / upgrade /
+  meteor tips have mouse variants (meteor names Q); TR: "Dokununca hedef: {mode}", hero tip without
+  a suffix after the name ("Önce kahramanına, sonra yola dokun: {hero} …"); coach "Skip tips" moved
+  onto the title row. Call-out trigger fixed for two waves starting within one frame (QA flake).
 
 ## Next (backlog 2: missing basics) — candidates, in rough value order
 - tower info card: the build ring tooltip already has stats/targeting/upgrade/sell+refund; review only

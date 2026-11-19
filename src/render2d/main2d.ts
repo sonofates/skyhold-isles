@@ -677,13 +677,20 @@ async function main(): Promise<void> {
     if (desktop) {
       // Hover tooltips for the canvas HUD buttons (horn, pause, speed).
       const tips = (await import('./ui/hudTips2d.ts')).mountHudTips();
-      let over: 'horn' | 'pause' | 'speed' | null = null;
+      let over: import('./ui/hudTips2d.ts').HudTipFor | null = null;
       app.canvas.addEventListener('pointermove', (e) => {
         if (e.pointerType !== 'mouse') return;
         const r = app.canvas.getBoundingClientRect();
-        const h = game.hud.hit(e.clientX - r.left, e.clientY - r.top);
+        const x = e.clientX - r.left;
+        const y = e.clientY - r.top;
+        const h = game.hud.hit(x, y);
         over = h;
         if (h) app.canvas.style.cursor = 'pointer';
+        else {
+          // The plaque: hearts on its left half, gold on the right.
+          const p = game.hud.rects().plaque;
+          if (x >= p.x && x <= p.x + p.w && y >= p.y && y <= p.y + p.h) over = x < p.x + p.w / 2 ? 'lives' : 'gold';
+        }
       });
       app.canvas.addEventListener('pointerleave', () => {
         over = null;
@@ -697,7 +704,15 @@ async function main(): Promise<void> {
         }
         const b = game.hud.buttonPositions;
         const hr = game.hud.rects();
-        const at = show === 'horn' ? { ...game.hud.hornPosition, r: game.hud.hornRadius } : show === 'pause' ? { ...b.pause, r: hr.pause.w / 2 } : show === 'speed' ? { ...b.speed, r: hr.speed.w / 2 } : null;
+        const pl = hr.plaque;
+        const at =
+          show === 'horn'
+            ? { ...game.hud.hornPosition, r: game.hud.hornRadius }
+            : show === 'pause'
+              ? { ...b.pause, r: hr.pause.w / 2 }
+              : show === 'speed'
+                ? { ...b.speed, r: hr.speed.w / 2 }
+                : { x: pl.x + (show === 'lives' ? pl.w * 0.25 : pl.w * 0.75), y: pl.y + pl.h / 2, r: pl.h / 2 };
         tips.update(show, { paused: s.paused, speed: s.speed, canCall: s.canCall, earlyBonus: s.earlyBonus, first: game.world.waveSystem.state === 'preFirstWave' }, at);
       };
     }
