@@ -23,6 +23,8 @@ import { getLocale, LANGUAGE_NAMES, LOCALES, pct, setLocale, shortDate, t, type 
 import { reapplyLocaleSetting, saveLocaleSetting } from '../../i18n/localeSetting.ts';
 import { el, glyph, img, KIT, medal, openSheet, plank, sealBadge, slider, starsRow, toggle, type Sheet } from './dom.ts';
 import { endlessRecordText, tierColour } from './modeBits.ts';
+import { difficultyWinsOf } from '../../data/difficulty.ts';
+import { difficultySeal } from './difficulty2d.ts';
 import { dailyForToday, dailyHref2D } from './modes2d.ts';
 import { resetProgress2D, saveProgress2D } from './progress2d.ts';
 import { openStore, ownsFullAdventure, storeEnabled } from './store2d.ts';
@@ -137,6 +139,8 @@ export function openLogbook(ctx: MetaContext, tab: 'islands' | 'feats' = 'island
     let cleared = 0;
     let wins = 0;
     let medals = 0;
+    const dw = difficultyWinsOf(p);
+    const hardWins = dw.hard.filter((v) => v > 0).length;
     levels.forEach((lvl, i) => {
       medals += endlessTier(p.bestEndlessWaves[i] ?? 0, lvl.waves.length);
       const offered = challengesForLevel(lvl);
@@ -156,7 +160,7 @@ export function openLogbook(ctx: MetaContext, tab: 'islands' | 'feats' = 'island
       total('star', `${wallet.campaign}/${levels.length * 3}`, t('lb.stars')),
       total('medal', `${badges}/${badgesMax}`, t('lb.badges')),
       total('crown', `${mastered}/${levels.length}`, t('lb.mastered')),
-      total('trophy', String(wins), t('lb.victories')),
+      total('trophy', String(wins), hardWins > 0 ? t('lb.victories') + t('common.sep') + t('diff.lbHard', { n: hardWins }) : t('lb.victories')),
       total('daily', String(liveStreak(p.daily, utcDayNumber(Date.now()))), t('lb.streak', { n: p.daily.bestStreak })),
       total('endless', `${medals}/${levels.length * 3}`, t('lb.medals')),
     );
@@ -210,7 +214,19 @@ export function openLogbook(ctx: MetaContext, tab: 'islands' | 'feats' = 'island
           row.append(
             num,
             el('span', 'pu-ledger-name pu-ink', {}, islandName(lvl), el('small', 'pu-ink-soft', {}, difficultyName(lvl.difficulty))),
-            starsRow(p.bestStars[i] ?? 0),
+            el(
+              'span',
+              `pu-ledger-stars`,
+              {},
+              starsRow(p.bestStars[i] ?? 0),
+              // The Hard ribbon: lit once the isle was won on Hard.
+              el(
+                'span',
+                `pu-ledger-hard${(dw.hard[i] ?? 0) > 0 ? '' : ' off'}`,
+                { role: 'img', 'aria-label': (dw.hard[i] ?? 0) > 0 ? t('diff.hardRibbon') : t('diff.notWon', { d: t('diff.hard') }), title: (dw.hard[i] ?? 0) > 0 ? t('diff.hardRibbon') : t('diff.notWon', { d: t('diff.hard') }), 'data-testid': `lb2d-hard-${lvl.id}` },
+                difficultySeal('hard'),
+              ),
+            ),
             badges,
             endless,
             el('span', 'pu-rec pu-ink', { title: t('lb.bestLives') }, glyph('heart'), lives > 0 ? String(lives) : '–'),

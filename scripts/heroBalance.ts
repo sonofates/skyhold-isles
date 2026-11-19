@@ -10,6 +10,7 @@ import {
 } from '../src/data/heroes.ts';
 import type { LevelDef, ScriptedBuildAction } from '../src/data/levels/index.ts';
 import { getLevelById } from '../src/data/levels2d/index.ts';
+import { NEUTRAL_RUN_MODIFIERS, type RunModifiers } from '../src/data/runModifiers.ts';
 import { getTowerTierStats } from '../src/data/towers.ts';
 import type { EnemyEntity } from '../src/sim/entities.ts';
 import { findMergePoint } from '../src/sim/groundGraph.ts';
@@ -130,6 +131,8 @@ export function runHeroIslandSim(
   heroId: HeroId | 'none',
   heroLevel: number,
   skillOverride?: readonly string[],
+  /** Run modifiers (difficulty / Workshop); neutral by default (scripts/difficultySim.ts). */
+  modifiers: RunModifiers = NEUTRAL_RUN_MODIFIERS,
 ): HeroIslandRunSummary {
   const events = new EventBus();
   const skills =
@@ -140,12 +143,13 @@ export function runHeroIslandSim(
     level,
     events,
     heroId === 'none'
-      ? {}
+      ? { modifiers }
       : {
           heroId,
           heroLevel,
           heroSkills: skills,
           seed: 1001,
+          modifiers,
         },
   );
 

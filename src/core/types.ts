@@ -107,6 +107,11 @@ export interface ProgressData {
   daily: { lastDay: number; streak: number; bestStreak: number; total: number };
   /** Persistent 2D hero roster XP, unlocked skill-tree nodes, and last-selected hero. */
   heroes?: HeroSaveData;
+  /**
+   * 2D: best stars awarded per island on each difficulty (src/data/difficulty.ts). Absent on saves
+   * from before difficulty existed: read it through `difficultyWinsOf` (their wins count as Normal).
+   */
+  difficultyWins?: { easy: number[]; normal: number[]; hard: number[] };
 }
 
 export interface Vec3 {

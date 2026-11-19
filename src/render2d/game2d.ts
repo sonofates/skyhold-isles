@@ -21,6 +21,7 @@ import { AdaptiveQuality, isDesktopClient, isSoftwareRenderer, qualityOverride, 
 import { BuildRing, type RingAction } from './buildRing.ts';
 import { DamageNumbers2D } from './damageNumbers2d.ts';
 import { EndPanel, endStars } from './endPanel.ts';
+import { starsAwarded, type DifficultyId } from '../data/difficulty.ts';
 import { EnemyLayer } from './enemyLayer.ts';
 import { FxLayer } from './fxLayer.ts';
 import { GateLayer } from './gateLayer.ts';
@@ -86,6 +87,11 @@ export interface Game2DHooks {
   hero?: HeroInitConfig | null;
   /** Start SimWorld in Endless mode from wave 1 (`startEndlessFromStart()`), keeping normal defeat flow. */
   startEndless?: boolean;
+  /**
+   * The run's difficulty (its patch is already in `modifiers`): the end board shows it and caps an
+   * Easy win's stars (src/data/difficulty.ts). Undefined = not shown (debug scenes).
+   */
+  difficulty?: DifficultyId;
   /** Optional settings provider (defaults to shared `loadSettings()` from `platform/storage`). */
   getSettings?: () => GameSettings;
   /** End panel "Next" (shown only when given) and "Menu" targets. */
@@ -852,9 +858,12 @@ export class Game2D {
         this.endShown = true;
         this.closeRing();
         const won = world.outcome === 'won';
+        const diff = this.hooks.difficulty;
         this.end.show({
           won,
-          stars: endStars(won, won ? world.computeStars() : 0),
+          // An Easy win awards at most 1 star (the board shows what the save records).
+          stars: endStars(won, won ? (diff ? starsAwarded(world.computeStars(), diff) : world.computeStars()) : 0),
+          ...(diff ? { difficulty: diff } : {}),
           lives: world.lives,
           startLives: world.startingLives,
           gold: world.gold,
@@ -862,7 +871,7 @@ export class Game2D {
           totalWaves: this.hudState.totalWaves,
           hasNext: !!this.hooks.onNext,
           hasReplay: !!this.lastReplay && !this.hooks.endless,
-          ...(won ? { starRule: { lost: Math.max(0, world.startingLives - world.lives), three: (STAR_RULES[this.level.difficulty] ?? STAR_RULES.Breezy).threeStarMaxLost, two: (STAR_RULES[this.level.difficulty] ?? STAR_RULES.Breezy).twoStarMaxLost } } : {}),
+          ...(won && diff !== 'easy' ? { starRule: { lost: Math.max(0, world.startingLives - world.lives), three: (STAR_RULES[this.level.difficulty] ?? STAR_RULES.Breezy).threeStarMaxLost, two: (STAR_RULES[this.level.difficulty] ?? STAR_RULES.Breezy).twoStarMaxLost } } : {}),
         });
         // main2d fills in the hero XP / mode note in this callback; the board is kept after it.
         this.hooks.onEndPanel?.(true);

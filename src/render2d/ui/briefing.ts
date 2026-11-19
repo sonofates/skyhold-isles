@@ -6,8 +6,14 @@
  * Modes: each challenge is a medallion switch showing its rule and badge state; several may be on
  * together. Endless is a separate switch and runs without challenges, so turning it on clears them
  * (and the other way round). Play hands the choice to `onPlay`, which builds the run URL.
+ *
+ * Difficulty (open islands): a painted three-way selector (Easy / Normal / Hard) with the chosen
+ * one's rules on one line and each one's best result. It starts on the player's last choice.
+ * Endless always plays Normal (the selector dims while it is on); Easy carries no challenges
+ * (picking a challenge moves an Easy choice to Normal, picking Easy clears the challenges).
  */
 import type { ChallengeId } from '../../data/challenges.ts';
+import { DIFFICULTIES, DIFFICULTY_IDS, type DifficultyId } from '../../data/difficulty.ts';
 import { STAR_RULES } from '../../data/stars.ts';
 import { challengeDesc, challengeName, difficultyName, islandName, islandSubtitle } from '../../i18n/data.ts';
 import { lower, t } from '../../i18n/index.ts';
@@ -17,10 +23,13 @@ import { endlessRecordText, tierColour } from './modeBits.ts';
 import type { AvailableChallenge2D } from './modes2d.ts';
 import { ruleSeal } from './metaScreens.ts';
 import type { IslandState } from './progress2d.ts';
+import { difficultyLabel, difficultyRuleText, difficultySeal } from './difficulty2d.ts';
 
 export interface RunChoice {
   readonly challenges: ChallengeId[];
   readonly endless: boolean;
+  /** Normal for Endless runs. */
+  readonly difficulty: DifficultyId;
 }
 
 export interface BriefingModes {
@@ -30,6 +39,31 @@ export interface BriefingModes {
   readonly endless: boolean;
   /** Pre-selected modes (e.g. QA). */
   readonly initial?: Partial<RunChoice>;
+  /** The difficulty the selector starts on (the player's last choice; default Normal). */
+  readonly difficulty?: DifficultyId;
+}
+
+/** Painted ribbon with a skull on an island medallion: the isle was won on Hard. */
+export function hardRibbon(testid?: string): HTMLSpanElement {
+  const r = el('span', 'pu-hard-ribbon', { role: 'img', 'aria-label': t('diff.hardRibbon'), title: t('diff.hardRibbon'), 'data-testid': testid });
+  r.append(difficultySeal('hard'));
+  return r;
+}
+
+/** One selector option: emblem seal, name and the best result on it (stars, or a check on Easy). */
+function difficultyOption(id: DifficultyId, best: number): HTMLButtonElement {
+  const b = el('button', `pu-diff-opt ${id}`, { type: 'button', role: 'radio', 'aria-checked': 'false', 'data-testid': `brief2d-diff-${id}` });
+  const name = difficultyLabel(id);
+  const won = best > 0;
+  const mark = won
+    ? id === 'easy'
+      ? el('span', 'pu-diff-best', {}, img(KIT.confirm, '', 'pu-diff-check'))
+      : el('span', 'pu-diff-best', {}, starsRow(best, 'pu-stars pu-diff-stars'))
+    : null;
+  b.append(difficultySeal(id), el('span', 'pu-diff-name pu-letter', {}, name));
+  if (mark) b.append(mark);
+  b.title = won ? t('diff.best', { d: name }) : t('diff.notWon', { d: name });
+  return b;
 }
 
 /** A row switch: medallion seal (with a check when on), name + rule, and a state on the right. */
@@ -75,7 +109,8 @@ export function showBriefing(
         'div',
         'pu-brief-row',
         {},
-        el('span', 'pu-rec pu-ink', { title: t('brief.bestLivesTitle') }, glyph('heart'), t('brief.bestLives', { n: st.bestLives })),
+        // An isle won only on Easy has no lives record (Easy's bonus lives would inflate it).
+        st.bestLives > 0 ? el('span', 'pu-rec pu-ink', { title: t('brief.bestLivesTitle') }, glyph('heart'), t('brief.bestLives', { n: st.bestLives })) : null,
         el('span', 'pu-rec pu-ink', { title: t('brief.victoriesTitle') }, glyph('trophy'), t('brief.wins', { n: st.clears })),
         st.mastered ? el('span', 'pu-rec pu-ink', {}, glyph('crown'), t('brief.mastered')) : null,
       ),
@@ -90,6 +125,31 @@ export function showBriefing(
     lock.append(glyph('lock'));
     thumbBox.append(lock);
     thumbBox.querySelector<HTMLElement>('.pu-medal-thumb')!.style.filter = 'grayscale(.85) brightness(.72)';
+  }
+  if (st.unlocked && st.hardWon) thumbBox.append(hardRibbon('brief2d-hard-ribbon'));
+
+  // --- difficulty --------------------------------------------------------------------------------
+  let difficulty: DifficultyId = modes.initial?.difficulty ?? modes.difficulty ?? 'normal';
+  if (!DIFFICULTIES[difficulty]) difficulty = 'normal';
+  const diffOpts: { id: DifficultyId; b: HTMLButtonElement }[] = [];
+  let diffBox: HTMLElement | null = null;
+  let diffDesc: HTMLElement | null = null;
+  if (st.unlocked) {
+    const row = el('div', 'pu-diff-row');
+    for (const id of DIFFICULTY_IDS) {
+      const b = difficultyOption(id, st.diffStars[id] ?? 0);
+      diffOpts.push({ id, b });
+      row.append(b);
+    }
+    diffDesc = el('div', 'pu-diff-desc pu-ink-soft', { 'data-testid': 'brief2d-diff-desc', 'aria-live': 'polite' });
+    diffBox = el(
+      'div',
+      'pu-diff',
+      { role: 'radiogroup', 'aria-label': t('diff.title'), 'data-testid': 'brief2d-diff' },
+      el('div', 'pu-diff-head pu-letter', {}, t('diff.title')),
+      row,
+      diffDesc,
+    );
   }
 
   // --- run modes ---------------------------------------------------------------------------------
@@ -129,9 +189,23 @@ export function showBriefing(
   play.disabled = !st.unlocked;
 
   const paint = (): void => {
+    const shown: DifficultyId = endless ? 'normal' : difficulty;
+    for (const { id, b } of diffOpts) {
+      b.setAttribute('aria-checked', String(id === shown));
+      b.tabIndex = id === shown ? 0 : -1;
+    }
+    diffBox?.classList.toggle('muted', endless);
+    diffBox?.setAttribute('data-diff', shown);
+    if (diffDesc) {
+      diffDesc.textContent = endless
+        ? t('diff.normalOnly')
+        : difficultyRuleText(shown);
+      diffDesc.title = shown === 'easy' ? t('diff.easyNoChallenges') : '';
+    }
+    const easyBlocks = !endless && !DIFFICULTIES[difficulty].allowsChallenges;
     for (const { id, b } of chSwitches) {
       b.setAttribute('aria-checked', String(chosen.has(id)));
-      b.classList.toggle('muted', endless);
+      b.classList.toggle('muted', endless || easyBlocks);
     }
     endlessSwitch?.setAttribute('aria-checked', String(endless));
     if (!hasModes) return;
@@ -144,6 +218,8 @@ export function showBriefing(
       if (chosen.has(id)) chosen.delete(id);
       else chosen.add(id);
       endless = false;
+      // Challenges are not played on Easy: picking one moves the choice up to Normal.
+      if (chosen.size > 0 && !DIFFICULTIES[difficulty].allowsChallenges) difficulty = 'normal';
       paint();
     });
   }
@@ -152,17 +228,36 @@ export function showBriefing(
     if (endless) chosen.clear();
     paint();
   });
+  const pick = (id: DifficultyId): void => {
+    difficulty = id;
+    endless = false;
+    if (!DIFFICULTIES[id].allowsChallenges) chosen.clear();
+    paint();
+  };
+  diffOpts.forEach(({ id, b }, i) => {
+    b.addEventListener('click', () => pick(id));
+    // Radio group keys: arrows move (and pick) along the row.
+    b.addEventListener('keydown', (e) => {
+      const step = e.key === 'ArrowRight' || e.key === 'ArrowDown' ? 1 : e.key === 'ArrowLeft' || e.key === 'ArrowUp' ? -1 : 0;
+      if (!step) return;
+      e.preventDefault();
+      const next = diffOpts[(i + step + diffOpts.length) % diffOpts.length];
+      pick(next.id);
+      next.b.focus();
+    });
+  });
   if (modes.initial?.endless && endlessSwitch) endless = true;
   else for (const id of modes.initial?.challenges ?? []) if (chSwitches.some((c) => c.id === id)) chosen.add(id);
   paint();
 
   play.addEventListener('click', () => {
     sheet.close();
-    onPlay({ challenges: endless ? [] : [...chosen], endless });
+    const diff: DifficultyId = endless ? 'normal' : difficulty;
+    onPlay({ challenges: endless || !DIFFICULTIES[diff].allowsChallenges ? [] : [...chosen], endless, difficulty: diff });
   });
   if (hero && st.unlocked) info.append(hero);
   const left = el('div', 'pu-brief-main', {}, thumbBox, info);
-  sheet.body.append(el('div', 'pu-brief-body', {}, left, modesBox), el('div', 'pu-brief-actions', {}, play));
+  sheet.body.append(el('div', 'pu-brief-body', {}, left, modesBox), el('div', 'pu-brief-actions', {}, diffBox, play));
   requestAnimationFrame(() => play.focus({ preventScroll: true }));
   return sheet;
 }

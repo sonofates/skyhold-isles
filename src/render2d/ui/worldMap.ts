@@ -26,7 +26,9 @@ import { starWallet, totalCampaignStars } from '../../game/progression.ts';
 import { islandName } from '../../i18n/data.ts';
 import { t } from '../../i18n/index.ts';
 import { readSafeInsets } from '../uiKit.ts';
-import { showBriefing, type RunChoice } from './briefing.ts';
+import { hardRibbon, showBriefing, type RunChoice } from './briefing.ts';
+import { parseDifficulty } from '../../data/difficulty.ts';
+import { loadDifficultyPref, saveDifficultyPref } from './difficulty2d.ts';
 import { isChallengeId } from '../../data/challenges.ts';
 import { anySheetOpen, el, glyph, img, KIT, medal, roundButton, starsRow } from './dom.ts';
 import { fetchMapsManifest, islandMapUrl, type MapsManifest } from './islandArt.ts';
@@ -170,15 +172,20 @@ export async function mountWorldMap(q: URLSearchParams): Promise<void> {
       return;
     }
     const id = st.level.id;
+    const difficulty = loadDifficultyPref();
     const modes = st.unlocked
-      ? { challenges: availableChallenges(id, progress, levels), endless: canPlayEndless(id, progress, levels), initial }
-      : { challenges: [], endless: false };
+      ? { challenges: availableChallenges(id, progress, levels), endless: canPlayEndless(id, progress, levels), initial, difficulty }
+      : { challenges: [], endless: false, difficulty };
     showBriefing(
       st,
       i > 0 ? levels[i - 1] : null,
       thumb(st.level),
       modes,
-      (choice) => location.assign(buildRunHref2D(id, { challenges: choice.challenges, endless: choice.endless, intro: st.clears === 0 })),
+      (choice) => {
+        // Endless always plays Normal: it does not change the remembered choice.
+        if (!choice.endless) saveDifficultyPref(choice.difficulty);
+        location.assign(buildRunHref2D(id, { challenges: choice.challenges, endless: choice.endless, difficulty: choice.difficulty, intro: st.clears === 0 }));
+      },
       heroChip(ctx, heroFiles).el,
     );
   };
@@ -206,6 +213,7 @@ export async function mountWorldMap(q: URLSearchParams): Promise<void> {
         c.append(glyph('crown'));
         b.append(c);
       }
+      if (st.unlocked && !isPaid && st.hardWon) b.append(hardRibbon(`map2d-hard-${st.level.id}`));
       const name = el('span', 'pu-tag pu-node-name', {}, el('span', 'pu-tag-ring pu-letter', {}, String(i + 1)), el('span', 'pu-ink', {}, st.unlocked ? islandName(st.level) : '? ? ?'));
       b.append(name);
       if (isPaid) {
@@ -360,9 +368,12 @@ export async function mountWorldMap(q: URLSearchParams): Promise<void> {
   if (screen === 'brief') {
     // QA: &pick=endless or &pick=<challenge id>[,<id>] pre-selects modes on the card.
     const pick = (q.get('pick') ?? '').split(',').filter(Boolean);
+    // &diff=easy|normal|hard pre-selects the difficulty.
+    const diff = parseDifficulty(q.get('diff'));
     openBrief(Math.max(0, Math.min(levels.length - 1, Number(q.get('island') ?? progress.unlockedLevelIndex) || 0)), {
       endless: pick.includes('endless'),
       challenges: pick.filter(isChallengeId),
+      ...(diff ? { difficulty: diff } : {}),
     });
   }
   else if (screen === 'workshop') openWorkshop(ctx);

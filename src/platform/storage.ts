@@ -1,5 +1,6 @@
 import type { GameSettings, ProgressData, QualityLevel } from '../core/types.ts';
 import { createDailyRecord, sanitizeDailyRecord } from '../data/daily.ts';
+import { sanitizeDifficultyWins } from '../data/difficulty.ts';
 import { hasHeroSaveProgress, sanitizeHeroSaveData } from '../data/heroes.ts';
 import { sanitizeRanks } from '../data/workshop.ts';
 import { starWallet } from '../game/progression.ts';
@@ -262,6 +263,8 @@ export function migrateProgress(parsed: unknown, levelCount: number): ProgressDa
     }
     progress.heroes = sanitizeHeroSaveData(raw.heroes, clearedCount, unlocked);
   }
+  const difficultyWins = sanitizeDifficultyWins(raw.difficultyWins, count);
+  if (difficultyWins) progress.difficultyWins = difficultyWins;
   // Upgrades are always refundable: if a save somehow spends more stars than it has earned
   // (edited save, retuned costs), refund everything instead of keeping an impossible state.
   if (starWallet(progress).available < 0) progress.workshop = {};

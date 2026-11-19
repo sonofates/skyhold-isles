@@ -16,6 +16,7 @@ import {
   type ChallengeId,
 } from '../../data/challenges.ts';
 import { dailyChallengeFor, utcDayNumber, type DailyChallenge } from '../../data/daily.ts';
+import { DIFFICULTIES, parseDifficulty, withDifficulty, type DifficultyId } from '../../data/difficulty.ts';
 import { getLevelById, LEVELS_2D } from '../../data/levels2d/index.ts';
 import type { LevelDef } from '../../data/levels/types.ts';
 import { isNeutralRun, NEUTRAL_RUN_MODIFIERS, type RunModifiers } from '../../data/runModifiers.ts';
@@ -115,22 +116,29 @@ export function canPlayEndless(
 
 /**
  * Composes Workshop ranks + active challenges into `RunModifiers`, using the exact 3D functions
- * (`GameSession.buildRunModifiers` = `runModifiersFor(workshopModifiers(workshop), challenges)`).
+ * (`GameSession.buildRunModifiers` = `runModifiersFor(workshopModifiers(workshop), challenges)`),
+ * then stacks the difficulty patch on top (Normal adds nothing).
  */
 export function composeRunModifiers2D(
   workshop: WorkshopRanks,
   challenges: readonly ChallengeId[] = [],
+  difficulty: DifficultyId = 'normal',
 ): RunModifiers {
-  return runModifiersFor(workshopModifiers(workshop), challenges);
+  return withDifficulty(runModifiersFor(workshopModifiers(workshop), challenges), difficulty);
 }
 
-/** URL builder for 2D runs (`?level=<id>` plus optional `challenge`, `daily=1`, `endless=1`, `intro=1`). */
+/**
+ * URL builder for 2D runs (`?level=<id>` plus optional `challenge`, `daily=1`, `endless=1`,
+ * `diff=easy|hard`, `intro=1`). Normal difficulty is the default and is left out; Daily and
+ * Endless never carry one.
+ */
 export function buildRunHref2D(
   levelId: string,
   opts: {
     readonly challenges?: readonly ChallengeId[];
     readonly daily?: boolean;
     readonly endless?: boolean;
+    readonly difficulty?: DifficultyId;
     readonly intro?: boolean;
     readonly pathname?: string;
   } = {},
@@ -141,8 +149,12 @@ export function buildRunHref2D(
     params.push('daily=1');
   } else if (opts.endless) {
     params.push('endless=1');
-  } else if (opts.challenges && opts.challenges.length > 0) {
-    for (const id of opts.challenges) params.push(`challenge=${encodeURIComponent(id)}`);
+  } else {
+    const diff = opts.difficulty && DIFFICULTIES[opts.difficulty] ? opts.difficulty : 'normal';
+    if (opts.challenges && opts.challenges.length > 0 && DIFFICULTIES[diff].allowsChallenges) {
+      for (const id of opts.challenges) params.push(`challenge=${encodeURIComponent(id)}`);
+    }
+    if (diff !== 'normal') params.push(`diff=${diff}`);
   }
   if (opts.intro) params.push('intro=1');
   return `${base}?${params.join('&')}`;
@@ -154,9 +166,10 @@ export function dailyHref2D(levelId: string, pathname?: string): string {
 }
 
 /**
- * Resolves URL query params (`?level=`, `?challenge=<id>`, `?daily=1`, `?endless=1`) and the 2D
- * save's Workshop upgrades into the level, `RunConfig`, and `RunModifiers` for `Game2D`.
- * Unknown ids / values are ignored with `warn(...)`.
+ * Resolves URL query params (`?level=`, `?challenge=<id>`, `?daily=1`, `?endless=1`,
+ * `?diff=easy|normal|hard`) and the 2D save's Workshop upgrades into the level, `RunConfig`, and
+ * `RunModifiers` for `Game2D`. Unknown ids / values are ignored with `warn(...)`. Daily and Endless
+ * runs are always Normal; Easy runs carry no challenges.
  */
 export function resolveQueryRun2D(
   q: URLSearchParams,
@@ -203,6 +216,14 @@ export function resolveQueryRun2D(
         if (!challengesReq.includes(token)) challengesReq.push(token);
       }
     }
+  }
+
+  let diffReq: DifficultyId = 'normal';
+  if (q.has('diff')) {
+    const raw = q.get('diff');
+    const parsed = parseDifficulty(raw);
+    if (parsed) diffReq = parsed;
+    else warn(`[skyhold-2d] Unknown ?diff=${String(raw)}; expected easy, normal or hard. Playing Normal.`);
   }
 
   const dailyToday = dailyReq ? dailyForToday(nowMs, progress, levels) : null;
@@ -269,13 +290,25 @@ export function resolveQueryRun2D(
   } else {
     runConfig = { endless: false, challenges: challengesReq, daily: null };
   }
+  if (diffReq !== 'normal') {
+    if (runConfig.endless || runConfig.daily !== null) {
+      warn(`[skyhold-2d] ${runConfig.endless ? 'Endless' : 'Daily Squall'} runs are always Normal; ignoring ?diff=${diffReq}.`);
+    } else {
+      if (!DIFFICULTIES[diffReq].allowsChallenges && runConfig.challenges.length > 0) {
+        warn(`[skyhold-2d] Challenges cannot be played on ${diffReq}; ignoring ?challenge= params.`);
+        runConfig = { ...runConfig, challenges: [] };
+      }
+      runConfig = { ...runConfig, difficulty: diffReq };
+    }
+  }
+  const difficulty = runConfig.difficulty ?? 'normal';
 
   const workshop = applySaveModifiers ? (progress.workshop ?? {}) : {};
   const hasWorkshop = Object.keys(workshop).length > 0;
   const composed =
-    !hasWorkshop && runConfig.challenges.length === 0
+    !hasWorkshop && runConfig.challenges.length === 0 && difficulty === 'normal'
       ? NEUTRAL_RUN_MODIFIERS
-      : composeRunModifiers2D(workshop, runConfig.challenges);
+      : composeRunModifiers2D(workshop, runConfig.challenges, difficulty);
   const modifiers = isNeutralRun(composed) ? NEUTRAL_RUN_MODIFIERS : composed;
 
   return { levelId, level, runConfig, modifiers };

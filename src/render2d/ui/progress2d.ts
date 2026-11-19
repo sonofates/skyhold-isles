@@ -14,6 +14,7 @@
 import type { HeroId, ProgressData } from '../../core/types.ts';
 import { challengesForLevel, type ChallengeId } from '../../data/challenges.ts';
 import { applyDailyWin, utcDayNumber } from '../../data/daily.ts';
+import { DIFFICULTIES, difficultyWinsOf, isDifficultyId, starsAwarded, type DifficultyId } from '../../data/difficulty.ts';
 import { isHeroId } from '../../data/heroes.ts';
 import { workshopStarsSpent } from '../../data/workshop.ts';
 import { LEVELS_2D } from '../../data/levels2d/index.ts';
@@ -97,6 +98,10 @@ export function remapProgress(raw: unknown, oldIds: readonly string[], levels: r
       out.clears[i] = Math.max(out.clears[i], old.clears[j] ?? 0);
       for (const ch of old.challengeClears[j] ?? []) {
         if (!out.challengeClears[i].includes(ch)) out.challengeClears[i].push(ch);
+      }
+      if (old.difficultyWins) {
+        const dw = (out.difficultyWins ??= { easy: new Array<number>(n).fill(0), normal: new Array<number>(n).fill(0), hard: new Array<number>(n).fill(0) });
+        for (const d of ['easy', 'normal', 'hard'] as const) dw[d][i] = Math.max(dw[d][i], old.difficultyWins[d][j] ?? 0);
       }
       if (j <= old.unlockedLevelIndex) frontier = Math.max(frontier, i);
     }
@@ -314,11 +319,16 @@ export interface IslandState {
   readonly mastered: boolean;
   /** The furthest unlocked island (where the "you are here" flag stands). */
   readonly frontier: boolean;
+  /** Best stars awarded per difficulty (0 = not won there; legacy wins read as Normal). */
+  readonly diffStars: Readonly<Record<DifficultyId, number>>;
+  /** Won on Hard at least once (the Hard ribbon on its medallion). */
+  readonly hardWon: boolean;
 }
 
 export function islandStates(progress: ProgressData, levels: readonly LevelDef[] = LEVELS_2D): IslandState[] {
   if (levels.length === 0) return [];
   const frontier = Math.max(0, Math.min(levels.length - 1, progress.unlockedLevelIndex));
+  const dw = difficultyWinsOf(progress);
   return levels.map((level, i) => ({
     index: i,
     level,
@@ -330,6 +340,8 @@ export function islandStates(progress: ProgressData, levels: readonly LevelDef[]
     challengeClears: [...(progress.challengeClears[i] ?? [])],
     mastered: isIslandMastered(progress, i, challengesForLevel(level)),
     frontier: i === frontier,
+    diffStars: { easy: dw.easy[i] ?? 0, normal: dw.normal[i] ?? 0, hard: dw.hard[i] ?? 0 },
+    hardWon: (dw.hard[i] ?? 0) > 0,
   }));
 }
 
@@ -427,8 +439,21 @@ export interface RunOutcome2D {
   readonly heroXpEarned?: number;
 }
 
+/** What a win did on its difficulty (end panel wording). */
+export interface DifficultyResult2D {
+  readonly id: DifficultyId;
+  /** Stars the run earned by its play, before the difficulty cap. */
+  readonly earnedStars: number;
+  /** Stars actually awarded (Easy: at most 1). */
+  readonly awardedStars: number;
+  /** First win of this island on this difficulty. */
+  readonly firstWin: boolean;
+}
+
 export interface RunResultRecord2D {
   readonly win: WinRecord | null;
+  /** Set on a recorded win: the difficulty it was played on and the stars it awarded. */
+  readonly difficulty?: DifficultyResult2D;
   readonly daily: { readonly counted: boolean; readonly streak: number } | null;
   readonly endless: EndlessRecord2D | null;
   readonly hero?: HeroRunXpRecord;
@@ -486,16 +511,33 @@ export function applyRunResult2D(
     return hero ? { win: null, daily: null, endless: null, hero } : { win: null, daily: null, endless: null };
   }
 
-  const stars = (
+  const earned = (
     Number.isFinite(outcome.stars) ? Math.max(1, Math.min(3, Math.round(outcome.stars))) : 1
   ) as 1 | 2 | 3;
+  // Daily / Endless are always Normal (modes2d.ts never sets a difficulty on them).
+  const diff: DifficultyId = cfg.daily === null && isDifficultyId(cfg.difficulty) ? cfg.difficulty : 'normal';
+  const stars = starsAwarded(earned, diff);
   const safeLives = Number.isFinite(outcome.livesRemaining)
     ? Math.max(0, Math.floor(outcome.livesRemaining))
     : 0;
   let win: WinRecord | null = null;
+  let difficulty: DifficultyResult2D | undefined;
   if (i >= 0) {
-    const badges = badgesForWin(challengesForLevel(levels[i]), cfg.challenges);
+    // Read (and for a legacy save, derive) the record before applyWin moves bestStars.
+    const dw = difficultyWinsOf(progress);
+    const before = dw[diff][i] ?? 0;
+    const allows = DIFFICULTIES[diff].allowsChallenges;
+    const badges = allows ? badgesForWin(challengesForLevel(levels[i]), cfg.challenges) : [];
+    const prevBestLives = progress.bestLives[i] ?? 0;
     win = applyWin(progress, i, levels.length, stars, safeLives, badges);
+    if (diff === 'easy') {
+      // Easy's bonus lives would inflate the island's "best lives left" record: Easy keeps it.
+      progress.bestLives[i] = prevBestLives;
+      win = { ...win, newBestLives: false };
+    }
+    dw[diff][i] = Math.max(before, stars);
+    progress.difficultyWins = dw;
+    difficulty = { id: diff, earnedStars: earned, awardedStars: stars, firstWin: before === 0 };
   }
   const nowMs =
     typeof outcome.nowMs === 'number' && Number.isFinite(outcome.nowMs) ? outcome.nowMs : Date.now();
@@ -504,7 +546,8 @@ export function applyRunResult2D(
       ? applyDailyWin(progress.daily, cfg.daily, utcDayNumber(nowMs))
       : null;
   const hero = recordHeroOutcome(progress, outcome, levels);
-  return hero ? { win, daily, endless: null, hero } : { win, daily, endless: null };
+  const base = difficulty ? { win, difficulty, daily, endless: null } : { win, daily, endless: null };
+  return hero ? { ...base, hero } : base;
 }
 
 /** Loads the 2D save, applies `applyRunResult2D`, persists if anything changed, and returns the record. */

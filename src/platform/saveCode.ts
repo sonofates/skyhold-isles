@@ -1,6 +1,7 @@
 import type { HeroId, HeroSaveData, ProgressData } from '../core/types.ts';
 import { isChallengeId } from '../data/challenges.ts';
 import { sanitizeDailyRecord, type DailyRecord } from '../data/daily.ts';
+import { difficultyWinsOf, mergeDifficultyWins } from '../data/difficulty.ts';
 import {
   countHeroSkillPointsSpent,
   HERO_IDS,
@@ -114,6 +115,10 @@ export function encodeSaveCode(progress: ProgressData, levelIds?: readonly strin
   if (progress.heroes !== undefined) {
     payload.h = encodeHeroPayload(progress.heroes);
   }
+  if (progress.difficultyWins !== undefined) {
+    const dw = progress.difficultyWins;
+    payload.dw = { e: trimZeros(dw.easy), n: trimZeros(dw.normal), h: trimZeros(dw.hard) };
+  }
   if (levelIds && levelIds.length > 0) {
     payload.i = [...levelIds];
   }
@@ -162,6 +167,15 @@ export function decodeSaveCode(code: string, levelCount: number): SaveCodeResult
       challengeClears: r.b,
       daily: r.d,
       ...(decodedHeroes !== undefined ? { heroes: decodedHeroes } : {}),
+      ...(r.dw && typeof r.dw === 'object' && !Array.isArray(r.dw)
+        ? {
+            difficultyWins: {
+              easy: (r.dw as Record<string, unknown>).e,
+              normal: (r.dw as Record<string, unknown>).n,
+              hard: (r.dw as Record<string, unknown>).h,
+            },
+          }
+        : {}),
     },
     levelCount,
   );
@@ -277,6 +291,10 @@ export function mergeProgress(a: ProgressData, b: ProgressData, levelCount: numb
     }),
     daily,
     ...(mergedHeroes !== undefined ? { heroes: mergedHeroes } : {}),
+    // Either side recorded difficulty: keep the best of both (a legacy side's wins read as Normal).
+    ...(a.difficultyWins !== undefined || b.difficultyWins !== undefined
+      ? { difficultyWins: mergeDifficultyWins(difficultyWinsOf(a), difficultyWinsOf(b), count) }
+      : {}),
   };
   if (starWallet(merged).available < 0) {
     merged.workshop = primaryWorkshop;
