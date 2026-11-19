@@ -97,6 +97,16 @@ function cpuTicks() {
 async function open(size, q, extra = '') {
   const ctx = await browser.newContext({ viewport: { width: size.w, height: size.h }, deviceScaleFactor: size.dpr, isMobile: !!size.touch, hasTouch: !!size.touch });
   await ctx.addInitScript((v) => localStorage.setItem('skyhold_isles_progress2d_v1', v), save(7));
+  if (arg('killanim')) {
+    // cost probe: stop the animations of one selector (e.g. --killanim=.pu-ship-pennant)
+    await ctx.addInitScript((sel) => {
+      document.addEventListener('DOMContentLoaded', () => {
+        const st = document.createElement('style');
+        st.textContent = `${sel} { animation: none !important; }`;
+        document.head.append(st);
+      });
+    }, arg('killanim'));
+  }
   if (arg('noanim') === '1') {
     await ctx.addInitScript(() => {
       document.addEventListener('DOMContentLoaded', () => {

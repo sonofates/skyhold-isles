@@ -22,6 +22,10 @@
   display: block;
 }
 
+.pu-sea > canvas[hidden] {
+  display: none;
+}
+
 /* The water fades in over the identical CSS painting once its first frame is drawn. */
 .pu-sea-water {
   opacity: 0;
@@ -54,7 +58,8 @@
     rotate: -0.5deg;
   }
   50% {
-    translate: 0 calc(var(--d) * -0.018);
+    /* % of the medallion's own height (= d): no var() in keyframes, so it runs on the compositor */
+    translate: 0 -1.8%;
     rotate: 0.5deg;
   }
 }
@@ -148,15 +153,46 @@
   clip-path: polygon(evenodd, 0 0, 100% 0, 100% 100%, 0 100%, 0 0, 28% 5%, 48.8% 5%, 48.8% 20%, 28% 20%, 28% 5%);
 }
 
-.pu-ship-pennant {
-  clip-path: inset(5% 51.2% 80% 28%);
-  transform-origin: 49% 12.5%;
+/* Pennant and sail copies: a window (overflow: hidden, not clip-path — an animated element with a
+   clip-path is animated on the main thread) holding the whole ship painting, offset into place. */
+.pu-ship > .pu-ship-win {
+  overflow: hidden;
+}
+
+.pu-ship-win > img {
+  position: absolute;
+  max-width: none;
+}
+
+.pu-ship > .pu-ship-pennant {
+  left: 28%;
+  top: 5%;
+  width: 20.8%;
+  height: 15%;
+  transform-origin: 101% 50%;
+}
+
+.pu-ship-pennant > img {
+  left: calc(-28% / 0.208);
+  top: calc(-5% / 0.15);
+  width: calc(100% / 0.208);
+  height: calc(100% / 0.15);
 }
 
 /* The sail's copy only ever grows from the mast and the yard, so the painting under it never peeks. */
-.pu-ship-sail {
-  clip-path: inset(25.5% 27% 35% 33%);
-  transform-origin: 52% 25.5%;
+.pu-ship > .pu-ship-sail {
+  left: 33%;
+  top: 25.5%;
+  width: 40%;
+  height: 39.5%;
+  transform-origin: 47.5% 0;
+}
+
+.pu-ship-sail > img {
+  left: calc(-33% / 0.4);
+  top: calc(-25.5% / 0.395);
+  width: calc(100% / 0.4);
+  height: calc(100% / 0.395);
 }
 
 .pu-map.sea-anim .pu-ship {

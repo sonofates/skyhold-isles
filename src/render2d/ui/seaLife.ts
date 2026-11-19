@@ -866,7 +866,8 @@ export function mountSea(root: HTMLElement, world: HTMLElement, scroll: HTMLElem
         im.draggable = false;
         return im;
       };
-      rootEl.append(part('pu-ship-hull'), part('pu-ship-sail'), part('pu-ship-pennant'));
+      const win = (cls: string): HTMLElement => el('span', `pu-ship-win ${cls}`, {}, part(''));
+      rootEl.append(part('pu-ship-hull'), win('pu-ship-sail'), win('pu-ship-pennant'));
       const entry = { strip: null as HTMLElement | null, root: rootEl };
       shipEls.length = 0;
       shipEls.push(entry);

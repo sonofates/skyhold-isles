@@ -136,6 +136,21 @@ function expect(name, ok, detail) {
   await ctx.close();
 }
 
+// 5. Auto on a software rasteriser (this headless SwiftShader): the water stays the still painting,
+//    the clouds / gulls / islands still move
+{
+  const { ctx, page } = await open('auto software', { query: '' });
+  const s = await stats(page);
+  const n = await framesOver(page, 2000);
+  const water = await page.evaluate(() => ({
+    display: getComputedStyle(document.querySelector('.pu-sea-water')).display,
+    live: document.querySelector('.pu-map').classList.contains('sea-live'),
+  }));
+  expect('auto + software: water off, painting stays', !s.gl && water.display === 'none' && !water.live, JSON.stringify(water));
+  expect('auto + software: life still moves', n > 20, `${n} frames / 2 s`);
+  await ctx.close();
+}
+
 await browser.close();
 console.log(report.join('\n'));
 console.log(problems.length ? `PROBLEMS ${problems.length}\n${problems.join('\n')}` : 'problems 0');
