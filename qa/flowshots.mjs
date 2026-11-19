@@ -83,6 +83,13 @@ for (const size of SIZES) {
         window.__p0.replay.cmd({ k: 'build', plot: 6, type: 'archer' });
       });
       const pl = await page.evaluate(() => window.__p0.plotScreen(6));
+      // Hover a built tower: pointer + its range, faint.
+      await page.waitForTimeout(400);
+      await page.mouse.move(pl.x - 2, pl.y - 32);
+      await page.mouse.move(pl.x, pl.y - 30, { steps: 2 });
+      await page.waitForFunction(() => window.__p0.state().hoverTower !== -1, null, { timeout: 4000 }).catch(() => problems.push(`${tag}: no hover range on a built tower`));
+      await page.waitForTimeout(200);
+      await page.screenshot({ path: `${OUT}/${lang}-${size.key}-tower-hover.jpg`, type: 'jpeg', quality: 82 });
       await page.mouse.click(pl.x, pl.y - 30);
       await page.waitForFunction(() => window.__p0.state().ring.open, null, { timeout: 5000 }).catch(() => problems.push(`${tag}: tower ring did not open`));
       const toks = await page.evaluate(() => window.__p0.state().ring.tokens);

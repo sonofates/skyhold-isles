@@ -148,6 +148,9 @@ export class Game2D {
   readonly fxStats = createSpecialFxStats();
   readonly stepper = new FixedTimestepStepper();
   private readonly rangeDisc: Sprite;
+  /** Desktop: a fainter range disc under the built tower the mouse is over (ring closed). */
+  private readonly hoverDisc: Sprite;
+  private hoverTowerId = -1;
   private readonly screen = new Container();
   private readonly hooks: Game2DHooks;
   private readonly costs = new Map<TowerType, number>();
@@ -250,6 +253,11 @@ export class Game2D {
     this.rangeDisc.anchor.set(0.5);
     this.rangeDisc.visible = false;
     this.layers.groundFx.addChild(this.rangeDisc);
+    this.hoverDisc = new Sprite(this.tex.rangeDisc);
+    this.hoverDisc.anchor.set(0.5);
+    this.hoverDisc.alpha = 0.5;
+    this.hoverDisc.visible = false;
+    this.layers.groundFx.addChild(this.hoverDisc);
     this.inspectRing.visible = false;
     this.layers.groundFx.addChild(this.inspectRing);
     this.fx = new FxLayer(this.map, this.layers.groundFx, this.layers.fx, {
@@ -807,6 +815,7 @@ export class Game2D {
       }
     }
     this.plots.sync(this.plotStateFn, this.hoverPlot, this.ring.isOpen ? this.ring.plot : -1, world.gold < this.minCost, dtSec);
+    if (this.hoverTowerId !== -1 && (this.ring.isOpen || this.heroSel || this.replayCursor || !world.getTowerById(this.hoverTowerId))) this.setHoverTower(-1);
     this.melee.update(world.soldierSystem, world.enemyPool, alpha, simDt);
     this.enemies.syncPool(world.enemyPool, alpha, simDt);
     this.projectiles.sync(world.projectilePool, alpha);
@@ -1166,6 +1175,17 @@ export class Game2D {
     this.heroMoveAt(x, y);
   }
 
+  /** Desktop hover range of a built tower (-1 hides it). */
+  private setHoverTower(id: number): void {
+    const t = id !== -1 ? this.world.getTowerById(id) : null;
+    this.hoverTowerId = t ? id : -1;
+    this.hoverDisc.visible = !!t;
+    if (!t) return;
+    const ppu = this.level.layout2d!.pxPerUnit;
+    this.hoverDisc.position.set(this.map.pxX(t.x), this.map.pxY(t.z));
+    this.hoverDisc.scale.set((getTowerTierStats(t.type, t.tier).range * ppu * 2) / this.tex.rangeDisc.width);
+  }
+
   private closeRing(): void {
     this.ring.close();
     this.selectedTower = -1;
@@ -1408,11 +1428,16 @@ export class Game2D {
           this.heroes.setHover(valid ? { x: c.x, z: c.z, valid } : { x: wx, z: wz, valid });
         }
       }
-      canvas.style.cursor = overHero || (this.hoverPlot !== -1 && this.world.grid.getTowerIdAt(this.hoverPlot, 0) === -1) ? 'pointer' : this.heroSel ? 'crosshair' : '';
+      // A built tower under the mouse (ring closed, no hero order): pointer + its range, faint.
+      const towerPlot = !this.ring.isOpen && !this.heroSel && !overHero ? this.towers.plotAtSprite(mx, my, this.world.towers) : -1;
+      this.setHoverTower(towerPlot === -1 ? -1 : this.world.grid.getTowerIdAt(towerPlot, 0));
+      canvas.style.cursor =
+        overHero || this.hoverTowerId !== -1 || (this.hoverPlot !== -1 && this.world.grid.getTowerIdAt(this.hoverPlot, 0) === -1) ? 'pointer' : this.heroSel ? 'crosshair' : '';
     });
     canvas.addEventListener('pointerleave', () => {
       this.hoverPlot = -1;
       this.heroes.setHover(null);
+      this.setHoverTower(-1);
     });
     // Desktop: the run pauses when the window loses focus (alt-tab, another app on top), like
     // backgrounding does; the player resumes on purpose. Touch devices pause via visibility already.
@@ -1544,6 +1569,7 @@ export class Game2D {
       horn: this.hud.hornPosition,
       hornScore: this.hornScore,
       plaque: this.hud.rects().plaque,
+      hoverTower: this.hoverTowerId,
       buttons: this.hud.buttonPositions,
       fx: {
         boltsDrawn: this.fx.boltsDrawn,
