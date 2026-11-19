@@ -7,6 +7,8 @@ Machine notes: worktree had no node_modules → `npm ci` (done round 1); `npm in
 for QA. Bash checker rejects `cat > /dev/null` style stdin waits, `$VAR`, loops, `cp` from /tmp; use
 python drivers (`python3 - <<'EOF'` works when the body has no `${`), Write tool for files.
 QA: `npx vite preview --port 4381 --strictPort` in background (kill with TaskStop at end of round).
+Round 2: the background preview dies at its 2 h limit — use `python3 qa/withPreview.py node qa/<x>.mjs
+…` (starts preview, runs one QA script, stops it). Gate: `python3 qa/gate.py` (stops at first failure).
 
 ## Done
 - **R1 Restart / Replay (backlog 1) — DONE.**
@@ -134,7 +136,8 @@ QA: `npx vite preview --port 4381 --strictPort` in background (kill with TaskSto
   with the next-wave card. A mark slides along its road off the card / horn / HUD
   (`laneMarkSpot`). Tests in `flowUi2d.test.ts`; shots `*-lanes-*.jpg`.
 - **R2 — misc polish:** end board plain "Level n" in soft ink (rust only for a level-up); coach
-  hidden under the pause menu.
+  hidden under the pause menu; desktop hover on a built tower = pointer cursor + faint range
+  disc (`game2d.hoverDisc`, QA in flowshots).
 
 ## Next (backlog 2: missing basics) — candidates, in rough value order
 - tower info card: the build ring tooltip already has stats/targeting/upgrade/sell+refund; review only
