@@ -319,7 +319,7 @@ def clip_road_at_gate(road: Image.Image, g, S: float, rw: float):
     road.paste(Image.fromarray((win * keep).astype(np.uint8), 'L'), (x0, y0))
 
 
-def draw_threshold_road(draw, path, gate, scale, width):
+def draw_threshold_road(draw, path, gate, scale, width, exit_blend=0):
     """Ease both edges of a new lane out of the measured doorway into the full road.
 
     The sill in a nearly front-facing painting can run almost parallel to the road.
@@ -352,6 +352,10 @@ def draw_threshold_road(draw, path, gate, scale, width):
     # the two lowest posts alone can leave a crescent of grass in the doorway.
     under = [(px - ux * width * .22, py - uy * width * .22) for px, py in posts]
     draw.polygon(posts + under[::-1], fill=255)
+    if exit_blend:
+        # An oblique opening can lead straight onto the lane. Turn the
+        # approach toward that lane while keeping both jambs in place.
+        ux, uy = _unit(ux*(1-exit_blend) + tx*exit_blend, uy*(1-exit_blend) + ty*exit_blend)
     edges = []
     for sign, (sx, sy) in zip((-1, 1), posts):
         ex, ey = x + sign * nx * width / 2, y + sign * ny * width / 2

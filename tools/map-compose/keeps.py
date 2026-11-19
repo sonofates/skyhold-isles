@@ -87,6 +87,10 @@ def source_coordinates(source, xx, yy, anchor, c, s, flip):
 
     # Extrapolate outside the source so the transparent border stays clear.
     def unwarp(value, dest, src):
+        if dest is src:
+            # Only the lateral elevation widens the portal. The other views
+            # already use source coordinates across the full transparent apron.
+            return np.asarray(value, dtype=np.float64)
         return np.interp(value, dest, src) + np.minimum(value - dest[0], 0) + np.maximum(value - dest[-1], 0)
 
     ix, iy = unwarp(x0, x_draw, x_knots), unwarp(y0, y_draw, y_knots)
@@ -100,13 +104,23 @@ def source_coordinates(source, xx, yy, anchor, c, s, flip):
 # Sample premultiplied colour and the occlusion mask with the same transform.
 def sample(data, ix, iy):
     h, w = data.shape[:2]
-    xa, ya = np.floor(ix).astype(int), np.floor(iy).astype(int)
-    u, v = ix - xa, iy - ya
-    result = np.zeros((*ix.shape, data.shape[2]), dtype=np.float32)
-    for dx, dy, weight in ((0, 0, (1 - u) * (1 - v)), (1, 0, u * (1 - v)), (0, 1, (1 - u) * v), (1, 1, u * v)):
-        valid = (xa + dx >= 0) & (xa + dx < w) & (ya + dy >= 0) & (ya + dy < h)
-        result[valid] += data[ya[valid] + dy, xa[valid] + dx] * weight[valid, None]
-    return result.clip(0, 255).round().astype('uint8')
+    # A transparent border supplies out-of-painting samples. Work in strips so
+    # the four interpolation arrays fit in cache on the largest keep paintings.
+    padded = np.pad(data, ((1, 1), (1, 1), (0, 0)))
+    result = np.empty((*ix.shape, data.shape[2]), dtype=np.uint8)
+    for first in range(0, ix.shape[0], 64):
+        rows = slice(first, first+64)
+        x, y = ix[rows], iy[rows]
+        xa, ya = np.floor(x).astype(int), np.floor(y).astype(int)
+        u, v = x-xa, y-ya
+        left, right = (xa+1).clip(0, w+1), (xa+2).clip(0, w+1)
+        top, bottom = (ya+1).clip(0, h+1), (ya+2).clip(0, h+1)
+        block = np.zeros((*x.shape, data.shape[2]), dtype=np.float32)
+        for py, px, weight in ((top, left, (1-u)*(1-v)), (top, right, u*(1-v)),
+                               (bottom, left, (1-u)*v), (bottom, right, u*v)):
+            block += padded[py, px] * weight[..., None]
+        result[rows] = block.clip(0, 255).round()
+    return result
 
 
 class Keep:

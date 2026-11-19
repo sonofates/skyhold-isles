@@ -1,18 +1,43 @@
 """Regression checks for map dressing. Run with python3 -B tools/map-compose/test_ground.py."""
 import unittest
 
-from PIL import Image, ImageChops, ImageDraw
+import numpy as np
+from PIL import Image, ImageChops, ImageColor, ImageDraw
 
 import fords
 from banks import shore_foundation
 from gates import draw_threshold_road, output_sprite
-from keeps import Keep
-from masonry import brick_spur, cart_tracks
+from keeps import Keep, sample
+from masonry import RoadArcade, brick_spur, cart_tracks
 
 from ground import Decals, DressingArea, brushed_surface, paint_over_road, road_footprint, road_fringe, scatter
 
 
 class GroundTests(unittest.TestCase):
+    def test_keep_sampling_interpolates_the_front_into_the_transparent_border(self):
+        # The fifth channel is the depth-sorted front, separate from the RGBA painting.
+        texel = np.array([40, 80, 120, 200, 160], dtype=np.uint8)
+        data = np.tile(texel, (2, 2, 1))
+        y, x = np.meshgrid(np.arange(161) / 32 - 2, [-.5, 0, .75, 1.5, 4], indexing='ij')
+        warped = sample(data, x, y)
+        coverage = np.clip(np.minimum(x+1, 2-x), 0, 1) * np.clip(np.minimum(y+1, 2-y), 0, 1)
+        np.testing.assert_array_equal(warped, np.rint(coverage[..., None] * texel).astype(np.uint8))
+
+    def test_arcade_tracks_the_near_road_edge_and_buries_its_ends(self):
+        path = [(15, 26), (40, 30), (72, 32), (105, 27), (139, 22)]
+        stone = Image.new('RGB', (60, 20), 'slateblue')
+        ImageDraw.Draw(stone).rectangle((0, 0, 59, 6), fill='tan')
+        # The outer spiral runs east to west. Its visible face is still to the south.
+        for points in (path, path[::-1]):
+            arcade = RoadArcade(points, path[0], path[-1], 16, 13)
+            for scale in (1, 2, 3):
+                ground = Image.new('RGB', (160*scale, 76*scale), 'seagreen')
+                arcade.paint(ground, stone, scale)
+                for x, y, color in ((73, 39, 'tan'), (73, 49, 'slateblue'),
+                                    (136, 38, 'seagreen'), (73, 32, 'seagreen'),
+                                    (73, 56, 'seagreen'), (8, 38, 'seagreen')):
+                    self.assertEqual(ground.getpixel((x*scale, y*scale)), ImageColor.getrgb(color))
+
     def test_furnace_finish_preserves_opening_and_silhouette(self):
         art = Image.new('RGBA', (48, 32))
         ink = ImageDraw.Draw(art)
@@ -88,6 +113,20 @@ class GroundTests(unittest.TestCase):
                         self.assertEqual(road.getpixel((x * scale, y * scale)), 255)
                 self.assertEqual(road.getpixel(((80 - direction * 26) * scale, 44 * scale)), 0)
                 self.assertEqual(road.getpixel(((80 + direction * 55) * scale, 50 * scale)), 255)
+
+    def test_oblique_sill_leads_into_the_lane_and_keeps_the_near_verge_clear(self):
+        sprite = Image.new('RGBA', (42, 36))
+        ImageDraw.Draw(sprite).polygon([(0, 0), (41, 0), (41, 34), (0, 26)], fill='black')
+        gate = {'im': sprite, 'left': 98, 'top': 35, 'k': 1,
+                'threshold': {'a': (5, 23), 'b': (38, 30)}}
+        for scale in (1, 2, 3):
+            road = Image.new('L', (174*scale, 100*scale))
+            path = [((117-i)*scale, (54+i*.17)*scale) for i in range(100)]
+            draw_threshold_road(ImageDraw.Draw(road), path, gate, scale, 28*scale, exit_blend=.85)
+            for x, y in ((130, 63), (115, 64), (96, 63), (70, 52), (70, 72)):
+                self.assertEqual(road.getpixel((x*scale, y*scale)), 255)
+            for x, y in ((123, 72), (115, 74), (90, 77)):
+                self.assertEqual(road.getpixel((x*scale, y*scale)), 0)
 
     def test_shore_plot_checks_rim_and_interior_and_blends_into_land(self):
         size = (192, 160)

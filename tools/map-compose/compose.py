@@ -92,7 +92,7 @@ from gates import (  # noqa: E402
 )
 import fords  # noqa: E402
 from banks import shore_foundation  # noqa: E402
-from masonry import brick_spur, cart_tracks, marble_road, moat_wall  # noqa: E402
+from masonry import RoadArcade, brick_spur, cart_tracks, marble_road, moat_wall  # noqa: E402
 from keeps import Keep  # noqa: E402
 from ground import (  # noqa: E402
     Decals, DressingArea, brushed_surface, fine_detail, inner_band, paint_over_road, ragged_mask,
@@ -327,6 +327,13 @@ def plot_zone(x, y):
 
 # Protect scenery painted directly on a chapter terrain plate as well as its cliff edge.
 dressing_mask = load(dressing['dressingMask']).convert('L').resize((iw, ih), Image.Resampling.NEAREST) if 'dressingMask' in dressing else None
+arcades = [RoadArcade(spl_paths[lane], start, end, ROAD_W, height)
+           for lane, start, end, height in dressing.get('arcades', [])]
+arcade_footprint = None
+if arcades:
+    arcade_footprint = Image.new('L', (iw, ih))
+    for wall in arcades:
+        ImageDraw.Draw(arcade_footprint).polygon(wall.footprint(), fill=255)
 
 
 def plot_ok(x, y):
@@ -336,6 +343,8 @@ def plot_ok(x, y):
     ring = (x - PLOT_R, y - PLOT_RY, x + PLOT_R, y + PLOT_RY)
     if dressing_mask and dressing_mask.crop(ring).getextrema()[0] < 128:
         return 'terrain'
+    if arcade_footprint is not None and arcade_footprint.crop(ring).getbbox():
+        return 'arcade'
     if any(rects_hit(ring, r) for r in HUD_RECTS):
         return 'hud'
     closest_y = max(horn_y_low, min(horn_y_high, y))
@@ -733,6 +742,8 @@ ford_sites = dressing.get('fords', [])
 ford_patches = fords.prepare(ground, land_mask, (iw, ih), ford_sites, S)
 if dressing.get('moatWall'):
     moat_wall(ground, land_mask, (iw, ih), spl_paths[0], ROAD_W, S, load('landmark-stone-bridge.webp'), SEED)
+for wall in arcades:
+    wall.paint(ground, load(dressing['arcadeMaterial']), S)
 
 # ---------------------------------------------------------------- road
 road_hard = Image.new('L', (W, H))
@@ -740,7 +751,8 @@ dr = ImageDraw.Draw(road_hard)
 shaped_entrances = set()
 for lane, path in enumerate(spl_paths):
     pts = [P(p) for p in path]
-    if dressing.get('thresholdRoad') and draw_threshold_road(dr, pts, GATES[lane]['g'], S, rw):
+    exit_blend = dressing.get('sillLaneBlend', {}).get(GATES[lane]['id'], 0)
+    if dressing.get('thresholdRoad') and draw_threshold_road(dr, pts, GATES[lane]['g'], S, rw, exit_blend):
         shaped_entrances.add(lane)
         continue
     dr.line(pts, fill=255, width=round(rw), joint='curve')
@@ -824,6 +836,8 @@ for name, x, y, length, width, angle in dressing.get('crossings', []):
 # ---------------------------------------------------------------- crisp painted details
 area = DressingArea((iw, ih), spl_paths, ROAD_W, plots, PLOT_R, PLOT_RY,
                     landmark_rects + crossing_rects)
+if arcade_footprint is not None:
+    area.mask.paste(1, mask=arcade_footprint)
 
 
 def grounded(rect):

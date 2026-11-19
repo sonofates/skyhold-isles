@@ -244,26 +244,38 @@
   "i13": {
     "plots": 28,
     "seed": 593,
-    "decals": 182,
-    "props": 64,
+    "decals": 75,
+    "props": 34,
     "windmill": "none",
     "seedPlots": [
       [644, 272],
       [868, 448]
     ],
     "biome": "highlands",
-    "propWeights": [1, 3, 2, 2, 4, 3, 1],
+    "propWeights": [2, 1, 6, 3, 1, 1, 2],
+    "scatterProps": [
+      ["storm-pine.webp", 1.45], ["broken-wall.webp", 0.59],
+      ["slate-heather.webp", 0.43], ["silver-grass.webp", 0.39],
+      ["cairn.webp", 0.61], ["anchor-block.webp", 0.44], ["split-spire.webp", 0.66]
+    ],
     "sprites": {
       "gate-cave-e.png": "storm-cave-e.webp",
-      "gate-cave-s.png": "storm-cave-s.webp",
-      "signal-post.webp": "split-spire.webp",
-      "shale-pine.webp": "storm-pine.webp",
-      "parapet.webp": "broken-wall.webp",
-      "snow-fir.webp": "torn-standard.webp"
+      "gate-cave-s.png": "storm-cave-s.webp"
     },
-    "roadMaterial": "tex-gravel.webp",
+    "dressingMask": "land-i13.webp",
+    "roadMaterial": "tex-watch-paving.webp",
+    "sillLaneBlend": {"A": 0.85},
+    "brushRoad": true,
+    "thresholdRoad": true,
+    "arcadeMaterial": "tex-watch-arcade.webp",
+    "arcades": [
+      [0, [457, 208], [744, 147], 24],
+      [0, [719, 348], [911, 349], 24],
+      [0, [1298, 698], [1475, 654], 23]
+    ],
     "landmarks": [
-      ["altar", 873, 256, 48]
+      ["watch-dial", 1056, 108, 90],
+      ["watch-beacon", 1604, 356, 115]
     ]
   },
   "i14": {

@@ -1,5 +1,31 @@
 # Content overnight · codex
 
+## Round 10 · 02:27–02:49 UTC · codex/night
+
+Started from `c5acb4b`. The runner owns the commit.
+
+### Done
+
+- **i13 Stormcrown Citadel.** The compass dial from the intro stands above the northern bend. The eastern watch fire has a fuel store and an unlit iron basket ready for the keeper in the outro. The former altar site between two tower pads had room for a 46 px dial. Moving it to the ridge let it reach 90 px. The old southeast standard sat behind the wave banner on phone. The 115 px signal basket is visible beside the northern war road.
+- Warm limestone paving follows the spiral over three stretches of slate arches. At the east cave the two road edges turn from the painted jambs into the approach. Low heather grows in the seams of the slate plateau. The exposed cliff lips and new retaining walls have scatter exclusions. The first trial used oversized slabs and a road flare below the east jamb. The final recipe scales the paving against the keep and eases the departure angle toward the lane. [Before and after maps with native 2× details](maps-round10-citadel.jpg) · [Paintings, prompts and rebuild command](../../design/art-2d/v2/biomes/highlands/stormcrown.md)
+- The first release run hit the recurring five-second i05 geometry-test timeout. Profiling located the cost in the compositor's keep transform. Oblique elevations now skip an identity interpolation, and the four-neighbour paint and depth sampler works in row strips. Across all 25 island keeps, the transformed RGBA painting, depth mask, paving swatch, anchor and scale match the starting revision exactly. In the paired check, i05's keep preparation took 0.345 s against 1.189 s at the starting revision.
+
+### Verification
+
+- Played Static Sparks at tick 181 with seven towers and seven enemies, and Crown of Storms at tick 510 with 24 towers and 39 enemies including the Tempest Colossus. Matched the before and after game state on all six pairs in the production build. Desktop used 1920 × 1080 at DPR 1 and 2, phone used 844 × 390 at DPR 3. Both high-density desktop captures loaded the native 3× map. On phone the dial occupies 41 × 41 CSS px and the beacon 55 × 53 CSS px. Both clear the horn, wave banner and playback controls. [Desktop combat](maps-round10-desktop.jpg) · [Phone combat at CSS size](maps-round10-phone.jpg)
+- Re-baked the four map sizes and six foregrounds with `--keep-plots`. All 25 saved layout files match the starting revision byte for byte. Decoded all 100 maps and 132 gate fronts at their registered sizes. The alpha channels of all six i13 fronts match the original pixels. The ten i13 textures grew by 844,236 bytes in total. The 1.5× map used on phone grew by 92,300 bytes.
+- Thirteen Python compositor regressions and both sprite tests passed. The new coverage exercises clearing the near verge at an oblique doorway, the buried ends of an arcade and sampling the keep's transparent border across row strips.
+- All 25 islands passed the compositor geometry checks. An interrupted native reproducibility pass was retried from the saved layout. The clean master, both variants, native map and all six fronts match the published bytes. The northern cave retains its existing 3 px bleed at the top of the safe area.
+- The final Node 22 gate passed TypeScript, ESLint, Vitest (1,186 passed, 11 skipped), all 41 balance targets and the Vite production build. Vite printed its chunk-size advisory. The complete 848-line balance stdout is byte-identical to round nine, SHA-256 `a843de0e6d4ece932d0de94bac52f34d8a7ca5dcd5dcb11f8c4c4a23a22d6e47`. Full device frames, bake comparisons and release logs are under `/tmp/skyhold-codex-r10`.
+
+### Requests for other agents
+
+Chapter two still awaits the shared roster, clip/death callback, story and Turkish registrations listed in earlier rounds, and the i21 horn placement. Round ten adds scenery to a shipping island and introduces no UI strings.
+
+### Next round
+
+Inspect i05 Windmill Switchback in production on phone. Its story panel shows a working mill surrounded by golden wheat. The battle map has a lone mill, open ochre ground and repeated green trellises. Fit the fields and harvesting equipment to the two hairpins and check the mill against tall towers. Retain the east keep, west entrance and all 19 plots. If the chapter registrations have landed, verify the shipping unlock, stories and first kills first.
+
 ## Round 9 · 02:05–02:27 UTC · codex/night
 
 Started from `eab2202`. The runner owns the commit.

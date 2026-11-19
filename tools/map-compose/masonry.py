@@ -25,6 +25,58 @@ class RoadCourse:
         return centre + np.array([-dy, dx]) * (offset / length)
 
 
+class RoadArcade:
+    """An exposed retaining wall under a south-facing stretch of elevated road."""
+    def __init__(self, path, start, end, width, height):
+        points = np.asarray(path)
+        i, j = (np.argmin(np.linalg.norm(points - anchor, axis=1)) for anchor in (start, end))
+        section = points[min(i, j):max(i, j)+1]
+        if len(section) < 2 or height <= 0:
+            raise ValueError('An arcade needs two distinct road stations and positive height')
+        if section[0, 0] > section[-1, 0]:
+            section = section[::-1]
+        course = RoadCourse(section)
+        stations = np.linspace(0, course.length, max(2, math.ceil(course.length / 3) + 1))
+        edge = np.array([course.point(s, width / 2) for s in stations])
+        self.x, self.rim = edge.T
+        if np.any(np.diff(self.x) <= 0):
+            raise ValueError('An arcade must follow a screen-facing road edge')
+        self.distance = np.r_[0, np.cumsum(np.hypot(*np.diff(edge, axis=0).T))]
+        self.height = height
+        # At either abutment the hillside covers the lower courses first.
+        run = np.minimum(self.distance, self.distance[-1] - self.distance)
+        self.foot = self.rim + height * np.clip(run / (height * 2), 0, 1)
+
+    def footprint(self):
+        return list(zip(self.x, self.rim - 3)) + list(zip(self.x[::-1], self.foot[::-1] + 3))
+
+    def paint(self, ground, material, scale):
+        # Project the painted elevation vertically below the near lip. The road
+        # overpaints three pixels of coping to seal its irregular gravel edge.
+        left, right = math.ceil(self.x[0]*scale), math.floor(self.x[-1]*scale)
+        top, bottom = math.floor((min(self.rim)-3)*scale), math.ceil((max(self.foot)+3)*scale)
+        x = (np.arange(left, right) + .5) / scale
+        y = (np.arange(top, bottom)[:, None] + .5) / scale
+        rim, foot, distance = (np.interp(x, self.x, v) for v in (self.rim, self.foot, self.distance))
+        h = max(1, round((self.height+3)*scale))
+        w = max(1, round(h*1.45*material.width/material.height))
+        tile = np.asarray(material.convert('RGB').resize((w, h), Image.Resampling.LANCZOS))
+        u = (distance*scale).astype(int) % w
+        depth = y-rim+3
+        v = np.clip((depth*scale).astype(int), 0, h-1)
+        face = Image.fromarray(tile[v, u])
+        # Exposed slate catches the foot unevenly. Keep its painted grain in
+        # the narrow contact shadow beneath the buried courses.
+        bank = ground.crop((left, top, right, bottom))
+        highlights = np.asarray(bank.convert('L'), dtype=float)
+        foot = foot - np.clip((highlights-70)/20, 0, 3)
+        contact = np.clip((foot-y+3)/3, 0, 1) * np.clip(depth*scale, 0, 1)
+        ground.paste(ImageEnhance.Brightness(bank).enhance(.63), (left, top),
+                     Image.fromarray(np.uint8(contact*255)))
+        alpha = np.clip(foot-y+.5, 0, 1) * np.clip(depth*scale, 0, 1)
+        ground.paste(face, (left, top), Image.fromarray(np.uint8(alpha*255)))
+
+
 def cart_tracks(surface, path, road_width, scale, seed):
     """Press two shallow, broken wheel tracks into the painted earth along a cart route."""
     course = RoadCourse(path)
