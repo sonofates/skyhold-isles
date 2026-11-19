@@ -67,8 +67,16 @@ export const HERO_RULES = {
   /** Idle regeneration fraction of max HP per second after `regenDelay` seconds out of combat. */
   regenFrac: 0.06,
   regenDelay: 2.0,
-  /** Distance from the castle goal along the final road segment where the hero spawns/respawns. */
+  /** Distance from the castle goal along the final road segment where the hero spawns at run start. */
   castleSpawnBackoff: 0.75,
+  /** Minimum road distance from the castle goal for the no-rally fallback respawn chokepoint (outside the castle). */
+  respawnCastleClearance: 3.0,
+  /** Extra safety clearance beyond an enemy's body radius when checking whether a respawn point is unsafe. */
+  respawnSafeClearance: 1.25,
+  /** Maximum retreat search radius behind an unsafe rally/fallback point towards the castle. */
+  respawnRetreatRadius: 4.5,
+  /** Brief post-respawn invulnerability duration in seconds so a revived hero cannot be instantly killed. */
+  respawnInvulnSec: 1.5,
   /** Per-level base stat growth (level 1 -> 20, applied before skill-tree patches). */
   hpGrowthPerLevel: 0.068,
   damageGrowthPerLevel: 0.062,
@@ -205,7 +213,7 @@ export interface HeroBaseStats {
   readonly range: number;
   /** World units per second along the ground graph. */
   readonly moveSpeed: number;
-  /** Seconds to respawn at the castle after falling. */
+  /** Seconds to respawn after falling (before skill-tree and difficulty multipliers). */
   readonly respawnSec: number;
   /** Ground enemies this hero can hold in melee (`> 0` for melee blockers, `0` for ranged). */
   readonly holdCap: number;

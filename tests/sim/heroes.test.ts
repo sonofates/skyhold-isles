@@ -357,7 +357,7 @@ describe('hero combat, passives, death & respawn', () => {
     expect(world.hero!.totalDamageDealt).toBeGreaterThan(0);
   });
 
-  it('takes melee damage, dies (heroDied), locks commands while dead, and respawns at the castle (heroRespawn)', () => {
+  it('takes melee damage, dies (heroDied), locks commands while dead, and respawns at last commanded rally point (heroRespawn)', () => {
     const events = new EventBus();
     const hits: GameEventMap['heroHit'][] = [];
     const died: GameEventMap['heroDied'][] = [];
@@ -367,16 +367,18 @@ describe('hero combat, passives, death & respawn', () => {
     events.on('heroRespawn', (e) => respawned.push(e));
 
     const world = new SimWorld(forkLevel(), events, { heroId: 'bran', heroLevel: 1 });
+    // Issue two move orders: only the last commanded rally point (-2, -3) should govern respawn.
     world.commandHeroMove(3, 0);
-    tickUntil(world, () => world.hero!.state === 'idle', 10);
+    world.commandHeroMove(-2, -3);
+    tickUntil(world, () => world.hero!.state === 'idle', 12);
 
     const lane0 = world.enemySystem.getPath(false, 0);
-    const dMerge = lane0.nearestDist(3, 0);
-    // Spawn an elite high-HP boss so it strikes Bran down quickly.
+    const dRally = lane0.nearestDist(-2, -3);
+    // Spawn an elite high-HP boss so it strikes Bran down quickly, then walks far past (-2, -3).
     const boss = world.enemySystem.spawnEnemy('boss', 6, true, 0)!;
     const v = { x: 0, y: 0, z: 0 };
-    lane0.sample(dMerge - 0.3, v);
-    boss.dist = dMerge - 0.3;
+    lane0.sample(dRally - 0.3, v);
+    boss.dist = dRally - 0.3;
     boss.x = boss.prevX = v.x;
     boss.z = boss.prevZ = v.z;
 
@@ -388,12 +390,255 @@ describe('hero combat, passives, death & respawn', () => {
     expect(world.commandHeroMove(0, -3)).toBe(false);
     expect(world.castHeroSkill(0, 3, 0)).toBe(false);
 
-    // Advance past respawn timer: respawns at castle spawn point at full HP.
+    // Advance past respawn timer: respawns at the last commanded rally point (-2, -3) at full HP (not castle).
     tickUntil(world, () => world.hero!.state !== 'dead', 20);
     expect(respawned).toHaveLength(1);
     expect(world.hero!.hp).toBe(world.hero!.maxHp);
-    expect(world.hero!.x).toBeCloseTo(world.hero!.spawnX, 5);
-    expect(world.hero!.z).toBeCloseTo(world.hero!.spawnZ, 5);
+    expect(world.hero!.x).toBeCloseTo(-2, 4);
+    expect(world.hero!.z).toBeCloseTo(-3, 4);
+    expect(respawned[0].x).toBeCloseTo(world.hero!.x, 6);
+    expect(respawned[0].z).toBeCloseTo(world.hero!.z, 6);
+    expect(Math.hypot(world.hero!.x - world.hero!.spawnX, world.hero!.z - world.hero!.spawnZ)).toBeGreaterThan(5);
+  });
+
+  it('respawns at last commanded rally point even if killed mid-walk, and preserves Hard heroRespawnMul timer', () => {
+    const events = new EventBus();
+    const died: GameEventMap['heroDied'][] = [];
+    const respawned: GameEventMap['heroRespawn'][] = [];
+    events.on('heroDied', (e) => died.push(e));
+    events.on('heroRespawn', (e) => respawned.push(e));
+
+    const hardMods = combineRunModifiers({ heroRespawnMul: 1.25 });
+    const baseStats = resolveHeroStats('wren', 1, []);
+    const world = new SimWorld(forkLevel(), events, hardMods, { heroId: 'wren', heroLevel: 1 });
+
+    // Order Wren toward (-6, 3) on lane B, then kill her mid-walk near the merge before she arrives.
+    expect(world.commandHeroMove(-6, 3)).toBe(true);
+    expect(world.hero!.state).toBe('moving');
+    tick(world, 60);
+    expect(world.hero!.state).toBe('moving');
+
+    world.hero!.hp = 1;
+    const ambusher = spawnEnemyAtWorld(
+      world,
+      'brute',
+      world.groundPath.nearestDist(world.hero!.x, world.hero!.z),
+      0,
+      500,
+    );
+    ambusher.speed = 0;
+    ambusher.x = ambusher.prevX = world.hero!.x;
+    ambusher.z = ambusher.prevZ = world.hero!.z;
+    ambusher.heroMeleeTimer = 0.005;
+
+    tickUntil(world, () => world.hero!.state === 'dead', 5);
+    expect(died).toHaveLength(1);
+    expect(died[0].respawnSec).toBeCloseTo(baseStats.respawnSec * 1.25, 5);
+
+    // Remove the ambusher so (-6, 3) is clear when Hard respawn timer expires.
+    ambusher.hp = 0;
+    ambusher.active = false;
+    world.enemyPool.clear();
+    world.spatialHash.clear();
+
+    // Still dead just before the 1.25x scaled timer finishes.
+    tick(world, Math.floor((baseStats.respawnSec * 1.25 - 0.25) * 60));
+    expect(world.hero!.state).toBe('dead');
+
+    tickUntil(world, () => world.hero!.state !== 'dead', 3);
+    expect(respawned).toHaveLength(1);
+    expect(respawned[0].x).toBeCloseTo(-6, 4);
+    expect(respawned[0].z).toBeCloseTo(3, 4);
+    expect(world.hero!.x).toBeCloseTo(-6, 4);
+    expect(world.hero!.z).toBeCloseTo(3, 4);
+  });
+
+  it('respawns at the castle-side merge/chokepoint (outside the castle, on walkable graph) when never moved', () => {
+    // 1. Multi-lane forkLevel: merge is at (+3, 0), castle goal is (+8, 0), castle spawn is (+7.25, 0).
+    const events = new EventBus();
+    const respawned: GameEventMap['heroRespawn'][] = [];
+    events.on('heroRespawn', (e) => respawned.push(e));
+
+    const world = new SimWorld(forkLevel(), events, { heroId: 'wren', heroLevel: 1 });
+    expect(world.hero!.hasRallyPoint).toBe(false);
+
+    // Kill Wren at her initial castle spawn without issuing any move command, then clear enemies.
+    world.hero!.hp = 1;
+    const raider = spawnEnemyAtWorld(world, 'grunt', world.groundPath.totalLength - 0.75, 0, 400);
+    raider.speed = 0;
+    tickUntil(world, () => world.hero!.state === 'dead', 5);
+    world.enemyPool.clear();
+    world.spatialHash.clear();
+
+    tickUntil(world, () => world.hero!.state !== 'dead', 20);
+    expect(respawned).toHaveLength(1);
+    // Fallback sits just castle-side of the (+3, 0) merge (~3.8, 0): well outside the castle (+8, 0) and on the road.
+    expect(respawned[0].x).toBeGreaterThanOrEqual(3.0);
+    expect(respawned[0].x).toBeLessThanOrEqual(5.0);
+    expect(respawned[0].z).toBeCloseTo(0, 4);
+    const clampFork = world.heroSystem.groundGraph.clampToGround(respawned[0].x, respawned[0].z, Infinity);
+    expect(Math.hypot(respawned[0].x - clampFork.roadX, respawned[0].z - clampFork.roadZ)).toBeLessThan(1e-4);
+
+    // 2. Single-lane map: fallback sits at the castle-side chokepoint (>= respawnCastleClearance from goal), not inside castle.
+    const singleLaneJson: Level2DJson = {
+      ...FORK_JSON,
+      id: 'single-bend',
+      entrances: [{ id: 'A', x: 100, y: 100 }],
+      paths: [
+        [
+          [100, 100],
+          [650, 100],
+          [650, 250],
+          [900, 250],
+        ],
+      ],
+    };
+    const singleWorld = new SimWorld(
+      { ...forkLevel(), id: 'single-bend', layout2d: parseLevel2D(singleLaneJson) },
+      new EventBus(),
+      { heroId: 'bran', heroLevel: 1 },
+    );
+    const fb = singleWorld.heroSystem.getFallbackRespawnPoint();
+    const goal = singleWorld.groundPath.points[singleWorld.groundPath.points.length - 1];
+    const distFromGoal = singleWorld.groundPath.totalLength - singleWorld.groundPath.nearestDist(fb.x, fb.z);
+    expect(distFromGoal).toBeGreaterThanOrEqual(HERO_RULES.respawnCastleClearance - 0.05);
+    expect(Math.hypot(fb.x - goal.x, fb.z - goal.z)).toBeGreaterThan(2.5);
+    const clampSingle = singleWorld.heroSystem.groundGraph.clampToGround(fb.x, fb.z, Infinity);
+    expect(Math.hypot(fb.x - clampSingle.roadX, fb.z - clampSingle.roadZ)).toBeLessThan(1e-4);
+  });
+
+  it('steps back to the nearest safe walkable road point towards the castle when enemies stand on the rally point', () => {
+    const events = new EventBus();
+    const respawned: GameEventMap['heroRespawn'][] = [];
+    events.on('heroRespawn', (e) => respawned.push(e));
+
+    const world = new SimWorld(forkLevel(), events, { heroId: 'wren', heroLevel: 1 });
+    // Rally Wren at (0, -3) on lane 0 (road runs east from (-8, -3) -> (+3, -3) -> (+3, 0) -> (+8, 0)).
+    expect(world.commandHeroMove(0, -3)).toBe(true);
+    tickUntil(world, () => world.hero!.state === 'idle', 12);
+
+    // Force death countdown directly via lethal melee blow, then station a frozen Brute right on (0, -3).
+    world.hero!.hp = 1;
+    const lane0 = world.enemySystem.getPath(false, 0);
+    const rallyDist = lane0.nearestDist(0, -3);
+    const occupier = spawnEnemyAtWorld(world, 'brute', rallyDist, 0, 5000);
+    occupier.speed = 0;
+    tickUntil(world, () => world.hero!.state === 'dead', 5);
+
+    // Keep occupier stationary at (0, -3), plus a flyer overhead (flyers must NOT block ground road safety).
+    const flyer = spawnEnemyAtWorld(world, 'flyer', 8, 0, 5000);
+    flyer.speed = 0;
+    flyer.x = flyer.prevX = 2.1;
+    flyer.z = flyer.prevZ = -3;
+
+    tickUntil(world, () => world.hero!.state !== 'dead', 20);
+    expect(respawned).toHaveLength(1);
+    const rx = world.hero!.x;
+    const rz = world.hero!.z;
+    expect(respawned[0].x).toBeCloseTo(rx, 6);
+    expect(respawned[0].z).toBeCloseTo(rz, 6);
+
+    // 1) Safe clearance from the Brute standing on (0, -3):
+    expect(Math.hypot(rx - occupier.x, rz - occupier.z)).toBeGreaterThan(
+      occupier.radius + HERO_RULES.respawnSafeClearance,
+    );
+    // 2) Strictly behind the rally point towards the castle along the road, within respawnRetreatRadius:
+    const respawnDist = lane0.nearestDist(rx, rz);
+    expect(respawnDist).toBeGreaterThan(rallyDist);
+    expect(Math.hypot(rx - 0, rz - -3)).toBeLessThanOrEqual(HERO_RULES.respawnRetreatRadius);
+    // 3) On the walkable ground graph:
+    const clamped = world.heroSystem.groundGraph.clampToGround(rx, rz, Infinity);
+    expect(Math.hypot(rx - clamped.roadX, rz - clamped.roadZ)).toBeLessThanOrEqual(HERO_RULES.maxOffRoadDist + 1e-4);
+    // 4) Preserves the player's commanded rally point (0, -3) once the road clears:
+    expect(world.hero!.rallyX).toBeCloseTo(0, 4);
+    expect(world.hero!.rallyZ).toBeCloseTo(-3, 4);
+  });
+
+  it('grants 1.5s post-respawn invulnerability (HERO_RULES.respawnInvulnSec) before resuming melee damage', () => {
+    expect(HERO_RULES.respawnInvulnSec).toBeCloseTo(1.5, 6);
+
+    const events = new EventBus();
+    let postRespawnHits = 0;
+    let countingHits = false;
+    events.on('heroHit', () => {
+      if (countingHits) postRespawnHits++;
+    });
+
+    const world = new SimWorld(forkLevel(), events, { heroId: 'bran', heroLevel: 1 });
+    // Park Bran right near the castle threshold so no further retreat room exists and an attacker stays on top of him.
+    const sp = world.heroSystem.groundGraph.castleSpawnPoint();
+    expect(world.commandHeroMove(sp.x, sp.z)).toBe(true);
+
+    world.hero!.hp = 1;
+    const lane0 = world.enemySystem.getPath(false, 0);
+    const spDist = lane0.nearestDist(sp.x, sp.z);
+    const attacker = spawnEnemyAtWorld(world, 'brute', spDist, 0, 9999);
+    attacker.speed = 0;
+
+    tickUntil(world, () => world.hero!.state === 'dead', 5);
+    tickUntil(world, () => world.hero!.state !== 'dead', 20);
+
+    // Immediately on respawn: full HP and full 1.5s invulnerability window.
+    expect(world.hero!.hp).toBe(world.hero!.maxHp);
+    expect(world.hero!.invulnTimer).toBeCloseTo(HERO_RULES.respawnInvulnSec, 6);
+    expect(world.getHeroState()!.invulnRemaining).toBeCloseTo(HERO_RULES.respawnInvulnSec, 6);
+
+    // Move attacker directly into melee contact with the respawned hero and tick all 90 frames (1.50s at 60 Hz).
+    attacker.x = attacker.prevX = world.hero!.x;
+    attacker.z = attacker.prevZ = world.hero!.z;
+    attacker.heroMeleeTimer = 0.01;
+    countingHits = true;
+
+    const invulnTicks = Math.round(HERO_RULES.respawnInvulnSec / DT);
+    expect(invulnTicks).toBe(90);
+    tick(world, invulnTicks);
+
+    expect(postRespawnHits).toBe(0);
+    expect(world.hero!.hp).toBe(world.hero!.maxHp);
+    expect(world.hero!.invulnTimer).toBe(0);
+
+    // Once the 1.5s window expires, enemy melee strikes resume dealing damage normally.
+    tick(world, 45);
+    expect(postRespawnHits).toBeGreaterThan(0);
+    expect(world.hero!.hp).toBeLessThan(world.hero!.maxHp);
+  });
+
+  it('produces bit-identical contested-respawn and invulnerability traces across deterministic runs', () => {
+    function runContestedRespawnTrace(seed: number): string {
+      const events = new EventBus();
+      const trace: string[] = [];
+      events.on('heroDied', (e) => trace.push(`D:${e.x.toFixed(4)},${e.z.toFixed(4)},${e.respawnSec.toFixed(3)}`));
+      events.on('heroRespawn', (e) => trace.push(`R:${e.x.toFixed(4)},${e.z.toFixed(4)},${e.hp}`));
+      events.on('heroHit', (e) => trace.push(`H:${e.enemyId}:${e.damage}:${e.hp}`));
+
+      const world = new SimWorld(forkLevel(), events, { heroId: 'bran', heroLevel: 1, seed });
+      world.lives = 99;
+      world.commandHeroMove(1.5, -3);
+      tickUntil(world, () => world.hero!.state === 'idle', 10);
+      world.hero!.hp = 60;
+
+      const lane0 = world.enemySystem.getPath(false, 0);
+      const d = lane0.nearestDist(1.5, -3);
+      const b1 = spawnEnemyAtWorld(world, 'brute', d - 0.2, 0, 4000);
+      const b2 = spawnEnemyAtWorld(world, 'brute', d - 1.1, 0, 4000);
+      b1.speed = 0.08;
+      b2.speed = 0.08;
+
+      tick(world, 60 * 28);
+      return JSON.stringify({
+        x: world.hero!.x,
+        z: world.hero!.z,
+        hp: world.hero!.hp,
+        invuln: world.hero!.invulnTimer,
+        dmg: world.hero!.totalDamageDealt,
+        trace,
+      });
+    }
+
+    const r1 = runContestedRespawnTrace(20261119);
+    const r2 = runContestedRespawnTrace(20261119);
+    expect(r1).toBe(r2);
+    expect(r1).toContain('"R:');
   });
 });
 

@@ -240,15 +240,21 @@ export function driveHeroInBot(
   const h = world.hero;
   if (!h || h.state === 'dead') return;
 
-  const concreteModes: readonly Exclude<HeroParkMode, 'roam'>[] = ['front', 'merge', 'altLane', 'castle'];
-  const activePostMode: Exclude<HeroParkMode, 'roam'> =
-    parkMode === 'roam'
-      ? concreteModes[Math.max(0, waveOneBased - 1) % concreteModes.length]
-      : parkMode;
-  const targetPost = computeHeroPost(world, activePostMode);
+  if (parkMode !== 'castle') {
+    const concreteModes: readonly Exclude<HeroParkMode, 'roam'>[] = ['front', 'merge', 'altLane', 'castle'];
+    const activePostMode: Exclude<HeroParkMode, 'roam'> =
+      parkMode === 'roam'
+        ? concreteModes[Math.max(0, waveOneBased - 1) % concreteModes.length]
+        : parkMode;
+    const targetPost = computeHeroPost(world, activePostMode);
 
-  if (h.state !== 'moving' && Math.hypot(h.postX - targetPost.x, h.postZ - targetPost.z) > 0.25) {
-    world.commandHeroMove(targetPost.x, targetPost.z);
+    if (
+      h.state === 'idle' &&
+      h.invulnTimer <= 0 &&
+      Math.hypot(h.postX - targetPost.x, h.postZ - targetPost.z) > 0.25
+    ) {
+      world.commandHeroMove(targetPost.x, targetPost.z);
+    }
   }
 
   const ws = world.waveSystem.state;

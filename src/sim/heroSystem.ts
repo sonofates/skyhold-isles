@@ -63,11 +63,15 @@ export interface HeroEntity {
   readonly spawnX: number;
   readonly spawnZ: number;
   readonly spawnYaw: number;
+  hasRallyPoint: boolean;
+  rallyX: number;
+  rallyZ: number;
   postX: number;
   postZ: number;
   hp: number;
   maxHp: number;
   respawnTimer: number;
+  invulnTimer: number;
   attackTimer: number;
   sinceHurt: number;
   hitFlashTimer: number;
@@ -118,6 +122,7 @@ export interface HeroRuntimeState {
   readonly armor: number;
   readonly respawnRemaining: number;
   readonly respawnMax: number;
+  readonly invulnRemaining: number;
   readonly runXp: number;
   readonly kills: number;
   readonly totalDamageDealt: number;
@@ -154,6 +159,8 @@ const _prevHeroBlockedUid: number[] = [];
 const _prevTotalBlocked: number[] = [];
 const _extraHoldIndices: number[] = [];
 const _samplePt: Vec3 = { x: 0, y: 0, z: 0 };
+const _respawnPtA: Vec3 = { x: 0, y: 0, z: 0 };
+const _respawnPtB: Vec3 = { x: 0, y: 0, z: 0 };
 const _hitSets = [new Set<number>(), new Set<number>()] as const;
 const _clampTarget: GroundClampResult = { x: 0, z: 0, roadX: 0, roadZ: 0, lane: 0, dist: 0 };
 const _clampStep: GroundClampResult = { x: 0, z: 0, roadX: 0, roadZ: 0, lane: 0, dist: 0 };
@@ -210,6 +217,13 @@ function angleCosBetween(ax: number, az: number, bx: number, bz: number): number
   const lb = Math.hypot(bx, bz);
   if (la < 1e-6 || lb < 1e-6) return 1;
   return (ax * bx + az * bz) / (la * lb);
+}
+
+function wrapYaw(rad: number): number {
+  let y = rad;
+  while (y > Math.PI) y -= Math.PI * 2;
+  while (y < -Math.PI) y += Math.PI * 2;
+  return y;
 }
 
 /**
@@ -315,11 +329,15 @@ export class HeroSystem {
         spawnX: spawn.x,
         spawnZ: spawn.z,
         spawnYaw: spawn.yaw,
+        hasRallyPoint: false,
+        rallyX: spawn.x,
+        rallyZ: spawn.z,
         postX: spawn.x,
         postZ: spawn.z,
         hp: stats.maxHp,
         maxHp: stats.maxHp,
         respawnTimer: 0,
+        invulnTimer: 0,
         attackTimer: 0,
         sinceHurt: 99,
         hitFlashTimer: 0,
@@ -423,6 +441,7 @@ export class HeroSystem {
       _prevHeroBlockedUid.length = 0;
       _prevTotalBlocked.length = 0;
       this.hero.rallyBannerTimer = 0;
+      this.hero.invulnTimer = 0;
       this.hero.waypoints.length = 0;
       if (
         this.hero.state === 'engaging' ||
@@ -496,6 +515,7 @@ export class HeroSystem {
       armor: h.stats.armor + (h.rallyBannerTimer > 0 ? h.stats.actives[1].armorBonus : 0),
       respawnRemaining: h.state === 'dead' ? h.respawnTimer : 0,
       respawnMax: h.stats.respawnSec,
+      invulnRemaining: alive ? h.invulnTimer : 0,
       runXp: this.runXp,
       kills: h.kills,
       totalDamageDealt: Math.round(h.totalDamageDealt),
@@ -516,6 +536,9 @@ export class HeroSystem {
     const last = waypoints[waypoints.length - 1];
     h.waypoints.length = 0;
     for (let i = 0; i < waypoints.length; i++) h.waypoints.push(waypoints[i]);
+    h.hasRallyPoint = true;
+    h.rallyX = last.x;
+    h.rallyZ = last.z;
     h.postX = last.x;
     h.postZ = last.z;
     h.state = Math.hypot(last.x - h.x, last.z - h.z) > 1e-4 ? 'moving' : 'idle';
@@ -529,6 +552,171 @@ export class HeroSystem {
       waypoints: [...waypoints],
     });
     return true;
+  }
+
+  /**
+   * Deterministic fallback respawn point when the player has never issued a move command:
+   * - Multi-lane maps: the first merge junction walking out from the castle side of the road.
+   * - Single-lane maps: the first castle-side road bend/chokepoint (or a clear castle-side road post).
+   * Always outside the castle threshold (`>= respawnCastleClearance` when road length allows) and on the road.
+   */
+  getFallbackRespawnPoint(): { x: number; z: number; yaw: number } {
+    const main = this.groundPaths[0];
+    if (!main || main.totalLength <= 0) {
+      return {
+        x: this.hero?.spawnX ?? 0,
+        z: this.hero?.spawnZ ?? 0,
+        yaw: this.hero?.spawnYaw ?? 0,
+      };
+    }
+
+    const total = main.totalLength;
+    const minBack = Math.min(HERO_RULES.respawnCastleClearance, total * 0.35);
+
+    if (this.groundPaths.length >= 2) {
+      let earliestSharedDist = total;
+      const step = 0.25;
+      for (let d = total; d >= 0; d -= step) {
+        main.sample(d, _respawnPtA);
+        let allClose = true;
+        for (let l = 1; l < this.groundPaths.length; l++) {
+          const other = this.groundPaths[l];
+          const nd = other.nearestDist(_respawnPtA.x, _respawnPtA.z);
+          other.sample(nd, _respawnPtB);
+          if (Math.hypot(_respawnPtA.x - _respawnPtB.x, _respawnPtA.z - _respawnPtB.z) > 0.7) {
+            allClose = false;
+            break;
+          }
+        }
+        if (allClose) {
+          earliestSharedDist = d;
+        } else {
+          break;
+        }
+      }
+      const anchorDist = Math.max(0, Math.min(total - minBack, earliestSharedDist + 0.8));
+      const roadYaw = main.sample(anchorDist, _samplePt);
+      return { x: _samplePt.x, z: _samplePt.z, yaw: wrapYaw(roadYaw + Math.PI) };
+    }
+
+    // Single-lane road: walk out from the castle side and pick the first bend/chokepoint outside the castle.
+    const maxBack = Math.min(18.0, total * 0.45);
+    const minTurnRad = (25 * Math.PI) / 180;
+    let chosenBack = Math.min(4.5, total * 0.35);
+    for (let b = minBack; b <= maxBack; b += 0.25) {
+      const d = total - b;
+      const y1 = main.sample(Math.max(0, d - 1.0), _respawnPtA);
+      const y2 = main.sample(Math.min(total, d + 1.0), _respawnPtB);
+      let diff = Math.abs(y2 - y1);
+      if (diff > Math.PI) diff = Math.PI * 2 - diff;
+      if (diff >= minTurnRad) {
+        let peakBack = b;
+        let peakDiff = diff;
+        const limitBack = Math.min(maxBack, b + 2.0);
+        for (let pb = b + 0.25; pb <= limitBack; pb += 0.25) {
+          const pd = total - pb;
+          const py1 = main.sample(Math.max(0, pd - 1.0), _respawnPtA);
+          const py2 = main.sample(Math.min(total, pd + 1.0), _respawnPtB);
+          let pdiff = Math.abs(py2 - py1);
+          if (pdiff > Math.PI) pdiff = Math.PI * 2 - pdiff;
+          if (pdiff > peakDiff + 1e-9) {
+            peakDiff = pdiff;
+            peakBack = pb;
+          }
+        }
+        chosenBack = peakBack;
+        break;
+      }
+    }
+
+    const anchorDist = Math.max(0, Math.min(total - minBack, total - chosenBack));
+    const roadYaw = main.sample(anchorDist, _samplePt);
+    return { x: _samplePt.x, z: _samplePt.z, yaw: wrapYaw(roadYaw + Math.PI) };
+  }
+
+  private minEnemyMarginAt(x: number, z: number): number {
+    let minMargin = Infinity;
+    const activeCount = this.pool.getActiveCount();
+    for (let i = 0; i < activeCount; i++) {
+      const e = this.pool.items[this.pool.getActiveIndex(i)];
+      if (!e.active || e.hp <= 0 || e.flying || e.burrowed) continue;
+      const d = Math.hypot(e.x - x, e.z - z);
+      const margin = d - (e.radius + HERO_RULES.respawnSafeClearance);
+      if (margin < minMargin) minMargin = margin;
+    }
+    return minMargin;
+  }
+
+  /**
+   * Deterministic respawn resolver:
+   * - Uses the hero's last commanded rally point (`rallyX`, `rallyZ`) when set; otherwise `getFallbackRespawnPoint()`.
+   * - If ground enemies make that point unsafe, steps along the walkable road behind it (towards the castle)
+   *   within `HERO_RULES.respawnRetreatRadius` and picks the nearest safe road point.
+   */
+  resolveRespawnPoint(): { x: number; z: number; yaw: number } {
+    const h = this.hero;
+    const fallback = h?.hasRallyPoint ? null : this.getFallbackRespawnPoint();
+    const wantX = h?.hasRallyPoint ? h.rallyX : (fallback?.x ?? 0);
+    const wantZ = h?.hasRallyPoint ? h.rallyZ : (fallback?.z ?? 0);
+
+    const base = this.groundGraph.clampToGroundOut(
+      wantX,
+      wantZ,
+      HERO_RULES.maxOffRoadDist,
+      _clampTarget,
+    );
+    const path = this.groundPaths[base.lane] ?? this.groundPaths[0];
+    if (!path || path.totalLength <= 0) {
+      return { x: base.x, z: base.z, yaw: fallback?.yaw ?? h?.spawnYaw ?? 0 };
+    }
+
+    const baseRoadYaw = path.sample(base.dist, _samplePt);
+    const baseYaw = wrapYaw(baseRoadYaw + Math.PI);
+    const baseMargin = this.minEnemyMarginAt(base.x, base.z);
+    if (baseMargin > 0) {
+      return { x: base.x, z: base.z, yaw: baseYaw };
+    }
+
+    const goalBackoff = h?.hasRallyPoint
+      ? HERO_RULES.castleSpawnBackoff
+      : Math.min(1.5, path.totalLength * 0.25);
+    const maxDist = Math.max(base.dist, path.totalLength - goalBackoff);
+    const maxEuclidSq = HERO_RULES.respawnRetreatRadius * HERO_RULES.respawnRetreatRadius;
+    const maxArc = Math.min(maxDist - base.dist, HERO_RULES.respawnRetreatRadius * 1.5);
+    const STEP = 0.35;
+
+    let bestMargin = baseMargin;
+    let bestX = base.x;
+    let bestZ = base.z;
+    let bestYaw = baseYaw;
+
+    if (maxArc > 1e-6) {
+      let done = false;
+      for (let arc = STEP; !done; arc += STEP) {
+        if (arc >= maxArc - 1e-9) {
+          arc = maxArc;
+          done = true;
+        }
+        const d = base.dist + arc;
+        const roadYaw = path.sample(d, _samplePt);
+        const cx = _samplePt.x;
+        const cz = _samplePt.z;
+        if ((cx - base.x) ** 2 + (cz - base.z) ** 2 > maxEuclidSq) continue;
+        const candYaw = wrapYaw(roadYaw + Math.PI);
+        const margin = this.minEnemyMarginAt(cx, cz);
+        if (margin > 0) {
+          return { x: cx, z: cz, yaw: candYaw };
+        }
+        if (margin > bestMargin + 1e-9) {
+          bestMargin = margin;
+          bestX = cx;
+          bestZ = cz;
+          bestYaw = candYaw;
+        }
+      }
+    }
+
+    return { x: bestX, z: bestZ, yaw: bestYaw };
   }
 
   /** Casts hero active skill `slot` (`0` or `1`), targeting `(wantX, wantZ)` when point-targeted. */
@@ -1595,14 +1783,16 @@ export class HeroSystem {
     if (h.state === 'dead') {
       h.respawnTimer -= dt;
       if (h.respawnTimer <= 0) {
+        const respawn = this.resolveRespawnPoint();
         h.respawnTimer = 0;
         h.state = 'idle';
         h.hp = h.maxHp;
-        h.x = h.prevX = h.spawnX;
-        h.z = h.prevZ = h.spawnZ;
-        h.postX = h.spawnX;
-        h.postZ = h.spawnZ;
-        h.yaw = h.prevYaw = h.spawnYaw;
+        h.invulnTimer = HERO_RULES.respawnInvulnSec;
+        h.x = h.prevX = respawn.x;
+        h.z = h.prevZ = respawn.z;
+        h.postX = respawn.x;
+        h.postZ = respawn.z;
+        h.yaw = h.prevYaw = respawn.yaw;
         h.waypoints.length = 0;
         h.attackTimer = 0;
         h.sinceHurt = 99;
@@ -1624,6 +1814,11 @@ export class HeroSystem {
     h.prevX = h.x;
     h.prevZ = h.z;
     h.prevYaw = h.yaw;
+    const invulnerable = h.invulnTimer > 0;
+    if (h.invulnTimer > 0) {
+      h.invulnTimer = Math.max(0, h.invulnTimer - dt);
+      if (h.invulnTimer <= 1e-9) h.invulnTimer = 0;
+    }
     if (h.hitFlashTimer > 0) h.hitFlashTimer = Math.max(0, h.hitFlashTimer - dt);
     h.sinceHurt += dt;
     if (h.rallyBannerTimer > 0) {
@@ -1686,7 +1881,7 @@ export class HeroSystem {
     if (this.abortedStep) return;
 
     // 6. Enemy melee counter-attacks on the hero (blocked foes or unblocked ground foes stepping onto the hero).
-    this.updateEnemyStrikesAgainstHero(h, dt, towers);
+    this.updateEnemyStrikesAgainstHero(h, dt, towers, invulnerable);
     if (this.abortedStep) return;
 
     // 7. Emit block / unblock transitions for melee hero holds.
@@ -2027,7 +2222,9 @@ export class HeroSystem {
     h: HeroEntity,
     dt: number,
     towers: readonly TowerEntity[],
+    invulnerable: boolean,
   ): void {
+    if (invulnerable) return;
     this.spatialHash.query(h.x, h.z, 2.2, _strikeCandidates);
     // Sort by uid so enemy swing order is strictly deterministic (zero closure alloc).
     if (_strikeCandidates.length > 1) {
@@ -2070,6 +2267,7 @@ export class HeroSystem {
         h.hp = 0;
         h.state = 'dead';
         h.respawnTimer = h.stats.respawnSec;
+        h.invulnTimer = 0;
         h.rallyBannerTimer = 0;
         h.waypoints.length = 0;
         this.clearHeroBuffs(towers);
