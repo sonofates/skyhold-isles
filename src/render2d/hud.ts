@@ -3,7 +3,7 @@ import { t, type MsgKey } from '../i18n/index.ts';
 import type { LoadedArt } from './assets2d.ts';
 import { paintedText, setFontSize, setText } from './hudText.ts';
 import { fitWidth, hasKit, inkText, kit, setInkSize } from './uiKit.ts';
-import { HUD_MIN_TOUCH, hudButtonsLayout, KIT_PLAQUE_SLOTS, NO_INSETS, plaqueLayout, uiScale, type Insets, type PlaqueSlots, type Rect } from './uiLayout.ts';
+import { HUD_MIN_TOUCH, hudButtonsLayout, KIT_PLAQUE_SLOTS, NO_INSETS, plateCentreY, plaqueLayout, uiScale, type Insets, type PlaqueSlots, type Rect } from './uiLayout.ts';
 
 /**
  * game2d.ts sets `HudState.banner` to these English ids (its protocol, not display text); the HUD
@@ -62,6 +62,15 @@ const OLD_COIN_X = 0.52;
  * Sizes scale with the viewport but never below MIN_TOUCH.
  */
 export class Hud {
+  /** Mouse + hover client (game2d sets it): banners say "Click" instead of "Tap". */
+  desktop = false;
+  /**
+   * Screen box the centre plate must not cover (the rally range circle: the road the player has
+   * to tap is inside it). game2d sets it; the plate moves to the top or bottom band instead.
+   */
+  plateAvoid: Rect | null = null;
+  private plateAvoidKey = '';
+
   readonly root = new Container();
   private readonly plaque: Sprite;
   private readonly heart: Sprite;
@@ -258,12 +267,12 @@ export class Hud {
     this.plate.visible = has;
     if (!has) return;
     const cx = this.screenW / 2;
-    const cy = this.screenH * 0.42;
     const subOn = this.sub.text !== '';
     const tw = Math.max(this.centre.width, subOn ? this.sub.width : 0);
     const fs = Number(this.centre.style.fontSize);
     const pw = tw + fs * 1.6;
     const ph = fs * (subOn ? 2.5 : 1.75);
+    const cy = plateCentreY(this.screenH, { x: cx - pw / 2, w: pw, h: ph }, this.plateAvoid);
     this.centre.position.set(cx, cy - (subOn ? fs * 0.36 : 0));
     this.sub.position.set(cx, cy + fs * 0.62);
     const x = cx - pw / 2;
@@ -294,6 +303,11 @@ export class Hud {
   }
 
   update(s: HudState, dt: number): void {
+    const ak = this.plateAvoid ? `${Math.round(this.plateAvoid.x)},${Math.round(this.plateAvoid.y)},${Math.round(this.plateAvoid.w)}` : '';
+    if (ak !== this.plateAvoidKey) {
+      this.plateAvoidKey = ak;
+      this.layoutPlate();
+    }
     this.t += dt;
     // Strings are only built when a value changes (no per-frame allocation).
     if (s.lives !== this.lastLives) {
@@ -364,7 +378,9 @@ export class Hud {
     if (s.banner !== this.lastBanner) {
       this.lastBanner = s.banner;
       const known = BANNERS[s.banner];
-      setText(this.centre, known ? t(known[0]) : s.banner);
+      // With a mouse the rally banner says "Click the road".
+      const head = known && this.desktop && known[0] === 'hud.tapRoad' ? 'hud.clickRoad' : known?.[0];
+      setText(this.centre, head ? t(head) : s.banner);
       setText(this.sub, known ? t(known[1]) : '');
       // A long translation never runs off a phone screen.
       fitWidth(this.centre, this.screenW * 0.8);

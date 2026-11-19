@@ -430,6 +430,25 @@ export function hudButtonsKeepOut(w: number, h: number, insets: Insets): Rect {
   return { x, y, w: w - x, h: bottom - y };
 }
 
+/**
+ * Vertical centre of the centre plate (Paused / "Tap the road"): 42 % down the screen, unless that
+ * covers `avoid`; then the band (top 17 % / bottom 80 %) further from it. Pure (tests).
+ */
+export function plateCentreY(screenH: number, plate: { readonly x: number; readonly w: number; readonly h: number }, avoid: Rect | null): number {
+  const home = screenH * 0.42;
+  if (!avoid) return home;
+  const hits = (cy: number): number => {
+    const y0 = cy - plate.h / 2;
+    const ox = Math.max(0, Math.min(plate.x + plate.w, avoid.x + avoid.w) - Math.max(plate.x, avoid.x));
+    const oy = Math.max(0, Math.min(y0 + plate.h, avoid.y + avoid.h) - Math.max(y0, avoid.y));
+    return ox * oy;
+  };
+  if (hits(home) === 0) return home;
+  const top = Math.max(screenH * 0.17, plate.h / 2 + 8);
+  const bottom = Math.min(screenH * 0.8, screenH - plate.h / 2 - 8);
+  return hits(top) <= hits(bottom) ? top : bottom;
+}
+
 // ---------------------------------------------------------------------------------------------
 // Ability bar
 // ---------------------------------------------------------------------------------------------

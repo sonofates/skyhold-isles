@@ -123,6 +123,7 @@ export const TR: { readonly [K in MsgKey]: Msg } = {
   'hud.paused': 'Duraklatıldı',
   'hud.pausedSub': 'Savaş seni bekliyor',
   'hud.tapRoad': 'Yola dokun',
+  'hud.clickRoad': 'Yola tıkla',
   'hud.tapRoadSub': 'toplanma bayrağını taşımak için',
   'hud.settings': 'Ayarlar',
   'pause.resume': 'Devam et',

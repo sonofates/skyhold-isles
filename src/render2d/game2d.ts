@@ -290,6 +290,7 @@ export class Game2D {
     this.hud = new Hud(art);
     this.ring = new BuildRing(art);
     this.ring.desktop = this.quality.isDesktop;
+    this.hud.desktop = this.quality.isDesktop;
     this.end = new EndPanel(art);
     this.screen.addChild(this.hud.root, this.ring.root, this.end.root);
     app.stage.addChild(this.map.root, this.screen);
@@ -901,6 +902,12 @@ export class Game2D {
     const rawBonus = s.canCall ? world.waveSystem.getEarlyCallBonus() : 0;
     s.earlyBonus = world.mods.waveBonusMul === 1 ? rawBonus : Math.max(0, Math.round(rawBonus * world.mods.waveBonusMul));
     s.banner = over ? '' : this.stepper.paused ? 'Paused' : this.rallyTower !== -1 ? 'Tap the road' : '';
+    // The rally plate keeps off the range circle (the road to tap is inside it).
+    if (s.banner === 'Tap the road' && this.rangeDisc.visible) {
+      const d = this.rangeDisc;
+      const sc = this.map.fit.scale;
+      this.hud.plateAvoid = { x: this.map.screenX(d.x - d.width / 2), y: this.map.screenY(d.y - d.height / 2), w: d.width * sc, h: d.height * sc };
+    } else this.hud.plateAvoid = null;
     const ws = world.waveSystem;
     if (!over && ws.state === 'betweenWaves' && ws.interWaveTimer > 0) {
       if (ws.interWaveTimer > this.countdownMax) this.countdownMax = ws.interWaveTimer;

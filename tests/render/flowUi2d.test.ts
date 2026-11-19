@@ -14,7 +14,7 @@ import { coachCardSpot, coachStep, coachText, type CoachObs } from '../../src/re
 import { waveCallout } from '../../src/render2d/ui/waveBanner2d.ts';
 import { livesLow } from '../../src/render2d/ui/lowLives2d.ts';
 import { ENEMY_DEFS, ENEMY_TYPES } from '../../src/data/enemies.ts';
-import { abilityBarSpot, besideAnchorSpot, gateKeepOutsPx, hornSpot } from '../../src/render2d/uiLayout.ts';
+import { abilityBarSpot, besideAnchorSpot, gateKeepOutsPx, hornSpot, plateCentreY } from '../../src/render2d/uiLayout.ts';
 
 afterEach(() => setLocale('en'));
 
@@ -269,5 +269,17 @@ describe('coach card and wave call-out', () => {
     expect(t('callout.boss')).toBe('Boss incoming!');
     setLocale('tr');
     expect(t('callout.final')).toBe('Son dalga!');
+  });
+});
+
+describe('centre plate', () => {
+  it('stays at 42 % unless it would cover the rally circle; then the band further from it', () => {
+    const plate = { x: 760, w: 400, h: 120 };
+    expect(plateCentreY(1080, plate, null)).toBeCloseTo(1080 * 0.42);
+    expect(plateCentreY(1080, plate, { x: 100, y: 100, w: 200, h: 200 })).toBeCloseTo(1080 * 0.42);
+    // A circle round the middle-top: the plate drops to the bottom band.
+    expect(plateCentreY(1080, plate, { x: 670, y: 110, w: 400, h: 400 })).toBeCloseTo(1080 * 0.8);
+    // A circle low on the screen: the top band.
+    expect(plateCentreY(1080, plate, { x: 700, y: 380, w: 500, h: 600 })).toBeCloseTo(1080 * 0.17);
   });
 });

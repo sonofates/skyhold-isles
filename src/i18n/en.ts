@@ -117,6 +117,7 @@ export const EN = {
   'hud.paused': 'Paused',
   'hud.pausedSub': 'The battle waits for you',
   'hud.tapRoad': 'Tap the road',
+  'hud.clickRoad': 'Click the road',
   'hud.tapRoadSub': 'to move the rally flag',
   'hud.settings': 'Settings',
   'pause.resume': 'Resume',
