@@ -472,6 +472,19 @@ export function openSettings(ctx: SettingsContext): Sheet {
         }),
       ),
     ];
+    // First-play tips and new-foe notes come back (coach on the first island, New tags, toasts).
+    const tips = plank(t('set.tipsAgain'), { kind: 'small', testid: 'set2d-tips' });
+    tips.addEventListener('click', () => {
+      try {
+        localStorage.removeItem('skyhold2d_coach_v1'); // i18n-ignore (storage key)
+        localStorage.removeItem('skyhold2d_foes_seen_v1'); // i18n-ignore (storage key)
+      } catch {
+        // private mode: nothing stored anyway
+      }
+      tips.querySelector('span')!.textContent = t('set.tipsAgainDone');
+      tips.disabled = true;
+    });
+    rows.push(row(t('set.tips'), t('set.tipsNote'), tips));
     if (ctx.inGame) return rows;
     // Mobile builds only: the store (Buy / Restore purchases must stay reachable after a purchase).
     if (storeEnabled()) {
@@ -672,6 +685,7 @@ export function openSettings(ctx: SettingsContext): Sheet {
         keyRow([t('key.space')], t('key.pause')),
         keyRow(['1'], t('key.speed1')),
         keyRow(['2'], t('key.speed2')),
+        keyRow(['3'], t('key.speed3')),
         keyRow(['N'], t('key.wave')),
         keyRow([ABILITY_KEYS.meteor], t('key.meteor')),
         keyRow([ABILITY_KEYS.overcharge], t('key.overcharge')),
@@ -680,6 +694,7 @@ export function openSettings(ctx: SettingsContext): Sheet {
         keyRow([HERO_KEYS.skill1], t('key.heroSkill2')),
         keyRow([t('key.esc')], t('key.cancel')),
       ),
+      section(t('set.replayKeys'), keyRow([t('key.space')], t('key.pause')), keyRow(['1', '2', '4'], t('key.replaySpeed')), keyRow([t('key.esc')], t('key.replayLeave'))),
     );
     if (!touch || desktop) out.push(section(t('set.mouse'), keyRow([t('key.rightClick')], t('key.cancelAim')), keyRow([t('key.rightClick')], t('key.heroMove'))));
     return [el('div', 'pu-key-grid', {}, ...out)];

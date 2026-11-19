@@ -1,0 +1,22 @@
+{
+  "baseKit": "orchard",
+  "repeatGap": 165,
+  "props": [
+    [
+      "seed-fork.webp",
+      1.1
+    ],
+    [
+      "bromeliad.webp",
+      0.73
+    ],
+    [
+      "basket.webp",
+      0.52
+    ],
+    [
+      "root-fern.webp",
+      0.58
+    ]
+  ]
+}

@@ -11,6 +11,9 @@ export function gridToWorldZ(row: number, rows: number): number {
 }
 
 export function worldToGridCoord(x: number, z: number, cols: number, rows: number): GridCoord | null {
+  if (!Number.isFinite(x) || !Number.isFinite(z)) {
+    return null;
+  }
   const col = Math.round(x / BALANCE.tileSize + (cols - 1) * 0.5);
   const row = Math.round(z / BALANCE.tileSize + (rows - 1) * 0.5);
   if (col < 0 || col >= cols || row < 0 || row >= rows) {
@@ -64,7 +67,9 @@ export class MapGrid {
    * -1 if none (or on tile levels).
    */
   findPlotAt(x: number, z: number, slack = 1): number {
-    if (!this.plots) return -1;
+    if (!this.plots || !Number.isFinite(x) || !Number.isFinite(z) || !Number.isFinite(slack) || slack <= 0) {
+      return -1;
+    }
     const r = this.plotRadius * slack;
     let best = -1;
     let bestSq = r * r;
@@ -93,14 +98,21 @@ export class MapGrid {
   }
 
   getTile(col: number, row: number): TileType {
-    if (col < 0 || col >= this.cols || row < 0 || row >= this.rows) {
+    if (!this.isInside(col, row)) {
       return 'empty';
     }
     return this.tiles[row][col];
   }
 
   isInside(col: number, row: number): boolean {
-    return col >= 0 && col < this.cols && row >= 0 && row < this.rows;
+    return (
+      Number.isInteger(col) &&
+      Number.isInteger(row) &&
+      col >= 0 &&
+      col < this.cols &&
+      row >= 0 &&
+      row < this.rows
+    );
   }
 
   getTowerIdAt(col: number, row: number): number {

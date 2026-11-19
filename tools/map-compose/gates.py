@@ -319,6 +319,61 @@ def clip_road_at_gate(road: Image.Image, g, S: float, rw: float):
     road.paste(Image.fromarray((win * keep).astype(np.uint8), 'L'), (x0, y0))
 
 
+def draw_threshold_road(draw, path, gate, scale, width, exit_blend=0):
+    """Ease both edges of a new lane out of the measured doorway into the full road.
+
+    The sill in a nearly front-facing painting can run almost parallel to the road.
+    Starting a full-width stroke there leaves a square corner below the near jamb.
+    """
+    sill = gate['threshold']
+    start = path[0]
+    join = next((i for i, point in enumerate(path[:-1]) if math.dist(start, point) >= width * 1.6), None)
+    if join is None or sill is None:
+        return False
+    x, y = path[join]
+    tx, ty = _unit(x - path[join - 1][0], y - path[join - 1][1])
+    nx, ny = -ty, tx
+    # A threshold may have a painted floor between the dark interior and the turf.
+    # Extend the road under its ground edge, including the near jamb.
+    alpha = np.asarray(gate['im'].getchannel('A'))
+    posts = []
+    for px, py in (sill['a'], sill['b']):
+        ground = np.flatnonzero(alpha[:, round(px)] > 128)
+        if ground.size:
+            py = max(py, ground[-1] - 3)
+        posts.append(((gate['left'] + px * gate['k']) * scale, (gate['top'] + py * gate['k']) * scale))
+    # The first brush strokes lead out of the opening before bending along the lane.
+    dx, dy = posts[1][0] - posts[0][0], posts[1][1] - posts[0][1]
+    ux, uy = _unit(-dy, dx)
+    if uy < 0:
+        ux, uy = -ux, -uy
+    posts.sort(key=lambda point: -point[0] * uy + point[1] * ux)
+    # Overlap the curved underside of the painting. A straight chord between
+    # the two lowest posts alone can leave a crescent of grass in the doorway.
+    under = [(px - ux * width * .22, py - uy * width * .22) for px, py in posts]
+    draw.polygon(posts + under[::-1], fill=255)
+    if exit_blend:
+        # An oblique opening can lead straight onto the lane. Turn the
+        # approach toward that lane while keeping both jambs in place.
+        ux, uy = _unit(ux*(1-exit_blend) + tx*exit_blend, uy*(1-exit_blend) + ty*exit_blend)
+    edges = []
+    for sign, (sx, sy) in zip((-1, 1), posts):
+        ex, ey = x + sign * nx * width / 2, y + sign * ny * width / 2
+        # A cubic starts along the emerging lane and finishes tangent to the spline.
+        reach = math.dist((sx, sy), (ex, ey)) / 3
+        controls = np.array([(sx, sy), (sx + ux * reach, sy + uy * reach),
+                             (ex - tx * reach, ey - ty * reach), (ex, ey)])
+        edge = []
+        for t in np.linspace(0, 1, 13):
+            a = 1 - t
+            weights = [a**3, 3 * a**2 * t, 3 * a * t**2, t**3]
+            edge.append(tuple(weights @ controls))
+        edges.append(edge)
+    draw.polygon(edges[0] + edges[1][::-1], fill=255)
+    draw.line(path[join:], fill=255, width=round(width), joint='curve')
+    return True
+
+
 def gate_alpha_hit(g, rect, pad=0.0, thresh=40):
     """True when any painted pixel (alpha > thresh) of a placed gate lies inside rect (layout px, +pad)."""
     k = g['k']
@@ -337,9 +392,19 @@ def output_box(g, S: float):
     return round(g['left'] * S), round(g['top'] * S), round(g['im'].width * k), round(g['im'].height * k)
 
 
-def output_sprite(g, S: float) -> Image.Image:
+def output_sprite(g, S: float, finish=None) -> Image.Image:
     _, _, w, h = output_box(g, S)
-    return g['im'].resize((w, h), Image.LANCZOS)
+    art = g['im']
+    if finish is not None:
+        # The finish is registered to the facing seen in play. Take only its
+        # colour, preserving the measured silhouette and the open passage.
+        if finish.size != art.size:
+            raise ValueError(f'gate finish {finish.size} does not fit {art.size}')
+        opacity = finish.getchannel('A')
+        opacity.paste(0, mask=g['mouth']['mask'])
+        art = Image.composite(finish, art, opacity)
+        art.putalpha(g['im'].getchannel('A'))
+    return art.resize((w, h), Image.LANCZOS)
 
 
 def contact_shadow(g, S: float, rw: float):
@@ -362,9 +427,7 @@ def contact_shadow(g, S: float, rw: float):
 
 
 def light_interior(sprite: Image.Image, g, floor_rgb=(118, 82, 48)):
-    """Castle door (in place, output-size sprite): the near-black opening gets depth — a deep warm
-    brown at the back / top, warmer toward the floor where the road runs in (owner feedback
-    2026-11-18: the door read as a flat black hole). Caves keep their darkness (raiders come out of it)."""
+    """Tint the dark passage gradually with reflected light from its approach material."""
     w, h = sprite.size
     mo = np.asarray(g['mouth']['mask'].resize((w, h), Image.BILINEAR).filter(ImageFilter.GaussianBlur(1.2))).astype(np.float32) / 255
     if mo.max() <= 0:

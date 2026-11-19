@@ -9,6 +9,7 @@ type Listener = (isTouch: boolean) => void;
 
 let touch = false;
 const listeners = new Set<Listener>();
+let mediaUnsub: (() => void) | null = null;
 
 function forcedValue(): boolean | null {
   if (typeof location === 'undefined') return null;
@@ -44,12 +45,22 @@ export function onDeviceClassChange(fn: Listener): () => void {
 }
 
 export function initDeviceClass(): void {
+  mediaUnsub?.();
+  mediaUnsub = null;
   const forced = forcedValue();
   if (forced !== null) {
     apply(forced);
     return;
   }
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+    apply(false);
+    return;
+  }
   const mq = window.matchMedia('(pointer: coarse)');
   apply(mq.matches);
-  mq.addEventListener('change', (e) => apply(e.matches));
+  if (typeof mq.addEventListener === 'function') {
+    const onChange = (e: MediaQueryListEvent): void => apply(e.matches);
+    mq.addEventListener('change', onChange);
+    mediaUnsub = () => mq.removeEventListener('change', onChange);
+  }
 }

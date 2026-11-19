@@ -20,6 +20,7 @@ export class VelocityTracker {
   }
 
   add(x: number, y: number, t: number): void {
+    if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(t)) return;
     this.xs[this.head] = x;
     this.ys[this.head] = y;
     this.ts[this.head] = t;
@@ -55,7 +56,9 @@ export class DoubleTapDetector {
 
   /** Registers a tap; true when it completes a double tap (state then resets). */
   register(x: number, y: number, t: number): boolean {
+    if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(t)) return false;
     const isDouble =
+      t >= this.lastT &&
       t - this.lastT <= DOUBLE_TAP_MAX_GAP_MS &&
       Math.hypot(x - this.lastX, y - this.lastY) <= DOUBLE_TAP_MAX_DIST_PX;
     if (isDouble) {

@@ -4,7 +4,7 @@ import type { AbilityId, HeroId, HeroSkillSlot, TargetingMode, TowerMvpSummary, 
 import { ABILITY_DEFS, ABILITY_IDS, type AbilityDef } from '../data/abilities.ts';
 import { BALANCE } from '../data/balance.ts';
 import { championLevel } from '../data/champions.ts';
-import { isHeroId } from '../data/heroes.ts';
+import { HERO_MAX_LEVEL, isHeroId } from '../data/heroes.ts';
 import type { LevelDef } from '../data/levels/index.ts';
 import { NEUTRAL_RUN_MODIFIERS, type RunModifiers } from '../data/runModifiers.ts';
 import { computeStarsForLivesLost, type Difficulty } from '../data/stars.ts';
@@ -20,12 +20,39 @@ import {
 } from './entities.ts';
 import { EnemySystem } from './enemySystem.ts';
 import { MapGrid } from './grid.ts';
-import { HeroSystem, type HeroEntity, type HeroRuntimeState } from './heroSystem.ts';
+import { HeroSystem, hashHeroSeed, type HeroEntity, type HeroRuntimeState } from './heroSystem.ts';
 import { CompiledPath } from './path.ts';
 import { ProjectileSystem } from './projectileSystem.ts';
+import {
+  computeSimStateHash,
+  parseSimReplay,
+  serializeSimReplay,
+  SIM_REPLAY_VERSION,
+  SimReplayPlayer,
+  type ReplayVerificationResult,
+  type SimCommand,
+  type SimReplayHeroConfig,
+  type SimReplayLog,
+  type SimReplaySummary,
+  type StampedSimCommand,
+} from './replay.ts';
 import { SoldierSystem } from './soldierSystem.ts';
 import { SpatialHashGrid } from './spatialHash.ts';
 import { WaveSystem } from './waveSystem.ts';
+
+export {
+  computeSimStateHash,
+  parseSimReplay,
+  serializeSimReplay,
+  SIM_REPLAY_VERSION,
+  SimReplayPlayer,
+  type ReplayVerificationResult,
+  type SimCommand,
+  type SimReplayHeroConfig,
+  type SimReplayLog,
+  type SimReplaySummary,
+  type StampedSimCommand,
+};
 
 export interface SimWorldOptions {
   readonly heroId?: HeroId | null;
@@ -33,6 +60,8 @@ export interface SimWorldOptions {
   readonly heroSkills?: readonly string[];
   readonly seed?: number;
   readonly modifiers?: RunModifiers;
+  /** Automatically record tick-stamped `StampedSimCommand`s for every player action on this world. */
+  readonly recordCommands?: boolean;
 }
 
 export interface AbilityRuntimeState {
@@ -50,6 +79,16 @@ export interface AbilityRuntimeState {
 
 function isRunModifiers(val: RunModifiers | SimWorldOptions): val is RunModifiers {
   return 'startGoldMul' in val && 'enemyHpMul' in val;
+}
+
+const VALID_TARGETING_MODES: readonly TargetingMode[] = ['first', 'last', 'strongest', 'closest'];
+
+function isValidTowerType(val: unknown): val is TowerType {
+  return typeof val === 'string' && Object.prototype.hasOwnProperty.call(TOWER_DEFS, val);
+}
+
+function isValidTargetingMode(val: unknown): val is TargetingMode {
+  return typeof val === 'string' && (VALID_TARGETING_MODES as readonly string[]).includes(val);
 }
 
 const _hoverCandidates: number[] = [];
@@ -92,16 +131,30 @@ export class SimWorld {
   readonly events: EventBus;
   /** Workshop upgrades + challenge toggles applied to this run (neutral = classic rules). */
   readonly mods: RunModifiers;
+  /** Deterministic uint32 seed used by this run. */
+  readonly seed: number;
+  /** Initial hero configuration for deterministic replay reconstruction (`null` when no hero). */
+  readonly heroConfig: SimReplayHeroConfig | null;
 
   readonly towers: TowerEntity[] = [];
   private nextTowerId = 1;
 
+  /** Number of 60 Hz `fixedTick` steps executed so far (`0` before wave 1 ticks). */
+  tick = 0;
   gold: number;
   lives: number;
   /** Lives this run started with (stars are rated on lives lost from here). */
   readonly startingLives: number;
   enemiesKilledTotal = 0;
   outcome: 'ongoing' | 'won' | 'lost' = 'ongoing';
+
+  /** Optional live observer fired whenever a command is appended to the replay log. */
+  onCommandRecorded: ((entry: StampedSimCommand) => void) | null = null;
+  private recordingCommands = false;
+  private commandSeq = 0;
+  private tickAbortGen = 0;
+  private poolClearGen = 0;
+  private readonly commandLog: StampedSimCommand[] = [];
 
   constructor(
     baseLevel: LevelDef,
@@ -182,15 +235,31 @@ export class SimWorld {
     this.waveSystem = new WaveSystem(level, events);
     this.abilitySystem = new AbilitySystem(events);
     this.soldierSystem = new SoldierSystem(this.enemyPool, this.spatialHash, this.enemySystem, events);
-    const heroCfg =
+    const rawHeroLevel = opts?.heroLevel;
+    const resolvedHeroLevel =
+      typeof rawHeroLevel === 'number' && Number.isFinite(rawHeroLevel)
+        ? Math.max(1, Math.min(HERO_MAX_LEVEL, Math.floor(rawHeroLevel)))
+        : 1;
+    this.seed =
+      typeof opts?.seed === 'number' && Number.isFinite(opts.seed)
+        ? opts.seed >>> 0
+        : hashHeroSeed(level.id, opts?.heroId ?? 'none', resolvedHeroLevel);
+    this.heroConfig =
       opts?.heroId && isHeroId(opts.heroId)
         ? {
             heroId: opts.heroId,
-            level: opts.heroLevel,
-            skills: opts.heroSkills,
-            seed: opts.seed,
+            level: resolvedHeroLevel,
+            skills: opts.heroSkills ? [...opts.heroSkills] : [],
           }
         : null;
+    const heroCfg = this.heroConfig
+      ? {
+          heroId: this.heroConfig.heroId,
+          level: this.heroConfig.level,
+          skills: this.heroConfig.skills,
+          seed: this.seed,
+        }
+      : null;
     this.heroSystem = new HeroSystem(
       level.id,
       [this.groundPath, ...this.extraGroundPaths],
@@ -201,23 +270,145 @@ export class SimWorld {
       this.soldierSystem,
       events,
       heroCfg,
+      this.grid,
     );
+    this.recordingCommands = opts?.recordCommands === true;
 
     this.abilitySystem.cooldownMul = mods.abilityCooldownMul;
     this.combatSystem.towerRateMul = mods.towerFireRateMul;
+    this.soldierSystem.towerRateMul = mods.towerFireRateMul;
     this.enemySystem.speedMul = mods.enemySpeedMul;
 
-    this.gold = Math.max(0, Math.round(level.startingGold * mods.startGoldMul) + mods.startGoldBonus);
-    this.startingLives = Math.max(
-      1,
-      mods.maxLives !== null ? mods.maxLives : BALANCE.startingLives + mods.bonusLives,
-    );
+    const rawGold =
+      Math.round(level.startingGold * (Number.isFinite(mods.startGoldMul) ? mods.startGoldMul : 1)) +
+      (Number.isFinite(mods.startGoldBonus) ? Math.round(mods.startGoldBonus) : 0);
+    this.gold = Number.isFinite(rawGold) ? Math.max(0, Math.min(10_000_000, rawGold)) : 0;
+    const rawLives =
+      mods.maxLives !== null && Number.isFinite(mods.maxLives)
+        ? Math.floor(mods.maxLives)
+        : BALANCE.startingLives + (Number.isFinite(mods.bonusLives) ? Math.round(mods.bonusLives) : 0);
+    this.startingLives = Math.max(1, Math.min(100_000, rawLives));
     this.lives = this.startingLives;
   }
 
   private scaleWaveBonus(bonus: number): number {
-    const mul = this.mods.waveBonusMul;
-    return mul === 1 ? bonus : Math.max(0, Math.round(bonus * mul));
+    const mul = Number.isFinite(this.mods.waveBonusMul) ? this.mods.waveBonusMul : 1;
+    if (mul === 1) return bonus;
+    const scaled = Math.round(bonus * mul);
+    return Number.isFinite(scaled) ? Math.max(0, Math.min(10_000_000, scaled)) : 0;
+  }
+
+  /** Elapsed deterministic simulation time in seconds (`tick * BALANCE.fixedDt`). */
+  get elapsedSimSec(): number {
+    return this.tick * BALANCE.fixedDt;
+  }
+
+  /** Whether player commands on this world are currently being recorded with tick stamps. */
+  get isRecordingCommands(): boolean {
+    return this.recordingCommands;
+  }
+
+  /** Enables or pauses tick-stamped command recording on this world. */
+  setCommandRecording(enabled: boolean): void {
+    this.recordingCommands = enabled;
+  }
+
+  /** Clears recorded commands without resetting simulation state. */
+  clearRecordedCommands(): void {
+    this.commandLog.length = 0;
+    this.commandSeq = 0;
+  }
+
+  /** Read-only snapshot of all tick-stamped commands recorded on this world so far. */
+  getRecordedCommands(): readonly StampedSimCommand[] {
+    return this.commandLog;
+  }
+
+  private recordCommand(command: SimCommand): void {
+    if (!this.recordingCommands) return;
+    const entry: StampedSimCommand = {
+      tick: this.tick,
+      seq: this.commandSeq++,
+      command,
+    };
+    this.commandLog.push(entry);
+    this.onCommandRecorded?.(entry);
+  }
+
+  /** Executes a canonical `SimCommand` against this world (`true` when valid and applied). */
+  applyCommand(command: SimCommand): boolean {
+    switch (command.kind) {
+      case 'startWave':
+        return this.startNextWave();
+      case 'setAutoWave':
+        if (this.outcome === 'lost') return false;
+        this.setAutoWave(command.enabled);
+        return true;
+      case 'placeTower':
+        return (
+          this.placeTower(command.col, command.row, command.towerType, command.targetingMode ?? 'first') !==
+          null
+        );
+      case 'placeTowerOnPlot':
+        return (
+          this.placeTowerOnPlot(
+            command.plotIndex,
+            command.towerType,
+            command.targetingMode ?? 'first',
+          ) !== null
+        );
+      case 'upgradeTower':
+        return this.upgradeTower(command.towerId);
+      case 'sellTower':
+        return this.sellTower(command.towerId) > 0;
+      case 'setTargeting':
+        return this.setTowerTargeting(command.towerId, command.mode);
+      case 'setRally':
+        return this.setRallyPoint(command.towerId, command.x, command.z);
+      case 'moveHero':
+        return this.commandHeroMove(command.x, command.z);
+      case 'castHeroSkill':
+        return this.castHeroSkill(command.slot, command.x ?? NaN, command.z ?? NaN);
+      case 'castAbility':
+        return this.castAbility(command.id, command.x ?? NaN, command.z ?? NaN);
+      case 'startEndlessFromStart':
+        return this.startEndlessFromStart();
+      case 'enterEndless':
+        return this.enterEndlessMode();
+    }
+  }
+
+  /** Exports a self-contained deterministic `SimReplayLog` (including final state hash). */
+  exportReplay(): SimReplayLog {
+    return {
+      version: SIM_REPLAY_VERSION,
+      levelId: this.level.id,
+      seed: this.seed,
+      modifiers: {
+        ...this.mods,
+        towerFireRateMul: { ...this.mods.towerFireRateMul },
+        bannedTowers: [...this.mods.bannedTowers],
+      },
+      hero: this.heroConfig
+        ? {
+            heroId: this.heroConfig.heroId,
+            level: this.heroConfig.level,
+            skills: [...this.heroConfig.skills],
+          }
+        : null,
+      commands: this.commandLog.map((e) => ({ tick: e.tick, seq: e.seq, command: { ...e.command } })),
+      summary: {
+        totalTicks: this.tick,
+        outcome: this.outcome,
+        lives: this.lives,
+        startingLives: this.startingLives,
+        gold: this.gold,
+        stars: this.outcome === 'won' ? this.computeStars() : 0,
+        waveReached: this.waveSystem.currentWaveOneBased,
+        enemiesKilled: this.enemiesKilledTotal,
+        stateHash: computeSimStateHash(this),
+      },
+    };
   }
 
   /** Star rating the run would earn if it were won right now. */
@@ -226,7 +417,11 @@ export class SimWorld {
   }
 
   setAutoWave(enabled: boolean): void {
-    this.waveSystem.setAutoWave(enabled);
+    if (this.outcome === 'lost') return;
+    const next = Boolean(enabled);
+    const changed = this.waveSystem.autoWave !== next;
+    if (changed) this.recordCommand({ kind: 'setAutoWave', enabled: next });
+    this.waveSystem.setAutoWave(next);
   }
 
   /** Active hero entity in this run, or null when running without a hero. */
@@ -237,13 +432,18 @@ export class SimWorld {
   /** Orders the active hero to move along the ground road graph to `(x, z)`. */
   commandHeroMove(x: number, z: number): boolean {
     if (this.outcome !== 'ongoing') return false;
-    return this.heroSystem.commandMove(x, z);
+    return this.heroSystem.commandMove(x, z, () => {
+      this.recordCommand({ kind: 'moveHero', x, z });
+    });
   }
 
   /** Casts one of the active hero's two skills (`slot` = `0` or `1`). */
   castHeroSkill(slot: HeroSkillSlot, x = NaN, z = NaN): boolean {
     if (this.outcome !== 'ongoing') return false;
-    return this.heroSystem.castSkill(slot, x, z, this.towers);
+    const hasCoords = Number.isFinite(x) && Number.isFinite(z);
+    return this.heroSystem.castSkill(slot, x, z, this.towers, () => {
+      this.recordCommand(hasCoords ? { kind: 'castHeroSkill', slot, x, z } : { kind: 'castHeroSkill', slot });
+    });
   }
 
   /** Snapshot of the active hero's HP, state, XP, and skill cooldowns (null when no hero). */
@@ -262,16 +462,19 @@ export class SimWorld {
 
   castMeteor(x: number, z: number): boolean {
     if (!this.canUseAbilities()) return false;
+    if (!Number.isFinite(x) || !Number.isFinite(z) || !this.abilitySystem.canCast('meteor')) return false;
+    this.recordCommand({ kind: 'castAbility', id: 'meteor', x, z });
     return this.abilitySystem.castMeteor(x, z, Math.max(1, this.waveSystem.currentWaveOneBased));
   }
 
   castOvercharge(): boolean {
-    if (!this.canUseAbilities()) return false;
+    if (!this.canUseAbilities() || !this.abilitySystem.canCast('overcharge')) return false;
+    this.recordCommand({ kind: 'castAbility', id: 'overcharge' });
     return this.abilitySystem.castOvercharge(this.towers);
   }
 
   /** Unified global ability cast (`'meteor'` at `(x, z)` or `'overcharge'`). */
-  castAbility(id: AbilityId, x = 0, z = 0): boolean {
+  castAbility(id: AbilityId, x = NaN, z = NaN): boolean {
     if (id === 'meteor') return this.castMeteor(x, z);
     if (id === 'overcharge') return this.castOvercharge();
     return false;
@@ -305,12 +508,14 @@ export class SimWorld {
   /** Island card → Endless: the whole run is endless from wave 1 (no victory, no stars). */
   startEndlessFromStart(): boolean {
     if (this.outcome !== 'ongoing' || this.waveSystem.state !== 'preFirstWave') return false;
+    this.recordCommand({ kind: 'startEndlessFromStart' });
     this.waveSystem.startEndlessFromStart();
     return true;
   }
 
   enterEndlessMode(): boolean {
-    if (this.outcome !== 'won') return false;
+    if (this.outcome !== 'won' || this.waveSystem.isEndless) return false;
+    this.recordCommand({ kind: 'enterEndless' });
     this.outcome = 'ongoing';
     this.waveSystem.enterEndlessMode();
     return true;
@@ -338,7 +543,8 @@ export class SimWorld {
   }
 
   startNextWave(): boolean {
-    if (this.outcome !== 'ongoing') return false;
+    if (this.outcome !== 'ongoing' || !this.waveSystem.canStartNextWave()) return false;
+    this.recordCommand({ kind: 'startWave' });
     return this.waveSystem.startNextWave((bonus) => {
       this.gold += this.scaleWaveBonus(bonus);
       this.events.emit('economyChanged', { gold: this.gold, lives: this.lives });
@@ -346,9 +552,16 @@ export class SimWorld {
   }
 
   debugSkipToWave(waveOneBased: number): boolean {
-    this.enemyPool.clear();
+    this.tickAbortGen++;
+    this.poolClearGen++;
+    this.waveSystem.abortStep();
+    this.combatSystem.abortCurrentStep();
     this.projectilePool.clear();
     this.projectileSystem.clearBurnZones();
+    this.abilitySystem.clearPending();
+    this.heroSystem.clearTransientZones(false, this.towers, true);
+    this.soldierSystem.clearCombatState(true);
+    this.enemyPool.clear();
     this.spatialHash.clear();
     if (this.lives <= 0) {
       this.lives = this.startingLives;
@@ -359,11 +572,55 @@ export class SimWorld {
     return ok;
   }
 
+  private clearVictoryTransients(): void {
+    this.tickAbortGen++;
+    this.poolClearGen++;
+    this.waveSystem.abortStep();
+    this.combatSystem.abortCurrentStep();
+    this.projectilePool.clear();
+    this.projectileSystem.clearBurnZones();
+    this.abilitySystem.clearPending();
+    this.heroSystem.clearTransientZones(false, this.towers, true);
+    this.soldierSystem.clearCombatState(true);
+    this.enemyPool.clear();
+    this.spatialHash.clear();
+  }
+
+  private clearDefeatTransients(): void {
+    this.tickAbortGen++;
+    this.waveSystem.abortStep();
+    this.combatSystem.abortCurrentStep();
+    this.projectilePool.clear();
+    this.projectileSystem.clearBurnZones();
+    this.abilitySystem.clearPending();
+    this.heroSystem.clearTransientZones(false, this.towers, true);
+    this.soldierSystem.clearCombatState(true);
+  }
+
+  /** Releases all pooled entities, ground zones, soldiers, gizmos, and spatial-hash buckets after a run. */
+  dispose(): void {
+    this.tickAbortGen++;
+    this.poolClearGen++;
+    this.waveSystem.abortStep();
+    this.combatSystem.abortCurrentStep();
+    this.heroSystem.clearTransientZones(true, this.towers, false);
+    this.soldierSystem.clearAll();
+    this.enemyPool.clear();
+    this.projectilePool.clear();
+    this.projectileSystem.clearBurnZones();
+    this.abilitySystem.reset();
+    this.spatialHash.clear();
+    this.grid.resetOccupancy();
+    this.towers.length = 0;
+  }
+
   debugForceWin(): void {
     if (this.outcome !== 'ongoing') return;
     if (this.lives <= 0) this.lives = 1;
     const stars = this.computeStars();
     this.heroSystem.onVictory(stars);
+    this.waveSystem.markFinished();
+    this.clearVictoryTransients();
     this.outcome = 'won';
     this.events.emit('gameWon', {
       stars,
@@ -374,35 +631,51 @@ export class SimWorld {
   debugForceLose(): void {
     if (this.outcome !== 'ongoing') return;
     this.lives = 0;
+    this.clearDefeatTransients();
     this.outcome = 'lost';
     this.events.emit('economyChanged', { gold: this.gold, lives: this.lives });
-    this.events.emit('gameLost', { waveIndex: Math.max(0, this.waveSystem.currentWaveIndex) });
+    this.events.emit('gameLost', {
+      waveIndex: Math.max(0, this.waveSystem.currentWaveIndex),
+      endless: this.waveSystem.isEndless,
+    });
   }
 
   /** Tower types a challenge forbids this run. */
   isTowerBanned(type: TowerType): boolean {
+    if (!isValidTowerType(type)) return false;
     return this.mods.bannedTowers.includes(type);
   }
 
   /**
-   * Builds a tower on a site: a grass tile (col, row), or on plot levels plot `col` (row 0) —
-   * see `placeTowerOnPlot`.
+   * True when `type` can be built and afforded at `(col, row)` right now
+   * (checks run outcome, challenge bans, tile/plot occupancy, gold cost, and barracks road reach).
    */
-  placeTower(
+  canPlaceTowerAt(col: number, row: number, type: TowerType): boolean {
+    if (this.outcome !== 'ongoing') return false;
+    if (!isValidTowerType(type)) return false;
+    if (this.isTowerBanned(type)) return false;
+    if (!this.grid.canPlaceTower(col, row)) return false;
+    const stats = getTowerTierStats(type, 1);
+    if (this.gold < stats.upgradeCost) return false;
+    if (TOWER_DEFS[type].role === 'barracks') {
+      const x = this.grid.siteWorldX(col, row);
+      const z = this.grid.siteWorldZ(col, row);
+      if (!this.soldierSystem.hasRoadInRange(x, z, stats.range)) return false;
+    }
+    return true;
+  }
+
+  private placeTowerInternal(
     col: number,
     row: number,
     type: TowerType,
-    targetingMode: TargetingMode = 'first',
+    safeMode: TargetingMode,
+    commandToRecord: SimCommand,
   ): TowerEntity | null {
-    if (this.outcome !== 'ongoing') return null;
-    if (this.isTowerBanned(type)) return null;
-    if (!this.grid.canPlaceTower(col, row)) return null;
+    if (!this.canPlaceTowerAt(col, row, type)) return null;
     const stats = getTowerTierStats(type, 1);
-    if (this.gold < stats.upgradeCost) return null;
     const x = this.grid.siteWorldX(col, row);
     const z = this.grid.siteWorldZ(col, row);
-    // A barracks needs a stretch of road within its rally range.
-    if (TOWER_DEFS[type].role === 'barracks' && !this.soldierSystem.hasRoadInRange(x, z, stats.range)) return null;
 
     this.gold -= stats.upgradeCost;
     const tower: TowerEntity = {
@@ -414,7 +687,7 @@ export class SimWorld {
       type,
       tier: 1,
       totalInvested: stats.upgradeCost,
-      targetingMode,
+      targetingMode: safeMode,
       cooldownTimer: 0.15,
       stunTimer: 0,
       yaw: 0,
@@ -431,6 +704,7 @@ export class SimWorld {
 
     this.towers.push(tower);
     this.grid.setTowerAt(col, row, tower.id);
+    this.recordCommand(commandToRecord);
     if (TOWER_DEFS[type].role === 'barracks') this.soldierSystem.addBarracks(tower);
 
     this.events.emit('towerBuilt', {
@@ -444,6 +718,28 @@ export class SimWorld {
     return tower;
   }
 
+  /**
+   * Builds a tower on a site: a grass tile (col, row), or on plot levels plot `col` (row 0) —
+   * see `placeTowerOnPlot`.
+   */
+  placeTower(
+    col: number,
+    row: number,
+    type: TowerType,
+    targetingMode: TargetingMode = 'first',
+  ): TowerEntity | null {
+    const safeMode: TargetingMode = isValidTargetingMode(targetingMode) ? targetingMode : 'first';
+    return this.placeTowerInternal(
+      col,
+      row,
+      type,
+      safeMode,
+      safeMode !== 'first'
+        ? { kind: 'placeTower', col, row, towerType: type, targetingMode: safeMode }
+        : { kind: 'placeTower', col, row, towerType: type },
+    );
+  }
+
   /** Plot levels: builds on plot `plotIndex` (one tower per plot; selling frees it). */
   placeTowerOnPlot(
     plotIndex: number,
@@ -451,7 +747,16 @@ export class SimWorld {
     targetingMode: TargetingMode = 'first',
   ): TowerEntity | null {
     if (!this.grid.isPlotMode) return null;
-    return this.placeTower(plotIndex, 0, type, targetingMode);
+    const safeMode: TargetingMode = isValidTargetingMode(targetingMode) ? targetingMode : 'first';
+    return this.placeTowerInternal(
+      plotIndex,
+      0,
+      type,
+      safeMode,
+      safeMode !== 'first'
+        ? { kind: 'placeTowerOnPlot', plotIndex, towerType: type, targetingMode: safeMode }
+        : { kind: 'placeTowerOnPlot', plotIndex, towerType: type },
+    );
   }
 
   upgradeTower(towerId: number): boolean {
@@ -467,6 +772,7 @@ export class SimWorld {
     tower.tier = nextTier;
     tower.totalInvested += nextStats.upgradeCost;
     tower.popAnimTimer = 0.32;
+    this.recordCommand({ kind: 'upgradeTower', towerId });
     if (TOWER_DEFS[tower.type].role === 'barracks') this.soldierSystem.onUpgrade(tower);
 
     this.events.emit('towerUpgraded', {
@@ -490,6 +796,7 @@ export class SimWorld {
     this.gold += refund;
     this.grid.clearTowerAt(tower.col, tower.row);
     this.towers.splice(idx, 1);
+    this.recordCommand({ kind: 'sellTower', towerId });
     if (TOWER_DEFS[tower.type].role === 'barracks') this.soldierSystem.removeBarracks(tower.id);
 
     this.events.emit('towerSold', {
@@ -512,14 +819,20 @@ export class SimWorld {
     if (this.outcome !== 'ongoing') return false;
     const tower = this.getTowerById(towerId);
     if (!tower || TOWER_DEFS[tower.type].role !== 'barracks') return false;
-    return this.soldierSystem.setRally(tower, x, z);
+    return this.soldierSystem.setRally(tower, x, z, () => {
+      this.recordCommand({ kind: 'setRally', towerId, x, z });
+    });
   }
 
-  setTowerTargeting(towerId: number, mode: TargetingMode): void {
+  setTowerTargeting(towerId: number, mode: TargetingMode): boolean {
+    if (this.outcome !== 'ongoing' || !isValidTargetingMode(mode)) return false;
     const tower = this.getTowerById(towerId);
-    if (tower) {
+    if (!tower) return false;
+    if (tower.targetingMode !== mode) {
       tower.targetingMode = mode;
+      this.recordCommand({ kind: 'setTargeting', towerId, mode });
     }
+    return true;
   }
 
   getTowerById(towerId: number): TowerEntity | null {
@@ -529,8 +842,116 @@ export class SimWorld {
     return null;
   }
 
-  fixedTick(dt: number): void {
+  private readonly getActiveEnemiesFn = (): number => this.enemyPool.getActiveCount();
+
+  private readonly onWaveSpawnFn = (
+    enemyType: EnemyEntity['type'],
+    hpScale: number,
+    elite: boolean,
+    lane: number,
+  ): void => {
+    const fx = this.waveSystem.getEndlessMutatorEffects();
+    const spawned = this.enemySystem.spawnEnemy(
+      enemyType,
+      hpScale * this.mods.enemyHpMul * fx.hpMul,
+      elite,
+      lane,
+    );
+    if (spawned) {
+      spawned.reward = Math.max(
+        1,
+        Math.round(
+          spawned.reward *
+            this.waveSystem.getRewardMultiplier() *
+            this.mods.killGoldMul *
+            fx.killGoldMul,
+        ),
+      );
+    }
+  };
+
+  private readonly onWaveBonusFn = (bonus: number, clearedWaves = 0): void => {
+    this.gold += this.scaleWaveBonus(bonus);
+    if (clearedWaves > 0) {
+      this.heroSystem.onWaveCleared(clearedWaves);
+    }
+    this.events.emit('economyChanged', { gold: this.gold, lives: this.lives });
+  };
+
+  private readonly onWaveClearedOnlyFn = (clearedWaves = 1): void => {
+    this.heroSystem.onWaveCleared(clearedWaves);
+  };
+
+  private readonly onAllClearedWinFn = (): void => {
+    if (this.outcome === 'ongoing' && this.lives > 0 && !this.waveSystem.isEndless) {
+      const stars = this.computeStars();
+      this.heroSystem.onVictory(stars);
+      this.clearVictoryTransients();
+      this.outcome = 'won';
+      this.events.emit('gameWon', {
+        stars,
+        livesRemaining: this.lives,
+      });
+    }
+  };
+
+  private readonly onEnemyLeakedFn = (leaked: EnemyEntity): void => {
+    if (this.outcome !== 'ongoing') {
+      if (leaked.blockers > 0) {
+        leaked.blockers = 0;
+        this.soldierSystem.blockedCount = Math.max(0, this.soldierSystem.blockedCount - 1);
+      }
+      leaked.heroBlockers = 0;
+      leaked.heroDamageReduction = 0;
+      return;
+    }
+    this.lives = Math.max(0, this.lives - leaked.livesCost);
+    const justLost = this.lives <= 0;
+    if (justLost) {
+      this.clearDefeatTransients();
+      this.outcome = 'lost';
+    } else if (leaked.blockers > 0 || leaked.heroBlockers > 0) {
+      if (leaked.blockers > 0) {
+        leaked.blockers = 0;
+        this.soldierSystem.blockedCount = Math.max(0, this.soldierSystem.blockedCount - 1);
+      }
+      leaked.heroBlockers = 0;
+      leaked.heroDamageReduction = 0;
+      this.events.emit('enemyUnblocked', {
+        enemyId: leaked.uid,
+        enemyType: leaked.type,
+        x: leaked.x,
+        y: leaked.y,
+        z: leaked.z,
+      });
+    }
+    this.events.emit('economyChanged', { gold: this.gold, lives: this.lives });
+    if (justLost && this.outcome === 'lost') {
+      this.events.emit('gameLost', {
+        waveIndex: Math.max(0, this.waveSystem.currentWaveIndex),
+        endless: this.waveSystem.isEndless,
+      });
+    }
+  };
+
+  private readonly onEnemyKilledFn = (killed: EnemyEntity): void => {
+    if (killed.blockers > 0) {
+      killed.blockers = 0;
+      this.soldierSystem.blockedCount = Math.max(0, this.soldierSystem.blockedCount - 1);
+    }
+    killed.heroBlockers = 0;
+    killed.heroDamageReduction = 0;
     if (this.outcome !== 'ongoing') return;
+    this.enemiesKilledTotal++;
+    this.gold += killed.reward;
+    this.heroSystem.onEnemyKilled(killed);
+    this.events.emit('economyChanged', { gold: this.gold, lives: this.lives });
+  };
+
+  fixedTick(dt: number): void {
+    if (this.outcome !== 'ongoing' || !Number.isFinite(dt) || dt <= 0) return;
+    this.tick++;
+    const gen = this.tickAbortGen;
 
     // Run + endless-wave modifiers for everything spawned this tick (incl. escorts, raiders, mites).
     const waveFx = this.waveSystem.getEndlessMutatorEffects();
@@ -539,46 +960,14 @@ export class SimWorld {
 
     this.waveSystem.update(
       dt,
-      () => this.enemyPool.getActiveCount(),
-      (enemyType, hpScale, elite, lane) => {
-        const fx = this.waveSystem.getEndlessMutatorEffects();
-        const spawned = this.enemySystem.spawnEnemy(
-          enemyType,
-          hpScale * this.mods.enemyHpMul * fx.hpMul,
-          elite,
-          lane,
-        );
-        if (spawned) {
-          spawned.reward = Math.max(
-            1,
-            Math.round(
-              spawned.reward *
-                this.waveSystem.getRewardMultiplier() *
-                this.mods.killGoldMul *
-                fx.killGoldMul,
-            ),
-          );
-        }
-      },
-      (bonus) => {
-        this.gold += this.scaleWaveBonus(bonus);
-        this.heroSystem.onWaveCleared();
-        this.events.emit('economyChanged', { gold: this.gold, lives: this.lives });
-      },
-      () => {
-        if (this.outcome === 'ongoing' && this.lives > 0 && !this.waveSystem.isEndless) {
-          const stars = this.computeStars();
-          this.heroSystem.onVictory(stars);
-          this.outcome = 'won';
-          this.events.emit('gameWon', {
-            stars,
-            livesRemaining: this.lives,
-          });
-        }
-      },
+      this.getActiveEnemiesFn,
+      this.onWaveSpawnFn,
+      this.onWaveBonusFn,
+      this.onAllClearedWinFn,
+      this.onWaveClearedOnlyFn,
     );
 
-    if (this.outcome !== 'ongoing') return;
+    if (this.outcome !== 'ongoing' || this.tickAbortGen !== gen) return;
 
     const wsState = this.waveSystem.state;
     const isCombatActive =
@@ -591,57 +980,39 @@ export class SimWorld {
       this.enemySystem,
     );
 
+    if (this.outcome !== 'ongoing' || this.tickAbortGen !== gen) return;
+
+    const clearGen = this.poolClearGen;
     this.enemySystem.update(
       dt,
-      (leaked) => {
-        this.lives = Math.max(0, this.lives - leaked.livesCost);
-        this.events.emit('economyChanged', { gold: this.gold, lives: this.lives });
-        if (this.lives <= 0 && this.outcome === 'ongoing') {
-          this.outcome = 'lost';
-          this.events.emit('gameLost', {
-            waveIndex: Math.max(0, this.waveSystem.currentWaveIndex),
-            endless: this.waveSystem.isEndless,
-          });
-        }
-      },
-      (killed) => {
-        this.enemiesKilledTotal++;
-        this.gold += killed.reward;
-        this.heroSystem.onEnemyKilled(killed);
-        this.events.emit('economyChanged', { gold: this.gold, lives: this.lives });
-      },
+      this.onEnemyLeakedFn,
+      this.onEnemyKilledFn,
       this.towers,
       this.waveSystem.getCurrentWaveHpScale() * this.mods.enemyHpMul * waveFx.hpMul,
     );
 
-    if (this.outcome !== 'ongoing') return;
+    if (this.poolClearGen !== clearGen) {
+      this.enemyPool.clear();
+      this.spatialHash.clear();
+    }
+    if (this.outcome !== 'ongoing' || this.tickAbortGen !== gen) return;
 
     this.waveSystem.checkCompletion(
-      () => this.enemyPool.getActiveCount(),
-      (bonus) => {
-        this.gold += this.scaleWaveBonus(bonus);
-        this.heroSystem.onWaveCleared();
-        this.events.emit('economyChanged', { gold: this.gold, lives: this.lives });
-      },
-      () => {
-        if (this.outcome === 'ongoing' && this.lives > 0 && !this.waveSystem.isEndless) {
-          const stars = this.computeStars();
-          this.heroSystem.onVictory(stars);
-          this.outcome = 'won';
-          this.events.emit('gameWon', {
-            stars,
-            livesRemaining: this.lives,
-          });
-        }
-      },
+      this.getActiveEnemiesFn,
+      this.onWaveBonusFn,
+      this.onAllClearedWinFn,
+      this.onWaveClearedOnlyFn,
     );
 
-    if (this.outcome !== 'ongoing') return;
+    if (this.outcome !== 'ongoing' || this.tickAbortGen !== gen) return;
 
     const fireRateMul = this.abilitySystem.getFireRateMultiplier();
     this.soldierSystem.update(dt, this.towers, fireRateMul);
+    if (this.outcome !== 'ongoing' || this.tickAbortGen !== gen) return;
     this.heroSystem.update(dt, this.towers, fireRateMul);
+    if (this.outcome !== 'ongoing' || this.tickAbortGen !== gen) return;
     this.combatSystem.update(dt, this.towers, fireRateMul);
+    if (this.outcome !== 'ongoing' || this.tickAbortGen !== gen) return;
     this.projectileSystem.update(dt, this.towers);
   }
 
@@ -657,7 +1028,7 @@ export class SimWorld {
     this.spatialHash.query(flyerHitX, flyerHitZ, 1.4, _hoverCandidates);
     for (let i = 0; i < _hoverCandidates.length; i++) {
       const e = this.enemyPool.items[_hoverCandidates[i]];
-      if (!e.active || !e.flying) continue;
+      if (!e.active || e.hp <= 0 || !e.flying) continue;
       const dx = e.x - flyerHitX;
       const dz = e.z - flyerHitZ;
       const dSq = dx * dx + dz * dz;
@@ -672,7 +1043,7 @@ export class SimWorld {
     this.spatialHash.query(groundHitX, groundHitZ, 1.4, _hoverCandidates);
     for (let i = 0; i < _hoverCandidates.length; i++) {
       const e = this.enemyPool.items[_hoverCandidates[i]];
-      if (!e.active || e.flying) continue;
+      if (!e.active || e.hp <= 0 || e.flying || e.burrowed) continue;
       const dx = e.x - groundHitX;
       const dz = e.z - groundHitZ;
       const dSq = dx * dx + dz * dz;

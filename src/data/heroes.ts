@@ -1,4 +1,10 @@
-import type { HeroId, HeroSkillSlot, TowerType } from '../core/types.ts';
+import type {
+  HeroId,
+  HeroProgressEntry,
+  HeroSaveData,
+  HeroSkillSlot,
+  TowerType,
+} from '../core/types.ts';
 
 export const HERO_IDS: readonly HeroId[] = ['bran', 'wren', 'mira', 'tobb', 'sela'];
 
@@ -183,6 +189,12 @@ export interface HeroSkillNodeDef {
   readonly patch: HeroEffectPatch;
 }
 
+export interface HeroLevelGrowth {
+  readonly hpPerLevel?: number;
+  readonly damagePerLevel?: number;
+  readonly armorPerLevel?: number;
+}
+
 export interface HeroBaseStats {
   readonly maxHp: number;
   readonly armor: number;
@@ -205,6 +217,8 @@ export interface HeroBaseStats {
   readonly splashRadius?: number;
   readonly armorPierce?: number;
   readonly cleave?: number;
+  /** Optional per-hero level scaling overrides (defaults to `HERO_RULES.*GrowthPerLevel`). */
+  readonly levelGrowth?: HeroLevelGrowth;
 }
 
 export interface HeroPassiveDef {
@@ -313,18 +327,19 @@ export const HERO_DEFS: Readonly<Record<HeroId, HeroDef>> = {
     shortDesc: 'Stalwart melee guardian who holds the road, weakens enemy blows, and rallies nearby militia.',
     unlock: { kind: 'starter' },
     baseStats: {
-      maxHp: 365,
-      armor: 4,
-      damage: 23,
-      attackSpeed: 1.0,
+      maxHp: 425,
+      armor: 5,
+      damage: 34,
+      attackSpeed: 1.14,
       range: 1.25,
-      moveSpeed: 3.5,
-      respawnSec: 13,
+      moveSpeed: 3.6,
+      respawnSec: 11.1,
       holdCap: 2,
       hitsFlyers: false,
       attackMode: 'melee',
-      armorPierce: 0,
-      cleave: 0,
+      armorPierce: 2,
+      cleave: 0.24,
+      levelGrowth: { hpPerLevel: 0.068, damagePerLevel: 0.017, armorPerLevel: 0.17 },
     },
     passive: {
       id: 'bulwark',
@@ -344,10 +359,10 @@ export const HERO_DEFS: Readonly<Record<HeroId, HeroDef>> = {
         name: 'Shield Bash',
         description: 'Slams his oak shield forward in a short cone, dealing impact damage and stunning ground foes.',
         targetMode: 'point',
-        cooldownSec: 13,
-        range: 2.8,
-        radius: 2.4,
-        damage: 54,
+        cooldownSec: 11,
+        range: 2.9,
+        radius: 2.6,
+        damage: 79,
         effect: 0,
         durationSec: 1.5,
         count: 1,
@@ -359,12 +374,12 @@ export const HERO_DEFS: Readonly<Record<HeroId, HeroDef>> = {
         name: 'Rally Banner',
         description: 'Plants an ironoak standard that grants nearby soldiers bonus armor and melee damage.',
         targetMode: 'self',
-        cooldownSec: 20,
+        cooldownSec: 17,
         range: 0,
         radius: 3.8,
         damage: 0,
         effect: 0.25,
-        durationSec: 5.5,
+        durationSec: 6.5,
         count: 1,
         armorBonus: 2,
       },
@@ -522,11 +537,11 @@ export const HERO_DEFS: Readonly<Record<HeroId, HeroDef>> = {
     shortDesc: 'Agile longbow markswoman who punishes flyers with critical arrows and marks priority targets.',
     unlock: { kind: 'islandsCleared', count: 2 },
     baseStats: {
-      maxHp: 185,
+      maxHp: 195,
       armor: 1,
-      damage: 20,
-      attackSpeed: 1.25,
-      range: 5.8,
+      damage: 22,
+      attackSpeed: 1.32,
+      range: 5.9,
       moveSpeed: 3.9,
       respawnSec: 12,
       holdCap: 0,
@@ -535,7 +550,8 @@ export const HERO_DEFS: Readonly<Record<HeroId, HeroDef>> = {
       projectileStyle: 'archer',
       projectileSpeed: 26,
       splashRadius: 0,
-      armorPierce: 1,
+      armorPierce: 2,
+      levelGrowth: { hpPerLevel: 0.064, damagePerLevel: 0.084, armorPerLevel: 0.16 },
     },
     passive: {
       id: 'keen_eye',
@@ -555,10 +571,10 @@ export const HERO_DEFS: Readonly<Record<HeroId, HeroDef>> = {
         name: 'Volley',
         description: 'Looses a rain of feathered arrows onto a target area, striking ground and flying foes.',
         targetMode: 'point',
-        cooldownSec: 14,
-        range: 6.4,
-        radius: 2.2,
-        damage: 54,
+        cooldownSec: 13,
+        range: 6.5,
+        radius: 2.3,
+        damage: 62,
         effect: 0,
         durationSec: 0,
         count: 1,
@@ -570,12 +586,12 @@ export const HERO_DEFS: Readonly<Record<HeroId, HeroDef>> = {
         name: "Hunter's Mark",
         description: 'Marks a priority enemy near the target point so it takes +25% extra damage from all towers.',
         targetMode: 'point',
-        cooldownSec: 16,
+        cooldownSec: 14.5,
         range: 6.8,
         radius: 2.2,
         damage: 0,
         effect: 0.25,
-        durationSec: 5.5,
+        durationSec: 6.0,
         count: 1,
       },
     ],
@@ -731,27 +747,28 @@ export const HERO_DEFS: Readonly<Record<HeroId, HeroDef>> = {
     shortDesc: 'Lantern-staff pyromancer whose splashing embers and dashing flame wisp melt armored packs.',
     unlock: { kind: 'islandsCleared', count: 4 },
     baseStats: {
-      maxHp: 175,
+      maxHp: 180,
       armor: 1,
-      damage: 16,
-      attackSpeed: 0.92,
-      range: 4.8,
+      damage: 23,
+      attackSpeed: 1.04,
+      range: 4.9,
       moveSpeed: 3.5,
-      respawnSec: 13,
+      respawnSec: 12,
       holdCap: 0,
       hitsFlyers: true,
       attackMode: 'ranged',
       projectileStyle: 'tesla',
       projectileSpeed: 19,
-      splashRadius: 1.0,
+      splashRadius: 0.85,
       armorPierce: 1,
+      levelGrowth: { hpPerLevel: 0.065, damagePerLevel: 0.064, armorPerLevel: 0.16 },
     },
     passive: {
       id: 'kindling',
       kind: 'kindling',
       name: 'Kindling',
       description: 'Mira’s hits ignite foes for 2.0s, scorching them with armor-ignoring fire.',
-      power: 4.5,
+      power: 5.2,
       radius: 0,
       chance: 0,
       durationSec: 2.0,
@@ -766,10 +783,10 @@ export const HERO_DEFS: Readonly<Record<HeroId, HeroDef>> = {
         targetMode: 'point',
         cooldownSec: 16,
         range: 5.5,
-        radius: 2.0,
-        damage: 24,
-        effect: 13,
-        durationSec: 3.5,
+        radius: 1.85,
+        damage: 29,
+        effect: 10,
+        durationSec: 3.2,
         count: 1,
       },
       {
@@ -779,11 +796,11 @@ export const HERO_DEFS: Readonly<Record<HeroId, HeroDef>> = {
         name: 'Wisp Burst',
         description: 'Sends her flame wisp dashing along a line, scorching every ground and flying foe in its path.',
         targetMode: 'point',
-        cooldownSec: 17,
+        cooldownSec: 16.5,
         range: 6.0,
-        radius: 5.2,
-        damage: 58,
-        effect: 0.8,
+        radius: 4.8,
+        damage: 56,
+        effect: 0.72,
         durationSec: 0,
         count: 1,
       },
@@ -942,9 +959,9 @@ export const HERO_DEFS: Readonly<Record<HeroId, HeroDef>> = {
     baseStats: {
       maxHp: 235,
       armor: 2,
-      damage: 19,
-      attackSpeed: 1.0,
-      range: 4.4,
+      damage: 18,
+      attackSpeed: 0.98,
+      range: 4.5,
       moveSpeed: 3.4,
       respawnSec: 13,
       holdCap: 0,
@@ -954,6 +971,7 @@ export const HERO_DEFS: Readonly<Record<HeroId, HeroDef>> = {
       projectileSpeed: 28,
       splashRadius: 0,
       armorPierce: 2,
+      levelGrowth: { hpPerLevel: 0.068, damagePerLevel: 0.083, armorPerLevel: 0.17 },
     },
     passive: {
       id: 'tinker',
@@ -973,11 +991,11 @@ export const HERO_DEFS: Readonly<Record<HeroId, HeroDef>> = {
         name: 'Deploy Gizmo',
         description: 'Sets down a temporary brass auto-turret that fires rapid rivets at ground and flying foes.',
         targetMode: 'point',
-        cooldownSec: 18,
+        cooldownSec: 17.5,
         range: 4.0,
         radius: 4.3,
-        damage: 13,
-        effect: 1.5,
+        damage: 12,
+        effect: 1.45,
         durationSec: 8.5,
         count: 1,
       },
@@ -988,7 +1006,7 @@ export const HERO_DEFS: Readonly<Record<HeroId, HeroDef>> = {
         name: 'Overhaul',
         description: 'Cleanses stun, instantly reloads, and surges a nearby tower’s fire rate by +40% for 5s.',
         targetMode: 'point',
-        cooldownSec: 17,
+        cooldownSec: 15.5,
         range: 5.5,
         radius: 2.5,
         damage: 0,
@@ -1149,11 +1167,11 @@ export const HERO_DEFS: Readonly<Record<HeroId, HeroDef>> = {
     shortDesc: 'Serene tide-and-thunder caster who mends militia soldiers, slows waves, and arcs chain lightning.',
     unlock: { kind: 'islandsCleared', count: 10 },
     baseStats: {
-      maxHp: 205,
+      maxHp: 210,
       armor: 2,
-      damage: 19,
+      damage: 18,
       attackSpeed: 1.05,
-      range: 5.0,
+      range: 5.1,
       moveSpeed: 3.5,
       respawnSec: 13,
       holdCap: 0,
@@ -1163,13 +1181,14 @@ export const HERO_DEFS: Readonly<Record<HeroId, HeroDef>> = {
       projectileSpeed: 21,
       splashRadius: 0,
       armorPierce: 1,
+      levelGrowth: { hpPerLevel: 0.068, damagePerLevel: 0.091, armorPerLevel: 0.16 },
     },
     passive: {
       id: 'calm_waters',
       kind: 'calmWaters',
       name: 'Calm Waters',
       description: 'Restores health to nearby soldiers every second.',
-      power: 12,
+      power: 13,
       radius: 4.0,
       chance: 0,
       durationSec: 0,
@@ -1197,11 +1216,11 @@ export const HERO_DEFS: Readonly<Record<HeroId, HeroDef>> = {
         name: 'Thunder Call',
         description: 'Calls a bolt of storm lightning that chains across up to 3 nearby enemies.',
         targetMode: 'point',
-        cooldownSec: 16,
+        cooldownSec: 15.8,
         range: 6.0,
         radius: 3.4,
         damage: 62,
-        effect: 0.78,
+        effect: 0.80,
         durationSec: 0,
         count: 3,
       },
@@ -1370,22 +1389,293 @@ export function heroSkillPointsForLevel(level: number): number {
   return clamped - 1;
 }
 
+export const MAX_HERO_SAVE_XP = 1_000_000;
+
+/** Clamps raw XP to `[0, MAX_HERO_SAVE_XP]` integer (`0` for non-numbers / NaN / negatives). */
+export function sanitizeHeroXp(val: unknown): number {
+  if (typeof val !== 'number' || !Number.isFinite(val)) return 0;
+  return Math.max(0, Math.min(MAX_HERO_SAVE_XP, Math.floor(val)));
+}
+
+/** Hero level (`1..20`) for a total persistent XP count. */
+export function heroLevelFromXp(xp: number): number {
+  const cleanXp = sanitizeHeroXp(xp);
+  let lvl = 1;
+  for (let i = 1; i < HERO_LEVEL_XP.length; i++) {
+    if (cleanXp >= HERO_LEVEL_XP[i]) lvl = i + 1;
+    else break;
+  }
+  return lvl;
+}
+
+/** True when `unlockedSkills` satisfies `node`'s prerequisite rule (`all` or `minPrerequisites`). */
+export function areHeroNodePrerequisitesMet(
+  node: HeroSkillNodeDef,
+  unlockedSkills: readonly string[],
+): boolean {
+  const needed = node.minPrerequisites ?? node.prerequisites.length;
+  if (needed <= 0) return true;
+  let count = 0;
+  for (let i = 0; i < node.prerequisites.length; i++) {
+    if (unlockedSkills.includes(node.prerequisites[i])) count++;
+  }
+  return count >= needed;
+}
+
+/** Total skill points spent across `unlockedSkills` for `heroId`. */
+export function countHeroSkillPointsSpent(
+  heroId: HeroId,
+  unlockedSkills: readonly string[],
+): number {
+  let spent = 0;
+  const seen = new Set<string>();
+  for (let i = 0; i < unlockedSkills.length; i++) {
+    const id = unlockedSkills[i];
+    if (seen.has(id)) continue;
+    const node = getHeroSkillNode(heroId, id);
+    if (!node) continue;
+    seen.add(id);
+    spent += node.cost;
+  }
+  return spent;
+}
+
 /**
- * Canonical 19-point Level-20 skill build for balance reports / QA:
- * Branches 0 & 1 maxed (6 + 6 = 12 pts) + Capstone (3 pts) + Branch 2 up to Tier 3 (4 pts) = 19 pts.
+ * Validates and normalizes a stored skill-node list for `heroId` against `maxSkillPoints`.
+ * Unknown or duplicate IDs are dropped; if the remaining set violates prerequisites or exceeds
+ * earned skill points (corrupted / edited save), refunds to `[]` while keeping XP intact.
  */
-export function defaultLevel20Skills(heroId: HeroId): readonly string[] {
-  const def = HERO_DEFS[heroId];
-  const b0 = def.branches[0].id;
-  const b1 = def.branches[1].id;
-  const b2 = def.branches[2].id;
-  const out: string[] = [];
-  for (const n of def.skillTree) {
-    if (n.branch === b0 || n.branch === b1) out.push(n.id);
-    else if (n.branch === b2 && n.tier <= 3) out.push(n.id);
-    else if (n.isCapstone) out.push(n.id);
+export function sanitizeHeroSkillsForBudget(
+  heroId: HeroId,
+  rawSkills: unknown,
+  maxSkillPoints: number,
+): string[] {
+  if (!Array.isArray(rawSkills)) return [];
+  const candidates: HeroSkillNodeDef[] = [];
+  const seen = new Set<string>();
+  for (let i = 0; i < rawSkills.length; i++) {
+    const id: unknown = rawSkills[i];
+    if (typeof id !== 'string' || seen.has(id)) continue;
+    const node = getHeroSkillNode(heroId, id);
+    if (!node) continue;
+    seen.add(id);
+    candidates.push(node);
+  }
+  if (candidates.length === 0) return [];
+
+  candidates.sort((a, b) => a.tier - b.tier);
+  const accepted: string[] = [];
+  let costSum = 0;
+  for (let i = 0; i < candidates.length; i++) {
+    const node = candidates[i];
+    if (!areHeroNodePrerequisitesMet(node, accepted)) return [];
+    costSum += node.cost;
+    if (costSum > maxSkillPoints) return [];
+    accepted.push(node.id);
+  }
+  return accepted;
+}
+
+/** Pure unlock check given campaign islands-cleared count and unlock frontier index. */
+export function isHeroUnlockedForCounts(
+  heroId: HeroId,
+  clearedIslandsCount: number,
+  unlockedLevelIndex: number,
+): boolean {
+  if (!isHeroId(heroId)) return false;
+  const rule = HERO_DEFS[heroId].unlock;
+  if (rule.kind === 'starter') return true;
+  return clearedIslandsCount >= rule.count || unlockedLevelIndex >= rule.count;
+}
+
+/** Fresh default `HeroSaveData` (`bran` selected, 0 XP and empty skill trees for all 5 heroes). */
+export function createFreshHeroSaveData(): HeroSaveData {
+  const roster: Partial<Record<HeroId, HeroProgressEntry>> = {};
+  for (let i = 0; i < HERO_IDS.length; i++) {
+    roster[HERO_IDS[i]] = { xp: 0, skills: [] };
+  }
+  return { selectedHero: 'bran', roster };
+}
+
+/** Platform-independent sanitization of `progress.heroes` (never loses valid XP). */
+export function sanitizeHeroSaveData(
+  raw: unknown,
+  clearedIslandsCount?: number,
+  unlockedLevelIndex?: number,
+): HeroSaveData {
+  const out = createFreshHeroSaveData();
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return out;
+  const obj = raw as { selectedHero?: unknown; roster?: unknown };
+  const rawRoster =
+    obj.roster && typeof obj.roster === 'object' && !Array.isArray(obj.roster)
+      ? (obj.roster as Record<string, unknown>)
+      : {};
+
+  for (let i = 0; i < HERO_IDS.length; i++) {
+    const id = HERO_IDS[i];
+    const entryRaw = rawRoster[id];
+    if (!entryRaw || typeof entryRaw !== 'object' || Array.isArray(entryRaw)) continue;
+    const e = entryRaw as { xp?: unknown; skills?: unknown };
+    const xp = sanitizeHeroXp(e.xp);
+    const pts = heroSkillPointsForLevel(heroLevelFromXp(xp));
+    const skills = sanitizeHeroSkillsForBudget(id, e.skills, pts);
+    out.roster[id] = { xp, skills };
+  }
+
+  if (isHeroId(obj.selectedHero)) {
+    const ok =
+      clearedIslandsCount !== undefined && unlockedLevelIndex !== undefined
+        ? isHeroUnlockedForCounts(obj.selectedHero, clearedIslandsCount, unlockedLevelIndex)
+        : true;
+    out.selectedHero = ok ? obj.selectedHero : 'bran';
   }
   return out;
+}
+
+/** Sum of persistent XP across all 5 heroes in `heroes`. */
+export function totalHeroSaveXp(heroes: HeroSaveData | undefined): number {
+  if (!heroes?.roster) return 0;
+  let sum = 0;
+  for (let i = 0; i < HERO_IDS.length; i++) {
+    sum += sanitizeHeroXp(heroes.roster[HERO_IDS[i]]?.xp);
+  }
+  return sum;
+}
+
+/** True when `heroes` contains non-default progress worth backing up. */
+export function hasHeroSaveProgress(heroes: HeroSaveData | undefined): boolean {
+  if (!heroes) return false;
+  if (heroes.selectedHero !== 'bran') return true;
+  for (let i = 0; i < HERO_IDS.length; i++) {
+    const e = heroes.roster?.[HERO_IDS[i]];
+    if (!e) continue;
+    if (sanitizeHeroXp(e.xp) > 0 || (Array.isArray(e.skills) && e.skills.length > 0)) return true;
+  }
+  return false;
+}
+
+/**
+ * Merges two optional `HeroSaveData` records monotonically and idempotently:
+ * per-hero XP takes `Math.max`, skills union when within the merged budget (otherwise keeping the
+ * larger valid skill investment), and `selectedHero` prefers an unlocked non-default pick.
+ */
+export function mergeHeroSaveData(
+  a: HeroSaveData | undefined,
+  b: HeroSaveData | undefined,
+  clearedIslandsCount: number,
+  unlockedLevelIndex: number,
+): HeroSaveData | undefined {
+  if (!a && !b) return undefined;
+  const sa = sanitizeHeroSaveData(a, clearedIslandsCount, unlockedLevelIndex);
+  const sb = sanitizeHeroSaveData(b, clearedIslandsCount, unlockedLevelIndex);
+  const roster: Partial<Record<HeroId, HeroProgressEntry>> = {};
+
+  for (let i = 0; i < HERO_IDS.length; i++) {
+    const id = HERO_IDS[i];
+    const ea = sa.roster[id] ?? { xp: 0, skills: [] };
+    const eb = sb.roster[id] ?? { xp: 0, skills: [] };
+    const xp = Math.max(ea.xp, eb.xp);
+    const budget = heroSkillPointsForLevel(heroLevelFromXp(xp));
+    const sameOrder =
+      ea.skills.length === eb.skills.length && ea.skills.every((s, idx) => eb.skills[idx] === s);
+    let combined: readonly string[];
+    if (sameOrder) {
+      combined = ea.skills;
+    } else if (eb.skills.length < ea.skills.length && eb.skills.every((s) => ea.skills.includes(s))) {
+      combined = ea.skills;
+    } else if (ea.skills.length < eb.skills.length && ea.skills.every((s) => eb.skills.includes(s))) {
+      combined = eb.skills;
+    } else {
+      const inEither = new Set<string>([...ea.skills, ...eb.skills]);
+      combined = HERO_DEFS[id].skillTree.filter((n) => inEither.has(n.id)).map((n) => n.id);
+    }
+    const unionSkills = sanitizeHeroSkillsForBudget(id, combined, budget);
+    let skills: string[];
+    if (unionSkills.length > 0 || (ea.skills.length === 0 && eb.skills.length === 0)) {
+      skills = unionSkills;
+    } else {
+      const va = sanitizeHeroSkillsForBudget(id, ea.skills, budget);
+      const vb = sanitizeHeroSkillsForBudget(id, eb.skills, budget);
+      const spentA = countHeroSkillPointsSpent(id, va);
+      const spentB = countHeroSkillPointsSpent(id, vb);
+      skills =
+        spentB > spentA || (spentB === spentA && JSON.stringify(vb) > JSON.stringify(va))
+          ? vb
+          : va;
+    }
+    roster[id] = { xp, skills };
+  }
+
+  let selectedHero: HeroId = 'bran';
+  const candA = isHeroUnlockedForCounts(sa.selectedHero, clearedIslandsCount, unlockedLevelIndex)
+    ? sa.selectedHero
+    : 'bran';
+  const candB = isHeroUnlockedForCounts(sb.selectedHero, clearedIslandsCount, unlockedLevelIndex)
+    ? sb.selectedHero
+    : 'bran';
+  if (candA !== 'bran' && candB === 'bran') selectedHero = candA;
+  else if (candB !== 'bran' && candA === 'bran') selectedHero = candB;
+  else if (candA !== 'bran' && candB !== 'bran') {
+    const xpA = totalHeroSaveXp(sa);
+    const xpB = totalHeroSaveXp(sb);
+    selectedHero =
+      xpB > xpA || (xpB === xpA && HERO_IDS.indexOf(candB) > HERO_IDS.indexOf(candA))
+        ? candB
+        : candA;
+  }
+
+  return { selectedHero, roster };
+}
+
+/**
+ * Canonical 19-point Level-20 skill build for balance reports / QA:
+ * Branches `primaryA` & `primaryB` maxed (6 + 6 = 12 pts) + Capstone (3 pts) + remaining branch up to Tier 3 (4 pts) = 19 pts.
+ */
+export function buildLevel20Specialization(
+  heroId: HeroId,
+  primaryPair: readonly [0 | 1 | 2, 0 | 1 | 2] = [0, 1],
+): readonly string[] {
+  const def = HERO_DEFS[heroId];
+  const pA = def.branches[primaryPair[0]].id;
+  const pB = def.branches[primaryPair[1]].id;
+  const out: string[] = [];
+  for (const n of def.skillTree) {
+    if (n.branch === pA || n.branch === pB) out.push(n.id);
+    else if (n.isCapstone) out.push(n.id);
+    else if (n.tier <= 3) out.push(n.id);
+  }
+  return out;
+}
+
+export function defaultLevel20Skills(heroId: HeroId): readonly string[] {
+  return buildLevel20Specialization(heroId, [0, 1]);
+}
+
+/** Canonical valid skill-node list spending up to `level - 1` skill points for QA (`?herolevel=N`) & balance sims. */
+export function defaultSkillsForLevel(heroId: HeroId, level: number): readonly string[] {
+  const clamped = Math.max(1, Math.min(HERO_MAX_LEVEL, Math.floor(Number.isFinite(level) ? level : 1)));
+  if (clamped <= 1) return [];
+  const budget = heroSkillPointsForLevel(clamped);
+  const full = defaultLevel20Skills(heroId);
+  const candidates = full
+    .map((id) => getHeroSkillNode(heroId, id)!)
+    .filter(Boolean)
+    .sort((a, b) => a.tier - b.tier);
+  const picked: string[] = [];
+  let spent = 0;
+  for (const n of candidates) {
+    if (spent + n.cost > budget) continue;
+    const needed = n.minPrerequisites ?? n.prerequisites.length;
+    let have = 0;
+    for (const p of n.prerequisites) {
+      if (picked.includes(p)) have++;
+    }
+    if (have >= needed) {
+      picked.push(n.id);
+      spent += n.cost;
+    }
+  }
+  return picked;
 }
 
 function resolveActive(
@@ -1457,9 +1747,11 @@ export function resolveHeroStats(
   const clampedLevel = Math.max(1, Math.min(HERO_MAX_LEVEL, Math.floor(Number.isFinite(level) ? level : 1)));
   const lvlSteps = clampedLevel - 1;
 
-  const hpLevelMul = 1 + HERO_RULES.hpGrowthPerLevel * lvlSteps;
-  const dmgLevelMul = 1 + HERO_RULES.damageGrowthPerLevel * lvlSteps;
-  const armorLevelBonus = Math.floor(HERO_RULES.armorGrowthPerLevel * lvlSteps);
+  const b = def.baseStats;
+  const g = b.levelGrowth;
+  const hpLevelMul = 1 + (g?.hpPerLevel ?? HERO_RULES.hpGrowthPerLevel) * lvlSteps;
+  const dmgLevelMul = 1 + (g?.damagePerLevel ?? HERO_RULES.damageGrowthPerLevel) * lvlSteps;
+  const armorLevelBonus = Math.floor((g?.armorPerLevel ?? HERO_RULES.armorGrowthPerLevel) * lvlSteps);
 
   let maxHpMul = 0;
   let maxHpBonus = 0;
@@ -1512,10 +1804,9 @@ export function resolveHeroStats(
     if (p.active1) active1Patches.push(p.active1);
   }
 
-  const b = def.baseStats;
   const pas = def.passive;
   const passiveLevelScale =
-    pas.kind === 'kindling' || pas.kind === 'calmWaters' ? 1 + 0.035 * lvlSteps : 1;
+    pas.kind === 'kindling' ? 1 + 0.025 * lvlSteps : pas.kind === 'calmWaters' ? 1 + 0.035 * lvlSteps : 1;
   const rawPassivePower = pas.power * passiveLevelScale * Math.max(0.1, 1 + passivePowerMul);
   const resolvedPassivePower =
     pas.kind === 'bulwark' ? Math.min(0.65, rawPassivePower) : rawPassivePower;

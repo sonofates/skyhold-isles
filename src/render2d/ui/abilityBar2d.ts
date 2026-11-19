@@ -22,15 +22,13 @@ import { haptics } from '../../platform/haptics.ts';
 import { AbilityFx, ABILITY_ART_KEYS, type AbilityArt, type AbilityArtKey, type FxTower } from '../abilityFx.ts';
 import type { Game2D } from '../game2d.ts';
 import { addHudKeepOut, hudKeepOuts, readSafeInsets } from '../uiKit.ts';
-import { abilityBarSpot, hudButtonsKeepOut, uiScale, type AbilityBarSpot, type Rect } from '../uiLayout.ts';
+import { abilityBarSpot, gateKeepOutsPx, hudButtonsKeepOut, uiScale, type AbilityBarSpot, type Rect } from '../uiLayout.ts';
 import {
   ABILITY_IDS,
   ABILITY_KEYS,
   abilityDesc,
   abilityName,
   abilitySlotView,
-  castMeteor2D,
-  castOvercharge2D,
   secsLabel,
   slotStatus,
   type AbilitySlotView,
@@ -186,6 +184,7 @@ export function mountAbilityBar2D(game: Game2D, opts: AbilityBarOptions): Abilit
   let visible = true;
   let box: Rect = { x: 0, y: 0, w: 0, h: 0 };
   let spot: AbilityBarSpot | null = null;
+  let edge = false;
   let placing = false;
   let d = 60;
   /** Road points (world units) the bar would rather not cover, sampled once. */
@@ -214,29 +213,53 @@ export function mountAbilityBar2D(game: Game2D, opts: AbilityBarOptions): Abilit
     // Plots with room for the tower that may stand on them (≈ 1.3 plot widths tall).
     const hard: Rect[] = game.plots.geometry.rects.map((p) => ({ x: sx(p.x), y: sy(p.y - p.w * 1.3), w: p.w * m.fit.scale, h: (p.h + p.w * 1.3) * m.fit.scale }));
     placing = true;
-    hard.push(r.horn, r.plaque, r.banner, hudButtonsKeepOut(w, h, ins), ...hudKeepOuts());
+    const hud: Rect[] = [r.horn, r.plaque, r.banner, hudButtonsKeepOut(w, h, ins), ...hudKeepOuts()];
+    // The castle keep and the caves (painted into the map): rather not under the bar (the keep
+    // weighs more; a cave edge is fine when nothing else is clear).
+    const landmarks = gateKeepOutsPx(game.level.layout2d?.gates ?? []).map((g) => ({ rect: { x: sx(g.x), y: sy(g.y), w: g.w * m.fit.scale, h: g.h * m.fit.scale }, weight: g.castle ? 400 : 120 }));
     placing = false;
     const soft = roadPts.map((p) => ({ x: sx(m.pxX(p.x)), y: sy(m.pxY(p.z)) }));
     // With the hero group the bar is long: shrink the buttons (never under 46 px) until a spot
     // covers nothing; else keep the size whose best spot covers least.
-    let best: { d: number; long: number; short: number; spot: AbilityBarSpot } | null = null;
+    let best: { d: number; long: number; short: number; spot: AbilityBarSpot; block?: { w: number; h: number }; stack?: { w: number; h: number } } | null = null;
     for (let dd = base; dd >= Math.min(base, 46); dd -= 2) {
-      const lg = dd * slots.length + gap * (slots.length - 1) + (opts.lead ? opts.lead.long(dd, gap) : 0);
+      // + one gap between the hero group and the abilities, + the key chips' overhang.
+      const lg = dd * slots.length + gap * (slots.length - 1) + (opts.lead ? opts.lead.long(dd, gap) + gap : 0) + Math.round(dd * 0.12);
       const sh = Math.max(dd, opts.lead?.short ? Math.ceil(opts.lead.short(dd)) : dd);
-      const sp = abilityBarSpot({ w, h, insets: ins, pad, long: lg, short: sh, gap, plaque: r.plaque, banner: r.banner, hard, soft });
-      if (!best || sp.score < best.spot.score) best = { d: dd, long: lg, short: sh, spot: sp };
-      if (sp.score === 0 || !opts.lead) break;
+      // Two rows: the hero group (no divider) over the abilities.
+      const block = opts.lead ? { w: Math.round(dd * 3.5 + gap * 2 + dd * 0.12), h: Math.round(dd * 1.5 + gap + dd + dd * 0.08) } : undefined;
+      // Three rows up a side (portrait / hero skills / abilities): fits a short phone screen's edge
+      // between the HUD buttons and the banner, where the one-file column does not. Phones only:
+      // on desktop a row / block always fits somewhere and reads better.
+      const stack = opts.lead && h <= 560 ? { w: Math.round(dd * 2 + gap + dd * 0.12), h: Math.round(dd * 1.5 + dd * 2 + gap * 1.2 + dd * 0.08) } : undefined;
+      const sp = abilityBarSpot({ w, h, insets: ins, pad, long: lg, short: sh, gap, plaque: r.plaque, banner: r.banner, hard, hud, soft, landmarks, ...(block ? { block } : {}), ...(stack ? { stack } : {}) });
+      // Prefer: clear spot, then a row / block over an edge column (owner: the column "at the edge"
+      // looked off), then the bigger buttons. A column is kept only if no row / block down to 70 %
+      // size is clear.
+      // The side stack ranks between them (it is an edge piece too, but compact).
+      const edgeRank = (a: AbilityBarSpot): number => (a.layout === 'column' ? 2 : a.layout === 'stack' ? 1 : 0);
+      const better = (a: AbilityBarSpot, b: AbilityBarSpot): boolean => (a.score !== b.score ? a.score < b.score : edgeRank(a) < edgeRank(b));
+      if (!best || better(sp, best.spot)) best = { d: dd, long: lg, short: sh, spot: sp, block, stack };
+      if (sp.score === 0 && edgeRank(sp) === 0) break;
+      if (best.spot.score === 0 && dd < base * 0.7) break;
     }
     d = best!.d;
     const long = best!.long;
     const short = best!.short;
     spot = best!.spot;
-    root.classList.toggle('vertical', spot.vertical);
+    root.classList.toggle('vertical', spot.layout === 'column');
+    root.classList.toggle('block', spot.layout === 'block');
+    root.classList.toggle('stack', spot.layout === 'stack');
+    // Up a screen side: tooltips / hints / coach arrows go beside it, towards the middle.
+    edge = spot.layout === 'column' || spot.layout === 'stack';
+    root.classList.toggle('edge', edge);
+    const blk = spot.layout === 'stack' ? best!.stack : best!.block;
+    if ((spot.layout === 'block' || spot.layout === 'stack') && blk) root.style.setProperty('--blockw', `${blk.w}px`);
     root.style.setProperty('--d', `${d}px`);
     root.style.setProperty('--gap', `${gap}px`);
     root.style.left = `${Math.round(spot.x)}px`;
     root.style.top = `${Math.round(spot.y)}px`;
-    box = { x: spot.x, y: spot.y, w: spot.vertical ? short : long, h: spot.vertical ? long : short };
+    box = (spot.layout === 'block' || spot.layout === 'stack') && blk ? { x: spot.x, y: spot.y, w: blk.w, h: blk.h } : { x: spot.x, y: spot.y, w: spot.vertical ? short : long, h: spot.vertical ? long : short };
     root.style.setProperty('--short', `${short}px`);
     placeHint();
   };
@@ -247,7 +270,7 @@ export function mountAbilityBar2D(game: Game2D, opts: AbilityBarOptions): Abilit
     const gap = 10;
     let x = box.x + box.w / 2 - hw / 2;
     let y = box.y - gap - hh;
-    if (spot?.vertical) {
+    if (edge) {
       // Beside the column, towards the middle of the screen.
       x = box.x + box.w / 2 < window.innerWidth / 2 ? box.x + box.w + gap : box.x - gap - hw;
       y = box.y + box.h - hh;
@@ -286,7 +309,7 @@ export function mountAbilityBar2D(game: Game2D, opts: AbilityBarOptions): Abilit
     const th = tip.offsetHeight;
     let x = b.left + b.width / 2 - tw / 2;
     let y = b.top - 10 - th;
-    if (spot?.vertical) {
+    if (edge) {
       x = b.left + b.width / 2 < window.innerWidth / 2 ? b.right + 10 : b.left - 10 - tw;
       y = b.bottom - th;
     }
@@ -409,10 +432,10 @@ export function mountAbilityBar2D(game: Game2D, opts: AbilityBarOptions): Abilit
   }
 
   const commit = (p: { x: number; y: number }): void => {
-    const w = game.world;
     if (aiming === 'meteor') {
       if (!insideMap(p)) return;
-      if (castMeteor2D(w, game.map.worldXFromScreen(p.x), game.map.worldZFromScreen(p.y))) {
+      // Through the game's command layer (recorded for the replay); same castMeteor2D rules.
+      if (game.castAbility('meteor', game.map.worldXFromScreen(p.x), game.map.worldZFromScreen(p.y))) {
         haptics.pulse('tap');
         setAim(null);
       }
@@ -425,7 +448,7 @@ export function mountAbilityBar2D(game: Game2D, opts: AbilityBarOptions): Abilit
         return;
       }
       originTower = id;
-      if (castOvercharge2D(w)) {
+      if (game.castAbility('overcharge')) {
         haptics.pulse('tap');
         setAim(null);
       }
@@ -492,9 +515,13 @@ export function mountAbilityBar2D(game: Game2D, opts: AbilityBarOptions): Abilit
   window.addEventListener(
     'keydown',
     (e) => {
-      if (synthetic || anySheetOpen() || e.ctrlKey || e.metaKey || e.altKey) return;
+      if (synthetic || anySheetOpen() || game.replaying || e.ctrlKey || e.metaKey || e.altKey) return;
       if (e.key === 'Escape') {
-        if (aiming) setAim(null);
+        // Handled: game2d's Esc must not also open the pause menu.
+        if (aiming) {
+          setAim(null);
+          e.preventDefault();
+        }
         return;
       }
       if (e.repeat) return;
@@ -588,6 +615,8 @@ export function mountAbilityBar2D(game: Game2D, opts: AbilityBarOptions): Abilit
         aiming,
         bar: r(root),
         spot,
+        d,
+        box,
         buttons: Object.fromEntries(slots.map((s) => [s.id, { ...r(s.btn), state: s.view?.state ?? null, secs: s.secs.textContent }])),
         hint: hint.hidden ? null : hint.textContent,
         tip: tip.hidden ? null : tip.textContent,

@@ -343,33 +343,68 @@ export interface GameEventMap {
 
 type Listener<T> = (payload: T) => void;
 
+interface ListenerEntry<T> {
+  readonly fn: Listener<T>;
+  active: boolean;
+}
+
 export class EventBus {
-  private listeners: { [K in keyof GameEventMap]?: Array<Listener<GameEventMap[K]>> } = {};
+  private listeners: { [K in keyof GameEventMap]?: Array<ListenerEntry<GameEventMap[K]>> } = {};
+  private emitDepth = 0;
+  /** Suppresses listener dispatch during fast-forward replay seeks when `true`. */
+  muted = false;
 
   on<K extends keyof GameEventMap>(event: K, listener: Listener<GameEventMap[K]>): () => void {
-    let list = this.listeners[event];
-    if (!list) {
-      list = [];
-      this.listeners[event] = list;
+    const map = this.listeners as Record<K, Array<ListenerEntry<GameEventMap[K]>> | undefined>;
+    const entry: ListenerEntry<GameEventMap[K]> = { fn: listener, active: true };
+    const curList = map[event];
+    if (!curList) {
+      map[event] = [entry];
+    } else if (this.emitDepth > 0) {
+      map[event] = [...curList, entry];
+    } else {
+      curList.push(entry);
     }
-    list.push(listener);
     return () => {
-      const idx = list.indexOf(listener);
-      if (idx !== -1) {
-        list.splice(idx, 1);
+      if (!entry.active) return;
+      entry.active = false;
+      const cur = map[event];
+      if (!cur) return;
+      const idx = cur.indexOf(entry);
+      if (idx === -1) return;
+      if (this.emitDepth > 0) {
+        map[event] = cur.filter((e) => e !== entry);
+      } else {
+        cur.splice(idx, 1);
       }
     };
   }
 
   emit<K extends keyof GameEventMap>(event: K, payload: GameEventMap[K]): void {
+    if (this.muted) return;
     const list = this.listeners[event];
-    if (!list) return;
-    for (let i = 0; i < list.length; i++) {
-      list[i](payload);
+    if (!list || list.length === 0) return;
+    const len = list.length;
+    this.emitDepth++;
+    try {
+      for (let i = 0; i < len; i++) {
+        const entry = list[i];
+        if (entry.active) entry.fn(payload);
+      }
+    } finally {
+      this.emitDepth--;
     }
   }
 
   clear(): void {
+    const keys = Object.keys(this.listeners) as Array<keyof GameEventMap>;
+    for (let k = 0; k < keys.length; k++) {
+      const list = this.listeners[keys[k]];
+      if (!list) continue;
+      for (let i = 0; i < list.length; i++) {
+        list[i].active = false;
+      }
+    }
     this.listeners = {};
   }
 }

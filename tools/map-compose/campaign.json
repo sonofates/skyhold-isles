@@ -2,81 +2,157 @@
   "i01": {
     "plots": 16,
     "seed": 31,
-    "decals": 310,
-    "props": 52,
+    "decals": 72,
+    "props": 11,
     "windmill": "none",
     "biome": "orchard",
-    "propWeights": [6, 1, 3, 0, 3, 0, 7],
+    "scatterProps": [["landmark-spring-hawthorn.webp", 1.72], ["buttercups.webp", 0.42]],
+    "propWeights": [5, 2],
+    "repeatGap": 135,
+    "dressingMask": "dressing-i01.webp",
+    "entranceFinishes": {"A": "poppy-postern-e.webp"},
+    "roadStrip": true,
+    "roadMaterial": "tex-chalk-lane.webp",
+    "dustyShoulders": true,
+    "thresholdRoad": true,
+    "sillLaneBlend": {"A": 0.8},
     "cave-h": 2.1,
     "castle-h": 2.3,
+    "groundPaint": [["apiary-yard", 524, 637, 59]],
     "landmarks": [
-      ["cottage", 1247, 621, 113]
+      ["laid-hedge", 847, 126, 74],
+      ["spring-hawthorn", 361, 576, 89],
+      ["honey-cottage", 493, 617, 137],
+      ["skep-bench", 598, 625, 42],
+      ["sun-stone", 1248, 624, 84]
     ]
   },
   "i02": {
     "plots": 19,
     "seed": 73,
-    "decals": 160,
-    "props": 42,
+    "decals": 65,
+    "props": 13,
     "windmill": "none",
     "biome": "tidal",
-    "propWeights": [1, 2, 2, 5, 3, 3, 2],
-    "crossings": [
-      ["bridge", 965, 307, 181, 78, 96.5],
-      ["bridge", 967, 523, 182, 78, 90.4]
+    "scatterProps": [["salt-willow.webp", 1.4], ["salt-grass.webp", 0.51], ["driftwood.webp", 0.34]],
+    "propWeights": [5, 4, 1],
+    "repeatGap": 142,
+    "archBridges": [
+      ["trestle", [859, 319], [1074, 294], 82.5, 66, 38],
+      ["lifting-span", [853, 523.4], [1080, 521.9], 49, 53, 34]
     ],
     "islet": "islet.webp",
+    "brushRoad": true,
+    "dustyShoulders": true,
+    "roadMaterial": "tex-shell-road.webp",
+    "thresholdRoad": true,
+    "sillLaneBlend": {"A": 0.85},
+    "entranceFinishes": {"A": "pilot-gate-s.webp"},
     "castle-h": 2.66,
+    "groundPaint": [
+      ["pilot-jetty", 908, 488, 54],
+      ["smack-landing", 1255, 802, 132]
+    ],
     "landmarks": [
-      ["shed", 1096, 746, 106]
+      ["pilot-lookout", 644, 215, 143],
+      ["net-loft", 1404, 720, 122]
     ]
   },
   "i03": {
     "plots": 22,
     "seed": 107,
-    "decals": 194,
-    "props": 78,
+    "decals": 56,
+    "props": 15,
     "windmill": "none",
     "biome": "highlands",
-    "propWeights": [6, 2, 1, 3, 4, 4, 2],
-    "roadMaterial": "tex-gravel.webp",
+    "scatterProps": [["snow-spruces.webp", 1.55], ["winter-rowan.webp", 0.73], ["silver-grass.webp", 0.38]],
+    "propWeights": [6, 3, 1],
+    "repeatGap": 125,
+    "entranceFinishes": {"A": "fir-postern-e.webp"},
+    "roadMaterial": "tex-frost-setts.webp",
+    "dressingMask": "dressing-i03.webp",
+    "roadStrip": true,
+    "snowShoulders": true,
+    "thresholdRoad": true,
+    "sillLaneBlend": {"A": 0.8},
     "cave-h": 2.18,
+    "groundPaint": [["snow-steps", 1148, 381, 31]],
     "landmarks": [
-      ["keep", 743, 326, 130]
+      ["fir-hall", 742, 329, 132],
+      ["fir-beacon", 1274, 349, 86],
+      ["kindling-sled", 1201, 350, 38]
     ]
   },
   "i04": {
     "plots": 20,
     "seed": 151,
-    "decals": 270,
-    "props": 64,
+    "decals": 58,
+    "props": 13,
     "windmill": "none",
     "biome": "terraces",
-    "propWeights": [1, 6, 4, 4, 1, 1, 2],
+    "scatterProps": [["silver-birches.webp", 1.65], ["fern.webp", 0.54], ["jade-cluster.webp", 0.54]],
+    "propWeights": [4, 5, 1],
+    "repeatGap": 130,
+    "islet": "islet.webp",
+    "waterCrossings": true,
+    "dressingMask": "dressing-i04.webp",
+    "brushRoad": true,
+    "dustyShoulders": true,
+    "roadMaterial": "tex-pilgrim-road.webp",
+    "thresholdRoad": true,
+    "sillLaneBlend": {"A": 0.85},
+    "entranceFinishes": {"A": "grove-postern-e.webp"},
     "crossings": [
-      ["viaduct", 500, 339, 115, 74, -14]
+      ["rope-span", 505, 237, 152, 94, -13],
+      ["moss-steps", 728, 216, 83, 63, 23],
+      ["clapper-span", 1008, 263, 110, 74, -32]
     ],
     "cave-h": 2.18,
     "castle-h": 2.3,
+    "groundPaint": [["blossom-drift", 744, 712, 80]],
     "landmarks": [
-      ["anchors", 636, 369, 53]
+      ["emerald-oak", 755, 690, 181],
+      ["lantern-shrine", 1574, 366, 117],
+      ["grove-beacon", 1600, 648, 88]
     ]
   },
   "i05": {
     "plots": 19,
     "seed": 193,
-    "decals": 280,
-    "props": 72,
-    "windmill": "665,506,2.7",
+    "decals": 150,
+    "props": 7,
+    "windmill": "none",
     "biome": "orchard",
-    "propWeights": [4, 0, 6, 6, 4, 0, 1],
+    "landmarks": [
+      ["harvest-mill", 664, 561, 181],
+      ["sheaf-cart", 1363, 446, 65],
+      ["crow-keeper", 288, 408, 86],
+      ["stooks", 622, 705, 52]
+    ],
+    "groundPaint": [["threshing-floor", 641, 575, 50]],
+    "dressingMask": "dressing-i05.webp",
+    "scatterProps": [["autumn-apple.webp", 1.82], ["fence-corner.webp", 0.55]],
+    "propWeights": [3, 1],
     "groundMaterial": "tex-wheat.webp",
-    "roadMaterial": "tex-orchard-loam.webp",
+    "roadMaterial": "harvest-loam.webp",
+    "brushRoad": true,
+    "dustyShoulders": true,
+    "cartLane": 0,
+    "thresholdRoad": true,
+    "sillLaneBlend": {"A": 0.8},
     "cave-h": 2.14,
     "castle-h": 2.26
   },
   "i06": {
     "gatehouseShelf": [-18, 1, 203, 92],
+    "landmarkShelves": {
+      "lighthouse": [952, 388, 143, 107]
+    },
+    "groundPaint": [["oystercatcher", 650, 460, 34]],
+    "crossings": [
+      ["gangway", 900, 410, 85, 76, 93],
+      ["bridge", 1046, 451, 154, 76, 57]
+    ],
     "gatehouseView": "compact",
     "plots": 24,
     "seed": 227,
@@ -96,51 +172,64 @@
   "i07": {
     "plots": 26,
     "seed": 283,
-    "decals": 155,
-    "props": 44,
+    "decals": 56,
+    "props": 16,
     "windmill": "none",
     "biome": "highlands",
-    "propWeights": [1, 2, 2, 3, 7, 2, 5],
-    "crossings": [
-      ["stone-bridge", 936, 229, 176, 73, 83.4],
-      ["stone-bridge", 920, 564, 202, 74, 80.5]
+    "scatterProps": [["storm-pine.webp", 1.3], ["slate-heather.webp", 0.42], ["silver-grass.webp", 0.36]],
+    "propWeights": [1, 5, 3],
+    "repeatGap": 83,
+    "archBridges": [
+      ["thyme-bridge", [752, 208], [1024, 240], 44, 88, 38],
+      ["sun-bridge", [770, 548], [1023, 582], 44, 88, 38]
     ],
-    "islet": "islet.webp",
+    "islet": "gorge-ledge.webp",
     "sprites": {
       "gate-cave-e.png": "storm-cave-e.webp",
-      "gate-cave-s.png": "storm-cave-s.webp",
-      "signal-post.webp": "torn-standard.webp",
-      "parapet.webp": "broken-wall.webp",
-      "snow-fir.webp": "storm-pine.webp"
+      "gate-cave-s.png": "storm-cave-s.webp"
     },
-    "roadMaterial": "tex-gravel.webp",
+    "roadMaterial": "tex-span-paving.webp",
+    "roadStrip": true,
+    "dustyShoulders": true,
+    "thresholdRoad": true,
+    "entranceFinishes": {"A": "thyme-postern-s.webp"},
+    "groundPaint": [["garrison-stairs", 1047, 206, 89]],
     "landmarks": [
-      ["fort", 868, 326, 58],
-      ["fort", 1044, 449, 49]
+      ["span-garrison", 1107, 136, 131],
+      ["cliff-sundial", 749, 121, 76],
+      ["span-woodstore", 433, 700, 62]
     ]
   },
   "i08": {
-    "gatehouseShelf": [-18, -7, 206, 90],
     "gatehouseView": "compact",
     "plots": 28,
     "seed": 353,
-    "decals": 205,
-    "props": 61,
+    "decals": 42,
+    "props": 13,
     "windmill": "none",
     "biome": "terraces",
-    "propWeights": [1, 0, 3, 3, 6, 4, 6],
-    "crossings": [
-      ["stone-bridge", 951, 304, 110, 69, 99]
+    "scatterProps": [["willow.webp", 1.18], ["fern.webp", 0.43], ["cattails.webp", 0.52]],
+    "propWeights": [1, 4, 3],
+    "repeatGap": 105,
+    "archBridges": [
+      ["marsh-drawbridge", [915, 306], [1110, 294], 58, 59, 32]
     ],
-    "islet": "islet.webp",
+    "waterCrossings": true,
+    "brushRoad": true,
+    "dustyShoulders": true,
+    "thresholdRoad": true,
+    "roadMaterial": "tex-moat-road.webp",
+    "dressingMask": "dressing-i08.webp",
+    "entranceFinishes": {"A": "marsh-postern-e.webp"},
     "gate-inset": 0.08,
     "cave-h": 1.9,
     "castle-h": 2.95,
-    "landmarks": [
-      ["bastion", 757, 244, 48]
-    ]
+    "groundPaint": [["drowned-arch", 252, 162, 113], ["flooded-piers", 663, 341, 40]],
+    "waterReflections": ["landmark-drowned-arch.webp", "landmark-flooded-piers.webp"],
+    "landmarks": [["marsh-light", 538, 733, 85]]
   },
   "i09": {
+    "layMarble": true,
     "plots": 27,
     "seed": 409,
     "decals": 220,
@@ -161,41 +250,53 @@
   "i10": {
     "plots": 25,
     "seed": 461,
+    "landmarkShelves": {"sluice": null},
+    "fords": [[648, 262, 84], [802, 468, 121], [1420, 270, 73]],
     "decals": 265,
     "props": 48,
     "windmill": "none",
     "biome": "terraces",
-    "propWeights": [7, 1, 0, 4, 6, 5, 2],
+    "propWeights": [6, 1, 1, 6, 4, 0, 4],
     "crossings": [
-      ["stone-bridge", 906, 659, 120, 71, 103.5]
+      ["stone-bridge", 906, 659, 120, 71, 103.5],
+      ["viaduct", 1035, 389, 108, 79, -5]
     ],
     "islet": "islet.webp",
     "cave-h": 2.14,
     "castle-h": 2.58,
     "landmarks": [
-      ["sluice", 1078, 683, 91]
+      ["sluice", 961, 825, 62]
     ]
   },
   "i11": {
     "plots": 24,
     "seed": 503,
-    "decals": 145,
-    "props": 59,
+    "crossings": [
+      ["pin-bridge", 392, 293, 130, 88, -29]
+    ],
+    "waterCrossings": true,
+    "decals": 52,
+    "props": 21,
     "windmill": "none",
     "biome": "highlands",
-    "propWeights": [1, 2, 3, 5, 4, 1, 4],
-    "islet": "islet.webp",
+    "scatterProps": [["storm-pine.webp", 1.02], ["slate-heather.webp", 0.46], ["silver-grass.webp", 0.36]],
+    "propWeights": [2, 5, 4],
+    "repeatGap": 72,
+    "islet": "gorge-ledge.webp",
     "sprites": {
-      "gate-cave-e.png": "storm-cave-e.webp",
-      "gate-cave-s.png": "storm-cave-s.webp",
-      "signal-post.webp": "wind-vane.webp",
-      "parapet.webp": "broken-wall.webp",
-      "snow-fir.webp": "storm-pine.webp"
+      "gate-cave-s.png": "storm-cave-s.webp"
     },
-    "roadMaterial": "tex-gravel.webp",
+    "dressingMask": "dressing-i11.webp",
+    "roadMaterial": "tex-gale-track.webp",
+    "brushRoad": true,
+    "dustyShoulders": true,
+    "thresholdRoad": true,
+    "entranceFinishes": {"A": "gale-postern-s.webp"},
     "landmarks": [
-      ["spire", 818, 185, 85],
-      ["spire", 1074, 503, 55]
+      ["wind-stone", 225, 177, 85],
+      ["flag-rack", 291, 556, 90],
+      ["gale-lookout", 1191, 147, 139],
+      ["gale-lantern", 1320, 798, 110]
     ]
   },
   "i12": {
@@ -226,46 +327,72 @@
   "i13": {
     "plots": 28,
     "seed": 593,
-    "decals": 182,
-    "props": 64,
+    "decals": 75,
+    "props": 34,
     "windmill": "none",
     "seedPlots": [
       [644, 272],
       [868, 448]
     ],
     "biome": "highlands",
-    "propWeights": [1, 3, 2, 2, 4, 3, 1],
+    "propWeights": [2, 1, 6, 3, 1, 1, 2],
+    "scatterProps": [
+      ["storm-pine.webp", 1.45], ["broken-wall.webp", 0.59],
+      ["slate-heather.webp", 0.43], ["silver-grass.webp", 0.39],
+      ["cairn.webp", 0.61], ["anchor-block.webp", 0.44], ["split-spire.webp", 0.66]
+    ],
     "sprites": {
       "gate-cave-e.png": "storm-cave-e.webp",
-      "gate-cave-s.png": "storm-cave-s.webp",
-      "signal-post.webp": "split-spire.webp",
-      "shale-pine.webp": "storm-pine.webp",
-      "parapet.webp": "broken-wall.webp",
-      "snow-fir.webp": "torn-standard.webp"
+      "gate-cave-s.png": "storm-cave-s.webp"
     },
-    "roadMaterial": "tex-gravel.webp",
+    "dressingMask": "land-i13.webp",
+    "roadMaterial": "tex-watch-paving.webp",
+    "sillLaneBlend": {"A": 0.85},
+    "brushRoad": true,
+    "thresholdRoad": true,
+    "arcadeMaterial": "tex-watch-arcade.webp",
+    "arcades": [
+      [0, [457, 208], [744, 147], 24],
+      [0, [719, 348], [911, 349], 24],
+      [0, [1298, 698], [1475, 654], 23]
+    ],
     "landmarks": [
-      ["altar", 873, 256, 48]
+      ["watch-dial", 1056, 108, 90],
+      ["watch-beacon", 1604, 356, 115]
     ]
   },
   "i14": {
     "plots": 24,
     "seed": 641,
-    "decals": 128,
-    "props": 39,
+    "decals": 80,
+    "props": 16,
     "windmill": "none",
     "biome": "ember",
-    "propWeights": [6, 0, 0, 6, 6, 1, 3],
+    "scatterProps": [["agave.webp", 0.54], ["desert-scrub.webp", 0.46], ["sandstone-column.webp", 0.85]],
+    "propWeights": [5, 5, 1],
+    "repeatGap": 140,
     "sprites": {
       "gate-cave-e.png": "mesa-cave-e.webp",
-      "gate-cave-s.png": "mesa-cave-s.webp",
-      "clinker.webp": "sandstone-column.webp"
+      "gate-cave-s.png": "mesa-cave-s.webp"
     },
-    "roadMaterial": "tex-buff-sand.webp",
-    "branchMaterial": [2, "tex-wash.webp"],
+    "entranceFinishes": {"A": "cloth-gate-e.webp", "B": "sun-gate-s.webp"},
+    "roadMaterial": "tex-caravan-road.webp",
+    "branchMaterial": [2, "tex-alluvium.webp"],
+    "dressingMask": "dressing-i14.webp",
+    "brushRoad": true,
+    "dustyShoulders": true,
+    "thresholdRoad": true,
+    "sillLaneBlend": {"A": 0.9, "B": 0.8, "C": 0.95},
     "cave-h": 2.42,
     "castle-h": 2.66,
+    "groundPaint": [["beacon-footing", 1598, 277, 44]],
     "landmarks": [
+      ["potter", 295, 243, 90],
+      ["cloth-merchant", 477, 326, 116],
+      ["pot-cart", 488, 414, 60],
+      ["date-trough", 252, 398, 137],
+      ["pack-mule", 291, 459, 53],
+      ["signal-basket", 1596, 262, 112],
       ["waystone", 904, 585, 65]
     ]
   },
@@ -294,7 +421,7 @@
     "plots": 26,
     "seed": 757,
     "decals": 190,
-    "props": 55,
+    "props": 32,
     "windmill": "none",
     "seedPlots": [
       [756, 608],
@@ -303,12 +430,166 @@
       [1588, 240]
     ],
     "biome": "ember",
-    "propWeights": [0, 7, 5, 0, 0, 7, 1],
+    "propWeights": [0, 2, 0, 0, 4, 6, 1],
+    "dressingMask": "land-i16.webp",
+    "roadPlate": true,
+    "brickSpur": [2, "tex-firebrick.webp"],
+    "thresholdRoad": true,
+    "entranceFinishes": {"B": "cooling-wall-e.webp", "C": "firebox-w.webp"},
     "roadMaterial": "tex-furnace-road.webp",
     "cave-h": 1.98,
     "castle-h": 3.15,
+    "landmarks": [
+      ["ore-whim", 248, 204, 66],
+      ["annealing-rack", 247, 676, 55],
+      ["furnace-bellows", 1587, 441, 77],
+      ["brazier", 1514, 281, 42],
+      ["brazier", 1640, 485, 48]
+    ],
     "sprites": {
-      "gate-castle-w.png": "furnace-sanctuary.webp"
+      "gate-castle-w.png": "furnace-sanctuary.webp",
+      "landmark-brazier.webp": "brazier.webp"
     }
+  },
+  "i17": {
+    "plots": 21,
+    "seed": 887,
+    "biome": "cloister",
+    "dressingMask": "land-i17.webp",
+    "roadMaterial": "tex-chalk.webp",
+    "windmill": "none",
+    "brushRoad": true,
+    "cave-h": 2.05,
+    "castle-h": 2.72,
+    "props": 27,
+    "propWeights": [2, 1, 6, 3],
+    "decals": 110
+  },
+  "i18": {
+    "plots": 22,
+    "seed": 929,
+    "biome": "glassworks",
+    "dressingMask": "land-i18.webp",
+    "windmill": "none",
+    "brushRoad": true,
+    "roadMaterial": "tex-ore-road.webp",
+    "cave-h": 2.18,
+    "castle-h": 2.55,
+    "props": 22,
+    "propWeights": [5, 1, 4, 2],
+    "groundDecals": false
+  },
+  "i19": {
+    "plots": 18,
+    "seed": 1019,
+    "biome": "figwood",
+    "entranceArt": {"B": "hollow-log"},
+    "thresholdRoad": true,
+    "dressingMask": "land-i19.webp",
+    "windmill": "none",
+    "brushRoad": true,
+    "roadMaterial": "tex-root-road.webp",
+    "cave-h": 2.02,
+    "castle-h": 2.52,
+    "props": 24,
+    "propWeights": [1, 5, 2, 4],
+    "groundDecals": false
+  },
+  "i20": {
+    "seedPlots": [[515, 380], [535, 536]],
+    "plots": 20,
+    "seed": 1069,
+    "biome": "squall",
+    "entranceArt": {"B": "reef-cave", "C": "boat-shelter"},
+    "thresholdRoad": true,
+    "dressingMask": "land-i20.webp",
+    "windmill": "none",
+    "brushRoad": true,
+    "roadMaterial": "tex-shingle.webp",
+    "cave-h": 2.02,
+    "castle-h": 2.52,
+    "landmarks": [["shelter-pennant", 246, 249, 81], ["reef-signal", 1599, 254, 79], ["boat-streamers", 368, 657, 84]],
+    "props": 21,
+    "scatterProps": [["sea-pink.webp", 0.49], ["basalt.webp", 0.78], ["marram.webp", 0.56], ["net-float.webp", 0.44]],
+    "propWeights": [3, 3, 6, 2],
+    "groundDecals": false
+  },
+  "i21": {
+    "plots": 20,
+    "seed": 1117,
+    "biome": "cloister",
+    "entranceArt": {"A": "kite-store"},
+    "thresholdRoad": true,
+    "dressingMask": "land-i21.webp",
+    "windmill": "none",
+    "brushRoad": true,
+    "roadMaterial": "tex-chalk.webp",
+    "cave-h": 2.08,
+    "castle-h": 2.52,
+    "landmarks": [["windlass", 1080, 453, 63], ["kite-spars", 294, 326, 25]],
+    "props": 19,
+    "scatterProps": [["wild-thyme.webp", 0.48], ["bobbin.webp", 0.50], ["gold-spray.webp", 0.44], ["capital.webp", 0.56]],
+    "propWeights": [6, 1, 4, 1],
+    "groundDecals": false
+  },
+  "i22": {
+    "seedPlots": [[560, 364], [477, 589], [1615, 555], [1320, 620]],
+    "plots": 20,
+    "seed": 1171,
+    "biome": "glassworks",
+    "entranceArt": {"A": "salt-mine", "B": "freight"},
+    "thresholdRoad": true,
+    "dressingMask": "land-i22.webp",
+    "windmill": "none",
+    "brushRoad": true,
+    "roadMaterial": "tex-ore-road.webp",
+    "cave-h": 1.99,
+    "castle-h": 2.58,
+    "landmarks": [["cable-ferry", 936, 460, 62], ["bollard", 662, 417, 38], ["salt-bales", 292, 525, 38]],
+    "props": 15,
+    "scatterProps": [["halite.webp", 0.62], ["fungi.webp", 0.46], ["cart.webp", 0.67]],
+    "propWeights": [6, 4, 1],
+    "groundDecals": false
+  },
+  "i23": {
+    "plots": 21,
+    "seed": 1229,
+    "biome": "figwood",
+    "entranceArt": {"A": "packing-cellar", "B": "cider-press"},
+    "thresholdRoad": true,
+    "dressingMask": "land-i23.webp",
+    "windmill": "none",
+    "brushRoad": true,
+    "roadMaterial": "tex-pear-loam.webp",
+    "cartLane": 0,
+    "cave-h": 2.04,
+    "castle-h": 2.57,
+    "landmarks": [["apiary", 968, 275, 82], ["pear-crate", 323, 309, 32], ["espalier", 264, 349, 67]],
+    "sprites": {"landmark-pear-crate.webp": "pear-crate.webp", "landmark-espalier.webp": "espalier.webp"},
+    "props": 18,
+    "scatterProps": [["espalier.webp", 0.99], ["hay-sheaf.webp", 0.48], ["yarrow.webp", 0.53], ["buttercups.webp", 0.46]],
+    "propWeights": [2, 1, 7, 5],
+    "groundDecals": false
+  },
+  "i24": {
+    "plots": 22,
+    "seed": 1291,
+    "biome": "squall",
+    "entranceArt": {"A": "sea-fort", "B": "reef-cave", "C": "boat-shelter"},
+    "thresholdRoad": true,
+    "dressingMask": "land-i24.webp",
+    "windmill": "none",
+    "brushRoad": true,
+    "roadMaterial": "tex-shingle.webp",
+    "branchMaterial": [0, "tex-basalt-setts.webp"],
+    "cave-h": 2.08,
+    "castle-h": 2.62,
+    "landmarks": [["beacon-unlit", 1159, 615, 141], ["warning-bell", 1448, 544, 57], ["marker-buoy", 303, 608, 30], ["tern-ledge", 223, 357, 37]],
+    "groundPaint": [["keeper-slates", 1159, 683, 65]],
+    "sprites": {"landmark-marker-buoy.webp": "marker-buoy.webp"},
+    "props": 21,
+    "scatterProps": [["basalt.webp", 0.77], ["marram.webp", 0.54], ["sea-pink.webp", 0.54], ["net-float.webp", 0.42]],
+    "propWeights": [2, 4, 5, 1],
+    "groundDecals": false
   }
 }

@@ -1,0 +1,12 @@
+{
+ "frameW": 240,
+ "frameH": 184,
+ "count": 6,
+ "cols": 6,
+ "fps": 10,
+ "anchor": [
+  120,
+  176
+ ],
+ "image": "kilnback-death.webp"
+}

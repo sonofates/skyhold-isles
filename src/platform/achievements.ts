@@ -153,7 +153,11 @@ export async function syncAchievementsFromProgress(
   if (earned.length === 0) return [];
   const unlocked: string[] = [];
   for (const id of earned) {
-    if (await adapter.achievements.unlock(id)) unlocked.push(id);
+    try {
+      if (await adapter.achievements.unlock(id)) unlocked.push(id);
+    } catch {
+      // Never let a single achievement IPC error abort remaining unlocks or cloud hydration.
+    }
   }
   return unlocked;
 }

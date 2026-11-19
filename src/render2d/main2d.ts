@@ -1,6 +1,7 @@
 import '@fontsource-variable/fredoka';
 import { Application, UPDATE_PRIORITY } from 'pixi.js';
 import { getLevelById } from '../data/levels2d/index.ts';
+import { buildEndlessWaveDef } from '../sim/waveSystem.ts';
 import { AbScene } from './abScene.ts';
 import { artCheckSummary, mountArtCheck } from './artCheck.ts';
 import { changeMapVariant, loadArt } from './assets2d.ts';
@@ -10,17 +11,19 @@ import { initLocale, t } from '../i18n/index.ts';
 import { heroName } from '../i18n/data.ts';
 import { AimOverlay, aimHooks, meleeHooks, towersHooks, zooHooks, ZooLabels, type AimSceneState, type MeleeSceneState } from './debugScenes.ts';
 import { ENEMY_TYPES } from '../data/enemies.ts';
+import { getTowerTierStats } from '../data/towers.ts';
 import type { EnemyType } from '../core/types.ts';
 import { FrameStats } from './frameStats.ts';
-import { Game2D, type Game2DHooks } from './game2d.ts';
+import { Game2D, REPLAY_SPEEDS, type Game2DHooks } from './game2d.ts';
 import { heroLevelProgress, resolveHeroForRun } from './heroes2d.ts';
 import type { HeroHud2D } from './ui/heroHud2d.ts';
 import type { HeroSkillSlot } from '../core/types.ts';
+import type { RunCommand } from './ui/replay2d.ts';
 import { HUD_FONT } from './hudText.ts';
 import { detectSoftwareWebGL, isDesktopClient, qualityOverride, renderResolution, setGraphicsPrefs, type QualityTier } from './renderResolution.ts';
 import { setFxPrefs } from './fxLayer.ts';
 import type { GameSettings } from '../core/types.ts';
-import { loadSettings } from '../platform/storage.ts';
+import { isTouchDevice, loadSettings } from '../platform/storage.ts';
 import { GRAPHICS_EVENT, graphicsEngineState, loadGraphics, type GraphicsEngineState, type GraphicsSettings } from './ui/graphicsSettings.ts';
 import type { AbilityBar2D } from './ui/abilityBar2d.ts';
 import type { AbilityId } from '../core/types.ts';
@@ -29,6 +32,8 @@ import type { GateLayer } from './gateLayer.ts';
 import { MASTER_SCALE, maxMapScale, pickMapVariant } from './mapVariant.ts';
 import { computeMapFit } from './viewFit.ts';
 import { mountSettings2D, type Settings2D } from './settingsButton2d.ts';
+import { hudKeepOuts, readSafeInsets } from './uiKit.ts';
+import { gateKeepOutsPx, hudButtonsKeepOut } from './uiLayout.ts';
 import { anySheetOpen } from './ui/dom.ts';
 
 /**
@@ -91,9 +96,36 @@ declare global {
       artcheck?: () => ReturnType<typeof artCheckSummary>;
       /** QA: the ability bar (state, boxes, FX counters) and aiming as a button press would. */
       abilities?: () => Record<string, unknown> | null;
+      /** QA: the next-wave card beside the horn. */
+      waveCard?: () => Record<string, unknown> | null;
+      /** QA: the caves / castle fronts on screen (`castle` = the goal). */
+      gates?: () => { x: number; y: number; w: number; h: number; castle: boolean }[];
+      lives?: () => Record<string, unknown> | null;
+      /** QA: the foe info card, and the screen point of a live foe to tap. */
+      foe?: () => Record<string, unknown> | null;
+      coach?: () => Record<string, unknown> | null;
+      goldPops?: () => { active: number; spawned: number };
+      newFoe?: () => Record<string, unknown> | null;
+      callout?: () => Record<string, unknown> | null;
+      calloutAgain?: () => void;
+      laneMarks?: () => Record<string, unknown> | null;
+      foeAt?: () => { x: number; y: number; h: number } | null;
       aimAbility?: (id: AbilityId | null) => void;
       /** QA: stop / restart the ticker (a frozen frame for mid-effect screenshots, no Paused plate). */
       freeze?: (on: boolean) => void;
+      /** QA: watch the last run / leave it / viewer speed / restart the island now (no confirm). */
+      replay?: {
+        start: () => boolean;
+        exit: () => void;
+        speed: (s: number) => void;
+        restart: () => void;
+        /** A player command through the recorded command layer. */
+        cmd: (c: RunCommand) => boolean;
+        /** Runs `frames` game frames of 0.1 s right now (fast-forward for QA). */
+        step: (frames: number) => void;
+        /** Per-tick callback (determinism traces), null to stop. */
+        probe: (fn: ((world: import('../sim/world.ts').SimWorld, tick: number) => void) | null) => void;
+      };
       /** QA: the hero (HUD + render + sim state) and commands as the player would give them. */
       hero?: {
         state: () => Record<string, unknown>;
@@ -365,6 +397,24 @@ async function main(): Promise<void> {
   // and shows the island's after-battle story once; QA / debug scenes record nothing.
   const plainPlay = Object.keys(hooks).length === 0 && !q.has('end') && bench === 0;
   let codexRef: { setButtonVisible(v: boolean): void } | null = null;
+  let pauseMenu: import('./ui/runControls2d.ts').PauseMenu2D | null = null;
+  let waveCard: import('./ui/wavePreview2d.ts').WaveCard2D | null = null;
+  let livesWarn: import('./ui/lowLives2d.ts').LivesWarning | null = null;
+  let foeCard: import('./ui/enemyCard2d.ts').EnemyCard2D | null = null;
+  let coach: import('./ui/coach2d.ts').Coach2D | null = null;
+  let gateRectsRef: (() => (import('./uiLayout.ts').Rect & { castle: boolean })[]) | null = null;
+  let hudTipsFrame: (() => void) | null = null;
+  let foesSeen: import('./ui/newFoes2d.ts').FoesSeen | null = null;
+  let newFoeToast: import('./ui/newFoes2d.ts').NewFoeToast | null = null;
+  let waveTypesOf: ((waveIndex: number) => import('../core/types.ts').EnemyType[]) | null = null;
+  let lastWaveSeen = 0;
+  let waveBanner: import('./ui/waveBanner2d.ts').WaveBanner2D | null = null;
+  let laneMarks: import('./ui/laneMarks2d.ts').LaneMarks2D | null = null;
+  let laneMod: typeof import('./ui/laneMarks2d.ts') | null = null;
+  /** Foes per lane of the next wave, cached per wave index (Endless builds its waves). */
+  let laneCache: { idx: number; counts: Map<number, number> } | null = null;
+  let calloutFor: ((waveIndex: number) => import('./ui/waveBanner2d.ts').WaveCallout) | null = null;
+  let coachPlot = -1;
   let settingsRef: Settings2D | null = null;
   let gameRef: Game2D | null = null;
   let codexWasPaused = false;
@@ -388,6 +438,24 @@ async function main(): Promise<void> {
   window.addEventListener('focus', refreshLiveSettings, { capture: true });
   let abilities: AbilityBar2D | null = null;
   let heroHud: HeroHud2D | null = null;
+  let replayBar: import('./ui/runControls2d.ts').ReplayBar2D | null = null;
+  // Endless run left early (World Map / Restart): its best wave still goes on the board.
+  const recordEndlessQuit = (): void => {
+    const w = gameRef?.world;
+    if (!plainPlay || !w || !run.runConfig.endless || w.outcome !== 'ongoing' || gameRef?.replaying) return;
+    routing.recordRunOutcome({
+      levelId: level.id,
+      won: false,
+      stars: 0,
+      livesRemaining: w.lives,
+      waveReached: w.waveSystem.currentWaveOneBased,
+      runConfig: run.runConfig,
+      heroId: w.hero?.heroId ?? null,
+      enemiesKilled: w.enemiesKilledTotal,
+      wavesCleared: Math.max(0, w.waveSystem.currentWaveOneBased - 1),
+      heroXpEarned: w.heroSystem.runXp,
+    });
+  };
   hooks = {
     ...baseHooks,
     modifiers: run.modifiers,
@@ -412,8 +480,10 @@ async function main(): Promise<void> {
       settingsRef?.setButtonVisible(!shown);
       abilities?.setVisible(!shown && !storyOpen);
       heroHud?.setVisible(!shown && !storyOpen);
+      replayBar?.setVisible(!shown && !!gameRef?.replaying);
       const w = gameRef?.world;
-      if (!shown || !w) return;
+      // A replay's end shows the recorded run's own board again: nothing is recorded twice.
+      if (!shown || !w || gameRef?.replaying) return;
       const won = w.outcome === 'won';
       let heroRecorded = false;
       if (plainPlay) {
@@ -477,22 +547,14 @@ async function main(): Promise<void> {
       if (won && (plainPlay || story === 'outro')) void routing.playStoryOnce(level, 'outro', art.manifest, art.baseUrl, story === 'outro');
     },
     onMenu: () => {
-      const w = gameRef?.world;
-      if (plainPlay && w && run.runConfig.endless && w.outcome === 'ongoing') {
-        routing.recordRunOutcome({
-          levelId: level.id,
-          won: false,
-          stars: 0,
-          livesRemaining: w.lives,
-          waveReached: w.waveSystem.currentWaveOneBased,
-          runConfig: run.runConfig,
-          heroId: w.hero?.heroId ?? null,
-          enemiesKilled: w.enemiesKilledTotal,
-          wavesCleared: Math.max(0, w.waveSystem.currentWaveOneBased - 1),
-          heroXpEarned: w.heroSystem.runXp,
-        });
-      }
+      recordEndlessQuit();
       location.assign(routing.worldMapHref());
+    },
+    onReplay: (on) => {
+      document.documentElement.classList.toggle('pu-replaying', on);
+      abilities?.aim(null);
+      heroHud?.aim(null);
+      replayBar?.setVisible(on && !gameRef?.end.visible);
     },
     get onNext() {
       const next = routing.nextIslandOpen(level.id, gameRef?.world.outcome === 'won');
@@ -575,6 +637,164 @@ async function main(): Promise<void> {
       () => undefined,
     );
     settingsRef = settings;
+    const { mountPauseMenu, mountReplayBar, confirmBoard } = await import('./ui/runControls2d.ts');
+    let asking = false;
+    const ask = async (kind: 'restart' | 'leave'): Promise<boolean> => {
+      if (asking) return false;
+      asking = true;
+      const endless = run.runConfig.endless;
+      const ok = await confirmBoard(
+        kind === 'restart'
+          ? { title: t('confirm.restartTitle'), body: t('confirm.restartBody'), yes: t('confirm.restartYes'), no: t('confirm.cancel'), testid: 'confirm-restart' }
+          : { title: t('confirm.leaveTitle'), body: t(endless ? 'confirm.leaveBodyEndless' : 'confirm.leaveBody'), yes: t('confirm.leaveYes'), no: t('confirm.cancel'), testid: 'confirm-leave' },
+      );
+      asking = false;
+      return ok;
+    };
+    pauseMenu = mountPauseMenu({
+      resume: () => {
+        game.stepper.paused = false;
+      },
+      restart: () => {
+        void ask('restart').then((ok) => {
+          if (!ok) return;
+          recordEndlessQuit();
+          game.newRun();
+        });
+      },
+      settings: () => settings.open(),
+      map: () => {
+        void ask('leave').then((ok) => {
+          if (ok) hooks.onMenu?.();
+        });
+      },
+    });
+    replayBar = mountReplayBar(
+      {
+        togglePause: () => {
+          game.stepper.paused = !game.stepper.paused;
+        },
+        setSpeed: (sp) => game.setReplaySpeed(sp),
+        exit: () => game.exitReplay(),
+      },
+      REPLAY_SPEEDS,
+      desktop,
+    );
+    const { mountWaveCard } = await import('./ui/wavePreview2d.ts');
+    // The painted caves / castle on screen (their fronts, grown a little; `castle` = the goal).
+    const gateRects = (): (import('./uiLayout.ts').Rect & { castle: boolean })[] => {
+      const f = game.map.fit;
+      return gateKeepOutsPx(level.layout2d?.gates ?? []).map((g) => ({ x: f.offsetX + g.x * f.scale, y: f.offsetY + g.y * f.scale, w: g.w * f.scale, h: g.h * f.scale, castle: g.castle }));
+    };
+    gateRectsRef = gateRects;
+    const { codexEnemyUrl } = await import('./codex2d.ts');
+    livesWarn = (await import('./ui/lowLives2d.ts')).mountLivesWarning();
+    if (desktop) {
+      // Hover tooltips for the canvas HUD buttons (horn, pause, speed).
+      const tips = (await import('./ui/hudTips2d.ts')).mountHudTips();
+      let over: import('./ui/hudTips2d.ts').HudTipFor | null = null;
+      app.canvas.addEventListener('pointermove', (e) => {
+        if (e.pointerType !== 'mouse') return;
+        const r = app.canvas.getBoundingClientRect();
+        const x = e.clientX - r.left;
+        const y = e.clientY - r.top;
+        const h = game.hud.hit(x, y);
+        over = h;
+        if (h) app.canvas.style.cursor = 'pointer';
+        else {
+          // The plaque: hearts on its left half, gold on the right.
+          const p = game.hud.rects().plaque;
+          if (x >= p.x && x <= p.x + p.w && y >= p.y && y <= p.y + p.h) over = x < p.x + p.w / 2 ? 'lives' : 'gold';
+        }
+      });
+      app.canvas.addEventListener('pointerleave', () => {
+        over = null;
+      });
+      hudTipsFrame = () => {
+        const show = over && !game.end.visible && !anySheetOpen() && !storyOpen ? over : null;
+        const s = game.debugHud();
+        if (!show) {
+          tips.update(null, { paused: s.paused, speed: s.speed, canCall: s.canCall, earlyBonus: s.earlyBonus, first: false }, null);
+          return;
+        }
+        const b = game.hud.buttonPositions;
+        const hr = game.hud.rects();
+        const pl = hr.plaque;
+        const at =
+          show === 'horn'
+            ? { ...game.hud.hornPosition, r: game.hud.hornRadius }
+            : show === 'pause'
+              ? { ...b.pause, r: hr.pause.w / 2 }
+              : show === 'speed'
+                ? { ...b.speed, r: hr.speed.w / 2 }
+                : { x: pl.x + (show === 'lives' ? pl.w * 0.25 : pl.w * 0.75), y: pl.y + pl.h / 2, r: pl.h / 2 };
+        tips.update(show, { paused: s.paused, speed: s.speed, canCall: s.canCall, earlyBonus: s.earlyBonus, first: game.world.waveSystem.state === 'preFirstWave' }, at);
+      };
+    }
+    foeCard = (await import('./ui/enemyCard2d.ts')).mountEnemyCard((type) => codexEnemyUrl(art, type));
+    // First-play tips on the first island (plain play), or forced with ?coach=1 (QA).
+    const coachMod = await import('./ui/coach2d.ts');
+    if ((level.id === 'l1c' && plainPlay && !coachMod.coachDone()) || q.get('coach') === '1') {
+      const hero = game.world.hero;
+      // The caves / castle: the card keeps off them when it has to leave its home spot.
+      coach = coachMod.mountCoach(!desktop || isTouchDevice(), hero ? heroName(hero.heroId).split(' ')[0] : '', gateRects);
+      // Suggested first plot: the one with the most road within reach of an archer.
+      const lay = level.layout2d!;
+      let best = -1;
+      lay.plots.forEach((p, i) => {
+        let n = 0;
+        for (const path of lay.paths) for (const r of path) if (Math.hypot(r.x - p.x, r.z - p.z) < 4.5) n++;
+        if (best === -1 || n > best) {
+          best = n;
+          coachPlot = i;
+        }
+      });
+    }
+    const nf = await import('./ui/newFoes2d.ts');
+    const { LEVELS_2D } = await import('../data/levels2d/index.ts');
+    foesSeen = new nf.FoesSeen(nf.seenFromCleared(LEVELS_2D, (i) => (progress2d.bestStars[i] ?? 0) > 0));
+    const seenRef = foesSeen;
+    newFoeToast = nf.mountNewFoeToast((type) => codexEnemyUrl(art, type));
+    laneMod = await import('./ui/laneMarks2d.ts');
+    laneMarks = laneMod.mountLaneMarks();
+    const wb = await import('./ui/waveBanner2d.ts');
+    waveBanner = wb.mountWaveBanner();
+    calloutFor = (i) => wb.waveCallout(nf.waveTypes(game.world.level, i), i, game.world.level.waves.length, game.world.waveSystem.isEndless);
+    waveTypesOf = (i) => nf.waveTypes(game.world.level, i);
+    waveCard = mountWaveCard(
+      (type) => codexEnemyUrl(art, type),
+      () => {
+        // Plots with room for the tower standing on them, the HUD and the ability / hero bar.
+        const m = game.map;
+        const f = m.fit;
+        const r = game.hud.rects();
+        return [
+          ...game.plots.geometry.rects.map((p) => ({ x: f.offsetX + p.x * f.scale, y: f.offsetY + (p.y - p.w * 1.3) * f.scale, w: p.w * f.scale, h: (p.h + p.w * 1.3) * f.scale })),
+          r.plaque,
+          r.banner,
+          hudButtonsKeepOut(app.screen.width, app.screen.height, readSafeInsets()),
+          ...hudKeepOuts(),
+        ];
+      },
+      (type) => !seenRef.has(type),
+      undefined,
+      () => {
+        // Plot rings 3× (worse than a tower's headroom), a plot's middle 30× more (never over a
+        // ring's centre); HUD pieces 12× (never over the bar); the middle of a cave / the castle
+        // 2× (the player watches where the next wave comes out) — a nicety, after the plots.
+        const f = game.map.fit;
+        const r = game.hud.rects();
+        const hud = [r.plaque, r.banner, hudButtonsKeepOut(app.screen.width, app.screen.height, readSafeInsets()), ...hudKeepOuts()];
+        const core = (q: { x: number; y: number; w: number; h: number }, k: number) => ({ x: q.x + (q.w * (1 - k)) / 2, y: q.y + (q.h * (1 - k)) / 2, w: q.w * k, h: q.h * k });
+        const plots = game.plots.geometry.rects.map((p) => ({ x: f.offsetX + p.x * f.scale, y: f.offsetY + p.y * f.scale, w: p.w * f.scale, h: p.h * f.scale }));
+        return [
+          ...plots.map((rect) => ({ rect, weight: 3 })),
+          ...plots.map((p) => ({ rect: core(p, 0.3), weight: 30 })),
+          ...hud.map((rect) => ({ rect, weight: 12 })),
+          ...gateRects().map((g) => ({ rect: core(g, 0.6), weight: 2 })),
+        ];
+      },
+    );
     if (q.get('codex') === '1') codex.open();
     else if (q.get('settings') === '1') settings.open();
     // Story panels before an island's first play (map → Play / Next Isle add &intro=1; ?story=intro forces them).
@@ -625,7 +845,134 @@ async function main(): Promise<void> {
       fpsShownAt = t0;
       fpsChip.show(stats.snapshot(t0).fps);
     }
-    settingsRef?.setPausePlate(storyOpen || anySheetOpen() ? null : game.hud.pausePlate);
+    pauseMenu?.setPlate(storyOpen || anySheetOpen() || game.replaying ? null : game.hud.pausePlate);
+    if (foeCard) {
+      const foe = game.inspectedEnemy;
+      const showFoe = game.inspecting && !game.end.visible && !anySheetOpen();
+      const domRects = (): { x: number; y: number; w: number; h: number }[] => {
+        // The top-centre tip cards (coach, new foe) too: the foe card slides below them.
+        const out: { x: number; y: number; w: number; h: number }[] = [];
+        for (const e of Array.from(document.querySelectorAll<HTMLElement>('.pu-coach, .pu-newfoe'))) { // i18n-ignore (selector)
+          if (e.style.display === 'none') continue;
+          const r = e.getBoundingClientRect();
+          if (r.width > 0) out.push({ x: r.x, y: r.y, w: r.width, h: r.height });
+        }
+        return out;
+      };
+      foeCard.update(showFoe ? foe : null, showFoe, foe ? game.enemyScreen(foe) : null, { w: app.screen.width, h: app.screen.height }, showFoe && foe ? [hudButtonsKeepOut(app.screen.width, app.screen.height, readSafeInsets()), ...hudKeepOuts(), ...domRects()] : []);
+      if (game.inspecting && !foe && !foeCard.debug().shown) game.clearInspect();
+    }
+    if (coach && coach.step !== 'done') {
+      const w = game.world;
+      let cheapest = Infinity;
+      let maxTier = 0;
+      for (const tw of w.towers) {
+        maxTier = Math.max(maxTier, tw.tier);
+        if (tw.tier < 3) cheapest = Math.min(cheapest, getTowerTierStats(tw.type, (tw.tier + 1) as 2 | 3).upgradeCost);
+      }
+      const meteor = game.getAbilityState('meteor');
+      const obs = {
+        towers: w.towers.length,
+        maxTier,
+        waves: w.waveSystem.state === 'preFirstWave' ? 0 : w.waveSystem.currentWaveOneBased,
+        buildRingOpen: game.buildRingOpen,
+        gold: w.gold,
+        cheapestUpgrade: cheapest,
+        hasHero: !!w.hero,
+        heroMoves: game.commandsDone('heroMove'),
+        meteorReady: meteor.usable,
+        meteors: game.commandsDone('meteor'),
+      };
+      // A bar button: from above, or from the side when the bar is an edge column.
+      const rectTop = (sel: string): { x: number; y: number; dir?: 'left' | 'right' } | null => {
+        const e = document.querySelector(sel);
+        if (!e) return null;
+        const r = e.getBoundingClientRect();
+        if (r.width <= 0) return null;
+        if (e.closest('.edge')) {
+          const leftEdge = r.left + r.width / 2 < app.screen.width / 2;
+          return leftEdge ? { x: r.right, y: r.top + r.height / 2, dir: 'left' } : { x: r.left, y: r.top + r.height / 2, dir: 'right' };
+        }
+        return { x: r.left + r.width / 2, y: r.top };
+      };
+      const step = coach.step;
+      let target: { x: number; y: number } | null = null;
+      if (step === 'build' && coachPlot >= 0) target = game.plotScreen(coachPlot);
+      else if (step === 'wave') target = { x: game.hud.hornPosition.x, y: game.hud.hornPosition.y - game.hud.hornRadius };
+      else if (step === 'upgrade' && w.towers[0] && !game.ringOpen) {
+        const p = game.plotScreen(w.towers[0].col);
+        target = { x: p.x, y: p.y - 40 };
+      } else if (step === 'hero' && !game.heroSelected) {
+        // The hero's head (its HP bar; scales with the map: phones draw the hero smaller). The
+        // arrow's tip already floats a little above its target.
+        target = game.heroHeadScreen();
+      } else if (step === 'meteor') target = rectTop('[data-testid="ab2d-meteor"]');
+      // Hidden under the pause menu too (the card and its arrow cluttered it on phones).
+      coach.update(obs, target, game.end.visible || storyOpen || anySheetOpen() || game.replaying || game.stepper.paused);
+    }
+    hudTipsFrame?.();
+    if (foesSeen && newFoeToast && waveTypesOf) {
+      // A wave just marched: its never-seen foes get the toast (live play only), then count as seen.
+      const ws = game.world.waveSystem;
+      const n = ws.state === 'preFirstWave' ? 0 : ws.currentWaveOneBased;
+      if (n < lastWaveSeen) lastWaveSeen = 0;
+      if (n > lastWaveSeen) {
+        for (let w = lastWaveSeen; w < n; w++) {
+          if (game.replaying) continue;
+          const fresh = foesSeen.mark(waveTypesOf(w));
+          if (fresh.length > 0 && !coach?.debug().shown) newFoeToast.show(fresh);
+        }
+        // The newest wave that marched: a boss or the final wave gets the big call-out.
+        if (calloutFor && !game.end.visible) waveBanner?.show(calloutFor(n - 1));
+        lastWaveSeen = n;
+      }
+      newFoeToast.update(t.deltaMS / 1000, game.end.visible || anySheetOpen() || storyOpen);
+    }
+    livesWarn?.update(game.world.lives, game.world.startingLives, !game.end.visible && !storyOpen && game.world.outcome === 'ongoing');
+    if (waveCard) {
+      const w = game.world;
+      const ws = w.waveSystem;
+      const calm = ws.state === 'preFirstWave' || ws.state === 'betweenWaves' || game.stepper.paused;
+      const hud = game.debugHud();
+      const visible = calm && !storyOpen && !anySheetOpen() && !game.end.visible && !game.ringOpen && w.outcome === 'ongoing' && ws.canStartNextWave();
+      const pv = visible ? ws.getNextWavePreview() : null;
+      // Multi-cave islands: which caves the next wave marches out of (with the card).
+      const lay = w.level.layout2d;
+      if (laneMarks && laneMod) {
+        let marks: import('./ui/laneMarks2d.ts').LaneMark[] | null = null;
+        if (pv && lay && lay.paths.length > 1) {
+          const idx = pv.waveOneBased - 1;
+          if (laneCache?.idx !== idx) {
+            const def = idx < w.level.waves.length ? w.level.waves[idx] : ws.isEndless ? buildEndlessWaveDef(idx, w.level) : null;
+            laneCache = { idx, counts: def ? laneMod.waveLaneCounts(def.groups) : new Map() };
+          }
+          marks = [];
+          // Keep off the card (last frame's spot), the horn and the HUD pieces.
+          const card = waveCard.box();
+          const hr = game.hud.rects();
+          const avoid = [...(card ? [card] : []), hr.horn, hr.plaque, hr.banner, hudButtonsKeepOut(app.screen.width, app.screen.height, readSafeInsets()), ...hudKeepOuts()];
+          const toScreen = (p: { x: number; z: number }): { x: number; y: number } => ({ x: game.map.screenX(game.map.pxX(p.x)), y: game.map.screenY(game.map.pxY(p.z)) });
+          const unit = laneMod.kitUnit(app.screen.width, app.screen.height);
+          for (const [lane, count] of laneCache.counts) {
+            const at = laneMod.laneMarkSpot(lay.paths[lane] ?? [], toScreen, avoid, unit);
+            if (at) marks.push({ lane, count, ...at });
+          }
+        }
+        laneMarks.update(marks);
+      }
+      waveCard.update({
+        visible,
+        preview: pv,
+        countdown: hud.countdown,
+        earlyBonus: hud.earlyBonus,
+        first: ws.state === 'preFirstWave',
+        horn: { ...game.hud.hornPosition, r: game.hud.hornRadius },
+        screen: { w: app.screen.width, h: app.screen.height, bottomLimit: visible ? game.hud.rects().plaque.y : app.screen.height },
+      });
+    }
+    if (game.replaying && !game.end.visible) {
+      replayBar?.update({ paused: game.stepper.paused, speed: game.stepper.speed, progress: game.replayProgress, wave: game.hud.waveLabel });
+    }
     zooLabels?.update();
     aimOverlay?.update();
     renderStart = performance.now();
@@ -645,8 +992,40 @@ async function main(): Promise<void> {
     hudWave: () => game.hud.waveLabel,
     artcheck: () => artCheckSummary(art),
     abilities: () => abilities?.debug() ?? null,
+    waveCard: () => waveCard?.debug() ?? null,
+    gates: () => gateRectsRef?.() ?? [],
+    lives: () => livesWarn?.debug() ?? null,
+    foe: () => foeCard?.debug() ?? null,
+    coach: () => coach?.debug() ?? null,
+    goldPops: () => ({ active: game.goldPops.active, spawned: game.goldPops.spawned }),
+    newFoe: () => newFoeToast?.debug() ?? null,
+    callout: () => waveBanner?.debug() ?? null,
+    laneMarks: () => laneMarks?.debug() ?? null,
+    calloutAgain: () => waveBanner?.again(),
+    foeAt: () => {
+      const pool = game.world.enemyPool;
+      for (let i = 0; i < pool.getActiveCount(); i++) {
+        const e = pool.items[pool.getActiveIndex(i)];
+        if (e.active && e.hp > 0 && !e.burrowed) return game.enemyScreen(e);
+      }
+      return null;
+    },
     aimAbility: (id) => abilities?.aim(id),
     freeze: (on) => (on ? app.ticker.stop() : app.ticker.start()),
+    replay: {
+      start: () => game.startReplay(),
+      exit: () => game.exitReplay(),
+      speed: (sp) => game.setReplaySpeed(sp),
+      restart: () => game.newRun(),
+      cmd: (c) => game.command(c),
+      step: (frames) => {
+        for (let i = 0; i < frames; i++) game.frame(0.1);
+        app.render();
+      },
+      probe: (fn) => {
+        game.tickProbe = fn;
+      },
+    },
     hero: {
       state: () => ({ hud: heroHud?.debug() ?? null, view: game.heroes.debug(), sim: game.getHeroState(), selected: game.heroSelected }),
       select: (on) => game.setHeroSelected(on),

@@ -173,7 +173,7 @@ export function createHeroHud2D(game: Game2D, opts: HeroHudOptions): HeroHud2D |
     const b = anchor.getBoundingClientRect();
     const tw = tip.offsetWidth;
     const th = tip.offsetHeight;
-    const vertical = group.parentElement?.classList.contains('vertical') ?? false;
+    const vertical = group.parentElement?.classList.contains('edge') ?? false;
     let x = b.left + b.width / 2 - tw / 2;
     let y = b.top - 10 - th;
     if (vertical) {
@@ -271,7 +271,7 @@ export function createHeroHud2D(game: Game2D, opts: HeroHudOptions): HeroHud2D |
     const hh = hint.offsetHeight;
     let x = b.left + b.width / 2 - hw / 2;
     let y = b.top - 10 - hh;
-    if (group.parentElement?.classList.contains('vertical')) {
+    if (group.parentElement?.classList.contains('edge')) {
       x = b.left + b.width / 2 < window.innerWidth / 2 ? b.right + 10 : b.left - 10 - hw;
       y = b.top;
     }
@@ -429,9 +429,13 @@ export function createHeroHud2D(game: Game2D, opts: HeroHudOptions): HeroHud2D |
   window.addEventListener(
     'keydown',
     (e) => {
-      if (anySheetOpen() || e.ctrlKey || e.metaKey || e.altKey) return;
+      if (anySheetOpen() || game.replaying || e.ctrlKey || e.metaKey || e.altKey) return;
       if (e.key === 'Escape') {
-        if (aiming !== null) setAim(null);
+        // Handled: game2d's Esc must not also open the pause menu.
+        if (aiming !== null) {
+          setAim(null);
+          e.preventDefault();
+        }
         return;
       }
       if (e.repeat) return;

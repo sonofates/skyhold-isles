@@ -1,5 +1,5 @@
 import type { EnemyType, TowerType } from '../../core/types.ts';
-import { ELITE_MODIFIERS, ENEMY_DEFS, ENEMY_TYPES } from '../../data/enemies.ts';
+import { CHAPTER_ENEMY_DEFS, type ChapterEnemyType, ELITE_MODIFIERS, ENEMY_DEFS, ENEMY_TYPES } from '../../data/enemies.ts';
 import { getTowerTierStats, TOWER_DEFS, TOWER_TYPES } from '../../data/towers.ts';
 import { ELITE_SEEN_ID, enemySeenId, towerSeenId, type SeenId } from '../../platform/contentStorage.ts';
 
@@ -17,7 +17,27 @@ export interface EnemyLore {
   tags: readonly string[];
 }
 
-export const ENEMY_LORE: Record<EnemyType, EnemyLore> = {
+export const ENEMY_LORE: Record<EnemyType | ChapterEnemyType, EnemyLore> = {
+  bellrunner: {
+    blurb: 'Builds up to a sprint while the road stays clear.',
+    counter: CHAPTER_ENEMY_DEFS.bellrunner.counterHint,
+    tags: ['Ground', 'Fast'],
+  },
+  kilnback: {
+    blurb: 'Its clay shell chips under steady fire and hardens again when left alone.',
+    counter: CHAPTER_ENEMY_DEFS.kilnback.counterHint,
+    tags: ['Ground', 'Armored'],
+  },
+  reedpiper: {
+    blurb: 'Plays a short phrase to free nearby ground troops from slows.',
+    counter: CHAPTER_ENEMY_DEFS.reedpiper.counterHint,
+    tags: ['Ground', 'Support'],
+  },
+  draftwing: {
+    blurb: 'Flies faster in the wake of another moth.',
+    counter: CHAPTER_ENEMY_DEFS.draftwing.counterHint,
+    tags: ['Air', 'Swarm'],
+  },
   grunt: {
     blurb: 'Balanced foot soldier marching the road.',
     counter: 'Anything works. Archers and Cannons deal with them cheaply.',

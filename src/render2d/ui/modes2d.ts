@@ -18,7 +18,7 @@ import {
 import { dailyChallengeFor, utcDayNumber, type DailyChallenge } from '../../data/daily.ts';
 import { getLevelById, LEVELS_2D } from '../../data/levels2d/index.ts';
 import type { LevelDef } from '../../data/levels/types.ts';
-import { NEUTRAL_RUN_MODIFIERS, type RunModifiers } from '../../data/runModifiers.ts';
+import { isNeutralRun, NEUTRAL_RUN_MODIFIERS, type RunModifiers } from '../../data/runModifiers.ts';
 import { workshopModifiers, type WorkshopRanks } from '../../data/workshop.ts';
 import type { RunConfig } from '../../game/runConfig.ts';
 import { indexOf2D } from './progress2d.ts';
@@ -51,6 +51,10 @@ export interface ResolveQueryOptions2D {
   readonly applySaveModifiers?: boolean;
 }
 
+function isIslandCleared(progress: ProgressData, index: number): boolean {
+  return (progress.clears[index] ?? 0) > 0 || (progress.bestStars[index] ?? 0) > 0;
+}
+
 /**
  * Island challenges offered on `levelId` for the briefing card.
  * Locked (returns `[]`) until the island has been cleared at least once, matching the 3D briefing.
@@ -61,7 +65,7 @@ export function availableChallenges(
   levels: readonly LevelDef[] = LEVELS_2D,
 ): AvailableChallenge2D[] {
   const i = indexOf2D(levelId, levels);
-  if (i < 0 || (progress.clears[i] ?? 0) <= 0) return [];
+  if (i < 0 || !isIslandCleared(progress, i)) return [];
   const done = progress.challengeClears[i] ?? [];
   return challengesForLevel(levels[i]).map((id) => ({
     ...CHALLENGES[id],
@@ -84,7 +88,7 @@ export function dailyForToday(
   const cleared: number[] = [];
   if (progress) {
     levels.forEach((_, i) => {
-      if ((progress.clears[i] ?? 0) > 0) cleared.push(i);
+      if (isIslandCleared(progress, i)) cleared.push(i);
     });
   } else {
     levels.forEach((_, i) => cleared.push(i));
@@ -106,7 +110,7 @@ export function canPlayEndless(
   levels: readonly LevelDef[] = LEVELS_2D,
 ): boolean {
   const i = indexOf2D(levelId, levels);
-  return i >= 0 && (progress.clears[i] ?? 0) > 0;
+  return i >= 0 && isIslandCleared(progress, i);
 }
 
 /**
@@ -159,7 +163,7 @@ export function resolveQueryRun2D(
   progress: ProgressData,
   opts: ResolveQueryOptions2D = {},
 ): ResolvedRun2D {
-  const nowMs = opts.nowMs ?? Date.now();
+  const nowMs = typeof opts.nowMs === 'number' && Number.isFinite(opts.nowMs) ? opts.nowMs : Date.now();
   const levels = opts.levels ?? LEVELS_2D;
   const lookup = opts.lookupLevel ?? getLevelById;
   const warn = opts.warn ?? ((msg: string): void => console.warn(msg));
@@ -266,12 +270,13 @@ export function resolveQueryRun2D(
     runConfig = { endless: false, challenges: challengesReq, daily: null };
   }
 
-  const workshop = applySaveModifiers ? progress.workshop : {};
+  const workshop = applySaveModifiers ? (progress.workshop ?? {}) : {};
   const hasWorkshop = Object.keys(workshop).length > 0;
-  const modifiers =
+  const composed =
     !hasWorkshop && runConfig.challenges.length === 0
       ? NEUTRAL_RUN_MODIFIERS
       : composeRunModifiers2D(workshop, runConfig.challenges);
+  const modifiers = isNeutralRun(composed) ? NEUTRAL_RUN_MODIFIERS : composed;
 
   return { levelId, level, runConfig, modifiers };
 }

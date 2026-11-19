@@ -49,6 +49,9 @@ export const NEUTRAL_RUN_MODIFIERS: RunModifiers = Object.freeze({
 /** Partial description used by data tables; missing fields are neutral. */
 export type RunModifierPatch = Partial<RunModifiers>;
 
+const is2DTower = (t: unknown): t is TowerType =>
+  typeof t === 'string' && Object.prototype.hasOwnProperty.call(TOWER_DEFS, t);
+
 /**
  * Stacks modifier patches: flat values add, multipliers multiply, `maxLives` takes the lowest,
  * bans union, `abilitiesDisabled` / `championWaves` OR.
@@ -67,38 +70,54 @@ export function combineRunModifiers(...patches: readonly RunModifierPatch[]): Ru
   const banned = new Set<TowerType>();
   let abilitiesDisabled = false;
   let championWaves = false;
+  const fin = (v: number | undefined, fb: number): number =>
+    typeof v === 'number' && Number.isFinite(v) ? v : fb;
+  const finNonNeg = (v: number | undefined, fb: number): number =>
+    typeof v === 'number' && Number.isFinite(v) && v >= 0 ? v : fb;
+  const finPos = (v: number | undefined, fb: number): number =>
+    typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : fb;
   for (const p of patches) {
-    startGoldBonus += p.startGoldBonus ?? 0;
-    startGoldMul *= p.startGoldMul ?? 1;
-    bonusLives += p.bonusLives ?? 0;
-    if (p.maxLives !== undefined && p.maxLives !== null) {
-      maxLives = maxLives === null ? p.maxLives : Math.min(maxLives, p.maxLives);
+    startGoldBonus += Math.round(fin(p.startGoldBonus, 0));
+    startGoldMul *= finNonNeg(p.startGoldMul, 1);
+    bonusLives += Math.round(fin(p.bonusLives, 0));
+    if (p.maxLives !== undefined && p.maxLives !== null && Number.isFinite(p.maxLives) && p.maxLives >= 1) {
+      const cleanMax = Math.floor(p.maxLives);
+      maxLives = maxLives === null ? cleanMax : Math.min(maxLives, cleanMax);
     }
-    abilityCooldownMul *= p.abilityCooldownMul ?? 1;
-    killGoldMul *= p.killGoldMul ?? 1;
-    waveBonusMul *= p.waveBonusMul ?? 1;
+    abilityCooldownMul *= finPos(p.abilityCooldownMul, 1);
+    killGoldMul *= finNonNeg(p.killGoldMul, 1);
+    waveBonusMul *= finNonNeg(p.waveBonusMul, 1);
     if (p.towerFireRateMul) {
-      for (const [type, mul] of Object.entries(p.towerFireRateMul) as [TowerType, number][]) {
-        towerFireRateMul[type] = (towerFireRateMul[type] ?? 1) * mul;
+      for (const [type, mul] of Object.entries(p.towerFireRateMul)) {
+        if (is2DTower(type) && typeof mul === 'number' && Number.isFinite(mul) && mul > 0) {
+          towerFireRateMul[type] = (towerFireRateMul[type] ?? 1) * mul;
+        }
       }
     }
-    enemySpeedMul *= p.enemySpeedMul ?? 1;
-    enemyHpMul *= p.enemyHpMul ?? 1;
-    for (const t of p.bannedTowers ?? []) banned.add(t);
+    enemySpeedMul *= finPos(p.enemySpeedMul, 1);
+    enemyHpMul *= finPos(p.enemyHpMul, 1);
+    for (const t of p.bannedTowers ?? []) {
+      if (is2DTower(t)) banned.add(t);
+    }
     abilitiesDisabled = abilitiesDisabled || p.abilitiesDisabled === true;
     championWaves = championWaves || p.championWaves === true;
   }
+  const clampRange = (v: number, min: number, max: number, fb: number): number =>
+    Number.isFinite(v) ? Math.max(min, Math.min(max, v)) : fb;
+  for (const k of Object.keys(towerFireRateMul) as TowerType[]) {
+    towerFireRateMul[k] = clampRange(towerFireRateMul[k]!, 0.05, 1_000, 1);
+  }
   return {
-    startGoldBonus,
-    startGoldMul,
-    bonusLives,
-    maxLives,
-    abilityCooldownMul,
-    killGoldMul,
-    waveBonusMul,
+    startGoldBonus: Math.round(clampRange(startGoldBonus, -1_000_000, 1_000_000, 0)),
+    startGoldMul: clampRange(startGoldMul, 0, 1_000, 1),
+    bonusLives: Math.round(clampRange(bonusLives, -10_000, 10_000, 0)),
+    maxLives: maxLives !== null ? Math.max(1, Math.min(10_000, maxLives)) : null,
+    abilityCooldownMul: clampRange(abilityCooldownMul, 0.05, 1_000, 1),
+    killGoldMul: clampRange(killGoldMul, 0, 1_000, 1),
+    waveBonusMul: clampRange(waveBonusMul, 0, 1_000, 1),
     towerFireRateMul,
-    enemySpeedMul,
-    enemyHpMul,
+    enemySpeedMul: clampRange(enemySpeedMul, 0.05, 1_000, 1),
+    enemyHpMul: clampRange(enemyHpMul, 0.05, 1_000, 1),
     bannedTowers: [...banned],
     abilitiesDisabled,
     championWaves,
@@ -123,9 +142,6 @@ export function isNeutralRun(m: RunModifiers): boolean {
     !m.championWaves
   );
 }
-
-const is2DTower = (t: string): t is TowerType =>
-  Object.prototype.hasOwnProperty.call(TOWER_DEFS, t);
 
 /**
  * True when `patch` changes at least one gameplay rule active in the 2D build.

@@ -152,12 +152,24 @@ describe('mergeDaily', () => {
     expect(gap).toEqual({ lastDay: 103, streak: 2, bestStreak: 4, total: 4 });
   });
 
-  it('is symmetric and idempotent', () => {
+  it('is symmetric and idempotent (including same-day streak=0 ties)', () => {
     const a = { lastDay: 100, streak: 5, bestStreak: 7, total: 12 };
     const b = { lastDay: 101, streak: 2, bestStreak: 2, total: 2 };
     expect(mergeDaily(a, b)).toEqual(mergeDaily(b, a));
     const m = mergeDaily(a, b);
     expect(mergeDaily(m, m)).toEqual(m);
     expect(mergeDaily(m, a)).toEqual(m);
+
+    // Same lastDay where one record has streak=0 must stay commutative and preserve the live streak.
+    const sameZero = { lastDay: 100, streak: 0, bestStreak: 0, total: 0 };
+    const sameLive = { lastDay: 100, streak: 3, bestStreak: 3, total: 3 };
+    expect(mergeDaily(sameZero, sameLive)).toEqual({ lastDay: 100, streak: 3, bestStreak: 3, total: 3 });
+    expect(mergeDaily(sameLive, sameZero)).toEqual({ lastDay: 100, streak: 3, bestStreak: 3, total: 3 });
+
+    // describeMergeGain reports Daily Squall wins when that is the sole new record.
+    const base = createDefaultProgress(N);
+    const withDaily = createDefaultProgress(N);
+    withDaily.daily = { lastDay: 20500, streak: 1, bestStreak: 1, total: 2 };
+    expect(describeMergeGain(base, mergeProgress(base, withDaily, N))).toContain('+2 daily wins');
   });
 });

@@ -88,10 +88,16 @@ from PIL import Image, ImageChops, ImageDraw, ImageFilter
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import numpy as np  # noqa: E402
 from gates import (  # noqa: E402
-    blend_placement, clip_road_at_gate, contact_shadow, cut_front, entrance_dir, entrance_facing, gate_alpha_hit, goal_dir, goal_facing, output_box, output_sprite, place_gate, point_in_opening, resolve_prop,
+    blend_placement, clip_road_at_gate, contact_shadow, cut_front, draw_threshold_road, entrance_dir, entrance_facing, gate_alpha_hit, goal_dir, goal_facing, light_interior, output_box, output_sprite, place_gate, point_in_opening, resolve_prop,
 )
+import fords  # noqa: E402
+from banks import shore_foundation, water_reflection  # noqa: E402
+from masonry import RoadArcade, arch_bridge, brick_spur, cart_tracks, marble_road, moat_wall, paved_road  # noqa: E402
 from keeps import Keep  # noqa: E402
-from ground import Decals, fine_detail, inner_band, nearest_dist, ragged_mask, ring, road_fringe, scatter  # noqa: E402
+from ground import (  # noqa: E402
+    Decals, DressingArea, brushed_surface, dusty_road_coverage, fine_detail, inner_band, paint_over_road, ragged_mask,
+    ring, road_footprint, road_fringe, scatter, windblown_road_coverage,
+)
 from ringfit import measure_ring  # noqa: E402
 
 args = sys.argv[1:]
@@ -112,6 +118,7 @@ kit = assets.parent / 'biomes' / biome if biome else None
 if kit and not kit.is_dir():
     sys.exit(f'Unknown biome kit: {kit}')
 kit_spec = json.loads((kit / 'kit.json').read_text()) if kit else {}
+base_kit = kit.parent / kit_spec['baseKit'] if 'baseKit' in kit_spec else None
 dressing = recipe if biome and biome == recipe.get('biome') else {}
 quality = opt('--quality', 72 if kit else 90)
 
@@ -144,6 +151,8 @@ def asset_file(name):
         themed = (kit / dressing.get('sprites', {}).get(name, name)).with_suffix('.webp')
         if themed.exists():
             return themed
+        if base_kit and (base_kit / themed.name).exists():
+            return base_kit / themed.name
     return assets / name
 
 
@@ -258,7 +267,8 @@ CAVE_SEAT = opt('--gate-seat', 'threshold').split('/')[0]  # accept older split-
 GATES = []  # dict(role, lane, id, prop, facing, g = placement)
 for _i, _e in enumerate(L['entrances']):
     _f = entrance_facing(raw_paths[_i])
-    _prop, _file, _flip = resolve_prop('cave', _f, asset_file)
+    _kind = dressing.get('entranceArt', {}).get(_e['id'], 'cave')
+    _prop, _file, _flip = resolve_prop(_kind, _f, asset_file)
     _g = place_gate(load(_file), _flip, (_e['x'], _e['y']), _f, ROAD_W * CAVE_H, ROAD_W * GATE_INSET, entrance_dir(raw_paths[_i]), fit_opening=bool(kit),
                     seat=CAVE_SEAT)
     _gx = place_gate(load(_file), _flip, (_e['x'], _e['y']), _f, ROAD_W * CAVE_H, ROAD_W * GATE_INSET, entrance_dir(raw_paths[_i]), fit_opening=bool(kit))
@@ -270,6 +280,10 @@ if mill != 'none':
     LANDMARKS.append(('prop-windmill.png', mx, my, ROAD_W * mh))
 for name, x, yb, h in dressing.get('landmarks', []):
     LANDMARKS.append((f'landmark-{name}.webp', x, yb, h))
+# Flat paintings carry their own contact details (e.g. ripples). Reserve their full footprint
+# against plots and scatter along with the standing scenery.
+ground_paint = [(f'landmark-{name}.webp', x, yb, h) for name, x, yb, h in dressing.get('groundPaint', [])]
+LANDMARKS.extend(ground_paint)
 landmark_rects = [sprite_rect(load(n), x, yb, h) for n, x, yb, h in LANDMARKS] + [G['g']['rect'] for G in GATES]
 
 
@@ -311,11 +325,26 @@ def plot_zone(x, y):
     return (x - PLOT_R, y - TOWER_UP, x + PLOT_R, y + PLOT_RY)
 
 
+# Protect scenery painted directly on a chapter terrain plate as well as its cliff edge.
+dressing_mask = load(dressing['dressingMask']).convert('L').resize((iw, ih), Image.Resampling.NEAREST) if 'dressingMask' in dressing else None
+arcades = [RoadArcade(spl_paths[lane], start, end, ROAD_W, height)
+           for lane, start, end, height in dressing.get('arcades', [])]
+arcade_footprint = None
+if arcades:
+    arcade_footprint = Image.new('L', (iw, ih))
+    for wall in arcades:
+        ImageDraw.Draw(arcade_footprint).polygon(wall.footprint(), fill=255)
+
+
 def plot_ok(x, y):
     """Single-plot rules (safe area, HUD, road clearance and reach, landmarks). Returns a reason or ''."""
     if not (sx + PLOT_R + 6 <= x <= sx + sw - PLOT_R - 6 and sy + TOWER_UP + 6 <= y <= sy + sh - PLOT_RY - 14):
         return 'safe area'
     ring = (x - PLOT_R, y - PLOT_RY, x + PLOT_R, y + PLOT_RY)
+    if dressing_mask and dressing_mask.crop(ring).getextrema()[0] < 128:
+        return 'terrain'
+    if arcade_footprint is not None and arcade_footprint.crop(ring).getbbox():
+        return 'arcade'
     if any(rects_hit(ring, r) for r in HUD_RECTS):
         return 'hud'
     closest_y = max(horn_y_low, min(horn_y_high, y))
@@ -340,7 +369,7 @@ def gate_bleed(g):
 
 
 # Fit the whole gatehouse at its fixed threshold, independently of output resolution.
-keep = Keep(assets.parent / 'gatehouses', biome, (gx, gy), goal_dir(raw_paths[0]), ROAD_W, ROAD_W * CASTLE_H, recipe.get('gatehouseView'))
+keep = Keep(assets.parent / 'gatehouses', kit_spec.get('baseKit', biome), (gx, gy), goal_dir(raw_paths[0]), ROAD_W, ROAD_W * CASTLE_H, recipe.get('gatehouseView'))
 kept_zones = [plot_zone(*p) for p in L['plots']] if ('--keep-plots' in args or '--check-plots' in args) else []
 
 
@@ -576,7 +605,10 @@ if dev > ROAD_W * 0.3:
 # screen shows) nor sit under the HUD. Entrance caves may bleed a little past the left / right edge
 # (a rock mound running off-screen reads fine); their mouth must be on screen.
 warns = []
+road_core = road_footprint((iw, ih), spl_paths, ROAD_W)
 for (n, x, yb, h), r in zip(LANDMARKS, landmark_rects):
+    if paint_over_road(road_core, load(n), r):
+        fails.append(f'{n} covers the painted road at {tuple(round(v) for v in r)}')
     if r[0] < sx or r[2] > sx + sw or r[1] < sy or r[3] > sy + sh:
         fails.append(f'{n} rect {tuple(round(v) for v in r)} leaves the safe area')
     if any(rects_hit(r, z) for z in HUD_RECTS[:6]):
@@ -639,8 +671,12 @@ rw = ROAD_W * S
 TEX = W / 2560  # texture scale reference: the approved mock was 2560 px wide
 grass = load(GRASS)
 grass_dark = load('tex-grass-dark.png') or grass
-ground = tiled(grass, W, H, 0.55 * TEX)
-dark = tiled(grass_dark, W, H, 0.55 * TEX)
+if dressing:  # The authored terrain plate supplies the island's broad landforms.
+    ground = tiled(grass, W, H, 0.55 * TEX)
+    dark = tiled(grass_dark, W, H, 0.55 * TEX)
+else:
+    ground = brushed_surface(grass, (W, H), 0.55 * TEX, SEED + 3)
+    dark = brushed_surface(grass_dark, (W, H), 0.55 * TEX, SEED + 4)
 mask = soft_noise(W, H, round(260 * TEX), SEED).point(lambda v: max(0, min(255, (v - 110) * 3)))
 ground = Image.composite(dark, ground, mask)
 # very soft, large light patches: breaks the tiling without adding detail
@@ -658,7 +694,8 @@ if dressing:
     del plate
 
 # Mask of water and chasm banks in the terrain painting. Keep rooted props on land.
-land_mask = load(f'land-{L["id"]}.webp').convert('L') if dressing.get('islet') else None
+land_mask = (load(f'land-{L["id"]}.webp').convert('L')
+             if any(dressing.get(key) for key in ('islet', 'waterCrossings', 'waterReflections')) else None)
 
 
 def on_land(x, y):
@@ -670,7 +707,7 @@ def on_land(x, y):
 
 
 # Give structures that stand in tidal water or over a rift a painted foundation.
-if land_mask:
+if dressing.get('islet'):
     islet = load(dressing['islet'])
 
     def foundation(x, y, width, height, force=False):
@@ -679,7 +716,7 @@ if land_mask:
             ground.alpha_composite(shelf, (round(x * S - shelf.width / 2), round(y * S - shelf.height * 0.43)))
 
     for px, py in plots:
-        foundation(px, py, 2.65 * PLOT_R, 2.8 * PLOT_RY)
+        shore_foundation(ground, land_mask, (iw, ih), islet, (px, py), (PLOT_R, PLOT_RY), S)
     # Put one footing under the gatehouse if its base crosses the terrain edge.
     left, top, right, bottom = castle['rect']
     width, height = right-left, bottom-top
@@ -690,54 +727,124 @@ if land_mask:
     elif any(not on_land(base[0]+dx*width, base[1]+dy*height)
            for dx, dy in ((-.35,0), (.35,0), (0,.12), (0,-.15))):
         foundation(*base, width*1.28, max(width*.57, height*.43), force=True)
-    for left, top, right, bottom in landmark_rects[:-1]:
-        foundation((left + right) / 2, bottom - 5, (right - left) * 1.17, (right - left) * 0.49)
+    shelves = {f'landmark-{name}.webp': rect for name, rect in dressing.get('landmarkShelves', {}).items()}
+    for index, (left, top, right, bottom) in enumerate(landmark_rects[:-1]):
+        if index < len(LANDMARKS) and LANDMARKS[index] in ground_paint:
+            continue
+        name = LANDMARKS[index][0] if index < len(LANDMARKS) else None
+        if name in shelves:
+            # Waterworks can span the natural channel directly (no rock shelf).
+            if shelves[name]:
+                foundation(*shelves[name], force=True)
+        else:
+            foundation((left + right) / 2, bottom - 5, (right - left) * 1.17, (right - left) * 0.49)
+
+ford_sites = dressing.get('fords', [])
+ford_patches = fords.prepare(ground, land_mask, (iw, ih), ford_sites, S)
+if dressing.get('moatWall'):
+    moat_wall(ground, land_mask, (iw, ih), spl_paths[0], ROAD_W, S, load('landmark-stone-bridge.webp'), SEED)
+for wall in arcades:
+    wall.paint(ground, load(dressing['arcadeMaterial']), S)
 
 # ---------------------------------------------------------------- road
 road_hard = Image.new('L', (W, H))
 dr = ImageDraw.Draw(road_hard)
-for path in spl_paths:
+shaped_entrances = set()
+for lane, path in enumerate(spl_paths):
     pts = [P(p) for p in path]
+    exit_blend = dressing.get('sillLaneBlend', {}).get(GATES[lane]['id'], 0)
+    if dressing.get('thresholdRoad') and draw_threshold_road(dr, pts, GATES[lane]['g'], S, rw, exit_blend):
+        shaped_entrances.add(lane)
+        continue
     dr.line(pts, fill=255, width=round(rw), joint='curve')
     # The goal has a flush threshold under the cross-roof. A round end cap would show behind it.
     x, y = pts[0]
     dr.ellipse((x - rw / 2, y - rw / 2, x + rw / 2, y + rw / 2), fill=255)
 # the road ends at each seated gate's threshold (no end cap peeking out under the gate)
 for G in GATES:
-    clip_road_at_gate(road_hard, G['g'], S, rw)
-keep.trim_road(road_hard, S)
+    if G['lane'] not in shaped_entrances:
+        clip_road_at_gate(road_hard, G['g'], S, rw)
+keep.trim_road(road_hard, S, spl_paths)
 # crisp, slightly irregular painted edge (was a ~10-25 px Gaussian ramp: the main "blurry" cue)
 # Use the master's noise lattice at both scales so the painted contour stays in place.
 noise_scale = S / 2 if native_3x else 1
 road_mask = ragged_mask(road_hard, rw * 0.05, max(4, round(rw * 0.16 / noise_scale)), 0.22, SEED + 21, aa=1.1 if native_3x else 1.1 * W / 3692, noise_scale=noise_scale)
+if dressing.get('waterCrossings'):
+    # The dirt ends at each bank. Gaps between the stones and rope slats show the stream.
+    road_mask = ImageChops.multiply(road_mask, land_mask.resize((W, H), Image.Resampling.BILINEAR))
 road_material = load(dressing.get('roadMaterial', 'tex-dirt.png'))
-dirt = tiled(road_material, W, H, 0.45 * TEX)
-dirt = fine_detail(dirt, road_material, round(1024 * 0.16 * TEX), 0.45, 7 * TEX)
+if dressing.get('roadPlate'):
+    dirt = road_material.resize((W, H), Image.Resampling.BICUBIC)
+elif dressing.get('roadStrip'):
+    dirt = paved_road((W, H), road_material, spl_paths[0], ROAD_W, S)
+elif dressing.get('layMarble'):
+    dirt = marble_road((W, H), road_material, spl_paths[0], ROAD_W, S, SEED + 23)
+elif not kit or dressing.get('brushRoad'):
+    dirt = brushed_surface(road_material, (W, H), 0.45 * TEX, SEED + 23)
+else:
+    dirt = tiled(road_material, W, H, 0.45 * TEX)
+if not any(dressing.get(mode) for mode in ('layMarble', 'roadPlate', 'roadStrip')):
+    dirt = fine_detail(dirt, road_material, round(1024 * 0.16 * TEX), 0.45, 7 * TEX)
+if 'cartLane' in dressing:
+    cart_tracks(dirt, spl_paths[dressing['cartLane']], ROAD_W, S, SEED + 37)
+entrance_floors = {}
+if 'brickSpur' in dressing:
+    lane, material = dressing['brickSpur']
+    brick = load(material)
+    brick_spur(dirt, catmull(SECTIONS[first_sections[lane]]), brick, ROAD_W, S)
+    entrance_floors[lane] = brick
 if 'branchMaterial' in dressing:
-    lane, material = dressing['branchMaterial']
-    first = catmull(SECTIONS[first_sections[lane]])
+    branch_lane, material = dressing['branchMaterial']
+    first = catmull(SECTIONS[first_sections[branch_lane]])
     branch = Image.new('L', (W, H))
+    stone = load(material)
+    entrance_floors[branch_lane] = stone
+    if dressing.get('brushRoad'):
+        # End the last course before the junction so no paving spills across the other lane.
+        stations = resample(first, 4)
+        first = stations[:max(2, len(stations) - round(ROAD_W / 4))]
+        branch_paint = brushed_surface(stone, (W, H), .24 * TEX, SEED + 47)
+    else:
+        branch_paint = tiled(stone, W, H, .45 * TEX)
     ImageDraw.Draw(branch).line([P(p) for p in first], fill=255, width=round(rw * 1.6), joint='curve')
-    dirt = Image.composite(tiled(load(material), W, H, 0.45 * TEX), dirt, branch.filter(ImageFilter.GaussianBlur(rw * 0.1)))
-# a faint wide shade on the grass along the road, a thin darker rim right at the edge, the dirt,
-# then a narrow darker lip just inside the edge
-shade = road_mask.filter(ImageFilter.MaxFilter(2 * round(rw * 0.05) + 1)).filter(ImageFilter.GaussianBlur(rw * 0.10))
-ground = Image.composite(Image.new('RGBA', (W, H), (70, 52, 30, 255)), ground, shade.point(lambda v: int(v * 0.22)))
-rim_band = ring(road_mask, max(2, round(rw * 0.035)), 0.7 * W / 3692)
-ground = Image.composite(Image.new('RGBA', (W, H), (74, 70, 30, 255)), ground, rim_band.point(lambda v: int(v * 0.50)))
-ground = Image.composite(dirt, ground, road_mask)
-lip = inner_band(road_mask, max(2, round(rw * 0.06)), 1.2 * W / 3692)
-ground = Image.composite(Image.new('RGBA', (W, H), (122, 80, 42, 255)), ground, lip.point(lambda v: int(v * 0.30)))
+    dirt = Image.composite(branch_paint, dirt, branch.filter(ImageFilter.GaussianBlur(rw * 0.1)))
+    del branch_paint, branch
+if dressing.get('snowShoulders'):
+    ground = Image.composite(dirt, ground, windblown_road_coverage(road_mask, S, SEED + 51))
+elif dressing.get('dustyShoulders'):
+    ground = Image.composite(dirt, ground, dusty_road_coverage(road_mask, S, SEED + 51))
+else:
+    # Shade the grass, trace the rim, then lay the road and its shallow inside lip.
+    shade = road_mask.filter(ImageFilter.MaxFilter(2 * round(rw * 0.05) + 1)).filter(ImageFilter.GaussianBlur(rw * 0.10))
+    ground = Image.composite(Image.new('RGBA', (W, H), (70, 52, 30, 255)), ground, shade.point(lambda v: int(v * 0.22)))
+    rim_band = ring(road_mask, max(2, round(rw * 0.035)), 0.7 * W / 3692)
+    ground = Image.composite(Image.new('RGBA', (W, H), (74, 70, 30, 255)), ground, rim_band.point(lambda v: int(v * 0.50)))
+    ground = Image.composite(dirt, ground, road_mask)
+    lip = inner_band(road_mask, max(2, round(rw * 0.06)), 1.2 * W / 3692)
+    ground = Image.composite(Image.new('RGBA', (W, H), (122, 80, 42, 255)), ground, lip.point(lambda v: int(v * 0.30)))
+    del shade, rim_band, lip
 
-del shade, rim_band, lip, dirt, road_hard
+del dirt, road_hard
 keep.apron(ground, castle, S, plots, PLOT_R, PLOT_RY, raw_paths[0])
+
+if ford_patches:
+    fords.paint(ground, ford_patches, road_mask, ROAD_W, load('ford-stones.webp'),
+                [resample(catmull(section), 17) for section in SECTIONS.values()], S, SEED + 29)
 
 # Crossings share the road centreline. These deck stamps have no collision or sim geometry.
 crossing_rects = []
+for name, start, end, above, below, curb in dressing.get('archBridges', []):
+    bounds = arch_bridge(ground, load(f'landmark-{name}.webp'), land_mask, (iw, ih),
+                         start, end, above, below, curb, S)
+    crossing_rects.append(bounds)
 for name, x, y, length, width, angle in dressing.get('crossings', []):
     deck = load(f'landmark-{name}.webp').resize((round(width * S), round(length * S)), Image.Resampling.LANCZOS)
     deck = deck.rotate(angle, Image.Resampling.BICUBIC, expand=True)
-    ground.alpha_composite(deck, (round(x * S - deck.width / 2), round(y * S - deck.height / 2)))
+    left, top = round(x * S - deck.width / 2), round(y * S - deck.height / 2)
+    if dressing.get('waterCrossings'):
+        shade = deck.getchannel('A').filter(ImageFilter.GaussianBlur(2 * S)).point(lambda v: round(v * .36))
+        ground.paste((24, 43, 35, 255), (left + round(2 * S), top + round(4 * S)), shade)
+    ground.alpha_composite(deck, (left, top))
     # Prop rejection uses the same rotated bounding box as the master, including its pixel rounding.
     if native_3x:
         ref = Image.new('L', (round(width * 2), round(length * 2))).rotate(angle, expand=True)
@@ -746,31 +853,39 @@ for name, x, y, length, width, angle in dressing.get('crossings', []):
     crossing_rects.append(sprite_rect(deck, x, y + deck.height / (2 * S), deck.height / S))
 
 # ---------------------------------------------------------------- crisp painted details
+area = DressingArea((iw, ih), spl_paths, ROAD_W, plots, PLOT_R, PLOT_RY,
+                    landmark_rects + crossing_rects)
+if arcade_footprint is not None:
+    area.mask.paste(1, mask=arcade_footprint)
+
+
+def grounded(rect):
+    if dressing_mask and dressing_mask.crop(rect).getextrema()[0] < 128:
+        return False
+    if land_mask is None:
+        return True
+    left, top, right, bottom = rect
+    box = (math.floor(left * land_mask.width / iw), math.floor(top * land_mask.height / ih),
+           math.ceil(right * land_mask.width / iw), math.ceil(bottom * land_mask.height / ih))
+    return land_mask.crop(box).getextrema()[0] >= 128
+
+
 decals = Decals(load, themed=bool(kit))
 fringe_n = scatter_n = None
-if decals.ok and '--no-decals' not in args:
-    road_np = np.array([q for p in spl_paths for q in resample(p, 3.0)])
-    edge_polys = [resample(p, 4.0) for p in spl_paths]
-    fringe_n = road_fringe(ground, decals, edge_polys, road_np, ROAD_W / 2, S, SEED + 31, ok_at=on_land if land_mask else None)
-    plot_ells = [(px, py) for px, py in plots]
+if decals.ok and '--no-decals' not in args and dressing.get('groundDecals', True):
+    def decal_ok(rect):
+        return area.clear(rect) and grounded(rect)
 
-    def decal_ok(x, y, r):
-        if not on_land(x, y):
-            return False
-        if nearest_dist(road_np, x, y) < ROAD_W / 2 + r + 2:
-            return False
-        for px, py in plot_ells:
-            if ((x - px) / (PLOT_R + r)) ** 2 + ((y - py) / (PLOT_RY + r)) ** 2 < 1:
-                return False
-        return not any(rects_hit((x - r, y - r, x + r, y + r), z, 4) for z in landmark_rects)
-
+    # Shared lanes get a single verge, including after a multi-way merge.
+    edge_polys = [resample(catmull(section), 4.0) for section in SECTIONS.values()]
+    fringe_n = road_fringe(ground, decals, edge_polys, ROAD_W / 2, S, SEED + 31, decal_ok)
     scatter_n = scatter(ground, decals, iw, ih, decal_ok, S, SEED + 41, n=opt('--decals', 240))
 
 # ---------------------------------------------------------------- sprites (depth sorted)
 items = []  # (sort_y, img, x_center, y_bottom, shadow)
 
 
-def sprite(name, x, y_bottom, height_px, flip=False, shadow=True):
+def sprite(name, x, y_bottom, height_px, flip=False, flat=False):
     im = load(name)
     if im is None:
         return
@@ -778,7 +893,13 @@ def sprite(name, x, y_bottom, height_px, flip=False, shadow=True):
     im = im.resize((max(1, round(im.width * s)), max(1, round(height_px))), Image.LANCZOS)
     if flip:
         im = im.transpose(Image.FLIP_LEFT_RIGHT)
-    items.append((y_bottom, im, x, y_bottom, shadow))
+    if flat:
+        left, bottom = round(x - im.width / 2), round(y_bottom)
+        if name in dressing.get('waterReflections', []):
+            water_reflection(ground, im, left, bottom, land_mask, S)
+        ground.alpha_composite(im, (left, round(y_bottom - im.height)))
+    else:
+        items.append((y_bottom, im, x, y_bottom, True))
 
 
 if not BAKE:
@@ -816,23 +937,28 @@ if not BAKE:
             items.append((y - 9999, base_img, x, top + bh, False))
 
 for n, x, yb, h in LANDMARKS:
-    sprite(n, x * S, yb * S, h * S)
+    sprite(n, x * S, yb * S, h * S, flat=(n, x, yb, h) in ground_paint)
 for G in GATES:
     gx0, gy0, gw_, gh_ = output_box(G['g'], S)
-    _spr = output_sprite(G['g'], S)
+    finish = dressing.get('entranceFinishes', {}).get(G['id']) if G['role'] == 'entrance' else None
+    _spr = output_sprite(G['g'], S, Image.open(asset_file(finish)).convert('RGBA') if finish else None)
+    if G['role'] == 'entrance' and dressing.get('thresholdRoad'):
+        floor_paint = entrance_floors.get(G['lane'], road_material)
+        _spr = light_interior(_spr, G['g'], floor_rgb=floor_paint.resize((1, 1)).getpixel((0, 0))[:3])
     # gates cast their own silhouette shadow (contact_shadow) instead of the generic ellipse
     items.append((gy0 + gh_, _spr, gx0 + gw_ / 2, gy0 + gh_, False))
 
 # scatter props (layout px), mostly on the margins, never on the road / plots / towers / landmarks
 PROPS = [('prop-tree-1.png', 2.1), ('prop-tree-2.png', 2.4), ('prop-tree-3.png', 1.9), ('prop-bush.png', 1.0),
          ('prop-rock-1.png', 0.9), ('prop-rock-2.png', 0.8), ('prop-flowers.png', 0.55)]
-PROPS = kit_spec.get('props', PROPS)
+PROPS = dressing.get('scatterProps', kit_spec.get('props', PROPS))
 WEIGHTS = dressing.get('propWeights', [5, 3, 2, 4, 2, 2, 2])
+repeat_gap = dressing.get('repeatGap', kit_spec.get('repeatGap', 2))
 prop_ims = {n: load(n) for n, _ in PROPS}
 rnd = random.Random(SEED)
 placed = []
 tries = 0
-zones = [plot_zone(*p) for p in plots] + landmark_rects + crossing_rects
+zones = [plot_zone(*p) for p in plots]
 prop_count = opt('--props', 70)
 while len(placed) < prop_count and tries < 12000:
     tries += 1
@@ -843,18 +969,21 @@ while len(placed) < prop_count and tries < 12000:
     if not margin and rnd.random() < 0.75:  # keep the play area calm
         continue
     name, rel = rnd.choices(PROPS, WEIGHTS)[0]
-    h = ROAD_W * rel
+    h = ROAD_W * rel * rnd.uniform(0.72, 1.12)
     rect = sprite_rect(prop_ims[name], x, y, h)
-    foot = (rect[0] + (rect[2] - rect[0]) * 0.2, rect[1] + (rect[3] - rect[1]) * 0.1, rect[2] - (rect[2] - rect[0]) * 0.2, rect[3])
-    if any(rects_hit(foot, z, 6) for z in zones):
+    if not area.clear(rect) or any(rects_hit(rect, zone, 4) for zone in zones):
         continue
-    if any(rects_hit(foot, p[1], -4) for p in placed):
+    # Keep trunks, stone bases and their contact shadows on a single bank.
+    radius = (rect[2] - rect[0]) * .32
+    if not grounded((x-radius, y-h*.14, x+radius, y+2)):
         continue
-    cx, cy = (foot[0] + foot[2]) / 2, (foot[1] + foot[3]) / 2
-    half = max(foot[2] - foot[0], foot[3] - foot[1]) / 2
-    if dist_to_road(cx, cy) < ROAD_W / 2 + half + 6:
+    # Leave complete silhouettes at the desktop crop as well as the phone edges.
+    if any(rect[0] < edge < rect[2] for edge in (sx, sx+sw)):
         continue
-    placed.append((name, foot))
+    if any(rects_hit(rect, other, repeat_gap if previous == name else 2)
+           for previous, other in placed):
+        continue
+    placed.append((name, rect))
     sprite(name, x * S, y * S, h * S, flip=rnd.random() < 0.5)
 
 if '--enemies' in args and not BAKE:
@@ -973,7 +1102,8 @@ if '--write-layout' in args:
             L['entrances'][G['lane']]['gate'] = G['json']
         else:
             L['goalGate'] = G['json']
-    layout_p.write_text(json.dumps(L, indent=1))
+    if L != json.loads(layout_p.read_text()):
+        layout_p.write_text(json.dumps(L, indent=1))
 for k, f in variant_files.items():
     print(f'  variant {k} -> {f}')
 for G in GATES:
@@ -983,8 +1113,8 @@ for G in GATES:
         _seat = f"aligned {castle['size']:.2f}"
     print(f'  gate {G["id"]}: {G["prop"]} facing {G["facing"]} {_seat} rect {tuple(round(v) for v in G["g"]["rect"])}'
           f' front {G.get("file")} {fr["rect"] if fr else None}')
-if fringe_n:
-    print(f'  road fringe tufts {fringe_n[0]} pebbles {fringe_n[1]}; decals {scatter_n}')
+if fringe_n is not None:
+    print(f'  verge decals {fringe_n}, field decals {scatter_n}')
 for w_ in warns:
     print('  warning: ' + w_)
 

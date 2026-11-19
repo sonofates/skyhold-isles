@@ -1,0 +1,22 @@
+{
+  "baseKit": "hollow",
+  "repeatGap": 150,
+  "props": [
+    [
+      "quartz.webp",
+      1.38
+    ],
+    [
+      "kiln.webp",
+      1.05
+    ],
+    [
+      "fungi.webp",
+      0.52
+    ],
+    [
+      "cart.webp",
+      0.75
+    ]
+  ]
+}

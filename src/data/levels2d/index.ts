@@ -1,3 +1,5 @@
+import { ENEMY_DEFS } from '../enemies.ts';
+import { ENEMY_MELEE } from '../soldiers.ts';
 import { LEVELS } from '../levels/index.ts';
 import type { LevelDef } from '../levels/types.ts';
 import { LEVEL_L1C } from './l1c.ts';
@@ -18,6 +20,24 @@ import { I13 } from './i13.ts';
 import { I14 } from './i14.ts';
 import { I15 } from './i15.ts';
 import { I16 } from './i16.ts';
+import { I17 } from './i17.ts';
+import { I18 } from './i18.ts';
+import { I19 } from './i19.ts';
+import { I20 } from './i20.ts';
+import { I21 } from './i21.ts';
+import { I22 } from './i22.ts';
+import { I23 } from './i23.ts';
+import { I24 } from './i24.ts';
+import type { ChapterIsland } from './chapterIsland.ts';
+
+const chapterTwo: readonly ChapterIsland[] = [I17, I18, I19, I20, I21, I22, I23, I24];
+
+/** A chapter island can enter the campaign once every enemy in its waves has joined the roster. */
+export function registeredChapterIslands(): LevelDef[] {
+  return chapterTwo.filter((level): level is LevelDef => level.waves.every(wave =>
+    wave.groups.every(group => Object.hasOwn(ENEMY_DEFS, group.enemyType) && Object.hasOwn(ENEMY_MELEE, group.enemyType)),
+  ));
+}
 
 /**
  * 2D plot-map islands. Kept apart from the 16-island campaign list (`LEVELS`), so campaign
@@ -27,6 +47,7 @@ export const LEVELS_2D: readonly LevelDef[] = [
   LEVEL_L1C,
   I01, I02, I03, I04, I05, I06, I07, I08,
   I09, I10, I11, I12, I13, I14, I15, I16,
+  ...registeredChapterIslands(),
 ];
 
 /** Any island by id: campaign islands first, then the 2D side entries. */

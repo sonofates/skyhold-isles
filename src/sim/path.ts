@@ -104,7 +104,7 @@ export class CompiledPath {
    */
   nearestDist(x: number, z: number): number {
     const pts = this.points;
-    if (pts.length < 2) return 0;
+    if (pts.length < 2 || !Number.isFinite(x) || !Number.isFinite(z)) return 0;
     let bestDistSq = Infinity;
     let bestCum = 0;
     for (let i = 0; i < pts.length - 1; i++) {
@@ -137,7 +137,7 @@ export class CompiledPath {
       outPos.z = 0;
       return 0;
     }
-    if (pts.length === 1 || distance <= 0) {
+    if (pts.length === 1 || !(distance > 0)) {
       outPos.x = pts[0].x;
       outPos.y = pts[0].y;
       outPos.z = pts[0].z;

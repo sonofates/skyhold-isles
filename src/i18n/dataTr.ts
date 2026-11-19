@@ -140,7 +140,7 @@ export const DATA_TR: DataTr = {
     flyer: {
       name: 'Gök Süzücüsü',
       desc: 'Arazinin üstünden kendi hava yolunda süzülür. Yalnızca havaya vuran kuleler ona yetişir.',
-      counter: 'Yalnızca Okçu, Ayaz, Tesla ve Balista vurabilir. Hava yolunu görmek için R tuşuna bas.',
+      counter: 'Yalnızca Okçu, Ayaz, Tesla ve Balista vurabilir.',
     },
     healer: {
       name: 'Koru Şifacısı',
