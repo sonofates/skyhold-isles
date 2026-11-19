@@ -1,0 +1,23 @@
+l1c-1920x1080              bands   scale  74%  bands L/T/R/B 98/142/98/142    frame blur+shadow+vignette+border (high, backdrop 183.1 ms)  overlaps 0
+i06-1920x1080              bands   scale  79%  bands L/T/R/B 35/113/35/113    frame blur+shadow+vignette+border (high, backdrop 42.7 ms)  overlaps 0
+i12-1920x1080              bands   scale  77%  bands L/T/R/B 61/125/61/125    frame blur+shadow+vignette+border (high, backdrop 43 ms)  overlaps 0
+i16-1920x1080              bands   scale  77%  bands L/T/R/B 58/124/58/124    frame blur+shadow+vignette+border (high, backdrop 37.2 ms)  overlaps 0
+i24-1920x1080-boss         bands   scale  75%  bands L/T/R/B 85/136/85/136    frame blur+shadow+vignette+border (high, backdrop 41.4 ms)  overlaps 0
+l1c-2560x1080              columns scale  82%  bands L/T/R/B 318/96/318/96    frame blur+shadow+vignette+border (high, backdrop 53.1 ms)  overlaps 0
+i06-2560x1080              columns scale  99%  bands L/T/R/B 117/3/117/3      frame blur+shadow+vignette+border (high, backdrop 50.2 ms)  overlaps 0
+i12-2560x1080              columns scale  81%  bands L/T/R/B 338/105/338/105  frame blur+shadow+vignette+border (high, backdrop 50.1 ms)  overlaps 0
+i16-2560x1080              columns scale  81%  bands L/T/R/B 330/102/330/102  frame blur+shadow+vignette+border (high, backdrop 51.1 ms)  overlaps 0
+i24-2560x1080-boss         columns scale  99%  bands L/T/R/B 120/5/120/5      frame blur+shadow+vignette+border (high, backdrop 51.1 ms)  overlaps 0
+l1c-1366x768               bands   scale  73%  bands L/T/R/B 76/104/76/104    frame blur+shadow+vignette+border (high, backdrop 28.1 ms)  overlaps 0
+i06-1366x768               bands   scale  79%  bands L/T/R/B 30/82/30/82      frame blur+shadow+vignette+border (high, backdrop 21.4 ms)  overlaps 0
+i12-1366x768               bands   scale  76%  bands L/T/R/B 50/92/50/92      frame blur+shadow+vignette+border (high, backdrop 23.7 ms)  overlaps 0
+i16-1366x768               bands   scale  77%  bands L/T/R/B 45/90/45/90      frame blur+shadow+vignette+border (high, backdrop 23.2 ms)  overlaps 0
+i24-1366x768-boss          bands   scale  74%  bands L/T/R/B 65/99/65/99      frame blur+shadow+vignette+border (high, backdrop 19.9 ms)  overlaps 0
+l1c-844x390                columns scale  73%  bands L/T/R/B 113/52/113/52    frame blur+shadow+vignette+border (high, backdrop 31 ms)  overlaps 0
+i06-844x390                columns scale  72%  bands L/T/R/B 116/54/116/54    frame blur+shadow+vignette+border (high, backdrop 21.3 ms)  overlaps 0
+i12-844x390                columns scale  72%  bands L/T/R/B 116/54/116/54    frame blur+shadow+vignette+border (high, backdrop 20.2 ms)  overlaps 0
+i16-844x390                columns scale  73%  bands L/T/R/B 113/53/113/53    frame blur+shadow+vignette+border (high, backdrop 19.1 ms)  overlaps 0
+i24-844x390-boss           columns scale  89%  bands L/T/R/B 45/21/45/21      frame blur+shadow+vignette+border (high, backdrop 22.3 ms)  overlaps 0
+low-i24-844x390            columns scale  89%  bands L/T/R/B 45/21/45/21      frame blur+border (low, backdrop 28.5 ms)  overlaps 0
+
+problems: 0

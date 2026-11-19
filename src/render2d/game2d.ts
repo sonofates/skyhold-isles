@@ -284,6 +284,7 @@ export class Game2D {
       orb: this.tex.orb,
     });
     this.fx.setQuality(this.quality.tier);
+    this.map.setQuality(this.quality.tier);
     this.damageNumbers = new DamageNumbers2D(this.map, this.layers.fx);
     this.goldPops = new GoldPops2D(this.layers.fx);
     this.goldPops.enabled = this.quality.tier !== 'low';
@@ -743,6 +744,7 @@ export class Game2D {
         }
         resized = true;
         this.fx.setQuality(this.quality.tier);
+        this.map.setQuality(this.quality.tier);
         this.applyResolution(this.app.screen.width, this.app.screen.height);
       }
       if (resized) {
@@ -782,6 +784,7 @@ export class Game2D {
   frame(dtSec: number): void {
     if (this.quality.observe(this.app.ticker.elapsedMS, !document.hidden)) {
       this.fx.setQuality(this.quality.tier);
+      this.map.setQuality(this.quality.tier);
       this.goldPops.enabled = this.quality.tier !== 'low';
       this.applyResolution(this.app.screen.width, this.app.screen.height);
     }

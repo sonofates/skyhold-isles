@@ -10,7 +10,8 @@ The per-island "least covered spot" search (`abilityBarSpot`, `hornSpot`, `besid
 alone — the same on every island** (`src/render2d/hudDock.ts`). The map is then fitted *around*
 those places (`viewFit.ts fitAroundHud`): it shrinks / shifts just enough that no road (with its
 painted width), plot, cave/gate or castle (with the headroom of what stands on them) lies under any
-piece. Letterbox bands this opens are filled by MapView's edge smear (no mirrored castles / caves).
+piece. Letterbox bands this opens are a painted frame (blurred map backdrop, shadow, border:
+`docs/handoff-opus-frame.md`).
 
 Two forms, chosen by aspect (`COLUMNS_ASPECT = 1.9`):
 
@@ -95,5 +96,4 @@ lowering it lets tall sprites (the Colossus) poke under the bands again.
   probe could retry another foe.
 - No i24 "stormwall" (boss phase 2) shot: the autoplay run ended before phase 2; the boss-wave shot
   shows the Colossus on the north road.
-- Letterbox edge smear (stretched edge pixels) is functional but visibly streaky on wide bands —
-  an art pass (blur / vignette) would look better.
+- ~~Letterbox edge smear streaky~~: replaced by the painted frame (`docs/handoff-opus-frame.md`).

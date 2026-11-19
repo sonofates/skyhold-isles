@@ -1,17 +1,22 @@
-import { Container, Rectangle, Sprite, Texture } from 'pixi.js';
+import { Container, Graphics, Sprite, Texture } from 'pixi.js';
 import type { Level2DLayout } from '../data/levels/types.ts';
+import {
+  backdropPlacement, borderWidth, buildBackdropTexture, buildShadowTextures, buildVignetteTexture, shadowReach,
+} from './mapFrame.ts';
 import { playfieldBoxes, playfieldShapes } from './playfield.ts';
+import type { QualityTier } from './renderResolution.ts';
 import type { Rect } from './uiLayout.ts';
 import { computeMapFit, fitAroundHud, type MapFit } from './viewFit.ts';
 
 /**
  * Painted map + world container. Children of `world` are positioned in map image px; the
  * container carries the fit (scale + offset), so sprite sizes stay locked to the painting.
- * Letterbox bands (the safe-area clamp, or the map shrunk to clear the HUD dock) are filled with
- * the map's own outermost pixels stretched across them, dimmed — no flat colour bars, no repeats.
+ * Letterbox bands (the safe-area clamp, or the map shrunk to clear the HUD dock) are a frame
+ * (mapFrame.ts): the map itself blurred, darkened and desaturated behind everything, a soft shadow
+ * and a thin painted border around the image, a light screen vignette.
  */
-/** Edge strip (layout px) stretched across the letterbox bands. */
-const EDGE_PX = 2;
+/** Flat fill when the backdrop can't be built (no DOM / unreadable map source). */
+const FLAT_BAND = 0x1c1914;
 
 export class MapView {
   readonly root = new Container();
@@ -19,7 +24,17 @@ export class MapView {
   readonly world = new Container();
   private readonly bands = new Container();
   private readonly mapSprite: Sprite;
-  private readonly bandSprites: Sprite[] = [];
+  private readonly backdrop: Sprite;
+  private readonly backdropTex: Texture | null;
+  private readonly vignette: Sprite;
+  private readonly shadowTex: { edge: Texture; corner: Texture } | null;
+  private readonly shadowSprites: Sprite[] = [];
+  private readonly border = new Graphics();
+  private tier: QualityTier = 'high';
+  /** QA: how long building the backdrop took (ms, once per map). */
+  private readonly backdropMs: number;
+  private screenW = 1;
+  private screenH = 1;
   fit: MapFit;
   private texture: Texture;
   readonly layout: Level2DLayout;
@@ -29,15 +44,26 @@ export class MapView {
     this.layout = layout;
     this.mapSprite = new Sprite(texture);
     this.world.addChild(this.mapSprite);
-    this.root.addChild(this.bands, this.world);
-    // Left, right, top, bottom, then the four corners.
+    // Built once per map (the island's first bake; a later sharper bake of the same painting
+    // would blur to the same thing).
+    const t0 = performance.now();
+    this.backdropTex = buildBackdropTexture(texture);
+    this.backdropMs = performance.now() - t0;
+    this.backdrop = new Sprite(this.backdropTex ?? Texture.WHITE);
+    if (!this.backdropTex) this.backdrop.tint = FLAT_BAND;
+    this.vignette = new Sprite(buildVignetteTexture() ?? Texture.EMPTY);
+    this.shadowTex = buildShadowTextures();
+    this.bands.addChild(this.backdrop, this.vignette);
     for (let i = 0; i < 8; i++) {
-      const s = new Sprite(Texture.EMPTY);
+      // Left, right, top, bottom edges, then the four corners.
+      const s = new Sprite(this.shadowTex ? (i < 4 ? this.shadowTex.edge : this.shadowTex.corner) : Texture.EMPTY);
+      s.alpha = 0.55;
       s.visible = false;
-      s.tint = 0xc4bdb2; // dimmed: reads as the frame around the island, not more island
-      this.bandSprites.push(s);
+      this.shadowSprites.push(s);
       this.bands.addChild(s);
     }
+    this.bands.addChild(this.border);
+    this.root.addChild(this.bands, this.world);
     this.fit = computeMapFit(1, 1, layout.imageSize[0], layout.imageSize[1], layout.safeArea);
   }
 
@@ -83,6 +109,8 @@ export class MapView {
       this.boxes ??= playfieldBoxes(playfieldShapes(this.layout));
       this.fit = fitAroundHud(screenW, screenH, iw, ih, this.layout.safeArea, this.boxes, hud);
     } else this.fit = computeMapFit(screenW, screenH, iw, ih, this.layout.safeArea);
+    this.screenW = screenW;
+    this.screenH = screenH;
     const f = this.fit;
     this.world.scale.set(f.scale);
     this.world.position.set(f.offsetX, f.offsetY);
@@ -92,58 +120,138 @@ export class MapView {
     this.layoutBands();
   }
 
-  private stripTexture(x: number, y: number, w: number, h: number): Texture {
-    const tw = this.texture.width / this.imageW;
-    const th = this.texture.height / this.imageH;
-    return new Texture({
-      source: this.texture.source,
-      frame: new Rectangle(
-        Math.max(0, x * tw),
-        Math.max(0, y * th),
-        Math.max(1, Math.min(this.texture.width, w * tw)),
-        Math.max(1, Math.min(this.texture.height, h * th)),
-      ),
-    });
+  /**
+   * Effects tier: `low` drops the shadow and the vignette (two alpha-blended layers); the backdrop
+   * and the border stay — they are what makes the bands read as a frame.
+   */
+  setQuality(tier: QualityTier): void {
+    if (this.tier === tier) return;
+    this.tier = tier;
+    this.layoutBands();
+  }
+
+  /** QA: what fills the bands right now. */
+  frameInfo(): {
+    backdrop: 'blur' | 'flat' | 'none'; shadow: boolean; vignette: boolean; border: boolean; tier: QualityTier;
+    bands: [number, number, number, number]; backdropMs: number;
+  } {
+    const f = this.fit;
+    return {
+      bands: [f.bandLeft, f.bandTop, f.bandRight, f.bandBottom],
+      backdropMs: Math.round(this.backdropMs * 10) / 10,
+      backdrop: !this.backdrop.visible ? 'none' : this.backdropTex ? 'blur' : 'flat',
+      shadow: this.shadowSprites.some((s) => s.visible),
+      vignette: this.vignette.visible,
+      border: this.border.visible,
+      tier: this.tier,
+    };
   }
 
   private layoutBands(): void {
     const f = this.fit;
     const s = f.scale;
     const [iw, ih] = this.layout.imageSize;
-    const mapTop = f.offsetY;
-    const mapLeft = f.offsetX;
-    const mapW = iw * s;
-    const mapH = ih * s;
-    for (const b of this.bandSprites) {
-      if (b.texture !== Texture.EMPTY) b.texture.destroy(false);
-      b.texture = Texture.EMPTY;
-      b.visible = false;
+    const sw = this.screenW;
+    const sh = this.screenH;
+    const x0 = f.offsetX;
+    const y0 = f.offsetY;
+    const x1 = x0 + iw * s;
+    const y1 = y0 + ih * s;
+    const open = f.bandLeft > 0.5 || f.bandRight > 0.5 || f.bandTop > 0.5 || f.bandBottom > 0.5;
+    const rich = open && this.tier !== 'low';
+
+    // Backdrop: the blurred map around the map's centre, covering the screen (+ shake overscan).
+    // Hidden when the map covers the screen (it would only be overdraw).
+    this.backdrop.visible = open;
+    if (open) {
+      const over = Math.ceil(Math.min(sw, sh) * 0.04);
+      if (this.backdropTex) {
+        const p = backdropPlacement(sw, sh, iw, ih, f, over);
+        this.backdrop.position.set(p.x, p.y);
+        this.backdrop.width = iw * p.scale;
+        this.backdrop.height = ih * p.scale;
+      } else {
+        this.backdrop.position.set(-over, -over);
+        this.backdrop.width = sw + 2 * over;
+        this.backdrop.height = sh + 2 * over;
+      }
     }
-    // The map's outermost EDGE_PX stretched across each band (and its corner texels across the
-    // corners): ground colour without repeating anything recognisable — a mirrored strip showed a
-    // second castle / cave / road under the HUD once the map shrinks to clear the dock.
-    const k = EDGE_PX;
-    const L = f.bandLeft > 0.5 ? f.bandLeft + 1 : 0;
-    const R = f.bandRight > 0.5 ? f.bandRight + 1 : 0;
-    const T = f.bandTop > 0.5 ? f.bandTop + 1 : 0;
-    const B = f.bandBottom > 0.5 ? f.bandBottom + 1 : 0;
-    const put = (i: number, frame: [number, number, number, number], x: number, y: number, w: number, h: number): void => {
-      if (w <= 0 || h <= 0) return;
-      const sp = this.bandSprites[i];
-      sp.texture = this.stripTexture(...frame);
+
+    this.vignette.visible = rich && this.vignette.texture !== Texture.EMPTY;
+    if (this.vignette.visible) {
+      const over = Math.ceil(Math.min(sw, sh) * 0.04);
+      this.vignette.position.set(-over, -over);
+      this.vignette.width = sw + 2 * over;
+      this.vignette.height = sh + 2 * over;
+    }
+
+    // Shadow: edges (left, right, top, bottom) then corners (tl, tr, bl, br), outside the map.
+    const bw = borderWidth(sw, sh);
+    const reach = shadowReach(sw, sh);
+    const r0 = bw * 0.5; // starts under the border so its darkest part meets the wood, not a gap
+    const showShadow = rich && this.shadowTex !== null;
+    // Edge texture: u along the edge, v = outward falloff (darkest at v = 0). Each strip runs the
+    // side's length plus r0 at both ends; the corner pieces take over beyond that.
+    const sides: [number, number, number, number, number][] = [
+      // x, y, length along the edge, rotation, which band must be open (0 L, 1 R, 2 T, 3 B)
+      [x0 - r0, y0 - r0, y1 - y0 + 2 * r0, Math.PI / 2, 0], // u → +y, v → −x
+      [x1 + r0, y1 + r0, y1 - y0 + 2 * r0, -Math.PI / 2, 1], // u → −y, v → +x
+      [x1 + r0, y0 - r0, x1 - x0 + 2 * r0, Math.PI, 2], // u → −x, v → −y
+      [x0 - r0, y1 + r0, x1 - x0 + 2 * r0, 0, 3], // u → +x, v → +y
+    ];
+    const bandOpen = [f.bandLeft > 0.5, f.bandRight > 0.5, f.bandTop > 0.5, f.bandBottom > 0.5];
+    for (let i = 0; i < 4; i++) {
+      const sp = this.shadowSprites[i];
+      const [x, y, len, rot, b] = sides[i];
+      sp.visible = showShadow && bandOpen[b];
+      if (!sp.visible) continue;
+      sp.rotation = rot;
       sp.position.set(x, y);
-      sp.width = w;
-      sp.height = h;
-      sp.visible = true;
-    };
-    put(0, [0, 0, k, ih], mapLeft - L + 0.5, mapTop, L, mapH);
-    put(1, [iw - k, 0, k, ih], mapLeft + mapW - 0.5, mapTop, R, mapH);
-    put(2, [0, 0, iw, k], mapLeft, mapTop - T + 0.5, mapW, T);
-    put(3, [0, ih - k, iw, k], mapLeft, mapTop + mapH - 0.5, mapW, B);
-    put(4, [0, 0, k, k], mapLeft - L + 0.5, mapTop - T + 0.5, L, T);
-    put(5, [iw - k, 0, k, k], mapLeft + mapW - 0.5, mapTop - T + 0.5, R, T);
-    put(6, [0, ih - k, k, k], mapLeft - L + 0.5, mapTop + mapH - 0.5, L, B);
-    put(7, [iw - k, ih - k, k, k], mapLeft + mapW - 0.5, mapTop + mapH - 0.5, R, B);
+      sp.width = len;
+      sp.height = reach;
+    }
+    const corners: [number, number, number, number][] = [
+      [x0 - r0, y0 - r0, -1, -1],
+      [x1 + r0, y0 - r0, 1, -1],
+      [x0 - r0, y1 + r0, -1, 1],
+      [x1 + r0, y1 + r0, 1, 1],
+    ];
+    for (let i = 0; i < 4; i++) {
+      const sp = this.shadowSprites[4 + i];
+      const [x, y, dx, dy] = corners[i];
+      sp.visible = showShadow && (dx < 0 ? bandOpen[0] : bandOpen[1]) && (dy < 0 ? bandOpen[2] : bandOpen[3]);
+      if (!sp.visible) continue;
+      sp.position.set(x, y);
+      sp.width = reach * dx;
+      sp.height = reach * dy;
+    }
+
+    // Border: a thin painted moulding just outside the image (under the world, so a sprite that
+    // stands proud of the map's edge is drawn over it, not cut by it). From the map outward:
+    // dark contact line, gilt highlight, wood, dark rim.
+    const g = this.border;
+    g.clear();
+    g.visible = open;
+    if (open) {
+      const ring = (d: number, w: number, color: number, alpha = 1): void => {
+        const o = d + w / 2;
+        g.rect(x0 - o, y0 - o, x1 - x0 + 2 * o, y1 - y0 + 2 * o).stroke({ width: w, color, alpha, join: 'miter' });
+      };
+      // Proportions of the moulding (sum 1): contact, gilt, wood, top-light, rim.
+      const parts: [number, number, number][] = [
+        [0.12, 0x1a0f08, 0.95],
+        [0.18, 0xe0b25e, 1],
+        [0.42, 0x7a4a24, 1],
+        [0.12, 0xa8703a, 1],
+        [0.16, 0x1e1209, 0.92],
+      ];
+      let d = 0;
+      for (const [share, color, alpha] of parts) {
+        const w = Math.max(0.75, share * bw);
+        ring(d, w, color, alpha);
+        d += w;
+      }
+    }
   }
 
   /** World units → map px. */
