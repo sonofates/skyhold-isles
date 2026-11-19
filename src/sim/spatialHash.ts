@@ -1,5 +1,7 @@
 import { BALANCE } from '../data/balance.ts';
 
+const UNLINKED = -2;
+
 /**
  * Fixed-cell zero-allocation spatial hash grid for fast local enemy queries.
  */
@@ -17,18 +19,22 @@ export class SpatialHashGrid {
     this.cellSize = BALANCE.spatialHashCellSize;
     this.invCellSize = 1 / this.cellSize;
     const pad = this.cellSize * 2;
-    this.gridCols = Math.max(4, Math.ceil((worldWidth + pad * 2) * this.invCellSize));
-    this.gridRows = Math.max(4, Math.ceil((worldDepth + pad * 2) * this.invCellSize));
+    const safeW = Number.isFinite(worldWidth) ? Math.max(0, worldWidth) : 0;
+    const safeD = Number.isFinite(worldDepth) ? Math.max(0, worldDepth) : 0;
+    const safeMax = Number.isFinite(maxEntities) ? Math.max(0, Math.floor(maxEntities)) : 0;
+    this.gridCols = Math.max(4, Math.ceil((safeW + pad * 2) * this.invCellSize));
+    this.gridRows = Math.max(4, Math.ceil((safeD + pad * 2) * this.invCellSize));
     this.originX = -(this.gridCols * this.cellSize) * 0.5;
     this.originZ = -(this.gridRows * this.cellSize) * 0.5;
 
     this.head = new Int32Array(this.gridCols * this.gridRows);
-    this.next = new Int32Array(maxEntities);
+    this.next = new Int32Array(safeMax);
     this.clear();
   }
 
   clear(): void {
     this.head.fill(-1);
+    this.next.fill(UNLINKED);
   }
 
   private cellCoordX(x: number): number {
@@ -42,7 +48,14 @@ export class SpatialHashGrid {
   }
 
   insert(entityIdx: number, x: number, z: number): void {
-    if (entityIdx < 0 || entityIdx >= this.next.length || !Number.isFinite(x) || !Number.isFinite(z)) {
+    if (
+      !Number.isInteger(entityIdx) ||
+      entityIdx < 0 ||
+      entityIdx >= this.next.length ||
+      this.next[entityIdx] !== UNLINKED ||
+      !Number.isFinite(x) ||
+      !Number.isFinite(z)
+    ) {
       return;
     }
     const cx = this.cellCoordX(x);

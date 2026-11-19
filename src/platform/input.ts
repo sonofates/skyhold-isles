@@ -418,7 +418,17 @@ export class InputManager {
   }
 
   dispose(): void {
+    const hadKeyPan = this.keysDown.size > 0;
     this.clearLongPress();
+    this.longPressFired = false;
+    this.pinched = false;
+    this.dragButton = -1;
+    this.isDragging = false;
+    this.keysDown.clear();
+    this.pointers.clear();
+    if (hadKeyPan) {
+      this.handlers.onKeyPanState(0, 0);
+    }
     for (let i = 0; i < this.cleanupFns.length; i++) {
       this.cleanupFns[i]();
     }

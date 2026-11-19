@@ -358,7 +358,8 @@ export function xpForRun(result: HeroRunXpInput): number {
     ? Math.max(1, Math.min(3, Math.round(Number.isFinite(result.stars) ? (result.stars ?? 1) : 1)))
     : 0;
   const winBonus = result.won ? HERO_XP_RULES.winBase + stars * HERO_XP_RULES.perStar : 0;
-  return kills * HERO_XP_RULES.perKill + wavesCleared * HERO_XP_RULES.perWaveCleared + winBonus;
+  const rawTotal = kills * HERO_XP_RULES.perKill + wavesCleared * HERO_XP_RULES.perWaveCleared + winBonus;
+  return Number.isFinite(rawTotal) ? Math.min(MAX_HERO_XP, Math.max(0, Math.floor(rawTotal))) : MAX_HERO_XP;
 }
 
 /** Adds `xpGained` to `heroId` (pure), returning the updated `ProgressData` and level-up delta. */

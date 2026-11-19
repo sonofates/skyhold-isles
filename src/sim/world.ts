@@ -868,10 +868,24 @@ export class SimWorld {
 
   private readonly onEnemyLeakedFn = (leaked: EnemyEntity): void => {
     this.lives = Math.max(0, this.lives - leaked.livesCost);
-    this.events.emit('economyChanged', { gold: this.gold, lives: this.lives });
-    if (this.lives <= 0 && this.outcome === 'ongoing') {
+    const justLost = this.lives <= 0 && this.outcome === 'ongoing';
+    if (justLost) {
       this.clearDefeatTransients();
       this.outcome = 'lost';
+    } else if (leaked.blockers > 0 || leaked.heroBlockers > 0) {
+      leaked.blockers = 0;
+      leaked.heroBlockers = 0;
+      leaked.heroDamageReduction = 0;
+      this.events.emit('enemyUnblocked', {
+        enemyId: leaked.uid,
+        enemyType: leaked.type,
+        x: leaked.x,
+        y: leaked.y,
+        z: leaked.z,
+      });
+    }
+    this.events.emit('economyChanged', { gold: this.gold, lives: this.lives });
+    if (justLost) {
       this.events.emit('gameLost', {
         waveIndex: Math.max(0, this.waveSystem.currentWaveIndex),
         endless: this.waveSystem.isEndless,
@@ -916,6 +930,8 @@ export class SimWorld {
       this.enemySystem,
     );
 
+    if (this.outcome !== 'ongoing') return;
+
     this.enemySystem.update(
       dt,
       this.onEnemyLeakedFn,
@@ -936,8 +952,11 @@ export class SimWorld {
 
     const fireRateMul = this.abilitySystem.getFireRateMultiplier();
     this.soldierSystem.update(dt, this.towers, fireRateMul);
+    if (this.outcome !== 'ongoing') return;
     this.heroSystem.update(dt, this.towers, fireRateMul);
+    if (this.outcome !== 'ongoing') return;
     this.combatSystem.update(dt, this.towers, fireRateMul);
+    if (this.outcome !== 'ongoing') return;
     this.projectileSystem.update(dt, this.towers);
   }
 

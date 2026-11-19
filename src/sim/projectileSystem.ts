@@ -1,6 +1,7 @@
 import type { EventBus } from '../core/eventBus.ts';
 import type { ObjectPool } from '../core/pool.ts';
 import type { TowerType } from '../core/types.ts';
+import { ENEMY_DEFS } from '../data/enemies.ts';
 import { TOWER_DEFS, getTowerTierStats } from '../data/towers.ts';
 import type { EnemyEntity, ProjectileEntity, TowerEntity } from './entities.ts';
 import type { EnemySystem } from './enemySystem.ts';
@@ -454,7 +455,7 @@ export class ProjectileSystem {
       const target = this.enemyPool.items[p.targetPoolIndex];
       if (target.active && target.uid === p.targetUid && target.hp > 0 && !target.burrowed) {
         const res = this.enemySystem.applyDamage(target, p.damage + Math.min(target.armor, p.armorPierce));
-        if (target.type === 'boss' && res.actualDamage > 0) hitBoss = true;
+        if (ENEMY_DEFS[target.type].isBoss === true && res.actualDamage > 0) hitBoss = true;
         if (p.slowRatio > 0 && target.hp > 0) {
           this.enemySystem.applySlow(target, p.slowRatio, p.slowDuration);
         }
@@ -519,7 +520,7 @@ export class ProjectileSystem {
       const dmg = Math.round(p.damage * damageScale * falloff * chill);
       const pierce = p.armorPierce > 0 ? Math.min(e.armor, p.armorPierce) : 0;
       const res = this.enemySystem.applyDamage(e, dmg + pierce);
-      if (e.type === 'boss' && res.actualDamage > 0) hitBoss = true;
+      if (ENEMY_DEFS[e.type].isBoss === true && res.actualDamage > 0) hitBoss = true;
       if (chill > 1.05 && res.actualDamage > 0) {
         this.events.emit('brittleCrack', { x: e.x, y: e.flying ? e.y : 0.5, z: e.z, bonus: chill - 1 });
       }
@@ -610,7 +611,7 @@ export class ProjectileSystem {
       if (!best) break;
       _pierceUsed.add(best.poolIndex);
       const res = this.enemySystem.applyDamage(best, dmg + Math.min(best.armor, p.armorPierce));
-      if (best.type === 'boss' && res.actualDamage > 0) hitBoss = true;
+      if (ENEMY_DEFS[best.type].isBoss === true && res.actualDamage > 0) hitBoss = true;
       if (sourceTower) {
         sourceTower.totalDamageDealt += res.actualDamage;
         if (res.killed) sourceTower.kills++;

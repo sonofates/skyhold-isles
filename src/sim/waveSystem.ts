@@ -474,12 +474,8 @@ export class WaveSystem {
     if (!this.canStartNextWave()) return false;
 
     const earlyBonus = this.getEarlyCallBonus();
-    if (earlyBonus > 0) {
-      onAwardGold(earlyBonus);
-    }
-
-    this.currentWaveIndex++;
-    const waveDef = this.getWaveDef(this.currentWaveIndex);
+    const startedWaveIndex = ++this.currentWaveIndex;
+    const waveDef = this.getWaveDef(startedWaveIndex);
     this.currentWaveClearBonus = waveDef?.clearBonus ?? 0;
     this.spawnQueue = waveDef ? buildWaveQueueFromDef(waveDef) : [];
     this.spawnCursor = 0;
@@ -488,12 +484,18 @@ export class WaveSystem {
     this.autoShortenedBy = 0;
     this.state = 'spawning';
 
-    this.events.emit('waveStarted', {
-      waveIndex: this.currentWaveIndex,
-      totalWaves: this.totalWaves,
-      earlyBonus,
-      endless: this.endlessMode,
-    });
+    if (earlyBonus > 0) {
+      onAwardGold(earlyBonus);
+    }
+
+    if (this.state === 'spawning' && this.currentWaveIndex === startedWaveIndex) {
+      this.events.emit('waveStarted', {
+        waveIndex: startedWaveIndex,
+        totalWaves: this.totalWaves,
+        earlyBonus,
+        endless: this.endlessMode,
+      });
+    }
     return true;
   }
 

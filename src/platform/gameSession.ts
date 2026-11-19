@@ -143,6 +143,7 @@ export class GameSession {
   private unbindHaptics: (() => void) | null = null;
   private unbindOverlay: (() => void) | null = null;
   private unbindPause: (() => void) | null = null;
+  private unbindResume: (() => void) | null = null;
   private deps: SessionRuntimeDeps | null = null;
   private readonly quality: QualityController;
   /** Tile whose ghost tower the radial build ring is previewing (survives pointer-leave refreshes). */
@@ -173,6 +174,9 @@ export class GameSession {
     });
     this.unbindPause = platform.onPause(() => {
       this.enterBackground();
+    });
+    this.unbindResume = platform.onResume(() => {
+      this.returnFromBackground();
     });
     if (platform.isSteam) {
       void hydrateProgressFromCloud(this.progress, LEVELS.length, platform)
@@ -572,6 +576,7 @@ export class GameSession {
       getSimClock: () => this.simClockSec,
       onSyncUi: this.syncUi,
       onGameWon: (stars, livesRemaining) => {
+        this.pendingDebugSpawns.length = 0;
         // Island badges only for the island's own challenges (a Daily may use others).
         const offered = challengesForLevel(LEVELS[this.currentLevelIndex]);
         const masteredBefore = isIslandMastered(this.progress, this.currentLevelIndex, offered);
@@ -650,6 +655,7 @@ export class GameSession {
         this.syncUi();
       },
       onGameLost: (waveIndex, endless) => {
+        this.pendingDebugSpawns.length = 0;
         this.deps?.radial?.close();
         this.activeAbilityMode = null;
         this.setPlacementMode(null);
@@ -1398,6 +1404,8 @@ export class GameSession {
     this.unbindOverlay = null;
     this.unbindPause?.();
     this.unbindPause = null;
+    this.unbindResume?.();
+    this.unbindResume = null;
     this.simWorld.dispose();
     this.events.clear();
   }

@@ -183,6 +183,13 @@ export class InvariantMonitor {
           `economyChanged lives increased from ${this.prevLives} to ${ev.lives}`,
         );
       }
+      if (ev.lives === 0 && this.world.outcome !== 'lost') {
+        this.record(
+          'unexpected_lives',
+          this.currentTick,
+          `economyChanged emitted lives=0 while world.outcome=${this.world.outcome}`,
+        );
+      }
     });
 
     events.on('enemyLeaked', (ev) => {
@@ -758,6 +765,13 @@ export class InvariantMonitor {
           `won run left hero in active transient state=${w.hero.state}`,
         );
       }
+      if (this.blockedEventUids.size !== 0) {
+        this.record(
+          'entity_leak',
+          tick,
+          `won run left ${this.blockedEventUids.size} enemyBlocked uid(s) without matching enemyKilled/enemyUnblocked`,
+        );
+      }
       w.spatialHash.query(0, 0, 500, _hashQueryBuf);
       if (_hashQueryBuf.length !== 0) {
         this.record(
@@ -847,6 +861,13 @@ export class InvariantMonitor {
           'entity_leak',
           tick,
           `lost run left hero in active transient state=${w.hero.state}`,
+        );
+      }
+      if (this.blockedEventUids.size !== 0) {
+        this.record(
+          'entity_leak',
+          tick,
+          `lost run left ${this.blockedEventUids.size} enemyBlocked uid(s) without matching enemyKilled/enemyUnblocked`,
         );
       }
     }

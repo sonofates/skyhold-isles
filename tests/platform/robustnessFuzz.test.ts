@@ -1612,4 +1612,169 @@ describe('Daily Squall, Endless escalations, and Silent Skies + Hero interaction
     expect(dtd.register(102, 102, 4800)).toBe(false); // rolled-back timestamp must NOT trigger double-tap!
     expect(dtd.register(103, 103, 4950)).toBe(true); // valid follow-up within 300ms of 4800ms succeeds!
   });
+
+  it('wires mobile onResume in GameSession, hardens stepPendingSpawns & introOnScreen clock rollback, resets key-pan on InputManager.dispose, and guards Workshop/Challenges/xpForRun edge inputs', async () => {
+    installMemoryStorage();
+    const { setPlatformAdapter } = await import('../../src/platform/platform.ts');
+    const { GameSession } = await import('../../src/platform/gameSession.ts');
+    const { bindSimEventBridge, stepPendingSpawns } = await import('../../src/platform/sessionBridge.ts');
+    const { InputManager } = await import('../../src/platform/input.ts');
+    const { rankOf, workshopModifiers, workshopStarsSpent } = await import('../../src/data/workshop.ts');
+    const { challengeModifiers, runModifiersFor, sanitizeChallengeSelection } = await import(
+      '../../src/data/challenges.ts'
+    );
+    const { NEUTRAL_RUN_MODIFIERS } = await import('../../src/data/runModifiers.ts');
+    const { MAX_HERO_XP, xpForRun } = await import('../../src/render2d/heroes2d.ts');
+
+    // 1. GameSession wires platform.onPause -> suspendForBackground AND platform.onResume -> resumeFromBackground,
+    //    and unbinds both on dispose().
+    let triggerPause: (() => void) | null = null;
+    let triggerResume: (() => void) | null = null;
+    let pauseUnbound = false;
+    let resumeUnbound = false;
+    setPlatformAdapter({
+      isSteam: false,
+      isMobile: true,
+      mobilePlatform: 'ios',
+      overlayActive: false,
+      achievements: { unlock: async () => false },
+      cloudSave: { read: async () => null, write: async () => false },
+      triggerHaptic: async () => false,
+      onOverlayChange: () => () => {},
+      onPause: (cb) => {
+        triggerPause = cb;
+        return () => {
+          pauseUnbound = true;
+          triggerPause = null;
+        };
+      },
+      onResume: (cb) => {
+        triggerResume = cb;
+        return () => {
+          resumeUnbound = true;
+          triggerResume = null;
+        };
+      },
+    });
+    let suspended = 0;
+    let resumed = 0;
+    const mockRenderWorld = {
+      setQuality: () => {},
+      overlayIndicators: { setSelectedTowerRing: () => {} },
+      setFlightPathHighlight: () => {},
+      setRoutesPinned: () => {},
+      setPlacementGridActive: () => {},
+      setPlacementPreview: () => {},
+      setMeteorTargetPreview: () => {},
+      setHoveredTowerId: () => {},
+      setCanvasCursor: () => {},
+      loadLevel: () => {},
+      cameraController: { setShowcaseMode: () => {}, setHudRects: () => {}, getViewVersion: () => 0 },
+    } as never;
+    const mockSound = {
+      suspendForBackground: () => void suspended++,
+      resumeFromBackground: () => void resumed++,
+      setMusicDucked: () => {},
+      setMusicContext: () => {},
+      unlock: () => {},
+      bindEvents: () => () => {},
+    } as never;
+    const session = new GameSession(mockRenderWorld, mockSound);
+    try {
+      expect(triggerPause).not.toBeNull();
+      expect(triggerResume).not.toBeNull();
+      triggerPause!();
+      expect(suspended).toBe(1);
+      triggerResume!();
+      expect(resumed).toBe(1);
+    } finally {
+      session.dispose();
+      setPlatformAdapter(null);
+    }
+    expect(pauseUnbound).toBe(true);
+    expect(resumeUnbound).toBe(true);
+
+    // 2. stepPendingSpawns clears queue on terminal worlds & handles re-entrant queue mutation;
+    //    bindSimEventBridge introOnScreen recovers when realClock rolls backward.
+    const spawnBus = new EventBus();
+    const spawnW = new SimWorld(LEVEL_L1C, spawnBus);
+    const pending: Array<{ type: 'grunt'; delay: number }> = [
+      { type: 'grunt', delay: 0.01 },
+      { type: 'grunt', delay: 0.01 },
+    ];
+    spawnBus.on('enemySpawned', () => {
+      spawnW.debugForceWin(); // transitions world to 'won' and clears enemyPool mid-queue!
+    });
+    stepPendingSpawns(pending, spawnW, 0.05);
+    expect(pending).toHaveLength(0);
+    expect(spawnW.enemyPool.getActiveCount()).toBe(0);
+
+    let clockSec = 100;
+    const toasts: string[] = [];
+    const bridgeBus = new EventBus();
+    const unbindBridge = bindSimEventBridge({
+      bus: bridgeBus,
+      soundManager: { bindEvents: () => () => {} } as never,
+      overlays: {
+        toast: { show: (msg: string) => toasts.push(msg) },
+        floatingTextPool: { spawnUpgradeTier: () => {}, spawnDamage: () => {}, spawnGold: () => {} },
+      } as never,
+      getSettings: () => ({
+        masterVolume: 0.5,
+        muted: false,
+        cameraShake: true,
+        damageNumbers: false,
+        quality: 'auto',
+        haptics: false,
+      }),
+      getSimClock: () => 0,
+      getRealClock: () => clockSec,
+      onSyncUi: () => {},
+      onGameWon: () => {},
+      onGameLost: () => {},
+    });
+    bridgeBus.emit('enemySpawned', { enemyId: 1, enemyType: 'warden', flying: false });
+    expect(toasts).toHaveLength(1);
+    clockSec = 10; // rolled-back realClock (10 < 100) must NOT suppress future intro toasts!
+    bridgeBus.emit('enemySpawned', { enemyId: 2, enemyType: 'hexer', flying: false });
+    expect(toasts).toHaveLength(2);
+    unbindBridge();
+
+    // 3. InputManager.dispose() zeroes key-pan state if disposed while WASD is held.
+    if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+      const panEvents: Array<[number, number]> = [];
+      const canvas = document.createElement('canvas');
+      const im = new InputManager(canvas, {
+        onPanScreenDelta: () => {},
+        onZoomDelta: () => {},
+        onRotateCamera: () => {},
+        onPointerMoveNdc: () => {},
+        onPointerLeave: () => {},
+        onPrimaryTapNdc: () => {},
+        onSecondaryAction: () => {},
+        onHotkeyTower: () => {},
+        onHotkeyAbility: () => {},
+        onToggleAutoWave: () => {},
+        onToggleRoutes: () => {},
+        onTowerActionHotkey: () => false,
+        onTogglePause: () => {},
+        onKeyPanState: (px, pz) => panEvents.push([px, pz]),
+      });
+      window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyW' }));
+      expect(panEvents[panEvents.length - 1]).toEqual([0, -1]);
+      im.dispose();
+      expect(panEvents[panEvents.length - 1]).toEqual([0, 0]);
+    }
+
+    // 4. Workshop, Challenges, and xpForRun guard null/non-array/extreme inputs cleanly.
+    expect(rankOf(null as never, 'treasury')).toBe(0);
+    expect(workshopStarsSpent(undefined as never)).toBe(0);
+    expect(workshopModifiers(null as never)).toEqual(NEUTRAL_RUN_MODIFIERS);
+    expect(sanitizeChallengeSelection(LEVEL_L1C, null as never)).toEqual([]);
+    expect(challengeModifiers(['not_a_challenge' as never])).toEqual(NEUTRAL_RUN_MODIFIERS);
+    expect(runModifiersFor(NEUTRAL_RUN_MODIFIERS, ['not_a_challenge' as never])).toBe(NEUTRAL_RUN_MODIFIERS);
+    expect(xpForRun({ won: true, stars: 3, enemiesKilled: Number.MAX_VALUE, wavesCleared: Number.MAX_VALUE })).toBe(
+      MAX_HERO_XP,
+    );
+  });
 });

@@ -136,6 +136,8 @@ export class SoldierSystem {
   private nextSoldierId = 1;
   /** Blockers may still be set on some enemy: run the clear pass even with no soldiers left. */
   private dirty = false;
+  /** True while `update()` is executing (guards mid-tick re-entrant unblock emissions). */
+  private inUpdate = false;
   /** Enemies held at the end of the last update (QA / renderer). */
   blockedCount = 0;
   /** Per tower type attack-rate multiplier (Workshop / run modifiers); missing = 1. */
@@ -347,7 +349,9 @@ export class SoldierSystem {
       const e = this.pool.items[this.pool.getActiveIndex(i)];
       if (e.blockers > 0) {
         e.blockers = 0;
-        if (e.heroBlockers === 0) this.emitBlock('enemyUnblocked', e);
+        if (e.heroBlockers === 0 && this.consumeBlockedTracking(e)) {
+          this.emitBlock('enemyUnblocked', e);
+        }
       }
     }
     for (let i = 0; i < this.soldiers.length; i++) {
@@ -367,6 +371,9 @@ export class SoldierSystem {
     this.wantOffX.fill(0);
     this.wantOffZ.fill(0);
     this.isBlockedSlot.fill(0);
+    _blockedList.length = 0;
+    _prevBlocked.length = 0;
+    _prevBlockedUid.length = 0;
     this.blockedCount = 0;
     this.dirty = false;
   }
@@ -442,6 +449,22 @@ export class SoldierSystem {
   }
 
   /**
+   * Marks `e` as already unblocked in `_prevBlocked` when inside `update()`.
+   * Returns whether `'enemyBlocked'` had already been emitted for `e` (always true outside `update()`).
+   */
+  private consumeBlockedTracking(e: EnemyEntity): boolean {
+    if (!this.inUpdate) return true;
+    let found = false;
+    for (let k = 0; k < _prevBlocked.length; k++) {
+      if (_prevBlocked[k] === e.poolIndex && _prevBlockedUid[k] === e.uid) {
+        _prevBlockedUid[k] = -1;
+        found = true;
+      }
+    }
+    return found;
+  }
+
+  /**
    * Drops the soldier's claim. With `now`, a hold it provided ends immediately (orders / sell);
    * otherwise the next update's recount takes care of it.
    */
@@ -452,10 +475,7 @@ export class SoldierSystem {
         e.blockers--;
         if (e.blockers === 0) {
           this.blockedCount = Math.max(0, this.blockedCount - 1);
-          if (e.heroBlockers === 0) {
-            for (let k = 0; k < _prevBlocked.length; k++) {
-              if (_prevBlocked[k] === e.poolIndex) _prevBlockedUid[k] = -1;
-            }
+          if (e.heroBlockers === 0 && this.consumeBlockedTracking(e)) {
             this.emitBlock('enemyUnblocked', e);
           }
         }
@@ -490,6 +510,15 @@ export class SoldierSystem {
 
   update(dt: number, towers: readonly TowerEntity[], fireRateMultiplier = 1): void {
     if (this.soldiers.length === 0 && !this.dirty) return;
+    this.inUpdate = true;
+    try {
+      this.updateStep(dt, towers, fireRateMultiplier);
+    } finally {
+      this.inUpdate = false;
+    }
+  }
+
+  private updateStep(dt: number, towers: readonly TowerEntity[], fireRateMultiplier: number): void {
     this.dirty = this.soldiers.length > 0;
     const pool = this.pool;
     const R = SOLDIER_RULES;
@@ -731,6 +760,7 @@ export class SoldierSystem {
     // 7. Held enemies strike back.
     for (let k = 0; k < _blockedList.length; k++) {
       const e = pool.items[_blockedList[k]];
+      if (!e.active || e.hp <= 0 || e.blockers <= 0) continue;
       const m = ENEMY_MELEE[e.type];
       if (!this.wasBlocked[e.poolIndex]) {
         if (e.heroBlockers === 0) {

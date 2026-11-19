@@ -47,7 +47,15 @@ export function bindSimEventBridge(h: SimBridgeHandlers): () => void {
   // (a hint is only marked seen once it was actually shown).
   const realClock = h.getRealClock ?? ((): number => performance.now() / 1000);
   let lastIntroAt = -Infinity;
-  const introOnScreen = (): boolean => realClock() - lastIntroAt < INTRO_TOAST_SEC;
+  const introOnScreen = (): boolean => {
+    const now = realClock();
+    if (!Number.isFinite(now)) return false;
+    if (now < lastIntroAt) {
+      lastIntroAt = -Infinity;
+      return false;
+    }
+    return now - lastIntroAt < INTRO_TOAST_SEC;
+  };
   const unsubs = [
     unbindSound,
     h.bus.on('economyChanged', h.onSyncUi),
@@ -242,12 +250,22 @@ export function stepPendingSpawns(
   simWorld: SimWorld,
   dt: number,
 ): void {
+  if (simWorld.outcome !== 'ongoing') {
+    queue.length = 0;
+    return;
+  }
+  if (!Number.isFinite(dt) || dt <= 0) return;
   let p = 0;
   while (p < queue.length) {
+    if (simWorld.outcome !== 'ongoing') {
+      queue.length = 0;
+      return;
+    }
     queue[p].delay -= dt;
     if (queue[p].delay <= 0) {
-      simWorld.enemySystem.spawnEnemy(queue[p].type);
+      const type = queue[p].type;
       queue.splice(p, 1);
+      simWorld.enemySystem.spawnEnemy(type);
     } else {
       p++;
     }

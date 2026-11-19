@@ -1400,4 +1400,173 @@ describe('EventBus re-entrancy & SoldierSystem towerFireRateMul', () => {
     expect(corruptModLog.modifiers.enemySpeedMul).toBe(1);
     expect(corruptModLog.modifiers.enemyHpMul).toBe(1);
   });
+
+  it('hardens startNextWave & lethal-leak economyChanged state ordering, Step-7 counterattack sellTower re-entrancy, Tempest boss hits, SpatialHashGrid cycle guards, and replay resetGen', () => {
+    // 1. WaveSystem.startNextWave updates wave state BEFORE emitting early-bonus 'economyChanged' (no re-entrant double start/bonus).
+    const earlyEvents = new EventBus();
+    const earlyW = new SimWorld(LEVEL_L1C, earlyEvents, { seed: 101 });
+    expect(earlyW.startNextWave()).toBe(true);
+    while (earlyW.waveSystem.state !== 'betweenWaves') {
+      for (let i = 0; i < earlyW.enemyPool.getActiveCount(); i++) {
+        const e = earlyW.enemyPool.items[earlyW.enemyPool.getActiveIndex(i)];
+        earlyW.enemySystem.applyDamage(e, 99_999, true);
+      }
+      earlyW.fixedTick(BALANCE.fixedDt);
+    }
+    const goldBeforeEarly = earlyW.gold;
+    let reentrantStartResult: boolean | null = null;
+    let seenWaveOnEconomy = -1;
+    let seenStateOnEconomy = '';
+    let seenCanStart = true;
+    earlyEvents.on('economyChanged', () => {
+      if (reentrantStartResult !== null) return;
+      seenWaveOnEconomy = earlyW.waveSystem.currentWaveOneBased;
+      seenStateOnEconomy = earlyW.waveSystem.state;
+      seenCanStart = earlyW.waveSystem.canStartNextWave();
+      reentrantStartResult = earlyW.startNextWave();
+    });
+    expect(earlyW.startNextWave()).toBe(true);
+    expect(seenWaveOnEconomy).toBe(2);
+    expect(seenStateOnEconomy).toBe('spawning');
+    expect(seenCanStart).toBe(false);
+    expect(reentrantStartResult).toBe(false);
+    expect(earlyW.waveSystem.currentWaveOneBased).toBe(2);
+    expect(earlyW.gold).toBeGreaterThan(goldBeforeEarly);
+
+    // 2. Lethal leak sets world.outcome = 'lost' BEFORE 'economyChanged' fires, and non-lethal partially-held Brute leak emits 'enemyUnblocked'.
+    const leakEvents = new EventBus();
+    const leakW = new SimWorld(LEVEL_L1C, leakEvents, { seed: 102 });
+    leakW.lives = 5;
+    let unblockedCount = 0;
+    const zeroLifeOutcomes: string[] = [];
+    leakEvents.on('enemyUnblocked', () => void unblockedCount++);
+    leakEvents.on('economyChanged', (ev) => {
+      if (ev.lives === 0) {
+        zeroLifeOutcomes.push(leakW.outcome);
+        expect(leakW.placeTowerOnPlot(0, 'archer')).toBeNull();
+      }
+    });
+    leakW.startNextWave();
+    const partialBrute = leakW.enemySystem.spawnEnemy('brute', 1, false, 0)!;
+    partialBrute.blockers = 1; // < holdCost(2), so it still advances and leaks non-lethally (livesCost = 2 -> 3 lives left)
+    partialBrute.dist = partialBrute.totalDist + 0.1;
+    leakW.fixedTick(BALANCE.fixedDt);
+    expect(leakW.lives).toBe(3);
+    expect(leakW.outcome).toBe('ongoing');
+    expect(unblockedCount).toBe(1);
+
+    const lethalBoss = leakW.enemySystem.spawnEnemy('boss', 1, false, 0)!;
+    lethalBoss.dist = lethalBoss.totalDist + 0.1;
+    leakW.fixedTick(BALANCE.fixedDt);
+    expect(leakW.lives).toBe(0);
+    expect(leakW.outcome).toBe('lost');
+    expect(zeroLifeOutcomes).toEqual(['lost']);
+
+    // 3. SoldierSystem Step-7 mid-counterattack sellTower across 2 newly-blocked enemies emits 1-to-1 block/unblock (no ghost block on foe B).
+    const s7Events = new EventBus();
+    const s7Log: string[] = [];
+    const s7W = new SimWorld(LEVEL_L1C, s7Events, { seed: 103 });
+    s7W.gold = 99999;
+    const barPlot = Array.from({ length: s7W.grid.plotCount }, (_, p) => p).find((p) =>
+      s7W.canPlaceTowerAt(p, 0, 'barracks'),
+    )!;
+    const bar = s7W.placeTowerOnPlot(barPlot, 'barracks')!;
+    s7W.startNextWave();
+    const bs = s7W.soldierSystem.getBarracks(bar.id)!;
+    for (const s of bs.squad) {
+      s.x = s.prevX = bs.rallyX;
+      s.z = s.prevZ = bs.rallyZ;
+    }
+    const gA = s7W.enemySystem.spawnEnemy('grunt', 20, false, 0)!;
+    const gB = s7W.enemySystem.spawnEnemy('grunt', 20, false, 0)!;
+    const rallyDist = s7W.groundPath.nearestDist(bs.rallyX, bs.rallyZ);
+    gA.dist = rallyDist;
+    gB.dist = Math.max(0, rallyDist - 0.15);
+    gA.x = gA.prevX = bs.rallyX;
+    gA.z = gA.prevZ = bs.rallyZ;
+    gB.x = gB.prevX = bs.rallyX + 0.15;
+    gB.z = gB.prevZ = bs.rallyZ;
+    gA.meleeTimer = 0.001; // swings immediately in Step 7!
+    gB.meleeTimer = 5;
+    s7W.spatialHash.clear();
+    s7W.spatialHash.insert(gA.poolIndex, gA.x, gA.z);
+    s7W.spatialHash.insert(gB.poolIndex, gB.x, gB.z);
+    s7Events.on('enemyBlocked', (ev) => s7Log.push(`B:${ev.enemyId}`));
+    s7Events.on('enemyUnblocked', (ev) => s7Log.push(`U:${ev.enemyId}`));
+    s7Events.on('soldierHurt', () => {
+      if (s7W.getTowerById(bar.id)) s7W.sellTower(bar.id);
+    });
+    // Tick 1: both squad soldiers claim gA & gB, step into fighting, gA blocks -> counter-swings -> sells barracks!
+    // gB was also in _blockedList[1], and MUST NOT emit a ghost B:gB or orphan U:gB!
+    s7W.soldierSystem.update(BALANCE.fixedDt, s7W.towers, 1);
+    expect(s7Log).toEqual([`B:${gA.uid}`, `U:${gA.uid}`]);
+
+    // 4. ProjectileSystem sets isBossHit = true when hitting flying boss Tempest (direct, splash, and pierce).
+    const tempestImpacts: boolean[] = [];
+    const tEvents = new EventBus();
+    tEvents.on('projectileImpact', (ev) => tempestImpacts.push(ev.isBossHit));
+    const tW = new SimWorld(LEVEL_L1C, tEvents, { seed: 104 });
+    tW.gold = 99999;
+    const arch = tW.placeTowerOnPlot(0, 'archer')!;
+    const frost = tW.placeTowerOnPlot(1, 'frost')!;
+    const bal = tW.placeTowerOnPlot(2, 'ballista')!;
+    tW.upgradeTower(bal.id);
+    tW.upgradeTower(bal.id);
+    tW.startNextWave();
+    const flyer = tW.enemySystem.spawnEnemy('flyer', 5, false, 0)!;
+    const tempest = tW.enemySystem.spawnEnemy('tempest', 5, false, 0)!;
+    flyer.x = bal.x + 2.0;
+    flyer.z = bal.z;
+    tempest.x = bal.x + 3.5;
+    tempest.z = bal.z;
+    tW.spatialHash.clear();
+    tW.spatialHash.insert(flyer.poolIndex, flyer.x, flyer.z);
+    tW.spatialHash.insert(tempest.poolIndex, tempest.x, tempest.z);
+
+    const pDirect = tW.projectileSystem.spawnProjectile(arch, tempest, 1)!;
+    pDirect.progress = 1;
+    const pSplash = tW.projectileSystem.spawnProjectile(frost, tempest, 0.7)!;
+    pSplash.progress = 1;
+    const pPierce = tW.projectileSystem.spawnProjectile(bal, flyer, 1)!;
+    pPierce.progress = 1;
+    tW.projectileSystem.update(BALANCE.fixedDt, tW.towers);
+    expect(tempestImpacts).toEqual([true, true, true]);
+
+    // 5. SpatialHashGrid rejects NaN, float, and duplicate entityIdx without forming infinite cycles; ObjectPool ignores NaN/float activePos.
+    tW.spatialHash.clear();
+    tW.spatialHash.insert(NaN, 0, 0);
+    tW.spatialHash.insert(1.5, 0, 0);
+    tW.spatialHash.insert(0, 1, 1);
+    tW.spatialHash.insert(0, 1, 1); // duplicate insert without clear() must NOT create self-loop!
+    const qOut: number[] = [];
+    tW.spatialHash.query(1, 1, 2, qOut);
+    expect(qOut).toEqual([0]);
+    const countBefore = tW.enemyPool.getActiveCount();
+    tW.enemyPool.releaseAtActivePos(NaN);
+    tW.enemyPool.releaseAtActivePos(0.5);
+    expect(tW.enemyPool.getActiveCount()).toBe(countBefore);
+
+    // 6. SimReplayPlayer survives re-entrant reset() / seekToTick() inside EventBus listeners without skipping tick-0 commands.
+    const recW = new SimWorld(LEVEL_L1C, new EventBus(), { seed: 105, recordCommands: true });
+    recW.placeTowerOnPlot(0, 'archer');
+    recW.placeTowerOnPlot(1, 'frost');
+    recW.startNextWave();
+    for (let i = 0; i < 20; i++) recW.fixedTick(BALANCE.fixedDt);
+    const rLog = parseSimReplay(serializeSimReplay(recW.exportReplay()))!;
+    const rEvents = new EventBus();
+    const rPlayer = new SimReplayPlayer(LEVEL_L1C, rLog, rEvents);
+    let resetTriggered = false;
+    rEvents.on('waveStarted', () => {
+      if (!resetTriggered) {
+        resetTriggered = true;
+        rPlayer.reset(false);
+      }
+    });
+    rPlayer.reset(true);
+    expect(resetTriggered).toBe(true);
+    expect(rPlayer.currentTick).toBe(0);
+    expect(rPlayer.appliedCommands).toBe(3);
+    expect(rPlayer.world.towers).toHaveLength(2);
+    rPlayer.dispose();
+  });
 });

@@ -608,6 +608,7 @@ export class SimReplayPlayer {
 
   private cmdIndex = 0;
   private accumulator = 0;
+  private resetGen = 0;
 
   constructor(level: LevelDef, replay: SimReplayLog, events: EventBus = new EventBus()) {
     this.level = level;
@@ -681,17 +682,21 @@ export class SimReplayPlayer {
   /** Flushes all commands scheduled for `this.world.tick` (or earlier) in strict `(tick, seq)` order. */
   flushCommandsForCurrentTick(): number {
     let applied = 0;
+    const gen = this.resetGen;
     const cmds = this.replay.commands;
     while (this.cmdIndex < cmds.length && cmds[this.cmdIndex].tick <= this.world.tick) {
-      this.world.applyCommand(cmds[this.cmdIndex].command);
+      const cmd = cmds[this.cmdIndex].command;
       this.cmdIndex++;
+      this.world.applyCommand(cmd);
       applied++;
+      if (this.resetGen !== gen) break;
     }
     return applied;
   }
 
   /** Resets playback back to tick `0` and applies any pre-wave `tick === 0` commands. */
   reset(emitInitialEvents = true): void {
+    this.resetGen++;
     this.world?.dispose();
     this.cmdIndex = 0;
     this.accumulator = 0;
@@ -708,22 +713,26 @@ export class SimReplayPlayer {
   /** Advances replay by up to `count` fixed 60 Hz ticks, dispatching tick-stamped commands at exact boundaries. */
   stepTicks(count = 1): number {
     const steps = Number.isFinite(count) ? Math.max(0, Math.floor(count)) : 0;
+    const gen = this.resetGen;
     let executed = 0;
     for (let i = 0; i < steps; i++) {
       this.flushCommandsForCurrentTick();
-      if (this.finished) break;
+      if (this.resetGen !== gen || this.finished) break;
       if (this.world.outcome !== 'ongoing') {
         if (this.world.outcome === 'won') {
           this.world.tick++;
           executed++;
           this.flushCommandsForCurrentTick();
+          if (this.resetGen !== gen) break;
           continue;
         }
         break;
       }
       this.world.fixedTick(BALANCE.fixedDt);
       executed++;
+      if (this.resetGen !== gen) break;
       this.flushCommandsForCurrentTick();
+      if (this.resetGen !== gen) break;
     }
     return executed;
   }
@@ -743,8 +752,10 @@ export class SimReplayPlayer {
 
     if (!paused && !this.finished && speed > 0) {
       const wasPlayerPaused = this.paused;
+      const gen = this.resetGen;
       this.accumulator += safeDt * speed;
       while (
+        this.resetGen === gen &&
         this.accumulator >= BALANCE.fixedDt &&
         ticksExecuted < MAX_REPLAY_STEPS_PER_FRAME &&
         !this.finished &&
@@ -753,6 +764,7 @@ export class SimReplayPlayer {
         this.accumulator -= BALANCE.fixedDt;
         const ran = this.stepTicks(1);
         ticksExecuted += ran;
+        if (this.resetGen !== gen) break;
         if (ran === 0) {
           this.accumulator = 0;
           break;

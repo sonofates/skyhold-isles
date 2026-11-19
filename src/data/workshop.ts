@@ -136,6 +136,7 @@ export function maxRank(def: WorkshopUpgradeDef): number {
 
 /** Clamped owned rank of an upgrade (0..max). */
 export function rankOf(ranks: WorkshopRanks, id: WorkshopUpgradeId): number {
+  if (!ranks || typeof ranks !== 'object') return 0;
   const def = BY_ID.get(id);
   const raw = ranks[id];
   if (!def || typeof raw !== 'number' || !Number.isFinite(raw)) return 0;

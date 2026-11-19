@@ -32,7 +32,7 @@ export class ObjectPool<T extends { active: boolean }> {
 
   /** Swap-remove deactivation at index inside activeIndices array. */
   releaseAtActivePos(activePos: number): void {
-    if (activePos < 0 || activePos >= this.activeIndices.length) return;
+    if (!Number.isInteger(activePos) || activePos < 0 || activePos >= this.activeIndices.length) return;
     const idx = this.activeIndices[activePos];
     if (!this.items[idx].active) return;
     this.items[idx].active = false;
