@@ -17,7 +17,7 @@ export const I18 = {
   flightPath: [],
   decorationSeed: 929,
   startingGold: 325,
-  enemyHpScale: 2.3316,
+  enemyHpScale: 2.3266,
   waveHpGrowth: 0.1,
   waves: [
     { name: 'The Kiln Walks', clearBonus: 24, groups: [

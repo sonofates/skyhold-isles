@@ -4,7 +4,7 @@ import layout from './i12.json';
 
 export const I12 = campaignIsland(LEVEL_12, layout, {
   startingGold: 360,
-  enemyHpScale: 2.302,
+  enemyHpScale: 2.307,
   waveHpGrowth: 0.21,
   // The recessed clearing is outside a 120 px hex and inside the 160 px barracks rally range.
   hexRadius: 2.4,
