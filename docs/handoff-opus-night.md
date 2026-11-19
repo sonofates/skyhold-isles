@@ -56,17 +56,44 @@ Gold "+N" pops on kills, HUD gold bump on earn / dip on spend, dust ring on buil
 sparks on upgrade. World map checked with 25 islands (`?mockislands=8`): already pages correctly.
 Natural Turkish for every new string (glossary kept).
 
+## 5. Round 2 (later in the night)
+
+- **Boss / final-wave call-out** (`ui/waveBanner2d.ts`): big lettering mid-screen — "Boss
+  incoming!" + name, or "Final wave!" (+ "{boss} leads the charge" when one does; every island but
+  l1c ends on a boss). Click-through, fades in 2.6 s.
+- **Next wave's caves** (`ui/laneMarks2d.ts`): on multi-cave islands (l1c, i10, i13–i16, and any
+  new ones — data-driven) a bobbing red chevron with "×N" over each cave the next wave uses, shown
+  with the next-wave card; it slides along its road off the card / horn / HUD.
+- **Phone bar**: new narrow three-row **stack** (portrait / hero skills / abilities) up a side —
+  the old right-edge column ran over the wave banner on l1c / i08. HUD pieces now weigh 10× a plot
+  in the bar placement, so the bar never sits on the banner / plaque / buttons. Desktop unchanged.
+- **Coach card** slides off the bar when the bar is in the top row (1366 l1c hid the skills),
+  "Skip tips" sits on the title row, the hero arrow points at the hero's head (was far above on
+  phones), tips hide under the pause menu, mouse wording for every step (meteor names Q).
+- **Esc** with nothing open toggles the pause menu (never when it closed / cancelled something).
+- **Desktop**: hover a built tower = pointer + faint range; hover the plaque = lives / gold tips;
+  ring tooltips / rally banner / Workshop + reset confirms / map + hero tree hints no longer say
+  "Tap" with a mouse; a fresh tower's "0 foes · 0 damage" is hidden.
+- **Rally banner** moves to the top / bottom band when it would cover the barracks' range circle.
+- **Next-wave card**: plot rings weigh 3×, HUD pieces / its horn 12× (i14 fixed, never over the
+  bar). Still grazes one plot on dense i13 (1920/1366) and l1c 1366 between waves.
+- Foe tips drop the 3D-only "Press R to see the sky lane" (R is a hero skill in 2D); end board's
+  plain "Level n" in soft ink; "Wave n/N" bumps when a wave marches; text-wrap balance / pretty.
+
 ## QA scripts (all against `npx vite preview --port 4381`)
 
 `qa/replayshots.mjs` (replay reproduces the run on EN/TR × desktop/phone), `qa/waveshots.mjs`,
 `qa/flowshots.mjs` (lives, foe card, tooltip, blur, controls, new foe, victory), `qa/coachshots.mjs`,
 `qa/barshots.mjs` (+ `qa/contact.py` sheets), `qa/mapshots.mjs`, `qa/juiceshots.mjs`. QA hooks:
-`__p0.replay.{cmd,step,start,exit,speed,restart,probe}`, `__p0.{waveCard,lives,foe,foeAt,coach,goldPops,newFoe}`.
+`__p0.replay.{cmd,step,start,exit,speed,restart,probe}`, `__p0.{waveCard,lives,foe,foeAt,coach,goldPops,newFoe,callout,laneMarks}`.
+Round 2: `qa/rallyBanner.mjs`, `qa/probe-bar.mjs`; `python3 qa/withPreview.py node qa/<x>.mjs` runs
+one script against a short-lived preview; `python3 qa/gate.py` is the commit gate.
 
 ## Open questions
 
 1. Replays live in memory only (one per page). Persisting would need the run's modifiers + hero
    config saved with it.
-2. Phone bar: left-edge column kept as the phone pattern; say if you prefer the two-row block in a
-   corner on phones too.
-3. The coach shows only on l1c's first plain play; no Settings toggle to replay the tips.
+2. Phone bar: a left-edge column or the new side stack, whichever covers least; say if you prefer
+   one pattern on every island.
+3. The coach shows only on l1c's first plain play; Settings → General → Tips "Show again" brings it
+   (and the new-foe notes) back.

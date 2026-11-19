@@ -377,10 +377,13 @@ export class EndPanel {
       b.bg.height = r * 2;
       setInkSize(b.label, Math.round(Math.max(13, r * 0.42)));
       setText(b.label, t(END_LABELS[b.action]));
-      fitWidth(b.label, r * (step - 0.3));
+      fitWidth(b.label, r * (step - 0.12));
       b.label.position.set(0, r * 1.38);
       this.drawGlyph(b);
     });
+    // One size for the row: a long label ("Sonraki Ada") no longer reads smaller than its neighbours.
+    const minScale = Math.min(1, ...shown.map((b) => b.label.scale.x));
+    for (const b of shown) b.label.scale.set(minScale);
   }
 
   /** Hero row between the caption and the buttons: portrait, "Bran +86 XP", level-up line, XP bar. */
