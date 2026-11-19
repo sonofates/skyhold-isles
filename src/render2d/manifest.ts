@@ -177,6 +177,8 @@ export interface SheetSpec {
   /** Walking toward the camera (screen-down), and away (screen-up). JSON paths (see SheetJson). */
   readonly down: string;
   readonly up: string;
+  /** Optional horizontal walk (screen-left/right, facing `facing`); used for mostly sideways moves. */
+  readonly side?: string;
   /** Direction the walk faces in the sheet; the other side is mirrored. */
   readonly facing: 'left' | 'right';
   /** Facing of the "up" (away) sequence when it differs from `facing`. */
@@ -203,6 +205,11 @@ export interface EnemyArt {
    * procedural swing.
    */
   readonly attack?: string;
+  /**
+   * Optional death sheet JSON (grid sheet, same frame size / feet anchor as the walk "down" sheet),
+   * played once in a separate sprite pool when the enemy is killed (EnemyLayer.playDeath).
+   */
+  readonly death?: string;
   /** Used while neither the front sprite nor a full walk sheet exists yet (art still on its way). */
   readonly fallback?: EnemyFallback;
   readonly height: number;
@@ -389,6 +396,7 @@ export function parseManifest(raw: unknown): ArtManifest {
       sheet = {
         down: str(s.down, `enemies.${key}.sheet.down`),
         up: str(s.up, `enemies.${key}.sheet.up`),
+        ...(typeof s.side === 'string' && s.side ? { side: s.side } : {}),
         facing: facing(s.facing),
         ...(s.facingUp === 'left' || s.facingUp === 'right' ? { facingUp: s.facingUp } : {}),
         ...(typeof s.stride === 'number' ? { stride: s.stride } : {}),
@@ -403,6 +411,7 @@ export function parseManifest(raw: unknown): ArtManifest {
       ...(typeof e.back === 'string' && e.back ? { back: e.back } : {}),
       ...(typeof e.mound === 'string' && e.mound ? { mound: e.mound } : {}),
       ...(typeof e.attack === 'string' && e.attack ? { attack: e.attack } : {}),
+      ...(typeof e.death === 'string' && e.death ? { death: e.death } : {}),
       ...(e.fallback && typeof e.fallback === 'object'
         ? (() => {
             const f = e.fallback as Json;

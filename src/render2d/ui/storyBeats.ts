@@ -65,7 +65,7 @@ const PLACEHOLDER_STORY: Readonly<Record<string, Partial<Record<StoryPart, reado
 };
 
 /** Campaign islands that have a painted intro and outro but no written story yet. */
-export const GENERIC_STORY_ISLANDS: readonly string[] = Array.from({ length: 16 }, (_, i) => `i${String(i + 1).padStart(2, '0')}`);
+export const GENERIC_STORY_ISLANDS: readonly string[] = Array.from({ length: 24 }, (_, i) => `i${String(i + 1).padStart(2, '0')}`);
 
 /** One beat per part: the island's painting and a neutral caption from its name and subtitle. */
 function genericBeats(level: StoryLevel, part: StoryPart): PlaceholderBeat[] {

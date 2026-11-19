@@ -1,4 +1,5 @@
 import type { EnemyType } from '../core/types.ts';
+import { CHAPTER_ENEMY_MELEE } from './enemies.ts';
 
 /**
  * Barracks soldiers vs enemies: how each archetype reacts to being blocked and how hard it hits
@@ -46,6 +47,8 @@ export const ENEMY_MELEE: Readonly<Record<EnemyType, MeleeProfile>> = {
   hexer: { block: 'block', holdCost: 1, damage: 5, rate: 0.9 },
   tempest: { block: 'block', holdCost: 3, damage: 40, rate: 0.75, sweep: true, trampleFromPhase: 2 },
   boss: { block: 'block', holdCost: 3, damage: 34, rate: 0.8, sweep: true },
+  // Chapter two (i17–i24): hare / piper single-block, tortoise two-block, moth flies over.
+  ...CHAPTER_ENEMY_MELEE,
 };
 
 /** Shared soldier tuning (not per tier). Distances in world units, times in seconds. */

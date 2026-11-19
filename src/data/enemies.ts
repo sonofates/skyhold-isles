@@ -64,7 +64,7 @@ export interface EnemyDef<T extends EnemyType | ChapterEnemyType = EnemyType> {
   readonly counterHint?: string;
 }
 
-// Joined to the campaign roster when the shared enemy IDs and melee profiles land.
+// Chapter-two roster (i17–i24). Spread into ENEMY_DEFS / ENEMY_TYPES below and into ENEMY_MELEE.
 export const CHAPTER_ENEMY_DEFS = {
   bellrunner: {
     type: 'bellrunner', name: 'Belfry Hare',
@@ -351,6 +351,8 @@ export const ENEMY_DEFS: Record<EnemyType, EnemyDef> = {
     height: 1.85,
     isBoss: true,
   },
+  // Chapter two. Kept last so key order matches the pre-integration roster + appended chapter.
+  ...CHAPTER_ENEMY_DEFS,
 };
 
 export const ENEMY_TYPES: readonly EnemyType[] = [
@@ -367,6 +369,7 @@ export const ENEMY_TYPES: readonly EnemyType[] = [
   'golem',
   'mite',
   'hexer',
+  ...CHAPTER_ENEMY_TYPES,
   'tempest',
   'boss',
 ];

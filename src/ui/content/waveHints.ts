@@ -37,16 +37,20 @@ const HINT_ORDER: readonly EnemyType[] = [
   'boss',
   'tempest',
   'hexer',
+  'reedpiper',
   'carrier',
+  'draftwing',
   'flyer',
   'burrower',
   'blinker',
   'warden',
   'healer',
+  'kilnback',
   'golem',
   'brute',
   'splitter',
   'mite',
+  'bellrunner',
   'runner',
   'grunt',
 ];
@@ -82,6 +86,14 @@ function hintFor(type: EnemyType): string {
       return 'Fast runners. Frost slows them, Tesla pops packs.';
     case 'grunt':
       return 'A steady march. Hold the road.';
+    case 'bellrunner':
+      return 'Hares build speed. A soldier or Frost resets the run.';
+    case 'kilnback':
+      return 'Kilnbacks shed armor under rapid fire. Follow up with a heavy hit.';
+    case 'reedpiper':
+      return 'Pipers lift frost. Stun them mid-tune.';
+    case 'draftwing':
+      return `Moths draft in a line. ${airTowerNames()} hit air; Tesla breaks the chain.`;
   }
 }
 

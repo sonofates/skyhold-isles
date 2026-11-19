@@ -1,24 +1,13 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import type { EnemyType } from '../../src/core/types.ts';
 import type { EnemyEntity } from '../../src/sim/entities.ts';
 import { evaluateBalance, evaluateWorkshopMax } from '../../scripts/balanceSim.ts';
 import { EventBus } from '../../src/core/eventBus.ts';
 import { BALANCE } from '../../src/data/balance.ts';
-import { CHAPTER_ENEMY_DEFS, ENEMY_DEFS, type ChapterEnemyType } from '../../src/data/enemies.ts';
+import { CHAPTER_ENEMY_DEFS, ENEMY_DEFS } from '../../src/data/enemies.ts';
 import { I16 } from '../../src/data/levels2d/i16.ts';
 import { getLevelById, LEVELS_2D } from '../../src/data/levels2d/index.ts';
 import { SimWorld } from '../../src/sim/world.ts';
-
-// Exercise real IDs, spawn, movement, hit resolution and pool reuse while shared registration is pending.
-vi.mock(import('../../src/data/enemies.ts'), async (original) => {
-  const data = await original();
-  return { ...data, ENEMY_DEFS: { ...data.ENEMY_DEFS, ...data.CHAPTER_ENEMY_DEFS } };
-});
-vi.mock(import('../../src/data/soldiers.ts'), async (original) => {
-  const data = await original();
-  const { CHAPTER_ENEMY_MELEE } = await import('../../src/data/enemies.ts');
-  return { ...data, ENEMY_MELEE: { ...data.ENEMY_MELEE, ...CHAPTER_ENEMY_MELEE } };
-});
 
 const dt = BALANCE.fixedDt;
 const noop = () => {};
@@ -28,10 +17,8 @@ function fixture() {
   const tick = (frames = 1) => {
     for (let i = 0; i < frames; i++) sim.update(dt, noop, noop);
   };
-  // The test roster above extends the public spawn signature for this isolated world.
-  const spawn = sim.spawnEnemy.bind(sim) as (
-    type: EnemyType | ChapterEnemyType, hpScale?: number, elite?: boolean, lane?: number,
-  ) => EnemyEntity;
+  const spawn = (type: EnemyType, hpScale?: number, elite?: boolean, lane?: number): EnemyEntity =>
+    sim.spawnEnemy(type, hpScale, elite, lane)!;
   return { sim, tick, spawn };
 }
 
@@ -204,7 +191,7 @@ describe('chapter two balance', () => {
     }
   });
 
-  it.each(islands)('%s meets the release simulator targets with the staged roster and a maxed Workshop', id => {
+  it.each(islands)('%s meets the release simulator targets with the shipping roster and a maxed Workshop', id => {
     const ids = new Set([id]);
     const base = evaluateBalance(ids, false);
     expect(base.summary).toHaveLength(ids.size);

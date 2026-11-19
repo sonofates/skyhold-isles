@@ -71,7 +71,7 @@ export interface PlotArtRuntime {
 }
 
 export interface SheetRuntime {
-  /** [down, up] frame sequences. */
+  /** [down, up] frame sequences, plus [2] = side walk when the manifest lists `sheet.side` and it loaded. */
   readonly seqs: readonly (readonly Texture[])[];
   readonly fps: number;
   readonly anchor: readonly [number, number] | null;
@@ -92,6 +92,14 @@ export interface AttackSheetRuntime {
   readonly figScale: number;
 }
 
+/** A one-shot death sheet (see EnemyArt.death). */
+export interface DeathSheetRuntime {
+  readonly frames: readonly Texture[];
+  readonly fps: number;
+  /** Feet point (normalised), or null → the walk sheet's / art anchor. */
+  readonly anchor: readonly [number, number] | null;
+}
+
 export interface EnemyArtRuntime {
   readonly key: string;
   readonly spec: EnemyArt;
@@ -110,6 +118,8 @@ export interface EnemyArtRuntime {
   readonly mound: Texture | null;
   /** Melee attack sheet, when the manifest lists one and it loaded. */
   readonly attack: AttackSheetRuntime | null;
+  /** Death sheet, when the manifest lists one and it loaded (null → the puff-only death). */
+  readonly death: DeathSheetRuntime | null;
   /** Fallback art: multiply tint / scale applied on top of the enemyMap entry. */
   readonly tintMul: number;
   readonly scaleMul: number;
@@ -446,19 +456,36 @@ async function loadEnemy(
     spec.back ? tex(spec.back) : Promise.resolve(null),
     spec.mound ? tex(spec.mound) : Promise.resolve(null),
   ]);
-  let attackSeq: LoadedSeq | null = null;
+  const [attackSeq, deathSeq] = await Promise.all([
+    spec.attack ? loadSheetSeq(base, spec.attack) : Promise.resolve(null),
+    spec.death ? loadSheetSeq(base, spec.death) : Promise.resolve(null),
+  ]);
   if (spec.attack) {
-    attackSeq = await loadSheetSeq(base, spec.attack);
     if (attackSeq) present.add(spec.attack);
     else notes.push(`enemy ${key}: attack sheet pending (${spec.attack}) → procedural swing`);
   }
+  if (spec.death) {
+    if (deathSeq) present.add(spec.death);
+    else notes.push(`enemy ${key}: death sheet pending (${spec.death}) → puff only`);
+  }
+  const death: DeathSheetRuntime | null = deathSeq?.frames.length
+    ? { frames: deathSeq.frames, fps: deathSeq.fps, anchor: deathSeq.anchor }
+    : null;
   let sheet: SheetRuntime | null = null;
   if (spec.sheet) {
-    const [down, up] = await Promise.all([loadSheetSeq(base, spec.sheet.down), loadSheetSeq(base, spec.sheet.up)]);
+    const sideSpec = spec.sheet.side;
+    const [down, up, side] = await Promise.all([
+      loadSheetSeq(base, spec.sheet.down),
+      loadSheetSeq(base, spec.sheet.up),
+      sideSpec ? loadSheetSeq(base, sideSpec) : Promise.resolve(null),
+    ]);
     if (down) present.add(spec.sheet.down);
     if (up) present.add(spec.sheet.up);
+    if (side && sideSpec) present.add(sideSpec);
+    else if (sideSpec) notes.push(`enemy ${key}: side walk pending (${sideSpec}) → down/up only`);
     if (down && up) {
-      sheet = { seqs: [down.frames, up.frames], fps: down.fps, anchor: down.anchor };
+      const seqs = side?.frames.length ? [down.frames, up.frames, side.frames] : [down.frames, up.frames];
+      sheet = { seqs, fps: down.fps, anchor: down.anchor };
     } else if (spec.mode === 'sheet' && (frontTex || down || up)) {
       notes.push(`enemy ${key}: walk sheets pending (${spec.sheet.down}, ${spec.sheet.up}) → cheap mode`);
     }
@@ -508,6 +535,7 @@ async function loadEnemy(
     backAnchor: backTex ? anchorOf(backTex) : spec.anchor,
     mound: moundTex,
     attack,
+    death,
     tintMul: 0xffffff,
     scaleMul: 1,
     fallbackOf: null,
@@ -818,6 +846,7 @@ export function collectArtTextureSources(art: LoadedArt): TextureSource[] {
     add(en.mound);
     if (en.sheet) for (const seq of en.sheet.seqs) addList(seq);
     addList(en.attack?.frames);
+    addList(en.death?.frames);
   }
   const h = art.hero;
   if (h) for (const sq of [h.idle, h.down, h.up, h.side, h.attack, h.death]) addList(sq?.frames);

@@ -573,6 +573,8 @@ export class Game2D {
       this.goldPops.spawn(e.earlyBonus, px + 10, py - 20);
     });
     ev.on('enemyKilled', (e) => {
+      // Painted death clip (enemies whose manifest lists one); snapshots the pose before the pool reuses the slot.
+      this.enemies.playDeath(e.enemyId);
       const px = m.pxX(e.x);
       const py = m.pxY(e.z) - e.y * 0.9 * ppu;
       this.fx.puffs(px, py - 14, 7, 12);
