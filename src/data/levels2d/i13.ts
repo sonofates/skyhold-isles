@@ -4,7 +4,7 @@ import layout from './i13.json';
 
 export const I13 = campaignIsland(LEVEL_13, layout, {
   startingGold: 360,
-  enemyHpScale: 1.307,
+  enemyHpScale: 1.8298,
   waveHpGrowth: 0.17,
   sites: {
     '11,7': 4,

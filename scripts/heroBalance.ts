@@ -75,7 +75,7 @@ function pickEnemyInReach(world: SimWorld, cx: number, cz: number, range: number
  * - Walks to the road merge point at run start (and after respawning at the castle).
  * - Casts both active skills on cooldown whenever a valid target / combat trigger is in range.
  */
-function driveScriptedHero(world: SimWorld, mergeX: number, mergeZ: number): void {
+export function driveScriptedHero(world: SimWorld, mergeX: number, mergeZ: number): void {
   const h = world.hero;
   if (!h || h.state === 'dead') return;
 

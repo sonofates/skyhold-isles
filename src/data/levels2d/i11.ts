@@ -3,8 +3,8 @@ import { campaignIsland } from './campaignIsland.ts';
 import layout from './i11.json';
 
 export const I11 = campaignIsland(LEVEL_11, layout, {
-  startingGold: 350,
-  enemyHpScale: 1.6773,
+  startingGold: 255,
+  enemyHpScale: 1.9624,
   waveHpGrowth: 0.235,
   sites: {
     '6,3': 0,

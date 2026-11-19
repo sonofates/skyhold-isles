@@ -1,12 +1,17 @@
+import { driveScriptedHero } from './heroBalance.ts';
+import { campaignKit, driveGlobalAbilities, type CampaignKit } from './lib/campaignKit.ts';
+import { findMergePoint } from '../src/sim/groundGraph.ts';
 import { EventBus } from '../src/core/eventBus.ts';
 import type { EnemyType } from '../src/core/types.ts';
+import { HERO_DEFS, HERO_IDS } from '../src/data/heroes.ts';
 import { BALANCE } from '../src/data/balance.ts';
 import { ENEMY_DEFS } from '../src/data/enemies.ts';
 import { LEVELS, type LevelDef, type ScriptedBuildAction } from '../src/data/levels/index.ts';
 import { LEVELS_2D } from '../src/data/levels2d/index.ts';
 import { NEUTRAL_RUN_MODIFIERS, type RunModifiers } from '../src/data/runModifiers.ts';
+import { STAR_RULES } from '../src/data/stars.ts';
 import { getTowerTierStats } from '../src/data/towers.ts';
-import { maxedWorkshopRanks, workshopModifiers } from '../src/data/workshop.ts';
+import { maxedWorkshopRanks, workshopModifiers, workshopStarsSpent } from '../src/data/workshop.ts';
 import { endlessMutatorsAt } from '../src/data/endlessMutators.ts';
 import { challengesForLevel, runModifiersFor } from '../src/data/challenges.ts';
 import { computeStarRating, SimWorld } from '../src/sim/world.ts';
@@ -32,6 +37,8 @@ export interface SimRunResult {
   outcome: 'ongoing' | 'won' | 'lost';
   finalLives: number;
   stars: number;
+  startingLives: number;
+  heroXp: number;
   startingGold: number;
   goldEarned: number;
   goldSpent: number;
@@ -146,13 +153,16 @@ export function runLevelBalanceSim(
   level: LevelDef,
   scriptKind: ScriptKind,
   scriptActions: readonly ScriptedBuildAction[],
-  mods: RunModifiers = NEUTRAL_RUN_MODIFIERS,
+  profile: RunModifiers | CampaignKit = NEUTRAL_RUN_MODIFIERS,
   /** After a win, keep going in Endless for up to this many generated waves (0 = stop at the win). */
   endlessWaves = 0,
 ): SimRunResult {
+  const kit = 'heroId' in profile ? profile : undefined;
   const events = new EventBus();
-  const world = new SimWorld(level, events, mods);
+  const world = new SimWorld(level, events, profile);
+  const post = world.hero ? findMergePoint([world.groundPath, ...world.extraGroundPaths]) : null;
 
+  const startingGold = world.gold;
   const plannedTowers = scriptActions.filter((a) => a.action === 'build').length;
   const waveRows: WaveStatRow[] = [];
   let activeWaveRow = null as WaveStatRow | null;
@@ -218,6 +228,10 @@ export function runLevelBalanceSim(
   while (executeStep()) {
     // spend starting gold greedily
   }
+  if (post) {
+    world.commandHeroMove(post.x, post.z);
+    for (let i = 0; i < 720 && world.hero?.state === 'moving'; i++) world.fixedTick(BALANCE.fixedDt);
+  }
   world.startNextWave();
 
   // During active waves, player builds/upgrades at most once every 8.0 seconds.
@@ -247,6 +261,10 @@ export function runLevelBalanceSim(
       }
     }
 
+    if (kit && tick % 30 === 0) {
+      if (post) driveScriptedHero(world, post.x, post.z);
+      driveGlobalAbilities(world, kit);
+    }
     world.fixedTick(BALANCE.fixedDt);
     if (activeWaveRow) {
       const pool = world.enemyPool;
@@ -265,6 +283,7 @@ export function runLevelBalanceSim(
   const endGoldPctOfEarned = goldEarned > 0 ? (world.gold / goldEarned) * 100 : 0;
   const storyOutcome = world.outcome;
   const storyLives = world.lives;
+  const heroXp = world.heroSystem.runXp;
   const storyGold = world.gold;
   const storyWaves = [...waveRows];
 
@@ -273,7 +292,7 @@ export function runLevelBalanceSim(
   let endlessOutcome: SimRunResult['endlessOutcome'];
   if (endlessWaves > 0) {
     endlessOutcome = 'skipped';
-    if (world.outcome === 'won' && world.enterEndlessMode()) {
+    if (world.enterEndlessMode()) {
       // Endless sanity run: keep spending leftover script steps between waves; waves auto-start.
       endlessPeakEnemies = 0;
       const lastIdx = level.waves.length - 1 + endlessWaves;
@@ -301,7 +320,9 @@ export function runLevelBalanceSim(
     outcome: storyOutcome,
     finalLives: storyLives,
     stars: storyOutcome === 'won' ? computeStarRating(storyLives, level.difficulty, world.startingLives) : 0,
-    startingGold: level.startingGold,
+    startingGold,
+    startingLives: world.startingLives,
+    heroXp,
     goldEarned,
     goldSpent,
     finalGold: storyGold,
@@ -342,7 +363,7 @@ function printResult(label: string, res: SimRunResult, difficulty: string): void
   const tag = res.scriptKind === 'greedy' ? 'GREEDY' : 'WEAK  ';
   console.log(
     `[${label} ${tag}] ${res.name} (${difficulty}) -> ${res.outcome.toUpperCase()} | ` +
-      `Lives: ${res.finalLives}/${BALANCE.startingLives} | Stars: ${res.stars}/3 | ` +
+      `Lives: ${res.finalLives}/${res.startingLives} | Stars: ${res.stars}/3 | ` +
       `Towers: ${res.towersBuilt}/${res.plannedTowers} (tgtSwaps: ${res.targetingChanges})`,
   );
   console.log(
@@ -365,6 +386,49 @@ function printResult(label: string, res: SimRunResult, difficulty: string): void
           `${String(row.livesLost).padStart(9)} | ${(row.peakGroundProgress * 100).toFixed(0).padStart(11)}% | ${leakPairs || '-'}`,
       );
     }
+  }
+}
+
+/** First-clear targets in campaign order, expressed in lives LOST including Bastion's lives. */
+function islandLossWindow(index: number): readonly [number, number] {
+  if (index <= 2) return [0, 2];
+  if (index === 6) return [6, 10]; // Crescent Lagoon fields three bosses across two waves.
+  if (index <= 7) return [0, 5];
+  if (index <= 12) return [2, 7];
+  if (index <= 14) return [8, 12];
+  if (index <= 16) return [9, 13];
+  if (index <= 20) return [11, 16];
+  if (index <= 23) return [13, 18];
+  return [15, 19];
+}
+
+function runScript(map: LevelDef, kind: ScriptKind, kit?: CampaignKit): SimRunResult {
+  const actions = kind === 'greedy' ? map.scriptedBuildOrder : map.weakBuildOrder;
+  return runLevelBalanceSim(map, kind, actions ?? [], kit);
+}
+
+function formatLoss(res: SimRunResult): string {
+  return `${res.startingLives - res.finalLives} lost / ${res.stars}★`;
+}
+
+/** Optional, matched-inventory probes. A newly unlocked hero starts from zero personal XP. */
+function printKitDetail(level: LevelDef, kit: CampaignKit, xpAtEntry: number[], previousStars: number): void {
+  function printPair(label: string, profile: CampaignKit): void {
+    const greedy = runScript(level, 'greedy', profile);
+    const weak = runScript(level, 'weak', profile);
+    console.log(`  ${label}: greedy ${formatLoss(greedy)}, weak ${formatLoss(weak)}`);
+  }
+  console.log(`[${level.id} kit detail]`);
+  const empty: CampaignKit = { ...kit, heroId: null, modifiers: NEUTRAL_RUN_MODIFIERS, meteor: false, overcharge: false };
+  printPair('Bran alone', { ...empty, heroId: 'bran' });
+  printPair('Meteor alone', { ...empty, meteor: true });
+  printPair('Overcharge alone', { ...empty, overcharge: true });
+  printPair('Workshop alone', { ...empty, modifiers: kit.modifiers });
+  for (const id of HERO_IDS) {
+    const unlock = HERO_DEFS[id].unlock;
+    if (unlock.kind !== 'islandsCleared' || unlock.count >= xpAtEntry.length) continue;
+    const alternate = campaignKit(xpAtEntry[xpAtEntry.length - 1] - xpAtEntry[unlock.count], previousStars, id);
+    printPair(`${id} L${alternate.heroLevel}, full kit`, alternate);
   }
 }
 
@@ -408,13 +472,27 @@ export function evaluateBalance(
   const summary: string[] = [];
   const robustLines: string[] = [];
 
+  // A filtered run must enter with exactly the inventory it would have in the full campaign.
+  const lastIsland = LEVELS_2D.findLastIndex(level => entryMatches(levelFilter, { level, label: level.id }));
+  const xpAtEntry: number[] = [];
+  let xp = 0;
+  let stars = 0;
   for (const entry of balanceEntries()) {
-    if (!entryMatches(levelFilter, entry)) continue;
     const { level, label } = entry;
-    const greedyRes = runLevelBalanceSim(level, 'greedy', level.scriptedBuildOrder ?? []);
+    const index = LEVELS_2D.indexOf(level);
+    const selected = entryMatches(levelFilter, entry);
+    if (!selected && (index < 0 || index > lastIsland)) continue;
+    const kit = index >= 0 ? campaignKit(xp, stars) : undefined;
+    const greedyRes = runScript(level, 'greedy', kit);
+    const entryStars = stars;
+    if (kit) {
+      xpAtEntry.push(xp);
+      xp += greedyRes.heroXp;
+      stars += greedyRes.stars;
+    }
+    if (!selected) continue;
     if (verbose) printResult(label, greedyRes, level.difficulty);
-
-    const weakRes = runLevelBalanceSim(level, 'weak', level.weakBuildOrder ?? []);
+    const weakRes = runScript(level, 'weak', kit);
     if (verbose) printResult(label, weakRes, level.difficulty);
     if (verbose) console.log('');
 
@@ -426,17 +504,19 @@ export function evaluateBalance(
       );
     }
 
+    const start = greedyRes.startingLives;
+    const [minLost, maxLost] = islandLossWindow(index);
+    const [gMin, gMax] = kit ? [start - maxLost, start - minLost] : GREEDY_LIVES[level.difficulty];
     if (robust) {
       // Informational: greedy lives when every enemy HP is scaled by +-1.5% / +-3% (knife-edge detector).
-      const [lo, hi] = GREEDY_LIVES[level.difficulty];
       const cells: string[] = [];
       for (const k of [0.97, 0.985, 1.0, 1.015, 1.03]) {
         const scaled: LevelDef = { ...level, enemyHpScale: (level.enemyHpScale ?? 1) * k };
-        const r = runLevelBalanceSim(scaled, 'greedy', level.scriptedBuildOrder ?? []);
-        const ok = r.outcome === 'won' && r.finalLives >= lo && r.finalLives <= hi;
+        const r = runScript(scaled, 'greedy', kit);
+        const ok = r.outcome === 'won' && r.finalLives >= gMin && r.finalLives <= gMax;
         cells.push(`x${k.toFixed(3)}:${r.outcome === 'won' ? r.finalLives : 'LOST'}${ok ? '' : '!'}`);
       }
-      robustLines.push(`${label} ${level.difficulty.padEnd(11)} ${cells.join('  ')}   (window ${lo}-${hi}, ! = outside)`);
+      robustLines.push(`${label} ${level.difficulty.padEnd(11)} ${cells.join('  ')}   (window ${gMin}-${gMax}, ! = outside)`);
     }
 
     const gT = livesLostTotals(greedyRes);
@@ -455,7 +535,7 @@ export function evaluateBalance(
     if (greedyRes.outcome !== 'won') {
       failures.push(`${label} greedy did not win`);
     }
-    const [gMin, gMax] = GREEDY_LIVES[level.difficulty];
+
     if (greedyRes.finalLives < gMin || greedyRes.finalLives > gMax) {
       failures.push(`${label} greedy lives ${greedyRes.finalLives} outside ${level.difficulty} window ${gMin}-${gMax}`);
     }
@@ -484,6 +564,34 @@ export function evaluateBalance(
       failures.push(
         `${label} weak planned towers (${weakRes.plannedTowers}/${greedyRes.plannedTowers} = ${(weakPlanRatio * 100).toFixed(0)}%) should be ~70%`,
       );
+    }
+
+    if (kit) {
+      const greedyBase = runScript(level, 'greedy');
+      const weakBase = runScript(level, 'weak');
+      summary[summary.length - 1] +=
+        ` | Bran L${kit.heroLevel}, Workshop ${workshopStarsSpent(kit.ranks)}/${entryStars} stars spent` +
+        `\n    no kit (info): greedy ${formatLoss(greedyBase)}, weak ${formatLoss(weakBase)}`;
+      if (process.argv.includes('--kit-detail')) printKitDetail(level, kit, xpAtEntry, entryStars);
+      const easierIsland = minLost <= STAR_RULES[level.difficulty].threeStarMaxLost;
+      if (easierIsland !== (greedyRes.stars === 3)) {
+        failures.push(`${label} greedy earned ${greedyRes.stars} stars (expected ${easierIsland ? '3' : '1-2'})`);
+      }
+      if (weakRes.outcome === 'ongoing') failures.push(`${label} weak hit the simulation tick limit`);
+      if (index <= 2 && (weakRes.outcome !== 'won' || weakRes.stars < 2)) {
+        failures.push(`${label} weak must win onboarding with at least 2 stars`);
+      }
+      if (index > 2 && level.difficulty === 'Challenging' && (weakRes.finalLives > 8 ||
+          weakRes.waves.length < Math.ceil(level.waves.length * 0.75))) {
+        failures.push(`${label} weak should reach the last quarter and finish with at most 8 lives`);
+      }
+      if ((level.difficulty === 'Heroic' || level.difficulty === 'Master') && weakRes.outcome !== 'lost') {
+        failures.push(`${label} weak must lose with the campaign kit`);
+      }
+      if (level.id === 'i24' && (greedyRes.waves.at(-1)?.livesLost ?? 0) < 3) {
+        failures.push('i24 greedy must lose at least 3 lives during the Tempest wave');
+      }
+      continue;
     }
 
     if (level.difficulty === 'Breezy' && greedyRes.stars !== 3) {
@@ -641,7 +749,7 @@ function main(): void {
     for (const line of evaluateChallenges(levelFilter)) console.log(line);
     console.log('');
   }
-  console.log('=== Workshop max (all upgrades, greedy script; baseline above uses none) ===');
+  console.log('=== Workshop max (greedy, no hero or casts; compares Workshop alone) ===');
   for (const line of workshop.lines) console.log(line);
   console.log('');
   if (robustLines.length > 0) {

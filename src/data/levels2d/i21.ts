@@ -16,8 +16,8 @@ export const I21 = {
   pathWaypoints: [],
   flightPath: [],
   decorationSeed: 1117,
-  startingGold: 385,
-  enemyHpScale: 1.87,
+  startingGold: 345,
+  enemyHpScale: 2.6554,
   waveHpGrowth: 0.1,
   waves: [
     { name: 'Broken Spar', clearBonus: 24, groups: [
@@ -44,6 +44,7 @@ export const I21 = {
       group('hexer', 3, 1.39, 1.0),
       group('golem', 4, 1.21, 2.8),
       group('healer', 2, 1.47, 4.4),
+      { ...group('kilnback', 15, 0.82, 1.4), elite: true },
     ] },
     { name: 'Across the Chalk', clearBonus: 34, groups: [
       group('carrier', 2, 2.65),

@@ -16,8 +16,8 @@ export const I22 = {
   pathWaypoints: [],
   flightPath: [],
   decorationSeed: 1171,
-  startingGold: 390,
-  enemyHpScale: 1.26,
+  startingGold: 350,
+  enemyHpScale: 1.9152,
   waveHpGrowth: 0.1,
   waves: [
     { name: 'A Parted Cable', clearBonus: 25, groups: [
@@ -92,6 +92,7 @@ export const I22 = {
       { ...group('kilnback', 9, 1.08, 0.3, 1), elite: true },
       group('reedpiper', 4, 1.28, 1.1, 1),
       group('blinker', 9, 0.59, 5.1),
+      { ...group('golem', 8, 0.8, 6, 1), elite: true },
     ] },
   ],
   scriptedBuildOrder: [

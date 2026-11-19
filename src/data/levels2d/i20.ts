@@ -17,7 +17,7 @@ export const I20 = {
   flightPath: [],
   decorationSeed: 1069,
   startingGold: 380,
-  enemyHpScale: 1.36,
+  enemyHpScale: 2.0128,
   waveHpGrowth: 0.1,
   waves: [
     { name: 'The First Pennant', clearBonus: 24, groups: [
@@ -87,6 +87,7 @@ export const I20 = {
       group('reedpiper', 4, 1.37, 1.3, 2),
       { ...group('splitter', 7, 0.81, 2.6), elite: true },
       group('draftwing', 6, 0.5, 6.2),
+      { ...group('burrower', 5, 0.6, 7, 2), elite: true },
     ] },
   ],
   scriptedBuildOrder: [

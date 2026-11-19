@@ -17,7 +17,7 @@ export const I19 = {
   flightPath: [],
   decorationSeed: 1019,
   startingGold: 365,
-  enemyHpScale: 1.18,
+  enemyHpScale: 1.7346,
   waveHpGrowth: 0.1,
   waves: [
     { name: 'A Torn Basket', clearBonus: 24, groups: [
@@ -79,6 +79,7 @@ export const I19 = {
       group('reedpiper', 4, 1.29, 1.2),
       { ...group('splitter', 7, 0.82, 3.1, 1), elite: true },
       group('draftwing', 7, 0.49, 5.4),
+      { ...group('burrower', 12, 0.65, 8, 1), elite: true },
     ] },
   ],
   scriptedBuildOrder: [
