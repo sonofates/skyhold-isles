@@ -1,5 +1,7 @@
 """Regression checks for map dressing. Run with python3 -B tools/map-compose/test_ground.py."""
+import json
 import unittest
+from pathlib import Path
 
 import numpy as np
 from PIL import Image, ImageChops, ImageColor, ImageDraw
@@ -15,6 +17,28 @@ from ground import windblown_road_coverage
 
 
 class GroundTests(unittest.TestCase):
+    def test_cay_boats_float_alongside_land_accessible_jetties(self):
+        compose = Path(__file__).resolve().parent
+        recipe = json.loads((compose / 'campaign.json').read_text())['i02']
+        root = compose.parents[1]
+        layout = json.loads((root / 'src/data/levels2d/i02.json').read_text())
+        kit = root / 'design/art-2d/v2/biomes' / recipe['biome']
+        placements = {name: (x, bottom, height) for name, x, bottom, height in recipe['groundPaint']}
+        with Image.open(kit / 'land-i02.webp') as mask:
+            land = mask.convert('L').resize(tuple(layout['imageSize']), Image.Resampling.NEAREST)
+        # Bow, midships, stern and the shoreward end of the gangway in each source painting.
+        for name, probes in (
+            ('pilot-jetty', ((.81, .27), (.76, .54), (.66, .74), (.05, .55))),
+            ('smack-landing', ((.11, .42), (.17, .62), (.27, .88), (.97, .28))),
+        ):
+            with self.subTest(berth=name), Image.open(kit / f'landmark-{name}.webp') as paint:
+                x, bottom, height = placements[name]
+                width = height * paint.width / paint.height
+                for (u, v), expected_land in zip(probes, (False, False, False, True)):
+                    self.assertGreater(paint.getpixel((int(u * paint.width), int(v * paint.height)))[3], 200)
+                    point = (round(x + (u - .5) * width), round(bottom + (v - 1) * height))
+                    self.assertEqual(land.getpixel(point) >= 128, expected_land, point)
+
     def test_bridge_follows_both_landings_and_exposes_its_arch_above_the_gorge(self):
         land = Image.new('L', (100, 80), 255)
         ImageDraw.Draw(land).rectangle((32, 0, 67, 79), fill=0)

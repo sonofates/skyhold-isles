@@ -30,19 +30,32 @@
   "i02": {
     "plots": 19,
     "seed": 73,
-    "decals": 160,
-    "props": 42,
+    "decals": 65,
+    "props": 13,
     "windmill": "none",
     "biome": "tidal",
-    "propWeights": [1, 2, 2, 5, 3, 3, 2],
-    "crossings": [
-      ["bridge", 965, 307, 181, 78, 96.5],
-      ["bridge", 967, 523, 182, 78, 90.4]
+    "scatterProps": [["salt-willow.webp", 1.4], ["salt-grass.webp", 0.51], ["driftwood.webp", 0.34]],
+    "propWeights": [5, 4, 1],
+    "repeatGap": 142,
+    "archBridges": [
+      ["trestle", [859, 319], [1074, 294], 82.5, 66, 38],
+      ["lifting-span", [853, 523.4], [1080, 521.9], 49, 53, 34]
     ],
     "islet": "islet.webp",
+    "brushRoad": true,
+    "dustyShoulders": true,
+    "roadMaterial": "tex-shell-road.webp",
+    "thresholdRoad": true,
+    "sillLaneBlend": {"A": 0.85},
+    "entranceFinishes": {"A": "pilot-gate-s.webp"},
     "castle-h": 2.66,
+    "groundPaint": [
+      ["pilot-jetty", 908, 488, 54],
+      ["smack-landing", 1255, 802, 132]
+    ],
     "landmarks": [
-      ["shed", 1096, 746, 106]
+      ["pilot-lookout", 644, 215, 143],
+      ["net-loft", 1404, 720, 122]
     ]
   },
   "i03": {

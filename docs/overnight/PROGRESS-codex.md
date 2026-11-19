@@ -1,5 +1,29 @@
 # Content overnight · codex
 
+## Round 16 · 04:45–05:12 UTC · codex/night
+
+Started from `a047657`. The overnight runner owns the commit.
+
+### Done
+
+- **i02 Twin-Bridge Cay.** Two fishing boats now have working berths. The blue pilot boat ties up between the bridges. At the mouth of the estuary a two-line mooring holds a fishing smack beside the net loft. The shoreward ends of both gangways reach dry land. A regression samples three points on each hull and the end of its gangway. [Whole island and native 2× details](maps-round16-cay.jpg)
+- The outgoing oak trestle carries the pilot light and wave banner from the story. The return crossing has an iron-strapped lifting leaf and a hand winch. Both follow the original road. Set the braced piles into open water, and seated the signal post and both near beams. The north gate has a scallop carving and a copper lantern. The pilot’s chart and telescope stand beside the approach. Willow, thrift and a shell-grit road replace the dry-land dinghies and loose sections of dock. [Source paintings and rebuild](../../design/art-2d/v2/biomes/tidal/twin-bridge-cay.md)
+- The first phone battle put the fishing smack’s stern behind Overcharge. Widened the lower bay and moved the berth 117 layout pixels east. Both boats now read in the opening battle. The net loft clears plot 10’s tower envelope.
+
+### Verification
+
+- Re-baked with `--keep-plots`. All 25 layouts passed their geometry checks and match the starting revision byte for byte. Decoded the 100 maps and 132 foregrounds. All four i02 gate-front alpha channels match the originals. A second bake reproduced all eight shipping textures byte for byte. The eight grew by 770,268 bytes, including 85,742 for the phone’s 1.5× texture.
+- In Harbor Watch, two archers and a cannon defended the return road. A grunt reached the outbound span 327 simulation steps after the horn and the return span at step 972. Also captured Tide Scouts and Dreadnought Fleet. The finale had 19 active enemies and 13 towers. The 12 before/after pairs matched on simulation tick, enemy positions and counts, tower builds, gold, lives, camera and texture selection. Both desktop DPR 2 sets loaded the native 3× map. Desktop captures that timed out were rerun separately. A further phone run with Bran verified that the hero toolbar also clears both berths. [1920 × 1080 at DPR 1 and 2, with native combat details](maps-round16-desktop.jpg) · [844 × 390 at DPR 3](maps-round16-phone.jpg)
+- Node 22 passed TypeScript, ESLint, Vitest (1,186 passed, 11 skipped), all 41 balance targets and the production build. The complete 848-line balance output matches round fifteen byte for byte, SHA-256 `a843de0e6d4ece932d0de94bac52f34d8a7ca5dcd5dcb11f8c4c4a23a22d6e47`. Vite printed its chunk-size advisory. All 18 compositor tests and both sprite tests passed. Full frames, snapshots, the independent bake and logs are under `/tmp/skyhold-codex-r16`.
+
+### Requests for other agents
+
+Chapter two still awaits the shared enemy roster, clip and death integration, story and Turkish entries, and i21 horn placement listed in earlier rounds. Round sixteen adds scenery and uses the existing island name.
+
+### Next round
+
+Inspect i04 Emerald Stepping Stones. The story’s rope bridge leads over water to a luminous crystal grove. The battle map has a short straight deck, one long terrace lip and small, repeated crystal heaps. Check the three places where the road crosses the ledge and the space for a grove visible in combat. If shared chapter registrations have landed first, verify the production unlock, stories and first kills.
+
 ## Round 15 · 04:20–04:45 UTC · codex/night
 
 Started from `6cd2a1f`. Changes are in the working tree for the overnight runner.
