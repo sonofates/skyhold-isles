@@ -694,7 +694,8 @@ if dressing:
     del plate
 
 # Mask of water and chasm banks in the terrain painting. Keep rooted props on land.
-land_mask = load(f'land-{L["id"]}.webp').convert('L') if dressing.get('islet') else None
+land_mask = (load(f'land-{L["id"]}.webp').convert('L')
+             if dressing.get('islet') or dressing.get('waterCrossings') else None)
 
 
 def on_land(x, y):
@@ -706,7 +707,7 @@ def on_land(x, y):
 
 
 # Give structures that stand in tidal water or over a rift a painted foundation.
-if land_mask:
+if dressing.get('islet'):
     islet = load(dressing['islet'])
 
     def foundation(x, y, width, height, force=False):
@@ -768,6 +769,9 @@ keep.trim_road(road_hard, S, spl_paths)
 # Use the master's noise lattice at both scales so the painted contour stays in place.
 noise_scale = S / 2 if native_3x else 1
 road_mask = ragged_mask(road_hard, rw * 0.05, max(4, round(rw * 0.16 / noise_scale)), 0.22, SEED + 21, aa=1.1 if native_3x else 1.1 * W / 3692, noise_scale=noise_scale)
+if dressing.get('waterCrossings'):
+    # The dirt ends at each bank. Gaps between the stones and rope slats show the stream.
+    road_mask = ImageChops.multiply(road_mask, land_mask.resize((W, H), Image.Resampling.BILINEAR))
 road_material = load(dressing.get('roadMaterial', 'tex-dirt.png'))
 if dressing.get('roadPlate'):
     dirt = road_material.resize((W, H), Image.Resampling.BICUBIC)
@@ -836,7 +840,11 @@ for name, start, end, above, below, curb in dressing.get('archBridges', []):
 for name, x, y, length, width, angle in dressing.get('crossings', []):
     deck = load(f'landmark-{name}.webp').resize((round(width * S), round(length * S)), Image.Resampling.LANCZOS)
     deck = deck.rotate(angle, Image.Resampling.BICUBIC, expand=True)
-    ground.alpha_composite(deck, (round(x * S - deck.width / 2), round(y * S - deck.height / 2)))
+    left, top = round(x * S - deck.width / 2), round(y * S - deck.height / 2)
+    if dressing.get('waterCrossings'):
+        shade = deck.getchannel('A').filter(ImageFilter.GaussianBlur(2 * S)).point(lambda v: round(v * .36))
+        ground.paste((24, 43, 35, 255), (left + round(2 * S), top + round(4 * S)), shade)
+    ground.alpha_composite(deck, (left, top))
     # Prop rejection uses the same rotated bounding box as the master, including its pixel rounding.
     if native_3x:
         ref = Image.new('L', (round(width * 2), round(length * 2))).rotate(angle, expand=True)

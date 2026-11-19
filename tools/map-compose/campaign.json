@@ -86,18 +86,34 @@
   "i04": {
     "plots": 20,
     "seed": 151,
-    "decals": 270,
-    "props": 64,
+    "decals": 58,
+    "props": 13,
     "windmill": "none",
     "biome": "terraces",
-    "propWeights": [3, 3, 2, 6, 2, 1, 4],
+    "scatterProps": [["silver-birches.webp", 1.65], ["fern.webp", 0.54], ["jade-cluster.webp", 0.54]],
+    "propWeights": [4, 5, 1],
+    "repeatGap": 130,
+    "islet": "islet.webp",
+    "waterCrossings": true,
+    "dressingMask": "dressing-i04.webp",
+    "brushRoad": true,
+    "dustyShoulders": true,
+    "roadMaterial": "tex-pilgrim-road.webp",
+    "thresholdRoad": true,
+    "sillLaneBlend": {"A": 0.85},
+    "entranceFinishes": {"A": "grove-postern-e.webp"},
     "crossings": [
-      ["viaduct", 504, 247, 90, 74, -9]
+      ["rope-span", 505, 237, 152, 94, -13],
+      ["moss-steps", 728, 216, 83, 63, 23],
+      ["clapper-span", 1008, 263, 110, 74, -32]
     ],
     "cave-h": 2.18,
     "castle-h": 2.3,
+    "groundPaint": [["blossom-drift", 744, 712, 80]],
     "landmarks": [
-      ["anchors", 425, 302, 43]
+      ["emerald-oak", 755, 690, 181],
+      ["lantern-shrine", 1574, 366, 117],
+      ["grove-beacon", 1600, 648, 88]
     ]
   },
   "i05": {

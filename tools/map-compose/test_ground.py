@@ -1,5 +1,6 @@
 """Regression checks for map dressing. Run with python3 -B tools/map-compose/test_ground.py."""
 import json
+import math
 import unittest
 from pathlib import Path
 
@@ -17,6 +18,39 @@ from ground import windblown_road_coverage
 
 
 class GroundTests(unittest.TestCase):
+    def test_emerald_crossings_have_dry_landings_and_span_open_water(self):
+        compose = Path(__file__).resolve().parent
+        root = compose.parents[1]
+        recipe = json.loads((compose / 'campaign.json').read_text())['i04']
+        layout = json.loads((root / 'src/data/levels2d/i04.json').read_text())
+        kit = root / 'design/art-2d/v2/biomes' / recipe['biome']
+        with Image.open(kit / 'land-i04.webp') as mask:
+            land = mask.convert('L').resize(tuple(layout['imageSize']), Image.Resampling.NEAREST)
+        # All the rings sit on the original turf, including the two above the spring.
+        rings = Image.new('L', land.size)
+        rx = layout['plotRadiusPx']
+        with Image.open(root / 'design/art-2d/v2/assets/plot-base.png') as base:
+            ry = rx * base.height / base.width
+        draw = ImageDraw.Draw(rings)
+        for x, y in layout['plots']:
+            draw.ellipse((x-rx-4, y-ry-4, x+rx+4, y+ry+4), fill=255)
+        self.assertIsNone(ImageChops.subtract(rings, land).getbbox())
+        # Probe the timber feet. A centreline check missed the post beside the waterfall.
+        landings = {
+            'rope-span': [(0.21, .14), (.75, .16), (.12, .92), (.81, .94)],
+            'moss-steps': [(.5, .10), (.5, .90)],
+            'clapper-span': [(.5, .10), (.5, .90)],
+        }
+        self.assertEqual({crossing[0] for crossing in recipe['crossings']}, landings.keys())
+        for name, x, y, length, width, angle in recipe['crossings']:
+            cosine, sine = math.cos(math.radians(angle)), math.sin(math.radians(angle))
+            with self.subTest(crossing=name), Image.open(kit / f'landmark-{name}.webp') as paint:
+                for u, v in [*landings[name], (.5, .5)]:
+                    dx, dy = (u - .5) * width, (v - .5) * length
+                    point = (round(x + dx*cosine + dy*sine), round(y - dx*sine + dy*cosine))
+                    self.assertGreater(paint.getpixel((round(u*(paint.width-1)), round(v*(paint.height-1))))[3], 128)
+                    self.assertEqual(land.getpixel(point) >= 128, (u, v) in landings[name], point)
+
     def test_cay_boats_float_alongside_land_accessible_jetties(self):
         compose = Path(__file__).resolve().parent
         recipe = json.loads((compose / 'campaign.json').read_text())['i02']

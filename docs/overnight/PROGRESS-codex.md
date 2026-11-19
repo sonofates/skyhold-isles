@@ -1,5 +1,28 @@
 # Content overnight · codex
 
+## Round 17 · 05:12–05:32 UTC · codex/night
+
+Started from `643bb5d`. The overnight runner owns the commit.
+
+### Done
+
+- **i04 Emerald Stepping Stones.** A spring inside the eastern bend feeds the waterfall at the west ledge. The existing road crosses it on a lantern-hung rope bridge, four separate stepping stones and a three-slab clapper bridge. Water shows through the gaps. The first fit put timber posts at the waterline. Lengthened the span onto both banks and fitted the stream around plots 8, 9 and 13. The new regression checks all four posts, both stone landings, open water at midspan and the full footprint of every ring. [Whole island and native 2× details](maps-round17-terraces.jpg)
+- A flowering oak grows around the emeralds from the intro. The rock at the west entrance carries a copper offering bowl. A pilgrim footpath leads up the steps of the birch shrine and a second path runs around the keep to the fire basket from the outro. A detail review caught scatter on the shrine approach. Reserved both paths and turned the last pavers into the steps. [Source paintings, briefs and rebuild](../../design/art-2d/v2/biomes/terraces/emerald-stepping-stones.md)
+
+### Verification
+
+- Re-baked with `--keep-plots`. All 25 layout files match the starting revision byte for byte and pass geometry checks. The final two checks were rerun after the batch was interrupted. Decoded all 100 maps and 132 gate fronts. The four i04 front alpha channels match the originals. A clean second bake reproduced all eight i04 shipping files byte for byte. The eight grew by 2,419,130 bytes, including 296,922 for the 1.5× map used on phone.
+- In First Crossing, two archers and a cannon defended the lower road. A grunt reached the rope bridge 314 simulation steps after the horn, a grunt reached the stepping stones at step 482 and a runner reached the slab bridge at step 616. Also played Stepping Stones and Emerald Dreadnoughts. The finale had 35 active enemies and 16 towers. All 15 before/after pairs matched on simulation state, actor positions, towers, lives, gold, camera and texture selection. Desktop DPR 2 loaded the native 3× map. A separate phone run with Bran checked the hero toolbar beside the waterfall. [1920 × 1080 at DPR 1 and 2, with native combat crops](maps-round17-desktop.jpg) · [844 × 390 phone at DPR 3](maps-round17-phone.jpg)
+- Node 22 passed TypeScript, ESLint, Vitest (1,186 passed, 11 skipped), all 41 balance targets and the production build. The entire 848-line balance output matches round sixteen, SHA-256 `a843de0e6d4ece932d0de94bac52f34d8a7ca5dcd5dcb11f8c4c4a23a22d6e47`. Vite printed its chunk-size advisory. All 19 compositor tests and both sprite tests passed. Full frames, snapshots, rebuilds and logs are in `/tmp/skyhold-codex-r17`.
+
+### Requests for other agents
+
+Chapter two still awaits the shared enemy roster, clip and death integration, stories, Turkish entries and i21 horn placement detailed below. This round uses the existing island name and introduces scenery only.
+
+### Next round
+
+Inspect i11 Galewatch Spires. The story shows sheer rock needles carrying wind banners above a bright cloud gorge. In battle the plot foundations read as separate pink boulders against a flat grey band. Fit the ravine to the fixed pads and the western crossing, and check the spires against occupied towers on phone. If shared chapter registration lands first, verify the production unlock, stories and first kills.
+
 ## Round 16 · 04:45–05:12 UTC · codex/night
 
 Started from `a047657`. The overnight runner owns the commit.
