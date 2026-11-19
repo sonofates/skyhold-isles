@@ -114,6 +114,10 @@ export class Hud {
   private goldTint = 0xffffff;
   private lastGold = NaN;
   private lastWave = NaN;
+  /** "Wave n" bump when a new wave marches (not on the first fill / a reset). */
+  private waveBump = 0;
+  private waveBaseScale = 1;
+  private prevWaveNum = NaN;
   private endlessAfter: number | null = null;
   private lastHorn = NaN;
   private lastBanner = '\u0000';
@@ -354,6 +358,18 @@ export class Hud {
       const story = this.endlessAfter;
       setText(this.waveText, story === null ? t('hud.wave', { n: w, total: s.totalWaves }) : w <= story ? t('hud.wave', { n: w, total: story }) : t('hud.endlessWave', { n: w }));
       fitWidth(this.waveText, this.bannerFont);
+      this.waveBaseScale = this.waveText.scale.x;
+      if (Number.isFinite(this.prevWaveNum) && s.wave > this.prevWaveNum && s.wave > 1) this.waveBump = 0.5;
+      this.prevWaveNum = s.wave;
+    }
+    if (this.waveBump > 0) {
+      this.waveBump = Math.max(0, this.waveBump - dt);
+      const k = this.waveBump / 0.5;
+      this.waveText.scale.set(this.waveBaseScale * (1 + 0.16 * Math.sin(k * Math.PI)));
+      this.waveText.tint = k > 0.05 ? 0xffe9a8 : 0xffffff;
+    } else if (this.waveText.tint !== 0xffffff) {
+      this.waveText.tint = 0xffffff;
+      this.waveText.scale.set(this.waveBaseScale);
     }
     const pausedKey = s.paused ? 1 : 0;
     if (pausedKey !== this.lastPaused) {
