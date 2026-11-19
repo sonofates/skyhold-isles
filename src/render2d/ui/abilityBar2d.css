@@ -305,12 +305,15 @@
   font-size: max(13px, calc(var(--s) * 1.3));
   font-weight: 700;
   line-height: 1.2;
+  /* Two even lines rather than one long one and an orphan word. */
+  text-wrap: balance;
 }
 
 .pu-ab-hint small {
   display: block;
   font-size: 0.78em;
   font-weight: 600;
+  text-wrap: balance;
 }
 
 .pu-ab-hint.nudge {

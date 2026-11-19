@@ -89,6 +89,8 @@
 .pu-ink-soft {
   color: var(--ink-soft);
   font-weight: 600;
+  /* Body text in tips / cards: no lone last word on its own line. */
+  text-wrap: pretty;
 }
 
 /* ---- dim backdrop + overlay ---------------------------------------------------------------- */
