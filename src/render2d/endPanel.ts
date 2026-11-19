@@ -2,7 +2,7 @@ import { Assets, Container, Graphics, Sprite, Texture, type Text } from 'pixi.js
 import { t, type MsgKey } from '../i18n/index.ts';
 import type { LoadedArt } from './assets2d.ts';
 import { paintedText, setFontSize, setText } from './hudText.ts';
-import { easeOutBack, easeOutCubic, fitWidth, inkText, kit, paintedUiTexture, setInkSize } from './uiKit.ts';
+import { easeOutBack, easeOutCubic, fitWidth, INK_SOFT, inkText, kit, paintedUiTexture, setInkSize } from './uiKit.ts';
 import { END_FRAME, endLayout, NO_INSETS, type EndLayout, type Insets, type Rect } from './uiLayout.ts';
 import type { EndModeNote } from './ui/modeBits.ts';
 
@@ -206,6 +206,8 @@ export class EndPanel {
     }
     setText(this.heroText, t('end.heroXp', { name: h.name, n: h.xpGained }));
     const up = h.toLevel > h.fromLevel;
+    // Rust accent for a level-up; a plain "Level n" in soft ink (red read like a warning).
+    this.heroLvl.style.fill = up ? '#9a3b18' : INK_SOFT;
     setText(this.heroLvl, up ? t('end.heroLevelUp', { n: h.toLevel }) + (h.skillPoints > 0 ? t('common.sep') + t('end.heroPoints', { n: h.skillPoints }) : '') : h.recorded ? t('end.heroLevel', { n: h.toLevel }) : '');
     this.layout(this.w, this.h);
   }
