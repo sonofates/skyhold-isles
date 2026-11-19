@@ -852,8 +852,9 @@ async function main(): Promise<void> {
         const p = game.plotScreen(w.towers[0].col);
         target = { x: p.x, y: p.y - 40 };
       } else if (step === 'hero' && !game.heroSelected) {
-        const hs = game.heroScreen();
-        target = hs ? { x: hs.x, y: hs.y - 82 } : null;
+        // The hero's head (its HP bar; scales with the map: phones draw the hero smaller). The
+        // arrow's tip already floats a little above its target.
+        target = game.heroHeadScreen();
       } else if (step === 'meteor') target = rectTop('[data-testid="ab2d-meteor"]');
       coach.update(obs, target, game.end.visible || storyOpen || anySheetOpen() || game.replaying);
     }

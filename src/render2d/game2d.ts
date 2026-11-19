@@ -1119,6 +1119,12 @@ export class Game2D {
     return f ? { x: this.map.screenX(f.x), y: this.map.screenY(f.y) } : null;
   }
 
+  /** Screen (css px) top centre of the hero's body (the head), or null without a hero. */
+  heroHeadScreen(): { x: number; y: number } | null {
+    const b = this.heroes.bodyRect();
+    return b ? { x: this.map.screenX(b.x + b.w / 2), y: this.map.screenY(b.y) } : null;
+  }
+
   /** Is the screen point on the hero (body box grown to a touch-sized target)? */
   private onHeroAt(x: number, y: number): boolean {
     const b = this.heroes.bodyRect();
