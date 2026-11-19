@@ -1,5 +1,28 @@
 # Content overnight · codex
 
+## Round 15 · 04:20–04:45 UTC · codex/night
+
+Started from `6cd2a1f`. Changes are in the working tree for the overnight runner.
+
+### Done
+
+- **i07 Skybridge Gauntlet.** The eastern fort overlooks the outbound crossing. Its watch stair descends to the road opposite the sundial from the intro. The northern bridge carries a teal banner on its middle pier. The return bridge has one recessed arch with a carved sun keystone. Pale setts give way to gravel on the approaches. Replaced the repeated loose anchors and rubble with grass, heather and a few windswept pines. [Whole island and native 2× details](maps-round15-skybridge.jpg)
+- The cliff painting now shows the stream below both decks. Matching limestone ledges carry the tower rings and support the northern pier. An early bake stretched the cliff strata and let a buried abutment reappear through a notch. Repainted the rock faces and corrected the compositor so the bank hides the pier all the way down. A regression exercises the deck slope, open arch and projecting bank at three resolutions. The first phone battle hid the beacon woodstore behind the ability buttons. It now sits east of the buttons in the keep yard. [Source paintings and rebuild command](../../design/art-2d/v2/biomes/highlands/skybridge-gauntlet.md)
+
+### Verification
+
+- Re-baked with `--keep-plots`. All 25 saved layouts match the starting revision byte for byte and pass the geometry checks, including i07's single road, entrance, goal and 26 plots. Decoded all 100 map textures and 132 gate fronts. The four i07 front alpha channels match their originals. An independent bake reproduced all eight shipping files byte for byte. Together they grew by 707,724 bytes, including 86,030 bytes for the phone's 1.5× map.
+- In Bridgehead, two archers and a cannon bought with the starting gold defended the return road. A grunt reached the outbound span 382 simulation steps after the horn and a runner reached the return span at step 1,055. Both screenshots show their feet on the deck. Also played Gauntlet Run with four towers and The Last Span with 16 towers and 60 active enemies. The 12 before/after pairs match on ground-enemy positions, total enemies, builds, lives, gold, camera and texture selection. The final DPR 2 reference pair was recaptured after the browser job was interrupted. Desktop DPR 2 loaded the native 3× map. [1920 × 1080 at DPR 1 and 2, with native combat crops](maps-round15-desktop.jpg) · [844 × 390 phone at DPR 3](maps-round15-phone.jpg)
+- Node 22 passed TypeScript, ESLint, Vitest (1,186 passed, 11 skipped), all 41 balance targets and the production build. The 848-line balance output is byte-identical to round fourteen, SHA-256 `a843de0e6d4ece932d0de94bac52f34d8a7ca5dcd5dcb11f8c4c4a23a22d6e47`. The build was rerun after the first process was interrupted. Vite printed its chunk-size advisory. All seventeen Python compositor and both sprite regressions passed. Full frames, snapshots, the independent bake and logs are under `/tmp/skyhold-codex-r15`.
+
+### Requests for other agents
+
+Chapter two is still waiting on the shared roster, clip loader, death callback, story and Turkish entries from the earlier handoffs, plus the i21 horn placement. Round fifteen adds scenery without introducing any player-facing strings.
+
+### Next round
+
+Inspect i02 Twin-Bridge Cay. Its intro shows working wooden quays and boats moored in a harbour. The battle map has dinghies scattered on dry grass, two bare timber decks and a small detached dock by the keep. Fit the boats and a landing to the actual navigable water, check their moorings and the bridge piles at phone size, and keep the two existing crossings. If shared chapter registrations land first, verify the production unlock, stories and first kills.
+
 ## Round 14 · 03:55–04:19 UTC · codex/night
 
 Started from `c1305c7`. The runner owns the commit.

@@ -92,7 +92,7 @@ from gates import (  # noqa: E402
 )
 import fords  # noqa: E402
 from banks import shore_foundation  # noqa: E402
-from masonry import RoadArcade, brick_spur, cart_tracks, marble_road, moat_wall, paved_road  # noqa: E402
+from masonry import RoadArcade, arch_bridge, brick_spur, cart_tracks, marble_road, moat_wall, paved_road  # noqa: E402
 from keeps import Keep  # noqa: E402
 from ground import (  # noqa: E402
     Decals, DressingArea, brushed_surface, dusty_road_coverage, fine_detail, inner_band, paint_over_road, ragged_mask,
@@ -829,6 +829,10 @@ if ford_patches:
 
 # Crossings share the road centreline. These deck stamps have no collision or sim geometry.
 crossing_rects = []
+for name, start, end, above, below, curb in dressing.get('archBridges', []):
+    bounds = arch_bridge(ground, load(f'landmark-{name}.webp'), land_mask, (iw, ih),
+                         start, end, above, below, curb, S)
+    crossing_rects.append(bounds)
 for name, x, y, length, width, angle in dressing.get('crossings', []):
     deck = load(f'landmark-{name}.webp').resize((round(width * S), round(length * S)), Image.Resampling.LANCZOS)
     deck = deck.rotate(angle, Image.Resampling.BICUBIC, expand=True)

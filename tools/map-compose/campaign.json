@@ -143,27 +143,32 @@
   "i07": {
     "plots": 26,
     "seed": 283,
-    "decals": 155,
-    "props": 44,
+    "decals": 56,
+    "props": 16,
     "windmill": "none",
     "biome": "highlands",
-    "propWeights": [1, 2, 2, 3, 7, 2, 5],
-    "crossings": [
-      ["stone-bridge", 936, 229, 176, 73, 83.4],
-      ["stone-bridge", 920, 564, 202, 74, 80.5]
+    "scatterProps": [["storm-pine.webp", 1.3], ["slate-heather.webp", 0.42], ["silver-grass.webp", 0.36]],
+    "propWeights": [1, 5, 3],
+    "repeatGap": 83,
+    "archBridges": [
+      ["thyme-bridge", [752, 208], [1024, 240], 44, 88, 38],
+      ["sun-bridge", [770, 548], [1023, 582], 44, 88, 38]
     ],
-    "islet": "islet.webp",
+    "islet": "gorge-ledge.webp",
     "sprites": {
       "gate-cave-e.png": "storm-cave-e.webp",
-      "gate-cave-s.png": "storm-cave-s.webp",
-      "signal-post.webp": "torn-standard.webp",
-      "parapet.webp": "broken-wall.webp",
-      "snow-fir.webp": "storm-pine.webp"
+      "gate-cave-s.png": "storm-cave-s.webp"
     },
-    "roadMaterial": "tex-gravel.webp",
+    "roadMaterial": "tex-span-paving.webp",
+    "roadStrip": true,
+    "dustyShoulders": true,
+    "thresholdRoad": true,
+    "entranceFinishes": {"A": "thyme-postern-s.webp"},
+    "groundPaint": [["garrison-stairs", 1047, 206, 89]],
     "landmarks": [
-      ["fort", 868, 326, 58],
-      ["fort", 1044, 449, 49]
+      ["span-garrison", 1107, 136, 131],
+      ["cliff-sundial", 749, 121, 76],
+      ["span-woodstore", 433, 700, 62]
     ]
   },
   "i08": {

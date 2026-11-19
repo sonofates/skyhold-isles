@@ -6,6 +6,36 @@ import numpy as np
 from PIL import Image, ImageChops, ImageDraw, ImageEnhance, ImageFilter
 
 
+def arch_bridge(ground, paint, land, layout_size, start, end, above, below, curb, scale):
+    """Shear an east-west elevation along the lane, burying its piers in the two banks.
+
+    The endpoints mark the deck centre. Above/below bound the painting vertically
+    relative to that line. Only masonry below the near curb can disappear behind land.
+    """
+    x0, y0 = start
+    x1, y1 = end
+    bounds = (x0, min(y0, y1)-above, x1, max(y0, y1)+below)
+    left, top, right, bottom = (round(v*scale) for v in bounds)
+    size = right-left, bottom-top
+    slope = (y1-y0)/(x1-x0)
+    sx, sy = paint.width/((x1-x0)*scale), paint.height/((above+below)*scale)
+    dx = left-x0*scale
+    matrix = (sx, 0, dx*sx, -slope*sy, sy, (top-(y0-above)*scale-slope*dx)*sy)
+    bridge = paint.transform(size, Image.Transform.AFFINE, matrix, Image.Resampling.BICUBIC)
+
+    mx, my = land.width/(layout_size[0]*scale), land.height/(layout_size[1]*scale)
+    bank = land.transform(size, Image.Transform.EXTENT, (left*mx, top*my, right*mx, bottom*my),
+                          Image.Resampling.BILINEAR)
+    yy, xx = np.ogrid[:size[1], :size[0]]
+    depth = (top+yy+.5)/scale - y0 - slope*((left+xx+.5)/scale-x0)
+    soil = np.asarray(bank) * np.clip(depth-curb, 0, 1)
+    # Once a pier enters the bank, it cannot reappear below the projecting ledge.
+    soil = np.maximum.accumulate(soil, axis=0)
+    bridge.putalpha(ImageChops.multiply(bridge.getchannel('A'), Image.fromarray((255-soil).astype('uint8'))))
+    ground.alpha_composite(bridge, (left, top))
+    return bounds
+
+
 class RoadCourse:
     """Distance along a polyline and a signed offset from its centre."""
     def __init__(self, path):

@@ -8,13 +8,35 @@ import fords
 from banks import shore_foundation
 from gates import draw_threshold_road, output_sprite
 from keeps import Keep, sample
-from masonry import RoadArcade, brick_spur, cart_tracks, paved_road
+from masonry import RoadArcade, arch_bridge, brick_spur, cart_tracks, paved_road
 
 from ground import Decals, DressingArea, brushed_surface, dusty_road_coverage, paint_over_road, road_footprint, road_fringe, scatter
 from ground import windblown_road_coverage
 
 
 class GroundTests(unittest.TestCase):
+    def test_bridge_follows_both_landings_and_exposes_its_arch_above_the_gorge(self):
+        land = Image.new('L', (100, 80), 255)
+        ImageDraw.Draw(land).rectangle((32, 0, 67, 79), fill=0)
+        ImageDraw.Draw(land).rectangle((32, 33, 38, 35), fill=255)
+        paint = Image.new('RGBA', (80, 36), 'tan')
+        ink = ImageDraw.Draw(paint)
+        ink.rectangle((0, 0, 79, 11), fill='silver')
+        ink.rectangle((29, 20, 39, 35), fill=(0, 0, 0, 0))
+        for scale in (1, 2, 3):
+            ground = Image.new('RGBA', (200*scale, 160*scale), 'teal')
+            arch_bridge(ground, paint, land, (200, 160), (20, 40), (180, 80),
+                        12, 24, 6, scale)
+            # Both ends have a deck, with their foundations buried in the bank.
+            for x in (40, 160):
+                y = 40 + (x-20)//4
+                self.assertEqual(ground.getpixel((x*scale, (y-6)*scale)), ImageColor.getcolor('silver', 'RGBA'))
+                self.assertEqual(ground.getpixel((x*scale, (y+14)*scale)), ImageColor.getcolor('teal', 'RGBA'))
+            # A grass spur in front of the left pier hides the masonry all the way down.
+            for x, color in ((72, 'teal'), (80, 'teal'), (108, 'tan'), (120, 'tan')):
+                y = 40 + (x-20)//4 + 15
+                self.assertEqual(ground.getpixel((x*scale, y*scale)), ImageColor.getcolor(color, 'RGBA'))
+
     def test_paving_strip_runs_once_from_the_entrance_and_turns_with_the_lane(self):
         paint = Image.new('RGB', (94, 21), 'slategray')
         ink = ImageDraw.Draw(paint)
