@@ -143,8 +143,9 @@ for (const size of SIZES) {
     });
     const pause = s.buttons.pause;
     await press(page, size, pause.x, pause.y);
-    await page.waitForTimeout(500);
-    ok(await page.locator('[data-testid="pause2d-menu"]').isVisible(), `${tag}: pause menu not shown`);
+    // Software GL at DPR 2 can take a few slow frames to show it: poll, don't sleep.
+    const menuUp = await page.locator('[data-testid="pause2d-menu"]').waitFor({ state: 'visible', timeout: 6000 }).then(() => true, () => false);
+    ok(menuUp, `${tag}: pause menu not shown`);
     await shot(page, size, lang, 'pause-menu');
     await page.locator('[data-testid="pause2d-restart"]').click();
     await page.waitForTimeout(400);
