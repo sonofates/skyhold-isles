@@ -258,16 +258,22 @@ export function mergeProgress(a: ProgressData, b: ProgressData, levelCount: numb
     clears,
     workshop: unionWorkshop,
     challengeClears: Array.from({ length: count }, (_, i) => {
-      const out: string[] = [];
-      for (const src of [a.challengeClears?.[i], b.challengeClears?.[i]]) {
-        if (!Array.isArray(src)) continue;
+      const cleanList = (src: unknown): string[] => {
+        if (!Array.isArray(src)) return [];
+        const list: string[] = [];
         for (const id of src) {
-          if (typeof id === 'string' && id.length > 0 && id.length <= 40 && !out.includes(id)) {
-            out.push(id);
+          if (typeof id === 'string' && id.length > 0 && id.length <= 40 && !list.includes(id)) {
+            list.push(id);
           }
         }
-      }
-      return out;
+        return list;
+      };
+      const la = cleanList(a.challengeClears?.[i]);
+      const lb = cleanList(b.challengeClears?.[i]);
+      if (la.length === lb.length && la.every((id, idx) => lb[idx] === id)) return la;
+      if (lb.length < la.length && lb.every((id) => la.includes(id))) return la;
+      if (la.length < lb.length && la.every((id) => lb.includes(id))) return lb;
+      return [...new Set([...la, ...lb])].sort();
     }),
     daily,
     ...(mergedHeroes !== undefined ? { heroes: mergedHeroes } : {}),

@@ -396,6 +396,7 @@ describe('save/progress migrations, 2D wrapper edge cases & 500-case seeded fuzz
           Math.max(a.bestEndlessWaves[k], b.bestEndlessWaves[k]),
         );
       }
+      expect(mergeProgress(b, decA.progress, N)).toEqual(m);
       expect(mergeProgress(m, m, N)).toEqual(m);
     }
   });
@@ -1380,5 +1381,235 @@ describe('Daily Squall, Endless escalations, and Silent Skies + Hero interaction
     const mockIap = createIapStore({ mode: 'mock', storage: null });
     expect(mockIap.owned(null as never)).toBe(false);
     expect((await mockIap.purchase(null as never)).status).toBe('unknown_product');
+  });
+
+  it('guards WaveSystem waveCompleted/spawning re-entrancy, GroundGraph disconnected NaN paths, mid-tick transient splices, concurrent cloud updated flags, and achievement/gesture edge cases', async () => {
+    installMemoryStorage();
+    const { syncAchievementsFromProgress } = await import('../../src/platform/achievements.ts');
+    const { hydrateProgressFromCloud } = await import('../../src/platform/cloudSync.ts');
+    const { loadProgress, saveLocalProgress } = await import('../../src/platform/storage.ts');
+    const { hydrateProgress2DFromCloud } = await import('../../src/render2d/ui/progress2d.ts');
+    const { GroundGraph } = await import('../../src/sim/groundGraph.ts');
+    const { CompiledPath } = await import('../../src/sim/path.ts');
+
+    // 1a. WaveSystem transitions to 'betweenWaves' (with positive countdown) BEFORE emitting 'waveCompleted',
+    //     so listeners calling startNextWave() or setAutoWave() inside 'waveCompleted' never get clobbered.
+    const chainEvents = new EventBus();
+    const chainWorld = new SimWorld(LEVEL_L1C, chainEvents);
+    const observedStates: string[] = [];
+    chainEvents.on('waveCompleted', (ev) => {
+      observedStates.push(chainWorld.waveSystem.state);
+      if (ev.waveIndex === 0) {
+        expect(chainWorld.waveSystem.interWaveTimer).toBeGreaterThan(0);
+        // Calling startNextWave() right inside waveCompleted must start wave 2 cleanly in 'spawning' state!
+        expect(chainWorld.startNextWave()).toBe(true);
+      } else if (ev.waveIndex === 1) {
+        // Calling setAutoWave(true) inside waveCompleted shortens the betweenWaves countdown cleanly.
+        chainWorld.setAutoWave(true);
+        expect(chainWorld.waveSystem.getAutoShortenedBy()).toBeGreaterThan(0);
+      }
+    });
+    expect(chainWorld.startNextWave()).toBe(true);
+    for (let t = 0; t < 60 * 120 && chainWorld.waveSystem.currentWaveIndex < 2; t++) {
+      for (let i = 0; i < chainWorld.enemyPool.getActiveCount(); i++) {
+        const e = chainWorld.enemyPool.items[chainWorld.enemyPool.getActiveIndex(i)];
+        chainWorld.enemySystem.applyDamage(e, 99_999, true);
+      }
+      chainWorld.fixedTick(BALANCE.fixedDt);
+    }
+    expect(observedStates[0]).toBe('betweenWaves');
+    expect(observedStates[1]).toBe('betweenWaves');
+    expect(chainWorld.waveSystem.currentWaveIndex).toBe(2);
+    expect(chainWorld.waveSystem.state).toBe('spawning');
+    chainWorld.dispose();
+
+    // 1b. Calling debugForceWin() inside 'enemySpawned' must NOT be clobbered back to 'allSpawned'/'clearing'.
+    const spawnWinEvents = new EventBus();
+    const spawnWinWorld = new SimWorld(LEVEL_L1C, spawnWinEvents);
+    spawnWinEvents.on('enemySpawned', () => {
+      spawnWinWorld.debugForceWin();
+    });
+    spawnWinWorld.startNextWave();
+    spawnWinWorld.fixedTick(BALANCE.fixedDt);
+    expect(spawnWinWorld.outcome).toBe('won');
+    expect(spawnWinWorld.waveSystem.state).toBe('finished');
+    spawnWinWorld.dispose();
+
+    // 2. GroundGraph.findPath handles non-finite target/source coords & negative maxOffRoad across disconnected components.
+    const laneA = CompiledPath.fromWorld(
+      [
+        { x: -10, z: -10 },
+        { x: -6, z: -10 },
+      ],
+      0,
+      false,
+    );
+    const laneB = CompiledPath.fromWorld(
+      [
+        { x: 10, z: 10 },
+        { x: 14, z: 10 },
+      ],
+      0,
+      false,
+    );
+    const disconnectedGraph = new GroundGraph([laneA, laneB]);
+    const nanTargetPath = disconnectedGraph.findPath(12, 10, NaN, 0);
+    expect(nanTargetPath.length).toBeGreaterThan(0);
+    for (const wp of nanTargetPath) {
+      expect(Number.isFinite(wp.x)).toBe(true);
+      expect(Number.isFinite(wp.z)).toBe(true);
+    }
+    const negMaxOffPath = disconnectedGraph.findPath(12, 10, -8, -10, -5);
+    for (const wp of negMaxOffPath) {
+      expect(Number.isFinite(wp.x)).toBe(true);
+      expect(Number.isFinite(wp.z)).toBe(true);
+    }
+
+    // 3. Re-entrant Meteor & Wren double-volley casts inside 'enemyHit' preserve newly queued strikes.
+    const reEvents = new EventBus();
+    const reWorld = new SimWorld(LEVEL_L1C, reEvents, {
+      heroId: 'wren',
+      heroLevel: 20,
+      heroSkills: defaultLevel20Skills('wren'),
+    });
+    reWorld.startNextWave();
+    const dummy = reWorld.enemySystem.spawnEnemy('brute', 10, false, 0)!;
+    dummy.speed = 0;
+    reWorld.commandHeroMove(dummy.x, dummy.z);
+    for (let t = 0; t < 60 * 12 && reWorld.hero!.state === 'moving'; t++) {
+      reWorld.fixedTick(BALANCE.fixedDt);
+    }
+    dummy.hp = dummy.maxHp;
+
+    let recastMeteor = false;
+    let recastVolley = false;
+    reEvents.on('enemyHit', () => {
+      if (!recastMeteor && reWorld.abilitySystem.getPendingMeteorCount() === 0) {
+        recastMeteor = true;
+        reWorld.abilitySystem.reset();
+        expect(reWorld.castMeteor(dummy.x, dummy.z)).toBe(true);
+      }
+    });
+    expect(reWorld.castMeteor(dummy.x, dummy.z)).toBe(true);
+    for (let t = 0; t < 90 && !recastMeteor; t++) {
+      reWorld.fixedTick(BALANCE.fixedDt);
+    }
+    expect(recastMeteor).toBe(true);
+    expect(reWorld.abilitySystem.getPendingMeteorCount()).toBe(1);
+
+    reWorld.abilitySystem.reset();
+    reEvents.clear();
+    expect(reWorld.castHeroSkill(0, dummy.x, dummy.z)).toBe(true);
+    expect(reWorld.heroSystem.getPendingVolleys().length).toBe(1);
+    reEvents.on('enemyHit', () => {
+      if (!recastVolley && reWorld.heroSystem.getPendingVolleys().length === 0) {
+        recastVolley = true;
+        reWorld.hero!.skillCooldowns[0] = 0;
+        expect(reWorld.castHeroSkill(0, dummy.x, dummy.z)).toBe(true);
+      }
+    });
+    for (let t = 0; t < 40 && !recastVolley; t++) {
+      reWorld.fixedTick(BALANCE.fixedDt);
+    }
+    expect(recastVolley).toBe(true);
+    expect(reWorld.heroSystem.getPendingVolleys().length).toBe(1);
+    reWorld.dispose();
+
+    // 4. Async cloud hydration reports updated=true and writes the full union to disk even when cloud is null/offline!
+    const caller2d = createDefaultProgress(LEVELS_2D.length);
+    caller2d.bestStars[2] = 2; // in-memory caller progress on i02
+    caller2d.clears[2] = 1;
+    saveProgress2D(createDefaultProgress(LEVELS_2D.length), LEVELS_2D);
+
+    const offlineRace2d = await hydrateProgress2DFromCloud(caller2d, LEVELS_2D, {
+      id: 'steam',
+      isSteam: true,
+      isMobile: false,
+      achievements: { unlock: async () => false, isUnlocked: async () => false },
+      cloudSave: {
+        read: async () => {
+          const diskWin = loadProgress2D(LEVELS_2D);
+          diskWin.bestStars[0] = 3;
+          diskWin.clears[0] = 1;
+          saveProgress2D(diskWin, LEVELS_2D);
+          return null; // cloud empty / offline!
+        },
+        write: async () => true,
+      },
+      onOverlayChange: () => () => {},
+      onPause: () => () => {},
+      onResume: () => () => {},
+    });
+    expect(offlineRace2d.updated).toBe(true);
+    expect(offlineRace2d.merged.bestStars[0]).toBe(3);
+    expect(offlineRace2d.merged.bestStars[2]).toBe(2);
+    expect(loadProgress2D(LEVELS_2D).bestStars[2]).toBe(2); // caller's in-memory progress persisted to disk union!
+
+    const caller3d = createDefaultProgress(LEVELS.length);
+    caller3d.bestStars[2] = 2;
+    caller3d.clears[2] = 1;
+    saveLocalProgress(createDefaultProgress(LEVELS.length));
+    const offlineRace3d = await hydrateProgressFromCloud(
+      caller3d,
+      LEVELS.length,
+      {
+        id: 'steam',
+        isSteam: true,
+        isMobile: false,
+        achievements: { unlock: async () => false, isUnlocked: async () => false },
+        cloudSave: {
+          read: async () => {
+            const diskWin3d = createDefaultProgress(LEVELS.length);
+            diskWin3d.bestStars[0] = 3;
+            diskWin3d.clears[0] = 1;
+            saveLocalProgress(diskWin3d);
+            return null;
+          },
+          write: async () => true,
+        },
+        onOverlayChange: () => () => {},
+        onPause: () => () => {},
+        onResume: () => () => {},
+      },
+      LEVELS,
+    );
+    expect(offlineRace3d.updated).toBe(true);
+    expect(offlineRace3d.merged.bestStars[0]).toBe(3);
+    expect(offlineRace3d.merged.bestStars[2]).toBe(2);
+    expect(loadProgress(LEVELS.length).bestStars[2]).toBe(2);
+
+    // 5. syncAchievementsFromProgress isolates per-achievement IPC rejections, and DoubleTapDetector ignores rolled-back timestamps.
+    const achProg = createDefaultProgress(LEVELS.length);
+    achProg.bestStars[0] = 3;
+    achProg.clears[0] = 1;
+    let achAttempt = 0;
+    const unlockedAfterFault = await syncAchievementsFromProgress(
+      achProg,
+      {
+        id: 'steam',
+        isSteam: true,
+        isMobile: false,
+        achievements: {
+          unlock: async () => {
+            achAttempt++;
+            if (achAttempt === 1) throw new Error('transient IPC error');
+            return true;
+          },
+          isUnlocked: async () => false,
+        },
+        cloudSave: { read: async () => null, write: async () => true },
+        onOverlayChange: () => () => {},
+        onPause: () => () => {},
+        onResume: () => () => {},
+      },
+      LEVELS,
+    );
+    expect(achAttempt).toBeGreaterThanOrEqual(2);
+    expect(unlockedAfterFault.length).toBeGreaterThanOrEqual(1);
+
+    const dtd = new DoubleTapDetector();
+    expect(dtd.register(100, 100, 5000)).toBe(false);
+    expect(dtd.register(102, 102, 4800)).toBe(false); // rolled-back timestamp must NOT trigger double-tap!
+    expect(dtd.register(103, 103, 4950)).toBe(true); // valid follow-up within 300ms of 4800ms succeeds!
   });
 });

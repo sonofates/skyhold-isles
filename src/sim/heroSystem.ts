@@ -139,6 +139,7 @@ const _queryCandidates: number[] = [];
 const _skillCandidates0: number[] = [];
 const _skillCandidates1: number[] = [];
 const _fireRingCandidates: number[] = [];
+const _fireRingTickCandidates: number[] = [];
 const _pickCandidates: number[] = [];
 const _periodicCandidates: number[] = [];
 const _strikeCandidates: number[] = [];
@@ -1219,17 +1220,19 @@ export class HeroSystem {
   private updatePeriodicEffects(dt: number, h: HeroEntity): void {
     // Pending second Volley waves (Wren capstone).
     for (let i = this.pendingVolleys.length - 1; i >= 0; i--) {
+      if (i >= this.pendingVolleys.length) continue;
       const pv = this.pendingVolleys[i];
       pv.remainingSec -= dt;
       if (pv.remainingSec <= 0) {
-        this.applyVolleyStrike(h, pv.x, pv.z, pv.radius, pv.damage, pv.slow, _periodicCandidates);
         this.pendingVolleys.splice(i, 1);
+        this.applyVolleyStrike(h, pv.x, pv.z, pv.radius, pv.damage, pv.slow, _periodicCandidates);
       }
     }
 
     // Active Fire Rings & Kindling DoT ticks (synchronized every 0.5s).
     let anyFire = this.fireRings.length > 0;
     for (let i = this.fireRings.length - 1; i >= 0; i--) {
+      if (i >= this.fireRings.length) continue;
       const ring = this.fireRings[i];
       ring.remainingSec -= dt;
       if (ring.remainingSec <= 0) {
@@ -1266,13 +1269,14 @@ export class HeroSystem {
       this.burnTickTimer -= dt;
       if (this.burnTickTimer <= 0) {
         this.burnTickTimer += BURN_TICK_INTERVAL;
-        for (let r = 0; r < this.fireRings.length; r++) {
+        const ringCount = this.fireRings.length;
+        for (let r = 0; r < ringCount && r < this.fireRings.length; r++) {
           const ring = this.fireRings[r];
-          this.spatialHash.query(ring.x, ring.z, ring.radius, _periodicCandidates);
+          this.spatialHash.query(ring.x, ring.z, ring.radius, _fireRingTickCandidates);
           const rSq = ring.radius * ring.radius;
           const tickDmg = Math.max(1, Math.round(ring.dps * BURN_TICK_INTERVAL));
-          for (let k = 0; k < _periodicCandidates.length; k++) {
-            const e = this.pool.items[_periodicCandidates[k]];
+          for (let k = 0; k < _fireRingTickCandidates.length; k++) {
+            const e = this.pool.items[_fireRingTickCandidates[k]];
             if (!e.active || e.hp <= 0 || e.burrowed) continue;
             if ((e.x - ring.x) ** 2 + (e.z - ring.z) ** 2 > rSq) continue;
             const res = this.enemySystem.applyDamage(e, tickDmg, true);

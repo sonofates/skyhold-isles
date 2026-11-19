@@ -226,13 +226,29 @@ export async function hydrateProgress2DFromCloud(
     return { merged: normalizedLocal, updated: false, unlockedAchievements: [] };
   }
 
+  const callerRaw = serializeStored2D(normalizedLocal, levels);
   const diskRawBefore = readLocalProgress2DRaw();
   const cloudRaw = await adapter.cloudSave.read(CLOUD_PROGRESS_2D_SLOT);
   const diskRawAfter = readLocalProgress2DRaw();
-  if (diskRawAfter !== null && diskRawAfter !== diskRawBefore) {
+  const concurrentHappened = diskRawAfter !== null && diskRawAfter !== diskRawBefore;
+  if (concurrentHappened) {
     const concurrent = parseStored2DRaw(diskRawAfter, levels);
     if (concurrent) {
-      normalizedLocal = mergeProgress(normalizedLocal, concurrent.progress, levels.length);
+      let concurrentIncoming = concurrent.progress;
+      if (
+        concurrent.rawSelectedHero &&
+        concurrentIncoming.heroes &&
+        concurrent.rawSelectedHero !== concurrentIncoming.heroes.selectedHero
+      ) {
+        concurrentIncoming = {
+          ...concurrentIncoming,
+          heroes: { ...concurrentIncoming.heroes, selectedHero: concurrent.rawSelectedHero },
+        };
+      }
+      if (concurrent.rawWorkshop) {
+        concurrentIncoming = { ...concurrentIncoming, workshop: concurrent.rawWorkshop };
+      }
+      normalizedLocal = mergeProgress(normalizedLocal, concurrentIncoming, levels.length);
       normalizedLocal.heroes = migrateHeroSave(normalizedLocal.heroes, normalizedLocal, levels);
     }
   }
@@ -262,7 +278,6 @@ export async function hydrateProgress2DFromCloud(
       merged.heroes = migrateHeroSave(merged.heroes, merged, levels);
       const mergedRaw = serializeStored2D(merged, levels);
       if (mergedRaw !== localRaw) {
-        updated = true;
         saveLocalProgress2D(merged, levels);
       }
       if (mergedRaw !== cloudRaw) {
@@ -273,6 +288,14 @@ export async function hydrateProgress2DFromCloud(
     }
   } else if (adapter.isSteam && hasAnyProgress(normalizedLocal)) {
     await adapter.cloudSave.write(CLOUD_PROGRESS_2D_SLOT, localRaw);
+  }
+
+  const finalMergedRaw = serializeStored2D(merged, levels);
+  if (finalMergedRaw !== callerRaw) {
+    updated = true;
+  }
+  if (concurrentHappened && finalMergedRaw !== diskRawAfter && hasAnyProgress(merged)) {
+    saveLocalProgress2D(merged, levels);
   }
 
   const unlockedAchievements = await syncAchievementsFromProgress(merged, adapter, levels);

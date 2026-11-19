@@ -547,18 +547,24 @@ export class WaveSystem {
     }
 
     if (this.state === 'spawning') {
+      const activeWaveIdx = this.currentWaveIndex;
       this.waveElapsed += dt;
       const hpScale = this.getCurrentWaveHpScale();
       while (
+        this.state === 'spawning' &&
+        this.currentWaveIndex === activeWaveIdx &&
         this.spawnCursor < this.spawnQueue.length &&
         this.spawnQueue[this.spawnCursor].spawnTime <= this.waveElapsed
       ) {
-        const queued = this.spawnQueue[this.spawnCursor];
+        const queued = this.spawnQueue[this.spawnCursor++];
         onSpawn(queued.enemyType, hpScale, queued.elite, queued.lane);
-        this.spawnCursor++;
       }
 
-      if (this.spawnCursor >= this.spawnQueue.length) {
+      if (
+        this.state === 'spawning' &&
+        this.currentWaveIndex === activeWaveIdx &&
+        this.spawnCursor >= this.spawnQueue.length
+      ) {
         this.pendingClearBonus += this.currentWaveClearBonus;
         this.currentWaveClearBonus = 0;
         if (this.currentWaveIndex >= this.totalWaves - 1) {
@@ -587,37 +593,42 @@ export class WaveSystem {
   ): void {
     if (this.state === 'clearing') {
       if (getActiveEnemiesCount() === 0) {
+        const completedWaveIndex = this.currentWaveIndex;
         const bonus = this.pendingClearBonus;
         this.pendingClearBonus = 0;
+        this.state = 'betweenWaves';
+        this.beginCountdown(BALANCE.interWaveCountdownSec, AUTO_WAVE_COUNTDOWN_SEC);
         if (bonus > 0) {
           onAwardGold(bonus);
         }
         this.events.emit('waveCompleted', {
-          waveIndex: this.currentWaveIndex,
+          waveIndex: completedWaveIndex,
           bonus,
         });
-        this.state = 'betweenWaves';
-        this.beginCountdown(BALANCE.interWaveCountdownSec, AUTO_WAVE_COUNTDOWN_SEC);
       }
       return;
     }
 
     if (this.state === 'allSpawned') {
       if (getActiveEnemiesCount() === 0) {
+        const completedWaveIndex = this.currentWaveIndex;
         const bonus = this.pendingClearBonus;
         this.pendingClearBonus = 0;
-        if (bonus > 0) {
-          onAwardGold(bonus);
-        }
-        this.events.emit('waveCompleted', {
-          waveIndex: this.currentWaveIndex,
-          bonus,
-        });
-        if (this.endlessMode) {
+        const wasEndless = this.endlessMode;
+        if (wasEndless) {
           this.state = 'betweenWaves';
           this.beginCountdown(BALANCE.interWaveCountdownSec, AUTO_WAVE_COUNTDOWN_SEC);
         } else {
           this.state = 'finished';
+        }
+        if (bonus > 0) {
+          onAwardGold(bonus);
+        }
+        this.events.emit('waveCompleted', {
+          waveIndex: completedWaveIndex,
+          bonus,
+        });
+        if (!wasEndless && this.state === 'finished' && !this.endlessMode) {
           onAllClearedWin();
         }
       }

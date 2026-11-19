@@ -263,6 +263,20 @@ export class InvariantMonitor {
           `waveCompleted(${ev.waveIndex}) fired with ${this.world.enemyPool.getActiveCount()} active enemies`,
         );
       }
+      const wsState = this.world.waveSystem.state;
+      if (wsState !== 'betweenWaves' && wsState !== 'finished') {
+        this.record(
+          'wave_never_ends',
+          this.currentTick,
+          `waveCompleted(${ev.waveIndex}) observed stale waveSystem.state=${wsState}`,
+        );
+      } else if (wsState === 'betweenWaves' && !(this.world.waveSystem.interWaveTimer > 0)) {
+        this.record(
+          'wave_never_ends',
+          this.currentTick,
+          `waveCompleted(${ev.waveIndex}) observed non-positive interWaveTimer=${this.world.waveSystem.interWaveTimer}`,
+        );
+      }
     });
 
     events.on('heroRespawn', (ev) => {

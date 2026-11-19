@@ -436,6 +436,8 @@ export class SoldierSystem {
     s.targetPoolIndex = -1;
     s.targetUid = 0;
     s.swingArmed = false;
+    s.bonusArmor = 0;
+    s.damageMul = 1;
     this.events.emit('soldierSpawned', { soldierId: s.id, towerId: b.towerId, x: s.x, z: s.z });
   }
 

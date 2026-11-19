@@ -223,9 +223,17 @@ export class GroundGraph {
     out: GroundWaypoint[],
   ): GroundWaypoint[] {
     out.length = 0;
-    const clamped = this.clampToGroundOut(wantX, wantZ, maxOffRoad, _findClampDest);
+    const safeMaxOff =
+      maxOffRoad === Infinity
+        ? Infinity
+        : Number.isFinite(maxOffRoad)
+          ? Math.max(0, maxOffRoad)
+          : HERO_RULES.maxOffRoadDist;
+    const clamped = this.clampToGroundOut(wantX, wantZ, safeMaxOff, _findClampDest);
     let destX = clamped.x;
     let destZ = clamped.z;
+    const targetX = Number.isFinite(wantX) && Number.isFinite(wantZ) ? wantX : destX;
+    const targetZ = Number.isFinite(wantX) && Number.isFinite(wantZ) ? wantZ : destZ;
 
     if (this.nodes.length === 0) {
       out.push({ x: destX, z: destZ });
@@ -233,16 +241,18 @@ export class GroundGraph {
     }
 
     const fromClamp = this.clampToGroundOut(fromX, fromZ, Infinity, _findClampFrom);
+    const startX = Number.isFinite(fromX) && Number.isFinite(fromZ) ? fromX : fromClamp.x;
+    const startZ = Number.isFinite(fromX) && Number.isFinite(fromZ) ? fromZ : fromClamp.z;
     const sameNeighborhood =
       (fromClamp.lane === clamped.lane && Math.abs(fromClamp.dist - clamped.dist) <= DIRECT_WALK_DIST + 0.4) ||
       Math.hypot(fromClamp.roadX - clamped.roadX, fromClamp.roadZ - clamped.roadZ) <= JUNCTION_DIST;
 
-    if (sameNeighborhood && Math.hypot(destX - fromX, destZ - fromZ) <= DIRECT_WALK_DIST) {
+    if (sameNeighborhood && Math.hypot(destX - startX, destZ - startZ) <= DIRECT_WALK_DIST) {
       out.push({ x: destX, z: destZ });
       return out;
     }
 
-    const startIdx = this.nearestNodeIndex(fromX, fromZ);
+    const startIdx = this.nearestNodeIndex(startX, startZ);
     let endIdx = this.nearestNodeIndex(clamped.roadX, clamped.roadZ);
     if (startIdx < 0 || endIdx < 0 || startIdx === endIdx) {
       out.push({ x: destX, z: destZ });
@@ -284,7 +294,7 @@ export class GroundGraph {
       let bestReachSq = Infinity;
       for (let i = 0; i < count; i++) {
         if (!Number.isFinite(this.distBuf[i])) continue;
-        const dSq = (this.nodes[i].x - wantX) ** 2 + (this.nodes[i].z - wantZ) ** 2;
+        const dSq = (this.nodes[i].x - targetX) ** 2 + (this.nodes[i].z - targetZ) ** 2;
         if (dSq < bestReachSq - 1e-9) {
           bestReachSq = dSq;
           bestReachIdx = i;
@@ -292,14 +302,14 @@ export class GroundGraph {
       }
       endIdx = bestReachIdx;
       const rn = this.nodes[endIdx];
-      const off = Math.hypot(wantX - rn.x, wantZ - rn.z);
-      if (off <= maxOffRoad || off < 1e-9) {
-        destX = wantX;
-        destZ = wantZ;
+      const off = Math.hypot(targetX - rn.x, targetZ - rn.z);
+      if (off <= safeMaxOff || off < 1e-9) {
+        destX = targetX;
+        destZ = targetZ;
       } else {
-        const s = maxOffRoad / off;
-        destX = rn.x + (wantX - rn.x) * s;
-        destZ = rn.z + (wantZ - rn.z) * s;
+        const s = safeMaxOff / off;
+        destX = rn.x + (targetX - rn.x) * s;
+        destZ = rn.z + (targetZ - rn.z) * s;
       }
       if (endIdx === startIdx) {
         out.push({ x: destX, z: destZ });
@@ -320,8 +330,8 @@ export class GroundGraph {
       const n1 = this.nodes[_chainScratch[1]];
       const segDx = n1.x - n0.x;
       const segDz = n1.z - n0.z;
-      const fromDx = fromX - n0.x;
-      const fromDz = fromZ - n0.z;
+      const fromDx = startX - n0.x;
+      const fromDz = startZ - n0.z;
       if (fromDx * segDx + fromDz * segDz > 0) {
         _chainScratch.shift();
       }
@@ -342,7 +352,7 @@ export class GroundGraph {
 
     for (let i = 0; i < _chainScratch.length; i++) {
       const n = this.nodes[_chainScratch[i]];
-      if (Math.hypot(n.x - fromX, n.z - fromZ) < 0.05) continue;
+      if (Math.hypot(n.x - startX, n.z - startZ) < 0.05) continue;
       out.push({ x: n.x, z: n.z });
     }
     const prevWp = out[out.length - 1];

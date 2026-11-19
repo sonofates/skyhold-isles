@@ -1576,7 +1576,19 @@ export function mergeHeroSaveData(
     const eb = sb.roster[id] ?? { xp: 0, skills: [] };
     const xp = Math.max(ea.xp, eb.xp);
     const budget = heroSkillPointsForLevel(heroLevelFromXp(xp));
-    const combined = [...ea.skills, ...eb.skills];
+    const sameOrder =
+      ea.skills.length === eb.skills.length && ea.skills.every((s, idx) => eb.skills[idx] === s);
+    let combined: readonly string[];
+    if (sameOrder) {
+      combined = ea.skills;
+    } else if (eb.skills.length < ea.skills.length && eb.skills.every((s) => ea.skills.includes(s))) {
+      combined = ea.skills;
+    } else if (ea.skills.length < eb.skills.length && ea.skills.every((s) => eb.skills.includes(s))) {
+      combined = eb.skills;
+    } else {
+      const inEither = new Set<string>([...ea.skills, ...eb.skills]);
+      combined = HERO_DEFS[id].skillTree.filter((n) => inEither.has(n.id)).map((n) => n.id);
+    }
     const unionSkills = sanitizeHeroSkillsForBudget(id, combined, budget);
     let skills: string[];
     if (unionSkills.length > 0 || (ea.skills.length === 0 && eb.skills.length === 0)) {

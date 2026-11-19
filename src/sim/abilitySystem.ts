@@ -163,6 +163,8 @@ export class AbilitySystem {
         continue;
       }
 
+      this.pendingMeteors.splice(i, 1);
+
       spatialHash.query(meteor.x, meteor.z, meteor.radius, _meteorCandidates);
       const rSq = meteor.radius * meteor.radius;
       for (let k = 0; k < _meteorCandidates.length; k++) {
@@ -184,8 +186,6 @@ export class AbilitySystem {
         z: meteor.z,
         radius: meteor.radius,
       });
-
-      this.pendingMeteors.splice(i, 1);
     }
   }
 }

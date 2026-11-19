@@ -29,13 +29,15 @@ export async function hydrateProgressFromCloud(
   levels: readonly LevelDef[] = LEVELS,
 ): Promise<CloudHydrateResult> {
   let normalizedLocal = migrateProgress(localProgress, levelCount);
+  const callerRaw = JSON.stringify(normalizedLocal);
   const diskRawBefore = readLocalProgressRaw();
   let updated = false;
 
   const cloudRaw = await adapter.cloudSave.read(CLOUD_PROGRESS_SLOT);
 
   const diskRawAfter = readLocalProgressRaw();
-  if (diskRawAfter !== null && diskRawAfter !== diskRawBefore) {
+  const concurrentHappened = diskRawAfter !== null && diskRawAfter !== diskRawBefore;
+  if (concurrentHappened) {
     try {
       const concurrentParsed: unknown = JSON.parse(diskRawAfter);
       if (concurrentParsed && typeof concurrentParsed === 'object' && !Array.isArray(concurrentParsed)) {
@@ -65,7 +67,6 @@ export async function hydrateProgressFromCloud(
         merged = mergeProgress(normalizedLocal, cloudProgress, levelCount);
         const mergedRaw = JSON.stringify(merged);
         if (mergedRaw !== localRaw) {
-          updated = true;
           saveLocalProgress(merged);
         }
         if (mergedRaw !== cloudRaw) {
@@ -80,6 +81,14 @@ export async function hydrateProgressFromCloud(
     }
   } else if (adapter.isSteam && hasAnyProgress(normalizedLocal)) {
     await adapter.cloudSave.write(CLOUD_PROGRESS_SLOT, localRaw);
+  }
+
+  const finalMergedRaw = JSON.stringify(merged);
+  if (finalMergedRaw !== callerRaw) {
+    updated = true;
+  }
+  if (concurrentHappened && finalMergedRaw !== diskRawAfter && hasAnyProgress(merged)) {
+    saveLocalProgress(merged);
   }
 
   const unlockedAchievements = await syncAchievementsFromProgress(merged, adapter, levels);

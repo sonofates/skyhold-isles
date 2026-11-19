@@ -58,6 +58,7 @@ export class DoubleTapDetector {
   register(x: number, y: number, t: number): boolean {
     if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(t)) return false;
     const isDouble =
+      t >= this.lastT &&
       t - this.lastT <= DOUBLE_TAP_MAX_GAP_MS &&
       Math.hypot(x - this.lastX, y - this.lastY) <= DOUBLE_TAP_MAX_DIST_PX;
     if (isDouble) {

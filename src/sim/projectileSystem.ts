@@ -6,7 +6,9 @@ import type { EnemyEntity, ProjectileEntity, TowerEntity } from './entities.ts';
 import type { EnemySystem } from './enemySystem.ts';
 import type { SpatialHashGrid } from './spatialHash.ts';
 
+const _burnCandidates: number[] = [];
 const _splashCandidates: number[] = [];
+const _pierceCandidates: number[] = [];
 /** Seconds between burn ticks (all patches tick together so overlapping patches never double-hit). */
 export const BURN_TICK_INTERVAL = 0.5;
 const MAX_BURN_ZONES = 14;
@@ -154,10 +156,10 @@ export class ProjectileSystem {
     for (let i = 0; i < this.burnZones.length; i++) {
       const z = this.burnZones[i];
       if (!z.active) continue;
-      this.spatialHash.query(z.x, z.z, z.radius, _splashCandidates);
+      this.spatialHash.query(z.x, z.z, z.radius, _burnCandidates);
       const rSq = z.radius * z.radius;
-      for (let k = 0; k < _splashCandidates.length; k++) {
-        const idx = _splashCandidates[k];
+      for (let k = 0; k < _burnCandidates.length; k++) {
+        const idx = _burnCandidates[k];
         if (_burnHit.has(idx)) continue;
         const e = this.enemyPool.items[idx];
         if (!e.active || e.hp <= 0 || e.flying || e.burrowed) continue;
@@ -419,7 +421,14 @@ export class ProjectileSystem {
 
       if (p.progress >= 1) {
         this.resolveImpact(p, towers);
-        this.projectilePool.releaseAtActivePos(pos);
+        if (
+          p.active &&
+          p.progress >= 1 &&
+          pos < this.projectilePool.getActiveCount() &&
+          this.projectilePool.getActiveIndex(pos) === idx
+        ) {
+          this.projectilePool.releaseAtActivePos(pos);
+        }
       } else {
         pos++;
       }
@@ -574,15 +583,15 @@ export class ProjectileSystem {
       primary.x + dirX * reach * 0.5,
       primary.z + dirZ * reach * 0.5,
       reach * 0.5 + 0.9,
-      _splashCandidates,
+      _pierceCandidates,
     );
     _pierceUsed.clear();
     const dmg = Math.round(p.damage * p.pierceFalloff);
     for (let n = 0; n < p.pierceCount; n++) {
       let best: EnemyEntity | null = null;
       let bestAlong = Infinity;
-      for (let i = 0; i < _splashCandidates.length; i++) {
-        const idx = _splashCandidates[i];
+      for (let i = 0; i < _pierceCandidates.length; i++) {
+        const idx = _pierceCandidates[i];
         if (idx === primary.poolIndex || _pierceUsed.has(idx)) continue;
         const e = this.enemyPool.items[idx];
         if (!e.active || e.hp <= 0 || e.burrowed) continue;
