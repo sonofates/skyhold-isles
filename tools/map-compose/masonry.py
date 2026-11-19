@@ -1,4 +1,4 @@
-"""Stonework laid along the painted road in layout pixels."""
+"""Stone courses, roadside masonry and cart tracks in layout pixels."""
 import math
 import random
 
@@ -23,6 +23,35 @@ class RoadCourse:
         dx, dy = self.centre(s+2) - self.centre(s-2)
         length = math.hypot(dx, dy)
         return centre + np.array([-dy, dx]) * (offset / length)
+
+
+def cart_tracks(surface, path, road_width, scale, seed):
+    """Press two shallow, broken wheel tracks into the painted earth along a cart route."""
+    course = RoadCourse(path)
+    rand = random.Random(seed)
+    worn = Image.new('L', surface.size)
+    pen = ImageDraw.Draw(worn)
+    start = road_width
+    while start < course.length - road_width:
+        end = min(start + rand.uniform(50, 160), course.length - road_width)
+        bend = rand.uniform(-1.9, 1.9)
+        for side in (-1, 1):
+            finish = end - rand.uniform(0, 10)
+            points = np.arange(start + rand.uniform(0, 6), finish, 2)
+            if len(points) < 2:
+                continue
+            outer, inner = [], []
+            for station in points:
+                phase = (station - start) / (end - start)
+                offset = side * road_width * .235 + bend * math.sin(phase * math.pi)
+                radius = road_width * .043 * math.sin(phase * math.pi) ** .55
+                outer.append(tuple(course.point(station, offset + radius) * scale))
+                inner.append(tuple(course.point(station, offset - radius) * scale))
+            pen.polygon(outer + inner[::-1], fill=rand.randint(92, 157))
+        start = end + rand.uniform(14, 53)
+    # Keep the earth's grain in each groove and soften the edges into the undisturbed soil.
+    grooves = ImageEnhance.Brightness(surface).enhance(.70)
+    surface.paste(grooves, mask=worn.filter(ImageFilter.GaussianBlur(.94 * scale)))
 
 
 def stone_quad(img, corners, paint, scale):

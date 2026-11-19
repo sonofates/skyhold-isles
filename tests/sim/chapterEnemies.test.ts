@@ -4,7 +4,7 @@ import type { EnemyEntity } from '../../src/sim/entities.ts';
 import { evaluateBalance, evaluateWorkshopMax } from '../../scripts/balanceSim.ts';
 import { EventBus } from '../../src/core/eventBus.ts';
 import { BALANCE } from '../../src/data/balance.ts';
-import { CHAPTER_ENEMY_DEFS, type ChapterEnemyType } from '../../src/data/enemies.ts';
+import { CHAPTER_ENEMY_DEFS, ENEMY_DEFS, type ChapterEnemyType } from '../../src/data/enemies.ts';
 import { I16 } from '../../src/data/levels2d/i16.ts';
 import { getLevelById, LEVELS_2D } from '../../src/data/levels2d/index.ts';
 import { SimWorld } from '../../src/sim/world.ts';
@@ -171,7 +171,23 @@ describe('chapter two enemy decisions', () => {
 });
 
 describe('chapter two balance', () => {
-  const islands = ['i17', 'i18', 'i19', 'i20', 'i21', 'i22'];
+  const islands = ['i17', 'i18', 'i19', 'i20', 'i21', 'i22', 'i23', 'i24'];
+
+  it('sends the finale boss down the long fort road and its ground reinforcements out of both landings', () => {
+    const level = getLevelById('i24')!;
+    const groups = level.waves.at(-1)!.groups;
+    const bosses = groups.filter(g => ENEMY_DEFS[g.enemyType].isBoss);
+    expect(bosses).toHaveLength(1);
+    expect(bosses[0]).toMatchObject({ enemyType: 'tempest', count: 1, lane: 0 });
+    const relief = groups.filter(g => !ENEMY_DEFS[g.enemyType].flying && !ENEMY_DEFS[g.enemyType].isBoss);
+    expect(new Set(relief.map(g => g.lane))).toEqual(new Set([1, 2]));
+    const sim = new SimWorld(level, new EventBus()).enemySystem;
+    const fort = sim.getPath(false, 0).totalLength;
+    const quay = sim.getPath(false, 1).totalLength;
+    const boat = sim.getPath(false, 2).totalLength;
+    expect(fort).toBeGreaterThan(quay);
+    expect(quay).toBeGreaterThan(boat);
+  });
 
   it.each(islands)('%s opens in campaign order and routes every convoy through an authored entrance', id => {
     const level = getLevelById(id)!;

@@ -1,5 +1,48 @@
 # Content overnight · codex
 
+## Round 6 · 01:05–01:28 UTC · codex/night
+
+Started from `1605b47`. Changes are in the working tree for the overnight runner.
+
+### Done
+
+- **i23 Waxlight Orchard** has 21 plots and 13 hand-written waves. The two orchard roads have similar travel times. The packing cellar sends troops around the hives, while the cider press feeds a lower track. In wave six, Kilnbacks and Reed Pipers leave the press together and moths cross the orchard diagonally. The two roads join on the east side and return to the keep. The cart road has broken wheel tracks that follow its bends. [Desktop and phone combat](maps-round6-i23-play.jpg)
+- **i24 Lastlight Head** closes the chapter with 22 plots, 14 waves and an elite Tempest Colossus. The sea fort road measures 47.5 world units, the reef quay 35.1 and the boat landing 22.2. The quay joins the fort road first, then the boat road joins at the lower fork. In the finale, Kilnbacks and pipers depart the boat landing, hares from the quay, and moths take the flight route as the Colossus approaches its first phase. The fort road has basalt setts, with gravel on both side roads. [Finale, Stormwall and enrage on all three devices](maps-round6-i24-play.jpg)
+- Both islands have an original terrain plate, exclusion mask, road material, entrance and scenery paintings, intro and outro panels, four map resolutions and separate 2× and 3× gate fronts. The last beacon is lit with wax from the orchard. The two islands inherit their keep paintings from the orchard and tidal kits. [Maps and story panels](maps-round6-islands.jpg) · [First bakes, final bakes and native 2× details](maps-round6-detail.jpg) · [Art sources and prompts](../../design/art-2d/chapter2/islands.md)
+- The first i24 layout took the Colossus so close to the top edge that its crown clipped on desktop. Lowered the north bend and refitted four plots on the new island. In the final battle captures the crown cleared the top by at least 23 CSS px on desktop and 8 on phone from spawn through enrage. [Same instant on the first and final layouts](maps-round6-boss-clearance.jpg)
+- **Play the chapter locally** from the checkout root with `node tools/map-compose/preview_chapter.mjs i24` on Node 22. Open the printed loopback URL. The command accepts i17–i24 and stages the roster, side/death clips and kill callback in the Vite dev server. A clean browser session opened i23 and i24, loaded the extra clips, showed active enemies and towers and reported all eight islands in campaign order. Ctrl+C closes the preview. [Local chapter preview](../../tools/map-compose/preview_chapter.mjs)
+
+### Verification
+
+| Master island | Greedy | Weak | Workshop-maxed lives lost | Greedy lives at −3%, −1.5%, baseline, +1.5%, +3% HP |
+| --- | --- | --- | --- | --- |
+| i23 | 9 lives, 2 stars | Lost on wave 8 of 13 | 11 | 9, 6, 9, 7, 6 |
+| i24 | 8 lives, 2 stars | Lost on wave 9 of 14 | 10 | 7, 6, 8, 5, 9 |
+
+- The final Node 22 gate passed TypeScript, ESLint, Vitest (1,184 passed, 11 skipped), all 41 balance targets and Vite. The build printed its chunk-size advisory. An earlier i05 geometry test timed out while Chromium was running. The full suite passed after the captures finished. The 848-line balance stdout has SHA-256 `a843de0e6d4ece932d0de94bac52f34d8a7ca5dcd5dcb11f8c4c4a23a22d6e47`. Removing the two new island reports and restoring the previous target count reproduces the full round-five stdout byte for byte.
+- All 25 saved layouts pass the compositor checks. Decoded and checked the size of 100 maps, 132 gate fronts and the four new story panels against the game manifest and layouts. A fresh native rebuild reproduced the two new 3× maps and all seven 3× fronts byte for byte. The seven compositor and two sprite tests pass. The new cart-track regression covers their separations, thresholds and clear centre at three scales. The finale test checks the boss, the two reinforcement lanes and the ordering of their compiled route lengths.
+- Captured the actual opening waves and later combat at 1920 × 1080 DPR 1 and 2 and 844 × 390 DPR 3. The i23 battle has 17 live enemies and nine towers. The i24 final wave has 20 enemies and ten towers in the three-lane view, with separate frames from each boss phase. Both DPR 2 captures used the native 3× maps and fronts. The full-size captures, diagnostics, QA scripts and release logs are under `/tmp/skyhold-codex-r6`.
+
+### Requests for other agents
+
+- **Integrator / sim and loader owners.** All eight islands i17–i24 are authored and balanced. The shipping campaign still exposes the original 17 until the four cross-owner enemy registrations land. The exact shared records, side/death loader changes and game callback are listed under round three. The local preview exercises all eight in the interim.
+- **Opus / UI.** Add i23 and i24 to `GENERIC_STORY_ISLANDS` along with i17–i22. All sixteen chapter panels are in `paintedUi`. The i21 wave horn placement from round five is still outstanding.
+- **Opus / i18n.** Add these two entries to `DATA_TR.islands` in `src/i18n/dataTr.ts`. The previous six islands and four enemy translations are listed in rounds three through five.
+
+```ts
+i23: { name: 'Mum Işığı Bahçesi', subtitle: 'Deniz fenerini yeniden yakmak için bir alev gerek. Son balmumu arabası geçene dek armut bahçesinin yollarını açık tut.' },
+i24: { name: 'Son Işık Burnu', subtitle: 'Deniz feneri söndü. Fenerci lambayı yeniden yakana dek deniz kalesini ve iki iskeleyi savun.' },
+```
+
+Turkish wave titles in play order for surfaces that display them.
+
+- i23 — İlk Hasat · Mahzen Kapısı · Armut Dallarında · Kırık Sepet Kovan · Çitin Arasından · Dökülen Armutlar · Bal Presi · Uzayan Gölgeler · Balmumu Eriyor · Fitiller Balmumuna Batıyor · Oğul Vakti · Dalların Altında · Mum Arabası
+- i24 — Bir Işık Sönüyor · Tekne Açılıyor · Basamaklarda Köpük · İki İskele · Yükselen Sular · Çanı Çalın · Dış Sur · Yırtık Yelkenler · Sertleşen Rüzgâr · Pirinç Kepenkler · Rıhtım Çöküyor · Fitil Tutuşuyor · Mercek Dönüyor · Günün İlk Işığı
+
+### Next round
+
+Audit the complete chapter in play, especially elite crowns, healing and music cues in dense waves, flight-line readability, and late-wave tower occlusion on phone. Use the local preview until the shared roster lands. Once integrated, check chapter selection, story and kills via the production entry point and retire the temporary preview registrations. Scenery and ambient-life polish from backlog item four remain open. Preserve the 41 balance reports during art-only changes.
+
 ## Round 5 · 00:42–01:04 UTC · codex/night
 
 Started from `d2162b4`. The runner owns the commit.

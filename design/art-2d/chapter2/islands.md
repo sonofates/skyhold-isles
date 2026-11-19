@@ -184,3 +184,79 @@ Use case: illustration-story. Original hand-painted storybook tower-defense art.
 ### Outro
 
 Use case: illustration-story. Original hand-painted storybook tower-defense art. Broad confident gouache strokes, inked details with coloured edges, readable soft cast shadows, no lettering, numbers, UI, borders or watermark. Ultrawide landscape, 2.17:1 composition. Narrative wide story illustration. A squat wooden cable ferry has reached its far landing in a cavern of luminous jade brine, laden with neatly bundled pale salt and two young workers. An elderly ferryman in a plum coat ties a new thick rope to an ochre timber piling; his companion lifts a warm lamp reflecting as a bright vertical streak in the water. Intimate, warm expression and hands at work, ivory crystal formations receding into lavender shadow. The mood is relief.
+
+## Waxlight Orchard and Lastlight Head
+
+The built-in image generator supplied the paintings below. Terrain and kit paintings are stored under each biome. The compositor adds the road, scenery and castle, then cuts gate foregrounds for actors to pass behind. Both islands reuse the keep from their base kit. Each intro and outro is cropped to 1280 × 640 for the story screen.
+
+The terrain, story panels, packing cellar, hive stand, sea fort and beacon used this common art direction.
+
+Original illustrated storybook game, confident gouache painting, strong readable silhouettes, dark warm ink contours and soft cel shading. No writing, UI or border.
+
+### Waxlight Orchard
+
+The packing cellar opens onto the rutted cart road. The cider press has its own shorter track. The warehouse crates and fruit trellis sit together beside the upper cellar, and the hive stand occupies the grass inside the broad curve. [Biome source paintings](../v2/biomes/figwood/) · [Intro](../../../public/art2d/ui/story-i23-intro-1.webp) · [Outro](../../../public/art2d/ui/story-i23-outro-1.webp)
+
+#### Terrain
+
+Ultrawide 2.17:1 landscape. Direct overhead playable terrain for an upland honey orchard in early autumn. Continuous dry open ochre-green turf with very subtle short straw and tiny buttercups. Quiet grassy ground from x 9%-92%, y 7%-94%, no paths or buildings. Low hedgerows of russet hawthorn with red berries and golden fruit-tree crowns frame ONLY the extreme left and right edges and corners; a small cropped cluster of honeycombs in a hollow ancient stump at the far upper right edge. Stippled warm sunlight under high thin cloud. No central landmarks, no roads, no horizon. Terrain fills entire image.
+
+#### Packing cellar
+
+Single isolated miniature storybook game sprite on transparent background. A squat pear orchard packing cellar dug into a grassy bank, two low stacks of honey crates at left and a mossy cedar shingle roof. Bank extends left behind the entrance. Broad deep black open tunnel on its RIGHT FACE opens toward the right and down, jambs form a diagonal across the ground. A tiny honey-yellow cloth over left end of roof. Three-quarter view from high above. No ground tile, path, humans, or letters. Whole object.
+
+#### Cider press
+
+Isolated original hand-painted game asset on true transparency, high three-quarter overhead view. Pear orchard cider press tunnel in a low stone bank: a squat rusty-red timber screw press attached to the LEFT side of a rough dry-stone apple-cellar portal with golden pear leaves along its top. Little tilted wooden pomace tub at the far left. One broad deeply shadowed open tunnel on its RIGHT side, square oak lintel, wide black unobstructed opening faces RIGHT and toward viewer, foot of jambs diagonally receding up toward the right. Orchard earth and grey limestone, wood highlights and chunky ink contours, warm storybook gouache. No tropical foliage, floor tile, extending path, scenery, figures, writing or frame. The single complete building occupies the canvas with small clear margins.
+
+#### Hive stand
+
+One isolated storybook game sprite. Three old straw bee skeps of different heights on a low dark oak apiary bench, little sloping rain roof of split cedar shingles over two of them, sunny golden straw and burnt sienna. Three-quarter overhead view, bright rim light from upper left. Compact solid silhouette, transparent background. No ground tile, bees, scenery, loose outliers or lettering.
+
+#### Orchard props
+
+A 3:1 horizontal transparent asset strip of precisely three entire original painted game props, one per equal column, generous transparent space between shapes. Left: one sturdy short gnarled espalier pear tree with sparse golden leaves and six russet pears, two supporting weathered stakes. Center: a shallow worn applewood crate with four golden pears, one loose pear at its foot. Right: a clump of long copper grass with two sprays of white and golden yarrow flowers. Three-quarter view from high above, rich storybook gouache, dark earthy contours, top-left afternoon sunshine. No dirt disks, rectangle of ground, text, backdrop or cropped silhouettes. Whole objects on genuine transparency.
+
+#### Cart road
+
+Square full-bleed continuous game terrain texture. Straight overhead orthographic view of soft warm umber earth in a pear orchard cart lane. Thousands of small ochre gravel grains in compacted honey-brown loam, scattered downy ochre flecks of straw and a few tiny copper leaf scraps. Modest value range, flat lighting, earthy burnt sienna and mellow grey-brown warm highlights, softly grouped shapes, fine original storybook gouache. Fine-grained detail, about four metres across, no tire marks, wheel ruts, large stones, obvious shadows, grass, road edges, border or symbols. Full bleed to all edges, no view of anything beyond the surface.
+
+#### Intro
+
+Ultrawide 2.1:1 narrative oil-gouache illustration. In an autumn pear orchard on a floating island, an elderly beekeeper in an ochre smock lifts a domed woven skep to find a trail of glowing honey leading through a gap in the hedge. Large jade moths swoop under the boughs, last rays of afternoon fall on copper pears, distant clouds below the island. Intimate, expressive, human scale.
+
+#### Outro
+
+Ultrawide 2.1:1 narrative illustration. An older beekeeper in an ochre smock sets a small beeswax taper in the prow lantern of a wooden courier skiff moored over clouds. Behind her, domed woven beehives and pear trees glow at sundown. The warm light is mirrored by a distant tiny beacon across the sea of evening clouds. Hopeful and quiet.
+
+### Lastlight Head
+
+The fort entrance and basalt setts identify the boss road. Reinforcements use the red-pennant reef cave and the blue-pennant boat shelter. The new buoy sits alongside the boat, the warning bell beside the eastern gate and the beacon above the final bend. [Biome source paintings](../v2/biomes/squall/) · [Intro](../../../public/art2d/ui/story-i24-intro-1.webp) · [Outro](../../../public/art2d/ui/story-i24-outro-1.webp)
+
+#### Terrain
+
+Ultrawide 2.17:1 landscape. Direct overhead game terrain. Broad storm-lashed grassy headland of dark mossy green grass and lichen on blue-charcoal granite extends across whole map. Keep the broad central field continuous, flat and open, almost all the frame from x8% to x94% and y6% to y94% is dry play area. CROPPED ocean and white foamy streaks only on the extreme left and right outer edges, against jagged sea cliffs. Very subtle irregular exposed stone fragments in turf, warm evening light from left with storm clouds casting cool shadows. No structures, roads, towers, horizon, central water, runes or paths.
+
+#### Sea fort
+
+Single isolated miniature on true transparent background, original painted storybook game. Massive low entrance to a sea fort cut into a mound of dark volcanic rock. Three weatherworn pointed basalt buttresses and rusted copper chains hang on the LEFT flank of mound. One broad nearly black arched tunnel in the RIGHT FACE is open to ground, framed by two squat squared salt-white stone jambs and a copper-green keystone. Mouth faces right and slightly toward camera; foot of jambs forms diagonal threshold. Three-quarter view from high above. Whole object. No ground tile, ramp, gate bars or scenery.
+
+#### Beacon
+
+One isolated coastal beacon tower game sprite on true transparency. Squat tapering granite tower with a broad patinated teal copper lantern room lit honey-gold, cap roof with weather vane, narrow dark slit window and rust-red panels below the bright lantern. Three-quarter overhead view, dramatic top-left lighting, original miniature storybook gouache. Broad strongly defined silhouette. No ground tile, landscape, steps extending outward, tall spire, letters or halo. Whole object with generous margin.
+
+#### Coast props
+
+One horizontal transparent 3:1 asset strip for an original hand-painted storybook tower defense game. Three whole props laid out far apart on transparent background, one per equal column. Left: a single squat iron bell hanging from a weathered timber A-frame with a short clapper pull, three-quarter top-down, copper and ochre. Center: one washed-up round red and ivory cork marker buoy on its side, wrapped in a short coil of thick hemp rope. Right: a compact clump of sea pink flowers and silver-green bunchgrass growing around a little grey stone. Bright upper-left lighting, bold ink and gouache, readable silhouettes, no shadows extending into gutters, no floor tile or scenery or labels. Whole separated assets.
+
+#### Fort paving
+
+Square full-bleed seamless fantasy game ground material swatch, overhead orthographic macro tile. Very old grey-blue basalt setts on an exposed sea-fort road. Hand-hewn softened irregular slate blocks the size of two hands, about 22 stones across image, staggered with faint dark joints mostly full of lighter packed sand. A few pale shell flecks and tiny patches of mustard lichen. Grey-teal and charcoal blue, matte flat mids, subtle warm grazing light. Original hand-painted storybook gouache, visible edge brushwork. No road edges, border, distant perspective, circular medallions, symbols, drainage, vegetation or large objects.
+
+#### Intro
+
+Ultrawide 2.1:1 narrative illustration. A lonely cliff beacon dark against a towering blue-grey storm. Close foreground a lighthouse keeper in a teal oilskin cups one guttering beeswax taper to his chest on the wet steps. Far below, a giant hunched armored creature with purple glowing facets marches out of a basalt sea cave. Softly illuminated silver breakers, wind and rain, dramatic chapter finale.
+
+#### Outro
+
+Ultrawide 2.1:1 narrative illustration. After the storm a towering copper and sea-green beacon lit in brilliant gold on an Atlantic headland lights a fleet of tiny sky-ferry boats safely home. A lighthouse keeper in a teal oilskin and a girl in an ochre smock lean on the warm parapet looking toward a necklace of small floating islands receding against a pink dawn, flags flying. Sweeping, jubilant finale, luminous sea.

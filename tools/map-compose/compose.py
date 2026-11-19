@@ -92,7 +92,7 @@ from gates import (  # noqa: E402
 )
 import fords  # noqa: E402
 from banks import shore_foundation  # noqa: E402
-from masonry import marble_road, moat_wall  # noqa: E402
+from masonry import cart_tracks, marble_road, moat_wall  # noqa: E402
 from keeps import Keep  # noqa: E402
 from ground import Decals, DressingArea, brushed_surface, fine_detail, inner_band, ragged_mask, ring, road_fringe, scatter  # noqa: E402
 from ringfit import measure_ring  # noqa: E402
@@ -753,12 +753,25 @@ else:
     dirt = tiled(road_material, W, H, 0.45 * TEX)
 if not dressing.get('layMarble'):
     dirt = fine_detail(dirt, road_material, round(1024 * 0.16 * TEX), 0.45, 7 * TEX)
+if 'cartLane' in dressing:
+    cart_tracks(dirt, spl_paths[dressing['cartLane']], ROAD_W, S, SEED + 37)
+entrance_floors = {}
 if 'branchMaterial' in dressing:
-    lane, material = dressing['branchMaterial']
-    first = catmull(SECTIONS[first_sections[lane]])
+    branch_lane, material = dressing['branchMaterial']
+    first = catmull(SECTIONS[first_sections[branch_lane]])
     branch = Image.new('L', (W, H))
+    stone = load(material)
+    entrance_floors[branch_lane] = stone
+    if dressing.get('brushRoad'):
+        # End the last course before the junction so no paving spills across the other lane.
+        stations = resample(first, 4)
+        first = stations[:max(2, len(stations) - round(ROAD_W / 4))]
+        branch_paint = brushed_surface(stone, (W, H), .24 * TEX, SEED + 47)
+    else:
+        branch_paint = tiled(stone, W, H, .45 * TEX)
     ImageDraw.Draw(branch).line([P(p) for p in first], fill=255, width=round(rw * 1.6), joint='curve')
-    dirt = Image.composite(tiled(load(material), W, H, 0.45 * TEX), dirt, branch.filter(ImageFilter.GaussianBlur(rw * 0.1)))
+    dirt = Image.composite(branch_paint, dirt, branch.filter(ImageFilter.GaussianBlur(rw * 0.1)))
+    del branch_paint, branch
 # a faint wide shade on the grass along the road, a thin darker rim right at the edge, the dirt,
 # then a narrow darker lip just inside the edge
 shade = road_mask.filter(ImageFilter.MaxFilter(2 * round(rw * 0.05) + 1)).filter(ImageFilter.GaussianBlur(rw * 0.10))
@@ -871,7 +884,8 @@ for G in GATES:
     gx0, gy0, gw_, gh_ = output_box(G['g'], S)
     _spr = output_sprite(G['g'], S)
     if G['role'] == 'entrance' and dressing.get('thresholdRoad'):
-        _spr = light_interior(_spr, G['g'], floor_rgb=road_material.resize((1, 1)).getpixel((0, 0))[:3])
+        floor_paint = entrance_floors.get(G['lane'], road_material)
+        _spr = light_interior(_spr, G['g'], floor_rgb=floor_paint.resize((1, 1)).getpixel((0, 0))[:3])
     # gates cast their own silhouette shadow (contact_shadow) instead of the generic ellipse
     items.append((gy0 + gh_, _spr, gx0 + gw_ / 2, gy0 + gh_, False))
 

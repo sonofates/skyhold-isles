@@ -7,11 +7,27 @@ import fords
 from banks import shore_foundation
 from gates import draw_threshold_road
 from keeps import Keep
+from masonry import cart_tracks
 
 from ground import Decals, DressingArea, brushed_surface, road_fringe, scatter
 
 
 class GroundTests(unittest.TestCase):
+    def test_cart_wheels_leave_broken_parallel_tracks_and_clear_thresholds(self):
+        for scale in (1, 2, 3):
+            size = (360 * scale, 90 * scale)
+            surface = Image.new('RGB', size, (152, 122, 94))
+            cart_tracks(surface, [(10, 45), (350, 45)], 40, scale, 17)
+            wear = ImageChops.difference(surface, Image.new('RGB', size, (152, 122, 94)))
+            for y in (35, 54):
+                track = wear.crop((0, y * scale, size[0], y * scale + 1))
+                self.assertIsNotNone(track.getbbox())
+            # A length of undisturbed lane separates the worn patches.
+            self.assertTrue(any(wear.crop((x * scale, 0, (x + 6) * scale, size[1])).getbbox() is None
+                                for x in range(110, 240)))
+            for box in ((0, 0, 44, 90), (316, 0, 360, 90), (0, 43, 360, 47)):
+                self.assertIsNone(wear.crop(tuple(v * scale for v in box)).getbbox())
+
     def test_shallow_doorway_joins_the_lane_from_both_jambs(self):
         # Both jambs stand below the interior floor. Their road needs to round
         # the corner without leaving a grass notch in front of the opening.
