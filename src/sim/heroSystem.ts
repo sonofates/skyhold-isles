@@ -605,7 +605,7 @@ export class HeroSystem {
     };
     const ok = this.executeActive(h, slot, act, tx, tz, towers, commitCast, gen);
     if (!ok) return false;
-    if (this.resetGen !== gen) return true;
+    if (this.resetGen !== gen || h.hp <= 0) return true;
 
     if (Math.hypot(tx - h.x, tz - h.z) > 0.05) {
       h.yaw = Math.atan2(tx - h.x, tz - h.z);
@@ -2100,11 +2100,13 @@ export class HeroSystem {
   private reconcileHeroUnblocks(): void {
     for (let i = 0; i < _prevHeroBlockedIdx.length; i++) {
       if (this.abortedStep) return;
+      const prevTotal = _prevTotalBlocked[i];
+      _prevTotalBlocked[i] = 0;
       const e = this.pool.items[_prevHeroBlockedIdx[i]];
       if (
         e.active &&
         e.uid === _prevHeroBlockedUid[i] &&
-        _prevTotalBlocked[i] > 0 &&
+        prevTotal > 0 &&
         e.blockers + e.heroBlockers === 0
       ) {
         this.events.emit('enemyUnblocked', {

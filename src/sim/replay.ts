@@ -613,6 +613,33 @@ export interface ReplayVerificationResult {
   readonly expectedHash: string;
 }
 
+function normalizeReplayLog(replay: SimReplayLog): SimReplayLog {
+  let needsSort = false;
+  for (let i = 1; i < replay.commands.length; i++) {
+    const prev = replay.commands[i - 1];
+    const cur = replay.commands[i];
+    if (cur.tick < prev.tick || (cur.tick === prev.tick && cur.seq < prev.seq)) {
+      needsSort = true;
+      break;
+    }
+  }
+  const commands = needsSort
+    ? [...replay.commands].sort((a, b) => a.tick - b.tick || a.seq - b.seq)
+    : replay.commands;
+  const lastCmdTick = commands.length > 0 ? Math.max(0, Math.floor(commands[commands.length - 1].tick)) : 0;
+  const rawTotal = replay.summary.totalTicks;
+  const safeTotal =
+    typeof rawTotal === 'number' && Number.isFinite(rawTotal) && rawTotal >= 0
+      ? Math.max(lastCmdTick, Math.floor(rawTotal))
+      : lastCmdTick;
+  if (!needsSort && safeTotal === rawTotal) return replay;
+  return {
+    ...replay,
+    commands,
+    summary: safeTotal === rawTotal ? replay.summary : { ...replay.summary, totalTicks: safeTotal },
+  };
+}
+
 /**
  * Interactive deterministic replay controller for UI playback, fast-forward (`1x`–`8x`),
  * timeline scrubbing (`seekToTick`), and headless verification (`runToEnd` / `verifyFinalState`).
@@ -634,7 +661,7 @@ export class SimReplayPlayer {
 
   constructor(level: LevelDef, replay: SimReplayLog, events: EventBus = new EventBus()) {
     this.level = level;
-    this.replay = replay;
+    this.replay = normalizeReplayLog(replay);
     this.events = events;
     this.reset(true);
   }

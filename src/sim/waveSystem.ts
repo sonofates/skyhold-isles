@@ -396,6 +396,11 @@ export class WaveSystem {
     return startingWave;
   }
 
+  /** Aborts any in-flight spawn or completion emission on world defeat/victory/skip/dispose. */
+  abortStep(): void {
+    this.skipGen++;
+  }
+
   /** Transitions the wave state cleanly to `'finished'` when a story run is forced-won. */
   markFinished(): void {
     this.skipGen++;
@@ -490,6 +495,7 @@ export class WaveSystem {
   startNextWave(onAwardGold: (amount: number) => void): boolean {
     if (!this.canStartNextWave()) return false;
 
+    const gen = this.skipGen;
     const earlyBonus = this.getEarlyCallBonus();
     const startedWaveIndex = ++this.currentWaveIndex;
     const waveDef = this.getWaveDef(startedWaveIndex);
@@ -505,7 +511,7 @@ export class WaveSystem {
       onAwardGold(earlyBonus);
     }
 
-    if (this.state === 'spawning' && this.currentWaveIndex === startedWaveIndex) {
+    if (this.skipGen === gen && this.state === 'spawning' && this.currentWaveIndex === startedWaveIndex) {
       this.events.emit('waveStarted', {
         waveIndex: startedWaveIndex,
         totalWaves: this.totalWaves,
@@ -569,10 +575,12 @@ export class WaveSystem {
     }
 
     if (this.state === 'spawning') {
+      const gen = this.skipGen;
       const activeWaveIdx = this.currentWaveIndex;
       this.waveElapsed += dt;
       const hpScale = this.getCurrentWaveHpScale();
       while (
+        this.skipGen === gen &&
         this.state === 'spawning' &&
         this.currentWaveIndex === activeWaveIdx &&
         this.spawnCursor < this.spawnQueue.length &&
@@ -581,6 +589,8 @@ export class WaveSystem {
         const queued = this.spawnQueue[this.spawnCursor++];
         onSpawn(queued.enemyType, hpScale, queued.elite, queued.lane);
       }
+
+      if (this.skipGen !== gen) return;
 
       if (
         this.state === 'spawning' &&

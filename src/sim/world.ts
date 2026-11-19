@@ -153,6 +153,7 @@ export class SimWorld {
   private recordingCommands = false;
   private commandSeq = 0;
   private tickAbortGen = 0;
+  private poolClearGen = 0;
   private readonly commandLog: StampedSimCommand[] = [];
 
   constructor(
@@ -552,6 +553,8 @@ export class SimWorld {
 
   debugSkipToWave(waveOneBased: number): boolean {
     this.tickAbortGen++;
+    this.poolClearGen++;
+    this.waveSystem.abortStep();
     this.combatSystem.abortCurrentStep();
     this.projectilePool.clear();
     this.projectileSystem.clearBurnZones();
@@ -571,6 +574,8 @@ export class SimWorld {
 
   private clearVictoryTransients(): void {
     this.tickAbortGen++;
+    this.poolClearGen++;
+    this.waveSystem.abortStep();
     this.combatSystem.abortCurrentStep();
     this.projectilePool.clear();
     this.projectileSystem.clearBurnZones();
@@ -583,6 +588,7 @@ export class SimWorld {
 
   private clearDefeatTransients(): void {
     this.tickAbortGen++;
+    this.waveSystem.abortStep();
     this.combatSystem.abortCurrentStep();
     this.projectilePool.clear();
     this.projectileSystem.clearBurnZones();
@@ -594,6 +600,8 @@ export class SimWorld {
   /** Releases all pooled entities, ground zones, soldiers, gizmos, and spatial-hash buckets after a run. */
   dispose(): void {
     this.tickAbortGen++;
+    this.poolClearGen++;
+    this.waveSystem.abortStep();
     this.combatSystem.abortCurrentStep();
     this.heroSystem.clearTransientZones(true, this.towers, false);
     this.soldierSystem.clearAll();
@@ -888,13 +896,25 @@ export class SimWorld {
   };
 
   private readonly onEnemyLeakedFn = (leaked: EnemyEntity): void => {
+    if (this.outcome !== 'ongoing') {
+      if (leaked.blockers > 0) {
+        leaked.blockers = 0;
+        this.soldierSystem.blockedCount = Math.max(0, this.soldierSystem.blockedCount - 1);
+      }
+      leaked.heroBlockers = 0;
+      leaked.heroDamageReduction = 0;
+      return;
+    }
     this.lives = Math.max(0, this.lives - leaked.livesCost);
-    const justLost = this.lives <= 0 && this.outcome === 'ongoing';
+    const justLost = this.lives <= 0;
     if (justLost) {
       this.clearDefeatTransients();
       this.outcome = 'lost';
     } else if (leaked.blockers > 0 || leaked.heroBlockers > 0) {
-      leaked.blockers = 0;
+      if (leaked.blockers > 0) {
+        leaked.blockers = 0;
+        this.soldierSystem.blockedCount = Math.max(0, this.soldierSystem.blockedCount - 1);
+      }
       leaked.heroBlockers = 0;
       leaked.heroDamageReduction = 0;
       this.events.emit('enemyUnblocked', {
@@ -906,7 +926,7 @@ export class SimWorld {
       });
     }
     this.events.emit('economyChanged', { gold: this.gold, lives: this.lives });
-    if (justLost) {
+    if (justLost && this.outcome === 'lost') {
       this.events.emit('gameLost', {
         waveIndex: Math.max(0, this.waveSystem.currentWaveIndex),
         endless: this.waveSystem.isEndless,
@@ -915,6 +935,13 @@ export class SimWorld {
   };
 
   private readonly onEnemyKilledFn = (killed: EnemyEntity): void => {
+    if (killed.blockers > 0) {
+      killed.blockers = 0;
+      this.soldierSystem.blockedCount = Math.max(0, this.soldierSystem.blockedCount - 1);
+    }
+    killed.heroBlockers = 0;
+    killed.heroDamageReduction = 0;
+    if (this.outcome !== 'ongoing') return;
     this.enemiesKilledTotal++;
     this.gold += killed.reward;
     this.heroSystem.onEnemyKilled(killed);
@@ -955,6 +982,7 @@ export class SimWorld {
 
     if (this.outcome !== 'ongoing' || this.tickAbortGen !== gen) return;
 
+    const clearGen = this.poolClearGen;
     this.enemySystem.update(
       dt,
       this.onEnemyLeakedFn,
@@ -963,6 +991,10 @@ export class SimWorld {
       this.waveSystem.getCurrentWaveHpScale() * this.mods.enemyHpMul * waveFx.hpMul,
     );
 
+    if (this.poolClearGen !== clearGen) {
+      this.enemyPool.clear();
+      this.spatialHash.clear();
+    }
     if (this.outcome !== 'ongoing' || this.tickAbortGen !== gen) return;
 
     this.waveSystem.checkCompletion(

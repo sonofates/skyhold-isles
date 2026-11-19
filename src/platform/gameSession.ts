@@ -1344,6 +1344,7 @@ export class GameSession {
   fixedTick(dt: number): void {
     // A first-sighting card opened mid-frame: drop the rest of this frame's catch-up ticks.
     if (this.deps?.content?.isBlocking()) return;
+    if (this.simWorld.outcome !== 'ongoing' || !Number.isFinite(dt) || dt <= 0) return;
     this.simClockSec += dt;
     stepPendingSpawns(this.pendingDebugSpawns, this.simWorld, dt);
     this.simWorld.fixedTick(dt);

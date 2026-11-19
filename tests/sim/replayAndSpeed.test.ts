@@ -2192,4 +2192,239 @@ describe('EventBus re-entrancy & SoldierSystem towerFireRateMul', () => {
       expect(unblockCount).toBe(1);
     }
   });
+
+  it('keeps reverse co-grab & reconciliation-loop unblocks 1-to-1, suppresses post-defeat/reaped-corpse events, and normalizes manual SimReplayPlayer logs', () => {
+    // 1. Reverse co-grab: Bran already holds foe (heroBlockers = 1), soldier newly co-grabs (!wasBlocked),
+    //    and a mid-tick 'meleeSwing' listener moves Bran away AND sells the barracks -> 1-to-1 unblock.
+    const revEvents = new EventBus();
+    let revBlocked = 0;
+    let revUnblocked = 0;
+    revEvents.on('enemyBlocked', () => void revBlocked++);
+    revEvents.on('enemyUnblocked', () => void revUnblocked++);
+
+    const revWorld = new SimWorld(LEVEL_L1C, revEvents, { heroId: 'bran', heroLevel: 1, seed: 501 });
+    revWorld.gold = 3000;
+    const revBar = revWorld.placeTowerOnPlot(2, 'barracks')!;
+    const revSt = revWorld.soldierSystem.getBarracks(revBar.id)!;
+    for (let k = 1; k < revSt.squad.length; k++) {
+      revSt.squad[k].state = 'dead';
+      revSt.squad[k].respawnTimer = 30;
+    }
+
+    const revFoe = revWorld.enemySystem.spawnEnemy('grunt', 20, false, 0)!;
+    revFoe.dist = revWorld.groundPath.nearestDist(revSt.rallyX, revSt.rallyZ);
+    revFoe.x = revFoe.prevX = revSt.rallyX;
+    revFoe.z = revFoe.prevZ = revSt.rallyZ;
+    revWorld.spatialHash.clear();
+    revWorld.spatialHash.insert(revFoe.poolIndex, revFoe.x, revFoe.z);
+
+    // Bran grabs revFoe first while soldier is still away -> 1 enemyBlocked.
+    const revBran = revWorld.hero!;
+    revBran.x = revBran.prevX = revBran.postX = revFoe.x;
+    revBran.z = revBran.prevZ = revBran.postZ = revFoe.z;
+    revWorld.heroSystem.update(BALANCE.fixedDt, revWorld.towers, 1);
+    expect(revFoe.heroBlockers).toBe(1);
+    expect(revBlocked).toBe(1);
+    expect(revUnblocked).toBe(0);
+
+    // Now soldier steps into contact on revFoe (!wasBlocked && heroBlockers > 0), and inside 'meleeSwing'
+    // the player moves Bran away AND sells the barracks.
+    revSt.squad[0].x = revSt.squad[0].prevX = revFoe.x;
+    revSt.squad[0].z = revSt.squad[0].prevZ = revFoe.z;
+    const farPt = revWorld.groundPath.points[0];
+    let triggeredSwing = false;
+    revEvents.on('meleeSwing', (ev) => {
+      if (ev.attacker === 'enemy' && !triggeredSwing) {
+        triggeredSwing = true;
+        revWorld.commandHeroMove(farPt.x, farPt.z);
+        revWorld.sellTower(revBar.id);
+      }
+    });
+    revWorld.soldierSystem.update(BALANCE.fixedDt, revWorld.towers, 1);
+    expect(triggeredSwing).toBe(true);
+    expect(revFoe.blockers + revFoe.heroBlockers).toBe(0);
+    expect(revBlocked).toBe(1);
+    expect(revUnblocked).toBe(1);
+
+    // 2. Reconciliation loop slot consumption: Bran holds 2 foes (e0 co-held by barracks, e1 solo-held by Bran).
+    //    Bran dies; reconcileHeroUnblocks visits e0 (still held by soldier) then emits enemyUnblocked for e1,
+    //    whose listener sells the barracks -> e0 MUST also emit enemyUnblocked immediately!
+    const recEvents = new EventBus();
+    let recBlocked = 0;
+    let recUnblocked = 0;
+    recEvents.on('enemyBlocked', () => void recBlocked++);
+    recEvents.on('enemyUnblocked', () => void recUnblocked++);
+
+    const recWorld = new SimWorld(LEVEL_L1C, recEvents, {
+      heroId: 'bran',
+      heroLevel: 20,
+      heroSkills: defaultLevel20Skills('bran'),
+      seed: 502,
+    });
+    recWorld.gold = 3000;
+    const recBar = recWorld.placeTowerOnPlot(2, 'barracks')!;
+    const recSt = recWorld.soldierSystem.getBarracks(recBar.id)!;
+    for (let k = 1; k < recSt.squad.length; k++) {
+      recSt.squad[k].state = 'dead';
+      recSt.squad[k].respawnTimer = 30;
+    }
+    const baseDist = recWorld.groundPath.nearestDist(recSt.rallyX, recSt.rallyZ);
+    const e0 = recWorld.enemySystem.spawnEnemy('brute', 20, false, 0)!;
+    const e1 = recWorld.enemySystem.spawnEnemy('grunt', 20, false, 0)!;
+    e0.dist = baseDist;
+    e0.x = e0.prevX = recSt.rallyX;
+    e0.z = e0.prevZ = recSt.rallyZ;
+    e1.dist = Math.max(0, baseDist - 0.25);
+    e1.x = e1.prevX = recSt.rallyX;
+    e1.z = e1.prevZ = recSt.rallyZ;
+    recSt.squad[0].x = recSt.squad[0].prevX = recSt.rallyX;
+    recSt.squad[0].z = recSt.squad[0].prevZ = recSt.rallyZ;
+    recSt.squad[0].state = 'fighting';
+    recSt.squad[0].targetPoolIndex = e0.poolIndex;
+    recSt.squad[0].targetUid = e0.uid;
+    const recBran = recWorld.hero!;
+    recBran.x = recBran.prevX = recBran.postX = recSt.rallyX;
+    recBran.z = recBran.prevZ = recBran.postZ = recSt.rallyZ;
+    recBran.state = 'fighting';
+    recBran.targetPoolIndex = e0.poolIndex;
+    recBran.targetUid = e0.uid;
+    recWorld.spatialHash.clear();
+    recWorld.spatialHash.insert(e0.poolIndex, e0.x, e0.z);
+    recWorld.spatialHash.insert(e1.poolIndex, e1.x, e1.z);
+
+    // Soldier holds e0; Bran (holdCap >= 2) holds both e0 and e1 -> 2 enemyBlocked events total.
+    recWorld.soldierSystem.update(BALANCE.fixedDt, recWorld.towers, 1);
+    recWorld.heroSystem.update(BALANCE.fixedDt, recWorld.towers, 1);
+    expect(e0.blockers).toBe(1);
+    expect(e0.heroBlockers).toBeGreaterThan(0);
+    expect(e1.blockers).toBe(0);
+    expect(e1.heroBlockers).toBeGreaterThan(0);
+    expect(recBlocked).toBe(2);
+    expect(recUnblocked).toBe(0);
+
+    // Next tick: Bran falls at 1 HP; when e1 unblocks, listener sells recBar -> e0 must unblock too!
+    recBran.hp = 1;
+    e0.heroMeleeTimer = 0.001;
+    let soldInUnblock = false;
+    recEvents.on('enemyUnblocked', (ev) => {
+      if (ev.enemyId === e1.uid && !soldInUnblock) {
+        soldInUnblock = true;
+        recWorld.sellTower(recBar.id);
+      }
+    });
+    recWorld.heroSystem.update(BALANCE.fixedDt, recWorld.towers, 1);
+    expect(recBran.state).toBe('dead');
+    expect(soldInUnblock).toBe(true);
+    expect(recUnblocked).toBe(2);
+
+    // 3. Reaped 0-HP blocked enemy does not emit orphan enemyUnblocked when barracks is sold inside 'enemyKilled',
+    //    simultaneous lethal leaks do not emit post-'gameLost' economyChanged/XP, and splitter debugForceWin sweeps children.
+    const reapEvents = new EventBus();
+    let reapBlocked = 0;
+    let reapUnblocked = 0;
+    reapEvents.on('enemyBlocked', () => void reapBlocked++);
+    reapEvents.on('enemyUnblocked', () => void reapUnblocked++);
+    const reapWorld = new SimWorld(LEVEL_L1C, reapEvents, { seed: 503 });
+    reapWorld.gold = 3000;
+    const reapBar = reapWorld.placeTowerOnPlot(2, 'barracks')!;
+    const reapSt = reapWorld.soldierSystem.getBarracks(reapBar.id)!;
+    reapSt.squad[0].x = reapSt.squad[0].prevX = reapSt.rallyX;
+    reapSt.squad[0].z = reapSt.squad[0].prevZ = reapSt.rallyZ;
+    const doomed = reapWorld.enemySystem.spawnEnemy('splitter', 10, false, 0)!;
+    doomed.x = doomed.prevX = reapSt.rallyX;
+    doomed.z = doomed.prevZ = reapSt.rallyZ;
+    reapWorld.spatialHash.clear();
+    reapWorld.spatialHash.insert(doomed.poolIndex, doomed.x, doomed.z);
+    reapWorld.soldierSystem.update(BALANCE.fixedDt, reapWorld.towers, 1);
+    expect(reapBlocked).toBe(1);
+    // Arrow kills doomed after SoldierSystem.update (doomed.hp = 0 while doomed.blockers = 1).
+    doomed.hp = 0;
+    reapEvents.on('enemyKilled', () => {
+      reapWorld.sellTower(reapBar.id);
+      reapWorld.debugForceWin();
+    });
+    reapWorld.fixedTick(BALANCE.fixedDt);
+    expect(reapUnblocked).toBe(0);
+    expect(reapWorld.outcome).toBe('won');
+    expect(reapWorld.enemyPool.getActiveCount()).toBe(0);
+
+    // Simultaneous two-enemy leak at 1 life + trailing 0-HP enemy: zero post-gameLost economyChanged or kill rewards.
+    const leakEvents = new EventBus();
+    let postLostEconomy = 0;
+    let sawGameLost = false;
+    leakEvents.on('gameLost', () => {
+      sawGameLost = true;
+    });
+    leakEvents.on('economyChanged', () => {
+      if (sawGameLost) postLostEconomy++;
+    });
+    const leakWorld = new SimWorld(LEVEL_L1C, leakEvents, { heroId: 'bran', heroLevel: 1, seed: 504 });
+    leakWorld.lives = 1;
+    leakWorld.startNextWave();
+    const l1 = leakWorld.enemySystem.spawnEnemy('grunt', 1, false, 0)!;
+    const l2 = leakWorld.enemySystem.spawnEnemy('grunt', 1, false, 0)!;
+    const deadAfter = leakWorld.enemySystem.spawnEnemy('grunt', 1, false, 0)!;
+    l1.dist = l1.totalDist + 1;
+    l2.dist = l2.totalDist + 1;
+    deadAfter.hp = 0;
+    const goldBeforeLeak = leakWorld.gold;
+    leakWorld.fixedTick(BALANCE.fixedDt);
+    expect(sawGameLost).toBe(true);
+    expect(postLostEconomy).toBe(0);
+    expect(leakWorld.gold).toBe(goldBeforeLeak);
+    expect(leakWorld.enemiesKilledTotal).toBe(0);
+    expect(leakWorld.heroSystem.runXp).toBe(0);
+
+    // debugForceLose inside 'enemySpawned' immediately aborts remaining wave spawns on that tick.
+    const spawnAbortEvents = new EventBus();
+    let spawnedAfterLost = 0;
+    let forceLostDone = false;
+    const multiZeroDelay = {
+      ...LEVEL_L1C,
+      id: 'mini-spawn-abort',
+      waves: [{ groups: [{ enemyType: 'grunt' as const, count: 4, spawnInterval: 0, startDelay: 0 }], clearBonus: 20 }],
+    };
+    const abortWorld = new SimWorld(multiZeroDelay, spawnAbortEvents, { seed: 505 });
+    spawnAbortEvents.on('enemySpawned', () => {
+      if (forceLostDone) spawnedAfterLost++;
+      else {
+        forceLostDone = true;
+        abortWorld.debugForceLose();
+      }
+    });
+    abortWorld.startNextWave();
+    abortWorld.fixedTick(BALANCE.fixedDt);
+    expect(forceLostDone).toBe(true);
+    expect(spawnedAfterLost).toBe(0);
+
+    // 4. Direct SimReplayPlayer construction with unsorted commands and under-reported totalTicks normalizes cleanly.
+    const miniDirect = {
+      ...LEVEL_L1C,
+      id: 'mini-direct-player',
+      waves: [{ groups: [{ enemyType: 'grunt' as const, count: 1, spawnInterval: 0.2, startDelay: 0 }], clearBonus: 20 }],
+    };
+    const rec = new SimWorld(miniDirect, new EventBus(), { seed: 506, recordCommands: true });
+    const built = rec.placeTowerOnPlot(0, 'archer')!;
+    rec.startNextWave();
+    for (let t = 0; t < 5; t++) rec.fixedTick(BALANCE.fixedDt);
+    rec.setTowerTargeting(built.id, 'strongest');
+    while (rec.outcome === 'ongoing') rec.fixedTick(BALANCE.fixedDt);
+    const baseLog = rec.exportReplay();
+    const underReportedLog = {
+      ...baseLog,
+      commands: [...baseLog.commands].reverse(),
+      summary: { ...baseLog.summary, totalTicks: 1 },
+    };
+    const underPlayer = new SimReplayPlayer(miniDirect, underReportedLog);
+    expect(underPlayer.totalTicks).toBe(5);
+    expect(underPlayer.appliedCommands).toBe(2);
+    underPlayer.seekToTick(5);
+    expect(underPlayer.appliedCommands).toBe(3);
+
+    const fullManualPlayer = new SimReplayPlayer(miniDirect, {
+      ...baseLog,
+      commands: [...baseLog.commands].reverse(),
+    });
+    expect(fullManualPlayer.runToEnd().matchesHash).toBe(true);
+  });
 });

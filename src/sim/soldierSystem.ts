@@ -815,10 +815,11 @@ export class SoldierSystem {
       if (!e.active || e.hp <= 0 || e.blockers <= 0) continue;
       const m = ENEMY_MELEE[e.type];
       if (!this.wasBlocked[e.poolIndex]) {
+        // Track in _prevBlocked (even when co-held alongside a hero) so mid-tick hero move +
+        // barracks sell/rally or counter-attack soldier death always reconciles enemyUnblocked 1-to-1.
+        _prevBlocked.push(e.poolIndex);
+        _prevBlockedUid.push(e.uid);
         if (e.heroBlockers === 0) {
-          // Track in _prevBlocked so same-tick counter-attack soldier death emits enemyUnblocked cleanly.
-          _prevBlocked.push(e.poolIndex);
-          _prevBlockedUid.push(e.uid);
           this.emitBlock('enemyBlocked', e);
           if (this.abortedStep) return;
           if (!e.active || e.hp <= 0 || e.blockers <= 0) continue;
@@ -933,9 +934,12 @@ export class SoldierSystem {
     }
     this.blockedCount = held;
     for (let k = 0; k < _prevBlocked.length; k++) {
-      const e = pool.items[_prevBlocked[k]];
-      this.wasBlocked[_prevBlocked[k]] = 0;
-      if (e.active && e.uid === _prevBlockedUid[k] && e.blockers === 0 && e.heroBlockers === 0) {
+      const slot = _prevBlocked[k];
+      const prevUid = _prevBlockedUid[k];
+      _prevBlockedUid[k] = -1;
+      this.wasBlocked[slot] = 0;
+      const e = pool.items[slot];
+      if (e.active && e.uid === prevUid && e.blockers === 0 && e.heroBlockers === 0) {
         this.emitBlock('enemyUnblocked', e);
         if (this.abortedStep) return;
       }

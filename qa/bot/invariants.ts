@@ -128,6 +128,7 @@ export class InvariantMonitor {
   private lastCompletedWaveIndex = -1;
   private waveActiveSec = 0;
   private betweenWaveSec = 0;
+  private terminalEventFired = false;
 
   private readonly trackUid: Int32Array;
   private readonly trackLastDist: Float64Array;
@@ -175,7 +176,24 @@ export class InvariantMonitor {
   }
 
   private bindEvents(events: EventBus): void {
+    events.on('gameWon', () => {
+      this.terminalEventFired = true;
+    });
+    events.on('gameLost', () => {
+      this.terminalEventFired = true;
+    });
+    events.on('endlessEntered', () => {
+      this.terminalEventFired = false;
+    });
+
     events.on('economyChanged', (ev) => {
+      if (this.terminalEventFired && this.world.outcome !== 'ongoing') {
+        this.record(
+          'entity_leak',
+          this.currentTick,
+          `economyChanged emitted after terminal outcome=${this.world.outcome}`,
+        );
+      }
       this.assertFinite(ev.gold, 'event.economyChanged.gold');
       this.assertFinite(ev.lives, 'event.economyChanged.lives');
       if (ev.gold < 0 || !Number.isInteger(ev.gold)) {
@@ -247,6 +265,13 @@ export class InvariantMonitor {
     });
 
     events.on('waveStarted', (ev) => {
+      if (this.terminalEventFired && this.world.outcome !== 'ongoing') {
+        this.record(
+          'wave_never_ends',
+          this.currentTick,
+          `waveStarted(${ev.waveIndex}) emitted after terminal outcome=${this.world.outcome}`,
+        );
+      }
       if (ev.waveIndex !== this.activeWaveIndex + 1 && this.activeWaveIndex !== -1) {
         this.record(
           'wave_never_ends',
@@ -260,6 +285,13 @@ export class InvariantMonitor {
     });
 
     events.on('waveCompleted', (ev) => {
+      if (this.terminalEventFired && this.world.outcome !== 'ongoing') {
+        this.record(
+          'wave_never_ends',
+          this.currentTick,
+          `waveCompleted(${ev.waveIndex}) emitted after terminal outcome=${this.world.outcome}`,
+        );
+      }
       if (ev.waveIndex <= this.lastCompletedWaveIndex) {
         this.record(
           'wave_never_ends',
