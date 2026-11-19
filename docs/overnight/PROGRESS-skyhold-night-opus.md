@@ -128,6 +128,13 @@ QA: `npx vite preview --port 4381 --strictPort` in background (kill with TaskSto
   the barracks' range circle (`uiLayout.plateCentreY`, `qa/rallyBanner.mjs`); input-neutral
   wording for the map hint, Workshop refund confirm, settings reset confirm, hero tree hint.
   Replay QA: pause-menu check polls (DPR-2 flake).
+- **R2 — next wave's caves — DONE** (`ui/laneMarks2d.ts|.css`): on multi-cave islands (l1c, i10,
+  i13–i16 + any new ones, data-driven from wave group lanes and `layout2d.paths`; Endless via
+  `buildEndlessWaveDef`) a bobbing red chevron with "×N" over each cave the next wave uses, shown
+  with the next-wave card. A mark slides along its road off the card / horn / HUD
+  (`laneMarkSpot`). Tests in `flowUi2d.test.ts`; shots `*-lanes-*.jpg`.
+- **R2 — misc polish:** end board plain "Level n" in soft ink (rust only for a level-up); coach
+  hidden under the pause menu.
 
 ## Next (backlog 2: missing basics) — candidates, in rough value order
 - tower info card: the build ring tooltip already has stats/targeting/upgrade/sell+refund; review only
