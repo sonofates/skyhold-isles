@@ -309,7 +309,55 @@
   "portrait-pell": "ui/portrait-pell.webp",
   "route-anchor": "ui/route-anchor.webp",
   "route-dash": "ui/route-dash.webp",
-  "sea": "ui/sea.webp",
+  "sea": {
+   "background": "ui/sea.webp",
+   "gull": {
+    "file": "ui/sea/gull.webp",
+    "frameW": 96,
+    "frameH": 96,
+    "count": 6,
+    "fps": 9
+   },
+   "whale": {
+    "file": "ui/sea/whale.webp",
+    "frameW": 220,
+    "frameH": 220,
+    "count": 8,
+    "fps": 6
+   },
+   "foam": [
+    "ui/sea/foam-1.webp",
+    "ui/sea/foam-2.webp",
+    "ui/sea/foam-3.webp"
+   ],
+   "cloud": [
+    "ui/sea/cloud-1.webp",
+    "ui/sea/cloud-2.webp",
+    "ui/sea/cloud-3.webp"
+   ],
+   "cloudShadow": "ui/sea/cloud-shadow.webp",
+   "sparkle": {
+    "file": "ui/sea/sparkle.webp",
+    "frameW": 48,
+    "frameH": 48,
+    "count": 6,
+    "fps": 10
+   },
+   "ripple": {
+    "file": "ui/sea/ripple.webp",
+    "frameW": 256,
+    "frameH": 256,
+    "count": 6,
+    "fps": 6
+   },
+   "shipSail": {
+    "file": "ui/sea/ship-sail.webp",
+    "frameW": 160,
+    "frameH": 160,
+    "count": 4,
+    "fps": 5
+   }
+  },
   "sea@0.5x": "ui/sea@0.5x.webp",
   "seal-bowless": "ui/seal-bowless.webp",
   "seal-championHost": "ui/seal-championHost.webp",
