@@ -5,6 +5,7 @@ import type { AbilityId, GameSettings, HeroSkillSlot, SpeedMultiplier, Targeting
 import { LEVELS } from '../data/levels/index.ts';
 import { BALANCE } from '../data/balance.ts';
 import { STAR_RULES } from '../data/stars.ts';
+import { ENEMY_DEFS } from '../data/enemies.ts';
 import type { LevelDef } from '../data/levels/types.ts';
 import { NEUTRAL_RUN_MODIFIERS, type RunModifiers } from '../data/runModifiers.ts';
 import { getTowerTierStats, TOWER_DEFS } from '../data/towers.ts';
@@ -1597,7 +1598,27 @@ export class Game2D {
         trails: this.projectiles.trailsRequested,
         markers: this.towers.markers(),
         extras: this.enemies.specials.extrasCreated,
+        deathClips: this.enemies.deathsPlayed,
+        sideFrames: this.enemies.sideFrames,
       },
+      foes: (() => {
+        const n: Record<string, number> = {};
+        const pool = w.enemyPool;
+        for (let i = 0; i < pool.getActiveCount(); i++) {
+          const e = pool.items[pool.getActiveIndex(i)];
+          if (e.active) n[e.type] = (n[e.type] ?? 0) + 1;
+        }
+        return n;
+      })(),
+      bosses: (() => {
+        const out: { type: string; hp: number; phase: number; elite: boolean }[] = [];
+        const pool = w.enemyPool;
+        for (let i = 0; i < pool.getActiveCount(); i++) {
+          const e = pool.items[pool.getActiveIndex(i)];
+          if (e.active && ENEMY_DEFS[e.type].isBoss) out.push({ type: e.type, hp: e.hp / e.maxHp, phase: e.bossPhase ?? 0, elite: e.elite });
+        }
+        return out;
+      })(),
       barracks: { ...this.soldiers.debug(w.soldierSystem), rallyMode: this.rallyTower, melee: { ...this.melee.stats } },
       heroView: { ...this.heroes.debug(), screen: this.heroScreen() },
       turrets: { shots: this.towers.turretShots, views: this.towers.turretReport() },

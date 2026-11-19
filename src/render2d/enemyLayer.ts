@@ -106,6 +106,9 @@ export class EnemyLayer {
   private readonly views: (EnemyView | undefined)[] = [];
   private frameNo = 0;
   private readonly deaths: DeathView[] = [];
+  /** QA counters: painted death clips started, and frames drawn from the side walk sequence. */
+  deathsPlayed = 0;
+  sideFrames = 0;
   private readonly layoutScratch = { px: 0, py: 0, cy: 0, heightPx: 0, shadowR: 0, uiScale: 1, pxPerUnit: 1, facing: 1 };
   private readonly art: LoadedArt;
   private readonly map: MapView;
@@ -221,6 +224,7 @@ export class EnemyLayer {
     body.visible = true;
     d.clip = clip;
     d.elapsed = 0;
+    this.deathsPlayed++;
     d.startY = body.y;
     d.groundY = v.flying ? v.shadow.y : body.y;
   }
@@ -374,6 +378,7 @@ export class EnemyLayer {
       sheetWalk(v.anim, seq.length, sheet.fps, stride, moved, rate, dxImg, dyImg, dt, facing !== 'left', pose);
       if (moth) pose.lift = (w.uid % 3 - 1) * 0.22;
       v.anim.seq = seqIdx;
+      if (seqIdx === 2) this.sideFrames++;
       tex = seq[pose.frame % seq.length];
     } else {
       cheapWalk(v.anim, art.spec.cheap, moved, speedRatio, dxImg, dyImg, dt, art.frames.length, facesRight, pose);
