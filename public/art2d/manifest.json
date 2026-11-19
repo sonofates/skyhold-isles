@@ -263,6 +263,11 @@
   "buttonRound": "ui/button-round.webp"
  },
  "paintedUi": {
+  "title": {
+   "keyart": "ui/title/keyart.webp",
+   "logo": "ui/title/logo.webp",
+   "logoTr": "ui/title/logo-tr.webp"
+  },
   "button-go": "ui/button-go.webp",
   "compass": "ui/compass.webp",
   "gem-breezy": "ui/gem-breezy.webp",
