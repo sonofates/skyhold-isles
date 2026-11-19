@@ -562,6 +562,16 @@ export class Game2D {
       if (this.hooks.endless) return;
       this.damageNumbers.spawn(e, this.simClockSec, this.currentSettings());
     });
+    // Calling a wave early pays: the bonus rises from the horn as a gold "+N" with a coin.
+    ev.on('waveStarted', (e) => {
+      if (!(e.earlyBonus > 0)) return;
+      const f = this.map.fit;
+      const hp = this.hud.hornPosition;
+      const px = (hp.x - f.offsetX) / f.scale;
+      const py = (hp.y - this.hud.hornRadius - f.offsetY) / f.scale;
+      this.fx.spawn('coin', px, py, 30, 0, -80, 0.9);
+      this.goldPops.spawn(e.earlyBonus, px + 10, py - 20);
+    });
     ev.on('enemyKilled', (e) => {
       const px = m.pxX(e.x);
       const py = m.pxY(e.z) - e.y * 0.9 * ppu;
