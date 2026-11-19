@@ -65,9 +65,16 @@ QA: `npx vite preview --port 4381 --strictPort` in background (kill with TaskSto
   right margin (2560), top row (1366). Phone 844x390: left-edge column on most islands (thumb
   reach; grazes caves on some), block on i05/i14/i16.
 
+- **R1 backlog 2d — first-play coach marks on l1c — DONE** (`ui/coach2d.ts|.css`): 5 tips that follow
+  what the player does (build → pick → horn → upgrade/"gold" → move hero → meteor), never block,
+  "Skip tips"; bobbing gold arrow at the suggested plot (most road within archer reach), horn,
+  first tower, hero, meteor button (side arrow when the bar is an edge column). Only l1c plain play,
+  once (`localStorage skyhold2d_coach_v1 = done`); `?coach=1` forces it (QA). Game2D counts accepted
+  commands (`commandsDone`). QA `qa/coachshots.mjs` (EN+TR, desktop+phone): no problems.
+
 ## Next (backlog 2: missing basics) — candidates, in rough value order
 - tower info card: the build ring tooltip already has stats/targeting/upgrade/sell+refund; review only
-- first-time coach marks on l1c; victory stars breakdown
+- victory stars breakdown (why 2 stars: lives lost thresholds)
 - Then backlog 4 polish (hero controls feel, juice, end panel/world map with 25 islands, TR pass).
 
 ## Decisions

@@ -10,6 +10,7 @@ import { initLocale, t } from '../i18n/index.ts';
 import { heroName } from '../i18n/data.ts';
 import { AimOverlay, aimHooks, meleeHooks, towersHooks, zooHooks, ZooLabels, type AimSceneState, type MeleeSceneState } from './debugScenes.ts';
 import { ENEMY_TYPES } from '../data/enemies.ts';
+import { getTowerTierStats } from '../data/towers.ts';
 import type { EnemyType } from '../core/types.ts';
 import { FrameStats } from './frameStats.ts';
 import { Game2D, REPLAY_SPEEDS, type Game2DHooks } from './game2d.ts';
@@ -21,7 +22,7 @@ import { HUD_FONT } from './hudText.ts';
 import { detectSoftwareWebGL, isDesktopClient, qualityOverride, renderResolution, setGraphicsPrefs, type QualityTier } from './renderResolution.ts';
 import { setFxPrefs } from './fxLayer.ts';
 import type { GameSettings } from '../core/types.ts';
-import { loadSettings } from '../platform/storage.ts';
+import { isTouchDevice, loadSettings } from '../platform/storage.ts';
 import { GRAPHICS_EVENT, graphicsEngineState, loadGraphics, type GraphicsEngineState, type GraphicsSettings } from './ui/graphicsSettings.ts';
 import type { AbilityBar2D } from './ui/abilityBar2d.ts';
 import type { AbilityId } from '../core/types.ts';
@@ -99,6 +100,7 @@ declare global {
       lives?: () => Record<string, unknown> | null;
       /** QA: the foe info card, and the screen point of a live foe to tap. */
       foe?: () => Record<string, unknown> | null;
+      coach?: () => Record<string, unknown> | null;
       foeAt?: () => { x: number; y: number; h: number } | null;
       aimAbility?: (id: AbilityId | null) => void;
       /** QA: stop / restart the ticker (a frozen frame for mid-effect screenshots, no Paused plate). */
@@ -391,6 +393,8 @@ async function main(): Promise<void> {
   let waveCard: import('./ui/wavePreview2d.ts').WaveCard2D | null = null;
   let livesWarn: import('./ui/lowLives2d.ts').LivesWarning | null = null;
   let foeCard: import('./ui/enemyCard2d.ts').EnemyCard2D | null = null;
+  let coach: import('./ui/coach2d.ts').Coach2D | null = null;
+  let coachPlot = -1;
   let settingsRef: Settings2D | null = null;
   let gameRef: Game2D | null = null;
   let codexWasPaused = false;
@@ -660,6 +664,23 @@ async function main(): Promise<void> {
     const { codexEnemyUrl } = await import('./codex2d.ts');
     livesWarn = (await import('./ui/lowLives2d.ts')).mountLivesWarning();
     foeCard = (await import('./ui/enemyCard2d.ts')).mountEnemyCard((type) => codexEnemyUrl(art, type));
+    // First-play tips on the first island (plain play), or forced with ?coach=1 (QA).
+    const coachMod = await import('./ui/coach2d.ts');
+    if ((level.id === 'l1c' && plainPlay && !coachMod.coachDone()) || q.get('coach') === '1') {
+      const hero = game.world.hero;
+      coach = coachMod.mountCoach(!desktop || isTouchDevice(), hero ? heroName(hero.heroId).split(' ')[0] : '');
+      // Suggested first plot: the one with the most road within reach of an archer.
+      const lay = level.layout2d!;
+      let best = -1;
+      lay.plots.forEach((p, i) => {
+        let n = 0;
+        for (const path of lay.paths) for (const r of path) if (Math.hypot(r.x - p.x, r.z - p.z) < 4.5) n++;
+        if (best === -1 || n > best) {
+          best = n;
+          coachPlot = i;
+        }
+      });
+    }
     waveCard = mountWaveCard(
       (type) => codexEnemyUrl(art, type),
       () => {
@@ -733,6 +754,52 @@ async function main(): Promise<void> {
       foeCard.update(showFoe ? foe : null, showFoe, foe ? game.enemyScreen(foe) : null, { w: app.screen.width, h: app.screen.height }, showFoe && foe ? [hudButtonsKeepOut(app.screen.width, app.screen.height, readSafeInsets()), ...hudKeepOuts()] : []);
       if (game.inspecting && !foe && !foeCard.debug().shown) game.clearInspect();
     }
+    if (coach && coach.step !== 'done') {
+      const w = game.world;
+      let cheapest = Infinity;
+      let maxTier = 0;
+      for (const tw of w.towers) {
+        maxTier = Math.max(maxTier, tw.tier);
+        if (tw.tier < 3) cheapest = Math.min(cheapest, getTowerTierStats(tw.type, (tw.tier + 1) as 2 | 3).upgradeCost);
+      }
+      const meteor = game.getAbilityState('meteor');
+      const obs = {
+        towers: w.towers.length,
+        maxTier,
+        waves: w.waveSystem.state === 'preFirstWave' ? 0 : w.waveSystem.currentWaveOneBased,
+        buildRingOpen: game.buildRingOpen,
+        gold: w.gold,
+        cheapestUpgrade: cheapest,
+        hasHero: !!w.hero,
+        heroMoves: game.commandsDone('heroMove'),
+        meteorReady: meteor.usable,
+        meteors: game.commandsDone('meteor'),
+      };
+      // A bar button: from above, or from the side when the bar is an edge column.
+      const rectTop = (sel: string): { x: number; y: number; dir?: 'left' | 'right' } | null => {
+        const e = document.querySelector(sel);
+        if (!e) return null;
+        const r = e.getBoundingClientRect();
+        if (r.width <= 0) return null;
+        if (e.closest('.vertical')) {
+          const leftEdge = r.left + r.width / 2 < app.screen.width / 2;
+          return leftEdge ? { x: r.right, y: r.top + r.height / 2, dir: 'left' } : { x: r.left, y: r.top + r.height / 2, dir: 'right' };
+        }
+        return { x: r.left + r.width / 2, y: r.top };
+      };
+      const step = coach.step;
+      let target: { x: number; y: number } | null = null;
+      if (step === 'build' && coachPlot >= 0) target = game.plotScreen(coachPlot);
+      else if (step === 'wave') target = { x: game.hud.hornPosition.x, y: game.hud.hornPosition.y - game.hud.hornRadius };
+      else if (step === 'upgrade' && w.towers[0] && !game.ringOpen) {
+        const p = game.plotScreen(w.towers[0].col);
+        target = { x: p.x, y: p.y - 40 };
+      } else if (step === 'hero' && !game.heroSelected) {
+        const hs = game.heroScreen();
+        target = hs ? { x: hs.x, y: hs.y - 82 } : null;
+      } else if (step === 'meteor') target = rectTop('[data-testid="ab2d-meteor"]');
+      coach.update(obs, target, game.end.visible || storyOpen || anySheetOpen() || game.replaying);
+    }
     livesWarn?.update(game.world.lives, game.world.startingLives, !game.end.visible && !storyOpen && game.world.outcome === 'ongoing');
     if (waveCard) {
       const w = game.world;
@@ -775,6 +842,7 @@ async function main(): Promise<void> {
     waveCard: () => waveCard?.debug() ?? null,
     lives: () => livesWarn?.debug() ?? null,
     foe: () => foeCard?.debug() ?? null,
+    coach: () => coach?.debug() ?? null,
     foeAt: () => {
       const pool = game.world.enemyPool;
       for (let i = 0; i < pool.getActiveCount(); i++) {

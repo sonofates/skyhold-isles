@@ -177,6 +177,7 @@ export class Game2D {
   /** Tesla bolts waiting for their tower's painted release frame (pooled, sim seconds left). */
   private readonly boltQueue: { t: number; points: Vec3[]; count: number; view: Vec3[]; overload: boolean; muzzle: number }[] = [];
   private boltActive = 0;
+  private readonly cmdCounts = new Map<RunCommand['k'], number>();
   /** Fixed sim ticks run this run (the replay clock). */
   private ticks = 0;
   /** Commands of the live run (null while a replay plays). */
@@ -350,6 +351,11 @@ export class Game2D {
     return this.ring.isOpen;
   }
 
+  /** The build ring is open on a free plot (choosing a tower to build). */
+  get buildRingOpen(): boolean {
+    return this.ring.isOpen && this.ring.mode === 'build';
+  }
+
   /** Sim ticks run so far this run. */
   get tickCount(): number {
     return this.ticks;
@@ -362,7 +368,14 @@ export class Game2D {
   command(c: RunCommand): boolean {
     if (this.replayCursor) return false;
     this.recorder?.push(this.ticks, c);
-    return applyRunCommand(this.world, c);
+    const ok = applyRunCommand(this.world, c);
+    if (ok) this.cmdCounts.set(c.k, (this.cmdCounts.get(c.k) ?? 0) + 1);
+    return ok;
+  }
+
+  /** How many commands of a kind the sim accepted this run (coach marks). */
+  commandsDone(k: RunCommand['k']): number {
+    return this.cmdCounts.get(k) ?? 0;
   }
 
   /** Watches the last finished run again from its first tick (same island, rules, hero and seed). */
@@ -407,6 +420,7 @@ export class Game2D {
   newRun(replay?: RunReplay): void {
     const wasReplay = this.replayCursor !== null;
     this.ticks = 0;
+    this.cmdCounts.clear();
     this.replayCursor = replay ? new ReplayCursor(replay) : null;
     this.recorder = replay ? null : new RunRecorder(this.level.id);
     this.replayMatched = null;

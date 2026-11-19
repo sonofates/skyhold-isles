@@ -8,6 +8,7 @@ import { SimWorld } from '../../src/sim/world.ts';
 import { nextSpeed, REPLAY_SPEEDS } from '../../src/render2d/game2d.ts';
 import { waveChips } from '../../src/render2d/ui/wavePreview2d.ts';
 import { foeFacts } from '../../src/render2d/ui/enemyCard2d.ts';
+import { coachStep, coachText, type CoachObs } from '../../src/render2d/ui/coach2d.ts';
 import { livesLow } from '../../src/render2d/ui/lowLives2d.ts';
 import { ENEMY_DEFS, ENEMY_TYPES } from '../../src/data/enemies.ts';
 import { abilityBarSpot, besideAnchorSpot, gateKeepOutsPx } from '../../src/render2d/uiLayout.ts';
@@ -94,7 +95,7 @@ describe('foe card + lives warning', () => {
 });
 
 describe('flow texts', () => {
-  const keys = Object.keys(EN).filter((k) => /^(pause|confirm|replay|wave|foe)\./.test(k) || k === 'end.replay');
+  const keys = Object.keys(EN).filter((k) => /^(pause|confirm|replay|wave|foe|coach)\./.test(k) || k === 'end.replay');
   it('every pause / confirm / replay / wave string exists in EN and TR, and differs', () => {
     expect(keys.length).toBeGreaterThan(20);
     for (const k of keys) {
@@ -138,5 +139,36 @@ describe('ability bar placement (backlog 3)', () => {
     expect(k.x).toBeLessThan(100);
     expect(k.x + k.w).toBeGreaterThan(200 + 30);
     expect(k.y).toBeLessThan(100 - 40);
+  });
+});
+
+describe('first-play coach (l1c)', () => {
+  const o0: CoachObs = { towers: 0, maxTier: 0, waves: 0, buildRingOpen: false, gold: 200, cheapestUpgrade: Infinity, hasHero: true, heroMoves: 0, meteorReady: false, meteors: 0 };
+  it('walks build → pick → wave → upgrade → hero → meteor → done from what the player does', () => {
+    let s = coachStep('build', o0);
+    expect(s).toBe('build');
+    s = coachStep(s, { ...o0, buildRingOpen: true });
+    expect(s).toBe('pick');
+    s = coachStep(s, { ...o0, towers: 1 });
+    expect(s).toBe('wave');
+    s = coachStep(s, { ...o0, towers: 1, waves: 1 });
+    expect(s).toBe('upgrade');
+    s = coachStep(s, { ...o0, towers: 1, waves: 1, maxTier: 2 });
+    expect(s).toBe('hero');
+    s = coachStep(s, { ...o0, towers: 1, waves: 1, maxTier: 2, heroMoves: 1 });
+    expect(s).toBe('meteor');
+    s = coachStep(s, { ...o0, towers: 1, waves: 2, maxTier: 2, heroMoves: 1, meteors: 1 });
+    expect(s).toBe('done');
+  });
+  it('a veteran skips ahead; selling the only tower before wave 1 goes back to build; no hero skips its tip', () => {
+    expect(coachStep('build', { ...o0, towers: 2, waves: 1, maxTier: 2, heroMoves: 3, meteors: 1 })).toBe('done');
+    expect(coachStep('wave', o0)).toBe('build');
+    expect(coachStep('upgrade', { ...o0, towers: 1, waves: 1, maxTier: 2, hasHero: false })).toBe('meteor');
+  });
+  it('upgrade tip waits for gold; meteor tip only when it is ready; mouse wording on desktop', () => {
+    expect(coachText('upgrade', { ...o0, gold: 50, cheapestUpgrade: 90 }, true)?.text).toBe('coach.gold');
+    expect(coachText('upgrade', { ...o0, gold: 90, cheapestUpgrade: 90 }, true)?.text).toBe('coach.upgrade');
+    expect(coachText('meteor', o0, true)).toBeNull();
+    expect(coachText('build', o0, false)?.text).toBe('coach.buildMouse');
   });
 });
