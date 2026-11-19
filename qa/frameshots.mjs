@@ -3,6 +3,7 @@
 // l1c, i06, i12, i16 mid-battle and i24 on its boss wave, at 1920x1080, 2560x1080, 1366x768 and the
 // 844x390 phone; plus one `?quality=low` shot. Every shot also runs `__p0.hudCheck()` (0 overlaps).
 // Usage: python3 qa/withPreview.py --port=4391 node qa/frameshots.mjs [--ids=l1c,i24] [--sizes=1920x1080]
+//        [--quick=1 --ids=<all 25> --out=/tmp/x]   all-biome sweep, one shot per island at load
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { chromium } from 'playwright';
 
@@ -17,6 +18,8 @@ const SIZES = [
   { key: '844x390', w: 844, h: 390, dpr: 2, desktop: 0, touch: true },
 ].filter((s) => !arg('sizes') || arg('sizes').split(',').includes(s.key));
 const LOW = arg('low') !== '0';
+// --quick=1: one shot right after load per island (no battle / boss wait) — the all-biome sweep.
+const QUICK = arg('quick') === '1';
 const ARGS = ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'];
 const browser = await chromium.launch({ args: ARGS });
 const problems = [];
@@ -55,7 +58,7 @@ async function shot(page, name, wantTier) {
   if (wantTier === 'low' && (f.shadow || f.vignette)) bad.push('low tier still draws shadow / vignette');
   if (bad.length) problems.push(`${name}: ${bad.join('; ')}`);
   const bands = f.bands.map((b) => Math.round(b)).join('/');
-  report.push(`${name.padEnd(26)} ${c.form.padEnd(7)} scale ${String(Math.round(c.fit.shrink * 100)).padStart(3)}%  bands L/T/R/B ${bands.padEnd(16)} frame ${f.backdrop}${f.shadow ? '+shadow' : ''}${f.vignette ? '+vignette' : ''}${f.border ? '+border' : ''} (${f.tier})  overlaps ${c.overlaps.length}`);
+  report.push(`${name.padEnd(26)} ${c.form.padEnd(7)} scale ${String(Math.round(c.fit.shrink * 100)).padStart(3)}%  bands L/T/R/B ${bands.padEnd(16)} frame ${f.backdrop}${f.shadow ? '+shadow' : ''}${f.vignette ? '+vignette' : ''}${f.border ? '+border' : ''} (${f.tier}, backdrop ${f.backdropMs ?? '?'} ms)  overlaps ${c.overlaps.length}`);
 }
 
 async function battle(page) {
@@ -95,7 +98,9 @@ for (const size of SIZES) {
   for (const id of IDS) {
     try {
       await load(page, id, size, '&quality=high');
-      if (id === 'i24') {
+      if (QUICK) {
+        await shot(page, `${id}-${k}`);
+      } else if (id === 'i24') {
         if (!(await boss(page))) problems.push(`${k} i24: no boss seen`);
         await shot(page, `${id}-${k}-boss`);
       } else {

@@ -92,9 +92,10 @@ function canvas(w: number, h: number): HTMLCanvasElement | null {
 }
 
 /**
- * The blurred, graded backdrop of a map texture, or null (no DOM, unreadable source). The source
- * is halved step by step down to the working size (a single big downscale aliases in some
- * browsers), then blurred and graded on the CPU — a few hundred µs, once per map.
+ * The blurred, graded backdrop of a map texture, or null (no DOM, unreadable source). One
+ * downscale straight to twice the working size, one more to it (any aliasing a big single step
+ * leaves is washed out by the blur), then blur + grade on the CPU over ~14 k pixels. Once per map:
+ * ~25-65 ms in headless software Chromium (QA `__p0.mapFrame().backdropMs`), less on a GPU canvas.
  */
 export function buildBackdropTexture(map: Texture): Texture | null {
   const src = map.source.resource as CanvasImageSource | undefined;
@@ -105,8 +106,8 @@ export function buildBackdropTexture(map: Texture): Texture | null {
     let w = sw;
     let h = sh;
     let from: CanvasImageSource = src;
-    while (w / 2 >= BACKDROP_W * 2) {
-      const c = canvas(w / 2, h / 2);
+    if (w > BACKDROP_W * 2) {
+      const c = canvas(BACKDROP_W * 2, (BACKDROP_W * 2 * sh) / sw);
       const ctx = c?.getContext('2d');
       if (!c || !ctx) return null;
       ctx.imageSmoothingEnabled = true;

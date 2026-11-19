@@ -31,6 +31,8 @@ export class MapView {
   private readonly shadowSprites: Sprite[] = [];
   private readonly border = new Graphics();
   private tier: QualityTier = 'high';
+  /** QA: how long building the backdrop took (ms, once per map). */
+  private readonly backdropMs: number;
   private screenW = 1;
   private screenH = 1;
   fit: MapFit;
@@ -44,7 +46,9 @@ export class MapView {
     this.world.addChild(this.mapSprite);
     // Built once per map (the island's first bake; a later sharper bake of the same painting
     // would blur to the same thing).
+    const t0 = performance.now();
     this.backdropTex = buildBackdropTexture(texture);
+    this.backdropMs = performance.now() - t0;
     this.backdrop = new Sprite(this.backdropTex ?? Texture.WHITE);
     if (!this.backdropTex) this.backdrop.tint = FLAT_BAND;
     this.vignette = new Sprite(buildVignetteTexture() ?? Texture.EMPTY);
@@ -129,11 +133,12 @@ export class MapView {
   /** QA: what fills the bands right now. */
   frameInfo(): {
     backdrop: 'blur' | 'flat' | 'none'; shadow: boolean; vignette: boolean; border: boolean; tier: QualityTier;
-    bands: [number, number, number, number];
+    bands: [number, number, number, number]; backdropMs: number;
   } {
     const f = this.fit;
     return {
       bands: [f.bandLeft, f.bandTop, f.bandRight, f.bandBottom],
+      backdropMs: Math.round(this.backdropMs * 10) / 10,
       backdrop: !this.backdrop.visible ? 'none' : this.backdropTex ? 'blur' : 'flat',
       shadow: this.shadowSprites.some((s) => s.visible),
       vignette: this.vignette.visible,
