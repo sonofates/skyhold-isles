@@ -69,15 +69,15 @@ export function coachText(step: CoachStep, o: CoachObs, touch: boolean): { n: nu
     case 'build':
       return { n: 1, title: 'coach.buildTitle', text: touch ? 'coach.build' : 'coach.buildMouse' };
     case 'pick':
-      return { n: 1, title: 'coach.pickTitle', text: 'coach.pick' };
+      return { n: 1, title: 'coach.pickTitle', text: touch ? 'coach.pick' : 'coach.pickMouse' };
     case 'wave':
       return { n: 2, title: 'coach.waveTitle', text: 'coach.wave' };
     case 'upgrade':
-      return o.gold >= o.cheapestUpgrade ? { n: 3, title: 'coach.upgradeTitle', text: 'coach.upgrade' } : { n: 3, title: 'coach.goldTitle', text: 'coach.gold' };
+      return o.gold >= o.cheapestUpgrade ? { n: 3, title: 'coach.upgradeTitle', text: touch ? 'coach.upgrade' : 'coach.upgradeMouse' } : { n: 3, title: 'coach.goldTitle', text: 'coach.gold' };
     case 'hero':
       return { n: 4, title: 'coach.heroTitle', text: touch ? 'coach.hero' : 'coach.heroMouse' };
     case 'meteor':
-      return o.meteorReady ? { n: 5, title: 'coach.meteorTitle', text: 'coach.meteor' } : null;
+      return o.meteorReady ? { n: 5, title: 'coach.meteorTitle', text: touch ? 'coach.meteor' : 'coach.meteorMouse' } : null;
     default:
       return null;
   }
