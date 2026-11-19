@@ -49,7 +49,9 @@ import { meleeLookFor } from './meleeLook.ts';
 import { TowerLayer } from './towerLayer.ts';
 import { anySheetOpen } from './ui/dom.ts';
 import { readSafeInsets } from './uiKit.ts';
-import { gateKeepOutsPx, hornSpot, NO_INSETS, type Insets } from './uiLayout.ts';
+import { NO_INSETS, type Insets } from './uiLayout.ts';
+import { dockPieces, hudDock, type HudDock } from './hudDock.ts';
+import { playfieldShapes, shapesOverlap, type PlayShapes } from './playfield.ts';
 import { GoldPops2D } from './ui/goldPops2d.ts';
 import { applyRunCommand, ReplayCursor, RunRecorder, runFingerprint, sameFingerprint, type RunCommand, type RunReplay } from './ui/replay2d.ts';
 
@@ -147,8 +149,11 @@ export class Game2D {
   readonly ring: BuildRing;
   readonly end: EndPanel;
   private insets: Insets = NO_INSETS;
-  /** QA: how much the horn's spot covers (0 = clear). */
+  /** QA: how many road / plot / cave / castle shapes the dock pieces cover (0 = clear). */
   hornScore = 0;
+  /** Where every HUD piece sits (set by resize; the same on every island). */
+  dock: HudDock = hudDock(1, 1, NO_INSETS, { plaqueAspect: 3.5, plaqueSlots: { lives: [0, 0], gold: [0, 0], midY: 0.5 }, bannerAspect: 3.4, hero: false });
+  private playShapes: PlayShapes | null = null;
   private endShown = false;
   /** Event-FX counters (QA). */
   readonly fxStats = createSpecialFxStats();
@@ -758,50 +763,16 @@ export class Game2D {
 
   resize(w: number, h: number): void {
     this.applyResolution(w, h);
-    this.map.resize(w, h);
-    const ents = this.level.layout2d!.entrances;
-    // Horn between the entrances, nudged onto the grass to their right.
-    let ex = 0;
-    let ez = 0;
-    for (const e of ents) {
-      ex += e.x;
-      ez += e.z;
-    }
-    ex /= Math.max(1, ents.length);
-    ez /= Math.max(1, ents.length);
     this.insets = readSafeInsets();
     this.ring.insets = this.insets;
-    // Horn sits on the open grass right of the cave mouths (≈ 30 image px east, 8 px up of their
-    // midpoint): clear of both caves, the roads and the plots; its label goes above it.
-    const hornPx = this.map.pxX(ex) + 30;
-    const hornPy = this.map.pxY(ez) - 8;
-    // First lay the HUD out at the old spot (sizes, plaque), then move the horn to the clearest
-    // spot near the caves: off plots (and the towers on them), caves, the castle and the roads.
-    const first = { x: this.map.screenX(hornPx), y: this.map.screenY(hornPy) };
-    this.hud.layout(w, h, first, this.insets);
-    const lay = this.level.layout2d!;
-    const f = this.map.fit;
-    const sx = (px: number): number => f.offsetX + px * f.scale;
-    const sy = (py: number): number => f.offsetY + py * f.scale;
-    const hard: { x: number; y: number; w: number; h: number }[] = this.plots.geometry.rects.map((p) => ({ x: sx(p.x), y: sy(p.y - p.w * 1.3), w: p.w * f.scale, h: (p.h + p.w * 1.3) * f.scale }));
-    const hr = this.hud.rects();
-    hard.push(hr.plaque, hr.banner, hr.pause, hr.speed);
-    // A cave edge under the horn is fine (it calls the raiders out of it); the keep is not.
-    const landmarks = gateKeepOutsPx(lay.gates ?? []).map((g) => ({ rect: { x: sx(g.x), y: sy(g.y), w: g.w * f.scale, h: g.h * f.scale }, weight: g.castle ? 600 : 60 }));
-    const roads: { x: number; y: number }[] = [];
-    for (const path of lay.paths) {
-      for (let i = 1; i < path.length; i++) {
-        const a = path[i - 1];
-        const b = path[i];
-        const n = Math.max(1, Math.ceil(Math.hypot(b.x - a.x, b.z - a.z) / 0.6));
-        for (let k = 0; k < n; k++) roads.push({ x: this.map.screenX(this.map.pxX(a.x + ((b.x - a.x) * k) / n)), y: this.map.screenY(this.map.pxY(a.z + ((b.z - a.z) * k) / n)) });
-      }
-    }
-    const r = this.hud.hornRadius;
-    const near = { x: this.map.screenX(this.map.pxX(ex)), y: this.map.screenY(this.map.pxY(ez)) };
-    const spot = hornSpot(near, first, r, { w, h, top: this.insets.top + 8 + r * 0.6, bottom: hr.plaque.y - 30, margin: this.insets.left + 8 }, hard, landmarks, roads);
-    this.hornScore = spot.score;
-    this.hud.layout(w, h, spot, this.insets);
+    // The HUD dock (the same place for every piece on every island), then the map fitted around it:
+    // no road, plot, cave or castle under a HUD piece (hudDock.ts, viewFit.ts fitAroundHud).
+    this.dock = hudDock(w, h, this.insets, this.hud.dockOptions(!!this.hooks.hero));
+    this.map.resize(w, h, this.dock.reserved);
+    this.hud.layout(w, h, this.dock, this.insets);
+    // QA: what any dock piece still covers (exact shapes; 0 = clear).
+    const shapes = (this.playShapes ??= playfieldShapes(this.level.layout2d!));
+    this.hornScore = Object.values(dockPieces(this.dock)).reduce((n, rect) => n + shapesOverlap(shapes, this.map.fit, rect).length, 0);
     this.end.layout(w, h, this.insets);
     this.ring.close();
     this.rangeDisc.visible = false;

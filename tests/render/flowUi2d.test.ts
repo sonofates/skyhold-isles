@@ -15,7 +15,7 @@ import { waveCallout } from '../../src/render2d/ui/waveBanner2d.ts';
 import { laneMarkSpot, pointAlong, waveLaneCounts } from '../../src/render2d/ui/laneMarks2d.ts';
 import { livesLow } from '../../src/render2d/ui/lowLives2d.ts';
 import { ENEMY_DEFS, ENEMY_TYPES } from '../../src/data/enemies.ts';
-import { abilityBarSpot, besideAnchorSpot, gateKeepOutsPx, hornSpot, plateCentreY } from '../../src/render2d/uiLayout.ts';
+import { gateKeepOutsPx, plateCentreY } from '../../src/render2d/uiLayout.ts';
 
 afterEach(() => setLocale('en'));
 
@@ -50,38 +50,6 @@ describe('next-wave card', () => {
     expect(waveChips(p).length).toBeGreaterThan(0);
   });
 
-  it('beside the horn: right when clear, else the least covered spot, always on screen', () => {
-    const screen = { w: 1000, h: 600, bottomLimit: 560 };
-    const horn = { x: 200, y: 300, r: 40 };
-    const card = { w: 220, h: 90 };
-    const clear = besideAnchorSpot(horn, card, screen, []);
-    expect(clear.side).toBe('right');
-    expect(clear.covered).toBe(0);
-    // A plot right of the horn pushes the card to the other side.
-    const blocked = besideAnchorSpot(horn, card, screen, [{ x: 240, y: 200, w: 300, h: 200 }]);
-    expect(blocked.covered).toBe(0);
-    expect(blocked.side).not.toBe('right');
-    // Horn at the right edge: never off screen, never over the horn itself.
-    const edge = besideAnchorSpot({ x: 980, y: 40, r: 40 }, card, screen, []);
-    expect(edge.x).toBeGreaterThanOrEqual(8);
-    expect(edge.x + card.w).toBeLessThanOrEqual(screen.w - 8);
-    expect(edge.y).toBeGreaterThanOrEqual(8);
-    const overHorn = edge.x < 1020 && edge.x + card.w > 940 && edge.y < 80 && edge.y + card.h > 0;
-    expect(overHorn).toBe(false);
-  });
-  it('weighted keep-outs: a HUD piece outweighs a plot ring, a plot ring outweighs empty headroom', () => {
-    const screen = { w: 1000, h: 600, bottomLimit: 560 };
-    const horn = { x: 500, y: 300, r: 40 };
-    const card = { w: 220, h: 90 };
-    // Left: a plot ring (3x). Right: a bit of the hero bar (12x). The ring side wins.
-    const ring = { rect: { x: 240, y: 240, w: 60, h: 60 }, weight: 3 };
-    const bar = { rect: { x: 560, y: 220, w: 160, h: 160 }, weight: 12 };
-    const hard = [{ x: 240, y: 240, w: 60, h: 60 }];
-    const s = besideAnchorSpot(horn, card, screen, hard, 8, [ring, bar]);
-    const box = { x: s.x, y: s.y, w: card.w, h: card.h };
-    const onBar = box.x < 720 && box.x + box.w > 560 && box.y < 380 && box.y + box.h > 220;
-    expect(onBar).toBe(false);
-  });
 });
 
 describe('foe card + lives warning', () => {
@@ -129,51 +97,7 @@ describe('flow texts', () => {
   });
 });
 
-describe('ability bar placement (backlog 3)', () => {
-  const base = { w: 1920, h: 1080, insets: { top: 0, right: 0, bottom: 0, left: 0 }, pad: 19, long: 700, short: 110, gap: 22, plaque: { x: 19, y: 950, w: 400, h: 110 }, banner: { x: 1590, y: 970, w: 300, h: 90 }, soft: [] };
-  it('a crowded bottom band and edges: the two-row block finds the clear corner', () => {
-    // Plots along the whole bottom band and the top edge; only the space above the banner is free.
-    const hard = [
-      { x: 430, y: 850, w: 1150, h: 230 },
-      { x: 0, y: 0, w: 1920, h: 200 },
-      { x: 0, y: 200, w: 300, h: 740 },
-      { x: 1700, y: 200, w: 220, h: 450 },
-    ];
-    const s = abilityBarSpot({ ...base, hard, block: { w: 260, h: 180 } });
-    expect(s.layout).toBe('block');
-    expect(s.score).toBe(0);
-  });
-  it('the castle weighs as a landmark: the bar slides off it when it can', () => {
-    const castle = { rect: { x: 800, y: 900, w: 300, h: 180 }, weight: 400 };
-    const s = abilityBarSpot({ ...base, hard: [], landmarks: [castle] });
-    const box = { x: s.x, y: s.y, w: s.layout === 'column' ? base.short : base.long, h: s.layout === 'column' ? base.long : base.short };
-    const overlap = box.x < 1100 && box.x + box.w > 800 && box.y < 1080 && box.y + box.h > 900;
-    expect(overlap).toBe(false);
-  });
-  it('phone: a long bar that fits no side runs as the three-row stack between the HUD buttons and the banner', () => {
-    // 844x390: plots fill the bottom band and the left; the right side is clear under the buttons.
-    const phone = { w: 844, h: 390, insets: { top: 0, right: 0, bottom: 0, left: 0 }, pad: 8, long: 315, short: 69, gap: 10, plaque: { x: 8, y: 330, w: 170, h: 52 }, banner: { x: 690, y: 335, w: 146, h: 47 }, soft: [] };
-    const hard = [
-      { x: 180, y: 250, w: 500, h: 140 },
-      { x: 0, y: 0, w: 600, h: 320 },
-    ];
-    const hud = [phone.plaque, phone.banner, { x: 620, y: 0, w: 224, h: 64 }];
-    const s = abilityBarSpot({ ...phone, hard, hud, block: { w: 187, h: 129 }, stack: { w: 108, h: 177 } });
-    expect(s.layout).toBe('stack');
-    expect(s.score).toBe(0);
-    expect(s.x + 108).toBeLessThanOrEqual(844);
-    expect(s.y + 177).toBeLessThanOrEqual(335);
-  });
-  it('a HUD piece weighs far more than a plot: the bar grazes a plot rather than the wave banner', () => {
-    const phone = { w: 844, h: 390, insets: { top: 0, right: 0, bottom: 0, left: 0 }, pad: 8, long: 315, short: 69, gap: 10, plaque: { x: 8, y: 330, w: 170, h: 52 }, banner: { x: 690, y: 335, w: 146, h: 47 }, soft: [] };
-    // Plots everywhere except a strip down the right edge that runs into the banner.
-    const hard = [{ x: 0, y: 0, w: 760, h: 390 }];
-    const hud = [phone.plaque, phone.banner, { x: 620, y: 0, w: 224, h: 64 }];
-    const s = abilityBarSpot({ ...phone, hard, hud });
-    const box = { x: s.x, y: s.y, w: s.vertical ? 69 : 315, h: s.vertical ? 315 : 69 };
-    const onBanner = box.x < 836 && box.x + box.w > 690 && box.y < 382 && box.y + box.h > 335;
-    expect(onBanner).toBe(false);
-  });
+describe('gate keep-outs', () => {
   it('gate keep-outs grow behind the castle gate (facing W → to the east) and above it', () => {
     const [k] = gateKeepOutsPx([{ role: 'goal', lane: -1, prop: 'castle-w', facing: 'W', front: { art: 'x', rect: [100, 100, 100, 80], baseY: 180 } }]);
     expect(k.castle).toBe(true);
@@ -237,21 +161,6 @@ describe('new-foe heads-up', () => {
     expect(waveTypes(lvl, 5)).toEqual([]);
     expect([...seenFromCleared([lvl], () => true)].sort()).toEqual(['brute', 'grunt', 'runner']);
     expect(seenFromCleared([lvl], () => false).size).toBe(0);
-  });
-});
-
-describe('horn placement', () => {
-  const screen = { w: 1920, h: 1080, top: 40, bottom: 900, margin: 8 };
-  it('keeps the old spot when it is clear', () => {
-    const s = hornSpot({ x: 300, y: 400 }, { x: 330, y: 392 }, 40, screen, [], [], []);
-    expect(s).toMatchObject({ x: 330, y: 392, score: 0 });
-  });
-  it('moves off a plot / cave under the old spot to a clear one nearby', () => {
-    const plot = { x: 290, y: 330, w: 90, h: 120 };
-    const cave = { rect: { x: 250, y: 340, w: 60, h: 80 }, weight: 60 };
-    const s = hornSpot({ x: 300, y: 400 }, { x: 330, y: 392 }, 40, screen, [plot], [cave], []);
-    expect(s.score).toBe(0);
-    expect(Math.hypot(s.x - 300, s.y - 400)).toBeLessThan(40 * 6);
   });
 });
 

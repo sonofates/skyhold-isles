@@ -1,6 +1,8 @@
 import { Container, Rectangle, Sprite, Texture } from 'pixi.js';
 import type { Level2DLayout } from '../data/levels/types.ts';
-import { computeMapFit, type MapFit } from './viewFit.ts';
+import { playfieldBoxes, playfieldShapes } from './playfield.ts';
+import type { Rect } from './uiLayout.ts';
+import { computeMapFit, fitAroundHud, type MapFit } from './viewFit.ts';
 
 /**
  * Painted map + world container. Children of `world` are positioned in map image px; the
@@ -64,9 +66,19 @@ export class MapView {
     return this.layout.imageSize[1];
   }
 
-  resize(screenW: number, screenH: number): void {
+  /** Playfield boxes (roads, plots, caves / castle + headroom, image px), built on first use. */
+  private boxes: Rect[] | null = null;
+
+  /**
+   * Fits the map to the screen. With `hud` (the dock's reserved rects, screen px) the map shrinks /
+   * shifts just enough that no road, plot, cave or castle lies under them (viewFit `fitAroundHud`).
+   */
+  resize(screenW: number, screenH: number, hud: readonly Rect[] = []): void {
     const [iw, ih] = this.layout.imageSize;
-    this.fit = computeMapFit(screenW, screenH, iw, ih, this.layout.safeArea);
+    if (hud.length > 0) {
+      this.boxes ??= playfieldBoxes(playfieldShapes(this.layout));
+      this.fit = fitAroundHud(screenW, screenH, iw, ih, this.layout.safeArea, this.boxes, hud);
+    } else this.fit = computeMapFit(screenW, screenH, iw, ih, this.layout.safeArea);
     const f = this.fit;
     this.world.scale.set(f.scale);
     this.world.position.set(f.offsetX, f.offsetY);

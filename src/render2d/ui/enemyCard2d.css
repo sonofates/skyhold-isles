@@ -1,4 +1,4 @@
-/* Foe info card (enemyCard2d.ts): the kit's gold-framed parchment, following the foe. */
+/* Foe info card (enemyCard2d.ts): the kit's gold-framed parchment, in the dock's info slot. */
 .pu-foe-card {
   position: fixed;
   left: 0;
@@ -166,6 +166,46 @@
 
 .pu-foe-counter b {
   color: #9a3b18;
+}
+
+/* Docked in the HUD's info slot (ui/dockCard.ts sets left / top / width / scale). */
+.pu-foe-card.docked {
+  transform-origin: 0 0;
+  will-change: auto;
+}
+
+/* Wide slot (top band on 16:9-ish screens): who it is on the left, what it does on the right, so
+   the card stays as short as the button row. */
+.pu-foe-card.wide {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+  column-gap: calc(var(--s) * 1.1);
+  align-items: start;
+}
+
+.pu-foe-card.wide .pu-foe-head {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.pu-foe-card.wide .pu-foe-stats {
+  grid-column: 1;
+  grid-row: 2;
+}
+
+.pu-foe-card.wide .pu-foe-desc {
+  grid-column: 2;
+  grid-row: 1;
+  margin-top: 0;
+}
+
+.pu-foe-card.wide .pu-foe-counter {
+  grid-column: 2;
+  grid-row: 2;
+}
+
+.pu-foe-card .pu-dock-drop {
+  display: none !important;
 }
 
 /* Phones: the essentials only. */
