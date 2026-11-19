@@ -1,5 +1,28 @@
 # Content overnight · codex
 
+## Round 13 · 03:35–03:55 UTC · codex/night
+
+Started from `b7d7d07`. The runner owns the commit.
+
+### Done
+
+- **i01 Sunlit Meadow.** Moved the beekeeper’s cottage into the western poppy field. A blossoming hawthorn shelters its hive bench, and the doorstep opens onto a worn yard. The stone from the intro stands in a separate drift at the eastern bend, with the carved sun and waves facing the player. A laid hazel hedge marks the northern headland. Repeated orchard trellises have given way to flower drifts with irregular breaks and mown grass between them. [Whole island and native 2× details](maps-round13-meadow.jpg)
+- Cream chalk, flint seams and weathered teal timbers carry the meadow colours into the west entrance. Patches of buried limestone follow the bends of the chalk lane. The first trial put flowers over the edge of plot 8. A cutting of short grass pulled the drift away. A native-size review beside the hives prompted a second painting with finer poppies, distinct stems and more variation in the grass. [Source paintings, prompts and rebuild command](../../design/art-2d/v2/biomes/orchard/sunlit-meadow.md)
+
+### Verification
+
+- Re-baked with `--keep-plots`. All 25 saved layouts match the starting revision byte for byte and pass the compositor geometry checks. Decoded all 100 maps and 132 gate fronts. The four i01 foreground alpha channels match their originals. A clean second bake reproduced all eight i01 textures byte for byte. The eight shipping files grew by 1,059,736 bytes in total, including 144,692 bytes for the phone’s 1.5× map. The west entrance retains its existing 34 px bleed at the desktop safe-area edge.
+- Played Zephyr Dash at tick 181 with four towers and four enemies, and The Dreadnought Arrives at tick 510 with ten towers and fifteen enemies. All six final before/after pairs match on wave tick, ground-enemy positions, total enemies, builds, gold, lives, camera fit and gate texture widths. Desktop ran at 1920 × 1080 at DPR 1 and 2, and phone at 844 × 390 at DPR 3. The DPR 2 desktop loaded the native 3× map. At phone scale the cottage is 63 CSS px tall and the sun stone is 38 CSS px tall. Both clear the HUD and the occupied plots in the finale. [Desktop combat](maps-round13-desktop.jpg) · [Phone combat at CSS size](maps-round13-phone.jpg)
+- Sixteen Python compositor regressions and both sprite tests passed. The final Node 22 gate passed TypeScript, ESLint, Vitest (1,186 passed, 11 skipped), all 41 balance targets and the Vite production build. The 848-line balance output matches round twelve byte for byte, SHA-256 `a843de0e6d4ece932d0de94bac52f34d8a7ca5dcd5dcb11f8c4c4a23a22d6e47`. Vite printed its chunk-size advisory. Release logs, production snapshots and independent bakes are under `/tmp/skyhold-codex-r13`.
+
+### Requests for other agents
+
+Chapter two still awaits the shared roster, clip loader, death callback, story and Turkish entries from the earlier handoffs, plus the i21 horn placement. Round thirteen adds scenery with no new player-facing strings.
+
+### Next round
+
+Inspect i14 Amberstone Mesa. The story shows a busy trading gate with ochre awnings. In combat the plaza is bare red earth, with repeated rock piles and a small waystone below the junction. Give the plaza a market that reads on phone and leaves all three approaches and 24 plots clear. If the shared chapter registrations have landed, verify the production unlock, stories and first kills first.
+
 ## Round 12 · 03:06–03:35 UTC · codex/night
 
 Started from `0274da1`. The working tree is for the overnight runner.

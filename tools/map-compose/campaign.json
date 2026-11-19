@@ -2,16 +2,29 @@
   "i01": {
     "plots": 16,
     "seed": 31,
-    "brushRoad": true,
-    "decals": 310,
-    "props": 52,
+    "decals": 72,
+    "props": 11,
     "windmill": "none",
     "biome": "orchard",
-    "propWeights": [6, 1, 3, 0, 3, 0, 7],
+    "scatterProps": [["landmark-spring-hawthorn.webp", 1.72], ["buttercups.webp", 0.42]],
+    "propWeights": [5, 2],
+    "repeatGap": 135,
+    "dressingMask": "dressing-i01.webp",
+    "entranceFinishes": {"A": "poppy-postern-e.webp"},
+    "roadStrip": true,
+    "roadMaterial": "tex-chalk-lane.webp",
+    "dustyShoulders": true,
+    "thresholdRoad": true,
+    "sillLaneBlend": {"A": 0.8},
     "cave-h": 2.1,
     "castle-h": 2.3,
+    "groundPaint": [["apiary-yard", 524, 637, 59]],
     "landmarks": [
-      ["cottage", 1247, 621, 113]
+      ["laid-hedge", 847, 126, 74],
+      ["spring-hawthorn", 361, 576, 89],
+      ["honey-cottage", 493, 617, 137],
+      ["skep-bench", 598, 625, 42],
+      ["sun-stone", 1248, 624, 84]
     ]
   },
   "i02": {
