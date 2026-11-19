@@ -1,7 +1,18 @@
 import type { EnemyType } from '../core/types.ts';
+import type { MeleeProfile } from './soldiers.ts';
 
-export interface EnemyDef {
-  readonly type: EnemyType;
+export const CHAPTER_ENEMY_TYPES = ['bellrunner', 'kilnback', 'reedpiper', 'draftwing'] as const;
+export type ChapterEnemyType = typeof CHAPTER_ENEMY_TYPES[number];
+
+type ChapterAbility =
+  | { kind: 'momentum'; runUpSec: number; speedBonus: number }
+  | { kind: 'ceramic'; chip: number; resetSec: number }
+  | { kind: 'refrain'; radius: number; interval: number; channelSec: number }
+  | { kind: 'draft'; reach: number; spacing: number; coastSec: number; speedBonus: number };
+
+export interface EnemyDef<T extends EnemyType | ChapterEnemyType = EnemyType> {
+  readonly type: T;
+  readonly ability?: ChapterAbility;
   readonly name: string;
   readonly description: string;
   readonly maxHp: number;
@@ -52,6 +63,49 @@ export interface EnemyDef {
   /** Short counterplay hint shown in tooltips / codex. */
   readonly counterHint?: string;
 }
+
+// Joined to the campaign roster when the shared enemy IDs and melee profiles land.
+export const CHAPTER_ENEMY_DEFS = {
+  bellrunner: {
+    type: 'bellrunner', name: 'Belfry Hare',
+    description: 'The bells on its harness ring faster as it gathers speed on the open road.',
+    counterHint: 'A soldier or a frost hit makes the hare start its run-up again.',
+    maxHp: 84, speed: 2.35, armor: 0, reward: 5, livesCost: 1,
+    flying: false, radius: 0.37, height: 1.08,
+    ability: { kind: 'momentum', runUpSec: 2.4, speedBonus: 0.85 },
+  },
+  kilnback: {
+    type: 'kilnback', name: 'Kilnback Tortoise',
+    description: 'Each hit that reaches its shell loosens a fired-clay plate. The plates settle back into place during a lull.',
+    counterHint: 'Use quick shots to strip its shell, then land a heavy hit before the plates settle.',
+    maxHp: 285, speed: 1.48, armor: 11, reward: 9, livesCost: 2,
+    flying: false, radius: 0.57, height: 1.16,
+    ability: { kind: 'ceramic', chip: 3, resetSec: 1.45 },
+  },
+  reedpiper: {
+    type: 'reedpiper', name: 'Reed Piper',
+    description: 'Stops to play a reed flute. The last note lifts frost from nearby ground troops.',
+    counterHint: 'Stun the piper during its phrase, or wait for the last note before applying frost.',
+    maxHp: 138, speed: 1.95, armor: 1, reward: 7, livesCost: 2,
+    flying: false, radius: 0.42, height: 1.18,
+    ability: { kind: 'refrain', radius: 3.2, interval: 4.2, channelSec: 0.85 },
+  },
+  draftwing: {
+    type: 'draftwing', name: 'Slipstream Moth',
+    description: 'Follows the wingbeats of another moth ahead on the sky lane, closing the gap in its wake.',
+    counterHint: 'Chain lightning breaks up a flight. Pick off the lead moth to slow its follower.',
+    maxHp: 47, speed: 2.5, armor: 0, reward: 3, livesCost: 1,
+    flying: true, radius: 0.36, height: 0.84,
+    ability: { kind: 'draft', reach: 3, spacing: 0.35, coastSec: 1.4, speedBonus: 0.65 },
+  },
+} as const satisfies { [T in ChapterEnemyType]: EnemyDef<T> };
+
+export const CHAPTER_ENEMY_MELEE = {
+  bellrunner: { block: 'block', holdCost: 1, damage: 5, rate: 1.25 },
+  kilnback: { block: 'block', holdCost: 2, damage: 18, rate: 0.75 },
+  reedpiper: { block: 'block', holdCost: 1, damage: 4, rate: 0.85 },
+  draftwing: { block: 'ignore', holdCost: 1, damage: 0, rate: 0 },
+} as const satisfies Record<ChapterEnemyType, MeleeProfile>;
 
 /** Empowered elite variant multipliers (wave groups with `elite: true`). */
 export const ELITE_MODIFIERS = {

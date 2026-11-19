@@ -69,7 +69,15 @@
   "map-i16-layered": "map-i16-layered.webp",
   "map-i16-layered@1x": "map-i16-layered@1x.webp",
   "map-i16-layered@1.5x": "map-i16-layered@1.5x.webp",
-  "map-i16-layered@3x": "map-i16-layered@3x.webp"
+  "map-i16-layered@3x": "map-i16-layered@3x.webp",
+  "map-i17-layered": "map-i17-layered.webp",
+  "map-i17-layered@1.5x": "map-i17-layered@1.5x.webp",
+  "map-i17-layered@1x": "map-i17-layered@1x.webp",
+  "map-i17-layered@3x": "map-i17-layered@3x.webp",
+  "map-i18-layered": "map-i18-layered.webp",
+  "map-i18-layered@1.5x": "map-i18-layered@1.5x.webp",
+  "map-i18-layered@1x": "map-i18-layered@1x.webp",
+  "map-i18-layered@3x": "map-i18-layered@3x.webp"
  },
  "overlays": {
   "map-L1c-layered-gate-A": "map-L1c-layered-gate-A.webp",
@@ -155,7 +163,17 @@
   "map-i16-layered-gate-C": "map-i16-layered-gate-C.webp",
   "map-i16-layered-gate-C@3x": "map-i16-layered-gate-C@3x.webp",
   "map-i16-layered-gate-goal": "map-i16-layered-gate-goal.webp",
-  "map-i16-layered-gate-goal@3x": "map-i16-layered-gate-goal@3x.webp"
+  "map-i16-layered-gate-goal@3x": "map-i16-layered-gate-goal@3x.webp",
+  "map-i17-layered-gate-A": "map-i17-layered-gate-A.webp",
+  "map-i17-layered-gate-A@3x": "map-i17-layered-gate-A@3x.webp",
+  "map-i17-layered-gate-B": "map-i17-layered-gate-B.webp",
+  "map-i17-layered-gate-B@3x": "map-i17-layered-gate-B@3x.webp",
+  "map-i17-layered-gate-goal": "map-i17-layered-gate-goal.webp",
+  "map-i17-layered-gate-goal@3x": "map-i17-layered-gate-goal@3x.webp",
+  "map-i18-layered-gate-A": "map-i18-layered-gate-A.webp",
+  "map-i18-layered-gate-A@3x": "map-i18-layered-gate-A@3x.webp",
+  "map-i18-layered-gate-goal": "map-i18-layered-gate-goal.webp",
+  "map-i18-layered-gate-goal@3x": "map-i18-layered-gate-goal@3x.webp"
  },
  "ui": {
   "plaque": "ui-plaque.webp",
@@ -276,6 +294,10 @@
   "story-i15-outro-1": "ui/story-i15-outro-1.webp",
   "story-i16-intro-1": "ui/story-i16-intro-1.webp",
   "story-i16-outro-1": "ui/story-i16-outro-1.webp",
+  "story-i17-intro-1": "ui/story-i17-intro-1.webp",
+  "story-i17-outro-1": "ui/story-i17-outro-1.webp",
+  "story-i18-intro-1": "ui/story-i18-intro-1.webp",
+  "story-i18-outro-1": "ui/story-i18-outro-1.webp",
   "story-l1c-intro-1": "ui/story-l1c-intro-1.webp",
   "story-l1c-intro-2": "ui/story-l1c-intro-2.webp",
   "story-l1c-intro-3": "ui/story-l1c-intro-3.webp",

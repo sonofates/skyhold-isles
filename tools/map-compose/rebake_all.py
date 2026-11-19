@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-"""Re-bakes every shipped island (l1c + i01..i16) in parallel with its recipe, keeping its plots,
+"""Re-bakes every authored island (l1c and numbered layouts) in parallel with its recipe, keeping its plots,
 and writes the gates back into the layout JSON. Then checks that no gameplay field of any layout
 changed (only `entrances[].gate` / `goalGate` may differ from git HEAD).
 
@@ -22,7 +22,9 @@ ROOT = Path(__file__).resolve().parents[2]
 args = sys.argv[1:]
 jobs = int(args[args.index('--jobs') + 1]) if '--jobs' in args else 2
 pos = [a for i, a in enumerate(args) if not a.startswith('--') and (i == 0 or args[i - 1] != '--jobs')]
-ids = pos[0].split(',') if pos else ['l1c'] + [f'i{n:02d}' for n in range(1, 17)]
+layouts = ROOT / 'src/data/levels2d'
+ids = pos[0].split(',') if pos else ['l1c', *(p.stem for p in sorted(layouts.glob('i[0-9][0-9].json')))]
+starting_layouts = {lid: json.loads((layouts / f'{lid}.json').read_text()) for lid in ids}
 
 
 def bake(lid):
@@ -83,7 +85,9 @@ with ThreadPoolExecutor(jobs) as ex:
 for lid in ids:
     p = f'src/data/levels2d/{lid}.json'
     head = subprocess.run(['git', 'show', f'HEAD:{p}'], cwd=ROOT, capture_output=True, text=True).stdout
-    before, after = json.loads(head), json.loads((ROOT / p).read_text())
+    # A new island can be rebaked in its author's working tree before its first commit.
+    before = json.loads(head) if head else starting_layouts[lid]
+    after = json.loads((ROOT / p).read_text())
     same = before == after if '--only-3x' in args else strip_gates(before) == strip_gates(after)
     print(f'{lid}: gameplay fields {"unchanged" if same else "CHANGED"}')
     fail |= not same

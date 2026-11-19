@@ -4,7 +4,7 @@ import { ENEMY_DEFS } from '../data/enemies.ts';
 import type { EnemyEntity } from '../sim/entities.ts';
 import type { ObjectPool } from '../core/pool.ts';
 import { mulTint } from './artResolve.ts';
-import type { EnemyArtRuntime, LoadedArt } from './assets2d.ts';
+import type { AttackSheetRuntime, EnemyArtRuntime, LoadedArt } from './assets2d.ts';
 import {
   createExtras,
   createSpecialAnim,
@@ -41,6 +41,15 @@ export interface Walker extends SpecialState {
   readonly hitFlashTimer: number;
   readonly scaleOverride: number;
   readonly burrowed: boolean;
+}
+
+type DeathClip = Pick<AttackSheetRuntime, 'frames' | 'fps' | 'anchor'>;
+interface DeathView {
+  body: Sprite;
+  clip: DeathClip | null;
+  elapsed: number;
+  startY: number;
+  groundY: number;
 }
 
 const BAR_W = 34;
@@ -96,6 +105,7 @@ export class EnemyView {
 export class EnemyLayer {
   private readonly views: (EnemyView | undefined)[] = [];
   private frameNo = 0;
+  private readonly deaths: DeathView[] = [];
   private readonly layoutScratch = { px: 0, py: 0, cy: 0, heightPx: 0, shadowR: 0, uiScale: 1 };
   private readonly art: LoadedArt;
   private readonly map: MapView;
@@ -184,8 +194,60 @@ export class EnemyLayer {
     }
   }
 
+  /** Snapshot the last painted pose before the sim recycles the enemy's pool slot. */
+  playDeath(uid: number): void {
+    const v = this.views.find(view => view?.uid === uid);
+    const art: (EnemyArtRuntime & { death?: DeathClip | null }) | null = v?.art ?? null;
+    const clip = art?.death;
+    if (!v?.body.visible || !art || !clip?.frames.length || !v.body.parent) return;
+
+    let d = this.deaths.find(view => !view.clip);
+    if (!d) {
+      if (this.deaths.length >= 32) return;
+      d = { body: new Sprite(), clip: null, elapsed: 0, startY: 0, groundY: 0 };
+      this.deaths.push(d);
+    }
+    const body = d.body;
+    v.body.parent.addChild(body);
+    body.texture = clip.frames[0];
+    const anchor = clip.anchor ?? art.sheet?.anchor ?? art.spec.anchor;
+    body.anchor.set(anchor[0], anchor[1]);
+    body.position.copyFrom(v.body.position);
+    body.scale.copyFrom(v.body.scale);
+    body.zIndex = v.body.zIndex;
+    body.tint = v.tint;
+    body.alpha = 1;
+    body.visible = true;
+    d.clip = clip;
+    d.elapsed = 0;
+    d.startY = body.y;
+    d.groundY = v.flying ? v.shadow.y : body.y;
+  }
+
+  private advanceDeaths(dt: number): void {
+    for (const d of this.deaths) {
+      const clip = d.clip;
+      if (!clip) continue;
+      d.elapsed += dt;
+      const frames = d.elapsed * clip.fps;
+      d.body.texture = clip.frames[Math.min(clip.frames.length - 1, Math.floor(frames))];
+      const descent = Math.min(1, frames / clip.frames.length);
+      d.body.y = d.startY + (d.groundY - d.startY) * descent * descent;
+      const fade = Math.max(0, d.elapsed - clip.frames.length / clip.fps);
+      d.body.alpha = Math.max(0, 1 - fade / 0.20);
+      if (d.body.alpha === 0) {
+        d.body.visible = false;
+        d.clip = null;
+      }
+    }
+  }
+
   /** Forget all bindings (new run: sim uids start over). */
   reset(): void {
+    for (const d of this.deaths) {
+      d.body.visible = false;
+      d.clip = null;
+    }
     for (let i = 0; i < this.views.length; i++) {
       const v = this.views[i];
       if (v) {
@@ -199,6 +261,7 @@ export class EnemyLayer {
   syncPool(pool: ObjectPool<EnemyEntity>, alpha: number, dt: number): void {
     this.frameNo++;
     this.specials.time += dt;
+    this.advanceDeaths(dt);
     const n = pool.getActiveCount();
     for (let i = 0; i < n; i++) {
       const idx = pool.getActiveIndex(i);
@@ -290,11 +353,19 @@ export class EnemyLayer {
       const sheet = art.sheet;
       // Each sequence has its own length and may face its own way (front clips walk down-right,
       // back clips often walk up-left).
-      const seqIdx = sheetSequence(v.anim.seq, dxImg, dyImg);
+      let seqIdx = sheetSequence(v.anim.seq, dxImg, dyImg);
+      if (sheet.seqs[2]?.length && !fighting) {
+        // A near-diagonal turn keeps its last view until the new direction is clear.
+        const ax = Math.abs(dxImg);
+        const ay = Math.abs(dyImg);
+        if (ax > 0.02 && ax > ay * 1.25) seqIdx = 2;
+        else if (ay <= 0.02 || ay < ax * 0.9) seqIdx = v.anim.seq;
+      }
       const seq = sheet.seqs[seqIdx] ?? sheet.seqs[0];
       const spec = art.spec.sheet;
       const facing = seqIdx === 1 ? (spec?.facingUp ?? spec?.facing) : spec?.facing;
       sheetWalk(v.anim, seq.length, sheet.fps, spec?.stride, moved, speedRatio, dxImg, dyImg, dt, facing !== 'left', pose);
+      v.anim.seq = seqIdx;
       tex = seq[pose.frame % seq.length];
     } else {
       cheapWalk(v.anim, art.spec.cheap, moved, speedRatio, dxImg, dyImg, dt, art.frames.length, facesRight, pose);
@@ -308,19 +379,23 @@ export class EnemyLayer {
     const walkTex = tex;
     let attackFrame = -1;
     const atk = art.attack;
-    if (ms && atk) {
+    const ability = ENEMY_DEFS[w.type]?.ability;
+    if (atk && ability?.kind === 'refrain' && (w.channelTimer ?? 0) > 0) {
+      const phrase = 1 - (w.channelTimer ?? 0) / ability.channelSec;
+      attackFrame = Math.max(0, Math.min(atk.frames.length - 1, Math.floor(phrase * atk.frames.length)));
+    } else if (ms && atk) {
       const f = swingFrame(ms.swing, atk.frames.length, atk.fps);
       if (f !== null) attackFrame = f;
       else if (fighting) attackFrame = 0;
-      if (attackFrame >= 0) {
-        tex = atk.frames[attackFrame];
-        // Attack sheets face like the walk "down" sheet; mirrored for the other side.
-        pose.flip = (v.anim.facing > 0) !== ((art.spec.sheet?.facing ?? art.spec.facing) !== 'left');
-        pose.rotation = 0;
-        pose.scaleX = 1;
-        pose.scaleY = 1;
-        pose.lift = 0;
-      }
+    }
+    if (atk && attackFrame >= 0) {
+      tex = atk.frames[attackFrame];
+      // The attack and flute poses face like the walk "down" sheet.
+      pose.flip = (v.anim.facing > 0) !== ((art.spec.sheet?.facing ?? art.spec.facing) !== 'left');
+      pose.rotation = 0;
+      pose.scaleX = 1;
+      pose.scaleY = 1;
+      pose.lift = 0;
     }
     if (v.body.texture !== tex) {
       v.body.texture = tex;

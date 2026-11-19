@@ -1,0 +1,22 @@
+{
+  "repeatGap": 145,
+  "baseKit": "orchard",
+  "props": [
+    [
+      "pillar.webp",
+      1.04
+    ],
+    [
+      "bell-frame.webp",
+      1.15
+    ],
+    [
+      "gold-spray.webp",
+      0.54
+    ],
+    [
+      "capital.webp",
+      0.62
+    ]
+  ]
+}

@@ -1,5 +1,73 @@
 # Content overnight · codex
 
+## Round 3 · 23:46 UTC–00:14 UTC · codex/night
+
+Started from `d668b3a`. The runner owns the commit.
+
+### Done
+
+- Four chapter enemies now have authored stats, melee profiles, counter hints, bestiary entries and deterministic sim behaviours. The Belfry Hare gains up to 85% run speed over 2.4 seconds. Soldiers, a melee hero, frost or stun break the run. Successive hits on the Kilnback chip three armor from the next hit, down to zero. A 1.45-second lull restores its full spawn armor, including elite and challenge bonuses. Shield-only hits leave its shell intact.
+- The Reed Piper stops for 0.85 seconds. Its last note clears slows from surfaced ground allies within 3.2 world units, including itself. Stun or death interrupts the phrase. Slipstream Moths accelerate behind another moth on the flight path and coast for up to 1.4 seconds. A pair can trade the lead. They sample a completed movement pass so swapping their pool slots gives the same distances.
+- The enemy layer plays the piper's painted flute poses during its channel. The four enemies use sprint, shell, music and wake effects. The renderer supports a third, horizontal walk sequence and plays death clips in a separate capped sprite pool, so a reused sim slot can immediately show its next occupant.
+- **i17 Cloudbell Cloister** introduces the hare and moth. Two opposing gate roads merge above the belfry switchback. It has 21 build plots and ten hand-written waves. **i18 Lantern Glassworks** introduces the Kilnback and Reed Piper. One long ore road doubles back to the keep while the flyers cut across the vault. It has 22 plots and eleven waves. Each island has four map textures, foregrounds at master and native 3× resolution, a new terrain painting, original prop and road paintings, and an intro and outro illustration. The kits reuse orchard and hollow gate architecture. [Paintings and generation prompts](../../design/art-2d/chapter2/islands.md)
+- Both islands are listed after i16 in the chapter-two data. `LEVELS_2D` includes each island once its waves' enemy and melee definitions are registered. The current shipping roster presents 17 islands. The standalone balance CLI loads the four chapter profiles and evaluates all 35 targets, including i17 and i18. Direct iteration works with `npm run sim:balance -- --levels=i17,i18`.
+- The bulk rebaker discovers new layout files and compares a first-time, uncommitted island against its starting geometry. The kit loader can reuse base-kit stonework. A biome mask reserves cliffs, machinery and painted ruins from scatter and plot placement. A repeat-spacing option keeps pairs of identical broken columns apart.
+
+### Verification
+
+| Island | Difficulty | Greedy | Weak | Workshop-maxed lives lost |
+| --- | --- | --- | --- | --- |
+| i17 | Heroic | 9 lives, 2 stars | Lost on wave 6 of 10 | 0 |
+| i18 | Master | 7 lives, 2 stars | Lost on wave 5 of 11 | 4 |
+
+- Node 22 release gate covered TypeScript, ESLint, Vitest, all 35 balance targets, and Vite. Vitest reported 1,168 passed and 11 skipped. The build emits its chunk-size advisory. The 695-line balance stdout has SHA-256 `91ad49bd8b4243de1daadc5da80c009807b553c576544055b9b65a8caa1ab3e4`. A byte comparison against round 2 found three insertions for the two new islands and the final target count changing from 33 to 35. Every existing level's output matches.
+- Six new behavioural tests and one chapter balance test run in `tests/sim/chapterEnemies.test.ts`. Five Python compositor and two sprite tests passed. Validated all 19 layouts and decoded 76 map and 94 foreground textures. The 17 original layout files, game textures and waves have no diff. A fresh staged native rebake of i17 and i18 reproduced every 3× map and gate byte for byte. An intermediate i05 layout test exceeded its five-second timeout while the native bakers were busy. The full suite passed again after they finished.
+- Playwright captured the actual opening wave, six-tower combat with all four new enemies, and a painted death on each new island at 1920 × 1080 DPR 1 and 2, and 844 × 390 DPR 3. Both final desktop DPR 2 captures waited for the native 3× map and foregrounds to finish streaming. The isolated Vite fixture registered the real chapter definitions in browser memory, supplied the regular sprite loader's side/death sequences and forwarded the kill event. The shipping shared loader and game event callback still need the small integration below. Full device frames, chapter diagnostics and the reproducible browser fixtures are in `/tmp/skyhold-codex-r3`. [Cloister and story paintings](maps-round3-i17.jpg) · [Cloister combat](maps-round3-i17-play.jpg) · [Glassworks and story paintings](maps-round3-i18.jpg) · [Glassworks combat](maps-round3-i18-play.jpg) · [Native 1× and 2× detail](maps-round3-native.jpg).
+
+### Requests for other agents
+
+1. **Integrator / sim owner.** Extend the closed `EnemyType` union in `src/core/types.ts` with `bellrunner`, `kilnback`, `reedpiper`, `draftwing`. Spread the exported `CHAPTER_ENEMY_MELEE` into `ENEMY_MELEE` in `src/data/soldiers.ts`. Complete the exhaustive badge and SVG records in `src/ui/icons.ts`, `DEATH_PITCH` in `src/audio/soundManager.ts` and the shard colors in `src/render/effectsRenderer.ts`. In the coordinated merge, spread `CHAPTER_ENEMY_DEFS` into `ENEMY_DEFS` and `...CHAPTER_ENEMY_TYPES` into `ENEMY_TYPES` before the final bosses in the content-owned `src/data/enemies.ts`. Those two additions, the shared records, and the Turkish lookup entries should land together. The chapter waves, combat, codex and island ordering are already wired. Once they ship, the two CLI-only registration assignments in `scripts/balanceSim.ts` and the two isolated roster mocks in the chapter test can be removed.
+2. **2D loader / game owner.** Read `sheet.side` and `death` in the enemy manifest parser. When the optional side sheet loads, append its frames as `SheetRuntime.seqs[2]`. Expose the loaded death sequence on `EnemyArtRuntime.death` with `frames`, `fps` and the normalized `anchor`; prewarm its frames. Call `this.enemies.playDeath(e.enemyId)` from the existing `enemyKilled` listener in `game2d.ts`. The renderer and the published JSON already use these shapes.
+3. **Opus / story.** Include `i17` and `i18` in `GENERIC_STORY_ISLANDS` in `src/render2d/ui/storyBeats.ts`. Their four images use the existing file convention and are registered in `paintedUi`. Verify the chapter-two navigation on the desktop and phone world maps after activation.
+4. **Opus / i18n.** Add the following entries to `DATA_TR.islands` and `DATA_TR.enemies` in `src/i18n/dataTr.ts`. All four enemies use existing translated codex tags.
+
+```ts
+// DATA_TR.islands
+i17: { name: 'Bulut Çanı Manastırı', subtitle: 'Yıkık çan kulesinin altında iki yol birleşiyor. Tavşanlar çanların tokmaklarını kaçırmış.' },
+i18: { name: 'Cam Fener Atölyesi', subtitle: 'Fırınlar sönmüş. Cevher yolunu izleyip kristal mağaranın çevresini dolaş.' },
+
+// DATA_TR.enemies
+bellrunner: {
+  name: 'Çan Tavşanı',
+  desc: 'Açık yolda hızlandıkça koşumundaki çanlar da sıklaşan adımlarına ayak uydurur.',
+  counter: 'Önüne bir asker çıkar ya da ayazla hızını kes. Yeniden hızlanması zaman alır.',
+},
+kilnback: {
+  name: 'Fırın Sırtlı Kaplumbağa',
+  desc: 'Kabuğuna ulaşan her darbe, pişmiş toprak plakalarından birini gevşetir. Ateş kesilince plakalar yeniden yerine oturur.',
+  counter: 'Hızlı atışlarla kabuğunu gevşet, ardından plakalar yerine oturmadan ağır bir darbe indir.',
+},
+reedpiper: {
+  name: 'Kamış Kavalcısı',
+  desc: 'Durup kaval çalar. Son notası, yakındaki kara birliklerini yavaşlatan ayazı dağıtır.',
+  counter: 'Çalarken sersemlet ya da ayaz saldırısını son notadan sonraya sakla.',
+},
+draftwing: {
+  name: 'Esinti Güvesi',
+  desc: 'Gök yolunda önündeki güvenin kanat çırpışlarıyla oluşan hava akımına girip hızlanır.',
+  counter: 'Zincirleme yıldırımla sürüyü dağıt. Öndeki güveyi düşürürsen arkasındaki de yavaşlar.',
+},
+```
+
+Wave names, in order, for Turkish surfaces that display them:
+
+- i17 — Çalınan Tokmaklar · Doğu Revakı · Bulutların Üstünde · Bakır Alayı · Kopan Çanlar · Virajda · Bulutlar Aralanırken · Çan İpi · İki Koro · Manastırın Çanları
+- i18 — Yürüyen Fırın · Kılcal Çatlaklar · Derinden Bir Nota · Cevher Katarı · Mağara Havası · Fırın Kapakları · Taşın İçinde Bir Koro · Hava Bacası · Çınlayan Kil · Cam Çağlayanı · Son Pişirim
+
+### Next round
+
+Start i19 and i20 in a new canopy or storm-coast biome. Continue to i24 with the full chapter balance runner. Give later islands different lane lengths and firing positions. Use the existing four behaviours in waves where their counters matter. The first chapter and the new enemy paintings are verified. Shared activation and the two story entries remain pending.
+
 ## Round 2 · 23:20–23:46 UTC · codex/night
 
 Started from `46caef6`. The runner owns the commit.

@@ -115,6 +115,7 @@ kit = assets.parent / 'biomes' / biome if biome else None
 if kit and not kit.is_dir():
     sys.exit(f'Unknown biome kit: {kit}')
 kit_spec = json.loads((kit / 'kit.json').read_text()) if kit else {}
+base_kit = kit.parent / kit_spec['baseKit'] if 'baseKit' in kit_spec else None
 dressing = recipe if biome and biome == recipe.get('biome') else {}
 quality = opt('--quality', 72 if kit else 90)
 
@@ -147,6 +148,8 @@ def asset_file(name):
         themed = (kit / dressing.get('sprites', {}).get(name, name)).with_suffix('.webp')
         if themed.exists():
             return themed
+        if base_kit and (base_kit / themed.name).exists():
+            return base_kit / themed.name
     return assets / name
 
 
@@ -314,11 +317,17 @@ def plot_zone(x, y):
     return (x - PLOT_R, y - TOWER_UP, x + PLOT_R, y + PLOT_RY)
 
 
+# Protect scenery painted directly on a chapter terrain plate as well as its cliff edge.
+dressing_mask = load(dressing['dressingMask']).convert('L').resize((iw, ih), Image.Resampling.NEAREST) if 'dressingMask' in dressing else None
+
+
 def plot_ok(x, y):
     """Single-plot rules (safe area, HUD, road clearance and reach, landmarks). Returns a reason or ''."""
     if not (sx + PLOT_R + 6 <= x <= sx + sw - PLOT_R - 6 and sy + TOWER_UP + 6 <= y <= sy + sh - PLOT_RY - 14):
         return 'safe area'
     ring = (x - PLOT_R, y - PLOT_RY, x + PLOT_R, y + PLOT_RY)
+    if dressing_mask and dressing_mask.crop(ring).getextrema()[0] < 128:
+        return 'terrain'
     if any(rects_hit(ring, r) for r in HUD_RECTS):
         return 'hud'
     closest_y = max(horn_y_low, min(horn_y_high, y))
@@ -343,7 +352,7 @@ def gate_bleed(g):
 
 
 # Fit the whole gatehouse at its fixed threshold, independently of output resolution.
-keep = Keep(assets.parent / 'gatehouses', biome, (gx, gy), goal_dir(raw_paths[0]), ROAD_W, ROAD_W * CASTLE_H, recipe.get('gatehouseView'))
+keep = Keep(assets.parent / 'gatehouses', kit_spec.get('baseKit', biome), (gx, gy), goal_dir(raw_paths[0]), ROAD_W, ROAD_W * CASTLE_H, recipe.get('gatehouseView'))
 kept_zones = [plot_zone(*p) for p in L['plots']] if ('--keep-plots' in args or '--check-plots' in args) else []
 
 
@@ -780,6 +789,8 @@ area = DressingArea((iw, ih), spl_paths, ROAD_W, plots, PLOT_R, PLOT_RY,
 
 
 def grounded(rect):
+    if dressing_mask and dressing_mask.crop(rect).getextrema()[0] < 128:
+        return False
     if land_mask is None:
         return True
     left, top, right, bottom = rect
@@ -790,7 +801,7 @@ def grounded(rect):
 
 decals = Decals(load, themed=bool(kit))
 fringe_n = scatter_n = None
-if decals.ok and '--no-decals' not in args:
+if decals.ok and '--no-decals' not in args and dressing.get('groundDecals', True):
     def decal_ok(rect):
         return area.clear(rect) and grounded(rect)
 
@@ -887,7 +898,8 @@ while len(placed) < prop_count and tries < 12000:
     # Leave complete silhouettes at the desktop crop as well as the phone edges.
     if any(rect[0] < edge < rect[2] for edge in (sx, sx+sw)):
         continue
-    if any(rects_hit(rect, other, 2) for _, other in placed):
+    if any(rects_hit(rect, other, kit_spec.get('repeatGap', 2) if previous == name else 2)
+           for previous, other in placed):
         continue
     placed.append((name, rect))
     sprite(name, x * S, y * S, h * S, flip=rnd.random() < 0.5)

@@ -327,5 +327,33 @@
     "sprites": {
       "gate-castle-w.png": "furnace-sanctuary.webp"
     }
+  },
+  "i17": {
+    "plots": 21,
+    "seed": 887,
+    "biome": "cloister",
+    "dressingMask": "land-i17.webp",
+    "roadMaterial": "tex-chalk.webp",
+    "windmill": "none",
+    "brushRoad": true,
+    "cave-h": 2.05,
+    "castle-h": 2.72,
+    "props": 27,
+    "propWeights": [2, 1, 6, 3],
+    "decals": 110
+  },
+  "i18": {
+    "plots": 22,
+    "seed": 929,
+    "biome": "glassworks",
+    "dressingMask": "land-i18.webp",
+    "windmill": "none",
+    "brushRoad": true,
+    "roadMaterial": "tex-ore-road.webp",
+    "cave-h": 2.18,
+    "castle-h": 2.55,
+    "props": 22,
+    "propWeights": [5, 1, 4, 2],
+    "groundDecals": false
   }
 }

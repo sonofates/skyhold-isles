@@ -1,9 +1,10 @@
 import { EventBus } from '../src/core/eventBus.ts';
 import type { EnemyType } from '../src/core/types.ts';
 import { BALANCE } from '../src/data/balance.ts';
-import { ENEMY_DEFS } from '../src/data/enemies.ts';
+import { CHAPTER_ENEMY_DEFS, CHAPTER_ENEMY_MELEE, ENEMY_DEFS } from '../src/data/enemies.ts';
 import { LEVELS, type LevelDef, type ScriptedBuildAction } from '../src/data/levels/index.ts';
-import { LEVELS_2D } from '../src/data/levels2d/index.ts';
+import { ENEMY_MELEE } from '../src/data/soldiers.ts';
+import { LEVELS_2D, registeredChapterIslands } from '../src/data/levels2d/index.ts';
 import { NEUTRAL_RUN_MODIFIERS, type RunModifiers } from '../src/data/runModifiers.ts';
 import { getTowerTierStats } from '../src/data/towers.ts';
 import { maxedWorkshopRanks, workshopModifiers } from '../src/data/workshop.ts';
@@ -326,9 +327,10 @@ export interface BalanceEntry {
 }
 
 export function balanceEntries(): BalanceEntry[] {
+  const staged = registeredChapterIslands().filter(level => !LEVELS_2D.some(live => live.id === level.id));
   return [
     ...LEVELS.map((level, i) => ({ label: `L${i + 1}`, level })),
-    ...LEVELS_2D.map((level) => ({ label: level.id, level })),
+    ...[...LEVELS_2D, ...staged].map((level) => ({ label: level.id, level })),
   ];
 }
 
@@ -610,6 +612,9 @@ export function evaluateWorkshopMax(
 }
 
 function main(): void {
+  // The CLI runs in its own process. Exercise authored waves before their shared UI registration lands.
+  Object.assign(ENEMY_DEFS, CHAPTER_ENEMY_DEFS);
+  Object.assign(ENEMY_MELEE, CHAPTER_ENEMY_MELEE);
   console.log('=== Skyhold Isles Headless Balance Simulator (60 Hz Human-Paced) ===\n');
 
   // Optional filter for quicker iteration, e.g. `LEVELS=3,6 npm run sim:balance`.

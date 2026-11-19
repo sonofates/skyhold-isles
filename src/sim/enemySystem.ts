@@ -257,6 +257,7 @@ export class EnemySystem {
             : type === 'hexer'
               ? HEX_FIRST_DELAY
               : 0;
+    if (def.ability?.kind === 'refrain') entity.abilityTimer = def.ability.interval * 0.5;
     entity.hexTargetId = -1;
     entity.blockers = 0;
     entity.meleeTimer = 0;
@@ -318,6 +319,12 @@ export class EnemySystem {
     }
     const actualDamage = Math.min(entity.hp, reduced);
     entity.hp -= actualDamage;
+    const ability = ENEMY_DEFS[entity.type].ability;
+    if (ability?.kind === 'ceramic' && actualDamage > 0) {
+      // This hit meets the armor it struck. The next hit benefits from the loose plate.
+      entity.armor = Math.max(0, entity.armor - ability.chip);
+      entity.armorBreakTimer = ability.resetSec;
+    }
 
     this.events.emit('enemyHit', {
       enemyId: entity.uid,
@@ -338,7 +345,9 @@ export class EnemySystem {
 
   applySlow(entity: EnemyEntity, slowRatio: number, duration: number): void {
     if (!entity.active || entity.burrowed) return;
-    const brittleArmor = ENEMY_DEFS[entity.type].brittleArmor;
+    const def = ENEMY_DEFS[entity.type];
+    if (def.ability?.kind === 'momentum' && duration > 0 && slowRatio > 0) entity.abilityTimer = 0;
+    const brittleArmor = def.brittleArmor;
     if (brittleArmor !== undefined) {
       if (entity.armorBreakTimer <= 0 && entity.armor > brittleArmor) {
         this.events.emit('armorCracked', {
@@ -366,6 +375,11 @@ export class EnemySystem {
     if (!entity.active || entity.hp <= 0 || entity.burrowed || duration <= 0) return;
     const eff = ENEMY_DEFS[entity.type].isBoss ? duration * 0.5 : duration;
     entity.stunTimer = Math.max(entity.stunTimer, eff);
+    const ability = ENEMY_DEFS[entity.type].ability;
+    if (ability?.kind === 'refrain' && entity.channelTimer > 0) {
+      entity.channelTimer = 0;
+      entity.abilityTimer = ability.interval;
+    }
     if (entity.hexTargetId >= 0) {
       entity.hexTargetId = -1;
       entity.channelTimer = 0;
@@ -480,6 +494,14 @@ export class EnemySystem {
       }
       let effectiveSpeed = e.speed * (1 - e.slowRatio) * burrowMul * channelMul * stunMul;
       const totalBlockers = e.blockers + e.heroBlockers;
+      const ability = ENEMY_DEFS[e.type].ability;
+      if (ability?.kind === 'momentum') {
+        const interrupted = totalBlockers > 0 || stunMul === 0 || e.slowRatio > 0;
+        e.abilityTimer = interrupted ? 0 : Math.min(ability.runUpSec, e.abilityTimer + dt);
+        effectiveSpeed *= 1 + ability.speedBonus * e.abilityTimer / ability.runUpSec;
+      } else if (ability?.kind === 'draft') {
+        effectiveSpeed *= 1 + ability.speedBonus * e.abilityTimer / ability.coastSec;
+      }
       if (totalBlockers > 0) {
         // Held by barracks soldiers or a melee hero: stopped, or slowed while short of holdCost.
         effectiveSpeed *= Math.max(0, 1 - totalBlockers / ENEMY_MELEE[e.type].holdCost);
@@ -524,7 +546,14 @@ export class EnemySystem {
       const actor = this.pool.items[idx];
       if (!actor.active || actor.hp <= 0) continue;
 
-      if (actor.type === 'healer') {
+      const ability = ENEMY_DEFS[actor.type].ability;
+      if (ability?.kind === 'refrain') {
+        this.updateRefrain(actor, dt, ability.interval, ability.channelSec, ability.radius);
+      } else if (ability?.kind === 'draft') {
+        actor.abilityTimer = this.hasDraftLeader(actor, ability.reach, ability.spacing)
+          ? ability.coastSec
+          : Math.max(0, actor.abilityTimer - dt);
+      } else if (actor.type === 'healer') {
         this.updateHealerAura(actor, dt);
       } else if (actor.type === 'warden') {
         this.updateWardenPulse(actor, dt);
@@ -536,6 +565,40 @@ export class EnemySystem {
         this.updateBossAbilities(actor, dt, towers, currentHpScale);
       }
     }
+  }
+
+  /** Every moth samples the completed movement pass, independent of its pool slot. */
+  private hasDraftLeader(moth: EnemyEntity, reach: number, spacing: number): boolean {
+    this.spatialHash.query(moth.x, moth.z, reach, _healCandidates);
+    for (const idx of _healCandidates) {
+      const other = this.pool.items[idx];
+      if (other.type !== moth.type) continue;
+      // All moths use the same flight path. Arc length excludes a leader on a distant switchback.
+      const gap = other.dist - moth.dist;
+      if (gap >= spacing && gap <= reach) return true;
+    }
+    return false;
+  }
+
+  private updateRefrain(piper: EnemyEntity, dt: number, interval: number, channel: number, radius: number): void {
+    if (piper.stunTimer > 0 || piper.channelTimer > 0) return;
+    if (piper.abilityTimer > 0) {
+      piper.abilityTimer = Math.max(0, piper.abilityTimer - dt);
+      if (piper.abilityTimer === 0) piper.channelTimer = channel;
+      return;
+    }
+    // The last note sounds only after the full stationary channel.
+    this.spatialHash.query(piper.x, piper.z, radius, _healCandidates);
+    for (const idx of _healCandidates) {
+      const ally = this.pool.items[idx];
+      if (ally.flying || ally.slowTimer <= 0) continue;
+      const dx = ally.x - piper.x;
+      const dz = ally.z - piper.z;
+      if (dx * dx + dz * dz > radius * radius) continue;
+      ally.slowTimer = 0;
+      ally.slowRatio = 0;
+    }
+    piper.abilityTimer = interval;
   }
 
   /**

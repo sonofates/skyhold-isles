@@ -1,5 +1,6 @@
 import { Sprite, Texture } from 'pixi.js';
 import type { Container } from 'pixi.js';
+import { CHAPTER_ENEMY_DEFS } from '../data/enemies.ts';
 import { mixTint } from './artResolve.ts';
 import type { EnemyArtRuntime } from './assets2d.ts';
 import type { FxLayer } from './fxLayer.ts';
@@ -204,10 +205,12 @@ export class EnemySpecials {
     const slowed = (w.slowTimer ?? 0) > 0;
     if (slowed) tint = mixTint(tint, FROST, 0.3 + 0.35 * Math.min(1, w.slowRatio ?? 0.3));
     const cracked = (w.armorBreakTimer ?? 0) > 0;
-    if (cracked) tint = mixTint(tint, 0xdff3ff, 0.32);
+    const ceramic = type === 'kilnback';
+    if (cracked) tint = mixTint(tint, ceramic ? 0xffce92 : 0xdff3ff, 0.32);
     const crack = this.show(ex, 'crack', cracked && !w.burrowed, art);
     if (crack) {
       const d = L.heightPx * 0.95;
+      crack.tint = ceramic ? 0xf7a060 : 0xffffff;
       crack.position.set(L.px, L.cy);
       crack.scale.set(d / 128);
       crack.alpha = Math.min(1, (w.armorBreakTimer ?? 0) / 0.6) * (0.85 + 0.15 * Math.sin(time * 14));
@@ -256,6 +259,17 @@ export class EnemySpecials {
       glowA = k * fl;
       glowScale = 1.1 + k * 0.9;
       tint = mixTint(tint, 0xbafff6, k * fl * 0.7);
+    } else if (type === 'draftwing') {
+      const wake = (w.abilityTimer ?? 0) / CHAPTER_ENEMY_DEFS.draftwing.ability.coastSec;
+      glowColor = 0x83d6e3;
+      glowA = 0.32 * wake;
+      glowScale = 1.28;
+    } else if (type === 'bellrunner') {
+      const run = (w.abilityTimer ?? 0) / CHAPTER_ENEMY_DEFS.bellrunner.ability.runUpSec;
+      const beat = 0.5 + 0.5 * Math.sin(time * 17);
+      glowColor = 0xffcf68;
+      glowA = Math.max(0, run - 0.5) * (0.24 + 0.48 * beat);
+      glowScale = 0.96;
     } else if (type === 'hexer' && (w.hexTargetId ?? -1) >= 0) {
       const p = 0.5 + 0.5 * Math.abs(Math.sin(time * 14));
       glowColor = HEX;
@@ -292,7 +306,12 @@ export class EnemySpecials {
     let ringColor = 0;
     let ringA = 0;
     let ringR = L.shadowR;
-    if (elite) {
+    if (type === 'reedpiper' && (w.channelTimer ?? 0) > 0) {
+      const phrase = 1 - (w.channelTimer ?? 0) / CHAPTER_ENEMY_DEFS.reedpiper.ability.channelSec;
+      ringColor = 0xd8e998;
+      ringA = 0.44 + 0.24 * Math.sin(phrase * Math.PI);
+      ringR = L.shadowR * (1.1 + 2.6 * phrase);
+    } else if (elite) {
       ringColor = GOLD;
       ringA = 0.62 + 0.28 * Math.sin(time * 3.4 + L.px * 0.07);
       ringR = L.shadowR * (1.55 + 0.06 * Math.sin(time * 3.4));
