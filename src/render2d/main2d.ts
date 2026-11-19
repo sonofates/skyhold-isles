@@ -103,6 +103,7 @@ declare global {
       coach?: () => Record<string, unknown> | null;
       goldPops?: () => { active: number; spawned: number };
       newFoe?: () => Record<string, unknown> | null;
+      callout?: () => Record<string, unknown> | null;
       foeAt?: () => { x: number; y: number; h: number } | null;
       aimAbility?: (id: AbilityId | null) => void;
       /** QA: stop / restart the ticker (a frozen frame for mid-effect screenshots, no Paused plate). */
@@ -401,6 +402,8 @@ async function main(): Promise<void> {
   let newFoeToast: import('./ui/newFoes2d.ts').NewFoeToast | null = null;
   let waveTypesOf: ((waveIndex: number) => import('../core/types.ts').EnemyType[]) | null = null;
   let lastWaveSeen = 0;
+  let waveBanner: import('./ui/waveBanner2d.ts').WaveBanner2D | null = null;
+  let calloutFor: ((waveIndex: number) => import('./ui/waveBanner2d.ts').WaveCallout) | null = null;
   let coachPlot = -1;
   let settingsRef: Settings2D | null = null;
   let gameRef: Game2D | null = null;
@@ -720,6 +723,9 @@ async function main(): Promise<void> {
     foesSeen = new nf.FoesSeen(nf.seenFromCleared(LEVELS_2D, (i) => (progress2d.bestStars[i] ?? 0) > 0));
     const seenRef = foesSeen;
     newFoeToast = nf.mountNewFoeToast((type) => codexEnemyUrl(art, type));
+    const wb = await import('./ui/waveBanner2d.ts');
+    waveBanner = wb.mountWaveBanner();
+    calloutFor = (i) => wb.waveCallout(nf.waveTypes(game.world.level, i), i, game.world.level.waves.length, game.world.waveSystem.isEndless);
     waveTypesOf = (i) => nf.waveTypes(game.world.level, i);
     waveCard = mountWaveCard(
       (type) => codexEnemyUrl(art, type),
@@ -863,6 +869,8 @@ async function main(): Promise<void> {
           const fresh = foesSeen.mark(waveTypesOf(w));
           if (fresh.length > 0 && !coach?.debug().shown) newFoeToast.show(fresh);
         }
+        // The wave that just marched: a boss or the final wave gets the big call-out.
+        if (n - lastWaveSeen === 1 && calloutFor && !game.end.visible) waveBanner?.show(calloutFor(n - 1));
         lastWaveSeen = n;
       }
       newFoeToast.update(t.deltaMS / 1000, game.end.visible || anySheetOpen() || storyOpen);
@@ -912,6 +920,7 @@ async function main(): Promise<void> {
     coach: () => coach?.debug() ?? null,
     goldPops: () => ({ active: game.goldPops.active, spawned: game.goldPops.spawned }),
     newFoe: () => newFoeToast?.debug() ?? null,
+    callout: () => waveBanner?.debug() ?? null,
     foeAt: () => {
       const pool = game.world.enemyPool;
       for (let i = 0; i < pool.getActiveCount(); i++) {

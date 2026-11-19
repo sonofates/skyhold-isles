@@ -1,0 +1,68 @@
+/* Boss / final wave call-out (waveBanner2d.ts): lettering only, middle of the screen. */
+.pu-wave-callout {
+  position: fixed;
+  z-index: 26;
+  left: 50%;
+  top: 34%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.pu-wave-callout-head {
+  font-size: clamp(30px, calc(var(--s) * 4.2), 68px);
+  letter-spacing: 0.02em;
+}
+
+.pu-wave-callout-sub {
+  margin-top: calc(var(--s) * 0.2);
+  font-size: clamp(18px, calc(var(--s) * 2), 32px);
+  color: #ffe6a8;
+}
+
+.pu-wave-callout[data-kind='boss'] .pu-wave-callout-head {
+  color: #ffd2c0;
+  filter: drop-shadow(0 0 calc(var(--s) * 0.9) rgba(220, 50, 30, 0.85));
+}
+
+.pu-wave-callout[data-kind='final'] .pu-wave-callout-head {
+  filter: drop-shadow(0 0 calc(var(--s) * 0.9) rgba(255, 200, 80, 0.85));
+}
+
+.pu-wave-callout.go {
+  animation: pu-callout 2.6s ease-out forwards;
+}
+
+@keyframes pu-callout {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(1.35);
+  }
+  12% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  75% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.02);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -54%) scale(1.04);
+  }
+}
+
+.pu-reduce-motion .pu-wave-callout.go {
+  animation: pu-callout-calm 2.6s linear forwards;
+}
+
+@keyframes pu-callout-calm {
+  0%,
+  80% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
