@@ -604,6 +604,8 @@ export class Game2D {
       this.hudGoldDirty = true;
       this.fx.puffs(m.pxX(e.x), m.pxY(e.z), 10, 30, 0xe9d8b4);
       this.fx.spawn('coin', m.pxX(e.x), m.pxY(e.z) - 40, 34, 0, -60, 0.9);
+      // The refund rises as a gold "+N", like a kill's bounty.
+      if (e.refund > 0) this.goldPops.spawn(e.refund, m.pxX(e.x) + 12, m.pxY(e.z) - 70);
     });
     ev.on('waveStarted', () => {
       this.hudGoldDirty = true;

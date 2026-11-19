@@ -31,6 +31,22 @@ const after = await page.evaluate(() => window.__p0.goldPops().spawned);
 console.log('pops before', before.pops, 'after', after);
 if (!(after > before.pops)) problems.push('no gold pop on the early call');
 await page.screenshot({ path: `${OUT}/en-1920x1080-early-call-pop.jpg`, type: 'jpeg', quality: 82 });
+// Selling a tower: the refund rises as a gold pop too.
+await page.evaluate(() => window.__p0.freeze(false));
+const sold = await page.evaluate(() => {
+  const p = window.__p0;
+  p.setGold(500);
+  p.replay.cmd({ k: 'build', plot: 6, type: 'archer' });
+  p.replay.step(1);
+  const before = p.goldPops().spawned;
+  const t = p.state().towers?.[p.state().towers.length - 1];
+  if (!t) return null;
+  p.replay.cmd({ k: 'sell', id: t.id });
+  p.replay.step(1);
+  return { before, after: p.goldPops().spawned };
+});
+console.log('sell pops', JSON.stringify(sold));
+if (!sold || !(sold.after > sold.before)) problems.push('no gold pop on sell');
 await browser.close();
 console.log(problems.length ? `PROBLEMS:\n${problems.join('\n')}` : 'no problems');
 process.exitCode = problems.length ? 1 : 0;
