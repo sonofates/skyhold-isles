@@ -59,7 +59,8 @@ function networkFirstNavigation(request) {
         // Only the 3D game's own page refreshes the offline shell; other pages (2d.html) must never
         // overwrite it.
         const path = new URL(request.url).pathname;
-        if (res.ok && (path === '/' || path === '/index.html')) {
+        // The site root now redirects to the 2D game: a redirected response is 2d.html, not the 3D shell.
+        if (res.ok && !res.redirected && (path === '/' || path === '/index.html')) {
           const copy = res.clone();
           caches.open(CACHE).then((c) => c.put('/index.html', copy));
         }
