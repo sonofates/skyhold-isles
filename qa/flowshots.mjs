@@ -77,6 +77,19 @@ for (const size of SIZES) {
       ok(await page.evaluate(() => window.__p0.state().paused), `${tag}: blur did not pause`);
     }
     await ctx.close();
+    // New-foe heads-up on an island the (fresh) player never cleared: New tags, then the toast.
+    const ctx4 = await browser.newContext({ viewport: { width: size.w, height: size.h }, deviceScaleFactor: size.dpr, isMobile: !!size.touch, hasTouch: !!size.touch });
+    const p4 = await ctx4.newPage();
+    await p4.goto(`${BASE}/2d.html?level=i09&hero=bran&lang=${lang}&desktop=${size.desktop ? 1 : 0}`);
+    await p4.waitForFunction(() => window.__p0?.newFoe && !document.getElementById('boot'), null, { timeout: 60000 });
+    await p4.waitForTimeout(800);
+    ok((await p4.locator('.pu-wave-new').count()) > 0, `${tag}: no New tag on the wave card`);
+    await p4.screenshot({ path: `${OUT}/${lang}-${size.key}-newfoe-card.jpg`, type: 'jpeg', quality: 84 });
+    await p4.evaluate(() => window.__p0.replay.cmd({ k: 'wave' }));
+    await p4.waitForFunction(() => window.__p0.newFoe().shown, null, { timeout: 8000 }).catch(() => problems.push(`${tag}: no new-foe toast`));
+    await p4.waitForTimeout(600);
+    await p4.screenshot({ path: `${OUT}/${lang}-${size.key}-newfoe-toast.jpg`, type: 'jpeg', quality: 84 });
+    await ctx4.close();
     // Victory board with the star rule (5 lives lost).
     const ctx3 = await browser.newContext({ viewport: { width: size.w, height: size.h }, deviceScaleFactor: size.dpr, isMobile: !!size.touch, hasTouch: !!size.touch });
     const p3 = await ctx3.newPage();

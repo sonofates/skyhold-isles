@@ -86,6 +86,11 @@ QA: `npx vite preview --port 4381 --strictPort` in background (kill with TaskSto
 - **R1 backlog 2f — HUD hover tooltips (desktop) — DONE** (`ui/hudTips2d.ts`): horn (first wave /
   early bonus / wait), pause / resume (points at the pause menu), speed (1→2→3), with key chips.
 
+- **R1 — new-foe heads-up — DONE** (`ui/newFoes2d.ts|.css`): red **New / Yeni** tag on never-seen foes
+  in the next-wave card; when they first march, a toast (portrait, name, "how to stop it") for 6.5 s
+  under the top HUD (suppressed while a coach tip shows; never in a replay). Seen set in its own key
+  `skyhold2d_foes_seen_v1`, seeded from cleared islands.
+
 ## Next (backlog 2: missing basics) — candidates, in rough value order
 - tower info card: the build ring tooltip already has stats/targeting/upgrade/sell+refund; review only
 - Then backlog 4 polish (hero controls feel, juice, end panel/world map with 25 islands, TR pass).

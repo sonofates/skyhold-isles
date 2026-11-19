@@ -144,6 +144,7 @@ export const TR: { readonly [K in MsgKey]: Msg } = {
   'replay.keys': 'Boşluk duraklat · 1 2 4 hız · Esc çık',
   'wave.next': 'Sıradaki: {n}. dalga',
   'foe.empowered': 'Güçlenmiş',
+  'foe.new': 'Yeni',
   'tip.horn': 'Sıradaki dalgayı çağır',
   'tip.hornFirst': 'Boru çalar çalmaz akıncılar yola çıkar.',
   'tip.hornBonus': 'Şimdi çağırırsan +{n} altın ödül.',

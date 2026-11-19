@@ -9,6 +9,7 @@ import { nextSpeed, REPLAY_SPEEDS } from '../../src/render2d/game2d.ts';
 import { waveChips } from '../../src/render2d/ui/wavePreview2d.ts';
 import { foeFacts } from '../../src/render2d/ui/enemyCard2d.ts';
 import { hudTipText } from '../../src/render2d/ui/hudTips2d.ts';
+import { seenFromCleared, waveTypes } from '../../src/render2d/ui/newFoes2d.ts';
 import { coachStep, coachText, type CoachObs } from '../../src/render2d/ui/coach2d.ts';
 import { livesLow } from '../../src/render2d/ui/lowLives2d.ts';
 import { ENEMY_DEFS, ENEMY_TYPES } from '../../src/data/enemies.ts';
@@ -183,5 +184,15 @@ describe('HUD hover tooltips', () => {
     expect(hudTipText('pause', s).head).toBe('Pause');
     expect(hudTipText('pause', { ...s, paused: true }).head).toBe('Resume');
     expect(hudTipText('speed', s).head).toBe('Game speed 2×');
+  });
+});
+
+describe('new-foe heads-up', () => {
+  it('wave types come from the groups (no repeats); cleared islands seed the seen set', () => {
+    const lvl = { waves: [{ groups: [{ enemyType: 'grunt' }, { enemyType: 'runner' }, { enemyType: 'grunt' }] }, { groups: [{ enemyType: 'brute' }] }] } as never;
+    expect(waveTypes(lvl, 0)).toEqual(['grunt', 'runner']);
+    expect(waveTypes(lvl, 5)).toEqual([]);
+    expect([...seenFromCleared([lvl], () => true)].sort()).toEqual(['brute', 'grunt', 'runner']);
+    expect(seenFromCleared([lvl], () => false).size).toBe(0);
   });
 });

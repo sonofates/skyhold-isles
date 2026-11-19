@@ -61,7 +61,7 @@ export interface WaveCard2D {
  * `keepOuts()` = screen rects the card must not cover (plots with their towers, HUD pieces, the
  * ability bar); read only when the card's size or the screen changes.
  */
-export function mountWaveCard(enemyUrl: (type: EnemyType) => string | null, keepOuts: () => Rect[], onChip?: (type: EnemyType) => void): WaveCard2D {
+export function mountWaveCard(enemyUrl: (type: EnemyType) => string | null, keepOuts: () => Rect[], isNew: (type: EnemyType) => boolean = () => false, onChip?: (type: EnemyType) => void): WaveCard2D {
   const card = el('div', 'pu pu-wave-card', { 'data-testid': 'wave2d-card', 'aria-live': 'polite' });
   const head = el('div', 'pu-wave-head pu-ink');
   const chips = el('div', 'pu-wave-chips');
@@ -90,6 +90,7 @@ export function mountWaveCard(enemyUrl: (type: EnemyType) => string | null, keep
       else face.textContent = name.slice(0, 1);
       b.append(face, el('span', 'pu-wave-count pu-letter', {}, `×${c.count}`));
       if (c.elite > 0) b.append(el('span', 'pu-wave-elite', { title: t('wave.elite', { n: c.elite }) }, img(KIT.star)));
+      if (isNew(c.type)) b.append(el('span', 'pu-wave-new', {}, t('foe.new')));
       if (onChip) b.addEventListener('click', () => onChip(c.type));
       chips.append(b);
     }
@@ -104,7 +105,7 @@ export function mountWaveCard(enemyUrl: (type: EnemyType) => string | null, keep
         placeKey = '';
       }
       if (!on || !s.preview) return;
-      const k = `${s.preview.waveOneBased}|${s.preview.items.map((i) => `${i.enemyType}${i.count}/${i.eliteCount ?? 0}`).join(',')}`;
+      const k = `${s.preview.waveOneBased}|${s.preview.items.map((i) => `${i.enemyType}${i.count}/${i.eliteCount ?? 0}${isNew(i.enemyType) ? '*' : ''}`).join(',')}`;
       if (k !== key) {
         key = k;
         build(s.preview);

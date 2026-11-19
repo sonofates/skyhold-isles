@@ -102,6 +102,7 @@ declare global {
       foe?: () => Record<string, unknown> | null;
       coach?: () => Record<string, unknown> | null;
       goldPops?: () => { active: number; spawned: number };
+      newFoe?: () => Record<string, unknown> | null;
       foeAt?: () => { x: number; y: number; h: number } | null;
       aimAbility?: (id: AbilityId | null) => void;
       /** QA: stop / restart the ticker (a frozen frame for mid-effect screenshots, no Paused plate). */
@@ -396,6 +397,10 @@ async function main(): Promise<void> {
   let foeCard: import('./ui/enemyCard2d.ts').EnemyCard2D | null = null;
   let coach: import('./ui/coach2d.ts').Coach2D | null = null;
   let hudTipsFrame: (() => void) | null = null;
+  let foesSeen: import('./ui/newFoes2d.ts').FoesSeen | null = null;
+  let newFoeToast: import('./ui/newFoes2d.ts').NewFoeToast | null = null;
+  let waveTypesOf: ((waveIndex: number) => import('../core/types.ts').EnemyType[]) | null = null;
+  let lastWaveSeen = 0;
   let coachPlot = -1;
   let settingsRef: Settings2D | null = null;
   let gameRef: Game2D | null = null;
@@ -710,6 +715,12 @@ async function main(): Promise<void> {
         }
       });
     }
+    const nf = await import('./ui/newFoes2d.ts');
+    const { LEVELS_2D } = await import('../data/levels2d/index.ts');
+    foesSeen = new nf.FoesSeen(nf.seenFromCleared(LEVELS_2D, (i) => (progress2d.bestStars[i] ?? 0) > 0));
+    const seenRef = foesSeen;
+    newFoeToast = nf.mountNewFoeToast((type) => codexEnemyUrl(art, type));
+    waveTypesOf = (i) => nf.waveTypes(game.world.level, i);
     waveCard = mountWaveCard(
       (type) => codexEnemyUrl(art, type),
       () => {
@@ -725,6 +736,7 @@ async function main(): Promise<void> {
           ...hudKeepOuts(),
         ];
       },
+      (type) => !seenRef.has(type),
     );
     if (q.get('codex') === '1') codex.open();
     else if (q.get('settings') === '1') settings.open();
@@ -830,6 +842,21 @@ async function main(): Promise<void> {
       coach.update(obs, target, game.end.visible || storyOpen || anySheetOpen() || game.replaying);
     }
     hudTipsFrame?.();
+    if (foesSeen && newFoeToast && waveTypesOf) {
+      // A wave just marched: its never-seen foes get the toast (live play only), then count as seen.
+      const ws = game.world.waveSystem;
+      const n = ws.state === 'preFirstWave' ? 0 : ws.currentWaveOneBased;
+      if (n < lastWaveSeen) lastWaveSeen = 0;
+      if (n > lastWaveSeen) {
+        for (let w = lastWaveSeen; w < n; w++) {
+          if (game.replaying) continue;
+          const fresh = foesSeen.mark(waveTypesOf(w));
+          if (fresh.length > 0 && !coach?.debug().shown) newFoeToast.show(fresh);
+        }
+        lastWaveSeen = n;
+      }
+      newFoeToast.update(t.deltaMS / 1000, game.end.visible || anySheetOpen() || storyOpen);
+    }
     livesWarn?.update(game.world.lives, game.world.startingLives, !game.end.visible && !storyOpen && game.world.outcome === 'ongoing');
     if (waveCard) {
       const w = game.world;
@@ -874,6 +901,7 @@ async function main(): Promise<void> {
     foe: () => foeCard?.debug() ?? null,
     coach: () => coach?.debug() ?? null,
     goldPops: () => ({ active: game.goldPops.active, spawned: game.goldPops.spawned }),
+    newFoe: () => newFoeToast?.debug() ?? null,
     foeAt: () => {
       const pool = game.world.enemyPool;
       for (let i = 0; i < pool.getActiveCount(); i++) {

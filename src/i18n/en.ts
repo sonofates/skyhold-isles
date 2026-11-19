@@ -138,6 +138,7 @@ export const EN = {
   'replay.keys': 'Space pause · 1 2 4 speed · Esc leave',
   'wave.next': 'Next: wave {n}',
   'foe.empowered': 'Empowered',
+  'foe.new': 'New',
   'tip.horn': 'Call the next wave',
   'tip.hornFirst': 'The raiders march as soon as the horn sounds.',
   'tip.hornBonus': 'Call it now for +{n} bonus gold.',
