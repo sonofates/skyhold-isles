@@ -86,6 +86,8 @@ export interface HeroInitConfig {
   readonly level?: number;
   readonly skills?: readonly string[];
   readonly seed?: number;
+  /** Difficulty: scales the hero's respawn timer (default 1). */
+  readonly respawnMul?: number;
 }
 
 export interface HeroSkillRuntimeState {
@@ -291,7 +293,12 @@ export class HeroSystem {
 
     if (config) {
       const skills = config.skills ? [...config.skills] : [];
-      const stats = resolveHeroStats(config.heroId, lvl, skills);
+      const baseStats = resolveHeroStats(config.heroId, lvl, skills);
+      const respawnMul =
+        typeof config.respawnMul === 'number' && Number.isFinite(config.respawnMul) && config.respawnMul > 0
+          ? config.respawnMul
+          : 1;
+      const stats = respawnMul === 1 ? baseStats : { ...baseStats, respawnSec: baseStats.respawnSec * respawnMul };
       const spawn = this.groundGraph.castleSpawnPoint();
       this.hero = {
         heroId: config.heroId,

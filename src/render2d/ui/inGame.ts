@@ -7,6 +7,7 @@ import { LEVELS_2D } from '../../data/levels2d/index.ts';
 import type { LevelDef } from '../../data/levels/types.ts';
 import type { WinRecord } from '../../game/progression.ts';
 import { islandMapUrl, type MapsManifest } from './islandArt.ts';
+import { loadDifficultyPref } from './difficulty2d.ts';
 export { endNoteFor } from './modeBits.ts';
 import {
   indexOf2D,
@@ -40,12 +41,16 @@ export function worldMapHref(): string {
   return location.pathname;
 }
 
-/** URL that plays an island; `intro=1` asks for its story panels when it was never won. */
+/**
+ * URL that plays an island (end panel Next Isle) on the player's remembered difficulty; `intro=1`
+ * asks for its story panels when it was never won.
+ */
 export function islandHref(level: LevelDef): string {
   const p = loadProgress2D();
   const i = indexOf2D(level.id);
   const firstPlay = i >= 0 && (p.clears[i] ?? 0) === 0;
-  return `${location.pathname}?level=${encodeURIComponent(level.id)}${firstPlay ? '&intro=1' : ''}`;
+  const diff = loadDifficultyPref();
+  return `${location.pathname}?level=${encodeURIComponent(level.id)}${diff !== 'normal' ? `&diff=${diff}` : ''}${firstPlay ? '&intro=1' : ''}`;
 }
 
 export function recordRun(level: LevelDef, won: boolean, stars: number, lives: number): WinRecord | null {

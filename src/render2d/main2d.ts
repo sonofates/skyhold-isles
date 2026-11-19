@@ -113,6 +113,9 @@ declare global {
       newFoe?: () => Record<string, unknown> | null;
       callout?: () => Record<string, unknown> | null;
       calloutAgain?: () => void;
+      /** QA: the in-run difficulty badge and the end board's difficulty tag. */
+      diffBadge?: () => Record<string, unknown> | null;
+      endDiff?: () => Record<string, unknown> | null;
       laneMarks?: () => Record<string, unknown> | null;
       foeAt?: () => { x: number; y: number; h: number } | null;
       aimAbility?: (id: AbilityId | null) => void;
@@ -406,6 +409,7 @@ async function main(): Promise<void> {
   let pauseMenu: import('./ui/runControls2d.ts').PauseMenu2D | null = null;
   let waveCard: import('./ui/wavePreview2d.ts').WaveCard2D | null = null;
   let livesWarn: import('./ui/lowLives2d.ts').LivesWarning | null = null;
+  let diffBadge: import('./ui/difficulty2d.ts').DifficultyBadge2D | null = null;
   let foeCard: import('./ui/enemyCard2d.ts').EnemyCard2D | null = null;
   let coach: import('./ui/coach2d.ts').Coach2D | null = null;
   let gateRectsRef: (() => (import('./uiLayout.ts').Rect & { castle: boolean })[]) | null = null;
@@ -462,11 +466,15 @@ async function main(): Promise<void> {
       heroXpEarned: w.heroSystem.runXp,
     });
   };
+  // Difficulty (Easy / Normal / Hard): its patch is already in run.modifiers; the board and the HUD
+  // badge show it. Endless runs are always Normal and show none; bench / debug scenes neither.
+  const runDifficulty = !run.runConfig.endless && bench === 0 && !ab && !q.has('towers') && q.get('zoo') !== '1' && q.get('melee') !== '1' ? (run.runConfig.difficulty ?? 'normal') : undefined;
   hooks = {
     ...baseHooks,
     modifiers: run.modifiers,
     hero: heroSelection,
     startEndless: run.runConfig.endless,
+    ...(runDifficulty ? { difficulty: runDifficulty } : {}),
     initialUnlockedTier: autoTier,
     getSettings: baseHooks.getSettings ?? (() => liveSettings),
     onBackgroundChange: (inBackground) => {
@@ -765,6 +773,7 @@ async function main(): Promise<void> {
     laneMarks = laneMod.mountLaneMarks();
     const wb = await import('./ui/waveBanner2d.ts');
     waveBanner = wb.mountWaveBanner();
+    if (runDifficulty) diffBadge = (await import('./ui/difficulty2d.ts')).mountDifficultyBadge(runDifficulty);
     calloutFor = (i) => wb.waveCallout(nf.waveTypes(game.world.level, i), i, game.world.level.waves.length, game.world.waveSystem.isEndless);
     waveTypesOf = (i) => nf.waveTypes(game.world.level, i);
     // In the dock's info slot (top-left, hudDock.ts), like the foe card.
@@ -898,6 +907,7 @@ async function main(): Promise<void> {
       newFoeToast.update(t.deltaMS / 1000, game.end.visible || anySheetOpen() || storyOpen || !!foeCard?.debug().shown, dk.info, Math.min(dk.info.w, unit * 30));
     }
     livesWarn?.update(game.world.lives, game.world.startingLives, !game.end.visible && !storyOpen && game.world.outcome === 'ongoing');
+    diffBadge?.update(game.hud.rects().banner, !game.end.visible && !storyOpen && !anySheetOpen());
     if (waveCard) {
       const w = game.world;
       const ws = w.waveSystem;
@@ -971,6 +981,8 @@ async function main(): Promise<void> {
     goldPops: () => ({ active: game.goldPops.active, spawned: game.goldPops.spawned }),
     newFoe: () => newFoeToast?.debug() ?? null,
     callout: () => waveBanner?.debug() ?? null,
+    diffBadge: () => diffBadge?.debug() ?? null,
+    endDiff: () => game.end.difficultyTag,
     laneMarks: () => laneMarks?.debug() ?? null,
     calloutAgain: () => waveBanner?.again(),
     foeAt: () => {

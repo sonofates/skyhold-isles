@@ -109,6 +109,13 @@ export function endNoteFor(i: EndNoteInput): EndModeNote | null {
   if (!i.won) return null;
   const parts: string[] = [];
   let reward = false;
+  const diff = i.result?.difficulty;
+  if (diff?.id === 'hard' && diff.firstWin) {
+    parts.push(t('diff.hardWon'));
+    reward = true;
+  } else if (diff?.id === 'easy' && diff.earnedStars > diff.awardedStars) {
+    parts.push(t('diff.easyCapped'));
+  }
   if (cfg.daily !== null) {
     const d = i.result?.daily ?? null;
     if (d?.counted) {

@@ -1,4 +1,5 @@
 import { isChallengeId, sanitizeChallengeSelection, type ChallengeId } from '../data/challenges.ts';
+import type { DifficultyId } from '../data/difficulty.ts';
 import type { LevelDef } from '../data/levels/types.ts';
 
 /** How a run was launched (island briefing → mode + challenge toggles, or the Daily Squall). */
@@ -8,6 +9,11 @@ export interface RunConfig {
   challenges: ChallengeId[];
   /** UTC day number when this run is that day's Daily Squall (null otherwise). */
   daily: number | null;
+  /**
+   * 2D difficulty layer (src/data/difficulty.ts). Absent = Normal (the island as tuned); Daily and
+   * Endless runs are always Normal.
+   */
+  difficulty?: DifficultyId;
 }
 
 export const PLAIN_RUN: Readonly<RunConfig> = Object.freeze({

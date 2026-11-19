@@ -28,6 +28,8 @@ export interface RunModifiers {
   readonly abilitiesDisabled: boolean;
   /** Story waves: the largest ordinary group of every wave spawns Empowered (see champions.ts). */
   readonly championWaves: boolean;
+  /** Scales the hero's respawn timer (difficulty; 1 = the hero's own timer). */
+  readonly heroRespawnMul: number;
 }
 
 export const NEUTRAL_RUN_MODIFIERS: RunModifiers = Object.freeze({
@@ -44,6 +46,7 @@ export const NEUTRAL_RUN_MODIFIERS: RunModifiers = Object.freeze({
   bannedTowers: Object.freeze([]) as readonly TowerType[],
   abilitiesDisabled: false,
   championWaves: false,
+  heroRespawnMul: 1,
 });
 
 /** Partial description used by data tables; missing fields are neutral. */
@@ -70,6 +73,7 @@ export function combineRunModifiers(...patches: readonly RunModifierPatch[]): Ru
   const banned = new Set<TowerType>();
   let abilitiesDisabled = false;
   let championWaves = false;
+  let heroRespawnMul = 1;
   const fin = (v: number | undefined, fb: number): number =>
     typeof v === 'number' && Number.isFinite(v) ? v : fb;
   const finNonNeg = (v: number | undefined, fb: number): number =>
@@ -101,6 +105,7 @@ export function combineRunModifiers(...patches: readonly RunModifierPatch[]): Ru
     }
     abilitiesDisabled = abilitiesDisabled || p.abilitiesDisabled === true;
     championWaves = championWaves || p.championWaves === true;
+    heroRespawnMul *= finPos(p.heroRespawnMul, 1);
   }
   const clampRange = (v: number, min: number, max: number, fb: number): number =>
     Number.isFinite(v) ? Math.max(min, Math.min(max, v)) : fb;
@@ -121,6 +126,7 @@ export function combineRunModifiers(...patches: readonly RunModifierPatch[]): Ru
     bannedTowers: [...banned],
     abilitiesDisabled,
     championWaves,
+    heroRespawnMul: clampRange(heroRespawnMul, 0.05, 100, 1),
   };
 }
 
@@ -139,7 +145,8 @@ export function isNeutralRun(m: RunModifiers): boolean {
     m.enemyHpMul === 1 &&
     m.bannedTowers.length === 0 &&
     !m.abilitiesDisabled &&
-    !m.championWaves
+    !m.championWaves &&
+    (m.heroRespawnMul ?? 1) === 1
   );
 }
 

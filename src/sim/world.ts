@@ -258,6 +258,7 @@ export class SimWorld {
           level: this.heroConfig.level,
           skills: this.heroConfig.skills,
           seed: this.seed,
+          respawnMul: mods.heroRespawnMul ?? 1,
         }
       : null;
     this.heroSystem = new HeroSystem(

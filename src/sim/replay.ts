@@ -502,6 +502,7 @@ function sanitizeReplayModifiers(raw: unknown): RunModifiers {
     bannedTowers: banned,
     abilitiesDisabled: r.abilitiesDisabled === true,
     championWaves: r.championWaves === true,
+    heroRespawnMul: optNum(r.heroRespawnMul),
   };
   return combineRunModifiers(patch);
 }

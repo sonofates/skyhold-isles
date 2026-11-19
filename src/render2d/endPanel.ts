@@ -5,6 +5,8 @@ import { paintedText, setFontSize, setText } from './hudText.ts';
 import { easeOutBack, easeOutCubic, fitWidth, INK_SOFT, inkText, kit, paintedUiTexture, setInkSize } from './uiKit.ts';
 import { END_FRAME, endLayout, NO_INSETS, type EndLayout, type Insets, type Rect } from './uiLayout.ts';
 import type { EndModeNote } from './ui/modeBits.ts';
+import type { DifficultyId } from '../data/difficulty.ts';
+import { DIFFICULTY_EMBLEMS } from './ui/difficultyEmblems.ts';
 
 export { endStars } from './uiLayout.ts';
 
@@ -35,6 +37,54 @@ export interface EndSummary {
   readonly hasReplay?: boolean;
   /** Victory: lives lost and the island's 3- / 2-star limits (the "why" under the stars). */
   readonly starRule?: { readonly lost: number; readonly three: number; readonly two: number };
+  /** The run's difficulty: a small seal + name tag under the ribbon (absent = no tag). */
+  readonly difficulty?: DifficultyId;
+}
+
+const DIFF_KEYS: Readonly<Record<DifficultyId, MsgKey>> = { easy: 'diff.easy', normal: 'diff.normal', hard: 'diff.hard' };
+/** Wax colours of the difficulty seals (same as difficulty2d.css). */
+const DIFF_WAX: Readonly<Record<DifficultyId, readonly [string, string, string]>> = {
+  easy: ['#4f9a46', '#a8dd8a', '#2f6a2c'],
+  normal: ['#3d78b8', '#9cc8ef', '#234f80'],
+  hard: ['#c3311f', '#f08a6c', '#7e1a0e'],
+};
+const diffSealCache = new Map<DifficultyId, Promise<Texture | null>>();
+
+/** A difficulty wax seal (emblem SVG on a round wax disc) drawn once into a canvas texture. */
+function diffSealTexture(id: DifficultyId): Promise<Texture | null> {
+  let p = diffSealCache.get(id);
+  if (p) return p;
+  p = new Promise<Texture | null>((resolve) => {
+    if (typeof document === 'undefined') return resolve(null);
+    const px = 96;
+    const img = new Image();
+    img.onload = (): void => {
+      const c = document.createElement('canvas');
+      c.width = c.height = px;
+      const g = c.getContext('2d');
+      if (!g) return resolve(null);
+      const [wax, hi, lo] = DIFF_WAX[id];
+      const r = px / 2 - 4;
+      const grad = g.createRadialGradient(px * 0.4, px * 0.36, 2, px / 2, px / 2, r);
+      grad.addColorStop(0, hi);
+      grad.addColorStop(0.45, wax);
+      grad.addColorStop(1, lo);
+      g.beginPath();
+      g.arc(px / 2, px / 2, r, 0, Math.PI * 2);
+      g.fillStyle = grad;
+      g.fill();
+      g.lineWidth = 5;
+      g.strokeStyle = '#3a2412';
+      g.stroke();
+      const e = px * 0.76;
+      g.drawImage(img, (px - e) / 2, (px - e) / 2, e, e);
+      resolve(Texture.from(c));
+    };
+    img.onerror = (): void => resolve(null);
+    img.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(DIFFICULTY_EMBLEMS[id].replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" '))}`;
+  });
+  diffSealCache.set(id, p);
+  return p;
 }
 
 /**
@@ -109,6 +159,11 @@ export class EndPanel {
   private readonly caption = inkText(20, 'center', '#7a5532', '600');
   /** Victory: lives lost against the island's star limits (small, under the caption). */
   private readonly rule = inkText(15, 'center', '#8a6a48', '600');
+  /** Difficulty tag under the ribbon: parchment pill, wax seal, name. */
+  private readonly diffTag = new Container();
+  private readonly diffPill = new Graphics();
+  private readonly diffSeal = new Sprite(Texture.EMPTY);
+  private readonly diffText = inkText(18, 'left', '#4a2a12', '700');
   private readonly buttons: Btn[] = [];
   private readonly art: LoadedArt;
   private lay: EndLayout | null = null;
@@ -135,6 +190,11 @@ export class EndPanel {
     this.coin = new Sprite(art.ui.gold);
     for (const s of [this.heart, this.coin]) s.anchor.set(0.5);
     this.board.addChild(this.panelFallback, this.panel, this.title, this.heart, this.coin, this.line1, this.line2, this.caption, this.rule);
+    this.diffSeal.anchor.set(0.5);
+    this.diffText.anchor.set(0, 0.5);
+    this.diffTag.addChild(this.diffPill, this.diffSeal, this.diffText);
+    this.diffTag.visible = false;
+    this.board.addChild(this.diffTag);
     for (let i = 0; i < 3; i++) {
       const empty = new Sprite(kit(art, 'starEmpty', Texture.EMPTY));
       const full = new Sprite(kit(art, 'star', Texture.EMPTY));
@@ -240,8 +300,28 @@ export class EndPanel {
       setText(this.caption, t('end.brokeThrough'));
     }
     this.styleCaption(false);
+    const d = s.difficulty;
+    this.diffTag.visible = !!d;
+    if (d) {
+      setText(this.diffText, t(DIFF_KEYS[d]));
+      this.diffText.style.fill = d === 'hard' ? '#8f2a14' : d === 'easy' ? '#2f6a2c' : '#4a2a12';
+      this.diffSeal.texture = Texture.EMPTY;
+      void diffSealTexture(d).then((tex) => {
+        if (tex && this.summary?.difficulty === d) {
+          this.diffSeal.texture = tex;
+          this.layout(this.w, this.h);
+        }
+      });
+    }
     this.layout(this.w, this.h);
     this.update(0);
+  }
+
+  /** QA: the difficulty tag's text and screen box (null when not shown). */
+  get difficultyTag(): { text: string; x: number; y: number; w: number; h: number } | null {
+    if (!this.root.visible || !this.diffTag.visible) return null;
+    const b = this.diffTag.getBounds();
+    return { text: this.diffText.text, x: b.x, y: b.y, w: b.width, h: b.height };
   }
 
   /**
@@ -360,6 +440,7 @@ export class EndPanel {
       if (room < f * 2.6) this.rule.visible = false;
     }
     this.layoutHero(L, f);
+    this.layoutDiffTag(L);
     // Buttons: Retry / Next Isle / World Map (Next hidden when there is no open next island).
     const hasNext = this.summary?.hasNext ?? false;
     const hasReplay = this.summary?.hasReplay ?? false;
@@ -384,6 +465,38 @@ export class EndPanel {
     // One size for the row: a long label ("Sonraki Ada") no longer reads smaller than its neighbours.
     const minScale = Math.min(1, ...shown.map((b) => b.label.scale.x));
     for (const b of shown) b.label.scale.set(minScale);
+  }
+
+  /** Difficulty tag: a small parchment pill on the board's top edge, just under the ribbon. */
+  private layoutDiffTag(L: EndLayout): void {
+    if (!this.diffTag.visible) return;
+    const P = L.panel;
+    const fs = Math.max(12, Math.round(L.fontBody * 0.8));
+    setInkSize(this.diffText, fs);
+    const d = fs * 1.55;
+    const padX = fs * 0.55;
+    const hasSeal = this.diffSeal.texture !== Texture.EMPTY;
+    const w = (hasSeal ? d * 0.82 + fs * 0.3 : 0) + this.diffText.width + padX * 2;
+    const h = fs * 1.6;
+    const cx = P.x + P.w / 2;
+    // Between the ribbon and the parchment's inner top (END_FRAME.ribbonMid .. innerTop).
+    const cy = P.y + P.h * (END_FRAME.ribbonMid + (END_FRAME.innerTop - END_FRAME.ribbonMid) * 0.64);
+    const x0 = cx - w / 2;
+    this.diffPill
+      .clear()
+      .roundRect(x0, cy - h / 2, w, h, h / 2)
+      .fill({ color: 0xf6e7c4 })
+      .stroke({ color: 0x3a2412, width: Math.max(1.5, fs * 0.12) })
+      .roundRect(x0 + fs * 0.14, cy - h / 2 + fs * 0.14, w - fs * 0.28, h - fs * 0.28, (h - fs * 0.28) / 2)
+      .stroke({ color: 0xf2b33d, width: Math.max(1, fs * 0.1) });
+    this.diffSeal.visible = hasSeal;
+    let x = x0 + padX;
+    if (hasSeal) {
+      this.diffSeal.scale.set(d / Math.max(1, this.diffSeal.texture.width));
+      this.diffSeal.position.set(x + d * 0.3, cy);
+      x += d * 0.82 + fs * 0.3 - d * 0.1;
+    }
+    this.diffText.position.set(x, cy);
   }
 
   /** Hero row between the caption and the buttons: portrait, "Bran +86 XP", level-up line, XP bar. */
