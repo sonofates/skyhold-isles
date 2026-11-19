@@ -1,0 +1,101 @@
+[
+ {
+  "tag": "1920x1080 q=auto",
+  "fps": 59.7,
+  "p50": 16.7,
+  "p95": 16.7,
+  "mainBusyMsPerS": 21,
+  "cpuTotalPct": 362,
+  "cpuGpuPct": 358,
+  "cpuRendererPct": 4,
+  "sea": null
+ },
+ {
+  "tag": "1920x1080 q=high",
+  "fps": 59.9,
+  "p50": 16.7,
+  "p95": 16.8,
+  "mainBusyMsPerS": 21,
+  "cpuTotalPct": 361,
+  "cpuGpuPct": 357,
+  "cpuRendererPct": 4,
+  "sea": null
+ },
+ {
+  "tag": "1920x1080 q=low",
+  "fps": 59.7,
+  "p50": 16.7,
+  "p95": 16.7,
+  "mainBusyMsPerS": 20,
+  "cpuTotalPct": 431,
+  "cpuGpuPct": 427,
+  "cpuRendererPct": 4,
+  "sea": null
+ },
+ {
+  "tag": "1920x1080@2 q=auto",
+  "fps": 59.8,
+  "p50": 16.7,
+  "p95": 16.7,
+  "mainBusyMsPerS": 20,
+  "cpuTotalPct": 403,
+  "cpuGpuPct": 399,
+  "cpuRendererPct": 4,
+  "sea": null
+ },
+ {
+  "tag": "1920x1080@2 q=high",
+  "fps": 59.8,
+  "p50": 16.7,
+  "p95": 16.8,
+  "mainBusyMsPerS": 27,
+  "cpuTotalPct": 333,
+  "cpuGpuPct": 328,
+  "cpuRendererPct": 4,
+  "sea": null
+ },
+ {
+  "tag": "1920x1080@2 q=low",
+  "fps": 59.8,
+  "p50": 16.7,
+  "p95": 16.7,
+  "mainBusyMsPerS": 20,
+  "cpuTotalPct": 424,
+  "cpuGpuPct": 420,
+  "cpuRendererPct": 4,
+  "sea": null
+ },
+ {
+  "tag": "844x390 q=auto",
+  "fps": 59.8,
+  "p50": 16.7,
+  "p95": 16.8,
+  "mainBusyMsPerS": 19,
+  "cpuTotalPct": 7,
+  "cpuGpuPct": 3,
+  "cpuRendererPct": 3,
+  "sea": null
+ },
+ {
+  "tag": "844x390 q=high",
+  "fps": 59.8,
+  "p50": 16.7,
+  "p95": 16.7,
+  "mainBusyMsPerS": 18,
+  "cpuTotalPct": 6,
+  "cpuGpuPct": 3,
+  "cpuRendererPct": 3,
+  "sea": null
+ },
+ {
+  "tag": "844x390 q=low",
+  "fps": 59.9,
+  "p50": 16.7,
+  "p95": 16.7,
+  "mainBusyMsPerS": 17,
+  "cpuTotalPct": 6,
+  "cpuGpuPct": 3,
+  "cpuRendererPct": 3,
+  "sea": null
+ }
+]

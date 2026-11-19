@@ -1,0 +1,281 @@
+[
+ {
+  "tag": "1920x1080 q=auto",
+  "fps": 58.9,
+  "p50": 16.7,
+  "p95": 16.8,
+  "mainBusyMsPerS": 37,
+  "cpuTotalPct": 414,
+  "cpuGpuPct": 408,
+  "cpuRendererPct": 6,
+  "sea": {
+   "tier": "low",
+   "still": false,
+   "gl": false,
+   "waterPx": [
+    2016,
+    810
+   ],
+   "lifePx": [
+    2688,
+    1080
+   ],
+   "frames": 149,
+   "drawMs": 0.256,
+   "drawMaxMs": 4,
+   "fps": 29.5,
+   "painted": [],
+   "gulls": 1,
+   "whales": 0,
+   "clouds": 2
+  }
+ },
+ {
+  "tag": "1920x1080 q=high",
+  "fps": 13,
+  "p50": 16.7,
+  "p95": 233.3,
+  "mainBusyMsPerS": 25,
+  "cpuTotalPct": 405,
+  "cpuGpuPct": 401,
+  "cpuRendererPct": 4,
+  "sea": {
+   "tier": "high",
+   "still": false,
+   "gl": true,
+   "waterPx": [
+    2688,
+    1080
+   ],
+   "lifePx": [
+    2688,
+    1080
+   ],
+   "frames": 68,
+   "drawMs": 0.632,
+   "drawMaxMs": 3.7,
+   "fps": 13.3,
+   "painted": [],
+   "gulls": 1,
+   "whales": 0,
+   "clouds": 3
+  }
+ },
+ {
+  "tag": "1920x1080 q=low",
+  "fps": 17.6,
+  "p50": 16.7,
+  "p95": 233.3,
+  "mainBusyMsPerS": 20,
+  "cpuTotalPct": 375,
+  "cpuGpuPct": 372,
+  "cpuRendererPct": 3,
+  "sea": {
+   "tier": "low",
+   "still": false,
+   "gl": true,
+   "waterPx": [
+    2016,
+    810
+   ],
+   "lifePx": [
+    2688,
+    1080
+   ],
+   "frames": 56,
+   "drawMs": 0.316,
+   "drawMaxMs": 1,
+   "fps": 10.9,
+   "painted": [],
+   "gulls": 1,
+   "whales": 0,
+   "clouds": 2
+  }
+ },
+ {
+  "tag": "1920x1080@2 q=auto",
+  "fps": 59.7,
+  "p50": 16.7,
+  "p95": 16.7,
+  "mainBusyMsPerS": 35,
+  "cpuTotalPct": 438,
+  "cpuGpuPct": 431,
+  "cpuRendererPct": 6,
+  "sea": {
+   "tier": "low",
+   "still": false,
+   "gl": false,
+   "waterPx": [
+    2016,
+    810
+   ],
+   "lifePx": [
+    2688,
+    1080
+   ],
+   "frames": 152,
+   "drawMs": 0.25,
+   "drawMaxMs": 1.5,
+   "fps": 30.1,
+   "painted": [],
+   "gulls": 1,
+   "whales": 0,
+   "clouds": 2
+  }
+ },
+ {
+  "tag": "1920x1080@2 q=high",
+  "fps": 11.7,
+  "p50": 16.7,
+  "p95": 250,
+  "mainBusyMsPerS": 17,
+  "cpuTotalPct": 388,
+  "cpuGpuPct": 385,
+  "cpuRendererPct": 3,
+  "sea": {
+   "tier": "high",
+   "still": false,
+   "gl": true,
+   "waterPx": [
+    2688,
+    1080
+   ],
+   "lifePx": [
+    3155,
+    1268
+   ],
+   "frames": 62,
+   "drawMs": 0.532,
+   "drawMaxMs": 3.5,
+   "fps": 12,
+   "painted": [],
+   "gulls": 0,
+   "whales": 0,
+   "clouds": 3
+  }
+ },
+ {
+  "tag": "1920x1080@2 q=low",
+  "fps": 16.9,
+  "p50": 16.7,
+  "p95": 250.1,
+  "mainBusyMsPerS": 13,
+  "cpuTotalPct": 354,
+  "cpuGpuPct": 352,
+  "cpuRendererPct": 2,
+  "sea": {
+   "tier": "low",
+   "still": false,
+   "gl": true,
+   "waterPx": [
+    2016,
+    810
+   ],
+   "lifePx": [
+    2688,
+    1080
+   ],
+   "frames": 53,
+   "drawMs": 0.375,
+   "drawMaxMs": 3.3,
+   "fps": 10.3,
+   "painted": [],
+   "gulls": 0,
+   "whales": 0,
+   "clouds": 2
+  }
+ },
+ {
+  "tag": "844x390 q=auto",
+  "fps": 60,
+  "p50": 16.7,
+  "p95": 16.7,
+  "mainBusyMsPerS": 37,
+  "cpuTotalPct": 264,
+  "cpuGpuPct": 257,
+  "cpuRendererPct": 6,
+  "sea": {
+   "tier": "low",
+   "still": false,
+   "gl": false,
+   "waterPx": [
+    887,
+    293
+   ],
+   "lifePx": [
+    1182,
+    390
+   ],
+   "frames": 152,
+   "drawMs": 0.321,
+   "drawMaxMs": 6.6,
+   "fps": 30.1,
+   "painted": [],
+   "gulls": 1,
+   "whales": 0,
+   "clouds": 2
+  }
+ },
+ {
+  "tag": "844x390 q=high",
+  "fps": 20.4,
+  "p50": 33.4,
+  "p95": 100.1,
+  "mainBusyMsPerS": 37,
+  "cpuTotalPct": 402,
+  "cpuGpuPct": 397,
+  "cpuRendererPct": 5,
+  "sea": {
+   "tier": "high",
+   "still": false,
+   "gl": true,
+   "waterPx": [
+    2364,
+    780
+   ],
+   "lifePx": [
+    2364,
+    780
+   ],
+   "frames": 105,
+   "drawMs": 0.792,
+   "drawMaxMs": 4.3,
+   "fps": 20.7,
+   "painted": [],
+   "gulls": 1,
+   "whales": 0,
+   "clouds": 3
+  }
+ },
+ {
+  "tag": "844x390 q=low",
+  "fps": 59.9,
+  "p50": 16.7,
+  "p95": 16.8,
+  "mainBusyMsPerS": 40,
+  "cpuTotalPct": 334,
+  "cpuGpuPct": 328,
+  "cpuRendererPct": 6,
+  "sea": {
+   "tier": "low",
+   "still": false,
+   "gl": true,
+   "waterPx": [
+    887,
+    293
+   ],
+   "lifePx": [
+    1182,
+    390
+   ],
+   "frames": 151,
+   "drawMs": 0.316,
+   "drawMaxMs": 2.3,
+   "fps": 30,
+   "painted": [],
+   "gulls": 1,
+   "whales": 0,
+   "clouds": 2
+  }
+ }
+]

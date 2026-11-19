@@ -10,6 +10,9 @@
  * island's map), window.__map exposes the layout. ?store=<island id> opens the store card for
  * that island (where main2d sends a deep link into an island the free version does not include).
  *
+ * The sea under the route is alive (seaLife.ts): rippling water, foam, glints, cloud shadows,
+ * clouds, gulls, a rare whale; the islands bob, the frontier ship rocks. Reduced motion stills it.
+ *
  * Mobile builds only (and ?iapmock=1 in a browser): islands past the free scope wear the "full
  * adventure" lock (store2d.ts) and open the store card instead of the briefing.
  */
@@ -34,6 +37,7 @@ import { islandStates, loadProgress2D, type IslandState } from './progress2d.ts'
 import { heroArtFiles } from './heroBits.ts';
 import { heroChip, heroesButton, openHeroSelect, openSkillTree } from './heroScreens.ts';
 import { needsFullAdventure, openStore, storeEnabled } from './store2d.ts';
+import { mountSea } from './seaLife.ts';
 
 declare global {
   interface Window {
@@ -126,6 +130,7 @@ export async function mountWorldMap(q: URLSearchParams): Promise<void> {
   panR.classList.add('pu-map-pan', 'right');
   root.append(scroll, panL, panR, topbar, hint);
   document.body.append(root);
+  const sea = mountSea(root, world, scroll, manifest, q);
 
   let states: IslandState[] = [];
   /** Per island: past the free version's scope (mobile builds, full adventure not owned). */
@@ -193,6 +198,7 @@ export async function mountWorldMap(q: URLSearchParams): Promise<void> {
             : t('map.nodeLocked', { name: islandName(st.level) }),
       });
       b.style.animationDelay = `${0.05 + i * 0.06}s`;
+      sea.decorateNode(b, i, st.frontier && st.unlocked && !isPaid);
       b.append(el('span', 'pu-node-shore'), medal(st.unlocked ? thumb(st.level) : '/art2d/ui/island-fog.webp', '100%', st.frontier && st.unlocked));
       if (st.unlocked && !isPaid) b.append(starsRow(st.stars, 'pu-stars pu-node-stars'));
       if (st.mastered) {
@@ -213,7 +219,7 @@ export async function mountWorldMap(q: URLSearchParams): Promise<void> {
         lock.append(glyph('lock'));
         b.append(lock);
       }
-      if (st.frontier && st.unlocked && !isPaid) b.append(img('/art2d/ui/ship.webp', '', 'pu-node-flag'));
+      if (st.frontier && st.unlocked && !isPaid) b.append(sea.ship());
       b.addEventListener('click', () => openBrief(i));
       world.append(b);
       nodes.push(b);
@@ -262,6 +268,7 @@ export async function mountWorldMap(q: URLSearchParams): Promise<void> {
     });
     scroll.scrollLeft = scrollToCentre(L.nodes[frontier]?.x ?? 0, w, L.worldW);
     updatePan();
+    sea.layout(L, h, Math.max(bar.bottom, banner.getBoundingClientRect().bottom), hint);
   };
 
   const refresh = (): void => {
