@@ -18,15 +18,14 @@ from ground import windblown_road_coverage
 
 
 class GroundTests(unittest.TestCase):
-    def test_emerald_crossings_have_dry_landings_and_span_open_water(self):
+    def load_crossings_and_check_rings(self, island):
         compose = Path(__file__).resolve().parent
         root = compose.parents[1]
-        recipe = json.loads((compose / 'campaign.json').read_text())['i04']
-        layout = json.loads((root / 'src/data/levels2d/i04.json').read_text())
+        recipe = json.loads((compose / 'campaign.json').read_text())[island]
+        layout = json.loads((root / f'src/data/levels2d/{island}.json').read_text())
         kit = root / 'design/art-2d/v2/biomes' / recipe['biome']
-        with Image.open(kit / 'land-i04.webp') as mask:
+        with Image.open(kit / f'land-{island}.webp') as mask:
             land = mask.convert('L').resize(tuple(layout['imageSize']), Image.Resampling.NEAREST)
-        # All the rings sit on the original turf, including the two above the spring.
         rings = Image.new('L', land.size)
         rx = layout['plotRadiusPx']
         with Image.open(root / 'design/art-2d/v2/assets/plot-base.png') as base:
@@ -35,14 +34,43 @@ class GroundTests(unittest.TestCase):
         for x, y in layout['plots']:
             draw.ellipse((x-rx-4, y-ry-4, x+rx+4, y+ry+4), fill=255)
         self.assertIsNone(ImageChops.subtract(rings, land).getbbox())
+        return recipe['crossings'], kit, layout, land
+
+    def test_galewatch_road_only_leaves_its_ledge_on_the_bridge(self):
+        crossings, kit, layout, land = self.load_crossings_and_check_rings('i11')
+        [(name, x, y, length, width, angle)] = crossings
+        cos, sin = math.cos(math.radians(angle)), math.sin(math.radians(angle))
+
+        def on_map(u, v):
+            dx, dy = (u - .5) * width, (v - .5) * length
+            return round(x + dx*cos + dy*sin), round(y - dx*sin + dy*cos)
+
+        with Image.open(kit / f'landmark-{name}.webp') as bridge:
+            feet = [(.06, .04), (.79, .04), (.06, .96), (.79, .96)]
+            for u, v in [*feet, (.43, .48)]:
+                self.assertGreater(bridge.getpixel((round(u*(bridge.width-1)), round(v*(bridge.height-1))))[3], 200)
+                self.assertEqual(land.getpixel(on_map(u, v)) >= 128, (u, v) in feet)
+
+        # The right pennant extends beyond the deck. Only count the width between the rails.
+        supported = land.copy()
+        ImageDraw.Draw(supported).polygon([on_map(u, v) for u, v in (
+            (.05, .02), (.81, .02), (.81, .98), (.05, .98),
+        )], fill=255)
+        road = Image.new('L', land.size)
+        ImageDraw.Draw(road).line([tuple(p) for p in layout['paths'][0]], fill=255,
+                                  width=round(.068 * land.height), joint='curve')
+        self.assertIsNone(ImageChops.subtract(road, supported).getbbox())
+
+    def test_emerald_crossings_have_dry_landings_and_span_open_water(self):
+        crossings, kit, _, land = self.load_crossings_and_check_rings('i04')
         # Probe the timber feet. A centreline check missed the post beside the waterfall.
         landings = {
             'rope-span': [(0.21, .14), (.75, .16), (.12, .92), (.81, .94)],
             'moss-steps': [(.5, .10), (.5, .90)],
             'clapper-span': [(.5, .10), (.5, .90)],
         }
-        self.assertEqual({crossing[0] for crossing in recipe['crossings']}, landings.keys())
-        for name, x, y, length, width, angle in recipe['crossings']:
+        self.assertEqual({crossing[0] for crossing in crossings}, landings.keys())
+        for name, x, y, length, width, angle in crossings:
             cosine, sine = math.cos(math.radians(angle)), math.sin(math.radians(angle))
             with self.subTest(crossing=name), Image.open(kit / f'landmark-{name}.webp') as paint:
                 for u, v in [*landings[name], (.5, .5)]:

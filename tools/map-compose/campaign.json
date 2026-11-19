@@ -266,25 +266,31 @@
     "plots": 24,
     "seed": 503,
     "crossings": [
-      ["stone-bridge", 387, 292, 116, 80, -29]
+      ["pin-bridge", 392, 293, 130, 88, -29]
     ],
-    "decals": 145,
-    "props": 59,
+    "waterCrossings": true,
+    "decals": 52,
+    "props": 21,
     "windmill": "none",
     "biome": "highlands",
-    "propWeights": [1, 2, 3, 5, 4, 1, 4],
-    "islet": "islet.webp",
+    "scatterProps": [["storm-pine.webp", 1.02], ["slate-heather.webp", 0.46], ["silver-grass.webp", 0.36]],
+    "propWeights": [2, 5, 4],
+    "repeatGap": 72,
+    "islet": "gorge-ledge.webp",
     "sprites": {
-      "gate-cave-e.png": "storm-cave-e.webp",
-      "gate-cave-s.png": "storm-cave-s.webp",
-      "signal-post.webp": "wind-vane.webp",
-      "parapet.webp": "broken-wall.webp",
-      "snow-fir.webp": "storm-pine.webp"
+      "gate-cave-s.png": "storm-cave-s.webp"
     },
-    "roadMaterial": "tex-gravel.webp",
+    "dressingMask": "dressing-i11.webp",
+    "roadMaterial": "tex-gale-track.webp",
+    "brushRoad": true,
+    "dustyShoulders": true,
+    "thresholdRoad": true,
+    "entranceFinishes": {"A": "gale-postern-s.webp"},
     "landmarks": [
-      ["spire", 818, 185, 85],
-      ["spire", 1074, 503, 55]
+      ["wind-stone", 225, 177, 85],
+      ["flag-rack", 291, 556, 90],
+      ["gale-lookout", 1191, 147, 139],
+      ["gale-lantern", 1320, 798, 110]
     ]
   },
   "i12": {

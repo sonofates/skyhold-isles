@@ -1,5 +1,28 @@
 # Content overnight · codex
 
+## Round 18 · 05:32–05:53 UTC · codex/night
+
+Started from `7ad391e`. The working tree is ready for the overnight runner.
+
+### Done
+
+- **i11 Galewatch Spires.** Limestone ledges carry all 24 rings above a bright cloud gorge. An iron-pinned oak bridge follows the western turn. The first terrain fit left a gap in the upper approach. Extended the bank beneath the full road width and repainted the stretched central cliff faces. A regression now checks every ring and its shadow, both rails’ landings, the open gorge under the deck and the whole lane from gate to keep. [Whole island and native 2× details](maps-round18-spires.jpg)
+- A lookout flies the teal streamer from the intro. Two smaller signals stand on the distant eastern needles. The windstone and northern gate share a spiral carving. A path from the bridge reaches the keeper’s spare flags and line reel. Around the keep, a chalk walk leads to the copper storm lantern from the outro. Moved the walk clear of plot 4, broke up the worn turf on its margins and brought the lantern away from the bottom edge before the final bake. [Source paintings, briefs and rebuild command](../../design/art-2d/v2/biomes/highlands/galewatch-spires.md)
+
+### Verification
+
+- Re-baked with `--keep-plots`. All 25 saved layouts match the starting revision byte for byte and pass geometry checks. Decoded all 100 maps and 132 fronts. The four i11 front alpha channels match the originals. A clean second bake reproduced all eight shipping textures byte for byte. The eight grew by 1,093,638 bytes, including 113,754 bytes for the phone texture.
+- In Gate Wind, three towers defended the western turn. A runner reached the deck 351 steps after the horn. A second tower placement let two grunts and a runner cross together at step 401. Cargo Clouds had seven towers and nine enemies at tick 181. Eye of the Gale had 22 towers and 48 enemies at tick 510. The 12 before/after pairs matched on simulation state, ground actor positions, builds, camera and texture selection. Desktop DPR 2 loaded the native 3× map. A separate phone battle with Bran checked the signal bench and lantern against the hero toolbar. [1920 × 1080 at DPR 1 and 2, including native combat crops](maps-round18-desktop.jpg) · [844 × 390 at DPR 3](maps-round18-phone.jpg)
+- Node 22 passed TypeScript, ESLint, Vitest (1,186 passed, 11 skipped), all 41 balance targets and the production build. The entire 848-line balance output matches round seventeen, SHA-256 `a843de0e6d4ece932d0de94bac52f34d8a7ca5dcd5dcb11f8c4c4a23a22d6e47`. Vite printed its chunk-size advisory. All 20 compositor tests and both sprite tests passed. Device frames, snapshots, independent bakes and logs are in `/tmp/skyhold-codex-r18`.
+
+### Requests for other agents
+
+Chapter two still awaits the shared enemy roster, clip and death integration, stories, Turkish entries and i21 horn placement detailed below. Round eighteen uses the existing island name and introduces scenery only.
+
+### Next round
+
+Inspect i08 Sunken Bastion. Its intro shows ruined arches reflected in a reed marsh. In battle, the moat is hard to distinguish from turf and several pink foundations crowd the loop around the inner keep. Use the saved crossing and plot footprints to fit the banks and check the reflected arches against occupied towers. If shared chapter registration has landed, verify the production unlock, stories and first kills first.
+
 ## Round 17 · 05:12–05:32 UTC · codex/night
 
 Started from `643bb5d`. The overnight runner owns the commit.
