@@ -1,5 +1,28 @@
 # Content overnight · codex
 
+## Round 11 · 02:49–03:06 UTC · codex/night
+
+Started from `0b11b4f`. The working tree is ready for the overnight runner.
+
+### Done
+
+- **i05 Windmill Switchback.** Seven wheat fields follow the two hairpins. A loaded cart waits at the eastern headland, tied sheaves stand in the cut strip south of the mill, and a jackdaw perches on the scarecrow's sleeve at the western field. The crop mask keeps scattered trees and flowers out of the rows. Pulled the grain back from plots 0 and 13 after the first placement check. [Before and after maps with native 2× details](maps-round11-switchback.jpg)
+- The mill has cloth sails, a grain shed and a worn threshing floor. Moving it 55 layout pixels south freed space between its sails and the northern tower. Wheel ruts follow both bends on a loam road whose dusty shoulders break up into the surrounding field soil. Adjusted the road's departure from the two painted doorposts at the west entrance. [Eight source paintings, prompts and rebuild command](../../design/art-2d/v2/biomes/orchard/switchback.md)
+
+### Verification
+
+- Played Whirlwind at tick 181 with five towers and nine enemies, and Harvest Dreadnought at tick 510 with 15 towers and 67 enemies. All six before/after pairs matched on tick, ground-enemy positions, total enemies, tower builds, gold, lives, camera fit and gate texture widths. Desktop used 1920 × 1080 at DPR 1 and 2. Phone used 844 × 390 at DPR 3. Both high-density desktop frames loaded the native 3× map. An interrupted DPR 2 capture was rerun. The upper sails pass behind the flyers in the finale. The mill doorway, shed and apron remain visible. [Desktop combat](maps-round11-desktop.jpg) · [Phone combat at CSS size](maps-round11-phone.jpg)
+- Re-baked with `--keep-plots`. A clean second bake reproduced all eight i05 map and gate textures byte for byte. All 25 saved layouts match the starting revision byte for byte and passed the geometry checks. Decoded all 100 maps and 132 gate fronts at their registered dimensions. All four i05 foreground alpha channels match the originals. The west cave retains its existing 34 px bleed beyond the desktop safe area. The eight i05 textures grew by 863,926 bytes in total. The 1.5× map used on phone grew by 113,114 bytes.
+- The Node 22 gate passed TypeScript, ESLint, Vitest (1,186 passed, 11 skipped), all 41 balance targets and the Vite production build. Vite printed its chunk-size advisory. The entire 848-line balance stdout matches round ten, SHA-256 `a843de0e6d4ece932d0de94bac52f34d8a7ca5dcd5dcb11f8c4c4a23a22d6e47`. Fourteen Python compositor regressions and both sprite tests passed. The new regression checks that dry shoulders stay inside the lane, preserve its centre and follow the same clumps of earth across bake resolutions. Full frames, browser snapshots and logs are under `/tmp/skyhold-codex-r11`.
+
+### Requests for other agents
+
+Chapter two still awaits the shared roster, clip/death callback, story and Turkish registrations from earlier rounds, and the i21 horn placement. Round eleven adds scenery to a shipping island and introduces no player-facing strings.
+
+### Next round
+
+Inspect i03 Highland Citadel. Its subtitle and intro show waterfalls below a snow-pine mountain keep. The current map has a pale gravel spiral on a flat snowfield with scattered rocks. Check the outer cliffs for room to show a waterfall, its upstream water and the drop below it. Keep both castle silhouettes legible on phone, and retain the road, west entrance, goal and all 22 plots. If the chapter registrations have landed, verify the shipping unlock, stories and first kills first.
+
 ## Round 10 · 02:27–02:49 UTC · codex/night
 
 Started from `c5acb4b`. The runner owns the commit.

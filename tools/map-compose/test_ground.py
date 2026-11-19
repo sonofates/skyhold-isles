@@ -10,10 +10,26 @@ from gates import draw_threshold_road, output_sprite
 from keeps import Keep, sample
 from masonry import RoadArcade, brick_spur, cart_tracks
 
-from ground import Decals, DressingArea, brushed_surface, paint_over_road, road_footprint, road_fringe, scatter
+from ground import Decals, DressingArea, brushed_surface, dusty_road_coverage, paint_over_road, road_footprint, road_fringe, scatter
 
 
 class GroundTests(unittest.TestCase):
+    def test_dusty_shoulder_keeps_lane_centre_and_respects_road_boundary(self):
+        profiles = []
+        for scale in (1, 2, 3):
+            mask = Image.new('L', (120*scale, 72*scale))
+            ImageDraw.Draw(mask).rectangle((0, 16*scale, mask.width-1, 56*scale-1), fill=255)
+            coverage = dusty_road_coverage(mask, scale, 71)
+            self.assertIsNone(ImageChops.subtract(coverage, mask).getbbox())
+            self.assertEqual(coverage.crop((0, 32*scale, mask.width, 40*scale)).getextrema(), (255, 255))
+            small = coverage.resize((120, 72), Image.Resampling.BOX)
+            shoulder = np.asarray(small)[17].astype(float)
+            self.assertGreater(shoulder.max() - shoulder.min(), 60)
+            self.assertLess(shoulder.max(), 255)
+            profiles.append(shoulder)
+        for profile in profiles[1:]:
+            self.assertLess(np.abs(profiles[0] - profile).mean(), 12)
+
     def test_keep_sampling_interpolates_the_front_into_the_transparent_border(self):
         # The fifth channel is the depth-sorted front, separate from the RGBA painting.
         texel = np.array([40, 80, 120, 200, 160], dtype=np.uint8)

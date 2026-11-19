@@ -95,7 +95,7 @@ from banks import shore_foundation  # noqa: E402
 from masonry import RoadArcade, brick_spur, cart_tracks, marble_road, moat_wall  # noqa: E402
 from keeps import Keep  # noqa: E402
 from ground import (  # noqa: E402
-    Decals, DressingArea, brushed_surface, fine_detail, inner_band, paint_over_road, ragged_mask,
+    Decals, DressingArea, brushed_surface, dusty_road_coverage, fine_detail, inner_band, paint_over_road, ragged_mask,
     ring, road_footprint, road_fringe, scatter,
 )
 from ringfit import measure_ring  # noqa: E402
@@ -803,17 +803,20 @@ if 'branchMaterial' in dressing:
     ImageDraw.Draw(branch).line([P(p) for p in first], fill=255, width=round(rw * 1.6), joint='curve')
     dirt = Image.composite(branch_paint, dirt, branch.filter(ImageFilter.GaussianBlur(rw * 0.1)))
     del branch_paint, branch
-# a faint wide shade on the grass along the road, a thin darker rim right at the edge, the dirt,
-# then a narrow darker lip just inside the edge
-shade = road_mask.filter(ImageFilter.MaxFilter(2 * round(rw * 0.05) + 1)).filter(ImageFilter.GaussianBlur(rw * 0.10))
-ground = Image.composite(Image.new('RGBA', (W, H), (70, 52, 30, 255)), ground, shade.point(lambda v: int(v * 0.22)))
-rim_band = ring(road_mask, max(2, round(rw * 0.035)), 0.7 * W / 3692)
-ground = Image.composite(Image.new('RGBA', (W, H), (74, 70, 30, 255)), ground, rim_band.point(lambda v: int(v * 0.50)))
-ground = Image.composite(dirt, ground, road_mask)
-lip = inner_band(road_mask, max(2, round(rw * 0.06)), 1.2 * W / 3692)
-ground = Image.composite(Image.new('RGBA', (W, H), (122, 80, 42, 255)), ground, lip.point(lambda v: int(v * 0.30)))
+if dressing.get('dustyShoulders'):
+    ground = Image.composite(dirt, ground, dusty_road_coverage(road_mask, S, SEED + 51))
+else:
+    # Shade the grass, trace the rim, then lay the road and its shallow inside lip.
+    shade = road_mask.filter(ImageFilter.MaxFilter(2 * round(rw * 0.05) + 1)).filter(ImageFilter.GaussianBlur(rw * 0.10))
+    ground = Image.composite(Image.new('RGBA', (W, H), (70, 52, 30, 255)), ground, shade.point(lambda v: int(v * 0.22)))
+    rim_band = ring(road_mask, max(2, round(rw * 0.035)), 0.7 * W / 3692)
+    ground = Image.composite(Image.new('RGBA', (W, H), (74, 70, 30, 255)), ground, rim_band.point(lambda v: int(v * 0.50)))
+    ground = Image.composite(dirt, ground, road_mask)
+    lip = inner_band(road_mask, max(2, round(rw * 0.06)), 1.2 * W / 3692)
+    ground = Image.composite(Image.new('RGBA', (W, H), (122, 80, 42, 255)), ground, lip.point(lambda v: int(v * 0.30)))
+    del shade, rim_band, lip
 
-del shade, rim_band, lip, dirt, road_hard
+del dirt, road_hard
 keep.apron(ground, castle, S, plots, PLOT_R, PLOT_RY, raw_paths[0])
 
 if ford_patches:

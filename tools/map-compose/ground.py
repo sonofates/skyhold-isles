@@ -97,6 +97,14 @@ def ragged_mask(hard: Image.Image, soft_r: float, cell: int, amp: float, seed: i
     return Image.fromarray((m * 255).astype(np.uint8), 'L')
 
 
+def dusty_road_coverage(mask, scale, seed):
+    """Let loose field soil show through the shoulder of a worn road, inside its footprint."""
+    soft = mask.filter(ImageFilter.GaussianBlur(4 * scale))
+    clumps = value_noise(*mask.size, 5, seed, scale).point(lambda v: round(v * .27))
+    edge = ImageChops.add(soft, clumps, offset=-35).point(lambda v: (v - 110) * 2.65)
+    return ImageChops.multiply(mask, edge)
+
+
 def ring(mask: Image.Image, grow: int, blur: float) -> Image.Image:
     """Band just outside `mask`, `grow` px wide, lightly blurred."""
     g = mask.filter(ImageFilter.MaxFilter(2 * grow + 1))
