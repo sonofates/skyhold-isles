@@ -77,6 +77,8 @@ Natural Turkish for every new string (glossary kept).
 - **Rally banner** moves to the top / bottom band when it would cover the barracks' range circle.
 - **Next-wave card**: plot rings weigh 3×, HUD pieces / its horn 12× (i14 fixed, never over the
   bar). Still grazes one plot on dense i13 (1920/1366) and l1c 1366 between waves.
+- **Early wave call** shows its bonus as a gold "+N" + coin rising from the horn; "Wave n/N" bumps
+  when a wave marches.
 - Foe tips drop the 3D-only "Press R to see the sky lane" (R is a hero skill in 2D); end board's
   plain "Level n" in soft ink; "Wave n/N" bumps when a wave marches; text-wrap balance / pretty.
 

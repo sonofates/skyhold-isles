@@ -57,16 +57,23 @@ export function laneMarkSpot(
   avoid: readonly Rect[],
   s: number,
 ): { x: number; y: number } | null {
-  let first: { x: number; y: number } | null = null;
-  for (const d of [1.6, 2.6, 3.6, 4.8, 6]) {
+  // The first clear spot; when every spot is covered, the least covered (earlier wins ties).
+  let best: { x: number; y: number } | null = null;
+  let bestA = Infinity;
+  for (const d of [1.6, 2.6, 3.6, 4.8, 6, 7.5, 9, 11]) {
     const p = pointAlong(path, d);
     if (!p) return null;
     const at = toScreen(p);
-    first ??= at;
     const b = laneMarkBox(at.x, at.y, s);
-    if (!avoid.some((r) => b.x < r.x + r.w && b.x + b.w > r.x && b.y < r.y + r.h && b.y + b.h > r.y)) return at;
+    let a = 0;
+    for (const r of avoid) a += Math.max(0, Math.min(b.x + b.w, r.x + r.w) - Math.max(b.x, r.x)) * Math.max(0, Math.min(b.y + b.h, r.y + r.h) - Math.max(b.y, r.y));
+    if (a === 0) return at;
+    if (a < bestA) {
+      bestA = a;
+      best = at;
+    }
   }
-  return first;
+  return best;
 }
 
 export interface LaneMark {

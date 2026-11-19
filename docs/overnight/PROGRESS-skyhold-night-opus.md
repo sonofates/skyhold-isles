@@ -138,6 +138,12 @@ Round 2: the background preview dies at its 2 h limit — use `python3 qa/withPr
 - **R2 — misc polish:** end board plain "Level n" in soft ink (rust only for a level-up); coach
   hidden under the pause menu; desktop hover on a built tower = pointer cursor + faint range
   disc (`game2d.hoverDisc`, QA in flowshots).
+- **R2 — late:** next-wave card weighs plot rings 3× and HUD pieces / its horn 12× (i14 fixed,
+  i09 never over the bar; still grazes one plot on dense i13 and l1c 1366 between waves); "Wave
+  n/N" text bumps when a wave marches; end board labels share one size; early wave call = gold
+  "+N" + coin rising from the horn (`waveStarted.earlyBonus`, `qa/earlyPop.mjs`, needs
+  `&quality=high` under SwiftShader); Endless cave marks verified (`qa/endlessLanes.mjs`). Full
+  replay QA re-run: matched on all 6 combos.
 
 ## Next (backlog 2: missing basics) — candidates, in rough value order
 - tower info card: the build ring tooltip already has stats/targeting/upgrade/sell+refund; review only
