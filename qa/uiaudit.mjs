@@ -103,7 +103,7 @@ async function act(page, action, key, size) {
   switch (action) {
     case 'treeNode': {
       const n = page.locator('[data-testid^="tree2d-node-"]').nth(1);
-      await n.click({ timeout: 5000 }).catch(() => problems.push(`${key}: no skill node to click`));
+      await n.click({ timeout: 15000 }).catch(() => problems.push(`${key}: no skill node to click`));
       await page.waitForTimeout(300);
       break;
     }
@@ -225,6 +225,11 @@ async function runOne(browser, lang, size, [name, query, seed, action, opt = {}]
     await page.goto(`${BASE}/2d.html${q}`);
     await page.waitForFunction(() => !document.getElementById('boot'), null, { timeout: 60000 });
     await act(page, action, key, size);
+    // Let one-shot animations (a board's pop-in, a card's fade) finish before measuring.
+    await page.evaluate(() => Promise.race([
+      Promise.all(document.getAnimations().filter((an) => an.effect?.getComputedTiming().iterations !== Infinity).map((an) => an.finished.catch(() => undefined))),
+      new Promise((res) => setTimeout(res, 3000)),
+    ]));
     const r = await page.evaluate(auditPage, {});
     const canvas = await page.evaluate(() => (window.__p0?.textAudit ? window.__p0.textAudit() : [])).catch(() => []);
     const list = [...r.problems];

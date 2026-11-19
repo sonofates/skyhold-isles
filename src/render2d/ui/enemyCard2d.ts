@@ -156,7 +156,9 @@ export function mountEnemyCard(portrait: (type: string) => string | null): Enemy
       if (pk !== placeKey) {
         placeKey = pk;
         card.classList.toggle('wide', wide);
-        const docked = dockCard(card, slot, maxW, [desc]);
+        // Small slots: the description, then the stat line go before the card would shrink below a
+        // readable size (the Codex has both).
+        const docked = dockCard(card, slot, maxW, [desc, stats], 0.88);
         scale = docked.scale;
         box = docked.box;
       }
