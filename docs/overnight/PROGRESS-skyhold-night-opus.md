@@ -96,6 +96,9 @@ QA: `npx vite preview --port 4381 --strictPort` in background (kill with TaskSto
   caves (plots + tower room 1000/px², castle 600, caves 60, roads 120/point, HUD). i09 horn no
   longer sits on the cave mouth; l1c/i14 on open grass. `state().hornScore` for QA.
 
+- **R1 — Settings → General "Tips · Show again"** (clears the coach + seen-foes keys). Wave card now
+  measures only on change (no per-frame layout). Foe card keeps off the coach / new-foe cards.
+
 ## Next (backlog 2: missing basics) — candidates, in rough value order
 - tower info card: the build ring tooltip already has stats/targeting/upgrade/sell+refund; review only
 - Then backlog 4 polish (hero controls feel, juice, end panel/world map with 25 islands, TR pass).
@@ -115,6 +118,9 @@ QA: `npx vite preview --port 4381 --strictPort` in background (kill with TaskSto
 - (none yet)
 
 ## Problems / notes
+- Machine load ~10 (other agents): one PIL-based sim test timed out once at 5 s; reran green.
+- Never chain `git commit` after a heredoc in the same Bash call (it is not covered by `&&`): one
+  commit (262f63d) went in with a failing i18n test, fixed in the next commit (c50e6b8).
 - SwiftShader: Pixi clamps frame dt to 100 ms, so the end board's 0.4 s tap guard needs several slow
   frames — QA polls (`pressEnd`). Not an issue on real GPUs.
 - QA debug runs show the hero row as "Level 1" with `?herolevel=` (pre-existing, not recorded runs).

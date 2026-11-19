@@ -472,6 +472,19 @@ export function openSettings(ctx: SettingsContext): Sheet {
         }),
       ),
     ];
+    // First-play tips and new-foe notes come back (coach on the first island, New tags, toasts).
+    const tips = plank(t('set.tipsAgain'), { kind: 'small', testid: 'set2d-tips' });
+    tips.addEventListener('click', () => {
+      try {
+        localStorage.removeItem('skyhold2d_coach_v1'); // i18n-ignore (storage key)
+        localStorage.removeItem('skyhold2d_foes_seen_v1'); // i18n-ignore (storage key)
+      } catch {
+        // private mode: nothing stored anyway
+      }
+      tips.querySelector('span')!.textContent = t('set.tipsAgainDone');
+      tips.disabled = true;
+    });
+    rows.push(row(t('set.tips'), t('set.tipsNote'), tips));
     if (ctx.inGame) return rows;
     // Mobile builds only: the store (Buy / Restore purchases must stay reachable after a purchase).
     if (storeEnabled()) {

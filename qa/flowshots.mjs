@@ -128,6 +128,10 @@ for (const size of SIZES) {
     await p2.waitForSelector(".pu-settings", { timeout: 30000 }).catch(() => undefined);
     await p2.waitForTimeout(4000);
     await p2.screenshot({ path: `${OUT}/${lang}-${size.key}-controls.jpg`, type: 'jpeg', quality: 82 });
+    await p2.goto(`${BASE}/2d.html?level=l1c&lang=${lang}&settings=1&settab=general&desktop=${size.desktop ? 1 : 0}`);
+    await p2.waitForSelector('[data-testid="set2d-tips"]', { timeout: 30000 }).catch(() => problems.push(`${tag}: no Tips row in Settings`));
+    await p2.waitForTimeout(3000);
+    await p2.screenshot({ path: `${OUT}/${lang}-${size.key}-settings-general.jpg`, type: 'jpeg', quality: 82 });
     await ctx2.close();
     console.log(`${tag}: done`);
   }
