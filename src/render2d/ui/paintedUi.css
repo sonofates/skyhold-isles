@@ -161,7 +161,7 @@
 .pu-sheet-title {
   position: absolute;
   left: 50%;
-  top: calc(var(--k) * -134);
+  top: var(--title-y, calc(var(--k) * -134));
   transform: translate(-50%, -50%);
   max-width: 78%;
   font-size: calc(var(--s) * 2.15);
@@ -1079,6 +1079,7 @@
 /* ---- storybook panels ----------------------------------------------------------------------- */
 
 .pu-story {
+  --title-y: calc(var(--k) * -94);
   --top: calc(var(--k) * 165);
   --side: calc(var(--k) * 100);
   --bottom: calc(var(--k) * 80);

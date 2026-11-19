@@ -36,6 +36,7 @@ import { hudKeepOuts, readSafeInsets } from './uiKit.ts';
 import { gateKeepOutsPx, hudButtonsKeepOut } from './uiLayout.ts';
 import { uiUnit } from './hudDock.ts';
 import { hudCheck } from './hudCheck.ts';
+import { auditCanvasTexts } from './qaText.ts';
 import { anySheetOpen } from './ui/dom.ts';
 
 /**
@@ -102,6 +103,8 @@ declare global {
       waveCard?: () => Record<string, unknown> | null;
       /** QA: every HUD piece as drawn (screen px) and what playable shape each one covers (must be none). */
       hudCheck?: () => import('./hudCheck.ts').HudCheck;
+      /** QA: canvas lettering against its painted box (qaText.ts); empty = all inside. */
+      textAudit?: () => import('./qaText.ts').QaTextProblem[];
       /** QA: what fills the letterbox bands (blurred backdrop, shadow, vignette, border). */
       mapFrame?: () => ReturnType<import('./mapView.ts').MapView['frameInfo']>;
       /** QA: the caves / castle fronts on screen (`castle` = the goal). */
@@ -976,6 +979,7 @@ async function main(): Promise<void> {
     abilities: () => abilities?.debug() ?? null,
     waveCard: () => waveCard?.debug() ?? null,
     hudCheck: () => hudCheck(game),
+    textAudit: () => auditCanvasTexts([...game.hud.qaTexts(), ...game.end.qaTexts(), ...game.ring.qaTexts()], app.screen.width, app.screen.height),
     mapFrame: () => game.map.frameInfo(),
     gates: () => gateRectsRef?.() ?? [],
     lives: () => livesWarn?.debug() ?? null,

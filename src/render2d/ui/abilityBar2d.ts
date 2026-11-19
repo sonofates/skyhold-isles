@@ -23,6 +23,7 @@ import { AbilityFx, ABILITY_ART_KEYS, type AbilityArt, type AbilityArtKey, type 
 import type { Game2D } from '../game2d.ts';
 import { addHudKeepOut } from '../uiKit.ts';
 import type { Rect } from '../uiLayout.ts';
+import { TRAY_PAD } from '../hudDock.ts';
 import {
   ABILITY_IDS,
   ABILITY_KEYS,
@@ -201,8 +202,10 @@ export function mountAbilityBar2D(game: Game2D, opts: AbilityBarOptions): Abilit
     root.style.removeProperty('--blockw');
     root.style.setProperty('--d', `${d}px`);
     root.style.setProperty('--gap', `${gap}px`);
-    root.style.left = `${Math.round(k.tray.x)}px`;
-    root.style.top = `${Math.round(k.tray.y)}px`;
+    // The row sits TRAY_PAD × d inside the slot; the painted backing fills the slot (css).
+    const inset = Math.round(d * TRAY_PAD);
+    root.style.left = `${Math.round(k.tray.x) + inset}px`;
+    root.style.top = `${Math.round(k.tray.y) + inset}px`;
     box = { x: k.tray.x, y: k.tray.y, w: k.tray.w, h: k.tray.h };
     root.style.setProperty('--short', `${Math.round(k.tray.h)}px`);
     placeHint();

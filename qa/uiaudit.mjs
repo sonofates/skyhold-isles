@@ -87,7 +87,7 @@ const SCREENS = [
   ['hud-tower', '?level=i02&hero=bran', SEED, 'tower'],
   ['hud-tip', '?level=i02&hero=bran', SEED, 'tip'],
   ['hud-pause', '?level=i02&hero=bran', SEED, 'pause'],
-  ['hud-newfoe', '?level=i09&hero=bran', SEED, 'newfoe', { foesFresh: true }],
+  ['hud-newfoe', '?level=i09&hero=bran', null, 'newfoe', { foesFresh: true }],
   ['end-won', '?level=i02&hero=bran', SEED, 'win'],
   ['end-lost', '?level=i02&hero=bran', SEED, 'lose'],
   ['end-hard', '?level=i02&hero=bran&diff=hard', SEED, 'win'],
@@ -120,7 +120,7 @@ async function act(page, action, key, size) {
       await p0();
       await page.evaluate(() => {
         window.__p0.replay.cmd({ k: 'wave' });
-        window.__p0.replay.step(40);
+        window.__p0.replay.step(90);
       });
       await page.evaluate(() => window.__p0.freeze(true));
       const at = await page.evaluate(() => window.__p0.foeAt());

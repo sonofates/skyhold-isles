@@ -52,6 +52,10 @@ import { anySheetOpen } from './ui/dom.ts';
 import { readSafeInsets } from './uiKit.ts';
 import { NO_INSETS, type Insets } from './uiLayout.ts';
 import { dockPieces, hudDock, type HudDock } from './hudDock.ts';
+import { hornNearCave, rectsTouch, roadMouths } from './hornSpot.ts';
+import { distSegRect, type Seg } from './playfield.ts';
+import { pointAlong, waveLaneCounts } from './ui/laneMarks2d.ts';
+import { buildEndlessWaveDef } from '../sim/waveSystem.ts';
 import { fullBleedFit, hardOverlaps, hardShapes, type FullBleedFit, type HardShapes } from './fullBleed.ts';
 import { GoldPops2D } from './ui/goldPops2d.ts';
 import { applyRunCommand, ReplayCursor, RunRecorder, runFingerprint, sameFingerprint, type RunCommand, type RunReplay } from './ui/replay2d.ts';
@@ -162,6 +166,12 @@ export class Game2D {
   /** Where every HUD piece sits (set by resize: its corner, nudged per island if it must be). */
   dock: HudDock = hudDock(1, 1, NO_INSETS, { plaqueAspect: 3.5, plaqueSlots: { lives: [0, 0], gold: [0, 0], midY: 0.5 }, bannerAspect: 3.4, hero: false });
   private playShapes: HardShapes | null = null;
+  /** The roads' mouths at the caves (image px): the horn never covers them, inside the safe area or not. */
+  private mouths: Seg[] | null = null;
+  /** The dock as the map fit placed it (the horn at its corner spot). */
+  private dockHome: HudDock | null = null;
+  /** The wave (0-based) the horn was last placed for (-2 = not yet). */
+  private hornFor = -2;
   private endShown = false;
   /** Event-FX counters (QA). */
   readonly fxStats = createSpecialFxStats();
@@ -771,6 +781,91 @@ export class Game2D {
     if (this.app.renderer.resolution !== resolution) this.app.renderer.resolution = resolution;
   }
 
+  /**
+   * The horn stands beside the cave the next wave marches out of (the cave with most of its foes on
+   * a multi-cave island), clear of every road, plot, cave, the castle and the dock's other pieces;
+   * it moves when the next wave changes cave. Where no such spot is clear it keeps its dock spot.
+   */
+  private placeHorn(force: boolean): void {
+    const home = this.dockHome;
+    const lay = this.level.layout2d;
+    if (!home || !lay) return;
+    const ws = this.world.waveSystem;
+    const idx = ws.state === 'finished' ? -1 : ws.state === 'preFirstWave' ? 0 : ws.currentWaveIndex + 1;
+    if (!force && idx === this.hornFor) return;
+    this.hornFor = idx;
+    const def = idx < 0 ? null : idx < this.level.waves.length ? this.level.waves[idx] : ws.isEndless ? buildEndlessWaveDef(idx, this.level) : null;
+    let placed = null;
+    if (def && lay.paths.length > 0) {
+      let lane = 0;
+      let most = -1;
+      for (const [l, n] of waveLaneCounts(def.groups)) {
+        if (n > most || (n === most && l < lane)) {
+          most = n;
+          lane = l;
+        }
+      }
+      const path = lay.paths[lane] ?? lay.paths[0];
+      if (path && path.length > 1) {
+        const scr = (p: { x: number; z: number }): { x: number; y: number } => ({ x: this.map.screenX(this.map.pxX(p.x)), y: this.map.screenY(this.map.pxY(p.z)) });
+        // The road's mouth as seen: the first point along it out of the cave's painted front and on
+        // screen (the path itself starts deep inside the cave, often past the screen's edge).
+        const W0 = this.app.screen.width;
+        const H0 = this.app.screen.height;
+        const f0 = this.map.fit;
+        const caves = (this.playShapes ??= hardShapes(lay)).gates
+          .filter((g) => !g.castle)
+          .map((g) => ({ x: g.x * f0.scale + f0.offsetX, y: g.y * f0.scale + f0.offsetY, w: g.w * f0.scale, h: g.h * f0.scale }));
+        const outside = (q: { x: number; y: number }): boolean =>
+          q.x > 0 && q.y > 0 && q.x < W0 && q.y < H0 && !caves.some((g) => q.x > g.x && q.x < g.x + g.w && q.y > g.y && q.y < g.y + g.h);
+        let mouth = scr(path[0]);
+        let next = scr(path[1]);
+        for (let d = 0.25; d < 14; d += 0.25) {
+          const a = pointAlong(path, d);
+          if (!a) break;
+          const q = scr(a);
+          if (outside(q)) {
+            mouth = q;
+            const b = pointAlong(path, d + 1);
+            next = b ? scr(b) : next;
+            break;
+          }
+        }
+        const shapes = (this.playShapes ??= hardShapes(lay));
+        const k = lay.pxPerUnit;
+        const [iw, ih] = lay.imageSize;
+        const mouths = (this.mouths ??= roadMouths(
+          lay.paths.map((pp) => pp.map((q) => ({ x: q.x * k + iw / 2, y: q.z * k + ih / 2 }))),
+          shapes.roadR * 7,
+        ));
+        const fit = this.map.fit;
+        // The horn may lie over decorative art and over a road only where it runs outside the safe
+        // area (hudCheck rules), never over a plot, a cave, the castle or a road's mouth.
+        const covers = (box: { x: number; y: number; w: number; h: number }): boolean => {
+          const g = { x: box.x - 4, y: box.y - 4, w: box.w + 8, h: box.h + 8 };
+          if (hardOverlaps(shapes, fit, g, true).length > 0) return true;
+          const img = { x: (g.x - fit.offsetX) / fit.scale, y: (g.y - fit.offsetY) / fit.scale, w: g.w / fit.scale, h: g.h / fit.scale };
+          return mouths.some((sg) => distSegRect(sg, img) < shapes.roadR);
+        };
+        const m = Math.max(6, home.gap * 0.5);
+        const pieces = [home.buttons, home.plaque, home.banner, this.dock.tray, this.dock.info];
+        const W = this.app.screen.width;
+        const H = this.app.screen.height;
+        const ins = this.insets;
+        placed = hornNearCave({
+          mouth,
+          out: { x: next.x - mouth.x, y: next.y - mouth.y },
+          r: home.horn.r,
+          size: this.hud.hornLabelSize(),
+          bounds: { x: ins.left + 6, y: ins.top + 6, w: W - ins.left - ins.right - 12, h: H - ins.top - ins.bottom - 12 },
+          blocked: (box) => pieces.some((p) => rectsTouch(box, p, m)) || covers(box),
+        });
+      }
+    }
+    this.hud.setHornPlacement(placed);
+    this.dock = placed ? { ...this.dock, horn: placed.horn, hornBox: placed.hornBox } : { ...this.dock, horn: home.horn, hornBox: home.hornBox };
+  }
+
   resize(w: number, h: number): void {
     this.applyResolution(w, h);
     this.insets = readSafeInsets();
@@ -784,6 +879,8 @@ export class Game2D {
     this.fullBleed = placed.fit;
     this.map.resize(w, h, placed.fit);
     this.hud.layout(w, h, this.dock, this.insets);
+    this.dockHome = this.dock;
+    this.placeHorn(true);
     // QA: what any dock piece still covers (exact shapes; 0 = clear).
     this.hornScore = Object.values(dockPieces(this.dock)).reduce((n, rect) => n + hardOverlaps(shapes, this.map.fit, rect).length, 0);
     this.end.layout(w, h, this.insets);
@@ -935,6 +1032,7 @@ export class Game2D {
       s.countdown = 0;
       s.countdownFrac = 0;
     }
+    this.placeHorn(false);
     this.hud.update(s as HudState, dtSec);
     return over;
   }
@@ -1574,6 +1672,8 @@ export class Game2D {
       enemyPx: this.enemyPx(),
       horn: this.hud.hornPosition,
       hornScore: this.hornScore,
+      /** 'cave' = beside the next wave's cave, 'dock' = at its dock corner (no clear spot by the cave). */
+      hornSpot: this.hud.hornSpot,
       plaque: this.hud.rects().plaque,
       hoverTower: this.hoverTowerId,
       buttons: this.hud.buttonPositions,

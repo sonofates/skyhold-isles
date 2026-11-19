@@ -6,7 +6,7 @@
   top: max(10px, calc(var(--safe-t) + var(--s) * 0.8));
   transform: translateX(-50%);
   width: min(calc(var(--s) * 30), 46vw);
-  padding: calc(var(--s) * 0.2) calc(var(--s) * 0.5) calc(var(--s) * 0.1);
+  padding: calc(var(--s) * 0.4) calc(var(--s) * 0.7) calc(var(--s) * 0.35);
   border-style: solid;
   border-width: calc(var(--s) * 1);
   border-image: url('/art2d/ui/tooltip.webp') 40 fill stretch;

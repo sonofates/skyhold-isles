@@ -4,6 +4,7 @@ import { signatureDesc, signatureName, towerName, towerShortName } from '../i18n
 import { t as msg, type MsgKey } from '../i18n/index.ts';
 import type { LoadedArt } from './assets2d.ts';
 import { MIN_TOUCH } from './hud.ts';
+import type { QaTextItem } from './qaText.ts';
 import { paintedText, setFontSize, setText } from './hudText.ts';
 import { easeOutBack, easeOutCubic, fitWidth, hudKeepOuts, INK, INK_SOFT, inkText, kit, paintedUiTexture, PRICE_RED, setInkSize } from './uiKit.ts';
 import {
@@ -302,6 +303,15 @@ class RingTooltip {
   get current(): TipContent | null {
     return this.content;
   }
+
+  /** QA (qaText.ts): every line inside the parchment, clear of the gold frame. */
+  qaTexts(): QaTextItem[] {
+    if (!this.root.visible) return [];
+    const b = this.bg.getBounds();
+    const f = Math.min(this.w * 0.05, this.h * 0.1);
+    const box = { x: b.x + f, y: b.y + f * 0.6, w: b.width - f * 2, h: b.height - f * 1.2 };
+    return [this.title, this.role, this.cost, this.hint, ...this.labels].map((text, i) => ({ name: `ring.tip${i}`, text, box }));
+  }
 }
 
 /**
@@ -400,6 +410,11 @@ export class BuildRing {
       });
     }
     this.root.visible = false;
+  }
+
+  /** QA (qaText.ts): the tooltip's lines. */
+  qaTexts(): QaTextItem[] {
+    return this.root.visible ? this.tooltip.qaTexts() : [];
   }
 
   get isOpen(): boolean {

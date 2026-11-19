@@ -31,7 +31,7 @@ export function auditPage(opts) {
     'price-tag': { w: 360, h: 130, safe: [104, 22, 340, 108], zones: { 'pu-tag-ring': [4, 4, 112, 126], 'pu-skill-num': [4, 4, 112, 126] } },
     tooltip: { w: 640, h: 490, safe: [40, 38, 600, 452] },
     'ui-banner': { w: 512, h: 152, safe: [80, 36, 432, 116] },
-    'story-frame': { w: 1600, h: 900, safe: [70, 60, 1530, 840] },
+    'story-frame': { w: 1600, h: 900, safe: [70, 60, 1530, 840], zones: { 'pu-sheet-title': [300, 0, 1300, 160] } },
     'slider-track': { w: 512, h: 64, safe: [0, 0, 512, 64] },
   };
   const OVERLAYS = '.pu-badge, .pu-sheet-close, .pu-dot, .pu-hard-ribbon, .pu-mode-check, .pu-skill-badge, .pu-hero-lvl, .ab2d-key, .pu-key';

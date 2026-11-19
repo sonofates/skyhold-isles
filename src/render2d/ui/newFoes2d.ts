@@ -129,7 +129,10 @@ export function mountNewFoeToast(portrait: (type: EnemyType) => string | null): 
       if (pk === placeKey) return;
       placeKey = pk;
       box.classList.toggle('narrow', slot.w < NARROW_SLOT);
-      const docked = dockCard(box, slot, maxW);
+      // A small slot (phones): the second foe's tip goes first, then the first one's, before the
+      // toast would shrink below a readable size (both stay in the Codex).
+      const tips = Array.from(box.querySelectorAll<HTMLElement>('.pu-newfoe-tip')).reverse();
+      const docked = dockCard(box, slot, maxW, tips, 0.85);
       scale = docked.scale;
       dockedBox = docked.box;
     },
