@@ -1,0 +1,35 @@
+{
+  "element": "net-loft-smoke",
+  "source": "public/art2d/map-i02-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 1311,
+    "y": 552,
+    "width": 128,
+    "height": 72
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    3933,
+    1656,
+    4317,
+    1872
+  ],
+  "startPxPerLayoutPx": 10.0,
+  "startPxPerSourcePx": 3.3333333333333335,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    483,
+    90,
+    714,
+    502
+  ],
+  "featherInwardStartPx": 12
+}

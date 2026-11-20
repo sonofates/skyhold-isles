@@ -1,0 +1,5 @@
+Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork, palette and daylight unchanged. Only the white area of the supplied mask may animate. Hold every black pixel still and ease the motion to zero at the feathered edge.
+
+A steady wick warms the amber centre panes of the small hanging lamp. Let the painted gold brighten gently, hold, and soften twice, with the second rise fainter than the first. Keep every brass crossbar, the dark cap and the glass outline fixed. Keep the change within the panes, at the same warm hue, without casting light onto the mast or water.
+
+Match the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.

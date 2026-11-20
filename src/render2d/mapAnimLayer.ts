@@ -1,0 +1,206 @@
+import { Container, GlProgram, ImageSource, Mesh, MeshGeometry, Shader, VideoSource } from 'pixi.js';
+
+interface AmbientTrack {
+  file: string;
+  mask: string;
+  width: number;
+  height: number;
+  fps: number;
+}
+
+interface AmbientMap extends AmbientTrack {
+  compact?: AmbientTrack;
+  elements: { rect: number[]; cell: number[]; depth: number }[];
+}
+
+// Each file describes one island's color video, feathered mask and layout rectangles.
+const maps = import.meta.glob<AmbientMap>('../data/mapAnim/*.json', { eager: true, import: 'default' });
+
+const vertex = `
+  in vec2 aPosition;
+  in vec2 aUV;
+  uniform mat3 uProjectionMatrix;
+  uniform mat3 uWorldTransformMatrix;
+  uniform mat3 uTransformMatrix;
+  out vec2 vUV;
+  void main() {
+    vUV = aUV;
+    vec3 p = uProjectionMatrix * uWorldTransformMatrix * uTransformMatrix * vec3(aPosition, 1.);
+    gl_Position = vec4(p.xy, 0., 1.);
+  }
+`;
+const fragment = `
+  in vec2 vUV;
+  uniform sampler2D uMovie;
+  uniform sampler2D uMask;
+  uniform vec4 uColor;
+  out vec4 finalColor;
+  void main() {
+    vec3 color = texture(uMovie, vUV).rgb;
+    float alpha = texture(uMask, vUV).r;
+    finalColor = vec4(color * alpha, alpha) * uColor;
+  }
+`;
+
+function islandGeometry(data: AmbientMap): MeshGeometry {
+  const positions = [], uvs = [], indices = [];
+  for (const element of [...data.elements].sort((a, b) => a.depth - b.depth)) {
+    const [x, y, w, h] = element.rect;
+    const [cx, cy, cw, ch] = element.cell;
+    const u = cx / data.width, v = cy / data.height;
+    const r = (cx + cw) / data.width, b = (cy + ch) / data.height;
+    const i = positions.length / 2;
+    positions.push(x, y, x + w, y, x + w, y + h, x, y + h);
+    uvs.push(u, v, r, v, r, b, u, b);
+    indices.push(i, i + 1, i + 2, i, i + 2, i + 3);
+  }
+  return new MeshGeometry({
+    positions: new Float32Array(positions), uvs: new Float32Array(uvs), indices: new Uint32Array(indices),
+  });
+}
+
+/** One decoder, one persistent mesh and one draw for all of an island's moving paint. */
+class AmbientPlayer {
+  private readonly video = document.createElement('video');
+  private readonly image = new Image();
+  private readonly source: VideoSource;
+  private mask?: ImageSource;
+  private mesh?: Mesh<MeshGeometry, Shader>;
+  private readonly world: Container;
+  private readonly data: AmbientMap;
+  readonly track: AmbientTrack;
+  private requested = false;
+  private blocked = false;
+  private failed = false;
+  private lastFrame = -1;
+
+  constructor(world: Container, data: AmbientMap, track: AmbientTrack, base: string) {
+    this.world = world;
+    this.data = data;
+    this.track = track;
+    const video = this.video;
+    video.muted = video.defaultMuted = video.loop = video.playsInline = true;
+    video.preload = 'auto';
+    video.crossOrigin = this.image.crossOrigin = 'anonymous';
+    // The game ticker owns uploads and playback. Pixi must not install a second ticker.
+    this.source = new VideoSource({ resource: video, autoLoad: false, autoPlay: false, width: track.width, height: track.height });
+    video.onloadeddata = video.onplaying = this.showWhenReady;
+    video.onseeked = this.upload;
+    video.onerror = this.image.onerror = this.fail;
+    this.image.onload = this.showWhenReady;
+    this.image.src = base + track.mask;
+    video.src = base + track.file;
+    document.addEventListener('visibilitychange', this.visibility);
+  }
+
+  private showWhenReady = (): void => {
+    if (this.failed || this.mesh || !this.image.naturalWidth || this.video.readyState < 2) return;
+    this.mask = new ImageSource({ resource: this.image });
+    const shader = new Shader({
+      glProgram: GlProgram.from({ vertex, fragment, name: 'ambient-map' }),
+      resources: { uMovie: this.source, uMask: this.mask },
+    });
+    this.mesh = new Mesh({ geometry: islandGeometry(this.data), shader });
+    this.mesh.eventMode = 'none';
+    this.world.addChildAt(this.mesh, 1); // immediately over the map sprite, below all battle layers
+    this.upload();
+  };
+
+  private upload = (): void => {
+    // Ease onto the actual map at both sides of the join. This also closes differences
+    // between the 3x generation source and the particular bake currently under the boats.
+    const fps = this.track.fps;
+    const frame = Math.floor(this.video.currentTime * fps + 0.0001);
+    if (this.mesh && Number.isFinite(this.video.duration)) {
+      const remaining = Math.round(this.video.duration * fps) - 1 - frame;
+      const t = Math.max(0, Math.min(1, frame / (fps * 0.25), remaining / (fps * 0.5)));
+      this.mesh.alpha = t * t * (3 - 2 * t);
+    }
+    this.lastFrame = frame;
+    this.source.update();
+  };
+
+  private visibility = (): void => {
+    if (document.hidden) this.pause();
+  };
+
+  private fail = (): void => {
+    this.failed = true;
+    if (this.mesh) this.mesh.visible = false;
+    this.pause();
+  };
+
+  private pause(): void {
+    this.requested = false;
+    this.video.pause();
+  }
+
+  private play = (): void => {
+    this.blocked = false;
+    if (document.hidden || !this.requested) return;
+    void this.video.play().catch((error: DOMException) => {
+      if (!this.requested || error.name === 'AbortError') return;
+      if (error.name !== 'NotAllowedError') return this.fail();
+      this.blocked = true;
+      window.addEventListener('pointerdown', this.play, { once: true });
+    });
+  };
+
+  update(paused: boolean): void {
+    if (paused || document.hidden) {
+      if (this.requested) this.pause();
+      return;
+    }
+    if (this.failed) return;
+    if (!this.requested) {
+      this.requested = true;
+      if (!this.blocked) this.play();
+    }
+    if (!this.mesh) return;
+    const frame = Math.floor(this.video.currentTime * this.track.fps + 0.0001);
+    if (frame !== this.lastFrame) this.upload();
+  }
+
+  destroy(): void {
+    document.removeEventListener('visibilitychange', this.visibility);
+    window.removeEventListener('pointerdown', this.play);
+    this.video.onplaying = this.video.onloadeddata = this.video.onseeked = this.video.onerror = null;
+    this.image.onload = this.image.onerror = null;
+    this.pause();
+    if (this.mesh) {
+      const { geometry, shader } = this.mesh;
+      this.mesh.destroy();
+      geometry.destroy(true);
+      shader?.destroy();
+    }
+    this.mask?.destroy();
+    this.source.destroy();
+  }
+}
+
+export function mapAnimLayer(world: Container, island: string, base: string) {
+  const data = maps[`../data/mapAnim/${island}.json`];
+  if (!data) return;
+  let player: AmbientPlayer | undefined;
+  const release = (): void => {
+    player?.destroy();
+    player = undefined;
+  };
+  window.addEventListener('pagehide', release);
+  world.once('destroyed', () => {
+    window.removeEventListener('pagehide', release);
+    release();
+  });
+  return {
+    update(enabled: boolean, paused: boolean, smallBake: boolean): void {
+      if (!enabled) {
+        if (player) release();
+        return;
+      }
+      const track = smallBake && data.compact ? data.compact : data;
+      if (player && player.track !== track) release();
+      if (!player && !paused && !document.hidden) player = new AmbientPlayer(world, data, track, base);
+      player?.update(paused);
+    },
+  };
+}

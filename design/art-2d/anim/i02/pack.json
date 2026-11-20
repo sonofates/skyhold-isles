@@ -1,0 +1,44 @@
+{
+  "trestle-current": {
+    "depth": 0,
+    "scale": 2,
+    "opacity": 0.78,
+    "feather": 6
+  },
+  "lifting-span-outflow": {
+    "depth": 0,
+    "scale": 2,
+    "opacity": 0.78,
+    "feather": 6
+  },
+  "estuary-wash": {
+    "depth": 0,
+    "scale": 2,
+    "opacity": 0.78,
+    "feather": 5
+  },
+  "pilot-boat": {
+    "depth": 1,
+    "scale": 2,
+    "opacity": 1,
+    "feather": 1
+  },
+  "fishing-smack": {
+    "depth": 1,
+    "scale": 2,
+    "opacity": 1,
+    "feather": 1
+  },
+  "trestle-banner": {
+    "depth": 2,
+    "scale": 3,
+    "opacity": 1,
+    "feather": 0.7
+  },
+  "net-loft-smoke": {
+    "depth": 2,
+    "scale": 3,
+    "opacity": 0.85,
+    "feather": 3.5
+  }
+}

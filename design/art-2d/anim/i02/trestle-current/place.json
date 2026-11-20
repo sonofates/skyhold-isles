@@ -1,0 +1,35 @@
+{
+  "element": "trestle-current",
+  "source": "public/art2d/map-i02-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 851,
+    "y": 332,
+    "width": 288,
+    "height": 162
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    2553,
+    996,
+    3417,
+    1482
+  ],
+  "startPxPerLayoutPx": 4.444444444444445,
+  "startPxPerSourcePx": 1.4814814814814816,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    415,
+    48,
+    1007,
+    690
+  ],
+  "featherInwardStartPx": 12
+}

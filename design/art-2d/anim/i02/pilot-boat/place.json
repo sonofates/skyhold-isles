@@ -1,0 +1,35 @@
+{
+  "element": "pilot-boat",
+  "source": "public/art2d/map-i02-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 860,
+    "y": 418,
+    "width": 144,
+    "height": 81
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    2580,
+    1254,
+    3012,
+    1497
+  ],
+  "startPxPerLayoutPx": 8.88888888888889,
+  "startPxPerSourcePx": 2.9629629629629632,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    469,
+    131,
+    809,
+    636
+  ],
+  "featherInwardStartPx": 12
+}

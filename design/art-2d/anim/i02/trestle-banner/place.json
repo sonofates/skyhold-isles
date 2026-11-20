@@ -1,0 +1,35 @@
+{
+  "element": "trestle-banner",
+  "source": "public/art2d/map-i02-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 979,
+    "y": 219,
+    "width": 96,
+    "height": 54
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    2937,
+    657,
+    3225,
+    819
+  ],
+  "startPxPerLayoutPx": 13.333333333333334,
+  "startPxPerSourcePx": 4.444444444444445,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    508,
+    260,
+    743,
+    596
+  ],
+  "featherInwardStartPx": 12
+}
