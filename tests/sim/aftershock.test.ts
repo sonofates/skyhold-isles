@@ -4,9 +4,11 @@ import { campaignKit } from '../../scripts/lib/campaignKit.ts';
 import { balanceBuildOrder } from '../../scripts/lib/specializationBuilds.ts';
 import { EventBus } from '../../src/core/eventBus.ts';
 import { BALANCE } from '../../src/data/balance.ts';
+import { DIFFICULTIES } from '../../src/data/difficulty.ts';
 import type { LevelDef } from '../../src/data/levels/types.ts';
 import { I18 } from '../../src/data/levels2d/i18.ts';
 import { LEVEL_L1C } from '../../src/data/levels2d/l1c.ts';
+import { combineRunModifiers } from '../../src/data/runModifiers.ts';
 import { SimReplayPlayer, SimWorld, parseSimReplay, serializeSimReplay } from '../../src/sim/world.ts';
 
 const entrance = { id: 'road', x: 0, z: 0 };
@@ -96,7 +98,13 @@ it.each(['before launch', 'in flight', 'never'] as const)('interrupts a running 
   world.dispose();
 });
 
-it('affords Aftershock on the first Normal clear of Lantern Glassworks', () => {
-  const result = runLevelBalanceSim(I18, 'greedy', balanceBuildOrder(I18, 'greedy'), campaignKit(1_000_000, 47));
+it.each(['normal', 'hard'] as const)('clears Lantern Glassworks with Aftershock on %s', difficulty => {
+  const kit = campaignKit(1_000_000, 47);
+  const profile = { ...kit, modifiers: combineRunModifiers(kit.modifiers, DIFFICULTIES[difficulty].patch) };
+  const result = runLevelBalanceSim(I18, 'greedy', balanceBuildOrder(I18, 'greedy'), profile);
+  const caveAir = I18.waves.findIndex(wave => wave.name === 'Cave Air');
+  const wave = result.waves[caveAir];
+  expect(wave.livesLost).toBe(wave.livesByType.draftwing ?? 0);
+  expect(wave.livesLost).toBeLessThanOrEqual(difficulty === 'hard' ? 0 : 2);
   expect(result).toMatchObject({ outcome: 'won', towerPurchases: ['bellfoundry', 'aftershock'], invalidActions: 0 });
 });

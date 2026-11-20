@@ -882,3 +882,38 @@ TypeScript, lint and the production build passed. Vitest passed 1,442 tests with
 ### Next round
 
 Trace the Hard first-clear kit's wave-five defeat in Lantern Glassworks' “Cave Air.” Count the lives lost to the moths and haulers and check whether an affordable change to the opening build keeps the Bell Foundry purchases and the Normal life target. No requests for Opus this round.
+
+## Round 36 — Cave Air at Lantern Glassworks
+
+### Where the three lives went
+
+Hard started i18 with level-20 Bran, 47 Workshop stars and 53 gold. With the old archer opening, the kit lost six lives in wave one, six in wave two and seven in wave four. In Cave Air, two Slipstream Moths escaped at 9.15 and 9.35 seconds. The first Cloud Hauler died at 16.35 seconds and dropped two raiders. One reached the keep at 17.82 seconds and took the last life. Neither hauler reached the keep.
+
+### Opening purchases
+
+The script now saves for barracks on plot 13, then buys the entrance cannon on plot 0. Hard could afford the barracks 13.43 seconds into wave one and the cannon between waves. The former barracks site on plot 19 now holds the strongest-targeting ballista. The same ten towers and their upgrades fit the original budget.
+
+Hard entered Cave Air with all 22 lives, 101 gold and a tier-II Tesla. All eight moths died by 7.95 seconds. At eight seconds the kit bought the ballista. The haulers fell at 10.40 and 16.00 seconds, and all four dropped raiders died by 22.12 seconds. Normal lost two lives to moths and killed both haulers and their raiders. The campaign regression checks those wave outcomes and the Bell Foundry and Aftershock purchases on both difficulties.
+
+The mortar on plot 11 now targets the closest enemy. With first targeting, Hard cleared at the authored HP but lost the finale at −1.5% HP. Closest targeting held at both neighboring settings. On authored Hard, the kit bought Bell Foundry and Aftershock on wave eleven, at 14.50 and 34.77 seconds. Normal finished at 8/22 and two stars, inside its 6–11 life target.
+
+| Enemy HP relative to each difficulty | −3% | −1.5% | Authored | +1.5% | +3% |
+|---|---:|---:|---:|---:|---:|
+| Normal lives remaining | 21 | 12 | 8 | 16 | 13 |
+| Hard result | Lost, wave 9 | Won, 8 lives | Won, 4 lives | Won, 10 lives | Lost, wave 9 |
+
+Cave Air cost zero lives in all five Hard runs. At both outer settings, Kilnbacks escaped during Furnace Doors and Ringing Clay.
+
+### Browser verification
+
+Replayed the Hard first-clear commands from the start in the production game. Both viewport captures matched the simulator’s state hash at tick 12,006, 9.30 seconds into Cave Air. The six towers are visible, with the ballista inside the return bend and the barracks beside Bran on the opposite road. Both haulers are still airborne. Checked their health bars and both tower placements enlarged. [Desktop EN](../../design/art-2d/chapter2/polish/i18-cave-air.jpg) · [Landscape phone TR](../../design/art-2d/chapter2/polish/i18-cave-air-phone.jpg)
+
+### Campaign gates
+
+All 41 realistic-kit balance checks and all eight difficulty verdicts passed. Easy and Normal cleared 25/25 islands. Hard cleared 14/17 in chapter one and 4/8 in chapter two. Hard i09 finished at 12/22 and i24 at 2/22. The i18 towers-only Easy run fell from 23/25 to 17/25 lives. The other 24 islands’ difficulty rows matched round 35. The 24,217-byte L1–L16 report matched the round-one baseline byte for byte.
+
+TypeScript, lint and the production build passed. Vitest passed 1,443 tests with 11 skipped. Vite reported its existing chunk-size and dynamic-import warnings.
+
+### Next round
+
+Trace the two Cloud Haulers in Lanternseed Fig’s “Rope Ladder.” At each kill, check which road receives the dropped raiders, how far they have to walk and whether the visible drop points match the actual landings. No requests for Opus this round.
