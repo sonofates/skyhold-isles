@@ -91,7 +91,7 @@
   position: absolute;
   left: calc(var(--s) * -0.3);
   bottom: calc(var(--s) * -0.25);
-  --mark: calc(var(--s) * 1.25);
+  --mark: calc(var(--s) * 1.45);
 }
 
 .pu-wave-elite {

@@ -11,7 +11,17 @@
 5. Accessibility (colour-blind cues, UI scale, text size) — DONE (round 1)
 6. Juice + feel pass — DONE (round 1): boot/veil transitions, level-up fanfare, wave-start ease
    (press feedback + star reveal already existed)
-7. uiaudit + hudCheck after each change; shots into docs/overnight2/opus-shots/ — ongoing
+7. uiaudit + hudCheck after each change; shots into docs/overnight2/opus-shots/ — DONE for round 1:
+   full uiaudit on a frozen build (468 screens = 39 × 6 sizes × EN/TR): **0 problems** (11 screenshot
+   timeouts at load ~28 re-run clean: uiaudit-report-rerun.txt + brief-modes alone). Report
+   `opus-shots/uiaudit-report.txt`, shots `opus-shots/audit/` (TR/EN, 2000x991 + 844x390).
+
+## Next ideas (backlog done — quality passes)
+- Swap in Codex's title paintings when they land (keys in Requests); re-shoot the title.
+- Wave-start ease / boot fade / veil: only checked by code + unit tests, not filmed (headless frames
+  are too slow to judge motion) — worth a look on a real device.
+- Pad: in-battle tooltips for ring tokens appear via synthetic hover (works); a controller glyph set
+  (A/B/X/Y icons) instead of letters in Settings → Controls would look nicer.
 
 ## Done
 - **Skill tree fit** (round 1). Was cut by 133 px at 2000x991, 183 px on 844x390.
