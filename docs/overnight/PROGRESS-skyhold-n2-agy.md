@@ -116,7 +116,7 @@
     - Replaced `loadProgress2D()`'s destructive `pendingAutoHydrated2DByAdapter.delete()` with `postHydrationStarsRefs` (`WeakSet<readonly number[]>`), keeping multiple shallow and deep pre-hydration clones protected even after read-only `exportSaveCode2D()` / `loadProgress2D()` calls while preserving authoritative post-hydration Workshop Refund / Hero Respec.
     - Extended `normalizeProgressForAchievements()` (`achievements.ts`, zero-alloc fast-path on clean saves) to sanitize missing/non-finite arrays and `daily.streak > daily.bestStreak` (`FEAT_STEADY_WINDS` ↔ `DAILY_STREAK_*`, `FEAT_VETERAN`), guarded `steam:get-status` with `isTrustedIpcSender(event)` in `desktop/main.cjs`, rebuilt `release/Skyhold Isles-1.0.0.AppImage`, and re-verified Xvfb smoke.
 
-- [x] **13. Post-Backlog Deep Audit — Round 8 (`src/sim/{heroSystem,soldierSystem,abilitySystem}.ts`, `src/platform/{storage,saveCode,cloudSync,gameSession}.ts`, `src/render2d/ui/progress2d.ts`, `desktop/{main,preload}.cjs`, `tests/**`)**
+- [x] **13. Post-Backlog Deep Audit — Round 8 (`src/sim/{heroSystem,soldierSystem,abilitySystem}.ts`, `src/platform/{storage,saveCode,cloudSync,gameSession}.ts`, `src/render2d/ui/progress2d.ts`, `desktop/{main,preload}.cjs`, `tests/**`)** — commit `78ca943`
   - **Per-`SimWorld` Scratch Isolation & Mira `fireRing`/`wispBurst` Re-Entrancy Fix (`heroSystem.ts`, `soldierSystem.ts`, `abilitySystem.ts`, `tests/sim/qaSweepN2.test.ts`):**
     - Moved cross-emit / cross-tick scratch arrays (`prevHeroBlockedIdx`, `prevHeroBlockedUid`, `prevTotalBlocked`, `skillCandidates0/1`, `fireRingCandidates0/1`, `fireRingTickCandidates`, `periodicCandidates`, `strikeCandidates`, `extraHoldIndices`, `hitSets`, `resolvedCastTargets` in `HeroSystem`; `blockedList`, `prevBlocked`, `prevBlockedUid`, `stepBarracksIds`, `sweepSoldiers` in `SoldierSystem`; `meteorCandidates` in `AbilitySystem`) from module singletons onto system instances (allocated once at construction, **zero per-tick allocations**), preventing auxiliary `SimWorld` ticks/disposals inside `EventBus` listeners from corrupting active ticks and preventing Mira's `wispFireRing` capstone from clobbering slot-0 `fireRing` candidates.
   - **Single-Pass Zero-Regex JSON Repair for Trailing Garbage & Damaged Brackets (`storage.ts`, `tests/platform/saveRobustnessV2.test.ts`):**
@@ -126,6 +126,15 @@
     - Added `migrateProgressForMerge()` (`saveCode.ts`) so 3D `recoverProgressSave()`, `hydrateProgressFromCloud()`, and `GameSession.importSaveCode()` preserve legitimate `workshop` and `selectedHero` candidates from 25-island backups when combined stars/clears afford/unlock them (while still rejecting cheated saves).
   - **Desktop IPC & Preload Listener Hardening (`desktop/{main,preload}.cjs`):**
     - Guarded `steam:overlay-changed` iteration in `desktop/preload.cjs` against mid-callback subscribe/unsubscribe, rejected NUL-byte paths (`resolveDistFile`), empty-string cloud writes (`steam:cloud-write`), and non-string `readFile()` returns (`steam:cloud-read`) in `desktop/main.cjs`, rebuilt `release/Skyhold Isles-1.0.0.AppImage`, and re-verified Xvfb smoke.
+
+- [x] **14. Post-Backlog Deep Audit — Round 9 (`src/sim/{heroSystem,soldierSystem,world}.ts`, `src/platform/{platform,cloudSync,gameSession}.ts`, `src/render2d/ui/progress2d.ts`, `desktop/{main,preload}.cjs`, `tests/**`)**
+  - **Steam Cloud 3-Way Respec+Branch-Switch & Refund+Rebuy Preservation (`progress2d.ts`, `cloudSync.ts`, `gameSession.ts`, `tests/platform/steamAdapter.test.ts`):**
+    - Fixed `foldPendingCloudThreeWay2D()` (`progress2d.ts`) and 3D `hydrateProgressFromCloud()` / `GameSession` (`cloudSync.ts`, `gameSession.ts`) where checking only `skills.length < base.length` or `workshopStarsSpent < baseSpent` missed same-cost branch switches (e.g. respeccing `'bran_van_1' -> 'bran_iron_1'` or refunding `{ quickcast: 1 } -> { bounty: 1 }` during in-flight cloud hydration), letting lexicographic tie-breaking revert the player's live choice; now detects removed base skill nodes / lowered Workshop ranks per ID and gives live local skill/Workshop additions priority with greedy remote top-ups when union builds exceed budget.
+  - **Complete Elimination of Remaining Module-Singleton Entity/Index Scratch Arrays (`heroSystem.ts`, `soldierSystem.ts`, `world.ts`, `tests/sim/qaSweepN2.test.ts`):**
+    - Moved the remaining module-level entity/index arrays (`pickedEnemies`, `pickedTowers`, `queryCandidates`, `pickCandidates`, `holdCandidates`, `cleaveCandidates` in `HeroSystem`; `candidates`, `engageList`, `spreadOrder`, `extraHoldOrder` in `SoldierSystem`; `hoverCandidates` in `SimWorld`) onto system instances (allocated once at construction, **zero per-tick allocations**), preventing cross-world `onCommandRecorded` callbacks during Wren's `huntersMark` or Tobb's `overhaul` from clobbering target lists, and cleared transient soldier buffs before `applyRallyAura` on `rallyBanner` cast.
+  - **Cloud JSON Payload Validation & Full 2D Onboarding Reset (`platform.ts`, `progress2d.ts`, `desktop/{main,preload}.cjs`):**
+    - Added `isValidCloudJson()` in `platform.ts` (`cloudSave.write`), strict `typeof === 'string'` IPC parameter checks in `desktop/preload.cjs` (preventing `String({}) -> "[object Object]"` coercion), and JSON object/array verification in `desktop/main.cjs` (`steam:cloud-write`) so non-JSON or truncated payloads can never overwrite local mirrors or remote Steam Cloud files.
+    - Updated `resetProgress2D()` (`progress2d.ts`) to clear `skyhold2d_coach_v1` and `skyhold2d_foes_seen_v1` alongside `STORY_SEEN_KEY`, rebuilt `release/Skyhold Isles-1.0.0.AppImage`, and re-verified Xvfb smoke + `qa:bot` (`656/656` passed).
 
 ---
 
@@ -152,7 +161,7 @@
 
 ## Problems / Known Issues
 
-- None blocking in owned area (`sim:balance` 41/41 byte-identical, `qa:bot` 656/656 + 58/58 2D achievement gate passing, 1,383 unit tests passing, all Hard Boss low-end benches `<= 66.8 ms`, Linux AppImage builds & passes Xvfb smoke with `secureContext: true`).
+- None blocking in owned area (`sim:balance` 41/41 byte-identical, `qa:bot` 656/656 + 58/58 2D achievement gate passing, 1,384 unit tests passing, all Hard Boss low-end benches `<= 66.8 ms`, Linux AppImage builds & passes Xvfb smoke with `secureContext: true`).
 
 ---
 

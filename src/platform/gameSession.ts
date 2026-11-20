@@ -75,7 +75,9 @@ import type { EndlessResultView } from '../ui/gameModals.ts';
 import { affordableUpgradeCount } from '../ui/workshop.ts';
 import {
   buyRank,
+  rankOf,
   sanitizeRanks,
+  WORKSHOP_UPGRADES,
   workshopModifiers,
   workshopStarsSpent,
   type WorkshopUpgradeId,
@@ -199,12 +201,37 @@ export class GameSession {
         .then(({ merged, updated }) => {
           if (!updated || this.disposed || this.resetGen !== bootResetGen) return;
           const freshMerged = mergeProgress(this.progress, merged, LEVELS.length);
-          if (
+          const curWorkshop = sanitizeRanks(this.progress.workshop);
+          const refundedWorkshop =
             this.workshopRefundedDuringHydrate ||
-            workshopStarsSpent(this.progress.workshop) < workshopStarsSpent(bootWorkshop)
-          ) {
-            freshMerged.workshop = sanitizeRanks(this.progress.workshop);
+            WORKSHOP_UPGRADES.some((def) => rankOf(curWorkshop, def.id) < rankOf(bootWorkshop, def.id));
+          const addedWorkshop =
+            !refundedWorkshop &&
+            WORKSHOP_UPGRADES.some((def) => rankOf(curWorkshop, def.id) > rankOf(bootWorkshop, def.id));
+          if (refundedWorkshop) {
+            freshMerged.workshop = curWorkshop;
             if (starWallet(freshMerged).available < 0) freshMerged.workshop = {};
+          } else if (addedWorkshop) {
+            const lostCurRank = WORKSHOP_UPGRADES.some(
+              (def) => rankOf(freshMerged.workshop, def.id) < rankOf(curWorkshop, def.id),
+            );
+            const totalEarned = starWallet(freshMerged).earned;
+            if (lostCurRank && workshopStarsSpent(curWorkshop) <= totalEarned) {
+              const topped: Record<string, number> = { ...curWorkshop };
+              let remaining = totalEarned - workshopStarsSpent(topped);
+              for (const def of WORKSHOP_UPGRADES) {
+                let cur = rankOf(topped, def.id);
+                const want = rankOf(merged.workshop, def.id);
+                while (cur < want) {
+                  const stepCost = def.costs[cur];
+                  if (stepCost === undefined || stepCost > remaining) break;
+                  cur++;
+                  topped[def.id] = cur;
+                  remaining -= stepCost;
+                }
+              }
+              freshMerged.workshop = sanitizeRanks(topped);
+            }
           }
           this.workshopRefundedDuringHydrate = false;
           const inMemoryDiverged = JSON.stringify(freshMerged) !== JSON.stringify(merged);

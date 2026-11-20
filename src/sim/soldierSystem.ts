@@ -79,10 +79,6 @@ export interface RoadPoint {
 const _v: Vec3 = { x: 0, y: 0, z: 0 };
 const _baseVec: Vec3 = { x: 0, y: 0, z: 0 };
 const _rallyRoadPt: RoadPoint = { x: 0, z: 0, yaw: 0 };
-const _candidates: number[] = [];
-const _engageList: number[] = [];
-const _spreadOrder: number[] = [];
-const _extraHoldOrder: number[] = [];
 
 /** Golden-ratio conjugate: spreads consecutive integer uids evenly across [-1, 1] with zero RNG. */
 const GOLDEN_CONJUGATE = 0.6180339887498949;
@@ -161,6 +157,10 @@ export class SoldierSystem {
   private readonly prevBlockedUid: number[] = [];
   private readonly stepBarracksIds: number[] = [];
   private readonly sweepSoldiers: SoldierEntity[] = [];
+  private readonly candidates: number[] = [];
+  private readonly engageList: number[] = [];
+  private readonly spreadOrder: number[] = [];
+  private readonly extraHoldOrder: number[] = [];
 
   private readonly pool: ObjectPool<EnemyEntity>;
   private readonly spatialHash: SpatialHashGrid;
@@ -731,23 +731,25 @@ export class SoldierSystem {
     }
 
     // 3. Free soldiers claim enemies near their rally point; spare ones peel off to new arrivals.
+    const candidates = this.candidates;
+    const engageList = this.engageList;
     for (let bi = 0; bi < this.barracks.length; bi++) {
       const b = this.barracks[bi];
       let anyAlive = false;
       for (let i = 0; i < b.squad.length && !anyAlive; i++) anyAlive = b.squad[i].state !== 'dead';
       if (!anyAlive) continue;
-      this.spatialHash.query(b.rallyX, b.rallyZ, R.engageRadius, _candidates);
-      _engageList.length = 0;
+      this.spatialHash.query(b.rallyX, b.rallyZ, R.engageRadius, candidates);
+      engageList.length = 0;
       const rSq = R.engageRadius * R.engageRadius;
-      for (let k = 0; k < _candidates.length; k++) {
-        const e = pool.items[_candidates[k]];
+      for (let k = 0; k < candidates.length; k++) {
+        const e = pool.items[candidates[k]];
         if (!this.isHoldable(e)) continue;
         const dx = e.x - b.rallyX;
         const dz = e.z - b.rallyZ;
         if (dx * dx + dz * dz > rSq) continue;
-        _engageList.push(e.poolIndex);
+        engageList.push(e.poolIndex);
       }
-      if (_engageList.length === 0) continue;
+      if (engageList.length === 0) continue;
       for (let i = 0; i < b.squad.length; i++) {
         const s = b.squad[i];
         if (!this.isFree(b, s)) continue;
@@ -1049,24 +1051,26 @@ export class SoldierSystem {
   private applyExtraHolds(s: SoldierEntity, soldierId: number, primary: EnemyEntity): void {
     const maxExtra = s.holdCap - 1;
     if (maxExtra <= 0) return;
+    const candidates = this.candidates;
+    const extraHoldOrder = this.extraHoldOrder;
     const reach = Math.max(SOLDIER_RULES.engageRadius, (s.holdCap + 1) * BLOCK_QUEUE_SPACING + 0.4);
-    this.spatialHash.query(primary.x, primary.z, reach, _candidates);
-    _extraHoldOrder.length = 0;
+    this.spatialHash.query(primary.x, primary.z, reach, candidates);
+    extraHoldOrder.length = 0;
     let alreadyHeldBehind = 0;
-    for (let k = 0; k < _candidates.length; k++) {
-      const cand = this.pool.items[_candidates[k]];
+    for (let k = 0; k < candidates.length; k++) {
+      const cand = this.pool.items[candidates[k]];
       if (cand === primary || cand.lane !== primary.lane || !this.isHoldable(cand)) continue;
       if (cand.dist > primary.dist + 0.35) continue;
       if (cand.blockers >= ENEMY_MELEE[cand.type].holdCost) {
         if (primary.dist - cand.dist <= BLOCK_CLUSTER_GAP) alreadyHeldBehind++;
         continue;
       }
-      _extraHoldOrder.push(cand.poolIndex);
+      extraHoldOrder.push(cand.poolIndex);
     }
-    _extraHoldOrder.sort(this.byExtraHoldOrder);
+    extraHoldOrder.sort(this.byExtraHoldOrder);
     let added = 0;
-    for (let k = 0; k < _extraHoldOrder.length && added < maxExtra; k++) {
-      const cand = this.pool.items[_extraHoldOrder[k]];
+    for (let k = 0; k < extraHoldOrder.length && added < maxExtra; k++) {
+      const cand = this.pool.items[extraHoldOrder[k]];
       const queueStopDist = primary.dist - (alreadyHeldBehind + added + 1) * BLOCK_QUEUE_SPACING;
       if (cand.dist < queueStopDist - 0.12) continue;
       if (cand.blockers === 0) {
@@ -1087,25 +1091,26 @@ export class SoldierSystem {
    */
   private applyBlockedSpread(dt: number): boolean {
     const pool = this.pool;
-    _spreadOrder.length = 0;
+    const spreadOrder = this.spreadOrder;
+    spreadOrder.length = 0;
     for (let k = 0; k < this.blockedList.length; k++) {
       const idx = this.blockedList[k];
       const e = pool.items[idx];
       if (e.active && e.hp > 0 && e.blockers > 0 && !e.flying && !e.burrowed) {
-        _spreadOrder.push(idx);
+        spreadOrder.push(idx);
       }
     }
 
-    if (_spreadOrder.length > 1) {
-      _spreadOrder.sort(this.bySpreadOrder);
+    if (spreadOrder.length > 1) {
+      spreadOrder.sort(this.bySpreadOrder);
     }
 
     let clusterLane = -1;
     let frontDist = 0;
     let prevDist = 0;
     let rank = 0;
-    for (let k = 0; k < _spreadOrder.length; k++) {
-      const idx = _spreadOrder[k];
+    for (let k = 0; k < spreadOrder.length; k++) {
+      const idx = spreadOrder[k];
       const e = pool.items[idx];
       if (k === 0 || e.lane !== clusterLane || prevDist - e.dist > BLOCK_CLUSTER_GAP) {
         clusterLane = e.lane;
@@ -1186,10 +1191,11 @@ export class SoldierSystem {
    * holdCost), else (unless `needyOnly`) one with room for another soldier.
    */
   private pickTarget(needyOnly: boolean): EnemyEntity | null {
+    const engageList = this.engageList;
     let best: EnemyEntity | null = null;
     let bestNeeds = false;
-    for (let k = 0; k < _engageList.length; k++) {
-      const e = this.pool.items[_engageList[k]];
+    for (let k = 0; k < engageList.length; k++) {
+      const e = this.pool.items[engageList[k]];
       const c = this.claims[e.poolIndex];
       const needs = c < ENEMY_MELEE[e.type].holdCost;
       if (!needs && (needyOnly || c >= SOLDIER_RULES.maxPerEnemy)) continue;
@@ -1340,11 +1346,12 @@ export class SoldierSystem {
   /** T3 Cleave: nearest other living ground enemy beside the struck one. */
   private cleaveTarget(primary: EnemyEntity): EnemyEntity | null {
     const r = SOLDIER_RULES.cleaveRadius;
-    this.spatialHash.query(primary.x, primary.z, r, _candidates);
+    const candidates = this.candidates;
+    this.spatialHash.query(primary.x, primary.z, r, candidates);
     let best: EnemyEntity | null = null;
     let bestSq = r * r;
-    for (let k = 0; k < _candidates.length; k++) {
-      const e = this.pool.items[_candidates[k]];
+    for (let k = 0; k < candidates.length; k++) {
+      const e = this.pool.items[candidates[k]];
       if (e === primary || !e.active || e.hp <= 0 || e.flying || e.burrowed) continue;
       const dx = e.x - primary.x;
       const dz = e.z - primary.z;

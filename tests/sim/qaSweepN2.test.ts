@@ -382,5 +382,74 @@ describe('Overnight N2 QA Sweep: Difficulty × 25 Islands, Rally Respawn, Replay
     expect(e2.hp).toBeLessThan(hp2Before);
     expect(miraWorld.heroSystem.fireRings.length).toBe(2);
     miraWorld.dispose();
+
+    // Cross-world onCommandRecorded re-entrancy during Wren huntersMark & Tobb overhaul target selection:
+    const wrenA = new SimWorld(level, new EventBus(), {
+      heroId: 'wren',
+      heroLevel: 20,
+      heroSkills: defaultLevel20Skills('wren'),
+      seed: 101,
+      recordCommands: true,
+    });
+    const wrenB = new SimWorld(level, new EventBus(), {
+      heroId: 'wren',
+      heroLevel: 20,
+      heroSkills: defaultLevel20Skills('wren'),
+      seed: 202,
+    });
+    const fa = wrenA.enemySystem.spawnEnemy('brute', 3, false, 0)!;
+    fa.x = wrenA.hero!.x + 0.5;
+    fa.z = wrenA.hero!.z;
+    wrenA.spatialHash.clear();
+    wrenA.spatialHash.insert(fa.poolIndex, fa.x, fa.z);
+
+    const fb = wrenB.enemySystem.spawnEnemy('grunt', 1, false, 0)!;
+    fb.x = wrenB.hero!.x + 0.5;
+    fb.z = wrenB.hero!.z;
+    wrenB.spatialHash.clear();
+    wrenB.spatialHash.insert(fb.poolIndex, fb.x, fb.z);
+
+    wrenA.onCommandRecorded = () => {
+      // Casts huntersMark on wrenB mid-execution of wrenA.castHeroSkill(1) (right inside commitSkillCooldown)!
+      wrenB.castHeroSkill(1, fb.x, fb.z);
+    };
+    expect(wrenA.castHeroSkill(1, fa.x, fa.z)).toBe(true);
+    expect(fa.markTimer).toBeGreaterThan(0);
+    expect(fb.markTimer).toBeGreaterThan(0);
+    wrenA.dispose();
+    wrenB.dispose();
+
+    const tobbA = new SimWorld(level, new EventBus(), {
+      heroId: 'tobb',
+      heroLevel: 20,
+      heroSkills: defaultLevel20Skills('tobb'),
+      seed: 303,
+      recordCommands: true,
+    });
+    const tobbB = new SimWorld(level, new EventBus(), {
+      heroId: 'tobb',
+      heroLevel: 20,
+      heroSkills: defaultLevel20Skills('tobb'),
+      seed: 404,
+    });
+    tobbA.gold = 1000;
+    tobbB.gold = 1000;
+    const twA = tobbA.placeTowerOnPlot(0, 'archer')!;
+    const twB = tobbB.placeTowerOnPlot(0, 'cannon')!;
+    twA.stunTimer = 3.0;
+    tobbA.hero!.x = twA.x;
+    tobbA.hero!.z = twA.z;
+    tobbB.hero!.x = twB.x;
+    tobbB.hero!.z = twB.z;
+
+    tobbA.onCommandRecorded = () => {
+      tobbB.castHeroSkill(1, twB.x, twB.z);
+    };
+    expect(tobbA.castHeroSkill(1, twA.x, twA.z)).toBe(true);
+    expect(twA.stunTimer).toBe(0);
+    expect(twA.overhaulTimer ?? 0).toBeGreaterThan(0);
+    expect(twB.overhaulTimer ?? 0).toBeGreaterThan(0);
+    tobbA.dispose();
+    tobbB.dispose();
   });
 });

@@ -91,8 +91,6 @@ function isValidTargetingMode(val: unknown): val is TargetingMode {
   return typeof val === 'string' && (VALID_TARGETING_MODES as readonly string[]).includes(val);
 }
 
-const _hoverCandidates: number[] = [];
-
 export function computeSellRefund(totalInvested: number): number {
   return Math.round(totalInvested * BALANCE.sellRefundRatio);
 }
@@ -155,6 +153,7 @@ export class SimWorld {
   private tickAbortGen = 0;
   private poolClearGen = 0;
   private readonly commandLog: StampedSimCommand[] = [];
+  private readonly hoverCandidates: number[] = [];
   private readonly abilityStateCache: Partial<Record<AbilityId, AbilityRuntimeState>> = {};
   private abilitiesListCache: readonly [AbilityRuntimeState, AbilityRuntimeState] | null = null;
 
@@ -1059,10 +1058,11 @@ export class SimWorld {
   ): EnemyEntity | null {
     let best: EnemyEntity | null = null;
     let bestDistSq = Infinity;
+    const hoverCandidates = this.hoverCandidates;
 
-    this.spatialHash.query(flyerHitX, flyerHitZ, 1.4, _hoverCandidates);
-    for (let i = 0; i < _hoverCandidates.length; i++) {
-      const e = this.enemyPool.items[_hoverCandidates[i]];
+    this.spatialHash.query(flyerHitX, flyerHitZ, 1.4, hoverCandidates);
+    for (let i = 0; i < hoverCandidates.length; i++) {
+      const e = this.enemyPool.items[hoverCandidates[i]];
       if (!e.active || e.hp <= 0 || !e.flying) continue;
       const dx = e.x - flyerHitX;
       const dz = e.z - flyerHitZ;
@@ -1075,9 +1075,9 @@ export class SimWorld {
     }
     if (best) return best;
 
-    this.spatialHash.query(groundHitX, groundHitZ, 1.4, _hoverCandidates);
-    for (let i = 0; i < _hoverCandidates.length; i++) {
-      const e = this.enemyPool.items[_hoverCandidates[i]];
+    this.spatialHash.query(groundHitX, groundHitZ, 1.4, hoverCandidates);
+    for (let i = 0; i < hoverCandidates.length; i++) {
+      const e = this.enemyPool.items[hoverCandidates[i]];
       if (!e.active || e.hp <= 0 || e.flying || e.burrowed) continue;
       const dx = e.x - groundHitX;
       const dz = e.z - groundHitZ;

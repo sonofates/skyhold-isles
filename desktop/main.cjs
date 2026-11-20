@@ -225,6 +225,12 @@ ipcMain.handle('steam:cloud-write', async (event, rawSlot, rawJson) => {
   ) {
     return false;
   }
+  try {
+    const parsed = JSON.parse(rawJson);
+    if (!parsed || typeof parsed !== 'object') return false;
+  } catch {
+    return false;
+  }
   const fileName = `skyhold_${slot}.json`;
   try {
     if (!steamClient.cloud.isEnabledForAccount() || !steamClient.cloud.isEnabledForApp()) {

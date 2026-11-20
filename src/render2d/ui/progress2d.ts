@@ -21,8 +21,16 @@ import {
   starsAwarded,
   type DifficultyId,
 } from '../../data/difficulty.ts';
-import { HERO_IDS, isHeroId } from '../../data/heroes.ts';
-import { sanitizeRanks, workshopStarsSpent } from '../../data/workshop.ts';
+import {
+  areHeroNodePrerequisitesMet,
+  countHeroSkillPointsSpent,
+  getHeroSkillNode,
+  HERO_IDS,
+  heroLevelFromXp,
+  heroSkillPointsForLevel,
+  isHeroId,
+} from '../../data/heroes.ts';
+import { rankOf, sanitizeRanks, WORKSHOP_UPGRADES, workshopStarsSpent } from '../../data/workshop.ts';
 import { LEVELS_2D } from '../../data/levels2d/index.ts';
 import type { LevelDef } from '../../data/levels/types.ts';
 import { applyEndlessRecord, applyWin, isIslandMastered, starWallet, type WinRecord } from '../../game/progression.ts';
@@ -62,6 +70,8 @@ import {
 export const PROGRESS_2D_KEY = 'skyhold_isles_progress2d_v1';
 export const CLOUD_PROGRESS_2D_SLOT = 'progress2d';
 export const STORY_SEEN_KEY = 'skyhold_isles_story2d_seen_v1';
+const COACH_2D_KEY = 'skyhold2d_coach_v1';
+const FOES_SEEN_2D_KEY = 'skyhold2d_foes_seen_v1';
 export const PROGRESS_2D_RESET_BACKUP_KEY = 'skyhold_isles_progress2d_reset_backup';
 export const PROGRESS_2D_IMPORT_BACKUP_KEY = 'skyhold_isles_progress2d_import_backup';
 export const PROGRESS_2D_CORRUPT_BACKUP_KEY = 'skyhold_isles_progress2d_corrupt_backup';
@@ -311,24 +321,79 @@ function loadLocalProgress2DInternal(levels: readonly LevelDef[]): ProgressData 
   }
 }
 
+function topUpWorkshopRanks2D(
+  base: Readonly<Record<string, number>>,
+  extra: Readonly<Record<string, number>>,
+  totalEarned: number,
+): Record<string, number> {
+  const topped: Record<string, number> = { ...sanitizeRanks(base) };
+  let remaining = totalEarned - workshopStarsSpent(topped);
+  if (remaining < 0) return {};
+  for (const def of WORKSHOP_UPGRADES) {
+    let cur = rankOf(topped, def.id);
+    const want = rankOf(extra, def.id);
+    while (cur < want) {
+      const stepCost = def.costs[cur];
+      if (stepCost === undefined || stepCost > remaining) break;
+      cur++;
+      topped[def.id] = cur;
+      remaining -= stepCost;
+    }
+  }
+  return sanitizeRanks(topped);
+}
+
+function topUpHeroSkills2D(
+  heroId: HeroId,
+  oursSkills: readonly string[],
+  theirsSkills: readonly string[],
+  budget: number,
+): string[] {
+  const out = [...oursSkills];
+  let spent = countHeroSkillPointsSpent(heroId, out);
+  if (spent > budget) return [];
+  for (let i = 0; i < theirsSkills.length; i++) {
+    const sid = theirsSkills[i];
+    if (out.includes(sid)) continue;
+    const node = getHeroSkillNode(heroId, sid);
+    if (!node || spent + node.cost > budget) continue;
+    if (!areHeroNodePrerequisitesMet(node, out)) continue;
+    out.push(sid);
+    spent += node.cost;
+  }
+  return out;
+}
+
 function foldPendingCloudThreeWay2D(
   target: ProgressData,
   base: ProgressData,
   hydrated: ProgressData,
   levels: readonly Pick<LevelDef, 'id'>[],
 ): void {
-  const oursRefundedWorkshop =
-    workshopStarsSpent(target.workshop) < workshopStarsSpent(base.workshop);
+  const baseWorkshop = sanitizeRanks(base.workshop);
+  const oursWorkshop = sanitizeRanks(target.workshop);
+  const oursRefundedWorkshop = WORKSHOP_UPGRADES.some(
+    (def) => rankOf(oursWorkshop, def.id) < rankOf(baseWorkshop, def.id),
+  );
+  const oursAddedWorkshop =
+    !oursRefundedWorkshop &&
+    WORKSHOP_UPGRADES.some((def) => rankOf(oursWorkshop, def.id) > rankOf(baseWorkshop, def.id));
+
   const baseHeroes = migrateHeroSave(base.heroes, base, levels);
   const oursHeroes = migrateHeroSave(target.heroes, target, levels);
   const theirsHeroes = hydrated.heroes;
   const oursChangedSelectedHero =
     target.heroes !== undefined && oursHeroes.selectedHero !== baseHeroes.selectedHero;
   const respeccedHeroes = new Set<HeroId>();
+  const addedSkillHeroes = new Set<HeroId>();
   for (let i = 0; i < HERO_IDS.length; i++) {
     const id = HERO_IDS[i];
-    if ((oursHeroes.roster[id]?.skills.length ?? 0) < (baseHeroes.roster[id]?.skills.length ?? 0)) {
+    const baseSkills = baseHeroes.roster[id]?.skills ?? [];
+    const oursSkills = oursHeroes.roster[id]?.skills ?? [];
+    if (baseSkills.some((s) => !oursSkills.includes(s))) {
       respeccedHeroes.add(id);
+    } else if (oursSkills.some((s) => !baseSkills.includes(s))) {
+      addedSkillHeroes.add(id);
     }
   }
 
@@ -339,8 +404,16 @@ function foldPendingCloudThreeWay2D(
   );
 
   if (oursRefundedWorkshop) {
-    merged.workshop = sanitizeRanks(target.workshop);
+    merged.workshop = oursWorkshop;
     if (starWallet(merged).available < 0) merged.workshop = {};
+  } else if (oursAddedWorkshop) {
+    const lostOursRank = WORKSHOP_UPGRADES.some(
+      (def) => rankOf(merged.workshop, def.id) < rankOf(oursWorkshop, def.id),
+    );
+    const totalEarned = starWallet(merged).earned;
+    if (lostOursRank && workshopStarsSpent(oursWorkshop) <= totalEarned) {
+      merged.workshop = topUpWorkshopRanks2D(oursWorkshop, hydrated.workshop, totalEarned);
+    }
   }
 
   if (merged.heroes) {
@@ -350,6 +423,20 @@ function foldPendingCloudThreeWay2D(
         xp: cur.xp,
         skills: [...(oursHeroes.roster[id]?.skills ?? [])],
       };
+    }
+    for (const id of addedSkillHeroes) {
+      const cur = merged.heroes.roster[id] ?? { xp: 0, skills: [] };
+      const oursSkills = oursHeroes.roster[id]?.skills ?? [];
+      if (oursSkills.some((s) => !cur.skills.includes(s))) {
+        const budget = heroSkillPointsForLevel(heroLevelFromXp(cur.xp));
+        if (countHeroSkillPointsSpent(id, oursSkills) <= budget) {
+          const theirsSkills = theirsHeroes?.roster[id]?.skills ?? [];
+          merged.heroes.roster[id] = {
+            xp: cur.xp,
+            skills: topUpHeroSkills2D(id, oursSkills, theirsSkills, budget),
+          };
+        }
+      }
     }
     const wantedSelected = oursChangedSelectedHero
       ? oursHeroes.selectedHero
@@ -1184,6 +1271,8 @@ export function resetProgress2D(levels: readonly LevelDef[] = LEVELS_2D): void {
     ls?.removeItem(PROGRESS_2D_KEY);
     ls?.removeItem(LOCAL_CLOUD_2D_MIRROR_KEY);
     ls?.removeItem(STORY_SEEN_KEY);
+    ls?.removeItem(COACH_2D_KEY);
+    ls?.removeItem(FOES_SEEN_2D_KEY);
   } catch {
     // ignore
   }

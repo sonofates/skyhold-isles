@@ -142,12 +142,6 @@ interface PendingVolleyWave extends ReadonlyPendingVolley {
   remainingSec: number;
 }
 
-const _queryCandidates: number[] = [];
-const _pickCandidates: number[] = [];
-const _holdCandidates: number[] = [];
-const _cleaveCandidates: number[] = [];
-const _pickedEnemies: EnemyEntity[] = [];
-const _pickedTowers: TowerEntity[] = [];
 const _samplePt: Vec3 = { x: 0, y: 0, z: 0 };
 const _respawnPtA: Vec3 = { x: 0, y: 0, z: 0 };
 const _respawnPtB: Vec3 = { x: 0, y: 0, z: 0 };
@@ -245,6 +239,12 @@ export class HeroSystem {
   private readonly fireRingTickCandidates: number[] = [];
   private readonly periodicCandidates: number[] = [];
   private readonly strikeCandidates: number[] = [];
+  private readonly queryCandidates: number[] = [];
+  private readonly pickCandidates: number[] = [];
+  private readonly holdCandidates: number[] = [];
+  private readonly cleaveCandidates: number[] = [];
+  private readonly pickedEnemies: EnemyEntity[] = [];
+  private readonly pickedTowers: TowerEntity[] = [];
   private readonly prevHeroBlockedIdx: number[] = [];
   private readonly prevHeroBlockedUid: number[] = [];
   private readonly prevTotalBlocked: number[] = [];
@@ -959,6 +959,7 @@ export class HeroSystem {
       case 'rallyBanner': {
         this.commitSkillCooldown(h, slot, act.cooldownSec, onCommitted);
         h.rallyBannerTimer = act.durationSec;
+        this.clearHeroBuffs();
         this.applyRallyAura(h, 0);
         return true;
       }
@@ -1399,20 +1400,22 @@ export class HeroSystem {
   }
 
   private fillPickedEnemies(cx: number, cz: number, r: number, preferStrongest: boolean): void {
-    this.spatialHash.query(cx, cz, r, _pickCandidates);
+    const pickCandidates = this.pickCandidates;
+    const pickedEnemies = this.pickedEnemies;
+    this.spatialHash.query(cx, cz, r, pickCandidates);
     const rSq = r * r;
-    _pickedEnemies.length = 0;
-    for (let i = 0; i < _pickCandidates.length; i++) {
-      const e = this.pool.items[_pickCandidates[i]];
+    pickedEnemies.length = 0;
+    for (let i = 0; i < pickCandidates.length; i++) {
+      const e = this.pool.items[pickCandidates[i]];
       if (!e.active || e.hp <= 0 || e.burrowed) continue;
-      if ((e.x - cx) ** 2 + (e.z - cz) ** 2 <= rSq) _pickedEnemies.push(e);
+      if ((e.x - cx) ** 2 + (e.z - cz) ** 2 <= rSq) pickedEnemies.push(e);
     }
-    for (let i = 1; i < _pickedEnemies.length; i++) {
-      const cur = _pickedEnemies[i];
+    for (let i = 1; i < pickedEnemies.length; i++) {
+      const cur = pickedEnemies[i];
       const dCur = (cur.x - cx) ** 2 + (cur.z - cz) ** 2;
       let j = i - 1;
       while (j >= 0) {
-        const prev = _pickedEnemies[j];
+        const prev = pickedEnemies[j];
         let cmp: number;
         if (preferStrongest && cur.hp !== prev.hp) {
           cmp = prev.hp - cur.hp;
@@ -1421,10 +1424,10 @@ export class HeroSystem {
           cmp = Math.abs(dCur - dPrev) > 1e-6 ? dCur - dPrev : cur.uid - prev.uid;
         }
         if (cmp >= 0) break;
-        _pickedEnemies[j + 1] = prev;
+        pickedEnemies[j + 1] = prev;
         j--;
       }
-      _pickedEnemies[j + 1] = cur;
+      pickedEnemies[j + 1] = cur;
     }
   }
 
@@ -1438,12 +1441,13 @@ export class HeroSystem {
     count: number,
     preferStrongest: boolean,
   ): readonly EnemyEntity[] {
+    const pickedEnemies = this.pickedEnemies;
     this.fillPickedEnemies(tx, tz, searchRadius, preferStrongest);
-    if (_pickedEnemies.length === 0 && fallbackRange > 0) {
+    if (pickedEnemies.length === 0 && fallbackRange > 0) {
       this.fillPickedEnemies(hx, hz, fallbackRange, preferStrongest);
     }
-    if (_pickedEnemies.length > count) _pickedEnemies.length = count;
-    return _pickedEnemies;
+    if (pickedEnemies.length > count) pickedEnemies.length = count;
+    return pickedEnemies;
   }
 
   private pickTowersNear(
@@ -1455,31 +1459,32 @@ export class HeroSystem {
     maxHeroRange: number,
     count: number,
   ): readonly TowerEntity[] {
-    _pickedTowers.length = 0;
+    const pickedTowers = this.pickedTowers;
+    pickedTowers.length = 0;
     const rSq = maxHeroRange * maxHeroRange;
     for (let i = 0; i < towers.length; i++) {
       const t = towers[i];
       if (TOWER_DEFS[t.type].role === 'support' && t.stunTimer <= 0) continue;
       if ((t.x - hx) ** 2 + (t.z - hz) ** 2 <= rSq) {
-        _pickedTowers.push(t);
+        pickedTowers.push(t);
       }
     }
-    for (let i = 1; i < _pickedTowers.length; i++) {
-      const cur = _pickedTowers[i];
+    for (let i = 1; i < pickedTowers.length; i++) {
+      const cur = pickedTowers[i];
       const dCur = (cur.x - tx) ** 2 + (cur.z - tz) ** 2;
       let j = i - 1;
       while (j >= 0) {
-        const prev = _pickedTowers[j];
+        const prev = pickedTowers[j];
         const dPrev = (prev.x - tx) ** 2 + (prev.z - tz) ** 2;
         const cmp = Math.abs(dCur - dPrev) > 1e-6 ? dCur - dPrev : cur.id - prev.id;
         if (cmp >= 0) break;
-        _pickedTowers[j + 1] = prev;
+        pickedTowers[j + 1] = prev;
         j--;
       }
-      _pickedTowers[j + 1] = cur;
+      pickedTowers[j + 1] = cur;
     }
-    if (_pickedTowers.length > count) _pickedTowers.length = count;
-    return _pickedTowers;
+    if (pickedTowers.length > count) pickedTowers.length = count;
+    return pickedTowers;
   }
 
   private isHoldable(e: EnemyEntity): boolean {
@@ -1736,12 +1741,13 @@ export class HeroSystem {
     range: number,
     hitsFlyers: boolean,
   ): EnemyEntity | null {
-    this.spatialHash.query(cx, cz, range, _queryCandidates);
+    const queryCandidates = this.queryCandidates;
+    this.spatialHash.query(cx, cz, range, queryCandidates);
     const maxRSq = range * range;
     let best: EnemyEntity | null = null;
     let bestScore = -Infinity;
-    for (let i = 0; i < _queryCandidates.length; i++) {
-      const e = this.pool.items[_queryCandidates[i]];
+    for (let i = 0; i < queryCandidates.length; i++) {
+      const e = this.pool.items[queryCandidates[i]];
       if (!e.active || e.hp <= 0 || e.burrowed) continue;
       if (e.flying && !hitsFlyers) continue;
       const dSq = (e.x - cx) ** 2 + (e.z - cz) ** 2;
@@ -1990,12 +1996,13 @@ export class HeroSystem {
     }
 
     if (!target) {
-      this.spatialHash.query(h.postX, h.postZ, HERO_RULES.meleeEngageRadius, _holdCandidates);
+      const holdCandidates = this.holdCandidates;
+      this.spatialHash.query(h.postX, h.postZ, HERO_RULES.meleeEngageRadius, holdCandidates);
       const rSq = HERO_RULES.meleeEngageRadius * HERO_RULES.meleeEngageRadius;
       let best: EnemyEntity | null = null;
       let bestNeeds = false;
-      for (let i = 0; i < _holdCandidates.length; i++) {
-        const e = this.pool.items[_holdCandidates[i]];
+      for (let i = 0; i < holdCandidates.length; i++) {
+        const e = this.pool.items[holdCandidates[i]];
         if (!this.isHoldable(e)) continue;
         if ((e.x - h.postX) ** 2 + (e.z - h.postZ) ** 2 > rSq) continue;
         const needs = e.blockers < ENEMY_MELEE[e.type].holdCost;
@@ -2170,11 +2177,12 @@ export class HeroSystem {
     if (this.abortedStep || h.state !== 'fighting' || budget <= 0) return;
 
     const extraHoldIndices = this.extraHoldIndices;
-    this.spatialHash.query(h.x, h.z, HERO_RULES.meleeEngageRadius, _holdCandidates);
+    const holdCandidates = this.holdCandidates;
+    this.spatialHash.query(h.x, h.z, HERO_RULES.meleeEngageRadius, holdCandidates);
     extraHoldIndices.length = 0;
     const rSq = HERO_RULES.meleeEngageRadius * HERO_RULES.meleeEngageRadius;
-    for (let i = 0; i < _holdCandidates.length; i++) {
-      const idx = _holdCandidates[i];
+    for (let i = 0; i < holdCandidates.length; i++) {
+      const idx = holdCandidates[i];
       const cand = this.pool.items[idx];
       if (cand === primary || !this.isHoldable(cand)) continue;
       if (cand.blockers + cand.heroBlockers >= ENEMY_MELEE[cand.type].holdCost) continue;
@@ -2196,12 +2204,13 @@ export class HeroSystem {
 
   private findCleaveTarget(primary: EnemyEntity): EnemyEntity | null {
     const r = HERO_RULES.cleaveRadius;
-    this.spatialHash.query(primary.x, primary.z, r, _cleaveCandidates);
+    const cleaveCandidates = this.cleaveCandidates;
+    this.spatialHash.query(primary.x, primary.z, r, cleaveCandidates);
     const rSq = r * r;
     let best: EnemyEntity | null = null;
     let bestSq = rSq;
-    for (let i = 0; i < _cleaveCandidates.length; i++) {
-      const e = this.pool.items[_cleaveCandidates[i]];
+    for (let i = 0; i < cleaveCandidates.length; i++) {
+      const e = this.pool.items[cleaveCandidates[i]];
       if (e === primary || !e.active || e.hp <= 0 || e.flying || e.burrowed) continue;
       const dSq = (e.x - primary.x) ** 2 + (e.z - primary.z) ** 2;
       if (dSq < bestSq || (dSq === bestSq && best !== null && e.uid < best.uid)) {
@@ -2289,12 +2298,13 @@ export class HeroSystem {
   }
 
   private findSecondRangedTarget(h: HeroEntity, primary: EnemyEntity): EnemyEntity | null {
-    this.spatialHash.query(primary.x, primary.z, 3.2, _queryCandidates);
+    const queryCandidates = this.queryCandidates;
+    this.spatialHash.query(primary.x, primary.z, 3.2, queryCandidates);
     const maxRSq = h.stats.range * h.stats.range;
     let best: EnemyEntity | null = null;
     let bestSq = Infinity;
-    for (let i = 0; i < _queryCandidates.length; i++) {
-      const e = this.pool.items[_queryCandidates[i]];
+    for (let i = 0; i < queryCandidates.length; i++) {
+      const e = this.pool.items[queryCandidates[i]];
       if (e === primary || !e.active || e.hp <= 0 || e.burrowed) continue;
       if (e.flying && !h.stats.hitsFlyers) continue;
       if ((e.x - h.x) ** 2 + (e.z - h.z) ** 2 > maxRSq) continue;

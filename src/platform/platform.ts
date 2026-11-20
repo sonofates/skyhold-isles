@@ -96,6 +96,7 @@ declare global {
 
 const CLOUD_KEY_PREFIX = 'skyhold_isles_cloud_';
 const LEGACY_PROGRESS_KEY = 'skyhold_isles_progress_v1';
+const MAX_CLOUD_JSON_CHARS = 2 * 1024 * 1024;
 
 /** Restricts slot identifiers to safe ASCII tokens (prevents path traversal and malformed keys). */
 export function sanitizeCloudSlot(slot: string): string | null {
@@ -103,6 +104,18 @@ export function sanitizeCloudSlot(slot: string): string | null {
   const trimmed = slot.trim();
   if (!/^[a-zA-Z0-9_-]{1,64}$/.test(trimmed)) return null;
   return trimmed;
+}
+
+function isValidCloudJson(json: unknown): json is string {
+  if (typeof json !== 'string' || json.length === 0 || json.length > MAX_CLOUD_JSON_CHARS) {
+    return false;
+  }
+  try {
+    const parsed: unknown = JSON.parse(json);
+    return parsed !== null && typeof parsed === 'object';
+  } catch {
+    return false;
+  }
 }
 
 function defaultStorage(): CloudStorageLike | null {
@@ -318,7 +331,7 @@ export function createPlatformAdapter(options: CreatePlatformOptions = {}): Plat
         },
         async write(slot: string, json: string): Promise<boolean> {
           const safe = sanitizeCloudSlot(slot);
-          if (!safe) return false;
+          if (!safe || !isValidCloudJson(json)) return false;
           return writeLocalSlot(storage, safe, json);
         },
       },
@@ -415,7 +428,7 @@ export function createPlatformAdapter(options: CreatePlatformOptions = {}): Plat
       },
       async write(slot: string, json: string): Promise<boolean> {
         const safe = sanitizeCloudSlot(slot);
-        if (!safe) return false;
+        if (!safe || !isValidCloudJson(json)) return false;
         writeSeqBySlot.set(safe, (writeSeqBySlot.get(safe) ?? 0) + 1);
         writeLocalSlot(storage, safe, json);
         try {

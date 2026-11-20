@@ -2,13 +2,14 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { EventBus } from '../../src/core/eventBus.ts';
+import type { ProgressData } from '../../src/core/types.ts';
 import { challengesForLevel } from '../../src/data/challenges.ts';
 import { HERO_IDS, HERO_LEVEL_XP } from '../../src/data/heroes.ts';
 import { LEVELS } from '../../src/data/levels/index.ts';
 import { LEVELS_2D } from '../../src/data/levels2d/index.ts';
 import { combineRunModifiers } from '../../src/data/runModifiers.ts';
 import { starWallet } from '../../src/game/progression.ts';
-import { createFreshHeroSaveData, respec, selectHero } from '../../src/render2d/heroes2d.ts';
+import { applyNode, createFreshHeroSaveData, respec, selectHero } from '../../src/render2d/heroes2d.ts';
 import { GameSession } from '../../src/platform/gameSession.ts';
 import { buildHudStateView } from '../../src/platform/sessionBridge.ts';
 import { SimWorld } from '../../src/sim/world.ts';
@@ -1612,6 +1613,210 @@ describe('Steam achievements map, cloud hydration, and desktop config invariants
       expect(res3D.merged.bestStars[7]).toBe(3);
       expect(res3D.merged.workshop).toEqual({});
       expect(JSON.parse(cloudMap.get('progress')!).workshop).toEqual({});
+    } finally {
+      setPlatformAdapter(null);
+    }
+  });
+
+  it('preserves hero respec+branch-switch, Workshop refund+rebuy, cloudSave.write JSON validation, and full resetProgress2D keys', async () => {
+    try {
+      const cloudMap = new Map<string, string>();
+      let resolveRead2D: (() => void) | null = null;
+      const adapter2D = createPlatformAdapter({
+        bridge: {
+          isSteam: true,
+          appId: 480,
+          unlockAchievement: async () => true,
+          cloudRead: (slot) => {
+            const snap = cloudMap.get(slot) ?? null;
+            return new Promise<string | null>((res) => {
+              resolveRead2D = () => res(snap);
+            });
+          },
+          cloudWrite: async (slot, json) => {
+            cloudMap.set(slot, json);
+            return true;
+          },
+        },
+      });
+      setPlatformAdapter(adapter2D);
+
+      // 1. Hero respec + branch-switch ('bran_van_1' -> 'bran_iron_1') AND Workshop refund + re-buy
+      //    ({ quickcast: 1 } -> { bounty: 1 }, both 2★) while cloudRead('progress2d') is pending:
+      //    lexicographic order ("bran_van_1" > "bran_iron_1", "quickcast" > "bounty") must NOT revert either!
+      const base2D = createDefaultProgress(LEVELS_2D.length);
+      base2D.bestStars[0] = 2;
+      base2D.clears[0] = 1;
+      base2D.unlockedLevelIndex = 1;
+      base2D.workshop = { quickcast: 1 };
+      base2D.heroes = {
+        selectedHero: 'bran',
+        roster: {
+          bran: { xp: HERO_LEVEL_XP[1], skills: ['bran_van_1'] }, // L2 -> 1 skill point budget
+        },
+      };
+      saveLocalProgress2D(base2D, LEVELS_2D);
+
+      const remote2D = createDefaultProgress(LEVELS_2D.length);
+      remote2D.bestStars[0] = 2;
+      remote2D.clears[0] = 1;
+      remote2D.unlockedLevelIndex = 1;
+      remote2D.workshop = { quickcast: 1 };
+      remote2D.heroes = {
+        selectedHero: 'bran',
+        roster: {
+          bran: { xp: HERO_LEVEL_XP[1], skills: ['bran_van_1'] },
+        },
+      };
+      cloudMap.set(
+        CLOUD_PROGRESS_2D_SLOT,
+        JSON.stringify({ ids: LEVELS_2D.map((l) => l.id), progress: remote2D }),
+      );
+
+      const boot2D = loadProgress2D(LEVELS_2D);
+      expect(resolveRead2D).not.toBeNull();
+
+      // Player respecs Bran -> 'bran_iron_1' and refunds Workshop -> { bounty: 1 } mid-hydration:
+      let midEdit = respec(boot2D, 'bran', LEVELS_2D);
+      midEdit = applyNode(midEdit, 'bran', 'bran_iron_1', LEVELS_2D)!;
+      midEdit.workshop = { bounty: 1 };
+      saveProgress2D(midEdit, LEVELS_2D);
+
+      resolveRead2D!();
+      await new Promise((r) => setTimeout(r, 0));
+      await new Promise((r) => setTimeout(r, 0));
+
+      const after2D = loadProgress2D(LEVELS_2D);
+      expect(after2D.heroes?.roster.bran?.skills).toEqual(['bran_iron_1']);
+      expect(after2D.workshop).toEqual({ bounty: 1 });
+      const writtenCloud2D = JSON.parse(cloudMap.get(CLOUD_PROGRESS_2D_SLOT)!) as {
+        progress: ProgressData;
+      };
+      expect(writtenCloud2D.progress.heroes?.roster.bran?.skills).toEqual(['bran_iron_1']);
+      expect(writtenCloud2D.progress.workshop).toEqual({ bounty: 1 });
+
+      // 2. Local fresh skill/Workshop spend (from empty base) wins equal-budget tie-break over remote:
+      localStorage.clear();
+      cloudMap.clear();
+      let resolveReadFresh: (() => void) | null = null;
+      const adapterFresh = createPlatformAdapter({
+        bridge: {
+          isSteam: true,
+          appId: 480,
+          unlockAchievement: async () => true,
+          cloudRead: (slot) => {
+            const snap = cloudMap.get(slot) ?? null;
+            return new Promise<string | null>((res) => {
+              resolveReadFresh = () => res(snap);
+            });
+          },
+          cloudWrite: async (slot, json) => {
+            cloudMap.set(slot, json);
+            return true;
+          },
+        },
+      });
+      setPlatformAdapter(adapterFresh);
+
+      const emptySpend2D = createDefaultProgress(LEVELS_2D.length);
+      emptySpend2D.bestStars[0] = 2;
+      emptySpend2D.clears[0] = 1;
+      emptySpend2D.unlockedLevelIndex = 1;
+      emptySpend2D.heroes = {
+        selectedHero: 'bran',
+        roster: { bran: { xp: HERO_LEVEL_XP[1], skills: [] } },
+      };
+      saveLocalProgress2D(emptySpend2D, LEVELS_2D);
+      cloudMap.set(
+        CLOUD_PROGRESS_2D_SLOT,
+        JSON.stringify({ ids: LEVELS_2D.map((l) => l.id), progress: remote2D }),
+      );
+
+      const bootFresh = loadProgress2D(LEVELS_2D);
+      const learnedLocal = applyNode(bootFresh, 'bran', 'bran_iron_1', LEVELS_2D)!;
+      learnedLocal.workshop = { bounty: 1 };
+      saveProgress2D(learnedLocal, LEVELS_2D);
+
+      resolveReadFresh!();
+      await new Promise((r) => setTimeout(r, 0));
+      await new Promise((r) => setTimeout(r, 0));
+
+      const afterFresh = loadProgress2D(LEVELS_2D);
+      expect(afterFresh.heroes?.roster.bran?.skills).toEqual(['bran_iron_1']);
+      expect(afterFresh.workshop).toEqual({ bounty: 1 });
+
+      // 3. 3D hydrateProgressFromCloud also preserves concurrent Workshop refund + re-buy ({ quickcast: 1 } -> { bounty: 1 }):
+      localStorage.clear();
+      const base3D = createDefaultProgress(LEVELS.length);
+      base3D.bestStars[0] = 2;
+      base3D.clears[0] = 1;
+      base3D.workshop = { quickcast: 1 };
+      saveLocalProgress(base3D);
+
+      const remote3D = createDefaultProgress(LEVELS.length);
+      remote3D.bestStars[0] = 2;
+      remote3D.clears[0] = 1;
+      remote3D.workshop = { quickcast: 1 };
+      cloudMap.set('progress', JSON.stringify(remote3D));
+
+      let resolveRead3D: (() => void) | null = null;
+      const adapter3D = createPlatformAdapter({
+        bridge: {
+          isSteam: true,
+          appId: 480,
+          unlockAchievement: async () => true,
+          cloudRead: (slot) => {
+            const snap = cloudMap.get(slot) ?? null;
+            return new Promise<string | null>((res) => {
+              resolveRead3D = () => res(snap);
+            });
+          },
+          cloudWrite: async (slot, json) => {
+            cloudMap.set(slot, json);
+            return true;
+          },
+        },
+      });
+      setPlatformAdapter(adapter3D);
+
+      const p3d = hydrateProgressFromCloud(base3D, LEVELS.length, adapter3D, LEVELS);
+      base3D.workshop = { bounty: 1 };
+      saveLocalProgress(base3D);
+      resolveRead3D!();
+      const res3D = await p3d;
+      expect(res3D.merged.workshop).toEqual({ bounty: 1 });
+
+      // 4. cloudSave.write rejects non-JSON / coerced "[object Object]" / truncated strings without clobbering mirrors:
+      let rawBridgeWrites = 0;
+      const guardAdapter = createPlatformAdapter({
+        bridge: {
+          isSteam: true,
+          appId: 480,
+          unlockAchievement: async () => true,
+          cloudRead: async () => null,
+          cloudWrite: async () => {
+            rawBridgeWrites++;
+            return true;
+          },
+        },
+      });
+      expect(await guardAdapter.cloudSave.write('progress2d', '{"ok":true}')).toBe(true);
+      expect(rawBridgeWrites).toBe(1);
+      expect(await guardAdapter.cloudSave.write('progress2d', '[object Object]')).toBe(false);
+      expect(await guardAdapter.cloudSave.write('progress2d', '{"truncated":')).toBe(false);
+      expect(await guardAdapter.cloudSave.write('progress2d', 'null')).toBe(false);
+      expect(await guardAdapter.cloudSave.write('progress2d', '')).toBe(false);
+      expect(rawBridgeWrites).toBe(1);
+      expect(localStorage.getItem('skyhold_isles_cloud_progress2d')).toBe('{"ok":true}');
+
+      // 5. resetProgress2D clears coach & foes-seen onboarding keys alongside STORY_SEEN_KEY:
+      localStorage.setItem('skyhold_isles_story2d_seen_v1', '["l1c:intro"]');
+      localStorage.setItem('skyhold2d_coach_v1', 'done');
+      localStorage.setItem('skyhold2d_foes_seen_v1', '["grunt","runner"]');
+      resetProgress2D(LEVELS_2D);
+      expect(localStorage.getItem('skyhold_isles_story2d_seen_v1')).toBeNull();
+      expect(localStorage.getItem('skyhold2d_coach_v1')).toBeNull();
+      expect(localStorage.getItem('skyhold2d_foes_seen_v1')).toBeNull();
     } finally {
       setPlatformAdapter(null);
     }

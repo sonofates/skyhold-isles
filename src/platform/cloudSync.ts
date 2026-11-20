@@ -1,6 +1,6 @@
 import type { ProgressData } from '../core/types.ts';
 import { LEVELS, type LevelDef } from '../data/levels/index.ts';
-import { sanitizeRanks, workshopStarsSpent } from '../data/workshop.ts';
+import { rankOf, sanitizeRanks, WORKSHOP_UPGRADES, workshopStarsSpent } from '../data/workshop.ts';
 import { starWallet } from '../game/progression.ts';
 import { syncAchievementsFromProgress } from './achievements.ts';
 import { getPlatform, type PlatformAdapter } from './platform.ts';
@@ -30,6 +30,28 @@ export interface CloudHydrateResult {
  * (best of both, never dropping earned progress), persists the merged save when either side gained
  * records, and unlocks all satisfied Steam achievements.
  */
+function topUpWorkshopRanks(
+  base: Readonly<Record<string, number>>,
+  extra: Readonly<Record<string, number>>,
+  totalEarned: number,
+): Record<string, number> {
+  const topped: Record<string, number> = { ...sanitizeRanks(base) };
+  let remaining = totalEarned - workshopStarsSpent(topped);
+  if (remaining < 0) return {};
+  for (const def of WORKSHOP_UPGRADES) {
+    let cur = rankOf(topped, def.id);
+    const want = rankOf(extra, def.id);
+    while (cur < want) {
+      const stepCost = def.costs[cur];
+      if (stepCost === undefined || stepCost > remaining) break;
+      cur++;
+      topped[def.id] = cur;
+      remaining -= stepCost;
+    }
+  }
+  return sanitizeRanks(topped);
+}
+
 export async function hydrateProgressFromCloud(
   localProgress: ProgressData,
   levelCount = LEVELS.length,
@@ -38,7 +60,7 @@ export async function hydrateProgressFromCloud(
 ): Promise<CloudHydrateResult> {
   const genAtStart = getProgressResetGen();
   let normalizedLocal = migrateProgress(localProgress, levelCount);
-  const preReadWorkshopSpent = workshopStarsSpent(normalizedLocal.workshop);
+  const preReadWorkshop = sanitizeRanks(normalizedLocal.workshop);
   const callerRaw = JSON.stringify(normalizedLocal);
   const diskRawBefore = readLocalProgressRaw();
   let updated = false;
@@ -72,6 +94,7 @@ export async function hydrateProgressFromCloud(
   const diskRawAfter = readLocalProgressRaw();
   const concurrentHappened = diskRawAfter !== null && diskRawAfter !== diskRawBefore;
   let concurrentRefundedWorkshop: Record<string, number> | null = null;
+  let concurrentAddedWorkshop: Record<string, number> | null = null;
   if (concurrentHappened) {
     let concurrentParsed: unknown;
     try {
@@ -81,8 +104,13 @@ export async function hydrateProgressFromCloud(
     }
     if (concurrentParsed && typeof concurrentParsed === 'object' && !Array.isArray(concurrentParsed)) {
       const concurrentStrict = migrateProgress(concurrentParsed, levelCount);
-      if (workshopStarsSpent(concurrentStrict.workshop) < preReadWorkshopSpent) {
-        concurrentRefundedWorkshop = sanitizeRanks(concurrentStrict.workshop);
+      const concW = sanitizeRanks(concurrentStrict.workshop);
+      if (WORKSHOP_UPGRADES.some((def) => rankOf(concW, def.id) < rankOf(preReadWorkshop, def.id))) {
+        concurrentRefundedWorkshop = concW;
+      } else if (
+        WORKSHOP_UPGRADES.some((def) => rankOf(concW, def.id) > rankOf(preReadWorkshop, def.id))
+      ) {
+        concurrentAddedWorkshop = concW;
       }
       normalizedLocal = mergeProgress(
         normalizedLocal,
@@ -124,6 +152,18 @@ export async function hydrateProgressFromCloud(
       if (concurrentRefundedWorkshop !== null) {
         merged.workshop = { ...concurrentRefundedWorkshop };
         if (starWallet(merged).available < 0) merged.workshop = {};
+      } else if (concurrentAddedWorkshop !== null) {
+        const lostLocalRank = WORKSHOP_UPGRADES.some(
+          (def) => rankOf(merged.workshop, def.id) < rankOf(concurrentAddedWorkshop, def.id),
+        );
+        const totalEarned = starWallet(merged).earned;
+        if (lostLocalRank && workshopStarsSpent(concurrentAddedWorkshop) <= totalEarned) {
+          merged.workshop = topUpWorkshopRanks(
+            concurrentAddedWorkshop,
+            cloudProgress.workshop,
+            totalEarned,
+          );
+        }
       }
       const mergedRaw = JSON.stringify(merged);
       if (mergedRaw !== localRaw && getProgressResetGen() === genAtStart) {
