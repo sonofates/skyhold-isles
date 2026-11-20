@@ -287,6 +287,27 @@ const shot = (page, n) => (SHOTS ? page.screenshot({ path: `${SHOTS}/${n}.jpg`, 
   await ctx.close();
 }
 
+// --- end boards: the reticle jumps to the glowing button (Retry after a defeat, Next after a win) --
+for (const outcome of ['lost', 'won']) {
+  const { ctx, page } = await newPage();
+  await page.goto(`${BASE}/2d.html?lang=en&desktop=1&level=i02&hero=bran`);
+  await page.waitForFunction(() => window.__p0?.state && !document.getElementById('boot'), null, { timeout: 60000 });
+  await page.waitForTimeout(1200);
+  await page.evaluate(() => window.__fakePad.connect());
+  await page.waitForTimeout(200);
+  await tapPad(page, 15); // wake the reticle in the run
+  await page.evaluate((o) => window.__p0.forceEnd(o), outcome);
+  await page.waitForFunction(() => !!window.__p0.state().end, null, { timeout: 10000 });
+  await page.locator('[data-testid="story2d-skip"]').click({ timeout: 3000 }).catch(() => undefined);
+  await page.waitForTimeout(2600);
+  const r = await page.evaluate(() => ({ pad: window.__p0.pad(), buttons: window.__p0.state().end?.buttons ?? [] }));
+  const want = outcome === 'lost' ? 'retry' : 'next';
+  const b = r.buttons.find((x) => x.action === want);
+  const on = b && Math.hypot(r.pad.x - b.x, r.pad.y - b.y) < 6;
+  check(r.pad.mode === 'end' && !!on, `end ${outcome}: reticle starts on ${want} (pad ${Math.round(r.pad.x)},${Math.round(r.pad.y)} ${r.pad.mode}; ${want} ${b ? `${Math.round(b.x)},${Math.round(b.y)}` : 'missing'})`);
+  await ctx.close();
+}
+
 await browser.close();
 console.log(problems.length ? `nav probe: ${problems.length} problems\n  ${problems.join('\n  ')}` : 'nav probe: 0 problems');
 process.exit(problems.length ? 1 : 0);

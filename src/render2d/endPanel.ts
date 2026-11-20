@@ -699,6 +699,11 @@ export class EndPanel {
   }
 
   /** QA hooks: panel rect, button centres, stars shown. */
+  /** The board's main action now (the glowing medallion): the pad reticle starts on it. */
+  primaryAction(): EndAction {
+    return primaryEndAction(this.summary?.won ?? false);
+  }
+
   debug(): {
     panel: Rect | null;
     buttons: { action: EndAction; x: number; y: number; r: number }[];

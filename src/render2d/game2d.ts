@@ -1331,7 +1331,13 @@ export class Game2D {
    * order, rally flag); `snap` = the plots and the hero.
    */
   padTargets(): { mode: 'ring' | 'end' | 'free' | 'snap'; points: { x: number; y: number }[] } {
-    if (this.end.visible) return { mode: 'end', points: (this.end.debug()?.buttons ?? []).map((b) => ({ x: b.x, y: b.y })) };
+    if (this.end.visible) {
+      // The main action first: the pad reticle jumps there when the board appears.
+      const main = this.end.primaryAction();
+      const bs = this.end.debug()?.buttons ?? [];
+      const sorted = [...bs.filter((b) => b.action === main), ...bs.filter((b) => b.action !== main)];
+      return { mode: 'end', points: sorted.map((b) => ({ x: b.x, y: b.y })) };
+    }
     if (this.ring.isOpen) return { mode: 'ring', points: this.ring.tokenPositions().map((p) => ({ x: p.x, y: p.y })) };
     if (this.heroSel || this.rallyTower !== -1) return { mode: 'free', points: [] };
     const lay = this.level.layout2d;

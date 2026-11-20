@@ -165,7 +165,8 @@ export function mountPadCursor(host: PadCursorHost): PadCursor {
     shown = true;
     const t = currentMode();
     mode = t.mode;
-    const i = nearestPoint({ x, y }, t.points);
+    // On an end board the first target is its main button; elsewhere the nearest one.
+    const i = t.mode === 'end' && t.points.length > 0 ? 0 : nearestPoint({ x, y }, t.points);
     if (i >= 0) {
       x = t.points[i].x;
       y = t.points[i].y;
@@ -306,7 +307,18 @@ export function mountPadCursor(host: PadCursorHost): PadCursor {
       // Mode only (no DOM button scan every frame).
       const t = host.targets().mode;
       const m = host.aiming() && t !== 'end' ? 'free' : t;
-      if (m !== mode) mode = m;
+      if (m !== mode) {
+        mode = m;
+        // A board just appeared (victory / defeat): start on its main button (listed first).
+        if (m === 'end') {
+          const p = host.targets().points[0];
+          if (p) {
+            x = p.x;
+            y = p.y;
+            pointer('pointermove');
+          }
+        }
+      }
       paint();
     }
     requestAnimationFrame(tick);
