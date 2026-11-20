@@ -571,7 +571,7 @@ export const TR: { readonly [K in MsgKey]: Msg } = {
   'hero.moveHint': 'Yola {verb}, {name} oraya gitsin',
   'hero.moveHintMouse': 'Sağ tık yürütür ve seçili tutar · Esc bırakır',
   'hero.moveHintTouch': 'Yerinde kalsın: kahramana yeniden dokun',
-  'hero.moveHintPad': 'İmleci götür, sonra A / Enter: en yakın yola oturur · B / Esc bırakır',
+  'hero.moveHintPad': 'İmleci götür, sonra A / Enter: en yakın yola gider · B / Esc seçimi bırakır',
   'hero.aimHintPad': 'İmleci götür, sonra A / Enter · B / Esc vazgeçer',
   'hero.verbClick': 'tıkla',
   'hero.noTarget': 'Orada düşman yok, başka bir yer dene',

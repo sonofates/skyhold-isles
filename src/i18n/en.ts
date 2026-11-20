@@ -565,7 +565,7 @@ export const EN = {
   'hero.moveHint': '{verb} the road to send {name} there',
   'hero.moveHintMouse': 'Right click moves and keeps the hero · Esc drops it',
   'hero.moveHintTouch': 'Tap the hero again to keep it where it is',
-  'hero.moveHintPad': 'Steer the cursor, then A / Enter: it snaps to the road · B / Esc drops it',
+  'hero.moveHintPad': 'Steer the cursor, then A / Enter: off to the nearest road · B / Esc deselects',
   'hero.aimHintPad': 'Steer the cursor, then A / Enter · B / Esc cancels',
   'hero.verbClick': 'Click',
   'hero.noTarget': 'No foe there, try another spot',
