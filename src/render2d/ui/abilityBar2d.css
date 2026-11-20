@@ -362,3 +362,16 @@ html.pu-pad .pu-ab-key[data-pad='Y'] {
   border-radius: 50%;
   background: radial-gradient(circle at 35% 30%, #ffe08a, #d39a2c 70%);
 }
+
+/* Tooltip "Key Q" ↔ "Key LB" (padBadges.ts tipKey). */
+.pu-ab-tip-key .k-pad {
+  display: none;
+}
+
+html.pu-pad .pu-ab-tip-key .k-pad {
+  display: inline;
+}
+
+html.pu-pad .pu-ab-tip-key .k-pad + .k-key {
+  display: none;
+}

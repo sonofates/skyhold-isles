@@ -27,4 +27,16 @@ await page.screenshot({ path: `${OUT}/keys.png`, clip });
 await page.evaluate(() => document.documentElement.classList.add('pu-pad'));
 await page.waitForTimeout(300);
 await page.screenshot({ path: `${OUT}/pad.png`, clip });
+// The ability tooltip's key line: "Key Q" with the keyboard, "Key LB" in pad mode.
+await page.hover('[data-testid="ab2d-meteor"]');
+await page.waitForTimeout(700);
+for (const mode of ['pad', 'keys']) {
+  await page.evaluate((m) => document.documentElement.classList.toggle('pu-pad', m === 'pad'), mode);
+  await page.waitForTimeout(200);
+  const line = await page.evaluate(() => {
+    const k = document.querySelector('#ab2d-tip .pu-ab-tip-key, .pu-ab-tip .pu-ab-tip-key');
+    return k ? k.innerText : null;
+  });
+  console.log('tooltip key line', mode, JSON.stringify(line));
+}
 await browser.close();

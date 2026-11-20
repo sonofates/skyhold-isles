@@ -14,7 +14,7 @@
  *   `overchargeActivated`); sounds come from the shared SoundManager bindings of those events.
  */
 import { Assets, Texture } from 'pixi.js';
-import { PAD_BADGE } from './padBadges.ts';
+import { PAD_BADGE, tipKey } from './padBadges.ts';
 import type { AbilityId } from '../../core/types.ts';
 import { ABILITY_DEFS } from '../../data/abilities.ts';
 import type { EventBus } from '../../core/eventBus.ts';
@@ -244,7 +244,7 @@ export function mountAbilityBar2D(game: Game2D, opts: AbilityBarOptions): Abilit
     const v = abilitySlotView(game.world, id);
     tip.innerHTML = '';
     const head = el('div', 'pu-ab-tip-head pu-ink', {}, abilityName(id));
-    if (opts.desktop) head.append(el('span', 'pu-ab-tip-key pu-letter', {}, t('ab.key', { key: ABILITY_KEYS[id] })));
+    if (opts.desktop) head.append(tipKey(ABILITY_KEYS[id], PAD_BADGE[id]));
     tip.append(
       head,
       el('div', 'pu-ab-tip-desc pu-ink-soft', {}, abilityDesc(id, game.world.waveSystem.currentWaveOneBased)),

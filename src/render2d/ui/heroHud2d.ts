@@ -14,7 +14,7 @@
  *   the ability bar does it), so game2d's plot / hero taps never see it.
  */
 import type { HeroId, HeroSkillSlot } from '../../core/types.ts';
-import { PAD_BADGE } from './padBadges.ts';
+import { PAD_BADGE, tipKey } from './padBadges.ts';
 import { HERO_DEFS } from '../../data/heroes.ts';
 import type { HeroRuntimeState } from '../../sim/heroSystem.ts';
 import { heroName, heroPassiveDesc, heroPassiveName, heroSkillDesc, heroSkillName, heroTitle } from '../../i18n/data.ts';
@@ -140,7 +140,7 @@ export function createHeroHud2D(game: Game2D, opts: HeroHudOptions): HeroHud2D |
     const anchor = what === 'hero' ? port : slots[what].btn;
     if (what === 'hero') {
       const head = el('div', 'pu-ab-tip-head pu-ink', {}, heroName(heroId));
-      if (opts.desktop) head.append(el('span', 'pu-ab-tip-key pu-letter', {}, t('ab.key', { key: HERO_KEYS.select })));
+      if (opts.desktop) head.append(tipKey(HERO_KEYS.select, PAD_BADGE.heroSelect));
       tip.append(
         head,
         el('div', 'pu-hero-tip-sub pu-ink-soft', {}, t('hero.levelTitle', { n: h.level, title: heroTitle(heroId) })),
@@ -157,7 +157,7 @@ export function createHeroHud2D(game: Game2D, opts: HeroHudOptions): HeroHud2D |
       const s = h.skills[what];
       const act = def.actives[what];
       const head = el('div', 'pu-ab-tip-head pu-ink', {}, heroSkillName(heroId, what));
-      if (opts.desktop) head.append(el('span', 'pu-ab-tip-key pu-letter', {}, t('ab.key', { key: what === 0 ? HERO_KEYS.skill0 : HERO_KEYS.skill1 })));
+      if (opts.desktop) head.append(what === 0 ? tipKey(HERO_KEYS.skill0, PAD_BADGE.heroSkill0) : tipKey(HERO_KEYS.skill1, PAD_BADGE.heroSkill1));
       const st = heroSkillState(h, s, game.world.outcome === 'ongoing');
       const status = st === 'ready' ? t('ab.ready') : st === 'cooldown' ? secsLabel(s.cooldown) : st === 'down' ? t('hero.skillDown') : '';
       const res = game.world.hero?.stats.actives[what];
