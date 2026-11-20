@@ -231,6 +231,88 @@ function requirement(id: HeroId, n: HeroSkillNodeDef): string {
   return t('hero.needs', { name: n.prerequisites.map((p) => heroNodeName(id, p)).join(t('common.sep')) });
 }
 
+export type TreeLayout = 'down' | 'across';
+
+/**
+ * Layout / node zoom tried in order until the whole tree (capstone included) sits inside the board
+ * without scrolling: the vertical tree first (a little smaller if need be), then the left-to-right
+ * tree for short screens (landscape phones, small laptops), largest zoom first.
+ */
+export const TREE_FIT_STEPS: ReadonlyArray<readonly [TreeLayout, number]> = [
+  ['down', 1],
+  ['down', 0.94],
+  ['down', 0.88],
+  ['down', 0.83],
+  ['across', 1.15],
+  ['across', 1.05],
+  ['across', 1],
+  ['across', 0.93],
+  ['across', 0.86],
+  ['across', 0.8],
+  ['across', 0.74],
+];
+
+/** First fitting step (`fits` measures the DOM); the last step when nothing fits (the body scrolls). */
+export function pickTreeFit(fits: (layout: TreeLayout, zoom: number) => boolean): readonly [TreeLayout, number] {
+  for (const step of TREE_FIT_STEPS) if (fits(step[0], step[1])) return step;
+  return TREE_FIT_STEPS[TREE_FIT_STEPS.length - 1];
+}
+
+/** Fits the tree grid into the sheet body (layout + zoom), then joins the across capstone bracket. */
+interface TreeParts {
+  body: HTMLElement;
+  main: HTMLElement;
+  grid: HTMLElement;
+  /** Tier-4 medals of the branches, top to bottom. */
+  ends: HTMLElement[];
+  capRow: HTMLElement | null;
+  capMedal: HTMLElement | null;
+}
+
+function fitTree({ body, main, grid, ends: endMedals, capRow, capMedal }: TreeParts): void {
+  const apply = (layout: TreeLayout, zoom: number): void => {
+    grid.dataset.layout = layout;
+    main.dataset.layout = layout;
+    grid.style.setProperty('--tz', String(zoom));
+  };
+  // The board pops in with a scale animation: rects are scaled, client sizes are not.
+  const scale = (): number => {
+    const h = body.offsetHeight;
+    return h > 0 ? body.getBoundingClientRect().height / h : 1;
+  };
+  const fits = (layout: TreeLayout, zoom: number): boolean => {
+    apply(layout, zoom);
+    const k = scale();
+    const pad = parseFloat(getComputedStyle(body).paddingBottom) || 0;
+    const room = body.clientTop + body.clientHeight - pad;
+    const low = (grid.getBoundingClientRect().bottom - body.getBoundingClientRect().top) / k;
+    return low <= room + 1 && main.scrollWidth <= main.clientWidth + 1 && grid.scrollWidth <= grid.clientWidth + 1;
+  };
+  const top = body.scrollTop;
+  body.scrollTop = 0;
+  const [layout, zoom] = pickTreeFit(fits);
+  apply(layout, zoom);
+  body.scrollTop = top;
+  if (!capRow) return;
+  for (const k of ['--bar-top', '--bar-h', '--stub-y', '--cap-pad']) capRow.style.removeProperty(k);
+  if (layout !== 'across') return;
+  // Bracket from the first branch's tier-4 medal to the last one's, the capstone level with its middle.
+  const k = scale();
+  const ends = endMedals.map((m) => {
+    const r = m.getBoundingClientRect();
+    return (r.top + r.height / 2) / k;
+  });
+  if (ends.length < 2 || !capMedal) return;
+  const rowTop = capRow.getBoundingClientRect().top / k;
+  const y0 = Math.min(...ends) - rowTop;
+  const y1 = Math.max(...ends) - rowTop;
+  const mid = (y0 + y1) / 2;
+  capRow.style.setProperty('--bar-top', `${y0}px`);
+  capRow.style.setProperty('--bar-h', `${y1 - y0}px`);
+  capRow.style.setProperty('--stub-y', `${mid - y0}px`);
+  capRow.style.setProperty('--cap-pad', `${Math.max(0, mid - capMedal.getBoundingClientRect().height / k / 2)}px`);
+}
+
 /** The skill tree of one hero (tabs switch heroes). */
 export function openSkillTree(ctx: HeroScreenCtx, files: HeroArtFiles, heroId?: HeroId, onClose?: () => void): Sheet {
   const sheet = openSheet(t('hero.treeTitle'), { cls: 'pu-meta pu-hero-tree', testid: 'hero2d-tree', onClose });
@@ -289,6 +371,7 @@ export function openSkillTree(ctx: HeroScreenCtx, files: HeroArtFiles, heroId?: 
     );
     // Branch columns (tiers 1..4), then the capstone.
     const grid = el('div', `pu-hero-tree-grid${cur.unlocked ? '' : ' hero-locked'}`);
+    const medals = new Map<string, HTMLElement>();
     const nodeBtn = (n: HeroSkillNodeDef, branchIndex: number): HTMLButtonElement => {
       const status = nodeUnlockStatus(ctx.progress, cur.id, n.id, ctx.levels);
       const b = el('button', `pu-hnode ${STATUS_CLASS[status]}${n.isCapstone ? ' cap' : ''}${picked === n.id ? ' picked' : ''}${justLearned === n.id ? ' just' : ''}`, {
@@ -313,6 +396,7 @@ export function openSkillTree(ctx: HeroScreenCtx, files: HeroArtFiles, heroId?: 
         if (u) disc.append(img(u));
       }
       medal.append(disc);
+      medals.set(n.id, medal);
       if (status === 'unlocked') medal.append(img(KIT.confirm, '', 'pu-hnode-check'));
       else if (status === 'lockedPrereq' || status === 'heroLocked') {
         const l = el('span', 'pu-hnode-lock');
@@ -331,7 +415,15 @@ export function openSkillTree(ctx: HeroScreenCtx, files: HeroArtFiles, heroId?: 
     def.branches.forEach((br, bi) => {
       const col = el('section', 'pu-hero-branch', { 'data-branch': br.id });
       const icon = heroBranchUrl(files, cur.id, bi);
-      col.append(el('h3', 'pu-hero-branch-head', {}, icon ? img(icon, '', 'pu-hero-branch-icon') : null, el('span', 'pu-letter', {}, heroBranchName(cur.id, br.id)), el('small', 'pu-ink-soft', {}, heroBranchDesc(cur.id, br.id))));
+      col.append(
+        el(
+          'h3',
+          'pu-hero-branch-head',
+          {},
+          el('span', 'pu-hero-branch-title', {}, icon ? img(icon, '', 'pu-hero-branch-icon') : null, el('span', 'pu-letter', {}, heroBranchName(cur.id, br.id))),
+          el('small', 'pu-ink-soft', {}, heroBranchDesc(cur.id, br.id)),
+        ),
+      );
       const nodes = def.skillTree.filter((n) => n.branch === br.id).sort((a, b) => a.tier - b.tier);
       for (const n of nodes) {
         const owned = cur.unlockedSkills.includes(n.id);
@@ -342,11 +434,13 @@ export function openSkillTree(ctx: HeroScreenCtx, files: HeroArtFiles, heroId?: 
       grid.append(col);
     });
     const cap = def.skillTree.find((n) => n.isCapstone);
+    let capRowEl: HTMLElement | null = null;
     if (cap) {
       const capOwned = cur.unlockedSkills.includes(cap.id);
       const have = cap.prerequisites.filter((p) => cur.unlockedSkills.includes(p)).length;
       const capRow = el('div', `pu-hero-cap-row${capOwned ? ' owned' : ''}${have >= (cap.minPrerequisites ?? cap.prerequisites.length) ? ' ready' : ''}`, {}, el('span', 'pu-hero-cap-bar', { 'aria-hidden': 'true' }), nodeBtn(cap, 0));
       grid.append(capRow);
+      capRowEl = capRow;
     }
     // Details of the picked node (or a hint).
     const detail = el('div', 'pu-hero-node-detail pu-card', { 'data-testid': 'tree2d-detail' });
@@ -377,8 +471,34 @@ export function openSkillTree(ctx: HeroScreenCtx, files: HeroArtFiles, heroId?: 
     } else {
       detail.append(el('div', 'pu-ink-soft pu-hero-node-hint', {}, cur.unlocked ? t('hero.treeHint') : unlockRuleText(cur.unlockRule)));
     }
-    sheet.body.replaceChildren(el('div', 'pu-hero-tree-top', {}, tabs, head), el('div', 'pu-hero-tree-main', {}, grid, detail));
+    const main = el('div', 'pu-hero-tree-main', {}, grid, detail);
+    sheet.body.replaceChildren(el('div', 'pu-hero-tree-top', {}, tabs, head), main);
+    const parts: TreeParts = {
+      body: sheet.body,
+      main,
+      grid,
+      ends: def.branches.flatMap((br) => {
+        const last = def.skillTree.filter((n) => n.branch === br.id && !n.isCapstone).sort((a, b) => b.tier - a.tier)[0];
+        const m = last ? medals.get(last.id) : undefined;
+        return m ? [m] : [];
+      }),
+      capRow: capRowEl,
+      capMedal: cap ? (medals.get(cap.id) ?? null) : null,
+    };
+    fitTree(parts);
+    refit = () => fitTree(parts);
   };
+  let refit = (): void => undefined;
+  let raf = 0;
+  const onResize = (): void => {
+    if (!sheet.overlay.isConnected) {
+      window.removeEventListener('resize', onResize);
+      return;
+    }
+    cancelAnimationFrame(raf);
+    raf = requestAnimationFrame(() => refit());
+  };
+  window.addEventListener('resize', onResize);
   render();
   return sheet;
 }

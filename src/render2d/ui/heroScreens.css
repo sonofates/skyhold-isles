@@ -471,10 +471,19 @@
   align-items: start;
 }
 
+/*
+ * The tree fits its board (heroScreens.ts fitTree): `--tz` zooms the nodes (text keeps >= 90 %),
+ * `data-layout` = `down` (three branch columns, capstone under them) or `across` (branch rows,
+ * tiers left to right, capstone at the right end) for short screens.
+ */
 .pu-hero-tree-grid {
+  --tz: 1;
+  --n: calc(var(--s) * var(--tz));
+  --nt: calc(var(--s) * max(var(--tz), 0.9));
+  --m: calc(var(--n) * 4.6);
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0 calc(var(--s) * 0.8);
+  gap: 0 calc(var(--n) * 0.8);
 }
 
 .pu-hero-tree-grid.hero-locked {
@@ -492,21 +501,28 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin: 0 0 calc(var(--s) * 0.3);
+  margin: 0 0 calc(var(--n) * 0.2);
   text-align: center;
-  font-size: calc(var(--s) * 1.45);
+  font-size: calc(var(--nt) * 1.45);
   line-height: 1.1;
 }
 
+.pu-hero-branch-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25em;
+}
+
 .pu-hero-branch-head small {
-  font-size: calc(var(--s) * 0.92);
+  min-height: 2.2em;
+  font-size: 0.64em;
   font-weight: 600;
   max-width: 16em;
 }
 
 .pu-hero-branch-icon {
-  width: calc(var(--s) * 3.4);
-  height: calc(var(--s) * 3.4);
+  width: calc(var(--n) * 2.9);
+  height: calc(var(--n) * 2.9);
   object-fit: contain;
   filter: drop-shadow(0 2px 1px rgba(30, 16, 4, 0.4));
 }
@@ -516,7 +532,7 @@
   position: relative;
   display: flex;
   justify-content: center;
-  padding-top: calc(var(--s) * 0.55);
+  padding-top: calc(var(--n) * 0.55);
 }
 
 .pu-hnode-wrap::before {
@@ -524,8 +540,8 @@
   position: absolute;
   left: 50%;
   top: 0;
-  width: calc(var(--s) * 0.42);
-  height: calc(var(--s) * 1.4);
+  width: calc(var(--n) * 0.42);
+  height: calc(var(--n) * 1.4);
   transform: translateX(-50%);
   border-radius: 99px;
   background: rgba(122, 85, 50, 0.45);
@@ -546,7 +562,7 @@
   flex-direction: column;
   align-items: center;
   gap: 0.1em;
-  width: calc(var(--s) * 9);
+  width: min(100%, calc(var(--n) * 13));
   transition: transform 0.08s ease-out;
 }
 
@@ -556,14 +572,14 @@
 
 .pu-hnode-medal {
   position: relative;
-  width: calc(var(--s) * 4.6);
-  height: calc(var(--s) * 4.6);
+  width: var(--m);
+  height: var(--m);
   filter: drop-shadow(0 2px 2px rgba(30, 16, 4, 0.45));
 }
 
 .pu-hnode.cap .pu-hnode-medal {
-  width: calc(var(--s) * 6.4);
-  height: calc(var(--s) * 6.4);
+  width: calc(var(--n) * 6.4);
+  height: calc(var(--n) * 6.4);
 }
 
 .pu-hnode-ring {
@@ -639,7 +655,7 @@
 }
 
 .pu-hnode-name {
-  font-size: calc(var(--s) * 1.02);
+  font-size: calc(var(--nt) * 1.02);
   line-height: 1.1;
   text-align: center;
 }
@@ -650,8 +666,8 @@
 }
 
 .pu-hnode-cost img {
-  width: calc(var(--s) * 1.15);
-  height: calc(var(--s) * 1.15);
+  width: calc(var(--n) * 1.15);
+  height: calc(var(--n) * 1.15);
   object-fit: contain;
 }
 
@@ -670,18 +686,18 @@
 
 @keyframes pu-hnode-glow {
   50% {
-    filter: drop-shadow(0 0 calc(var(--s) * 0.8) rgba(255, 210, 100, 0.95)) drop-shadow(0 2px 2px rgba(30, 16, 4, 0.45));
+    filter: drop-shadow(0 0 calc(var(--n) * 0.8) rgba(255, 210, 100, 0.95)) drop-shadow(0 2px 2px rgba(30, 16, 4, 0.45));
   }
 }
 
 .pu-hnode.owned .pu-hnode-medal {
-  filter: drop-shadow(0 0 calc(var(--s) * 0.45) rgba(255, 205, 90, 0.8)) drop-shadow(0 2px 2px rgba(30, 16, 4, 0.45));
+  filter: drop-shadow(0 0 calc(var(--n) * 0.45) rgba(255, 205, 90, 0.8)) drop-shadow(0 2px 2px rgba(30, 16, 4, 0.45));
 }
 
 .pu-hnode.picked .pu-hnode-medal {
-  transform: scale(1.1);
+  transform: scale(1.06);
   outline: 3px solid #fff3c8;
-  outline-offset: 1px;
+  outline-offset: 0;
   border-radius: 50%;
 }
 
@@ -694,7 +710,7 @@
   grid-column: 1 / -1;
   display: flex;
   justify-content: center;
-  padding-top: calc(var(--s) * 1.6);
+  padding-top: calc(var(--n) * 1.6);
 }
 
 /* Bar joining the three branches above the capstone. */
@@ -702,8 +718,8 @@
   position: absolute;
   left: 16.6%;
   right: 16.6%;
-  top: calc(var(--s) * 0.5);
-  height: calc(var(--s) * 0.42);
+  top: calc(var(--n) * 0.5);
+  height: calc(var(--n) * 0.42);
   border-radius: 99px;
   background: rgba(122, 85, 50, 0.45);
 }
@@ -713,8 +729,8 @@
   position: absolute;
   left: 50%;
   top: 0;
-  width: calc(var(--s) * 0.42);
-  height: calc(var(--s) * 1.5);
+  width: calc(var(--n) * 0.42);
+  height: calc(var(--n) * 1.5);
   transform: translateX(-50%);
   border-radius: 99px;
   background: inherit;
@@ -723,6 +739,105 @@
 .pu-hero-cap-row.ready .pu-hero-cap-bar,
 .pu-hero-cap-row.owned .pu-hero-cap-bar {
   background: linear-gradient(#ffe07a, #d39a2c);
+}
+
+/* ---- across: one row per branch, tiers left to right, the capstone at the right end ----------- */
+
+.pu-hero-tree-grid[data-layout='across'] {
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: calc(var(--n) * 0.5) calc(var(--n) * 0.7);
+}
+
+.pu-hero-tree-grid[data-layout='across'] .pu-hero-branch {
+  grid-column: 1;
+  flex-direction: row;
+  align-items: flex-start;
+}
+
+.pu-hero-tree-main[data-layout='across'] {
+  grid-template-columns: minmax(0, 1fr) minmax(calc(var(--s) * 19), 0.36fr);
+}
+
+.pu-hero-tree-grid[data-layout='across'] .pu-hero-branch-head {
+  flex: 0 0 calc(var(--nt) * 7.4);
+  height: var(--m);
+  justify-content: center;
+  margin: 0;
+  font-size: calc(var(--nt) * 1.2);
+}
+
+.pu-hero-tree-grid[data-layout='across'] .pu-hero-branch-title {
+  flex-direction: column;
+  gap: 0.1em;
+}
+
+.pu-hero-tree-grid[data-layout='across'] .pu-hnode {
+  padding: 0 0.15em;
+}
+
+.pu-hero-tree-grid[data-layout='across'] .pu-hero-branch-icon {
+  width: calc(var(--n) * 2.2);
+  height: calc(var(--n) * 2.2);
+}
+
+.pu-hero-tree-grid[data-layout='across'] .pu-hero-branch-head small {
+  display: none;
+}
+
+.pu-hero-tree-grid[data-layout='across'] .pu-hnode-wrap {
+  flex: 1 1 0;
+  min-width: 0;
+  padding-top: 0;
+}
+
+/* Connector from the medal on the left to this one, level with the medals' centres. */
+.pu-hero-tree-grid[data-layout='across'] .pu-hnode-wrap::before {
+  top: calc(var(--m) / 2);
+  left: calc(-50% + var(--m) / 2);
+  right: calc(50% + var(--m) / 2);
+  width: auto;
+  height: calc(var(--n) * 0.42);
+  transform: translateY(-50%);
+}
+
+/* Tier 4 reaches right, to the capstone's bracket. */
+.pu-hero-tree-grid[data-layout='across'] .pu-hnode-wrap.tier4::after {
+  content: '';
+  position: absolute;
+  top: calc(var(--m) / 2);
+  left: calc(50% + var(--m) / 2);
+  right: calc(var(--n) * -1.1);
+  height: calc(var(--n) * 0.42);
+  transform: translateY(-50%);
+  border-radius: 99px;
+  background: rgba(122, 85, 50, 0.45);
+}
+
+.pu-hero-tree-grid[data-layout='across'] .pu-hnode-wrap.tier4.owned::after {
+  background: linear-gradient(#ffe07a, #d39a2c);
+}
+
+.pu-hero-tree-grid[data-layout='across'] .pu-hero-cap-row {
+  grid-column: 2;
+  grid-row: 1 / span 3;
+  align-items: flex-start;
+  padding: var(--cap-pad, 0) 0 0 calc(var(--n) * 1.6);
+}
+
+.pu-hero-tree-grid[data-layout='across'] .pu-hero-cap-bar {
+  left: calc(var(--n) * 0.4);
+  right: auto;
+  top: var(--bar-top, 16%);
+  height: var(--bar-h, 68%);
+  width: calc(var(--n) * 0.42);
+}
+
+.pu-hero-tree-grid[data-layout='across'] .pu-hero-cap-bar::after {
+  left: 0;
+  top: var(--stub-y, 50%);
+  width: calc(var(--n) * 1.6);
+  height: calc(var(--n) * 0.42);
+  transform: translateY(-50%);
 }
 
 .pu-hero-node-detail {
@@ -819,7 +934,7 @@
   }
 
   .pu-hnode-name {
-    font-size: calc(var(--s) * 1.2);
+    font-size: calc(var(--nt) * 1.2);
   }
 
   .pu-hero-node-detail {
