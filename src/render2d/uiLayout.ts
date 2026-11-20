@@ -207,6 +207,18 @@ const TOWER_RING_3: readonly (readonly number[])[] = [
   [-90 * DEG, -35 * DEG, 0],
   [-90 * DEG, -145 * DEG, 180 * DEG],
 ];
+/** Tier III: the two specializations first (above, like "upgrade"), then targeting / rally and sell. */
+const TOWER_RING_4: readonly (readonly number[])[] = [
+  [-145 * DEG, -35 * DEG, 145 * DEG, 35 * DEG], // the choices high left / right, clear of the tower's top
+  [125 * DEG, 55 * DEG, 180 * DEG, 0], // top-row plots: the choices below, the others beside
+  [145 * DEG, 35 * DEG, -145 * DEG, -35 * DEG],
+  [-90 * DEG, -30 * DEG, 30 * DEG, 90 * DEG], // left-edge plots: everything on the right half
+  [-90 * DEG, -150 * DEG, 150 * DEG, 90 * DEG], // right-edge plots
+  [90 * DEG, 45 * DEG, 0, -45 * DEG], // corners
+  [90 * DEG, 135 * DEG, 180 * DEG, -135 * DEG],
+  [-90 * DEG, -45 * DEG, 0, 45 * DEG],
+  [-90 * DEG, -135 * DEG, 180 * DEG, 135 * DEG],
+];
 const TOWER_RING_2: readonly (readonly number[])[] = [
   [-90 * DEG, 90 * DEG],
   [180 * DEG, 0],
@@ -246,7 +258,7 @@ export function towerRingAngles(
   margin = 6,
   avoid: readonly Rect[] = [],
 ): readonly number[] {
-  const cands = count >= 3 ? TOWER_RING_3 : TOWER_RING_2;
+  const cands = count >= 4 ? TOWER_RING_4 : count === 3 ? TOWER_RING_3 : TOWER_RING_2;
   const out: Pt[] = [];
   let best: readonly number[] = cands[0];
   let bestScore = Infinity;

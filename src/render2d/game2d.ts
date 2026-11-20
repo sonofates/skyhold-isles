@@ -677,9 +677,9 @@ export class Game2D {
       this.fx.spawn('glow', px, py - 60, 120, 0, 0, 0.8, 0xffe7a0);
       return;
     }
-    this.fx.puffs(px, py, 12, 34, 0xfff0c0);
-    this.fx.spawn('flash', px, py - 70, 90, 0, 0, 0.4, 0xfff4cc);
-    this.fx.spawn('glow', px, py - 80, 170, 0, -20, 0.9, 0xffd76a);
+    this.fx.puffs(px, py, 8, 30, 0xfff0c0);
+    this.fx.spawn('flash', px, py - 70, 56, 0, 0, 0.3, 0xfff4cc);
+    this.fx.spawn('glow', px, py - 80, 120, 0, -20, 0.8, 0xffc94a);
     this.fx.spawn('ring', px, py + 4, 58, 0, 0, 0.55, 0xffd76a);
     this.fx.spawn('ring', px, py + 4, 90, 0, 0, 0.85, 0xfff0c0);
     this.fx.burst('spark', px, py - 40, 18, 11, 190, 0.9, 0xffe08a, 220);
