@@ -15,7 +15,8 @@ export type InvariantKind =
   | 'hero_walkable_graph'
   | 'gizmo_on_plot'
   | 'entity_leak'
-  | 'determinism';
+  | 'determinism'
+  | 'save_roundtrip';
 
 export interface InvariantViolation {
   readonly kind: InvariantKind;
@@ -118,6 +119,8 @@ export class InvariantMonitor {
   private prevLives: number;
   private leakedLivesThisTick = 0;
   private heroRespawnedThisTick = false;
+  heroDeaths = 0;
+  heroRespawns = 0;
   private prevHeroLane = -1;
   private prevHeroRoadX = 0;
   private prevHeroRoadZ = 0;
@@ -325,6 +328,7 @@ export class InvariantMonitor {
 
     events.on('heroRespawn', (ev) => {
       this.heroRespawnedThisTick = true;
+      this.heroRespawns++;
       this.assertFinite(ev.x, 'event.heroRespawn.x');
       this.assertFinite(ev.z, 'event.heroRespawn.z');
       this.assertFinite(ev.hp, 'event.heroRespawn.hp');
@@ -338,7 +342,11 @@ export class InvariantMonitor {
         );
       }
       const h = this.world.hero;
-      if (h && (Math.hypot(h.x - ev.x, h.z - ev.z) > 1e-6 || !(h.invulnTimer > 0))) {
+      if (
+        h &&
+        (Math.hypot(h.x - ev.x, h.z - ev.z) > 1e-6 ||
+          Math.abs(h.invulnTimer - HERO_RULES.respawnInvulnSec) > 1e-6)
+      ) {
         this.record(
           'hero_walkable_graph',
           this.currentTick,
@@ -382,13 +390,22 @@ export class InvariantMonitor {
     });
 
     events.on('heroDied', (ev) => {
+      this.heroDeaths++;
       this.assertFinite(ev.respawnSec, 'event.heroDied.respawnSec');
       const hs = this.world.getHeroState();
-      if (!hs || hs.alive || hs.state !== 'dead' || hs.hp !== 0 || hs.respawnRemaining <= 0) {
+      if (
+        !hs ||
+        hs.alive ||
+        hs.state !== 'dead' ||
+        hs.hp !== 0 ||
+        hs.respawnRemaining <= 0 ||
+        hs.invulnRemaining !== 0 ||
+        Math.abs(ev.respawnSec - hs.respawnMax) > 1e-6
+      ) {
         this.record(
           'entity_leak',
           this.currentTick,
-          `heroDied observed inconsistent getHeroState: ${JSON.stringify(hs)}`,
+          `heroDied observed inconsistent getHeroState: ${JSON.stringify(hs)} (ev.respawnSec=${ev.respawnSec})`,
         );
       }
     });

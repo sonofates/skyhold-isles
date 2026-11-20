@@ -477,30 +477,37 @@ export class HeroSystem {
     return this.burnUid[poolIndex] === uid && this.burnLeft[poolIndex] > 0 ? this.burnDps[poolIndex] : 0;
   }
 
+  private static buildSkillRuntimeState(
+    h: HeroEntity,
+    def: (typeof HERO_DEFS)[HeroId],
+    slot: HeroSkillSlot,
+    alive: boolean,
+    runOngoing: boolean,
+  ): HeroSkillRuntimeState {
+    const a = h.stats.actives[slot];
+    const base = def.actives[slot];
+    const cd = h.skillCooldowns[slot];
+    return {
+      slot,
+      id: a.id,
+      name: base.name,
+      targetMode: a.targetMode,
+      cooldown: cd,
+      maxCooldown: a.cooldownSec,
+      ready: cd <= 0,
+      usable: runOngoing && alive && cd <= 0,
+      range: a.range,
+      radius: a.radius,
+      durationSec: a.durationSec,
+    };
+  }
+
   /** Read-only snapshot of the hero and its skill cooldowns for HUD / debug / QA. */
   getRuntimeState(runOngoing = true): HeroRuntimeState | null {
     const h = this.hero;
     if (!h) return null;
     const def = HERO_DEFS[h.heroId];
     const alive = h.state !== 'dead' && h.hp > 0;
-    const mkSkill = (slot: HeroSkillSlot): HeroSkillRuntimeState => {
-      const a = h.stats.actives[slot];
-      const base = def.actives[slot];
-      const cd = h.skillCooldowns[slot];
-      return {
-        slot,
-        id: a.id,
-        name: base.name,
-        targetMode: a.targetMode,
-        cooldown: cd,
-        maxCooldown: a.cooldownSec,
-        ready: cd <= 0,
-        usable: runOngoing && alive && cd <= 0,
-        range: a.range,
-        radius: a.radius,
-        durationSec: a.durationSec,
-      };
-    };
     return {
       heroId: h.heroId,
       name: def.name,
@@ -519,7 +526,10 @@ export class HeroSystem {
       runXp: this.runXp,
       kills: h.kills,
       totalDamageDealt: Math.round(h.totalDamageDealt),
-      skills: [mkSkill(0), mkSkill(1)],
+      skills: [
+        HeroSystem.buildSkillRuntimeState(h, def, 0, alive, runOngoing),
+        HeroSystem.buildSkillRuntimeState(h, def, 1, alive, runOngoing),
+      ],
     };
   }
 

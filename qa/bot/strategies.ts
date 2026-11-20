@@ -6,6 +6,7 @@ import {
   type ChallengeId,
 } from '../../src/data/challenges.ts';
 import { dailyChallengeFor } from '../../src/data/daily.ts';
+import { DIFFICULTY_IDS, type DifficultyId } from '../../src/data/difficulty.ts';
 import {
   defaultLevel20Skills,
   HERO_DEFS,
@@ -16,7 +17,8 @@ import type { LevelDef, ScriptedBuildAction } from '../../src/data/levels/index.
 import { LEVELS_2D } from '../../src/data/levels2d/index.ts';
 import { NEUTRAL_RUN_MODIFIERS, type RunModifiers } from '../../src/data/runModifiers.ts';
 import { getTowerTierStats } from '../../src/data/towers.ts';
-import { maxedWorkshopRanks, workshopModifiers } from '../../src/data/workshop.ts';
+import { maxedWorkshopRanks, workshopModifiers, type WorkshopRanks } from '../../src/data/workshop.ts';
+import { composeRunModifiers2D } from '../../src/render2d/ui/modes2d.ts';
 import type { EnemyEntity } from '../../src/sim/entities.ts';
 import { findMergePoint } from '../../src/sim/groundGraph.ts';
 import type { SimWorld } from '../../src/sim/world.ts';
@@ -24,15 +26,16 @@ import type { SimWorld } from '../../src/sim/world.ts';
 export type StrategyFamily =
   | 'greedy'
   | 'weak'
+  | 'difficulty'
   | 'hero'
   | 'abilities'
   | 'challenge'
   | 'daily'
   | 'endless';
 
-export type HeroParkMode = 'castle' | 'merge' | 'front' | 'altLane' | 'roam';
+export type HeroParkMode = 'castle' | 'merge' | 'front' | 'altLane' | 'roam' | 'gateContest';
 
-export const HERO_PARK_MODES: readonly HeroParkMode[] = [
+export const HERO_PARK_MODES: readonly Exclude<HeroParkMode, 'gateContest'>[] = [
   'merge',
   'front',
   'altLane',
@@ -121,6 +124,12 @@ export function computeHeroPost(
       const clamped = world.heroSystem.groundGraph.clampToGround(_sample.x + nx, _sample.z + nz);
       return { x: clamped.x, z: clamped.z };
     }
+    case 'gateContest': {
+      const p0 = paths[0];
+      p0.sample(Math.min(1.8, p0.totalLength * 0.15), _sample);
+      const clamped = world.heroSystem.groundGraph.clampToGround(_sample.x, _sample.z);
+      return { x: clamped.x, z: clamped.z };
+    }
   }
 }
 
@@ -163,7 +172,12 @@ export function tryStepScriptBuild(world: SimWorld, act: ScriptedBuildAction): '
     if (!chosen) return 'skip';
     const cost = getTowerTierStats(chosen, 1).upgradeCost;
     if (world.gold < cost) return 'wait';
-    return world.placeTower(act.col, act.row, chosen, act.targetingMode ?? 'first') ? 'done' : 'skip';
+    const mode = act.targetingMode ?? 'first';
+    const built =
+      world.grid.isPlotMode && act.row === 0
+        ? world.placeTowerOnPlot(act.col, chosen, mode)
+        : world.placeTower(act.col, act.row, chosen, mode);
+    return built ? 'done' : 'skip';
   }
 
   const tid = world.grid.getTowerIdAt(act.col, act.row);
@@ -393,7 +407,67 @@ export function buildBotScenarios(opts: ScenarioSuiteOptions = {}): BotScenario[
       endlessWaves: 0,
       exerciseSellAndRally: true,
       seed: nextSeed(),
-      verifyDeterminism: i === 1,
+      verifyDeterminism: i === 1 || level.id === 'i24',
+    });
+  }
+
+  // 3b. Difficulty modes (Easy / Normal / Hard) × all 25 islands (+ Hard + Challenge combinations)
+  const wsMaxRanks = maxedWorkshopRanks();
+  const wsMidRanks: WorkshopRanks = { treasury: 1, bounty: 1, bastion: 1, quickcast: 1 };
+  for (let i = 0; i < levels.length; i++) {
+    const level = levels[i];
+    for (let di = 0; di < DIFFICULTY_IDS.length; di++) {
+      const diff: DifficultyId = DIFFICULTY_IDS[di];
+      const heroId = HERO_IDS[(i + di) % HERO_IDS.length];
+      const heroLvl = i < 3 ? 3 : i < 10 ? 10 : 20;
+      const wsRanks: WorkshopRanks = i < 2 ? {} : diff === 'easy' ? wsMidRanks : wsMaxRanks;
+      const park = HERO_PARK_MODES[(i + di) % HERO_PARK_MODES.length];
+      scenarios.push({
+        id: `${level.id}:difficulty:${diff}:${heroId}:L${heroLvl}`,
+        family: 'difficulty',
+        level,
+        buildKind: 'greedy',
+        modifiers: composeRunModifiers2D(wsRanks, [], diff),
+        heroId,
+        heroLevel: heroLvl,
+        heroSkills: canonicalSkillsForLevel(heroId, heroLvl),
+        heroPark: park,
+        useAbilities: true,
+        endlessWaves: 0,
+        exerciseSellAndRally: diff === 'hard' && i % 3 === 0,
+        seed: nextSeed(),
+        verifyDeterminism:
+          (i === 0 && (diff === 'easy' || diff === 'hard')) ||
+          (level.id === 'i16' && diff === 'hard') ||
+          (level.id === 'i17' && diff === 'normal') ||
+          (level.id === 'i21' && diff === 'hard') ||
+          (level.id === 'i24' && (diff === 'easy' || diff === 'normal' || diff === 'hard')),
+      });
+    }
+  }
+
+  const hardChallengeIslands = new Set(['l1c', 'i06', 'i10', 'i16', 'i17', 'i20', 'i24']);
+  for (let i = 0; i < levels.length; i++) {
+    const level = levels[i];
+    if (!hardChallengeIslands.has(level.id) && !(quick && i === 0)) continue;
+    const offered = challengesForLevel(level);
+    if (offered.length === 0) continue;
+    const cid = offered[i % offered.length];
+    const heroId = HERO_IDS[i % HERO_IDS.length];
+    scenarios.push({
+      id: `${level.id}:difficulty:hard+${cid}:${heroId}`,
+      family: 'difficulty',
+      level,
+      buildKind: 'greedy',
+      modifiers: composeRunModifiers2D(wsMaxRanks, [cid], 'hard'),
+      heroId,
+      heroLevel: 20,
+      heroSkills: canonicalSkillsForLevel(heroId, 20),
+      heroPark: 'merge',
+      useAbilities: true,
+      endlessWaves: 0,
+      seed: nextSeed(),
+      verifyDeterminism: level.id === 'i24' || (quick && i === 0),
     });
   }
 
@@ -451,6 +525,31 @@ export function buildBotScenarios(opts: ScenarioSuiteOptions = {}): BotScenario[
     }
   }
 
+  // Dedicated contested front-gate rally-point respawn + 1.5s invulnerability stress across Ch1 & Ch2 islands:
+  const respawnFocusIds = new Set(['l1c', 'i06', 'i10', 'i16', 'i17', 'i21', 'i24']);
+  const respawnTargets = levels.filter((l, idx) => respawnFocusIds.has(l.id) || (quick && idx === 0));
+  for (let ri = 0; ri < respawnTargets.length; ri++) {
+    const level = respawnTargets[ri];
+    const heroId = HERO_IDS[ri % HERO_IDS.length];
+    const diff: DifficultyId = ri % 2 === 1 ? 'hard' : 'normal';
+    const heroLvl = ri % 3 === 0 ? 1 : 10;
+    scenarios.push({
+      id: `${level.id}:hero-respawn:${heroId}:L${heroLvl}:${diff}`,
+      family: 'hero',
+      level,
+      buildKind: 'weak',
+      modifiers: composeRunModifiers2D({}, [], diff),
+      heroId,
+      heroLevel: heroLvl,
+      heroSkills: canonicalSkillsForLevel(heroId, heroLvl),
+      heroPark: 'gateContest',
+      useAbilities: true,
+      endlessWaves: 0,
+      seed: nextSeed(),
+      verifyDeterminism: ri === 0 || level.id === 'i24',
+    });
+  }
+
   // 5. Island challenges (each offered challenge per island + maxed workshop variant)
   const wsMax = workshopModifiers(maxedWorkshopRanks());
   for (let i = 0; i < levels.length; i++) {
@@ -479,12 +578,15 @@ export function buildBotScenarios(opts: ScenarioSuiteOptions = {}): BotScenario[
     }
   }
 
-  // 6. Daily Squall runs across deterministic UTC day numbers
-  const dailyCount = quick ? Math.min(4, levels.length) : levels.length;
+  // 6. Daily Squall runs across deterministic UTC day numbers (including full-campaign Chapter 2 rolls)
+  const dailyCount = quick ? Math.min(4, levels.length) : levels.length + 8;
   const allIndices = levels.map((_, idx) => idx);
   for (let d = 0; d < dailyCount; d++) {
     const day = 20_500 + d * 7;
-    const clearedSubset = allIndices.slice(0, Math.max(1, ((d * 3) % levels.length) + 1));
+    const clearedSubset =
+      d >= Math.floor(dailyCount / 2)
+        ? allIndices
+        : allIndices.slice(0, Math.max(1, ((d * 3) % levels.length) + 1));
     const daily = dailyChallengeFor(day, clearedSubset, CHALLENGE_IDS_2D);
     if (!daily) continue;
     const level = levels[daily.levelIndex] ?? levels[0];
@@ -502,11 +604,11 @@ export function buildBotScenarios(opts: ScenarioSuiteOptions = {}): BotScenario[
       useAbilities: true,
       endlessWaves: 0,
       seed: nextSeed(),
-      verifyDeterminism: d === 0,
+      verifyDeterminism: d === 0 || level.id === 'i24' || level.id === 'i17',
     });
   }
 
-  // 7. Endless 10 waves on every island (+ startEndlessFromWave1 checks)
+  // 7. Endless 10 waves on every island (+ startEndlessFromWave1 checks incl. Chapter 2)
   for (let i = 0; i < levels.length; i++) {
     if (quick && i % 4 !== 0) continue;
     const level = levels[i];
@@ -525,12 +627,15 @@ export function buildBotScenarios(opts: ScenarioSuiteOptions = {}): BotScenario[
       useAbilities: true,
       endlessWaves: 10,
       seed: nextSeed(),
-      verifyDeterminism: i === 0,
+      verifyDeterminism: i === 0 || level.id === 'i17' || level.id === 'i24',
     });
   }
 
   if (levels.length > 0) {
-    const startDirectLevels = quick ? [levels[0]] : [levels[0], levels[Math.min(4, levels.length - 1)]];
+    const pickIds = ['l1c', 'i04', 'i17', 'i24'];
+    const startDirectLevels = quick
+      ? [levels[0]]
+      : levels.filter((l, idx) => pickIds.includes(l.id) || (idx === 0 && !pickIds.includes(l.id)));
     for (const lvl of startDirectLevels) {
       scenarios.push({
         id: `${lvl.id}:endlessFromStart`,
@@ -546,6 +651,7 @@ export function buildBotScenarios(opts: ScenarioSuiteOptions = {}): BotScenario[
         endlessWaves: 10,
         startEndlessFromWave1: true,
         seed: nextSeed(),
+        verifyDeterminism: lvl.id === 'i24',
       });
     }
   }

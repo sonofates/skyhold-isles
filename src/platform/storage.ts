@@ -220,7 +220,18 @@ export function migrateProgress(parsed: unknown, levelCount: number): ProgressDa
   const bestEndlessWaves = parseIslandInts(raw.bestEndlessWaves, count);
   const bestLives = parseIslandInts(raw.bestLives, count);
   const clears = parseIslandInts(raw.clears, count);
-  // v1 saves never counted clears: an island with stars was won at least once.
+  const difficultyWins = sanitizeDifficultyWins(raw.difficultyWins, count);
+  if (difficultyWins) {
+    for (let i = 0; i < count; i++) {
+      const maxDiff = Math.max(
+        difficultyWins.easy[i] ?? 0,
+        difficultyWins.normal[i] ?? 0,
+        difficultyWins.hard[i] ?? 0,
+      );
+      if (maxDiff > bestStars[i]) bestStars[i] = maxDiff;
+    }
+  }
+  // v1 saves (or partial saves recovered from difficultyWins) never counted clears: an island with stars was won at least once.
   for (let i = 0; i < count; i++) {
     if (bestStars[i] > 0 && clears[i] === 0) clears[i] = 1;
   }
@@ -263,7 +274,6 @@ export function migrateProgress(parsed: unknown, levelCount: number): ProgressDa
     }
     progress.heroes = sanitizeHeroSaveData(raw.heroes, clearedCount, unlocked);
   }
-  const difficultyWins = sanitizeDifficultyWins(raw.difficultyWins, count);
   if (difficultyWins) progress.difficultyWins = difficultyWins;
   // Upgrades are always refundable: if a save somehow spends more stars than it has earned
   // (edited save, retuned costs), refund everything instead of keeping an impossible state.
@@ -349,7 +359,17 @@ const PROGRESS_IMPORT_BACKUP_KEY = 'skyhold_isles_progress_import_backup';
 export function backupProgressBeforeImport(): void {
   try {
     const raw = localStorage.getItem(PROGRESS_KEY);
-    if (raw) localStorage.setItem(PROGRESS_IMPORT_BACKUP_KEY, raw);
+    if (!raw) return;
+    if (localStorage.getItem(PROGRESS_IMPORT_BACKUP_KEY) !== null) {
+      let parsed: unknown = null;
+      try {
+        parsed = JSON.parse(raw);
+      } catch {
+        parsed = null;
+      }
+      if (!hasAnyProgress(migrateProgress(parsed, 64))) return;
+    }
+    localStorage.setItem(PROGRESS_IMPORT_BACKUP_KEY, raw);
   } catch {
     // ignore storage errors
   }
@@ -365,6 +385,12 @@ export function hasAnyProgress(p: ProgressData): boolean {
     p.challengeClears.some((l) => l.length > 0) ||
     p.daily.total > 0 ||
     Object.keys(p.workshop).length > 0 ||
-    hasHeroSaveProgress(p.heroes)
+    hasHeroSaveProgress(p.heroes) ||
+    Boolean(
+      p.difficultyWins &&
+        (p.difficultyWins.easy.some((v) => v > 0) ||
+          p.difficultyWins.normal.some((v) => v > 0) ||
+          p.difficultyWins.hard.some((v) => v > 0)),
+    )
   );
 }

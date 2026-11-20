@@ -362,17 +362,25 @@ export function recordWin2D(
   livesLeft: number,
   levels: readonly LevelDef[] = LEVELS_2D,
   challenges: readonly ChallengeId[] = [],
+  difficulty: DifficultyId = 'normal',
 ): WinRecord | null {
   const i = indexOf2D(levelId, levels);
   if (i < 0) return null;
   const p = loadProgress2D(levels);
-  const safeStars = (Number.isFinite(stars) ? Math.max(1, Math.min(3, Math.round(stars))) : 1) as 1 | 2 | 3;
+  const diff: DifficultyId = isDifficultyId(difficulty) ? difficulty : 'normal';
+  const earnedStars = (Number.isFinite(stars) ? Math.max(1, Math.min(3, Math.round(stars))) : 1) as 1 | 2 | 3;
+  const awarded = starsAwarded(earnedStars, diff);
   const safeLives = Number.isFinite(livesLeft) ? Math.max(0, Math.floor(livesLeft)) : 0;
-  const badges = badgesForWin(challengesForLevel(levels[i]), challenges);
-  // A plain win is a Normal win (read the record before applyWin moves bestStars).
+  const badges = DIFFICULTIES[diff].allowsChallenges ? badgesForWin(challengesForLevel(levels[i]), challenges) : [];
+  // Read (and for a legacy save, derive) the record before applyWin moves bestStars.
   const dw = difficultyWinsOf(p);
-  const rec = applyWin(p, i, levels.length, safeStars, safeLives, badges);
-  dw.normal[i] = Math.max(dw.normal[i] ?? 0, safeStars);
+  const prevBestLives = p.bestLives[i] ?? 0;
+  let rec = applyWin(p, i, levels.length, awarded, safeLives, badges);
+  if (diff === 'easy') {
+    p.bestLives[i] = prevBestLives;
+    rec = { ...rec, newBestLives: false };
+  }
+  dw[diff][i] = Math.max(dw[diff][i] ?? 0, awarded);
   p.difficultyWins = dw;
   saveProgress2D(p, levels);
   return rec;
@@ -707,7 +715,9 @@ export function importSaveCode2D(
   merged.heroes = migrateHeroSave(merged.heroes, merged, levels);
   try {
     const raw = ls?.getItem(PROGRESS_2D_KEY);
-    if (raw) ls?.setItem(PROGRESS_2D_IMPORT_BACKUP_KEY, raw);
+    if (raw && (hasAnyProgress(current) || ls?.getItem(PROGRESS_2D_IMPORT_BACKUP_KEY) === null)) {
+      ls?.setItem(PROGRESS_2D_IMPORT_BACKUP_KEY, raw);
+    }
   } catch {
     // ignore storage errors
   }

@@ -20,6 +20,7 @@ import { migrateProgress, PROGRESS_SAVE_VERSION } from './storage.ts';
  * so a load can never lose progress. Settings are device-specific and not part of the code.
  */
 const PREFIX = 'SKY2-';
+const MAX_SAVE_CODE_ISLANDS = 512;
 
 /** FNV-1a 32-bit, as 7 base36 chars. */
 function checksum(text: string): string {
@@ -152,7 +153,7 @@ export function decodeSaveCode(code: string, levelCount: number): SaveCodeResult
   const r = raw as Record<string, unknown>;
   const decodedHeroes = r.h !== undefined ? decodeHeroPayload(r.h) : undefined;
   const levelIds = Array.isArray(r.i)
-    ? r.i.map((x) => (typeof x === 'string' ? x : ''))
+    ? r.i.slice(0, MAX_SAVE_CODE_ISLANDS).map((x) => (typeof x === 'string' && x.length <= 64 ? x : ''))
     : undefined;
   const hasValidIds = levelIds !== undefined && levelIds.some((id) => id.length > 0);
   const progress = migrateProgress(
@@ -239,7 +240,21 @@ export function mergeProgress(a: ProgressData, b: ProgressData, levelCount: numb
       ? [workshopB, workshopA]
       : [workshopA, workshopB];
   const maxIdx = Math.max(0, count - 1);
+  const mergedDifficultyWins =
+    a.difficultyWins !== undefined || b.difficultyWins !== undefined
+      ? mergeDifficultyWins(difficultyWinsOf(a), difficultyWinsOf(b), count)
+      : undefined;
   const bestStars = maxList(a.bestStars, b.bestStars, 3);
+  if (mergedDifficultyWins) {
+    for (let i = 0; i < count; i++) {
+      const maxDiff = Math.max(
+        mergedDifficultyWins.easy[i] ?? 0,
+        mergedDifficultyWins.normal[i] ?? 0,
+        mergedDifficultyWins.hard[i] ?? 0,
+      );
+      if (maxDiff > bestStars[i]) bestStars[i] = maxDiff;
+    }
+  }
   const clears = maxList(a.clears, b.clears);
   for (let i = 0; i < count; i++) {
     if (bestStars[i] > 0 && clears[i] === 0) clears[i] = 1;
@@ -292,9 +307,7 @@ export function mergeProgress(a: ProgressData, b: ProgressData, levelCount: numb
     daily,
     ...(mergedHeroes !== undefined ? { heroes: mergedHeroes } : {}),
     // Either side recorded difficulty: keep the best of both (a legacy side's wins read as Normal).
-    ...(a.difficultyWins !== undefined || b.difficultyWins !== undefined
-      ? { difficultyWins: mergeDifficultyWins(difficultyWinsOf(a), difficultyWinsOf(b), count) }
-      : {}),
+    ...(mergedDifficultyWins !== undefined ? { difficultyWins: mergedDifficultyWins } : {}),
   };
   if (starWallet(merged).available < 0) {
     merged.workshop = primaryWorkshop;
@@ -337,6 +350,30 @@ export function describeMergeGain(before: ProgressData, after: ProgressData): st
       spentAfter += countHeroSkillPointsSpent(id, after.heroes.roster?.[id]?.skills ?? []);
     }
     if (spentAfter > spentBefore) parts.push('hero skills');
+  }
+  if (before.difficultyWins !== undefined || after.difficultyWins !== undefined) {
+    const dwBefore = difficultyWinsOf(before);
+    const dwAfter = difficultyWinsOf(after);
+    const diffLen = Math.max(dwBefore.hard.length, dwAfter.hard.length);
+    let newHardRibbons = 0;
+    let betterDiffStars = false;
+    for (let i = 0; i < diffLen; i++) {
+      const hb = dwBefore.hard[i] ?? 0;
+      const ha = dwAfter.hard[i] ?? 0;
+      if (hb === 0 && ha > 0) newHardRibbons++;
+      else if (
+        ha > hb ||
+        (dwAfter.normal[i] ?? 0) > (dwBefore.normal[i] ?? 0) ||
+        (dwAfter.easy[i] ?? 0) > (dwBefore.easy[i] ?? 0)
+      ) {
+        betterDiffStars = true;
+      }
+    }
+    if (newHardRibbons > 0) {
+      parts.push(`+${newHardRibbons} Hard ribbon${newHardRibbons === 1 ? '' : 's'}`);
+    } else if (betterDiffStars) {
+      parts.push('difficulty records');
+    }
   }
   return parts.length > 0 ? parts.join(', ') : 'nothing new — this save already had all of it';
 }
