@@ -8,9 +8,9 @@
  *   └ lives+gold plaque ········ [hero | skills ‖ abilities] tray ········ wave banner ──┘
  *
  * The map covers the screen (fullBleed.ts) and the pieces lie over its decorative edges. A piece
- * never covers a plot, a cave, the castle or a road inside the safe area: per island the info card
- * may slide right along the top, the tray along the bottom, the horn may stand left of the banner
- * (`hornAlt`); only if that is not enough the map shrinks a little (fullBleed.ts).
+ * never covers a plot, a cave, the castle or a road inside the safe area at the map's default
+ * view: the view is panned to clear them, the tray may slide along the bottom and the horn may
+ * stand left of the banner (`hornAlt`). The info card stays in its corner.
  */
 import { HUD_MIN_TOUCH, hudButtonsKeepOut, plaqueLayout, uiScale, userUiScale, type Insets, type PlaqueLayout, type PlaqueSlots, type Rect } from './uiLayout.ts';
 
@@ -64,7 +64,7 @@ export interface HudDock extends HornSpot {
   readonly buttons: Rect;
   /** Slot of the info cards (next-wave card, tapped-foe card, new-foe heads-up): top-left. */
   readonly info: Rect;
-  /** Left edges the info slot may slide between (along the top). */
+  /** Left edges the info slot may take (its corner only, since the pan; kept for callers). */
   readonly infoRange: readonly [number, number];
   readonly plaque: PlaqueLayout;
   readonly banner: Rect;
@@ -139,13 +139,14 @@ export function hudDock(w: number, h: number, insets: Insets, o: HudDockOptions)
     tray = { x: plaque.x, y: plaque.y - gap - th, w: tw, h: th };
     trayRange = [plaque.x, plaque.x];
   }
-  // Info slot top-left: compact, may slide right up to the top-centre column (the first-island
-  // coach card, 30 --s wide) and never into the buttons.
+  // Info slot anchored in the top-left corner, compact (owner feedback 2026-11-21: a card floating
+  // mid-top read as misplaced). Never into the top-centre column (the first-island coach card,
+  // 30 --s wide) or the buttons. The map's default view keeps it clear (fullBleed.ts).
   const stop = Math.min(w / 2 - s * 15 - gap, buttons.x - gap);
   const iw = Math.max(Math.min(110, stop - leftX), Math.min(s * 17, w * 0.21, stop - leftX));
   const ih = Math.max(s * 7.5, 64);
   const info: Rect = { x: leftX, y: top, w: iw, h: ih };
-  const infoRange: [number, number] = [leftX, Math.max(leftX, stop - iw)];
+  const infoRange: [number, number] = [leftX, leftX];
   return {
     form: 'corners', pad, gap, buttons, info, infoRange, plaque, banner, horn: { x: hx, y: hy, r }, hornBox: box(hx, hy), hornTextW, hornAlt,
     tray, trayRange, trayLayout: 'row', d,

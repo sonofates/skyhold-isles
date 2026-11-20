@@ -594,6 +594,7 @@ export const TR: { readonly [K in MsgKey]: Msg } = {
   'touch.build': 'Kule kurmak için boş alana, geliştirmek ya da satmak için kuleye dokun',
   'touch.ability': 'Bir yeteneğe, sonra haritaya ya da bir kuleye dokun',
   'touch.cancel': 'Vazgeçmek için yeteneğe yeniden dokun',
+  'touch.pan': 'Haritayı biraz kaydırmak için zemini tek parmakla sürükle',
   'fps.counter': '{n} FPS',
 
   // --- abilities (in-game bar) ---------------------------------------------------------------
@@ -715,6 +716,10 @@ export const TR: { readonly [K in MsgKey]: Msg } = {
   'pad.start': 'Start',
   'set.gamepadRun': 'Savaşta oyun kumandası',
   'key.cursor': 'İmleci gezdir (yuvalar, halka, kahraman)',
+  'key.shift': 'Shift',
+  'key.pan': 'Haritayı biraz kaydır',
+  'key.drag': 'Sürükle',
+  'key.scroll': 'İki parmakla kaydır',
   'key.cursorPress': 'İmlecin olduğu yere tıkla',
   'set.creditsOpen': 'Göster',
   'set.creditsNote': 'Adaları kimler yaptı, hangi araçlar ve yazı tipi kullanıldı',

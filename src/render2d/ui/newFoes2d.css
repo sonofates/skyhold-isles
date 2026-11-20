@@ -90,7 +90,7 @@
   left: 50%;
   top: calc(var(--s) * -0.55);
   transform: translateX(-60%);
-  font-size: max(9px, calc(var(--s) * 0.72));
+  font-size: max(10px, calc(var(--s) * 0.72));
   color: var(--cream);
   font-weight: 700;
 }

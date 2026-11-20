@@ -741,7 +741,7 @@ export function openSettings(ctx: SettingsContext): Sheet {
     const padRow = (caps: readonly string[], what: string): HTMLElement => el('div', 'pu-key-row', {}, el('span', 'pu-key-caps', {}, ...caps.map(padCap)), el('span', 'pu-ink', {}, what));
     const section = (title: string, ...items: HTMLElement[]): HTMLElement => el('section', 'pu-key-section', {}, el('h3', 'pu-letter', {}, title), el('div', 'pu-key-list', {}, ...items));
     const out: HTMLElement[] = [];
-    if (touch) out.push(section(t('set.touch'), el('div', 'pu-key-row pu-ink', {}, t('touch.build')), el('div', 'pu-key-row pu-ink', {}, t('touch.hero')), el('div', 'pu-key-row pu-ink', {}, t('touch.ability')), el('div', 'pu-key-row pu-ink', {}, t('touch.cancel'))));
+    if (touch) out.push(section(t('set.touch'), el('div', 'pu-key-row pu-ink', {}, t('touch.build')), el('div', 'pu-key-row pu-ink', {}, t('touch.hero')), el('div', 'pu-key-row pu-ink', {}, t('touch.ability')), el('div', 'pu-key-row pu-ink', {}, t('touch.cancel')), el('div', 'pu-key-row pu-ink', {}, t('touch.pan'))));
     out.push(
       section(
         t('set.keyboard'),
@@ -758,9 +758,10 @@ export function openSettings(ctx: SettingsContext): Sheet {
         keyRow([t('key.esc')], t('key.cancel')),
         keyRow(['↑', '↓', '←', '→'], t('key.cursor')),
         keyRow([t('key.enter')], t('key.cursorPress')),
+        keyRow([t('key.shift'), '↑', '↓', '←', '→'], t('key.pan')),
       ),
       // Mouse + replay under the keyboard list, menus and the controller in the second column.
-      ...(!touch || desktop ? [section(t('set.mouse'), keyRow([t('key.rightClick')], t('key.cancelAim')), keyRow([t('key.rightClick')], t('key.heroMove')))] : []),
+      ...(!touch || desktop ? [section(t('set.mouse'), keyRow([t('key.rightClick')], t('key.cancelAim')), keyRow([t('key.rightClick')], t('key.heroMove')), keyRow([t('key.drag')], t('key.pan')), keyRow([t('key.scroll')], t('key.pan')))] : []),
       section(t('set.replayKeys'), keyRow([t('key.space')], t('key.pause')), keyRow(['1', '2', '4'], t('key.replaySpeed')), keyRow([t('key.esc')], t('key.replayLeave'))),
       section(
         t('set.menuKeys'),

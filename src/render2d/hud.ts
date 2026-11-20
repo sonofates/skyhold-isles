@@ -1,8 +1,11 @@
 import { CanvasTextMetrics, Container, Graphics, NineSliceSprite, Sprite, type Text } from 'pixi.js';
 import { t, type MsgKey } from '../i18n/index.ts';
 import type { LoadedArt } from './assets2d.ts';
-import { paintedText, setFontSize, setText } from './hudText.ts';
+import { fitFont, paintedText, setFontSize, setText } from './hudText.ts';
 import { fitWidth, hasKit, inkText, kit, setInkSize } from './uiKit.ts';
+
+/** Smallest painted HUD lettering (css px): a long label shrinks its font this far, no further. */
+export const HUD_MIN_FONT = 12;
 import { hudDock, type HudDock, type HudDockOptions } from './hudDock.ts';
 import type { QaTextItem } from './qaText.ts';
 import { hornStackText, type HornLabelSize, type HornPlacement } from './hornSpot.ts';
@@ -112,6 +115,10 @@ export class Hud {
   private hornAtCave = false;
   private dockHorn: { x: number; y: number; r: number; box: Rect; textW: number } = { x: 0, y: 0, r: 40, box: { x: 0, y: 0, w: 0, h: 0 }, textW: 60 };
   private bannerFont = 30;
+  /** Each label's own font size at this layout (fitFont shrinks from it only when it must). */
+  private numFont = 30;
+  private waveFont = 26;
+  private hornFont = 20;
   private screenW = 1;
   private screenH = 1;
   private t = 0;
@@ -211,11 +218,12 @@ export class Hud {
       this.coin.position.set(pl.x + pl.w * OLD_COIN_X, pl.y + pl.h / 2);
       this.coin.scale.set((icon * 1.04) / Math.max(1, this.coin.texture.height));
     }
+    this.numFont = Math.max(HUD_MIN_FONT + 2, pl.fontSize);
     for (const [t, b] of [
       [this.livesText, pl.livesBox],
       [this.goldText, pl.goldBox],
     ] as const) {
-      setFontSize(t, pl.fontSize);
+      setFontSize(t, this.numFont);
       t.position.set(b.x + b.w / 2, b.y + b.h / 2);
     }
     this.fitNumbers();
@@ -244,10 +252,15 @@ export class Hud {
     // solid cloth runs 36-86% of the height, ragged hem below), plus a nudge for the font's
     // descender space so "Wave 1/10" / "Dalga 1/10" sits in the middle of the cloth.
     const waveFont = Math.round(Math.max(15, bh * 0.36));
-    setFontSize(this.waveText, waveFont);
+    this.waveFont = waveFont;
     this.waveText.position.set(this.banner.x, bannerY + bh * BANNER_CLOTH_MID + waveFont * 0.05);
     // The cloth between the knots is ~72 % of the banner; the "new wave" bump (×1.16) stays on it.
     this.bannerFont = bw * 0.6;
+    // Refit the current label to this banner (a resize must never keep an older, smaller fit).
+    this.fitWave();
+    this.waveBump = 0;
+    this.waveText.tint = 0xffffff;
+    this.waveText.scale.set(this.waveBaseScale);
 
     // Horn in the dock (beside the wave banner): the bonus label and the seconds stand on its left,
     // right-aligned against the countdown ring, so the piece stays one short block.
@@ -257,7 +270,8 @@ export class Hud {
     this.hornTextW = dock.hornTextW;
     this.hornBox = dock.hornBox;
     this.dockHorn = { x: this.hornX, y: this.hornY, r: this.hornR, box: this.hornBox, textW: this.hornTextW };
-    setFontSize(this.hornLabel, Math.round(Math.max(17, 22 * u)));
+    this.hornFont = Math.round(Math.max(17, 22 * u));
+    setFontSize(this.hornLabel, this.hornFont);
     setFontSize(this.hornSecs, Math.round(Math.max(14, 18 * u)));
     this.placeHornText('side');
     this.lastHorn = NaN;
@@ -271,10 +285,25 @@ export class Hud {
     this.lastBanner = '\u0000';
   }
 
-  /** Numbers never leave their slot in the wood (4-digit gold shrinks instead). */
+  /** Numbers never leave their slot in the wood (4-digit gold takes a smaller font instead). */
   private fitNumbers(): void {
-    fitWidth(this.livesText, this.livesBox.w - 6);
-    fitWidth(this.goldText, this.goldBox.w - 6);
+    const min = Math.max(HUD_MIN_FONT, Math.round(this.numFont * 0.6));
+    this.livesBaseScale = fitFont(this.livesText, this.numFont, this.livesBox.w - 6, min);
+    this.goldBaseScale = fitFont(this.goldText, this.numFont, this.goldBox.w - 6, min);
+    this.livesHit = 0;
+    this.goldBump = 0;
+    this.livesText.tint = 0xffffff;
+    this.goldText.tint = 0xffffff;
+  }
+
+  /** "Wave n/N" on the banner's cloth: its own size, a smaller font only for a long translation. */
+  private fitWave(): void {
+    this.waveBaseScale = fitFont(this.waveText, this.waveFont, this.bannerFont, Math.max(HUD_MIN_FONT, Math.round(this.waveFont * 0.72)));
+  }
+
+  /** The horn's "+N" / "Start" beside it. */
+  private fitHornLabel(): void {
+    fitFont(this.hornLabel, this.hornFont, this.hornTextW - 6, HUD_MIN_FONT);
   }
 
   private drawPauseGlyph(paused: boolean): void {
@@ -346,8 +375,7 @@ export class Hud {
       if (s.lives < this.lastLives) this.livesHit = 0.5;
       this.lastLives = s.lives;
       setText(this.livesText, String(s.lives));
-      fitWidth(this.livesText, this.livesBox.w - 6);
-      this.livesBaseScale = this.livesText.scale.x;
+      this.livesBaseScale = fitFont(this.livesText, this.numFont, this.livesBox.w - 6, Math.max(HUD_MIN_FONT, Math.round(this.numFont * 0.6)));
       const low = s.startLives !== undefined && s.lives > 0 && (s.lives <= 3 || s.lives <= Math.floor(s.startLives * 0.25));
       this.livesText.style.fill = low ? '#ffb4a0' : '#fff4dc';
     }
@@ -368,8 +396,7 @@ export class Hud {
       }
       this.lastGold = s.gold;
       setText(this.goldText, String(s.gold));
-      fitWidth(this.goldText, this.goldBox.w - 6);
-      this.goldBaseScale = this.goldText.scale.x;
+      this.goldBaseScale = fitFont(this.goldText, this.numFont, this.goldBox.w - 6, Math.max(HUD_MIN_FONT, Math.round(this.numFont * 0.6)));
     }
     if (this.goldBump > 0) {
       this.goldBump = Math.max(0, this.goldBump - dt);
@@ -385,8 +412,7 @@ export class Hud {
       const w = Math.max(1, s.wave);
       const story = this.endlessAfter;
       setText(this.waveText, story === null ? t('hud.wave', { n: w, total: s.totalWaves }) : w <= story ? t('hud.wave', { n: w, total: story }) : t('hud.endlessWave', { n: w }));
-      fitWidth(this.waveText, this.bannerFont);
-      this.waveBaseScale = this.waveText.scale.x;
+      this.fitWave();
       if (Number.isFinite(this.prevWaveNum) && s.wave > this.prevWaveNum && s.wave > 1) this.waveBump = 0.5;
       this.prevWaveNum = s.wave;
     }
@@ -417,7 +443,7 @@ export class Hud {
     if (hornKey !== this.lastHorn) {
       this.lastHorn = hornKey;
       setText(this.hornLabel, hornKey > 0 ? `+${hornKey}` : hornKey === -1 ? t('hud.start') : '');
-      fitWidth(this.hornLabel, this.hornTextW - 6);
+      this.fitHornLabel();
     }
     this.drawCountdown(s.countdown ?? 0, s.countdownFrac ?? 0);
     if (s.banner !== this.lastBanner) {
@@ -568,7 +594,7 @@ export class Hud {
       this.hornLabel.position.set(this.hornX, ys.labelY);
       this.hornSecs.position.set(this.hornX, ys.secsY);
     }
-    fitWidth(this.hornLabel, this.hornTextW - 6);
+    this.fitHornLabel();
   }
 
   /** Where the horn stands now: at its dock corner ('dock') or beside the next wave's cave ('cave'). */

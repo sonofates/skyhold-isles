@@ -5,11 +5,12 @@ import {
 } from './mapFrame.ts';
 import type { QualityTier } from './renderResolution.ts';
 import { computeMapFit, type MapFit } from './viewFit.ts';
+import { fitAt } from './fullBleed.ts';
 
 /**
  * Painted map + world container. Children of `world` are positioned in map image px; the
  * container carries the fit (scale + offset), so sprite sizes stay locked to the painting.
- * Letterbox bands (an extreme aspect, or the map shrunk to clear the corner HUD) are a frame
+ * Letterbox bands (an extreme aspect, or a pan past the painting's top / bottom edge) are a frame
  * (mapFrame.ts): the map itself blurred, darkened and desaturated behind everything, a soft shadow
  * and a thin painted border around the image, a light screen vignette.
  */
@@ -110,6 +111,21 @@ export class MapView {
     this.mapSprite.width = iw;
     this.mapSprite.height = ih;
     this.layoutBands();
+  }
+
+  /**
+   * Pans the view: the same scale, the map's screen offset moved (mapPan.ts). Everything in
+   * `world` moves with it; the bands (only past the painting's edge) re-lay when one is open.
+   */
+  setOffset(offsetX: number, offsetY: number): void {
+    const f = this.fit;
+    if (f.offsetX === offsetX && f.offsetY === offsetY) return;
+    const wasOpen = f.bandLeft > 0.5 || f.bandRight > 0.5 || f.bandTop > 0.5 || f.bandBottom > 0.5;
+    const [iw, ih] = this.layout.imageSize;
+    this.fit = fitAt(this.screenW, this.screenH, iw, ih, f.scale, offsetX, offsetY);
+    this.world.position.set(offsetX, offsetY);
+    const n = this.fit;
+    if (wasOpen || n.bandLeft > 0.5 || n.bandRight > 0.5 || n.bandTop > 0.5 || n.bandBottom > 0.5) this.layoutBands();
   }
 
   /**

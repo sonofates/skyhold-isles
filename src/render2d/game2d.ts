@@ -60,6 +60,8 @@ import { distSegRect, type Seg } from './playfield.ts';
 import { pointAlong, waveLaneCounts } from './lanePath.ts';
 import { buildEndlessWaveDef } from '../sim/waveSystem.ts';
 import { fullBleedFit, hardOverlaps, hardShapes, type FullBleedFit, type HardShapes } from './fullBleed.ts';
+import { MapPan, PAN_SLOP } from './mapPan.ts';
+import type { HornPlacement } from './hornSpot.ts';
 import { GoldPops2D } from './ui/goldPops2d.ts';
 import { applyRunCommand, ReplayCursor, RunRecorder, runFingerprint, sameFingerprint, type RunCommand, type RunReplay } from './ui/replay2d.ts';
 
@@ -206,6 +208,14 @@ export class Game2D {
   /** Fired when the hero selection changes (HUD portrait highlight). */
   onHeroSelect: ((selected: boolean) => void) | null = null;
   private down: { x: number; y: number; t: number } | null = null;
+  /** Gentle map pan (mapPan.ts): the map's offset inside its pan range. */
+  readonly pan = new MapPan();
+  /** A press that may become a pan drag (one pointer; a second one cancels it). */
+  private panPress: { id: number; x: number; y: number; active: boolean } | null = null;
+  /** The horn's spot beside a cave and the map offset it was placed at (it moves with the map). */
+  private hornPlaced: { p: HornPlacement; ox: number; oy: number } | null = null;
+  /** The view moved since the horn was last placed (re-placed once the pan settles). */
+  private hornStale = false;
   /** Free plot under the mouse (desktop hover glow), or -1. */
   private hoverPlot = -1;
   private minCost = 0;
@@ -914,7 +924,48 @@ export class Game2D {
       }
     }
     this.hud.setHornPlacement(placed);
+    this.hornPlaced = placed ? { p: placed, ox: this.map.fit.offsetX, oy: this.map.fit.offsetY } : null;
+    this.hornStale = false;
     this.dock = placed ? { ...this.dock, horn: placed.horn, hornBox: placed.hornBox } : { ...this.dock, horn: home.horn, hornBox: home.hornBox };
+  }
+
+  /**
+   * The pan moved the map: the world (and everything placed from `map.fit`) follows; the horn
+   * beside a cave moves with its cave and is re-placed once the view settles.
+   */
+  private applyPan(): void {
+    this.map.setOffset(this.pan.x, this.pan.y);
+    const hp = this.hornPlaced;
+    if (hp) {
+      const dx = this.map.fit.offsetX - hp.ox;
+      const dy = this.map.fit.offsetY - hp.oy;
+      const p = hp.p;
+      const moved: HornPlacement = { ...p, horn: { ...p.horn, x: p.horn.x + dx, y: p.horn.y + dy }, hornBox: { ...p.hornBox, x: p.hornBox.x + dx, y: p.hornBox.y + dy } };
+      this.hud.setHornPlacement(moved);
+      this.dock = { ...this.dock, horn: moved.horn, hornBox: moved.hornBox };
+    }
+    this.hornStale = true;
+    this.hoverPlot = -1;
+  }
+
+  /** A pan gesture began: the screen-space build ring would float off its plot, so it closes. */
+  private panStarted(): void {
+    if (this.ring.isOpen) this.closeRing();
+    this.down = null;
+  }
+
+  private get reducedMotion(): boolean {
+    return typeof document !== 'undefined' && document.documentElement.classList.contains('pu-reduce-motion');
+  }
+
+  /** Pans the view by (dx, dy) css px (wheel / QA); returns whether it moved. */
+  panBy(dx: number, dy: number): boolean {
+    const moved = this.pan.scrollBy(dx, dy);
+    if (moved) {
+      this.panStarted();
+      this.applyPan();
+    }
+    return moved;
   }
 
   resize(w: number, h: number): void {
@@ -929,6 +980,9 @@ export class Game2D {
     this.dock = placed.dock;
     this.fullBleed = placed.fit;
     this.map.resize(w, h, placed.fit);
+    // Re-centred on every resize: the default view (fullBleed.ts), the pan range around it.
+    this.pan.reset(placed.pan, placed.fit.offsetX, placed.fit.offsetY);
+    this.panPress = null;
     this.hud.layout(w, h, this.dock, this.insets);
     this.dockHome = this.dock;
     this.placeHorn(true);
@@ -1002,6 +1056,11 @@ export class Game2D {
       const cy = this.app.screen.height / 2;
       this.map.root.scale.set(z);
       this.map.root.position.set(sx + cx * (1 - z), sy + cy * (1 - z));
+    }
+    if (this.pan.step(dtSec)) this.applyPan();
+    if (this.hornStale && !this.pan.dragging && !this.pan.gliding) {
+      this.hornStale = false;
+      this.placeHorn(true);
     }
     this.ring.update(dtSec, world.gold);
     this.syncRangePreview();
@@ -1638,7 +1697,62 @@ export class Game2D {
         return;
       }
       this.down = { x: e.clientX, y: e.clientY, t: performance.now() };
+      // One pointer may become a pan drag; a second finger cancels both (no pinch here).
+      if (this.panPress && this.panPress.id !== e.pointerId) {
+        if (this.panPress.active) this.pan.release(performance.now(), true);
+        this.panPress = null;
+        this.down = null;
+      } else if (e.button === 0) this.panPress = { id: e.pointerId, x: e.clientX, y: e.clientY, active: false };
     });
+    // Drag on the map: past PAN_SLOP the press pans instead of tapping (plots, towers, hero
+    // orders keep their taps). Ability / skill aiming swallows these events (abilityBar2d.ts).
+    canvas.addEventListener('pointermove', (e) => {
+      const pp = this.panPress;
+      if (!pp || pp.id !== e.pointerId) return;
+      if (e.pointerType === 'mouse' && (e.buttons & 1) === 0) {
+        this.panPress = null;
+        return;
+      }
+      const now = performance.now();
+      if (!pp.active) {
+        if (Math.hypot(e.clientX - pp.x, e.clientY - pp.y) < PAN_SLOP || this.replayCursor || this.endShown) return;
+        pp.active = true;
+        this.pan.beginDrag(now);
+        this.panStarted();
+        try {
+          canvas.setPointerCapture(e.pointerId);
+        } catch {
+          // a synthetic / already released pointer: the drag still works inside the canvas
+        }
+        canvas.style.cursor = 'grabbing';
+      }
+      const dx = e.clientX - pp.x;
+      const dy = e.clientY - pp.y;
+      pp.x = e.clientX;
+      pp.y = e.clientY;
+      if (this.pan.dragBy(dx, dy, now)) this.applyPan();
+    });
+    const endPan = (e: PointerEvent): void => {
+      const pp = this.panPress;
+      if (!pp || pp.id !== e.pointerId) return;
+      this.panPress = null;
+      if (!pp.active) return;
+      this.pan.release(performance.now(), this.reducedMotion || e.type === 'pointercancel');
+      canvas.style.cursor = '';
+    };
+    canvas.addEventListener('pointerup', endPan);
+    canvas.addEventListener('pointercancel', endPan);
+    // Two-finger trackpad scroll / mouse wheel: the map slides with it (pinch-zoom is the page's).
+    canvas.addEventListener(
+      'wheel',
+      (e) => {
+        if (e.ctrlKey || this.replayCursor || this.endShown || anySheetOpen()) return;
+        e.preventDefault();
+        const k = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? 400 : 1;
+        this.panBy(-e.deltaX * k, -e.deltaY * k);
+      },
+      { passive: false },
+    );
     canvas.addEventListener('contextmenu', (e) => e.preventDefault());
     canvas.addEventListener('pointerup', (e) => {
       const d = this.down;
@@ -1733,6 +1847,15 @@ export class Game2D {
         e.preventDefault();
         return;
       }
+      if (e.shiftKey && e.key.startsWith('Arrow')) {
+        const dx = e.key === 'ArrowLeft' ? 1 : e.key === 'ArrowRight' ? -1 : 0;
+        const dy = e.key === 'ArrowUp' ? 1 : e.key === 'ArrowDown' ? -1 : 0;
+        if (dx === 0 && dy === 0) return;
+        e.preventDefault();
+        this.panStarted();
+        if (this.pan.nudge(dx, dy, this.reducedMotion)) this.applyPan();
+        return;
+      }
       if (e.key === ' ') this.stepper.paused = !this.stepper.paused;
       else if (e.key === '1') this.setSpeed(1);
       else if (e.key === '2') this.setSpeed(2);
@@ -1806,6 +1929,7 @@ export class Game2D {
       end: this.end.debug(),
       insets: this.insets,
       fit: this.map.fit,
+      pan: { x: Math.round(this.pan.x), y: Math.round(this.pan.y), range: this.pan.range, dragging: this.pan.dragging },
       mapInfo: {
         key: this.art.map.key,
         texelScale: this.map.texelScale,

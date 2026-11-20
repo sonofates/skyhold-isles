@@ -106,7 +106,7 @@ export function mountDifficultyBadge(id: DifficultyId): DifficultyBadge2D {
         return;
       }
       // A tag tied on the banner's rope (the art's top third), inside the banner's own dock slot.
-      const fs = Math.round(Math.max(9, Math.min(16, banner.h * 0.18)));
+      const fs = Math.round(Math.max(10.5, Math.min(16, banner.h * 0.18)));
       root.style.display = '';
       root.style.left = `${banner.x + banner.w / 2}px`;
       root.style.top = `${banner.y + Math.max(banner.h * 0.15, fs * 0.78 + 1)}px`;

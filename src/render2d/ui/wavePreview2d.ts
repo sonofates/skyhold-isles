@@ -27,6 +27,9 @@ export interface WaveChip {
   readonly armored: boolean;
 }
 
+/** Fade-out of the next-wave card as the wave marches (wavePreview2d.css `.pu-wave-out`). */
+export const WAVE_CARD_FADE_MS = 320;
+
 /** The card's chips from the sim's preview (sim order = spawn order; bosses first so they show). */
 export function waveChips(p: WavePreview | null): WaveChip[] {
   if (!p) return [];
@@ -83,6 +86,7 @@ export function mountWaveCard(
   let scale = 1;
   let placed: Rect | null = null;
   let shown = false;
+  let outTimer: ReturnType<typeof setTimeout> | undefined;
   let chipCount = 0;
   const build = (p: WavePreview): void => {
     head.textContent = t('wave.next', { n: p.waveOneBased });
@@ -113,8 +117,21 @@ export function mountWaveCard(
       const on = s.visible && !!s.preview && s.preview.items.length > 0;
       if (on !== shown) {
         shown = on;
-        card.style.display = on ? '' : 'none';
         placeKey = '';
+        clearTimeout(outTimer);
+        if (on) {
+          card.classList.remove('pu-wave-out');
+          card.style.display = '';
+        } else if (card.style.display !== 'none') {
+          // The wave marches: the card fades out of its corner (Reduced motion: gone at once).
+          card.classList.add('pu-wave-out');
+          const done = (): void => {
+            card.classList.remove('pu-wave-out');
+            if (!shown) card.style.display = 'none';
+          };
+          if (document.documentElement.classList.contains('pu-reduce-motion')) done();
+          else outTimer = setTimeout(done, WAVE_CARD_FADE_MS);
+        }
       }
       if (!on || !s.preview) return;
       const k = `${s.preview.waveOneBased}|${s.preview.items.map((i) => `${i.enemyType}${i.count}/${i.eliteCount ?? 0}${isNew(i.enemyType) ? '*' : ''}`).join(',')}`;

@@ -588,6 +588,7 @@ export const EN = {
   'touch.build': 'Tap a plot to build, a tower to upgrade or sell',
   'touch.ability': 'Tap an ability, then the map or a tower',
   'touch.cancel': 'Tap the ability again to cancel',
+  'touch.pan': 'Drag the ground with one finger to slide the map a little',
   'fps.counter': '{n} FPS',
 
   // --- abilities (in-game bar) ---------------------------------------------------------------
@@ -709,6 +710,10 @@ export const EN = {
   'pad.start': 'Start',
   'set.gamepadRun': 'Controller in battle',
   'key.cursor': 'Move the cursor (plots, ring, hero)',
+  'key.shift': 'Shift',
+  'key.pan': 'Slide the map a little',
+  'key.drag': 'Drag',
+  'key.scroll': 'Two-finger scroll',
   'key.cursorPress': 'Click where the cursor is',
   'set.creditsOpen': 'Show',
   'set.creditsNote': 'Who made the isles, and the tools and lettering they use',

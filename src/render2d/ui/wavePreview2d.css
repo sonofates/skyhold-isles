@@ -16,6 +16,12 @@
   pointer-events: none;
 }
 
+/* The wave marches: the card fades out of its corner (WAVE_CARD_FADE_MS in wavePreview2d.ts). */
+.pu-wave-card.pu-wave-out {
+  opacity: 0;
+  transition: opacity 0.3s ease-in;
+}
+
 /* Opacity only: the dock scales the card with `transform` (ui/dockCard.ts). */
 @keyframes pu-wave-in {
   from {
@@ -29,7 +35,7 @@
 }
 
 .pu-wave-head {
-  font-size: calc(var(--s) * 1.15);
+  font-size: max(12px, calc(var(--s) * 1.15));
   font-weight: 700;
   white-space: nowrap;
 }
@@ -83,7 +89,7 @@
 }
 
 .pu-wave-count {
-  font-size: calc(var(--s) * 1.2);
+  font-size: max(12px, calc(var(--s) * 1.2));
 }
 
 /* Kind marks hang on the face's lower left (the elite star keeps the top left). */
@@ -112,7 +118,7 @@
   flex-wrap: wrap;
   align-items: center;
   column-gap: calc(var(--s) * 0.8);
-  font-size: calc(var(--s) * 1);
+  font-size: max(11px, calc(var(--s) * 1));
   font-weight: 600;
 }
 
