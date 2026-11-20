@@ -1307,6 +1307,36 @@ export class Game2D {
     return { x: this.map.screenX(this.map.pxX(p.x)), y: this.map.screenY(this.map.pxY(p.z)) };
   }
 
+  /**
+   * Pad / keyboard cursor (ui/padCursor.ts): where it may jump right now (screen css px). `ring` =
+   * the open ring's tokens; `end` = the end board's buttons; `free` = the cursor glides (hero move
+   * order, rally flag); `snap` = the plots and the hero.
+   */
+  padTargets(): { mode: 'ring' | 'end' | 'free' | 'snap'; points: { x: number; y: number }[] } {
+    if (this.end.visible) return { mode: 'end', points: (this.end.debug()?.buttons ?? []).map((b) => ({ x: b.x, y: b.y })) };
+    if (this.ring.isOpen) return { mode: 'ring', points: this.ring.tokenPositions().map((p) => ({ x: p.x, y: p.y })) };
+    if (this.heroSel || this.rallyTower !== -1) return { mode: 'free', points: [] };
+    const lay = this.level.layout2d;
+    const points = lay ? lay.plots.map((_, i) => this.plotScreen(i)) : [];
+    const h = this.world.hero;
+    if (h && h.state !== 'dead') {
+      const head = this.heroHeadScreen();
+      const feet = this.heroScreen();
+      if (head && feet) points.push({ x: head.x, y: (head.y + feet.y) / 2 });
+    }
+    return { mode: 'snap', points };
+  }
+
+  /**
+   * Where a pad / keyboard click lands: in hero move mode the nearest road point (gliding a reticle
+   * exactly onto a road is fiddly with a stick), else the reticle's own spot.
+   */
+  padClickPoint(x: number, y: number): { x: number; y: number } {
+    if (!this.heroSel || !this.world.hero) return { x, y };
+    const c = this.world.heroSystem.groundGraph.clampToGround(this.map.worldXFromScreen(x), this.map.worldZFromScreen(y), Infinity);
+    return { x: this.map.screenX(this.map.pxX(c.roadX)), y: this.map.screenY(this.map.pxY(c.roadZ)) };
+  }
+
   private openForPlot(plot: number): void {
     const world = this.world;
     const { w, h } = this.screenSize();

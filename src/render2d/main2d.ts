@@ -38,6 +38,7 @@ import { uiUnit } from './hudDock.ts';
 import { hudCheck } from './hudCheck.ts';
 import { auditCanvasTexts } from './qaText.ts';
 import { anySheetOpen } from './ui/dom.ts';
+import { installNav } from './ui/navFocus.ts';
 
 /**
  * 2d.html entry — the painted 2D renderer (Pixi v8) on the real sim.
@@ -103,6 +104,9 @@ declare global {
       artcheck?: () => ReturnType<typeof artCheckSummary>;
       /** QA: the ability bar (state, boxes, FX counters) and aiming as a button press would. */
       abilities?: () => Record<string, unknown> | null;
+      /** QA: the keyboard / gamepad reticle (padCursor.ts). */
+      pad?: () => { shown: boolean; x: number; y: number; mode: string } | null;
+      padClick?: () => void;
       /** QA: the next-wave card (in the dock's info slot). */
       waveCard?: () => Record<string, unknown> | null;
       /** QA: every HUD piece as drawn (screen px) and what playable shape each one covers (must be none). */
@@ -251,6 +255,7 @@ async function runTitleScreen(q: URLSearchParams, title: typeof import('./ui/tit
 async function main(): Promise<void> {
   const q = new URLSearchParams(location.search);
   const fontsReady = bootLocale();
+  installNav();
   const desktop = isDesktopClient(q);
   let gfx = loadGraphics();
   let engine = applyGraphics(gfx, loadSettings().quality, desktop);
@@ -488,6 +493,7 @@ async function main(): Promise<void> {
   window.addEventListener('focus', refreshLiveSettings, { capture: true });
   let abilities: AbilityBar2D | null = null;
   let heroHud: HeroHud2D | null = null;
+  let padCursor: import('./ui/padCursor.ts').PadCursor | null = null;
   let replayBar: import('./ui/runControls2d.ts').ReplayBar2D | null = null;
   // Endless run left early (World Map / Restart): its best wave still goes on the board.
   const recordEndlessQuit = (): void => {
@@ -667,6 +673,16 @@ async function main(): Promise<void> {
       ...(heroHud ? { lead: { el: heroHud.el }, onAimStart: () => heroHud?.aim(null) } : {}),
     });
     if (q.get('herosel') === '1') game.setHeroSelected(true);
+    // Keyboard arrows / gamepad: the in-run reticle (a virtual mouse on the canvas).
+    const { mountPadCursor } = await import('./ui/padCursor.ts');
+    padCursor = mountPadCursor({
+      canvas: app.canvas,
+      targets: () => game.padTargets(),
+      aiming: () => !!abilities?.aiming || !!heroHud?.aiming,
+      heroSpot: () => game.heroScreen(),
+      paused: () => game.stepper.paused,
+      clickPoint: (x, y) => game.padClickPoint(x, y),
+    });
   }
   if (bench === 0) {
     const codex = mountCodex2D(art, (open) => {
@@ -1011,6 +1027,8 @@ async function main(): Promise<void> {
     hudWave: () => game.hud.waveLabel,
     artcheck: () => artCheckSummary(art),
     abilities: () => abilities?.debug() ?? null,
+    pad: () => padCursor?.state() ?? null,
+    padClick: () => padCursor?.click(),
     waveCard: () => waveCard?.debug() ?? null,
     hudCheck: () => hudCheck(game),
     textAudit: () => auditCanvasTexts([...game.hud.qaTexts(), ...game.end.qaTexts(), ...game.ring.qaTexts()], app.screen.width, app.screen.height),

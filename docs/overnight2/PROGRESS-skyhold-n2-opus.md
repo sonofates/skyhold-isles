@@ -5,11 +5,10 @@
 ## Backlog status
 1. Skill tree fits / scrolls obviously — DONE (round 1)
 2. Title screen + loading — DONE (round 1)
-3. Credits screen — DONE (round 1); pause menu consistency — NEXT (a pause menu already exists:
-   `runControls2d.ts mountPauseMenu` Resume / Restart / Settings / World Map under the Paused plate —
-   check it against the title/credits look, keyboard focus, phone layout)
-4. Keyboard / gamepad navigation — todo (title menu already walks with arrows/WASD + Enter)
-5. Accessibility (colour-blind cues, UI scale, text size) — todo
+3. Credits screen + pause menu — DONE (round 1; the pause menu already had Resume / Restart /
+   Settings / World Map, audited 0 problems, Credits also reachable from in-run Settings)
+4. Keyboard / gamepad navigation — DONE (round 1)
+5. Accessibility (colour-blind cues, UI scale, text size) — NEXT
 6. Juice + feel pass — todo
 7. uiaudit + hudCheck after each change; shots into docs/overnight2/opus-shots/ — ongoing
 
@@ -53,6 +52,32 @@
   'Fredoka TR' faces, same licence), Kenney Tower Defense Kit CC0 (from CREDITS.md). From the title,
   Settings → General ("Credits — Show") and `?screen=credits`.
 
+- **Keyboard / gamepad navigation** (round 1).
+  Menus: `src/render2d/ui/navFocus.ts` (installed once in main2d). Scope = topmost board
+  (`.pu-overlay`), else the title, else the pause menu, else the world map. Arrows / WASD = spatial
+  focus move (`pickInDirection`), Enter / Space press; first key lands on the scope's default
+  (`data-nav-default` — the map's next island —, the glowing primary plank, a confirm's safe choice).
+  Sliders and `data-nav-keep` rows (briefing difficulty) keep ← →. Space in the pause menu only
+  resumes. Painted gold focus ring only in key/pad mode (`html.pu-kbd`, off on any pointer press);
+  map islands use an `::after` ring under their name tag / stars (outline was hidden by children).
+  Gamepad API polling (standard mapping): D-pad / left stick (repeat 380 ms then 110 ms) move,
+  A press (presses the default when nothing is focused), B = Esc, LB / RB = prev / next tab
+  (`[role=tablist]`), Start = pause / press.
+  In battle: `src/render2d/ui/padCursor.ts` — a gold reticle that is a **virtual mouse** (synthetic
+  pointer events on the canvas), so ring / tower card / hero / rally / ability + hero-skill aiming /
+  end board all work through their existing handlers. `Game2D.padTargets()` gives snap targets
+  (plots + hero; ring tokens when open; end board buttons) or free mode (hero move, rally, aiming:
+  analog stick glide, arrows step). `Game2D.padClickPoint()` snaps a hero move order onto the
+  nearest road. Pad: A click, B back, X wave, Y hero (reticle jumps to it), LB / RB Meteor /
+  Overcharge, LT / RT hero skills, Start pause. Keyboard in battle: arrows move the reticle, Enter
+  clicks (WASD stay ability/hero keys). A real mouse / finger hides it.
+  Settings → Controls lists Menus, Controller, Controller in battle, and the battle cursor keys.
+  QA: `qa/navprobe.mjs` (map, briefing, Settings tabs/slider/back with a fake pad, title, pause,
+  in-run ring/build/hero glide/move, keyboard cursor): 0 problems. Note: in software GL a run
+  renders at a few fps, so a short fake press can fall between two polls — the probe holds presses
+  250–450 ms and falls back to `__p0.padClick()` to tell a missed poll from a logic bug.
+  Tests: n2Ui.test.ts (pickInDirection, keyDir, stickDir, repeatDue).
+
 ## Decisions
 - Round 1: PROGRESS file lives in docs/overnight2/ (backlog says so); the runner header names
   docs/overnight/ — a pointer file there points here.
@@ -63,6 +88,10 @@
   line is a placeholder "The Skyhold Isles team".
 - Licences named from memory and not re-verified online: PixiJS MIT, TypeScript Apache-2.0, Vite /
   Vitest / Capacitor / Electron / steamworks.js MIT (worth a check before release).
+
+- Pad B in battle sends a synthetic Esc: it closes ring / hero / aim but never pauses (game2d only
+  pauses on a trusted Esc) — Start pauses. Documented as "Back / close".
+- Hero-move hint text is still mouse-worded ("Click the road…") with a pad — minor, left.
 
 ## Problems / notes
 - Env: `npm ci` needed in a fresh worktree; `npm install --no-save playwright` for QA. Gate:

@@ -724,8 +724,38 @@ export function openSettings(ctx: SettingsContext): Sheet {
         keyRow([HERO_KEYS.skill0], t('key.heroSkill1')),
         keyRow([HERO_KEYS.skill1], t('key.heroSkill2')),
         keyRow([t('key.esc')], t('key.cancel')),
+        keyRow(['↑', '↓', '←', '→'], t('key.cursor')),
+        keyRow([t('key.enter')], t('key.cursorPress')),
       ),
       section(t('set.replayKeys'), keyRow([t('key.space')], t('key.pause')), keyRow(['1', '2', '4'], t('key.replaySpeed')), keyRow([t('key.esc')], t('key.replayLeave'))),
+      section(
+        t('set.menuKeys'),
+        keyRow(['↑', '↓', '←', '→'], t('key.navMove')),
+        keyRow(['W', 'A', 'S', 'D'], t('key.navMove')),
+        keyRow([t('key.enter'), t('key.space')], t('key.navPress')),
+        keyRow([t('key.esc')], t('key.navBack')),
+      ),
+      section(
+        t('set.gamepad'),
+        keyRow([t('pad.dpad'), t('pad.stick')], t('key.navMove')),
+        keyRow(['A'], t('key.navPress')),
+        keyRow(['B'], t('key.navBack')),
+        keyRow(['LB', 'RB'], t('key.navTabs')),
+        keyRow([t('pad.start')], t('key.pause')),
+      ),
+      section(
+        t('set.gamepadRun'),
+        keyRow([t('pad.dpad'), t('pad.stick')], t('key.cursor')),
+        keyRow(['A'], t('key.cursorPress')),
+        keyRow(['B'], t('key.navBack')),
+        keyRow(['X'], t('key.wave')),
+        keyRow(['Y'], t('key.heroSelect')),
+        keyRow(['LB'], t('key.meteor')),
+        keyRow(['RB'], t('key.overcharge')),
+        keyRow(['LT'], t('key.heroSkill1')),
+        keyRow(['RT'], t('key.heroSkill2')),
+        keyRow([t('pad.start')], t('key.pause')),
+      ),
     );
     if (!touch || desktop) out.push(section(t('set.mouse'), keyRow([t('key.rightClick')], t('key.cancelAim')), keyRow([t('key.rightClick')], t('key.heroMove'))));
     return [el('div', 'pu-key-grid', {}, ...out)];

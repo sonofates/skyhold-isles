@@ -5,6 +5,7 @@ import { pickTreeFit, TREE_FIT_STEPS, type TreeLayout } from '../../src/render2d
 import { loadFraction, shouldShowTitle, titleArt, titleLogo, TITLE_SKIP_PARAMS } from '../../src/render2d/ui/titleScreen.ts';
 import { creditSections } from '../../src/render2d/ui/credits2d.ts';
 import { setLocale } from '../../src/i18n/index.ts';
+import { keyDir, pickInDirection, repeatDue, stickDir, type NavRect } from '../../src/render2d/ui/navFocus.ts';
 
 describe('skill tree fit (heroScreens.ts)', () => {
   it('tries the vertical tree first, largest zoom first, then the across tree largest first', () => {
@@ -100,5 +101,42 @@ describe('title screen (titleScreen.ts)', () => {
     expect(gate).toBeGreaterThan(0);
     expect(main.indexOf('shouldShowTitle', gate)).toBeGreaterThan(gate);
     expect(main).toContain('navigator.webdriver === true');
+  });
+});
+
+describe('menu navigation (navFocus.ts)', () => {
+  const r = (x: number, y: number, w = 100, h = 40): NavRect => ({ x, y, w, h });
+
+  it('picks the nearest control that way; straight ahead beats a closer one off to the side', () => {
+    const from = r(0, 0);
+    // A row of planks to the right, one a little lower but much closer.
+    const cands = [r(400, 0), r(150, 120), r(200, 0)];
+    expect(pickInDirection(from, 'right', cands)).toBe(2);
+    expect(pickInDirection(from, 'down', cands)).toBe(1);
+    expect(pickInDirection(from, 'left', cands)).toBe(-1);
+    expect(pickInDirection(from, 'up', cands)).toBe(-1);
+    // Overlapping spans count as straight ahead (no side penalty).
+    expect(pickInDirection(r(0, 0, 100, 40), 'down', [r(60, 80, 300, 40), r(-200, 70, 100, 40)])).toBe(0);
+  });
+
+  it('keys and the stick map to directions (WASD only where letters are allowed)', () => {
+    expect(keyDir('ArrowUp', false)).toBe('up');
+    expect(keyDir('ArrowRight', true)).toBe('right');
+    expect(keyDir('w', false)).toBeNull();
+    expect(keyDir('W', true)).toBe('up');
+    expect(keyDir('a', true)).toBe('left');
+    expect(keyDir('Enter', true)).toBeNull();
+    expect(stickDir(0.2, -0.3)).toBeNull();
+    expect(stickDir(0.9, 0.2)).toBe('right');
+    expect(stickDir(-0.2, -0.8)).toBe('up');
+    expect(stickDir(-0.7, 0.6)).toBe('left');
+  });
+
+  it('a held direction moves at once, again after 380 ms, then every 110 ms', () => {
+    expect(repeatDue(0, 0, 0)).toBe(true);
+    expect(repeatDue(200, 0, 1)).toBe(false);
+    expect(repeatDue(380, 0, 1)).toBe(true);
+    expect(repeatDue(450, 380, 2)).toBe(false);
+    expect(repeatDue(490, 380, 2)).toBe(true);
   });
 });

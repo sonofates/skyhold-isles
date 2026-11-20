@@ -229,6 +229,8 @@ export async function mountWorldMap(q: URLSearchParams): Promise<void> {
             : t('map.nodeLocked', { name: islandName(st.level) }),
       });
       b.style.animationDelay = `${0.05 + i * 0.06}s`;
+      // Keyboard / pad focus starts on the island to play next.
+      if (st.frontier && st.unlocked) b.dataset.navDefault = '';
       sea.decorateNode(b, i, st.frontier && st.unlocked && !isPaid);
       b.append(el('span', 'pu-node-shore'), medal(st.unlocked ? thumb(st.level) : '/art2d/ui/island-fog.webp', '100%', st.frontier && st.unlocked));
       if (st.unlocked && !isPaid) b.append(starsRow(st.stars, 'pu-stars pu-node-stars'));
