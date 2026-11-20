@@ -917,3 +917,34 @@ TypeScript, lint and the production build passed. Vitest passed 1,443 tests with
 ### Next round
 
 Trace the two Cloud Haulers in Lanternseed Fig’s “Rope Ladder.” At each kill, check which road receives the dropped raiders, how far they have to walk and whether the visible drop points match the actual landings. No requests for Opus this round.
+
+## Round 37 — Cloud Hauler landings at Lanternseed Fig
+
+### Rope Ladder
+
+Traced both wrecks in wave seven with level-20 Bran and the 49-star first-clear inventory. The ring marks the front raider's spawn point. Its partner starts 0.45 units behind it on the same road. The table gives walking distance to the keep at the instant each pair spawned.
+
+| Difficulty | Hauler kill | Road | Front raider | Rear raider |
+|---|---:|---|---:|---:|
+| Normal | 6.95 s | Main root road from the cave | 36.40 | 36.85 |
+| Normal | 6.95 s | Main root road from the cave | 36.89 | 37.34 |
+| Hard | 19.10 s | Nursery road from the hollow log | 25.57 | 26.02 |
+| Hard | 20.23 s | Main road on its return to the keep | 5.43 | 5.88 |
+
+On Normal, all four raiders died at 12.37 seconds. The wave cost zero lives and the island finished at 10/22. Hard killed the last raider at 21.62 seconds. Two Slipstream Moths took its only two lives lost in Rope Ladder, leaving 14/22.
+
+### Touchdown
+
+The half-second fall used to draw raiders up to 3.4 world units above their road position while towers could already hit them there. On Hard the first pair appeared over the fig’s foliage, above and to the left of the surviving hauler. The painted raiders now crouch at their actual landing positions, then straighten over 0.24 seconds. Their shadows stay underfoot. The existing wreck burst and road ring show where the hauler fell and where its cargo landed.
+
+A renderer regression checks the painted feet and shadow at touchdown, recovery through pause and the next occupant of the sprite slot. The lane regression downs two haulers on the same tick over different roads and checks both landing events against the positions and spacing of their raiders.
+
+Replayed the first Hard drop in the production build before and after the change. All four captures matched the simulator’s state hash at tick 14,644. On desktop and landscape phone the pair lands over the coral ring. Their bodies overlap at the authored spacing, but both heads are visible in the enlarged crops. [Desktop and phone comparison](../../design/art-2d/chapter2/polish/i19-raider-touchdown.jpg)
+
+### Verification
+
+TypeScript, lint and the production build passed. Vitest passed 1,444 tests with 11 skipped. All 41 realistic-kit checks and all eight difficulty verdicts passed. Both reports matched round 36 byte for byte. The standalone 24,217-byte L1–L16 report matched the round-one baseline. Hard i09 finished at 12/22 and i24 at 2/22. Vite reported its existing bundle-size and dynamic-import warnings.
+
+### Next round
+
+Trace Hard i19's losses in “A Hollow Branch” and “Windfall.” Six burrowers and two splitters took eight lives in wave eight. Compare an affordable change to the opening towers or their targeting before adjusting the encounter. No cross-area requests.

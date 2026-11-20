@@ -103,17 +103,35 @@ describe('extra ground lanes', () => {
     for (const k of kids) expect(k.lane).toBe(1);
   });
 
-  it('hauler raiders land on the lane passing closest beneath the wreck', () => {
-    const world = new SimWorld(TWO_LANE_LEVEL, new EventBus());
-    const c = world.enemySystem.spawnEnemy('carrier')!;
-    // Teleport the hauler right above the northern lane.
-    c.x = world.grid.gridToWorldX(4) + 0.2;
-    c.z = world.grid.gridToWorldZ(1);
-    world.enemySystem.applyDamage(c, 99999, true);
+  it('registers each same-tick hauler drop at the front raider on its nearest road', () => {
+    const events = new EventBus();
+    const world = new SimWorld(TWO_LANE_LEVEL, events);
+    const main = world.enemySystem.spawnEnemy('carrier')!;
+    const north = world.enemySystem.spawnEnemy('carrier')!;
+    main.x = world.grid.gridToWorldX(2);
+    main.z = world.grid.gridToWorldZ(4) + 0.2;
+    north.x = world.grid.gridToWorldX(4) + 0.2;
+    north.z = world.grid.gridToWorldZ(1);
+    // A raider can immediately reuse the wreck's pool slot.
+    const mainWreckX = main.x;
+    const seen = new Set<number>();
+    const lanes: number[] = [];
+    events.on('carrierDrop', drop => {
+      const pair = active(world).filter(e => e.isDropped && !seen.has(e.uid)).sort((a, b) => b.dist - a.dist);
+      expect(pair).toHaveLength(2);
+      expect(drop.count).toBe(pair.length);
+      const [front, rear] = pair;
+      const lane = drop.x === mainWreckX ? 0 : 1;
+      lanes.push(lane);
+      expect([front.lane, rear.lane]).toEqual([lane, lane]);
+      expect([drop.groundX, drop.groundZ]).toEqual([front.x, front.z]);
+      expect(front.dist - rear.dist).toBeCloseTo(0.45);
+      for (const raider of pair) seen.add(raider.uid);
+    });
+    world.enemySystem.applyDamage(main, 99999, true);
+    world.enemySystem.applyDamage(north, 99999, true);
     world.enemySystem.update(DT, () => {}, () => {});
-    const raiders = active(world).filter((e) => e.isDropped);
-    expect(raiders).toHaveLength(2);
-    for (const r of raiders) expect(r.lane).toBe(1);
+    expect(lanes.sort()).toEqual([0, 1]);
   });
 });
 

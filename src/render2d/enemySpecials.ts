@@ -22,7 +22,6 @@ export interface SpecialState {
   readonly hexTargetId?: number;
   readonly bossPhase?: number;
   readonly channelTimer?: number;
-  readonly isDropped?: boolean;
   readonly isSplitChild?: boolean;
 }
 
@@ -126,10 +125,6 @@ export function createExtras(): EnemyExtras {
 
 /** Seconds before a blink at which the rift starts to glow (matches the 3D telegraph). */
 export const BLINK_TELEGRAPH_SEC = 0.55;
-/** Seconds a Cloud Hauler's raider takes to fall to the road. */
-export const DROP_FALL_SEC = 0.5;
-/** World units of height a dropped raider starts above the road. */
-export const DROP_FALL_HEIGHT = 3.4;
 /** Seconds the burrower takes to sink into / rise out of the ground. */
 export const BURROW_EASE_SEC = 0.22;
 
@@ -168,12 +163,10 @@ export interface SpecialOut {
 export interface SpecialAnim {
   burrowK: number;
   dustT: number;
-  fallT: number;
-  fallDone: boolean;
 }
 
 export function createSpecialAnim(): SpecialAnim {
-  return { burrowK: 0, dustT: 0, fallT: DROP_FALL_SEC, fallDone: true };
+  return { burrowK: 0, dustT: 0 };
 }
 
 /**
