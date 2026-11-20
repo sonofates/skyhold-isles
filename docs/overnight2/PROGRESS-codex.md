@@ -687,3 +687,25 @@ TypeScript, lint and the production build passed. Vitest passed 1,435 tests with
 ### Next round
 
 Try a Reed Piper formation in the painted Amberstone Mesa’s “Salt Wind” wave. Check whether its last note clears ground allies while leaving the skimmers chilled, whether players can see the cast on the road, and whether the campaign and difficulty gates still pass. The existing Reed Piper has EN/TR copy and art. No new requests for Opus this round.
+
+## Round 29 — Reed Pipers at Amberstone Mesa
+
+### Encounter and balance
+
+In wave ten, “Salt Wind,” four Reed Pipers now follow the three Basalt Golems out of the lower-right gate. The first piper enters at 5.6 seconds and the others follow at 2.4-second intervals. They take the four healer slots on the painted island. The direct swap on the original approach left the Normal kit at 7/22 lives and cleared a single blinker slow over the whole wave. Following the golems gives the player time to see which enemies the music helps.
+
+The first-clear kit heard six completed phrases. Their final notes cleared seven slows from golems and nine from pipers, counting repeat hits. One phrase cleared a golem and two pipers inside the ring while all five skimmers overhead kept their 55% slow. The golem continued walking with 3 armor and 0.2 seconds left on its cracked shell. The combat regression covers the separate armor countdown and its eventual recovery.
+
+Bran entered the wave at 18 lives and cleared it without a leak. The island ended at 12/22 lives and two stars, including both Snowbell purchases. At −3%, −1.5%, +1.5% and +3% enemy HP, the kit finished with 19, 13, 6 and 6 lives.
+
+### Visual check
+
+In the first production capture the golems' health bars obscured the flute notes. Raised the notes above the pack and enlarged them slightly. The segmented ring stays centered on the caster throughout the phrase. Inspected the revised cast at 2× on both devices. The screenshots stage wave ten with the earlier towers in place and show the existing EN and TR first-encounter cards. [Desktop](../../design/art-2d/chapter2/polish/i14-salt-wind.jpg) · [Landscape phone](../../design/art-2d/chapter2/polish/i14-salt-wind-phone.jpg)
+
+### Verification
+
+TypeScript and lint passed. Vitest passed 1,435 tests with 11 skipped. The updated cue and armor checks also passed in a focused run. All eight difficulty verdicts passed and the complete report matched round 28 byte for byte. Easy and Normal cleared all 25 islands. Hard i09 ended at 12/22 and Hard i24 at 2/22. The standalone 24,217-byte L1–L16 report matched the round-one baseline byte for byte. All 41 realistic-kit balance checks passed, including all 25 islands. The production build passed with its existing Vite bundle-size and dynamic-import warnings.
+
+### Next round
+
+Try a small Belfry Hare formation on i13’s “North Road.” Check how much open road it gets before the first slow or block and keep it only if the campaign gates and neighboring HP settings support it. The pipers use existing localized copy and art. No requests for Opus this round.

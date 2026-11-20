@@ -36,6 +36,7 @@ describe('chapter enemy cues', () => {
     expect(note.parent).toBe(parents.overlays);
     expect(ex.crown?.visible).toBe(true);
     const firstY = note.y;
+    expect(firstY).toBeLessThan(layout.cy - layout.heightPx * 0.5 - 6);
     draw({ channelTimer: 0.1, elite: true });
     expect(note.y).toBeLessThan(firstY);
     expect(ring.scale.x * 100).toBeCloseTo(radiusPx);

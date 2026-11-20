@@ -1,5 +1,5 @@
 import type { EnemyType } from '../../core/types.ts';
-import type { LevelDef, ScriptedBuildAction } from '../levels/types.ts';
+import type { LevelDef, ScriptedBuildAction, WaveGroupDef } from '../levels/types.ts';
 import { gridSizeFor, parseLevel2D, type Level2DJson } from './loader.ts';
 
 interface PlotTuning {
@@ -12,11 +12,14 @@ interface PlotTuning {
   sites: Readonly<Record<string, number>>;
 }
 
-/** Swap a formation on the painted island while preserving its lane and spawn timing. */
-export function replaceWaveEnemy(level: LevelDef, waveName: string, from: EnemyType, to: EnemyType): LevelDef['waves'] {
+/** Override a formation on the painted island. Unspecified fields come from the source wave. */
+export function replaceWaveEnemy(
+  level: LevelDef, waveName: string, from: EnemyType, to: EnemyType,
+  formation: Partial<Omit<WaveGroupDef, 'enemyType'>> = {},
+): LevelDef['waves'] {
   return level.waves.map(wave => {
     if (wave.name !== waveName) return wave;
-    const groups = wave.groups.map(group => group.enemyType === from ? { ...group, enemyType: to } : group);
+    const groups = wave.groups.map(group => group.enemyType === from ? { ...group, ...formation, enemyType: to } : group);
     return { ...wave, groups };
   });
 }

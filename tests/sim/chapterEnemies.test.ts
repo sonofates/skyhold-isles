@@ -73,25 +73,31 @@ describe('chapter two enemy decisions', () => {
     expect(shell.armorBreakTimer).toBe(0);
   });
 
-  it('the last flute note clears only slowed ground units in range', () => {
+  it('the last flute note lifts nearby ground slows while a golem’s cracked armor keeps its own timer', () => {
     const { sim, tick, spawn } = fixture();
     const piper = spawn('reedpiper');
-    const grunt = spawn('grunt');
+    const golem = spawn('golem');
     const far = spawn('grunt', 1, false, 1);
     const air = spawn('flyer');
-    for (const foe of [piper, grunt, far, air]) sim.applySlow(foe, 0.6, 20);
+    for (const foe of [piper, golem, far, air]) sim.applySlow(foe, 0.6, 20);
     piper.abilityTimer = dt;
     tick();
     const start = piper.dist;
     tick(48);
     expect(piper.dist).toBe(start);
-    expect(grunt.slowTimer).toBeGreaterThan(0);
+    expect(golem.slowTimer).toBeGreaterThan(0);
+    const crackRemaining = golem.armorBreakTimer;
     tick(5);
     expect(piper.dist).toBeGreaterThan(start);
     expect(piper.slowTimer).toBe(0);
-    expect(grunt.slowRatio).toBe(0);
+    expect(golem.slowRatio).toBe(0);
+    expect(golem.slowTimer).toBe(0);
+    expect(golem.armor).toBe(ENEMY_DEFS.golem.brittleArmor);
+    expect(golem.armorBreakTimer).toBeCloseTo(crackRemaining - 5 * dt, 8);
     expect(far.slowTimer).toBeGreaterThan(0);
     expect(air.slowTimer).toBeGreaterThan(0);
+    tick(Math.ceil(golem.armorBreakTimer / dt));
+    expect(golem.armor).toBe(golem.baseArmor);
   });
 
   it('stun or death during a phrase prevents the cleanse and a reused slot has no pending note', () => {

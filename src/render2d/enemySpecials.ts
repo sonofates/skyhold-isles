@@ -372,8 +372,12 @@ export class EnemySpecials {
         refrain.position.set(L.px, L.py);
         refrain.scale.set(ability.radius * L.pxPerUnit / 100);
         refrain.alpha = 0.28 + 0.50 * phrase;
-        note.position.set(L.px + L.facing * L.heightPx * (0.34 + 0.17 * phrase), L.cy - L.heightPx * (0.14 + 0.34 * phrase));
-        note.scale.set(L.heightPx / 54);
+        // Lift the notes above the health bars of the larger ground troops around the piper.
+        note.position.set(
+          L.px + L.facing * L.heightPx * (0.42 + 0.25 * phrase),
+          L.cy - L.heightPx * (0.78 + 0.55 * phrase),
+        );
+        note.scale.set(L.heightPx / 48);
         note.rotation = -0.16 + 0.13 * phrase;
         note.zIndex = L.py + 0.65;
       }

@@ -37,11 +37,17 @@ describe.each(ids)('%s campaign plot map', (id) => {
     const level = getLevelById(id)!;
     expect(level).toBe(LEVELS_2D[index + 1]);
     expect(level.layout2d).toEqual(layout);
-    if (id === 'i15' || id === 'i16') {
+    const formations = {
+      i14: { wave: 9, slot: 1, from: 'healer', replacement: { enemyType: 'reedpiper', lane: 2, startDelay: 5.6, spawnInterval: 2.4 } },
+      i15: { wave: 3, slot: 2, from: 'flyer', replacement: { enemyType: 'draftwing' } },
+      i16: { wave: 2, slot: 2, from: 'brute', replacement: { enemyType: 'kilnback' } },
+    } as const;
+    if (id === 'i14' || id === 'i15' || id === 'i16') {
       const expected = source.waves.map(wave => ({ ...wave, groups: wave.groups.map(group => ({ ...group })) }));
-      const group = id === 'i15' ? expected[3].groups[2] : expected[2].groups[2];
-      expect(group.enemyType).toBe(id === 'i15' ? 'flyer' : 'brute');
-      group.enemyType = id === 'i15' ? 'draftwing' : 'kilnback';
+      const { wave, slot, from, replacement } = formations[id];
+      const group = expected[wave].groups[slot];
+      expect(group.enemyType).toBe(from);
+      expected[wave].groups[slot] = { ...group, ...replacement };
       expect(level.waves).toEqual(expected);
     } else {
       expect(level.waves).toBe(source.waves);

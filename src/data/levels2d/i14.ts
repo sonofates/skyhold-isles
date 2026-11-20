@@ -1,8 +1,12 @@
 import { LEVEL_14 } from '../levels/level14.ts';
-import { campaignIsland } from './campaignIsland.ts';
+import { campaignIsland, replaceWaveEnemy } from './campaignIsland.ts';
 import layout from './i14.json';
 
 export const I14 = campaignIsland(LEVEL_14, layout, {
+  // The pipers follow the golems through the same gate, entering one at a time behind the column.
+  waves: replaceWaveEnemy(LEVEL_14, 'Salt Wind', 'healer', 'reedpiper', {
+    lane: 2, startDelay: 5.6, spawnInterval: 2.4,
+  }),
   startingGold: 295,
   enemyHpScale: 3.2809,
   waveHpGrowth: 0.0768,
