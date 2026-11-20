@@ -77,8 +77,12 @@
 - navFocus: the marked default (`data-nav-default`, the map's next island) counts while it is still
   popping in — a key pressed during the islands' entrance landed on the Heroes button.
 - i18n: clearer pad hero-move hint.
-- Full uiaudit re-run on a frozen build (`/tmp/n2opus-audit-dist`, port 4418) started 04:30 — see
-  below for the result.
+- Full uiaudit re-run (frozen build of ~04:30: controls, title lettering, pause shade, daily,
+  workshop, end board): 468 screens, **0 layout problems**; 12 screenshot timeouts under load 15–23
+  re-run clean (`opus-shots/uiaudit-report-round2*.txt`; `qa/shottime.mjs` shows a briefing shot
+  takes 1–4 s when the machine is calm — not a costly paint). Changed audit shots refreshed in
+  opus-shots/audit/. Later round-2 changes (Codex marks, loading tips, map unveil, pad badges) were
+  audited per screen (hud-codex, hud-tip, map via navsweep/unveilshot).
 
 ## Next ideas
 - Swap in Codex's title paintings when they land (keys in Requests); re-shoot the title.
