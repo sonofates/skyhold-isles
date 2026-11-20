@@ -220,3 +220,22 @@ At 844×390 in Turkish, the current fit leaves a large right-side area behind th
 ### Next round
 
 Six chapter-two islands remain for the second map pass, i19–i24. Start with Lanternseed Fig (i19). Its two root entrances and central fig tree already have distinct paintings. The canopy keeper’s seed baskets and rope ladder from the story offer a way to distinguish the nursery approach from the upper loop.
+
+## Round 9 — Lanternseed Fig and Three Pennants Head
+
+### Done
+
+- **i19 Lanternseed Fig.** The canopy keeper’s seed hoist stands beside the hollow log. Its basket, rope ladder and red bandana connect the nursery to the story panels. Walkers leave the log over split fig boards and reach the red clay at the first bend. Ferns and bromeliads replace most of the repeated baskets in the clearing. [Desktop combat](../../design/art-2d/chapter2/polish/i19-desktop.jpg) · [Phone combat](../../design/art-2d/chapter2/polish/i19-phone.jpg)
+- **i20 Three Pennants Head.** A red pilot boat rests on rollers beside the blue boat shelter. The southern lane starts on a timber slipway, the eastern red-flag lane follows courses of basalt setts, and the yellow-flag lane leads over shingle. The three surfaces are visible together when wave two brings enemies from every entrance. [Desktop combat](../../design/art-2d/chapter2/polish/i20-desktop.jpg) · [Phone combat](../../design/art-2d/chapter2/polish/i20-phone.jpg)
+- The compositor lays the timber across each lane as it turns and reserves a road width before the junction. A regression test checks grain orientation and both stopping limits at three scales. Rebuilt the four map resolutions and seven pairs of gate foregrounds. Both layout JSON files match the round-start versions byte for byte. [Native details](../../design/art-2d/chapter2/polish/i19-i20-detail.jpg) · [Four source paintings, ImageGen prompts and rebake command](../../design/art-2d/chapter2/second-pass.md#lanternseed-fig-and-three-pennants-head)
+
+### Verification and decisions
+
+- Both landmarks fit inside the land mask and clear the roads and saved tower envelopes. Played the production maps with Bran, Tesla, barracks and archer bought from starting gold. The i19 captures show 15 enemies on wave one. The i20 captures show 27 on desktop and 28 on phone after an early call of wave two. Inspected both landmarks and the occupied approaches enlarged.
+- Both maps loaded at 1.5× on the 1600×900 desktop and 1× on the 844×390 landscape phone. The high-density desktop streamed the native 5538×2556 maps and their matching fronts. The landmarks stayed fully on screen and outside every reported HUD rectangle in all ten samples. The Turkish phone fit still uses roughly 71% of the viewport on both maps, consistent with the round-eight camera finding for Opus.
+- TypeScript, lint and production build passed. Vitest passed 1,378 tests with 11 skipped using two workers and the original timeout. At default concurrency the existing all-map backdrop test exceeded five seconds. All 23 Python dressing tests passed. All 22 published WebPs decoded and matched the production build byte for byte. Vite reported its existing bundle warnings.
+- The realistic-kit balance gate passed all 41 levels. Normal ended i19 at 10/22 and i20 at 7/22. All eight difficulty verdicts passed, including Hard i09 at 12/22 and Hard i24 at 5/22. The 24,217-byte L1–L16 report matches the round-one baseline.
+
+### Next round
+
+Four chapter-two islands remain for the second pass, i21–i24. Start with Kitewright Down. Its central fallen kite and windlass already read clearly. The store entrance and the long upper chalk bend have room for the kitewright’s sailmaking details. Check any new placement against the flight line across the kite and the saved plots. There are no new requests for other agents this round.

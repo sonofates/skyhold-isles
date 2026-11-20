@@ -92,7 +92,7 @@ from gates import (  # noqa: E402
 )
 import fords  # noqa: E402
 from banks import shore_foundation, water_reflection  # noqa: E402
-from masonry import RoadArcade, arch_bridge, brick_spur, cart_tracks, marble_road, moat_wall, paved_road  # noqa: E402
+from masonry import RoadArcade, arch_bridge, brick_spur, cart_tracks, marble_road, moat_wall, paved_road, timber_approach  # noqa: E402
 from keeps import Keep  # noqa: E402
 from ground import (  # noqa: E402
     Decals, DressingArea, brushed_surface, dusty_road_coverage, fine_detail, inner_band, paint_over_road, ragged_mask,
@@ -788,6 +788,11 @@ if not any(dressing.get(mode) for mode in ('layMarble', 'roadPlate', 'roadStrip'
 if 'cartLane' in dressing:
     cart_tracks(dirt, spl_paths[dressing['cartLane']], ROAD_W, S, SEED + 37)
 entrance_floors = {}
+if 'timberApproach' in dressing:
+    lane, material, length = dressing['timberApproach']
+    sleepers = load(material)
+    timber_approach(dirt, catmull(SECTIONS[first_sections[lane]]), sleepers, ROAD_W, length, S)
+    entrance_floors[lane] = sleepers
 if 'brickSpur' in dressing:
     lane, material = dressing['brickSpur']
     brick = load(material)

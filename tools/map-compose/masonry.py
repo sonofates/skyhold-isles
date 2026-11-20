@@ -238,6 +238,21 @@ def paved_road(size, paint, path, width, scale):
     return surface
 
 
+def timber_approach(surface, path, paint, width, length, scale):
+    """Lay the painted crossboards from the threshold, leaving the lane junction clear."""
+    course = RoadCourse(path)
+    end = min(length, course.length - width)
+    if end <= 0:
+        return
+    half = width * .62
+    density = 3
+    # The artist paints the sleepers horizontally. Map their long grain
+    # across the road while the station axis follows the entrance bend.
+    strip = paint.convert('RGB').transpose(Image.Transpose.ROTATE_90).resize(
+        (math.ceil(end * density) + 2, math.ceil(2 * half * density) + 2), Image.Resampling.LANCZOS)
+    project_strip(surface, strip, course, half, scale, density, end=end)
+
+
 def project_strip(surface, strip, course, half, scale, density, end=None):
     """Sample a continuous course of paving along the road's local tangent."""
     size = surface.size
