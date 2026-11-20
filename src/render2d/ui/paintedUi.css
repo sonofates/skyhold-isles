@@ -1606,6 +1606,12 @@
   font-size: calc(var(--s) * 2);
 }
 
+/* The difficulty · date line under the name: always clearly smaller than the name (on phones it
+   inherited the board's floored size and came out as big as the name). */
+.pu-daily-island .pu-ink-soft {
+  font-size: max(10px, calc(var(--s) * 1.15));
+}
+
 .pu-rule {
   display: flex;
   align-items: center;
@@ -1652,6 +1658,41 @@
   display: block;
   font-size: 1.5em;
   line-height: 1;
+}
+
+/* Daily board: the four numbers as small parchment tokens with a wooden rim (the reward one in gold),
+   so they read as counters rather than loose text. */
+.pu-daily-grid .pu-chips {
+  gap: calc(var(--s) * 0.7);
+}
+
+.pu-daily-grid .pu-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(var(--s) * 0.25);
+  min-width: calc(var(--s) * 6.2);
+  padding: calc(var(--s) * 0.6) calc(var(--s) * 0.8) calc(var(--s) * 0.5);
+  border-radius: calc(var(--s) * 0.9);
+  background: linear-gradient(#fff8e4, #ecd6aa);
+  box-shadow:
+    0 0 0 2px rgba(122, 85, 50, 0.6),
+    inset 0 1px 0 rgba(255, 255, 255, 0.75),
+    0 3px 0 rgba(90, 60, 30, 0.35);
+  text-align: center;
+  white-space: nowrap;
+}
+
+.pu-daily-grid .pu-chip:first-child {
+  background: linear-gradient(#fff2c2, #f2c45e);
+  box-shadow:
+    0 0 0 2px #a8701c,
+    inset 0 1px 0 rgba(255, 255, 255, 0.8),
+    0 3px 0 rgba(120, 72, 14, 0.45);
+}
+
+.pu-daily-grid .pu-chip strong {
+  color: var(--ink);
 }
 
 /* Settings */
