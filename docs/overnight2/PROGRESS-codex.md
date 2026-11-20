@@ -505,3 +505,23 @@ TypeScript, lint and the production build passed. Vitest passed 1,409 tests with
 ### Next round
 
 Audit Stormheart Coil’s Thunderbeat. Buy the branch and ability at different points in the firing cycle. Check which discharges double in strength, the three-target cap and replay when an overloaded primary hit kills its target.
+
+## Round 22 — Stormheart Coil and Thunderbeat
+
+### Done
+
+- Three combat regressions buy the branch and ability between shots while six Iron Brutes march on parallel lanes. Both purchases preserve the tower’s lifetime firing count. Buying the branch after shot one and Thunderbeat after shot two produced overloads on shots 3, 6 and 9. Buying after shots three and eight produced overloads on 4, 8 and 9. Waiting until shots six and seven let tier III overload on 6 and Thunderbeat overload on 9.
+- Ordinary Stormheart arcs dealt 69, 53 and 40 damage against six armor. On the ninth discharge the primary brute had 106, 32 or 98 HP left, depending on the encounter. Each overload finished it, awarded one kill and a seven-gold bounty, and dealt 111 and 85 damage to the next two brutes. The three other brutes stayed untouched by that discharge. All three serialized replays reproduced the firing ticks, targets, hits, bounties, win and final state hash. The audit found no combat-rule defect.
+
+### Campaign decision
+
+- Three Pennants Head’s realistic build now buys Stormheart Coil on plot 17 after the second plot-15 ballista upgrade. Level-20 Bran with the 50-star entry kit bought the branch in wave 11 and Thunderbeat in wave 12. The coil fired 30 times after the ability purchase, including 10 overloads and 26 three-target chains, for 5,934 damage and 14 kills. Normal finished at 9/22 lives, up from 7/22.
+- The selected order also cleared with enemy HP at −3%, −1.5%, +1.5% and +3%, finishing at 5, 9, 16 and 9 lives. Buying immediately when the Tesla reached tier III lost both 3% variants. The normal balance window for this island is 6–11 lives at authored HP.
+
+### Verification
+
+TypeScript, lint and the production build passed. Vitest passed 1,412 tests with 11 skipped. All 41 realistic-kit balance checks and all eight difficulty verdicts passed. The second Normal star carries through the remaining campaign inventory. The i20 bare Easy run ended at 18/25 lives, previously 21/25. Hard i09 finished at 12/22 and Hard i24 at 2/22. The standalone 24,217-byte L1–L16 report matched the round-one baseline byte for byte. Vite reported its existing bundle-size and dynamic-import warnings.
+
+### Next round
+
+Audit Bell Foundry’s Aftershock against a Bellrunner in full stride. Check the momentum reset, slow duration and which shells carry the slow when the ability is bought during flight. The i18 Normal build currently buys Bell Foundry but finishes 18 gold short of Aftershock. No new UI, art or localization requests.
