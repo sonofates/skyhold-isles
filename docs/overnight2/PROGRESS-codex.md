@@ -239,3 +239,28 @@ Six chapter-two islands remain for the second map pass, i19–i24. Start with La
 ### Next round
 
 Four chapter-two islands remain for the second pass, i21–i24. Start with Kitewright Down. Its central fallen kite and windlass already read clearly. The store entrance and the long upper chalk bend have room for the kitewright’s sailmaking details. Check any new placement against the flight line across the kite and the saved plots. There are no new requests for other agents this round.
+
+## Round 10 — Kitewright Down and Brineglass Ferry
+
+### Done
+
+- **i21 Kitewright Down.** A patched sail sits on its stretching frame outside the kite store. The white hare from the intro holds a length of red ribbon on the grass inside the upper bend. The chalk road has embedded flint and dusty turf edges. The flight line stays clear above the fallen weather kite. [Desktop combat](../../design/art-2d/chapter2/polish/i21-desktop.jpg) · [Phone combat](../../design/art-2d/chapter2/polish/i21-phone.jpg)
+- **i22 Brineglass Ferry.** The west mooring has a repair frame with a frayed cable, hanging block and amber lantern. Cart ruts follow a pearl-grey salt road around the pool. Freight porters leave their shed over courses of blue-green slate and join the mine road at a transverse row of paving. [Desktop combat](../../design/art-2d/chapter2/polish/i22-desktop.jpg) · [Phone combat](../../design/art-2d/chapter2/polish/i22-phone.jpg)
+- Rebuilt both islands at all four resolutions with their matching gate fronts. Both layout JSONs match the round-start files byte for byte. [Native detail from both maps](../../design/art-2d/chapter2/polish/i21-i22-detail.jpg) · [Six source paintings and rebake instructions](../../design/art-2d/chapter2/second-pass.md#kitewright-down-and-brineglass-ferry)
+
+### Verification
+
+- Both island recipes pass the compositor’s checks against all 40 saved plots. The three new landmarks fit entirely inside their land masks. The first proposed position of the ferry frame overlapped a tower envelope. The west mooring has room for a 60-pixel frame.
+- The first salt-road bake blended into the cavern floor. Lifted the midtones for the mine lane and matched the repeated edges of the freight flags to remove a visible join at the bend.
+- Bought the scripted opening Tesla, barracks and archer on i21, then called waves two and three early. Inspected enlarged desktop and phone captures with 46 enemies active, including flyers on the route across the kite. Both landmarks cleared the HUD at both sizes. The high-density desktop streamed the native 5538 × 2556 map and its matching fronts.
+- All eight difficulty verdicts passed. Normal finished i21 at 5/22 and i22 at 8/22. Hard finished i09 at 12/22 and i24 at 5/22. The 24,217-byte L1–L16 simulation report matches the round-one baseline byte for byte.
+- On i22, the first wave brought three Kilnbacks down the mine road and ten raiders through the freight shed. Checked the two occupied lanes, slate joints and repair frame enlarged on desktop EN and phone TR. The new art cleared every HUD rectangle in all ten opening, combat and high-density samples across the two islands. All 18 published map and gate WebPs decoded and matched the production build byte for byte.
+- TypeScript, lint, the production build and all 23 Python dressing tests passed. Vitest passed 1,378 tests with 11 skipped using two workers and the original timeout. The default-concurrency attempt hit the existing five-second all-map backdrop test timeout. Realistic-kit balance passed all 41 levels, including all 25 islands. Vite emitted its existing bundle warnings.
+
+### Finding for Opus
+
+At 844 × 390 in Turkish the camera fit covers 64.6% of the viewport on i21 and 64.4% on i22. The open gutter sits on the left on i21 and the right on i22. On i22 the phone crops the outer west wall of the freight shed. The doorway, porters and both new road surfaces are visible. The round-start captures show the same camera fits.
+
+### Next round
+
+Waxlight Orchard (i23) and Lastlight Head (i24) remain. Start at the orchard’s cider-press lane. The beekeeper’s beeswax taper connects the orchard outro to the keeper in the finale, and the two entrances currently share the same red loam. The finale already has its dark beacon, stepping slabs and tern roost.

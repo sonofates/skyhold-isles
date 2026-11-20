@@ -71,3 +71,26 @@ Use case illustration-story. An isolated miniature environmental sprite for an o
 #### tex-slipway.webp
 
 Use case illustration-story. Square full bleed overhead gouache material texture. Old coastal boat slipway in an original illustrated game. Six broad uneven-spaced horizontal parallel runs of heavy weathered grey wooden sleepers bedded deep in a mixture of small charcoal basalt and lighter sea shingle. Horizontal sleepers extend end to end across the texture with a few staggered joins. Timber worn silver and smooth in its center, warm honey brown showing through at the split ends and a little muted verdigris seaweed halfway buried in the gravel. The pebbly spaces BETWEEN sleepers about as wide as the pale boards, irregular damp slate fragments. A restrained painterly irregular surface under soft overcast daylight. Orthographic view from directly above, no perspective or edge of road, fills every pixel. No rails, big objects, boat, landscape, writing, symbols, borders, foreground ropes or lettering.
+
+## Kitewright Down and Brineglass Ferry
+
+On Kitewright Down, the sailmaker has laced a canvas with a scarlet patch to a stretching frame outside the store. The white hare from the opening painting sits inside the upper bend with the stolen ribbon between its paws. The weather kite and windlass occupy the open center of the island. The road surface uses buff chalk, embedded flint and small islands of thyme, with dust along the grass verge.
+
+On Brineglass Ferry, the west mooring carries the ferryman’s lantern, a pulley and a parted rope. The lamp stands on dry shale across from the ferry. Salt carts follow a pair of worn tracks around the brine pool, and the freight porters come down a shorter paved lane. The mine road uses a pearl-grey salt grade so the route stays visible against the lavender cave floor. The saved plots, flight lines and ground paths are the inputs to both bakes.
+
+```sh
+/usr/bin/python3 -B tools/map-compose/rebake_all.py i21,i22 --jobs 1
+```
+
+### Source paintings and export
+
+The built-in ImageGen tool supplied the artwork in the [cloister kit](../v2/biomes/cloister/) and [glassworks kit](../v2/biomes/glassworks/). The three props retain their generated alpha. Crop to the alpha bounds and fit within 840 × 840 before exporting the kit WebPs. The salt-road export uses RGB exponents of 0.53, 0.47 and 0.42 on normalized channels. The freight paving pairs the 512-pixel-wide strip beginning at x=400 in the 1024-pixel painting with its mirror, so each repeated course joins at a matching edge.
+
+| Painting | Art direction |
+|---|---|
+| `landmark-sail-frame.webp` | A low oak stretching rack in elevated three-quarter view, with ivory canvas laced to the long rails, a triangular rust-red patch stitched to one corner and a roll of matching fabric tucked against a foot. Warm upper-left light and broad gouache planes. |
+| `landmark-thread-hare.webp` | A crouching ivory mountain hare with tall black-tipped ears looks left. A short vermilion ribbon caught under its forepaws trails to the right. Give its lavender underside a small contact shadow and paint the fur in masses legible at 40 layout pixels. |
+| `tex-downland.webp` | Continuous overhead surface of compact biscuit chalk on a windy downland path. Group small flints, limestone flakes and tiny thyme sprigs in the worn earth. Streak pale dust across the grain. |
+| `landmark-mooring-tackle.webp` | A weathered timber davit with salt-bleached edges and a hanging brass block. A thick frayed cable hangs loose from the wheel, an amber lantern hangs from a peg, and plum oilcloth lies over the foot rail. Use jade and violet shadows under the timber. |
+| `tex-salt-haul.webp` | A continuous overhead wash of trodden lavender-grey rock salt, mauve shale and scattered milky and pale rose salt chips. Lift the midtones for the mine road and retain the darker inclusions and ruts. |
+| `tex-freight-flags.webp` | Nine staggered courses of worn blue-green slate flags at an underground ferry landing. Pale salt crust collects in the shallow joints and crosses the edges of adjacent flags. Paint the tops silvery in the lamplight. |
