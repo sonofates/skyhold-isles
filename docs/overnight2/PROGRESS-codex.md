@@ -122,3 +122,28 @@ In one frozen eastward Loom release, the airborne bolt points back toward the la
 ### Next round
 
 Six of sixteen branches have production art. Start the full-body attack-sheet path with the two frost branches, Snowbell Garden and Rimeglass Needle. Check the ring across frames, pre-roll and projectile release against a frozen shot. Tesla, mortar, beacon and barracks art and chapter-two map polish remain.
+
+## Round 5 — Frost and Tesla specialization art
+
+### Done
+
+- Snowbell Garden has a glazed greenhouse and three porcelain snowdrops. The flowers draw inward to charge and open together when they release the snow. Rimeglass Needle has an ice-clad slate tower and a cut-glass point that lights along its seam before firing from the tip.
+- Relay Grove carries three turquoise terminals on copper branches. Its discharge bridges the terminals. Stormheart Coil turns two copper hoops around a cobalt thunderstone and fires from its center.
+- Each branch has an eight-frame full-body sheet at 12 fps, a measured release point and a larger transparent portrait. Frame zero supplies the resting map sprite. The painted foundation stays fixed through anticipation, release and recovery. [ImageGen prompts and packing instructions](../../design/art-2d/specializations/frost-tesla-prompts.md).
+- The renderer loads the branch sheet on purchase. A shot already waiting for a tier-III release finishes before the art changes. Subsequent pre-rolls, shot delays, flashes and bolt predictions use the displayed branch. The existing directional branches still use their separate body and turret. The QA plot ring report includes the visible specialization and painted attack frame.
+
+### Requests for Opus
+
+The raw art manifest now has `towerSpecializations[id].portrait` and `.attack` for `snowbell`, `rimeglass`, `relay` and `stormheart`. Both paths are relative to `/art2d/`. The UI can use the same portrait field across all ten painted branches. The branch and ability copy is in round 2 above.
+
+### Verification
+
+- The four final WebP sheets have transparent padding on every frame. The bottom 36% of each building is pixel-identical across the eight decoded frames. All four return exactly to their idle pose on frame seven. The opaque-magenta scan found zero pixels.
+- Bought each branch in the production L1c map. The comparison shows tier III on the left and its two branches beside it. Ring center, bottom and width errors measured zero on desktop (1600×900) and landscape phone (844×390). Inspected the screenshots enlarged. [Frost desktop](../../design/art-2d/specializations/frost-l1c.jpg) · [Frost phone](../../design/art-2d/specializations/frost-l1c-phone.jpg) · [Tesla desktop](../../design/art-2d/specializations/tesla-l1c.jpg) · [Tesla phone](../../design/art-2d/specializations/tesla-l1c-phone.jpg).
+- In four 12-second combat samples stepped at 60 Hz, every branch showed frames 0–7 and returned to rest. Each frost branch fired 17 times, including 16 pre-rolled shots. Each Tesla branch fired 14 times, including 13 pre-rolled shots. Every pre-rolled shot landed on release frame 3. Frozen shots showed a frost projectile spawning or the lightning bolt count incrementing on that frame. Enlarged captures show charge, release and recovery from left to right. [Frost release](../../design/art-2d/specializations/frost-release.jpg) · [Tesla release](../../design/art-2d/specializations/tesla-release.jpg).
+- The realistic-kit balance gate passed all 41 levels. All eight difficulty verdicts passed, with Hard i09 at 12/22 and Hard i24 at 5/22. The 24,217-byte L1–L16 report matched the round-one baseline. The production build contained byte-identical copies of all twelve new published files and the manifest.
+- TypeScript, lint and the production build passed. Vitest passed 1,371 tests with 11 skipped, including asset registration checks for all four new sheets. The all-map backdrop test hit its five-second timeout in two default-concurrency runs. The full suite passed with two workers and the original timeout. Vite reported its existing bundle warnings.
+
+### Next round
+
+Ten of sixteen specializations have production art. Paint Cinder Kiln and Cloudbreak Mortar next. Mortar aims by mirroring and tilting its full sprite. Its shot handler currently reads the linear-tier ring and tip when it recomputes the aimed muzzle. Use the branch measurements there when adding mortar art and verify leftward and rightward launches. The remaining four branches belong to beacon and barracks. Chapter-two map polish follows.

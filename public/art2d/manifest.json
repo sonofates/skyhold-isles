@@ -826,6 +826,22 @@
   "anchor": {
    "portrait": "specializations/anchor.webp",
    "turret": "specializations/anchor-turret.json"
+  },
+  "snowbell": {
+   "portrait": "specializations/snowbell.webp",
+   "attack": "specializations/snowbell-attack.json"
+  },
+  "rimeglass": {
+   "portrait": "specializations/rimeglass.webp",
+   "attack": "specializations/rimeglass-attack.json"
+  },
+  "relay": {
+   "portrait": "specializations/relay.webp",
+   "attack": "specializations/relay-attack.json"
+  },
+  "stormheart": {
+   "portrait": "specializations/stormheart.webp",
+   "attack": "specializations/stormheart-attack.json"
   }
  },
  "buildRing": [

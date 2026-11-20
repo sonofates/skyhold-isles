@@ -1,0 +1,18 @@
+{
+ "image": "relay-attack.webp",
+ "frameW": 155,
+ "frameH": 256,
+ "count": 8,
+ "cols": 4,
+ "fps": 12,
+ "release": 3,
+ "anchor": [
+  77.5,
+  250.0
+ ],
+ "ringW": 143.0,
+ "muzzlePx": [
+  81.02,
+  21.98
+ ]
+}

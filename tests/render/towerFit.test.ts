@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { dirname, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { specializationsFor } from '../../src/data/towers.ts';
 import { ManifestError, parseManifest, parseSheetJson } from '../../src/render2d/manifest.ts';
 import { attackFrame, attackPlan, CATCH_UP, idleFrame, onShot, PREROLL_GRACE, prerollStart, projectileReveal, shotEta, shouldPreroll } from '../../src/render2d/towerAnim.ts';
 import { drawnRing, fitOnRing, measureRing, plotRing, plotSpriteRect, ringMuzzle, type RingSpec } from '../../src/render2d/towerFit.ts';
@@ -83,6 +84,29 @@ describe('fit rule: towers stand exactly on their plot', () => {
         expect(existsSync(resolve(ROOT, 'public/art2d', p!.replace(/[^/]+$/, sheet.image)))).toBe(true);
       });
     }
+  });
+
+  it.each([...specializationsFor('frost'), ...specializationsFor('tesla')])('$name has a registered attack sheet, release and portrait', ({ id }) => {
+    const dir = resolve(ROOT, 'public/art2d');
+    const entries = RAW.towerSpecializations as Record<string, { attack: string; portrait: string }>;
+    const entry = entries[id];
+    const path = resolve(dir, entry.attack);
+    const raw = JSON.parse(readFileSync(path, 'utf8')) as { muzzlePx: [number, number] };
+    const sheet = parseSheetJson(raw);
+    expect(existsSync(resolve(dirname(path), sheet.image))).toBe(true);
+    expect(existsSync(resolve(dir, entry.portrait))).toBe(true);
+    expect(sheet.release).toBeGreaterThan(0);
+    expect(sheet.release).toBeLessThan(sheet.frames.length - 1);
+    const { w, h } = sheet.frames[sheet.release!];
+    const [ax, ay] = sheet.anchor!;
+    expect(sheet.ringW).toBeGreaterThan(0);
+    expect(ax * w - sheet.ringW! / 2).toBeGreaterThanOrEqual(0);
+    expect(ax * w + sheet.ringW! / 2).toBeLessThanOrEqual(w);
+    expect(ay).toBeLessThanOrEqual(1);
+    expect(raw.muzzlePx[0]).toBeGreaterThan(0);
+    expect(raw.muzzlePx[0]).toBeLessThan(w);
+    expect(raw.muzzlePx[1]).toBeGreaterThan(0);
+    expect(raw.muzzlePx[1]).toBeLessThan(ay * h);
   });
 
   it('the manifest carries the plot sprite and its ring', () => {
