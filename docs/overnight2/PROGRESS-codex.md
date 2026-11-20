@@ -67,3 +67,29 @@ TypeScript and lint passed. Vitest passed 1,366 tests with 11 skipped, including
 ### Next round
 
 Paint and hook up the two archer branches first, then carry the verified workflow across the other seven families. The directional families use separate body art and five turret facings; frost, tesla, beacon and barracks use full-body animation sheets. Inspect plot fit, release or muzzle registration, and scaled in-game screenshots. All 16 branch paintings are pending. Chapter-two map polish follows specialization art.
+
+## Round 3 — Archer specialization art
+
+### Done
+
+- Farwatch Lodge has an amber-cloaked longbow scout, a navy star banner and a brass telescope. Swallow Roost has two green-hooded rangers on a broad timber deck with a carved swallow over the entrance.
+- Both branches have keyed bodies, five-facing turret strips, measured arrow tips and southeast portraits. They use the existing eight-sector aim, recoil and projectile launch paths. The two Swallow operators share a frame and the leading ranger supplies the arrow origin.
+- The live renderer requests branch art on first purchase. It draws the family art until the branch body and strip are both ready. Subsequent purchases of the same branch share those textures. The QA turret report exposes the visible branch ID and tier.
+- Source atlases, ImageGen prompts and registration measurements are in [design/art-2d/specializations](../../design/art-2d/specializations/archer-prompts.md). Repack with `/usr/bin/python3 tools/sprites/pack_specialization_archers.py`. Keying uses the project chroma key with trimming disabled to preserve cell coordinates.
+
+### Requests for Opus
+
+The raw art manifest now has `towerSpecializations[id].portrait` and `.turret` for `farwatch` and `swallow`. Paths are relative to `/art2d/`. The portrait includes the building and its crew on transparency. Use it for the branch choice and codex. The turret descriptor references its body and five-frame strip relative to itself. Round 2 above has purchase calls, names and Turkish copy.
+
+In `src/render2d/game2d.ts`, `towerReach` and `towerHasTarget` still read linear tier stats. Use `towerStats(t)` for the purchased tower's actual range and minimum range when wiring the branch UI. This covers the selected range ring and anticipatory aiming when a foe is in Farwatch's extended range. The sim already uses the purchased range and the renderer uses the exact sim yaw on a shot.
+
+### Verification
+
+- Bought both branches through the live world in the built game. The aim scene exercised all five painted frames, including mirrored southwest and northwest views, with 36 Farwatch and 57 Swallow shots in the production sample. The sampled drawn sectors agreed with the sim yaw within the renderer's hysteresis tolerance. Inspected all ten arrow registrations at enlarged scale.
+- In the L1c screenshots, the towers from left to right are tier III, Farwatch Lodge and Swallow Roost. Checked both screenshots enlarged. The measured ring center, bottom and width errors were zero for all three towers at both viewport sizes. [1600×900 desktop](../../design/art-2d/specializations/archers-l1c.jpg) · [844×390 landscape phone](../../design/art-2d/specializations/archers-l1c-phone.jpg).
+- TypeScript and lint passed. Vitest passed 1,367 tests with 11 skipped. Realistic-kit balance passed all 41 levels including all 25 islands, and all eight difficulty verdicts passed. Hard i09 ended at 12/22, Hard i24 at 5/22. The 24,217-byte L1–L16 report matched the pre-specialization baseline exactly.
+- The production build passed with the existing Vite chunk-size and dynamic-import warnings. All eight published branch files matched their built copies byte for byte.
+
+### Next round
+
+Paint Honeycomb Battery and Bell Foundry. Verify their five facings, muzzle placement and blast recoil on the map. Fourteen of the sixteen branches still need art. Chapter-two map polish follows.

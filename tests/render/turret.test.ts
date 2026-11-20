@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { dirname, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { specializationsFor } from '../../src/data/towers.ts';
 import { ManifestError, parseManifest } from '../../src/render2d/manifest.ts';
 import { fitOnRing, type RingSpec } from '../../src/render2d/towerFit.ts';
 import {
@@ -228,6 +229,33 @@ describe('turret JSON + manifest entries', () => {
     expect(m.towers.frost?.turret).toEqual([null, null, null]);
     raw.towers.mortar.muzzlePx = [[1, 'x']];
     expect(() => parseManifest(raw)).toThrow(ManifestError);
+  });
+
+  it('both archer purchases have distinct portraits, bodies and registered five-facing strips', () => {
+    const dir = resolve(ROOT, 'public/art2d');
+    const catalog = RAW.towerSpecializations as Record<string, { portrait: string; turret: string }>;
+    const files = new Set<string>();
+    for (const branch of specializationsFor('archer')) {
+      const entry = catalog[branch.id];
+      const file = resolve(dir, entry.turret);
+      const spec = parseTurretJson(JSON.parse(readFileSync(file, 'utf8')) as unknown);
+      expect(spec.placeholder).toBe(false);
+      expect(spec.bodyRing).not.toBeNull();
+      expect(spec.body).not.toBeNull();
+      expect(spec.bodyMount[1]).toBeLessThan(spec.bodyRing!.ringBottomPx);
+      for (const path of [resolve(dir, entry.portrait), resolve(dirname(file), spec.image), resolve(dirname(file), spec.body!)]) {
+        expect(existsSync(path)).toBe(true);
+        expect(files.has(path)).toBe(false);
+        files.add(path);
+      }
+      for (const [dx, dy] of spec.muzzle) {
+        const x = spec.pivot[0] + dx, y = spec.pivot[1] + dy;
+        expect(x).toBeGreaterThanOrEqual(0);
+        expect(x).toBeLessThan(spec.frameW);
+        expect(y).toBeGreaterThanOrEqual(0);
+        expect(y).toBeLessThan(spec.frameH);
+      }
+    }
   });
 
   it('the shipped manifest: archer / cannon / ballista aim turrets at every tier; every turret JSON parses and its files exist', () => {

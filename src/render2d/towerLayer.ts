@@ -1,4 +1,4 @@
-import { Sprite, Texture } from 'pixi.js';
+import { Assets, Rectangle, Sprite, Texture } from 'pixi.js';
 import type { EventBus, GameEventMap } from '../core/eventBus.ts';
 import type { TowerType } from '../core/types.ts';
 import type { TowerEntity } from '../sim/entities.ts';
@@ -17,11 +17,13 @@ import {
   DEFAULT_SECTOR,
   frameFor,
   mountPoint,
+  parseTurretJson,
   pickSector,
   recoilCurve,
   recoilOffset,
   sectorVector,
   spriteMuzzle,
+  TURRET_DIRS,
   turretMuzzle,
   turretScale,
   yawToScreenAngle,
@@ -77,6 +79,8 @@ export interface TurretReportRow {
   readonly id: number;
   readonly type: string;
   readonly tier: number;
+  /** The specialization whose art is visible, or null while the family art is drawn. */
+  readonly specialization: string | null;
   readonly sector: number;
   readonly aimed: boolean;
   readonly targetYaw: number;
@@ -168,6 +172,8 @@ interface TowerView {
  */
 export class TowerLayer {
   private readonly views = new Map<number, TowerView>();
+  /** A null entry keeps the tier-III art visible during load or if an optional asset is missing. */
+  private readonly branchTurrets = new Map<string, TurretRuntime | null>();
   private frameNo = 0;
   private time = 0;
   private readonly art: LoadedArt;
@@ -510,6 +516,30 @@ export class TowerLayer {
     return s;
   }
 
+  /** Load branch textures only when a player first buys that branch on this island. */
+  private async loadBranchTurret(id: string): Promise<void> {
+    const base = this.art.baseUrl;
+    try {
+      const catalog = await Assets.load<{ towerSpecializations?: Record<string, { turret?: string }> }>(base + 'manifest.json');
+      const path = catalog.towerSpecializations?.[id]?.turret;
+      if (!path) return;
+      const spec = parseTurretJson(await Assets.load<unknown>(base + path));
+      const ring = spec.bodyRing;
+      if (!spec.body || !ring) return;
+      const dir = path.slice(0, path.lastIndexOf('/') + 1);
+      const bodyFile = dir + spec.body;
+      const load = (file: string) => Assets.load<Texture>({ src: base + file, data: { autoGenerateMipmaps: true } });
+      const [strip, body] = await Promise.all([load(dir + spec.image), load(bodyFile)]);
+      if (strip.width !== spec.frameW * TURRET_DIRS.length || strip.height !== spec.frameH) throw new Error('turret strip dimensions');
+      const frames = TURRET_DIRS.map((_, i) => new Texture({
+        source: strip.source, frame: new Rectangle(i * spec.frameW, 0, spec.frameW, spec.frameH),
+      }));
+      this.branchTurrets.set(id, { body, bodyFile, frames, ring, spec });
+    } catch (err) {
+      console.warn(`[art2d] specialization ${id} could not load`, err);
+    }
+  }
+
   /** Places a ring-convention tower; returns false when it cannot (no plot geometry). */
   private syncRing(v: TowerView, t: TowerEntity, tierRing: RingSpec, art: TowerArtRuntime, simDt: number, py: number): boolean {
     const target = this.plots?.rings[t.col];
@@ -517,10 +547,16 @@ export class TowerLayer {
     const ppu = this.map.layout.pxPerUnit;
     const tierIdx = Math.max(1, Math.min(3, t.tier)) - 1;
     // A turret tier draws its body (own ring) under the turret instead of the full-tower picture.
-    const turret = art.turrets?.[tierIdx] ?? null;
+    const branch = t.specialization?.id;
+    if (branch && !this.branchTurrets.has(branch)) {
+      this.branchTurrets.set(branch, null);
+      void this.loadBranchTurret(branch);
+    }
+    const branchTurret = branch ? this.branchTurrets.get(branch) : null;
+    const turret = branchTurret ?? art.turrets?.[tierIdx] ?? null;
     const ring = turret ? turret.ring : tierRing;
     // Pre-roll the attack sheet so its release frame lands on the coming shot (towerAnim.ts).
-    const sheetNow = art.attack[tierIdx];
+    const sheetNow = branchTurret ? null : art.attack[tierIdx];
     if (simDt > 0) {
       const d = v.prevCd - t.cooldownTimer;
       if (d > 0) v.drain = v.drain * 0.6 + (d / simDt) * 0.4;
@@ -829,10 +865,12 @@ export class TowerLayer {
     for (const [id, v] of this.views) {
       if (v.turretArt && v.turret?.visible) {
         const f = frameFor(v.sector);
-        out.push({ id, type: v.entity.type, tier: v.entity.tier, sector: v.sector, aimed: v.aimed, targetYaw: v.entity.targetYaw, mirror: f.mirror, frame: f.frame, muzzle: v.muzzlePt, mount: v.mount, px: v.px, py: v.py });
+        const branch = v.entity.specialization?.id;
+        const specialization = branch && this.branchTurrets.get(branch) === v.turretArt ? branch : null;
+        out.push({ id, type: v.entity.type, tier: specialization ? 4 : v.entity.tier, specialization, sector: v.sector, aimed: v.aimed, targetYaw: v.entity.targetYaw, mirror: f.mirror, frame: f.frame, muzzle: v.muzzlePt, mount: v.mount, px: v.px, py: v.py });
       } else if (BODY_AIM_TOWERS.has(v.entity.type)) {
         const f = frameFor(v.sector);
-        out.push({ id, type: v.entity.type, tier: v.entity.tier, sector: v.sector, aimed: v.aimed, targetYaw: v.entity.targetYaw, mirror: v.bodyMirror, frame: f.frame, muzzle: v.muzzlePt, mount: v.mount, px: v.px, py: v.py });
+        out.push({ id, type: v.entity.type, tier: v.entity.tier, specialization: null, sector: v.sector, aimed: v.aimed, targetYaw: v.entity.targetYaw, mirror: v.bodyMirror, frame: f.frame, muzzle: v.muzzlePt, mount: v.mount, px: v.px, py: v.py });
       }
     }
     return out;

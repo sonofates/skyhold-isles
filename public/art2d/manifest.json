@@ -802,6 +802,16 @@
    ]
   }
  },
+ "towerSpecializations": {
+  "farwatch": {
+   "portrait": "specializations/farwatch.webp",
+   "turret": "specializations/farwatch-turret.json"
+  },
+  "swallow": {
+   "portrait": "specializations/swallow.webp",
+   "turret": "specializations/swallow-turret.json"
+  }
+ },
  "buildRing": [
   "archer",
   "cannon",

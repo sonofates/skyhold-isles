@@ -1,0 +1,50 @@
+{
+ "image": "farwatch-turret.webp",
+ "frameW": 230,
+ "frameH": 258,
+ "count": 5,
+ "dirs": [
+  "S",
+  "SE",
+  "E",
+  "NE",
+  "N"
+ ],
+ "pivot": [
+  115,
+  228
+ ],
+ "muzzle": [
+  [
+   6.67,
+   -80.11
+  ],
+  [
+   89.51,
+   -88.98
+  ],
+  [
+   107.08,
+   -147.27
+  ],
+  [
+   88.93,
+   -194.39
+  ],
+  [
+   4.85,
+   -216.95
+  ]
+ ],
+ "body": "farwatch-body.webp",
+ "bodyMount": [
+  267,
+  98
+ ],
+ "bodyRing": {
+  "ringWidthPx": 376.0,
+  "ringBottomPx": 496.0,
+  "ringCenterXPx": 267.0
+ },
+ "scale": 1
+}
