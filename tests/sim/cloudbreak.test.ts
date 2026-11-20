@@ -4,9 +4,11 @@ import { campaignKit } from '../../scripts/lib/campaignKit.ts';
 import { balanceBuildOrder } from '../../scripts/lib/specializationBuilds.ts';
 import { EventBus } from '../../src/core/eventBus.ts';
 import { BALANCE } from '../../src/data/balance.ts';
+import { DIFFICULTIES } from '../../src/data/difficulty.ts';
 import type { LevelDef } from '../../src/data/levels/types.ts';
 import { I15 } from '../../src/data/levels2d/i15.ts';
 import { LEVEL_L1C } from '../../src/data/levels2d/l1c.ts';
+import { combineRunModifiers } from '../../src/data/runModifiers.ts';
 import { SimReplayPlayer, SimWorld, parseSimReplay, serializeSimReplay } from '../../src/sim/world.ts';
 
 const plot = { x: 6, z: 5 };
@@ -120,7 +122,11 @@ it.each(['before launch', 'in flight', 'never'] as const)('switches roads with S
   world.dispose();
 });
 
-it('affords Cloudbreak and Stone Petals on the first Normal clear of Moonwell Crossing', () => {
-  const result = runLevelBalanceSim(I15, 'greedy', balanceBuildOrder(I15, 'greedy'), campaignKit(1_000_000, 42));
+it.each(['normal', 'hard'] as const)('holds Night Freight and clears Moonwell with Stone Petals on %s', difficulty => {
+  const kit = campaignKit(1_000_000, 42);
+  const profile = { ...kit, modifiers: combineRunModifiers(kit.modifiers, DIFFICULTIES[difficulty].patch) };
+  const result = runLevelBalanceSim(I15, 'greedy', balanceBuildOrder(I15, 'greedy'), profile);
+  const nightFreight = I15.waves.findIndex(wave => wave.name === 'Night Freight');
+  expect(result.waves[nightFreight]?.livesLost).toBe(0);
   expect(result).toMatchObject({ outcome: 'won', towerPurchases: ['cloudbreak', 'stonepetals'], invalidActions: 0 });
 });

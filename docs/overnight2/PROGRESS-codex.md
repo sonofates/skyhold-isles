@@ -825,3 +825,32 @@ TypeScript, lint and the production build passed. Vitest passed 1,439 tests with
 ### Next round
 
 Trace the Hard first-clear kit through Moonwell Crossing’s wave-five defeat in “Night Freight.” Measure whether the haulers, their dropped raiders or the skimmers take the remaining lives. Try a change to the opening build within the existing budget and check Normal before adopting it.
+
+## Round 34 — Night Freight at Moonwell Crossing
+
+### The wave-five defeat
+
+Level-20 Bran entered Hard i15 with 42 Workshop stars, 83 gold and 22 lives. Five grunts escaped in the first wave, two in the third, and all six Slipstream Moths in the fourth. Night Freight took the remaining nine lives. Five skimmers escaped first, followed by two runners from dead splitters. At 21.77 seconds the first hauler reached the goal for two lives. Both haulers were still airborne until then and neither had dropped raiders.
+
+### Opening build
+
+The painted island's greedy script now buys its second frost tower on plot 7 before either mortar. The first tower on plot 3 targets the front of the column. The second targets the strongest enemy. Hard could afford that second tower 27 seconds into wave one. With this purchase order alone the kit cleared Night Freight without a leak, then lost its last six lives to skimmers in wave ten. Replacing the planned archer on plot 4 with a ballista gave the same kit a full clear. Both changes use ordinary purchases at the existing prices.
+
+Hard entered Night Freight with seven lives and 93 gold. Meteor killed five skimmers at 2.85 seconds. At 9.58 seconds the kit could buy the 120-gold ballista. The two haulers fell at 14.17 and 22.60 seconds. All four dropped raiders and all eight runners from the splitters died. By the end of the wave the ballista had dealt 1,440 damage and earned seven kills. Hard finished at 4/22 lives and one star. Normal finished at 12/22 and two stars, losing four lives to skimmers and six to the final Tempest. The six moths in the preceding Normal wave had all fallen by 8.53 seconds. Both kits bought Cloudbreak and Stone Petals. The campaign regression now checks the leak-free Night Freight and full clear on both difficulties.
+
+| Enemy HP relative to each difficulty | −3% | −1.5% | Authored | +1.5% | +3% |
+|---|---:|---:|---:|---:|---:|
+| Normal lives remaining | 20 | 14 | 12 | 16 | 10 |
+| Hard result | Won, 6 lives | Won, 5 lives | Won, 4 lives | Lost, wave 6 | Lost, wave 6 |
+
+All five Hard runs survived Night Freight. In each higher-HP run, one life remained going into wave six and a blinker took it. The authored waves and enemy tuning are the same across the two build comparisons.
+
+### Verification
+
+All eight difficulty verdicts passed. Easy and Normal cleared 25/25 islands. Hard cleared 14/17 in chapter one and 3/8 in chapter two. Hard i09 finished at 12/22 and Hard i24 at 2/22. The towers-only Normal script on i15 lost on wave three, previously wave five. All other islands’ difficulty rows matched round 33.
+
+TypeScript and lint passed. Vitest passed 1,440 tests with 11 skipped. The 24,217-byte standalone 3D L1–L16 report matched the round-one baseline byte for byte. All 41 realistic-kit checks passed, including all 25 painted islands. The production build passed with the existing Vite bundle-size and dynamic-import warnings.
+
+### Next round
+
+Trace the Reed Pipers and Belfry Hares together in Lantern Glassworks’ “A Chorus in Stone.” Check when a cleansed hare starts accelerating again and whether a hare held in melee builds any sprint during the same cast. No new localization or UI requests for Opus.
