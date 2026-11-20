@@ -481,3 +481,27 @@ TypeScript, lint and the production build passed. Vitest passed 1,406 tests with
 ### Next round
 
 Audit Relay Grove's Live Wire. Check jump distance, falloff and target order across a mixed ground and air formation, including the extra eighth target on the sixth discharge. Exercise an ability purchase between discharges and compare the serialized replay.
+
+## Round 21 — Relay Grove and Live Wire
+
+### Done
+
+- Three combat regressions follow a grunt, a flyer and seven ground enemies on parallel lanes. With a 4.80-unit gap to the flyer, the first five discharges each hit the nearest seven enemies in order. Moving the flight path 0.01 units farther away breaks the first jump. Even the sixth discharge then hits only the lead grunt.
+- Bought Live Wire between discharges five and six. The overload killed the lead grunt for its remaining 65 HP and the flyer for its remaining 21 HP. The next jump dealt 74 to the armored elite grunt, and the eighth foe took 55. In the same formation without Live Wire those two hits dealt 59 and 25. All three serialized command replays reproduced every firing tick, target, damage amount, outcome and final state hash.
+
+### Campaign decision
+
+- Lanternseed Fig’s realistic build now buys Relay Grove on plot 9 after the plot-15 barracks upgrade. With level-20 Bran and 48 entry stars, Normal bought the branch on wave nine and Live Wire on wave ten. The upgraded grove fired 57 times, reached eight foes five times, dealt 13,294 damage and earned 23 kills. The island still finished at 10/22 lives and two stars. Waiting until the plot-14 ballista upgrade left only six upgraded shots and two lives.
+- Checked the same kit at −3%, −1.5%, +1.5% and +3% enemy HP. The new build finished with 8, 11 and 9 lives at the first three settings and lost at +3%. The previous build cleared only the −1.5% check. These are sensitivity checks around the authored difficulty.
+
+### Request for Opus
+
+Updated the English Live Wire ability text in the shared tower and codex data. Each jump uses the preceding jump’s damage before armor and remaining HP limit the actual hit. EN “Lightning loses 6% damage per jump, down from 16%. Armor applies separately to each foe.” TR “Yıldırımın hasarı her sıçramada %16 yerine %6 azalır. Her düşmanın zırhı ayrı hesaplanır.”
+
+### Verification
+
+TypeScript, lint and the production build passed. Vitest passed 1,409 tests with 11 skipped. All 41 realistic-kit levels and all eight difficulty verdicts passed. Easy and Normal cleared all 25 islands. Hard i09 finished at 12/22 lives and Hard i24 at 2/22. The only difficulty-report change was the i19 bare Easy run, up from 20 to 22 of 25 lives. The 24,217-byte standalone L1–L16 report matches the round-one baseline byte for byte. Vite emitted its existing bundle-size and dynamic-import warnings.
+
+### Next round
+
+Audit Stormheart Coil’s Thunderbeat. Buy the branch and ability at different points in the firing cycle. Check which discharges double in strength, the three-target cap and replay when an overloaded primary hit kills its target.

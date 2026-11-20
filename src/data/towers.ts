@@ -750,7 +750,7 @@ const SPECIALIZATIONS = {
       changes: { chainCount: 7, chainRange: 4.8, chainFalloff: 0.84 },
       abilities: [{
         id: 'livewire', name: 'Live Wire', cost: 105,
-        description: 'Each jump keeps 94% of the preceding hit’s damage.', changes: { chainFalloff: 0.94 },
+        description: 'Lightning loses 6% damage per jump, down from 16%. Armor applies separately to each foe.', changes: { chainFalloff: 0.94 },
       }],
     },
     {
