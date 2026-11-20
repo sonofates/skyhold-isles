@@ -626,15 +626,16 @@
 }
 
 @media (max-height: 480px) {
+  /* Under Play (the rule line keeps the left column): the planks keep their width. */
   .pu-brief-actions:has(> .pu-beltchip) {
-    grid-template-columns: minmax(0, 1fr) auto auto;
     grid-template-areas:
-      'row belt play'
-      'desc desc desc';
+      'row play'
+      'desc belt';
   }
 
   .pu-brief-actions > .pu-beltchip {
     grid-area: belt;
+    justify-self: center;
     align-self: center;
   }
 
@@ -649,9 +650,9 @@
 
   .pu-beltchip-slot,
   .pu-beltchip-slot .pu-item-socket {
-    --d: 36px;
-    min-width: 36px;
-    min-height: 36px;
+    --d: 32px;
+    min-width: 32px;
+    min-height: 32px;
   }
 }
 

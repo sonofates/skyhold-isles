@@ -59,7 +59,7 @@ import { hornNearCave, rectsTouch, roadMouths } from './hornSpot.ts';
 import { distSegRect, type Seg } from './playfield.ts';
 import { pointAlong, waveLaneCounts } from './lanePath.ts';
 import { buildEndlessWaveDef } from '../sim/waveSystem.ts';
-import { fullBleedFit, hardOverlaps, hardShapes, type FullBleedFit, type HardShapes } from './fullBleed.ts';
+import { fullBleedFitItems, hardOverlaps, hardShapes, type FullBleedFit, type HardShapes } from './fullBleed.ts';
 import { MapPan, PAN_SLOP } from './mapPan.ts';
 import type { HornPlacement } from './hornSpot.ts';
 import { GoldPops2D } from './ui/goldPops2d.ts';
@@ -979,7 +979,8 @@ export class Game2D {
     // edges; a piece slides along its edge (or the map shrinks a little) only where it would cover
     // a plot, cave, castle or a safe-area road (fullBleed.ts).
     const shapes = (this.playShapes ??= hardShapes(this.level.layout2d!));
-    const placed = fullBleedFit(w, h, this.level.layout2d!, hudDock(w, h, this.insets, { ...this.hud.dockOptions(!!this.hooks.hero), items: this.itemSlots }), shapes);
+    const dockOpts = { ...this.hud.dockOptions(!!this.hooks.hero), items: this.itemSlots };
+    const placed = fullBleedFitItems(w, h, this.level.layout2d!, (itemMode) => hudDock(w, h, this.insets, { ...dockOpts, itemMode }), shapes);
     this.dock = placed.dock;
     this.fullBleed = placed.fit;
     this.map.resize(w, h, placed.fit);

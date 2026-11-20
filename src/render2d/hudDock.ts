@@ -74,6 +74,8 @@ export interface HudDockOptions {
   readonly hero: boolean;
   /** Belt item slots behind the abilities (0..3; 0 = no item group). */
   readonly items?: number;
+  /** `pouch` forces the one-button item group (fullBleed.ts picks it where the row would cover more). */
+  readonly itemMode?: 'row' | 'pouch';
 }
 
 export interface HornSpot {
@@ -155,7 +157,7 @@ export function hudDock(w: number, h: number, insets: Insets, o: HudDockOptions)
   const d = Math.max(40, Math.min(want, fitD));
   // Items in a row when the bottom line has room for them, else one pouch button.
   const n = Math.max(0, Math.min(3, Math.floor(o.items ?? 0)));
-  const itemMode: 'row' | 'pouch' = n > 0 && trayLong(d, gap, o.hero, n, 'row') > right - left ? 'pouch' : 'row';
+  const itemMode: 'row' | 'pouch' = n > 0 && (o.itemMode === 'pouch' || trayLong(d, gap, o.hero, n, 'row') > right - left) ? 'pouch' : 'row';
   const tw = trayLong(d, gap, o.hero, n, itemMode);
   const th = trayShort(d, o.hero);
   let tray: Rect;

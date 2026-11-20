@@ -134,7 +134,8 @@ export function mountItemBelt2D(game: Game2D, opts: ItemBeltOptions): ItemBelt2D
     const ids = beltIds(initial, game.replaying ? [] : loadout);
     slots = ids.map(makeSlot);
     row.replaceChildren(...slots.map((s) => s.btn));
-    pouchIcon.replaceChildren(...(ids[0] ? [img(itemIconUrl(ids[0]), '', 'pu-item-art')] : []));
+    // The pouch shows the belt's items as a little cluster (not one item's face).
+    pouchIcon.replaceChildren(el('span', `pu-items-cluster n${ids.length}`, {}, ...ids.map((id) => img(itemIconUrl(id, 1), '', 'pu-items-mini'))));
     group.hidden = ids.length === 0;
     if (game.itemSlots !== ids.length) {
       game.itemSlots = ids.length;
@@ -203,7 +204,8 @@ export function mountItemBelt2D(game: Game2D, opts: ItemBeltOptions): ItemBelt2D
     tip.replaceChildren(
       head,
       el('div', 'pu-ab-tip-desc pu-ink-soft', {}, itemDesc(id)),
-      el('div', 'pu-ab-tip-foot pu-ink', {}, el('span', '', {}, t('item.uses', { n: v.uses }), ' · ', t('item.stock', { n: v.owned })), el('b', '', {}, stateText(v))),
+      el('div', 'pu-item-tip-uses pu-ink', {}, t('item.uses', { n: v.uses }), ' · ', t('item.stock', { n: v.owned })),
+      el('div', `pu-item-tip-state${v.state === 'ready' ? ' ok' : ''}`, {}, stateText(v)),
     );
     tip.hidden = false;
     const b = s.btn.getBoundingClientRect();

@@ -173,15 +173,16 @@ if (ONLY.includes('hud')) {
       log('  tray outside', hc.outside.tray, 'overlaps', JSON.stringify(hc.overlaps), 'clear', hc.fit.clear);
       if (hc.outside.tray > 1.5) fail(`hud ${level} ${k}: tray sticks out of its slot by ${hc.outside.tray}`);
       await shot(page, `hud-belt-${level}-${k}`);
+      if (it.mode === 'pouch') {
+        await page.click('[data-testid="item2d-pouch"]');
+        await page.waitForTimeout(300);
+        await shot(page, `hud-belt-${level}-${k}-pouch-open`);
+      }
       if (k === 'desk') {
         const b = await page.locator('[data-testid="item2d-frostLantern"]').boundingBox();
         await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
         await page.waitForTimeout(300);
         await shot(page, `hud-belt-${level}-${k}-tooltip`);
-      } else if (it.mode === 'pouch') {
-        await page.click('[data-testid="item2d-pouch"]');
-        await page.waitForTimeout(300);
-        await shot(page, `hud-belt-${level}-${k}-pouch-open`);
       }
       await ctx.close();
     }
