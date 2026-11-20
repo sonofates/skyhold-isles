@@ -20,10 +20,11 @@ interface PendingMeteor extends ReadonlyPendingMeteor {
   readonly slowDuration: number;
 }
 
-const _meteorCandidates: number[] = [];
+const EMPTY_TOWER_IDS: readonly number[] = [];
 
 export class AbilitySystem {
   private readonly events: EventBus;
+  private readonly meteorCandidates: number[] = [];
   private readonly cooldowns: Record<AbilityId, number> = {
     meteor: 0,
     overcharge: 0,
@@ -115,18 +116,19 @@ export class AbilitySystem {
     this.cooldowns.overcharge = this.getMaxCooldown('overcharge');
     this.overchargeRemaining = def.durationSec;
 
-    const cleansedTowerIds: number[] = [];
+    let cleansedTowerIds: number[] | null = null;
     for (let i = 0; i < towers.length; i++) {
       const tower = towers[i];
       if (tower.stunTimer > 0) {
         tower.stunTimer = 0;
+        if (!cleansedTowerIds) cleansedTowerIds = [];
         cleansedTowerIds.push(tower.id);
       }
     }
 
     this.events.emit('overchargeActivated', {
       duration: def.durationSec,
-      cleansedTowerIds,
+      cleansedTowerIds: cleansedTowerIds ?? EMPTY_TOWER_IDS,
     });
     return true;
   }
@@ -170,11 +172,12 @@ export class AbilitySystem {
 
       this.pendingMeteors.splice(i, 1);
 
-      spatialHash.query(meteor.x, meteor.z, meteor.radius, _meteorCandidates);
+      const candidates = this.meteorCandidates;
+      spatialHash.query(meteor.x, meteor.z, meteor.radius, candidates);
       const rSq = meteor.radius * meteor.radius;
-      for (let k = 0; k < _meteorCandidates.length; k++) {
+      for (let k = 0; k < candidates.length; k++) {
         if (this.resetGen !== gen) return;
-        const enemy = enemyPool.items[_meteorCandidates[k]];
+        const enemy = enemyPool.items[candidates[k]];
         if (!enemy.active || enemy.hp <= 0 || enemy.burrowed) continue;
         const dx = enemy.x - meteor.x;
         const dz = enemy.z - meteor.z;

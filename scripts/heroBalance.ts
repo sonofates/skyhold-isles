@@ -17,7 +17,7 @@ import type { EnemyEntity } from '../src/sim/entities.ts';
 import { findMergePoint } from '../src/sim/groundGraph.ts';
 import { computeStarRating, SimWorld } from '../src/sim/world.ts';
 
-const REPORT_ISLANDS = ['l1c', 'i05', 'i10', 'i16'] as const;
+const REPORT_ISLANDS = ['l1c', 'i05', 'i10', 'i16', 'i17', 'i24'] as const;
 
 export interface HeroIslandRunSummary {
   readonly levelId: string;

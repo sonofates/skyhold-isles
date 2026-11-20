@@ -1,7 +1,7 @@
 import type { EventBus } from '../core/eventBus.ts';
 import { ObjectPool } from '../core/pool.ts';
 import type { AbilityId, HeroId, HeroSkillSlot, TargetingMode, TowerMvpSummary, TowerType } from '../core/types.ts';
-import { ABILITY_DEFS, ABILITY_IDS, type AbilityDef } from '../data/abilities.ts';
+import { ABILITY_DEFS, type AbilityDef } from '../data/abilities.ts';
 import { BALANCE } from '../data/balance.ts';
 import { championLevel } from '../data/champions.ts';
 import { HERO_MAX_LEVEL, isHeroId } from '../data/heroes.ts';
@@ -91,8 +91,6 @@ function isValidTargetingMode(val: unknown): val is TargetingMode {
   return typeof val === 'string' && (VALID_TARGETING_MODES as readonly string[]).includes(val);
 }
 
-const _hoverCandidates: number[] = [];
-
 export function computeSellRefund(totalInvested: number): number {
   return Math.round(totalInvested * BALANCE.sellRefundRatio);
 }
@@ -155,6 +153,9 @@ export class SimWorld {
   private tickAbortGen = 0;
   private poolClearGen = 0;
   private readonly commandLog: StampedSimCommand[] = [];
+  private readonly hoverCandidates: number[] = [];
+  private readonly abilityStateCache: Partial<Record<AbilityId, AbilityRuntimeState>> = {};
+  private abilitiesListCache: readonly [AbilityRuntimeState, AbilityRuntimeState] | null = null;
 
   constructor(
     baseLevel: LevelDef,
@@ -437,6 +438,7 @@ export class SimWorld {
   /** Orders the active hero to move along the ground road graph to `(x, z)`. */
   commandHeroMove(x: number, z: number): boolean {
     if (this.outcome !== 'ongoing') return false;
+    if (!this.recordingCommands) return this.heroSystem.commandMove(x, z);
     return this.heroSystem.commandMove(x, z, () => {
       this.recordCommand({ kind: 'moveHero', x, z });
     });
@@ -445,6 +447,7 @@ export class SimWorld {
   /** Casts one of the active hero's two skills (`slot` = `0` or `1`). */
   castHeroSkill(slot: HeroSkillSlot, x = NaN, z = NaN): boolean {
     if (this.outcome !== 'ongoing') return false;
+    if (!this.recordingCommands) return this.heroSystem.castSkill(slot, x, z, this.towers);
     const hasCoords = Number.isFinite(x) && Number.isFinite(z);
     return this.heroSystem.castSkill(slot, x, z, this.towers, () => {
       this.recordCommand(hasCoords ? { kind: 'castHeroSkill', slot, x, z } : { kind: 'castHeroSkill', slot });
@@ -491,23 +494,50 @@ export class SimWorld {
     const cd = this.abilitySystem.getCooldown(id);
     const maxCd = this.abilitySystem.getMaxCooldown(id);
     const ready = this.abilitySystem.canCast(id);
-    return {
+    const usable = ready && this.canUseAbilities();
+    const activeRemaining = id === 'overcharge' ? this.abilitySystem.getOverchargeRemaining() : 0;
+    const disabled = this.mods.abilitiesDisabled;
+
+    const prev = this.abilityStateCache[id];
+    if (
+      prev !== undefined &&
+      prev.cooldown === cd &&
+      prev.maxCooldown === maxCd &&
+      prev.ready === ready &&
+      prev.usable === usable &&
+      prev.activeRemaining === activeRemaining &&
+      prev.disabled === disabled
+    ) {
+      return prev;
+    }
+
+    const next: AbilityRuntimeState = {
       id,
       name: def.name,
       cooldown: cd,
       maxCooldown: maxCd,
       ready,
-      usable: ready && this.canUseAbilities(),
+      usable,
       requiresTarget: def.requiresTarget,
       radius: def.radius ?? 0,
-      activeRemaining: id === 'overcharge' ? this.abilitySystem.getOverchargeRemaining() : 0,
-      disabled: this.mods.abilitiesDisabled,
+      activeRemaining,
+      disabled,
     };
+    this.abilityStateCache[id] = next;
+    return next;
   }
 
   /** Cooldown and usability state for all global abilities (`['meteor', 'overcharge']`). */
   getAbilitiesState(): readonly AbilityRuntimeState[] {
-    return ABILITY_IDS.map((id) => this.getAbilityState(id));
+    const m = this.getAbilityState('meteor');
+    const o = this.getAbilityState('overcharge');
+    const prev = this.abilitiesListCache;
+    if (prev !== null && prev[0] === m && prev[1] === o) {
+      return prev;
+    }
+    const next: readonly [AbilityRuntimeState, AbilityRuntimeState] = [m, o];
+    this.abilitiesListCache = next;
+    return next;
   }
 
   /** Island card → Endless: the whole run is endless from wave 1 (no victory, no stars). */
@@ -547,13 +577,15 @@ export class SimWorld {
     };
   }
 
+  private readonly onStartWaveBonusFn = (bonus: number): void => {
+    this.gold += this.scaleWaveBonus(bonus);
+    this.events.emit('economyChanged', { gold: this.gold, lives: this.lives });
+  };
+
   startNextWave(): boolean {
     if (this.outcome !== 'ongoing' || !this.waveSystem.canStartNextWave()) return false;
     this.recordCommand({ kind: 'startWave' });
-    return this.waveSystem.startNextWave((bonus) => {
-      this.gold += this.scaleWaveBonus(bonus);
-      this.events.emit('economyChanged', { gold: this.gold, lives: this.lives });
-    });
+    return this.waveSystem.startNextWave(this.onStartWaveBonusFn);
   }
 
   debugSkipToWave(waveOneBased: number): boolean {
@@ -877,6 +909,7 @@ export class SimWorld {
     if (this.outcome !== 'ongoing') return false;
     const tower = this.getTowerById(towerId);
     if (!tower || TOWER_DEFS[tower.type].role !== 'barracks') return false;
+    if (!this.recordingCommands) return this.soldierSystem.setRally(tower, x, z);
     return this.soldierSystem.setRally(tower, x, z, () => {
       this.recordCommand({ kind: 'setRally', towerId, x, z });
     });
@@ -1082,10 +1115,11 @@ export class SimWorld {
   ): EnemyEntity | null {
     let best: EnemyEntity | null = null;
     let bestDistSq = Infinity;
+    const hoverCandidates = this.hoverCandidates;
 
-    this.spatialHash.query(flyerHitX, flyerHitZ, 1.4, _hoverCandidates);
-    for (let i = 0; i < _hoverCandidates.length; i++) {
-      const e = this.enemyPool.items[_hoverCandidates[i]];
+    this.spatialHash.query(flyerHitX, flyerHitZ, 1.4, hoverCandidates);
+    for (let i = 0; i < hoverCandidates.length; i++) {
+      const e = this.enemyPool.items[hoverCandidates[i]];
       if (!e.active || e.hp <= 0 || !e.flying) continue;
       const dx = e.x - flyerHitX;
       const dz = e.z - flyerHitZ;
@@ -1098,9 +1132,9 @@ export class SimWorld {
     }
     if (best) return best;
 
-    this.spatialHash.query(groundHitX, groundHitZ, 1.4, _hoverCandidates);
-    for (let i = 0; i < _hoverCandidates.length; i++) {
-      const e = this.enemyPool.items[_hoverCandidates[i]];
+    this.spatialHash.query(groundHitX, groundHitZ, 1.4, hoverCandidates);
+    for (let i = 0; i < hoverCandidates.length; i++) {
+      const e = this.enemyPool.items[hoverCandidates[i]];
       if (!e.active || e.hp <= 0 || e.flying || e.burrowed) continue;
       const dx = e.x - groundHitX;
       const dz = e.z - groundHitZ;

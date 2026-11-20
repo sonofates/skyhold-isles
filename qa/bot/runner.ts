@@ -1,5 +1,14 @@
 import { EventBus } from '../../src/core/eventBus.ts';
 import { BALANCE } from '../../src/data/balance.ts';
+import { CHAPTER_ENEMY_TYPES } from '../../src/data/enemies.ts';
+import {
+  ReplayCursor,
+  runFingerprint,
+  sameFingerprint,
+  type RecordedCommand,
+  type RunReplay,
+} from '../../src/render2d/ui/replay2d.ts';
+import { hasChapterTwoEnemies } from '../../src/sim/waveSystem.ts';
 import {
   parseSimReplay,
   serializeSimReplay,
@@ -32,13 +41,114 @@ export interface ScenarioResult {
   readonly waveHashes: readonly string[];
   readonly violations: readonly InvariantViolation[];
   readonly determinismVerified: boolean;
+  readonly heroDeaths: number;
+  readonly heroRespawns: number;
   readonly durationMs: number;
+}
+
+const CHAPTER_FOE_SET: ReadonlySet<string> = new Set<string>(CHAPTER_ENEMY_TYPES);
+
+function verifyUiReplayCursor(
+  scenario: BotScenario,
+  replayLog: SimReplayLog,
+  expectedHash: string,
+  expectedTicks: number,
+  expectedEnd: ReturnType<typeof runFingerprint>,
+): string | null {
+  if (!scenario.level.layout2d || scenario.startEndlessFromWave1 || scenario.endlessWaves > 0) {
+    return null;
+  }
+  const recorded: RecordedCommand[] = [];
+  let nextTowerId = 1;
+  for (let i = 0; i < replayLog.commands.length; i++) {
+    const entry = replayLog.commands[i];
+    const cmd = entry.command;
+    switch (cmd.kind) {
+      case 'placeTowerOnPlot': {
+        const assignedId = nextTowerId++;
+        recorded.push({ t: entry.tick, c: { k: 'build', plot: cmd.plotIndex, type: cmd.towerType } });
+        if (cmd.targetingMode && cmd.targetingMode !== 'first') {
+          recorded.push({ t: entry.tick, c: { k: 'target', id: assignedId, mode: cmd.targetingMode } });
+        }
+        break;
+      }
+      case 'upgradeTower':
+        recorded.push({ t: entry.tick, c: { k: 'upgrade', id: cmd.towerId } });
+        break;
+      case 'sellTower':
+        recorded.push({ t: entry.tick, c: { k: 'sell', id: cmd.towerId } });
+        break;
+      case 'setTargeting':
+        recorded.push({ t: entry.tick, c: { k: 'target', id: cmd.towerId, mode: cmd.mode } });
+        break;
+      case 'setRally':
+        recorded.push({ t: entry.tick, c: { k: 'rally', id: cmd.towerId, x: cmd.x, z: cmd.z } });
+        break;
+      case 'startWave':
+        recorded.push({ t: entry.tick, c: { k: 'wave' } });
+        break;
+      case 'moveHero':
+        recorded.push({ t: entry.tick, c: { k: 'heroMove', x: cmd.x, z: cmd.z } });
+        break;
+      case 'castHeroSkill':
+        recorded.push({
+          t: entry.tick,
+          c: { k: 'heroSkill', slot: cmd.slot, x: cmd.x ?? null, z: cmd.z ?? null },
+        });
+        break;
+      case 'castAbility':
+        if (cmd.id === 'meteor') {
+          recorded.push({ t: entry.tick, c: { k: 'meteor', x: cmd.x ?? 0, z: cmd.z ?? 0 } });
+        } else {
+          recorded.push({ t: entry.tick, c: { k: 'overcharge' } });
+        }
+        break;
+      default:
+        return null;
+    }
+  }
+
+  const runReplay: RunReplay = {
+    levelId: scenario.level.id,
+    commands: recorded,
+    endTick: expectedTicks,
+    end: expectedEnd,
+  };
+  const uiWorld = new SimWorld(
+    scenario.level,
+    new EventBus(),
+    scenario.modifiers,
+    scenario.heroId
+      ? {
+          heroId: scenario.heroId,
+          heroLevel: scenario.heroLevel,
+          heroSkills: scenario.heroSkills,
+          seed: scenario.seed,
+        }
+      : { seed: scenario.seed },
+  );
+  const cursor = new ReplayCursor(runReplay);
+  let tick = 0;
+  for (; tick < runReplay.endTick && uiWorld.outcome === 'ongoing'; tick++) {
+    cursor.applyDue(uiWorld, tick);
+    uiWorld.fixedTick(BALANCE.fixedDt);
+  }
+  const fp = runFingerprint(uiWorld, tick);
+  const uiHash = hashWorldState(uiWorld);
+  uiWorld.dispose();
+  if (!sameFingerprint(fp, expectedEnd) || uiHash !== expectedHash) {
+    return `ReplayCursor (replay2d.ts) mismatch: hash ${uiHash} vs ${expectedHash} (tick ${tick} vs ${expectedTicks}, outcome ${fp.outcome} vs ${expectedEnd.outcome})`;
+  }
+  return null;
 }
 
 function executeOnce(
   scenario: BotScenario,
   recordReplay = false,
-): Omit<ScenarioResult, 'determinismVerified' | 'durationMs'> & { readonly exportedReplay?: SimReplayLog } {
+): Omit<ScenarioResult, 'determinismVerified' | 'durationMs'> & {
+  readonly exportedReplay?: SimReplayLog;
+  readonly endFp?: ReturnType<typeof runFingerprint>;
+} {
   const events = new EventBus();
   const world = new SimWorld(
     scenario.level,
@@ -61,6 +171,17 @@ function executeOnce(
 
   const monitor = new InvariantMonitor(world, events);
   const waveHashes: string[] = [];
+  let endlessChapterFoesSpawned = 0;
+
+  events.on('enemySpawned', (ev) => {
+    if (
+      world.waveSystem.isEndless &&
+      world.waveSystem.currentWaveIndex >= scenario.level.waves.length &&
+      CHAPTER_FOE_SET.has(ev.enemyType)
+    ) {
+      endlessChapterFoesSpawned++;
+    }
+  });
 
   events.on('waveCompleted', () => {
     waveHashes.push(hashWorldState(world));
@@ -126,7 +247,11 @@ function executeOnce(
         if (sellTarget) {
           const { col, row, type, targetingMode } = sellTarget;
           world.sellTower(sellTarget.id);
-          world.placeTower(col, row, type, targetingMode);
+          if (world.grid.isPlotMode && row === 0) {
+            world.placeTowerOnPlot(col, type, targetingMode);
+          } else {
+            world.placeTower(col, row, type, targetingMode);
+          }
         }
       }
     } else {
@@ -213,13 +338,28 @@ function executeOnce(
 
   const expectTerminated = !scenario.startEndlessFromWave1 && scenario.endlessWaves === 0;
   monitor.checkRunEnd(tick, expectTerminated);
+  if (
+    scenario.endlessWaves > 0 &&
+    hasChapterTwoEnemies(scenario.level) &&
+    world.waveSystem.currentWaveOneBased >= scenario.level.waves.length + 2 &&
+    endlessChapterFoesSpawned === 0
+  ) {
+    monitor.violations.push({
+      kind: 'wave_never_ends',
+      tick,
+      message: `Chapter 2 endless waves on ${scenario.level.id} spawned 0 chapter-two enemies across endless waves`,
+    });
+  }
   const stateHash = hashWorldState(world);
+  const endFp = recordReplay ? runFingerprint(world, tick) : undefined;
   const exportedReplay = recordReplay ? world.exportReplay() : undefined;
 
   // Verify post-run teardown leaves zero entities in any pool or subsystem.
   const finalLives = world.lives;
   const finalGold = world.gold;
   const wavesReached = world.waveSystem.currentWaveOneBased;
+  const heroDeaths = monitor.heroDeaths;
+  const heroRespawns = monitor.heroRespawns;
   world.dispose();
   if (
     world.enemyPool.getActiveCount() !== 0 ||
@@ -251,7 +391,10 @@ function executeOnce(
     stateHash,
     waveHashes,
     violations: monitor.violations,
+    heroDeaths,
+    heroRespawns,
     exportedReplay,
+    endFp,
   };
 }
 
@@ -299,6 +442,10 @@ export function runBotScenario(scenario: BotScenario): ScenarioResult {
         });
       } else {
         const player = new SimReplayPlayer(scenario.level, parsed);
+        if (first.ticks >= 120) {
+          player.seekToTick(Math.floor(first.ticks * 0.5));
+          player.seekToTick(Math.floor(first.ticks * 0.25));
+        }
         const check = player.runToEnd();
         if (!check.matchesOutcome || !check.matchesHash) {
           violations.push({
@@ -308,6 +455,22 @@ export function runBotScenario(scenario: BotScenario): ScenarioResult {
           });
         }
         player.dispose();
+      }
+      if (violations.length === 0 && first.endFp) {
+        const uiErr = verifyUiReplayCursor(
+          scenario,
+          first.exportedReplay,
+          first.stateHash,
+          first.ticks,
+          first.endFp,
+        );
+        if (uiErr) {
+          violations.push({
+            kind: 'determinism',
+            tick: first.ticks,
+            message: uiErr,
+          });
+        }
       }
     }
   }
@@ -325,6 +488,8 @@ export function runBotScenario(scenario: BotScenario): ScenarioResult {
     waveHashes: first.waveHashes,
     violations,
     determinismVerified,
+    heroDeaths: first.heroDeaths,
+    heroRespawns: first.heroRespawns,
     durationMs: performance.now() - t0,
   };
 }

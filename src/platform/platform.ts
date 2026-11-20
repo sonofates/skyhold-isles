@@ -52,10 +52,14 @@ export interface PlatformAchievements {
 export interface PlatformCloudSave {
   read(slot: string): Promise<string | null>;
   write(slot: string, json: string): Promise<boolean>;
+  /** True when the most recent `read(slot)` fell back locally because the remote Steam Cloud read threw. */
+  didLastReadFail?(slot: string): boolean;
 }
 
 export interface PlatformAdapter {
   readonly isSteam: boolean;
+  /** True when running inside the Electron desktop shell (connected to Steam or standalone). */
+  readonly isDesktop?: boolean;
   /** True when running inside the native Capacitor mobile wrapper (Android or iOS). */
   readonly isMobile: boolean;
   /** Underlying Capacitor platform identifier (`'ios'`, `'android'`, or `'web'`). */
@@ -92,6 +96,7 @@ declare global {
 
 const CLOUD_KEY_PREFIX = 'skyhold_isles_cloud_';
 const LEGACY_PROGRESS_KEY = 'skyhold_isles_progress_v1';
+const MAX_CLOUD_JSON_CHARS = 2 * 1024 * 1024;
 
 /** Restricts slot identifiers to safe ASCII tokens (prevents path traversal and malformed keys). */
 export function sanitizeCloudSlot(slot: string): string | null {
@@ -99,6 +104,18 @@ export function sanitizeCloudSlot(slot: string): string | null {
   const trimmed = slot.trim();
   if (!/^[a-zA-Z0-9_-]{1,64}$/.test(trimmed)) return null;
   return trimmed;
+}
+
+function isValidCloudJson(json: unknown): json is string {
+  if (typeof json !== 'string' || json.length === 0 || json.length > MAX_CLOUD_JSON_CHARS) {
+    return false;
+  }
+  try {
+    const parsed: unknown = JSON.parse(json);
+    return parsed !== null && typeof parsed === 'object';
+  } catch {
+    return false;
+  }
 }
 
 function defaultStorage(): CloudStorageLike | null {
@@ -220,8 +237,19 @@ export function createPlatformAdapter(options: CreatePlatformOptions = {}): Plat
   const storage = options.storage === undefined ? defaultStorage() : options.storage;
   const bridge = options.bridge === undefined ? detectSteamBridge() : (options.bridge ?? undefined);
   const steamActive = Boolean(bridge && bridge.isSteam === true);
+  const desktopBundleHost =
+    options.bridge === undefined &&
+    options.mobile === undefined &&
+    (() => {
+      try {
+        return typeof location !== 'undefined' && location.hostname === 'skyhold.local';
+      } catch {
+        return false;
+      }
+    })();
+  const desktopActive = steamActive || Boolean(bridge) || desktopBundleHost;
 
-  const mobileBridge = steamActive
+  const mobileBridge = desktopActive
     ? undefined
     : options.mobile === undefined
       ? detectMobileBridge()
@@ -286,6 +314,7 @@ export function createPlatformAdapter(options: CreatePlatformOptions = {}): Plat
   if (!steamActive || !bridge) {
     return {
       isSteam: false,
+      isDesktop: desktopActive,
       isMobile: mobileActive,
       mobilePlatform,
       overlayActive: false,
@@ -302,7 +331,7 @@ export function createPlatformAdapter(options: CreatePlatformOptions = {}): Plat
         },
         async write(slot: string, json: string): Promise<boolean> {
           const safe = sanitizeCloudSlot(slot);
-          if (!safe) return false;
+          if (!safe || !isValidCloudJson(json)) return false;
           return writeLocalSlot(storage, safe, json);
         },
       },
@@ -343,9 +372,15 @@ export function createPlatformAdapter(options: CreatePlatformOptions = {}): Plat
   }
 
   const unlockedInSession = new Set<string>();
+  const inFlightUnlocks = new Map<string, Promise<boolean>>();
+  const writeSeqBySlot = new Map<string, number>();
+  const lastReadFailedBySlot = new Map<string, boolean>();
 
   return {
     get isSteam(): boolean {
+      return true;
+    },
+    get isDesktop(): boolean {
       return true;
     },
     get isMobile(): boolean {
@@ -363,39 +398,57 @@ export function createPlatformAdapter(options: CreatePlatformOptions = {}): Plat
         const clean = id.trim();
         if (!clean || clean.length > 64) return false;
         if (unlockedInSession.has(clean)) return true;
-        try {
-          const ok = await bridge.unlockAchievement(clean);
-          if (ok) unlockedInSession.add(clean);
-          return Boolean(ok);
-        } catch {
-          return false;
-        }
+        const pending = inFlightUnlocks.get(clean);
+        if (pending) return pending;
+        const task = (async (): Promise<boolean> => {
+          try {
+            const ok = Boolean(await bridge.unlockAchievement(clean));
+            if (ok) unlockedInSession.add(clean);
+            return ok;
+          } catch {
+            return false;
+          } finally {
+            inFlightUnlocks.delete(clean);
+          }
+        })();
+        inFlightUnlocks.set(clean, task);
+        return task;
       },
     },
     cloudSave: {
       async read(slot: string): Promise<string | null> {
         const safe = sanitizeCloudSlot(slot);
         if (!safe) return null;
+        const seqAtStart = writeSeqBySlot.get(safe) ?? 0;
         try {
           const remote = await bridge.cloudRead(safe);
+          lastReadFailedBySlot.set(safe, false);
           if (typeof remote === 'string' && remote.length > 0) {
-            writeLocalSlot(storage, safe, remote);
+            if ((writeSeqBySlot.get(safe) ?? 0) === seqAtStart && isValidCloudJson(remote)) {
+              writeLocalSlot(storage, safe, remote);
+            }
             return remote;
           }
         } catch {
           // fall back to local copy when Steam Remote Storage fails
+          lastReadFailedBySlot.set(safe, true);
         }
         return readLocalSlot(storage, safe);
       },
       async write(slot: string, json: string): Promise<boolean> {
         const safe = sanitizeCloudSlot(slot);
-        if (!safe) return false;
+        if (!safe || !isValidCloudJson(json)) return false;
+        writeSeqBySlot.set(safe, (writeSeqBySlot.get(safe) ?? 0) + 1);
         writeLocalSlot(storage, safe, json);
         try {
           return Boolean(await bridge.cloudWrite(safe, json));
         } catch {
           return false;
         }
+      },
+      didLastReadFail(slot: string): boolean {
+        const safe = sanitizeCloudSlot(slot);
+        return safe !== null && lastReadFailedBySlot.get(safe) === true;
       },
     },
     triggerHaptic,

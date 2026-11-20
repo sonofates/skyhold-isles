@@ -138,5 +138,155 @@
     "id": "CROWN_ALL_ISLANDS",
     "name": "Sovereign of the Skies",
     "description": "Master every island (3 stars and all challenge badges on every island)"
+  },
+  {
+    "id": "CHAPTER_TWO_LANDING",
+    "name": "Cloudbell Arrival",
+    "description": "Clear your first Chapter Two island"
+  },
+  {
+    "id": "CHAPTER_TWO_CLEARED",
+    "name": "Outer Archipelago Charted",
+    "description": "Clear all 8 Chapter Two islands"
+  },
+  {
+    "id": "CHAPTER_TWO_THREE_STARS",
+    "name": "Lanterns Relit",
+    "description": "Earn 3 stars on every Chapter Two island"
+  },
+  {
+    "id": "BOSS_I24_CLEARED",
+    "name": "Keeper of Lastlight",
+    "description": "Defeat the Tempest Colossus and clear Lastlight Head"
+  },
+  {
+    "id": "STARS_ALL_25_ISLANDS",
+    "name": "Constellation Complete",
+    "description": "Earn 3 stars on all 25 Skyhold islands"
+  },
+  {
+    "id": "HERO_ALL_ROSTER",
+    "name": "Fellowship of Skyhold",
+    "description": "Unlock all 5 heroes"
+  },
+  {
+    "id": "HERO_BRAN_LV10",
+    "name": "Bran Ironoak Veteran",
+    "description": "Reach Level 10 with Bran Ironoak"
+  },
+  {
+    "id": "HERO_BRAN_LV20",
+    "name": "Bran Ironoak Paragon",
+    "description": "Reach Level 20 with Bran Ironoak"
+  },
+  {
+    "id": "HERO_WREN_LV10",
+    "name": "Wren Skyfletch Veteran",
+    "description": "Reach Level 10 with Wren Skyfletch"
+  },
+  {
+    "id": "HERO_WREN_LV20",
+    "name": "Wren Skyfletch Paragon",
+    "description": "Reach Level 20 with Wren Skyfletch"
+  },
+  {
+    "id": "HERO_MIRA_LV10",
+    "name": "Mira Emberwisp Veteran",
+    "description": "Reach Level 10 with Mira Emberwisp"
+  },
+  {
+    "id": "HERO_MIRA_LV20",
+    "name": "Mira Emberwisp Paragon",
+    "description": "Reach Level 20 with Mira Emberwisp"
+  },
+  {
+    "id": "HERO_TOBB_LV10",
+    "name": "Tobb Gearwright Veteran",
+    "description": "Reach Level 10 with Tobb Gearwright"
+  },
+  {
+    "id": "HERO_TOBB_LV20",
+    "name": "Tobb Gearwright Paragon",
+    "description": "Reach Level 20 with Tobb Gearwright"
+  },
+  {
+    "id": "HERO_SELA_LV10",
+    "name": "Sela Tidecaller Veteran",
+    "description": "Reach Level 10 with Sela Tidecaller"
+  },
+  {
+    "id": "HERO_SELA_LV20",
+    "name": "Sela Tidecaller Paragon",
+    "description": "Reach Level 20 with Sela Tidecaller"
+  },
+  {
+    "id": "HERO_ALL_LV20",
+    "name": "Legends of the Skyhold",
+    "description": "Reach Level 20 with all 5 heroes"
+  },
+  {
+    "id": "HARD_FIRST_RIBBON",
+    "name": "First Crimson Seal",
+    "description": "Earn your first Hard ribbon by winning an island on Hard difficulty"
+  },
+  {
+    "id": "HARD_FIVE_RIBBONS",
+    "name": "Iron Vanguard",
+    "description": "Earn Hard ribbons on 5 islands"
+  },
+  {
+    "id": "HARD_TEN_RIBBONS",
+    "name": "Hardened Commander",
+    "description": "Earn Hard ribbons on 10 islands"
+  },
+  {
+    "id": "HARD_BOSS_I24",
+    "name": "Lastlight Unbroken",
+    "description": "Defeat Lastlight Head on Hard difficulty"
+  },
+  {
+    "id": "HARD_ALL_ISLANDS",
+    "name": "Crimson Sovereign",
+    "description": "Earn a Hard ribbon on every island"
+  },
+  {
+    "id": "ENDLESS_BRONZE_MEDAL",
+    "name": "Hold the Line",
+    "description": "Earn a Bronze endless medal (3 endless waves on one island)"
+  },
+  {
+    "id": "ENDLESS_SILVER_MEDAL",
+    "name": "Tempest Watcher",
+    "description": "Earn a Silver endless medal (6 endless waves on one island)"
+  },
+  {
+    "id": "ENDLESS_DEEP_20",
+    "name": "Eye of the Maelstrom",
+    "description": "Clear 20 endless waves beyond the story on one island"
+  },
+  {
+    "id": "ENDLESS_FIVE_GOLDS",
+    "name": "Bastion Eternal",
+    "description": "Earn Gold endless medals (10+ endless waves) on 5 islands"
+  },
+  {
+    "id": "DAILY_FIRST_WIN",
+    "name": "First Squall",
+    "description": "Win your first Daily Squall"
+  },
+  {
+    "id": "DAILY_STREAK_7",
+    "name": "Seven-Day Gale",
+    "description": "Reach a 7-day Daily Squall streak"
+  },
+  {
+    "id": "DAILY_STREAK_14",
+    "name": "Fortnight Tradewinds",
+    "description": "Reach a 14-day Daily Squall streak"
+  },
+  {
+    "id": "DAILY_TOTAL_20",
+    "name": "Weatherproof Warden",
+    "description": "Win 20 Daily Squalls"
   }
 ]

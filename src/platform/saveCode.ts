@@ -1,17 +1,38 @@
 import type { HeroId, HeroSaveData, ProgressData } from '../core/types.ts';
 import { isChallengeId } from '../data/challenges.ts';
 import { sanitizeDailyRecord, type DailyRecord } from '../data/daily.ts';
-import { difficultyWinsOf, mergeDifficultyWins } from '../data/difficulty.ts';
+import {
+  mergeDifficultyWins,
+  sanitizeDifficultyWins,
+  type DifficultyWins,
+} from '../data/difficulty.ts';
 import {
   countHeroSkillPointsSpent,
   HERO_IDS,
+  isHeroId,
   mergeHeroSaveData,
   sanitizeHeroSaveData,
   totalHeroSaveXp,
 } from '../data/heroes.ts';
 import { rankOf, sanitizeRanks, WORKSHOP_UPGRADES, workshopStarsSpent } from '../data/workshop.ts';
 import { starWallet } from '../game/progression.ts';
-import { migrateProgress, PROGRESS_SAVE_VERSION } from './storage.ts';
+import {
+  CLOUD_PROGRESS_SLOT,
+  createDefaultProgress,
+  hasAnyProgress,
+  migrateProgress,
+  normalizeRawDifficultyWins,
+  normalizeRawHeroSave,
+  PROGRESS_BACKUP_KEY,
+  PROGRESS_CORRUPT_BACKUP_KEY,
+  PROGRESS_IMPORT_BACKUP_KEY,
+  PROGRESS_RESET_BACKUP_KEY,
+  PROGRESS_SAVE_VERSION,
+  readLocalProgressRaw,
+  sanitizeWonChallenges,
+  saveProgress,
+  tryRepairTruncatedJson,
+} from './storage.ts';
 
 /**
  * Save codes: the campaign save as a copy-paste string, to move progress between devices or keep a
@@ -20,6 +41,8 @@ import { migrateProgress, PROGRESS_SAVE_VERSION } from './storage.ts';
  * so a load can never lose progress. Settings are device-specific and not part of the code.
  */
 const PREFIX = 'SKY2-';
+const MAX_SAVE_CODE_ISLANDS = 512;
+const MAX_SAVE_CODE_CHARS = 262_144;
 
 /** FNV-1a 32-bit, as 7 base36 chars. */
 function checksum(text: string): string {
@@ -46,16 +69,24 @@ function fromBase64Url(b64: string): string {
 }
 
 /** Trailing zeros carry no information: trim them to keep codes short. */
-function trimZeros(list: readonly number[]): number[] {
-  let end = list.length;
-  while (end > 0 && !list[end - 1]) end--;
-  return list.slice(0, end);
+function trimZeros(list: readonly number[] | undefined, max = Number.MAX_SAFE_INTEGER): number[] {
+  if (!Array.isArray(list)) return [];
+  const safe = list.map((v) =>
+    typeof v === 'number' && Number.isFinite(v) ? Math.max(0, Math.min(max, Math.floor(v))) : 0,
+  );
+  let end = safe.length;
+  while (end > 0 && !safe[end - 1]) end--;
+  return safe.slice(0, end);
 }
 
-function trimLists(list: readonly string[][]): string[][] {
-  let end = list.length;
-  while (end > 0 && (list[end - 1]?.length ?? 0) === 0) end--;
-  return list.slice(0, end).map((l) => [...l]);
+function trimLists(list: readonly string[][] | undefined): string[][] {
+  if (!Array.isArray(list)) return [];
+  const safe = list.map((l) =>
+    Array.isArray(l) ? l.filter((x): x is string => typeof x === 'string' && x.length > 0 && x.length <= 40) : [],
+  );
+  let end = safe.length;
+  while (end > 0 && safe[end - 1].length === 0) end--;
+  return safe.slice(0, end);
 }
 
 interface CompactHeroPayload {
@@ -63,8 +94,8 @@ interface CompactHeroPayload {
   readonly r?: Partial<Record<HeroId, { readonly x: number; readonly k?: readonly string[] }>>;
 }
 
-function encodeHeroPayload(heroes: HeroSaveData): CompactHeroPayload {
-  const clean = sanitizeHeroSaveData(heroes);
+function encodeHeroPayload(heroes: unknown): CompactHeroPayload {
+  const clean = sanitizeHeroSaveData(normalizeRawHeroSave(heroes));
   const r: Partial<Record<HeroId, { readonly x: number; readonly k?: readonly string[] }>> = {};
   let hasAny = false;
   for (let i = 0; i < HERO_IDS.length; i++) {
@@ -79,48 +110,63 @@ function encodeHeroPayload(heroes: HeroSaveData): CompactHeroPayload {
 
 function decodeHeroPayload(raw: unknown): HeroSaveData | undefined {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined;
-  const obj = raw as Record<string, unknown>;
-  // Accept either compact `{ s, r: { bran: { x, k } } }` or full `{ selectedHero, roster }`.
-  if ('selectedHero' in obj || 'roster' in obj) {
-    return sanitizeHeroSaveData(obj);
-  }
-  const rawR =
-    obj.r && typeof obj.r === 'object' && !Array.isArray(obj.r)
-      ? (obj.r as Record<string, unknown>)
-      : {};
-  const roster: Record<string, { xp: unknown; skills: unknown }> = {};
-  for (let i = 0; i < HERO_IDS.length; i++) {
-    const id = HERO_IDS[i];
-    const ce = rawR[id];
-    if (ce && typeof ce === 'object' && !Array.isArray(ce)) {
-      const c = ce as { x?: unknown; k?: unknown };
-      roster[id] = { xp: c.x ?? 0, skills: c.k ?? [] };
-    }
-  }
-  return sanitizeHeroSaveData({ selectedHero: obj.s, roster });
+  return sanitizeHeroSaveData(normalizeRawHeroSave(raw));
 }
 
 export function encodeSaveCode(progress: ProgressData, levelIds?: readonly string[]): string {
+  const rawProgress = progress as unknown as Record<string, unknown>;
+  const safeVer =
+    typeof progress.version === 'number' && Number.isFinite(progress.version) && progress.version > 0
+      ? Math.floor(progress.version)
+      : PROGRESS_SAVE_VERSION;
+  const safeUnlock =
+    typeof progress.unlockedLevelIndex === 'number' && Number.isFinite(progress.unlockedLevelIndex)
+      ? Math.max(0, Math.floor(progress.unlockedLevelIndex))
+      : 0;
+  const safeStars = trimZeros(progress.bestStars, 3);
   const payload: Record<string, unknown> = {
-    v: progress.version,
-    u: progress.unlockedLevelIndex,
-    s: trimZeros(progress.bestStars),
+    v: safeVer,
+    u: safeUnlock,
+    s: safeStars,
     e: trimZeros(progress.bestEndlessWaves),
     l: trimZeros(progress.bestLives),
     c: trimZeros(progress.clears),
-    w: progress.workshop,
+    w: sanitizeRanks(progress.workshop),
     b: trimLists(progress.challengeClears),
-    d: progress.daily,
+    d: sanitizeDailyRecord(progress.daily),
   };
-  if (progress.heroes !== undefined) {
-    payload.h = encodeHeroPayload(progress.heroes);
+  const rawHeroes = progress.heroes ?? rawProgress.h;
+  if (rawHeroes !== undefined) {
+    payload.h = encodeHeroPayload(rawHeroes);
   }
-  if (progress.difficultyWins !== undefined) {
-    const dw = progress.difficultyWins;
-    payload.dw = { e: trimZeros(dw.easy), n: trimZeros(dw.normal), h: trimZeros(dw.hard) };
+  const safeWonChallenges = sanitizeWonChallenges(progress.wonChallenges ?? rawProgress.wc);
+  if (safeWonChallenges) {
+    payload.wc = safeWonChallenges;
+  }
+  const rawDifficultyWins = progress.difficultyWins ?? rawProgress.dw;
+  if (rawDifficultyWins !== undefined) {
+    const rawDw = normalizeRawDifficultyWins(rawDifficultyWins) as Record<string, unknown> | null;
+    const dwCount = Math.max(
+      Array.isArray(progress.bestStars) ? progress.bestStars.length : 0,
+      Array.isArray(rawDw?.easy) ? rawDw.easy.length : 0,
+      Array.isArray(rawDw?.normal) ? rawDw.normal.length : 0,
+      Array.isArray(rawDw?.hard) ? rawDw.hard.length : 0,
+      levelIds?.length ?? 0,
+    );
+    const dw = sanitizeDifficultyWins(rawDw, dwCount);
+    if (dw) {
+      for (let i = 0; i < dwCount; i++) {
+        const bs = safeStars[i] ?? 0;
+        const maxDiff = Math.max(dw.easy[i] ?? 0, dw.normal[i] ?? 0, dw.hard[i] ?? 0);
+        if (bs > maxDiff) dw.normal[i] = bs;
+        else if (maxDiff > bs) safeStars[i] = maxDiff;
+      }
+      payload.s = trimZeros(safeStars, 3);
+      payload.dw = { e: trimZeros(dw.easy, 1), n: trimZeros(dw.normal, 3), h: trimZeros(dw.hard, 3) };
+    }
   }
   if (levelIds && levelIds.length > 0) {
-    payload.i = [...levelIds];
+    payload.i = levelIds.slice(0, MAX_SAVE_CODE_ISLANDS).map((id) => (typeof id === 'string' ? id : ''));
   }
   const body = toBase64Url(JSON.stringify(payload));
   return `${PREFIX}${body}-${checksum(body)}`;
@@ -130,7 +176,13 @@ export type SaveCodeResult =
   | { readonly ok: true; readonly progress: ProgressData; readonly levelIds?: readonly string[] }
   | { readonly ok: false; readonly error: string };
 
-export function decodeSaveCode(code: string, levelCount: number): SaveCodeResult {
+function parseVerifiedSaveCodeBody(code: unknown):
+  | { readonly ok: true; readonly raw: Record<string, unknown> }
+  | { readonly ok: false; readonly error: string } {
+  if (typeof code !== 'string') return { ok: false, error: 'That is not a Skyhold save code.' };
+  if (code.length > MAX_SAVE_CODE_CHARS) {
+    return { ok: false, error: 'The code is too long to be a Skyhold save code.' };
+  }
   const clean = code.replace(/\s+/g, '');
   if (!clean.startsWith(PREFIX)) return { ok: false, error: 'That is not a Skyhold save code.' };
   const rest = clean.slice(PREFIX.length);
@@ -149,12 +201,44 @@ export function decodeSaveCode(code: string, levelCount: number): SaveCodeResult
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
     return { ok: false, error: 'The code could not be read.' };
   }
-  const r = raw as Record<string, unknown>;
+  return { ok: true, raw: raw as Record<string, unknown> };
+}
+
+/**
+ * Reads pre-remap / pre-wallet-refund Workshop ranks and `selectedHero` from a verified `SKY2-...`
+ * save code so cross-device 2D imports can evaluate affordability and unlock milestones against the
+ * combined (`local + imported`) island stars and clears.
+ */
+export function inspectSaveCodeHints(code: string): {
+  readonly rawWorkshop?: Record<string, number>;
+  readonly rawSelectedHero?: HeroId;
+} {
+  const verified = parseVerifiedSaveCodeBody(code);
+  if (!verified.ok) return {};
+  const r = verified.raw;
+  const rawWorkshop = sanitizeRanks(r.w);
+  let rawSelectedHero: HeroId | undefined;
+  if (r.h && typeof r.h === 'object' && !Array.isArray(r.h)) {
+    const hObj = r.h as Record<string, unknown>;
+    const cand = hObj.selectedHero ?? hObj.s;
+    if (isHeroId(cand)) rawSelectedHero = cand;
+  }
+  return {
+    ...(Object.keys(rawWorkshop).length > 0 ? { rawWorkshop } : {}),
+    ...(rawSelectedHero !== undefined ? { rawSelectedHero } : {}),
+  };
+}
+
+export function decodeSaveCode(code: string, levelCount: number): SaveCodeResult {
+  const verified = parseVerifiedSaveCodeBody(code);
+  if (!verified.ok) return verified;
+  const r = verified.raw;
   const decodedHeroes = r.h !== undefined ? decodeHeroPayload(r.h) : undefined;
   const levelIds = Array.isArray(r.i)
-    ? r.i.map((x) => (typeof x === 'string' ? x : ''))
+    ? r.i.slice(0, MAX_SAVE_CODE_ISLANDS).map((x) => (typeof x === 'string' && x.length <= 64 ? x : ''))
     : undefined;
   const hasValidIds = levelIds !== undefined && levelIds.some((id) => id.length > 0);
+  const rawDw = r.dw && typeof r.dw === 'object' && !Array.isArray(r.dw) ? (r.dw as Record<string, unknown>) : null;
   const progress = migrateProgress(
     {
       version: r.v,
@@ -167,12 +251,15 @@ export function decodeSaveCode(code: string, levelCount: number): SaveCodeResult
       challengeClears: r.b,
       daily: r.d,
       ...(decodedHeroes !== undefined ? { heroes: decodedHeroes } : {}),
-      ...(r.dw && typeof r.dw === 'object' && !Array.isArray(r.dw)
+      ...(r.wc !== undefined || r.wonChallenges !== undefined
+        ? { wonChallenges: r.wc ?? r.wonChallenges }
+        : {}),
+      ...(rawDw
         ? {
             difficultyWins: {
-              easy: (r.dw as Record<string, unknown>).e,
-              normal: (r.dw as Record<string, unknown>).n,
-              hard: (r.dw as Record<string, unknown>).h,
+              easy: rawDw.e ?? rawDw.easy,
+              normal: rawDw.n ?? rawDw.normal,
+              hard: rawDw.h ?? rawDw.hard,
             },
           }
         : {}),
@@ -211,11 +298,39 @@ export function mergeDaily(a: DailyRecord, b: DailyRecord): DailyRecord {
 }
 
 /**
+ * Derives per-difficulty star records sized to `count` islands without truncating `difficultyWins`
+ * when `progress.bestStars` is shorter than `count` (e.g. partial / un-migrated saves).
+ */
+export function sizedDifficultyWins(progress: ProgressData, count: number): DifficultyWins {
+  const safeCount = Number.isFinite(count) ? Math.max(0, Math.floor(count)) : 0;
+  const bestStars = Array.isArray(progress.bestStars) ? progress.bestStars : [];
+  const clampStar = (v: unknown): number =>
+    typeof v === 'number' && Number.isFinite(v) ? Math.max(0, Math.min(3, Math.floor(v))) : 0;
+  const rawDw = progress.difficultyWins ?? (progress as unknown as { readonly dw?: unknown }).dw;
+  const dw = sanitizeDifficultyWins(normalizeRawDifficultyWins(rawDw), safeCount);
+  if (!dw) {
+    return {
+      easy: new Array<number>(safeCount).fill(0),
+      normal: Array.from({ length: safeCount }, (_, i) => clampStar(bestStars[i])),
+      hard: new Array<number>(safeCount).fill(0),
+    };
+  }
+  for (let i = 0; i < safeCount; i++) {
+    const bs = clampStar(bestStars[i]);
+    const maxDiff = Math.max(dw.easy[i] ?? 0, dw.normal[i] ?? 0, dw.hard[i] ?? 0);
+    if (bs > maxDiff) dw.normal[i] = bs;
+  }
+  return dw;
+}
+
+/**
  * Best of both saves, record by record: a merge never lowers anything. Workshop ranks come from
  * whichever save had spent more (refunded if the merged wallet somehow cannot pay for them).
  */
 export function mergeProgress(a: ProgressData, b: ProgressData, levelCount: number): ProgressData {
   const count = Number.isFinite(levelCount) ? Math.max(0, Math.floor(levelCount)) : 0;
+  const rawA = a as unknown as Record<string, unknown>;
+  const rawB = b as unknown as Record<string, unknown>;
   const safeInt = (v: unknown, max = Number.MAX_SAFE_INTEGER): number =>
     typeof v === 'number' && Number.isFinite(v) ? Math.max(0, Math.min(max, Math.floor(v))) : 0;
   const maxList = (
@@ -239,7 +354,27 @@ export function mergeProgress(a: ProgressData, b: ProgressData, levelCount: numb
       ? [workshopB, workshopA]
       : [workshopA, workshopB];
   const maxIdx = Math.max(0, count - 1);
+  const hasDiffA = (a.difficultyWins ?? rawA.dw) !== undefined;
+  const hasDiffB = (b.difficultyWins ?? rawB.dw) !== undefined;
+  const mergedDifficultyWins =
+    hasDiffA || hasDiffB
+      ? mergeDifficultyWins(sizedDifficultyWins(a, count), sizedDifficultyWins(b, count), count)
+      : undefined;
   const bestStars = maxList(a.bestStars, b.bestStars, 3);
+  if (mergedDifficultyWins) {
+    for (let i = 0; i < count; i++) {
+      const maxDiff = Math.max(
+        mergedDifficultyWins.easy[i] ?? 0,
+        mergedDifficultyWins.normal[i] ?? 0,
+        mergedDifficultyWins.hard[i] ?? 0,
+      );
+      if (maxDiff > bestStars[i]) {
+        bestStars[i] = maxDiff;
+      } else if (bestStars[i] > maxDiff) {
+        mergedDifficultyWins.normal[i] = bestStars[i];
+      }
+    }
+  }
   const clears = maxList(a.clears, b.clears);
   for (let i = 0; i < count; i++) {
     if (bestStars[i] > 0 && clears[i] === 0) clears[i] = 1;
@@ -260,7 +395,22 @@ export function mergeProgress(a: ProgressData, b: ProgressData, levelCount: numb
   for (let i = 0; i < count; i++) {
     if (clears[i] > 0 || bestStars[i] > 0) clearedCount++;
   }
-  const mergedHeroes = mergeHeroSaveData(a.heroes, b.heroes, clearedCount, unlockedLevelIndex);
+  const rawHeroesA = a.heroes ?? rawA.h;
+  const rawHeroesB = b.heroes ?? rawB.h;
+  const mergedHeroes = mergeHeroSaveData(
+    rawHeroesA !== undefined ? (normalizeRawHeroSave(rawHeroesA) as HeroSaveData) : undefined,
+    rawHeroesB !== undefined ? (normalizeRawHeroSave(rawHeroesB) as HeroSaveData) : undefined,
+    clearedCount,
+    unlockedLevelIndex,
+  );
+  const wcA = sanitizeWonChallenges(a.wonChallenges ?? rawA.wc) ?? [];
+  const wcB = sanitizeWonChallenges(b.wonChallenges ?? rawB.wc) ?? [];
+  const mergedWonChallenges =
+    wcA.length > 0 || wcB.length > 0
+      ? wcA.length === wcB.length && wcA.every((id, idx) => wcB[idx] === id)
+        ? wcA
+        : [...new Set([...wcA, ...wcB])].sort()
+      : undefined;
   const verA = safeInt(a.version) || PROGRESS_SAVE_VERSION;
   const verB = safeInt(b.version) || PROGRESS_SAVE_VERSION;
   const merged: ProgressData = {
@@ -292,51 +442,262 @@ export function mergeProgress(a: ProgressData, b: ProgressData, levelCount: numb
     daily,
     ...(mergedHeroes !== undefined ? { heroes: mergedHeroes } : {}),
     // Either side recorded difficulty: keep the best of both (a legacy side's wins read as Normal).
-    ...(a.difficultyWins !== undefined || b.difficultyWins !== undefined
-      ? { difficultyWins: mergeDifficultyWins(difficultyWinsOf(a), difficultyWinsOf(b), count) }
-      : {}),
+    ...(mergedDifficultyWins !== undefined ? { difficultyWins: mergedDifficultyWins } : {}),
+    ...(mergedWonChallenges !== undefined ? { wonChallenges: mergedWonChallenges } : {}),
   };
   if (starWallet(merged).available < 0) {
-    merged.workshop = primaryWorkshop;
-    if (starWallet(merged).available < 0) {
-      merged.workshop = secondaryWorkshop;
-      if (starWallet(merged).available < 0) merged.workshop = {};
+    const totalEarned = starWallet(merged).earned;
+    if (spentA <= totalEarned && spentB <= totalEarned) {
+      // Both sides were genuinely affordable saves whose combined upgrades exceeded totalEarned:
+      // keep all of primaryWorkshop and greedily top up affordable ranks from secondaryWorkshop.
+      const topped: Record<string, number> = { ...primaryWorkshop };
+      let remaining = totalEarned - workshopStarsSpent(topped);
+      for (const def of WORKSHOP_UPGRADES) {
+        let cur = rankOf(topped, def.id);
+        const want = rankOf(secondaryWorkshop, def.id);
+        while (cur < want) {
+          const stepCost = def.costs[cur];
+          if (stepCost === undefined || stepCost > remaining) break;
+          cur++;
+          topped[def.id] = cur;
+          remaining -= stepCost;
+        }
+      }
+      merged.workshop = sanitizeRanks(topped);
+    } else {
+      merged.workshop = primaryWorkshop;
+      if (starWallet(merged).available < 0) {
+        merged.workshop = secondaryWorkshop;
+        if (starWallet(merged).available < 0) merged.workshop = {};
+      }
     }
   }
   return merged;
 }
 
+function maxRawIslandCount(raw: Record<string, unknown>): number {
+  let maxLen = 0;
+  for (const key of ['bestStars', 'bestEndlessWaves', 'bestLives', 'clears', 'challengeClears']) {
+    const arr = raw[key];
+    if (Array.isArray(arr) && arr.length > maxLen) maxLen = arr.length;
+  }
+  const dw = raw.difficultyWins ?? raw.dw;
+  if (dw && typeof dw === 'object' && !Array.isArray(dw)) {
+    const dwo = dw as Record<string, unknown>;
+    for (const key of ['easy', 'normal', 'hard', 'e', 'n', 'h']) {
+      const arr = dwo[key];
+      if (Array.isArray(arr) && arr.length > maxLen) maxLen = arr.length;
+    }
+  }
+  return Math.min(MAX_SAVE_CODE_ISLANDS, maxLen);
+}
+
+/**
+ * Migrates `parsed` onto `count` islands while preserving source-valid `workshop` and
+ * `selectedHero` candidates from a larger island roster so `mergeProgress` can evaluate
+ * star affordability and unlock milestones against the combined (`local + incoming`) save.
+ */
+export function migrateProgressForMerge(
+  parsed: Record<string, unknown>,
+  count: number,
+): ProgressData {
+  const migrated = migrateProgress(parsed, count);
+  const fullCount = Math.max(1, count, maxRawIslandCount(parsed));
+  if (fullCount > count) {
+    const fullMigrated = migrateProgress(parsed, fullCount);
+    if (workshopStarsSpent(fullMigrated.workshop) > workshopStarsSpent(migrated.workshop)) {
+      migrated.workshop = fullMigrated.workshop;
+    }
+    if (
+      migrated.heroes &&
+      fullMigrated.heroes &&
+      fullMigrated.heroes.selectedHero !== migrated.heroes.selectedHero
+    ) {
+      migrated.heroes = { ...migrated.heroes, selectedHero: fullMigrated.heroes.selectedHero };
+    }
+  }
+  return migrated;
+}
+
+export interface RecoverProgressResult {
+  readonly progress: ProgressData;
+  readonly recovered: boolean;
+  readonly sources: readonly string[];
+}
+
+/**
+ * Multi-source recovery for 3D campaign saves: inspects the primary slot (direct or truncated-JSON
+ * repaired), mirrored cloud slot (`skyhold_isles_cloud_progress`), import backup, pre-migration
+ * backup, and optionally the reset backup, merging every valid source monotonically.
+ */
+export function recoverProgressSave(
+  levelCount: number,
+  options?: { readonly includeResetBackup?: boolean; readonly persist?: boolean },
+): RecoverProgressResult {
+  const count = Number.isFinite(levelCount) ? Math.max(0, Math.floor(levelCount)) : 0;
+  let merged = createDefaultProgress(count);
+  const sources: string[] = [];
+
+  const readKey = (key: string): string | null => {
+    try {
+      return typeof localStorage === 'undefined' ? null : localStorage.getItem(key);
+    } catch {
+      return null;
+    }
+  };
+
+  const candidates: readonly (readonly [string, string | null])[] = [
+    ['primary', readLocalProgressRaw()],
+    ['cloud', readKey(`skyhold_isles_cloud_${CLOUD_PROGRESS_SLOT}`)],
+    ['importBackup', readKey(PROGRESS_IMPORT_BACKUP_KEY)],
+    ['corruptBackup', readKey(PROGRESS_CORRUPT_BACKUP_KEY)],
+    ['migrationBackup', readKey(PROGRESS_BACKUP_KEY)],
+    ...(options?.includeResetBackup ? ([['resetBackup', readKey(PROGRESS_RESET_BACKUP_KEY)]] as const) : []),
+  ];
+
+  for (let i = 0; i < candidates.length; i++) {
+    const [label, raw] = candidates[i];
+    if (!raw) continue;
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      parsed = tryRepairTruncatedJson(raw);
+    }
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) continue;
+    const rawObj = parsed as Record<string, unknown>;
+    const strictMigrated = migrateProgress(rawObj, count);
+    const mergeCandidate = migrateProgressForMerge(rawObj, count);
+    if (!hasAnyProgress(strictMigrated) && Object.keys(mergeCandidate.workshop).length === 0) continue;
+    merged = mergeProgress(merged, mergeCandidate, count);
+    sources.push(label);
+  }
+
+  const recovered = sources.length > 0 && hasAnyProgress(merged);
+  if (recovered && options?.persist !== false) {
+    saveProgress(merged);
+  }
+  return { progress: merged, recovered, sources };
+}
+
 /** What a merge would add, for the confirmation line ("+5★, 2 islands, …"). */
 export function describeMergeGain(before: ProgressData, after: ProgressData): string {
-  const stars = starWallet(after).campaign - starWallet(before).campaign;
-  const islands = after.unlockedLevelIndex - before.unlockedLevelIndex;
+  const rawBefore = before as unknown as Record<string, unknown>;
+  const rawAfter = after as unknown as Record<string, unknown>;
+  const safeInt = (v: unknown, max = Number.MAX_SAFE_INTEGER): number =>
+    typeof v === 'number' && Number.isFinite(v) ? Math.max(0, Math.min(max, Math.floor(v))) : 0;
+  const rawDwLen = (p: ProgressData, rawObj: Record<string, unknown>): number => {
+    const dw = normalizeRawDifficultyWins(p.difficultyWins ?? rawObj.dw) as
+      | Record<string, unknown>
+      | undefined;
+    if (!dw || typeof dw !== 'object' || Array.isArray(dw)) return 0;
+    return Math.max(
+      Array.isArray(dw.easy) ? dw.easy.length : 0,
+      Array.isArray(dw.normal) ? dw.normal.length : 0,
+      Array.isArray(dw.hard) ? dw.hard.length : 0,
+    );
+  };
+  const starLen = Math.min(
+    MAX_SAVE_CODE_ISLANDS,
+    Math.max(
+      Array.isArray(before.bestStars) ? before.bestStars.length : 0,
+      Array.isArray(after.bestStars) ? after.bestStars.length : 0,
+      rawDwLen(before, rawBefore),
+      rawDwLen(after, rawAfter),
+    ),
+  );
+  const hasDiffWins =
+    (before.difficultyWins ?? rawBefore.dw) !== undefined ||
+    (after.difficultyWins ?? rawAfter.dw) !== undefined;
+  const dwBefore = hasDiffWins ? sizedDifficultyWins(before, starLen) : null;
+  const dwAfter = hasDiffWins ? sizedDifficultyWins(after, starLen) : null;
+  let starsBefore = 0;
+  let starsAfter = 0;
+  for (let i = 0; i < starLen; i++) {
+    starsBefore += Math.max(
+      safeInt(before.bestStars?.[i], 3),
+      dwBefore ? Math.max(dwBefore.easy[i] ?? 0, dwBefore.normal[i] ?? 0, dwBefore.hard[i] ?? 0) : 0,
+    );
+    starsAfter += Math.max(
+      safeInt(after.bestStars?.[i], 3),
+      dwAfter ? Math.max(dwAfter.easy[i] ?? 0, dwAfter.normal[i] ?? 0, dwAfter.hard[i] ?? 0) : 0,
+    );
+  }
+  const stars = starsAfter - starsBefore;
+  const islands = safeInt(after.unlockedLevelIndex) - safeInt(before.unlockedLevelIndex);
+  const countValidBadges = (list: unknown): number => {
+    if (!Array.isArray(list)) return 0;
+    const seen = new Set<string>();
+    for (const id of list) {
+      if (typeof id === 'string' && id.length > 0 && id.length <= 40) seen.add(id);
+    }
+    return seen.size;
+  };
+  const beforeCc = Array.isArray(before.challengeClears) ? before.challengeClears : [];
+  const afterCc = Array.isArray(after.challengeClears) ? after.challengeClears : [];
   let badges = 0;
-  const badgeLen = Math.max(before.challengeClears.length, after.challengeClears.length);
+  const badgeLen = Math.max(beforeCc.length, afterCc.length);
   for (let i = 0; i < badgeLen; i++) {
-    badges += (after.challengeClears[i]?.length ?? 0) - (before.challengeClears[i]?.length ?? 0);
+    badges += countValidBadges(afterCc[i]) - countValidBadges(beforeCc[i]);
   }
   const parts: string[] = [];
   if (stars > 0) parts.push(`+${stars}★`);
   if (islands > 0) parts.push(`${islands} more island${islands === 1 ? '' : 's'} unlocked`);
   if (badges > 0) parts.push(`+${badges} badge${badges === 1 ? '' : 's'}`);
-  const records = after.bestEndlessWaves.some((v, i) => v > (before.bestEndlessWaves[i] ?? 0));
+  else {
+    const wcBefore = new Set(sanitizeWonChallenges(before.wonChallenges ?? rawBefore.wc) ?? []);
+    const newWc = (sanitizeWonChallenges(after.wonChallenges ?? rawAfter.wc) ?? []).filter(
+      (id) => !wcBefore.has(id),
+    ).length;
+    if (newWc > 0) parts.push(`+${newWc} challenge win${newWc === 1 ? '' : 's'}`);
+  }
+  const beforeEw = Array.isArray(before.bestEndlessWaves) ? before.bestEndlessWaves : [];
+  const afterEw = Array.isArray(after.bestEndlessWaves) ? after.bestEndlessWaves : [];
+  const records = afterEw.some((v, i) => safeInt(v) > safeInt(beforeEw[i]));
   if (records) parts.push('new endless records');
-  const dailies = (after.daily?.total ?? 0) - (before.daily?.total ?? 0);
+  const dailies = safeInt(after.daily?.total) - safeInt(before.daily?.total);
   if (dailies > 0) parts.push(`+${dailies} daily win${dailies === 1 ? '' : 's'}`);
   if (workshopStarsSpent(sanitizeRanks(after.workshop)) > workshopStarsSpent(sanitizeRanks(before.workshop))) {
     parts.push('workshop upgrades');
   }
-  if (totalHeroSaveXp(after.heroes) > totalHeroSaveXp(before.heroes)) {
+  const rawHeroesBefore = before.heroes ?? rawBefore.h;
+  const rawHeroesAfter = after.heroes ?? rawAfter.h;
+  const heroesBefore =
+    rawHeroesBefore !== undefined ? sanitizeHeroSaveData(normalizeRawHeroSave(rawHeroesBefore)) : undefined;
+  const heroesAfter =
+    rawHeroesAfter !== undefined ? sanitizeHeroSaveData(normalizeRawHeroSave(rawHeroesAfter)) : undefined;
+  if (totalHeroSaveXp(heroesAfter) > totalHeroSaveXp(heroesBefore)) {
     parts.push('hero XP');
-  } else if (after.heroes) {
+  } else if (heroesAfter) {
     let spentBefore = 0;
     let spentAfter = 0;
     for (let i = 0; i < HERO_IDS.length; i++) {
       const id = HERO_IDS[i];
-      spentBefore += countHeroSkillPointsSpent(id, before.heroes?.roster?.[id]?.skills ?? []);
-      spentAfter += countHeroSkillPointsSpent(id, after.heroes.roster?.[id]?.skills ?? []);
+      spentBefore += countHeroSkillPointsSpent(id, heroesBefore?.roster?.[id]?.skills ?? []);
+      spentAfter += countHeroSkillPointsSpent(id, heroesAfter.roster?.[id]?.skills ?? []);
     }
     if (spentAfter > spentBefore) parts.push('hero skills');
+  }
+  if (dwBefore && dwAfter) {
+    let newHardRibbons = 0;
+    let betterDiffStars = false;
+    for (let i = 0; i < starLen; i++) {
+      const hb = dwBefore.hard[i] ?? 0;
+      const ha = dwAfter.hard[i] ?? 0;
+      if (hb === 0 && ha > 0) newHardRibbons++;
+      else if (
+        ha > hb ||
+        (dwAfter.normal[i] ?? 0) > (dwBefore.normal[i] ?? 0) ||
+        (dwAfter.easy[i] ?? 0) > (dwBefore.easy[i] ?? 0)
+      ) {
+        betterDiffStars = true;
+      }
+    }
+    if (newHardRibbons > 0) {
+      parts.push(`+${newHardRibbons} Hard ribbon${newHardRibbons === 1 ? '' : 's'}`);
+    } else if (betterDiffStars) {
+      parts.push('difficulty records');
+    }
   }
   return parts.length > 0 ? parts.join(', ') : 'nothing new — this save already had all of it';
 }

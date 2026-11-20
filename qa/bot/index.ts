@@ -3,6 +3,7 @@ import { availableParallelism } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import type { InvariantKind } from './invariants.ts';
 import { runBotScenario, type ScenarioResult } from './runner.ts';
+import { runMidProgressSaveSweep } from './saveSweep.ts';
 import { buildBotScenarios, type StrategyFamily } from './strategies.ts';
 
 export interface QaBotRunSummary {
@@ -11,6 +12,9 @@ export interface QaBotRunSummary {
   readonly failedScenarios: number;
   readonly totalTicks: number;
   readonly determinismReplays: number;
+  readonly totalHeroDeaths: number;
+  readonly totalHeroRespawns: number;
+  readonly saveSweepPassed: boolean;
   readonly elapsedSec: number;
   readonly byFamily: Readonly<Record<StrategyFamily, { total: number; passed: number; failed: number }>>;
   readonly violationsByKind: Readonly<Partial<Record<InvariantKind, number>>>;
@@ -93,6 +97,7 @@ export async function runQaBotSuite(opts: QaBotOptions = {}): Promise<QaBotRunSu
   const families: readonly StrategyFamily[] = [
     'greedy',
     'weak',
+    'difficulty',
     'abilities',
     'hero',
     'challenge',
@@ -108,10 +113,14 @@ export async function runQaBotSuite(opts: QaBotOptions = {}): Promise<QaBotRunSu
   let totalTicks = 0;
   let passedScenarios = 0;
   let determinismReplays = 0;
+  let totalHeroDeaths = 0;
+  let totalHeroRespawns = 0;
 
   for (let i = 0; i < results.length; i++) {
     const r = results[i];
     totalTicks += r.ticks;
+    totalHeroDeaths += r.heroDeaths;
+    totalHeroRespawns += r.heroRespawns;
     if (r.determinismVerified) determinismReplays++;
     const fam = byFamily[r.family];
     fam.total++;
@@ -128,12 +137,41 @@ export async function runQaBotSuite(opts: QaBotOptions = {}): Promise<QaBotRunSu
     }
   }
 
+  const saveViolations = await runMidProgressSaveSweep();
+  const saveSweepPassed = saveViolations.length === 0;
+  if (!saveSweepPassed) {
+    for (let v = 0; v < saveViolations.length; v++) {
+      const k = saveViolations[v].kind;
+      violationsByKind[k] = (violationsByKind[k] ?? 0) + 1;
+    }
+    failedResults.push({
+      id: 'campaign:mid-progress-save-sweep',
+      family: 'difficulty',
+      levelId: 'all',
+      outcome: 'lost',
+      ticks: 0,
+      finalLives: 0,
+      finalGold: 0,
+      wavesReached: 0,
+      stateHash: '',
+      waveHashes: [],
+      violations: saveViolations,
+      determinismVerified: false,
+      heroDeaths: 0,
+      heroRespawns: 0,
+      durationMs: 0,
+    });
+  }
+
   return {
     totalScenarios: results.length,
     passedScenarios,
     failedScenarios: failedResults.length,
     totalTicks,
     determinismReplays,
+    totalHeroDeaths,
+    totalHeroRespawns,
+    saveSweepPassed,
     elapsedSec: (performance.now() - t0) / 1000,
     byFamily,
     violationsByKind,
@@ -173,6 +211,8 @@ async function main(): Promise<void> {
     `Scenarios: ${summary.passedScenarios}/${summary.totalScenarios} passed | ` +
       `Sim ticks: ${summary.totalTicks.toLocaleString('en-US')} | ` +
       `Determinism replays: ${summary.determinismReplays} | ` +
+      `Hero deaths/respawns: ${summary.totalHeroDeaths}/${summary.totalHeroRespawns} | ` +
+      `Save sweep: ${summary.saveSweepPassed ? 'OK' : 'FAIL'} | ` +
       `Time: ${summary.elapsedSec.toFixed(2)}s`,
   );
   console.log('By strategy:');

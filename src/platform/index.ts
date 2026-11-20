@@ -59,7 +59,27 @@ export {
   exportAchievementManifest,
   STEAM_ACHIEVEMENTS,
   syncAchievementsFromProgress,
+  type SteamAchievementCategory,
   type SteamAchievementDef,
   type SteamAchievementMeta,
 } from './achievements.ts';
 export { hydrateProgressFromCloud, type CloudHydrateResult } from './cloudSync.ts';
+export {
+  decodeSaveCode,
+  describeMergeGain,
+  encodeSaveCode,
+  inspectSaveCodeHints,
+  mergeDaily,
+  mergeProgress,
+  recoverProgressSave,
+  type RecoverProgressResult,
+  type SaveCodeResult,
+} from './saveCode.ts';
+export {
+  PROGRESS_BACKUP_KEY,
+  PROGRESS_CORRUPT_BACKUP_KEY,
+  PROGRESS_IMPORT_BACKUP_KEY,
+  PROGRESS_RESET_BACKUP_KEY,
+  tryRepairTruncatedJson,
+  tryRepairTruncatedJsonArray,
+} from './storage.ts';

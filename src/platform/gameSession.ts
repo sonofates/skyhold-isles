@@ -40,13 +40,19 @@ import {
 } from './sessionBridge.ts';
 import {
   hasSeenUpgradeToast,
+  isCloudHydrated,
+  isProgressPostHydrated,
   loadProgress,
   loadSettings,
+  markProgressPostHydrated,
   markUpgradeToastSeen,
+  migrateProgress,
   backupProgressBeforeImport,
+  readLocalProgressRaw,
   resetProgressSave,
   saveProgress,
   saveSettings,
+  tryRepairTruncatedJson,
 } from './storage.ts';
 import type { RunModifiers } from '../data/runModifiers.ts';
 import {
@@ -73,14 +79,26 @@ import {
 } from '../data/endlessMutators.ts';
 import type { EndlessResultView } from '../ui/gameModals.ts';
 import { affordableUpgradeCount } from '../ui/workshop.ts';
-import { buyRank, workshopModifiers, type WorkshopUpgradeId } from '../data/workshop.ts';
+import {
+  buyRank,
+  sanitizeRanks,
+  workshopModifiers,
+  workshopStarsSpent,
+  type WorkshopUpgradeId,
+} from '../data/workshop.ts';
 import { isEndlessBestCrossing, isIslandMastered, starWallet } from '../game/progression.ts';
 import { badgesForWin, resolveRunConfig, type RunConfig } from '../game/runConfig.ts';
 import { earnedFeatIds, newlyEarnedFeats, type FeatDef } from '../game/feats.ts';
 import { dailyShareText } from '../game/share.ts';
-import { hydrateProgressFromCloud } from './cloudSync.ts';
+import { foldPendingCloudThreeWay, hydrateProgressFromCloud } from './cloudSync.ts';
 import { getPlatform } from './platform.ts';
-import { decodeSaveCode, describeMergeGain, encodeSaveCode, mergeProgress } from './saveCode.ts';
+import {
+  decodeSaveCode,
+  describeMergeGain,
+  encodeSaveCode,
+  inspectSaveCodeHints,
+  mergeProgress,
+} from './saveCode.ts';
 
 /** Countdown / cooldown HUD refresh cadence when no event triggered a sync. */
 const UI_SYNC_INTERVAL_SEC = 0.2;
@@ -149,6 +167,8 @@ export class GameSession {
   /** Tile whose ghost tower the radial build ring is previewing (survives pointer-leave refreshes). */
   private radialPreview: { type: TowerType; col: number; row: number } | null = null;
   private readonly starChimeTimers: number[] = [];
+  private resetGen = 0;
+  private workshopRefundedDuringHydrate = false;
   private disposed = false;
 
   constructor(renderWorld: RenderWorld, soundManager: SoundManager) {
@@ -179,14 +199,50 @@ export class GameSession {
       this.returnFromBackground();
     });
     if (platform.isSteam) {
+      const bootResetGen = this.resetGen;
+      const bootSnapshot = migrateProgress(this.progress, LEVELS.length);
       void hydrateProgressFromCloud(this.progress, LEVELS.length, platform)
         .then(({ merged, updated }) => {
-          if (!updated || this.disposed) return;
-          const freshMerged = mergeProgress(this.progress, merged, LEVELS.length);
-          const inMemoryDiverged = JSON.stringify(freshMerged) !== JSON.stringify(merged);
+          if (this.disposed || this.resetGen !== bootResetGen) return;
+          if (!updated) {
+            if (isCloudHydrated(platform)) {
+              markProgressPostHydrated(this.progress);
+              this.workshopRefundedDuringHydrate = false;
+            }
+            return;
+          }
+          let effectiveHydrated = migrateProgress(merged, LEVELS.length);
+          const mergedDiskRaw = JSON.stringify(effectiveHydrated);
+          const currentDiskRaw = readLocalProgressRaw();
+          if (currentDiskRaw !== null && currentDiskRaw !== mergedDiskRaw) {
+            let latestParsed: unknown;
+            try {
+              latestParsed = JSON.parse(currentDiskRaw);
+            } catch {
+              latestParsed = tryRepairTruncatedJson(currentDiskRaw);
+            }
+            if (latestParsed && typeof latestParsed === 'object' && !Array.isArray(latestParsed)) {
+              const latestCopy = migrateProgress(latestParsed, LEVELS.length);
+              foldPendingCloudThreeWay(latestCopy, effectiveHydrated, effectiveHydrated);
+              effectiveHydrated = latestCopy;
+            }
+          }
+          const curWorkshop = sanitizeRanks(this.progress.workshop);
+          const freshMerged = migrateProgress(this.progress, LEVELS.length);
+          const baseForFold = isProgressPostHydrated(this.progress) ? effectiveHydrated : bootSnapshot;
+          foldPendingCloudThreeWay(freshMerged, baseForFold, effectiveHydrated);
+          if (this.workshopRefundedDuringHydrate) {
+            freshMerged.workshop = curWorkshop;
+            if (starWallet(freshMerged).available < 0) freshMerged.workshop = {};
+          }
+          this.workshopRefundedDuringHydrate = false;
           if (freshMerged.heroes === undefined) delete this.progress.heroes;
+          if (freshMerged.difficultyWins === undefined) delete this.progress.difficultyWins;
+          if (freshMerged.wonChallenges === undefined) delete this.progress.wonChallenges;
           Object.assign(this.progress, freshMerged);
-          if (inMemoryDiverged) {
+          markProgressPostHydrated(this.progress);
+          this.deps?.content?.onProgressImported(LEVELS, this.progress);
+          if (JSON.stringify(this.progress) !== readLocalProgressRaw()) {
             saveProgress(this.progress);
           }
           if (this.viewMode !== 'playing') {
@@ -581,12 +637,19 @@ export class GameSession {
         const offered = challengesForLevel(LEVELS[this.currentLevelIndex]);
         const masteredBefore = isIslandMastered(this.progress, this.currentLevelIndex, offered);
         const featsBefore = earnedFeatIds(this.progress);
+        const earnedBadges = badgesForWin(offered, this.runConfig.challenges);
+        for (const cid of this.runConfig.challenges) {
+          if (isChallengeId(cid) && !earnedBadges.includes(cid)) {
+            const wc = (this.progress.wonChallenges ??= []);
+            if (!wc.includes(cid)) wc.push(cid);
+          }
+        }
         const record = recordWinProgress(
           this.progress,
           this.currentLevelIndex,
           stars,
           livesRemaining,
-          badgesForWin(offered, this.runConfig.challenges),
+          earnedBadges,
         );
         let dailyStreak = 0;
         let shareDailyStreak = 0;
@@ -725,11 +788,26 @@ export class GameSession {
     return this.runConfig;
   }
 
+  private isIslandCleared(index: number): boolean {
+    const pos = (v: unknown): boolean => typeof v === 'number' && Number.isFinite(v) && v > 0;
+    const dw = (this.progress.difficultyWins ??
+      (this.progress as unknown as { readonly dw?: unknown }).dw) as
+      | Partial<Record<'easy' | 'normal' | 'hard' | 'e' | 'n' | 'h', readonly unknown[] | undefined>>
+      | undefined;
+    return (
+      pos(this.progress.clears?.[index]) ||
+      pos(this.progress.bestStars?.[index]) ||
+      pos((dw?.easy ?? dw?.e)?.[index]) ||
+      pos((dw?.normal ?? dw?.n)?.[index]) ||
+      pos((dw?.hard ?? dw?.h)?.[index])
+    );
+  }
+
   /** Island select → card button: cleared islands open the briefing, new ones start at once. */
   selectIsland(levelIndex: number): void {
     this.soundManager.unlock();
     const idx = Math.max(0, Math.min(LEVELS.length - 1, levelIndex));
-    if ((this.progress.clears[idx] ?? 0) > 0 || (this.progress.bestStars[idx] ?? 0) > 0) {
+    if (this.isIslandCleared(idx)) {
       this.d.overlays.islandBriefing.show(idx, this.progress);
       return;
     }
@@ -738,18 +816,23 @@ export class GameSession {
 
   /** Settings (menu) → Reset progress, after the in-dialog confirm. The old save is backed up. */
   resetProgress(): void {
+    this.resetGen++;
+    this.workshopRefundedDuringHydrate = false;
     const fresh = resetProgressSave(LEVELS.length);
     delete this.progress.heroes;
+    delete this.progress.difficultyWins;
+    delete this.progress.wonChallenges;
     Object.assign(this.progress, fresh);
     this.currentLevelIndex = 0;
     this.runConfig = { endless: false, challenges: [], daily: null };
+    this.deps?.content?.onProgressReset();
     this.soundManager.playUiBack();
-    if (this.viewMode !== 'playing') {
-      this.d.overlays.mainMenu.setOpen(this.viewMode === 'menu', this.progress);
-      this.d.overlays.levelSelect.setOpen(this.viewMode === 'levelSelect', this.progress);
-      this.d.overlays.workshop.setOpen(this.viewMode === 'workshop', this.progress);
+    if (this.viewMode !== 'playing' && this.deps) {
+      this.deps.overlays.mainMenu.setOpen(this.viewMode === 'menu', this.progress);
+      this.deps.overlays.levelSelect.setOpen(this.viewMode === 'levelSelect', this.progress);
+      this.deps.overlays.workshop.setOpen(this.viewMode === 'workshop', this.progress);
     }
-    this.d.overlays.toast.show('Progress reset — a backup of the old save was kept.', 3);
+    this.deps?.overlays.toast.show('Progress reset — a backup of the old save was kept.', 3);
   }
 
   exportSaveCode(): string {
@@ -763,21 +846,54 @@ export class GameSession {
       this.soundManager.playUiBack();
       return { ok: false, message: res.error };
     }
-    const merged = mergeProgress(this.progress, res.progress, LEVELS.length);
+    let incoming = res.progress;
+    const hints = inspectSaveCodeHints(code);
+    if (
+      hints.rawWorkshop &&
+      workshopStarsSpent(hints.rawWorkshop) > workshopStarsSpent(incoming.workshop)
+    ) {
+      const rawSized = decodeSaveCode(code, Math.max(res.levelIds?.length ?? 0, LEVELS.length, 64));
+      if (
+        rawSized.ok &&
+        workshopStarsSpent(rawSized.progress.workshop) > workshopStarsSpent(incoming.workshop)
+      ) {
+        incoming = { ...incoming, workshop: rawSized.progress.workshop };
+      }
+    }
+    if (
+      hints.rawSelectedHero &&
+      incoming.heroes &&
+      hints.rawSelectedHero !== incoming.heroes.selectedHero
+    ) {
+      incoming = {
+        ...incoming,
+        heroes: { ...incoming.heroes, selectedHero: hints.rawSelectedHero },
+      };
+    }
+    const merged = mergeProgress(this.progress, incoming, LEVELS.length);
     const gain = describeMergeGain(this.progress, merged);
     backupProgressBeforeImport();
+    this.workshopRefundedDuringHydrate = false;
     if (merged.heroes === undefined) delete this.progress.heroes;
+    if (merged.difficultyWins === undefined) delete this.progress.difficultyWins;
+    if (merged.wonChallenges === undefined) delete this.progress.wonChallenges;
     Object.assign(this.progress, merged);
+    if (isCloudHydrated(getPlatform())) {
+      markProgressPostHydrated(this.progress);
+    }
     saveProgress(this.progress);
+    this.deps?.content?.onProgressImported(LEVELS, this.progress);
     this.soundManager.playUiConfirm();
     if (this.viewMode !== 'playing') {
       this.currentLevelIndex = Math.max(
         0,
         Math.min(LEVELS.length - 1, this.progress.unlockedLevelIndex),
       );
-      this.d.overlays.mainMenu.setOpen(this.viewMode === 'menu', this.progress);
-      this.d.overlays.levelSelect.setOpen(this.viewMode === 'levelSelect', this.progress);
-      this.d.overlays.workshop.setOpen(this.viewMode === 'workshop', this.progress);
+      if (this.deps) {
+        this.deps.overlays.mainMenu.setOpen(this.viewMode === 'menu', this.progress);
+        this.deps.overlays.levelSelect.setOpen(this.viewMode === 'levelSelect', this.progress);
+        this.deps.overlays.workshop.setOpen(this.viewMode === 'workshop', this.progress);
+      }
     }
     return { ok: true, message: `Loaded: ${gain}.` };
   }
@@ -786,7 +902,7 @@ export class GameSession {
   todaysDaily(): DailyChallenge | null {
     const cleared: number[] = [];
     for (let i = 0; i < LEVELS.length; i++) {
-      if ((this.progress.clears[i] ?? 0) > 0 || (this.progress.bestStars[i] ?? 0) > 0) cleared.push(i);
+      if (this.isIslandCleared(i)) cleared.push(i);
     }
     return dailyChallengeFor(utcDayNumber(Date.now()), cleared);
   }
@@ -900,8 +1016,16 @@ export class GameSession {
 
   refundWorkshop(): void {
     this.soundManager.unlock();
+    const platform = getPlatform();
+    if (platform.isSteam && !isCloudHydrated(platform)) {
+      this.workshopRefundedDuringHydrate = true;
+    }
     this.progress.workshop = {};
     saveProgress(this.progress);
+    if (Object.keys(this.progress.workshop).length > 0) {
+      this.progress.workshop = {};
+      saveProgress(this.progress);
+    }
     this.soundManager.playUiBack();
   }
 
@@ -941,9 +1065,7 @@ export class GameSession {
     this.currentLevelIndex = Math.max(0, Math.min(LEVELS.length - 1, levelIndex));
     const level = LEVELS[this.currentLevelIndex];
     // Challenges and island-card Endless unlock after the first clear.
-    const cleared =
-      (this.progress.clears[this.currentLevelIndex] ?? 0) > 0 ||
-      (this.progress.bestStars[this.currentLevelIndex] ?? 0) > 0;
+    const cleared = this.isIslandCleared(this.currentLevelIndex);
     this.runConfig = resolveRunConfig(level, cleared, config);
     this.clearTransientPlayState();
     this.unbindSound?.();

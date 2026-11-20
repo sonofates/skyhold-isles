@@ -15,7 +15,8 @@ export type InvariantKind =
   | 'hero_walkable_graph'
   | 'gizmo_on_plot'
   | 'entity_leak'
-  | 'determinism';
+  | 'determinism'
+  | 'save_roundtrip';
 
 export interface InvariantViolation {
   readonly kind: InvariantKind;
@@ -118,6 +119,8 @@ export class InvariantMonitor {
   private prevLives: number;
   private leakedLivesThisTick = 0;
   private heroRespawnedThisTick = false;
+  heroDeaths = 0;
+  heroRespawns = 0;
   private prevHeroLane = -1;
   private prevHeroRoadX = 0;
   private prevHeroRoadZ = 0;
@@ -325,6 +328,7 @@ export class InvariantMonitor {
 
     events.on('heroRespawn', (ev) => {
       this.heroRespawnedThisTick = true;
+      this.heroRespawns++;
       this.assertFinite(ev.x, 'event.heroRespawn.x');
       this.assertFinite(ev.z, 'event.heroRespawn.z');
       this.assertFinite(ev.hp, 'event.heroRespawn.hp');
@@ -338,7 +342,11 @@ export class InvariantMonitor {
         );
       }
       const h = this.world.hero;
-      if (h && (Math.hypot(h.x - ev.x, h.z - ev.z) > 1e-6 || !(h.invulnTimer > 0))) {
+      if (
+        h &&
+        (Math.hypot(h.x - ev.x, h.z - ev.z) > 1e-6 ||
+          Math.abs(h.invulnTimer - HERO_RULES.respawnInvulnSec) > 1e-6)
+      ) {
         this.record(
           'hero_walkable_graph',
           this.currentTick,
@@ -382,13 +390,22 @@ export class InvariantMonitor {
     });
 
     events.on('heroDied', (ev) => {
+      this.heroDeaths++;
       this.assertFinite(ev.respawnSec, 'event.heroDied.respawnSec');
       const hs = this.world.getHeroState();
-      if (!hs || hs.alive || hs.state !== 'dead' || hs.hp !== 0 || hs.respawnRemaining <= 0) {
+      if (
+        !hs ||
+        hs.alive ||
+        hs.state !== 'dead' ||
+        hs.hp !== 0 ||
+        hs.respawnRemaining <= 0 ||
+        hs.invulnRemaining !== 0 ||
+        Math.abs(ev.respawnSec - hs.respawnMax) > 1e-6
+      ) {
         this.record(
           'entity_leak',
           this.currentTick,
-          `heroDied observed inconsistent getHeroState: ${JSON.stringify(hs)}`,
+          `heroDied observed inconsistent getHeroState: ${JSON.stringify(hs)} (ev.respawnSec=${ev.respawnSec})`,
         );
       }
     });
@@ -539,6 +556,34 @@ export class InvariantMonitor {
       this.assertFinite(s.attackTimer, 'soldier.attackTimer');
       this.assertFinite(s.bonusArmor, 'soldier.bonusArmor');
       this.assertFinite(s.damageMul, 'soldier.damageMul');
+      if (s.extraHoldPoolIndices.length !== s.extraHoldUids.length) {
+        this.record(
+          'entity_leak',
+          tick,
+          `soldier id=${s.id} has mismatched extraHold arrays (${s.extraHoldPoolIndices.length} !== ${s.extraHoldUids.length})`,
+        );
+      }
+      if (s.state !== 'fighting' && s.extraHoldPoolIndices.length > 0) {
+        this.record(
+          'entity_leak',
+          tick,
+          `non-fighting soldier id=${s.id} (state=${s.state}) leaked ${s.extraHoldPoolIndices.length} extraHold entries`,
+        );
+      } else if (s.state === 'fighting' && w.outcome === 'ongoing') {
+        for (let k = 0; k < s.extraHoldPoolIndices.length; k++) {
+          const ep = s.extraHoldPoolIndices[k];
+          const eu = s.extraHoldUids[k];
+          const extra = ep >= 0 && ep < w.enemyPool.items.length ? w.enemyPool.items[ep] : null;
+          if (!extra || !extra.active || extra.uid !== eu || extra.blockers <= 0) {
+            this.record(
+              'entity_leak',
+              tick,
+              `fighting soldier id=${s.id} has dangling extraHold (${ep}, uid=${eu})`,
+            );
+            break;
+          }
+        }
+      }
       if (s.state === 'fighting') fightingSoldiers++;
     }
 
@@ -705,6 +750,26 @@ export class InvariantMonitor {
         this.assertFinite(h.waypoints[i].z, 'hero.waypoint.z');
       }
 
+      if (w.outcome === 'ongoing') {
+        if (h.state === 'fighting' || h.state === 'engaging') {
+          const tIdx = h.targetPoolIndex;
+          const tEnt = tIdx >= 0 && tIdx < w.enemyPool.items.length ? w.enemyPool.items[tIdx] : null;
+          if (!tEnt || !tEnt.active || tEnt.uid !== h.targetUid) {
+            this.record(
+              'entity_leak',
+              tick,
+              `hero (${h.heroId}) in state=${h.state} has dangling melee target (${h.targetPoolIndex}, uid=${h.targetUid})`,
+            );
+          }
+        } else if (h.targetPoolIndex !== -1 || h.targetUid !== 0) {
+          this.record(
+            'entity_leak',
+            tick,
+            `hero (${h.heroId}) in state=${h.state} leaked melee target (${h.targetPoolIndex}, uid=${h.targetUid})`,
+          );
+        }
+      }
+
       if (h.x !== this.prevHeroCheckX || h.z !== this.prevHeroCheckZ || this.prevHeroLane < 0) {
         this.prevHeroCheckX = h.x;
         this.prevHeroCheckZ = h.z;
@@ -837,6 +902,24 @@ export class InvariantMonitor {
           `won run leaked ${w.abilitySystem.getPendingMeteorCount()} pendingMeteors`,
         );
       }
+      if (w.abilitySystem.getOverchargeRemaining() !== 0) {
+        this.record(
+          'entity_leak',
+          tick,
+          `won run leaked active overchargeRemaining=${w.abilitySystem.getOverchargeRemaining()}`,
+        );
+      }
+      for (let i = 0; i < w.towers.length; i++) {
+        const t = w.towers[i];
+        if ((t.overhaulTimer ?? 0) > 0 || (t.heroRateBonus ?? 0) > 0) {
+          this.record(
+            'entity_leak',
+            tick,
+            `won run leaked transient tower buff on tower id=${t.id} (overhaul=${t.overhaulTimer ?? 0}, heroRate=${t.heroRateBonus ?? 0})`,
+          );
+          break;
+        }
+      }
       if (w.soldierSystem.blockedCount !== 0) {
         this.record(
           'entity_leak',
@@ -926,6 +1009,24 @@ export class InvariantMonitor {
           tick,
           `lost run leaked ${w.heroSystem.getPendingVolleys().length} pendingVolleys`,
         );
+      }
+      if (w.abilitySystem.getOverchargeRemaining() !== 0) {
+        this.record(
+          'entity_leak',
+          tick,
+          `lost run leaked active overchargeRemaining=${w.abilitySystem.getOverchargeRemaining()}`,
+        );
+      }
+      for (let i = 0; i < w.towers.length; i++) {
+        const t = w.towers[i];
+        if ((t.overhaulTimer ?? 0) > 0 || (t.heroRateBonus ?? 0) > 0) {
+          this.record(
+            'entity_leak',
+            tick,
+            `lost run leaked transient tower buff on tower id=${t.id} (overhaul=${t.overhaulTimer ?? 0}, heroRate=${t.heroRateBonus ?? 0})`,
+          );
+          break;
+        }
       }
       if (w.soldierSystem.blockedCount !== 0) {
         this.record(

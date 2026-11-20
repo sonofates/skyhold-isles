@@ -142,64 +142,14 @@ interface PendingVolleyWave extends ReadonlyPendingVolley {
   remainingSec: number;
 }
 
-const _queryCandidates: number[] = [];
-const _skillCandidates0: number[] = [];
-const _skillCandidates1: number[] = [];
-const _fireRingCandidates: number[] = [];
-const _fireRingTickCandidates: number[] = [];
-const _pickCandidates: number[] = [];
-const _periodicCandidates: number[] = [];
-const _strikeCandidates: number[] = [];
-const _holdCandidates: number[] = [];
-const _cleaveCandidates: number[] = [];
-const _pickedEnemies: EnemyEntity[] = [];
-const _pickedTowers: TowerEntity[] = [];
-const _prevHeroBlockedIdx: number[] = [];
-const _prevHeroBlockedUid: number[] = [];
-const _prevTotalBlocked: number[] = [];
-const _extraHoldIndices: number[] = [];
 const _samplePt: Vec3 = { x: 0, y: 0, z: 0 };
 const _respawnPtA: Vec3 = { x: 0, y: 0, z: 0 };
 const _respawnPtB: Vec3 = { x: 0, y: 0, z: 0 };
-const _hitSets = [new Set<number>(), new Set<number>()] as const;
 const _clampTarget: GroundClampResult = { x: 0, z: 0, roadX: 0, roadZ: 0, lane: 0, dist: 0 };
 const _clampStep: GroundClampResult = { x: 0, z: 0, roadX: 0, roadZ: 0, lane: 0, dist: 0 };
-const _heroShotScratch: {
-  style: TowerType;
-  startX: number;
-  startY: number;
-  startZ: number;
-  target: EnemyEntity | null;
-  damage: number;
-  speed: number;
-  splashRadius: number;
-  armorPierce: number;
-  slowRatio: number;
-  slowDuration: number;
-  hitsFlyers: boolean;
-  lateral: number;
-} = {
-  style: 'archer',
-  startX: 0,
-  startY: 0.9,
-  startZ: 0,
-  target: null,
-  damage: 1,
-  speed: 24,
-  splashRadius: 0,
-  armorPierce: 0,
-  slowRatio: 0,
-  slowDuration: 0,
-  hitsFlyers: true,
-  lateral: 0,
-};
 const GIZMO_DIST_OFFSETS: readonly number[] = [0, 0.45, -0.45, 0.9, -0.9, 1.35, -1.35, 1.8, -1.8, 2.3, -2.3, 2.8, -2.8];
 const GIZMO_LAT_OFFSETS: readonly number[] = [0, 0.45, -0.45, 0.85, -0.85, 1.1, -1.1];
 const _gizmoPlacementOut = { x: 0, z: 0 };
-const _resolvedCastTargets: readonly [{ x: number; z: number }, { x: number; z: number }] = [
-  { x: 0, z: 0 },
-  { x: 0, z: 0 },
-];
 
 /** Deterministic FNV-1a string hash for default RNG seeding. */
 export function hashHeroSeed(levelId: string, heroId: string, level: number): number {
@@ -249,6 +199,61 @@ export class HeroSystem {
   private readonly burnUid: Int32Array;
   private burnTickTimer = BURN_TICK_INTERVAL;
   private calmHealTimer = 1.0;
+  private runtimeCache: HeroRuntimeState | null = null;
+  private runtimeCacheOngoing = false;
+  private fallbackRespawnCache: { readonly x: number; readonly z: number; readonly yaw: number } | null =
+    null;
+  private readonly skillCandidates0: number[] = [];
+  private readonly skillCandidates1: number[] = [];
+  private readonly fireRingCandidates0: number[] = [];
+  private readonly fireRingCandidates1: number[] = [];
+  private readonly fireRingTickCandidates: number[] = [];
+  private readonly periodicCandidates: number[] = [];
+  private readonly strikeCandidates: number[] = [];
+  private readonly queryCandidates: number[] = [];
+  private readonly pickCandidates: number[] = [];
+  private readonly holdCandidates: number[] = [];
+  private readonly cleaveCandidates: number[] = [];
+  private readonly pickedEnemies: EnemyEntity[] = [];
+  private readonly pickedTowers: TowerEntity[] = [];
+  private readonly prevHeroBlockedIdx: number[] = [];
+  private readonly prevHeroBlockedUid: number[] = [];
+  private readonly prevTotalBlocked: number[] = [];
+  private readonly extraHoldIndices: number[] = [];
+  private readonly hitSets = [new Set<number>(), new Set<number>()] as const;
+  private readonly resolvedCastTargets: readonly [{ x: number; z: number }, { x: number; z: number }] = [
+    { x: 0, z: 0 },
+    { x: 0, z: 0 },
+  ];
+  private readonly heroShotScratch: {
+    style: TowerType;
+    startX: number;
+    startY: number;
+    startZ: number;
+    target: EnemyEntity | null;
+    damage: number;
+    speed: number;
+    splashRadius: number;
+    armorPierce: number;
+    slowRatio: number;
+    slowDuration: number;
+    hitsFlyers: boolean;
+    lateral: number;
+  } = {
+    style: 'archer',
+    startX: 0,
+    startY: 0.9,
+    startZ: 0,
+    target: null,
+    damage: 1,
+    speed: 24,
+    splashRadius: 0,
+    armorPierce: 0,
+    slowRatio: 0,
+    slowDuration: 0,
+    hitsFlyers: true,
+    lateral: 0,
+  };
 
   private readonly pool: ObjectPool<EnemyEntity>;
   private readonly spatialHash: SpatialHashGrid;
@@ -424,8 +429,19 @@ export class HeroSystem {
     if (includeGizmos) {
       this.gizmos.length = 0;
       this.calmHealTimer = 1.0;
+    } else {
+      for (let i = 0; i < this.gizmos.length; i++) {
+        this.gizmos[i].boostTimer = 0;
+        this.gizmos[i].boostRate = 0;
+      }
     }
     this.clearHeroBuffs(towers);
+    if (towers) {
+      for (let i = 0; i < towers.length; i++) {
+        if (towers[i].overhaulTimer !== undefined) towers[i].overhaulTimer = 0;
+        if (towers[i].overhaulRateBonus !== undefined) towers[i].overhaulRateBonus = 0;
+      }
+    }
     if (this.hero) {
       if (emitUnblocks) {
         this.releaseCurrentMeleeHolds(true);
@@ -437,9 +453,9 @@ export class HeroSystem {
         }
         this.releaseCurrentMeleeHolds(false);
       }
-      _prevHeroBlockedIdx.length = 0;
-      _prevHeroBlockedUid.length = 0;
-      _prevTotalBlocked.length = 0;
+      this.prevHeroBlockedIdx.length = 0;
+      this.prevHeroBlockedUid.length = 0;
+      this.prevTotalBlocked.length = 0;
       this.hero.rallyBannerTimer = 0;
       this.hero.invulnTimer = 0;
       this.hero.waypoints.length = 0;
@@ -477,31 +493,89 @@ export class HeroSystem {
     return this.burnUid[poolIndex] === uid && this.burnLeft[poolIndex] > 0 ? this.burnDps[poolIndex] : 0;
   }
 
+  private static buildSkillRuntimeState(
+    h: HeroEntity,
+    def: (typeof HERO_DEFS)[HeroId],
+    slot: HeroSkillSlot,
+    alive: boolean,
+    runOngoing: boolean,
+  ): HeroSkillRuntimeState {
+    const a = h.stats.actives[slot];
+    const base = def.actives[slot];
+    const cd = h.skillCooldowns[slot];
+    return {
+      slot,
+      id: a.id,
+      name: base.name,
+      targetMode: a.targetMode,
+      cooldown: cd,
+      maxCooldown: a.cooldownSec,
+      ready: cd <= 0,
+      usable: runOngoing && alive && cd <= 0,
+      range: a.range,
+      radius: a.radius,
+      durationSec: a.durationSec,
+    };
+  }
+
   /** Read-only snapshot of the hero and its skill cooldowns for HUD / debug / QA. */
   getRuntimeState(runOngoing = true): HeroRuntimeState | null {
     const h = this.hero;
     if (!h) return null;
     const def = HERO_DEFS[h.heroId];
     const alive = h.state !== 'dead' && h.hp > 0;
-    const mkSkill = (slot: HeroSkillSlot): HeroSkillRuntimeState => {
-      const a = h.stats.actives[slot];
-      const base = def.actives[slot];
-      const cd = h.skillCooldowns[slot];
-      return {
-        slot,
-        id: a.id,
-        name: base.name,
-        targetMode: a.targetMode,
-        cooldown: cd,
-        maxCooldown: a.cooldownSec,
-        ready: cd <= 0,
-        usable: runOngoing && alive && cd <= 0,
-        range: a.range,
-        radius: a.radius,
-        durationSec: a.durationSec,
-      };
-    };
-    return {
+    const hp = Math.ceil(h.hp);
+    const armor = h.stats.armor + (h.rallyBannerTimer > 0 ? h.stats.actives[1].armorBonus : 0);
+    const respawnRemaining = h.state === 'dead' ? h.respawnTimer : 0;
+    const invulnRemaining = alive ? h.invulnTimer : 0;
+    const totalDamageDealt = Math.round(h.totalDamageDealt);
+    const cd0 = h.skillCooldowns[0];
+    const cd1 = h.skillCooldowns[1];
+    const maxCd0 = h.stats.actives[0].cooldownSec;
+    const maxCd1 = h.stats.actives[1].cooldownSec;
+    const usable0 = runOngoing && alive && cd0 <= 0;
+    const usable1 = runOngoing && alive && cd1 <= 0;
+
+    const prev = this.runtimeCache;
+    const skillsUnchanged =
+      prev !== null &&
+      prev.level === h.level &&
+      prev.skills[0].cooldown === cd0 &&
+      prev.skills[0].maxCooldown === maxCd0 &&
+      prev.skills[0].usable === usable0 &&
+      prev.skills[1].cooldown === cd1 &&
+      prev.skills[1].maxCooldown === maxCd1 &&
+      prev.skills[1].usable === usable1;
+
+    if (
+      skillsUnchanged &&
+      this.runtimeCacheOngoing === runOngoing &&
+      prev.state === h.state &&
+      prev.alive === alive &&
+      prev.x === h.x &&
+      prev.z === h.z &&
+      prev.yaw === h.yaw &&
+      prev.hp === hp &&
+      prev.maxHp === h.maxHp &&
+      prev.armor === armor &&
+      prev.respawnRemaining === respawnRemaining &&
+      prev.respawnMax === h.stats.respawnSec &&
+      prev.invulnRemaining === invulnRemaining &&
+      prev.runXp === this.runXp &&
+      prev.kills === h.kills &&
+      prev.totalDamageDealt === totalDamageDealt
+    ) {
+      return prev;
+    }
+
+    const skills: readonly [HeroSkillRuntimeState, HeroSkillRuntimeState] = skillsUnchanged
+      ? prev.skills
+      : [
+          HeroSystem.buildSkillRuntimeState(h, def, 0, alive, runOngoing),
+          HeroSystem.buildSkillRuntimeState(h, def, 1, alive, runOngoing),
+        ];
+
+    const next: HeroRuntimeState = {
       heroId: h.heroId,
       name: def.name,
       level: h.level,
@@ -510,17 +584,20 @@ export class HeroSystem {
       x: h.x,
       z: h.z,
       yaw: h.yaw,
-      hp: Math.ceil(h.hp),
+      hp,
       maxHp: h.maxHp,
-      armor: h.stats.armor + (h.rallyBannerTimer > 0 ? h.stats.actives[1].armorBonus : 0),
-      respawnRemaining: h.state === 'dead' ? h.respawnTimer : 0,
+      armor,
+      respawnRemaining,
       respawnMax: h.stats.respawnSec,
-      invulnRemaining: alive ? h.invulnTimer : 0,
+      invulnRemaining,
       runXp: this.runXp,
       kills: h.kills,
-      totalDamageDealt: Math.round(h.totalDamageDealt),
-      skills: [mkSkill(0), mkSkill(1)],
+      totalDamageDealt,
+      skills,
     };
+    this.runtimeCache = next;
+    this.runtimeCacheOngoing = runOngoing;
+    return next;
   }
 
   /** Orders the hero to walk along the ground road graph to `(wantX, wantZ)`. */
@@ -532,10 +609,8 @@ export class HeroSystem {
 
     onCommitted?.();
     this.releaseCurrentMeleeHolds(true);
-    const waypoints = this.groundGraph.findPath(h.x, h.z, wantX, wantZ);
-    const last = waypoints[waypoints.length - 1];
-    h.waypoints.length = 0;
-    for (let i = 0; i < waypoints.length; i++) h.waypoints.push(waypoints[i]);
+    this.groundGraph.findPathInto(h.x, h.z, wantX, wantZ, HERO_RULES.maxOffRoadDist, h.waypoints);
+    const last = h.waypoints[h.waypoints.length - 1];
     h.hasRallyPoint = true;
     h.rallyX = last.x;
     h.rallyZ = last.z;
@@ -549,7 +624,7 @@ export class HeroSystem {
       z: h.z,
       targetX: last.x,
       targetZ: last.z,
-      waypoints: [...waypoints],
+      waypoints: [...h.waypoints],
     });
     return true;
   }
@@ -560,14 +635,19 @@ export class HeroSystem {
    * - Single-lane maps: the first castle-side road bend/chokepoint (or a clear castle-side road post).
    * Always outside the castle threshold (`>= respawnCastleClearance` when road length allows) and on the road.
    */
-  getFallbackRespawnPoint(): { x: number; z: number; yaw: number } {
+  getFallbackRespawnPoint(): { readonly x: number; readonly z: number; readonly yaw: number } {
+    if (this.fallbackRespawnCache !== null) {
+      return this.fallbackRespawnCache;
+    }
     const main = this.groundPaths[0];
     if (!main || main.totalLength <= 0) {
-      return {
+      const spawnFallback = {
         x: this.hero?.spawnX ?? 0,
         z: this.hero?.spawnZ ?? 0,
         yaw: this.hero?.spawnYaw ?? 0,
       };
+      this.fallbackRespawnCache = spawnFallback;
+      return spawnFallback;
     }
 
     const total = main.totalLength;
@@ -596,7 +676,9 @@ export class HeroSystem {
       }
       const anchorDist = Math.max(0, Math.min(total - minBack, earliestSharedDist + 0.8));
       const roadYaw = main.sample(anchorDist, _samplePt);
-      return { x: _samplePt.x, z: _samplePt.z, yaw: wrapYaw(roadYaw + Math.PI) };
+      const mergeFallback = { x: _samplePt.x, z: _samplePt.z, yaw: wrapYaw(roadYaw + Math.PI) };
+      this.fallbackRespawnCache = mergeFallback;
+      return mergeFallback;
     }
 
     // Single-lane road: walk out from the castle side and pick the first bend/chokepoint outside the castle.
@@ -631,7 +713,9 @@ export class HeroSystem {
 
     const anchorDist = Math.max(0, Math.min(total - minBack, total - chosenBack));
     const roadYaw = main.sample(anchorDist, _samplePt);
-    return { x: _samplePt.x, z: _samplePt.z, yaw: wrapYaw(roadYaw + Math.PI) };
+    const bendFallback = { x: _samplePt.x, z: _samplePt.z, yaw: wrapYaw(roadYaw + Math.PI) };
+    this.fallbackRespawnCache = bendFallback;
+    return bendFallback;
   }
 
   private minEnemyMarginAt(x: number, z: number): number {
@@ -751,7 +835,7 @@ export class HeroSystem {
         let bestSq = Infinity;
         for (let i = 0; i < towers.length; i++) {
           const t = towers[i];
-          if (t.type === 'beacon' && t.stunTimer <= 0) continue;
+          if (TOWER_DEFS[t.type].role === 'support' && t.stunTimer <= 0) continue;
           const dSq = (t.x - h.x) ** 2 + (t.z - h.z) ** 2;
           if (dSq > maxRSq) continue;
           const stunned = t.stunTimer > 0;
@@ -791,14 +875,10 @@ export class HeroSystem {
     }
 
     const gen = this.resetGen;
-    const resolvedTarget = _resolvedCastTargets[slot];
+    const resolvedTarget = this.resolvedCastTargets[slot];
     resolvedTarget.x = tx;
     resolvedTarget.z = tz;
-    const commitCast = (): void => {
-      h.skillCooldowns[slot] = act.cooldownSec;
-      onCommitted?.();
-    };
-    const ok = this.executeActive(h, slot, act, tx, tz, towers, commitCast, gen);
+    const ok = this.executeActive(h, slot, act, tx, tz, towers, onCommitted, gen);
     if (!ok) return false;
     if (this.resetGen !== gen || h.hp <= 0) return true;
 
@@ -819,6 +899,16 @@ export class HeroSystem {
     return true;
   }
 
+  private commitSkillCooldown(
+    h: HeroEntity,
+    slot: HeroSkillSlot,
+    cooldownSec: number,
+    onCommitted?: () => void,
+  ): void {
+    h.skillCooldowns[slot] = cooldownSec;
+    onCommitted?.();
+  }
+
   private executeActive(
     h: HeroEntity,
     slot: HeroSkillSlot,
@@ -826,15 +916,16 @@ export class HeroSystem {
     tx: number,
     tz: number,
     towers: readonly TowerEntity[],
-    commitCast: () => void,
+    onCommitted?: () => void,
     gen = this.resetGen,
   ): boolean {
-    const skillCandidates = slot === 0 ? _skillCandidates0 : _skillCandidates1;
-    const hitSet = _hitSets[slot];
-    const resolvedTarget = _resolvedCastTargets[slot];
+    const skillCandidates = slot === 0 ? this.skillCandidates0 : this.skillCandidates1;
+    const fireRingScratch = slot === 0 ? this.fireRingCandidates0 : this.fireRingCandidates1;
+    const hitSet = this.hitSets[slot];
+    const resolvedTarget = this.resolvedCastTargets[slot];
     switch (act.kind) {
       case 'shieldBash': {
-        commitCast();
+        this.commitSkillCooldown(h, slot, act.cooldownSec, onCommitted);
         let dirX = tx - h.x;
         let dirZ = tz - h.z;
         if (Math.hypot(dirX, dirZ) < 0.05) {
@@ -877,14 +968,15 @@ export class HeroSystem {
       }
 
       case 'rallyBanner': {
-        commitCast();
+        this.commitSkillCooldown(h, slot, act.cooldownSec, onCommitted);
         h.rallyBannerTimer = act.durationSec;
+        this.clearHeroBuffs();
         this.applyRallyAura(h, 0);
         return true;
       }
 
       case 'volley': {
-        commitCast();
+        this.commitSkillCooldown(h, slot, act.cooldownSec, onCommitted);
         const slow = act.extras.has('volleySlow');
         this.applyVolleyStrike(h, tx, tz, act.radius, act.damage, slow, skillCandidates, gen);
         if (this.resetGen !== gen) return true;
@@ -906,7 +998,7 @@ export class HeroSystem {
         if (targets.length === 0) return false;
         resolvedTarget.x = targets[0].x;
         resolvedTarget.z = targets[0].z;
-        commitCast();
+        this.commitSkillCooldown(h, slot, act.cooldownSec, onCommitted);
         for (let i = 0; i < targets.length; i++) {
           this.enemySystem.applyMark(targets[i], act.effect, act.durationSec);
         }
@@ -914,7 +1006,7 @@ export class HeroSystem {
       }
 
       case 'fireRing': {
-        commitCast();
+        this.commitSkillCooldown(h, slot, act.cooldownSec, onCommitted);
         this.spawnFireRing(
           h,
           tx,
@@ -924,13 +1016,14 @@ export class HeroSystem {
           act.effect,
           act.durationSec,
           act.extras.has('ringSlow'),
+          fireRingScratch,
           gen,
         );
         return true;
       }
 
       case 'wispBurst': {
-        commitCast();
+        this.commitSkillCooldown(h, slot, act.cooldownSec, onCommitted);
         let dx = tx - h.x;
         let dz = tz - h.z;
         let len = Math.hypot(dx, dz);
@@ -993,6 +1086,7 @@ export class HeroSystem {
             Math.round(ringAct.effect * 0.55),
             2.0,
             ringAct.extras.has('ringSlow'),
+            fireRingScratch,
             gen,
           );
         }
@@ -1000,7 +1094,7 @@ export class HeroSystem {
       }
 
       case 'deployGizmo': {
-        commitCast();
+        this.commitSkillCooldown(h, slot, act.cooldownSec, onCommitted);
         const placed = this.resolveGizmoPlacement(tx, tz, h.x, h.z, act.range);
         resolvedTarget.x = placed.x;
         resolvedTarget.z = placed.z;
@@ -1041,7 +1135,7 @@ export class HeroSystem {
           resolvedTarget.x = this.gizmos[0].x;
           resolvedTarget.z = this.gizmos[0].z;
         }
-        commitCast();
+        this.commitSkillCooldown(h, slot, act.cooldownSec, onCommitted);
         for (let i = 0; i < chosen.length; i++) {
           const t = chosen[i];
           t.stunTimer = 0;
@@ -1070,7 +1164,7 @@ export class HeroSystem {
       }
 
       case 'undertow': {
-        commitCast();
+        this.commitSkillCooldown(h, slot, act.cooldownSec, onCommitted);
         this.spatialHash.query(tx, tz, act.radius, skillCandidates);
         const rSq = act.radius * act.radius;
         const slowRatio = Math.min(0.75, act.effect);
@@ -1102,7 +1196,7 @@ export class HeroSystem {
         let current: EnemyEntity | null = firstList[0];
         resolvedTarget.x = current.x;
         resolvedTarget.z = current.z;
-        commitCast();
+        this.commitSkillCooldown(h, slot, act.cooldownSec, onCommitted);
         let dmg = act.damage;
         const maxJumps = act.count;
         const chainRange = act.radius;
@@ -1264,14 +1358,15 @@ export class HeroSystem {
     dps: number,
     durationSec: number,
     slowInside: boolean,
+    fireScratch: number[],
     gen = this.resetGen,
   ): void {
     if (burstDamage > 0) {
-      this.spatialHash.query(cx, cz, radius, _fireRingCandidates);
+      this.spatialHash.query(cx, cz, radius, fireScratch);
       const rSq = radius * radius;
-      for (let i = 0; i < _fireRingCandidates.length; i++) {
+      for (let i = 0; i < fireScratch.length; i++) {
         if (this.resetGen !== gen) return;
-        const e = this.pool.items[_fireRingCandidates[i]];
+        const e = this.pool.items[fireScratch[i]];
         if (!e.active || e.hp <= 0 || e.burrowed) continue;
         if ((e.x - cx) ** 2 + (e.z - cz) ** 2 > rSq) continue;
         const res = this.enemySystem.applyDamage(e, burstDamage, true);
@@ -1316,20 +1411,22 @@ export class HeroSystem {
   }
 
   private fillPickedEnemies(cx: number, cz: number, r: number, preferStrongest: boolean): void {
-    this.spatialHash.query(cx, cz, r, _pickCandidates);
+    const pickCandidates = this.pickCandidates;
+    const pickedEnemies = this.pickedEnemies;
+    this.spatialHash.query(cx, cz, r, pickCandidates);
     const rSq = r * r;
-    _pickedEnemies.length = 0;
-    for (let i = 0; i < _pickCandidates.length; i++) {
-      const e = this.pool.items[_pickCandidates[i]];
+    pickedEnemies.length = 0;
+    for (let i = 0; i < pickCandidates.length; i++) {
+      const e = this.pool.items[pickCandidates[i]];
       if (!e.active || e.hp <= 0 || e.burrowed) continue;
-      if ((e.x - cx) ** 2 + (e.z - cz) ** 2 <= rSq) _pickedEnemies.push(e);
+      if ((e.x - cx) ** 2 + (e.z - cz) ** 2 <= rSq) pickedEnemies.push(e);
     }
-    for (let i = 1; i < _pickedEnemies.length; i++) {
-      const cur = _pickedEnemies[i];
+    for (let i = 1; i < pickedEnemies.length; i++) {
+      const cur = pickedEnemies[i];
       const dCur = (cur.x - cx) ** 2 + (cur.z - cz) ** 2;
       let j = i - 1;
       while (j >= 0) {
-        const prev = _pickedEnemies[j];
+        const prev = pickedEnemies[j];
         let cmp: number;
         if (preferStrongest && cur.hp !== prev.hp) {
           cmp = prev.hp - cur.hp;
@@ -1338,10 +1435,10 @@ export class HeroSystem {
           cmp = Math.abs(dCur - dPrev) > 1e-6 ? dCur - dPrev : cur.uid - prev.uid;
         }
         if (cmp >= 0) break;
-        _pickedEnemies[j + 1] = prev;
+        pickedEnemies[j + 1] = prev;
         j--;
       }
-      _pickedEnemies[j + 1] = cur;
+      pickedEnemies[j + 1] = cur;
     }
   }
 
@@ -1355,12 +1452,13 @@ export class HeroSystem {
     count: number,
     preferStrongest: boolean,
   ): readonly EnemyEntity[] {
+    const pickedEnemies = this.pickedEnemies;
     this.fillPickedEnemies(tx, tz, searchRadius, preferStrongest);
-    if (_pickedEnemies.length === 0 && fallbackRange > 0) {
+    if (pickedEnemies.length === 0 && fallbackRange > 0) {
       this.fillPickedEnemies(hx, hz, fallbackRange, preferStrongest);
     }
-    if (_pickedEnemies.length > count) _pickedEnemies.length = count;
-    return _pickedEnemies;
+    if (pickedEnemies.length > count) pickedEnemies.length = count;
+    return pickedEnemies;
   }
 
   private pickTowersNear(
@@ -1372,31 +1470,32 @@ export class HeroSystem {
     maxHeroRange: number,
     count: number,
   ): readonly TowerEntity[] {
-    _pickedTowers.length = 0;
+    const pickedTowers = this.pickedTowers;
+    pickedTowers.length = 0;
     const rSq = maxHeroRange * maxHeroRange;
     for (let i = 0; i < towers.length; i++) {
       const t = towers[i];
-      if (t.type === 'beacon' && t.stunTimer <= 0) continue;
+      if (TOWER_DEFS[t.type].role === 'support' && t.stunTimer <= 0) continue;
       if ((t.x - hx) ** 2 + (t.z - hz) ** 2 <= rSq) {
-        _pickedTowers.push(t);
+        pickedTowers.push(t);
       }
     }
-    for (let i = 1; i < _pickedTowers.length; i++) {
-      const cur = _pickedTowers[i];
+    for (let i = 1; i < pickedTowers.length; i++) {
+      const cur = pickedTowers[i];
       const dCur = (cur.x - tx) ** 2 + (cur.z - tz) ** 2;
       let j = i - 1;
       while (j >= 0) {
-        const prev = _pickedTowers[j];
+        const prev = pickedTowers[j];
         const dPrev = (prev.x - tx) ** 2 + (prev.z - tz) ** 2;
         const cmp = Math.abs(dCur - dPrev) > 1e-6 ? dCur - dPrev : cur.id - prev.id;
         if (cmp >= 0) break;
-        _pickedTowers[j + 1] = prev;
+        pickedTowers[j + 1] = prev;
         j--;
       }
-      _pickedTowers[j + 1] = cur;
+      pickedTowers[j + 1] = cur;
     }
-    if (_pickedTowers.length > count) _pickedTowers.length = count;
-    return _pickedTowers;
+    if (pickedTowers.length > count) pickedTowers.length = count;
+    return pickedTowers;
   }
 
   private isHoldable(e: EnemyEntity): boolean {
@@ -1413,11 +1512,11 @@ export class HeroSystem {
     if (!e.active || e.uid !== uid) return false;
     if (e.heroBlockers > 0) return true;
     if (this.inUpdate) {
-      for (let k = 0; k < _prevHeroBlockedIdx.length; k++) {
+      for (let k = 0; k < this.prevHeroBlockedIdx.length; k++) {
         if (
-          _prevHeroBlockedIdx[k] === poolIndex &&
-          _prevHeroBlockedUid[k] === uid &&
-          _prevTotalBlocked[k] > 0
+          this.prevHeroBlockedIdx[k] === poolIndex &&
+          this.prevHeroBlockedUid[k] === uid &&
+          this.prevTotalBlocked[k] > 0
         ) {
           return true;
         }
@@ -1441,8 +1540,8 @@ export class HeroSystem {
         if (e.heroBlockers > 0) {
           e.heroBlockers = 0;
           e.heroDamageReduction = 0;
-          for (let k = 0; k < _prevHeroBlockedIdx.length; k++) {
-            if (_prevHeroBlockedIdx[k] === e.poolIndex) _prevTotalBlocked[k] = 0;
+          for (let k = 0; k < this.prevHeroBlockedIdx.length; k++) {
+            if (this.prevHeroBlockedIdx[k] === e.poolIndex) this.prevTotalBlocked[k] = 0;
           }
           if (!this.soldierSystem.isHoldingEnemy(e.poolIndex, e.uid)) {
             this.events.emit('enemyUnblocked', {
@@ -1456,11 +1555,11 @@ export class HeroSystem {
         }
       }
       if (this.inUpdate) {
-        for (let k = 0; k < _prevHeroBlockedIdx.length; k++) {
-          if (_prevTotalBlocked[k] <= 0) continue;
-          _prevTotalBlocked[k] = 0;
-          const idx = _prevHeroBlockedIdx[k];
-          const uid = _prevHeroBlockedUid[k];
+        for (let k = 0; k < this.prevHeroBlockedIdx.length; k++) {
+          if (this.prevTotalBlocked[k] <= 0) continue;
+          this.prevTotalBlocked[k] = 0;
+          const idx = this.prevHeroBlockedIdx[k];
+          const uid = this.prevHeroBlockedUid[k];
           const e = this.pool.items[idx];
           e.heroBlockers = 0;
           e.heroDamageReduction = 0;
@@ -1518,6 +1617,8 @@ export class HeroSystem {
   }
 
   private updatePeriodicEffects(dt: number, h: HeroEntity): void {
+    const periodicCandidates = this.periodicCandidates;
+    const fireRingTickCandidates = this.fireRingTickCandidates;
     // Pending second Volley waves (Wren capstone).
     for (let i = this.pendingVolleys.length - 1; i >= 0; i--) {
       if (this.abortedStep) return;
@@ -1526,7 +1627,7 @@ export class HeroSystem {
       pv.remainingSec -= dt;
       if (pv.remainingSec <= 0) {
         this.pendingVolleys.splice(i, 1);
-        this.applyVolleyStrike(h, pv.x, pv.z, pv.radius, pv.damage, pv.slow, _periodicCandidates);
+        this.applyVolleyStrike(h, pv.x, pv.z, pv.radius, pv.damage, pv.slow, periodicCandidates);
         if (this.abortedStep) return;
       }
     }
@@ -1541,11 +1642,11 @@ export class HeroSystem {
       if (ring.remainingSec <= 0) {
         this.fireRings.splice(i, 1);
       } else if (ring.slowRatio > 0) {
-        this.spatialHash.query(ring.x, ring.z, ring.radius, _periodicCandidates);
+        this.spatialHash.query(ring.x, ring.z, ring.radius, periodicCandidates);
         const rSq = ring.radius * ring.radius;
-        for (let k = 0; k < _periodicCandidates.length; k++) {
+        for (let k = 0; k < periodicCandidates.length; k++) {
           if (this.abortedStep) return;
-          const e = this.pool.items[_periodicCandidates[k]];
+          const e = this.pool.items[periodicCandidates[k]];
           if (e.active && e.hp > 0 && !e.burrowed && (e.x - ring.x) ** 2 + (e.z - ring.z) ** 2 <= rSq) {
             this.enemySystem.applySlow(e, ring.slowRatio, 0.6);
           }
@@ -1577,12 +1678,12 @@ export class HeroSystem {
         for (let r = 0; r < ringCount && r < this.fireRings.length; r++) {
           if (this.abortedStep) return;
           const ring = this.fireRings[r];
-          this.spatialHash.query(ring.x, ring.z, ring.radius, _fireRingTickCandidates);
+          this.spatialHash.query(ring.x, ring.z, ring.radius, fireRingTickCandidates);
           const rSq = ring.radius * ring.radius;
           const tickDmg = Math.max(1, Math.round(ring.dps * BURN_TICK_INTERVAL));
-          for (let k = 0; k < _fireRingTickCandidates.length; k++) {
+          for (let k = 0; k < fireRingTickCandidates.length; k++) {
             if (this.abortedStep) return;
-            const e = this.pool.items[_fireRingTickCandidates[k]];
+            const e = this.pool.items[fireRingTickCandidates[k]];
             if (!e.active || e.hp <= 0 || e.burrowed) continue;
             if ((e.x - ring.x) ** 2 + (e.z - ring.z) ** 2 > rSq) continue;
             const res = this.enemySystem.applyDamage(e, tickDmg, true);
@@ -1626,20 +1727,22 @@ export class HeroSystem {
         g.yaw = Math.atan2(target.x - g.x, target.z - g.z);
         if (g.cooldownTimer <= 0) {
           g.cooldownTimer = 1 / g.fireRate;
-          _heroShotScratch.style = 'ballista';
-          _heroShotScratch.startX = g.x;
-          _heroShotScratch.startY = 0.65;
-          _heroShotScratch.startZ = g.z;
-          _heroShotScratch.target = target;
-          _heroShotScratch.damage = g.damage;
-          _heroShotScratch.speed = 28;
-          _heroShotScratch.splashRadius = g.splashRadius;
-          _heroShotScratch.armorPierce = 2;
-          _heroShotScratch.slowRatio = 0;
-          _heroShotScratch.slowDuration = 0;
-          _heroShotScratch.hitsFlyers = true;
-          _heroShotScratch.lateral = 0;
-          this.projectileSystem.spawnHeroProjectile(_heroShotScratch as HeroShotParams);
+          const shot = this.heroShotScratch;
+          shot.style = 'ballista';
+          shot.startX = g.x;
+          shot.startY = 0.65;
+          shot.startZ = g.z;
+          shot.target = target;
+          shot.damage = g.damage;
+          shot.speed = 28;
+          shot.splashRadius = g.splashRadius;
+          shot.armorPierce = 2;
+          shot.slowRatio = 0;
+          shot.slowDuration = 0;
+          shot.hitsFlyers = true;
+          shot.lateral = 0;
+          this.projectileSystem.spawnHeroProjectile(shot as HeroShotParams);
+          shot.target = null;
         }
       }
     }
@@ -1651,12 +1754,13 @@ export class HeroSystem {
     range: number,
     hitsFlyers: boolean,
   ): EnemyEntity | null {
-    this.spatialHash.query(cx, cz, range, _queryCandidates);
+    const queryCandidates = this.queryCandidates;
+    this.spatialHash.query(cx, cz, range, queryCandidates);
     const maxRSq = range * range;
     let best: EnemyEntity | null = null;
     let bestScore = -Infinity;
-    for (let i = 0; i < _queryCandidates.length; i++) {
-      const e = this.pool.items[_queryCandidates[i]];
+    for (let i = 0; i < queryCandidates.length; i++) {
+      const e = this.pool.items[queryCandidates[i]];
       if (!e.active || e.hp <= 0 || e.burrowed) continue;
       if (e.flying && !hitsFlyers) continue;
       const dSq = (e.x - cx) ** 2 + (e.z - cz) ** 2;
@@ -1744,15 +1848,18 @@ export class HeroSystem {
 
   private updateStep(dt: number, h: HeroEntity, towers: readonly TowerEntity[], fireRateMultiplier: number): void {
     // 1. Snapshot last tick's hero holds & reset transient per-tick buffs.
-    _prevHeroBlockedIdx.length = 0;
-    _prevHeroBlockedUid.length = 0;
-    _prevTotalBlocked.length = 0;
+    const prevHeroBlockedIdx = this.prevHeroBlockedIdx;
+    const prevHeroBlockedUid = this.prevHeroBlockedUid;
+    const prevTotalBlocked = this.prevTotalBlocked;
+    prevHeroBlockedIdx.length = 0;
+    prevHeroBlockedUid.length = 0;
+    prevTotalBlocked.length = 0;
     for (let i = 0; i < this.pool.getActiveCount(); i++) {
       const e = this.pool.items[this.pool.getActiveIndex(i)];
       if (e.heroBlockers > 0) {
-        _prevHeroBlockedIdx.push(e.poolIndex);
-        _prevHeroBlockedUid.push(e.uid);
-        _prevTotalBlocked.push(e.blockers + e.heroBlockers);
+        prevHeroBlockedIdx.push(e.poolIndex);
+        prevHeroBlockedUid.push(e.uid);
+        prevTotalBlocked.push(e.blockers + e.heroBlockers);
       }
       e.heroBlockers = 0;
       e.heroDamageReduction = 0;
@@ -1832,7 +1939,7 @@ export class HeroSystem {
       const grantRange = pas.extras.has('tinkerRange') ? 0.08 : 0;
       for (let i = 0; i < towers.length; i++) {
         const t = towers[i];
-        if (t.type === 'beacon') continue;
+        if (TOWER_DEFS[t.type].role === 'support') continue;
         if ((t.x - h.x) ** 2 + (t.z - h.z) ** 2 <= rSq) {
           t.heroRateBonus = pas.power;
           t.heroRangeBonus = grantRange;
@@ -1895,19 +2002,25 @@ export class HeroSystem {
       (!this.isHoldable(target) ||
         Math.hypot(target.x - h.postX, target.z - h.postZ) > HERO_RULES.meleeLeashRadius)
     ) {
+      target = null;
+    }
+    if (
+      target === null &&
+      (h.targetPoolIndex >= 0 || h.targetUid !== 0 || h.state === 'engaging' || h.state === 'fighting')
+    ) {
       h.targetPoolIndex = -1;
       h.targetUid = 0;
-      target = null;
       h.state = 'idle';
     }
 
     if (!target) {
-      this.spatialHash.query(h.postX, h.postZ, HERO_RULES.meleeEngageRadius, _holdCandidates);
+      const holdCandidates = this.holdCandidates;
+      this.spatialHash.query(h.postX, h.postZ, HERO_RULES.meleeEngageRadius, holdCandidates);
       const rSq = HERO_RULES.meleeEngageRadius * HERO_RULES.meleeEngageRadius;
       let best: EnemyEntity | null = null;
       let bestNeeds = false;
-      for (let i = 0; i < _holdCandidates.length; i++) {
-        const e = this.pool.items[_holdCandidates[i]];
+      for (let i = 0; i < holdCandidates.length; i++) {
+        const e = this.pool.items[holdCandidates[i]];
         if (!this.isHoldable(e)) continue;
         if ((e.x - h.postX) ** 2 + (e.z - h.postZ) ** 2 > rSq) continue;
         const needs = e.blockers < ENEMY_MELEE[e.type].holdCost;
@@ -2053,12 +2166,12 @@ export class HeroSystem {
     const give = Math.min(budget, needed);
     e.heroBlockers += give;
     if (red > e.heroDamageReduction) e.heroDamageReduction = red;
-    if (!_prevHeroBlockedIdx.includes(e.poolIndex)) {
-      // Track in _prevHeroBlockedIdx (even when co-held alongside soldiers) so same-tick hero death
+    if (!this.prevHeroBlockedIdx.includes(e.poolIndex)) {
+      // Track in prevHeroBlockedIdx (even when co-held alongside soldiers) so same-tick hero death
       // or mid-tick barracks sell/rally always reconciles enemyUnblocked 1-to-1.
-      _prevHeroBlockedIdx.push(e.poolIndex);
-      _prevHeroBlockedUid.push(e.uid);
-      _prevTotalBlocked.push(e.blockers + e.heroBlockers);
+      this.prevHeroBlockedIdx.push(e.poolIndex);
+      this.prevHeroBlockedUid.push(e.uid);
+      this.prevTotalBlocked.push(e.blockers + e.heroBlockers);
       if (wasFree) {
         this.events.emit('enemyBlocked', {
           enemyId: e.uid,
@@ -2081,22 +2194,24 @@ export class HeroSystem {
     budget = this.assignSingleHeroHold(h, primary, red, budget);
     if (this.abortedStep || h.state !== 'fighting' || budget <= 0) return;
 
-    this.spatialHash.query(h.x, h.z, HERO_RULES.meleeEngageRadius, _holdCandidates);
-    _extraHoldIndices.length = 0;
+    const extraHoldIndices = this.extraHoldIndices;
+    const holdCandidates = this.holdCandidates;
+    this.spatialHash.query(h.x, h.z, HERO_RULES.meleeEngageRadius, holdCandidates);
+    extraHoldIndices.length = 0;
     const rSq = HERO_RULES.meleeEngageRadius * HERO_RULES.meleeEngageRadius;
-    for (let i = 0; i < _holdCandidates.length; i++) {
-      const idx = _holdCandidates[i];
+    for (let i = 0; i < holdCandidates.length; i++) {
+      const idx = holdCandidates[i];
       const cand = this.pool.items[idx];
       if (cand === primary || !this.isHoldable(cand)) continue;
       if (cand.blockers + cand.heroBlockers >= ENEMY_MELEE[cand.type].holdCost) continue;
       if ((cand.x - h.x) ** 2 + (cand.z - h.z) ** 2 > rSq) continue;
-      _extraHoldIndices.push(idx);
+      extraHoldIndices.push(idx);
     }
-    if (_extraHoldIndices.length > 1) {
-      _extraHoldIndices.sort(this.byProgressDesc);
+    if (extraHoldIndices.length > 1) {
+      extraHoldIndices.sort(this.byProgressDesc);
     }
-    for (let i = 0; i < _extraHoldIndices.length && budget > 0; i++) {
-      const cand = this.pool.items[_extraHoldIndices[i]];
+    for (let i = 0; i < extraHoldIndices.length && budget > 0; i++) {
+      const cand = this.pool.items[extraHoldIndices[i]];
       if (!this.isHoldable(cand) || cand.blockers + cand.heroBlockers >= ENEMY_MELEE[cand.type].holdCost) {
         continue;
       }
@@ -2107,12 +2222,13 @@ export class HeroSystem {
 
   private findCleaveTarget(primary: EnemyEntity): EnemyEntity | null {
     const r = HERO_RULES.cleaveRadius;
-    this.spatialHash.query(primary.x, primary.z, r, _cleaveCandidates);
+    const cleaveCandidates = this.cleaveCandidates;
+    this.spatialHash.query(primary.x, primary.z, r, cleaveCandidates);
     const rSq = r * r;
     let best: EnemyEntity | null = null;
     let bestSq = rSq;
-    for (let i = 0; i < _cleaveCandidates.length; i++) {
-      const e = this.pool.items[_cleaveCandidates[i]];
+    for (let i = 0; i < cleaveCandidates.length; i++) {
+      const e = this.pool.items[cleaveCandidates[i]];
       if (e === primary || !e.active || e.hp <= 0 || e.flying || e.burrowed) continue;
       const dSq = (e.x - primary.x) ** 2 + (e.z - primary.z) ** 2;
       if (dSq < bestSq || (dSq === bestSq && best !== null && e.uid < best.uid)) {
@@ -2152,31 +2268,33 @@ export class HeroSystem {
         }
 
         const chill = pas.extras.has('chillBolts');
-        _heroShotScratch.style = h.stats.projectileStyle;
-        _heroShotScratch.startX = h.x;
-        _heroShotScratch.startY = 0.9;
-        _heroShotScratch.startZ = h.z;
-        _heroShotScratch.target = target;
-        _heroShotScratch.damage = dmg;
-        _heroShotScratch.speed = h.stats.projectileSpeed;
-        _heroShotScratch.splashRadius = h.stats.splashRadius;
-        _heroShotScratch.armorPierce = h.stats.armorPierce;
-        _heroShotScratch.slowRatio = chill ? 0.22 : 0;
-        _heroShotScratch.slowDuration = chill ? 1.6 : 0;
-        _heroShotScratch.hitsFlyers = h.stats.hitsFlyers;
-        _heroShotScratch.lateral = 0;
-        this.projectileSystem.spawnHeroProjectile(_heroShotScratch as HeroShotParams);
+        const shot = this.heroShotScratch;
+        shot.style = h.stats.projectileStyle;
+        shot.startX = h.x;
+        shot.startY = 0.9;
+        shot.startZ = h.z;
+        shot.target = target;
+        shot.damage = dmg;
+        shot.speed = h.stats.projectileSpeed;
+        shot.splashRadius = h.stats.splashRadius;
+        shot.armorPierce = h.stats.armorPierce;
+        shot.slowRatio = chill ? 0.22 : 0;
+        shot.slowDuration = chill ? 1.6 : 0;
+        shot.hitsFlyers = h.stats.hitsFlyers;
+        shot.lateral = 0;
+        this.projectileSystem.spawnHeroProjectile(shot as HeroShotParams);
 
         if (pas.extras.has('twinArrow') && h.shotCount % 3 === 0) {
           const second = this.findSecondRangedTarget(h, target) ?? target;
-          _heroShotScratch.target = second;
-          _heroShotScratch.damage = Math.max(1, Math.round(h.stats.damage * 0.55));
-          _heroShotScratch.splashRadius = 0;
-          _heroShotScratch.slowRatio = 0;
-          _heroShotScratch.slowDuration = 0;
-          _heroShotScratch.lateral = 0.22;
-          this.projectileSystem.spawnHeroProjectile(_heroShotScratch as HeroShotParams);
+          shot.target = second;
+          shot.damage = Math.max(1, Math.round(h.stats.damage * 0.55));
+          shot.splashRadius = 0;
+          shot.slowRatio = 0;
+          shot.slowDuration = 0;
+          shot.lateral = 0.22;
+          this.projectileSystem.spawnHeroProjectile(shot as HeroShotParams);
         }
+        shot.target = null;
 
         this.events.emit('heroAttack', {
           heroId: h.heroId,
@@ -2200,12 +2318,13 @@ export class HeroSystem {
   }
 
   private findSecondRangedTarget(h: HeroEntity, primary: EnemyEntity): EnemyEntity | null {
-    this.spatialHash.query(primary.x, primary.z, 3.2, _queryCandidates);
+    const queryCandidates = this.queryCandidates;
+    this.spatialHash.query(primary.x, primary.z, 3.2, queryCandidates);
     const maxRSq = h.stats.range * h.stats.range;
     let best: EnemyEntity | null = null;
     let bestSq = Infinity;
-    for (let i = 0; i < _queryCandidates.length; i++) {
-      const e = this.pool.items[_queryCandidates[i]];
+    for (let i = 0; i < queryCandidates.length; i++) {
+      const e = this.pool.items[queryCandidates[i]];
       if (e === primary || !e.active || e.hp <= 0 || e.burrowed) continue;
       if (e.flying && !h.stats.hitsFlyers) continue;
       if ((e.x - h.x) ** 2 + (e.z - h.z) ** 2 > maxRSq) continue;
@@ -2225,15 +2344,16 @@ export class HeroSystem {
     invulnerable: boolean,
   ): void {
     if (invulnerable) return;
-    this.spatialHash.query(h.x, h.z, 2.2, _strikeCandidates);
+    const strikeCandidates = this.strikeCandidates;
+    this.spatialHash.query(h.x, h.z, 2.2, strikeCandidates);
     // Sort by uid so enemy swing order is strictly deterministic (zero closure alloc).
-    if (_strikeCandidates.length > 1) {
-      _strikeCandidates.sort(this.byUidAsc);
+    if (strikeCandidates.length > 1) {
+      strikeCandidates.sort(this.byUidAsc);
     }
 
-    for (let i = 0; i < _strikeCandidates.length; i++) {
+    for (let i = 0; i < strikeCandidates.length; i++) {
       if (h.state === 'dead' || h.hp <= 0) return;
-      const e = this.pool.items[_strikeCandidates[i]];
+      const e = this.pool.items[strikeCandidates[i]];
       if (!this.isHoldable(e)) continue;
       const m = ENEMY_MELEE[e.type];
       if (m.rate <= 0 || m.damage <= 0 || e.stunTimer > 0) continue;
@@ -2303,14 +2423,17 @@ export class HeroSystem {
   }
 
   private reconcileHeroUnblocks(): void {
-    for (let i = 0; i < _prevHeroBlockedIdx.length; i++) {
+    const prevHeroBlockedIdx = this.prevHeroBlockedIdx;
+    const prevHeroBlockedUid = this.prevHeroBlockedUid;
+    const prevTotalBlocked = this.prevTotalBlocked;
+    for (let i = 0; i < prevHeroBlockedIdx.length; i++) {
       if (this.abortedStep) return;
-      const prevTotal = _prevTotalBlocked[i];
-      _prevTotalBlocked[i] = 0;
-      const e = this.pool.items[_prevHeroBlockedIdx[i]];
+      const prevTotal = prevTotalBlocked[i];
+      prevTotalBlocked[i] = 0;
+      const e = this.pool.items[prevHeroBlockedIdx[i]];
       if (
         e.active &&
-        e.uid === _prevHeroBlockedUid[i] &&
+        e.uid === prevHeroBlockedUid[i] &&
         prevTotal > 0 &&
         e.blockers + e.heroBlockers === 0
       ) {

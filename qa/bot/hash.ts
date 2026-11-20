@@ -229,6 +229,12 @@ export function hashWorldState(world: SimWorld): string {
     h.f64(s.sinceHurt);
     h.i32(s.targetPoolIndex);
     h.i32(s.targetUid);
+    h.i32(s.holdCap);
+    h.i32(s.extraHoldPoolIndices.length);
+    for (let k = 0; k < s.extraHoldPoolIndices.length; k++) {
+      h.i32(s.extraHoldPoolIndices[k]);
+      h.i32(s.extraHoldUids[k]);
+    }
     h.f64(s.bonusArmor);
     h.f64(s.damageMul);
   }

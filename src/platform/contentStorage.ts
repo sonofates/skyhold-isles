@@ -1,5 +1,6 @@
 import type { EnemyType, ProgressData, TowerType } from '../core/types.ts';
 import type { LevelDef } from '../data/levels/types.ts';
+import { tryRepairTruncatedJson } from './storage.ts';
 
 /**
  * Persistence for the onboarding / first-sighting / codex features. Own localStorage keys (versioned)
@@ -35,15 +36,53 @@ function safeUnlockedFrontier(val: unknown): number {
   return typeof val === 'number' && Number.isFinite(val) ? Math.max(0, Math.floor(val)) : 0;
 }
 
+function hasDifficultyWinAt(
+  dw: unknown,
+  index?: number,
+): boolean {
+  if (!dw || typeof dw !== 'object' || Array.isArray(dw)) return false;
+  const rec = dw as Partial<
+    Record<'easy' | 'normal' | 'hard' | 'e' | 'n' | 'h', readonly unknown[] | undefined>
+  >;
+  const pos = (v: unknown): boolean => typeof v === 'number' && Number.isFinite(v) && v > 0;
+  if (index !== undefined) {
+    return (
+      pos(rec.easy?.[index]) ||
+      pos(rec.e?.[index]) ||
+      pos(rec.normal?.[index]) ||
+      pos(rec.n?.[index]) ||
+      pos(rec.hard?.[index]) ||
+      pos(rec.h?.[index])
+    );
+  }
+  const anyPos = (arr: unknown): boolean => Array.isArray(arr) && arr.some(pos);
+  return (
+    anyPos(rec.easy) ||
+    anyPos(rec.e) ||
+    anyPos(rec.normal) ||
+    anyPos(rec.n) ||
+    anyPos(rec.hard) ||
+    anyPos(rec.h)
+  );
+}
+
+function rawProgressDw(progress: unknown): unknown {
+  if (!progress || typeof progress !== 'object') return undefined;
+  const p = progress as { readonly difficultyWins?: unknown; readonly dw?: unknown };
+  return p.difficultyWins ?? p.dw;
+}
+
 function isVeteranProgress(
   progress: Pick<ProgressData, 'unlockedLevelIndex' | 'bestStars'> &
-    Partial<Pick<ProgressData, 'clears'>>,
+    Partial<Pick<ProgressData, 'clears' | 'difficultyWins'>>,
 ): boolean {
   return (
     safeUnlockedFrontier(progress.unlockedLevelIndex) > 0 ||
-    progress.bestStars.some((n) => typeof n === 'number' && Number.isFinite(n) && n > 0) ||
+    (Array.isArray(progress.bestStars) &&
+      progress.bestStars.some((n) => typeof n === 'number' && Number.isFinite(n) && n > 0)) ||
     (Array.isArray(progress.clears) &&
-      progress.clears.some((n) => typeof n === 'number' && Number.isFinite(n) && n > 0))
+      progress.clears.some((n) => typeof n === 'number' && Number.isFinite(n) && n > 0)) ||
+    hasDifficultyWinAt(rawProgressDw(progress))
   );
 }
 
@@ -51,18 +90,20 @@ function isVeteranProgress(
 export function inferSeenFromProgress(
   levels: readonly Pick<LevelDef, 'waves'>[],
   progress: Pick<ProgressData, 'unlockedLevelIndex' | 'bestStars'> &
-    Partial<Pick<ProgressData, 'clears'>>,
+    Partial<Pick<ProgressData, 'clears' | 'difficultyWins'>>,
   legacyEnemyIntroSeen: (type: string) => boolean = () => false,
 ): SeenId[] {
   const out = new Set<SeenId>();
   const frontier = safeUnlockedFrontier(progress.unlockedLevelIndex);
+  const dw = rawProgressDw(progress);
   for (let i = 0; i < levels.length; i++) {
     // Cleared islands, and every island before the frontier, were played through.
-    const stars = progress.bestStars[i];
+    const stars = progress.bestStars?.[i];
     const clears = progress.clears?.[i];
     const played =
       (typeof stars === 'number' && Number.isFinite(stars) && stars > 0) ||
       (typeof clears === 'number' && Number.isFinite(clears) && clears > 0) ||
+      hasDifficultyWinAt(dw, i) ||
       i < frontier;
     if (!played) continue;
     for (const wave of levels[i].waves) {
@@ -104,7 +145,12 @@ export class ContentStore {
     try {
       const raw = s.getItem(CODEX_KEY);
       if (raw) {
-        const rawParsed: unknown = JSON.parse(raw);
+        let rawParsed: unknown;
+        try {
+          rawParsed = JSON.parse(raw);
+        } catch {
+          rawParsed = tryRepairTruncatedJson(raw);
+        }
         const parsed =
           rawParsed && typeof rawParsed === 'object' && !Array.isArray(rawParsed)
             ? (rawParsed as Partial<CodexSave>)
@@ -126,7 +172,12 @@ export class ContentStore {
     try {
       const raw = s.getItem(ONBOARDING_KEY);
       if (raw) {
-        const rawParsed: unknown = JSON.parse(raw);
+        let rawParsed: unknown;
+        try {
+          rawParsed = JSON.parse(raw);
+        } catch {
+          rawParsed = tryRepairTruncatedJson(raw);
+        }
         const parsed =
           rawParsed && typeof rawParsed === 'object' && !Array.isArray(rawParsed)
             ? (rawParsed as { v?: number; status?: unknown })
@@ -148,7 +199,7 @@ export class ContentStore {
   migrate(
     levels: readonly Pick<LevelDef, 'waves'>[],
     progress: Pick<ProgressData, 'unlockedLevelIndex' | 'bestStars'> &
-      Partial<Pick<ProgressData, 'clears'>>,
+      Partial<Pick<ProgressData, 'clears' | 'difficultyWins'>>,
     legacyEnemyIntroSeen?: (type: string) => boolean,
   ): void {
     const veteran = isVeteranProgress(progress);
@@ -210,7 +261,7 @@ export class ContentStore {
   adoptProgress(
     levels: readonly Pick<LevelDef, 'waves'>[],
     progress: Pick<ProgressData, 'unlockedLevelIndex' | 'bestStars'> &
-      Partial<Pick<ProgressData, 'clears'>>,
+      Partial<Pick<ProgressData, 'clears' | 'difficultyWins'>>,
   ): void {
     const veteran = isVeteranProgress(progress);
     if (!veteran) return;

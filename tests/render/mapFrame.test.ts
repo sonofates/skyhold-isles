@@ -93,5 +93,5 @@ describe('backdrop placement', () => {
       }
     }
     // Every island × every screen (full fit each): ~3 s alone, past 5 s on a loaded machine.
-  }, 20000);
+  }, 30_000);
 });

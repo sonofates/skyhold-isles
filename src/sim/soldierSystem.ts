@@ -42,6 +42,9 @@ export interface SoldierEntity {
   targetUid: number;
   /** Maximum enemies this soldier can hold in melee at once (1 in all shipped barracks tiers). */
   holdCap: number;
+  /** Extra-held enemy pool indices & uids when `holdCap > 1` (empty when `holdCap === 1`). */
+  readonly extraHoldPoolIndices: number[];
+  readonly extraHoldUids: number[];
   /** Render-facing only: the next blow was announced (`meleeSwing`); never read by the rules. */
   swingArmed: boolean;
   /** Temporary armor bonus granted by hero abilities/auras this tick (Bran Rally / Sela Shell Ward). */
@@ -76,15 +79,6 @@ export interface RoadPoint {
 const _v: Vec3 = { x: 0, y: 0, z: 0 };
 const _baseVec: Vec3 = { x: 0, y: 0, z: 0 };
 const _rallyRoadPt: RoadPoint = { x: 0, z: 0, yaw: 0 };
-const _candidates: number[] = [];
-const _engageList: number[] = [];
-const _blockedList: number[] = [];
-const _prevBlocked: number[] = [];
-const _prevBlockedUid: number[] = [];
-const _spreadOrder: number[] = [];
-const _extraHoldOrder: number[] = [];
-const _stepBarracksIds: number[] = [];
-const _sweepSoldiers: SoldierEntity[] = [];
 
 /** Golden-ratio conjugate: spreads consecutive integer uids evenly across [-1, 1] with zero RNG. */
 const GOLDEN_CONJUGATE = 0.6180339887498949;
@@ -158,6 +152,15 @@ export class SoldierSystem {
   private readonly wantOffX: Float64Array;
   private readonly wantOffZ: Float64Array;
   private readonly isBlockedSlot: Uint8Array;
+  private readonly blockedList: number[] = [];
+  private readonly prevBlocked: number[] = [];
+  private readonly prevBlockedUid: number[] = [];
+  private readonly stepBarracksIds: number[] = [];
+  private readonly sweepSoldiers: SoldierEntity[] = [];
+  private readonly candidates: number[] = [];
+  private readonly engageList: number[] = [];
+  private readonly spreadOrder: number[] = [];
+  private readonly extraHoldOrder: number[] = [];
 
   private readonly pool: ObjectPool<EnemyEntity>;
   private readonly spatialHash: SpatialHashGrid;
@@ -281,7 +284,7 @@ export class SoldierSystem {
     if (!Number.isFinite(x) || !Number.isFinite(z)) return false;
     const b = this.getBarracks(tower.id);
     if (!b) return false;
-    const stats = getTowerTierStats(tower.type, tower.tier);
+    const stats = b.stats;
     const effRange = stats.range * (1 + tower.auraRange + (tower.heroRangeBonus ?? 0));
     if (!this.findRoadPoint(b.x, b.z, effRange, x, z, _rallyRoadPt)) return false;
     const rx = _rallyRoadPt.x;
@@ -302,26 +305,76 @@ export class SoldierSystem {
     return true;
   }
 
+  private static resolveSoldierHoldCap(stats: TowerTierStats): number {
+    const raw = (stats as { soldierHoldCap?: unknown }).soldierHoldCap;
+    return typeof raw === 'number' && Number.isFinite(raw) && raw >= 1 ? Math.floor(raw) : 1;
+  }
+
   /**
-   * Upgrade: every soldier is refreshed to the new tier (full HP; fallen ones step out at once)
-   * and new slots are filled. The rally point stays (re-clamped if the range shrank — it never
-   * does with the shipped tiers).
+   * Upgrade: every soldier is refreshed to the new tier (full HP; fallen ones step out at once),
+   * new slots are filled (or excess slots retired on elite specializations), and the rally point
+   * stays unless the new range shrank below its current distance.
    */
   onUpgrade(tower: TowerEntity): void {
     const b = this.getBarracks(tower.id);
     if (!b) return;
     const stats = getTowerTierStats(tower.type, tower.tier);
     b.stats = stats;
-    const count = stats.soldierCount ?? b.squad.length;
+    const effRange = stats.range * (1 + tower.auraRange + (tower.heroRangeBonus ?? 0));
+    const rallyDistSq = (b.rallyX - b.x) ** 2 + (b.rallyZ - b.z) ** 2;
+    let rallyReclamped = false;
+    if (
+      rallyDistSq > effRange * effRange + 1e-9 &&
+      this.findRoadPoint(b.x, b.z, effRange, b.rallyX, b.rallyZ, _rallyRoadPt)
+    ) {
+      b.rallyX = _rallyRoadPt.x;
+      b.rallyZ = _rallyRoadPt.z;
+      b.rallyYaw = _rallyRoadPt.yaw;
+      rallyReclamped = true;
+    }
+    const count = Math.max(0, stats.soldierCount ?? b.squad.length);
+    while (b.squad.length > count) {
+      const removed = b.squad.pop()!;
+      const si = this.soldiers.indexOf(removed);
+      if (si !== -1) this.soldiers.splice(si, 1);
+      if (removed.state !== 'dead') {
+        this.release(removed, true);
+        removed.state = 'dead';
+        removed.swingArmed = false;
+        this.events.emit('soldierRemoved', {
+          soldierId: removed.id,
+          towerId: b.towerId,
+          x: removed.x,
+          z: removed.z,
+        });
+      }
+      this.dirty = true;
+    }
     this.layoutPosts(b, count);
+    const holdCap = SoldierSystem.resolveSoldierHoldCap(stats);
     for (let i = 0; i < b.squad.length; i++) {
       const s = b.squad[i];
       s.maxHp = stats.soldierHp ?? s.maxHp;
       s.hp = s.maxHp;
-      if (s.state === 'dead') this.respawn(b, s);
-      else if (s.state === 'idle') s.state = 'walking';
+      s.holdCap = holdCap;
+      while (s.extraHoldPoolIndices.length > Math.max(0, holdCap - 1)) {
+        const ep = s.extraHoldPoolIndices.pop()!;
+        const eu = s.extraHoldUids.pop()!;
+        this.decrementEnemyHold(ep, eu, true);
+      }
+      if (s.state === 'dead') {
+        this.respawn(b, s);
+      } else if (rallyReclamped) {
+        this.release(s, true);
+        s.state = 'walking';
+      } else if (s.state === 'idle') {
+        s.state = 'walking';
+      }
     }
     for (let slot = b.squad.length; slot < count; slot++) this.createSoldier(b, slot, stats);
+    if (rallyReclamped) {
+      this.events.emit('rallyMoved', { towerId: b.towerId, x: b.rallyX, z: b.rallyZ });
+    }
   }
 
   /** Sell: the squad leaves the field (held enemies are released immediately). */
@@ -354,8 +407,8 @@ export class SoldierSystem {
     if (!e.active || e.uid !== uid) return false;
     if (e.blockers > 0) return true;
     if (this.inUpdate) {
-      for (let k = 0; k < _prevBlocked.length; k++) {
-        if (_prevBlocked[k] === poolIndex && _prevBlockedUid[k] === uid) return true;
+      for (let k = 0; k < this.prevBlocked.length; k++) {
+        if (this.prevBlocked[k] === poolIndex && this.prevBlockedUid[k] === uid) return true;
       }
     }
     return false;
@@ -381,11 +434,11 @@ export class SoldierSystem {
       }
     }
     if (this.inUpdate) {
-      for (let k = 0; k < _prevBlocked.length; k++) {
-        const uid = _prevBlockedUid[k];
+      for (let k = 0; k < this.prevBlocked.length; k++) {
+        const uid = this.prevBlockedUid[k];
         if (uid < 0) continue;
-        _prevBlockedUid[k] = -1;
-        const e = this.pool.items[_prevBlocked[k]];
+        this.prevBlockedUid[k] = -1;
+        const e = this.pool.items[this.prevBlocked[k]];
         e.blockers = 0;
         if (emitUnblock && e.active && e.uid === uid && !this.heldByHero(e)) {
           this.emitBlock('enemyUnblocked', e);
@@ -396,6 +449,8 @@ export class SoldierSystem {
       const s = this.soldiers[i];
       s.targetPoolIndex = -1;
       s.targetUid = 0;
+      s.extraHoldPoolIndices.length = 0;
+      s.extraHoldUids.length = 0;
       s.swingArmed = false;
       if (s.state === 'engaging' || s.state === 'fighting') s.state = 'walking';
     }
@@ -409,9 +464,9 @@ export class SoldierSystem {
     this.wantOffX.fill(0);
     this.wantOffZ.fill(0);
     this.isBlockedSlot.fill(0);
-    _blockedList.length = 0;
-    _prevBlocked.length = 0;
-    _prevBlockedUid.length = 0;
+    this.blockedList.length = 0;
+    this.prevBlocked.length = 0;
+    this.prevBlockedUid.length = 0;
     this.blockedCount = 0;
     this.dirty = false;
   }
@@ -458,7 +513,9 @@ export class SoldierSystem {
       hitFlashTimer: 0,
       targetPoolIndex: -1,
       targetUid: 0,
-      holdCap: 1,
+      holdCap: SoldierSystem.resolveSoldierHoldCap(stats),
+      extraHoldPoolIndices: [],
+      extraHoldUids: [],
       swingArmed: false,
       bonusArmor: 0,
       damageMul: 1,
@@ -480,6 +537,8 @@ export class SoldierSystem {
     s.hitFlashTimer = 0;
     s.targetPoolIndex = -1;
     s.targetUid = 0;
+    s.extraHoldPoolIndices.length = 0;
+    s.extraHoldUids.length = 0;
     s.swingArmed = false;
     s.bonusArmor = 0;
     s.damageMul = 1;
@@ -487,19 +546,33 @@ export class SoldierSystem {
   }
 
   /**
-   * Marks `e` as already unblocked in `_prevBlocked` when inside `update()`.
+   * Marks `e` as already unblocked in `prevBlocked` when inside `update()`.
    * Returns whether `'enemyBlocked'` had already been emitted for `e` (always true outside `update()`).
    */
   private consumeBlockedTracking(e: EnemyEntity): boolean {
     if (!this.inUpdate) return true;
     let found = false;
-    for (let k = 0; k < _prevBlocked.length; k++) {
-      if (_prevBlocked[k] === e.poolIndex && _prevBlockedUid[k] === e.uid) {
-        _prevBlockedUid[k] = -1;
+    for (let k = 0; k < this.prevBlocked.length; k++) {
+      if (this.prevBlocked[k] === e.poolIndex && this.prevBlockedUid[k] === e.uid) {
+        this.prevBlockedUid[k] = -1;
         found = true;
       }
     }
     return found;
+  }
+
+  private decrementEnemyHold(poolIndex: number, uid: number, emitNow: boolean): void {
+    if (poolIndex < 0 || poolIndex >= this.pool.items.length) return;
+    const e = this.pool.items[poolIndex];
+    if (e.active && e.uid === uid && e.blockers > 0) {
+      e.blockers--;
+      if (emitNow && e.blockers === 0) {
+        this.blockedCount = Math.max(0, this.blockedCount - 1);
+        if (!this.heldByHero(e) && this.consumeBlockedTracking(e)) {
+          this.emitBlock('enemyUnblocked', e);
+        }
+      }
+    }
   }
 
   /**
@@ -507,20 +580,18 @@ export class SoldierSystem {
    * otherwise the next update's recount takes care of it.
    */
   private release(s: SoldierEntity, now: boolean): void {
-    if (now && s.state === 'fighting' && s.targetPoolIndex >= 0) {
-      const e = this.pool.items[s.targetPoolIndex];
-      if (e.active && e.uid === s.targetUid && e.blockers > 0) {
-        e.blockers--;
-        if (e.blockers === 0) {
-          this.blockedCount = Math.max(0, this.blockedCount - 1);
-          if (!this.heldByHero(e) && this.consumeBlockedTracking(e)) {
-            this.emitBlock('enemyUnblocked', e);
-          }
-        }
+    if (now && s.state === 'fighting') {
+      if (s.targetPoolIndex >= 0) {
+        this.decrementEnemyHold(s.targetPoolIndex, s.targetUid, true);
+      }
+      for (let k = 0; k < s.extraHoldPoolIndices.length; k++) {
+        this.decrementEnemyHold(s.extraHoldPoolIndices[k], s.extraHoldUids[k], true);
       }
     }
     s.targetPoolIndex = -1;
     s.targetUid = 0;
+    s.extraHoldPoolIndices.length = 0;
+    s.extraHoldUids.length = 0;
   }
 
   private emitBlock(kind: 'enemyBlocked' | 'enemyUnblocked', e: EnemyEntity): void {
@@ -533,6 +604,16 @@ export class SoldierSystem {
     const m = ENEMY_MELEE[e.type];
     if (m.block !== 'block') return false;
     return m.trampleFromPhase === undefined || e.bossPhase < m.trampleFromPhase;
+  }
+
+  /** True when fighting soldier `s` is currently holding `e` (as primary target or extra hold). */
+  private isSoldierHolding(s: SoldierEntity, e: EnemyEntity): boolean {
+    if (s.state !== 'fighting') return false;
+    if (s.targetPoolIndex === e.poolIndex && s.targetUid === e.uid) return true;
+    for (let k = 0; k < s.extraHoldPoolIndices.length; k++) {
+      if (s.extraHoldPoolIndices[k] === e.poolIndex && s.extraHoldUids[k] === e.uid) return true;
+    }
+    return false;
   }
 
   private target(s: SoldierEntity): EnemyEntity | null {
@@ -564,25 +645,28 @@ export class SoldierSystem {
     const R = SOLDIER_RULES;
 
     // Snapshot last tick's holds, then rebuild them from scratch (lease).
-    _prevBlocked.length = 0;
-    _prevBlockedUid.length = 0;
+    const prevBlocked = this.prevBlocked;
+    const prevBlockedUid = this.prevBlockedUid;
+    const stepBarracksIds = this.stepBarracksIds;
+    prevBlocked.length = 0;
+    prevBlockedUid.length = 0;
     for (let i = 0; i < pool.getActiveCount(); i++) {
       const e = pool.items[pool.getActiveIndex(i)];
       if (e.blockers > 0) {
-        _prevBlocked.push(e.poolIndex);
-        _prevBlockedUid.push(e.uid);
+        prevBlocked.push(e.poolIndex);
+        prevBlockedUid.push(e.uid);
         this.wasBlocked[e.poolIndex] = 1;
       }
       e.blockers = 0;
     }
 
     // 1. Timers, respawns, regeneration, engagement validation (snapshot barracks IDs for sellTower safety).
-    _stepBarracksIds.length = 0;
+    stepBarracksIds.length = 0;
     for (let bi = 0; bi < this.barracks.length; bi++) {
-      _stepBarracksIds.push(this.barracks[bi].towerId);
+      stepBarracksIds.push(this.barracks[bi].towerId);
     }
-    for (let bi = 0; bi < _stepBarracksIds.length; bi++) {
-      const b = this.getBarracks(_stepBarracksIds[bi]);
+    for (let bi = 0; bi < stepBarracksIds.length; bi++) {
+      const b = this.getBarracks(stepBarracksIds[bi]);
       if (!b) continue;
       const tower = this.findTower(towers, b.towerId);
       const jammed = tower !== null && tower.stunTimer > 0;
@@ -619,6 +703,30 @@ export class SoldierSystem {
           if (!ok) {
             this.release(s, false);
             s.state = 'walking';
+          } else if (s.state === 'fighting' && s.extraHoldPoolIndices.length > 0) {
+            let write = 0;
+            for (let k = 0; k < s.extraHoldPoolIndices.length; k++) {
+              const ep = s.extraHoldPoolIndices[k];
+              const eu = s.extraHoldUids[k];
+              const extra = pool.items[ep];
+              const extraOk =
+                extra !== undefined &&
+                extra.active &&
+                extra.uid === eu &&
+                this.isHoldable(extra) &&
+                Math.hypot(extra.x - b.rallyX, extra.z - b.rallyZ) <= R.leashRadius &&
+                (extra === e ||
+                  (extra.lane === e.lane &&
+                    extra.dist <= e.dist + 0.35 &&
+                    e.dist - extra.dist <= BLOCK_CLUSTER_GAP + 0.35));
+              if (extraOk) {
+                s.extraHoldPoolIndices[write] = ep;
+                s.extraHoldUids[write] = eu;
+                write++;
+              }
+            }
+            s.extraHoldPoolIndices.length = write;
+            s.extraHoldUids.length = write;
           }
         } else if (s.state === 'idle' && s.sinceHurt >= R.regenDelay && s.hp < s.maxHp) {
           s.hp = Math.min(s.maxHp, s.hp + s.maxHp * R.regenFrac * dt);
@@ -629,32 +737,43 @@ export class SoldierSystem {
       }
     }
 
-    // 2. Claims already held this tick.
+    // 2. Claims already held this tick (including active extra holds on elite multi-hold squads).
     for (let i = 0; i < this.soldiers.length; i++) {
       const s = this.soldiers[i];
       if ((s.state === 'engaging' || s.state === 'fighting') && s.targetPoolIndex >= 0) {
         this.claims[s.targetPoolIndex]++;
       }
+      if (s.state === 'fighting') {
+        for (let k = 0; k < s.extraHoldPoolIndices.length; k++) {
+          const ep = s.extraHoldPoolIndices[k];
+          const extra = pool.items[ep];
+          if (extra && extra.active && extra.uid === s.extraHoldUids[k] && this.isHoldable(extra)) {
+            this.claims[ep]++;
+          }
+        }
+      }
     }
 
     // 3. Free soldiers claim enemies near their rally point; spare ones peel off to new arrivals.
+    const candidates = this.candidates;
+    const engageList = this.engageList;
     for (let bi = 0; bi < this.barracks.length; bi++) {
       const b = this.barracks[bi];
       let anyAlive = false;
       for (let i = 0; i < b.squad.length && !anyAlive; i++) anyAlive = b.squad[i].state !== 'dead';
       if (!anyAlive) continue;
-      this.spatialHash.query(b.rallyX, b.rallyZ, R.engageRadius, _candidates);
-      _engageList.length = 0;
+      this.spatialHash.query(b.rallyX, b.rallyZ, R.engageRadius, candidates);
+      engageList.length = 0;
       const rSq = R.engageRadius * R.engageRadius;
-      for (let k = 0; k < _candidates.length; k++) {
-        const e = pool.items[_candidates[k]];
+      for (let k = 0; k < candidates.length; k++) {
+        const e = pool.items[candidates[k]];
         if (!this.isHoldable(e)) continue;
         const dx = e.x - b.rallyX;
         const dz = e.z - b.rallyZ;
         if (dx * dx + dz * dz > rSq) continue;
-        _engageList.push(e.poolIndex);
+        engageList.push(e.poolIndex);
       }
-      if (_engageList.length === 0) continue;
+      if (engageList.length === 0) continue;
       for (let i = 0; i < b.squad.length; i++) {
         const s = b.squad[i];
         if (!this.isFree(b, s)) continue;
@@ -673,19 +792,30 @@ export class SoldierSystem {
           const cur = this.target(s);
           if (!cur) continue;
           const hold = ENEMY_MELEE[cur.type].holdCost;
-          if (this.claims[cur.poolIndex] <= hold) continue;
-          if (want === 'fighting' && this.inContact(cur) <= hold) continue;
+          const spareOnCur = this.spareExtraSlotsOnTarget(s, cur);
+          if (want === 'engaging') {
+            if (this.claims[cur.poolIndex] - 1 + spareOnCur < hold) continue;
+          } else {
+            const ownOnCur = this.holdUnitsOn(s, cur);
+            const contactWithout = this.inContact(cur) - ownOnCur;
+            if (this.claims[cur.poolIndex] - ownOnCur + spareOnCur < hold) continue;
+            if (contactWithout + spareOnCur < hold) continue;
+            const needy = this.pickTarget(true);
+            if (!needy) break;
+            const remainingSpare = Math.max(0, spareOnCur - Math.max(0, hold - contactWithout));
+            if (!this.canPeelOffExtraHolds(s, cur, needy, remainingSpare)) continue;
+            if (this.claims[cur.poolIndex] > 0) this.claims[cur.poolIndex]--;
+            this.claim(s, needy);
+            continue;
+          }
           const needy = this.pickTarget(true);
           if (!needy) break;
-          this.claims[cur.poolIndex]--;
+          if (this.claims[cur.poolIndex] > 0) this.claims[cur.poolIndex]--;
           this.claim(s, needy);
         }
       }
     }
-    for (let i = 0; i < this.soldiers.length; i++) {
-      const pi = this.soldiers[i].targetPoolIndex;
-      if (pi >= 0) this.claims[pi] = 0;
-    }
+    this.claims.fill(0);
 
     // 4. Movement and contact.
     for (let bi = 0; bi < this.barracks.length; bi++) {
@@ -717,6 +847,8 @@ export class SoldierSystem {
             if (s.attackTimer < 0.2) s.attackTimer = 0.2;
           } else if (s.state === 'fighting' && now > contact + R.contactSlack) {
             s.state = 'engaging';
+            s.extraHoldPoolIndices.length = 0;
+            s.extraHoldUids.length = 0;
           }
         } else {
           const px = b.postX[s.slot] ?? b.rallyX;
@@ -729,12 +861,12 @@ export class SoldierSystem {
 
     // 5. Soldier swings (snapshot barracks IDs so mid-swing sellTower never shifts iteration).
     const rate = Math.max(0.01, fireRateMultiplier);
-    _stepBarracksIds.length = 0;
+    stepBarracksIds.length = 0;
     for (let bi = 0; bi < this.barracks.length; bi++) {
-      _stepBarracksIds.push(this.barracks[bi].towerId);
+      stepBarracksIds.push(this.barracks[bi].towerId);
     }
-    for (let bi = 0; bi < _stepBarracksIds.length; bi++) {
-      const b = this.getBarracks(_stepBarracksIds[bi]);
+    for (let bi = 0; bi < stepBarracksIds.length; bi++) {
+      const b = this.getBarracks(stepBarracksIds[bi]);
       if (!b) continue;
       const tower = this.findTower(towers, b.towerId);
       if (!tower) continue;
@@ -792,33 +924,45 @@ export class SoldierSystem {
       }
     }
 
-    // 6. Holds: soldiers in contact with a living enemy.
-    _blockedList.length = 0;
+    // 6. Holds: soldiers in contact with a living enemy (primary holds first, then multi-hold extras).
+    const blockedList = this.blockedList;
+    const sweepSoldiers = this.sweepSoldiers;
+    blockedList.length = 0;
+    let anyMultiHold = false;
     for (let i = 0; i < this.soldiers.length; i++) {
       const s = this.soldiers[i];
+      s.extraHoldPoolIndices.length = 0;
+      s.extraHoldUids.length = 0;
       if (s.state !== 'fighting') continue;
       const e = this.target(s);
       if (!e || e.hp <= 0) continue;
       if (e.blockers === 0) {
-        _blockedList.push(e.poolIndex);
+        blockedList.push(e.poolIndex);
         this.primary[e.poolIndex] = s.id;
       }
       e.blockers++;
-      if (s.holdCap > 1) {
+      if (s.holdCap > 1) anyMultiHold = true;
+    }
+    if (anyMultiHold) {
+      for (let i = 0; i < this.soldiers.length; i++) {
+        const s = this.soldiers[i];
+        if (s.state !== 'fighting' || s.holdCap <= 1) continue;
+        const e = this.target(s);
+        if (!e || e.hp <= 0) continue;
         this.applyExtraHolds(s, s.id, e);
       }
     }
 
     // 7. Held enemies strike back.
-    for (let k = 0; k < _blockedList.length; k++) {
-      const e = pool.items[_blockedList[k]];
+    for (let k = 0; k < blockedList.length; k++) {
+      const e = pool.items[blockedList[k]];
       if (!e.active || e.hp <= 0 || e.blockers <= 0) continue;
       const m = ENEMY_MELEE[e.type];
       if (!this.wasBlocked[e.poolIndex]) {
-        // Track in _prevBlocked (even when co-held alongside a hero) so mid-tick hero move +
+        // Track in prevBlocked (even when co-held alongside a hero) so mid-tick hero move +
         // barracks sell/rally or counter-attack soldier death always reconciles enemyUnblocked 1-to-1.
-        _prevBlocked.push(e.poolIndex);
-        _prevBlockedUid.push(e.uid);
+        prevBlocked.push(e.poolIndex);
+        prevBlockedUid.push(e.uid);
         if (e.heroBlockers === 0) {
           this.emitBlock('enemyBlocked', e);
           if (this.abortedStep) return;
@@ -836,23 +980,32 @@ export class SoldierSystem {
         if (e.meleeTimer <= 0) e.meleeTimer = 1 / m.rate;
         this.enemyArmed[e.poolIndex] = 0;
         const scale = Math.sqrt(Math.max(0.01, e.maxHp / ENEMY_DEFS[e.type].maxHp));
-        const first = this.getSoldierById(this.primary[e.poolIndex]);
+        let first = this.getSoldierById(this.primary[e.poolIndex]);
+        if (!first || !this.isSoldierHolding(first, e)) {
+          first = null;
+          for (let i = 0; i < this.soldiers.length; i++) {
+            if (this.isSoldierHolding(this.soldiers[i], e)) {
+              first = this.soldiers[i];
+              break;
+            }
+          }
+        }
         const fx = first ? first.x : e.x;
         const fz = first ? first.z : e.z;
         let struck = 0;
         let dealt = 0;
         let killed = false;
         if (m.sweep) {
-          _sweepSoldiers.length = 0;
+          sweepSoldiers.length = 0;
           for (let i = 0; i < this.soldiers.length; i++) {
             const s = this.soldiers[i];
-            if (s.state === 'fighting' && s.targetPoolIndex === e.poolIndex && s.targetUid === e.uid) {
-              _sweepSoldiers.push(s);
+            if (this.isSoldierHolding(s, e)) {
+              sweepSoldiers.push(s);
             }
           }
-          for (let i = 0; i < _sweepSoldiers.length; i++) {
-            const s = _sweepSoldiers[i];
-            if (s.state === 'fighting' && s.targetPoolIndex === e.poolIndex && s.targetUid === e.uid) {
+          for (let i = 0; i < sweepSoldiers.length; i++) {
+            const s = sweepSoldiers[i];
+            if (this.isSoldierHolding(s, e)) {
               const r = this.hurt(s, e, m.damage * scale);
               if (this.abortedStep) return;
               if (struck === 0) dealt = r;
@@ -860,13 +1013,8 @@ export class SoldierSystem {
               killed = killed || s.hp <= 0;
             }
           }
-          _sweepSoldiers.length = 0;
-        } else if (
-          first &&
-          first.state === 'fighting' &&
-          first.targetPoolIndex === e.poolIndex &&
-          first.targetUid === e.uid
-        ) {
+          sweepSoldiers.length = 0;
+        } else if (first) {
           dealt = this.hurt(first, e, m.damage * scale);
           if (this.abortedStep) return;
           struck = 1;
@@ -892,21 +1040,12 @@ export class SoldierSystem {
       }
       // Announce the next blow while something still holds it (render timing only).
       let next = this.getSoldierById(this.primary[e.poolIndex]);
-      if (
-        !next ||
-        next.state !== 'fighting' ||
-        next.targetPoolIndex !== e.poolIndex ||
-        next.targetUid !== e.uid
-      ) {
+      if (!next || !this.isSoldierHolding(next, e)) {
         next = null;
         if (e.blockers > 0) {
           for (let i = 0; i < this.soldiers.length; i++) {
             const cand = this.soldiers[i];
-            if (
-              cand.state === 'fighting' &&
-              cand.targetPoolIndex === e.poolIndex &&
-              cand.targetUid === e.uid
-            ) {
+            if (this.isSoldierHolding(cand, e)) {
               next = cand;
               break;
             }
@@ -925,18 +1064,18 @@ export class SoldierSystem {
         if (this.abortedStep) return;
       }
     }
-    for (let k = 0; k < _blockedList.length; k++) this.primary[_blockedList[k]] = -1;
+    for (let k = 0; k < blockedList.length; k++) this.primary[blockedList[k]] = -1;
 
     // 8. Holds that ended this tick.
     let held = 0;
-    for (let k = 0; k < _blockedList.length; k++) {
-      if (pool.items[_blockedList[k]].blockers > 0) held++;
+    for (let k = 0; k < blockedList.length; k++) {
+      if (pool.items[blockedList[k]].blockers > 0) held++;
     }
     this.blockedCount = held;
-    for (let k = 0; k < _prevBlocked.length; k++) {
-      const slot = _prevBlocked[k];
-      const prevUid = _prevBlockedUid[k];
-      _prevBlockedUid[k] = -1;
+    for (let k = 0; k < prevBlocked.length; k++) {
+      const slot = prevBlocked[k];
+      const prevUid = prevBlockedUid[k];
+      prevBlockedUid[k] = -1;
       this.wasBlocked[slot] = 0;
       const e = pool.items[slot];
       if (e.active && e.uid === prevUid && e.blockers === 0 && e.heroBlockers === 0) {
@@ -952,33 +1091,56 @@ export class SoldierSystem {
 
   /**
    * Optional multi-hold capacity on a single soldier (`holdCap > 1`; shipped barracks use 1):
-   * holds additional ground enemies queued right behind the primary blocked target on the same lane.
+   * first satisfies any remaining `holdCost` on `primary` (`golem`, `kilnback`, `boss`, `tempest`),
+   * then holds additional ground enemies queued right behind `primary` on the same lane.
    */
   private applyExtraHolds(s: SoldierEntity, soldierId: number, primary: EnemyEntity): void {
     const maxExtra = s.holdCap - 1;
     if (maxExtra <= 0) return;
-    const reach = Math.max(SOLDIER_RULES.engageRadius, (s.holdCap + 1) * BLOCK_QUEUE_SPACING + 0.4);
-    this.spatialHash.query(primary.x, primary.z, reach, _candidates);
-    _extraHoldOrder.length = 0;
-    for (let k = 0; k < _candidates.length; k++) {
-      const cand = this.pool.items[_candidates[k]];
-      if (cand === primary || cand.lane !== primary.lane || !this.isHoldable(cand)) continue;
-      if (cand.blockers >= ENEMY_MELEE[cand.type].holdCost) continue;
-      if (cand.dist > primary.dist + 0.35) continue;
-      _extraHoldOrder.push(cand.poolIndex);
-    }
-    _extraHoldOrder.sort(this.byExtraHoldOrder);
     let added = 0;
-    for (let k = 0; k < _extraHoldOrder.length && added < maxExtra; k++) {
-      const cand = this.pool.items[_extraHoldOrder[k]];
-      const queueStopDist = primary.dist - (added + 1) * BLOCK_QUEUE_SPACING;
+    const primaryHoldCost = ENEMY_MELEE[primary.type].holdCost;
+    while (added < maxExtra && primary.blockers < primaryHoldCost) {
+      primary.blockers++;
+      s.extraHoldPoolIndices.push(primary.poolIndex);
+      s.extraHoldUids.push(primary.uid);
+      added++;
+    }
+    if (added >= maxExtra) return;
+
+    const candidates = this.candidates;
+    const extraHoldOrder = this.extraHoldOrder;
+    const reach = Math.max(SOLDIER_RULES.engageRadius, (s.holdCap + 1) * BLOCK_QUEUE_SPACING + 0.4);
+    this.spatialHash.query(primary.x, primary.z, reach, candidates);
+    extraHoldOrder.length = 0;
+    for (let k = 0; k < candidates.length; k++) {
+      const cand = this.pool.items[candidates[k]];
+      if (cand === primary || cand.lane !== primary.lane || !this.isHoldable(cand)) continue;
+      if (cand.dist > primary.dist + 0.35 || primary.dist - cand.dist > BLOCK_CLUSTER_GAP + 0.35) continue;
+      extraHoldOrder.push(cand.poolIndex);
+    }
+    if (extraHoldOrder.length === 0) return;
+    extraHoldOrder.sort(this.byExtraHoldOrder);
+    let rank = 1;
+    for (let k = 0; k < extraHoldOrder.length && added < maxExtra; k++) {
+      const cand = this.pool.items[extraHoldOrder[k]];
+      const candHoldCost = ENEMY_MELEE[cand.type].holdCost;
+      if (cand.blockers >= candHoldCost) {
+        rank++;
+        continue;
+      }
+      const queueStopDist = primary.dist - rank * BLOCK_QUEUE_SPACING;
       if (cand.dist < queueStopDist - 0.12) continue;
       if (cand.blockers === 0) {
-        _blockedList.push(cand.poolIndex);
+        this.blockedList.push(cand.poolIndex);
         this.primary[cand.poolIndex] = soldierId;
       }
-      cand.blockers++;
-      added++;
+      while (added < maxExtra && cand.blockers < candHoldCost) {
+        cand.blockers++;
+        s.extraHoldPoolIndices.push(cand.poolIndex);
+        s.extraHoldUids.push(cand.uid);
+        added++;
+      }
+      rank++;
     }
   }
 
@@ -989,25 +1151,26 @@ export class SoldierSystem {
    */
   private applyBlockedSpread(dt: number): boolean {
     const pool = this.pool;
-    _spreadOrder.length = 0;
-    for (let k = 0; k < _blockedList.length; k++) {
-      const idx = _blockedList[k];
+    const spreadOrder = this.spreadOrder;
+    spreadOrder.length = 0;
+    for (let k = 0; k < this.blockedList.length; k++) {
+      const idx = this.blockedList[k];
       const e = pool.items[idx];
       if (e.active && e.hp > 0 && e.blockers > 0 && !e.flying && !e.burrowed) {
-        _spreadOrder.push(idx);
+        spreadOrder.push(idx);
       }
     }
 
-    if (_spreadOrder.length > 1) {
-      _spreadOrder.sort(this.bySpreadOrder);
+    if (spreadOrder.length > 1) {
+      spreadOrder.sort(this.bySpreadOrder);
     }
 
     let clusterLane = -1;
     let frontDist = 0;
     let prevDist = 0;
     let rank = 0;
-    for (let k = 0; k < _spreadOrder.length; k++) {
-      const idx = _spreadOrder[k];
+    for (let k = 0; k < spreadOrder.length; k++) {
+      const idx = spreadOrder[k];
       const e = pool.items[idx];
       if (k === 0 || e.lane !== clusterLane || prevDist - e.dist > BLOCK_CLUSTER_GAP) {
         clusterLane = e.lane;
@@ -1088,10 +1251,11 @@ export class SoldierSystem {
    * holdCost), else (unless `needyOnly`) one with room for another soldier.
    */
   private pickTarget(needyOnly: boolean): EnemyEntity | null {
+    const engageList = this.engageList;
     let best: EnemyEntity | null = null;
     let bestNeeds = false;
-    for (let k = 0; k < _engageList.length; k++) {
-      const e = this.pool.items[_engageList[k]];
+    for (let k = 0; k < engageList.length; k++) {
+      const e = this.pool.items[engageList[k]];
       const c = this.claims[e.poolIndex];
       const needs = c < ENEMY_MELEE[e.type].holdCost;
       if (!needs && (needyOnly || c >= SOLDIER_RULES.maxPerEnemy)) continue;
@@ -1103,19 +1267,107 @@ export class SoldierSystem {
     return best;
   }
 
+  private activeExtraHoldCount(s: SoldierEntity): number {
+    let active = 0;
+    for (let k = 0; k < s.extraHoldPoolIndices.length; k++) {
+      const ep = s.extraHoldPoolIndices[k];
+      const extra = this.pool.items[ep];
+      if (extra && extra.active && extra.uid === s.extraHoldUids[k] && this.isHoldable(extra)) {
+        active++;
+      }
+    }
+    return active;
+  }
+
+  private holdUnitsOn(s: SoldierEntity, e: EnemyEntity): number {
+    if (s.state !== 'fighting') return 0;
+    let units = s.targetPoolIndex === e.poolIndex && s.targetUid === e.uid ? 1 : 0;
+    for (let k = 0; k < s.extraHoldPoolIndices.length; k++) {
+      if (s.extraHoldPoolIndices[k] === e.poolIndex && s.extraHoldUids[k] === e.uid) {
+        units++;
+      }
+    }
+    return units;
+  }
+
+  private spareExtraSlotsOnTarget(exclude: SoldierEntity, cur: EnemyEntity): number {
+    let spare = 0;
+    for (let i = 0; i < this.soldiers.length; i++) {
+      const other = this.soldiers[i];
+      if (other === exclude || other.state !== 'fighting' || other.holdCap <= 1) continue;
+      if (this.target(other) !== cur) continue;
+      const used = this.activeExtraHoldCount(other);
+      if (other.holdCap - 1 > used) {
+        spare += other.holdCap - 1 - used;
+      }
+    }
+    return spare;
+  }
+
+  /**
+   * For elite multi-hold soldiers (`holdCap > 1`), peeling off from `cur` to `needy` is only safe
+   * when every non-`cur` extra-held enemy on `s` is either already co-held, absorbable by remaining
+   * spare `holdCap` on squadmates still fighting `cur`, or strictly behind `needy` on the road.
+   */
+  private canPeelOffExtraHolds(
+    s: SoldierEntity,
+    cur: EnemyEntity,
+    needy: EnemyEntity,
+    spareExtraSlots: number,
+  ): boolean {
+    if (s.extraHoldPoolIndices.length === 0) return true;
+    let spare = spareExtraSlots;
+    for (let k = 0; k < s.extraHoldPoolIndices.length; k++) {
+      const ep = s.extraHoldPoolIndices[k];
+      const eu = s.extraHoldUids[k];
+      if (ep === cur.poolIndex && eu === cur.uid) continue;
+      let duplicate = false;
+      for (let j = 0; j < k; j++) {
+        if (s.extraHoldPoolIndices[j] === ep && s.extraHoldUids[j] === eu) {
+          duplicate = true;
+          break;
+        }
+      }
+      if (duplicate) continue;
+      const extra = this.pool.items[ep];
+      if (!extra || !extra.active || extra.uid !== eu || !this.isHoldable(extra)) {
+        continue;
+      }
+      const contactWithout = this.inContact(extra) - this.holdUnitsOn(s, extra);
+      const needed = Math.max(0, ENEMY_MELEE[extra.type].holdCost - contactWithout);
+      if (needed === 0) continue;
+      if (spare >= needed) {
+        spare -= needed;
+        continue;
+      }
+      if (!this.better(needy, true, extra, true)) return false;
+    }
+    return true;
+  }
+
   private claim(s: SoldierEntity, e: EnemyEntity): void {
+    if (s.state === 'fighting' && s.extraHoldPoolIndices.length > 0) {
+      for (let k = 0; k < s.extraHoldPoolIndices.length; k++) {
+        const ep = s.extraHoldPoolIndices[k];
+        const extra = this.pool.items[ep];
+        if (extra && extra.active && extra.uid === s.extraHoldUids[k] && this.isHoldable(extra)) {
+          if (this.claims[ep] > 0) this.claims[ep]--;
+        }
+      }
+    }
+    s.extraHoldPoolIndices.length = 0;
+    s.extraHoldUids.length = 0;
     s.targetPoolIndex = e.poolIndex;
     s.targetUid = e.uid;
     s.state = 'engaging';
     this.claims[e.poolIndex]++;
   }
 
-  /** Soldiers (any barracks) in melee contact with this enemy right now. */
+  /** Total hold units currently applied to `e` by fighting soldiers across all barracks. */
   private inContact(e: EnemyEntity): number {
     let n = 0;
     for (let i = 0; i < this.soldiers.length; i++) {
-      const s = this.soldiers[i];
-      if (s.state === 'fighting' && s.targetPoolIndex === e.poolIndex && s.targetUid === e.uid) n++;
+      n += this.holdUnitsOn(this.soldiers[i], e);
     }
     return n;
   }
@@ -1187,11 +1439,12 @@ export class SoldierSystem {
   /** T3 Cleave: nearest other living ground enemy beside the struck one. */
   private cleaveTarget(primary: EnemyEntity): EnemyEntity | null {
     const r = SOLDIER_RULES.cleaveRadius;
-    this.spatialHash.query(primary.x, primary.z, r, _candidates);
+    const candidates = this.candidates;
+    this.spatialHash.query(primary.x, primary.z, r, candidates);
     let best: EnemyEntity | null = null;
     let bestSq = r * r;
-    for (let k = 0; k < _candidates.length; k++) {
-      const e = this.pool.items[_candidates[k]];
+    for (let k = 0; k < candidates.length; k++) {
+      const e = this.pool.items[candidates[k]];
       if (e === primary || !e.active || e.hp <= 0 || e.flying || e.burrowed) continue;
       const dx = e.x - primary.x;
       const dz = e.z - primary.z;
@@ -1215,7 +1468,14 @@ export class SoldierSystem {
     const killedSoldier = s.hp <= 0;
     if (killedSoldier) {
       s.hp = 0;
-      if (e.blockers > 0) e.blockers--;
+      if (s.targetPoolIndex >= 0) {
+        this.decrementEnemyHold(s.targetPoolIndex, s.targetUid, false);
+      }
+      for (let k = 0; k < s.extraHoldPoolIndices.length; k++) {
+        this.decrementEnemyHold(s.extraHoldPoolIndices[k], s.extraHoldUids[k], false);
+      }
+      s.extraHoldPoolIndices.length = 0;
+      s.extraHoldUids.length = 0;
       s.state = 'dead';
       s.swingArmed = false;
       s.targetPoolIndex = -1;

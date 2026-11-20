@@ -13,7 +13,8 @@ const overlayListeners = new Set();
 
 ipcRenderer.on('steam:overlay-changed', (_event, active) => {
   overlayActive = Boolean(active);
-  for (const listener of overlayListeners) {
+  for (const listener of [...overlayListeners]) {
+    if (!overlayListeners.has(listener)) continue;
     try {
       listener(overlayActive);
     } catch {
@@ -26,13 +27,16 @@ contextBridge.exposeInMainWorld('skyholdSteam', {
   isSteam: Boolean(initialStatus.isSteam),
   appId: Number(initialStatus.appId) || 480,
   unlockAchievement(id) {
-    return ipcRenderer.invoke('steam:unlock-achievement', String(id ?? ''));
+    if (typeof id !== 'string') return Promise.resolve(false);
+    return ipcRenderer.invoke('steam:unlock-achievement', id);
   },
   cloudRead(slot) {
-    return ipcRenderer.invoke('steam:cloud-read', String(slot ?? ''));
+    if (typeof slot !== 'string') return Promise.resolve(null);
+    return ipcRenderer.invoke('steam:cloud-read', slot);
   },
   cloudWrite(slot, json) {
-    return ipcRenderer.invoke('steam:cloud-write', String(slot ?? ''), String(json ?? ''));
+    if (typeof slot !== 'string' || typeof json !== 'string') return Promise.resolve(false);
+    return ipcRenderer.invoke('steam:cloud-write', slot, json);
   },
   getOverlayActive() {
     return overlayActive;

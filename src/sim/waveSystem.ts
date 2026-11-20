@@ -10,7 +10,7 @@ import {
   poolWeight,
   type EndlessMutatorEffects,
 } from '../data/endlessMutators.ts';
-import { ENEMY_DEFS } from '../data/enemies.ts';
+import { CHAPTER_ENEMY_TYPES, ENEMY_DEFS } from '../data/enemies.ts';
 import { groundLaneCount, type LevelDef, type WaveDef, type WaveGroupDef } from '../data/levels/index.ts';
 
 export type WaveState =
@@ -68,6 +68,39 @@ export const ENDLESS_SPOTLIGHTS: readonly (readonly EnemyType[])[] = [
   ['golem', 'hexer'],
 ];
 
+/** Chapter-two endless spotlight rotation (cycles all four chapter-two foes alongside chapter-one specialists). */
+export const ENDLESS_CHAPTER2_SPOTLIGHTS: readonly (readonly EnemyType[])[] = [
+  ['kilnback', 'reedpiper'],
+  ['bellrunner', 'draftwing'],
+  ['warden', 'kilnback'],
+  ['reedpiper', 'golem'],
+  ['draftwing', 'carrier'],
+  ['kilnback', 'bellrunner'],
+  ['hexer', 'reedpiper'],
+  ['blinker', 'draftwing'],
+];
+
+const CHAPTER_ENEMY_SET: ReadonlySet<string> = new Set<string>(CHAPTER_ENEMY_TYPES);
+const _chapterTwoLevelCache = new WeakMap<LevelDef, boolean>();
+
+/** True when `level`'s story waves introduce any chapter-two foe (`bellrunner | kilnback | reedpiper | draftwing`). */
+export function hasChapterTwoEnemies(level: LevelDef): boolean {
+  const cached = _chapterTwoLevelCache.get(level);
+  if (cached !== undefined) return cached;
+  let found = false;
+  for (let w = 0; w < level.waves.length && !found; w++) {
+    const groups = level.waves[w].groups;
+    for (let g = 0; g < groups.length; g++) {
+      if (CHAPTER_ENEMY_SET.has(groups[g].enemyType)) {
+        found = true;
+        break;
+      }
+    }
+  }
+  _chapterTwoLevelCache.set(level, found);
+  return found;
+}
+
 const ENDLESS_SPOTLIGHT_TUNING: Partial<
   Record<EnemyType, { base: number; perWave: number; max: number; interval: number }>
 > = {
@@ -78,6 +111,10 @@ const ENDLESS_SPOTLIGHT_TUNING: Partial<
   carrier: { base: 2, perWave: 0.4, max: 10, interval: 1.2 },
   blinker: { base: 4, perWave: 0.7, max: 18, interval: 0.6 },
   hexer: { base: 2, perWave: 0.35, max: 9, interval: 1.4 },
+  bellrunner: { base: 4, perWave: 0.75, max: 18, interval: 0.52 },
+  kilnback: { base: 2, perWave: 0.45, max: 12, interval: 1.05 },
+  reedpiper: { base: 2, perWave: 0.35, max: 8, interval: 1.35 },
+  draftwing: { base: 5, perWave: 0.85, max: 20, interval: 0.46 },
 };
 
 /**
@@ -129,7 +166,8 @@ export function buildEndlessWaveDef(waveIndex: number, level: LevelDef): WaveDef
 
   // Rotating "spotlight" pair of newer archetypes so every endless wave plays differently.
   const spotlightStart = groups.length;
-  const spotlight = ENDLESS_SPOTLIGHTS[offset % ENDLESS_SPOTLIGHTS.length];
+  const spotlights = hasChapterTwoEnemies(level) ? ENDLESS_CHAPTER2_SPOTLIGHTS : ENDLESS_SPOTLIGHTS;
+  const spotlight = spotlights[offset % spotlights.length];
   for (let k = 0; k < spotlight.length; k++) {
     const type = spotlight[k];
     const tuning = ENDLESS_SPOTLIGHT_TUNING[type];
@@ -265,6 +303,7 @@ export function buildWaveSpawnQueue(
 
 /** Between-wave countdown while auto-wave is enabled. */
 const AUTO_WAVE_COUNTDOWN_SEC = 0.75;
+const noopAwardGold = (): void => {};
 
 export class WaveSystem {
   private readonly level: LevelDef;
@@ -281,6 +320,9 @@ export class WaveSystem {
   private spawnQueue: QueuedSpawn[] = [];
   private mutatorCacheIndex = -1;
   private mutatorCache: EndlessMutatorEffects = NO_ENDLESS_MUTATORS;
+  private previewCacheIdx = -2;
+  private previewCacheEndless = false;
+  private previewCache: WavePreview | null = null;
   private spawnCursor = 0;
   private currentWaveClearBonus = 0;
   private pendingClearedWaves = 0;
@@ -453,8 +495,14 @@ export class WaveSystem {
   getNextWavePreview(): WavePreview | null {
     if (this.state === 'finished') return null;
     const nextIdx = this.state === 'preFirstWave' ? 0 : this.currentWaveIndex + 1;
+    if (this.previewCacheIdx === nextIdx && this.previewCacheEndless === this.endlessMode) {
+      return this.previewCache;
+    }
     const wave = this.getWaveDef(nextIdx);
     if (!wave) {
+      this.previewCacheIdx = nextIdx;
+      this.previewCacheEndless = this.endlessMode;
+      this.previewCache = null;
       return null;
     }
 
@@ -486,10 +534,14 @@ export class WaveSystem {
       );
     }
 
-    return {
+    const built: WavePreview = {
       waveOneBased: nextIdx + 1,
       items,
     };
+    this.previewCacheIdx = nextIdx;
+    this.previewCacheEndless = this.endlessMode;
+    this.previewCache = built;
+    return built;
   }
 
   startNextWave(onAwardGold: (amount: number) => void): boolean {
@@ -536,7 +588,7 @@ export class WaveSystem {
     this.autoShortenedBy = 0;
     this.currentWaveIndex = clampedIdx - 1;
     this.state = 'preFirstWave';
-    return this.startNextWave(() => {});
+    return this.startNextWave(noopAwardGold);
   }
 
   private computeStoryWaveHpScale(waveIndex: number): number {
@@ -611,7 +663,7 @@ export class WaveSystem {
     if (this.state === 'betweenWaves') {
       this.interWaveTimer -= dt;
       if (this.interWaveTimer <= 0) {
-        this.startNextWave((bonus) => onAwardGold(bonus, 0));
+        this.startNextWave(onAwardGold);
       }
       return;
     }

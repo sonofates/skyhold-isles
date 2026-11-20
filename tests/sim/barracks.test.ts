@@ -11,6 +11,7 @@ import { ALL_TOWER_TYPES, getTowerTierStats, TOWER_DEFS, TOWER_TYPES } from '../
 import type { EnemyEntity, TowerEntity } from '../../src/sim/entities.ts';
 import { BLOCK_LATERAL_MAX, blockedLateralOffset } from '../../src/sim/soldierSystem.ts';
 import { computeSellRefund, SimWorld } from '../../src/sim/world.ts';
+import { InvariantMonitor } from '../../qa/bot/invariants.ts';
 
 const DT = BALANCE.fixedDt;
 
@@ -569,5 +570,594 @@ describe('determinism and isolation', () => {
     }
     expect(world.soldierSystem.soldiers).toHaveLength(0);
     expect(e.dist).toBeCloseTo(1 + ENEMY_DEFS.grunt.speed * (i / 60), 6);
+  });
+
+  it('onUpgrade cleanly retires excess squad slots, refreshes soldierHoldCap, and re-clamps rally when a specialization shrinks count or range', () => {
+    const { world, log } = setup();
+    const t = barracksOn(world, 0);
+    expect(world.upgradeTower(t.id)).toBe(true); // T2: 3 soldiers, range 2.8
+    const b = world.soldierSystem.getBarracks(t.id)!;
+    expect(b.squad).toHaveLength(3);
+
+    // Push rally point near the outer edge of T2 range (~2.8 units from plot 0 at (0, 1.6)) and let squad arrive.
+    expect(world.setRallyPoint(t.id, 7, 0)).toBe(true);
+    const t2RallyDist = Math.hypot(b.rallyX - b.x, b.rallyZ - b.z);
+    expect(t2RallyDist).toBeGreaterThan(2.3);
+    tick(world, 90);
+
+    // Let all 3 soldiers engage and hold 3 grunts near the outer rally point.
+    const g1 = spawnAt(world, 'grunt', 8 + b.rallyX - 0.3);
+    const g2 = spawnAt(world, 'grunt', 8 + b.rallyX - 0.45);
+    const g3 = spawnAt(world, 'grunt', 8 + b.rallyX - 0.6);
+    tickUntil(world, () => g1.blockers >= 1 && g2.blockers >= 1 && g3.blockers >= 1);
+
+    const origT3 = TOWER_DEFS.barracks.tiers[2];
+    const rallyMovesBefore = (log.rallyMoved ?? []).length;
+    try {
+      // Simulate an elite T3 specialization: 1 champion soldier with holdCap=2 and tighter range=2.0.
+      (TOWER_DEFS.barracks.tiers as unknown as Record<number, unknown>)[2] = {
+        ...origT3,
+        range: 2.0,
+        soldierCount: 1,
+        soldierHp: 500,
+        soldierHoldCap: 2,
+      };
+      expect(world.upgradeTower(t.id)).toBe(true);
+
+      // Excess 2 soldiers were cleanly retired, removed from SoldierSystem.soldiers, and emitted soldierRemoved.
+      expect(b.squad).toHaveLength(1);
+      expect(world.soldierSystem.soldiers).toHaveLength(1);
+      expect(log.soldierRemoved).toHaveLength(2);
+      expect(b.squad[0].maxHp).toBe(500);
+      expect(b.squad[0].holdCap).toBe(2);
+
+      // Rally point re-clamped inside the tighter 2.0 range and emitted rallyMoved.
+      expect(Math.hypot(b.rallyX - b.x, b.rallyZ - b.z)).toBeLessThanOrEqual(2.0 + 1e-9);
+      expect((log.rallyMoved ?? []).length).toBe(rallyMovesBefore + 1);
+
+      // Every previously held grunt was cleanly unblocked (no dangling blockers).
+      expect(g1.blockers).toBe(0);
+      expect(g2.blockers).toBe(0);
+      expect(g3.blockers).toBe(0);
+      expect((log.enemyUnblocked ?? []).length).toBe((log.enemyBlocked ?? []).length);
+    } finally {
+      (TOWER_DEFS.barracks.tiers as unknown as Record<number, unknown>)[2] = origT3;
+    }
+  });
+
+  it('elite multi-hold (soldierHoldCap: 2) cleanly releases extra-held foes on rally move, sell, and soldier death', () => {
+    const origT3 = TOWER_DEFS.barracks.tiers[2];
+    try {
+      (TOWER_DEFS.barracks.tiers as unknown as Record<number, unknown>)[2] = {
+        ...origT3,
+        soldierCount: 1,
+        soldierHp: 14,
+        soldierArmor: 0,
+        soldierDamage: 0,
+        soldierHoldCap: 2,
+      };
+
+      const { world } = setup();
+      const monitor = new InvariantMonitor(world, world.events, 8);
+      const stepWorld = (n: number): void => {
+        for (let i = 0; i < n; i++) {
+          const nextTick = world.tick + 1;
+          monitor.beginTick(nextTick);
+          world.fixedTick(DT);
+          monitor.endTick(world.tick, DT);
+        }
+      };
+
+      const t = world.placeTowerOnPlot(0, 'barracks')!;
+      expect(world.upgradeTower(t.id)).toBe(true);
+      expect(world.upgradeTower(t.id)).toBe(true);
+      const b = world.soldierSystem.getBarracks(t.id)!;
+      expect(b.squad).toHaveLength(1);
+      expect(b.squad[0].holdCap).toBe(2);
+      stepWorld(60);
+
+      // Spawn two grunts right behind each other so the lone holdCap=2 soldier holds BOTH (primary + extra).
+      const g1 = spawnAt(world, 'grunt', 8 + b.rallyX - 0.15);
+      const g2 = spawnAt(world, 'grunt', 8 + b.rallyX - 0.42);
+      for (let guard = 0; guard < 180 && !(g1.blockers >= 1 && g2.blockers >= 1); guard++) {
+        stepWorld(1);
+      }
+      expect(g1.blockers).toBe(1);
+      expect(g2.blockers).toBe(1);
+      expect(b.squad[0].extraHoldPoolIndices).toHaveLength(1);
+
+      // Between-tick rally move must immediately release BOTH primary and extra-held foes before next tick's EnemySystem.
+      expect(world.setRallyPoint(t.id, b.rallyX + 1.1, 0)).toBe(true);
+      expect(g1.blockers).toBe(0);
+      expect(g2.blockers).toBe(0);
+
+      // Re-engage both grunts at the new rally point, then let them kill the fragile soldier in melee.
+      g1.dist = 8 + b.rallyX - 0.15;
+      g2.dist = 8 + b.rallyX - 0.42;
+      world.groundPath.sample(g1.dist, g1);
+      world.groundPath.sample(g2.dist, g2);
+      for (let guard = 0; guard < 180 && !(g1.blockers >= 1 && g2.blockers >= 1); guard++) {
+        stepWorld(1);
+      }
+      expect(g1.blockers).toBe(1);
+      expect(g2.blockers).toBe(1);
+
+      // Run until the lone soldier dies: on the death tick itself, BOTH grunts must drop to blockers === 0
+      // with zero InvariantMonitor violations (no blockers > 0 with 0 fighting soldiers, exact unblock parity).
+      for (let guard = 0; guard < 240 && b.squad[0].state !== 'dead'; guard++) {
+        stepWorld(1);
+      }
+      expect(b.squad[0].state).toBe('dead');
+      expect(g1.blockers).toBe(0);
+      expect(g2.blockers).toBe(0);
+      expect(monitor.violations).toEqual([]);
+
+      // Let the soldier respawn, re-hold the two grunts, and verify sellTower releases both immediately.
+      b.squad[0].respawnTimer = 0.01;
+      stepWorld(35);
+      g1.dist = 8 + b.rallyX - 0.15;
+      g2.dist = 8 + b.rallyX - 0.42;
+      world.groundPath.sample(g1.dist, g1);
+      world.groundPath.sample(g2.dist, g2);
+      for (let guard = 0; guard < 180 && !(g1.blockers >= 1 && g2.blockers >= 1); guard++) {
+        stepWorld(1);
+      }
+      expect(g1.blockers).toBe(1);
+      expect(g2.blockers).toBe(1);
+      expect(world.sellTower(t.id)).toBeGreaterThan(0);
+      expect(g1.blockers).toBe(0);
+      expect(g2.blockers).toBe(0);
+      stepWorld(5);
+      expect(monitor.violations).toEqual([]);
+    } finally {
+      (TOWER_DEFS.barracks.tiers as unknown as Record<number, unknown>)[2] = origT3;
+    }
+  });
+
+  it('extra-held foes on soldierHoldCap > 1 deal melee counter-attacks and release both primary & extra holds when killing the soldier', () => {
+    const origT3 = TOWER_DEFS.barracks.tiers[2];
+    try {
+      (TOWER_DEFS.barracks.tiers as unknown as Record<number, unknown>)[2] = {
+        ...origT3,
+        soldierCount: 1,
+        soldierHp: 12,
+        soldierArmor: 0,
+        soldierDamage: 0,
+        soldierHoldCap: 2,
+      };
+
+      const { world, log } = setup();
+      const monitor = new InvariantMonitor(world, world.events, 8);
+      const stepWorld = (n: number): void => {
+        for (let i = 0; i < n; i++) {
+          const nextTick = world.tick + 1;
+          monitor.beginTick(nextTick);
+          world.fixedTick(DT);
+          monitor.endTick(world.tick, DT);
+        }
+      };
+
+      const t = world.placeTowerOnPlot(0, 'barracks')!;
+      expect(world.upgradeTower(t.id)).toBe(true);
+      expect(world.upgradeTower(t.id)).toBe(true);
+      const b = world.soldierSystem.getBarracks(t.id)!;
+      stepWorld(60);
+
+      // Primary target g1 is permanently stunned so ONLY extra-held g2 can swing and kill the soldier!
+      const g1 = spawnAt(world, 'grunt', 8 + b.rallyX - 0.15);
+      const g2 = spawnAt(world, 'grunt', 8 + b.rallyX - 0.42);
+      g1.stunTimer = 999;
+      for (let guard = 0; guard < 180 && !(g1.blockers >= 1 && g2.blockers >= 1); guard++) {
+        stepWorld(1);
+      }
+      expect(b.squad[0].targetUid).toBe(g1.uid);
+      expect(b.squad[0].extraHoldUids).toEqual([g2.uid]);
+
+      for (let guard = 0; guard < 240 && b.squad[0].state !== 'dead'; guard++) {
+        stepWorld(1);
+      }
+      // Extra-held g2 must have struck and killed the lone soldier, releasing BOTH g1 (primary) and g2 (extra).
+      expect(b.squad[0].state).toBe('dead');
+      expect((log.soldierHurt ?? []).some((ev) => ev.enemyId === g2.uid)).toBe(true);
+      expect(g1.blockers).toBe(0);
+      expect(g2.blockers).toBe(0);
+      expect(monitor.violations).toEqual([]);
+      stepWorld(5);
+      expect(monitor.violations).toEqual([]);
+    } finally {
+      (TOWER_DEFS.barracks.tiers as unknown as Record<number, unknown>)[2] = origT3;
+    }
+  });
+
+  it('peels spare fighting soldiers off an extra-held foe when a new unheld foe enters range', () => {
+    const origT3 = TOWER_DEFS.barracks.tiers[2];
+    (TOWER_DEFS.barracks.tiers as unknown as Record<number, unknown>)[2] = {
+      ...origT3,
+      soldierCount: 2,
+      soldierHoldCap: 2,
+      soldierHp: 5000,
+      soldierDamage: 1,
+      soldierCleave: 0,
+    };
+    try {
+      const { world } = setup(50_000);
+      const monitor = new InvariantMonitor(world, world.events, 8);
+      const stepWorld = (n: number): void => {
+        for (let i = 0; i < n; i++) {
+          const nextTick = world.tick + 1;
+          monitor.beginTick(nextTick);
+          world.fixedTick(DT);
+          monitor.endTick(world.tick, DT);
+        }
+      };
+
+      const t = world.placeTowerOnPlot(0, 'barracks')!;
+      expect(world.upgradeTower(t.id)).toBe(true);
+      expect(world.upgradeTower(t.id)).toBe(true);
+      const b = world.soldierSystem.getBarracks(t.id)!;
+      stepWorld(60);
+
+      // Spawn g1 + g2: s0 holds g1 (primary) + g2 (extra hold), while s1 joins g2 as primary target.
+      const g1 = spawnAt(world, 'grunt', 8 + b.rallyX - 0.12);
+      const g2 = spawnAt(world, 'grunt', 8 + b.rallyX - 0.40);
+      g1.hp = g1.maxHp = 50_000;
+      g2.hp = g2.maxHp = 50_000;
+      for (let guard = 0; guard < 180 && !(b.squad[0].state === 'fighting' && b.squad[1].state === 'fighting'); guard++) {
+        stepWorld(1);
+      }
+      // Force s0 extra-holding g2 and BOTH s1 + s0 holding g2 (s1 primary on g2, plus a dummy extra claim via 3rd soldier or direct setup):
+      // Even simpler: spawn g3 right behind g2 so s1 peels off once g1+g2 are covered by s0's holdCap=2!
+      const g3 = spawnAt(world, 'grunt', 8 + b.rallyX - 0.95);
+      g3.hp = g3.maxHp = 50_000;
+      for (let guard = 0; guard < 180 && g3.blockers === 0; guard++) {
+        stepWorld(1);
+      }
+      expect(g1.blockers).toBeGreaterThanOrEqual(1);
+      expect(g2.blockers).toBeGreaterThanOrEqual(1);
+      expect(g3.blockers).toBeGreaterThanOrEqual(1);
+      expect(monitor.violations).toEqual([]);
+    } finally {
+      (TOWER_DEFS.barracks.tiers as unknown as Record<number, unknown>)[2] = origT3;
+    }
+  });
+
+  it('elite multi-hold (soldierHoldCap: 2) never abandons closer extra-held foes for trailing arrivals, yet peels off cleanly to closer threats', () => {
+    const origT3 = TOWER_DEFS.barracks.tiers[2];
+    (TOWER_DEFS.barracks.tiers as unknown as Record<number, unknown>)[2] = {
+      ...origT3,
+      soldierCount: 2,
+      soldierHoldCap: 2,
+      soldierHp: 5000,
+      soldierDamage: 0,
+      soldierCleave: 0,
+    };
+    try {
+      const { world } = setup(50_000);
+      const monitor = new InvariantMonitor(world, world.events, 8);
+      const stepWorld = (n: number): void => {
+        for (let i = 0; i < n; i++) {
+          const nextTick = world.tick + 1;
+          monitor.beginTick(nextTick);
+          world.fixedTick(DT);
+          monitor.endTick(world.tick, DT);
+        }
+      };
+
+      const t = world.placeTowerOnPlot(0, 'barracks')!;
+      expect(world.upgradeTower(t.id)).toBe(true);
+      expect(world.upgradeTower(t.id)).toBe(true);
+      const b = world.soldierSystem.getBarracks(t.id)!;
+      stepWorld(60);
+
+      // Step 1: Spawn g1 + g2 so s0 fights g1 (primary) + extra-holds g2, and s1 gangs up on g1 (`claims[g1] = 2 > 1`)!
+      const g1 = spawnAt(world, 'grunt', 8 + b.rallyX - 0.10);
+      const g2 = spawnAt(world, 'grunt', g1.dist - 0.30);
+      g1.hp = g1.maxHp = 50_000;
+      g2.hp = g2.maxHp = 50_000;
+      for (
+        let guard = 0;
+        guard < 180 &&
+        !(b.squad[0].state === 'fighting' && b.squad[1].state === 'fighting' && g2.blockers >= 1);
+        guard++
+      ) {
+        stepWorld(1);
+      }
+
+      // Put BOTH s0 and s1 in contact with g1, and spawn g3 at g1.dist - 0.60 right as Step 6 runs:
+      // To get both s0 and s1 fighting g1 with g2 & g3 extra-held without an extra peel tick:
+      // First let only g1 exist so both s0 & s1 fight g1, let s0 extra-hold g2 (s1 has no needy foe because g2 is already held by s0!),
+      // then let g3 arrive at queue slot 2 so s1 extra-holds g3 while BOTH s0 & s1 remain targeting g1!
+      if (b.squad[1].targetUid !== g1.uid) {
+        b.squad[1].targetPoolIndex = g1.poolIndex;
+        b.squad[1].targetUid = g1.uid;
+        b.squad[1].x = b.squad[0].x;
+        b.squad[1].z = b.squad[0].z;
+        b.squad[1].state = 'fighting';
+        b.squad[0].extraHoldPoolIndices.length = 0;
+        b.squad[0].extraHoldUids.length = 0;
+        b.squad[0].extraHoldPoolIndices.push(g2.poolIndex);
+        b.squad[0].extraHoldUids.push(g2.uid);
+      }
+      stepWorld(1);
+      expect(b.squad[0].targetUid).toBe(g1.uid);
+      expect(b.squad[1].targetUid).toBe(g1.uid);
+      expect(b.squad[0].extraHoldUids).toEqual([g2.uid]);
+
+      // Now g3 is already covered on the next Step 6 if s1 stays on g1 — place g3 into s1's extra-hold slot by spawning g3
+      // while g3 is temporarily stunned? No: on tick 1 after g3 spawns, s1 would peel off to g3 as primary UNLESS s1 already holds g3!
+      // If s1 peels off to g3 as primary, s1 STILL holds g3 AND gains another extra-hold slot (total capacity 4!).
+      // Instead, test the exact 4-enemy full-capacity state where s0 holds g1+g2 and s1 ALSO targets g1+extra-holds g3:
+      const g3 = spawnAt(world, 'grunt', g1.dist - 0.58);
+      g3.hp = g3.maxHp = 50_000;
+      b.squad[1].extraHoldPoolIndices.push(g3.poolIndex);
+      b.squad[1].extraHoldUids.push(g3.uid);
+
+      // Trailing arrival g4 further back than g3 must NOT cause s1 to abandon closer g3:
+      const g4 = spawnAt(world, 'grunt', g1.dist - 1.35);
+      g4.hp = g4.maxHp = 50_000;
+      stepWorld(1);
+      const g3HeldDist = g3.dist;
+      stepWorld(2);
+      expect(b.squad[1].targetUid).toBe(g1.uid);
+      expect(g3.blockers).toBe(1);
+      expect(g3.dist).toBe(g3HeldDist);
+      expect(monitor.violations).toEqual([]);
+
+      // Closer threat gAhead ahead of g1 (closer to goal than g3) DOES trigger peel-off and clears extraHold arrays cleanly:
+      const gAhead = spawnAt(world, 'grunt', g1.dist + 0.9);
+      gAhead.hp = gAhead.maxHp = 50_000;
+      stepWorld(1);
+      const peeling = b.squad.find((s) => s.targetUid === gAhead.uid);
+      expect(peeling).toBeDefined();
+      expect(peeling!.state).toBe('engaging');
+      expect(peeling!.extraHoldPoolIndices).toEqual([]);
+      expect(peeling!.extraHoldUids).toEqual([]);
+      stepWorld(45);
+      expect(gAhead.blockers).toBeGreaterThanOrEqual(1);
+      expect(monitor.violations).toEqual([]);
+    } finally {
+      (TOWER_DEFS.barracks.tiers as unknown as Record<number, unknown>)[2] = origT3;
+    }
+  });
+
+  it('elite multi-hold (soldierHoldCap: 2) stops heavy holdCost >= 2 foes (Golem / Boss) and peels spare knights off when a squadmate covers holdCost', () => {
+    const origT3 = TOWER_DEFS.barracks.tiers[2];
+    try {
+      // 1. Single holdCap=2 knight solo-stops a Basalt Golem (holdCost=2):
+      (TOWER_DEFS.barracks.tiers as unknown as Record<number, unknown>)[2] = {
+        ...origT3,
+        soldierCount: 1,
+        soldierHoldCap: 2,
+        soldierHp: 5000,
+        soldierDamage: 0,
+        soldierCleave: 0,
+      };
+      {
+        const { world } = setup(50_000);
+        const monitor = new InvariantMonitor(world, world.events, 8);
+        const stepWorld = (n: number): void => {
+          for (let i = 0; i < n; i++) {
+            const nextTick = world.tick + 1;
+            monitor.beginTick(nextTick);
+            world.fixedTick(DT);
+            monitor.endTick(world.tick, DT);
+          }
+        };
+        const t = world.placeTowerOnPlot(0, 'barracks')!;
+        expect(world.upgradeTower(t.id)).toBe(true);
+        expect(world.upgradeTower(t.id)).toBe(true);
+        const b = world.soldierSystem.getBarracks(t.id)!;
+        stepWorld(60);
+
+        const golem = spawnAt(world, 'golem', 8 + b.rallyX - 0.12);
+        golem.hp = golem.maxHp = 50_000;
+        for (let guard = 0; guard < 180 && golem.blockers < 2; guard++) {
+          stepWorld(1);
+        }
+        expect(golem.blockers).toBe(2);
+        const heldDist = golem.dist;
+        stepWorld(20);
+        expect(golem.dist).toBe(heldDist);
+        expect(monitor.violations).toEqual([]);
+      }
+
+      // 2. Two holdCap=2 knights (total cap = 4) stop a Boss (holdCost=3) AND peel 1 knight off a Golem (holdCost=2) when a Grunt arrives:
+      (TOWER_DEFS.barracks.tiers as unknown as Record<number, unknown>)[2] = {
+        ...origT3,
+        soldierCount: 2,
+        soldierHoldCap: 2,
+        soldierHp: 5000,
+        soldierDamage: 0,
+        soldierCleave: 0,
+      };
+      {
+        const { world } = setup(50_000);
+        const monitor = new InvariantMonitor(world, world.events, 8);
+        const stepWorld = (n: number): void => {
+          for (let i = 0; i < n; i++) {
+            const nextTick = world.tick + 1;
+            monitor.beginTick(nextTick);
+            world.fixedTick(DT);
+            monitor.endTick(world.tick, DT);
+          }
+        };
+        const t = world.placeTowerOnPlot(0, 'barracks')!;
+        expect(world.upgradeTower(t.id)).toBe(true);
+        expect(world.upgradeTower(t.id)).toBe(true);
+        const b = world.soldierSystem.getBarracks(t.id)!;
+        stepWorld(60);
+
+        const boss = spawnAt(world, 'boss', 8 + b.rallyX - 0.10);
+        const trailingGrunt = spawnAt(world, 'grunt', boss.dist - 0.32);
+        boss.hp = boss.maxHp = 50_000;
+        boss.bossPulseTimer = 9999;
+        trailingGrunt.hp = trailingGrunt.maxHp = 50_000;
+        for (
+          let guard = 0;
+          guard < 180 && !(boss.blockers >= 3 && trailingGrunt.blockers >= 1);
+          guard++
+        ) {
+          stepWorld(1);
+        }
+        expect(boss.blockers).toBe(3);
+        expect(trailingGrunt.blockers).toBe(1);
+        const bossHeldDist = boss.dist;
+        stepWorld(15);
+        expect(boss.dist).toBe(bossHeldDist);
+        expect(monitor.violations).toEqual([]);
+      }
+
+      {
+        const { world } = setup(50_000);
+        const monitor = new InvariantMonitor(world, world.events, 8);
+        const stepWorld = (n: number): void => {
+          for (let i = 0; i < n; i++) {
+            const nextTick = world.tick + 1;
+            monitor.beginTick(nextTick);
+            world.fixedTick(DT);
+            monitor.endTick(world.tick, DT);
+          }
+        };
+        const t = world.placeTowerOnPlot(0, 'barracks')!;
+        expect(world.upgradeTower(t.id)).toBe(true);
+        expect(world.upgradeTower(t.id)).toBe(true);
+        const b = world.soldierSystem.getBarracks(t.id)!;
+        stepWorld(60);
+
+        // Both knights first fight a Golem (holdCost=2 -> 1 primary each); when a Grunt arrives ahead,
+        // knight #2 peels off to intercept the Grunt while knight #1 solo-holds the Golem at blockers=2!
+        const golem = spawnAt(world, 'golem', 8 + b.rallyX - 0.20);
+        golem.hp = golem.maxHp = 50_000;
+        for (
+          let guard = 0;
+          guard < 180 && !(b.squad[0].state === 'fighting' && b.squad[1].state === 'fighting');
+          guard++
+        ) {
+          stepWorld(1);
+        }
+        expect(golem.blockers).toBe(2);
+
+        const runner = spawnAt(world, 'grunt', 8 + b.rallyX + 0.85);
+        runner.hp = runner.maxHp = 50_000;
+        runner.speed = 0.05;
+        for (let guard = 0; guard < 120 && runner.blockers === 0; guard++) {
+          stepWorld(1);
+        }
+        expect(golem.blockers).toBe(2);
+        expect(runner.blockers).toBe(1);
+        expect(monitor.violations).toEqual([]);
+      }
+
+      // 3. When an extra-held Blinker teleports ahead of primary, Step 1 prunes the stale extraHold
+      //    so a spare squadmate immediately peels off on that very tick to intercept it; and mixed
+      //    cluster queue ranking evaluates a partially-held Kilnback ahead of a rear held Grunt at rank 1:
+      {
+        const { world } = setup(50_000);
+        const monitor = new InvariantMonitor(world, world.events, 8);
+        const stepWorld = (n: number): void => {
+          for (let i = 0; i < n; i++) {
+            const nextTick = world.tick + 1;
+            monitor.beginTick(nextTick);
+            world.fixedTick(DT);
+            monitor.endTick(world.tick, DT);
+          }
+        };
+        const t = world.placeTowerOnPlot(0, 'barracks')!;
+        expect(world.upgradeTower(t.id)).toBe(true);
+        expect(world.upgradeTower(t.id)).toBe(true);
+        const b = world.soldierSystem.getBarracks(t.id)!;
+        stepWorld(60);
+
+        const frontGrunt = spawnAt(world, 'grunt', 8 + b.rallyX - 0.35);
+        frontGrunt.hp = frontGrunt.maxHp = 50_000;
+        for (
+          let guard = 0;
+          guard < 180 && !(b.squad[0].state === 'fighting' && b.squad[1].state === 'fighting');
+          guard++
+        ) {
+          stepWorld(1);
+        }
+
+        const blinker = spawnAt(world, 'blinker', frontGrunt.dist - 0.30);
+        blinker.hp = blinker.maxHp = 50_000;
+        blinker.abilityTimer = 999; // hold off auto-blink until extra-held
+        b.squad[0].extraHoldPoolIndices.push(blinker.poolIndex);
+        b.squad[0].extraHoldUids.push(blinker.uid);
+        stepWorld(1);
+        expect(b.squad[0].targetUid).toBe(frontGrunt.uid);
+        expect(b.squad[1].targetUid).toBe(frontGrunt.uid);
+        expect(blinker.blockers).toBe(1);
+        expect(b.squad[0].extraHoldUids).toEqual([blinker.uid]);
+
+        // Trigger blink on next tick (clamp totalDist so blink lands +1.4u ahead, still inside engageRadius):
+        const origTotalDist = blinker.totalDist;
+        blinker.totalDist = frontGrunt.dist + 3.4;
+        blinker.abilityTimer = 0.001;
+        stepWorld(1);
+        blinker.totalDist = origTotalDist;
+
+        // Immediately on the blink tick, stale extraHold was pruned and a spare knight peeled off to blinker!
+        expect(
+          b.squad[0].extraHoldUids.includes(blinker.uid) ||
+            b.squad[1].extraHoldUids.includes(blinker.uid),
+        ).toBe(false);
+        expect(b.squad.some((s) => s.targetUid === blinker.uid)).toBe(true);
+        for (let guard = 0; guard < 90 && blinker.blockers === 0; guard++) {
+          stepWorld(1);
+        }
+        expect(blinker.blockers).toBeGreaterThanOrEqual(1);
+        expect(frontGrunt.blockers).toBeGreaterThanOrEqual(1);
+        expect(monitor.violations).toEqual([]);
+      }
+
+      {
+        const { world } = setup(50_000);
+        const monitor = new InvariantMonitor(world, world.events, 8);
+        const stepWorld = (n: number): void => {
+          for (let i = 0; i < n; i++) {
+            const nextTick = world.tick + 1;
+            monitor.beginTick(nextTick);
+            world.fixedTick(DT);
+            monitor.endTick(world.tick, DT);
+          }
+        };
+        const t = world.placeTowerOnPlot(2, 'barracks')!;
+        expect(world.upgradeTower(t.id)).toBe(true);
+        expect(world.upgradeTower(t.id)).toBe(true);
+        const b = world.soldierSystem.getBarracks(t.id)!;
+        stepWorld(60);
+
+        const front = spawnAt(world, 'grunt', 8 + b.rallyX - 0.10);
+        front.hp = front.maxHp = 50_000;
+        for (
+          let guard = 0;
+          guard < 180 && !(b.squad[0].state === 'fighting' && b.squad[1].state === 'fighting');
+          guard++
+        ) {
+          stepWorld(1);
+        }
+        // Spawn a Kilnback (holdCost=2) at exact rank-1 stop dist (front.dist - 0.40, within 0.30 + 0.12 tolerance,
+        // NOT within rank-2 stop dist front.dist - 0.60 - 0.12) AND a rear Grunt behind it held by a 2nd barracks:
+        const tRear = world.placeTowerOnPlot(0, 'barracks')!;
+        const bRear = world.soldierSystem.getBarracks(tRear.id)!;
+        world.setRallyPoint(tRear.id, b.rallyX - 1.1, b.rallyZ);
+        const rearGrunt = spawnAt(world, 'grunt', front.dist - 1.05);
+        rearGrunt.hp = rearGrunt.maxHp = 50_000;
+        bRear.squad[0].x = rearGrunt.x;
+        bRear.squad[0].z = rearGrunt.z;
+        bRear.squad[0].targetPoolIndex = rearGrunt.poolIndex;
+        bRear.squad[0].targetUid = rearGrunt.uid;
+        bRear.squad[0].state = 'fighting';
+
+        const kiln = spawnAt(world, 'kilnback', front.dist - 0.35);
+        kiln.hp = kiln.maxHp = 50_000;
+        stepWorld(1);
+        expect(rearGrunt.blockers).toBeGreaterThanOrEqual(1);
+        expect(kiln.blockers).toBe(2);
+        expect(monitor.violations).toEqual([]);
+      }
+    } finally {
+      (TOWER_DEFS.barracks.tiers as unknown as Record<number, unknown>)[2] = origT3;
+    }
   });
 });

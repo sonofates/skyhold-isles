@@ -56,10 +56,13 @@ export class ObjectPool<T extends { active: boolean }> {
 
   clear(): void {
     for (let i = 0; i < this.activeIndices.length; i++) {
-      const idx = this.activeIndices[i];
-      this.items[idx].active = false;
-      this.freeIndices.push(idx);
+      this.items[this.activeIndices[i]].active = false;
     }
     this.activeIndices.length = 0;
+    const cap = this.items.length;
+    this.freeIndices.length = cap;
+    for (let i = 0; i < cap; i++) {
+      this.freeIndices[i] = cap - 1 - i;
+    }
   }
 }

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { FixedTimestepStepper, MAX_ACCUMULATOR_SEC, MAX_STEPS_PER_FRAME } from '../../src/core/gameLoop.ts';
+import { ObjectPool } from '../../src/core/pool.ts';
 import { BALANCE } from '../../src/data/balance.ts';
 
 function runFrames(stepper: FixedTimestepStepper, frames: number, dt: number): number {
@@ -62,5 +63,33 @@ describe('FixedTimestepStepper', () => {
     stepper.paused = false;
     stepper.simActive = false;
     expect(runFrames(stepper, 5, 0.1)).toBe(0);
+  });
+});
+
+describe('ObjectPool', () => {
+  it('clear() restores canonical ascending slot acquisition regardless of prior release order', () => {
+    const pool = new ObjectPool(6, (id) => ({ id, active: false }));
+    const a = pool.acquire()!;
+    const b = pool.acquire()!;
+    const c = pool.acquire()!;
+    const d = pool.acquire()!;
+    expect([a.id, b.id, c.id, d.id]).toEqual([0, 1, 2, 3]);
+
+    // Release out of order to scramble activeIndices / freeIndices before clear().
+    pool.releaseAtActivePos(2); // frees id=2
+    pool.releaseAtActivePos(0); // frees id=0
+    expect(pool.getActiveCount()).toBe(2);
+
+    pool.clear();
+    expect(pool.getActiveCount()).toBe(0);
+    expect(pool.items.every((it) => !it.active)).toBe(true);
+
+    // Post-clear acquisitions must match a fresh pool (0, 1, 2, 3, 4, 5).
+    const idsAfter: number[] = [];
+    for (let i = 0; i < 6; i++) {
+      idsAfter.push(pool.acquire()!.id);
+    }
+    expect(idsAfter).toEqual([0, 1, 2, 3, 4, 5]);
+    expect(pool.acquire()).toBeNull();
   });
 });

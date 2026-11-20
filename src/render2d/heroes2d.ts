@@ -165,15 +165,51 @@ export function heroLevelProgress(xp: number): HeroLevelProgress {
   };
 }
 
+function isPosFinite(val: unknown): boolean {
+  return typeof val === 'number' && Number.isFinite(val) && val > 0;
+}
+
 /** Count of distinct 2D campaign islands cleared in `progress`. */
 export function clearedIslandsCount2D(
   progress: ProgressData,
   levels: readonly Pick<LevelDef, 'id'>[] = LEVELS_2D,
 ): number {
-  const limit = Math.min(levels.length, Math.max(progress.clears.length, progress.bestStars.length));
+  const rawDw = progress.difficultyWins ?? (progress as unknown as { readonly dw?: unknown }).dw;
+  const dw =
+    rawDw && typeof rawDw === 'object' && !Array.isArray(rawDw)
+      ? (rawDw as Partial<
+          Record<'easy' | 'normal' | 'hard' | 'e' | 'n' | 'h', readonly unknown[] | undefined>
+        >)
+      : undefined;
+  const arrLen = (arr: unknown): number => (Array.isArray(arr) ? arr.length : 0);
+  const dwMaxLen = dw
+    ? Math.max(
+        arrLen(dw.easy),
+        arrLen(dw.e),
+        arrLen(dw.normal),
+        arrLen(dw.n),
+        arrLen(dw.hard),
+        arrLen(dw.h),
+      )
+    : 0;
+  const limit = Math.min(
+    levels.length,
+    Math.max(arrLen(progress.clears), arrLen(progress.bestStars), dwMaxLen),
+  );
   let cleared = 0;
   for (let i = 0; i < limit; i++) {
-    if ((progress.clears[i] ?? 0) > 0 || (progress.bestStars[i] ?? 0) > 0) cleared++;
+    if (
+      isPosFinite(progress.clears?.[i]) ||
+      isPosFinite(progress.bestStars?.[i]) ||
+      isPosFinite(dw?.easy?.[i]) ||
+      isPosFinite(dw?.e?.[i]) ||
+      isPosFinite(dw?.normal?.[i]) ||
+      isPosFinite(dw?.n?.[i]) ||
+      isPosFinite(dw?.hard?.[i]) ||
+      isPosFinite(dw?.h?.[i])
+    ) {
+      cleared++;
+    }
   }
   return cleared;
 }
@@ -223,8 +259,63 @@ export function sanitizeHeroSkills(
   return sanitizeHeroSkillsForBudget(heroId, rawSkills, maxSkillPoints);
 }
 
+function normalizeHeroSaveInput(rawH: unknown): unknown {
+  if (!rawH || typeof rawH !== 'object' || Array.isArray(rawH)) return rawH;
+  const obj = rawH as Record<string, unknown>;
+  const hasFullKeys = 'selectedHero' in obj || 'roster' in obj;
+  const hasCompactKeys = 's' in obj || 'r' in obj;
+  if (!hasFullKeys && !hasCompactKeys) return obj;
+  const fullR =
+    obj.roster && typeof obj.roster === 'object' && !Array.isArray(obj.roster)
+      ? (obj.roster as Record<string, unknown>)
+      : null;
+  const compR =
+    obj.r && typeof obj.r === 'object' && !Array.isArray(obj.r)
+      ? (obj.r as Record<string, unknown>)
+      : null;
+  if (hasFullKeys && !hasCompactKeys) {
+    let anyCompactEntry = false;
+    if (fullR) {
+      for (let i = 0; i < HERO_IDS.length; i++) {
+        const ce = fullR[HERO_IDS[i]];
+        if (
+          ce &&
+          typeof ce === 'object' &&
+          !Array.isArray(ce) &&
+          (('x' in ce && !('xp' in ce)) || ('k' in ce && !('skills' in ce)))
+        ) {
+          anyCompactEntry = true;
+          break;
+        }
+      }
+    }
+    if (!anyCompactEntry) return obj;
+  }
+  const roster: Record<string, { xp: unknown; skills: unknown }> = {};
+  for (let i = 0; i < HERO_IDS.length; i++) {
+    const id = HERO_IDS[i];
+    const fe = fullR?.[id];
+    const ce = compR?.[id];
+    const fObj =
+      fe && typeof fe === 'object' && !Array.isArray(fe)
+        ? (fe as { xp?: unknown; skills?: unknown; x?: unknown; k?: unknown })
+        : null;
+    const cObj =
+      ce && typeof ce === 'object' && !Array.isArray(ce)
+        ? (ce as { xp?: unknown; skills?: unknown; x?: unknown; k?: unknown })
+        : null;
+    if (fObj || cObj) {
+      roster[id] = {
+        xp: fObj?.xp ?? fObj?.x ?? cObj?.xp ?? cObj?.x ?? 0,
+        skills: fObj?.skills ?? fObj?.k ?? cObj?.skills ?? cObj?.k ?? [],
+      };
+    }
+  }
+  return { selectedHero: obj.selectedHero ?? obj.s, roster };
+}
+
 /**
- * Pure migration / sanitization of `progress.heroes` from any older or partial save payload.
+ * Pure migration / sanitization of `progress.heroes` from any older, compact (`{ s, r }`), or partial save payload.
  * Never loses valid XP; falls back `selectedHero` to `'bran'` when missing or still locked.
  */
 export function migrateHeroSave(
@@ -232,10 +323,11 @@ export function migrateHeroSave(
   progress?: ProgressData,
   levels: readonly Pick<LevelDef, 'id'>[] = LEVELS_2D,
 ): HeroSaveData {
-  if (!progress) return sanitizeHeroSaveData(raw);
+  const normalized = normalizeHeroSaveInput(raw);
+  if (!progress) return sanitizeHeroSaveData(normalized);
   const cleared = clearedIslandsCount2D(progress, levels);
   const frontier = Number.isFinite(progress.unlockedLevelIndex) ? progress.unlockedLevelIndex : 0;
-  return sanitizeHeroSaveData(raw, cleared, frontier);
+  return sanitizeHeroSaveData(normalized, cleared, frontier);
 }
 
 function cloneWithHeroes(progress: ProgressData, heroes: HeroSaveData): ProgressData {
@@ -257,7 +349,8 @@ function readHeroSave(
   progress: ProgressData,
   levels: readonly Pick<LevelDef, 'id'>[] = LEVELS_2D,
 ): HeroSaveData {
-  return migrateHeroSave(progress.heroes, progress, levels);
+  const raw = progress.heroes ?? (progress as unknown as { readonly h?: unknown }).h;
+  return migrateHeroSave(raw, progress, levels);
 }
 
 /** Returns the last-selected hero if unlocked, otherwise `'bran'`. */
