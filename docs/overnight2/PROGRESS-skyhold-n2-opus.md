@@ -106,6 +106,10 @@
   `qa/capgap.mjs` (6 sizes × EN/TR × 100 / 130 % interface): min gap 10–26 px, nothing off screen, the
   tally clear of the banner, 0 problems; uiaudit map + map-fresh 24/24 0 problems. Shots
   opus-shots/capgap-*. Unit test.
+- Bug fixed: the interface-size slider moved on the world map did not lay the map out again (its
+  relayout skipped when the window size was unchanged) — islands stayed under the taller 130 % top
+  bar's band until a real resize. relayout now also watches `--ui-scale`. `qa/capgaplive.mjs`: before
+  the fix island band 306 → 306 px, after 306 → 331 (2000x991), 123 → 128 (844x390); 0 problems.
 
 ## Next ideas
 - Swap in Codex's title paintings when they land (keys in Requests); re-shoot the title.

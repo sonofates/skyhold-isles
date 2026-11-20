@@ -417,12 +417,16 @@ export async function mountWorldMap(q: URLSearchParams): Promise<void> {
 
   let lastW = 0;
   let lastH = 0;
+  let lastK = '';
   const relayout = (force = false): void => {
     const w = window.innerWidth;
     const h = window.innerHeight;
-    if (!force && w === lastW && h === lastH) return;
+    // The interface size (Settings, `--ui-scale`) changes the top bar too: lay out again then.
+    const k = document.documentElement.style.getPropertyValue('--ui-scale');
+    if (!force && w === lastW && h === lastH && k === lastK) return;
     lastW = w;
     lastH = h;
+    lastK = k;
     fitTitleBanner(banner, bannerText, w);
     spaceCaptions(right);
     const insets = readSafeInsets();
