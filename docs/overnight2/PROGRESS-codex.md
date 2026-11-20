@@ -147,3 +147,28 @@ The raw art manifest now has `towerSpecializations[id].portrait` and `.attack` f
 ### Next round
 
 Ten of sixteen specializations have production art. Paint Cinder Kiln and Cloudbreak Mortar next. Mortar aims by mirroring and tilting its full sprite. Its shot handler currently reads the linear-tier ring and tip when it recomputes the aimed muzzle. Use the branch measurements there when adding mortar art and verify leftward and rightward launches. The remaining four branches belong to beacon and barracks. Chapter-two map polish follows.
+
+## Round 6 — Mortar and beacon specialization art
+
+### Done
+
+- Cinder Kiln fires from an iron-bound terracotta crucible above a glowing brick firebox. Cloudbreak Mortar has a scalloped enamel launcher on a teal-roofed observatory. Each has a keyed eight-frame attack sheet, a resting portrait and a measured mouth on release frame three. [ImageGen prompts and packing instructions](../../design/art-2d/specializations/mortar-prompts.md).
+- The mortar shot handler now uses the visible branch’s ring and mouth coordinates when it mirrors and pitches toward the target. The turret QA report includes the drawn mortar branch and tier.
+- Tailwind Mill turns four blue-striped canvas sails on a fixed axle. Horizon Lantern sweeps amber light across a Fresnel lens. Both use the existing beacon pulse event. [ImageGen prompts and packing instructions](../../design/art-2d/specializations/beacon-prompts.md).
+
+### Requests for Opus
+
+The raw manifest now exposes `towerSpecializations[id].portrait` and `.attack` for `cinderkiln`, `cloudbreak`, `tailwind` and `horizon`. Portrait and descriptor paths are relative to `/art2d/`. The round-two table has the branch and ability copy in EN and TR. The earlier range-ring request also covers Cloudbreak’s longer reach and smaller blind spot.
+
+### Verification
+
+- Tested the release coordinates inside the firing event and again after rendering. Both mortars fired 24 times in the aim scene. The difference from the independently transformed painted mouth was zero layout pixels on every sampled shot. The comparison shows eastward and westward launches, Cinder above Cloudbreak. [Release detail](../../design/art-2d/specializations/mortar-release.jpg).
+- The L1c plot comparison shows tier III, Cinder and Cloudbreak from left to right. Ring center, bottom and width errors measured zero at both sizes. Inspected the towers enlarged. [Desktop](../../design/art-2d/specializations/mortar-l1c.jpg) · [Landscape phone](../../design/art-2d/specializations/mortar-l1c-phone.jpg).
+- All four sheets passed decoded WebP checks for dimensions, transparent gutters, zero opaque magenta and a pixel-identical foundation across every frame. Frame seven returns to the resting image.
+- Bought both beacon branches beside tier III on L1c. Ring center, bottom and width errors were zero on desktop and landscape phone. Each beacon received five pulses in a twelve-second combat sample stepped at 60 Hz. Every pulse started on frame zero, and both branches displayed all eight frames and returned to rest. Inspected enlarged map and pulse captures. [Desktop](../../design/art-2d/specializations/beacon-l1c.jpg) · [Landscape phone](../../design/art-2d/specializations/beacon-l1c-phone.jpg) · [Pulse detail](../../design/art-2d/specializations/beacon-pulse.jpg).
+- TypeScript, lint and the full default Vitest suite passed with 1,375 tests passing and 11 skipped. The realistic-kit gate passed all 41 levels, including all 25 islands. All eight difficulty verdicts passed. Hard i09 finished at 12/22 and Hard i24 at 5/22. The 24,217-byte L1–L16 report matched the round-one baseline byte for byte.
+- The gate command reached its execution time limit while starting the production build. The standalone production build completed with the existing Vite bundle warnings. All twelve new published files and the manifest matched their copies in both the browser proof build and the final build.
+
+### Next round
+
+Fourteen of sixteen specializations have production art. Paint Gateward Hall and Briar Lodge, then exercise their gate animations on actual soldier spawns and respawns. Chapter-two map polish on i17–i24 follows.

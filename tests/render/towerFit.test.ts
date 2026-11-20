@@ -86,7 +86,7 @@ describe('fit rule: towers stand exactly on their plot', () => {
     }
   });
 
-  it.each([...specializationsFor('frost'), ...specializationsFor('tesla')])('$name has a registered attack sheet, release and portrait', ({ id }) => {
+  it.each([...specializationsFor('frost'), ...specializationsFor('tesla'), ...specializationsFor('mortar'), ...specializationsFor('beacon')])('$name has a registered attack sheet, release and portrait', ({ id }) => {
     const dir = resolve(ROOT, 'public/art2d');
     const entries = RAW.towerSpecializations as Record<string, { attack: string; portrait: string }>;
     const entry = entries[id];

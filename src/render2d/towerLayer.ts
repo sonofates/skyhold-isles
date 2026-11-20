@@ -311,10 +311,11 @@ export class TowerLayer {
       v.aimed = true;
       const tierIdx = Math.max(1, Math.min(3, e.tier)) - 1;
       const target = this.plots?.rings[v.entity.col];
-      const ring = v.art?.rings[tierIdx];
-      const tip = v.art?.spec.muzzlePx[tierIdx];
+      const branch = v.branch?.sheet ? v.branch : null;
+      const ring = branch?.sheet.ring ?? v.art?.rings[tierIdx];
+      const tip = branch?.muzzle ?? v.art?.spec.muzzlePx[tierIdx];
       if (v.art && target && ring && tip) {
-        const stat = v.art.tiers[tierIdx];
+        const stat = branch?.sheet.frames[0] ?? v.art.tiers[tierIdx];
         const fit = fitOnRing(target, ring, stat.width, stat.height, v.art.spec.ringScale);
         v.muzzlePt = aimedSpriteMuzzle(fit, ring, tip, v.bodyMirror, v.bodyRot);
       }
@@ -897,13 +898,11 @@ export class TowerLayer {
   turretReport(): TurretReportRow[] {
     const out: TurretReportRow[] = [];
     for (const [id, v] of this.views) {
-      if (v.turretArt && v.turret?.visible) {
+      const turretVisible = v.turretArt && v.turret?.visible;
+      if (turretVisible || BODY_AIM_TOWERS.has(v.entity.type)) {
         const f = frameFor(v.sector);
         const specialization = v.branch?.id ?? null;
-        out.push({ id, type: v.entity.type, tier: specialization ? 4 : v.entity.tier, specialization, sector: v.sector, aimed: v.aimed, targetYaw: v.entity.targetYaw, mirror: f.mirror, frame: f.frame, muzzle: v.muzzlePt, mount: v.mount, px: v.px, py: v.py });
-      } else if (BODY_AIM_TOWERS.has(v.entity.type)) {
-        const f = frameFor(v.sector);
-        out.push({ id, type: v.entity.type, tier: v.entity.tier, specialization: null, sector: v.sector, aimed: v.aimed, targetYaw: v.entity.targetYaw, mirror: v.bodyMirror, frame: f.frame, muzzle: v.muzzlePt, mount: v.mount, px: v.px, py: v.py });
+        out.push({ id, type: v.entity.type, tier: specialization ? 4 : v.entity.tier, specialization, sector: v.sector, aimed: v.aimed, targetYaw: v.entity.targetYaw, mirror: turretVisible ? f.mirror : v.bodyMirror, frame: f.frame, muzzle: v.muzzlePt, mount: v.mount, px: v.px, py: v.py });
       }
     }
     return out;

@@ -1,0 +1,18 @@
+{
+ "image": "tailwind-attack.webp",
+ "frameW": 163,
+ "frameH": 256,
+ "count": 8,
+ "cols": 4,
+ "fps": 12,
+ "release": 3,
+ "anchor": [
+  81.5,
+  250.0
+ ],
+ "ringW": 151.0,
+ "muzzlePx": [
+  83.36,
+  63.44
+ ]
+}

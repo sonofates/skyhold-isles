@@ -842,6 +842,22 @@
   "stormheart": {
    "portrait": "specializations/stormheart.webp",
    "attack": "specializations/stormheart-attack.json"
+  },
+  "cinderkiln": {
+   "portrait": "specializations/cinderkiln.webp",
+   "attack": "specializations/cinderkiln-attack.json"
+  },
+  "cloudbreak": {
+   "portrait": "specializations/cloudbreak.webp",
+   "attack": "specializations/cloudbreak-attack.json"
+  },
+  "tailwind": {
+   "portrait": "specializations/tailwind.webp",
+   "attack": "specializations/tailwind-attack.json"
+  },
+  "horizon": {
+   "portrait": "specializations/horizon.webp",
+   "attack": "specializations/horizon-attack.json"
   }
  },
  "buildRing": [
