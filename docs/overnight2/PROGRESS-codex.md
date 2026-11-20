@@ -392,3 +392,23 @@ TypeScript, lint and the production build passed. Vitest passed 1,393 tests with
 ### Next round
 
 Audit Rimeglass Needle’s Cold Fracture on fresh and already chilled armored targets in the same splash. Check the order of damage, armor piercing, brittle bonus and slow application when the first hit cracks a Basalt Golem’s armor.
+
+## Round 17 — Rimeglass Needle and Cold Fracture
+
+### Done
+
+- Added a combat regression with two Basalt Golems on one road. The first shard chills the lead golem. Half a second after the lead, a fresh elite enters the same splash with its full 13 armor.
+- Without Cold Fracture, the second shard deals 59 to the chilled lead and 21 to the fresh elite. Buying the ability before combat raises those hits to 62 and 33. The lead's existing 42% slow supplies the 71.4% brittle bonus. At the elite's position, splash falloff leaves 34 base damage and one point of its armor survives the pierce. Both golems take damage before the new slow applies. Each shell of basalt cracks once.
+- Buying Cold Fracture while the second shard is airborne preserves its original damage. The third shard uses the upgrade and deals 70 to the lead at the 55% slow cap and 60 to the elite at 42% slow. Across all three purchase timings, the Needle earns both kills and 514 damage. Replaying each serialized command log reproduces every hit, both armor cracks, the brittle effects, the win and the final state hash. The audit found no combat-rule defect.
+
+### Campaign decision
+
+Emberglass Sanctum's realistic build buys Rimeglass Needle and Cold Fracture after plot 15 reaches frost tier III. With level-20 Bran and the 44-star entry kit, the player affords both purchases during wave 20 of 24. The Needle fires five times between purchases and 173 times afterward, earning 48,089 damage and 68 kills after buying Cold Fracture. Normal still clears at 10/22 lives and two stars. The shared simulator plan applies to the painted i16 campaign build.
+
+### Verification
+
+TypeScript, lint and the production build passed. Vitest passed 1,396 tests with 11 skipped using one worker. All 41 realistic-kit levels passed, including all 25 islands. The i16 purchases cost 255 gold and reduce final-wave peak ground progress from 67% to 63%. The complete difficulty report matches round 16 byte for byte, with all eight verdicts passing, Hard i09 at 12/22 and Hard i24 at 5/22. The standalone 24,217-byte L1–L16 report matches the round-one baseline byte for byte.
+
+### Next round
+
+Audit overlapping Tailwind Mill and Horizon Lantern auras. Measure an allied tower’s firing interval and effective range with both abilities purchased, then sell each support tower separately to check which bonus persists. No UI, art or translation changes requested this round.
