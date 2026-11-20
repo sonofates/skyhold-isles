@@ -412,3 +412,31 @@ TypeScript, lint and the production build passed. Vitest passed 1,396 tests with
 ### Next round
 
 Audit overlapping Tailwind Mill and Horizon Lantern auras. Measure an allied tower’s firing interval and effective range with both abilities purchased, then sell each support tower separately to check which bonus persists. No UI, art or translation changes requested this round.
+
+## Round 18 — Overlapping beacon specializations
+
+### Done
+
+- Added two three-wave encounters for Tailwind Mill with Full Sail and Horizon Lantern with Clear Lens. A tier-I archer stands on the coverage boundary of each support. On every wave its opening arrow fires on the first tick a golem crosses the expected range. Five consecutive reloads per wave establish the steady firing interval at 60 Hz.
+
+| Supports on the plot map | Archer reach in world units | Ticks between arrows |
+|---|---:|---:|
+| Tailwind and Horizon | 7.15 | 25 |
+| Tailwind only | 6.05 | 25 |
+| Horizon only | 7.15 | 29 |
+| Both sold | 5.50 | 37 |
+
+- Sold each support ten ticks into a reload. Selling Tailwind first gave a 28-tick interval on that shot, and later selling Horizon gave 34. Reversing the sales gave 25 and 32 ticks respectively. The archer retained the reload progress it had earned before each sale. Both serialized replays reproduced every firing tick, target distance, win and final state hash.
+
+### Campaign decision
+
+- Tried the pair in Emberglass Sanctum with level-20 Bran and the 44-star entry kit. Plot 17 took a beacon in place of frost and plot 6 used its existing beacon. With Tailwind on 17 and Horizon on 6, the plot-18 ballista fired 71 times with both purchased bonuses over waves 23 and 24. Swapping the branches gave 69 shots. Both runs bought Cold Fracture, Full Sail and Clear Lens and finished at 10/22 lives with two stars.
+- Waxlight Orchard lost on wave six when the first support replaced the plot-5 mortar, before it could buy either branch. Kept the authored campaign builds. The Sanctum alternative exercises the overlap in a full campaign encounter and the existing Orchard mortar covers the first elite golem wave.
+
+### Verification
+
+TypeScript and lint passed. Vitest passed 1,398 tests with 11 skipped using one worker. All eight difficulty verdicts passed, including Hard i09 at 12/22 and Hard i24 at 5/22. All 41 realistic-kit levels passed, including all 25 islands. The full balance and difficulty reports matched round 17 byte for byte. The standalone L1–L16 report matched the 24,217-byte round-one baseline. The production build passed with the existing Vite chunk-size and dynamic-import warnings.
+
+### Next round
+
+Check the first barracks swing after a beacon specialization purchase or sale. In the world tick, soldiers act before the combat system refreshes tower auras. Measure the effect on an engaged squad and record any needed soldier-system changes for its owner.
