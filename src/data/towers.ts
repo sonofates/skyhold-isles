@@ -710,7 +710,7 @@ const SPECIALIZATIONS = {
       changes: { damage: 92, clusterCount: 5, clusterRadius: 1.65, clusterOffset: 2.5 },
       abilities: [{
         id: 'waxcaps', name: 'Wax Caps', cost: 95,
-        description: 'Each small charge hits for half the main shell’s damage.', changes: { clusterDamage: 0.5 },
+        description: 'Each charge’s base damage rises from 35% to 50% of shell damage.', changes: { clusterDamage: 0.5 },
       }],
     },
     {

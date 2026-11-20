@@ -372,3 +372,23 @@ TypeScript, lint and the production build passed. Vitest passed 1,390 tests with
 ### Next round
 
 Audit Honeycomb Battery's Wax Caps on armored ground foes at the main impact and the edge of two overlapping charges. Check the effect of buying Wax Caps while a shell is airborne. No new UI or localization requests.
+
+## Round 16 — Honeycomb Battery impact and campaign build
+
+### Done
+
+- Added a four-lane encounter with one armored Basalt Golem per lane. On the first shell, the golem at the crater took 80 damage. The golem near a charge center took 39 from the main blast, then 20 from the charge. With Wax Caps bought before launch, that charge dealt 34. The golem just inside two charges took 6 and 6 without the upgrade, or 14 and 13 with it. The golem just outside both took zero.
+- Buying Wax Caps while the first shell was airborne gave the first and second shells their respective launch-time damage. The second shell’s ring rotated and reached the fourth lane for 16 damage, versus 8 without the purchase. All three purchase timings reproduced every hit, all five charges per shell, the final state hash and the win on replay. Each battery earned exactly the damage it dealt and two kills.
+- Brineglass Ferry’s realistic build now buys Honeycomb Battery on plot 14 after upgrading the second Tesla on plot 8. Level-20 Bran’s Normal run bought the branch in wave 10 and Wax Caps in wave 11. The battery fired 20 shells before buying the ability and 88 afterward. It earned 30,343 damage and 24 kills after the ability purchase. The island finished at 8/22 lives and two stars, matching the previous build. Buying the branch immediately at cannon tier III left the same kit at 2/22, below the 4–9 life target.
+
+### Request for Opus
+
+The Wax Caps tooltip now describes base damage. Each charge loses damage with distance, then meets the target’s armor separately. EN “Each charge’s base damage rises from 35% to 50% of shell damage.” TR “Her küçük bombanın temel hasarı, mermi hasarının %35’inden %50’sine çıkar.”
+
+### Verification
+
+TypeScript, lint and the production build passed. Vitest passed 1,393 tests with 11 skipped using one worker. Vite emitted its existing bundle warnings. Realistic-kit balance passed all 41 levels. The only changes to the balance report are i22’s purchases and gold accounting. The final difficulty report matched round 15 byte for byte, including all eight passing verdicts, Hard i09 at 12/22 and Hard i24 at 5/22. The standalone 24,217-byte L1–L16 report matched the round-one baseline byte for byte.
+
+### Next round
+
+Audit Rimeglass Needle’s Cold Fracture on fresh and already chilled armored targets in the same splash. Check the order of damage, armor piercing, brittle bonus and slow application when the first hit cracks a Basalt Golem’s armor.

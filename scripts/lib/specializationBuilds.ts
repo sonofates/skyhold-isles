@@ -16,6 +16,7 @@ interface BranchPlan {
 const plans: Readonly<Partial<Record<string, BranchPlan>>> = {
   i18: { after: { wave: 9, plot: 13 }, plot: 7, branch: 'bellfoundry', ability: 'aftershock' },
   i21: { after: { wave: 10, plot: 18 }, plot: 18, branch: 'farwatch', ability: 'throughshot' },
+  i22: { after: { wave: 8, plot: 8 }, plot: 14, branch: 'honeycomb', ability: 'waxcaps' },
 };
 
 /** The two campaign simulators play the same purchases. Other clients still use the base build script. */
