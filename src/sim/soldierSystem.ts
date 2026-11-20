@@ -284,7 +284,7 @@ export class SoldierSystem {
     if (!Number.isFinite(x) || !Number.isFinite(z)) return false;
     const b = this.getBarracks(tower.id);
     if (!b) return false;
-    const stats = getTowerTierStats(tower.type, tower.tier);
+    const stats = b.stats;
     const effRange = stats.range * (1 + tower.auraRange + (tower.heroRangeBonus ?? 0));
     if (!this.findRoadPoint(b.x, b.z, effRange, x, z, _rallyRoadPt)) return false;
     const rx = _rallyRoadPt.x;

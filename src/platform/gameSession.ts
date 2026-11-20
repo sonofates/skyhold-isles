@@ -40,14 +40,18 @@ import {
 } from './sessionBridge.ts';
 import {
   hasSeenUpgradeToast,
+  isProgressPostHydrated,
   loadProgress,
   loadSettings,
+  markProgressPostHydrated,
   markUpgradeToastSeen,
+  migrateProgress,
   backupProgressBeforeImport,
   readLocalProgressRaw,
   resetProgressSave,
   saveProgress,
   saveSettings,
+  tryRepairTruncatedJson,
 } from './storage.ts';
 import type { RunModifiers } from '../data/runModifiers.ts';
 import {
@@ -76,9 +80,7 @@ import type { EndlessResultView } from '../ui/gameModals.ts';
 import { affordableUpgradeCount } from '../ui/workshop.ts';
 import {
   buyRank,
-  rankOf,
   sanitizeRanks,
-  WORKSHOP_UPGRADES,
   workshopModifiers,
   workshopStarsSpent,
   type WorkshopUpgradeId,
@@ -87,7 +89,7 @@ import { isEndlessBestCrossing, isIslandMastered, starWallet } from '../game/pro
 import { badgesForWin, resolveRunConfig, type RunConfig } from '../game/runConfig.ts';
 import { earnedFeatIds, newlyEarnedFeats, type FeatDef } from '../game/feats.ts';
 import { dailyShareText } from '../game/share.ts';
-import { hydrateProgressFromCloud } from './cloudSync.ts';
+import { foldPendingCloudThreeWay, hydrateProgressFromCloud } from './cloudSync.ts';
 import { getPlatform } from './platform.ts';
 import {
   decodeSaveCode,
@@ -197,51 +199,42 @@ export class GameSession {
     });
     if (platform.isSteam) {
       const bootResetGen = this.resetGen;
-      const bootWorkshop = sanitizeRanks(this.progress.workshop);
+      const bootSnapshot = migrateProgress(this.progress, LEVELS.length);
       void hydrateProgressFromCloud(this.progress, LEVELS.length, platform)
         .then(({ merged, updated }) => {
           if (!updated || this.disposed || this.resetGen !== bootResetGen) return;
-          const freshMerged = mergeProgress(this.progress, merged, LEVELS.length);
-          const curWorkshop = sanitizeRanks(this.progress.workshop);
-          const refundedWorkshop =
-            this.workshopRefundedDuringHydrate ||
-            WORKSHOP_UPGRADES.some((def) => rankOf(curWorkshop, def.id) < rankOf(bootWorkshop, def.id));
-          const addedWorkshop =
-            !refundedWorkshop &&
-            WORKSHOP_UPGRADES.some((def) => rankOf(curWorkshop, def.id) > rankOf(bootWorkshop, def.id));
-          if (refundedWorkshop) {
-            freshMerged.workshop = curWorkshop;
-            if (starWallet(freshMerged).available < 0) freshMerged.workshop = {};
-          } else if (addedWorkshop) {
-            const lostCurRank = WORKSHOP_UPGRADES.some(
-              (def) => rankOf(freshMerged.workshop, def.id) < rankOf(curWorkshop, def.id),
-            );
-            const totalEarned = starWallet(freshMerged).earned;
-            if (lostCurRank && workshopStarsSpent(curWorkshop) <= totalEarned) {
-              const topped: Record<string, number> = { ...curWorkshop };
-              let remaining = totalEarned - workshopStarsSpent(topped);
-              for (const def of WORKSHOP_UPGRADES) {
-                let cur = rankOf(topped, def.id);
-                const want = rankOf(merged.workshop, def.id);
-                while (cur < want) {
-                  const stepCost = def.costs[cur];
-                  if (stepCost === undefined || stepCost > remaining) break;
-                  cur++;
-                  topped[def.id] = cur;
-                  remaining -= stepCost;
-                }
-              }
-              freshMerged.workshop = sanitizeRanks(topped);
+          let effectiveHydrated = migrateProgress(merged, LEVELS.length);
+          const mergedDiskRaw = JSON.stringify(effectiveHydrated);
+          const currentDiskRaw = readLocalProgressRaw();
+          if (currentDiskRaw !== null && currentDiskRaw !== mergedDiskRaw) {
+            let latestParsed: unknown;
+            try {
+              latestParsed = JSON.parse(currentDiskRaw);
+            } catch {
+              latestParsed = tryRepairTruncatedJson(currentDiskRaw);
+            }
+            if (latestParsed && typeof latestParsed === 'object' && !Array.isArray(latestParsed)) {
+              const latestCopy = migrateProgress(latestParsed, LEVELS.length);
+              foldPendingCloudThreeWay(latestCopy, effectiveHydrated, effectiveHydrated);
+              effectiveHydrated = latestCopy;
             }
           }
+          const curWorkshop = sanitizeRanks(this.progress.workshop);
+          const freshMerged = migrateProgress(this.progress, LEVELS.length);
+          const baseForFold = isProgressPostHydrated(this.progress) ? effectiveHydrated : bootSnapshot;
+          foldPendingCloudThreeWay(freshMerged, baseForFold, effectiveHydrated);
+          if (this.workshopRefundedDuringHydrate) {
+            freshMerged.workshop = curWorkshop;
+            if (starWallet(freshMerged).available < 0) freshMerged.workshop = {};
+          }
           this.workshopRefundedDuringHydrate = false;
-          const currentDiskRaw = readLocalProgressRaw();
           if (freshMerged.heroes === undefined) delete this.progress.heroes;
           if (freshMerged.difficultyWins === undefined) delete this.progress.difficultyWins;
           if (freshMerged.wonChallenges === undefined) delete this.progress.wonChallenges;
           Object.assign(this.progress, freshMerged);
+          markProgressPostHydrated(this.progress);
           this.deps?.content?.onProgressImported(LEVELS, this.progress);
-          if (JSON.stringify(this.progress) !== currentDiskRaw) {
+          if (JSON.stringify(this.progress) !== readLocalProgressRaw()) {
             saveProgress(this.progress);
           }
           if (this.viewMode !== 'playing') {
@@ -790,11 +783,11 @@ export class GameSession {
   private isIslandCleared(index: number): boolean {
     const dw = this.progress.difficultyWins;
     return (
-      (this.progress.clears[index] ?? 0) > 0 ||
-      (this.progress.bestStars[index] ?? 0) > 0 ||
-      (dw?.easy[index] ?? 0) > 0 ||
-      (dw?.normal[index] ?? 0) > 0 ||
-      (dw?.hard[index] ?? 0) > 0
+      (this.progress.clears?.[index] ?? 0) > 0 ||
+      (this.progress.bestStars?.[index] ?? 0) > 0 ||
+      (dw?.easy?.[index] ?? 0) > 0 ||
+      (dw?.normal?.[index] ?? 0) > 0 ||
+      (dw?.hard?.[index] ?? 0) > 0
     );
   }
 
@@ -871,6 +864,7 @@ export class GameSession {
     if (merged.difficultyWins === undefined) delete this.progress.difficultyWins;
     if (merged.wonChallenges === undefined) delete this.progress.wonChallenges;
     Object.assign(this.progress, merged);
+    markProgressPostHydrated(this.progress);
     saveProgress(this.progress);
     this.deps?.content?.onProgressImported(LEVELS, this.progress);
     this.soundManager.playUiConfirm();
@@ -1009,6 +1003,10 @@ export class GameSession {
     this.workshopRefundedDuringHydrate = true;
     this.progress.workshop = {};
     saveProgress(this.progress);
+    if (Object.keys(this.progress.workshop).length > 0) {
+      this.progress.workshop = {};
+      saveProgress(this.progress);
+    }
     this.soundManager.playUiBack();
   }
 

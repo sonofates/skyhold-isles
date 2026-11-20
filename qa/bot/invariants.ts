@@ -902,6 +902,24 @@ export class InvariantMonitor {
           `won run leaked ${w.abilitySystem.getPendingMeteorCount()} pendingMeteors`,
         );
       }
+      if (w.abilitySystem.getOverchargeRemaining() !== 0) {
+        this.record(
+          'entity_leak',
+          tick,
+          `won run leaked active overchargeRemaining=${w.abilitySystem.getOverchargeRemaining()}`,
+        );
+      }
+      for (let i = 0; i < w.towers.length; i++) {
+        const t = w.towers[i];
+        if ((t.overhaulTimer ?? 0) > 0 || (t.heroRateBonus ?? 0) > 0) {
+          this.record(
+            'entity_leak',
+            tick,
+            `won run leaked transient tower buff on tower id=${t.id} (overhaul=${t.overhaulTimer ?? 0}, heroRate=${t.heroRateBonus ?? 0})`,
+          );
+          break;
+        }
+      }
       if (w.soldierSystem.blockedCount !== 0) {
         this.record(
           'entity_leak',
@@ -991,6 +1009,24 @@ export class InvariantMonitor {
           tick,
           `lost run leaked ${w.heroSystem.getPendingVolleys().length} pendingVolleys`,
         );
+      }
+      if (w.abilitySystem.getOverchargeRemaining() !== 0) {
+        this.record(
+          'entity_leak',
+          tick,
+          `lost run leaked active overchargeRemaining=${w.abilitySystem.getOverchargeRemaining()}`,
+        );
+      }
+      for (let i = 0; i < w.towers.length; i++) {
+        const t = w.towers[i];
+        if ((t.overhaulTimer ?? 0) > 0 || (t.heroRateBonus ?? 0) > 0) {
+          this.record(
+            'entity_leak',
+            tick,
+            `lost run leaked transient tower buff on tower id=${t.id} (overhaul=${t.overhaulTimer ?? 0}, heroRate=${t.heroRateBonus ?? 0})`,
+          );
+          break;
+        }
       }
       if (w.soldierSystem.blockedCount !== 0) {
         this.record(

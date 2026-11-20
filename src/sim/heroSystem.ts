@@ -429,8 +429,19 @@ export class HeroSystem {
     if (includeGizmos) {
       this.gizmos.length = 0;
       this.calmHealTimer = 1.0;
+    } else {
+      for (let i = 0; i < this.gizmos.length; i++) {
+        this.gizmos[i].boostTimer = 0;
+        this.gizmos[i].boostRate = 0;
+      }
     }
     this.clearHeroBuffs(towers);
+    if (towers) {
+      for (let i = 0; i < towers.length; i++) {
+        if (towers[i].overhaulTimer !== undefined) towers[i].overhaulTimer = 0;
+        if (towers[i].overhaulRateBonus !== undefined) towers[i].overhaulRateBonus = 0;
+      }
+    }
     if (this.hero) {
       if (emitUnblocks) {
         this.releaseCurrentMeleeHolds(true);

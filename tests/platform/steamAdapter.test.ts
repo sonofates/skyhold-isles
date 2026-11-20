@@ -2075,4 +2075,178 @@ describe('Steam achievements map, cloud hydration, and desktop config invariants
       setPlatformAdapter(null);
     }
   });
+
+  it('protects stale World Map / GameSession progress snapshots saved during post-read achievement IPC awaits (2D & 3D) and coalesces concurrent achievement unlocks', async () => {
+    try {
+      const cloudMap = new Map<string, string>();
+      const remote2D = createDefaultProgress(LEVELS_2D.length);
+      for (let i = 0; i < 14; i++) {
+        remote2D.bestStars[i] = 3;
+        remote2D.clears[i] = 1;
+      }
+      remote2D.unlockedLevelIndex = 14;
+      remote2D.workshop = { quickcast: 2, treasury: 1 };
+      remote2D.heroes = {
+        selectedHero: 'mira',
+        roster: {
+          bran: { xp: 200, skills: [] },
+          mira: { xp: HERO_LEVEL_XP[11], skills: ['mira_emb_1', 'mira_emb_2'] },
+        },
+      };
+      cloudMap.set(
+        CLOUD_PROGRESS_2D_SLOT,
+        JSON.stringify({ ids: LEVELS_2D.map((l) => l.id), progress: remote2D }),
+      );
+
+      let releaseAch2D: (() => void) | null = null;
+      let suspended2D = false;
+      const adapter2D = createPlatformAdapter({
+        bridge: {
+          isSteam: true,
+          appId: 480,
+          unlockAchievement: () => {
+            if (!suspended2D) {
+              suspended2D = true;
+              return new Promise<boolean>((res) => {
+                releaseAch2D = () => res(true);
+              });
+            }
+            return Promise.resolve(true);
+          },
+          cloudRead: async (slot) => cloudMap.get(slot) ?? null,
+          cloudWrite: async (slot, json) => {
+            cloudMap.set(slot, json);
+            return true;
+          },
+        },
+      });
+      setPlatformAdapter(adapter2D);
+
+      // Fresh PC boots World Map (`boot` is empty in memory; cloudRead resolves synchronously via microtask,
+      // then hydrateProgress2DFromCloud suspends inside syncAchievementsFromProgress):
+      const boot2D = loadProgress2D(LEVELS_2D);
+      for (let i = 0; i < 12 && !releaseAch2D; i++) {
+        await new Promise((r) => setTimeout(r, 0));
+      }
+      expect(releaseAch2D).not.toBeNull();
+      expect(boot2D.bestStars[0]).toBe(0); // `.then(...)` has not run yet!
+
+      // WHILE syncAchievementsFromProgress is suspended on IPC, World Map saves stale `boot2D`
+      // after adding local Bran XP: must 3-way merge remote stars + Workshop + Mira skills instead of clobbering!
+      boot2D.heroes!.roster.bran = { xp: 450, skills: [] };
+      saveProgress2D(boot2D, LEVELS_2D);
+
+      expect(boot2D.bestStars[13]).toBe(3);
+      expect(boot2D.workshop).toEqual({ quickcast: 2, treasury: 1 });
+      expect(boot2D.heroes?.roster.mira?.skills).toEqual(['mira_emb_1', 'mira_emb_2']);
+      expect(boot2D.heroes?.roster.bran?.xp).toBe(450);
+
+      // Still inside the same achievement IPC window, `boot2D` is now post-hydration:
+      // an explicit Workshop refund on `boot2D` must stay authoritative after `.then(...)` finishes!
+      boot2D.workshop = {};
+      saveProgress2D(boot2D, LEVELS_2D);
+
+      releaseAch2D!();
+      await new Promise((r) => setTimeout(r, 15));
+
+      expect(boot2D.bestStars[13]).toBe(3);
+      expect(boot2D.workshop).toEqual({});
+      expect(boot2D.heroes?.roster.mira?.skills).toEqual(['mira_emb_1', 'mira_emb_2']);
+      const finalCloud2D = JSON.parse(cloudMap.get(CLOUD_PROGRESS_2D_SLOT)!) as {
+        progress: ProgressData;
+      };
+      expect(finalCloud2D.progress.bestStars[13]).toBe(3);
+      expect(finalCloud2D.progress.workshop).toEqual({});
+      expect(finalCloud2D.progress.heroes?.roster.mira?.skills).toEqual(['mira_emb_1', 'mira_emb_2']);
+
+      // 3D parity: saving a stale pre-hydration 3D snapshot during syncAchievementsFromProgress
+      // also 3-way-merges remote stars + Workshop without clobbering Steam Cloud!
+      localStorage.clear();
+      const stale3D = createDefaultProgress(LEVELS.length);
+      const remote3D = createDefaultProgress(LEVELS.length);
+      for (let i = 0; i < 8; i++) {
+        remote3D.bestStars[i] = 3;
+        remote3D.clears[i] = 1;
+      }
+      remote3D.workshop = { treasury: 2 };
+      cloudMap.set('progress', JSON.stringify(remote3D));
+
+      let releaseAch3D: (() => void) | null = null;
+      let suspended3D = false;
+      const adapter3D = createPlatformAdapter({
+        bridge: {
+          isSteam: true,
+          appId: 480,
+          unlockAchievement: () => {
+            if (!suspended3D) {
+              suspended3D = true;
+              return new Promise<boolean>((res) => {
+                releaseAch3D = () => res(true);
+              });
+            }
+            return Promise.resolve(true);
+          },
+          cloudRead: async (slot) => cloudMap.get(slot) ?? null,
+          cloudWrite: async (slot, json) => {
+            cloudMap.set(slot, json);
+            return true;
+          },
+        },
+      });
+      setPlatformAdapter(adapter3D);
+
+      const hydrate3DPromise = hydrateProgressFromCloud(stale3D, LEVELS.length, adapter3D, LEVELS);
+      for (let i = 0; i < 12 && !releaseAch3D; i++) {
+        await new Promise((r) => setTimeout(r, 0));
+      }
+      expect(releaseAch3D).not.toBeNull();
+
+      stale3D.bestEndlessWaves[2] = 19;
+      saveProgress(stale3D);
+      expect(stale3D.bestStars[7]).toBe(3);
+      expect(stale3D.workshop).toEqual({ treasury: 2 });
+      expect(stale3D.bestEndlessWaves[2]).toBe(19);
+      expect(JSON.parse(cloudMap.get('progress')!).bestStars[7]).toBe(3);
+
+      releaseAch3D!();
+      await hydrate3DPromise;
+
+      // Concurrent PlatformAdapter.achievements.unlock(id) coalesces in-flight IPC calls and allows retry after failure:
+      let rawUnlockCalls = 0;
+      let shouldSucceed = false;
+      let releaseUnlock: (() => void) | null = null;
+      const dedupAdapter = createPlatformAdapter({
+        bridge: {
+          isSteam: true,
+          appId: 480,
+          unlockAchievement: () => {
+            rawUnlockCalls++;
+            return new Promise<boolean>((res) => {
+              releaseUnlock = () => res(shouldSucceed);
+            });
+          },
+          cloudRead: async () => null,
+          cloudWrite: async () => true,
+        },
+      });
+
+      const u1 = dedupAdapter.achievements.unlock('BOSS_I24_CLEARED');
+      const u2 = dedupAdapter.achievements.unlock('BOSS_I24_CLEARED');
+      expect(rawUnlockCalls).toBe(1);
+      releaseUnlock!();
+      expect(await Promise.all([u1, u2])).toEqual([false, false]);
+
+      // Failed unlock was not cached: retry succeeds and coalesces concurrent callers onto 1 IPC call!
+      shouldSucceed = true;
+      const u3 = dedupAdapter.achievements.unlock('BOSS_I24_CLEARED');
+      const u4 = dedupAdapter.achievements.unlock('BOSS_I24_CLEARED');
+      expect(rawUnlockCalls).toBe(2);
+      releaseUnlock!();
+      expect(await Promise.all([u3, u4])).toEqual([true, true]);
+      expect(await dedupAdapter.achievements.unlock('BOSS_I24_CLEARED')).toBe(true);
+      expect(rawUnlockCalls).toBe(2);
+    } finally {
+      setPlatformAdapter(null);
+    }
+  });
 });

@@ -1,7 +1,11 @@
 import type { HeroId, HeroSaveData, ProgressData } from '../core/types.ts';
 import { isChallengeId } from '../data/challenges.ts';
 import { sanitizeDailyRecord, type DailyRecord } from '../data/daily.ts';
-import { difficultyWinsOf, mergeDifficultyWins, sanitizeDifficultyWins } from '../data/difficulty.ts';
+import {
+  mergeDifficultyWins,
+  sanitizeDifficultyWins,
+  type DifficultyWins,
+} from '../data/difficulty.ts';
 import {
   countHeroSkillPointsSpent,
   HERO_IDS,
@@ -307,6 +311,39 @@ export function mergeDaily(a: DailyRecord, b: DailyRecord): DailyRecord {
 }
 
 /**
+ * Derives per-difficulty star records sized to `count` islands without truncating `difficultyWins`
+ * when `progress.bestStars` is shorter than `count` (e.g. partial / un-migrated saves).
+ */
+export function sizedDifficultyWins(progress: ProgressData, count: number): DifficultyWins {
+  const safeCount = Number.isFinite(count) ? Math.max(0, Math.floor(count)) : 0;
+  const bestStars = Array.isArray(progress.bestStars) ? progress.bestStars : [];
+  const clampStar = (v: unknown): number =>
+    typeof v === 'number' && Number.isFinite(v) ? Math.max(0, Math.min(3, Math.floor(v))) : 0;
+  const rawDw = progress.difficultyWins;
+  let normalizedRaw: unknown = rawDw;
+  if (rawDw && typeof rawDw === 'object' && !Array.isArray(rawDw)) {
+    const rec = rawDw as unknown as Record<string, unknown>;
+    if (!('easy' in rec) && !('normal' in rec) && !('hard' in rec) && ('e' in rec || 'n' in rec || 'h' in rec)) {
+      normalizedRaw = { easy: rec.e, normal: rec.n, hard: rec.h };
+    }
+  }
+  const dw = sanitizeDifficultyWins(normalizedRaw, safeCount);
+  if (!dw) {
+    return {
+      easy: new Array<number>(safeCount).fill(0),
+      normal: Array.from({ length: safeCount }, (_, i) => clampStar(bestStars[i])),
+      hard: new Array<number>(safeCount).fill(0),
+    };
+  }
+  for (let i = 0; i < safeCount; i++) {
+    const bs = clampStar(bestStars[i]);
+    const maxDiff = Math.max(dw.easy[i] ?? 0, dw.normal[i] ?? 0, dw.hard[i] ?? 0);
+    if (bs > maxDiff) dw.normal[i] = bs;
+  }
+  return dw;
+}
+
+/**
  * Best of both saves, record by record: a merge never lowers anything. Workshop ranks come from
  * whichever save had spent more (refunded if the merged wallet somehow cannot pay for them).
  */
@@ -337,7 +374,7 @@ export function mergeProgress(a: ProgressData, b: ProgressData, levelCount: numb
   const maxIdx = Math.max(0, count - 1);
   const mergedDifficultyWins =
     a.difficultyWins !== undefined || b.difficultyWins !== undefined
-      ? mergeDifficultyWins(difficultyWinsOf(a), difficultyWinsOf(b), count)
+      ? mergeDifficultyWins(sizedDifficultyWins(a, count), sizedDifficultyWins(b, count), count)
       : undefined;
   const bestStars = maxList(a.bestStars, b.bestStars, 3);
   if (mergedDifficultyWins) {
@@ -590,9 +627,26 @@ export function describeMergeGain(before: ProgressData, after: ProgressData): st
     if (spentAfter > spentBefore) parts.push('hero skills');
   }
   if (before.difficultyWins !== undefined || after.difficultyWins !== undefined) {
-    const dwBefore = difficultyWinsOf(before);
-    const dwAfter = difficultyWinsOf(after);
-    const diffLen = Math.max(dwBefore.hard.length, dwAfter.hard.length);
+    const rawDwLen = (p: ProgressData): number => {
+      const dw = p.difficultyWins as unknown as Record<string, unknown> | undefined;
+      if (!dw || typeof dw !== 'object' || Array.isArray(dw)) return 0;
+      return Math.max(
+        Array.isArray(dw.easy) ? dw.easy.length : 0,
+        Array.isArray(dw.normal) ? dw.normal.length : 0,
+        Array.isArray(dw.hard) ? dw.hard.length : 0,
+      );
+    };
+    const diffLen = Math.min(
+      MAX_SAVE_CODE_ISLANDS,
+      Math.max(
+        Array.isArray(before.bestStars) ? before.bestStars.length : 0,
+        Array.isArray(after.bestStars) ? after.bestStars.length : 0,
+        rawDwLen(before),
+        rawDwLen(after),
+      ),
+    );
+    const dwBefore = sizedDifficultyWins(before, diffLen);
+    const dwAfter = sizedDifficultyWins(after, diffLen);
     let newHardRibbons = 0;
     let betterDiffStars = false;
     for (let i = 0; i < diffLen; i++) {

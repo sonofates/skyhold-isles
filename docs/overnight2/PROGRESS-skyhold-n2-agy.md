@@ -146,7 +146,7 @@
   - **Long-Tail Mid-Object JSON Repair, Clean Import Backups & 3D Onboarding Reset (`storage.ts`, `progress2d.ts`, `tests/platform/saveRobustnessV2.test.ts`):**
     - Expanded `repairTruncatedJsonContainer()` beyond the 128-cut tail cap (full exact scan up to 1,024 cuts + strided 3-cut probes up to 256 KB) so early mid-object corruption in 450-token 25-island saves salvages cleanly, updated `backupProgressBeforeImport()` / `importSaveCode2D()` to combine cloud mirrors and never write unparseable garbage into `*_import_backup`, and cleared `ENEMY_INTROS_SEEN_KEY` (+ in-memory cache), `FLYER_TOAST_SEEN_KEY`, and `UPGRADE_TOAST_SEEN_KEY` in `resetProgressSave()`.
 
-- [x] **16. Post-Backlog Deep Audit — Round 11 (`src/sim/soldierSystem.ts`, `qa/bot/invariants.ts`, `src/platform/{cloudSync,gameSession}.ts`, `src/render2d/ui/progress2d.ts`, `desktop/main.cjs`, `tests/**`)**
+- [x] **16. Post-Backlog Deep Audit — Round 11 (`src/sim/soldierSystem.ts`, `qa/bot/invariants.ts`, `src/platform/{cloudSync,gameSession}.ts`, `src/render2d/ui/progress2d.ts`, `desktop/main.cjs`, `tests/**`)** — commit `f02bdee`
   - **Post-Read Steam Cloud IPC Await Race Fix (`progress2d.ts`, `cloudSync.ts`, `gameSession.ts`, `tests/platform/steamAdapter.test.ts`):**
     - Fixed an async IPC race in `hydrateProgress2DFromCloud()` and 3D `hydrateProgressFromCloud()` where `saveLocalProgress2D(merged)` / `saveLocalProgress(merged)` executed *after* `await safeCloudWrite*` (`cloudWrite` IPC), overwriting player actions (Workshop Refund, Hero Respec, Hero Select, or Island Wins) saved while `cloudWrite` or `syncAchievementsFromProgress` (`unlockAchievement` IPC) was suspended; `localStorage` flushes now happen strictly before any post-read `await`, and `loadProgress2D()`'s `.then(...)` 3-way-merges any newer `localStorage` writes made during post-read IPC awaits before updating the boot `ProgressData` reference and `pendingAutoHydrated2DByAdapter`.
   - **Elite Multi-Hold (`soldierHoldCap > 1`) Blink/Leash Pruning & Front-to-Back Cluster Rank (`soldierSystem.ts`, `qa/bot/invariants.ts`, `tests/sim/barracks.test.ts`):**
@@ -154,6 +154,16 @@
     - Refined `applyExtraHolds()` to walk sorted cluster candidates (`dist` desc, `uid` asc) with monotonic front-to-back `rank` so rear already-held foes never shift the `queueStopDist` rank of needy foes ahead of them, and added per-tick fighting `extraHold` validity checks to `InvariantMonitor`.
   - **Remembered Difficulty Reset, 3D `GameSession` Parity & Main-Process IPC Type Guards (`progress2d.ts`, `gameSession.ts`, `desktop/main.cjs`):**
     - Updated `resetProgress2D()` to clear `skyhold_isles_difficulty2d_v1` back to default `Normal`, added `difficultyWins` parity + `content.onProgressImported` notification to 3D `GameSession`, enforced strict `typeof === 'string'` checks in `sanitizeSlot` / `sanitizeAchievementId` in `desktop/main.cjs`, rebuilt `release/Skyhold Isles-1.0.0.AppImage`, and re-verified Xvfb smoke.
+
+- [x] **17. Post-Backlog Deep Audit — Round 12 (`src/platform/{platform,storage,cloudSync,gameSession,saveCode}.ts`, `src/render2d/ui/{progress2d,modes2d}.ts`, `src/render2d/heroes2d.ts`, `src/sim/{heroSystem,soldierSystem}.ts`, `qa/bot/invariants.ts`, `tests/**`)**
+  - **Synchronous Pre-IPC Cloud Hydration Snapshot Guard across 2D & 3D + In-Flight Achievement Unlock Coalescing (`progress2d.ts`, `storage.ts`, `cloudSync.ts`, `gameSession.ts`, `platform.ts`, `tests/platform/steamAdapter.test.ts`):**
+    - Fixed a multi-IPC stale-reference window where `pendingAutoHydrated2DByAdapter` was only populated inside `loadProgress2D()`'s `.then(...)` *after* `await safeCloudWrite2D` and up to 58 `await unlockAchievement` IPC round-trips completed (while `completedHydrated2DAdapters` was already set), allowing `saveProgress2D(ctx.progress)` from the World Map during achievement sync to overwrite `localStorage` and remote Steam Cloud with empty pre-hydration progress; `hydrateProgress2DFromCloud()` now registers `pendingAutoHydrated2DByAdapter` synchronously right after `cloudSave.read` resolves, and 3D `storage.ts` / `cloudSync.ts` / `gameSession.ts` gained matching `recordCloudHydrationSnapshot` + `postHydrationStarsRefs` 3-way stale-snapshot protection.
+    - Coalesced concurrent `PlatformAdapter.achievements.unlock(id)` calls per achievement ID (`inFlightUnlocks` in `platform.ts`) so overlapping `syncAchievementsFromProgress()` passes never fire duplicate `bridge.unlockAchievement` IPC round-trips while preserving retries after failed unlocks.
+  - **Full-Length `difficultyWins` Sizing & Partial `ProgressData` Hardening (`saveCode.ts`, `storage.ts`, `progress2d.ts`, `modes2d.ts`, `heroes2d.ts`, `tests/platform/saveRobustnessV2.test.ts`):**
+    - Added `sizedDifficultyWins(progress, count)` (`saveCode.ts`) and wired it across `mergeProgress()`, `describeMergeGain()`, `islandStates()`, `recordWin2D()`, and `applyRunResult2D()` so saves whose `bestStars` array is shorter than `count` / `levels.length` never truncate Chapter Two (`i17`–`i24`) `difficultyWins` records or produce sparse arrays (`ensureDenseIslandArrays`).
+    - Hardened `modes2d.ts` (`isIslandCleared`, `availableChallenges`), `heroes2d.ts` (`clearedIslandsCount2D`), and `storage.ts` (`hasAnyProgress`) against partial `difficultyWins` objects missing `easy`/`normal`/`hard` sub-arrays and non-finite (`NaN`/`Infinity`) values, and persisted `wonChallenges`-only deltas on custom level IDs in `applyRunResult2D` / `recordRunResult2D`.
+  - **Transient Tower `overhaulTimer` & Gizmo `boostTimer` Cleanup (`heroSystem.ts`, `soldierSystem.ts`, `qa/bot/invariants.ts`, `tests/sim/heroes.test.ts`):**
+    - Cleared `tower.overhaulTimer` / `overhaulRateBonus` and `gizmo.boostTimer` / `boostRate` inside `HeroSystem.clearTransientZones()` so Tobb's active `Overhaul` surge never leaks across victory (`enterEndlessMode`), defeat, or `debugSkipToWave`, enforced post-run transient buff cleanliness (`overchargeRemaining === 0`, `overhaulTimer === 0`, `heroRateBonus === 0`) in `InvariantMonitor.checkRunEnd`, unified `SoldierSystem.setRally()` onto `b.stats`, rebuilt `release/Skyhold Isles-1.0.0.AppImage`, and re-verified Xvfb smoke + `qa:bot` (`656/656` passed).
 
 ---
 
@@ -180,7 +190,7 @@
 
 ## Problems / Known Issues
 
-- None blocking in owned area (`sim:balance` 41/41 byte-identical, `qa:bot` 656/656 + 58/58 2D achievement gate passing, 1,389 unit tests passing, all Hard Boss low-end benches `<= 66.8 ms`, Linux AppImage builds & passes Xvfb smoke with `secureContext: true`).
+- None blocking in owned area (`sim:balance` 41/41 byte-identical, `qa:bot` 656/656 + 58/58 2D achievement gate passing, 1,392 unit tests passing, all Hard Boss low-end benches `<= 66.8 ms`, Linux AppImage builds & passes Xvfb smoke with `secureContext: true`).
 
 ---
 

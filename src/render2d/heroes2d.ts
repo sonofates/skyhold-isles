@@ -165,25 +165,30 @@ export function heroLevelProgress(xp: number): HeroLevelProgress {
   };
 }
 
+function isPosFinite(val: unknown): boolean {
+  return typeof val === 'number' && Number.isFinite(val) && val > 0;
+}
+
 /** Count of distinct 2D campaign islands cleared in `progress`. */
 export function clearedIslandsCount2D(
   progress: ProgressData,
   levels: readonly Pick<LevelDef, 'id'>[] = LEVELS_2D,
 ): number {
   const dw = progress.difficultyWins;
-  const dwMaxLen = dw ? Math.max(dw.easy.length, dw.normal.length, dw.hard.length) : 0;
+  const arrLen = (arr: unknown): number => (Array.isArray(arr) ? arr.length : 0);
+  const dwMaxLen = dw ? Math.max(arrLen(dw.easy), arrLen(dw.normal), arrLen(dw.hard)) : 0;
   const limit = Math.min(
     levels.length,
-    Math.max(progress.clears.length, progress.bestStars.length, dwMaxLen),
+    Math.max(arrLen(progress.clears), arrLen(progress.bestStars), dwMaxLen),
   );
   let cleared = 0;
   for (let i = 0; i < limit; i++) {
     if (
-      (progress.clears[i] ?? 0) > 0 ||
-      (progress.bestStars[i] ?? 0) > 0 ||
-      (dw?.easy[i] ?? 0) > 0 ||
-      (dw?.normal[i] ?? 0) > 0 ||
-      (dw?.hard[i] ?? 0) > 0
+      isPosFinite(progress.clears?.[i]) ||
+      isPosFinite(progress.bestStars?.[i]) ||
+      isPosFinite(dw?.easy?.[i]) ||
+      isPosFinite(dw?.normal?.[i]) ||
+      isPosFinite(dw?.hard?.[i])
     ) {
       cleared++;
     }

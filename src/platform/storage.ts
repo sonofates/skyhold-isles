@@ -14,6 +14,18 @@ export const CLOUD_PROGRESS_SLOT = 'progress';
 const LOCAL_CLOUD_PROGRESS_MIRROR_KEY = `skyhold_isles_cloud_${CLOUD_PROGRESS_SLOT}`;
 const readingCloudAdapters = new WeakSet<PlatformAdapter>();
 const completedHydratedAdapters = new WeakSet<PlatformAdapter>();
+type CloudThreeWayFolderFn = (
+  target: ProgressData,
+  base: ProgressData,
+  hydrated: ProgressData,
+) => void;
+interface PendingCloudHydration3D {
+  readonly base: ProgressData;
+  readonly hydrated: ProgressData;
+  readonly foldInto: CloudThreeWayFolderFn;
+}
+const pendingCloudHydrationByAdapter = new WeakMap<PlatformAdapter, PendingCloudHydration3D>();
+const postHydrationStarsRefs = new WeakSet<readonly number[]>();
 type CloudHydratorFn = (
   progress: ProgressData,
   levelCount: number,
@@ -36,6 +48,39 @@ export function setCloudReadInFlight(adapter: PlatformAdapter, active: boolean):
 /** Marks `adapter` as having completed a clean remote Steam Cloud hydration for `progress`. */
 export function markCloudHydrated(adapter: PlatformAdapter): void {
   completedHydratedAdapters.add(adapter);
+}
+
+/** Marks a `ProgressData` instance as derived after Steam Cloud hydration (authoritative on refunds). */
+export function markProgressPostHydrated(progress: ProgressData): void {
+  if (Array.isArray(progress.bestStars)) {
+    postHydrationStarsRefs.add(progress.bestStars);
+  }
+}
+
+/** True when `progress` has already been hydrated (or created after Steam Cloud hydration). */
+export function isProgressPostHydrated(progress: ProgressData): boolean {
+  return Array.isArray(progress.bestStars) && postHydrationStarsRefs.has(progress.bestStars);
+}
+
+/**
+ * Registers the 3-way Steam Cloud hydration snapshot synchronously as soon as `cloudSave.read`
+ * finishes, protecting stale pre-hydration `ProgressData` references during post-read IPC awaits.
+ */
+export function recordCloudHydrationSnapshot(
+  adapter: PlatformAdapter,
+  base: ProgressData,
+  hydrated: ProgressData,
+  foldInto: CloudThreeWayFolderFn,
+): void {
+  const cleanBase = migrateProgress(base, base.bestStars.length);
+  const cleanHydrated = migrateProgress(hydrated, hydrated.bestStars.length);
+  postHydrationStarsRefs.add(cleanHydrated.bestStars);
+  markProgressPostHydrated(hydrated);
+  pendingCloudHydrationByAdapter.set(adapter, {
+    base: cleanBase,
+    hydrated: cleanHydrated,
+    foldInto,
+  });
 }
 
 /** Registers `hydrateProgressFromCloud` without creating a circular import between `storage` and `cloudSync`. */
@@ -675,7 +720,7 @@ function combineRecoveredProgress(
   return recovered;
 }
 
-export function loadProgress(levelCount: number): ProgressData {
+function loadLocalProgressInternal(levelCount: number): ProgressData {
   let raw: string | null = null;
   try {
     raw = localStorage.getItem(PROGRESS_KEY);
@@ -717,6 +762,15 @@ export function loadProgress(levelCount: number): ProgressData {
   }
 }
 
+export function loadProgress(levelCount: number): ProgressData {
+  const result = loadLocalProgressInternal(levelCount);
+  const platform = getPlatform();
+  if (platform.isSteam && completedHydratedAdapters.has(platform)) {
+    postHydrationStarsRefs.add(result.bestStars);
+  }
+  return result;
+}
+
 /** Reads the raw `PROGRESS_KEY` string from `localStorage` without parsing (`null` if absent/unavailable). */
 export function readLocalProgressRaw(): string | null {
   try {
@@ -750,8 +804,24 @@ export function saveLocalProgress(progress: ProgressData): string {
 }
 
 export function saveProgress(progress: ProgressData): void {
-  const raw = saveLocalProgress(progress);
   const platform = getPlatform();
+  if (platform.isSteam) {
+    const pending = pendingCloudHydrationByAdapter.get(platform);
+    if (pending) {
+      if (!postHydrationStarsRefs.has(progress.bestStars)) {
+        pending.foldInto(progress, pending.base, pending.hydrated);
+        postHydrationStarsRefs.add(progress.bestStars);
+      }
+      const nextHydrated = migrateProgress(progress, progress.bestStars.length);
+      postHydrationStarsRefs.add(nextHydrated.bestStars);
+      pendingCloudHydrationByAdapter.set(platform, {
+        base: pending.base,
+        hydrated: nextHydrated,
+        foldInto: pending.foldInto,
+      });
+    }
+  }
+  const raw = saveLocalProgress(progress);
   if (platform.isSteam) {
     if (readingCloudAdapters.has(platform)) {
       // An in-flight hydrateProgressFromCloud is awaiting cloudSave.read('progress');
@@ -775,8 +845,10 @@ export const PROGRESS_RESET_BACKUP_KEY = 'skyhold_isles_progress_reset_backup';
 /** Erases campaign progress (settings untouched) after backing up the current save. */
 export function resetProgressSave(levelCount: number): ProgressData {
   progressResetGen++;
+  const platform = getPlatform();
+  pendingCloudHydrationByAdapter.delete(platform);
   try {
-    const current = loadProgress(levelCount);
+    const current = loadLocalProgressInternal(levelCount);
     // Never let a reset of an already-empty save overwrite the backup of real progress.
     if (hasAnyProgress(current)) {
       const raw = localStorage.getItem(PROGRESS_KEY);
@@ -804,8 +876,8 @@ export function resetProgressSave(levelCount: number): ProgressData {
     // ignore storage errors
   }
   const fresh = createDefaultProgress(levelCount);
+  postHydrationStarsRefs.add(fresh.bestStars);
   const rawFresh = saveLocalProgress(fresh);
-  const platform = getPlatform();
   if (platform.isSteam) {
     completedHydratedAdapters.add(platform);
     void platform.cloudSave.write(CLOUD_PROGRESS_SLOT, rawFresh);
@@ -855,21 +927,25 @@ export function backupProgressBeforeImport(): void {
 
 /** True when a save holds anything worth backing up. */
 export function hasAnyProgress(p: ProgressData): boolean {
+  const pos = (v: unknown): boolean => typeof v === 'number' && Number.isFinite(v) && v > 0;
+  const anyPos = (arr: unknown): boolean => Array.isArray(arr) && arr.some(pos);
+  const dw = p.difficultyWins as Partial<Record<'easy' | 'normal' | 'hard', unknown>> | undefined;
   return (
-    p.unlockedLevelIndex > 0 ||
-    p.bestStars.some((v) => v > 0) ||
-    p.clears.some((v) => v > 0) ||
-    p.bestEndlessWaves.some((v) => v > 0) ||
-    p.challengeClears.some((l) => l.length > 0) ||
-    (p.wonChallenges?.length ?? 0) > 0 ||
-    p.daily.total > 0 ||
-    Object.keys(p.workshop).length > 0 ||
-    hasHeroSaveProgress(p.heroes) ||
+    pos(p.unlockedLevelIndex) ||
+    anyPos(p.bestStars) ||
+    anyPos(p.clears) ||
+    anyPos(p.bestEndlessWaves) ||
+    (Array.isArray(p.challengeClears) &&
+      p.challengeClears.some((l) => Array.isArray(l) && l.length > 0)) ||
+    (Array.isArray(p.wonChallenges) && p.wonChallenges.length > 0) ||
+    pos(p.daily?.total) ||
     Boolean(
-      p.difficultyWins &&
-        (p.difficultyWins.easy.some((v) => v > 0) ||
-          p.difficultyWins.normal.some((v) => v > 0) ||
-          p.difficultyWins.hard.some((v) => v > 0)),
-    )
+      p.workshop &&
+        typeof p.workshop === 'object' &&
+        !Array.isArray(p.workshop) &&
+        Object.keys(p.workshop).length > 0,
+    ) ||
+    hasHeroSaveProgress(p.heroes) ||
+    Boolean(dw && (anyPos(dw.easy) || anyPos(dw.normal) || anyPos(dw.hard)))
   );
 }

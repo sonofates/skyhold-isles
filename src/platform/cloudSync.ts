@@ -14,6 +14,7 @@ import {
   migrateProgress,
   readLocalCloudProgressMirrorRaw,
   readLocalProgressRaw,
+  recordCloudHydrationSnapshot,
   registerCloudHydrator,
   saveLocalProgress,
   setCloudReadInFlight,
@@ -53,6 +54,41 @@ function topUpWorkshopRanks(
   return sanitizeRanks(topped);
 }
 
+export function foldPendingCloudThreeWay(
+  target: ProgressData,
+  base: ProgressData,
+  hydrated: ProgressData,
+): void {
+  const count = Math.max(target.bestStars.length, hydrated.bestStars.length);
+  const baseWorkshop = sanitizeRanks(base.workshop);
+  const oursWorkshop = sanitizeRanks(target.workshop);
+  const oursRefundedWorkshop = WORKSHOP_UPGRADES.some(
+    (def) => rankOf(oursWorkshop, def.id) < rankOf(baseWorkshop, def.id),
+  );
+  const oursAddedWorkshop =
+    !oursRefundedWorkshop &&
+    WORKSHOP_UPGRADES.some((def) => rankOf(oursWorkshop, def.id) > rankOf(baseWorkshop, def.id));
+
+  const merged = mergeProgress(target, hydrated, count);
+  if (oursRefundedWorkshop) {
+    merged.workshop = oursWorkshop;
+    if (starWallet(merged).available < 0) merged.workshop = {};
+  } else if (oursAddedWorkshop) {
+    const lostOursRank = WORKSHOP_UPGRADES.some(
+      (def) => rankOf(merged.workshop, def.id) < rankOf(oursWorkshop, def.id),
+    );
+    const totalEarned = starWallet(merged).earned;
+    if (lostOursRank && workshopStarsSpent(oursWorkshop) <= totalEarned) {
+      merged.workshop = topUpWorkshopRanks(oursWorkshop, hydrated.workshop, totalEarned);
+    }
+  }
+
+  if (merged.heroes === undefined) delete target.heroes;
+  if (merged.difficultyWins === undefined) delete target.difficultyWins;
+  if (merged.wonChallenges === undefined) delete target.wonChallenges;
+  Object.assign(target, merged);
+}
+
 export async function hydrateProgressFromCloud(
   localProgress: ProgressData,
   levelCount = LEVELS.length,
@@ -60,8 +96,9 @@ export async function hydrateProgressFromCloud(
   levels: readonly LevelDef[] = LEVELS,
 ): Promise<CloudHydrateResult> {
   const genAtStart = getProgressResetGen();
-  let normalizedLocal = migrateProgress(localProgress, levelCount);
-  const preReadWorkshop = sanitizeRanks(normalizedLocal.workshop);
+  const preReadBase = migrateProgress(localProgress, levelCount);
+  let normalizedLocal = migrateProgress(preReadBase, levelCount);
+  const preReadWorkshop = sanitizeRanks(preReadBase.workshop);
   const callerRaw = JSON.stringify(normalizedLocal);
   const diskRawBefore = readLocalProgressRaw();
   let updated = false;
@@ -172,6 +209,9 @@ export async function hydrateProgressFromCloud(
       }
       if (!readFailed) {
         markCloudHydrated(adapter);
+        if (getProgressResetGen() === genAtStart) {
+          recordCloudHydrationSnapshot(adapter, preReadBase, normalizedLocal, foldPendingCloudThreeWay);
+        }
         if (hasAnyProgress(normalizedLocal) && getProgressResetGen() === genAtStart) {
           await safeCloudWrite(healedLocalRaw);
         }
@@ -205,6 +245,9 @@ export async function hydrateProgressFromCloud(
       }
       if (!readFailed) {
         markCloudHydrated(adapter);
+        if (getProgressResetGen() === genAtStart) {
+          recordCloudHydrationSnapshot(adapter, preReadBase, merged, foldPendingCloudThreeWay);
+        }
         if ((parseFailed || mergedRaw !== cloudRaw) && getProgressResetGen() === genAtStart) {
           await safeCloudWrite(mergedRaw);
         }
@@ -221,6 +264,9 @@ export async function hydrateProgressFromCloud(
     }
     if (!readFailed) {
       markCloudHydrated(adapter);
+      if (getProgressResetGen() === genAtStart) {
+        recordCloudHydrationSnapshot(adapter, preReadBase, normalizedLocal, foldPendingCloudThreeWay);
+      }
       if (adapter.isSteam && hasAnyProgress(normalizedLocal) && getProgressResetGen() === genAtStart) {
         await safeCloudWrite(localRaw);
       }

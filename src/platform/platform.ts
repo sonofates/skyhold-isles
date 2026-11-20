@@ -372,6 +372,7 @@ export function createPlatformAdapter(options: CreatePlatformOptions = {}): Plat
   }
 
   const unlockedInSession = new Set<string>();
+  const inFlightUnlocks = new Map<string, Promise<boolean>>();
   const writeSeqBySlot = new Map<string, number>();
   const lastReadFailedBySlot = new Map<string, boolean>();
 
@@ -397,13 +398,21 @@ export function createPlatformAdapter(options: CreatePlatformOptions = {}): Plat
         const clean = id.trim();
         if (!clean || clean.length > 64) return false;
         if (unlockedInSession.has(clean)) return true;
-        try {
-          const ok = await bridge.unlockAchievement(clean);
-          if (ok) unlockedInSession.add(clean);
-          return Boolean(ok);
-        } catch {
-          return false;
-        }
+        const pending = inFlightUnlocks.get(clean);
+        if (pending) return pending;
+        const task = (async (): Promise<boolean> => {
+          try {
+            const ok = Boolean(await bridge.unlockAchievement(clean));
+            if (ok) unlockedInSession.add(clean);
+            return ok;
+          } catch {
+            return false;
+          } finally {
+            inFlightUnlocks.delete(clean);
+          }
+        })();
+        inFlightUnlocks.set(clean, task);
+        return task;
       },
     },
     cloudSave: {

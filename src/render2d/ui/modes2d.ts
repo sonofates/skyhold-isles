@@ -52,14 +52,18 @@ export interface ResolveQueryOptions2D {
   readonly applySaveModifiers?: boolean;
 }
 
+function isPosFinite(val: unknown): boolean {
+  return typeof val === 'number' && Number.isFinite(val) && val > 0;
+}
+
 function isIslandCleared(progress: ProgressData, index: number): boolean {
   const dw = progress.difficultyWins;
   return (
-    (progress.clears[index] ?? 0) > 0 ||
-    (progress.bestStars[index] ?? 0) > 0 ||
-    (dw?.easy[index] ?? 0) > 0 ||
-    (dw?.normal[index] ?? 0) > 0 ||
-    (dw?.hard[index] ?? 0) > 0
+    isPosFinite(progress.clears?.[index]) ||
+    isPosFinite(progress.bestStars?.[index]) ||
+    isPosFinite(dw?.easy?.[index]) ||
+    isPosFinite(dw?.normal?.[index]) ||
+    isPosFinite(dw?.hard?.[index])
   );
 }
 
@@ -74,7 +78,8 @@ export function availableChallenges(
 ): AvailableChallenge2D[] {
   const i = indexOf2D(levelId, levels);
   if (i < 0 || !isIslandCleared(progress, i)) return [];
-  const done = progress.challengeClears[i] ?? [];
+  const rawDone = progress.challengeClears?.[i];
+  const done = Array.isArray(rawDone) ? rawDone : [];
   return challengesForLevel(levels[i]).map((id) => ({
     ...CHALLENGES[id],
     completed: done.includes(id),

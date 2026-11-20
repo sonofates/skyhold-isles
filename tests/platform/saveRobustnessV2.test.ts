@@ -959,4 +959,95 @@ describe('Save Robustness v2 — Version Migration & Algebraic Merge Fuzz', () =
     expect(hasSeenFlyerToast()).toBe(false);
     expect(hasSeenUpgradeToast()).toBe(false);
   });
+
+  it('preserves full-length difficultyWins when bestStars is shorter, pads applyRunResult2D densely, and guards partial difficultyWins across 2D helpers', async () => {
+    installMemoryStorage();
+    const { describeMergeGain, mergeProgress } = await import('../../src/platform/saveCode.ts');
+    const { hasAnyProgress } = await import('../../src/platform/storage.ts');
+    const { clearedIslandsCount2D, heroRoster, isHeroUnlocked } = await import(
+      '../../src/render2d/heroes2d.ts'
+    );
+    const { availableChallenges, canPlayEndless, dailyForToday } = await import(
+      '../../src/render2d/ui/modes2d.ts'
+    );
+    const { applyRunResult2D, islandStates, loadProgress2D, recordRunResult2D } = await import(
+      '../../src/render2d/ui/progress2d.ts'
+    );
+
+    // 1. Short/empty bestStars + 25-island difficultyWins (Hard win on i24 at index 24) must NOT truncate at bestStars.length:
+    const shortStarsWithCh2Hard = {
+      ...createDefaultProgress(0),
+      difficultyWins: {
+        easy: new Array<number>(LEVELS_2D.length).fill(0),
+        normal: new Array<number>(LEVELS_2D.length).fill(0),
+        hard: Array.from({ length: LEVELS_2D.length }, (_, idx) => (idx === 24 ? 3 : 0)),
+      },
+    };
+    const empty25 = createDefaultProgress(LEVELS_2D.length);
+    const merged = mergeProgress(empty25, shortStarsWithCh2Hard, LEVELS_2D.length);
+    expect(merged.difficultyWins?.hard[24]).toBe(3);
+    expect(merged.bestStars[24]).toBe(3);
+    expect(describeMergeGain(empty25, shortStarsWithCh2Hard)).toContain('+1 Hard ribbon');
+
+    const states = islandStates(shortStarsWithCh2Hard, LEVELS_2D);
+    expect(states).toHaveLength(LEVELS_2D.length);
+    expect(states[24].hardWon).toBe(true);
+    expect(states[24].stars).toBe(3);
+
+    // 2. applyRunResult2D on a 17-island ProgressData winning i24 pads arrays densely with zero sparse holes:
+    const short17 = createDefaultProgress(17);
+    applyRunResult2D(
+      short17,
+      {
+        levelId: 'i24',
+        won: true,
+        stars: 3,
+        livesRemaining: 19,
+        waveReached: LEVELS_2D[24].waves.length,
+        runConfig: { endless: false, challenges: [], daily: null, difficulty: 'hard' },
+      },
+      LEVELS_2D,
+    );
+    expect(short17.bestStars).toHaveLength(LEVELS_2D.length);
+    expect(short17.bestStars.includes(undefined as unknown as number)).toBe(false);
+    expect(short17.difficultyWins?.hard).toHaveLength(LEVELS_2D.length);
+    expect(short17.difficultyWins?.hard[24]).toBe(3);
+
+    // 3. Partial raw difficultyWins (`{ hard: [3, 2, 3] }` missing `easy` & `normal`) + NaN/Infinity entries never throw:
+    const partialRaw = {
+      version: 2,
+      unlockedLevelIndex: Number.NaN,
+      bestStars: [Number.POSITIVE_INFINITY, Number.NaN],
+      bestEndlessWaves: [],
+      bestLives: [],
+      clears: [Number.NaN],
+      workshop: {},
+      challengeClears: [null as unknown as string[]],
+      daily: { lastDay: 0, streak: 0, bestStreak: 0, total: 0 },
+      difficultyWins: { hard: [3, 2, 3] } as unknown as ProgressData['difficultyWins'],
+    } as ProgressData;
+
+    expect(hasAnyProgress(partialRaw)).toBe(true);
+    expect(clearedIslandsCount2D(partialRaw, LEVELS_2D)).toBe(3);
+    expect(isHeroUnlocked(partialRaw, 'wren', LEVELS_2D)).toBe(true);
+    expect(heroRoster(partialRaw, LEVELS_2D)).toHaveLength(5);
+    expect(canPlayEndless('l1c', partialRaw, LEVELS_2D)).toBe(true);
+    expect(canPlayEndless('i03', partialRaw, LEVELS_2D)).toBe(false);
+    expect(availableChallenges('l1c', partialRaw, LEVELS_2D).length).toBeGreaterThan(0);
+    expect(dailyForToday(Date.UTC(2026, 10, 20), partialRaw, LEVELS_2D)).not.toBeNull();
+
+    // 4. recordRunResult2D records & persists wonChallenges even when levelId is outside the passed levels list:
+    recordRunResult2D(
+      {
+        levelId: 'custom-daily-stage',
+        won: true,
+        stars: 2,
+        livesRemaining: 15,
+        waveReached: 10,
+        runConfig: { endless: false, challenges: ['staticFree'], daily: null },
+      },
+      LEVELS_2D,
+    );
+    expect(loadProgress2D(LEVELS_2D).wonChallenges).toContain('staticFree');
+  });
 });

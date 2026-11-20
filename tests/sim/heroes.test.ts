@@ -970,4 +970,38 @@ describe('in-run hero XP & bit-exact seed determinism', () => {
     expect(world.hero!.targetPoolIndex).toBe(-1);
     expect(world.hero!.targetUid).toBe(0);
   });
+
+  it('clears Tobb Overhaul tower buffs and gizmo boost timers on victory, defeat, and debugSkipToWave', () => {
+    const world = new SimWorld(forkLevel(), new EventBus(), {
+      heroId: 'tobb',
+      heroLevel: 12,
+      heroSkills: ['tobb_clk_1', 'tobb_clk_2', 'tobb_clk_3', 'tobb_clk_4', 'tobb_giz_1', 'tobb_giz_2', 'tobb_giz_3', 'tobb_cap'],
+    });
+    world.gold = 5000;
+    const archer = world.placeTowerOnPlot(1, 'archer')!;
+    world.commandHeroMove(archer.x, archer.z);
+    tickUntil(world, () => world.hero!.state === 'idle', 10);
+
+    expect(world.castHeroSkill(0, archer.x + 0.5, archer.z - 0.8)).toBe(true);
+    expect(world.castHeroSkill(1, archer.x, archer.z)).toBe(true);
+    expect(archer.overhaulTimer).toBeGreaterThan(4);
+    expect(archer.overhaulRateBonus).toBeGreaterThan(0);
+    expect(world.heroSystem.gizmos[0].boostTimer).toBeGreaterThan(4);
+
+    // Wave skip clears transient Overhaul/boost buffs cleanly:
+    expect(world.debugSkipToWave(2)).toBe(true);
+    expect(archer.overhaulTimer).toBe(0);
+    expect(archer.overhaulRateBonus).toBe(0);
+    expect(world.heroSystem.gizmos[0].boostTimer).toBe(0);
+    expect(world.heroSystem.gizmos[0].boostRate).toBe(0);
+
+    // Re-cast Overhaul right before run victory -> cleared before entering Endless:
+    world.hero!.skillCooldowns[1] = 0;
+    expect(world.castHeroSkill(1, archer.x, archer.z)).toBe(true);
+    expect(archer.overhaulTimer).toBeGreaterThan(4);
+    world.debugForceWin();
+    expect(archer.overhaulTimer).toBe(0);
+    expect(archer.overhaulRateBonus).toBe(0);
+    expect(archer.heroRateBonus).toBe(0);
+  });
 });

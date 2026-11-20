@@ -16,7 +16,6 @@ import { challengesForLevel, isChallengeId, type ChallengeId } from '../../data/
 import { applyDailyWin, utcDayNumber } from '../../data/daily.ts';
 import {
   DIFFICULTIES,
-  difficultyWinsOf,
   isDifficultyId,
   starsAwarded,
   type DifficultyId,
@@ -44,6 +43,7 @@ import {
   encodeSaveCode,
   inspectSaveCodeHints,
   mergeProgress,
+  sizedDifficultyWins,
   type RecoverProgressResult,
   type SaveCodeResult,
 } from '../../platform/saveCode.ts';
@@ -514,7 +514,10 @@ export function loadProgress2D(levels: readonly LevelDef[] = LEVELS_2D): Progres
             levels.map((l) => l.id),
             levels,
           );
-          foldPendingCloudThreeWay2D(targetCopy, baseSnapshot, effectiveHydrated, levels);
+          const baseForResult = postHydrationStarsRefs.has(result.bestStars)
+            ? effectiveHydrated
+            : baseSnapshot;
+          foldPendingCloudThreeWay2D(targetCopy, baseForResult, effectiveHydrated, levels);
           freshMerged = targetCopy;
         }
         if (freshMerged.heroes === undefined) delete result.heroes;
@@ -706,6 +709,17 @@ export async function hydrateProgress2DFromCloud(
       // Never let a transient Steam Cloud write error abort local hydration or achievement sync.
     }
   };
+  const recordHydrationSnapshot2D = (hydratedProgress: ProgressData): void => {
+    if (resetGen2D !== genAtStart) return;
+    const snap = remapProgress(
+      hydratedProgress,
+      levels.map((l) => l.id),
+      levels,
+    );
+    postHydrationStarsRefs.add(snap.bestStars);
+    postHydrationStarsRefs.add(hydratedProgress.bestStars);
+    pendingAutoHydrated2DByAdapter.set(adapter, { base: preReadBase, hydrated: snap });
+  };
   const diskRawAfter = readLocalProgress2DRaw();
   const concurrentHappened = diskRawAfter !== null && diskRawAfter !== diskRawBefore;
   let hasConcurrentLocalEdit = false;
@@ -782,6 +796,7 @@ export async function hydrateProgress2DFromCloud(
       }
       if (!readFailed) {
         completedHydrated2DAdapters.add(adapter);
+        recordHydrationSnapshot2D(merged);
         if ((parsedCloud.repairedFromTruncated || mergedRaw !== cloudRaw) && resetGen2D === genAtStart) {
           await safeCloudWrite2D(mergedRaw);
         }
@@ -796,6 +811,7 @@ export async function hydrateProgress2DFromCloud(
         saveLocalProgress2D(normalizedLocal, levels);
       }
       completedHydrated2DAdapters.add(adapter);
+      recordHydrationSnapshot2D(normalizedLocal);
       if (hasAnyProgress(normalizedLocal) && resetGen2D === genAtStart) {
         await safeCloudWrite2D(healedRaw);
       }
@@ -818,6 +834,7 @@ export async function hydrateProgress2DFromCloud(
     }
     if (!readFailed) {
       completedHydrated2DAdapters.add(adapter);
+      recordHydrationSnapshot2D(normalizedLocal);
       if (adapter.isSteam && hasAnyProgress(normalizedLocal) && resetGen2D === genAtStart) {
         await safeCloudWrite2D(localRaw);
       }
@@ -856,11 +873,16 @@ export interface IslandState {
 
 export function islandStates(progress: ProgressData, levels: readonly LevelDef[] = LEVELS_2D): IslandState[] {
   if (levels.length === 0) return [];
-  const frontier = Math.max(0, Math.min(levels.length - 1, progress.unlockedLevelIndex));
-  const dw = difficultyWinsOf(progress);
+  const rawFrontier = Number.isFinite(progress.unlockedLevelIndex) ? Math.floor(progress.unlockedLevelIndex) : 0;
+  const frontier = Math.max(0, Math.min(levels.length - 1, rawFrontier));
+  const dw = sizedDifficultyWins(progress, levels.length);
   let effectiveProgress = progress;
-  if (progress.difficultyWins) {
-    let needsNorm = false;
+  let needsNorm =
+    progress.bestStars.length < levels.length ||
+    progress.clears.length < levels.length ||
+    progress.challengeClears.length < levels.length ||
+    !Number.isFinite(progress.unlockedLevelIndex);
+  if (!needsNorm && progress.difficultyWins) {
     for (let i = 0; i < levels.length; i++) {
       const maxDiff = Math.max(dw.easy[i] ?? 0, dw.normal[i] ?? 0, dw.hard[i] ?? 0);
       if (maxDiff > (progress.bestStars[i] ?? 0) || (maxDiff > 0 && (progress.clears[i] ?? 0) === 0)) {
@@ -868,13 +890,20 @@ export function islandStates(progress: ProgressData, levels: readonly LevelDef[]
         break;
       }
     }
-    if (needsNorm) {
-      const bestStars = levels.map((_, i) =>
-        Math.max(0, Math.min(3, Math.max(progress.bestStars[i] ?? 0, dw.easy[i] ?? 0, dw.normal[i] ?? 0, dw.hard[i] ?? 0))),
-      );
-      const clears = levels.map((_, i) => Math.max(progress.clears[i] ?? 0, bestStars[i] > 0 ? 1 : 0));
-      effectiveProgress = { ...progress, bestStars, clears };
-    }
+  }
+  if (needsNorm) {
+    const safeIntAt = (arr: readonly number[] | undefined, idx: number, cap = Number.MAX_SAFE_INTEGER): number => {
+      const v = arr?.[idx];
+      return typeof v === 'number' && Number.isFinite(v) ? Math.max(0, Math.min(cap, Math.floor(v))) : 0;
+    };
+    const bestStars = levels.map((_, i) =>
+      Math.max(0, Math.min(3, Math.max(safeIntAt(progress.bestStars, i, 3), dw.easy[i] ?? 0, dw.normal[i] ?? 0, dw.hard[i] ?? 0))),
+    );
+    const clears = levels.map((_, i) => Math.max(safeIntAt(progress.clears, i), bestStars[i] > 0 ? 1 : 0));
+    const challengeClears = levels.map((_, i) =>
+      Array.isArray(progress.challengeClears?.[i]) ? progress.challengeClears[i] : [],
+    );
+    effectiveProgress = { ...progress, unlockedLevelIndex: frontier, bestStars, clears, challengeClears };
   }
   return levels.map((level, i) => ({
     index: i,
@@ -939,7 +968,7 @@ export function recordWin2D(
   const badges = allows ? badgesForWin(challengesForLevel(levels[i]), challenges) : [];
   if (allows) recordExtraWonChallenges(p, challenges, badges);
   // Read (and for a legacy save, derive) the record before applyWin moves bestStars.
-  const dw = difficultyWinsOf(p);
+  const dw = sizedDifficultyWins(p, levels.length);
   const prevBestLives = p.bestLives[i] ?? 0;
   let rec = applyWin(p, i, levels.length, awarded, safeLives, badges);
   if (diff === 'easy') {
@@ -1060,6 +1089,14 @@ function recordHeroOutcome(
  * - Non-endless loss: mutates no island progress.
  * - When `outcome.heroId` is set: awards persistent hero XP across all outcomes.
  */
+function ensureDenseIslandArrays(progress: ProgressData, count: number): void {
+  while (progress.bestStars.length < count) progress.bestStars.push(0);
+  while (progress.clears.length < count) progress.clears.push(0);
+  while (progress.bestLives.length < count) progress.bestLives.push(0);
+  while (progress.bestEndlessWaves.length < count) progress.bestEndlessWaves.push(0);
+  while (progress.challengeClears.length < count) progress.challengeClears.push([]);
+}
+
 export function applyRunResult2D(
   progress: ProgressData,
   outcome: RunOutcome2D,
@@ -1071,6 +1108,7 @@ export function applyRunResult2D(
   if (cfg.endless) {
     let endless: EndlessRecord2D | null = null;
     if (i >= 0) {
+      ensureDenseIslandArrays(progress, levels.length);
       const wave = Number.isFinite(outcome.waveReached) ? Math.floor(outcome.waveReached) : 0;
       if (wave <= levels[i].waves.length) {
         const best = progress.bestEndlessWaves[i] ?? 0;
@@ -1100,11 +1138,12 @@ export function applyRunResult2D(
     : 0;
   let win: WinRecord | null = null;
   let difficulty: DifficultyResult2D | undefined;
+  const allows = DIFFICULTIES[diff].allowsChallenges;
   if (i >= 0) {
+    ensureDenseIslandArrays(progress, levels.length);
     // Read (and for a legacy save, derive) the record before applyWin moves bestStars.
-    const dw = difficultyWinsOf(progress);
+    const dw = sizedDifficultyWins(progress, levels.length);
     const before = dw[diff][i] ?? 0;
-    const allows = DIFFICULTIES[diff].allowsChallenges;
     const badges = allows ? badgesForWin(challengesForLevel(levels[i]), cfg.challenges) : [];
     if (allows) recordExtraWonChallenges(progress, cfg.challenges, badges);
     const prevBestLives = progress.bestLives[i] ?? 0;
@@ -1117,6 +1156,8 @@ export function applyRunResult2D(
     dw[diff][i] = Math.max(before, stars);
     progress.difficultyWins = dw;
     difficulty = { id: diff, earnedStars: earned, awardedStars: stars, firstWin: before === 0 };
+  } else if (allows) {
+    recordExtraWonChallenges(progress, cfg.challenges, []);
   }
   const nowMs =
     typeof outcome.nowMs === 'number' && Number.isFinite(outcome.nowMs) ? outcome.nowMs : Date.now();
@@ -1138,6 +1179,7 @@ export function recordRunResult2D(
   const prevDailyLast = p.daily.lastDay;
   const prevDailyStreak = p.daily.streak;
   const prevSelectedHero = p.heroes?.selectedHero;
+  const prevWonChallengesLen = p.wonChallenges?.length ?? 0;
   const res = applyRunResult2D(p, outcome, levels);
   const dailyChanged =
     Boolean(res.daily?.counted) || p.daily.lastDay !== prevDailyLast || p.daily.streak !== prevDailyStreak;
@@ -1145,7 +1187,8 @@ export function recordRunResult2D(
   const heroChanged = Boolean(
     res.hero && (res.hero.xpGained > 0 || p.heroes?.selectedHero !== prevSelectedHero),
   );
-  if (res.win !== null || dailyChanged || endlessChanged || heroChanged) {
+  const wonChallengesChanged = (p.wonChallenges?.length ?? 0) !== prevWonChallengesLen;
+  if (res.win !== null || dailyChanged || endlessChanged || heroChanged || wonChallengesChanged) {
     saveProgress2D(p, levels);
   }
   return res;
