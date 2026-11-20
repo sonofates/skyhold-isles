@@ -609,3 +609,29 @@ TypeScript, lint and the production build passed. Vitest passed 1,424 tests with
 ### Next round
 
 Audit Laneweaver Loom’s Silk Line with more than four eligible secondary targets. Check which four it hits, the eight-unit reach and the damage to each armored foe when the ability is bought while a bolt is in flight.
+
+## Round 26 — Laneweaver Loom and Silk Line
+
+### Combat
+
+Two recorded encounters follow a Loom bolt already in flight when the player buys Silk Line. With six secondary golems inside the original 6.4-unit reach, both bolts struck the nearest four in order, even though the farthest spawned first. The original bolt dealt 119 damage to each armored elite and 120 to each ordinary secondary golem. Silk Line dealt 159 and 160 respectively. The primary had only 146 HP left on the second hit. Killing it preserved the bolt’s full damage against the golems behind it.
+
+A second formation put golems 6.39, 6.41, 7.99 and 8.01 units behind the primary. The airborne bolt hit only the first. The next bolt hit the first three. Both serialized replays reproduced every launch, impact, target lane and damage amount, the outcome and the final state hash. In a temporary copy, changing the sim to take the first eligible enemy in grid order made the crowded-lane regression fail on the hit list.
+
+### Campaign decision
+
+Emberglass Sanctum’s realistic build keeps the plot-15 Rimeglass Needle and Cold Fracture, then buys Laneweaver Loom and Silk Line after the plot-18 ballista reaches tier III. Level-20 Bran with 44 entry stars bought the Loom and its ability on wave 23 of 24. Its next 46 launches dealt 18,217 damage and earned five kills. The pierce accounted for 74 secondary hits, 11,435 damage and four kills. Five bolts hit all four secondary targets. All 74 were within 6.4 units, so the benefit on this run came from Silk Line’s damage. The isolated encounters cover its extra reach.
+
+Normal finished at 10/22 lives and two stars. It completed the build with 345 gold, spending 315 from the previous kit’s surplus. At −3%, −1.5%, +1.5% and +3% enemy HP the build cleared with 18, 10, 8 and 16 lives. A third regression checks that the first-clear kit can afford all four purchases and win. Cloudbell Cloister’s existing build ran out of time to buy the Loom. Advancing the plot-12 upgrades enough to afford both purchases on wave ten cost the last life, so the Cloister keeps its existing build.
+
+### Request for the effects renderer owner
+
+On a staged wave 23 in the production game, the Loom hit a Cloud Hauler and three Sky Skimmers. Each secondary took 162 damage. The ballista pierce streak began **99 screen pixels below the projectile endpoint** at 1600×900. The bolt ended at screen Y 522, while the streak began at Y 621. In `src/render2d/specialFx.ts`, the ballista impact uses a fixed ground-relative height for the spark and both ends of the streak. Project the impact’s supplied `e.y` at both ends, then check an airborne and a ground impact. Inspected the capture at 2×. The Loom’s plot ring measured zero center, bottom and width error. [Emberglass Sanctum air impact](../../design/art-2d/specializations/loom-sanctum.jpg)
+
+### Verification
+
+TypeScript and lint passed. Vitest passed 1,427 tests with 11 skipped. All eight difficulty verdicts passed and the difficulty report matched round 25 byte for byte. Hard i09 ended at 12/22 lives and Hard i24 at 2/22. The 24,217-byte standalone L1–L16 balance report matched the round-one baseline byte for byte. All 41 realistic-kit balance checks passed. The production build passed with the existing Vite bundle-size and dynamic-import warnings.
+
+### Next round
+
+Audit Gateward Hall’s Iron Mantle against an armored melee wave. Buy during an enemy wind-up and while a guard is down. Check the damage floor, the return timer and whether respawned guards have the purchased armor. Compare the serialized replay.
