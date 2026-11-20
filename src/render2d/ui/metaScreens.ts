@@ -26,6 +26,7 @@ import { endlessRecordText, tierColour } from './modeBits.ts';
 import { difficultyWinsOf } from '../../data/difficulty.ts';
 import { difficultySeal } from './difficulty2d.ts';
 import { dailyForToday, dailyHref2D } from './modes2d.ts';
+import { openCredits } from './credits2d.ts';
 import { resetProgress2D, saveProgress2D } from './progress2d.ts';
 import { openStore, ownsFullAdventure, storeEnabled } from './store2d.ts';
 
@@ -362,6 +363,10 @@ function switchLocale(l: Locale, ctx: SettingsContext): void {
   if (l === getLocale()) return;
   setLocale(l);
   ctx.onChange();
+  if (ctx.reloadTo) {
+    location.assign(`${location.pathname}${ctx.reloadTo}`);
+    return;
+  }
   const q = new URLSearchParams(location.search);
   q.delete('lang');
   // In a run the island reloads (in the new language) with Settings open again.
@@ -381,6 +386,8 @@ export interface SettingsContext {
   readonly inGame?: boolean;
   readonly onClose?: () => void;
   readonly tab?: SettingsTab;
+  /** Query to reload with after a language switch (default: the map / the run with Settings open). */
+  readonly reloadTo?: string;
 }
 
 export const SETTINGS_TABS = ['general', 'audio', 'graphics', 'controls'] as const;
@@ -506,6 +513,9 @@ export function openSettings(ctx: SettingsContext): Sheet {
       tips.disabled = true;
     });
     rows.push(row(t('set.tips'), t('set.tipsNote'), tips));
+    const credits = plank(t('set.creditsOpen'), { kind: 'small', testid: 'set2d-credits' });
+    credits.addEventListener('click', () => openCredits(() => credits.focus({ preventScroll: true })));
+    rows.push(row(t('credits.title'), t('set.creditsNote'), credits));
     if (ctx.inGame) return rows;
     // Mobile builds only: the store (Buy / Restore purchases must stay reachable after a purchase).
     if (storeEnabled()) {

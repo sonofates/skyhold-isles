@@ -1,7 +1,7 @@
 import '@fontsource-variable/fredoka';
 import './ui/fredokaTr.css';
 import { Application, UPDATE_PRIORITY } from 'pixi.js';
-import { getLevelById } from '../data/levels2d/index.ts';
+import { getLevelById, LEVELS_2D } from '../data/levels2d/index.ts';
 import { buildEndlessWaveDef } from '../sim/waveSystem.ts';
 import { AbScene } from './abScene.ts';
 import { artCheckSummary, mountArtCheck } from './artCheck.ts';
@@ -41,7 +41,9 @@ import { anySheetOpen } from './ui/dom.ts';
 
 /**
  * 2d.html entry — the painted 2D renderer (Pixi v8) on the real sim.
- *   (no params)       the world map (island select, briefing, Workshop / Logbook / Daily / Settings);
+ *   (no params)       the title screen once per session (titleScreen.ts; ?title=1 forces it, ?title=0 or
+ *                     an automated browser skips it), then the world map (island select, briefing,
+ *                     Workshop / Logbook / Daily / Settings);
  *                     map QA: ?screen=brief|workshop|logbook|daily|settings|store, ?mockislands=N,
  *                     ?store=<id> (store card for a paid island), ?iapmock=1 (mock store, mobile scope)
  *   ?level=l1c        play an island (deep link, skips the map; any debug param below defaults to l1c)
@@ -86,6 +88,8 @@ declare global {
     __bench?: BenchStats;
     __aim?: AimSceneState;
     __meleeScene?: MeleeSceneState & { step: (frames: number) => void; stats: () => Record<string, unknown>; toScreen: (x: number, z: number) => { x: number; y: number } };
+    /** QA: the title screen (phase, loading fraction, menu entries). */
+    __title?: import('./ui/titleScreen.ts').TitleScreen;
     __p0?: {
       mode: string;
       state: () => Record<string, unknown>;
@@ -219,6 +223,31 @@ function bootLocale(): Promise<unknown> {
   ]).catch(() => undefined);
 }
 
+/** The title screen in front of the world map (titleScreen.ts); the map mounts on Continue / New game. */
+async function runTitleScreen(q: URLSearchParams, title: typeof import('./ui/titleScreen.ts')): Promise<void> {
+  document.getElementById('boot')?.remove();
+  const { screen, done } = title.runTitle(q, {
+    openMap: async () => {
+      const { mountWorldMap } = await import('./ui/worldMap.ts');
+      await mountWorldMap(q);
+    },
+    openSettings: (onClose) => {
+      void import('./ui/metaScreens.ts').then(({ openSettings }) =>
+        openSettings({ levels: LEVELS_2D, onChange: () => undefined, onClose, reloadTo: '?title=1&titleopen=settings' }),
+      );
+    },
+    openCredits: (onClose) => {
+      void import('./ui/credits2d.ts').then(({ openCredits }) => openCredits(onClose));
+    },
+    confirmNewGame: async () => {
+      const { confirmBoard } = await import('./ui/runControls2d.ts');
+      return confirmBoard({ title: t('title.newTitle'), body: t('title.newBody'), yes: t('title.newYes'), no: t('title.newNo'), testid: 'confirm-newgame' });
+    },
+  });
+  window.__title = screen;
+  await done;
+}
+
 async function main(): Promise<void> {
   const q = new URLSearchParams(location.search);
   const fontsReady = bootLocale();
@@ -227,6 +256,11 @@ async function main(): Promise<void> {
   let engine = applyGraphics(gfx, loadSettings().quality, desktop);
   if (!GAME_PARAMS.some((k) => q.has(k))) {
     await fontsReady;
+    const title = await import('./ui/titleScreen.ts');
+    if (title.shouldShowTitle(q, { seen: title.titleSeen(), automated: navigator.webdriver === true })) {
+      await runTitleScreen(q, title);
+      return;
+    }
     const { mountWorldMap } = await import('./ui/worldMap.ts');
     await mountWorldMap(q);
     document.getElementById('boot')?.remove();

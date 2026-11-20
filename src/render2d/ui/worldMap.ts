@@ -4,7 +4,7 @@
  * the campaign's own rules). Tap an island → briefing card → Play loads `?level=<id>`. The meta
  * screens (Workshop, Logbook, Daily, Settings) open from the round buttons top-right.
  *
- * QA params: ?screen=brief|workshop|logbook|daily|settings|store|heroes|herosel opens that screen
+ * QA params: ?screen=brief|workshop|logbook|daily|settings|store|heroes|herosel|credits opens that screen
  * (heroes = skill tree, herosel = hero picker, both take &focus=<hero id>; brief = frontier
  * island), ?mockislands=N appends N stand-in islands (layout check only; they reuse the first
  * island's map), window.__map exposes the layout. ?store=<island id> opens the store card for
@@ -36,6 +36,7 @@ import { routeMarks, scrollToCentre, worldMapLayout, type RouteMark, type WorldM
 import { dailyFor2D, openDaily, openLogbook, openSettings, openWorkshop, type MetaContext } from './metaScreens.ts';
 import { availableChallenges, buildRunHref2D, canPlayEndless } from './modes2d.ts';
 import { islandStates, loadProgress2D, type IslandState } from './progress2d.ts';
+import { openCredits } from './credits2d.ts';
 import { heroArtFiles } from './heroBits.ts';
 import { heroChip, heroesButton, openHeroSelect, openSkillTree } from './heroScreens.ts';
 import { needsFullAdventure, openStore, storeEnabled } from './store2d.ts';
@@ -404,6 +405,7 @@ export async function mountWorldMap(q: URLSearchParams): Promise<void> {
   else if (screen === 'logbook') openLogbook(ctx, q.get('tab') === 'feats' ? 'feats' : 'islands');
   else if (screen === 'daily') openDaily(ctx);
   else if (screen === 'settings') openSettings(ctx);
+  else if (screen === 'credits') openCredits();
   else if (screen === 'heroes') openSkillTree(ctx, heroFiles, isHeroId(q.get('focus')) ? (q.get('focus') as HeroId) : undefined);
   else if (screen === 'herosel') openHeroSelect(ctx, heroFiles, undefined, isHeroId(q.get('focus')) ? (q.get('focus') as HeroId) : undefined);
   else if (screen === 'store' && storeEnabled()) openStoreFor(null);

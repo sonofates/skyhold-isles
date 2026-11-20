@@ -1,5 +1,5 @@
 // UI overflow / cramp audit: walks every painted screen (world map, briefing variants, Workshop,
-// Heroes + skill node detail, hero picker, Logbook islands + feats, Daily, Settings 4 tabs, store,
+// title screen menu (with / without a save) + Credits, Heroes + skill node detail, hero picker, Logbook islands + feats, Daily, Settings 4 tabs, store,
 // story book, in-run HUD with the wave card / foe card / coach / tooltip / build ring / tower card /
 // pause plate / new-foe toast, end boards won / lost / daily / endless / hard) at several sizes in
 // EN and TR and runs qa/uiAuditLib.mjs (DOM) + __p0.textAudit() (canvas text) on each.
@@ -59,6 +59,9 @@ const STORY_SEEN = JSON.stringify(IDS.flatMap((id) => [`${id}:intro`, `${id}:out
 const SCREENS = [
   ['map', '', SEED, null],
   ['map-fresh', '', FRESH, null],
+  ['title', '?title=1&titlemenu=1', SEED, 'title'],
+  ['title-fresh', '?title=1&titlemenu=1', FRESH, 'title'],
+  ['credits', '?screen=credits', SEED, null],
   ['brief', '?screen=brief&island=1', SEED, null],
   ['brief-modes', '?screen=brief&island=0&pick=bowless', SEED, null],
   ['brief-endless', '?screen=brief&island=1&pick=endless', SEED, null],
@@ -107,6 +110,10 @@ async function act(page, action, key, size) {
       await page.waitForTimeout(300);
       break;
     }
+    case 'title':
+      await page.waitForFunction(() => window.__title?.state().phase === 'menu', null, { timeout: 30000 }).catch(() => problems.push(`${key}: title menu not shown`));
+      await page.waitForTimeout(900);
+      break;
     case 'story':
       await page.waitForSelector('.pu-story', { timeout: 30000 }).catch(() => problems.push(`${key}: no story book`));
       await page.waitForTimeout(1500);

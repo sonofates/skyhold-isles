@@ -1,0 +1,428 @@
+/*
+ * Title screen (titleScreen.ts). Layers of the key art shift with the pointer by their `--depth`
+ * (`--px` / `--py` in -1..1 on the root); each layer's own motion (swell, bob, sail, drift) lives on
+ * an inner element so the two transforms never fight. Phases: .loading → .tap → .menu → .leaving.
+ */
+
+.pu-title {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  overflow: hidden;
+  background: #1f5675;
+  transition: opacity 0.7s ease;
+  --px: 0;
+  --py: 0;
+}
+
+.pu-title.leaving {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.pu-title-scene {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.pu-title-layer {
+  position: absolute;
+  transform: translate3d(calc(var(--px) * var(--depth, 0.5) * -1.6vmin), calc(var(--py) * var(--depth, 0.5) * -1vmin), 0);
+  transition: transform 0.7s cubic-bezier(0.2, 0.7, 0.3, 1);
+}
+
+.pu-title-sea {
+  inset: -3%;
+}
+
+.pu-title-sea-art,
+.pu-title-keyart {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  background: url('/art2d/ui/sea.webp') center / cover no-repeat;
+  animation: pu-title-swell 46s ease-in-out infinite alternate;
+}
+
+.pu-title-keyart {
+  background: none;
+}
+
+@keyframes pu-title-swell {
+  from {
+    transform: scale(1.02) translate(0, 0);
+  }
+  to {
+    transform: scale(1.08) translate(-1.2%, 0.8%);
+  }
+}
+
+.pu-title-isle img,
+.pu-title-sail img,
+.pu-title-drift img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.pu-title-bob {
+  --far: 0;
+  animation: pu-title-bob 7.5s ease-in-out infinite;
+  filter: saturate(calc(1 - var(--far) * 0.55)) brightness(calc(1 - var(--far) * 0.12)) drop-shadow(0 1.2vmin 1vmin rgba(8, 30, 48, 0.35));
+  opacity: calc(1 - var(--far) * 0.3);
+}
+
+@keyframes pu-title-bob {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-1.1vmin) rotate(-0.6deg);
+  }
+}
+
+.pu-title-ship {
+  left: 0;
+  top: 68%;
+  width: 10vmin;
+}
+
+.pu-title-sail {
+  animation: pu-title-sail 80s linear infinite;
+  animation-delay: -22s;
+}
+
+.pu-title-sail img {
+  animation: pu-title-bob 3.4s ease-in-out infinite;
+}
+
+@keyframes pu-title-sail {
+  from {
+    transform: translateX(-14vmin);
+  }
+  to {
+    transform: translateX(calc(106vw + 4vmin));
+  }
+}
+
+.pu-title-cloud {
+  left: 0;
+  opacity: 0.88;
+}
+
+.pu-title-cloud.c1 {
+  top: 2%;
+  width: 40vmin;
+}
+
+.pu-title-cloud.c2 {
+  top: 15%;
+  width: 30vmin;
+  opacity: 0.75;
+}
+
+.pu-title-cloud.c3 {
+  top: 34%;
+  width: 24vmin;
+  opacity: 0.6;
+}
+
+.pu-title-drift {
+  animation: pu-title-drift 110s linear infinite;
+}
+
+.pu-title-cloud.c1 .pu-title-drift {
+  animation-delay: -30s;
+}
+
+.pu-title-cloud.c2 .pu-title-drift {
+  animation-duration: 150s;
+  animation-delay: -95s;
+}
+
+.pu-title-cloud.c3 .pu-title-drift {
+  animation-duration: 190s;
+  animation-delay: -40s;
+}
+
+@keyframes pu-title-drift {
+  from {
+    transform: translateX(-45vmin);
+  }
+  to {
+    transform: translateX(calc(106vw + 5vmin));
+  }
+}
+
+.pu-title.has-keyart :is(.pu-title-isle, .pu-title-ship, .pu-title-cloud) {
+  display: none;
+}
+
+/* Darker top (the name reads on any painting) and edges. */
+.pu-title-vignette {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(rgba(8, 24, 40, 0.42), rgba(8, 24, 40, 0) 38%),
+    radial-gradient(ellipse 75% 70% at 50% 52%, rgba(8, 24, 40, 0) 55%, rgba(8, 24, 40, 0.5) 100%);
+}
+
+/* ---- front: logo + stage ---------------------------------------------------------------------- */
+
+.pu-title-front {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  padding: max(var(--safe-t), 4vh) max(var(--safe-r), 3vw) max(var(--safe-b), 5vh) max(var(--safe-l), 3vw);
+  pointer-events: none;
+}
+
+.pu-title-logo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  animation: pu-title-logo-in 1s cubic-bezier(0.2, 0.9, 0.3, 1.15) both;
+}
+
+@keyframes pu-title-logo-in {
+  from {
+    opacity: 0;
+    transform: translateY(-3vh) scale(0.92);
+  }
+}
+
+.pu-title-name {
+  margin: 0;
+  font-size: clamp(40px, min(8.6vw, 15vh), 150px);
+  line-height: 0.95;
+  white-space: nowrap;
+  text-align: center;
+  filter: drop-shadow(0 0.06em 0.05em rgba(20, 10, 2, 0.55));
+}
+
+.pu-title-word {
+  display: inline-block;
+  color: #fff3cf;
+  letter-spacing: 0.01em;
+}
+
+.pu-title-logo-art {
+  display: block;
+  width: min(72vw, calc(32vh * 2.6));
+  height: auto;
+  max-height: 34vh;
+  object-fit: contain;
+}
+
+.pu-title.has-logo .pu-title-name {
+  filter: drop-shadow(0 0.6vh 0.6vh rgba(20, 10, 2, 0.45));
+}
+
+/* Tagline on the painted ribbon. */
+.pu-title-tagline {
+  margin-top: 0.6vh;
+  padding: calc(1em + 4px) 3em;
+  line-height: 1;
+  background: url('/art2d/ui-banner.webp') center / 100% 100% no-repeat;
+  font-size: clamp(13px, min(1.9vw, 3.2vh), 30px);
+  white-space: nowrap;
+  filter: drop-shadow(0 3px 2px rgba(30, 16, 4, 0.4));
+}
+
+.pu-title-stage {
+  display: grid;
+  place-items: center;
+  width: 100%;
+}
+
+.pu-title-stage > * {
+  grid-area: 1 / 1;
+  pointer-events: auto;
+  transition: opacity 0.45s ease, transform 0.45s ease, visibility 0s linear 0.45s;
+  opacity: 0;
+  visibility: hidden;
+}
+
+.pu-title.loading .pu-title-load,
+.pu-title.tap .pu-title-tap,
+.pu-title.menu .pu-title-menu {
+  opacity: 1;
+  visibility: visible;
+  transition-delay: 0s;
+}
+
+.pu-title-menu {
+  transform: translateY(2vh);
+}
+
+.pu-title.menu .pu-title-menu {
+  transform: none;
+}
+
+/* Loading bar: a wood plank frame, a dark groove and a gold fill with a moving sheen. */
+.pu-title-load {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(var(--s) * 0.7);
+}
+
+.pu-title-bar {
+  position: relative;
+  width: min(62vw, calc(var(--s) * 46));
+  height: calc(var(--s) * 3.4);
+  border-style: solid;
+  border-width: calc(var(--s) * 1) calc(var(--s) * 1.5);
+  border-image: url('/art2d/ui-plaque.webp') 42 64 fill stretch;
+  filter: drop-shadow(0 3px 2px rgba(30, 16, 4, 0.45));
+}
+
+.pu-title-bar::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  background: rgba(40, 22, 8, 0.85);
+  box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.55);
+}
+
+.pu-title-bar-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 0;
+  border-radius: 999px;
+  background:
+    linear-gradient(100deg, rgba(255, 255, 255, 0) 30%, rgba(255, 252, 230, 0.55) 45%, rgba(255, 255, 255, 0) 60%) 0 0 / 220% 100% no-repeat,
+    linear-gradient(#ffe89a, #f2b33d 55%, #c9821f);
+  box-shadow: 0 0 0 1.5px rgba(58, 36, 18, 0.7);
+  transition: width 0.35s ease-out;
+  animation: pu-title-sheen 1.6s linear infinite;
+}
+
+@keyframes pu-title-sheen {
+  from {
+    background-position: 140% 0, 0 0;
+  }
+  to {
+    background-position: -40% 0, 0 0;
+  }
+}
+
+.pu-title-bar-text {
+  font-size: calc(var(--s) * 1.5);
+}
+
+.pu-title-tap {
+  font-size: clamp(18px, min(2.6vw, 4.2vh), 38px);
+  padding: 0.4em 1em;
+  animation: pu-title-pulse 2s ease-in-out infinite;
+}
+
+@keyframes pu-title-pulse {
+  0%,
+  100% {
+    opacity: 0.6;
+    transform: scale(0.97);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.03);
+  }
+}
+
+.pu-title-menu {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(var(--s) * 0.9);
+}
+
+.pu-title-menu .pu-plank.primary {
+  --ph: calc(var(--s) * 6);
+  min-width: calc(var(--s) * 20);
+  font-size: calc(var(--s) * 2.5);
+}
+
+.pu-title-menu .pu-plank:not(.primary):not(.small) {
+  min-width: calc(var(--s) * 16);
+  font-size: calc(var(--s) * 1.8);
+}
+
+.pu-title-note {
+  margin-top: calc(var(--s) * -0.4);
+  font-size: calc(var(--s) * 1.25);
+}
+
+.pu-title-row {
+  display: flex;
+  gap: calc(var(--s) * 0.9);
+}
+
+.pu-title-row .pu-plank {
+  min-width: calc(var(--s) * 13);
+}
+
+.pu-title.busy .pu-title-menu {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+/* Menu entries rise in one after another. */
+.pu-title.menu .pu-title-menu > * {
+  animation: pu-title-rise 0.42s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+}
+
+.pu-title.menu .pu-title-menu > :nth-child(2) {
+  animation-delay: 0.06s;
+}
+
+.pu-title.menu .pu-title-menu > :nth-child(3) {
+  animation-delay: 0.12s;
+}
+
+.pu-title.menu .pu-title-menu > :nth-child(4) {
+  animation-delay: 0.18s;
+}
+
+@keyframes pu-title-rise {
+  from {
+    opacity: 0;
+    transform: translateY(1.6vh) scale(0.96);
+  }
+}
+
+/* Landscape phones: smaller sea bake, tighter column. */
+@media (max-height: 480px) {
+  .pu-title-sea-art {
+    background-image: url('/art2d/ui/sea@0.5x.webp');
+  }
+
+  .pu-title-front {
+    padding-top: max(var(--safe-t), 3vh);
+    padding-bottom: max(var(--safe-b), 3.5vh);
+  }
+
+  .pu-title-menu {
+    gap: calc(var(--s) * 0.6);
+  }
+}
+
+.pu-reduce-motion .pu-title *,
+.pu-reduce-motion .pu-title {
+  animation: none !important;
+}
+
+.pu-reduce-motion .pu-title-layer {
+  transition: none;
+  transform: none;
+}
