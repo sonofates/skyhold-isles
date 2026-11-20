@@ -1,0 +1,36 @@
+{
+  "id": "i23-eastern-fruit-spray",
+  "element": "eastern-fruit-spray",
+  "source": "public/art2d/map-i23-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 1609,
+    "y": 353,
+    "width": 224,
+    "height": 126
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    4827,
+    1059,
+    5499,
+    1437
+  ],
+  "startPxPerLayoutPx": 5.714285714285714,
+  "startPxPerSourcePx": 1.9047619047619049,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    257,
+    93,
+    1028,
+    628
+  ],
+  "featherInwardStartPx": 10
+}

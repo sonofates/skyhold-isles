@@ -1,0 +1,36 @@
+{
+  "id": "i18-north-vault-crystals",
+  "element": "north-vault-crystals",
+  "source": "public/art2d/map-i18-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 30,
+    "y": 0,
+    "width": 224,
+    "height": 126
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    90,
+    0,
+    762,
+    378
+  ],
+  "startPxPerLayoutPx": 5.714285714285714,
+  "startPxPerSourcePx": 1.9047619047619049,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    80,
+    22,
+    1190,
+    538
+  ],
+  "featherInwardStartPx": 10
+}

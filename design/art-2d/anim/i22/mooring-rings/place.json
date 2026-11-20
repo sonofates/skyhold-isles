@@ -1,0 +1,36 @@
+{
+  "id": "i22-mooring-rings",
+  "element": "mooring-rings",
+  "source": "public/art2d/map-i22-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 670,
+    "y": 359,
+    "width": 256,
+    "height": 144
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    2010,
+    1077,
+    2778,
+    1509
+  ],
+  "startPxPerLayoutPx": 5.0,
+  "startPxPerSourcePx": 1.6666666666666667,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    198,
+    145,
+    1087,
+    576
+  ],
+  "featherInwardStartPx": 19
+}

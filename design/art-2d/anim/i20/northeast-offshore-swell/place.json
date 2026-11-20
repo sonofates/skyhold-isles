@@ -1,0 +1,36 @@
+{
+  "id": "i20-northeast-offshore-swell",
+  "element": "northeast-offshore-swell",
+  "source": "public/art2d/map-i20-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 1606,
+    "y": 0,
+    "width": 240,
+    "height": 135
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    4818,
+    0,
+    5538,
+    405
+  ],
+  "startPxPerLayoutPx": 5.333333333333333,
+  "startPxPerSourcePx": 1.7777777777777777,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    151,
+    23,
+    1249,
+    504
+  ],
+  "featherInwardStartPx": 27
+}

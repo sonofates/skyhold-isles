@@ -1,0 +1,36 @@
+{
+  "id": "i18-kiln-side-crystals",
+  "element": "kiln-side-crystals",
+  "source": "public/art2d/map-i18-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 103,
+    "y": 485,
+    "width": 432,
+    "height": 243
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    309,
+    1455,
+    1605,
+    2184
+  ],
+  "startPxPerLayoutPx": 2.962962962962963,
+  "startPxPerSourcePx": 0.9876543209876543,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    485,
+    95,
+    793,
+    627
+  ],
+  "featherInwardStartPx": 10
+}

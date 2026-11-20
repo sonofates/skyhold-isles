@@ -1,0 +1,36 @@
+{
+  "id": "i17-western-cloud-shelf",
+  "element": "western-cloud-shelf",
+  "source": "public/art2d/map-i17-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 0,
+    "y": 0,
+    "width": 256,
+    "height": 144
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    0,
+    0,
+    768,
+    432
+  ],
+  "startPxPerLayoutPx": 5.0,
+  "startPxPerSourcePx": 1.6666666666666667,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    20,
+    20,
+    957,
+    649
+  ],
+  "featherInwardStartPx": 38
+}

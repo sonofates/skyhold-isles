@@ -1,0 +1,36 @@
+{
+  "id": "i20-masthead-streamers",
+  "element": "masthead-streamers",
+  "source": "public/art2d/map-i20-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 28,
+    "y": 573,
+    "width": 208,
+    "height": 117
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    84,
+    1719,
+    708,
+    2070
+  ],
+  "startPxPerLayoutPx": 6.153846153846154,
+  "startPxPerSourcePx": 2.0512820512820515,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    278,
+    128,
+    1007,
+    600
+  ],
+  "featherInwardStartPx": 10
+}

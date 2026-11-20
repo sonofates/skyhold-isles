@@ -1,0 +1,36 @@
+{
+  "id": "i18-east-wall-vein",
+  "element": "east-wall-vein",
+  "source": "public/art2d/map-i18-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 1350,
+    "y": 474,
+    "width": 496,
+    "height": 279
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    4050,
+    1422,
+    5538,
+    2259
+  ],
+  "startPxPerLayoutPx": 2.5806451612903225,
+  "startPxPerSourcePx": 0.8602150537634409,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    859,
+    46,
+    1265,
+    676
+  ],
+  "featherInwardStartPx": 12
+}

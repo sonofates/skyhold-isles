@@ -1,0 +1,36 @@
+{
+  "id": "i19-ancient-fig-crown",
+  "element": "ancient-fig-crown",
+  "source": "public/art2d/map-i19-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 665,
+    "y": 165,
+    "width": 512,
+    "height": 288
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    1995,
+    495,
+    3531,
+    1359
+  ],
+  "startPxPerLayoutPx": 2.5,
+  "startPxPerSourcePx": 0.8333333333333334,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    167,
+    147,
+    1113,
+    573
+  ],
+  "featherInwardStartPx": 12
+}

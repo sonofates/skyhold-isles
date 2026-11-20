@@ -1,0 +1,36 @@
+{
+  "id": "i21-weather-kite-silk",
+  "element": "weather-kite-silk",
+  "source": "public/art2d/map-i21-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 708,
+    "y": 329,
+    "width": 336,
+    "height": 189
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    2124,
+    987,
+    3132,
+    1554
+  ],
+  "startPxPerLayoutPx": 3.8095238095238093,
+  "startPxPerSourcePx": 1.2698412698412698,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    312,
+    95,
+    964,
+    624
+  ],
+  "featherInwardStartPx": 10
+}

@@ -1,0 +1,36 @@
+{
+  "id": "i21-southwest-cliff-pine",
+  "element": "southwest-cliff-pine",
+  "source": "public/art2d/map-i21-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 0,
+    "y": 688,
+    "width": 144,
+    "height": 81
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    0,
+    2064,
+    432,
+    2307
+  ],
+  "startPxPerLayoutPx": 8.88888888888889,
+  "startPxPerSourcePx": 2.9629629629629632,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    136,
+    142,
+    1085,
+    587
+  ],
+  "featherInwardStartPx": 9
+}
