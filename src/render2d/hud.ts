@@ -17,6 +17,9 @@ const BANNERS: Readonly<Record<string, readonly [MsgKey, MsgKey]>> = {
   'Tap the road': ['hud.tapRoad', 'hud.tapRoadSub'], // i18n-ignore (banner id)
 };
 
+/** The shade laid over the battlefield while paused: warm and light, the map stays readable. */
+export const PAUSE_DIM = { color: 0x1a1006, alpha: 0.3 } as const;
+
 /** Vertical middle of the wave banner's cloth body, as a fraction of the banner art's height. */
 export const BANNER_CLOTH_MID = 0.6;
 
@@ -94,6 +97,8 @@ export class Hud {
   private lastSecs = -1;
   private lastRingFrac = -1;
   private readonly plate: NineSliceSprite | Graphics;
+  /** A soft shade over the battlefield while paused (under every HUD piece), so the plate and its planks read first. */
+  private readonly pauseDim = new Graphics();
   private readonly centre = inkText(40, 'center');
   private readonly sub = inkText(20, 'center', '#7a5532', '600');
   private livesBox: Rect = { x: 0, y: 0, w: 0, h: 0 };
@@ -149,7 +154,9 @@ export class Hud {
       this.plate = new NineSliceSprite({ texture: tip, leftWidth: b, rightWidth: b, topHeight: b, bottomHeight: b });
     } else this.plate = new Graphics();
     this.plate.visible = false;
+    this.pauseDim.visible = false;
     this.root.addChild(
+      this.pauseDim,
       this.plaque,
       this.heart,
       this.coin,
@@ -287,6 +294,9 @@ export class Hud {
   private layoutPlate(): void {
     const has = this.centre.text !== '';
     this.plate.visible = has;
+    const dim = has && this.lastBanner === 'Paused'; // i18n-ignore (banner id)
+    this.pauseDim.visible = dim;
+    if (dim) this.pauseDim.clear().rect(0, 0, this.screenW, this.screenH).fill({ color: PAUSE_DIM.color, alpha: PAUSE_DIM.alpha });
     if (!has) return;
     const cx = this.screenW / 2;
     const subOn = this.sub.text !== '';
