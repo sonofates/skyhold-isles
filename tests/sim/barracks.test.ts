@@ -873,6 +873,10 @@ describe('determinism and isolation', () => {
         b.squad[1].x = b.squad[0].x;
         b.squad[1].z = b.squad[0].z;
         b.squad[1].state = 'fighting';
+        b.squad[0].extraHoldPoolIndices.length = 0;
+        b.squad[0].extraHoldUids.length = 0;
+        b.squad[0].extraHoldPoolIndices.push(g2.poolIndex);
+        b.squad[0].extraHoldUids.push(g2.uid);
       }
       stepWorld(1);
       expect(b.squad[0].targetUid).toBe(g1.uid);
@@ -911,6 +915,138 @@ describe('determinism and isolation', () => {
       stepWorld(45);
       expect(gAhead.blockers).toBeGreaterThanOrEqual(1);
       expect(monitor.violations).toEqual([]);
+    } finally {
+      (TOWER_DEFS.barracks.tiers as unknown as Record<number, unknown>)[2] = origT3;
+    }
+  });
+
+  it('elite multi-hold (soldierHoldCap: 2) stops heavy holdCost >= 2 foes (Golem / Boss) and peels spare knights off when a squadmate covers holdCost', () => {
+    const origT3 = TOWER_DEFS.barracks.tiers[2];
+    try {
+      // 1. Single holdCap=2 knight solo-stops a Basalt Golem (holdCost=2):
+      (TOWER_DEFS.barracks.tiers as unknown as Record<number, unknown>)[2] = {
+        ...origT3,
+        soldierCount: 1,
+        soldierHoldCap: 2,
+        soldierHp: 5000,
+        soldierDamage: 0,
+        soldierCleave: 0,
+      };
+      {
+        const { world } = setup(50_000);
+        const monitor = new InvariantMonitor(world, world.events, 8);
+        const stepWorld = (n: number): void => {
+          for (let i = 0; i < n; i++) {
+            const nextTick = world.tick + 1;
+            monitor.beginTick(nextTick);
+            world.fixedTick(DT);
+            monitor.endTick(world.tick, DT);
+          }
+        };
+        const t = world.placeTowerOnPlot(0, 'barracks')!;
+        expect(world.upgradeTower(t.id)).toBe(true);
+        expect(world.upgradeTower(t.id)).toBe(true);
+        const b = world.soldierSystem.getBarracks(t.id)!;
+        stepWorld(60);
+
+        const golem = spawnAt(world, 'golem', 8 + b.rallyX - 0.12);
+        golem.hp = golem.maxHp = 50_000;
+        for (let guard = 0; guard < 180 && golem.blockers < 2; guard++) {
+          stepWorld(1);
+        }
+        expect(golem.blockers).toBe(2);
+        const heldDist = golem.dist;
+        stepWorld(20);
+        expect(golem.dist).toBe(heldDist);
+        expect(monitor.violations).toEqual([]);
+      }
+
+      // 2. Two holdCap=2 knights (total cap = 4) stop a Boss (holdCost=3) AND peel 1 knight off a Golem (holdCost=2) when a Grunt arrives:
+      (TOWER_DEFS.barracks.tiers as unknown as Record<number, unknown>)[2] = {
+        ...origT3,
+        soldierCount: 2,
+        soldierHoldCap: 2,
+        soldierHp: 5000,
+        soldierDamage: 0,
+        soldierCleave: 0,
+      };
+      {
+        const { world } = setup(50_000);
+        const monitor = new InvariantMonitor(world, world.events, 8);
+        const stepWorld = (n: number): void => {
+          for (let i = 0; i < n; i++) {
+            const nextTick = world.tick + 1;
+            monitor.beginTick(nextTick);
+            world.fixedTick(DT);
+            monitor.endTick(world.tick, DT);
+          }
+        };
+        const t = world.placeTowerOnPlot(0, 'barracks')!;
+        expect(world.upgradeTower(t.id)).toBe(true);
+        expect(world.upgradeTower(t.id)).toBe(true);
+        const b = world.soldierSystem.getBarracks(t.id)!;
+        stepWorld(60);
+
+        const boss = spawnAt(world, 'boss', 8 + b.rallyX - 0.10);
+        const trailingGrunt = spawnAt(world, 'grunt', boss.dist - 0.32);
+        boss.hp = boss.maxHp = 50_000;
+        boss.bossPulseTimer = 9999;
+        trailingGrunt.hp = trailingGrunt.maxHp = 50_000;
+        for (
+          let guard = 0;
+          guard < 180 && !(boss.blockers >= 3 && trailingGrunt.blockers >= 1);
+          guard++
+        ) {
+          stepWorld(1);
+        }
+        expect(boss.blockers).toBe(3);
+        expect(trailingGrunt.blockers).toBe(1);
+        const bossHeldDist = boss.dist;
+        stepWorld(15);
+        expect(boss.dist).toBe(bossHeldDist);
+        expect(monitor.violations).toEqual([]);
+      }
+
+      {
+        const { world } = setup(50_000);
+        const monitor = new InvariantMonitor(world, world.events, 8);
+        const stepWorld = (n: number): void => {
+          for (let i = 0; i < n; i++) {
+            const nextTick = world.tick + 1;
+            monitor.beginTick(nextTick);
+            world.fixedTick(DT);
+            monitor.endTick(world.tick, DT);
+          }
+        };
+        const t = world.placeTowerOnPlot(0, 'barracks')!;
+        expect(world.upgradeTower(t.id)).toBe(true);
+        expect(world.upgradeTower(t.id)).toBe(true);
+        const b = world.soldierSystem.getBarracks(t.id)!;
+        stepWorld(60);
+
+        // Both knights first fight a Golem (holdCost=2 -> 1 primary each); when a Grunt arrives ahead,
+        // knight #2 peels off to intercept the Grunt while knight #1 solo-holds the Golem at blockers=2!
+        const golem = spawnAt(world, 'golem', 8 + b.rallyX - 0.20);
+        golem.hp = golem.maxHp = 50_000;
+        for (
+          let guard = 0;
+          guard < 180 && !(b.squad[0].state === 'fighting' && b.squad[1].state === 'fighting');
+          guard++
+        ) {
+          stepWorld(1);
+        }
+        expect(golem.blockers).toBe(2);
+
+        const runner = spawnAt(world, 'grunt', 8 + b.rallyX + 0.85);
+        runner.hp = runner.maxHp = 50_000;
+        runner.speed = 0.05;
+        for (let guard = 0; guard < 120 && runner.blockers === 0; guard++) {
+          stepWorld(1);
+        }
+        expect(golem.blockers).toBe(2);
+        expect(runner.blockers).toBe(1);
+        expect(monitor.violations).toEqual([]);
+      }
     } finally {
       (TOWER_DEFS.barracks.tiers as unknown as Record<number, unknown>)[2] = origT3;
     }

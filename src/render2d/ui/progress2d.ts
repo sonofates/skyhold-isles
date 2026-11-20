@@ -578,19 +578,17 @@ export function saveProgress2D(progress: ProgressData, levels: readonly LevelDef
   if (platform.isSteam && !isMockLevelRoster(levels)) {
     const pending = pendingAutoHydrated2DByAdapter.get(platform);
     if (pending) {
-      if (postHydrationStarsRefs.has(progress.bestStars)) {
-        pendingAutoHydrated2DByAdapter.delete(platform);
-      } else {
+      if (!postHydrationStarsRefs.has(progress.bestStars)) {
         foldPendingCloudThreeWay2D(progress, pending.base, pending.hydrated, levels);
         postHydrationStarsRefs.add(progress.bestStars);
-        const nextHydrated = remapProgress(
-          progress,
-          levels.map((l) => l.id),
-          levels,
-        );
-        postHydrationStarsRefs.add(nextHydrated.bestStars);
-        pendingAutoHydrated2DByAdapter.set(platform, { base: pending.base, hydrated: nextHydrated });
       }
+      const nextHydrated = remapProgress(
+        progress,
+        levels.map((l) => l.id),
+        levels,
+      );
+      postHydrationStarsRefs.add(nextHydrated.bestStars);
+      pendingAutoHydrated2DByAdapter.set(platform, { base: pending.base, hydrated: nextHydrated });
     }
   }
   const raw = saveLocalProgress2D(progress, levels);
@@ -715,9 +713,26 @@ export async function hydrateProgress2DFromCloud(
 
   if (cloudRaw) {
     const parsedCloud = parseStored2DRaw(cloudRaw, levels);
+    if (!parsedCloud || parsedCloud.repairedFromTruncated) {
+      const mirrorRaw = storage()?.getItem(LOCAL_CLOUD_2D_MIRROR_KEY) ?? null;
+      if (mirrorRaw && mirrorRaw !== cloudRaw) {
+        const parsedMirror = parseStored2DRaw(mirrorRaw, levels);
+        if (parsedMirror && hasAnyProgress(parsedMirror.progress)) {
+          normalizedLocal = mergeParsedInto2D(normalizedLocal, parsedMirror, levels);
+          merged = normalizedLocal;
+        }
+      }
+    }
     if (parsedCloud) {
       if (hasConcurrentLocalEdit) {
-        const cloudHydrated = mergeParsedInto2D(preReadBase, parsedCloud, levels);
+        let cloudHydrated = mergeParsedInto2D(preReadBase, parsedCloud, levels);
+        if (parsedCloud.repairedFromTruncated) {
+          const mirrorRaw = storage()?.getItem(LOCAL_CLOUD_2D_MIRROR_KEY) ?? null;
+          const parsedMirror = mirrorRaw ? parseStored2DRaw(mirrorRaw, levels) : null;
+          if (parsedMirror && hasAnyProgress(parsedMirror.progress)) {
+            cloudHydrated = mergeParsedInto2D(cloudHydrated, parsedMirror, levels);
+          }
+        }
         const threeWay = remapProgress(
           normalizedLocal,
           levels.map((l) => l.id),
@@ -739,9 +754,13 @@ export async function hydrateProgress2DFromCloud(
         }
       }
     } else if (!readFailed) {
+      const healedRaw = serializeStored2D(normalizedLocal, levels);
+      if (healedRaw !== localRaw && resetGen2D === genAtStart) {
+        saveLocalProgress2D(normalizedLocal, levels);
+      }
       completedHydrated2DAdapters.add(adapter);
       if (hasAnyProgress(normalizedLocal) && resetGen2D === genAtStart) {
-        await safeCloudWrite2D(localRaw);
+        await safeCloudWrite2D(healedRaw);
       }
     }
   } else if (!readFailed) {
@@ -1232,9 +1251,9 @@ export function importSaveCode2D(
       const backupJson =
         raw && validPrimary && !validPrimary.repairedFromTruncated
           ? raw
-          : hasAnyProgress(current)
+          : hasAnyProgress(current) || validPrimary !== null
             ? serializeStored2D(current, levels)
-            : raw;
+            : null;
       if (backupJson) {
         ls.setItem(PROGRESS_2D_IMPORT_BACKUP_KEY, backupJson);
       }

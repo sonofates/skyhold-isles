@@ -1821,4 +1821,88 @@ describe('Steam achievements map, cloud hydration, and desktop config invariants
       setPlatformAdapter(null);
     }
   });
+
+  it('never clobbers clean local cloud mirrors when cloudRead returns corrupt/truncated JSON and keeps pre-hydration clones protected after intermediate post-hydration saves', async () => {
+    try {
+      const cloudMap = new Map<string, string>();
+      // Seed an intact local mirror (e.g. from an earlier clean session on this PC) with Sela L12 + treasury:2:
+      const intactMirror = createDefaultProgress(LEVELS_2D.length);
+      for (let i = 0; i < 12; i++) {
+        intactMirror.bestStars[i] = 3;
+        intactMirror.clears[i] = 1;
+      }
+      intactMirror.unlockedLevelIndex = 12;
+      intactMirror.workshop = { treasury: 2 };
+      intactMirror.heroes = {
+        selectedHero: 'sela',
+        roster: { sela: { xp: HERO_LEVEL_XP[11], skills: ['sela_cal_1'] } },
+      };
+      const intactMirrorJson = JSON.stringify({
+        ids: LEVELS_2D.map((l) => l.id),
+        progress: intactMirror,
+      });
+      localStorage.setItem('skyhold_isles_cloud_progress2d', intactMirrorJson);
+
+      // Remote Steam Cloud got truncated mid-JSON (retains island 13 3★, cuts off before workshop & heroes!):
+      const remoteWithExtra = createDefaultProgress(LEVELS_2D.length);
+      for (let i = 0; i < 14; i++) {
+        remoteWithExtra.bestStars[i] = 3;
+        remoteWithExtra.clears[i] = 1;
+      }
+      remoteWithExtra.workshop = { treasury: 2, bastion: 1 };
+      const fullRemoteJson = JSON.stringify({
+        ids: LEVELS_2D.map((l) => l.id),
+        progress: remoteWithExtra,
+      });
+      const cutAt = fullRemoteJson.indexOf('"workshop"');
+      const truncatedRemoteJson = fullRemoteJson.slice(0, cutAt);
+      cloudMap.set(CLOUD_PROGRESS_2D_SLOT, truncatedRemoteJson);
+
+      const adapter = createPlatformAdapter({
+        bridge: {
+          isSteam: true,
+          appId: 480,
+          unlockAchievement: async () => true,
+          cloudRead: async (slot) => cloudMap.get(slot) ?? null,
+          cloudWrite: async (slot, json) => {
+            cloudMap.set(slot, json);
+            return true;
+          },
+        },
+      });
+      setPlatformAdapter(adapter);
+
+      // 1. Direct cloudSave.read() returns the raw remote string for caller repair WITHOUT overwriting the clean local mirror!
+      const rawRead = await adapter.cloudSave.read(CLOUD_PROGRESS_2D_SLOT);
+      expect(rawRead).toBe(truncatedRemoteJson);
+      expect(localStorage.getItem('skyhold_isles_cloud_progress2d')).toBe(intactMirrorJson);
+
+      // 2. Boot auto-hydration merges truncated remote (islands 0..13) WITH the intact local mirror (Sela L12 + treasury:2) AND heals Steam Cloud!
+      const boot = loadProgress2D(LEVELS_2D);
+      const lateStaleClone: ProgressData = JSON.parse(JSON.stringify(boot));
+      lateStaleClone.heroes!.roster.bran = { xp: 450, skills: [] };
+
+      await new Promise((r) => setTimeout(r, 15));
+
+      const hydrated = loadProgress2D(LEVELS_2D);
+      expect(hydrated.bestStars[13]).toBe(3); // from truncated remote prefix
+      expect(hydrated.workshop).toEqual({ treasury: 2 }); // preserved from intact local mirror!
+      expect(hydrated.heroes?.selectedHero).toBe('sela'); // preserved from intact local mirror!
+      expect(hydrated.heroes?.roster.sela?.xp).toBe(HERO_LEVEL_XP[11]);
+
+      // 3. An intermediate post-hydration save (e.g. unlocking a node on Sela) must NOT disarm protection for `lateStaleClone`!
+      const postSave = applyNode(hydrated, 'sela', 'sela_thn_1', LEVELS_2D)!;
+      saveProgress2D(postSave, LEVELS_2D);
+
+      // Now `lateStaleClone` (created before hydration!) saves later — must keep all 14 islands, Sela L12 + BOTH skills, AND add Bran's 450 XP!
+      saveProgress2D(lateStaleClone, LEVELS_2D);
+      const final2D = loadProgress2D(LEVELS_2D);
+      expect(final2D.bestStars[13]).toBe(3);
+      expect(final2D.workshop).toEqual({ treasury: 2 });
+      expect(final2D.heroes?.roster.sela?.skills).toEqual(['sela_cal_1', 'sela_thn_1']);
+      expect(final2D.heroes?.roster.bran?.xp).toBe(450);
+    } finally {
+      setPlatformAdapter(null);
+    }
+  });
 });

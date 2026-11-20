@@ -147,35 +147,6 @@ const _respawnPtA: Vec3 = { x: 0, y: 0, z: 0 };
 const _respawnPtB: Vec3 = { x: 0, y: 0, z: 0 };
 const _clampTarget: GroundClampResult = { x: 0, z: 0, roadX: 0, roadZ: 0, lane: 0, dist: 0 };
 const _clampStep: GroundClampResult = { x: 0, z: 0, roadX: 0, roadZ: 0, lane: 0, dist: 0 };
-const _heroShotScratch: {
-  style: TowerType;
-  startX: number;
-  startY: number;
-  startZ: number;
-  target: EnemyEntity | null;
-  damage: number;
-  speed: number;
-  splashRadius: number;
-  armorPierce: number;
-  slowRatio: number;
-  slowDuration: number;
-  hitsFlyers: boolean;
-  lateral: number;
-} = {
-  style: 'archer',
-  startX: 0,
-  startY: 0.9,
-  startZ: 0,
-  target: null,
-  damage: 1,
-  speed: 24,
-  splashRadius: 0,
-  armorPierce: 0,
-  slowRatio: 0,
-  slowDuration: 0,
-  hitsFlyers: true,
-  lateral: 0,
-};
 const GIZMO_DIST_OFFSETS: readonly number[] = [0, 0.45, -0.45, 0.9, -0.9, 1.35, -1.35, 1.8, -1.8, 2.3, -2.3, 2.8, -2.8];
 const GIZMO_LAT_OFFSETS: readonly number[] = [0, 0.45, -0.45, 0.85, -0.85, 1.1, -1.1];
 const _gizmoPlacementOut = { x: 0, z: 0 };
@@ -254,6 +225,35 @@ export class HeroSystem {
     { x: 0, z: 0 },
     { x: 0, z: 0 },
   ];
+  private readonly heroShotScratch: {
+    style: TowerType;
+    startX: number;
+    startY: number;
+    startZ: number;
+    target: EnemyEntity | null;
+    damage: number;
+    speed: number;
+    splashRadius: number;
+    armorPierce: number;
+    slowRatio: number;
+    slowDuration: number;
+    hitsFlyers: boolean;
+    lateral: number;
+  } = {
+    style: 'archer',
+    startX: 0,
+    startY: 0.9,
+    startZ: 0,
+    target: null,
+    damage: 1,
+    speed: 24,
+    splashRadius: 0,
+    armorPierce: 0,
+    slowRatio: 0,
+    slowDuration: 0,
+    hitsFlyers: true,
+    lateral: 0,
+  };
 
   private readonly pool: ObjectPool<EnemyEntity>;
   private readonly spatialHash: SpatialHashGrid;
@@ -1716,20 +1716,22 @@ export class HeroSystem {
         g.yaw = Math.atan2(target.x - g.x, target.z - g.z);
         if (g.cooldownTimer <= 0) {
           g.cooldownTimer = 1 / g.fireRate;
-          _heroShotScratch.style = 'ballista';
-          _heroShotScratch.startX = g.x;
-          _heroShotScratch.startY = 0.65;
-          _heroShotScratch.startZ = g.z;
-          _heroShotScratch.target = target;
-          _heroShotScratch.damage = g.damage;
-          _heroShotScratch.speed = 28;
-          _heroShotScratch.splashRadius = g.splashRadius;
-          _heroShotScratch.armorPierce = 2;
-          _heroShotScratch.slowRatio = 0;
-          _heroShotScratch.slowDuration = 0;
-          _heroShotScratch.hitsFlyers = true;
-          _heroShotScratch.lateral = 0;
-          this.projectileSystem.spawnHeroProjectile(_heroShotScratch as HeroShotParams);
+          const shot = this.heroShotScratch;
+          shot.style = 'ballista';
+          shot.startX = g.x;
+          shot.startY = 0.65;
+          shot.startZ = g.z;
+          shot.target = target;
+          shot.damage = g.damage;
+          shot.speed = 28;
+          shot.splashRadius = g.splashRadius;
+          shot.armorPierce = 2;
+          shot.slowRatio = 0;
+          shot.slowDuration = 0;
+          shot.hitsFlyers = true;
+          shot.lateral = 0;
+          this.projectileSystem.spawnHeroProjectile(shot as HeroShotParams);
+          shot.target = null;
         }
       }
     }
@@ -1989,9 +1991,14 @@ export class HeroSystem {
       (!this.isHoldable(target) ||
         Math.hypot(target.x - h.postX, target.z - h.postZ) > HERO_RULES.meleeLeashRadius)
     ) {
+      target = null;
+    }
+    if (
+      target === null &&
+      (h.targetPoolIndex >= 0 || h.targetUid !== 0 || h.state === 'engaging' || h.state === 'fighting')
+    ) {
       h.targetPoolIndex = -1;
       h.targetUid = 0;
-      target = null;
       h.state = 'idle';
     }
 
@@ -2250,31 +2257,33 @@ export class HeroSystem {
         }
 
         const chill = pas.extras.has('chillBolts');
-        _heroShotScratch.style = h.stats.projectileStyle;
-        _heroShotScratch.startX = h.x;
-        _heroShotScratch.startY = 0.9;
-        _heroShotScratch.startZ = h.z;
-        _heroShotScratch.target = target;
-        _heroShotScratch.damage = dmg;
-        _heroShotScratch.speed = h.stats.projectileSpeed;
-        _heroShotScratch.splashRadius = h.stats.splashRadius;
-        _heroShotScratch.armorPierce = h.stats.armorPierce;
-        _heroShotScratch.slowRatio = chill ? 0.22 : 0;
-        _heroShotScratch.slowDuration = chill ? 1.6 : 0;
-        _heroShotScratch.hitsFlyers = h.stats.hitsFlyers;
-        _heroShotScratch.lateral = 0;
-        this.projectileSystem.spawnHeroProjectile(_heroShotScratch as HeroShotParams);
+        const shot = this.heroShotScratch;
+        shot.style = h.stats.projectileStyle;
+        shot.startX = h.x;
+        shot.startY = 0.9;
+        shot.startZ = h.z;
+        shot.target = target;
+        shot.damage = dmg;
+        shot.speed = h.stats.projectileSpeed;
+        shot.splashRadius = h.stats.splashRadius;
+        shot.armorPierce = h.stats.armorPierce;
+        shot.slowRatio = chill ? 0.22 : 0;
+        shot.slowDuration = chill ? 1.6 : 0;
+        shot.hitsFlyers = h.stats.hitsFlyers;
+        shot.lateral = 0;
+        this.projectileSystem.spawnHeroProjectile(shot as HeroShotParams);
 
         if (pas.extras.has('twinArrow') && h.shotCount % 3 === 0) {
           const second = this.findSecondRangedTarget(h, target) ?? target;
-          _heroShotScratch.target = second;
-          _heroShotScratch.damage = Math.max(1, Math.round(h.stats.damage * 0.55));
-          _heroShotScratch.splashRadius = 0;
-          _heroShotScratch.slowRatio = 0;
-          _heroShotScratch.slowDuration = 0;
-          _heroShotScratch.lateral = 0.22;
-          this.projectileSystem.spawnHeroProjectile(_heroShotScratch as HeroShotParams);
+          shot.target = second;
+          shot.damage = Math.max(1, Math.round(h.stats.damage * 0.55));
+          shot.splashRadius = 0;
+          shot.slowRatio = 0;
+          shot.slowDuration = 0;
+          shot.lateral = 0.22;
+          this.projectileSystem.spawnHeroProjectile(shot as HeroShotParams);
         }
+        shot.target = null;
 
         this.events.emit('heroAttack', {
           heroId: h.heroId,

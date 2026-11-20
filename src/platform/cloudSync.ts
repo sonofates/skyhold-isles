@@ -12,6 +12,7 @@ import {
   loadProgress,
   markCloudHydrated,
   migrateProgress,
+  readLocalCloudProgressMirrorRaw,
   readLocalProgressRaw,
   registerCloudHydrator,
   saveLocalProgress,
@@ -139,11 +140,36 @@ export async function hydrateProgressFromCloud(
         parsed = repaired;
       }
     }
+    if (parseFailed) {
+      const mirrorRaw = readLocalCloudProgressMirrorRaw();
+      if (mirrorRaw && mirrorRaw !== cloudRaw) {
+        let mirrorParsed: unknown;
+        try {
+          mirrorParsed = JSON.parse(mirrorRaw);
+        } catch {
+          mirrorParsed = tryRepairTruncatedJson(mirrorRaw);
+        }
+        if (mirrorParsed && typeof mirrorParsed === 'object' && !Array.isArray(mirrorParsed)) {
+          const mirrorProgress = migrateProgressForMerge(
+            mirrorParsed as Record<string, unknown>,
+            levelCount,
+          );
+          if (hasAnyProgress(mirrorProgress) || Object.keys(mirrorProgress.workshop).length > 0) {
+            normalizedLocal = mergeProgress(normalizedLocal, mirrorProgress, levelCount);
+            merged = normalizedLocal;
+          }
+        }
+      }
+    }
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      const healedLocalRaw = JSON.stringify(normalizedLocal);
+      if (healedLocalRaw !== localRaw && getProgressResetGen() === genAtStart) {
+        saveLocalProgress(normalizedLocal);
+      }
       if (!readFailed) {
         markCloudHydrated(adapter);
         if (hasAnyProgress(normalizedLocal) && getProgressResetGen() === genAtStart) {
-          await safeCloudWrite(localRaw);
+          await safeCloudWrite(healedLocalRaw);
         }
       }
     } else {

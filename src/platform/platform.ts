@@ -415,7 +415,7 @@ export function createPlatformAdapter(options: CreatePlatformOptions = {}): Plat
           const remote = await bridge.cloudRead(safe);
           lastReadFailedBySlot.set(safe, false);
           if (typeof remote === 'string' && remote.length > 0) {
-            if ((writeSeqBySlot.get(safe) ?? 0) === seqAtStart) {
+            if ((writeSeqBySlot.get(safe) ?? 0) === seqAtStart && isValidCloudJson(remote)) {
               writeLocalSlot(storage, safe, remote);
             }
             return remote;

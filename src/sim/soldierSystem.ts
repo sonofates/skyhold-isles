@@ -768,11 +768,24 @@ export class SoldierSystem {
           const cur = this.target(s);
           if (!cur) continue;
           const hold = ENEMY_MELEE[cur.type].holdCost;
-          if (this.claims[cur.poolIndex] <= hold) continue;
-          if (want === 'fighting' && this.inContact(cur) <= hold) continue;
+          const spareOnCur = this.spareExtraSlotsOnTarget(s, cur);
+          if (want === 'engaging') {
+            if (this.claims[cur.poolIndex] - 1 + spareOnCur < hold) continue;
+          } else {
+            const ownOnCur = this.holdUnitsOn(s, cur);
+            const contactWithout = this.inContact(cur) - ownOnCur;
+            if (this.claims[cur.poolIndex] - ownOnCur + spareOnCur < hold) continue;
+            if (contactWithout + spareOnCur < hold) continue;
+            const needy = this.pickTarget(true);
+            if (!needy) break;
+            const remainingSpare = Math.max(0, spareOnCur - Math.max(0, hold - contactWithout));
+            if (!this.canPeelOffExtraHolds(s, cur, needy, remainingSpare)) continue;
+            if (this.claims[cur.poolIndex] > 0) this.claims[cur.poolIndex]--;
+            this.claim(s, needy);
+            continue;
+          }
           const needy = this.pickTarget(true);
           if (!needy) break;
-          if (want === 'fighting' && !this.canPeelOffExtraHolds(s, cur, needy)) continue;
           if (this.claims[cur.poolIndex] > 0) this.claims[cur.poolIndex]--;
           this.claim(s, needy);
         }
@@ -887,10 +900,11 @@ export class SoldierSystem {
       }
     }
 
-    // 6. Holds: soldiers in contact with a living enemy.
+    // 6. Holds: soldiers in contact with a living enemy (primary holds first, then multi-hold extras).
     const blockedList = this.blockedList;
     const sweepSoldiers = this.sweepSoldiers;
     blockedList.length = 0;
+    let anyMultiHold = false;
     for (let i = 0; i < this.soldiers.length; i++) {
       const s = this.soldiers[i];
       s.extraHoldPoolIndices.length = 0;
@@ -903,7 +917,14 @@ export class SoldierSystem {
         this.primary[e.poolIndex] = s.id;
       }
       e.blockers++;
-      if (s.holdCap > 1) {
+      if (s.holdCap > 1) anyMultiHold = true;
+    }
+    if (anyMultiHold) {
+      for (let i = 0; i < this.soldiers.length; i++) {
+        const s = this.soldiers[i];
+        if (s.state !== 'fighting' || s.holdCap <= 1) continue;
+        const e = this.target(s);
+        if (!e || e.hp <= 0) continue;
         this.applyExtraHolds(s, s.id, e);
       }
     }
@@ -1046,11 +1067,22 @@ export class SoldierSystem {
 
   /**
    * Optional multi-hold capacity on a single soldier (`holdCap > 1`; shipped barracks use 1):
-   * holds additional ground enemies queued right behind the primary blocked target on the same lane.
+   * first satisfies any remaining `holdCost` on `primary` (`golem`, `kilnback`, `boss`, `tempest`),
+   * then holds additional ground enemies queued right behind `primary` on the same lane.
    */
   private applyExtraHolds(s: SoldierEntity, soldierId: number, primary: EnemyEntity): void {
     const maxExtra = s.holdCap - 1;
     if (maxExtra <= 0) return;
+    let added = 0;
+    const primaryHoldCost = ENEMY_MELEE[primary.type].holdCost;
+    while (added < maxExtra && primary.blockers < primaryHoldCost) {
+      primary.blockers++;
+      s.extraHoldPoolIndices.push(primary.poolIndex);
+      s.extraHoldUids.push(primary.uid);
+      added++;
+    }
+    if (added >= maxExtra) return;
+
     const candidates = this.candidates;
     const extraHoldOrder = this.extraHoldOrder;
     const reach = Math.max(SOLDIER_RULES.engageRadius, (s.holdCap + 1) * BLOCK_QUEUE_SPACING + 0.4);
@@ -1068,19 +1100,24 @@ export class SoldierSystem {
       extraHoldOrder.push(cand.poolIndex);
     }
     extraHoldOrder.sort(this.byExtraHoldOrder);
-    let added = 0;
+    let queuedAdded = 0;
     for (let k = 0; k < extraHoldOrder.length && added < maxExtra; k++) {
       const cand = this.pool.items[extraHoldOrder[k]];
-      const queueStopDist = primary.dist - (alreadyHeldBehind + added + 1) * BLOCK_QUEUE_SPACING;
+      const candHoldCost = ENEMY_MELEE[cand.type].holdCost;
+      if (cand.blockers >= candHoldCost) continue;
+      const queueStopDist = primary.dist - (alreadyHeldBehind + queuedAdded + 1) * BLOCK_QUEUE_SPACING;
       if (cand.dist < queueStopDist - 0.12) continue;
       if (cand.blockers === 0) {
         this.blockedList.push(cand.poolIndex);
         this.primary[cand.poolIndex] = soldierId;
       }
-      cand.blockers++;
-      s.extraHoldPoolIndices.push(cand.poolIndex);
-      s.extraHoldUids.push(cand.uid);
-      added++;
+      while (added < maxExtra && cand.blockers < candHoldCost) {
+        cand.blockers++;
+        s.extraHoldPoolIndices.push(cand.poolIndex);
+        s.extraHoldUids.push(cand.uid);
+        added++;
+      }
+      queuedAdded++;
     }
   }
 
@@ -1219,32 +1256,65 @@ export class SoldierSystem {
     return active;
   }
 
-  /**
-   * For elite multi-hold soldiers (`holdCap > 1`), peeling off from `cur` to `needy` is only safe
-   * when every extra-held enemy on `s` is either already co-held, absorbable by spare `holdCap` on
-   * squadmates still fighting `cur`, or strictly behind `needy` on the road.
-   */
-  private canPeelOffExtraHolds(s: SoldierEntity, cur: EnemyEntity, needy: EnemyEntity): boolean {
-    if (s.extraHoldPoolIndices.length === 0) return true;
-    let spareExtraSlots = 0;
+  private holdUnitsOn(s: SoldierEntity, e: EnemyEntity): number {
+    if (s.state !== 'fighting') return 0;
+    let units = s.targetPoolIndex === e.poolIndex && s.targetUid === e.uid ? 1 : 0;
+    for (let k = 0; k < s.extraHoldPoolIndices.length; k++) {
+      if (s.extraHoldPoolIndices[k] === e.poolIndex && s.extraHoldUids[k] === e.uid) {
+        units++;
+      }
+    }
+    return units;
+  }
+
+  private spareExtraSlotsOnTarget(exclude: SoldierEntity, cur: EnemyEntity): number {
+    let spare = 0;
     for (let i = 0; i < this.soldiers.length; i++) {
       const other = this.soldiers[i];
-      if (other === s || other.state !== 'fighting' || other.holdCap <= 1) continue;
+      if (other === exclude || other.state !== 'fighting' || other.holdCap <= 1) continue;
       if (this.target(other) !== cur) continue;
       const used = this.activeExtraHoldCount(other);
       if (other.holdCap - 1 > used) {
-        spareExtraSlots += other.holdCap - 1 - used;
+        spare += other.holdCap - 1 - used;
       }
     }
+    return spare;
+  }
+
+  /**
+   * For elite multi-hold soldiers (`holdCap > 1`), peeling off from `cur` to `needy` is only safe
+   * when every non-`cur` extra-held enemy on `s` is either already co-held, absorbable by remaining
+   * spare `holdCap` on squadmates still fighting `cur`, or strictly behind `needy` on the road.
+   */
+  private canPeelOffExtraHolds(
+    s: SoldierEntity,
+    cur: EnemyEntity,
+    needy: EnemyEntity,
+    spareExtraSlots: number,
+  ): boolean {
+    if (s.extraHoldPoolIndices.length === 0) return true;
+    let spare = spareExtraSlots;
     for (let k = 0; k < s.extraHoldPoolIndices.length; k++) {
       const ep = s.extraHoldPoolIndices[k];
+      const eu = s.extraHoldUids[k];
+      if (ep === cur.poolIndex && eu === cur.uid) continue;
+      let duplicate = false;
+      for (let j = 0; j < k; j++) {
+        if (s.extraHoldPoolIndices[j] === ep && s.extraHoldUids[j] === eu) {
+          duplicate = true;
+          break;
+        }
+      }
+      if (duplicate) continue;
       const extra = this.pool.items[ep];
-      if (!extra || !extra.active || extra.uid !== s.extraHoldUids[k] || !this.isHoldable(extra)) {
+      if (!extra || !extra.active || extra.uid !== eu || !this.isHoldable(extra)) {
         continue;
       }
-      if (this.inContact(extra) > ENEMY_MELEE[extra.type].holdCost) continue;
-      if (spareExtraSlots > 0) {
-        spareExtraSlots--;
+      const contactWithout = this.inContact(extra) - this.holdUnitsOn(s, extra);
+      const needed = Math.max(0, ENEMY_MELEE[extra.type].holdCost - contactWithout);
+      if (needed === 0) continue;
+      if (spare >= needed) {
+        spare -= needed;
         continue;
       }
       if (!this.better(needy, true, extra, true)) return false;
@@ -1270,11 +1340,11 @@ export class SoldierSystem {
     this.claims[e.poolIndex]++;
   }
 
-  /** Soldiers (any barracks) holding this enemy in melee contact right now (primary or extra hold). */
+  /** Total hold units currently applied to `e` by fighting soldiers across all barracks. */
   private inContact(e: EnemyEntity): number {
     let n = 0;
     for (let i = 0; i < this.soldiers.length; i++) {
-      if (this.isSoldierHolding(this.soldiers[i], e)) n++;
+      n += this.holdUnitsOn(this.soldiers[i], e);
     }
     return n;
   }

@@ -944,4 +944,30 @@ describe('in-run hero XP & bit-exact seed determinism', () => {
     expect(critSignature(101)).toBe(critSignature(101));
     expect(critSignature(101)).not.toBe(critSignature(202));
   });
+
+  it('clears melee hero state and dangling targetPoolIndex immediately when primary melee target dies away from post', () => {
+    const world = new SimWorld(forkLevel(), new EventBus(), { heroId: 'bran', heroLevel: 1 });
+    expect(world.commandHeroMove(0, -3)).toBe(true);
+    tickUntil(world, () => world.hero!.state === 'idle', 12);
+
+    const lane0 = world.enemySystem.getPath(false, 0);
+    const postDist = lane0.nearestDist(world.hero!.postX, world.hero!.postZ);
+    // Spawn a grunt near the edge of meleeEngageRadius so Bran steps away from postX/postZ to fight it.
+    const foe = spawnEnemyAtWorld(world, 'grunt', postDist - 1.55, 0, 20);
+    foe.speed = 0;
+
+    tickUntil(world, () => world.hero!.state === 'fighting', 5);
+    expect(world.hero!.targetPoolIndex).toBe(foe.poolIndex);
+    expect(world.hero!.targetUid).toBe(foe.uid);
+    expect(Math.hypot(world.hero!.x - world.hero!.postX, world.hero!.z - world.hero!.postZ)).toBeGreaterThan(0.5);
+
+    // Lethal blow kills foe -> next tick EnemySystem deactivates foe and HeroSystem walks Bran back to post:
+    world.enemySystem.applyDamage(foe, 9999, true);
+    tick(world, 1);
+
+    expect(world.enemyPool.getActiveCount()).toBe(0);
+    expect(world.hero!.state).toBe('idle');
+    expect(world.hero!.targetPoolIndex).toBe(-1);
+    expect(world.hero!.targetUid).toBe(0);
+  });
 });

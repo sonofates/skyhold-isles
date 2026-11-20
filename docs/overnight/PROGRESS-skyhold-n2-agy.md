@@ -127,7 +127,7 @@
   - **Desktop IPC & Preload Listener Hardening (`desktop/{main,preload}.cjs`):**
     - Guarded `steam:overlay-changed` iteration in `desktop/preload.cjs` against mid-callback subscribe/unsubscribe, rejected NUL-byte paths (`resolveDistFile`), empty-string cloud writes (`steam:cloud-write`), and non-string `readFile()` returns (`steam:cloud-read`) in `desktop/main.cjs`, rebuilt `release/Skyhold Isles-1.0.0.AppImage`, and re-verified Xvfb smoke.
 
-- [x] **14. Post-Backlog Deep Audit — Round 9 (`src/sim/{heroSystem,soldierSystem,world}.ts`, `src/platform/{platform,cloudSync,gameSession}.ts`, `src/render2d/ui/progress2d.ts`, `desktop/{main,preload}.cjs`, `tests/**`)**
+- [x] **14. Post-Backlog Deep Audit — Round 9 (`src/sim/{heroSystem,soldierSystem,world}.ts`, `src/platform/{platform,cloudSync,gameSession}.ts`, `src/render2d/ui/progress2d.ts`, `desktop/{main,preload}.cjs`, `tests/**`)** — commit `38c1df3`
   - **Steam Cloud 3-Way Respec+Branch-Switch & Refund+Rebuy Preservation (`progress2d.ts`, `cloudSync.ts`, `gameSession.ts`, `tests/platform/steamAdapter.test.ts`):**
     - Fixed `foldPendingCloudThreeWay2D()` (`progress2d.ts`) and 3D `hydrateProgressFromCloud()` / `GameSession` (`cloudSync.ts`, `gameSession.ts`) where checking only `skills.length < base.length` or `workshopStarsSpent < baseSpent` missed same-cost branch switches (e.g. respeccing `'bran_van_1' -> 'bran_iron_1'` or refunding `{ quickcast: 1 } -> { bounty: 1 }` during in-flight cloud hydration), letting lexicographic tie-breaking revert the player's live choice; now detects removed base skill nodes / lowered Workshop ranks per ID and gives live local skill/Workshop additions priority with greedy remote top-ups when union builds exceed budget.
   - **Complete Elimination of Remaining Module-Singleton Entity/Index Scratch Arrays (`heroSystem.ts`, `soldierSystem.ts`, `world.ts`, `tests/sim/qaSweepN2.test.ts`):**
@@ -135,6 +135,16 @@
   - **Cloud JSON Payload Validation & Full 2D Onboarding Reset (`platform.ts`, `progress2d.ts`, `desktop/{main,preload}.cjs`):**
     - Added `isValidCloudJson()` in `platform.ts` (`cloudSave.write`), strict `typeof === 'string'` IPC parameter checks in `desktop/preload.cjs` (preventing `String({}) -> "[object Object]"` coercion), and JSON object/array verification in `desktop/main.cjs` (`steam:cloud-write`) so non-JSON or truncated payloads can never overwrite local mirrors or remote Steam Cloud files.
     - Updated `resetProgress2D()` (`progress2d.ts`) to clear `skyhold2d_coach_v1` and `skyhold2d_foes_seen_v1` alongside `STORY_SEEN_KEY`, rebuilt `release/Skyhold Isles-1.0.0.AppImage`, and re-verified Xvfb smoke + `qa:bot` (`656/656` passed).
+
+- [x] **15. Post-Backlog Deep Audit — Round 10 (`src/sim/{heroSystem,soldierSystem}.ts`, `qa/bot/invariants.ts`, `src/platform/{platform,storage,cloudSync}.ts`, `src/render2d/ui/progress2d.ts`, `tests/**`)**
+  - **Melee Hero Target-Death State Reset & Per-Instance Shot Scratch (`heroSystem.ts`, `qa/bot/invariants.ts`, `tests/sim/heroes.test.ts`):**
+    - Fixed `HeroSystem.updateMeleeCombat()` where a dead/recycled primary melee target (`currentMeleeTarget(h) === null`) bypassed the `target !== null` reset block, leaving Bran/Sela in `state === 'fighting'` with dangling `targetPoolIndex >= 0` while walking back to their guard post; enforced per-tick hero state/target invariants in `InvariantMonitor`, and moved `heroShotScratch` onto `HeroSystem` instances (clearing `shot.target = null` immediately after `spawnHeroProjectile`).
+  - **Elite Multi-Hold (`soldierHoldCap > 1`) Heavy/Boss (`holdCost > 1`) Blocking & Two-Pass Hold Allocation (`soldierSystem.ts`, `tests/sim/barracks.test.ts`):**
+    - Split `SoldierSystem.updateStep` Step 6 into primary holds followed by `applyExtraHolds()` (zero extra work when `holdCap === 1`) and allowed `soldierHoldCap > 1` soldiers to satisfy remaining `holdCost` on `primary` (`golem`, `kilnback`, `boss`, `tempest`) before filling trailing queue slots, while accounting per-soldier hold units + spare squadmate capacity during Step 3 peel-off (`0` diff on `holdCap === 1` tiers; `sim:balance` 41/41 byte-identical).
+  - **Steam Cloud Corrupt-Remote Mirror Protection & Persistent Stale-Clone Guard (`platform.ts`, `cloudSync.ts`, `progress2d.ts`, `tests/platform/steamAdapter.test.ts`):**
+    - Guarded `writeLocalSlot` in `createPlatformAdapter().cloudSave.read()` with `isValidCloudJson(remote)` so truncated/corrupt remote Steam Cloud files never clobber intact local mirrors, folded local cloud mirrors into `hydrateProgress2DFromCloud()` / `hydrateProgressFromCloud()` whenever remote JSON is truncated/corrupt, and updated `saveProgress2D()` to refresh `pendingAutoHydrated2DByAdapter` instead of deleting it on intermediate post-hydration saves so late pre-hydration snapshots remain 3-way-merge protected.
+  - **Long-Tail Mid-Object JSON Repair, Clean Import Backups & 3D Onboarding Reset (`storage.ts`, `progress2d.ts`, `tests/platform/saveRobustnessV2.test.ts`):**
+    - Expanded `repairTruncatedJsonContainer()` beyond the 128-cut tail cap (full exact scan up to 1,024 cuts + strided 3-cut probes up to 256 KB) so early mid-object corruption in 450-token 25-island saves salvages cleanly, updated `backupProgressBeforeImport()` / `importSaveCode2D()` to combine cloud mirrors and never write unparseable garbage into `*_import_backup`, and cleared `ENEMY_INTROS_SEEN_KEY` (+ in-memory cache), `FLYER_TOAST_SEEN_KEY`, and `UPGRADE_TOAST_SEEN_KEY` in `resetProgressSave()`.
 
 ---
 
@@ -161,7 +171,7 @@
 
 ## Problems / Known Issues
 
-- None blocking in owned area (`sim:balance` 41/41 byte-identical, `qa:bot` 656/656 + 58/58 2D achievement gate passing, 1,384 unit tests passing, all Hard Boss low-end benches `<= 66.8 ms`, Linux AppImage builds & passes Xvfb smoke with `secureContext: true`).
+- None blocking in owned area (`sim:balance` 41/41 byte-identical, `qa:bot` 656/656 + 58/58 2D achievement gate passing, 1,388 unit tests passing, all Hard Boss low-end benches `<= 66.8 ms`, Linux AppImage builds & passes Xvfb smoke with `secureContext: true`).
 
 ---
 

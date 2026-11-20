@@ -873,4 +873,90 @@ describe('Save Robustness v2 — Version Migration & Algebraic Merge Fuzz', () =
     const cheatedRec = recoverProgressSave(LEVELS.length, { persist: false });
     expect(cheatedRec.progress.workshop).toEqual({});
   });
+
+  it('salvages early mid-object corruption followed by >200 structural tokens, merges cloud mirror in backupProgressBeforeImport, and clears 3D hint flags on resetProgressSave', async () => {
+    const store = installMemoryStorage();
+    const {
+      backupProgressBeforeImport,
+      hasSeenEnemyIntro,
+      hasSeenFlyerToast,
+      hasSeenUpgradeToast,
+      markEnemyIntroSeen,
+      markFlyerToastSeen,
+      markUpgradeToastSeen,
+      PROGRESS_IMPORT_BACKUP_KEY,
+      resetProgressSave,
+      tryRepairTruncatedJson,
+    } = await import('../../src/platform/storage.ts');
+    const { PROGRESS_2D_IMPORT_BACKUP_KEY } = await import('../../src/render2d/ui/progress2d.ts');
+
+    // 1. Full 25-island Stored2D (~450 structural cuts) with corruption in `clears` followed by >300 intact tokens in challengeClears + difficultyWins + heroes:
+    const full25 = createDefaultProgress(LEVELS_2D.length);
+    for (let i = 0; i < 12; i++) {
+      full25.bestStars[i] = 3;
+      full25.clears[i] = 2;
+    }
+    full25.difficultyWins = {
+      easy: new Array<number>(LEVELS_2D.length).fill(1),
+      normal: new Array<number>(LEVELS_2D.length).fill(3),
+      hard: new Array<number>(LEVELS_2D.length).fill(3),
+    };
+    full25.heroes = {
+      selectedHero: 'sela',
+      roster: {
+        bran: { xp: 5000, skills: ['bran_oak_1', 'bran_oak_2', 'bran_van_1', 'bran_van_2'] },
+        wren: { xp: 5000, skills: ['wren_bow_1', 'wren_bow_2', 'wren_vol_1', 'wren_vol_2'] },
+        mira: { xp: 5000, skills: ['mira_emb_1', 'mira_emb_2', 'mira_wsp_1', 'mira_wsp_2'] },
+        tobb: { xp: 5000, skills: ['tobb_clk_1', 'tobb_clk_2', 'tobb_giz_1', 'tobb_giz_2'] },
+        sela: { xp: 5000, skills: ['sela_cal_1', 'sela_cal_2', 'sela_thn_1', 'sela_thn_2'] },
+      },
+    };
+    const serialized25 = JSON.stringify({ ids: LEVELS_2D.map((l) => l.id), progress: full25 });
+    const corruptedEarly = serialized25.replace('"clears":[2,2,2', '"clears":[2,NaN,2');
+    const salvaged = tryRepairTruncatedJson(corruptedEarly) as {
+      ids: string[];
+      progress: { bestStars: number[]; clears: number[] };
+    } | null;
+    expect(salvaged).not.toBeNull();
+    expect(salvaged!.ids).toHaveLength(LEVELS_2D.length);
+    expect(salvaged!.progress.bestStars.slice(0, 12)).toEqual(new Array(12).fill(3));
+    expect(salvaged!.progress.clears).toEqual([2]);
+
+    // 2. backupProgressBeforeImport combines truncated primary + cloud mirror and never writes raw garbage:
+    store.clear();
+    store.set('skyhold_isles_progress_v1', '<<<unparseable-noise>>>');
+    backupProgressBeforeImport();
+    expect(store.get(PROGRESS_IMPORT_BACKUP_KEY)).toBeUndefined();
+
+    const mirror3D = createDefaultProgress(LEVELS.length);
+    mirror3D.bestStars[0] = 3;
+    mirror3D.bestStars[1] = 3;
+    mirror3D.clears[0] = 1;
+    mirror3D.clears[1] = 1;
+    store.set('skyhold_isles_cloud_progress', JSON.stringify(mirror3D));
+    backupProgressBeforeImport();
+    expect(JSON.parse(store.get(PROGRESS_IMPORT_BACKUP_KEY)!).bestStars.slice(0, 2)).toEqual([3, 3]);
+
+    // And importSaveCode2D never writes raw garbage into PROGRESS_2D_IMPORT_BACKUP_KEY when both primary and mirror are unparseable/empty:
+    store.clear();
+    store.set('skyhold_isles_progress2d_v1', '<<<unparseable-2d-noise>>>');
+    const incoming2D = createDefaultProgress(LEVELS_2D.length);
+    incoming2D.bestStars[0] = 2;
+    incoming2D.clears[0] = 1;
+    expect(importSaveCode2D(encodeSaveCode2D(incoming2D, LEVELS_2D), LEVELS_2D).ok).toBe(true);
+    expect(store.get(PROGRESS_2D_IMPORT_BACKUP_KEY)).toBeUndefined();
+
+    // 3. resetProgressSave clears 3D onboarding/hint keys + in-memory enemyIntrosSeen cache (settings untouched):
+    markEnemyIntroSeen('healer');
+    markFlyerToastSeen();
+    markUpgradeToastSeen();
+    expect(hasSeenEnemyIntro('healer')).toBe(true);
+    expect(hasSeenFlyerToast()).toBe(true);
+    expect(hasSeenUpgradeToast()).toBe(true);
+
+    resetProgressSave(LEVELS.length);
+    expect(hasSeenEnemyIntro('healer')).toBe(false);
+    expect(hasSeenFlyerToast()).toBe(false);
+    expect(hasSeenUpgradeToast()).toBe(false);
+  });
 });

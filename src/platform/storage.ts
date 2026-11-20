@@ -364,8 +364,7 @@ function repairTruncatedJsonContainer(raw: string, openChar: '{' | '['): unknown
     pushCut(trimmed.length, closingSuffix);
   }
 
-  const minIdx = Math.max(0, cutPositions.length - 128);
-  for (let ci = cutPositions.length - 1; ci >= minIdx; ci--) {
+  const tryCutAt = (ci: number): unknown => {
     let end = cutPositions[ci];
     const suffix = cutSuffixes[ci];
     while (end > 1 && isJsonWhitespaceCode(trimmed.charCodeAt(end - 1))) end--;
@@ -373,12 +372,29 @@ function repairTruncatedJsonContainer(raw: string, openChar: '{' | '['): unknown
       end--;
       while (end > 1 && isJsonWhitespaceCode(trimmed.charCodeAt(end - 1))) end--;
     }
-    if (end <= 0 || trimmed[end - 1] === ':') continue;
-    if (hadMismatch && end <= 1) continue;
+    if (end <= 0 || trimmed[end - 1] === ':') return undefined;
+    if (hadMismatch && end <= 1) return undefined;
     try {
       return JSON.parse(trimmed.slice(0, end) + suffix) as unknown;
     } catch {
-      // Peel back to the next earlier structural boundary and retry.
+      return undefined;
+    }
+  };
+
+  const totalCuts = cutPositions.length;
+  const exactTail = totalCuts <= 1024 ? totalCuts : 256;
+  const minExact = Math.max(0, totalCuts - exactTail);
+  for (let ci = totalCuts - 1; ci >= minExact; ci--) {
+    const res = tryCutAt(ci);
+    if (res !== undefined) return res;
+  }
+  if (minExact > 0) {
+    const stride = Math.max(1, Math.ceil(minExact / 512));
+    for (let base = minExact - 1; base >= 0; base -= stride) {
+      for (let off = 0; off < 3 && base - off >= 0; off++) {
+        const res = tryCutAt(base - off);
+        if (res !== undefined) return res;
+      }
     }
   }
   return null;
@@ -710,6 +726,17 @@ export function readLocalProgressRaw(): string | null {
   }
 }
 
+/** Reads the local `skyhold_isles_cloud_progress` mirror string without parsing (`null` if absent). */
+export function readLocalCloudProgressMirrorRaw(): string | null {
+  try {
+    return typeof localStorage === 'undefined'
+      ? null
+      : localStorage.getItem(LOCAL_CLOUD_PROGRESS_MIRROR_KEY);
+  } catch {
+    return null;
+  }
+}
+
 /** Persists `progress` to `localStorage` only (without triggering fire-and-forget Steam Cloud/achievement IPC). */
 export function saveLocalProgress(progress: ProgressData): string {
   progress.version = PROGRESS_SAVE_VERSION;
@@ -767,8 +794,12 @@ export function resetProgressSave(levelCount: number): ProgressData {
   } catch {
     // ignore storage errors
   }
+  enemyIntrosSeen = null;
   try {
     localStorage.removeItem(LOCAL_CLOUD_PROGRESS_MIRROR_KEY);
+    localStorage.removeItem(ENEMY_INTROS_SEEN_KEY);
+    localStorage.removeItem(FLYER_TOAST_SEEN_KEY);
+    localStorage.removeItem(UPGRADE_TOAST_SEEN_KEY);
   } catch {
     // ignore storage errors
   }
@@ -788,21 +819,35 @@ export const PROGRESS_IMPORT_BACKUP_KEY = 'skyhold_isles_progress_import_backup'
 export function backupProgressBeforeImport(): void {
   try {
     const raw = localStorage.getItem(PROGRESS_KEY);
-    if (!raw) return;
-    let parsed: unknown = null;
+    let parsed: Record<string, unknown> | null = null;
     let validJson = false;
-    try {
-      parsed = JSON.parse(raw);
-      validJson = true;
-    } catch {
-      parsed = tryRepairTruncatedJson(raw);
+    if (raw) {
+      try {
+        const direct: unknown = JSON.parse(raw);
+        if (direct && typeof direct === 'object' && !Array.isArray(direct)) {
+          parsed = direct as Record<string, unknown>;
+          validJson = true;
+        }
+      } catch {
+        parsed = tryRepairTruncatedJson(raw);
+      }
     }
-    if (localStorage.getItem(PROGRESS_IMPORT_BACKUP_KEY) !== null) {
-      if (!hasAnyProgress(migrateProgress(parsed, 64))) return;
+    if (validJson && raw && parsed) {
+      if (localStorage.getItem(PROGRESS_IMPORT_BACKUP_KEY) !== null) {
+        if (!hasAnyProgress(migrateProgress(parsed, 64))) return;
+      }
+      localStorage.setItem(PROGRESS_IMPORT_BACKUP_KEY, raw);
+      return;
     }
-    const toStore =
-      !validJson && parsed && typeof parsed === 'object' ? JSON.stringify(parsed) : raw;
-    localStorage.setItem(PROGRESS_IMPORT_BACKUP_KEY, toStore);
+    const mirrorObj = parseLooseJsonObject(localStorage.getItem(LOCAL_CLOUD_PROGRESS_MIRROR_KEY));
+    const recovered = combineRecoveredProgress(parsed, mirrorObj, 64);
+    if (!recovered) return;
+    if (localStorage.getItem(PROGRESS_IMPORT_BACKUP_KEY) !== null && !hasAnyProgress(recovered)) {
+      return;
+    }
+    if (hasAnyProgress(recovered) || parsed !== null) {
+      localStorage.setItem(PROGRESS_IMPORT_BACKUP_KEY, JSON.stringify(recovered));
+    }
   } catch {
     // ignore storage errors
   }

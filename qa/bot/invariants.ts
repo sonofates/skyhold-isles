@@ -736,6 +736,26 @@ export class InvariantMonitor {
         this.assertFinite(h.waypoints[i].z, 'hero.waypoint.z');
       }
 
+      if (w.outcome === 'ongoing') {
+        if (h.state === 'fighting' || h.state === 'engaging') {
+          const tIdx = h.targetPoolIndex;
+          const tEnt = tIdx >= 0 && tIdx < w.enemyPool.items.length ? w.enemyPool.items[tIdx] : null;
+          if (!tEnt || !tEnt.active || tEnt.uid !== h.targetUid) {
+            this.record(
+              'entity_leak',
+              tick,
+              `hero (${h.heroId}) in state=${h.state} has dangling melee target (${h.targetPoolIndex}, uid=${h.targetUid})`,
+            );
+          }
+        } else if (h.targetPoolIndex !== -1 || h.targetUid !== 0) {
+          this.record(
+            'entity_leak',
+            tick,
+            `hero (${h.heroId}) in state=${h.state} leaked melee target (${h.targetPoolIndex}, uid=${h.targetUid})`,
+          );
+        }
+      }
+
       if (h.x !== this.prevHeroCheckX || h.z !== this.prevHeroCheckZ || this.prevHeroLane < 0) {
         this.prevHeroCheckX = h.x;
         this.prevHeroCheckZ = h.z;
