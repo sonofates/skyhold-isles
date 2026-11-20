@@ -661,3 +661,29 @@ TypeScript, lint and the production build passed. Vitest passed 1,431 tests with
 ### Next round
 
 Audit Snowbell Garden and Deep Drifts against a mixed pack at the splash boundary. Check slow strength, refresh duration and which shots carry the wider radius when the player buys Deep Drifts during flight.
+
+## Round 28 — Snowbell Garden and Deep Drifts
+
+### Combat
+
+Three recorded encounters sent four grunts and a Sky Skimmer across parallel lanes. The first ordinary flurry slowed the grunt at 2.94 units by 48% and missed the skimmer at 2.96. With Deep Drifts purchased before launch, the same flurry slowed both and the grunt at 3.39 units by 55%. The grunt at 3.41 stayed at full speed in every run.
+
+Buying Deep Drifts in flight preserved the first shot’s radius and strength. The next shot caught the skimmer. By then, the untouched grunt on the 3.39-unit lane had pulled ahead and escaped the wider splash. Two ordinary flurries also reached the 55% slow cap on repeat hits. In all three runs the second hit refreshed the timer to four seconds. After selling the tower, the lead grunt traveled at 45% speed and recovered its full speed when the timer expired. Each serialized replay reproduced the launches, impacts, affected enemies, slow timers, outcome and final hash.
+
+### Campaign decision
+
+Amberstone Mesa’s first-clear build now buys Snowbell Garden and Deep Drifts after the frost tower on plot 13 reaches tier III. Level-19 Bran entered with 40 stars and bought both on wave 17 of 22. The garden landed 313 upgraded flurries for 55,230 damage and 25 kills. Of those flurries, 79 hit both air and ground enemies. The expanded radius accounted for 373 hits beyond the ordinary garden’s reach.
+
+Normal finished at 12/22 lives and two stars. The build also cleared at −3%, −1.5%, +1.5% and +3% enemy HP with 15, 11, 8 and 1 life respectively. The +3% run has little margin. A fourth regression checks that the first-clear kit can buy the branch and ability and win.
+
+### Visual check
+
+Inspected plot 13 at 1600×900 and enlarged the tower and nearby road to 2×. In a staged wave 17, one flurry hit a skimmer and four Aegis Wardens. The skimmer and two wardens were outside the ordinary garden’s radius. The tower displayed its tier-IV sheet and measured zero center, bottom and width error on its plot. [Snowbell Garden at Amberstone Mesa](../../design/art-2d/specializations/snowbell-mesa.jpg)
+
+### Verification
+
+TypeScript, lint and the production build passed. Vitest passed 1,435 tests with 11 skipped on a single-worker rerun at the original timeout. The first two-worker run timed out in the Mesa and Moonwell campaign tests. The realistic-kit balance gate passed all 41 levels. All eight difficulty verdicts passed and the difficulty report matched round 27 byte for byte. Hard i09 finished at 12/22 lives and Hard i24 at 2/22. The standalone 24,217-byte L1–L16 report matched the round-one baseline byte for byte. Vite emitted its existing chunk-size and dynamic-import warnings.
+
+### Next round
+
+Try a Reed Piper formation in the painted Amberstone Mesa’s “Salt Wind” wave. Check whether its last note clears ground allies while leaving the skimmers chilled, whether players can see the cast on the road, and whether the campaign and difficulty gates still pass. The existing Reed Piper has EN/TR copy and art. No new requests for Opus this round.
