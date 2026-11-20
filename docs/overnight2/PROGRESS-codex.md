@@ -461,3 +461,23 @@ TypeScript, lint and the production build passed. Vitest passed 1,402 tests with
 ### Next round
 
 Audit Briar Lodge's Wide Sweep. Exercise a lethal primary hit with an armored secondary beside it, then buy Wide Sweep during a soldier's wind-up and check the secondary hit and kill credit on replay. No new UI or localization requests.
+
+## Round 20 — Briar Lodge and Wide Sweep
+
+### Done
+
+- Three combat regressions put a six-armor Iron Brute beside a grunt that dies on the first billhook strike. Without Wide Sweep, the side swing deals 19 damage to the 26-HP brute. A squadmate earns the kill on the next tick. Buying Wide Sweep four ticks into the wind-up lets the original fighter kill both enemies on the scheduled impact, 12 ticks after the wind-up began.
+- Against a 39-HP brute, the upgraded side hit deals 29 and the squadmate finishes the remaining 10 HP. Each serialized replay reproduces the wind-ups, hits, soldier IDs, bounties, tower damage and kills, win and final state hash. All three tests pass with the existing soldier combat rules.
+
+### Campaign decision
+
+- The i24 realistic build now reserves gold for Briar Lodge and Wide Sweep at plot 9 by deferring the last plot-4 mortar upgrade until after both purchases. The ordinary autoplay script keeps its original order. A fourth regression runs the Normal encounter and checks that the kit can afford both purchases before the island ends.
+- Level-20 Bran with the 56-star entry kit buys both on wave 14 of Normal. The squad lands 21 secondary hits for 138 damage after the purchase and finishes at 3/22 lives. On Hard, both purchases happen on wave 13. Its 55 secondary hits on wave 14 deal 2,116 damage and finish one foe. Hard ends at 2/22 and one star, previously 5/22. Moving the purchases one more upgrade earlier cost the Hard run its last life.
+
+### Verification
+
+TypeScript, lint and the production build passed. Vitest passed 1,406 tests with 11 skipped. All 41 realistic-kit levels and all eight difficulty verdicts passed. Easy and Normal cleared 25/25 islands. Hard cleared 12/17 in chapter one and 3/8 in chapter two, with i09 at 12/22. The Normal i24 finale now stops the Tempest and leaks two golems, ending before the deferred mortar upgrade. The 24,217-byte standalone L1–L16 report matches the round-one baseline byte for byte. Vite emitted its existing chunk-size and dynamic-import warnings.
+
+### Next round
+
+Audit Relay Grove's Live Wire. Check jump distance, falloff and target order across a mixed ground and air formation, including the extra eighth target on the sixth discharge. Exercise an ability purchase between discharges and compare the serialized replay.
