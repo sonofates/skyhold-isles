@@ -14,7 +14,7 @@ import { uiUnit } from '../../src/render2d/hudDock.ts';
 import { ENEMY_DEFS } from '../../src/data/enemies.ts';
 import { primaryEndAction } from '../../src/render2d/endPanel.ts';
 import { LOAD_TIPS, pickLoadTip } from '../../src/render2d/ui/transition2d.ts';
-import { unveilIndex } from '../../src/render2d/ui/worldMap.ts';
+import { newStarsFrom, unveilIndex } from '../../src/render2d/ui/worldMap.ts';
 
 describe('skill tree fit (heroScreens.ts)', () => {
   it('tries the vertical tree first, largest zoom first, then the across tree largest first', () => {
@@ -280,5 +280,14 @@ describe('world map unveil', () => {
     expect(unveilIndex(9, 0, 25)).toBe(-1); // new game
     expect(unveilIndex(23, 25, 25)).toBe(-1); // past the last island (all cleared)
     expect(unveilIndex(Number.NaN, 4, 25)).toBe(-1);
+  });
+});
+
+describe('world map star drop', () => {
+  it('pops only stars won since the last visit, from the first new one', () => {
+    expect(newStarsFrom([3, 2, 0], [3, 3, 2])).toEqual([-1, 2, 0]);
+    expect(newStarsFrom(null, [3, 1])).toEqual([-1, -1]);
+    expect(newStarsFrom([3], [2, 1])).toEqual([-1, 0]); // a new island beyond the record
+    expect(newStarsFrom([3, 3], [1, 3])).toEqual([-1, -1]); // fewer after a reset: nothing
   });
 });

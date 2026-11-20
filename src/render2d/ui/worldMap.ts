@@ -131,6 +131,30 @@ export function unveilIndex(seen: number | null, unlocked: number, count: number
   return unlocked > seen && unlocked < count ? unlocked : -1;
 }
 
+/** localStorage: each island's stars as the map last showed them (new ones pop in once). */
+const STARS_KEY = 'skyhold2d_map_stars_seen_v1';
+
+/**
+ * Per island, the first star to pop in on this visit (its index), -1 when none is new. No record
+ * (a first visit) pops nothing.
+ */
+export function newStarsFrom(seen: readonly number[] | null, now: readonly number[]): number[] {
+  return now.map((n, i) => {
+    if (!seen) return -1;
+    const before = Math.max(0, Math.min(3, Number(seen[i]) || 0));
+    return n > before ? before : -1;
+  });
+}
+
+function readStarsSeen(): number[] | null {
+  try {
+    const v = JSON.parse(localStorage.getItem(STARS_KEY) ?? 'null') as unknown;
+    return Array.isArray(v) ? v.map((x) => Number(x) || 0) : null;
+  } catch {
+    return null;
+  }
+}
+
 function readUnveilSeen(): number | null {
   try {
     const v = localStorage.getItem(UNVEIL_KEY);
@@ -161,6 +185,12 @@ export async function mountWorldMap(q: URLSearchParams): Promise<void> {
   // A newly reached island lifts its fog once (the first build only; later refreshes don't replay it).
   let unveilAt = unveilIndex(readUnveilSeen(), progress.unlockedLevelIndex, levels.length);
   writeUnveilSeen(progress.unlockedLevelIndex);
+  let starsFrom = newStarsFrom(readStarsSeen(), levels.map((_, i) => progress.bestStars[i] ?? 0));
+  try {
+    localStorage.setItem(STARS_KEY, JSON.stringify(levels.map((_, i) => progress.bestStars[i] ?? 0)));
+  } catch {
+    /* private mode */
+  }
 
   const root = el('div', 'pu pu-map', { 'data-testid': 'worldmap2d' });
   const scroll = el('div', 'pu-map-scroll');
@@ -270,7 +300,19 @@ export async function mountWorldMap(q: URLSearchParams): Promise<void> {
       if (st.frontier && st.unlocked) b.dataset.navDefault = '';
       sea.decorateNode(b, i, st.frontier && st.unlocked && !isPaid);
       b.append(el('span', 'pu-node-shore'), medal(st.unlocked ? thumb(st.level) : FOG_ART, '100%', st.frontier && st.unlocked));
-      if (st.unlocked && !isPaid) b.append(starsRow(st.stars, 'pu-stars pu-node-stars'));
+      if (st.unlocked && !isPaid) {
+        const row = starsRow(st.stars, 'pu-stars pu-node-stars');
+        // Stars won since the last visit drop onto the node one by one (after the node pops in).
+        const from = starsFrom[i] ?? -1;
+        if (from >= 0 && !document.documentElement.classList.contains('pu-reduce-motion')) {
+          Array.from(row.children).forEach((star, k) => {
+            if (k < from || k >= st.stars || !(star instanceof HTMLElement)) return;
+            star.classList.add('pu-star-new');
+            star.style.setProperty('--sd', `${(0.75 + i * 0.06 + (k - from) * 0.22).toFixed(2)}s`);
+          });
+        }
+        b.append(row);
+      }
       if (st.mastered) {
         const c = el('span', 'pu-node-crown');
         c.append(glyph('crown'));
@@ -296,6 +338,8 @@ export async function mountWorldMap(q: URLSearchParams): Promise<void> {
       world.append(b);
       nodes.push(b);
     });
+    // Both play on the first build only (later refreshes, e.g. after the Workshop, don't replay them).
+    starsFrom = [];
   };
 
   /** The fog and padlock of the locked look lift off the medal, then a gold ring bursts (not with reduced motion). */
@@ -303,7 +347,7 @@ export async function mountWorldMap(q: URLSearchParams): Promise<void> {
     unveilAt = -1;
     if (document.documentElement.classList.contains('pu-reduce-motion')) return;
     b.classList.add('unveil');
-    b.style.setProperty('--ud', `${(0.55 + i * 0.06).toFixed(2)}s`);
+    b.style.setProperty('--ud', `${(1.2 + i * 0.06).toFixed(2)}s`);
     const fog = el('span', 'pu-medal-thumb pu-unveil-fog', { 'aria-hidden': 'true' });
     fog.style.backgroundImage = `url("${FOG_ART}")`;
     fog.style.backgroundSize = 'contain';
