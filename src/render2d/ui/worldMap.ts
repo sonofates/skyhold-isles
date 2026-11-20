@@ -37,6 +37,7 @@ import { dailyFor2D, openDaily, openLogbook, openSettings, openWorkshop, type Me
 import { availableChallenges, buildRunHref2D, canPlayEndless } from './modes2d.ts';
 import { islandStates, loadProgress2D, type IslandState } from './progress2d.ts';
 import { openCredits } from './credits2d.ts';
+import { navigateWithVeil } from './transition2d.ts';
 import { heroArtFiles } from './heroBits.ts';
 import { heroChip, heroesButton, openHeroSelect, openSkillTree } from './heroScreens.ts';
 import { needsFullAdventure, openStore, storeEnabled } from './store2d.ts';
@@ -208,7 +209,7 @@ export async function mountWorldMap(q: URLSearchParams): Promise<void> {
       (choice) => {
         // Endless always plays Normal: it does not change the remembered choice.
         if (!choice.endless) saveDifficultyPref(choice.difficulty);
-        location.assign(buildRunHref2D(id, { challenges: choice.challenges, endless: choice.endless, difficulty: choice.difficulty, intro: st.clears === 0 }));
+        navigateWithVeil(buildRunHref2D(id, { challenges: choice.challenges, endless: choice.endless, difficulty: choice.difficulty, intro: st.clears === 0 }));
       },
       heroChip(ctx, heroFiles).el,
     );

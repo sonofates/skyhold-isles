@@ -86,6 +86,14 @@
   font-size: calc(var(--s) * 1.2);
 }
 
+/* Kind marks hang on the face's lower left (the elite star keeps the top left). */
+.pu-wave-marks {
+  position: absolute;
+  left: calc(var(--s) * -0.3);
+  bottom: calc(var(--s) * -0.25);
+  --mark: calc(var(--s) * 1.25);
+}
+
 .pu-wave-elite {
   position: absolute;
   left: calc(var(--s) * -0.2);

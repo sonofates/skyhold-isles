@@ -12,7 +12,7 @@
  * may slide right along the top, the tray along the bottom, the horn may stand left of the banner
  * (`hornAlt`); only if that is not enough the map shrinks a little (fullBleed.ts).
  */
-import { HUD_MIN_TOUCH, hudButtonsKeepOut, plaqueLayout, uiScale, type Insets, type PlaqueLayout, type PlaqueSlots, type Rect } from './uiLayout.ts';
+import { HUD_MIN_TOUCH, hudButtonsKeepOut, plaqueLayout, uiScale, userUiScale, type Insets, type PlaqueLayout, type PlaqueSlots, type Rect } from './uiLayout.ts';
 
 /**
  * The hero + ability tray at button size `d` (hero skills and abilities are `d` wide): the hero's
@@ -87,7 +87,8 @@ export function dockHornR(u: number): number {
 
 /** The painted-UI unit `--s` (paintedUi.css) at a screen size. */
 export function uiUnit(w: number, h: number): number {
-  return Math.max(8.5, Math.min(0.0095 * w, 0.0185 * h, 17));
+  const k = userUiScale();
+  return Math.max(8.5, Math.min(0.0095 * w * k, 0.0185 * h * k, 17 * k));
 }
 
 /** Corner pieces are this much smaller than the old bands (compact HUD over a full-bleed map). */

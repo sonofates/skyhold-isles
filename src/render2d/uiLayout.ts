@@ -32,7 +32,36 @@ export interface Pt {
 
 /** UI scale for a viewport: 1 at ~1400x760, clamped so phones and 4K stay readable. */
 export function uiScale(w: number, h: number): number {
-  return Math.max(0.5, Math.min(1.4, Math.min(w / 1400, h / 760)));
+  // The interface size scales the layout but never below the 0.5 floor (phone touch minimums).
+  return Math.max(0.5, Math.min(1.4 * userScale, Math.min(w / 1400, h / 760) * userScale));
+}
+
+/** Wave-start camera ease: duration (s) and peak zoom. */
+export const WAVE_EASE_SEC = 0.9;
+export const WAVE_EASE_ZOOM = 0.012;
+
+/**
+ * The map's zoom `t` seconds after a wave starts: a soft breath in and out (sin², flat at both
+ * ends), 1 outside the ease.
+ */
+export function waveEaseZoom(t: number): number {
+  if (!(t > 0) || t >= WAVE_EASE_SEC) return 1;
+  const s = Math.sin((Math.PI * t) / WAVE_EASE_SEC);
+  return 1 + WAVE_EASE_ZOOM * s * s;
+}
+
+let userScale = 1;
+
+/**
+ * The player's interface size (Settings → General, 0.9..1.3; graphicsSettings.ts). Every HUD size
+ * derived from `uiScale` / `uiUnit` follows it, and the CSS unit `--s` does too (`--ui-scale`).
+ */
+export function setUserUiScale(k: number): void {
+  userScale = Number.isFinite(k) && k > 0 ? k : 1;
+}
+
+export function userUiScale(): number {
+  return userScale;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -422,7 +451,7 @@ export function hudButtonsLayout(w: number, h: number, insets: Insets): HudButto
 export function hudButtonsKeepOut(w: number, h: number, insets: Insets): Rect {
   const hb = hudButtonsLayout(w, h, insets);
   const codexR = Math.max(22, hb.r * 0.86);
-  const s = Math.max(8.5, Math.min(0.0095 * w, 0.0185 * h, 17));
+  const s = Math.max(8.5, Math.min(0.0095 * w * userScale, 0.0185 * h * userScale, 17 * userScale));
   const capH = Math.max(11, s * 1.05) * 1.25;
   const capHalfW = Math.max(codexR, Math.max(11, s * 1.05) * 2.4);
   const x = hb.settingsX - capHalfW - 2;

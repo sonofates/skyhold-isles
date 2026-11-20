@@ -6,6 +6,12 @@ import { loadFraction, shouldShowTitle, titleArt, titleLogo, TITLE_SKIP_PARAMS }
 import { creditSections } from '../../src/render2d/ui/credits2d.ts';
 import { setLocale } from '../../src/i18n/index.ts';
 import { keyDir, pickInDirection, repeatDue, stickDir, type NavRect } from '../../src/render2d/ui/navFocus.ts';
+import { nearestPoint, padKey } from '../../src/render2d/ui/padCursor.ts';
+import { ARMORED_MIN, foeMarkNames } from '../../src/render2d/ui/foeMarks.ts';
+import { clampUiScale, defaultGraphics, parseGraphics } from '../../src/render2d/ui/graphicsSettings.ts';
+import { setUserUiScale, uiScale, WAVE_EASE_SEC, WAVE_EASE_ZOOM, waveEaseZoom } from '../../src/render2d/uiLayout.ts';
+import { uiUnit } from '../../src/render2d/hudDock.ts';
+import { ENEMY_DEFS } from '../../src/data/enemies.ts';
 
 describe('skill tree fit (heroScreens.ts)', () => {
   it('tries the vertical tree first, largest zoom first, then the across tree largest first', () => {
@@ -15,9 +21,10 @@ describe('skill tree fit (heroScreens.ts)', () => {
     expect(TREE_FIT_STEPS.findIndex((s) => s[0] === 'across')).toBe(downs.length);
     expect([...downs].sort((a, b) => b - a)).toEqual(downs);
     expect([...across].sort((a, b) => b - a)).toEqual(across);
-    // Never shrinks the vertical tree a lot (it switches layout instead), nor the across one below ~3/4.
+    // Never shrinks the vertical tree a lot (it switches layout instead); the across one goes to
+    // ~0.6 only for big interface sizes on phones (node text keeps 90 % anyway).
     expect(Math.min(...downs)).toBeGreaterThanOrEqual(0.8);
-    expect(Math.min(...across)).toBeGreaterThanOrEqual(0.7);
+    expect(Math.min(...across)).toBeGreaterThanOrEqual(0.5);
   });
 
   it('picks the first step that fits, the smallest across step when nothing does', () => {
@@ -138,5 +145,77 @@ describe('menu navigation (navFocus.ts)', () => {
     expect(repeatDue(380, 0, 1)).toBe(true);
     expect(repeatDue(450, 380, 2)).toBe(false);
     expect(repeatDue(490, 380, 2)).toBe(true);
+  });
+});
+
+describe('pad cursor (padCursor.ts)', () => {
+  it('nearest target and the pad buttons the run understands', () => {
+    expect(nearestPoint({ x: 0, y: 0 }, [])).toBe(-1);
+    expect(nearestPoint({ x: 10, y: 10 }, [{ x: 100, y: 0 }, { x: 12, y: 14 }, { x: -50, y: 9 }])).toBe(1);
+    expect(padKey('x')).toBe('n');
+    expect(padKey('y')).toBe('H');
+    expect(padKey('lb')).toBe('Q');
+    expect(padKey('rb')).toBe('W');
+    expect(padKey('lt')).toBe('E');
+    expect(padKey('rt')).toBe('R');
+    expect(padKey('start')).toBe(' ');
+    expect(padKey('a')).toBeNull();
+  });
+});
+
+describe('accessibility', () => {
+  it('foe kinds carry shapes, not only colours: crown / wing / shield', () => {
+    expect(foeMarkNames({ flying: false, armored: false, boss: false })).toEqual([]);
+    expect(foeMarkNames({ flying: true, armored: false, boss: false })).toEqual(['wing']);
+    expect(foeMarkNames({ flying: false, armored: true, boss: true })).toEqual(['crown', 'shield']);
+    // Heavy armour = the brute and up; light skirmishers stay unmarked.
+    const armored = Object.values(ENEMY_DEFS).filter((d) => d.armor >= ARMORED_MIN).map((d) => d.type).sort();
+    expect(armored).toContain('brute');
+    expect(armored).toContain('golem');
+    expect(armored).not.toContain('grunt');
+    expect(armored).not.toContain('runner');
+  });
+
+  it('interface size is stored 90–130 % in 5 % steps; old saves load at 100 %', () => {
+    expect(defaultGraphics(false).uiScale).toBe(1);
+    expect(parseGraphics({}).uiScale).toBe(1);
+    expect(parseGraphics({ uiScale: 2 }).uiScale).toBe(1.3);
+    expect(parseGraphics({ uiScale: 0.5 }).uiScale).toBe(0.9);
+    expect(parseGraphics({ uiScale: 1.12 }).uiScale).toBe(1.1);
+    expect(clampUiScale('big')).toBe(1);
+  });
+
+  it('the HUD unit and scale follow the interface size', () => {
+    const u = uiUnit(1920, 1080);
+    const k = uiScale(1920, 1080);
+    setUserUiScale(1.3);
+    expect(uiUnit(1920, 1080)).toBeCloseTo(u * 1.3, 6);
+    expect(uiScale(1920, 1080)).toBeCloseTo(k * 1.3, 6);
+    // Phones never go under the touch floor (8.5 px unit, 0.5 layout scale).
+    setUserUiScale(0.9);
+    expect(uiUnit(844, 390)).toBe(8.5);
+    expect(uiScale(844, 390)).toBe(0.5);
+    setUserUiScale(1);
+    expect(uiUnit(1920, 1080)).toBe(u);
+  });
+});
+
+describe('juice', () => {
+  it('wave-start camera ease: a soft bump that starts and ends at 1', () => {
+    expect(waveEaseZoom(-1)).toBe(1);
+    expect(waveEaseZoom(0)).toBe(1);
+    expect(waveEaseZoom(WAVE_EASE_SEC)).toBe(1);
+    expect(waveEaseZoom(WAVE_EASE_SEC / 2)).toBeCloseTo(1 + WAVE_EASE_ZOOM, 6);
+    expect(waveEaseZoom(0.05)).toBeLessThan(1.001);
+    expect(WAVE_EASE_ZOOM).toBeLessThanOrEqual(0.02);
+  });
+
+  it('2d.html boot screen and the page veil share one look; boot fades instead of vanishing', () => {
+    const html = readFileSync(join(__dirname, '../../2d.html'), 'utf8');
+    expect(html).toContain('<div id="boot" class="boot-look">');
+    expect(html).toMatch(/#boot,\s*\.boot-look \{/);
+    const main = readFileSync(join(__dirname, '../../src/render2d/main2d.ts'), 'utf8');
+    expect(main).not.toContain("getElementById('boot')?.remove()");
+    expect(main).toContain('dismissBoot()');
   });
 });

@@ -456,12 +456,22 @@
   font-size: calc(var(--s) * 1.7);
 }
 
+.pu-hero-tree-top .pu-plank.small {
+  padding-left: max(0.75em, calc(var(--s) * 0.75));
+  padding-right: max(0.75em, calc(var(--s) * 0.75));
+}
+
 .pu-hero-tree-pts {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 0.2em;
   font-size: calc(var(--s) * 1);
+}
+
+/* "9 of 9 spent" was 7.1 px on a phone. */
+.pu-hero-tree-pts small {
+  font-size: max(10px, 0.83em);
 }
 
 .pu-hero-tree-main {

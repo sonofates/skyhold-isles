@@ -17,7 +17,7 @@ import { isTouchDevice, loadSettings, saveSettings } from '../../platform/storag
 import { isDesktopClient } from '../renderResolution.ts';
 import { ABILITY_KEYS } from './abilities2d.ts';
 import { HERO_KEYS } from './heroKeys.ts';
-import { announceGraphicsChange, loadGraphics, reapplyGraphicsSettings, saveGraphics, type EffectsDensity, type FpsCap, type GraphicsSettings } from './graphicsSettings.ts';
+import { announceGraphicsChange, loadGraphics, reapplyGraphicsSettings, saveGraphics, type EffectsDensity, type FpsCap, type GraphicsSettings, clampUiScale, UI_SCALE_MAX, UI_SCALE_MIN } from './graphicsSettings.ts';
 import { branchName, challengeDesc, challengeName, difficultyName, featDesc, featName, islandName, upgradeName, upgradeRankText } from '../../i18n/data.ts';
 import { getLocale, LANGUAGE_NAMES, LOCALES, pct, setLocale, shortDate, t, type Locale, type MsgKey } from '../../i18n/index.ts';
 import { reapplyLocaleSetting, saveLocaleSetting } from '../../i18n/localeSetting.ts';
@@ -27,6 +27,7 @@ import { difficultyWinsOf } from '../../data/difficulty.ts';
 import { difficultySeal } from './difficulty2d.ts';
 import { dailyForToday, dailyHref2D } from './modes2d.ts';
 import { openCredits } from './credits2d.ts';
+import { navigateWithVeil } from './transition2d.ts';
 import { resetProgress2D, saveProgress2D } from './progress2d.ts';
 import { openStore, ownsFullAdventure, storeEnabled } from './store2d.ts';
 
@@ -330,7 +331,7 @@ export function openDaily(ctx: MetaContext, nowMs = Date.now()): Sheet {
   });
   start.addEventListener('click', () => {
     sheet.close();
-    location.assign(dailyHref2D(level.id));
+    navigateWithVeil(dailyHref2D(level.id));
   });
   sheet.body.append(el('div', 'pu-daily-grid', {}, left, el('div', '', {}, rules)), el('div', 'pu-brief-actions', {}, start));
   return sheet;
@@ -481,8 +482,18 @@ export function openSettings(ctx: SettingsContext): Sheet {
         if (!reset.disabled) reset.querySelector('span')!.textContent = t('set.reset');
       }, 3300);
     });
+    // Interface size 90–130 %: the whole painted UI and the battle HUD follow (live).
+    const sizeVal = el('span', 'pu-slider-val pu-ink', {}, pct(g.uiScale));
+    const size = slider((g.uiScale - UI_SCALE_MIN) / (UI_SCALE_MAX - UI_SCALE_MIN), t('set.uiScale'), 'set2d-uiscale', (v) => {
+      const k = clampUiScale(UI_SCALE_MIN + v * (UI_SCALE_MAX - UI_SCALE_MIN));
+      if (k === g.uiScale) return;
+      g.uiScale = k;
+      sizeVal.textContent = pct(k);
+      saveGfx();
+    });
     const rows = [
       row(t('set.language'), ctx.inGame ? t('set.languageNoteInGame') : t('set.languageNote'), languagePicker(ctx)),
+      row(t('set.uiScale'), t('set.uiScaleNote'), flex(size, sizeVal), 'set2d-uiscale-row'),
       row(
         t('set.dmg'),
         t('set.dmgNote'),

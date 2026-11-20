@@ -8,6 +8,11 @@ import type { EndModeNote } from './ui/modeBits.ts';
 import type { DifficultyId } from '../data/difficulty.ts';
 import { DIFFICULTY_EMBLEMS } from './ui/difficultyEmblems.ts';
 import type { QaTextItem } from './qaText.ts';
+/** Settings → Reduced motion (the page class main2d sets). */
+function reducedMotion(): boolean {
+  return typeof document !== 'undefined' && document.documentElement.classList.contains('pu-reduce-motion');
+}
+
 
 export { endStars } from './uiLayout.ts';
 
@@ -174,6 +179,9 @@ export class EndPanel {
   private readonly heroRow = new Container();
   private readonly heroPort = new Sprite(Texture.EMPTY);
   private readonly heroRing = new Graphics();
+  /** Level-up fanfare: gold sparkles bursting from the portrait and a fading glow ring. */
+  private readonly heroBurst = new Graphics();
+  private heroCentre = { x: 0, y: 0, r: 0 };
   private readonly heroBar = new Graphics();
   private readonly heroText = inkText(18, 'left');
   private readonly heroLvl = inkText(18, 'left', '#9a3b18', '700');
@@ -220,7 +228,7 @@ export class EndPanel {
     this.heroPort.anchor.set(0.5);
     this.heroText.anchor.set(0, 0.5);
     this.heroLvl.anchor.set(0, 0.5);
-    this.heroRow.addChild(this.heroRing, this.heroPort, this.heroBar, this.heroText, this.heroLvl);
+    this.heroRow.addChild(this.heroRing, this.heroBurst, this.heroPort, this.heroBar, this.heroText, this.heroLvl);
     this.heroRow.visible = false;
     this.board.addChild(this.heroRow);
     this.root.addChild(this.dim, this.board);
@@ -522,6 +530,7 @@ export class EndPanel {
     this.heroPort.visible = tex !== Texture.EMPTY;
     this.heroPort.scale.set(d / Math.max(1, tex.width));
     this.heroPort.position.set(x0 + d / 2, yMid);
+    this.heroCentre = { x: x0 + d / 2, y: yMid, r: d / 2 };
     this.heroRing.clear();
     if (!this.heroPort.visible) this.heroRing.circle(x0 + d / 2, yMid, d / 2).fill({ color: 0xc89a52 }).stroke({ color: 0x3a2412, width: 2 });
     const tx = x0 + d + fs * 0.5;
@@ -532,6 +541,30 @@ export class EndPanel {
     this.heroBar.position.set(tx, yMid + fs * 0.45);
     this.heroBar.visible = showBar;
     this.drawHeroBar(1);
+  }
+
+  /**
+   * Level-up fanfare at progress p (0..1, else hidden): twelve gold sparkles fly out of the portrait
+   * and fade, a gold ring swells and fades behind it.
+   */
+  private drawLevelBurst(p: number): void {
+    const g = this.heroBurst;
+    g.clear();
+    if (p <= 0 || p >= 1) return;
+    const { x, y, r } = this.heroCentre;
+    const e = easeOutCubic(p);
+    const fade = 1 - p;
+    g.circle(x, y, r * (1.02 + 0.28 * e)).stroke({ color: 0xffc93c, width: Math.max(2, r * 0.16 * fade), alpha: 0.85 * fade });
+    for (let i = 0; i < 12; i++) {
+      const a = (i / 12) * Math.PI * 2 + (i % 2 ? 0.13 : 0);
+      const dist = r * (1.05 + (i % 2 ? 0.75 : 1.05) * e);
+      const s = Math.max(1, r * (i % 2 ? 0.14 : 0.21) * (1 - 0.6 * p));
+      const cx = x + Math.cos(a) * dist;
+      const cy = y + Math.sin(a) * dist;
+      // A four-point sparkle (diamond pair), gold with a dark keyline.
+      g.poly([cx, cy - s * 1.6, cx + s * 0.45, cy - s * 0.45, cx + s * 1.6, cy, cx + s * 0.45, cy + s * 0.45, cx, cy + s * 1.6, cx - s * 0.45, cy + s * 0.45, cx - s * 1.6, cy, cx - s * 0.45, cy - s * 0.45]);
+      g.fill({ color: i % 3 === 0 ? 0xfff2b8 : 0xffc93c, alpha: fade }).stroke({ color: 0x3a2412, width: 1, alpha: 0.6 * fade });
+    }
   }
 
   /** XP bar at animation progress k (0..1): from the old fill to the new one (wrapping on level-ups). */
@@ -612,6 +645,8 @@ export class EndPanel {
       const k = (t - STAR_DELAY - 3 * STAR_STEP) / 1.1;
       this.drawHeroBar(easeOutCubic(Math.max(0, Math.min(1, k))));
       this.heroLvl.alpha = Math.max(0, Math.min(1, (k - 0.7) / 0.3));
+      const h = this.hero;
+      this.drawLevelBurst(h && h.toLevel > h.fromLevel && !reducedMotion() ? (k - 0.85) / 0.75 : -1);
     }
     const n = this.summary?.stars ?? 0;
     for (let i = 0; i < 3; i++) {

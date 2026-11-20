@@ -8,8 +8,9 @@
 3. Credits screen + pause menu — DONE (round 1; the pause menu already had Resume / Restart /
    Settings / World Map, audited 0 problems, Credits also reachable from in-run Settings)
 4. Keyboard / gamepad navigation — DONE (round 1)
-5. Accessibility (colour-blind cues, UI scale, text size) — NEXT
-6. Juice + feel pass — todo
+5. Accessibility (colour-blind cues, UI scale, text size) — DONE (round 1)
+6. Juice + feel pass — DONE (round 1): boot/veil transitions, level-up fanfare, wave-start ease
+   (press feedback + star reveal already existed)
 7. uiaudit + hudCheck after each change; shots into docs/overnight2/opus-shots/ — ongoing
 
 ## Done
@@ -77,6 +78,25 @@
   renders at a few fps, so a short fake press can fall between two polls — the probe holds presses
   250–450 ms and falls back to `__p0.padClick()` to tell a missed poll from a logic bug.
   Tests: n2Ui.test.ts (pickInDirection, keyDir, stickDir, repeatDue).
+
+- **Accessibility** (round 1). Shape marks (`ui/foeMarks.ts`: crown boss / wing flyer / shield
+  armour ≥ 5) on the next-wave chips and the foe card face — the blue / red backdrops no longer carry
+  it alone (elites already had a star). New SVG glyphs `wing`, `shield` (paintedIcons.ts).
+  **Interface size** 90–130 % (Settings → General slider, `GraphicsSettings.uiScale`, live): CSS `--s`
+  via `--ui-scale` on <html>, and the same factor in `uiLayout.uiScale`, `hudDock.uiUnit`,
+  `hudButtonsKeepOut`, `laneMarks2d.kitUnit` (`setUserUiScale`). Never below the phone floor
+  (8.5 px unit / 0.5 layout) — going under it made chips collide. `qa/scaleprobe.mjs`: 130 % at
+  2000x991 / 1366x768 / 844x390 × i02, i09, l1c → hudCheck overlaps 0, outside 0, canvas text 0, DOM
+  0 (map shrinks to keep the bigger HUD clear: phone coverage 0.48–0.70). Tree at 130 % phone: extra
+  across zoom steps down to 0.5. Text size: `qa/textsize.mjs` — floors at 10 px for the level badge
+  digits, XP bar text, the tree's "N of N spent" (was 7.1 px on a phone).
+- **Juice** (round 1). `ui/transition2d.ts`: 2d.html boot is now the sea gradient + gold spinner ring
+  (was plain "Loading…" on flat green) and fades out (`dismissBoot`, renames `#boot` at once so QA
+  waits are unchanged); map → battle / battle → map / Next isle / Daily go through
+  `navigateWithVeil` (same look fades in first, bfcache-safe). End board: gold ring + 12 sparkles
+  burst from the hero portrait when the XP bar crosses a level (`drawLevelBurst`, not with reduced
+  motion; `qa/lvlupshot.mjs`). Wave start: `waveEaseZoom` — 1.2 % breath of `map.root` over 0.9 s
+  about the screen centre (HUD unaffected; off with camera shake off or reduced motion).
 
 ## Decisions
 - Round 1: PROGRESS file lives in docs/overnight2/ (backlog says so); the runner header names

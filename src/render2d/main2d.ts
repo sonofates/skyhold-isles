@@ -33,12 +33,13 @@ import type { GateLayer } from './gateLayer.ts';
 import { MASTER_SCALE, maxMapScale, pickMapVariant } from './mapVariant.ts';
 import { mountSettings2D, type Settings2D } from './settingsButton2d.ts';
 import { hudKeepOuts, readSafeInsets } from './uiKit.ts';
-import { gateKeepOutsPx, hudButtonsKeepOut } from './uiLayout.ts';
+import { gateKeepOutsPx, hudButtonsKeepOut, setUserUiScale, userUiScale } from './uiLayout.ts';
 import { uiUnit } from './hudDock.ts';
 import { hudCheck } from './hudCheck.ts';
 import { auditCanvasTexts } from './qaText.ts';
 import { anySheetOpen } from './ui/dom.ts';
 import { installNav } from './ui/navFocus.ts';
+import { dismissBoot, navigateWithVeil, setBootText } from './ui/transition2d.ts';
 
 /**
  * 2d.html entry — the painted 2D renderer (Pixi v8) on the real sim.
@@ -171,7 +172,18 @@ function applyGraphics(g: GraphicsSettings, quality: GameSettings['quality'], de
   setGraphicsPrefs(engine.prefs);
   setFxPrefs(engine.fx);
   document.documentElement.classList.toggle('pu-reduce-motion', g.reducedMotion);
+  applyUiScale(g.uiScale);
   return engine;
+}
+
+/** Interface size: the CSS unit (`--ui-scale`) and the HUD layout math (uiLayout.ts) together. */
+function applyUiScale(k: number): void {
+  if (k === userUiScale() && document.documentElement.style.getPropertyValue('--ui-scale') === String(k)) return;
+  const changed = k !== userUiScale();
+  setUserUiScale(k);
+  document.documentElement.style.setProperty('--ui-scale', String(k));
+  // Everything laid out from the screen size (map fit, HUD dock, boards) lays out again.
+  if (changed) requestAnimationFrame(() => window.dispatchEvent(new Event('resize')));
 }
 
 /** Pixi skips a frame that comes a hair early: leave 8% slack so a 60 cap keeps every 60 Hz frame. */
@@ -218,8 +230,7 @@ const GAME_PARAMS = ['level', 'hero', 'daily', 'challenge', 'endless', 'ab', 'be
 function bootLocale(): Promise<unknown> {
   initLocale();
   document.title = t('page.title');
-  const boot = document.getElementById('boot');
-  if (boot) boot.textContent = t('boot.loading');
+  setBootText(t('boot.loading'));
   return Promise.all([
     document.fonts.load(`700 32px ${HUD_FONT}`, 'Aa'), // i18n-ignore (font probe)
     document.fonts.load(`700 32px ${HUD_FONT}`, 'ğşıİçöüĞŞÇÖÜ'),
@@ -229,7 +240,7 @@ function bootLocale(): Promise<unknown> {
 
 /** The title screen in front of the world map (titleScreen.ts); the map mounts on Continue / New game. */
 async function runTitleScreen(q: URLSearchParams, title: typeof import('./ui/titleScreen.ts')): Promise<void> {
-  document.getElementById('boot')?.remove();
+  dismissBoot();
   const { screen, done } = title.runTitle(q, {
     openMap: async () => {
       const { mountWorldMap } = await import('./ui/worldMap.ts');
@@ -256,6 +267,8 @@ async function main(): Promise<void> {
   const q = new URLSearchParams(location.search);
   const fontsReady = bootLocale();
   installNav();
+  // Interface size changes on the map too (the run's own listener re-applies the rest).
+  window.addEventListener(GRAPHICS_EVENT, () => applyUiScale(loadGraphics().uiScale));
   const desktop = isDesktopClient(q);
   let gfx = loadGraphics();
   let engine = applyGraphics(gfx, loadSettings().quality, desktop);
@@ -268,7 +281,7 @@ async function main(): Promise<void> {
     }
     const { mountWorldMap } = await import('./ui/worldMap.ts');
     await mountWorldMap(q);
-    document.getElementById('boot')?.remove();
+    dismissBoot();
     return;
   }
   const ab = q.get('ab') === '1';
@@ -411,7 +424,7 @@ async function main(): Promise<void> {
     watchMap(scene.map);
     app.renderer.on('resize', onResize);
     app.ticker.add((t) => scene.frame(Math.min(0.1, t.deltaMS / 1000)));
-    document.getElementById('boot')?.remove();
+    dismissBoot();
     app.ticker.start();
     window.__p0 = { mode: 'ab', state: () => scene.debugState() };
     return;
@@ -608,7 +621,7 @@ async function main(): Promise<void> {
     },
     onMenu: () => {
       recordEndlessQuit();
-      location.assign(routing.worldMapHref());
+      navigateWithVeil(routing.worldMapHref());
     },
     onReplay: (on) => {
       document.documentElement.classList.toggle('pu-replaying', on);
@@ -618,7 +631,7 @@ async function main(): Promise<void> {
     },
     get onNext() {
       const next = routing.nextIslandOpen(level.id, gameRef?.world.outcome === 'won');
-      return next ? () => location.assign(routing.islandHref(next)) : undefined;
+      return next ? () => navigateWithVeil(routing.islandHref(next)) : undefined;
     },
   };
   const game = new Game2D(app, art, level, hooks);
@@ -647,7 +660,7 @@ async function main(): Promise<void> {
     );
   }
   draws?.take();
-  document.getElementById('boot')?.remove();
+  dismissBoot();
   // Settings → Graphics: frame-rate cap, FPS chip, and live re-apply while a run is open.
   const { mountFpsCounter } = await import('./ui/fpsCounter.ts');
   const fpsChip = mountFpsCounter();

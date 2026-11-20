@@ -250,6 +250,11 @@ export const TREE_FIT_STEPS: ReadonlyArray<readonly [TreeLayout, number]> = [
   ['across', 0.86],
   ['across', 0.8],
   ['across', 0.74],
+  // Big interface sizes on phones (Settings → Interface size 130 %).
+  ['across', 0.68],
+  ['across', 0.62],
+  ['across', 0.56],
+  ['across', 0.5],
 ];
 
 /** First fitting step (`fits` measures the DOM); the last step when nothing fits (the body scrolls). */

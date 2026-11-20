@@ -13,7 +13,9 @@
 }
 
 .pu {
-  --s: clamp(8.5px, min(0.95vw, 1.85vh), 17px);
+  /* `--ui-scale` = Settings → General → Interface size (main2d.ts sets it on <html>); never below
+     the 8.5 px floor (phone touch sizes), the cap grows with it. */
+  --s: clamp(8.5px, calc(min(0.95vw, 1.85vh) * var(--ui-scale, 1)), calc(17px * var(--ui-scale, 1)));
   --ink: #4a2a12;
   --ink-soft: #7a5532;
   --cream: #fff4dc;

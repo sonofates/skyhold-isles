@@ -34,15 +34,13 @@ import { MapView } from './mapView.ts';
 import { PlotLayer, type PlotState } from './plotLayer.ts';
 import { createProcTextures, type ProcTextures } from './procTextures.ts';
 import { ProjectileLayer } from './projectileLayer.ts';
-import {
-  audioSettings2d,
+import { audioSettings2d,
   createShakeState2D,
   resetShakeState2D,
   shouldVibrate2D,
   stepShake2D,
   triggerShake2D,
-  type AudioSettings2D,
-} from './settings2d.ts';
+  type AudioSettings2D, shouldShake2D } from './settings2d.ts';
 import { bindSpecialFx, createSpecialFxStats } from './specialFx.ts';
 import { SoldierLayer, withBarracksArt } from './soldierLayer.ts';
 import { MeleeDirector } from './meleeDirector.ts';
@@ -50,7 +48,7 @@ import { meleeLookFor } from './meleeLook.ts';
 import { TowerLayer } from './towerLayer.ts';
 import { anySheetOpen } from './ui/dom.ts';
 import { readSafeInsets } from './uiKit.ts';
-import { NO_INSETS, type Insets } from './uiLayout.ts';
+import { NO_INSETS, type Insets, WAVE_EASE_SEC, waveEaseZoom } from './uiLayout.ts';
 import { dockPieces, hudDock, type HudDock } from './hudDock.ts';
 import { hornNearCave, rectsTouch, roadMouths } from './hornSpot.ts';
 import { distSegRect, type Seg } from './playfield.ts';
@@ -202,6 +200,8 @@ export class Game2D {
   private minCost = 0;
   private settings: GameSettings = loadSettings();
   private readonly shake = createShakeState2D();
+  /** Seconds since the last wave started (camera ease, uiLayout.waveEaseZoom); -1 = none. */
+  private waveEaseT = -1;
   private simClockSec = 0;
   private activeDamagePopups = 0;
   private unbindAudio: (() => void) | null = null;
@@ -641,6 +641,9 @@ export class Game2D {
     });
     ev.on('waveStarted', () => {
       this.hudGoldDirty = true;
+      // A soft camera breath as the wave marches out (off with shake off or Reduced motion).
+      const reduce = typeof document !== 'undefined' && document.documentElement.classList.contains('pu-reduce-motion');
+      if (!this.replayCursor && shouldShake2D(this.currentSettings()) && !reduce) this.waveEaseT = 0;
     });
     ev.on('waveCompleted', () => {
       this.hudGoldDirty = true;
@@ -929,12 +932,24 @@ export class Game2D {
     this.activeDamagePopups = this.hooks.endless ? 0 : this.damageNumbers.update(simDt > 0 ? dtSec : 0, cfg);
     if (!this.hooks.endless) {
       stepShake2D(this.shake, simDt > 0 && !this.endShown ? dtSec : 0, cfg);
+      let sx = 0;
+      let sy = 0;
       if (simDt > 0 && !this.endShown && (this.shake.offsetX !== 0 || this.shake.offsetY !== 0)) {
         const unitPx = this.level.layout2d!.pxPerUnit * this.map.fit.scale;
-        this.map.root.position.set(this.shake.offsetX * unitPx, this.shake.offsetY * unitPx);
-      } else {
-        this.map.root.position.set(0, 0);
+        sx = this.shake.offsetX * unitPx;
+        sy = this.shake.offsetY * unitPx;
       }
+      // Wave-start ease: zoom about the screen centre (the HUD is outside map.root and stays put).
+      let z = 1;
+      if (this.waveEaseT >= 0) {
+        if (simDt > 0) this.waveEaseT += dtSec;
+        z = waveEaseZoom(this.waveEaseT);
+        if (this.waveEaseT >= WAVE_EASE_SEC || this.endShown) this.waveEaseT = -1;
+      }
+      const cx = this.app.screen.width / 2;
+      const cy = this.app.screen.height / 2;
+      this.map.root.scale.set(z);
+      this.map.root.position.set(sx + cx * (1 - z), sy + cy * (1 - z));
     }
     this.ring.update(dtSec, world.gold);
     this.syncRangePreview();

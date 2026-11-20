@@ -28,6 +28,17 @@ export interface GraphicsSettings {
   showFps: boolean;
   /** No screen shake, no large flashes, calmer UI pulses. */
   reducedMotion: boolean;
+  /** Interface size (menus, boards, the battle HUD): 0.9..1.3, steps of 0.05; 1 = as designed. */
+  uiScale: number;
+}
+
+export const UI_SCALE_MIN = 0.9;
+export const UI_SCALE_MAX = 1.3;
+
+/** A stored / slider interface size, clamped to 90–130 % in 5 % steps. */
+export function clampUiScale(v: unknown): number {
+  if (typeof v !== 'number' || !Number.isFinite(v)) return 1;
+  return Math.round(Math.max(UI_SCALE_MIN, Math.min(UI_SCALE_MAX, v)) * 20) / 20;
 }
 
 const SETTINGS_KEY = 'skyhold_isles_settings_v1';
@@ -45,7 +56,7 @@ function prefersReducedMotion(): boolean {
 
 export function defaultGraphics(reduced = prefersReducedMotion()): GraphicsSettings {
   // Unlimited (= the display's refresh rate) is what the game always did, so it stays the default.
-  return { renderScale: null, effects: 'normal', fpsCap: 0, showFps: false, reducedMotion: reduced };
+  return { renderScale: null, effects: 'normal', fpsCap: 0, showFps: false, reducedMotion: reduced, uiScale: 1 };
 }
 
 /** Clamps / repairs a stored object (anything unknown → the default). */
@@ -58,6 +69,7 @@ export function parseGraphics(raw: unknown, defaults: GraphicsSettings = default
     fpsCap: o.fpsCap === 30 || o.fpsCap === 60 || o.fpsCap === 0 ? o.fpsCap : defaults.fpsCap,
     showFps: typeof o.showFps === 'boolean' ? o.showFps : defaults.showFps,
     reducedMotion: typeof o.reducedMotion === 'boolean' ? o.reducedMotion : defaults.reducedMotion,
+    uiScale: o.uiScale === undefined ? defaults.uiScale : clampUiScale(o.uiScale),
   };
 }
 
