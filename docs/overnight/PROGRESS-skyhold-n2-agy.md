@@ -46,43 +46,42 @@
       | `i24-boss-hard-sela20-spam` (W14 Tempest Boss) | 35 | **47.5** | `16.7 / 33.4 / 66.8` | `22 / 63` | `1 / 1 / 2 / 2 / 11` | **PASS (`66.8 ms`)** |
       | `i24-boss-hard-tobb20-spam` (W14 Tempest Boss) | 35 | **54.5** | `16.7 / 33.3 / 50.1` | `20 / 69` | `1 / 1 / 2 / 2 / 11` | **PASS (`50.1 ms`)** |
 
-- [x] **5. Desktop Build Sanity (`desktop/main.cjs`, `scripts/qaDesktopSmoke.ts`, `tests/platform/steamAdapter.test.ts`)**
-  - **Diagnosed & Fixed 4 Linux Electron 45 / AppImage Packaging & Boot Issues in `desktop/main.cjs`:**
-    1. **WebGL2 Blocklist on Linux Mesa / VMs / Xvfb:** Electron 45 (Chromium 159) blocklisted software GL (`ContextResult::kFatalFailure: WebGL2 blocklisted` / `WebGL1 blocklisted`), breaking Pixi v8 gameplay startup on older Mesa drivers and headless Xvfb. Added `ignore-gpu-blocklist` + `enable-unsafe-swiftshader` (plus `use-gl=angle` / `use-angle=swiftshader` under `SKYHOLD_SMOKE_TEST=1` or `SKYHOLD_SWIFTSHADER=1`).
-    2. **Linux Small `/dev/shm` SharedImage Failures:** Auto-detects `< 128 MB` `/dev/shm` on Linux (`fs.statfsSync('/dev/shm')`) and appends `disable-dev-shm-usage`, eliminating `Creation of StagingBuffer's SharedImage failed` rasterizer errors.
-    3. **Missing `.otf` Font MIME Type & ASAR Window Icon:** Added `.otf` (`Fredoka TR` Turkish glyphs), `.ttf`, `.ico`, `.mp4`, `.webm` to `MIME_BY_EXT` (tested against every file extension in `public/`), and switched `BrowserWindow` icon loading to `nativeImage.createFromBuffer(fs.readFileSync(iconPath))` so GTK reads `icon-512.png` cleanly from inside `resources/app.asar`.
-    4. **Updated `SKYHOLD_SMOKE_TEST=1` for World Map + Gameplay:** Default `2d.html` now boots the 25-island World Map (`window.__map`) rather than `window.__p0`; updated the smoke probe to validate both default World Map launch (`islands >= 25`, `layout !== null`) and gameplay launch (`SKYHOLD_QUERY='level=...'`, `art.filesMissing === 0`), enforcing `hasBridge === true`, `achievementsLoaded >= 58`, and `failedLoads === 0`.
-  - **Verified `npm run desktop:build:linux` + Xvfb AppImage Smoke (`npx tsx scripts/qaDesktopSmoke.ts`):**
-    - Built `release/Skyhold Isles-1.0.0.AppImage` (`233 MB`, `app.asar` `114 MB` + `app.asar.unpacked/node_modules/steamworks.js`).
-    - Xvfb World Map launch: `{"scene":"worldMap","hasBridge":true,"islands":25,"achievementsLoaded":58,"failedLoads":0}` (exit `0`).
-    - Xvfb Hard Boss `i24` + L20 Sela launch: `{"scene":"game","mode":"play","hero":"sela","hasBridge":true,"achievementsLoaded":58,"failedLoads":0,"filesPresent":101,"filesMissing":0}` (exit `0`).
+- [x] **5. Desktop Build Sanity (`desktop/main.cjs`, `scripts/qaDesktopSmoke.ts`, `tests/platform/steamAdapter.test.ts`)** — commit `efd078e`
+  - Fixed 4 Linux Electron 45 / AppImage packaging & boot issues in `desktop/main.cjs`: WebGL2 software/Mesa blocklist (`ignore-gpu-blocklist` + `enable-unsafe-swiftshader`), `< 128 MB` `/dev/shm` `SharedImage` failures (`disable-dev-shm-usage`), `.otf`/`Fredoka TR` MIME type + ASAR `nativeImage.createFromBuffer` window icon, and dual World Map (`window.__map`) + Gameplay (`window.__p0`) `SKYHOLD_SMOKE_TEST=1` invariants (`hasBridge`, `achievementsLoaded >= 58`, `failedLoads === 0`).
+  - Built `release/Skyhold Isles-1.0.0.AppImage` (`233 MB`) via `npm run desktop:build:linux` and verified both World Map (`25` islands) and Hard Boss `i24` + L20 Sela (`101/101` art files, `0` failed loads) under `xvfb-run` (`npx tsx scripts/qaDesktopSmoke.ts`).
+
+- [x] **6. Post-Backlog Quality Audit (`src/platform/iap.ts`, `src/render2d/heroes2d.ts`, `src/render2d/ui/modes2d.ts`, `scripts/heroBalance.ts`, `tests/platform/iap.test.ts`)**
+  - Decoupled `src/platform/iap.ts` (`FREE_ISLANDS`) from static `LEVELS_2D` import (while keeping CI parity assertion against `LEVELS_2D.slice(0, 6)`), making all of `src/platform/**` 100% free of static `levels2d` JSON imports.
+  - Hardened `src/platform/iap.ts` (`readIdSetFromKey`) with `tryRepairTruncatedJson` so truncated mobile `IAP_SAVE_KEY` writes preserve paid `full_unlock` offline entitlements.
+  - Extended `clearedIslandsCount2D` (`heroes2d.ts`) and `isIslandCleared` (`modes2d.ts`) to honor `difficultyWins` (`easy`/`normal`/`hard`) on raw un-migrated `ProgressData` objects.
+  - Expanded `scripts/heroBalance.ts` (`REPORT_ISLANDS`) to include Chapter Two (`i17` and `i24` Boss) alongside `l1c`, `i05`, `i10`, `i16`, and re-verified full `npm run sim:heroes` + `npm run qa:bot` (`656/656` passed, `0` violations).
 
 ---
 
 ## In Progress
 
-- [ ] **Post-Backlog Quality Audit (`scripts/heroBalance.ts`, `src/render2d/{heroes2d.ts,ui/modes2d.ts}`, full `qa:bot` + `sim:heroes` verification)**
+- None — all 5 backlog items + post-backlog quality audit completed and verified.
 
 ---
 
 ## Next (in order)
 
-1. Audit owned files (`scripts/heroBalance.ts` Chapter-Two `i17`/`i24` reporting, `modes2d.ts` / `heroes2d.ts` `difficultyWins` partial-save parity, full `npm run qa:bot` + `npm run sim:heroes` sweep) and raise quality where valuable.
+- Backlog complete (`1`–`5` + post-backlog audit). Ready for morning review / merge.
 
 ---
 
 ## Decisions
 
 - **Chapter-Two Endless Spotlights Scoped to Chapter-Two Islands (`i17`–`i24`):** `hasChapterTwoEnemies(level)` activates `ENDLESS_CHAPTER2_SPOTLIGHTS` only on islands whose story waves introduce Chapter-Two enemies (`i17`–`i24`), keeping Chapter-One Endless free of unencountered Bestiary spoilers and preserving 100% byte-identical outputs on `sim:balance`, `i16` `p6-bench`, and 3D `LEVELS`.
-- **3D Bundle Isolation in `src/platform/achievements.ts`:** `achievements.ts` inspects `levels` passed by the caller rather than statically importing `LEVELS_2D`, keeping 25 island layouts out of the 3D chunk.
-- **Non-Destructive Corrupt Save Handling:** `loadProgress` / `loadProgress2D` preserve raw corrupted JSON once under `*_corrupt_backup*`, salvage truncated JSON prefixes when `hasAnyProgress` holds, and never auto-read `*_reset_backup*` unless explicitly requested via `recoverProgress2D(..., { includeResetBackup: true })`.
+- **Zero `levels2d` Imports Across `src/platform/**`:** Both `achievements.ts` and `iap.ts` avoid static `LEVELS_2D` imports (enforced by unit tests), keeping 25 baked 2D island JSON layouts out of 3D chunks.
+- **Non-Destructive Corrupt Save Handling:** `loadProgress`, `loadProgress2D`, and `iap.ts` salvage truncated JSON prefixes (`tryRepairTruncatedJson`), preserve forensic copies once under `*_corrupt_backup*`, and never auto-read `*_reset_backup*` unless explicitly requested via `recoverProgress2D(..., { includeResetBackup: true })`.
 - **Dual PROGRESS Path Mirroring:** Both `docs/overnight/PROGRESS-skyhold-n2-agy.md` and `docs/overnight2/PROGRESS-skyhold-n2-agy.md` are maintained identically.
 
 ---
 
 ## Problems / Known Issues
 
-- None blocking in owned area (`sim:balance` 41/41 byte-identical, `qa:bot` 656/656 passing, all Hard Boss low-end benches `<= 66.8 ms`, Linux AppImage builds & passes Xvfb smoke).
+- None blocking in owned area (`sim:balance` 41/41 byte-identical, `qa:bot` 656/656 passing, 1,360 unit tests passing, all Hard Boss low-end benches `<= 66.8 ms`, Linux AppImage builds & passes Xvfb smoke).
 
 ---
 

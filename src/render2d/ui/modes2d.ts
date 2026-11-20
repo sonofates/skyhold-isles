@@ -53,7 +53,14 @@ export interface ResolveQueryOptions2D {
 }
 
 function isIslandCleared(progress: ProgressData, index: number): boolean {
-  return (progress.clears[index] ?? 0) > 0 || (progress.bestStars[index] ?? 0) > 0;
+  const dw = progress.difficultyWins;
+  return (
+    (progress.clears[index] ?? 0) > 0 ||
+    (progress.bestStars[index] ?? 0) > 0 ||
+    (dw?.easy[index] ?? 0) > 0 ||
+    (dw?.normal[index] ?? 0) > 0 ||
+    (dw?.hard[index] ?? 0) > 0
+  );
 }
 
 /**

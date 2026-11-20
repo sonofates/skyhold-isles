@@ -16,7 +16,6 @@ import type {
   CustomerInfo,
   PurchasesStoreProduct,
 } from '@revenuecat/purchases-capacitor';
-import { LEVELS_2D } from '../data/levels2d/index.ts';
 import {
   findIapProduct,
   FULL_UNLOCK_ENTITLEMENT,
@@ -31,6 +30,7 @@ import {
   type MobilePlatformName,
   type PlatformAdapter,
 } from './platform.ts';
+import { tryRepairTruncatedJson } from './storage.ts';
 
 export const IAP_SAVE_KEY = 'skyhold_isles_entitlements_v1';
 export const IAP_MOCK_LEDGER_KEY = 'skyhold_isles_iap_mock_ledger_v1';
@@ -93,9 +93,14 @@ export interface IapStoreAdapter {
  * TODO(owner): Decide final free-vs-paid island split before mobile store launch.
  * Placeholder: the first 6 islands of `LEVELS_2D` (`l1c`, `i01`, `i02`, `i03`, `i04`, `i05`).
  */
-export const FREE_ISLANDS: readonly string[] = Object.freeze(
-  LEVELS_2D.slice(0, 6).map((level) => level.id),
-);
+export const FREE_ISLANDS: readonly string[] = Object.freeze([
+  'l1c',
+  'i01',
+  'i02',
+  'i03',
+  'i04',
+  'i05',
+]);
 
 export type EntitlementCollection =
   | ReadonlySet<string>
@@ -208,7 +213,12 @@ function readIdSetFromKey(
   try {
     const raw = storage.getItem(key);
     if (!raw) return new Set();
-    const parsed: unknown = JSON.parse(raw);
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      parsed = tryRepairTruncatedJson(raw);
+    }
     if (Array.isArray(parsed)) return new Set(sanitizeIdList(parsed, catalogue));
     if (parsed && typeof parsed === 'object') {
       const list = (parsed as { entitlements?: unknown }).entitlements;

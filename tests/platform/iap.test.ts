@@ -1,8 +1,10 @@
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { CustomerInfo, PurchasesStoreProduct } from '@revenuecat/purchases-capacitor';
 import { LEVELS_2D } from '../../src/data/levels2d/index.ts';
+import { clearedIslandsCount2D, isHeroUnlocked } from '../../src/render2d/heroes2d.ts';
+import { availableChallenges, canPlayEndless, dailyForToday } from '../../src/render2d/ui/modes2d.ts';
 import {
   createIapStore,
   createMockIapBackend,
@@ -22,7 +24,7 @@ import {
   type MobileBridge,
   type NativePurchasesBridge,
 } from '../../src/platform/index.ts';
-import { resetProgressSave } from '../../src/platform/storage.ts';
+import { createDefaultProgress, resetProgressSave } from '../../src/platform/storage.ts';
 
 const ROOT = resolve(import.meta.dirname, '../..');
 
@@ -454,5 +456,37 @@ describe('Free-version scope gate (FREE_ISLANDS + isUnlocked) & catalogue invari
     const iapProductsSrc = readFileSync(resolve(ROOT, 'src/platform/iapProducts.ts'), 'utf8');
     expect(iapProductsSrc).not.toContain('com.skyholdisles.game');
     expect(iapProductsSrc).toContain('MOBILE_APP_ID');
+
+    // Keep src/platform free of static `levels2d` imports so 25 2D island JSON layouts stay out of 3D chunks.
+    for (const file of readdirSync(resolve(ROOT, 'src/platform'))) {
+      if (!file.endsWith('.ts')) continue;
+      const content = readFileSync(resolve(ROOT, 'src/platform', file), 'utf8');
+      expect(content, `${file} must not statically import levels2d`).not.toMatch(/levels2d/);
+    }
+  });
+
+  it('salvages truncated paid entitlement cache JSON and honors difficultyWins in 2D mode/hero gates', () => {
+    const storage = createMemStorage();
+    storage.setItem(IAP_SAVE_KEY, '{"version":1,"entitlements":["full_unlock"');
+    const mobilePlatform = createMobilePlatform('ios');
+    const store = createIapStore({ platform: mobilePlatform, storage });
+    expect(store.owned('full_unlock')).toBe(true);
+    expect(isUnlocked('i24', store.entitlements())).toBe(true);
+
+    // Raw un-migrated progress carrying only difficultyWins still counts cleared islands consistently.
+    const rawProg = createDefaultProgress(LEVELS_2D.length);
+    rawProg.difficultyWins = {
+      easy: new Array<number>(LEVELS_2D.length).fill(0),
+      normal: new Array<number>(LEVELS_2D.length).fill(0),
+      hard: new Array<number>(LEVELS_2D.length).fill(0),
+    };
+    rawProg.difficultyWins.hard[0] = 2;
+    rawProg.difficultyWins.easy[1] = 1;
+    rawProg.difficultyWins.normal[2] = 3;
+    expect(clearedIslandsCount2D(rawProg, LEVELS_2D)).toBe(3);
+    expect(isHeroUnlocked(rawProg, 'wren', LEVELS_2D)).toBe(true);
+    expect(canPlayEndless('l1c', rawProg, LEVELS_2D)).toBe(true);
+    expect(availableChallenges('l1c', rawProg, LEVELS_2D).length).toBeGreaterThan(0);
+    expect(dailyForToday(Date.UTC(2026, 10, 20), rawProg, LEVELS_2D)).not.toBeNull();
   });
 });

@@ -170,10 +170,23 @@ export function clearedIslandsCount2D(
   progress: ProgressData,
   levels: readonly Pick<LevelDef, 'id'>[] = LEVELS_2D,
 ): number {
-  const limit = Math.min(levels.length, Math.max(progress.clears.length, progress.bestStars.length));
+  const dw = progress.difficultyWins;
+  const dwMaxLen = dw ? Math.max(dw.easy.length, dw.normal.length, dw.hard.length) : 0;
+  const limit = Math.min(
+    levels.length,
+    Math.max(progress.clears.length, progress.bestStars.length, dwMaxLen),
+  );
   let cleared = 0;
   for (let i = 0; i < limit; i++) {
-    if ((progress.clears[i] ?? 0) > 0 || (progress.bestStars[i] ?? 0) > 0) cleared++;
+    if (
+      (progress.clears[i] ?? 0) > 0 ||
+      (progress.bestStars[i] ?? 0) > 0 ||
+      (dw?.easy[i] ?? 0) > 0 ||
+      (dw?.normal[i] ?? 0) > 0 ||
+      (dw?.hard[i] ?? 0) > 0
+    ) {
+      cleared++;
+    }
   }
   return cleared;
 }
