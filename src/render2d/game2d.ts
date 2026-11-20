@@ -444,6 +444,9 @@ export class Game2D {
     return ok;
   }
 
+  /** Belt slots the HUD tray makes room for (ui/itemBelt2d.ts sets it, then resizes). */
+  itemSlots = 0;
+
   useItem(id: ItemId, x?: number, z?: number): boolean {
     return this.command({ k: 'item', id, x, z });
   }
@@ -976,7 +979,7 @@ export class Game2D {
     // edges; a piece slides along its edge (or the map shrinks a little) only where it would cover
     // a plot, cave, castle or a safe-area road (fullBleed.ts).
     const shapes = (this.playShapes ??= hardShapes(this.level.layout2d!));
-    const placed = fullBleedFit(w, h, this.level.layout2d!, hudDock(w, h, this.insets, this.hud.dockOptions(!!this.hooks.hero)), shapes);
+    const placed = fullBleedFit(w, h, this.level.layout2d!, hudDock(w, h, this.insets, { ...this.hud.dockOptions(!!this.hooks.hero), items: this.itemSlots }), shapes);
     this.dock = placed.dock;
     this.fullBleed = placed.fit;
     this.map.resize(w, h, placed.fit);

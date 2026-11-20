@@ -29,6 +29,7 @@ export const ICONS = {
   next: painted('play'),
   back: paintedBack(),
   heart: `<img src="/art2d/icon-heart.webp" style="display:block;width:100%;height:100%;object-fit:contain" alt="" draggable="false" aria-hidden="true"/>`,
+  crystal: `<img src="/art2d/market/skyCrystal-large.webp" style="display:block;width:100%;height:100%;object-fit:contain" alt="" draggable="false" aria-hidden="true"/>`,
   crown: sealArt('crown'),
   medal: sealArt('medal'),
   islands: sealArt('islands'),

@@ -18,6 +18,7 @@ import { isTouchDevice, loadSettings, saveSettings } from '../../platform/storag
 import { isDesktopClient } from '../renderResolution.ts';
 import { ABILITY_KEYS } from './abilities2d.ts';
 import { HERO_KEYS } from './heroKeys.ts';
+import { ITEM_KEYS } from './marketModel.ts';
 import { announceGraphicsChange, clampUiScale, loadGraphics, reapplyGraphicsSettings, saveGraphics, UI_SCALE_MAX, UI_SCALE_MIN, type EffectsDensity, type FpsCap, type GraphicsSettings } from './graphicsSettings.ts';
 import { branchName, challengeDesc, challengeName, difficultyName, featDesc, featName, islandName, upgradeName, upgradeRankText } from '../../i18n/data.ts';
 import { getLocale, LANGUAGE_NAMES, LOCALES, pct, setLocale, shortDate, t, type Locale, type MsgKey } from '../../i18n/index.ts';
@@ -752,6 +753,7 @@ export function openSettings(ctx: SettingsContext): Sheet {
         keyRow(['N'], t('key.wave')),
         keyRow([ABILITY_KEYS.meteor], t('key.meteor')),
         keyRow([ABILITY_KEYS.overcharge], t('key.overcharge')),
+        keyRow([...ITEM_KEYS], t('key.item')),
         keyRow([HERO_KEYS.select], t('key.heroSelect')),
         keyRow([HERO_KEYS.skill0], t('key.heroSkill1')),
         keyRow([HERO_KEYS.skill1], t('key.heroSkill2')),

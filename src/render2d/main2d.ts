@@ -108,6 +108,11 @@ declare global {
       artcheck?: () => ReturnType<typeof artCheckSummary>;
       /** QA: the ability bar (state, boxes, FX counters) and aiming as a button press would. */
       abilities?: () => Record<string, unknown> | null;
+      /** QA: the item belt (slots, states, aim, FX counters); `itemPress` presses a slot (null cancels). */
+      items?: () => Record<string, unknown> | null;
+      itemPress?: (id: import('../data/market.ts').ItemId | null) => void;
+      /** QA: aim the held item at a screen point and cast there (as a tap would). */
+      itemCastAt?: (x: number, y: number) => boolean;
       /** QA: the keyboard / gamepad reticle (padCursor.ts). */
       pad?: () => { shown: boolean; x: number; y: number; mode: string } | null;
       padClick?: () => void;
@@ -519,6 +524,7 @@ async function main(): Promise<void> {
   window.addEventListener('focus', refreshLiveSettings, { capture: true });
   let abilities: AbilityBar2D | null = null;
   let heroHud: HeroHud2D | null = null;
+  let itemBelt: import('./ui/itemBelt2d.ts').ItemBelt2D | null = null;
   let padCursor: import('./ui/padCursor.ts').PadCursor | null = null;
   let replayBar: import('./ui/runControls2d.ts').ReplayBar2D | null = null;
   // Endless run left early (World Map / Restart): its best wave still goes on the board.
@@ -568,6 +574,7 @@ async function main(): Promise<void> {
       settingsRef?.setButtonVisible(!shown);
       abilities?.setVisible(!shown && !storyOpen);
       heroHud?.setVisible(!shown && !storyOpen);
+      itemBelt?.setVisible(!shown && !storyOpen);
       replayBar?.setVisible(!shown && !!gameRef?.replaying);
       const w = gameRef?.world;
       // A replay's end shows the recorded run's own board again: nothing is recorded twice.
@@ -591,6 +598,8 @@ async function main(): Promise<void> {
         });
         // Feats this run completed: cards over the board (the Logbook lists them all).
         void import('./ui/featToast2d.ts').then((m) => m.showNewFeats(progressBefore, loadProgress2D(), LEVELS_2D));
+        // Sky Crystals the win paid (Market): "+n" with the crystal on the board.
+        if (won) gameRef?.end.setCrystals(result.crystalsEarned ?? 0);
         const hr = result.hero;
         if (hr) {
           heroRecorded = true;
@@ -645,6 +654,7 @@ async function main(): Promise<void> {
       document.documentElement.classList.toggle('pu-replaying', on);
       abilities?.aim(null);
       heroHud?.aim(null);
+      itemBelt?.press(null);
       replayBar?.setVisible(on && !gameRef?.end.visible);
     },
     get onNext() {
@@ -697,12 +707,33 @@ async function main(): Promise<void> {
     const { mountAbilityBar2D, abilityArtFiles } = await import('./ui/abilityBar2d.ts');
     // The hero's portrait + skill buttons sit in front of the abilities as one bar (ui/heroHud2d.ts).
     const [{ createHeroHud2D }, { heroArtFiles }] = await Promise.all([import('./ui/heroHud2d.ts'), import('./ui/heroBits.ts')]);
-    heroHud = createHeroHud2D(game, { desktop, files: heroArtFiles(), onAimStart: () => abilities?.aim(null) });
+    heroHud = createHeroHud2D(game, {
+      desktop,
+      files: heroArtFiles(),
+      onAimStart: () => {
+        abilities?.aim(null);
+        itemBelt?.press(null);
+      },
+    });
+    // Market items (Sky Crystals): a belt group behind the abilities, own aiming + FX (ui/itemBelt2d.ts).
+    const { mountItemBelt2D } = await import('./ui/itemBelt2d.ts');
+    itemBelt = mountItemBelt2D(game, {
+      desktop,
+      onAimStart: () => {
+        abilities?.aim(null);
+        heroHud?.aim(null);
+      },
+    });
     abilities = mountAbilityBar2D(game, {
       desktop,
       art: abilityArtFiles(art.baseUrl),
       baseUrl: art.baseUrl,
-      ...(heroHud ? { lead: { el: heroHud.el }, onAimStart: () => heroHud?.aim(null) } : {}),
+      trail: { el: itemBelt.el },
+      ...(heroHud ? { lead: { el: heroHud.el } } : {}),
+      onAimStart: () => {
+        heroHud?.aim(null);
+        itemBelt?.press(null);
+      },
     });
     if (q.get('herosel') === '1') game.setHeroSelected(true);
     // Keyboard arrows / gamepad: the in-run reticle (a virtual mouse on the canvas).
@@ -710,7 +741,7 @@ async function main(): Promise<void> {
     padCursor = mountPadCursor({
       canvas: app.canvas,
       targets: () => game.padTargets(),
-      aiming: () => !!abilities?.aiming || !!heroHud?.aiming,
+      aiming: () => !!abilities?.aiming || !!heroHud?.aiming || !!itemBelt?.aiming,
       heroSpot: () => game.heroScreen(),
       paused: () => game.stepper.paused,
       clickPoint: (x, y) => game.padClickPoint(x, y),
@@ -902,6 +933,7 @@ async function main(): Promise<void> {
       settings.setButtonVisible(false);
       abilities?.setVisible(false);
       heroHud?.setVisible(false);
+      itemBelt?.setVisible(false);
       storyOpen = true;
       void routing.playStoryOnce(level, 'intro', art.manifest, art.baseUrl, storyQ === 'intro').then(() => {
         storyOpen = false;
@@ -911,6 +943,7 @@ async function main(): Promise<void> {
           settings.setButtonVisible(true);
           abilities?.setVisible(true);
           heroHud?.setVisible(true);
+          itemBelt?.setVisible(true);
         }
       });
     }
@@ -936,6 +969,7 @@ async function main(): Promise<void> {
     if (!manual) game.frame(t.deltaMS / 1000);
     ambient?.update(game.qualityTier !== 'low' && !gfx.reducedMotion, game.stepper.paused, game.map.texelScale <= 1);
     abilities?.frame(t.deltaMS / 1000);
+    itemBelt?.frame(t.deltaMS / 1000);
     heroHud?.frame(t.deltaMS / 1000);
     if (fpsChip.visible && t0 - fpsShownAt > 500) {
       fpsShownAt = t0;
@@ -1092,6 +1126,9 @@ async function main(): Promise<void> {
     padClick: () => padCursor?.click(),
     waveCard: () => waveCard?.debug() ?? null,
     hudCheck: () => hudCheck(game),
+    items: () => itemBelt?.debug() ?? null,
+    itemPress: (id) => itemBelt?.press(id),
+    itemCastAt: (x, y) => itemBelt?.castAt(x, y) ?? false,
     textAudit: () => auditCanvasTexts([...game.hud.qaTexts(), ...game.end.qaTexts(), ...game.ring.qaTexts()], app.screen.width, app.screen.height),
     mapFrame: () => game.map.frameInfo(),
     gates: () => gateRectsRef?.() ?? [],

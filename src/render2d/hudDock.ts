@@ -29,9 +29,32 @@ export function heroGroupLong(d: number, gap: number): number {
   return Math.round(d * TRAY_PORTRAIT + d * 2 + d * TRAY_DIVIDER + gap * 3);
 }
 
-/** Length of the tray in a row: hero group (if any), a gap, the two abilities, the backing's padding. */
-export function trayLong(d: number, gap: number, hero: boolean): number {
-  return Math.round((hero ? heroGroupLong(d, gap) + gap : 0) + d * 2 + gap + d * TRAY_PAD * 2);
+/** Belt item buttons: a little smaller than the abilities (never under 40 px), closer together. */
+export const ITEM_SCALE = 0.9;
+export const ITEM_GAP = 0.55;
+
+export function itemButtonD(d: number): number {
+  return Math.round(Math.max(40, d * ITEM_SCALE));
+}
+
+export function itemGap(gap: number): number {
+  return Math.max(4, Math.round(gap * ITEM_GAP));
+}
+
+/**
+ * The item belt group behind the abilities: a divider, a gap, then `n` item buttons in a row
+ * (`row`) or one pouch button that opens them above the tray (`pouch`, narrow screens).
+ */
+export function itemGroupLong(d: number, gap: number, n: number, mode: 'row' | 'pouch'): number {
+  if (n <= 0) return 0;
+  const di = itemButtonD(d);
+  const k = mode === 'pouch' ? 1 : n;
+  return Math.round(d * TRAY_DIVIDER + gap * 2 + k * di + (k - 1) * itemGap(gap));
+}
+
+/** Length of the tray in a row: hero group (if any), a gap, the two abilities, the item group, the backing's padding. */
+export function trayLong(d: number, gap: number, hero: boolean, items = 0, itemMode: 'row' | 'pouch' = 'row'): number {
+  return Math.round((hero ? heroGroupLong(d, gap) + gap : 0) + d * 2 + gap + itemGroupLong(d, gap, items, itemMode) + d * TRAY_PAD * 2);
 }
 
 /** Height of the tray in a row: the hero portrait (or a button) and the backing's padding. */
@@ -49,6 +72,8 @@ export interface HudDockOptions {
   readonly bannerAspect: number;
   /** The hero group leads the tray. */
   readonly hero: boolean;
+  /** Belt item slots behind the abilities (0..3; 0 = no item group). */
+  readonly items?: number;
 }
 
 export interface HornSpot {
@@ -78,6 +103,8 @@ export interface HudDock extends HornSpot {
   readonly trayRange: readonly [number, number];
   readonly trayLayout: 'row';
   readonly d: number;
+  /** The item group: its slot count, row or pouch (narrow screens), button size and spacing. */
+  readonly items: { readonly n: number; readonly mode: 'row' | 'pouch'; readonly d: number; readonly gap: number };
 }
 
 /** Horn radius at a UI scale (never under a comfortable touch target). */
@@ -126,7 +153,10 @@ export function hudDock(w: number, h: number, insets: Insets, o: HudDockOptions)
   const coef = (o.hero ? TRAY_PORTRAIT + 2 + TRAY_DIVIDER + 2 : 2) + TRAY_PAD * 2;
   const fitD = Math.floor((right - left - (o.hero ? 5 : 1) * gap - 2) / coef);
   const d = Math.max(40, Math.min(want, fitD));
-  const tw = trayLong(d, gap, o.hero);
+  // Items in a row when the bottom line has room for them, else one pouch button.
+  const n = Math.max(0, Math.min(3, Math.floor(o.items ?? 0)));
+  const itemMode: 'row' | 'pouch' = n > 0 && trayLong(d, gap, o.hero, n, 'row') > right - left ? 'pouch' : 'row';
+  const tw = trayLong(d, gap, o.hero, n, itemMode);
   const th = trayShort(d, o.hero);
   let tray: Rect;
   let trayRange: [number, number];
@@ -150,6 +180,7 @@ export function hudDock(w: number, h: number, insets: Insets, o: HudDockOptions)
   return {
     form: 'corners', pad, gap, buttons, info, infoRange, plaque, banner, horn: { x: hx, y: hy, r }, hornBox: box(hx, hy), hornTextW, hornAlt,
     tray, trayRange, trayLayout: 'row', d,
+    items: { n, mode: itemMode, d: itemButtonD(d), gap: itemGap(gap) },
   };
 }
 

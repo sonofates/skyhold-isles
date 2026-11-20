@@ -24,6 +24,7 @@ import type { AvailableChallenge2D } from './modes2d.ts';
 import { ruleSeal } from './metaScreens.ts';
 import type { IslandState } from './progress2d.ts';
 import { difficultyLabel, difficultyRuleText, difficultySeal } from './difficulty2d.ts';
+import type { BeltChip } from './marketBelt.ts';
 
 export interface RunChoice {
   readonly challenges: ChallengeId[];
@@ -87,6 +88,8 @@ export function showBriefing(
   onPlay: (choice: RunChoice) => void,
   /** The hero row (heroScreens.ts `heroChip`): shown on an open island. */
   hero?: HTMLElement,
+  /** The item belt row (marketBelt.ts): shown on an open island, greyed for runs without items. */
+  belt?: BeltChip,
 ): Sheet {
   const lvl = st.level;
   const hasModes = st.unlocked && (modes.challenges.length > 0 || modes.endless);
@@ -208,6 +211,8 @@ export function showBriefing(
       b.classList.toggle('muted', endless || easyBlocks);
     }
     endlessSwitch?.setAttribute('aria-checked', String(endless));
+    // Challenges and Endless run without items (data/challenges.ts, modes2d.ts).
+    belt?.update(endless ? 'normal' : difficulty, endless || (!easyBlocks && chosen.size > 0));
     if (!hasModes) return;
     const label = play.lastElementChild!;
     const sub = endless ? t('brief.endless') : chosen.size > 0 ? t('brief.nChallenges', { n: chosen.size }) : t('brief.campaign');
@@ -262,7 +267,7 @@ export function showBriefing(
   const short = typeof matchMedia === 'function' && matchMedia('(max-height: 480px)').matches;
   if (hero && st.unlocked) (modesBox && !short ? modesBox : info).append(hero);
   const left = el('div', 'pu-brief-main', {}, thumbBox, info);
-  sheet.body.append(el('div', 'pu-brief-body', {}, left, modesBox), el('div', 'pu-brief-actions', {}, diffBox, play));
+  sheet.body.append(el('div', 'pu-brief-body', {}, left, modesBox), el('div', 'pu-brief-actions', {}, diffBox, st.unlocked ? (belt?.el ?? null) : null, play));
   requestAnimationFrame(() => play.focus({ preventScroll: true }));
   return sheet;
 }
