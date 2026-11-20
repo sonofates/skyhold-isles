@@ -113,6 +113,42 @@ describe('balance report on the defeat tick', () => {
   });
 });
 
+describe('balance report at story victory', () => {
+  it('keeps every story figure when the final clear bonus funds purchases in Endless', () => {
+    const level: LevelDef = {
+      ...miniLevel(),
+      startingGold: 200,
+      waves: [{
+        clearBonus: 400,
+        groups: [{ enemyType: 'grunt', count: 1, spawnInterval: 1, startDelay: 0 }],
+      }],
+    };
+    const script = [
+      { waveIndex: 0, action: 'build', col: 0, row: 0, towerType: 'archer' },
+      { waveIndex: 0, action: 'upgrade', col: 0, row: 0 },
+      { waveIndex: 0, action: 'upgrade', col: 0, row: 0 },
+      { action: 'specialize', col: 0, row: 0, id: 'farwatch' },
+      { action: 'buyAbility', col: 0, row: 0, id: 'throughshot' },
+      { waveIndex: 0, action: 'build', col: 1, row: 0, towerType: 'cannon', targetingMode: 'strongest' },
+      { waveIndex: 0, action: 'build', col: 1, row: 0, towerType: 'cannon' },
+    ] as const;
+    const story = runLevelBalanceSim(level, 'greedy', script);
+    expect(story).toMatchObject({
+      outcome: 'won', towersBuilt: 1, goldSpent: 200, unspentScriptActions: 4, towerPurchases: [],
+    });
+    const continued = runLevelBalanceSim(level, 'greedy', script, NEUTRAL_RUN_MODIFIERS, 2);
+    expect(continued.endlessOutcome).toBe('lost');
+    expect(continued.endlessReachedWave).toBeGreaterThan(level.waves.length);
+    expect(continued.endlessPeakEnemies).toBeGreaterThan(0);
+    expect(continued).toEqual({
+      ...story,
+      endlessReachedWave: continued.endlessReachedWave,
+      endlessPeakEnemies: continued.endlessPeakEnemies,
+      endlessOutcome: 'lost',
+    });
+  });
+});
+
 describe('2D level loader (px → world)', () => {
   it('maps image px to world units around the image centre', () => {
     const layout = parseLevel2D(MINI_JSON);

@@ -1002,3 +1002,21 @@ TypeScript, lint and the production build passed. Vitest passed 1,448 tests with
 ### Next round
 
 Audit the story economy figures returned by the balance simulator when a run continues into Endless. A probe of L1 reported 206 gold at story victory in both runs, but requesting two Endless waves changed reported gold earned from 1,166 to 1,615 and spent from 1,145 to 1,405. Check the remaining script actions and tower counts at victory as well. No cross-area requests.
+
+## Round 40 — Story economy at the start of Endless
+
+### Done
+
+The balance simulator now records every story field before entering Endless. Generated waves can spend the remaining build queue and register purchases during the continuation. The caller gets those waves’ outcome, furthest wave and peak enemy count alongside the story result.
+
+On L1, both the story-only run and the two-wave continuation now report 185 starting gold, 1,166 earned, 1,145 spent and 206 left at victory. Two scripted upgrades were still queued at victory. The continuation reached wave 13.
+
+The new regression spends all 200 starting gold on a tier-III archer. After victory, the clear bonus funds Farwatch Lodge, Throughshot and a cannon targeting the strongest enemy. A duplicate build then fails on the occupied plot. Before the fix those four actions altered seven story fields, including the recorded tower count and purchase history. The regression compares every story field across the two runs and checks that Endless still runs to defeat.
+
+### Verification
+
+All 41 balance checks and eight difficulty verdicts passed. Both reports matched round 39 byte for byte. Hard i09 finished at 12/22 and Hard i24 at 2/22. The standalone 24,217-byte L1–L16 report matched the round-one baseline. TypeScript, lint and the production build passed. Vitest passed 1,449 tests with 11 skipped. Vite emitted its existing chunk-size and dynamic-import warnings.
+
+### Next round
+
+Audit the road coverage in “The Inner Shoal” on Three Pennants Head (i20). The Hard first-clear kit enters wave nine with seven lives and 26 gold. Five runners and one brute take all seven lives. Trace which road each used and inspect the approach at desktop and phone scale. Hard chapter two already clears five of eight, the top of its target range. No cross-area requests.

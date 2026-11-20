@@ -304,11 +304,30 @@ export function runLevelBalanceSim(
   const lastWaveHoardPct =
     lastRow && earnedBeforeLastWave > 0 ? (lastRow.startGold / earnedBeforeLastWave) * 100 : 0;
   const endGoldPctOfEarned = goldEarned > 0 ? (world.gold / goldEarned) * 100 : 0;
-  const storyOutcome = world.outcome;
-  const storyLives = world.lives;
-  const heroXp = world.heroSystem.runXp;
-  const storyGold = world.gold;
-  const storyWaves = [...waveRows];
+  // Endless reuses the world, event listeners and build queue. Record the story at its boundary.
+  const story = {
+    levelId: level.id,
+    name: level.name,
+    scriptKind,
+    outcome: world.outcome,
+    finalLives: world.lives,
+    stars: world.outcome === 'won' ? computeStarRating(world.lives, level.difficulty, world.startingLives) : 0,
+    startingGold,
+    startingLives: world.startingLives,
+    heroXp: world.heroSystem.runXp,
+    goldEarned,
+    goldSpent,
+    finalGold: world.gold,
+    endGoldPctOfEarned,
+    lastWaveHoardPct,
+    towersBuilt,
+    plannedTowers,
+    targetingChanges,
+    towerPurchases: [...towerPurchases],
+    waves: [...waveRows],
+    unspentScriptActions: queue.length,
+    invalidActions,
+  };
 
   let endlessReachedWave: number | undefined;
   let endlessPeakEnemies: number | undefined;
@@ -337,27 +356,7 @@ export function runLevelBalanceSim(
   }
 
   return {
-    levelId: level.id,
-    name: level.name,
-    scriptKind,
-    outcome: storyOutcome,
-    finalLives: storyLives,
-    stars: storyOutcome === 'won' ? computeStarRating(storyLives, level.difficulty, world.startingLives) : 0,
-    startingGold,
-    startingLives: world.startingLives,
-    heroXp,
-    goldEarned,
-    goldSpent,
-    finalGold: storyGold,
-    endGoldPctOfEarned,
-    lastWaveHoardPct,
-    towersBuilt,
-    plannedTowers,
-    targetingChanges,
-    towerPurchases,
-    waves: storyWaves,
-    unspentScriptActions: queue.length,
-    invalidActions,
+    ...story,
     endlessReachedWave,
     endlessPeakEnemies,
     endlessOutcome,
