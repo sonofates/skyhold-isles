@@ -309,7 +309,7 @@ export function runTitle(q: URLSearchParams, h: TitleHandlers): { screen: TitleS
       showMenu();
       return;
     }
-    if (phase !== 'menu' || document.querySelector('.pu-overlay')) return;
+    if (phase !== 'menu' || document.querySelector('.pu-overlay:not(.closing)')) return;
     // Arrow keys / WASD walk the menu (wrapping); Enter / Space press the focused plank natively.
     const k = e.key.toLowerCase();
     const step = k === 'arrowdown' || k === 's' || k === 'arrowright' || k === 'd' ? 1 : k === 'arrowup' || k === 'w' || k === 'arrowleft' || k === 'a' ? -1 : 0;

@@ -111,7 +111,10 @@
 
 - Pad B in battle sends a synthetic Esc: it closes ring / hero / aim but never pauses (game2d only
   pauses on a trusted Esc) — Start pauses. Documented as "Back / close".
-- Hero-move hint text is still mouse-worded ("Click the road…") with a pad — minor, left.
+- Hero-move / skill / ability aim hints: in key/pad mode the second line explains the cursor
+  (`hero.moveHintPad`, `hero.aimHintPad`).
+- Boards now fade + shrink out on close (0.16 s, `.pu-overlay.closing`, skipped by navFocus; none
+  with reduced motion).
 
 ## Problems / notes
 - Env: `npm ci` needed in a fresh worktree; `npm install --no-save playwright` for QA. Gate:

@@ -316,7 +316,9 @@ export function mountAbilityBar2D(game: Game2D, opts: AbilityBarOptions): Abilit
     const mouse = opts.desktop;
     const aimText = aiming === 'meteor' ? t(mouse ? 'ab.aimMeteorMouse' : 'ab.aimMeteor') : t(mouse ? 'ab.aimOverchargeMouse' : 'ab.aimOvercharge');
     hint.innerHTML = '';
-    hint.append(el('div', 'pu-ink', {}, aimText), el('small', 'pu-ink-soft', {}, t(mouse ? 'ab.cancelMouse' : 'ab.cancelTouch')));
+    // Keyboard / pad in use (navFocus `pu-kbd`): the second line explains the cursor.
+    const pad = document.documentElement.classList.contains('pu-kbd');
+    hint.append(el('div', 'pu-ink', {}, aimText), el('small', 'pu-ink-soft', {}, t(pad ? 'hero.aimHintPad' : mouse ? 'ab.cancelMouse' : 'ab.cancelTouch')));
     hint.hidden = false;
     placeHint();
   };

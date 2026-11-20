@@ -247,7 +247,9 @@ export function createHeroHud2D(game: Game2D, opts: HeroHudOptions): HeroHud2D |
   let hintFor = '';
   const showHint = (): void => {
     const moving = aiming === null && game.heroSelected && visible;
-    const key = aiming !== null ? `aim${aiming}` : moving ? 'move' : '';
+    // Keyboard / pad in use (navFocus `pu-kbd`): the second line explains the cursor instead.
+    const pad = typeof document !== 'undefined' && document.documentElement.classList.contains('pu-kbd');
+    const key = aiming !== null ? `aim${aiming}${pad ? 'k' : ''}` : moving ? `move${pad ? 'k' : ''}` : '';
     if (key === hintFor && (key === '' || !hint.hidden)) return;
     hintFor = key;
     if (!key) {
@@ -259,9 +261,9 @@ export function createHeroHud2D(game: Game2D, opts: HeroHudOptions): HeroHud2D |
     if (aiming !== null) {
       const kind = def.actives[aiming].kind;
       const what = kind === 'overhaul' ? 'hero.aimTower' : kind === 'shieldBash' || kind === 'wispBurst' ? 'hero.aimDir' : 'hero.aimPoint';
-      hint.append(el('div', 'pu-ink', {}, t(what, { skill: heroSkillName(heroId, aiming), verb })), el('small', 'pu-ink-soft', {}, t(opts.desktop ? 'ab.cancelMouse' : 'ab.cancelTouch')));
+      hint.append(el('div', 'pu-ink', {}, t(what, { skill: heroSkillName(heroId, aiming), verb })), el('small', 'pu-ink-soft', {}, t(pad ? 'hero.aimHintPad' : opts.desktop ? 'ab.cancelMouse' : 'ab.cancelTouch')));
     } else {
-      hint.append(el('div', 'pu-ink', {}, t('hero.moveHint', { name: heroName(heroId).split(' ')[0], verb })), el('small', 'pu-ink-soft', {}, t(opts.desktop ? 'hero.moveHintMouse' : 'hero.moveHintTouch')));
+      hint.append(el('div', 'pu-ink', {}, t('hero.moveHint', { name: heroName(heroId).split(' ')[0], verb })), el('small', 'pu-ink-soft', {}, t(pad ? 'hero.moveHintPad' : opts.desktop ? 'hero.moveHintMouse' : 'hero.moveHintTouch')));
     }
     hint.hidden = false;
     const b = group.getBoundingClientRect();

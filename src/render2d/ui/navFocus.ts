@@ -132,7 +132,7 @@ function scrollParent(e: HTMLElement): HTMLElement | null {
 
 /** The DOM scope that owns the keys now (null = the game canvas has them). */
 export function navScope(): HTMLElement | null {
-  const overlays = document.querySelectorAll<HTMLElement>('.pu-overlay');
+  const overlays = document.querySelectorAll<HTMLElement>('.pu-overlay:not(.closing)');
   if (overlays.length > 0) return overlays[overlays.length - 1];
   const title = document.querySelector<HTMLElement>('.pu-title:not(.leaving)');
   if (title) return title;

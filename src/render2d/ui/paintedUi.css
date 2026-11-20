@@ -136,6 +136,29 @@
 
 /* ---- dim backdrop + overlay ---------------------------------------------------------------- */
 
+/* A board closing (dom.ts openSheet): a quick fade and shrink, then it leaves the DOM. */
+.pu-overlay.closing {
+  pointer-events: none;
+  animation: pu-fade-out 0.16s ease-in forwards;
+}
+
+.pu-overlay.closing > .pu-sheet {
+  animation: pu-pop-out 0.16s ease-in forwards;
+}
+
+@keyframes pu-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes pu-pop-out {
+  to {
+    transform: scale(0.94);
+    opacity: 0;
+  }
+}
+
 .pu-overlay {
   position: fixed;
   inset: 0;
