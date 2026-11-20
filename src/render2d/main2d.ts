@@ -1,7 +1,7 @@
 import '@fontsource-variable/fredoka';
 import './ui/fredokaTr.css';
 import { Application, UPDATE_PRIORITY } from 'pixi.js';
-import { getLevelById } from '../data/levels2d/index.ts';
+import { getLevelById, LEVELS_2D } from '../data/levels2d/index.ts';
 import { buildEndlessWaveDef } from '../sim/waveSystem.ts';
 import { AbScene } from './abScene.ts';
 import { artCheckSummary, mountArtCheck } from './artCheck.ts';
@@ -9,7 +9,7 @@ import { changeMapVariant, loadArt } from './assets2d.ts';
 import { autoplayHooks, benchHooks } from './benchScene.ts';
 import { mountCodex2D } from './codex2d.ts';
 import { initLocale, t } from '../i18n/index.ts';
-import { heroName } from '../i18n/data.ts';
+import { heroName, islandName } from '../i18n/data.ts';
 import { AimOverlay, aimHooks, meleeHooks, towersHooks, zooHooks, ZooLabels, type AimSceneState, type MeleeSceneState } from './debugScenes.ts';
 import { ENEMY_TYPES } from '../data/enemies.ts';
 import { getTowerTierStats } from '../data/towers.ts';
@@ -33,15 +33,19 @@ import type { GateLayer } from './gateLayer.ts';
 import { MASTER_SCALE, maxMapScale, pickMapVariant } from './mapVariant.ts';
 import { mountSettings2D, type Settings2D } from './settingsButton2d.ts';
 import { hudKeepOuts, readSafeInsets } from './uiKit.ts';
-import { gateKeepOutsPx, hudButtonsKeepOut } from './uiLayout.ts';
+import { gateKeepOutsPx, hudButtonsKeepOut, setUserUiScale, userUiScale } from './uiLayout.ts';
 import { uiUnit } from './hudDock.ts';
 import { hudCheck } from './hudCheck.ts';
 import { auditCanvasTexts } from './qaText.ts';
 import { anySheetOpen } from './ui/dom.ts';
+import { installNav } from './ui/navFocus.ts';
+import { dismissBoot, navigateWithVeil, pickLoadTip, setBootText, setBootTip } from './ui/transition2d.ts';
 
 /**
  * 2d.html entry — the painted 2D renderer (Pixi v8) on the real sim.
- *   (no params)       the world map (island select, briefing, Workshop / Logbook / Daily / Settings);
+ *   (no params)       the title screen once per session (titleScreen.ts; ?title=1 forces it, ?title=0 or
+ *                     an automated browser skips it), then the world map (island select, briefing,
+ *                     Workshop / Logbook / Daily / Settings);
  *                     map QA: ?screen=brief|workshop|logbook|daily|settings|store, ?mockislands=N,
  *                     ?store=<id> (store card for a paid island), ?iapmock=1 (mock store, mobile scope)
  *   ?level=l1c        play an island (deep link, skips the map; any debug param below defaults to l1c)
@@ -86,6 +90,8 @@ declare global {
     __bench?: BenchStats;
     __aim?: AimSceneState;
     __meleeScene?: MeleeSceneState & { step: (frames: number) => void; stats: () => Record<string, unknown>; toScreen: (x: number, z: number) => { x: number; y: number } };
+    /** QA: the title screen (phase, loading fraction, menu entries). */
+    __title?: import('./ui/titleScreen.ts').TitleScreen;
     __p0?: {
       mode: string;
       state: () => Record<string, unknown>;
@@ -99,6 +105,9 @@ declare global {
       artcheck?: () => ReturnType<typeof artCheckSummary>;
       /** QA: the ability bar (state, boxes, FX counters) and aiming as a button press would. */
       abilities?: () => Record<string, unknown> | null;
+      /** QA: the keyboard / gamepad reticle (padCursor.ts). */
+      pad?: () => { shown: boolean; x: number; y: number; mode: string } | null;
+      padClick?: () => void;
       /** QA: the next-wave card (in the dock's info slot). */
       waveCard?: () => Record<string, unknown> | null;
       /** QA: every HUD piece as drawn (screen px) and what playable shape each one covers (must be none). */
@@ -163,7 +172,18 @@ function applyGraphics(g: GraphicsSettings, quality: GameSettings['quality'], de
   setGraphicsPrefs(engine.prefs);
   setFxPrefs(engine.fx);
   document.documentElement.classList.toggle('pu-reduce-motion', g.reducedMotion);
+  applyUiScale(g.uiScale);
   return engine;
+}
+
+/** Interface size: the CSS unit (`--ui-scale`) and the HUD layout math (uiLayout.ts) together. */
+function applyUiScale(k: number): void {
+  if (k === userUiScale() && document.documentElement.style.getPropertyValue('--ui-scale') === String(k)) return;
+  const changed = k !== userUiScale();
+  setUserUiScale(k);
+  document.documentElement.style.setProperty('--ui-scale', String(k));
+  // Everything laid out from the screen size (map fit, HUD dock, boards) lays out again.
+  if (changed) requestAnimationFrame(() => window.dispatchEvent(new Event('resize')));
 }
 
 /** Pixi skips a frame that comes a hair early: leave 8% slack so a 60 cap keeps every 60 Hz frame. */
@@ -210,8 +230,7 @@ const GAME_PARAMS = ['level', 'hero', 'daily', 'challenge', 'endless', 'ab', 'be
 function bootLocale(): Promise<unknown> {
   initLocale();
   document.title = t('page.title');
-  const boot = document.getElementById('boot');
-  if (boot) boot.textContent = t('boot.loading');
+  setBootText(t('boot.loading'));
   return Promise.all([
     document.fonts.load(`700 32px ${HUD_FONT}`, 'Aa'), // i18n-ignore (font probe)
     document.fonts.load(`700 32px ${HUD_FONT}`, 'ğşıİçöüĞŞÇÖÜ'),
@@ -219,19 +238,56 @@ function bootLocale(): Promise<unknown> {
   ]).catch(() => undefined);
 }
 
+/** The title screen in front of the world map (titleScreen.ts); the map mounts on Continue / New game. */
+async function runTitleScreen(q: URLSearchParams, title: typeof import('./ui/titleScreen.ts')): Promise<void> {
+  dismissBoot();
+  const { screen, done } = title.runTitle(q, {
+    openMap: async () => {
+      const { mountWorldMap } = await import('./ui/worldMap.ts');
+      await mountWorldMap(q);
+    },
+    openSettings: (onClose) => {
+      void import('./ui/metaScreens.ts').then(({ openSettings }) =>
+        openSettings({ levels: LEVELS_2D, onChange: () => undefined, onClose, reloadTo: '?title=1&titleopen=settings' }),
+      );
+    },
+    openCredits: (onClose) => {
+      void import('./ui/credits2d.ts').then(({ openCredits }) => openCredits(onClose));
+    },
+    confirmNewGame: async () => {
+      const { confirmBoard } = await import('./ui/runControls2d.ts');
+      return confirmBoard({ title: t('title.newTitle'), body: t('title.newBody'), yes: t('title.newYes'), no: t('title.newNo'), testid: 'confirm-newgame' });
+    },
+  });
+  window.__title = screen;
+  await done;
+}
+
 async function main(): Promise<void> {
   const q = new URLSearchParams(location.search);
   const fontsReady = bootLocale();
+  installNav();
+  // Interface size changes on the map too (the run's own listener re-applies the rest).
+  window.addEventListener(GRAPHICS_EVENT, () => applyUiScale(loadGraphics().uiScale));
   const desktop = isDesktopClient(q);
   let gfx = loadGraphics();
   let engine = applyGraphics(gfx, loadSettings().quality, desktop);
   if (!GAME_PARAMS.some((k) => q.has(k))) {
     await fontsReady;
+    const title = await import('./ui/titleScreen.ts');
+    if (title.shouldShowTitle(q, { seen: title.titleSeen(), automated: navigator.webdriver === true })) {
+      await runTitleScreen(q, title);
+      return;
+    }
     const { mountWorldMap } = await import('./ui/worldMap.ts');
     await mountWorldMap(q);
-    document.getElementById('boot')?.remove();
+    dismissBoot();
     return;
   }
+  // A battle is loading: the boot screen names the island and shows a tip.
+  const bootLevel = getLevelById(q.get('level') ?? '');
+  if (bootLevel && !q.has('bench') && !q.has('ab')) setBootText(t('boot.course', { name: islandName(bootLevel) }));
+  if (!q.has('bench') && !q.has('ab')) setBootTip(t('boot.tipLabel'), t(pickLoadTip(Math.random())));
   const ab = q.get('ab') === '1';
   const bench = Math.max(0, Math.min(340, Number(q.get('bench') ?? 0) || 0));
   const isDebugScene =
@@ -372,7 +428,7 @@ async function main(): Promise<void> {
     watchMap(scene.map);
     app.renderer.on('resize', onResize);
     app.ticker.add((t) => scene.frame(Math.min(0.1, t.deltaMS / 1000)));
-    document.getElementById('boot')?.remove();
+    dismissBoot();
     app.ticker.start();
     window.__p0 = { mode: 'ab', state: () => scene.debugState() };
     return;
@@ -454,6 +510,7 @@ async function main(): Promise<void> {
   window.addEventListener('focus', refreshLiveSettings, { capture: true });
   let abilities: AbilityBar2D | null = null;
   let heroHud: HeroHud2D | null = null;
+  let padCursor: import('./ui/padCursor.ts').PadCursor | null = null;
   let replayBar: import('./ui/runControls2d.ts').ReplayBar2D | null = null;
   // Endless run left early (World Map / Restart): its best wave still goes on the board.
   const recordEndlessQuit = (): void => {
@@ -508,6 +565,7 @@ async function main(): Promise<void> {
       let heroRecorded = false;
       if (plainPlay) {
         const masteredBefore = routing.isMastered(level.id);
+        const progressBefore = loadProgress2D();
         const result = routing.recordRunOutcome({
           levelId: level.id,
           won,
@@ -520,6 +578,8 @@ async function main(): Promise<void> {
           wavesCleared: won ? level.waves.length : Math.max(0, w.waveSystem.currentWaveOneBased - 1),
           heroXpEarned: w.heroSystem.runXp,
         });
+        // Feats this run completed: cards over the board (the Logbook lists them all).
+        void import('./ui/featToast2d.ts').then((m) => m.showNewFeats(progressBefore, loadProgress2D(), LEVELS_2D));
         const hr = result.hero;
         if (hr) {
           heroRecorded = true;
@@ -568,7 +628,7 @@ async function main(): Promise<void> {
     },
     onMenu: () => {
       recordEndlessQuit();
-      location.assign(routing.worldMapHref());
+      navigateWithVeil(routing.worldMapHref());
     },
     onReplay: (on) => {
       document.documentElement.classList.toggle('pu-replaying', on);
@@ -578,7 +638,7 @@ async function main(): Promise<void> {
     },
     get onNext() {
       const next = routing.nextIslandOpen(level.id, gameRef?.world.outcome === 'won');
-      return next ? () => location.assign(routing.islandHref(next)) : undefined;
+      return next ? () => navigateWithVeil(routing.islandHref(next)) : undefined;
     },
   };
   const game = new Game2D(app, art, level, hooks);
@@ -607,7 +667,7 @@ async function main(): Promise<void> {
     );
   }
   draws?.take();
-  document.getElementById('boot')?.remove();
+  dismissBoot();
   // Settings → Graphics: frame-rate cap, FPS chip, and live re-apply while a run is open.
   const { mountFpsCounter } = await import('./ui/fpsCounter.ts');
   const fpsChip = mountFpsCounter();
@@ -633,6 +693,16 @@ async function main(): Promise<void> {
       ...(heroHud ? { lead: { el: heroHud.el }, onAimStart: () => heroHud?.aim(null) } : {}),
     });
     if (q.get('herosel') === '1') game.setHeroSelected(true);
+    // Keyboard arrows / gamepad: the in-run reticle (a virtual mouse on the canvas).
+    const { mountPadCursor } = await import('./ui/padCursor.ts');
+    padCursor = mountPadCursor({
+      canvas: app.canvas,
+      targets: () => game.padTargets(),
+      aiming: () => !!abilities?.aiming || !!heroHud?.aiming,
+      heroSpot: () => game.heroScreen(),
+      paused: () => game.stepper.paused,
+      clickPoint: (x, y) => game.padClickPoint(x, y),
+    });
   }
   if (bench === 0) {
     const codex = mountCodex2D(art, (open) => {
@@ -977,6 +1047,8 @@ async function main(): Promise<void> {
     hudWave: () => game.hud.waveLabel,
     artcheck: () => artCheckSummary(art),
     abilities: () => abilities?.debug() ?? null,
+    pad: () => padCursor?.state() ?? null,
+    padClick: () => padCursor?.click(),
     waveCard: () => waveCard?.debug() ?? null,
     hudCheck: () => hudCheck(game),
     textAudit: () => auditCanvasTexts([...game.hud.qaTexts(), ...game.end.qaTexts(), ...game.ring.qaTexts()], app.screen.width, app.screen.height),

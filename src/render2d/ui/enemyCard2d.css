@@ -42,6 +42,19 @@
   box-shadow: 0 0 0 2.5px #7a5532, inset 0 -3px 5px rgba(40, 60, 20, 0.35);
 }
 
+.pu-foe-facebox {
+  position: relative;
+  flex: none;
+  display: inline-grid;
+}
+
+.pu-foe-face-marks {
+  position: absolute;
+  right: calc(var(--s) * -0.45);
+  bottom: calc(var(--s) * -0.3);
+  --mark: calc(var(--s) * 1.3);
+}
+
 .pu-foe-face.flying {
   background: radial-gradient(circle at 50% 35%, #eaf6ff, #9cc6e6 80%);
 }

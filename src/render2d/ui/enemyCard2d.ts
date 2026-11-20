@@ -14,6 +14,7 @@ import { speedClass } from '../../ui/content/codexData.ts';
 import type { Rect } from '../uiLayout.ts';
 import { dockCard } from './dockCard.ts';
 import { el, img } from './dom.ts';
+import { ARMORED_MIN, foeMarks } from './foeMarks.ts';
 
 export interface FoeFacts {
   readonly name: string;
@@ -67,7 +68,8 @@ export function mountEnemyCard(portrait: (type: string) => string | null): Enemy
   const stats = el('div', 'pu-foe-stats pu-ink');
   const desc = el('div', 'pu-foe-desc pu-ink-soft');
   const counter = el('div', 'pu-foe-counter pu-ink');
-  const head = el('div', 'pu-foe-head', {}, face, el('div', 'pu-foe-title', {}, el('div', 'pu-foe-row', {}, name, tags), el('div', 'pu-foe-row', {}, bar, hpText)));
+  const faceBox = el('span', 'pu-foe-facebox', {}, face);
+  const head = el('div', 'pu-foe-head', {}, faceBox, el('div', 'pu-foe-title', {}, el('div', 'pu-foe-row', {}, name, tags), el('div', 'pu-foe-row', {}, bar, hpText)));
   card.append(head, stats, desc, counter);
   card.classList.add('docked');
   card.style.display = 'none';
@@ -95,6 +97,9 @@ export function mountEnemyCard(portrait: (type: string) => string | null): Enemy
     face.replaceChildren(url ? img(url) : el('b', '', {}, f.name.slice(0, 1)));
     face.classList.toggle('boss', f.tags.includes(t('codex.kicker.boss')));
     face.classList.toggle('flying', e.flying);
+    faceBox.querySelector('.pu-foe-marks')?.remove();
+    const marks = foeMarks({ flying: e.flying, armored: f.armor >= ARMORED_MIN, boss: f.tags.includes(t('codex.kicker.boss')) }, 'pu-foe-face-marks');
+    if (marks) faceBox.append(marks);
     name.textContent = f.name;
     tags.replaceChildren(...f.tags.map((tg) => el('span', `pu-foe-tag${tg === t('foe.empowered') ? ' elite' : ''}`, {}, tg)));
     stats.replaceChildren(

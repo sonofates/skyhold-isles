@@ -344,3 +344,34 @@
 .pu-reduce-motion .pu-ab-hint {
   animation: none !important;
 }
+
+/* Controller in use (html.pu-pad, navFocus.ts): the badge shows the pad button instead of the key —
+   a dark pill like Settings → Controls, the hero's Y in its yellow. */
+html.pu-pad .pu-ab-key[data-pad] {
+  font-size: 0;
+  background: linear-gradient(#5b5560, #36313b);
+  box-shadow: 0 0 0 2px var(--outline), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+
+html.pu-pad .pu-ab-key[data-pad]::after {
+  content: attr(data-pad);
+  font-size: calc(var(--d, 60px) * 0.19);
+}
+
+html.pu-pad .pu-ab-key[data-pad='Y'] {
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #ffe08a, #d39a2c 70%);
+}
+
+/* Tooltip "Key Q" ↔ "Key LB" (padBadges.ts tipKey). */
+.pu-ab-tip-key .k-pad {
+  display: none;
+}
+
+html.pu-pad .pu-ab-tip-key .k-pad {
+  display: inline;
+}
+
+html.pu-pad .pu-ab-tip-key .k-pad + .k-key {
+  display: none;
+}

@@ -7,7 +7,8 @@
   height: 1.9em;
   padding: 0 0.2em;
   border-radius: 50%;
-  font-size: calc(var(--d, calc(var(--s) * 4.4)) * 0.24);
+  /* Never under 10 px (text size check on phones: the digits were 8.6 px). */
+  font-size: max(10px, calc(var(--d, calc(var(--s) * 4.4)) * 0.24));
   font-weight: 700;
   line-height: 1;
   background: radial-gradient(circle at 35% 30%, #ffe08a, #d39a2c 60%, #8a5a1a);
@@ -38,7 +39,7 @@
   position: relative;
   display: block;
   text-align: center;
-  font-size: calc(var(--s) * 1.05);
+  font-size: max(10px, calc(var(--s) * 1.05));
   line-height: calc(var(--s) * 1.7);
   white-space: nowrap;
 }

@@ -12,12 +12,13 @@ import { LEVELS_2D } from '../../data/levels2d/index.ts';
 import type { LevelDef } from '../../data/levels/types.ts';
 import { buyRank, maxRank, nextRankCost, rankOf, WORKSHOP_BRANCHES, WORKSHOP_UPGRADES, workshopTotalCost, type WorkshopUpgradeDef } from '../../data/workshop.ts';
 import { featStatuses, type FeatIcon } from '../../game/feats.ts';
+import { markFeatsSeen, unseenFeats } from './featSeen.ts';
 import { isIslandMastered, starWallet } from '../../game/progression.ts';
 import { isTouchDevice, loadSettings, saveSettings } from '../../platform/storage.ts';
 import { isDesktopClient } from '../renderResolution.ts';
 import { ABILITY_KEYS } from './abilities2d.ts';
 import { HERO_KEYS } from './heroKeys.ts';
-import { announceGraphicsChange, loadGraphics, reapplyGraphicsSettings, saveGraphics, type EffectsDensity, type FpsCap, type GraphicsSettings } from './graphicsSettings.ts';
+import { announceGraphicsChange, clampUiScale, loadGraphics, reapplyGraphicsSettings, saveGraphics, UI_SCALE_MAX, UI_SCALE_MIN, type EffectsDensity, type FpsCap, type GraphicsSettings } from './graphicsSettings.ts';
 import { branchName, challengeDesc, challengeName, difficultyName, featDesc, featName, islandName, upgradeName, upgradeRankText } from '../../i18n/data.ts';
 import { getLocale, LANGUAGE_NAMES, LOCALES, pct, setLocale, shortDate, t, type Locale, type MsgKey } from '../../i18n/index.ts';
 import { reapplyLocaleSetting, saveLocaleSetting } from '../../i18n/localeSetting.ts';
@@ -26,6 +27,8 @@ import { endlessRecordText, tierColour } from './modeBits.ts';
 import { difficultyWinsOf } from '../../data/difficulty.ts';
 import { difficultySeal } from './difficulty2d.ts';
 import { dailyForToday, dailyHref2D } from './modes2d.ts';
+import { openCredits } from './credits2d.ts';
+import { navigateWithVeil } from './transition2d.ts';
 import { resetProgress2D, saveProgress2D } from './progress2d.ts';
 import { openStore, ownsFullAdventure, storeEnabled } from './store2d.ts';
 
@@ -127,11 +130,15 @@ function seal(icon: FeatIcon): HTMLSpanElement {
   return sealBadge(icon);
 }
 
-export function openLogbook(ctx: MetaContext, tab: 'islands' | 'feats' = 'islands'): Sheet {
-  const sheet = openSheet(t('lb.title'), { cls: 'pu-meta', testid: 'logbook2d' });
+export function openLogbook(ctx: MetaContext, tab?: 'islands' | 'feats', onClose?: () => void): Sheet {
+  const sheet = openSheet(t('lb.title'), { cls: 'pu-meta', testid: 'logbook2d', onClose });
+  // Feats earned since the last look carry a "New" tag (and open the board on their tab).
+  const fresh = new Set(unseenFeats(ctx.progress, ctx.levels));
+  let view: 'islands' | 'feats' = tab ?? (fresh.size > 0 ? 'feats' : 'islands');
   const render = (): void => {
     const p = ctx.progress;
     const levels = ctx.levels;
+    if (view === 'feats') markFeatsSeen(p, levels);
     const wallet = starWallet(p);
     let badges = 0;
     let badgesMax = 0;
@@ -175,17 +182,18 @@ export function openLogbook(ctx: MetaContext, tab: 'islands' | 'feats' = 'island
     const mk = (id: 'islands' | 'feats', label: string): void => {
       const b = plank(label, { kind: 'small', testid: `lb2d-tab-${id}` });
       b.setAttribute('role', 'tab');
-      b.setAttribute('aria-selected', String(tab === id));
+      b.setAttribute('aria-selected', String(view === id));
       b.addEventListener('click', () => {
-        tab = id;
+        view = id;
         render();
       });
+      if (id === 'feats' && view !== 'feats' && fresh.size > 0) b.append(el('span', 'pu-dot pu-tab-dot', { 'aria-hidden': 'true' }));
       tabs.append(b);
     };
     mk('islands', t('lb.tabIslands'));
     mk('feats', t('lb.tabFeats', { e: earned, n: feats.length }));
     const list = el('div', 'pu-ledger');
-    if (tab === 'islands') {
+    if (view === 'islands') {
       levels.forEach((lvl, i) => {
         const unlocked = i <= p.unlockedLevelIndex;
         const row = el('div', `pu-ledger-row${unlocked ? '' : ' locked'}`);
@@ -242,16 +250,23 @@ export function openLogbook(ctx: MetaContext, tab: 'islands' | 'feats' = 'island
       });
     } else {
       for (const f of feats) {
+        const isNew = f.earned && fresh.has(f.def.id);
         const pct = Math.round((Math.min(f.current, f.target) / Math.max(1, f.target)) * 100);
         const bar = el('div', 'pu-bar', {}, el('i'), el('span', 'pu-letter', {}, `${Math.min(f.current, f.target)}/${f.target}`));
         (bar.firstChild as HTMLElement).style.setProperty('--p', `${pct}%`);
         list.append(
           el(
             'div',
-            `pu-feat${f.earned ? '' : ' locked'}`,
-            {},
+            `pu-feat${f.earned ? '' : ' locked'}${isNew ? ' new' : ''}`,
+            { 'data-testid': `lb2d-feat-${f.def.id}` },
             seal(f.def.icon),
-            el('div', '', {}, el('div', 'pu-feat-name pu-ink', {}, featName(f.def)), el('div', 'pu-feat-desc pu-ink-soft', {}, featDesc(f.def))),
+            el(
+              'div',
+              '',
+              {},
+              el('div', 'pu-feat-name pu-ink', {}, featName(f.def), isNew ? el('span', 'pu-feat-new pu-letter', {}, t('lb.featNew')) : null),
+              el('div', 'pu-feat-desc pu-ink-soft', {}, featDesc(f.def)),
+            ),
             bar,
           ),
         );
@@ -261,7 +276,7 @@ export function openLogbook(ctx: MetaContext, tab: 'islands' | 'feats' = 'island
       'div',
       'pu-meta-foot pu-ink-soft',
       {},
-      tab === 'feats'
+      view === 'feats'
         ? earned === 0
           ? t('lb.featsEmpty')
           : t('lb.featsFoot', { n: earned, total: feats.length })
@@ -329,7 +344,7 @@ export function openDaily(ctx: MetaContext, nowMs = Date.now()): Sheet {
   });
   start.addEventListener('click', () => {
     sheet.close();
-    location.assign(dailyHref2D(level.id));
+    navigateWithVeil(dailyHref2D(level.id));
   });
   sheet.body.append(el('div', 'pu-daily-grid', {}, left, el('div', '', {}, rules)), el('div', 'pu-brief-actions', {}, start));
   return sheet;
@@ -362,6 +377,10 @@ function switchLocale(l: Locale, ctx: SettingsContext): void {
   if (l === getLocale()) return;
   setLocale(l);
   ctx.onChange();
+  if (ctx.reloadTo) {
+    location.assign(`${location.pathname}${ctx.reloadTo}`);
+    return;
+  }
   const q = new URLSearchParams(location.search);
   q.delete('lang');
   // In a run the island reloads (in the new language) with Settings open again.
@@ -381,6 +400,8 @@ export interface SettingsContext {
   readonly inGame?: boolean;
   readonly onClose?: () => void;
   readonly tab?: SettingsTab;
+  /** Query to reload with after a language switch (default: the map / the run with Settings open). */
+  readonly reloadTo?: string;
 }
 
 export const SETTINGS_TABS = ['general', 'audio', 'graphics', 'controls'] as const;
@@ -426,6 +447,12 @@ function choice<T extends string | number>(options: readonly (readonly [T, strin
 /** A painted key cap (Controls). */
 function keyCap(label: string): HTMLElement {
   return el('kbd', 'pu-key pu-letter', {}, label);
+}
+
+/** A controller button cap: `face` A / B / X / Y round and coloured, the rest a dark pill. */
+function padCap(label: string): HTMLElement {
+  const face = ['A', 'B', 'X', 'Y'].includes(label);
+  return el('kbd', `pu-key pu-letter pad${face ? ` face pad-${label.toLowerCase()}` : ''}`, {}, label);
 }
 
 function fullscreenSupported(): boolean {
@@ -474,8 +501,18 @@ export function openSettings(ctx: SettingsContext): Sheet {
         if (!reset.disabled) reset.querySelector('span')!.textContent = t('set.reset');
       }, 3300);
     });
+    // Interface size 90–130 %: the whole painted UI and the battle HUD follow (live).
+    const sizeVal = el('span', 'pu-slider-val pu-ink', {}, pct(g.uiScale));
+    const size = slider((g.uiScale - UI_SCALE_MIN) / (UI_SCALE_MAX - UI_SCALE_MIN), t('set.uiScale'), 'set2d-uiscale', (v) => {
+      const k = clampUiScale(UI_SCALE_MIN + v * (UI_SCALE_MAX - UI_SCALE_MIN));
+      if (k === g.uiScale) return;
+      g.uiScale = k;
+      sizeVal.textContent = pct(k);
+      saveGfx();
+    });
     const rows = [
       row(t('set.language'), ctx.inGame ? t('set.languageNoteInGame') : t('set.languageNote'), languagePicker(ctx)),
+      row(t('set.uiScale'), t('set.uiScaleNote'), flex(size, sizeVal), 'set2d-uiscale-row'),
       row(
         t('set.dmg'),
         t('set.dmgNote'),
@@ -506,6 +543,9 @@ export function openSettings(ctx: SettingsContext): Sheet {
       tips.disabled = true;
     });
     rows.push(row(t('set.tips'), t('set.tipsNote'), tips));
+    const credits = plank(t('set.creditsOpen'), { kind: 'small', testid: 'set2d-credits' });
+    credits.addEventListener('click', () => openCredits(() => credits.focus({ preventScroll: true })));
+    rows.push(row(t('credits.title'), t('set.creditsNote'), credits));
     if (ctx.inGame) return rows;
     // Mobile builds only: the store (Buy / Restore purchases must stay reachable after a purchase).
     if (storeEnabled()) {
@@ -697,6 +737,8 @@ export function openSettings(ctx: SettingsContext): Sheet {
   // --- Controls --------------------------------------------------------------------------------
   const controls = (): HTMLElement[] => {
     const keyRow = (caps: readonly string[], what: string): HTMLElement => el('div', 'pu-key-row', {}, el('span', 'pu-key-caps', {}, ...caps.map(keyCap)), el('span', 'pu-ink', {}, what));
+    // Controller caps: round face buttons (A / B / X / Y in their usual colours), pill shoulders.
+    const padRow = (caps: readonly string[], what: string): HTMLElement => el('div', 'pu-key-row', {}, el('span', 'pu-key-caps', {}, ...caps.map(padCap)), el('span', 'pu-ink', {}, what));
     const section = (title: string, ...items: HTMLElement[]): HTMLElement => el('section', 'pu-key-section', {}, el('h3', 'pu-letter', {}, title), el('div', 'pu-key-list', {}, ...items));
     const out: HTMLElement[] = [];
     if (touch) out.push(section(t('set.touch'), el('div', 'pu-key-row pu-ink', {}, t('touch.build')), el('div', 'pu-key-row pu-ink', {}, t('touch.hero')), el('div', 'pu-key-row pu-ink', {}, t('touch.ability')), el('div', 'pu-key-row pu-ink', {}, t('touch.cancel'))));
@@ -714,10 +756,41 @@ export function openSettings(ctx: SettingsContext): Sheet {
         keyRow([HERO_KEYS.skill0], t('key.heroSkill1')),
         keyRow([HERO_KEYS.skill1], t('key.heroSkill2')),
         keyRow([t('key.esc')], t('key.cancel')),
+        keyRow(['↑', '↓', '←', '→'], t('key.cursor')),
+        keyRow([t('key.enter')], t('key.cursorPress')),
       ),
+      // Mouse + replay under the keyboard list, menus and the controller in the second column.
+      ...(!touch || desktop ? [section(t('set.mouse'), keyRow([t('key.rightClick')], t('key.cancelAim')), keyRow([t('key.rightClick')], t('key.heroMove')))] : []),
       section(t('set.replayKeys'), keyRow([t('key.space')], t('key.pause')), keyRow(['1', '2', '4'], t('key.replaySpeed')), keyRow([t('key.esc')], t('key.replayLeave'))),
+      section(
+        t('set.menuKeys'),
+        keyRow(['↑', '↓', '←', '→'], t('key.navMove')),
+        keyRow(['W', 'A', 'S', 'D'], t('key.navMove')),
+        keyRow([t('key.enter'), t('key.space')], t('key.navPress')),
+        keyRow([t('key.esc')], t('key.navBack')),
+      ),
+      section(
+        t('set.gamepad'),
+        padRow([t('pad.dpad'), t('pad.stick')], t('key.navMove')),
+        padRow(['A'], t('key.navPress')),
+        padRow(['B'], t('key.navBack')),
+        padRow(['LB', 'RB'], t('key.navTabs')),
+        padRow([t('pad.start')], t('key.pause')),
+      ),
+      section(
+        t('set.gamepadRun'),
+        padRow([t('pad.dpad'), t('pad.stick')], t('key.cursor')),
+        padRow(['A'], t('key.cursorPress')),
+        padRow(['B'], t('key.navBack')),
+        padRow(['X'], t('key.wave')),
+        padRow(['Y'], t('key.heroSelect')),
+        padRow(['LB'], t('key.meteor')),
+        padRow(['RB'], t('key.overcharge')),
+        padRow(['LT'], t('key.heroSkill1')),
+        padRow(['RT'], t('key.heroSkill2')),
+        padRow([t('pad.start')], t('key.pause')),
+      ),
     );
-    if (!touch || desktop) out.push(section(t('set.mouse'), keyRow([t('key.rightClick')], t('key.cancelAim')), keyRow([t('key.rightClick')], t('key.heroMove'))));
     return [el('div', 'pu-key-grid', {}, ...out)];
   };
 

@@ -4,6 +4,7 @@
  * bonus, speed).
  */
 import { t } from '../../i18n/index.ts';
+import { tipKey } from './padBadges.ts';
 import { el } from './dom.ts';
 
 export type HudTipFor = 'horn' | 'pause' | 'speed' | 'lives' | 'gold';
@@ -17,12 +18,12 @@ export interface HudTipState {
 }
 
 /** Tooltip text for a HUD button (pure). */
-export function hudTipText(what: HudTipFor, s: HudTipState): { head: string; key: string; desc: string } {
+export function hudTipText(what: HudTipFor, s: HudTipState): { head: string; key: string; pad?: string; desc: string } {
   if (what === 'horn') {
     const desc = !s.canCall ? t('tip.hornWait') : s.first ? t('tip.hornFirst') : s.earlyBonus > 0 ? t('tip.hornBonus', { n: s.earlyBonus }) : t('tip.hornNow');
-    return { head: t('tip.horn'), key: 'N', desc };
+    return { head: t('tip.horn'), key: 'N', pad: 'X', desc }; // i18n-ignore (button name)
   }
-  if (what === 'pause') return { head: s.paused ? t('tip.resume') : t('tip.pause'), key: t('key.space'), desc: t('tip.pauseDesc') };
+  if (what === 'pause') return { head: s.paused ? t('tip.resume') : t('tip.pause'), key: t('key.space'), pad: t('pad.start'), desc: t('tip.pauseDesc') };
   if (what === 'lives') return { head: t('tip.lives'), key: '', desc: t('tip.livesDesc') };
   if (what === 'gold') return { head: t('tip.gold'), key: '', desc: t('tip.goldDesc') };
   return { head: t('tip.speed', { n: s.speed }), key: '1 2 3', desc: t('tip.speedDesc') };
@@ -50,7 +51,7 @@ export function mountHudTips(): HudTips2D {
       if (k !== key) {
         key = k;
         tip.replaceChildren(
-          el('div', 'pu-ab-tip-head pu-ink', {}, txt.head, txt.key ? el('span', 'pu-ab-tip-key pu-letter', {}, t('ab.key', { key: txt.key })) : null),
+          el('div', 'pu-ab-tip-head pu-ink', {}, txt.head, txt.key ? (txt.pad ? tipKey(txt.key, txt.pad) : el('span', 'pu-ab-tip-key pu-letter', {}, t('ab.key', { key: txt.key }))) : null),
           el('div', 'pu-ab-tip-desc pu-ink-soft', {}, txt.desc),
         );
       }

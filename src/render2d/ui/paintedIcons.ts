@@ -65,6 +65,17 @@ export const ICONS = {
     `<rect x="12" y="9" width="9" height="30" rx="2.5" fill="#fff4dc" stroke="${O}" stroke-width="3.2"/>` +
       `<rect x="27" y="9" width="9" height="30" rx="2.5" fill="#fff4dc" stroke="${O}" stroke-width="3.2"/>`,
   ),
+  /** Flyer mark (colour-blind-safe cue next to the sky-blue backdrop): a cream feathered wing. */
+  wing: svg(
+    `<path d="M6 30 C10 16 22 9 42 8 C38 13 36 16 31 18 C36 18 38 19 40 20 C35 24 31 25 26 25 C30 27 31 28 32 30 C25 33 16 33 6 30 Z" fill="#fff4dc" stroke="${O}" stroke-width="3.2"/>` +
+      `<path d="M13 28 C19 22 26 18 34 14 M15 30 C21 27 25 26 29 24" fill="none" stroke="#7cb4dc" stroke-width="2.4"/>`,
+  ),
+  /** Armour mark (foes with heavy armour): an iron shield with a gold rim and boss. */
+  shield: svg(
+    `<path d="M24 5 L40 11 C40 26 34 37 24 43 C14 37 8 26 8 11 Z" fill="#9aa4ad" stroke="${O}" stroke-width="3.4"/>` +
+      `<path d="M24 10 L35 14.5 C35 26 30.5 33.5 24 38 C17.5 33.5 13 26 13 14.5 Z" fill="#c9d1d8" stroke="${G}" stroke-width="2.4"/>` +
+      `<circle cx="24" cy="22" r="4" fill="${G}" stroke="${O}" stroke-width="2.2"/>`,
+  ),
   /** Endless-record wave (no painted equivalent in the kit). */
   wave: svg(
     `<path d="M6 30 C10 24 14 24 18 30 C22 36 26 36 30 30 C34 24 38 24 42 30" fill="none" stroke="${O}" stroke-width="8"/>` +

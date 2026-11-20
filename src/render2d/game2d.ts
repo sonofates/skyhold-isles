@@ -38,6 +38,7 @@ import {
   audioSettings2d,
   createShakeState2D,
   resetShakeState2D,
+  shouldShake2D,
   shouldVibrate2D,
   stepShake2D,
   triggerShake2D,
@@ -50,7 +51,7 @@ import { meleeLookFor } from './meleeLook.ts';
 import { TowerLayer } from './towerLayer.ts';
 import { anySheetOpen } from './ui/dom.ts';
 import { readSafeInsets } from './uiKit.ts';
-import { NO_INSETS, type Insets } from './uiLayout.ts';
+import { NO_INSETS, WAVE_EASE_SEC, waveEaseZoom, type Insets } from './uiLayout.ts';
 import { dockPieces, hudDock, type HudDock } from './hudDock.ts';
 import { hornNearCave, rectsTouch, roadMouths } from './hornSpot.ts';
 import { distSegRect, type Seg } from './playfield.ts';
@@ -202,6 +203,8 @@ export class Game2D {
   private minCost = 0;
   private settings: GameSettings = loadSettings();
   private readonly shake = createShakeState2D();
+  /** Seconds since the last wave started (camera ease, uiLayout.waveEaseZoom); -1 = none. */
+  private waveEaseT = -1;
   private simClockSec = 0;
   private activeDamagePopups = 0;
   private unbindAudio: (() => void) | null = null;
@@ -641,6 +644,9 @@ export class Game2D {
     });
     ev.on('waveStarted', () => {
       this.hudGoldDirty = true;
+      // A soft camera breath as the wave marches out (off with shake off or Reduced motion).
+      const reduce = typeof document !== 'undefined' && document.documentElement.classList.contains('pu-reduce-motion');
+      if (!this.replayCursor && shouldShake2D(this.currentSettings()) && !reduce) this.waveEaseT = 0;
     });
     ev.on('waveCompleted', () => {
       this.hudGoldDirty = true;
@@ -929,12 +935,24 @@ export class Game2D {
     this.activeDamagePopups = this.hooks.endless ? 0 : this.damageNumbers.update(simDt > 0 ? dtSec : 0, cfg);
     if (!this.hooks.endless) {
       stepShake2D(this.shake, simDt > 0 && !this.endShown ? dtSec : 0, cfg);
+      let sx = 0;
+      let sy = 0;
       if (simDt > 0 && !this.endShown && (this.shake.offsetX !== 0 || this.shake.offsetY !== 0)) {
         const unitPx = this.level.layout2d!.pxPerUnit * this.map.fit.scale;
-        this.map.root.position.set(this.shake.offsetX * unitPx, this.shake.offsetY * unitPx);
-      } else {
-        this.map.root.position.set(0, 0);
+        sx = this.shake.offsetX * unitPx;
+        sy = this.shake.offsetY * unitPx;
       }
+      // Wave-start ease: zoom about the screen centre (the HUD is outside map.root and stays put).
+      let z = 1;
+      if (this.waveEaseT >= 0) {
+        if (simDt > 0) this.waveEaseT += dtSec;
+        z = waveEaseZoom(this.waveEaseT);
+        if (this.waveEaseT >= WAVE_EASE_SEC || this.endShown) this.waveEaseT = -1;
+      }
+      const cx = this.app.screen.width / 2;
+      const cy = this.app.screen.height / 2;
+      this.map.root.scale.set(z);
+      this.map.root.position.set(sx + cx * (1 - z), sy + cy * (1 - z));
     }
     this.ring.update(dtSec, world.gold);
     this.syncRangePreview();
@@ -1305,6 +1323,46 @@ export class Game2D {
   plotScreen(i: number): { x: number; y: number } {
     const p = this.level.layout2d!.plots[i];
     return { x: this.map.screenX(this.map.pxX(p.x)), y: this.map.screenY(this.map.pxY(p.z)) };
+  }
+
+  /**
+   * Pad / keyboard cursor (ui/padCursor.ts): where it may jump right now (screen css px). `ring` =
+   * the open ring's tokens; `end` = the end board's buttons; `free` = the cursor glides (hero move
+   * order, rally flag); `snap` = the plots and the hero.
+   */
+  padTargets(): { mode: 'ring' | 'end' | 'free' | 'snap'; points: { x: number; y: number }[] } {
+    if (this.end.visible) {
+      // The main action first: the pad reticle jumps there when the board appears.
+      const main = this.end.primaryAction();
+      const bs = this.end.debug()?.buttons ?? [];
+      const sorted = [...bs.filter((b) => b.action === main), ...bs.filter((b) => b.action !== main)];
+      return { mode: 'end', points: sorted.map((b) => ({ x: b.x, y: b.y })) };
+    }
+    if (this.ring.isOpen) return { mode: 'ring', points: this.ring.tokenPositions().map((p) => ({ x: p.x, y: p.y })) };
+    if (this.heroSel || this.rallyTower !== -1) return { mode: 'free', points: [] };
+    const lay = this.level.layout2d;
+    const points = lay ? lay.plots.map((_, i) => this.plotScreen(i)) : [];
+    const h = this.world.hero;
+    if (h && h.state !== 'dead') {
+      const head = this.heroHeadScreen();
+      const feet = this.heroScreen();
+      if (head && feet) points.push({ x: head.x, y: (head.y + feet.y) / 2 });
+    }
+    // Canvas HUD buttons: the horn (call the wave), pause and speed.
+    const r = this.hud.rects();
+    if (this.world.outcome === 'ongoing') points.push(this.hud.hornPosition);
+    for (const k of ['pause', 'speed'] as const) if (r[k].w > 1) points.push({ x: r[k].x + r[k].w / 2, y: r[k].y + r[k].h / 2 });
+    return { mode: 'snap', points };
+  }
+
+  /**
+   * Where a pad / keyboard click lands: in hero move mode the nearest road point (gliding a reticle
+   * exactly onto a road is fiddly with a stick), else the reticle's own spot.
+   */
+  padClickPoint(x: number, y: number): { x: number; y: number } {
+    if (!this.heroSel || !this.world.hero) return { x, y };
+    const c = this.world.heroSystem.groundGraph.clampToGround(this.map.worldXFromScreen(x), this.map.worldZFromScreen(y), Infinity);
+    return { x: this.map.screenX(this.map.pxX(c.roadX)), y: this.map.screenY(this.map.pxY(c.roadZ)) };
   }
 
   private openForPlot(plot: number): void {

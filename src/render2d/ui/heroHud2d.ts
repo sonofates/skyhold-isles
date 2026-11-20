@@ -14,6 +14,7 @@
  *   the ability bar does it), so game2d's plot / hero taps never see it.
  */
 import type { HeroId, HeroSkillSlot } from '../../core/types.ts';
+import { PAD_BADGE, tipKey } from './padBadges.ts';
 import { HERO_DEFS } from '../../data/heroes.ts';
 import type { HeroRuntimeState } from '../../sim/heroSystem.ts';
 import { heroName, heroPassiveDesc, heroPassiveName, heroSkillDesc, heroSkillName, heroTitle } from '../../i18n/data.ts';
@@ -89,7 +90,7 @@ export function createHeroHud2D(game: Game2D, opts: HeroHudOptions): HeroHud2D |
   const lvl = levelBadge(first.level, 'pu-hero-port-lvl');
   const down = el('span', 'pu-hero-down pu-letter');
   port.append(hpRing, portImg, down, lvl);
-  if (opts.desktop) port.append(el('span', 'pu-ab-key pu-letter', { 'aria-hidden': 'true' }, HERO_KEYS.select));
+  if (opts.desktop) port.append(el('span', 'pu-ab-key pu-letter', { 'aria-hidden': 'true', 'data-pad': PAD_BADGE.heroSelect }, HERO_KEYS.select));
   const slots: SkillSlot[] = ([0, 1] as const).map((slot) => {
     const btn = el('button', 'pu-ab pu-hs', { type: 'button', 'data-testid': `hero2d-skill${slot}`, 'data-slot': slot, 'aria-describedby': 'hero2d-tip' });
     const frame = img(KIT.medallion, '', 'pu-ab-frame');
@@ -98,7 +99,10 @@ export function createHeroHud2D(game: Game2D, opts: HeroHudOptions): HeroHud2D |
     const secs = el('span', 'pu-ab-secs pu-letter');
     const cancel = el('span', 'pu-ab-cancel', { 'aria-hidden': 'true' }, '✕');
     btn.append(frame, icon, sweep, secs, cancel);
-    if (opts.desktop) btn.append(el('span', 'pu-ab-key pu-letter', { 'aria-hidden': 'true' }, slot === 0 ? HERO_KEYS.skill0 : HERO_KEYS.skill1));
+    if (opts.desktop) {
+      const pad = slot === 0 ? PAD_BADGE.heroSkill0 : PAD_BADGE.heroSkill1;
+      btn.append(el('span', 'pu-ab-key pu-letter', { 'aria-hidden': 'true', 'data-pad': pad }, slot === 0 ? HERO_KEYS.skill0 : HERO_KEYS.skill1));
+    }
     return { slot, btn, frame, icon, sweep, secs, key: '', state: null };
   });
   const divider = el('span', 'pu-hero-divider', { 'aria-hidden': 'true' });
@@ -136,7 +140,7 @@ export function createHeroHud2D(game: Game2D, opts: HeroHudOptions): HeroHud2D |
     const anchor = what === 'hero' ? port : slots[what].btn;
     if (what === 'hero') {
       const head = el('div', 'pu-ab-tip-head pu-ink', {}, heroName(heroId));
-      if (opts.desktop) head.append(el('span', 'pu-ab-tip-key pu-letter', {}, t('ab.key', { key: HERO_KEYS.select })));
+      if (opts.desktop) head.append(tipKey(HERO_KEYS.select, PAD_BADGE.heroSelect));
       tip.append(
         head,
         el('div', 'pu-hero-tip-sub pu-ink-soft', {}, t('hero.levelTitle', { n: h.level, title: heroTitle(heroId) })),
@@ -153,7 +157,7 @@ export function createHeroHud2D(game: Game2D, opts: HeroHudOptions): HeroHud2D |
       const s = h.skills[what];
       const act = def.actives[what];
       const head = el('div', 'pu-ab-tip-head pu-ink', {}, heroSkillName(heroId, what));
-      if (opts.desktop) head.append(el('span', 'pu-ab-tip-key pu-letter', {}, t('ab.key', { key: what === 0 ? HERO_KEYS.skill0 : HERO_KEYS.skill1 })));
+      if (opts.desktop) head.append(what === 0 ? tipKey(HERO_KEYS.skill0, PAD_BADGE.heroSkill0) : tipKey(HERO_KEYS.skill1, PAD_BADGE.heroSkill1));
       const st = heroSkillState(h, s, game.world.outcome === 'ongoing');
       const status = st === 'ready' ? t('ab.ready') : st === 'cooldown' ? secsLabel(s.cooldown) : st === 'down' ? t('hero.skillDown') : '';
       const res = game.world.hero?.stats.actives[what];
@@ -247,7 +251,9 @@ export function createHeroHud2D(game: Game2D, opts: HeroHudOptions): HeroHud2D |
   let hintFor = '';
   const showHint = (): void => {
     const moving = aiming === null && game.heroSelected && visible;
-    const key = aiming !== null ? `aim${aiming}` : moving ? 'move' : '';
+    // Keyboard / pad in use (navFocus `pu-kbd`): the second line explains the cursor instead.
+    const pad = typeof document !== 'undefined' && document.documentElement.classList.contains('pu-kbd');
+    const key = aiming !== null ? `aim${aiming}${pad ? 'k' : ''}` : moving ? `move${pad ? 'k' : ''}` : '';
     if (key === hintFor && (key === '' || !hint.hidden)) return;
     hintFor = key;
     if (!key) {
@@ -259,9 +265,9 @@ export function createHeroHud2D(game: Game2D, opts: HeroHudOptions): HeroHud2D |
     if (aiming !== null) {
       const kind = def.actives[aiming].kind;
       const what = kind === 'overhaul' ? 'hero.aimTower' : kind === 'shieldBash' || kind === 'wispBurst' ? 'hero.aimDir' : 'hero.aimPoint';
-      hint.append(el('div', 'pu-ink', {}, t(what, { skill: heroSkillName(heroId, aiming), verb })), el('small', 'pu-ink-soft', {}, t(opts.desktop ? 'ab.cancelMouse' : 'ab.cancelTouch')));
+      hint.append(el('div', 'pu-ink', {}, t(what, { skill: heroSkillName(heroId, aiming), verb })), el('small', 'pu-ink-soft', {}, t(pad ? 'hero.aimHintPad' : opts.desktop ? 'ab.cancelMouse' : 'ab.cancelTouch')));
     } else {
-      hint.append(el('div', 'pu-ink', {}, t('hero.moveHint', { name: heroName(heroId).split(' ')[0], verb })), el('small', 'pu-ink-soft', {}, t(opts.desktop ? 'hero.moveHintMouse' : 'hero.moveHintTouch')));
+      hint.append(el('div', 'pu-ink', {}, t('hero.moveHint', { name: heroName(heroId).split(' ')[0], verb })), el('small', 'pu-ink-soft', {}, t(pad ? 'hero.moveHintPad' : opts.desktop ? 'hero.moveHintMouse' : 'hero.moveHintTouch')));
     }
     hint.hidden = false;
     const b = group.getBoundingClientRect();

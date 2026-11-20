@@ -15,6 +15,7 @@ import type { WavePreview } from '../../sim/waveSystem.ts';
 import type { Rect } from '../uiLayout.ts';
 import { dockCard } from './dockCard.ts';
 import { el, img, KIT } from './dom.ts';
+import { ARMORED_MIN, foeMarks } from './foeMarks.ts';
 
 export interface WaveChip {
   readonly type: EnemyType;
@@ -22,6 +23,8 @@ export interface WaveChip {
   readonly elite: number;
   readonly boss: boolean;
   readonly flying: boolean;
+  /** Heavy armour (foeMarks.ts ARMORED_MIN): a shield mark. */
+  readonly armored: boolean;
 }
 
 /** The card's chips from the sim's preview (sim order = spawn order; bosses first so they show). */
@@ -35,6 +38,7 @@ export function waveChips(p: WavePreview | null): WaveChip[] {
       elite: it.eliteCount ?? 0,
       boss: !!def && (def.type === 'boss' || def.type === 'tempest'),
       flying: !!def?.flying,
+      armored: (def?.armor ?? 0) >= ARMORED_MIN,
     };
   });
   return chips.sort((a, b) => Number(b.boss) - Number(a.boss));
@@ -95,6 +99,9 @@ export function mountWaveCard(
       else face.textContent = name.slice(0, 1);
       b.append(face, el('span', 'pu-wave-count pu-letter', {}, `×${c.count}`));
       if (c.elite > 0) b.append(el('span', 'pu-wave-elite', { title: t('wave.elite', { n: c.elite }) }, img(KIT.star)));
+      // Shapes, not only the backdrop colour: wing / shield / crown (colour-blind safe).
+      const marks = foeMarks(c, 'pu-wave-marks');
+      if (marks) b.append(marks);
       if (isNew(c.type)) b.append(el('span', 'pu-wave-new', {}, t('foe.new')));
       if (onChip) b.addEventListener('click', () => onChip(c.type));
       chips.append(b);

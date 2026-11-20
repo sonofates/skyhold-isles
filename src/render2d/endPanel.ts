@@ -8,6 +8,11 @@ import type { EndModeNote } from './ui/modeBits.ts';
 import type { DifficultyId } from '../data/difficulty.ts';
 import { DIFFICULTY_EMBLEMS } from './ui/difficultyEmblems.ts';
 import type { QaTextItem } from './qaText.ts';
+/** Settings → Reduced motion (the page class main2d sets). */
+function reducedMotion(): boolean {
+  return typeof document !== 'undefined' && document.documentElement.classList.contains('pu-reduce-motion');
+}
+
 
 export { endStars } from './uiLayout.ts';
 
@@ -92,6 +97,11 @@ function diffSealTexture(id: DifficultyId): Promise<Texture | null> {
  * Painted action icons (manifest `paintedUi`). Retry has no painted icon in the kit yet and keeps
  * its Graphics glyph; so does any button whose painting has not loaded (or failed to).
  */
+/** The end board's main action (drawn on the glowing medallion). */
+export function primaryEndAction(won: boolean): EndAction {
+  return won ? 'next' : 'retry';
+}
+
 const PAINTED_ICON: Partial<Readonly<Record<EndAction, string>>> = { next: 'icon-play', menu: 'icon-map' };
 
 interface Btn {
@@ -166,6 +176,8 @@ export class EndPanel {
   private readonly diffSeal = new Sprite(Texture.EMPTY);
   private readonly diffText = inkText(18, 'left', '#4a2a12', '700');
   private readonly buttons: Btn[] = [];
+  private readonly btnTex: Texture;
+  private readonly btnHiTex: Texture;
   private readonly art: LoadedArt;
   private lay: EndLayout | null = null;
   private summary: EndSummary | null = null;
@@ -174,6 +186,9 @@ export class EndPanel {
   private readonly heroRow = new Container();
   private readonly heroPort = new Sprite(Texture.EMPTY);
   private readonly heroRing = new Graphics();
+  /** Level-up fanfare: gold sparkles bursting from the portrait and a fading glow ring. */
+  private readonly heroBurst = new Graphics();
+  private heroCentre = { x: 0, y: 0, r: 0 };
   private readonly heroBar = new Graphics();
   private readonly heroText = inkText(18, 'left');
   private readonly heroLvl = inkText(18, 'left', '#9a3b18', '700');
@@ -204,9 +219,11 @@ export class EndPanel {
       this.stars.push({ empty, full });
       this.board.addChild(empty, full);
     }
+    this.btnTex = kit(art, 'buttonRound', art.ui.button);
+    this.btnHiTex = kit(art, 'medallionHi', art.ui.button);
     for (const action of ['retry', 'replay', 'next', 'menu'] as const) {
       const root = new Container();
-      const bg = new Sprite(kit(art, action === 'next' ? 'medallionHi' : 'buttonRound', art.ui.button));
+      const bg = new Sprite(this.btnTex);
       bg.anchor.set(0.5);
       const glyph = new Graphics();
       const icon = new Sprite(Texture.EMPTY);
@@ -220,7 +237,7 @@ export class EndPanel {
     this.heroPort.anchor.set(0.5);
     this.heroText.anchor.set(0, 0.5);
     this.heroLvl.anchor.set(0, 0.5);
-    this.heroRow.addChild(this.heroRing, this.heroPort, this.heroBar, this.heroText, this.heroLvl);
+    this.heroRow.addChild(this.heroRing, this.heroBurst, this.heroPort, this.heroBar, this.heroText, this.heroLvl);
     this.heroRow.visible = false;
     this.board.addChild(this.heroRow);
     this.root.addChild(this.dim, this.board);
@@ -447,6 +464,9 @@ export class EndPanel {
     const hasReplay = this.summary?.hasReplay ?? false;
     const shown = this.buttons.filter((b) => (b.action !== 'next' || hasNext) && (b.action !== 'replay' || hasReplay));
     for (const b of this.buttons) b.root.visible = shown.includes(b);
+    // The glowing medallion marks the way on: Next isle after a win, Retry after a defeat.
+    const main = primaryEndAction(this.summary?.won ?? false);
+    for (const b of shown) b.bg.texture = b.action === main ? this.btnHiTex : this.btnTex;
     // Four buttons: a little smaller and closer so they stay on the parchment.
     const four = shown.length >= 4;
     const step = four ? 3.05 : 3.4;
@@ -522,6 +542,7 @@ export class EndPanel {
     this.heroPort.visible = tex !== Texture.EMPTY;
     this.heroPort.scale.set(d / Math.max(1, tex.width));
     this.heroPort.position.set(x0 + d / 2, yMid);
+    this.heroCentre = { x: x0 + d / 2, y: yMid, r: d / 2 };
     this.heroRing.clear();
     if (!this.heroPort.visible) this.heroRing.circle(x0 + d / 2, yMid, d / 2).fill({ color: 0xc89a52 }).stroke({ color: 0x3a2412, width: 2 });
     const tx = x0 + d + fs * 0.5;
@@ -532,6 +553,30 @@ export class EndPanel {
     this.heroBar.position.set(tx, yMid + fs * 0.45);
     this.heroBar.visible = showBar;
     this.drawHeroBar(1);
+  }
+
+  /**
+   * Level-up fanfare at progress p (0..1, else hidden): twelve gold sparkles fly out of the portrait
+   * and fade, a gold ring swells and fades behind it.
+   */
+  private drawLevelBurst(p: number): void {
+    const g = this.heroBurst;
+    g.clear();
+    if (p <= 0 || p >= 1) return;
+    const { x, y, r } = this.heroCentre;
+    const e = easeOutCubic(p);
+    const fade = 1 - p;
+    g.circle(x, y, r * (1.02 + 0.28 * e)).stroke({ color: 0xffc93c, width: Math.max(2, r * 0.16 * fade), alpha: 0.85 * fade });
+    for (let i = 0; i < 12; i++) {
+      const a = (i / 12) * Math.PI * 2 + (i % 2 ? 0.13 : 0);
+      const dist = r * (1.05 + (i % 2 ? 0.75 : 1.05) * e);
+      const s = Math.max(1, r * (i % 2 ? 0.14 : 0.21) * (1 - 0.6 * p));
+      const cx = x + Math.cos(a) * dist;
+      const cy = y + Math.sin(a) * dist;
+      // A four-point sparkle (diamond pair), gold with a dark keyline.
+      g.poly([cx, cy - s * 1.6, cx + s * 0.45, cy - s * 0.45, cx + s * 1.6, cy, cx + s * 0.45, cy + s * 0.45, cx, cy + s * 1.6, cx - s * 0.45, cy + s * 0.45, cx - s * 1.6, cy, cx - s * 0.45, cy - s * 0.45]);
+      g.fill({ color: i % 3 === 0 ? 0xfff2b8 : 0xffc93c, alpha: fade }).stroke({ color: 0x3a2412, width: 1, alpha: 0.6 * fade });
+    }
   }
 
   /** XP bar at animation progress k (0..1): from the old fill to the new one (wrapping on level-ups). */
@@ -567,12 +612,14 @@ export class EndPanel {
       return;
     }
     if (b.action === 'retry') {
+      // Cream on wood; gold on the glowing (pale blue) medallion after a defeat, like Next's play icon.
+      const ink = b.bg.texture === this.btnHiTex ? 0xffc93c : 0xfff4dc;
       g.arc(0, 0, r * 0.34, -Math.PI * 0.15, Math.PI * 1.45).stroke({ color: 0x3a2412, width: r * 0.22, cap: 'round' });
-      g.arc(0, 0, r * 0.34, -Math.PI * 0.15, Math.PI * 1.45).stroke({ color: 0xfff4dc, width: r * 0.12, cap: 'round' });
+      g.arc(0, 0, r * 0.34, -Math.PI * 0.15, Math.PI * 1.45).stroke({ color: ink, width: r * 0.12, cap: 'round' });
       const ax = Math.cos(-Math.PI * 0.15) * r * 0.34;
       const ay = Math.sin(-Math.PI * 0.15) * r * 0.34;
       g.moveTo(ax - r * 0.2, ay - r * 0.04).lineTo(ax + r * 0.15, ay - r * 0.06).lineTo(ax + r * 0.02, ay + r * 0.26).closePath();
-      g.fill({ color: 0xfff4dc }).stroke(line);
+      g.fill({ color: ink }).stroke(line);
     } else if (b.action === 'next') {
       g.moveTo(-r * 0.22, -r * 0.34).lineTo(r * 0.36, 0).lineTo(-r * 0.22, r * 0.34).closePath();
       g.fill({ color: 0xfff4dc }).stroke(line);
@@ -612,6 +659,8 @@ export class EndPanel {
       const k = (t - STAR_DELAY - 3 * STAR_STEP) / 1.1;
       this.drawHeroBar(easeOutCubic(Math.max(0, Math.min(1, k))));
       this.heroLvl.alpha = Math.max(0, Math.min(1, (k - 0.7) / 0.3));
+      const h = this.hero;
+      this.drawLevelBurst(h && h.toLevel > h.fromLevel && !reducedMotion() ? (k - 0.85) / 0.75 : -1);
     }
     const n = this.summary?.stars ?? 0;
     for (let i = 0; i < 3; i++) {
@@ -650,6 +699,11 @@ export class EndPanel {
   }
 
   /** QA hooks: panel rect, button centres, stars shown. */
+  /** The board's main action now (the glowing medallion): the pad reticle starts on it. */
+  primaryAction(): EndAction {
+    return primaryEndAction(this.summary?.won ?? false);
+  }
+
   debug(): {
     panel: Rect | null;
     buttons: { action: EndAction; x: number; y: number; r: number }[];

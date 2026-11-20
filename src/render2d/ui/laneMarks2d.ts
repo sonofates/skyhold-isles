@@ -6,7 +6,7 @@
  */
 import './laneMarks2d.css';
 import { t } from '../../i18n/index.ts';
-import type { Rect } from '../uiLayout.ts';
+import { userUiScale, type Rect } from '../uiLayout.ts';
 import { el } from './dom.ts';
 
 export { pointAlong, waveLaneCounts } from '../lanePath.ts';
@@ -14,7 +14,8 @@ import { pointAlong } from '../lanePath.ts';
 
 /** The painted kit's unit (`--s` in paintedUi.css) at this viewport, css px. */
 export function kitUnit(w: number, h: number): number {
-  return Math.max(8.5, Math.min(0.0095 * w, 0.0185 * h, 17));
+  const k = userUiScale();
+  return Math.max(8.5, Math.min(0.0095 * w * k, 0.0185 * h * k, 17 * k));
 }
 
 /** Screen box of a mark whose chevron points at (x, y): the pill and chevron above it, with the bob. */

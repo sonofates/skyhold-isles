@@ -139,7 +139,12 @@ export function openSheet(
     closed = true;
     openSheets--;
     window.removeEventListener('keydown', onKey);
-    overlay.remove();
+    // Fade + shrink out (it stops owning keys / pointer at once: `closing` is skipped by navFocus).
+    if (document.documentElement.classList.contains('pu-reduce-motion')) overlay.remove();
+    else {
+      overlay.classList.add('closing');
+      window.setTimeout(() => overlay.remove(), 170);
+    }
     opts.onClose?.();
   };
   const onKey = (e: KeyboardEvent): void => {
