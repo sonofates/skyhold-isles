@@ -143,6 +143,43 @@ describe('chapter two enemy decisions', () => {
     expect(grunt.slowRatio).toBeGreaterThan(0);
   });
 
+  it.each(['blockers', 'heroBlockers'] as const)('a final note restarts only the free hare’s run-up while %s hold the other', blocker => {
+    const { sim, tick, spawn } = fixture();
+    const free = spawn('bellrunner');
+    const piper = spawn('reedpiper');
+    const held = spawn('bellrunner');
+    const sprint = CHAPTER_ENEMY_DEFS.bellrunner.ability;
+    const phrase = CHAPTER_ENEMY_DEFS.reedpiper.ability;
+    sim.applySlow(free, 0.55, 10);
+    sim.applySlow(held, 0.28, 10);
+    held[blocker] = 1;
+    piper.abilityTimer = dt;
+    tick();
+    expect(piper.channelTimer).toBe(phrase.channelSec);
+    tick(Math.ceil(phrase.channelSec / dt) - 1);
+    expect([free.slowRatio, held.slowRatio]).toEqual([0.55, 0.28]);
+
+    const beforeNote = free.dist;
+    tick();
+    expect(piper.channelTimer).toBe(0);
+    expect(free.dist - beforeNote).toBeCloseTo(free.speed * (1 - 0.55) * dt, 10);
+    for (const hare of [free, held]) {
+      expect(hare).toMatchObject({ slowTimer: 0, slowRatio: 0, abilityTimer: 0 });
+    }
+    const afterNote = free.dist;
+    const firstStride = free.speed * (1 + sprint.speedBonus * dt / sprint.runUpSec) * dt;
+    tick();
+    expect(free.dist - afterNote).toBeCloseTo(firstStride, 10);
+    expect(free.abilityTimer).toBe(dt);
+    tick(Math.ceil(sprint.runUpSec / dt));
+    expect(free.abilityTimer).toBe(sprint.runUpSec);
+    expect(held).toMatchObject({ dist: 0, abilityTimer: 0 });
+    held[blocker] = 0;
+    tick();
+    expect(held.dist).toBeCloseTo(firstStride, 10);
+    expect(held.abilityTimer).toBe(dt);
+  });
+
   it('moths trade the lead along the sky lane, then coast back to cruise when separated', () => {
     function fly(reverse: boolean) {
       const { sim, tick, spawn } = fixture();

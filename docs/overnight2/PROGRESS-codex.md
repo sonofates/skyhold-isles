@@ -854,3 +854,31 @@ TypeScript and lint passed. Vitest passed 1,440 tests with 11 skipped. The 24,21
 ### Next round
 
 Trace the Reed Pipers and Belfry Hares together in Lantern Glassworks’ “A Chorus in Stone.” Check when a cleansed hare starts accelerating again and whether a hare held in melee builds any sprint during the same cast. No new localization or UI requests for Opus.
+
+## Round 35 — Reed Pipers and Belfry Hares at Lantern Glassworks
+
+### A Chorus in Stone
+
+On Normal, level-20 Bran entered wave seven with 47 campaign stars, eight towers, 43 gold and 20 lives. The four pipers finished ten phrases. Three final notes cleared seven slows across six distinct hares. The table numbers enemies of each type in spawn order.
+
+| Final note | Piper | Hares cleansed | Slow removed |
+|---|---|---|---|
+| 2.97 s | First | First and second | 28% each |
+| 4.67 s | Second | Fifth | 28% |
+| 9.73 s | Second | Third, fifth, eleventh and thirteenth | 28%, 55%, 42% and 28% respectively |
+
+All seven cleanses landed on free hares. The hare finished that tick's movement at its chilled speed. On the next tick each took a 0.0394-unit stride with one sixtieth of a second of sprint accumulated. All fourteen hares died by 16.62 seconds. The wave cost no lives and the island finished at 10/22 with two stars.
+
+### What happens in melee
+
+In a second run with the same inventory and build, Bran moved to a rally point eight units along the ore road at the start of wave seven. At 6.37 seconds the third piper cleared the slows on the seventh, eighth and ninth hares while Bran held all three. He released the seventh and eighth before the next movement step. Both started accelerating on that step. The ninth stayed at 6.85 units from the entrance with zero sprint until it died 1.25 seconds after the note.
+
+Two regression cases put a free hare and a held hare inside the same phrase, once with a soldier holding and once with a hero. They check the final slowed stride, the first accelerating stride, the free hare's full 2.4-second run-up and the held hare's first step after release. The encounter already behaved as designed, so this round adds test coverage and keeps the authored build and tuning.
+
+### Verification
+
+TypeScript, lint and the production build passed. Vitest passed 1,442 tests with 11 skipped. All 41 realistic-kit checks and all eight difficulty verdicts passed. Both simulation reports matched round 34 byte for byte, and the standalone 24,217-byte 3D L1–L16 report matched the round-one baseline. Hard i09 finished at 12/22 and Hard i24 at 2/22. Vite reported its existing bundle-size and dynamic-import warnings.
+
+### Next round
+
+Trace the Hard first-clear kit's wave-five defeat in Lantern Glassworks' “Cave Air.” Count the lives lost to the moths and haulers and check whether an affordable change to the opening build keeps the Bell Foundry purchases and the Normal life target. No requests for Opus this round.
