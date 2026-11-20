@@ -1,0 +1,18 @@
+{
+ "image": "briar-attack.webp",
+ "frameW": 148,
+ "frameH": 256,
+ "count": 8,
+ "cols": 4,
+ "fps": 12,
+ "release": 3,
+ "anchor": [
+  74.0,
+  250.0
+ ],
+ "ringW": 136.0,
+ "muzzlePx": [
+  66.79,
+  225.03
+ ]
+}

@@ -172,3 +172,28 @@ The raw manifest now exposes `towerSpecializations[id].portrait` and `.attack` f
 ### Next round
 
 Fourteen of sixteen specializations have production art. Paint Gateward Hall and Briar Lodge, then exercise their gate animations on actual soldier spawns and respawns. Chapter-two map polish on i17–i24 follows.
+
+## Round 7 — Barracks specialization art
+
+### Done
+
+- Gateward Hall raises a bronze portcullis beneath a blue sun banner. Briar Lodge swings two oak doors into the shadow of a leaf-roofed watchhouse. Each branch has a keyed eight-frame sheet, a transparent closed-gate portrait and a stationary plot ring. Repainted the original low buildings as taller towers after comparing them with tier III on a phone. [ImageGen prompts and packing instructions](../../design/art-2d/specializations/barracks-prompts.md)
+- Fixed a missed spawn animation in the tower renderer. The sim creates the starting squad before the tower sprite exists. The renderer now collects the barracks IDs until the next draw and plays the gate once per spawning squad. A recruit arriving on a tier upgrade uses the new tier’s gate. A branch sheet arriving mid-animation picks up the current playback time.
+- All sixteen specialization IDs now have painted map art and portraits. The simulation, purchase API and EN/TR copy are documented in round 2.
+
+### Verification
+
+- Bought tier III, Gateward and Briar side by side on L1c. The ring center, bottom and width matched all three plots exactly at 1600×900 and 844×390. Inspected enlarged captures from both viewports. [Desktop](../../design/art-2d/specializations/barracks-l1c.jpg) · [Landscape phone](../../design/art-2d/specializations/barracks-l1c-phone.jpg)
+- Stepped a production melee scene against Basalt Golems at 60 Hz. On each run, placing the barracks spawned two soldiers and upgrading recruited a third. Both bursts began on gate frame zero. A fallen Gateward guard returned after its five-second timer and a Briar fighter after seven seconds. Both gates played frames 0–7 and settled closed. The battle captures include the normal spawn dust. Each inset shows the corresponding doorway from the decoded sheet. [Gate playback](../../design/art-2d/specializations/barracks-gates.jpg)
+- Both WebP sheets have transparent gutters, zero opaque magenta pixels and pixel-identical closed poses at frames zero and seven. Pixel differences over the eight frames are confined to the registered doorway and its resampling edge.
+- The integration regression test exercises the first squad and tier-up recruit through real world purchases and Pixi sprite updates. The browser and final builds contain all 54 specialization asset files. Repacking all ten full-body branches reproduced all 30 sheets, portraits and descriptors byte for byte.
+- TypeScript, lint and the production build passed. Vitest passed 1,378 tests with 11 skipped. The existing all-map backdrop test intermittently reached its five-second timeout at default concurrency. The final full suite passed with two workers and the original timeout. Vite reported its existing bundle warnings.
+- The realistic-kit balance gate passed all 41 levels, including all 25 islands. All eight difficulty verdicts passed. Hard i09 finished at 12/22 with two stars and Hard i24 at 5/22 with one. The 24,217-byte L1–L16 simulation report matched the round-one baseline byte for byte.
+
+### Requests for Opus
+
+Use `towerSpecializations[id].portrait` for the branch choice and codex across all eight families. The two new IDs are `gateward` and `briar`. Their `.attack` fields point to the full-body gate descriptors. The build-ring and localized codex integration remain with Opus.
+
+### Next round
+
+Start chapter-two map polish at Cloudbell Cloister (i17). The current bake has two matching entrance caves and repeats small bell frames on the meadow. The introductory painting already establishes a fallen bronze bell and a frayed blue rope. Bring that landmark onto the playable island and check it against the saved plots, tower envelopes and HUD at both viewport sizes. The remaining map pass covers i18–i24.

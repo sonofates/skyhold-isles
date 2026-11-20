@@ -179,6 +179,7 @@ interface TowerView {
  */
 export class TowerLayer {
   private readonly views = new Map<number, TowerView>();
+  private readonly spawningBarracks = new Set<number>();
   /** A null entry keeps the tier-III art visible during load or if an optional asset is missing. */
   private readonly branches = new Map<string, BranchArt | null>();
   private frameNo = 0;
@@ -233,11 +234,8 @@ export class TowerLayer {
         this.playDecorative(v, 'beacon', e.tier, true);
       }
     });
-    // Barracks: the gate sheet plays as a soldier steps out (once per burst, not per soldier).
-    ev.on('soldierSpawned', (e) => {
-      const v = this.views.get(e.towerId);
-      if (v) this.playDecorative(v, 'barracks', v.tier, false);
-    });
+    // Construction and tier upgrades can spawn the whole squad before its new sprite exists.
+    ev.on('soldierSpawned', (e) => this.spawningBarracks.add(e.towerId));
   }
 
   /** Non-shooting towers (beacon pulse, barracks gate): play the attack sheet from frame 0, no shot. */
@@ -583,11 +581,18 @@ export class TowerLayer {
     // Let a projectile already waiting on the old release leave before swapping its artwork.
     if (ready !== v.branch && !v.pending) {
       v.branch = ready;
-      v.attackT = -1;
-      v.attackSheet = null;
-      v.attackPlan = null;
+      if (t.type === 'barracks' && ready?.sheet && v.attackT >= 0) {
+        // A purchase can finish loading midway through the squad leaving the previous gate.
+        v.attackSheet = ready.sheet;
+        v.attackPlan = attackPlan({ count: ready.sheet.frames.length, fps: ready.sheet.fps, release: null });
+      } else {
+        v.attackT = -1;
+        v.attackSheet = null;
+        v.attackPlan = null;
+      }
       v.armed = false;
     }
+    if (t.type === 'barracks' && this.spawningBarracks.has(t.id)) this.playDecorative(v, t.type, t.tier, false);
     const turret = v.branch ? v.branch.turret : art.turrets?.[tierIdx] ?? null;
     const ring = turret?.ring ?? v.branch?.sheet?.ring ?? tierRing;
     // Pre-roll the attack sheet so its release frame lands on the coming shot (towerAnim.ts).
@@ -862,6 +867,7 @@ export class TowerLayer {
         star.zIndex = py + 1;
       }
     }
+    this.spawningBarracks.clear();
     for (const [id, v] of this.views) {
       if (v.seen !== this.frameNo) {
         v.sprite.destroy();

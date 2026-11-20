@@ -858,6 +858,14 @@
   "horizon": {
    "portrait": "specializations/horizon.webp",
    "attack": "specializations/horizon-attack.json"
+  },
+  "gateward": {
+   "portrait": "specializations/gateward.webp",
+   "attack": "specializations/gateward-attack.json"
+  },
+  "briar": {
+   "portrait": "specializations/briar.webp",
+   "attack": "specializations/briar-attack.json"
   }
  },
  "buildRing": [

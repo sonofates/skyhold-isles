@@ -1,10 +1,10 @@
 #!/usr/bin/python3
-"""Register the four painted crowns on a fixed foundation and pack the full-body attack sheets."""
+"""Pack painted tower mechanisms on a fixed foundation into full-body animation sheets."""
 import json
 import sys
 from pathlib import Path
 
-from PIL import Image, ImageDraw, ImageOps
+from PIL import Image, ImageDraw, ImageEnhance, ImageOps
 
 ROOT = Path(__file__).resolve().parents[2]
 ART = ROOT / 'design/art-2d/specializations'
@@ -29,8 +29,44 @@ def windmill_turn(crown, rotor):
     return frames + [crown]
 
 
-def pack(name, marks):
-    atlas = Image.open(ART / f'{name}-atlas.webp')
+def gate_frames(atlas, marks):
+    """Move the portcullis behind its lintel or swing the timber leaves into the doorway."""
+    split = marks['splitX']
+    body = key_image(atlas.crop((0, 0, split, atlas.height)), trim=False)
+    panel = key_image(atlas.crop((split, 0, atlas.width, atlas.height)), trim=False)
+    x, y, right, bottom = marks['doorway']
+    width, height = right - x, bottom - y
+    # Fit the upper floors to the family's map silhouette while keeping the sill and plinth intact.
+    roof_height = round(y * marks['upperScale'])
+    fitted = Image.new('RGBA', (body.width, body.height - y + roof_height))
+    fitted.paste(body.crop((0, 0, body.width, y)).resize((body.width, roof_height), Image.Resampling.LANCZOS))
+    fitted.paste(body.crop((0, y, body.width, body.height)), (0, roof_height))
+    body = fitted
+    y, bottom = roof_height, roof_height + height
+    panel = panel.crop(panel.getbbox()).resize((width, height), Image.Resampling.LANCZOS)
+    frames = []
+    for opening in (0, 0.25, 0.7, 1, 1, 0.76, 0.35, 0):
+        frame = body.copy()
+        if marks['motion'] == 'lift':
+            lift = round(height * 0.96 * opening)
+            frame.alpha_composite(panel.crop((0, lift, width, height)), (x, y))
+        else:
+            # The outer hinges stay put. The free edge recedes up into the shaded hall.
+            for left, end in ((0, width // 2), (width // 2, width)):
+                leaf = panel.crop((left, 0, end, height))
+                shown = max(1, round(leaf.width * (1 - 0.90 * opening)))
+                leaf = leaf.resize((shown, height), Image.Resampling.LANCZOS)
+                leaf = ImageEnhance.Brightness(leaf).enhance(1 - 0.46 * opening)
+                rise = height * 0.10 * opening
+                slope = rise / shown
+                transform = (1, 0, 0, slope if left == 0 else -slope, 1, 0 if left == 0 else rise)
+                leaf = leaf.transform(leaf.size, Image.Transform.AFFINE, transform, Image.Resampling.BICUBIC)
+                frame.alpha_composite(leaf, (x if left == 0 else right - shown, y))
+        frames.append(frame)
+    return frames, ((x + right) / 2, bottom)
+
+
+def crown_frames(atlas, marks):
     cell = atlas.width // 3
     assert atlas.size == (3 * cell, 2 * cell)
     parts = []
@@ -66,7 +102,12 @@ def pack(name, marks):
             mx, my = marks['releaseTip']
             muzzle = (x + mx * w / cell, y + my * h / cell)
         frames.append(frame)
+    return frames, muzzle
 
+
+def pack(name, marks):
+    atlas = Image.open(ART / f'{name}-atlas.webp')
+    frames, muzzle = gate_frames(atlas, marks) if 'doorway' in marks else crown_frames(atlas, marks)
     boxes = [f.getbbox() for f in frames]
     crop = (min(b[0] for b in boxes) - 6, min(b[1] for b in boxes) - 6,
             max(b[2] for b in boxes) + 6, max(b[3] for b in boxes) + 6)
@@ -96,6 +137,6 @@ def pack(name, marks):
 
 
 if __name__ == '__main__':
-    for family in ('frost', 'tesla', 'mortar', 'beacon'):
+    for family in sys.argv[1:] or ('frost', 'tesla', 'mortar', 'beacon', 'barracks'):
         for branch, registration in json.loads((ART / f'{family}.json').read_text()).items():
             pack(branch, registration)

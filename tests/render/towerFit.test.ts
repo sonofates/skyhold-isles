@@ -1,14 +1,53 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
+import { Texture } from 'pixi.js';
 import { describe, expect, it } from 'vitest';
+import { EventBus } from '../../src/core/eventBus.ts';
+import { LEVEL_L1C } from '../../src/data/levels2d/index.ts';
 import { specializationsFor } from '../../src/data/towers.ts';
+import { SimWorld } from '../../src/sim/world.ts';
+import type { LoadedArt, TowerArtRuntime } from '../../src/render2d/assets2d.ts';
+import { WorldLayers } from '../../src/render2d/layers.ts';
 import { ManifestError, parseManifest, parseSheetJson } from '../../src/render2d/manifest.ts';
+import { MapView } from '../../src/render2d/mapView.ts';
+import { plotGeometry } from '../../src/render2d/plotLayer.ts';
+import type { ProcTextures } from '../../src/render2d/procTextures.ts';
+import { TowerLayer } from '../../src/render2d/towerLayer.ts';
 import { attackFrame, attackPlan, CATCH_UP, idleFrame, onShot, PREROLL_GRACE, prerollStart, projectileReveal, shotEta, shouldPreroll } from '../../src/render2d/towerAnim.ts';
 import { drawnRing, fitOnRing, measureRing, plotRing, plotSpriteRect, ringMuzzle, type RingSpec } from '../../src/render2d/towerFit.ts';
 
 const ROOT = resolve(import.meta.dirname, '../..');
 const RAW = JSON.parse(readFileSync(resolve(ROOT, 'public/art2d/manifest.json'), 'utf8')) as Record<string, unknown>;
 const M = parseManifest(RAW);
+
+it('opens the barracks gate once for a new squad and again for the recruit from a tier upgrade', () => {
+  const events = new EventBus();
+  const world = new SimWorld(LEVEL_L1C, events);
+  const map = new MapView(Texture.WHITE, LEVEL_L1C.layout2d!);
+  const ring = { ringWidthPx: 1, ringCenterXPx: 0.5, ringBottomPx: 1 };
+  const gate = { frames: [Texture.WHITE, Texture.EMPTY], ring, fps: 12, release: null, frameW: 1, frameH: 1 };
+  const barracks: TowerArtRuntime = {
+    spec: M.towers.barracks!, tint: 0xffffff, fallbackOf: null, tierFiles: [],
+    tiers: [Texture.WHITE, Texture.WHITE], rings: [ring, ring], attack: [gate, gate], idle: [],
+  };
+  const layer = new TowerLayer({ towers: { barracks } } as LoadedArt, map, new WorldLayers(map.world),
+    { shadow: Texture.WHITE } as ProcTextures, null, plotGeometry(map.layout, null));
+  layer.bind(events);
+  world.gold = 1000;
+  const tower = world.placeTowerOnPlot(9, 'barracks')!;
+  const frameAfter = (dt: number) => {
+    layer.sync(world.towers, dt);
+    return layer.ringReport(world.towers)[0].attackFrame;
+  };
+  expect(frameAfter(1 / 60)).toBe(0);
+  expect(frameAfter(1 / 12)).toBe(1);
+  expect(layer.attacksPlayed).toBe(1);
+  expect(world.upgradeTower(tower.id)).toBe(true);
+  expect(frameAfter(1 / 60)).toBe(0);
+  expect(layer.attacksPlayed).toBe(2);
+  expect(frameAfter(0.25)).toBe(-1);
+  map.root.destroy({ children: true });
+});
 
 /** RGBA buffer with opaque filled ellipses / rects (alpha only matters). */
 function canvas(w: number, h: number): { data: Uint8ClampedArray; ellipse: (cx: number, cy: number, rx: number, ry: number) => void; rect: (x0: number, y0: number, x1: number, y1: number) => void } {
@@ -86,7 +125,7 @@ describe('fit rule: towers stand exactly on their plot', () => {
     }
   });
 
-  it.each([...specializationsFor('frost'), ...specializationsFor('tesla'), ...specializationsFor('mortar'), ...specializationsFor('beacon')])('$name has a registered attack sheet, release and portrait', ({ id }) => {
+  it.each((['frost', 'tesla', 'mortar', 'beacon', 'barracks'] as const).flatMap(type => specializationsFor(type)))('$name has a registered attack sheet, release and portrait', ({ id }) => {
     const dir = resolve(ROOT, 'public/art2d');
     const entries = RAW.towerSpecializations as Record<string, { attack: string; portrait: string }>;
     const entry = entries[id];

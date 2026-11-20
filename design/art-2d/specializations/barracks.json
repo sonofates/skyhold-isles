@@ -1,0 +1,14 @@
+{
+ "gateward": {
+  "splitX": 1090,
+  "doorway": [453, 792, 599, 940],
+  "upperScale": 0.77,
+  "motion": "lift"
+ },
+ "briar": {
+  "splitX": 1090,
+  "doorway": [474, 743, 597, 932],
+  "upperScale": 0.65,
+  "motion": "swing"
+ }
+}
