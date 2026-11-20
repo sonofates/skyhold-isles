@@ -23,6 +23,7 @@ import {
   PROGRESS_RESET_BACKUP_KEY,
   PROGRESS_SAVE_VERSION,
   readLocalProgressRaw,
+  sanitizeWonChallenges,
   saveProgress,
   tryRepairTruncatedJson,
 } from './storage.ts';
@@ -148,6 +149,10 @@ export function encodeSaveCode(progress: ProgressData, levelIds?: readonly strin
   if (progress.heroes !== undefined) {
     payload.h = encodeHeroPayload(progress.heroes);
   }
+  const safeWonChallenges = sanitizeWonChallenges(progress.wonChallenges);
+  if (safeWonChallenges) {
+    payload.wc = safeWonChallenges;
+  }
   if (progress.difficultyWins !== undefined) {
     const rawDw = progress.difficultyWins as unknown as Record<string, unknown>;
     const dwCount = Math.max(
@@ -255,6 +260,9 @@ export function decodeSaveCode(code: string, levelCount: number): SaveCodeResult
       challengeClears: r.b,
       daily: r.d,
       ...(decodedHeroes !== undefined ? { heroes: decodedHeroes } : {}),
+      ...(r.wc !== undefined || r.wonChallenges !== undefined
+        ? { wonChallenges: r.wc ?? r.wonChallenges }
+        : {}),
       ...(rawDw
         ? {
             difficultyWins: {
@@ -367,6 +375,14 @@ export function mergeProgress(a: ProgressData, b: ProgressData, levelCount: numb
     if (clears[i] > 0 || bestStars[i] > 0) clearedCount++;
   }
   const mergedHeroes = mergeHeroSaveData(a.heroes, b.heroes, clearedCount, unlockedLevelIndex);
+  const wcA = sanitizeWonChallenges(a.wonChallenges) ?? [];
+  const wcB = sanitizeWonChallenges(b.wonChallenges) ?? [];
+  const mergedWonChallenges =
+    wcA.length > 0 || wcB.length > 0
+      ? wcA.length === wcB.length && wcA.every((id, idx) => wcB[idx] === id)
+        ? wcA
+        : [...new Set([...wcA, ...wcB])].sort()
+      : undefined;
   const verA = safeInt(a.version) || PROGRESS_SAVE_VERSION;
   const verB = safeInt(b.version) || PROGRESS_SAVE_VERSION;
   const merged: ProgressData = {
@@ -399,6 +415,7 @@ export function mergeProgress(a: ProgressData, b: ProgressData, levelCount: numb
     ...(mergedHeroes !== undefined ? { heroes: mergedHeroes } : {}),
     // Either side recorded difficulty: keep the best of both (a legacy side's wins read as Normal).
     ...(mergedDifficultyWins !== undefined ? { difficultyWins: mergedDifficultyWins } : {}),
+    ...(mergedWonChallenges !== undefined ? { wonChallenges: mergedWonChallenges } : {}),
   };
   if (starWallet(merged).available < 0) {
     const totalEarned = starWallet(merged).earned;
@@ -502,6 +519,11 @@ export function describeMergeGain(before: ProgressData, after: ProgressData): st
   if (stars > 0) parts.push(`+${stars}★`);
   if (islands > 0) parts.push(`${islands} more island${islands === 1 ? '' : 's'} unlocked`);
   if (badges > 0) parts.push(`+${badges} badge${badges === 1 ? '' : 's'}`);
+  else {
+    const wcBefore = new Set(sanitizeWonChallenges(before.wonChallenges) ?? []);
+    const newWc = (sanitizeWonChallenges(after.wonChallenges) ?? []).filter((id) => !wcBefore.has(id)).length;
+    if (newWc > 0) parts.push(`+${newWc} challenge win${newWc === 1 ? '' : 's'}`);
+  }
   const records = after.bestEndlessWaves.some((v, i) => v > (before.bestEndlessWaves[i] ?? 0));
   if (records) parts.push('new endless records');
   const dailies = (after.daily?.total ?? 0) - (before.daily?.total ?? 0);

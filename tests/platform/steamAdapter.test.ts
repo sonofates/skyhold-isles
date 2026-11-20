@@ -5,7 +5,8 @@ import { challengesForLevel } from '../../src/data/challenges.ts';
 import { HERO_IDS, HERO_LEVEL_XP } from '../../src/data/heroes.ts';
 import { LEVELS } from '../../src/data/levels/index.ts';
 import { LEVELS_2D } from '../../src/data/levels2d/index.ts';
-import { createFreshHeroSaveData } from '../../src/render2d/heroes2d.ts';
+import { starWallet } from '../../src/game/progression.ts';
+import { createFreshHeroSaveData, respec, selectHero } from '../../src/render2d/heroes2d.ts';
 import {
   createPlatformAdapter,
   earnedSteamAchievementIds,
@@ -27,13 +28,18 @@ import {
   saveProgress,
 } from '../../src/platform/storage.ts';
 import {
+  applyRunResult2D,
   CLOUD_PROGRESS_2D_SLOT,
+  decodeSaveCode2D,
+  encodeSaveCode2D,
   hydrateProgress2DFromCloud,
   loadProgress2D,
+  onProgress2DCloudHydrated,
   PROGRESS_2D_KEY,
   PROGRESS_2D_RESET_BACKUP_KEY,
   recordRunResult2D,
   recoverProgress2D,
+  remapProgress,
   resetProgress2D,
   saveProgress2D,
 } from '../../src/render2d/ui/progress2d.ts';
@@ -939,5 +945,144 @@ describe('Steam achievements map, cloud hydration, and desktop config invariants
     expect(recoverProgressSave(LEVELS.length, { persist: false }).recovered).toBe(false);
     expect(recoverProgressSave(LEVELS.length, { includeResetBackup: true, persist: false }).recovered).toBe(true);
     setPlatformAdapter(null);
+  });
+
+  it('mutates World Map boot ProgressData in-place on Steam Cloud arrival, guards pre-hydration clones, and preserves intentional respec/refund', async () => {
+    const cloudMap = new Map<string, string>();
+    const remote = createDefaultProgress(LEVELS_2D.length);
+    remote.bestStars.fill(3);
+    remote.clears.fill(1);
+    remote.unlockedLevelIndex = LEVELS_2D.length - 1;
+    remote.workshop = { treasury: 2 };
+    remote.heroes = createFreshHeroSaveData();
+    remote.heroes.selectedHero = 'mira';
+    remote.heroes.roster.mira = { xp: HERO_LEVEL_XP[19], skills: ['mira_emb_1', 'mira_rng_1'] };
+    cloudMap.set(
+      CLOUD_PROGRESS_2D_SLOT,
+      JSON.stringify({ ids: LEVELS_2D.map((l) => l.id), progress: remote }),
+    );
+
+    const adapter = createPlatformAdapter({
+      storage: createMemStorage(),
+      bridge: {
+        isSteam: true,
+        unlockAchievement: async () => true,
+        cloudRead: async (slot) => cloudMap.get(slot) ?? null,
+        cloudWrite: async (slot, json) => {
+          cloudMap.set(slot, json);
+          return true;
+        },
+      },
+    });
+    setPlatformAdapter(adapter);
+
+    let notifiedCount = 0;
+    const unsub = onProgress2DCloudHydrated(() => {
+      notifiedCount++;
+    });
+
+    try {
+      // Simulate World Map holding `bootProgress` across background Steam Cloud hydration,
+      // PLUS a pre-hydration clone (`preClone`) created before cloudRead resolves.
+      const bootProgress = loadProgress2D(LEVELS_2D);
+      const preClone = selectHero(bootProgress, 'bran', LEVELS_2D)!;
+      expect(bootProgress.bestStars[0]).toBe(0);
+
+      await new Promise((r) => setTimeout(r, 15));
+      expect(notifiedCount).toBe(1);
+      // In-place update populated World Map's `bootProgress` directly!
+      expect(bootProgress.bestStars[24]).toBe(3);
+      expect(bootProgress.heroes?.selectedHero).toBe('mira');
+      expect(bootProgress.heroes?.roster.mira?.xp).toBe(HERO_LEVEL_XP[19]);
+      expect(bootProgress.workshop).toEqual({ treasury: 2 });
+
+      // Saving the stale pre-hydration clone right after hydration folds in the cloud floor instead of wiping 75★!
+      saveProgress2D(preClone, LEVELS_2D);
+      await new Promise((r) => setTimeout(r, 10));
+      const afterStaleSave = loadProgress2D(LEVELS_2D);
+      expect(afterStaleSave.bestStars.every((s) => s === 3)).toBe(true);
+      expect(afterStaleSave.heroes?.roster.mira?.xp).toBe(HERO_LEVEL_XP[19]);
+      expect(afterStaleSave.heroes?.roster.mira?.skills).toEqual(['mira_emb_1', 'mira_rng_1']);
+      expect(afterStaleSave.workshop).toEqual({ treasury: 2 });
+
+      // Intentional post-hydration Workshop Refund & Hero Respec still clear ranks/skills cleanly!
+      afterStaleSave.workshop = {};
+      saveProgress2D(afterStaleSave, LEVELS_2D);
+      const respecced = respec(loadProgress2D(LEVELS_2D), 'mira', LEVELS_2D);
+      saveProgress2D(respecced, LEVELS_2D);
+      const finalLoaded = loadProgress2D(LEVELS_2D);
+      expect(finalLoaded.workshop).toEqual({});
+      expect(finalLoaded.heroes?.roster.mira?.xp).toBe(HERO_LEVEL_XP[19]);
+      expect(finalLoaded.heroes?.roster.mira?.skills).toEqual([]);
+      expect(finalLoaded.bestStars.every((s) => s === 3)).toBe(true);
+    } finally {
+      unsub();
+      setPlatformAdapter(null);
+    }
+  });
+
+  it('unlocks CHALLENGE_STATIC_FREE on 2D Daily Squall / non-badge challenge wins without inflating starWallet, and clamps oversized star arrays', () => {
+    const p = createDefaultProgress(LEVELS_2D.length);
+
+    // Offered badge win ('bowless' on l1c) keeps wonChallenges undefined.
+    applyRunResult2D(
+      p,
+      {
+        levelId: 'l1c',
+        won: true,
+        stars: 3,
+        livesRemaining: 18,
+        waveReached: LEVELS_2D[0].waves.length,
+        runConfig: { endless: false, challenges: ['bowless'], daily: null },
+      },
+      LEVELS_2D,
+    );
+    expect(p.wonChallenges).toBeUndefined();
+    expect(p.challengeClears[0]).toEqual(['bowless']);
+    const walletBeforeDaily = starWallet(p);
+    expect(walletBeforeDaily.earned).toBe(4); // 3★ + 1 bowless badge
+
+    // Daily Squall win on l1c with ['staticFree', 'championHost']: staticFree is not in DEFAULT_BY_DIFFICULTY,
+    // so it grants NO extra island badge star, yet MUST unlock CHALLENGE_STATIC_FREE ("Still Air")!
+    const day = 20777;
+    applyRunResult2D(
+      p,
+      {
+        levelId: 'l1c',
+        won: true,
+        stars: 3,
+        livesRemaining: 18,
+        waveReached: LEVELS_2D[0].waves.length,
+        runConfig: { endless: false, challenges: ['staticFree', 'championHost'], daily: day },
+        nowMs: day * 86_400_000 + 3_600_000,
+      },
+      LEVELS_2D,
+    );
+    expect(p.challengeClears[0]).toEqual(['bowless']);
+    expect(starWallet(p).earned).toBe(5); // +1 Daily star only (no extra badge inflation!)
+    expect(p.wonChallenges).toEqual(['staticFree', 'championHost']);
+    expect(earnedSteamAchievementIds(p, LEVELS_2D)).toContain('CHALLENGE_STATIC_FREE');
+
+    // Survives SKY2-... save code round-trip and island-list remapping.
+    const code = encodeSaveCode2D(p, LEVELS_2D);
+    const decoded = decodeSaveCode2D(code, LEVELS_2D);
+    expect(decoded.ok).toBe(true);
+    if (decoded.ok) {
+      expect(decoded.progress.wonChallenges).toEqual(['staticFree', 'championHost']);
+      expect(earnedSteamAchievementIds(decoded.progress, LEVELS_2D)).toContain('CHALLENGE_STATIC_FREE');
+      const remapped = remapProgress(
+        decoded.progress,
+        LEVELS_2D.map((l) => l.id),
+        [...LEVELS_2D].reverse(),
+      );
+      expect(earnedSteamAchievementIds(remapped, [...LEVELS_2D].reverse())).toContain('CHALLENGE_STATIC_FREE');
+    }
+
+    // Oversized bestStars array (e.g. 25-island save evaluated against 16-island roster) must not count tail stars toward FEAT_FULL_FIRMAMENT.
+    const oversized = createDefaultProgress(25);
+    for (let i = 0; i < 15; i++) oversized.bestStars[i] = 3; // 45/48 stars on first 16 islands
+    oversized.bestStars[15] = 0;
+    for (let i = 16; i < 25; i++) oversized.bestStars[i] = 3; // +27 stars in tail [16..24]
+    expect(earnedSteamAchievementIds(oversized, LEVELS)).not.toContain('FEAT_FULL_FIRMAMENT');
   });
 });

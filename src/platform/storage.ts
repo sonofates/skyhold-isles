@@ -1,4 +1,5 @@
 import type { GameSettings, ProgressData, QualityLevel } from '../core/types.ts';
+import { isChallengeId } from '../data/challenges.ts';
 import { createDailyRecord, sanitizeDailyRecord } from '../data/daily.ts';
 import { sanitizeDifficultyWins } from '../data/difficulty.ts';
 import { HERO_IDS, hasHeroSaveProgress, sanitizeHeroSaveData } from '../data/heroes.ts';
@@ -147,6 +148,16 @@ export function createDefaultProgress(levelCount: number): ProgressData {
     challengeClears: Array.from({ length: count }, () => []),
     daily: createDailyRecord(),
   };
+}
+
+/** Sanitizes a flat list of unique valid `ChallengeId` tokens (`undefined` when empty/absent). */
+export function sanitizeWonChallenges(val: unknown): string[] | undefined {
+  if (!Array.isArray(val)) return undefined;
+  const out: string[] = [];
+  for (const id of val) {
+    if (isChallengeId(id) && !out.includes(id)) out.push(id);
+  }
+  return out.length > 0 ? out : undefined;
 }
 
 /** Per-island list of unique short id strings (junk → empty list). */
@@ -430,6 +441,8 @@ export function migrateProgress(parsed: unknown, levelCount: number): ProgressDa
     progress.heroes = sanitizeHeroSaveData(rawHeroes, clearedCount, unlocked);
   }
   if (difficultyWins) progress.difficultyWins = difficultyWins;
+  const wonChallenges = sanitizeWonChallenges(raw.wonChallenges ?? raw.wc);
+  if (wonChallenges) progress.wonChallenges = wonChallenges;
   // Upgrades are always refundable: if a save somehow spends more stars than it has earned
   // (edited save, retuned costs), refund everything instead of keeping an impossible state.
   if (starWallet(progress).available < 0) progress.workshop = {};
@@ -472,6 +485,14 @@ function combineRecoveredRawObjects(
   const mu = mirror.unlockedLevelIndex;
   if (typeof pu === 'number' && Number.isFinite(pu) && typeof mu === 'number' && Number.isFinite(mu)) {
     combined.unlockedLevelIndex = Math.max(pu, mu);
+  }
+  const pwc = primary.wonChallenges ?? primary.wc;
+  const mwc = mirror.wonChallenges ?? mirror.wc;
+  if (Array.isArray(pwc) || Array.isArray(mwc)) {
+    combined.wonChallenges = [
+      ...(Array.isArray(mwc) ? mwc : []),
+      ...(Array.isArray(pwc) ? pwc : []),
+    ];
   }
   return combined;
 }
@@ -626,6 +647,7 @@ export function hasAnyProgress(p: ProgressData): boolean {
     p.clears.some((v) => v > 0) ||
     p.bestEndlessWaves.some((v) => v > 0) ||
     p.challengeClears.some((l) => l.length > 0) ||
+    (p.wonChallenges?.length ?? 0) > 0 ||
     p.daily.total > 0 ||
     Object.keys(p.workshop).length > 0 ||
     hasHeroSaveProgress(p.heroes) ||

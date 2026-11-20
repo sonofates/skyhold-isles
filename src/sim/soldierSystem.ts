@@ -606,6 +606,16 @@ export class SoldierSystem {
     return m.trampleFromPhase === undefined || e.bossPhase < m.trampleFromPhase;
   }
 
+  /** True when fighting soldier `s` is currently holding `e` (as primary target or extra hold). */
+  private isSoldierHolding(s: SoldierEntity, e: EnemyEntity): boolean {
+    if (s.state !== 'fighting') return false;
+    if (s.targetPoolIndex === e.poolIndex && s.targetUid === e.uid) return true;
+    for (let k = 0; k < s.extraHoldPoolIndices.length; k++) {
+      if (s.extraHoldPoolIndices[k] === e.poolIndex && s.extraHoldUids[k] === e.uid) return true;
+    }
+    return false;
+  }
+
   private target(s: SoldierEntity): EnemyEntity | null {
     if (s.targetPoolIndex < 0) return null;
     const e = this.pool.items[s.targetPoolIndex];
@@ -909,7 +919,16 @@ export class SoldierSystem {
         if (e.meleeTimer <= 0) e.meleeTimer = 1 / m.rate;
         this.enemyArmed[e.poolIndex] = 0;
         const scale = Math.sqrt(Math.max(0.01, e.maxHp / ENEMY_DEFS[e.type].maxHp));
-        const first = this.getSoldierById(this.primary[e.poolIndex]);
+        let first = this.getSoldierById(this.primary[e.poolIndex]);
+        if (!first || !this.isSoldierHolding(first, e)) {
+          first = null;
+          for (let i = 0; i < this.soldiers.length; i++) {
+            if (this.isSoldierHolding(this.soldiers[i], e)) {
+              first = this.soldiers[i];
+              break;
+            }
+          }
+        }
         const fx = first ? first.x : e.x;
         const fz = first ? first.z : e.z;
         let struck = 0;
@@ -919,13 +938,13 @@ export class SoldierSystem {
           _sweepSoldiers.length = 0;
           for (let i = 0; i < this.soldiers.length; i++) {
             const s = this.soldiers[i];
-            if (s.state === 'fighting' && s.targetPoolIndex === e.poolIndex && s.targetUid === e.uid) {
+            if (this.isSoldierHolding(s, e)) {
               _sweepSoldiers.push(s);
             }
           }
           for (let i = 0; i < _sweepSoldiers.length; i++) {
             const s = _sweepSoldiers[i];
-            if (s.state === 'fighting' && s.targetPoolIndex === e.poolIndex && s.targetUid === e.uid) {
+            if (this.isSoldierHolding(s, e)) {
               const r = this.hurt(s, e, m.damage * scale);
               if (this.abortedStep) return;
               if (struck === 0) dealt = r;
@@ -934,12 +953,7 @@ export class SoldierSystem {
             }
           }
           _sweepSoldiers.length = 0;
-        } else if (
-          first &&
-          first.state === 'fighting' &&
-          first.targetPoolIndex === e.poolIndex &&
-          first.targetUid === e.uid
-        ) {
+        } else if (first) {
           dealt = this.hurt(first, e, m.damage * scale);
           if (this.abortedStep) return;
           struck = 1;
@@ -965,21 +979,12 @@ export class SoldierSystem {
       }
       // Announce the next blow while something still holds it (render timing only).
       let next = this.getSoldierById(this.primary[e.poolIndex]);
-      if (
-        !next ||
-        next.state !== 'fighting' ||
-        next.targetPoolIndex !== e.poolIndex ||
-        next.targetUid !== e.uid
-      ) {
+      if (!next || !this.isSoldierHolding(next, e)) {
         next = null;
         if (e.blockers > 0) {
           for (let i = 0; i < this.soldiers.length; i++) {
             const cand = this.soldiers[i];
-            if (
-              cand.state === 'fighting' &&
-              cand.targetPoolIndex === e.poolIndex &&
-              cand.targetUid === e.uid
-            ) {
+            if (this.isSoldierHolding(cand, e)) {
               next = cand;
               break;
             }
@@ -1290,7 +1295,9 @@ export class SoldierSystem {
     const killedSoldier = s.hp <= 0;
     if (killedSoldier) {
       s.hp = 0;
-      if (e.blockers > 0) e.blockers--;
+      if (s.targetPoolIndex >= 0) {
+        this.decrementEnemyHold(s.targetPoolIndex, s.targetUid, false);
+      }
       for (let k = 0; k < s.extraHoldPoolIndices.length; k++) {
         this.decrementEnemyHold(s.extraHoldPoolIndices[k], s.extraHoldUids[k], false);
       }

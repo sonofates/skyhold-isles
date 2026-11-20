@@ -1,10 +1,11 @@
 import type { HeroId, ProgressData } from '../../src/core/types.ts';
 import { challengesForLevel } from '../../src/data/challenges.ts';
 import { difficultyWinsOf } from '../../src/data/difficulty.ts';
-import { defaultSkillsForLevel, HERO_IDS, heroLevelFromXp, heroSkillPointsForLevel } from '../../src/data/heroes.ts';
+import { defaultSkillsForLevel, HERO_IDS, HERO_LEVEL_XP, heroLevelFromXp, heroSkillPointsForLevel } from '../../src/data/heroes.ts';
 import { LEVELS_2D } from '../../src/data/levels2d/index.ts';
 import { buyRank, WORKSHOP_UPGRADES, workshopStarsSpent } from '../../src/data/workshop.ts';
 import { starWallet } from '../../src/game/progression.ts';
+import { earnedSteamAchievementIds, STEAM_ACHIEVEMENTS } from '../../src/platform/achievements.ts';
 import type { PlatformAdapter } from '../../src/platform/platform.ts';
 import { describeMergeGain } from '../../src/platform/saveCode.ts';
 import { createDefaultProgress } from '../../src/platform/storage.ts';
@@ -346,6 +347,88 @@ export async function runMidProgressSaveSweep(): Promise<readonly InvariantViola
       kind: 'save_roundtrip',
       tick: 0,
       message: `cloud merge missed Hard ribbon on i16 (gain="${gainDesc}")`,
+    });
+  }
+
+  // Step 5: Verify ALL 58 Steam achievements are genuinely earnable through pure 2D gameplay APIs (applyRunResult2D + dailyForToday).
+  const full2d = createDefaultProgress(LEVELS_2D.length);
+  for (let idx = 0; idx < LEVELS_2D.length; idx++) {
+    const lvl = LEVELS_2D[idx];
+    const offered = challengesForLevel(lvl);
+    const heroId = HERO_IDS[idx % HERO_IDS.length];
+    // First clear unlocks challenges; second clear on Hard earns 3★ + Hard ribbon + all offered badges (total >= 50 wins).
+    applyRunResult2D(
+      full2d,
+      {
+        levelId: lvl.id,
+        won: true,
+        stars: 3,
+        livesRemaining: 20,
+        waveReached: lvl.waves.length,
+        runConfig: { endless: false, challenges: [], daily: null, difficulty: 'hard' },
+        heroId,
+        heroXpEarned: HERO_LEVEL_XP[19],
+      },
+      LEVELS_2D,
+    );
+    applyRunResult2D(
+      full2d,
+      {
+        levelId: lvl.id,
+        won: true,
+        stars: 3,
+        livesRemaining: 20,
+        waveReached: lvl.waves.length,
+        runConfig: { endless: false, challenges: [...offered], daily: null, difficulty: 'hard' },
+        heroId,
+        enemiesKilled: 200,
+        wavesCleared: lvl.waves.length,
+      },
+      LEVELS_2D,
+    );
+    if (idx < 5) {
+      applyRunResult2D(
+        full2d,
+        {
+          levelId: lvl.id,
+          won: false,
+          stars: 0,
+          livesRemaining: 0,
+          waveReached: lvl.waves.length + 21,
+          runConfig: { endless: true, challenges: [], daily: null },
+          heroId,
+        },
+        LEVELS_2D,
+      );
+    }
+  }
+  for (let d = 0; d < 35; d++) {
+    const dayMs = baseDayMs + d * 86_400_000;
+    const daily = dailyForToday(dayMs, full2d, LEVELS_2D);
+    if (!daily) continue;
+    applyRunResult2D(
+      full2d,
+      {
+        levelId: daily.levelId,
+        won: true,
+        stars: 3,
+        livesRemaining: 20,
+        waveReached: daily.level.waves.length,
+        runConfig: { endless: false, challenges: [...daily.challenges], daily: daily.day },
+        nowMs: dayMs,
+        heroId: 'bran',
+      },
+      LEVELS_2D,
+    );
+  }
+  assertProgressInvariants(full2d, 'full-2d-completion', violations);
+  const earnedAll2d = earnedSteamAchievementIds(full2d, LEVELS_2D);
+  if (earnedAll2d.length !== STEAM_ACHIEVEMENTS.length) {
+    const missing = STEAM_ACHIEVEMENTS.map((a) => a.id).filter((id) => !earnedAll2d.includes(id));
+    violations.push({
+      kind: 'save_roundtrip',
+      tick: 0,
+      message: `2D completion earned ${earnedAll2d.length}/${STEAM_ACHIEVEMENTS.length} Steam achievements; missing: ${missing.join(', ')}`,
     });
   }
 

@@ -713,4 +713,59 @@ describe('determinism and isolation', () => {
       (TOWER_DEFS.barracks.tiers as unknown as Record<number, unknown>)[2] = origT3;
     }
   });
+
+  it('extra-held foes on soldierHoldCap > 1 deal melee counter-attacks and release both primary & extra holds when killing the soldier', () => {
+    const origT3 = TOWER_DEFS.barracks.tiers[2];
+    try {
+      (TOWER_DEFS.barracks.tiers as unknown as Record<number, unknown>)[2] = {
+        ...origT3,
+        soldierCount: 1,
+        soldierHp: 12,
+        soldierArmor: 0,
+        soldierDamage: 0,
+        soldierHoldCap: 2,
+      };
+
+      const { world, log } = setup();
+      const monitor = new InvariantMonitor(world, world.events, 8);
+      const stepWorld = (n: number): void => {
+        for (let i = 0; i < n; i++) {
+          const nextTick = world.tick + 1;
+          monitor.beginTick(nextTick);
+          world.fixedTick(DT);
+          monitor.endTick(world.tick, DT);
+        }
+      };
+
+      const t = world.placeTowerOnPlot(0, 'barracks')!;
+      expect(world.upgradeTower(t.id)).toBe(true);
+      expect(world.upgradeTower(t.id)).toBe(true);
+      const b = world.soldierSystem.getBarracks(t.id)!;
+      stepWorld(60);
+
+      // Primary target g1 is permanently stunned so ONLY extra-held g2 can swing and kill the soldier!
+      const g1 = spawnAt(world, 'grunt', 8 + b.rallyX - 0.15);
+      const g2 = spawnAt(world, 'grunt', 8 + b.rallyX - 0.42);
+      g1.stunTimer = 999;
+      for (let guard = 0; guard < 180 && !(g1.blockers >= 1 && g2.blockers >= 1); guard++) {
+        stepWorld(1);
+      }
+      expect(b.squad[0].targetUid).toBe(g1.uid);
+      expect(b.squad[0].extraHoldUids).toEqual([g2.uid]);
+
+      for (let guard = 0; guard < 240 && b.squad[0].state !== 'dead'; guard++) {
+        stepWorld(1);
+      }
+      // Extra-held g2 must have struck and killed the lone soldier, releasing BOTH g1 (primary) and g2 (extra).
+      expect(b.squad[0].state).toBe('dead');
+      expect((log.soldierHurt ?? []).some((ev) => ev.enemyId === g2.uid)).toBe(true);
+      expect(g1.blockers).toBe(0);
+      expect(g2.blockers).toBe(0);
+      expect(monitor.violations).toEqual([]);
+      stepWorld(5);
+      expect(monitor.violations).toEqual([]);
+    } finally {
+      (TOWER_DEFS.barracks.tiers as unknown as Record<number, unknown>)[2] = origT3;
+    }
+  });
 });

@@ -112,6 +112,12 @@ export interface ProgressData {
    * from before difficulty existed: read it through `difficultyWinsOf` (their wins count as Normal).
    */
   difficultyWins?: { easy: number[]; normal: number[]; hard: number[] };
+  /**
+   * Distinct challenge ids won outside an island's two offered badges (e.g. Daily Squall pairs or
+   * challenges like `staticFree` not offered on default 2D islands). Never grants Workshop stars;
+   * unlocks `CHALLENGE_*` Steam achievements.
+   */
+  wonChallenges?: string[];
 }
 
 export interface Vec3 {

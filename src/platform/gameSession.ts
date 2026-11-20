@@ -188,6 +188,7 @@ export class GameSession {
           const inMemoryDiverged = JSON.stringify(freshMerged) !== JSON.stringify(merged);
           if (freshMerged.heroes === undefined) delete this.progress.heroes;
           if (freshMerged.difficultyWins === undefined) delete this.progress.difficultyWins;
+          if (freshMerged.wonChallenges === undefined) delete this.progress.wonChallenges;
           Object.assign(this.progress, freshMerged);
           if (inMemoryDiverged) {
             saveProgress(this.progress);
@@ -584,12 +585,19 @@ export class GameSession {
         const offered = challengesForLevel(LEVELS[this.currentLevelIndex]);
         const masteredBefore = isIslandMastered(this.progress, this.currentLevelIndex, offered);
         const featsBefore = earnedFeatIds(this.progress);
+        const earnedBadges = badgesForWin(offered, this.runConfig.challenges);
+        for (const cid of this.runConfig.challenges) {
+          if (isChallengeId(cid) && !earnedBadges.includes(cid)) {
+            const wc = (this.progress.wonChallenges ??= []);
+            if (!wc.includes(cid)) wc.push(cid);
+          }
+        }
         const record = recordWinProgress(
           this.progress,
           this.currentLevelIndex,
           stars,
           livesRemaining,
-          badgesForWin(offered, this.runConfig.challenges),
+          earnedBadges,
         );
         let dailyStreak = 0;
         let shareDailyStreak = 0;
@@ -745,6 +753,7 @@ export class GameSession {
     const fresh = resetProgressSave(LEVELS.length);
     delete this.progress.heroes;
     delete this.progress.difficultyWins;
+    delete this.progress.wonChallenges;
     Object.assign(this.progress, fresh);
     this.currentLevelIndex = 0;
     this.runConfig = { endless: false, challenges: [], daily: null };
@@ -773,6 +782,7 @@ export class GameSession {
     backupProgressBeforeImport();
     if (merged.heroes === undefined) delete this.progress.heroes;
     if (merged.difficultyWins === undefined) delete this.progress.difficultyWins;
+    if (merged.wonChallenges === undefined) delete this.progress.wonChallenges;
     Object.assign(this.progress, merged);
     saveProgress(this.progress);
     this.soundManager.playUiConfirm();

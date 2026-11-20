@@ -81,8 +81,9 @@ function isIslandClearedAt(progress: ProgressData, index: number): boolean {
 }
 
 function normalizeProgressForAchievements(progress: ProgressData, count: number): ProgressData {
-  let needsPatch = false;
-  for (let i = 0; i < count; i++) {
+  let needsPatch =
+    (progress.bestStars?.length ?? 0) > count || (progress.clears?.length ?? 0) > count;
+  for (let i = 0; i < count && !needsPatch; i++) {
     const effStars = safeBestStarsAt(progress, i);
     const curStars = safeNonNegInt(progress.bestStars?.[i]);
     const curClears = safeNonNegInt(progress.clears?.[i]);
@@ -225,6 +226,9 @@ const challengeAchievements: readonly SteamAchievementDef[] = [
       description: `Win an island with ${def.name} (${def.description})`,
       category: 'challenge',
       isEarned: (progress, levels) => {
+        if (Array.isArray(progress.wonChallenges) && progress.wonChallenges.includes(cid)) {
+          return true;
+        }
         for (let i = 0; i < levels.length; i++) {
           if ((progress.challengeClears?.[i] ?? []).includes(cid)) return true;
         }

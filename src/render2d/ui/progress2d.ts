@@ -12,14 +12,21 @@
  * instead of shifting stars onto the wrong island.
  */
 import type { HeroId, ProgressData } from '../../core/types.ts';
-import { challengesForLevel, type ChallengeId } from '../../data/challenges.ts';
+import { challengesForLevel, isChallengeId, type ChallengeId } from '../../data/challenges.ts';
 import { applyDailyWin, utcDayNumber } from '../../data/daily.ts';
-import { DIFFICULTIES, difficultyWinsOf, isDifficultyId, starsAwarded, type DifficultyId } from '../../data/difficulty.ts';
-import { isHeroId } from '../../data/heroes.ts';
-import { workshopStarsSpent } from '../../data/workshop.ts';
+import {
+  DIFFICULTIES,
+  difficultyWinsOf,
+  isDifficultyId,
+  mergeDifficultyWins,
+  starsAwarded,
+  type DifficultyId,
+} from '../../data/difficulty.ts';
+import { HERO_IDS, isHeroId } from '../../data/heroes.ts';
+import { sanitizeRanks, workshopStarsSpent } from '../../data/workshop.ts';
 import { LEVELS_2D } from '../../data/levels2d/index.ts';
 import type { LevelDef } from '../../data/levels/types.ts';
-import { applyEndlessRecord, applyWin, isIslandMastered, type WinRecord } from '../../game/progression.ts';
+import { applyEndlessRecord, applyWin, isIslandMastered, starWallet, type WinRecord } from '../../game/progression.ts';
 import { badgesForWin, PLAIN_RUN, type RunConfig } from '../../game/runConfig.ts';
 import { syncAchievementsFromProgress } from '../../platform/achievements.ts';
 import type { CloudHydrateResult } from '../../platform/cloudSync.ts';
@@ -29,6 +36,7 @@ import {
   describeMergeGain,
   encodeSaveCode,
   inspectSaveCodeHints,
+  mergeDaily,
   mergeProgress,
   type RecoverProgressResult,
   type SaveCodeResult,
@@ -38,6 +46,7 @@ import {
   hasAnyProgress,
   migrateProgress,
   PROGRESS_SAVE_VERSION,
+  sanitizeWonChallenges,
   tryRepairTruncatedJson,
   tryRepairTruncatedJsonArray,
 } from '../../platform/storage.ts';
@@ -62,7 +71,20 @@ const LOCAL_CLOUD_2D_MIRROR_KEY = `skyhold_isles_cloud_${CLOUD_PROGRESS_2D_SLOT}
 const autoHydrated2DAdapters = new WeakSet<PlatformAdapter>();
 const readingCloud2DAdapters = new WeakSet<PlatformAdapter>();
 const completedHydrated2DAdapters = new WeakSet<PlatformAdapter>();
+const pendingAutoHydrated2DByAdapter = new WeakMap<PlatformAdapter, ProgressData>();
+const cloudHydrate2DListeners = new Set<(progress: ProgressData) => void>();
 let resetGen2D = 0;
+
+/**
+ * Subscribes to background 2D Steam Cloud hydration updates triggered by `loadProgress2D()`.
+ * Useful for World Map / meta UIs to re-render immediately when a fresh PC pulls remote progress.
+ */
+export function onProgress2DCloudHydrated(listener: (progress: ProgressData) => void): () => void {
+  cloudHydrate2DListeners.add(listener);
+  return () => {
+    cloudHydrate2DListeners.delete(listener);
+  };
+}
 
 function isMockLevelRoster(levels: readonly Pick<LevelDef, 'id'>[]): boolean {
   return levels.some((l) => l.id.startsWith('mock-'));
@@ -145,6 +167,9 @@ export function remapProgress(raw: unknown, oldIds: readonly string[], levels: r
   });
   out.workshop = { ...old.workshop };
   out.daily = { ...old.daily };
+  if (old.wonChallenges && old.wonChallenges.length > 0) {
+    out.wonChallenges = [...old.wonChallenges];
+  }
   out.unlockedLevelIndex = frontier;
   // Same walk-forward the campaign migration does: everything after a cleared island opens.
   const remapped = migrateProgress(out, n);
@@ -281,13 +306,97 @@ function loadLocalProgress2DInternal(levels: readonly LevelDef[]): ProgressData 
   }
 }
 
+function foldPendingCloudFloor2D(
+  target: ProgressData,
+  cloudFloor: ProgressData,
+  levels: readonly Pick<LevelDef, 'id'>[],
+): void {
+  const hadZeroStars = starWallet(target).earned === 0;
+  const n = levels.length;
+  for (let i = 0; i < n; i++) {
+    target.bestStars[i] = Math.max(target.bestStars[i] ?? 0, cloudFloor.bestStars[i] ?? 0);
+    target.bestEndlessWaves[i] = Math.max(target.bestEndlessWaves[i] ?? 0, cloudFloor.bestEndlessWaves[i] ?? 0);
+    target.bestLives[i] = Math.max(target.bestLives[i] ?? 0, cloudFloor.bestLives[i] ?? 0);
+    target.clears[i] = Math.max(target.clears[i] ?? 0, cloudFloor.clears[i] ?? 0);
+    const done = (target.challengeClears[i] ??= []);
+    for (const ch of cloudFloor.challengeClears[i] ?? []) {
+      if (!done.includes(ch)) done.push(ch);
+    }
+  }
+  if (target.difficultyWins !== undefined || cloudFloor.difficultyWins !== undefined) {
+    target.difficultyWins = mergeDifficultyWins(difficultyWinsOf(target), difficultyWinsOf(cloudFloor), n);
+  }
+  const mergedWc = sanitizeWonChallenges([
+    ...(target.wonChallenges ?? []),
+    ...(cloudFloor.wonChallenges ?? []),
+  ]);
+  if (mergedWc) target.wonChallenges = mergedWc;
+  target.daily = mergeDaily(target.daily, cloudFloor.daily);
+  target.unlockedLevelIndex = Math.min(
+    Math.max(0, n - 1),
+    Math.max(target.unlockedLevelIndex, cloudFloor.unlockedLevelIndex),
+  );
+  while (
+    target.unlockedLevelIndex < n - 1 &&
+    ((target.bestStars[target.unlockedLevelIndex] ?? 0) > 0 ||
+      (target.clears[target.unlockedLevelIndex] ?? 0) > 0)
+  ) {
+    target.unlockedLevelIndex++;
+  }
+  if (hadZeroStars && Object.keys(target.workshop ?? {}).length === 0 && Object.keys(cloudFloor.workshop ?? {}).length > 0) {
+    target.workshop = sanitizeRanks(cloudFloor.workshop);
+  }
+  if (cloudFloor.heroes) {
+    const curHeroes = migrateHeroSave(target.heroes, target, levels);
+    for (let i = 0; i < HERO_IDS.length; i++) {
+      const id = HERO_IDS[i];
+      const curEntry = curHeroes.roster[id] ?? { xp: 0, skills: [] };
+      const cloudEntry = cloudFloor.heroes.roster[id] ?? { xp: 0, skills: [] };
+      const hadZeroHeroXp = curEntry.xp === 0 && curEntry.skills.length === 0;
+      curHeroes.roster[id] = {
+        xp: Math.max(curEntry.xp, cloudEntry.xp),
+        skills: hadZeroHeroXp && cloudEntry.skills.length > 0 ? [...cloudEntry.skills] : [...curEntry.skills],
+      };
+    }
+    target.heroes = migrateHeroSave(curHeroes, target, levels);
+  }
+  if (starWallet(target).available < 0) target.workshop = {};
+}
+
 /** The 2D save, migrated to the current island list (with truncated-JSON & cloud-mirror recovery). Never throws. */
 export function loadProgress2D(levels: readonly LevelDef[] = LEVELS_2D): ProgressData {
   const result = loadLocalProgress2DInternal(levels);
   const platform = getPlatform();
+  if (!isMockLevelRoster(levels)) {
+    pendingAutoHydrated2DByAdapter.delete(platform);
+  }
   if (platform.isSteam && !isMockLevelRoster(levels) && !autoHydrated2DAdapters.has(platform)) {
     autoHydrated2DAdapters.add(platform);
-    void hydrateProgress2DFromCloud(undefined, levels, platform);
+    const bootGen = resetGen2D;
+    void hydrateProgress2DFromCloud(result, levels, platform)
+      .then(({ merged, updated }) => {
+        if (!updated || resetGen2D !== bootGen) return;
+        const freshMerged = remapProgress(
+          mergeProgress(result, merged, levels.length),
+          levels.map((l) => l.id),
+          levels,
+        );
+        if (freshMerged.heroes === undefined) delete result.heroes;
+        if (freshMerged.difficultyWins === undefined) delete result.difficultyWins;
+        if (freshMerged.wonChallenges === undefined) delete result.wonChallenges;
+        Object.assign(result, freshMerged);
+        pendingAutoHydrated2DByAdapter.set(platform, freshMerged);
+        for (const fn of [...cloudHydrate2DListeners]) {
+          try {
+            fn(freshMerged);
+          } catch {
+            // listener errors must never break cloud hydration
+          }
+        }
+      })
+      .catch(() => {
+        // Offline / IPC errors degrade silently to local save.
+      });
   }
   return result;
 }
@@ -356,8 +465,15 @@ export function saveLocalProgress2D(
 }
 
 export function saveProgress2D(progress: ProgressData, levels: readonly LevelDef[] = LEVELS_2D): void {
-  const raw = saveLocalProgress2D(progress, levels);
   const platform = getPlatform();
+  if (platform.isSteam && !isMockLevelRoster(levels)) {
+    const pendingFloor = pendingAutoHydrated2DByAdapter.get(platform);
+    if (pendingFloor) {
+      foldPendingCloudFloor2D(progress, pendingFloor, levels);
+      pendingAutoHydrated2DByAdapter.delete(platform);
+    }
+  }
+  const raw = saveLocalProgress2D(progress, levels);
   if (platform.isSteam && !isMockLevelRoster(levels)) {
     if (readingCloud2DAdapters.has(platform)) {
       // An in-flight hydrateProgress2DFromCloud is currently awaiting cloudSave.read(progress2d);
@@ -551,6 +667,23 @@ export function isUnlocked2D(progress: ProgressData, levelId: string, levels: re
   return i >= 0 && i <= progress.unlockedLevelIndex;
 }
 
+function recordExtraWonChallenges(
+  progress: ProgressData,
+  active: readonly ChallengeId[],
+  badges: readonly string[],
+): boolean {
+  let changed = false;
+  for (const id of active) {
+    if (!isChallengeId(id) || badges.includes(id)) continue;
+    const list = (progress.wonChallenges ??= []);
+    if (!list.includes(id)) {
+      list.push(id);
+      changed = true;
+    }
+  }
+  return changed;
+}
+
 /** Records a 2D win with the campaign rules (`applyWin`) and saves. Null for islands not in the list. */
 export function recordWin2D(
   levelId: string,
@@ -567,7 +700,9 @@ export function recordWin2D(
   const earnedStars = (Number.isFinite(stars) ? Math.max(1, Math.min(3, Math.round(stars))) : 1) as 1 | 2 | 3;
   const awarded = starsAwarded(earnedStars, diff);
   const safeLives = Number.isFinite(livesLeft) ? Math.max(0, Math.floor(livesLeft)) : 0;
-  const badges = DIFFICULTIES[diff].allowsChallenges ? badgesForWin(challengesForLevel(levels[i]), challenges) : [];
+  const allows = DIFFICULTIES[diff].allowsChallenges;
+  const badges = allows ? badgesForWin(challengesForLevel(levels[i]), challenges) : [];
+  if (allows) recordExtraWonChallenges(p, challenges, badges);
   // Read (and for a legacy save, derive) the record before applyWin moves bestStars.
   const dw = difficultyWinsOf(p);
   const prevBestLives = p.bestLives[i] ?? 0;
@@ -736,6 +871,7 @@ export function applyRunResult2D(
     const before = dw[diff][i] ?? 0;
     const allows = DIFFICULTIES[diff].allowsChallenges;
     const badges = allows ? badgesForWin(challengesForLevel(levels[i]), cfg.challenges) : [];
+    if (allows) recordExtraWonChallenges(progress, cfg.challenges, badges);
     const prevBestLives = progress.bestLives[i] ?? 0;
     win = applyWin(progress, i, levels.length, stars, safeLives, badges);
     if (diff === 'easy') {
@@ -943,6 +1079,8 @@ export function importSaveCode2D(
  */
 export function resetProgress2D(levels: readonly LevelDef[] = LEVELS_2D): void {
   resetGen2D++;
+  const platform = getPlatform();
+  pendingAutoHydrated2DByAdapter.delete(platform);
   const ls = storage();
   try {
     const current = loadLocalProgress2DInternal(levels);
@@ -961,7 +1099,6 @@ export function resetProgress2D(levels: readonly LevelDef[] = LEVELS_2D): void {
   } catch {
     // ignore
   }
-  const platform = getPlatform();
   if (platform.isSteam && !isMockLevelRoster(levels)) {
     autoHydrated2DAdapters.add(platform);
     completedHydrated2DAdapters.add(platform);
