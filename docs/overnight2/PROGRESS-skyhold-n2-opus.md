@@ -64,6 +64,12 @@
   <ada>" and a parchment "Tip" card with one of 13 tips (`LOAD_TIPS`, `loadtip.1..13`, facts taken
   from the Codex tower/foe texts, the Workshop and hero texts). Not for `bench` / `ab`. Shots
   opus-shots/loading-*. `qa/bootshot.mjs` holds the map painting back to catch the screen.
+- World map juice: a newly reached island unveils once (padlock tips off, fog swells away, a flash
+  grows into a gold halo, medal bump) and stars won since the last visit drop onto their island one
+  by one. localStorage `skyhold2d_map_unlock_seen_v1` / `skyhold2d_map_stars_seen_v1`; nothing on a
+  first visit (so every QA script with a fresh profile sees the plain map), nothing with reduced
+  motion. Overlays clean up on the burst's `animationend`. `qa/unveilshot.mjs` freezes the
+  animations at set times (strip: opus-shots/map-stars-unveil-strip.png). Unit tests.
 - Full uiaudit re-run on a frozen build (`/tmp/n2opus-audit-dist`, port 4418) started 04:30 — see
   below for the result.
 
