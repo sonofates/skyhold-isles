@@ -263,9 +263,23 @@ export class SoldierSystem {
     return this.createSquad(tower.id, tower.x, tower.z, _rallyRoadPt, stats);
   }
 
-  spawnCloudguard(road: RoadPoint): void {
-    const stats = { ...getTowerTierStats('barracks', 1), soldierCount: ITEMS.cloudguard.soldiers };
-    this.createSquad(this.nextBannerId--, road.x, road.z, road, stats, ITEMS.cloudguard.seconds);
+  spawnCloudguard(road: RoadPoint, wave = 1): void {
+    const base = getTowerTierStats('barracks', 1);
+    const cg = ITEMS.cloudguard;
+    const w = Number.isFinite(wave) ? Math.max(1, Math.floor(wave)) : 1;
+    const scale = 1 + (w - 1) * cg.waveScale;
+    const soldierHp = Math.round(cg.soldierHp * scale);
+    const soldierDamage = Math.round(cg.soldierDamage * scale);
+    const stats = {
+      ...base,
+      damage: soldierDamage,
+      soldierCount: cg.soldiers,
+      soldierHp,
+      soldierDamage,
+      soldierArmor: cg.soldierArmor,
+      soldierHoldCap: cg.soldierHoldCap,
+    } as TowerTierStats;
+    this.createSquad(this.nextBannerId--, road.x, road.z, road, stats, cg.seconds);
   }
 
   private createSquad(towerId: number, x: number, z: number, road: RoadPoint, stats: TowerTierStats, remainingSeconds?: number): BarracksState {
@@ -646,7 +660,9 @@ export class SoldierSystem {
       const b = this.barracks[i];
       if (b.remainingSeconds === undefined) continue;
       b.remainingSeconds -= dt;
-      if (b.remainingSeconds <= 1e-9) this.removeBarracks(b.towerId);
+      if (b.remainingSeconds <= 1e-9 || b.squad.every((s) => s.state === 'dead')) {
+        this.removeBarracks(b.towerId);
+      }
     }
     this.inUpdate = true;
     this.abortedStep = false;

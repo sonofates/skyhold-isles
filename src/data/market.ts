@@ -6,12 +6,23 @@ export type ItemCounts = Partial<Record<ItemId, number>>;
 export const isItemId = (value: unknown): value is ItemId => ITEM_IDS.some(id => id === value);
 
 export const ITEMS = {
-  emberPot: { price: 12, target: 'point', radius: 3, meteorFraction: 0.65, burnSeconds: 2, burnDamage: 6 },
-  frostLantern: { price: 14, target: 'point', radius: 3.4, seconds: 4, eliteSlow: 0.5 },
-  heartstone: { price: 16, target: 'self', lives: 5 },
-  skyPurse: { price: 14, target: 'self', startingGoldFraction: 0.30, goldPerWave: 5 },
-  cloudguard: { price: 12, target: 'road', soldiers: 3, seconds: 15, snapRadius: 1.2 },
-  galeBell: { price: 18, target: 'self', distance: 4, bossDistance: 1 },
+  emberPot: { price: 12, target: 'point', radius: 3.4, meteorFraction: 0.80, burnSeconds: 2, burnDamage: 16 },
+  frostLantern: { price: 11, target: 'point', radius: 3.6, seconds: 4, eliteSlow: 0.5, markVuln: 0.30 },
+  heartstone: { price: 22, target: 'self', lives: 5 },
+  skyPurse: { price: 16, target: 'self', startingGoldFraction: 0.15, goldPerWave: 5 },
+  cloudguard: {
+    price: 11,
+    target: 'road',
+    soldiers: 3,
+    seconds: 15,
+    snapRadius: 1.4,
+    soldierHp: 170,
+    soldierDamage: 20,
+    soldierArmor: 3,
+    soldierHoldCap: 2,
+    waveScale: 0.05,
+  },
+  galeBell: { price: 14, target: 'self', distance: 6.5, bossDistance: 2.2 },
 } as const;
 
 export const MARKET_RULES = {

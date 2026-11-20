@@ -36,16 +36,16 @@ All values come from `src/data/market.ts`. New saves and v1/v2 migrations receiv
 
 For a win, the base is `14 + 4 × awarded stars`. Add 20 for the first clear of that island across all difficulties. On later clears multiply the base by 0.35. Multiply by difficulty (0.75 / 1 / 1.35) and round to the nearest integer. Easy awards at most one star. A Daily Squall win counted by the existing day/streak rule adds 18 after rounding. Repeating that day's Squall earns the ordinary replay rate. Losses, Endless, and replay viewing award zero crystals.
 
-At two stars on Normal, each of the 25 islands pays 42 on first clear. That buys an Ember Pot, a Frost Lantern and a Sky Purse with two crystals left. The campaign plus starter gift provides 1,078 crystals at that rating. The normal game-end hook in `src/render2d/ui/progress2d.ts` persists the payment alongside the win. `recordRunResult2D(outcome, levels?).crystalsEarned ?? 0` is the amount for the end panel. Read the result of the existing call once per run.
+At two stars on Normal, each of the 25 islands pays 42 on first clear. That buys an Ember Pot, a Frost Lantern and a Sky Purse with three crystals left. The campaign plus starter gift provides 1,078 crystals at that rating. The normal game-end hook in `src/render2d/ui/progress2d.ts` persists the payment alongside the win. `recordRunResult2D(outcome, levels?).crystalsEarned ?? 0` is the amount for the end panel. Read the result of the existing call once per run.
 
 | ID | EN / TR | Crystals | Effect |
 |---|---|---:|---|
-| `emberPot` | Ember Pot / Kor Çömleği | 12 | Radius 3. Immediate armor-piercing hit for 65% of that wave's Meteor damage, rounded. The ground burns for 2 s, dealing 6 per burn tick to surfaced ground enemies. |
-| `frostLantern` | Frost Lantern / Ayaz Feneri | 14 | Radius 3.4. Freezes surfaced foes, including flyers, for 4 s. Bosses and empowered champions instead receive a 50% slow. |
-| `heartstone` | Heartstone / Can Taşı | 16 | Restores up to 5 lost lives, capped at the run's initial lives including bonuses. Stars count every leaked life, even after healing. Best-lives records also exclude restored lives. |
-| `skyPurse` | Sky Purse / Gök Kesesi | 14 | Immediately adds `round(0.30 × island starting gold + 5 × current one-based wave)` gold. |
-| `cloudguard` | Cloudguard Banner / Bulut Muhafızı Sancağı | 12 | Snaps within 1.2 world units to any ground lane. Three tier-I barracks soldiers block and fight for up to 15 s. Fallen guards stay down. |
-| `galeBell` | Gale Bell / Fırtına Çanı | 18 | Moves all living enemies back along their own ground or flight path, including burrowed enemies. Distance is 4 world units, or 1 for bosses, stopping at the entrance. |
+| `emberPot` | Ember Pot / Kor Çömleği | 12 | Radius 3.4. Immediate armor-piercing hit for 80% of that wave's Meteor damage, rounded. The ground burns for 2 s, dealing 16 per burn tick to surfaced ground enemies. |
+| `frostLantern` | Frost Lantern / Ayaz Feneri | 11 | Radius 3.6. Freezes surfaced foes, including flyers, for 4 s, cracks brittle golem armor, and marks frozen/chilled targets for +30% incoming damage. Bosses and empowered champions instead receive a 50% slow. |
+| `heartstone` | Heartstone / Can Taşı | 22 | Restores up to 5 lost lives, capped at the run's initial lives including bonuses. Stars count every leaked life, even after healing. Best-lives records also exclude restored lives. |
+| `skyPurse` | Sky Purse / Gök Kesesi | 16 | Immediately adds `round(0.15 × island starting gold + 5 × current one-based wave)` gold. |
+| `cloudguard` | Cloudguard Banner / Bulut Muhafızı Sancağı | 11 | Snaps within 1.4 world units to any ground lane. Three wave-scaled royal guards (`170 × (1 + 0.05 × (wave − 1))` HP, `20 × (1 + 0.05 × (wave − 1))` dmg, 3 armor, hold cap 2) block and fight for up to 15 s. Fallen guards stay down. |
+| `galeBell` | Gale Bell / Fırtına Çanı | 14 | Moves all living enemies back along their own ground or flight path, including burrowed enemies. Distance is 6.5 world units, or 2.2 for bosses, stopping at the entrance. |
 
 ## Renderer events and art
 
@@ -94,4 +94,4 @@ Progress v3 stores per-installation lifetime earnings, spending and item counts,
 
 The native bridge checks the purchased SKU and records the grant and receipt together in the 2D progression slot. Opening the mobile product list or restoring purchases reconciles RevenueCat's non-subscription transaction history after an interrupted write. An explicit progress reset retains receipt IDs at zero credit to prevent redelivery into the reset save. The ledger travels with a save code. Cross-device continuity of spent currency requires carrying that save history.
 
-For headless QA, construct `new SimWorld(level, events, { itemBelt: { emberPot: 2 } })`, start the first wave and call `world.useItem(...)`. The plain constructor starts with an empty belt. `npm run sim:balance` continues to exercise the original item-free scripts. Focused coverage lives in `tests/platform/market.test.ts` and `tests/sim/items.test.ts`.
+For headless QA, construct `new SimWorld(level, events, { itemBelt: { emberPot: 2 } })`, start the first wave and call `world.useItem(...)`. The plain constructor starts with an empty belt. `npm run sim:balance` continues to exercise the original item-free scripts, while `npm run sim:items` runs the full Market item and non-IAP economy simulator (documented in `docs/market-balance.md`). Focused coverage lives in `tests/platform/market.test.ts` and `tests/sim/items.test.ts`.
