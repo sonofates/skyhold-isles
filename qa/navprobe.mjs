@@ -172,7 +172,12 @@ const shot = (page, n) => (SHOTS ? page.screenshot({ path: `${SHOTS}/${n}.jpg`, 
   await page.waitForFunction(() => window.__p0?.state && !document.getElementById('boot'), null, { timeout: 60000 });
   await page.waitForTimeout(1200);
   await page.keyboard.press('Escape');
-  await page.waitForTimeout(500);
+  // The menu follows the canvas "Paused" plate (a frame later; slow in software GL).
+  await page.waitForFunction(() => {
+    const m = document.querySelector('.pu-pause-menu');
+    return !!m && m.style.display !== 'none' && m.getBoundingClientRect().width > 0;
+  }, null, { timeout: 15000 }).catch(() => undefined);
+  await page.waitForTimeout(300);
   await page.keyboard.press('ArrowRight');
   await page.waitForTimeout(200);
   const p0 = await focused(page);
@@ -255,6 +260,11 @@ const shot = (page, n) => (SHOTS ? page.screenshot({ path: `${SHOTS}/${n}.jpg`, 
   await page.waitForTimeout(300);
   pad = await page.evaluate(() => window.__p0.pad());
   check(pad.mode === 'free', `run: Y selects the hero, reticle glides (${pad.mode})`);
+  const badge = await page.evaluate(() => {
+    const k = document.querySelector('[data-testid="hero2d-skill0"] .pu-ab-key');
+    return { pad: document.documentElement.classList.contains('pu-pad'), after: k ? getComputedStyle(k, '::after').content : null };
+  });
+  check(badge.pad && badge.after === '"LT"', `run: with the pad in use the skill badge reads LT (${JSON.stringify(badge)})`);
   const x0 = pad.x;
   await page.evaluate(() => window.__fakePad.axes(0.9, 0));
   await page.waitForTimeout(500);
@@ -273,6 +283,7 @@ const shot = (page, n) => (SHOTS ? page.screenshot({ path: `${SHOTS}/${n}.jpg`, 
   await page.waitForTimeout(400);
   st = await page.evaluate(() => window.__p0.state());
   check(st.ring.open, 'run: arrows + Enter open a ring');
+  check(!(await page.evaluate(() => document.documentElement.classList.contains('pu-pad'))), 'run: a real key brings the keyboard badges back');
   await page.keyboard.press('Escape');
   // The HUD's DOM buttons are reticle targets too: top-right is Settings / Codex.
   for (let i = 0; i < 8; i++) await page.keyboard.press('ArrowUp');
@@ -298,7 +309,8 @@ for (const outcome of ['lost', 'won']) {
   await page.waitForTimeout(1200);
   await page.evaluate(() => window.__fakePad.connect());
   await page.waitForTimeout(200);
-  await tapPad(page, 15); // wake the reticle in the run
+  // Wake the reticle in the run (a short press can fall between two slow frames: retry).
+  for (let k = 0; k < 4 && !(await page.evaluate(() => window.__p0.pad().shown)); k++) await tapPad(page, 15, 450);
   await page.evaluate((o) => window.__p0.forceEnd(o), outcome);
   await page.waitForFunction(() => !!window.__p0.state().end, null, { timeout: 10000 });
   await page.locator('[data-testid="story2d-skip"]').click({ timeout: 3000 }).catch(() => undefined);

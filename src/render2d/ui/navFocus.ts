@@ -174,9 +174,16 @@ function rectOf(e: Element): NavRect {
   return { x: r.left, y: r.top, w: r.width, h: r.height };
 }
 
-/** Where a scope's focus starts: a marked default, the main (glowing) plank, a checked tab, else the first. */
-function defaultTarget(list: HTMLElement[]): HTMLElement | null {
+/**
+ * Where a scope's focus starts: a marked default, the main (glowing) plank, a checked tab, else the
+ * first. The marked default counts even while it is still fading in (the map's islands pop in one by
+ * one: a key pressed meanwhile must still land on the island to play next).
+ */
+function defaultTarget(list: HTMLElement[], scope?: HTMLElement): HTMLElement | null {
+  const marked = scope?.querySelector<HTMLElement>('[data-nav-default]');
+  const early = marked && !(marked as HTMLButtonElement).disabled && !marked.closest('[hidden], [inert]') ? marked : null; // i18n-ignore (selector)
   return (
+    early ??
     list.find((e) => e.dataset.navDefault !== undefined) ??
     list.find((e) => e.classList.contains('primary')) ??
     list.find((e) => e.classList.contains('pu-confirm-yes') === false && e.closest('.pu-confirm-row') !== null) ??
@@ -193,6 +200,16 @@ function keepsSideKeys(e: HTMLElement): boolean {
 
 function setKbd(on: boolean): void {
   document.documentElement.classList.toggle('pu-kbd', on);
+  if (!on) setPadMode(false);
+}
+
+/**
+ * `pu-pad` on <html> while the controller is the last thing used: the HUD's key badges show the pad
+ * buttons (Y, LB, RB, LT, RT) instead of the keyboard letters. A real key or pointer press ends it.
+ */
+export function setPadMode(on: boolean): void {
+  if (typeof document === 'undefined') return;
+  document.documentElement.classList.toggle('pu-pad', on);
 }
 
 function focusEl(e: HTMLElement): void {
@@ -210,7 +227,7 @@ export function navMove(dir: NavDir): boolean {
   if (list.length === 0) return false;
   const cur = document.activeElement instanceof HTMLElement && scope.contains(document.activeElement) && list.includes(document.activeElement) ? document.activeElement : null;
   if (!cur) {
-    const d = defaultTarget(list);
+    const d = defaultTarget(list, scope);
     if (d) focusEl(d);
     return !!d;
   }
@@ -262,7 +279,7 @@ export function navPress(): boolean {
   }
   // Nothing focused: A presses the default (the island to play next, a board's main plank, a
   // confirm's safe choice, the title's "start").
-  const d = defaultTarget(candidates(scope));
+  const d = defaultTarget(candidates(scope), scope);
   if (d) {
     focusEl(d);
     d.click();
@@ -322,6 +339,8 @@ export function installNav(o: NavOptions = {}): void {
     'keydown',
     (e) => {
       if (e.ctrlKey || e.metaKey || e.altKey) return;
+      // A real key press (pad presses arrive as synthetic keys) brings the keyboard letters back.
+      if (e.isTrusted) setPadMode(false);
       if (e.key === 'Tab') setKbd(true); // i18n-ignore (key name)
       const scope = navScope();
       if (!scope) return;
@@ -347,7 +366,7 @@ export function installNav(o: NavOptions = {}): void {
         // Nothing focused yet: land on the scope's default control; the scope's own Enter (the
         // map's "open the current island", the title's "press any key") still runs.
         setKbd(true);
-        const d = defaultTarget(candidates(scope));
+        const d = defaultTarget(candidates(scope), scope);
         if (d) focusEl(d);
       }
     },
@@ -386,7 +405,10 @@ function startPadLoop(): void {
     for (const [name, i] of Object.entries(PAD) as [PadButton, number][]) {
       if (name === 'up' || name === 'down' || name === 'left' || name === 'right') continue;
       const on = pressed(i);
-      if (on && !prev.get(i)) padButton(name);
+      if (on && !prev.get(i)) {
+        setPadMode(true);
+        padButton(name);
+      }
       prev.set(i, on);
     }
     // Direction: D-pad first, then the left stick; repeats while held.
@@ -397,7 +419,10 @@ function startPadLoop(): void {
       const p = pads[0];
       const ax = deadZone(p.axes[0] ?? 0);
       const ay = deadZone(p.axes[1] ?? 0);
-      if (opts.onGameStick(ax, ay, dt)) stick = null;
+      if (opts.onGameStick(ax, ay, dt)) {
+        stick = null;
+        if (ax !== 0 || ay !== 0) setPadMode(true);
+      }
     }
     const dir = dpad ?? stick;
     if (!dir) held = null;
@@ -406,6 +431,7 @@ function startPadLoop(): void {
       if (repeatDue(now - held.h.since, held.h.last - held.h.since, held.h.fired)) {
         held.h.fired++;
         held.h.last = now;
+        setPadMode(true);
         padDir(dir);
       }
     }

@@ -14,6 +14,7 @@
  *   `overchargeActivated`); sounds come from the shared SoundManager bindings of those events.
  */
 import { Assets, Texture } from 'pixi.js';
+import { PAD_BADGE } from './padBadges.ts';
 import type { AbilityId } from '../../core/types.ts';
 import { ABILITY_DEFS } from '../../data/abilities.ts';
 import type { EventBus } from '../../core/eventBus.ts';
@@ -147,7 +148,7 @@ export function mountAbilityBar2D(game: Game2D, opts: AbilityBarOptions): Abilit
     const secs = el('span', 'pu-ab-secs pu-letter');
     const cancel = el('span', 'pu-ab-cancel', { 'aria-hidden': 'true' }, '✕');
     btn.append(frame, icon, sweep, surge, secs, cancel);
-    if (opts.desktop) btn.append(el('span', 'pu-ab-key pu-letter', { 'aria-hidden': 'true' }, ABILITY_KEYS[id]));
+    if (opts.desktop) btn.append(el('span', 'pu-ab-key pu-letter', { 'aria-hidden': 'true', 'data-pad': PAD_BADGE[id] }, ABILITY_KEYS[id]));
     return { id, btn, frame, icon, sweep, surge, secs, key: '', view: null };
   });
   if (opts.lead) root.append(opts.lead.el);

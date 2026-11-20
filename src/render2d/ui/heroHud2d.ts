@@ -14,6 +14,7 @@
  *   the ability bar does it), so game2d's plot / hero taps never see it.
  */
 import type { HeroId, HeroSkillSlot } from '../../core/types.ts';
+import { PAD_BADGE } from './padBadges.ts';
 import { HERO_DEFS } from '../../data/heroes.ts';
 import type { HeroRuntimeState } from '../../sim/heroSystem.ts';
 import { heroName, heroPassiveDesc, heroPassiveName, heroSkillDesc, heroSkillName, heroTitle } from '../../i18n/data.ts';
@@ -89,7 +90,7 @@ export function createHeroHud2D(game: Game2D, opts: HeroHudOptions): HeroHud2D |
   const lvl = levelBadge(first.level, 'pu-hero-port-lvl');
   const down = el('span', 'pu-hero-down pu-letter');
   port.append(hpRing, portImg, down, lvl);
-  if (opts.desktop) port.append(el('span', 'pu-ab-key pu-letter', { 'aria-hidden': 'true' }, HERO_KEYS.select));
+  if (opts.desktop) port.append(el('span', 'pu-ab-key pu-letter', { 'aria-hidden': 'true', 'data-pad': PAD_BADGE.heroSelect }, HERO_KEYS.select));
   const slots: SkillSlot[] = ([0, 1] as const).map((slot) => {
     const btn = el('button', 'pu-ab pu-hs', { type: 'button', 'data-testid': `hero2d-skill${slot}`, 'data-slot': slot, 'aria-describedby': 'hero2d-tip' });
     const frame = img(KIT.medallion, '', 'pu-ab-frame');
@@ -98,7 +99,10 @@ export function createHeroHud2D(game: Game2D, opts: HeroHudOptions): HeroHud2D |
     const secs = el('span', 'pu-ab-secs pu-letter');
     const cancel = el('span', 'pu-ab-cancel', { 'aria-hidden': 'true' }, '✕');
     btn.append(frame, icon, sweep, secs, cancel);
-    if (opts.desktop) btn.append(el('span', 'pu-ab-key pu-letter', { 'aria-hidden': 'true' }, slot === 0 ? HERO_KEYS.skill0 : HERO_KEYS.skill1));
+    if (opts.desktop) {
+      const pad = slot === 0 ? PAD_BADGE.heroSkill0 : PAD_BADGE.heroSkill1;
+      btn.append(el('span', 'pu-ab-key pu-letter', { 'aria-hidden': 'true', 'data-pad': pad }, slot === 0 ? HERO_KEYS.skill0 : HERO_KEYS.skill1));
+    }
     return { slot, btn, frame, icon, sweep, secs, key: '', state: null };
   });
   const divider = el('span', 'pu-hero-divider', { 'aria-hidden': 'true' });
