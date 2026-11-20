@@ -1,0 +1,36 @@
+{
+  "element": "dry-wash-dust",
+  "id": "i14-dry-wash-dust",
+  "source": "public/art2d/map-i14-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 715,
+    "y": 582,
+    "width": 480,
+    "height": 270
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    2145,
+    1746,
+    3585,
+    2556
+  ],
+  "startPxPerLayoutPx": 2.6666666666666665,
+  "startPxPerSourcePx": 0.8888888888888888,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    169,
+    448,
+    1114,
+    609
+  ],
+  "featherInwardStartPx": 34
+}

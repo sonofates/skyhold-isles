@@ -1,0 +1,36 @@
+{
+  "element": "south-meadow-hawthorn",
+  "id": "i01-south-meadow-hawthorn",
+  "source": "public/art2d/map-i01-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 601,
+    "y": 609,
+    "width": 224,
+    "height": 126
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    1803,
+    1827,
+    2475,
+    2205
+  ],
+  "startPxPerLayoutPx": 5.714285714285714,
+  "startPxPerSourcePx": 1.9047619047619049,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    267,
+    196,
+    1078,
+    579
+  ],
+  "featherInwardStartPx": 8
+}

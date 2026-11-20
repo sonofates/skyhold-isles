@@ -1,0 +1,36 @@
+{
+  "element": "dial-shelf-rain-sheen",
+  "id": "i13-dial-shelf-rain-sheen",
+  "source": "public/art2d/map-i13-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 836,
+    "y": 22,
+    "width": 192,
+    "height": 108
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    2508,
+    66,
+    3084,
+    390
+  ],
+  "startPxPerLayoutPx": 6.666666666666667,
+  "startPxPerSourcePx": 2.2222222222222223,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    200,
+    178,
+    1122,
+    542
+  ],
+  "featherInwardStartPx": 9
+}

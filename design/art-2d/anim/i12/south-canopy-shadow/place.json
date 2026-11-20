@@ -1,0 +1,36 @@
+{
+  "element": "south-canopy-shadow",
+  "id": "i12-south-canopy-shadow",
+  "source": "public/art2d/map-i12-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 107,
+    "y": 708,
+    "width": 256,
+    "height": 144
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    321,
+    2124,
+    1089,
+    2556
+  ],
+  "startPxPerLayoutPx": 5.0,
+  "startPxPerSourcePx": 1.6666666666666667,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    180,
+    129,
+    1095,
+    643
+  ],
+  "featherInwardStartPx": 24
+}

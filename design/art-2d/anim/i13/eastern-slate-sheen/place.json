@@ -1,0 +1,36 @@
+{
+  "element": "eastern-slate-sheen",
+  "id": "i13-eastern-slate-sheen",
+  "source": "public/art2d/map-i13-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 1540,
+    "y": 296,
+    "width": 272,
+    "height": 153
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    4620,
+    888,
+    5436,
+    1347
+  ],
+  "startPxPerLayoutPx": 4.705882352941177,
+  "startPxPerSourcePx": 1.5686274509803921,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    204,
+    256,
+    1092,
+    467
+  ],
+  "featherInwardStartPx": 14
+}

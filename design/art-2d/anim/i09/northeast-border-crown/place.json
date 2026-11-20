@@ -1,0 +1,36 @@
+{
+  "element": "northeast-border-crown",
+  "id": "i09-northeast-border-crown",
+  "source": "public/art2d/map-i09-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 1344,
+    "y": 0,
+    "width": 384,
+    "height": 216
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    4032,
+    0,
+    5184,
+    648
+  ],
+  "startPxPerLayoutPx": 3.3333333333333335,
+  "startPxPerSourcePx": 1.1111111111111112,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    182,
+    13,
+    1111,
+    135
+  ],
+  "featherInwardStartPx": 18
+}

@@ -1,0 +1,36 @@
+{
+  "element": "bridge-tributary",
+  "id": "i10-bridge-tributary",
+  "source": "public/art2d/map-i10-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 1094,
+    "y": 250,
+    "width": 240,
+    "height": 135
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    3282,
+    750,
+    4002,
+    1155
+  ],
+  "startPxPerLayoutPx": 5.333333333333333,
+  "startPxPerSourcePx": 1.7777777777777777,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    256,
+    240,
+    1095,
+    471
+  ],
+  "featherInwardStartPx": 12
+}

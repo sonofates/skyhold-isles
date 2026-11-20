@@ -1,0 +1,36 @@
+{
+  "element": "blue-ravine-wisps",
+  "id": "i11-blue-ravine-wisps",
+  "source": "public/art2d/map-i11-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 1368,
+    "y": 154,
+    "width": 256,
+    "height": 144
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    4104,
+    462,
+    4872,
+    894
+  ],
+  "startPxPerLayoutPx": 5.0,
+  "startPxPerSourcePx": 1.6666666666666667,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    182,
+    204,
+    1115,
+    522
+  ],
+  "featherInwardStartPx": 21
+}

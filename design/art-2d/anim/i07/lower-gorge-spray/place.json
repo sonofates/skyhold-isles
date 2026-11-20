@@ -1,0 +1,36 @@
+{
+  "element": "lower-gorge-spray",
+  "id": "i07-lower-gorge-spray",
+  "source": "public/art2d/map-i07-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 669,
+    "y": 627,
+    "width": 400,
+    "height": 225
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    2007,
+    1881,
+    3207,
+    2556
+  ],
+  "startPxPerLayoutPx": 3.2,
+  "startPxPerSourcePx": 1.0666666666666667,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    450,
+    152,
+    829,
+    695
+  ],
+  "featherInwardStartPx": 24
+}

@@ -1,0 +1,36 @@
+{
+  "element": "eastern-wheat",
+  "id": "i05-eastern-wheat",
+  "source": "public/art2d/map-i05-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 1260,
+    "y": 333,
+    "width": 576,
+    "height": 324
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    3780,
+    999,
+    5508,
+    1971
+  ],
+  "startPxPerLayoutPx": 2.2222222222222223,
+  "startPxPerSourcePx": 0.7407407407407408,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    179,
+    94,
+    1105,
+    625
+  ],
+  "featherInwardStartPx": 16
+}

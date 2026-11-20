@@ -1,0 +1,36 @@
+{
+  "element": "west-shelf-mist",
+  "id": "i13-west-shelf-mist",
+  "source": "public/art2d/map-i13-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 78,
+    "y": 150,
+    "width": 256,
+    "height": 144
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    234,
+    450,
+    1002,
+    882
+  ],
+  "startPxPerLayoutPx": 5.0,
+  "startPxPerSourcePx": 1.6666666666666667,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    188,
+    243,
+    1092,
+    477
+  ],
+  "featherInwardStartPx": 30
+}

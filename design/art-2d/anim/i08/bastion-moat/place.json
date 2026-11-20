@@ -1,0 +1,36 @@
+{
+  "element": "bastion-moat",
+  "id": "i08-bastion-moat",
+  "source": "public/art2d/map-i08-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 556,
+    "y": 176,
+    "width": 272,
+    "height": 153
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    1668,
+    528,
+    2484,
+    987
+  ],
+  "startPxPerLayoutPx": 4.705882352941177,
+  "startPxPerSourcePx": 1.5686274509803921,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    240,
+    96,
+    1041,
+    616
+  ],
+  "featherInwardStartPx": 16
+}

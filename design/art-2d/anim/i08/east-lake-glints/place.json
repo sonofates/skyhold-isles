@@ -1,0 +1,36 @@
+{
+  "element": "east-lake-glints",
+  "id": "i08-east-lake-glints",
+  "source": "public/art2d/map-i08-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 1510,
+    "y": 260,
+    "width": 336,
+    "height": 189
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    4530,
+    780,
+    5538,
+    1347
+  ],
+  "startPxPerLayoutPx": 3.8095238095238093,
+  "startPxPerSourcePx": 1.2698412698412698,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    664,
+    103,
+    1223,
+    631
+  ],
+  "featherInwardStartPx": 16
+}

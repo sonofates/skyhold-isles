@@ -1,0 +1,36 @@
+{
+  "element": "inner-moonwell-pool",
+  "id": "i15-inner-moonwell-pool",
+  "source": "public/art2d/map-i15-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 1099,
+    "y": 540,
+    "width": 192,
+    "height": 108
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    3297,
+    1620,
+    3873,
+    1944
+  ],
+  "startPxPerLayoutPx": 6.666666666666667,
+  "startPxPerSourcePx": 2.2222222222222223,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    203,
+    180,
+    1102,
+    544
+  ],
+  "featherInwardStartPx": 14
+}

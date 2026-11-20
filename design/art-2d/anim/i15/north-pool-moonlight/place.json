@@ -1,0 +1,36 @@
+{
+  "element": "north-pool-moonlight",
+  "id": "i15-north-pool-moonlight",
+  "source": "public/art2d/map-i15-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 1361,
+    "y": 0,
+    "width": 240,
+    "height": 135
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    4083,
+    0,
+    4803,
+    405
+  ],
+  "startPxPerLayoutPx": 5.333333333333333,
+  "startPxPerSourcePx": 1.7777777777777777,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    197,
+    64,
+    1090,
+    475
+  ],
+  "featherInwardStartPx": 22
+}

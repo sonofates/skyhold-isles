@@ -1,0 +1,36 @@
+{
+  "element": "western-deepwater",
+  "id": "i15-western-deepwater",
+  "source": "public/art2d/map-i15-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 60,
+    "y": 356,
+    "width": 272,
+    "height": 153
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    180,
+    1068,
+    996,
+    1527
+  ],
+  "startPxPerLayoutPx": 4.705882352941177,
+  "startPxPerSourcePx": 1.5686274509803921,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    221,
+    99,
+    1062,
+    590
+  ],
+  "featherInwardStartPx": 25
+}

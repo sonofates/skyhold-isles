@@ -1,0 +1,36 @@
+{
+  "element": "eastern-swell",
+  "id": "i06-eastern-swell",
+  "source": "public/art2d/map-i06-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 1014,
+    "y": 120,
+    "width": 832,
+    "height": 468
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    3042,
+    360,
+    5538,
+    1764
+  ],
+  "startPxPerLayoutPx": 1.5384615384615385,
+  "startPxPerSourcePx": 0.5128205128205129,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    957,
+    94,
+    1244,
+    615
+  ],
+  "featherInwardStartPx": 16
+}

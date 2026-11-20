@@ -1,0 +1,36 @@
+{
+  "element": "west-ledge-foam",
+  "id": "i04-west-ledge-foam",
+  "source": "public/art2d/map-i04-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 0,
+    "y": 218,
+    "width": 304,
+    "height": 171
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    0,
+    654,
+    912,
+    1167
+  ],
+  "startPxPerLayoutPx": 4.2105263157894735,
+  "startPxPerSourcePx": 1.4035087719298245,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    83,
+    237,
+    999,
+    490
+  ],
+  "featherInwardStartPx": 16
+}

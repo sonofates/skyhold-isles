@@ -1,0 +1,36 @@
+{
+  "element": "east-oak",
+  "id": "l1c-east-oak",
+  "source": "public/art2d/map-L1c-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 1622,
+    "y": 302,
+    "width": 224,
+    "height": 126
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    4866,
+    906,
+    5538,
+    1284
+  ],
+  "startPxPerLayoutPx": 5.714285714285714,
+  "startPxPerSourcePx": 1.9047619047619049,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    455,
+    153,
+    1070,
+    615
+  ],
+  "featherInwardStartPx": 10
+}

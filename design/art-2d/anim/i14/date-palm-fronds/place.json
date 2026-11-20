@@ -1,0 +1,36 @@
+{
+  "element": "date-palm-fronds",
+  "id": "i14-date-palm-fronds",
+  "source": "public/art2d/map-i14-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 137,
+    "y": 238,
+    "width": 240,
+    "height": 135
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    411,
+    714,
+    1131,
+    1119
+  ],
+  "startPxPerLayoutPx": 5.333333333333333,
+  "startPxPerSourcePx": 1.7777777777777777,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    308,
+    117,
+    972,
+    565
+  ],
+  "featherInwardStartPx": 8
+}

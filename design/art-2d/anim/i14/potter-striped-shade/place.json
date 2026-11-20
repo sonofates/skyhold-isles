@@ -1,0 +1,36 @@
+{
+  "element": "potter-striped-shade",
+  "id": "i14-potter-striped-shade",
+  "source": "public/art2d/map-i14-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 225,
+    "y": 142,
+    "width": 144,
+    "height": 81
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    675,
+    426,
+    1107,
+    669
+  ],
+  "startPxPerLayoutPx": 8.88888888888889,
+  "startPxPerSourcePx": 2.9629629629629632,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    184,
+    142,
+    1090,
+    586
+  ],
+  "featherInwardStartPx": 6
+}

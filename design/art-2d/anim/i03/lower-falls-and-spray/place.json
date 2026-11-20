@@ -1,0 +1,36 @@
+{
+  "element": "lower-falls-and-spray",
+  "id": "i03-lower-falls-and-spray",
+  "source": "public/art2d/map-i03-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 0,
+    "y": 510,
+    "width": 608,
+    "height": 342
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    0,
+    1530,
+    1824,
+    2556
+  ],
+  "startPxPerLayoutPx": 2.1052631578947367,
+  "startPxPerSourcePx": 0.7017543859649122,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    175,
+    161,
+    459,
+    695
+  ],
+  "featherInwardStartPx": 24
+}

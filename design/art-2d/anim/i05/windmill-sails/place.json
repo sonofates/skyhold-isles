@@ -1,0 +1,36 @@
+{
+  "element": "windmill-sails",
+  "id": "i05-windmill-sails",
+  "source": "public/art2d/map-i05-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 491,
+    "y": 356,
+    "width": 336,
+    "height": 189
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    1473,
+    1068,
+    2481,
+    1635
+  ],
+  "startPxPerLayoutPx": 3.8095238095238093,
+  "startPxPerSourcePx": 1.2698412698412698,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    354,
+    92,
+    924,
+    631
+  ],
+  "featherInwardStartPx": 7
+}

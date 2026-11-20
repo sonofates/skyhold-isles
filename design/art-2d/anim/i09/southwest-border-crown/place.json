@@ -1,0 +1,36 @@
+{
+  "element": "southwest-border-crown",
+  "id": "i09-southwest-border-crown",
+  "source": "public/art2d/map-i09-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 0,
+    "y": 618,
+    "width": 416,
+    "height": 234
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    0,
+    1854,
+    1248,
+    2556
+  ],
+  "startPxPerLayoutPx": 3.076923076923077,
+  "startPxPerSourcePx": 1.0256410256410258,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    78,
+    545,
+    1011,
+    705
+  ],
+  "featherInwardStartPx": 18
+}

@@ -1,0 +1,36 @@
+{
+  "element": "spire-foot-cloud",
+  "id": "i11-spire-foot-cloud",
+  "source": "public/art2d/map-i11-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 1430,
+    "y": 191,
+    "width": 416,
+    "height": 234
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    4290,
+    573,
+    5538,
+    1275
+  ],
+  "startPxPerLayoutPx": 3.076923076923077,
+  "startPxPerSourcePx": 1.0256410256410258,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    321,
+    148,
+    1238,
+    580
+  ],
+  "featherInwardStartPx": 30
+}

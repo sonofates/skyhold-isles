@@ -1,0 +1,36 @@
+{
+  "element": "annealing-rack-heat",
+  "id": "i16-annealing-rack-heat",
+  "source": "public/art2d/map-i16-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 155,
+    "y": 574,
+    "width": 160,
+    "height": 90
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    465,
+    1722,
+    945,
+    1992
+  ],
+  "startPxPerLayoutPx": 8.0,
+  "startPxPerSourcePx": 2.6666666666666665,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    190,
+    235,
+    1088,
+    474
+  ],
+  "featherInwardStartPx": 17
+}

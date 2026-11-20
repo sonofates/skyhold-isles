@@ -1,0 +1,36 @@
+{
+  "element": "east-bank-willow",
+  "id": "i10-east-bank-willow",
+  "source": "public/art2d/map-i10-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 1638,
+    "y": 556,
+    "width": 208,
+    "height": 117
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    4914,
+    1668,
+    5538,
+    2019
+  ],
+  "startPxPerLayoutPx": 6.153846153846154,
+  "startPxPerSourcePx": 2.0512820512820515,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    478,
+    156,
+    1108,
+    607
+  ],
+  "featherInwardStartPx": 9
+}

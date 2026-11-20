@@ -1,0 +1,36 @@
+{
+  "element": "plunge-pool",
+  "id": "i03-plunge-pool",
+  "source": "public/art2d/map-i03-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 89,
+    "y": 434,
+    "width": 288,
+    "height": 162
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    267,
+    1302,
+    1131,
+    1788
+  ],
+  "startPxPerLayoutPx": 4.444444444444445,
+  "startPxPerSourcePx": 1.4814814814814816,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    350,
+    95,
+    930,
+    630
+  ],
+  "featherInwardStartPx": 16
+}

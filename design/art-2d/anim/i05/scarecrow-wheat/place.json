@@ -1,0 +1,36 @@
+{
+  "element": "scarecrow-wheat",
+  "id": "i05-scarecrow-wheat",
+  "source": "public/art2d/map-i05-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 0,
+    "y": 16,
+    "width": 496,
+    "height": 279
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    0,
+    48,
+    1488,
+    885
+  ],
+  "startPxPerLayoutPx": 2.5806451612903225,
+  "startPxPerSourcePx": 0.8602150537634409,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    47,
+    93,
+    925,
+    626
+  ],
+  "featherInwardStartPx": 16
+}
