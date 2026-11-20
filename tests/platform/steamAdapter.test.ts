@@ -468,6 +468,10 @@ describe('Steam achievements map, cloud hydration, and desktop config invariants
     expect(mainSrc).toContain('nodeIntegration: false');
     expect(mainSrc).toContain('sandbox: true');
     expect(mainSrc).toContain('ignore-gpu-blocklist');
+    expect(mainSrc).toContain('unsafely-treat-insecure-origin-as-secure');
+    expect(mainSrc).toContain('requestSingleInstanceLock');
+    expect(mainSrc).toContain('setPermissionRequestHandler');
+    expect(mainSrc).toContain("ses.protocol.handle('https'");
     expect(mainSrc).toContain("'.otf': 'font/otf'");
     expect(mainSrc).toContain('nativeImage.createFromBuffer');
     expect(mainSrc).toContain("scene: 'worldMap'");
@@ -644,11 +648,19 @@ describe('Steam achievements map, cloud hydration, and desktop config invariants
     expect(earnedSteamAchievementIds(pHard, LEVELS_2D)).not.toContain('HARD_BOSS_I24');
 
     pHard.difficultyWins.hard[i24Idx] = 1;
-    expect(earnedSteamAchievementIds(pHard, LEVELS_2D)).toContain('HARD_BOSS_I24');
-    expect(earnedSteamAchievementIds(pHard, LEVELS_2D)).not.toContain('HARD_ALL_ISLANDS');
+    const atHardBoss = earnedSteamAchievementIds(pHard, LEVELS_2D);
+    expect(atHardBoss).toContain('HARD_BOSS_I24');
+    // Raw difficultyWins-only saves also satisfy BOSS_I24_CLEARED & CHAPTER_TWO_LANDING without mutating input.
+    expect(atHardBoss).toContain('BOSS_I24_CLEARED');
+    expect(atHardBoss).toContain('CHAPTER_TWO_LANDING');
+    expect(pHard.clears[i24Idx]).toBe(0);
+    expect(atHardBoss).not.toContain('HARD_ALL_ISLANDS');
 
-    pHard.difficultyWins.hard.fill(2);
-    expect(earnedSteamAchievementIds(pHard, LEVELS_2D)).toContain('HARD_ALL_ISLANDS');
+    pHard.difficultyWins.hard.fill(3);
+    const atHardAll3 = earnedSteamAchievementIds(pHard, LEVELS_2D);
+    expect(atHardAll3).toContain('HARD_ALL_ISLANDS');
+    expect(atHardAll3).toContain('STARS_ALL_25_ISLANDS');
+    expect(atHardAll3).toContain('CHAPTER_TWO_THREE_STARS');
 
     // 4. Endless milestones (Bronze 3, Silver 6, Gold 10, Deep 20, 5 Golds)
     const pEnd = createDefaultProgress(LEVELS_2D.length);
@@ -699,5 +711,132 @@ describe('Steam achievements map, cloud hydration, and desktop config invariants
       heroes: { selectedHero: 'bran' as const, roster: { bran: { xp: Number.NaN, skills: [] } } },
     };
     expect(earnedSteamAchievementIds(broken, LEVELS_2D)).toEqual([]);
+  });
+
+  it('auto-hydrates 2D Steam Cloud on boot, prevents first-write cloud clobbering on new PCs, and cancels in-flight boot reads on resetProgress2D', async () => {
+    // 1. Auto-hydration on loadProgress2D() boot pulls remote Steam Cloud save and unlocks retroactive achievements.
+    const cloudSlots = new Map<string, string>();
+    const unlockedBoot: string[] = [];
+    const remoteBootSave = createDefaultProgress(LEVELS_2D.length);
+    const i24Idx = LEVELS_2D.findIndex((l) => l.id === 'i24');
+    remoteBootSave.bestStars[0] = 3;
+    remoteBootSave.clears[0] = 1;
+    remoteBootSave.bestStars[i24Idx] = 3;
+    remoteBootSave.clears[i24Idx] = 1;
+    remoteBootSave.heroes = createFreshHeroSaveData();
+    remoteBootSave.heroes.roster.bran = { xp: HERO_LEVEL_XP[9], skills: [] };
+    cloudSlots.set(
+      CLOUD_PROGRESS_2D_SLOT,
+      JSON.stringify({ ids: LEVELS_2D.map((l) => l.id), progress: remoteBootSave }),
+    );
+
+    const bootAdapter = createPlatformAdapter({
+      storage: createMemStorage(),
+      bridge: {
+        isSteam: true,
+        unlockAchievement: async (id) => {
+          if (!unlockedBoot.includes(id)) unlockedBoot.push(id);
+          return true;
+        },
+        cloudRead: async (slot) => cloudSlots.get(slot) ?? null,
+        cloudWrite: async (slot, json) => {
+          cloudSlots.set(slot, json);
+          return true;
+        },
+      },
+    });
+    setPlatformAdapter(bootAdapter);
+
+    // Synchronous return is empty local save, while background boot hydration populates localStorage + Steam achievements.
+    const initialSync = loadProgress2D(LEVELS_2D);
+    expect(initialSync.bestStars[i24Idx]).toBe(0);
+    await new Promise((r) => setTimeout(r, 15));
+    const afterBoot = loadProgress2D(LEVELS_2D);
+    expect(afterBoot.bestStars[i24Idx]).toBe(3);
+    expect(afterBoot.heroes?.roster.bran?.xp).toBe(HERO_LEVEL_XP[9]);
+    expect(unlockedBoot).toContain('BOSS_I24_CLEARED');
+    expect(unlockedBoot).toContain('HERO_BRAN_LV10');
+
+    // 2. Write-before-hydrate protection: calling saveProgress2D() directly on a new PC merges remote cloud first instead of overwriting it!
+    localStore.clear();
+    const newPcCloud = new Map<string, string>();
+    const richRemote = createDefaultProgress(LEVELS_2D.length);
+    richRemote.bestStars[5] = 3;
+    richRemote.clears[5] = 1;
+    richRemote.difficultyWins = {
+      easy: new Array<number>(LEVELS_2D.length).fill(0),
+      normal: new Array<number>(LEVELS_2D.length).fill(0),
+      hard: new Array<number>(LEVELS_2D.length).fill(0),
+    };
+    richRemote.difficultyWins.hard[5] = 3;
+    newPcCloud.set(
+      CLOUD_PROGRESS_2D_SLOT,
+      JSON.stringify({ ids: LEVELS_2D.map((l) => l.id), progress: richRemote }),
+    );
+
+    const newPcAdapter = createPlatformAdapter({
+      storage: createMemStorage(),
+      bridge: {
+        isSteam: true,
+        unlockAchievement: async () => true,
+        cloudRead: async (slot) => newPcCloud.get(slot) ?? null,
+        cloudWrite: async (slot, json) => {
+          newPcCloud.set(slot, json);
+          return true;
+        },
+      },
+    });
+    setPlatformAdapter(newPcAdapter);
+
+    // Directly call saveProgress2D with only l1c=2★ (never called loadProgress2D or hydrateProgress2DFromCloud first!)
+    const firstWriteSave = createDefaultProgress(LEVELS_2D.length);
+    firstWriteSave.bestStars[0] = 2;
+    firstWriteSave.clears[0] = 1;
+    saveProgress2D(firstWriteSave, LEVELS_2D);
+    await new Promise((r) => setTimeout(r, 15));
+
+    const mergedAfterFirstWrite = loadProgress2D(LEVELS_2D);
+    expect(mergedAfterFirstWrite.bestStars[0]).toBe(2);
+    expect(mergedAfterFirstWrite.bestStars[5]).toBe(3); // remote i05 3★ + Hard ribbon preserved!
+    expect(mergedAfterFirstWrite.difficultyWins?.hard[5]).toBe(3);
+    const cloudAfterFirstWrite = JSON.parse(newPcCloud.get(CLOUD_PROGRESS_2D_SLOT) ?? '{}') as {
+      progress: { bestStars: number[] };
+    };
+    expect(cloudAfterFirstWrite.progress.bestStars[0]).toBe(2);
+    expect(cloudAfterFirstWrite.progress.bestStars[5]).toBe(3);
+
+    // 3. Reset cancellation: resetProgress2D() while initial boot cloudRead is in flight never resurrects erased save.
+    localStore.clear();
+    let resolveSlowRead: ((val: string | null) => void) | null = null;
+    const resetCloud = new Map<string, string>(newPcCloud);
+    const slowAdapter = createPlatformAdapter({
+      storage: createMemStorage(),
+      bridge: {
+        isSteam: true,
+        unlockAchievement: async () => true,
+        cloudRead: (slot) =>
+          new Promise<string | null>((res) => {
+            resolveSlowRead = () => res(resetCloud.get(slot) ?? null);
+          }),
+        cloudWrite: async (slot, json) => {
+          resetCloud.set(slot, json);
+          return true;
+        },
+      },
+    });
+    setPlatformAdapter(slowAdapter);
+
+    loadProgress2D(LEVELS_2D); // starts slow boot cloudRead
+    expect(resolveSlowRead).not.toBeNull();
+    resetProgress2D(LEVELS_2D); // user resets while boot cloudRead is still pending!
+    resolveSlowRead!(null);
+    await new Promise((r) => setTimeout(r, 15));
+
+    expect(localStorage.getItem(PROGRESS_2D_KEY)).toBeNull();
+    const afterResetCloud = JSON.parse(resetCloud.get(CLOUD_PROGRESS_2D_SLOT) ?? '{}') as {
+      progress: { bestStars: number[] };
+    };
+    expect(afterResetCloud.progress.bestStars.every((s) => s === 0)).toBe(true);
+    setPlatformAdapter(null);
   });
 });

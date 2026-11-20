@@ -58,6 +58,14 @@ export const PROGRESS_2D_RESET_BACKUP_KEY = 'skyhold_isles_progress2d_reset_back
 export const PROGRESS_2D_IMPORT_BACKUP_KEY = 'skyhold_isles_progress2d_import_backup';
 export const PROGRESS_2D_CORRUPT_BACKUP_KEY = 'skyhold_isles_progress2d_corrupt_backup';
 const LOCAL_CLOUD_2D_MIRROR_KEY = `skyhold_isles_cloud_${CLOUD_PROGRESS_2D_SLOT}`;
+const autoHydrated2DAdapters = new WeakSet<PlatformAdapter>();
+const readingCloud2DAdapters = new WeakSet<PlatformAdapter>();
+const completedHydrated2DAdapters = new WeakSet<PlatformAdapter>();
+let resetGen2D = 0;
+
+function isMockLevelRoster(levels: readonly Pick<LevelDef, 'id'>[]): boolean {
+  return levels.some((l) => l.id.startsWith('mock-'));
+}
 
 interface Stored2D {
   readonly ids: readonly string[];
@@ -234,8 +242,7 @@ function serializeStored2D(
   return JSON.stringify(data);
 }
 
-/** The 2D save, migrated to the current island list (with truncated-JSON & cloud-mirror recovery). Never throws. */
-export function loadProgress2D(levels: readonly LevelDef[] = LEVELS_2D): ProgressData {
+function loadLocalProgress2DInternal(levels: readonly LevelDef[]): ProgressData {
   const ls = storage();
   const makeFresh = (): ProgressData => {
     const fresh = createDefaultProgress(levels.length);
@@ -271,6 +278,17 @@ export function loadProgress2D(levels: readonly LevelDef[] = LEVELS_2D): Progres
   } catch {
     return makeFresh();
   }
+}
+
+/** The 2D save, migrated to the current island list (with truncated-JSON & cloud-mirror recovery). Never throws. */
+export function loadProgress2D(levels: readonly LevelDef[] = LEVELS_2D): ProgressData {
+  const result = loadLocalProgress2DInternal(levels);
+  const platform = getPlatform();
+  if (platform.isSteam && !isMockLevelRoster(levels) && !autoHydrated2DAdapters.has(platform)) {
+    autoHydrated2DAdapters.add(platform);
+    void hydrateProgress2DFromCloud(undefined, levels, platform);
+  }
+  return result;
 }
 
 /**
@@ -339,7 +357,19 @@ export function saveLocalProgress2D(
 export function saveProgress2D(progress: ProgressData, levels: readonly LevelDef[] = LEVELS_2D): void {
   const raw = saveLocalProgress2D(progress, levels);
   const platform = getPlatform();
-  if (platform.isSteam && !levels.some((l) => l.id.startsWith('mock-'))) {
+  if (platform.isSteam && !isMockLevelRoster(levels)) {
+    if (readingCloud2DAdapters.has(platform)) {
+      // An in-flight hydrateProgress2DFromCloud is currently awaiting cloudSave.read(progress2d);
+      // it will fold in this fresh localStorage write via diskRawAfter, merge monotonically with
+      // the remote cloud save, write the union to Steam Cloud, and sync achievements.
+      return;
+    }
+    if (!completedHydrated2DAdapters.has(platform)) {
+      // Never overwrite an un-fetched remote Steam Cloud save with a first local write on a new device.
+      autoHydrated2DAdapters.add(platform);
+      void hydrateProgress2DFromCloud(progress, levels, platform);
+      return;
+    }
     void platform.cloudSave.write(CLOUD_PROGRESS_2D_SLOT, raw);
     void syncAchievementsFromProgress(progress, platform, levels);
   }
@@ -363,13 +393,17 @@ export async function hydrateProgress2DFromCloud(
   levels: readonly LevelDef[] = LEVELS_2D,
   adapter: PlatformAdapter = getPlatform(),
 ): Promise<CloudHydrateResult> {
-  const baseLocal = localProgress ?? loadProgress2D(levels);
+  const genAtStart = resetGen2D;
+  const isMock = isMockLevelRoster(levels);
+  if (!isMock) {
+    autoHydrated2DAdapters.add(adapter);
+  }
+  const baseLocal = localProgress ?? loadLocalProgress2DInternal(levels);
   let normalizedLocal = remapProgress(
     baseLocal,
     levels.map((l) => l.id),
     levels,
   );
-  const isMock = levels.some((l) => l.id.startsWith('mock-'));
   if (isMock) {
     return { merged: normalizedLocal, updated: false, unlockedAchievements: [] };
   }
@@ -378,11 +412,17 @@ export async function hydrateProgress2DFromCloud(
   const diskRawBefore = readLocalProgress2DRaw();
   let cloudRaw: string | null;
   let readFailed = false;
+  readingCloud2DAdapters.add(adapter);
   try {
     cloudRaw = await adapter.cloudSave.read(CLOUD_PROGRESS_2D_SLOT);
   } catch {
     cloudRaw = null;
     readFailed = true;
+  } finally {
+    readingCloud2DAdapters.delete(adapter);
+  }
+  if (resetGen2D !== genAtStart) {
+    return { merged: loadLocalProgress2DInternal(levels), updated: false, unlockedAchievements: [] };
   }
   const safeCloudWrite2D = async (json: string): Promise<void> => {
     try {
@@ -412,14 +452,24 @@ export async function hydrateProgress2DFromCloud(
       if (mergedRaw !== localRaw) {
         saveLocalProgress2D(merged, levels);
       }
+      if (!readFailed) completedHydrated2DAdapters.add(adapter);
       if (parsedCloud.repairedFromTruncated || mergedRaw !== cloudRaw) {
-        await safeCloudWrite2D(mergedRaw);
+        if (resetGen2D === genAtStart) await safeCloudWrite2D(mergedRaw);
       }
-    } else if (hasAnyProgress(normalizedLocal)) {
+    } else {
+      if (!readFailed) completedHydrated2DAdapters.add(adapter);
+      if (hasAnyProgress(normalizedLocal) && resetGen2D === genAtStart) {
+        await safeCloudWrite2D(localRaw);
+      }
+    }
+  } else {
+    if (!readFailed) completedHydrated2DAdapters.add(adapter);
+    if (!readFailed && adapter.isSteam && hasAnyProgress(normalizedLocal) && resetGen2D === genAtStart) {
       await safeCloudWrite2D(localRaw);
     }
-  } else if (!readFailed && adapter.isSteam && hasAnyProgress(normalizedLocal)) {
-    await safeCloudWrite2D(localRaw);
+  }
+  if (resetGen2D !== genAtStart) {
+    return { merged: loadLocalProgress2DInternal(levels), updated: false, unlockedAchievements: [] };
   }
 
   const finalMergedRaw = serializeStored2D(merged, levels);
@@ -867,10 +917,11 @@ export function importSaveCode2D(
  * The 3D campaign save is untouched.
  */
 export function resetProgress2D(levels: readonly LevelDef[] = LEVELS_2D): void {
+  resetGen2D++;
   const ls = storage();
   try {
     const raw = ls?.getItem(PROGRESS_2D_KEY);
-    if (raw && hasAnyProgress(loadProgress2D(levels))) {
+    if (raw && hasAnyProgress(loadLocalProgress2DInternal(levels))) {
       ls?.setItem(PROGRESS_2D_RESET_BACKUP_KEY, raw);
     }
     ls?.removeItem(PROGRESS_2D_KEY);
@@ -880,7 +931,9 @@ export function resetProgress2D(levels: readonly LevelDef[] = LEVELS_2D): void {
     // ignore
   }
   const platform = getPlatform();
-  if (platform.isSteam && !levels.some((l) => l.id.startsWith('mock-'))) {
+  if (platform.isSteam && !isMockLevelRoster(levels)) {
+    autoHydrated2DAdapters.add(platform);
+    completedHydrated2DAdapters.add(platform);
     const fresh = createDefaultProgress(levels.length);
     fresh.heroes = createDefaultHeroSave();
     void platform.cloudSave.write(CLOUD_PROGRESS_2D_SLOT, serializeStored2D(fresh, levels));

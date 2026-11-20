@@ -319,16 +319,16 @@ export async function runMidProgressSaveSweep(): Promise<readonly InvariantViola
     JSON.stringify({ ids: LEVELS_2D.map((l) => l.id), progress: cloudProgress }),
   );
   const mockSteamAdapter: PlatformAdapter = {
-    name: 'steam',
     isSteam: true,
     isMobile: false,
+    mobilePlatform: 'web',
     overlayActive: false,
+    triggerHaptic: () => Promise.resolve(false),
     onPause: () => () => undefined,
     onResume: () => () => undefined,
     onOverlayChange: () => () => undefined,
     achievements: {
       unlock: () => Promise.resolve(true),
-      isUnlocked: () => false,
     },
     cloudSave: {
       read: (slot) => Promise.resolve(cloudStore.get(slot) ?? null),

@@ -50,11 +50,20 @@
   - Fixed 4 Linux Electron 45 / AppImage packaging & boot issues in `desktop/main.cjs`: WebGL2 software/Mesa blocklist (`ignore-gpu-blocklist` + `enable-unsafe-swiftshader`), `< 128 MB` `/dev/shm` `SharedImage` failures (`disable-dev-shm-usage`), `.otf`/`Fredoka TR` MIME type + ASAR `nativeImage.createFromBuffer` window icon, and dual World Map (`window.__map`) + Gameplay (`window.__p0`) `SKYHOLD_SMOKE_TEST=1` invariants (`hasBridge`, `achievementsLoaded >= 58`, `failedLoads === 0`).
   - Built `release/Skyhold Isles-1.0.0.AppImage` (`233 MB`) via `npm run desktop:build:linux` and verified both World Map (`25` islands) and Hard Boss `i24` + L20 Sela (`101/101` art files, `0` failed loads) under `xvfb-run` (`npx tsx scripts/qaDesktopSmoke.ts`).
 
-- [x] **6. Post-Backlog Quality Audit (`src/platform/iap.ts`, `src/render2d/heroes2d.ts`, `src/render2d/ui/modes2d.ts`, `scripts/heroBalance.ts`, `tests/platform/iap.test.ts`)**
+- [x] **6. Post-Backlog Quality Audit — Round 1 (`src/platform/iap.ts`, `src/render2d/heroes2d.ts`, `src/render2d/ui/modes2d.ts`, `scripts/heroBalance.ts`, `tests/platform/iap.test.ts`)** — commit `cd4c1e3`
   - Decoupled `src/platform/iap.ts` (`FREE_ISLANDS`) from static `LEVELS_2D` import (while keeping CI parity assertion against `LEVELS_2D.slice(0, 6)`), making all of `src/platform/**` 100% free of static `levels2d` JSON imports.
   - Hardened `src/platform/iap.ts` (`readIdSetFromKey`) with `tryRepairTruncatedJson` so truncated mobile `IAP_SAVE_KEY` writes preserve paid `full_unlock` offline entitlements.
   - Extended `clearedIslandsCount2D` (`heroes2d.ts`) and `isIslandCleared` (`modes2d.ts`) to honor `difficultyWins` (`easy`/`normal`/`hard`) on raw un-migrated `ProgressData` objects.
   - Expanded `scripts/heroBalance.ts` (`REPORT_ISLANDS`) to include Chapter Two (`i17` and `i24` Boss) alongside `l1c`, `i05`, `i10`, `i16`, and re-verified full `npm run sim:heroes` + `npm run qa:bot` (`656/656` passed, `0` violations).
+
+- [x] **7. Post-Backlog Deep Audit — Round 2 (`src/render2d/ui/progress2d.ts`, `src/platform/{achievements,saveCode,contentStorage}.ts`, `src/sim/{heroSystem,abilitySystem}.ts`, `desktop/main.cjs`, `scripts/qaDesktopSmoke.ts`, `qa/bot/saveSweep.ts`)**
+  - **2D Steam Cloud Auto-Hydration & Write-Before-Hydrate Clobber Protection (`progress2d.ts`):**
+    - `loadProgress2D()` now triggers a one-shot background `hydrateProgress2DFromCloud()` per Steam `PlatformAdapter` on non-mock rosters, pulling remote `progress2d` saves and unlocking retroactive Steam achievements automatically on World Map / Gameplay boot.
+    - `saveProgress2D()` guards against first-write clobbering on fresh PCs: if `hydrateProgress2DFromCloud()` has not completed yet for the active Steam adapter, `saveProgress2D()` merges remote Steam Cloud first instead of overwriting `progress2d` with near-empty local state; `resetProgress2D()` increments `resetGen2D` to cancel any pre-reset in-flight boot cloud read.
+  - **Steam Achievement `difficultyWins` Parity (`achievements.ts`):** `earnedSteamAchievementIds()` and `safeBestStarsAt()` / `isIslandClearedAt()` normalize raw `difficultyWins`-only `ProgressData` inputs non-destructively so `BOSS_I24_CLEARED`, `CHAPTER_TWO_*`, `STARS_*`, and `FEAT_*` stay 100% consistent with `HARD_*` ribbons.
+  - **3D Corrupt-Backup & Codex Truncated-JSON Recovery (`saveCode.ts`, `contentStorage.ts`):** Added `PROGRESS_CORRUPT_BACKUP_KEY` (`corruptBackup`) to 3D `recoverProgressSave()` (matching `recoverProgress2D()`), added `tryRepairTruncatedJson` recovery to `ContentStore` (`CODEX_KEY` / `ONBOARDING_KEY`), and added `difficultyWins` parity to `ContentStore.migrate()` / `inferSeenFromProgress()`.
+  - **Per-Frame HUD Snapshot Caching (`heroSystem.ts`, `abilitySystem.ts`):** `HeroSystem.getRuntimeState()` caches immutable `HeroRuntimeState` snapshots across unchanged 60/120 Hz HUD frames and reuses the `skills` tuple when cooldowns are unchanged (0 allocations while paused/idle); `AbilitySystem.castOvercharge()` reuses a frozen empty `cleansedTowerIds` array when no towers are stunned.
+  - **Steam Desktop Security, Clipboard & Single-Instance Hardening (`desktop/main.cjs`, `scripts/qaDesktopSmoke.ts`):** Added `unsafely-treat-insecure-origin-as-secure` on `http://skyhold.local` (`window.isSecureContext === true` so `navigator.clipboard.writeText` works for Copy Save Code / Share without changing origin or losing `persist:skyhold` `localStorage`), restricted permissions via `setPermissionCheckHandler` / `setPermissionRequestHandler`, blocked outbound `https:` requests in `registerBundleProtocol`, added `app.requestSingleInstanceLock()` with `second-instance` focus restore, rebuilt `release/Skyhold Isles-1.0.0.AppImage`, and verified `secureContext: true` under Xvfb smoke.
 
 ---
 
@@ -81,7 +90,7 @@
 
 ## Problems / Known Issues
 
-- None blocking in owned area (`sim:balance` 41/41 byte-identical, `qa:bot` 656/656 passing, 1,360 unit tests passing, all Hard Boss low-end benches `<= 66.8 ms`, Linux AppImage builds & passes Xvfb smoke).
+- None blocking in owned area (`sim:balance` 41/41 byte-identical, `qa:bot` 656/656 passing, 1,364 unit tests passing, all Hard Boss low-end benches `<= 66.8 ms`, Linux AppImage builds & passes Xvfb smoke with `secureContext: true`).
 
 ---
 

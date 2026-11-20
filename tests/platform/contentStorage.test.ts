@@ -154,4 +154,36 @@ describe('ContentStore', () => {
     expect(store.seenIds().length).toBeGreaterThan(3);
     for (const id of store.seenIds()) expect(store.isNew(id)).toBe(false);
   });
+
+  it('salvages truncated CODEX_KEY / ONBOARDING_KEY JSON and honors difficultyWins-only progress', () => {
+    const fullCodex = JSON.stringify({
+      v: 1,
+      seen: ['enemy:grunt', 'enemy:runner', 'enemy:golem'],
+      viewed: ['enemy:grunt'],
+    });
+    const fullOnboarding = JSON.stringify({ v: 1, status: 'done', extra: 'cut_here' });
+    const s = memStorage({
+      [CODEX_KEY]: fullCodex.slice(0, fullCodex.length - 4),
+      [ONBOARDING_KEY]: fullOnboarding.slice(0, fullOnboarding.length - 6),
+    });
+    const repaired = new ContentStore(s);
+    expect(repaired.hasSeen('enemy:grunt')).toBe(true);
+    expect(repaired.hasSeen('enemy:runner')).toBe(true);
+    expect(repaired.getOnboardingStatus()).toBe('done');
+
+    // Raw difficultyWins-only progress marks veteran onboarding 'done' and infers seen enemies
+    const dwOnly = {
+      unlockedLevelIndex: 0,
+      bestStars: new Array<number>(LEVELS.length).fill(0),
+      difficultyWins: {
+        easy: new Array<number>(LEVELS.length).fill(0),
+        normal: new Array<number>(LEVELS.length).fill(0),
+        hard: [2, ...new Array<number>(LEVELS.length - 1).fill(0)],
+      },
+    };
+    const dwStore = new ContentStore(memStorage());
+    dwStore.migrate(LEVELS, dwOnly);
+    expect(dwStore.getOnboardingStatus()).toBe('done');
+    expect(dwStore.hasSeen('enemy:grunt')).toBe(true);
+  });
 });

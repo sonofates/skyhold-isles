@@ -15,6 +15,7 @@ interface SmokePayload {
   readonly ready: boolean;
   readonly scene: 'worldMap' | 'game';
   readonly hasBridge: boolean;
+  readonly secureContext?: boolean;
   readonly achievementsLoaded: number;
   readonly failedLoads: number;
   readonly islands?: number;
@@ -77,6 +78,7 @@ function main(): void {
   if (
     worldMap.scene !== 'worldMap' ||
     !worldMap.hasBridge ||
+    !worldMap.secureContext ||
     worldMap.achievementsLoaded < 58 ||
     worldMap.failedLoads !== 0 ||
     (worldMap.islands ?? 0) < 25
@@ -92,6 +94,7 @@ function main(): void {
     bossGame.mode !== 'play' ||
     bossGame.hero !== 'sela' ||
     !bossGame.hasBridge ||
+    !bossGame.secureContext ||
     bossGame.achievementsLoaded < 58 ||
     bossGame.failedLoads !== 0 ||
     !bossGame.art ||

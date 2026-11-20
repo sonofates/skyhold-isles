@@ -1,5 +1,6 @@
 import type { EnemyType, ProgressData, TowerType } from '../core/types.ts';
 import type { LevelDef } from '../data/levels/types.ts';
+import { tryRepairTruncatedJson } from './storage.ts';
 
 /**
  * Persistence for the onboarding / first-sighting / codex features. Own localStorage keys (versioned)
@@ -35,15 +36,32 @@ function safeUnlockedFrontier(val: unknown): number {
   return typeof val === 'number' && Number.isFinite(val) ? Math.max(0, Math.floor(val)) : 0;
 }
 
+function hasDifficultyWinAt(
+  dw: ProgressData['difficultyWins'] | undefined,
+  index?: number,
+): boolean {
+  if (!dw) return false;
+  const pos = (v: unknown): boolean => typeof v === 'number' && Number.isFinite(v) && v > 0;
+  if (index !== undefined) {
+    return pos(dw.easy?.[index]) || pos(dw.normal?.[index]) || pos(dw.hard?.[index]);
+  }
+  return (
+    (Array.isArray(dw.easy) && dw.easy.some(pos)) ||
+    (Array.isArray(dw.normal) && dw.normal.some(pos)) ||
+    (Array.isArray(dw.hard) && dw.hard.some(pos))
+  );
+}
+
 function isVeteranProgress(
   progress: Pick<ProgressData, 'unlockedLevelIndex' | 'bestStars'> &
-    Partial<Pick<ProgressData, 'clears'>>,
+    Partial<Pick<ProgressData, 'clears' | 'difficultyWins'>>,
 ): boolean {
   return (
     safeUnlockedFrontier(progress.unlockedLevelIndex) > 0 ||
     progress.bestStars.some((n) => typeof n === 'number' && Number.isFinite(n) && n > 0) ||
     (Array.isArray(progress.clears) &&
-      progress.clears.some((n) => typeof n === 'number' && Number.isFinite(n) && n > 0))
+      progress.clears.some((n) => typeof n === 'number' && Number.isFinite(n) && n > 0)) ||
+    hasDifficultyWinAt(progress.difficultyWins)
   );
 }
 
@@ -51,7 +69,7 @@ function isVeteranProgress(
 export function inferSeenFromProgress(
   levels: readonly Pick<LevelDef, 'waves'>[],
   progress: Pick<ProgressData, 'unlockedLevelIndex' | 'bestStars'> &
-    Partial<Pick<ProgressData, 'clears'>>,
+    Partial<Pick<ProgressData, 'clears' | 'difficultyWins'>>,
   legacyEnemyIntroSeen: (type: string) => boolean = () => false,
 ): SeenId[] {
   const out = new Set<SeenId>();
@@ -63,6 +81,7 @@ export function inferSeenFromProgress(
     const played =
       (typeof stars === 'number' && Number.isFinite(stars) && stars > 0) ||
       (typeof clears === 'number' && Number.isFinite(clears) && clears > 0) ||
+      hasDifficultyWinAt(progress.difficultyWins, i) ||
       i < frontier;
     if (!played) continue;
     for (const wave of levels[i].waves) {
@@ -104,7 +123,12 @@ export class ContentStore {
     try {
       const raw = s.getItem(CODEX_KEY);
       if (raw) {
-        const rawParsed: unknown = JSON.parse(raw);
+        let rawParsed: unknown;
+        try {
+          rawParsed = JSON.parse(raw);
+        } catch {
+          rawParsed = tryRepairTruncatedJson(raw);
+        }
         const parsed =
           rawParsed && typeof rawParsed === 'object' && !Array.isArray(rawParsed)
             ? (rawParsed as Partial<CodexSave>)
@@ -126,7 +150,12 @@ export class ContentStore {
     try {
       const raw = s.getItem(ONBOARDING_KEY);
       if (raw) {
-        const rawParsed: unknown = JSON.parse(raw);
+        let rawParsed: unknown;
+        try {
+          rawParsed = JSON.parse(raw);
+        } catch {
+          rawParsed = tryRepairTruncatedJson(raw);
+        }
         const parsed =
           rawParsed && typeof rawParsed === 'object' && !Array.isArray(rawParsed)
             ? (rawParsed as { v?: number; status?: unknown })
@@ -148,7 +177,7 @@ export class ContentStore {
   migrate(
     levels: readonly Pick<LevelDef, 'waves'>[],
     progress: Pick<ProgressData, 'unlockedLevelIndex' | 'bestStars'> &
-      Partial<Pick<ProgressData, 'clears'>>,
+      Partial<Pick<ProgressData, 'clears' | 'difficultyWins'>>,
     legacyEnemyIntroSeen?: (type: string) => boolean,
   ): void {
     const veteran = isVeteranProgress(progress);
@@ -210,7 +239,7 @@ export class ContentStore {
   adoptProgress(
     levels: readonly Pick<LevelDef, 'waves'>[],
     progress: Pick<ProgressData, 'unlockedLevelIndex' | 'bestStars'> &
-      Partial<Pick<ProgressData, 'clears'>>,
+      Partial<Pick<ProgressData, 'clears' | 'difficultyWins'>>,
   ): void {
     const veteran = isVeteranProgress(progress);
     if (!veteran) return;

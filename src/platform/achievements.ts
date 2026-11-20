@@ -63,8 +63,41 @@ function safeNonNegInt(val: unknown): number {
   return typeof val === 'number' && Number.isFinite(val) ? Math.max(0, Math.floor(val)) : 0;
 }
 
+function safeBestStarsAt(progress: ProgressData, index: number): number {
+  const dw = progress.difficultyWins;
+  return Math.min(
+    3,
+    Math.max(
+      safeNonNegInt(progress.bestStars?.[index]),
+      Math.min(1, safeNonNegInt(dw?.easy?.[index])),
+      safeNonNegInt(dw?.normal?.[index]),
+      safeNonNegInt(dw?.hard?.[index]),
+    ),
+  );
+}
+
 function isIslandClearedAt(progress: ProgressData, index: number): boolean {
-  return safeNonNegInt(progress.clears?.[index]) > 0 || safeNonNegInt(progress.bestStars?.[index]) > 0;
+  return safeNonNegInt(progress.clears?.[index]) > 0 || safeBestStarsAt(progress, index) > 0;
+}
+
+function normalizeProgressForAchievements(progress: ProgressData, count: number): ProgressData {
+  let needsPatch = false;
+  for (let i = 0; i < count; i++) {
+    const effStars = safeBestStarsAt(progress, i);
+    const curStars = safeNonNegInt(progress.bestStars?.[i]);
+    const curClears = safeNonNegInt(progress.clears?.[i]);
+    if (effStars > curStars || (effStars > 0 && curClears === 0)) {
+      needsPatch = true;
+      break;
+    }
+  }
+  if (!needsPatch) return progress;
+  const bestStars = Array.from({ length: count }, (_, i) => safeBestStarsAt(progress, i));
+  const clears = Array.from({ length: count }, (_, i) => {
+    const c = safeNonNegInt(progress.clears?.[i]);
+    return c > 0 ? c : bestStars[i] > 0 ? 1 : 0;
+  });
+  return { ...progress, bestStars, clears };
 }
 
 function countClearedIslands(progress: ProgressData, levels: readonly LevelDef[]): number {
@@ -177,7 +210,7 @@ const starTierAchievements: readonly SteamAchievementDef[] = DIFFICULTIES.map((d
     for (let i = 0; i < levels.length; i++) {
       if (levels[i].difficulty !== difficulty) continue;
       matching++;
-      if (safeNonNegInt(progress.bestStars?.[i]) < 3) return false;
+      if (safeBestStarsAt(progress, i) < 3) return false;
     }
     return matching > 0;
   },
@@ -267,7 +300,7 @@ const chapterAchievements: readonly SteamAchievementDef[] = [
       for (let i = 0; i < levels.length; i++) {
         if (!CHAPTER_TWO_SET.has(levels[i].id)) continue;
         matched++;
-        if (safeNonNegInt(progress.bestStars?.[i]) < 3) return false;
+        if (safeBestStarsAt(progress, i) < 3) return false;
       }
       return matched === CHAPTER_TWO_ISLAND_IDS.length;
     },
@@ -293,7 +326,7 @@ const fullCampaignThreeStarAchievements: readonly SteamAchievementDef[] = [
     isEarned: (progress, levels) => {
       if (levels.length < 25) return false;
       for (let i = 0; i < levels.length; i++) {
-        if (safeNonNegInt(progress.bestStars?.[i]) < 3) return false;
+        if (safeBestStarsAt(progress, i) < 3) return false;
       }
       return true;
     },
@@ -466,9 +499,10 @@ export function earnedSteamAchievementIds(
   progress: ProgressData,
   levels: readonly LevelDef[] = LEVELS,
 ): string[] {
+  const normalized = normalizeProgressForAchievements(progress, levels.length);
   const out: string[] = [];
   for (const ach of STEAM_ACHIEVEMENTS) {
-    if (ach.isEarned(progress, levels)) out.push(ach.id);
+    if (ach.isEarned(normalized, levels)) out.push(ach.id);
   }
   return out;
 }

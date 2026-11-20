@@ -664,4 +664,34 @@ describe('Save Robustness v2 — Version Migration & Algebraic Merge Fuzz', () =
       prev = cur;
     }
   }, 30_000);
+
+  it('recoverProgressSave (3D) merges PROGRESS_CORRUPT_BACKUP_KEY even after primary slot was overwritten', () => {
+    const store = installMemoryStorage();
+    const original = createDefaultProgress(LEVELS.length);
+    original.bestStars[0] = 3;
+    original.bestStars[1] = 3;
+    original.bestStars[2] = 2;
+    original.clears[0] = 1;
+    original.clears[1] = 1;
+    original.clears[2] = 1;
+    original.unlockedLevelIndex = 3;
+    const fullRaw = JSON.stringify(original);
+    // Truncate near the end so loadProgress salvages prefix & writes forensic PROGRESS_CORRUPT_BACKUP_KEY
+    const truncated = fullRaw.slice(0, fullRaw.length - 6);
+    store.set('skyhold_isles_progress_v1', truncated);
+    const loadedFromTrunc = loadProgress(LEVELS.length);
+    expect(loadedFromTrunc.bestStars[0]).toBe(3);
+    expect(store.get(PROGRESS_CORRUPT_BACKUP_KEY)).toBe(truncated);
+
+    // Suppose primary slot is later overwritten with only island 0 cleared (e.g. fresh session before recovery):
+    const tiny = createDefaultProgress(LEVELS.length);
+    tiny.bestStars[0] = 1;
+    tiny.clears[0] = 1;
+    saveLocalProgress(tiny);
+
+    const rec = recoverProgressSave(LEVELS.length);
+    expect(rec.recovered).toBe(true);
+    expect(rec.sources).toContain('corruptBackup');
+    expect(rec.progress.bestStars.slice(0, 3)).toEqual([3, 3, 2]);
+  });
 });

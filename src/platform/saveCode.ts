@@ -18,6 +18,7 @@ import {
   hasAnyProgress,
   migrateProgress,
   PROGRESS_BACKUP_KEY,
+  PROGRESS_CORRUPT_BACKUP_KEY,
   PROGRESS_IMPORT_BACKUP_KEY,
   PROGRESS_RESET_BACKUP_KEY,
   PROGRESS_SAVE_VERSION,
@@ -460,6 +461,7 @@ export function recoverProgressSave(
     ['primary', readLocalProgressRaw()],
     ['cloud', readKey(`skyhold_isles_cloud_${CLOUD_PROGRESS_SLOT}`)],
     ['importBackup', readKey(PROGRESS_IMPORT_BACKUP_KEY)],
+    ['corruptBackup', readKey(PROGRESS_CORRUPT_BACKUP_KEY)],
     ['migrationBackup', readKey(PROGRESS_BACKUP_KEY)],
     ...(options?.includeResetBackup ? ([['resetBackup', readKey(PROGRESS_RESET_BACKUP_KEY)]] as const) : []),
   ];

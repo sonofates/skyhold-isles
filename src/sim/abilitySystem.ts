@@ -21,6 +21,7 @@ interface PendingMeteor extends ReadonlyPendingMeteor {
 }
 
 const _meteorCandidates: number[] = [];
+const EMPTY_TOWER_IDS: readonly number[] = [];
 
 export class AbilitySystem {
   private readonly events: EventBus;
@@ -115,18 +116,19 @@ export class AbilitySystem {
     this.cooldowns.overcharge = this.getMaxCooldown('overcharge');
     this.overchargeRemaining = def.durationSec;
 
-    const cleansedTowerIds: number[] = [];
+    let cleansedTowerIds: number[] | null = null;
     for (let i = 0; i < towers.length; i++) {
       const tower = towers[i];
       if (tower.stunTimer > 0) {
         tower.stunTimer = 0;
+        if (!cleansedTowerIds) cleansedTowerIds = [];
         cleansedTowerIds.push(tower.id);
       }
     }
 
     this.events.emit('overchargeActivated', {
       duration: def.durationSec,
-      cleansedTowerIds,
+      cleansedTowerIds: cleansedTowerIds ?? EMPTY_TOWER_IDS,
     });
     return true;
   }

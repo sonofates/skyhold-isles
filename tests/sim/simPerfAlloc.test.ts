@@ -135,4 +135,51 @@ describe('Low-end sim performance & zero per-tick allocation invariants', () => 
       w.dispose();
     }
   });
+
+  it('HeroSystem.getRuntimeState caches immutable HUD snapshots across unchanged frames and reuses skill tuples on movement', () => {
+    const l1c = getLevelById('l1c')!;
+    const bus = new EventBus();
+    const world = new SimWorld(l1c, bus, {
+      heroId: 'mira',
+      heroLevel: 20,
+      heroSkills: defaultLevel20Skills('mira'),
+    });
+
+    // Repeated 60/120 Hz HUD polls while paused / preFirstWave return the exact same object reference (0 allocs)
+    const s1 = world.getHeroState()!;
+    const s2 = world.getHeroState()!;
+    expect(s1).not.toBeNull();
+    expect(s2).toBe(s1);
+
+    // Moving the hero produces a distinct immutable snapshot (preserving s1.x/z) while reusing s1.skills when cooldowns are unchanged
+    const fallback = world.heroSystem.getFallbackRespawnPoint();
+    expect(world.commandHeroMove(fallback.x, fallback.z)).toBe(true);
+    world.fixedTick(BALANCE.fixedDt);
+    const sMoved = world.getHeroState()!;
+    expect(sMoved).not.toBe(s1);
+    expect(sMoved.skills).toBe(s1.skills);
+    expect(world.getHeroState()).toBe(sMoved);
+
+    // Casting a skill produces a new skills tuple reflecting the active cooldown, and Overcharge with 0 stunned towers reuses empty cleansed list
+    world.startNextWave();
+    expect(world.castHeroSkill(0, fallback.x, fallback.z)).toBe(true);
+    const sCast = world.getHeroState()!;
+    expect(sCast).not.toBe(sMoved);
+    expect(sCast.skills).not.toBe(sMoved.skills);
+    expect(sCast.skills[0].cooldown).toBeGreaterThan(0);
+
+    let cleansedA: readonly number[] | null = null;
+    let cleansedB: readonly number[] | null = null;
+    bus.on('overchargeActivated', (ev) => {
+      if (!cleansedA) cleansedA = ev.cleansedTowerIds;
+      else cleansedB = ev.cleansedTowerIds;
+    });
+    expect(world.castOvercharge()).toBe(true);
+    world.abilitySystem.reset();
+    expect(world.castOvercharge()).toBe(true);
+    expect(cleansedA).toEqual([]);
+    expect(cleansedB).toBe(cleansedA);
+
+    world.dispose();
+  });
 });

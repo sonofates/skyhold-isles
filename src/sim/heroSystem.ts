@@ -249,6 +249,8 @@ export class HeroSystem {
   private readonly burnUid: Int32Array;
   private burnTickTimer = BURN_TICK_INTERVAL;
   private calmHealTimer = 1.0;
+  private runtimeCache: HeroRuntimeState | null = null;
+  private runtimeCacheOngoing = false;
 
   private readonly pool: ObjectPool<EnemyEntity>;
   private readonly spatialHash: SpatialHashGrid;
@@ -508,7 +510,58 @@ export class HeroSystem {
     if (!h) return null;
     const def = HERO_DEFS[h.heroId];
     const alive = h.state !== 'dead' && h.hp > 0;
-    return {
+    const hp = Math.ceil(h.hp);
+    const armor = h.stats.armor + (h.rallyBannerTimer > 0 ? h.stats.actives[1].armorBonus : 0);
+    const respawnRemaining = h.state === 'dead' ? h.respawnTimer : 0;
+    const invulnRemaining = alive ? h.invulnTimer : 0;
+    const totalDamageDealt = Math.round(h.totalDamageDealt);
+    const cd0 = h.skillCooldowns[0];
+    const cd1 = h.skillCooldowns[1];
+    const maxCd0 = h.stats.actives[0].cooldownSec;
+    const maxCd1 = h.stats.actives[1].cooldownSec;
+    const usable0 = runOngoing && alive && cd0 <= 0;
+    const usable1 = runOngoing && alive && cd1 <= 0;
+
+    const prev = this.runtimeCache;
+    const skillsUnchanged =
+      prev !== null &&
+      prev.level === h.level &&
+      prev.skills[0].cooldown === cd0 &&
+      prev.skills[0].maxCooldown === maxCd0 &&
+      prev.skills[0].usable === usable0 &&
+      prev.skills[1].cooldown === cd1 &&
+      prev.skills[1].maxCooldown === maxCd1 &&
+      prev.skills[1].usable === usable1;
+
+    if (
+      skillsUnchanged &&
+      this.runtimeCacheOngoing === runOngoing &&
+      prev.state === h.state &&
+      prev.alive === alive &&
+      prev.x === h.x &&
+      prev.z === h.z &&
+      prev.yaw === h.yaw &&
+      prev.hp === hp &&
+      prev.maxHp === h.maxHp &&
+      prev.armor === armor &&
+      prev.respawnRemaining === respawnRemaining &&
+      prev.respawnMax === h.stats.respawnSec &&
+      prev.invulnRemaining === invulnRemaining &&
+      prev.runXp === this.runXp &&
+      prev.kills === h.kills &&
+      prev.totalDamageDealt === totalDamageDealt
+    ) {
+      return prev;
+    }
+
+    const skills: readonly [HeroSkillRuntimeState, HeroSkillRuntimeState] = skillsUnchanged
+      ? prev.skills
+      : [
+          HeroSystem.buildSkillRuntimeState(h, def, 0, alive, runOngoing),
+          HeroSystem.buildSkillRuntimeState(h, def, 1, alive, runOngoing),
+        ];
+
+    const next: HeroRuntimeState = {
       heroId: h.heroId,
       name: def.name,
       level: h.level,
@@ -517,20 +570,20 @@ export class HeroSystem {
       x: h.x,
       z: h.z,
       yaw: h.yaw,
-      hp: Math.ceil(h.hp),
+      hp,
       maxHp: h.maxHp,
-      armor: h.stats.armor + (h.rallyBannerTimer > 0 ? h.stats.actives[1].armorBonus : 0),
-      respawnRemaining: h.state === 'dead' ? h.respawnTimer : 0,
+      armor,
+      respawnRemaining,
       respawnMax: h.stats.respawnSec,
-      invulnRemaining: alive ? h.invulnTimer : 0,
+      invulnRemaining,
       runXp: this.runXp,
       kills: h.kills,
-      totalDamageDealt: Math.round(h.totalDamageDealt),
-      skills: [
-        HeroSystem.buildSkillRuntimeState(h, def, 0, alive, runOngoing),
-        HeroSystem.buildSkillRuntimeState(h, def, 1, alive, runOngoing),
-      ],
+      totalDamageDealt,
+      skills,
     };
+    this.runtimeCache = next;
+    this.runtimeCacheOngoing = runOngoing;
+    return next;
   }
 
   /** Orders the hero to walk along the ground road graph to `(wantX, wantZ)`. */

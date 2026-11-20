@@ -110,6 +110,9 @@ function configureChromiumSwitches() {
   // Keep WebGL2 available across older Linux Mesa drivers, VMs, and software fallbacks.
   app.commandLine.appendSwitch('ignore-gpu-blocklist');
   app.commandLine.appendSwitch('enable-unsafe-swiftshader');
+  // Mark bundled offline origin secure so navigator.clipboard (Save Code / Share) works while
+  // keeping BUNDLE_ORIGIN stable for existing persist:skyhold localStorage data.
+  app.commandLine.appendSwitch('unsafely-treat-insecure-origin-as-secure', BUNDLE_ORIGIN);
 
   if (process.env.SKYHOLD_SWIFTSHADER === '1' || process.env.SKYHOLD_SMOKE_TEST === '1') {
     app.commandLine.appendSwitch('use-gl', 'angle');
@@ -132,7 +135,22 @@ function configureChromiumSwitches() {
 }
 
 configureChromiumSwitches();
-initSteamworks();
+
+const isSmokeTest = process.env.SKYHOLD_SMOKE_TEST === '1';
+const gotSingleInstanceLock = isSmokeTest ? true : app.requestSingleInstanceLock();
+if (!gotSingleInstanceLock) {
+  app.quit();
+} else {
+  initSteamworks();
+}
+
+app.on('second-instance', () => {
+  const win = BrowserWindow.getAllWindows()[0];
+  if (win && !win.isDestroyed()) {
+    if (win.isMinimized()) win.restore();
+    win.focus();
+  }
+});
 
 /** Known achievement IDs from `desktop/achievements.json` (extra guard on IPC). */
 const knownAchievementIds = (() => {
@@ -216,7 +234,32 @@ function resolveDistFile(distDir, urlPathname) {
   return resolved;
 }
 
+function isAllowedAppOrigin(rawOrigin) {
+  if (!rawOrigin) return false;
+  try {
+    const origin = new URL(rawOrigin).origin;
+    if (origin === BUNDLE_ORIGIN) return true;
+    const devUrl = process.env.STEAM_DEV_URL;
+    return Boolean(devUrl && origin === new URL(devUrl).origin);
+  } catch {
+    return false;
+  }
+}
+
+const ALLOWED_PERMISSIONS = new Set(['clipboard-sanitized-write', 'clipboard-read', 'fullscreen']);
+
+function configureSessionPermissions(ses) {
+  ses.setPermissionCheckHandler((_wc, permission, requestingOrigin) => {
+    return ALLOWED_PERMISSIONS.has(permission) && isAllowedAppOrigin(requestingOrigin);
+  });
+  ses.setPermissionRequestHandler((wc, permission, callback, details) => {
+    const origin = (details && details.requestingUrl) || (wc && wc.getURL ? wc.getURL() : '');
+    callback(ALLOWED_PERMISSIONS.has(permission) && isAllowedAppOrigin(origin));
+  });
+}
+
 function registerBundleProtocol(ses, distDir) {
+  ses.protocol.handle('https', () => new Response('Blocked external request', { status: 403 }));
   ses.protocol.handle('http', async (request) => {
     const parsed = new URL(request.url);
     if (parsed.origin !== BUNDLE_ORIGIN) {
@@ -325,6 +368,7 @@ function createMainWindow(ses, distDir) {
             const boot = bootEl ? bootEl.textContent : null;
             if (bootEl) return { ready: false, boot, href: location.href };
             const hasBridge = Boolean(window.skyholdSteam);
+            const secureContext = Boolean(window.isSecureContext);
             const isSteamVal = window.skyholdSteam ? window.skyholdSteam.isSteam : null;
             const appIdVal = window.skyholdSteam ? window.skyholdSteam.appId : null;
             if (window.__p0 && typeof window.__p0.artcheck === 'function') {
@@ -336,6 +380,7 @@ function createMainWindow(ses, distDir) {
                 ready: true,
                 scene: 'game',
                 hasBridge,
+                secureContext,
                 isSteam: isSteamVal,
                 appId: appIdVal,
                 art: window.__p0.artcheck(),
@@ -352,6 +397,7 @@ function createMainWindow(ses, distDir) {
                   ready: true,
                   scene: 'worldMap',
                   hasBridge,
+                  secureContext,
                   isSteam: isSteamVal,
                   appId: appIdVal,
                   islands: islands.length,
@@ -368,7 +414,7 @@ function createMainWindow(ses, distDir) {
             achievementsLoaded: achievementsCount,
             failedLoads: failedLoads.length,
           };
-          if (!probe.hasBridge || failedLoads.length > 0 || achievementsCount < 58) {
+          if (!probe.hasBridge || !probe.secureContext || failedLoads.length > 0 || achievementsCount < 58) {
             console.error('[smoke] Invariant failed:', JSON.stringify({ summary, failedLoads }));
             app.exit(1);
             return;
@@ -397,18 +443,21 @@ function createMainWindow(ses, distDir) {
   return win;
 }
 
-app.whenReady().then(() => {
-  const distDir = path.resolve(__dirname, '..', 'dist');
-  const ses = session.fromPartition(SESSION_PARTITION);
-  if (!process.env.STEAM_DEV_URL) {
-    registerBundleProtocol(ses, distDir);
-  }
-  createMainWindow(ses, distDir);
+if (gotSingleInstanceLock) {
+  app.whenReady().then(() => {
+    const distDir = path.resolve(__dirname, '..', 'dist');
+    const ses = session.fromPartition(SESSION_PARTITION);
+    configureSessionPermissions(ses);
+    if (!process.env.STEAM_DEV_URL) {
+      registerBundleProtocol(ses, distDir);
+    }
+    createMainWindow(ses, distDir);
 
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createMainWindow(ses, distDir);
+    app.on('activate', () => {
+      if (BrowserWindow.getAllWindows().length === 0) createMainWindow(ses, distDir);
+    });
   });
-});
+}
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
