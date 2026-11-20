@@ -1982,8 +1982,17 @@
 }
 
 .pu-cx-tags {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--s) * 0.5);
   margin-top: calc(var(--s) * 0.4);
   font-size: calc(var(--s) * 1.15);
+}
+
+/* Foe kind marks before the tags (foeMarks.ts), a little bigger than on the wave chips. */
+.pu-cx-marks {
+  --mark: calc(var(--s) * 1.8);
+  gap: calc(var(--s) * 0.25);
 }
 
 .pu-cx-desc {

@@ -26,6 +26,7 @@ import { num, pct, t, type MsgKey } from '../../i18n/index.ts';
 import { allEnemyEntries, allTowerEntries, eliteEntry, speedClass, type CodexEliteEntry, type CodexEnemyEntry } from '../../ui/content/codexData.ts';
 import { ENEMY_DEFS } from '../../data/enemies.ts';
 import { el, glyph, img, KIT, openSheet, plank, sealBadge, type Sheet } from './dom.ts';
+import { ARMORED_MIN, foeMarks } from './foeMarks.ts';
 import { SEAL_GLYPHS, type IconName } from './paintedIcons.ts';
 
 export type CodexTab2D = 'enemies' | 'towers';
@@ -189,9 +190,13 @@ export function openCodex2D(opts: CodexSheetOptions, tab: CodexTab2D = 'enemies'
       return;
     }
     const kicker = e.isBoss ? t('codex.kicker.boss') : e.flying ? t('codex.kicker.flyer') : t('codex.kicker.foe');
+    // The same shape marks as the wave chips and the foe card (crown / wing / shield), so they are learnt here.
+    const tagRow = tags(e.tags);
+    const marks = foeMarks({ flying: e.flying, armored: ENEMY_DEFS[e.id].armor >= ARMORED_MIN, boss: e.isBoss }, 'pu-cx-marks');
+    if (marks) tagRow.prepend(marks);
     detail.append(
       head(opts.enemyUrl(e.id), kicker, enemyName(e.id)),
-      tags(e.tags),
+      tagRow,
       el('p', 'pu-cx-desc pu-ink', {}, enemyDesc(e.id)),
       enemyStats(e),
       note('medal', t('codex.howToStop'), enemyCounter(e.id)),

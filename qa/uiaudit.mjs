@@ -90,6 +90,7 @@ const SCREENS = [
   ['hud-tower', '?level=i02&hero=bran', SEED, 'tower'],
   ['hud-tip', '?level=i02&hero=bran', SEED, 'tip'],
   ['hud-pause', '?level=i02&hero=bran', SEED, 'pause'],
+  ['hud-codex', '?level=i09&hero=bran', SEED, 'codex'],
   ['hud-newfoe', '?level=i09&hero=bran', null, 'newfoe', { foesFresh: true }],
   ['end-won', '?level=i02&hero=bran', SEED, 'win'],
   ['end-lost', '?level=i02&hero=bran', SEED, 'lose'],
@@ -166,6 +167,13 @@ async function act(page, action, key, size) {
       await page.waitForTimeout(300);
       break;
     }
+    case 'codex':
+      await p0();
+      await page.waitForTimeout(500);
+      await page.click('[data-testid="codex2d-open"]', { timeout: 15000 }).catch(() => problems.push(`${key}: no Codex button`));
+      await page.waitForSelector('.pu-overlay', { timeout: 15000 }).catch(() => problems.push(`${key}: Codex board did not open`));
+      await page.waitForTimeout(900);
+      break;
     case 'pause':
       await p0();
       await page.waitForTimeout(500);
