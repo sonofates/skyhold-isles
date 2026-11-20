@@ -197,7 +197,8 @@ for (let f = 0; f < FAMILIES.length && f < chosen.length; f++) {
   const ids = card.cols.map((c) => `spec-choose-${c.id}`);
   const want = ids[BRANCH];
   const nav = [card.focus];
-  for (const key of ['ArrowRight', 'ArrowLeft', 'ArrowRight', 'ArrowLeft']) {
+  // Left then right: from either column this visits both planks (right of the right one is the close seal).
+  for (const key of ['ArrowLeft', 'ArrowRight', 'ArrowRight', 'ArrowLeft']) {
     await page.keyboard.press(key);
     await page.waitForTimeout(120);
     nav.push(await page.evaluate(() => document.activeElement?.dataset?.testid ?? document.activeElement?.className ?? null));
