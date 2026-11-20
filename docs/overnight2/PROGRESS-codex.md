@@ -525,3 +525,31 @@ TypeScript, lint and the production build passed. Vitest passed 1,412 tests with
 ### Next round
 
 Audit Bell Foundry’s Aftershock against a Bellrunner in full stride. Check the momentum reset, slow duration and which shells carry the slow when the ability is bought during flight. The i18 Normal build currently buys Bell Foundry but finishes 18 gold short of Aftershock. No new UI, art or localization requests.
+
+## Round 23 — Bell Foundry and Aftershock
+
+### Combat
+
+Three encounters send a Belfry Hare into cannon range at full sprint. Buying Aftershock while the first shell is airborne lets the hare keep its full speed through that hit. The second shell immediately resets its momentum and slows it by 28% for two seconds. Buying before the first launch gives both shells the effect. The second hit then raises the slow to 42% and refreshes its duration. The control hare kept sprinting through both unupgraded shells.
+
+Sold the foundry after the second impact to measure recovery without another shell. The hare stayed at the expected speed for the slow's duration, then built back up to its 85% sprint bonus over 2.4 seconds. All three serialized replays reproduced the firing, damage, impact and leak ticks, final state hash and outcome.
+
+### Campaign decision
+
+Moved the scripted Glassworks cannon from plot 7 to plot 0, in reach of both the entrance road and the return bend. The realistic build buys Bell Foundry and Aftershock as soon as the cannon reaches tier III and the player can afford each purchase. Level-20 Bran with the 47-star entry kit bought both on wave 11. The foundry fired 21 upgraded shells, applied 57 slows, dealt 7,440 damage and earned four kills after the ability purchase. Those 57 slows all landed on other ground enemies. The isolated encounters above cover sprint interruption.
+
+Normal finished at 10/22 lives and two stars, previously 7/22 and one star. The ordinary build also finished at 10/22 with that kit. The realistic build cleared at −3%, −1.5%, +1.5% and +3% enemy HP with 14, 16, 10 and 16 lives respectively. A fourth regression checks that the authored Normal kit wins and can afford both purchases.
+
+### Request for Opus
+
+The Belfry Hare's codex counter now covers slows from any tower. EN “Block or slow the hare to break its sprint. It needs a clear road to build up speed again.” TR “Tavşanın önünü kes ya da onu yavaşlat. Yeniden hızlanabilmesi için yolunun açık olması gerekir.”
+
+### Verification
+
+Inspected the new cannon plot in the production game at desktop size and at 3× magnification. The base sits below the entrance road and clear of the return bend. The renderer reported tier IV and the Bell Foundry turret with Aftershock purchased. The screenshot uses a staged wave 11 for the placement check. [Glassworks entrance and return bend](../../design/art-2d/specializations/bellfoundry-glassworks.jpg)
+
+TypeScript, lint and the production build passed. Vitest passed 1,416 tests with 11 skipped. All 41 balance checks and all eight difficulty verdicts passed. Easy and Normal cleared 25/25 islands. Hard i09 finished at 12/22 lives and Hard i24 at 2/22. Glassworks now clears the towers-only Easy run at 23/25 and reaches wave five on campaign Hard. The 24,217-byte standalone L1–L16 report matches the round-one baseline byte for byte. Vite emitted its existing bundle-size and dynamic-import warnings.
+
+### Next round
+
+Audit Cloudbreak Mortar's 2.1-unit minimum range and Stone Petals. Check whether the crew reacquires a target entering or leaving its dead zone and which shell produces fragments if the ability is bought during flight.

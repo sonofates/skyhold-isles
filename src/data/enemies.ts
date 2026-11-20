@@ -69,7 +69,7 @@ export const CHAPTER_ENEMY_DEFS = {
   bellrunner: {
     type: 'bellrunner', name: 'Belfry Hare',
     description: 'The bells on its harness ring faster as it gathers speed on the open road.',
-    counterHint: 'A soldier or a frost hit makes the hare start its run-up again.',
+    counterHint: 'Block or slow the hare to break its sprint. It needs a clear road to build up speed again.',
     maxHp: 84, speed: 2.35, armor: 0, reward: 5, livesCost: 1,
     flying: false, radius: 0.37, height: 1.08,
     ability: { kind: 'momentum', runUpSec: 2.4, speedBonus: 0.85 },
