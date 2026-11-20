@@ -100,6 +100,12 @@
   `qa/featseenshot.mjs` (fresh → no dot, win l1c → dot + 2 new rows → closed → no dot, reopen on
   Islands, no tags): 0 problems at 2000x991 and 844x390 × EN/TR. uiaudit logbook, logbook-feats,
   map, map-fresh: 0 problems. Shots opus-shots/featseen-*. Unit test (`unseenFeatIds`).
+- Map top bar captions: "Kahramanlar" ran within 6–8 px of "Atölye" (captions hang under the round
+  buttons, wider than them). `captionMargins` / `spaceCaptions` (worldMap.ts, every relayout) give a
+  button the extra left margin its caption needs to keep one caption-height from the previous one.
+  `qa/capgap.mjs` (6 sizes × EN/TR × 100 / 130 % interface): min gap 10–26 px, nothing off screen, the
+  tally clear of the banner, 0 problems; uiaudit map + map-fresh 24/24 0 problems. Shots
+  opus-shots/capgap-*. Unit test.
 
 ## Next ideas
 - Swap in Codex's title paintings when they land (keys in Requests); re-shoot the title.

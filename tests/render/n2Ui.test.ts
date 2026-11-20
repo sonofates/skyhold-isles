@@ -14,7 +14,7 @@ import { uiUnit } from '../../src/render2d/hudDock.ts';
 import { ENEMY_DEFS } from '../../src/data/enemies.ts';
 import { primaryEndAction } from '../../src/render2d/endPanel.ts';
 import { LOAD_TIPS, pickLoadTip } from '../../src/render2d/ui/transition2d.ts';
-import { newStarsFrom, unveilIndex } from '../../src/render2d/ui/worldMap.ts';
+import { captionMargins, newStarsFrom, unveilIndex } from '../../src/render2d/ui/worldMap.ts';
 import { featToastPlan, FEAT_TOAST_MAX, showNewFeats } from '../../src/render2d/ui/featToast2d.ts';
 import { createDefaultProgress } from '../../src/platform/storage.ts';
 import { unseenFeatIds } from '../../src/render2d/ui/featSeen.ts';
@@ -321,5 +321,14 @@ describe('new feats in the Logbook', () => {
     expect(unseenFeatIds(['firstLanding', 'starcatcher'], null)).toEqual([]);
     expect(unseenFeatIds(['firstLanding', 'starcatcher'], new Set(['firstLanding']))).toEqual(['starcatcher']);
     expect(unseenFeatIds(new Set(['a']), new Set(['a', 'b']))).toEqual([]);
+  });
+});
+
+describe('map top bar captions', () => {
+  it('adds just the margin a wide caption needs to keep the gap', () => {
+    // Heroes caption 100-180, Workshop 184-230 (4 px gap), Logbook 250-290 (20 px gap).
+    expect(captionMargins([[100, 180], [184, 230], [250, 290]], 9)).toEqual([0, 5, 0]);
+    expect(captionMargins([], 9)).toEqual([]);
+    expect(captionMargins([[0, 50], [40, 90]], 8)).toEqual([0, 18]); // overlapping by 10
   });
 });

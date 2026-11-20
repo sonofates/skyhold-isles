@@ -118,6 +118,29 @@ function fitTitleBanner(banner: HTMLElement, text: HTMLElement, screenW: number)
   if (fit.scale < 1) text.style.fontSize = `${(fs * fit.scale).toFixed(1)}px`;
 }
 
+/**
+ * The round buttons' captions hang under them and can be wider than the button ("Kahramanlar"):
+ * the extra left margin each button needs so its caption keeps `minGap` from the previous one's.
+ * `labels` are the captions' [left, right] edges, in order, measured with no extra margins.
+ */
+export function captionMargins(labels: readonly (readonly [number, number])[], minGap: number): number[] {
+  return labels.map((l, i) => (i === 0 ? 0 : Math.max(0, Math.ceil(minGap - (l[0] - labels[i - 1][1])))));
+}
+
+function spaceCaptions(row: HTMLElement): void {
+  const btns = Array.from(row.children).filter((c): c is HTMLElement => c instanceof HTMLElement && !!c.querySelector(':scope > .pu-round-label'));
+  for (const b of btns) b.style.marginLeft = '';
+  const boxes = btns.map((b) => {
+    const r = b.querySelector(':scope > .pu-round-label')?.getBoundingClientRect();
+    return [r?.left ?? 0, r?.right ?? 0] as const;
+  });
+  const cap = btns[0]?.querySelector(':scope > .pu-round-label');
+  const fs = cap ? parseFloat(getComputedStyle(cap).fontSize) || 12 : 12;
+  captionMargins(boxes, fs).forEach((m, i) => {
+    if (m > 0) btns[i].style.marginLeft = `${m}px`;
+  });
+}
+
 const FOG_ART = '/art2d/ui/island-fog.webp';
 
 /** localStorage: the furthest island the map has already shown as open (for the unveil). */
@@ -401,6 +424,7 @@ export async function mountWorldMap(q: URLSearchParams): Promise<void> {
     lastW = w;
     lastH = h;
     fitTitleBanner(banner, bannerText, w);
+    spaceCaptions(right);
     const insets = readSafeInsets();
     const bar = topbar.getBoundingClientRect();
     // The free band starts under the title banner (the round buttons' captions may overhang a bit).
