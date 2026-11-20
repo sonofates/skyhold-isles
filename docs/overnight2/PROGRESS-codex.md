@@ -264,3 +264,29 @@ At 844 × 390 in Turkish the camera fit covers 64.6% of the viewport on i21 and 
 ### Next round
 
 Waxlight Orchard (i23) and Lastlight Head (i24) remain. Start at the orchard’s cider-press lane. The beekeeper’s beeswax taper connects the orchard outro to the keeper in the finale, and the two entrances currently share the same red loam. The finale already has its dark beacon, stepping slabs and tern roost.
+
+## Round 11 — Waxlight Orchard, Lastlight Head and late chapter-one encounters
+
+### Done
+
+- **i23 Waxlight Orchard.** The beekeeper’s last load of dipped candles waits on a handcart between the pear crates and the cider press. Raiders from the press follow a curved brick lane into the rutted orchard road. In the opening-wave captures, 15 raiders are moving along the two routes. [Desktop combat](../../design/art-2d/chapter2/polish/i23-desktop.jpg) · [Phone combat](../../design/art-2d/chapter2/polish/i23-phone.jpg)
+- **i24 Lastlight Head.** The keeper shelters the orchard taper beside the steps to the dark beacon. Runners climb worn granite steps from the western boat shelter. The fort column takes the basalt road, and the reef raiders take the shingle. Called wave two early to inspect all three occupied approaches together. [Desktop combat](../../design/art-2d/chapter2/polish/i24-desktop.jpg) · [Phone combat](../../design/art-2d/chapter2/polish/i24-phone.jpg)
+- This finishes the second map pass on i17–i24. The two new recipes passed the saved-plot checks for all 43 plots. Both new landmarks sit wholly on the dressing masks. The desktop and phone opening and combat samples and the two native-resolution samples kept both landmarks clear of the HUD. The four map resolutions and seven pairs of gate fronts decoded and matched the production copies. Both layout JSON files match the round-start versions byte for byte. [Native details](../../design/art-2d/chapter2/polish/i23-i24-detail.jpg) · [ImageGen prompts, source kits and rebake command](../../design/art-2d/chapter2/second-pass.md#waxlight-orchard-and-lastlight-head)
+- **Late chapter one.** Moonwell Crossing (i15) sends six Slipstream Moths along its flight path in wave four, *Veil of Mist*. Emberglass Sanctum (i16) sends three Kilnback Tortoises down the second ring road in wave three, *Gatecrash*. Each is a single formation substitution on the painted map, using the existing art, abilities and EN/TR foe entries. The formation test checks the two source formations and the complete resulting wave lists.
+
+### Balance and decisions
+
+- Kept the original group sizes, lane assignments, spawn intervals, rewards for clearing waves, starting gold and HP tuning. With the realistic kit, Normal i15 goes from 11/22 to 9/22 and i16 from 11/22 to 10/22. Both stay at two stars. The weak build still loses at wave 19 of 22 and wave 23 of 24 respectively.
+- All 41 realistic-kit levels and all eight difficulty verdicts passed after the encounter changes. Easy and Normal clear 25/25. Hard clears 12/17 in chapter one and 3/8 in chapter two. Hard i09 ends at 12/22 and Hard i24 at 5/22. The 24,217-byte standalone L1–L16 simulation report matches the round-one baseline byte for byte.
+
+### Verification and handoff
+
+- Inspected enlarged combat screenshots at 1600 × 900 in English and 844 × 390 in Turkish. The production camera chose the 1.5× and 1× maps on those devices. A 1600 × 900 desktop at DPR 2 streamed both native 5538 × 2556 maps and all matching gate fronts. The phone fit covers 73.2% on i23 and 72.7% on i24. All ten HUD checks passed. No additional UI action is needed for these maps.
+- Used the world’s QA wave selector in the production game to start each new encounter. Both device captures contain six airborne moths and three tortoises on lane 1 in their respective waves. The moths show their paired trails as they close on the lead flyer. [Desktop and phone details](../../design/art-2d/chapter2/polish/i15-i16-encounters.jpg)
+- TypeScript, lint and all 23 Python dressing tests passed. Vitest passed 1,378 tests with 11 skipped using one worker and the original timeout. In the earlier two-worker run, the all-map backdrop placement test exceeded its five-second limit.
+- The combined gate command was terminated during its balance run after Vitest passed. Reran the full balance simulation and production build successfully. The final build has byte-identical copies of all 22 map and gate WebPs. Vite emitted its existing bundle warnings.
+- No new localization is needed for these encounters. Opus’s specialization build ring and codex presentation continue to use the round-two API and all sixteen branch portraits.
+
+### Next round
+
+All four assigned backlog items now have content and balance coverage. Start the next quality audit with specialization textures on a slow or interrupted connection. In `src/render2d/towerLayer.ts`, a failed branch load leaves its ID cached with a null value. Reproduce a transient asset failure during a purchase and check recovery and projectile release after the texture becomes available.

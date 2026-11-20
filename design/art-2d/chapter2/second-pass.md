@@ -94,3 +94,33 @@ The built-in ImageGen tool supplied the artwork in the [cloister kit](../v2/biom
 | `landmark-mooring-tackle.webp` | A weathered timber davit with salt-bleached edges and a hanging brass block. A thick frayed cable hangs loose from the wheel, an amber lantern hangs from a peg, and plum oilcloth lies over the foot rail. Use jade and violet shadows under the timber. |
 | `tex-salt-haul.webp` | A continuous overhead wash of trodden lavender-grey rock salt, mauve shale and scattered milky and pale rose salt chips. Lift the midtones for the mine road and retain the darker inclusions and ruts. |
 | `tex-freight-flags.webp` | Nine staggered courses of worn blue-green slate flags at an underground ferry landing. Pale salt crust collects in the shallow joints and crosses the edges of adjacent flags. Paint the tops silvery in the lamplight. |
+
+## Waxlight Orchard and Lastlight Head
+
+Waxlight Orchard’s last load of tapers stands between the fruit crates and the cider press. The press opens onto a curved brick yard with a transverse end course. The packing cellar and the common road carry the cart ruts. On Lastlight Head, there are three ways inland. The fort has basalt paving, the reef has shingle, and the western boat landing has a short flight of salt-worn steps. The keeper shields the orchard flame beside the slates leading to the dark beacon.
+
+The compositor uses the existing `brickSpur` projection for the orchard. The steps use the crosswise projection in `timberApproach` for the first 143 layout pixels from the boat shelter. The orchard brick strip pairs its middle half with its reflection so the mortar lines meet at each repeat. The stairs use the full painting once. Both figure and cart retain their generated alpha and are cropped to the painted bounds before packing.
+
+```sh
+/usr/bin/python3 -B tools/map-compose/rebake_all.py i23,i24 --jobs 1
+```
+
+### Source paintings
+
+The built-in ImageGen tool produced these four original paintings. The [figwood kit](../v2/biomes/figwood/) holds the orchard paintings. The [squall kit](../v2/biomes/squall/) holds the finale paintings.
+
+#### landmark-wax-cart.webp
+
+Original storybook map prop for a hand-painted gouache strategy game, isolated cutout on true transparency. A beekeeper's wooden two-wheeled handcart for delivering beeswax tapers. See from high three-quarter overhead, handles extend a little toward the lower left. On the cart bed a wicker pannier holding a bundle of long golden dipped taper candles with unmistakable dark wicks, several amber beeswax blocks and a single small teal-glass courier lantern, rust-red linen draped over one side. Give the warm wax a visible light, curved top surface. One sturdy spoked wheel clearly visible under cart. Painted in broad warm planes with restrained broken dark edges, autumn sun from upper left, compact strong shapes that read when shrunk to 80 pixels. Whole single cart, no person or horse, no floating items, text, scenery or ground tile. Tight contact shadow, transparent surround. Landscape format.
+
+#### tex-cider-court.webp
+
+Square continuous overhead gouache material swatch, completely flat and even light, for a pear cider press yard in an original painted storybook game. Rough old warm red-orange brick pavers in ten horizontal courses of staggered running bond, several bricks across per row. Softened edges scuffed with biscuit-grey lime dust, dark cinnamon clay showing through, fine moss tucked in a few cracks, subtle ochre pear leaf fragments pressed into the margins of a few stones. Hand-built orchard work yard under autumn sunlight, warm muted salmon, pale terracotta and umber. Slightly irregular, compressed and chipped. Keep mortar thin and pale, low variation in value so game enemies can walk across it. Full bleed surface to all edges without perspective or surrounding ground. No figures, labels, large objects, stalks or road markings.
+
+#### landmark-keeper.webp
+
+A tiny original storybook game scenery sprite of a single old lighthouse keeper, standing hunched into the wind in an ankle-length deep teal oilskin and soft sou'wester hood. High overhead three-quarter view, facing the viewer and toward the left. He cradles a sheltered single warm glowing beeswax taper inside a small open-sided brass storm lantern against his chest, crooked gloved hand shielding the flame. The flame and pale windburned face framed by the dark teal hood should read at 42 pixels tall. The coat hem blows slightly right, two stout boots firmly on the ground. Weathered painted gouache, strong calm silhouette, slate blue shadows, restrained amber light on sleeves and chin, cold daylight from upper left. Entire single human cutout isolated on true transparent background, tight contact shadow only. No scenery, circle, stepping stones, pedestal, halo, labels or extra figures.
+
+#### tex-tide-stairs.webp
+
+Continuous square top-down game material painting of an ancient sea landing at low tide. A steeply overhead orthographic view of nine broad horizontal courses of old wave-worn granite steps, built from long uneven pale blue-grey slabs laid side by side with slightly staggered end joints. Each course has a narrow darker shadow immediately along its lower edge, sand, salt and pale shell scraps worn into seams. Slippery deep sage-green tidal algae along some step edges, tops wet cool slate with thin tide lines and small warm sky reflections. Restrained gouache with deliberate brush strokes, interesting weathered chipped edges, readable at small scale. Use limited contrast, slabs look broad and flat, continuous pavement filling square edge to edge, no borders or diagonal perspective. No water running over steps, no vegetation tuft, railing, road markings, scenery, figure or text. Original illustrated island storybook aesthetic.

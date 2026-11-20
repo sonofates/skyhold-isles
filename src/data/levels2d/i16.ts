@@ -1,8 +1,9 @@
 import { LEVEL_16 } from '../levels/level16.ts';
-import { campaignIsland } from './campaignIsland.ts';
+import { campaignIsland, replaceWaveEnemy } from './campaignIsland.ts';
 import layout from './i16.json';
 
 export const I16 = campaignIsland(LEVEL_16, layout, {
+  waves: replaceWaveEnemy(LEVEL_16, 'Gatecrash', 'brute', 'kilnback'),
   startingGold: 100,
   enemyHpScale: 2.0336,
   waveHpGrowth: 0.066,

@@ -1,3 +1,4 @@
+import type { EnemyType } from '../../core/types.ts';
 import type { LevelDef, ScriptedBuildAction } from '../levels/types.ts';
 import { gridSizeFor, parseLevel2D, type Level2DJson } from './loader.ts';
 
@@ -6,8 +7,18 @@ interface PlotTuning {
   enemyHpScale: number;
   waveHpGrowth: number;
   hexRadius?: number;
+  waves?: LevelDef['waves'];
   /** Campaign build site "col,row" → index in the baked layout's plots. */
   sites: Readonly<Record<string, number>>;
+}
+
+/** Swap a formation on the painted island while preserving its lane and spawn timing. */
+export function replaceWaveEnemy(level: LevelDef, waveName: string, from: EnemyType, to: EnemyType): LevelDef['waves'] {
+  return level.waves.map(wave => {
+    if (wave.name !== waveName) return wave;
+    const groups = wave.groups.map(group => group.enemyType === from ? { ...group, enemyType: to } : group);
+    return { ...wave, groups };
+  });
 }
 
 /** Keep each campaign purchase, upgrade and targeting order on the corresponding painted plot. */

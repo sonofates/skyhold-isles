@@ -33,11 +33,19 @@ describe.each(ids)('%s campaign plot map', (id) => {
   const layout = parseLevel2D(json);
   const source = LEVELS[index];
 
-  it('resolves in campaign order with the source waves and valid plot purchases', () => {
+  it('resolves in campaign order with its authored formations and valid plot purchases', () => {
     const level = getLevelById(id)!;
     expect(level).toBe(LEVELS_2D[index + 1]);
     expect(level.layout2d).toEqual(layout);
-    expect(level.waves).toBe(source.waves);
+    if (id === 'i15' || id === 'i16') {
+      const expected = source.waves.map(wave => ({ ...wave, groups: wave.groups.map(group => ({ ...group })) }));
+      const group = id === 'i15' ? expected[3].groups[2] : expected[2].groups[2];
+      expect(group.enemyType).toBe(id === 'i15' ? 'flyer' : 'brute');
+      group.enemyType = id === 'i15' ? 'draftwing' : 'kilnback';
+      expect(level.waves).toEqual(expected);
+    } else {
+      expect(level.waves).toBe(source.waves);
+    }
     expect(level.name).toBe(source.name);
     expect(level.difficulty).toBe(source.difficulty);
     for (const order of [level.scriptedBuildOrder!, level.weakBuildOrder!]) {

@@ -1,8 +1,9 @@
 import { LEVEL_15 } from '../levels/level15.ts';
-import { campaignIsland } from './campaignIsland.ts';
+import { campaignIsland, replaceWaveEnemy } from './campaignIsland.ts';
 import layout from './i15.json';
 
 export const I15 = campaignIsland(LEVEL_15, layout, {
+  waves: replaceWaveEnemy(LEVEL_15, 'Veil of Mist', 'flyer', 'draftwing'),
   startingGold: 360,
   enemyHpScale: 4.1038,
   waveHpGrowth: 0.052,
