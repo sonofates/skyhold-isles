@@ -37,25 +37,39 @@ function safeUnlockedFrontier(val: unknown): number {
 }
 
 function hasDifficultyWinAt(
-  dw: ProgressData['difficultyWins'] | undefined,
+  dw: unknown,
   index?: number,
 ): boolean {
   if (!dw || typeof dw !== 'object' || Array.isArray(dw)) return false;
   const rec = dw as Partial<
     Record<'easy' | 'normal' | 'hard' | 'e' | 'n' | 'h', readonly unknown[] | undefined>
   >;
-  const easy = rec.easy ?? rec.e;
-  const normal = rec.normal ?? rec.n;
-  const hard = rec.hard ?? rec.h;
   const pos = (v: unknown): boolean => typeof v === 'number' && Number.isFinite(v) && v > 0;
   if (index !== undefined) {
-    return pos(easy?.[index]) || pos(normal?.[index]) || pos(hard?.[index]);
+    return (
+      pos(rec.easy?.[index]) ||
+      pos(rec.e?.[index]) ||
+      pos(rec.normal?.[index]) ||
+      pos(rec.n?.[index]) ||
+      pos(rec.hard?.[index]) ||
+      pos(rec.h?.[index])
+    );
   }
+  const anyPos = (arr: unknown): boolean => Array.isArray(arr) && arr.some(pos);
   return (
-    (Array.isArray(easy) && easy.some(pos)) ||
-    (Array.isArray(normal) && normal.some(pos)) ||
-    (Array.isArray(hard) && hard.some(pos))
+    anyPos(rec.easy) ||
+    anyPos(rec.e) ||
+    anyPos(rec.normal) ||
+    anyPos(rec.n) ||
+    anyPos(rec.hard) ||
+    anyPos(rec.h)
   );
+}
+
+function rawProgressDw(progress: unknown): unknown {
+  if (!progress || typeof progress !== 'object') return undefined;
+  const p = progress as { readonly difficultyWins?: unknown; readonly dw?: unknown };
+  return p.difficultyWins ?? p.dw;
 }
 
 function isVeteranProgress(
@@ -64,10 +78,11 @@ function isVeteranProgress(
 ): boolean {
   return (
     safeUnlockedFrontier(progress.unlockedLevelIndex) > 0 ||
-    progress.bestStars.some((n) => typeof n === 'number' && Number.isFinite(n) && n > 0) ||
+    (Array.isArray(progress.bestStars) &&
+      progress.bestStars.some((n) => typeof n === 'number' && Number.isFinite(n) && n > 0)) ||
     (Array.isArray(progress.clears) &&
       progress.clears.some((n) => typeof n === 'number' && Number.isFinite(n) && n > 0)) ||
-    hasDifficultyWinAt(progress.difficultyWins)
+    hasDifficultyWinAt(rawProgressDw(progress))
   );
 }
 
@@ -80,14 +95,15 @@ export function inferSeenFromProgress(
 ): SeenId[] {
   const out = new Set<SeenId>();
   const frontier = safeUnlockedFrontier(progress.unlockedLevelIndex);
+  const dw = rawProgressDw(progress);
   for (let i = 0; i < levels.length; i++) {
     // Cleared islands, and every island before the frontier, were played through.
-    const stars = progress.bestStars[i];
+    const stars = progress.bestStars?.[i];
     const clears = progress.clears?.[i];
     const played =
       (typeof stars === 'number' && Number.isFinite(stars) && stars > 0) ||
       (typeof clears === 'number' && Number.isFinite(clears) && clears > 0) ||
-      hasDifficultyWinAt(progress.difficultyWins, i) ||
+      hasDifficultyWinAt(dw, i) ||
       i < frontier;
     if (!played) continue;
     for (const wave of levels[i].waves) {

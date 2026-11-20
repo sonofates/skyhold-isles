@@ -13,7 +13,7 @@
  */
 import type { HeroId, ProgressData } from '../../core/types.ts';
 import { challengesForLevel, isChallengeId, type ChallengeId } from '../../data/challenges.ts';
-import { applyDailyWin, utcDayNumber } from '../../data/daily.ts';
+import { applyDailyWin, sanitizeDailyRecord, utcDayNumber } from '../../data/daily.ts';
 import {
   DIFFICULTIES,
   isDifficultyId,
@@ -884,43 +884,72 @@ export function islandStates(progress: ProgressData, levels: readonly LevelDef[]
   const rawFrontier = Number.isFinite(progress.unlockedLevelIndex) ? Math.floor(progress.unlockedLevelIndex) : 0;
   const frontier = Math.max(0, Math.min(levels.length - 1, rawFrontier));
   const dw = sizedDifficultyWins(progress, levels.length);
+  const safeIntAt = (arr: readonly number[] | undefined, idx: number, cap = Number.MAX_SAFE_INTEGER): number => {
+    const v = arr?.[idx];
+    return typeof v === 'number' && Number.isFinite(v) ? Math.max(0, Math.min(cap, Math.floor(v))) : 0;
+  };
   let effectiveProgress = progress;
+  const bsArr = Array.isArray(progress.bestStars) ? progress.bestStars : null;
+  const clArr = Array.isArray(progress.clears) ? progress.clears : null;
+  const ccArr = Array.isArray(progress.challengeClears) ? progress.challengeClears : null;
   let needsNorm =
-    progress.bestStars.length < levels.length ||
-    progress.clears.length < levels.length ||
-    progress.challengeClears.length < levels.length ||
+    !bsArr ||
+    !clArr ||
+    !ccArr ||
+    bsArr.length < levels.length ||
+    clArr.length < levels.length ||
+    ccArr.length < levels.length ||
     !Number.isFinite(progress.unlockedLevelIndex);
-  if (!needsNorm && progress.difficultyWins) {
+  const hasRawDw =
+    (progress.difficultyWins ?? (progress as unknown as { readonly dw?: unknown }).dw) !== undefined;
+  if (!needsNorm) {
     for (let i = 0; i < levels.length; i++) {
-      const maxDiff = Math.max(dw.easy[i] ?? 0, dw.normal[i] ?? 0, dw.hard[i] ?? 0);
-      if (maxDiff > (progress.bestStars[i] ?? 0) || (maxDiff > 0 && (progress.clears[i] ?? 0) === 0)) {
+      const bs = bsArr![i];
+      const cl = clArr![i];
+      if (
+        typeof bs !== 'number' ||
+        !Number.isFinite(bs) ||
+        bs < 0 ||
+        bs > 3 ||
+        bs !== Math.floor(bs) ||
+        typeof cl !== 'number' ||
+        !Number.isFinite(cl) ||
+        cl < 0 ||
+        cl !== Math.floor(cl) ||
+        !Array.isArray(ccArr![i])
+      ) {
         needsNorm = true;
         break;
+      }
+      if (hasRawDw) {
+        const maxDiff = Math.max(dw.easy[i] ?? 0, dw.normal[i] ?? 0, dw.hard[i] ?? 0);
+        if (maxDiff > bs || (maxDiff > 0 && cl === 0)) {
+          needsNorm = true;
+          break;
+        }
       }
     }
   }
   if (needsNorm) {
-    const safeIntAt = (arr: readonly number[] | undefined, idx: number, cap = Number.MAX_SAFE_INTEGER): number => {
-      const v = arr?.[idx];
-      return typeof v === 'number' && Number.isFinite(v) ? Math.max(0, Math.min(cap, Math.floor(v))) : 0;
-    };
     const bestStars = levels.map((_, i) =>
-      Math.max(0, Math.min(3, Math.max(safeIntAt(progress.bestStars, i, 3), dw.easy[i] ?? 0, dw.normal[i] ?? 0, dw.hard[i] ?? 0))),
+      Math.max(0, Math.min(3, Math.max(safeIntAt(bsArr ?? undefined, i, 3), dw.easy[i] ?? 0, dw.normal[i] ?? 0, dw.hard[i] ?? 0))),
     );
-    const clears = levels.map((_, i) => Math.max(safeIntAt(progress.clears, i), bestStars[i] > 0 ? 1 : 0));
+    const clears = levels.map((_, i) => Math.max(safeIntAt(clArr ?? undefined, i), bestStars[i] > 0 ? 1 : 0));
     const challengeClears = levels.map((_, i) =>
-      Array.isArray(progress.challengeClears?.[i]) ? progress.challengeClears[i] : [],
+      Array.isArray(ccArr?.[i]) ? ccArr[i].filter((id): id is string => typeof id === 'string') : [],
     );
     effectiveProgress = { ...progress, unlockedLevelIndex: frontier, bestStars, clears, challengeClears };
   }
+  const blArr = Array.isArray(effectiveProgress.bestLives) ? effectiveProgress.bestLives : undefined;
+  const ewArr = Array.isArray(effectiveProgress.bestEndlessWaves) ? effectiveProgress.bestEndlessWaves : undefined;
   return levels.map((level, i) => ({
     index: i,
     level,
     unlocked: i <= effectiveProgress.unlockedLevelIndex,
     stars: Math.max(0, Math.min(3, effectiveProgress.bestStars[i] ?? 0)),
     clears: effectiveProgress.clears[i] ?? 0,
-    bestLives: effectiveProgress.bestLives[i] ?? 0,
-    bestEndlessWave: effectiveProgress.bestEndlessWaves[i] ?? 0,
+    bestLives: safeIntAt(blArr, i),
+    bestEndlessWave: safeIntAt(ewArr, i),
     challengeClears: [...(effectiveProgress.challengeClears[i] ?? [])],
     mastered: isIslandMastered(effectiveProgress, i, challengesForLevel(level)),
     frontier: i === frontier,
@@ -936,7 +965,10 @@ export function indexOf2D(levelId: string, levels: readonly LevelDef[] = LEVELS_
 /** Is the island playable from the map (deep links ignore this)? */
 export function isUnlocked2D(progress: ProgressData, levelId: string, levels: readonly LevelDef[] = LEVELS_2D): boolean {
   const i = indexOf2D(levelId, levels);
-  return i >= 0 && i <= progress.unlockedLevelIndex;
+  const frontier = Number.isFinite(progress.unlockedLevelIndex)
+    ? Math.max(0, Math.floor(progress.unlockedLevelIndex))
+    : 0;
+  return i >= 0 && i <= frontier;
 }
 
 function recordExtraWonChallenges(
@@ -1098,11 +1130,44 @@ function recordHeroOutcome(
  * - When `outcome.heroId` is set: awards persistent hero XP across all outcomes.
  */
 function ensureDenseIslandArrays(progress: ProgressData, count: number): void {
-  while (progress.bestStars.length < count) progress.bestStars.push(0);
-  while (progress.clears.length < count) progress.clears.push(0);
-  while (progress.bestLives.length < count) progress.bestLives.push(0);
-  while (progress.bestEndlessWaves.length < count) progress.bestEndlessWaves.push(0);
-  while (progress.challengeClears.length < count) progress.challengeClears.push([]);
+  const mut = progress as {
+    unlockedLevelIndex: number;
+    bestStars: number[];
+    clears: number[];
+    bestLives: number[];
+    bestEndlessWaves: number[];
+    challengeClears: string[][];
+  };
+  if (typeof mut.unlockedLevelIndex !== 'number' || !Number.isFinite(mut.unlockedLevelIndex)) {
+    mut.unlockedLevelIndex = 0;
+  } else {
+    mut.unlockedLevelIndex = Math.max(0, Math.floor(mut.unlockedLevelIndex));
+  }
+  const sanitizeIntArr = (arr: unknown, cap = Number.MAX_SAFE_INTEGER): number[] => {
+    const target = Array.isArray(arr) ? (arr as number[]) : [];
+    for (let i = 0; i < Math.min(target.length, count); i++) {
+      const v = target[i];
+      target[i] =
+        typeof v === 'number' && Number.isFinite(v) ? Math.max(0, Math.min(cap, Math.floor(v))) : 0;
+    }
+    while (target.length < count) target.push(0);
+    return target;
+  };
+  mut.bestStars = sanitizeIntArr(mut.bestStars, 3);
+  mut.clears = sanitizeIntArr(mut.clears);
+  mut.bestLives = sanitizeIntArr(mut.bestLives);
+  mut.bestEndlessWaves = sanitizeIntArr(mut.bestEndlessWaves);
+  if (!Array.isArray(mut.challengeClears)) mut.challengeClears = [];
+  for (let i = 0; i < Math.min(mut.challengeClears.length, count); i++) {
+    if (!Array.isArray(mut.challengeClears[i])) {
+      mut.challengeClears[i] = [];
+    } else {
+      mut.challengeClears[i] = mut.challengeClears[i].filter(
+        (id): id is string => typeof id === 'string' && id.length > 0 && id.length <= 40,
+      );
+    }
+  }
+  while (mut.challengeClears.length < count) mut.challengeClears.push([]);
 }
 
 export function applyRunResult2D(
@@ -1169,10 +1234,11 @@ export function applyRunResult2D(
   }
   const nowMs =
     typeof outcome.nowMs === 'number' && Number.isFinite(outcome.nowMs) ? outcome.nowMs : Date.now();
-  const daily =
-    cfg.daily !== null && Number.isFinite(cfg.daily)
-      ? applyDailyWin(progress.daily, cfg.daily, utcDayNumber(nowMs))
-      : null;
+  let daily: { readonly counted: boolean; readonly streak: number } | null = null;
+  if (cfg.daily !== null && Number.isFinite(cfg.daily)) {
+    progress.daily = sanitizeDailyRecord(progress.daily);
+    daily = applyDailyWin(progress.daily, cfg.daily, utcDayNumber(nowMs));
+  }
   const hero = recordHeroOutcome(progress, outcome, levels);
   const base = difficulty ? { win, difficulty, daily, endless: null } : { win, daily, endless: null };
   return hero ? { ...base, hero } : base;

@@ -77,16 +77,18 @@ function safeBestStarsAt(progress: ProgressData, index: number): number {
     3,
     Math.max(
       safeNonNegInt(progress.bestStars?.[index]),
-      Math.min(1, safeNonNegInt((dw?.easy ?? dw?.e)?.[index])),
-      safeNonNegInt((dw?.normal ?? dw?.n)?.[index]),
-      safeNonNegInt((dw?.hard ?? dw?.h)?.[index]),
+      Math.min(1, Math.max(safeNonNegInt(dw?.easy?.[index]), safeNonNegInt(dw?.e?.[index]))),
+      safeNonNegInt(dw?.normal?.[index]),
+      safeNonNegInt(dw?.n?.[index]),
+      safeNonNegInt(dw?.hard?.[index]),
+      safeNonNegInt(dw?.h?.[index]),
     ),
   );
 }
 
 function hasHardWinAt(progress: ProgressData, index: number): boolean {
   const dw = rawDiffWinsOf(progress);
-  return safeNonNegInt((dw?.hard ?? dw?.h)?.[index]) > 0;
+  return safeNonNegInt(dw?.hard?.[index]) > 0 || safeNonNegInt(dw?.h?.[index]) > 0;
 }
 
 function isIslandClearedAt(progress: ProgressData, index: number): boolean {
@@ -196,8 +198,9 @@ function heroLevelOf(progress: ProgressData, heroId: HeroId): number {
         readonly r?: Partial<Record<HeroId, { readonly xp?: unknown; readonly x?: unknown }>>;
       }
     | undefined;
-  const entry = rawH?.roster?.[heroId] ?? rawH?.r?.[heroId];
-  const xp = entry?.xp ?? entry?.x;
+  const fe = rawH?.roster?.[heroId];
+  const ce = rawH?.r?.[heroId];
+  const xp = fe?.xp ?? fe?.x ?? ce?.xp ?? ce?.x;
   if (typeof xp !== 'number' || !Number.isFinite(xp) || xp <= 0) return 1;
   return heroLevelFromXp(xp);
 }
@@ -305,7 +308,8 @@ const challengeAchievements: readonly SteamAchievementDef[] = [
           return true;
         }
         for (let i = 0; i < levels.length; i++) {
-          if ((progress.challengeClears?.[i] ?? []).includes(cid)) return true;
+          const done = progress.challengeClears?.[i];
+          if (Array.isArray(done) && done.includes(cid)) return true;
         }
         return false;
       },
@@ -319,7 +323,8 @@ const challengeAchievements: readonly SteamAchievementDef[] = [
     isEarned: (progress, levels) => {
       if (levels.length === 0) return false;
       for (let i = 0; i < levels.length; i++) {
-        const done = progress.challengeClears?.[i] ?? [];
+        const rawDone = progress.challengeClears?.[i];
+        const done = Array.isArray(rawDone) ? rawDone : [];
         const offered = challengesForLevel(levels[i]);
         if (offered.some((id) => !done.includes(id))) return false;
       }

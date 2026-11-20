@@ -174,13 +174,21 @@
   - **Compact `difficultyWins` (`{ e, n, h }`), Dirty `workshop`, & Bundle Method Hardening (`modes2d.ts`, `heroes2d.ts`, `storage.ts`, `contentStorage.ts`, `iap.ts`, `desktop/main.cjs`, `tests/**`):**
     - Sanitized `progress.workshop` via `sanitizeRanks()` in `resolveQueryRun2D()` (`modes2d.ts`), added compact `{ e, n, h }` `difficultyWins` support to `modes2d.ts`, `heroes2d.ts`, `storage.ts` (`hasAnyProgress`), and `contentStorage.ts` (`hasDifficultyWinAt`), guarded `hasFullUnlockEntitlement` in `iap.ts` against non-callable `[Symbol.iterator]` values, restricted `registerBundleProtocol` in `desktop/main.cjs` to `GET`/`HEAD` (`405`), rebuilt `release/Skyhold Isles-1.0.0.AppImage`, and re-verified Xvfb smoke + `qa:bot` (`656/656` passed).
 
-- [x] **19. Post-Backlog Deep Audit — Round 14 (`src/render2d/heroes2d.ts`, `src/platform/{storage,saveCode,achievements,gameSession}.ts`, `tests/platform/{saveRobustnessV2,steamAdapter}.test.ts`)**
+- [x] **19. Post-Backlog Deep Audit — Round 14 (`src/render2d/heroes2d.ts`, `src/platform/{storage,saveCode,achievements,gameSession}.ts`, `tests/platform/{saveRobustnessV2,steamAdapter}.test.ts`)** — commit `cfdde79`
   - **Fix Compact Hero Save (`{ s, r: { id: { x, k } } }` / `h`) Wipe in `remapProgress()` & `migrateHeroSave()` (`heroes2d.ts`, `storage.ts`, `saveCode.ts`, `achievements.ts`):**
     - Fixed a data-loss bug where `remapProgress()` (`progress2d.ts`) passed un-normalized `rawHeroes` (`raw.heroes ?? raw.h`) into `migrateHeroSave()` (`heroes2d.ts`) right after `migrateProgress()`, and `migrateHeroSave()` called `sanitizeHeroSaveData()` directly without converting compact `{ s, r: { id: { x, k } } }` keys — wiping all hero XP, unlocked skills, and `selectedHero` back to Level 1 `bran` on 2D saves, cloud payloads, or backups using compact hero keys (while keeping `heroes2d.ts` 100% pure with zero `platform` imports).
     - Upgraded `normalizeRawHeroSave()` (`storage.ts`, zero-alloc fast-path on canonical `{ selectedHero, roster }`), `encodeSaveCode()`, `mergeProgress()`, `describeMergeGain()`, and `achievements.ts` (`heroLevelOf`, `HERO_ALL_ROSTER`, `CHALLENGE_*`) to handle pure compact, pure full, and mixed `{ selectedHero | s, roster | r }` + compact `dw` (`{ e, n, h }`) + compact `wc` uniformly.
   - **Eliminate `hasAnyProgress()` False Positives on Dirty Empty Saves & Wire Direct 3D `GameSession.resetProgress()` Content Reset (`storage.ts`, `gameSession.ts`):**
     - Fixed `hasAnyProgress()` (`storage.ts`) returning `true` on empty/corrupted shapes such as `{ heroes: {} }` (from truncated `{"heroes":{`), `{ heroes: { s: 'bran' } }` (default compact hero payload), `{ heroes: { selectedHero: 'invalid' } }`, `{ workshop: { startingGold: 0, bogus: 99 } }`, and `{ wonChallenges: ['invalid'] }` — preventing empty truncated primary slots from shadowing intact cloud mirrors or overwriting real backups.
     - Updated `GameSession.resetProgress()` (`gameSession.ts`) to invoke `this.deps?.content?.onProgressReset()` directly and hardened `GameSession.isIslandCleared()` for compact `dw` / non-finite entries; rebuilt `release/Skyhold Isles-1.0.0.AppImage` and re-verified Xvfb smoke + `qa:bot` (`656/656` passed).
+
+- [x] **20. Post-Backlog Deep Audit — Round 15 (`src/platform/{storage,saveCode,achievements,contentStorage}.ts`, `src/render2d/heroes2d.ts`, `src/render2d/ui/{progress2d,modes2d}.ts`, `tests/platform/saveRobustnessV2.test.ts`)**
+  - **Fix Mixed Full+Compact Hero & Difficulty Normalization (`storage.ts`, `heroes2d.ts`, `achievements.ts`):**
+    - Fixed `normalizeRawHeroSave()` (`storage.ts`), `normalizeHeroSaveInput()` (`heroes2d.ts`), and `heroLevelOf()` (`achievements.ts`) where mixed per-hero entries (`{ xp, k }`, `{ x, skills }`) or split `{ roster, r }` containers bypassed compact conversion and dropped skills/XP, while preserving the zero-allocation fast-path on canonical `{ selectedHero, roster }` saves.
+    - Fixed `normalizeRawDifficultyWins()` (`storage.ts`), `hasAnyProgress()`, and `achievements.ts` (`safeBestStarsAt`, `hasHardWinAt`) so mixed `{ easy | e, normal | n, hard | h }` payloads preserve all difficulty tiers instead of dropping compact keys when a full key is also present.
+  - **Top-Level Compact `dw` Parity & Partial/Non-Finite `ProgressData` Hardening (`heroes2d.ts`, `modes2d.ts`, `progress2d.ts`, `saveCode.ts`, `contentStorage.ts`, `achievements.ts`):**
+    - Wired top-level compact `dw` (`progress.difficultyWins ?? progress.dw`) across `clearedIslandsCount2D()` (`heroes2d.ts`), `isIslandCleared()` (`modes2d.ts`), `islandStates()` (`progress2d.ts`), `isVeteranProgress()` / `inferSeenFromProgress()` (`contentStorage.ts`), and `describeMergeGain()` (`saveCode.ts`) so un-migrated `dw`-only saves consistently unlock heroes, island challenges, Endless, Daily Squall, World Map stars, and merge star deltas.
+    - Hardened `islandStates()`, `isUnlocked2D()`, `applyRunResult2D()` (`ensureDenseIslandArrays` + `sanitizeDailyRecord`), `describeMergeGain()`, and direct `STEAM_ACHIEVEMENTS[i].isEarned()` calls against missing arrays and non-finite (`NaN`/`Infinity`) fields so partial/corrupted `ProgressData` inputs never throw or poison state with `NaN`.
 
 ---
 
@@ -207,7 +215,7 @@
 
 ## Problems / Known Issues
 
-- None blocking in owned area (`sim:balance` 41/41 byte-identical, `qa:bot` 656/656 + 58/58 2D achievement gate passing, 1,395 unit tests passing, all Hard Boss low-end benches `<= 66.8 ms`, Linux AppImage builds & passes Xvfb smoke with `secureContext: true`).
+- None blocking in owned area (`sim:balance` 41/41 byte-identical, `qa:bot` 656/656 + 58/58 2D achievement gate passing, 1,396 unit tests passing, all Hard Boss low-end benches `<= 66.8 ms`, Linux AppImage builds & passes Xvfb smoke with `secureContext: true`).
 
 ---
 

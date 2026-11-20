@@ -313,9 +313,15 @@ export function saveSettings(settings: GameSettings): void {
 export function normalizeRawDifficultyWins(rawDw: unknown): unknown {
   if (!rawDw || typeof rawDw !== 'object' || Array.isArray(rawDw)) return rawDw;
   const dw = rawDw as Record<string, unknown>;
-  if ('easy' in dw || 'normal' in dw || 'hard' in dw) return dw;
-  if ('e' in dw || 'n' in dw || 'h' in dw) {
-    return { easy: dw.e, normal: dw.n, hard: dw.h };
+  const hasFull = 'easy' in dw || 'normal' in dw || 'hard' in dw;
+  const hasCompact = 'e' in dw || 'n' in dw || 'h' in dw;
+  if (hasFull && !hasCompact) return dw;
+  if (hasFull || hasCompact) {
+    return {
+      easy: dw.easy ?? dw.e,
+      normal: dw.normal ?? dw.n,
+      hard: dw.hard ?? dw.h,
+    };
   }
   return dw;
 }
@@ -326,24 +332,24 @@ export function normalizeRawHeroSave(rawH: unknown): unknown {
   const hasFullKeys = 'selectedHero' in obj || 'roster' in obj;
   const hasCompactKeys = 's' in obj || 'r' in obj;
   if (!hasFullKeys && !hasCompactKeys) return obj;
-  const rawR =
+  const fullR =
     obj.roster && typeof obj.roster === 'object' && !Array.isArray(obj.roster)
       ? (obj.roster as Record<string, unknown>)
-      : obj.r && typeof obj.r === 'object' && !Array.isArray(obj.r)
-        ? (obj.r as Record<string, unknown>)
-        : null;
+      : null;
+  const compR =
+    obj.r && typeof obj.r === 'object' && !Array.isArray(obj.r)
+      ? (obj.r as Record<string, unknown>)
+      : null;
   if (hasFullKeys && !hasCompactKeys) {
     let anyCompactEntry = false;
-    if (rawR) {
+    if (fullR) {
       for (let i = 0; i < HERO_IDS.length; i++) {
-        const ce = rawR[HERO_IDS[i]];
+        const ce = fullR[HERO_IDS[i]];
         if (
           ce &&
           typeof ce === 'object' &&
           !Array.isArray(ce) &&
-          !('xp' in ce) &&
-          !('skills' in ce) &&
-          ('x' in ce || 'k' in ce)
+          (('x' in ce && !('xp' in ce)) || ('k' in ce && !('skills' in ce)))
         ) {
           anyCompactEntry = true;
           break;
@@ -353,14 +359,23 @@ export function normalizeRawHeroSave(rawH: unknown): unknown {
     if (!anyCompactEntry) return obj;
   }
   const roster: Record<string, { xp: unknown; skills: unknown }> = {};
-  if (rawR) {
-    for (let i = 0; i < HERO_IDS.length; i++) {
-      const id = HERO_IDS[i];
-      const ce = rawR[id];
-      if (ce && typeof ce === 'object' && !Array.isArray(ce)) {
-        const c = ce as { xp?: unknown; skills?: unknown; x?: unknown; k?: unknown };
-        roster[id] = { xp: c.xp ?? c.x ?? 0, skills: c.skills ?? c.k ?? [] };
-      }
+  for (let i = 0; i < HERO_IDS.length; i++) {
+    const id = HERO_IDS[i];
+    const fe = fullR?.[id];
+    const ce = compR?.[id];
+    const fObj =
+      fe && typeof fe === 'object' && !Array.isArray(fe)
+        ? (fe as { xp?: unknown; skills?: unknown; x?: unknown; k?: unknown })
+        : null;
+    const cObj =
+      ce && typeof ce === 'object' && !Array.isArray(ce)
+        ? (ce as { xp?: unknown; skills?: unknown; x?: unknown; k?: unknown })
+        : null;
+    if (fObj || cObj) {
+      roster[id] = {
+        xp: fObj?.xp ?? fObj?.x ?? cObj?.xp ?? cObj?.x ?? 0,
+        skills: fObj?.skills ?? fObj?.k ?? cObj?.skills ?? cObj?.k ?? [],
+      };
     }
   }
   return { selectedHero: obj.selectedHero ?? obj.s, roster };
@@ -985,7 +1000,12 @@ export function hasAnyProgress(p: ProgressData): boolean {
       dw &&
         typeof dw === 'object' &&
         !Array.isArray(dw) &&
-        (anyPos(dw.easy ?? dw.e) || anyPos(dw.normal ?? dw.n) || anyPos(dw.hard ?? dw.h)),
+        (anyPos(dw.easy) ||
+          anyPos(dw.e) ||
+          anyPos(dw.normal) ||
+          anyPos(dw.n) ||
+          anyPos(dw.hard) ||
+          anyPos(dw.h)),
     )
   );
 }

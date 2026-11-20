@@ -1208,4 +1208,130 @@ describe('Save Robustness v2 — Version Migration & Algebraic Merge Fuzz', () =
     store.set('skyhold_isles_cloud_progress', JSON.stringify(clean3DMirror));
     expect(loadProgress(LEVELS.length).bestStars[0]).toBe(3);
   });
+
+  it('preserves mixed full+compact hero/difficulty payloads and honors top-level `dw` + partial ProgressData across 2D, achievements, saveCode, and contentStorage', async () => {
+    const { earnedSteamAchievementIds, STEAM_ACHIEVEMENTS } = await import(
+      '../../src/platform/achievements.ts'
+    );
+    const { inferSeenFromProgress } = await import('../../src/platform/contentStorage.ts');
+    const { describeMergeGain, mergeProgress } = await import('../../src/platform/saveCode.ts');
+    const { hasAnyProgress, migrateProgress } = await import('../../src/platform/storage.ts');
+    const { HERO_LEVEL_XP, clearedIslandsCount2D, isHeroUnlocked, migrateHeroSave, resolveHeroForRun } =
+      await import('../../src/render2d/heroes2d.ts');
+    const { availableChallenges, canPlayEndless, dailyForToday } = await import(
+      '../../src/render2d/ui/modes2d.ts'
+    );
+    const { applyRunResult2D, islandStates, isUnlocked2D } = await import(
+      '../../src/render2d/ui/progress2d.ts'
+    );
+
+    // 1. Mixed full+compact hero entries (`{ xp, k }`, `{ x, skills }`, and split `{ roster, r }`) + mixed `{ easy, h }`:
+    const mixedRaw = {
+      version: 2,
+      unlockedLevelIndex: 0,
+      bestStars: [],
+      bestEndlessWaves: [],
+      bestLives: [],
+      clears: [],
+      workshop: {},
+      challengeClears: [],
+      daily: { lastDay: 0, streak: 0, bestStreak: 0, total: 0 },
+      heroes: {
+        s: 'mira',
+        roster: {
+          bran: { xp: 400, k: ['bran_iron_1'] },
+          wren: { x: HERO_LEVEL_XP[4], skills: ['wren_bow_1'] },
+        },
+        r: {
+          mira: { x: HERO_LEVEL_XP[9], k: ['mira_emb_1', 'mira_emb_2'] },
+        },
+      },
+      dw: { easy: [1], h: [3, 3, 3, 3] },
+    } as unknown as ProgressData;
+
+    const migrated = migrateProgress(mixedRaw, LEVELS_2D.length);
+    expect(migrated.difficultyWins?.easy[0]).toBe(1);
+    expect(migrated.difficultyWins?.hard.slice(0, 4)).toEqual([3, 3, 3, 3]);
+    expect(migrated.bestStars.slice(0, 4)).toEqual([3, 3, 3, 3]);
+    expect(migrated.heroes?.selectedHero).toBe('mira');
+    expect(migrated.heroes?.roster.bran).toEqual({ xp: 400, skills: ['bran_iron_1'] });
+    expect(migrated.heroes?.roster.wren).toEqual({ xp: HERO_LEVEL_XP[4], skills: ['wren_bow_1'] });
+    expect(migrated.heroes?.roster.mira).toEqual({
+      xp: HERO_LEVEL_XP[9],
+      skills: ['mira_emb_1', 'mira_emb_2'],
+    });
+
+    // 2. Direct un-migrated top-level `dw` (`bestStars: [], clears: []`) unlocks heroes, challenges, endless, daily, islandStates, achievements, and codex:
+    expect(clearedIslandsCount2D(mixedRaw, LEVELS_2D)).toBe(4);
+    expect(isHeroUnlocked(mixedRaw, 'mira', LEVELS_2D)).toBe(true);
+    expect(resolveHeroForRun(mixedRaw, null, null, LEVELS_2D)).toEqual({
+      heroId: 'mira',
+      level: 10,
+      skills: ['mira_emb_1', 'mira_emb_2'],
+    });
+    expect(migrateHeroSave(mixedRaw.heroes, mixedRaw, LEVELS_2D).selectedHero).toBe('mira');
+    expect(canPlayEndless('l1c', mixedRaw, LEVELS_2D)).toBe(true);
+    expect(availableChallenges('l1c', mixedRaw, LEVELS_2D).length).toBeGreaterThan(0);
+    expect(dailyForToday(Date.UTC(2026, 10, 20), mixedRaw, LEVELS_2D)).not.toBeNull();
+    expect(inferSeenFromProgress(LEVELS_2D, mixedRaw).length).toBeGreaterThan(0);
+    expect(hasAnyProgress({ ...createDefaultProgress(4), difficultyWins: { easy: [0], e: [1] } as never })).toBe(
+      true,
+    );
+
+    const states = islandStates(mixedRaw, LEVELS_2D);
+    expect(states[0].stars).toBe(3);
+    expect(states[0].clears).toBe(1);
+    expect(states[0].hardWon).toBe(true);
+    expect(states[0].diffStars).toEqual({ easy: 1, normal: 0, hard: 3 });
+
+    const earnedIds = earnedSteamAchievementIds(mixedRaw, LEVELS_2D);
+    expect(earnedIds).toContain('HERO_MIRA_LV10');
+    expect(earnedIds).toContain('HARD_FIRST_RIBBON');
+    const miraLv10Ach = STEAM_ACHIEVEMENTS.find((a) => a.id === 'HERO_MIRA_LV10')!;
+    expect(miraLv10Ach.isEarned(mixedRaw, LEVELS_2D)).toBe(true);
+
+    const empty25 = createDefaultProgress(LEVELS_2D.length);
+    const rawGain = describeMergeGain(empty25, mixedRaw);
+    expect(rawGain).toContain('+12★');
+    expect(rawGain).toContain('+4 Hard ribbons');
+    expect(rawGain).toContain('hero XP');
+    expect(mergeProgress(empty25, mixedRaw, LEVELS_2D.length).heroes?.selectedHero).toBe('mira');
+
+    // 3. Partial / non-finite ProgressData never throws or poisons applyRunResult2D / islandStates / isUnlocked2D / describeMergeGain:
+    const partialDirty = {
+      version: 2,
+      unlockedLevelIndex: Number.NaN,
+      bestStars: [Number.NaN] as number[],
+      clears: [Number.NaN] as number[],
+      bestLives: [Number.NaN] as number[],
+      bestEndlessWaves: [Number.NaN] as number[],
+      challengeClears: [123 as unknown as string[]],
+      workshop: {},
+      daily: undefined as unknown as ProgressData['daily'],
+    } as ProgressData;
+    expect(isUnlocked2D(partialDirty, 'l1c', LEVELS_2D)).toBe(true);
+    expect(isUnlocked2D(partialDirty, 'i01', LEVELS_2D)).toBe(false);
+    expect(islandStates(partialDirty, LEVELS_2D)[0].stars).toBe(0);
+    expect(() => describeMergeGain(partialDirty, empty25)).not.toThrow();
+
+    const winRec = applyRunResult2D(
+      partialDirty,
+      {
+        levelId: 'l1c',
+        won: true,
+        stars: 3,
+        livesRemaining: 20,
+        waveReached: 8,
+        nowMs: Date.UTC(2026, 10, 20),
+        runConfig: { endless: false, challenges: [], daily: 20777 },
+      },
+      LEVELS_2D,
+    );
+    expect(winRec.win?.stars).toBe(3);
+    expect(partialDirty.bestStars[0]).toBe(3);
+    expect(partialDirty.clears[0]).toBe(1);
+    expect(partialDirty.bestLives[0]).toBe(20);
+    expect(partialDirty.unlockedLevelIndex).toBe(1);
+    expect(partialDirty.daily.total).toBe(1);
+  });
 });

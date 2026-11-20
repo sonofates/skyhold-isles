@@ -57,15 +57,22 @@ function isPosFinite(val: unknown): boolean {
 }
 
 function isIslandCleared(progress: ProgressData, index: number): boolean {
-  const dw = progress.difficultyWins as
-    | Partial<Record<'easy' | 'normal' | 'hard' | 'e' | 'n' | 'h', readonly unknown[] | undefined>>
-    | undefined;
+  const rawDw = progress.difficultyWins ?? (progress as unknown as { readonly dw?: unknown }).dw;
+  const dw =
+    rawDw && typeof rawDw === 'object' && !Array.isArray(rawDw)
+      ? (rawDw as Partial<
+          Record<'easy' | 'normal' | 'hard' | 'e' | 'n' | 'h', readonly unknown[] | undefined>
+        >)
+      : undefined;
   return (
     isPosFinite(progress.clears?.[index]) ||
     isPosFinite(progress.bestStars?.[index]) ||
-    isPosFinite((dw?.easy ?? dw?.e)?.[index]) ||
-    isPosFinite((dw?.normal ?? dw?.n)?.[index]) ||
-    isPosFinite((dw?.hard ?? dw?.h)?.[index])
+    isPosFinite(dw?.easy?.[index]) ||
+    isPosFinite(dw?.e?.[index]) ||
+    isPosFinite(dw?.normal?.[index]) ||
+    isPosFinite(dw?.n?.[index]) ||
+    isPosFinite(dw?.hard?.[index]) ||
+    isPosFinite(dw?.h?.[index])
   );
 }
 
@@ -80,7 +87,7 @@ export function availableChallenges(
 ): AvailableChallenge2D[] {
   const i = indexOf2D(levelId, levels);
   if (i < 0 || !isIslandCleared(progress, i)) return [];
-  const rawDone = progress.challengeClears?.[i];
+  const rawDone = Array.isArray(progress.challengeClears) ? progress.challengeClears[i] : undefined;
   const done = Array.isArray(rawDone) ? rawDone : [];
   return challengesForLevel(levels[i]).map((id) => ({
     ...CHALLENGES[id],

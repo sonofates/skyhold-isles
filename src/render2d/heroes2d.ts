@@ -174,14 +174,24 @@ export function clearedIslandsCount2D(
   progress: ProgressData,
   levels: readonly Pick<LevelDef, 'id'>[] = LEVELS_2D,
 ): number {
-  const dw = progress.difficultyWins as
-    | Partial<Record<'easy' | 'normal' | 'hard' | 'e' | 'n' | 'h', readonly unknown[] | undefined>>
-    | undefined;
-  const easy = dw?.easy ?? dw?.e;
-  const normal = dw?.normal ?? dw?.n;
-  const hard = dw?.hard ?? dw?.h;
+  const rawDw = progress.difficultyWins ?? (progress as unknown as { readonly dw?: unknown }).dw;
+  const dw =
+    rawDw && typeof rawDw === 'object' && !Array.isArray(rawDw)
+      ? (rawDw as Partial<
+          Record<'easy' | 'normal' | 'hard' | 'e' | 'n' | 'h', readonly unknown[] | undefined>
+        >)
+      : undefined;
   const arrLen = (arr: unknown): number => (Array.isArray(arr) ? arr.length : 0);
-  const dwMaxLen = dw ? Math.max(arrLen(easy), arrLen(normal), arrLen(hard)) : 0;
+  const dwMaxLen = dw
+    ? Math.max(
+        arrLen(dw.easy),
+        arrLen(dw.e),
+        arrLen(dw.normal),
+        arrLen(dw.n),
+        arrLen(dw.hard),
+        arrLen(dw.h),
+      )
+    : 0;
   const limit = Math.min(
     levels.length,
     Math.max(arrLen(progress.clears), arrLen(progress.bestStars), dwMaxLen),
@@ -191,9 +201,12 @@ export function clearedIslandsCount2D(
     if (
       isPosFinite(progress.clears?.[i]) ||
       isPosFinite(progress.bestStars?.[i]) ||
-      isPosFinite(easy?.[i]) ||
-      isPosFinite(normal?.[i]) ||
-      isPosFinite(hard?.[i])
+      isPosFinite(dw?.easy?.[i]) ||
+      isPosFinite(dw?.e?.[i]) ||
+      isPosFinite(dw?.normal?.[i]) ||
+      isPosFinite(dw?.n?.[i]) ||
+      isPosFinite(dw?.hard?.[i]) ||
+      isPosFinite(dw?.h?.[i])
     ) {
       cleared++;
     }
@@ -252,24 +265,24 @@ function normalizeHeroSaveInput(rawH: unknown): unknown {
   const hasFullKeys = 'selectedHero' in obj || 'roster' in obj;
   const hasCompactKeys = 's' in obj || 'r' in obj;
   if (!hasFullKeys && !hasCompactKeys) return obj;
-  const rawR =
+  const fullR =
     obj.roster && typeof obj.roster === 'object' && !Array.isArray(obj.roster)
       ? (obj.roster as Record<string, unknown>)
-      : obj.r && typeof obj.r === 'object' && !Array.isArray(obj.r)
-        ? (obj.r as Record<string, unknown>)
-        : null;
+      : null;
+  const compR =
+    obj.r && typeof obj.r === 'object' && !Array.isArray(obj.r)
+      ? (obj.r as Record<string, unknown>)
+      : null;
   if (hasFullKeys && !hasCompactKeys) {
     let anyCompactEntry = false;
-    if (rawR) {
+    if (fullR) {
       for (let i = 0; i < HERO_IDS.length; i++) {
-        const ce = rawR[HERO_IDS[i]];
+        const ce = fullR[HERO_IDS[i]];
         if (
           ce &&
           typeof ce === 'object' &&
           !Array.isArray(ce) &&
-          !('xp' in ce) &&
-          !('skills' in ce) &&
-          ('x' in ce || 'k' in ce)
+          (('x' in ce && !('xp' in ce)) || ('k' in ce && !('skills' in ce)))
         ) {
           anyCompactEntry = true;
           break;
@@ -279,14 +292,23 @@ function normalizeHeroSaveInput(rawH: unknown): unknown {
     if (!anyCompactEntry) return obj;
   }
   const roster: Record<string, { xp: unknown; skills: unknown }> = {};
-  if (rawR) {
-    for (let i = 0; i < HERO_IDS.length; i++) {
-      const id = HERO_IDS[i];
-      const ce = rawR[id];
-      if (ce && typeof ce === 'object' && !Array.isArray(ce)) {
-        const c = ce as { xp?: unknown; skills?: unknown; x?: unknown; k?: unknown };
-        roster[id] = { xp: c.xp ?? c.x ?? 0, skills: c.skills ?? c.k ?? [] };
-      }
+  for (let i = 0; i < HERO_IDS.length; i++) {
+    const id = HERO_IDS[i];
+    const fe = fullR?.[id];
+    const ce = compR?.[id];
+    const fObj =
+      fe && typeof fe === 'object' && !Array.isArray(fe)
+        ? (fe as { xp?: unknown; skills?: unknown; x?: unknown; k?: unknown })
+        : null;
+    const cObj =
+      ce && typeof ce === 'object' && !Array.isArray(ce)
+        ? (ce as { xp?: unknown; skills?: unknown; x?: unknown; k?: unknown })
+        : null;
+    if (fObj || cObj) {
+      roster[id] = {
+        xp: fObj?.xp ?? fObj?.x ?? cObj?.xp ?? cObj?.x ?? 0,
+        skills: fObj?.skills ?? fObj?.k ?? cObj?.skills ?? cObj?.k ?? [],
+      };
     }
   }
   return { selectedHero: obj.selectedHero ?? obj.s, roster };

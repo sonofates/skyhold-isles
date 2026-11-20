@@ -582,16 +582,65 @@ export function recoverProgressSave(
 
 /** What a merge would add, for the confirmation line ("+5★, 2 islands, …"). */
 export function describeMergeGain(before: ProgressData, after: ProgressData): string {
-  const stars = starWallet(after).campaign - starWallet(before).campaign;
-  const islands = after.unlockedLevelIndex - before.unlockedLevelIndex;
-  let badges = 0;
-  const badgeLen = Math.max(before.challengeClears.length, after.challengeClears.length);
-  for (let i = 0; i < badgeLen; i++) {
-    badges += (after.challengeClears[i]?.length ?? 0) - (before.challengeClears[i]?.length ?? 0);
-  }
-  const parts: string[] = [];
   const rawBefore = before as unknown as Record<string, unknown>;
   const rawAfter = after as unknown as Record<string, unknown>;
+  const safeInt = (v: unknown, max = Number.MAX_SAFE_INTEGER): number =>
+    typeof v === 'number' && Number.isFinite(v) ? Math.max(0, Math.min(max, Math.floor(v))) : 0;
+  const rawDwLen = (p: ProgressData, rawObj: Record<string, unknown>): number => {
+    const dw = normalizeRawDifficultyWins(p.difficultyWins ?? rawObj.dw) as
+      | Record<string, unknown>
+      | undefined;
+    if (!dw || typeof dw !== 'object' || Array.isArray(dw)) return 0;
+    return Math.max(
+      Array.isArray(dw.easy) ? dw.easy.length : 0,
+      Array.isArray(dw.normal) ? dw.normal.length : 0,
+      Array.isArray(dw.hard) ? dw.hard.length : 0,
+    );
+  };
+  const starLen = Math.min(
+    MAX_SAVE_CODE_ISLANDS,
+    Math.max(
+      Array.isArray(before.bestStars) ? before.bestStars.length : 0,
+      Array.isArray(after.bestStars) ? after.bestStars.length : 0,
+      rawDwLen(before, rawBefore),
+      rawDwLen(after, rawAfter),
+    ),
+  );
+  const hasDiffWins =
+    (before.difficultyWins ?? rawBefore.dw) !== undefined ||
+    (after.difficultyWins ?? rawAfter.dw) !== undefined;
+  const dwBefore = hasDiffWins ? sizedDifficultyWins(before, starLen) : null;
+  const dwAfter = hasDiffWins ? sizedDifficultyWins(after, starLen) : null;
+  let starsBefore = 0;
+  let starsAfter = 0;
+  for (let i = 0; i < starLen; i++) {
+    starsBefore += Math.max(
+      safeInt(before.bestStars?.[i], 3),
+      dwBefore ? Math.max(dwBefore.easy[i] ?? 0, dwBefore.normal[i] ?? 0, dwBefore.hard[i] ?? 0) : 0,
+    );
+    starsAfter += Math.max(
+      safeInt(after.bestStars?.[i], 3),
+      dwAfter ? Math.max(dwAfter.easy[i] ?? 0, dwAfter.normal[i] ?? 0, dwAfter.hard[i] ?? 0) : 0,
+    );
+  }
+  const stars = starsAfter - starsBefore;
+  const islands = safeInt(after.unlockedLevelIndex) - safeInt(before.unlockedLevelIndex);
+  const countValidBadges = (list: unknown): number => {
+    if (!Array.isArray(list)) return 0;
+    const seen = new Set<string>();
+    for (const id of list) {
+      if (typeof id === 'string' && id.length > 0 && id.length <= 40) seen.add(id);
+    }
+    return seen.size;
+  };
+  const beforeCc = Array.isArray(before.challengeClears) ? before.challengeClears : [];
+  const afterCc = Array.isArray(after.challengeClears) ? after.challengeClears : [];
+  let badges = 0;
+  const badgeLen = Math.max(beforeCc.length, afterCc.length);
+  for (let i = 0; i < badgeLen; i++) {
+    badges += countValidBadges(afterCc[i]) - countValidBadges(beforeCc[i]);
+  }
+  const parts: string[] = [];
   if (stars > 0) parts.push(`+${stars}★`);
   if (islands > 0) parts.push(`${islands} more island${islands === 1 ? '' : 's'} unlocked`);
   if (badges > 0) parts.push(`+${badges} badge${badges === 1 ? '' : 's'}`);
@@ -602,9 +651,11 @@ export function describeMergeGain(before: ProgressData, after: ProgressData): st
     ).length;
     if (newWc > 0) parts.push(`+${newWc} challenge win${newWc === 1 ? '' : 's'}`);
   }
-  const records = after.bestEndlessWaves.some((v, i) => v > (before.bestEndlessWaves[i] ?? 0));
+  const beforeEw = Array.isArray(before.bestEndlessWaves) ? before.bestEndlessWaves : [];
+  const afterEw = Array.isArray(after.bestEndlessWaves) ? after.bestEndlessWaves : [];
+  const records = afterEw.some((v, i) => safeInt(v) > safeInt(beforeEw[i]));
   if (records) parts.push('new endless records');
-  const dailies = (after.daily?.total ?? 0) - (before.daily?.total ?? 0);
+  const dailies = safeInt(after.daily?.total) - safeInt(before.daily?.total);
   if (dailies > 0) parts.push(`+${dailies} daily win${dailies === 1 ? '' : 's'}`);
   if (workshopStarsSpent(sanitizeRanks(after.workshop)) > workshopStarsSpent(sanitizeRanks(before.workshop))) {
     parts.push('workshop upgrades');
@@ -627,35 +678,10 @@ export function describeMergeGain(before: ProgressData, after: ProgressData): st
     }
     if (spentAfter > spentBefore) parts.push('hero skills');
   }
-  if (
-    (before.difficultyWins ?? rawBefore.dw) !== undefined ||
-    (after.difficultyWins ?? rawAfter.dw) !== undefined
-  ) {
-    const rawDwLen = (p: ProgressData, rawObj: Record<string, unknown>): number => {
-      const dw = normalizeRawDifficultyWins(p.difficultyWins ?? rawObj.dw) as
-        | Record<string, unknown>
-        | undefined;
-      if (!dw || typeof dw !== 'object' || Array.isArray(dw)) return 0;
-      return Math.max(
-        Array.isArray(dw.easy) ? dw.easy.length : 0,
-        Array.isArray(dw.normal) ? dw.normal.length : 0,
-        Array.isArray(dw.hard) ? dw.hard.length : 0,
-      );
-    };
-    const diffLen = Math.min(
-      MAX_SAVE_CODE_ISLANDS,
-      Math.max(
-        Array.isArray(before.bestStars) ? before.bestStars.length : 0,
-        Array.isArray(after.bestStars) ? after.bestStars.length : 0,
-        rawDwLen(before, rawBefore),
-        rawDwLen(after, rawAfter),
-      ),
-    );
-    const dwBefore = sizedDifficultyWins(before, diffLen);
-    const dwAfter = sizedDifficultyWins(after, diffLen);
+  if (dwBefore && dwAfter) {
     let newHardRibbons = 0;
     let betterDiffStars = false;
-    for (let i = 0; i < diffLen; i++) {
+    for (let i = 0; i < starLen; i++) {
       const hb = dwBefore.hard[i] ?? 0;
       const ha = dwAfter.hard[i] ?? 0;
       if (hb === 0 && ha > 0) newHardRibbons++;
