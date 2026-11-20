@@ -588,6 +588,7 @@ export const TR: { readonly [K in MsgKey]: Msg } = {
   'title.loaded': 'Yelken açmaya hazır',
   'title.tapStart': 'Başlamak için dokun',
   'title.clickStart': 'Tıkla ya da bir tuşa bas',
+  'title.padStart': 'Başlamak için A tuşuna bas',
   'title.continue': 'Devam et',
   'title.newGame': 'Yeni oyun',
   'title.play': 'Yelken aç',

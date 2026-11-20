@@ -148,6 +148,9 @@ const shot = (page, n) => (SHOTS ? page.screenshot({ path: `${SHOTS}/${n}.jpg`, 
   await page.goto(`${BASE}/2d.html?lang=en&desktop=1&title=1`);
   await page.waitForFunction(() => window.__title?.state().phase === 'tap', null, { timeout: 30000 });
   await page.evaluate(() => window.__fakePad.connect());
+  await page.waitForTimeout(200);
+  const prompt = await page.evaluate(() => document.querySelector('[data-testid="title2d-tap"]')?.textContent ?? '');
+  check(prompt === 'Press A to start', `title: a connected pad changes the prompt ("${prompt}")`);
   await tapPad(page, 0); // A = press any key
   await page.waitForTimeout(500);
   const ph = await page.evaluate(() => window.__title.state().phase);

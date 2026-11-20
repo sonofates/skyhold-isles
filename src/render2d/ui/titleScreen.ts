@@ -247,6 +247,7 @@ export function runTitle(q: URLSearchParams, h: TitleHandlers): { screen: TitleS
     await h.openMap();
     root.classList.add('leaving');
     window.removeEventListener('keydown', onKey);
+    window.removeEventListener('gamepadconnected', onPad);
     window.removeEventListener('resize', fitTagline);
     const gone = (): void => {
       root.remove();
@@ -320,6 +321,12 @@ export function runTitle(q: URLSearchParams, h: TitleHandlers): { screen: TitleS
     next?.focus({ preventScroll: true });
   };
   window.addEventListener('keydown', onKey);
+  // A controller in hand: the prompt asks for its A button (navFocus presses the prompt on A).
+  const onPad = (): void => {
+    tap.textContent = t('title.padStart');
+  };
+  if (padConnected()) onPad();
+  window.addEventListener('gamepadconnected', onPad);
   tap.addEventListener('click', showMenu);
   root.addEventListener('click', (e) => {
     if (phase === 'tap' && e.target !== tap) showMenu();
@@ -415,4 +422,10 @@ function titleLetters(name: string): HTMLElement[] {
     span.style.setProperty('--i', String(i));
     return span;
   });
+}
+
+/** Some standard controller is connected now (the browser lists pads only after a first press). */
+function padConnected(): boolean {
+  if (typeof navigator === 'undefined' || typeof navigator.getGamepads !== 'function') return false;
+  return Array.from(navigator.getGamepads()).some((g) => !!g?.connected);
 }

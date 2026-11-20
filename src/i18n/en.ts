@@ -582,6 +582,7 @@ export const EN = {
   'title.loaded': 'Ready to sail',
   'title.tapStart': 'Tap to start',
   'title.clickStart': 'Click or press any key',
+  'title.padStart': 'Press A to start',
   'title.continue': 'Continue',
   'title.newGame': 'New game',
   'title.play': 'Set sail',
