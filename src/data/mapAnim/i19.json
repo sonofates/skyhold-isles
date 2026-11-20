@@ -1,0 +1,64 @@
+{
+  "file": "ambient/i19/loops.mp4",
+  "mask": "ambient/i19/mask.webp",
+  "compact": {
+    "file": "ambient/i19/loops-1x.mp4",
+    "mask": "ambient/i19/mask-1x.webp",
+    "width": 416,
+    "height": 408,
+    "fps": 12
+  },
+  "width": 832,
+  "height": 816,
+  "fps": 24,
+  "elements": [
+    {
+      "id": "ancient-fig-crown",
+      "rect": [
+        731.8,
+        223.8,
+        378.4,
+        170.4
+      ],
+      "depth": 1,
+      "cell": [
+        4,
+        300,
+        625,
+        282
+      ]
+    },
+    {
+      "id": "foreground-fig-leaves",
+      "rect": [
+        98.4,
+        708.0,
+        217.8,
+        144.0
+      ],
+      "depth": 1,
+      "cell": [
+        4,
+        4,
+        436,
+        288
+      ]
+    },
+    {
+      "id": "western-fig-bough",
+      "rect": [
+        271.5375,
+        0.0,
+        184.6,
+        102.5375
+      ],
+      "depth": 1,
+      "cell": [
+        4,
+        592,
+        370,
+        206
+      ]
+    }
+  ]
+}

@@ -1,0 +1,96 @@
+{
+  "file": "ambient/i20/loops.mp4",
+  "mask": "ambient/i20/mask.webp",
+  "compact": {
+    "file": "ambient/i20/loops-1x.mp4",
+    "mask": "ambient/i20/mask-1x.webp",
+    "width": 416,
+    "height": 264,
+    "fps": 12
+  },
+  "width": 832,
+  "height": 528,
+  "fps": 24,
+  "elements": [
+    {
+      "id": "north-inlet-swell",
+      "rect": [
+        703.0,
+        3.9,
+        330.3,
+        157.5
+      ],
+      "depth": 0,
+      "cell": [
+        4,
+        4,
+        446,
+        213
+      ]
+    },
+    {
+      "id": "northeast-offshore-swell",
+      "rect": [
+        1634.3125,
+        4.3125,
+        205.875,
+        90.1875
+      ],
+      "depth": 0,
+      "cell": [
+        4,
+        396,
+        278,
+        122
+      ]
+    },
+    {
+      "id": "southeast-reef-wash",
+      "rect": [
+        1558.0,
+        723.0,
+        282.0,
+        100.5
+      ],
+      "depth": 0,
+      "cell": [
+        420,
+        228,
+        381,
+        136
+      ]
+    },
+    {
+      "id": "western-reef-breaker",
+      "rect": [
+        4.125,
+        91.875,
+        299.475,
+        117.425
+      ],
+      "depth": 0,
+      "cell": [
+        4,
+        228,
+        405,
+        159
+      ]
+    },
+    {
+      "id": "masthead-streamers",
+      "rect": [
+        65.5375,
+        581.6125,
+        132.7625,
+        100.9125
+      ],
+      "depth": 1,
+      "cell": [
+        460,
+        4,
+        266,
+        202
+      ]
+    }
+  ]
+}

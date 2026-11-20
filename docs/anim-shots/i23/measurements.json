@@ -1,0 +1,229 @@
+{
+  "island": "i23",
+  "browser": "153.0.8010.12",
+  "timing": "High idle battle, requestAnimationFrame intervals. Static with Reduced motion for 4 seconds, then normal playback for 8.3 seconds.",
+  "capture": "Unmodified battle HUD in six-frame sequences. For close-ups only, the same Pixi world was fitted fully into the viewport with only the painted map and live ambient mesh visible.",
+  "cases": [
+    {
+      "map": "map-i23-layered@1.5x",
+      "quality": "high",
+      "texelScale": 1.5,
+      "fit": {
+        "scale": 1.1616916079812207,
+        "offsetX": -66.80208712343504,
+        "offsetY": 51.18151807805162,
+        "bandLeft": 0,
+        "bandRight": 0,
+        "bandTop": 51.18151807805162,
+        "bandBottom": 0,
+        "shrink": 0.99875,
+        "coverage": 0.9483536649061033,
+        "clear": true
+      },
+      "renderer": {
+        "resolution": 1,
+        "canvasPx": [
+          2000,
+          991
+        ],
+        "resolutionScale": 1,
+        "desktop": true
+      },
+      "name": "desktop",
+      "width": 2000,
+      "height": 991,
+      "dpr": 1,
+      "browser": "153.0.8010.12",
+      "staticEntryAmbientRequests": 0,
+      "static": {
+        "frames": 32,
+        "elapsedMs": 4016.5,
+        "meanMs": 125.52,
+        "p50Ms": 116.7,
+        "p95Ms": 200.1
+      },
+      "animated": {
+        "frames": 55,
+        "elapsedMs": 8399.7,
+        "meanMs": 152.72,
+        "p50Ms": 150,
+        "p95Ms": 199.9,
+        "wraps": 1,
+        "decoderDroppedFrames": 3
+      },
+      "track": {
+        "file": "loops.mp4",
+        "width": 832,
+        "height": 272,
+        "duration": 8
+      },
+      "seconds": [
+        0,
+        1.5,
+        3,
+        4.5,
+        6,
+        7.958333333333333
+      ],
+      "inspectionFit": {
+        "scale": 1.0834236186348862,
+        "offsetX": 0,
+        "offsetY": 33.96153846153845
+      },
+      "files": [
+        "/art2d/ambient/i23/mask.webp",
+        "/art2d/ambient/i23/loops.mp4"
+      ],
+      "pixels": {
+        "wrapMax": 0,
+        "maxOutsideFeatherPlus2px": 0,
+        "elements": {
+          "eastern-fruit-spray": {
+            "peakChannelChange": 168,
+            "pixelsChangedOver3": 16765
+          },
+          "western-berry-bough": {
+            "peakChannelChange": 161,
+            "pixelsChangedOver3": 19441
+          }
+        }
+      },
+      "battleViewChangedPixelsInsideMasks": {
+        "eastern-fruit-spray": 17303,
+        "western-berry-bough": 17015
+      }
+    },
+    {
+      "map": "map-i23-layered@1x",
+      "quality": "high",
+      "texelScale": 1,
+      "fit": {
+        "scale": 0.4085387323943661,
+        "offsetX": 71.40443826291089,
+        "offsetY": 18.616348459507076,
+        "bandLeft": 71.40443826291089,
+        "bandRight": 18.43306173708936,
+        "bandTop": 18.616348459507076,
+        "bandBottom": 23.308651540492974,
+        "shrink": 0.8924999999999998,
+        "coverage": 0.797500037026066,
+        "clear": true
+      },
+      "renderer": {
+        "resolution": 2,
+        "canvasPx": [
+          1688,
+          780
+        ],
+        "resolutionScale": 1,
+        "desktop": false
+      },
+      "name": "phone",
+      "width": 844,
+      "height": 390,
+      "dpr": 2,
+      "browser": "153.0.8010.12",
+      "staticEntryAmbientRequests": 0,
+      "static": {
+        "frames": 46,
+        "elapsedMs": 4099.9,
+        "meanMs": 89.13,
+        "p50Ms": 83.4,
+        "p95Ms": 183.3
+      },
+      "animated": {
+        "frames": 101,
+        "elapsedMs": 8333.1,
+        "meanMs": 82.51,
+        "p50Ms": 83.3,
+        "p95Ms": 133.4,
+        "wraps": 1,
+        "decoderDroppedFrames": 0
+      },
+      "track": {
+        "file": "loops-1x.mp4",
+        "width": 416,
+        "height": 136,
+        "duration": 8
+      },
+      "seconds": [
+        0,
+        1.5,
+        3,
+        4.5,
+        6,
+        7.916666666666667
+      ],
+      "inspectionFit": {
+        "scale": 0.457204767063922,
+        "offsetX": 0,
+        "offsetY": 0.2307692307692264
+      },
+      "files": [
+        "/art2d/ambient/i23/mask-1x.webp",
+        "/art2d/ambient/i23/loops-1x.mp4"
+      ],
+      "pixels": {
+        "wrapMax": 0,
+        "maxOutsideFeatherPlus2px": 0,
+        "elements": {
+          "eastern-fruit-spray": {
+            "peakChannelChange": 165,
+            "pixelsChangedOver3": 12187
+          },
+          "western-berry-bough": {
+            "peakChannelChange": 149,
+            "pixelsChangedOver3": 14422
+          }
+        }
+      },
+      "battleViewChangedPixelsInsideMasks": {
+        "eastern-fruit-spray": 2394,
+        "western-berry-bough": 2017
+      }
+    },
+    {
+      "map": "map-i23-layered@1x",
+      "quality": "low",
+      "texelScale": 1,
+      "fit": {
+        "scale": 0.4085387323943661,
+        "offsetX": 71.25860492957756,
+        "offsetY": 18.616348459507076,
+        "bandLeft": 71.25860492957756,
+        "bandRight": 18.328895070422618,
+        "bandTop": 18.616348459507076,
+        "bandBottom": 23.308651540492974,
+        "shrink": 0.8924999999999998,
+        "coverage": 0.7977363333333329,
+        "clear": true
+      },
+      "renderer": {
+        "resolution": 0.8,
+        "canvasPx": [
+          675,
+          312
+        ],
+        "resolutionScale": 1,
+        "desktop": false
+      },
+      "name": "low",
+      "width": 844,
+      "height": 390,
+      "dpr": 2,
+      "browser": "153.0.8010.12",
+      "staticEntryAmbientRequests": 0
+    }
+  ],
+  "mediumPhone": {
+    "quality": "med",
+    "map": "map-i23-layered@1x",
+    "track": "loops-1x.mp4",
+    "mediaTime": 0.333904,
+    "reducedMotionReleasedVideo": true,
+    "files": [
+      "/art2d/ambient/i23/mask-1x.webp",
+      "/art2d/ambient/i23/loops-1x.mp4"
+    ]
+  }
+}

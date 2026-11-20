@@ -1,0 +1,36 @@
+{
+  "id": "i19-foreground-fig-leaves",
+  "element": "foreground-fig-leaves",
+  "source": "public/art2d/map-i19-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 80,
+    "y": 708,
+    "width": 256,
+    "height": 144
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    240,
+    2124,
+    1008,
+    2556
+  ],
+  "startPxPerLayoutPx": 5.0,
+  "startPxPerSourcePx": 1.6666666666666667,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    225,
+    78,
+    1061,
+    696
+  ],
+  "featherInwardStartPx": 12
+}

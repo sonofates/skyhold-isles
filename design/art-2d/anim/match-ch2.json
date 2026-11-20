@@ -1,0 +1,1001 @@
+{
+  "method": "Opening frame against start.png, area-reduced to 160 x 90 RGB. Mean local SSIM across channels with an 11 x 11 Gaussian window (sigma 1.5), valid interior, 8-bit range. Confident at SSIM >= 0.90 and margin >= 0.08. For two ambiguous openings, repeat the comparison on windows lying wholly outside the authored motion mask and confirm the same unique winner against all 108 videos.",
+  "videosCompared": 108,
+  "elements": [
+    {
+      "id": "i17-western-cloud-shelf",
+      "island": "i17",
+      "element": "western-cloud-shelf",
+      "file": "Clouds_moving_past_floating_crag_5da8408c.mp4",
+      "ssim": 0.964305,
+      "runnerUp": "Water_ripple_animation_for_loop_956e8c73.mp4",
+      "runnerUpSsim": 0.335265,
+      "status": "matched",
+      "integration": "static",
+      "reason": "New bright, hard-edged cloud curls cross in front of the distant island and break at its silhouette."
+    },
+    {
+      "id": "i17-fallen-bell-reflection",
+      "island": "i17",
+      "element": "fallen-bell-reflection",
+      "file": "Cloud_reflection_moving_on_bell_9a1919cf.mp4",
+      "ssim": 0.985004,
+      "runnerUp": "Animate_orange_tree_seamless_loop_983aa67a.mp4",
+      "runnerUpSsim": 0.37751,
+      "status": "matched",
+      "integration": "static",
+      "reason": "Opaque cream cloud silhouettes travel over the bronze and obscure the engraved bands."
+    },
+    {
+      "id": "i17-east-cliff-vapour",
+      "island": "i17",
+      "element": "east-cliff-vapour",
+      "file": "Cloud_moving_past_distant_crag_c0de6bfe.mp4",
+      "ssim": 0.98753,
+      "runnerUp": "Clouds_drifting_under_projecting\u2026_7c5a4a9d.mp4",
+      "runnerUpSsim": 0.460745,
+      "status": "matched",
+      "integration": "included",
+      "packStyle": {
+        "scale": 1.7,
+        "opacity": 0.65,
+        "feather": 8
+      },
+      "packedMaskBBoxStartPxLTRB": [
+        409,
+        58,
+        1235,
+        668
+      ],
+      "trialRegistration": {
+        "maxRegistrationXYStartPx": [
+          2.87,
+          1.31
+        ],
+        "maxAbsShiftBGR": [
+          1.0,
+          2.0,
+          2.0
+        ],
+        "rawWrapMae": 0.99,
+        "adjacentP95Mae": 1.19,
+        "endBlend": false
+      }
+    },
+    {
+      "id": "i17-southern-cloudbank",
+      "island": "i17",
+      "element": "southern-cloudbank",
+      "file": "Clouds_drifting_under_projecting\u2026_7c5a4a9d.mp4",
+      "ssim": 0.984079,
+      "runnerUp": "Creating_water_ripple_loop_anima\u2026_9ff232bb.mp4",
+      "runnerUpSsim": 0.546911,
+      "status": "matched",
+      "integration": "static",
+      "reason": "The soft painted haze changes into sharply outlined ornamental spirals."
+    },
+    {
+      "id": "i18-north-vault-crystals",
+      "island": "i18",
+      "element": "north-vault-crystals",
+      "file": "Mint_glint_moves_on_crystals_54908f64.mp4",
+      "ssim": 0.989377,
+      "runnerUp": "Create_seamless_storm_mist_loop_45f28cc4.mp4",
+      "runnerUpSsim": 0.288918,
+      "status": "matched",
+      "integration": "included",
+      "packStyle": {
+        "scale": 1.7,
+        "opacity": 0.64,
+        "feather": 2.5
+      },
+      "packedMaskBBoxStartPxLTRB": [
+        80,
+        22,
+        1190,
+        538
+      ],
+      "trialRegistration": {
+        "maxRegistrationXYStartPx": [
+          0.19,
+          0.13
+        ],
+        "maxAbsShiftBGR": [
+          3.0,
+          1.0,
+          3.0
+        ],
+        "rawWrapMae": 1.05,
+        "adjacentP95Mae": 4.98,
+        "endBlend": false
+      }
+    },
+    {
+      "id": "i18-amethyst-geode",
+      "island": "i18",
+      "element": "amethyst-geode",
+      "file": "Animating_light_inside_violet_geode_8bedf472.mp4",
+      "ssim": 0.988132,
+      "runnerUp": "Water_ripple_animation_for_loop_956e8c73.mp4",
+      "runnerUpSsim": 0.304296,
+      "status": "matched",
+      "integration": "included",
+      "packStyle": {
+        "scale": 1.7,
+        "opacity": 0.64,
+        "feather": 2.5
+      },
+      "packedMaskBBoxStartPxLTRB": [
+        820,
+        46,
+        1267,
+        674
+      ],
+      "trialRegistration": {
+        "maxRegistrationXYStartPx": [
+          0.09,
+          0.03
+        ],
+        "maxAbsShiftBGR": [
+          4.0,
+          1.0,
+          3.0
+        ],
+        "rawWrapMae": 1.31,
+        "adjacentP95Mae": 2.95,
+        "endBlend": false
+      }
+    },
+    {
+      "id": "i18-east-wall-vein",
+      "island": "i18",
+      "element": "east-wall-vein",
+      "file": "Water_flowing_over_crystal_seam_789275f0.mp4",
+      "ssim": 0.984154,
+      "runnerUp": "Creating_water_ripple_loop_anima\u2026_9ff232bb.mp4",
+      "runnerUpSsim": 0.45198,
+      "status": "matched",
+      "integration": "static",
+      "reason": "New freestanding crystals grow across the cavern floor and into the seam."
+    },
+    {
+      "id": "i18-kiln-side-crystals",
+      "island": "i18",
+      "element": "kiln-side-crystals",
+      "file": "Crystal_catching_light_animation\u2026_abeadff3.mp4",
+      "ssim": 0.986342,
+      "runnerUp": "Creating_water_ripple_loop_anima\u2026_9ff232bb.mp4",
+      "runnerUpSsim": 0.28706,
+      "status": "matched",
+      "integration": "included",
+      "packStyle": {
+        "scale": 1.7,
+        "opacity": 0.64,
+        "feather": 2.5
+      },
+      "packedMaskBBoxStartPxLTRB": [
+        485,
+        95,
+        793,
+        627
+      ],
+      "trialRegistration": {
+        "maxRegistrationXYStartPx": [
+          0.11,
+          0.05
+        ],
+        "maxAbsShiftBGR": [
+          4.0,
+          1.0,
+          3.0
+        ],
+        "rawWrapMae": 1.63,
+        "adjacentP95Mae": 2.75,
+        "endBlend": false
+      }
+    },
+    {
+      "id": "i18-lower-gallery-fan",
+      "island": "i18",
+      "element": "lower-gallery-fan",
+      "file": "Creating_seamless_loop_animation_4b2a624d.mp4",
+      "ssim": 0.987625,
+      "runnerUp": "Create_seamless_storm_mist_loop_45f28cc4.mp4",
+      "runnerUpSsim": 0.206716,
+      "status": "matched",
+      "integration": "included",
+      "packStyle": {
+        "scale": 1.7,
+        "opacity": 0.64,
+        "feather": 2.5
+      },
+      "packedMaskBBoxStartPxLTRB": [
+        9,
+        67,
+        495,
+        692
+      ],
+      "trialRegistration": {
+        "maxRegistrationXYStartPx": [
+          0.22,
+          0.31
+        ],
+        "maxAbsShiftBGR": [
+          2.0,
+          2.0,
+          2.0
+        ],
+        "rawWrapMae": 1.68,
+        "adjacentP95Mae": 3.95,
+        "endBlend": false
+      }
+    },
+    {
+      "id": "i19-ancient-fig-crown",
+      "island": "i19",
+      "element": "ancient-fig-crown",
+      "file": "Breeze_moving_fig_tree_leaves_0e64f42d.mp4",
+      "ssim": 0.975232,
+      "runnerUp": "Animate_orange_tree_seamless_loop_983aa67a.mp4",
+      "runnerUpSsim": 0.296265,
+      "status": "matched",
+      "integration": "included",
+      "packStyle": {
+        "scale": 1.65,
+        "opacity": 1,
+        "feather": 2,
+        "depth": 1
+      },
+      "packedMaskBBoxStartPxLTRB": [
+        167,
+        147,
+        1113,
+        573
+      ],
+      "trialRegistration": {
+        "maxRegistrationXYStartPx": [
+          2.33,
+          2.18
+        ],
+        "maxAbsShiftBGR": [
+          7.0,
+          1.0,
+          1.0
+        ],
+        "rawWrapMae": 2.52,
+        "adjacentP95Mae": 4.32,
+        "endBlend": false
+      }
+    },
+    {
+      "id": "i19-western-fig-bough",
+      "island": "i19",
+      "element": "western-fig-bough",
+      "file": "Breeze_animating_painted_tree_ca\u2026_b4b22062.mp4",
+      "ssim": 0.989669,
+      "runnerUp": "Animating_orange_heat_in_fissure_d27527d4.mp4",
+      "runnerUpSsim": 0.148336,
+      "status": "matched",
+      "integration": "included",
+      "packStyle": {
+        "scale": 2,
+        "opacity": 1,
+        "feather": 2,
+        "depth": 1
+      },
+      "packedMaskBBoxStartPxLTRB": [
+        71,
+        0,
+        1207,
+        631
+      ],
+      "trialRegistration": {
+        "maxRegistrationXYStartPx": [
+          0.21,
+          0.12
+        ],
+        "maxAbsShiftBGR": [
+          2.0,
+          3.0,
+          3.0
+        ],
+        "rawWrapMae": 1.18,
+        "adjacentP95Mae": 9.29,
+        "endBlend": false
+      },
+      "expandedMask": {
+        "radiusStartPx": 52,
+        "outerFeatherStartPx": 22
+      }
+    },
+    {
+      "id": "i19-eastern-ravine-mist",
+      "island": "i19",
+      "element": "eastern-ravine-mist",
+      "file": "Mist_welling_in_forest_gap_321833b2.mp4",
+      "ssim": 0.8517,
+      "runnerUp": "Create_seamless_storm_mist_loop_45f28cc4.mp4",
+      "runnerUpSsim": 0.25442,
+      "status": "matched",
+      "fixedRegionSsim": 0.948004,
+      "fixedRegionRunnerUpSsim": 0.237759,
+      "integration": "static",
+      "reason": "The opening lacks the painted central puff. Opening-frame correction leaves a stationary bright puff and a warm pink double edge as the generated mist passes.",
+      "trialRegistration": {
+        "maxRegistrationXYStartPx": [
+          0.14,
+          0.05
+        ],
+        "maxAbsShiftBGR": [
+          1.0,
+          1.0,
+          2.0
+        ],
+        "rawWrapMae": 33.96,
+        "adjacentP95Mae": 5.26,
+        "endBlend": true
+      }
+    },
+    {
+      "id": "i19-foreground-fig-leaves",
+      "island": "i19",
+      "element": "foreground-fig-leaves",
+      "file": "Animating_split_leaves_in_loop_6b24ece5.mp4",
+      "ssim": 0.989921,
+      "runnerUp": "Animating_orange_heat_in_fissure_d27527d4.mp4",
+      "runnerUpSsim": 0.156339,
+      "status": "matched",
+      "integration": "included",
+      "packStyle": {
+        "scale": 2,
+        "opacity": 1,
+        "feather": 2,
+        "depth": 1
+      },
+      "packedMaskBBoxStartPxLTRB": [
+        92,
+        0,
+        1181,
+        720
+      ],
+      "trialRegistration": {
+        "maxRegistrationXYStartPx": [
+          0.11,
+          0.04
+        ],
+        "maxAbsShiftBGR": [
+          1.0,
+          1.0,
+          2.0
+        ],
+        "rawWrapMae": 1.29,
+        "adjacentP95Mae": 6.54,
+        "endBlend": false
+      },
+      "expandedMask": {
+        "radiusStartPx": 142,
+        "outerFeatherStartPx": 22
+      }
+    },
+    {
+      "id": "i20-western-reef-breaker",
+      "island": "i20",
+      "element": "western-reef-breaker",
+      "file": "Wave_moving_through_reef_slot_1dc22758.mp4",
+      "ssim": 0.989467,
+      "runnerUp": "Creating_water_ripple_loop_anima\u2026_9ff232bb.mp4",
+      "runnerUpSsim": 0.201826,
+      "status": "matched",
+      "integration": "included",
+      "packStyle": {
+        "scale": 1.35,
+        "opacity": 0.78,
+        "feather": 6
+      },
+      "packedMaskBBoxStartPxLTRB": [
+        15,
+        145,
+        1104,
+        572
+      ],
+      "trialRegistration": {
+        "maxRegistrationXYStartPx": [
+          0.43,
+          0.45
+        ],
+        "maxAbsShiftBGR": [
+          3.0,
+          1.0,
+          4.0
+        ],
+        "rawWrapMae": 2.22,
+        "adjacentP95Mae": 7.07,
+        "endBlend": false
+      }
+    },
+    {
+      "id": "i20-north-inlet-swell",
+      "island": "i20",
+      "element": "north-inlet-swell",
+      "file": "Green_swells_moving_into_inlet_87311e84.mp4",
+      "ssim": 0.989375,
+      "runnerUp": "Water_ripple_animation_for_loop_956e8c73.mp4",
+      "runnerUpSsim": 0.19395,
+      "status": "matched",
+      "integration": "included",
+      "packStyle": {
+        "scale": 1.35,
+        "opacity": 0.78,
+        "feather": 6
+      },
+      "packedMaskBBoxStartPxLTRB": [
+        90,
+        13,
+        1191,
+        538
+      ],
+      "trialRegistration": {
+        "maxRegistrationXYStartPx": [
+          0.3,
+          0.34
+        ],
+        "maxAbsShiftBGR": [
+          2.0,
+          2.0,
+          3.0
+        ],
+        "rawWrapMae": 1.38,
+        "adjacentP95Mae": 2.51,
+        "endBlend": false
+      }
+    },
+    {
+      "id": "i20-masthead-streamers",
+      "island": "i20",
+      "element": "masthead-streamers",
+      "file": "Streamers_moving_on_weather_mast_36e3c104.mp4",
+      "ssim": 0.986908,
+      "runnerUp": "Animate_orange_tree_seamless_loop_983aa67a.mp4",
+      "runnerUpSsim": 0.459289,
+      "status": "matched",
+      "integration": "included",
+      "packStyle": {
+        "scale": 2,
+        "opacity": 1,
+        "feather": 2,
+        "depth": 1
+      },
+      "packedMaskBBoxStartPxLTRB": [
+        231,
+        53,
+        1048,
+        674
+      ],
+      "trialRegistration": {
+        "maxRegistrationXYStartPx": [
+          0.11,
+          0.08
+        ],
+        "maxAbsShiftBGR": [
+          1.0,
+          1.0,
+          2.0
+        ],
+        "rawWrapMae": 1.22,
+        "adjacentP95Mae": 5.76,
+        "endBlend": false
+      },
+      "expandedMask": {
+        "radiusStartPx": 82,
+        "outerFeatherStartPx": 22,
+        "coreXExclusive": [
+          232,
+          1020
+        ],
+        "leftRampX": [
+          230,
+          252
+        ]
+      }
+    },
+    {
+      "id": "i20-southeast-reef-wash",
+      "island": "i20",
+      "element": "southeast-reef-wash",
+      "file": "Sea_foam_moving_through_rocks_e6c9907d.mp4",
+      "ssim": 0.986932,
+      "runnerUp": "Create_seamless_storm_mist_loop_45f28cc4.mp4",
+      "runnerUpSsim": 0.22231,
+      "status": "matched",
+      "integration": "included",
+      "packStyle": {
+        "scale": 1.35,
+        "opacity": 0.78,
+        "feather": 6
+      },
+      "packedMaskBBoxStartPxLTRB": [
+        128,
+        204,
+        1256,
+        606
+      ],
+      "trialRegistration": {
+        "maxRegistrationXYStartPx": [
+          0.45,
+          0.39
+        ],
+        "maxAbsShiftBGR": [
+          4.0,
+          1.0,
+          4.0
+        ],
+        "rawWrapMae": 3.22,
+        "adjacentP95Mae": 9.46,
+        "endBlend": false
+      }
+    },
+    {
+      "id": "i20-northeast-offshore-swell",
+      "island": "i20",
+      "element": "northeast-offshore-swell",
+      "file": "Ocean_swell_passing_rock_ledge_4e930bd6.mp4",
+      "ssim": 0.991708,
+      "runnerUp": "Create_seamless_storm_mist_loop_45f28cc4.mp4",
+      "runnerUpSsim": 0.227659,
+      "status": "matched",
+      "integration": "included",
+      "packStyle": {
+        "scale": 1.35,
+        "opacity": 0.78,
+        "feather": 6
+      },
+      "packedMaskBBoxStartPxLTRB": [
+        151,
+        23,
+        1249,
+        504
+      ],
+      "trialRegistration": {
+        "maxRegistrationXYStartPx": [
+          0.7,
+          0.44
+        ],
+        "maxAbsShiftBGR": [
+          3.0,
+          1.0,
+          3.0
+        ],
+        "rawWrapMae": 1.45,
+        "adjacentP95Mae": 5.72,
+        "endBlend": false
+      }
+    },
+    {
+      "id": "i21-weather-kite-silk",
+      "island": "i21",
+      "element": "weather-kite-silk",
+      "file": "Animate_red_and_gold_kite_01b656f8.mp4",
+      "ssim": 0.983178,
+      "runnerUp": "Smoke_rising_from_stone_chimney_ec15430e.mp4",
+      "runnerUpSsim": 0.439357,
+      "status": "matched",
+      "integration": "static",
+      "reason": "As the tails lift, the rigid cross spars and the kite corners also rise away from their painted positions.",
+      "trialRegistration": {
+        "maxRegistrationXYStartPx": [
+          0.19,
+          0.11
+        ],
+        "maxAbsShiftBGR": [
+          5.0,
+          2.0,
+          1.0
+        ],
+        "rawWrapMae": 1.29,
+        "adjacentP95Mae": 3.41,
+        "endBlend": false
+      }
+    },
+    {
+      "id": "i21-north-rim-pines",
+      "island": "i21",
+      "element": "north-rim-pines",
+      "file": "Wind_brushes_cliffside_pine_trees_e3514d9c.mp4",
+      "ssim": 0.990084,
+      "runnerUp": "Animate_orange_tree_seamless_loop_983aa67a.mp4",
+      "runnerUpSsim": 0.213758,
+      "status": "matched",
+      "integration": "included",
+      "packStyle": {
+        "scale": 2,
+        "opacity": 1,
+        "feather": 2,
+        "depth": 1
+      },
+      "packedMaskBBoxStartPxLTRB": [
+        53,
+        10,
+        1094,
+        385
+      ],
+      "trialRegistration": {
+        "maxRegistrationXYStartPx": [
+          1.11,
+          0.9
+        ],
+        "maxAbsShiftBGR": [
+          1.0,
+          1.0,
+          3.0
+        ],
+        "rawWrapMae": 1.45,
+        "adjacentP95Mae": 3.78,
+        "endBlend": false
+      }
+    },
+    {
+      "id": "i21-southwest-cliff-pine",
+      "island": "i21",
+      "element": "southwest-cliff-pine",
+      "file": "Pine_needles_tipping_on_cliff_a78473e6.mp4",
+      "ssim": 0.972673,
+      "runnerUp": "Animate_orange_tree_seamless_loop_983aa67a.mp4",
+      "runnerUpSsim": 0.307248,
+      "status": "matched",
+      "integration": "static",
+      "reason": "The soft crown changes into sharply stippled needles, and a moving pad exposes a pale hole in its painted silhouette.",
+      "trialRegistration": {
+        "maxRegistrationXYStartPx": [
+          3.27,
+          1.89
+        ],
+        "maxAbsShiftBGR": [
+          1.0,
+          2.0,
+          2.0
+        ],
+        "rawWrapMae": 3.19,
+        "adjacentP95Mae": 5.0,
+        "endBlend": false
+      }
+    },
+    {
+      "id": "i21-southeast-cliff-pine",
+      "island": "i21",
+      "element": "southeast-cliff-pine",
+      "file": "Pine_needles_moving_in_wind_17f46dd6.mp4",
+      "ssim": 0.991364,
+      "runnerUp": "Breeze_animating_storybook_tree_\u2026_07406c0e.mp4",
+      "runnerUpSsim": 0.267836,
+      "status": "matched",
+      "integration": "static",
+      "reason": "The soft distant tree switches to sharply resolved individual needles between the opening and closing poses.",
+      "trialRegistration": {
+        "maxRegistrationXYStartPx": [
+          0.49,
+          0.31
+        ],
+        "maxAbsShiftBGR": [
+          0.0,
+          1.0,
+          3.0
+        ],
+        "rawWrapMae": 1.1,
+        "adjacentP95Mae": 3.39,
+        "endBlend": false
+      }
+    },
+    {
+      "id": "i22-mooring-rings",
+      "island": "i22",
+      "element": "mooring-rings",
+      "file": "Water_ripples_around_stone_post_882a77d5.mp4",
+      "ssim": 0.986901,
+      "runnerUp": "Animating_orange_heat_in_fissure_d27527d4.mp4",
+      "runnerUpSsim": 0.307246,
+      "status": "matched",
+      "integration": "included",
+      "packStyle": {
+        "scale": 2,
+        "opacity": 0.55,
+        "feather": 5
+      },
+      "packedMaskBBoxStartPxLTRB": [
+        198,
+        145,
+        1087,
+        576
+      ],
+      "trialRegistration": {
+        "maxRegistrationXYStartPx": [
+          0.32,
+          0.16
+        ],
+        "maxAbsShiftBGR": [
+          2.0,
+          0.0,
+          3.0
+        ],
+        "rawWrapMae": 1.71,
+        "adjacentP95Mae": 5.74,
+        "endBlend": false
+      }
+    },
+    {
+      "id": "i22-ferry-pool-undercurrent",
+      "island": "i22",
+      "element": "ferry-pool-undercurrent",
+      "file": "Current_moving_past_moored_ferry_96a82383.mp4",
+      "ssim": 0.987709,
+      "runnerUp": "Creating_water_ripple_loop_anima\u2026_9ff232bb.mp4",
+      "runnerUpSsim": 0.282874,
+      "status": "matched",
+      "integration": "static",
+      "reason": "A flat mint ribbon sweeps over the mineral bank and replaces the pool reflection."
+    },
+    {
+      "id": "i22-mineral-light-pool",
+      "island": "i22",
+      "element": "mineral-light-pool",
+      "file": "Create_seamless_loop_animation_0239b517.mp4",
+      "ssim": 0.987018,
+      "runnerUp": "Create_seamless_storm_mist_loop_45f28cc4.mp4",
+      "runnerUpSsim": 0.268693,
+      "status": "matched",
+      "integration": "static",
+      "reason": "A sharply bounded turquoise puddle expands across the salt floor and changes the painted light into water."
+    },
+    {
+      "id": "i22-salt-crystal-terrace",
+      "island": "i22",
+      "element": "salt-crystal-terrace",
+      "file": "Pearl_glint_travels_down_salt_90a166ca.mp4",
+      "ssim": 0.987873,
+      "runnerUp": "Clouds_drifting_under_projecting\u2026_7c5a4a9d.mp4",
+      "runnerUpSsim": 0.388393,
+      "status": "matched",
+      "integration": "static",
+      "reason": "A round pearl rolls down the ridge, adding a solid object in place of reflected light."
+    },
+    {
+      "id": "i23-upper-orchard-bough",
+      "island": "i23",
+      "element": "upper-orchard-bough",
+      "file": "Fruit_tree_breeze_animation_loop_12ced3b1.mp4",
+      "ssim": 0.984469,
+      "runnerUp": "Animating_orange_heat_in_fissure_d27527d4.mp4",
+      "runnerUpSsim": 0.258676,
+      "status": "matched",
+      "integration": "static",
+      "reason": "The upper pear lifts away and a second pair of smaller pears appears beneath the branch."
+    },
+    {
+      "id": "i23-eastern-fruit-spray",
+      "island": "i23",
+      "element": "eastern-fruit-spray",
+      "file": "Leaves_and_fruit_move_on_38fc67f0.mp4",
+      "ssim": 0.984688,
+      "runnerUp": "Smoke_rising_from_stone_chimney_ec15430e.mp4",
+      "runnerUpSsim": 0.279196,
+      "status": "matched",
+      "integration": "included",
+      "packStyle": {
+        "scale": 2,
+        "opacity": 1,
+        "feather": 2,
+        "depth": 1
+      },
+      "packedMaskBBoxStartPxLTRB": [
+        166,
+        0,
+        1126,
+        720
+      ],
+      "trialRegistration": {
+        "maxRegistrationXYStartPx": [
+          0.68,
+          3.69
+        ],
+        "maxAbsShiftBGR": [
+          4.0,
+          1.0,
+          2.0
+        ],
+        "rawWrapMae": 1.24,
+        "adjacentP95Mae": 8.33,
+        "endBlend": false
+      },
+      "expandedMask": {
+        "radiusStartPx": 105,
+        "outerFeatherStartPx": 22
+      }
+    },
+    {
+      "id": "i23-western-berry-bough",
+      "island": "i23",
+      "element": "western-berry-bough",
+      "file": "Breeze_moving_twig_and_leaves_7e9d6ddc.mp4",
+      "ssim": 0.986786,
+      "runnerUp": "Animate_orange_tree_seamless_loop_983aa67a.mp4",
+      "runnerUpSsim": 0.290961,
+      "status": "matched",
+      "integration": "included",
+      "packStyle": {
+        "scale": 2,
+        "opacity": 1,
+        "feather": 2,
+        "depth": 1
+      },
+      "packedMaskBBoxStartPxLTRB": [
+        19,
+        0,
+        1169,
+        720
+      ],
+      "trialRegistration": {
+        "maxRegistrationXYStartPx": [
+          0.1,
+          0.05
+        ],
+        "maxAbsShiftBGR": [
+          3.0,
+          1.0,
+          2.0
+        ],
+        "rawWrapMae": 1.14,
+        "adjacentP95Mae": 3.15,
+        "endBlend": false
+      },
+      "expandedMask": {
+        "radiusStartPx": 178,
+        "outerFeatherStartPx": 22
+      }
+    },
+    {
+      "id": "i23-southern-harvest-bough",
+      "island": "i23",
+      "element": "southern-harvest-bough",
+      "file": "Gold_leaf_tips_on_stem_f8318251.mp4",
+      "ssim": 0.986765,
+      "runnerUp": "Animating_orange_heat_in_fissure_d27527d4.mp4",
+      "runnerUpSsim": 0.255281,
+      "status": "matched",
+      "integration": "static",
+      "reason": "The green and red leaves peel away as newly outlined shapes with different brush detail."
+    },
+    {
+      "id": "i24-west-cleft-surge",
+      "island": "i24",
+      "element": "west-cleft-surge",
+      "file": "Water_swell_sliding_on_cliff_28e26bb2.mp4",
+      "ssim": 0.991046,
+      "runnerUp": "Animating_orange_heat_in_fissure_d27527d4.mp4",
+      "runnerUpSsim": 0.236793,
+      "status": "matched",
+      "integration": "included",
+      "packStyle": {
+        "scale": 1.8,
+        "opacity": 0.78,
+        "feather": 6
+      },
+      "packedMaskBBoxStartPxLTRB": [
+        17,
+        57,
+        687,
+        661
+      ],
+      "trialRegistration": {
+        "maxRegistrationXYStartPx": [
+          0.58,
+          1.3
+        ],
+        "maxAbsShiftBGR": [
+          1.0,
+          0.0,
+          3.0
+        ],
+        "rawWrapMae": 1.09,
+        "adjacentP95Mae": 11.01,
+        "endBlend": false
+      }
+    },
+    {
+      "id": "i24-east-cove-breaker",
+      "island": "i24",
+      "element": "east-cove-breaker",
+      "file": "Crest_drifting_across_teal_cove_eedaac3c.mp4",
+      "ssim": 0.984703,
+      "runnerUp": "Animating_orange_heat_in_fissure_d27527d4.mp4",
+      "runnerUpSsim": 0.367696,
+      "status": "matched",
+      "integration": "included",
+      "packStyle": {
+        "scale": 1.8,
+        "opacity": 0.78,
+        "feather": 6
+      },
+      "packedMaskBBoxStartPxLTRB": [
+        749,
+        56,
+        1263,
+        665
+      ],
+      "trialRegistration": {
+        "maxRegistrationXYStartPx": [
+          0.28,
+          0.41
+        ],
+        "maxAbsShiftBGR": [
+          2.0,
+          1.0,
+          3.0
+        ],
+        "rawWrapMae": 1.21,
+        "adjacentP95Mae": 9.53,
+        "endBlend": false
+      }
+    },
+    {
+      "id": "i24-lower-headland-swell",
+      "island": "i24",
+      "element": "lower-headland-swell",
+      "file": "Ocean_swell_rolling_past_rocks_e824e6bf.mp4",
+      "ssim": 0.984352,
+      "runnerUp": "Animating_orange_heat_in_fissure_d27527d4.mp4",
+      "runnerUpSsim": 0.371785,
+      "status": "matched",
+      "integration": "static",
+      "reason": "Thin parallel white arcs form a wire-like grid across the breaking wave.",
+      "trialRegistration": {
+        "maxRegistrationXYStartPx": [
+          0.25,
+          0.37
+        ],
+        "maxAbsShiftBGR": [
+          3.0,
+          1.0,
+          4.0
+        ],
+        "rawWrapMae": 1.17,
+        "adjacentP95Mae": 13.11,
+        "endBlend": false
+      }
+    },
+    {
+      "id": "i24-black-rock-backwash",
+      "island": "i24",
+      "element": "black-rock-backwash",
+      "file": "Foam_sliding_around_boulders_55c69ec1.mp4",
+      "ssim": 0.775535,
+      "runnerUp": "Animating_orange_heat_in_fissure_d27527d4.mp4",
+      "runnerUpSsim": 0.284393,
+      "status": "matched",
+      "fixedRegionSsim": 0.969505,
+      "fixedRegionRunnerUpSsim": 0.388384,
+      "integration": "static",
+      "reason": "The opening loses the painted foam between the boulders. After opening-frame correction, stationary pale streaks show through the moving foam and the crest washes out.",
+      "trialRegistration": {
+        "maxRegistrationXYStartPx": [
+          0.35,
+          0.3
+        ],
+        "maxAbsShiftBGR": [
+          3.0,
+          1.0,
+          3.0
+        ],
+        "rawWrapMae": 43.65,
+        "adjacentP95Mae": 7.19,
+        "endBlend": true
+      }
+    }
+  ],
+  "videoFormat": {
+    "width": 1280,
+    "height": 720,
+    "fps": 24,
+    "frames": 192,
+    "seconds": 8
+  },
+  "candidateDirectory": "anim-inbox"
+}

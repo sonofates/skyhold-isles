@@ -1,0 +1,5 @@
+Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork, palette and daylight unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.
+
+Under the projecting cliff, a low bank of peach and lilac cloud drifts diagonally up and right. Let its bright upper curls rise in succession and dissolve into the blue air below the small floating rocks. The rocks keep their exact silhouettes and the limestone rim stays steady.
+
+Match the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.

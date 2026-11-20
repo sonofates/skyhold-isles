@@ -1,0 +1,36 @@
+{
+  "id": "i24-black-rock-backwash",
+  "element": "black-rock-backwash",
+  "source": "public/art2d/map-i24-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 1654,
+    "y": 668,
+    "width": 192,
+    "height": 108
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    4962,
+    2004,
+    5538,
+    2328
+  ],
+  "startPxPerLayoutPx": 6.666666666666667,
+  "startPxPerSourcePx": 2.2222222222222223,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    498,
+    43,
+    1254,
+    679
+  ],
+  "featherInwardStartPx": 17
+}

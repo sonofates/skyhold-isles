@@ -1,0 +1,5 @@
+Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork, palette and daylight unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.
+
+A swell from the left enters the notch halfway up the sunlit cliff face. Its pale crest slides into the narrow pocket above the isolated rock, spreads along the dark stone foot and draws back in thin threads. Preserve the jutting rock, cliff silhouette and golden turf.
+
+Match the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.

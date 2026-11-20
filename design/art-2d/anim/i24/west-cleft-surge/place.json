@@ -1,0 +1,36 @@
+{
+  "id": "i24-west-cleft-surge",
+  "element": "west-cleft-surge",
+  "source": "public/art2d/map-i24-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 0,
+    "y": 102,
+    "width": 224,
+    "height": 126
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    0,
+    306,
+    672,
+    684
+  ],
+  "startPxPerLayoutPx": 5.714285714285714,
+  "startPxPerSourcePx": 1.9047619047619049,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    17,
+    57,
+    687,
+    661
+  ],
+  "featherInwardStartPx": 24
+}

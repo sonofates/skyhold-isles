@@ -1,0 +1,36 @@
+{
+  "id": "i20-western-reef-breaker",
+  "element": "western-reef-breaker",
+  "source": "public/art2d/map-i20-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 0,
+    "y": 52,
+    "width": 352,
+    "height": 198
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    0,
+    156,
+    1056,
+    750
+  ],
+  "startPxPerLayoutPx": 3.6363636363636362,
+  "startPxPerSourcePx": 1.2121212121212122,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    15,
+    145,
+    1104,
+    572
+  ],
+  "featherInwardStartPx": 23
+}

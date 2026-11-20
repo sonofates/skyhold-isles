@@ -1,0 +1,36 @@
+{
+  "id": "i19-western-fig-bough",
+  "element": "western-fig-bough",
+  "source": "public/art2d/map-i19-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 260,
+    "y": 0,
+    "width": 208,
+    "height": 117
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    780,
+    0,
+    1404,
+    351
+  ],
+  "startPxPerLayoutPx": 6.153846153846154,
+  "startPxPerSourcePx": 2.0512820512820515,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    112,
+    24,
+    1170,
+    591
+  ],
+  "featherInwardStartPx": 12
+}

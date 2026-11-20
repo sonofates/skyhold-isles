@@ -1,0 +1,36 @@
+{
+  "id": "i24-lower-headland-swell",
+  "element": "lower-headland-swell",
+  "source": "public/art2d/map-i24-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 1590,
+    "y": 539,
+    "width": 256,
+    "height": 144
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    4770,
+    1617,
+    5538,
+    2049
+  ],
+  "startPxPerLayoutPx": 5.0,
+  "startPxPerSourcePx": 1.6666666666666667,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    733,
+    61,
+    1262,
+    664
+  ],
+  "featherInwardStartPx": 22
+}

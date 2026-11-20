@@ -1,0 +1,36 @@
+{
+  "id": "i22-salt-crystal-terrace",
+  "element": "salt-crystal-terrace",
+  "source": "public/art2d/map-i22-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 1446,
+    "y": 592,
+    "width": 400,
+    "height": 225
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    4338,
+    1776,
+    5538,
+    2451
+  ],
+  "startPxPerLayoutPx": 3.2,
+  "startPxPerSourcePx": 1.0666666666666667,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    96,
+    44,
+    1223,
+    679
+  ],
+  "featherInwardStartPx": 16
+}

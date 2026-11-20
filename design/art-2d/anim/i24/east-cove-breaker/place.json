@@ -1,0 +1,36 @@
+{
+  "id": "i24-east-cove-breaker",
+  "element": "east-cove-breaker",
+  "source": "public/art2d/map-i24-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 1542,
+    "y": 207,
+    "width": 304,
+    "height": 171
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    4626,
+    621,
+    5538,
+    1134
+  ],
+  "startPxPerLayoutPx": 4.2105263157894735,
+  "startPxPerSourcePx": 1.4035087719298245,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    749,
+    56,
+    1263,
+    665
+  ],
+  "featherInwardStartPx": 25
+}

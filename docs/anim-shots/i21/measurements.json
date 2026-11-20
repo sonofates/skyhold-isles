@@ -1,0 +1,239 @@
+{
+  "island": "i21",
+  "browser": "153.0.8010.12",
+  "timing": "High idle battle, requestAnimationFrame intervals. Static with Reduced motion for 4 seconds, then normal playback for 8.3 seconds.",
+  "capture": "Unmodified battle HUD in six-frame sequences. For close-ups only, the same Pixi world was fitted fully into the viewport with only the painted map and live ambient mesh visible.",
+  "cases": [
+    {
+      "map": "map-i21-layered@1.5x",
+      "quality": "high",
+      "texelScale": 1.5,
+      "fit": {
+        "scale": 1.1631455399061033,
+        "offsetX": -74.16490610328628,
+        "offsetY": 0,
+        "bandLeft": 0,
+        "bandRight": 0,
+        "bandTop": 0,
+        "bandBottom": 0,
+        "shrink": 1,
+        "coverage": 1,
+        "clear": true
+      },
+      "renderer": {
+        "resolution": 1,
+        "canvasPx": [
+          2000,
+          991
+        ],
+        "resolutionScale": 1,
+        "desktop": true
+      },
+      "name": "desktop",
+      "width": 2000,
+      "height": 991,
+      "dpr": 1,
+      "browser": "153.0.8010.12",
+      "staticEntryAmbientRequests": 0,
+      "static": {
+        "frames": 65,
+        "elapsedMs": 4049.8,
+        "meanMs": 62.3,
+        "p50Ms": 66.6,
+        "p95Ms": 100
+      },
+      "animated": {
+        "frames": 106,
+        "elapsedMs": 8366.3,
+        "meanMs": 78.93,
+        "p50Ms": 66.7,
+        "p95Ms": 133.3,
+        "wraps": 1,
+        "decoderDroppedFrames": 0
+      },
+      "track": {
+        "file": "loops.mp4",
+        "width": 832,
+        "height": 160,
+        "duration": 8
+      },
+      "seconds": [
+        0,
+        1.5,
+        3,
+        4.5,
+        6,
+        7.958333333333333
+      ],
+      "inspectionFit": {
+        "scale": 1.0834236186348862,
+        "offsetX": 0,
+        "offsetY": 33.96153846153845
+      },
+      "files": [
+        "/art2d/ambient/i21/mask.webp",
+        "/art2d/ambient/i21/loops.mp4"
+      ],
+      "pixels": {
+        "wrapMax": 0,
+        "maxOutsideFeatherPlus2px": 0,
+        "elements": {
+          "north-rim-pines": {
+            "peakChannelChange": 108,
+            "pixelsChangedOver3": 2854
+          }
+        }
+      },
+      "battleViewChangedPixelsInsideMasks": {
+        "north-rim-pines": 498
+      }
+    },
+    {
+      "map": "map-i21-layered@1x",
+      "quality": "high",
+      "texelScale": 1,
+      "fit": {
+        "scale": 0.44000880281690136,
+        "offsetX": -93.43897997359149,
+        "offsetY": 13.556250000000034,
+        "bandLeft": 0,
+        "bandRight": 125.18272997359156,
+        "bandTop": 13.556250000000034,
+        "bandBottom": 1.556250000000034,
+        "shrink": 0.9612499999999999,
+        "coverage": 0.8186766597309064,
+        "clear": true
+      },
+      "renderer": {
+        "resolution": 2,
+        "canvasPx": [
+          1688,
+          780
+        ],
+        "resolutionScale": 1,
+        "desktop": false
+      },
+      "name": "phone",
+      "width": 844,
+      "height": 390,
+      "dpr": 2,
+      "browser": "153.0.8010.12",
+      "staticEntryAmbientRequests": 0,
+      "static": {
+        "frames": 23,
+        "elapsedMs": 4033.2,
+        "meanMs": 175.36,
+        "p50Ms": 166.7,
+        "p95Ms": 316.6
+      },
+      "animated": {
+        "frames": 62,
+        "elapsedMs": 8333,
+        "meanMs": 134.4,
+        "p50Ms": 133.3,
+        "p95Ms": 183.3,
+        "wraps": 1,
+        "decoderDroppedFrames": 0
+      },
+      "track": {
+        "file": "loops-1x.mp4",
+        "width": 416,
+        "height": 80,
+        "duration": 8
+      },
+      "seconds": [
+        0,
+        1.5,
+        3,
+        4.5,
+        6,
+        7.916666666666667
+      ],
+      "inspectionFit": {
+        "scale": 0.457204767063922,
+        "offsetX": 0,
+        "offsetY": 0.2307692307692264
+      },
+      "files": [
+        "/art2d/ambient/i21/mask-1x.webp",
+        "/art2d/ambient/i21/loops-1x.mp4"
+      ],
+      "pixels": {
+        "wrapMax": 0,
+        "maxOutsideFeatherPlus2px": 0,
+        "elements": {
+          "north-rim-pines": {
+            "peakChannelChange": 86,
+            "pixelsChangedOver3": 2127
+          }
+        }
+      },
+      "battleViewChangedPixelsInsideMasks": {
+        "north-rim-pines": 0
+      },
+      "sequenceScene": "Wave one, ticker frozen, HUD visible. Video seeks confirmed by requestVideoFrameCallback. Timing and full-map inspection use the idle battle.",
+      "prewaveChangedPixelsInsidePineMask": 0
+    },
+    {
+      "map": "map-i21-layered@1x",
+      "quality": "low",
+      "texelScale": 1,
+      "fit": {
+        "scale": 0.44000880281690136,
+        "offsetX": -93.47022997359151,
+        "offsetY": 13.556250000000034,
+        "bandLeft": 0,
+        "bandRight": 124.96397997359156,
+        "bandTop": 13.556250000000034,
+        "bandBottom": 1.556250000000034,
+        "shrink": 0.9612499999999999,
+        "coverage": 0.818883628741197,
+        "clear": true
+      },
+      "renderer": {
+        "resolution": 0.8,
+        "canvasPx": [
+          675,
+          312
+        ],
+        "resolutionScale": 1,
+        "desktop": false
+      },
+      "name": "low",
+      "width": 844,
+      "height": 390,
+      "dpr": 2,
+      "browser": "153.0.8010.12",
+      "staticEntryAmbientRequests": 0
+    }
+  ],
+  "mediumPhone": {
+    "quality": "med",
+    "map": "map-i21-layered@1x",
+    "track": "loops-1x.mp4",
+    "mediaTime": 0.305996,
+    "reducedMotionReleasedVideo": true,
+    "files": [
+      "/art2d/ambient/i21/mask-1x.webp",
+      "/art2d/ambient/i21/loops-1x.mp4"
+    ]
+  },
+  "additionalPhone": {
+    "width": 667,
+    "height": 375,
+    "fit": {
+      "scale": 0.38567341549295775,
+      "offsetX": -26.669399207746494,
+      "offsetY": 20.95049295774648,
+      "bandLeft": 0,
+      "bandRight": 0,
+      "bandTop": 20.95049295774648,
+      "bandBottom": 25.455757042253538,
+      "shrink": 0.87625,
+      "coverage": 0.87625,
+      "clear": true
+    },
+    "changedPixelsInsidePineMask": 178,
+    "scene": "Wave one at DPR 2, CSS-size capture."
+  }
+}

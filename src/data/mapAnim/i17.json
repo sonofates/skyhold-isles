@@ -1,0 +1,32 @@
+{
+  "file": "ambient/i17/loops.mp4",
+  "mask": "ambient/i17/mask.webp",
+  "compact": {
+    "file": "ambient/i17/loops-1x.mp4",
+    "mask": "ambient/i17/mask-1x.webp",
+    "width": 416,
+    "height": 80,
+    "fps": 12
+  },
+  "width": 832,
+  "height": 160,
+  "fps": 24,
+  "elements": [
+    {
+      "id": "east-cliff-vapour",
+      "rect": [
+        1726.2375,
+        313.975,
+        113.575,
+        83.875
+      ],
+      "depth": 0,
+      "cell": [
+        4,
+        4,
+        194,
+        143
+      ]
+    }
+  ]
+}
