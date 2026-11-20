@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { EventBus } from '../../src/core/eventBus.ts';
 import type { TowerType } from '../../src/core/types.ts';
 import { BALANCE } from '../../src/data/balance.ts';
-import { LEVELS } from '../../src/data/levels/index.ts';
+import { LEVELS, type LevelDef } from '../../src/data/levels/index.ts';
 import { LEVEL_L1C } from '../../src/data/levels2d/l1c.ts';
 import { ALL_TOWER_TYPES, specializationsFor, towerStats } from '../../src/data/towers.ts';
 import { computeSellRefund, parseSimReplay, serializeSimReplay, SimReplayPlayer, SimWorld } from '../../src/sim/world.ts';
@@ -114,6 +114,68 @@ describe('plot tower specializations', () => {
     fire();
     expect(missiles.items[missiles.getActiveIndex(1)]).toMatchObject({ damage: 75, pierceCount: 1 });
     expect(first.pierceCount).toBe(0);
+  });
+
+  it.each(['keep', 'sell and rebuild'] as const)('resolves and replays airborne Throughshot arrows when you %s', action => {
+    const entrance = { id: 'A', x: -13, z: 0 };
+    const goal = { x: 0, z: 0 };
+    const lane = [entrance, goal];
+    const encounter: LevelDef = {
+      ...level,
+      id: 'throughshot-impact',
+      enemyHpScale: 0.3, // Two 102-HP golems, each with 12 armor.
+      layout2d: {
+        ...level.layout2d!, entrances: [entrance], goal, paths: [lane], flightPath: lane,
+        plots: [{ x: 0, z: 1 }],
+      },
+      waves: [{ groups: [{ enemyType: 'golem', count: 2, spawnInterval: 1, startDelay: 0 }], clearBonus: 15 }],
+    };
+    const world = new SimWorld(encounter, new EventBus(), { recordCommands: true });
+    const hits: { enemyId: number; damage: number }[] = [];
+    world.events.on('enemyHit', ({ enemyId, damage }) => hits.push({ enemyId, damage }));
+    const lodge = world.placeTowerOnPlot(0, 'archer', 'closest')!;
+    expect(world.upgradeTower(lodge.id)).toBe(true);
+    expect(world.upgradeTower(lodge.id)).toBe(true);
+    expect(world.specializeTower(lodge.id, 'farwatch')).toBe(true);
+    expect(world.buyTowerAbility(lodge.id, 'throughshot')).toBe(true);
+    expect(world.startNextWave()).toBe(true);
+
+    while (lodge.shotCount < 2 && world.outcome === 'ongoing' && world.tick < 600) {
+      world.fixedTick(BALANCE.fixedDt);
+    }
+    expect(lodge.shotCount).toBe(2);
+    expect(world.projectilePool.getActiveCount()).toBe(1);
+    const arrow = world.projectilePool.items[world.projectilePool.getActiveIndex(0)];
+    const front = arrow.targetUid;
+    expect(hits).toHaveLength(2);
+    const rear = hits[1].enemyId;
+    expect(rear).not.toBe(front);
+    // Direct: 75 minus 4 remaining armor. Throughshot: round(75 × 0.75) minus 4.
+    expect(hits).toEqual([{ enemyId: front, damage: 71 }, { enemyId: rear, damage: 52 }]);
+    expect(lodge).toMatchObject({ totalDamageDealt: 123, kills: 0 });
+    if (action === 'sell and rebuild') {
+      expect(world.sellTower(lodge.id)).toBe(computeSellRefund(lodge.totalInvested));
+      expect(world.placeTowerOnPlot(0, 'archer')).toBeTruthy();
+    }
+    const goldBeforeImpact = world.gold;
+    while (world.outcome === 'ongoing' && world.tick < 900) world.fixedTick(BALANCE.fixedDt);
+    expect(hits.slice(2)).toEqual([{ enemyId: front, damage: 31 }, { enemyId: rear, damage: 50 }]);
+    expect(world).toMatchObject({ outcome: 'won', enemiesKilledTotal: 2, gold: goldBeforeImpact + 20 + 15 });
+    if (action === 'keep') {
+      expect(lodge).toMatchObject({ totalDamageDealt: 204, kills: 2 });
+    } else {
+      expect(lodge).toMatchObject({ totalDamageDealt: 123, kills: 0 });
+      expect(world.towers[0]).toMatchObject({ totalDamageDealt: 0, kills: 0, shotCount: 0 });
+    }
+
+    const log = parseSimReplay(serializeSimReplay(world.exportReplay()))!;
+    const playback = new SimReplayPlayer(encounter, log);
+    const replayHits: typeof hits = [];
+    playback.events.on('enemyHit', ({ enemyId, damage }) => replayHits.push({ enemyId, damage }));
+    expect(playback.runToEnd()).toMatchObject({ matchesHash: true, matchesOutcome: true });
+    expect(replayHits).toEqual(hits);
+    playback.dispose();
+    world.dispose();
   });
 
   it('chains through seven foes in Relay Grove and an eighth on the sixth discharge', () => {

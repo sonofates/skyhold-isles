@@ -316,3 +316,23 @@ TypeScript, lint and the production build passed. Vitest passed 1,380 tests with
 ### Next round
 
 The four original backlog items are complete. Continue the combat audit at projectile impact. The current Farwatch regression checks Throughshot’s stats at launch. Exercise the secondary hit on an armored foe, then repeat after selling the firing tower while the arrow is in flight. Compare damage, kill credit and replay outcomes.
+
+## Round 13 — Farwatch Throughshot at impact
+
+### Done
+
+- Added a two-golem encounter to the specialization tests. The player buys Farwatch Lodge and Throughshot, fires twice, and either keeps the lodge or sells it and builds a tier-I archer on the same plot while the second arrow is airborne. Both cases use ordinary wave spawns, tower acquisition and recorded player commands.
+- Each Basalt Golem starts with 102 HP and 12 armor. The first arrow deals 71 to the lead golem and 52 to the one behind it. Eight points of armor pierce apply separately to each hit. The second arrow removes the remaining 31 and 50 HP in both cases.
+- Both runs award two world kills, 20 gold in bounties and the 15-gold wave bonus. The standing lodge earns 204 damage and two kills. In the sale case, the lodge has 123 damage when sold and the replacement archer finishes with zero damage, shots or kills. Both serialized replays reproduce all four hits in order and match their respective win and final state hash.
+
+### Campaign check and decision
+
+On Normal Kitewright Down (i21), the realistic kit with level-20 Bran bought Throughshot on plot 18 in wave 12. Of 47 primary impacts that could pierce, 33 damaged a second foe, dealing 1,764 additional damage and earning two secondary kills. The island finished at 5/22 lives and one star. Kept the existing combat rules, price and scripted purchase timing.
+
+### Verification
+
+TypeScript, lint and the production build passed. Vite emitted its existing chunk-size and dynamic-import warnings. Vitest passed 1,382 tests with 11 skipped using one worker. Realistic-kit balance passed all 41 levels, including all 25 islands. All eight difficulty verdicts passed. Hard i09 finished at 12/22 with two stars and Hard i24 at 5/22 with one star. The standalone 24,217-byte L1–L16 report matched the round-one baseline byte for byte.
+
+### Next round
+
+Audit Cinder Kiln’s Banked Fire beside a tier-III mortar. The shared burn tick visits patches in pool-slot order and suppresses further hits on each enemy for that tick. Compare damage and tower credit when the stronger and weaker patches land in opposite orders. No new art, UI or localization requests this round.
