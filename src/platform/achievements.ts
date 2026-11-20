@@ -81,13 +81,51 @@ function isIslandClearedAt(progress: ProgressData, index: number): boolean {
 }
 
 function normalizeProgressForAchievements(progress: ProgressData, count: number): ProgressData {
+  const bsArr = Array.isArray(progress.bestStars) ? progress.bestStars : null;
+  const clArr = Array.isArray(progress.clears) ? progress.clears : null;
+  const ewArr = Array.isArray(progress.bestEndlessWaves) ? progress.bestEndlessWaves : null;
+  const ccArr = Array.isArray(progress.challengeClears) ? progress.challengeClears : null;
+  const rawDaily = progress.daily;
+  const dailyStreak = safeNonNegInt(rawDaily?.streak);
+  const dailyBestStreak = Math.max(safeNonNegInt(rawDaily?.bestStreak), dailyStreak);
+  const dailyTotal = safeNonNegInt(rawDaily?.total);
+  const dailyLastDay = safeNonNegInt(rawDaily?.lastDay);
+  const dailyClean =
+    Boolean(rawDaily) &&
+    rawDaily.streak === dailyStreak &&
+    rawDaily.bestStreak === dailyBestStreak &&
+    rawDaily.total === dailyTotal &&
+    rawDaily.lastDay === dailyLastDay;
+
   let needsPatch =
-    (progress.bestStars?.length ?? 0) > count || (progress.clears?.length ?? 0) > count;
+    !bsArr ||
+    !clArr ||
+    !ewArr ||
+    !ccArr ||
+    !dailyClean ||
+    bsArr.length !== count ||
+    clArr.length !== count ||
+    ewArr.length !== count ||
+    ccArr.length !== count;
+
   for (let i = 0; i < count && !needsPatch; i++) {
     const effStars = safeBestStarsAt(progress, i);
-    const curStars = safeNonNegInt(progress.bestStars?.[i]);
-    const curClears = safeNonNegInt(progress.clears?.[i]);
-    if (effStars > curStars || (effStars > 0 && curClears === 0)) {
+    const rawStar = bsArr![i];
+    const rawClear = clArr![i];
+    const rawEw = ewArr![i];
+    if (
+      rawStar !== effStars ||
+      typeof rawClear !== 'number' ||
+      !Number.isFinite(rawClear) ||
+      rawClear < 0 ||
+      rawClear !== Math.floor(rawClear) ||
+      (effStars > 0 && rawClear === 0) ||
+      typeof rawEw !== 'number' ||
+      !Number.isFinite(rawEw) ||
+      rawEw < 0 ||
+      rawEw !== Math.floor(rawEw) ||
+      !Array.isArray(ccArr![i])
+    ) {
       needsPatch = true;
       break;
     }
@@ -95,10 +133,27 @@ function normalizeProgressForAchievements(progress: ProgressData, count: number)
   if (!needsPatch) return progress;
   const bestStars = Array.from({ length: count }, (_, i) => safeBestStarsAt(progress, i));
   const clears = Array.from({ length: count }, (_, i) => {
-    const c = safeNonNegInt(progress.clears?.[i]);
+    const c = safeNonNegInt(clArr?.[i]);
     return c > 0 ? c : bestStars[i] > 0 ? 1 : 0;
   });
-  return { ...progress, bestStars, clears };
+  const bestEndlessWaves = Array.from({ length: count }, (_, i) => safeNonNegInt(ewArr?.[i]));
+  const challengeClears = Array.from({ length: count }, (_, i) => {
+    const list = ccArr?.[i];
+    return Array.isArray(list) ? list.filter((id): id is string => typeof id === 'string') : [];
+  });
+  return {
+    ...progress,
+    bestStars,
+    clears,
+    bestEndlessWaves,
+    challengeClears,
+    daily: {
+      lastDay: dailyLastDay,
+      streak: dailyStreak,
+      bestStreak: dailyBestStreak,
+      total: dailyTotal,
+    },
+  };
 }
 
 function countClearedIslands(progress: ProgressData, levels: readonly LevelDef[]): number {

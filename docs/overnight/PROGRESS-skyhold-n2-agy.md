@@ -95,7 +95,7 @@
     - Discovered `CHALLENGE_STATIC_FREE` (`desktop/achievements.json` #21) was unearnable in 2D Steam because `ISLAND_CHALLENGES` (`src/data/challenges.ts`) only maps 3D island IDs and `DEFAULT_BY_DIFFICULTY` omits `'staticFree'`, while `badgesForWin` dropped Daily Squall challenge wins.
     - Added optional `ProgressData.wonChallenges` (persisted across `migrateProgress`, `remapProgress`, `mergeProgress`, `SKY2-...` `wc` save codes, `applyRunResult2D`, `recordWin2D`, and `GameSession`), unlocking `CHALLENGE_*` achievements on Daily Squall / non-badge challenge wins without inflating `starWallet`; clamped oversized `bestStars` arrays in `normalizeProgressForAchievements`; and added a 58/58 pure-2D Steam achievement earnability invariant to `qa/bot/saveSweep.ts`.
 
-- [x] **11. Post-Backlog Deep Audit — Round 6 (`src/platform/{platform,storage,cloudSync,gameSession,sessionBridge}.ts`, `src/render2d/ui/progress2d.ts`, `src/sim/soldierSystem.ts`, `desktop/main.cjs`, `tests/**`)**
+- [x] **11. Post-Backlog Deep Audit — Round 6 (`src/platform/{platform,storage,cloudSync,gameSession,sessionBridge}.ts`, `src/render2d/ui/progress2d.ts`, `src/sim/soldierSystem.ts`, `desktop/main.cjs`, `tests/**`)** — commit `244750d`
   - **Steam Cloud Remote-Read Failure Protection & 3D Write-Before-Hydrate Parity (`platform.ts`, `storage.ts`, `cloudSync.ts`, `progress2d.ts`, `desktop/main.cjs`):**
     - Fixed a data-loss hazard where `createPlatformAdapter().cloudSave.read(slot)` and `desktop/main.cjs` (`steam:cloud-read`) caught remote Steamworks/IPC read errors and returned `null` (indistinguishable from an empty remote cloud slot on PCs without a local mirror), causing `hydrateProgress2DFromCloud()` and `hydrateProgressFromCloud()` to overwrite remote Steam Cloud saves with partial local saves: `cloudSave` now tracks `didLastReadFail(slot)` (while preserving non-throwing local-mirror fallback), `steam:cloud-read` propagates real Steamworks I/O errors, and both hydrators skip remote writes and re-arm auto-hydration when a remote read fails.
     - Extended 3D `saveProgress()` (`storage.ts` + `cloudSync.ts`) with `markCloudHydrated` / `registerCloudHydrator` write-before-hydrate protection matching 2D `saveProgress2D()`, preventing first local writes on a fresh Steam PC from clobbering un-fetched `progress` cloud saves, and tightened `isTrustedIpcSender(event)` in `desktop/main.cjs` so empty/missing sender URLs never bypass origin verification.
@@ -104,6 +104,17 @@
     - Updated `GameSession` (`gameSession.ts`) so 3D Steam Cloud hydration calls `content.onProgressImported(LEVELS, this.progress)` (preventing veterans on a new PC from re-entering the Island 1 tutorial or seeing duplicate "New foe!" popups), preserves mid-hydration `refundWorkshop()` actions, and honors `inspectSaveCodeHints` when importing 25-island `SKY2-...` save codes into 3D; scaled `earlyBonus` by `waveBonusMul` in `buildHudStateView()` (`sessionBridge.ts`).
   - **Elite Multi-Hold Claim & Peel-Off Accounting (`soldierSystem.ts`, `tests/sim/barracks.test.ts`):**
     - Counted active `extraHoldPoolIndices` in `SoldierSystem.updateStep` Step 2 (`this.claims`) and `inContact()` so spare soldiers peel off to newly arriving unheld foes when an enemy is already covered by an elite `soldierHoldCap > 1` squadmate (`0` diff on `holdCap === 1` tiers).
+
+- [x] **12. Post-Backlog Deep Audit — Round 7 (`src/sim/soldierSystem.ts`, `qa/bot/invariants.ts`, `src/platform/{storage,achievements}.ts`, `src/render2d/ui/progress2d.ts`, `desktop/main.cjs`, `tests/**`)**
+  - **Elite Multi-Hold (`soldierHoldCap > 1`) Queue Rank, Peel-Off Priority & Claim Hygiene (`soldierSystem.ts`, `qa/bot/invariants.ts`, `tests/sim/barracks.test.ts`):**
+    - Fixed `SoldierSystem.applyExtraHolds()` to offset `queueStopDist` by `alreadyHeldBehind` (the count of already-held foes queued in the same `BLOCK_CLUSTER_GAP` behind `primary`), so a second `holdCap > 1` squadmate fighting the same front enemy cleanly holds queue rank 2+ instead of rejecting it against rank 1's distance window.
+    - Added `canPeelOffExtraHolds()` and extra-hold claim cleanup in `claim()` / contact-slack disengage (`this.claims.fill(0)`) so full-capacity elite soldiers never abandon closer extra-held foes to chase trailing arrivals, while cleanly peeling off to closer threats with zero leaked extra-hold state (enforced per-tick in `InvariantMonitor`; `0` diff on `holdCap === 1` tiers).
+  - **Full-Domain Truncated-JSON + Cloud-Mirror Recovery & Import Backups (`storage.ts`, `progress2d.ts`, `tests/platform/saveRobustnessV2.test.ts`):**
+    - Upgraded 3D `loadProgress()` recovery (`combineRecoveredProgress`) so a primary JSON write truncated mid-object (`daily`, `challengeClears`, `workshop`, `difficultyWins`, `heroes`) merges monotonically field-by-field with `skyhold_isles_cloud_progress` (including greedy Workshop rank top-up) instead of shallow-overwriting intact mirror fields.
+    - Hardened `backupProgressBeforeImport()` to salvage truncated `PROGRESS_KEY` saves via `tryRepairTruncatedJson`, and hardened `importSaveCode2D()` to serialize clean `PROGRESS_2D_IMPORT_BACKUP_KEY` snapshots instead of copying corrupt primary strings when recovered from the cloud mirror.
+  - **Read-Safe `postHydrationStarsRefs` WeakSet, Achievement Normalization & `steam:get-status` IPC Guard (`progress2d.ts`, `achievements.ts`, `desktop/main.cjs`, `tests/platform/steamAdapter.test.ts`):**
+    - Replaced `loadProgress2D()`'s destructive `pendingAutoHydrated2DByAdapter.delete()` with `postHydrationStarsRefs` (`WeakSet<readonly number[]>`), keeping multiple shallow and deep pre-hydration clones protected even after read-only `exportSaveCode2D()` / `loadProgress2D()` calls while preserving authoritative post-hydration Workshop Refund / Hero Respec.
+    - Extended `normalizeProgressForAchievements()` (`achievements.ts`, zero-alloc fast-path on clean saves) to sanitize missing/non-finite arrays and `daily.streak > daily.bestStreak` (`FEAT_STEADY_WINDS` ↔ `DAILY_STREAK_*`, `FEAT_VETERAN`), guarded `steam:get-status` with `isTrustedIpcSender(event)` in `desktop/main.cjs`, rebuilt `release/Skyhold Isles-1.0.0.AppImage`, and re-verified Xvfb smoke.
 
 ---
 
@@ -130,7 +141,7 @@
 
 ## Problems / Known Issues
 
-- None blocking in owned area (`sim:balance` 41/41 byte-identical, `qa:bot` 656/656 + 58/58 2D achievement gate passing, 1,377 unit tests passing, all Hard Boss low-end benches `<= 66.8 ms`, Linux AppImage builds & passes Xvfb smoke with `secureContext: true`).
+- None blocking in owned area (`sim:balance` 41/41 byte-identical, `qa:bot` 656/656 + 58/58 2D achievement gate passing, 1,380 unit tests passing, all Hard Boss low-end benches `<= 66.8 ms`, Linux AppImage builds & passes Xvfb smoke with `secureContext: true`).
 
 ---
 

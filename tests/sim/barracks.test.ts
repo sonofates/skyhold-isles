@@ -820,4 +820,99 @@ describe('determinism and isolation', () => {
       (TOWER_DEFS.barracks.tiers as unknown as Record<number, unknown>)[2] = origT3;
     }
   });
+
+  it('elite multi-hold (soldierHoldCap: 2) never abandons closer extra-held foes for trailing arrivals, yet peels off cleanly to closer threats', () => {
+    const origT3 = TOWER_DEFS.barracks.tiers[2];
+    (TOWER_DEFS.barracks.tiers as unknown as Record<number, unknown>)[2] = {
+      ...origT3,
+      soldierCount: 2,
+      soldierHoldCap: 2,
+      soldierHp: 5000,
+      soldierDamage: 0,
+      soldierCleave: 0,
+    };
+    try {
+      const { world } = setup(50_000);
+      const monitor = new InvariantMonitor(world, world.events, 8);
+      const stepWorld = (n: number): void => {
+        for (let i = 0; i < n; i++) {
+          const nextTick = world.tick + 1;
+          monitor.beginTick(nextTick);
+          world.fixedTick(DT);
+          monitor.endTick(world.tick, DT);
+        }
+      };
+
+      const t = world.placeTowerOnPlot(0, 'barracks')!;
+      expect(world.upgradeTower(t.id)).toBe(true);
+      expect(world.upgradeTower(t.id)).toBe(true);
+      const b = world.soldierSystem.getBarracks(t.id)!;
+      stepWorld(60);
+
+      // Step 1: Spawn g1 + g2 so s0 fights g1 (primary) + extra-holds g2, and s1 gangs up on g1 (`claims[g1] = 2 > 1`)!
+      const g1 = spawnAt(world, 'grunt', 8 + b.rallyX - 0.10);
+      const g2 = spawnAt(world, 'grunt', g1.dist - 0.30);
+      g1.hp = g1.maxHp = 50_000;
+      g2.hp = g2.maxHp = 50_000;
+      for (
+        let guard = 0;
+        guard < 180 &&
+        !(b.squad[0].state === 'fighting' && b.squad[1].state === 'fighting' && g2.blockers >= 1);
+        guard++
+      ) {
+        stepWorld(1);
+      }
+
+      // Put BOTH s0 and s1 in contact with g1, and spawn g3 at g1.dist - 0.60 right as Step 6 runs:
+      // To get both s0 and s1 fighting g1 with g2 & g3 extra-held without an extra peel tick:
+      // First let only g1 exist so both s0 & s1 fight g1, let s0 extra-hold g2 (s1 has no needy foe because g2 is already held by s0!),
+      // then let g3 arrive at queue slot 2 so s1 extra-holds g3 while BOTH s0 & s1 remain targeting g1!
+      if (b.squad[1].targetUid !== g1.uid) {
+        b.squad[1].targetPoolIndex = g1.poolIndex;
+        b.squad[1].targetUid = g1.uid;
+        b.squad[1].x = b.squad[0].x;
+        b.squad[1].z = b.squad[0].z;
+        b.squad[1].state = 'fighting';
+      }
+      stepWorld(1);
+      expect(b.squad[0].targetUid).toBe(g1.uid);
+      expect(b.squad[1].targetUid).toBe(g1.uid);
+      expect(b.squad[0].extraHoldUids).toEqual([g2.uid]);
+
+      // Now g3 is already covered on the next Step 6 if s1 stays on g1 — place g3 into s1's extra-hold slot by spawning g3
+      // while g3 is temporarily stunned? No: on tick 1 after g3 spawns, s1 would peel off to g3 as primary UNLESS s1 already holds g3!
+      // If s1 peels off to g3 as primary, s1 STILL holds g3 AND gains another extra-hold slot (total capacity 4!).
+      // Instead, test the exact 4-enemy full-capacity state where s0 holds g1+g2 and s1 ALSO targets g1+extra-holds g3:
+      const g3 = spawnAt(world, 'grunt', g1.dist - 0.58);
+      g3.hp = g3.maxHp = 50_000;
+      b.squad[1].extraHoldPoolIndices.push(g3.poolIndex);
+      b.squad[1].extraHoldUids.push(g3.uid);
+
+      // Trailing arrival g4 further back than g3 must NOT cause s1 to abandon closer g3:
+      const g4 = spawnAt(world, 'grunt', g1.dist - 1.35);
+      g4.hp = g4.maxHp = 50_000;
+      stepWorld(1);
+      const g3HeldDist = g3.dist;
+      stepWorld(2);
+      expect(b.squad[1].targetUid).toBe(g1.uid);
+      expect(g3.blockers).toBe(1);
+      expect(g3.dist).toBe(g3HeldDist);
+      expect(monitor.violations).toEqual([]);
+
+      // Closer threat gAhead ahead of g1 (closer to goal than g3) DOES trigger peel-off and clears extraHold arrays cleanly:
+      const gAhead = spawnAt(world, 'grunt', g1.dist + 0.9);
+      gAhead.hp = gAhead.maxHp = 50_000;
+      stepWorld(1);
+      const peeling = b.squad.find((s) => s.targetUid === gAhead.uid);
+      expect(peeling).toBeDefined();
+      expect(peeling!.state).toBe('engaging');
+      expect(peeling!.extraHoldPoolIndices).toEqual([]);
+      expect(peeling!.extraHoldUids).toEqual([]);
+      stepWorld(45);
+      expect(gAhead.blockers).toBeGreaterThanOrEqual(1);
+      expect(monitor.violations).toEqual([]);
+    } finally {
+      (TOWER_DEFS.barracks.tiers as unknown as Record<number, unknown>)[2] = origT3;
+    }
+  });
 });

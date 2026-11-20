@@ -1,9 +1,9 @@
 import type { GameSettings, ProgressData, QualityLevel } from '../core/types.ts';
 import { isChallengeId } from '../data/challenges.ts';
-import { createDailyRecord, sanitizeDailyRecord } from '../data/daily.ts';
-import { sanitizeDifficultyWins } from '../data/difficulty.ts';
-import { HERO_IDS, hasHeroSaveProgress, sanitizeHeroSaveData } from '../data/heroes.ts';
-import { sanitizeRanks } from '../data/workshop.ts';
+import { createDailyRecord, sanitizeDailyRecord, type DailyRecord } from '../data/daily.ts';
+import { mergeDifficultyWins, sanitizeDifficultyWins } from '../data/difficulty.ts';
+import { HERO_IDS, hasHeroSaveProgress, mergeHeroSaveData, sanitizeHeroSaveData } from '../data/heroes.ts';
+import { rankOf, sanitizeRanks, WORKSHOP_UPGRADES, workshopStarsSpent } from '../data/workshop.ts';
 import { starWallet } from '../game/progression.ts';
 import { syncAchievementsFromProgress } from './achievements.ts';
 import { getPlatform, type PlatformAdapter } from './platform.ts';
@@ -479,13 +479,33 @@ function parseLooseJsonObject(raw: string | null): Record<string, unknown> | nul
   }
 }
 
-function combineRecoveredRawObjects(
+function mergeRecoveredDaily(a: DailyRecord, b: DailyRecord): DailyRecord {
+  const [early, late] =
+    a.lastDay < b.lastDay || (a.lastDay === b.lastDay && a.streak <= b.streak) ? [a, b] : [b, a];
+  const lateStart = late.lastDay - Math.max(0, late.streak) + 1;
+  const earlyStart = early.lastDay - Math.max(0, early.streak) + 1;
+  const chains = early.streak > 0 && late.streak > 0 && lateStart <= early.lastDay + 1;
+  const streak = chains ? late.lastDay - Math.min(lateStart, earlyStart) + 1 : late.streak;
+  return {
+    lastDay: late.lastDay,
+    streak,
+    bestStreak: Math.max(a.bestStreak, b.bestStreak, streak),
+    total: Math.max(a.total, b.total),
+  };
+}
+
+function combineRecoveredProgress(
   primary: Record<string, unknown> | null,
   mirror: Record<string, unknown> | null,
-): Record<string, unknown> | null {
-  if (!primary) return mirror;
-  if (!mirror) return primary;
+  levelCount: number,
+): ProgressData | null {
+  if (!primary && !mirror) return null;
+  if (!primary) return migrateProgress(mirror, levelCount);
+  if (!mirror) return migrateProgress(primary, levelCount);
+
+  const count = Number.isFinite(levelCount) ? Math.max(0, Math.floor(levelCount)) : 0;
   const combined: Record<string, unknown> = { ...mirror, ...primary };
+
   for (const key of ['bestStars', 'bestEndlessWaves', 'bestLives', 'clears']) {
     const pa = primary[key];
     const ma = mirror[key];
@@ -496,13 +516,82 @@ function combineRecoveredRawObjects(
         const mv = typeof ma[i] === 'number' && Number.isFinite(ma[i]) ? (ma[i] as number) : 0;
         return Math.max(pv, mv);
       });
+    } else if (Array.isArray(pa)) {
+      combined[key] = pa;
+    } else if (Array.isArray(ma)) {
+      combined[key] = ma;
     }
   }
+
+  const pcc = primary.challengeClears;
+  const mcc = mirror.challengeClears;
+  if (Array.isArray(pcc) || Array.isArray(mcc)) {
+    const len = Math.max(Array.isArray(pcc) ? pcc.length : 0, Array.isArray(mcc) ? mcc.length : 0);
+    combined.challengeClears = Array.from({ length: len }, (_, i) => {
+      const la = Array.isArray(mcc) && Array.isArray(mcc[i]) ? (mcc[i] as unknown[]) : [];
+      const lb = Array.isArray(pcc) && Array.isArray(pcc[i]) ? (pcc[i] as unknown[]) : [];
+      const out: string[] = [];
+      for (const id of [...la, ...lb]) {
+        if (typeof id === 'string' && id.length > 0 && id.length <= 40 && !out.includes(id)) {
+          out.push(id);
+        }
+      }
+      return out;
+    });
+  }
+
   const pu = primary.unlockedLevelIndex;
   const mu = mirror.unlockedLevelIndex;
-  if (typeof pu === 'number' && Number.isFinite(pu) && typeof mu === 'number' && Number.isFinite(mu)) {
-    combined.unlockedLevelIndex = Math.max(pu, mu);
+  const pFin = typeof pu === 'number' && Number.isFinite(pu);
+  const mFin = typeof mu === 'number' && Number.isFinite(mu);
+  if (pFin && mFin) combined.unlockedLevelIndex = Math.max(pu, mu);
+  else if (pFin) combined.unlockedLevelIndex = pu;
+  else if (mFin) combined.unlockedLevelIndex = mu;
+  else delete combined.unlockedLevelIndex;
+
+  if (primary.daily !== undefined || mirror.daily !== undefined) {
+    combined.daily = mergeRecoveredDaily(
+      sanitizeDailyRecord(mirror.daily),
+      sanitizeDailyRecord(primary.daily),
+    );
   }
+
+  const pdw = sanitizeDifficultyWins(
+    normalizeRawDifficultyWins(primary.difficultyWins ?? primary.dw),
+    count,
+  );
+  const mdw = sanitizeDifficultyWins(
+    normalizeRawDifficultyWins(mirror.difficultyWins ?? mirror.dw),
+    count,
+  );
+  if (pdw && mdw) combined.difficultyWins = mergeDifficultyWins(mdw, pdw, count);
+  else if (pdw || mdw) combined.difficultyWins = pdw ?? mdw;
+  delete combined.dw;
+
+  const rawPh = normalizeRawHeroSave(primary.heroes ?? primary.h);
+  const rawMh = normalizeRawHeroSave(mirror.heroes ?? mirror.h);
+  const ph =
+    rawPh && typeof rawPh === 'object' && !Array.isArray(rawPh)
+      ? sanitizeHeroSaveData(rawPh, count, count)
+      : undefined;
+  const mh =
+    rawMh && typeof rawMh === 'object' && !Array.isArray(rawMh)
+      ? sanitizeHeroSaveData(rawMh, count, count)
+      : undefined;
+  const mergedHeroes = mergeHeroSaveData(mh, ph, count, count);
+  if (mergedHeroes) combined.heroes = mergedHeroes;
+  else delete combined.heroes;
+  delete combined.h;
+
+  const workshopP = sanitizeRanks(primary.workshop);
+  const workshopM = sanitizeRanks(mirror.workshop);
+  const unionWorkshop: Record<string, number> = {};
+  for (const def of WORKSHOP_UPGRADES) {
+    const r = Math.max(rankOf(workshopP, def.id), rankOf(workshopM, def.id));
+    if (r > 0) unionWorkshop[def.id] = r;
+  }
+  combined.workshop = unionWorkshop;
+
   const pwc = primary.wonChallenges ?? primary.wc;
   const mwc = mirror.wonChallenges ?? mirror.wc;
   if (Array.isArray(pwc) || Array.isArray(mwc)) {
@@ -511,7 +600,37 @@ function combineRecoveredRawObjects(
       ...(Array.isArray(pwc) ? pwc : []),
     ];
   }
-  return combined;
+  delete combined.wc;
+
+  const recovered = migrateProgress(combined, count);
+  const unionSpent = workshopStarsSpent(unionWorkshop);
+  if (unionSpent > 0 && Object.keys(recovered.workshop).length === 0) {
+    // Union overspent the recovered wallet: greedily keep the higher-spent affordable side + top-ups.
+    const spentP = workshopStarsSpent(workshopP);
+    const spentM = workshopStarsSpent(workshopM);
+    const [firstW, secondW] =
+      spentM > spentP || (spentM === spentP && JSON.stringify(workshopM) > JSON.stringify(workshopP))
+        ? [workshopM, workshopP]
+        : [workshopP, workshopM];
+    const earned = starWallet(recovered).earned;
+    const base = workshopStarsSpent(firstW) <= earned ? firstW : workshopStarsSpent(secondW) <= earned ? secondW : {};
+    const topped: Record<string, number> = { ...base };
+    let remaining = earned - workshopStarsSpent(topped);
+    const other = base === firstW ? secondW : firstW;
+    for (const def of WORKSHOP_UPGRADES) {
+      let cur = rankOf(topped, def.id);
+      const want = rankOf(other, def.id);
+      while (cur < want) {
+        const stepCost = def.costs[cur];
+        if (stepCost === undefined || stepCost > remaining) break;
+        cur++;
+        topped[def.id] = cur;
+        remaining -= stepCost;
+      }
+    }
+    recovered.workshop = sanitizeRanks(topped);
+  }
+  return recovered;
 }
 
 export function loadProgress(levelCount: number): ProgressData {
@@ -549,11 +668,8 @@ export function loadProgress(levelCount: number): ProgressData {
       } catch {
         mirrorObj = null;
       }
-      const candidate = combineRecoveredRawObjects(repaired, mirrorObj);
-      if (candidate) {
-        const recovered = migrateProgress(candidate, levelCount);
-        if (hasAnyProgress(recovered)) return recovered;
-      }
+      const recovered = combineRecoveredProgress(repaired, mirrorObj, levelCount);
+      if (recovered && hasAnyProgress(recovered)) return recovered;
     }
     return createDefaultProgress(levelCount);
   }
@@ -647,16 +763,20 @@ export function backupProgressBeforeImport(): void {
   try {
     const raw = localStorage.getItem(PROGRESS_KEY);
     if (!raw) return;
+    let parsed: unknown = null;
+    let validJson = false;
+    try {
+      parsed = JSON.parse(raw);
+      validJson = true;
+    } catch {
+      parsed = tryRepairTruncatedJson(raw);
+    }
     if (localStorage.getItem(PROGRESS_IMPORT_BACKUP_KEY) !== null) {
-      let parsed: unknown = null;
-      try {
-        parsed = JSON.parse(raw);
-      } catch {
-        parsed = null;
-      }
       if (!hasAnyProgress(migrateProgress(parsed, 64))) return;
     }
-    localStorage.setItem(PROGRESS_IMPORT_BACKUP_KEY, raw);
+    const toStore =
+      !validJson && parsed && typeof parsed === 'object' ? JSON.stringify(parsed) : raw;
+    localStorage.setItem(PROGRESS_IMPORT_BACKUP_KEY, toStore);
   } catch {
     // ignore storage errors
   }

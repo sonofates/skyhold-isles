@@ -167,6 +167,14 @@ const knownAchievementIds = (() => {
 })();
 
 ipcMain.on('steam:get-status', (event) => {
+  if (!isTrustedIpcSender(event)) {
+    event.returnValue = {
+      isSteam: false,
+      appId: DEFAULT_STEAM_APP_ID,
+      overlayActive: false,
+    };
+    return;
+  }
   event.returnValue = {
     isSteam,
     appId,

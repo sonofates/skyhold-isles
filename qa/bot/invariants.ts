@@ -556,6 +556,20 @@ export class InvariantMonitor {
       this.assertFinite(s.attackTimer, 'soldier.attackTimer');
       this.assertFinite(s.bonusArmor, 'soldier.bonusArmor');
       this.assertFinite(s.damageMul, 'soldier.damageMul');
+      if (s.extraHoldPoolIndices.length !== s.extraHoldUids.length) {
+        this.record(
+          'entity_leak',
+          tick,
+          `soldier id=${s.id} has mismatched extraHold arrays (${s.extraHoldPoolIndices.length} !== ${s.extraHoldUids.length})`,
+        );
+      }
+      if (s.state !== 'fighting' && s.extraHoldPoolIndices.length > 0) {
+        this.record(
+          'entity_leak',
+          tick,
+          `non-fighting soldier id=${s.id} (state=${s.state}) leaked ${s.extraHoldPoolIndices.length} extraHold entries`,
+        );
+      }
       if (s.state === 'fighting') fightingSoldiers++;
     }
 

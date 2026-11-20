@@ -724,4 +724,74 @@ describe('Save Robustness v2 — Version Migration & Algebraic Merge Fuzz', () =
     expect(settings.muted).toBe(true);
     expect(settings.cameraShake).toBe(false);
   });
+
+  it('preserves mirror daily, challengeClears, workshop, difficultyWins, and heroes when primary JSON truncates mid-object, and backs up truncated saves before import', async () => {
+    const store = installMemoryStorage();
+    const { backupProgressBeforeImport, PROGRESS_IMPORT_BACKUP_KEY } = await import(
+      '../../src/platform/storage.ts'
+    );
+    const { PROGRESS_2D_IMPORT_BACKUP_KEY } = await import('../../src/render2d/ui/progress2d.ts');
+
+    // Mirror has full 12★ progress, challenge badges, 7-day Daily streak, Workshop upgrades, Hard ribbon, and L10 Mira:
+    const mirror = createDefaultProgress(LEVELS.length);
+    for (let i = 0; i < 4; i++) {
+      mirror.bestStars[i] = 3;
+      mirror.clears[i] = 2;
+    }
+    mirror.unlockedLevelIndex = 4;
+    mirror.challengeClears[0] = ['bowless'];
+    mirror.daily = { lastDay: 20500, streak: 7, bestStreak: 7, total: 11 };
+    mirror.workshop = { treasury: 2, bastion: 1 };
+    mirror.difficultyWins = {
+      easy: new Array<number>(LEVELS.length).fill(0),
+      normal: new Array<number>(LEVELS.length).fill(0),
+      hard: new Array<number>(LEVELS.length).fill(0),
+    };
+    mirror.difficultyWins.hard[0] = 3;
+    mirror.heroes = {
+      selectedHero: 'mira',
+      roster: { mira: { xp: xpForHeroLevel(10), skills: ['mira_emb_1'] } },
+    };
+    store.set('skyhold_isles_cloud_progress', JSON.stringify(mirror));
+
+    // Primary save gained island 4 (3★) and Day 20501, but truncated mid-`daily` so streak/total/workshop/heroes were cut off!
+    const truncatedPrimary =
+      '{"version":2,"unlockedLevelIndex":5,"bestStars":[3,3,3,3,3],"clears":[2,2,2,2,1],"workshop":{},"challengeClears":[[]],"daily":{"lastDay":20501,"str';
+    store.set('skyhold_isles_progress_v1', truncatedPrimary);
+
+    const recovered = loadProgress(LEVELS.length);
+    expect(recovered.bestStars.slice(0, 5)).toEqual([3, 3, 3, 3, 3]);
+    expect(recovered.unlockedLevelIndex).toBe(5);
+    expect(recovered.challengeClears[0]).toEqual(['bowless']);
+    expect(recovered.daily.bestStreak).toBeGreaterThanOrEqual(7);
+    expect(recovered.daily.total).toBe(11);
+    expect(recovered.workshop).toEqual({ treasury: 2, bastion: 1 });
+    expect(recovered.difficultyWins?.hard[0]).toBe(3);
+    expect(recovered.heroes?.selectedHero).toBe('mira');
+    expect(recovered.heroes?.roster.mira?.xp).toBe(xpForHeroLevel(10));
+
+    // backupProgressBeforeImport refreshes an older import backup when PROGRESS_KEY holds a truncated save with real progress:
+    store.set(PROGRESS_IMPORT_BACKUP_KEY, '{"version":2,"unlockedLevelIndex":0,"bestStars":[1]}');
+    backupProgressBeforeImport();
+    const savedImportBackup = JSON.parse(store.get(PROGRESS_IMPORT_BACKUP_KEY)!);
+    expect(savedImportBackup.bestStars.slice(0, 5)).toEqual([3, 3, 3, 3, 3]);
+
+    // importSaveCode2D writes a valid serialized backup of current 2D progress (not raw garbage) when primary was corrupted & recovered from cloud mirror:
+    store.set('skyhold_isles_progress2d_v1', '{corrupt-unterminated-garbage');
+    const mirror2D = createDefaultProgress(LEVELS_2D.length);
+    mirror2D.bestStars[0] = 3;
+    mirror2D.clears[0] = 1;
+    store.set(
+      'skyhold_isles_cloud_progress2d',
+      JSON.stringify({ ids: LEVELS_2D.map((l) => l.id), progress: mirror2D }),
+    );
+    const incoming2D = createDefaultProgress(LEVELS_2D.length);
+    incoming2D.bestStars[1] = 2;
+    incoming2D.clears[1] = 1;
+    const imp = importSaveCode2D(encodeSaveCode2D(incoming2D, LEVELS_2D), LEVELS_2D);
+    expect(imp.ok).toBe(true);
+    expect(store.get(PROGRESS_2D_IMPORT_BACKUP_KEY)).toBeTruthy();
+    const parsedBackup2D = JSON.parse(store.get(PROGRESS_2D_IMPORT_BACKUP_KEY)!);
+    expect(parsedBackup2D.progress.bestStars[0]).toBe(3);
+  });
 });

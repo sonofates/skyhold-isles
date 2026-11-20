@@ -76,6 +76,7 @@ const autoHydrated2DAdapters = new WeakSet<PlatformAdapter>();
 const readingCloud2DAdapters = new WeakSet<PlatformAdapter>();
 const completedHydrated2DAdapters = new WeakSet<PlatformAdapter>();
 const pendingAutoHydrated2DByAdapter = new WeakMap<PlatformAdapter, PendingCloudHydration2D>();
+const postHydrationStarsRefs = new WeakSet<readonly number[]>();
 const cloudHydrate2DListeners = new Set<(progress: ProgressData) => void>();
 let resetGen2D = 0;
 
@@ -369,8 +370,8 @@ function foldPendingCloudThreeWay2D(
 export function loadProgress2D(levels: readonly LevelDef[] = LEVELS_2D): ProgressData {
   const result = loadLocalProgress2DInternal(levels);
   const platform = getPlatform();
-  if (!isMockLevelRoster(levels)) {
-    pendingAutoHydrated2DByAdapter.delete(platform);
+  if (platform.isSteam && !isMockLevelRoster(levels) && completedHydrated2DAdapters.has(platform)) {
+    postHydrationStarsRefs.add(result.bestStars);
   }
   if (platform.isSteam && !isMockLevelRoster(levels) && !autoHydrated2DAdapters.has(platform)) {
     autoHydrated2DAdapters.add(platform);
@@ -392,6 +393,7 @@ export function loadProgress2D(levels: readonly LevelDef[] = LEVELS_2D): Progres
         if (freshMerged.difficultyWins === undefined) delete result.difficultyWins;
         if (freshMerged.wonChallenges === undefined) delete result.wonChallenges;
         Object.assign(result, freshMerged);
+        postHydrationStarsRefs.add(freshMerged.bestStars);
         pendingAutoHydrated2DByAdapter.set(platform, { base: baseSnapshot, hydrated: freshMerged });
         for (const fn of [...cloudHydrate2DListeners]) {
           try {
@@ -451,6 +453,7 @@ export function recoverProgress2D(
 
   const recovered = sources.length > 0 && hasAnyProgress(merged);
   if (recovered && options?.persist !== false) {
+    postHydrationStarsRefs.add(merged.bestStars);
     saveProgress2D(merged, levels);
   }
   return { progress: merged, recovered, sources };
@@ -476,9 +479,18 @@ export function saveProgress2D(progress: ProgressData, levels: readonly LevelDef
   if (platform.isSteam && !isMockLevelRoster(levels)) {
     const pending = pendingAutoHydrated2DByAdapter.get(platform);
     if (pending) {
-      pendingAutoHydrated2DByAdapter.delete(platform);
-      if (progress.bestStars !== pending.hydrated.bestStars) {
+      if (postHydrationStarsRefs.has(progress.bestStars)) {
+        pendingAutoHydrated2DByAdapter.delete(platform);
+      } else {
         foldPendingCloudThreeWay2D(progress, pending.base, pending.hydrated, levels);
+        postHydrationStarsRefs.add(progress.bestStars);
+        const nextHydrated = remapProgress(
+          progress,
+          levels.map((l) => l.id),
+          levels,
+        );
+        postHydrationStarsRefs.add(nextHydrated.bestStars);
+        pendingAutoHydrated2DByAdapter.set(platform, { base: pending.base, hydrated: nextHydrated });
       }
     }
   }
@@ -1078,13 +1090,23 @@ export function importSaveCode2D(
   merged.heroes = migrateHeroSave(merged.heroes, merged, levels);
   const summary = describeMergeGain(current, merged);
   try {
-    const raw = ls?.getItem(PROGRESS_2D_KEY);
-    if (raw && (hasAnyProgress(current) || ls?.getItem(PROGRESS_2D_IMPORT_BACKUP_KEY) === null)) {
-      ls?.setItem(PROGRESS_2D_IMPORT_BACKUP_KEY, raw);
+    if (ls && (hasAnyProgress(current) || ls.getItem(PROGRESS_2D_IMPORT_BACKUP_KEY) === null)) {
+      const raw = ls.getItem(PROGRESS_2D_KEY);
+      const validPrimary = raw ? parseStored2DRaw(raw, levels) : null;
+      const backupJson =
+        raw && validPrimary && !validPrimary.repairedFromTruncated
+          ? raw
+          : hasAnyProgress(current)
+            ? serializeStored2D(current, levels)
+            : raw;
+      if (backupJson) {
+        ls.setItem(PROGRESS_2D_IMPORT_BACKUP_KEY, backupJson);
+      }
     }
   } catch {
     // ignore storage errors
   }
+  postHydrationStarsRefs.add(merged.bestStars);
   saveProgress2D(merged, levels);
   return { ok: true, progress: merged, previous: current, summary };
 }

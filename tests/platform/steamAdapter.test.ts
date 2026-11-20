@@ -1388,4 +1388,93 @@ describe('Steam achievements map, cloud hydration, and desktop config invariants
     gs.dispose();
     setPlatformAdapter(null);
   });
+
+  it('keeps pre-hydration 2D clones protected across read-only exportSaveCode2D / loadProgress2D calls and normalizes raw ProgressData for achievements', async () => {
+    const cloudMap = new Map<string, string>();
+    const cloudProgress = createDefaultProgress(LEVELS_2D.length);
+    for (let i = 0; i < 10; i++) {
+      cloudProgress.bestStars[i] = 3;
+      cloudProgress.clears[i] = 1;
+    }
+    cloudProgress.unlockedLevelIndex = 10;
+    cloudProgress.workshop = { treasury: 2 };
+    cloudProgress.heroes = {
+      selectedHero: 'mira',
+      roster: {
+        bran: { xp: 100, skills: [] },
+        wren: { xp: 0, skills: [] },
+        mira: { xp: HERO_LEVEL_XP[11], skills: ['mira_emb_1'] },
+        tobb: { xp: 0, skills: [] },
+        sela: { xp: 0, skills: [] },
+      },
+    };
+    cloudMap.set(
+      'progress2d',
+      JSON.stringify({ ids: LEVELS_2D.map((l) => l.id), progress: cloudProgress }),
+    );
+
+    const adapter = createPlatformAdapter({
+      bridge: {
+        isSteam: true,
+        appId: 480,
+        unlockAchievement: async () => true,
+        cloudRead: async (slot) => {
+          await new Promise((r) => setTimeout(r, 8));
+          return cloudMap.get(slot) ?? null;
+        },
+        cloudWrite: async (slot, json) => {
+          cloudMap.set(slot, json);
+          return true;
+        },
+      },
+    });
+    setPlatformAdapter(adapter);
+
+    try {
+      const boot = loadProgress2D(LEVELS_2D);
+      const shallowStale = selectHero(boot, 'bran', LEVELS_2D)!;
+      const deepStale: ProgressData = JSON.parse(JSON.stringify(boot));
+      deepStale.heroes!.roster.bran = { xp: 600, skills: [] };
+
+      await new Promise((r) => setTimeout(r, 20));
+      expect(boot.bestStars[9]).toBe(3);
+
+      // Read-only calls after hydration must NOT clear pre-hydration clone protection!
+      const exported = encodeSaveCode2D(loadProgress2D(LEVELS_2D), LEVELS_2D);
+      expect(exported.startsWith('SKY2-')).toBe(true);
+
+      saveProgress2D(shallowStale, LEVELS_2D);
+      saveProgress2D(deepStale, LEVELS_2D);
+
+      const afterBoth = loadProgress2D(LEVELS_2D);
+      expect(afterBoth.bestStars.slice(0, 10)).toEqual([3, 3, 3, 3, 3, 3, 3, 3, 3, 3]);
+      expect(afterBoth.workshop).toEqual({ treasury: 2 });
+      expect(afterBoth.heroes?.roster.mira?.xp).toBe(HERO_LEVEL_XP[11]);
+      expect(afterBoth.heroes?.roster.bran?.xp).toBe(600);
+
+      // Authoritative post-hydration refund still clears workshop cleanly:
+      afterBoth.workshop = {};
+      saveProgress2D(afterBoth, LEVELS_2D);
+      expect(loadProgress2D(LEVELS_2D).workshop).toEqual({});
+    } finally {
+      setPlatformAdapter(null);
+    }
+
+    // Raw/malformed ProgressData normalization in earnedSteamAchievementIds:
+    const malformed = {
+      version: 2,
+      unlockedLevelIndex: 0,
+      bestStars: undefined,
+      clears: [15, Number.NaN, 20],
+      bestEndlessWaves: undefined,
+      challengeClears: undefined,
+      workshop: {},
+      daily: { lastDay: 100, streak: 7, bestStreak: 0, total: 7 },
+    } as unknown as ProgressData;
+    const earned = earnedSteamAchievementIds(malformed, LEVELS_2D);
+    expect(earned).toContain('DAILY_STREAK_7');
+    expect(earned).toContain('FEAT_STEADY_WINDS'); // 3-day streak consistent with streak=7!
+    expect(earned).toContain('FEAT_SQUALL_RIDER');
+    expect(earned).toContain('FEAT_VETERAN'); // 15 + 20 = 35 >= 30 wins even with NaN at index 1!
+  });
 });
