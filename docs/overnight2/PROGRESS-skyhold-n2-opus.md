@@ -31,6 +31,23 @@
 - Pause: warm shade (`PAUSE_DIM`, alpha 0.3) over the battlefield under the canvas HUD while the
   "Paused" plate shows (hud.ts `pauseDim`). uiaudit hud-pause 6/6 0 problems.
 
+- Daily board: the four counters (reward / streak / best / wins) are parchment tokens with a rim,
+  the reward one gold; the difficulty · date line no longer comes out as big as the name on phones.
+  uiaudit daily + end-daily 24/24 0 problems.
+- Keyboard / pad reachability. New `qa/navsweep.mjs`: on every board (map, title, credits, briefings,
+  workshop, heroes, hero picker, logbook ×2, daily, settings ×4, store, story book, Codex) walks the
+  arrow-key focus graph breadth-first and lists controls no arrow path reaches; checks ↓ scrolls a
+  long board to its end and Esc closes it. Found + fixed:
+  - Logbook isles (25 rows), Controls tab, Credits had no way to scroll by keys/pad (no buttons in
+    the text) → `navMove`: ↑/↓ at the edge scroll the scope's main scroller (`scopeScroller`, half
+    a screen per press, smooth unless reduced motion).
+  - Phone briefing: the hero chip's Change / Skills were unreachable (Play's same-row neighbour 3 px
+    higher counted as "up") → `pickInDirection` first tries boxes beyond the edge (¼ overlap
+    allowed), then falls back to centres.
+  - Phone map: islands i11+ unreachable (the pan arrow sat between islands and swallowed →) → pan
+    arrows get `data-nav-skip`; a focused island scrolls to the middle (`inline: 'center'`).
+  Result: 0 problems at 1920x1080, 1366x768, 844x390 (TR); navprobe still 0.
+
 ## Next ideas
 - Swap in Codex's title paintings when they land (keys in Requests); re-shoot the title.
 - Wave-start ease / boot fade / veil: only checked by code + unit tests, not filmed (headless frames

@@ -41,6 +41,9 @@ const SCREENS = [
   ['settings-graphics', '?screen=settings&settab=graphics', true],
   ['settings-controls', '?screen=settings&settab=controls', true],
   ['store', '?screen=store&iapmock=1', true],
+  // In a run: the story book before the battle, the Codex board from the HUD.
+  ['story', '?level=i02&story=intro', false, { wait: '.pu-story', storyFresh: true }],
+  ['codex', '?level=i02&hero=bran', true, { wait: '[data-testid="codex2d-open"]', click: '[data-testid="codex2d-open"]' }],
 ].filter(([n]) => only.length === 0 || only.some((o) => n.includes(o)));
 
 const ARGS = ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'];
@@ -62,9 +65,9 @@ const tagCandidates = () =>
 
 const focusedId = (page) => page.evaluate(() => document.activeElement?.dataset?.qaNav ?? null);
 
-for (const [name, query, closes] of SCREENS) {
+for (const [name, query, closes, opts = {}] of SCREENS) {
   const ctx = await browser.newContext({ viewport: { width: W, height: H } });
-  await ctx.addInitScript(([s, l]) => {
+  await ctx.addInitScript(([s, l, fresh, ids]) => {
     if (sessionStorage.getItem('qa-seeded')) return;
     sessionStorage.setItem('qa-seeded', '1');
     localStorage.clear();
@@ -72,13 +75,19 @@ for (const [name, query, closes] of SCREENS) {
     localStorage.setItem('skyhold_isles_progress2d_v1', s);
     localStorage.setItem('skyhold_isles_coach2d_v1', '1');
     localStorage.setItem('skyhold2d_coach_v1', 'done');
-  }, [SEED, LANG]);
+    if (!fresh) localStorage.setItem('skyhold_isles_story2d_seen_v1', JSON.stringify(ids.flatMap((id) => [`${id}:intro`, `${id}:outro`])));
+  }, [SEED, LANG, !!opts.storyFresh, IDS]);
   const page = await ctx.newPage();
   page.setDefaultTimeout(90000);
   page.on('pageerror', (e) => problems.push(`${name}: page error ${e.message}`));
   const sep = query ? '&' : '?';
   await page.goto(`${BASE}/2d.html${query}${sep}lang=${LANG}&desktop=1`);
-  await page.waitForSelector(name === 'title' ? '[data-testid="title2d-menu"]' : '[data-testid="worldmap2d"]', { timeout: 90000 });
+  await page.waitForSelector(opts.wait ?? (name === 'title' ? '[data-testid="title2d-menu"]' : '[data-testid="worldmap2d"]'), { timeout: 90000 });
+  if (opts.click) {
+    await page.waitForTimeout(1500);
+    await page.click(opts.click);
+    await page.waitForSelector('.pu-overlay', { timeout: 30000 });
+  }
   if (name === 'map') await page.waitForSelector('[data-testid="worldmap2d"] .pu-node', { timeout: 90000 });
   await page.waitForTimeout(2200);
   const list = await page.evaluate(tagCandidates);
