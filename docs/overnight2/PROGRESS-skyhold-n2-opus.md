@@ -16,12 +16,25 @@
    timeouts at load ~28 re-run clean: uiaudit-report-rerun.txt + brief-modes alone). Report
    `opus-shots/uiaudit-report.txt`, shots `opus-shots/audit/` (TR/EN, 2000x991 + 844x390).
 
-## Next ideas (backlog done — quality passes)
+## Round 2 (quality passes)
+- Settings → Controls: controller caps (round coloured A / B / X / Y, dark pills for LB/RB/LT/RT,
+  D-pad, stick, Start); sections flow in balanced CSS columns (Keyboard, Mouse, Replay | Menus,
+  Controller, Controller in battle) instead of a grid with holes. `qa/ctlshot.mjs` (top + scrolled
+  end, column heights). uiaudit settings-controls 12/12 0 problems. Shots opus-shots/*controls*.
+- Title stand-in logo → painted lettering (`titleLetters`, `letterArc` in titleScreen.ts): one span
+  per letter on an arc, dark-gold body with a stroke outline (`paint-order: stroke fill`) + carved
+  extrude, cream→gold gradient face (`::after` with background-clip text), staggered drop-in.
+  Perf trap found: `animation-fill-mode: both` kept 15 letter layers alive → 218 ms/frame under an
+  open board in SwiftShader; `backwards` → 17 ms. `qa/titleperf.mjs` measures it.
+  uiAuditLib: one word's tilted `data-c` letters are exempt from overlap/overflow (false positives).
+  titleprobe 0 problems at 2000x991, 1366x768, 932x430, 844x390 × EN/TR × save/fresh.
+- Pause: warm shade (`PAUSE_DIM`, alpha 0.3) over the battlefield under the canvas HUD while the
+  "Paused" plate shows (hud.ts `pauseDim`). uiaudit hud-pause 6/6 0 problems.
+
+## Next ideas
 - Swap in Codex's title paintings when they land (keys in Requests); re-shoot the title.
 - Wave-start ease / boot fade / veil: only checked by code + unit tests, not filmed (headless frames
   are too slow to judge motion) — worth a look on a real device.
-- Pad: in-battle tooltips for ring tokens appear via synthetic hover (works); a controller glyph set
-  (A/B/X/Y icons) instead of letters in Settings → Controls would look nicer.
 
 ## Done
 - **Skill tree fit** (round 1). Was cut by 133 px at 2000x991, 183 px on 844x390.
