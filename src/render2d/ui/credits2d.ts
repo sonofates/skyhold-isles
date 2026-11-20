@@ -16,7 +16,8 @@ interface CreditLine {
 /** Product names: proper nouns, never translated. */
 const PIXI = 'PixiJS'; // i18n-ignore (product name)
 const TS = 'TypeScript · Vite · Vitest'; // i18n-ignore (product names)
-const APPS = 'Capacitor · Electron · steamworks.js'; // i18n-ignore (product names)
+const APPS = 'Capacitor · Electron · steamworks.js · RevenueCat'; // i18n-ignore (product names)
+const THREE_D = 'three.js · postprocessing · N8AO'; // i18n-ignore (product names)
 const FREDOKA = 'Fredoka'; // i18n-ignore (font name)
 const FREDOKA_TR = 'Fredoka TR'; // i18n-ignore (font name)
 
@@ -30,6 +31,7 @@ export function creditSections(): { title: string; lines: CreditLine[] }[] {
         { name: PIXI, text: t('credits.techPixi') },
         { name: TS, text: t('credits.techTs') },
         { name: APPS, text: t('credits.techApps') },
+        { name: THREE_D, text: t('credits.tech3d') },
       ],
     },
     {

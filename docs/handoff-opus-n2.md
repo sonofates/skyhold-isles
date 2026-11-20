@@ -64,8 +64,9 @@ Not touched: `src/sim/**`, `src/data/**`, `tools/**`, `public/art2d/**`, `towerL
 
 ## Open points
 - Title key art / logo are stand-ins until Codex's paintings land (keys above).
-- Credits team line is a placeholder; licences named from memory (PixiJS MIT, TypeScript Apache-2.0,
-  Vite / Vitest / Capacitor / Electron / steamworks.js MIT) — verify before release.
+- Credits team line is a placeholder. Licences were checked against node_modules in round 4; the
+  credits now also name three.js / postprocessing / N8AO (classic 3D mode) and RevenueCat, and a unit
+  test fails if a new runtime dependency is not credited.
 - In software GL (headless QA) a run draws a few frames a second, so fake pad presses can fall
   between polls; `navprobe` falls back to `__p0.padClick()` to tell a missed poll from a bug.
 - At 130 % interface size on phones the map shrinks more to keep the bigger HUD clear (coverage

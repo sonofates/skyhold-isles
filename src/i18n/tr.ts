@@ -644,6 +644,7 @@ export const TR: { readonly [K in MsgKey]: Msg } = {
   'credits.techPixi': '2B çizim (MIT lisansı)',
   'credits.techTs': 'Dil ve derleme araçları (Apache 2.0 / MIT)',
   'credits.techApps': 'Telefon ve masaüstü uygulamaları (MIT)',
+  'credits.tech3d': 'Klasik 3B mod (MIT / Zlib / ISC)',
   'credits.fonts': 'Yazı tipi',
   'credits.fontFredoka': '© 2016 Fredoka Projesi Yazarları — SIL Open Font License 1.1',
   'credits.fontFredokaTr': 'Türkçe harfler bu oyun için Fredoka’nın kendi parçalarından çizildi — aynı lisans',

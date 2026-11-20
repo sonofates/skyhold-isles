@@ -638,6 +638,7 @@ export const EN = {
   'credits.techPixi': '2D rendering (MIT licence)',
   'credits.techTs': 'Language and build tools (Apache 2.0 / MIT)',
   'credits.techApps': 'Phone and desktop apps (MIT)',
+  'credits.tech3d': 'The classic 3D mode (MIT / Zlib / ISC)',
   'credits.fonts': 'Lettering',
   'credits.fontFredoka': '© 2016 The Fredoka Project Authors — SIL Open Font License 1.1',
   'credits.fontFredokaTr': 'Turkish letters drawn from Fredoka’s own shapes for this game — same licence',

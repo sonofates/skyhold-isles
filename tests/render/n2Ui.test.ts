@@ -122,6 +122,26 @@ describe('title screen (titleScreen.ts)', () => {
     setLocale('en');
   });
 
+  it('credits: every runtime dependency of the shipped game is named (licence attribution)', () => {
+    const pkg = JSON.parse(readFileSync(join(__dirname, '../../package.json'), 'utf8')) as {
+      dependencies: Record<string, string>;
+    };
+    const named = creditSections()
+      .flatMap((x) => x.lines.map((l) => `${l.name ?? ''} ${l.text}`))
+      .join(' ')
+      .toLowerCase();
+    const token: Record<string, string> = {
+      'pixi.js': 'pixijs',
+      three: 'three.js',
+      '@fontsource-variable/fredoka': 'fredoka',
+      '@revenuecat/purchases-capacitor': 'revenuecat',
+    };
+    for (const dep of Object.keys(pkg.dependencies)) {
+      const want = token[dep] ?? (dep.startsWith('@capacitor/') ? 'capacitor' : dep.toLowerCase());
+      expect(named, dep).toContain(want);
+    }
+  });
+
   it('the title is wired in main2d and skips for deep links (game params come first)', () => {
     const main = readFileSync(join(__dirname, '../../src/render2d/main2d.ts'), 'utf8');
     const gate = main.indexOf('if (!GAME_PARAMS.some((k) => q.has(k)))');

@@ -117,6 +117,15 @@
 - navsweep map + logbook (TR, 1920x1080 and 844x390) after the round-3 changes: 0 problems.
   Handoff doc `docs/handoff-opus-n2.md` has a Round 3 table.
 
+## Round 4 (last, ~09:15 TR)
+- Credits licences verified from node_modules package.json (no longer "from memory"): PixiJS MIT,
+  TypeScript Apache-2.0, Vite / Vitest / Capacitor / Electron / steamworks.js MIT, Fredoka OFL-1.1.
+  The shipped runtime deps three.js (MIT), postprocessing (Zlib), N8AO (ISC) — classic 3D mode — and
+  RevenueCat (MIT, purchases) were missing: added (`credits.tech3d`, EN + TR). New unit test: every
+  `package.json` dependency is named in the credits. uiaudit credits 12/12 0 problems; shots
+  opus-shots/r4-*-credits.jpg. Gate OK.
+- No Codex title art on any branch yet (`paintedUi.title` absent) — the stand-in stays.
+
 ## Next ideas
 - Swap in Codex's title paintings when they land (keys in Requests); re-shoot the title.
 - Wave-start ease / boot fade / veil: only checked by code + unit tests, not filmed (headless frames
@@ -215,8 +224,7 @@
 - Title once per session (not every map visit), automation skips it — keeps all agents' QA stable.
 - No company/brand name in the credits (owner's brand question is open per global notes): the team
   line is a placeholder "The Skyhold Isles team".
-- Licences named from memory and not re-verified online: PixiJS MIT, TypeScript Apache-2.0, Vite /
-  Vitest / Capacitor / Electron / steamworks.js MIT (worth a check before release).
+- Licences checked against each package's own package.json in round 4 (see Round 4).
 
 - Pad B in battle sends a synthetic Esc: it closes ring / hero / aim but never pauses (game2d only
   pauses on a trusted Esc) — Start pauses. Documented as "Back / close".
