@@ -4,9 +4,11 @@ import { campaignKit } from '../../scripts/lib/campaignKit.ts';
 import { balanceBuildOrder } from '../../scripts/lib/specializationBuilds.ts';
 import { EventBus } from '../../src/core/eventBus.ts';
 import { BALANCE } from '../../src/data/balance.ts';
+import { DIFFICULTIES } from '../../src/data/difficulty.ts';
 import type { LevelDef } from '../../src/data/levels/types.ts';
 import { I16 } from '../../src/data/levels2d/i16.ts';
 import { LEVEL_L1C } from '../../src/data/levels2d/l1c.ts';
+import { combineRunModifiers } from '../../src/data/runModifiers.ts';
 import { parseSimReplay, serializeSimReplay, SimReplayPlayer, SimWorld } from '../../src/sim/world.ts';
 
 // The golems march west at equal speed. Both spawn order and left-to-right grid traversal
@@ -88,10 +90,12 @@ it.each([
   world.dispose();
 });
 
-it('affords both upgraded branches in the Normal Emberglass Sanctum build', () => {
+it.each(['normal', 'hard'] as const)('clears Emberglass Sanctum with both upgraded branches on %s', difficulty => {
   const kit = campaignKit(1_000_000, 44);
-  const result = runLevelBalanceSim(I16, 'greedy', balanceBuildOrder(I16, 'greedy'), kit);
+  const profile = { ...kit, modifiers: combineRunModifiers(kit.modifiers, DIFFICULTIES[difficulty].patch) };
+  const result = runLevelBalanceSim(I16, 'greedy', balanceBuildOrder(I16, 'greedy'), profile);
   expect(result).toMatchObject({
     outcome: 'won', towerPurchases: ['rimeglass', 'coldfracture', 'loom', 'silkline'], invalidActions: 0,
   });
+  expect(result.waves[2]).toMatchObject({ waveNumber: 3, livesLost: 0 });
 });

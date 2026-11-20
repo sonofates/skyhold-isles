@@ -763,3 +763,30 @@ TypeScript, lint and the production build passed. The focused combat and rendere
 ### Next round
 
 Check the Hard first-clear kit’s wave-three defeat at Emberglass Sanctum. Trace which Gatecrash enemies reach the goal and try an affordable change to placement or targeting with the same hero and Workshop budget before considering any tuning. No new requests for Opus.
+
+## Round 32 — A Hard opening for Emberglass Sanctum
+
+### Gatecrash
+
+Hard i16 starts with zero gold. Bran, Meteor and Overcharge stopped nine of the first twenty grunts. The 69 gold available at the end of wave one fell six short of the planned cannon. The cannon arrived eight seconds into wave two, and seven runners escaped. With four lives left in Gatecrash, the defense killed one Kilnback at 25.3 seconds. The other two reached the goal at 30 seconds and took two lives each. The mites and grunts cost no lives in that wave.
+
+The painted island's greedy build now buys frost on plot 24, archer on 1, cannon on 23 and mortar on 8. All four use first targeting. The Hard kit spends 65 gold on frost between the first two waves. On the second road, it chilled seven runners in wave two and all three Kilnbacks in wave three. Every runner and Kilnback died. The last two tortoises fell 30.3 seconds into Gatecrash, and the kit could then afford the mortar. Six skimmers escaped in wave four. Bran held the remaining five lives through wave 24 and bought Rimeglass Needle, Cold Fracture, Laneweaver Loom and Silk Line.
+
+### Balance decision
+
+Repositioning either of the first two planned towers or changing its targeting extended the old Hard opening as far as wave seven. Buying frost first produced a full clear. Buying the archer next kept the Normal losses spread across both ground and air. Normal finished with 11/22 lives and two stars, losing six to grunts, one to a skimmer and four to two haulers. The player uses the same plots, towers, prices, hero and Workshop budget on both difficulties. The existing campaign test now checks a full clear, both branch abilities and zero lives lost in Gatecrash on Normal and Hard.
+
+| Enemy HP multiplier relative to each difficulty | −3% | −1.5% | Authored | +1.5% | +3% |
+|---|---:|---:|---:|---:|---:|
+| Normal lives remaining | 11 | 11 | 11 | 13 | 13 |
+| Hard lives remaining | 3 | 5 | 5 | 5 | 5 |
+
+### Verification
+
+All 41 realistic-kit balance checks and all eight difficulty verdicts passed. Easy i16 finished at 22/26, down one life. The towers-only Normal attempt lost on wave one, previously wave two. The other 24 islands’ difficulty rows matched round 31. Hard cleared 13/17 chapter-one islands and 3/8 chapter-two islands. Hard i09 held at 12/22 and i24 at 2/22. The standalone 24,217-byte 3D L1–L16 report matched the round-one baseline byte for byte.
+
+TypeScript and lint passed. The single-worker Vitest suite passed 1,438 tests with 11 skipped. The production build passed with the existing bundle-size and dynamic-import warnings.
+
+### Next round
+
+Trace the six Slipstream Moths in Moonwell Crossing's “Veil of Mist.” Check which moth supplies the draft, how long a follower coasts after its leader dies, and whether the painted trail disappears at the same time as the speed bonus. No new requests for Opus.

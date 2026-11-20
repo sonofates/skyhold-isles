@@ -1,8 +1,9 @@
 import { LEVEL_16 } from '../levels/level16.ts';
 import { campaignIsland, replaceWaveEnemy } from './campaignIsland.ts';
+import { build } from './chapterIsland.ts';
 import layout from './i16.json';
 
-export const I16 = campaignIsland(LEVEL_16, layout, {
+const sanctum = campaignIsland(LEVEL_16, layout, {
   waves: replaceWaveEnemy(LEVEL_16, 'Gatecrash', 'brute', 'kilnback'),
   startingGold: 100,
   enemyHpScale: 2.0336,
@@ -34,3 +35,12 @@ export const I16 = campaignIsland(LEVEL_16, layout, {
     '4,8': 21,
   },
 });
+
+export const I16 = {
+  ...sanctum,
+  scriptedBuildOrder: [
+    // The first wave's bounty can buy frost in time for the second road's runners and Kilnbacks.
+    build(0, 24, 'frost'), build(0, 1, 'archer'), build(0, 23, 'cannon'), build(0, 8, 'mortar'),
+    ...(sanctum.scriptedBuildOrder ?? []).filter(action => action.waveIndex > 0),
+  ],
+};
