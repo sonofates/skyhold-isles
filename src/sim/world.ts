@@ -1,7 +1,7 @@
 import type { EventBus } from '../core/eventBus.ts';
 import { ObjectPool } from '../core/pool.ts';
 import type { AbilityId, HeroId, HeroSkillSlot, TargetingMode, TowerMvpSummary, TowerType } from '../core/types.ts';
-import { ABILITY_DEFS, ABILITY_IDS, type AbilityDef } from '../data/abilities.ts';
+import { ABILITY_DEFS, type AbilityDef } from '../data/abilities.ts';
 import { BALANCE } from '../data/balance.ts';
 import { championLevel } from '../data/champions.ts';
 import { HERO_MAX_LEVEL, isHeroId } from '../data/heroes.ts';
@@ -155,6 +155,8 @@ export class SimWorld {
   private tickAbortGen = 0;
   private poolClearGen = 0;
   private readonly commandLog: StampedSimCommand[] = [];
+  private readonly abilityStateCache: Partial<Record<AbilityId, AbilityRuntimeState>> = {};
+  private abilitiesListCache: readonly [AbilityRuntimeState, AbilityRuntimeState] | null = null;
 
   constructor(
     baseLevel: LevelDef,
@@ -489,23 +491,50 @@ export class SimWorld {
     const cd = this.abilitySystem.getCooldown(id);
     const maxCd = this.abilitySystem.getMaxCooldown(id);
     const ready = this.abilitySystem.canCast(id);
-    return {
+    const usable = ready && this.canUseAbilities();
+    const activeRemaining = id === 'overcharge' ? this.abilitySystem.getOverchargeRemaining() : 0;
+    const disabled = this.mods.abilitiesDisabled;
+
+    const prev = this.abilityStateCache[id];
+    if (
+      prev !== undefined &&
+      prev.cooldown === cd &&
+      prev.maxCooldown === maxCd &&
+      prev.ready === ready &&
+      prev.usable === usable &&
+      prev.activeRemaining === activeRemaining &&
+      prev.disabled === disabled
+    ) {
+      return prev;
+    }
+
+    const next: AbilityRuntimeState = {
       id,
       name: def.name,
       cooldown: cd,
       maxCooldown: maxCd,
       ready,
-      usable: ready && this.canUseAbilities(),
+      usable,
       requiresTarget: def.requiresTarget,
       radius: def.radius ?? 0,
-      activeRemaining: id === 'overcharge' ? this.abilitySystem.getOverchargeRemaining() : 0,
-      disabled: this.mods.abilitiesDisabled,
+      activeRemaining,
+      disabled,
     };
+    this.abilityStateCache[id] = next;
+    return next;
   }
 
   /** Cooldown and usability state for all global abilities (`['meteor', 'overcharge']`). */
   getAbilitiesState(): readonly AbilityRuntimeState[] {
-    return ABILITY_IDS.map((id) => this.getAbilityState(id));
+    const m = this.getAbilityState('meteor');
+    const o = this.getAbilityState('overcharge');
+    const prev = this.abilitiesListCache;
+    if (prev !== null && prev[0] === m && prev[1] === o) {
+      return prev;
+    }
+    const next: readonly [AbilityRuntimeState, AbilityRuntimeState] = [m, o];
+    this.abilitiesListCache = next;
+    return next;
   }
 
   /** Island card → Endless: the whole run is endless from wave 1 (no victory, no stars). */

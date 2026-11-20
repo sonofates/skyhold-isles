@@ -215,6 +215,21 @@ describe('recording results per difficulty', () => {
     const st = islandStates(p)[0];
     expect(st.hardWon).toBe(true);
     expect(st.diffStars).toEqual({ easy: 0, normal: 0, hard: 3 });
+
+    // Raw difficultyWins-only ProgressData derives stars, clears & mastery non-destructively in islandStates.
+    const rawDwOnly = createDefaultProgress(N);
+    rawDwOnly.difficultyWins = {
+      easy: new Array<number>(N).fill(0),
+      normal: new Array<number>(N).fill(0),
+      hard: new Array<number>(N).fill(0),
+    };
+    rawDwOnly.difficultyWins.hard[0] = 3;
+    const rawSt = islandStates(rawDwOnly)[0];
+    expect(rawSt.stars).toBe(3);
+    expect(rawSt.clears).toBe(1);
+    expect(rawSt.hardWon).toBe(true);
+    expect(rawDwOnly.bestStars[0]).toBe(0);
+    expect(rawDwOnly.clears[0]).toBe(0);
   });
 
   it('a legacy save keeps its old wins as Normal when the first difficulty win is recorded', () => {

@@ -180,6 +180,22 @@ describe('Low-end sim performance & zero per-tick allocation invariants', () => 
     expect(cleansedA).toEqual([]);
     expect(cleansedB).toBe(cleansedA);
 
+    // SimWorld.getAbilityState / getAbilitiesState cache immutable HUD snapshots across 60/120 Hz frames
+    const ab1 = world.getAbilitiesState();
+    const ab2 = world.getAbilitiesState();
+    expect(ab2).toBe(ab1);
+    expect(world.getAbilityState('meteor')).toBe(ab1[0]);
+    expect(world.getAbilityState('overcharge')).toBe(ab1[1]);
+
+    // Advancing combat ticks updates active overcharge cooldown/remaining with a fresh snapshot while keeping unchanged meteor cached
+    const meteorBeforeTick = world.getAbilityState('meteor');
+    world.fixedTick(BALANCE.fixedDt);
+    const abAfterTick = world.getAbilitiesState();
+    expect(abAfterTick).not.toBe(ab1);
+    expect(abAfterTick[0]).toBe(meteorBeforeTick); // meteor was ready (0s cd) before and after -> zero alloc!
+    expect(abAfterTick[1]).not.toBe(ab1[1]);
+    expect(world.getAbilitiesState()).toBe(abAfterTick);
+
     world.dispose();
   });
 });

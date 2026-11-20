@@ -302,26 +302,71 @@ export class SoldierSystem {
     return true;
   }
 
+  private static resolveSoldierHoldCap(stats: TowerTierStats): number {
+    const raw = (stats as { soldierHoldCap?: unknown }).soldierHoldCap;
+    return typeof raw === 'number' && Number.isFinite(raw) && raw >= 1 ? Math.floor(raw) : 1;
+  }
+
   /**
-   * Upgrade: every soldier is refreshed to the new tier (full HP; fallen ones step out at once)
-   * and new slots are filled. The rally point stays (re-clamped if the range shrank — it never
-   * does with the shipped tiers).
+   * Upgrade: every soldier is refreshed to the new tier (full HP; fallen ones step out at once),
+   * new slots are filled (or excess slots retired on elite specializations), and the rally point
+   * stays unless the new range shrank below its current distance.
    */
   onUpgrade(tower: TowerEntity): void {
     const b = this.getBarracks(tower.id);
     if (!b) return;
     const stats = getTowerTierStats(tower.type, tower.tier);
     b.stats = stats;
-    const count = stats.soldierCount ?? b.squad.length;
+    const effRange = stats.range * (1 + tower.auraRange + (tower.heroRangeBonus ?? 0));
+    const rallyDistSq = (b.rallyX - b.x) ** 2 + (b.rallyZ - b.z) ** 2;
+    let rallyReclamped = false;
+    if (
+      rallyDistSq > effRange * effRange + 1e-9 &&
+      this.findRoadPoint(b.x, b.z, effRange, b.rallyX, b.rallyZ, _rallyRoadPt)
+    ) {
+      b.rallyX = _rallyRoadPt.x;
+      b.rallyZ = _rallyRoadPt.z;
+      b.rallyYaw = _rallyRoadPt.yaw;
+      rallyReclamped = true;
+    }
+    const count = Math.max(0, stats.soldierCount ?? b.squad.length);
+    while (b.squad.length > count) {
+      const removed = b.squad.pop()!;
+      const si = this.soldiers.indexOf(removed);
+      if (si !== -1) this.soldiers.splice(si, 1);
+      if (removed.state !== 'dead') {
+        this.release(removed, true);
+        removed.state = 'dead';
+        removed.swingArmed = false;
+        this.events.emit('soldierRemoved', {
+          soldierId: removed.id,
+          towerId: b.towerId,
+          x: removed.x,
+          z: removed.z,
+        });
+      }
+      this.dirty = true;
+    }
     this.layoutPosts(b, count);
+    const holdCap = SoldierSystem.resolveSoldierHoldCap(stats);
     for (let i = 0; i < b.squad.length; i++) {
       const s = b.squad[i];
       s.maxHp = stats.soldierHp ?? s.maxHp;
       s.hp = s.maxHp;
-      if (s.state === 'dead') this.respawn(b, s);
-      else if (s.state === 'idle') s.state = 'walking';
+      s.holdCap = holdCap;
+      if (s.state === 'dead') {
+        this.respawn(b, s);
+      } else if (rallyReclamped) {
+        this.release(s, true);
+        s.state = 'walking';
+      } else if (s.state === 'idle') {
+        s.state = 'walking';
+      }
     }
     for (let slot = b.squad.length; slot < count; slot++) this.createSoldier(b, slot, stats);
+    if (rallyReclamped) {
+      this.events.emit('rallyMoved', { towerId: b.towerId, x: b.rallyX, z: b.rallyZ });
+    }
   }
 
   /** Sell: the squad leaves the field (held enemies are released immediately). */
@@ -458,7 +503,7 @@ export class SoldierSystem {
       hitFlashTimer: 0,
       targetPoolIndex: -1,
       targetUid: 0,
-      holdCap: 1,
+      holdCap: SoldierSystem.resolveSoldierHoldCap(stats),
       swingArmed: false,
       bonusArmor: 0,
       damageMul: 1,

@@ -343,6 +343,7 @@ export function createPlatformAdapter(options: CreatePlatformOptions = {}): Plat
   }
 
   const unlockedInSession = new Set<string>();
+  const writeSeqBySlot = new Map<string, number>();
 
   return {
     get isSteam(): boolean {
@@ -376,10 +377,13 @@ export function createPlatformAdapter(options: CreatePlatformOptions = {}): Plat
       async read(slot: string): Promise<string | null> {
         const safe = sanitizeCloudSlot(slot);
         if (!safe) return null;
+        const seqAtStart = writeSeqBySlot.get(safe) ?? 0;
         try {
           const remote = await bridge.cloudRead(safe);
           if (typeof remote === 'string' && remote.length > 0) {
-            writeLocalSlot(storage, safe, remote);
+            if ((writeSeqBySlot.get(safe) ?? 0) === seqAtStart) {
+              writeLocalSlot(storage, safe, remote);
+            }
             return remote;
           }
         } catch {
@@ -390,6 +394,7 @@ export function createPlatformAdapter(options: CreatePlatformOptions = {}): Plat
       async write(slot: string, json: string): Promise<boolean> {
         const safe = sanitizeCloudSlot(slot);
         if (!safe) return false;
+        writeSeqBySlot.set(safe, (writeSeqBySlot.get(safe) ?? 0) + 1);
         writeLocalSlot(storage, safe, json);
         try {
           return Boolean(await bridge.cloudWrite(safe, json));

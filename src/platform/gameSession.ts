@@ -149,6 +149,7 @@ export class GameSession {
   /** Tile whose ghost tower the radial build ring is previewing (survives pointer-leave refreshes). */
   private radialPreview: { type: TowerType; col: number; row: number } | null = null;
   private readonly starChimeTimers: number[] = [];
+  private resetGen = 0;
   private disposed = false;
 
   constructor(renderWorld: RenderWorld, soundManager: SoundManager) {
@@ -179,12 +180,14 @@ export class GameSession {
       this.returnFromBackground();
     });
     if (platform.isSteam) {
+      const bootResetGen = this.resetGen;
       void hydrateProgressFromCloud(this.progress, LEVELS.length, platform)
         .then(({ merged, updated }) => {
-          if (!updated || this.disposed) return;
+          if (!updated || this.disposed || this.resetGen !== bootResetGen) return;
           const freshMerged = mergeProgress(this.progress, merged, LEVELS.length);
           const inMemoryDiverged = JSON.stringify(freshMerged) !== JSON.stringify(merged);
           if (freshMerged.heroes === undefined) delete this.progress.heroes;
+          if (freshMerged.difficultyWins === undefined) delete this.progress.difficultyWins;
           Object.assign(this.progress, freshMerged);
           if (inMemoryDiverged) {
             saveProgress(this.progress);
@@ -738,8 +741,10 @@ export class GameSession {
 
   /** Settings (menu) → Reset progress, after the in-dialog confirm. The old save is backed up. */
   resetProgress(): void {
+    this.resetGen++;
     const fresh = resetProgressSave(LEVELS.length);
     delete this.progress.heroes;
+    delete this.progress.difficultyWins;
     Object.assign(this.progress, fresh);
     this.currentLevelIndex = 0;
     this.runConfig = { endless: false, challenges: [], daily: null };
@@ -767,6 +772,7 @@ export class GameSession {
     const gain = describeMergeGain(this.progress, merged);
     backupProgressBeforeImport();
     if (merged.heroes === undefined) delete this.progress.heroes;
+    if (merged.difficultyWins === undefined) delete this.progress.difficultyWins;
     Object.assign(this.progress, merged);
     saveProgress(this.progress);
     this.soundManager.playUiConfirm();

@@ -506,16 +506,34 @@ export function islandStates(progress: ProgressData, levels: readonly LevelDef[]
   if (levels.length === 0) return [];
   const frontier = Math.max(0, Math.min(levels.length - 1, progress.unlockedLevelIndex));
   const dw = difficultyWinsOf(progress);
+  let effectiveProgress = progress;
+  if (progress.difficultyWins) {
+    let needsNorm = false;
+    for (let i = 0; i < levels.length; i++) {
+      const maxDiff = Math.max(dw.easy[i] ?? 0, dw.normal[i] ?? 0, dw.hard[i] ?? 0);
+      if (maxDiff > (progress.bestStars[i] ?? 0) || (maxDiff > 0 && (progress.clears[i] ?? 0) === 0)) {
+        needsNorm = true;
+        break;
+      }
+    }
+    if (needsNorm) {
+      const bestStars = levels.map((_, i) =>
+        Math.max(0, Math.min(3, Math.max(progress.bestStars[i] ?? 0, dw.easy[i] ?? 0, dw.normal[i] ?? 0, dw.hard[i] ?? 0))),
+      );
+      const clears = levels.map((_, i) => Math.max(progress.clears[i] ?? 0, bestStars[i] > 0 ? 1 : 0));
+      effectiveProgress = { ...progress, bestStars, clears };
+    }
+  }
   return levels.map((level, i) => ({
     index: i,
     level,
-    unlocked: i <= progress.unlockedLevelIndex,
-    stars: Math.max(0, Math.min(3, progress.bestStars[i] ?? 0)),
-    clears: progress.clears[i] ?? 0,
-    bestLives: progress.bestLives[i] ?? 0,
-    bestEndlessWave: progress.bestEndlessWaves[i] ?? 0,
-    challengeClears: [...(progress.challengeClears[i] ?? [])],
-    mastered: isIslandMastered(progress, i, challengesForLevel(level)),
+    unlocked: i <= effectiveProgress.unlockedLevelIndex,
+    stars: Math.max(0, Math.min(3, effectiveProgress.bestStars[i] ?? 0)),
+    clears: effectiveProgress.clears[i] ?? 0,
+    bestLives: effectiveProgress.bestLives[i] ?? 0,
+    bestEndlessWave: effectiveProgress.bestEndlessWaves[i] ?? 0,
+    challengeClears: [...(effectiveProgress.challengeClears[i] ?? [])],
+    mastered: isIslandMastered(effectiveProgress, i, challengesForLevel(level)),
     frontier: i === frontier,
     diffStars: { easy: dw.easy[i] ?? 0, normal: dw.normal[i] ?? 0, hard: dw.hard[i] ?? 0 },
     hardWon: (dw.hard[i] ?? 0) > 0,
@@ -920,9 +938,15 @@ export function resetProgress2D(levels: readonly LevelDef[] = LEVELS_2D): void {
   resetGen2D++;
   const ls = storage();
   try {
-    const raw = ls?.getItem(PROGRESS_2D_KEY);
-    if (raw && hasAnyProgress(loadLocalProgress2DInternal(levels))) {
-      ls?.setItem(PROGRESS_2D_RESET_BACKUP_KEY, raw);
+    const current = loadLocalProgress2DInternal(levels);
+    if (hasAnyProgress(current)) {
+      const raw = ls?.getItem(PROGRESS_2D_KEY) ?? null;
+      const validPrimary = raw ? parseStored2DRaw(raw, levels) : null;
+      const backupJson =
+        raw && validPrimary && !validPrimary.repairedFromTruncated
+          ? raw
+          : serializeStored2D(current, levels);
+      ls?.setItem(PROGRESS_2D_RESET_BACKUP_KEY, backupJson);
     }
     ls?.removeItem(PROGRESS_2D_KEY);
     ls?.removeItem(LOCAL_CLOUD_2D_MIRROR_KEY);

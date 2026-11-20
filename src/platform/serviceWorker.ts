@@ -1,5 +1,7 @@
+import { getPlatform } from './platform.ts';
+
 /**
- * Registers the offline-cache service worker (production builds only) and reports when a new
+ * Registers the offline-cache service worker (production web builds only) and reports when a new
  * version is waiting. Updating is player-driven: `apply()` tells the waiting worker to take over,
  * and the page reloads once the new worker controls it.
  */
@@ -12,11 +14,17 @@ export interface ServiceWorkerOptions {
   onUpdateReady: (handle: UpdateHandle) => void;
   /** Minutes between background update checks while the page stays open. */
   checkEveryMin?: number;
+  /** Optional test override for `import.meta.env.PROD`. */
+  isProd?: boolean;
 }
 
 export function registerServiceWorker(opts: ServiceWorkerOptions): void {
   if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return;
-  if (!import.meta.env.PROD) return;
+  if (!(opts.isProd ?? import.meta.env.PROD)) return;
+  const platform = getPlatform();
+  // Desktop Steam (Electron ASAR omits sw.js) and native Capacitor WebViews serve bundled local
+  // files directly; never register a web Service Worker that could cache stale bundle assets.
+  if (platform.isSteam || platform.isMobile) return;
 
   let reloading = false;
   let applying = false;

@@ -11,6 +11,7 @@ import {
   earnedSteamAchievementIds,
   exportAchievementManifest,
   hydrateProgressFromCloud,
+  recoverProgressSave,
   sanitizeCloudSlot,
   setPlatformAdapter,
   STEAM_ACHIEVEMENTS,
@@ -19,7 +20,12 @@ import {
   type SteamAchievementMeta,
   type SteamBridge,
 } from '../../src/platform/index.ts';
-import { createDefaultProgress, saveProgress } from '../../src/platform/storage.ts';
+import {
+  createDefaultProgress,
+  loadProgress,
+  resetProgressSave,
+  saveProgress,
+} from '../../src/platform/storage.ts';
 import {
   CLOUD_PROGRESS_2D_SLOT,
   hydrateProgress2DFromCloud,
@@ -27,6 +33,7 @@ import {
   PROGRESS_2D_KEY,
   PROGRESS_2D_RESET_BACKUP_KEY,
   recordRunResult2D,
+  recoverProgress2D,
   resetProgress2D,
   saveProgress2D,
 } from '../../src/render2d/ui/progress2d.ts';
@@ -805,19 +812,21 @@ describe('Steam achievements map, cloud hydration, and desktop config invariants
     expect(cloudAfterFirstWrite.progress.bestStars[0]).toBe(2);
     expect(cloudAfterFirstWrite.progress.bestStars[5]).toBe(3);
 
-    // 3. Reset cancellation: resetProgress2D() while initial boot cloudRead is in flight never resurrects erased save.
+    // 3. Reset cancellation: resetProgress2D() while initial boot cloudRead is in flight never resurrects erased save
+    // or pollutes localStorage's cloud mirror with the pre-reset remote snapshot.
     localStore.clear();
-    let resolveSlowRead: ((val: string | null) => void) | null = null;
+    let resolveSlowRead: (() => void) | null = null;
     const resetCloud = new Map<string, string>(newPcCloud);
     const slowAdapter = createPlatformAdapter({
-      storage: createMemStorage(),
       bridge: {
         isSteam: true,
         unlockAchievement: async () => true,
-        cloudRead: (slot) =>
-          new Promise<string | null>((res) => {
-            resolveSlowRead = () => res(resetCloud.get(slot) ?? null);
-          }),
+        cloudRead: (slot) => {
+          const snapshotBeforeReset = resetCloud.get(slot) ?? null;
+          return new Promise<string | null>((res) => {
+            resolveSlowRead = () => res(snapshotBeforeReset);
+          });
+        },
         cloudWrite: async (slot, json) => {
           resetCloud.set(slot, json);
           return true;
@@ -826,17 +835,109 @@ describe('Steam achievements map, cloud hydration, and desktop config invariants
     });
     setPlatformAdapter(slowAdapter);
 
-    loadProgress2D(LEVELS_2D); // starts slow boot cloudRead
+    loadProgress2D(LEVELS_2D); // starts slow boot cloudRead capturing pre-reset remote snapshot
     expect(resolveSlowRead).not.toBeNull();
     resetProgress2D(LEVELS_2D); // user resets while boot cloudRead is still pending!
-    resolveSlowRead!(null);
+    resolveSlowRead!();
     await new Promise((r) => setTimeout(r, 15));
 
     expect(localStorage.getItem(PROGRESS_2D_KEY)).toBeNull();
+    expect(recoverProgress2D(LEVELS_2D, { persist: false }).recovered).toBe(false);
     const afterResetCloud = JSON.parse(resetCloud.get(CLOUD_PROGRESS_2D_SLOT) ?? '{}') as {
       progress: { bestStars: number[] };
     };
     expect(afterResetCloud.progress.bestStars.every((s) => s === 0)).toBe(true);
+    setPlatformAdapter(null);
+  });
+
+  it('hardens 3D Steam Cloud in-flight concurrency, reset cancellation, and corrupt-primary cloud-mirror recovery', async () => {
+    // 1. Concurrent saveProgress() while hydrateProgressFromCloud() is awaiting cloudRead merges both without clobbering remote.
+    let resolveRead: (() => void) | null = null;
+    const remoteSave = createDefaultProgress(LEVELS.length);
+    remoteSave.bestStars[3] = 3;
+    remoteSave.clears[3] = 1;
+    let remoteBlob: string | null = JSON.stringify(remoteSave);
+
+    const adapter = createPlatformAdapter({
+      bridge: {
+        isSteam: true,
+        unlockAchievement: async () => true,
+        cloudRead: () => {
+          const snap = remoteBlob;
+          return new Promise<string | null>((res) => {
+            resolveRead = () => res(snap);
+          });
+        },
+        cloudWrite: async (_slot, json) => {
+          remoteBlob = json;
+          return true;
+        },
+      },
+    });
+    setPlatformAdapter(adapter);
+
+    const hydratePromise = hydrateProgressFromCloud(
+      createDefaultProgress(LEVELS.length),
+      LEVELS.length,
+      adapter,
+      LEVELS,
+    );
+    expect(resolveRead).not.toBeNull();
+
+    // Player wins L1 while cloudRead is still pending -> must NOT overwrite remoteBlob's L4=3★!
+    const concurrentWin = createDefaultProgress(LEVELS.length);
+    concurrentWin.bestStars[0] = 2;
+    concurrentWin.clears[0] = 1;
+    saveProgress(concurrentWin);
+    expect(JSON.parse(remoteBlob ?? '{}').bestStars[3]).toBe(3);
+
+    resolveRead!();
+    const res = await hydratePromise;
+    expect(res.merged.bestStars[0]).toBe(2);
+    expect(res.merged.bestStars[3]).toBe(3);
+    expect(loadProgress(LEVELS.length).bestStars[0]).toBe(2);
+    expect(loadProgress(LEVELS.length).bestStars[3]).toBe(3);
+    expect(JSON.parse(remoteBlob ?? '{}').bestStars[0]).toBe(2);
+    expect(JSON.parse(remoteBlob ?? '{}').bestStars[3]).toBe(3);
+
+    // 2. Corrupt primary PROGRESS_KEY falls back to valid local cloud mirror automatically on loadProgress().
+    localStorage.setItem('skyhold_isles_progress_v1', '{{{unparseable-corrupt');
+    const recoveredFromMirror = loadProgress(LEVELS.length);
+    expect(recoveredFromMirror.bestStars[0]).toBe(2);
+    expect(recoveredFromMirror.bestStars[3]).toBe(3);
+
+    // 3. resetProgressSave() while hydrateProgressFromCloud() is in flight cancels hydration and clears local cloud mirror.
+    let resolveSlow3d: (() => void) | null = null;
+    const slow3dAdapter = createPlatformAdapter({
+      bridge: {
+        isSteam: true,
+        unlockAchievement: async () => true,
+        cloudRead: () => {
+          const snap = remoteBlob;
+          return new Promise<string | null>((r) => {
+            resolveSlow3d = () => r(snap);
+          });
+        },
+        cloudWrite: async (_slot, json) => {
+          remoteBlob = json;
+          return true;
+        },
+      },
+    });
+    setPlatformAdapter(slow3dAdapter);
+    const resetHydratePromise = hydrateProgressFromCloud(
+      loadProgress(LEVELS.length),
+      LEVELS.length,
+      slow3dAdapter,
+      LEVELS,
+    );
+    resetProgressSave(LEVELS.length);
+    resolveSlow3d!();
+    const resetHydrateRes = await resetHydratePromise;
+    expect(resetHydrateRes.updated).toBe(false);
+    expect(loadProgress(LEVELS.length).bestStars.every((s) => s === 0)).toBe(true);
+    expect(recoverProgressSave(LEVELS.length, { persist: false }).recovered).toBe(false);
+    expect(recoverProgressSave(LEVELS.length, { includeResetBackup: true, persist: false }).recovered).toBe(true);
     setPlatformAdapter(null);
   });
 });

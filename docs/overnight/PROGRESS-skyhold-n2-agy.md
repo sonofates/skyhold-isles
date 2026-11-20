@@ -56,7 +56,7 @@
   - Extended `clearedIslandsCount2D` (`heroes2d.ts`) and `isIslandCleared` (`modes2d.ts`) to honor `difficultyWins` (`easy`/`normal`/`hard`) on raw un-migrated `ProgressData` objects.
   - Expanded `scripts/heroBalance.ts` (`REPORT_ISLANDS`) to include Chapter Two (`i17` and `i24` Boss) alongside `l1c`, `i05`, `i10`, `i16`, and re-verified full `npm run sim:heroes` + `npm run qa:bot` (`656/656` passed, `0` violations).
 
-- [x] **7. Post-Backlog Deep Audit — Round 2 (`src/render2d/ui/progress2d.ts`, `src/platform/{achievements,saveCode,contentStorage}.ts`, `src/sim/{heroSystem,abilitySystem}.ts`, `desktop/main.cjs`, `scripts/qaDesktopSmoke.ts`, `qa/bot/saveSweep.ts`)**
+- [x] **7. Post-Backlog Deep Audit — Round 2 (`src/render2d/ui/progress2d.ts`, `src/platform/{achievements,saveCode,contentStorage}.ts`, `src/sim/{heroSystem,abilitySystem}.ts`, `desktop/main.cjs`, `scripts/qaDesktopSmoke.ts`, `qa/bot/saveSweep.ts`)** — commit `354534b`
   - **2D Steam Cloud Auto-Hydration & Write-Before-Hydrate Clobber Protection (`progress2d.ts`):**
     - `loadProgress2D()` now triggers a one-shot background `hydrateProgress2DFromCloud()` per Steam `PlatformAdapter` on non-mock rosters, pulling remote `progress2d` saves and unlocking retroactive Steam achievements automatically on World Map / Gameplay boot.
     - `saveProgress2D()` guards against first-write clobbering on fresh PCs: if `hydrateProgress2DFromCloud()` has not completed yet for the active Steam adapter, `saveProgress2D()` merges remote Steam Cloud first instead of overwriting `progress2d` with near-empty local state; `resetProgress2D()` increments `resetGen2D` to cancel any pre-reset in-flight boot cloud read.
@@ -64,6 +64,14 @@
   - **3D Corrupt-Backup & Codex Truncated-JSON Recovery (`saveCode.ts`, `contentStorage.ts`):** Added `PROGRESS_CORRUPT_BACKUP_KEY` (`corruptBackup`) to 3D `recoverProgressSave()` (matching `recoverProgress2D()`), added `tryRepairTruncatedJson` recovery to `ContentStore` (`CODEX_KEY` / `ONBOARDING_KEY`), and added `difficultyWins` parity to `ContentStore.migrate()` / `inferSeenFromProgress()`.
   - **Per-Frame HUD Snapshot Caching (`heroSystem.ts`, `abilitySystem.ts`):** `HeroSystem.getRuntimeState()` caches immutable `HeroRuntimeState` snapshots across unchanged 60/120 Hz HUD frames and reuses the `skills` tuple when cooldowns are unchanged (0 allocations while paused/idle); `AbilitySystem.castOvercharge()` reuses a frozen empty `cleansedTowerIds` array when no towers are stunned.
   - **Steam Desktop Security, Clipboard & Single-Instance Hardening (`desktop/main.cjs`, `scripts/qaDesktopSmoke.ts`):** Added `unsafely-treat-insecure-origin-as-secure` on `http://skyhold.local` (`window.isSecureContext === true` so `navigator.clipboard.writeText` works for Copy Save Code / Share without changing origin or losing `persist:skyhold` `localStorage`), restricted permissions via `setPermissionCheckHandler` / `setPermissionRequestHandler`, blocked outbound `https:` requests in `registerBundleProtocol`, added `app.requestSingleInstanceLock()` with `second-instance` focus restore, rebuilt `release/Skyhold Isles-1.0.0.AppImage`, and verified `secureContext: true` under Xvfb smoke.
+
+- [x] **8. Post-Backlog Deep Audit — Round 3 (`src/platform/{platform,storage,cloudSync,gameSession,serviceWorker}.ts`, `src/sim/{soldierSystem,world}.ts`, `src/render2d/ui/progress2d.ts`, `tests/**`)**
+  - **Service Worker Guard for Steam Desktop & Native Mobile Shells (`serviceWorker.ts`):** `registerServiceWorker()` now skips `/sw.js` registration when `getPlatform().isSteam || getPlatform().isMobile` (important now that `http://skyhold.local` is treated as a secure context in Electron where `sw.js` is excluded from ASAR, and inside Capacitor WebViews where a SW cache would serve stale bundle assets across binary updates).
+  - **Cloud Mirror Write-Sequence Guard & 3D Steam Cloud Parity (`platform.ts`, `storage.ts`, `cloudSync.ts`, `gameSession.ts`, `progress2d.ts`):**
+    - `createPlatformAdapter().cloudSave` tracks per-slot `writeSeqBySlot` so an in-flight `bridge.cloudRead()` resolving after a newer `cloudSave.write()` (such as `resetProgress2D()` / `resetProgressSave()`) never pollutes the local `skyhold_isles_cloud_<slot>` mirror with stale pre-reset remote data.
+    - Extended 3D `storage.ts` / `cloudSync.ts` / `gameSession.ts` with `setCloudReadInFlight()` (deferring concurrent `saveProgress()` cloud writes while `hydrateProgressFromCloud()` awaits `cloudSave.read('progress')`), `getProgressResetGen()` + `GameSession.resetGen` cancellation on reset, automatic `skyhold_isles_cloud_progress` mirror fallback on corrupt primary `loadProgress()`, and valid serialized `PROGRESS_RESET_BACKUP_KEY` / `PROGRESS_2D_RESET_BACKUP_KEY` preservation even when resetting a save recovered from truncated JSON or cloud mirror.
+  - **Barracks Specialization Readiness (`soldierSystem.ts`):** Hardened `SoldierSystem.onUpgrade()` and `createSoldier()` ahead of tower specializations so elite branches that shrink `soldierCount` cleanly release and retire excess squad slots (`enemyUnblocked` + `soldierRemoved`), branches that tighten `range` re-clamp out-of-range rally points onto the road (`rallyMoved`), and `soldierHoldCap > 1` refreshes across existing and newly spawned soldiers (`0` diff on existing tiers; `sim:balance` 41/41 byte-identical).
+  - **Per-Frame HUD `AbilityRuntimeState` Caching & `islandStates` Parity (`world.ts`, `progress2d.ts`):** `SimWorld.getAbilityState()` and `SimWorld.getAbilitiesState()` cache immutable snapshots and the 2-ability tuple across unchanged 60/120 Hz HUD frames; `islandStates()` derives `stars`, `clears`, and `mastered` non-destructively from raw `difficultyWins`-only `ProgressData` inputs.
 
 ---
 
@@ -90,7 +98,7 @@
 
 ## Problems / Known Issues
 
-- None blocking in owned area (`sim:balance` 41/41 byte-identical, `qa:bot` 656/656 passing, 1,364 unit tests passing, all Hard Boss low-end benches `<= 66.8 ms`, Linux AppImage builds & passes Xvfb smoke with `secureContext: true`).
+- None blocking in owned area (`sim:balance` 41/41 byte-identical, `qa:bot` 656/656 passing, 1,367 unit tests passing, all Hard Boss low-end benches `<= 66.8 ms`, Linux AppImage builds & passes Xvfb smoke with `secureContext: true`).
 
 ---
 

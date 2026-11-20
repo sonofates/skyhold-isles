@@ -570,4 +570,57 @@ describe('determinism and isolation', () => {
     expect(world.soldierSystem.soldiers).toHaveLength(0);
     expect(e.dist).toBeCloseTo(1 + ENEMY_DEFS.grunt.speed * (i / 60), 6);
   });
+
+  it('onUpgrade cleanly retires excess squad slots, refreshes soldierHoldCap, and re-clamps rally when a specialization shrinks count or range', () => {
+    const { world, log } = setup();
+    const t = barracksOn(world, 0);
+    expect(world.upgradeTower(t.id)).toBe(true); // T2: 3 soldiers, range 2.8
+    const b = world.soldierSystem.getBarracks(t.id)!;
+    expect(b.squad).toHaveLength(3);
+
+    // Push rally point near the outer edge of T2 range (~2.8 units from plot 0 at (0, 1.6)) and let squad arrive.
+    expect(world.setRallyPoint(t.id, 7, 0)).toBe(true);
+    const t2RallyDist = Math.hypot(b.rallyX - b.x, b.rallyZ - b.z);
+    expect(t2RallyDist).toBeGreaterThan(2.3);
+    tick(world, 90);
+
+    // Let all 3 soldiers engage and hold 3 grunts near the outer rally point.
+    const g1 = spawnAt(world, 'grunt', 8 + b.rallyX - 0.3);
+    const g2 = spawnAt(world, 'grunt', 8 + b.rallyX - 0.45);
+    const g3 = spawnAt(world, 'grunt', 8 + b.rallyX - 0.6);
+    tickUntil(world, () => g1.blockers >= 1 && g2.blockers >= 1 && g3.blockers >= 1);
+
+    const origT3 = TOWER_DEFS.barracks.tiers[2];
+    const rallyMovesBefore = (log.rallyMoved ?? []).length;
+    try {
+      // Simulate an elite T3 specialization: 1 champion soldier with holdCap=2 and tighter range=2.0.
+      (TOWER_DEFS.barracks.tiers as unknown as Record<number, unknown>)[2] = {
+        ...origT3,
+        range: 2.0,
+        soldierCount: 1,
+        soldierHp: 500,
+        soldierHoldCap: 2,
+      };
+      expect(world.upgradeTower(t.id)).toBe(true);
+
+      // Excess 2 soldiers were cleanly retired, removed from SoldierSystem.soldiers, and emitted soldierRemoved.
+      expect(b.squad).toHaveLength(1);
+      expect(world.soldierSystem.soldiers).toHaveLength(1);
+      expect(log.soldierRemoved).toHaveLength(2);
+      expect(b.squad[0].maxHp).toBe(500);
+      expect(b.squad[0].holdCap).toBe(2);
+
+      // Rally point re-clamped inside the tighter 2.0 range and emitted rallyMoved.
+      expect(Math.hypot(b.rallyX - b.x, b.rallyZ - b.z)).toBeLessThanOrEqual(2.0 + 1e-9);
+      expect((log.rallyMoved ?? []).length).toBe(rallyMovesBefore + 1);
+
+      // Every previously held grunt was cleanly unblocked (no dangling blockers).
+      expect(g1.blockers).toBe(0);
+      expect(g2.blockers).toBe(0);
+      expect(g3.blockers).toBe(0);
+      expect((log.enemyUnblocked ?? []).length).toBe((log.enemyBlocked ?? []).length);
+    } finally {
+      (TOWER_DEFS.barracks.tiers as unknown as Record<number, unknown>)[2] = origT3;
+    }
+  });
 });

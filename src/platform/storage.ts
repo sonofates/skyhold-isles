@@ -5,11 +5,25 @@ import { HERO_IDS, hasHeroSaveProgress, sanitizeHeroSaveData } from '../data/her
 import { sanitizeRanks } from '../data/workshop.ts';
 import { starWallet } from '../game/progression.ts';
 import { syncAchievementsFromProgress } from './achievements.ts';
-import { getPlatform } from './platform.ts';
+import { getPlatform, type PlatformAdapter } from './platform.ts';
 
 const SETTINGS_KEY = 'skyhold_isles_settings_v1';
 const PROGRESS_KEY = 'skyhold_isles_progress_v1';
 export const CLOUD_PROGRESS_SLOT = 'progress';
+const LOCAL_CLOUD_PROGRESS_MIRROR_KEY = `skyhold_isles_cloud_${CLOUD_PROGRESS_SLOT}`;
+const readingCloudAdapters = new WeakSet<PlatformAdapter>();
+let progressResetGen = 0;
+
+/** Monotonic counter incremented on `resetProgressSave` so in-flight cloud reads abort cleanly. */
+export function getProgressResetGen(): number {
+  return progressResetGen;
+}
+
+/** Tracks an active `hydrateProgressFromCloud` read so concurrent `saveProgress` calls never clobber it. */
+export function setCloudReadInFlight(adapter: PlatformAdapter, active: boolean): void {
+  if (active) readingCloudAdapters.add(adapter);
+  else readingCloudAdapters.delete(adapter);
+}
 const FLYER_TOAST_SEEN_KEY = 'skyhold_isles_flyer_toast_seen_v1';
 const UPGRADE_TOAST_SEEN_KEY = 'skyhold_isles_upgrade_toast_seen_v1';
 const ENEMY_INTROS_SEEN_KEY = 'skyhold_isles_enemy_intros_seen_v1';
@@ -397,6 +411,46 @@ export function migrateProgress(parsed: unknown, levelCount: number): ProgressDa
   return progress;
 }
 
+function parseLooseJsonObject(raw: string | null): Record<string, unknown> | null {
+  if (!raw) return null;
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      return parsed as Record<string, unknown>;
+    }
+    return null;
+  } catch {
+    return tryRepairTruncatedJson(raw);
+  }
+}
+
+function combineRecoveredRawObjects(
+  primary: Record<string, unknown> | null,
+  mirror: Record<string, unknown> | null,
+): Record<string, unknown> | null {
+  if (!primary) return mirror;
+  if (!mirror) return primary;
+  const combined: Record<string, unknown> = { ...mirror, ...primary };
+  for (const key of ['bestStars', 'bestEndlessWaves', 'bestLives', 'clears']) {
+    const pa = primary[key];
+    const ma = mirror[key];
+    if (Array.isArray(pa) && Array.isArray(ma)) {
+      const len = Math.max(pa.length, ma.length);
+      combined[key] = Array.from({ length: len }, (_, i) => {
+        const pv = typeof pa[i] === 'number' && Number.isFinite(pa[i]) ? (pa[i] as number) : 0;
+        const mv = typeof ma[i] === 'number' && Number.isFinite(ma[i]) ? (ma[i] as number) : 0;
+        return Math.max(pv, mv);
+      });
+    }
+  }
+  const pu = primary.unlockedLevelIndex;
+  const mu = mirror.unlockedLevelIndex;
+  if (typeof pu === 'number' && Number.isFinite(pu) && typeof mu === 'number' && Number.isFinite(mu)) {
+    combined.unlockedLevelIndex = Math.max(pu, mu);
+  }
+  return combined;
+}
+
 export function loadProgress(levelCount: number): ProgressData {
   let raw: string | null = null;
   try {
@@ -426,8 +480,15 @@ export function loadProgress(levelCount: number): ProgressData {
         // ignore storage errors
       }
       const repaired = tryRepairTruncatedJson(raw);
-      if (repaired) {
-        const recovered = migrateProgress(repaired, levelCount);
+      let mirrorObj: Record<string, unknown> | null;
+      try {
+        mirrorObj = parseLooseJsonObject(localStorage.getItem(LOCAL_CLOUD_PROGRESS_MIRROR_KEY));
+      } catch {
+        mirrorObj = null;
+      }
+      const candidate = combineRecoveredRawObjects(repaired, mirrorObj);
+      if (candidate) {
+        const recovered = migrateProgress(candidate, levelCount);
         if (hasAnyProgress(recovered)) return recovered;
       }
     }
@@ -460,6 +521,12 @@ export function saveProgress(progress: ProgressData): void {
   const raw = saveLocalProgress(progress);
   const platform = getPlatform();
   if (platform.isSteam) {
+    if (readingCloudAdapters.has(platform)) {
+      // An in-flight hydrateProgressFromCloud is awaiting cloudSave.read('progress');
+      // it will fold in this fresh localStorage write via diskRawAfter, merge monotonically
+      // with the remote cloud save, write the union to Steam Cloud, and sync achievements.
+      return;
+    }
     void platform.cloudSave.write(CLOUD_PROGRESS_SLOT, raw);
     void syncAchievementsFromProgress(progress, platform);
   }
@@ -470,17 +537,37 @@ export const PROGRESS_RESET_BACKUP_KEY = 'skyhold_isles_progress_reset_backup';
 
 /** Erases campaign progress (settings untouched) after backing up the current save. */
 export function resetProgressSave(levelCount: number): ProgressData {
+  progressResetGen++;
   try {
-    const raw = localStorage.getItem(PROGRESS_KEY);
+    const current = loadProgress(levelCount);
     // Never let a reset of an already-empty save overwrite the backup of real progress.
-    if (raw && hasAnyProgress(migrateProgress(JSON.parse(raw), levelCount))) {
-      localStorage.setItem(PROGRESS_RESET_BACKUP_KEY, raw);
+    if (hasAnyProgress(current)) {
+      const raw = localStorage.getItem(PROGRESS_KEY);
+      let rawIsValidJson = false;
+      if (raw) {
+        try {
+          JSON.parse(raw);
+          rawIsValidJson = true;
+        } catch {
+          rawIsValidJson = false;
+        }
+      }
+      localStorage.setItem(PROGRESS_RESET_BACKUP_KEY, rawIsValidJson && raw ? raw : JSON.stringify(current));
     }
   } catch {
     // ignore storage errors
   }
+  try {
+    localStorage.removeItem(LOCAL_CLOUD_PROGRESS_MIRROR_KEY);
+  } catch {
+    // ignore storage errors
+  }
   const fresh = createDefaultProgress(levelCount);
-  saveProgress(fresh);
+  const rawFresh = saveLocalProgress(fresh);
+  const platform = getPlatform();
+  if (platform.isSteam) {
+    void platform.cloudSave.write(CLOUD_PROGRESS_SLOT, rawFresh);
+  }
   return fresh;
 }
 

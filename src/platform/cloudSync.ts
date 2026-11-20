@@ -5,10 +5,13 @@ import { getPlatform, type PlatformAdapter } from './platform.ts';
 import { mergeProgress } from './saveCode.ts';
 import {
   CLOUD_PROGRESS_SLOT,
+  getProgressResetGen,
   hasAnyProgress,
+  loadProgress,
   migrateProgress,
   readLocalProgressRaw,
   saveLocalProgress,
+  setCloudReadInFlight,
   tryRepairTruncatedJson,
 } from './storage.ts';
 
@@ -29,6 +32,7 @@ export async function hydrateProgressFromCloud(
   adapter: PlatformAdapter = getPlatform(),
   levels: readonly LevelDef[] = LEVELS,
 ): Promise<CloudHydrateResult> {
+  const genAtStart = getProgressResetGen();
   let normalizedLocal = migrateProgress(localProgress, levelCount);
   const callerRaw = JSON.stringify(normalizedLocal);
   const diskRawBefore = readLocalProgressRaw();
@@ -36,11 +40,17 @@ export async function hydrateProgressFromCloud(
 
   let cloudRaw: string | null;
   let readFailed = false;
+  setCloudReadInFlight(adapter, true);
   try {
     cloudRaw = await adapter.cloudSave.read(CLOUD_PROGRESS_SLOT);
   } catch {
     cloudRaw = null;
     readFailed = true;
+  } finally {
+    setCloudReadInFlight(adapter, false);
+  }
+  if (getProgressResetGen() !== genAtStart) {
+    return { merged: loadProgress(levelCount), updated: false, unlockedAchievements: [] };
   }
 
   const safeCloudWrite = async (json: string): Promise<void> => {
@@ -85,22 +95,25 @@ export async function hydrateProgressFromCloud(
       }
     }
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-      if (hasAnyProgress(normalizedLocal)) {
+      if (hasAnyProgress(normalizedLocal) && getProgressResetGen() === genAtStart) {
         await safeCloudWrite(localRaw);
       }
     } else {
       const cloudProgress = migrateProgress(parsed, levelCount);
       merged = mergeProgress(normalizedLocal, cloudProgress, levelCount);
       const mergedRaw = JSON.stringify(merged);
-      if (mergedRaw !== localRaw) {
+      if (mergedRaw !== localRaw && getProgressResetGen() === genAtStart) {
         saveLocalProgress(merged);
       }
-      if (parseFailed || mergedRaw !== cloudRaw) {
+      if ((parseFailed || mergedRaw !== cloudRaw) && getProgressResetGen() === genAtStart) {
         await safeCloudWrite(mergedRaw);
       }
     }
-  } else if (!readFailed && adapter.isSteam && hasAnyProgress(normalizedLocal)) {
+  } else if (!readFailed && adapter.isSteam && hasAnyProgress(normalizedLocal) && getProgressResetGen() === genAtStart) {
     await safeCloudWrite(localRaw);
+  }
+  if (getProgressResetGen() !== genAtStart) {
+    return { merged: loadProgress(levelCount), updated: false, unlockedAchievements: [] };
   }
 
   const finalMergedRaw = JSON.stringify(merged);

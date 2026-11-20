@@ -1,6 +1,8 @@
 import { existsSync, readFileSync } from 'node:fs';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { planPrecache, renderServiceWorker } from '../../scripts/pwa/swBuilder.ts';
+import { createPlatformAdapter, setPlatformAdapter } from '../../src/platform/platform.ts';
+import { registerServiceWorker } from '../../src/platform/serviceWorker.ts';
 
 const enc = new TextEncoder();
 function inputs(extraPublic = 'v1'): Parameters<typeof planPrecache>[0] {
@@ -88,5 +90,85 @@ describe('service worker template vs the 2D build', () => {
   });
   it('only stores the offline shell for the 3D page itself', () => {
     expect(tpl).toMatch(/path === '\/' \|\| path === '\/index\.html'/);
+  });
+
+  it('registerServiceWorker skips Steam desktop and native Capacitor shells, and registers on web', () => {
+    const origNav = globalThis.navigator;
+    const origDoc = globalThis.document;
+    const origWin = globalThis.window;
+    const registerFn = vi.fn(async () => ({
+      waiting: null,
+      installing: null,
+      addEventListener: vi.fn(),
+      update: vi.fn(async () => undefined),
+    }));
+    try {
+      Object.defineProperty(globalThis, 'navigator', {
+        configurable: true,
+        value: {
+          serviceWorker: {
+            controller: null,
+            addEventListener: vi.fn(),
+            register: registerFn,
+          },
+        },
+      });
+      Object.defineProperty(globalThis, 'document', {
+        configurable: true,
+        value: {
+          readyState: 'complete',
+          hidden: false,
+          addEventListener: vi.fn(),
+        },
+      });
+      Object.defineProperty(globalThis, 'window', {
+        configurable: true,
+        value: {
+          setInterval: vi.fn(() => 1),
+          addEventListener: vi.fn(),
+          location: { reload: vi.fn() },
+        },
+      });
+
+      // Steam Electron shell: must NOT register /sw.js
+      setPlatformAdapter(
+        createPlatformAdapter({
+          bridge: {
+            isSteam: true,
+            unlockAchievement: async () => false,
+            cloudRead: async () => null,
+            cloudWrite: async () => true,
+          },
+        }),
+      );
+      registerServiceWorker({ onUpdateReady: vi.fn(), isProd: true });
+      expect(registerFn).not.toHaveBeenCalled();
+
+      // Native Capacitor mobile shell: must NOT register /sw.js
+      setPlatformAdapter(
+        createPlatformAdapter({
+          bridge: null,
+          mobile: {
+            isNative: true,
+            platform: 'android',
+            triggerHaptic: async () => true,
+            onAppStateChange: () => () => undefined,
+          },
+        }),
+      );
+      registerServiceWorker({ onUpdateReady: vi.fn(), isProd: true });
+      expect(registerFn).not.toHaveBeenCalled();
+
+      // Production web browser: registers /sw.js
+      setPlatformAdapter(createPlatformAdapter({ bridge: null }));
+      registerServiceWorker({ onUpdateReady: vi.fn(), isProd: true });
+      expect(registerFn).toHaveBeenCalledTimes(1);
+      expect(registerFn).toHaveBeenCalledWith('/sw.js');
+    } finally {
+      setPlatformAdapter(null);
+      Object.defineProperty(globalThis, 'navigator', { configurable: true, value: origNav });
+      Object.defineProperty(globalThis, 'document', { configurable: true, value: origDoc });
+      Object.defineProperty(globalThis, 'window', { configurable: true, value: origWin });
+    }
   });
 });
