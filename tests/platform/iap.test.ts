@@ -515,5 +515,18 @@ describe('Free-version scope gate (FREE_ISLANDS + isUnlocked) & catalogue invari
     expect(canPlayEndless('l1c', rawProg, LEVELS_2D)).toBe(true);
     expect(availableChallenges('l1c', rawProg, LEVELS_2D).length).toBeGreaterThan(0);
     expect(dailyForToday(Date.UTC(2026, 10, 20), rawProg, LEVELS_2D)).not.toBeNull();
+
+    // Compact `{ e, n, h }` difficultyWins & malformed `[Symbol.iterator]` entitlement objects never throw:
+    const compactRaw = {
+      ...createDefaultProgress(0),
+      difficultyWins: { h: [3, 3, 3] } as unknown as (typeof rawProg)['difficultyWins'],
+    };
+    expect(clearedIslandsCount2D(compactRaw, LEVELS_2D)).toBe(3);
+    expect(canPlayEndless('l1c', compactRaw, LEVELS_2D)).toBe(true);
+    expect(
+      isUnlocked('i24', { [Symbol.iterator]: null, full_unlock: true } as unknown as Readonly<
+        Record<string, boolean>
+      >),
+    ).toBe(true);
   });
 });

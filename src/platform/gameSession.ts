@@ -40,6 +40,7 @@ import {
 } from './sessionBridge.ts';
 import {
   hasSeenUpgradeToast,
+  isCloudHydrated,
   isProgressPostHydrated,
   loadProgress,
   loadSettings,
@@ -202,7 +203,14 @@ export class GameSession {
       const bootSnapshot = migrateProgress(this.progress, LEVELS.length);
       void hydrateProgressFromCloud(this.progress, LEVELS.length, platform)
         .then(({ merged, updated }) => {
-          if (!updated || this.disposed || this.resetGen !== bootResetGen) return;
+          if (this.disposed || this.resetGen !== bootResetGen) return;
+          if (!updated) {
+            if (isCloudHydrated(platform)) {
+              markProgressPostHydrated(this.progress);
+              this.workshopRefundedDuringHydrate = false;
+            }
+            return;
+          }
           let effectiveHydrated = migrateProgress(merged, LEVELS.length);
           const mergedDiskRaw = JSON.stringify(effectiveHydrated);
           const currentDiskRaw = readLocalProgressRaw();
@@ -860,11 +868,14 @@ export class GameSession {
     const merged = mergeProgress(this.progress, incoming, LEVELS.length);
     const gain = describeMergeGain(this.progress, merged);
     backupProgressBeforeImport();
+    this.workshopRefundedDuringHydrate = false;
     if (merged.heroes === undefined) delete this.progress.heroes;
     if (merged.difficultyWins === undefined) delete this.progress.difficultyWins;
     if (merged.wonChallenges === undefined) delete this.progress.wonChallenges;
     Object.assign(this.progress, merged);
-    markProgressPostHydrated(this.progress);
+    if (isCloudHydrated(getPlatform())) {
+      markProgressPostHydrated(this.progress);
+    }
     saveProgress(this.progress);
     this.deps?.content?.onProgressImported(LEVELS, this.progress);
     this.soundManager.playUiConfirm();
@@ -1000,7 +1011,10 @@ export class GameSession {
 
   refundWorkshop(): void {
     this.soundManager.unlock();
-    this.workshopRefundedDuringHydrate = true;
+    const platform = getPlatform();
+    if (platform.isSteam && !isCloudHydrated(platform)) {
+      this.workshopRefundedDuringHydrate = true;
+    }
     this.progress.workshop = {};
     saveProgress(this.progress);
     if (Object.keys(this.progress.workshop).length > 0) {

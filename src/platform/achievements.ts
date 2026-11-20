@@ -1,6 +1,5 @@
 import type { HeroId, ProgressData } from '../core/types.ts';
 import { CHALLENGES, challengesForLevel, type ChallengeId } from '../data/challenges.ts';
-import { difficultyWinsOf } from '../data/difficulty.ts';
 import { ENDLESS_TIERS, endlessWavesCleared } from '../data/endlessMutators.ts';
 import { HERO_DEFS, HERO_IDS, HERO_MAX_LEVEL, heroLevelFromXp } from '../data/heroes.ts';
 import { LEVELS, type LevelDef } from '../data/levels/index.ts';
@@ -63,17 +62,26 @@ function safeNonNegInt(val: unknown): number {
   return typeof val === 'number' && Number.isFinite(val) ? Math.max(0, Math.floor(val)) : 0;
 }
 
+type RawDiffWins = Partial<
+  Record<'easy' | 'normal' | 'hard' | 'e' | 'n' | 'h', readonly unknown[] | undefined>
+>;
+
 function safeBestStarsAt(progress: ProgressData, index: number): number {
-  const dw = progress.difficultyWins;
+  const dw = progress.difficultyWins as unknown as RawDiffWins | undefined;
   return Math.min(
     3,
     Math.max(
       safeNonNegInt(progress.bestStars?.[index]),
-      Math.min(1, safeNonNegInt(dw?.easy?.[index])),
-      safeNonNegInt(dw?.normal?.[index]),
-      safeNonNegInt(dw?.hard?.[index]),
+      Math.min(1, safeNonNegInt((dw?.easy ?? dw?.e)?.[index])),
+      safeNonNegInt((dw?.normal ?? dw?.n)?.[index]),
+      safeNonNegInt((dw?.hard ?? dw?.h)?.[index]),
     ),
   );
+}
+
+function hasHardWinAt(progress: ProgressData, index: number): boolean {
+  const dw = progress.difficultyWins as unknown as RawDiffWins | undefined;
+  return safeNonNegInt((dw?.hard ?? dw?.h)?.[index]) > 0;
 }
 
 function isIslandClearedAt(progress: ProgressData, index: number): boolean {
@@ -183,10 +191,9 @@ function heroLevelOf(progress: ProgressData, heroId: HeroId): number {
 }
 
 function countHardWins(progress: ProgressData, levels: readonly LevelDef[]): number {
-  const dw = difficultyWinsOf(progress);
   let wins = 0;
   for (let i = 0; i < levels.length; i++) {
-    if ((dw.hard[i] ?? 0) > 0) wins++;
+    if (hasHardWinAt(progress, i)) wins++;
   }
   return wins;
 }
@@ -249,7 +256,7 @@ const featAchievements: readonly SteamAchievementDef[] = FEATS.map((feat) => ({
   description: feat.description,
   category: 'feat',
   isEarned: (progress, levels) => {
-    const m = feat.measure(progress, levels);
+    const m = feat.measure(normalizeProgressForAchievements(progress, levels.length), levels);
     const target = Math.max(1, Math.floor(Number.isFinite(m.target) ? m.target : 1));
     const current = Math.max(0, Math.floor(Number.isFinite(m.current) ? m.current : 0));
     return current >= target;
@@ -313,8 +320,9 @@ const challengeAchievements: readonly SteamAchievementDef[] = [
     category: 'challenge',
     isEarned: (progress, levels) => {
       if (levels.length === 0) return false;
+      const normalized = normalizeProgressForAchievements(progress, levels.length);
       for (let i = 0; i < levels.length; i++) {
-        if (!isIslandMastered(progress, i, challengesForLevel(levels[i]))) return false;
+        if (!isIslandMastered(normalized, i, challengesForLevel(levels[i]))) return false;
       }
       return true;
     },
@@ -460,8 +468,7 @@ const hardAchievements: readonly SteamAchievementDef[] = [
     category: 'hard',
     isEarned: (progress, levels) => {
       const idx = levels.findIndex((l) => l.id === FINALE_BOSS_ISLAND_ID);
-      if (idx < 0) return false;
-      return (difficultyWinsOf(progress).hard[idx] ?? 0) > 0;
+      return idx >= 0 && hasHardWinAt(progress, idx);
     },
   },
   {

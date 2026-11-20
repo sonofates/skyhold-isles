@@ -967,9 +967,11 @@ describe('Save Robustness v2 — Version Migration & Algebraic Merge Fuzz', () =
     const { clearedIslandsCount2D, heroRoster, isHeroUnlocked } = await import(
       '../../src/render2d/heroes2d.ts'
     );
-    const { availableChallenges, canPlayEndless, dailyForToday } = await import(
+    const { availableChallenges, canPlayEndless, dailyForToday, resolveQueryRun2D } = await import(
       '../../src/render2d/ui/modes2d.ts'
     );
+    const { inferSeenFromProgress } = await import('../../src/platform/contentStorage.ts');
+    const { NEUTRAL_RUN_MODIFIERS } = await import('../../src/data/runModifiers.ts');
     const { applyRunResult2D, islandStates, loadProgress2D, recordRunResult2D } = await import(
       '../../src/render2d/ui/progress2d.ts'
     );
@@ -1049,5 +1051,20 @@ describe('Save Robustness v2 — Version Migration & Algebraic Merge Fuzz', () =
       LEVELS_2D,
     );
     expect(loadProgress2D(LEVELS_2D).wonChallenges).toContain('staticFree');
+
+    // 5. Compact `{ e, n, h }` difficultyWins & dirty/zero-rank workshop in resolveQueryRun2D / inferSeenFromProgress:
+    const dirtyWorkshopAndCompactDw = {
+      ...createDefaultProgress(0),
+      workshop: { quickcast: 0, retiredNode: 2, bad: Number.NaN } as unknown as ProgressData['workshop'],
+      difficultyWins: { h: [3] } as unknown as ProgressData['difficultyWins'],
+    };
+    expect(hasAnyProgress(dirtyWorkshopAndCompactDw)).toBe(true);
+    expect(inferSeenFromProgress(LEVELS_2D, dirtyWorkshopAndCompactDw).length).toBeGreaterThan(0);
+    const resolvedNeutral = resolveQueryRun2D(
+      new URLSearchParams('level=l1c'),
+      dirtyWorkshopAndCompactDw,
+      { levels: LEVELS_2D, warn: () => undefined },
+    );
+    expect(resolvedNeutral.modifiers).toBe(NEUTRAL_RUN_MODIFIERS);
   });
 });

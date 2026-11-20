@@ -16,6 +16,7 @@ import { SimWorld } from '../../src/sim/world.ts';
 import {
   createPlatformAdapter,
   earnedSteamAchievementIds,
+  encodeSaveCode,
   exportAchievementManifest,
   hydrateProgressFromCloud,
   recoverProgressSave,
@@ -41,6 +42,7 @@ import {
   decodeSaveCode2D,
   encodeSaveCode2D,
   hydrateProgress2DFromCloud,
+  importSaveCode2D,
   loadProgress2D,
   onProgress2DCloudHydrated,
   PROGRESS_2D_KEY,
@@ -2247,6 +2249,232 @@ describe('Steam achievements map, cloud hydration, and desktop config invariants
       expect(rawUnlockCalls).toBe(2);
     } finally {
       setPlatformAdapter(null);
+    }
+  });
+
+  it('prevents pre-hydration importSaveCode2D, recoverProgress2D, and 3D GameSession.importSaveCode from poisoning post-hydration refs or wiping remote Workshop/islands', async () => {
+    localStorage.clear();
+    const cloudMap = new Map<string, string>();
+
+    // Remote 2D Steam Cloud save has 14 cleared islands, Workshop upgrades, and L10 Mira.
+    const remote2D = createDefaultProgress(LEVELS_2D.length);
+    for (let i = 0; i < 14; i++) {
+      remote2D.bestStars[i] = 3;
+      remote2D.clears[i] = 1;
+    }
+    remote2D.unlockedLevelIndex = 14;
+    remote2D.workshop = { quickcast: 2, bounty: 2 };
+    remote2D.heroes = createFreshHeroSaveData();
+    remote2D.heroes.selectedHero = 'mira';
+    remote2D.heroes.roster.mira = { xp: HERO_LEVEL_XP[9], skills: ['mira_emb_1'] };
+    cloudMap.set(
+      CLOUD_PROGRESS_2D_SLOT,
+      JSON.stringify({ ids: LEVELS_2D.map((l) => l.id), progress: remote2D }),
+    );
+
+    // Save code only has 3 cleared islands and `{ quickcast: 1 }`.
+    const imported2D = createDefaultProgress(LEVELS_2D.length);
+    for (let i = 0; i < 3; i++) {
+      imported2D.bestStars[i] = 3;
+      imported2D.clears[i] = 1;
+    }
+    imported2D.unlockedLevelIndex = 3;
+    imported2D.workshop = { quickcast: 1 };
+    imported2D.heroes = createFreshHeroSaveData();
+    const code2D = encodeSaveCode2D(imported2D, LEVELS_2D);
+
+    let releaseRead2D: (() => void) | null = null;
+    const adapter2D = createPlatformAdapter({
+      bridge: {
+        isSteam: true,
+        appId: 480,
+        unlockAchievement: async () => true,
+        cloudRead: (slot) =>
+          new Promise<string | null>((res) => {
+            releaseRead2D = () => res(cloudMap.get(slot) ?? null);
+          }),
+        cloudWrite: async (slot, json) => {
+          cloudMap.set(slot, json);
+          return true;
+        },
+      },
+    });
+    setPlatformAdapter(adapter2D);
+
+    try {
+      // 1. User imports save code on fresh PC BEFORE Steam Cloud read resolves:
+      const impRes = importSaveCode2D(code2D, LEVELS_2D);
+      expect(impRes.ok).toBe(true);
+      if (!impRes.ok) return;
+      const heldRef = impRes.progress;
+      expect(heldRef.bestStars[13]).toBe(0);
+      expect(releaseRead2D).not.toBeNull();
+
+      // Steam Cloud read now resolves:
+      releaseRead2D!();
+      await new Promise((r) => setTimeout(r, 15));
+
+      // Caller still holds `heldRef` (returned before cloud read resolved), selects Wren (which shares
+      // `heldRef.bestStars`), and calls `saveProgress2D`: must 3-way merge remote islands/Workshop/Mira!
+      const withWren = selectHero(heldRef, 'wren', LEVELS_2D);
+      expect(withWren).not.toBeNull();
+      saveProgress2D(withWren!, LEVELS_2D);
+
+      expect(withWren!.bestStars[13]).toBe(3);
+      expect(withWren!.workshop).toEqual({ quickcast: 2, bounty: 2 });
+      expect(withWren!.heroes?.roster.mira?.xp).toBe(HERO_LEVEL_XP[9]);
+      expect(withWren!.heroes?.selectedHero).toBe('wren');
+      const written2D = JSON.parse(cloudMap.get(CLOUD_PROGRESS_2D_SLOT)!) as { progress: ProgressData };
+      expect(written2D.progress.bestStars[13]).toBe(3);
+      expect(written2D.progress.workshop).toEqual({ quickcast: 2, bounty: 2 });
+
+      // 2. Same pre-hydration guard for `recoverProgress2D`:
+      localStorage.clear();
+      localStorage.setItem(
+        'skyhold_isles_progress2d_import_backup',
+        JSON.stringify({ ids: LEVELS_2D.map((l) => l.id), progress: imported2D }),
+      );
+      let releaseRecRead2D: (() => void) | null = null;
+      const recAdapter2D = createPlatformAdapter({
+        bridge: {
+          isSteam: true,
+          appId: 480,
+          unlockAchievement: async () => true,
+          cloudRead: (slot) =>
+            new Promise<string | null>((res) => {
+              releaseRecRead2D = () => res(cloudMap.get(slot) ?? null);
+            }),
+          cloudWrite: async (slot, json) => {
+            cloudMap.set(slot, json);
+            return true;
+          },
+        },
+      });
+      setPlatformAdapter(recAdapter2D);
+      const recRes = recoverProgress2D(LEVELS_2D);
+      expect(recRes.recovered).toBe(true);
+      expect(releaseRecRead2D).not.toBeNull();
+      releaseRecRead2D!();
+      await new Promise((r) => setTimeout(r, 15));
+
+      saveProgress2D(recRes.progress, LEVELS_2D);
+      expect(recRes.progress.bestStars[13]).toBe(3);
+      expect(recRes.progress.workshop).toEqual({ quickcast: 2, bounty: 2 });
+
+      // 3. 3D `GameSession.importSaveCode` while `hydrateProgressFromCloud` is awaiting `cloudSave.read`:
+      // importing `{ quickcast: 1 }` must NOT be misinterpreted as refunding remote `{ quickcast: 2, bounty: 2 }`!
+      localStorage.clear();
+      const remote3D = createDefaultProgress(LEVELS.length);
+      for (let i = 0; i < 10; i++) {
+        remote3D.bestStars[i] = 3;
+        remote3D.clears[i] = 1;
+      }
+      remote3D.unlockedLevelIndex = 10;
+      remote3D.workshop = { quickcast: 2, bounty: 2 };
+      cloudMap.set(CLOUD_PROGRESS_SLOT, JSON.stringify(remote3D));
+
+      const imported3D = createDefaultProgress(LEVELS.length);
+      for (let i = 0; i < 2; i++) {
+        imported3D.bestStars[i] = 3;
+        imported3D.clears[i] = 1;
+      }
+      imported3D.unlockedLevelIndex = 2;
+      imported3D.workshop = { quickcast: 1 };
+      const code3D = encodeSaveCode(imported3D);
+
+      let releaseRead3D: (() => void) | null = null;
+      const adapter3D = createPlatformAdapter({
+        bridge: {
+          isSteam: true,
+          appId: 480,
+          unlockAchievement: async () => true,
+          cloudRead: (slot) =>
+            new Promise<string | null>((res) => {
+              releaseRead3D = () => res(cloudMap.get(slot) ?? null);
+            }),
+          cloudWrite: async (slot, json) => {
+            cloudMap.set(slot, json);
+            return true;
+          },
+        },
+      });
+      setPlatformAdapter(adapter3D);
+
+      const mockRw = {
+        setQuality: () => {},
+        loadLevel: () => {},
+        setPlacementGridActive: () => {},
+        setFlightPathHighlight: () => {},
+        setRoutesPinned: () => {},
+        setHoveredTowerId: () => {},
+        setCanvasCursor: () => {},
+        setMeteorTargetPreview: () => {},
+        overlayIndicators: { setSelectedTowerRing: () => {} },
+        cameraController: { setShowcaseMode: () => {}, getViewVersion: () => 0 },
+      };
+      const mockSm = {
+        unlock: () => {},
+        bindEvents: () => () => {},
+        setMusicDucked: () => {},
+        setMusicContext: () => {},
+        playUiConfirm: () => {},
+        playUiBack: () => {},
+        playStarChime: () => {},
+        playBossPulse: () => {},
+        suspendForBackground: () => {},
+        resumeFromBackground: () => {},
+        updateSettings: () => {},
+      };
+      const gs = new GameSession(mockRw as never, mockSm as never);
+      try {
+        expect(releaseRead3D).not.toBeNull();
+        expect(gs.importSaveCode(code3D).ok).toBe(true);
+        expect(gs.progress.workshop).toEqual({ quickcast: 1 });
+
+        releaseRead3D!();
+        await new Promise((r) => setTimeout(r, 15));
+
+        expect(gs.progress.bestStars[9]).toBe(3);
+        expect(gs.progress.workshop).toEqual({ quickcast: 2, bounty: 2 });
+        expect(JSON.parse(cloudMap.get(CLOUD_PROGRESS_SLOT)!).workshop).toEqual({
+          quickcast: 2,
+          bounty: 2,
+        });
+      } finally {
+        gs.dispose();
+      }
+    } finally {
+      setPlatformAdapter(null);
+    }
+  });
+
+  it('keeps direct STEAM_ACHIEVEMENTS[i].isEarned predicates 1-to-1 with earnedSteamAchievementIds on partial/compact difficultyWins saves', () => {
+    const rawCompact = {
+      version: 2,
+      unlockedLevelIndex: 24,
+      bestStars: [],
+      bestEndlessWaves: [],
+      bestLives: [],
+      clears: [],
+      workshop: {},
+      challengeClears: LEVELS_2D.map((lvl) => [...challengesForLevel(lvl)]),
+      daily: { lastDay: 500, streak: 14, bestStreak: 0, total: 20 },
+      difficultyWins: {
+        h: new Array<number>(LEVELS_2D.length).fill(3),
+      } as unknown as ProgressData['difficultyWins'],
+    } as ProgressData;
+
+    const batchEarned = new Set(earnedSteamAchievementIds(rawCompact, LEVELS_2D));
+    expect(batchEarned.has('HARD_BOSS_I24')).toBe(true);
+    expect(batchEarned.has('HARD_ALL_ISLANDS')).toBe(true);
+    expect(batchEarned.has('CROWN_ALL_ISLANDS')).toBe(true);
+    expect(batchEarned.has('STARS_ALL_25_ISLANDS')).toBe(true);
+    expect(batchEarned.has('DAILY_STREAK_14')).toBe(true);
+
+    for (const ach of STEAM_ACHIEVEMENTS) {
+      expect(ach.isEarned(rawCompact, LEVELS_2D), `${ach.id} direct vs batch mismatch`).toBe(
+        batchEarned.has(ach.id),
+      );
     }
   });
 });

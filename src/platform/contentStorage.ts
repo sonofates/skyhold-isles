@@ -40,15 +40,21 @@ function hasDifficultyWinAt(
   dw: ProgressData['difficultyWins'] | undefined,
   index?: number,
 ): boolean {
-  if (!dw) return false;
+  if (!dw || typeof dw !== 'object' || Array.isArray(dw)) return false;
+  const rec = dw as Partial<
+    Record<'easy' | 'normal' | 'hard' | 'e' | 'n' | 'h', readonly unknown[] | undefined>
+  >;
+  const easy = rec.easy ?? rec.e;
+  const normal = rec.normal ?? rec.n;
+  const hard = rec.hard ?? rec.h;
   const pos = (v: unknown): boolean => typeof v === 'number' && Number.isFinite(v) && v > 0;
   if (index !== undefined) {
-    return pos(dw.easy?.[index]) || pos(dw.normal?.[index]) || pos(dw.hard?.[index]);
+    return pos(easy?.[index]) || pos(normal?.[index]) || pos(hard?.[index]);
   }
   return (
-    (Array.isArray(dw.easy) && dw.easy.some(pos)) ||
-    (Array.isArray(dw.normal) && dw.normal.some(pos)) ||
-    (Array.isArray(dw.hard) && dw.hard.some(pos))
+    (Array.isArray(easy) && easy.some(pos)) ||
+    (Array.isArray(normal) && normal.some(pos)) ||
+    (Array.isArray(hard) && hard.some(pos))
   );
 }
 

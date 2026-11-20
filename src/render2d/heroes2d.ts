@@ -174,9 +174,14 @@ export function clearedIslandsCount2D(
   progress: ProgressData,
   levels: readonly Pick<LevelDef, 'id'>[] = LEVELS_2D,
 ): number {
-  const dw = progress.difficultyWins;
+  const dw = progress.difficultyWins as
+    | Partial<Record<'easy' | 'normal' | 'hard' | 'e' | 'n' | 'h', readonly unknown[] | undefined>>
+    | undefined;
+  const easy = dw?.easy ?? dw?.e;
+  const normal = dw?.normal ?? dw?.n;
+  const hard = dw?.hard ?? dw?.h;
   const arrLen = (arr: unknown): number => (Array.isArray(arr) ? arr.length : 0);
-  const dwMaxLen = dw ? Math.max(arrLen(dw.easy), arrLen(dw.normal), arrLen(dw.hard)) : 0;
+  const dwMaxLen = dw ? Math.max(arrLen(easy), arrLen(normal), arrLen(hard)) : 0;
   const limit = Math.min(
     levels.length,
     Math.max(arrLen(progress.clears), arrLen(progress.bestStars), dwMaxLen),
@@ -186,9 +191,9 @@ export function clearedIslandsCount2D(
     if (
       isPosFinite(progress.clears?.[i]) ||
       isPosFinite(progress.bestStars?.[i]) ||
-      isPosFinite(dw?.easy?.[i]) ||
-      isPosFinite(dw?.normal?.[i]) ||
-      isPosFinite(dw?.hard?.[i])
+      isPosFinite(easy?.[i]) ||
+      isPosFinite(normal?.[i]) ||
+      isPosFinite(hard?.[i])
     ) {
       cleared++;
     }

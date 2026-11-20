@@ -20,7 +20,7 @@ import { DIFFICULTIES, parseDifficulty, withDifficulty, type DifficultyId } from
 import { getLevelById, LEVELS_2D } from '../../data/levels2d/index.ts';
 import type { LevelDef } from '../../data/levels/types.ts';
 import { isNeutralRun, NEUTRAL_RUN_MODIFIERS, type RunModifiers } from '../../data/runModifiers.ts';
-import { workshopModifiers, type WorkshopRanks } from '../../data/workshop.ts';
+import { sanitizeRanks, workshopModifiers, type WorkshopRanks } from '../../data/workshop.ts';
 import type { RunConfig } from '../../game/runConfig.ts';
 import { indexOf2D } from './progress2d.ts';
 
@@ -57,13 +57,15 @@ function isPosFinite(val: unknown): boolean {
 }
 
 function isIslandCleared(progress: ProgressData, index: number): boolean {
-  const dw = progress.difficultyWins;
+  const dw = progress.difficultyWins as
+    | Partial<Record<'easy' | 'normal' | 'hard' | 'e' | 'n' | 'h', readonly unknown[] | undefined>>
+    | undefined;
   return (
     isPosFinite(progress.clears?.[index]) ||
     isPosFinite(progress.bestStars?.[index]) ||
-    isPosFinite(dw?.easy?.[index]) ||
-    isPosFinite(dw?.normal?.[index]) ||
-    isPosFinite(dw?.hard?.[index])
+    isPosFinite((dw?.easy ?? dw?.e)?.[index]) ||
+    isPosFinite((dw?.normal ?? dw?.n)?.[index]) ||
+    isPosFinite((dw?.hard ?? dw?.h)?.[index])
   );
 }
 
@@ -315,7 +317,7 @@ export function resolveQueryRun2D(
   }
   const difficulty = runConfig.difficulty ?? 'normal';
 
-  const workshop = applySaveModifiers ? (progress.workshop ?? {}) : {};
+  const workshop = applySaveModifiers ? sanitizeRanks(progress.workshop) : {};
   const hasWorkshop = Object.keys(workshop).length > 0;
   const composed =
     !hasWorkshop && runConfig.challenges.length === 0 && difficulty === 'normal'

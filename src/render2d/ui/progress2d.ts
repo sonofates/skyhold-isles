@@ -472,7 +472,13 @@ export function loadProgress2D(levels: readonly LevelDef[] = LEVELS_2D): Progres
     const baseRaw = serializeStored2D(baseSnapshot, levels);
     void hydrateProgress2DFromCloud(result, levels, platform)
       .then(({ merged, updated }) => {
-        if (!updated || resetGen2D !== bootGen) return;
+        if (resetGen2D !== bootGen) return;
+        if (!updated) {
+          if (completedHydrated2DAdapters.has(platform) && serializeStored2D(result, levels) === baseRaw) {
+            postHydrationStarsRefs.add(result.bestStars);
+          }
+          return;
+        }
         let effectiveHydrated = remapProgress(
           merged,
           levels.map((l) => l.id),
@@ -584,7 +590,9 @@ export function recoverProgress2D(
 
   const recovered = sources.length > 0 && hasAnyProgress(merged);
   if (recovered && options?.persist !== false) {
-    postHydrationStarsRefs.add(merged.bestStars);
+    if (completedHydrated2DAdapters.has(getPlatform())) {
+      postHydrationStarsRefs.add(merged.bestStars);
+    }
     saveProgress2D(merged, levels);
   }
   return { progress: merged, recovered, sources };
@@ -1355,7 +1363,9 @@ export function importSaveCode2D(
   } catch {
     // ignore storage errors
   }
-  postHydrationStarsRefs.add(merged.bestStars);
+  if (completedHydrated2DAdapters.has(getPlatform())) {
+    postHydrationStarsRefs.add(merged.bestStars);
+  }
   saveProgress2D(merged, levels);
   return { ok: true, progress: merged, previous: current, summary };
 }

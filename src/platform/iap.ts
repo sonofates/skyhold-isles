@@ -110,7 +110,7 @@ export type EntitlementCollection =
 
 function hasFullUnlockEntitlement(entitlements: EntitlementCollection): boolean {
   if (!entitlements || typeof entitlements !== 'object') return false;
-  if (Symbol.iterator in entitlements) {
+  if (typeof (entitlements as { [Symbol.iterator]?: unknown })[Symbol.iterator] === 'function') {
     for (const raw of entitlements as Iterable<unknown>) {
       if (typeof raw !== 'string') continue;
       const clean = raw.trim();

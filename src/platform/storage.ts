@@ -50,6 +50,11 @@ export function markCloudHydrated(adapter: PlatformAdapter): void {
   completedHydratedAdapters.add(adapter);
 }
 
+/** True when `adapter` has completed at least one clean remote Steam Cloud hydration for `progress`. */
+export function isCloudHydrated(adapter: PlatformAdapter = getPlatform()): boolean {
+  return completedHydratedAdapters.has(adapter);
+}
+
 /** Marks a `ProgressData` instance as derived after Steam Cloud hydration (authoritative on refunds). */
 export function markProgressPostHydrated(progress: ProgressData): void {
   if (Array.isArray(progress.bestStars)) {
@@ -929,7 +934,9 @@ export function backupProgressBeforeImport(): void {
 export function hasAnyProgress(p: ProgressData): boolean {
   const pos = (v: unknown): boolean => typeof v === 'number' && Number.isFinite(v) && v > 0;
   const anyPos = (arr: unknown): boolean => Array.isArray(arr) && arr.some(pos);
-  const dw = p.difficultyWins as Partial<Record<'easy' | 'normal' | 'hard', unknown>> | undefined;
+  const dw = p.difficultyWins as
+    | Partial<Record<'easy' | 'normal' | 'hard' | 'e' | 'n' | 'h', unknown>>
+    | undefined;
   return (
     pos(p.unlockedLevelIndex) ||
     anyPos(p.bestStars) ||
@@ -946,6 +953,9 @@ export function hasAnyProgress(p: ProgressData): boolean {
         Object.keys(p.workshop).length > 0,
     ) ||
     hasHeroSaveProgress(p.heroes) ||
-    Boolean(dw && (anyPos(dw.easy) || anyPos(dw.normal) || anyPos(dw.hard)))
+    Boolean(
+      dw &&
+        (anyPos(dw.easy ?? dw.e) || anyPos(dw.normal ?? dw.n) || anyPos(dw.hard ?? dw.h)),
+    )
   );
 }

@@ -297,6 +297,9 @@ function registerBundleProtocol(ses, distDir) {
     if (parsed.origin !== BUNDLE_ORIGIN) {
       return new Response('Blocked external request', { status: 403 });
     }
+    if (request.method !== 'GET' && request.method !== 'HEAD') {
+      return new Response('Method Not Allowed', { status: 405 });
+    }
     const target = resolveDistFile(distDir, parsed.pathname);
     if (!target) {
       return new Response('Forbidden', { status: 403 });
