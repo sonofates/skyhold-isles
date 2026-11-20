@@ -1,0 +1,64 @@
+{
+  "file": "ambient/i05/loops.mp4",
+  "mask": "ambient/i05/mask.webp",
+  "compact": {
+    "file": "ambient/i05/loops-1x.mp4",
+    "mask": "ambient/i05/mask-1x.webp",
+    "width": 416,
+    "height": 296,
+    "fps": 12
+  },
+  "width": 832,
+  "height": 592,
+  "fps": 24,
+  "elements": [
+    {
+      "id": "windmill-sails",
+      "rect": [
+        558.9875,
+        356.2625,
+        187.6875,
+        187.6875
+      ],
+      "depth": 2,
+      "cell": [
+        4,
+        4,
+        329,
+        329
+      ]
+    },
+    {
+      "id": "scarecrow-wheat",
+      "rect": [
+        18.2125,
+        52.0375,
+        340.225,
+        206.5375
+      ],
+      "depth": 2,
+      "cell": [
+        4,
+        344,
+        392,
+        238
+      ]
+    },
+    {
+      "id": "eastern-wheat",
+      "rect": [
+        1340.55,
+        375.3,
+        416.7,
+        238.95
+      ],
+      "depth": 2,
+      "cell": [
+        344,
+        4,
+        480,
+        275
+      ]
+    }
+  ]
+}

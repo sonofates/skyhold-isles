@@ -1,0 +1,65 @@
+[
+  {
+    "view": "desktop",
+    "element": "lower-gorge-spray",
+    "wrapMax": 0,
+    "outsideMax": 0,
+    "movingPixels": 10040
+  },
+  {
+    "view": "desktop",
+    "element": "north-gorge-mist",
+    "wrapMax": 0,
+    "outsideMax": 0,
+    "movingPixels": 3517
+  },
+  {
+    "view": "desktop",
+    "element": "between-arches-current",
+    "wrapMax": 0,
+    "outsideMax": 0,
+    "movingPixels": 3691
+  },
+  {
+    "view": "phone",
+    "element": "lower-gorge-spray",
+    "wrapMax": 0,
+    "outsideMax": 0,
+    "movingPixels": 5171
+  },
+  {
+    "view": "phone",
+    "element": "north-gorge-mist",
+    "wrapMax": 0,
+    "outsideMax": 0,
+    "movingPixels": 1899
+  },
+  {
+    "view": "phone",
+    "element": "between-arches-current",
+    "wrapMax": 0,
+    "outsideMax": 0,
+    "movingPixels": 2058
+  },
+  {
+    "view": "full-map",
+    "element": "lower-gorge-spray",
+    "wrapMax": 0,
+    "outsideMax": 0,
+    "movingPixels": 7716
+  },
+  {
+    "view": "full-map",
+    "element": "north-gorge-mist",
+    "wrapMax": 0,
+    "outsideMax": 0,
+    "movingPixels": 2793
+  },
+  {
+    "view": "full-map",
+    "element": "between-arches-current",
+    "wrapMax": 0,
+    "outsideMax": 0,
+    "movingPixels": 2935
+  }
+]

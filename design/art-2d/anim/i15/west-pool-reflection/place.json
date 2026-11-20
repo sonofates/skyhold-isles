@@ -1,0 +1,36 @@
+{
+  "element": "west-pool-reflection",
+  "id": "i15-west-pool-reflection",
+  "source": "public/art2d/map-i15-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 59,
+    "y": 140,
+    "width": 240,
+    "height": 135
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    177,
+    420,
+    897,
+    825
+  ],
+  "startPxPerLayoutPx": 5.333333333333333,
+  "startPxPerSourcePx": 1.7777777777777777,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    189,
+    205,
+    1036,
+    521
+  ],
+  "featherInwardStartPx": 20
+}

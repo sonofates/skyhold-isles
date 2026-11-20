@@ -1,0 +1,36 @@
+{
+  "element": "reed-bank-ripples",
+  "id": "i08-reed-bank-ripples",
+  "source": "public/art2d/map-i08-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 0,
+    "y": 503,
+    "width": 288,
+    "height": 162
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    0,
+    1509,
+    864,
+    1995
+  ],
+  "startPxPerLayoutPx": 4.444444444444445,
+  "startPxPerSourcePx": 1.4814814814814816,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    74,
+    108,
+    950,
+    622
+  ],
+  "featherInwardStartPx": 16
+}

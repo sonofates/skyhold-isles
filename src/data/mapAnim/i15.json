@@ -1,0 +1,48 @@
+{
+  "file": "ambient/i15/loops.mp4",
+  "mask": "ambient/i15/mask.webp",
+  "compact": {
+    "file": "ambient/i15/loops-1x.mp4",
+    "mask": "ambient/i15/mask-1x.webp",
+    "width": 416,
+    "height": 88,
+    "fps": 12
+  },
+  "width": 832,
+  "height": 176,
+  "fps": 24,
+  "elements": [
+    {
+      "id": "west-pool-reflection",
+      "rect": [
+        94.4375,
+        178.4375,
+        158.8125,
+        59.25
+      ],
+      "depth": 0,
+      "cell": [
+        348,
+        4,
+        318,
+        119
+      ]
+    },
+    {
+      "id": "north-pool-moonlight",
+      "rect": [
+        1397.9375,
+        12.0,
+        167.4375,
+        77.0625
+      ],
+      "depth": 0,
+      "cell": [
+        4,
+        4,
+        335,
+        155
+      ]
+    }
+  ]
+}

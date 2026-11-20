@@ -1,0 +1,86 @@
+[
+  {
+    "view": "desktop",
+    "element": "western-surf",
+    "wrapMax": 0,
+    "outsideMax": 0,
+    "movingPixels": 15290
+  },
+  {
+    "view": "desktop",
+    "element": "inner-cove",
+    "wrapMax": 0,
+    "outsideMax": 0,
+    "movingPixels": 9459
+  },
+  {
+    "view": "desktop",
+    "element": "south-lagoon-wash",
+    "wrapMax": 0,
+    "outsideMax": 0,
+    "movingPixels": 7292
+  },
+  {
+    "view": "desktop",
+    "element": "eastern-swell",
+    "wrapMax": 0,
+    "outsideMax": 0,
+    "movingPixels": 16712
+  },
+  {
+    "view": "phone",
+    "element": "western-surf",
+    "wrapMax": 0,
+    "outsideMax": 0,
+    "movingPixels": 8297
+  },
+  {
+    "view": "phone",
+    "element": "inner-cove",
+    "wrapMax": 0,
+    "outsideMax": 0,
+    "movingPixels": 5403
+  },
+  {
+    "view": "phone",
+    "element": "south-lagoon-wash",
+    "wrapMax": 0,
+    "outsideMax": 0,
+    "movingPixels": 4090
+  },
+  {
+    "view": "phone",
+    "element": "eastern-swell",
+    "wrapMax": 0,
+    "outsideMax": 0,
+    "movingPixels": 9260
+  },
+  {
+    "view": "full-map",
+    "element": "western-surf",
+    "wrapMax": 0,
+    "outsideMax": 0,
+    "movingPixels": 11203
+  },
+  {
+    "view": "full-map",
+    "element": "inner-cove",
+    "wrapMax": 0,
+    "outsideMax": 0,
+    "movingPixels": 7125
+  },
+  {
+    "view": "full-map",
+    "element": "south-lagoon-wash",
+    "wrapMax": 0,
+    "outsideMax": 0,
+    "movingPixels": 5245
+  },
+  {
+    "view": "full-map",
+    "element": "eastern-swell",
+    "wrapMax": 0,
+    "outsideMax": 0,
+    "movingPixels": 12254
+  }
+]

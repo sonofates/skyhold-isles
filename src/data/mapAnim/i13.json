@@ -1,0 +1,48 @@
+{
+  "file": "ambient/i13/loops.mp4",
+  "mask": "ambient/i13/mask.webp",
+  "compact": {
+    "file": "ambient/i13/loops-1x.mp4",
+    "mask": "ambient/i13/mask-1x.webp",
+    "width": 416,
+    "height": 64,
+    "fps": 12
+  },
+  "width": 832,
+  "height": 128,
+  "fps": 24,
+  "elements": [
+    {
+      "id": "dial-shelf-rain-sheen",
+      "rect": [
+        866.0,
+        48.7,
+        138.3,
+        54.6
+      ],
+      "depth": 1,
+      "cell": [
+        4,
+        4,
+        277,
+        110
+      ]
+    },
+    {
+      "id": "west-shelf-mist",
+      "rect": [
+        115.6,
+        198.6,
+        180.8,
+        46.8
+      ],
+      "depth": 1,
+      "cell": [
+        292,
+        4,
+        362,
+        94
+      ]
+    }
+  ]
+}

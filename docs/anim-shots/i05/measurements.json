@@ -1,0 +1,180 @@
+{
+  "browser": "153.0.8010.12",
+  "sequenceTimes": [
+    0,
+    1.5,
+    3,
+    4.5,
+    6,
+    7.958333333333333
+  ],
+  "cases": [
+    {
+      "name": "desktop",
+      "width": 2000,
+      "height": 991,
+      "dpr": 1,
+      "quality": "high",
+      "map": 1.5,
+      "fit": {
+        "scale": 1.1471522887323944,
+        "offsetX": -59.39513864436617,
+        "offsetY": 41.1579049295774,
+        "bandLeft": 0,
+        "bandRight": 0,
+        "bandTop": 41.1579049295774,
+        "bandBottom": 0,
+        "shrink": 0.9862500000000001,
+        "coverage": 0.958468309859155,
+        "clear": true
+      },
+      "render": {
+        "resolution": 1,
+        "canvasPx": [
+          2000,
+          991
+        ],
+        "resolutionScale": 1,
+        "desktop": true
+      },
+      "initialAmbientRequests": 0,
+      "staticBefore": {
+        "wraps": 0,
+        "frames": 35,
+        "meanMs": 89.52,
+        "p50Ms": 83.3,
+        "p95Ms": 133.3
+      },
+      "animated": {
+        "wraps": 0,
+        "frames": 32,
+        "meanMs": 94.27,
+        "p50Ms": 99.9,
+        "p95Ms": 100.1
+      },
+      "gamePause": "held and resumed",
+      "files": [
+        "mask.webp",
+        "loops.mp4"
+      ]
+    },
+    {
+      "name": "phone",
+      "width": 844,
+      "height": 390,
+      "dpr": 2,
+      "quality": "high",
+      "map": 1,
+      "fit": {
+        "scale": 0.42455985915492955,
+        "offsetX": -53.764579665492946,
+        "offsetY": 12.137500000000017,
+        "bandLeft": 0,
+        "bandRight": 114.02707966549303,
+        "bandTop": 12.137500000000017,
+        "bandBottom": 16.137500000000045,
+        "shrink": 0.9275,
+        "coverage": 0.8021918052254207,
+        "clear": true
+      },
+      "render": {
+        "resolution": 2,
+        "canvasPx": [
+          1688,
+          780
+        ],
+        "resolutionScale": 1,
+        "desktop": false
+      },
+      "initialAmbientRequests": 0,
+      "staticBefore": {
+        "wraps": 0,
+        "frames": 60,
+        "meanMs": 50.55,
+        "p50Ms": 50,
+        "p95Ms": 99.9
+      },
+      "animated": {
+        "wraps": 0,
+        "frames": 59,
+        "meanMs": 51.13,
+        "p50Ms": 50,
+        "p95Ms": 100
+      },
+      "gamePause": "held and resumed",
+      "files": [
+        "mask-1x.webp",
+        "loops-1x.mp4"
+      ]
+    },
+    {
+      "name": "low",
+      "width": 844,
+      "height": 390,
+      "dpr": 1,
+      "quality": "low",
+      "map": 1,
+      "fit": {
+        "scale": 0.42455985915492955,
+        "offsetX": -53.81145466549299,
+        "offsetY": 12.137500000000017,
+        "bandLeft": 0,
+        "bandRight": 113.82395466549303,
+        "bandTop": 12.137500000000017,
+        "bandBottom": 16.137500000000045,
+        "shrink": 0.9275,
+        "coverage": 0.8023779639084504,
+        "clear": true
+      },
+      "render": {
+        "resolution": 0.8,
+        "canvasPx": [
+          675,
+          312
+        ],
+        "resolutionScale": 1,
+        "desktop": false
+      },
+      "initialAmbientRequests": 0
+    },
+    {
+      "name": "full-map",
+      "width": 1846,
+      "height": 852,
+      "dpr": 1,
+      "quality": "med",
+      "map": 1,
+      "fit": {
+        "scale": 0.9985445217200597,
+        "offsetX": -70.8617828026245,
+        "offsetY": 0.5323904458732613,
+        "bandLeft": 0,
+        "bandRight": 73.16880806807535,
+        "bandTop": 0.5323904458732613,
+        "bandBottom": 0.5323904458732613,
+        "shrink": 0.99875,
+        "coverage": 0.9591549920083401,
+        "clear": true
+      },
+      "render": {
+        "resolution": 0.8172376433668324,
+        "canvasPx": [
+          1508,
+          696
+        ],
+        "resolutionScale": 1,
+        "desktop": true
+      },
+      "initialAmbientRequests": 0,
+      "captureFit": {
+        "scale": 1,
+        "offsetX": 0,
+        "offsetY": 0
+      },
+      "files": [
+        "mask-1x.webp",
+        "loops-1x.mp4"
+      ]
+    }
+  ]
+}

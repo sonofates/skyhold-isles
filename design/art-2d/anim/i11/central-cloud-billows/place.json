@@ -1,0 +1,36 @@
+{
+  "element": "central-cloud-billows",
+  "id": "i11-central-cloud-billows",
+  "source": "public/art2d/map-i11-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 1014,
+    "y": 154,
+    "width": 352,
+    "height": 198
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    3042,
+    462,
+    4098,
+    1056
+  ],
+  "startPxPerLayoutPx": 3.6363636363636362,
+  "startPxPerSourcePx": 1.2121212121212122,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    171,
+    207,
+    1113,
+    511
+  ],
+  "featherInwardStartPx": 28
+}

@@ -1,0 +1,36 @@
+{
+  "element": "cottage-hawthorn",
+  "id": "i01-cottage-hawthorn",
+  "source": "public/art2d/map-i01-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 253,
+    "y": 452,
+    "width": 208,
+    "height": 117
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    759,
+    1356,
+    1383,
+    1707
+  ],
+  "startPxPerLayoutPx": 6.153846153846154,
+  "startPxPerSourcePx": 2.0512820512820515,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    240,
+    209,
+    1089,
+    578
+  ],
+  "featherInwardStartPx": 8
+}

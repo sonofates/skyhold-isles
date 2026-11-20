@@ -1,0 +1,64 @@
+{
+  "file": "ambient/i07/loops.mp4",
+  "mask": "ambient/i07/mask.webp",
+  "compact": {
+    "file": "ambient/i07/loops-1x.mp4",
+    "mask": "ambient/i07/mask-1x.webp",
+    "width": 416,
+    "height": 192,
+    "fps": 12
+  },
+  "width": 832,
+  "height": 384,
+  "fps": 24,
+  "elements": [
+    {
+      "id": "lower-gorge-spray",
+      "rect": [
+        809.625,
+        674.5,
+        118.4375,
+        169.6875
+      ],
+      "depth": 0,
+      "cell": [
+        244,
+        4,
+        237,
+        340
+      ]
+    },
+    {
+      "id": "north-gorge-mist",
+      "rect": [
+        828.3,
+        6.0,
+        137.1,
+        159.3
+      ],
+      "depth": 1,
+      "cell": [
+        492,
+        4,
+        275,
+        319
+      ]
+    },
+    {
+      "id": "between-arches-current",
+      "rect": [
+        788.95,
+        269.9,
+        114.1,
+        184.1
+      ],
+      "depth": 1,
+      "cell": [
+        4,
+        4,
+        229,
+        369
+      ]
+    }
+  ]
+}

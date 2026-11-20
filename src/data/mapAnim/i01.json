@@ -1,0 +1,80 @@
+{
+  "file": "ambient/i01/loops.mp4",
+  "mask": "ambient/i01/mask.webp",
+  "compact": {
+    "file": "ambient/i01/loops-1x.mp4",
+    "mask": "ambient/i01/mask-1x.webp",
+    "width": 416,
+    "height": 160,
+    "fps": 12
+  },
+  "width": 832,
+  "height": 320,
+  "fps": 24,
+  "elements": [
+    {
+      "id": "honey-cottage-smoke",
+      "rect": [
+        376.0,
+        422.4,
+        144.3,
+        61.95
+      ],
+      "depth": 1,
+      "cell": [
+        304,
+        172,
+        289,
+        124
+      ]
+    },
+    {
+      "id": "cottage-hawthorn",
+      "rect": [
+        288.75,
+        482.7125,
+        144.4625,
+        66.4625
+      ],
+      "depth": 2,
+      "cell": [
+        4,
+        172,
+        289,
+        133
+      ]
+    },
+    {
+      "id": "south-meadow-hawthorn",
+      "rect": [
+        641.6,
+        637.175,
+        154.175,
+        78.925
+      ],
+      "depth": 2,
+      "cell": [
+        4,
+        4,
+        309,
+        158
+      ]
+    },
+    {
+      "id": "southeast-hawthorn",
+      "rect": [
+        1693.9,
+        603.2,
+        133.5,
+        66.9
+      ],
+      "depth": 2,
+      "cell": [
+        324,
+        4,
+        267,
+        134
+      ]
+    }
+  ]
+}

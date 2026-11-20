@@ -1,0 +1,36 @@
+{
+  "element": "upper-cascade",
+  "id": "i03-upper-cascade",
+  "source": "public/art2d/map-i03-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 0,
+    "y": 324,
+    "width": 176,
+    "height": 99
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    0,
+    972,
+    528,
+    1269
+  ],
+  "startPxPerLayoutPx": 7.2727272727272725,
+  "startPxPerSourcePx": 2.4242424242424243,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    46,
+    245,
+    928,
+    492
+  ],
+  "featherInwardStartPx": 16
+}

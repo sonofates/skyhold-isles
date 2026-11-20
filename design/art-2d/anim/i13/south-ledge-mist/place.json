@@ -1,0 +1,36 @@
+{
+  "element": "south-ledge-mist",
+  "id": "i13-south-ledge-mist",
+  "source": "public/art2d/map-i13-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 1494,
+    "y": 654,
+    "width": 352,
+    "height": 198
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    4482,
+    1962,
+    5538,
+    2556
+  ],
+  "startPxPerLayoutPx": 3.6363636363636362,
+  "startPxPerSourcePx": 1.2121212121212122,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    170,
+    375,
+    1125,
+    586
+  ],
+  "featherInwardStartPx": 25
+}

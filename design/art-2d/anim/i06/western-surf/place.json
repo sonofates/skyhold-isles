@@ -1,0 +1,36 @@
+{
+  "element": "western-surf",
+  "id": "i06-western-surf",
+  "source": "public/art2d/map-i06-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 0,
+    "y": 76,
+    "width": 624,
+    "height": 351
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    0,
+    228,
+    1872,
+    1281
+  ],
+  "startPxPerLayoutPx": 2.051282051282051,
+  "startPxPerSourcePx": 0.6837606837606837,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    157,
+    96,
+    470,
+    624
+  ],
+  "featherInwardStartPx": 16
+}

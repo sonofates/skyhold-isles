@@ -1,0 +1,36 @@
+{
+  "element": "silver-hazel",
+  "id": "i12-silver-hazel",
+  "source": "public/art2d/map-i12-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 1649,
+    "y": 476,
+    "width": 192,
+    "height": 108
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    4947,
+    1428,
+    5523,
+    1752
+  ],
+  "startPxPerLayoutPx": 6.666666666666667,
+  "startPxPerSourcePx": 2.2222222222222223,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    260,
+    138,
+    1011,
+    606
+  ],
+  "featherInwardStartPx": 9
+}

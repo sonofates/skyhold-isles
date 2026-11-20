@@ -1,0 +1,36 @@
+{
+  "element": "south-lagoon-wash",
+  "id": "i06-south-lagoon-wash",
+  "source": "public/art2d/map-i06-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 568,
+    "y": 354,
+    "width": 464,
+    "height": 261
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    1704,
+    1062,
+    3096,
+    1845
+  ],
+  "startPxPerLayoutPx": 2.7586206896551726,
+  "startPxPerSourcePx": 0.9195402298850576,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    188,
+    247,
+    1108,
+    481
+  ],
+  "featherInwardStartPx": 16
+}

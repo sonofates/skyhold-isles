@@ -1,0 +1,23 @@
+[
+  {
+    "view": "desktop",
+    "element": "northwest-border-crown",
+    "wrapMax": 0,
+    "outsideMax": 0,
+    "movingPixels": 5488
+  },
+  {
+    "view": "phone",
+    "element": "northwest-border-crown",
+    "wrapMax": 0,
+    "outsideMax": 0,
+    "movingPixels": 3416
+  },
+  {
+    "view": "full-map",
+    "element": "northwest-border-crown",
+    "wrapMax": 0,
+    "outsideMax": 0,
+    "movingPixels": 4008
+  }
+]

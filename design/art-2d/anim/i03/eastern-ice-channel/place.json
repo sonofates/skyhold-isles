@@ -1,0 +1,36 @@
+{
+  "element": "eastern-ice-channel",
+  "id": "i03-eastern-ice-channel",
+  "source": "public/art2d/map-i03-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 1254,
+    "y": 88,
+    "width": 592,
+    "height": 333
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    3762,
+    264,
+    5538,
+    1263
+  ],
+  "startPxPerLayoutPx": 2.1621621621621623,
+  "startPxPerSourcePx": 0.7207207207207208,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    814,
+    92,
+    1179,
+    632
+  ],
+  "featherInwardStartPx": 16
+}

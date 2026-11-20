@@ -1,0 +1,36 @@
+{
+  "element": "southeast-border-crown",
+  "id": "i09-southeast-border-crown",
+  "source": "public/art2d/map-i09-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 1543,
+    "y": 699,
+    "width": 272,
+    "height": 153
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    4629,
+    2097,
+    5445,
+    2556
+  ],
+  "startPxPerLayoutPx": 4.705882352941177,
+  "startPxPerSourcePx": 1.5686274509803921,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    181,
+    366,
+    1099,
+    704
+  ],
+  "featherInwardStartPx": 18
+}

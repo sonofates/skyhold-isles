@@ -1,0 +1,36 @@
+{
+  "element": "southern-windrows",
+  "id": "i05-southern-windrows",
+  "source": "public/art2d/map-i05-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 1094,
+    "y": 429,
+    "width": 752,
+    "height": 423
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    3282,
+    1287,
+    5538,
+    2556
+  ],
+  "startPxPerLayoutPx": 1.702127659574468,
+  "startPxPerSourcePx": 0.5673758865248227,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    281,
+    287,
+    1229,
+    603
+  ],
+  "featherInwardStartPx": 16
+}

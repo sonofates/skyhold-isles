@@ -1,0 +1,36 @@
+{
+  "element": "spring-outlet",
+  "id": "i04-spring-outlet",
+  "source": "public/art2d/map-i04-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 999,
+    "y": 222,
+    "width": 256,
+    "height": 144
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    2997,
+    666,
+    3765,
+    1098
+  ],
+  "startPxPerLayoutPx": 5.0,
+  "startPxPerSourcePx": 1.6666666666666667,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    192,
+    208,
+    1092,
+    527
+  ],
+  "featherInwardStartPx": 16
+}

@@ -1,0 +1,36 @@
+{
+  "element": "trestle-tailwater",
+  "id": "i04-trestle-tailwater",
+  "source": "public/art2d/map-i04-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 207,
+    "y": 186,
+    "width": 288,
+    "height": 162
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    621,
+    558,
+    1485,
+    1044
+  ],
+  "startPxPerLayoutPx": 4.444444444444445,
+  "startPxPerSourcePx": 1.4814814814814816,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    163,
+    215,
+    1112,
+    517
+  ],
+  "featherInwardStartPx": 16
+}

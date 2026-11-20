@@ -1,0 +1,65 @@
+[
+  {
+    "view": "desktop",
+    "element": "plunge-pool",
+    "wrapMax": 0,
+    "outsideMax": 0,
+    "movingPixels": 4725
+  },
+  {
+    "view": "desktop",
+    "element": "lower-falls-and-spray",
+    "wrapMax": 0,
+    "outsideMax": 0,
+    "movingPixels": 6586
+  },
+  {
+    "view": "desktop",
+    "element": "eastern-ice-channel",
+    "wrapMax": 0,
+    "outsideMax": 0,
+    "movingPixels": 3487
+  },
+  {
+    "view": "phone",
+    "element": "plunge-pool",
+    "wrapMax": 0,
+    "outsideMax": 0,
+    "movingPixels": 578
+  },
+  {
+    "view": "phone",
+    "element": "lower-falls-and-spray",
+    "wrapMax": 0,
+    "outsideMax": 0,
+    "movingPixels": 3622
+  },
+  {
+    "view": "phone",
+    "element": "eastern-ice-channel",
+    "wrapMax": 0,
+    "outsideMax": 0,
+    "movingPixels": 2000
+  },
+  {
+    "view": "full-map",
+    "element": "plunge-pool",
+    "wrapMax": 0,
+    "outsideMax": 0,
+    "movingPixels": 3431
+  },
+  {
+    "view": "full-map",
+    "element": "lower-falls-and-spray",
+    "wrapMax": 0,
+    "outsideMax": 0,
+    "movingPixels": 7762
+  },
+  {
+    "view": "full-map",
+    "element": "eastern-ice-channel",
+    "wrapMax": 0,
+    "outsideMax": 0,
+    "movingPixels": 2705
+  }
+]
