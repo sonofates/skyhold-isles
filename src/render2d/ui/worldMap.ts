@@ -34,6 +34,7 @@ import { anySheetOpen, el, glyph, img, KIT, medal, roundButton, starsRow } from 
 import { fetchMapsManifest, islandMapUrl, type MapsManifest } from './islandArt.ts';
 import { routeMarks, scrollToCentre, worldMapLayout, type RouteMark, type WorldMapLayout } from './mapLayout.ts';
 import { dailyFor2D, openDaily, openLogbook, openSettings, openWorkshop, type MetaContext } from './metaScreens.ts';
+import { unseenFeats } from './featSeen.ts';
 import { availableChallenges, buildRunHref2D, canPlayEndless } from './modes2d.ts';
 import { islandStates, loadProgress2D, type IslandState } from './progress2d.ts';
 import { openCredits } from './credits2d.ts';
@@ -379,6 +380,13 @@ export async function mountWorldMap(q: URLSearchParams): Promise<void> {
     }).length;
     if (affordable > 0) wsBtn.append(el('span', 'pu-badge', { 'aria-label': t('map.affordable', { n: affordable }) }, String(affordable)));
     heroBtn.refresh(ctx);
+    lbBtn.querySelector('.pu-dot')?.remove();
+    lbBtn.removeAttribute('data-new-feats');
+    const newFeats = unseenFeats(progress, levels).length;
+    if (newFeats > 0) {
+      lbBtn.setAttribute('data-new-feats', String(newFeats));
+      lbBtn.append(el('span', 'pu-dot', { role: 'img', 'aria-label': t('map.logbookNew') }));
+    }
     dailyBtn.querySelector('.pu-dot')?.remove();
     const daily = dailyFor2D(progress, Date.now(), levels);
     if (daily && progress.daily.lastDay !== utcDayNumber(Date.now())) dailyBtn.append(el('span', 'pu-dot', { 'aria-hidden': 'true' }));
@@ -469,7 +477,7 @@ export async function mountWorldMap(q: URLSearchParams): Promise<void> {
   scroll.addEventListener('pointercancel', endDrag);
 
   wsBtn.addEventListener('click', () => openWorkshop(ctx));
-  lbBtn.addEventListener('click', () => openLogbook(ctx));
+  lbBtn.addEventListener('click', () => openLogbook(ctx, undefined, refreshTopbar));
   dailyBtn.addEventListener('click', () => openDaily(ctx));
   setBtn.addEventListener('click', () => openSettings(ctx));
   heroBtn.el.addEventListener('click', () => openSkillTree(ctx, heroFiles));
@@ -512,7 +520,7 @@ export async function mountWorldMap(q: URLSearchParams): Promise<void> {
     });
   }
   else if (screen === 'workshop') openWorkshop(ctx);
-  else if (screen === 'logbook') openLogbook(ctx, q.get('tab') === 'feats' ? 'feats' : 'islands');
+  else if (screen === 'logbook') openLogbook(ctx, q.get('tab') === 'feats' ? 'feats' : 'islands', refreshTopbar);
   else if (screen === 'daily') openDaily(ctx);
   else if (screen === 'settings') openSettings(ctx);
   else if (screen === 'credits') openCredits();

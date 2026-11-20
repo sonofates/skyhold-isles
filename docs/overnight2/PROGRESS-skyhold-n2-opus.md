@@ -91,6 +91,15 @@
   reduced motion. `ui/featToast2d.ts/.css`, wired in main2d (save before vs after
   `recordRunOutcome`). `qa/featshot.mjs`: cards end above the board's ribbon at 2000x991 (102 < 178)
   and 844x390 (63 < 70). Shots opus-shots/feat-*. Unit tests (plan + First Landing / Starcatcher).
+- New feats in the Logbook (`ui/featSeen.ts`, localStorage `skyhold2d_feats_seen_v1`): a feat earned
+  since the last look puts a red dot on the map's Logbook button (aria "New feats in the Logbook"),
+  the Logbook then opens on the Feats tab (unless a tab is asked for), those rows glow with a gold
+  "New" / "Yeni" tag, and the dot on the Feats tab shows while on Islands. Opening the Feats tab marks
+  them seen; closing the board refreshes the map dot. Baseline: the first map visit (or a run's
+  save-before, for deep-linked runs) records what is already earned — old saves get no dots.
+  `qa/featseenshot.mjs` (fresh → no dot, win l1c → dot + 2 new rows → closed → no dot, reopen on
+  Islands, no tags): 0 problems at 2000x991 and 844x390 × EN/TR. uiaudit logbook, logbook-feats,
+  map, map-fresh: 0 problems. Shots opus-shots/featseen-*. Unit test (`unseenFeatIds`).
 
 ## Next ideas
 - Swap in Codex's title paintings when they land (keys in Requests); re-shoot the title.

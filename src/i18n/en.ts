@@ -364,6 +364,8 @@ export const EN = {
   'feat.more': { one: 'And {n} more feat: see the Logbook', other: 'And {n} more feats: see the Logbook' },
   'lb.tabIslands': 'Islands',
   'lb.tabFeats': 'Feats {e}/{n}',
+  'lb.featNew': 'New',
+  'map.logbookNew': 'New feats in the Logbook',
   'lb.uncharted': 'Uncharted isle',
   'lb.clearToSail': 'Clear {name} to sail here',
   'lb.badgeAria': '{name}: badge earned',

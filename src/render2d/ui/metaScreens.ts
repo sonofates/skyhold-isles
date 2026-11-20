@@ -12,6 +12,7 @@ import { LEVELS_2D } from '../../data/levels2d/index.ts';
 import type { LevelDef } from '../../data/levels/types.ts';
 import { buyRank, maxRank, nextRankCost, rankOf, WORKSHOP_BRANCHES, WORKSHOP_UPGRADES, workshopTotalCost, type WorkshopUpgradeDef } from '../../data/workshop.ts';
 import { featStatuses, type FeatIcon } from '../../game/feats.ts';
+import { markFeatsSeen, unseenFeats } from './featSeen.ts';
 import { isIslandMastered, starWallet } from '../../game/progression.ts';
 import { isTouchDevice, loadSettings, saveSettings } from '../../platform/storage.ts';
 import { isDesktopClient } from '../renderResolution.ts';
@@ -129,11 +130,15 @@ function seal(icon: FeatIcon): HTMLSpanElement {
   return sealBadge(icon);
 }
 
-export function openLogbook(ctx: MetaContext, tab: 'islands' | 'feats' = 'islands'): Sheet {
-  const sheet = openSheet(t('lb.title'), { cls: 'pu-meta', testid: 'logbook2d' });
+export function openLogbook(ctx: MetaContext, tab?: 'islands' | 'feats', onClose?: () => void): Sheet {
+  const sheet = openSheet(t('lb.title'), { cls: 'pu-meta', testid: 'logbook2d', onClose });
+  // Feats earned since the last look carry a "New" tag (and open the board on their tab).
+  const fresh = new Set(unseenFeats(ctx.progress, ctx.levels));
+  let view: 'islands' | 'feats' = tab ?? (fresh.size > 0 ? 'feats' : 'islands');
   const render = (): void => {
     const p = ctx.progress;
     const levels = ctx.levels;
+    if (view === 'feats') markFeatsSeen(p, levels);
     const wallet = starWallet(p);
     let badges = 0;
     let badgesMax = 0;
@@ -177,17 +182,18 @@ export function openLogbook(ctx: MetaContext, tab: 'islands' | 'feats' = 'island
     const mk = (id: 'islands' | 'feats', label: string): void => {
       const b = plank(label, { kind: 'small', testid: `lb2d-tab-${id}` });
       b.setAttribute('role', 'tab');
-      b.setAttribute('aria-selected', String(tab === id));
+      b.setAttribute('aria-selected', String(view === id));
       b.addEventListener('click', () => {
-        tab = id;
+        view = id;
         render();
       });
+      if (id === 'feats' && view !== 'feats' && fresh.size > 0) b.append(el('span', 'pu-dot pu-tab-dot', { 'aria-hidden': 'true' }));
       tabs.append(b);
     };
     mk('islands', t('lb.tabIslands'));
     mk('feats', t('lb.tabFeats', { e: earned, n: feats.length }));
     const list = el('div', 'pu-ledger');
-    if (tab === 'islands') {
+    if (view === 'islands') {
       levels.forEach((lvl, i) => {
         const unlocked = i <= p.unlockedLevelIndex;
         const row = el('div', `pu-ledger-row${unlocked ? '' : ' locked'}`);
@@ -244,16 +250,23 @@ export function openLogbook(ctx: MetaContext, tab: 'islands' | 'feats' = 'island
       });
     } else {
       for (const f of feats) {
+        const isNew = f.earned && fresh.has(f.def.id);
         const pct = Math.round((Math.min(f.current, f.target) / Math.max(1, f.target)) * 100);
         const bar = el('div', 'pu-bar', {}, el('i'), el('span', 'pu-letter', {}, `${Math.min(f.current, f.target)}/${f.target}`));
         (bar.firstChild as HTMLElement).style.setProperty('--p', `${pct}%`);
         list.append(
           el(
             'div',
-            `pu-feat${f.earned ? '' : ' locked'}`,
-            {},
+            `pu-feat${f.earned ? '' : ' locked'}${isNew ? ' new' : ''}`,
+            { 'data-testid': `lb2d-feat-${f.def.id}` },
             seal(f.def.icon),
-            el('div', '', {}, el('div', 'pu-feat-name pu-ink', {}, featName(f.def)), el('div', 'pu-feat-desc pu-ink-soft', {}, featDesc(f.def))),
+            el(
+              'div',
+              '',
+              {},
+              el('div', 'pu-feat-name pu-ink', {}, featName(f.def), isNew ? el('span', 'pu-feat-new pu-letter', {}, t('lb.featNew')) : null),
+              el('div', 'pu-feat-desc pu-ink-soft', {}, featDesc(f.def)),
+            ),
             bar,
           ),
         );
@@ -263,7 +276,7 @@ export function openLogbook(ctx: MetaContext, tab: 'islands' | 'feats' = 'island
       'div',
       'pu-meta-foot pu-ink-soft',
       {},
-      tab === 'feats'
+      view === 'feats'
         ? earned === 0
           ? t('lb.featsEmpty')
           : t('lb.featsFoot', { n: earned, total: feats.length })

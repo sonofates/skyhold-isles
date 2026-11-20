@@ -1666,6 +1666,36 @@
   font-size: 0.88em;
 }
 
+/* A feat earned since the last look (featSeen.ts): warm glow on the row, a small gold "New" tag. */
+.pu-feat.new {
+  border-radius: calc(var(--s) * 0.8);
+  background: radial-gradient(ellipse at 12% 50%, rgba(255, 214, 110, 0.55), rgba(255, 214, 110, 0.12) 70%);
+}
+
+.pu-feat-new {
+  display: inline-block;
+  margin-left: 0.5em;
+  padding: 0.05em 0.5em 0.1em;
+  border-radius: 999px;
+  background: linear-gradient(#ffd96a, #d99a1e);
+  box-shadow: 0 0 0 2px #7a4a12;
+  font-size: max(10px, 0.72em);
+  vertical-align: 0.12em;
+  line-height: 1.2;
+}
+
+/* Red dot on the Feats tab while new feats wait there. */
+.pu-tab-dot {
+  display: inline-block;
+  width: 0.62em;
+  height: 0.62em;
+  margin-left: 0.4em;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #ff8a6a, #c8341f 60%);
+  box-shadow: 0 0 0 2px var(--outline);
+  vertical-align: 0.1em;
+}
+
 /* Progress bar: a thin wood plank with a gold fill. */
 .pu-bar {
   position: relative;

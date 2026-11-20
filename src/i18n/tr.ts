@@ -370,6 +370,8 @@ export const TR: { readonly [K in MsgKey]: Msg } = {
   'feat.more': { one: '{n} başarı daha: Seyir Defteri’ne bak', other: '{n} başarı daha: Seyir Defteri’ne bak' },
   'lb.tabIslands': 'Adalar',
   'lb.tabFeats': 'Başarılar {e}/{n}',
+  'lb.featNew': 'Yeni',
+  'map.logbookNew': 'Defterde yeni başarılar var',
   'lb.uncharted': 'Keşfedilmemiş ada',
   'lb.clearToSail': 'Buraya yelken açmak için {name} adasını geç',
   'lb.badgeAria': '{name}: rozet kazanıldı',

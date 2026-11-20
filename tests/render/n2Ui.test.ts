@@ -17,6 +17,7 @@ import { LOAD_TIPS, pickLoadTip } from '../../src/render2d/ui/transition2d.ts';
 import { newStarsFrom, unveilIndex } from '../../src/render2d/ui/worldMap.ts';
 import { featToastPlan, FEAT_TOAST_MAX, showNewFeats } from '../../src/render2d/ui/featToast2d.ts';
 import { createDefaultProgress } from '../../src/platform/storage.ts';
+import { unseenFeatIds } from '../../src/render2d/ui/featSeen.ts';
 import { LEVELS_2D } from '../../src/data/levels2d/index.ts';
 
 describe('skill tree fit (heroScreens.ts)', () => {
@@ -312,5 +313,13 @@ describe('feat toasts', () => {
     expect(ids).toContain('firstLanding');
     expect(ids).toContain('starcatcher');
     expect(showNewFeats(after, after, LEVELS_2D)).toEqual([]);
+  });
+});
+
+describe('new feats in the Logbook', () => {
+  it('lists earned feats not seen yet; nothing before a baseline exists', () => {
+    expect(unseenFeatIds(['firstLanding', 'starcatcher'], null)).toEqual([]);
+    expect(unseenFeatIds(['firstLanding', 'starcatcher'], new Set(['firstLanding']))).toEqual(['starcatcher']);
+    expect(unseenFeatIds(new Set(['a']), new Set(['a', 'b']))).toEqual([]);
   });
 });

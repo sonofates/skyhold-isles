@@ -9,6 +9,7 @@ import { earnedFeatIds, newlyEarnedFeats, type FeatDef } from '../../game/feats.
 import { featDesc, featName } from '../../i18n/data.ts';
 import { t } from '../../i18n/index.ts';
 import { el, sealBadge } from './dom.ts';
+import { ensureFeatBaseline } from './featSeen.ts';
 import './featToast2d.css';
 
 /** At most this many cards at once (a big save import could complete many feats). */
@@ -63,7 +64,11 @@ export function showFeatToasts(feats: readonly FeatDef[], delayMs = 1600): void 
 
 /** Compares the save before and after a run's result and shows the feats it completed. */
 export function showNewFeats(before: ProgressData, after: ProgressData, levels: readonly LevelDef[]): FeatDef[] {
-  const fresh = newlyEarnedFeats(earnedFeatIds(before, levels), after, levels);
+  const had = earnedFeatIds(before, levels);
+  // A run reached straight from a deep link: the feats held before it are the "seen" baseline, so the
+  // new ones still light the Logbook's dot on the map.
+  if (typeof localStorage !== 'undefined') ensureFeatBaseline(had);
+  const fresh = newlyEarnedFeats(had, after, levels);
   showFeatToasts(fresh);
   return fresh;
 }
