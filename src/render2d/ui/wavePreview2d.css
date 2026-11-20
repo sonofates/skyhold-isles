@@ -16,6 +16,12 @@
   pointer-events: none;
 }
 
+/* The wave marches: the card fades out of its corner (WAVE_CARD_FADE_MS in wavePreview2d.ts). */
+.pu-wave-card.pu-wave-out {
+  opacity: 0;
+  transition: opacity 0.3s ease-in;
+}
+
 /* Opacity only: the dock scales the card with `transform` (ui/dockCard.ts). */
 @keyframes pu-wave-in {
   from {

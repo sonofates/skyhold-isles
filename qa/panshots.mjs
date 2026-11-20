@@ -126,5 +126,14 @@ if (process.argv.includes('--pan')) {
   } else console.log('no __p0.plotScreen hook');
   await ctx.close();
 }
+if (process.argv.includes('--settings')) {
+  // Settings -> Controls lists the pan (Shift + arrows, drag, two-finger scroll; touch: one finger).
+  for (const s of [{ key: '1440x900', w: 1440, h: 900 }, { key: '844x390', w: 844, h: 390, touch: true }]) {
+    const { ctx, page } = await open(s, `level=l1c&lang=${LANG}&settings=1&settab=controls`);
+    await page.waitForTimeout(500);
+    await page.screenshot({ path: `${OUT}/settings-controls-${s.key}.jpg`, type: 'jpeg', quality: 80 });
+    await ctx.close();
+  }
+}
 await browser.close();
 console.log(`done, ${fails} shots to check`);
