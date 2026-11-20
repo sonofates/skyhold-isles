@@ -20,3 +20,50 @@ TypeScript and lint passed. Vitest passed 1,344 tests with 11 skipped. The reali
 ### Next round
 
 Start tower specializations. The roster has eight families: archer, cannon, frost, tesla, mortar, ballista, beacon and barracks. Implement the branch and ability purchases through the deterministic world and replay command paths, alongside the data interface Opus needs for the build ring. Chapter-two map polish follows.
+
+## Round 2 — Specialization rules, purchases and campaign builds
+
+### Done
+
+- All eight plot-tower families now have two exclusive tier-IV branches and one permanent purchasable ability per branch. Target acquisition, projectiles, chain lightning, beacon auras and barracks troops use the purchased stats. Each projectile keeps its launch-time stats through impact.
+- Branch and ability purchases use gold, count towards the usual sell refund, emit economy/upgrade events and record canonical sim commands. The world rejects invalid purchases before changing gold, investment or replay history.
+- Both campaign simulators use the same specialization build orders. On Normal, Lantern Glassworks (i18) buys Bell Foundry after the second ballista upgrade at plot 13 and clears at 7/22. Kitewright Down (i21) buys Farwatch Lodge and Throughshot at plot 18 and clears at 5/22. The existing island tuning is unchanged. Moving both i18 purchases immediately after its cannon reached T3 produced 19/22, above the 6–11 life target. The selected order cannot afford Aftershock before the Normal run ends.
+
+### API and requests for Opus
+
+- Read `specializationsFor(tower)` or `specializationsFor(type)` from `src/data/towers.ts` for both branch definitions. Each has `id`, `name`, `description`, `cost`, `changes` and `abilities[]`. Each ability has the same purchase fields except `abilities`. Stat changes are absolute replacements. `towerEntry(type).specializations` exposes the same catalog for the codex.
+- For a plot tower at `tower.tier === 3 && !tower.specialization`, offer both branches. Call `world.specializeTower(tower.id, branch.id)`. For a specialized tower, find its chosen definition using `tower.specialization.id`; `tower.specialization.abilities` lists purchased IDs. Call `world.buyTowerAbility(tower.id, ability.id)`. Both calls return true only on a completed purchase. Abilities take effect automatically. No ability activation button is needed.
+- Use `towerStats(tower)` for the effective tier, stats and range ring (then apply the existing aura/hero bonuses). `tower.tier` tracks the linear upgrades through III so existing three-slot art and legacy callers remain valid. `towerStats(tower).tier` returns IV for a specialized tower. The fourth-tier upgrade, firing, beacon-pulse and sale events carry numeric tier 4.
+- In the owned 2D UI replay adapter, route the new ring actions through the same command path on input and playback. The sim supports `{kind:'specializeTower', towerId, specializationId}` and `{kind:'buyTowerAbility', towerId, abilityId}`. The canonical replay parser, player and hash already support both. The UI adapter in `src/render2d/ui/replay2d.ts` has its own command union. Opus also owns the localized codex presentation. The legacy MVP summary currently reports the linear tier.
+- Barracks branches keep squad size, HP ceiling and rally radius. Purchasing a branch or an ability preserves wounds, formation, current fights and respawn timers. The new stats apply on subsequent swings, hits and deaths.
+
+### EN / TR copy for Opus
+
+English descriptions and costs are in the definitions. Each row gives the corresponding Turkish tooltips in branch, then ability order.
+
+| Family | Branch EN / TR | Ability EN / TR | Branch tooltip TR | Ability tooltip TR |
+|---|---|---|---|---|
+| Archer | Farwatch Lodge / Uzak Nöbet Karakolu | Throughshot / Delip Geçen Ok | Uzun yaylar daha yavaş atış yapar ama daha uzağa erişir. Her ok 8 zırhı yok sayar. | Ok hedefi delip arkasındaki bir düşmana %75 hasar verir. |
+| Archer | Swallow Roost / Kırlangıç Tüneği | Gathering Flock / Toplanan Sürü | Her üç atışta bir, yarı güçte iki ek ok fırlatır. | Her yaylımda dört ek ok fırlatır. |
+| Cannon | Honeycomb Battery / Petek Bataryası | Wax Caps / Balmumu Kapsülleri | Her isabetin çevresinde halka biçiminde beş küçük bomba patlar. | Küçük bombaların her biri ana merminin yarısı kadar hasar verir. |
+| Cannon | Bell Foundry / Çan Dökümhanesi | Aftershock / Artçı Sarsıntı | Tek bir ağır gülle geniş bir alana yüksek hasar verir. | Patlama düşmanları iki saniyeliğine %28 yavaşlatır. |
+| Frost | Snowbell Garden / Kardelen Bahçesi | Deep Drifts / Kar Yığınları | Geniş bir alana yayılan kar, düşmanları dört saniyeliğine yavaşlatır. | Karın etki yarıçapı 3,4 birime, yavaşlatma oranı %55’e çıkar. |
+| Frost | Rimeglass Needle / Kırağı İğnesi | Cold Fracture / Ayaz Çatlağı | Dar bir alana saçılan cam parçaları, soğuktan yavaşlamış düşmanlara ek hasar verir. | Cam parçaları isabet ettiğinde 12 zırhı yok sayar. |
+| Tesla | Relay Grove / Yıldırım Korusu | Live Wire / Akım Teli | Yıldırım, daha geniş aralıkları aşarak yedi düşmana kadar sıçrar. | Her sıçrama bir önceki isabetin hasarının %94’ünü korur. |
+| Tesla | Stormheart Coil / Fırtına Yüreği Bobini | Thunderbeat / Gök Gürültüsü | Kısa şimşekler en fazla üç düşmana vurur. Her dördüncü saldırı iki kat hasar verir. | Bobin her üçüncü saldırıda iki kat hasar verir. |
+| Mortar | Cinder Kiln / Kor Ocağı | Banked Fire / Köz Ateşi | Mermiler ardında beş saniye yanan geniş köz yatakları bırakır. | Közler her vuruşta zırhı yok sayarak 16 hasar verir. |
+| Mortar | Cloudbreak Mortar / Bulutdelen Havanı | Stone Petals / Taş Yapraklar | Hızlı ve ağır mermiler daha uzağa erişir. Havan, yakındaki hedeflere de atış yapabilir. | Her isabetin çevresinde üç parça patlar. |
+| Ballista | Laneweaver Loom / Yol Dokuma Tezgâhı | Silk Line / İpek Hat | Uzun oklar ilk hedefi delip arkasındaki dört düşmana daha ulaşabilir. | Oklar hedefin sekiz birim ardına kadar ulaşır ve yol boyunca tam hasar verir. |
+| Ballista | Anchor Winch / Çapa Çıkrığı | Drag Chain / Sürükleme Zinciri | Ağır zıpkın tek bir düşmana 230 hasar verir ve 22 zırhı yok sayar. | Zıpkınlar hedefi iki saniyeliğine %45 yavaşlatır. |
+| Beacon | Tailwind Mill / Arka Yel Değirmeni | Full Sail / Tam Yelken | Değirmenin yakınındaki birlikler %38 daha hızlı saldırır. | Değirmenin saldırı hızı desteği %48’e çıkar. |
+| Beacon | Horizon Lantern / Ufuk Feneri | Clear Lens / Berrak Mercek | Fener daha geniş bir alanı aydınlatır ve müttefiklerin menzilini %20 artırır. | Fener, müttefiklerin menzilini %30 artırır. |
+| Barracks | Gateward Hall / Kapı Muhafızları Kışlası | Iron Mantle / Demir Pelerin | Kalkanlı muhafızların 9 zırhı vardır. Düşen muhafızlar beş saniyede geri döner. | Her kalkanlı muhafız 5 zırh daha kazanır. |
+| Barracks | Briar Lodge / Diken Ocağı | Wide Sweep / Geniş Savuruş | Kancalı baltacılar 35 hasar verir. Savuruşları ikinci düşmana bunun %70’ini verir. | Savuruş ikinci düşmana da tam hasar verir. |
+
+### Verification
+
+TypeScript and lint passed. Vitest passed 1,366 tests with 11 skipped, including 22 new tests for all 16 branches, replay round trips, purchase rejection, refunds, projectiles, support and barracks. The full realistic-kit balance gate passed all 41 levels. The 24,217-byte standalone L1–L16 report matches the pre-specialization report byte for byte. All eight difficulty verdicts passed: Easy and Normal clear 25/25; Hard clears 12/17 and 3/8, with i09 at 12/22 and i24 at 5/22. Production build passed with the existing Vite chunk-size and dynamic-import warnings. This round changes rules and data only.
+
+### Next round
+
+Paint and hook up the two archer branches first, then carry the verified workflow across the other seven families. The directional families use separate body art and five turret facings; frost, tesla, beacon and barracks use full-body animation sheets. Inspect plot fit, release or muzzle registration, and scaled in-game screenshots. All 16 branch paintings are pending. Chapter-two map polish follows specialization art.

@@ -1,7 +1,7 @@
 import type { TowerType } from '../core/types.ts';
 
 export interface TowerTierStats {
-  readonly tier: 1 | 2 | 3;
+  readonly tier: 1 | 2 | 3 | 4;
   readonly upgradeCost: number; // Cost to build (tier 1) or upgrade to this tier
   readonly damage: number;
   readonly fireRate: number; // Attacks per second
@@ -662,4 +662,208 @@ export const TOWER_TYPES: readonly TowerType[] = ALL_TOWER_TYPES.filter((t) => !
 
 export function getTowerTierStats(type: TowerType, tier: 1 | 2 | 3): TowerTierStats {
   return TOWER_DEFS[type].tiers[tier - 1];
+}
+
+type StatChanges = Partial<Omit<TowerTierStats, 'tier' | 'upgradeCost'>>;
+
+interface TowerPurchase {
+  readonly id: string;
+  readonly name: string;
+  readonly description: string;
+  readonly cost: number;
+  /** Absolute values replacing the previous stats at purchase time. */
+  readonly changes: StatChanges;
+}
+
+export interface TowerSpecializationDef extends TowerPurchase {
+  readonly abilities: readonly TowerPurchase[];
+}
+
+const SPECIALIZATIONS = {
+  archer: [
+    {
+      id: 'farwatch', name: 'Farwatch Lodge', cost: 155,
+      description: 'Longbows trade speed for reach. Each arrow ignores 8 armor.',
+      changes: { damage: 75, fireRate: 1.6, range: 8.9, projectileSpeed: 36, armorPierce: 8, volleyEvery: 0 },
+      abilities: [{
+        id: 'throughshot', name: 'Throughshot', cost: 85,
+        description: 'Arrows pass through the target and hit one foe behind it for 75% damage.',
+        changes: { pierceCount: 1, pierceLength: 3.6, pierceFalloff: 0.75 },
+      }],
+    },
+    {
+      id: 'swallow', name: 'Swallow Roost', cost: 145,
+      description: 'Every third shot looses two extra arrows at half strength.',
+      changes: { damage: 38, fireRate: 2.55, volleyEvery: 3, volleyExtra: 2 },
+      abilities: [{
+        id: 'flock', name: 'Gathering Flock', cost: 75,
+        description: 'Each volley looses four extra arrows.', changes: { volleyExtra: 4 },
+      }],
+    },
+  ],
+  cannon: [
+    {
+      id: 'honeycomb', name: 'Honeycomb Battery', cost: 185,
+      description: 'Five small charges burst in a ring around each impact.',
+      changes: { damage: 92, clusterCount: 5, clusterRadius: 1.65, clusterOffset: 2.5 },
+      abilities: [{
+        id: 'waxcaps', name: 'Wax Caps', cost: 95,
+        description: 'Each small charge hits for half the main shell’s damage.', changes: { clusterDamage: 0.5 },
+      }],
+    },
+    {
+      id: 'bellfoundry', name: 'Bell Foundry', cost: 195,
+      description: 'A single heavy shell hits hard across a wide circle.',
+      changes: { damage: 134, fireRate: 0.82, splashRadius: 3.1, splashFalloffMin: 0.78, clusterCount: 0 },
+      abilities: [{
+        id: 'aftershock', name: 'Aftershock', cost: 100,
+        description: 'The blast slows enemies by 28% for two seconds.', changes: { slowRatio: 0.28, slowDuration: 2 },
+      }],
+    },
+  ],
+  frost: [
+    {
+      id: 'snowbell', name: 'Snowbell Garden', cost: 155,
+      description: 'Wide flurries chill a crowd for four seconds.',
+      changes: { splashRadius: 2.95, slowRatio: 0.48, slowDuration: 4 },
+      abilities: [{
+        id: 'drifts', name: 'Deep Drifts', cost: 80,
+        description: 'Flurries reach a radius of 3.4 and apply a 55% slow.', changes: { splashRadius: 3.4, slowRatio: 0.55 },
+      }],
+    },
+    {
+      id: 'rimeglass', name: 'Rimeglass Needle', cost: 165,
+      description: 'A narrow burst of glass shards deals extra damage to chilled targets.',
+      changes: { damage: 36, splashRadius: 1.45, brittle: 1.7, range: 6.2 },
+      abilities: [{
+        id: 'coldfracture', name: 'Cold Fracture', cost: 90,
+        description: 'Shards ignore 12 armor on impact.', changes: { armorPierce: 12 },
+      }],
+    },
+  ],
+  tesla: [
+    {
+      id: 'relay', name: 'Relay Grove', cost: 205,
+      description: 'Lightning leaps between up to seven foes, crossing wider gaps.',
+      changes: { chainCount: 7, chainRange: 4.8, chainFalloff: 0.84 },
+      abilities: [{
+        id: 'livewire', name: 'Live Wire', cost: 105,
+        description: 'Each jump keeps 94% of the preceding hit’s damage.', changes: { chainFalloff: 0.94 },
+      }],
+    },
+    {
+      id: 'stormheart', name: 'Stormheart Coil', cost: 210,
+      description: 'Short arcs strike up to three foes. Every fourth discharge deals double damage.',
+      changes: { damage: 75, chainCount: 3, overloadEvery: 4, overloadDamage: 2, overloadChain: 0 },
+      abilities: [{
+        id: 'thunderbeat', name: 'Thunderbeat', cost: 110,
+        description: 'The coil discharges at double strength every third attack.', changes: { overloadEvery: 3 },
+      }],
+    },
+  ],
+  mortar: [
+    {
+      id: 'cinderkiln', name: 'Cinder Kiln', cost: 235,
+      description: 'Shells leave broad beds of embers that burn for five seconds.',
+      changes: { burnDamage: 10, burnRadius: 2.8, burnDuration: 5 },
+      abilities: [{
+        id: 'bankedfire', name: 'Banked Fire', cost: 110,
+        description: 'Each ember tick deals 16 damage through armor.', changes: { burnDamage: 16 },
+      }],
+    },
+    {
+      id: 'cloudbreak', name: 'Cloudbreak Mortar', cost: 245,
+      description: 'Fast, heavy shells reach across the island and land closer to the crew.',
+      changes: { damage: 218, projectileSpeed: 16, range: 14.2, minRange: 2.1, burnDamage: 0 },
+      abilities: [{
+        id: 'stonepetals', name: 'Stone Petals', cost: 120,
+        description: 'Three fragments burst around each impact.',
+        changes: { clusterCount: 3, clusterDamage: 0.3, clusterRadius: 1.7, clusterOffset: 3 },
+      }],
+    },
+  ],
+  ballista: [
+    {
+      id: 'loom', name: 'Laneweaver Loom', cost: 215,
+      description: 'Long bolts can run through four more foes behind the first.',
+      changes: { damage: 162, pierceCount: 4, pierceLength: 6.4, pierceFalloff: 0.75 },
+      abilities: [{
+        id: 'silkline', name: 'Silk Line', cost: 100,
+        description: 'Bolts reach eight units behind the target and deal full damage along the line.',
+        changes: { pierceLength: 8, pierceFalloff: 1 },
+      }],
+    },
+    {
+      id: 'anchor', name: 'Anchor Winch', cost: 225,
+      description: 'A heavy harpoon hits one foe for 230 damage and ignores 22 armor.',
+      changes: { damage: 230, fireRate: 0.58, armorPierce: 22, pierceCount: 0 },
+      abilities: [{
+        id: 'dragchain', name: 'Drag Chain', cost: 105,
+        description: 'Harpoons slow their target by 45% for two seconds.', changes: { slowRatio: 0.45, slowDuration: 2 },
+      }],
+    },
+  ],
+  beacon: [
+    {
+      id: 'tailwind', name: 'Tailwind Mill', cost: 185,
+      description: 'Nearby crews attack 38% faster inside the mill’s turning sails.',
+      changes: { auraRate: 0.38 },
+      abilities: [{
+        id: 'fullsail', name: 'Full Sail', cost: 95,
+        description: 'The mill’s attack-speed bonus rises to 48%.', changes: { auraRate: 0.48 },
+      }],
+    },
+    {
+      id: 'horizon', name: 'Horizon Lantern', cost: 180,
+      description: 'The lantern covers a wider circle and extends allied range by 20%.',
+      changes: { range: 5.6, auraRange: 0.2 },
+      abilities: [{
+        id: 'clearlens', name: 'Clear Lens', cost: 90,
+        description: 'The lantern extends allied range by 30%.', changes: { auraRange: 0.3 },
+      }],
+    },
+  ],
+  barracks: [
+    {
+      id: 'gateward', name: 'Gateward Hall', cost: 170,
+      description: 'Shield bearers absorb 9 damage from each melee blow and return in five seconds.',
+      changes: { soldierArmor: 9, soldierRespawnSec: 5 },
+      abilities: [{
+        id: 'ironmantle', name: 'Iron Mantle', cost: 85,
+        description: 'Each shield bearer gains 5 more armor.', changes: { soldierArmor: 14 },
+      }],
+    },
+    {
+      id: 'briar', name: 'Briar Lodge', cost: 175,
+      description: 'Billhook fighters strike for 35 damage and sweep a second foe for 70%.',
+      changes: { damage: 35, soldierDamage: 35, soldierCleave: 0.7 },
+      abilities: [{
+        id: 'widesweep', name: 'Wide Sweep', cost: 90,
+        description: 'The second foe takes full damage from the sweep.', changes: { soldierCleave: 1 },
+      }],
+    },
+  ],
+} as const satisfies Record<TowerType, readonly [TowerSpecializationDef, TowerSpecializationDef]>;
+
+export type TowerSpecializationId = (typeof SPECIALIZATIONS)[TowerType][number]['id'];
+export type TowerAbilityId = (typeof SPECIALIZATIONS)[TowerType][number]['abilities'][number]['id'];
+
+/** Family catalog for the build ring and codex. The world validates eligibility at purchase. */
+export function specializationsFor(tower: TowerType | { readonly type: TowerType }): readonly TowerSpecializationDef[] {
+  return SPECIALIZATIONS[typeof tower === 'string' ? tower : tower.type];
+}
+
+export interface PurchasedSpecialization {
+  readonly id: string;
+  readonly abilities: readonly string[];
+  /** Resolved once per purchase, shared by targeting, projectile creation, auras and soldiers. */
+  readonly stats: TowerTierStats;
+}
+
+export function towerStats(tower: {
+  readonly type: TowerType;
+  readonly tier: 1 | 2 | 3;
+  readonly specialization?: PurchasedSpecialization;
+}): TowerTierStats {
+  return tower.specialization?.stats ?? getTowerTierStats(tower.type, tower.tier);
 }

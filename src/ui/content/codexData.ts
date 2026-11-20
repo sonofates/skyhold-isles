@@ -1,6 +1,6 @@
 import type { EnemyType, TowerType } from '../../core/types.ts';
 import { CHAPTER_ENEMY_DEFS, type ChapterEnemyType, ELITE_MODIFIERS, ENEMY_DEFS, ENEMY_TYPES } from '../../data/enemies.ts';
-import { getTowerTierStats, TOWER_DEFS, TOWER_TYPES } from '../../data/towers.ts';
+import { getTowerTierStats, specializationsFor, type TowerSpecializationDef, TOWER_DEFS, TOWER_TYPES } from '../../data/towers.ts';
 import { ELITE_SEEN_ID, enemySeenId, towerSeenId, type SeenId } from '../../platform/contentStorage.ts';
 
 /**
@@ -207,6 +207,7 @@ export interface CodexTowerEntry {
   readonly stats: readonly CodexStat[];
   readonly signatureName: string;
   readonly signatureDesc: string;
+  readonly specializations: readonly TowerSpecializationDef[];
   readonly tiers: readonly { readonly tier: 1 | 2 | 3; readonly cost: number; readonly summary: string }[];
 }
 
@@ -309,6 +310,7 @@ export function towerEntry(type: TowerType): CodexTowerEntry {
     stats,
     signatureName: d.signature.name,
     signatureDesc: d.signature.desc,
+    specializations: specializationsFor(type),
     tiers: ([1, 2, 3] as const).map((tier) => ({
       tier,
       cost: getTowerTierStats(type, tier).upgradeCost,

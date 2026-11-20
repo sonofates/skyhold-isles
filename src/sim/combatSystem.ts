@@ -1,7 +1,7 @@
 import type { EventBus } from '../core/eventBus.ts';
 import type { ObjectPool } from '../core/pool.ts';
 import type { TowerType, Vec3 } from '../core/types.ts';
-import { TOWER_DEFS, getTowerTierStats } from '../data/towers.ts';
+import { TOWER_DEFS, towerStats } from '../data/towers.ts';
 import type { EnemyEntity, TowerEntity } from './entities.ts';
 import type { EnemySystem } from './enemySystem.ts';
 import type { ProjectileSystem } from './projectileSystem.ts';
@@ -68,7 +68,7 @@ export class CombatSystem {
     for (let b = 0; b < towers.length; b++) {
       const beacon = towers[b];
       if (beacon.type !== 'beacon' || beacon.stunTimer > 0) continue;
-      const bs = getTowerTierStats('beacon', beacon.tier);
+      const bs = towerStats(beacon);
       const rSq = bs.range * bs.range;
       const rate = bs.auraRate ?? 0;
       const rng = bs.auraRange ?? 0;
@@ -136,7 +136,7 @@ export class CombatSystem {
       // Barracks never shoot: their soldiers fight in SoldierSystem (stun / pop timers tick above).
       if (TOWER_DEFS[tower.type].role === 'barracks') continue;
 
-      const stats = getTowerTierStats(tower.type, tower.tier);
+      const stats = towerStats(tower);
 
       if (TOWER_DEFS[tower.type].role === 'support') {
         // Beacons only pulse (cosmetic event driving FX); their aura is applied above.
@@ -145,7 +145,7 @@ export class CombatSystem {
           tower.cooldownTimer = BEACON_PULSE_INTERVAL;
           this.events.emit('beaconPulse', {
             towerId: tower.id,
-            tier: tower.tier,
+            tier: stats.tier,
             x: tower.x,
             z: tower.z,
             radius: stats.range,
@@ -201,7 +201,7 @@ export class CombatSystem {
           this.events.emit('towerFired', {
             towerId: tower.id,
             type: tower.type,
-            tier: tower.tier,
+            tier: stats.tier,
             x: tower.x,
             y: def.turretHeight + 0.15,
             z: tower.z,
@@ -224,7 +224,7 @@ export class CombatSystem {
   private fireVolley(
     tower: TowerEntity,
     primary: EnemyEntity,
-    stats: ReturnType<typeof getTowerTierStats>,
+    stats: ReturnType<typeof towerStats>,
   ): void {
     const extra = stats.volleyExtra ?? 0;
     const dmgMult = stats.volleyDamage ?? 0.6;
@@ -266,7 +266,7 @@ export class CombatSystem {
   private fireChainLightning(
     tower: TowerEntity,
     initialTarget: EnemyEntity,
-    stats: ReturnType<typeof getTowerTierStats>,
+    stats: ReturnType<typeof towerStats>,
     overload = false,
     gen = this.resetGen,
   ): void {

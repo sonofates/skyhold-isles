@@ -16,10 +16,14 @@ import {
   type RunModifierPatch,
   type RunModifiers,
 } from '../data/runModifiers.ts';
-import { TOWER_DEFS } from '../data/towers.ts';
+import { ALL_TOWER_TYPES, specializationsFor, TOWER_DEFS } from '../data/towers.ts';
 import { SimWorld } from './world.ts';
 
 export const SIM_REPLAY_VERSION = 1 as const;
+
+const branches = ALL_TOWER_TYPES.flatMap(type => specializationsFor(type));
+const branchIds = new Set(branches.map(branch => branch.id));
+const towerAbilityIds = new Set(branches.flatMap(branch => branch.abilities.map(ability => ability.id)));
 
 const TARGETING_MODES: readonly TargetingMode[] = ['first', 'last', 'strongest', 'closest'];
 
@@ -56,6 +60,8 @@ export type SimCommand =
       readonly targetingMode?: TargetingMode;
     }
   | { readonly kind: 'upgradeTower'; readonly towerId: number }
+  | { readonly kind: 'specializeTower'; readonly towerId: number; readonly specializationId: string }
+  | { readonly kind: 'buyTowerAbility'; readonly towerId: number; readonly abilityId: string }
   | { readonly kind: 'sellTower'; readonly towerId: number }
   | { readonly kind: 'setTargeting'; readonly towerId: number; readonly mode: TargetingMode }
   | { readonly kind: 'setRally'; readonly towerId: number; readonly x: number; readonly z: number }
@@ -197,6 +203,11 @@ export function computeSimStateHash(world: SimWorld): string {
     h.f64(t.row);
     h.str(t.type);
     h.u32(t.tier);
+    if (t.specialization) {
+      h.str(t.specialization.id);
+      h.u32(t.specialization.abilities.length);
+      for (const id of t.specialization.abilities) h.str(id);
+    }
     h.str(t.targetingMode);
     h.f64(t.cooldownTimer);
     h.f64(t.stunTimer);
@@ -418,6 +429,14 @@ function parseSimCommand(raw: unknown): SimCommand | null {
       return typeof c.towerId === 'number' && Number.isFinite(c.towerId)
         ? { kind: 'upgradeTower', towerId: Math.floor(c.towerId) }
         : null;
+    case 'specializeTower':
+      return typeof c.towerId === 'number' && Number.isSafeInteger(c.towerId) &&
+        typeof c.specializationId === 'string' && branchIds.has(c.specializationId)
+        ? { kind: 'specializeTower', towerId: c.towerId, specializationId: c.specializationId } : null;
+    case 'buyTowerAbility':
+      return typeof c.towerId === 'number' && Number.isSafeInteger(c.towerId) &&
+        typeof c.abilityId === 'string' && towerAbilityIds.has(c.abilityId)
+        ? { kind: 'buyTowerAbility', towerId: c.towerId, abilityId: c.abilityId } : null;
     case 'sellTower':
       return typeof c.towerId === 'number' && Number.isFinite(c.towerId)
         ? { kind: 'sellTower', towerId: Math.floor(c.towerId) }

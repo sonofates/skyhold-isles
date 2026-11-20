@@ -2,7 +2,7 @@ import type { EventBus } from '../core/eventBus.ts';
 import type { ObjectPool } from '../core/pool.ts';
 import type { TowerType } from '../core/types.ts';
 import { ENEMY_DEFS } from '../data/enemies.ts';
-import { TOWER_DEFS, getTowerTierStats } from '../data/towers.ts';
+import { TOWER_DEFS, towerStats } from '../data/towers.ts';
 import type { EnemyEntity, ProjectileEntity, TowerEntity } from './entities.ts';
 import type { EnemySystem } from './enemySystem.ts';
 import type { SpatialHashGrid } from './spatialHash.ts';
@@ -204,7 +204,7 @@ export class ProjectileSystem {
     if (!p) return null;
 
     const def = TOWER_DEFS[tower.type];
-    const stats = getTowerTierStats(tower.type, tower.tier);
+    const stats = towerStats(tower);
     let sx = tower.x;
     const sy = def.turretHeight + 0.15;
     let sz = tower.z;
