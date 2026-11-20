@@ -26,6 +26,8 @@ interface WaveStatRow {
   /** Furthest path progress (0..1) any ground enemy reached during the wave: a continuous "how close was it" signal. */
   peakGroundProgress: number;
   livesLost: number;
+  /** Sum of the crossing enemies' full costs, used by the historical 3D text report. */
+  nominalLeakCost: number;
   leaksByType: Partial<Record<EnemyType, number>>;
   /** Lives lost per enemy type (a leaking brute/boss/hauler costs more than 1). */
   livesByType: Partial<Record<EnemyType, number>>;
@@ -196,6 +198,7 @@ export function runLevelBalanceSim(
       livesStart: world.lives,
       peakGroundProgress: 0,
       livesLost: 0,
+      nominalLeakCost: 0,
       leaksByType: {},
       livesByType: {},
     };
@@ -212,11 +215,15 @@ export function runLevelBalanceSim(
 
   events.on('enemyLeaked', (ev) => {
     if (!activeWaveRow) return;
-    activeWaveRow.livesLost += ev.livesLost;
+    // The world has already charged this arrival. More enemies can cross on the defeat tick.
+    const waveLoss = activeWaveRow.livesStart - world.lives;
+    const charged = waveLoss - activeWaveRow.livesLost;
+    activeWaveRow.livesLost = waveLoss;
+    activeWaveRow.nominalLeakCost += ev.livesLost;
     activeWaveRow.leaksByType[ev.enemyType] =
       (activeWaveRow.leaksByType[ev.enemyType] ?? 0) + 1;
     activeWaveRow.livesByType[ev.enemyType] =
-      (activeWaveRow.livesByType[ev.enemyType] ?? 0) + ev.livesLost;
+      (activeWaveRow.livesByType[ev.enemyType] ?? 0) + charged;
   });
 
   const queue = [...scriptActions];
@@ -376,10 +383,10 @@ function entryMatches(filter: ReadonlySet<string> | null, e: BalanceEntry): bool
   return filter.has(e.label) || filter.has(e.label.toLowerCase());
 }
 
-function printResult(label: string, res: SimRunResult, difficulty: string): void {
+function printResult(label: string, res: SimRunResult, level: LevelDef): void {
   const tag = res.scriptKind === 'greedy' ? 'GREEDY' : 'WEAK  ';
   console.log(
-    `[${label} ${tag}] ${res.name} (${difficulty}) -> ${res.outcome.toUpperCase()} | ` +
+    `[${label} ${tag}] ${res.name} (${level.difficulty}) -> ${res.outcome.toUpperCase()} | ` +
       `Lives: ${res.finalLives}/${res.startingLives} | Stars: ${res.stars}/3 | ` +
       `Towers: ${res.towersBuilt}/${res.plannedTowers} (tgtSwaps: ${res.targetingChanges})`,
   );
@@ -393,7 +400,8 @@ function printResult(label: string, res: SimRunResult, difficulty: string): void
     console.log('           Wave | StartGold | LivesLost | PeakProgress | Leaks');
     for (let w = 0; w < res.waves.length; w++) {
       const row = res.waves[w];
-      if (row.livesLost === 0 && res.waves.length > 12 && w > 0 && w < res.waves.length - 1) {
+      const reportedLoss = level.layout2d ? row.livesLost : row.nominalLeakCost;
+      if (reportedLoss === 0 && res.waves.length > 12 && w > 0 && w < res.waves.length - 1) {
         continue;
       }
       const leakPairs = Object.entries(row.leaksByType)
@@ -401,7 +409,7 @@ function printResult(label: string, res: SimRunResult, difficulty: string): void
         .join(', ');
       console.log(
         `           ${String(row.waveNumber).padStart(4)} | ${String(row.startGold).padStart(8)}g | ` +
-          `${String(row.livesLost).padStart(9)} | ${(row.peakGroundProgress * 100).toFixed(0).padStart(11)}% | ${leakPairs || '-'}`,
+          `${String(reportedLoss).padStart(9)} | ${(row.peakGroundProgress * 100).toFixed(0).padStart(11)}% | ${leakPairs || '-'}`,
       );
     }
   }
@@ -508,9 +516,9 @@ export function evaluateBalance(
       stars += greedyRes.stars;
     }
     if (!selected) continue;
-    if (verbose) printResult(label, greedyRes, level.difficulty);
+    if (verbose) printResult(label, greedyRes, level);
     const weakRes = runScript(level, 'weak', kit);
-    if (verbose) printResult(label, weakRes, level.difficulty);
+    if (verbose) printResult(label, weakRes, level);
     if (verbose) console.log('');
 
     if (process.argv.includes('--peaks')) {

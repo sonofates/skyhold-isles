@@ -982,3 +982,23 @@ TypeScript, lint and the production build passed. Vitest passed 1,446 tests with
 ### Next round
 
 Audit fatal-tick reporting in the balance simulator. On the former Hard i19 build it attributed seven lives lost in Windfall when the keep had six. Check simultaneous arrivals and an enemy whose life cost exceeds the lives remaining. Preserve the count of enemies crossing the gate and verify the legacy 3D report byte for byte.
+
+## Round 39 — Lives lost on the defeat tick
+
+### Windfall and the balance report
+
+Reran the former Hard i19 archer build with level-20 Bran and 49 Workshop stars. Windfall began with six lives. Five moths took five, then two Belfry Hares reached the keep together. The revised report counts all seven enemies and attributes one life to the two hares. The run ended at zero.
+
+The balance simulator now reads the keep's life total after each crossing. Its wave totals, per-type attribution and flyer-share checks use the lives actually deducted. The L1–L16 text report still displays the full cost of the enemies that crossed, preserving its archived format and numbers.
+
+Two regression tests cover the edge cases. On a shared straight path, a grunt and a skimmer arrive on the same tick with one life left. Both count as crossings and the grunt takes the life. In a two-wave encounter, a grunt leaves one life for a Cloud Hauler. The hauler takes that one life despite its two-life cost.
+
+### Verification
+
+Ten 2D weak-build defeat rows now report one to four fewer lives lost. A line-by-line comparison with round 38 found that only those ten life totals changed in the full balance report. All 41 balance checks and all eight difficulty verdicts passed. The difficulty report matched round 38 byte for byte, including Hard i09 at 12/22 and Hard i24 at 2/22. The standalone 24,217-byte L1–L16 report matched the round-one baseline byte for byte.
+
+TypeScript, lint and the production build passed. Vitest passed 1,448 tests with 11 skipped. Vite emitted its existing chunk-size and dynamic-import warnings.
+
+### Next round
+
+Audit the story economy figures returned by the balance simulator when a run continues into Endless. A probe of L1 reported 206 gold at story victory in both runs, but requesting two Endless waves changed reported gold earned from 1,166 to 1,615 and spent from 1,145 to 1,405. Check the remaining script actions and tower counts at victory as well. No cross-area requests.
