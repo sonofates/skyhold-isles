@@ -789,13 +789,17 @@ export class GameSession {
   }
 
   private isIslandCleared(index: number): boolean {
-    const dw = this.progress.difficultyWins;
+    const pos = (v: unknown): boolean => typeof v === 'number' && Number.isFinite(v) && v > 0;
+    const dw = (this.progress.difficultyWins ??
+      (this.progress as unknown as { readonly dw?: unknown }).dw) as
+      | Partial<Record<'easy' | 'normal' | 'hard' | 'e' | 'n' | 'h', readonly unknown[] | undefined>>
+      | undefined;
     return (
-      (this.progress.clears?.[index] ?? 0) > 0 ||
-      (this.progress.bestStars?.[index] ?? 0) > 0 ||
-      (dw?.easy?.[index] ?? 0) > 0 ||
-      (dw?.normal?.[index] ?? 0) > 0 ||
-      (dw?.hard?.[index] ?? 0) > 0
+      pos(this.progress.clears?.[index]) ||
+      pos(this.progress.bestStars?.[index]) ||
+      pos((dw?.easy ?? dw?.e)?.[index]) ||
+      pos((dw?.normal ?? dw?.n)?.[index]) ||
+      pos((dw?.hard ?? dw?.h)?.[index])
     );
   }
 
@@ -821,6 +825,7 @@ export class GameSession {
     Object.assign(this.progress, fresh);
     this.currentLevelIndex = 0;
     this.runConfig = { endless: false, challenges: [], daily: null };
+    this.deps?.content?.onProgressReset();
     this.soundManager.playUiBack();
     if (this.viewMode !== 'playing' && this.deps) {
       this.deps.overlays.mainMenu.setOpen(this.viewMode === 'menu', this.progress);

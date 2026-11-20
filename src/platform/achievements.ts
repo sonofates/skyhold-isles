@@ -66,8 +66,13 @@ type RawDiffWins = Partial<
   Record<'easy' | 'normal' | 'hard' | 'e' | 'n' | 'h', readonly unknown[] | undefined>
 >;
 
+function rawDiffWinsOf(progress: ProgressData): RawDiffWins | undefined {
+  const dw = progress.difficultyWins ?? (progress as unknown as { readonly dw?: unknown }).dw;
+  return dw && typeof dw === 'object' && !Array.isArray(dw) ? (dw as RawDiffWins) : undefined;
+}
+
 function safeBestStarsAt(progress: ProgressData, index: number): number {
-  const dw = progress.difficultyWins as unknown as RawDiffWins | undefined;
+  const dw = rawDiffWinsOf(progress);
   return Math.min(
     3,
     Math.max(
@@ -80,7 +85,7 @@ function safeBestStarsAt(progress: ProgressData, index: number): number {
 }
 
 function hasHardWinAt(progress: ProgressData, index: number): boolean {
-  const dw = progress.difficultyWins as unknown as RawDiffWins | undefined;
+  const dw = rawDiffWinsOf(progress);
   return safeNonNegInt((dw?.hard ?? dw?.h)?.[index]) > 0;
 }
 
@@ -185,7 +190,14 @@ function isHeroUnlockedOnSave(
 }
 
 function heroLevelOf(progress: ProgressData, heroId: HeroId): number {
-  const xp = progress.heroes?.roster?.[heroId]?.xp;
+  const rawH = (progress.heroes ?? (progress as unknown as { readonly h?: unknown }).h) as
+    | {
+        readonly roster?: Partial<Record<HeroId, { readonly xp?: unknown; readonly x?: unknown }>>;
+        readonly r?: Partial<Record<HeroId, { readonly xp?: unknown; readonly x?: unknown }>>;
+      }
+    | undefined;
+  const entry = rawH?.roster?.[heroId] ?? rawH?.r?.[heroId];
+  const xp = entry?.xp ?? entry?.x;
   if (typeof xp !== 'number' || !Number.isFinite(xp) || xp <= 0) return 1;
   return heroLevelFromXp(xp);
 }
@@ -288,7 +300,8 @@ const challengeAchievements: readonly SteamAchievementDef[] = [
       description: `Win an island with ${def.name} (${def.description})`,
       category: 'challenge',
       isEarned: (progress, levels) => {
-        if (Array.isArray(progress.wonChallenges) && progress.wonChallenges.includes(cid)) {
+        const wc = progress.wonChallenges ?? (progress as unknown as { readonly wc?: unknown }).wc;
+        if (Array.isArray(wc) && wc.includes(cid)) {
           return true;
         }
         for (let i = 0; i < levels.length; i++) {
@@ -407,7 +420,9 @@ const heroAchievements: readonly SteamAchievementDef[] = [
     description: `Unlock all ${HERO_IDS.length} heroes`,
     category: 'hero',
     isEarned: (progress, levels) =>
-      (progress.heroes !== undefined || levels.some((l) => CHAPTER_TWO_SET.has(l.id))) &&
+      (progress.heroes !== undefined ||
+        (progress as unknown as { readonly h?: unknown }).h !== undefined ||
+        levels.some((l) => CHAPTER_TWO_SET.has(l.id))) &&
       HERO_IDS.every((id) => isHeroUnlockedOnSave(progress, id, levels)),
   },
   ...HERO_IDS.flatMap((heroId): SteamAchievementDef[] => {

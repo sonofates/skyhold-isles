@@ -21,6 +21,8 @@ import {
   createDefaultProgress,
   hasAnyProgress,
   migrateProgress,
+  normalizeRawDifficultyWins,
+  normalizeRawHeroSave,
   PROGRESS_BACKUP_KEY,
   PROGRESS_CORRUPT_BACKUP_KEY,
   PROGRESS_IMPORT_BACKUP_KEY,
@@ -92,8 +94,8 @@ interface CompactHeroPayload {
   readonly r?: Partial<Record<HeroId, { readonly x: number; readonly k?: readonly string[] }>>;
 }
 
-function encodeHeroPayload(heroes: HeroSaveData): CompactHeroPayload {
-  const clean = sanitizeHeroSaveData(heroes);
+function encodeHeroPayload(heroes: unknown): CompactHeroPayload {
+  const clean = sanitizeHeroSaveData(normalizeRawHeroSave(heroes));
   const r: Partial<Record<HeroId, { readonly x: number; readonly k?: readonly string[] }>> = {};
   let hasAny = false;
   for (let i = 0; i < HERO_IDS.length; i++) {
@@ -108,28 +110,11 @@ function encodeHeroPayload(heroes: HeroSaveData): CompactHeroPayload {
 
 function decodeHeroPayload(raw: unknown): HeroSaveData | undefined {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined;
-  const obj = raw as Record<string, unknown>;
-  // Accept either compact `{ s, r: { bran: { x, k } } }` or full `{ selectedHero, roster }`.
-  if ('selectedHero' in obj || 'roster' in obj) {
-    return sanitizeHeroSaveData(obj);
-  }
-  const rawR =
-    obj.r && typeof obj.r === 'object' && !Array.isArray(obj.r)
-      ? (obj.r as Record<string, unknown>)
-      : {};
-  const roster: Record<string, { xp: unknown; skills: unknown }> = {};
-  for (let i = 0; i < HERO_IDS.length; i++) {
-    const id = HERO_IDS[i];
-    const ce = rawR[id];
-    if (ce && typeof ce === 'object' && !Array.isArray(ce)) {
-      const c = ce as { x?: unknown; k?: unknown };
-      roster[id] = { xp: c.x ?? 0, skills: c.k ?? [] };
-    }
-  }
-  return sanitizeHeroSaveData({ selectedHero: obj.s, roster });
+  return sanitizeHeroSaveData(normalizeRawHeroSave(raw));
 }
 
 export function encodeSaveCode(progress: ProgressData, levelIds?: readonly string[]): string {
+  const rawProgress = progress as unknown as Record<string, unknown>;
   const safeVer =
     typeof progress.version === 'number' && Number.isFinite(progress.version) && progress.version > 0
       ? Math.floor(progress.version)
@@ -150,15 +135,17 @@ export function encodeSaveCode(progress: ProgressData, levelIds?: readonly strin
     b: trimLists(progress.challengeClears),
     d: sanitizeDailyRecord(progress.daily),
   };
-  if (progress.heroes !== undefined) {
-    payload.h = encodeHeroPayload(progress.heroes);
+  const rawHeroes = progress.heroes ?? rawProgress.h;
+  if (rawHeroes !== undefined) {
+    payload.h = encodeHeroPayload(rawHeroes);
   }
-  const safeWonChallenges = sanitizeWonChallenges(progress.wonChallenges);
+  const safeWonChallenges = sanitizeWonChallenges(progress.wonChallenges ?? rawProgress.wc);
   if (safeWonChallenges) {
     payload.wc = safeWonChallenges;
   }
-  if (progress.difficultyWins !== undefined) {
-    const rawDw = progress.difficultyWins as unknown as Record<string, unknown>;
+  const rawDifficultyWins = progress.difficultyWins ?? rawProgress.dw;
+  if (rawDifficultyWins !== undefined) {
+    const rawDw = normalizeRawDifficultyWins(rawDifficultyWins) as Record<string, unknown> | null;
     const dwCount = Math.max(
       Array.isArray(progress.bestStars) ? progress.bestStars.length : 0,
       Array.isArray(rawDw?.easy) ? rawDw.easy.length : 0,
@@ -166,7 +153,7 @@ export function encodeSaveCode(progress: ProgressData, levelIds?: readonly strin
       Array.isArray(rawDw?.hard) ? rawDw.hard.length : 0,
       levelIds?.length ?? 0,
     );
-    const dw = sanitizeDifficultyWins(progress.difficultyWins, dwCount);
+    const dw = sanitizeDifficultyWins(rawDw, dwCount);
     if (dw) {
       for (let i = 0; i < dwCount; i++) {
         const bs = safeStars[i] ?? 0;
@@ -319,15 +306,8 @@ export function sizedDifficultyWins(progress: ProgressData, count: number): Diff
   const bestStars = Array.isArray(progress.bestStars) ? progress.bestStars : [];
   const clampStar = (v: unknown): number =>
     typeof v === 'number' && Number.isFinite(v) ? Math.max(0, Math.min(3, Math.floor(v))) : 0;
-  const rawDw = progress.difficultyWins;
-  let normalizedRaw: unknown = rawDw;
-  if (rawDw && typeof rawDw === 'object' && !Array.isArray(rawDw)) {
-    const rec = rawDw as unknown as Record<string, unknown>;
-    if (!('easy' in rec) && !('normal' in rec) && !('hard' in rec) && ('e' in rec || 'n' in rec || 'h' in rec)) {
-      normalizedRaw = { easy: rec.e, normal: rec.n, hard: rec.h };
-    }
-  }
-  const dw = sanitizeDifficultyWins(normalizedRaw, safeCount);
+  const rawDw = progress.difficultyWins ?? (progress as unknown as { readonly dw?: unknown }).dw;
+  const dw = sanitizeDifficultyWins(normalizeRawDifficultyWins(rawDw), safeCount);
   if (!dw) {
     return {
       easy: new Array<number>(safeCount).fill(0),
@@ -349,6 +329,8 @@ export function sizedDifficultyWins(progress: ProgressData, count: number): Diff
  */
 export function mergeProgress(a: ProgressData, b: ProgressData, levelCount: number): ProgressData {
   const count = Number.isFinite(levelCount) ? Math.max(0, Math.floor(levelCount)) : 0;
+  const rawA = a as unknown as Record<string, unknown>;
+  const rawB = b as unknown as Record<string, unknown>;
   const safeInt = (v: unknown, max = Number.MAX_SAFE_INTEGER): number =>
     typeof v === 'number' && Number.isFinite(v) ? Math.max(0, Math.min(max, Math.floor(v))) : 0;
   const maxList = (
@@ -372,8 +354,10 @@ export function mergeProgress(a: ProgressData, b: ProgressData, levelCount: numb
       ? [workshopB, workshopA]
       : [workshopA, workshopB];
   const maxIdx = Math.max(0, count - 1);
+  const hasDiffA = (a.difficultyWins ?? rawA.dw) !== undefined;
+  const hasDiffB = (b.difficultyWins ?? rawB.dw) !== undefined;
   const mergedDifficultyWins =
-    a.difficultyWins !== undefined || b.difficultyWins !== undefined
+    hasDiffA || hasDiffB
       ? mergeDifficultyWins(sizedDifficultyWins(a, count), sizedDifficultyWins(b, count), count)
       : undefined;
   const bestStars = maxList(a.bestStars, b.bestStars, 3);
@@ -411,9 +395,16 @@ export function mergeProgress(a: ProgressData, b: ProgressData, levelCount: numb
   for (let i = 0; i < count; i++) {
     if (clears[i] > 0 || bestStars[i] > 0) clearedCount++;
   }
-  const mergedHeroes = mergeHeroSaveData(a.heroes, b.heroes, clearedCount, unlockedLevelIndex);
-  const wcA = sanitizeWonChallenges(a.wonChallenges) ?? [];
-  const wcB = sanitizeWonChallenges(b.wonChallenges) ?? [];
+  const rawHeroesA = a.heroes ?? rawA.h;
+  const rawHeroesB = b.heroes ?? rawB.h;
+  const mergedHeroes = mergeHeroSaveData(
+    rawHeroesA !== undefined ? (normalizeRawHeroSave(rawHeroesA) as HeroSaveData) : undefined,
+    rawHeroesB !== undefined ? (normalizeRawHeroSave(rawHeroesB) as HeroSaveData) : undefined,
+    clearedCount,
+    unlockedLevelIndex,
+  );
+  const wcA = sanitizeWonChallenges(a.wonChallenges ?? rawA.wc) ?? [];
+  const wcB = sanitizeWonChallenges(b.wonChallenges ?? rawB.wc) ?? [];
   const mergedWonChallenges =
     wcA.length > 0 || wcB.length > 0
       ? wcA.length === wcB.length && wcA.every((id, idx) => wcB[idx] === id)
@@ -599,12 +590,16 @@ export function describeMergeGain(before: ProgressData, after: ProgressData): st
     badges += (after.challengeClears[i]?.length ?? 0) - (before.challengeClears[i]?.length ?? 0);
   }
   const parts: string[] = [];
+  const rawBefore = before as unknown as Record<string, unknown>;
+  const rawAfter = after as unknown as Record<string, unknown>;
   if (stars > 0) parts.push(`+${stars}★`);
   if (islands > 0) parts.push(`${islands} more island${islands === 1 ? '' : 's'} unlocked`);
   if (badges > 0) parts.push(`+${badges} badge${badges === 1 ? '' : 's'}`);
   else {
-    const wcBefore = new Set(sanitizeWonChallenges(before.wonChallenges) ?? []);
-    const newWc = (sanitizeWonChallenges(after.wonChallenges) ?? []).filter((id) => !wcBefore.has(id)).length;
+    const wcBefore = new Set(sanitizeWonChallenges(before.wonChallenges ?? rawBefore.wc) ?? []);
+    const newWc = (sanitizeWonChallenges(after.wonChallenges ?? rawAfter.wc) ?? []).filter(
+      (id) => !wcBefore.has(id),
+    ).length;
     if (newWc > 0) parts.push(`+${newWc} challenge win${newWc === 1 ? '' : 's'}`);
   }
   const records = after.bestEndlessWaves.some((v, i) => v > (before.bestEndlessWaves[i] ?? 0));
@@ -614,21 +609,32 @@ export function describeMergeGain(before: ProgressData, after: ProgressData): st
   if (workshopStarsSpent(sanitizeRanks(after.workshop)) > workshopStarsSpent(sanitizeRanks(before.workshop))) {
     parts.push('workshop upgrades');
   }
-  if (totalHeroSaveXp(after.heroes) > totalHeroSaveXp(before.heroes)) {
+  const rawHeroesBefore = before.heroes ?? rawBefore.h;
+  const rawHeroesAfter = after.heroes ?? rawAfter.h;
+  const heroesBefore =
+    rawHeroesBefore !== undefined ? sanitizeHeroSaveData(normalizeRawHeroSave(rawHeroesBefore)) : undefined;
+  const heroesAfter =
+    rawHeroesAfter !== undefined ? sanitizeHeroSaveData(normalizeRawHeroSave(rawHeroesAfter)) : undefined;
+  if (totalHeroSaveXp(heroesAfter) > totalHeroSaveXp(heroesBefore)) {
     parts.push('hero XP');
-  } else if (after.heroes) {
+  } else if (heroesAfter) {
     let spentBefore = 0;
     let spentAfter = 0;
     for (let i = 0; i < HERO_IDS.length; i++) {
       const id = HERO_IDS[i];
-      spentBefore += countHeroSkillPointsSpent(id, before.heroes?.roster?.[id]?.skills ?? []);
-      spentAfter += countHeroSkillPointsSpent(id, after.heroes.roster?.[id]?.skills ?? []);
+      spentBefore += countHeroSkillPointsSpent(id, heroesBefore?.roster?.[id]?.skills ?? []);
+      spentAfter += countHeroSkillPointsSpent(id, heroesAfter.roster?.[id]?.skills ?? []);
     }
     if (spentAfter > spentBefore) parts.push('hero skills');
   }
-  if (before.difficultyWins !== undefined || after.difficultyWins !== undefined) {
-    const rawDwLen = (p: ProgressData): number => {
-      const dw = p.difficultyWins as unknown as Record<string, unknown> | undefined;
+  if (
+    (before.difficultyWins ?? rawBefore.dw) !== undefined ||
+    (after.difficultyWins ?? rawAfter.dw) !== undefined
+  ) {
+    const rawDwLen = (p: ProgressData, rawObj: Record<string, unknown>): number => {
+      const dw = normalizeRawDifficultyWins(p.difficultyWins ?? rawObj.dw) as
+        | Record<string, unknown>
+        | undefined;
       if (!dw || typeof dw !== 'object' || Array.isArray(dw)) return 0;
       return Math.max(
         Array.isArray(dw.easy) ? dw.easy.length : 0,
@@ -641,8 +647,8 @@ export function describeMergeGain(before: ProgressData, after: ProgressData): st
       Math.max(
         Array.isArray(before.bestStars) ? before.bestStars.length : 0,
         Array.isArray(after.bestStars) ? after.bestStars.length : 0,
-        rawDwLen(before),
-        rawDwLen(after),
+        rawDwLen(before, rawBefore),
+        rawDwLen(after, rawAfter),
       ),
     );
     const dwBefore = sizedDifficultyWins(before, diffLen);

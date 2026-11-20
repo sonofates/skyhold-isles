@@ -1067,4 +1067,145 @@ describe('Save Robustness v2 — Version Migration & Algebraic Merge Fuzz', () =
     );
     expect(resolvedNeutral.modifiers).toBe(NEUTRAL_RUN_MODIFIERS);
   });
+
+  it('preserves compact hero saves (`{ s, r }` / `h`) across remapProgress, loadProgress2D, heroes2d, encodeSaveCode, mergeProgress, and guards hasAnyProgress against dirty empty shapes', async () => {
+    const store = installMemoryStorage();
+    const { decodeSaveCode, describeMergeGain, encodeSaveCode, mergeProgress } = await import(
+      '../../src/platform/saveCode.ts'
+    );
+    const { hasAnyProgress, loadProgress } = await import('../../src/platform/storage.ts');
+    const { HERO_LEVEL_XP, heroRoster, migrateHeroSave, resolveHeroForRun } = await import(
+      '../../src/render2d/heroes2d.ts'
+    );
+    const { loadProgress2D, PROGRESS_2D_KEY, remapProgress } = await import(
+      '../../src/render2d/ui/progress2d.ts'
+    );
+
+    // 1. remapProgress (same IDs, reordered IDs, and empty levels) + migrateHeroSave preserve compact `{ s, r: { mira: { x, k } } }`!
+    const compactRaw2D = {
+      version: 2,
+      unlockedLevelIndex: 6,
+      bestStars: [3, 3, 3, 3, 3, 3],
+      bestEndlessWaves: [],
+      bestLives: [],
+      clears: [1, 1, 1, 1, 1, 1],
+      workshop: {},
+      challengeClears: [],
+      daily: { lastDay: 0, streak: 0, bestStreak: 0, total: 0 },
+      h: {
+        s: 'mira',
+        r: {
+          bran: { x: 250 },
+          mira: { x: HERO_LEVEL_XP[9], k: ['mira_emb_1', 'mira_emb_2'] },
+        },
+      },
+      dw: { h: [3, 3, 0, 0, 0, 3] },
+      wc: ['staticFree'],
+    };
+
+    const sameRemapped = remapProgress(
+      compactRaw2D,
+      LEVELS_2D.map((l) => l.id),
+      LEVELS_2D,
+    );
+    expect(sameRemapped.heroes?.selectedHero).toBe('mira');
+    expect(sameRemapped.heroes?.roster.mira?.xp).toBe(HERO_LEVEL_XP[9]);
+    expect(sameRemapped.heroes?.roster.mira?.skills).toEqual(['mira_emb_1', 'mira_emb_2']);
+    expect(sameRemapped.heroes?.roster.bran?.xp).toBe(250);
+    expect(sameRemapped.difficultyWins?.hard.slice(0, 6)).toEqual([3, 3, 0, 0, 0, 3]);
+    expect(sameRemapped.wonChallenges).toEqual(['staticFree']);
+
+    const ch1Ids = LEVELS_2D.slice(0, 17).map((l) => l.id);
+    const diffRemapped = remapProgress(compactRaw2D, ch1Ids, LEVELS_2D);
+    expect(diffRemapped.heroes?.selectedHero).toBe('mira');
+    expect(diffRemapped.heroes?.roster.mira?.xp).toBe(HERO_LEVEL_XP[9]);
+    expect(diffRemapped.heroes?.roster.mira?.skills).toEqual(['mira_emb_1', 'mira_emb_2']);
+
+    // Stored in PROGRESS_2D_KEY with compact `h` / mixed `{ selectedHero, roster: { mira: { x, k } } }`:
+    store.set(
+      PROGRESS_2D_KEY,
+      JSON.stringify({ ids: LEVELS_2D.map((l) => l.id), progress: compactRaw2D }),
+    );
+    const loaded2D = loadProgress2D(LEVELS_2D);
+    expect(loaded2D.heroes?.selectedHero).toBe('mira');
+    expect(loaded2D.heroes?.roster.mira?.xp).toBe(HERO_LEVEL_XP[9]);
+    expect(loaded2D.heroes?.roster.mira?.skills).toEqual(['mira_emb_1', 'mira_emb_2']);
+
+    // Direct heroRoster / resolveHeroForRun / migrateHeroSave on un-migrated compact ProgressData:
+    const rawCompactProgress = compactRaw2D as unknown as ProgressData;
+    const roster = heroRoster(rawCompactProgress, LEVELS_2D);
+    const miraEntry = roster.find((e) => e.id === 'mira')!;
+    expect(miraEntry.selected).toBe(true);
+    expect(miraEntry.level).toBe(10);
+    expect(miraEntry.unlockedSkills).toEqual(['mira_emb_1', 'mira_emb_2']);
+    const runHero = resolveHeroForRun(rawCompactProgress, null, null, LEVELS_2D);
+    expect(runHero).toEqual({
+      heroId: 'mira',
+      level: 10,
+      skills: ['mira_emb_1', 'mira_emb_2'],
+    });
+    expect(
+      migrateHeroSave(
+        { selectedHero: 'mira', roster: { mira: { x: HERO_LEVEL_XP[4], k: ['mira_emb_1'] } } },
+        sameRemapped,
+        LEVELS_2D,
+      ).roster.mira,
+    ).toEqual({ xp: HERO_LEVEL_XP[4], skills: ['mira_emb_1'] });
+
+    // 2. encodeSaveCode + mergeProgress + describeMergeGain honor compact `h`, `dw`, and `wc`:
+    const encodedCompact = encodeSaveCode(rawCompactProgress, LEVELS_2D.map((l) => l.id));
+    const decodedCompact = decodeSaveCode(encodedCompact, LEVELS_2D.length);
+    expect(decodedCompact.ok).toBe(true);
+    if (decodedCompact.ok) {
+      expect(decodedCompact.progress.heroes?.selectedHero).toBe('mira');
+      expect(decodedCompact.progress.heroes?.roster.mira?.xp).toBe(HERO_LEVEL_XP[9]);
+      expect(decodedCompact.progress.difficultyWins?.hard[5]).toBe(3);
+      expect(decodedCompact.progress.wonChallenges).toEqual(['staticFree']);
+    }
+
+    const empty25 = createDefaultProgress(LEVELS_2D.length);
+    const mergedCompact = mergeProgress(empty25, rawCompactProgress, LEVELS_2D.length);
+    expect(mergedCompact.heroes?.selectedHero).toBe('mira');
+    expect(mergedCompact.heroes?.roster.mira?.xp).toBe(HERO_LEVEL_XP[9]);
+    expect(mergedCompact.difficultyWins?.hard[5]).toBe(3);
+    expect(mergedCompact.wonChallenges).toEqual(['staticFree']);
+
+    const gainSummary = describeMergeGain(empty25, rawCompactProgress);
+    expect(gainSummary).toContain('hero XP');
+    expect(gainSummary).toContain('+3 Hard ribbons');
+    expect(gainSummary).toContain('+1 challenge win');
+
+    // 3. hasAnyProgress rejects dirty empty shapes (preventing truncated `{"heroes":{` from shadowing cloud mirrors):
+    expect(
+      hasAnyProgress({
+        ...createDefaultProgress(5),
+        heroes: {} as unknown as ProgressData['heroes'],
+        workshop: { startingGold: 0, bogus: 99, quickcast: Number.NaN } as unknown as ProgressData['workshop'],
+        wonChallenges: ['notAChallenge'],
+        challengeClears: [[123 as unknown as string]],
+      }),
+    ).toBe(false);
+    expect(
+      hasAnyProgress({
+        ...createDefaultProgress(5),
+        heroes: { s: 'bran', r: { bran: { x: 0, k: [] } } } as unknown as ProgressData['heroes'],
+      }),
+    ).toBe(false);
+    expect(
+      hasAnyProgress({
+        ...createDefaultProgress(5),
+        heroes: { selectedHero: 'notAHero' as never, roster: {} },
+      }),
+    ).toBe(false);
+    expect(hasAnyProgress(rawCompactProgress)).toBe(true);
+
+    // Truncated primary `{"version":2,"heroes":{` in 3D & 2D falls through cleanly to intact cloud mirror:
+    store.clear();
+    store.set('skyhold_isles_progress_v1', '{"version":2,"heroes":{');
+    const clean3DMirror = createDefaultProgress(LEVELS.length);
+    clean3DMirror.bestStars[0] = 3;
+    clean3DMirror.clears[0] = 1;
+    store.set('skyhold_isles_cloud_progress', JSON.stringify(clean3DMirror));
+    expect(loadProgress(LEVELS.length).bestStars[0]).toBe(3);
+  });
 });

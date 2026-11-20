@@ -310,7 +310,7 @@ export function saveSettings(settings: GameSettings): void {
   }
 }
 
-function normalizeRawDifficultyWins(rawDw: unknown): unknown {
+export function normalizeRawDifficultyWins(rawDw: unknown): unknown {
   if (!rawDw || typeof rawDw !== 'object' || Array.isArray(rawDw)) return rawDw;
   const dw = rawDw as Record<string, unknown>;
   if ('easy' in dw || 'normal' in dw || 'hard' in dw) return dw;
@@ -320,25 +320,50 @@ function normalizeRawDifficultyWins(rawDw: unknown): unknown {
   return dw;
 }
 
-function normalizeRawHeroSave(rawH: unknown): unknown {
+export function normalizeRawHeroSave(rawH: unknown): unknown {
   if (!rawH || typeof rawH !== 'object' || Array.isArray(rawH)) return rawH;
   const obj = rawH as Record<string, unknown>;
-  if ('selectedHero' in obj || 'roster' in obj) return obj;
-  if (!('s' in obj) && !('r' in obj)) return obj;
+  const hasFullKeys = 'selectedHero' in obj || 'roster' in obj;
+  const hasCompactKeys = 's' in obj || 'r' in obj;
+  if (!hasFullKeys && !hasCompactKeys) return obj;
   const rawR =
-    obj.r && typeof obj.r === 'object' && !Array.isArray(obj.r)
-      ? (obj.r as Record<string, unknown>)
-      : {};
+    obj.roster && typeof obj.roster === 'object' && !Array.isArray(obj.roster)
+      ? (obj.roster as Record<string, unknown>)
+      : obj.r && typeof obj.r === 'object' && !Array.isArray(obj.r)
+        ? (obj.r as Record<string, unknown>)
+        : null;
+  if (hasFullKeys && !hasCompactKeys) {
+    let anyCompactEntry = false;
+    if (rawR) {
+      for (let i = 0; i < HERO_IDS.length; i++) {
+        const ce = rawR[HERO_IDS[i]];
+        if (
+          ce &&
+          typeof ce === 'object' &&
+          !Array.isArray(ce) &&
+          !('xp' in ce) &&
+          !('skills' in ce) &&
+          ('x' in ce || 'k' in ce)
+        ) {
+          anyCompactEntry = true;
+          break;
+        }
+      }
+    }
+    if (!anyCompactEntry) return obj;
+  }
   const roster: Record<string, { xp: unknown; skills: unknown }> = {};
-  for (let i = 0; i < HERO_IDS.length; i++) {
-    const id = HERO_IDS[i];
-    const ce = rawR[id];
-    if (ce && typeof ce === 'object' && !Array.isArray(ce)) {
-      const c = ce as { x?: unknown; k?: unknown };
-      roster[id] = { xp: c.x ?? 0, skills: c.k ?? [] };
+  if (rawR) {
+    for (let i = 0; i < HERO_IDS.length; i++) {
+      const id = HERO_IDS[i];
+      const ce = rawR[id];
+      if (ce && typeof ce === 'object' && !Array.isArray(ce)) {
+        const c = ce as { xp?: unknown; skills?: unknown; x?: unknown; k?: unknown };
+        roster[id] = { xp: c.xp ?? c.x ?? 0, skills: c.skills ?? c.k ?? [] };
+      }
     }
   }
-  return { selectedHero: obj.s, roster };
+  return { selectedHero: obj.selectedHero ?? obj.s, roster };
 }
 
 function isJsonWhitespaceCode(code: number): boolean {
@@ -934,27 +959,32 @@ export function backupProgressBeforeImport(): void {
 export function hasAnyProgress(p: ProgressData): boolean {
   const pos = (v: unknown): boolean => typeof v === 'number' && Number.isFinite(v) && v > 0;
   const anyPos = (arr: unknown): boolean => Array.isArray(arr) && arr.some(pos);
-  const dw = p.difficultyWins as
+  const rawObj = p as unknown as Record<string, unknown>;
+  const dw = (p.difficultyWins ?? rawObj.dw) as
     | Partial<Record<'easy' | 'normal' | 'hard' | 'e' | 'n' | 'h', unknown>>
     | undefined;
+  const rawH = p.heroes ?? rawObj.h;
+  const rawWc = p.wonChallenges ?? rawObj.wc;
   return (
     pos(p.unlockedLevelIndex) ||
     anyPos(p.bestStars) ||
     anyPos(p.clears) ||
     anyPos(p.bestEndlessWaves) ||
     (Array.isArray(p.challengeClears) &&
-      p.challengeClears.some((l) => Array.isArray(l) && l.length > 0)) ||
-    (Array.isArray(p.wonChallenges) && p.wonChallenges.length > 0) ||
+      p.challengeClears.some(
+        (l) =>
+          Array.isArray(l) &&
+          l.some((id) => typeof id === 'string' && id.length > 0 && id.length <= 40),
+      )) ||
+    sanitizeWonChallenges(rawWc) !== undefined ||
     pos(p.daily?.total) ||
-    Boolean(
-      p.workshop &&
-        typeof p.workshop === 'object' &&
-        !Array.isArray(p.workshop) &&
-        Object.keys(p.workshop).length > 0,
-    ) ||
-    hasHeroSaveProgress(p.heroes) ||
+    Object.keys(sanitizeRanks(p.workshop)).length > 0 ||
+    (rawH !== undefined &&
+      hasHeroSaveProgress(sanitizeHeroSaveData(normalizeRawHeroSave(rawH)))) ||
     Boolean(
       dw &&
+        typeof dw === 'object' &&
+        !Array.isArray(dw) &&
         (anyPos(dw.easy ?? dw.e) || anyPos(dw.normal ?? dw.n) || anyPos(dw.hard ?? dw.h)),
     )
   );

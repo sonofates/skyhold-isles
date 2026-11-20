@@ -2462,7 +2462,18 @@ describe('Steam achievements map, cloud hydration, and desktop config invariants
       difficultyWins: {
         h: new Array<number>(LEVELS_2D.length).fill(3),
       } as unknown as ProgressData['difficultyWins'],
-    } as ProgressData;
+      h: {
+        s: 'sela',
+        r: {
+          bran: { x: HERO_LEVEL_XP[19] },
+          wren: { x: HERO_LEVEL_XP[9] },
+          mira: { x: HERO_LEVEL_XP[19] },
+          tobb: { x: 0 },
+          sela: { x: HERO_LEVEL_XP[19] },
+        },
+      },
+      wc: ['staticFree'],
+    } as unknown as ProgressData;
 
     const batchEarned = new Set(earnedSteamAchievementIds(rawCompact, LEVELS_2D));
     expect(batchEarned.has('HARD_BOSS_I24')).toBe(true);
@@ -2470,11 +2481,70 @@ describe('Steam achievements map, cloud hydration, and desktop config invariants
     expect(batchEarned.has('CROWN_ALL_ISLANDS')).toBe(true);
     expect(batchEarned.has('STARS_ALL_25_ISLANDS')).toBe(true);
     expect(batchEarned.has('DAILY_STREAK_14')).toBe(true);
+    expect(batchEarned.has('HERO_ALL_ROSTER')).toBe(true);
+    expect(batchEarned.has('HERO_BRAN_LV20')).toBe(true);
+    expect(batchEarned.has('HERO_WREN_LV10')).toBe(true);
+    expect(batchEarned.has('HERO_WREN_LV20')).toBe(false);
+    expect(batchEarned.has('HERO_SELA_LV20')).toBe(true);
+    expect(batchEarned.has('CHALLENGE_STATIC_FREE')).toBe(true);
 
     for (const ach of STEAM_ACHIEVEMENTS) {
       expect(ach.isEarned(rawCompact, LEVELS_2D), `${ach.id} direct vs batch mismatch`).toBe(
         batchEarned.has(ach.id),
       );
+    }
+
+    // Also verify GameSession.resetProgress() notifies attached ContentDirector.onProgressReset():
+    let contentResetCount = 0;
+    const mockRw = {
+      setQuality: () => {},
+      loadLevel: () => {},
+      setPlacementGridActive: () => {},
+      setFlightPathHighlight: () => {},
+      setRoutesPinned: () => {},
+      setHoveredTowerId: () => {},
+      setCanvasCursor: () => {},
+      setMeteorTargetPreview: () => {},
+      overlayIndicators: { setSelectedTowerRing: () => {} },
+      cameraController: { setShowcaseMode: () => {}, getViewVersion: () => 0 },
+    };
+    const mockSm = {
+      unlock: () => {},
+      bindEvents: () => () => {},
+      setMusicDucked: () => {},
+      setMusicContext: () => {},
+      playUiConfirm: () => {},
+      playUiBack: () => {},
+      playStarChime: () => {},
+      playBossPulse: () => {},
+      suspendForBackground: () => {},
+      resumeFromBackground: () => {},
+      updateSettings: () => {},
+    };
+    const gs = new GameSession(mockRw as never, mockSm as never);
+    try {
+      gs.attachRuntime({
+        overlays: {
+          mainMenu: { setOpen: () => {} },
+          levelSelect: { setOpen: () => {} },
+          workshop: { setOpen: () => {} },
+          toast: { show: () => {} },
+        } as never,
+        inputManager: { setEnabled: () => {}, setModalOpen: () => {} } as never,
+        loop: { simActive: false, paused: false } as never,
+        setDebugVisible: () => {},
+        content: {
+          onProgressReset: () => {
+            contentResetCount++;
+          },
+          onProgressImported: () => {},
+          isBlocking: () => false,
+        } as never,
+      });
+      gs.resetProgress();
+      expect(contentResetCount).toBe(1);
+    } finally {
+      gs.dispose();
     }
   });
 });
