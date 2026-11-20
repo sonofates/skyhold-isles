@@ -1,5 +1,5 @@
 import { ItemSystem } from './itemSystem.ts';
-import type { ItemCounts, ItemId } from '../data/market.ts';
+import { ITEMS, type ItemCounts, type ItemId } from '../data/market.ts';
 import type { EventBus } from '../core/eventBus.ts';
 import { ObjectPool } from '../core/pool.ts';
 import type { AbilityId, HeroId, HeroSkillSlot, TargetingMode, TowerMvpSummary, TowerType } from '../core/types.ts';
@@ -479,7 +479,13 @@ export class SimWorld {
 
   useItem(id: ItemId, x?: number, z?: number): boolean {
     return this.itemSystem.use(this, id, x, z, () => {
-      this.recordCommand({ kind: 'useItem', id, ...(x !== undefined && z !== undefined ? { x, z } : {}) });
+      const includeCoords =
+        ITEMS[id].target !== 'self' &&
+        typeof x === 'number' &&
+        typeof z === 'number' &&
+        Number.isFinite(x) &&
+        Number.isFinite(z);
+      this.recordCommand(includeCoords ? { kind: 'useItem', id, x, z } : { kind: 'useItem', id });
     });
   }
 

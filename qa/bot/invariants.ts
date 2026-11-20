@@ -117,6 +117,7 @@ export class InvariantMonitor {
   private readonly world: SimWorld;
   private readonly maxViolations: number;
   private prevLives: number;
+  private prevRestoredLives: number;
   private leakedLivesThisTick = 0;
   private heroRespawnedThisTick = false;
   heroDeaths = 0;
@@ -144,6 +145,7 @@ export class InvariantMonitor {
     this.world = world;
     this.maxViolations = maxViolations;
     this.prevLives = world.lives;
+    this.prevRestoredLives = world.itemSystem.restoredLives;
 
     const maxE = world.enemyPool.items.length;
     this.trackUid = new Int32Array(maxE);
@@ -202,11 +204,16 @@ export class InvariantMonitor {
       if (ev.gold < 0 || !Number.isInteger(ev.gold)) {
         this.record('negative_gold', this.currentTick, `economyChanged gold=${ev.gold}`);
       }
-      if (ev.lives > this.prevLives) {
+      const healedDelta = this.world.itemSystem.restoredLives - this.prevRestoredLives;
+      if (healedDelta > 0) {
+        this.prevLives += healedDelta;
+        this.prevRestoredLives = this.world.itemSystem.restoredLives;
+      }
+      if (ev.lives > this.prevLives || ev.lives > this.world.startingLives) {
         this.record(
           'unexpected_lives',
           this.currentTick,
-          `economyChanged lives increased from ${this.prevLives} to ${ev.lives}`,
+          `economyChanged lives increased unexpectedly (prev=${this.prevLives}, now=${ev.lives}, max=${this.world.startingLives})`,
         );
       }
       if (ev.lives === 0 && this.world.outcome !== 'lost') {
@@ -439,6 +446,41 @@ export class InvariantMonitor {
         );
       }
     });
+
+    events.on('itemCast', (ev) => {
+      this.assertFinite(ev.remaining, 'event.itemCast.remaining');
+      if (ev.x !== undefined) this.assertFinite(ev.x, 'event.itemCast.x');
+      if (ev.z !== undefined) this.assertFinite(ev.z, 'event.itemCast.z');
+    });
+
+    events.on('enemyFrozen', (ev) => {
+      this.assertFinite(ev.x, 'event.enemyFrozen.x');
+      this.assertFinite(ev.z, 'event.enemyFrozen.z');
+      this.assertFinite(ev.seconds, 'event.enemyFrozen.seconds');
+    });
+
+    events.on('enemyPushed', (ev) => {
+      this.assertFinite(ev.fromX, 'event.enemyPushed.fromX');
+      this.assertFinite(ev.fromZ, 'event.enemyPushed.fromZ');
+      this.assertFinite(ev.x, 'event.enemyPushed.x');
+      this.assertFinite(ev.z, 'event.enemyPushed.z');
+      this.assertFinite(ev.distance, 'event.enemyPushed.distance');
+      const pool = this.world.enemyPool;
+      for (let i = 0; i < pool.getActiveCount(); i++) {
+        const idx = pool.getActiveIndex(i);
+        const e = pool.items[idx];
+        if (e.uid !== ev.enemyId) continue;
+        if (e.dist < 0) {
+          this.record('enemy_stuck', this.currentTick, `enemyPushed moved uid=${e.uid} behind spawn (dist=${e.dist})`);
+        }
+        if (this.trackUid[idx] === e.uid) {
+          this.trackLastDist[idx] = e.dist;
+          this.trackStuckSec[idx] = 0;
+          this.trackFreeFrozenTicks[idx] = 0;
+        }
+        break;
+      }
+    });
   }
 
   /** Call immediately before `world.fixedTick(dt)`. */
@@ -447,6 +489,7 @@ export class InvariantMonitor {
     this.leakedLivesThisTick = 0;
     this.heroRespawnedThisTick = false;
     this.prevLives = this.world.lives;
+    this.prevRestoredLives = this.world.itemSystem.restoredLives;
   }
 
   /** Call immediately after `world.fixedTick(dt)`. */
@@ -538,7 +581,8 @@ export class InvariantMonitor {
     const soldiers = w.soldierSystem.soldiers;
     for (let i = 0; i < soldiers.length; i++) {
       const s = soldiers[i];
-      if (!hasTowerWithId(towers, s.towerId)) {
+      const validBanner = s.towerId < 0 && w.soldierSystem.getBarracks(s.towerId) !== null;
+      if (!validBanner && !hasTowerWithId(towers, s.towerId)) {
         this.record(
           'entity_leak',
           tick,

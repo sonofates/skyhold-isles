@@ -6,11 +6,19 @@ import type { LevelDef } from '../data/levels/types.ts';
 import { worldToGridCoord } from './grid.ts';
 import type { SimWorld } from './world.ts';
 
+const MAX_USE_CAP = Math.max(MARKET_RULES.useCap.easy, MARKET_RULES.useCap.normal, MARKET_RULES.useCap.hard);
+
 export function cleanBelt(raw: unknown, cap: number = MARKET_RULES.useCap.normal): ItemCounts {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
+  const safeCap = typeof cap === 'number' && Number.isFinite(cap) ? Math.max(0, Math.floor(cap)) : MARKET_RULES.useCap.normal;
   const result: ItemCounts = {};
-  for (const [id, count] of Object.entries(raw).slice(0, MARKET_RULES.slots)) {
-    if (isItemId(id) && Number.isSafeInteger(count) && count >= 0) result[id] = Math.min(MARKET_RULES.useCap.normal, cap, count);
+  let slotsUsed = 0;
+  for (const [id, count] of Object.entries(raw)) {
+    if (slotsUsed >= MARKET_RULES.slots) break;
+    if (isItemId(id) && Number.isSafeInteger(count) && count >= 0) {
+      result[id] = Math.min(MAX_USE_CAP, safeCap, count);
+      slotsUsed++;
+    }
   }
   return result;
 }
@@ -29,7 +37,7 @@ function itemTargets(world: SimWorld, id: ItemId, x: number, z: number): EnemyEn
   const pool = world.enemyPool;
   for (let i = 0; i < pool.getActiveCount(); i++) {
     const e = pool.items[pool.getActiveIndex(i)];
-    if (e.hp <= 0) continue;
+    if (!e.active || e.hp <= 0) continue;
     if (id === 'galeBell') {
       if (e.dist > 0) targets.push(e);
     } else if (!e.burrowed && Math.hypot(e.x - x, e.z - z) <= ITEMS[id].radius) {
@@ -37,6 +45,21 @@ function itemTargets(world: SimWorld, id: ItemId, x: number, z: number): EnemyEn
     }
   }
   return targets;
+}
+
+function crackBrittleOnFreeze(world: SimWorld, e: EnemyEntity, seconds: number): void {
+  const brittleArmor = ENEMY_DEFS[e.type].brittleArmor;
+  if (brittleArmor === undefined) return;
+  if (e.armorBreakTimer <= 0 && e.armor > brittleArmor) {
+    world.events.emit('armorCracked', {
+      enemyId: e.uid,
+      x: e.x,
+      y: e.y + e.height * 0.7,
+      z: e.z,
+    });
+  }
+  e.armor = Math.min(e.baseArmor, brittleArmor);
+  e.armorBreakTimer = Math.max(e.armorBreakTimer, seconds, ENEMY_DEFS[e.type].brittleDuration ?? 2.5);
 }
 
 export class ItemSystem {
@@ -55,8 +78,9 @@ export class ItemSystem {
   belt(): ItemCounts { return { ...this.remaining }; }
 
   use(world: SimWorld, id: ItemId, x = NaN, z = NaN, onAccepted?: () => void): boolean {
+    if (!isItemId(id)) return false;
     const charges = this.remaining[id] ?? 0;
-    if (!charges || !isItemId(id) || world.mods.itemsDisabled || world.mods.abilitiesDisabled || world.waveSystem.isEndless ||
+    if (!charges || world.mods.itemsDisabled || world.mods.abilitiesDisabled || world.waveSystem.isEndless ||
         world.outcome !== 'ongoing' || world.waveSystem.state === 'preFirstWave') return false;
     const target = ITEMS[id].target;
     const road = { x: 0, z: 0, yaw: 0 };
@@ -76,29 +100,40 @@ export class ItemSystem {
       case 'emberPot': {
         const def = ITEMS.emberPot;
         const damage = Math.round(computeMeteorDamage(wave) * def.meteorFraction);
-        for (const e of enemies) world.enemySystem.applyDamage(e, damage, true);
+        for (const e of enemies) {
+          if (!e.active || e.hp <= 0) continue;
+          world.enemySystem.applyDamage(e, damage, true);
+        }
         world.projectileSystem.addBurnZone(x, z, def.radius, def.burnSeconds, def.burnDamage);
         break;
       }
       case 'frostLantern':
         for (const e of enemies) {
+          if (!e.active || e.hp <= 0 || e.burrowed) continue;
           const slowOnly = !!ENEMY_DEFS[e.type].isBoss || e.elite;
           const def = ITEMS.frostLantern;
           if (slowOnly) {
+            if (ENEMY_DEFS[e.type].ability?.kind === 'momentum') e.abilityTimer = 0;
+            crackBrittleOnFreeze(world, e, def.seconds);
+            world.enemySystem.applyMark(e, def.markVuln, def.seconds);
             e.slowRatio = Math.max(e.slowRatio, def.eliteSlow);
             e.slowTimer = Math.max(e.slowTimer, def.seconds);
           } else {
             world.enemySystem.applyStun(e, def.seconds);
-            e.frozenTimer = def.seconds;
+            crackBrittleOnFreeze(world, e, def.seconds);
+            world.enemySystem.applyMark(e, def.markVuln, def.seconds);
+            e.frozenTimer = Math.max(e.frozenTimer, def.seconds);
           }
           world.events.emit('enemyFrozen', { enemyId: e.uid, x: e.x, z: e.z, seconds: def.seconds, slowOnly });
         }
         break;
       case 'galeBell': {
         for (const e of enemies) {
-          const distance = Math.min(e.dist, ENEMY_DEFS[e.type].isBoss ? ITEMS.galeBell.bossDistance : ITEMS.galeBell.distance);
+          if (!e.active || e.hp <= 0) continue;
+          const maxPush = ENEMY_DEFS[e.type].isBoss ? ITEMS.galeBell.bossDistance : ITEMS.galeBell.distance;
+          const distance = Math.max(0, Math.min(e.dist, maxPush));
           const fromX = e.x, fromZ = e.z;
-          e.dist -= distance;
+          e.dist = Math.max(0, e.dist - distance);
           e.yaw = world.enemySystem.getPath(e.flying, e.lane).sample(e.dist, e);
           e.prevX = e.x; e.prevY = e.y; e.prevZ = e.z; e.prevYaw = e.yaw;
           world.events.emit('enemyPushed', { enemyId: e.uid, fromX, fromZ, x: e.x, z: e.z, distance });
@@ -112,7 +147,7 @@ export class ItemSystem {
         break;
       }
       case 'cloudguard':
-        world.soldierSystem.spawnCloudguard(road);
+        world.soldierSystem.spawnCloudguard(road, wave);
         break;
       case 'heartstone': {
         const heal = Math.min(ITEMS.heartstone.lives, world.startingLives - world.lives);

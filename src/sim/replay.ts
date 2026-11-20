@@ -619,12 +619,13 @@ export function parseSimReplay(input: unknown): SimReplayLog | null {
   const intOr0 = (v: unknown): number =>
     typeof v === 'number' && Number.isFinite(v) ? Math.max(0, Math.floor(v)) : 0;
 
+  const modifiers = sanitizeReplayModifiers(r.modifiers);
   return {
     version: SIM_REPLAY_VERSION,
     levelId: r.levelId,
     seed: r.seed >>> 0,
-    modifiers: sanitizeReplayModifiers(r.modifiers),
-    itemBelt: cleanBelt(r.itemBelt),
+    modifiers,
+    itemBelt: modifiers.itemsDisabled ? {} : cleanBelt(r.itemBelt, modifiers.itemUseCap),
     hero,
     commands,
     summary: {

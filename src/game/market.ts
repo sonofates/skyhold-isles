@@ -21,9 +21,19 @@ export interface MarketWallet {
   inventory: Record<ItemId, number>;
   loadout: ItemId[];
 }
+const MAX_PLAUSIBLE_PRICE_PER_UNIT = 100;
 const integer = (n: unknown): number => typeof n === 'number' && Number.isFinite(n) ? Math.max(0, Math.min(Number.MAX_SAFE_INTEGER, Math.floor(n))) : 0;
 const record = (raw: unknown): Record<string, unknown> => raw && typeof raw === 'object' && !Array.isArray(raw) ? raw as Record<string, unknown> : {};
-const safeKey = (id: string): boolean => typeof id === 'string' && id.length > 0 && id.length <= 256 && id.trim() === id && !Object.hasOwn(Object.prototype, id);
+const safeKey = (id: string): boolean =>
+  typeof id === 'string' &&
+  id.length > 0 &&
+  id.length <= 256 &&
+  id.trim() === id &&
+  id !== '__proto__' &&
+  id !== 'prototype' &&
+  !Object.hasOwn(Object.prototype, id);
+const validBonusKey = (key: string): boolean =>
+  (key.startsWith('island:') && key.length > 7) || /^daily:-?\d+$/.test(key);
 const emptyCounters = (): MarketCounters => ({ earned: 0, spent: 0, bought: {}, used: {} });
 
 export function sanitizeMarket(raw?: unknown): MarketSave {
@@ -33,7 +43,15 @@ export function sanitizeMarket(raw?: unknown): MarketSave {
   for (const [key, value] of Object.entries(record(data.counters))) {
     if (!safeKey(key)) continue;
     const c = record(value);
-    counters[key] = { earned: integer(c.earned), spent: integer(c.spent), bought: cleanItemCounts(c.bought), used: cleanItemCounts(c.used) };
+    const earned = integer(c.earned);
+    const bought = cleanItemCounts(c.bought);
+    const used = cleanItemCounts(c.used);
+    let totalUnitsBought = 0;
+    for (const id of ITEM_IDS) totalUnitsBought += bought[id] ?? 0;
+    const maxPlausibleSpent = Math.min(Number.MAX_SAFE_INTEGER, totalUnitsBought * MAX_PLAUSIBLE_PRICE_PER_UNIT);
+    const spent = Math.min(integer(c.spent), maxPlausibleSpent);
+    if (earned === 0 && spent === 0 && totalUnitsBought === 0 && Object.keys(used).length === 0) continue;
+    counters[key] = { earned, spent, bought, used };
   }
   const purchaseLedger: Record<string, number> = {};
   for (const [key, amount] of Object.entries(record(data.purchaseLedger))) {
@@ -41,15 +59,18 @@ export function sanitizeMarket(raw?: unknown): MarketSave {
   }
   const winBonuses: Record<string, number> = {};
   for (const [key, value] of Object.entries(record(data.winBonuses))) {
-    if (safeKey(key) && (key.startsWith('island:') || key.startsWith('daily:'))) winBonuses[key] = integer(value);
+    if (!safeKey(key) || !validBonusKey(key)) continue;
+    const cleanVal = integer(value);
+    if (cleanVal > 0) winBonuses[key] = cleanVal;
   }
   return { counters, purchaseLedger, winBonuses, loadout, loadoutRevision: integer(data.loadoutRevision) };
 }
 
 export function hasMarketActivity(save: MarketSave | undefined): boolean {
-  if (!save) return false;
-  return save.loadoutRevision > 0 || Object.keys(save.counters ?? {}).length > 0 ||
-    Object.keys(save.purchaseLedger ?? {}).length > 0 || Object.keys(save.winBonuses ?? {}).length > 0;
+  if (!save || typeof save !== 'object' || Array.isArray(save)) return false;
+  const clean = sanitizeMarket(save);
+  return clean.loadoutRevision > 0 || Object.keys(clean.counters).length > 0 ||
+    Object.keys(clean.purchaseLedger).length > 0 || Object.keys(clean.winBonuses).length > 0;
 }
 
 export function mergeMarket(a: unknown, b: unknown): MarketSave {
@@ -80,6 +101,14 @@ export function mergeMarket(a: unknown, b: unknown): MarketSave {
   return left;
 }
 
+function rawStockOf(save: MarketSave, id: ItemId): number {
+  let stock: number = MARKET_RULES.starterCount;
+  for (const c of Object.values(save.counters)) {
+    stock += (c.bought[id] ?? 0) - (c.used[id] ?? 0);
+  }
+  return stock;
+}
+
 export function marketWallet(save: MarketSave): MarketWallet {
   let crystals: number = MARKET_RULES.starterCrystals;
   const inventory = Object.fromEntries(ITEM_IDS.map(id => [id, MARKET_RULES.starterCount])) as Record<ItemId, number>;
@@ -95,16 +124,19 @@ export function marketWallet(save: MarketSave): MarketWallet {
 
 export function earnCrystals(save: MarketSave, writer: string, amount: number): void {
   if (!safeKey(writer)) return;
-  (save.counters[writer] ??= emptyCounters()).earned += integer(amount);
+  const gain = integer(amount);
+  if (gain <= 0) return;
+  (save.counters[writer] ??= emptyCounters()).earned += gain;
 }
 
 function awardBonus(save: MarketSave, key: string, amount: number): number {
   const before = save.winBonuses[key] ?? 0;
-  save.winBonuses[key] = Math.max(before, amount);
+  save.winBonuses[key] = Math.max(before, integer(amount));
   return save.winBonuses[key] - before;
 }
 
 export function awardDailyBonus(save: MarketSave, day: number): number {
+  if (!Number.isFinite(day)) return 0;
   return awardBonus(save, `daily:${Math.floor(day)}`, MARKET_RULES.dailyBonus);
 }
 
@@ -114,8 +146,8 @@ export function awardMarketWin(save: MarketSave, writer: string, island: string,
   const repeat = winCrystals(stars, false, difficulty);
   earnCrystals(save, writer, repeat);
   let total = repeat;
-  if (first) total += awardBonus(save, `island:${island}`, winCrystals(stars, true, difficulty) - repeat);
-  if (dailyDay !== null) total += awardDailyBonus(save, dailyDay);
+  if (first && safeKey(island)) total += awardBonus(save, `island:${island}`, winCrystals(stars, true, difficulty) - repeat);
+  if (dailyDay !== null && Number.isFinite(dailyDay)) total += awardDailyBonus(save, dailyDay);
   return total;
 }
 
@@ -123,9 +155,10 @@ export function buyItem(save: MarketSave, writer: string, id: ItemId): boolean {
   if (!safeKey(writer) || !isItemId(id)) return false;
   const wallet = marketWallet(save);
   if (wallet.crystals < ITEMS[id].price || wallet.inventory[id] >= MARKET_RULES.inventoryCap) return false;
+  const rawStock = rawStockOf(save, id);
   const c = save.counters[writer] ??= emptyCounters();
   c.spent += ITEMS[id].price;
-  c.bought[id] = (c.bought[id] ?? 0) + 1;
+  c.bought[id] = (c.bought[id] ?? 0) + (rawStock < 0 ? 1 - rawStock : 1);
   return true;
 }
 
