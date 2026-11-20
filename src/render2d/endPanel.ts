@@ -97,6 +97,11 @@ function diffSealTexture(id: DifficultyId): Promise<Texture | null> {
  * Painted action icons (manifest `paintedUi`). Retry has no painted icon in the kit yet and keeps
  * its Graphics glyph; so does any button whose painting has not loaded (or failed to).
  */
+/** The end board's main action (drawn on the glowing medallion). */
+export function primaryEndAction(won: boolean): EndAction {
+  return won ? 'next' : 'retry';
+}
+
 const PAINTED_ICON: Partial<Readonly<Record<EndAction, string>>> = { next: 'icon-play', menu: 'icon-map' };
 
 interface Btn {
@@ -171,6 +176,8 @@ export class EndPanel {
   private readonly diffSeal = new Sprite(Texture.EMPTY);
   private readonly diffText = inkText(18, 'left', '#4a2a12', '700');
   private readonly buttons: Btn[] = [];
+  private readonly btnTex: Texture;
+  private readonly btnHiTex: Texture;
   private readonly art: LoadedArt;
   private lay: EndLayout | null = null;
   private summary: EndSummary | null = null;
@@ -212,9 +219,11 @@ export class EndPanel {
       this.stars.push({ empty, full });
       this.board.addChild(empty, full);
     }
+    this.btnTex = kit(art, 'buttonRound', art.ui.button);
+    this.btnHiTex = kit(art, 'medallionHi', art.ui.button);
     for (const action of ['retry', 'replay', 'next', 'menu'] as const) {
       const root = new Container();
-      const bg = new Sprite(kit(art, action === 'next' ? 'medallionHi' : 'buttonRound', art.ui.button));
+      const bg = new Sprite(this.btnTex);
       bg.anchor.set(0.5);
       const glyph = new Graphics();
       const icon = new Sprite(Texture.EMPTY);
@@ -455,6 +464,9 @@ export class EndPanel {
     const hasReplay = this.summary?.hasReplay ?? false;
     const shown = this.buttons.filter((b) => (b.action !== 'next' || hasNext) && (b.action !== 'replay' || hasReplay));
     for (const b of this.buttons) b.root.visible = shown.includes(b);
+    // The glowing medallion marks the way on: Next isle after a win, Retry after a defeat.
+    const main = primaryEndAction(this.summary?.won ?? false);
+    for (const b of shown) b.bg.texture = b.action === main ? this.btnHiTex : this.btnTex;
     // Four buttons: a little smaller and closer so they stay on the parchment.
     const four = shown.length >= 4;
     const step = four ? 3.05 : 3.4;
@@ -600,12 +612,14 @@ export class EndPanel {
       return;
     }
     if (b.action === 'retry') {
+      // Cream on wood; gold on the glowing (pale blue) medallion after a defeat, like Next's play icon.
+      const ink = b.bg.texture === this.btnHiTex ? 0xffc93c : 0xfff4dc;
       g.arc(0, 0, r * 0.34, -Math.PI * 0.15, Math.PI * 1.45).stroke({ color: 0x3a2412, width: r * 0.22, cap: 'round' });
-      g.arc(0, 0, r * 0.34, -Math.PI * 0.15, Math.PI * 1.45).stroke({ color: 0xfff4dc, width: r * 0.12, cap: 'round' });
+      g.arc(0, 0, r * 0.34, -Math.PI * 0.15, Math.PI * 1.45).stroke({ color: ink, width: r * 0.12, cap: 'round' });
       const ax = Math.cos(-Math.PI * 0.15) * r * 0.34;
       const ay = Math.sin(-Math.PI * 0.15) * r * 0.34;
       g.moveTo(ax - r * 0.2, ay - r * 0.04).lineTo(ax + r * 0.15, ay - r * 0.06).lineTo(ax + r * 0.02, ay + r * 0.26).closePath();
-      g.fill({ color: 0xfff4dc }).stroke(line);
+      g.fill({ color: ink }).stroke(line);
     } else if (b.action === 'next') {
       g.moveTo(-r * 0.22, -r * 0.34).lineTo(r * 0.36, 0).lineTo(-r * 0.22, r * 0.34).closePath();
       g.fill({ color: 0xfff4dc }).stroke(line);

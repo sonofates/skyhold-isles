@@ -12,6 +12,7 @@ import { clampUiScale, defaultGraphics, parseGraphics } from '../../src/render2d
 import { setUserUiScale, uiScale, WAVE_EASE_SEC, WAVE_EASE_ZOOM, waveEaseZoom } from '../../src/render2d/uiLayout.ts';
 import { uiUnit } from '../../src/render2d/hudDock.ts';
 import { ENEMY_DEFS } from '../../src/data/enemies.ts';
+import { primaryEndAction } from '../../src/render2d/endPanel.ts';
 
 describe('skill tree fit (heroScreens.ts)', () => {
   it('tries the vertical tree first, largest zoom first, then the across tree largest first', () => {
@@ -242,5 +243,12 @@ describe('juice', () => {
     const main = readFileSync(join(__dirname, '../../src/render2d/main2d.ts'), 'utf8');
     expect(main).not.toContain("getElementById('boot')?.remove()");
     expect(main).toContain('dismissBoot()');
+  });
+});
+
+describe('end board', () => {
+  it('the glowing medallion is Next isle after a win, Retry after a defeat', () => {
+    expect(primaryEndAction(true)).toBe('next');
+    expect(primaryEndAction(false)).toBe('retry');
   });
 });
