@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { pickTreeFit, TREE_FIT_STEPS, type TreeLayout } from '../../src/render2d/ui/heroScreens.ts';
-import { loadFraction, shouldShowTitle, titleArt, titleLogo, TITLE_SKIP_PARAMS } from '../../src/render2d/ui/titleScreen.ts';
+import { letterArc, loadFraction, shouldShowTitle, titleArt, titleLogo, TITLE_SKIP_PARAMS } from '../../src/render2d/ui/titleScreen.ts';
 import { creditSections } from '../../src/render2d/ui/credits2d.ts';
 import { setLocale } from '../../src/i18n/index.ts';
 import { keyDir, pickInDirection, repeatDue, stickDir, type NavRect } from '../../src/render2d/ui/navFocus.ts';
@@ -53,6 +53,19 @@ describe('skill tree fit (heroScreens.ts)', () => {
 describe('title screen (titleScreen.ts)', () => {
   const q = (s: string) => new URLSearchParams(s);
   const fresh = { seen: false, automated: false };
+
+  it('letters ride a symmetric arc: middle highest, ends dipped and leaning outwards', () => {
+    expect(letterArc(0, 1)).toEqual({ lift: 0, tilt: 0 });
+    const n = 15;
+    const arc = Array.from({ length: n }, (_, i) => letterArc(i, n));
+    expect(arc[7]).toEqual({ lift: 0, tilt: 0 });
+    expect(arc[0]).toEqual({ lift: 1, tilt: -1 });
+    expect(arc[14]).toEqual({ lift: 1, tilt: 1 });
+    for (let i = 0; i < n; i++) {
+      expect(arc[i].lift).toBeCloseTo(arc[n - 1 - i].lift, 6);
+      expect(arc[i].tilt).toBeCloseTo(-arc[n - 1 - i].tilt, 6);
+    }
+  });
 
   it('shows once per session on a plain launch; deep screens, automation and ?title=0 skip it', () => {
     expect(shouldShowTitle(q(''), fresh)).toBe(true);

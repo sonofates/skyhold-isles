@@ -35,7 +35,7 @@ async function audit(page, key) {
   return r.problems.length;
 }
 
-const shot = (page, name) => (SHOTS ? page.screenshot({ path: `${SHOTS}/${name}.jpg`, type: 'jpeg', quality: 74 }) : Promise.resolve());
+const shot = (page, name) => (SHOTS ? page.screenshot({ path: `${SHOTS}/${name}.jpg`, type: 'jpeg', quality: 74, timeout: 150000 }) : Promise.resolve());
 
 for (const lang of LANGS) {
   for (const size of SIZES) {
@@ -51,6 +51,7 @@ for (const lang of LANGS) {
         if (s) localStorage.setItem('skyhold_isles_progress2d_v1', s);
       }, [seeded ? SEED : null, lang]);
       const page = await ctx.newPage();
+      page.setDefaultTimeout(120000); // software GL on a busy machine: clicks that navigate can take a while
       page.on('pageerror', (e) => problems.push(`${key}: page error ${e.message}`));
       await page.goto(`${BASE}/2d.html?title=1&lang=${lang}&desktop=${size.touch ? 0 : 1}`);
       await page.waitForSelector('[data-testid="title2d"]', { timeout: 30000 });

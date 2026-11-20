@@ -187,7 +187,7 @@ export function runTitle(q: URLSearchParams, h: TitleHandlers): { screen: TitleS
 
   // Logo (painted when available, else lettering on the banner).
   const logoBox = el('div', 'pu-title-logo');
-  const lettering = el('h1', 'pu-title-name', {}, el('span', 'pu-title-word pu-letter', {}, t('page.title')));
+  const lettering = el('h1', 'pu-title-name', { 'aria-label': t('page.title') }, ...titleLetters(t('page.title')));
   const tagWords = el('span', '', {}, t('title.subtitle'));
   const tagline = el('div', 'pu-title-tagline pu-letter', {}, tagWords);
   logoBox.append(lettering, tagline);
@@ -390,4 +390,29 @@ export function runTitle(q: URLSearchParams, h: TitleHandlers): { screen: TitleS
     state: () => ({ phase, progress, keyart: !!art.keyart, logo: root.classList.contains('has-logo'), buttons: buttons.map((b) => b.dataset.testid ?? '') }),
   };
   return { screen, done };
+}
+
+/** Arc offsets for letter `i` of `n`: the middle rides highest, the ends dip and lean outwards. */
+export function letterArc(i: number, n: number): { lift: number; tilt: number } {
+  if (n <= 1) return { lift: 0, tilt: 0 };
+  const u = (2 * i) / (n - 1) - 1;
+  return { lift: Math.round(u * u * 1000) / 1000, tilt: Math.round(u * 1000) / 1000 };
+}
+
+/**
+ * The game's name as painted lettering: one span per letter on a gentle arc (`--lift` / `--tilt`
+ * read by the CSS), each with a gradient face laid over its outlined, extruded body
+ * (`data-c` feeds the face's `::after`). Spaces stay plain gaps.
+ */
+function titleLetters(name: string): HTMLElement[] {
+  const chars = Array.from(name);
+  return chars.map((c, i) => {
+    if (c === ' ') return el('span', 'pu-title-gap', { 'aria-hidden': 'true' }, ' ');
+    const { lift, tilt } = letterArc(i, chars.length);
+    const span = el('span', 'pu-title-ch', { 'aria-hidden': 'true', 'data-c': c }, c);
+    span.style.setProperty('--lift', String(lift));
+    span.style.setProperty('--tilt', String(tilt));
+    span.style.setProperty('--i', String(i));
+    return span;
+  });
 }
