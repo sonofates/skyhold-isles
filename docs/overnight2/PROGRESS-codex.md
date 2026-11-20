@@ -635,3 +635,29 @@ TypeScript and lint passed. Vitest passed 1,427 tests with 11 skipped. All eight
 ### Next round
 
 Audit Gateward Hall’s Iron Mantle against an armored melee wave. Buy during an enemy wind-up and while a guard is down. Check the damage floor, the return timer and whether respawned guards have the purchased armor. Compare the serialized replay.
+
+## Round 27 — Gateward Hall and Iron Mantle
+
+### Combat
+
+Four regressions exercise the purchases through the live world and serialized command replay. A brute dealt 4 damage to a Gateward guard and began winding up its next swing. Buying Iron Mantle four ticks later preserved the wound. The next blow landed on the same guard at the same tick in both runs, dealing 1 damage with Iron Mantle and 4 without it.
+
+In two golem encounters, the first guard fell at tier III or at Gateward. Buying Iron Mantle one second into the countdown preserved the remaining six or four seconds respectively. The guard respawned at the hall with 230 HP, took 44 damage on the next hit and received Gateward’s five-second timer on the next death. Before the purchase, the golems’ hits dealt 54 damage against tier III and 49 against Gateward. All four replays matched the original enemy wind-ups, hits, guard deaths and returns, outcome and final state hash.
+
+### Campaign decision
+
+Kept the existing campaign build orders. At Cloudbell Cloister, bringing the two barracks upgrades forward let the first-clear kit afford Gateward and Iron Mantle, but every tested order that bought both lost. At Brineglass Ferry, prioritizing the hall after the plot-0 archer upgrade finished within the island’s target at 5/22 lives. All four neighboring HP settings (−3%, −1.5%, +1.5%, +3%) lost. At Waxlight Orchard, the earliest purchase on the existing barracks left 3/22 lives, with flyers costing 13 of the 19 lost lives.
+
+### Request for Opus
+
+The English tower and codex data now tell players which guards receive the shorter return timer and how much damage can pass through Iron Mantle. Gateward EN “Shield bearers have 9 armor. Guards who fall after this upgrade have a base respawn time of 5 seconds.” TR “Kalkanlı muhafızların 9 zırhı vardır. Bu yükseltmeden sonra düşen muhafızların temel dönüş süresi 5 saniyedir.” Iron Mantle EN “Raises guard armor from 9 to 14. Each melee hit still deals at least 1 damage.” TR “Muhafızların zırhını 9’dan 14’e çıkarır. Her yakın dövüş vuruşu yine de en az 1 hasar verir.”
+
+### Verification
+
+In the production melee scene, bought Gateward and Iron Mantle while a tier-III guard had six seconds left to return. The gate stayed closed after purchase and began opening on the guard’s actual return, 421 fixed ticks after death. Both frames measured zero plot alignment error. The left crop shows the closed gate during the countdown. The right shows gate frame four with spawn dust. Inspected both at 2×. [Gateward Hall during the countdown and at the guard’s return](../../design/art-2d/specializations/gateward-return.jpg)
+
+TypeScript, lint and the production build passed. Vitest passed 1,431 tests with 11 skipped. The first run timed out in the existing map-frame test at five seconds. The full rerun with two workers passed at the original timeout. All 41 realistic-kit balance checks and all eight difficulty verdicts passed. Both reports matched round 26 byte for byte. Hard i09 finished at 12/22 lives and Hard i24 at 2/22. The 24,217-byte L1–L16 report matched the round-one baseline byte for byte. Vite emitted its existing chunk-size and dynamic-import warnings.
+
+### Next round
+
+Audit Snowbell Garden and Deep Drifts against a mixed pack at the splash boundary. Check slow strength, refresh duration and which shots carry the wider radius when the player buys Deep Drifts during flight.

@@ -828,11 +828,11 @@ const SPECIALIZATIONS = {
   barracks: [
     {
       id: 'gateward', name: 'Gateward Hall', cost: 170,
-      description: 'Shield bearers absorb 9 damage from each melee blow and return in five seconds.',
+      description: 'Shield bearers have 9 armor. Guards who fall after this upgrade have a base respawn time of 5 seconds.',
       changes: { soldierArmor: 9, soldierRespawnSec: 5 },
       abilities: [{
         id: 'ironmantle', name: 'Iron Mantle', cost: 85,
-        description: 'Each shield bearer gains 5 more armor.', changes: { soldierArmor: 14 },
+        description: 'Raises guard armor from 9 to 14. Each melee hit still deals at least 1 damage.', changes: { soldierArmor: 14 },
       }],
     },
     {
