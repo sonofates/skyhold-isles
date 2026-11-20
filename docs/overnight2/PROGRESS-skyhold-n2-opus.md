@@ -48,6 +48,13 @@
     arrows get `data-nav-skip`; a focused island scrolls to the middle (`inline: 'center'`).
   Result: 0 problems at 1920x1080, 1366x768, 844x390 (TR); navprobe still 0.
 
+- Workshop: the effect line reserves two lines → the three columns' cards line up in rows; card
+  spacing trimmed so the board (with its "invested · earned" line) fits 2000x991 without a scroll.
+- End board: the glowing medallion (`primaryEndAction`) is Retry after a defeat (was always Next
+  isle, which glowed even on a loss); gold retry arrow on it. Pad: when the board appears the
+  reticle jumps to that button (`EndPanel.primaryAction`, padTargets lists it first); navprobe
+  checks won + lost.
+
 ## Next ideas
 - Swap in Codex's title paintings when they land (keys in Requests); re-shoot the title.
 - Wave-start ease / boot fade / veil: only checked by code + unit tests, not filmed (headless frames
