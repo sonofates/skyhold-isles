@@ -83,3 +83,83 @@ it.each([
   replay.dispose();
   world.dispose();
 });
+
+function recordSoldierHits(world: SimWorld) {
+  const hits: { tick: number; soldierId: number; enemyId: number; damage: number }[] = [];
+  world.events.on('soldierAttack', ({ soldierId, enemyId, damage }) => {
+    hits.push({ tick: world.tick, soldierId, enemyId, damage });
+  });
+  return hits;
+}
+
+it.each([
+  { action: 'specialize', ticksInContact: 2, newRate: 1.38, ticksToHit: 6 },
+  { action: 'buy Full Sail', ticksInContact: 15, newRate: 1.48, ticksToHit: 27 },
+  { action: 'sell', ticksInContact: 1, newRate: 1, ticksToHit: 10 },
+] as const)('uses the current beacon rate for an engaged guard after $action', scenario => {
+  const level = { ...encounter, startingGold: 3000, enemyHpScale: 3, waves: encounter.waves.slice(0, 1) };
+  const world = new SimWorld(level, new EventBus(), { recordCommands: true });
+  const hits = recordSoldierHits(world);
+  const barracks = world.placeTowerOnPlot(0, 'barracks')!;
+  const beacon = world.placeTowerOnPlot(1, 'beacon')!;
+  for (const tower of [barracks, beacon]) {
+    expect(world.upgradeTower(tower.id)).toBe(true);
+    expect(world.upgradeTower(tower.id)).toBe(true);
+  }
+  expect(world.specializeTower(barracks.id, 'gateward')).toBe(true);
+  expect(world.buyTowerAbility(barracks.id, 'ironmantle')).toBe(true);
+  if (scenario.action !== 'specialize') expect(world.specializeTower(beacon.id, 'tailwind')).toBe(true);
+  if (scenario.action === 'sell') expect(world.buyTowerAbility(beacon.id, 'fullsail')).toBe(true);
+  expect(world.startNextWave()).toBe(true);
+
+  const guard = world.soldierSystem.getBarracks(barracks.id)!.squad[0];
+  while (guard.state !== 'fighting' && world.tick < 900) world.fixedTick(BALANCE.fixedDt);
+  expect(guard.state).toBe('fighting');
+  // At these points in the swing, one tick at the old rate shifts the next hit by a full tick.
+  for (let i = 0; i < scenario.ticksInContact; i++) world.fixedTick(BALANCE.fixedDt);
+  const before = guard.attackTimer;
+  const commandTick = world.tick;
+  if (scenario.action === 'specialize') expect(world.specializeTower(beacon.id, 'tailwind')).toBe(true);
+  if (scenario.action === 'buy Full Sail') expect(world.buyTowerAbility(beacon.id, 'fullsail')).toBe(true);
+  if (scenario.action === 'sell') expect(world.sellTower(beacon.id)).toBeGreaterThan(0);
+  world.fixedTick(BALANCE.fixedDt);
+  expect(before - guard.attackTimer).toBeCloseTo(BALANCE.fixedDt * scenario.newRate, 12);
+  while (world.outcome === 'ongoing' && world.tick < 3000) world.fixedTick(BALANCE.fixedDt);
+  expect(hits.find(hit => hit.soldierId === guard.id && hit.tick > commandTick)?.tick)
+    .toBe(commandTick + scenario.ticksToHit);
+  expect(world).toMatchObject({ outcome: 'won', enemiesKilledTotal: 1 });
+  const replay = new SimReplayPlayer(level, parseSimReplay(serializeSimReplay(world.exportReplay()))!);
+  const replayHits = recordSoldierHits(replay.world);
+  expect(replay.runToEnd()).toMatchObject({ matchesHash: true, matchesOutcome: true });
+  expect(replayHits).toEqual(hits);
+  replay.dispose();
+  world.dispose();
+});
+
+it('uses the current Horizon range for rally orders issued on the same tick as a purchase or sale', () => {
+  const world = new SimWorld(encounter, new EventBus());
+  let barracks = world.placeTowerOnPlot(0, 'barracks')!;
+  const beacon = world.placeTowerOnPlot(2, 'beacon')!;
+  expect(world.upgradeTower(beacon.id)).toBe(true);
+  expect(world.upgradeTower(beacon.id)).toBe(true);
+  function checkRally(range: number) {
+    expect(world.setRallyPoint(barracks.id, goal.x, goal.z)).toBe(true);
+    const squad = world.soldierSystem.getBarracks(barracks.id)!;
+    expect(squad.rallyX).toBeLessThan(barracks.x);
+    const distance = Math.hypot(squad.rallyX - barracks.x, squad.rallyZ - barracks.z);
+    // The road is sampled at 0.05-unit intervals.
+    expect(distance).toBeLessThanOrEqual(range);
+    expect(distance).toBeGreaterThan(range - 0.05);
+  }
+  checkRally(3.2);
+  expect(world.specializeTower(beacon.id, 'horizon')).toBe(true);
+  checkRally(3.2 * 1.2);
+  expect(world.buyTowerAbility(beacon.id, 'clearlens')).toBe(true);
+  checkRally(3.2 * 1.3);
+  expect(world.sellTower(barracks.id)).toBeGreaterThan(0);
+  barracks = world.placeTowerOnPlot(0, 'barracks')!;
+  checkRally(3.2 * 1.3);
+  expect(world.sellTower(beacon.id)).toBeGreaterThan(0);
+  checkRally(3.2);
+  world.dispose();
+});

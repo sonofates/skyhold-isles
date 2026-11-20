@@ -710,7 +710,10 @@ export class SimWorld {
     this.towers.push(tower);
     this.grid.setTowerAt(col, row, tower.id);
     this.recordCommand(commandToRecord);
-    if (TOWER_DEFS[type].role === 'barracks') this.soldierSystem.addBarracks(tower);
+    if (TOWER_DEFS[type].role === 'barracks') {
+      this.combatSystem.applyBeaconAuras(this.towers);
+      this.soldierSystem.addBarracks(tower);
+    }
 
     this.events.emit('towerBuilt', {
       towerId: tower.id,
@@ -821,6 +824,9 @@ export class SimWorld {
     if (tower.type === 'barracks') {
       const barracks = this.soldierSystem.getBarracks(tower.id);
       if (barracks) barracks.stats = next.stats;
+    } else if (tower.type === 'beacon') {
+      // Rally orders and soldier swings can both precede the next combat update.
+      this.combatSystem.applyBeaconAuras(this.towers);
     }
     this.recordCommand(command);
     this.emitTowerUpgrade(tower);
@@ -847,6 +853,7 @@ export class SimWorld {
     this.gold += refund;
     this.grid.clearTowerAt(tower.col, tower.row);
     this.towers.splice(idx, 1);
+    if (tower.type === 'beacon' && tower.specialization) this.combatSystem.applyBeaconAuras(this.towers);
     this.recordCommand({ kind: 'sellTower', towerId });
     if (TOWER_DEFS[tower.type].role === 'barracks') this.soldierSystem.removeBarracks(tower.id);
 

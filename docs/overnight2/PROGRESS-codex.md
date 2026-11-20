@@ -440,3 +440,24 @@ TypeScript and lint passed. Vitest passed 1,398 tests with 11 skipped using one 
 ### Next round
 
 Check the first barracks swing after a beacon specialization purchase or sale. In the world tick, soldiers act before the combat system refreshes tower auras. Measure the effect on an engaged squad and record any needed soldier-system changes for its owner.
+
+## Round 19 — Beacon purchases during a barracks fight
+
+### Done
+
+- Reproduced a stale attack-speed bonus on an engaged Gateward guard. Buying Tailwind Mill or Full Sail left the guard one tick late on its next hit. Selling the fully upgraded mill let the guard hit one tick early. The squad read the previous bonus before the combat system updated it.
+- The world now refreshes beacon coverage when a player buys a beacon specialization or its ability, sells a specialized beacon, or places a barracks. This uses the existing coverage, jam and overlap rules. A swing already in progress keeps its elapsed time.
+- In the three recorded Basalt Golem encounters, the guard's next hit landed 6 ticks after buying Tailwind, 27 after buying Full Sail and 10 after selling the mill. Before the fix those intervals were 7, 28 and 9. All three command replays reproduced every soldier hit, the kill, the win and the final state hash.
+- A fourth regression gives rally orders without advancing the clock. A tier-I barracks at the edge of Horizon Lantern's coverage can use its 3.84-unit rally range immediately after purchase and 4.16 after Clear Lens. A replacement barracks on the same plot also gets 4.16. Selling the lantern brings the next order back to the 3.2-unit radius. No changes are needed from the soldier-system owner.
+
+### Campaign decision
+
+Kept Waxlight Orchard's authored build, which clears Normal with 9/22 lives and two stars. With level-20 Bran and the 54-star entry kit, adding a mill on vacant plot 3 after the first barracks upgrade gave the plot-19 squad six primary swings under Full Sail in wave 12. The squad dealt 104 damage under Full Sail, including cleaves. The added spending left the island at 6/22 and one star. Replacing the plot-4 archer with the mill gave 3/22. Replacing the plot-18 Tesla lost the island.
+
+### Verification
+
+TypeScript, lint and the production build passed. Vitest passed 1,402 tests with 11 skipped, including all four new regressions. All 41 balance checks and all eight difficulty verdicts passed. Easy and Normal cleared all 25 islands. Hard i09 finished at 12/22 and Hard i24 at 5/22. The full balance and difficulty reports matched round 18 byte for byte. The 24,217-byte standalone L1–L16 report also matched the pre-specialization baseline. Vite emitted its existing chunk-size and dynamic-import warnings.
+
+### Next round
+
+Audit Briar Lodge's Wide Sweep. Exercise a lethal primary hit with an armored secondary beside it, then buy Wide Sweep during a soldier's wind-up and check the secondary hit and kill credit on replay. No new UI or localization requests.

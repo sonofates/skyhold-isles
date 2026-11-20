@@ -52,10 +52,10 @@ export class CombatSystem {
   }
 
   /**
-   * Recomputes the support aura every tick: each non-beacon tower receives the best fire-rate / range
+   * Recomputes the support aura: each non-beacon tower receives the best fire-rate / range
    * bonus among the un-jammed Beacons covering it (bonuses from several Beacons do not stack).
    */
-  private applyBeaconAuras(towers: readonly TowerEntity[]): void {
+  applyBeaconAuras(towers: readonly TowerEntity[]): void {
     let anyBeacon = false;
     for (let i = 0; i < towers.length; i++) {
       const t = towers[i];
