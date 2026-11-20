@@ -553,3 +553,30 @@ TypeScript, lint and the production build passed. Vitest passed 1,416 tests with
 ### Next round
 
 Audit Cloudbreak Mortar's 2.1-unit minimum range and Stone Petals. Check whether the crew reacquires a target entering or leaving its dead zone and which shell produces fragments if the ability is bought during flight.
+
+## Round 24 — Cloudbreak Mortar and Stone Petals
+
+### Combat
+
+- Followed a lone Iron Brute through the mortar’s blind spot. The crew fired on approach, reloaded while the brute was too close, then fired on the first tick it crossed back outside 2.1 units. Its distance increased from 2.090 to 2.114 units on that tick.
+- With a second brute on a parallel road, the crew switched roads for two reloads and reacquired the lead brute on the next one. The roads are 3.55 units apart, just beyond the main blast’s 3.5-unit radius. Buying Stone Petals before launch let the first shell hit the other road for 32 damage. Buying it in flight kept that shell’s single crater. The second shell then hit its target for 210 and the brute beside the crew for 30. Each upgraded impact scattered three fragments three units from the crater.
+- All four serialized replays reproduced the firing ticks, target lanes, hit damage, impact locations, outcome and final state hash. The combat checks passed with the existing targeting and projectile rules.
+
+### Campaign decision
+
+Moonwell Crossing’s realistic build now buys Cloudbreak and Stone Petals for the plot-15 mortar after upgrading the plot-6 Tesla. Level-20 Bran with the 42-star entry kit bought both on wave 15 of 22. The upgraded mortar fired 196 shells, dealt 161,078 damage and earned 92 kills. Seven targets were inside the tier-III blind spot and 58 were beyond tier-III reach. Normal finished at 9/22 lives and two stars, matching the prior build. The player spent 170 more gold overall and finished with the final two ordinary upgrades still queued. At −3%, −1.5%, +1.5% and +3% enemy HP, the new build cleared with 17, 6, 10 and 5 lives. The Waxlight Orchard kit reached the end before it could buy the branch on its existing tier-III mortar.
+
+### Requests for Opus
+
+- The branch tooltip now explains the loss of tier-III burning ground and gives the base firing range. EN “Heavy shells replace incendiary rounds. They deal 218 base damage and can target foes 2.1 to 14.2 units away.” TR “Havan artık yangın mermisi yerine ağır mermi atar. Bu mermiler 218 temel hasar verir. Havan, 2,1 ile 14,2 birim arasındaki düşmanları hedef alabilir.”
+- The selected range disc and attack anticipation still use tier-III stats in `src/render2d/game2d.ts`. On 31 of the 196 post-purchase shots at Moonwell, the existing render-side range check would find zero eligible ground targets. Use `towerStats(t)` for the built tower’s base range and minimum range, preserving the existing outer-range bonuses. The sim and the measured shots already use the branch stats.
+
+### Verification
+
+In the built game, inspected plot 15 on a staged wave 15 at 1600×900 and at 3× magnification. Cloudbreak sits below the northern road beside the right entrance. Its painted base matches the plot ring in center, bottom and width. The capture shows attack frame two with a Stone Petals shell in flight. [Moonwell Crossing with Cloudbreak](../../design/art-2d/specializations/cloudbreak-moonwell.jpg)
+
+TypeScript, lint and the production build passed. Vite emitted its existing chunk-size and dynamic-import warnings. All 41 realistic-kit balance checks passed, including all 25 islands. Vitest passed 1,421 tests with 11 skipped, including the five new Cloudbreak checks. All eight difficulty verdicts passed. The full difficulty report matched round 23 byte for byte, with Hard i09 at 12/22 and Hard i24 at 2/22. The 24,217-byte standalone L1–L16 report matched the round-one baseline byte for byte.
+
+### Next round
+
+Audit Anchor Winch and Drag Chain against an armored ground target beside a flyer. Check single-target damage, slow duration, and a sale or ability purchase while the harpoon is airborne.

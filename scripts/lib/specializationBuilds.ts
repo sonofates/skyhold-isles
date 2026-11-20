@@ -16,6 +16,7 @@ interface BranchPlan {
 }
 
 const plans: Readonly<Partial<Record<string, BranchPlan>>> = {
+  i15: { after: { wave: 11, plot: 6 }, plot: 15, branch: 'cloudbreak', ability: 'stonepetals' },
   i16: { after: { wave: 17, plot: 15 }, plot: 15, branch: 'rimeglass', ability: 'coldfracture' },
   i18: { after: { wave: 8, plot: 0 }, plot: 0, branch: 'bellfoundry', ability: 'aftershock' },
   i19: { after: { wave: 7, plot: 15 }, plot: 9, branch: 'relay', ability: 'livewire' },

@@ -775,7 +775,7 @@ const SPECIALIZATIONS = {
     },
     {
       id: 'cloudbreak', name: 'Cloudbreak Mortar', cost: 245,
-      description: 'Fast, heavy shells reach across the island and land closer to the crew.',
+      description: 'Heavy shells replace incendiary rounds. They deal 218 base damage and can target foes 2.1 to 14.2 units away.',
       changes: { damage: 218, projectileSpeed: 16, range: 14.2, minRange: 2.1, burnDamage: 0 },
       abilities: [{
         id: 'stonepetals', name: 'Stone Petals', cost: 120,
