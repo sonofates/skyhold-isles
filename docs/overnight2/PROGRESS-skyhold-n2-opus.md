@@ -113,6 +113,9 @@
   pauses on a trusted Esc) — Start pauses. Documented as "Back / close".
 - Hero-move / skill / ability aim hints: in key/pad mode the second line explains the cursor
   (`hero.moveHintPad`, `hero.aimHintPad`).
+- Pad reticle snap targets also include the HUD's DOM buttons (Settings, Codex, hero portrait,
+  skills, abilities, wave chips) and the canvas horn / pause / speed; A / Enter over a DOM button
+  presses it (so the Codex is reachable by pad).
 - Boards now fade + shrink out on close (0.16 s, `.pu-overlay.closing`, skipped by navFocus; none
   with reduced motion).
 

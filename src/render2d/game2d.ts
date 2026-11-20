@@ -1342,6 +1342,10 @@ export class Game2D {
       const feet = this.heroScreen();
       if (head && feet) points.push({ x: head.x, y: (head.y + feet.y) / 2 });
     }
+    // Canvas HUD buttons: the horn (call the wave), pause and speed.
+    const r = this.hud.rects();
+    if (this.world.outcome === 'ongoing') points.push(this.hud.hornPosition);
+    for (const k of ['pause', 'speed'] as const) if (r[k].w > 1) points.push({ x: r[k].x + r[k].w / 2, y: r[k].y + r[k].h / 2 });
     return { mode: 'snap', points };
   }
 

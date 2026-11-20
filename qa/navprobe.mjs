@@ -271,6 +271,15 @@ const shot = (page, n) => (SHOTS ? page.screenshot({ path: `${SHOTS}/${n}.jpg`, 
   st = await page.evaluate(() => window.__p0.state());
   check(st.ring.open, 'run: arrows + Enter open a ring');
   await page.keyboard.press('Escape');
+  // The HUD's DOM buttons are reticle targets too: top-right is Settings / Codex.
+  for (let i = 0; i < 8; i++) await page.keyboard.press('ArrowUp');
+  await page.waitForTimeout(300);
+  await page.keyboard.press('Enter');
+  await page.waitForTimeout(700);
+  const board = await page.evaluate(() => document.querySelector('.pu-overlay:not(.closing)')?.dataset.testid ?? null);
+  check(!!board, `run: reticle reaches a HUD button and Enter presses it (${board})`);
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(400);
   await page.mouse.move(10, 10);
   await page.mouse.move(30, 30);
   pad = await page.evaluate(() => window.__p0.pad());

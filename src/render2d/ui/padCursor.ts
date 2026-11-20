@@ -81,6 +81,34 @@ export function padKey(b: PadButton): string | null {
   }
 }
 
+/** Visible DOM buttons of the battle HUD (not boards, not the pause menu). */
+function hudButtons(): HTMLElement[] {
+  return Array.from(document.querySelectorAll<HTMLElement>('.pu button')).filter((b) => { // i18n-ignore (selector)
+    if ((b as HTMLButtonElement).disabled || b.closest('.pu-overlay, .pu-pause-menu, .pu-padcursor, [hidden]')) return false; // i18n-ignore (selector)
+    const r = b.getBoundingClientRect();
+    if (r.width < 8 || r.height < 8 || r.right < 0 || r.bottom < 0 || r.left > window.innerWidth || r.top > window.innerHeight) return false;
+    const cs = getComputedStyle(b);
+    return cs.visibility !== 'hidden' && cs.display !== 'none' && Number(cs.opacity) > 0.2;
+  });
+}
+
+function hudButtonSpots(): { x: number; y: number }[] {
+  return hudButtons().map((b) => {
+    const r = b.getBoundingClientRect();
+    return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+  });
+}
+
+/** The HUD button whose box holds (x, y), if any. */
+function hudButtonAt(x: number, y: number): HTMLElement | null {
+  return (
+    hudButtons().find((b) => {
+      const r = b.getBoundingClientRect();
+      return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+    }) ?? null
+  );
+}
+
 export function mountPadCursor(host: PadCursorHost): PadCursor {
   const reticle = document.createElement('div');
   reticle.className = 'pu pu-padcursor';
@@ -126,6 +154,8 @@ export function mountPadCursor(host: PadCursorHost): PadCursor {
   const currentMode = (): { mode: PadMode; points: { x: number; y: number }[] } => {
     const t = host.targets();
     if (host.aiming() && t.mode !== 'end') return { mode: 'free', points: [] };
+    // Snap mode also reaches the HUD's own buttons (Codex, Settings, abilities, hero, skills).
+    if (t.mode === 'snap') return { mode: 'snap', points: [...t.points, ...hudButtonSpots()] };
     return t;
   };
 
@@ -177,8 +207,13 @@ export function mountPadCursor(host: PadCursorHost): PadCursor {
       y = at.y;
       paint();
     }
-    pointer('pointerdown');
-    pointer('pointerup');
+    // A HUD button under the reticle is pressed as a button; anything else is a click on the map.
+    const b = hudButtonAt(x, y);
+    if (b) b.click();
+    else {
+      pointer('pointerdown');
+      pointer('pointerup');
+    }
     // The click may have opened the ring / selected the hero: the next move uses the new targets.
     requestAnimationFrame(() => {
       mode = currentMode().mode;
@@ -268,7 +303,9 @@ export function mountPadCursor(host: PadCursorHost): PadCursor {
   // Mode / visibility follow the run (the ring opening, the pause menu, a board).
   const tick = (): void => {
     if (shown) {
-      const m = currentMode().mode;
+      // Mode only (no DOM button scan every frame).
+      const t = host.targets().mode;
+      const m = host.aiming() && t !== 'end' ? 'free' : t;
       if (m !== mode) mode = m;
       paint();
     }
