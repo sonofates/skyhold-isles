@@ -9,7 +9,7 @@ import { changeMapVariant, loadArt } from './assets2d.ts';
 import { autoplayHooks, benchHooks } from './benchScene.ts';
 import { mountCodex2D } from './codex2d.ts';
 import { initLocale, t } from '../i18n/index.ts';
-import { heroName } from '../i18n/data.ts';
+import { heroName, islandName } from '../i18n/data.ts';
 import { AimOverlay, aimHooks, meleeHooks, towersHooks, zooHooks, ZooLabels, type AimSceneState, type MeleeSceneState } from './debugScenes.ts';
 import { ENEMY_TYPES } from '../data/enemies.ts';
 import { getTowerTierStats } from '../data/towers.ts';
@@ -39,7 +39,7 @@ import { hudCheck } from './hudCheck.ts';
 import { auditCanvasTexts } from './qaText.ts';
 import { anySheetOpen } from './ui/dom.ts';
 import { installNav } from './ui/navFocus.ts';
-import { dismissBoot, navigateWithVeil, setBootText } from './ui/transition2d.ts';
+import { dismissBoot, navigateWithVeil, pickLoadTip, setBootText, setBootTip } from './ui/transition2d.ts';
 
 /**
  * 2d.html entry — the painted 2D renderer (Pixi v8) on the real sim.
@@ -284,6 +284,10 @@ async function main(): Promise<void> {
     dismissBoot();
     return;
   }
+  // A battle is loading: the boot screen names the island and shows a tip.
+  const bootLevel = getLevelById(q.get('level') ?? '');
+  if (bootLevel && !q.has('bench') && !q.has('ab')) setBootText(t('boot.course', { name: islandName(bootLevel) }));
+  if (!q.has('bench') && !q.has('ab')) setBootTip(t('boot.tipLabel'), t(pickLoadTip(Math.random())));
   const ab = q.get('ab') === '1';
   const bench = Math.max(0, Math.min(340, Number(q.get('bench') ?? 0) || 0));
   const isDebugScene =

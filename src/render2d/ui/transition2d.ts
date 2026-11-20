@@ -68,3 +68,41 @@ export function setBootText(text: string): void {
   if (line) line.textContent = text;
   else boot.textContent = text;
 }
+
+/** A "Tip" card under the boot line while a battle loads (label + one sentence). */
+export function setBootTip(label: string, text: string): void {
+  const boot = typeof document !== 'undefined' ? document.getElementById('boot') : null;
+  if (!boot) return;
+  let tip = boot.querySelector('.boot-tip');
+  if (!tip) {
+    tip = document.createElement('div');
+    tip.className = 'boot-tip';
+    boot.append(tip);
+  }
+  const head = document.createElement('b');
+  head.textContent = label;
+  const line = document.createElement('span');
+  line.textContent = text;
+  tip.replaceChildren(head, line);
+}
+
+/** Loading tips, one picked per battle load (`r` in 0..1). */
+export const LOAD_TIPS = [
+  'loadtip.1',
+  'loadtip.2',
+  'loadtip.3',
+  'loadtip.4',
+  'loadtip.5',
+  'loadtip.6',
+  'loadtip.7',
+  'loadtip.8',
+  'loadtip.9',
+  'loadtip.10',
+  'loadtip.11',
+  'loadtip.12',
+  'loadtip.13',
+] as const;
+
+export function pickLoadTip(r: number): (typeof LOAD_TIPS)[number] {
+  return LOAD_TIPS[Math.min(LOAD_TIPS.length - 1, Math.max(0, Math.floor(r * LOAD_TIPS.length)))];
+}

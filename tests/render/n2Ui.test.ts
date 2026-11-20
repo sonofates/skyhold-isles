@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { pickTreeFit, TREE_FIT_STEPS, type TreeLayout } from '../../src/render2d/ui/heroScreens.ts';
 import { letterArc, loadFraction, shouldShowTitle, titleArt, titleLogo, TITLE_SKIP_PARAMS } from '../../src/render2d/ui/titleScreen.ts';
 import { creditSections } from '../../src/render2d/ui/credits2d.ts';
-import { setLocale } from '../../src/i18n/index.ts';
+import { setLocale, t } from '../../src/i18n/index.ts';
 import { keyDir, pickInDirection, repeatDue, stickDir, type NavRect } from '../../src/render2d/ui/navFocus.ts';
 import { nearestPoint, padKey } from '../../src/render2d/ui/padCursor.ts';
 import { ARMORED_MIN, foeMarkNames } from '../../src/render2d/ui/foeMarks.ts';
@@ -13,6 +13,7 @@ import { setUserUiScale, uiScale, WAVE_EASE_SEC, WAVE_EASE_ZOOM, waveEaseZoom } 
 import { uiUnit } from '../../src/render2d/hudDock.ts';
 import { ENEMY_DEFS } from '../../src/data/enemies.ts';
 import { primaryEndAction } from '../../src/render2d/endPanel.ts';
+import { LOAD_TIPS, pickLoadTip } from '../../src/render2d/ui/transition2d.ts';
 
 describe('skill tree fit (heroScreens.ts)', () => {
   it('tries the vertical tree first, largest zoom first, then the across tree largest first', () => {
@@ -250,5 +251,22 @@ describe('end board', () => {
   it('the glowing medallion is Next isle after a win, Retry after a defeat', () => {
     expect(primaryEndAction(true)).toBe('next');
     expect(primaryEndAction(false)).toBe('retry');
+  });
+});
+
+describe('battle loading tips', () => {
+  it('picks every tip across 0..1 and never runs off the list', () => {
+    expect(pickLoadTip(0)).toBe(LOAD_TIPS[0]);
+    expect(pickLoadTip(0.9999)).toBe(LOAD_TIPS[LOAD_TIPS.length - 1]);
+    expect(pickLoadTip(1)).toBe(LOAD_TIPS[LOAD_TIPS.length - 1]);
+    expect(new Set(Array.from({ length: 200 }, (_, i) => pickLoadTip(i / 200))).size).toBe(LOAD_TIPS.length);
+  });
+
+  it('every tip reads as a sentence in both languages', () => {
+    for (const lang of ['en', 'tr'] as const) {
+      setLocale(lang);
+      for (const k of LOAD_TIPS) expect(t(k)).toMatch(/^[A-ZÇĞİÖŞÜ].{20,}\.$/u);
+    }
+    setLocale('en');
   });
 });
