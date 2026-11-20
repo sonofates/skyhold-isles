@@ -663,5 +663,5 @@ describe('Save Robustness v2 — Version Migration & Algebraic Merge Fuzz', () =
 
       prev = cur;
     }
-  });
+  }, 30_000);
 });

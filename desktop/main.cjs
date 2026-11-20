@@ -3,7 +3,7 @@
 const fs = require('node:fs');
 const fsp = require('node:fs/promises');
 const path = require('node:path');
-const { app, BrowserWindow, ipcMain, session } = require('electron');
+const { app, BrowserWindow, ipcMain, nativeImage, session } = require('electron');
 
 const DEFAULT_STEAM_APP_ID = 480;
 const BUNDLE_ORIGIN = 'http://skyhold.local';
@@ -43,12 +43,17 @@ const MIME_BY_EXT = {
   '.jpg': 'image/jpeg',
   '.jpeg': 'image/jpeg',
   '.gif': 'image/gif',
+  '.ico': 'image/x-icon',
   '.woff2': 'font/woff2',
   '.woff': 'font/woff',
+  '.otf': 'font/otf',
+  '.ttf': 'font/ttf',
   '.glb': 'model/gltf-binary',
   '.mp3': 'audio/mpeg',
   '.ogg': 'audio/ogg',
   '.wav': 'audio/wav',
+  '.mp4': 'video/mp4',
+  '.webm': 'video/webm',
 };
 
 function mimeFor(filePath) {
@@ -101,6 +106,32 @@ function initSteamworks() {
   }
 }
 
+function configureChromiumSwitches() {
+  // Keep WebGL2 available across older Linux Mesa drivers, VMs, and software fallbacks.
+  app.commandLine.appendSwitch('ignore-gpu-blocklist');
+  app.commandLine.appendSwitch('enable-unsafe-swiftshader');
+
+  if (process.env.SKYHOLD_SWIFTSHADER === '1' || process.env.SKYHOLD_SMOKE_TEST === '1') {
+    app.commandLine.appendSwitch('use-gl', 'angle');
+    app.commandLine.appendSwitch('use-angle', 'swiftshader');
+  }
+  if (process.platform === 'linux') {
+    let lowShm = process.env.SKYHOLD_SMOKE_TEST === '1';
+    if (!lowShm && typeof fs.statfsSync === 'function') {
+      try {
+        const st = fs.statfsSync('/dev/shm');
+        if (st && st.bavail * st.bsize < 128 * 1024 * 1024) lowShm = true;
+      } catch {
+        lowShm = true;
+      }
+    }
+    if (lowShm) {
+      app.commandLine.appendSwitch('disable-dev-shm-usage');
+    }
+  }
+}
+
+configureChromiumSwitches();
 initSteamworks();
 
 /** Known achievement IDs from `desktop/achievements.json` (extra guard on IPC). */
@@ -215,8 +246,19 @@ function registerBundleProtocol(ses, distDir) {
   });
 }
 
-function createMainWindow(ses, distDir) {
+function loadWindowIcon(distDir) {
   const iconPath = path.join(distDir, 'icons', 'icon-512.png');
+  try {
+    if (!fs.existsSync(iconPath)) return undefined;
+    const img = nativeImage.createFromBuffer(fs.readFileSync(iconPath));
+    return img.isEmpty() ? undefined : img;
+  } catch {
+    return undefined;
+  }
+}
+
+function createMainWindow(ses, distDir) {
+  const winIcon = loadWindowIcon(distDir);
   const win = new BrowserWindow({
     width: 1440,
     height: 810,
@@ -225,7 +267,7 @@ function createMainWindow(ses, distDir) {
     title: 'Skyhold Isles',
     backgroundColor: '#3d5e27',
     autoHideMenuBar: true,
-    ...(fs.existsSync(iconPath) ? { icon: iconPath } : {}),
+    ...(winIcon ? { icon: winIcon } : {}),
     webPreferences: {
       session: ses,
       preload: path.join(__dirname, 'preload.cjs'),
@@ -262,39 +304,81 @@ function createMainWindow(ses, distDir) {
   }
 
   if (process.env.SKYHOLD_SMOKE_TEST === '1') {
+    const failedLoads = [];
     win.webContents.on('console-message', (ev) => {
       if (ev && typeof ev === 'object' && 'message' in ev) {
         console.info(`[renderer:${ev.level}] ${ev.message}`);
       }
     });
     win.webContents.on('did-fail-load', (_ev, code, desc, url) => {
+      failedLoads.push({ code, desc, url });
       console.error(`[renderer:did-fail-load] ${code} ${desc} ${url}`);
     });
-    const deadline = Date.now() + 20_000;
+    const expectsGameplay = Boolean(query);
+    const deadline = Date.now() + 25_000;
     const poll = async () => {
       if (win.isDestroyed()) return;
       try {
         const probe = await win.webContents.executeJavaScript(
           `(() => {
-            const boot = document.getElementById('boot')?.textContent ?? null;
-            if (!window.__p0 || typeof window.__p0.artcheck !== 'function') return { ready: false, boot, href: location.href };
-            return {
-              ready: true,
-              hasBridge: Boolean(window.skyholdSteam),
-              isSteam: window.skyholdSteam ? window.skyholdSteam.isSteam : null,
-              appId: window.skyholdSteam ? window.skyholdSteam.appId : null,
-              art: window.__p0.artcheck(),
-              mode: window.__p0.mode,
-            };
+            const bootEl = document.getElementById('boot');
+            const boot = bootEl ? bootEl.textContent : null;
+            if (bootEl) return { ready: false, boot, href: location.href };
+            const hasBridge = Boolean(window.skyholdSteam);
+            const isSteamVal = window.skyholdSteam ? window.skyholdSteam.isSteam : null;
+            const appIdVal = window.skyholdSteam ? window.skyholdSteam.appId : null;
+            if (window.__p0 && typeof window.__p0.artcheck === 'function') {
+              const st = typeof window.__p0.state === 'function' ? window.__p0.state() : null;
+              const heroSim = window.__p0.hero && typeof window.__p0.hero.state === 'function'
+                ? window.__p0.hero.state().sim
+                : null;
+              return {
+                ready: true,
+                scene: 'game',
+                hasBridge,
+                isSteam: isSteamVal,
+                appId: appIdVal,
+                art: window.__p0.artcheck(),
+                mode: window.__p0.mode,
+                wave: st ? st.wave : null,
+                hero: heroSim ? heroSim.heroId : null,
+              };
+            }
+            if (!${JSON.stringify(expectsGameplay)} && window.__map && typeof window.__map.islands === 'function') {
+              const islands = window.__map.islands();
+              const layout = typeof window.__map.layout === 'function' ? window.__map.layout() : null;
+              if (Array.isArray(islands) && islands.length >= 25 && layout !== null) {
+                return {
+                  ready: true,
+                  scene: 'worldMap',
+                  hasBridge,
+                  isSteam: isSteamVal,
+                  appId: appIdVal,
+                  islands: islands.length,
+                };
+              }
+            }
+            return { ready: false, boot, href: location.href };
           })()`,
         );
         if (probe && probe.ready) {
-          console.info('[smoke]', JSON.stringify(probe));
+          const achievementsCount = knownAchievementIds ? knownAchievementIds.size : 0;
+          const summary = {
+            ...probe,
+            achievementsLoaded: achievementsCount,
+            failedLoads: failedLoads.length,
+          };
+          if (!probe.hasBridge || failedLoads.length > 0 || achievementsCount < 58) {
+            console.error('[smoke] Invariant failed:', JSON.stringify({ summary, failedLoads }));
+            app.exit(1);
+            return;
+          }
+          console.info('[smoke]', JSON.stringify(summary));
           app.exit(0);
           return;
         }
         if (Date.now() > deadline) {
-          console.error('[smoke] Timed out waiting for window.__p0:', JSON.stringify(probe));
+          console.error('[smoke] Timed out waiting for scene ready:', JSON.stringify({ probe, failedLoads }));
           app.exit(1);
           return;
         }

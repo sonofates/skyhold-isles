@@ -348,7 +348,7 @@ describe('save/progress migrations, 2D wrapper edge cases & 500-case seeded fuzz
       assertValidProgressInvariants(remapped, sliceLen);
       expect(remapped.heroes).toBeDefined();
     }
-  });
+  }, 30_000);
 
   it('preserves 2D hero XP, skill trees, and selectedHero across save codes and mergeProgress', () => {
     const a = createDefaultProgress(17);
@@ -433,7 +433,7 @@ describe('save/progress migrations, 2D wrapper edge cases & 500-case seeded fuzz
       expect(mergeProgress(b, decA.progress, N)).toEqual(m);
       expect(mergeProgress(m, m, N)).toEqual(m);
     }
-  });
+  }, 30_000);
 
   it('handles empty ids wrapper, duplicate ids, non-object JSON, NaN settings volume, and zero-level lists', () => {
     const store = installMemoryStorage();

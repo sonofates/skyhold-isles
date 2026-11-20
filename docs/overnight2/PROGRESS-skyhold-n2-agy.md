@@ -21,13 +21,11 @@
   - **Export / Import Save Code Hardening:** `encodeSaveCode` / `decodeSaveCode` / `encodeSaveCode2D` / `decodeSaveCode2D` / `importSaveCode2D` sanitize non-finite fields, accept compact + full hero/difficulty payloads, guard oversized (`> 256 KB`) inputs, return `summary` on `ImportSaveCode2DResult`, inspect `levelIds` hints so truncated/retired island lists never falsely refund Workshop upgrades or drop `selectedHero`, and enforce bidirectional `bestStars` ↔ `difficultyWins` parity.
   - **Desktop Steam Cloud Conflict Rules & Corrupt Recovery:** Commutative/idempotent greedy Workshop rank top-up when two individually affordable saves overspend their merged star pool; rejection-safe + truncated-blob-healing `hydrateProgressFromCloud` / `hydrateProgress2DFromCloud`; zero-regex `tryRepairTruncatedJson` + forensic `*_corrupt_backup*` + `recoverProgressSave` / `recoverProgress2D`; 800+ fuzz cases + byte-slice JSON truncation sweep.
 
-- [x] **4. Performance on Low-End (`src/sim/{waveSystem,heroSystem,world}.ts`, `scripts/qaLowEndBench.ts`, `tests/sim/simPerfAlloc.test.ts`)**
+- [x] **4. Performance on Low-End (`src/sim/{waveSystem,heroSystem,world}.ts`, `scripts/qaLowEndBench.ts`, `tests/sim/simPerfAlloc.test.ts`)** — commit `2d1de64`
   - **Zero-Allocation Audit & Sim Path Optimizations:**
     - Verified `SimWorld.fixedTick`, `WaveSystem.update`, `AbilitySystem.update`, `SoldierSystem.update`, and `HeroSystem.update` use pre-allocated `TypedArray`s, module-level scratch buffers (`_candidates`, `_meteorCandidates`, `_queryCandidates`, `_heroShotScratch`), and pre-bound `SimWorld` callbacks with **zero per-tick heap/closure allocations**.
-    - Cached `WaveSystem.getNextWavePreview()` per `(nextIdx, endlessMode)` (eliminating 60 Hz `Map`/array/object/`buildEndlessWaveDef` allocations whenever the between-wave or pause wave-preview card is visible in `main2d.ts:923`) and replaced `() => {}` in `skipToWave` with module-level `noopAwardGold`.
-    - Switched `HeroSystem.commandMove` to `groundGraph.findPathInto(..., h.waypoints)` (eliminating intermediate waypoint array allocation) and replaced per-cast `commitCast` closure in `HeroSystem.castSkill` / `executeActive` with `commitSkillCooldown`.
-    - Pre-bound `SimWorld.onStartWaveBonusFn` for `startNextWave` and bypassed command-recording closures in `commandHeroMove`, `castHeroSkill`, and `setRallyPoint` when `recordingCommands === false`.
-    - Added `tests/sim/simPerfAlloc.test.ts` verifying `getNextWavePreview()` reference identity caching and 2,400-tick Hard Boss spam (`i16` Wave 16 + `i24` Wave 14 across Mira/Sela/Tobb at **~0.06 ms/tick**, zero pool/squad growth).
+    - Cached `WaveSystem.getNextWavePreview()` per `(nextIdx, endlessMode)`, switched `HeroSystem.commandMove` to `groundGraph.findPathInto(..., h.waypoints)`, replaced per-cast `commitCast` closure with `commitSkillCooldown`, pre-bound `SimWorld.onStartWaveBonusFn`, and bypassed command-recording closures when `recordingCommands === false`.
+    - Added `tests/sim/simPerfAlloc.test.ts` (~0.06 ms/tick on 2,400-tick Hard Boss spam).
   - **Headless Low-End Benchmark Report (Chromium `159.0.8154.6`, SwiftShader `--use-angle=swiftshader`, `915×412 @ DPR 2.6`, WebAudio playing):**
     - **`qa/p6-bench.mjs` (`?bench=150`, 150 concurrent enemies + full plots + L20 heroes):**
 
@@ -48,18 +46,28 @@
       | `i24-boss-hard-sela20-spam` (W14 Tempest Boss) | 35 | **47.5** | `16.7 / 33.4 / 66.8` | `22 / 63` | `1 / 1 / 2 / 2 / 11` | **PASS (`66.8 ms`)** |
       | `i24-boss-hard-tobb20-spam` (W14 Tempest Boss) | 35 | **54.5** | `16.7 / 33.3 / 50.1` | `20 / 69` | `1 / 1 / 2 / 2 / 11` | **PASS (`50.1 ms`)** |
 
+- [x] **5. Desktop Build Sanity (`desktop/main.cjs`, `scripts/qaDesktopSmoke.ts`, `tests/platform/steamAdapter.test.ts`)**
+  - **Diagnosed & Fixed 4 Linux Electron 45 / AppImage Packaging & Boot Issues in `desktop/main.cjs`:**
+    1. **WebGL2 Blocklist on Linux Mesa / VMs / Xvfb:** Electron 45 (Chromium 159) blocklisted software GL (`ContextResult::kFatalFailure: WebGL2 blocklisted` / `WebGL1 blocklisted`), breaking Pixi v8 gameplay startup on older Mesa drivers and headless Xvfb. Added `ignore-gpu-blocklist` + `enable-unsafe-swiftshader` (plus `use-gl=angle` / `use-angle=swiftshader` under `SKYHOLD_SMOKE_TEST=1` or `SKYHOLD_SWIFTSHADER=1`).
+    2. **Linux Small `/dev/shm` SharedImage Failures:** Auto-detects `< 128 MB` `/dev/shm` on Linux (`fs.statfsSync('/dev/shm')`) and appends `disable-dev-shm-usage`, eliminating `Creation of StagingBuffer's SharedImage failed` rasterizer errors.
+    3. **Missing `.otf` Font MIME Type & ASAR Window Icon:** Added `.otf` (`Fredoka TR` Turkish glyphs), `.ttf`, `.ico`, `.mp4`, `.webm` to `MIME_BY_EXT` (tested against every file extension in `public/`), and switched `BrowserWindow` icon loading to `nativeImage.createFromBuffer(fs.readFileSync(iconPath))` so GTK reads `icon-512.png` cleanly from inside `resources/app.asar`.
+    4. **Updated `SKYHOLD_SMOKE_TEST=1` for World Map + Gameplay:** Default `2d.html` now boots the 25-island World Map (`window.__map`) rather than `window.__p0`; updated the smoke probe to validate both default World Map launch (`islands >= 25`, `layout !== null`) and gameplay launch (`SKYHOLD_QUERY='level=...'`, `art.filesMissing === 0`), enforcing `hasBridge === true`, `achievementsLoaded >= 58`, and `failedLoads === 0`.
+  - **Verified `npm run desktop:build:linux` + Xvfb AppImage Smoke (`npx tsx scripts/qaDesktopSmoke.ts`):**
+    - Built `release/Skyhold Isles-1.0.0.AppImage` (`233 MB`, `app.asar` `114 MB` + `app.asar.unpacked/node_modules/steamworks.js`).
+    - Xvfb World Map launch: `{"scene":"worldMap","hasBridge":true,"islands":25,"achievementsLoaded":58,"failedLoads":0}` (exit `0`).
+    - Xvfb Hard Boss `i24` + L20 Sela launch: `{"scene":"game","mode":"play","hero":"sela","hasBridge":true,"achievementsLoaded":58,"failedLoads":0,"filesPresent":101,"filesMissing":0}` (exit `0`).
+
 ---
 
 ## In Progress
 
-- [ ] **5. Desktop Build Sanity (`desktop/**`, `npm run desktop:build:linux`, Xvfb smoke test)**
+- [ ] **Post-Backlog Quality Audit (`scripts/heroBalance.ts`, `src/render2d/{heroes2d.ts,ui/modes2d.ts}`, full `qa:bot` + `sim:heroes` verification)**
 
 ---
 
 ## Next (in order)
 
-1. **Desktop build sanity**: Linux AppImage still builds and launches (`npm run desktop:build:linux`, Xvfb smoke) with the current game; fix packaging issues.
-2. **Post-backlog deep audit**: re-run full `qa:bot` + `sim:heroes` + audit owned files to raise quality further.
+1. Audit owned files (`scripts/heroBalance.ts` Chapter-Two `i17`/`i24` reporting, `modes2d.ts` / `heroes2d.ts` `difficultyWins` partial-save parity, full `npm run qa:bot` + `npm run sim:heroes` sweep) and raise quality where valuable.
 
 ---
 
@@ -74,7 +82,7 @@
 
 ## Problems / Known Issues
 
-- None blocking in owned area (`sim:balance` 41/41 byte-identical, `qa:bot` 656/656 passing, all Hard Boss low-end benches `<= 66.8 ms`).
+- None blocking in owned area (`sim:balance` 41/41 byte-identical, `qa:bot` 656/656 passing, all Hard Boss low-end benches `<= 66.8 ms`, Linux AppImage builds & passes Xvfb smoke).
 
 ---
 

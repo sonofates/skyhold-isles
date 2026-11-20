@@ -466,10 +466,41 @@ describe('Steam achievements map, cloud hydration, and desktop config invariants
 
     expect(mainSrc).toContain('contextIsolation: true');
     expect(mainSrc).toContain('nodeIntegration: false');
+    expect(mainSrc).toContain('sandbox: true');
+    expect(mainSrc).toContain('ignore-gpu-blocklist');
+    expect(mainSrc).toContain("'.otf': 'font/otf'");
+    expect(mainSrc).toContain('nativeImage.createFromBuffer');
+    expect(mainSrc).toContain("scene: 'worldMap'");
+    expect(mainSrc).toContain("scene: 'game'");
     expect(preloadSrc).toContain('contextBridge.exposeInMainWorld');
     expect(builderCfg.win).toBeDefined();
     expect(builderCfg.mac).toBeDefined();
     expect(builderCfg.linux).toBeDefined();
+    expect(builderCfg.files).toEqual(
+      expect.arrayContaining([
+        'dist/**/*',
+        '!dist/sw.js',
+        'desktop/main.cjs',
+        'desktop/preload.cjs',
+        'desktop/achievements.json',
+      ]),
+    );
+
+    // Every asset extension under public/ must have an explicit MIME entry in desktop/main.cjs.
+    const collectExts = (dir: string, out = new Set<string>()): Set<string> => {
+      for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        const full = resolve(dir, entry.name);
+        if (entry.isDirectory()) collectExts(full, out);
+        else {
+          const dot = entry.name.lastIndexOf('.');
+          if (dot > 0) out.add(entry.name.slice(dot).toLowerCase());
+        }
+      }
+      return out;
+    };
+    for (const ext of collectExts(resolve(ROOT, 'public'))) {
+      expect(mainSrc, `desktop/main.cjs MIME_BY_EXT should cover ${ext}`).toContain(`'${ext}':`);
+    }
 
     // Nothing in src/sim may import src/platform.
     for (const file of readdirSync(resolve(ROOT, 'src/sim'))) {
