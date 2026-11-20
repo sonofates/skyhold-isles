@@ -66,6 +66,31 @@
   line-height: 1.25;
 }
 
+/* Small-unit desktops (1024x768, 1366x768): the HUD unit is small there but the board leaves room
+   above it — keep the cards readable. Phones (short screens) keep the unit sizes, which fit. */
+@media (min-height: 600px) {
+  .pu-feat-toast {
+    width: min(max(calc(var(--s) * 27), 290px), 31vw);
+  }
+
+  .pu-feat-toast .pu-seal {
+    width: max(calc(var(--s) * 3.6), 44px);
+    height: max(calc(var(--s) * 3.6), 44px);
+  }
+
+  .pu-feat-toast-kicker {
+    font-size: max(11px, calc(var(--s) * 0.95));
+  }
+
+  .pu-feat-toast-name {
+    font-size: max(16px, calc(var(--s) * 1.5));
+  }
+
+  .pu-feat-toast-desc {
+    font-size: max(12px, calc(var(--s) * 1.05));
+  }
+}
+
 @keyframes pu-feat-in {
   from {
     opacity: 0;

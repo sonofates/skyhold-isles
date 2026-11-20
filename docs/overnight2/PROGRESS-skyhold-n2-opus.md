@@ -91,6 +91,9 @@
   reduced motion. `ui/featToast2d.ts/.css`, wired in main2d (save before vs after
   `recordRunOutcome`). `qa/featshot.mjs`: cards end above the board's ribbon at 2000x991 (102 < 178)
   and 844x390 (63 < 70). Shots opus-shots/feat-*. Unit tests (plan + First Landing / Starcatcher).
+  Size floors on screens ≥ 600 px tall (the unit is small at 1024x768 / 1366x768: description was
+  ~9 px): name ≥ 16 px, text ≥ 12 px, seal ≥ 44 px, card ≥ 290 px; 1024x768 cards end at 69 < 138.
+  Daily / endless wins go through the same path (toasts too); a replay's end records nothing.
 - New feats in the Logbook (`ui/featSeen.ts`, localStorage `skyhold2d_feats_seen_v1`): a feat earned
   since the last look puts a red dot on the map's Logbook button (aria "New feats in the Logbook"),
   the Logbook then opens on the Feats tab (unless a tab is asked for), those rows glow with a gold
