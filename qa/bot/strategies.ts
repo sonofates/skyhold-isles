@@ -436,12 +436,13 @@ export function buildBotScenarios(opts: ScenarioSuiteOptions = {}): BotScenario[
         endlessWaves: 0,
         exerciseSellAndRally: diff === 'hard' && i % 3 === 0,
         seed: nextSeed(),
-        verifyDeterminism:
-          (i === 0 && (diff === 'easy' || diff === 'hard')) ||
-          (level.id === 'i16' && diff === 'hard') ||
-          (level.id === 'i17' && diff === 'normal') ||
-          (level.id === 'i21' && diff === 'hard') ||
-          (level.id === 'i24' && (diff === 'easy' || diff === 'normal' || diff === 'hard')),
+        verifyDeterminism: quick
+          ? i === 0 && diff === 'hard'
+          : (i === 0 && (diff === 'easy' || diff === 'hard')) ||
+            (level.id === 'i16' && diff === 'hard') ||
+            (level.id === 'i17' && diff === 'normal') ||
+            (level.id === 'i21' && diff === 'hard') ||
+            (level.id === 'i24' && (diff === 'easy' || diff === 'normal' || diff === 'hard')),
       });
     }
   }
@@ -496,7 +497,7 @@ export function buildBotScenarios(opts: ScenarioSuiteOptions = {}): BotScenario[
           useAbilities: ki === 2,
           endlessWaves: 0,
           seed,
-          verifyDeterminism: li === 0 && ki === 2, // replay all 5 heroes at L20 on first island
+          verifyDeterminism: li === 0 && ki === 2 && (!quick || hi === 0), // replay all 5 heroes at L20 on first island in full suite
         });
       }
     }

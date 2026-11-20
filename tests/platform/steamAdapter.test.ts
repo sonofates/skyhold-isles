@@ -2,8 +2,10 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { challengesForLevel } from '../../src/data/challenges.ts';
+import { HERO_IDS, HERO_LEVEL_XP } from '../../src/data/heroes.ts';
 import { LEVELS } from '../../src/data/levels/index.ts';
 import { LEVELS_2D } from '../../src/data/levels2d/index.ts';
+import { createFreshHeroSaveData } from '../../src/render2d/heroes2d.ts';
 import {
   createPlatformAdapter,
   earnedSteamAchievementIds,
@@ -475,5 +477,196 @@ describe('Steam achievements map, cloud hydration, and desktop config invariants
       const content = readFileSync(resolve(ROOT, 'src/sim', file), 'utf8');
       expect(content, `${file} must not import platform`).not.toMatch(/platform\//);
     }
+  });
+
+  it('preserves all 28 original Steam achievement IDs verbatim and covers Chapter 2, Heroes L10/L20, Hard wins, Boss i24, 25×3★, Endless & Daily streaks', () => {
+    const legacy28 = [
+      'FEAT_FIRST_LANDING',
+      'FEAT_ISLAND_HOPPER',
+      'FEAT_SKY_CHARTED',
+      'FEAT_STARCATCHER',
+      'FEAT_STARGAZER',
+      'FEAT_FULL_FIRMAMENT',
+      'FEAT_MASTER_STROKE',
+      'FEAT_BADGE_HUNTER',
+      'FEAT_CROWNED',
+      'FEAT_STORM_CHASER',
+      'FEAT_SQUALL_RIDER',
+      'FEAT_STEADY_WINDS',
+      'FEAT_VETERAN',
+      'STARS_BREEZY_SWEEP',
+      'STARS_CHALLENGING_SWEEP',
+      'STARS_HEROIC_SWEEP',
+      'STARS_MASTER_SWEEP',
+      'CHALLENGE_THAW',
+      'CHALLENGE_QUIET_GUNS',
+      'CHALLENGE_BOWLESS',
+      'CHALLENGE_STATIC_FREE',
+      'CHALLENGE_GALE_FORCE',
+      'CHALLENGE_IRON_TIDE',
+      'CHALLENGE_THIN_PURSE',
+      'CHALLENGE_GLASS_SANCTUARY',
+      'CHALLENGE_SILENT_SKIES',
+      'CHALLENGE_ALL_BADGES',
+      'CROWN_ALL_ISLANDS',
+    ];
+    expect(STEAM_ACHIEVEMENTS.slice(0, legacy28.length).map((a) => a.id)).toEqual(legacy28);
+    expect(STEAM_ACHIEVEMENTS.length).toBe(58);
+
+    const fresh25 = createDefaultProgress(LEVELS_2D.length);
+    fresh25.heroes = createFreshHeroSaveData();
+    expect(earnedSteamAchievementIds(fresh25, LEVELS_2D)).toEqual([]);
+
+    // 1. Chapter Two + Boss i24 + 3D LEVELS isolation
+    const pCh2 = createDefaultProgress(LEVELS_2D.length);
+    const i17Idx = LEVELS_2D.findIndex((l) => l.id === 'i17');
+    const i24Idx = LEVELS_2D.findIndex((l) => l.id === 'i24');
+    pCh2.clears[i17Idx] = 1;
+    pCh2.bestStars[i17Idx] = 2;
+    let earned = new Set(earnedSteamAchievementIds(pCh2, LEVELS_2D));
+    expect(earned.has('CHAPTER_TWO_LANDING')).toBe(true);
+    expect(earned.has('CHAPTER_TWO_CLEARED')).toBe(false);
+    expect(earned.has('BOSS_I24_CLEARED')).toBe(false);
+
+    for (let i = i17Idx; i <= i24Idx; i++) {
+      pCh2.clears[i] = 1;
+      pCh2.bestStars[i] = i === i24Idx ? 2 : 3;
+    }
+    earned = new Set(earnedSteamAchievementIds(pCh2, LEVELS_2D));
+    expect(earned.has('BOSS_I24_CLEARED')).toBe(true);
+    expect(earned.has('CHAPTER_TWO_CLEARED')).toBe(true);
+    expect(earned.has('CHAPTER_TWO_THREE_STARS')).toBe(false);
+
+    pCh2.bestStars[i24Idx] = 3;
+    earned = new Set(earnedSteamAchievementIds(pCh2, LEVELS_2D));
+    expect(earned.has('CHAPTER_TWO_THREE_STARS')).toBe(true);
+    expect(earned.has('STARS_ALL_25_ISLANDS')).toBe(false);
+
+    // 3D LEVELS has no Chapter Two islands -> Chapter Two & 25-island achievements stay false even when all 16 are 3★
+    const p3dAll = createDefaultProgress(LEVELS.length);
+    p3dAll.bestStars.fill(3);
+    p3dAll.clears.fill(1);
+    const earned3d = new Set(earnedSteamAchievementIds(p3dAll, LEVELS));
+    expect(earned3d.has('FEAT_FULL_FIRMAMENT')).toBe(true);
+    expect(earned3d.has('CHAPTER_TWO_LANDING')).toBe(false);
+    expect(earned3d.has('CHAPTER_TWO_CLEARED')).toBe(false);
+    expect(earned3d.has('BOSS_I24_CLEARED')).toBe(false);
+    expect(earned3d.has('STARS_ALL_25_ISLANDS')).toBe(false);
+
+    // All 25 islands 3★
+    for (let i = 0; i < LEVELS_2D.length; i++) {
+      pCh2.clears[i] = 1;
+      pCh2.bestStars[i] = 3;
+    }
+    earned = new Set(earnedSteamAchievementIds(pCh2, LEVELS_2D));
+    expect(earned.has('FEAT_FULL_FIRMAMENT')).toBe(true);
+    expect(earned.has('STARS_ALL_25_ISLANDS')).toBe(true);
+    // Legacy save without difficultyWins has 0 Hard ribbons even at 25×3★ Normal
+    expect(earned.has('HARD_FIRST_RIBBON')).toBe(false);
+
+    // 2. Each hero to Level 10 and Level 20 + Fellowship of Skyhold (unlock all 5 @ 10 clears)
+    const pHero = createDefaultProgress(LEVELS_2D.length);
+    pHero.heroes = createFreshHeroSaveData();
+    for (let i = 0; i < 9; i++) pHero.clears[i] = 1;
+    expect(earnedSteamAchievementIds(pHero, LEVELS_2D)).not.toContain('HERO_ALL_ROSTER');
+    pHero.clears[9] = 1; // 10 cleared islands -> Sela unlocked!
+    expect(earnedSteamAchievementIds(pHero, LEVELS_2D)).toContain('HERO_ALL_ROSTER');
+
+    const xpLv10 = HERO_LEVEL_XP[9];
+    const xpLv20 = HERO_LEVEL_XP[19];
+    for (const hid of HERO_IDS) {
+      const upper = hid.toUpperCase();
+      pHero.heroes.roster[hid] = { xp: xpLv10 - 1, skills: [] };
+      expect(earnedSteamAchievementIds(pHero, LEVELS_2D)).not.toContain(`HERO_${upper}_LV10`);
+      pHero.heroes.roster[hid] = { xp: xpLv10, skills: [] };
+      const at10 = earnedSteamAchievementIds(pHero, LEVELS_2D);
+      expect(at10).toContain(`HERO_${upper}_LV10`);
+      expect(at10).not.toContain(`HERO_${upper}_LV20`);
+
+      pHero.heroes.roster[hid] = { xp: xpLv20 - 1, skills: [] };
+      expect(earnedSteamAchievementIds(pHero, LEVELS_2D)).not.toContain(`HERO_${upper}_LV20`);
+      pHero.heroes.roster[hid] = { xp: xpLv20, skills: [] };
+      expect(earnedSteamAchievementIds(pHero, LEVELS_2D)).toContain(`HERO_${upper}_LV20`);
+    }
+    expect(earnedSteamAchievementIds(pHero, LEVELS_2D)).toContain('HERO_ALL_LV20');
+
+    // 3. Hard ribbons (1, 5, 10, i24, all 25)
+    const pHard = createDefaultProgress(LEVELS_2D.length);
+    pHard.difficultyWins = {
+      easy: new Array<number>(LEVELS_2D.length).fill(0),
+      normal: new Array<number>(LEVELS_2D.length).fill(0),
+      hard: new Array<number>(LEVELS_2D.length).fill(0),
+    };
+    pHard.difficultyWins.hard[0] = 1;
+    pHard.clears[0] = 1;
+    pHard.bestStars[0] = 1;
+    earned = new Set(earnedSteamAchievementIds(pHard, LEVELS_2D));
+    expect(earned.has('HARD_FIRST_RIBBON')).toBe(true);
+    expect(earned.has('HARD_FIVE_RIBBONS')).toBe(false);
+
+    for (let i = 0; i < 5; i++) pHard.difficultyWins.hard[i] = 2;
+    expect(earnedSteamAchievementIds(pHard, LEVELS_2D)).toContain('HARD_FIVE_RIBBONS');
+    expect(earnedSteamAchievementIds(pHard, LEVELS_2D)).not.toContain('HARD_TEN_RIBBONS');
+
+    for (let i = 0; i < 10; i++) pHard.difficultyWins.hard[i] = 2;
+    expect(earnedSteamAchievementIds(pHard, LEVELS_2D)).toContain('HARD_TEN_RIBBONS');
+    expect(earnedSteamAchievementIds(pHard, LEVELS_2D)).not.toContain('HARD_BOSS_I24');
+
+    pHard.difficultyWins.hard[i24Idx] = 1;
+    expect(earnedSteamAchievementIds(pHard, LEVELS_2D)).toContain('HARD_BOSS_I24');
+    expect(earnedSteamAchievementIds(pHard, LEVELS_2D)).not.toContain('HARD_ALL_ISLANDS');
+
+    pHard.difficultyWins.hard.fill(2);
+    expect(earnedSteamAchievementIds(pHard, LEVELS_2D)).toContain('HARD_ALL_ISLANDS');
+
+    // 4. Endless milestones (Bronze 3, Silver 6, Gold 10, Deep 20, 5 Golds)
+    const pEnd = createDefaultProgress(LEVELS_2D.length);
+    const w0 = LEVELS_2D[0].waves.length;
+    pEnd.bestEndlessWaves[0] = w0 + 3; // 2 endless waves cleared -> below Bronze (3)
+    expect(earnedSteamAchievementIds(pEnd, LEVELS_2D)).not.toContain('ENDLESS_BRONZE_MEDAL');
+    pEnd.bestEndlessWaves[0] = w0 + 4; // 3 endless waves cleared -> Bronze!
+    expect(earnedSteamAchievementIds(pEnd, LEVELS_2D)).toContain('ENDLESS_BRONZE_MEDAL');
+    expect(earnedSteamAchievementIds(pEnd, LEVELS_2D)).not.toContain('ENDLESS_SILVER_MEDAL');
+    pEnd.bestEndlessWaves[0] = w0 + 7; // 6 endless waves cleared -> Silver!
+    expect(earnedSteamAchievementIds(pEnd, LEVELS_2D)).toContain('ENDLESS_SILVER_MEDAL');
+    pEnd.bestEndlessWaves[0] = w0 + 21; // 20 endless waves cleared -> Deep 20 + Storm Chaser!
+    earned = new Set(earnedSteamAchievementIds(pEnd, LEVELS_2D));
+    expect(earned.has('FEAT_STORM_CHASER')).toBe(true);
+    expect(earned.has('ENDLESS_DEEP_20')).toBe(true);
+    expect(earned.has('ENDLESS_FIVE_GOLDS')).toBe(false);
+    for (let i = 1; i < 5; i++) {
+      pEnd.bestEndlessWaves[i] = LEVELS_2D[i].waves.length + 11;
+    }
+    expect(earnedSteamAchievementIds(pEnd, LEVELS_2D)).toContain('ENDLESS_FIVE_GOLDS');
+
+    // 5. Daily Squall streaks & totals (1 win, 7-day streak, 14-day streak, 20 wins; bestStreak survives reset)
+    const pDaily = createDefaultProgress(LEVELS_2D.length);
+    pDaily.daily = { lastDay: 20500, streak: 1, bestStreak: 1, total: 1 };
+    earned = new Set(earnedSteamAchievementIds(pDaily, LEVELS_2D));
+    expect(earned.has('DAILY_FIRST_WIN')).toBe(true);
+    expect(earned.has('DAILY_STREAK_7')).toBe(false);
+
+    pDaily.daily = { lastDay: 20510, streak: 0, bestStreak: 7, total: 8 };
+    earned = new Set(earnedSteamAchievementIds(pDaily, LEVELS_2D));
+    expect(earned.has('DAILY_STREAK_7')).toBe(true);
+    expect(earned.has('DAILY_STREAK_14')).toBe(false);
+    expect(earned.has('DAILY_TOTAL_20')).toBe(false);
+
+    pDaily.daily = { lastDay: 20530, streak: 14, bestStreak: 14, total: 20 };
+    earned = new Set(earnedSteamAchievementIds(pDaily, LEVELS_2D));
+    expect(earned.has('DAILY_STREAK_14')).toBe(true);
+    expect(earned.has('DAILY_TOTAL_20')).toBe(true);
+
+    // 6. Malformed / NaN save fields never throw or false-trigger
+    const broken = {
+      ...createDefaultProgress(2),
+      unlockedLevelIndex: Number.NaN,
+      bestStars: [Number.NaN, -5],
+      clears: [Number.NaN, 0],
+      bestEndlessWaves: [Number.NaN, -99],
+      daily: { lastDay: Number.NaN, streak: Number.NaN, bestStreak: Number.NaN, total: Number.NaN },
+      heroes: { selectedHero: 'bran' as const, roster: { bran: { xp: Number.NaN, skills: [] } } },
+    };
+    expect(earnedSteamAchievementIds(broken, LEVELS_2D)).toEqual([]);
   });
 });

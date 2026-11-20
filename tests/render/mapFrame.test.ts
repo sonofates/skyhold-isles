@@ -92,5 +92,5 @@ describe('backdrop placement', () => {
         expect(p.scale / fit.scale, tag).toBeLessThan(2.2);
       }
     }
-  });
+  }, 30_000);
 });

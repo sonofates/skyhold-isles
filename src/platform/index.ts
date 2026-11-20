@@ -59,6 +59,7 @@ export {
   exportAchievementManifest,
   STEAM_ACHIEVEMENTS,
   syncAchievementsFromProgress,
+  type SteamAchievementCategory,
   type SteamAchievementDef,
   type SteamAchievementMeta,
 } from './achievements.ts';
