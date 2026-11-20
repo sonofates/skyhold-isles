@@ -1,8 +1,14 @@
 import { expect, it } from 'vitest';
+import { runLevelBalanceSim } from '../../scripts/balanceSim.ts';
+import { campaignKit } from '../../scripts/lib/campaignKit.ts';
+import { balanceBuildOrder } from '../../scripts/lib/specializationBuilds.ts';
 import { EventBus } from '../../src/core/eventBus.ts';
 import { BALANCE } from '../../src/data/balance.ts';
+import { DIFFICULTIES } from '../../src/data/difficulty.ts';
 import type { LevelDef } from '../../src/data/levels/types.ts';
+import { I19 } from '../../src/data/levels2d/i19.ts';
 import { LEVEL_L1C } from '../../src/data/levels2d/l1c.ts';
+import { combineRunModifiers } from '../../src/data/runModifiers.ts';
 import { parseSimReplay, serializeSimReplay, SimReplayPlayer, SimWorld } from '../../src/sim/world.ts';
 
 // The flyer bridges the gap between the lead grunt and the other seven ground lanes.
@@ -81,6 +87,20 @@ it.each([
   expect(replayShots).toEqual(shots);
   playback.dispose();
   world.dispose();
+});
+
+it.each(['normal', 'hard'] as const)('holds the root roads and clears Lanternseed Fig with Live Wire on %s', difficulty => {
+  const kit = campaignKit(1_000_000, 49);
+  const profile = { ...kit, modifiers: combineRunModifiers(kit.modifiers, DIFFICULTIES[difficulty].patch) };
+  const result = runLevelBalanceSim(I19, 'greedy', balanceBuildOrder(I19, 'greedy'), profile);
+  expect(result).toMatchObject({ outcome: 'won', towerPurchases: ['relay', 'livewire'], invalidActions: 0 });
+
+  const hollowBranch = result.waves[I19.waves.findIndex(wave => wave.name === 'A Hollow Branch')];
+  expect(hollowBranch.livesLost).toBe(hollowBranch.livesByType.burrower ?? 0);
+  expect(hollowBranch.livesLost).toBeLessThanOrEqual(3);
+  const windfall = result.waves[I19.waves.findIndex(wave => wave.name === 'Windfall')];
+  expect(windfall.livesLost).toBe(windfall.livesByType.draftwing ?? 0);
+  expect(windfall.livesLost).toBeLessThanOrEqual(2);
 });
 
 function traceKills(world: SimWorld) {

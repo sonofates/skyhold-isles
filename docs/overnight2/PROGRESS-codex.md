@@ -948,3 +948,37 @@ TypeScript, lint and the production build passed. Vitest passed 1,444 tests with
 ### Next round
 
 Trace Hard i19's losses in “A Hollow Branch” and “Windfall.” Six burrowers and two splitters took eight lives in wave eight. Compare an affordable change to the opening towers or their targeting before adjusting the encounter. No cross-area requests.
+
+## Round 38 — Holding the keep at Lanternseed Fig
+
+### A Hollow Branch and Windfall
+
+Hard i19 previously entered wave eight with 14 lives. Six elite burrowers reached the keep between 22.47 and 23.58 seconds. Two intact splitters followed at 24.55 seconds. In Windfall, five moths took five of the remaining six lives. Two hares crossed together at 17.92 seconds, with only one life left. The simulator recorded both leak events on that tick.
+
+The opening now buys a Frost Spire on plot 17 beside the keep in place of the archer on plot 8. Its two planned upgrades follow it to plot 17. Hard saved the 65 gold by 16.73 seconds into wave two, leaving six gold after the purchase. Moving the entrance frost to the eastern bend also produced a Hard win, but Normal finished at 17/22, above its 6–11 target. The selected build retains frost at the entrance and uses first targeting at both sites.
+
+| Wave | Previous Hard losses | Revised Hard losses | Revised Normal losses |
+|---|---|---|---|
+| A Hollow Branch | Six burrowers and two intact splitters | Three burrowers | None |
+| Windfall | Five moths and the last life to a hare | One moth | Two moths |
+
+The keep-side spire chilled five of eight burrowers and eight of nine splitters in A Hollow Branch. All nine splitters died along with their eighteen runners. In Windfall, the spire chilled nine hares and all six moths. Hard bought Relay Grove and Live Wire on wave ten at 10.98 and 19.27 seconds. Hard finished at 7/22 with one star and Normal at 11/22 with two. Two campaign regressions check both purchases, the clear and the leaks in these two waves.
+
+| Enemy HP relative to each difficulty | −3% | −1.5% | Authored | +1.5% | +3% |
+|---|---:|---:|---:|---:|---:|
+| Normal lives remaining | 22 | 21 | 11 | 15 | 21 |
+| Hard result | Won, 13 lives | Won, 10 lives | Won, 7 lives | Lost, wave 11 | Won, 7 lives |
+
+All five Hard runs survived Windfall. At +1.5% HP, two burrowers and four Kilnbacks reached the keep in the finale.
+
+### Verification
+
+All eight difficulty verdicts passed. Easy and Normal cleared all 25 islands. Hard cleared 14/17 in chapter one and 5/8 in chapter two. Hard i09 held at 12/22 and i24 at 2/22. The other 24 difficulty rows matched round 37. The standalone 24,217-byte L1–L16 report matched the round-one baseline byte for byte.
+
+Replayed the Hard first-clear commands in the production build. Five ticks after the spire chilled the six moths, desktop and landscape phone matched the headless state hash at tick 18,830. The spire, keep and cannon are distinct at both sizes. The moths and hares overlap beneath the fig, so individual enemies are hard to count even in the enlarged crops. [Desktop EN](../../design/art-2d/chapter2/polish/i19-windfall.jpg) · [Landscape phone TR](../../design/art-2d/chapter2/polish/i19-windfall-phone.jpg)
+
+TypeScript, lint and the production build passed. Vitest passed 1,446 tests with 11 skipped. All 41 realistic-kit balance checks passed. Vite emitted its existing bundle-size and dynamic-import warnings.
+
+### Next round
+
+Audit fatal-tick reporting in the balance simulator. On the former Hard i19 build it attributed seven lives lost in Windfall when the keep had six. Check simultaneous arrivals and an enemy whose life cost exceeds the lives remaining. Preserve the count of enemies crossing the gate and verify the legacy 3D report byte for byte.
