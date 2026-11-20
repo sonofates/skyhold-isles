@@ -1,0 +1,86 @@
+[
+  {
+    "view": "desktop",
+    "element": "honey-cottage-smoke",
+    "wrapMax": 0,
+    "outsideMax": 0,
+    "movingPixels": 1195
+  },
+  {
+    "view": "desktop",
+    "element": "cottage-hawthorn",
+    "wrapMax": 0,
+    "outsideMax": 0,
+    "movingPixels": 7574
+  },
+  {
+    "view": "desktop",
+    "element": "south-meadow-hawthorn",
+    "wrapMax": 0,
+    "outsideMax": 0,
+    "movingPixels": 9594
+  },
+  {
+    "view": "desktop",
+    "element": "southeast-hawthorn",
+    "wrapMax": 0,
+    "outsideMax": 0,
+    "movingPixels": 5632
+  },
+  {
+    "view": "phone",
+    "element": "honey-cottage-smoke",
+    "wrapMax": 0,
+    "outsideMax": 0,
+    "movingPixels": 823
+  },
+  {
+    "view": "phone",
+    "element": "cottage-hawthorn",
+    "wrapMax": 0,
+    "outsideMax": 0,
+    "movingPixels": 3730
+  },
+  {
+    "view": "phone",
+    "element": "south-meadow-hawthorn",
+    "wrapMax": 0,
+    "outsideMax": 0,
+    "movingPixels": 6025
+  },
+  {
+    "view": "phone",
+    "element": "southeast-hawthorn",
+    "wrapMax": 0,
+    "outsideMax": 0,
+    "movingPixels": 4645
+  },
+  {
+    "view": "full-map",
+    "element": "honey-cottage-smoke",
+    "wrapMax": 0,
+    "outsideMax": 0,
+    "movingPixels": 946
+  },
+  {
+    "view": "full-map",
+    "element": "cottage-hawthorn",
+    "wrapMax": 0,
+    "outsideMax": 0,
+    "movingPixels": 5432
+  },
+  {
+    "view": "full-map",
+    "element": "south-meadow-hawthorn",
+    "wrapMax": 0,
+    "outsideMax": 0,
+    "movingPixels": 7071
+  },
+  {
+    "view": "full-map",
+    "element": "southeast-hawthorn",
+    "wrapMax": 0,
+    "outsideMax": 0,
+    "movingPixels": 5404
+  }
+]

@@ -1,0 +1,180 @@
+{
+  "browser": "153.0.8010.12",
+  "sequenceTimes": [
+    0,
+    1.5,
+    3,
+    4.5,
+    6,
+    7.958333333333333
+  ],
+  "cases": [
+    {
+      "name": "desktop",
+      "width": 2000,
+      "height": 991,
+      "dpr": 1,
+      "quality": "high",
+      "map": 1.5,
+      "fit": {
+        "scale": 1.1180736502347417,
+        "offsetX": -32.54101599178398,
+        "offsetY": 38.40125000000012,
+        "bandLeft": 0,
+        "bandRight": 0,
+        "bandTop": 38.40125000000012,
+        "bandBottom": 0,
+        "shrink": 0.9612499999999999,
+        "coverage": 0.9612499999999999,
+        "clear": true
+      },
+      "render": {
+        "resolution": 1,
+        "canvasPx": [
+          2000,
+          991
+        ],
+        "resolutionScale": 1,
+        "desktop": true
+      },
+      "initialAmbientRequests": 0,
+      "staticBefore": {
+        "wraps": 0,
+        "frames": 26,
+        "meanMs": 121.79,
+        "p50Ms": 116.6,
+        "p95Ms": 233.4
+      },
+      "animated": {
+        "wraps": 0,
+        "frames": 19,
+        "meanMs": 171.05,
+        "p50Ms": 166.7,
+        "p95Ms": 233.4
+      },
+      "gamePause": "held and resumed",
+      "files": [
+        "mask.webp",
+        "loops.mp4"
+      ]
+    },
+    {
+      "name": "phone",
+      "width": 844,
+      "height": 390,
+      "dpr": 2,
+      "quality": "high",
+      "map": 1,
+      "fit": {
+        "scale": 0.3805017605633802,
+        "offsetX": -6.9737928220363585,
+        "offsetY": 42.90625000000003,
+        "bandLeft": 0,
+        "bandRight": 148.56754282203644,
+        "bandTop": 42.90625000000003,
+        "bandBottom": 22.90625,
+        "shrink": 0.8312499999999998,
+        "coverage": 0.6849268128307846,
+        "clear": true
+      },
+      "render": {
+        "resolution": 2,
+        "canvasPx": [
+          1688,
+          780
+        ],
+        "resolutionScale": 1,
+        "desktop": false
+      },
+      "initialAmbientRequests": 0,
+      "staticBefore": {
+        "wraps": 0,
+        "frames": 38,
+        "meanMs": 79.82,
+        "p50Ms": 83.3,
+        "p95Ms": 150.1
+      },
+      "animated": {
+        "wraps": 0,
+        "frames": 34,
+        "meanMs": 89.21,
+        "p50Ms": 83.3,
+        "p95Ms": 116.6
+      },
+      "gamePause": "held and resumed",
+      "files": [
+        "mask-1x.webp",
+        "loops-1x.mp4"
+      ]
+    },
+    {
+      "name": "low",
+      "width": 844,
+      "height": 390,
+      "dpr": 1,
+      "quality": "low",
+      "map": 1,
+      "fit": {
+        "scale": 0.3805017605633802,
+        "offsetX": -7.031084488703016,
+        "offsetY": 42.90625000000003,
+        "bandLeft": 0,
+        "bandRight": 148.37483448870307,
+        "bandTop": 42.90625000000003,
+        "bandBottom": 22.90625,
+        "shrink": 0.8312499999999998,
+        "coverage": 0.6850733112074259,
+        "clear": true
+      },
+      "render": {
+        "resolution": 0.8,
+        "canvasPx": [
+          675,
+          312
+        ],
+        "resolutionScale": 1,
+        "desktop": false
+      },
+      "initialAmbientRequests": 0
+    },
+    {
+      "name": "full-map",
+      "width": 1846,
+      "height": 852,
+      "dpr": 1,
+      "quality": "med",
+      "map": 1,
+      "fit": {
+        "scale": 0.9673009509528488,
+        "offsetX": 252.54628679281785,
+        "offsetY": 25.84215159270508,
+        "bandLeft": 252.54628679281785,
+        "bandRight": 0,
+        "bandTop": 25.84215159270508,
+        "bandBottom": 1.842151592705136,
+        "shrink": 0.9675,
+        "coverage": 0.8351116945210929,
+        "clear": true
+      },
+      "render": {
+        "resolution": 0.8172376433668324,
+        "canvasPx": [
+          1508,
+          696
+        ],
+        "resolutionScale": 1,
+        "desktop": true
+      },
+      "initialAmbientRequests": 0,
+      "captureFit": {
+        "scale": 1,
+        "offsetX": 0,
+        "offsetY": 0
+      },
+      "files": [
+        "mask-1x.webp",
+        "loops-1x.mp4"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,44 @@
+[
+  {
+    "view": "desktop",
+    "element": "windmill-sails",
+    "wrapMax": 0,
+    "outsideMax": 0,
+    "movingPixels": 21327
+  },
+  {
+    "view": "desktop",
+    "element": "orchard-crown",
+    "wrapMax": 0,
+    "outsideMax": 0,
+    "movingPixels": 8235
+  },
+  {
+    "view": "phone",
+    "element": "windmill-sails",
+    "wrapMax": 0,
+    "outsideMax": 0,
+    "movingPixels": 10004
+  },
+  {
+    "view": "phone",
+    "element": "orchard-crown",
+    "wrapMax": 0,
+    "outsideMax": 0,
+    "movingPixels": 4017
+  },
+  {
+    "view": "full-map",
+    "element": "windmill-sails",
+    "wrapMax": 0,
+    "outsideMax": 0,
+    "movingPixels": 17094
+  },
+  {
+    "view": "full-map",
+    "element": "orchard-crown",
+    "wrapMax": 0,
+    "outsideMax": 0,
+    "movingPixels": 6784
+  }
+]

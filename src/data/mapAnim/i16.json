@@ -1,0 +1,48 @@
+{
+  "file": "ambient/i16/loops.mp4",
+  "mask": "ambient/i16/mask.webp",
+  "compact": {
+    "file": "ambient/i16/loops-1x.mp4",
+    "mask": "ambient/i16/mask-1x.webp",
+    "width": 416,
+    "height": 88,
+    "fps": 12
+  },
+  "width": 832,
+  "height": 176,
+  "fps": 24,
+  "elements": [
+    {
+      "id": "north-ember-seam",
+      "rect": [
+        606.925,
+        26.1,
+        210.15,
+        23.625
+      ],
+      "depth": 0,
+      "cell": [
+        268,
+        4,
+        421,
+        48
+      ]
+    },
+    {
+      "id": "brazier-smoke",
+      "rect": [
+        1634.95,
+        365.0625,
+        126.1,
+        80.925
+      ],
+      "depth": 1,
+      "cell": [
+        4,
+        4,
+        253,
+        162
+      ]
+    }
+  ]
+}

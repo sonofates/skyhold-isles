@@ -1,0 +1,180 @@
+{
+  "browser": "153.0.8010.12",
+  "sequenceTimes": [
+    0,
+    1.5,
+    3,
+    4.5,
+    6,
+    7.958333333333333
+  ],
+  "cases": [
+    {
+      "name": "desktop",
+      "width": 2000,
+      "height": 991,
+      "dpr": 1,
+      "quality": "high",
+      "map": 1.5,
+      "fit": {
+        "scale": 1.1616916079812207,
+        "offsetX": -72.82219997065727,
+        "offsetY": 0.07705839201867093,
+        "bandLeft": 0,
+        "bandRight": 0,
+        "bandTop": 0.07705839201867093,
+        "bandBottom": 1.1616916079813109,
+        "shrink": 0.99875,
+        "coverage": 0.99875,
+        "clear": true
+      },
+      "render": {
+        "resolution": 1,
+        "canvasPx": [
+          2000,
+          991
+        ],
+        "resolutionScale": 1,
+        "desktop": true
+      },
+      "initialAmbientRequests": 0,
+      "staticBefore": {
+        "wraps": 0,
+        "frames": 25,
+        "meanMs": 120.66,
+        "p50Ms": 116.6,
+        "p95Ms": 200.1
+      },
+      "animated": {
+        "wraps": 0,
+        "frames": 18,
+        "meanMs": 169.44,
+        "p50Ms": 150.1,
+        "p95Ms": 233.4
+      },
+      "gamePause": "held and resumed",
+      "files": [
+        "mask.webp",
+        "loops.mp4"
+      ]
+    },
+    {
+      "name": "phone",
+      "width": 844,
+      "height": 390,
+      "dpr": 2,
+      "quality": "high",
+      "map": 1,
+      "fit": {
+        "scale": 0.4571742957746479,
+        "offsetX": -15.033568992077463,
+        "offsetY": -3.9696742957746665,
+        "bandLeft": 0,
+        "bandRight": 15.089818992077426,
+        "bandTop": 0,
+        "bandBottom": 4.457174295774621,
+        "shrink": 0.99875,
+        "coverage": 0.9708967476023679,
+        "clear": true
+      },
+      "render": {
+        "resolution": 2,
+        "canvasPx": [
+          1688,
+          780
+        ],
+        "resolutionScale": 1,
+        "desktop": false
+      },
+      "initialAmbientRequests": 0,
+      "staticBefore": {
+        "wraps": 0,
+        "frames": 29,
+        "meanMs": 105.17,
+        "p50Ms": 100,
+        "p95Ms": 233.3
+      },
+      "animated": {
+        "wraps": 0,
+        "frames": 27,
+        "meanMs": 112.34,
+        "p50Ms": 100.1,
+        "p95Ms": 166.7
+      },
+      "gamePause": "held and resumed",
+      "files": [
+        "mask-1x.webp",
+        "loops-1x.mp4"
+      ]
+    },
+    {
+      "name": "low",
+      "width": 844,
+      "height": 390,
+      "dpr": 1,
+      "quality": "low",
+      "map": 1,
+      "fit": {
+        "scale": 0.4566021126760564,
+        "offsetX": -14.661988336267665,
+        "offsetY": -3.512500000000017,
+        "bandLeft": 0,
+        "bandRight": 15.52448833626761,
+        "bandTop": 0,
+        "bandBottom": 4.4874999999999545,
+        "shrink": 0.9975,
+        "coverage": 0.9703059071309088,
+        "clear": true
+      },
+      "render": {
+        "resolution": 0.8,
+        "canvasPx": [
+          675,
+          312
+        ],
+        "resolutionScale": 1,
+        "desktop": false
+      },
+      "initialAmbientRequests": 0
+    },
+    {
+      "name": "full-map",
+      "width": 1846,
+      "height": 852,
+      "dpr": 1,
+      "quality": "med",
+      "map": 1,
+      "fit": {
+        "scale": 0.9985445217200597,
+        "offsetX": 0.6542403718653986,
+        "offsetY": 0.066236370026445,
+        "bandLeft": 0.6542403718653986,
+        "bandRight": 1.6527848935854763,
+        "bandTop": 0.066236370026445,
+        "bandBottom": 0.9985445217200777,
+        "shrink": 0.99875,
+        "coverage": 0.9975015625,
+        "clear": true
+      },
+      "render": {
+        "resolution": 0.8172376433668324,
+        "canvasPx": [
+          1508,
+          696
+        ],
+        "resolutionScale": 1,
+        "desktop": true
+      },
+      "initialAmbientRequests": 0,
+      "captureFit": {
+        "scale": 1,
+        "offsetX": 0,
+        "offsetY": 0
+      },
+      "files": [
+        "mask-1x.webp",
+        "loops-1x.mp4"
+      ]
+    }
+  ]
+}

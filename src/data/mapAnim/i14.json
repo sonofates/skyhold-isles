@@ -1,0 +1,80 @@
+{
+  "file": "ambient/i14/loops.mp4",
+  "mask": "ambient/i14/mask.webp",
+  "compact": {
+    "file": "ambient/i14/loops-1x.mp4",
+    "mask": "ambient/i14/mask-1x.webp",
+    "width": 416,
+    "height": 248,
+    "fps": 12
+  },
+  "width": 832,
+  "height": 496,
+  "fps": 24,
+  "elements": [
+    {
+      "id": "dry-wash-dust",
+      "rect": [
+        778.375,
+        750.0,
+        354.375,
+        60.375
+      ],
+      "depth": 1,
+      "cell": [
+        4,
+        356,
+        709,
+        121
+      ]
+    },
+    {
+      "id": "merchant-awning",
+      "rect": [
+        385.1875,
+        210.4375,
+        177.75,
+        71.25
+      ],
+      "depth": 2,
+      "cell": [
+        308,
+        4,
+        356,
+        143
+      ]
+    },
+    {
+      "id": "date-palm-fronds",
+      "rect": [
+        183.6875,
+        248.6875,
+        146.8125,
+        105.5625
+      ],
+      "depth": 2,
+      "cell": [
+        4,
+        4,
+        294,
+        212
+      ]
+    },
+    {
+      "id": "potter-striped-shade",
+      "rect": [
+        239.625,
+        151.9,
+        113.4,
+        61.7625
+      ],
+      "depth": 2,
+      "cell": [
+        4,
+        224,
+        227,
+        124
+      ]
+    }
+  ]
+}

@@ -1,0 +1,65 @@
+[
+  {
+    "view": "desktop",
+    "element": "west-cloudbank",
+    "wrapMax": 0,
+    "outsideMax": 0,
+    "movingPixels": 10157
+  },
+  {
+    "view": "desktop",
+    "element": "central-cloud-billows",
+    "wrapMax": 0,
+    "outsideMax": 0,
+    "movingPixels": 11050
+  },
+  {
+    "view": "desktop",
+    "element": "blue-ravine-wisps",
+    "wrapMax": 0,
+    "outsideMax": 0,
+    "movingPixels": 470
+  },
+  {
+    "view": "phone",
+    "element": "west-cloudbank",
+    "wrapMax": 0,
+    "outsideMax": 0,
+    "movingPixels": 8014
+  },
+  {
+    "view": "phone",
+    "element": "central-cloud-billows",
+    "wrapMax": 0,
+    "outsideMax": 0,
+    "movingPixels": 6878
+  },
+  {
+    "view": "phone",
+    "element": "blue-ravine-wisps",
+    "wrapMax": 0,
+    "outsideMax": 0,
+    "movingPixels": 343
+  },
+  {
+    "view": "full-map",
+    "element": "west-cloudbank",
+    "wrapMax": 0,
+    "outsideMax": 0,
+    "movingPixels": 12058
+  },
+  {
+    "view": "full-map",
+    "element": "central-cloud-billows",
+    "wrapMax": 0,
+    "outsideMax": 0,
+    "movingPixels": 8052
+  },
+  {
+    "view": "full-map",
+    "element": "blue-ravine-wisps",
+    "wrapMax": 0,
+    "outsideMax": 0,
+    "movingPixels": 381
+  }
+]

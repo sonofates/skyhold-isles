@@ -23,27 +23,43 @@ def register(reference, gray, anchors):
     ok = valid.ravel().astype(bool)
     if ok.sum() < 8:
         raise ValueError("Too few static landmarks")
-    matrix, inliers = cv2.estimateAffinePartial2D(
-        anchors[ok], points[ok], method=cv2.RANSAC, ransacReprojThreshold=0.9
-    )
+    matrix, inliers = cv2.estimateAffinePartial2D(anchors[ok], points[ok], method=cv2.RANSAC, ransacReprojThreshold=0.9)
     if matrix is None or inliers.sum() < 8:
         raise ValueError("Registration failed")
     return matrix
 
 
-def extract(folder, scratch, frames, style):
+def extract(folder, scratch, frames, style, movie):
     depth = style.get("depth", 0)
     scale = style.get("scale", 2)
     opacity = style.get("opacity", 1)
     feather = style.get("feather", 2)
     place = json.loads((folder / "place.json").read_text())
-    l, t, r, b = place["maskBBoxStartPxLTRB"]
+    mask = cv2.imread(str(folder / "mask.png"), cv2.IMREAD_GRAYSCALE)
+    if "sweepCircleStartPx" in style:
+        # Keep the authored generation mask separate from the full runtime sail sweep.
+        cx, cy, radius = style["sweepCircleStartPx"]
+        yy, xx = np.ogrid[: mask.shape[0], : mask.shape[1]]
+        distance = radius - np.hypot(xx - cx, yy - cy)
+        rim = style.get("sweepFeatherStartPx", place["featherInwardStartPx"])
+        mask = np.rint(255 * np.clip(distance / rim, 0, 1)).astype(np.uint8)
+    elif "paddingStartPx" in style:
+        # Give a bending crown or cloth enough clearance to uncover its original silhouette.
+        distance = cv2.distanceTransform((mask < 255).astype(np.uint8), cv2.DIST_L2, 5)
+        feather_px = place["featherInwardStartPx"]
+        mask = np.maximum(
+            mask,
+            np.rint(255 * np.clip((style["paddingStartPx"] + feather_px - distance) / feather_px, 0, 1)).astype(
+                np.uint8
+            ),
+        )
+    l, t, width, height = cv2.boundingRect(mask)
+    r, b = l + width, t + height
     s = place["startPxPerLayoutPx"]
     origin = place["cropLayoutPx"]
     rect = [origin["x"] + l / s, origin["y"] + t / s, (r - l) / s, (b - t) / s]
     w, h = [math.ceil(v * scale) for v in rect[2:]]
     start = cv2.imread(str(folder / "start.png"))
-    mask = cv2.imread(str(folder / "mask.png"), cv2.IMREAD_GRAYSCALE)
     # Additional inward taper lets a broad generated wake or plume dissipate at the boundary.
     distance = cv2.distanceTransform((mask > 0).astype(np.uint8), cv2.DIST_L2, 5)
     alpha = np.minimum(mask / 255, np.clip(distance / (s * feather), 0, 1))
@@ -54,7 +70,7 @@ def extract(folder, scratch, frames, style):
     anchors = cv2.goodFeaturesToTrack(ref, 320, 0.008, 7, mask=outside.astype("uint8"))
     rgb = np.lib.format.open_memmap(scratch / (folder.name + ".npy"), "w+", np.uint8, (frames, h, w, 3))
     stats = []
-    cap = cv2.VideoCapture(str(folder / "loop.mp4"))
+    cap = cv2.VideoCapture(str(movie))
     for i in range(frames):
         success, frame = cap.read()
         if not success:
@@ -129,20 +145,32 @@ def pack(tiles):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("island")
+    parser.add_argument("--matches", type=Path, help="Reviewed first-frame match table")
+    parser.add_argument("--inbox", type=Path, help="Directory of source movies for the match table")
     args = parser.parse_args()
+    if bool(args.matches) != bool(args.inbox):
+        parser.error("--matches and --inbox must be supplied together")
     name = args.island
     src = Path("design/art-2d/anim") / name
     dst = Path("public/art2d/ambient") / name
     dst.mkdir(parents=True, exist_ok=True)
     styles = json.loads((src / "pack.json").read_text()) if (src / "pack.json").exists() else {}
+    crf = 16
+    if args.matches:
+        table = json.loads(args.matches.read_text())
+        crf = table.get("crfByIsland", {}).get(name, crf)
+        inputs = [
+            (src / row["element"], args.inbox / row["file"], row.get("pack", {}))
+            for row in table["elements"]
+            if row["island"] == name and row["status"] == "integrated"
+        ]
+    else:
+        inputs = [(p.parent, p, styles.get(p.parent.name, {})) for p in sorted(src.glob("*/loop.mp4"))]
     cv2.setNumThreads(1)
     frames = 8 * FPS
     with TemporaryDirectory() as temp:
         scratch = Path(temp)
-        tiles = [
-            extract(p.parent, scratch, frames, styles.get(p.parent.name, {}))
-            for p in sorted(src.glob("*/loop.mp4"))
-        ]
+        tiles = [extract(folder, scratch, frames, style, movie) for folder, movie, style in inputs]
         width, height = pack(tiles)
         packed = np.zeros((height, width, 3), np.uint8)
         mask = np.zeros((height, width), np.uint8)
@@ -182,7 +210,7 @@ def main():
             "-threads",
             "4",
             "-crf",
-            "16",
+            str(crf),
             "-pix_fmt",
             "yuv420p",
             "-color_primaries",
@@ -231,7 +259,7 @@ def main():
                 "-preset",
                 "slow",
                 "-crf",
-                "16",
+                str(crf),
                 "-g",
                 str(FPS // 2),
                 "-movflags",

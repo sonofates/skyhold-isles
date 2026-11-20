@@ -1,0 +1,44 @@
+[
+  {
+    "view": "desktop",
+    "element": "dial-shelf-rain-sheen",
+    "wrapMax": 0,
+    "outsideMax": 0,
+    "movingPixels": 45
+  },
+  {
+    "view": "desktop",
+    "element": "west-shelf-mist",
+    "wrapMax": 0,
+    "outsideMax": 0,
+    "movingPixels": 2044
+  },
+  {
+    "view": "phone",
+    "element": "dial-shelf-rain-sheen",
+    "wrapMax": 0,
+    "outsideMax": 0,
+    "movingPixels": 32
+  },
+  {
+    "view": "phone",
+    "element": "west-shelf-mist",
+    "wrapMax": 0,
+    "outsideMax": 0,
+    "movingPixels": 1083
+  },
+  {
+    "view": "full-map",
+    "element": "dial-shelf-rain-sheen",
+    "wrapMax": 0,
+    "outsideMax": 0,
+    "movingPixels": 26
+  },
+  {
+    "view": "full-map",
+    "element": "west-shelf-mist",
+    "wrapMax": 0,
+    "outsideMax": 0,
+    "movingPixels": 1553
+  }
+]

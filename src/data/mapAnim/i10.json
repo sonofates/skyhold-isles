@@ -1,0 +1,48 @@
+{
+  "file": "ambient/i10/loops.mp4",
+  "mask": "ambient/i10/mask.webp",
+  "compact": {
+    "file": "ambient/i10/loops-1x.mp4",
+    "mask": "ambient/i10/mask-1x.webp",
+    "width": 416,
+    "height": 152,
+    "fps": 12
+  },
+  "width": 832,
+  "height": 304,
+  "fps": 24,
+  "elements": [
+    {
+      "id": "east-terrace-channel",
+      "rect": [
+        1536.625,
+        132.6875,
+        297.8125,
+        95.625
+      ],
+      "depth": 0,
+      "cell": [
+        4,
+        4,
+        596,
+        192
+      ]
+    },
+    {
+      "id": "bridge-tributary",
+      "rect": [
+        1142.0,
+        295.0,
+        157.3125,
+        43.3125
+      ],
+      "depth": 0,
+      "cell": [
+        4,
+        204,
+        315,
+        87
+      ]
+    }
+  ]
+}

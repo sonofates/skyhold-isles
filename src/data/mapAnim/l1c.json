@@ -1,0 +1,48 @@
+{
+  "file": "ambient/l1c/loops.mp4",
+  "mask": "ambient/l1c/mask.webp",
+  "compact": {
+    "file": "ambient/l1c/loops-1x.mp4",
+    "mask": "ambient/l1c/mask-1x.webp",
+    "width": 416,
+    "height": 168,
+    "fps": 12
+  },
+  "width": 832,
+  "height": 336,
+  "fps": 24,
+  "elements": [
+    {
+      "id": "windmill-sails",
+      "rect": [
+        1527.775,
+        129.125,
+        162.2125,
+        162.2125
+      ],
+      "depth": 2,
+      "cell": [
+        4,
+        4,
+        325,
+        325
+      ]
+    },
+    {
+      "id": "orchard-crown",
+      "rect": [
+        26.425,
+        481.475,
+        129.325,
+        105.7
+      ],
+      "depth": 2,
+      "cell": [
+        340,
+        4,
+        259,
+        212
+      ]
+    }
+  ]
+}

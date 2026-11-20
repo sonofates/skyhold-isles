@@ -1,0 +1,180 @@
+{
+  "browser": "153.0.8010.12",
+  "sequenceTimes": [
+    0,
+    1.5,
+    3,
+    4.5,
+    6,
+    7.958333333333333
+  ],
+  "cases": [
+    {
+      "name": "desktop",
+      "width": 2000,
+      "height": 991,
+      "dpr": 1,
+      "quality": "high",
+      "map": 1.5,
+      "fit": {
+        "scale": 1.1631455399061033,
+        "offsetX": -74.16490610328628,
+        "offsetY": 0,
+        "bandLeft": 0,
+        "bandRight": 0,
+        "bandTop": 0,
+        "bandBottom": 0,
+        "shrink": 1,
+        "coverage": 1,
+        "clear": true
+      },
+      "render": {
+        "resolution": 1,
+        "canvasPx": [
+          2000,
+          991
+        ],
+        "resolutionScale": 1,
+        "desktop": true
+      },
+      "initialAmbientRequests": 0,
+      "staticBefore": {
+        "wraps": 0,
+        "frames": 77,
+        "meanMs": 39.39,
+        "p50Ms": 33.4,
+        "p95Ms": 50.1
+      },
+      "animated": {
+        "wraps": 0,
+        "frames": 57,
+        "meanMs": 53.51,
+        "p50Ms": 50,
+        "p95Ms": 66.7
+      },
+      "gamePause": "held and resumed",
+      "files": [
+        "mask.webp",
+        "loops.mp4"
+      ]
+    },
+    {
+      "name": "phone",
+      "width": 844,
+      "height": 390,
+      "dpr": 2,
+      "quality": "high",
+      "map": 1,
+      "fit": {
+        "scale": 0.4571742957746479,
+        "offsetX": -8.401464935446006,
+        "offsetY": 6.243749999999977,
+        "bandLeft": 0,
+        "bandRight": 8.457714935446006,
+        "bandTop": 6.243749999999977,
+        "bandBottom": 0,
+        "shrink": 0.99875,
+        "coverage": 0.9741298275392037,
+        "clear": true
+      },
+      "render": {
+        "resolution": 2,
+        "canvasPx": [
+          1688,
+          780
+        ],
+        "resolutionScale": 1,
+        "desktop": false
+      },
+      "initialAmbientRequests": 0,
+      "staticBefore": {
+        "wraps": 0,
+        "frames": 61,
+        "meanMs": 50.82,
+        "p50Ms": 50,
+        "p95Ms": 83.4
+      },
+      "animated": {
+        "wraps": 0,
+        "frames": 58,
+        "meanMs": 52.58,
+        "p50Ms": 50,
+        "p95Ms": 100
+      },
+      "gamePause": "held and resumed",
+      "files": [
+        "mask-1x.webp",
+        "loops-1x.mp4"
+      ]
+    },
+    {
+      "name": "low",
+      "width": 844,
+      "height": 390,
+      "dpr": 1,
+      "quality": "low",
+      "map": 1,
+      "fit": {
+        "scale": 0.4566021126760564,
+        "offsetX": -8.021386443662033,
+        "offsetY": 6.487499999999983,
+        "bandLeft": 0,
+        "bandRight": 8.883886443661936,
+        "bandTop": 6.487499999999983,
+        "bandBottom": 0,
+        "shrink": 0.9975,
+        "coverage": 0.9730114807225835,
+        "clear": true
+      },
+      "render": {
+        "resolution": 0.8,
+        "canvasPx": [
+          675,
+          312
+        ],
+        "resolutionScale": 1,
+        "desktop": false
+      },
+      "initialAmbientRequests": 0
+    },
+    {
+      "name": "full-map",
+      "width": 1846,
+      "height": 852,
+      "dpr": 1,
+      "quality": "med",
+      "map": 1,
+      "fit": {
+        "scale": 0.9997942645507482,
+        "offsetX": 0,
+        "offsetY": -1.1368683772161603e-13,
+        "bandLeft": 0,
+        "bandRight": 0,
+        "bandTop": 0,
+        "bandBottom": 0,
+        "shrink": 1,
+        "coverage": 1,
+        "clear": true
+      },
+      "render": {
+        "resolution": 0.8172376433668324,
+        "canvasPx": [
+          1508,
+          696
+        ],
+        "resolutionScale": 1,
+        "desktop": true
+      },
+      "initialAmbientRequests": 0,
+      "captureFit": {
+        "scale": 1,
+        "offsetX": 0,
+        "offsetY": 0
+      },
+      "files": [
+        "mask-1x.webp",
+        "loops-1x.mp4"
+      ]
+    }
+  ]
+}

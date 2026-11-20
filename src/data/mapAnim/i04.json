@@ -1,0 +1,80 @@
+{
+  "file": "ambient/i04/loops.mp4",
+  "mask": "ambient/i04/mask.webp",
+  "compact": {
+    "file": "ambient/i04/loops-1x.mp4",
+    "mask": "ambient/i04/mask-1x.webp",
+    "width": 416,
+    "height": 232,
+    "fps": 12
+  },
+  "width": 832,
+  "height": 464,
+  "fps": 24,
+  "elements": [
+    {
+      "id": "west-ledge-foam",
+      "rect": [
+        19.7125,
+        274.2875,
+        217.55,
+        60.0875
+      ],
+      "depth": 0,
+      "cell": [
+        4,
+        328,
+        436,
+        121
+      ]
+    },
+    {
+      "id": "trestle-tailwater",
+      "rect": [
+        243.675,
+        234.375,
+        213.525,
+        67.95
+      ],
+      "depth": 0,
+      "cell": [
+        4,
+        184,
+        428,
+        136
+      ]
+    },
+    {
+      "id": "spring-outlet",
+      "rect": [
+        1037.4,
+        263.6,
+        180.0,
+        63.8
+      ],
+      "depth": 0,
+      "cell": [
+        440,
+        184,
+        360,
+        128
+      ]
+    },
+    {
+      "id": "crystal-tree-crown",
+      "rect": [
+        651.675,
+        508.075,
+        202.05,
+        85.275
+      ],
+      "depth": 2,
+      "cell": [
+        4,
+        4,
+        405,
+        171
+      ]
+    }
+  ]
+}

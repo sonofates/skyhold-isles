@@ -1,0 +1,65 @@
+[
+  {
+    "view": "desktop",
+    "element": "windmill-sails",
+    "wrapMax": 0,
+    "outsideMax": 0,
+    "movingPixels": 23803
+  },
+  {
+    "view": "desktop",
+    "element": "scarecrow-wheat",
+    "wrapMax": 0,
+    "outsideMax": 0,
+    "movingPixels": 28106
+  },
+  {
+    "view": "desktop",
+    "element": "eastern-wheat",
+    "wrapMax": 0,
+    "outsideMax": 0,
+    "movingPixels": 56929
+  },
+  {
+    "view": "phone",
+    "element": "windmill-sails",
+    "wrapMax": 0,
+    "outsideMax": 0,
+    "movingPixels": 13486
+  },
+  {
+    "view": "phone",
+    "element": "scarecrow-wheat",
+    "wrapMax": 0,
+    "outsideMax": 0,
+    "movingPixels": 11450
+  },
+  {
+    "view": "phone",
+    "element": "eastern-wheat",
+    "wrapMax": 0,
+    "outsideMax": 0,
+    "movingPixels": 32404
+  },
+  {
+    "view": "full-map",
+    "element": "windmill-sails",
+    "wrapMax": 0,
+    "outsideMax": 0,
+    "movingPixels": 18122
+  },
+  {
+    "view": "full-map",
+    "element": "scarecrow-wheat",
+    "wrapMax": 0,
+    "outsideMax": 0,
+    "movingPixels": 24281
+  },
+  {
+    "view": "full-map",
+    "element": "eastern-wheat",
+    "wrapMax": 0,
+    "outsideMax": 0,
+    "movingPixels": 43455
+  }
+]

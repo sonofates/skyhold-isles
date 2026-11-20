@@ -1,0 +1,86 @@
+[
+  {
+    "view": "desktop",
+    "element": "dry-wash-dust",
+    "wrapMax": 0,
+    "outsideMax": 0,
+    "movingPixels": 1481
+  },
+  {
+    "view": "desktop",
+    "element": "merchant-awning",
+    "wrapMax": 0,
+    "outsideMax": 0,
+    "movingPixels": 10031
+  },
+  {
+    "view": "desktop",
+    "element": "date-palm-fronds",
+    "wrapMax": 0,
+    "outsideMax": 0,
+    "movingPixels": 10652
+  },
+  {
+    "view": "desktop",
+    "element": "potter-striped-shade",
+    "wrapMax": 0,
+    "outsideMax": 0,
+    "movingPixels": 2905
+  },
+  {
+    "view": "phone",
+    "element": "dry-wash-dust",
+    "wrapMax": 0,
+    "outsideMax": 0,
+    "movingPixels": 825
+  },
+  {
+    "view": "phone",
+    "element": "merchant-awning",
+    "wrapMax": 0,
+    "outsideMax": 0,
+    "movingPixels": 5088
+  },
+  {
+    "view": "phone",
+    "element": "date-palm-fronds",
+    "wrapMax": 0,
+    "outsideMax": 0,
+    "movingPixels": 1692
+  },
+  {
+    "view": "phone",
+    "element": "potter-striped-shade",
+    "wrapMax": 0,
+    "outsideMax": 0,
+    "movingPixels": 1515
+  },
+  {
+    "view": "full-map",
+    "element": "dry-wash-dust",
+    "wrapMax": 0,
+    "outsideMax": 0,
+    "movingPixels": 1101
+  },
+  {
+    "view": "full-map",
+    "element": "merchant-awning",
+    "wrapMax": 0,
+    "outsideMax": 0,
+    "movingPixels": 7261
+  },
+  {
+    "view": "full-map",
+    "element": "date-palm-fronds",
+    "wrapMax": 0,
+    "outsideMax": 0,
+    "movingPixels": 8004
+  },
+  {
+    "view": "full-map",
+    "element": "potter-striped-shade",
+    "wrapMax": 0,
+    "outsideMax": 0,
+    "movingPixels": 2201
+  }
+]

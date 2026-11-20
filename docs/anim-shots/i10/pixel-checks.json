@@ -1,0 +1,44 @@
+[
+  {
+    "view": "desktop",
+    "element": "east-terrace-channel",
+    "wrapMax": 0,
+    "outsideMax": 0,
+    "movingPixels": 1637
+  },
+  {
+    "view": "desktop",
+    "element": "bridge-tributary",
+    "wrapMax": 0,
+    "outsideMax": 0,
+    "movingPixels": 880
+  },
+  {
+    "view": "phone",
+    "element": "east-terrace-channel",
+    "wrapMax": 0,
+    "outsideMax": 0,
+    "movingPixels": 1266
+  },
+  {
+    "view": "phone",
+    "element": "bridge-tributary",
+    "wrapMax": 0,
+    "outsideMax": 0,
+    "movingPixels": 572
+  },
+  {
+    "view": "full-map",
+    "element": "east-terrace-channel",
+    "wrapMax": 0,
+    "outsideMax": 0,
+    "movingPixels": 1423
+  },
+  {
+    "view": "full-map",
+    "element": "bridge-tributary",
+    "wrapMax": 0,
+    "outsideMax": 0,
+    "movingPixels": 662
+  }
+]

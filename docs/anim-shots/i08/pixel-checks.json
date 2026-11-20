@@ -1,0 +1,44 @@
+[
+  {
+    "view": "desktop",
+    "element": "bastion-moat",
+    "wrapMax": 0,
+    "outsideMax": 0,
+    "movingPixels": 4405
+  },
+  {
+    "view": "desktop",
+    "element": "reed-bank-ripples",
+    "wrapMax": 0,
+    "outsideMax": 0,
+    "movingPixels": 2679
+  },
+  {
+    "view": "phone",
+    "element": "bastion-moat",
+    "wrapMax": 0,
+    "outsideMax": 0,
+    "movingPixels": 2948
+  },
+  {
+    "view": "phone",
+    "element": "reed-bank-ripples",
+    "wrapMax": 0,
+    "outsideMax": 0,
+    "movingPixels": 763
+  },
+  {
+    "view": "full-map",
+    "element": "bastion-moat",
+    "wrapMax": 0,
+    "outsideMax": 0,
+    "movingPixels": 3519
+  },
+  {
+    "view": "full-map",
+    "element": "reed-bank-ripples",
+    "wrapMax": 0,
+    "outsideMax": 0,
+    "movingPixels": 3331
+  }
+]

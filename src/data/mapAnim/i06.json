@@ -1,0 +1,80 @@
+{
+  "file": "ambient/i06/loops.mp4",
+  "mask": "ambient/i06/mask.webp",
+  "compact": {
+    "file": "ambient/i06/loops-1x.mp4",
+    "mask": "ambient/i06/mask-1x.webp",
+    "width": 416,
+    "height": 520,
+    "fps": 12
+  },
+  "width": 832,
+  "height": 1040,
+  "fps": 24,
+  "elements": [
+    {
+      "id": "western-surf",
+      "rect": [
+        76.5375,
+        122.8,
+        152.5875,
+        257.4
+      ],
+      "depth": 0,
+      "cell": [
+        332,
+        4,
+        260,
+        438
+      ]
+    },
+    {
+      "id": "inner-cove",
+      "rect": [
+        495.75,
+        263.25,
+        285.0,
+        164.375
+      ],
+      "depth": 0,
+      "cell": [
+        4,
+        588,
+        485,
+        280
+      ]
+    },
+    {
+      "id": "south-lagoon-wash",
+      "rect": [
+        636.15,
+        443.5375,
+        333.5,
+        84.825
+      ],
+      "depth": 0,
+      "cell": [
+        4,
+        876,
+        567,
+        145
+      ]
+    },
+    {
+      "id": "eastern-swell",
+      "rect": [
+        1636.05,
+        181.1,
+        186.55,
+        338.65
+      ],
+      "depth": 0,
+      "cell": [
+        4,
+        4,
+        318,
+        576
+      ]
+    }
+  ]
+}

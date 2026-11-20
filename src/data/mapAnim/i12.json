@@ -1,0 +1,64 @@
+{
+  "file": "ambient/i12/loops.mp4",
+  "mask": "ambient/i12/mask.webp",
+  "compact": {
+    "file": "ambient/i12/loops-1x.mp4",
+    "mask": "ambient/i12/mask-1x.webp",
+    "width": 416,
+    "height": 184,
+    "fps": 12
+  },
+  "width": 832,
+  "height": 368,
+  "fps": 24,
+  "elements": [
+    {
+      "id": "north-canopy-shadow",
+      "rect": [
+        8.4,
+        5.95,
+        159.25,
+        68.25
+      ],
+      "depth": 0,
+      "cell": [
+        4,
+        220,
+        319,
+        137
+      ]
+    },
+    {
+      "id": "south-canopy-shadow",
+      "rect": [
+        143.0,
+        733.8,
+        183.0,
+        102.8
+      ],
+      "depth": 0,
+      "cell": [
+        4,
+        4,
+        366,
+        206
+      ]
+    },
+    {
+      "id": "silver-hazel",
+      "rect": [
+        1682.75,
+        491.45,
+        123.15,
+        80.4
+      ],
+      "depth": 2,
+      "cell": [
+        380,
+        4,
+        247,
+        161
+      ]
+    }
+  ]
+}
