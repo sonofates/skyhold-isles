@@ -251,7 +251,6 @@
     "plots": 25,
     "seed": 461,
     "landmarkShelves": {"sluice": null},
-    "fords": [[648, 262, 84], [802, 468, 121], [1420, 270, 73]],
     "decals": 265,
     "props": 48,
     "windmill": "none",
@@ -259,7 +258,10 @@
     "propWeights": [6, 1, 1, 6, 4, 0, 4],
     "crossings": [
       ["stone-bridge", 906, 659, 120, 71, 103.5],
-      ["viaduct", 1035, 389, 108, 79, -5]
+      ["viaduct", 1035, 389, 108, 79, -5],
+      ["terrace-culvert", 643, 253, 104, 84, 118],
+      ["tributary-span", 814, 470, 236, 77, 93],
+      ["terrace-culvert", 1419, 265, 80, 74, 38]
     ],
     "islet": "islet.webp",
     "cave-h": 2.14,

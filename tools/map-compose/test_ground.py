@@ -7,7 +7,6 @@ from pathlib import Path
 import numpy as np
 from PIL import Image, ImageChops, ImageColor, ImageDraw
 
-import fords
 from banks import shore_foundation, water_reflection
 from gates import draw_threshold_road, output_sprite
 from keeps import Keep, sample
@@ -377,25 +376,29 @@ class GroundTests(unittest.TestCase):
             result = brushed_surface(paint, (199, 97), scale, seed=9)
             self.assertEqual(result.getextrema(), tuple((c, c) for c in color))
 
-    def test_ford_carries_water_across_road_only_between_the_banks(self):
-        terrain = Image.new('RGBA', (120, 96), 'seagreen')
-        land = Image.new('L', terrain.size, 255)
-        ImageDraw.Draw(land).rectangle((43, 0, 73, 95), fill=0)
-        road = Image.new('L', terrain.size)
-        ImageDraw.Draw(road).rectangle((0, 40, 119, 56), fill=255)
-        for scale in (1, 2, 3):
-            size = (terrain.width * scale, terrain.height * scale)
-            img = terrain.resize(size)
-            patches = fords.prepare(img, land, terrain.size, [(58, 48, 41)], scale)
-            track = road.resize(size, Image.Resampling.NEAREST)
-            img.paste('tan', mask=track)
-            before = img.copy()
-            fords.paint(img, patches, track, 16, Image.new('RGBA', (8, 8), 'grey'), [], scale, seed=4)
-            self.assertEqual(img.getpixel((20 * scale, 48 * scale)), before.getpixel((20 * scale, 48 * scale)))
-            self.assertEqual(img.getpixel((58 * scale, 17 * scale)), before.getpixel((58 * scale, 17 * scale)))
-            shallow = img.getpixel((58 * scale, 48 * scale))
-            self.assertGreater(shallow[1], shallow[0])
-            self.assertNotEqual(shallow, terrain.getpixel((58, 48)))
+    def test_terrace_forks_have_opaque_decks_across_the_wet_road(self):
+        root = Path(__file__).resolve().parents[2]
+        kit = root / 'design/art-2d/v2/biomes/terraces'
+        recipe = json.loads((root / 'tools/map-compose/campaign.json').read_text())['i10']
+        layout = json.loads((root / 'src/data/levels2d/i10.json').read_text())
+        size = tuple(layout['imageSize'])
+        road = Image.new('L', size)
+        for path in layout['paths']:
+            ImageDraw.Draw(road).line(list(map(tuple, path)), fill=255,
+                                      width=round(.068 * size[1]), joint='curve')
+        with Image.open(kit / 'land-i10.webp') as land:
+            wet = land.convert('L').resize(size).point(lambda v: 255 if v < 128 else 0)
+        unsupported = ImageChops.multiply(road, wet)
+        self.assertNotIn('fords', recipe)
+        for name, x, y, length, width, angle in recipe['crossings']:
+            with Image.open(kit / f'landmark-{name}.webp') as sprite:
+                deck = sprite.getchannel('A').resize((width, length), Image.Resampling.LANCZOS)
+            deck = deck.rotate(angle, Image.Resampling.BICUBIC, expand=True)
+            origin = round(x-deck.width/2), round(y-deck.height/2)
+            unsupported.paste(0, origin, deck.point(lambda a: 255 if a >= 240 else 0))
+        for site in [(560, 190, 712, 320), (680, 411, 949, 526), (1355, 208, 1481, 330)]:
+            self.assertTrue(ImageChops.multiply(road, wet).crop(site).getbbox())
+            self.assertIsNone(unsupported.crop(site).getbbox())
 
     def test_entire_decals_clear_roads_plots_crossings_and_canvas_edges(self):
         paths = [[(8, 100), (190, 100), (240, 195)], [(32, 15), (190, 100)]]

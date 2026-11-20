@@ -1,6 +1,6 @@
 """Pack Omni start/mask/place/loop folders into a H.264 texture and lossless mask atlas.
 
-Run from the repository root with numpy, opencv-python-headless and ffmpeg.
+Run from the repository root with numpy, Pillow, opencv-python-headless and ffmpeg.
 """
 
 import argparse
@@ -12,6 +12,9 @@ from tempfile import TemporaryDirectory
 
 import cv2
 import numpy as np
+from PIL import Image
+
+from road_mask import animation_clearance, clip_atlas
 
 FPS = 24
 GUTTER = 4
@@ -268,12 +271,14 @@ def main():
             ],
             check=True,
         )
+        clearance = animation_clearance(name)
         for image, w, h in [
             ("mask.webp", width, height),
             ("mask-1x.webp", width // 2, height // 2),
         ]:
             matte = cv2.resize(mask, (w, h), interpolation=cv2.INTER_AREA)
-            cv2.imwrite(str(dst / image), matte, [cv2.IMWRITE_WEBP_QUALITY, 101])
+            matte = clip_atlas(Image.fromarray(matte), clearance, tiles, (width, height))
+            cv2.imwrite(str(dst / image), np.asarray(matte), [cv2.IMWRITE_WEBP_QUALITY, 101])
         data = dict(
             file=f"ambient/{name}/{filename}",
             mask=f"ambient/{name}/mask.webp",

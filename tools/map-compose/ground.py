@@ -16,6 +16,7 @@ TUFTS = (1, 2, 4)
 CLOVER = (3,)
 FLOWERS = (5, 8)
 STONES = (6, 7)
+ROAD_WIDTH_FRACTION = 0.068  # fraction of layout height
 
 
 def brushed_surface(tex, size, scale, seed):
@@ -163,6 +164,22 @@ class Decals:
                                           b.point(lambda v: int(v * 0.78)), a))
             self.cache[key] = im
         return self.cache[key]
+
+
+def catmull(pts, n=12):
+    if len(pts) < 3:
+        return list(pts)
+    out = []
+    ext = [pts[0]] + list(pts) + [pts[-1]]
+    for i in range(1, len(ext) - 2):
+        p0, p1, p2, p3 = ext[i - 1], ext[i], ext[i + 1], ext[i + 2]
+        for k in range(n):
+            t = k / n
+            t2, t3 = t * t, t * t * t
+            out.append(tuple(0.5 * ((2 * p1[j]) + (-p0[j] + p2[j]) * t + (2 * p0[j] - 5 * p1[j] + 4 * p2[j] - p3[j]) * t2
+                                    + (-p0[j] + 3 * p1[j] - 3 * p2[j] + p3[j]) * t3) for j in range(2)))
+    out.append(tuple(pts[-1]))
+    return out
 
 
 def road_footprint(size, paths, width):

@@ -90,12 +90,11 @@ import numpy as np  # noqa: E402
 from gates import (  # noqa: E402
     blend_placement, clip_road_at_gate, contact_shadow, cut_front, draw_threshold_road, entrance_dir, entrance_facing, gate_alpha_hit, goal_dir, goal_facing, light_interior, output_box, output_sprite, place_gate, point_in_opening, resolve_prop,
 )
-import fords  # noqa: E402
 from banks import shore_foundation, water_reflection  # noqa: E402
 from masonry import RoadArcade, arch_bridge, brick_spur, cart_tracks, marble_road, moat_wall, paved_road, timber_approach  # noqa: E402
 from keeps import Keep  # noqa: E402
 from ground import (  # noqa: E402
-    Decals, DressingArea, brushed_surface, dusty_road_coverage, fine_detail, inner_band, paint_over_road, ragged_mask,
+    ROAD_WIDTH_FRACTION, Decals, DressingArea, brushed_surface, catmull, dusty_road_coverage, fine_detail, inner_band, paint_over_road, ragged_mask,
     ring, road_footprint, road_fringe, scatter, windblown_road_coverage,
 )
 from ringfit import measure_ring  # noqa: E402
@@ -162,7 +161,7 @@ def load(name):
 
 
 # ---------------------------------------------------------------- geometry (layout px)
-ROAD_W = 0.068 * ih  # road width
+ROAD_W = ROAD_WIDTH_FRACTION * ih  # road width
 PLOT_R = float(L.get('plotRadiusPx', 48))  # plot sprite half-width
 base_img_src = load('plot-base.png')
 PLOT_RY = PLOT_R * base_img_src.height / base_img_src.width  # plot sprite half-height
@@ -174,22 +173,6 @@ TOWER_UP = 180.0
 # A tower in front must not bury the plot behind it: plots stacked within this |dx| need BURY_DY of
 # vertical room (a T1 tower then just reaches the back plot's centre; T2/T3 overlap like any 3/4 TD).
 BURY_DX, BURY_DY = 0.8 * 2 * PLOT_R, 100.0
-
-
-def catmull(pts, n=12):
-    if len(pts) < 3:
-        return list(pts)
-    out = []
-    ext = [pts[0]] + list(pts) + [pts[-1]]
-    for i in range(1, len(ext) - 2):
-        p0, p1, p2, p3 = ext[i - 1], ext[i], ext[i + 1], ext[i + 2]
-        for k in range(n):
-            t = k / n
-            t2, t3 = t * t, t * t * t
-            out.append(tuple(0.5 * ((2 * p1[j]) + (-p0[j] + p2[j]) * t + (2 * p0[j] - 5 * p1[j] + 4 * p2[j] - p3[j]) * t2
-                                    + (-p0[j] + 3 * p1[j] - 3 * p2[j] + p3[j]) * t3) for j in range(2)))
-    out.append(tuple(pts[-1]))
-    return out
 
 
 def resample(poly, step):
@@ -739,8 +722,6 @@ if dressing.get('islet'):
         else:
             foundation((left + right) / 2, bottom - 5, (right - left) * 1.17, (right - left) * 0.49)
 
-ford_sites = dressing.get('fords', [])
-ford_patches = fords.prepare(ground, land_mask, (iw, ih), ford_sites, S)
 if dressing.get('moatWall'):
     moat_wall(ground, land_mask, (iw, ih), spl_paths[0], ROAD_W, S, load('landmark-stone-bridge.webp'), SEED)
 for wall in arcades:
@@ -831,10 +812,6 @@ else:
 
 del dirt, road_hard
 keep.apron(ground, castle, S, plots, PLOT_R, PLOT_RY, raw_paths[0])
-
-if ford_patches:
-    fords.paint(ground, ford_patches, road_mask, ROAD_W, load('ford-stones.webp'),
-                [resample(catmull(section), 17) for section in SECTIONS.values()], S, SEED + 29)
 
 # Crossings share the road centreline. These deck stamps have no collision or sim geometry.
 crossing_rects = []
