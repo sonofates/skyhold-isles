@@ -398,7 +398,6 @@ export const TR: { readonly [K in MsgKey]: Msg } = {
   'codex.elite.tile': 'Seçkinler',
   'codex.specs': 'Uzmanlıklar (IV. seviye)',
   'codex.specsNote': 'III. seviyede bir dal seç. Kule satılana dek bu seçim kalıcıdır.',
-  'codex.ability': 'Yetenek: {name}',
 
   // --- workshop ------------------------------------------------------------------------------
   'ws.title': 'Atölye',

@@ -8,7 +8,7 @@ import { STAR_RULES } from '../data/stars.ts';
 import { ENEMY_DEFS } from '../data/enemies.ts';
 import type { LevelDef } from '../data/levels/types.ts';
 import { NEUTRAL_RUN_MODIFIERS, type RunModifiers } from '../data/runModifiers.ts';
-import { getTowerTierStats, TOWER_DEFS } from '../data/towers.ts';
+import { getTowerTierStats, specializationsFor, TOWER_DEFS, towerStats } from '../data/towers.ts';
 import { bindHaptics, haptics } from '../platform/haptics.ts';
 import { isTouchDevice, loadSettings } from '../platform/storage.ts';
 import type { EnemyEntity, TowerEntity } from '../sim/entities.ts';
@@ -33,6 +33,7 @@ import { WorldLayers } from './layers.ts';
 import { MapView } from './mapView.ts';
 import { PlotLayer, type PlotState } from './plotLayer.ts';
 import { createProcTextures, type ProcTextures } from './procTextures.ts';
+import { prefetchSpecPortraits } from './specArt.ts';
 import { ProjectileLayer } from './projectileLayer.ts';
 import {
   audioSettings2d,
@@ -125,9 +126,13 @@ function flushGpu(gl: WebGLRenderingContext | WebGL2RenderingContext | undefined
   }
 }
 
-/** A built tower's reach as the sim uses it: tier range × (1 + beacon aura + hero bonus). */
-function towerReach(t: TowerEntity, tier: 1 | 2 | 3 = t.tier as 1 | 2 | 3): number {
-  return getTowerTierStats(t.type, tier).range * (1 + t.auraRange + (t.heroRangeBonus ?? 0));
+/**
+ * A built tower's reach as the sim uses it: base range (its own stats — a specialization's — or
+ * another tier's / `baseRange` for a preview) × (1 + beacon aura + hero bonus).
+ */
+function towerReach(t: TowerEntity, tier: 1 | 2 | 3 = t.tier as 1 | 2 | 3, baseRange?: number): number {
+  const base = baseRange ?? (tier === t.tier ? towerStats(t).range : getTowerTierStats(t.type, tier).range);
+  return base * (1 + t.auraRange + (t.heroRangeBonus ?? 0));
 }
 
 /**
@@ -353,7 +358,7 @@ export class Game2D {
   private towerHasTarget(t: TowerEntity): boolean {
     const def = TOWER_DEFS[t.type];
     if (def.role !== 'attack') return false;
-    const st = getTowerTierStats(t.type, t.tier);
+    const st = towerStats(t);
     const maxSq = towerReach(t) ** 2;
     const minSq = st.minRange * st.minRange;
     const pool = this.world.enemyPool;
@@ -629,6 +634,12 @@ export class Game2D {
       this.hudGoldDirty = true;
       const px = m.pxX(e.x);
       const py = m.pxY(e.z);
+      if (e.tier === 3) prefetchSpecPortraits(this.art, e.type);
+      // Tier IV with no ability yet = the specialization itself (an ability buy is a plain upgrade puff).
+      if (e.tier === 4 && this.world.getTowerById(e.towerId)?.specialization?.abilities.length === 0) {
+        this.specFlourish(px, py);
+        return;
+      }
       this.fx.puffs(px, py, 8, 26, 0xfff0c0);
       this.fx.spawn('flash', px, py - 60, 50, 0, 0, 0.3);
       // Gold ring at the base and sparks rising up the tower: the new tier is in.
@@ -652,6 +663,31 @@ export class Game2D {
       this.hudGoldDirty = true;
     });
   }
+
+  /**
+   * A tower takes its specialization: a gold column of light, two rolling rings and a fountain of
+   * sparks while the new building pops in (the sim's pop timer). Reduced motion: one soft ring and
+   * a calm glow, nothing flying.
+   */
+  private specFlourish(px: number, py: number): void {
+    const reduce = typeof document !== 'undefined' && document.documentElement.classList.contains('pu-reduce-motion');
+    this.specFlourishes++;
+    if (reduce) {
+      this.fx.spawn('ring', px, py + 4, 64, 0, 0, 0.7, 0xffd76a);
+      this.fx.spawn('glow', px, py - 60, 120, 0, 0, 0.8, 0xffe7a0);
+      return;
+    }
+    this.fx.puffs(px, py, 12, 34, 0xfff0c0);
+    this.fx.spawn('flash', px, py - 70, 90, 0, 0, 0.4, 0xfff4cc);
+    this.fx.spawn('glow', px, py - 80, 170, 0, -20, 0.9, 0xffd76a);
+    this.fx.spawn('ring', px, py + 4, 58, 0, 0, 0.55, 0xffd76a);
+    this.fx.spawn('ring', px, py + 4, 90, 0, 0, 0.85, 0xfff0c0);
+    this.fx.burst('spark', px, py - 40, 18, 11, 190, 0.9, 0xffe08a, 220);
+    this.fx.burst('orb', px, py - 90, 8, 9, 70, 1.1, 0xfff4cc, -40);
+  }
+
+  /** QA: specialization flourishes played this run. */
+  specFlourishes = 0;
 
   private enqueueBolt(delay: number, pts: readonly Vec3[], overload: boolean, muzzle: number): void {
     let slot = this.boltQueue[this.boltActive];
@@ -1177,7 +1213,7 @@ export class Game2D {
       this.rangeDisc.visible = false;
       return;
     }
-    const range = built && built.type === type ? towerReach(built, tier) : getTowerTierStats(type, tier).range;
+    const range = built && built.type === type ? towerReach(built, tier, pv?.range) : (pv?.range ?? getTowerTierStats(type, tier).range);
     const ppu = this.level.layout2d!.pxPerUnit;
     this.rangeDisc.position.set(this.map.pxX(p.x), this.map.pxY(p.z));
     this.rangeDisc.scale.set((range * ppu * 2) / this.tex.rangeDisc.width);
@@ -1308,6 +1344,39 @@ export class Game2D {
     this.hoverDisc.scale.set((towerReach(t) * ppu * 2) / this.tex.rangeDisc.width);
   }
 
+  /**
+   * The build ring's tier-III "compare" (main2d opens the comparison card). Without a handler
+   * (bench / debug scenes) the tokens still show, the card just does not open.
+   */
+  onSpecCompare: ((req: { readonly towerId: number; readonly type: TowerType; readonly focus: string }) => void) | null = null;
+
+  /** The comparison card's "Choose": specializes through the recorded command layer, closes the ring. */
+  specializeTower(towerId: number, specId: string): boolean {
+    const ok = this.command({ k: 'spec', id: towerId, spec: specId });
+    if (this.ring.isOpen) this.closeRing();
+    return ok;
+  }
+
+  /** Buys a specialized tower's ability through the recorded command layer. */
+  buyTowerAbility(towerId: number, abilityId: string): boolean {
+    return this.command({ k: 'ability', id: towerId, ability: abilityId });
+  }
+
+  /** Screen (css px) top centre of a built tower's painted body (tips point at it), or null. */
+  towerTopScreen(id: number): { x: number; y: number } | null {
+    const box = this.towers.spriteRect(id);
+    if (box) return { x: this.map.screenX(box.x + box.w / 2), y: this.map.screenY(box.y) };
+    const t = this.world.getTowerById(id);
+    if (!t) return null;
+    const p = this.plotScreen(t.col);
+    return { x: p.x, y: p.y - 40 };
+  }
+
+  /** QA: the open ring's plot and its tower (if any). */
+  get ringTower(): number {
+    return this.ring.isOpen ? this.selectedTower : -1;
+  }
+
   private closeRing(): void {
     this.ring.close();
     this.selectedTower = -1;
@@ -1403,6 +1472,9 @@ export class Game2D {
         ...(TOWER_DEFS[t.type].role === 'attack' ? { targeting: t.targetingMode } : {}),
         ...(keepOut ? { keepOut } : {}),
         record: { kills: t.kills, damage: t.totalDamageDealt },
+        // Tier III: the family's two specializations; specialized: its branch, abilities and stats.
+        ...(t.tier === 3 && !t.specialization ? { branches: specializationsFor(t.type) } : {}),
+        ...(t.specialization ? { specialization: { id: t.specialization.id, abilities: t.specialization.abilities }, stats: towerStats(t) } : {}),
       },
       world.gold,
       w,
@@ -1423,6 +1495,13 @@ export class Game2D {
       this.command({ k: 'build', plot, type: action.type });
     } else if (action.kind === 'upgrade') {
       if (this.selectedTower !== -1) this.command({ k: 'upgrade', id: this.selectedTower });
+    } else if (action.kind === 'compare') {
+      // The comparison card (DOM, main2d) decides; the ring stays open under it for a cancel.
+      const t = this.selectedTower !== -1 ? world.getTowerById(this.selectedTower) : null;
+      if (t && this.onSpecCompare) this.onSpecCompare({ towerId: t.id, type: t.type, focus: action.id });
+      return;
+    } else if (action.kind === 'ability') {
+      if (this.selectedTower !== -1) this.command({ k: 'ability', id: this.selectedTower, ability: action.id });
     } else if (action.kind === 'target') {
       const t = this.selectedTower !== -1 ? world.getTowerById(this.selectedTower) : null;
       if (t) {

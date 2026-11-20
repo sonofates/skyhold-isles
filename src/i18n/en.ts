@@ -392,7 +392,6 @@ export const EN = {
   'codex.elite.tile': 'Elites',
   'codex.specs': 'Specializations (tier IV)',
   'codex.specsNote': 'At tier III, pick one branch. It is permanent until the tower is sold.',
-  'codex.ability': 'Ability: {name}',
 
   // --- workshop ------------------------------------------------------------------------------
   'ws.title': 'Workshop',

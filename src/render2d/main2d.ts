@@ -8,6 +8,7 @@ import { artCheckSummary, mountArtCheck } from './artCheck.ts';
 import { changeMapVariant, loadArt } from './assets2d.ts';
 import { autoplayHooks, benchHooks } from './benchScene.ts';
 import { mountCodex2D } from './codex2d.ts';
+import { specPortraitUrl } from './specArt.ts';
 import { initLocale, t } from '../i18n/index.ts';
 import { heroName, islandName } from '../i18n/data.ts';
 import { AimOverlay, aimHooks, meleeHooks, towersHooks, zooHooks, ZooLabels, type AimSceneState, type MeleeSceneState } from './debugScenes.ts';
@@ -122,6 +123,9 @@ declare global {
       /** QA: the foe info card, and the screen point of a live foe to tap. */
       foe?: () => Record<string, unknown> | null;
       coach?: () => Record<string, unknown> | null;
+      /** QA: tier-IV specializations (comparison card open, the tier-III tip, flourishes, towers). */
+      spec?: () => Record<string, unknown>;
+      towerTop?: (id: number) => { x: number; y: number } | null;
       goldPops?: () => { active: number; spawned: number };
       newFoe?: () => Record<string, unknown> | null;
       callout?: () => Record<string, unknown> | null;
@@ -490,6 +494,9 @@ async function main(): Promise<void> {
   let settingsRef: Settings2D | null = null;
   let gameRef: Game2D | null = null;
   let codexWasPaused = false;
+  let specWasPaused = false;
+  let specCardOpen = false;
+  let specHint: import('./ui/specHint2d.ts').SpecHint2D | null = null;
   let settingsWasPaused = false;
   let introWasPaused = false;
   let storyOpen = false;
@@ -544,6 +551,7 @@ async function main(): Promise<void> {
       if (inBackground) {
         // Keep the run paused on resume even if Codex or the intro story was open when backgrounded.
         codexWasPaused = true;
+        specWasPaused = true;
         settingsWasPaused = true;
         introWasPaused = true;
         if (!isDebugScene) app.ticker.stop();
@@ -840,6 +848,30 @@ async function main(): Promise<void> {
         }
       });
     }
+    // Tier-IV specializations: the build ring's "compare" opens the comparison card (pauses the
+    // run while open); "Choose" goes through the recorded command layer (game.specializeTower).
+    game.onSpecCompare = (req) => {
+      if (specCardOpen || game.replaying) return;
+      specCardOpen = true;
+      specWasPaused = game.stepper.paused;
+      game.stepper.paused = true;
+      void import('./ui/specCard2d.ts').then(({ openSpecCard }) => {
+        openSpecCard({
+          type: req.type,
+          gold: game.world.gold,
+          focus: req.focus,
+          portraitUrl: (id) => specPortraitUrl(art, id),
+          onChoose: (id) => game.specializeTower(req.towerId, id),
+          onClose: () => {
+            specCardOpen = false;
+            game.stepper.paused = specWasPaused;
+          },
+        });
+      });
+    };
+    // The first tower at tier III: a one-time "choose a specialization" tip (?spechint=1 forces it).
+    const sh = await import('./ui/specHint2d.ts');
+    if ((plainPlay && !sh.specHintDone()) || q.get('spechint') === '1') specHint = sh.mountSpecHint(!desktop || isTouchDevice(), q.get('spechint') === '1');
     const nf = await import('./ui/newFoes2d.ts');
     const { LEVELS_2D } = await import('../data/levels2d/index.ts');
     foesSeen = new nf.FoesSeen(nf.seenFromCleared(LEVELS_2D, (i) => (progress2d.bestStars[i] ?? 0) > 0));
@@ -961,6 +993,10 @@ async function main(): Promise<void> {
       // Hidden under the pause menu too (the card and its arrow cluttered it on phones).
       coach.update(obs, target, game.end.visible || storyOpen || anySheetOpen() || game.replaying || game.stepper.paused);
     }
+    if (specHint && !specHint.done) {
+      const busy = game.end.visible || storyOpen || anySheetOpen() || game.ringOpen || game.replaying || game.stepper.paused || !!coach?.debug().shown;
+      specHint.update(game.world.towers, (id) => game.towerTopScreen(id), busy);
+    }
     hudTipsFrame?.();
     if (foesSeen && newFoeToast && waveTypesOf) {
       // A wave just marched: its never-seen foes get the toast (live play only), then count as seen.
@@ -1057,6 +1093,18 @@ async function main(): Promise<void> {
     lives: () => livesWarn?.debug() ?? null,
     foe: () => foeCard?.debug() ?? null,
     coach: () => coach?.debug() ?? null,
+    spec: () => ({
+      card: specCardOpen,
+      hint: specHint?.debug() ?? null,
+      flourishes: game.specFlourishes,
+      ringTower: game.ringTower,
+      tip: game.ring.layoutInfo.tooltip,
+      towers: game.world.towers.map((tw) => ({ id: tw.id, type: tw.type, tier: tw.tier, plot: tw.col, spec: tw.specialization?.id ?? null, abilities: tw.specialization?.abilities ?? [] })),
+      // As drawn: which branch art is up, and its ring against the plot's (0 = fits).
+      art: game.towers.ringReport(game.world.towers),
+      turrets: game.towers.turretReport(),
+    }),
+    towerTop: (id) => game.towerTopScreen(id),
     goldPops: () => ({ active: game.goldPops.active, spawned: game.goldPops.spawned }),
     newFoe: () => newFoeToast?.debug() ?? null,
     callout: () => waveBanner?.debug() ?? null,

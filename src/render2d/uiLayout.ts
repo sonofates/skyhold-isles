@@ -6,7 +6,7 @@
 import { towerRole } from '../i18n/data.ts';
 import { t } from '../i18n/index.ts';
 import type { TowerType } from '../core/types.ts';
-import { getTowerTierStats, TOWER_DEFS } from '../data/towers.ts';
+import { getTowerTierStats, TOWER_DEFS, type TowerTierStats } from '../data/towers.ts';
 import type { Level2DGate } from '../data/levels2d/gates.ts';
 
 export interface Insets {
@@ -339,8 +339,12 @@ const RANGE_STEPS = [0.1, 4.5, 5.5, 7.5, 10] as const;
 
 /** Three 0..5 pip rows for a tower tier (attack: damage / range / speed; support / barracks get their own). */
 export function statRows(type: TowerType, tier: 1 | 2 | 3): StatRow[] {
+  return statRowsFor(type, getTowerTierStats(type, tier));
+}
+
+/** The same three pip rows for any resolved stats (a specialized tower's `towerStats`). */
+export function statRowsFor(type: TowerType, s: TowerTierStats): StatRow[] {
   const def = TOWER_DEFS[type];
-  const s = getTowerTierStats(type, tier);
   if (def.role === 'support') {
     return [
       { label: t('stat.haste'), pips: pipsFor((s.auraRate ?? 0) * 100, [1, 10, 16, 22, 28]) },

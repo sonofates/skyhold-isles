@@ -2,6 +2,7 @@ import { ENEMY_DEFS } from '../data/enemies.ts';
 import { t } from '../i18n/index.ts';
 import type { LoadedArt } from './assets2d.ts';
 import { enemyArtFor } from './manifest.ts';
+import { specPortraitUrl } from './specArt.ts';
 import { roundButton } from './ui/dom.ts';
 import { addHudKeepOut, readSafeInsets } from './uiKit.ts';
 import { hudButtonsLayout } from './uiLayout.ts';
@@ -76,6 +77,7 @@ export function mountCodex2D(art: LoadedArt, onToggle: (open: boolean) => void):
       openCodex2D({
         enemyUrl: (id) => codexEnemyUrl(art, id),
         towerUrl: (id) => codexTowerUrl(art, id),
+        specUrl: (id) => specPortraitUrl(art, id),
         onClose: () => {
           isOpen = false;
           btn.style.display = gameHidden ? 'none' : '';
