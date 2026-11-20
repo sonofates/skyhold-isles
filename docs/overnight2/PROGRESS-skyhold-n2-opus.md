@@ -55,6 +55,18 @@
   reticle jumps to that button (`EndPanel.primaryAction`, padTargets lists it first); navprobe
   checks won + lost.
 
+- Codex: the foe detail shows the kind marks (crown / wing / shield, `foeMarks`) before its tags —
+  the place to learn them. uiaudit gained `hud-codex` (in-run Codex board): 12/12 0 problems.
+  `qa/codexmarks.mjs` (boss → crown+shield, flyer → wing, brute → shield).
+- Title: with a controller connected the prompt says "Press A to start" / "Başlamak için A tuşuna
+  bas" (`gamepadconnected` or a pad already listed); navprobe checks it.
+- Battle loading screen (2d.html boot while a level loads): "Course set for <island>" / "Rota:
+  <ada>" and a parchment "Tip" card with one of 13 tips (`LOAD_TIPS`, `loadtip.1..13`, facts taken
+  from the Codex tower/foe texts, the Workshop and hero texts). Not for `bench` / `ab`. Shots
+  opus-shots/loading-*. `qa/bootshot.mjs` holds the map painting back to catch the screen.
+- Full uiaudit re-run on a frozen build (`/tmp/n2opus-audit-dist`, port 4418) started 04:30 — see
+  below for the result.
+
 ## Next ideas
 - Swap in Codex's title paintings when they land (keys in Requests); re-shoot the title.
 - Wave-start ease / boot fade / veil: only checked by code + unit tests, not filmed (headless frames
