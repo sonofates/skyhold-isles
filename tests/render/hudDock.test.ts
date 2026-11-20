@@ -1,14 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import { LEVELS_2D } from '../../src/data/levels2d/index.ts';
-import { fullBleedFit, hardOverlaps, hardShapes, slideX } from '../../src/render2d/fullBleed.ts';
+import { clampPan, fullBleedFit, hardOverlaps, hardShapes, PAN_ZOOM, slideX, viewScale } from '../../src/render2d/fullBleed.ts';
 import { dockPieces, hudDock, trayLong, trayShort, type HudDock, type HudDockOptions } from '../../src/render2d/hudDock.ts';
 import { distSegRect, playfieldShapes, shapesOverlap } from '../../src/render2d/playfield.ts';
 import { KIT_PLAQUE_SLOTS, NO_INSETS, type Insets, type Rect } from '../../src/render2d/uiLayout.ts';
+import type { Level2DLayout } from '../../src/data/levels/types.ts';
 
 /** The QA screens of the full-bleed task (desktop, the owner's window, ultrawide, laptops, 16:10, phones). */
 const SIZES: readonly [string, number, number, Insets][] = [
   ['1920x1080', 1920, 1080, NO_INSETS],
   ['2000x991', 2000, 991, NO_INSETS],
+  ['2000x1150', 2000, 1150, NO_INSETS],
+  ['1512x982', 1512, 982, NO_INSETS],
+  ['1024x768', 1024, 768, NO_INSETS],
   ['2560x1080', 2560, 1080, NO_INSETS],
   ['1366x768', 1366, 768, NO_INSETS],
   ['1600x900', 1600, 900, NO_INSETS],
@@ -22,63 +26,128 @@ const hits = (a: Rect, b: Rect): boolean => a.x < b.x + b.w && a.x + a.w > b.x &
 
 /** Fits of every island at every size (hero / no hero), computed once. */
 const FITS = (() => {
-  const out: { name: string; w: number; h: number; ins: Insets; hero: boolean; id: string; home: HudDock; r: ReturnType<typeof fullBleedFit>; shapes: ReturnType<typeof hardShapes> }[] = [];
+  const out: { name: string; w: number; h: number; ins: Insets; hero: boolean; id: string; L: Level2DLayout; home: HudDock; r: ReturnType<typeof fullBleedFit>; shapes: ReturnType<typeof hardShapes> }[] = [];
   for (const hero of [true, false]) {
     for (const [name, w, h, ins] of SIZES) {
       const home = hudDock(w, h, ins, { ...OPTS, hero });
       for (const level of LEVELS_2D) {
         const L = level.layout2d!;
         const shapes = hardShapes(L);
-        out.push({ name, w, h, ins, hero, id: level.id, home, r: fullBleedFit(w, h, L, home, shapes), shapes });
+        out.push({ name, w, h, ins, hero, id: level.id, L, home, r: fullBleedFit(w, h, L, home, shapes), shapes });
       }
     }
   }
   return out;
 })();
 
-describe('full-bleed map + corner HUD: nothing playable under a HUD piece', () => {
-  it('every island, every QA screen, with and without a hero: no plot, cave, castle or safe-area road under a piece', () => {
-    const bad: string[] = [];
-    let n = 0;
+describe('map fit + gentle pan + corner HUD (owner feedback 2026-11-21: no bands, a little pan)', () => {
+  const desktop = (f: (typeof FITS)[number]): boolean => f.h >= 700;
+
+  it('the map covers the screen at every QA size (no bands from ~4:3 to ~21:9), zoomed a little past cover', () => {
     for (const f of FITS) {
-      if (!f.r.fit.clear) bad.push(`${f.name} ${f.id}: no clear placement`);
-      for (const [piece, rect] of Object.entries(dockPieces(f.r.dock))) {
-        n++;
-        const ov = hardOverlaps(f.shapes, f.r.fit, rect);
-        if (ov.length > 0) bad.push(`${f.name}${f.hero ? ' hero' : ''} ${f.id} ${piece}: ${ov.map((o) => `${o.kind}#${o.index}`).join(',')}`);
-      }
+      const tag = `${f.name} ${f.id}`;
+      const { fit, pan } = f.r;
+      expect([fit.bandLeft, fit.bandTop, fit.bandRight, fit.bandBottom], tag).toEqual([0, 0, 0, 0]);
+      expect(fit.coverage, tag).toBeCloseTo(1, 6);
+      expect(fit.shrink, tag).toBeGreaterThan(1);
+      expect(fit.shrink, tag).toBeLessThanOrEqual(PAN_ZOOM + 1e-9);
+      // Room to pan both ways on both axes (≥ 4 % of the screen).
+      expect(pan.maxX - pan.minX, tag).toBeGreaterThanOrEqual(f.w * 0.04);
+      expect(pan.maxY - pan.minY, tag).toBeGreaterThanOrEqual(f.h * 0.04);
     }
-    expect(LEVELS_2D.length).toBe(25);
-    expect(n).toBe(2 * SIZES.length * 25 * 6);
+    // 4:3 and 5:4 still cover; only past ~21:9 (32:9 here) does the frame open, on the long axis.
+    const L = LEVELS_2D[0].layout2d!;
+    for (const [w, h, banded] of [[1024, 768, false], [1280, 1024, false], [3440, 1440, false], [3840, 1080, true]] as const) {
+      const r = fullBleedFit(w, h, L, hudDock(w, h, NO_INSETS, OPTS));
+      const side = r.fit.bandLeft + r.fit.bandRight;
+      expect(side > 0, `${w}x${h}`).toBe(banded);
+      expect(r.fit.bandTop + r.fit.bandBottom, `${w}x${h}`).toBe(0);
+    }
+    expect(viewScale(1920, 1080, 1846, 852)).toBeCloseTo((1080 / 852) * PAN_ZOOM, 9);
+  });
+
+  it('the default view never shows past the painting; the pan reaches past its top / bottom only as deep as the HUD rows', () => {
+    for (const f of FITS) {
+      const tag = `${f.name} ${f.id}`;
+      const { fit, pan } = f.r;
+      const [iw, ih] = f.L.imageSize;
+      const s = fit.scale;
+      expect(fit.offsetX, tag).toBeLessThanOrEqual(1e-6);
+      expect(fit.offsetY, tag).toBeLessThanOrEqual(1e-6);
+      expect(fit.offsetX + iw * s, tag).toBeGreaterThanOrEqual(f.w - 1e-6);
+      expect(fit.offsetY + ih * s, tag).toBeGreaterThanOrEqual(f.h - 1e-6);
+      expect(pan.minX, tag).toBeCloseTo(f.w - iw * s, 6);
+      expect(pan.maxX, tag).toBeCloseTo(0, 6);
+      const d = f.r.dock;
+      const topRow = Math.max(d.buttons.y + d.buttons.h, d.info.y + d.info.h) + 4;
+      const bottomRow = f.h - Math.min(d.plaque.y, d.tray.y, d.banner.y) + 4;
+      expect(pan.maxY, tag).toBeLessThanOrEqual(topRow);
+      expect(f.h - (pan.minY + ih * s), tag).toBeLessThanOrEqual(bottomRow);
+      const c = clampPan(pan, fit.offsetX, fit.offsetY);
+      expect([c.x, c.y], tag).toEqual([fit.offsetX, fit.offsetY]);
+    }
+  });
+
+  it('panning reaches every plot: each comes fully on screen out from under every piece (bar the passing info card); every cave / castle comes on screen', () => {
+    const bad: string[] = [];
+    for (const f of FITS) {
+      if (!f.hero) continue;
+      const { pan, fit } = f.r;
+      const s = fit.scale;
+      const pieces = Object.entries(dockPieces(f.r.dock)).filter(([n]) => n !== 'info').map(([, r]) => r);
+      const steps = 24;
+      const offsets: [number, number][] = [];
+      for (let i = 0; i <= steps; i++) for (let j = 0; j <= steps; j++) offsets.push([pan.minX + ((pan.maxX - pan.minX) * i) / steps, pan.minY + ((pan.maxY - pan.minY) * j) / steps]);
+      f.shapes.plots.forEach((p, k) => {
+        const ok = offsets.some(([ox, oy]) => {
+          const cx = ox + p.x * s;
+          const cy = oy + p.y * s;
+          const r = p.r * s;
+          if (cx - r < 0 || cy - r < 0 || cx + r > f.w || cy + r > f.h) return false;
+          return !pieces.some((q) => {
+            const nx = Math.max(q.x, Math.min(cx, q.x + q.w));
+            const ny = Math.max(q.y, Math.min(cy, q.y + q.h));
+            return (cx - nx) ** 2 + (cy - ny) ** 2 < r * r;
+          });
+        });
+        if (!ok) bad.push(`${f.name} ${f.id} plot${k}`);
+      });
+      f.shapes.gates.forEach((g, k) => {
+        const ok = offsets.some(([ox, oy]) => {
+          const cx = ox + (g.x + g.w / 2) * s;
+          const cy = oy + (g.y + g.h / 2) * s;
+          return cx >= 0 && cy >= 0 && cx <= f.w && cy <= f.h;
+        });
+        if (!ok) bad.push(`${f.name} ${f.id} gate${k}`);
+      });
+    }
     expect(bad).toEqual([]);
   });
 
-  it('the gameplay (plots, castle, cave mouths, safe-area roads) always stays on screen', () => {
+  it('the default view keeps the pieces off the gameplay wherever the island leaves room (and says so when it cannot)', () => {
+    const clearShare = new Map<string, number[]>();
     for (const f of FITS) {
-      const m = f.shapes.mustSee;
-      const { scale: s, offsetX: ox, offsetY: oy } = f.r.fit;
-      const tag = `${f.name} ${f.id}`;
-      expect(ox + m.x * s, tag).toBeGreaterThanOrEqual(-0.5);
-      expect(oy + m.y * s, tag).toBeGreaterThanOrEqual(-0.5);
-      expect(ox + (m.x + m.w) * s, tag).toBeLessThanOrEqual(f.w + 0.5);
-      expect(oy + (m.y + m.h) * s, tag).toBeLessThanOrEqual(f.h + 0.5);
+      const tag = `${f.name}${f.hero ? ' hero' : ''} ${f.id}`;
+      const covered: string[] = [];
+      for (const [piece, rect] of Object.entries(dockPieces(f.r.dock))) {
+        for (const o of hardOverlaps(f.shapes, f.r.fit, rect)) {
+          if (piece !== 'info' || o.kind !== 'road') covered.push(`${piece}:${o.kind}${o.index}`);
+        }
+      }
+      const notInfo = covered.filter((c) => !c.startsWith('info:'));
+      // `clear` / `clearButInfo` tell the truth.
+      if (f.r.fit.clear) expect(covered, tag).toEqual([]);
+      if (f.r.fit.clearButInfo) expect(notInfo.filter((c) => !c.includes(':road')), tag).toEqual([]);
+      // On a desktop screen at most five plots / caves / the castle sit under a lasting piece.
+      if (desktop(f)) expect(notInfo.filter((c) => !c.includes(":road")).length, tag).toBeLessThanOrEqual(5);
+      const k = clearShare.get(f.name) ?? [0, 0];
+      k[0] += f.r.fit.clearButInfo ? 1 : 0;
+      k[1]++;
+      clearShare.set(f.name, k);
     }
-  });
-
-  it('the map fills the screen: ≥ 97 % on average at 16:9, ~2:1 and 21:9, ≥ 95 % at 16:10; no island under 84 % on desktop', () => {
-    const avg = (name: string): number => {
-      const xs = FITS.filter((f) => f.hero && f.name === name).map((f) => f.r.fit.coverage);
-      return xs.reduce((a, b) => a + b, 0) / xs.length;
-    };
-    expect(avg('1920x1080')).toBeGreaterThanOrEqual(0.97);
-    expect(avg('2000x991')).toBeGreaterThanOrEqual(0.97);
-    expect(avg('2560x1080')).toBeGreaterThanOrEqual(0.97);
-    expect(avg('1440x900')).toBeGreaterThanOrEqual(0.95);
-    for (const f of FITS) {
-      if (f.h >= 700) expect(f.r.fit.coverage, `${f.name} ${f.id}`).toBeGreaterThanOrEqual(0.84);
-      else expect(f.r.fit.coverage, `${f.name} ${f.id}`).toBeGreaterThanOrEqual(0.35);
-      // Shrunk only as far as needed, never past the floor.
-      expect(f.r.fit.shrink, `${f.name} ${f.id}`).toBeGreaterThanOrEqual(f.h >= 700 ? 0.84 : 0.58);
+    // Every desktop screen clears a fifth or more of the islands outright (the rest: as little as it can, pan to see).
+    for (const [name, [n, all]] of clearShare) {
+      if (FITS.find((f) => f.name === name)!.h >= 700) expect(n / all, name).toBeGreaterThanOrEqual(0.2);
     }
   });
 

@@ -277,9 +277,10 @@ export function mountPadCursor(host: PadCursorHost): PadCursor {
     },
   });
 
-  // Keyboard in a run: arrows move the reticle, Enter clicks (WASD stay ability / hero keys).
+  // Keyboard in a run: arrows move the reticle, Enter clicks (WASD stay ability / hero keys;
+  // Shift + arrows pan the map, game2d.ts).
   window.addEventListener('keydown', (e) => {
-    if (e.ctrlKey || e.metaKey || e.altKey || navScope()) return;
+    if (e.ctrlKey || e.metaKey || e.altKey || navScope() || (e.shiftKey && e.key.startsWith('Arrow'))) return; // i18n-ignore (key name)
     const dir = keyDir(e.key, false);
     if (dir) {
       e.preventDefault();

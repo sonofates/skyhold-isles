@@ -4,9 +4,11 @@
  * (Codex, Settings), the hero / ability tray and the info cards when shown (next wave, tapped foe,
  * new-foe heads-up) — and what each one covers under the current map fit.
  *
- * Rules (fullBleed.ts): a piece may lie over the map's decorative art, never over a plot, a cave
- * or the castle (`overlaps`, hard fail), and over a road only where it runs outside the safe area
- * (the outer decorative margin: `outerRoads`, allowed, reported). `overlaps` must be empty.
+ * Rules (fullBleed.ts): a piece may lie over the map's decorative art, and over a road only where
+ * it runs outside the safe area (`outerRoads`, allowed, reported). Over a plot, a cave or the castle
+ * (`overlaps`) only where the island leaves no room at the map's default view (`fit.clear` false;
+ * the player pans to see it, mapPan.ts) — the QA screens run at the default view, where an overlap
+ * is a regression unless `fit.clear` says the island can't clear at that screen.
  */
 import type { Game2D } from './game2d.ts';
 import { hardOverlaps, hardShapes, type HardKind } from './fullBleed.ts';
@@ -17,7 +19,9 @@ import type { Rect } from './uiLayout.ts';
 export interface HudCheck {
   readonly screen: { w: number; h: number };
   readonly form: string;
-  readonly fit: { scale: number; offsetX: number; offsetY: number; shrink: number; coverage: number; clear: boolean };
+  readonly fit: { scale: number; offsetX: number; offsetY: number; shrink: number; coverage: number; clear: boolean; clearButInfo: boolean };
+  /** The pan: the view's offset now vs the default view's, and the range (screen px). */
+  readonly pan: { atDefault: boolean; x: number; y: number; range: { minX: number; maxX: number; minY: number; maxY: number } };
   /** Drawn pieces (screen px). */
   readonly pieces: Record<string, Rect>;
   /** The dock's slots (screen px). */
@@ -130,7 +134,8 @@ export function hudCheck(game: Game2D): HudCheck {
   return {
     screen: { w: game.app.screen.width, h: game.app.screen.height },
     form: k.form,
-    fit: { scale: fit.scale, offsetX: fit.offsetX, offsetY: fit.offsetY, shrink: fb?.shrink ?? 1, coverage: fb?.coverage ?? 1, clear: fb?.clear ?? true },
+    fit: { scale: fit.scale, offsetX: fit.offsetX, offsetY: fit.offsetY, shrink: fb?.shrink ?? 1, coverage: fb?.coverage ?? 1, clear: fb?.clear ?? true, clearButInfo: fb?.clearButInfo ?? true },
+    pan: { atDefault: !fb || (Math.abs(fit.offsetX - fb.offsetX) < 0.5 && Math.abs(fit.offsetY - fb.offsetY) < 0.5), x: fit.offsetX, y: fit.offsetY, range: game.pan.range },
     pieces: Object.fromEntries(Object.entries(pieces).map(([n, r]) => [n, r4(r)])),
     slots: Object.fromEntries(Object.entries(slots).map(([n, r]) => [n, r4(r)])),
     outside,

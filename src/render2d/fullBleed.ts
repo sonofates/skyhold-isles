@@ -1,23 +1,28 @@
 /**
- * Full-bleed map fit (pure, no Pixi / DOM): the painted map covers the screen and the HUD sits in
- * the corners over it. The map's decorative edges are cropped first; what must stay visible is the
- * island's gameplay (`mustSee`: plots, the roads inside the safe area, cave mouths, the castle).
+ * Full-bleed map fit (pure, no Pixi / DOM): the painted map covers the screen, a little zoomed in
+ * past "cover" (PAN_ZOOM) so the player can always pan it a bit in every direction (mapPan.ts), and
+ * the HUD sits in the corners over it. What matters is the island's gameplay (`mustSee`: plots, the
+ * roads inside the safe area, cave mouths, the castle); the decorative edges crop first.
  *
- * The HUD pieces sit at their corner (hudDock.ts). A piece may lie over decorative art, never over
- * a plot, a cave or the castle, and over a road only where the road runs outside the safe area
- * (the outer decorative margin). When a piece would cover one of those:
- *  1. the map shifts inside its crop slack (offset nearest the centred one),
- *  2. the sliding pieces move along their edge (tray along the bottom, info card along the top),
- *     the horn may stand left of the banner instead of above it,
- *  3. only then the map shrinks, by the smallest step that clears (that island at that screen).
+ * The scale never changes to make room for the HUD (owner feedback 2026-11-21: no bands on a
+ * laptop). Between ~4:3 and ~21:9 the map covers the screen; only a more extreme aspect (MIN_VIEW)
+ * opens bands, which MapView fills with the painted frame.
  *
- * Shrinking or an extreme aspect opens bands; MapView fills them with the painted frame.
+ * The HUD pieces sit at their corner (hudDock.ts). A piece may lie over decorative art, never over a
+ * plot, a cave or the castle, and over a road only where the road runs outside the safe area. The
+ * DEFAULT VIEW (the pan offset a run starts at, and returns to on resize) is the offset nearest the
+ * safe area's centre, inside the pan range, at which:
+ *  1. every piece is clear (the tray may slide along the bottom, the horn may stand left of the
+ *     banner) and the gameplay shows as fully as the screen allows,
+ *  2. else every piece is clear,
+ *  3. else every piece but the info card (it shows only between waves, and fades as one marches),
+ *  4. else the offset covering the fewest shapes (`clear` false; panning shows any spot).
  */
 import { gateKeepOutsPx, type Rect } from './uiLayout.ts';
 import { distSegRect, playfieldShapes, type Circle, type FitLike, type Seg } from './playfield.ts';
 import type { Level2DLayout } from '../data/levels/types.ts';
 import type { MapFit } from './viewFit.ts';
-import type { HudDock } from './hudDock.ts';
+import type { HornSpot, HudDock } from './hudDock.ts';
 
 export interface HardShapes {
   readonly roads: readonly Seg[];
@@ -153,44 +158,77 @@ export function hardOverlaps(s: HardShapes, fit: FitLike, rect: Rect, first = fa
 }
 
 export interface FullBleedFit extends MapFit {
-  /** Scale relative to the cover scale (1 = full bleed). */
+  /** Scale relative to the cover scale (≈ PAN_ZOOM; under 1 only past MIN_VIEW, with bands). */
   readonly shrink: number;
   /** Share of the screen the map image covers (0..1). */
   readonly coverage: number;
-  /** False only when no tried placement keeps every piece clear (the best try is returned). */
+  /** False when no offset in the pan range keeps every piece clear (the best one is returned). */
   readonly clear: boolean;
+  /** Every piece clear but the info card (it shows between waves only). */
+  readonly clearButInfo: boolean;
+}
+
+/** Offsets (screen px of image px (0, 0)) the view may pan between: never past the painting's edge. */
+export interface PanRange {
+  readonly minX: number;
+  readonly maxX: number;
+  readonly minY: number;
+  readonly maxY: number;
 }
 
 export interface FullBleedResult {
+  /** The default view. */
   readonly fit: FullBleedFit;
-  /** The dock with its sliding pieces placed for this island. */
+  /** The dock with its sliding pieces placed for the default view. */
   readonly dock: HudDock;
+  /** Where the player may pan to (same scale). */
+  readonly pan: PanRange;
 }
 
-/** Smallest map scale tried, relative to cover (an extreme aspect may need it). */
-const MIN_SHRINK = 0.55;
+/** Zoom past "cover": the room to pan (≈ 5 % of the screen along the tighter axis). */
+export const PAN_ZOOM = 1.05;
+/**
+ * Least share of the painting's width / height on screen. Past it (an aspect beyond ~4:3 or
+ * ~21:9 for these 2.17:1 maps) the scale stops growing and bands open on the other axis.
+ */
+export const MIN_VIEW = { x: 0.55, y: 0.78 } as const;
+
+/** Map scale for a screen: cover × PAN_ZOOM, capped so at least MIN_VIEW of the painting shows. */
+export function viewScale(screenW: number, screenH: number, imageW: number, imageH: number): number {
+  const cover = Math.max(screenW / imageW, screenH / imageH);
+  const cap = Math.min(screenW / (MIN_VIEW.x * imageW), screenH / (MIN_VIEW.y * imageH));
+  return Math.min(cover * PAN_ZOOM, cap);
+}
+
+function rangeAxis(screen: number, img: number): [number, number] {
+  // Covered: anywhere that keeps the painting over the screen; else centred (a band each side).
+  return img >= screen ? [screen - img, 0] : [(screen - img) / 2, (screen - img) / 2];
+}
+
+/** The pan range at a scale. */
+export function panRange(screenW: number, screenH: number, imageW: number, imageH: number, scale: number): PanRange {
+  const [minX, maxX] = rangeAxis(screenW, imageW * scale);
+  const [minY, maxY] = rangeAxis(screenH, imageH * scale);
+  return { minX, maxX, minY, maxY };
+}
+
+/** An offset clamped into the pan range. */
+export function clampPan(r: PanRange, x: number, y: number): { x: number; y: number } {
+  return { x: Math.min(r.maxX, Math.max(r.minX, x)), y: Math.min(r.maxY, Math.max(r.minY, y)) };
+}
 
 function grow(r: Rect, m: number): Rect {
   return { x: r.x - m, y: r.y - m, w: r.w + m * 2, h: r.h + m * 2 };
 }
 
-/** Offsets (one axis) at `scale`: [lo, hi] and the preferred one, or null if `must` can't be shown. */
-function axis(screen: number, image: number, safeStart: number, safeLen: number, mustStart: number, mustLen: number, scale: number): [number, number, number] | null {
-  const img = image * scale;
-  // Must-see on screen.
-  let lo = -mustStart * scale;
-  let hi = screen - (mustStart + mustLen) * scale;
-  if (img >= screen) {
-    // The image covers this axis (no band).
-    lo = Math.max(lo, screen - img);
-    hi = Math.min(hi, 0);
-  }
-  // Smaller than the screen: anywhere that shows the must-see box (cropping a decorative edge
-  // gives one wider band on the other side, for the HUD to sit on).
-  if (lo > hi + 1e-6) return null;
-  // Preferred: the safe area centred, then clamped.
-  const pref = Math.min(hi, Math.max(lo, screen / 2 - (safeStart + safeLen / 2) * scale));
-  return [lo, hi, pref];
+/**
+ * Offsets (one axis) where the must-see box shows as fully as it can: all of it when it fits on
+ * screen, else the screen wholly inside it.
+ */
+function mustAxis(screen: number, mustStart: number, mustLen: number, scale: number): [number, number] {
+  const a = -mustStart * scale;
+  const b = screen - (mustStart + mustLen) * scale;
+  return [Math.min(a, b), Math.max(a, b)];
 }
 
 function samples(lo: number, hi: number, pref: number, step: number): number[] {
@@ -205,7 +243,8 @@ function samples(lo: number, hi: number, pref: number, step: number): number[] {
   return out;
 }
 
-function fitAt(screenW: number, screenH: number, imageW: number, imageH: number, scale: number, ox: number, oy: number): MapFit {
+/** The map fit (with its bands) for a scale and offset. */
+export function fitAt(screenW: number, screenH: number, imageW: number, imageH: number, scale: number, ox: number, oy: number): MapFit {
   const band = (v: number): number => (v > 1e-6 ? v : 0);
   return {
     scale,
@@ -316,80 +355,109 @@ export function fullBleedFit(screenW: number, screenH: number, layout: Level2DLa
   const [sx, sy, sw, sh] = layout.safeArea;
   const m = shapes.mustSee;
   const cover = Math.max(screenW / iw, screenH / ih);
+  const scale = viewScale(screenW, screenH, iw, ih);
+  const pan = panRange(screenW, screenH, iw, ih, scale);
   const fixed: Rect[] = [dock.buttons, dock.plaque, dock.banner].map((r) => grow({ x: r.x, y: r.y, w: r.w, h: r.h }, HARD_MARGIN));
+  const info = grow(dock.info, HARD_MARGIN);
+  const hornHome = grow(dock.hornBox, HARD_MARGIN);
   const hornAlt = dock.hornAlt;
-  const tryAt = (scale: number, ox: number, oy: number): HudDock | null => {
+  const hornAltBox = hornAlt ? grow(hornAlt.hornBox, HARD_MARGIN) : null;
+  /** Shapes a rect covers (a road counts half: the eye finds the road again either side). */
+  const cost = (f: FitLike, r: Rect): number => {
+    let n = 0;
+    for (const o of hardOverlaps(shapes, f, r)) n += o.kind === 'road' ? 0.5 : 1;
+    return n;
+  };
+  /** The dock placed at an offset (horn home / alt, tray slid clear where it can) and what it covers. */
+  const evalAt = (ox: number, oy: number): { dock: HudDock; cost: number; info: number } => {
     const f: FitLike = { scale, offsetX: ox, offsetY: oy };
-    for (const r of fixed) if (hardOverlaps(shapes, f, r, true).length > 0) return null;
-    // Horn: above the banner, else left of it (then the tray's room ends at the horn).
-    let horn = { horn: dock.horn, hornBox: dock.hornBox };
-    if (hardOverlaps(shapes, f, grow(dock.hornBox, HARD_MARGIN), true).length > 0) {
-      if (!hornAlt || hardOverlaps(shapes, f, grow(hornAlt.hornBox, HARD_MARGIN), true).length > 0) return null;
-      horn = hornAlt;
+    let c = 0;
+    for (const r of fixed) c += cost(f, r);
+    // Horn above the banner, or left of it (then the tray's room ends at the horn); the tray
+    // slides clear along the bottom where it can. The pair covering least wins (home on a tie).
+    let pick: { horn: HornSpot; trayX: number; c: number } | null = null;
+    for (const [horn, box] of [[{ horn: dock.horn, hornBox: dock.hornBox }, hornHome], ...(hornAlt && hornAltBox ? [[hornAlt, hornAltBox] as const] : [])] as const) {
+      const hb = horn.hornBox;
+      const sameRow = hb.y < dock.tray.y + dock.tray.h && hb.y + hb.h > dock.tray.y && hb.x > dock.tray.x;
+      const trayHi = sameRow ? Math.min(dock.trayRange[1], hb.x - dock.gap - dock.tray.w) : dock.trayRange[1];
+      // No room left for the tray between the plaque and this horn spot.
+      if (trayHi < dock.trayRange[0]) continue;
+      const tx = slideX(shapes, f, dock.tray, dock.trayRange[0], trayHi);
+      const trayX = tx ?? Math.min(trayHi, Math.max(dock.trayRange[0], dock.tray.x));
+      const hc = cost(f, box) + (tx === null ? cost(f, grow({ ...dock.tray, x: trayX }, HARD_MARGIN)) : 0);
+      if (!pick || hc < pick.c) pick = { horn, trayX, c: hc };
+      if (hc === 0) break;
     }
-    // A horn on the tray's row ends the tray's room.
-    const hb = horn.hornBox;
-    const sameRow = hb.y < dock.tray.y + dock.tray.h && hb.y + hb.h > dock.tray.y && hb.x > dock.tray.x;
-    const trayHi = sameRow ? Math.min(dock.trayRange[1], hb.x - dock.gap - dock.tray.w) : dock.trayRange[1];
-    const tx = slideX(shapes, f, dock.tray, dock.trayRange[0], trayHi);
-    if (tx === null) return null;
-    const ix = slideX(shapes, f, dock.info, dock.infoRange[0], dock.infoRange[1]);
-    if (ix === null) return null;
-    return { ...dock, horn: horn.horn, hornBox: horn.hornBox, tray: { ...dock.tray, x: tx }, info: { ...dock.info, x: ix } };
+    const chosen = pick ?? { horn: { horn: dock.horn, hornBox: dock.hornBox }, trayX: dock.tray.x, c: cost(f, hornHome) + cost(f, grow(dock.tray, HARD_MARGIN)) };
+    c += chosen.c;
+    const horn = chosen.horn;
+    const trayX = chosen.trayX;
+    return { dock: { ...dock, horn: horn.horn, hornBox: horn.hornBox, tray: { ...dock.tray, x: trayX } }, cost: c, info: cost(f, info) };
   };
-  /** The clear placement at scale `k` × cover nearest the preferred one, or null. */
-  const at = (k: number): FullBleedResult | null => {
-    const scale = cover * k;
-    const ax = axis(screenW, iw, sx, sw, m.x, m.w, scale);
-    const ay = axis(screenH, ih, sy, sh, m.y, m.h, scale);
-    if (!ax || !ay) return null;
-    const xs = samples(ax[0], ax[1], ax[2], Math.max(2, (ax[1] - ax[0]) / 48));
-    const ys = samples(ay[0], ay[1], ay[2], Math.max(2, (ay[1] - ay[0]) / 48));
-    const cand: [number, number, number][] = [];
-    for (const x of xs) for (const y of ys) cand.push([Math.hypot(x - ax[2], y - ay[2]), x, y]);
-    cand.sort((a, b) => a[0] - b[0]);
-    for (const [, ox, oy] of cand) {
-      const placed = tryAt(scale, ox, oy);
-      if (placed) {
-        const f = fitAt(screenW, screenH, iw, ih, scale, ox, oy);
-        return { fit: { ...f, shrink: k, coverage: coverageOf(screenW, screenH, f), clear: true }, dock: placed };
-      }
-    }
-    return null;
+  // Preferred: the safe area centred, inside the pan range and (where it can) the must-see range.
+  const [mx0, mx1] = mustAxis(screenW, m.x, m.w, scale);
+  const [my0, my1] = mustAxis(screenH, m.y, m.h, scale);
+  const pick = (lo: number, hi: number, a: number, b: number, want: number): number => {
+    const l2 = Math.max(lo, a);
+    const h2 = Math.min(hi, b);
+    return l2 <= h2 ? Math.min(h2, Math.max(l2, want)) : Math.min(hi, Math.max(lo, want));
   };
-  // Largest scale that clears: 2 % steps down from cover, then halved back up (≈ 0.1 %).
-  let okK = -1;
-  let ok: FullBleedResult | null = null;
-  for (let k = 1; k >= MIN_SHRINK - 1e-9; k -= 0.02) {
-    ok = at(k);
-    if (ok) {
-      okK = k;
-      break;
+  const px = pick(pan.minX, pan.maxX, mx0, mx1, screenW / 2 - (sx + sw / 2) * scale);
+  const py = pick(pan.minY, pan.maxY, my0, my1, screenH / 2 - (sy + sh / 2) * scale);
+  const xs = samples(pan.minX, pan.maxX, px, Math.max(2, (pan.maxX - pan.minX) / 40));
+  const ys = samples(pan.minY, pan.maxY, py, Math.max(2, (pan.maxY - pan.minY) / 40));
+  const cand: [number, number, number][] = [];
+  for (const x of xs) for (const y of ys) cand.push([Math.hypot(x - px, y - py), x, y]);
+  cand.sort((a, b) => a[0] - b[0]);
+  const mustOk = (ox: number, oy: number): boolean => ox >= mx0 - 0.5 && ox <= mx1 + 0.5 && oy >= my0 - 0.5 && oy <= my1 + 0.5;
+  /** Gameplay the view leaves off screen: plots not wholly on it, caves / the castle whose middle is off it (twice: the entrances matter most). */
+  const offScreen = (ox: number, oy: number): number => {
+    let n = 0;
+    for (const p of shapes.plots) {
+      const x = ox + p.x * scale;
+      const y = oy + p.y * scale;
+      const r = p.r * scale;
+      if (x - r < 0 || y - r < 0 || x + r > screenW || y + r > screenH) n++;
     }
-  }
-  if (ok && okK < 1) {
-    let lo = okK;
-    let hi = Math.min(1, okK + 0.02);
-    for (let i = 0; i < 4; i++) {
-      const mid = (lo + hi) / 2;
-      const r = at(mid);
-      if (r) {
-        lo = mid;
-        ok = r;
-      } else hi = mid;
+    for (const g of shapes.gates) {
+      const x = ox + (g.x + g.w / 2) * scale;
+      const y = oy + (g.y + g.h / 2) * scale;
+      if (x < 0 || y < 0 || x > screenW || y > screenH) n += 2;
     }
+    return n;
+  };
+  // Ranked by the gameplay hidden — under a piece (the info card counts half: it shows between
+  // waves only) or off screen — then by showing the must-see box whole, then by distance from the
+  // preferred view.
+  let best: { key: number; ox: number; oy: number; r: ReturnType<typeof evalAt> } | null = null;
+  for (const [, ox, oy] of cand) {
+    const r = evalAt(ox, oy);
+    const key = (r.cost + r.info * 0.5 + offScreen(ox, oy)) * 2 + (mustOk(ox, oy) ? 0 : 1);
+    if (!best || key < best.key) best = { key, ox, oy, r };
+    if (key === 0) break;
   }
-  if (ok) return ok;
-  // Nothing clears (should not happen on the shipped islands): the plain cover, HUD at home.
-  let k = 1;
-  let ax = axis(screenW, iw, sx, sw, m.x, m.w, cover);
-  let ay = axis(screenH, ih, sy, sh, m.y, m.h, cover);
-  while ((!ax || !ay) && k > MIN_SHRINK) {
-    k -= 0.01;
-    ax = axis(screenW, iw, sx, sw, m.x, m.w, cover * k);
-    ay = axis(screenH, ih, sy, sh, m.y, m.h, cover * k);
-  }
-  const scale = cover * k;
-  const f = fitAt(screenW, screenH, iw, ih, scale, ax ? ax[2] : (screenW - iw * scale) / 2, ay ? ay[2] : (screenH - ih * scale) / 2);
-  return { fit: { ...f, shrink: k, coverage: coverageOf(screenW, screenH, f), clear: false }, dock };
+  const b = best!;
+  const f = fitAt(screenW, screenH, iw, ih, scale, b.ox, b.oy);
+  return {
+    fit: { ...f, shrink: scale / cover, coverage: coverageOf(screenW, screenH, f), clear: b.r.cost === 0 && b.r.info === 0, clearButInfo: b.r.cost === 0 },
+    dock: b.r.dock,
+    pan: reachRange(pan, dock, shapes, scale, screenH, ih),
+  };
+}
+
+/**
+ * The pan range grown past the painting's top / bottom edge just far enough that gameplay painted
+ * near that edge (the must-see box) can be lifted clear of the HUD row along it (`hudRows`: how
+ * deep the top / bottom pieces reach into the screen). Zero on most islands on a desktop; on a
+ * phone the HUD rows are deep next to the map and the cover zoom leaves little vertical room.
+ * The default view never uses it (no band at rest); the player sees the frame only when panning
+ * there on purpose.
+ */
+export function reachRange(pan: PanRange, dock: HudDock, shapes: HardShapes, scale: number, screenH: number, imageH: number): PanRange {
+  const m = shapes.mustSee;
+  const top = Math.max(dock.buttons.y + dock.buttons.h, dock.info.y + dock.info.h) + HARD_MARGIN;
+  const bottom = screenH - Math.min(dock.plaque.y, dock.tray.y, dock.banner.y) + HARD_MARGIN;
+  const extTop = Math.max(0, top - Math.max(0, m.y) * scale);
+  const extBottom = Math.max(0, bottom - Math.max(0, imageH - m.y - m.h) * scale);
+  return { minX: pan.minX, maxX: pan.maxX, minY: pan.minY - extBottom, maxY: pan.maxY + extTop };
 }
