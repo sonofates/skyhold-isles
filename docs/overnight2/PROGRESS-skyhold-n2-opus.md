@@ -84,6 +84,14 @@
   opus-shots/audit/. Later round-2 changes (Codex marks, loading tips, map unveil, pad badges) were
   audited per screen (hud-codex, hud-tip, map via navsweep/unveilshot).
 
+## Round 3
+- Feat toasts: after a plain run's result is recorded, each feat it completed slides down from the top
+  as a parchment card with its wax seal ("Feat earned" / "Başarı kazanıldı"), side by side over the
+  victory board, max 3 (+ "And N more feats: see the Logbook"), 4.2 s each, none animated with
+  reduced motion. `ui/featToast2d.ts/.css`, wired in main2d (save before vs after
+  `recordRunOutcome`). `qa/featshot.mjs`: cards end above the board's ribbon at 2000x991 (102 < 178)
+  and 844x390 (63 < 70). Shots opus-shots/feat-*. Unit tests (plan + First Landing / Starcatcher).
+
 ## Next ideas
 - Swap in Codex's title paintings when they land (keys in Requests); re-shoot the title.
 - Wave-start ease / boot fade / veil: only checked by code + unit tests, not filmed (headless frames

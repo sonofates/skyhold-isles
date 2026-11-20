@@ -366,6 +366,8 @@ export const TR: { readonly [K in MsgKey]: Msg } = {
   'lb.victories': 'zafer',
   'lb.streak': 'günlük seri · en iyi {n}',
   'lb.medals': 'sonsuz madalyası',
+  'feat.earned': 'Başarı kazanıldı',
+  'feat.more': { one: '{n} başarı daha: Seyir Defteri’ne bak', other: '{n} başarı daha: Seyir Defteri’ne bak' },
   'lb.tabIslands': 'Adalar',
   'lb.tabFeats': 'Başarılar {e}/{n}',
   'lb.uncharted': 'Keşfedilmemiş ada',

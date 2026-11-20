@@ -360,6 +360,8 @@ export const EN = {
   'lb.victories': 'victories',
   'lb.streak': 'day streak · best {n}',
   'lb.medals': 'endless medals',
+  'feat.earned': 'Feat earned',
+  'feat.more': { one: 'And {n} more feat: see the Logbook', other: 'And {n} more feats: see the Logbook' },
   'lb.tabIslands': 'Islands',
   'lb.tabFeats': 'Feats {e}/{n}',
   'lb.uncharted': 'Uncharted isle',

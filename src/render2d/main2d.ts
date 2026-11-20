@@ -565,6 +565,7 @@ async function main(): Promise<void> {
       let heroRecorded = false;
       if (plainPlay) {
         const masteredBefore = routing.isMastered(level.id);
+        const progressBefore = loadProgress2D();
         const result = routing.recordRunOutcome({
           levelId: level.id,
           won,
@@ -577,6 +578,8 @@ async function main(): Promise<void> {
           wavesCleared: won ? level.waves.length : Math.max(0, w.waveSystem.currentWaveOneBased - 1),
           heroXpEarned: w.heroSystem.runXp,
         });
+        // Feats this run completed: cards over the board (the Logbook lists them all).
+        void import('./ui/featToast2d.ts').then((m) => m.showNewFeats(progressBefore, loadProgress2D(), LEVELS_2D));
         const hr = result.hero;
         if (hr) {
           heroRecorded = true;
