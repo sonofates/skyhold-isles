@@ -11,6 +11,8 @@ const OUT = arg('out') ?? '/tmp/specaim';
 mkdirSync(OUT, { recursive: true });
 const ARGS = ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'];
 const BRANCHES = { archer: ['farwatch', 'swallow'], cannon: ['honeycomb', 'bellfoundry'], ballista: ['loom', 'anchor'], mortar: ['cinderkiln', 'cloudbreak'] };
+// --baseline=1: the same walk on the plain tier-III tower (no purchase) for comparison.
+if (arg('baseline')) for (const k of Object.keys(BRANCHES)) BRANCHES[k] = ['t3'];
 const problems = [];
 const report = {};
 const browser = await chromium.launch({ args: ARGS });
@@ -22,12 +24,12 @@ for (const [type, ids] of Object.entries(BRANCHES)) {
     await page.goto(`${BASE}/2d.html?towers=aim&type=${type}&tier=3&hold=1.4&overlay=0&lang=en&quality=high`);
     await page.waitForFunction(() => window.__p0?.spec && window.__aim?.plot >= 0, null, { timeout: 60000 });
     await page.waitForTimeout(500);
-    const ok = await page.evaluate((spec) => {
+    const ok = id === 't3' || await page.evaluate((spec) => {
       const t = window.__p0.spec().towers[0];
       return window.__p0.replay.cmd({ k: 'spec', id: t.id, spec });
     }, id);
     if (!ok) problems.push(`${id}: purchase refused`);
-    await page.waitForFunction(() => window.__p0.spec().art[0]?.specialization, null, { timeout: 15000 }).catch(() => problems.push(`${id}: branch art not drawn`));
+    if (id !== 't3') await page.waitForFunction(() => window.__p0.spec().art[0]?.specialization, null, { timeout: 15000 }).catch(() => problems.push(`${id}: branch art not drawn`));
     const sectors = await page.evaluate(() => window.__aim.sectors);
     const seen = {};
     const tid = await page.evaluate(() => window.__p0.spec().towers[0].id);
@@ -42,7 +44,7 @@ for (const [type, ids] of Object.entries(BRANCHES)) {
       if (i % 14 === 11) {
         seen[k] = { drawn: s.tr.sector, frame: s.tr.frame, mirror: s.tr.mirror, specialization: s.tr.specialization };
         if (s.tr.sector !== k) problems.push(`${id}: target sector ${k}, turret drawn at ${s.tr.sector}`);
-        if (s.tr.specialization !== id) problems.push(`${id}: sector ${k} drawn without the branch art (${s.tr.specialization})`);
+        if (id !== 't3' && s.tr.specialization !== id) problems.push(`${id}: sector ${k} drawn without the branch art (${s.tr.specialization})`);
         const top = await page.evaluate((t) => window.__p0.towerTop(t), tid);
         const clip = { x: Math.max(0, top.x - 110), y: Math.max(0, top.y - 40), width: 220, height: 220 };
         await page.screenshot({ path: `${OUT}/${type}-${id}-s${k}.png`, clip });

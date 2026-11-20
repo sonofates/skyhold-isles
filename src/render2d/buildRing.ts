@@ -251,27 +251,32 @@ class RingTooltip {
     this.role.position.set(pad, y);
     this.cost.visible = this.coin.visible = c.cost != null;
     let costWidth = 0;
-    // With a paragraph (specializations, abilities) the price rides on the title line, so the
-    // role line keeps its full width (it would shrink beside the price on a phone).
-    let costOnTitle = false;
-    if (c.cost != null && c.desc) {
-      setInkSize(this.cost, fBody);
-      setText(this.cost, String(c.cost));
-      this.title.scale.set(1);
-      const need = this.cost.width + (this.coin.texture.width * fBody) / this.coin.texture.height + 8;
-      costOnTitle = this.title.width + need <= W - pad * 2;
-    }
+    // With a paragraph (specializations, abilities) the role line keeps its full width (beside the
+    // price it would shrink to nothing on a phone): the price rides on the title line when the
+    // name still fits at 80 %, else on the role line when both fit, else on a line of its own.
+    let spot: 'title' | 'role' | 'own' = 'role';
     if (c.cost != null) {
-      const cy = costOnTitle ? titleY : y;
       setInkSize(this.cost, fBody);
       setText(this.cost, String(c.cost));
       this.coin.scale.set(fBody / this.coin.texture.height);
+      const need = this.cost.width + this.coin.width + 8;
+      const avail = W - pad * 2;
+      this.title.scale.set(1);
+      this.role.scale.set(1);
+      if (c.desc) spot = this.title.width * 0.8 + need <= avail ? 'title' : this.role.width + need <= avail ? 'role' : 'own';
+      const cy = spot === 'title' ? titleY : y;
       this.cost.position.set(W - pad - this.cost.width, cy);
       this.coin.position.set(this.cost.x - this.coin.width - 3, cy);
       costWidth = W - pad - this.coin.x + 5;
     }
-    fitWidth(this.title, W - pad * 2 - (costOnTitle ? costWidth : 0));
-    fitWidth(this.role, W - pad * 2 - (costOnTitle ? 0 : costWidth));
+    fitWidth(this.title, W - pad * 2 - (spot === 'title' ? costWidth : 0));
+    fitWidth(this.role, W - pad * 2 - (spot === 'role' ? costWidth : 0));
+    if (spot === 'own') {
+      // Its own line under the role: coin then price, left-aligned like the text.
+      y += fBody * 1.25;
+      this.coin.position.set(pad, y);
+      this.cost.position.set(pad + this.coin.width + 3, y);
+    }
     // No role line (a fresh tower's targeting / rally tip): the hint moves up into its place.
     const noRole = !c.role && c.cost == null && !c.rows;
     this.role.visible = !noRole;

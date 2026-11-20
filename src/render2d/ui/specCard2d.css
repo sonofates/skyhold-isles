@@ -45,6 +45,13 @@
 .pu-spec-art {
   width: 80%;
   height: 80%;
+  /* A grid item's automatic minimum is its content size: without these a 512 px tall portrait
+     would ignore the 80 % box and spill out under the medallion onto the price. */
+  min-width: 0;
+  min-height: 0;
+  max-width: 80%;
+  max-height: 80%;
+  object-fit: contain;
 }
 
 .pu-spec-titles {
@@ -204,6 +211,34 @@
 
   .pu-spec-name {
     font-size: calc(var(--s) * 1.6);
+  }
+
+  /* Price + Choose beside the name (one row less: the stat changes come into view). */
+  .pu-spec .pu-spec-col {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    column-gap: calc(var(--s) * 0.6);
+  }
+
+  .pu-spec .pu-spec-col > * {
+    grid-column: 1 / -1;
+  }
+
+  .pu-spec .pu-spec-col > .pu-spec-head {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .pu-spec .pu-spec-col > .pu-spec-buy {
+    grid-column: 2;
+    grid-row: 1;
+    flex-direction: column;
+    align-items: flex-end;
+    justify-content: center;
+  }
+
+  .pu-spec .pu-spec-buy .pu-cx-cost {
+    margin-right: 0;
   }
 }
 

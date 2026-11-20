@@ -8,7 +8,7 @@
  * baked in and the 3D slate look). In 2D every entry counts as met (no sighting log yet).
  */
 import type { TowerType } from '../../core/types.ts';
-import { getTowerTierStats, specializationsFor, TOWER_DEFS } from '../../data/towers.ts';
+import { ALL_TOWER_TYPES, getTowerTierStats, specializationsFor, TOWER_DEFS } from '../../data/towers.ts';
 import {
   enemyCounter,
   enemyDesc,
@@ -26,7 +26,7 @@ import {
   towerWeak,
 } from '../../i18n/data.ts';
 import { num, pct, t, type MsgKey } from '../../i18n/index.ts';
-import { allEnemyEntries, allTowerEntries, eliteEntry, speedClass, type CodexEliteEntry, type CodexEnemyEntry } from '../../ui/content/codexData.ts';
+import { allEnemyEntries, eliteEntry, speedClass, towerEntry, type CodexEliteEntry, type CodexEnemyEntry } from '../../ui/content/codexData.ts';
 import { ENEMY_DEFS } from '../../data/enemies.ts';
 import { el, glyph, img, KIT, openSheet, plank, sealBadge, type Sheet } from './dom.ts';
 import { ARMORED_MIN, foeMarks } from './foeMarks.ts';
@@ -131,7 +131,8 @@ export function openCodex2D(opts: CodexSheetOptions, tab: CodexTab2D = 'enemies'
   const sheet = openSheet(t('codex.title'), { cls: 'pu-meta pu-codex', testid: 'codex', onClose: opts.onClose });
   const seen = opts.isSeen ?? (() => true);
   const foes: FoeEntry[] = [...allEnemyEntries(), eliteEntry()];
-  const towers = allTowerEntries();
+  // Every 2D family, the 2D-only Barracks included (the shared list is the 3D build's).
+  const towers = ALL_TOWER_TYPES.map(towerEntry);
   let selected = foes[0].id as string;
 
   const tabs = el('div', 'pu-tabs pu-cx-tabs', { role: 'tablist' });
