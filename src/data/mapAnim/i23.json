@@ -1,0 +1,48 @@
+{
+  "file": "ambient/i23/loops.mp4",
+  "mask": "ambient/i23/mask.webp",
+  "compact": {
+    "file": "ambient/i23/loops-1x.mp4",
+    "mask": "ambient/i23/mask-1x.webp",
+    "width": 416,
+    "height": 136,
+    "fps": 12
+  },
+  "width": 832,
+  "height": 272,
+  "fps": 24,
+  "elements": [
+    {
+      "id": "eastern-fruit-spray",
+      "rect": [
+        1638.05,
+        353.0,
+        168.0,
+        126.0
+      ],
+      "depth": 1,
+      "cell": [
+        4,
+        4,
+        336,
+        252
+      ]
+    },
+    {
+      "id": "western-berry-bough",
+      "rect": [
+        3.325,
+        510.0,
+        201.25,
+        126.0
+      ],
+      "depth": 1,
+      "cell": [
+        348,
+        4,
+        403,
+        252
+      ]
+    }
+  ]
+}

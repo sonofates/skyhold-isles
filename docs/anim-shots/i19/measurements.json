@@ -1,0 +1,239 @@
+{
+  "island": "i19",
+  "browser": "153.0.8010.12",
+  "timing": "High idle battle, requestAnimationFrame intervals. Static with Reduced motion for 4 seconds, then normal playback for 8.3 seconds.",
+  "capture": "Unmodified battle HUD in six-frame sequences. For close-ups only, the same Pixi world was fitted fully into the viewport with only the painted map and live ambient mesh visible.",
+  "cases": [
+    {
+      "map": "map-i19-layered@1.5x",
+      "quality": "high",
+      "texelScale": 1.5,
+      "fit": {
+        "scale": 1.1631455399061033,
+        "offsetX": -74.16490610328628,
+        "offsetY": 0,
+        "bandLeft": 0,
+        "bandRight": 0,
+        "bandTop": 0,
+        "bandBottom": 0,
+        "shrink": 1,
+        "coverage": 1,
+        "clear": true
+      },
+      "renderer": {
+        "resolution": 1,
+        "canvasPx": [
+          2000,
+          991
+        ],
+        "resolutionScale": 1,
+        "desktop": true
+      },
+      "name": "desktop",
+      "width": 2000,
+      "height": 991,
+      "dpr": 1,
+      "browser": "153.0.8010.12",
+      "staticEntryAmbientRequests": 0,
+      "static": {
+        "frames": 56,
+        "elapsedMs": 4016.6,
+        "meanMs": 71.73,
+        "p50Ms": 66.7,
+        "p95Ms": 100
+      },
+      "animated": {
+        "frames": 89,
+        "elapsedMs": 8349.6,
+        "meanMs": 93.82,
+        "p50Ms": 83.4,
+        "p95Ms": 133.4,
+        "wraps": 1,
+        "decoderDroppedFrames": 0
+      },
+      "track": {
+        "file": "loops.mp4",
+        "width": 832,
+        "height": 816,
+        "duration": 8
+      },
+      "seconds": [
+        0,
+        1.5,
+        3,
+        4.5,
+        6,
+        7.958333333333333
+      ],
+      "inspectionFit": {
+        "scale": 1.0834236186348862,
+        "offsetX": 0,
+        "offsetY": 33.96153846153845
+      },
+      "files": [
+        "/art2d/ambient/i19/mask.webp",
+        "/art2d/ambient/i19/loops.mp4"
+      ],
+      "pixels": {
+        "wrapMax": 0,
+        "maxOutsideFeatherPlus2px": 0,
+        "elements": {
+          "ancient-fig-crown": {
+            "peakChannelChange": 194,
+            "pixelsChangedOver3": 42376
+          },
+          "foreground-fig-leaves": {
+            "peakChannelChange": 180,
+            "pixelsChangedOver3": 26459
+          },
+          "western-fig-bough": {
+            "peakChannelChange": 187,
+            "pixelsChangedOver3": 11708
+          }
+        }
+      },
+      "battleViewChangedPixelsInsideMasks": {
+        "ancient-fig-crown": 48839,
+        "foreground-fig-leaves": 10207,
+        "western-fig-bough": 11017
+      }
+    },
+    {
+      "map": "map-i19-layered@1x",
+      "quality": "high",
+      "texelScale": 1,
+      "fit": {
+        "scale": 0.4571742957746479,
+        "offsetX": -66.05493802816902,
+        "offsetY": 0.24374999999997726,
+        "bandLeft": 0,
+        "bandRight": 66.11118802816895,
+        "bandTop": 0.24374999999997726,
+        "bandBottom": 0.24374999999997726,
+        "shrink": 0.99875,
+        "coverage": 0.9205171219868085,
+        "clear": true
+      },
+      "renderer": {
+        "resolution": 2,
+        "canvasPx": [
+          1688,
+          780
+        ],
+        "resolutionScale": 1,
+        "desktop": false
+      },
+      "name": "phone",
+      "width": 844,
+      "height": 390,
+      "dpr": 2,
+      "browser": "153.0.8010.12",
+      "staticEntryAmbientRequests": 0,
+      "static": {
+        "frames": 47,
+        "elapsedMs": 4033.2,
+        "meanMs": 85.81,
+        "p50Ms": 83.4,
+        "p95Ms": 166.7
+      },
+      "animated": {
+        "frames": 95,
+        "elapsedMs": 8332.9,
+        "meanMs": 87.71,
+        "p50Ms": 83.4,
+        "p95Ms": 133.3,
+        "wraps": 1,
+        "decoderDroppedFrames": 0
+      },
+      "track": {
+        "file": "loops-1x.mp4",
+        "width": 416,
+        "height": 408,
+        "duration": 8
+      },
+      "seconds": [
+        0,
+        1.5,
+        3,
+        4.5,
+        6,
+        7.916666666666667
+      ],
+      "inspectionFit": {
+        "scale": 0.457204767063922,
+        "offsetX": 0,
+        "offsetY": 0.2307692307692264
+      },
+      "files": [
+        "/art2d/ambient/i19/mask-1x.webp",
+        "/art2d/ambient/i19/loops-1x.mp4"
+      ],
+      "pixels": {
+        "wrapMax": 0,
+        "maxOutsideFeatherPlus2px": 0,
+        "elements": {
+          "ancient-fig-crown": {
+            "peakChannelChange": 184,
+            "pixelsChangedOver3": 30296
+          },
+          "foreground-fig-leaves": {
+            "peakChannelChange": 177,
+            "pixelsChangedOver3": 19235
+          },
+          "western-fig-bough": {
+            "peakChannelChange": 195,
+            "pixelsChangedOver3": 8467
+          }
+        }
+      },
+      "battleViewChangedPixelsInsideMasks": {
+        "ancient-fig-crown": 4795,
+        "foreground-fig-leaves": 1387,
+        "western-fig-bough": 1018
+      }
+    },
+    {
+      "map": "map-i19-layered@1x",
+      "quality": "low",
+      "texelScale": 1,
+      "fit": {
+        "scale": 0.4566021126760564,
+        "offsetX": -65.77068591549298,
+        "offsetY": 0.48749999999998295,
+        "bandLeft": 0,
+        "bandRight": 66.63318591549296,
+        "bandTop": 0.48749999999998295,
+        "bandBottom": 0.4874999999999545,
+        "shrink": 0.9975,
+        "coverage": 0.9187247668732397,
+        "clear": true
+      },
+      "renderer": {
+        "resolution": 0.8,
+        "canvasPx": [
+          675,
+          312
+        ],
+        "resolutionScale": 1,
+        "desktop": false
+      },
+      "name": "low",
+      "width": 844,
+      "height": 390,
+      "dpr": 2,
+      "browser": "153.0.8010.12",
+      "staticEntryAmbientRequests": 0
+    }
+  ],
+  "mediumPhone": {
+    "quality": "med",
+    "map": "map-i19-layered@1x",
+    "track": "loops-1x.mp4",
+    "mediaTime": 0.381701,
+    "reducedMotionReleasedVideo": true,
+    "files": [
+      "/art2d/ambient/i19/mask-1x.webp",
+      "/art2d/ambient/i19/loops-1x.mp4"
+    ]
+  }
+}

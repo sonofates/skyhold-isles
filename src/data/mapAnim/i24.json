@@ -1,0 +1,48 @@
+{
+  "file": "ambient/i24/loops.mp4",
+  "mask": "ambient/i24/mask.webp",
+  "compact": {
+    "file": "ambient/i24/loops-1x.mp4",
+    "mask": "ambient/i24/mask-1x.webp",
+    "width": 416,
+    "height": 136,
+    "fps": 12
+  },
+  "width": 832,
+  "height": 272,
+  "fps": 24,
+  "elements": [
+    {
+      "id": "east-cove-breaker",
+      "rect": [
+        1719.8875,
+        220.3,
+        122.075,
+        144.6375
+      ],
+      "depth": 0,
+      "cell": [
+        4,
+        4,
+        220,
+        261
+      ]
+    },
+    {
+      "id": "west-cleft-surge",
+      "rect": [
+        2.975,
+        111.975,
+        117.25,
+        105.7
+      ],
+      "depth": 0,
+      "cell": [
+        232,
+        4,
+        212,
+        191
+      ]
+    }
+  ]
+}

@@ -1,0 +1,32 @@
+{
+  "file": "ambient/i21/loops.mp4",
+  "mask": "ambient/i21/mask.webp",
+  "compact": {
+    "file": "ambient/i21/loops-1x.mp4",
+    "mask": "ambient/i21/mask-1x.webp",
+    "width": 416,
+    "height": 80,
+    "fps": 12
+  },
+  "width": 832,
+  "height": 160,
+  "fps": 24,
+  "elements": [
+    {
+      "id": "north-rim-pines",
+      "rect": [
+        9.9375,
+        1.875,
+        195.1875,
+        70.3125
+      ],
+      "depth": 1,
+      "cell": [
+        4,
+        4,
+        391,
+        141
+      ]
+    }
+  ]
+}

@@ -1,0 +1,219 @@
+{
+  "island": "i17",
+  "browser": "153.0.8010.12",
+  "timing": "High idle battle, requestAnimationFrame intervals. Static with Reduced motion for 4 seconds, then normal playback for 8.3 seconds.",
+  "capture": "Unmodified battle HUD in six-frame sequences. For close-ups only, the same Pixi world was fitted fully into the viewport with only the painted map and live ambient mesh visible.",
+  "cases": [
+    {
+      "map": "map-i17-layered@1.5x",
+      "quality": "high",
+      "texelScale": 1.5,
+      "fit": {
+        "scale": 1.1631455399061033,
+        "offsetX": -74.16490610328628,
+        "offsetY": 0,
+        "bandLeft": 0,
+        "bandRight": 0,
+        "bandTop": 0,
+        "bandBottom": 0,
+        "shrink": 1,
+        "coverage": 1,
+        "clear": true
+      },
+      "renderer": {
+        "resolution": 1,
+        "canvasPx": [
+          2000,
+          991
+        ],
+        "resolutionScale": 1,
+        "desktop": true
+      },
+      "name": "desktop",
+      "width": 2000,
+      "height": 991,
+      "dpr": 1,
+      "browser": "153.0.8010.12",
+      "staticEntryAmbientRequests": 0,
+      "static": {
+        "frames": 47,
+        "elapsedMs": 4066.4,
+        "meanMs": 86.52,
+        "p50Ms": 83.4,
+        "p95Ms": 166.6
+      },
+      "animated": {
+        "frames": 95,
+        "elapsedMs": 8316.4,
+        "meanMs": 87.54,
+        "p50Ms": 83.3,
+        "p95Ms": 116.7,
+        "wraps": 1,
+        "decoderDroppedFrames": 0
+      },
+      "track": {
+        "file": "loops.mp4",
+        "width": 832,
+        "height": 160,
+        "duration": 8
+      },
+      "seconds": [
+        0,
+        1.5,
+        3,
+        4.5,
+        6,
+        7.958333333333333
+      ],
+      "inspectionFit": {
+        "scale": 1.0834236186348862,
+        "offsetX": 0,
+        "offsetY": 33.96153846153845
+      },
+      "files": [
+        "/art2d/ambient/i17/mask.webp",
+        "/art2d/ambient/i17/loops.mp4"
+      ],
+      "pixels": {
+        "wrapMax": 0,
+        "maxOutsideFeatherPlus2px": 0,
+        "elements": {
+          "east-cliff-vapour": {
+            "peakChannelChange": 32,
+            "pixelsChangedOver3": 1891
+          }
+        }
+      },
+      "battleViewChangedPixelsInsideMasks": {
+        "east-cliff-vapour": 1065
+      }
+    },
+    {
+      "map": "map-i17-layered@1x",
+      "quality": "high",
+      "texelScale": 1,
+      "fit": {
+        "scale": 0.4571742957746479,
+        "offsetX": -53.551306393045735,
+        "offsetY": 10.676197549882604,
+        "bandLeft": 0,
+        "bandRight": 53.607556393045684,
+        "bandTop": 10.676197549882604,
+        "bandBottom": 0,
+        "shrink": 0.99875,
+        "coverage": 0.9108478160676566,
+        "clear": true
+      },
+      "renderer": {
+        "resolution": 2,
+        "canvasPx": [
+          1688,
+          780
+        ],
+        "resolutionScale": 1,
+        "desktop": false
+      },
+      "name": "phone",
+      "width": 844,
+      "height": 390,
+      "dpr": 2,
+      "browser": "153.0.8010.12",
+      "staticEntryAmbientRequests": 0,
+      "static": {
+        "frames": 46,
+        "elapsedMs": 4016.5,
+        "meanMs": 87.32,
+        "p50Ms": 66.7,
+        "p95Ms": 199.9
+      },
+      "animated": {
+        "frames": 94,
+        "elapsedMs": 8382.9,
+        "meanMs": 89.18,
+        "p50Ms": 83.3,
+        "p95Ms": 149.9,
+        "wraps": 1,
+        "decoderDroppedFrames": 0
+      },
+      "track": {
+        "file": "loops-1x.mp4",
+        "width": 416,
+        "height": 80,
+        "duration": 8
+      },
+      "seconds": [
+        0,
+        1.5,
+        3,
+        4.5,
+        6,
+        7.916666666666667
+      ],
+      "inspectionFit": {
+        "scale": 0.457204767063922,
+        "offsetX": 0,
+        "offsetY": 0.2307692307692264
+      },
+      "files": [
+        "/art2d/ambient/i17/mask-1x.webp",
+        "/art2d/ambient/i17/loops-1x.mp4"
+      ],
+      "pixels": {
+        "wrapMax": 0,
+        "maxOutsideFeatherPlus2px": 0,
+        "elements": {
+          "east-cliff-vapour": {
+            "peakChannelChange": 32,
+            "pixelsChangedOver3": 1438
+          }
+        }
+      },
+      "battleViewChangedPixelsInsideMasks": {
+        "east-cliff-vapour": 344
+      }
+    },
+    {
+      "map": "map-i17-layered@1x",
+      "quality": "low",
+      "texelScale": 1,
+      "fit": {
+        "scale": 0.4566021126760564,
+        "offsetX": -53.2659050396127,
+        "offsetY": 8.863688380281667,
+        "bandLeft": 0,
+        "bandRight": 54.12840503961263,
+        "bandTop": 8.863688380281667,
+        "bandBottom": 0,
+        "shrink": 0.9975,
+        "coverage": 0.9145784228785754,
+        "clear": true
+      },
+      "renderer": {
+        "resolution": 0.8,
+        "canvasPx": [
+          675,
+          312
+        ],
+        "resolutionScale": 1,
+        "desktop": false
+      },
+      "name": "low",
+      "width": 844,
+      "height": 390,
+      "dpr": 2,
+      "browser": "153.0.8010.12",
+      "staticEntryAmbientRequests": 0
+    }
+  ],
+  "mediumPhone": {
+    "quality": "med",
+    "map": "map-i17-layered@1x",
+    "track": "loops-1x.mp4",
+    "mediaTime": 1.194651,
+    "reducedMotionReleasedVideo": true,
+    "files": [
+      "/art2d/ambient/i17/mask-1x.webp",
+      "/art2d/ambient/i17/loops-1x.mp4"
+    ]
+  }
+}
