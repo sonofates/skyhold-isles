@@ -17,7 +17,7 @@ import { isTouchDevice, loadSettings, saveSettings } from '../../platform/storag
 import { isDesktopClient } from '../renderResolution.ts';
 import { ABILITY_KEYS } from './abilities2d.ts';
 import { HERO_KEYS } from './heroKeys.ts';
-import { announceGraphicsChange, loadGraphics, reapplyGraphicsSettings, saveGraphics, type EffectsDensity, type FpsCap, type GraphicsSettings, clampUiScale, UI_SCALE_MAX, UI_SCALE_MIN } from './graphicsSettings.ts';
+import { announceGraphicsChange, clampUiScale, loadGraphics, reapplyGraphicsSettings, saveGraphics, UI_SCALE_MAX, UI_SCALE_MIN, type EffectsDensity, type FpsCap, type GraphicsSettings } from './graphicsSettings.ts';
 import { branchName, challengeDesc, challengeName, difficultyName, featDesc, featName, islandName, upgradeName, upgradeRankText } from '../../i18n/data.ts';
 import { getLocale, LANGUAGE_NAMES, LOCALES, pct, setLocale, shortDate, t, type Locale, type MsgKey } from '../../i18n/index.ts';
 import { reapplyLocaleSetting, saveLocaleSetting } from '../../i18n/localeSetting.ts';

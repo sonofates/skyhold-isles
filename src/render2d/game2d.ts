@@ -34,13 +34,16 @@ import { MapView } from './mapView.ts';
 import { PlotLayer, type PlotState } from './plotLayer.ts';
 import { createProcTextures, type ProcTextures } from './procTextures.ts';
 import { ProjectileLayer } from './projectileLayer.ts';
-import { audioSettings2d,
+import {
+  audioSettings2d,
   createShakeState2D,
   resetShakeState2D,
+  shouldShake2D,
   shouldVibrate2D,
   stepShake2D,
   triggerShake2D,
-  type AudioSettings2D, shouldShake2D } from './settings2d.ts';
+  type AudioSettings2D,
+} from './settings2d.ts';
 import { bindSpecialFx, createSpecialFxStats } from './specialFx.ts';
 import { SoldierLayer, withBarracksArt } from './soldierLayer.ts';
 import { MeleeDirector } from './meleeDirector.ts';
@@ -48,7 +51,7 @@ import { meleeLookFor } from './meleeLook.ts';
 import { TowerLayer } from './towerLayer.ts';
 import { anySheetOpen } from './ui/dom.ts';
 import { readSafeInsets } from './uiKit.ts';
-import { NO_INSETS, type Insets, WAVE_EASE_SEC, waveEaseZoom } from './uiLayout.ts';
+import { NO_INSETS, WAVE_EASE_SEC, waveEaseZoom, type Insets } from './uiLayout.ts';
 import { dockPieces, hudDock, type HudDock } from './hudDock.ts';
 import { hornNearCave, rectsTouch, roadMouths } from './hornSpot.ts';
 import { distSegRect, type Seg } from './playfield.ts';
