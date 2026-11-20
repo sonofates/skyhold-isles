@@ -178,6 +178,55 @@ describe('plot tower specializations', () => {
     world.dispose();
   });
 
+  it.each(['first', 'second'] as const)('awards overlapping ember ticks to Banked Fire when its shell lands %s', order => {
+    const entrance = { id: 'A', x: 0, z: 0 };
+    const goal = { x: 15, z: 0 };
+    const lane = [entrance, goal];
+    const encounter: LevelDef = {
+      ...level,
+      id: 'kiln-overlap',
+      enemyHpScale: 0.93, // The armored golem survives both opening shells with 24 HP.
+      layout2d: {
+        ...level.layout2d!, entrances: [entrance], goal, paths: [lane], flightPath: lane,
+        plots: [{ x: 1, z: 5 }, { x: 1, z: -5 }],
+      },
+      waves: [{ groups: [{ enemyType: 'golem', count: 1, spawnInterval: 1, startDelay: 0 }], clearBonus: 15 }],
+    };
+    const world = new SimWorld(encounter, new EventBus(), { recordCommands: true });
+    const mortars = [0, 1].map(plot => {
+      const mortar = world.placeTowerOnPlot(plot, 'mortar')!;
+      expect(world.upgradeTower(mortar.id)).toBe(true);
+      expect(world.upgradeTower(mortar.id)).toBe(true);
+      return mortar;
+    });
+    const kiln = mortars[order === 'first' ? 0 : 1];
+    const standard = mortars[order === 'first' ? 1 : 0];
+    expect(world.specializeTower(kiln.id, 'cinderkiln')).toBe(true);
+    expect(world.buyTowerAbility(kiln.id, 'bankedfire')).toBe(true);
+
+    const radii: number[] = [];
+    const hits: number[] = [];
+    world.events.on('groundZone', ({ radius }) => radii.push(radius));
+    world.events.on('enemyHit', ({ damage }) => hits.push(damage));
+    const gold = world.gold;
+    expect(world.startNextWave()).toBe(true);
+    while (world.outcome === 'ongoing' && world.tick < 600) world.fixedTick(BALANCE.fixedDt);
+    expect(radii).toEqual(order === 'first' ? [2.8, 2] : [2, 2.8]);
+    expect(hits).toEqual([146, 146, 16, 8]);
+    expect(standard).toMatchObject({ totalDamageDealt: 146, kills: 0, shotCount: 1 });
+    expect(kiln).toMatchObject({ totalDamageDealt: 170, kills: 1, shotCount: 1 });
+    expect(world).toMatchObject({ outcome: 'won', enemiesKilledTotal: 1, gold: gold + 10 + 15 });
+
+    const log = parseSimReplay(serializeSimReplay(world.exportReplay()))!;
+    const playback = new SimReplayPlayer(encounter, log);
+    const replayHits: number[] = [];
+    playback.events.on('enemyHit', ({ damage }) => replayHits.push(damage));
+    expect(playback.runToEnd()).toMatchObject({ matchesHash: true, matchesOutcome: true });
+    expect(replayHits).toEqual(hits);
+    playback.dispose();
+    world.dispose();
+  });
+
   it('chains through seven foes in Relay Grove and an eighth on the sixth discharge', () => {
     const { world, tower } = setup('tesla');
     expect(world.specializeTower(tower.id, 'relay')).toBe(true);

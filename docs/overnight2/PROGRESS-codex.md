@@ -336,3 +336,19 @@ TypeScript, lint and the production build passed. Vite emitted its existing chun
 ### Next round
 
 Audit Cinder Kiln’s Banked Fire beside a tier-III mortar. The shared burn tick visits patches in pool-slot order and suppresses further hits on each enemy for that tick. Compare damage and tower credit when the stronger and weaker patches land in opposite orders. No new art, UI or localization requests this round.
+
+## Round 14 — Cinder Kiln and overlapping mortar burns
+
+### Done
+
+- Reproduced a landing-order bug with Banked Fire and a tier-III mortar firing at the same Basalt Golem. Both shells dealt 146 damage, leaving 24 HP. When the kiln's patch landed first, its embers finished the golem in two ticks of 16 and 8. When the tier-III patch landed first, it took credit for three ticks of 5, and the golem survived until the kiln hit it again.
+- Each ground enemy now takes one burn tick from the strongest patch covering its position. That patch's tower receives the actual damage and kill credit. Equal-strength patches keep their existing pool-slot priority. The priority applies only when damage ticks, preserving the slot order used for rendering, expiry and reuse.
+- Both landing orders now finish with the same four hits. The kiln earns 170 damage and one kill, the tier-III mortar earns 146 damage, and the player earns one 10-gold bounty and the 15-gold clear bonus. Both serialized replays reproduce the hit sequence, final hash and win. A separate two-mortar test checks tie credit on a lethal overlap and damage to a second foe standing in only one patch.
+
+### Verification
+
+All eight difficulty verdicts passed. Easy and Normal cleared all 25 islands. Hard cleared 12/17 in chapter one and 3/8 in chapter two, including i09 at 12/22 and i24 at 5/22. The 24,217-byte standalone L1–L16 balance report matched the round-one baseline byte for byte. The full 41-level balance report and the difficulty report also matched round 13 byte for byte. TypeScript, lint and the production build passed. Vitest passed 1,384 tests with 11 skipped using one worker. Vite reported its existing chunk-size and dynamic-import warnings.
+
+### Next round
+
+Audit Swallow Roost's Gathering Flock in sparse and crowded waves. Check how the four extra arrows divide among eligible foes, where spare arrows go when targets run out, and whether the volley keeps Tobb's Tinker range bonus and the beacon's range bonus at the edge of coverage. No cross-agent changes requested.

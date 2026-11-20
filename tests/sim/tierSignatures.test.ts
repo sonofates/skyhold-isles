@@ -254,17 +254,21 @@ describe('mortar T3 incendiary', () => {
     expect(hpAfterBlast - brute.hp).toBeGreaterThanOrEqual(stats.burnDamage! * (totalTicks - 1));
   });
 
-  it('overlapping patches never double-hit an enemy within one tick', () => {
+  it('credits equal burns once per enemy, in patch-slot order where they overlap', () => {
     const { world } = makeWorld();
-    const tower = maxed(world, 4, 2, 'mortar');
-    const stats = getTowerTierStats('mortar', 3);
-    const g = put(world, 'grunt', tower.x + 6, tower.z);
-    lobShell(world, tower, g.x, g.z);
-    lobShell(world, tower, g.x + 0.3, g.z);
+    const first = maxed(world, 4, 2, 'mortar');
+    const second = maxed(world, 4, 3, 'mortar');
+    const { burnRadius, burnDamage } = getTowerTierStats('mortar', 3);
+    const x = first.x + 6;
+    lobShell(world, first, x, first.z);
+    lobShell(world, second, x + burnRadius!, first.z);
     expect(world.projectileSystem.getActiveBurnZoneCount()).toBe(2);
-    const before = g.hp;
-    const steps = Math.round(BURN_TICK_INTERVAL / BALANCE.fixedDt) + 1;
-    for (let i = 0; i < steps; i++) world.projectileSystem.update(BALANCE.fixedDt, world.towers);
-    expect(before - g.hp).toBe(stats.burnDamage);
+    const overlap = put(world, 'grunt', x + burnRadius! / 2, first.z, 1);
+    const onlySecond = put(world, 'grunt', x + 1.5 * burnRadius!, first.z);
+    world.projectileSystem.update(BURN_TICK_INTERVAL, world.towers);
+    expect(overlap.hp).toBe(0);
+    expect(onlySecond.maxHp - onlySecond.hp).toBe(burnDamage);
+    expect(first).toMatchObject({ totalDamageDealt: 1, kills: 1 });
+    expect(second).toMatchObject({ totalDamageDealt: burnDamage, kills: 0 });
   });
 });
