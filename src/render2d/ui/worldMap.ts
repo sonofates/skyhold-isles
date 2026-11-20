@@ -117,6 +117,37 @@ function fitTitleBanner(banner: HTMLElement, text: HTMLElement, screenW: number)
   if (fit.scale < 1) text.style.fontSize = `${(fs * fit.scale).toFixed(1)}px`;
 }
 
+const FOG_ART = '/art2d/ui/island-fog.webp';
+
+/** localStorage: the furthest island the map has already shown as open (for the unveil). */
+const UNVEIL_KEY = 'skyhold2d_map_unlock_seen_v1';
+
+/**
+ * The island to unveil on this map visit: the one just reached since the map last showed the
+ * route (-1 when nothing new, on a first visit with no record, or after a reset).
+ */
+export function unveilIndex(seen: number | null, unlocked: number, count: number): number {
+  if (seen === null || !Number.isFinite(seen)) return -1;
+  return unlocked > seen && unlocked < count ? unlocked : -1;
+}
+
+function readUnveilSeen(): number | null {
+  try {
+    const v = localStorage.getItem(UNVEIL_KEY);
+    return v === null ? null : Number(v);
+  } catch {
+    return null;
+  }
+}
+
+function writeUnveilSeen(n: number): void {
+  try {
+    localStorage.setItem(UNVEIL_KEY, String(n));
+  } catch {
+    /* private mode: no unveil next time, nothing else */
+  }
+}
+
 export async function mountWorldMap(q: URLSearchParams): Promise<void> {
   const mock = Math.max(0, Math.min(24, Number(q.get('mockislands') ?? 0) || 0));
   const levels: readonly LevelDef[] = mock > 0 ? [...LEVELS_2D, ...mockLevels(mock)] : LEVELS_2D;
@@ -127,6 +158,9 @@ export async function mountWorldMap(q: URLSearchParams): Promise<void> {
     return token ? `/art2d/${token}` : islandMapUrl(manifest, level);
   };
   let progress: ProgressData = loadProgress2D(levels);
+  // A newly reached island lifts its fog once (the first build only; later refreshes don't replay it).
+  let unveilAt = unveilIndex(readUnveilSeen(), progress.unlockedLevelIndex, levels.length);
+  writeUnveilSeen(progress.unlockedLevelIndex);
 
   const root = el('div', 'pu pu-map', { 'data-testid': 'worldmap2d' });
   const scroll = el('div', 'pu-map-scroll');
@@ -235,7 +269,7 @@ export async function mountWorldMap(q: URLSearchParams): Promise<void> {
       // Keyboard / pad focus starts on the island to play next.
       if (st.frontier && st.unlocked) b.dataset.navDefault = '';
       sea.decorateNode(b, i, st.frontier && st.unlocked && !isPaid);
-      b.append(el('span', 'pu-node-shore'), medal(st.unlocked ? thumb(st.level) : '/art2d/ui/island-fog.webp', '100%', st.frontier && st.unlocked));
+      b.append(el('span', 'pu-node-shore'), medal(st.unlocked ? thumb(st.level) : FOG_ART, '100%', st.frontier && st.unlocked));
       if (st.unlocked && !isPaid) b.append(starsRow(st.stars, 'pu-stars pu-node-stars'));
       if (st.mastered) {
         const c = el('span', 'pu-node-crown');
@@ -257,10 +291,37 @@ export async function mountWorldMap(q: URLSearchParams): Promise<void> {
         b.append(lock);
       }
       if (st.frontier && st.unlocked && !isPaid) b.append(sea.ship());
+      if (i === unveilAt && st.unlocked && !isPaid) unveil(b, i);
       b.addEventListener('click', () => openBrief(i));
       world.append(b);
       nodes.push(b);
     });
+  };
+
+  /** The fog and padlock of the locked look lift off the medal, then a gold ring bursts (not with reduced motion). */
+  const unveil = (b: HTMLElement, i: number): void => {
+    unveilAt = -1;
+    if (document.documentElement.classList.contains('pu-reduce-motion')) return;
+    b.classList.add('unveil');
+    b.style.setProperty('--ud', `${(0.55 + i * 0.06).toFixed(2)}s`);
+    const fog = el('span', 'pu-medal-thumb pu-unveil-fog', { 'aria-hidden': 'true' });
+    fog.style.backgroundImage = `url("${FOG_ART}")`;
+    fog.style.backgroundSize = 'contain';
+    fog.style.backgroundPosition = '55% 50%';
+    b.querySelector('.pu-medal')?.append(fog);
+    const lock = el('span', 'pu-node-lock pu-unveil-lock', { 'aria-hidden': 'true' });
+    lock.append(glyph('lock'));
+    const burst = el('span', 'pu-unveil-burst', { 'aria-hidden': 'true' });
+    b.append(lock, burst);
+    // The burst is the last step: then the overlays leave (they end invisible anyway).
+    burst.addEventListener(
+      'animationend',
+      () => {
+        b.classList.remove('unveil');
+        for (const e of [fog, lock, burst]) e.remove();
+      },
+      { once: true },
+    );
   };
 
   const refreshTopbar = (): void => {

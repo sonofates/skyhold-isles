@@ -14,6 +14,7 @@ import { uiUnit } from '../../src/render2d/hudDock.ts';
 import { ENEMY_DEFS } from '../../src/data/enemies.ts';
 import { primaryEndAction } from '../../src/render2d/endPanel.ts';
 import { LOAD_TIPS, pickLoadTip } from '../../src/render2d/ui/transition2d.ts';
+import { unveilIndex } from '../../src/render2d/ui/worldMap.ts';
 
 describe('skill tree fit (heroScreens.ts)', () => {
   it('tries the vertical tree first, largest zoom first, then the across tree largest first', () => {
@@ -268,5 +269,16 @@ describe('battle loading tips', () => {
       for (const k of LOAD_TIPS) expect(t(k)).toMatch(/^[A-ZÇĞİÖŞÜ].{20,}\.$/u);
     }
     setLocale('en');
+  });
+});
+
+describe('world map unveil', () => {
+  it('unveils only an island reached since the last map visit', () => {
+    expect(unveilIndex(3, 4, 25)).toBe(4);
+    expect(unveilIndex(4, 4, 25)).toBe(-1); // nothing new
+    expect(unveilIndex(null, 4, 25)).toBe(-1); // first visit: no record, no show
+    expect(unveilIndex(9, 0, 25)).toBe(-1); // new game
+    expect(unveilIndex(23, 25, 25)).toBe(-1); // past the last island (all cleared)
+    expect(unveilIndex(Number.NaN, 4, 25)).toBe(-1);
   });
 });
