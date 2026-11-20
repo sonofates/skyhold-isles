@@ -70,6 +70,13 @@
   first visit (so every QA script with a fresh profile sees the plain map), nothing with reduced
   motion. Overlays clean up on the burst's `animationend`. `qa/unveilshot.mjs` freezes the
   animations at set times (strip: opus-shots/map-stars-unveil-strip.png). Unit tests.
+- Pad mode badges: while the controller is the last input (`html.pu-pad`, `setPadMode` in
+  navFocus), the tray's key badges read Y / LT / RT / LB / RB (`ui/padBadges.ts`, `data-pad`) as
+  dark pills (Y yellow); a real key or pointer press restores the letters. Shot
+  opus-shots/hud-badges-keys-vs-pad.png (`qa/padbadgeshot.mjs`). navprobe checks both ways.
+- navFocus: the marked default (`data-nav-default`, the map's next island) counts while it is still
+  popping in — a key pressed during the islands' entrance landed on the Heroes button.
+- i18n: clearer pad hero-move hint.
 - Full uiaudit re-run on a frozen build (`/tmp/n2opus-audit-dist`, port 4418) started 04:30 — see
   below for the result.
 
