@@ -1,0 +1,5 @@
+Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork, palette and daylight unchanged. Only the white area of the supplied mask may animate. Hold every black pixel still and ease the motion to zero at the feathered edge.
+
+Let fine blue-green ripples emerge from beneath the lifting span, slide down-screen between the fixed piles, then bend toward the lower right as the channel opens. A few narrow highlights stretch around the bend and fade. Keep the timber, painted pile reflections at their feet, sandy banks and keep perfectly still.
+
+Match the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.

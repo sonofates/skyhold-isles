@@ -1,0 +1,35 @@
+{
+  "element": "bank-sea-thrift",
+  "source": "public/art2d/map-i02-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 1191,
+    "y": 559,
+    "width": 112,
+    "height": 63
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    3573,
+    1677,
+    3909,
+    1866
+  ],
+  "startPxPerLayoutPx": 11.428571428571429,
+  "startPxPerSourcePx": 3.8095238095238098,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    274,
+    167,
+    990,
+    524
+  ],
+  "featherInwardStartPx": 12
+}

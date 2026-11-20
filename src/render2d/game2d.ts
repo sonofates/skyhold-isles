@@ -930,6 +930,10 @@ export class Game2D {
     this.rangeDisc.visible = false;
   }
 
+  get qualityTier(): QualityTier {
+    return this.quality.tier;
+  }
+
   /** One rendered frame. */
   frame(dtSec: number): void {
     if (this.quality.observe(this.app.ticker.elapsedMS, !document.hidden)) {

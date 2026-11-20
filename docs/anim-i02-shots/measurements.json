@@ -1,0 +1,202 @@
+{
+  "browser": "153.0.8010.12",
+  "cases": [
+    {
+      "name": "desktop",
+      "width": 2000,
+      "height": 991,
+      "dpr": 1,
+      "quality": "high",
+      "map": 1.5,
+      "fit": {
+        "scale": 1.1631455399061033,
+        "offsetX": -74.16490610328628,
+        "offsetY": 0,
+        "bandLeft": 0,
+        "bandRight": 0,
+        "bandTop": 0,
+        "bandBottom": 0,
+        "shrink": 1,
+        "coverage": 1,
+        "clear": true
+      },
+      "render": {
+        "resolution": 1,
+        "canvasPx": [
+          2000,
+          991
+        ],
+        "resolutionScale": 1,
+        "desktop": true
+      },
+      "initialAmbientRequests": 0,
+      "staticBefore": {
+        "wraps": 0,
+        "frames": 130,
+        "meanMs": 38.72,
+        "p50Ms": 33.4,
+        "p95Ms": 66.6
+      },
+      "animated": {
+        "wraps": 3,
+        "frames": 474,
+        "meanMs": 48.42,
+        "p50Ms": 50,
+        "p95Ms": 66.6
+      },
+      "gamePause": "held and resumed",
+      "staticAfter": {
+        "wraps": 0,
+        "frames": 136,
+        "meanMs": 37.01,
+        "p50Ms": 33.3,
+        "p95Ms": 50.1
+      },
+      "files": [
+        "mask.webp",
+        "loops.mp4"
+      ]
+    },
+    {
+      "name": "phone",
+      "width": 844,
+      "height": 390,
+      "dpr": 2,
+      "quality": "high",
+      "map": 1,
+      "fit": {
+        "scale": 0.4571742957746479,
+        "offsetX": -0.20046214788732186,
+        "offsetY": 4.243749999999977,
+        "bandLeft": 0,
+        "bandRight": 0.25671214788735597,
+        "bandTop": 4.243749999999977,
+        "bandBottom": 0,
+        "shrink": 0.99875,
+        "coverage": 0.9888177381349542,
+        "clear": true
+      },
+      "render": {
+        "resolution": 2,
+        "canvasPx": [
+          1688,
+          780
+        ],
+        "resolutionScale": 1,
+        "desktop": false
+      },
+      "initialAmbientRequests": 0,
+      "staticBefore": {
+        "wraps": 0,
+        "frames": 103,
+        "meanMs": 49.03,
+        "p50Ms": 50,
+        "p95Ms": 83.4
+      },
+      "animated": {
+        "wraps": 3,
+        "frames": 443,
+        "meanMs": 52.29,
+        "p50Ms": 50,
+        "p95Ms": 100
+      },
+      "gamePause": "held and resumed",
+      "staticAfter": {
+        "wraps": 0,
+        "frames": 104,
+        "meanMs": 48.23,
+        "p50Ms": 50,
+        "p95Ms": 66.7
+      },
+      "files": [
+        "mask-1x.webp",
+        "loops-1x.mp4"
+      ]
+    },
+    {
+      "name": "swap",
+      "width": 2000,
+      "height": 991,
+      "dpr": 2,
+      "quality": "high",
+      "map": 2,
+      "fit": {
+        "scale": 1.1631455399061033,
+        "offsetX": -74.16490610328628,
+        "offsetY": 0,
+        "bandLeft": 0,
+        "bandRight": 0,
+        "bandTop": 0,
+        "bandBottom": 0,
+        "shrink": 1,
+        "coverage": 1,
+        "clear": true
+      },
+      "render": {
+        "resolution": 2,
+        "canvasPx": [
+          4000,
+          1982
+        ],
+        "resolutionScale": 1,
+        "desktop": true
+      },
+      "initialAmbientRequests": 0,
+      "after": {
+        "quality": "high",
+        "map": 3,
+        "fit": {
+          "scale": 1.1631455399061033,
+          "offsetX": -74.16490610328628,
+          "offsetY": 0,
+          "bandLeft": 0,
+          "bandRight": 0,
+          "bandTop": 0,
+          "bandBottom": 0,
+          "shrink": 1,
+          "coverage": 1,
+          "clear": true
+        },
+        "render": {
+          "resolution": 2,
+          "canvasPx": [
+            4000,
+            1982
+          ],
+          "resolutionScale": 1,
+          "desktop": true
+        }
+      }
+    },
+    {
+      "name": "low",
+      "width": 844,
+      "height": 390,
+      "dpr": 1,
+      "quality": "low",
+      "map": 1,
+      "fit": {
+        "scale": 0.4571742957746479,
+        "offsetX": -0.19375000000002274,
+        "offsetY": 4.243749999999977,
+        "bandLeft": 0,
+        "bandRight": 0,
+        "bandTop": 4.243749999999977,
+        "bandBottom": 0,
+        "shrink": 0.99875,
+        "coverage": 0.9891185897435898,
+        "clear": true
+      },
+      "render": {
+        "resolution": 0.8,
+        "canvasPx": [
+          675,
+          312
+        ],
+        "resolutionScale": 1,
+        "desktop": false
+      },
+      "initialAmbientRequests": 0
+    }
+  ]
+}

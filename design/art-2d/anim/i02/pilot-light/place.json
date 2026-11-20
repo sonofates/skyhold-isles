@@ -1,0 +1,35 @@
+{
+  "element": "pilot-light",
+  "source": "public/art2d/map-i02-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 979,
+    "y": 239,
+    "width": 48,
+    "height": 27
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    2937,
+    717,
+    3081,
+    798
+  ],
+  "startPxPerLayoutPx": 26.666666666666668,
+  "startPxPerSourcePx": 8.88888888888889,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    602,
+    292,
+    706,
+    493
+  ],
+  "featherInwardStartPx": 8
+}

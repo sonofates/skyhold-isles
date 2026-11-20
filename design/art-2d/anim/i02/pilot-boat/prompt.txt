@@ -1,0 +1,5 @@
+Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork, palette and daylight unchanged. Only the white area of the supplied mask may animate. Hold every black pixel still and ease the motion to zero at the feathered edge.
+
+The little blue open boat rides one slow lift and a second smaller lift. Let it rock by less than one painted hull-stripe width about the jetty-side tie. Both oars, the coil of rope and the benches ride with the hull. The short tether flexes at the gunwale and stays tied at the post. A narrow crescent of wake brightens, widens by a brushstroke, then disappears against the hull. Keep the grey jetty and piling still.
+
+Match the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.

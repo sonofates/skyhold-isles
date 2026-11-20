@@ -1,0 +1,61 @@
+[
+  {
+    "reduced": false,
+    "ambientFiles": [
+      "mask-1x.webp",
+      "loops-1x.mp4"
+    ],
+    "viewport": [
+      844,
+      390
+    ],
+    "canvas": [
+      1266,
+      585
+    ],
+    "tier": "med",
+    "updateMs": [
+      30.3,
+      81.7
+    ],
+    "renderCpuMs": [
+      0.7,
+      3.4
+    ],
+    "fps": 23.4,
+    "p50": 33.4,
+    "p95": 83.4,
+    "samples": 117,
+    "enemies": 40,
+    "drawCalls": 5,
+    "renderer": "webgl"
+  },
+  {
+    "reduced": true,
+    "ambientFiles": [],
+    "viewport": [
+      844,
+      390
+    ],
+    "canvas": [
+      1266,
+      585
+    ],
+    "tier": "med",
+    "updateMs": [
+      0.5,
+      0.8
+    ],
+    "renderCpuMs": [
+      0.6,
+      1.6
+    ],
+    "fps": 27.2,
+    "p50": 33.3,
+    "p95": 66.6,
+    "samples": 136,
+    "enemies": 40,
+    "drawCalls": 4,
+    "renderer": "webgl"
+  }
+]

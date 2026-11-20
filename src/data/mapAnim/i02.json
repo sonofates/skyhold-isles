@@ -1,0 +1,128 @@
+{
+  "file": "ambient/i02/loops.mp4",
+  "mask": "ambient/i02/mask.webp",
+  "compact": {
+    "file": "ambient/i02/loops-1x.mp4",
+    "mask": "ambient/i02/mask-1x.webp",
+    "width": 416,
+    "height": 248,
+    "fps": 12
+  },
+  "width": 832,
+  "height": 496,
+  "fps": 24,
+  "elements": [
+    {
+      "id": "estuary-wash",
+      "rect": [
+        1280.0,
+        725.6,
+        192.2,
+        92.6
+      ],
+      "depth": 0,
+      "cell": [
+        4,
+        304,
+        385,
+        186
+      ]
+    },
+    {
+      "id": "lifting-span-outflow",
+      "rect": [
+        942.8125,
+        559.5,
+        183.75,
+        108.5625
+      ],
+      "depth": 0,
+      "cell": [
+        420,
+        4,
+        368,
+        218
+      ]
+    },
+    {
+      "id": "trestle-current",
+      "rect": [
+        944.375,
+        342.8,
+        133.2,
+        144.45
+      ],
+      "depth": 0,
+      "cell": [
+        4,
+        4,
+        267,
+        289
+      ]
+    },
+    {
+      "id": "fishing-smack",
+      "rect": [
+        1166.25,
+        681.825,
+        64.35,
+        120.825
+      ],
+      "depth": 1,
+      "cell": [
+        280,
+        4,
+        129,
+        242
+      ]
+    },
+    {
+      "id": "pilot-boat",
+      "rect": [
+        912.7625,
+        432.7375,
+        38.25,
+        56.8125
+      ],
+      "depth": 1,
+      "cell": [
+        480,
+        304,
+        77,
+        114
+      ]
+    },
+    {
+      "id": "net-loft-smoke",
+      "rect": [
+        1359.3,
+        561.0,
+        23.1,
+        41.2
+      ],
+      "depth": 2,
+      "cell": [
+        400,
+        304,
+        70,
+        124
+      ]
+    },
+    {
+      "id": "trestle-banner",
+      "rect": [
+        1017.1,
+        238.5,
+        17.625,
+        25.2
+      ],
+      "depth": 2,
+      "cell": [
+        568,
+        304,
+        53,
+        76
+      ]
+    }
+  ]
+}

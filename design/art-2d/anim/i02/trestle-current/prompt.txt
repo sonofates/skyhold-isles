@@ -1,0 +1,5 @@
+Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork, palette and daylight unchanged. Only the white area of the supplied mask may animate. Hold every black pixel still and ease the motion to zero at the feathered edge.
+
+A narrow thread of current slips down-screen out of the shadow of the upper timber trestle. Shallow turquoise strokes spread into the wider pool and pass along the right side of the blue rowing boat toward the lower bridge. Let two or three pale ripple tips form, travel and dissolve into the same brush grain. The blue hull, jetty, rock lip, bridge piles and both decks hold their exact silhouettes.
+
+Match the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.

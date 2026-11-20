@@ -29,6 +29,7 @@ import { isTouchDevice, loadSettings } from '../platform/storage.ts';
 import { GRAPHICS_EVENT, graphicsEngineState, loadGraphics, type GraphicsEngineState, type GraphicsSettings } from './ui/graphicsSettings.ts';
 import type { AbilityBar2D } from './ui/abilityBar2d.ts';
 import type { AbilityId } from '../core/types.ts';
+import { mapAnimLayer } from './mapAnimLayer.ts';
 import type { MapView } from './mapView.ts';
 import type { GateLayer } from './gateLayer.ts';
 import { MASTER_SCALE, maxMapScale, pickMapVariant } from './mapVariant.ts';
@@ -662,6 +663,7 @@ async function main(): Promise<void> {
   game.resize(app.screen.width, app.screen.height);
   game.prewarm({ benchSteps: bench > 0 ? Math.ceil(bench / 10) + 2 : 0 });
   watchMap(game.map, game.gates);
+  const ambient = mapAnimLayer(game.map.world, level.id, art.baseUrl);
   const onResize = (): void => {
     game.resize(app.screen.width, app.screen.height);
   };
@@ -930,6 +932,7 @@ async function main(): Promise<void> {
     const t0 = performance.now();
     stats.record(t.deltaMS, t0);
     if (!manual) game.frame(t.deltaMS / 1000);
+    ambient?.update(game.qualityTier !== 'low' && !gfx.reducedMotion, game.stepper.paused, game.map.texelScale <= 1);
     abilities?.frame(t.deltaMS / 1000);
     heroHud?.frame(t.deltaMS / 1000);
     if (fpsChip.visible && t0 - fpsShownAt > 500) {
