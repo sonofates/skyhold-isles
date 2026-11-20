@@ -1,0 +1,50 @@
+{
+ "image": "bellfoundry-turret.webp",
+ "frameW": 406,
+ "frameH": 376,
+ "count": 5,
+ "dirs": [
+  "S",
+  "SE",
+  "E",
+  "NE",
+  "N"
+ ],
+ "pivot": [
+  203,
+  322
+ ],
+ "muzzle": [
+  [
+   -0.2,
+   -105.6
+  ],
+  [
+   116.0,
+   -102.4
+  ],
+  [
+   172.2,
+   -157.0
+  ],
+  [
+   139.8,
+   -240.8
+  ],
+  [
+   -3.8,
+   -308.8
+  ]
+ ],
+ "body": "bellfoundry-body.webp",
+ "bodyMount": [
+  256,
+  66
+ ],
+ "bodyRing": {
+  "ringWidthPx": 485.0,
+  "ringBottomPx": 499.0,
+  "ringCenterXPx": 256.5
+ },
+ "scale": 1
+}

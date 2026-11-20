@@ -1,0 +1,50 @@
+{
+ "image": "anchor-turret.webp",
+ "frameW": 558,
+ "frameH": 405,
+ "count": 5,
+ "dirs": [
+  "S",
+  "SE",
+  "E",
+  "NE",
+  "N"
+ ],
+ "pivot": [
+  279,
+  335
+ ],
+ "muzzle": [
+  [
+   0.04,
+   61.8
+  ],
+  [
+   198.48,
+   32.92
+  ],
+  [
+   270.96,
+   -167.08
+  ],
+  [
+   208.24,
+   -300.6
+  ],
+  [
+   3.56,
+   -326.8
+  ]
+ ],
+ "body": "anchor-body.webp",
+ "bodyMount": [
+  262,
+  85
+ ],
+ "bodyRing": {
+  "ringWidthPx": 461.0,
+  "ringBottomPx": 479.0,
+  "ringCenterXPx": 255.5
+ },
+ "scale": 1
+}

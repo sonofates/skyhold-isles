@@ -93,3 +93,32 @@ In `src/render2d/game2d.ts`, `towerReach` and `towerHasTarget` still read linear
 ### Next round
 
 Paint Honeycomb Battery and Bell Foundry. Verify their five facings, muzzle placement and blast recoil on the map. Fourteen of the sixteen branches still need art. Chapter-two map polish follows.
+
+## Round 4 — Cannon and ballista specialization art
+
+### Done
+
+- Honeycomb Battery has a three-bore brass turret over a honey-lit blockhouse. Bell Foundry fires from a patinated bronze bell mouth on a red yoke. Its smaller casting bell hangs in the workshop below.
+- Laneweaver Loom pairs an ashwood bow and ivory thread spools with an indigo weavers’ guildhall. Anchor Winch has a teal iron chain drum, barbed harpoon and anchor-marked harbor workshop.
+- Each purchase has a keyed body, five-facing turret sheet, measured projectile origins and a southeast portrait. The existing lazy loader reads all four from the raw art manifest. The specialization asset test now covers all six branches across the three directional families.
+- Repack these and both archers with `/usr/bin/python3 tools/sprites/pack_specialization_turrets.py`. The lossless source atlases retain their magenta backgrounds. [Cannon prompts and registration](../../design/art-2d/specializations/cannon-prompts.md) · [Ballista prompts and registration](../../design/art-2d/specializations/ballista-prompts.md).
+
+### Requests for Opus
+
+The manifest records `towerSpecializations[id].portrait` and `.turret` for `honeycomb`, `bellfoundry`, `loom` and `anchor`. The IDs match the data definitions. The earlier EN/TR copy and purchase API still apply. All six directional branch portraits are ready for the build ring and codex.
+
+### Verification
+
+- Checked all twenty source registrations enlarged. In the running production aim scene, Honeycomb Battery fired 21 times and Bell Foundry fired 19 times over their 23-second samples. Both displayed all five painted facings. The firing and settled frames show the flash at the painted muzzle, with the turret returning to position on its stationary workshop. [Cannon recoil detail](../../design/art-2d/specializations/cannons-recoil.jpg).
+- Bought both cannons alongside a tier-III cannon in L1c. All three plot rings had zero center, bottom and width error at 1600×900 and 844×390. Inspected both screenshots enlarged. [Desktop](../../design/art-2d/specializations/cannons-l1c.jpg) · [Phone](../../design/art-2d/specializations/cannons-l1c-phone.jpg).
+- Bought both ballistas alongside tier III. The desktop and landscape-phone plots also measured zero alignment error at both sizes. The aim scene displayed all five painted frames for each branch and counted 14 Loom and 13 Anchor shots. [Desktop](../../design/art-2d/specializations/ballistas-l1c.jpg) · [Phone](../../design/art-2d/specializations/ballistas-l1c-phone.jpg).
+- All four strips passed dimension, transparent-padding and opaque-magenta checks. All sixteen published branch files and the manifest match their built copies byte for byte.
+- TypeScript and lint passed. Vitest passed 1,367 tests with 11 skipped. Realistic-kit balance passed all 41 levels, including all 25 islands. All eight difficulty verdicts passed. Hard i09 finished at 12/22 and two stars, Hard i24 at 5/22 and one star. The 24,217-byte L1–L16 report matched the round-one baseline byte for byte. Production build passed with the existing Vite bundle warnings.
+
+### Finding for the projectile renderer owner
+
+In one frozen eastward Loom release, the airborne bolt points back toward the launcher. The painted bolt and the reported turret sector point east. The Anchor sample points forward. Inspect initial rotation on projectile-slot reuse in `src/render2d/projectileLayer.ts`; the cause is unconfirmed. Reproduce in `?towers=aim&type=ballista&tier=3&hold=2`, purchase `loom` and inspect the frame at a change in the shot count. [Firing / settled frame pairs, Loom above Anchor](../../design/art-2d/specializations/ballistas-release.jpg).
+
+### Next round
+
+Six of sixteen branches have production art. Start the full-body attack-sheet path with the two frost branches, Snowbell Garden and Rimeglass Needle. Check the ring across frames, pre-roll and projectile release against a frozen shot. Tesla, mortar, beacon and barracks art and chapter-two map polish remain.

@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-"""Pack the painted archer lodge atlases and their measured feet and arrow tips."""
+"""Pack painted five-facing specialization turrets using their measured pivots and muzzles."""
 import json
 import sys
 from pathlib import Path
@@ -28,8 +28,8 @@ def pack(name, marks):
     mount = marks['mount']
     body.save(OUT / f'{name}-body.webp', quality=92, method=6)
 
-    # Work on an oversized registration canvas. All feet, in all facings, stay fixed
-    # relative to its pivot. Only the foreground ranger supplies the release point.
+    # Register each facing on the same pivot. For a multi-part turret the last
+    # part is in front and supplies the projectile origin.
     origin = (cell, cell)
     frames, tips = [], []
     for image, foot, tip in zip(images[1:], marks['feet'], marks['tips'], strict=True):
@@ -70,5 +70,6 @@ def pack(name, marks):
 
 if __name__ == '__main__':
     OUT.mkdir(parents=True, exist_ok=True)
-    for branch, registration in json.loads((ART / 'archers.json').read_text()).items():
-        pack(branch, registration)
+    for family in ('archers', 'cannons', 'ballistas'):
+        for branch, registration in json.loads((ART / f'{family}.json').read_text()).items():
+            pack(branch, registration)

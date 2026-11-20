@@ -810,6 +810,22 @@
   "swallow": {
    "portrait": "specializations/swallow.webp",
    "turret": "specializations/swallow-turret.json"
+  },
+  "honeycomb": {
+   "portrait": "specializations/honeycomb.webp",
+   "turret": "specializations/honeycomb-turret.json"
+  },
+  "bellfoundry": {
+   "portrait": "specializations/bellfoundry.webp",
+   "turret": "specializations/bellfoundry-turret.json"
+  },
+  "loom": {
+   "portrait": "specializations/loom.webp",
+   "turret": "specializations/loom-turret.json"
+  },
+  "anchor": {
+   "portrait": "specializations/anchor.webp",
+   "turret": "specializations/anchor-turret.json"
   }
  },
  "buildRing": [

@@ -16,4 +16,4 @@ Swallow Roost is a broad squat treehouse archer lodge with layered russet shingl
 
 ## Packing
 
-Run `/usr/bin/python3 tools/sprites/pack_specialization_archers.py` from the checkout. The packer uses `design/art-2d/key.py` and `archers.json` to key each cell, place each operator by its feet, and register the release point at the foreground arrowhead. Swallow Roost places a second copy of the ranger behind the first on the wider deck. The southeast composite supplies the codex portrait.
+Run `/usr/bin/python3 tools/sprites/pack_specialization_turrets.py` from the checkout. The packer uses `design/art-2d/key.py` and `archers.json` to key each cell, place each operator by its feet, and register the release point at the foreground arrowhead. Swallow Roost places a second copy of the ranger behind the first on the wider deck. The southeast composite supplies the codex portrait.

@@ -1,0 +1,50 @@
+{
+ "image": "honeycomb-turret.webp",
+ "frameW": 334,
+ "frameH": 332,
+ "count": 5,
+ "dirs": [
+  "S",
+  "SE",
+  "E",
+  "NE",
+  "N"
+ ],
+ "pivot": [
+  167,
+  281
+ ],
+ "muzzle": [
+  [
+   -1.96,
+   -112.72
+  ],
+  [
+   99.52,
+   -77.8
+  ],
+  [
+   154.56,
+   -124.68
+  ],
+  [
+   152.92,
+   -225.48
+  ],
+  [
+   1.44,
+   -273.36
+  ]
+ ],
+ "body": "honeycomb-body.webp",
+ "bodyMount": [
+  256,
+  66
+ ],
+ "bodyRing": {
+  "ringWidthPx": 475.0,
+  "ringBottomPx": 499.0,
+  "ringCenterXPx": 255.5
+ },
+ "scale": 1
+}

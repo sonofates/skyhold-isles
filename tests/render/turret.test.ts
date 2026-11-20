@@ -231,11 +231,11 @@ describe('turret JSON + manifest entries', () => {
     expect(() => parseManifest(raw)).toThrow(ManifestError);
   });
 
-  it('both archer purchases have distinct portraits, bodies and registered five-facing strips', () => {
+  it('directional tower specializations have distinct portraits, bodies and registered five-facing strips', () => {
     const dir = resolve(ROOT, 'public/art2d');
     const catalog = RAW.towerSpecializations as Record<string, { portrait: string; turret: string }>;
     const files = new Set<string>();
-    for (const branch of specializationsFor('archer')) {
+    for (const branch of (['archer', 'cannon', 'ballista'] as const).flatMap(type => specializationsFor(type))) {
       const entry = catalog[branch.id];
       const file = resolve(dir, entry.turret);
       const spec = parseTurretJson(JSON.parse(readFileSync(file, 'utf8')) as unknown);
