@@ -197,3 +197,26 @@ Use `towerSpecializations[id].portrait` for the branch choice and codex across a
 ### Next round
 
 Start chapter-two map polish at Cloudbell Cloister (i17). The current bake has two matching entrance caves and repeats small bell frames on the meadow. The introductory painting already establishes a fallen bronze bell and a frayed blue rope. Bring that landmark onto the playable island and check it against the saved plots, tower envelopes and HUD at both viewport sizes. The remaining map pass covers i18–i24.
+
+## Round 8 — Cloudbell Cloister and Lantern Glassworks
+
+### Done
+
+- **i17 Cloudbell Cloister.** The cracked bronze bell and frayed blue rope from the intro lie beside the broken colonnade. Raiders from the east emerge through a limestone arcade and follow courses of flagstones to the junction. The western cave and shared switchback have a chalk surface. Repeated freestanding bell frames have been removed from the meadow. [Desktop combat](../../design/art-2d/chapter2/polish/i17-desktop.jpg) · [Phone combat](../../design/art-2d/chapter2/polish/i17-phone.jpg)
+- **i18 Lantern Glassworks.** The walk-through entrance shares a copper furnace with a glowing firebox. Three lanterns hang above a glassblower’s bench near the old kilns. The ore-cart road carries shallow wheel ruts through slate, ash and fragments of colored glass. The initial track had a similar brightness to the cavern floor on parts of the bend. The shipped strip uses a lighter ash finish. [Desktop combat](../../design/art-2d/chapter2/polish/i18-desktop.jpg) · [Phone combat](../../design/art-2d/chapter2/polish/i18-phone.jpg)
+- Rebuilt all four map resolutions per island and the matching gate foregrounds. The layout diff contains just the art identifiers and foreground bounds of the two repainted entrances. The saved ground and flight paths, 43 build plots, wave definitions and balance data are unchanged. [Native gate and landmark details](../../design/art-2d/chapter2/polish/i17-i18-detail.jpg) · [Built-in ImageGen prompts, source kits and rebake command](../../design/art-2d/chapter2/second-pass.md)
+
+### Verification and decisions
+
+- The wave horn covered the bell in the first combat captures, and the phone cropped part of the bench. Moved the bell to the meadow below the western bend and the bench to the kiln side of the return bend. Both complete silhouettes clear the actual HUD pieces and viewport in all ten final samples. The compositor also checked the saved tower envelopes and roads. Both landmarks sit entirely inside their island’s dressing mask.
+- Played the opening wave with Bran and three towers purchased with starting gold. Each final combat capture contains eleven ground enemies. Inspected enlarged desktop EN and landscape-phone TR screenshots. The 1600×900 desktop at DPR 1 used the 1.5× map, the 844×390 phone at DPR 2 used 1×, and the 1600×900 desktop at DPR 2 streamed both native 5538×2556 maps with the matching gate fronts. All ten HUD checks reported zero overlaps.
+- Sampled both new entrance foregrounds along the walkers’ line in the master and native exports. At the spawn point the arcade alpha was 232/255 and the furnace alpha was 235/255. Their foregrounds cleared the lane completely by 24 and 16 layout pixels respectively. All 18 shipped WebPs decoded and matched their final production copies byte for byte.
+- TypeScript, lint, production build and all 22 Python map-dressing tests passed. The full Vitest suite passed with two workers, 1,378 tests passing and 11 skipped. Realistic-kit balance passed all 41 levels. Normal finished i17 at 8/22 and i18 at 7/22. All eight difficulty verdicts passed, including Hard i09 at 12/22 and Hard i24 at 5/22. The 24,217-byte L1–L16 report matches the round-one baseline. Vite emitted its existing bundle warnings.
+
+### Finding for Opus
+
+At 844×390 in Turkish, the current fit leaves a large right-side area behind the HUD. The prior build covered 71.0% of the phone viewport on i17 and 70.2% on i18. The new captures measured 70.9% and 71.0% respectively. On i18 this clips the outer left edge of the furnace while keeping its doorway and the complete glassblower’s bench visible. The phone captures above show the tradeoff for any future HUD or camera-fit pass.
+
+### Next round
+
+Six chapter-two islands remain for the second map pass, i19–i24. Start with Lanternseed Fig (i19). Its two root entrances and central fig tree already have distinct paintings. The canopy keeper’s seed baskets and rope ladder from the story offer a way to distinguish the nursery approach from the upper loop.

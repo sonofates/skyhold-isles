@@ -36,17 +36,17 @@
    "x": 1470,
    "y": 310,
    "gate": {
-    "prop": "cave-w",
+    "prop": "arcade-w",
     "facing": "W",
     "front": {
      "art": "map-i17-layered-gate-B",
      "rect": [
-      1431.5,
-      213.5,
-      200.5,
-      117.0
+      1427.5,
+      222.0,
+      204.0,
+      119.0
      ],
-     "baseY": 331.03
+     "baseY": 340.85
     }
    }
   }

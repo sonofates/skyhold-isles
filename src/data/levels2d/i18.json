@@ -17,17 +17,17 @@
    "x": 508,
    "y": 282,
    "gate": {
-    "prop": "cave-e",
+    "prop": "furnace-e",
     "facing": "E",
     "front": {
      "art": "map-i18-layered-gate-A",
      "rect": [
-      346.5,
-      179.0,
+      350.0,
+      178.5,
       205.5,
-      124.5
+      126.5
      ],
-     "baseY": 304.44
+     "baseY": 304.88
     }
    }
   }
