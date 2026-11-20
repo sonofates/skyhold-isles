@@ -230,7 +230,11 @@ export class CombatSystem {
     const dmgMult = stats.volleyDamage ?? 0.6;
     const def = TOWER_DEFS[tower.type];
     const range = stats.range * (1 + tower.auraRange + (tower.heroRangeBonus ?? 0));
-    this.spatialHash.query(primary.x, primary.z, 3.2, _volleyCandidates);
+    // The tier-III volley uses the original neighborhood of grid cells. Swallow Roost
+    // has a circular spread within those cells, independent of the lane's grid alignment.
+    const radius = stats.volleyRadius;
+    const radiusSq = radius === undefined ? Infinity : radius * radius;
+    this.spatialHash.query(primary.x, primary.z, radius ?? 3.2, _volleyCandidates);
     _volleyUsed.clear();
     _volleyUsed.add(primary.poolIndex);
     for (let n = 0; n < extra; n++) {
@@ -246,7 +250,7 @@ export class CombatSystem {
         const dx = e.x - primary.x;
         const dz = e.z - primary.z;
         const dSq = dx * dx + dz * dz;
-        if (dSq < bestSq) {
+        if (dSq <= radiusSq && dSq < bestSq) {
           bestSq = dSq;
           best = e;
         }

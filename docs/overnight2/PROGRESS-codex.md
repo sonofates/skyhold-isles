@@ -352,3 +352,23 @@ All eight difficulty verdicts passed. Easy and Normal cleared all 25 islands. Ha
 ### Next round
 
 Audit Swallow Roost's Gathering Flock in sparse and crowded waves. Check how the four extra arrows divide among eligible foes, where spare arrows go when targets run out, and whether the volley keeps Tobb's Tinker range bonus and the beacon's range bonus at the edge of coverage. No cross-agent changes requested.
+
+## Round 15 — Swallow Roost volley targeting
+
+### Done
+
+- Reproduced a spare arrow hitting a grunt 3.54 units from the primary. The grunt occupied a corner of the spatial query's square, outside the intended 3.2-unit circle. Swallow Roost now checks the exact distance after the grid lookup. This rule is on the branch definition and applies before and after buying Gathering Flock.
+- Six combat tests cover the branch's third-shot cadence, a mid-cycle ability purchase, sparse and crowded groups, burrowed enemies, and flyers. In a crowd the four extra arrows each hit a different nearby foe for 19 damage. Against a lone eligible target the primary arrow and all four extras deal 114 damage together. With one flyer exactly 3.2 units from the primary, the flyer takes 19 and the primary takes 95.
+- Verified the range edge with no support, Tobb's Sighting Lenses, Horizon Lantern's Clear Lens, and both together. The last combination extends the tower's reach from 6.9 to 9.522 units. A flyer at the edge takes a secondary hit and a stronger grunt 0.01 units past it draws no arrows.
+
+### Campaign replay
+
+A single-archer run on Meadow Crossing used the standard starting gold and level-20 Tobb. Plot 11 bought Swallow Roost on wave three and Gathering Flock on wave four. Of 126 five-arrow volleys, 24 went to one foe, 61 reached two, 14 reached three, 12 reached four and 15 reached five. The single-tower build lost. Playback of the serialized commands reproduced all 150 branch volleys target for target, the loss and the final state hash.
+
+### Verification
+
+TypeScript, lint and the production build passed. Vitest passed 1,390 tests with 11 skipped using one worker. All 41 realistic-kit levels and all eight difficulty verdicts passed. Hard i09 finished at 12/22 with two stars and Hard i24 at 5/22 with one star. Both full reports match round 14 byte for byte. The standalone 24,217-byte L1–L16 report matches the round-one baseline. Vite reported its existing chunk-size and dynamic-import warnings.
+
+### Next round
+
+Audit Honeycomb Battery's Wax Caps on armored ground foes at the main impact and the edge of two overlapping charges. Check the effect of buying Wax Caps while a shell is airborne. No new UI or localization requests.

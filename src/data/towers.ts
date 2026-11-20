@@ -32,6 +32,8 @@ export interface TowerTierStats {
   readonly volleyEvery?: number;
   readonly volleyExtra?: number;
   readonly volleyDamage?: number;
+  /** Maximum distance from the primary to a secondary target for Swallow Roost's volley. */
+  readonly volleyRadius?: number;
   /** Cannon T3 cluster shells: `clusterCount` bomblets land `clusterOffset` away from the main blast. */
   readonly clusterCount?: number;
   readonly clusterDamage?: number;
@@ -694,7 +696,7 @@ const SPECIALIZATIONS = {
     {
       id: 'swallow', name: 'Swallow Roost', cost: 145,
       description: 'Every third shot looses two extra arrows at half strength.',
-      changes: { damage: 38, fireRate: 2.55, volleyEvery: 3, volleyExtra: 2 },
+      changes: { damage: 38, fireRate: 2.55, volleyEvery: 3, volleyExtra: 2, volleyRadius: 3.2 },
       abilities: [{
         id: 'flock', name: 'Gathering Flock', cost: 75,
         description: 'Each volley looses four extra arrows.', changes: { volleyExtra: 4 },
