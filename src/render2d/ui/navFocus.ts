@@ -22,16 +22,39 @@ export interface NavRect {
 }
 
 /**
- * Spatial pick: the candidate nearest to `from` in direction `dir` — its centre must lie that way;
- * the distance along the direction counts once, the sideways offset (beyond overlap) three times, so
- * a control straight ahead beats a closer one off to the side. -1 when none lies that way.
+ * Spatial pick: the candidate nearest to `from` in direction `dir`. First pass: only boxes that lie
+ * beyond `from`'s edge that way (a quarter of the smaller box may overlap), so a neighbour in the
+ * same row a few pixels higher is not "up"; if none, any box whose centre lies that way. The
+ * distance along the direction counts once, the sideways offset (beyond overlap) three times, so a
+ * control straight ahead beats a closer one off to the side. -1 when none lies that way.
  */
 export function pickInDirection(from: NavRect, dir: NavDir, cands: readonly NavRect[]): number {
+  const strict = pickPass(from, dir, cands, true);
+  return strict >= 0 ? strict : pickPass(from, dir, cands, false);
+}
+
+function beyondEdge(from: NavRect, dir: NavDir, c: NavRect): boolean {
+  const tolX = Math.min(from.w, c.w) * 0.25;
+  const tolY = Math.min(from.h, c.h) * 0.25;
+  switch (dir) {
+    case 'up':
+      return c.y + c.h <= from.y + tolY;
+    case 'down':
+      return c.y >= from.y + from.h - tolY;
+    case 'left':
+      return c.x + c.w <= from.x + tolX;
+    case 'right':
+      return c.x >= from.x + from.w - tolX;
+  }
+}
+
+function pickPass(from: NavRect, dir: NavDir, cands: readonly NavRect[], strict: boolean): number {
   const cx = from.x + from.w / 2;
   const cy = from.y + from.h / 2;
   let best = -1;
   let bestScore = Infinity;
   cands.forEach((c, i) => {
+    if (strict && !beyondEdge(from, dir, c)) return;
     const x = c.x + c.w / 2;
     const y = c.y + c.h / 2;
     const dx = x - cx;
@@ -141,8 +164,9 @@ export function navScope(): HTMLElement | null {
   return document.querySelector<HTMLElement>('.pu-map');
 }
 
+/** Controls the arrows walk; `data-nav-skip` marks pointer-only helpers (the map's pan arrows: focusing an island scrolls the sea anyway). */
 function candidates(scope: HTMLElement): HTMLElement[] {
-  return Array.from(scope.querySelectorAll<HTMLElement>(FOCUSABLE)).filter(visible);
+  return Array.from(scope.querySelectorAll<HTMLElement>(FOCUSABLE)).filter((e) => e.dataset.navSkip === undefined && visible(e));
 }
 
 function rectOf(e: Element): NavRect {
@@ -173,7 +197,9 @@ function setKbd(on: boolean): void {
 
 function focusEl(e: HTMLElement): void {
   e.focus({ preventScroll: true });
-  e.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
+  // Sideways (the map's sea) the focused island comes to the middle, not to the edge under the pan arrow.
+  const instant = document.documentElement.classList.contains('pu-reduce-motion');
+  e.scrollIntoView({ block: 'nearest', inline: 'center', behavior: instant ? 'auto' : 'smooth' });
 }
 
 /** Moves the focus inside the current scope; false when no scope / nothing that way. */
@@ -190,8 +216,38 @@ export function navMove(dir: NavDir): boolean {
   }
   const others = list.filter((e) => e !== cur);
   const i = pickInDirection(rectOf(cur), dir, others.map(rectOf));
-  if (i < 0) return true; // at the edge: stay (the key is still ours)
+  if (i < 0) {
+    // At the edge: ↑ / ↓ scroll the board's long text (Logbook isles, Controls, Credits) that has
+    // no buttons of its own to walk; otherwise stay (the key is still ours).
+    if (dir === 'up' || dir === 'down') scrollScope(scope, dir === 'down' ? 1 : -1);
+    return true;
+  }
   focusEl(others[i]);
+  return true;
+}
+
+/** The scope's main vertical scroller (the tallest one that has more to show), if any. */
+export function scopeScroller(scope: HTMLElement): HTMLElement | null {
+  let best: HTMLElement | null = null;
+  const all = [scope, ...Array.from(scope.querySelectorAll<HTMLElement>('*'))];
+  for (const e of all) {
+    if (e.scrollHeight <= e.clientHeight + 1 || e.clientHeight < 40) continue;
+    if (!/(auto|scroll)/.test(getComputedStyle(e).overflowY)) continue;
+    if (!best || e.clientHeight > best.clientHeight) best = e;
+  }
+  return best;
+}
+
+/** Scroll step for one key press: about half the visible height, never under 60 px. */
+export function scrollStep(clientHeight: number): number {
+  return Math.max(60, Math.round(clientHeight * 0.5));
+}
+
+function scrollScope(scope: HTMLElement, sign: 1 | -1): boolean {
+  const sc = scopeScroller(scope);
+  if (!sc) return false;
+  const reduced = document.documentElement.classList.contains('pu-reduce-motion');
+  sc.scrollBy({ top: sign * scrollStep(sc.clientHeight), behavior: reduced ? 'auto' : 'smooth' });
   return true;
 }
 

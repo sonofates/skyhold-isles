@@ -139,6 +139,18 @@ describe('menu navigation (navFocus.ts)', () => {
     expect(pickInDirection(r(0, 0, 100, 40), 'down', [r(60, 80, 300, 40), r(-200, 70, 100, 40)])).toBe(0);
   });
 
+  it('a same-row neighbour a few px higher is not "up"; boxes beyond the edge win (phone briefing)', () => {
+    // Phone briefing: Play beside the difficulty row (3 px higher), the hero chip and the modes above.
+    const play = r(598, 293, 173, 53);
+    const diffHard = r(414, 290, 175, 48);
+    const endless = r(446, 218, 316, 44);
+    expect(pickInDirection(play, 'up', [diffHard, endless])).toBe(1);
+    // From the right column, ← reaches the hero chip's buttons, not the difficulty row below them.
+    expect(pickInDirection(endless, 'left', [diffHard, r(283, 243, 108, 44)])).toBe(1);
+    // Nothing strictly beyond the edge: fall back to centres (still finds a partly overlapping box).
+    expect(pickInDirection(r(0, 0, 100, 100), 'right', [r(40, 0, 100, 100)])).toBe(0);
+  });
+
   it('keys and the stick map to directions (WASD only where letters are allowed)', () => {
     expect(keyDir('ArrowUp', false)).toBe('up');
     expect(keyDir('ArrowRight', true)).toBe('right');

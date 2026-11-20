@@ -155,6 +155,8 @@ export async function mountWorldMap(q: URLSearchParams): Promise<void> {
   const panR = roundButton('next', t('map.panEast'), 'map2d-pan-right');
   panL.classList.add('pu-map-pan', 'left');
   panR.classList.add('pu-map-pan', 'right');
+  // Keys / pad walk the islands (each focus scrolls the sea); the pan arrows would be extra stops.
+  panL.dataset.navSkip = panR.dataset.navSkip = '';
   root.append(scroll, panL, panR, topbar, hint);
   document.body.append(root);
   const sea = mountSea(root, world, scroll, manifest, q);
