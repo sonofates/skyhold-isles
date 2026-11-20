@@ -73,25 +73,50 @@ describe('chapter two enemy decisions', () => {
     expect(shell.armorBreakTimer).toBe(0);
   });
 
-  it('the last flute note clears only slowed ground units in range', () => {
+  it('restores each tortoise’s plates after its own last damaging hit, even in an overlapping pack', () => {
+    const { sim, tick, spawn } = fixture();
+    const first = spawn('kilnback');
+    const second = spawn('kilnback');
+    for (let i = 0; i < 4; i++) {
+      sim.applyDamage(first, 15);
+      sim.applyDamage(second, 15);
+    }
+    expect([first.armor, second.armor]).toEqual([0, 0]);
+    tick(60);
+    first.shield = 30;
+    expect(sim.applyDamage(first, 20).actualDamage).toBe(0);
+    expect(sim.applyDamage(second, 20).actualDamage).toBe(20);
+    tick(28);
+    expect([first.armor, second.armor]).toEqual([first.baseArmor, 0]);
+    tick(60);
+    expect(second.armor).toBe(second.baseArmor);
+  });
+
+  it('the last flute note lifts nearby ground slows while a golem’s cracked armor keeps its own timer', () => {
     const { sim, tick, spawn } = fixture();
     const piper = spawn('reedpiper');
-    const grunt = spawn('grunt');
+    const golem = spawn('golem');
     const far = spawn('grunt', 1, false, 1);
     const air = spawn('flyer');
-    for (const foe of [piper, grunt, far, air]) sim.applySlow(foe, 0.6, 20);
+    for (const foe of [piper, golem, far, air]) sim.applySlow(foe, 0.6, 20);
     piper.abilityTimer = dt;
     tick();
     const start = piper.dist;
     tick(48);
     expect(piper.dist).toBe(start);
-    expect(grunt.slowTimer).toBeGreaterThan(0);
+    expect(golem.slowTimer).toBeGreaterThan(0);
+    const crackRemaining = golem.armorBreakTimer;
     tick(5);
     expect(piper.dist).toBeGreaterThan(start);
     expect(piper.slowTimer).toBe(0);
-    expect(grunt.slowRatio).toBe(0);
+    expect(golem.slowRatio).toBe(0);
+    expect(golem.slowTimer).toBe(0);
+    expect(golem.armor).toBe(ENEMY_DEFS.golem.brittleArmor);
+    expect(golem.armorBreakTimer).toBeCloseTo(crackRemaining - 5 * dt, 8);
     expect(far.slowTimer).toBeGreaterThan(0);
     expect(air.slowTimer).toBeGreaterThan(0);
+    tick(Math.ceil(golem.armorBreakTimer / dt));
+    expect(golem.armor).toBe(golem.baseArmor);
   });
 
   it('stun or death during a phrase prevents the cleanse and a reused slot has no pending note', () => {
@@ -116,6 +141,43 @@ describe('chapter two enemy decisions', () => {
     expect(next.channelTimer).toBe(0);
     tick(60);
     expect(grunt.slowRatio).toBeGreaterThan(0);
+  });
+
+  it.each(['blockers', 'heroBlockers'] as const)('a final note restarts only the free hare’s run-up while %s hold the other', blocker => {
+    const { sim, tick, spawn } = fixture();
+    const free = spawn('bellrunner');
+    const piper = spawn('reedpiper');
+    const held = spawn('bellrunner');
+    const sprint = CHAPTER_ENEMY_DEFS.bellrunner.ability;
+    const phrase = CHAPTER_ENEMY_DEFS.reedpiper.ability;
+    sim.applySlow(free, 0.55, 10);
+    sim.applySlow(held, 0.28, 10);
+    held[blocker] = 1;
+    piper.abilityTimer = dt;
+    tick();
+    expect(piper.channelTimer).toBe(phrase.channelSec);
+    tick(Math.ceil(phrase.channelSec / dt) - 1);
+    expect([free.slowRatio, held.slowRatio]).toEqual([0.55, 0.28]);
+
+    const beforeNote = free.dist;
+    tick();
+    expect(piper.channelTimer).toBe(0);
+    expect(free.dist - beforeNote).toBeCloseTo(free.speed * (1 - 0.55) * dt, 10);
+    for (const hare of [free, held]) {
+      expect(hare).toMatchObject({ slowTimer: 0, slowRatio: 0, abilityTimer: 0 });
+    }
+    const afterNote = free.dist;
+    const firstStride = free.speed * (1 + sprint.speedBonus * dt / sprint.runUpSec) * dt;
+    tick();
+    expect(free.dist - afterNote).toBeCloseTo(firstStride, 10);
+    expect(free.abilityTimer).toBe(dt);
+    tick(Math.ceil(sprint.runUpSec / dt));
+    expect(free.abilityTimer).toBe(sprint.runUpSec);
+    expect(held).toMatchObject({ dist: 0, abilityTimer: 0 });
+    held[blocker] = 0;
+    tick();
+    expect(held.dist).toBeCloseTo(firstStride, 10);
+    expect(held.abilityTimer).toBe(dt);
   });
 
   it('moths trade the lead along the sky lane, then coast back to cruise when separated', () => {

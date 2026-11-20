@@ -1,0 +1,18 @@
+{
+ "image": "gateward-attack.webp",
+ "frameW": 150,
+ "frameH": 256,
+ "count": 8,
+ "cols": 4,
+ "fps": 12,
+ "release": 3,
+ "anchor": [
+  75.0,
+  250.0
+ ],
+ "ringW": 138.0,
+ "muzzlePx": [
+  73.47,
+  232.69
+ ]
+}

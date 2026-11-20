@@ -65,12 +65,12 @@ export const I18 = {
     ] },
   ],
   scriptedBuildOrder: [
-    build(0, 2, 'archer'), build(0, 4, 'tesla'), build(0, 19, 'barracks'),
-    build(1, 7, 'cannon'), build(2, 3, 'frost'), upgrade(2, 4),
-    build(3, 13, 'ballista', 'strongest'), build(3, 17, 'archer'), upgrade(4, 7),
-    build(4, 11, 'mortar'), upgrade(5, 2), upgrade(5, 13), build(6, 21, 'tesla'),
-    upgrade(6, 4), upgrade(7, 19), build(7, 5, 'ballista'),
-    upgrade(8, 11), upgrade(8, 7), upgrade(9, 21), upgrade(9, 13),
+    build(0, 13, 'barracks'), build(0, 0, 'cannon'), build(0, 2, 'archer'),
+    build(1, 4, 'tesla'), build(2, 3, 'frost'), upgrade(2, 4),
+    build(3, 19, 'ballista', 'strongest'), build(3, 17, 'archer'), upgrade(4, 0),
+    build(4, 11, 'mortar', 'closest'), upgrade(5, 2), upgrade(5, 19), build(6, 21, 'tesla'),
+    upgrade(6, 4), upgrade(7, 13), build(7, 5, 'ballista'),
+    upgrade(8, 11), upgrade(8, 0), upgrade(9, 21), upgrade(9, 19),
     upgrade(10, 17), upgrade(10, 5), upgrade(10, 11), upgrade(10, 2),
   ],
   weakBuildOrder: [

@@ -10,7 +10,7 @@ from pathlib import Path
 from PIL import Image
 
 
-def key_image(im: Image.Image) -> Image.Image:
+def key_image(im: Image.Image, *, trim: bool = True) -> Image.Image:
     im = im.convert('RGBA')
     px = im.load()
     w, h = im.size
@@ -31,6 +31,8 @@ def key_image(im: Image.Image) -> Image.Image:
             elif m > 15 and r > 80 and b > 80:
                 # faint spill on the outline
                 px[x, y] = (min(r, g + 20), g, min(b, g + 20), a)
+    if not trim:
+        return im
     bbox = im.getbbox()
     if bbox:
         l, t, r, b = bbox

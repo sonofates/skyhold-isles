@@ -1,0 +1,85 @@
+UI audit: 32 screens (en+tr x 2000x991)
+problems 6 {"other":6}
+
+brief-2000x991-en: run failed TimeoutError: page.screenshot: Timeout 30000ms exceeded.
+Call log:
+[2m  - taking page screenshot[22m
+[2m  - waiting for fonts to load...[22m
+[2m  - fonts l
+brief-2000x991-tr: run failed TimeoutError: page.screenshot: Timeout 30000ms exceeded.
+Call log:
+[2m  - taking page screenshot[22m
+[2m  - waiting for fonts to load...[22m
+[2m  - fonts l
+brief-easy-2000x991-en: run failed TimeoutError: page.screenshot: Timeout 30000ms exceeded.
+Call log:
+[2m  - taking page screenshot[22m
+[2m  - waiting for fonts to load...[22m
+[2m  - fonts l
+brief-frontier-2000x991-en: run failed TimeoutError: page.screenshot: Timeout 30000ms exceeded.
+Call log:
+[2m  - taking page screenshot[22m
+[2m  - waiting for fonts to load...[22m
+[2m  - fonts l
+brief-hard-2000x991-en: run failed TimeoutError: page.screenshot: Timeout 30000ms exceeded.
+Call log:
+[2m  - taking page screenshot[22m
+[2m  - waiting for fonts to load...[22m
+[2m  - fonts l
+brief-modes-2000x991-en: run failed TimeoutError: page.screenshot: Timeout 30000ms exceeded.
+Call log:
+[2m  - taking page screenshot[22m
+[2m  - waiting for fonts to load...[22m
+[2m  - fonts l
+
+brief-2000x991-en: texts 35, canvas ok, problems 0
+brief-2000x991-tr: texts 35, canvas ok, problems 0
+brief-easy-2000x991-en: texts 36, canvas ok, problems 0
+brief-easy-2000x991-tr: texts 36, canvas ok, problems 0
+brief-endless-2000x991-en: texts 35, canvas ok, problems 0
+brief-endless-2000x991-tr: texts 35, canvas ok, problems 0
+brief-frontier-2000x991-en: texts 20, canvas ok, problems 0
+brief-frontier-2000x991-tr: texts 20, canvas ok, problems 0
+brief-hard-2000x991-en: texts 36, canvas ok, problems 0
+brief-hard-2000x991-tr: texts 36, canvas ok, problems 0
+brief-locked-2000x991-en: texts 7, canvas ok, problems 0
+brief-locked-2000x991-tr: texts 7, canvas ok, problems 0
+brief-modes-2000x991-en: texts 36, canvas ok, problems 0
+brief-modes-2000x991-tr: texts 36, canvas ok, problems 0
+credits-2000x991-en: texts 25, canvas ok, problems 0
+credits-2000x991-tr: texts 25, canvas ok, problems 0
+daily-2000x991-en: texts 17, canvas ok, problems 0
+daily-2000x991-tr: texts 17, canvas ok, problems 0
+end-daily-2000x991-en: texts 0, canvas ok, problems 0
+end-daily-2000x991-tr: texts 0, canvas ok, problems 0
+heroes-2000x991-en: texts 29, canvas ok, problems 0
+heroes-2000x991-tr: texts 29, canvas ok, problems 0
+heroes-node-2000x991-en: texts 33, canvas ok, problems 0
+heroes-node-2000x991-tr: texts 33, canvas ok, problems 0
+map-fresh-2000x991-en: texts 60, canvas ok, problems 0
+map-fresh-2000x991-tr: texts 60, canvas ok, problems 0
+settings-audio-2000x991-en: texts 13, canvas ok, problems 0
+settings-audio-2000x991-tr: texts 13, canvas ok, problems 0
+title-2000x991-en: texts 18, canvas ok, problems 0
+title-2000x991-tr: texts 20, canvas ok, problems 0
+title-fresh-2000x991-en: texts 18, canvas ok, problems 0
+title-fresh-2000x991-tr: texts 20, canvas ok, problems 0
+---- brief screens alone (jobs=1) ----
+UI audit: 14 screens (en+tr x 2000x991)
+problems 0 {}
+
+
+brief-2000x991-en: texts 35, canvas ok, problems 0
+brief-2000x991-tr: texts 35, canvas ok, problems 0
+brief-easy-2000x991-en: texts 36, canvas ok, problems 0
+brief-easy-2000x991-tr: texts 36, canvas ok, problems 0
+brief-endless-2000x991-en: texts 35, canvas ok, problems 0
+brief-endless-2000x991-tr: texts 35, canvas ok, problems 0
+brief-frontier-2000x991-en: texts 20, canvas ok, problems 0
+brief-frontier-2000x991-tr: texts 20, canvas ok, problems 0
+brief-hard-2000x991-en: texts 36, canvas ok, problems 0
+brief-hard-2000x991-tr: texts 36, canvas ok, problems 0
+brief-locked-2000x991-en: texts 7, canvas ok, problems 0
+brief-locked-2000x991-tr: texts 7, canvas ok, problems 0
+brief-modes-2000x991-en: texts 36, canvas ok, problems 0
+brief-modes-2000x991-tr: texts 36, canvas ok, problems 0

@@ -1,0 +1,50 @@
+{
+ "image": "swallow-turret.webp",
+ "frameW": 330,
+ "frameH": 240,
+ "count": 5,
+ "dirs": [
+  "S",
+  "SE",
+  "E",
+  "NE",
+  "N"
+ ],
+ "pivot": [
+  165,
+  216
+ ],
+ "muzzle": [
+  [
+   55.84,
+   -55.83
+  ],
+  [
+   128.75,
+   -52.19
+  ],
+  [
+   155.32,
+   -119.76
+  ],
+  [
+   132.58,
+   -175.86
+  ],
+  [
+   52.26,
+   -200.42
+  ]
+ ],
+ "body": "swallow-body.webp",
+ "bodyMount": [
+  254,
+  117
+ ],
+ "bodyRing": {
+  "ringWidthPx": 446.0,
+  "ringBottomPx": 474.0,
+  "ringCenterXPx": 255.0
+ },
+ "scale": 1
+}

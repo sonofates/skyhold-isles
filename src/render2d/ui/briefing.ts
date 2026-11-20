@@ -236,7 +236,8 @@ export function showBriefing(
   };
   diffOpts.forEach(({ id, b }, i) => {
     b.addEventListener('click', () => pick(id));
-    // Radio group keys: arrows move (and pick) along the row.
+    // Radio group keys: arrows move (and pick) along the row (navFocus leaves ← → to it).
+    b.dataset.navKeep = '';
     b.addEventListener('keydown', (e) => {
       const step = e.key === 'ArrowRight' || e.key === 'ArrowDown' ? 1 : e.key === 'ArrowLeft' || e.key === 'ArrowUp' ? -1 : 0;
       if (!step) return;

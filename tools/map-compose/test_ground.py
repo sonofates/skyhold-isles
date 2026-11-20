@@ -11,7 +11,7 @@ import fords
 from banks import shore_foundation, water_reflection
 from gates import draw_threshold_road, output_sprite
 from keeps import Keep, sample
-from masonry import RoadArcade, arch_bridge, brick_spur, cart_tracks, paved_road
+from masonry import RoadArcade, arch_bridge, brick_spur, cart_tracks, paved_road, timber_approach
 
 from ground import Decals, DressingArea, brushed_surface, dusty_road_coverage, paint_over_road, road_footprint, road_fringe, scatter
 from ground import windblown_road_coverage
@@ -260,6 +260,23 @@ class GroundTests(unittest.TestCase):
                 self.assertEqual(ground.getpixel((x*scale, y*scale)), blank.getpixel((x*scale, y*scale)))
             brick_spur(blank, [(20, 20), (32, 20)], tile, 20, scale)
             self.assertEqual(blank.getcolors(), [(blank.width * blank.height, (210, 180, 140))])
+
+    def test_approach_boards_cross_the_lane_and_stop_at_the_shorter_limit(self):
+        paint = Image.new('RGB', (100, 100), 'peru')
+        ImageDraw.Draw(paint).rectangle((0, 40, 99, 60), fill='ivory')
+        path = [(15, 80), (65, 80), (65, 30)]
+        for length, end in ((52, 52), (130, 80)):
+            for scale in (1, 2, 3):
+                dirt = Image.new('RGB', (110*scale, 100*scale), 'sienna')
+                timber_approach(dirt, path, paint, 20, length, scale)
+                # The central pale board runs across the width of the horizontal leg.
+                x = 15 + end // 2
+                for y in (74, 80, 86):
+                    self.assertEqual(dirt.getpixel((x*scale, y*scale)), ImageColor.getrgb('ivory'))
+                # End station around the corner: the approach leaves the rest as dirt.
+                end_y = 80 - (end - 50)
+                for y, color in ((end_y + 2, 'peru'), (end_y - 2, 'sienna')):
+                    self.assertEqual(dirt.getpixel((65*scale, y*scale)), ImageColor.getrgb(color))
 
     def test_authored_scenery_only_fouls_a_bend_where_its_paint_covers_the_lane(self):
         lane = road_footprint((100, 100), [[(0, 75), (75, 75), (75, 0)]], 12)

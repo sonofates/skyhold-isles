@@ -1,0 +1,18 @@
+{
+ "image": "cinderkiln-attack.webp",
+ "frameW": 179,
+ "frameH": 256,
+ "count": 8,
+ "cols": 4,
+ "fps": 12,
+ "release": 3,
+ "anchor": [
+  89.5,
+  250.0
+ ],
+ "ringW": 167.0,
+ "muzzlePx": [
+  128.73,
+  48.47
+ ]
+}

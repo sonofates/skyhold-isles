@@ -1,3 +1,4 @@
+import { balanceBuildOrder, type BalanceBuildAction } from './lib/specializationBuilds.ts';
 import { driveScriptedHero } from './heroBalance.ts';
 import { campaignKit, driveGlobalAbilities, type CampaignKit } from './lib/campaignKit.ts';
 import { findMergePoint } from '../src/sim/groundGraph.ts';
@@ -6,11 +7,11 @@ import type { EnemyType } from '../src/core/types.ts';
 import { HERO_DEFS, HERO_IDS } from '../src/data/heroes.ts';
 import { BALANCE } from '../src/data/balance.ts';
 import { ENEMY_DEFS } from '../src/data/enemies.ts';
-import { LEVELS, type LevelDef, type ScriptedBuildAction } from '../src/data/levels/index.ts';
+import { LEVELS, type LevelDef } from '../src/data/levels/index.ts';
 import { LEVELS_2D } from '../src/data/levels2d/index.ts';
 import { NEUTRAL_RUN_MODIFIERS, type RunModifiers } from '../src/data/runModifiers.ts';
 import { STAR_RULES } from '../src/data/stars.ts';
-import { getTowerTierStats } from '../src/data/towers.ts';
+import { getTowerTierStats, specializationsFor } from '../src/data/towers.ts';
 import { maxedWorkshopRanks, workshopModifiers, workshopStarsSpent } from '../src/data/workshop.ts';
 import { endlessMutatorsAt } from '../src/data/endlessMutators.ts';
 import { challengesForLevel, runModifiersFor } from '../src/data/challenges.ts';
@@ -25,6 +26,8 @@ interface WaveStatRow {
   /** Furthest path progress (0..1) any ground enemy reached during the wave: a continuous "how close was it" signal. */
   peakGroundProgress: number;
   livesLost: number;
+  /** Sum of the crossing enemies' full costs, used by the historical 3D text report. */
+  nominalLeakCost: number;
   leaksByType: Partial<Record<EnemyType, number>>;
   /** Lives lost per enemy type (a leaking brute/boss/hauler costs more than 1). */
   livesByType: Partial<Record<EnemyType, number>>;
@@ -49,6 +52,7 @@ export interface SimRunResult {
   towersBuilt: number;
   plannedTowers: number;
   targetingChanges: number;
+  towerPurchases: string[];
   waves: WaveStatRow[];
   unspentScriptActions: number;
   invalidActions: number;
@@ -60,7 +64,7 @@ export interface SimRunResult {
 
 function tryExecuteAction(
   world: SimWorld,
-  act: ScriptedBuildAction,
+  act: BalanceBuildAction,
 ): { executed: boolean; invalid: boolean; cost: number; isBuild: boolean; changedTargeting: boolean } {
   if (act.action === 'build') {
     if (!act.towerType) return { executed: false, invalid: true, cost: 0, isBuild: false, changedTargeting: false };
@@ -91,7 +95,18 @@ function tryExecuteAction(
     return { executed: false, invalid: true, cost: 0, isBuild: false, changedTargeting: false };
   }
   const tower = world.getTowerById(tid);
-  if (!tower || tower.tier >= 3) {
+  if (!tower) return { executed: false, invalid: true, cost: 0, isBuild: false, changedTargeting: false };
+  if (act.action === 'specialize' || act.action === 'buyAbility') {
+    const branches = specializationsFor(tower);
+    const branchId = act.action === 'specialize' ? act.id : tower.specialization?.id;
+    const branch = branches.find(b => b.id === branchId);
+    const item = act.action === 'specialize' ? branch : branch?.abilities.find(a => a.id === act.id);
+    const cost = item?.cost ?? 0;
+    if (item && world.gold < cost) return { executed: false, invalid: false, cost, isBuild: false, changedTargeting: false };
+    const executed = act.action === 'specialize' ? world.specializeTower(tid, act.id) : world.buyTowerAbility(tid, act.id);
+    return { executed, invalid: !executed, cost, isBuild: false, changedTargeting: false };
+  }
+  if (tower.tier >= 3) {
     return { executed: false, invalid: true, cost: 0, isBuild: false, changedTargeting: false };
   }
   const nextTier = (tower.tier + 1) as 2 | 3;
@@ -152,7 +167,7 @@ function spendEndlessGold(world: SimWorld): void {
 export function runLevelBalanceSim(
   level: LevelDef,
   scriptKind: ScriptKind,
-  scriptActions: readonly ScriptedBuildAction[],
+  scriptActions: readonly BalanceBuildAction[],
   profile: RunModifiers | CampaignKit = NEUTRAL_RUN_MODIFIERS,
   /** After a win, keep going in Endless for up to this many generated waves (0 = stop at the win). */
   endlessWaves = 0,
@@ -171,6 +186,7 @@ export function runLevelBalanceSim(
   let goldSpent = 0;
   let towersBuilt = 0;
   let targetingChanges = 0;
+  const towerPurchases: string[] = [];
   let invalidActions = 0;
 
   events.on('waveStarted', (ev) => {
@@ -182,6 +198,7 @@ export function runLevelBalanceSim(
       livesStart: world.lives,
       peakGroundProgress: 0,
       livesLost: 0,
+      nominalLeakCost: 0,
       leaksByType: {},
       livesByType: {},
     };
@@ -198,23 +215,29 @@ export function runLevelBalanceSim(
 
   events.on('enemyLeaked', (ev) => {
     if (!activeWaveRow) return;
-    activeWaveRow.livesLost += ev.livesLost;
+    // The world has already charged this arrival. More enemies can cross on the defeat tick.
+    const waveLoss = activeWaveRow.livesStart - world.lives;
+    const charged = waveLoss - activeWaveRow.livesLost;
+    activeWaveRow.livesLost = waveLoss;
+    activeWaveRow.nominalLeakCost += ev.livesLost;
     activeWaveRow.leaksByType[ev.enemyType] =
       (activeWaveRow.leaksByType[ev.enemyType] ?? 0) + 1;
     activeWaveRow.livesByType[ev.enemyType] =
-      (activeWaveRow.livesByType[ev.enemyType] ?? 0) + ev.livesLost;
+      (activeWaveRow.livesByType[ev.enemyType] ?? 0) + charged;
   });
 
   const queue = [...scriptActions];
   const executeStep = (): boolean => {
     while (queue.length > 0) {
-      const res = tryExecuteAction(world, queue[0]);
+      const action = queue[0];
+      const res = tryExecuteAction(world, action);
       if (res.invalid) {
         invalidActions++;
         queue.shift();
         continue;
       }
       if (!res.executed) return false;
+      if (action.action === 'specialize' || action.action === 'buyAbility') towerPurchases.push(action.id);
       goldSpent += res.cost;
       if (res.isBuild) towersBuilt++;
       if (res.changedTargeting) targetingChanges++;
@@ -281,11 +304,30 @@ export function runLevelBalanceSim(
   const lastWaveHoardPct =
     lastRow && earnedBeforeLastWave > 0 ? (lastRow.startGold / earnedBeforeLastWave) * 100 : 0;
   const endGoldPctOfEarned = goldEarned > 0 ? (world.gold / goldEarned) * 100 : 0;
-  const storyOutcome = world.outcome;
-  const storyLives = world.lives;
-  const heroXp = world.heroSystem.runXp;
-  const storyGold = world.gold;
-  const storyWaves = [...waveRows];
+  // Endless reuses the world, event listeners and build queue. Record the story at its boundary.
+  const story = {
+    levelId: level.id,
+    name: level.name,
+    scriptKind,
+    outcome: world.outcome,
+    finalLives: world.lives,
+    stars: world.outcome === 'won' ? computeStarRating(world.lives, level.difficulty, world.startingLives) : 0,
+    startingGold,
+    startingLives: world.startingLives,
+    heroXp: world.heroSystem.runXp,
+    goldEarned,
+    goldSpent,
+    finalGold: world.gold,
+    endGoldPctOfEarned,
+    lastWaveHoardPct,
+    towersBuilt,
+    plannedTowers,
+    targetingChanges,
+    towerPurchases: [...towerPurchases],
+    waves: [...waveRows],
+    unspentScriptActions: queue.length,
+    invalidActions,
+  };
 
   let endlessReachedWave: number | undefined;
   let endlessPeakEnemies: number | undefined;
@@ -314,26 +356,7 @@ export function runLevelBalanceSim(
   }
 
   return {
-    levelId: level.id,
-    name: level.name,
-    scriptKind,
-    outcome: storyOutcome,
-    finalLives: storyLives,
-    stars: storyOutcome === 'won' ? computeStarRating(storyLives, level.difficulty, world.startingLives) : 0,
-    startingGold,
-    startingLives: world.startingLives,
-    heroXp,
-    goldEarned,
-    goldSpent,
-    finalGold: storyGold,
-    endGoldPctOfEarned,
-    lastWaveHoardPct,
-    towersBuilt,
-    plannedTowers,
-    targetingChanges,
-    waves: storyWaves,
-    unspentScriptActions: queue.length,
-    invalidActions,
+    ...story,
     endlessReachedWave,
     endlessPeakEnemies,
     endlessOutcome,
@@ -359,10 +382,10 @@ function entryMatches(filter: ReadonlySet<string> | null, e: BalanceEntry): bool
   return filter.has(e.label) || filter.has(e.label.toLowerCase());
 }
 
-function printResult(label: string, res: SimRunResult, difficulty: string): void {
+function printResult(label: string, res: SimRunResult, level: LevelDef): void {
   const tag = res.scriptKind === 'greedy' ? 'GREEDY' : 'WEAK  ';
   console.log(
-    `[${label} ${tag}] ${res.name} (${difficulty}) -> ${res.outcome.toUpperCase()} | ` +
+    `[${label} ${tag}] ${res.name} (${level.difficulty}) -> ${res.outcome.toUpperCase()} | ` +
       `Lives: ${res.finalLives}/${res.startingLives} | Stars: ${res.stars}/3 | ` +
       `Towers: ${res.towersBuilt}/${res.plannedTowers} (tgtSwaps: ${res.targetingChanges})`,
   );
@@ -371,11 +394,13 @@ function printResult(label: string, res: SimRunResult, difficulty: string): void
       `End Gold: ${res.finalGold}g (${res.endGoldPctOfEarned.toFixed(1)}% of earned; ${res.lastWaveHoardPct.toFixed(1)}% hoarded at final wave start) | ` +
       `RemainingSteps: ${res.unspentScriptActions} | Invalid: ${res.invalidActions}`,
   );
+  if (res.towerPurchases.length) console.log(`           Tier IV purchases: ${res.towerPurchases.join(', ')}`);
   if (res.scriptKind === 'greedy' || res.outcome === 'lost' || res.finalLives < 20) {
     console.log('           Wave | StartGold | LivesLost | PeakProgress | Leaks');
     for (let w = 0; w < res.waves.length; w++) {
       const row = res.waves[w];
-      if (row.livesLost === 0 && res.waves.length > 12 && w > 0 && w < res.waves.length - 1) {
+      const reportedLoss = level.layout2d ? row.livesLost : row.nominalLeakCost;
+      if (reportedLoss === 0 && res.waves.length > 12 && w > 0 && w < res.waves.length - 1) {
         continue;
       }
       const leakPairs = Object.entries(row.leaksByType)
@@ -383,7 +408,7 @@ function printResult(label: string, res: SimRunResult, difficulty: string): void
         .join(', ');
       console.log(
         `           ${String(row.waveNumber).padStart(4)} | ${String(row.startGold).padStart(8)}g | ` +
-          `${String(row.livesLost).padStart(9)} | ${(row.peakGroundProgress * 100).toFixed(0).padStart(11)}% | ${leakPairs || '-'}`,
+          `${String(reportedLoss).padStart(9)} | ${(row.peakGroundProgress * 100).toFixed(0).padStart(11)}% | ${leakPairs || '-'}`,
       );
     }
   }
@@ -403,8 +428,7 @@ function islandLossWindow(index: number): readonly [number, number] {
 }
 
 function runScript(map: LevelDef, kind: ScriptKind, kit?: CampaignKit): SimRunResult {
-  const actions = kind === 'greedy' ? map.scriptedBuildOrder : map.weakBuildOrder;
-  return runLevelBalanceSim(map, kind, actions ?? [], kit);
+  return runLevelBalanceSim(map, kind, balanceBuildOrder(map, kind), kit);
 }
 
 function formatLoss(res: SimRunResult): string {
@@ -491,9 +515,9 @@ export function evaluateBalance(
       stars += greedyRes.stars;
     }
     if (!selected) continue;
-    if (verbose) printResult(label, greedyRes, level.difficulty);
+    if (verbose) printResult(label, greedyRes, level);
     const weakRes = runScript(level, 'weak', kit);
-    if (verbose) printResult(label, weakRes, level.difficulty);
+    if (verbose) printResult(label, weakRes, level);
     if (verbose) console.log('');
 
     if (process.argv.includes('--peaks')) {
@@ -642,7 +666,7 @@ export function evaluateEndlessSanity(
   for (const i of sample) {
     if (levelFilter && !levelFilter.has(`L${i + 1}`)) continue;
     const level = LEVELS[i];
-    const r = runLevelBalanceSim(level, 'greedy', level.scriptedBuildOrder ?? [], NEUTRAL_RUN_MODIFIERS, CAP);
+    const r = runLevelBalanceSim(level, 'greedy', balanceBuildOrder(level, 'greedy'), NEUTRAL_RUN_MODIFIERS, CAP);
     const reached = r.endlessReachedWave ?? 0;
     const cleared = Math.max(0, reached - 1 - level.waves.length);
     const mutators = endlessMutatorsAt(cleared, level.index).map((m) => m.name);
@@ -675,7 +699,7 @@ export function evaluateChallenges(levelFilter: ReadonlySet<string> | null): str
     for (const id of challengesForLevel(level)) {
       for (const [tag, base] of [['ws0', NEUTRAL_RUN_MODIFIERS], ['wsMax', maxed]] as const) {
         const mods = runModifiersFor(base, [id]);
-        const r = runLevelBalanceSim(level, 'greedy', level.scriptedBuildOrder ?? [], mods);
+        const r = runLevelBalanceSim(level, 'greedy', balanceBuildOrder(level, 'greedy'), mods);
         const start = mods.maxLives ?? BALANCE.startingLives + mods.bonusLives;
         cells.push(`${id}/${tag}:${r.outcome === 'won' ? `W-${start - r.finalLives}` : `L@${r.waves.length}`}`);
       }
@@ -698,8 +722,8 @@ export function evaluateWorkshopMax(
   const failures: string[] = [];
   for (const { label, level } of balanceEntries()) {
     if (!entryMatches(levelFilter, { label, level })) continue;
-    const base = runLevelBalanceSim(level, 'greedy', level.scriptedBuildOrder ?? []);
-    const maxed = runLevelBalanceSim(level, 'greedy', level.scriptedBuildOrder ?? [], mods);
+    const base = runLevelBalanceSim(level, 'greedy', balanceBuildOrder(level, 'greedy'));
+    const maxed = runLevelBalanceSim(level, 'greedy', balanceBuildOrder(level, 'greedy'), mods);
     const baseLost = base.outcome === 'won' ? BALANCE.startingLives - base.finalLives : BALANCE.startingLives;
     const startLives = BALANCE.startingLives + mods.bonusLives;
     const maxedLost = maxed.outcome === 'won' ? startLives - maxed.finalLives : startLives;

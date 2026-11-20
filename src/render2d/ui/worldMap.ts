@@ -4,7 +4,7 @@
  * the campaign's own rules). Tap an island → briefing card → Play loads `?level=<id>`. The meta
  * screens (Workshop, Logbook, Daily, Settings) open from the round buttons top-right.
  *
- * QA params: ?screen=brief|workshop|logbook|daily|settings|store|heroes|herosel opens that screen
+ * QA params: ?screen=brief|workshop|logbook|daily|settings|store|heroes|herosel|credits opens that screen
  * (heroes = skill tree, herosel = hero picker, both take &focus=<hero id>; brief = frontier
  * island), ?mockislands=N appends N stand-in islands (layout check only; they reuse the first
  * island's map), window.__map exposes the layout. ?store=<island id> opens the store card for
@@ -34,8 +34,11 @@ import { anySheetOpen, el, glyph, img, KIT, medal, roundButton, starsRow } from 
 import { fetchMapsManifest, islandMapUrl, type MapsManifest } from './islandArt.ts';
 import { routeMarks, scrollToCentre, worldMapLayout, type RouteMark, type WorldMapLayout } from './mapLayout.ts';
 import { dailyFor2D, openDaily, openLogbook, openSettings, openWorkshop, type MetaContext } from './metaScreens.ts';
+import { unseenFeats } from './featSeen.ts';
 import { availableChallenges, buildRunHref2D, canPlayEndless } from './modes2d.ts';
 import { islandStates, loadProgress2D, type IslandState } from './progress2d.ts';
+import { openCredits } from './credits2d.ts';
+import { navigateWithVeil } from './transition2d.ts';
 import { heroArtFiles } from './heroBits.ts';
 import { heroChip, heroesButton, openHeroSelect, openSkillTree } from './heroScreens.ts';
 import { needsFullAdventure, openStore, storeEnabled } from './store2d.ts';
@@ -115,6 +118,84 @@ function fitTitleBanner(banner: HTMLElement, text: HTMLElement, screenW: number)
   if (fit.scale < 1) text.style.fontSize = `${(fs * fit.scale).toFixed(1)}px`;
 }
 
+/**
+ * The round buttons' captions hang under them and can be wider than the button ("Kahramanlar"):
+ * the extra left margin each button needs so its caption keeps `minGap` from the previous one's.
+ * `labels` are the captions' [left, right] edges, in order, measured with no extra margins.
+ */
+export function captionMargins(labels: readonly (readonly [number, number])[], minGap: number): number[] {
+  return labels.map((l, i) => (i === 0 ? 0 : Math.max(0, Math.ceil(minGap - (l[0] - labels[i - 1][1])))));
+}
+
+function spaceCaptions(row: HTMLElement): void {
+  const btns = Array.from(row.children).filter((c): c is HTMLElement => c instanceof HTMLElement && !!c.querySelector(':scope > .pu-round-label'));
+  for (const b of btns) b.style.marginLeft = '';
+  const boxes = btns.map((b) => {
+    const r = b.querySelector(':scope > .pu-round-label')?.getBoundingClientRect();
+    return [r?.left ?? 0, r?.right ?? 0] as const;
+  });
+  const cap = btns[0]?.querySelector(':scope > .pu-round-label');
+  const fs = cap ? parseFloat(getComputedStyle(cap).fontSize) || 12 : 12;
+  captionMargins(boxes, fs).forEach((m, i) => {
+    if (m > 0) btns[i].style.marginLeft = `${m}px`;
+  });
+}
+
+const FOG_ART = '/art2d/ui/island-fog.webp';
+
+/** localStorage: the furthest island the map has already shown as open (for the unveil). */
+const UNVEIL_KEY = 'skyhold2d_map_unlock_seen_v1';
+
+/**
+ * The island to unveil on this map visit: the one just reached since the map last showed the
+ * route (-1 when nothing new, on a first visit with no record, or after a reset).
+ */
+export function unveilIndex(seen: number | null, unlocked: number, count: number): number {
+  if (seen === null || !Number.isFinite(seen)) return -1;
+  return unlocked > seen && unlocked < count ? unlocked : -1;
+}
+
+/** localStorage: each island's stars as the map last showed them (new ones pop in once). */
+const STARS_KEY = 'skyhold2d_map_stars_seen_v1';
+
+/**
+ * Per island, the first star to pop in on this visit (its index), -1 when none is new. No record
+ * (a first visit) pops nothing.
+ */
+export function newStarsFrom(seen: readonly number[] | null, now: readonly number[]): number[] {
+  return now.map((n, i) => {
+    if (!seen) return -1;
+    const before = Math.max(0, Math.min(3, Number(seen[i]) || 0));
+    return n > before ? before : -1;
+  });
+}
+
+function readStarsSeen(): number[] | null {
+  try {
+    const v = JSON.parse(localStorage.getItem(STARS_KEY) ?? 'null') as unknown;
+    return Array.isArray(v) ? v.map((x) => Number(x) || 0) : null;
+  } catch {
+    return null;
+  }
+}
+
+function readUnveilSeen(): number | null {
+  try {
+    const v = localStorage.getItem(UNVEIL_KEY);
+    return v === null ? null : Number(v);
+  } catch {
+    return null;
+  }
+}
+
+function writeUnveilSeen(n: number): void {
+  try {
+    localStorage.setItem(UNVEIL_KEY, String(n));
+  } catch {
+    /* private mode: no unveil next time, nothing else */
+  }
+}
+
 export async function mountWorldMap(q: URLSearchParams): Promise<void> {
   const mock = Math.max(0, Math.min(24, Number(q.get('mockislands') ?? 0) || 0));
   const levels: readonly LevelDef[] = mock > 0 ? [...LEVELS_2D, ...mockLevels(mock)] : LEVELS_2D;
@@ -125,6 +206,15 @@ export async function mountWorldMap(q: URLSearchParams): Promise<void> {
     return token ? `/art2d/${token}` : islandMapUrl(manifest, level);
   };
   let progress: ProgressData = loadProgress2D(levels);
+  // A newly reached island lifts its fog once (the first build only; later refreshes don't replay it).
+  let unveilAt = unveilIndex(readUnveilSeen(), progress.unlockedLevelIndex, levels.length);
+  writeUnveilSeen(progress.unlockedLevelIndex);
+  let starsFrom = newStarsFrom(readStarsSeen(), levels.map((_, i) => progress.bestStars[i] ?? 0));
+  try {
+    localStorage.setItem(STARS_KEY, JSON.stringify(levels.map((_, i) => progress.bestStars[i] ?? 0)));
+  } catch {
+    /* private mode */
+  }
 
   const root = el('div', 'pu pu-map', { 'data-testid': 'worldmap2d' });
   const scroll = el('div', 'pu-map-scroll');
@@ -153,6 +243,8 @@ export async function mountWorldMap(q: URLSearchParams): Promise<void> {
   const panR = roundButton('next', t('map.panEast'), 'map2d-pan-right');
   panL.classList.add('pu-map-pan', 'left');
   panR.classList.add('pu-map-pan', 'right');
+  // Keys / pad walk the islands (each focus scrolls the sea); the pan arrows would be extra stops.
+  panL.dataset.navSkip = panR.dataset.navSkip = '';
   root.append(scroll, panL, panR, topbar, hint);
   document.body.append(root);
   const sea = mountSea(root, world, scroll, manifest, q);
@@ -207,7 +299,7 @@ export async function mountWorldMap(q: URLSearchParams): Promise<void> {
       (choice) => {
         // Endless always plays Normal: it does not change the remembered choice.
         if (!choice.endless) saveDifficultyPref(choice.difficulty);
-        location.assign(buildRunHref2D(id, { challenges: choice.challenges, endless: choice.endless, difficulty: choice.difficulty, intro: st.clears === 0 }));
+        navigateWithVeil(buildRunHref2D(id, { challenges: choice.challenges, endless: choice.endless, difficulty: choice.difficulty, intro: st.clears === 0 }));
       },
       heroChip(ctx, heroFiles).el,
     );
@@ -228,9 +320,23 @@ export async function mountWorldMap(q: URLSearchParams): Promise<void> {
             : t('map.nodeLocked', { name: islandName(st.level) }),
       });
       b.style.animationDelay = `${0.05 + i * 0.06}s`;
+      // Keyboard / pad focus starts on the island to play next.
+      if (st.frontier && st.unlocked) b.dataset.navDefault = '';
       sea.decorateNode(b, i, st.frontier && st.unlocked && !isPaid);
-      b.append(el('span', 'pu-node-shore'), medal(st.unlocked ? thumb(st.level) : '/art2d/ui/island-fog.webp', '100%', st.frontier && st.unlocked));
-      if (st.unlocked && !isPaid) b.append(starsRow(st.stars, 'pu-stars pu-node-stars'));
+      b.append(el('span', 'pu-node-shore'), medal(st.unlocked ? thumb(st.level) : FOG_ART, '100%', st.frontier && st.unlocked));
+      if (st.unlocked && !isPaid) {
+        const row = starsRow(st.stars, 'pu-stars pu-node-stars');
+        // Stars won since the last visit drop onto the node one by one (after the node pops in).
+        const from = starsFrom[i] ?? -1;
+        if (from >= 0 && !document.documentElement.classList.contains('pu-reduce-motion')) {
+          Array.from(row.children).forEach((star, k) => {
+            if (k < from || k >= st.stars || !(star instanceof HTMLElement)) return;
+            star.classList.add('pu-star-new');
+            star.style.setProperty('--sd', `${(0.75 + i * 0.06 + (k - from) * 0.22).toFixed(2)}s`);
+          });
+        }
+        b.append(row);
+      }
       if (st.mastered) {
         const c = el('span', 'pu-node-crown');
         c.append(glyph('crown'));
@@ -251,10 +357,39 @@ export async function mountWorldMap(q: URLSearchParams): Promise<void> {
         b.append(lock);
       }
       if (st.frontier && st.unlocked && !isPaid) b.append(sea.ship());
+      if (i === unveilAt && st.unlocked && !isPaid) unveil(b, i);
       b.addEventListener('click', () => openBrief(i));
       world.append(b);
       nodes.push(b);
     });
+    // Both play on the first build only (later refreshes, e.g. after the Workshop, don't replay them).
+    starsFrom = [];
+  };
+
+  /** The fog and padlock of the locked look lift off the medal, then a gold ring bursts (not with reduced motion). */
+  const unveil = (b: HTMLElement, i: number): void => {
+    unveilAt = -1;
+    if (document.documentElement.classList.contains('pu-reduce-motion')) return;
+    b.classList.add('unveil');
+    b.style.setProperty('--ud', `${(1.2 + i * 0.06).toFixed(2)}s`);
+    const fog = el('span', 'pu-medal-thumb pu-unveil-fog', { 'aria-hidden': 'true' });
+    fog.style.backgroundImage = `url("${FOG_ART}")`;
+    fog.style.backgroundSize = 'contain';
+    fog.style.backgroundPosition = '55% 50%';
+    b.querySelector('.pu-medal')?.append(fog);
+    const lock = el('span', 'pu-node-lock pu-unveil-lock', { 'aria-hidden': 'true' });
+    lock.append(glyph('lock'));
+    const burst = el('span', 'pu-unveil-burst', { 'aria-hidden': 'true' });
+    b.append(lock, burst);
+    // The burst is the last step: then the overlays leave (they end invisible anyway).
+    burst.addEventListener(
+      'animationend',
+      () => {
+        b.classList.remove('unveil');
+        for (const e of [fog, lock, burst]) e.remove();
+      },
+      { once: true },
+    );
   };
 
   const refreshTopbar = (): void => {
@@ -268,6 +403,13 @@ export async function mountWorldMap(q: URLSearchParams): Promise<void> {
     }).length;
     if (affordable > 0) wsBtn.append(el('span', 'pu-badge', { 'aria-label': t('map.affordable', { n: affordable }) }, String(affordable)));
     heroBtn.refresh(ctx);
+    lbBtn.querySelector('.pu-dot')?.remove();
+    lbBtn.removeAttribute('data-new-feats');
+    const newFeats = unseenFeats(progress, levels).length;
+    if (newFeats > 0) {
+      lbBtn.setAttribute('data-new-feats', String(newFeats));
+      lbBtn.append(el('span', 'pu-dot', { role: 'img', 'aria-label': t('map.logbookNew') }));
+    }
     dailyBtn.querySelector('.pu-dot')?.remove();
     const daily = dailyFor2D(progress, Date.now(), levels);
     if (daily && progress.daily.lastDay !== utcDayNumber(Date.now())) dailyBtn.append(el('span', 'pu-dot', { 'aria-hidden': 'true' }));
@@ -275,13 +417,18 @@ export async function mountWorldMap(q: URLSearchParams): Promise<void> {
 
   let lastW = 0;
   let lastH = 0;
+  let lastK = '';
   const relayout = (force = false): void => {
     const w = window.innerWidth;
     const h = window.innerHeight;
-    if (!force && w === lastW && h === lastH) return;
+    // The interface size (Settings, `--ui-scale`) changes the top bar too: lay out again then.
+    const k = document.documentElement.style.getPropertyValue('--ui-scale');
+    if (!force && w === lastW && h === lastH && k === lastK) return;
     lastW = w;
     lastH = h;
+    lastK = k;
     fitTitleBanner(banner, bannerText, w);
+    spaceCaptions(right);
     const insets = readSafeInsets();
     const bar = topbar.getBoundingClientRect();
     // The free band starts under the title banner (the round buttons' captions may overhang a bit).
@@ -358,7 +505,7 @@ export async function mountWorldMap(q: URLSearchParams): Promise<void> {
   scroll.addEventListener('pointercancel', endDrag);
 
   wsBtn.addEventListener('click', () => openWorkshop(ctx));
-  lbBtn.addEventListener('click', () => openLogbook(ctx));
+  lbBtn.addEventListener('click', () => openLogbook(ctx, undefined, refreshTopbar));
   dailyBtn.addEventListener('click', () => openDaily(ctx));
   setBtn.addEventListener('click', () => openSettings(ctx));
   heroBtn.el.addEventListener('click', () => openSkillTree(ctx, heroFiles));
@@ -401,9 +548,10 @@ export async function mountWorldMap(q: URLSearchParams): Promise<void> {
     });
   }
   else if (screen === 'workshop') openWorkshop(ctx);
-  else if (screen === 'logbook') openLogbook(ctx, q.get('tab') === 'feats' ? 'feats' : 'islands');
+  else if (screen === 'logbook') openLogbook(ctx, q.get('tab') === 'feats' ? 'feats' : 'islands', refreshTopbar);
   else if (screen === 'daily') openDaily(ctx);
   else if (screen === 'settings') openSettings(ctx);
+  else if (screen === 'credits') openCredits();
   else if (screen === 'heroes') openSkillTree(ctx, heroFiles, isHeroId(q.get('focus')) ? (q.get('focus') as HeroId) : undefined);
   else if (screen === 'herosel') openHeroSelect(ctx, heroFiles, undefined, isHeroId(q.get('focus')) ? (q.get('focus') as HeroId) : undefined);
   else if (screen === 'store' && storeEnabled()) openStoreFor(null);

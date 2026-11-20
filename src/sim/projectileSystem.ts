@@ -2,7 +2,7 @@ import type { EventBus } from '../core/eventBus.ts';
 import type { ObjectPool } from '../core/pool.ts';
 import type { TowerType } from '../core/types.ts';
 import { ENEMY_DEFS } from '../data/enemies.ts';
-import { TOWER_DEFS, getTowerTierStats } from '../data/towers.ts';
+import { TOWER_DEFS, towerStats } from '../data/towers.ts';
 import type { EnemyEntity, ProjectileEntity, TowerEntity } from './entities.ts';
 import type { EnemySystem } from './enemySystem.ts';
 import type { SpatialHashGrid } from './spatialHash.ts';
@@ -62,6 +62,7 @@ export interface HeroShotParams {
 
 export class ProjectileSystem {
   private readonly burnZones: BurnZone[] = [];
+  private readonly burnTickZones: BurnZone[] = [];
   private burnTickTimer = BURN_TICK_INTERVAL;
   private resetGen = 0;
   /** Invoked when a `fromHero` projectile deals positive damage to an enemy. */
@@ -159,12 +160,15 @@ export class ProjectileSystem {
     if (this.burnTickTimer > 0) return;
     this.burnTickTimer += BURN_TICK_INTERVAL;
 
+    // Strongest covering patch wins. Stable sorting preserves pool-slot credit for ties.
+    const zones = this.burnTickZones;
+    zones.length = 0;
+    for (const zone of this.burnZones) if (zone.active) zones.push(zone);
+    zones.sort((a, b) => b.damage - a.damage);
     _burnHit.clear();
     const gen = this.resetGen;
-    for (let i = 0; i < this.burnZones.length; i++) {
+    for (const z of zones) {
       if (this.resetGen !== gen) return;
-      const z = this.burnZones[i];
-      if (!z.active) continue;
       this.spatialHash.query(z.x, z.z, z.radius, _burnCandidates);
       const rSq = z.radius * z.radius;
       for (let k = 0; k < _burnCandidates.length; k++) {
@@ -204,7 +208,7 @@ export class ProjectileSystem {
     if (!p) return null;
 
     const def = TOWER_DEFS[tower.type];
-    const stats = getTowerTierStats(tower.type, tower.tier);
+    const stats = towerStats(tower);
     let sx = tower.x;
     const sy = def.turretHeight + 0.15;
     let sz = tower.z;

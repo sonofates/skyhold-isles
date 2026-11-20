@@ -145,6 +145,10 @@ describe('HUD hover tooltips', () => {
     expect(hudTipText('horn', { ...s, first: false, earlyBonus: 30 }).desc).toBe('Call it now for +30 bonus gold.');
     expect(hudTipText('horn', { ...s, canCall: false }).desc).toMatch(/between waves/);
     expect(hudTipText('pause', s).head).toBe('Pause');
+    // Pad mode reads the controller button (X calls the wave, Start pauses).
+    expect(hudTipText('horn', s).pad).toBe('X');
+    expect(hudTipText('pause', s).pad).toBe('Start');
+    expect(hudTipText('speed', s).pad).toBeUndefined();
     expect(hudTipText('pause', { ...s, paused: true }).head).toBe('Resume');
     expect(hudTipText('speed', s).head).toBe('Game speed 2×');
   });

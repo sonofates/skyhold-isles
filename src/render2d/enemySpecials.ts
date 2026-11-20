@@ -1,5 +1,4 @@
-import { Graphics, GraphicsContext, Sprite, Texture } from 'pixi.js';
-import type { Container } from 'pixi.js';
+import { Container, Graphics, GraphicsContext, Sprite, Texture } from 'pixi.js';
 import { CHAPTER_ENEMY_DEFS } from '../data/enemies.ts';
 import { mixTint } from './artResolve.ts';
 import type { EnemyArtRuntime } from './assets2d.ts';
@@ -23,7 +22,6 @@ export interface SpecialState {
   readonly hexTargetId?: number;
   readonly bossPhase?: number;
   readonly channelTimer?: number;
-  readonly isDropped?: boolean;
   readonly isSplitChild?: boolean;
 }
 
@@ -51,14 +49,62 @@ function drawChapterCue(cue: ChapterCue): GraphicsContext {
     g.ellipse(4.6, 1, 4.1, 2.9).fill(0xffeb9b).stroke({ width: 1.4, color: 0x4d4226 });
   } else {
     // Two tapered wingtip trails in a local frame pointing right.
-    g.moveTo(-9, -7).bezierCurveTo(-32, -17, -51, -1, -83, -9)
-      .bezierCurveTo(-52, 2, -31, -10, -15, -4).closePath()
-      .fill(0xcaf2eb).stroke({ width: 1.1, color: 0x365d66, join: 'round' });
-    g.moveTo(-15, 6).bezierCurveTo(-33, 3, -41, 16, -65, 10)
-      .bezierCurveTo(-43, 19, -30, 9, -19, 10).closePath()
-      .fill(0x9fddd8).stroke({ width: 1, color: 0x365d66, join: 'round' });
+    g.moveTo(-9, -7).bezierCurveTo(-32, -20, -51, -2, -83, -9)
+      .bezierCurveTo(-55, 5, -33, -10, -15, -3).closePath()
+      .fill(0xd9faf1).stroke({ width: 1.8, color: 0x2c525c, join: 'round' });
+    g.moveTo(-15, 6).bezierCurveTo(-33, 1, -41, 15, -65, 10)
+      .bezierCurveTo(-45, 22, -31, 10, -19, 11).closePath()
+      .fill(0xafe9e1).stroke({ width: 1.6, color: 0x2c525c, join: 'round' });
   }
   return g;
+}
+
+/** Inked fissures in the 240 × 184 Kilnback sheet's local pixels, relative to its central plate. */
+function kilnbackFissures(stage: number): GraphicsContext {
+  const g = new GraphicsContext();
+  if (stage === 3) {
+    g.poly([-9, -6, 0, -10, 8, -4, 5, 4, -3, 9, -8, 3])
+      .fill(0x623422).stroke({ color: 0xffcf81, width: 2.8, join: 'round' });
+  }
+  for (const [width, color] of [[6, 0x532c21], [2.6, 0xffdc98]]) {
+    g.beginPath().moveTo(-4, -4).lineTo(-13, -8).lineTo(-16, -16).lineTo(-25, -20);
+    if (stage >= 2) g.moveTo(-3, 2).lineTo(-11, 9).lineTo(-20, 9).lineTo(-27, 18);
+    if (stage === 3) {
+      g.moveTo(7, -2).lineTo(17, -9).lineTo(26, -7).lineTo(34, -14);
+      g.moveTo(1, 8).lineTo(6, 15).lineTo(4, 21);
+    }
+    g.stroke({ width, color, cap: 'round', join: 'round' });
+  }
+  return g;
+}
+
+const shellShapes: GraphicsContext[] = [];
+
+/** Keep the painted body and its fissures together in ground depth order, including on a blocked lane. */
+export class KilnbackShell extends Container {
+  private readonly fissures = new Graphics();
+
+  constructor() {
+    super();
+    this.fissures.visible = false;
+    this.fissures.zIndex = 1;
+    this.addChild(this.fissures);
+  }
+
+  pose(body: Sprite, armor: number, baseArmor: number, sideView: boolean): void {
+    const mark = this.fissures;
+    mark.visible = body.visible && armor < baseArmor;
+    if (!mark.visible) return;
+    const stage = armor === 0 ? 3 : baseArmor - armor <= CHAPTER_ENEMY_DEFS.kilnback.ability.chip ? 1 : 2;
+    mark.context = shellShapes[stage] ??= kilnbackFissures(stage);
+    // In the side walk the shell sits lower on the frame, behind the extended neck.
+    mark.pivot.set(body.texture.width * body.anchor.x - (sideView ? 114 : 119),
+      body.texture.height * body.anchor.y - (sideView ? 76 : 61));
+    mark.position.copyFrom(body.position);
+    mark.scale.copyFrom(body.scale);
+    mark.rotation = body.rotation;
+    mark.alpha = body.alpha;
+  }
 }
 
 /** Lazily created pooled overlays of one enemy view. */
@@ -79,10 +125,6 @@ export function createExtras(): EnemyExtras {
 
 /** Seconds before a blink at which the rift starts to glow (matches the 3D telegraph). */
 export const BLINK_TELEGRAPH_SEC = 0.55;
-/** Seconds a Cloud Hauler's raider takes to fall to the road. */
-export const DROP_FALL_SEC = 0.5;
-/** World units of height a dropped raider starts above the road. */
-export const DROP_FALL_HEIGHT = 3.4;
 /** Seconds the burrower takes to sink into / rise out of the ground. */
 export const BURROW_EASE_SEC = 0.22;
 
@@ -121,12 +163,10 @@ export interface SpecialOut {
 export interface SpecialAnim {
   burrowK: number;
   dustT: number;
-  fallT: number;
-  fallDone: boolean;
 }
 
 export function createSpecialAnim(): SpecialAnim {
-  return { burrowK: 0, dustT: 0, fallT: DROP_FALL_SEC, fallDone: true };
+  return { burrowK: 0, dustT: 0 };
 }
 
 /**
@@ -260,10 +300,9 @@ export class EnemySpecials {
     const cracked = (w.armorBreakTimer ?? 0) > 0;
     const ceramic = type === 'kilnback';
     if (cracked) tint = mixTint(tint, ceramic ? 0xffce92 : 0xdff3ff, 0.32);
-    const crack = this.show(ex, 'crack', cracked && !w.burrowed, art);
+    const crack = this.show(ex, 'crack', cracked && !ceramic && !w.burrowed, art);
     if (crack) {
       const d = L.heightPx * 0.95;
-      crack.tint = ceramic ? 0xf7a060 : 0xffffff;
       crack.position.set(L.px, L.cy);
       crack.scale.set(d / 128);
       crack.alpha = Math.min(1, (w.armorBreakTimer ?? 0) / 0.6) * (0.85 + 0.15 * Math.sin(time * 14));
@@ -372,8 +411,12 @@ export class EnemySpecials {
         refrain.position.set(L.px, L.py);
         refrain.scale.set(ability.radius * L.pxPerUnit / 100);
         refrain.alpha = 0.28 + 0.50 * phrase;
-        note.position.set(L.px + L.facing * L.heightPx * (0.34 + 0.17 * phrase), L.cy - L.heightPx * (0.14 + 0.34 * phrase));
-        note.scale.set(L.heightPx / 54);
+        // Lift the notes above the health bars of the larger ground troops around the piper.
+        note.position.set(
+          L.px + L.facing * L.heightPx * (0.42 + 0.25 * phrase),
+          L.cy - L.heightPx * (0.78 + 0.55 * phrase),
+        );
+        note.scale.set(L.heightPx / 48);
         note.rotation = -0.16 + 0.13 * phrase;
         note.zIndex = L.py + 0.65;
       }

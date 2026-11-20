@@ -25,20 +25,70 @@
         display: block;
         touch-action: none;
       }
-      #boot {
+      /* Boot screen, and the veil before a page change (ui/transition2d.ts): the same look, so
+         map → battle → map reads as one fade. */
+      #boot,
+      .boot-look {
         position: fixed;
         inset: 0;
+        z-index: 100;
         display: grid;
         place-items: center;
+        align-content: center;
+        gap: 18px;
+        background: radial-gradient(ellipse 80% 70% at 50% 45%, #2f7f9c 0%, #1d5672 55%, #102f45 100%);
         color: #fff4dc;
-        font: 700 22px system-ui, sans-serif;
-        text-shadow: 0 2px 0 #3a2412;
+        font: 700 22px 'Fredoka Variable', 'Fredoka TR', 'Trebuchet MS', system-ui, sans-serif;
+        text-shadow: 0 2px 0 #3a2412, 2px 0 0 #3a2412, -2px 0 0 #3a2412, 0 -2px 0 #3a2412;
+      }
+      .boot-ring {
+        display: block;
+        width: 54px;
+        height: 54px;
+        box-sizing: border-box;
+        border-radius: 50%;
+        border: 5px solid rgba(255, 201, 60, 0.25);
+        border-top-color: #ffc93c;
+        box-shadow: 0 0 0 2px rgba(58, 36, 18, 0.6);
+        animation: boot-spin 0.9s linear infinite;
+      }
+      @keyframes boot-spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      /* Battle load: one gameplay tip on a parchment card under the boot line. */
+      .boot-tip {
+        display: grid;
+        gap: 6px;
+        max-width: min(34em, 86vw);
+        margin-top: 10px;
+        padding: 12px 18px 14px;
+        border-radius: 14px;
+        background: linear-gradient(#fbf1d8, #ecd6aa);
+        box-shadow: 0 0 0 2px #3a2412, 0 4px 0 rgba(16, 47, 69, 0.6);
+        color: #4a2a12;
+        text-shadow: none;
+        text-align: center;
+        font-size: clamp(16px, 1.1vw, 22px);
+        font-weight: 600;
+        line-height: 1.3;
+      }
+      .boot-tip b {
+        font-size: 0.75em;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #a8620f;
+      }
+      .pu-reduce-motion .boot-ring {
+        animation-duration: 3s;
       }
     </style>
   </head>
   <body>
     <div id="stage"></div>
-    <div id="boot">Loading…</div>
+    <div id="boot" class="boot-look"><i class="boot-ring"></i><div class="boot-text">Loading…</div></div>
     <script type="module" src="/src/render2d/main2d.ts"></script>
   </body>
 </html>

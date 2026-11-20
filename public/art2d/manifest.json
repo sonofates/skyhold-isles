@@ -263,6 +263,11 @@
   "buttonRound": "ui/button-round.webp"
  },
  "paintedUi": {
+  "title": {
+   "keyart": "ui/title/keyart.webp",
+   "logo": "ui/title/logo.webp",
+   "logoTr": "ui/title/logo-tr.webp"
+  },
   "button-go": "ui/button-go.webp",
   "compass": "ui/compass.webp",
   "gem-breezy": "ui/gem-breezy.webp",
@@ -795,6 +800,72 @@
     "anim-towers/t3-barracks-2-attack.json",
     "anim-towers/t3-barracks-3-attack.json"
    ]
+  }
+ },
+ "towerSpecializations": {
+  "farwatch": {
+   "portrait": "specializations/farwatch.webp",
+   "turret": "specializations/farwatch-turret.json"
+  },
+  "swallow": {
+   "portrait": "specializations/swallow.webp",
+   "turret": "specializations/swallow-turret.json"
+  },
+  "honeycomb": {
+   "portrait": "specializations/honeycomb.webp",
+   "turret": "specializations/honeycomb-turret.json"
+  },
+  "bellfoundry": {
+   "portrait": "specializations/bellfoundry.webp",
+   "turret": "specializations/bellfoundry-turret.json"
+  },
+  "loom": {
+   "portrait": "specializations/loom.webp",
+   "turret": "specializations/loom-turret.json"
+  },
+  "anchor": {
+   "portrait": "specializations/anchor.webp",
+   "turret": "specializations/anchor-turret.json"
+  },
+  "snowbell": {
+   "portrait": "specializations/snowbell.webp",
+   "attack": "specializations/snowbell-attack.json"
+  },
+  "rimeglass": {
+   "portrait": "specializations/rimeglass.webp",
+   "attack": "specializations/rimeglass-attack.json"
+  },
+  "relay": {
+   "portrait": "specializations/relay.webp",
+   "attack": "specializations/relay-attack.json"
+  },
+  "stormheart": {
+   "portrait": "specializations/stormheart.webp",
+   "attack": "specializations/stormheart-attack.json"
+  },
+  "cinderkiln": {
+   "portrait": "specializations/cinderkiln.webp",
+   "attack": "specializations/cinderkiln-attack.json"
+  },
+  "cloudbreak": {
+   "portrait": "specializations/cloudbreak.webp",
+   "attack": "specializations/cloudbreak-attack.json"
+  },
+  "tailwind": {
+   "portrait": "specializations/tailwind.webp",
+   "attack": "specializations/tailwind-attack.json"
+  },
+  "horizon": {
+   "portrait": "specializations/horizon.webp",
+   "attack": "specializations/horizon-attack.json"
+  },
+  "gateward": {
+   "portrait": "specializations/gateward.webp",
+   "attack": "specializations/gateward-attack.json"
+  },
+  "briar": {
+   "portrait": "specializations/briar.webp",
+   "attack": "specializations/briar-attack.json"
   }
  },
  "buildRing": [

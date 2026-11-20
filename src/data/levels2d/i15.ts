@@ -1,8 +1,10 @@
 import { LEVEL_15 } from '../levels/level15.ts';
-import { campaignIsland } from './campaignIsland.ts';
+import { campaignIsland, replaceWaveEnemy } from './campaignIsland.ts';
+import { build } from './chapterIsland.ts';
 import layout from './i15.json';
 
-export const I15 = campaignIsland(LEVEL_15, layout, {
+const moonwell = campaignIsland(LEVEL_15, layout, {
+  waves: replaceWaveEnemy(LEVEL_15, 'Veil of Mist', 'flyer', 'draftwing'),
   startingGold: 360,
   enemyHpScale: 4.1038,
   waveHpGrowth: 0.052,
@@ -33,3 +35,14 @@ export const I15 = campaignIsland(LEVEL_15, layout, {
     '7,8': 20,
   },
 });
+
+export const I15 = {
+  ...moonwell,
+  scriptedBuildOrder: [
+    // Cover the crossing and the incoming flight path before buying the two ground mortars.
+    build(0, 3, 'frost'), build(0, 7, 'frost', 'strongest'),
+    build(0, 24, 'mortar'), build(0, 15, 'mortar'), build(0, 5, 'archer'),
+    build(1, 6, 'tesla'), build(1, 4, 'ballista'),
+    ...(moonwell.scriptedBuildOrder ?? []).filter(action => action.waveIndex > 1 || action.action !== 'build'),
+  ],
+};

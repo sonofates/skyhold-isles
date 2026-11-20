@@ -69,7 +69,7 @@ export const CHAPTER_ENEMY_DEFS = {
   bellrunner: {
     type: 'bellrunner', name: 'Belfry Hare',
     description: 'The bells on its harness ring faster as it gathers speed on the open road.',
-    counterHint: 'A soldier or a frost hit makes the hare start its run-up again.',
+    counterHint: 'Block or slow the hare to break its sprint. It needs a clear road to build up speed again.',
     maxHp: 84, speed: 2.35, armor: 0, reward: 5, livesCost: 1,
     flying: false, radius: 0.37, height: 1.08,
     ability: { kind: 'momentum', runUpSec: 2.4, speedBonus: 0.85 },
@@ -93,7 +93,7 @@ export const CHAPTER_ENEMY_DEFS = {
   draftwing: {
     type: 'draftwing', name: 'Slipstream Moth',
     description: 'Follows the wingbeats of another moth ahead on the sky lane, closing the gap in its wake.',
-    counterHint: 'Chain lightning breaks up a flight. Pick off the lead moth to slow its follower.',
+    counterHint: 'Use chain lightning on the flock. Once the last moth ahead is out of reach, the follower loses its extra speed over 1.4 seconds.',
     maxHp: 47, speed: 2.5, armor: 0, reward: 3, livesCost: 1,
     flying: true, radius: 0.36, height: 0.84,
     ability: { kind: 'draft', reach: 3, spacing: 0.35, coastSec: 1.4, speedBonus: 0.65 },
@@ -266,8 +266,8 @@ export const ENEMY_DEFS: Record<EnemyType, EnemyDef> = {
   golem: {
     type: 'golem',
     name: 'Basalt Golem',
-    description: 'Walking basalt with immense armor. Chilling hits crack its shell for a few seconds.',
-    counterHint: 'Frost cracks its armor to 3 — then fast or armor-piercing hits finish it.',
+    description: 'A walking mass of basalt. Slowing hits crack its armored shell.',
+    counterHint: 'Slow the golem to drop its armor to 3. Fast attacks can then cut through the cracked shell.',
     maxHp: 340,
     speed: 1.25,
     armor: 12,

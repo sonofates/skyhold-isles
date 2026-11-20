@@ -1,0 +1,33 @@
+UI audit: 24 screens (en x 2000x991, 844x390)
+problems 1 {"other":1}
+
+brief-modes-2000x991-en: run failed TimeoutError: page.screenshot: Timeout 30000ms exceeded.
+Call log:
+[2m  - taking page screenshot[22m
+[2m  - waiting for fonts to load...[22m
+[2m  - fonts l
+
+brief-2000x991-en: texts 35, canvas ok, problems 0
+brief-844x390-en: texts 33, canvas ok, problems 0
+brief-easy-2000x991-en: texts 36, canvas ok, problems 0
+brief-easy-844x390-en: texts 34, canvas ok, problems 0
+brief-endless-2000x991-en: texts 35, canvas ok, problems 0
+brief-endless-844x390-en: texts 33, canvas ok, problems 0
+brief-frontier-2000x991-en: texts 20, canvas ok, problems 0
+brief-frontier-844x390-en: texts 18, canvas ok, problems 0
+brief-hard-2000x991-en: texts 36, canvas ok, problems 0
+brief-hard-844x390-en: texts 34, canvas ok, problems 0
+brief-locked-2000x991-en: texts 7, canvas ok, problems 0
+brief-locked-844x390-en: texts 7, canvas ok, problems 0
+brief-modes-2000x991-en: texts 36, canvas ok, problems 0
+brief-modes-844x390-en: texts 34, canvas ok, problems 0
+daily-2000x991-en: texts 17, canvas ok, problems 0
+daily-844x390-en: texts 17, canvas ok, problems 0
+end-daily-2000x991-en: texts 0, canvas ok, problems 0
+end-daily-844x390-en: texts 0, canvas ok, problems 0
+logbook-2000x991-en: texts 122, canvas ok, problems 0
+logbook-844x390-en: texts 121, canvas ok, problems 0
+logbook-feats-2000x991-en: texts 56, canvas ok, problems 0
+logbook-feats-844x390-en: texts 55, canvas ok, problems 0
+workshop-2000x991-en: texts 44, canvas ok, problems 0
+workshop-844x390-en: texts 44, canvas ok, problems 0

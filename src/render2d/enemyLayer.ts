@@ -8,9 +8,8 @@ import type { DeathSheetRuntime, EnemyArtRuntime, LoadedArt } from './assets2d.t
 import {
   createExtras,
   createSpecialAnim,
-  DROP_FALL_HEIGHT,
-  DROP_FALL_SEC,
   EnemySpecials,
+  KilnbackShell,
   type EnemyExtras,
   type SpecialAnim,
   type SpecialOut,
@@ -28,6 +27,9 @@ import { cheapWalk, createAnimState, createPose, sheetSequence, sheetWalk, type 
 /** Anything that walks like an enemy: the sim's EnemyEntity, or the A/B showcase walkers. */
 export interface Walker extends SpecialState {
   readonly uid: number;
+  readonly isDropped?: boolean;
+  readonly armor?: number;
+  readonly baseArmor?: number;
   readonly type: EnemyType;
   readonly flying: boolean;
   readonly x: number;
@@ -52,6 +54,8 @@ interface DeathView {
   groundY: number;
 }
 
+// A raider can be hit on the road from its spawn tick. Compress at the feet on contact.
+const RAIDER_TOUCHDOWN_SEC = 0.24;
 const BAR_W = 34;
 const BAR_H = 5;
 const HP_GREEN = 0x7cd34a;
@@ -64,6 +68,7 @@ export class EnemyView {
   readonly body = new Sprite(Texture.EMPTY);
   /** Additive copy of the body shown for a few frames when a melee blow lands (white hit flash). */
   flash: Sprite | null = null;
+  shell: KilnbackShell | null = null;
   readonly shadow: Sprite;
   readonly barBg = new Sprite(Texture.WHITE);
   readonly barFill = new Sprite(Texture.WHITE);
@@ -78,6 +83,7 @@ export class EnemyView {
   scale = 1;
   flying = false;
   nominalSpeed = 1;
+  touchdownLeft = 0;
   lastX = 0;
   lastZ = 0;
   lastPx = 0;
@@ -115,7 +121,6 @@ export class EnemyLayer {
   private readonly layers: WorldLayers;
   private readonly tex: ProcTextures;
   private readonly hasGoalFront: boolean;
-  private readonly fx: FxLayer | null;
   readonly specials: EnemySpecials;
   /** Melee fight state (facing, swings, hit flash); null in scenes without soldiers. */
   private melee: MeleeDirector | null = null;
@@ -126,7 +131,6 @@ export class EnemyLayer {
     this.hasGoalFront = map.layout.gates?.some(g => g.role === 'goal' && g.front !== null) ?? false;
     this.layers = layers;
     this.tex = tex;
-    this.fx = fx;
     this.specials = new EnemySpecials(
       { overlays: layers.air, ground: layers.shadows, actors: layers.actors, bars: layers.bars },
       tex,
@@ -161,6 +165,7 @@ export class EnemyLayer {
     v.body.visible = on;
     v.shadow.visible = on;
     if (!on) {
+      if (v.shell) v.shell.visible = false;
       if (v.flash) v.flash.visible = false;
       v.barBg.visible = false;
       v.barFill.visible = false;
@@ -184,14 +189,20 @@ export class EnemyLayer {
     v.anim.seq = 0;
     v.sp.burrowK = w.burrowed ? 1 : 0;
     v.sp.dustT = 0;
-    v.sp.fallT = w.isDropped ? 0 : DROP_FALL_SEC;
-    v.sp.fallDone = !w.isDropped;
+    v.touchdownLeft = w.isDropped ? RAIDER_TOUCHDOWN_SEC : 0;
     const anchor = art.mode === 'sheet' ? (art.sheet?.anchor ?? art.spec.anchor) : (art.frameAnchors[0] ?? art.spec.anchor);
     v.body.anchor.set(anchor[0], anchor[1]);
     v.body.texture = Texture.EMPTY;
     this.specials.hideAll(v.ex);
     const parent = w.flying ? this.layers.air : this.layers.actors;
-    if (v.body.parent !== parent) parent.addChild(v.body);
+    if (v.shell) v.shell.visible = false;
+    if (w.type === 'kilnback' && art.key === 'kilnback' && art.mode === 'sheet' && !art.fallbackOf) {
+      const shell = v.shell ??= new KilnbackShell();
+      if (!shell.parent) parent.addChild(shell);
+      if (v.body.parent !== shell) shell.addChild(v.body);
+      v.body.zIndex = 0;
+      shell.visible = true;
+    } else if (v.body.parent !== parent) parent.addChild(v.body);
     if (v.flash) {
       if (v.flash.parent !== parent) parent.addChild(v.flash);
       v.flash.visible = false;
@@ -212,13 +223,13 @@ export class EnemyLayer {
       this.deaths.push(d);
     }
     const body = d.body;
-    v.body.parent.addChild(body);
+    (v.flying ? this.layers.air : this.layers.actors).addChild(body);
     body.texture = clip.frames[0];
     const anchor = clip.anchor ?? art.sheet?.anchor ?? art.spec.anchor;
     body.anchor.set(anchor[0], anchor[1]);
     body.position.copyFrom(v.body.position);
     body.scale.copyFrom(v.body.scale);
-    body.zIndex = v.body.zIndex;
+    body.zIndex = v.body.parent === v.shell ? v.shell.zIndex : v.body.zIndex;
     body.tint = v.tint;
     body.alpha = 1;
     body.visible = true;
@@ -308,6 +319,7 @@ export class EnemyLayer {
   drawWalker(index: number, w: Walker, alpha: number, dt: number, artOverride: string | null, passageAlpha = 1): void {
     const v = this.viewFor(index);
     if (v.uid !== w.uid || v.art === null) this.bind(v, w, artOverride);
+    else if (v.touchdownLeft > 0) v.touchdownLeft = Math.max(0, v.touchdownLeft - dt);
     const art = v.art!;
     const map = this.map;
     const ppu = map.layout.pxPerUnit;
@@ -423,24 +435,14 @@ export class EnemyLayer {
       }
     }
 
-    // Dropped raiders fall from the hauler's wreck onto the road.
-    let fallLift = 0;
-    let fallK = 1;
-    if (!v.sp.fallDone) {
-      v.sp.fallT += dt;
-      fallK = Math.min(1, v.sp.fallT / DROP_FALL_SEC);
-      fallLift = DROP_FALL_HEIGHT * (1 - fallK * fallK);
-      if (fallK >= 1) {
-        v.sp.fallDone = true;
-        this.fx?.puffs(px, py, 4, 12, 0xe9d8b4);
-      }
-    }
+    const touchdown = v.touchdownLeft / RAIDER_TOUCHDOWN_SEC;
+    const landingScaleY = 1 - 0.25 * touchdown;
 
     // Constant px scale per art (from the base sprite / sheet frame) so frames never change size.
     const heightPx = art.spec.height * ppu * v.scale * (w.scaleOverride || 1);
     // Attack frames use the walk sheet's px scale (same source framing), so the figure keeps its size.
     const s = (heightPx / Math.max(1, art.mode === 'sheet' ? walkTex.height * 0.94 : art.base.height)) * (attackFrame >= 0 && atk ? atk.figScale : 1);
-    const liftPx = (iy * HEIGHT_TO_SCREEN + pose.lift + fallLift) * ppu;
+    const liftPx = (iy * HEIGHT_TO_SCREEN + pose.lift * (1 - touchdown)) * ppu;
     const shR = art.spec.shadow * ppu * v.scale * (w.flying ? 0.85 : 1);
 
     // Specials: tints, overlays, burrow sink (they may change tint / alpha / squash / visibility).
@@ -470,8 +472,8 @@ export class EnemyLayer {
     // Melee: knockback jolt (render offset), swing pose (procedural, lighter over painted frames), idle bob.
     let bx = px;
     let by = py;
-    let sx = 1;
-    let sy = 1;
+    let sx = 1 + 0.14 * touchdown;
+    let sy = landingScaleY;
     let rot = 0;
     let lift = 0;
     if (ms) {
@@ -482,8 +484,8 @@ export class EnemyLayer {
       const amt = attackFrame >= 0 ? 0.3 : 1;
       bx += face * p.forward * amt * heightPx * 0.16;
       rot = face * p.tilt * amt * 0.12;
-      sx = 1 + (p.scaleX - 1) * amt;
-      sy = 1 + (p.scaleY - 1) * amt;
+      sx *= 1 + (p.scaleX - 1) * amt;
+      sy *= 1 + (p.scaleY - 1) * amt;
       lift = p.lift * amt * heightPx;
       if (fighting && ms.swing.t < 0) {
         const b = Math.sin(ms.idle * Math.PI * 2 * 1.5);
@@ -494,17 +496,22 @@ export class EnemyLayer {
     v.body.scale.set(s * pose.scaleX * sx * (pose.flip ? -1 : 1), s * pose.scaleY * sy * out.squashY);
     v.body.rotation = pose.rotation + rot;
     v.body.position.set(bx, by - liftPx - lift);
-    v.body.zIndex = py;
     v.body.tint = out.tint;
     v.body.alpha = out.bodyAlpha;
     v.body.visible = out.bodyVisible;
+    if (v.shell && v.body.parent === v.shell) {
+      v.shell.zIndex = py;
+      v.shell.pose(v.body, w.armor ?? 0, w.baseArmor ?? 0, attackFrame < 0 && v.anim.seq === 2);
+    } else {
+      v.body.zIndex = py;
+    }
     const flashK = ms && out.bodyVisible ? ms.flash / HIT_FLASH : 0;
     if (v.flash) v.flash.visible = flashK > 0;
     if (flashK > 0) {
       const fl = v.flash ??= new Sprite();
       if (!fl.parent) {
         fl.blendMode = 'add';
-        v.body.parent!.addChild(fl);
+        (w.flying ? this.layers.air : this.layers.actors).addChild(fl);
       }
       fl.texture = v.body.texture;
       fl.anchor.copyFrom(v.body.anchor);
@@ -517,17 +524,16 @@ export class EnemyLayer {
 
     const sh = v.shadow;
     sh.visible = true;
-    const shK = 0.5 + 0.5 * fallK;
     sh.position.set(bx, by);
-    sh.scale.set(((shR * 2) / 128) * shK, ((shR * 0.9) / 128) * shK);
-    sh.alpha = (w.flying ? 0.8 : 0.85 - Math.min(0.3, pose.lift * 2)) * out.shadowAlpha * (0.4 + 0.6 * fallK);
+    sh.scale.set((shR * 2) / 128, (shR * 0.9) / 128);
+    sh.alpha = (w.flying ? 0.8 : 0.85 - Math.min(0.3, pose.lift * 2)) * out.shadowAlpha;
 
     const damaged = w.hp < w.maxHp && w.hp > 0 && !w.burrowed;
     v.barBg.visible = damaged;
     v.barFill.visible = damaged;
     if (damaged) {
       v.barBg.alpha = v.barFill.alpha = passageAlpha;
-      const top = by - liftPx - heightPx - 6;
+      const top = by - liftPx - heightPx * landingScaleY - 6;
       v.barBg.position.set(bx - BAR_W / 2 - 1.5, top);
       v.barBg.width = BAR_W + 3;
       v.barBg.height = BAR_H + 3;

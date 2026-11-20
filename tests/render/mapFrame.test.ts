@@ -92,5 +92,6 @@ describe('backdrop placement', () => {
         expect(p.scale / fit.scale, tag).toBeLessThan(2.2);
       }
     }
-  });
+    // Every island × every screen (full fit each): ~3 s alone, past 5 s on a loaded machine.
+  }, 20000);
 });

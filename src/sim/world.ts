@@ -8,7 +8,7 @@ import { HERO_MAX_LEVEL, isHeroId } from '../data/heroes.ts';
 import type { LevelDef } from '../data/levels/index.ts';
 import { NEUTRAL_RUN_MODIFIERS, type RunModifiers } from '../data/runModifiers.ts';
 import { computeStarsForLivesLost, type Difficulty } from '../data/stars.ts';
-import { getTowerTierStats, TOWER_DEFS } from '../data/towers.ts';
+import { getTowerTierStats, specializationsFor, towerStats, TOWER_DEFS, type PurchasedSpecialization } from '../data/towers.ts';
 import { AbilitySystem } from './abilitySystem.ts';
 import { CombatSystem } from './combatSystem.ts';
 import {
@@ -360,6 +360,10 @@ export class SimWorld {
         );
       case 'upgradeTower':
         return this.upgradeTower(command.towerId);
+      case 'specializeTower':
+        return this.specializeTower(command.towerId, command.specializationId);
+      case 'buyTowerAbility':
+        return this.buyTowerAbility(command.towerId, command.abilityId);
       case 'sellTower':
         return this.sellTower(command.towerId) > 0;
       case 'setTargeting':
@@ -706,7 +710,10 @@ export class SimWorld {
     this.towers.push(tower);
     this.grid.setTowerAt(col, row, tower.id);
     this.recordCommand(commandToRecord);
-    if (TOWER_DEFS[type].role === 'barracks') this.soldierSystem.addBarracks(tower);
+    if (TOWER_DEFS[type].role === 'barracks') {
+      this.combatSystem.applyBeaconAuras(this.towers);
+      this.soldierSystem.addBarracks(tower);
+    }
 
     this.events.emit('towerBuilt', {
       towerId: tower.id,
@@ -776,15 +783,64 @@ export class SimWorld {
     this.recordCommand({ kind: 'upgradeTower', towerId });
     if (TOWER_DEFS[tower.type].role === 'barracks') this.soldierSystem.onUpgrade(tower);
 
+    this.emitTowerUpgrade(tower);
+    return true;
+  }
+
+  specializeTower(towerId: number, specializationId: string): boolean {
+    const tower = this.getTowerById(towerId);
+    if (this.outcome !== 'ongoing' || !this.grid.isPlotMode || !tower || tower.tier !== 3 || tower.specialization) return false;
+    const branch = specializationsFor(tower).find(b => b.id === specializationId);
+    if (!branch || this.gold < branch.cost) return false;
+    const stats = { ...towerStats(tower), ...branch.changes, tier: 4 as const, upgradeCost: branch.cost };
+    this.applyTowerPurchase(tower, { id: branch.id, abilities: [], stats }, branch.cost,
+      { kind: 'specializeTower', towerId, specializationId });
+    return true;
+  }
+
+  buyTowerAbility(towerId: number, abilityId: string): boolean {
+    const tower = this.getTowerById(towerId);
+    const current = tower?.specialization;
+    if (this.outcome !== 'ongoing' || !tower || !current || current.abilities.includes(abilityId)) return false;
+    const branch = specializationsFor(tower).find(b => b.id === current.id);
+    const ability = branch?.abilities.find(a => a.id === abilityId);
+    if (!ability || this.gold < ability.cost) return false;
+    const next = {
+      id: current.id,
+      abilities: [...current.abilities, abilityId],
+      stats: { ...current.stats, ...ability.changes },
+    };
+    this.applyTowerPurchase(tower, next, ability.cost, { kind: 'buyTowerAbility', towerId, abilityId });
+    return true;
+  }
+
+  private applyTowerPurchase(tower: TowerEntity, next: PurchasedSpecialization, cost: number, command: SimCommand): void {
+    this.gold -= cost;
+    tower.totalInvested += cost;
+    tower.specialization = next;
+    tower.popAnimTimer = 0.32;
+    // Both squads keep their current HP, posts and engagements. Subsequent blows and respawns
+    // read this live profile. Branches preserve the base squad size, maximum HP and rally radius.
+    if (tower.type === 'barracks') {
+      const barracks = this.soldierSystem.getBarracks(tower.id);
+      if (barracks) barracks.stats = next.stats;
+    } else if (tower.type === 'beacon') {
+      // Rally orders and soldier swings can both precede the next combat update.
+      this.combatSystem.applyBeaconAuras(this.towers);
+    }
+    this.recordCommand(command);
+    this.emitTowerUpgrade(tower);
+  }
+
+  private emitTowerUpgrade(tower: TowerEntity): void {
     this.events.emit('towerUpgraded', {
       towerId: tower.id,
       type: tower.type,
-      tier: tower.tier,
+      tier: towerStats(tower).tier,
       x: tower.x,
       z: tower.z,
     });
     this.events.emit('economyChanged', { gold: this.gold, lives: this.lives });
-    return true;
   }
 
   sellTower(towerId: number): number {
@@ -797,13 +853,14 @@ export class SimWorld {
     this.gold += refund;
     this.grid.clearTowerAt(tower.col, tower.row);
     this.towers.splice(idx, 1);
+    if (tower.type === 'beacon' && tower.specialization) this.combatSystem.applyBeaconAuras(this.towers);
     this.recordCommand({ kind: 'sellTower', towerId });
     if (TOWER_DEFS[tower.type].role === 'barracks') this.soldierSystem.removeBarracks(tower.id);
 
     this.events.emit('towerSold', {
       towerId: tower.id,
       type: tower.type,
-      tier: tower.tier,
+      tier: towerStats(tower).tier,
       refund,
       x: tower.x,
       z: tower.z,

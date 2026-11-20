@@ -9,6 +9,7 @@ import type { LevelDef } from '../src/data/levels/index.ts';
 import { LEVELS_2D, registeredChapterIslands } from '../src/data/levels2d/index.ts';
 import { combineRunModifiers, type RunModifierPatch } from '../src/data/runModifiers.ts';
 import { runLevelBalanceSim, type SimRunResult } from './balanceSim.ts';
+import { balanceBuildOrder } from './lib/specializationBuilds.ts';
 import { campaignKit, type CampaignKit } from './lib/campaignKit.ts';
 
 type Profile = 'campaign' | 'weak' | 'bare';
@@ -19,7 +20,7 @@ function play(level: LevelDef, profile: Profile, kit: CampaignKit, patch: RunMod
   const loadout = profile === 'bare' ? combineRunModifiers(patch)
     : { ...kit, modifiers: combineRunModifiers(kit.modifiers, patch) };
   return runLevelBalanceSim(level, weak ? 'weak' : 'greedy',
-    (weak ? level.weakBuildOrder : level.scriptedBuildOrder) ?? [], loadout);
+    balanceBuildOrder(level, weak ? 'weak' : 'greedy'), loadout);
 }
 
 /** A fresh greedy clear earns the next island's hero XP and spendable Workshop stars. */

@@ -1,0 +1,68 @@
+/*
+ * Pad / keyboard reticle (padCursor.ts): a gold ring with four notches and a dark keyline, centred
+ * on its spot by the transform (the element's own box is centred with negative margins). Snap mode
+ * = a wide ring that frames a plot / token; free mode = a small crosshair ring.
+ */
+.pu-padcursor {
+  --r: 34px;
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 40;
+  width: calc(var(--r) * 2);
+  height: calc(var(--r) * 2);
+  margin: calc(var(--r) * -1) 0 0 calc(var(--r) * -1);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s ease, transform 0.12s cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+
+.pu-padcursor.on {
+  opacity: 1;
+}
+
+.pu-padcursor[data-mode='free'] {
+  --r: 20px;
+  transition: opacity 0.15s ease;
+}
+
+.pu-padcursor[data-mode='ring'],
+.pu-padcursor[data-mode='end'] {
+  --r: 30px;
+}
+
+/* The ring. */
+.pu-padcursor > i {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 4px solid #ffc93c;
+  box-shadow: 0 0 0 2.5px rgba(58, 36, 18, 0.75), inset 0 0 0 2.5px rgba(58, 36, 18, 0.55), 0 0 16px 4px rgba(255, 190, 60, 0.7);
+  animation: pu-padcursor-breathe 1.4s ease-in-out infinite;
+}
+
+/* Four notches (N, E, S, W) — a crosshair in free mode. */
+.pu-padcursor > b {
+  position: absolute;
+  inset: -9px;
+  background:
+    linear-gradient(#ffc93c, #ffc93c) 50% 0 / 4px 12px no-repeat,
+    linear-gradient(#ffc93c, #ffc93c) 50% 100% / 4px 12px no-repeat,
+    linear-gradient(#ffc93c, #ffc93c) 0 50% / 12px 4px no-repeat,
+    linear-gradient(#ffc93c, #ffc93c) 100% 50% / 12px 4px no-repeat;
+  filter: drop-shadow(0 0 1.5px rgba(58, 36, 18, 0.95));
+}
+
+.pu-padcursor[data-mode='free'] > b {
+  inset: -12px;
+}
+
+@keyframes pu-padcursor-breathe {
+  50% {
+    transform: scale(1.08);
+  }
+}
+
+.pu-reduce-motion .pu-padcursor > i {
+  animation: none;
+}

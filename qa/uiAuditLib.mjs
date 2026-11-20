@@ -186,7 +186,8 @@ export function auditPage(opts) {
     // non-inline box; captions hanging under round buttons are placed there on purpose.
     let blk = pe;
     while (blk && getComputedStyle(blk).display === 'inline') blk = blk.parentElement;
-    if (blk && !blk.closest('.pu-round-label')) {
+    // Painted title letters (`data-c`) are tilted single glyphs: their ink may poke past the box.
+    if (blk && !blk.closest('.pu-round-label') && !blk.dataset?.c) {
       const cs = getComputedStyle(blk);
       if (blk.clientWidth > 0) {
         const r = blk.getBoundingClientRect();
@@ -299,6 +300,8 @@ export function auditPage(opts) {
       const a = texts[i];
       const b = texts[j];
       if (a.pe === b.pe || a.scrolled || b.scrolled) continue;
+      // One word's painted letters (the title lettering: a span per letter, `data-c`) touch on purpose.
+      if (a.pe.parentElement === b.pe.parentElement && a.pe.dataset?.c && b.pe.dataset?.c) continue;
       let clash = false;
       for (const p of a.tr.rects) {
         for (const q of b.tr.rects) {

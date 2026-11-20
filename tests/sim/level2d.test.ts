@@ -3,6 +3,7 @@ import { EventBus } from '../../src/core/eventBus.ts';
 import { BALANCE } from '../../src/data/balance.ts';
 import { LEVELS } from '../../src/data/levels/index.ts';
 import type { LevelDef } from '../../src/data/levels/types.ts';
+import { NEUTRAL_RUN_MODIFIERS } from '../../src/data/runModifiers.ts';
 import { getLevelById, LEVEL_L1C, LEVELS_2D } from '../../src/data/levels2d/index.ts';
 import l1cJson from '../../src/data/levels2d/l1c.json';
 import {
@@ -16,7 +17,7 @@ import type { EnemyEntity } from '../../src/sim/entities.ts';
 import { acquireTarget } from '../../src/sim/targeting.ts';
 import { getTowerTierStats } from '../../src/data/towers.ts';
 import { SimWorld } from '../../src/sim/world.ts';
-import { evaluateBalance } from '../../scripts/balanceSim.ts';
+import { evaluateBalance, runLevelBalanceSim } from '../../scripts/balanceSim.ts';
 
 const DT = BALANCE.fixedDt;
 
@@ -76,6 +77,77 @@ function active(world: SimWorld): EnemyEntity[] {
   }
   return out;
 }
+
+describe('balance report on the defeat tick', () => {
+  it('counts both simultaneous crossings and attributes the last life to the first arrival', () => {
+    const road = [MINI_JSON.paths[0][0], MINI_JSON.goal];
+    const level: LevelDef = {
+      ...miniLevel(),
+      layout2d: parseLevel2D({ ...MINI_JSON, paths: [road, MINI_JSON.paths[1]], flightPath: road }),
+      waves: [{ clearBonus: 0, groups: [
+        { enemyType: 'grunt', count: 1, spawnInterval: 1, startDelay: 0 },
+        { enemyType: 'flyer', count: 1, spawnInterval: 1, startDelay: 0 },
+      ] }],
+    };
+    const run = runLevelBalanceSim(level, 'weak', [], { ...NEUTRAL_RUN_MODIFIERS, maxLives: 1 });
+    expect(run.outcome).toBe('lost');
+    expect(run.waves[0]).toMatchObject({
+      livesLost: 1, leaksByType: { grunt: 1, flyer: 1 }, livesByType: { grunt: 1, flyer: 0 },
+    });
+  });
+
+  it('charges a two-life hauler only the one life left after the preceding wave', () => {
+    const level: LevelDef = {
+      ...miniLevel(),
+      waves: [
+        { clearBonus: 0, groups: [{ enemyType: 'grunt', count: 1, spawnInterval: 1, startDelay: 0 }] },
+        { clearBonus: 0, groups: [{ enemyType: 'carrier', count: 1, spawnInterval: 1, startDelay: 0 }] },
+      ],
+    };
+    const run = runLevelBalanceSim(level, 'weak', [], { ...NEUTRAL_RUN_MODIFIERS, maxLives: 2 });
+    expect(run.finalLives).toBe(0);
+    expect(run.waves).toMatchObject([
+      { livesStart: 2, livesLost: 1, leaksByType: { grunt: 1 }, livesByType: { grunt: 1 } },
+      { livesStart: 1, livesLost: 1, leaksByType: { carrier: 1 }, livesByType: { carrier: 1 } },
+    ]);
+  });
+});
+
+describe('balance report at story victory', () => {
+  it('keeps every story figure when the final clear bonus funds purchases in Endless', () => {
+    const level: LevelDef = {
+      ...miniLevel(),
+      startingGold: 200,
+      waves: [{
+        clearBonus: 400,
+        groups: [{ enemyType: 'grunt', count: 1, spawnInterval: 1, startDelay: 0 }],
+      }],
+    };
+    const script = [
+      { waveIndex: 0, action: 'build', col: 0, row: 0, towerType: 'archer' },
+      { waveIndex: 0, action: 'upgrade', col: 0, row: 0 },
+      { waveIndex: 0, action: 'upgrade', col: 0, row: 0 },
+      { action: 'specialize', col: 0, row: 0, id: 'farwatch' },
+      { action: 'buyAbility', col: 0, row: 0, id: 'throughshot' },
+      { waveIndex: 0, action: 'build', col: 1, row: 0, towerType: 'cannon', targetingMode: 'strongest' },
+      { waveIndex: 0, action: 'build', col: 1, row: 0, towerType: 'cannon' },
+    ] as const;
+    const story = runLevelBalanceSim(level, 'greedy', script);
+    expect(story).toMatchObject({
+      outcome: 'won', towersBuilt: 1, goldSpent: 200, unspentScriptActions: 4, towerPurchases: [],
+    });
+    const continued = runLevelBalanceSim(level, 'greedy', script, NEUTRAL_RUN_MODIFIERS, 2);
+    expect(continued.endlessOutcome).toBe('lost');
+    expect(continued.endlessReachedWave).toBeGreaterThan(level.waves.length);
+    expect(continued.endlessPeakEnemies).toBeGreaterThan(0);
+    expect(continued).toEqual({
+      ...story,
+      endlessReachedWave: continued.endlessReachedWave,
+      endlessPeakEnemies: continued.endlessPeakEnemies,
+      endlessOutcome: 'lost',
+    });
+  });
+});
 
 describe('2D level loader (px → world)', () => {
   it('maps image px to world units around the image centre', () => {

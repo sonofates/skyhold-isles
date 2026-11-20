@@ -1,4 +1,5 @@
 import type { EnemyType, TargetingMode, TowerType } from '../core/types.ts';
+import type { PurchasedSpecialization } from '../data/towers.ts';
 
 export interface EnemyEntity {
   readonly poolIndex: number;
@@ -150,7 +151,9 @@ export interface TowerEntity {
   readonly x: number;
   readonly z: number;
   readonly type: TowerType;
+  /** Last linear tier. A chosen branch supplies the fourth tier through towerStats(). */
   tier: 1 | 2 | 3;
+  specialization?: PurchasedSpecialization;
   totalInvested: number;
   targetingMode: TargetingMode;
   cooldownTimer: number;

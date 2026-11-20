@@ -1,0 +1,51 @@
+/* Credits board (credits2d.ts): one centred column on the parchment. */
+
+.pu-credits {
+  width: min(100%, calc(var(--s) * 60));
+}
+
+.pu-credits-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(var(--s) * 1.1);
+  padding: calc(var(--s) * 0.4) calc(var(--s) * 1.2) calc(var(--s) * 0.8);
+  text-align: center;
+}
+
+.pu-credits-sec {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(var(--s) * 0.3);
+}
+
+.pu-credits-head {
+  margin: 0;
+  font-size: calc(var(--s) * 1.5);
+  font-weight: 700;
+}
+
+/* A thin gold rule under each heading. */
+.pu-credits-head::after {
+  content: '';
+  display: block;
+  width: 3.2em;
+  height: 2px;
+  margin: 0.25em auto 0;
+  border-radius: 2px;
+  background: linear-gradient(90deg, rgba(210, 150, 50, 0), #d2963a, rgba(210, 150, 50, 0));
+}
+
+.pu-credits-line {
+  margin: 0;
+  max-width: 42em;
+  font-size: calc(var(--s) * 1.15);
+  line-height: 1.3;
+}
+
+.pu-credits-thanks {
+  margin: calc(var(--s) * 0.4) 0 0;
+  font-size: calc(var(--s) * 1.45);
+  font-weight: 700;
+}

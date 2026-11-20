@@ -1,4 +1,5 @@
-import type { LevelDef, ScriptedBuildAction } from '../levels/types.ts';
+import type { EnemyType } from '../../core/types.ts';
+import type { LevelDef, ScriptedBuildAction, WaveGroupDef } from '../levels/types.ts';
 import { gridSizeFor, parseLevel2D, type Level2DJson } from './loader.ts';
 
 interface PlotTuning {
@@ -6,8 +7,21 @@ interface PlotTuning {
   enemyHpScale: number;
   waveHpGrowth: number;
   hexRadius?: number;
+  waves?: LevelDef['waves'];
   /** Campaign build site "col,row" → index in the baked layout's plots. */
   sites: Readonly<Record<string, number>>;
+}
+
+/** Override a formation on the painted island. Unspecified fields come from the source wave. */
+export function replaceWaveEnemy(
+  level: LevelDef, waveName: string, from: EnemyType, to: EnemyType,
+  formation: Partial<Omit<WaveGroupDef, 'enemyType'>> = {},
+): LevelDef['waves'] {
+  return level.waves.map(wave => {
+    if (wave.name !== waveName) return wave;
+    const groups = wave.groups.map(group => group.enemyType === from ? { ...group, ...formation, enemyType: to } : group);
+    return { ...wave, groups };
+  });
 }
 
 /** Keep each campaign purchase, upgrade and targeting order on the corresponding painted plot. */

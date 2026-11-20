@@ -1,0 +1,111 @@
+/* "Feat earned" cards (featToast2d.ts): top centre, side by side in one row so they stay above the
+   victory board's ribbon. */
+.pu-feat-toasts {
+  position: fixed;
+  z-index: 70;
+  top: max(10px, var(--safe-t, 0px));
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  justify-content: center;
+  align-items: stretch;
+  gap: calc(var(--s) * 0.6);
+  width: max-content;
+  max-width: calc(100vw - 20px);
+  pointer-events: none;
+}
+
+.pu-feat-toast {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--s) * 0.8);
+  min-width: 0;
+  width: min(calc(var(--s) * 27), 31vw);
+  padding: calc(var(--s) * 0.55) calc(var(--s) * 1.2) calc(var(--s) * 0.55) calc(var(--s) * 0.7);
+  border-radius: calc(var(--s) * 1.1);
+  background: linear-gradient(#fff6dc, #ecd3a0);
+  box-shadow:
+    0 0 0 2px #a8701c,
+    0 0 0 4px rgba(58, 36, 18, 0.85),
+    0 6px 14px rgba(20, 10, 2, 0.45),
+    0 0 22px rgba(255, 205, 90, 0.55);
+  animation: pu-feat-in 0.5s cubic-bezier(0.2, 0.9, 0.3, 1.25) backwards;
+}
+
+.pu-feat-toast.leaving {
+  animation: pu-feat-out 0.4s ease-in forwards;
+}
+
+.pu-feat-toast .pu-seal {
+  flex: none;
+  width: calc(var(--s) * 3.6);
+  height: calc(var(--s) * 3.6);
+}
+
+.pu-feat-toast-text {
+  display: grid;
+  gap: calc(var(--s) * 0.1);
+  min-width: 0;
+}
+
+.pu-feat-toast-kicker {
+  font-size: max(10px, calc(var(--s) * 0.95));
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #ffd45e;
+}
+
+.pu-feat-toast-name {
+  font-size: calc(var(--s) * 1.5);
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.pu-feat-toast-desc {
+  font-size: max(10px, calc(var(--s) * 1.05));
+  line-height: 1.25;
+}
+
+/* Small-unit desktops (1024x768, 1366x768): the HUD unit is small there but the board leaves room
+   above it — keep the cards readable. Phones (short screens) keep the unit sizes, which fit. */
+@media (min-height: 600px) {
+  .pu-feat-toast {
+    width: min(max(calc(var(--s) * 27), 290px), 31vw);
+  }
+
+  .pu-feat-toast .pu-seal {
+    width: max(calc(var(--s) * 3.6), 44px);
+    height: max(calc(var(--s) * 3.6), 44px);
+  }
+
+  .pu-feat-toast-kicker {
+    font-size: max(11px, calc(var(--s) * 0.95));
+  }
+
+  .pu-feat-toast-name {
+    font-size: max(16px, calc(var(--s) * 1.5));
+  }
+
+  .pu-feat-toast-desc {
+    font-size: max(12px, calc(var(--s) * 1.05));
+  }
+}
+
+@keyframes pu-feat-in {
+  from {
+    opacity: 0;
+    transform: translateY(-120%) scale(0.9);
+  }
+}
+
+@keyframes pu-feat-out {
+  to {
+    opacity: 0;
+    transform: translateY(-60%) scale(0.95);
+  }
+}
+
+.pu-reduce-motion .pu-feat-toast,
+.pu-reduce-motion .pu-feat-toast.leaving {
+  animation: none;
+}
