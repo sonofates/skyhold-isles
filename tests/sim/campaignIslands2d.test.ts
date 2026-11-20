@@ -38,11 +38,12 @@ describe.each(ids)('%s campaign plot map', (id) => {
     expect(level).toBe(LEVELS_2D[index + 1]);
     expect(level.layout2d).toEqual(layout);
     const formations = {
+      i13: { wave: 1, slot: 1, from: 'mite', replacement: { enemyType: 'bellrunner', count: 4, startDelay: 3.6, spawnInterval: 1 } },
       i14: { wave: 9, slot: 1, from: 'healer', replacement: { enemyType: 'reedpiper', lane: 2, startDelay: 5.6, spawnInterval: 2.4 } },
       i15: { wave: 3, slot: 2, from: 'flyer', replacement: { enemyType: 'draftwing' } },
       i16: { wave: 2, slot: 2, from: 'brute', replacement: { enemyType: 'kilnback' } },
     } as const;
-    if (id === 'i14' || id === 'i15' || id === 'i16') {
+    if (id === 'i13' || id === 'i14' || id === 'i15' || id === 'i16') {
       const expected = source.waves.map(wave => ({ ...wave, groups: wave.groups.map(group => ({ ...group })) }));
       const { wave, slot, from, replacement } = formations[id];
       const group = expected[wave].groups[slot];

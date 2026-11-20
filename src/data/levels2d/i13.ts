@@ -1,8 +1,12 @@
 import { LEVEL_13 } from '../levels/level13.ts';
-import { campaignIsland } from './campaignIsland.ts';
+import { campaignIsland, replaceWaveEnemy } from './campaignIsland.ts';
 import layout from './i13.json';
 
 export const I13 = campaignIsland(LEVEL_13, layout, {
+  // Let the main-road raiders draw fire before the hares sprint down the northern shortcut.
+  waves: replaceWaveEnemy(LEVEL_13, 'North Road', 'mite', 'bellrunner', {
+    count: 4, startDelay: 3.6, spawnInterval: 1,
+  }),
   startingGold: 360,
   enemyHpScale: 1.8298,
   waveHpGrowth: 0.17,

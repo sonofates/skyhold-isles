@@ -709,3 +709,29 @@ TypeScript and lint passed. Vitest passed 1,435 tests with 11 skipped. The updat
 ### Next round
 
 Try a small Belfry Hare formation on i13’s “North Road.” Check how much open road it gets before the first slow or block and keep it only if the campaign gates and neighboring HP settings support it. The pipers use existing localized copy and art. No requests for Opus this round.
+
+## Round 30 — Belfry Hares on Stormcrown Citadel’s North Road
+
+### Encounter
+
+Four Belfry Hares replace the fourteen northern Scuttle Mites in wave two of the painted i13. The runners take the main road first. The first hare emerges from the north cave at 3.6 seconds, followed by the other three at one-second intervals. The formation test checks the painted wave against the original campaign data.
+
+With level-18 Bran and 38 entry stars, the lead hare traveled 6.92 world units before it died. The second reached full speed and covered 8.34 units in 2.45 seconds before Bran blocked it. He intercepted the last two earlier, at 6.99 and 6.85 units. All three blocks reset the sprint on the next movement tick. None of the four was slowed before its first block or death. The wave cost no lives.
+
+### Balance decision
+
+At 1.2-second spacing, Normal finished at 12/22 lives but the weak Easy kit lost on wave 22. At one-second spacing, Normal still finished at 12/22 with two stars, and the weak Easy kit cleared at 21/26. Normal also cleared with 8, 8, 5 and 9 lives at −3%, −1.5%, +1.5% and +3% enemy HP. The hares use the existing Belfry Hare / Çan Tavşanı art and localized copy.
+
+### Visual check
+
+Staged wave two in the production build with the opening towers. The captures show three hares spaced along the northern bend, the main-road column below and the first-encounter card in each language. Inspected both road crops at 2×. [Desktop EN](../../design/art-2d/chapter2/polish/i13-north-road.jpg) · [Landscape phone TR](../../design/art-2d/chapter2/polish/i13-north-road-phone.jpg)
+
+### Verification
+
+All 41 realistic-kit checks and all eight difficulty verdicts passed. The i13 campaign kit cleared Easy at 26/26, Normal at 12/22 and Hard at 6/22. Hard previously ended at 3/22. The other 24 islands’ difficulty rows matched round 29. Hard i09 finished at 12/22 and i24 at 2/22. The 24,217-byte standalone L1–L16 report matched the round-one baseline byte for byte. TypeScript, lint and the production build passed. Vite reported its existing bundle-size and dynamic-import warnings.
+
+Vitest passed 1,435 tests with 11 skipped on the full rerun. During screenshot capture, the all-island backdrop test exceeded its five-second timeout. The rerun used the original timeout and one worker after the preview and browsers closed.
+
+### Next round
+
+Audit the Kilnback Tortoises in i16’s “Gatecrash.” Measure where their armor first reaches zero, how long it stays down and whether the cracked-shell effect is readable when the tortoises overlap. No requests for Opus this round.
