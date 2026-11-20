@@ -251,6 +251,8 @@ export class HeroSystem {
   private calmHealTimer = 1.0;
   private runtimeCache: HeroRuntimeState | null = null;
   private runtimeCacheOngoing = false;
+  private fallbackRespawnCache: { readonly x: number; readonly z: number; readonly yaw: number } | null =
+    null;
 
   private readonly pool: ObjectPool<EnemyEntity>;
   private readonly spatialHash: SpatialHashGrid;
@@ -621,14 +623,19 @@ export class HeroSystem {
    * - Single-lane maps: the first castle-side road bend/chokepoint (or a clear castle-side road post).
    * Always outside the castle threshold (`>= respawnCastleClearance` when road length allows) and on the road.
    */
-  getFallbackRespawnPoint(): { x: number; z: number; yaw: number } {
+  getFallbackRespawnPoint(): { readonly x: number; readonly z: number; readonly yaw: number } {
+    if (this.fallbackRespawnCache !== null) {
+      return this.fallbackRespawnCache;
+    }
     const main = this.groundPaths[0];
     if (!main || main.totalLength <= 0) {
-      return {
+      const spawnFallback = {
         x: this.hero?.spawnX ?? 0,
         z: this.hero?.spawnZ ?? 0,
         yaw: this.hero?.spawnYaw ?? 0,
       };
+      this.fallbackRespawnCache = spawnFallback;
+      return spawnFallback;
     }
 
     const total = main.totalLength;
@@ -657,7 +664,9 @@ export class HeroSystem {
       }
       const anchorDist = Math.max(0, Math.min(total - minBack, earliestSharedDist + 0.8));
       const roadYaw = main.sample(anchorDist, _samplePt);
-      return { x: _samplePt.x, z: _samplePt.z, yaw: wrapYaw(roadYaw + Math.PI) };
+      const mergeFallback = { x: _samplePt.x, z: _samplePt.z, yaw: wrapYaw(roadYaw + Math.PI) };
+      this.fallbackRespawnCache = mergeFallback;
+      return mergeFallback;
     }
 
     // Single-lane road: walk out from the castle side and pick the first bend/chokepoint outside the castle.
@@ -692,7 +701,9 @@ export class HeroSystem {
 
     const anchorDist = Math.max(0, Math.min(total - minBack, total - chosenBack));
     const roadYaw = main.sample(anchorDist, _samplePt);
-    return { x: _samplePt.x, z: _samplePt.z, yaw: wrapYaw(roadYaw + Math.PI) };
+    const bendFallback = { x: _samplePt.x, z: _samplePt.z, yaw: wrapYaw(roadYaw + Math.PI) };
+    this.fallbackRespawnCache = bendFallback;
+    return bendFallback;
   }
 
   private minEnemyMarginAt(x: number, z: number): number {
@@ -812,7 +823,7 @@ export class HeroSystem {
         let bestSq = Infinity;
         for (let i = 0; i < towers.length; i++) {
           const t = towers[i];
-          if (t.type === 'beacon' && t.stunTimer <= 0) continue;
+          if (TOWER_DEFS[t.type].role === 'support' && t.stunTimer <= 0) continue;
           const dSq = (t.x - h.x) ** 2 + (t.z - h.z) ** 2;
           if (dSq > maxRSq) continue;
           const stunned = t.stunTimer > 0;
@@ -1443,7 +1454,7 @@ export class HeroSystem {
     const rSq = maxHeroRange * maxHeroRange;
     for (let i = 0; i < towers.length; i++) {
       const t = towers[i];
-      if (t.type === 'beacon' && t.stunTimer <= 0) continue;
+      if (TOWER_DEFS[t.type].role === 'support' && t.stunTimer <= 0) continue;
       if ((t.x - hx) ** 2 + (t.z - hz) ** 2 <= rSq) {
         _pickedTowers.push(t);
       }
@@ -1899,7 +1910,7 @@ export class HeroSystem {
       const grantRange = pas.extras.has('tinkerRange') ? 0.08 : 0;
       for (let i = 0; i < towers.length; i++) {
         const t = towers[i];
-        if (t.type === 'beacon') continue;
+        if (TOWER_DEFS[t.type].role === 'support') continue;
         if ((t.x - h.x) ** 2 + (t.z - h.z) ** 2 <= rSq) {
           t.heroRateBonus = pas.power;
           t.heroRangeBonus = grantRange;

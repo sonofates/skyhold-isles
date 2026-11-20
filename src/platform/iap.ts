@@ -30,7 +30,7 @@ import {
   type MobilePlatformName,
   type PlatformAdapter,
 } from './platform.ts';
-import { tryRepairTruncatedJson } from './storage.ts';
+import { tryRepairTruncatedJson, tryRepairTruncatedJsonArray } from './storage.ts';
 
 export const IAP_SAVE_KEY = 'skyhold_isles_entitlements_v1';
 export const IAP_MOCK_LEDGER_KEY = 'skyhold_isles_iap_mock_ledger_v1';
@@ -217,7 +217,7 @@ function readIdSetFromKey(
     try {
       parsed = JSON.parse(raw);
     } catch {
-      parsed = tryRepairTruncatedJson(raw);
+      parsed = tryRepairTruncatedJson(raw) ?? tryRepairTruncatedJsonArray(raw);
     }
     if (Array.isArray(parsed)) return new Set(sanitizeIdList(parsed, catalogue));
     if (parsed && typeof parsed === 'object') {
@@ -494,8 +494,8 @@ function resolveMode(
   search: string,
 ): IapStoreMode {
   if (explicitMode) return explicitMode;
-  // Steam is a paid full game — never enable IAPs on Steam.
-  if (platform.isSteam) return 'noop';
+  // Desktop (Steam or standalone Electron) is a paid full game — never enable IAPs there.
+  if (platform.isSteam || platform.isDesktop) return 'noop';
   if (platform.isMobile) return 'native';
   if (isIapMockEnabled(search)) return 'mock';
   return 'noop';

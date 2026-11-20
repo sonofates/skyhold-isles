@@ -35,7 +35,13 @@ function loadEnemyIntrosSeen(): Set<string> {
   enemyIntrosSeen = new Set<string>();
   try {
     const raw = localStorage.getItem(ENEMY_INTROS_SEEN_KEY);
-    const parsed: unknown = raw ? JSON.parse(raw) : [];
+    if (!raw) return enemyIntrosSeen;
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      parsed = tryRepairTruncatedJsonArray(raw);
+    }
     if (Array.isArray(parsed)) {
       for (const v of parsed) if (typeof v === 'string') enemyIntrosSeen.add(v);
     }
@@ -182,7 +188,12 @@ export function loadSettings(): GameSettings {
   try {
     const raw = localStorage.getItem(SETTINGS_KEY);
     if (!raw) return defaults;
-    const rawParsed: unknown = JSON.parse(raw);
+    let rawParsed: unknown;
+    try {
+      rawParsed = JSON.parse(raw);
+    } catch {
+      rawParsed = tryRepairTruncatedJson(raw);
+    }
     if (!rawParsed || typeof rawParsed !== 'object' || Array.isArray(rawParsed)) return defaults;
     const parsed = rawParsed as Partial<GameSettings> & { v?: number };
     let quality = parseQuality(parsed.quality, defaults.quality);
@@ -252,15 +263,10 @@ function normalizeRawHeroSave(rawH: unknown): unknown {
   return { selectedHero: obj.s, roster };
 }
 
-/**
- * Salvages a truncated JSON object string (e.g. partial write from power loss / quota cutoff) by
- * scanning open string/bracket state, peeling back any incomplete trailing token or key-value pair,
- * and closing open `[` / `{` scopes. Returns `null` if not a salvageable JSON object.
- */
-export function tryRepairTruncatedJson(raw: string): Record<string, unknown> | null {
+function repairTruncatedJsonContainer(raw: string, openChar: '{' | '['): unknown {
   if (typeof raw !== 'string') return null;
   const trimmed = raw.trimStart();
-  if (trimmed.length === 0 || trimmed.length > 262_144 || trimmed[0] !== '{') return null;
+  if (trimmed.length === 0 || trimmed.length > 262_144 || trimmed[0] !== openChar) return null;
 
   // Collect candidate cut lengths from the end back to structural boundaries (`,`, `[`, `{`, `}`, `]`, `"`, digits).
   const cuts: number[] = [trimmed.length];
@@ -316,15 +322,34 @@ export function tryRepairTruncatedJson(raw: string): Record<string, unknown> | n
       suffix += stack[s] === '{' ? '}' : ']';
     }
     try {
-      const parsed: unknown = JSON.parse(trimmed.slice(0, end) + suffix);
-      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-        return parsed as Record<string, unknown>;
-      }
+      return JSON.parse(trimmed.slice(0, end) + suffix) as unknown;
     } catch {
       // Peel back to the next earlier structural boundary and retry.
     }
   }
   return null;
+}
+
+/**
+ * Salvages a truncated JSON object string (e.g. partial write from power loss / quota cutoff) by
+ * scanning open string/bracket state, peeling back any incomplete trailing token or key-value pair,
+ * and closing open `[` / `{` scopes. Returns `null` if not a salvageable JSON object.
+ */
+export function tryRepairTruncatedJson(raw: string): Record<string, unknown> | null {
+  const parsed = repairTruncatedJsonContainer(raw, '{');
+  if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+    return parsed as Record<string, unknown>;
+  }
+  return null;
+}
+
+/**
+ * Salvages a truncated JSON array string (e.g. `STORY_SEEN_KEY`, `ENEMY_INTROS_SEEN_KEY`, or legacy
+ * `IAP_SAVE_KEY` arrays) by peeling back any incomplete trailing element and closing open brackets.
+ */
+export function tryRepairTruncatedJsonArray(raw: string): unknown[] | null {
+  const parsed = repairTruncatedJsonContainer(raw, '[');
+  return Array.isArray(parsed) ? parsed : null;
 }
 
 /**

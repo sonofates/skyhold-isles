@@ -42,6 +42,9 @@ export interface SoldierEntity {
   targetUid: number;
   /** Maximum enemies this soldier can hold in melee at once (1 in all shipped barracks tiers). */
   holdCap: number;
+  /** Extra-held enemy pool indices & uids when `holdCap > 1` (empty when `holdCap === 1`). */
+  readonly extraHoldPoolIndices: number[];
+  readonly extraHoldUids: number[];
   /** Render-facing only: the next blow was announced (`meleeSwing`); never read by the rules. */
   swingArmed: boolean;
   /** Temporary armor bonus granted by hero abilities/auras this tick (Bran Rally / Sela Shell Ward). */
@@ -354,6 +357,11 @@ export class SoldierSystem {
       s.maxHp = stats.soldierHp ?? s.maxHp;
       s.hp = s.maxHp;
       s.holdCap = holdCap;
+      while (s.extraHoldPoolIndices.length > Math.max(0, holdCap - 1)) {
+        const ep = s.extraHoldPoolIndices.pop()!;
+        const eu = s.extraHoldUids.pop()!;
+        this.decrementEnemyHold(ep, eu, true);
+      }
       if (s.state === 'dead') {
         this.respawn(b, s);
       } else if (rallyReclamped) {
@@ -441,6 +449,8 @@ export class SoldierSystem {
       const s = this.soldiers[i];
       s.targetPoolIndex = -1;
       s.targetUid = 0;
+      s.extraHoldPoolIndices.length = 0;
+      s.extraHoldUids.length = 0;
       s.swingArmed = false;
       if (s.state === 'engaging' || s.state === 'fighting') s.state = 'walking';
     }
@@ -504,6 +514,8 @@ export class SoldierSystem {
       targetPoolIndex: -1,
       targetUid: 0,
       holdCap: SoldierSystem.resolveSoldierHoldCap(stats),
+      extraHoldPoolIndices: [],
+      extraHoldUids: [],
       swingArmed: false,
       bonusArmor: 0,
       damageMul: 1,
@@ -525,6 +537,8 @@ export class SoldierSystem {
     s.hitFlashTimer = 0;
     s.targetPoolIndex = -1;
     s.targetUid = 0;
+    s.extraHoldPoolIndices.length = 0;
+    s.extraHoldUids.length = 0;
     s.swingArmed = false;
     s.bonusArmor = 0;
     s.damageMul = 1;
@@ -547,25 +561,37 @@ export class SoldierSystem {
     return found;
   }
 
+  private decrementEnemyHold(poolIndex: number, uid: number, emitNow: boolean): void {
+    if (poolIndex < 0 || poolIndex >= this.pool.items.length) return;
+    const e = this.pool.items[poolIndex];
+    if (e.active && e.uid === uid && e.blockers > 0) {
+      e.blockers--;
+      if (emitNow && e.blockers === 0) {
+        this.blockedCount = Math.max(0, this.blockedCount - 1);
+        if (!this.heldByHero(e) && this.consumeBlockedTracking(e)) {
+          this.emitBlock('enemyUnblocked', e);
+        }
+      }
+    }
+  }
+
   /**
    * Drops the soldier's claim. With `now`, a hold it provided ends immediately (orders / sell);
    * otherwise the next update's recount takes care of it.
    */
   private release(s: SoldierEntity, now: boolean): void {
-    if (now && s.state === 'fighting' && s.targetPoolIndex >= 0) {
-      const e = this.pool.items[s.targetPoolIndex];
-      if (e.active && e.uid === s.targetUid && e.blockers > 0) {
-        e.blockers--;
-        if (e.blockers === 0) {
-          this.blockedCount = Math.max(0, this.blockedCount - 1);
-          if (!this.heldByHero(e) && this.consumeBlockedTracking(e)) {
-            this.emitBlock('enemyUnblocked', e);
-          }
-        }
+    if (now && s.state === 'fighting') {
+      if (s.targetPoolIndex >= 0) {
+        this.decrementEnemyHold(s.targetPoolIndex, s.targetUid, true);
+      }
+      for (let k = 0; k < s.extraHoldPoolIndices.length; k++) {
+        this.decrementEnemyHold(s.extraHoldPoolIndices[k], s.extraHoldUids[k], true);
       }
     }
     s.targetPoolIndex = -1;
     s.targetUid = 0;
+    s.extraHoldPoolIndices.length = 0;
+    s.extraHoldUids.length = 0;
   }
 
   private emitBlock(kind: 'enemyBlocked' | 'enemyUnblocked', e: EnemyEntity): void {
@@ -841,6 +867,8 @@ export class SoldierSystem {
     _blockedList.length = 0;
     for (let i = 0; i < this.soldiers.length; i++) {
       const s = this.soldiers[i];
+      s.extraHoldPoolIndices.length = 0;
+      s.extraHoldUids.length = 0;
       if (s.state !== 'fighting') continue;
       const e = this.target(s);
       if (!e || e.hp <= 0) continue;
@@ -1023,6 +1051,8 @@ export class SoldierSystem {
         this.primary[cand.poolIndex] = soldierId;
       }
       cand.blockers++;
+      s.extraHoldPoolIndices.push(cand.poolIndex);
+      s.extraHoldUids.push(cand.uid);
       added++;
     }
   }
@@ -1261,6 +1291,11 @@ export class SoldierSystem {
     if (killedSoldier) {
       s.hp = 0;
       if (e.blockers > 0) e.blockers--;
+      for (let k = 0; k < s.extraHoldPoolIndices.length; k++) {
+        this.decrementEnemyHold(s.extraHoldPoolIndices[k], s.extraHoldUids[k], false);
+      }
+      s.extraHoldPoolIndices.length = 0;
+      s.extraHoldUids.length = 0;
       s.state = 'dead';
       s.swingArmed = false;
       s.targetPoolIndex = -1;

@@ -174,8 +174,8 @@ ipcMain.on('steam:get-status', (event) => {
   };
 });
 
-ipcMain.handle('steam:unlock-achievement', async (_event, rawId) => {
-  if (!isSteam || !steamClient) return false;
+ipcMain.handle('steam:unlock-achievement', async (event, rawId) => {
+  if (!isTrustedIpcSender(event) || !isSteam || !steamClient) return false;
   const id = sanitizeAchievementId(rawId);
   if (!id) return false;
   if (knownAchievementIds && knownAchievementIds.size > 0 && !knownAchievementIds.has(id)) {
@@ -189,8 +189,8 @@ ipcMain.handle('steam:unlock-achievement', async (_event, rawId) => {
   }
 });
 
-ipcMain.handle('steam:cloud-read', async (_event, rawSlot) => {
-  if (!isSteam || !steamClient) return null;
+ipcMain.handle('steam:cloud-read', async (event, rawSlot) => {
+  if (!isTrustedIpcSender(event) || !isSteam || !steamClient) return null;
   const slot = sanitizeSlot(rawSlot);
   if (!slot) return null;
   const fileName = `skyhold_${slot}.json`;
@@ -205,8 +205,8 @@ ipcMain.handle('steam:cloud-read', async (_event, rawSlot) => {
   }
 });
 
-ipcMain.handle('steam:cloud-write', async (_event, rawSlot, rawJson) => {
-  if (!isSteam || !steamClient) return false;
+ipcMain.handle('steam:cloud-write', async (event, rawSlot, rawJson) => {
+  if (!isTrustedIpcSender(event) || !isSteam || !steamClient) return false;
   const slot = sanitizeSlot(rawSlot);
   if (!slot || typeof rawJson !== 'string' || rawJson.length > 2 * 1024 * 1024) return false;
   const fileName = `skyhold_${slot}.json`;
@@ -244,6 +244,12 @@ function isAllowedAppOrigin(rawOrigin) {
   } catch {
     return false;
   }
+}
+
+function isTrustedIpcSender(event) {
+  const senderUrl = event && event.senderFrame && event.senderFrame.url;
+  if (!senderUrl) return true;
+  return isAllowedAppOrigin(senderUrl);
 }
 
 const ALLOWED_PERMISSIONS = new Set(['clipboard-sanitized-write', 'clipboard-read', 'fullscreen']);

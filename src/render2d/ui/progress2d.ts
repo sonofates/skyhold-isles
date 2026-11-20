@@ -39,6 +39,7 @@ import {
   migrateProgress,
   PROGRESS_SAVE_VERSION,
   tryRepairTruncatedJson,
+  tryRepairTruncatedJsonArray,
 } from '../../platform/storage.ts';
 import {
   applyHeroXp,
@@ -814,7 +815,13 @@ export function respecHero2D(heroId: HeroId, levels: readonly LevelDef[] = LEVEL
 function readSeen(): Set<string> {
   try {
     const raw = storage()?.getItem(STORY_SEEN_KEY);
-    const v: unknown = raw ? JSON.parse(raw) : [];
+    if (!raw) return new Set();
+    let v: unknown;
+    try {
+      v = JSON.parse(raw);
+    } catch {
+      v = tryRepairTruncatedJsonArray(raw);
+    }
     return new Set(Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : []);
   } catch {
     return new Set();

@@ -26,11 +26,13 @@ import {
   recoverProgressSave,
   setPlatformAdapter,
   tryRepairTruncatedJson,
+  tryRepairTruncatedJsonArray,
 } from '../../src/platform/index.ts';
 import {
   backupProgressBeforeImport,
   createDefaultProgress,
   loadProgress,
+  loadSettings,
   migrateProgress,
   resetProgressSave,
   saveLocalProgress,
@@ -693,5 +695,33 @@ describe('Save Robustness v2 — Version Migration & Algebraic Merge Fuzz', () =
     expect(rec.recovered).toBe(true);
     expect(rec.sources).toContain('corruptBackup');
     expect(rec.progress.bestStars.slice(0, 3)).toEqual([3, 3, 2]);
+  });
+
+  it('salvages truncated JSON arrays (STORY_SEEN_KEY) and truncated settings JSON without losing prior entries', async () => {
+    const store = installMemoryStorage();
+    expect(tryRepairTruncatedJsonArray('["l1c:intro","i01:intro","i02:int')).toEqual([
+      'l1c:intro',
+      'i01:intro',
+    ]);
+    expect(tryRepairTruncatedJsonArray('not-an-array')).toBeNull();
+
+    // Truncated STORY_SEEN_KEY preserves seen beats across subsequent markStorySeen writes
+    store.set('skyhold_isles_story2d_seen_v1', '["l1c:intro","l1c:outro","i01:int');
+    const { storySeen, markStorySeen } = await import('../../src/render2d/ui/progress2d.ts');
+    expect(storySeen('l1c', 'intro')).toBe(true);
+    expect(storySeen('l1c', 'outro')).toBe(true);
+    markStorySeen('i02', 'intro');
+    expect(storySeen('l1c', 'intro')).toBe(true);
+    expect(storySeen('i02', 'intro')).toBe(true);
+
+    // Truncated SETTINGS_KEY preserves muted / masterVolume / cameraShake fields written before cutoff
+    store.set(
+      'skyhold_isles_settings_v1',
+      '{"masterVolume":0.22,"muted":true,"cameraShake":false,"damageNu',
+    );
+    const settings = loadSettings();
+    expect(settings.masterVolume).toBeCloseTo(0.22, 5);
+    expect(settings.muted).toBe(true);
+    expect(settings.cameraShake).toBe(false);
   });
 });

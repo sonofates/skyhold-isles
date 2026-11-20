@@ -22,9 +22,9 @@ export function registerServiceWorker(opts: ServiceWorkerOptions): void {
   if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return;
   if (!(opts.isProd ?? import.meta.env.PROD)) return;
   const platform = getPlatform();
-  // Desktop Steam (Electron ASAR omits sw.js) and native Capacitor WebViews serve bundled local
-  // files directly; never register a web Service Worker that could cache stale bundle assets.
-  if (platform.isSteam || platform.isMobile) return;
+  // Desktop Electron (connected to Steam or standalone — ASAR omits sw.js) and native Capacitor
+  // WebViews serve bundled local files directly; never register a web Service Worker there.
+  if (platform.isSteam || platform.isDesktop || platform.isMobile) return;
 
   let reloading = false;
   let applying = false;

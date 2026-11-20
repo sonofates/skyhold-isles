@@ -11,6 +11,7 @@ import { ALL_TOWER_TYPES, getTowerTierStats, TOWER_DEFS, TOWER_TYPES } from '../
 import type { EnemyEntity, TowerEntity } from '../../src/sim/entities.ts';
 import { BLOCK_LATERAL_MAX, blockedLateralOffset } from '../../src/sim/soldierSystem.ts';
 import { computeSellRefund, SimWorld } from '../../src/sim/world.ts';
+import { InvariantMonitor } from '../../qa/bot/invariants.ts';
 
 const DT = BALANCE.fixedDt;
 
@@ -619,6 +620,95 @@ describe('determinism and isolation', () => {
       expect(g2.blockers).toBe(0);
       expect(g3.blockers).toBe(0);
       expect((log.enemyUnblocked ?? []).length).toBe((log.enemyBlocked ?? []).length);
+    } finally {
+      (TOWER_DEFS.barracks.tiers as unknown as Record<number, unknown>)[2] = origT3;
+    }
+  });
+
+  it('elite multi-hold (soldierHoldCap: 2) cleanly releases extra-held foes on rally move, sell, and soldier death', () => {
+    const origT3 = TOWER_DEFS.barracks.tiers[2];
+    try {
+      (TOWER_DEFS.barracks.tiers as unknown as Record<number, unknown>)[2] = {
+        ...origT3,
+        soldierCount: 1,
+        soldierHp: 14,
+        soldierArmor: 0,
+        soldierDamage: 0,
+        soldierHoldCap: 2,
+      };
+
+      const { world } = setup();
+      const monitor = new InvariantMonitor(world, world.events, 8);
+      const stepWorld = (n: number): void => {
+        for (let i = 0; i < n; i++) {
+          const nextTick = world.tick + 1;
+          monitor.beginTick(nextTick);
+          world.fixedTick(DT);
+          monitor.endTick(world.tick, DT);
+        }
+      };
+
+      const t = world.placeTowerOnPlot(0, 'barracks')!;
+      expect(world.upgradeTower(t.id)).toBe(true);
+      expect(world.upgradeTower(t.id)).toBe(true);
+      const b = world.soldierSystem.getBarracks(t.id)!;
+      expect(b.squad).toHaveLength(1);
+      expect(b.squad[0].holdCap).toBe(2);
+      stepWorld(60);
+
+      // Spawn two grunts right behind each other so the lone holdCap=2 soldier holds BOTH (primary + extra).
+      const g1 = spawnAt(world, 'grunt', 8 + b.rallyX - 0.15);
+      const g2 = spawnAt(world, 'grunt', 8 + b.rallyX - 0.42);
+      for (let guard = 0; guard < 180 && !(g1.blockers >= 1 && g2.blockers >= 1); guard++) {
+        stepWorld(1);
+      }
+      expect(g1.blockers).toBe(1);
+      expect(g2.blockers).toBe(1);
+      expect(b.squad[0].extraHoldPoolIndices).toHaveLength(1);
+
+      // Between-tick rally move must immediately release BOTH primary and extra-held foes before next tick's EnemySystem.
+      expect(world.setRallyPoint(t.id, b.rallyX + 1.1, 0)).toBe(true);
+      expect(g1.blockers).toBe(0);
+      expect(g2.blockers).toBe(0);
+
+      // Re-engage both grunts at the new rally point, then let them kill the fragile soldier in melee.
+      g1.dist = 8 + b.rallyX - 0.15;
+      g2.dist = 8 + b.rallyX - 0.42;
+      world.groundPath.sample(g1.dist, g1);
+      world.groundPath.sample(g2.dist, g2);
+      for (let guard = 0; guard < 180 && !(g1.blockers >= 1 && g2.blockers >= 1); guard++) {
+        stepWorld(1);
+      }
+      expect(g1.blockers).toBe(1);
+      expect(g2.blockers).toBe(1);
+
+      // Run until the lone soldier dies: on the death tick itself, BOTH grunts must drop to blockers === 0
+      // with zero InvariantMonitor violations (no blockers > 0 with 0 fighting soldiers, exact unblock parity).
+      for (let guard = 0; guard < 240 && b.squad[0].state !== 'dead'; guard++) {
+        stepWorld(1);
+      }
+      expect(b.squad[0].state).toBe('dead');
+      expect(g1.blockers).toBe(0);
+      expect(g2.blockers).toBe(0);
+      expect(monitor.violations).toEqual([]);
+
+      // Let the soldier respawn, re-hold the two grunts, and verify sellTower releases both immediately.
+      b.squad[0].respawnTimer = 0.01;
+      stepWorld(35);
+      g1.dist = 8 + b.rallyX - 0.15;
+      g2.dist = 8 + b.rallyX - 0.42;
+      world.groundPath.sample(g1.dist, g1);
+      world.groundPath.sample(g2.dist, g2);
+      for (let guard = 0; guard < 180 && !(g1.blockers >= 1 && g2.blockers >= 1); guard++) {
+        stepWorld(1);
+      }
+      expect(g1.blockers).toBe(1);
+      expect(g2.blockers).toBe(1);
+      expect(world.sellTower(t.id)).toBeGreaterThan(0);
+      expect(g1.blockers).toBe(0);
+      expect(g2.blockers).toBe(0);
+      stepWorld(5);
+      expect(monitor.violations).toEqual([]);
     } finally {
       (TOWER_DEFS.barracks.tiers as unknown as Record<number, unknown>)[2] = origT3;
     }

@@ -81,4 +81,5 @@ export {
   PROGRESS_IMPORT_BACKUP_KEY,
   PROGRESS_RESET_BACKUP_KEY,
   tryRepairTruncatedJson,
+  tryRepairTruncatedJsonArray,
 } from './storage.ts';

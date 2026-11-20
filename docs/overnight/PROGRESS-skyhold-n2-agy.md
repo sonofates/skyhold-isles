@@ -65,13 +65,25 @@
   - **Per-Frame HUD Snapshot Caching (`heroSystem.ts`, `abilitySystem.ts`):** `HeroSystem.getRuntimeState()` caches immutable `HeroRuntimeState` snapshots across unchanged 60/120 Hz HUD frames and reuses the `skills` tuple when cooldowns are unchanged (0 allocations while paused/idle); `AbilitySystem.castOvercharge()` reuses a frozen empty `cleansedTowerIds` array when no towers are stunned.
   - **Steam Desktop Security, Clipboard & Single-Instance Hardening (`desktop/main.cjs`, `scripts/qaDesktopSmoke.ts`):** Added `unsafely-treat-insecure-origin-as-secure` on `http://skyhold.local` (`window.isSecureContext === true` so `navigator.clipboard.writeText` works for Copy Save Code / Share without changing origin or losing `persist:skyhold` `localStorage`), restricted permissions via `setPermissionCheckHandler` / `setPermissionRequestHandler`, blocked outbound `https:` requests in `registerBundleProtocol`, added `app.requestSingleInstanceLock()` with `second-instance` focus restore, rebuilt `release/Skyhold Isles-1.0.0.AppImage`, and verified `secureContext: true` under Xvfb smoke.
 
-- [x] **8. Post-Backlog Deep Audit — Round 3 (`src/platform/{platform,storage,cloudSync,gameSession,serviceWorker}.ts`, `src/sim/{soldierSystem,world}.ts`, `src/render2d/ui/progress2d.ts`, `tests/**`)**
+- [x] **8. Post-Backlog Deep Audit — Round 3 (`src/platform/{platform,storage,cloudSync,gameSession,serviceWorker}.ts`, `src/sim/{soldierSystem,world}.ts`, `src/render2d/ui/progress2d.ts`, `tests/**`)** — commit `2d47936`
   - **Service Worker Guard for Steam Desktop & Native Mobile Shells (`serviceWorker.ts`):** `registerServiceWorker()` now skips `/sw.js` registration when `getPlatform().isSteam || getPlatform().isMobile` (important now that `http://skyhold.local` is treated as a secure context in Electron where `sw.js` is excluded from ASAR, and inside Capacitor WebViews where a SW cache would serve stale bundle assets across binary updates).
   - **Cloud Mirror Write-Sequence Guard & 3D Steam Cloud Parity (`platform.ts`, `storage.ts`, `cloudSync.ts`, `gameSession.ts`, `progress2d.ts`):**
     - `createPlatformAdapter().cloudSave` tracks per-slot `writeSeqBySlot` so an in-flight `bridge.cloudRead()` resolving after a newer `cloudSave.write()` (such as `resetProgress2D()` / `resetProgressSave()`) never pollutes the local `skyhold_isles_cloud_<slot>` mirror with stale pre-reset remote data.
     - Extended 3D `storage.ts` / `cloudSync.ts` / `gameSession.ts` with `setCloudReadInFlight()` (deferring concurrent `saveProgress()` cloud writes while `hydrateProgressFromCloud()` awaits `cloudSave.read('progress')`), `getProgressResetGen()` + `GameSession.resetGen` cancellation on reset, automatic `skyhold_isles_cloud_progress` mirror fallback on corrupt primary `loadProgress()`, and valid serialized `PROGRESS_RESET_BACKUP_KEY` / `PROGRESS_2D_RESET_BACKUP_KEY` preservation even when resetting a save recovered from truncated JSON or cloud mirror.
   - **Barracks Specialization Readiness (`soldierSystem.ts`):** Hardened `SoldierSystem.onUpgrade()` and `createSoldier()` ahead of tower specializations so elite branches that shrink `soldierCount` cleanly release and retire excess squad slots (`enemyUnblocked` + `soldierRemoved`), branches that tighten `range` re-clamp out-of-range rally points onto the road (`rallyMoved`), and `soldierHoldCap > 1` refreshes across existing and newly spawned soldiers (`0` diff on existing tiers; `sim:balance` 41/41 byte-identical).
   - **Per-Frame HUD `AbilityRuntimeState` Caching & `islandStates` Parity (`world.ts`, `progress2d.ts`):** `SimWorld.getAbilityState()` and `SimWorld.getAbilitiesState()` cache immutable snapshots and the 2-ability tuple across unchanged 60/120 Hz HUD frames; `islandStates()` derives `stars`, `clears`, and `mastered` non-destructively from raw `difficultyWins`-only `ProgressData` inputs.
+
+- [x] **9. Post-Backlog Deep Audit — Round 4 (`src/core/pool.ts`, `src/sim/{soldierSystem,heroSystem}.ts`, `src/platform/{platform,serviceWorker,iap,storage,index}.ts`, `src/render2d/ui/progress2d.ts`, `desktop/main.cjs`, `qa/bot/hash.ts`, `tests/**`)**
+  - **Elite Multi-Hold (`soldierHoldCap > 1`) Release & Death Invariant Fix (`soldierSystem.ts`, `qa/bot/hash.ts`, `tests/sim/barracks.test.ts`):**
+    - Tracked per-soldier extra-held enemies (`extraHoldPoolIndices` / `extraHoldUids`, pre-allocated with zero per-tick allocations) so when an elite `soldierHoldCap > 1` soldier falls in melee (`hurt`), moves rally (`setRally`), shrinks `holdCap` (`onUpgrade`), or has its barracks sold (`removeBarracks`), all extra-held foes immediately drop `blockers` alongside the primary target — eliminating extra-tick phantom holds and preserving 1-to-1 `enemyBlocked` ↔ `enemyUnblocked` invariants (`0` diff on `holdCap === 1` tiers).
+  - **Standalone Electron Desktop Shell Detection (`platform.ts`, `serviceWorker.ts`, `iap.ts`, `desktop/main.cjs`):**
+    - Added `PlatformAdapter.isDesktop` (`true` whenever the Electron preload bridge or `skyhold.local` bundle origin is active, even when the Steam client is closed and `isSteam === false`) so standalone AppImage / `.exe` launches also skip `/sw.js` registration and keep `createIapStore()` locked to `'noop'`.
+    - Added `isTrustedIpcSender(event)` sender-frame origin verification to `steam:unlock-achievement`, `steam:cloud-read`, and `steam:cloud-write` in `desktop/main.cjs`; rebuilt `release/Skyhold Isles-1.0.0.AppImage` and re-verified World Map + Hard Boss `i24` under Xvfb smoke.
+  - **Truncated JSON Array & Settings Recovery (`storage.ts`, `iap.ts`, `progress2d.ts`, `index.ts`):**
+    - Added zero-regex `tryRepairTruncatedJsonArray()` alongside `tryRepairTruncatedJson()`, protecting `STORY_SEEN_KEY` (`progress2d.ts`), `ENEMY_INTROS_SEEN_KEY` (`storage.ts`), and legacy array `IAP_SAVE_KEY` (`iap.ts`) from losing prior entries after a mid-write cutoff, and extended `loadSettings()` with truncated-JSON recovery.
+  - **`ObjectPool.clear()` Canonical Reset & `HeroSystem` Polish (`pool.ts`, `heroSystem.ts`):**
+    - `ObjectPool.clear()` now restores canonical `[cap - 1, ..., 0]` `freeIndices` ordering so post-clear `acquire()` slot assignment is independent of prior release order.
+    - Cached static `HeroSystem.getFallbackRespawnPoint()` (`O(1)`, zero allocations) and switched `HeroSystem` (`overhaul` + `tinker`) from hardcoded `t.type === 'beacon'` checks to role-driven `TOWER_DEFS[t.type].role === 'support'`.
 
 ---
 
@@ -98,7 +110,7 @@
 
 ## Problems / Known Issues
 
-- None blocking in owned area (`sim:balance` 41/41 byte-identical, `qa:bot` 656/656 passing, 1,367 unit tests passing, all Hard Boss low-end benches `<= 66.8 ms`, Linux AppImage builds & passes Xvfb smoke with `secureContext: true`).
+- None blocking in owned area (`sim:balance` 41/41 byte-identical, `qa:bot` 656/656 passing, 1,370 unit tests passing, all Hard Boss low-end benches `<= 66.8 ms`, Linux AppImage builds & passes Xvfb smoke with `secureContext: true`).
 
 ---
 

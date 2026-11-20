@@ -92,6 +92,33 @@ describe('IAP store adapter: web & Steam no-op', () => {
     });
     expect(steamStore.mode).toBe('noop');
     expect(steamStore.owned('full_unlock')).toBe(false);
+
+    // Standalone Electron desktop (Steam client closed -> isSteam=false, isDesktop=true) is also a paid full game.
+    const standaloneDesktopPlatform = createPlatformAdapter({
+      storage,
+      bridge: {
+        isSteam: false,
+        unlockAchievement: async () => false,
+        cloudRead: async () => null,
+        cloudWrite: async () => false,
+      },
+    });
+    const standaloneDesktopStore = createIapStore({
+      platform: standaloneDesktopPlatform,
+      storage,
+      locationSearch: '?iapmock=1',
+    });
+    expect(standaloneDesktopStore.mode).toBe('noop');
+    expect(standaloneDesktopStore.owned('full_unlock')).toBe(false);
+
+    // Truncated legacy array IAP_SAVE_KEY still preserves earlier full_unlock entitlement on mobile.
+    const legacyTruncStorage = createMemStorage();
+    legacyTruncStorage.setItem(IAP_SAVE_KEY, '["full_unlock","starter_pa');
+    const mobileStore = createIapStore({
+      platform: createMobilePlatform('ios'),
+      storage: legacyTruncStorage,
+    });
+    expect(mobileStore.owned('full_unlock')).toBe(true);
   });
 
   it('detects ?iapmock=1 in browser query strings and activates mock mode on web', async () => {

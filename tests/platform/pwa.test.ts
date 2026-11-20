@@ -144,6 +144,21 @@ describe('service worker template vs the 2D build', () => {
       registerServiceWorker({ onUpdateReady: vi.fn(), isProd: true });
       expect(registerFn).not.toHaveBeenCalled();
 
+      // Standalone Electron shell (Steam client closed -> isSteam: false, preload bridge present): must NOT register /sw.js
+      const standaloneDesktop = createPlatformAdapter({
+        bridge: {
+          isSteam: false,
+          unlockAchievement: async () => false,
+          cloudRead: async () => null,
+          cloudWrite: async () => false,
+        },
+      });
+      expect(standaloneDesktop.isSteam).toBe(false);
+      expect(standaloneDesktop.isDesktop).toBe(true);
+      setPlatformAdapter(standaloneDesktop);
+      registerServiceWorker({ onUpdateReady: vi.fn(), isProd: true });
+      expect(registerFn).not.toHaveBeenCalled();
+
       // Native Capacitor mobile shell: must NOT register /sw.js
       setPlatformAdapter(
         createPlatformAdapter({

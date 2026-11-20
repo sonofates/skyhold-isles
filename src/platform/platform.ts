@@ -56,6 +56,8 @@ export interface PlatformCloudSave {
 
 export interface PlatformAdapter {
   readonly isSteam: boolean;
+  /** True when running inside the Electron desktop shell (connected to Steam or standalone). */
+  readonly isDesktop?: boolean;
   /** True when running inside the native Capacitor mobile wrapper (Android or iOS). */
   readonly isMobile: boolean;
   /** Underlying Capacitor platform identifier (`'ios'`, `'android'`, or `'web'`). */
@@ -220,8 +222,19 @@ export function createPlatformAdapter(options: CreatePlatformOptions = {}): Plat
   const storage = options.storage === undefined ? defaultStorage() : options.storage;
   const bridge = options.bridge === undefined ? detectSteamBridge() : (options.bridge ?? undefined);
   const steamActive = Boolean(bridge && bridge.isSteam === true);
+  const desktopBundleHost =
+    options.bridge === undefined &&
+    options.mobile === undefined &&
+    (() => {
+      try {
+        return typeof location !== 'undefined' && location.hostname === 'skyhold.local';
+      } catch {
+        return false;
+      }
+    })();
+  const desktopActive = steamActive || Boolean(bridge) || desktopBundleHost;
 
-  const mobileBridge = steamActive
+  const mobileBridge = desktopActive
     ? undefined
     : options.mobile === undefined
       ? detectMobileBridge()
@@ -286,6 +299,7 @@ export function createPlatformAdapter(options: CreatePlatformOptions = {}): Plat
   if (!steamActive || !bridge) {
     return {
       isSteam: false,
+      isDesktop: desktopActive,
       isMobile: mobileActive,
       mobilePlatform,
       overlayActive: false,
@@ -347,6 +361,9 @@ export function createPlatformAdapter(options: CreatePlatformOptions = {}): Plat
 
   return {
     get isSteam(): boolean {
+      return true;
+    },
+    get isDesktop(): boolean {
       return true;
     },
     get isMobile(): boolean {
