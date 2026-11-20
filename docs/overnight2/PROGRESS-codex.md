@@ -790,3 +790,38 @@ TypeScript and lint passed. The single-worker Vitest suite passed 1,438 tests wi
 ### Next round
 
 Trace the six Slipstream Moths in Moonwell Crossing's “Veil of Mist.” Check which moth supplies the draft, how long a follower coasts after its leader dies, and whether the painted trail disappears at the same time as the speed bonus. No new requests for Opus.
+
+## Round 33 — Slipstream Moths at Moonwell Crossing
+
+### Veil of Mist
+
+On Normal, level-20 Bran entered wave four with 42 campaign stars and 22 lives. Numbering the six moths in spawn order, the first moth to catch a draft was #2 behind #1. A moth checks for any other moth 0.35–3 world units ahead along the flight path. Several can supply the same draft, and a follower can overtake its leader.
+
+| Moth | First moths in reach ahead | What happened at the end of its flight |
+|---|---|---|
+| 1 | 2, after it overtook | Later caught #3’s wake and finished its coast before dying. |
+| 2 | 1 | Later caught #3’s wake. Died with 0.92 s of coast left. |
+| 3 | 1 and 2 | Passed out of both wakes and returned to cruise before dying. |
+| 4 | 3 | Lost its last leader when #3 died. Coasted for 73 ticks before the killing hit. |
+| 5 | 4 | Kept full draft through three other deaths. Began coasting when #1 died. |
+| 6 | 5 | Briefly had all five moths in reach ahead. Coasted for 41 ticks after #5 fell, then died with 0.72 s left. |
+
+All six died by 8.42 seconds. Wave four cost no lives and the island ended at 9/22 with two stars. Kept the existing wave, kit and enemy tuning.
+
+### Trail and counter hint
+
+In a staged wave-four flight, isolated a pair and removed the last leader. The follower’s speed bonus fell from 65% to 32.5% after 42 ticks. At 84 ticks (1.4 seconds) the wake disappeared and the next movement step ran at cruise speed. The new regression repeats this with a frost-slowed follower, checks that the surviving leader maintains full draft, then measures movement against the drawn wake on every remaining tick.
+
+The half-strength lower trail was hard to see over a raider on the phone. Broadened the two streaks and darkened their outlines. Inspected all three stages enlarged on both viewports. At phone play size the fading tips remain small. [Desktop and landscape-phone captures at full draft, 0.7 s and 1.4 s](../../design/art-2d/chapter2/polish/i15-moth-coast.jpg)
+
+### Request for Opus
+
+The English counter hint now accounts for multiple leaders. EN “Use chain lightning on the flock. Once the last moth ahead is out of reach, the follower loses its extra speed over 1.4 seconds.” TR “Sürüye zincirleme yıldırımla vur. Önde hava akımı sağlayan güve kalmayınca takipteki güve 1,4 saniye içinde normal hızına döner.” The English hint fits in the phone’s “How to stop it” panel. Opus owns the Turkish i18n entry. [English Codex at 844 × 390](../../design/art-2d/chapter2/polish/i15-moth-codex-phone.jpg)
+
+### Verification
+
+TypeScript, lint and the production build passed. Vitest passed 1,439 tests with 11 skipped. All 41 realistic-kit checks and all eight difficulty verdicts passed. Both simulation reports matched round 32 byte for byte. Hard i09 finished at 12/22 lives and Hard i24 at 2/22. The standalone 24,217-byte L1–L16 report matched the round-one baseline byte for byte. Vite emitted its existing chunk-size and dynamic-import warnings.
+
+### Next round
+
+Trace the Hard first-clear kit through Moonwell Crossing’s wave-five defeat in “Night Freight.” Measure whether the haulers, their dropped raiders or the skimmers take the remaining lives. Try a change to the opening build within the existing budget and check Normal before adopting it.

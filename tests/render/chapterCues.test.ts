@@ -1,9 +1,13 @@
 import { Container, Graphics, Sprite, Texture } from 'pixi.js';
 import { describe, expect, it } from 'vitest';
+import { EventBus } from '../../src/core/eventBus.ts';
+import { BALANCE } from '../../src/data/balance.ts';
 import { CHAPTER_ENEMY_DEFS } from '../../src/data/enemies.ts';
+import { I15 } from '../../src/data/levels2d/i15.ts';
 import type { EnemyArtRuntime } from '../../src/render2d/assets2d.ts';
 import { createExtras, createSpecialAnim, EnemySpecials, KilnbackShell, type SpecialState } from '../../src/render2d/enemySpecials.ts';
 import type { ProcTextures } from '../../src/render2d/procTextures.ts';
+import { SimWorld } from '../../src/sim/world.ts';
 
 function scene(type: 'reedpiper' | 'draftwing') {
   const parents = { ground: new Container(), overlays: new Container(), actors: new Container(), bars: new Container() };
@@ -107,5 +111,47 @@ describe('chapter enemy cues', () => {
     expect(ex.wake).toBe(wake);
     specials.hideAll(ex);
     expect(wake.visible).toBe(false);
+  });
+
+  it('shows the remaining draft bonus through a leader change and the entire coast under frost', () => {
+    const { draw, ex } = scene('draftwing');
+    const sim = new SimWorld(I15, new EventBus()).enemySystem;
+    const { coastSec, speedBonus } = CHAPTER_ENEMY_DEFS.draftwing.ability;
+    const dt = BALANCE.fixedDt;
+    const step = () => sim.update(dt, () => {}, () => {});
+    const rear = sim.spawnEnemy('draftwing')!;
+    const middle = sim.spawnEnemy('draftwing')!;
+    const front = sim.spawnEnemy('draftwing')!;
+    middle.dist = 1.2;
+    front.dist = 2.4;
+    sim.applySlow(rear, 0.4, coastSec + 1);
+    step();
+    draw(rear);
+    const wake = ex.wake!;
+    expect(wake.visible).toBe(true);
+    const fullAlpha = wake.alpha;
+    expect(fullAlpha).toBeGreaterThan(0);
+
+    sim.applyDamage(front, front.hp, true);
+    step();
+    draw(rear);
+    expect(rear.abilityTimer).toBe(coastSec);
+    expect(wake.alpha).toBe(fullAlpha);
+    sim.applyDamage(middle, middle.hp, true);
+
+    const coastTicks = Math.round(coastSec / dt);
+    const cruise = rear.speed * (1 - rear.slowRatio);
+    for (let i = 1; i <= coastTicks; i++) {
+      const shownBonus = speedBonus * wake.alpha / fullAlpha;
+      const start = rear.dist;
+      step();
+      expect((rear.dist - start) / dt).toBeCloseTo(cruise * (1 + shownBonus), 8);
+      draw(rear);
+      expect(wake.visible).toBe(i < coastTicks);
+      if (wake.visible) expect(wake.alpha / fullAlpha).toBeCloseTo(1 - i / coastTicks, 8);
+    }
+    const start = rear.dist;
+    step();
+    expect((rear.dist - start) / dt).toBeCloseTo(cruise, 8);
   });
 });

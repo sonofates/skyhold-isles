@@ -50,12 +50,12 @@ function drawChapterCue(cue: ChapterCue): GraphicsContext {
     g.ellipse(4.6, 1, 4.1, 2.9).fill(0xffeb9b).stroke({ width: 1.4, color: 0x4d4226 });
   } else {
     // Two tapered wingtip trails in a local frame pointing right.
-    g.moveTo(-9, -7).bezierCurveTo(-32, -17, -51, -1, -83, -9)
-      .bezierCurveTo(-52, 2, -31, -10, -15, -4).closePath()
-      .fill(0xcaf2eb).stroke({ width: 1.1, color: 0x365d66, join: 'round' });
-    g.moveTo(-15, 6).bezierCurveTo(-33, 3, -41, 16, -65, 10)
-      .bezierCurveTo(-43, 19, -30, 9, -19, 10).closePath()
-      .fill(0x9fddd8).stroke({ width: 1, color: 0x365d66, join: 'round' });
+    g.moveTo(-9, -7).bezierCurveTo(-32, -20, -51, -2, -83, -9)
+      .bezierCurveTo(-55, 5, -33, -10, -15, -3).closePath()
+      .fill(0xd9faf1).stroke({ width: 1.8, color: 0x2c525c, join: 'round' });
+    g.moveTo(-15, 6).bezierCurveTo(-33, 1, -41, 15, -65, 10)
+      .bezierCurveTo(-45, 22, -31, 10, -19, 11).closePath()
+      .fill(0xafe9e1).stroke({ width: 1.6, color: 0x2c525c, join: 'round' });
   }
   return g;
 }

@@ -93,7 +93,7 @@ export const CHAPTER_ENEMY_DEFS = {
   draftwing: {
     type: 'draftwing', name: 'Slipstream Moth',
     description: 'Follows the wingbeats of another moth ahead on the sky lane, closing the gap in its wake.',
-    counterHint: 'Chain lightning breaks up a flight. Pick off the lead moth to slow its follower.',
+    counterHint: 'Use chain lightning on the flock. Once the last moth ahead is out of reach, the follower loses its extra speed over 1.4 seconds.',
     maxHp: 47, speed: 2.5, armor: 0, reward: 3, livesCost: 1,
     flying: true, radius: 0.36, height: 0.84,
     ability: { kind: 'draft', reach: 3, spacing: 0.35, coastSec: 1.4, speedBonus: 0.65 },
