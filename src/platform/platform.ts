@@ -52,6 +52,8 @@ export interface PlatformAchievements {
 export interface PlatformCloudSave {
   read(slot: string): Promise<string | null>;
   write(slot: string, json: string): Promise<boolean>;
+  /** True when the most recent `read(slot)` fell back locally because the remote Steam Cloud read threw. */
+  didLastReadFail?(slot: string): boolean;
 }
 
 export interface PlatformAdapter {
@@ -358,6 +360,7 @@ export function createPlatformAdapter(options: CreatePlatformOptions = {}): Plat
 
   const unlockedInSession = new Set<string>();
   const writeSeqBySlot = new Map<string, number>();
+  const lastReadFailedBySlot = new Map<string, boolean>();
 
   return {
     get isSteam(): boolean {
@@ -397,6 +400,7 @@ export function createPlatformAdapter(options: CreatePlatformOptions = {}): Plat
         const seqAtStart = writeSeqBySlot.get(safe) ?? 0;
         try {
           const remote = await bridge.cloudRead(safe);
+          lastReadFailedBySlot.set(safe, false);
           if (typeof remote === 'string' && remote.length > 0) {
             if ((writeSeqBySlot.get(safe) ?? 0) === seqAtStart) {
               writeLocalSlot(storage, safe, remote);
@@ -405,6 +409,7 @@ export function createPlatformAdapter(options: CreatePlatformOptions = {}): Plat
           }
         } catch {
           // fall back to local copy when Steam Remote Storage fails
+          lastReadFailedBySlot.set(safe, true);
         }
         return readLocalSlot(storage, safe);
       },
@@ -418,6 +423,10 @@ export function createPlatformAdapter(options: CreatePlatformOptions = {}): Plat
         } catch {
           return false;
         }
+      },
+      didLastReadFail(slot: string): boolean {
+        const safe = sanitizeCloudSlot(slot);
+        return safe !== null && lastReadFailedBySlot.get(safe) === true;
       },
     },
     triggerHaptic,

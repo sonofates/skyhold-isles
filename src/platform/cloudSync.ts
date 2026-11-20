@@ -8,8 +8,10 @@ import {
   getProgressResetGen,
   hasAnyProgress,
   loadProgress,
+  markCloudHydrated,
   migrateProgress,
   readLocalProgressRaw,
+  registerCloudHydrator,
   saveLocalProgress,
   setCloudReadInFlight,
   tryRepairTruncatedJson,
@@ -43,6 +45,9 @@ export async function hydrateProgressFromCloud(
   setCloudReadInFlight(adapter, true);
   try {
     cloudRaw = await adapter.cloudSave.read(CLOUD_PROGRESS_SLOT);
+    if (adapter.cloudSave.didLastReadFail?.(CLOUD_PROGRESS_SLOT) === true) {
+      readFailed = true;
+    }
   } catch {
     cloudRaw = null;
     readFailed = true;
@@ -95,8 +100,11 @@ export async function hydrateProgressFromCloud(
       }
     }
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-      if (hasAnyProgress(normalizedLocal) && getProgressResetGen() === genAtStart) {
-        await safeCloudWrite(localRaw);
+      if (!readFailed) {
+        markCloudHydrated(adapter);
+        if (hasAnyProgress(normalizedLocal) && getProgressResetGen() === genAtStart) {
+          await safeCloudWrite(localRaw);
+        }
       }
     } else {
       const cloudProgress = migrateProgress(parsed, levelCount);
@@ -105,12 +113,18 @@ export async function hydrateProgressFromCloud(
       if (mergedRaw !== localRaw && getProgressResetGen() === genAtStart) {
         saveLocalProgress(merged);
       }
-      if ((parseFailed || mergedRaw !== cloudRaw) && getProgressResetGen() === genAtStart) {
-        await safeCloudWrite(mergedRaw);
+      if (!readFailed) {
+        markCloudHydrated(adapter);
+        if ((parseFailed || mergedRaw !== cloudRaw) && getProgressResetGen() === genAtStart) {
+          await safeCloudWrite(mergedRaw);
+        }
       }
     }
-  } else if (!readFailed && adapter.isSteam && hasAnyProgress(normalizedLocal) && getProgressResetGen() === genAtStart) {
-    await safeCloudWrite(localRaw);
+  } else if (!readFailed) {
+    markCloudHydrated(adapter);
+    if (adapter.isSteam && hasAnyProgress(normalizedLocal) && getProgressResetGen() === genAtStart) {
+      await safeCloudWrite(localRaw);
+    }
   }
   if (getProgressResetGen() !== genAtStart) {
     return { merged: loadProgress(levelCount), updated: false, unlockedAchievements: [] };
@@ -127,3 +141,7 @@ export async function hydrateProgressFromCloud(
   const unlockedAchievements = await syncAchievementsFromProgress(merged, adapter, levels);
   return { merged, updated, unlockedAchievements };
 }
+
+registerCloudHydrator((progress, levelCount, adapter) =>
+  hydrateProgressFromCloud(progress, levelCount, adapter),
+);

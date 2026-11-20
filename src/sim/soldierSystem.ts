@@ -710,11 +710,20 @@ export class SoldierSystem {
       }
     }
 
-    // 2. Claims already held this tick.
+    // 2. Claims already held this tick (including active extra holds on elite multi-hold squads).
     for (let i = 0; i < this.soldiers.length; i++) {
       const s = this.soldiers[i];
       if ((s.state === 'engaging' || s.state === 'fighting') && s.targetPoolIndex >= 0) {
         this.claims[s.targetPoolIndex]++;
+      }
+      if (s.state === 'fighting') {
+        for (let k = 0; k < s.extraHoldPoolIndices.length; k++) {
+          const ep = s.extraHoldPoolIndices[k];
+          const extra = pool.items[ep];
+          if (extra && extra.active && extra.uid === s.extraHoldUids[k] && this.isHoldable(extra)) {
+            this.claims[ep]++;
+          }
+        }
       }
     }
 
@@ -764,8 +773,12 @@ export class SoldierSystem {
       }
     }
     for (let i = 0; i < this.soldiers.length; i++) {
-      const pi = this.soldiers[i].targetPoolIndex;
+      const s = this.soldiers[i];
+      const pi = s.targetPoolIndex;
       if (pi >= 0) this.claims[pi] = 0;
+      for (let k = 0; k < s.extraHoldPoolIndices.length; k++) {
+        this.claims[s.extraHoldPoolIndices[k]] = 0;
+      }
     }
 
     // 4. Movement and contact.
@@ -1190,12 +1203,11 @@ export class SoldierSystem {
     this.claims[e.poolIndex]++;
   }
 
-  /** Soldiers (any barracks) in melee contact with this enemy right now. */
+  /** Soldiers (any barracks) holding this enemy in melee contact right now (primary or extra hold). */
   private inContact(e: EnemyEntity): number {
     let n = 0;
     for (let i = 0; i < this.soldiers.length; i++) {
-      const s = this.soldiers[i];
-      if (s.state === 'fighting' && s.targetPoolIndex === e.poolIndex && s.targetUid === e.uid) n++;
+      if (this.isSoldierHolding(this.soldiers[i], e)) n++;
     }
     return n;
   }

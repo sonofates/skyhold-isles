@@ -85,7 +85,7 @@
     - `ObjectPool.clear()` now restores canonical `[cap - 1, ..., 0]` `freeIndices` ordering so post-clear `acquire()` slot assignment is independent of prior release order.
     - Cached static `HeroSystem.getFallbackRespawnPoint()` (`O(1)`, zero allocations) and switched `HeroSystem` (`overhaul` + `tinker`) from hardcoded `t.type === 'beacon'` checks to role-driven `TOWER_DEFS[t.type].role === 'support'`.
 
-- [x] **10. Post-Backlog Deep Audit — Round 5 (`src/sim/soldierSystem.ts`, `src/core/types.ts`, `src/platform/{storage,saveCode,achievements,gameSession}.ts`, `src/render2d/ui/progress2d.ts`, `qa/bot/saveSweep.ts`, `tests/**`)**
+- [x] **10. Post-Backlog Deep Audit — Round 5 (`src/sim/soldierSystem.ts`, `src/core/types.ts`, `src/platform/{storage,saveCode,achievements,gameSession}.ts`, `src/render2d/ui/progress2d.ts`, `qa/bot/saveSweep.ts`, `tests/**`)** — commit `3673978`
   - **Elite Multi-Hold (`soldierHoldCap > 1`) Counter-Attack & Symmetric Death Release Fix (`soldierSystem.ts`, `tests/sim/barracks.test.ts`):**
     - Fixed enemy melee counter-attacks (`updateStep` Step 7) and `meleeSwing` announcements so enemies held via `extraHoldPoolIndices` (`soldierHoldCap > 1`) deal full melee damage back to the soldier holding them (instead of dealing `0` damage forever because `s.targetPoolIndex` pointed to the primary target), and fall back to any remaining co-holding soldier if `primary` died earlier in the tick.
     - Fixed `SoldierSystem.hurt()` on soldier death to symmetrically decrement `s.targetPoolIndex` + `s.extraHoldPoolIndices` instead of `e.blockers` + `s.extraHoldPoolIndices` (which double-decremented `e.blockers` and leaked `s.targetPoolIndex` when an extra-held foe landed the killing blow; `0` diff on `holdCap === 1` tiers).
@@ -94,6 +94,16 @@
   - **Fix Impossible `CHALLENGE_STATIC_FREE` ("Still Air") Steam Achievement in 2D + 58/58 QA Gate (`types.ts`, `storage.ts`, `saveCode.ts`, `achievements.ts`, `gameSession.ts`, `progress2d.ts`, `qa/bot/saveSweep.ts`):**
     - Discovered `CHALLENGE_STATIC_FREE` (`desktop/achievements.json` #21) was unearnable in 2D Steam because `ISLAND_CHALLENGES` (`src/data/challenges.ts`) only maps 3D island IDs and `DEFAULT_BY_DIFFICULTY` omits `'staticFree'`, while `badgesForWin` dropped Daily Squall challenge wins.
     - Added optional `ProgressData.wonChallenges` (persisted across `migrateProgress`, `remapProgress`, `mergeProgress`, `SKY2-...` `wc` save codes, `applyRunResult2D`, `recordWin2D`, and `GameSession`), unlocking `CHALLENGE_*` achievements on Daily Squall / non-badge challenge wins without inflating `starWallet`; clamped oversized `bestStars` arrays in `normalizeProgressForAchievements`; and added a 58/58 pure-2D Steam achievement earnability invariant to `qa/bot/saveSweep.ts`.
+
+- [x] **11. Post-Backlog Deep Audit — Round 6 (`src/platform/{platform,storage,cloudSync,gameSession,sessionBridge}.ts`, `src/render2d/ui/progress2d.ts`, `src/sim/soldierSystem.ts`, `desktop/main.cjs`, `tests/**`)**
+  - **Steam Cloud Remote-Read Failure Protection & 3D Write-Before-Hydrate Parity (`platform.ts`, `storage.ts`, `cloudSync.ts`, `progress2d.ts`, `desktop/main.cjs`):**
+    - Fixed a data-loss hazard where `createPlatformAdapter().cloudSave.read(slot)` and `desktop/main.cjs` (`steam:cloud-read`) caught remote Steamworks/IPC read errors and returned `null` (indistinguishable from an empty remote cloud slot on PCs without a local mirror), causing `hydrateProgress2DFromCloud()` and `hydrateProgressFromCloud()` to overwrite remote Steam Cloud saves with partial local saves: `cloudSave` now tracks `didLastReadFail(slot)` (while preserving non-throwing local-mirror fallback), `steam:cloud-read` propagates real Steamworks I/O errors, and both hydrators skip remote writes and re-arm auto-hydration when a remote read fails.
+    - Extended 3D `saveProgress()` (`storage.ts` + `cloudSync.ts`) with `markCloudHydrated` / `registerCloudHydrator` write-before-hydrate protection matching 2D `saveProgress2D()`, preventing first local writes on a fresh Steam PC from clobbering un-fetched `progress` cloud saves, and tightened `isTrustedIpcSender(event)` in `desktop/main.cjs` so empty/missing sender URLs never bypass origin verification.
+  - **Exact 3-Way Pre-Hydration Merge & 3D `GameSession` Cloud/HUD Polish (`progress2d.ts`, `gameSession.ts`, `sessionBridge.ts`):**
+    - Upgraded `saveProgress2D()`'s pre-hydration guard from heuristic zero-star/zero-XP checks (`foldPendingCloudFloor2D`) to an exact 3-way merge (`foldPendingCloudThreeWay2D` gated by `progress.bestStars !== pending.hydrated.bestStars`), preserving remote Steam Deck / second-PC Workshop upgrades, newly unlocked hero skills, and `selectedHero` even when the local PC already had non-zero stars/XP, while keeping post-hydration Refund / Respec / Hero Select 100% authoritative.
+    - Updated `GameSession` (`gameSession.ts`) so 3D Steam Cloud hydration calls `content.onProgressImported(LEVELS, this.progress)` (preventing veterans on a new PC from re-entering the Island 1 tutorial or seeing duplicate "New foe!" popups), preserves mid-hydration `refundWorkshop()` actions, and honors `inspectSaveCodeHints` when importing 25-island `SKY2-...` save codes into 3D; scaled `earlyBonus` by `waveBonusMul` in `buildHudStateView()` (`sessionBridge.ts`).
+  - **Elite Multi-Hold Claim & Peel-Off Accounting (`soldierSystem.ts`, `tests/sim/barracks.test.ts`):**
+    - Counted active `extraHoldPoolIndices` in `SoldierSystem.updateStep` Step 2 (`this.claims`) and `inContact()` so spare soldiers peel off to newly arriving unheld foes when an enemy is already covered by an elite `soldierHoldCap > 1` squadmate (`0` diff on `holdCap === 1` tiers).
 
 ---
 
@@ -120,7 +130,7 @@
 
 ## Problems / Known Issues
 
-- None blocking in owned area (`sim:balance` 41/41 byte-identical, `qa:bot` 656/656 + 58/58 2D achievement gate passing, 1,373 unit tests passing, all Hard Boss low-end benches `<= 66.8 ms`, Linux AppImage builds & passes Xvfb smoke with `secureContext: true`).
+- None blocking in owned area (`sim:balance` 41/41 byte-identical, `qa:bot` 656/656 + 58/58 2D achievement gate passing, 1,377 unit tests passing, all Hard Boss low-end benches `<= 66.8 ms`, Linux AppImage builds & passes Xvfb smoke with `secureContext: true`).
 
 ---
 

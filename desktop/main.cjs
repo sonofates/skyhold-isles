@@ -190,19 +190,16 @@ ipcMain.handle('steam:unlock-achievement', async (event, rawId) => {
 });
 
 ipcMain.handle('steam:cloud-read', async (event, rawSlot) => {
-  if (!isTrustedIpcSender(event) || !isSteam || !steamClient) return null;
+  if (!isTrustedIpcSender(event)) throw new Error('Untrusted IPC sender');
+  if (!isSteam || !steamClient) return null;
   const slot = sanitizeSlot(rawSlot);
   if (!slot) return null;
   const fileName = `skyhold_${slot}.json`;
-  try {
-    if (!steamClient.cloud.isEnabledForAccount() || !steamClient.cloud.isEnabledForApp()) {
-      return null;
-    }
-    if (!steamClient.cloud.fileExists(fileName)) return null;
-    return steamClient.cloud.readFile(fileName);
-  } catch {
+  if (!steamClient.cloud.isEnabledForAccount() || !steamClient.cloud.isEnabledForApp()) {
     return null;
   }
+  if (!steamClient.cloud.fileExists(fileName)) return null;
+  return steamClient.cloud.readFile(fileName);
 });
 
 ipcMain.handle('steam:cloud-write', async (event, rawSlot, rawJson) => {
@@ -247,8 +244,9 @@ function isAllowedAppOrigin(rawOrigin) {
 }
 
 function isTrustedIpcSender(event) {
-  const senderUrl = event && event.senderFrame && event.senderFrame.url;
-  if (!senderUrl) return true;
+  const senderUrl =
+    (event && event.senderFrame && event.senderFrame.url) ||
+    (event && event.sender && typeof event.sender.getURL === 'function' ? event.sender.getURL() : '');
   return isAllowedAppOrigin(senderUrl);
 }
 

@@ -156,6 +156,11 @@ export function buildHudStateView(
   routesVisible = false,
 ): HudStateView {
   const ws = simWorld.waveSystem;
+  const canStartWave = simWorld.outcome === 'ongoing' && ws.canStartNextWave();
+  const rawBonus = ws.getEarlyCallBonus();
+  const bonusMul = Number.isFinite(simWorld.mods.waveBonusMul) ? simWorld.mods.waveBonusMul : 1;
+  const scaledBonus =
+    bonusMul === 1 ? rawBonus : Math.max(0, Math.min(10_000_000, Math.round(rawBonus * bonusMul)));
   return {
     gold: simWorld.gold,
     lives: simWorld.lives,
@@ -163,9 +168,9 @@ export function buildHudStateView(
     totalWaves: ws.totalWaves,
     speed: loop.speed,
     paused: loop.paused,
-    canStartWave: simWorld.outcome === 'ongoing' && ws.canStartNextWave(),
+    canStartWave,
     isPreFirstWave: ws.state === 'preFirstWave',
-    earlyBonus: ws.getEarlyCallBonus(),
+    earlyBonus: scaledBonus,
     countdownSec: ws.interWaveTimer,
     nextPreview: getCachedNextWavePreview(simWorld),
     autoWave: ws.autoWave,

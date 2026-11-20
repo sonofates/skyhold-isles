@@ -13,6 +13,13 @@ const PROGRESS_KEY = 'skyhold_isles_progress_v1';
 export const CLOUD_PROGRESS_SLOT = 'progress';
 const LOCAL_CLOUD_PROGRESS_MIRROR_KEY = `skyhold_isles_cloud_${CLOUD_PROGRESS_SLOT}`;
 const readingCloudAdapters = new WeakSet<PlatformAdapter>();
+const completedHydratedAdapters = new WeakSet<PlatformAdapter>();
+type CloudHydratorFn = (
+  progress: ProgressData,
+  levelCount: number,
+  adapter: PlatformAdapter,
+) => Promise<unknown>;
+let registeredCloudHydrator: CloudHydratorFn | null = null;
 let progressResetGen = 0;
 
 /** Monotonic counter incremented on `resetProgressSave` so in-flight cloud reads abort cleanly. */
@@ -24,6 +31,16 @@ export function getProgressResetGen(): number {
 export function setCloudReadInFlight(adapter: PlatformAdapter, active: boolean): void {
   if (active) readingCloudAdapters.add(adapter);
   else readingCloudAdapters.delete(adapter);
+}
+
+/** Marks `adapter` as having completed a clean remote Steam Cloud hydration for `progress`. */
+export function markCloudHydrated(adapter: PlatformAdapter): void {
+  completedHydratedAdapters.add(adapter);
+}
+
+/** Registers `hydrateProgressFromCloud` without creating a circular import between `storage` and `cloudSync`. */
+export function registerCloudHydrator(hydrator: CloudHydratorFn): void {
+  registeredCloudHydrator = hydrator;
 }
 const FLYER_TOAST_SEEN_KEY = 'skyhold_isles_flyer_toast_seen_v1';
 const UPGRADE_TOAST_SEEN_KEY = 'skyhold_isles_upgrade_toast_seen_v1';
@@ -573,6 +590,11 @@ export function saveProgress(progress: ProgressData): void {
       // with the remote cloud save, write the union to Steam Cloud, and sync achievements.
       return;
     }
+    if (!completedHydratedAdapters.has(platform) && registeredCloudHydrator) {
+      // Never overwrite an un-fetched remote Steam Cloud save with a first local write on a new PC.
+      void registeredCloudHydrator(progress, progress.bestStars.length, platform);
+      return;
+    }
     void platform.cloudSave.write(CLOUD_PROGRESS_SLOT, raw);
     void syncAchievementsFromProgress(progress, platform);
   }
@@ -612,6 +634,7 @@ export function resetProgressSave(levelCount: number): ProgressData {
   const rawFresh = saveLocalProgress(fresh);
   const platform = getPlatform();
   if (platform.isSteam) {
+    completedHydratedAdapters.add(platform);
     void platform.cloudSave.write(CLOUD_PROGRESS_SLOT, rawFresh);
   }
   return fresh;

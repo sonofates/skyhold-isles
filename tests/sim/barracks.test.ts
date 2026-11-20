@@ -768,4 +768,56 @@ describe('determinism and isolation', () => {
       (TOWER_DEFS.barracks.tiers as unknown as Record<number, unknown>)[2] = origT3;
     }
   });
+
+  it('peels spare fighting soldiers off an extra-held foe when a new unheld foe enters range', () => {
+    const origT3 = TOWER_DEFS.barracks.tiers[2];
+    (TOWER_DEFS.barracks.tiers as unknown as Record<number, unknown>)[2] = {
+      ...origT3,
+      soldierCount: 2,
+      soldierHoldCap: 2,
+      soldierHp: 5000,
+      soldierDamage: 1,
+      soldierCleave: 0,
+    };
+    try {
+      const { world } = setup(50_000);
+      const monitor = new InvariantMonitor(world, world.events, 8);
+      const stepWorld = (n: number): void => {
+        for (let i = 0; i < n; i++) {
+          const nextTick = world.tick + 1;
+          monitor.beginTick(nextTick);
+          world.fixedTick(DT);
+          monitor.endTick(world.tick, DT);
+        }
+      };
+
+      const t = world.placeTowerOnPlot(0, 'barracks')!;
+      expect(world.upgradeTower(t.id)).toBe(true);
+      expect(world.upgradeTower(t.id)).toBe(true);
+      const b = world.soldierSystem.getBarracks(t.id)!;
+      stepWorld(60);
+
+      // Spawn g1 + g2: s0 holds g1 (primary) + g2 (extra hold), while s1 joins g2 as primary target.
+      const g1 = spawnAt(world, 'grunt', 8 + b.rallyX - 0.12);
+      const g2 = spawnAt(world, 'grunt', 8 + b.rallyX - 0.40);
+      g1.hp = g1.maxHp = 50_000;
+      g2.hp = g2.maxHp = 50_000;
+      for (let guard = 0; guard < 180 && !(b.squad[0].state === 'fighting' && b.squad[1].state === 'fighting'); guard++) {
+        stepWorld(1);
+      }
+      // Force s0 extra-holding g2 and BOTH s1 + s0 holding g2 (s1 primary on g2, plus a dummy extra claim via 3rd soldier or direct setup):
+      // Even simpler: spawn g3 right behind g2 so s1 peels off once g1+g2 are covered by s0's holdCap=2!
+      const g3 = spawnAt(world, 'grunt', 8 + b.rallyX - 0.95);
+      g3.hp = g3.maxHp = 50_000;
+      for (let guard = 0; guard < 180 && g3.blockers === 0; guard++) {
+        stepWorld(1);
+      }
+      expect(g1.blockers).toBeGreaterThanOrEqual(1);
+      expect(g2.blockers).toBeGreaterThanOrEqual(1);
+      expect(g3.blockers).toBeGreaterThanOrEqual(1);
+      expect(monitor.violations).toEqual([]);
+    } finally {
+      (TOWER_DEFS.barracks.tiers as unknown as Record<number, unknown>)[2] = origT3;
+    }
+  });
 });

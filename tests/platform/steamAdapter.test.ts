@@ -1,12 +1,17 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { EventBus } from '../../src/core/eventBus.ts';
 import { challengesForLevel } from '../../src/data/challenges.ts';
 import { HERO_IDS, HERO_LEVEL_XP } from '../../src/data/heroes.ts';
 import { LEVELS } from '../../src/data/levels/index.ts';
 import { LEVELS_2D } from '../../src/data/levels2d/index.ts';
+import { combineRunModifiers } from '../../src/data/runModifiers.ts';
 import { starWallet } from '../../src/game/progression.ts';
 import { createFreshHeroSaveData, respec, selectHero } from '../../src/render2d/heroes2d.ts';
+import { GameSession } from '../../src/platform/gameSession.ts';
+import { buildHudStateView } from '../../src/platform/sessionBridge.ts';
+import { SimWorld } from '../../src/sim/world.ts';
 import {
   createPlatformAdapter,
   earnedSteamAchievementIds,
@@ -22,9 +27,11 @@ import {
   type SteamBridge,
 } from '../../src/platform/index.ts';
 import {
+  CLOUD_PROGRESS_SLOT,
   createDefaultProgress,
   loadProgress,
   resetProgressSave,
+  saveLocalProgress,
   saveProgress,
 } from '../../src/platform/storage.ts';
 import {
@@ -41,6 +48,7 @@ import {
   recoverProgress2D,
   remapProgress,
   resetProgress2D,
+  saveLocalProgress2D,
   saveProgress2D,
 } from '../../src/render2d/ui/progress2d.ts';
 
@@ -1084,5 +1092,300 @@ describe('Steam achievements map, cloud hydration, and desktop config invariants
     oversized.bestStars[15] = 0;
     for (let i = 16; i < 25; i++) oversized.bestStars[i] = 3; // +27 stars in tail [16..24]
     expect(earnedSteamAchievementIds(oversized, LEVELS)).not.toContain('FEAT_FULL_FIRMAMENT');
+  });
+
+  it('guards remote Steam Cloud saves during cloudRead failures and protects 3D first-write-before-hydrate', async () => {
+    const cloudMap = new Map<string, string>();
+    const remote2D = createDefaultProgress(LEVELS_2D.length);
+    remote2D.bestStars.fill(3);
+    remote2D.clears.fill(1);
+    remote2D.unlockedLevelIndex = LEVELS_2D.length - 1;
+    cloudMap.set(
+      CLOUD_PROGRESS_2D_SLOT,
+      JSON.stringify({ ids: LEVELS_2D.map((l) => l.id), progress: remote2D }),
+    );
+
+    const remote3D = createDefaultProgress(LEVELS.length);
+    remote3D.bestStars.fill(3);
+    remote3D.clears.fill(1);
+    remote3D.unlockedLevelIndex = LEVELS.length - 1;
+    cloudMap.set(CLOUD_PROGRESS_SLOT, JSON.stringify(remote3D));
+
+    let failRemoteRead = true;
+    let cloudWriteCalls = 0;
+    const adapter = createPlatformAdapter({
+      storage: createMemStorage(),
+      bridge: {
+        isSteam: true,
+        unlockAchievement: async () => true,
+        cloudRead: async (slot) => {
+          if (failRemoteRead) throw new Error('Transient Steamworks Cloud read failure');
+          return cloudMap.get(slot) ?? null;
+        },
+        cloudWrite: async (slot, json) => {
+          cloudWriteCalls++;
+          cloudMap.set(slot, json);
+          return true;
+        },
+      },
+    });
+    setPlatformAdapter(adapter);
+
+    // Seed 1-island local saves on both 2D and 3D without any local cloud mirror.
+    const local2D = createDefaultProgress(LEVELS_2D.length);
+    local2D.bestStars[0] = 1;
+    local2D.clears[0] = 1;
+    saveLocalProgress2D(local2D, LEVELS_2D);
+
+    const local3D = createDefaultProgress(LEVELS.length);
+    local3D.bestStars[0] = 1;
+    local3D.clears[0] = 1;
+    saveLocalProgress(local3D);
+
+    // 1. Failing cloudRead must NOT be treated as "empty cloud" and must NEVER overwrite remote 25★/16★ saves!
+    await hydrateProgress2DFromCloud(local2D, LEVELS_2D, adapter);
+    await hydrateProgressFromCloud(local3D, LEVELS.length, adapter, LEVELS);
+    expect(adapter.cloudSave.didLastReadFail?.(CLOUD_PROGRESS_2D_SLOT)).toBe(true);
+    expect(adapter.cloudSave.didLastReadFail?.(CLOUD_PROGRESS_SLOT)).toBe(true);
+    expect(cloudWriteCalls).toBe(0);
+    expect(
+      (JSON.parse(cloudMap.get(CLOUD_PROGRESS_2D_SLOT) ?? '{}') as { progress: { bestStars: number[] } })
+        .progress.bestStars[24],
+    ).toBe(3);
+    expect((JSON.parse(cloudMap.get(CLOUD_PROGRESS_SLOT) ?? '{}') as { bestStars: number[] }).bestStars[15]).toBe(3);
+
+    // 2. Once Steam Cloud recovers, saveProgress2D() & saveProgress() hydrate + merge instead of clobbering!
+    failRemoteRead = false;
+    local2D.bestLives[0] = 20;
+    saveProgress2D(local2D, LEVELS_2D);
+    local3D.bestLives[0] = 19;
+    saveProgress(local3D);
+    await new Promise((r) => setTimeout(r, 20));
+
+    expect(adapter.cloudSave.didLastReadFail?.(CLOUD_PROGRESS_2D_SLOT)).toBe(false);
+    expect(adapter.cloudSave.didLastReadFail?.(CLOUD_PROGRESS_SLOT)).toBe(false);
+    const merged2D = loadProgress2D(LEVELS_2D);
+    expect(merged2D.bestStars[24]).toBe(3);
+    expect(merged2D.bestLives[0]).toBe(20);
+    const merged3D = loadProgress(LEVELS.length);
+    expect(merged3D.bestStars[15]).toBe(3);
+    expect(merged3D.bestLives[0]).toBe(19);
+    setPlatformAdapter(null);
+  });
+
+  it('performs exact 3-way merge for pre-hydration clones on non-empty second PCs while honoring intentional edits', async () => {
+    const cloudMap = new Map<string, string>();
+    // Desktop A already has 5 islands (15★), treasury:1, Bran L5 with 1 skill, selectedHero='bran'.
+    const desktopLocal = createDefaultProgress(LEVELS_2D.length);
+    for (let i = 0; i < 5; i++) {
+      desktopLocal.bestStars[i] = 3;
+      desktopLocal.clears[i] = 1;
+    }
+    desktopLocal.unlockedLevelIndex = 5;
+    desktopLocal.workshop = { treasury: 1 };
+    desktopLocal.heroes = createFreshHeroSaveData();
+    desktopLocal.heroes.selectedHero = 'bran';
+    desktopLocal.heroes.roster.bran = { xp: HERO_LEVEL_XP[4], skills: ['bran_oak_1'] };
+    saveLocalProgress2D(desktopLocal, LEVELS_2D);
+
+    // Steam Deck B advanced to 20 islands (60★), treasury:2 + bastion:2, Bran L15 (3 skills), Mira L20, selectedHero='mira'.
+    const deckRemote = createDefaultProgress(LEVELS_2D.length);
+    for (let i = 0; i < 20; i++) {
+      deckRemote.bestStars[i] = 3;
+      deckRemote.clears[i] = 1;
+    }
+    deckRemote.unlockedLevelIndex = 20;
+    deckRemote.workshop = { treasury: 2, bastion: 2 };
+    deckRemote.heroes = createFreshHeroSaveData();
+    deckRemote.heroes.selectedHero = 'mira';
+    deckRemote.heroes.roster.bran = {
+      xp: HERO_LEVEL_XP[14],
+      skills: ['bran_oak_1', 'bran_oak_2', 'bran_oak_3'],
+    };
+    deckRemote.heroes.roster.mira = {
+      xp: HERO_LEVEL_XP[19],
+      skills: ['mira_emb_1', 'mira_rng_1'],
+    };
+    cloudMap.set(
+      CLOUD_PROGRESS_2D_SLOT,
+      JSON.stringify({ ids: LEVELS_2D.map((l) => l.id), progress: deckRemote }),
+    );
+
+    const adapter = createPlatformAdapter({
+      storage: createMemStorage(),
+      bridge: {
+        isSteam: true,
+        unlockAchievement: async () => true,
+        cloudRead: async (slot) => cloudMap.get(slot) ?? null,
+        cloudWrite: async (slot, json) => {
+          cloudMap.set(slot, json);
+          return true;
+        },
+      },
+    });
+    setPlatformAdapter(adapter);
+
+    const boot = loadProgress2D(LEVELS_2D);
+    // Stale pre-hydration clone taken BEFORE cloud hydration resolved (even though Desktop A had 15★ > 0 and Bran XP > 0!):
+    const staleClone: typeof boot = {
+      ...boot,
+      bestStars: [...boot.bestStars],
+      workshop: { ...boot.workshop },
+    };
+    await new Promise((r) => setTimeout(r, 15));
+
+    saveProgress2D(staleClone, LEVELS_2D);
+    const saved = loadProgress2D(LEVELS_2D);
+    expect(saved.bestStars[19]).toBe(3);
+    expect(saved.workshop).toEqual({ treasury: 2, bastion: 2 });
+    expect(saved.heroes?.selectedHero).toBe('mira');
+    expect(saved.heroes?.roster.bran?.skills).toEqual(['bran_oak_1', 'bran_oak_2', 'bran_oak_3']);
+    expect(saved.heroes?.roster.mira?.skills).toEqual(['mira_emb_1', 'mira_rng_1']);
+    setPlatformAdapter(null);
+  });
+
+  it('notifies ContentDirector on 3D Steam Cloud hydration, preserves mid-hydrate Workshop refund, and scales HUD earlyBonus', async () => {
+    // 1. buildHudStateView scales earlyBonus with waveBonusMul (matching SimWorld.scaleWaveBonus).
+    const events = new EventBus();
+    const halfBonusWorld = new SimWorld(
+      LEVELS[0],
+      events,
+      combineRunModifiers({ waveBonusMul: 0.5 }),
+    );
+    halfBonusWorld.startNextWave();
+    // Advance until wave 1 finishes spawning ('clearing') so early-call bonus is active.
+    for (let i = 0; i < 600 && halfBonusWorld.waveSystem.state === 'spawning'; i++) {
+      halfBonusWorld.fixedTick(1 / 60);
+    }
+    expect(halfBonusWorld.waveSystem.canStartNextWave()).toBe(true);
+    const rawEarly = halfBonusWorld.waveSystem.getEarlyCallBonus();
+    expect(rawEarly).toBeGreaterThan(0);
+    const hudView = buildHudStateView(halfBonusWorld, { speed: 1, paused: false } as never, false);
+    expect(hudView.earlyBonus).toBe(Math.round(rawEarly * 0.5));
+    halfBonusWorld.dispose();
+
+    // 2. GameSession Steam Cloud hydration calls content.onProgressImported and preserves mid-hydrate refundWorkshop().
+    const localWithWs = createDefaultProgress(LEVELS.length);
+    localWithWs.bestStars[0] = 3;
+    localWithWs.clears[0] = 1;
+    localWithWs.workshop = { treasury: 1 };
+    saveLocalProgress(localWithWs);
+
+    const remote3D = createDefaultProgress(LEVELS.length);
+    for (let i = 0; i < 6; i++) {
+      remote3D.bestStars[i] = 3;
+      remote3D.clears[i] = 1;
+    }
+    remote3D.unlockedLevelIndex = 6;
+    remote3D.workshop = { treasury: 2, bastion: 1 };
+    let resolveCloud: (() => void) | null = null;
+    let remoteBlob = JSON.stringify(remote3D);
+
+    const adapter = createPlatformAdapter({
+      storage: createMemStorage(),
+      bridge: {
+        isSteam: true,
+        unlockAchievement: async () => true,
+        cloudRead: () =>
+          new Promise<string | null>((res) => {
+            resolveCloud = () => res(remoteBlob);
+          }),
+        cloudWrite: async (_slot, json) => {
+          remoteBlob = json;
+          return true;
+        },
+      },
+    });
+    setPlatformAdapter(adapter);
+
+    const mockRw = {
+      setQuality: () => {},
+      setPlacementPreview: () => {},
+      setPlacementGridActive: () => {},
+      setFlightPathHighlight: () => {},
+      setRoutesPinned: () => {},
+      setHoveredTowerId: () => {},
+      setCanvasCursor: () => {},
+      setMeteorTargetPreview: () => {},
+      overlayIndicators: { setSelectedTowerRing: () => {} },
+      cameraController: { setShowcaseMode: () => {}, getViewVersion: () => 0 },
+    };
+    const mockSm = {
+      unlock: () => {},
+      bindEvents: () => () => {},
+      setMusicDucked: () => {},
+      setMusicContext: () => {},
+      playUiConfirm: () => {},
+      playUiBack: () => {},
+      playStarChime: () => {},
+      playBossPulse: () => {},
+      suspendForBackground: () => {},
+      resumeFromBackground: () => {},
+      updateSettings: () => {},
+    };
+    let importedAdoptedStars = 0;
+    const gs = new GameSession(mockRw as never, mockSm as never);
+    gs.attachRuntime({
+      overlays: {
+        isModalOpen: () => false,
+        setPlayVisibility: () => {},
+        syncInPlay: () => {},
+        closeModals: () => {},
+        mainMenu: { setOpen: () => {} },
+        levelSelect: { setOpen: () => {} },
+        workshop: { setOpen: () => {} },
+        toast: { show: () => {}, hide: () => {}, update: () => {} },
+        tooltip: { hide: () => {} },
+        floatingTextPool: { clear: () => {}, update: () => {} },
+        towerPanel: { setSellConfirmArmed: () => {} },
+        pauseMenu: { isOpen: () => false, setOpen: () => {} },
+        settingsModal: { isOpen: () => false, setOpen: () => {} },
+        outcomeOverlay: { isOpen: () => false },
+        islandBriefing: { isOpen: () => false },
+        logbook: { isOpen: () => false },
+        daily: { isOpen: () => false },
+      } as never,
+      inputManager: { setEnabled: () => {}, setModalOpen: () => {} } as never,
+      loop: { speed: 1, paused: false, simActive: false, resetAccumulator: () => {}, cycleSpeed: () => 2 } as never,
+      setDebugVisible: () => {},
+      content: {
+        isBlocking: () => false,
+        observe: () => {},
+        onLeavePlay: () => {},
+        onLevelWon: () => {},
+        bindLevel: () => {},
+        updateMarker: () => {},
+        onProgressImported: (_lvls: unknown, prog: { bestStars: number[] }) => {
+          importedAdoptedStars = prog.bestStars.reduce((a, b) => a + b, 0);
+        },
+      } as never,
+    });
+
+    // User clicks Refund All in Workshop while cloudRead is still pending:
+    gs.refundWorkshop();
+    expect(gs.progress.workshop).toEqual({});
+
+    resolveCloud!();
+    await new Promise((r) => setTimeout(r, 20));
+
+    expect(gs.progress.unlockedLevelIndex).toBe(6);
+    expect(gs.progress.bestStars.slice(0, 6)).toEqual([3, 3, 3, 3, 3, 3]);
+    expect(gs.progress.workshop).toEqual({}); // Refund was NOT clobbered by remote { treasury: 2, bastion: 1 }!
+    expect(importedAdoptedStars).toBe(18); // ContentDirector adopted all 6 cleared cloud islands!
+
+    // Importing a 25-island 2D save code into 3D preserves source-affordable Workshop upgrades when 3D wallet affords them:
+    const rich2D = createDefaultProgress(LEVELS_2D.length);
+    for (let i = 16; i < 22; i++) {
+      rich2D.bestStars[i] = 3; // 18★ earned in Chapter Two (indices 16..21)
+      rich2D.clears[i] = 1;
+    }
+    rich2D.workshop = { treasury: 2, bastion: 2 }; // 8★ <= 18★ on 2D save, and <= 18★ on gs.progress!
+    const code2D = encodeSaveCode2D(rich2D, LEVELS_2D);
+    const importRes = gs.importSaveCode(code2D);
+    expect(importRes.ok).toBe(true);
+    expect(gs.progress.workshop).toEqual({ treasury: 2, bastion: 2 });
+
+    gs.dispose();
+    setPlatformAdapter(null);
   });
 });

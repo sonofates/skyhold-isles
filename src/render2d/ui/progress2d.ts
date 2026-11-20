@@ -18,7 +18,6 @@ import {
   DIFFICULTIES,
   difficultyWinsOf,
   isDifficultyId,
-  mergeDifficultyWins,
   starsAwarded,
   type DifficultyId,
 } from '../../data/difficulty.ts';
@@ -36,7 +35,6 @@ import {
   describeMergeGain,
   encodeSaveCode,
   inspectSaveCodeHints,
-  mergeDaily,
   mergeProgress,
   type RecoverProgressResult,
   type SaveCodeResult,
@@ -46,7 +44,6 @@ import {
   hasAnyProgress,
   migrateProgress,
   PROGRESS_SAVE_VERSION,
-  sanitizeWonChallenges,
   tryRepairTruncatedJson,
   tryRepairTruncatedJsonArray,
 } from '../../platform/storage.ts';
@@ -54,6 +51,7 @@ import {
   applyHeroXp,
   applyNode,
   createDefaultHeroSave,
+  isHeroUnlocked,
   migrateHeroSave,
   respec,
   selectHero,
@@ -68,10 +66,16 @@ export const PROGRESS_2D_RESET_BACKUP_KEY = 'skyhold_isles_progress2d_reset_back
 export const PROGRESS_2D_IMPORT_BACKUP_KEY = 'skyhold_isles_progress2d_import_backup';
 export const PROGRESS_2D_CORRUPT_BACKUP_KEY = 'skyhold_isles_progress2d_corrupt_backup';
 const LOCAL_CLOUD_2D_MIRROR_KEY = `skyhold_isles_cloud_${CLOUD_PROGRESS_2D_SLOT}`;
+
+interface PendingCloudHydration2D {
+  readonly base: ProgressData;
+  readonly hydrated: ProgressData;
+}
+
 const autoHydrated2DAdapters = new WeakSet<PlatformAdapter>();
 const readingCloud2DAdapters = new WeakSet<PlatformAdapter>();
 const completedHydrated2DAdapters = new WeakSet<PlatformAdapter>();
-const pendingAutoHydrated2DByAdapter = new WeakMap<PlatformAdapter, ProgressData>();
+const pendingAutoHydrated2DByAdapter = new WeakMap<PlatformAdapter, PendingCloudHydration2D>();
 const cloudHydrate2DListeners = new Set<(progress: ProgressData) => void>();
 let resetGen2D = 0;
 
@@ -306,61 +310,59 @@ function loadLocalProgress2DInternal(levels: readonly LevelDef[]): ProgressData 
   }
 }
 
-function foldPendingCloudFloor2D(
+function foldPendingCloudThreeWay2D(
   target: ProgressData,
-  cloudFloor: ProgressData,
+  base: ProgressData,
+  hydrated: ProgressData,
   levels: readonly Pick<LevelDef, 'id'>[],
 ): void {
-  const hadZeroStars = starWallet(target).earned === 0;
-  const n = levels.length;
-  for (let i = 0; i < n; i++) {
-    target.bestStars[i] = Math.max(target.bestStars[i] ?? 0, cloudFloor.bestStars[i] ?? 0);
-    target.bestEndlessWaves[i] = Math.max(target.bestEndlessWaves[i] ?? 0, cloudFloor.bestEndlessWaves[i] ?? 0);
-    target.bestLives[i] = Math.max(target.bestLives[i] ?? 0, cloudFloor.bestLives[i] ?? 0);
-    target.clears[i] = Math.max(target.clears[i] ?? 0, cloudFloor.clears[i] ?? 0);
-    const done = (target.challengeClears[i] ??= []);
-    for (const ch of cloudFloor.challengeClears[i] ?? []) {
-      if (!done.includes(ch)) done.push(ch);
+  const oursRefundedWorkshop =
+    workshopStarsSpent(target.workshop) < workshopStarsSpent(base.workshop);
+  const baseHeroes = migrateHeroSave(base.heroes, base, levels);
+  const oursHeroes = migrateHeroSave(target.heroes, target, levels);
+  const theirsHeroes = hydrated.heroes;
+  const oursChangedSelectedHero =
+    target.heroes !== undefined && oursHeroes.selectedHero !== baseHeroes.selectedHero;
+  const respeccedHeroes = new Set<HeroId>();
+  for (let i = 0; i < HERO_IDS.length; i++) {
+    const id = HERO_IDS[i];
+    if ((oursHeroes.roster[id]?.skills.length ?? 0) < (baseHeroes.roster[id]?.skills.length ?? 0)) {
+      respeccedHeroes.add(id);
     }
   }
-  if (target.difficultyWins !== undefined || cloudFloor.difficultyWins !== undefined) {
-    target.difficultyWins = mergeDifficultyWins(difficultyWinsOf(target), difficultyWinsOf(cloudFloor), n);
-  }
-  const mergedWc = sanitizeWonChallenges([
-    ...(target.wonChallenges ?? []),
-    ...(cloudFloor.wonChallenges ?? []),
-  ]);
-  if (mergedWc) target.wonChallenges = mergedWc;
-  target.daily = mergeDaily(target.daily, cloudFloor.daily);
-  target.unlockedLevelIndex = Math.min(
-    Math.max(0, n - 1),
-    Math.max(target.unlockedLevelIndex, cloudFloor.unlockedLevelIndex),
+
+  const merged = remapProgress(
+    mergeProgress(target, hydrated, levels.length),
+    levels.map((l) => l.id),
+    levels,
   );
-  while (
-    target.unlockedLevelIndex < n - 1 &&
-    ((target.bestStars[target.unlockedLevelIndex] ?? 0) > 0 ||
-      (target.clears[target.unlockedLevelIndex] ?? 0) > 0)
-  ) {
-    target.unlockedLevelIndex++;
+
+  if (oursRefundedWorkshop) {
+    merged.workshop = sanitizeRanks(target.workshop);
+    if (starWallet(merged).available < 0) merged.workshop = {};
   }
-  if (hadZeroStars && Object.keys(target.workshop ?? {}).length === 0 && Object.keys(cloudFloor.workshop ?? {}).length > 0) {
-    target.workshop = sanitizeRanks(cloudFloor.workshop);
-  }
-  if (cloudFloor.heroes) {
-    const curHeroes = migrateHeroSave(target.heroes, target, levels);
-    for (let i = 0; i < HERO_IDS.length; i++) {
-      const id = HERO_IDS[i];
-      const curEntry = curHeroes.roster[id] ?? { xp: 0, skills: [] };
-      const cloudEntry = cloudFloor.heroes.roster[id] ?? { xp: 0, skills: [] };
-      const hadZeroHeroXp = curEntry.xp === 0 && curEntry.skills.length === 0;
-      curHeroes.roster[id] = {
-        xp: Math.max(curEntry.xp, cloudEntry.xp),
-        skills: hadZeroHeroXp && cloudEntry.skills.length > 0 ? [...cloudEntry.skills] : [...curEntry.skills],
+
+  if (merged.heroes) {
+    for (const id of respeccedHeroes) {
+      const cur = merged.heroes.roster[id] ?? { xp: 0, skills: [] };
+      merged.heroes.roster[id] = {
+        xp: cur.xp,
+        skills: [...(oursHeroes.roster[id]?.skills ?? [])],
       };
     }
-    target.heroes = migrateHeroSave(curHeroes, target, levels);
+    const wantedSelected = oursChangedSelectedHero
+      ? oursHeroes.selectedHero
+      : (theirsHeroes?.selectedHero ?? merged.heroes.selectedHero);
+    if (isHeroUnlocked(merged, wantedSelected, levels)) {
+      merged.heroes.selectedHero = wantedSelected;
+    }
+    merged.heroes = migrateHeroSave(merged.heroes, merged, levels);
   }
-  if (starWallet(target).available < 0) target.workshop = {};
+
+  if (merged.heroes === undefined) delete target.heroes;
+  if (merged.difficultyWins === undefined) delete target.difficultyWins;
+  if (merged.wonChallenges === undefined) delete target.wonChallenges;
+  Object.assign(target, merged);
 }
 
 /** The 2D save, migrated to the current island list (with truncated-JSON & cloud-mirror recovery). Never throws. */
@@ -373,6 +375,11 @@ export function loadProgress2D(levels: readonly LevelDef[] = LEVELS_2D): Progres
   if (platform.isSteam && !isMockLevelRoster(levels) && !autoHydrated2DAdapters.has(platform)) {
     autoHydrated2DAdapters.add(platform);
     const bootGen = resetGen2D;
+    const baseSnapshot = remapProgress(
+      result,
+      levels.map((l) => l.id),
+      levels,
+    );
     void hydrateProgress2DFromCloud(result, levels, platform)
       .then(({ merged, updated }) => {
         if (!updated || resetGen2D !== bootGen) return;
@@ -385,7 +392,7 @@ export function loadProgress2D(levels: readonly LevelDef[] = LEVELS_2D): Progres
         if (freshMerged.difficultyWins === undefined) delete result.difficultyWins;
         if (freshMerged.wonChallenges === undefined) delete result.wonChallenges;
         Object.assign(result, freshMerged);
-        pendingAutoHydrated2DByAdapter.set(platform, freshMerged);
+        pendingAutoHydrated2DByAdapter.set(platform, { base: baseSnapshot, hydrated: freshMerged });
         for (const fn of [...cloudHydrate2DListeners]) {
           try {
             fn(freshMerged);
@@ -467,10 +474,12 @@ export function saveLocalProgress2D(
 export function saveProgress2D(progress: ProgressData, levels: readonly LevelDef[] = LEVELS_2D): void {
   const platform = getPlatform();
   if (platform.isSteam && !isMockLevelRoster(levels)) {
-    const pendingFloor = pendingAutoHydrated2DByAdapter.get(platform);
-    if (pendingFloor) {
-      foldPendingCloudFloor2D(progress, pendingFloor, levels);
+    const pending = pendingAutoHydrated2DByAdapter.get(platform);
+    if (pending) {
       pendingAutoHydrated2DByAdapter.delete(platform);
+      if (progress.bestStars !== pending.hydrated.bestStars) {
+        foldPendingCloudThreeWay2D(progress, pending.base, pending.hydrated, levels);
+      }
     }
   }
   const raw = saveLocalProgress2D(progress, levels);
@@ -532,11 +541,17 @@ export async function hydrateProgress2DFromCloud(
   readingCloud2DAdapters.add(adapter);
   try {
     cloudRaw = await adapter.cloudSave.read(CLOUD_PROGRESS_2D_SLOT);
+    if (adapter.cloudSave.didLastReadFail?.(CLOUD_PROGRESS_2D_SLOT) === true) {
+      readFailed = true;
+    }
   } catch {
     cloudRaw = null;
     readFailed = true;
   } finally {
     readingCloud2DAdapters.delete(adapter);
+  }
+  if (readFailed) {
+    autoHydrated2DAdapters.delete(adapter);
   }
   if (resetGen2D !== genAtStart) {
     return { merged: loadLocalProgress2DInternal(levels), updated: false, unlockedAchievements: [] };
@@ -569,19 +584,21 @@ export async function hydrateProgress2DFromCloud(
       if (mergedRaw !== localRaw) {
         saveLocalProgress2D(merged, levels);
       }
-      if (!readFailed) completedHydrated2DAdapters.add(adapter);
-      if (parsedCloud.repairedFromTruncated || mergedRaw !== cloudRaw) {
-        if (resetGen2D === genAtStart) await safeCloudWrite2D(mergedRaw);
+      if (!readFailed) {
+        completedHydrated2DAdapters.add(adapter);
+        if ((parsedCloud.repairedFromTruncated || mergedRaw !== cloudRaw) && resetGen2D === genAtStart) {
+          await safeCloudWrite2D(mergedRaw);
+        }
       }
-    } else {
-      if (!readFailed) completedHydrated2DAdapters.add(adapter);
+    } else if (!readFailed) {
+      completedHydrated2DAdapters.add(adapter);
       if (hasAnyProgress(normalizedLocal) && resetGen2D === genAtStart) {
         await safeCloudWrite2D(localRaw);
       }
     }
-  } else {
-    if (!readFailed) completedHydrated2DAdapters.add(adapter);
-    if (!readFailed && adapter.isSteam && hasAnyProgress(normalizedLocal) && resetGen2D === genAtStart) {
+  } else if (!readFailed) {
+    completedHydrated2DAdapters.add(adapter);
+    if (adapter.isSteam && hasAnyProgress(normalizedLocal) && resetGen2D === genAtStart) {
       await safeCloudWrite2D(localRaw);
     }
   }

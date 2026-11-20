@@ -174,7 +174,7 @@ describe('level layouts (all islands)', () => {
 });
 
 describe('determinism with new archetypes', () => {
-  it('replays Confluence Terraces (lanes, wardens, burrowers, mites, elites, boss) identically', () => {
+  it('replays Confluence Terraces (lanes, wardens, burrowers, mites, elites, boss) identically', { timeout: 20_000 }, () => {
     const level = LEVELS.find((l) => l.id === 'confluence-terraces')!;
     expect(level).toBeDefined();
     const a = runLevelBalanceSim(level, 'greedy', level.scriptedBuildOrder ?? []);

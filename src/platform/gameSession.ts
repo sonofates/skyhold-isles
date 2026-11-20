@@ -73,14 +73,26 @@ import {
 } from '../data/endlessMutators.ts';
 import type { EndlessResultView } from '../ui/gameModals.ts';
 import { affordableUpgradeCount } from '../ui/workshop.ts';
-import { buyRank, workshopModifiers, type WorkshopUpgradeId } from '../data/workshop.ts';
+import {
+  buyRank,
+  sanitizeRanks,
+  workshopModifiers,
+  workshopStarsSpent,
+  type WorkshopUpgradeId,
+} from '../data/workshop.ts';
 import { isEndlessBestCrossing, isIslandMastered, starWallet } from '../game/progression.ts';
 import { badgesForWin, resolveRunConfig, type RunConfig } from '../game/runConfig.ts';
 import { earnedFeatIds, newlyEarnedFeats, type FeatDef } from '../game/feats.ts';
 import { dailyShareText } from '../game/share.ts';
 import { hydrateProgressFromCloud } from './cloudSync.ts';
 import { getPlatform } from './platform.ts';
-import { decodeSaveCode, describeMergeGain, encodeSaveCode, mergeProgress } from './saveCode.ts';
+import {
+  decodeSaveCode,
+  describeMergeGain,
+  encodeSaveCode,
+  inspectSaveCodeHints,
+  mergeProgress,
+} from './saveCode.ts';
 
 /** Countdown / cooldown HUD refresh cadence when no event triggered a sync. */
 const UI_SYNC_INTERVAL_SEC = 0.2;
@@ -150,6 +162,7 @@ export class GameSession {
   private radialPreview: { type: TowerType; col: number; row: number } | null = null;
   private readonly starChimeTimers: number[] = [];
   private resetGen = 0;
+  private workshopRefundedDuringHydrate = false;
   private disposed = false;
 
   constructor(renderWorld: RenderWorld, soundManager: SoundManager) {
@@ -181,15 +194,25 @@ export class GameSession {
     });
     if (platform.isSteam) {
       const bootResetGen = this.resetGen;
+      const bootWorkshop = sanitizeRanks(this.progress.workshop);
       void hydrateProgressFromCloud(this.progress, LEVELS.length, platform)
         .then(({ merged, updated }) => {
           if (!updated || this.disposed || this.resetGen !== bootResetGen) return;
           const freshMerged = mergeProgress(this.progress, merged, LEVELS.length);
+          if (
+            this.workshopRefundedDuringHydrate ||
+            workshopStarsSpent(this.progress.workshop) < workshopStarsSpent(bootWorkshop)
+          ) {
+            freshMerged.workshop = sanitizeRanks(this.progress.workshop);
+            if (starWallet(freshMerged).available < 0) freshMerged.workshop = {};
+          }
+          this.workshopRefundedDuringHydrate = false;
           const inMemoryDiverged = JSON.stringify(freshMerged) !== JSON.stringify(merged);
           if (freshMerged.heroes === undefined) delete this.progress.heroes;
           if (freshMerged.difficultyWins === undefined) delete this.progress.difficultyWins;
           if (freshMerged.wonChallenges === undefined) delete this.progress.wonChallenges;
           Object.assign(this.progress, freshMerged);
+          this.deps?.content?.onProgressImported(LEVELS, this.progress);
           if (inMemoryDiverged) {
             saveProgress(this.progress);
           }
@@ -750,6 +773,7 @@ export class GameSession {
   /** Settings (menu) → Reset progress, after the in-dialog confirm. The old save is backed up. */
   resetProgress(): void {
     this.resetGen++;
+    this.workshopRefundedDuringHydrate = false;
     const fresh = resetProgressSave(LEVELS.length);
     delete this.progress.heroes;
     delete this.progress.difficultyWins;
@@ -777,7 +801,21 @@ export class GameSession {
       this.soundManager.playUiBack();
       return { ok: false, message: res.error };
     }
-    const merged = mergeProgress(this.progress, res.progress, LEVELS.length);
+    let incoming = res.progress;
+    const hints = inspectSaveCodeHints(code);
+    if (
+      hints.rawWorkshop &&
+      workshopStarsSpent(hints.rawWorkshop) > workshopStarsSpent(incoming.workshop)
+    ) {
+      const rawSized = decodeSaveCode(code, Math.max(res.levelIds?.length ?? 0, LEVELS.length, 64));
+      if (
+        rawSized.ok &&
+        workshopStarsSpent(rawSized.progress.workshop) > workshopStarsSpent(incoming.workshop)
+      ) {
+        incoming = { ...incoming, workshop: rawSized.progress.workshop };
+      }
+    }
+    const merged = mergeProgress(this.progress, incoming, LEVELS.length);
     const gain = describeMergeGain(this.progress, merged);
     backupProgressBeforeImport();
     if (merged.heroes === undefined) delete this.progress.heroes;
@@ -916,6 +954,7 @@ export class GameSession {
 
   refundWorkshop(): void {
     this.soundManager.unlock();
+    this.workshopRefundedDuringHydrate = true;
     this.progress.workshop = {};
     saveProgress(this.progress);
     this.soundManager.playUiBack();
