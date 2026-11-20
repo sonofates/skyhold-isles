@@ -580,3 +580,32 @@ TypeScript, lint and the production build passed. Vite emitted its existing chun
 ### Next round
 
 Audit Anchor Winch and Drag Chain against an armored ground target beside a flyer. Check single-target damage, slow duration, and a sale or ability purchase while the harpoon is airborne.
+
+## Round 25 — Anchor Winch and Drag Chain
+
+### Combat
+
+Two recorded encounters put a Basalt Golem and a Sky Skimmer in the same line of fire. Buying Anchor Winch while a tier-III bolt was airborne preserved its skewer. It dealt 148 to the golem and 98 to the flyer behind it. The next harpoon dealt 230 to the golem alone. Buying Drag Chain before that launch cracked the golem’s armor from 12 to 3 for 2.6 seconds and slowed it by 45% for two seconds. Buying during flight left that hit’s damage intact and its target at full speed and armor.
+
+Switched from Strongest to First, then sold the winch with its third shot airborne. The harpoon hit the flyer for 230 and slowed it for two seconds. The tests check distance traveled at reduced speed and again at full speed. Both serialized replays reproduced the launch, hit, impact and armor-crack events, the win and the final state hash.
+
+### Campaign decision
+
+Waxlight Orchard’s realistic kit defers the plot-17 Tesla’s final upgrade to buy Anchor Winch and Drag Chain on the plot-8 ballista. Level-20 Bran with 56 entry stars bought both on wave 10. The winch landed 66 upgraded harpoons for 13,639 damage and four kills. It slowed 62 survivors, including three moths, and cracked golem armor eight times. A third regression checks that the Normal kit can afford both purchases and clear the island.
+
+Normal finished at 7/22 lives, previously 9/22. The losses came from two golems, one grunt and eight moths. At −3%, −1.5%, +1.5% and +3% enemy HP the build finished with 13, 13, 4 and 13 lives. Buying after the plot-5 mortar upgrade instead lost eight of fourteen lives to moths, exceeding the balance gate’s 55% cap. Easy now ends at 24/27 and Hard at 6/22. The other 24 islands’ difficulty results match round 24.
+
+### Requests for Opus
+
+- Updated the Basalt Golem’s English description, first-encounter hint and codex counter. TR description “Yürüyen bir bazalt kütlesi. Yavaşlatan vuruşlar zırhlı kabuğunu çatlatır.” TR first-encounter hint “Golemi yavaşlatarak zırhını 3’e indir. Kabuğu çatlamışken hızlı saldırılar etkili olur.” TR codex counter “Yavaşlatan vuruşlar kabuğunu 2,6 saniyeliğine çatlatır. Zırhı 3’e düştüğünde hızlı saldırılarla vur. Balista okları zırhı deler, közlerin verdiği hasar ise zırhı yok sayar.”
+- The open 2D enemy card keeps its initial armor text when a shell cracks. In a staged Orchard wave 10, select the first Empowered golem, then let an Anchor Winch with Drag Chain hit it. The card’s HP updated from 3,184 to 2,954. The sim had 3 armor and a 45% slow, while the card’s stat text still read “Armor 13.” The compact desktop card hid the stat row in this capture. Refresh the armor field when the selected enemy’s armor changes in either direction. The sim already restores armor when the crack expires.
+
+### Verification
+
+Inspected the production game at 1600×900. The staged wave-10 capture shows the harpoon in flight and the tier-IV winch aiming northwest, with zero center, bottom and width error at plot 8. Checked the tower at 3× and the English codex counter enlarged. [Waxlight Orchard](../../design/art-2d/specializations/anchor-orchard.jpg) · [Basalt Golem codex](../../design/art-2d/specializations/dragchain-golem-codex.jpg)
+
+TypeScript, lint and the production build passed. Vitest passed 1,424 tests with 11 skipped. All 41 realistic-kit checks and all eight difficulty verdicts passed. Easy and Normal cleared all 25 islands. Hard i09 finished at 12/22 and Hard i24 at 2/22. The 24,217-byte standalone L1–L16 report matched the round-one baseline byte for byte. Vite emitted its existing bundle-size and dynamic-import warnings.
+
+### Next round
+
+Audit Laneweaver Loom’s Silk Line with more than four eligible secondary targets. Check which four it hits, the eight-unit reach and the damage to each armored foe when the ability is bought while a bolt is in flight.

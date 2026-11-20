@@ -90,7 +90,7 @@ export const ENEMY_LORE: Record<EnemyType | ChapterEnemyType, EnemyLore> = {
   },
   golem: {
     blurb: 'Walking basalt with immense armor.',
-    counter: 'Frost cracks its shell for a few seconds — follow with heavy hits. Ballista and Incendiary burn ignore armor.',
+    counter: 'Slowing hits crack its shell for 2.6 seconds. Use fast attacks while its armor is down to 3. Ballista bolts pierce armor and incendiary burn bypasses it.',
     tags: ['Ground', 'Armored'],
   },
   mite: {

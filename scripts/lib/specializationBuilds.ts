@@ -23,6 +23,10 @@ const plans: Readonly<Partial<Record<string, BranchPlan>>> = {
   i20: { after: { wave: 9, plot: 15 }, plot: 17, branch: 'stormheart', ability: 'thunderbeat' },
   i21: { after: { wave: 10, plot: 18 }, plot: 18, branch: 'farwatch', ability: 'throughshot' },
   i22: { after: { wave: 8, plot: 8 }, plot: 14, branch: 'honeycomb', ability: 'waxcaps' },
+  i23: {
+    after: { wave: 9, plot: 8 }, deferUpgrade: { wave: 6, plot: 17 },
+    plot: 8, branch: 'anchor', ability: 'dragchain',
+  },
   i24: {
     after: { wave: 13, plot: 9 }, deferUpgrade: { wave: 12, plot: 4 },
     plot: 9, branch: 'briar', ability: 'widesweep',
