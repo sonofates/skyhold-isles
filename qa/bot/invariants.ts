@@ -569,6 +569,20 @@ export class InvariantMonitor {
           tick,
           `non-fighting soldier id=${s.id} (state=${s.state}) leaked ${s.extraHoldPoolIndices.length} extraHold entries`,
         );
+      } else if (s.state === 'fighting' && w.outcome === 'ongoing') {
+        for (let k = 0; k < s.extraHoldPoolIndices.length; k++) {
+          const ep = s.extraHoldPoolIndices[k];
+          const eu = s.extraHoldUids[k];
+          const extra = ep >= 0 && ep < w.enemyPool.items.length ? w.enemyPool.items[ep] : null;
+          if (!extra || !extra.active || extra.uid !== eu || extra.blockers <= 0) {
+            this.record(
+              'entity_leak',
+              tick,
+              `fighting soldier id=${s.id} has dangling extraHold (${ep}, uid=${eu})`,
+            );
+            break;
+          }
+        }
       }
       if (s.state === 'fighting') fightingSoldiers++;
     }

@@ -136,7 +136,7 @@
     - Added `isValidCloudJson()` in `platform.ts` (`cloudSave.write`), strict `typeof === 'string'` IPC parameter checks in `desktop/preload.cjs` (preventing `String({}) -> "[object Object]"` coercion), and JSON object/array verification in `desktop/main.cjs` (`steam:cloud-write`) so non-JSON or truncated payloads can never overwrite local mirrors or remote Steam Cloud files.
     - Updated `resetProgress2D()` (`progress2d.ts`) to clear `skyhold2d_coach_v1` and `skyhold2d_foes_seen_v1` alongside `STORY_SEEN_KEY`, rebuilt `release/Skyhold Isles-1.0.0.AppImage`, and re-verified Xvfb smoke + `qa:bot` (`656/656` passed).
 
-- [x] **15. Post-Backlog Deep Audit — Round 10 (`src/sim/{heroSystem,soldierSystem}.ts`, `qa/bot/invariants.ts`, `src/platform/{platform,storage,cloudSync}.ts`, `src/render2d/ui/progress2d.ts`, `tests/**`)**
+- [x] **15. Post-Backlog Deep Audit — Round 10 (`src/sim/{heroSystem,soldierSystem}.ts`, `qa/bot/invariants.ts`, `src/platform/{platform,storage,cloudSync}.ts`, `src/render2d/ui/progress2d.ts`, `tests/**`)** — commit `8f304c7`
   - **Melee Hero Target-Death State Reset & Per-Instance Shot Scratch (`heroSystem.ts`, `qa/bot/invariants.ts`, `tests/sim/heroes.test.ts`):**
     - Fixed `HeroSystem.updateMeleeCombat()` where a dead/recycled primary melee target (`currentMeleeTarget(h) === null`) bypassed the `target !== null` reset block, leaving Bran/Sela in `state === 'fighting'` with dangling `targetPoolIndex >= 0` while walking back to their guard post; enforced per-tick hero state/target invariants in `InvariantMonitor`, and moved `heroShotScratch` onto `HeroSystem` instances (clearing `shot.target = null` immediately after `spawnHeroProjectile`).
   - **Elite Multi-Hold (`soldierHoldCap > 1`) Heavy/Boss (`holdCost > 1`) Blocking & Two-Pass Hold Allocation (`soldierSystem.ts`, `tests/sim/barracks.test.ts`):**
@@ -145,6 +145,15 @@
     - Guarded `writeLocalSlot` in `createPlatformAdapter().cloudSave.read()` with `isValidCloudJson(remote)` so truncated/corrupt remote Steam Cloud files never clobber intact local mirrors, folded local cloud mirrors into `hydrateProgress2DFromCloud()` / `hydrateProgressFromCloud()` whenever remote JSON is truncated/corrupt, and updated `saveProgress2D()` to refresh `pendingAutoHydrated2DByAdapter` instead of deleting it on intermediate post-hydration saves so late pre-hydration snapshots remain 3-way-merge protected.
   - **Long-Tail Mid-Object JSON Repair, Clean Import Backups & 3D Onboarding Reset (`storage.ts`, `progress2d.ts`, `tests/platform/saveRobustnessV2.test.ts`):**
     - Expanded `repairTruncatedJsonContainer()` beyond the 128-cut tail cap (full exact scan up to 1,024 cuts + strided 3-cut probes up to 256 KB) so early mid-object corruption in 450-token 25-island saves salvages cleanly, updated `backupProgressBeforeImport()` / `importSaveCode2D()` to combine cloud mirrors and never write unparseable garbage into `*_import_backup`, and cleared `ENEMY_INTROS_SEEN_KEY` (+ in-memory cache), `FLYER_TOAST_SEEN_KEY`, and `UPGRADE_TOAST_SEEN_KEY` in `resetProgressSave()`.
+
+- [x] **16. Post-Backlog Deep Audit — Round 11 (`src/sim/soldierSystem.ts`, `qa/bot/invariants.ts`, `src/platform/{cloudSync,gameSession}.ts`, `src/render2d/ui/progress2d.ts`, `desktop/main.cjs`, `tests/**`)**
+  - **Post-Read Steam Cloud IPC Await Race Fix (`progress2d.ts`, `cloudSync.ts`, `gameSession.ts`, `tests/platform/steamAdapter.test.ts`):**
+    - Fixed an async IPC race in `hydrateProgress2DFromCloud()` and 3D `hydrateProgressFromCloud()` where `saveLocalProgress2D(merged)` / `saveLocalProgress(merged)` executed *after* `await safeCloudWrite*` (`cloudWrite` IPC), overwriting player actions (Workshop Refund, Hero Respec, Hero Select, or Island Wins) saved while `cloudWrite` or `syncAchievementsFromProgress` (`unlockAchievement` IPC) was suspended; `localStorage` flushes now happen strictly before any post-read `await`, and `loadProgress2D()`'s `.then(...)` 3-way-merges any newer `localStorage` writes made during post-read IPC awaits before updating the boot `ProgressData` reference and `pendingAutoHydrated2DByAdapter`.
+  - **Elite Multi-Hold (`soldierHoldCap > 1`) Blink/Leash Pruning & Front-to-Back Cluster Rank (`soldierSystem.ts`, `qa/bot/invariants.ts`, `tests/sim/barracks.test.ts`):**
+    - Fixed `SoldierSystem.updateStep` Step 1 to prune stale `extraHoldPoolIndices` / `extraHoldUids` entries when an extra-held enemy (`blinker` / `burrower` / trampling boss) teleports ahead of `primary` or beyond `leashRadius` (zero work when `holdCap === 1`), preventing phantom Step 2 claims from blocking immediate squadmate peel-off (`0` diff on `holdCap === 1` tiers; `sim:balance` 41/41 byte-identical).
+    - Refined `applyExtraHolds()` to walk sorted cluster candidates (`dist` desc, `uid` asc) with monotonic front-to-back `rank` so rear already-held foes never shift the `queueStopDist` rank of needy foes ahead of them, and added per-tick fighting `extraHold` validity checks to `InvariantMonitor`.
+  - **Remembered Difficulty Reset, 3D `GameSession` Parity & Main-Process IPC Type Guards (`progress2d.ts`, `gameSession.ts`, `desktop/main.cjs`):**
+    - Updated `resetProgress2D()` to clear `skyhold_isles_difficulty2d_v1` back to default `Normal`, added `difficultyWins` parity + `content.onProgressImported` notification to 3D `GameSession`, enforced strict `typeof === 'string'` checks in `sanitizeSlot` / `sanitizeAchievementId` in `desktop/main.cjs`, rebuilt `release/Skyhold Isles-1.0.0.AppImage`, and re-verified Xvfb smoke.
 
 ---
 
@@ -171,7 +180,7 @@
 
 ## Problems / Known Issues
 
-- None blocking in owned area (`sim:balance` 41/41 byte-identical, `qa:bot` 656/656 + 58/58 2D achievement gate passing, 1,388 unit tests passing, all Hard Boss low-end benches `<= 66.8 ms`, Linux AppImage builds & passes Xvfb smoke with `secureContext: true`).
+- None blocking in owned area (`sim:balance` 41/41 byte-identical, `qa:bot` 656/656 + 58/58 2D achievement gate passing, 1,389 unit tests passing, all Hard Boss low-end benches `<= 66.8 ms`, Linux AppImage builds & passes Xvfb smoke with `secureContext: true`).
 
 ---
 

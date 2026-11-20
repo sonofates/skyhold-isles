@@ -1905,4 +1905,174 @@ describe('Steam achievements map, cloud hydration, and desktop config invariants
       setPlatformAdapter(null);
     }
   });
+
+  it('never overwrites localStorage or boot refs when saveProgress2D / saveProgress runs during post-read cloudWrite or unlockAchievement IPC awaits, and resets difficulty2d pref', async () => {
+    const { respecHero2D, selectHero2D } = await import('../../src/render2d/ui/progress2d.ts');
+    const { saveLocalProgress, saveProgress, loadProgress } = await import('../../src/platform/storage.ts');
+    try {
+      const cloudMap = new Map<string, string>();
+      // Seed remote 2D cloud save with 10 islands 3★, treasury:2, Sela selected with sela_cal_1:
+      const remote2D = createDefaultProgress(LEVELS_2D.length);
+      for (let i = 0; i < 10; i++) {
+        remote2D.bestStars[i] = 3;
+        remote2D.clears[i] = 1;
+      }
+      remote2D.unlockedLevelIndex = 10;
+      remote2D.workshop = { treasury: 2 };
+      remote2D.heroes = {
+        selectedHero: 'sela',
+        roster: {
+          bran: { xp: 100, skills: [] },
+          sela: { xp: HERO_LEVEL_XP[11], skills: ['sela_cal_1'] },
+        },
+      };
+      cloudMap.set(
+        CLOUD_PROGRESS_2D_SLOT,
+        JSON.stringify({ ids: LEVELS_2D.map((l) => l.id), progress: remote2D }),
+      );
+
+      // Local starts with 1 island cleared (so merged !== cloudRaw triggers safeCloudWrite2D + unlockAchievement IPCs):
+      const localInit = createDefaultProgress(LEVELS_2D.length);
+      localInit.bestStars[11] = 2;
+      localInit.clears[11] = 1;
+      saveLocalProgress2D(localInit, LEVELS_2D);
+
+      let releaseInitialCloudWrite: (() => void) | null = null;
+      let releaseAchievementUnlock: (() => void) | null = null;
+      let writeCalls = 0;
+      const adapter2D = createPlatformAdapter({
+        bridge: {
+          isSteam: true,
+          appId: 480,
+          cloudRead: async (slot) => cloudMap.get(slot) ?? null,
+          cloudWrite: (slot, json) => {
+            writeCalls++;
+            cloudMap.set(slot, json);
+            if (writeCalls === 1) {
+              return new Promise<boolean>((res) => {
+                releaseInitialCloudWrite = () => res(true);
+              });
+            }
+            return Promise.resolve(true);
+          },
+          unlockAchievement: () => {
+            if (!releaseAchievementUnlock) {
+              return new Promise<boolean>((res) => {
+                releaseAchievementUnlock = () => res(true);
+              });
+            }
+            return Promise.resolve(true);
+          },
+        },
+      });
+      setPlatformAdapter(adapter2D);
+
+      const boot = loadProgress2D(LEVELS_2D);
+      const staleBootClone: ProgressData = JSON.parse(JSON.stringify(boot));
+      staleBootClone.heroes = {
+        selectedHero: 'bran',
+        roster: { bran: { xp: 350, skills: [] } },
+      };
+
+      // Wait until cloudRead finished and hydrateProgress2DFromCloud is suspended in safeCloudWrite2D:
+      for (let i = 0; i < 10 && !releaseInitialCloudWrite; i++) {
+        await new Promise((r) => setTimeout(r, 0));
+      }
+      expect(releaseInitialCloudWrite).not.toBeNull();
+
+      // WHILE safeCloudWrite2D IPC is suspended, player refunds Workshop:
+      const midWrite = loadProgress2D(LEVELS_2D);
+      midWrite.workshop = {};
+      saveProgress2D(midWrite, LEVELS_2D);
+
+      releaseInitialCloudWrite!();
+      for (let i = 0; i < 10 && !releaseAchievementUnlock; i++) {
+        await new Promise((r) => setTimeout(r, 0));
+      }
+      expect(releaseAchievementUnlock).not.toBeNull();
+
+      // WHILE syncAchievementsFromProgress IPC is suspended, player respecs Sela and selects Bran:
+      respecHero2D('sela', LEVELS_2D);
+      selectHero2D('bran', LEVELS_2D);
+
+      releaseAchievementUnlock!();
+      await new Promise((r) => setTimeout(r, 15));
+
+      // Verify neither post-write localStorage nor boot reference nor cloud reverted any mid-IPC action!
+      expect(boot.workshop).toEqual({});
+      expect(boot.heroes?.roster.sela?.skills).toEqual([]);
+      expect(boot.heroes?.selectedHero).toBe('bran');
+      expect(boot.bestStars[0]).toBe(3);
+      expect(boot.bestStars[11]).toBe(2);
+
+      const persisted2D = loadProgress2D(LEVELS_2D);
+      expect(persisted2D.workshop).toEqual({});
+      expect(persisted2D.heroes?.roster.sela?.skills).toEqual([]);
+      expect(persisted2D.heroes?.selectedHero).toBe('bran');
+
+      // Saving a pre-hydration clone afterwards STILL preserves the mid-IPC refund & respec:
+      saveProgress2D(staleBootClone, LEVELS_2D);
+      const afterStale = loadProgress2D(LEVELS_2D);
+      expect(afterStale.workshop).toEqual({});
+      expect(afterStale.heroes?.roster.sela?.skills).toEqual([]);
+      expect(afterStale.heroes?.roster.bran?.xp).toBe(350);
+
+      // 3D hydrateProgressFromCloud also never overwrites a saveProgress made during cloudWrite IPC:
+      localStorage.clear();
+      const local3D = createDefaultProgress(LEVELS.length);
+      local3D.bestStars[1] = 2;
+      local3D.clears[1] = 1;
+      saveLocalProgress(local3D);
+
+      const remote3D = createDefaultProgress(LEVELS.length);
+      remote3D.bestStars[0] = 3;
+      remote3D.clears[0] = 1;
+      remote3D.workshop = { treasury: 1 };
+      cloudMap.set('progress', JSON.stringify(remote3D));
+
+      let release3DWrite: (() => void) | null = null;
+      let writes3D = 0;
+      const adapter3D = createPlatformAdapter({
+        bridge: {
+          isSteam: true,
+          appId: 480,
+          unlockAchievement: async () => true,
+          cloudRead: async (slot) => cloudMap.get(slot) ?? null,
+          cloudWrite: (slot, json) => {
+            writes3D++;
+            cloudMap.set(slot, json);
+            if (writes3D === 1) {
+              return new Promise<boolean>((res) => {
+                release3DWrite = () => res(true);
+              });
+            }
+            return Promise.resolve(true);
+          },
+        },
+      });
+      setPlatformAdapter(adapter3D);
+
+      const p3d = hydrateProgressFromCloud(local3D, LEVELS.length, adapter3D, LEVELS);
+      for (let i = 0; i < 10 && !release3DWrite; i++) {
+        await new Promise((r) => setTimeout(r, 0));
+      }
+      expect(release3DWrite).not.toBeNull();
+      // Player refunds 3D Workshop while safeCloudWrite is suspended:
+      const mid3D = loadProgress(LEVELS.length);
+      mid3D.workshop = {};
+      saveProgress(mid3D);
+
+      release3DWrite!();
+      await p3d;
+      expect(loadProgress(LEVELS.length).workshop).toEqual({});
+      expect(JSON.parse(cloudMap.get('progress')!).workshop).toEqual({});
+
+      // resetProgress2D also resets remembered difficulty preference back to default Normal:
+      localStorage.setItem('skyhold_isles_difficulty2d_v1', 'hard');
+      resetProgress2D(LEVELS_2D);
+      expect(localStorage.getItem('skyhold_isles_difficulty2d_v1')).toBeNull();
+    } finally {
+      setPlatformAdapter(null);
+    }
+  });
 });

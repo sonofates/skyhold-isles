@@ -44,6 +44,7 @@ import {
   loadSettings,
   markUpgradeToastSeen,
   backupProgressBeforeImport,
+  readLocalProgressRaw,
   resetProgressSave,
   saveProgress,
   saveSettings,
@@ -234,13 +235,13 @@ export class GameSession {
             }
           }
           this.workshopRefundedDuringHydrate = false;
-          const inMemoryDiverged = JSON.stringify(freshMerged) !== JSON.stringify(merged);
+          const currentDiskRaw = readLocalProgressRaw();
           if (freshMerged.heroes === undefined) delete this.progress.heroes;
           if (freshMerged.difficultyWins === undefined) delete this.progress.difficultyWins;
           if (freshMerged.wonChallenges === undefined) delete this.progress.wonChallenges;
           Object.assign(this.progress, freshMerged);
           this.deps?.content?.onProgressImported(LEVELS, this.progress);
-          if (inMemoryDiverged) {
+          if (JSON.stringify(this.progress) !== currentDiskRaw) {
             saveProgress(this.progress);
           }
           if (this.viewMode !== 'playing') {
@@ -786,11 +787,22 @@ export class GameSession {
     return this.runConfig;
   }
 
+  private isIslandCleared(index: number): boolean {
+    const dw = this.progress.difficultyWins;
+    return (
+      (this.progress.clears[index] ?? 0) > 0 ||
+      (this.progress.bestStars[index] ?? 0) > 0 ||
+      (dw?.easy[index] ?? 0) > 0 ||
+      (dw?.normal[index] ?? 0) > 0 ||
+      (dw?.hard[index] ?? 0) > 0
+    );
+  }
+
   /** Island select → card button: cleared islands open the briefing, new ones start at once. */
   selectIsland(levelIndex: number): void {
     this.soundManager.unlock();
     const idx = Math.max(0, Math.min(LEVELS.length - 1, levelIndex));
-    if ((this.progress.clears[idx] ?? 0) > 0 || (this.progress.bestStars[idx] ?? 0) > 0) {
+    if (this.isIslandCleared(idx)) {
       this.d.overlays.islandBriefing.show(idx, this.progress);
       return;
     }
@@ -809,12 +821,12 @@ export class GameSession {
     this.currentLevelIndex = 0;
     this.runConfig = { endless: false, challenges: [], daily: null };
     this.soundManager.playUiBack();
-    if (this.viewMode !== 'playing') {
-      this.d.overlays.mainMenu.setOpen(this.viewMode === 'menu', this.progress);
-      this.d.overlays.levelSelect.setOpen(this.viewMode === 'levelSelect', this.progress);
-      this.d.overlays.workshop.setOpen(this.viewMode === 'workshop', this.progress);
+    if (this.viewMode !== 'playing' && this.deps) {
+      this.deps.overlays.mainMenu.setOpen(this.viewMode === 'menu', this.progress);
+      this.deps.overlays.levelSelect.setOpen(this.viewMode === 'levelSelect', this.progress);
+      this.deps.overlays.workshop.setOpen(this.viewMode === 'workshop', this.progress);
     }
-    this.d.overlays.toast.show('Progress reset — a backup of the old save was kept.', 3);
+    this.deps?.overlays.toast.show('Progress reset — a backup of the old save was kept.', 3);
   }
 
   exportSaveCode(): string {
@@ -860,15 +872,18 @@ export class GameSession {
     if (merged.wonChallenges === undefined) delete this.progress.wonChallenges;
     Object.assign(this.progress, merged);
     saveProgress(this.progress);
+    this.deps?.content?.onProgressImported(LEVELS, this.progress);
     this.soundManager.playUiConfirm();
     if (this.viewMode !== 'playing') {
       this.currentLevelIndex = Math.max(
         0,
         Math.min(LEVELS.length - 1, this.progress.unlockedLevelIndex),
       );
-      this.d.overlays.mainMenu.setOpen(this.viewMode === 'menu', this.progress);
-      this.d.overlays.levelSelect.setOpen(this.viewMode === 'levelSelect', this.progress);
-      this.d.overlays.workshop.setOpen(this.viewMode === 'workshop', this.progress);
+      if (this.deps) {
+        this.deps.overlays.mainMenu.setOpen(this.viewMode === 'menu', this.progress);
+        this.deps.overlays.levelSelect.setOpen(this.viewMode === 'levelSelect', this.progress);
+        this.deps.overlays.workshop.setOpen(this.viewMode === 'workshop', this.progress);
+      }
     }
     return { ok: true, message: `Loaded: ${gain}.` };
   }
@@ -877,7 +892,7 @@ export class GameSession {
   todaysDaily(): DailyChallenge | null {
     const cleared: number[] = [];
     for (let i = 0; i < LEVELS.length; i++) {
-      if ((this.progress.clears[i] ?? 0) > 0 || (this.progress.bestStars[i] ?? 0) > 0) cleared.push(i);
+      if (this.isIslandCleared(i)) cleared.push(i);
     }
     return dailyChallengeFor(utcDayNumber(Date.now()), cleared);
   }
@@ -1033,9 +1048,7 @@ export class GameSession {
     this.currentLevelIndex = Math.max(0, Math.min(LEVELS.length - 1, levelIndex));
     const level = LEVELS[this.currentLevelIndex];
     // Challenges and island-card Endless unlock after the first clear.
-    const cleared =
-      (this.progress.clears[this.currentLevelIndex] ?? 0) > 0 ||
-      (this.progress.bestStars[this.currentLevelIndex] ?? 0) > 0;
+    const cleared = this.isIslandCleared(this.currentLevelIndex);
     this.runConfig = resolveRunConfig(level, cleared, config);
     this.clearTransientPlayState();
     this.unbindSound?.();

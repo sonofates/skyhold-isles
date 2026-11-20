@@ -72,6 +72,7 @@ export const CLOUD_PROGRESS_2D_SLOT = 'progress2d';
 export const STORY_SEEN_KEY = 'skyhold_isles_story2d_seen_v1';
 const COACH_2D_KEY = 'skyhold2d_coach_v1';
 const FOES_SEEN_2D_KEY = 'skyhold2d_foes_seen_v1';
+const DIFFICULTY_PREF_2D_KEY = 'skyhold_isles_difficulty2d_v1';
 export const PROGRESS_2D_RESET_BACKUP_KEY = 'skyhold_isles_progress2d_reset_backup';
 export const PROGRESS_2D_IMPORT_BACKUP_KEY = 'skyhold_isles_progress2d_import_backup';
 export const PROGRESS_2D_CORRUPT_BACKUP_KEY = 'skyhold_isles_progress2d_corrupt_backup';
@@ -472,20 +473,48 @@ export function loadProgress2D(levels: readonly LevelDef[] = LEVELS_2D): Progres
     void hydrateProgress2DFromCloud(result, levels, platform)
       .then(({ merged, updated }) => {
         if (!updated || resetGen2D !== bootGen) return;
+        let effectiveHydrated = remapProgress(
+          merged,
+          levels.map((l) => l.id),
+          levels,
+        );
+        const mergedDiskRaw = serializeStored2D(effectiveHydrated, levels);
+        const latestDiskRaw = readLocalProgress2DRaw();
+        if (latestDiskRaw !== null && latestDiskRaw !== mergedDiskRaw) {
+          const latestParsed = parseStored2DRaw(latestDiskRaw, levels);
+          if (latestParsed) {
+            const latestCopy = remapProgress(
+              latestParsed.progress,
+              levels.map((l) => l.id),
+              levels,
+            );
+            if (
+              latestParsed.rawSelectedHero &&
+              latestCopy.heroes &&
+              latestParsed.rawSelectedHero !== latestCopy.heroes.selectedHero
+            ) {
+              latestCopy.heroes = {
+                ...latestCopy.heroes,
+                selectedHero: latestParsed.rawSelectedHero,
+              };
+            }
+            if (latestParsed.rawWorkshop) {
+              latestCopy.workshop = { ...latestParsed.rawWorkshop };
+            }
+            foldPendingCloudThreeWay2D(latestCopy, effectiveHydrated, effectiveHydrated, levels);
+            effectiveHydrated = latestCopy;
+          }
+        }
         let freshMerged: ProgressData;
         if (serializeStored2D(result, levels) === baseRaw) {
-          freshMerged = remapProgress(
-            merged,
-            levels.map((l) => l.id),
-            levels,
-          );
+          freshMerged = effectiveHydrated;
         } else {
           const targetCopy = remapProgress(
             result,
             levels.map((l) => l.id),
             levels,
           );
-          foldPendingCloudThreeWay2D(targetCopy, baseSnapshot, merged, levels);
+          foldPendingCloudThreeWay2D(targetCopy, baseSnapshot, effectiveHydrated, levels);
           freshMerged = targetCopy;
         }
         if (freshMerged.heroes === undefined) delete result.heroes;
@@ -744,7 +773,11 @@ export async function hydrateProgress2DFromCloud(
         merged = mergeParsedInto2D(normalizedLocal, parsedCloud, levels);
       }
       const mergedRaw = serializeStored2D(merged, levels);
-      if (mergedRaw !== localRaw && resetGen2D === genAtStart) {
+      if (
+        (mergedRaw !== localRaw ||
+          (concurrentHappened && mergedRaw !== diskRawAfter && hasAnyProgress(merged))) &&
+        resetGen2D === genAtStart
+      ) {
         saveLocalProgress2D(merged, levels);
       }
       if (!readFailed) {
@@ -755,18 +788,39 @@ export async function hydrateProgress2DFromCloud(
       }
     } else if (!readFailed) {
       const healedRaw = serializeStored2D(normalizedLocal, levels);
-      if (healedRaw !== localRaw && resetGen2D === genAtStart) {
+      if (
+        (healedRaw !== localRaw ||
+          (concurrentHappened && healedRaw !== diskRawAfter && hasAnyProgress(normalizedLocal))) &&
+        resetGen2D === genAtStart
+      ) {
         saveLocalProgress2D(normalizedLocal, levels);
       }
       completedHydrated2DAdapters.add(adapter);
       if (hasAnyProgress(normalizedLocal) && resetGen2D === genAtStart) {
         await safeCloudWrite2D(healedRaw);
       }
+    } else if (
+      concurrentHappened &&
+      localRaw !== diskRawAfter &&
+      hasAnyProgress(normalizedLocal) &&
+      resetGen2D === genAtStart
+    ) {
+      saveLocalProgress2D(normalizedLocal, levels);
     }
-  } else if (!readFailed) {
-    completedHydrated2DAdapters.add(adapter);
-    if (adapter.isSteam && hasAnyProgress(normalizedLocal) && resetGen2D === genAtStart) {
-      await safeCloudWrite2D(localRaw);
+  } else {
+    if (
+      concurrentHappened &&
+      localRaw !== diskRawAfter &&
+      hasAnyProgress(normalizedLocal) &&
+      resetGen2D === genAtStart
+    ) {
+      saveLocalProgress2D(normalizedLocal, levels);
+    }
+    if (!readFailed) {
+      completedHydrated2DAdapters.add(adapter);
+      if (adapter.isSteam && hasAnyProgress(normalizedLocal) && resetGen2D === genAtStart) {
+        await safeCloudWrite2D(localRaw);
+      }
     }
   }
   if (resetGen2D !== genAtStart) {
@@ -776,9 +830,6 @@ export async function hydrateProgress2DFromCloud(
   const finalMergedRaw = serializeStored2D(merged, levels);
   if (finalMergedRaw !== callerRaw) {
     updated = true;
-  }
-  if (concurrentHappened && finalMergedRaw !== diskRawAfter && hasAnyProgress(merged)) {
-    saveLocalProgress2D(merged, levels);
   }
 
   const unlockedAchievements = await syncAchievementsFromProgress(merged, adapter, levels);
@@ -1292,6 +1343,7 @@ export function resetProgress2D(levels: readonly LevelDef[] = LEVELS_2D): void {
     ls?.removeItem(STORY_SEEN_KEY);
     ls?.removeItem(COACH_2D_KEY);
     ls?.removeItem(FOES_SEEN_2D_KEY);
+    ls?.removeItem(DIFFICULTY_PREF_2D_KEY);
   } catch {
     // ignore
   }

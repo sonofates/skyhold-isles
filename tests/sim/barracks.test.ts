@@ -1047,6 +1047,115 @@ describe('determinism and isolation', () => {
         expect(runner.blockers).toBe(1);
         expect(monitor.violations).toEqual([]);
       }
+
+      // 3. When an extra-held Blinker teleports ahead of primary, Step 1 prunes the stale extraHold
+      //    so a spare squadmate immediately peels off on that very tick to intercept it; and mixed
+      //    cluster queue ranking evaluates a partially-held Kilnback ahead of a rear held Grunt at rank 1:
+      {
+        const { world } = setup(50_000);
+        const monitor = new InvariantMonitor(world, world.events, 8);
+        const stepWorld = (n: number): void => {
+          for (let i = 0; i < n; i++) {
+            const nextTick = world.tick + 1;
+            monitor.beginTick(nextTick);
+            world.fixedTick(DT);
+            monitor.endTick(world.tick, DT);
+          }
+        };
+        const t = world.placeTowerOnPlot(0, 'barracks')!;
+        expect(world.upgradeTower(t.id)).toBe(true);
+        expect(world.upgradeTower(t.id)).toBe(true);
+        const b = world.soldierSystem.getBarracks(t.id)!;
+        stepWorld(60);
+
+        const frontGrunt = spawnAt(world, 'grunt', 8 + b.rallyX - 0.35);
+        frontGrunt.hp = frontGrunt.maxHp = 50_000;
+        for (
+          let guard = 0;
+          guard < 180 && !(b.squad[0].state === 'fighting' && b.squad[1].state === 'fighting');
+          guard++
+        ) {
+          stepWorld(1);
+        }
+
+        const blinker = spawnAt(world, 'blinker', frontGrunt.dist - 0.30);
+        blinker.hp = blinker.maxHp = 50_000;
+        blinker.abilityTimer = 999; // hold off auto-blink until extra-held
+        b.squad[0].extraHoldPoolIndices.push(blinker.poolIndex);
+        b.squad[0].extraHoldUids.push(blinker.uid);
+        stepWorld(1);
+        expect(b.squad[0].targetUid).toBe(frontGrunt.uid);
+        expect(b.squad[1].targetUid).toBe(frontGrunt.uid);
+        expect(blinker.blockers).toBe(1);
+        expect(b.squad[0].extraHoldUids).toEqual([blinker.uid]);
+
+        // Trigger blink on next tick (clamp totalDist so blink lands +1.4u ahead, still inside engageRadius):
+        const origTotalDist = blinker.totalDist;
+        blinker.totalDist = frontGrunt.dist + 3.4;
+        blinker.abilityTimer = 0.001;
+        stepWorld(1);
+        blinker.totalDist = origTotalDist;
+
+        // Immediately on the blink tick, stale extraHold was pruned and a spare knight peeled off to blinker!
+        expect(
+          b.squad[0].extraHoldUids.includes(blinker.uid) ||
+            b.squad[1].extraHoldUids.includes(blinker.uid),
+        ).toBe(false);
+        expect(b.squad.some((s) => s.targetUid === blinker.uid)).toBe(true);
+        for (let guard = 0; guard < 90 && blinker.blockers === 0; guard++) {
+          stepWorld(1);
+        }
+        expect(blinker.blockers).toBeGreaterThanOrEqual(1);
+        expect(frontGrunt.blockers).toBeGreaterThanOrEqual(1);
+        expect(monitor.violations).toEqual([]);
+      }
+
+      {
+        const { world } = setup(50_000);
+        const monitor = new InvariantMonitor(world, world.events, 8);
+        const stepWorld = (n: number): void => {
+          for (let i = 0; i < n; i++) {
+            const nextTick = world.tick + 1;
+            monitor.beginTick(nextTick);
+            world.fixedTick(DT);
+            monitor.endTick(world.tick, DT);
+          }
+        };
+        const t = world.placeTowerOnPlot(2, 'barracks')!;
+        expect(world.upgradeTower(t.id)).toBe(true);
+        expect(world.upgradeTower(t.id)).toBe(true);
+        const b = world.soldierSystem.getBarracks(t.id)!;
+        stepWorld(60);
+
+        const front = spawnAt(world, 'grunt', 8 + b.rallyX - 0.10);
+        front.hp = front.maxHp = 50_000;
+        for (
+          let guard = 0;
+          guard < 180 && !(b.squad[0].state === 'fighting' && b.squad[1].state === 'fighting');
+          guard++
+        ) {
+          stepWorld(1);
+        }
+        // Spawn a Kilnback (holdCost=2) at exact rank-1 stop dist (front.dist - 0.40, within 0.30 + 0.12 tolerance,
+        // NOT within rank-2 stop dist front.dist - 0.60 - 0.12) AND a rear Grunt behind it held by a 2nd barracks:
+        const tRear = world.placeTowerOnPlot(0, 'barracks')!;
+        const bRear = world.soldierSystem.getBarracks(tRear.id)!;
+        world.setRallyPoint(tRear.id, b.rallyX - 1.1, b.rallyZ);
+        const rearGrunt = spawnAt(world, 'grunt', front.dist - 1.05);
+        rearGrunt.hp = rearGrunt.maxHp = 50_000;
+        bRear.squad[0].x = rearGrunt.x;
+        bRear.squad[0].z = rearGrunt.z;
+        bRear.squad[0].targetPoolIndex = rearGrunt.poolIndex;
+        bRear.squad[0].targetUid = rearGrunt.uid;
+        bRear.squad[0].state = 'fighting';
+
+        const kiln = spawnAt(world, 'kilnback', front.dist - 0.35);
+        kiln.hp = kiln.maxHp = 50_000;
+        stepWorld(1);
+        expect(rearGrunt.blockers).toBeGreaterThanOrEqual(1);
+        expect(kiln.blockers).toBe(2);
+        expect(monitor.violations).toEqual([]);
+      }
     } finally {
       (TOWER_DEFS.barracks.tiers as unknown as Record<number, unknown>)[2] = origT3;
     }

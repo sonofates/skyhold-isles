@@ -703,6 +703,30 @@ export class SoldierSystem {
           if (!ok) {
             this.release(s, false);
             s.state = 'walking';
+          } else if (s.state === 'fighting' && s.extraHoldPoolIndices.length > 0) {
+            let write = 0;
+            for (let k = 0; k < s.extraHoldPoolIndices.length; k++) {
+              const ep = s.extraHoldPoolIndices[k];
+              const eu = s.extraHoldUids[k];
+              const extra = pool.items[ep];
+              const extraOk =
+                extra !== undefined &&
+                extra.active &&
+                extra.uid === eu &&
+                this.isHoldable(extra) &&
+                Math.hypot(extra.x - b.rallyX, extra.z - b.rallyZ) <= R.leashRadius &&
+                (extra === e ||
+                  (extra.lane === e.lane &&
+                    extra.dist <= e.dist + 0.35 &&
+                    e.dist - extra.dist <= BLOCK_CLUSTER_GAP + 0.35));
+              if (extraOk) {
+                s.extraHoldPoolIndices[write] = ep;
+                s.extraHoldUids[write] = eu;
+                write++;
+              }
+            }
+            s.extraHoldPoolIndices.length = write;
+            s.extraHoldUids.length = write;
           }
         } else if (s.state === 'idle' && s.sinceHurt >= R.regenDelay && s.hp < s.maxHp) {
           s.hp = Math.min(s.maxHp, s.hp + s.maxHp * R.regenFrac * dt);
@@ -1088,24 +1112,23 @@ export class SoldierSystem {
     const reach = Math.max(SOLDIER_RULES.engageRadius, (s.holdCap + 1) * BLOCK_QUEUE_SPACING + 0.4);
     this.spatialHash.query(primary.x, primary.z, reach, candidates);
     extraHoldOrder.length = 0;
-    let alreadyHeldBehind = 0;
     for (let k = 0; k < candidates.length; k++) {
       const cand = this.pool.items[candidates[k]];
       if (cand === primary || cand.lane !== primary.lane || !this.isHoldable(cand)) continue;
-      if (cand.dist > primary.dist + 0.35) continue;
-      if (cand.blockers >= ENEMY_MELEE[cand.type].holdCost) {
-        if (primary.dist - cand.dist <= BLOCK_CLUSTER_GAP) alreadyHeldBehind++;
-        continue;
-      }
+      if (cand.dist > primary.dist + 0.35 || primary.dist - cand.dist > BLOCK_CLUSTER_GAP + 0.35) continue;
       extraHoldOrder.push(cand.poolIndex);
     }
+    if (extraHoldOrder.length === 0) return;
     extraHoldOrder.sort(this.byExtraHoldOrder);
-    let queuedAdded = 0;
+    let rank = 1;
     for (let k = 0; k < extraHoldOrder.length && added < maxExtra; k++) {
       const cand = this.pool.items[extraHoldOrder[k]];
       const candHoldCost = ENEMY_MELEE[cand.type].holdCost;
-      if (cand.blockers >= candHoldCost) continue;
-      const queueStopDist = primary.dist - (alreadyHeldBehind + queuedAdded + 1) * BLOCK_QUEUE_SPACING;
+      if (cand.blockers >= candHoldCost) {
+        rank++;
+        continue;
+      }
+      const queueStopDist = primary.dist - rank * BLOCK_QUEUE_SPACING;
       if (cand.dist < queueStopDist - 0.12) continue;
       if (cand.blockers === 0) {
         this.blockedList.push(cand.poolIndex);
@@ -1117,7 +1140,7 @@ export class SoldierSystem {
         s.extraHoldUids.push(cand.uid);
         added++;
       }
-      queuedAdded++;
+      rank++;
     }
   }
 

@@ -19,13 +19,15 @@ function resolveSteamAppId(env = process.env) {
 }
 
 function sanitizeSlot(slot) {
-  const trimmed = String(slot ?? '').trim();
+  if (typeof slot !== 'string') return null;
+  const trimmed = slot.trim();
   if (!/^[a-zA-Z0-9_-]{1,64}$/.test(trimmed)) return null;
   return trimmed;
 }
 
 function sanitizeAchievementId(id) {
-  const trimmed = String(id ?? '').trim();
+  if (typeof id !== 'string') return null;
+  const trimmed = id.trim();
   if (!/^[a-zA-Z0-9_-]{1,64}$/.test(trimmed)) return null;
   return trimmed;
 }

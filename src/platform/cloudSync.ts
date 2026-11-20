@@ -163,7 +163,11 @@ export async function hydrateProgressFromCloud(
     }
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
       const healedLocalRaw = JSON.stringify(normalizedLocal);
-      if (healedLocalRaw !== localRaw && getProgressResetGen() === genAtStart) {
+      if (
+        (healedLocalRaw !== localRaw ||
+          (concurrentHappened && healedLocalRaw !== diskRawAfter && hasAnyProgress(normalizedLocal))) &&
+        getProgressResetGen() === genAtStart
+      ) {
         saveLocalProgress(normalizedLocal);
       }
       if (!readFailed) {
@@ -192,7 +196,11 @@ export async function hydrateProgressFromCloud(
         }
       }
       const mergedRaw = JSON.stringify(merged);
-      if (mergedRaw !== localRaw && getProgressResetGen() === genAtStart) {
+      if (
+        (mergedRaw !== localRaw ||
+          (concurrentHappened && mergedRaw !== diskRawAfter && hasAnyProgress(merged))) &&
+        getProgressResetGen() === genAtStart
+      ) {
         saveLocalProgress(merged);
       }
       if (!readFailed) {
@@ -202,10 +210,20 @@ export async function hydrateProgressFromCloud(
         }
       }
     }
-  } else if (!readFailed) {
-    markCloudHydrated(adapter);
-    if (adapter.isSteam && hasAnyProgress(normalizedLocal) && getProgressResetGen() === genAtStart) {
-      await safeCloudWrite(localRaw);
+  } else {
+    if (
+      concurrentHappened &&
+      localRaw !== diskRawAfter &&
+      hasAnyProgress(normalizedLocal) &&
+      getProgressResetGen() === genAtStart
+    ) {
+      saveLocalProgress(normalizedLocal);
+    }
+    if (!readFailed) {
+      markCloudHydrated(adapter);
+      if (adapter.isSteam && hasAnyProgress(normalizedLocal) && getProgressResetGen() === genAtStart) {
+        await safeCloudWrite(localRaw);
+      }
     }
   }
   if (getProgressResetGen() !== genAtStart) {
@@ -215,9 +233,6 @@ export async function hydrateProgressFromCloud(
   const finalMergedRaw = JSON.stringify(merged);
   if (finalMergedRaw !== callerRaw) {
     updated = true;
-  }
-  if (concurrentHappened && finalMergedRaw !== diskRawAfter && hasAnyProgress(merged)) {
-    saveLocalProgress(merged);
   }
 
   const unlockedAchievements = await syncAchievementsFromProgress(merged, adapter, levels);
