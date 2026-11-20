@@ -7,7 +7,7 @@ import { HERO_DEFS } from '../data/heroes.ts';
 import { HERO_ROLE_EN, HEROES_TR, type HeroTr } from './heroesTr.ts';
 import { CHALLENGES, type ChallengeId } from '../data/challenges.ts';
 import { ENEMY_DEFS } from '../data/enemies.ts';
-import { TOWER_DEFS } from '../data/towers.ts';
+import { specializationsFor, TOWER_DEFS } from '../data/towers.ts';
 import { WORKSHOP_BRANCHES, type WorkshopUpgradeDef } from '../data/workshop.ts';
 import type { LevelDef } from '../data/levels/types.ts';
 import type { FeatDef } from '../game/feats.ts';
@@ -101,6 +101,66 @@ export function towerStrong(id: string): string {
 
 export function towerWeak(id: string): string {
   return towerTr(id)?.weak || TOWER_LORE[id as TowerType]?.weak || '';
+}
+
+// --- tower specializations (tier IV) ---------------------------------------------------------
+
+/** One-line role under a branch's name (build ring, comparison card, codex). */
+const SPEC_ROLE_EN: Readonly<Record<string, string>> = {
+  farwatch: 'Long reach · pierces armor',
+  swallow: 'Rapid volleys · extra arrows',
+  honeycomb: 'Cluster bombs · crowds',
+  bellfoundry: 'One heavy shell · wide blast',
+  snowbell: 'Wide, long chill',
+  rimeglass: 'Shatters chilled foes',
+  relay: 'Long chains · up to seven foes',
+  stormheart: 'Heavy arcs · double strikes',
+  cinderkiln: 'Ember beds · burns an area',
+  cloudbreak: 'Huge range · heavy shells',
+  loom: 'Bolts pierce a whole line',
+  anchor: 'Single target · armor breaker',
+  tailwind: 'Support · faster attacks',
+  horizon: 'Support · longer range',
+  gateward: 'Armored guards · quick return',
+  briar: 'Heavy blows · sweeps two foes',
+};
+
+type SpecDef = ReturnType<typeof specializationsFor>[number];
+let specIndex: { specs: Map<string, SpecDef>; abilities: Map<string, SpecDef['abilities'][number]> } | null = null;
+function specData(): NonNullable<typeof specIndex> {
+  if (!specIndex) {
+    specIndex = { specs: new Map(), abilities: new Map() };
+    for (const type of Object.keys(TOWER_DEFS) as TowerType[]) {
+      for (const b of specializationsFor(type)) {
+        specIndex.specs.set(b.id, b);
+        for (const a of b.abilities) specIndex.abilities.set(a.id, a);
+      }
+    }
+  }
+  return specIndex;
+}
+
+const specTr = (id: string) => (tr() ? DATA_TR.specs[id] : undefined);
+const abilityTr = (id: string) => (tr() ? DATA_TR.abilities[id] : undefined);
+
+export function specName(id: string): string {
+  return specTr(id)?.name || specData().specs.get(id)?.name || id;
+}
+
+export function specDesc(id: string): string {
+  return specTr(id)?.desc || specData().specs.get(id)?.description || '';
+}
+
+export function specRole(id: string): string {
+  return specTr(id)?.role || SPEC_ROLE_EN[id] || '';
+}
+
+export function abilityName(id: string): string {
+  return abilityTr(id)?.name || specData().abilities.get(id)?.name || id;
+}
+
+export function abilityDesc(id: string): string {
+  return abilityTr(id)?.desc || specData().abilities.get(id)?.description || '';
 }
 
 // --- enemies ---------------------------------------------------------------------------------

@@ -114,6 +114,46 @@ describe('run replay (replay2d.ts)', () => {
     expect(sameFingerprint(runFingerprint(world, tick), cut.end)).toBe(false);
   });
 
+  it('specialization and ability purchases go through the command layer and replay identically', () => {
+    const run = (cmds: (w: SimWorld, tick: number) => RunCommand[], ticks: number, replay?: RunReplay) => {
+      const world = newWorld(LEVEL_L1C, null);
+      world.gold += 2000;
+      const rec = new RunRecorder('l1c');
+      const cursor = replay ? new ReplayCursor(replay) : null;
+      let tick = 0;
+      for (; tick < ticks; tick++) {
+        if (cursor) cursor.applyDue(world, tick);
+        else
+          for (const c of cmds(world, tick)) {
+            rec.push(tick, c);
+            expect(applyRunCommand(world, c), `${c.k} @${tick}`).toBe(true);
+          }
+        world.fixedTick(BALANCE.fixedDt);
+      }
+      return { world, replay: rec.finish(world, tick) };
+    };
+    const script = (w: SimWorld, tick: number): RunCommand[] => {
+      const id = w.towers[0]?.id ?? -1;
+      if (tick === 0) return [{ k: 'build', plot: 0, type: 'archer' }];
+      if (tick === 5 || tick === 10) return [{ k: 'upgrade', id }];
+      if (tick === 20) return [{ k: 'spec', id, spec: 'swallow' }];
+      if (tick === 30) return [{ k: 'wave' }];
+      if (tick === 300) return [{ k: 'ability', id, ability: 'flock' }];
+      return [];
+    };
+    const live = run(script, 900);
+    const t = live.world.towers[0];
+    expect(t.specialization?.id).toBe('swallow');
+    expect(t.specialization?.abilities).toEqual(['flock']);
+    // Rejected: a second branch, an ability twice, an ability from the other branch.
+    expect(applyRunCommand(live.world, { k: 'spec', id: t.id, spec: 'farwatch' })).toBe(false);
+    expect(applyRunCommand(live.world, { k: 'ability', id: t.id, ability: 'flock' })).toBe(false);
+    expect(applyRunCommand(live.world, { k: 'ability', id: t.id, ability: 'throughshot' })).toBe(false);
+    const again = run(() => [], 900, live.replay);
+    expect(again.world.towers[0].specialization).toEqual(t.specialization);
+    expect(snapshot(again.world)).toBe(snapshot(live.world));
+  });
+
   it('progress runs 0..1 over the recorded length', () => {
     const r: RunReplay = { levelId: 'l1c', commands: [], endTick: 200, end: { outcome: 'won', tick: 200, gold: 0, lives: 0, wave: 0, kills: 0, towers: 0 } };
     const c = new ReplayCursor(r);

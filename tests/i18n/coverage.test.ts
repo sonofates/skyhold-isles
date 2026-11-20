@@ -5,11 +5,24 @@ import { CHALLENGES } from '../../src/data/challenges.ts';
 import { ENEMY_DEFS } from '../../src/data/enemies.ts';
 import { ENDLESS_TIERS } from '../../src/data/endlessMutators.ts';
 import { LEVELS_2D } from '../../src/data/levels2d/index.ts';
-import { TOWER_DEFS } from '../../src/data/towers.ts';
+import { specializationsFor, TOWER_DEFS } from '../../src/data/towers.ts';
 import { WORKSHOP_BRANCHES, WORKSHOP_UPGRADES } from '../../src/data/workshop.ts';
 import { FEATS } from '../../src/game/feats.ts';
 import { DATA_TR } from '../../src/i18n/dataTr.ts';
-import { challengeName, enemyCounter, islandName, stripKeyHints, tagName, towerName, upgradeRankText } from '../../src/i18n/data.ts';
+import {
+  abilityDesc,
+  abilityName,
+  challengeName,
+  enemyCounter,
+  islandName,
+  specDesc,
+  specName,
+  specRole,
+  stripKeyHints,
+  tagName,
+  towerName,
+  upgradeRankText,
+} from '../../src/i18n/data.ts';
 import { EN, type Msg } from '../../src/i18n/en.ts';
 import { localeFromTag, lower, setLocale, t, tIn, upper } from '../../src/i18n/index.ts';
 import { TR } from '../../src/i18n/tr.ts';
@@ -93,6 +106,35 @@ describe('data lookups (by id, English data as fallback)', () => {
     for (const f of FEATS) expect(DATA_TR.feats[f.id], f.id).toBeDefined();
     const tags = [...Object.values(ENEMY_LORE), ...Object.values(TOWER_LORE), eliteEntry()].flatMap((l) => l.tags);
     for (const tag of tags) expect(DATA_TR.tags[tag], tag).toBeDefined();
+  });
+
+  it('every tower specialization and ability has Turkish text and an English role line', () => {
+    const specIds: string[] = [];
+    const abilityIds: string[] = [];
+    for (const type of Object.keys(TOWER_DEFS) as (keyof typeof TOWER_DEFS)[]) {
+      for (const b of specializationsFor(type)) {
+        specIds.push(b.id);
+        expect(specRole(b.id), b.id).not.toBe('');
+        expect(specName(b.id)).toBe(b.name);
+        expect(specDesc(b.id)).toBe(b.description);
+        for (const a of b.abilities) {
+          abilityIds.push(a.id);
+          expect(abilityName(a.id)).toBe(a.name);
+        }
+      }
+    }
+    expect(specIds.length).toBe(16);
+    expect(Object.keys(DATA_TR.specs).sort()).toEqual([...specIds].sort());
+    expect(Object.keys(DATA_TR.abilities).sort()).toEqual([...abilityIds].sort());
+    setLocale('tr');
+    expect(specName('farwatch')).toBe('Uzak Nöbet Karakolu');
+    expect(abilityName('throughshot')).toBe('Delip Geçen Ok');
+    for (const id of specIds) {
+      const d = DATA_TR.specs[id];
+      expect(d.name && d.role && d.desc, id).toBeTruthy();
+      expect(specDesc(id), id).toBe(d.desc);
+    }
+    for (const id of abilityIds) expect(abilityDesc(id), id).toBe(DATA_TR.abilities[id].desc);
   });
 
   it('DATA_TR has no ids the data does not know (stale entries)', () => {

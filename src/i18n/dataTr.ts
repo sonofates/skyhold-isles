@@ -17,6 +17,10 @@ export interface DataTr {
   /** Endless medal tiers by English name. */
   readonly tiers: Readonly<Record<string, string>>;
   readonly feats: Readonly<Record<string, { readonly name: string; readonly desc: string }>>;
+  /** Tier-IV tower specializations by branch id (name, one-line role, tooltip). */
+  readonly specs: Readonly<Record<string, { readonly name: string; readonly role: string; readonly desc: string }>>;
+  /** Specialization abilities by ability id. */
+  readonly abilities: Readonly<Record<string, { readonly name: string; readonly desc: string }>>;
 }
 
 export const DATA_TR: DataTr = {
@@ -291,5 +295,54 @@ export const DATA_TR: DataTr = {
     squallRider: { name: 'Fırtına Binicisi', desc: '7 kez Günün Fırtınası kazan' },
     steadyWinds: { name: 'Kararlı Rüzgârlar', desc: 'Günün Fırtınası’nda 3 günlük seriye ulaş' },
     veteran: { name: 'Kıdemli Muhafız', desc: '30 savaş kazan' },
+  },
+  // Tier-IV specializations (src/data/towers.ts SPECIALIZATIONS), by branch id.
+  specs: {
+    farwatch: { name: 'Uzak Nöbet Karakolu', role: 'Uzun menzil · zırh deler', desc: 'Uzun yaylar daha yavaş atış yapar ama daha uzağa erişir. Her ok 8 zırhı yok sayar.' },
+    swallow: { name: 'Kırlangıç Tüneği', role: 'Hızlı yaylım · bol ok', desc: 'Her üç atışta bir, yarı güçte iki ek ok fırlatır.' },
+    honeycomb: { name: 'Petek Bataryası', role: 'Misket bombalar · kalabalıklar', desc: 'Her isabetin çevresinde halka biçiminde beş küçük bomba patlar.' },
+    bellfoundry: { name: 'Çan Dökümhanesi', role: 'Tek dev gülle · geniş patlama', desc: 'Tek bir ağır gülle geniş bir alana yüksek hasar verir.' },
+    snowbell: { name: 'Kardelen Bahçesi', role: 'Geniş ve uzun üşütme', desc: 'Geniş bir alana yayılan kar, düşmanları dört saniyeliğine yavaşlatır.' },
+    rimeglass: { name: 'Kırağı İğnesi', role: 'Üşüyen düşmanı parçalar', desc: 'Dar bir alana saçılan cam parçaları, soğuktan yavaşlamış düşmanlara ek hasar verir.' },
+    relay: {
+      name: 'Yıldırım Korusu',
+      role: 'Uzun zincir · yedi düşmana kadar',
+      desc: 'Yıldırım daha geniş aralıkları aşarak yedi düşmana kadar sıçrar. Her altıncı saldırıda sekizinci bir düşmana da ulaşabilir.',
+    },
+    stormheart: { name: 'Fırtına Yüreği Bobini', role: 'Ağır şimşek · çift vuruş', desc: 'Kısa şimşekler en fazla üç düşmana vurur. Her dördüncü saldırı iki kat hasar verir.' },
+    cinderkiln: { name: 'Kor Ocağı', role: 'Köz yatakları · alanı yakar', desc: 'Mermiler ardında beş saniye yanan geniş köz yatakları bırakır.' },
+    cloudbreak: {
+      name: 'Bulutdelen Havanı',
+      role: 'Dev menzil · ağır mermi',
+      desc: 'Havan artık yangın mermisi yerine ağır mermi atar. Bu mermiler 218 temel hasar verir. Havan, 2,1 ile 14,2 birim arasındaki düşmanları hedef alabilir.',
+    },
+    loom: { name: 'Yol Dokuma Tezgâhı', role: 'Oklar sırayı deler', desc: 'Uzun oklar ilk hedefi delip arkasındaki dört düşmana daha ulaşabilir.' },
+    anchor: { name: 'Çapa Çıkrığı', role: 'Tek hedef · zırh kırıcı', desc: 'Ağır zıpkın tek bir düşmana 230 hasar verir ve 22 zırhı yok sayar.' },
+    tailwind: { name: 'Arka Yel Değirmeni', role: 'Destek · daha hızlı saldırı', desc: 'Değirmenin dönen yelkenleri çevresindeki kuleler %38 daha hızlı saldırır.' },
+    horizon: { name: 'Ufuk Feneri', role: 'Destek · daha uzun menzil', desc: 'Fener daha geniş bir alanı aydınlatır ve müttefiklerin menzilini %20 artırır.' },
+    gateward: {
+      name: 'Kapı Muhafızları Kışlası',
+      role: 'Zırhlı muhafız · hızlı dönüş',
+      desc: 'Kalkanlı muhafızların 9 zırhı vardır. Bu yükseltmeden sonra düşen muhafızların temel dönüş süresi 5 saniyedir.',
+    },
+    briar: { name: 'Diken Ocağı', role: 'Ağır vuruş · iki düşmana savurur', desc: 'Kancalı baltacılar 35 hasar verir. Savuruşları ikinci düşmana bunun %70’ini verir.' },
+  },
+  abilities: {
+    throughshot: { name: 'Delip Geçen Ok', desc: 'Ok hedefi delip arkasındaki bir düşmana %75 hasar verir.' },
+    flock: { name: 'Toplanan Sürü', desc: 'Her yaylımda dört ek ok fırlatır.' },
+    waxcaps: { name: 'Balmumu Kapsülleri', desc: 'Her küçük bombanın temel hasarı, gülle hasarının %35’inden %50’sine çıkar.' },
+    aftershock: { name: 'Artçı Sarsıntı', desc: 'Patlama düşmanları iki saniyeliğine %28 yavaşlatır.' },
+    drifts: { name: 'Kar Yığınları', desc: 'Karın etki yarıçapı 3,4 birime, yavaşlatma oranı %55’e çıkar.' },
+    coldfracture: { name: 'Ayaz Çatlağı', desc: 'Cam parçaları isabet ettiğinde 12 zırhı yok sayar.' },
+    livewire: { name: 'Akım Teli', desc: 'Yıldırımın hasarı her sıçramada %16 yerine %6 azalır. Her düşmanın zırhı ayrı hesaplanır.' },
+    thunderbeat: { name: 'Gök Gürültüsü', desc: 'Bobin her üçüncü saldırıda iki kat hasar verir.' },
+    bankedfire: { name: 'Köz Ateşi', desc: 'Közler her vuruşta zırhı yok sayarak 16 hasar verir.' },
+    stonepetals: { name: 'Taş Yapraklar', desc: 'Her isabetin çevresinde üç parça patlar.' },
+    silkline: { name: 'İpek Hat', desc: 'Oklar hedefin sekiz birim ardına kadar ulaşır ve yol boyunca tam hasar verir.' },
+    dragchain: { name: 'Sürükleme Zinciri', desc: 'Zıpkınlar hedefi iki saniyeliğine %45 yavaşlatır.' },
+    fullsail: { name: 'Tam Yelken', desc: 'Değirmenin saldırı hızı desteği %48’e çıkar.' },
+    clearlens: { name: 'Berrak Mercek', desc: 'Fener, müttefiklerin menzilini %30 artırır.' },
+    ironmantle: { name: 'Demir Pelerin', desc: 'Muhafızların zırhını 9’dan 14’e çıkarır. Her yakın dövüş vuruşu yine de en az 1 hasar verir.' },
+    widesweep: { name: 'Geniş Savuruş', desc: 'Savuruş ikinci düşmana da tam hasar verir.' },
   },
 };
