@@ -436,6 +436,12 @@ function keyCap(label: string): HTMLElement {
   return el('kbd', 'pu-key pu-letter', {}, label);
 }
 
+/** A controller button cap: `face` A / B / X / Y round and coloured, the rest a dark pill. */
+function padCap(label: string): HTMLElement {
+  const face = ['A', 'B', 'X', 'Y'].includes(label);
+  return el('kbd', `pu-key pu-letter pad${face ? ` face pad-${label.toLowerCase()}` : ''}`, {}, label);
+}
+
 function fullscreenSupported(): boolean {
   return typeof document !== 'undefined' && document.fullscreenEnabled === true && typeof document.documentElement.requestFullscreen === 'function';
 }
@@ -718,6 +724,8 @@ export function openSettings(ctx: SettingsContext): Sheet {
   // --- Controls --------------------------------------------------------------------------------
   const controls = (): HTMLElement[] => {
     const keyRow = (caps: readonly string[], what: string): HTMLElement => el('div', 'pu-key-row', {}, el('span', 'pu-key-caps', {}, ...caps.map(keyCap)), el('span', 'pu-ink', {}, what));
+    // Controller caps: round face buttons (A / B / X / Y in their usual colours), pill shoulders.
+    const padRow = (caps: readonly string[], what: string): HTMLElement => el('div', 'pu-key-row', {}, el('span', 'pu-key-caps', {}, ...caps.map(padCap)), el('span', 'pu-ink', {}, what));
     const section = (title: string, ...items: HTMLElement[]): HTMLElement => el('section', 'pu-key-section', {}, el('h3', 'pu-letter', {}, title), el('div', 'pu-key-list', {}, ...items));
     const out: HTMLElement[] = [];
     if (touch) out.push(section(t('set.touch'), el('div', 'pu-key-row pu-ink', {}, t('touch.build')), el('div', 'pu-key-row pu-ink', {}, t('touch.hero')), el('div', 'pu-key-row pu-ink', {}, t('touch.ability')), el('div', 'pu-key-row pu-ink', {}, t('touch.cancel'))));
@@ -738,6 +746,8 @@ export function openSettings(ctx: SettingsContext): Sheet {
         keyRow(['↑', '↓', '←', '→'], t('key.cursor')),
         keyRow([t('key.enter')], t('key.cursorPress')),
       ),
+      // Mouse + replay under the keyboard list, menus and the controller in the second column.
+      ...(!touch || desktop ? [section(t('set.mouse'), keyRow([t('key.rightClick')], t('key.cancelAim')), keyRow([t('key.rightClick')], t('key.heroMove')))] : []),
       section(t('set.replayKeys'), keyRow([t('key.space')], t('key.pause')), keyRow(['1', '2', '4'], t('key.replaySpeed')), keyRow([t('key.esc')], t('key.replayLeave'))),
       section(
         t('set.menuKeys'),
@@ -748,27 +758,26 @@ export function openSettings(ctx: SettingsContext): Sheet {
       ),
       section(
         t('set.gamepad'),
-        keyRow([t('pad.dpad'), t('pad.stick')], t('key.navMove')),
-        keyRow(['A'], t('key.navPress')),
-        keyRow(['B'], t('key.navBack')),
-        keyRow(['LB', 'RB'], t('key.navTabs')),
-        keyRow([t('pad.start')], t('key.pause')),
+        padRow([t('pad.dpad'), t('pad.stick')], t('key.navMove')),
+        padRow(['A'], t('key.navPress')),
+        padRow(['B'], t('key.navBack')),
+        padRow(['LB', 'RB'], t('key.navTabs')),
+        padRow([t('pad.start')], t('key.pause')),
       ),
       section(
         t('set.gamepadRun'),
-        keyRow([t('pad.dpad'), t('pad.stick')], t('key.cursor')),
-        keyRow(['A'], t('key.cursorPress')),
-        keyRow(['B'], t('key.navBack')),
-        keyRow(['X'], t('key.wave')),
-        keyRow(['Y'], t('key.heroSelect')),
-        keyRow(['LB'], t('key.meteor')),
-        keyRow(['RB'], t('key.overcharge')),
-        keyRow(['LT'], t('key.heroSkill1')),
-        keyRow(['RT'], t('key.heroSkill2')),
-        keyRow([t('pad.start')], t('key.pause')),
+        padRow([t('pad.dpad'), t('pad.stick')], t('key.cursor')),
+        padRow(['A'], t('key.cursorPress')),
+        padRow(['B'], t('key.navBack')),
+        padRow(['X'], t('key.wave')),
+        padRow(['Y'], t('key.heroSelect')),
+        padRow(['LB'], t('key.meteor')),
+        padRow(['RB'], t('key.overcharge')),
+        padRow(['LT'], t('key.heroSkill1')),
+        padRow(['RT'], t('key.heroSkill2')),
+        padRow([t('pad.start')], t('key.pause')),
       ),
     );
-    if (!touch || desktop) out.push(section(t('set.mouse'), keyRow([t('key.rightClick')], t('key.cancelAim')), keyRow([t('key.rightClick')], t('key.heroMove'))));
     return [el('div', 'pu-key-grid', {}, ...out)];
   };
 

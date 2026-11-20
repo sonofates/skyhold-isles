@@ -2273,12 +2273,17 @@
   width: calc(var(--s) * 16);
 }
 
-/* Controls: key caps + what they do, in two columns when there is room. */
+/* Controls: key caps + what they do, flowing into two balanced columns when there is room
+   (sections never split; a grid would leave holes beside the long keyboard list). */
 .pu-key-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(calc(var(--s) * 30), 1fr));
-  gap: calc(var(--s) * 0.6) calc(var(--s) * 2.4);
+  column-width: calc(var(--s) * 30);
+  column-gap: calc(var(--s) * 2.4);
   padding: calc(var(--s) * 0.3) calc(var(--s) * 0.4);
+}
+
+.pu-key-section {
+  break-inside: avoid;
+  margin-bottom: calc(var(--s) * 1);
 }
 
 .pu-key-section h3 {
@@ -2316,6 +2321,36 @@
   background: linear-gradient(#b07c44, #7a4c22);
   box-shadow: 0 0 0 2px var(--outline), inset 0 1px 0 rgba(255, 230, 180, 0.5), 0 3px 0 #4a2a12;
   white-space: nowrap;
+}
+
+/* Controller caps (Settings → Controls): dark pills, round coloured face buttons. */
+.pu-key.pad {
+  border-radius: 999px;
+  background: linear-gradient(#5b5560, #36313b);
+  box-shadow: 0 0 0 2px var(--outline), inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 3px 0 #22202a;
+}
+
+.pu-key.pad.face {
+  min-width: 1.9em;
+  width: 1.9em;
+  padding: 0;
+  border-radius: 50%;
+}
+
+.pu-key.pad-a {
+  background: radial-gradient(circle at 35% 30%, #8fd36a, #3f9a2c 70%);
+}
+
+.pu-key.pad-b {
+  background: radial-gradient(circle at 35% 30%, #f08a6e, #c0392b 70%);
+}
+
+.pu-key.pad-x {
+  background: radial-gradient(circle at 35% 30%, #7fb8f0, #2f6fc0 70%);
+}
+
+.pu-key.pad-y {
+  background: radial-gradient(circle at 35% 30%, #ffe08a, #d39a2c 70%);
 }
 
 @media (max-height: 480px) {
