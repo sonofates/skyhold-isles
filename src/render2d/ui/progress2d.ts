@@ -11,6 +11,8 @@
  * it, so a parallel change that inserts or reorders islands in `LEVELS_2D` remaps the records by id
  * instead of shifting stars onto the wrong island.
  */
+import { awardDailyBonus, awardMarketWin, mergeMarket, sanitizeMarket } from '../../game/market.ts';
+import { marketWriter } from '../../platform/marketWriter.ts';
 import type { HeroId, ProgressData } from '../../core/types.ts';
 import { challengesForLevel, isChallengeId, type ChallengeId } from '../../data/challenges.ts';
 import { applyDailyWin, sanitizeDailyRecord, utcDayNumber } from '../../data/daily.ts';
@@ -150,6 +152,7 @@ export function remapProgress(raw: unknown, oldIds: readonly string[], levels: r
       : undefined;
   if (n === 0) {
     const empty = createDefaultProgress(0);
+    empty.market = migrateProgress(raw, 0).market;
     empty.heroes = migrateHeroSave(rawHeroes, empty, levels);
     return empty;
   }
@@ -181,6 +184,7 @@ export function remapProgress(raw: unknown, oldIds: readonly string[], levels: r
       if (j <= old.unlockedLevelIndex) frontier = Math.max(frontier, i);
     }
   });
+  out.market = old.market;
   out.workshop = { ...old.workshop };
   out.daily = { ...old.daily };
   if (old.wonChallenges && old.wonChallenges.length > 0) {
@@ -613,15 +617,23 @@ export function saveLocalProgress2D(
   return raw;
 }
 
-export function saveProgress2D(progress: ProgressData, levels: readonly LevelDef[] = LEVELS_2D): void {
+export function saveProgress2D(progress: ProgressData, levels: readonly LevelDef[] = LEVELS_2D): boolean {
   const platform = getPlatform();
-  if (platform.isSteam && !isMockLevelRoster(levels)) {
-    const pending = pendingAutoHydrated2DByAdapter.get(platform);
+  const syncCloud = platform.isSteam && !isMockLevelRoster(levels);
+  const pending = syncCloud ? pendingAutoHydrated2DByAdapter.get(platform) : undefined;
+  if (pending && !postHydrationStarsRefs.has(progress.bestStars)) {
+    foldPendingCloudThreeWay2D(progress, pending.base, pending.hydrated, levels);
+    postHydrationStarsRefs.add(progress.bestStars);
+  }
+  const stored = readLocalProgress2DRaw();
+  if (stored) {
+    const disk = parseStored2DRaw(stored, levels);
+    if (disk) progress.market = mergeMarket(progress.market, disk.progress.market);
+  }
+  const raw = saveLocalProgress2D(progress, levels);
+  if (readLocalProgress2DRaw() !== raw) return false;
+  if (syncCloud) {
     if (pending) {
-      if (!postHydrationStarsRefs.has(progress.bestStars)) {
-        foldPendingCloudThreeWay2D(progress, pending.base, pending.hydrated, levels);
-        postHydrationStarsRefs.add(progress.bestStars);
-      }
       const nextHydrated = remapProgress(
         progress,
         levels.map((l) => l.id),
@@ -630,24 +642,22 @@ export function saveProgress2D(progress: ProgressData, levels: readonly LevelDef
       postHydrationStarsRefs.add(nextHydrated.bestStars);
       pendingAutoHydrated2DByAdapter.set(platform, { base: pending.base, hydrated: nextHydrated });
     }
-  }
-  const raw = saveLocalProgress2D(progress, levels);
-  if (platform.isSteam && !isMockLevelRoster(levels)) {
     if (readingCloud2DAdapters.has(platform)) {
       // An in-flight hydrateProgress2DFromCloud is currently awaiting cloudSave.read(progress2d);
       // it will fold in this fresh localStorage write via diskRawAfter, merge monotonically with
       // the remote cloud save, write the union to Steam Cloud, and sync achievements.
-      return;
+      return true;
     }
     if (!completedHydrated2DAdapters.has(platform)) {
       // Never overwrite an un-fetched remote Steam Cloud save with a first local write on a new device.
       autoHydrated2DAdapters.add(platform);
       void hydrateProgress2DFromCloud(progress, levels, platform);
-      return;
+      return true;
     }
     void platform.cloudSave.write(CLOUD_PROGRESS_2D_SLOT, raw);
     void syncAchievementsFromProgress(progress, platform, levels);
   }
+  return true;
 }
 
 function readLocalProgress2DRaw(): string | null {
@@ -1015,6 +1025,7 @@ export function recordWin2D(
     p.bestLives[i] = prevBestLives;
     rec = { ...rec, newBestLives: false };
   }
+  awardMarketWin(p.market ??= sanitizeMarket(), marketWriter(), levelId, awarded, diff, rec.firstClear);
   dw[diff][i] = Math.max(dw[diff][i] ?? 0, awarded);
   p.difficultyWins = dw;
   saveProgress2D(p, levels);
@@ -1032,6 +1043,7 @@ export function recordDailyWin2D(
   const prevStreak = p.daily.streak;
   const safeNowMs = typeof nowMs === 'number' && Number.isFinite(nowMs) ? nowMs : Date.now();
   const res = applyDailyWin(p.daily, day, utcDayNumber(safeNowMs));
+  if (res.counted) awardDailyBonus(p.market ??= sanitizeMarket(), day);
   if (res.counted || p.daily.lastDay !== prevLast || p.daily.streak !== prevStreak) {
     saveProgress2D(p, levels);
   }
@@ -1098,6 +1110,7 @@ export interface DifficultyResult2D {
 }
 
 export interface RunResultRecord2D {
+  readonly crystalsEarned?: number;
   readonly win: WinRecord | null;
   /** Set on a recorded win: the difficulty it was played on and the stars it awarded. */
   readonly difficulty?: DifficultyResult2D;
@@ -1174,6 +1187,7 @@ export function applyRunResult2D(
   progress: ProgressData,
   outcome: RunOutcome2D,
   levels: readonly LevelDef[] = LEVELS_2D,
+  writer = 'local',
 ): RunResultRecord2D {
   const cfg = outcome.runConfig ?? PLAIN_RUN;
   const i = indexOf2D(outcome.levelId, levels);
@@ -1240,8 +1254,12 @@ export function applyRunResult2D(
     daily = applyDailyWin(progress.daily, cfg.daily, utcDayNumber(nowMs));
   }
   const hero = recordHeroOutcome(progress, outcome, levels);
+  const crystalsEarned = win ? awardMarketWin(
+    progress.market ??= sanitizeMarket(), writer, outcome.levelId, stars, diff,
+    win.firstClear, daily?.counted ? cfg.daily : null,
+  ) : 0;
   const base = difficulty ? { win, difficulty, daily, endless: null } : { win, daily, endless: null };
-  return hero ? { ...base, hero } : base;
+  return { ...base, ...(crystalsEarned ? { crystalsEarned } : {}), ...(hero ? { hero } : {}) };
 }
 
 /** Loads the 2D save, applies `applyRunResult2D`, persists if anything changed, and returns the record. */
@@ -1254,7 +1272,7 @@ export function recordRunResult2D(
   const prevDailyStreak = p.daily.streak;
   const prevSelectedHero = p.heroes?.selectedHero;
   const prevWonChallengesLen = p.wonChallenges?.length ?? 0;
-  const res = applyRunResult2D(p, outcome, levels);
+  const res = applyRunResult2D(p, outcome, levels, marketWriter());
   const dailyChanged =
     Boolean(res.daily?.counted) || p.daily.lastDay !== prevDailyLast || p.daily.streak !== prevDailyStreak;
   const endlessChanged = Boolean(res.endless?.reachedEndless && res.endless.best !== res.endless.previousBest);
@@ -1457,7 +1475,14 @@ export function resetProgress2D(levels: readonly LevelDef[] = LEVELS_2D): void {
           : serializeStored2D(current, levels);
       ls?.setItem(PROGRESS_2D_RESET_BACKUP_KEY, backupJson);
     }
-    ls?.removeItem(PROGRESS_2D_KEY);
+    const receipts = Object.keys(current.market?.purchaseLedger ?? {});
+    if (receipts.length) {
+      const fresh = createDefaultProgress(levels.length);
+      fresh.market = sanitizeMarket({ purchaseLedger: Object.fromEntries(receipts.map(id => [id, 0])) });
+      saveLocalProgress2D(fresh, levels);
+    } else {
+      ls?.removeItem(PROGRESS_2D_KEY);
+    }
     ls?.removeItem(LOCAL_CLOUD_2D_MIRROR_KEY);
     ls?.removeItem(STORY_SEEN_KEY);
     ls?.removeItem(COACH_2D_KEY);
@@ -1471,6 +1496,6 @@ export function resetProgress2D(levels: readonly LevelDef[] = LEVELS_2D): void {
     completedHydrated2DAdapters.add(platform);
     const fresh = createDefaultProgress(levels.length);
     fresh.heroes = createDefaultHeroSave();
-    void platform.cloudSave.write(CLOUD_PROGRESS_2D_SLOT, serializeStored2D(fresh, levels));
+    void platform.cloudSave.write(CLOUD_PROGRESS_2D_SLOT, readLocalProgress2DRaw() ?? serializeStored2D(fresh, levels));
   }
 }

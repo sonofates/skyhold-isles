@@ -1,6 +1,10 @@
+import type { ItemId } from '../data/market.ts';
 import type { AbilityId, EnemyType, HeroId, HeroSkillSlot, TowerType, Vec3 } from './types.ts';
 
 export interface GameEventMap {
+  itemCast: { id: ItemId; remaining: number; x?: number; z?: number };
+  enemyFrozen: { enemyId: number; x: number; z: number; seconds: number; slowOnly: boolean };
+  enemyPushed: { enemyId: number; fromX: number; fromZ: number; x: number; z: number; distance: number };
   towerBuilt: { towerId: number; type: TowerType; tier: number; x: number; z: number };
   towerUpgraded: { towerId: number; type: TowerType; tier: number; x: number; z: number };
   towerSold: { towerId: number; type: TowerType; tier: number; refund: number; x: number; z: number };

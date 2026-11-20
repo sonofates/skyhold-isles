@@ -1,3 +1,5 @@
+import { ItemSystem } from './itemSystem.ts';
+import type { ItemCounts, ItemId } from '../data/market.ts';
 import type { EventBus } from '../core/eventBus.ts';
 import { ObjectPool } from '../core/pool.ts';
 import type { AbilityId, HeroId, HeroSkillSlot, TargetingMode, TowerMvpSummary, TowerType } from '../core/types.ts';
@@ -55,6 +57,8 @@ export {
 };
 
 export interface SimWorldOptions {
+  readonly itemBelt?: ItemCounts;
+  readonly spendItem?: (id: ItemId) => boolean;
   readonly heroId?: HeroId | null;
   readonly heroLevel?: number;
   readonly heroSkills?: readonly string[];
@@ -121,6 +125,7 @@ export class SimWorld {
   readonly projectileSystem: ProjectileSystem;
   readonly combatSystem: CombatSystem;
   readonly waveSystem: WaveSystem;
+  readonly itemSystem: ItemSystem;
   readonly abilitySystem: AbilitySystem;
   /** Barracks soldiers (idle on islands without a barracks). */
   readonly soldierSystem: SoldierSystem;
@@ -169,6 +174,7 @@ export class SimWorld {
     const opts = isRunModifiers(modsOrOptions) ? options : modsOrOptions;
     // Champion Host rewrites the story waves (a copy; the shared level data stays untouched).
     const level = mods.championWaves ? championLevel(baseLevel) : baseLevel;
+    this.itemSystem = new ItemSystem(opts?.itemBelt, opts?.spendItem, mods.itemUseCap);
     this.level = level;
     this.events = events;
     this.mods = mods;
@@ -375,6 +381,8 @@ export class SimWorld {
         return this.commandHeroMove(command.x, command.z);
       case 'castHeroSkill':
         return this.castHeroSkill(command.slot, command.x ?? NaN, command.z ?? NaN);
+      case 'useItem':
+        return this.useItem(command.id, command.x, command.z);
       case 'castAbility':
         return this.castAbility(command.id, command.x ?? NaN, command.z ?? NaN);
       case 'startEndlessFromStart':
@@ -395,6 +403,7 @@ export class SimWorld {
         towerFireRateMul: { ...this.mods.towerFireRateMul },
         bannedTowers: [...this.mods.bannedTowers],
       },
+      itemBelt: this.itemSystem.initial,
       hero: this.heroConfig
         ? {
             heroId: this.heroConfig.heroId,
@@ -419,7 +428,7 @@ export class SimWorld {
 
   /** Star rating the run would earn if it were won right now. */
   computeStars(): 1 | 2 | 3 {
-    return computeStarRating(this.lives, this.level.difficulty, this.startingLives);
+    return computeStarRating(this.lives - this.itemSystem.restoredLives, this.level.difficulty, this.startingLives);
   }
 
   setAutoWave(enabled: boolean): void {
@@ -466,6 +475,12 @@ export class SimWorld {
       this.outcome === 'ongoing' &&
       this.waveSystem.state !== 'preFirstWave'
     );
+  }
+
+  useItem(id: ItemId, x?: number, z?: number): boolean {
+    return this.itemSystem.use(this, id, x, z, () => {
+      this.recordCommand({ kind: 'useItem', id, ...(x !== undefined && z !== undefined ? { x, z } : {}) });
+    });
   }
 
   castMeteor(x: number, z: number): boolean {

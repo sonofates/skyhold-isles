@@ -27,6 +27,7 @@ export interface EnemyEntity {
   yaw: number;
   prevYaw: number;
 
+  frozenTimer: number;
   slowTimer: number;
   slowRatio: number;
   hitFlashTimer: number;
@@ -111,6 +112,7 @@ export function createEnemyEntity(poolIndex: number): EnemyEntity {
     prevZ: 0,
     yaw: 0,
     prevYaw: 0,
+    frozenTimer: 0,
     slowTimer: 0,
     slowRatio: 0,
     hitFlashTimer: 0,

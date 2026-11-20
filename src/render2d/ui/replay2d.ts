@@ -10,6 +10,7 @@
  *
  * Pure: no DOM / Pixi, unit-tested against SimWorld in tests/render/replay2d.test.ts.
  */
+import type { ItemCounts, ItemId } from '../../data/market.ts';
 import type { HeroSkillSlot, TargetingMode, TowerType } from '../../core/types.ts';
 import type { SimWorld } from '../../sim/world.ts';
 import { castMeteor2D, castOvercharge2D } from './abilities2d.ts';
@@ -30,6 +31,7 @@ export type RunCommand =
   /** `x` / `z` null = cast without a point (self skills). */
   | { readonly k: 'heroSkill'; readonly slot: HeroSkillSlot; readonly x: number | null; readonly z: number | null }
   | { readonly k: 'meteor'; readonly x: number; readonly z: number }
+  | { readonly k: 'item'; readonly id: ItemId; readonly x?: number; readonly z?: number }
   | { readonly k: 'overcharge' }
   /** Game speed (render-side only; kept for the record, the replay viewer picks its own speed). */
   | { readonly k: 'speed'; readonly s: number };
@@ -52,6 +54,7 @@ export interface RunFingerprint {
 }
 
 export interface RunReplay {
+  readonly itemBelt?: ItemCounts;
   readonly levelId: string;
   readonly commands: readonly RecordedCommand[];
   /** Tick the run ended on (the replay's length). */
@@ -87,6 +90,8 @@ export function applyRunCommand(world: SimWorld, c: RunCommand): boolean {
       return world.castHeroSkill(c.slot, c.x ?? NaN, c.z ?? NaN);
     case 'meteor':
       return castMeteor2D(world, c.x, c.z);
+    case 'item':
+      return world.useItem(c.id, c.x, c.z);
     case 'overcharge':
       return castOvercharge2D(world);
     case 'speed':
@@ -133,7 +138,7 @@ export class RunRecorder {
   }
 
   finish(world: SimWorld, tick: number): RunReplay {
-    return { levelId: this.levelId, commands: this.commands.slice(), endTick: tick, end: runFingerprint(world, tick) };
+    return { levelId: this.levelId, itemBelt: world.itemSystem.initial, commands: this.commands.slice(), endTick: tick, end: runFingerprint(world, tick) };
   }
 }
 

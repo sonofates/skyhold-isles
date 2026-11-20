@@ -1,3 +1,4 @@
+import { ITEMS } from '../data/market.ts';
 import type { EventBus } from '../core/eventBus.ts';
 import type { ObjectPool } from '../core/pool.ts';
 import type { TowerType, Vec3 } from '../core/types.ts';
@@ -67,6 +68,7 @@ export interface BarracksState {
   readonly squad: SoldierEntity[];
   /** Current tier stats of the barracks (soldier HP, damage, armor, respawn). */
   stats: TowerTierStats;
+  remainingSeconds?: number;
 }
 
 /** A road point picked for a rally flag. */
@@ -128,6 +130,7 @@ export class SoldierSystem {
   readonly soldiers: SoldierEntity[] = [];
   readonly barracks: BarracksState[] = [];
   private nextSoldierId = 1;
+  private nextBannerId = -1;
   /** Blockers may still be set on some enemy: run the clear pass even with no soldiers left. */
   private dirty = false;
   /** True while `update()` is executing (guards mid-tick re-entrant unblock emissions). */
@@ -257,13 +260,20 @@ export class SoldierSystem {
   addBarracks(tower: TowerEntity): BarracksState | null {
     const stats = getTowerTierStats(tower.type, tower.tier);
     if (!this.findRoadPoint(tower.x, tower.z, stats.range, tower.x, tower.z, _rallyRoadPt)) return null;
+    return this.createSquad(tower.id, tower.x, tower.z, _rallyRoadPt, stats);
+  }
+
+  spawnCloudguard(road: RoadPoint): void {
+    const stats = { ...getTowerTierStats('barracks', 1), soldierCount: ITEMS.cloudguard.soldiers };
+    this.createSquad(this.nextBannerId--, road.x, road.z, road, stats, ITEMS.cloudguard.seconds);
+  }
+
+  private createSquad(towerId: number, x: number, z: number, road: RoadPoint, stats: TowerTierStats, remainingSeconds?: number): BarracksState {
     const b: BarracksState = {
-      towerId: tower.id,
-      x: tower.x,
-      z: tower.z,
-      rallyX: _rallyRoadPt.x,
-      rallyZ: _rallyRoadPt.z,
-      rallyYaw: _rallyRoadPt.yaw,
+      towerId, x, z, remainingSeconds,
+      rallyX: road.x,
+      rallyZ: road.z,
+      rallyYaw: road.yaw,
       postX: [],
       postZ: [],
       squad: [],
@@ -454,6 +464,9 @@ export class SoldierSystem {
       s.swingArmed = false;
       if (s.state === 'engaging' || s.state === 'fighting') s.state = 'walking';
     }
+    for (let i = this.barracks.length - 1; i >= 0; i--) {
+      if (this.barracks[i].remainingSeconds !== undefined) this.removeBarracks(this.barracks[i].towerId);
+    }
     this.claims.fill(0);
     this.wasBlocked.fill(0);
     this.primary.fill(-1);
@@ -629,6 +642,12 @@ export class SoldierSystem {
 
   update(dt: number, towers: readonly TowerEntity[], fireRateMultiplier = 1): void {
     if (this.soldiers.length === 0 && !this.dirty) return;
+    for (let i = this.barracks.length - 1; i >= 0; i--) {
+      const b = this.barracks[i];
+      if (b.remainingSeconds === undefined) continue;
+      b.remainingSeconds -= dt;
+      if (b.remainingSeconds <= 1e-9) this.removeBarracks(b.towerId);
+    }
     this.inUpdate = true;
     this.abortedStep = false;
     try {
@@ -683,7 +702,7 @@ export class SoldierSystem {
         s.prevZ = s.z;
         if (s.hitFlashTimer > 0) s.hitFlashTimer = Math.max(0, s.hitFlashTimer - dt);
         if (s.state === 'dead') {
-          if (!jammed) {
+          if (!jammed && b.remainingSeconds === undefined) {
             s.respawnTimer -= dt * aura;
             if (s.respawnTimer <= 0) {
               this.respawn(b, s);
@@ -869,16 +888,16 @@ export class SoldierSystem {
       const b = this.getBarracks(stepBarracksIds[bi]);
       if (!b) continue;
       const tower = this.findTower(towers, b.towerId);
-      if (!tower) continue;
+      if (!tower && b.remainingSeconds === undefined) continue;
       const stats = b.stats;
       const swingRate = Math.max(0.01, stats.soldierRate ?? 1);
       const rateMul =
         rate *
-        (this.towerRateMul[tower.type] ?? 1) *
+        (tower ? (this.towerRateMul[tower.type] ?? 1) : 1) *
         (1 +
-          tower.auraRate +
-          (tower.heroRateBonus ?? 0) +
-          ((tower.overhaulTimer ?? 0) > 0 ? (tower.overhaulRateBonus ?? 0) : 0));
+          (tower?.auraRate ?? 0) +
+          (tower?.heroRateBonus ?? 0) +
+          ((tower?.overhaulTimer ?? 0) > 0 ? (tower?.overhaulRateBonus ?? 0) : 0));
       for (let i = 0; i < b.squad.length; i++) {
         const s = b.squad[i];
         if (s.state !== 'fighting') {
@@ -1405,10 +1424,12 @@ export class SoldierSystem {
     return false;
   }
 
-  private strike(tower: TowerEntity, s: SoldierEntity, e: EnemyEntity, damage: number, cleave: boolean): void {
+  private strike(tower: TowerEntity | null, s: SoldierEntity, e: EnemyEntity, damage: number, cleave: boolean): void {
     const res = this.enemySystem.applyDamage(e, damage);
-    tower.totalDamageDealt += res.actualDamage;
-    if (res.killed) tower.kills++;
+    if (tower) {
+      tower.totalDamageDealt += res.actualDamage;
+      if (res.killed) tower.kills++;
+    }
     this.events.emit('soldierAttack', {
       soldierId: s.id,
       towerId: s.towerId,

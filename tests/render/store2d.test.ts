@@ -47,13 +47,13 @@ describe('free-version scope (store2d)', () => {
     for (const l of LEVELS_2D) expect(needsFullAdventure(l.id, iap)).toBe(false);
   });
 
-  it('a desktop browser with ?iapmock=1 gets the mobile scope for QA', () => {
+  it('a desktop browser with ?iapmock=1 keeps all islands and has no store', () => {
     const p = web();
     setPlatformAdapter(p);
     const iap = createIapStore({ platform: p, storage: null, locationSearch: '?iapmock=1' });
-    expect(iap.mode).toBe('mock');
-    expect(storeEnabled(iap)).toBe(true);
-    expect(canPlayIsland(paidId, iap)).toBe(false);
+    expect(iap.mode).toBe('noop');
+    expect(storeEnabled(iap)).toBe(false);
+    expect(canPlayIsland(paidId, iap)).toBe(true);
   });
 
   it('lists the full adventure first, then the catalogue order', () => {

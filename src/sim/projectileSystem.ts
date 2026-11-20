@@ -111,7 +111,7 @@ export class ProjectileSystem {
     this.burnTickTimer = BURN_TICK_INTERVAL;
   }
 
-  private spawnBurnZone(p: ProjectileEntity): void {
+  addBurnZone(x: number, z: number, radius: number, duration: number, damage: number, towerId = -1): void {
     // Reuse an inactive slot, else overwrite the patch closest to expiry.
     let slot: BurnZone | null = null;
     let soonest = Infinity;
@@ -128,18 +128,15 @@ export class ProjectileSystem {
     }
     if (!slot) return;
     slot.active = true;
-    slot.x = p.endX;
-    slot.z = p.endZ;
-    slot.radius = p.burnRadius;
-    slot.timeLeft = p.burnDuration;
-    slot.damage = p.burnDamage;
-    slot.towerId = p.towerId;
+    slot.x = x;
+    slot.z = z;
+    slot.radius = radius;
+    slot.timeLeft = duration;
+    slot.damage = damage;
+    slot.towerId = towerId;
     this.events.emit('groundZone', {
       kind: 'fire',
-      x: p.endX,
-      z: p.endZ,
-      radius: p.burnRadius,
-      duration: p.burnDuration,
+      x, z, radius, duration,
     });
   }
 
@@ -468,7 +465,7 @@ export class ProjectileSystem {
         if (this.resetGen !== gen) return;
       }
       if (p.burnDamage > 0) {
-        this.spawnBurnZone(p);
+        this.addBurnZone(p.endX, p.endZ, p.burnRadius, p.burnDuration, p.burnDamage, p.towerId);
         if (this.resetGen !== gen) return;
       }
     } else if (p.targetPoolIndex >= 0) {

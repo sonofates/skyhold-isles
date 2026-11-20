@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { loadProgress, resetProgressSave, saveProgress } from '../../src/platform/storage.ts';
+import { PROGRESS_SAVE_VERSION, loadProgress, resetProgressSave, saveProgress } from '../../src/platform/storage.ts';
 import { ContentStore, type StorageLike } from '../../src/platform/contentStorage.ts';
 import { LEVELS } from '../../src/data/levels/index.ts';
 
@@ -63,7 +63,7 @@ describe('progress save versioning', () => {
     expect(JSON.parse(store.get(BACKUP_KEY) ?? 'null')).toEqual(v1);
     saveProgress(p);
     const stored = JSON.parse(store.get(KEY) ?? '{}') as Record<string, unknown>;
-    expect(stored.version).toBe(2);
+    expect(stored.version).toBe(PROGRESS_SAVE_VERSION);
     expect(stored.bestStars).toEqual([3, 1, ...new Array<number>(11).fill(0)]);
     expect(stored.bestEndlessWaves).toEqual([12, ...new Array<number>(12).fill(0)]);
     expect(loadProgress(13).unlockedLevelIndex).toBe(2);

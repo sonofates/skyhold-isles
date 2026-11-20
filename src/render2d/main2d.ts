@@ -1,3 +1,4 @@
+import { runItemBelt2D, spendItem2D } from './ui/market2d.ts';
 import '@fontsource-variable/fredoka';
 import './ui/fredokaTr.css';
 import { Application, UPDATE_PRIORITY } from 'pixi.js';
@@ -528,7 +529,7 @@ async function main(): Promise<void> {
       levelId: level.id,
       won: false,
       stars: 0,
-      livesRemaining: w.lives,
+      livesRemaining: Math.max(0, w.lives - w.itemSystem.restoredLives),
       waveReached: w.waveSystem.currentWaveOneBased,
       runConfig: run.runConfig,
       heroId: w.hero?.heroId ?? null,
@@ -543,6 +544,7 @@ async function main(): Promise<void> {
   hooks = {
     ...baseHooks,
     modifiers: run.modifiers,
+    ...(plainPlay ? { itemBelt: () => runItemBelt2D(runDifficulty ?? 'normal', run.modifiers.itemsDisabled), spendItem: spendItem2D } : {}),
     hero: heroSelection,
     startEndless: run.runConfig.endless,
     ...(runDifficulty ? { difficulty: runDifficulty } : {}),
@@ -579,7 +581,7 @@ async function main(): Promise<void> {
           levelId: level.id,
           won,
           stars: won ? w.computeStars() : 0,
-          livesRemaining: w.lives,
+          livesRemaining: Math.max(0, w.lives - w.itemSystem.restoredLives),
           waveReached: w.waveSystem.currentWaveOneBased,
           runConfig: run.runConfig,
           heroId: w.hero?.heroId ?? null,

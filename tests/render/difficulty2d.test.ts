@@ -167,7 +167,7 @@ describe('run URL and resolution', () => {
     const e = resolve(`level=${lvl.id}&endless=1&diff=hard`);
     expect(e.r.runConfig.endless).toBe(true);
     expect(e.r.runConfig.difficulty).toBeUndefined();
-    expect(isNeutralRun(e.r.modifiers)).toBe(true);
+    expect(e.r.modifiers).toEqual({ ...NEUTRAL_RUN_MODIFIERS, itemsDisabled: true });
     expect(e.warns.some((w) => w.includes('always Normal'))).toBe(true);
     const easy = resolve(`level=${lvl.id}&challenge=bowless&diff=easy`);
     expect(easy.r.runConfig.challenges).toEqual([]);

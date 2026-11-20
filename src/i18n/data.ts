@@ -2,6 +2,7 @@
  * Localised data-table text, looked up by the data ids. src/data/** is English and read-only here;
  * in English (or when an id is missing from DATA_TR) every lookup returns the data's own text.
  */
+import type { ItemId } from '../data/market.ts';
 import type { HeroId, TowerType } from '../core/types.ts';
 import { HERO_DEFS } from '../data/heroes.ts';
 import { HERO_ROLE_EN, HEROES_TR, type HeroTr } from './heroesTr.ts';
@@ -16,6 +17,14 @@ import { DATA_TR } from './dataTr.ts';
 import { getLocale, t } from './index.ts';
 
 const tr = (): boolean => getLocale() === 'tr';
+
+export function itemName(id: ItemId): string {
+  return t(`market.${id}.name`);
+}
+
+export function itemDesc(id: ItemId): string {
+  return t(`market.${id}.description`);
+}
 
 // --- islands ---------------------------------------------------------------------------------
 

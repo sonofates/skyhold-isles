@@ -181,7 +181,7 @@ describe('2D run modifiers composition matches 3D composition', () => {
     });
     expect(warnings.length).toBe(1);
     expect(res.runConfig).toEqual({ endless: true, challenges: [], daily: null });
-    expect(res.modifiers).toEqual(workshopModifiers(p.workshop));
+    expect(res.modifiers).toEqual({ ...workshopModifiers(p.workshop), itemsDisabled: true });
 
     const w = new SimWorld(LEVEL_L1C, new EventBus(), res.modifiers);
     expect(w.startEndlessFromStart()).toBe(true);

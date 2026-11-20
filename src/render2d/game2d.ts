@@ -1,3 +1,4 @@
+import type { ItemCounts, ItemId } from '../data/market.ts';
 import { Container, Graphics, NineSliceSprite, Sprite, Text, Texture, type Application, type TextureSource } from 'pixi.js';
 import { EventBus } from '../core/eventBus.ts';
 import { FixedTimestepStepper } from '../core/gameLoop.ts';
@@ -93,6 +94,8 @@ export interface Game2DHooks {
   hero?: HeroInitConfig | null;
   /** Start SimWorld in Endless mode from wave 1 (`startEndlessFromStart()`), keeping normal defeat flow. */
   startEndless?: boolean;
+  itemBelt?: () => ItemCounts;
+  spendItem?: (id: ItemId) => boolean;
   /**
    * The run's difficulty (its patch is already in `modifiers`): the end board shows it and caps an
    * Easy win's stars (src/data/difficulty.ts). Undefined = not shown (debug scenes).
@@ -423,10 +426,16 @@ export class Game2D {
    */
   command(c: RunCommand): boolean {
     if (this.replayCursor) return false;
-    this.recorder?.push(this.ticks, c);
+    if (c.k === 'item' && this.stepper.paused) return false;
+    if (c.k !== 'item') this.recorder?.push(this.ticks, c);
     const ok = applyRunCommand(this.world, c);
+    if (ok && c.k === 'item') this.recorder?.push(this.ticks, c);
     if (ok) this.cmdCounts.set(c.k, (this.cmdCounts.get(c.k) ?? 0) + 1);
     return ok;
+  }
+
+  useItem(id: ItemId, x?: number, z?: number): boolean {
+    return this.command({ k: 'item', id, x, z });
   }
 
   /** How many commands of a kind the sim accepted this run (coach marks). */
@@ -492,14 +501,14 @@ export class Game2D {
       this.level,
       this.events,
       this.hooks.modifiers ?? NEUTRAL_RUN_MODIFIERS,
-      heroCfg
-        ? {
-            heroId: heroCfg.heroId,
-            heroLevel: heroCfg.level,
-            heroSkills: heroCfg.skills,
-            seed: heroCfg.seed,
-          }
-        : undefined,
+      {
+        heroId: heroCfg?.heroId,
+        heroLevel: heroCfg?.level,
+        heroSkills: heroCfg?.skills,
+        seed: heroCfg?.seed,
+        itemBelt: replay ? replay.itemBelt : this.hooks.itemBelt?.(),
+        spendItem: replay ? undefined : this.hooks.spendItem,
+      },
     );
     if (this.hooks.startEndless) this.world.startEndlessFromStart();
     this.stepper.simActive = true;
@@ -1026,7 +1035,7 @@ export class Game2D {
           totalWaves: this.hudState.totalWaves,
           hasNext: !!this.hooks.onNext,
           hasReplay: !!this.lastReplay && !this.hooks.endless,
-          ...(won && diff !== 'easy' ? { starRule: { lost: Math.max(0, world.startingLives - world.lives), three: (STAR_RULES[this.level.difficulty] ?? STAR_RULES.Breezy).threeStarMaxLost, two: (STAR_RULES[this.level.difficulty] ?? STAR_RULES.Breezy).twoStarMaxLost } } : {}),
+          ...(won && diff !== 'easy' ? { starRule: { lost: Math.max(0, world.startingLives - world.lives + world.itemSystem.restoredLives), three: (STAR_RULES[this.level.difficulty] ?? STAR_RULES.Breezy).threeStarMaxLost, two: (STAR_RULES[this.level.difficulty] ?? STAR_RULES.Breezy).twoStarMaxLost } } : {}),
         });
         // main2d fills in the hero XP / mode note in this callback; the board is kept after it.
         this.hooks.onEndPanel?.(true);

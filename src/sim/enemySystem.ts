@@ -229,6 +229,7 @@ export class EnemySystem {
     entity.yaw = yaw;
     entity.prevYaw = yaw;
 
+    entity.frozenTimer = 0;
     entity.slowTimer = 0;
     entity.slowRatio = 0;
     entity.hitFlashTimer = 0;
@@ -482,7 +483,8 @@ export class EnemySystem {
         stunMul = 0;
       }
 
-      if (e.type === 'burrower') {
+      if (e.frozenTimer > 0) e.frozenTimer = Math.max(0, e.frozenTimer - dt);
+      if (e.type === 'burrower' && e.frozenTimer <= 0) {
         this.updateBurrow(e, dt);
       }
 
@@ -509,7 +511,7 @@ export class EnemySystem {
       e.dist += effectiveSpeed * dt;
       e.walkPhase += effectiveSpeed * dt * 3.4;
 
-      if (e.type === 'blinker') {
+      if (e.type === 'blinker' && e.frozenTimer <= 0) {
         this.updateBlink(e, dt);
       }
 
@@ -544,7 +546,7 @@ export class EnemySystem {
     for (let i = 0; i < activeCount; i++) {
       const idx = this.pool.getActiveIndex(i);
       const actor = this.pool.items[idx];
-      if (!actor.active || actor.hp <= 0) continue;
+      if (!actor.active || actor.hp <= 0 || actor.frozenTimer > 0) continue;
 
       const ability = ENEMY_DEFS[actor.type].ability;
       if (ability?.kind === 'refrain') {

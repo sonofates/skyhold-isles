@@ -1,3 +1,4 @@
+import { hasMarketActivity, mergeMarket, sanitizeMarket } from '../game/market.ts';
 import type { HeroId, HeroSaveData, ProgressData } from '../core/types.ts';
 import { isChallengeId } from '../data/challenges.ts';
 import { sanitizeDailyRecord, type DailyRecord } from '../data/daily.ts';
@@ -126,6 +127,7 @@ export function encodeSaveCode(progress: ProgressData, levelIds?: readonly strin
   const safeStars = trimZeros(progress.bestStars, 3);
   const payload: Record<string, unknown> = {
     v: safeVer,
+    ...(hasMarketActivity(progress.market) ? { m: sanitizeMarket(progress.market) } : {}),
     u: safeUnlock,
     s: safeStars,
     e: trimZeros(progress.bestEndlessWaves),
@@ -242,6 +244,7 @@ export function decodeSaveCode(code: string, levelCount: number): SaveCodeResult
   const progress = migrateProgress(
     {
       version: r.v,
+      market: r.m,
       unlockedLevelIndex: r.u,
       bestStars: r.s,
       bestEndlessWaves: r.e,
@@ -415,6 +418,7 @@ export function mergeProgress(a: ProgressData, b: ProgressData, levelCount: numb
   const verB = safeInt(b.version) || PROGRESS_SAVE_VERSION;
   const merged: ProgressData = {
     version: Math.max(PROGRESS_SAVE_VERSION, verA, verB),
+    market: mergeMarket(a.market, b.market),
     unlockedLevelIndex,
     bestStars,
     bestEndlessWaves: maxList(a.bestEndlessWaves, b.bestEndlessWaves),

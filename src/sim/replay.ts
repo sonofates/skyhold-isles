@@ -1,3 +1,5 @@
+import { ITEMS, ITEM_IDS, isItemId, type ItemCounts, type ItemId } from '../data/market.ts';
+import { cleanBelt } from './itemSystem.ts';
 import { EventBus } from '../core/eventBus.ts';
 import type {
   AbilityId,
@@ -67,6 +69,7 @@ export type SimCommand =
   | { readonly kind: 'setRally'; readonly towerId: number; readonly x: number; readonly z: number }
   | { readonly kind: 'moveHero'; readonly x: number; readonly z: number }
   | { readonly kind: 'castHeroSkill'; readonly slot: HeroSkillSlot; readonly x?: number; readonly z?: number }
+  | { readonly kind: 'useItem'; readonly id: ItemId; readonly x?: number; readonly z?: number }
   | { readonly kind: 'castAbility'; readonly id: AbilityId; readonly x?: number; readonly z?: number }
   | { readonly kind: 'startEndlessFromStart' }
   | { readonly kind: 'enterEndless' };
@@ -107,6 +110,7 @@ export interface SimReplayLog {
   readonly levelId: string;
   readonly seed: number;
   readonly modifiers: RunModifiers;
+  readonly itemBelt?: ItemCounts;
   readonly hero: SimReplayHeroConfig | null;
   readonly commands: readonly StampedSimCommand[];
   readonly summary: SimReplaySummary;
@@ -167,6 +171,12 @@ export function computeSimStateHash(world: SimWorld): string {
   h.f64(world.lives);
   h.u32(world.enemiesKilledTotal);
 
+  // Preserve the v1 digest for recordings that predate the item belt.
+  if (Object.keys(world.itemSystem.initial).length) {
+    const belt = world.itemSystem.belt();
+    for (const id of ITEM_IDS) h.f64(belt[id] ?? -1);
+    h.f64(world.itemSystem.restoredLives);
+  }
   const ws = world.waveSystem;
   h.str(ws.state);
   h.f64(ws.currentWaveIndex);
@@ -225,6 +235,7 @@ export function computeSimStateHash(world: SimWorld): string {
     h.u32(b.towerId);
     h.f64(b.rallyX);
     h.f64(b.rallyZ);
+    if (b.remainingSeconds !== undefined) h.f64(b.remainingSeconds);
   }
 
   const soldiers = world.soldierSystem.soldiers;
@@ -349,6 +360,7 @@ export function computeSimStateHash(world: SimWorld): string {
     h.f64(e.slowTimer);
     h.f64(e.slowRatio);
     h.f64(e.stunTimer);
+    if (e.frozenTimer > 0) h.f64(e.frozenTimer);
     h.f64(e.markTimer);
     h.f64(e.markVuln);
     h.u32(e.burrowed ? 1 : 0);
@@ -470,6 +482,11 @@ function parseSimCommand(raw: unknown): SimCommand | null {
         ? { kind: 'castHeroSkill', slot: c.slot, x: c.x as number, z: c.z as number }
         : { kind: 'castHeroSkill', slot: c.slot };
     }
+    case 'useItem':
+      if (!isItemId(c.id)) return null;
+      if (ITEMS[c.id].target === 'self') return { kind: 'useItem', id: c.id };
+      return typeof c.x === 'number' && Number.isFinite(c.x) && typeof c.z === 'number' && Number.isFinite(c.z)
+        ? { kind: 'useItem', id: c.id, x: c.x, z: c.z } : null;
     case 'castAbility': {
       if (!isAbilityId(c.id)) return null;
       const hasX = c.x !== undefined;
@@ -520,6 +537,8 @@ function sanitizeReplayModifiers(raw: unknown): RunModifiers {
     enemyHpMul: optNum(r.enemyHpMul),
     bannedTowers: banned,
     abilitiesDisabled: r.abilitiesDisabled === true,
+    itemsDisabled: r.itemsDisabled === true,
+    itemUseCap: optNum(r.itemUseCap),
     championWaves: r.championWaves === true,
     heroRespawnMul: optNum(r.heroRespawnMul),
   };
@@ -605,6 +624,7 @@ export function parseSimReplay(input: unknown): SimReplayLog | null {
     levelId: r.levelId,
     seed: r.seed >>> 0,
     modifiers: sanitizeReplayModifiers(r.modifiers),
+    itemBelt: cleanBelt(r.itemBelt),
     hero,
     commands,
     summary: {
@@ -745,6 +765,7 @@ export class SimReplayPlayer {
       heroLevel: this.replay.hero?.level ?? 1,
       heroSkills: this.replay.hero?.skills ?? [],
       seed: this.replay.seed,
+      itemBelt: this.replay.itemBelt,
       recordCommands: false,
     });
   }

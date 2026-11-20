@@ -1,3 +1,4 @@
+import { MARKET_RULES } from './market.ts';
 import { combineRunModifiers, type RunModifierPatch, type RunModifiers } from './runModifiers.ts';
 
 /**
@@ -43,6 +44,7 @@ export const DIFFICULTIES: Readonly<Record<DifficultyId, DifficultyDef>> = {
   hard: {
     id: 'hard',
     patch: {
+      itemUseCap: MARKET_RULES.useCap.hard,
       enemyHpMul: 1.09,
       startGoldMul: 0.87, startGoldBonus: -250, killGoldMul: 1.3,
       abilityCooldownMul: 1.25, heroRespawnMul: 1.25,

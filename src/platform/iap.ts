@@ -3,7 +3,7 @@
  *
  * Modes:
  *  - `'noop'`   Web & Steam desktop builds (Steam is a paid full game — zero IAPs).
- *  - `'mock'`   Deterministic mock store for unit tests and `?iapmock=1` in browser QA.
+ *  - `'mock'`   Injected mobile mock store for tests.
  *  - `'native'` Capacitor iOS / Android builds backed by `@revenuecat/purchases-capacitor`.
  *
  * Entitlements are cached in save storage (`skyhold_isles_entitlements_v1`) so offline launches
@@ -12,9 +12,11 @@
  *
  * Pure simulation layers (`src/sim`, `src/data`, `src/core`) must never import this module.
  */
+import { isCrystalPack, type CrystalPackId } from '../data/market.ts';
 import type {
   CustomerInfo,
   PurchasesStoreProduct,
+  PurchasesStoreTransaction,
 } from '@revenuecat/purchases-capacitor';
 import {
   findIapProduct,
@@ -51,6 +53,7 @@ export interface IapStoreProduct {
 
 export type IapPurchaseStatus =
   | 'purchased'
+  | 'pending_delivery'
   | 'cancelled'
   | 'unavailable'
   | 'unknown_product'
@@ -271,12 +274,13 @@ export function isIapMockEnabled(search: string = defaultLocationSearch()): bool
   }
 }
 
-// --- Mock store driver (tests & ?iapmock=1) -----------------------------------------------------
+// --- Mobile mock store driver (tests) -----------------------------------------------------
 
 export interface MockIapBackend {
   readonly products: () => Promise<IapStoreProduct[]>;
   readonly purchase: (product: IapProductDef) => Promise<{
     readonly status: 'purchased' | 'cancelled' | 'error';
+    readonly transactionId?: string;
     readonly entitlements: readonly string[];
     readonly error?: string;
   }>;
@@ -296,7 +300,7 @@ export interface MockIapBackend {
 export interface CreateMockBackendOptions {
   readonly catalogue?: readonly IapProductDef[];
   readonly initialOwned?: readonly string[];
-  /** Optional storage to persist the simulated remote receipt ledger across `?iapmock=1` reloads. */
+  /** Optional storage to persist the simulated remote receipt ledger across mock store reloads. */
   readonly ledgerStorage?: CloudStorageLike | null;
   readonly now?: () => number;
 }
@@ -351,7 +355,7 @@ export function createMockIapBackend(options: CreateMockBackendOptions = {}): Mo
         if (clean) remoteLedger.add(clean);
         writeIdSetToKey(ledgerStorage, IAP_MOCK_LEDGER_KEY, remoteLedger, now, catalogue);
       }
-      return { status: 'purchased', entitlements: [...remoteLedger] };
+      return { status: 'purchased', entitlements: [...remoteLedger], ...(product.kind === 'consumable' ? { transactionId: crypto.randomUUID() } : {}) };
     },
     async restore() {
       if (nextRestoreError !== null) {
@@ -385,7 +389,8 @@ export interface NativePurchasesBridge {
   readonly getProducts: (storeSkus: readonly string[]) => Promise<readonly PurchasesStoreProduct[]>;
   readonly purchaseStoreProduct: (
     product: PurchasesStoreProduct,
-  ) => Promise<{ readonly customerInfo: CustomerInfo }>;
+  ) => Promise<{ readonly customerInfo: CustomerInfo; readonly transaction?: PurchasesStoreTransaction }>;
+  readonly getCustomerInfo?: () => Promise<{ readonly customerInfo: CustomerInfo }>;
   readonly restorePurchases: () => Promise<{ readonly customerInfo: CustomerInfo }>;
 }
 
@@ -460,8 +465,11 @@ export function createRevenueCatBridge(options: RevenueCatBridgeOptions): Native
     },
     async purchaseStoreProduct(product: PurchasesStoreProduct) {
       const { Purchases } = await import('@revenuecat/purchases-capacitor');
-      const res = await Purchases.purchaseStoreProduct({ product });
-      return { customerInfo: res.customerInfo };
+      return Purchases.purchaseStoreProduct({ product });
+    },
+    async getCustomerInfo() {
+      const { Purchases } = await import('@revenuecat/purchases-capacitor');
+      return Purchases.getCustomerInfo();
     },
     async restorePurchases() {
       const { Purchases } = await import('@revenuecat/purchases-capacitor');
@@ -488,26 +496,25 @@ export interface CreateIapStoreOptions {
   readonly now?: () => number;
 }
 
+export function crystalStoreEnabled(platform: PlatformAdapter = getPlatform()): boolean {
+  return platform.isMobile && !platform.isSteam && !platform.isDesktop;
+}
+
 function resolveMode(
   explicitMode: IapStoreMode | undefined,
   platform: PlatformAdapter,
-  search: string,
 ): IapStoreMode {
+  if (!crystalStoreEnabled(platform)) return 'noop';
   if (explicitMode) return explicitMode;
-  // Desktop (Steam or standalone Electron) is a paid full game — never enable IAPs there.
-  if (platform.isSteam || platform.isDesktop) return 'noop';
-  if (platform.isMobile) return 'native';
-  if (isIapMockEnabled(search)) return 'mock';
-  return 'noop';
+  return 'native';
 }
 
 export function createIapStore(options: CreateIapStoreOptions = {}): IapStoreAdapter {
   const platform = options.platform ?? getPlatform();
   const storage = options.storage === undefined ? defaultStorage() : options.storage;
   const catalogue = options.catalogue ?? IAP_PRODUCTS;
-  const search = options.locationSearch ?? defaultLocationSearch();
   const now = options.now ?? (() => Date.now());
-  const mode = resolveMode(options.mode, platform, search);
+  const mode = resolveMode(options.mode, platform);
 
   if (mode === 'noop') {
     const emptySet: ReadonlySet<string> = new Set();
@@ -559,6 +566,20 @@ export function createIapStore(options: CreateIapStoreOptions = {}): IapStoreAda
 
   const entitlements = (): ReadonlySet<string> => new Set(cachedEntitlements);
 
+  const deliver = async (receipts: readonly { pack: CrystalPackId; transactionId: string }[]): Promise<boolean> => {
+    if (receipts.length === 0) return true;
+    const { deliverPacks2D } = await import('../render2d/ui/market2d.ts');
+    return deliverPacks2D(receipts);
+  };
+  const reconcile = (info: CustomerInfo): Promise<boolean> => {
+    const receipts = [];
+    for (const tx of info.nonSubscriptionTransactions ?? []) {
+      const def = resolveCatalogueProduct(tx.productIdentifier);
+      if (def && isCrystalPack(def.id)) receipts.push({ pack: def.id, transactionId: tx.transactionIdentifier });
+    }
+    return deliver(receipts);
+  };
+
   if (mode === 'mock') {
     const mock =
       options.mockBackend ??
@@ -584,6 +605,9 @@ export function createIapStore(options: CreateIapStoreOptions = {}): IapStoreAda
         }
         const res = await mock.purchase(def);
         if (res.status === 'purchased') {
+          if (isCrystalPack(def.id) && (!res.transactionId || !await deliver([{ pack: def.id, transactionId: res.transactionId }]))) {
+            return { ok: false, status: 'pending_delivery', productId: def.id, entitlements: [...cachedEntitlements] };
+          }
           const updated =
             def.kind === 'non_consumable'
               ? persistEntitlements([...res.entitlements, def.entitlementId])
@@ -637,6 +661,15 @@ export function createIapStore(options: CreateIapStoreOptions = {}): IapStoreAda
       const cfg = await native.ensureConfigured();
       if (!cfg.ok) return [];
       try {
+        let canSellCrystals = true;
+        if (native.getCustomerInfo) {
+          try {
+            const { customerInfo } = await native.getCustomerInfo();
+            canSellCrystals = await reconcile(customerInfo);
+          } catch {
+            canSellCrystals = false;
+          }
+        }
         const skus = catalogue.map((p) => p.storeProductId);
         const rawProducts = await native.getProducts(skus);
         const out: IapStoreProduct[] = [];
@@ -645,7 +678,7 @@ export function createIapStore(options: CreateIapStoreOptions = {}): IapStoreAda
           const def = catalogue.find(
             (p) => p.storeProductId === sp.identifier || p.id === sp.identifier,
           );
-          if (!def) continue;
+          if (!def || (!canSellCrystals && isCrystalPack(def.id))) continue;
           out.push({
             id: def.id,
             storeProductId: sp.identifier,
@@ -700,7 +733,13 @@ export function createIapStore(options: CreateIapStoreOptions = {}): IapStoreAda
             error: `Store SKU "${def.storeProductId}" not returned by native store.`,
           };
         }
-        const { customerInfo } = await native.purchaseStoreProduct(storeProduct);
+        const { customerInfo, transaction } = await native.purchaseStoreProduct(storeProduct);
+        if (isCrystalPack(def.id)) {
+          if (!transaction || resolveCatalogueProduct(transaction.productIdentifier)?.id !== def.id ||
+              !await deliver([{ pack: def.id, transactionId: transaction.transactionIdentifier }])) {
+            return { ok: false, status: 'pending_delivery', productId: def.id, entitlements: [...cachedEntitlements] };
+          }
+        }
         const extracted = extractEntitlementsFromCustomerInfo(customerInfo, catalogue);
         if (def.kind === 'non_consumable' && !extracted.includes(def.entitlementId)) {
           extracted.push(def.entitlementId);
@@ -743,6 +782,7 @@ export function createIapStore(options: CreateIapStoreOptions = {}): IapStoreAda
       try {
         const before = new Set(cachedEntitlements);
         const { customerInfo } = await native.restorePurchases();
+        if (!await reconcile(customerInfo)) return { ok: false, restored: [], entitlements: [...cachedEntitlements] };
         const extracted = extractEntitlementsFromCustomerInfo(customerInfo, catalogue);
         const updated = persistEntitlements(extracted);
         const restored = updated.filter((e) => !before.has(e));
@@ -769,7 +809,17 @@ export function getIap(): IapStoreAdapter {
   return activeIapStore;
 }
 
-/** Replaces or resets (`null`) the singleton IAP store (for unit tests). */
+export async function listCrystalPacks(): Promise<IapStoreProduct[]> {
+  if (!crystalStoreEnabled()) return [];
+  return (await getIap().products()).filter(p => isCrystalPack(p.id));
+}
+
+export async function purchaseCrystalPack(id: CrystalPackId): Promise<IapPurchaseResult> {
+  if (!crystalStoreEnabled() || !isCrystalPack(id)) return { ok: false, status: 'unavailable', productId: id, entitlements: [] };
+  return getIap().purchase(id);
+}
+
+/** Replaces or resets the singleton IAP store for tests. */
 export function setIapStore(store: IapStoreAdapter | null): void {
   activeIapStore = store;
 }

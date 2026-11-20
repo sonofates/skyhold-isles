@@ -1,3 +1,4 @@
+import { hasMarketActivity, mergeMarket, sanitizeMarket } from '../game/market.ts';
 import type { GameSettings, ProgressData, QualityLevel } from '../core/types.ts';
 import { isChallengeId } from '../data/challenges.ts';
 import { createDailyRecord, sanitizeDailyRecord, type DailyRecord } from '../data/daily.ts';
@@ -194,9 +195,9 @@ export const DEFAULT_SETTINGS: GameSettings = getDefaultSettings();
 
 /**
  * Current progress save format. v1 = unlock/stars/endless only; v2 adds bestLives, clears,
- * Workshop ranks and challenge clears.
+ * Workshop ranks and challenge clears. v3 adds the Market wallet, belt, and receipts.
  */
-export const PROGRESS_SAVE_VERSION = 2;
+export const PROGRESS_SAVE_VERSION = 3;
 /** One-time copy of a pre-migration save, written before the first save in a newer format. */
 export const PROGRESS_BACKUP_KEY = 'skyhold_isles_progress_backup_v1';
 /** Forensic copy preserved once if the primary save slot encounters corrupted / truncated JSON. */
@@ -206,6 +207,7 @@ export function createDefaultProgress(levelCount: number): ProgressData {
   const count = Number.isFinite(levelCount) ? Math.max(0, Math.floor(levelCount)) : 0;
   return {
     version: PROGRESS_SAVE_VERSION,
+    market: sanitizeMarket(),
     unlockedLevelIndex: 0,
     bestStars: new Array<number>(count).fill(0),
     bestEndlessWaves: new Array<number>(count).fill(0),
@@ -572,6 +574,7 @@ export function migrateProgress(parsed: unknown, levelCount: number): ProgressDa
   }
   const progress: ProgressData = {
     version: PROGRESS_SAVE_VERSION,
+    market: sanitizeMarket(raw.market),
     unlockedLevelIndex: unlocked,
     bestStars,
     bestEndlessWaves,
@@ -636,7 +639,7 @@ function combineRecoveredProgress(
   if (!mirror) return migrateProgress(primary, levelCount);
 
   const count = Number.isFinite(levelCount) ? Math.max(0, Math.floor(levelCount)) : 0;
-  const combined: Record<string, unknown> = { ...mirror, ...primary };
+  const combined: Record<string, unknown> = { ...mirror, ...primary, market: mergeMarket(primary.market, mirror.market) };
 
   for (const key of ['bestStars', 'bestEndlessWaves', 'bestLives', 'clears']) {
     const pa = primary[key];
@@ -981,6 +984,7 @@ export function hasAnyProgress(p: ProgressData): boolean {
   const rawH = p.heroes ?? rawObj.h;
   const rawWc = p.wonChallenges ?? rawObj.wc;
   return (
+    hasMarketActivity(p.market) ||
     pos(p.unlockedLevelIndex) ||
     anyPos(p.bestStars) ||
     anyPos(p.clears) ||

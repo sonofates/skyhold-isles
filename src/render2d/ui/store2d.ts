@@ -7,8 +7,7 @@
  * reached) and opens this card: the store's products with their names and prices as the store
  * adapter gives them, Buy, and Restore purchases.
  *
- * Web and Steam never show any of it (`storeEnabled()` is false: every island is playable). In a
- * desktop browser `?iapmock=1` turns the mock store on for QA, exactly as `platform/iap.ts` does.
+ * Web and Steam never show any of it (`storeEnabled()` is false: every island is playable).
  */
 import { FREE_ISLANDS, getIap, getPlatform, isUnlocked, type IapStoreAdapter, type IapStoreProduct } from '../../platform/index.ts';
 import { FULL_UNLOCK_ENTITLEMENT } from '../../platform/iapProducts.ts';
@@ -19,8 +18,7 @@ import { SEAL_GLYPHS, type IconName } from './paintedIcons.ts';
 /** Is the free-version scope (and the store) in force on this build? */
 export function storeEnabled(iap: IapStoreAdapter = getIap()): boolean {
   const p = getPlatform();
-  if (p.isSteam || iap.mode === 'noop') return false;
-  return p.isMobile || iap.mode === 'mock';
+  return p.isMobile && !p.isDesktop && !p.isSteam && iap.mode !== 'noop';
 }
 
 /** Can the island be played on this build (always on web / Steam; free isles or full unlock on mobile)? */
@@ -132,7 +130,7 @@ export function openStore(opts: StoreCardOptions): Sheet {
 
   const load = async (): Promise<void> => {
     list.replaceChildren(el('div', 'pu-store-empty pu-ink-soft', {}, t('store.loading')));
-    products = await iap.products().catch((): IapStoreProduct[] => []);
+    products = (await iap.products().catch((): IapStoreProduct[] => [])).filter(product => product.kind === 'non_consumable');
     if (products.length === 0) {
       const retry = plank(t('store.retry'), { kind: 'small', testid: 'store2d-retry' });
       retry.addEventListener('click', () => void load());

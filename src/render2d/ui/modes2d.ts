@@ -330,7 +330,9 @@ export function resolveQueryRun2D(
     !hasWorkshop && runConfig.challenges.length === 0 && difficulty === 'normal'
       ? NEUTRAL_RUN_MODIFIERS
       : composeRunModifiers2D(workshop, runConfig.challenges, difficulty);
-  const modifiers = isNeutralRun(composed) ? NEUTRAL_RUN_MODIFIERS : composed;
+  const competitive = runConfig.endless || runConfig.daily !== null || runConfig.challenges.length > 0;
+  const modifiers = competitive ? { ...composed, itemsDisabled: true }
+    : isNeutralRun(composed) ? NEUTRAL_RUN_MODIFIERS : composed;
 
   return { levelId, level, runConfig, modifiers };
 }

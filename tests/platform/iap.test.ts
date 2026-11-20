@@ -121,7 +121,7 @@ describe('IAP store adapter: web & Steam no-op', () => {
     expect(mobileStore.owned('full_unlock')).toBe(true);
   });
 
-  it('detects ?iapmock=1 in browser query strings and activates mock mode on web', async () => {
+  it('detects ?iapmock=1 in browser query strings without activating the store on web', async () => {
     expect(isIapMockEnabled('')).toBe(false);
     expect(isIapMockEnabled('?level=l1c')).toBe(false);
     expect(isIapMockEnabled('?iapmock=0')).toBe(false);
@@ -133,8 +133,8 @@ describe('IAP store adapter: web & Steam no-op', () => {
       storage: createMemStorage(),
       locationSearch: '?iapmock=1',
     });
-    expect(store.mode).toBe('mock');
-    expect((await store.products()).map((p) => p.id)).toEqual([...IAP_PRODUCT_IDS]);
+    expect(store.mode).toBe('noop');
+    expect(await store.products()).toEqual([]);
   });
 });
 
@@ -143,6 +143,7 @@ describe('IAP store adapter: mock store (purchase, restore, owned, save cache su
     const storage = createMemStorage();
     const backend = createMockIapBackend({ ledgerStorage: storage, now: () => 1700000000000 });
     const store1 = createIapStore({
+      platform: createMobilePlatform(),
       mode: 'mock',
       storage,
       mockBackend: backend,
@@ -150,7 +151,7 @@ describe('IAP store adapter: mock store (purchase, restore, owned, save cache su
     });
 
     const products = await store1.products();
-    expect(products.map((p) => p.id)).toEqual(['remove_ads', 'starter_pack', 'full_unlock']);
+    expect(products.map((p) => p.id)).toEqual([...IAP_PRODUCT_IDS]);
     // Catalogue must not invent real prices.
     for (const p of products) {
       expect(p.priceString).toBe('MOCK');
@@ -175,6 +176,7 @@ describe('IAP store adapter: mock store (purchase, restore, owned, save cache su
     // sharing only the persisted local save storage: cached entitlement survives reload immediately.
     const freshOfflineBackend = createMockIapBackend();
     const storeAfterReload = createIapStore({
+      platform: createMobilePlatform(),
       mode: 'mock',
       storage,
       mockBackend: freshOfflineBackend,
@@ -190,7 +192,7 @@ describe('IAP store adapter: mock store (purchase, restore, owned, save cache su
     });
 
     // Fresh install: local save has nothing yet, so owned() is false before restore().
-    const store = createIapStore({ mode: 'mock', storage, mockBackend: backend });
+    const store = createIapStore({ platform: createMobilePlatform(), mode: 'mock', storage, mockBackend: backend });
     expect(store.owned('remove_ads')).toBe(false);
     expect(store.owned('starter_pack')).toBe(false);
 
@@ -214,6 +216,7 @@ describe('IAP store adapter: mock store (purchase, restore, owned, save cache su
     // Wipe the local entitlement save key and reload with ?iapmock=1 ledger storage.
     const sharedStorage = createMemStorage();
     const browserMock1 = createIapStore({
+      platform: createMobilePlatform(),
       mode: 'mock',
       storage: sharedStorage,
     });
@@ -221,6 +224,7 @@ describe('IAP store adapter: mock store (purchase, restore, owned, save cache su
     sharedStorage.deleteKey(IAP_SAVE_KEY);
 
     const browserMock2 = createIapStore({
+      platform: createMobilePlatform(),
       mode: 'mock',
       storage: sharedStorage,
     });
@@ -235,7 +239,7 @@ describe('IAP store adapter: mock store (purchase, restore, owned, save cache su
     const storage = createMemStorage();
     storage.setItem(IAP_SAVE_KEY, '{not-valid-json');
     const backend = createMockIapBackend();
-    const store = createIapStore({ mode: 'mock', storage, mockBackend: backend });
+    const store = createIapStore({ platform: createMobilePlatform(), mode: 'mock', storage, mockBackend: backend });
 
     expect(store.owned('full_unlock')).toBe(false);
 
@@ -276,7 +280,7 @@ describe('IAP store adapter: mock store (purchase, restore, owned, save cache su
     };
     try {
       resetProgressSave(16);
-      const reloaded = createIapStore({ mode: 'mock', storage, mockBackend: createMockIapBackend() });
+      const reloaded = createIapStore({ platform: createMobilePlatform(), mode: 'mock', storage, mockBackend: createMockIapBackend() });
       expect(reloaded.owned('full_unlock')).toBe(true);
     } finally {
       g.localStorage = prevLs;
@@ -404,6 +408,7 @@ describe('IAP store adapter: native RevenueCat bridge', () => {
       ledgerStorage: storage,
     });
     const store = createIapStore({
+      platform: createMobilePlatform(),
       mode: 'mock',
       storage,
       catalogue: customCatalogue,
@@ -469,7 +474,7 @@ describe('Free-version scope gate (FREE_ISLANDS + isUnlocked) & catalogue invari
   });
 
   it('keeps placeholder catalogue in one file with zero ad SDKs and single MOBILE_APP_ID source', () => {
-    expect(IAP_PRODUCTS.map((p) => p.id)).toEqual(['remove_ads', 'starter_pack', 'full_unlock']);
+    expect(IAP_PRODUCTS.map((p) => p.id)).toEqual([...IAP_PRODUCT_IDS]);
     const pkg = JSON.parse(readFileSync(resolve(ROOT, 'package.json'), 'utf8')) as {
       dependencies?: Record<string, string>;
       devDependencies?: Record<string, string>;

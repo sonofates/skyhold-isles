@@ -1,3 +1,4 @@
+import type { MarketSave } from '../game/market.ts';
 export type TileType = 'empty' | 'grass' | 'decor' | 'path' | 'spawn' | 'goal';
 
 export interface GridCoord {
@@ -90,6 +91,7 @@ export interface GameSettings {
  * Arrays are indexed by island index (islands are only ever appended).
  */
 export interface ProgressData {
+  market?: MarketSave;
   /** Save format version (see PROGRESS_SAVE_VERSION in platform/storage.ts). */
   version: number;
   unlockedLevelIndex: number;

@@ -15,8 +15,8 @@ All native capabilities and billing calls sit strictly behind `src/platform/` (`
 | Android project | `android/` (`AndroidManifest.xml`, `MainActivity.java`) | `sensorLandscape` orientation lock; `MainActivity` enables edge-to-edge layout (`LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES`) so `env(safe-area-inset-*)` receives cutout insets and hides system bars with `BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE` (re-applied on window focus). |
 | iOS project | `ios/` (`ios/App/App/Info.plist`, `Package.swift`) | Landscape-only (`UIInterfaceOrientationLandscapeLeft` + `LandscapeRight` on iPhone & iPad), `UIRequiresFullScreen = true`, `UIStatusBarHidden = true`, Swift Package Manager plugin wiring. |
 | Platform adapter | `src/platform/platform.ts`, `src/platform/haptics.ts` | Adds `isMobile`, `mobilePlatform`, `triggerHaptic(...)`, `onPause(cb)`, and `onResume(cb)` to `PlatformAdapter`; routes shared `haptics` (`Haptics.pulse`) through `@capacitor/haptics` when native while keeping Settings gating intact. |
-| IAP product catalogue | `src/platform/iapProducts.ts` | Single data file defining placeholder IDs (`remove_ads`, `starter_pack`, `full_unlock`) with `TODO(owner)` markers and **zero** hardcoded prices, bundle contents, or ad SDKs. |
-| IAP store & scope gate | `src/platform/iap.ts` | `products()`, `purchase(id)`, `restore()`, `owned(id)`, `entitlements()`, save-backed entitlement cache (`skyhold_isles_entitlements_v1`), mock store (`?iapmock=1`), native RevenueCat bridge, and pure scope gate `isUnlocked(levelId, entitlements)` + `FREE_ISLANDS`. |
+| IAP product catalogue | `src/platform/iapProducts.ts` | Single data file defining placeholder entitlement and crystal-pack IDs with `TODO(owner)` markers and **zero** hardcoded prices, bundle contents, or ad SDKs. |
+| IAP store & scope gate | `src/platform/iap.ts` | `products()`, `purchase(id)`, `restore()`, `owned(id)`, `entitlements()`, save-backed entitlement cache (`skyhold_isles_entitlements_v1`), injected mobile test store, native RevenueCat bridge, and pure scope gate `isUnlocked(levelId, entitlements)` + `FREE_ISLANDS`. |
 
 ---
 
@@ -56,15 +56,14 @@ getPlatform().onPause(() => { game.stepper.paused = true; });
 - Turning **Vibration** off in 2D Settings (`settings.haptics = false`) disables native Capacitor haptics identically.
 
 ### C. Free-Version Scope Gate (`isUnlocked` + `FREE_ISLANDS`) & IAP Calls
-In `src/render2d/ui/worldMap.ts` (or `briefing.ts` / `inGame.ts`), gate islands beyond `FREE_ISLANDS` on mobile (and during browser QA when `?iapmock=1` is in the URL):
+In `src/render2d/ui/worldMap.ts` (or `briefing.ts` / `inGame.ts`), gate islands beyond `FREE_ISLANDS` on native mobile builds:
 
 ```ts
 import { FREE_ISLANDS, getIap, getPlatform, isUnlocked } from '../../platform/index.ts';
 
 const iap = getIap();
 // Steam & regular web builds do not gate campaign islands (`iap.mode === 'noop'`).
-// Enforce the free-tier scope cut on native mobile builds AND in browser `?iapmock=1` QA:
-const enforceMobileScope = getPlatform().isMobile || iap.mode === 'mock';
+const enforceMobileScope = getPlatform().isMobile && iap.mode !== 'noop';
 
 function canPlayIslandOnCurrentTier(levelId: string): boolean {
   if (!enforceMobileScope) return true;
@@ -75,7 +74,7 @@ function canPlayIslandOnCurrentTier(levelId: string): boolean {
 Store UI actions (e.g. a "Unlock Full Game" / "Restore Purchases" sheet in the briefing or Settings screen):
 
 ```ts
-// 1. Fetch localized prices & titles from App Store / Play Billing (or mock placeholders under ?iapmock=1):
+// 1. Fetch localized prices & titles from App Store / Play Billing:
 const catalog = await iap.products(); // -> IapStoreProduct[]
 
 // 2. Buy full campaign unlock:
@@ -92,11 +91,9 @@ if (restored.ok) {
 }
 ```
 
-### D. Testing IAP in a Desktop Browser (`?iapmock=1`)
-Open `http://localhost:5173/2d.html?iapmock=1`:
-- `getIap().mode` switches from `'noop'` to `'mock'`.
-- `await getIap().products()` returns the 3 placeholder products (`remove_ads`, `starter_pack`, `full_unlock`) with `priceString: 'MOCK'`.
-- `await getIap().purchase('full_unlock')` writes both the save entitlement cache (`skyhold_isles_entitlements_v1`) and a simulated store receipt ledger (`skyhold_isles_iap_mock_ledger_v1`) in `localStorage`, so reloading the tab preserves ownership AND deleting `skyhold_isles_entitlements_v1` in DevTools lets you test `await getIap().restore()`.
+### D. Testing mobile purchases
+
+Use `createIapStore({ platform: mobileAdapter, mode: 'mock' })` in unit tests. Web and desktop builds always use the no-op store, including with `?iapmock=1`. For crystal packs, receipt redelivery and Market UI integration, see [the Market contract](market.md).
 
 ---
 
@@ -223,7 +220,7 @@ npm run mobile:open:ios
    - **Google Play Console** ($25 one-time) + Merchant/Payments profile + internal/closed testing track.
    - **RevenueCat account** (free tier covers up to $2.5k MTR): link App Store Connect shared secret / In-App Purchase key & Google Play service account, then paste the two public SDK keys (`appl_...` and `goog_...`) into `REVENUECAT_API_KEYS` in `src/platform/mobileConfig.ts`.
 3. **IAP Product List, Regional Prices & Contents (`src/platform/iapProducts.ts`):**
-   - Current placeholders (`TODO(owner)`): `remove_ads`, `starter_pack`, `full_unlock` — **no prices or bundle contents are set**.
+   - Legacy entitlement placeholders (`TODO(owner)`): `remove_ads`, `starter_pack`, `full_unlock` — **no prices or bundle contents are set**.
    - **Decisions needed:**
      - Does the free mobile version include ads at all? *(Currently zero ad SDKs are installed; if the game stays ad-free with a "try 6 islands free → buy `full_unlock`" model, drop `remove_ads`.)*
      - Keep or drop `starter_pack`? If kept, what non-pay-to-win content does it grant (cosmetics / early Workshop stars / extra challenge pack)?

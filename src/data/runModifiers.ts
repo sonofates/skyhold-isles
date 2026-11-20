@@ -1,3 +1,4 @@
+import { MARKET_RULES } from './market.ts';
 import type { TowerType } from '../core/types.ts';
 import { TOWER_DEFS } from './towers.ts';
 
@@ -26,6 +27,8 @@ export interface RunModifiers {
   /** Tower types that cannot be built this run. */
   readonly bannedTowers: readonly TowerType[];
   readonly abilitiesDisabled: boolean;
+  readonly itemsDisabled: boolean;
+  readonly itemUseCap: number;
   /** Story waves: the largest ordinary group of every wave spawns Empowered (see champions.ts). */
   readonly championWaves: boolean;
   /** Scales the hero's respawn timer (difficulty; 1 = the hero's own timer). */
@@ -45,6 +48,8 @@ export const NEUTRAL_RUN_MODIFIERS: RunModifiers = Object.freeze({
   enemyHpMul: 1,
   bannedTowers: Object.freeze([]) as readonly TowerType[],
   abilitiesDisabled: false,
+  itemsDisabled: false,
+  itemUseCap: MARKET_RULES.useCap.normal,
   championWaves: false,
   heroRespawnMul: 1,
 });
@@ -72,6 +77,7 @@ export function combineRunModifiers(...patches: readonly RunModifierPatch[]): Ru
   let enemyHpMul = 1;
   const banned = new Set<TowerType>();
   let abilitiesDisabled = false;
+  let itemUseCap: number = MARKET_RULES.useCap.normal;
   let championWaves = false;
   let heroRespawnMul = 1;
   const fin = (v: number | undefined, fb: number): number =>
@@ -103,6 +109,7 @@ export function combineRunModifiers(...patches: readonly RunModifierPatch[]): Ru
     for (const t of p.bannedTowers ?? []) {
       if (is2DTower(t)) banned.add(t);
     }
+    itemUseCap = Math.min(itemUseCap, Math.floor(finNonNeg(p.itemUseCap, itemUseCap)));
     abilitiesDisabled = abilitiesDisabled || p.abilitiesDisabled === true;
     championWaves = championWaves || p.championWaves === true;
     heroRespawnMul *= finPos(p.heroRespawnMul, 1);
@@ -125,6 +132,8 @@ export function combineRunModifiers(...patches: readonly RunModifierPatch[]): Ru
     enemyHpMul: clampRange(enemyHpMul, 0.05, 1_000, 1),
     bannedTowers: [...banned],
     abilitiesDisabled,
+    itemUseCap,
+    itemsDisabled: abilitiesDisabled || patches.some(p => p.itemsDisabled === true),
     championWaves,
     heroRespawnMul: clampRange(heroRespawnMul, 0.05, 100, 1),
   };
@@ -145,6 +154,8 @@ export function isNeutralRun(m: RunModifiers): boolean {
     m.enemyHpMul === 1 &&
     m.bannedTowers.length === 0 &&
     !m.abilitiesDisabled &&
+    !m.itemsDisabled &&
+    (m.itemUseCap ?? MARKET_RULES.useCap.normal) === MARKET_RULES.useCap.normal &&
     !m.championWaves &&
     (m.heroRespawnMul ?? 1) === 1
   );

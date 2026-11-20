@@ -90,7 +90,7 @@ export const CHALLENGES: Readonly<Record<ChallengeId, ChallengeDef>> = {
     id: 'silentSkies',
     name: 'Silent Skies',
     description: 'Meteor Strike and Overcharge are disabled',
-    patch: { abilitiesDisabled: true },
+    patch: { abilitiesDisabled: true, itemsDisabled: true },
   },
   championHost: {
     id: 'championHost',
@@ -174,7 +174,7 @@ export function sanitizeChallengeSelection(
 
 export function challengeModifiers(ids: readonly ChallengeId[]): RunModifiers {
   if (!Array.isArray(ids) || ids.length === 0) return combineRunModifiers();
-  return combineRunModifiers(...ids.filter(isChallengeId).map((id) => CHALLENGES[id].patch));
+  return combineRunModifiers({ itemsDisabled: ids.some(isChallengeId) }, ...ids.filter(isChallengeId).map((id) => CHALLENGES[id].patch));
 }
 
 /** Workshop upgrades + the run's challenges (challenges' `maxLives` overrides Workshop lives). */
@@ -185,5 +185,5 @@ export function runModifiersFor(
   if (!Array.isArray(challenges) || challenges.length === 0) return workshop;
   const valid = challenges.filter(isChallengeId);
   if (valid.length === 0) return workshop;
-  return combineRunModifiers(workshop, ...valid.map((id) => CHALLENGES[id].patch));
+  return combineRunModifiers(workshop, { itemsDisabled: valid.length > 0 }, ...valid.map((id) => CHALLENGES[id].patch));
 }

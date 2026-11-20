@@ -1,21 +1,22 @@
 /**
- * Mobile IAP product catalogue — placeholder identifiers ONLY (no prices, no bundle contents).
+ * Mobile IAP product catalogue — native store identifiers and product kinds.
  *
  * TODO(owner): Decide the final mobile product line-up, exact store SKUs in App Store Connect and
- * Google Play Console, regional pricing tiers, and what each pack grants.
+ * Google Play Console, and regional pricing tiers. Crystal grants live in data/market.ts.
  *
  * Rules enforced here:
  *  - All catalogue entries live in this single file.
  *  - Prices and localized store strings are NEVER hardcoded here; they come from the native store
- *    at runtime (`iap.products()`) or mock placeholders when `?iapmock=1` is active.
+ *    at runtime (`iap.products()`) or placeholders in injected test stores.
  *  - No ad SDKs are installed anywhere in the project (`remove_ads` is store plumbing only).
  */
+import { CRYSTAL_PACK_IDS } from '../data/market.ts';
 import { MOBILE_APP_ID } from './mobileConfig.ts';
 
 export type IapProductKind = 'non_consumable' | 'consumable';
 
 // TODO(owner): Confirm or revise placeholder product IDs before creating store entries.
-export const IAP_PRODUCT_IDS = ['remove_ads', 'starter_pack', 'full_unlock'] as const;
+export const IAP_PRODUCT_IDS = ['remove_ads', 'starter_pack', 'full_unlock', ...CRYSTAL_PACK_IDS] as const;
 
 export type IapProductId = (typeof IAP_PRODUCT_IDS)[number];
 
@@ -39,7 +40,7 @@ export interface IapProductDef {
   readonly entitlementId: string;
 }
 
-// TODO(owner): Placeholder catalogue — no prices or contents decided.
+// TODO(owner): Register the SKUs after the app id and store tiers are final.
 export const IAP_PRODUCTS: readonly IapProductDef[] = [
   {
     // TODO(owner): Decide whether the free mobile build displays ads at all (no ad SDK included).
@@ -62,6 +63,9 @@ export const IAP_PRODUCTS: readonly IapProductDef[] = [
     storeProductId: `${MOBILE_APP_ID}.full_unlock`,
     entitlementId: FULL_UNLOCK_ENTITLEMENT,
   },
+  ...CRYSTAL_PACK_IDS.map(id => ({
+    id, kind: 'consumable' as const, storeProductId: `${MOBILE_APP_ID}.${id}`, entitlementId: '',
+  })),
 ] as const;
 
 /** Looks up a catalogue entry by internal `id`, `storeProductId`, or `entitlementId`. */

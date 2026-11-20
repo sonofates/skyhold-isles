@@ -1412,7 +1412,8 @@ describe('Daily Squall, Endless escalations, and Silent Skies + Hero interaction
     expect(cs.getOnboardingStatus()).toBe('done');
 
     expect(isMobileLevelUnlocked(null as never, ['full_unlock'])).toBe(false);
-    const mockIap = createIapStore({ mode: 'mock', storage: null });
+    const { createPlatformAdapter } = await import('../../src/platform/platform.ts');
+    const mockIap = createIapStore({ mode: 'mock', platform: { ...createPlatformAdapter({ bridge: null, mobile: null }), isMobile: true }, storage: null });
     expect(mockIap.owned(null as never)).toBe(false);
     expect((await mockIap.purchase(null as never)).status).toBe('unknown_product');
   });
