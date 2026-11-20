@@ -185,13 +185,16 @@ async function act(page, action, key, size) {
       await page.click('[data-testid="codex2d-open"]', { timeout: 15000 }).catch(() => problems.push(`${key}: no Codex button`));
       await page.click('[data-testid="codex-tab-towers"]', { timeout: 15000 }).catch(() => problems.push(`${key}: no Towers tab`));
       await page.click('[data-testid="codex-tile-tesla"]', { timeout: 15000 }).catch(() => problems.push(`${key}: no tesla tile`));
-      // Scroll the detail card so the branch cards start at its top edge (no line cut in half).
+      // Scroll the detail card towards the branch cards, snapped so a block starts at its top edge
+      // (at the end of the scroll range a line would otherwise sit cut in half under the edge).
       await page
         .evaluate(() => {
           const d = document.querySelector('[data-testid="codex-detail"]');
           const s = document.querySelector('[data-testid="codex-specs"]');
-          const cs = getComputedStyle(d);
-          d.scrollTop += s.getBoundingClientRect().top - (d.getBoundingClientRect().top + d.clientTop + parseFloat(cs.paddingTop));
+          const top0 = d.getBoundingClientRect().top + d.clientTop + parseFloat(getComputedStyle(d).paddingTop) - d.scrollTop;
+          const offs = [...d.children].map((c) => c.getBoundingClientRect().top - top0);
+          const want = Math.min(s.getBoundingClientRect().top - top0, d.scrollHeight - d.clientHeight);
+          d.scrollTop = Math.max(0, ...offs.filter((o) => o <= want + 0.5));
         })
         .catch(() => problems.push(`${key}: no specializations in the codex`));
       await page.waitForTimeout(900);

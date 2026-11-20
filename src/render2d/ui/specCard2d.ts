@@ -112,11 +112,9 @@ export function openSpecCard(o: SpecCardOptions): Sheet {
     );
     cols.append(col);
   }
-  sheet.body.append(
-    el('div', 'pu-cx-kicker pu-ink-soft pu-spec-kicker', {}, t('spec.kicker', { name: towerName(o.type) })),
-    cols,
-    el('p', 'pu-ink-soft pu-spec-note', {}, t('spec.permanent')),
-  );
+  sheet.body.append(el('div', 'pu-cx-kicker pu-ink-soft pu-spec-kicker', {}, t('spec.kicker', { name: towerName(o.type) })), cols);
+  // The "permanent" line is the board's fixed foot (always in view, the columns scroll above it).
+  sheet.body.after(el('p', 'pu-ink-soft pu-spec-note', {}, t('spec.permanent')));
   // Focus: the tapped branch's plank, else the other affordable one (nav users land on a choice).
   const usable = planks.filter((p) => !p.btn.disabled);
   const first = usable.find((p) => p.id === o.focus) ?? usable[0];
