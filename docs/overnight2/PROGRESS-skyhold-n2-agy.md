@@ -105,7 +105,7 @@
   - **Elite Multi-Hold Claim & Peel-Off Accounting (`soldierSystem.ts`, `tests/sim/barracks.test.ts`):**
     - Counted active `extraHoldPoolIndices` in `SoldierSystem.updateStep` Step 2 (`this.claims`) and `inContact()` so spare soldiers peel off to newly arriving unheld foes when an enemy is already covered by an elite `soldierHoldCap > 1` squadmate (`0` diff on `holdCap === 1` tiers).
 
-- [x] **12. Post-Backlog Deep Audit — Round 7 (`src/sim/soldierSystem.ts`, `qa/bot/invariants.ts`, `src/platform/{storage,achievements}.ts`, `src/render2d/ui/progress2d.ts`, `desktop/main.cjs`, `tests/**`)**
+- [x] **12. Post-Backlog Deep Audit — Round 7 (`src/sim/soldierSystem.ts`, `qa/bot/invariants.ts`, `src/platform/{storage,achievements}.ts`, `src/render2d/ui/progress2d.ts`, `desktop/main.cjs`, `tests/**`)** — commit `af2f21f`
   - **Elite Multi-Hold (`soldierHoldCap > 1`) Queue Rank, Peel-Off Priority & Claim Hygiene (`soldierSystem.ts`, `qa/bot/invariants.ts`, `tests/sim/barracks.test.ts`):**
     - Fixed `SoldierSystem.applyExtraHolds()` to offset `queueStopDist` by `alreadyHeldBehind` (the count of already-held foes queued in the same `BLOCK_CLUSTER_GAP` behind `primary`), so a second `holdCap > 1` squadmate fighting the same front enemy cleanly holds queue rank 2+ instead of rejecting it against rank 1's distance window.
     - Added `canPeelOffExtraHolds()` and extra-hold claim cleanup in `claim()` / contact-slack disengage (`this.claims.fill(0)`) so full-capacity elite soldiers never abandon closer extra-held foes to chase trailing arrivals, while cleanly peeling off to closer threats with zero leaked extra-hold state (enforced per-tick in `InvariantMonitor`; `0` diff on `holdCap === 1` tiers).
@@ -115,6 +115,17 @@
   - **Read-Safe `postHydrationStarsRefs` WeakSet, Achievement Normalization & `steam:get-status` IPC Guard (`progress2d.ts`, `achievements.ts`, `desktop/main.cjs`, `tests/platform/steamAdapter.test.ts`):**
     - Replaced `loadProgress2D()`'s destructive `pendingAutoHydrated2DByAdapter.delete()` with `postHydrationStarsRefs` (`WeakSet<readonly number[]>`), keeping multiple shallow and deep pre-hydration clones protected even after read-only `exportSaveCode2D()` / `loadProgress2D()` calls while preserving authoritative post-hydration Workshop Refund / Hero Respec.
     - Extended `normalizeProgressForAchievements()` (`achievements.ts`, zero-alloc fast-path on clean saves) to sanitize missing/non-finite arrays and `daily.streak > daily.bestStreak` (`FEAT_STEADY_WINDS` ↔ `DAILY_STREAK_*`, `FEAT_VETERAN`), guarded `steam:get-status` with `isTrustedIpcSender(event)` in `desktop/main.cjs`, rebuilt `release/Skyhold Isles-1.0.0.AppImage`, and re-verified Xvfb smoke.
+
+- [x] **13. Post-Backlog Deep Audit — Round 8 (`src/sim/{heroSystem,soldierSystem,abilitySystem}.ts`, `src/platform/{storage,saveCode,cloudSync,gameSession}.ts`, `src/render2d/ui/progress2d.ts`, `desktop/{main,preload}.cjs`, `tests/**`)**
+  - **Per-`SimWorld` Scratch Isolation & Mira `fireRing`/`wispBurst` Re-Entrancy Fix (`heroSystem.ts`, `soldierSystem.ts`, `abilitySystem.ts`, `tests/sim/qaSweepN2.test.ts`):**
+    - Moved cross-emit / cross-tick scratch arrays (`prevHeroBlockedIdx`, `prevHeroBlockedUid`, `prevTotalBlocked`, `skillCandidates0/1`, `fireRingCandidates0/1`, `fireRingTickCandidates`, `periodicCandidates`, `strikeCandidates`, `extraHoldIndices`, `hitSets`, `resolvedCastTargets` in `HeroSystem`; `blockedList`, `prevBlocked`, `prevBlockedUid`, `stepBarracksIds`, `sweepSoldiers` in `SoldierSystem`; `meteorCandidates` in `AbilitySystem`) from module singletons onto system instances (allocated once at construction, **zero per-tick allocations**), preventing auxiliary `SimWorld` ticks/disposals inside `EventBus` listeners from corrupting active ticks and preventing Mira's `wispFireRing` capstone from clobbering slot-0 `fireRing` candidates.
+  - **Single-Pass Zero-Regex JSON Repair for Trailing Garbage & Damaged Brackets (`storage.ts`, `tests/platform/saveRobustnessV2.test.ts`):**
+    - Upgraded `repairTruncatedJsonContainer()` (`tryRepairTruncatedJson` / `tryRepairTruncatedJsonArray`) to a single `O(N)` zero-regex forward scan that immediately recovers complete root containers followed by non-atomic-overwrite trailing bytes, ignores `{ [ } ] ,` inside string literals, and clamps candidate cuts before bracket-mismatch tails instead of aborting on `cuts[0]` (while still rejecting empty noise such as `"{]"`).
+  - **In-Flight Steam Cloud 3-Way Merge & 3D Cross-Count Recovery Parity (`progress2d.ts`, `cloudSync.ts`, `saveCode.ts`, `gameSession.ts`, `tests/platform/steamAdapter.test.ts`):**
+    - Applied exact 3-way merge (`foldPendingCloudThreeWay2D`) inside `hydrateProgress2DFromCloud()` and `loadProgress2D()` (plus concurrent Workshop-refund preservation in 3D `hydrateProgressFromCloud()`) so Workshop Refunds, immutable Hero Respecs, and Hero Selects (including switching back to `'bran'`) made *while* `cloudSave.read()` is awaiting IPC remain 100% authoritative across memory, `localStorage`, and Steam Cloud.
+    - Added `migrateProgressForMerge()` (`saveCode.ts`) so 3D `recoverProgressSave()`, `hydrateProgressFromCloud()`, and `GameSession.importSaveCode()` preserve legitimate `workshop` and `selectedHero` candidates from 25-island backups when combined stars/clears afford/unlock them (while still rejecting cheated saves).
+  - **Desktop IPC & Preload Listener Hardening (`desktop/{main,preload}.cjs`):**
+    - Guarded `steam:overlay-changed` iteration in `desktop/preload.cjs` against mid-callback subscribe/unsubscribe, rejected NUL-byte paths (`resolveDistFile`), empty-string cloud writes (`steam:cloud-write`), and non-string `readFile()` returns (`steam:cloud-read`) in `desktop/main.cjs`, rebuilt `release/Skyhold Isles-1.0.0.AppImage`, and re-verified Xvfb smoke.
 
 ---
 
@@ -141,7 +152,7 @@
 
 ## Problems / Known Issues
 
-- None blocking in owned area (`sim:balance` 41/41 byte-identical, `qa:bot` 656/656 + 58/58 2D achievement gate passing, 1,380 unit tests passing, all Hard Boss low-end benches `<= 66.8 ms`, Linux AppImage builds & passes Xvfb smoke with `secureContext: true`).
+- None blocking in owned area (`sim:balance` 41/41 byte-identical, `qa:bot` 656/656 + 58/58 2D achievement gate passing, 1,383 unit tests passing, all Hard Boss low-end benches `<= 66.8 ms`, Linux AppImage builds & passes Xvfb smoke with `secureContext: true`).
 
 ---
 

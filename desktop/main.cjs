@@ -207,13 +207,24 @@ ipcMain.handle('steam:cloud-read', async (event, rawSlot) => {
     return null;
   }
   if (!steamClient.cloud.fileExists(fileName)) return null;
-  return steamClient.cloud.readFile(fileName);
+  const content = steamClient.cloud.readFile(fileName);
+  if (typeof content !== 'string') {
+    throw new Error(`Steam Cloud read failed for ${fileName}`);
+  }
+  return content;
 });
 
 ipcMain.handle('steam:cloud-write', async (event, rawSlot, rawJson) => {
   if (!isTrustedIpcSender(event) || !isSteam || !steamClient) return false;
   const slot = sanitizeSlot(rawSlot);
-  if (!slot || typeof rawJson !== 'string' || rawJson.length > 2 * 1024 * 1024) return false;
+  if (
+    !slot ||
+    typeof rawJson !== 'string' ||
+    rawJson.trim().length === 0 ||
+    rawJson.length > 2 * 1024 * 1024
+  ) {
+    return false;
+  }
   const fileName = `skyhold_${slot}.json`;
   try {
     if (!steamClient.cloud.isEnabledForAccount() || !steamClient.cloud.isEnabledForApp()) {
@@ -232,6 +243,7 @@ function resolveDistFile(distDir, urlPathname) {
   } catch {
     return null;
   }
+  if (decoded.includes('\0')) return null;
   const rel = decoded === '/' ? '2d.html' : decoded.replace(/^\/+/, '');
   const resolved = path.resolve(distDir, rel);
   const rootWithSep = distDir.endsWith(path.sep) ? distDir : distDir + path.sep;

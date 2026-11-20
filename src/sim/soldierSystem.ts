@@ -81,13 +81,8 @@ const _baseVec: Vec3 = { x: 0, y: 0, z: 0 };
 const _rallyRoadPt: RoadPoint = { x: 0, z: 0, yaw: 0 };
 const _candidates: number[] = [];
 const _engageList: number[] = [];
-const _blockedList: number[] = [];
-const _prevBlocked: number[] = [];
-const _prevBlockedUid: number[] = [];
 const _spreadOrder: number[] = [];
 const _extraHoldOrder: number[] = [];
-const _stepBarracksIds: number[] = [];
-const _sweepSoldiers: SoldierEntity[] = [];
 
 /** Golden-ratio conjugate: spreads consecutive integer uids evenly across [-1, 1] with zero RNG. */
 const GOLDEN_CONJUGATE = 0.6180339887498949;
@@ -161,6 +156,11 @@ export class SoldierSystem {
   private readonly wantOffX: Float64Array;
   private readonly wantOffZ: Float64Array;
   private readonly isBlockedSlot: Uint8Array;
+  private readonly blockedList: number[] = [];
+  private readonly prevBlocked: number[] = [];
+  private readonly prevBlockedUid: number[] = [];
+  private readonly stepBarracksIds: number[] = [];
+  private readonly sweepSoldiers: SoldierEntity[] = [];
 
   private readonly pool: ObjectPool<EnemyEntity>;
   private readonly spatialHash: SpatialHashGrid;
@@ -407,8 +407,8 @@ export class SoldierSystem {
     if (!e.active || e.uid !== uid) return false;
     if (e.blockers > 0) return true;
     if (this.inUpdate) {
-      for (let k = 0; k < _prevBlocked.length; k++) {
-        if (_prevBlocked[k] === poolIndex && _prevBlockedUid[k] === uid) return true;
+      for (let k = 0; k < this.prevBlocked.length; k++) {
+        if (this.prevBlocked[k] === poolIndex && this.prevBlockedUid[k] === uid) return true;
       }
     }
     return false;
@@ -434,11 +434,11 @@ export class SoldierSystem {
       }
     }
     if (this.inUpdate) {
-      for (let k = 0; k < _prevBlocked.length; k++) {
-        const uid = _prevBlockedUid[k];
+      for (let k = 0; k < this.prevBlocked.length; k++) {
+        const uid = this.prevBlockedUid[k];
         if (uid < 0) continue;
-        _prevBlockedUid[k] = -1;
-        const e = this.pool.items[_prevBlocked[k]];
+        this.prevBlockedUid[k] = -1;
+        const e = this.pool.items[this.prevBlocked[k]];
         e.blockers = 0;
         if (emitUnblock && e.active && e.uid === uid && !this.heldByHero(e)) {
           this.emitBlock('enemyUnblocked', e);
@@ -464,9 +464,9 @@ export class SoldierSystem {
     this.wantOffX.fill(0);
     this.wantOffZ.fill(0);
     this.isBlockedSlot.fill(0);
-    _blockedList.length = 0;
-    _prevBlocked.length = 0;
-    _prevBlockedUid.length = 0;
+    this.blockedList.length = 0;
+    this.prevBlocked.length = 0;
+    this.prevBlockedUid.length = 0;
     this.blockedCount = 0;
     this.dirty = false;
   }
@@ -546,15 +546,15 @@ export class SoldierSystem {
   }
 
   /**
-   * Marks `e` as already unblocked in `_prevBlocked` when inside `update()`.
+   * Marks `e` as already unblocked in `prevBlocked` when inside `update()`.
    * Returns whether `'enemyBlocked'` had already been emitted for `e` (always true outside `update()`).
    */
   private consumeBlockedTracking(e: EnemyEntity): boolean {
     if (!this.inUpdate) return true;
     let found = false;
-    for (let k = 0; k < _prevBlocked.length; k++) {
-      if (_prevBlocked[k] === e.poolIndex && _prevBlockedUid[k] === e.uid) {
-        _prevBlockedUid[k] = -1;
+    for (let k = 0; k < this.prevBlocked.length; k++) {
+      if (this.prevBlocked[k] === e.poolIndex && this.prevBlockedUid[k] === e.uid) {
+        this.prevBlockedUid[k] = -1;
         found = true;
       }
     }
@@ -645,25 +645,28 @@ export class SoldierSystem {
     const R = SOLDIER_RULES;
 
     // Snapshot last tick's holds, then rebuild them from scratch (lease).
-    _prevBlocked.length = 0;
-    _prevBlockedUid.length = 0;
+    const prevBlocked = this.prevBlocked;
+    const prevBlockedUid = this.prevBlockedUid;
+    const stepBarracksIds = this.stepBarracksIds;
+    prevBlocked.length = 0;
+    prevBlockedUid.length = 0;
     for (let i = 0; i < pool.getActiveCount(); i++) {
       const e = pool.items[pool.getActiveIndex(i)];
       if (e.blockers > 0) {
-        _prevBlocked.push(e.poolIndex);
-        _prevBlockedUid.push(e.uid);
+        prevBlocked.push(e.poolIndex);
+        prevBlockedUid.push(e.uid);
         this.wasBlocked[e.poolIndex] = 1;
       }
       e.blockers = 0;
     }
 
     // 1. Timers, respawns, regeneration, engagement validation (snapshot barracks IDs for sellTower safety).
-    _stepBarracksIds.length = 0;
+    stepBarracksIds.length = 0;
     for (let bi = 0; bi < this.barracks.length; bi++) {
-      _stepBarracksIds.push(this.barracks[bi].towerId);
+      stepBarracksIds.push(this.barracks[bi].towerId);
     }
-    for (let bi = 0; bi < _stepBarracksIds.length; bi++) {
-      const b = this.getBarracks(_stepBarracksIds[bi]);
+    for (let bi = 0; bi < stepBarracksIds.length; bi++) {
+      const b = this.getBarracks(stepBarracksIds[bi]);
       if (!b) continue;
       const tower = this.findTower(towers, b.towerId);
       const jammed = tower !== null && tower.stunTimer > 0;
@@ -819,12 +822,12 @@ export class SoldierSystem {
 
     // 5. Soldier swings (snapshot barracks IDs so mid-swing sellTower never shifts iteration).
     const rate = Math.max(0.01, fireRateMultiplier);
-    _stepBarracksIds.length = 0;
+    stepBarracksIds.length = 0;
     for (let bi = 0; bi < this.barracks.length; bi++) {
-      _stepBarracksIds.push(this.barracks[bi].towerId);
+      stepBarracksIds.push(this.barracks[bi].towerId);
     }
-    for (let bi = 0; bi < _stepBarracksIds.length; bi++) {
-      const b = this.getBarracks(_stepBarracksIds[bi]);
+    for (let bi = 0; bi < stepBarracksIds.length; bi++) {
+      const b = this.getBarracks(stepBarracksIds[bi]);
       if (!b) continue;
       const tower = this.findTower(towers, b.towerId);
       if (!tower) continue;
@@ -883,7 +886,9 @@ export class SoldierSystem {
     }
 
     // 6. Holds: soldiers in contact with a living enemy.
-    _blockedList.length = 0;
+    const blockedList = this.blockedList;
+    const sweepSoldiers = this.sweepSoldiers;
+    blockedList.length = 0;
     for (let i = 0; i < this.soldiers.length; i++) {
       const s = this.soldiers[i];
       s.extraHoldPoolIndices.length = 0;
@@ -892,7 +897,7 @@ export class SoldierSystem {
       const e = this.target(s);
       if (!e || e.hp <= 0) continue;
       if (e.blockers === 0) {
-        _blockedList.push(e.poolIndex);
+        blockedList.push(e.poolIndex);
         this.primary[e.poolIndex] = s.id;
       }
       e.blockers++;
@@ -902,15 +907,15 @@ export class SoldierSystem {
     }
 
     // 7. Held enemies strike back.
-    for (let k = 0; k < _blockedList.length; k++) {
-      const e = pool.items[_blockedList[k]];
+    for (let k = 0; k < blockedList.length; k++) {
+      const e = pool.items[blockedList[k]];
       if (!e.active || e.hp <= 0 || e.blockers <= 0) continue;
       const m = ENEMY_MELEE[e.type];
       if (!this.wasBlocked[e.poolIndex]) {
-        // Track in _prevBlocked (even when co-held alongside a hero) so mid-tick hero move +
+        // Track in prevBlocked (even when co-held alongside a hero) so mid-tick hero move +
         // barracks sell/rally or counter-attack soldier death always reconciles enemyUnblocked 1-to-1.
-        _prevBlocked.push(e.poolIndex);
-        _prevBlockedUid.push(e.uid);
+        prevBlocked.push(e.poolIndex);
+        prevBlockedUid.push(e.uid);
         if (e.heroBlockers === 0) {
           this.emitBlock('enemyBlocked', e);
           if (this.abortedStep) return;
@@ -944,15 +949,15 @@ export class SoldierSystem {
         let dealt = 0;
         let killed = false;
         if (m.sweep) {
-          _sweepSoldiers.length = 0;
+          sweepSoldiers.length = 0;
           for (let i = 0; i < this.soldiers.length; i++) {
             const s = this.soldiers[i];
             if (this.isSoldierHolding(s, e)) {
-              _sweepSoldiers.push(s);
+              sweepSoldiers.push(s);
             }
           }
-          for (let i = 0; i < _sweepSoldiers.length; i++) {
-            const s = _sweepSoldiers[i];
+          for (let i = 0; i < sweepSoldiers.length; i++) {
+            const s = sweepSoldiers[i];
             if (this.isSoldierHolding(s, e)) {
               const r = this.hurt(s, e, m.damage * scale);
               if (this.abortedStep) return;
@@ -961,7 +966,7 @@ export class SoldierSystem {
               killed = killed || s.hp <= 0;
             }
           }
-          _sweepSoldiers.length = 0;
+          sweepSoldiers.length = 0;
         } else if (first) {
           dealt = this.hurt(first, e, m.damage * scale);
           if (this.abortedStep) return;
@@ -1012,18 +1017,18 @@ export class SoldierSystem {
         if (this.abortedStep) return;
       }
     }
-    for (let k = 0; k < _blockedList.length; k++) this.primary[_blockedList[k]] = -1;
+    for (let k = 0; k < blockedList.length; k++) this.primary[blockedList[k]] = -1;
 
     // 8. Holds that ended this tick.
     let held = 0;
-    for (let k = 0; k < _blockedList.length; k++) {
-      if (pool.items[_blockedList[k]].blockers > 0) held++;
+    for (let k = 0; k < blockedList.length; k++) {
+      if (pool.items[blockedList[k]].blockers > 0) held++;
     }
     this.blockedCount = held;
-    for (let k = 0; k < _prevBlocked.length; k++) {
-      const slot = _prevBlocked[k];
-      const prevUid = _prevBlockedUid[k];
-      _prevBlockedUid[k] = -1;
+    for (let k = 0; k < prevBlocked.length; k++) {
+      const slot = prevBlocked[k];
+      const prevUid = prevBlockedUid[k];
+      prevBlockedUid[k] = -1;
       this.wasBlocked[slot] = 0;
       const e = pool.items[slot];
       if (e.active && e.uid === prevUid && e.blockers === 0 && e.heroBlockers === 0) {
@@ -1065,7 +1070,7 @@ export class SoldierSystem {
       const queueStopDist = primary.dist - (alreadyHeldBehind + added + 1) * BLOCK_QUEUE_SPACING;
       if (cand.dist < queueStopDist - 0.12) continue;
       if (cand.blockers === 0) {
-        _blockedList.push(cand.poolIndex);
+        this.blockedList.push(cand.poolIndex);
         this.primary[cand.poolIndex] = soldierId;
       }
       cand.blockers++;
@@ -1083,8 +1088,8 @@ export class SoldierSystem {
   private applyBlockedSpread(dt: number): boolean {
     const pool = this.pool;
     _spreadOrder.length = 0;
-    for (let k = 0; k < _blockedList.length; k++) {
-      const idx = _blockedList[k];
+    for (let k = 0; k < this.blockedList.length; k++) {
+      const idx = this.blockedList[k];
       const e = pool.items[idx];
       if (e.active && e.hp > 0 && e.blockers > 0 && !e.flying && !e.burrowed) {
         _spreadOrder.push(idx);

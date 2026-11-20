@@ -291,64 +291,90 @@ function normalizeRawHeroSave(rawH: unknown): unknown {
   return { selectedHero: obj.s, roster };
 }
 
+function isJsonWhitespaceCode(code: number): boolean {
+  return code === 0x20 || code === 0x09 || code === 0x0a || code === 0x0d;
+}
+
 function repairTruncatedJsonContainer(raw: string, openChar: '{' | '['): unknown {
   if (typeof raw !== 'string') return null;
-  const trimmed = raw.trimStart();
-  if (trimmed.length === 0 || trimmed.length > 262_144 || trimmed[0] !== openChar) return null;
+  let start = 0;
+  while (start < raw.length && isJsonWhitespaceCode(raw.charCodeAt(start))) start++;
+  const len = raw.length - start;
+  if (len === 0 || len > 262_144 || raw[start] !== openChar) return null;
+  const trimmed = start === 0 ? raw : raw.slice(start);
 
-  // Collect candidate cut lengths from the end back to structural boundaries (`,`, `[`, `{`, `}`, `]`, `"`, digits).
-  const cuts: number[] = [trimmed.length];
-  for (let pos = trimmed.length - 1; pos >= 1 && cuts.length < 96; pos--) {
-    const ch = trimmed[pos];
-    if (ch === ',' || ch === '{' || ch === '[' || ch === '}' || ch === ']' || ch === '"') {
-      cuts.push(pos);
-      if (ch === '}' || ch === ']' || ch === '"') cuts.push(pos + 1);
+  const cutPositions: number[] = [];
+  const cutSuffixes: string[] = [];
+  const pushCut = (pos: number, suffix: string): void => {
+    if (cutPositions.length > 0 && cutPositions[cutPositions.length - 1] === pos) return;
+    cutPositions.push(pos);
+    cutSuffixes.push(suffix);
+  };
+
+  let inStr = false;
+  let esc = false;
+  let hadMismatch = false;
+  const stack: ('{' | '[')[] = [];
+  let closingSuffix = '';
+
+  for (let i = 0; i < trimmed.length; i++) {
+    const c = trimmed[i];
+    if (inStr) {
+      if (esc) esc = false;
+      else if (c === '\\') esc = true;
+      else if (c === '"') {
+        inStr = false;
+        pushCut(i + 1, closingSuffix);
+      }
+      continue;
+    }
+    if (c === '"') {
+      pushCut(i, closingSuffix);
+      inStr = true;
+    } else if (c === '{' || c === '[') {
+      pushCut(i, closingSuffix);
+      stack.push(c);
+      closingSuffix = (c === '{' ? '}' : ']') + closingSuffix;
+      pushCut(i + 1, closingSuffix);
+    } else if (c === '}' || c === ']') {
+      const expected = c === '}' ? '{' : '[';
+      pushCut(i, closingSuffix);
+      if (stack.length === 0 || stack[stack.length - 1] !== expected) {
+        hadMismatch = true;
+        inStr = true; // prevent pushing post-mismatch tail
+        break;
+      }
+      stack.pop();
+      closingSuffix = closingSuffix.slice(1);
+      if (stack.length === 0) {
+        try {
+          return JSON.parse(trimmed.slice(0, i + 1)) as unknown;
+        } catch {
+          inStr = true;
+          break;
+        }
+      }
+      pushCut(i + 1, closingSuffix);
+    } else if (c === ',') {
+      pushCut(i, closingSuffix);
     }
   }
 
-  for (let ci = 0; ci < cuts.length; ci++) {
-    let end = cuts[ci];
-    while (end > 1 && /\s/.test(trimmed[end - 1])) end--;
+  if (!inStr) {
+    pushCut(trimmed.length, closingSuffix);
+  }
+
+  const minIdx = Math.max(0, cutPositions.length - 128);
+  for (let ci = cutPositions.length - 1; ci >= minIdx; ci--) {
+    let end = cutPositions[ci];
+    const suffix = cutSuffixes[ci];
+    while (end > 1 && isJsonWhitespaceCode(trimmed.charCodeAt(end - 1))) end--;
     if (end > 1 && trimmed[end - 1] === ',') {
       end--;
-      while (end > 1 && /\s/.test(trimmed[end - 1])) end--;
+      while (end > 1 && isJsonWhitespaceCode(trimmed.charCodeAt(end - 1))) end--;
     }
     if (end <= 0 || trimmed[end - 1] === ':') continue;
-
-    let inStr = false;
-    let esc = false;
-    let validPrefix = true;
-    const stack: ('{' | '[')[] = [];
-    for (let i = 0; i < end; i++) {
-      const c = trimmed[i];
-      if (inStr) {
-        if (esc) esc = false;
-        else if (c === '\\') esc = true;
-        else if (c === '"') inStr = false;
-        continue;
-      }
-      if (c === '"') inStr = true;
-      else if (c === '{' || c === '[') stack.push(c);
-      else if (c === '}') {
-        if (stack.pop() !== '{') {
-          validPrefix = false;
-          break;
-        }
-      } else if (c === ']') {
-        if (stack.pop() !== '[') {
-          validPrefix = false;
-          break;
-        }
-      }
-    }
-    if (!validPrefix) return null;
-    if (inStr) continue;
-
-    // Reject cuts that stopped mid-key inside an object (an object key string without `: value`).
-    let suffix = '';
-    for (let s = stack.length - 1; s >= 0; s--) {
-      suffix += stack[s] === '{' ? '}' : ']';
-    }
+    if (hadMismatch && end <= 1) continue;
     try {
       return JSON.parse(trimmed.slice(0, end) + suffix) as unknown;
     } catch {

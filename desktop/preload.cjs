@@ -13,7 +13,8 @@ const overlayListeners = new Set();
 
 ipcRenderer.on('steam:overlay-changed', (_event, active) => {
   overlayActive = Boolean(active);
-  for (const listener of overlayListeners) {
+  for (const listener of [...overlayListeners]) {
+    if (!overlayListeners.has(listener)) continue;
     try {
       listener(overlayActive);
     } catch {

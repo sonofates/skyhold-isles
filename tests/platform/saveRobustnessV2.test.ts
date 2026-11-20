@@ -794,4 +794,83 @@ describe('Save Robustness v2 — Version Migration & Algebraic Merge Fuzz', () =
     const parsedBackup2D = JSON.parse(store.get(PROGRESS_2D_IMPORT_BACKUP_KEY)!);
     expect(parsedBackup2D.progress.bestStars[0]).toBe(3);
   });
+
+  it('salvages trailing-garbage JSON, mismatched closing brackets, punctuation-heavy strings, and 25->16 backup Workshop/hero candidates', async () => {
+    const store = installMemoryStorage();
+    const { tryRepairTruncatedJson } = await import('../../src/platform/storage.ts');
+
+    // 1. Non-atomic overwrite leaving trailing bytes after a complete JSON container:
+    expect(
+      tryRepairTruncatedJson('{"version":2,"unlockedLevelIndex":4,"bestStars":[3,3,2]}0,0,0],"stale":true}}'),
+    ).toEqual({
+      version: 2,
+      unlockedLevelIndex: 4,
+      bestStars: [3, 3, 2],
+    });
+    expect(tryRepairTruncatedJsonArray('["l1c:intro","i01:intro"]trailing_bytes]')).toEqual([
+      'l1c:intro',
+      'i01:intro',
+    ]);
+
+    // 2. Mismatched closing bracket at truncation boundary (`}` inside `[`) salvages full prefix including final element:
+    expect(
+      tryRepairTruncatedJson('{"version":2,"unlockedLevelIndex":3,"bestStars":[3,3,2}'),
+    ).toEqual({
+      version: 2,
+      unlockedLevelIndex: 3,
+      bestStars: [3, 3, 2],
+    });
+
+    // 3. Structural punctuation `{ [ } ] ,` inside string values + trailing comma inside closed array:
+    expect(
+      tryRepairTruncatedJson('{"version":2,"note":"a{b[c}d]e,f","bestStars":[3,2,'),
+    ).toEqual({
+      version: 2,
+      note: 'a{b[c}d]e,f',
+      bestStars: [3, 2],
+    });
+    expect(tryRepairTruncatedJson('{"version":2,"bestStars":[3,2,]}')).toEqual({
+      version: 2,
+      bestStars: [3, 2],
+    });
+
+    // 4. recoverProgressSave(16) preserves legitimate Workshop + selectedHero from a 25-island backup when primary holds complementary stars/clears,
+    // while still rejecting cheated Workshop saves that exceed even their own stars:
+    const primary16 = createDefaultProgress(LEVELS.length);
+    for (let i = 0; i < 10; i++) {
+      primary16.bestStars[i] = 3;
+      primary16.clears[i] = 1;
+    }
+    primary16.unlockedLevelIndex = 10;
+    saveLocalProgress(primary16);
+
+    const backup25 = createDefaultProgress(25);
+    for (let i = 16; i < 22; i++) {
+      backup25.bestStars[i] = 3; // 18★ on islands 16..21 -> legitimate 8★ Workshop spend!
+      backup25.clears[i] = 1;
+    }
+    backup25.workshop = { treasury: 2, bastion: 2 };
+    backup25.heroes = {
+      selectedHero: 'sela',
+      roster: { sela: { xp: xpForHeroLevel(8), skills: [] } },
+    };
+    // Make backup25 have at least 10 clears on 0..24 so sela was unlocked on backup25:
+    for (let i = 10; i < 16; i++) backup25.clears[i] = 1;
+    store.set('skyhold_isles_progress_import_backup', JSON.stringify(backup25));
+
+    const rec = recoverProgressSave(LEVELS.length, { persist: false });
+    expect(rec.recovered).toBe(true);
+    expect(rec.progress.workshop).toEqual({ treasury: 2, bastion: 2 });
+    expect(rec.progress.heroes?.selectedHero).toBe('sela');
+
+    // Cheated backup (0 stars everywhere, impossible Workshop) is still rejected to `{}`:
+    store.clear();
+    const cheated = createDefaultProgress(25);
+    cheated.bestStars[0] = 1;
+    cheated.clears[0] = 1;
+    cheated.workshop = { treasury: 3, bastion: 3 };
+    store.set('skyhold_isles_progress_v1', JSON.stringify(cheated));
+    const cheatedRec = recoverProgressSave(LEVELS.length, { persist: false });
+    expect(cheatedRec.progress.workshop).toEqual({});
+  });
 });

@@ -447,6 +447,50 @@ export function mergeProgress(a: ProgressData, b: ProgressData, levelCount: numb
   return merged;
 }
 
+function maxRawIslandCount(raw: Record<string, unknown>): number {
+  let maxLen = 0;
+  for (const key of ['bestStars', 'bestEndlessWaves', 'bestLives', 'clears', 'challengeClears']) {
+    const arr = raw[key];
+    if (Array.isArray(arr) && arr.length > maxLen) maxLen = arr.length;
+  }
+  const dw = raw.difficultyWins ?? raw.dw;
+  if (dw && typeof dw === 'object' && !Array.isArray(dw)) {
+    const dwo = dw as Record<string, unknown>;
+    for (const key of ['easy', 'normal', 'hard', 'e', 'n', 'h']) {
+      const arr = dwo[key];
+      if (Array.isArray(arr) && arr.length > maxLen) maxLen = arr.length;
+    }
+  }
+  return Math.min(MAX_SAVE_CODE_ISLANDS, maxLen);
+}
+
+/**
+ * Migrates `parsed` onto `count` islands while preserving source-valid `workshop` and
+ * `selectedHero` candidates from a larger island roster so `mergeProgress` can evaluate
+ * star affordability and unlock milestones against the combined (`local + incoming`) save.
+ */
+export function migrateProgressForMerge(
+  parsed: Record<string, unknown>,
+  count: number,
+): ProgressData {
+  const migrated = migrateProgress(parsed, count);
+  const fullCount = Math.max(1, count, maxRawIslandCount(parsed));
+  if (fullCount > count) {
+    const fullMigrated = migrateProgress(parsed, fullCount);
+    if (workshopStarsSpent(fullMigrated.workshop) > workshopStarsSpent(migrated.workshop)) {
+      migrated.workshop = fullMigrated.workshop;
+    }
+    if (
+      migrated.heroes &&
+      fullMigrated.heroes &&
+      fullMigrated.heroes.selectedHero !== migrated.heroes.selectedHero
+    ) {
+      migrated.heroes = { ...migrated.heroes, selectedHero: fullMigrated.heroes.selectedHero };
+    }
+  }
+  return migrated;
+}
+
 export interface RecoverProgressResult {
   readonly progress: ProgressData;
   readonly recovered: boolean;
@@ -493,9 +537,11 @@ export function recoverProgressSave(
       parsed = tryRepairTruncatedJson(raw);
     }
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) continue;
-    const migrated = migrateProgress(parsed, count);
-    if (!hasAnyProgress(migrated)) continue;
-    merged = mergeProgress(merged, migrated, count);
+    const rawObj = parsed as Record<string, unknown>;
+    const strictMigrated = migrateProgress(rawObj, count);
+    const mergeCandidate = migrateProgressForMerge(rawObj, count);
+    if (!hasAnyProgress(strictMigrated) && Object.keys(mergeCandidate.workshop).length === 0) continue;
+    merged = mergeProgress(merged, mergeCandidate, count);
     sources.push(label);
   }
 

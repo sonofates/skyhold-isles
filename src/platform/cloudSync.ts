@@ -1,8 +1,10 @@
 import type { ProgressData } from '../core/types.ts';
 import { LEVELS, type LevelDef } from '../data/levels/index.ts';
+import { sanitizeRanks, workshopStarsSpent } from '../data/workshop.ts';
+import { starWallet } from '../game/progression.ts';
 import { syncAchievementsFromProgress } from './achievements.ts';
 import { getPlatform, type PlatformAdapter } from './platform.ts';
-import { mergeProgress } from './saveCode.ts';
+import { mergeProgress, migrateProgressForMerge } from './saveCode.ts';
 import {
   CLOUD_PROGRESS_SLOT,
   getProgressResetGen,
@@ -36,6 +38,7 @@ export async function hydrateProgressFromCloud(
 ): Promise<CloudHydrateResult> {
   const genAtStart = getProgressResetGen();
   let normalizedLocal = migrateProgress(localProgress, levelCount);
+  const preReadWorkshopSpent = workshopStarsSpent(normalizedLocal.workshop);
   const callerRaw = JSON.stringify(normalizedLocal);
   const diskRawBefore = readLocalProgressRaw();
   let updated = false;
@@ -68,6 +71,7 @@ export async function hydrateProgressFromCloud(
 
   const diskRawAfter = readLocalProgressRaw();
   const concurrentHappened = diskRawAfter !== null && diskRawAfter !== diskRawBefore;
+  let concurrentRefundedWorkshop: Record<string, number> | null = null;
   if (concurrentHappened) {
     let concurrentParsed: unknown;
     try {
@@ -76,11 +80,19 @@ export async function hydrateProgressFromCloud(
       concurrentParsed = tryRepairTruncatedJson(diskRawAfter);
     }
     if (concurrentParsed && typeof concurrentParsed === 'object' && !Array.isArray(concurrentParsed)) {
+      const concurrentStrict = migrateProgress(concurrentParsed, levelCount);
+      if (workshopStarsSpent(concurrentStrict.workshop) < preReadWorkshopSpent) {
+        concurrentRefundedWorkshop = sanitizeRanks(concurrentStrict.workshop);
+      }
       normalizedLocal = mergeProgress(
         normalizedLocal,
-        migrateProgress(concurrentParsed, levelCount),
+        migrateProgressForMerge(concurrentParsed as Record<string, unknown>, levelCount),
         levelCount,
       );
+      if (concurrentRefundedWorkshop !== null) {
+        normalizedLocal.workshop = { ...concurrentRefundedWorkshop };
+        if (starWallet(normalizedLocal).available < 0) normalizedLocal.workshop = {};
+      }
     }
   }
 
@@ -107,8 +119,12 @@ export async function hydrateProgressFromCloud(
         }
       }
     } else {
-      const cloudProgress = migrateProgress(parsed, levelCount);
+      const cloudProgress = migrateProgressForMerge(parsed as Record<string, unknown>, levelCount);
       merged = mergeProgress(normalizedLocal, cloudProgress, levelCount);
+      if (concurrentRefundedWorkshop !== null) {
+        merged.workshop = { ...concurrentRefundedWorkshop };
+        if (starWallet(merged).available < 0) merged.workshop = {};
+      }
       const mergedRaw = JSON.stringify(merged);
       if (mergedRaw !== localRaw && getProgressResetGen() === genAtStart) {
         saveLocalProgress(merged);

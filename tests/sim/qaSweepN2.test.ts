@@ -281,4 +281,106 @@ describe('Overnight N2 QA Sweep: Difficulty × 25 Islands, Rally Respawn, Replay
       (globalThis as unknown as { localStorage: Storage }).localStorage = prevLs;
     }
   });
+
+  it('isolates per-SimWorld scratch buffers when a second SimWorld steps/disposes inside EventBus listeners, and guards Mira slot-0/slot-1 fireRing re-entrancy', async () => {
+    const { InvariantMonitor } = await import('../../qa/bot/invariants.ts');
+    const { defaultLevel20Skills } = await import('../../src/data/heroes.ts');
+    const level = getLevelById('i10')!;
+
+    const runScenario = (reentrantAuxWorld: boolean): { hash: string; violations: number } => {
+      const bus = new EventBus();
+      const w = new SimWorld(level, bus, {
+        heroId: 'bran',
+        heroLevel: 20,
+        heroSkills: defaultLevel20Skills('bran'),
+        seed: 77711,
+      });
+      const monitor = new InvariantMonitor(w, bus);
+      w.gold = 2500;
+      w.placeTowerOnPlot(0, 'barracks');
+      w.placeTowerOnPlot(1, 'archer');
+      w.upgradeTower(1);
+      w.upgradeTower(1);
+      const mid = level.layout2d!.paths[0][Math.floor(level.layout2d!.paths[0].length / 2)];
+      w.commandHeroMove(mid[0], mid[1]);
+
+      if (reentrantAuxWorld) {
+        const disturb = (): void => {
+          const auxBus = new EventBus();
+          const aux = new SimWorld(level, auxBus, {
+            heroId: 'bran',
+            heroLevel: 20,
+            heroSkills: defaultLevel20Skills('bran'),
+            seed: 99999,
+          });
+          aux.gold = 1000;
+          aux.placeTowerOnPlot(0, 'barracks');
+          aux.startNextWave();
+          for (let k = 0; k < 4; k++) aux.fixedTick(DT);
+          aux.castAbility('meteor', mid[0], mid[1]);
+          aux.dispose();
+        };
+        bus.on('enemyBlocked', disturb);
+        bus.on('soldierAttack', disturb);
+        bus.on('heroHit', disturb);
+        bus.on('meteorImpact', disturb);
+      }
+
+      w.startNextWave();
+      for (let t = 1; t <= 420 && w.outcome === 'ongoing'; t++) {
+        if (t === 90) w.castAbility('meteor', mid[0], mid[1]);
+        if (t === 140) w.castHeroSkill(0);
+        if (t === 160) w.castHeroSkill(1);
+        monitor.beginTick(t);
+        w.fixedTick(DT);
+        monitor.endTick(t, DT);
+      }
+      const hash = hashWorldState(w);
+      w.dispose();
+      return { hash, violations: monitor.violations.length };
+    };
+
+    const ref = runScenario(false);
+    const isolated = runScenario(true);
+    expect(ref.violations).toBe(0);
+    expect(isolated.violations).toBe(0);
+    expect(isolated.hash).toBe(ref.hash);
+
+    // Same-world slot-0 fireRing -> enemyHit listener -> slot-1 wispBurst (wispFireRing capstone) re-entrancy:
+    const miraBus = new EventBus();
+    const miraWorld = new SimWorld(level, miraBus, {
+      heroId: 'mira',
+      heroLevel: 20,
+      heroSkills: defaultLevel20Skills('mira'),
+      seed: 4242,
+    });
+    const e1 = miraWorld.enemySystem.spawnEnemy('brute', 5, false, 0)!;
+    const e2 = miraWorld.enemySystem.spawnEnemy('brute', 5, false, 0)!;
+    const hx = miraWorld.hero!.x;
+    const hz = miraWorld.hero!.z;
+    e1.x = hx + 0.4;
+    e1.z = hz;
+    e2.x = hx - 0.4;
+    e2.z = hz;
+    miraWorld.spatialHash.clear();
+    miraWorld.spatialHash.insert(e1.poolIndex, e1.x, e1.z);
+    miraWorld.spatialHash.insert(e2.poolIndex, e2.x, e2.z);
+
+    let wispTriggered = false;
+    miraBus.on('enemyHit', () => {
+      if (!wispTriggered) {
+        wispTriggered = true;
+        // Casts wispBurst (with wispFireRing) at a distant point while slot-0 spawnFireRing is mid-loop!
+        miraWorld.castHeroSkill(1, hx, hz + 3.0);
+      }
+    });
+    const hp1Before = e1.hp;
+    const hp2Before = e2.hp;
+    expect(miraWorld.castHeroSkill(0, hx, hz)).toBe(true);
+    expect(wispTriggered).toBe(true);
+    expect(e1.hp).toBeLessThan(hp1Before);
+    expect(e2.hp).toBeLessThan(hp2Before);
+    expect(miraWorld.heroSystem.fireRings.length).toBe(2);
+    miraWorld.dispose();
+  });
 });

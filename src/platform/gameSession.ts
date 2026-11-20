@@ -815,6 +815,16 @@ export class GameSession {
         incoming = { ...incoming, workshop: rawSized.progress.workshop };
       }
     }
+    if (
+      hints.rawSelectedHero &&
+      incoming.heroes &&
+      hints.rawSelectedHero !== incoming.heroes.selectedHero
+    ) {
+      incoming = {
+        ...incoming,
+        heroes: { ...incoming.heroes, selectedHero: hints.rawSelectedHero },
+      };
+    }
     const merged = mergeProgress(this.progress, incoming, LEVELS.length);
     const gain = describeMergeGain(this.progress, merged);
     backupProgressBeforeImport();

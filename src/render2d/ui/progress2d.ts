@@ -381,14 +381,26 @@ export function loadProgress2D(levels: readonly LevelDef[] = LEVELS_2D): Progres
       levels.map((l) => l.id),
       levels,
     );
+    const baseRaw = serializeStored2D(baseSnapshot, levels);
     void hydrateProgress2DFromCloud(result, levels, platform)
       .then(({ merged, updated }) => {
         if (!updated || resetGen2D !== bootGen) return;
-        const freshMerged = remapProgress(
-          mergeProgress(result, merged, levels.length),
-          levels.map((l) => l.id),
-          levels,
-        );
+        let freshMerged: ProgressData;
+        if (serializeStored2D(result, levels) === baseRaw) {
+          freshMerged = remapProgress(
+            merged,
+            levels.map((l) => l.id),
+            levels,
+          );
+        } else {
+          const targetCopy = remapProgress(
+            result,
+            levels.map((l) => l.id),
+            levels,
+          );
+          foldPendingCloudThreeWay2D(targetCopy, baseSnapshot, merged, levels);
+          freshMerged = targetCopy;
+        }
         if (freshMerged.heroes === undefined) delete result.heroes;
         if (freshMerged.difficultyWins === undefined) delete result.difficultyWins;
         if (freshMerged.wonChallenges === undefined) delete result.wonChallenges;
@@ -537,8 +549,13 @@ export async function hydrateProgress2DFromCloud(
     autoHydrated2DAdapters.add(adapter);
   }
   const baseLocal = localProgress ?? loadLocalProgress2DInternal(levels);
-  let normalizedLocal = remapProgress(
+  const preReadBase = remapProgress(
     baseLocal,
+    levels.map((l) => l.id),
+    levels,
+  );
+  let normalizedLocal = remapProgress(
+    preReadBase,
     levels.map((l) => l.id),
     levels,
   );
@@ -577,10 +594,31 @@ export async function hydrateProgress2DFromCloud(
   };
   const diskRawAfter = readLocalProgress2DRaw();
   const concurrentHappened = diskRawAfter !== null && diskRawAfter !== diskRawBefore;
+  let hasConcurrentLocalEdit = false;
   if (concurrentHappened) {
     const concurrent = parseStored2DRaw(diskRawAfter, levels);
     if (concurrent) {
-      normalizedLocal = mergeParsedInto2D(normalizedLocal, concurrent, levels);
+      hasConcurrentLocalEdit = true;
+      const concurrentTarget = remapProgress(
+        concurrent.progress,
+        levels.map((l) => l.id),
+        levels,
+      );
+      if (
+        concurrent.rawSelectedHero &&
+        concurrentTarget.heroes &&
+        concurrent.rawSelectedHero !== concurrentTarget.heroes.selectedHero
+      ) {
+        concurrentTarget.heroes = {
+          ...concurrentTarget.heroes,
+          selectedHero: concurrent.rawSelectedHero,
+        };
+      }
+      if (concurrent.rawWorkshop) {
+        concurrentTarget.workshop = { ...concurrent.rawWorkshop };
+      }
+      foldPendingCloudThreeWay2D(concurrentTarget, preReadBase, preReadBase, levels);
+      normalizedLocal = concurrentTarget;
     }
   }
 
@@ -591,9 +629,20 @@ export async function hydrateProgress2DFromCloud(
   if (cloudRaw) {
     const parsedCloud = parseStored2DRaw(cloudRaw, levels);
     if (parsedCloud) {
-      merged = mergeParsedInto2D(normalizedLocal, parsedCloud, levels);
+      if (hasConcurrentLocalEdit) {
+        const cloudHydrated = mergeParsedInto2D(preReadBase, parsedCloud, levels);
+        const threeWay = remapProgress(
+          normalizedLocal,
+          levels.map((l) => l.id),
+          levels,
+        );
+        foldPendingCloudThreeWay2D(threeWay, preReadBase, cloudHydrated, levels);
+        merged = threeWay;
+      } else {
+        merged = mergeParsedInto2D(normalizedLocal, parsedCloud, levels);
+      }
       const mergedRaw = serializeStored2D(merged, levels);
-      if (mergedRaw !== localRaw) {
+      if (mergedRaw !== localRaw && resetGen2D === genAtStart) {
         saveLocalProgress2D(merged, levels);
       }
       if (!readFailed) {

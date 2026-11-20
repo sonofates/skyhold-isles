@@ -1477,4 +1477,143 @@ describe('Steam achievements map, cloud hydration, and desktop config invariants
     expect(earned).toContain('FEAT_SQUALL_RIDER');
     expect(earned).toContain('FEAT_VETERAN'); // 15 + 20 = 35 >= 30 wins even with NaN at index 1!
   });
+
+  it('preserves concurrent Workshop Refund, Hero Respec, and Hero Select -> Bran during an in-flight Steam Cloud read (2D & 3D)', async () => {
+    const { respec } = await import('../../src/render2d/heroes2d.ts');
+    const { saveLocalProgress } = await import('../../src/platform/storage.ts');
+
+    // Seed local 2D save: 10 islands 3★ (30★), treasury:2, Sela selected, Mira L12 with unlocked skill.
+    const localInit = createDefaultProgress(LEVELS_2D.length);
+    for (let i = 0; i < 10; i++) {
+      localInit.bestStars[i] = 3;
+      localInit.clears[i] = 1;
+    }
+    localInit.unlockedLevelIndex = 10;
+    localInit.workshop = { treasury: 2 };
+    localInit.heroes = {
+      selectedHero: 'sela',
+      roster: {
+        bran: { xp: 250, skills: [] },
+        wren: { xp: 0, skills: [] },
+        mira: { xp: HERO_LEVEL_XP[11], skills: ['mira_emb_1'] },
+        tobb: { xp: 0, skills: [] },
+        sela: { xp: HERO_LEVEL_XP[9], skills: [] },
+      },
+    };
+    localStore.set(
+      PROGRESS_2D_KEY,
+      JSON.stringify({ ids: LEVELS_2D.map((l) => l.id), progress: localInit }),
+    );
+
+    // Remote Steam Cloud ALSO has treasury:2, Sela selected, Mira with mira_emb_1 + higher XP (L15) + extra 3★ on island 12:
+    const remote2D = JSON.parse(JSON.stringify(localInit)) as ProgressData;
+    remote2D.bestStars[12] = 3;
+    remote2D.clears[12] = 1;
+    remote2D.heroes!.roster.mira = { xp: HERO_LEVEL_XP[14], skills: ['mira_emb_1'] };
+
+    const cloudMap = new Map<string, string>();
+    cloudMap.set(
+      CLOUD_PROGRESS_2D_SLOT,
+      JSON.stringify({ ids: LEVELS_2D.map((l) => l.id), progress: remote2D }),
+    );
+
+    let resolveRead2D: (() => void) | null = null;
+    const adapter2D = createPlatformAdapter({
+      bridge: {
+        isSteam: true,
+        appId: 480,
+        unlockAchievement: async () => true,
+        cloudRead: (slot) => {
+          const snap = cloudMap.get(slot) ?? null;
+          return new Promise<string | null>((res) => {
+            resolveRead2D = () => res(snap);
+          });
+        },
+        cloudWrite: async (slot, json) => {
+          cloudMap.set(slot, json);
+          return true;
+        },
+      },
+    });
+    setPlatformAdapter(adapter2D);
+
+    try {
+      const boot = loadProgress2D(LEVELS_2D);
+      expect(resolveRead2D).not.toBeNull();
+
+      // WHILE cloudRead(progress2d) is still in flight, player:
+      // 1) Refunds Workshop, 2) Respecs Mira (immutable clone), 3) Switches selectedHero from Sela -> Bran!
+      boot.workshop = {};
+      const afterRespec = respec(boot, 'mira', LEVELS_2D);
+      const afterSelect = selectHero(afterRespec, 'bran', LEVELS_2D)!;
+      saveProgress2D(afterSelect, LEVELS_2D);
+
+      resolveRead2D!();
+      await new Promise((r) => setTimeout(r, 20));
+
+      const final2D = loadProgress2D(LEVELS_2D);
+      expect(final2D.bestStars[12]).toBe(3); // remote i12 3★ merged!
+      expect(final2D.heroes?.roster.mira?.xp).toBe(HERO_LEVEL_XP[14]); // remote Mira L15 XP merged!
+      expect(final2D.workshop).toEqual({}); // Workshop Refund preserved!
+      expect(final2D.heroes?.roster.mira?.skills).toEqual([]); // Mira Respec preserved!
+      expect(final2D.heroes?.selectedHero).toBe('bran'); // Switch to Bran preserved!
+
+      const writtenCloud2D = JSON.parse(cloudMap.get(CLOUD_PROGRESS_2D_SLOT)!) as {
+        progress: ProgressData;
+      };
+      expect(writtenCloud2D.progress.workshop).toEqual({});
+      expect(writtenCloud2D.progress.heroes?.roster.mira?.skills).toEqual([]);
+      expect(writtenCloud2D.progress.heroes?.selectedHero).toBe('bran');
+      expect(writtenCloud2D.progress.bestStars[12]).toBe(3);
+
+      // 3D hydrateProgressFromCloud also preserves a concurrent Workshop Refund during cloudRead('progress'):
+      localStore.clear();
+      const local3D = createDefaultProgress(LEVELS.length);
+      for (let i = 0; i < 6; i++) {
+        local3D.bestStars[i] = 3;
+        local3D.clears[i] = 1;
+      }
+      local3D.workshop = { treasury: 2 };
+      saveLocalProgress(local3D);
+
+      const remote3D = JSON.parse(JSON.stringify(local3D)) as ProgressData;
+      remote3D.bestStars[7] = 3;
+      remote3D.clears[7] = 1;
+      cloudMap.set('progress', JSON.stringify(remote3D));
+
+      let resolveRead3D: (() => void) | null = null;
+      const adapter3D = createPlatformAdapter({
+        bridge: {
+          isSteam: true,
+          appId: 480,
+          unlockAchievement: async () => true,
+          cloudRead: (slot) => {
+            const snap = cloudMap.get(slot) ?? null;
+            return new Promise<string | null>((res) => {
+              resolveRead3D = () => res(snap);
+            });
+          },
+          cloudWrite: async (slot, json) => {
+            cloudMap.set(slot, json);
+            return true;
+          },
+        },
+      });
+      setPlatformAdapter(adapter3D);
+
+      const p3dPromise = hydrateProgressFromCloud(local3D, LEVELS.length, adapter3D, LEVELS);
+      expect(resolveRead3D).not.toBeNull();
+      // Player refunds 3D Workshop while cloudRead('progress') is pending:
+      local3D.workshop = {};
+      saveLocalProgress(local3D);
+      resolveRead3D!();
+
+      const res3D = await p3dPromise;
+      expect(res3D.merged.bestStars[7]).toBe(3);
+      expect(res3D.merged.workshop).toEqual({});
+      expect(JSON.parse(cloudMap.get('progress')!).workshop).toEqual({});
+    } finally {
+      setPlatformAdapter(null);
+    }
+  });
 });
