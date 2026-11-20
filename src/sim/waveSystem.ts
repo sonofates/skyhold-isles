@@ -303,6 +303,7 @@ export function buildWaveSpawnQueue(
 
 /** Between-wave countdown while auto-wave is enabled. */
 const AUTO_WAVE_COUNTDOWN_SEC = 0.75;
+const noopAwardGold = (): void => {};
 
 export class WaveSystem {
   private readonly level: LevelDef;
@@ -319,6 +320,9 @@ export class WaveSystem {
   private spawnQueue: QueuedSpawn[] = [];
   private mutatorCacheIndex = -1;
   private mutatorCache: EndlessMutatorEffects = NO_ENDLESS_MUTATORS;
+  private previewCacheIdx = -2;
+  private previewCacheEndless = false;
+  private previewCache: WavePreview | null = null;
   private spawnCursor = 0;
   private currentWaveClearBonus = 0;
   private pendingClearedWaves = 0;
@@ -491,8 +495,14 @@ export class WaveSystem {
   getNextWavePreview(): WavePreview | null {
     if (this.state === 'finished') return null;
     const nextIdx = this.state === 'preFirstWave' ? 0 : this.currentWaveIndex + 1;
+    if (this.previewCacheIdx === nextIdx && this.previewCacheEndless === this.endlessMode) {
+      return this.previewCache;
+    }
     const wave = this.getWaveDef(nextIdx);
     if (!wave) {
+      this.previewCacheIdx = nextIdx;
+      this.previewCacheEndless = this.endlessMode;
+      this.previewCache = null;
       return null;
     }
 
@@ -524,10 +534,14 @@ export class WaveSystem {
       );
     }
 
-    return {
+    const built: WavePreview = {
       waveOneBased: nextIdx + 1,
       items,
     };
+    this.previewCacheIdx = nextIdx;
+    this.previewCacheEndless = this.endlessMode;
+    this.previewCache = built;
+    return built;
   }
 
   startNextWave(onAwardGold: (amount: number) => void): boolean {
@@ -574,7 +588,7 @@ export class WaveSystem {
     this.autoShortenedBy = 0;
     this.currentWaveIndex = clampedIdx - 1;
     this.state = 'preFirstWave';
-    return this.startNextWave(() => {});
+    return this.startNextWave(noopAwardGold);
   }
 
   private computeStoryWaveHpScale(waveIndex: number): number {

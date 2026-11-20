@@ -433,6 +433,7 @@ export class SimWorld {
   /** Orders the active hero to move along the ground road graph to `(x, z)`. */
   commandHeroMove(x: number, z: number): boolean {
     if (this.outcome !== 'ongoing') return false;
+    if (!this.recordingCommands) return this.heroSystem.commandMove(x, z);
     return this.heroSystem.commandMove(x, z, () => {
       this.recordCommand({ kind: 'moveHero', x, z });
     });
@@ -441,6 +442,7 @@ export class SimWorld {
   /** Casts one of the active hero's two skills (`slot` = `0` or `1`). */
   castHeroSkill(slot: HeroSkillSlot, x = NaN, z = NaN): boolean {
     if (this.outcome !== 'ongoing') return false;
+    if (!this.recordingCommands) return this.heroSystem.castSkill(slot, x, z, this.towers);
     const hasCoords = Number.isFinite(x) && Number.isFinite(z);
     return this.heroSystem.castSkill(slot, x, z, this.towers, () => {
       this.recordCommand(hasCoords ? { kind: 'castHeroSkill', slot, x, z } : { kind: 'castHeroSkill', slot });
@@ -543,13 +545,15 @@ export class SimWorld {
     };
   }
 
+  private readonly onStartWaveBonusFn = (bonus: number): void => {
+    this.gold += this.scaleWaveBonus(bonus);
+    this.events.emit('economyChanged', { gold: this.gold, lives: this.lives });
+  };
+
   startNextWave(): boolean {
     if (this.outcome !== 'ongoing' || !this.waveSystem.canStartNextWave()) return false;
     this.recordCommand({ kind: 'startWave' });
-    return this.waveSystem.startNextWave((bonus) => {
-      this.gold += this.scaleWaveBonus(bonus);
-      this.events.emit('economyChanged', { gold: this.gold, lives: this.lives });
-    });
+    return this.waveSystem.startNextWave(this.onStartWaveBonusFn);
   }
 
   debugSkipToWave(waveOneBased: number): boolean {
@@ -820,6 +824,7 @@ export class SimWorld {
     if (this.outcome !== 'ongoing') return false;
     const tower = this.getTowerById(towerId);
     if (!tower || TOWER_DEFS[tower.type].role !== 'barracks') return false;
+    if (!this.recordingCommands) return this.soldierSystem.setRally(tower, x, z);
     return this.soldierSystem.setRally(tower, x, z, () => {
       this.recordCommand({ kind: 'setRally', towerId, x, z });
     });

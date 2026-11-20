@@ -542,10 +542,8 @@ export class HeroSystem {
 
     onCommitted?.();
     this.releaseCurrentMeleeHolds(true);
-    const waypoints = this.groundGraph.findPath(h.x, h.z, wantX, wantZ);
-    const last = waypoints[waypoints.length - 1];
-    h.waypoints.length = 0;
-    for (let i = 0; i < waypoints.length; i++) h.waypoints.push(waypoints[i]);
+    this.groundGraph.findPathInto(h.x, h.z, wantX, wantZ, HERO_RULES.maxOffRoadDist, h.waypoints);
+    const last = h.waypoints[h.waypoints.length - 1];
     h.hasRallyPoint = true;
     h.rallyX = last.x;
     h.rallyZ = last.z;
@@ -559,7 +557,7 @@ export class HeroSystem {
       z: h.z,
       targetX: last.x,
       targetZ: last.z,
-      waypoints: [...waypoints],
+      waypoints: [...h.waypoints],
     });
     return true;
   }
@@ -804,11 +802,7 @@ export class HeroSystem {
     const resolvedTarget = _resolvedCastTargets[slot];
     resolvedTarget.x = tx;
     resolvedTarget.z = tz;
-    const commitCast = (): void => {
-      h.skillCooldowns[slot] = act.cooldownSec;
-      onCommitted?.();
-    };
-    const ok = this.executeActive(h, slot, act, tx, tz, towers, commitCast, gen);
+    const ok = this.executeActive(h, slot, act, tx, tz, towers, onCommitted, gen);
     if (!ok) return false;
     if (this.resetGen !== gen || h.hp <= 0) return true;
 
@@ -829,6 +823,16 @@ export class HeroSystem {
     return true;
   }
 
+  private commitSkillCooldown(
+    h: HeroEntity,
+    slot: HeroSkillSlot,
+    cooldownSec: number,
+    onCommitted?: () => void,
+  ): void {
+    h.skillCooldowns[slot] = cooldownSec;
+    onCommitted?.();
+  }
+
   private executeActive(
     h: HeroEntity,
     slot: HeroSkillSlot,
@@ -836,7 +840,7 @@ export class HeroSystem {
     tx: number,
     tz: number,
     towers: readonly TowerEntity[],
-    commitCast: () => void,
+    onCommitted?: () => void,
     gen = this.resetGen,
   ): boolean {
     const skillCandidates = slot === 0 ? _skillCandidates0 : _skillCandidates1;
@@ -844,7 +848,7 @@ export class HeroSystem {
     const resolvedTarget = _resolvedCastTargets[slot];
     switch (act.kind) {
       case 'shieldBash': {
-        commitCast();
+        this.commitSkillCooldown(h, slot, act.cooldownSec, onCommitted);
         let dirX = tx - h.x;
         let dirZ = tz - h.z;
         if (Math.hypot(dirX, dirZ) < 0.05) {
@@ -887,14 +891,14 @@ export class HeroSystem {
       }
 
       case 'rallyBanner': {
-        commitCast();
+        this.commitSkillCooldown(h, slot, act.cooldownSec, onCommitted);
         h.rallyBannerTimer = act.durationSec;
         this.applyRallyAura(h, 0);
         return true;
       }
 
       case 'volley': {
-        commitCast();
+        this.commitSkillCooldown(h, slot, act.cooldownSec, onCommitted);
         const slow = act.extras.has('volleySlow');
         this.applyVolleyStrike(h, tx, tz, act.radius, act.damage, slow, skillCandidates, gen);
         if (this.resetGen !== gen) return true;
@@ -916,7 +920,7 @@ export class HeroSystem {
         if (targets.length === 0) return false;
         resolvedTarget.x = targets[0].x;
         resolvedTarget.z = targets[0].z;
-        commitCast();
+        this.commitSkillCooldown(h, slot, act.cooldownSec, onCommitted);
         for (let i = 0; i < targets.length; i++) {
           this.enemySystem.applyMark(targets[i], act.effect, act.durationSec);
         }
@@ -924,7 +928,7 @@ export class HeroSystem {
       }
 
       case 'fireRing': {
-        commitCast();
+        this.commitSkillCooldown(h, slot, act.cooldownSec, onCommitted);
         this.spawnFireRing(
           h,
           tx,
@@ -940,7 +944,7 @@ export class HeroSystem {
       }
 
       case 'wispBurst': {
-        commitCast();
+        this.commitSkillCooldown(h, slot, act.cooldownSec, onCommitted);
         let dx = tx - h.x;
         let dz = tz - h.z;
         let len = Math.hypot(dx, dz);
@@ -1010,7 +1014,7 @@ export class HeroSystem {
       }
 
       case 'deployGizmo': {
-        commitCast();
+        this.commitSkillCooldown(h, slot, act.cooldownSec, onCommitted);
         const placed = this.resolveGizmoPlacement(tx, tz, h.x, h.z, act.range);
         resolvedTarget.x = placed.x;
         resolvedTarget.z = placed.z;
@@ -1051,7 +1055,7 @@ export class HeroSystem {
           resolvedTarget.x = this.gizmos[0].x;
           resolvedTarget.z = this.gizmos[0].z;
         }
-        commitCast();
+        this.commitSkillCooldown(h, slot, act.cooldownSec, onCommitted);
         for (let i = 0; i < chosen.length; i++) {
           const t = chosen[i];
           t.stunTimer = 0;
@@ -1080,7 +1084,7 @@ export class HeroSystem {
       }
 
       case 'undertow': {
-        commitCast();
+        this.commitSkillCooldown(h, slot, act.cooldownSec, onCommitted);
         this.spatialHash.query(tx, tz, act.radius, skillCandidates);
         const rSq = act.radius * act.radius;
         const slowRatio = Math.min(0.75, act.effect);
@@ -1112,7 +1116,7 @@ export class HeroSystem {
         let current: EnemyEntity | null = firstList[0];
         resolvedTarget.x = current.x;
         resolvedTarget.z = current.z;
-        commitCast();
+        this.commitSkillCooldown(h, slot, act.cooldownSec, onCommitted);
         let dmg = act.damage;
         const maxJumps = act.count;
         const chainRange = act.radius;
