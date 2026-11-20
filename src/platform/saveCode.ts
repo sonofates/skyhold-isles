@@ -1,17 +1,30 @@
 import type { HeroId, HeroSaveData, ProgressData } from '../core/types.ts';
 import { isChallengeId } from '../data/challenges.ts';
 import { sanitizeDailyRecord, type DailyRecord } from '../data/daily.ts';
-import { difficultyWinsOf, mergeDifficultyWins } from '../data/difficulty.ts';
+import { difficultyWinsOf, mergeDifficultyWins, sanitizeDifficultyWins } from '../data/difficulty.ts';
 import {
   countHeroSkillPointsSpent,
   HERO_IDS,
+  isHeroId,
   mergeHeroSaveData,
   sanitizeHeroSaveData,
   totalHeroSaveXp,
 } from '../data/heroes.ts';
 import { rankOf, sanitizeRanks, WORKSHOP_UPGRADES, workshopStarsSpent } from '../data/workshop.ts';
 import { starWallet } from '../game/progression.ts';
-import { migrateProgress, PROGRESS_SAVE_VERSION } from './storage.ts';
+import {
+  CLOUD_PROGRESS_SLOT,
+  createDefaultProgress,
+  hasAnyProgress,
+  migrateProgress,
+  PROGRESS_BACKUP_KEY,
+  PROGRESS_IMPORT_BACKUP_KEY,
+  PROGRESS_RESET_BACKUP_KEY,
+  PROGRESS_SAVE_VERSION,
+  readLocalProgressRaw,
+  saveProgress,
+  tryRepairTruncatedJson,
+} from './storage.ts';
 
 /**
  * Save codes: the campaign save as a copy-paste string, to move progress between devices or keep a
@@ -21,6 +34,7 @@ import { migrateProgress, PROGRESS_SAVE_VERSION } from './storage.ts';
  */
 const PREFIX = 'SKY2-';
 const MAX_SAVE_CODE_ISLANDS = 512;
+const MAX_SAVE_CODE_CHARS = 262_144;
 
 /** FNV-1a 32-bit, as 7 base36 chars. */
 function checksum(text: string): string {
@@ -47,16 +61,24 @@ function fromBase64Url(b64: string): string {
 }
 
 /** Trailing zeros carry no information: trim them to keep codes short. */
-function trimZeros(list: readonly number[]): number[] {
-  let end = list.length;
-  while (end > 0 && !list[end - 1]) end--;
-  return list.slice(0, end);
+function trimZeros(list: readonly number[] | undefined, max = Number.MAX_SAFE_INTEGER): number[] {
+  if (!Array.isArray(list)) return [];
+  const safe = list.map((v) =>
+    typeof v === 'number' && Number.isFinite(v) ? Math.max(0, Math.min(max, Math.floor(v))) : 0,
+  );
+  let end = safe.length;
+  while (end > 0 && !safe[end - 1]) end--;
+  return safe.slice(0, end);
 }
 
-function trimLists(list: readonly string[][]): string[][] {
-  let end = list.length;
-  while (end > 0 && (list[end - 1]?.length ?? 0) === 0) end--;
-  return list.slice(0, end).map((l) => [...l]);
+function trimLists(list: readonly string[][] | undefined): string[][] {
+  if (!Array.isArray(list)) return [];
+  const safe = list.map((l) =>
+    Array.isArray(l) ? l.filter((x): x is string => typeof x === 'string' && x.length > 0 && x.length <= 40) : [],
+  );
+  let end = safe.length;
+  while (end > 0 && safe[end - 1].length === 0) end--;
+  return safe.slice(0, end);
 }
 
 interface CompactHeroPayload {
@@ -102,26 +124,52 @@ function decodeHeroPayload(raw: unknown): HeroSaveData | undefined {
 }
 
 export function encodeSaveCode(progress: ProgressData, levelIds?: readonly string[]): string {
+  const safeVer =
+    typeof progress.version === 'number' && Number.isFinite(progress.version) && progress.version > 0
+      ? Math.floor(progress.version)
+      : PROGRESS_SAVE_VERSION;
+  const safeUnlock =
+    typeof progress.unlockedLevelIndex === 'number' && Number.isFinite(progress.unlockedLevelIndex)
+      ? Math.max(0, Math.floor(progress.unlockedLevelIndex))
+      : 0;
+  const safeStars = trimZeros(progress.bestStars, 3);
   const payload: Record<string, unknown> = {
-    v: progress.version,
-    u: progress.unlockedLevelIndex,
-    s: trimZeros(progress.bestStars),
+    v: safeVer,
+    u: safeUnlock,
+    s: safeStars,
     e: trimZeros(progress.bestEndlessWaves),
     l: trimZeros(progress.bestLives),
     c: trimZeros(progress.clears),
-    w: progress.workshop,
+    w: sanitizeRanks(progress.workshop),
     b: trimLists(progress.challengeClears),
-    d: progress.daily,
+    d: sanitizeDailyRecord(progress.daily),
   };
   if (progress.heroes !== undefined) {
     payload.h = encodeHeroPayload(progress.heroes);
   }
   if (progress.difficultyWins !== undefined) {
-    const dw = progress.difficultyWins;
-    payload.dw = { e: trimZeros(dw.easy), n: trimZeros(dw.normal), h: trimZeros(dw.hard) };
+    const rawDw = progress.difficultyWins as unknown as Record<string, unknown>;
+    const dwCount = Math.max(
+      Array.isArray(progress.bestStars) ? progress.bestStars.length : 0,
+      Array.isArray(rawDw?.easy) ? rawDw.easy.length : 0,
+      Array.isArray(rawDw?.normal) ? rawDw.normal.length : 0,
+      Array.isArray(rawDw?.hard) ? rawDw.hard.length : 0,
+      levelIds?.length ?? 0,
+    );
+    const dw = sanitizeDifficultyWins(progress.difficultyWins, dwCount);
+    if (dw) {
+      for (let i = 0; i < dwCount; i++) {
+        const bs = safeStars[i] ?? 0;
+        const maxDiff = Math.max(dw.easy[i] ?? 0, dw.normal[i] ?? 0, dw.hard[i] ?? 0);
+        if (bs > maxDiff) dw.normal[i] = bs;
+        else if (maxDiff > bs) safeStars[i] = maxDiff;
+      }
+      payload.s = trimZeros(safeStars, 3);
+      payload.dw = { e: trimZeros(dw.easy, 1), n: trimZeros(dw.normal, 3), h: trimZeros(dw.hard, 3) };
+    }
   }
   if (levelIds && levelIds.length > 0) {
-    payload.i = [...levelIds];
+    payload.i = levelIds.slice(0, MAX_SAVE_CODE_ISLANDS).map((id) => (typeof id === 'string' ? id : ''));
   }
   const body = toBase64Url(JSON.stringify(payload));
   return `${PREFIX}${body}-${checksum(body)}`;
@@ -131,7 +179,13 @@ export type SaveCodeResult =
   | { readonly ok: true; readonly progress: ProgressData; readonly levelIds?: readonly string[] }
   | { readonly ok: false; readonly error: string };
 
-export function decodeSaveCode(code: string, levelCount: number): SaveCodeResult {
+function parseVerifiedSaveCodeBody(code: unknown):
+  | { readonly ok: true; readonly raw: Record<string, unknown> }
+  | { readonly ok: false; readonly error: string } {
+  if (typeof code !== 'string') return { ok: false, error: 'That is not a Skyhold save code.' };
+  if (code.length > MAX_SAVE_CODE_CHARS) {
+    return { ok: false, error: 'The code is too long to be a Skyhold save code.' };
+  }
   const clean = code.replace(/\s+/g, '');
   if (!clean.startsWith(PREFIX)) return { ok: false, error: 'That is not a Skyhold save code.' };
   const rest = clean.slice(PREFIX.length);
@@ -150,12 +204,44 @@ export function decodeSaveCode(code: string, levelCount: number): SaveCodeResult
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
     return { ok: false, error: 'The code could not be read.' };
   }
-  const r = raw as Record<string, unknown>;
+  return { ok: true, raw: raw as Record<string, unknown> };
+}
+
+/**
+ * Reads pre-remap / pre-wallet-refund Workshop ranks and `selectedHero` from a verified `SKY2-...`
+ * save code so cross-device 2D imports can evaluate affordability and unlock milestones against the
+ * combined (`local + imported`) island stars and clears.
+ */
+export function inspectSaveCodeHints(code: string): {
+  readonly rawWorkshop?: Record<string, number>;
+  readonly rawSelectedHero?: HeroId;
+} {
+  const verified = parseVerifiedSaveCodeBody(code);
+  if (!verified.ok) return {};
+  const r = verified.raw;
+  const rawWorkshop = sanitizeRanks(r.w);
+  let rawSelectedHero: HeroId | undefined;
+  if (r.h && typeof r.h === 'object' && !Array.isArray(r.h)) {
+    const hObj = r.h as Record<string, unknown>;
+    const cand = hObj.selectedHero ?? hObj.s;
+    if (isHeroId(cand)) rawSelectedHero = cand;
+  }
+  return {
+    ...(Object.keys(rawWorkshop).length > 0 ? { rawWorkshop } : {}),
+    ...(rawSelectedHero !== undefined ? { rawSelectedHero } : {}),
+  };
+}
+
+export function decodeSaveCode(code: string, levelCount: number): SaveCodeResult {
+  const verified = parseVerifiedSaveCodeBody(code);
+  if (!verified.ok) return verified;
+  const r = verified.raw;
   const decodedHeroes = r.h !== undefined ? decodeHeroPayload(r.h) : undefined;
   const levelIds = Array.isArray(r.i)
     ? r.i.slice(0, MAX_SAVE_CODE_ISLANDS).map((x) => (typeof x === 'string' && x.length <= 64 ? x : ''))
     : undefined;
   const hasValidIds = levelIds !== undefined && levelIds.some((id) => id.length > 0);
+  const rawDw = r.dw && typeof r.dw === 'object' && !Array.isArray(r.dw) ? (r.dw as Record<string, unknown>) : null;
   const progress = migrateProgress(
     {
       version: r.v,
@@ -168,12 +254,12 @@ export function decodeSaveCode(code: string, levelCount: number): SaveCodeResult
       challengeClears: r.b,
       daily: r.d,
       ...(decodedHeroes !== undefined ? { heroes: decodedHeroes } : {}),
-      ...(r.dw && typeof r.dw === 'object' && !Array.isArray(r.dw)
+      ...(rawDw
         ? {
             difficultyWins: {
-              easy: (r.dw as Record<string, unknown>).e,
-              normal: (r.dw as Record<string, unknown>).n,
-              hard: (r.dw as Record<string, unknown>).h,
+              easy: rawDw.e ?? rawDw.easy,
+              normal: rawDw.n ?? rawDw.normal,
+              hard: rawDw.h ?? rawDw.hard,
             },
           }
         : {}),
@@ -252,7 +338,11 @@ export function mergeProgress(a: ProgressData, b: ProgressData, levelCount: numb
         mergedDifficultyWins.normal[i] ?? 0,
         mergedDifficultyWins.hard[i] ?? 0,
       );
-      if (maxDiff > bestStars[i]) bestStars[i] = maxDiff;
+      if (maxDiff > bestStars[i]) {
+        bestStars[i] = maxDiff;
+      } else if (bestStars[i] > maxDiff) {
+        mergedDifficultyWins.normal[i] = bestStars[i];
+      }
     }
   }
   const clears = maxList(a.clears, b.clears);
@@ -310,13 +400,91 @@ export function mergeProgress(a: ProgressData, b: ProgressData, levelCount: numb
     ...(mergedDifficultyWins !== undefined ? { difficultyWins: mergedDifficultyWins } : {}),
   };
   if (starWallet(merged).available < 0) {
-    merged.workshop = primaryWorkshop;
-    if (starWallet(merged).available < 0) {
-      merged.workshop = secondaryWorkshop;
-      if (starWallet(merged).available < 0) merged.workshop = {};
+    const totalEarned = starWallet(merged).earned;
+    if (spentA <= totalEarned && spentB <= totalEarned) {
+      // Both sides were genuinely affordable saves whose combined upgrades exceeded totalEarned:
+      // keep all of primaryWorkshop and greedily top up affordable ranks from secondaryWorkshop.
+      const topped: Record<string, number> = { ...primaryWorkshop };
+      let remaining = totalEarned - workshopStarsSpent(topped);
+      for (const def of WORKSHOP_UPGRADES) {
+        let cur = rankOf(topped, def.id);
+        const want = rankOf(secondaryWorkshop, def.id);
+        while (cur < want) {
+          const stepCost = def.costs[cur];
+          if (stepCost === undefined || stepCost > remaining) break;
+          cur++;
+          topped[def.id] = cur;
+          remaining -= stepCost;
+        }
+      }
+      merged.workshop = sanitizeRanks(topped);
+    } else {
+      merged.workshop = primaryWorkshop;
+      if (starWallet(merged).available < 0) {
+        merged.workshop = secondaryWorkshop;
+        if (starWallet(merged).available < 0) merged.workshop = {};
+      }
     }
   }
   return merged;
+}
+
+export interface RecoverProgressResult {
+  readonly progress: ProgressData;
+  readonly recovered: boolean;
+  readonly sources: readonly string[];
+}
+
+/**
+ * Multi-source recovery for 3D campaign saves: inspects the primary slot (direct or truncated-JSON
+ * repaired), mirrored cloud slot (`skyhold_isles_cloud_progress`), import backup, pre-migration
+ * backup, and optionally the reset backup, merging every valid source monotonically.
+ */
+export function recoverProgressSave(
+  levelCount: number,
+  options?: { readonly includeResetBackup?: boolean; readonly persist?: boolean },
+): RecoverProgressResult {
+  const count = Number.isFinite(levelCount) ? Math.max(0, Math.floor(levelCount)) : 0;
+  let merged = createDefaultProgress(count);
+  const sources: string[] = [];
+
+  const readKey = (key: string): string | null => {
+    try {
+      return typeof localStorage === 'undefined' ? null : localStorage.getItem(key);
+    } catch {
+      return null;
+    }
+  };
+
+  const candidates: readonly (readonly [string, string | null])[] = [
+    ['primary', readLocalProgressRaw()],
+    ['cloud', readKey(`skyhold_isles_cloud_${CLOUD_PROGRESS_SLOT}`)],
+    ['importBackup', readKey(PROGRESS_IMPORT_BACKUP_KEY)],
+    ['migrationBackup', readKey(PROGRESS_BACKUP_KEY)],
+    ...(options?.includeResetBackup ? ([['resetBackup', readKey(PROGRESS_RESET_BACKUP_KEY)]] as const) : []),
+  ];
+
+  for (let i = 0; i < candidates.length; i++) {
+    const [label, raw] = candidates[i];
+    if (!raw) continue;
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      parsed = tryRepairTruncatedJson(raw);
+    }
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) continue;
+    const migrated = migrateProgress(parsed, count);
+    if (!hasAnyProgress(migrated)) continue;
+    merged = mergeProgress(merged, migrated, count);
+    sources.push(label);
+  }
+
+  const recovered = sources.length > 0 && hasAnyProgress(merged);
+  if (recovered && options?.persist !== false) {
+    saveProgress(merged);
+  }
+  return { progress: merged, recovered, sources };
 }
 
 /** What a merge would add, for the confirmation line ("+5★, 2 islands, …"). */

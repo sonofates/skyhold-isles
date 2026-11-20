@@ -1,7 +1,7 @@
 import type { GameSettings, ProgressData, QualityLevel } from '../core/types.ts';
 import { createDailyRecord, sanitizeDailyRecord } from '../data/daily.ts';
 import { sanitizeDifficultyWins } from '../data/difficulty.ts';
-import { hasHeroSaveProgress, sanitizeHeroSaveData } from '../data/heroes.ts';
+import { HERO_IDS, hasHeroSaveProgress, sanitizeHeroSaveData } from '../data/heroes.ts';
 import { sanitizeRanks } from '../data/workshop.ts';
 import { starWallet } from '../game/progression.ts';
 import { syncAchievementsFromProgress } from './achievements.ts';
@@ -110,7 +110,9 @@ export const DEFAULT_SETTINGS: GameSettings = getDefaultSettings();
  */
 export const PROGRESS_SAVE_VERSION = 2;
 /** One-time copy of a pre-migration save, written before the first save in a newer format. */
-const PROGRESS_BACKUP_KEY = 'skyhold_isles_progress_backup_v1';
+export const PROGRESS_BACKUP_KEY = 'skyhold_isles_progress_backup_v1';
+/** Forensic copy preserved once if the primary save slot encounters corrupted / truncated JSON. */
+export const PROGRESS_CORRUPT_BACKUP_KEY = 'skyhold_isles_progress_corrupt_backup_v1';
 
 export function createDefaultProgress(levelCount: number): ProgressData {
   const count = Number.isFinite(levelCount) ? Math.max(0, Math.floor(levelCount)) : 0;
@@ -205,6 +207,112 @@ export function saveSettings(settings: GameSettings): void {
   }
 }
 
+function normalizeRawDifficultyWins(rawDw: unknown): unknown {
+  if (!rawDw || typeof rawDw !== 'object' || Array.isArray(rawDw)) return rawDw;
+  const dw = rawDw as Record<string, unknown>;
+  if ('easy' in dw || 'normal' in dw || 'hard' in dw) return dw;
+  if ('e' in dw || 'n' in dw || 'h' in dw) {
+    return { easy: dw.e, normal: dw.n, hard: dw.h };
+  }
+  return dw;
+}
+
+function normalizeRawHeroSave(rawH: unknown): unknown {
+  if (!rawH || typeof rawH !== 'object' || Array.isArray(rawH)) return rawH;
+  const obj = rawH as Record<string, unknown>;
+  if ('selectedHero' in obj || 'roster' in obj) return obj;
+  if (!('s' in obj) && !('r' in obj)) return obj;
+  const rawR =
+    obj.r && typeof obj.r === 'object' && !Array.isArray(obj.r)
+      ? (obj.r as Record<string, unknown>)
+      : {};
+  const roster: Record<string, { xp: unknown; skills: unknown }> = {};
+  for (let i = 0; i < HERO_IDS.length; i++) {
+    const id = HERO_IDS[i];
+    const ce = rawR[id];
+    if (ce && typeof ce === 'object' && !Array.isArray(ce)) {
+      const c = ce as { x?: unknown; k?: unknown };
+      roster[id] = { xp: c.x ?? 0, skills: c.k ?? [] };
+    }
+  }
+  return { selectedHero: obj.s, roster };
+}
+
+/**
+ * Salvages a truncated JSON object string (e.g. partial write from power loss / quota cutoff) by
+ * scanning open string/bracket state, peeling back any incomplete trailing token or key-value pair,
+ * and closing open `[` / `{` scopes. Returns `null` if not a salvageable JSON object.
+ */
+export function tryRepairTruncatedJson(raw: string): Record<string, unknown> | null {
+  if (typeof raw !== 'string') return null;
+  const trimmed = raw.trimStart();
+  if (trimmed.length === 0 || trimmed.length > 262_144 || trimmed[0] !== '{') return null;
+
+  // Collect candidate cut lengths from the end back to structural boundaries (`,`, `[`, `{`, `}`, `]`, `"`, digits).
+  const cuts: number[] = [trimmed.length];
+  for (let pos = trimmed.length - 1; pos >= 1 && cuts.length < 96; pos--) {
+    const ch = trimmed[pos];
+    if (ch === ',' || ch === '{' || ch === '[' || ch === '}' || ch === ']' || ch === '"') {
+      cuts.push(pos);
+      if (ch === '}' || ch === ']' || ch === '"') cuts.push(pos + 1);
+    }
+  }
+
+  for (let ci = 0; ci < cuts.length; ci++) {
+    let end = cuts[ci];
+    while (end > 1 && /\s/.test(trimmed[end - 1])) end--;
+    if (end > 1 && trimmed[end - 1] === ',') {
+      end--;
+      while (end > 1 && /\s/.test(trimmed[end - 1])) end--;
+    }
+    if (end <= 0 || trimmed[end - 1] === ':') continue;
+
+    let inStr = false;
+    let esc = false;
+    let validPrefix = true;
+    const stack: ('{' | '[')[] = [];
+    for (let i = 0; i < end; i++) {
+      const c = trimmed[i];
+      if (inStr) {
+        if (esc) esc = false;
+        else if (c === '\\') esc = true;
+        else if (c === '"') inStr = false;
+        continue;
+      }
+      if (c === '"') inStr = true;
+      else if (c === '{' || c === '[') stack.push(c);
+      else if (c === '}') {
+        if (stack.pop() !== '{') {
+          validPrefix = false;
+          break;
+        }
+      } else if (c === ']') {
+        if (stack.pop() !== '[') {
+          validPrefix = false;
+          break;
+        }
+      }
+    }
+    if (!validPrefix) return null;
+    if (inStr) continue;
+
+    // Reject cuts that stopped mid-key inside an object (an object key string without `: value`).
+    let suffix = '';
+    for (let s = stack.length - 1; s >= 0; s--) {
+      suffix += stack[s] === '{' ? '}' : ']';
+    }
+    try {
+      const parsed: unknown = JSON.parse(trimmed.slice(0, end) + suffix);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        return parsed as Record<string, unknown>;
+      }
+    } catch {
+      // Peel back to the next earlier structural boundary and retry.
+    }
+  }
+  return null;
+}
+
 /**
  * Pure migration of any stored progress object (v1 or v2, possibly from a build with a different
  * island count) to the current format. Never drops earned progress: stars, unlocks and records
@@ -220,7 +328,10 @@ export function migrateProgress(parsed: unknown, levelCount: number): ProgressDa
   const bestEndlessWaves = parseIslandInts(raw.bestEndlessWaves, count);
   const bestLives = parseIslandInts(raw.bestLives, count);
   const clears = parseIslandInts(raw.clears, count);
-  const difficultyWins = sanitizeDifficultyWins(raw.difficultyWins, count);
+  const difficultyWins = sanitizeDifficultyWins(
+    normalizeRawDifficultyWins(raw.difficultyWins ?? raw.dw),
+    count,
+  );
   if (difficultyWins) {
     for (let i = 0; i < count; i++) {
       const maxDiff = Math.max(
@@ -228,7 +339,11 @@ export function migrateProgress(parsed: unknown, levelCount: number): ProgressDa
         difficultyWins.normal[i] ?? 0,
         difficultyWins.hard[i] ?? 0,
       );
-      if (maxDiff > bestStars[i]) bestStars[i] = maxDiff;
+      if (maxDiff > bestStars[i]) {
+        bestStars[i] = maxDiff;
+      } else if (bestStars[i] > maxDiff) {
+        difficultyWins.normal[i] = bestStars[i];
+      }
     }
   }
   // v1 saves (or partial saves recovered from difficultyWins) never counted clears: an island with stars was won at least once.
@@ -267,12 +382,13 @@ export function migrateProgress(parsed: unknown, levelCount: number): ProgressDa
     challengeClears: parseIslandIdLists(raw.challengeClears, count),
     daily: sanitizeDailyRecord(raw.daily),
   };
-  if (raw.heroes && typeof raw.heroes === 'object' && !Array.isArray(raw.heroes)) {
+  const rawHeroes = normalizeRawHeroSave(raw.heroes ?? raw.h);
+  if (rawHeroes && typeof rawHeroes === 'object' && !Array.isArray(rawHeroes)) {
     let clearedCount = 0;
     for (let i = 0; i < count; i++) {
       if (clears[i] > 0 || bestStars[i] > 0) clearedCount++;
     }
-    progress.heroes = sanitizeHeroSaveData(raw.heroes, clearedCount, unlocked);
+    progress.heroes = sanitizeHeroSaveData(rawHeroes, clearedCount, unlocked);
   }
   if (difficultyWins) progress.difficultyWins = difficultyWins;
   // Upgrades are always refundable: if a save somehow spends more stars than it has earned
@@ -282,8 +398,9 @@ export function migrateProgress(parsed: unknown, levelCount: number): ProgressDa
 }
 
 export function loadProgress(levelCount: number): ProgressData {
+  let raw: string | null = null;
   try {
-    const raw = localStorage.getItem(PROGRESS_KEY);
+    raw = localStorage.getItem(PROGRESS_KEY);
     if (!raw) return createDefaultProgress(levelCount);
     const parsed: unknown = JSON.parse(raw);
     const storedVersion =
@@ -300,6 +417,20 @@ export function loadProgress(levelCount: number): ProgressData {
     }
     return migrateProgress(parsed, levelCount);
   } catch {
+    if (raw) {
+      try {
+        if (localStorage.getItem(PROGRESS_CORRUPT_BACKUP_KEY) === null) {
+          localStorage.setItem(PROGRESS_CORRUPT_BACKUP_KEY, raw);
+        }
+      } catch {
+        // ignore storage errors
+      }
+      const repaired = tryRepairTruncatedJson(raw);
+      if (repaired) {
+        const recovered = migrateProgress(repaired, levelCount);
+        if (hasAnyProgress(recovered)) return recovered;
+      }
+    }
     return createDefaultProgress(levelCount);
   }
 }
@@ -335,7 +466,7 @@ export function saveProgress(progress: ProgressData): void {
 }
 
 /** Copy of the save erased by Settings → Reset progress (kept so a reset can be undone by hand). */
-const PROGRESS_RESET_BACKUP_KEY = 'skyhold_isles_progress_reset_backup';
+export const PROGRESS_RESET_BACKUP_KEY = 'skyhold_isles_progress_reset_backup';
 
 /** Erases campaign progress (settings untouched) after backing up the current save. */
 export function resetProgressSave(levelCount: number): ProgressData {
@@ -354,7 +485,7 @@ export function resetProgressSave(levelCount: number): ProgressData {
 }
 
 /** Copy of the save as it was before the last Settings → Save code → Load. */
-const PROGRESS_IMPORT_BACKUP_KEY = 'skyhold_isles_progress_import_backup';
+export const PROGRESS_IMPORT_BACKUP_KEY = 'skyhold_isles_progress_import_backup';
 
 export function backupProgressBeforeImport(): void {
   try {

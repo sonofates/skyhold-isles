@@ -11,57 +11,53 @@
 ## Done
 
 - [x] **1. QA Bot Sweep on Everything New (`qa/bot/**`, `src/sim/{waveSystem,heroSystem}.ts`, `src/platform/{storage,saveCode}.ts`, `src/render2d/ui/progress2d.ts`, `tests/sim/qaSweepN2.test.ts`)** — commit `2009ebd`
-  - **Expanded Headless QA Suite (`npm run qa:bot`):** **656/656 scenarios passed (`0` invariant violations)** across **19,970,369 sim ticks**, **28 full determinism replays**, **1,012 hero deaths / 962 hero respawns**, and **mid-progress campaign save sweep**:
-    - `difficulty` (**82/82**): `Easy` × all 25 islands, `Normal` × all 25 islands, `Hard` × all 25 islands (including `0`-starting-gold openings on `l1c`/`i16` and boss `i24`), plus `Hard + Challenge` combinations (`bowless`, `ironTide`, `glassSanctuary`, `silentSkies`) across Ch1 & Ch2 islands.
-    - `hero` (**387/387**): all 5 heroes (`bran`, `wren`, `mira`, `tobb`, `sela`) at L1/L10/L20 across 6 park modes (`merge`, `front`, `altLane`, `castle`, `roam`, plus new contested front-gate `gateContest` rally stress forcing repeated combat deaths, enemy-occupied retreat resolution, Hard `×1.25` respawn scaling, and `1.5 s` post-respawn invulnerability).
-    - **Dual-Engine Replay Determinism (28 pairs):** Every `verifyDeterminism` run verifies scratch re-execution (`stateHash`, `ticks`, `outcome`, per-wave `waveHashes`), `SimReplayPlayer` (`serializeSimReplay` -> `parseSimReplay` + forward/backward `seekToTick` timeline scrubbing + `runToEnd()`), AND the 2D UI's `RunRecorder` + `ReplayCursor` (`src/render2d/ui/replay2d.ts`) to bit-exact 64-bit `hashWorldState` parity.
-    - `daily` (**33/33**) & `endless` (**29/29**): Daily Squall across Ch1 + full-25-island Ch2 pools, plus 10 endless waves on all 25 islands and `startEndlessFromWave1` on `l1c`, `i04`, `i17`, `i24`.
-    - **Mid-Progress Campaign Save/Load Sweep (`qa/bot/saveSweep.ts`):** Simulates `l1c` -> `i24` progression across Easy/Normal/Hard, Workshop purchases, hero unlocks/XP/skills/respec, `SKY2-...` save-code round-trips, 17→25 Chapter-Two island remapping, and Steam Cloud conflict hydration (`hydrateProgress2DFromCloud`).
-  - **Logic Bugs Found & Fixed in Owned Area:**
-    1. **Chapter-Two Endless Spotlights Missing (`src/sim/waveSystem.ts`):** Added `ENDLESS_CHAPTER2_SPOTLIGHTS`, `ENDLESS_SPOTLIGHT_TUNING` entries for `bellrunner`, `kilnback`, `reedpiper`, and `draftwing`, and WeakMap-cached `hasChapterTwoEnemies(level)` so Chapter-Two Endless waves cycle all 4 Chapter-Two archetypes while keeping 3D L1–L16 and Chapter-One `l1c`–`i16` 100% unchanged.
-    2. **Partial/Corrupted Save `bestStars` & `clears` Recovery from `difficultyWins` (`src/platform/storage.ts`, `src/platform/saveCode.ts`):** `migrateProgress` and `mergeProgress` reconcile `bestStars[i] >= max(easy[i], normal[i], hard[i])` before `clears[i]`, frontier walk, hero unlock checks, and `starWallet` affordability; `hasAnyProgress` checks `difficultyWins`; `decodeSaveCode` caps `levelIds` (`r.i`) at `512` entries.
-    3. **Silent Hard-Ribbon Merge Summaries (`src/platform/saveCode.ts`):** `describeMergeGain` now reports `+N Hard ribbon(s)` / `difficulty records`.
-    4. **`recordWin2D` Difficulty Parity & Non-Clobbering Import Backups (`src/render2d/ui/progress2d.ts`, `src/platform/storage.ts`):** Added optional `difficulty` parameter to `recordWin2D` matching `applyRunResult2D` and prevented `importSaveCode2D` / `backupProgressBeforeImport` from clobbering an existing real backup when the current save is empty.
-    5. **Closure Elimination (`src/sim/heroSystem.ts`, `src/sim/waveSystem.ts`):** Removed per-call `mkSkill` closure in `HeroSystem.getRuntimeState` and inter-wave `onAwardGold` wrapper closure in `WaveSystem.update`.
+  - **Expanded Headless QA Suite (`npm run qa:bot`):** **656/656 scenarios passed (`0` invariant violations)** across **19,970,369 sim ticks**, **28 full determinism replays**, **1,012 hero deaths / 962 hero respawns**, and **mid-progress campaign save sweep** (`difficulty` 82/82, `hero` 387/387, `daily` 33/33, `endless` 29/29, `challenge`, `abilities`, `greedy`, `weak`).
+  - Fixed Chapter-Two Endless spotlight omission (`ENDLESS_CHAPTER2_SPOTLIGHTS` + tuning for `bellrunner`/`kilnback`/`reedpiper`/`draftwing`), partial-save `bestStars` recovery from `difficultyWins`, Hard-ribbon summaries in `describeMergeGain`, `recordWin2D` difficulty parity, non-clobbering import backups, and closures in `HeroSystem.getRuntimeState` / `WaveSystem.update`.
 
-- [x] **2. Steam Achievements Refresh (`desktop/achievements.json`, `src/platform/achievements.ts`, `src/platform/index.ts`, `tests/platform/steamAdapter.test.ts`)**
-  - Preserved all **28** shipped Steam achievement IDs verbatim at indices `0..27` and expanded the catalog to **58** data-driven achievements synced 1-to-1 with `desktop/achievements.json` (and validated by `desktop/main.cjs` `knownAchievementIds`):
-    - **Chapter Two & Boss `i24` (4):** `CHAPTER_TWO_LANDING`, `CHAPTER_TWO_CLEARED`, `CHAPTER_TWO_THREE_STARS`, `BOSS_I24_CLEARED`.
-    - **All 25 Islands 3★ (1):** `STARS_ALL_25_ISLANDS` (alongside existing `FEAT_FULL_FIRMAMENT`).
-    - **Hero Roster & Level 10 / 20 Milestones (12):** `HERO_ALL_ROSTER`, `HERO_{BRAN,WREN,MIRA,TOBB,SELA}_LV10`, `HERO_{BRAN,WREN,MIRA,TOBB,SELA}_LV20`, `HERO_ALL_LV20`.
-    - **Hard Wins & Hard Boss (5):** `HARD_FIRST_RIBBON`, `HARD_FIVE_RIBBONS`, `HARD_TEN_RIBBONS`, `HARD_BOSS_I24`, `HARD_ALL_ISLANDS` (strictly reading `difficultyWinsOf(progress).hard` so legacy Normal wins never false-trigger Hard ribbons).
-    - **Endless Milestones (4):** `ENDLESS_BRONZE_MEDAL` (3 waves), `ENDLESS_SILVER_MEDAL` (6 waves), `ENDLESS_DEEP_20` (20 waves), `ENDLESS_FIVE_GOLDS` (Gold 10+ waves on 5 islands).
-    - **Daily Squall Streaks & Totals (4):** `DAILY_FIRST_WIN`, `DAILY_STREAK_7`, `DAILY_STREAK_14`, `DAILY_TOTAL_20` (honouring `max(bestStreak, streak)` so historical streaks survive missed days).
-  - Kept `src/platform/achievements.ts` free of `src/data/levels2d/index.ts` imports so the 3D bundle does not pull in 2D map data; added comprehensive unit tests covering all 30 new achievements, legacy ID stability, 3D vs 2D roster isolation, and `NaN`/malformed save guards.
+- [x] **2. Steam Achievements Refresh (`desktop/achievements.json`, `src/platform/achievements.ts`, `src/platform/index.ts`, `tests/platform/steamAdapter.test.ts`)** — commit `c97c63d`
+  - Preserved all **28** original Steam achievement IDs verbatim at indices `0..27` and expanded the catalog to **58** data-driven achievements synced 1-to-1 with `desktop/achievements.json`: Chapter Two (`CHAPTER_TWO_LANDING`, `CHAPTER_TWO_CLEARED`, `CHAPTER_TWO_THREE_STARS`), Boss `i24` (`BOSS_I24_CLEARED`), all 25 islands 3★ (`STARS_ALL_25_ISLANDS`), all 5 heroes L10 & L20 + full roster (`HERO_ALL_ROSTER`, `HERO_*_LV10`, `HERO_*_LV20`, `HERO_ALL_LV20`), Hard ribbons (`HARD_FIRST_RIBBON`, `HARD_FIVE_RIBBONS`, `HARD_TEN_RIBBONS`, `HARD_BOSS_I24`, `HARD_ALL_ISLANDS`), Endless milestones (`ENDLESS_BRONZE_MEDAL`, `ENDLESS_SILVER_MEDAL`, `ENDLESS_DEEP_20`, `ENDLESS_FIVE_GOLDS`), and Daily Squall streaks (`DAILY_FIRST_WIN`, `DAILY_STREAK_7`, `DAILY_STREAK_14`, `DAILY_TOTAL_20`).
+
+- [x] **3. Save Robustness v2 (`src/platform/{storage,saveCode,cloudSync,index}.ts`, `src/render2d/ui/progress2d.ts`, `tests/platform/{robustnessFuzz,saveRobustnessV2}.test.ts`)**
+  - **Export / Import Save Code Hardening:**
+    - `encodeSaveCode` / `decodeSaveCode` / `encodeSaveCode2D` / `decodeSaveCode2D` / `importSaveCode2D` sanitize non-finite fields, accept both compact (`{ e, n, h }`, `{ s, r }`) and full (`{ easy, normal, hard }`, `{ selectedHero, roster }`) difficulty/hero payloads, guard non-string and oversized (`> 256 KB`) inputs, and return `summary: describeMergeGain(previous, merged)` on `ImportSaveCode2DResult`.
+    - Added `inspectSaveCodeHints` + full-source sizing in `decodeSaveCode2D` / `importSaveCode2D` / `remapProgress` so truncated `levelIds` or retired islands never prematurely refund legitimate Workshop upgrades or drop unlocked `selectedHero` choices when merged, while still blocking cheated Workshop ranks that exceed the source save's own earned stars.
+    - Bidirectional `bestStars` ↔ `difficultyWins` reconciliation in `migrateProgress`, `mergeProgress`, and `encodeSaveCode` guarantees `max(easy[i], normal[i], hard[i]) === bestStars[i]` across all partial/legacy/merged saves.
+  - **Desktop Steam Cloud Conflict Rules (`hydrateProgressFromCloud`, `hydrateProgress2DFromCloud`, `mergeProgress`):**
+    - When two genuine affordable cross-device saves spend the same star pool on different Workshop branches such that their union overspends `starWallet(merged).earned`, `mergeProgress` now keeps all of `primaryWorkshop` and deterministically tops up affordable rank steps from `secondaryWorkshop` in canonical `WORKSHOP_UPGRADES` order (strictly commutative & idempotent, zero unspent star loss).
+    - Hardened `hydrateProgressFromCloud` and `hydrateProgress2DFromCloud` against throwing `cloudSave.read` / `cloudSave.write` adapters (never rejects, never overwrites remote Steam Cloud on transient `read` failure) and added truncated-JSON cloud blob salvage that merges surviving cloud progress before writing healed JSON back.
+  - **Corrupted / Partial Save Recovery:**
+    - Added bounded zero-regex `tryRepairTruncatedJson` in `src/platform/storage.ts` to salvage power-loss / quota-truncated JSON objects in `loadProgress`, `loadProgress2D`, `hydrateProgressFromCloud`, and `hydrateProgress2DFromCloud`, preserving forensic copies once in `PROGRESS_CORRUPT_BACKUP_KEY` / `PROGRESS_2D_CORRUPT_BACKUP_KEY`.
+    - `loadProgress2D` handles double-encoded `Stored2D` wrappers and automatically recovers/merges from the local cloud mirror (`skyhold_isles_cloud_progress2d`) if `PROGRESS_2D_KEY` is corrupted; added explicit multi-source `recoverProgress2D` and `recoverProgressSave` helpers covering `primary`, `cloud`, `importBackup`, `migrationBackup`, `corruptBackup`, and optional `resetBackup`.
+  - **Version Migration & Algebraic Fuzzing:** Expanded `tests/platform/robustnessFuzz.test.ts` (500 cases incl. `difficultyWins` & 25-island invariants) and added `tests/platform/saveRobustnessV2.test.ts` (300 cross-version `v0`/`v1`/`v2`/`v3`/`v99` 25-island migration + save-code round-trip + commutativity/idempotence/monotonicity fuzz cases, 150 bit-flipped/truncated save codes, and systematic byte-slice JSON truncation recovery sweep).
 
 ---
 
 ## In Progress
 
-- [ ] **3. Save Robustness v2 (`src/platform/saveCode.ts`, `src/platform/storage.ts`, `src/platform/cloudSync.ts`, `src/render2d/ui/progress2d.ts`, `tests/platform/robustnessFuzz.test.ts`, `tests/platform/saveRobustnessV2.test.ts`)**
+- [ ] **4. Performance on Low-End (`qa/p6-bench.mjs`, `scripts/qaLowEndBench.mjs`, owned `src/sim/**` allocation audit & tests)**
 
 ---
 
 ## Next (in order)
 
-1. **Save robustness v2**: export/import save code covers heroes, difficulty records, Workshop; cloud merge (desktop) conflict rules tested; corrupted/partial save recovery; version migration fuzz.
-2. **Performance on low-end**: headless bench (`qa/p6-bench.mjs`) on `i16` and `i24` boss at Hard with heroes + abilities spam; no frame > 100 ms after first wave, no per-tick allocations in owned sim paths; report in PROGRESS.
-3. **Desktop build sanity**: Linux AppImage still builds and launches (`npm run desktop:build:linux`, Xvfb smoke) with the current game; fix packaging issues.
+1. **Performance on low-end**: headless bench (`qa/p6-bench.mjs`) on `i16` and `i24` boss at Hard with heroes + abilities spam; no frame > 100 ms after first wave, no per-tick allocations in owned sim paths; report in PROGRESS.
+2. **Desktop build sanity**: Linux AppImage still builds and launches (`npm run desktop:build:linux`, Xvfb smoke) with the current game; fix packaging issues.
 
 ---
 
 ## Decisions
 
-- **Chapter-Two Endless Spotlights Scoped to Chapter-Two Islands (`i17`–`i24`):** `hasChapterTwoEnemies(level)` activates `ENDLESS_CHAPTER2_SPOTLIGHTS` only on islands whose story waves introduce Chapter-Two enemies (`i17`–`i24`). This keeps Chapter-One Endless runs free of unencountered Chapter-Two Bestiary spoilers and preserves 100% byte-identical outputs on `sim:balance`, `i16` `p6-bench`, and 3D `LEVELS`.
-- **3D Bundle Isolation in `src/platform/achievements.ts`:** `achievements.ts` inspects `levels` passed by the caller (`LEVELS_2D` in 2D `progress2d.ts`, `LEVELS` in 3D `storage.ts`/`cloudSync.ts`) using IDs (`i17`–`i24`, `i24`) rather than statically importing `LEVELS_2D`, keeping 25 island layouts out of the 3D chunk.
-- **Dual PROGRESS Path Mirroring:** Runner header specifies `docs/overnight/PROGRESS-skyhold-n2-agy.md` while task body mentions `docs/overnight2/PROGRESS-skyhold-n2-agy.md`; keeping both identical avoids any path mismatch.
+- **Chapter-Two Endless Spotlights Scoped to Chapter-Two Islands (`i17`–`i24`):** `hasChapterTwoEnemies(level)` activates `ENDLESS_CHAPTER2_SPOTLIGHTS` only on islands whose story waves introduce Chapter-Two enemies (`i17`–`i24`), keeping Chapter-One Endless free of unencountered Bestiary spoilers and preserving 100% byte-identical outputs on `sim:balance`, `i16` `p6-bench`, and 3D `LEVELS`.
+- **3D Bundle Isolation in `src/platform/achievements.ts`:** `achievements.ts` inspects `levels` passed by the caller rather than statically importing `LEVELS_2D`, keeping 25 island layouts out of the 3D chunk.
+- **Non-Destructive Corrupt Save Handling:** `loadProgress` / `loadProgress2D` preserve raw corrupted JSON once under `*_corrupt_backup*`, salvage truncated JSON prefixes when `hasAnyProgress` holds, and never auto-read `*_reset_backup*` (which represents an intentional user reset) unless explicitly requested via `recoverProgress2D(..., { includeResetBackup: true })`.
+- **Dual PROGRESS Path Mirroring:** Both `docs/overnight/PROGRESS-skyhold-n2-agy.md` and `docs/overnight2/PROGRESS-skyhold-n2-agy.md` are maintained identically.
 
 ---
 
 ## Problems / Known Issues
 
-- None blocking in owned area (`sim:balance` 41/41 byte-identical, `qa:bot` 656/656 passing, 1,349 unit tests passing).
-- Note for Step 5 (`desktop/main.cjs`, owned by us): `SKYHOLD_SMOKE_TEST=1` currently polls `window.__p0.artcheck()`, which only mounts on gameplay scenes (`?level=...`), whereas `2d.html` with no query now boots the World Map (`mountWorldMap`). Will fix in `desktop/main.cjs` during Step 5 so both World Map and gameplay smoke launches pass cleanly.
+- None blocking in owned area (`sim:balance` 41/41 byte-identical, `qa:bot` 656/656 passing, 1,357 unit tests passing).
+- Note for Step 5 (`desktop/main.cjs`, owned by us): `SKYHOLD_SMOKE_TEST=1` currently polls `window.__p0.artcheck()`, which only mounts on gameplay scenes (`?level=...`), whereas `2d.html` with no query now boots the World Map (`window.__map`). Will update `desktop/main.cjs` in Step 5 so both World Map and gameplay smoke launches pass cleanly.
 
 ---
 
@@ -69,3 +65,4 @@
 
 1. **Opus (`src/render2d/heroLayer.ts:628-630`):** While `hero.state === 'dead'`, `HeroLayer.drawBars` still draws the respawn countdown ring at `(h.spawnX, h.spawnZ)` (the castle gate), even though heroes now respawn at their rally point or castle-side chokepoint (`h.hasRallyPoint ? { x: h.rallyX, z: h.rallyZ } : world.heroSystem.getFallbackRespawnPoint()`), and `h.invulnTimer > 0` (`1.5 s` post-respawn immunity) is available if you want a brief shield/alpha shimmer.
 2. **Opus (`src/render2d/main2d.ts:258,481,682`):** `heroSelection = resolveHeroForRun(...)` is computed once at page load; if a player levels up a hero on Victory/Defeat (`recordRunOutcome` writes new XP to `localStorage`) and clicks **Retry** / **Restart** without returning to the World Map, `game.newRun()` re-uses the pre-run `hooks.hero` level instead of re-reading `resolveHeroForRun(loadProgress2D(), ...)` (note: keep `hooks.hero` snapshot unchanged when `replay` is passed to `newRun(replay)` so Watch Replay stays deterministic!).
+3. **Opus (`src/render2d/ui/metaScreens.ts:460-517`):** 2D Settings → General currently exposes `resetProgress2D()` but not Copy/Load Save Code buttons yet; `exportSaveCode2D()`, `importSaveCode2D(code)` (which now returns `{ ok, progress, previous, summary }` covering all 5 heroes, Hard ribbons, and Workshop), and `recoverProgress2D()` in `src/render2d/ui/progress2d.ts` are ready to wire whenever you want Save Code UI in 2D Settings.

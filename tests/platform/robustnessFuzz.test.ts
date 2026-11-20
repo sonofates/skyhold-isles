@@ -148,6 +148,21 @@ function assertValidProgressInvariants(p: ProgressData, levelCount: number): voi
       expect(countHeroSkillPointsSpent(id, entry!.skills)).toBeLessThanOrEqual(budget);
     }
   }
+
+  if (p.difficultyWins !== undefined) {
+    expect(p.difficultyWins.easy).toHaveLength(levelCount);
+    expect(p.difficultyWins.normal).toHaveLength(levelCount);
+    expect(p.difficultyWins.hard).toHaveLength(levelCount);
+    for (let i = 0; i < levelCount; i++) {
+      const ez = p.difficultyWins.easy[i];
+      const nm = p.difficultyWins.normal[i];
+      const hd = p.difficultyWins.hard[i];
+      expect(Number.isInteger(ez) && ez >= 0 && ez <= 1).toBe(true);
+      expect(Number.isInteger(nm) && nm >= 0 && nm <= 3).toBe(true);
+      expect(Number.isInteger(hd) && hd >= 0 && hd <= 3).toBe(true);
+      expect(Math.max(ez, nm, hd)).toBe(p.bestStars[i]);
+    }
+  }
 }
 
 function randInt(rng: SeededRng, maxExclusive: number): number {
@@ -273,13 +288,32 @@ function buildFuzzedRawSave(rng: SeededRng): unknown {
       };
     }
   }
+  if (rng.chance(0.55)) {
+    if (rng.chance(0.2)) {
+      raw.difficultyWins = randomFuzzyValue(rng, 2);
+    } else {
+      const mkDiffArr = () =>
+        Array.from({ length: randInt(rng, 28) }, () =>
+          rng.chance(0.75) ? randInt(rng, 6) - 1 : randomFuzzyValue(rng, 2),
+        );
+      if (rng.chance(0.25)) {
+        raw.dw = { e: mkDiffArr(), n: mkDiffArr(), h: mkDiffArr() };
+      } else {
+        raw.difficultyWins = {
+          easy: rng.chance(0.85) ? mkDiffArr() : 'bad',
+          normal: rng.chance(0.85) ? mkDiffArr() : null,
+          hard: rng.chance(0.85) ? mkDiffArr() : undefined,
+        };
+      }
+    }
+  }
   return raw;
 }
 
 describe('save/progress migrations, 2D wrapper edge cases & 500-case seeded fuzzing', () => {
   it('survives 500 seeded fuzzed v1/v2/2D/corrupted payloads with strict schema invariants and idempotence', () => {
     const rng = new SeededRng(0x5eed_cafe);
-    const levelCounts = [0, 1, 9, 13, 16, 17, 24];
+    const levelCounts = [0, 1, 9, 13, 16, 17, 24, 25];
 
     for (let i = 0; i < 500; i++) {
       const n = levelCounts[randInt(rng, levelCounts.length)];

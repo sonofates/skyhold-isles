@@ -9,6 +9,7 @@ import {
   migrateProgress,
   readLocalProgressRaw,
   saveLocalProgress,
+  tryRepairTruncatedJson,
 } from './storage.ts';
 
 export interface CloudHydrateResult {
@@ -33,22 +34,38 @@ export async function hydrateProgressFromCloud(
   const diskRawBefore = readLocalProgressRaw();
   let updated = false;
 
-  const cloudRaw = await adapter.cloudSave.read(CLOUD_PROGRESS_SLOT);
+  let cloudRaw: string | null;
+  let readFailed = false;
+  try {
+    cloudRaw = await adapter.cloudSave.read(CLOUD_PROGRESS_SLOT);
+  } catch {
+    cloudRaw = null;
+    readFailed = true;
+  }
+
+  const safeCloudWrite = async (json: string): Promise<void> => {
+    try {
+      await adapter.cloudSave.write(CLOUD_PROGRESS_SLOT, json);
+    } catch {
+      // Never let a transient Steam Cloud write error abort local hydration or achievement sync.
+    }
+  };
 
   const diskRawAfter = readLocalProgressRaw();
   const concurrentHappened = diskRawAfter !== null && diskRawAfter !== diskRawBefore;
   if (concurrentHappened) {
+    let concurrentParsed: unknown;
     try {
-      const concurrentParsed: unknown = JSON.parse(diskRawAfter);
-      if (concurrentParsed && typeof concurrentParsed === 'object' && !Array.isArray(concurrentParsed)) {
-        normalizedLocal = mergeProgress(
-          normalizedLocal,
-          migrateProgress(concurrentParsed, levelCount),
-          levelCount,
-        );
-      }
+      concurrentParsed = JSON.parse(diskRawAfter);
     } catch {
-      // Ignore corrupt concurrent write
+      concurrentParsed = tryRepairTruncatedJson(diskRawAfter);
+    }
+    if (concurrentParsed && typeof concurrentParsed === 'object' && !Array.isArray(concurrentParsed)) {
+      normalizedLocal = mergeProgress(
+        normalizedLocal,
+        migrateProgress(concurrentParsed, levelCount),
+        levelCount,
+      );
     }
   }
 
@@ -56,31 +73,34 @@ export async function hydrateProgressFromCloud(
   let merged = normalizedLocal;
 
   if (cloudRaw) {
+    let parsed: unknown = null;
+    let parseFailed = false;
     try {
-      const parsed: unknown = JSON.parse(cloudRaw);
-      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-        if (hasAnyProgress(normalizedLocal)) {
-          await adapter.cloudSave.write(CLOUD_PROGRESS_SLOT, localRaw);
-        }
-      } else {
-        const cloudProgress = migrateProgress(parsed, levelCount);
-        merged = mergeProgress(normalizedLocal, cloudProgress, levelCount);
-        const mergedRaw = JSON.stringify(merged);
-        if (mergedRaw !== localRaw) {
-          saveLocalProgress(merged);
-        }
-        if (mergedRaw !== cloudRaw) {
-          await adapter.cloudSave.write(CLOUD_PROGRESS_SLOT, mergedRaw);
-        }
-      }
+      parsed = JSON.parse(cloudRaw);
     } catch {
-      // Corrupt cloud blob: keep local progress and overwrite cloud when local has progress.
-      if (hasAnyProgress(normalizedLocal)) {
-        await adapter.cloudSave.write(CLOUD_PROGRESS_SLOT, localRaw);
+      parseFailed = true;
+      const repaired = tryRepairTruncatedJson(cloudRaw);
+      if (repaired && hasAnyProgress(migrateProgress(repaired, levelCount))) {
+        parsed = repaired;
       }
     }
-  } else if (adapter.isSteam && hasAnyProgress(normalizedLocal)) {
-    await adapter.cloudSave.write(CLOUD_PROGRESS_SLOT, localRaw);
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      if (hasAnyProgress(normalizedLocal)) {
+        await safeCloudWrite(localRaw);
+      }
+    } else {
+      const cloudProgress = migrateProgress(parsed, levelCount);
+      merged = mergeProgress(normalizedLocal, cloudProgress, levelCount);
+      const mergedRaw = JSON.stringify(merged);
+      if (mergedRaw !== localRaw) {
+        saveLocalProgress(merged);
+      }
+      if (parseFailed || mergedRaw !== cloudRaw) {
+        await safeCloudWrite(mergedRaw);
+      }
+    }
+  } else if (!readFailed && adapter.isSteam && hasAnyProgress(normalizedLocal)) {
+    await safeCloudWrite(localRaw);
   }
 
   const finalMergedRaw = JSON.stringify(merged);
