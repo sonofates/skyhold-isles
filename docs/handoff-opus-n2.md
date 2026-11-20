@@ -30,6 +30,14 @@ Not touched: `src/sim/**`, `src/data/**`, `tools/**`, `public/art2d/**`, `towerL
 | Settings → Controls | Letter caps, lopsided grid | Coloured A/B/X/Y and pill caps, balanced columns |
 | Workshop / Daily / Codex | Ragged rows; loose numbers; marks missing | Rows line up (fits 2000x991 without a scroll); counters as tokens; Codex shows the foe marks |
 
+## Round 3 (morning)
+| Area | Before | After |
+|---|---|---|
+| Feats | Earned silently; only visible if you opened the Logbook | Sealed parchment cards slide in over the victory board ("Feat earned" / "Başarı kazanıldı"), max 3 + "N more" |
+| Logbook | No hint something new was there | Red dot on the map's Logbook button; the board opens on Feats with gold "New" / "Yeni" tags, cleared once seen |
+| Map top bar | "Kahramanlar" caption ran into "Atölye" | Each button gets just the margin its caption needs (≥ one caption height apart) |
+| Interface size | Moving the slider on the map left the islands under the taller top bar until a resize | Map lays out again at once |
+
 ## How it is built
 - `ui/heroScreens.ts` `fitTree` / `TREE_FIT_STEPS` (layout + zoom chosen by measuring, refits on resize).
 - `ui/titleScreen.ts` (`runTitle`, `shouldShowTitle`: once per session; deep links, `?screen=`, `?title=0`
@@ -50,6 +58,9 @@ Not touched: `src/sim/**`, `src/data/**`, `tools/**`, `public/art2d/**`, `towerL
 
 - Round 2 probes: `qa/navsweep.mjs`, `qa/ctlshot.mjs`, `qa/titleperf.mjs`, `qa/codexmarks.mjs`,
   `qa/bootshot.mjs`, `qa/unveilshot.mjs`, `qa/padbadgeshot.mjs`; uiaudit gained `hud-codex`.
+- Round 3 probes: `qa/featshot.mjs`, `qa/featseenshot.mjs`, `qa/capgap.mjs`, `qa/capgaplive.mjs`
+  (all 0 problems); uiaudit logbook / logbook-feats / map / map-fresh and navsweep map + logbook
+  re-run: 0 problems.
 
 ## Open points
 - Title key art / logo are stand-ins until Codex's paintings land (keys above).

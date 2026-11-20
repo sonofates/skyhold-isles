@@ -114,6 +114,9 @@
   bar's band until a real resize. relayout now also watches `--ui-scale`. `qa/capgaplive.mjs`: before
   the fix island band 306 → 306 px, after 306 → 331 (2000x991), 123 → 128 (844x390); 0 problems.
 
+- navsweep map + logbook (TR, 1920x1080 and 844x390) after the round-3 changes: 0 problems.
+  Handoff doc `docs/handoff-opus-n2.md` has a Round 3 table.
+
 ## Next ideas
 - Swap in Codex's title paintings when they land (keys in Requests); re-shoot the title.
 - Wave-start ease / boot fade / veil: only checked by code + unit tests, not filmed (headless frames
