@@ -116,6 +116,27 @@ describe('plot tower specializations', () => {
     expect(first.pierceCount).toBe(0);
   });
 
+  it('chains through seven foes in Relay Grove and an eighth on the sixth discharge', () => {
+    const { world, tower } = setup('tesla');
+    expect(world.specializeTower(tower.id, 'relay')).toBe(true);
+    for (let i = 0; i < 9; i++) {
+      const foe = world.enemySystem.spawnEnemy('brute')!;
+      foe.hp = foe.maxHp = 1000;
+      foe.x = tower.x + 2 + i;
+      foe.z = tower.z;
+      world.spatialHash.insert(foe.poolIndex, foe.x, foe.z);
+    }
+    tower.targetingMode = 'closest';
+    const hits: number[] = [];
+    world.events.on('lightningChain', ({ points }) => hits.push(points.length - 1));
+    for (let i = 0; i < 7; i++) {
+      tower.cooldownTimer = 0;
+      world.combatSystem.update(BALANCE.fixedDt, world.towers);
+    }
+    expect(hits).toEqual([7, 7, 7, 7, 7, 8, 7]);
+    world.dispose();
+  });
+
   it('applies purchased beacon range to neighbors on the next tick', () => {
     const { world, tower } = setup('beacon');
     const plot = level.layout2d!.plots.findIndex((p, i) => i !== tower.col && Math.hypot(p.x - tower.x, p.z - tower.z) < 5.6);

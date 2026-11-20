@@ -1,12 +1,14 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
-import { Texture } from 'pixi.js';
-import { describe, expect, it } from 'vitest';
+import { setImmediate as flushLoads } from 'node:timers/promises';
+import { Assets, Texture, TextureSource } from 'pixi.js';
+import { describe, expect, it, vi } from 'vitest';
 import { EventBus } from '../../src/core/eventBus.ts';
 import { LEVEL_L1C } from '../../src/data/levels2d/index.ts';
 import { specializationsFor } from '../../src/data/towers.ts';
 import { SimWorld } from '../../src/sim/world.ts';
 import type { LoadedArt, TowerArtRuntime } from '../../src/render2d/assets2d.ts';
+import type { FxLayer } from '../../src/render2d/fxLayer.ts';
 import { WorldLayers } from '../../src/render2d/layers.ts';
 import { ManifestError, parseManifest, parseSheetJson } from '../../src/render2d/manifest.ts';
 import { MapView } from '../../src/render2d/mapView.ts';
@@ -47,6 +49,91 @@ it('opens the barracks gate once for a new squad and again for the recruit from 
   expect(layer.attacksPlayed).toBe(2);
   expect(frameAfter(0.25)).toBe(-1);
   map.root.destroy({ children: true });
+});
+
+it('shares branch retries and releases each shot from the sheet visible when it fired', async () => {
+  const events = new EventBus();
+  const world = new SimWorld(LEVEL_L1C, events);
+  world.gold = 5000;
+  const towers = [8, 9].map(plot => {
+    const tower = world.placeTowerOnPlot(plot, 'frost')!;
+    world.upgradeTower(tower.id);
+    world.upgradeTower(tower.id);
+    expect(world.specializeTower(tower.id, 'rimeglass')).toBe(true);
+    return tower;
+  });
+  const map = new MapView(Texture.WHITE, LEVEL_L1C.layout2d!);
+  const ring = { ringWidthPx: 1, ringCenterXPx: 0.5, ringBottomPx: 1 };
+  const familySheet = { frames: [Texture.WHITE, Texture.EMPTY], ring, fps: 8, release: 1, frameW: 1, frameH: 1 };
+  const frost: TowerArtRuntime = {
+    spec: { ...M.towers.frost!, muzzlePx: [null, null, [0.5, 0.5]] },
+    tint: 0xffffff, fallbackOf: null, tierFiles: [],
+    tiers: Array(3).fill(Texture.WHITE), rings: [ring, ring, ring], attack: [null, null, familySheet], idle: [],
+  };
+  const fx = { spawn: vi.fn(), burst: vi.fn() };
+  const layer = new TowerLayer({ towers: { frost }, baseUrl: '/art2d/' } as LoadedArt, map, new WorldLayers(map.world),
+    { shadow: Texture.WHITE } as ProcTextures, fx as unknown as FxLayer, plotGeometry(map.layout, null));
+  layer.bind(events);
+  const sync = (dt: number, simDt = 0) => layer.sync(towers, dt, simDt);
+  const [first] = towers;
+  const fire = () => events.emit('towerFired', { towerId: first.id, type: 'frost', tier: 4, x: first.x, y: 1, z: first.z, yaw: 0 });
+  const file = 'specializations/rimeglass-attack.json';
+  const descriptor = JSON.parse(readFileSync(resolve(ROOT, 'public/art2d', file), 'utf8'));
+  const strip = new Texture({ source: new TextureSource({
+    width: descriptor.frameW * descriptor.cols,
+    height: descriptor.frameH * Math.ceil(descriptor.count / descriptor.cols),
+  }) });
+  const catalog = { towerSpecializations: { rimeglass: { attack: file } } };
+  let finishDownload!: (texture: Texture) => void;
+  const delayedSheet = new Promise<Texture>(resolveLoad => { finishDownload = resolveLoad; });
+  const load = vi.spyOn(Assets, 'load')
+    .mockRejectedValueOnce(new Error('manifest unavailable'))
+    .mockResolvedValueOnce(catalog).mockRejectedValueOnce(new Error('descriptor unavailable'))
+    .mockResolvedValueOnce(catalog).mockResolvedValueOnce(descriptor).mockReturnValueOnce(delayedSheet);
+  const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+  try {
+    sync(0);
+    await flushLoads();
+    sync(0.75);
+    expect(load).toHaveBeenCalledTimes(1);
+    sync(0.25);
+    await flushLoads();
+    sync(1.75);
+    expect(load).toHaveBeenCalledTimes(3);
+    sync(0.25);
+    await flushLoads();
+    sync(90);
+    expect(load).toHaveBeenCalledTimes(6);
+    expect(layer.ringReport(towers).map(r => r.specialization)).toEqual([null, null]);
+
+    fire();
+    const familyMuzzle = layer.muzzlePointOf(first.id)!;
+    expect(layer.shotDelayOf(first.id)).toBe(1 / 8);
+    finishDownload(strip);
+    await flushLoads();
+    sync(0);
+    expect(layer.ringReport(towers).map(r => r.specialization)).toEqual([null, 'rimeglass']);
+    expect(fx.spawn).not.toHaveBeenCalled();
+    sync(1 / 8, 1 / 8);
+    expect(fx.spawn.mock.calls[0].slice(0, 3)).toEqual(['orb', familyMuzzle.x, familyMuzzle.y]);
+
+    sync(0);
+    expect(layer.ringReport(towers).map(r => r.specialization)).toEqual(['rimeglass', 'rimeglass']);
+    const branchMuzzle = layer.muzzlePointOf(first.id)!;
+    expect(branchMuzzle).not.toEqual(familyMuzzle);
+    fx.spawn.mockClear();
+    fire();
+    expect(layer.shotDelayOf(first.id)).toBe(descriptor.release / descriptor.fps);
+    sync(0.25, 0.25);
+    expect(fx.spawn.mock.calls[0].slice(0, 3)).toEqual(['orb', branchMuzzle.x, branchMuzzle.y]);
+    expect(layer.ringReport(towers)[0].attackFrame).toBe(descriptor.release);
+    expect(load).toHaveBeenCalledTimes(6);
+  } finally {
+    load.mockRestore();
+    warn.mockRestore();
+    map.root.destroy({ children: true });
+    strip.destroy(true);
+  }
 });
 
 /** RGBA buffer with opaque filled ellipses / rects (alpha only matters). */

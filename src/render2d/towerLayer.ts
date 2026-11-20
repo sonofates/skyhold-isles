@@ -6,7 +6,7 @@ import { mixTint } from './artResolve.ts';
 import type { LoadedArt, TowerArtRuntime, TowerSheetRuntime, TurretRuntime } from './assets2d.ts';
 import type { FxLayer } from './fxLayer.ts';
 import { HEIGHT_TO_SCREEN, type WorldLayers } from './layers.ts';
-import { parseSheetJson } from './manifest.ts';
+import { ManifestError, parseSheetJson } from './manifest.ts';
 import type { MapView } from './mapView.ts';
 import type { PlotGeometry } from './plotLayer.ts';
 import type { ProcTextures } from './procTextures.ts';
@@ -25,6 +25,7 @@ import {
   sectorVector,
   spriteMuzzle,
   TURRET_DIRS,
+  TurretSpecError,
   turretMuzzle,
   turretScale,
   yawToScreenAngle,
@@ -105,6 +106,13 @@ type BranchArt =
   | { readonly id: string; readonly turret: TurretRuntime; readonly sheet: null }
   | { readonly id: string; readonly turret: null; readonly sheet: TowerSheetRuntime; readonly muzzle: readonly [number, number] };
 
+/** One shared request per branch. A finite retry time is set only after a load fails. */
+interface BranchLoad {
+  art: BranchArt | null;
+  retryAt: number;
+  retryDelay: number;
+}
+
 interface TowerView {
   /** Branch art currently on screen. While loading, shots still use the family's art and timing. */
   branch: BranchArt | null;
@@ -180,8 +188,7 @@ interface TowerView {
 export class TowerLayer {
   private readonly views = new Map<number, TowerView>();
   private readonly spawningBarracks = new Set<number>();
-  /** A null entry keeps the tier-III art visible during load or if an optional asset is missing. */
-  private readonly branches = new Map<string, BranchArt | null>();
+  private readonly branches = new Map<string, BranchLoad>();
   private frameNo = 0;
   private time = 0;
   private readonly art: LoadedArt;
@@ -524,8 +531,20 @@ export class TowerLayer {
     return s;
   }
 
-  /** Load branch textures only when a player first buys that branch on this island. */
-  private async loadBranch(id: string): Promise<void> {
+  private branchArt(id: string): BranchArt | null {
+    let entry = this.branches.get(id);
+    if (!entry) {
+      entry = { art: null, retryAt: 0, retryDelay: 1 };
+      this.branches.set(id, entry);
+    }
+    if (this.time >= entry.retryAt) {
+      entry.retryAt = Infinity;
+      void this.loadBranch(id, entry);
+    }
+    return entry.art;
+  }
+
+  private async loadBranch(id: string, state: BranchLoad): Promise<void> {
     const base = this.art.baseUrl;
     try {
       const catalog = await Assets.load<{ towerSpecializations?: Record<string, { turret?: string; attack?: string }> }>(base + 'manifest.json');
@@ -538,16 +557,16 @@ export class TowerLayer {
         const raw = await Assets.load<{ muzzlePx?: number[] }>(base + path);
         const spec = parseSheetJson(raw);
         const tip = raw.muzzlePx;
-        if (!spec.anchor || !spec.ringW || !tip || tip.length !== 2 || !tip.every(Number.isFinite)) throw new Error('attack sheet registration');
+        if (!spec.anchor || !spec.ringW || !tip || tip.length !== 2 || !tip.every(Number.isFinite)) throw new ManifestError('attack sheet registration');
         const strip = await load(dir + spec.image);
         const { w, h } = spec.frames[0];
         const frames = spec.frames.map(f => {
-          if (f.w !== w || f.h !== h || f.x + w > strip.width || f.y + h > strip.height) throw new Error('attack sheet dimensions');
+          if (f.w !== w || f.h !== h || f.x + w > strip.width || f.y + h > strip.height) throw new ManifestError('attack sheet dimensions');
           return new Texture({ source: strip.source, frame: new Rectangle(f.x, f.y, w, h) });
         });
         const ring = { ringWidthPx: spec.ringW, ringCenterXPx: spec.anchor[0] * w, ringBottomPx: spec.anchor[1] * h };
         const sheet = { frames, ring, frameW: w, frameH: h, fps: spec.fps, release: spec.release };
-        this.branches.set(id, { id, turret: null, sheet, muzzle: [tip[0], tip[1]] });
+        state.art = { id, turret: null, sheet, muzzle: [tip[0], tip[1]] };
         return;
       }
       const spec = parseTurretJson(await Assets.load<unknown>(base + path));
@@ -555,12 +574,17 @@ export class TowerLayer {
       if (!spec.body || !ring) return;
       const bodyFile = dir + spec.body;
       const [strip, body] = await Promise.all([load(dir + spec.image), load(bodyFile)]);
-      if (strip.width !== spec.frameW * TURRET_DIRS.length || strip.height !== spec.frameH) throw new Error('turret strip dimensions');
+      if (strip.width !== spec.frameW * TURRET_DIRS.length || strip.height !== spec.frameH) throw new TurretSpecError('turret strip dimensions');
       const frames = TURRET_DIRS.map((_, i) => new Texture({
         source: strip.source, frame: new Rectangle(i * spec.frameW, 0, spec.frameW, spec.frameH),
       }));
-      this.branches.set(id, { id, turret: { body, bodyFile, frames, ring, spec }, sheet: null });
+      state.art = { id, turret: { body, bodyFile, frames, ring, spec }, sheet: null };
     } catch (err) {
+      // Cached descriptors cannot repair invalid registration. A failed asset request can recover.
+      if (!(err instanceof ManifestError || err instanceof TurretSpecError)) {
+        state.retryAt = this.time + state.retryDelay;
+        state.retryDelay = Math.min(30, state.retryDelay * 2);
+      }
       console.warn(`[art2d] specialization ${id} could not load`, err);
     }
   }
@@ -573,11 +597,7 @@ export class TowerLayer {
     const tierIdx = Math.max(1, Math.min(3, t.tier)) - 1;
     // A turret tier draws its body (own ring) under the turret instead of the full-tower picture.
     const branch = t.specialization?.id;
-    if (branch && !this.branches.has(branch)) {
-      this.branches.set(branch, null);
-      void this.loadBranch(branch);
-    }
-    const ready = branch ? this.branches.get(branch) ?? null : null;
+    const ready = branch ? this.branchArt(branch) : null;
     // Let a projectile already waiting on the old release leave before swapping its artwork.
     if (ready !== v.branch && !v.pending) {
       v.branch = ready;

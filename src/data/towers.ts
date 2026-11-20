@@ -744,7 +744,7 @@ const SPECIALIZATIONS = {
   tesla: [
     {
       id: 'relay', name: 'Relay Grove', cost: 205,
-      description: 'Lightning leaps between up to seven foes, crossing wider gaps.',
+      description: 'Lightning crosses wider gaps to hit up to seven foes. Every sixth discharge can hit an eighth.',
       changes: { chainCount: 7, chainRange: 4.8, chainFalloff: 0.84 },
       abilities: [{
         id: 'livewire', name: 'Live Wire', cost: 105,

@@ -290,3 +290,29 @@ Waxlight Orchard (i23) and Lastlight Head (i24) remain. Start at the orchard’s
 ### Next round
 
 All four assigned backlog items now have content and balance coverage. Start the next quality audit with specialization textures on a slow or interrupted connection. In `src/render2d/towerLayer.ts`, a failed branch load leaves its ID cached with a null value. Reproduce a transient asset failure during a purchase and check recovery and projectile release after the texture becomes available.
+
+## Round 12 — Specialization art after an interrupted purchase
+
+### Done
+
+- Reproduced the reported failure in the round-start production build by returning HTTP 503 for Rimeglass Needle’s attack sheet at purchase. After the connection recovered, the tower fired 17 times over 12 seconds of play. The browser had requested the sheet only once and the map still showed tier III.
+- The tower layer now retries failed branch requests while a tower of that branch is on the map. It waits one second of render time after the first failure, then doubles the interval up to 30 seconds. Towers of the same branch share one in-flight request. Selling the last tower stops further attempts. A missing catalog entry or invalid art registration keeps the family fallback.
+- A regression test buys Rimeglass for two frost towers, interrupts the catalog and descriptor requests, and holds the successful sheet download. One tower can switch immediately while the other completes its queued shot. The test verifies the release delay and the muzzle coordinates for both paintings.
+- Corrected Relay Grove’s English description in the shared tower and codex data. Its sixth discharge inherits the tier-III overload and can reach an eighth foe. A nine-foe combat test recorded 7, 7, 7, 7, 7, 8 and 7 targets on consecutive discharges.
+
+### Production checks
+
+- On L1c, the Rimeglass sheet request returned 503, then 200. Held the second response until a tier-III shot began, released the download, and stepped the game at 60 Hz. The old sheet reached frame three and emitted its nine muzzle particles before the tower changed. A subsequent Rimeglass shot released on its own frame three with a projectile active. Plot center, bottom and width errors were zero throughout.
+- In the cannon aim scene, Bell Foundry’s turret strip loaded but its body request returned 503. The tier-III cannon kept aiming and firing while the body was missing. The body loaded on its second request and the strip was fetched once. The recovered east-facing muzzle matched the painted tip to within 0.001 map pixel. [Enlarged combat captures](../../design/art-2d/specializations/texture-recovery.jpg)
+
+### Request for Opus
+
+Update the Relay Grove branch tooltip in both locales to match the corrected data. EN “Lightning crosses wider gaps to hit up to seven foes. Every sixth discharge can hit an eighth.” TR “Yıldırım daha geniş aralıkları aşarak yedi düşmana kadar sıçrar. Her altıncı saldırıda sekizinci bir düşmana da ulaşabilir.” Costs and ability text are in round 2.
+
+### Verification
+
+TypeScript, lint and the production build passed. Vitest passed 1,380 tests with 11 skipped using one worker and the original timeouts. The first combined gate after the tooltip change was terminated during Vitest. The rerun completed the suite, the full balance simulation and the build. All 41 realistic-kit levels and all eight difficulty verdicts passed, including Hard i09 at 12/22 and Hard i24 at 5/22. The standalone L1–L16 report matched the 24,217-byte round-one baseline byte for byte. Vite reported its existing bundle warnings. Both local preview servers were stopped.
+
+### Next round
+
+The four original backlog items are complete. Continue the combat audit at projectile impact. The current Farwatch regression checks Throughshot’s stats at launch. Exercise the secondary hit on an armored foe, then repeat after selling the firing tower while the arrow is in flight. Compare damage, kill credit and replay outcomes.
