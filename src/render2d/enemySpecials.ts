@@ -1,5 +1,4 @@
-import { Graphics, GraphicsContext, Sprite, Texture } from 'pixi.js';
-import type { Container } from 'pixi.js';
+import { Container, Graphics, GraphicsContext, Sprite, Texture } from 'pixi.js';
 import { CHAPTER_ENEMY_DEFS } from '../data/enemies.ts';
 import { mixTint } from './artResolve.ts';
 import type { EnemyArtRuntime } from './assets2d.ts';
@@ -59,6 +58,54 @@ function drawChapterCue(cue: ChapterCue): GraphicsContext {
       .fill(0x9fddd8).stroke({ width: 1, color: 0x365d66, join: 'round' });
   }
   return g;
+}
+
+/** Inked fissures in the 240 × 184 Kilnback sheet's local pixels, relative to its central plate. */
+function kilnbackFissures(stage: number): GraphicsContext {
+  const g = new GraphicsContext();
+  if (stage === 3) {
+    g.poly([-9, -6, 0, -10, 8, -4, 5, 4, -3, 9, -8, 3])
+      .fill(0x623422).stroke({ color: 0xffcf81, width: 2.8, join: 'round' });
+  }
+  for (const [width, color] of [[6, 0x532c21], [2.6, 0xffdc98]]) {
+    g.beginPath().moveTo(-4, -4).lineTo(-13, -8).lineTo(-16, -16).lineTo(-25, -20);
+    if (stage >= 2) g.moveTo(-3, 2).lineTo(-11, 9).lineTo(-20, 9).lineTo(-27, 18);
+    if (stage === 3) {
+      g.moveTo(7, -2).lineTo(17, -9).lineTo(26, -7).lineTo(34, -14);
+      g.moveTo(1, 8).lineTo(6, 15).lineTo(4, 21);
+    }
+    g.stroke({ width, color, cap: 'round', join: 'round' });
+  }
+  return g;
+}
+
+const shellShapes: GraphicsContext[] = [];
+
+/** Keep the painted body and its fissures together in ground depth order, including on a blocked lane. */
+export class KilnbackShell extends Container {
+  private readonly fissures = new Graphics();
+
+  constructor() {
+    super();
+    this.fissures.visible = false;
+    this.fissures.zIndex = 1;
+    this.addChild(this.fissures);
+  }
+
+  pose(body: Sprite, armor: number, baseArmor: number, sideView: boolean): void {
+    const mark = this.fissures;
+    mark.visible = body.visible && armor < baseArmor;
+    if (!mark.visible) return;
+    const stage = armor === 0 ? 3 : baseArmor - armor <= CHAPTER_ENEMY_DEFS.kilnback.ability.chip ? 1 : 2;
+    mark.context = shellShapes[stage] ??= kilnbackFissures(stage);
+    // In the side walk the shell sits lower on the frame, behind the extended neck.
+    mark.pivot.set(body.texture.width * body.anchor.x - (sideView ? 114 : 119),
+      body.texture.height * body.anchor.y - (sideView ? 76 : 61));
+    mark.position.copyFrom(body.position);
+    mark.scale.copyFrom(body.scale);
+    mark.rotation = body.rotation;
+    mark.alpha = body.alpha;
+  }
 }
 
 /** Lazily created pooled overlays of one enemy view. */
@@ -260,10 +307,9 @@ export class EnemySpecials {
     const cracked = (w.armorBreakTimer ?? 0) > 0;
     const ceramic = type === 'kilnback';
     if (cracked) tint = mixTint(tint, ceramic ? 0xffce92 : 0xdff3ff, 0.32);
-    const crack = this.show(ex, 'crack', cracked && !w.burrowed, art);
+    const crack = this.show(ex, 'crack', cracked && !ceramic && !w.burrowed, art);
     if (crack) {
       const d = L.heightPx * 0.95;
-      crack.tint = ceramic ? 0xf7a060 : 0xffffff;
       crack.position.set(L.px, L.cy);
       crack.scale.set(d / 128);
       crack.alpha = Math.min(1, (w.armorBreakTimer ?? 0) / 0.6) * (0.85 + 0.15 * Math.sin(time * 14));

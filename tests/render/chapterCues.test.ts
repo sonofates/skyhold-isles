@@ -1,8 +1,8 @@
-import { Container, Texture } from 'pixi.js';
+import { Container, Graphics, Sprite, Texture } from 'pixi.js';
 import { describe, expect, it } from 'vitest';
 import { CHAPTER_ENEMY_DEFS } from '../../src/data/enemies.ts';
 import type { EnemyArtRuntime } from '../../src/render2d/assets2d.ts';
-import { createExtras, createSpecialAnim, EnemySpecials, type SpecialState } from '../../src/render2d/enemySpecials.ts';
+import { createExtras, createSpecialAnim, EnemySpecials, KilnbackShell, type SpecialState } from '../../src/render2d/enemySpecials.ts';
 import type { ProcTextures } from '../../src/render2d/procTextures.ts';
 
 function scene(type: 'reedpiper' | 'draftwing') {
@@ -50,6 +50,40 @@ describe('chapter enemy cues', () => {
     expect(note.x).toBeLessThan(layout.px);
     expect(note.visible).toBe(true);
     expect(specials.extrasCreated).toBe(count);
+  });
+
+  it('keeps each shell’s damage on its own painted plate through turns and armor recovery', () => {
+    const shell = new KilnbackShell();
+    const body = new Sprite(Texture.WHITE);
+    shell.addChild(body);
+    shell.sortChildren();
+    const mark = shell.children[1];
+    expect(mark).toBeInstanceOf(Graphics);
+    if (!(mark instanceof Graphics)) throw new Error('missing Kilnback fissures');
+    body.anchor.set(0.5, 0.95);
+    body.position.set(80, 90);
+    shell.pose(body, 8, 11, false);
+    expect(mark.visible).toBe(true);
+    const chip = mark.context;
+    const frontPivot = mark.pivot.y;
+    body.scale.set(-0.7, 0.8);
+    body.rotation = 0.12;
+    body.alpha = 0.4;
+    shell.pose(body, 2, 11, true);
+    const split = mark.context;
+    expect(split).not.toBe(chip);
+    expect(mark.pivot.y).toBeLessThan(frontPivot);
+    expect(mark.position.equals(body.position)).toBe(true);
+    expect(mark.scale.equals(body.scale)).toBe(true);
+    expect(mark.rotation).toBe(body.rotation);
+    expect(mark.alpha).toBe(body.alpha);
+    shell.pose(body, 0, 11, true);
+    expect(mark.context).not.toBe(split);
+    shell.pose(body, 11, 11, true);
+    expect(mark.visible).toBe(false);
+    shell.pose(body, 11, 14, false);
+    expect(mark.visible).toBe(true);
+    expect(mark.context).toBe(chip);
   });
 
   it('keeps the wake behind a moth through turns and fades it during coasting', () => {

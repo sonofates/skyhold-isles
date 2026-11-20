@@ -11,6 +11,7 @@ import {
   DROP_FALL_HEIGHT,
   DROP_FALL_SEC,
   EnemySpecials,
+  KilnbackShell,
   type EnemyExtras,
   type SpecialAnim,
   type SpecialOut,
@@ -28,6 +29,8 @@ import { cheapWalk, createAnimState, createPose, sheetSequence, sheetWalk, type 
 /** Anything that walks like an enemy: the sim's EnemyEntity, or the A/B showcase walkers. */
 export interface Walker extends SpecialState {
   readonly uid: number;
+  readonly armor?: number;
+  readonly baseArmor?: number;
   readonly type: EnemyType;
   readonly flying: boolean;
   readonly x: number;
@@ -64,6 +67,7 @@ export class EnemyView {
   readonly body = new Sprite(Texture.EMPTY);
   /** Additive copy of the body shown for a few frames when a melee blow lands (white hit flash). */
   flash: Sprite | null = null;
+  shell: KilnbackShell | null = null;
   readonly shadow: Sprite;
   readonly barBg = new Sprite(Texture.WHITE);
   readonly barFill = new Sprite(Texture.WHITE);
@@ -161,6 +165,7 @@ export class EnemyLayer {
     v.body.visible = on;
     v.shadow.visible = on;
     if (!on) {
+      if (v.shell) v.shell.visible = false;
       if (v.flash) v.flash.visible = false;
       v.barBg.visible = false;
       v.barFill.visible = false;
@@ -191,7 +196,14 @@ export class EnemyLayer {
     v.body.texture = Texture.EMPTY;
     this.specials.hideAll(v.ex);
     const parent = w.flying ? this.layers.air : this.layers.actors;
-    if (v.body.parent !== parent) parent.addChild(v.body);
+    if (v.shell) v.shell.visible = false;
+    if (w.type === 'kilnback' && art.key === 'kilnback' && art.mode === 'sheet' && !art.fallbackOf) {
+      const shell = v.shell ??= new KilnbackShell();
+      if (!shell.parent) parent.addChild(shell);
+      if (v.body.parent !== shell) shell.addChild(v.body);
+      v.body.zIndex = 0;
+      shell.visible = true;
+    } else if (v.body.parent !== parent) parent.addChild(v.body);
     if (v.flash) {
       if (v.flash.parent !== parent) parent.addChild(v.flash);
       v.flash.visible = false;
@@ -212,13 +224,13 @@ export class EnemyLayer {
       this.deaths.push(d);
     }
     const body = d.body;
-    v.body.parent.addChild(body);
+    (v.flying ? this.layers.air : this.layers.actors).addChild(body);
     body.texture = clip.frames[0];
     const anchor = clip.anchor ?? art.sheet?.anchor ?? art.spec.anchor;
     body.anchor.set(anchor[0], anchor[1]);
     body.position.copyFrom(v.body.position);
     body.scale.copyFrom(v.body.scale);
-    body.zIndex = v.body.zIndex;
+    body.zIndex = v.body.parent === v.shell ? v.shell.zIndex : v.body.zIndex;
     body.tint = v.tint;
     body.alpha = 1;
     body.visible = true;
@@ -494,17 +506,22 @@ export class EnemyLayer {
     v.body.scale.set(s * pose.scaleX * sx * (pose.flip ? -1 : 1), s * pose.scaleY * sy * out.squashY);
     v.body.rotation = pose.rotation + rot;
     v.body.position.set(bx, by - liftPx - lift);
-    v.body.zIndex = py;
     v.body.tint = out.tint;
     v.body.alpha = out.bodyAlpha;
     v.body.visible = out.bodyVisible;
+    if (v.shell && v.body.parent === v.shell) {
+      v.shell.zIndex = py;
+      v.shell.pose(v.body, w.armor ?? 0, w.baseArmor ?? 0, attackFrame < 0 && v.anim.seq === 2);
+    } else {
+      v.body.zIndex = py;
+    }
     const flashK = ms && out.bodyVisible ? ms.flash / HIT_FLASH : 0;
     if (v.flash) v.flash.visible = flashK > 0;
     if (flashK > 0) {
       const fl = v.flash ??= new Sprite();
       if (!fl.parent) {
         fl.blendMode = 'add';
-        v.body.parent!.addChild(fl);
+        (w.flying ? this.layers.air : this.layers.actors).addChild(fl);
       }
       fl.texture = v.body.texture;
       fl.anchor.copyFrom(v.body.anchor);

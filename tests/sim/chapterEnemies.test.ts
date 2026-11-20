@@ -73,6 +73,25 @@ describe('chapter two enemy decisions', () => {
     expect(shell.armorBreakTimer).toBe(0);
   });
 
+  it('restores each tortoise’s plates after its own last damaging hit, even in an overlapping pack', () => {
+    const { sim, tick, spawn } = fixture();
+    const first = spawn('kilnback');
+    const second = spawn('kilnback');
+    for (let i = 0; i < 4; i++) {
+      sim.applyDamage(first, 15);
+      sim.applyDamage(second, 15);
+    }
+    expect([first.armor, second.armor]).toEqual([0, 0]);
+    tick(60);
+    first.shield = 30;
+    expect(sim.applyDamage(first, 20).actualDamage).toBe(0);
+    expect(sim.applyDamage(second, 20).actualDamage).toBe(20);
+    tick(28);
+    expect([first.armor, second.armor]).toEqual([first.baseArmor, 0]);
+    tick(60);
+    expect(second.armor).toBe(second.baseArmor);
+  });
+
   it('the last flute note lifts nearby ground slows while a golem’s cracked armor keeps its own timer', () => {
     const { sim, tick, spawn } = fixture();
     const piper = spawn('reedpiper');

@@ -735,3 +735,31 @@ Vitest passed 1,435 tests with 11 skipped on the full rerun. During screenshot c
 ### Next round
 
 Audit the Kilnback Tortoises in i16’s “Gatecrash.” Measure where their armor first reaches zero, how long it stays down and whether the cracked-shell effect is readable when the tortoises overlap. No requests for Opus this round.
+
+## Round 31 — Kilnback shells in Gatecrash
+
+### First-clear combat
+
+Traced the three Kilnbacks in spawn order on Emberglass Sanctum’s second road. With level-20 Bran and 44 entry stars, all three reached zero armor on the fourth damaging hit. Repeated hits held their plates open. The first two lost their last plate on the same simulation tick despite entering the road 0.9 seconds apart.
+
+| Tortoise | Distance from gate at first zero armor | First time spent at zero | Distance when all 11 armor returned | Later time at zero |
+|---|---:|---:|---:|---|
+| First | 12.39 units | 9.6 s | 18.80 units | 1.5 s, then recovered |
+| Second | 11.03 units | 9.6 s | 17.44 units | 2.2 s, until killed |
+| Third | 13.04 units | 7.8 s | 18.25 units | 0.2 s, until killed |
+
+The first-clear kit entered and left wave three with 16 lives and finished the island with 10/22. Kept the wave and combat tuning. A regression covers two tortoises in the same place during the recovery interval. A shield absorbed the first tortoise’s next hit, while the second lost HP. The first regained its armor a full second earlier.
+
+### Shell damage on the road
+
+The previous effect drew the same diagonal cross over all three tortoises. Its lines extended past the feet and shell rims onto neighboring bodies. The revised cue sits on the fired-clay plates. The first chip leaves one fissure. Further chips fork the fissure, and at zero armor a dark piece opens in its center. The fissures follow the tortoise’s facing and melee pose, sort with its body and disappear when its armor recovers. A renderer regression checks the three shapes, pose changes and restoration, including a tortoise with bonus armor.
+
+Staged Gatecrash with the early towers in the production build. In both captures the leading two shells had zero armor and the trailing shell had two. Checked the pack enlarged at 3× on desktop and 4× on the phone capture. The shortest cracks are small at phone play size. [Before and after on desktop](../../design/art-2d/chapter2/polish/i16-shell-detail.jpg) · [Full desktop EN](../../design/art-2d/chapter2/polish/i16-gatecrash.jpg) · [Landscape phone TR](../../design/art-2d/chapter2/polish/i16-gatecrash-phone.jpg)
+
+### Verification
+
+TypeScript, lint and the production build passed. The focused combat and renderer suites passed all 20 tests. All 41 realistic-kit checks and all eight difficulty verdicts passed. Both reports matched round 30 byte for byte. Hard i09 ended at 12/22 and i24 at 2/22. The 24,217-byte standalone L1–L16 report matched the round-one baseline. Vite emitted its existing bundle-size and dynamic-import warnings. The first full Vitest process was terminated before reporting results. The single-worker rerun passed 1,437 tests with 11 skipped at the original timeouts.
+
+### Next round
+
+Check the Hard first-clear kit’s wave-three defeat at Emberglass Sanctum. Trace which Gatecrash enemies reach the goal and try an affordable change to placement or targeting with the same hero and Workshop budget before considering any tuning. No new requests for Opus.
