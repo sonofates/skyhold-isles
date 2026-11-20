@@ -8,13 +8,16 @@
  * baked in and the 3D slate look). In 2D every entry counts as met (no sighting log yet).
  */
 import type { TowerType } from '../../core/types.ts';
-import { getTowerTierStats, TOWER_DEFS } from '../../data/towers.ts';
+import { getTowerTierStats, specializationsFor, TOWER_DEFS } from '../../data/towers.ts';
 import {
   enemyCounter,
   enemyDesc,
   enemyName,
   signatureDesc,
   signatureName,
+  specDesc,
+  specName,
+  specRole,
   tagName,
   towerDesc,
   towerName,
@@ -28,6 +31,8 @@ import { ENEMY_DEFS } from '../../data/enemies.ts';
 import { el, glyph, img, KIT, openSheet, plank, sealBadge, type Sheet } from './dom.ts';
 import { ARMORED_MIN, foeMarks } from './foeMarks.ts';
 import { SEAL_GLYPHS, type IconName } from './paintedIcons.ts';
+import { abilityBlock, changeList, price } from './specCard2d.ts';
+import { branchChanges } from './specInfo.ts';
 
 export type CodexTab2D = 'enemies' | 'towers';
 
@@ -35,6 +40,8 @@ export interface CodexSheetOptions {
   /** Painted sprite URL for an enemy / tower id (null = blank medallion). */
   readonly enemyUrl: (id: string) => string | null;
   readonly towerUrl: (id: string) => string | null;
+  /** Tier-IV branch portrait URL (null / absent = blank medallion). */
+  readonly specUrl?: (id: string) => string | null;
   /** Entry ids met in play (default: all). */
   readonly isSeen?: (id: string) => boolean;
   readonly onClose?: () => void;
@@ -228,7 +235,39 @@ export function openCodex2D(opts: CodexSheetOptions, tab: CodexTab2D = 'enemies'
       el('div', 'pu-cx-sub pu-letter', {}, t('codex.tiers')),
       tiers,
       note('crown', t('codex.signature', { name: signatureName(id) }), signatureDesc(id)),
+      el('div', 'pu-cx-sub pu-letter', {}, t('codex.specs')),
+      el('p', 'pu-cx-desc pu-ink-soft', {}, t('codex.specsNote')),
+      specCards(id),
     );
+  };
+
+  /** Both tier-IV branches of a family: portrait, name, role, price, what changes, the ability. */
+  const specCards = (id: TowerType): HTMLElement => {
+    const box = el('div', 'pu-cx-specs', { 'data-testid': 'codex-specs' });
+    for (const b of specializationsFor(id)) {
+      const url = opts.specUrl?.(b.id) ?? null;
+      const face = el('span', 'pu-cx-medal big pu-spec-medal');
+      if (url) face.append(img(url, '', 'pu-cx-art pu-spec-art'));
+      box.append(
+        el(
+          'section',
+          'pu-card pu-spec-col',
+          { 'data-testid': `codex-spec-${b.id}` },
+          el(
+            'div',
+            'pu-spec-head',
+            {},
+            face,
+            el('div', 'pu-spec-titles', {}, el('div', 'pu-cx-title pu-ink pu-spec-name', {}, specName(b.id)), el('div', 'pu-ink-soft pu-spec-role', {}, specRole(b.id)), price(b.cost)),
+          ),
+          el('p', 'pu-cx-desc pu-ink pu-spec-desc', {}, specDesc(b.id)),
+          changeList(branchChanges(id, b)),
+          el('div', 'pu-cx-sub pu-letter pu-spec-sub', {}, t('spec.unlocks')),
+          abilityBlock(id, b),
+        ),
+      );
+    }
+    return box;
   };
 
   const render = (): void => {

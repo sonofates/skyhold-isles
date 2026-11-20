@@ -19,6 +19,10 @@ export type RunCommand =
   | { readonly k: 'build'; readonly plot: number; readonly type: TowerType }
   | { readonly k: 'upgrade'; readonly id: number }
   | { readonly k: 'sell'; readonly id: number }
+  /** Tier III → one of the family's two tier-IV branches (permanent until sold). */
+  | { readonly k: 'spec'; readonly id: number; readonly spec: string }
+  /** A specialized tower buys one of its branch's abilities. */
+  | { readonly k: 'ability'; readonly id: number; readonly ability: string }
   | { readonly k: 'target'; readonly id: number; readonly mode: TargetingMode }
   | { readonly k: 'rally'; readonly id: number; readonly x: number; readonly z: number }
   | { readonly k: 'wave' }
@@ -64,6 +68,10 @@ export function applyRunCommand(world: SimWorld, c: RunCommand): boolean {
       return world.upgradeTower(c.id);
     case 'sell':
       return world.sellTower(c.id) > 0;
+    case 'spec':
+      return world.specializeTower(c.id, c.spec);
+    case 'ability':
+      return world.buyTowerAbility(c.id, c.ability);
     case 'target': {
       if (!world.getTowerById(c.id)) return false;
       world.setTowerTargeting(c.id, c.mode);

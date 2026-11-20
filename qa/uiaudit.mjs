@@ -91,6 +91,11 @@ const SCREENS = [
   ['hud-tip', '?level=i02&hero=bran', SEED, 'tip'],
   ['hud-pause', '?level=i02&hero=bran', SEED, 'pause'],
   ['hud-codex', '?level=i09&hero=bran', SEED, 'codex'],
+  ['hud-codex-spec', '?level=i09&hero=bran', SEED, 'codexSpec'],
+  ['hud-spec-ring', '?level=i02&hero=bran', SEED, 'specRing'],
+  ['hud-spec-card', '?level=i02&hero=bran', SEED, 'specCard'],
+  ['hud-spec-tower', '?level=i02&hero=bran', SEED, 'specTower'],
+  ['hud-spec-hint', '?level=i02&hero=bran&spechint=1', SEED, 'specHint'],
   ['hud-newfoe', '?level=i09&hero=bran', null, 'newfoe', { foesFresh: true }],
   ['end-won', '?level=i02&hero=bran', SEED, 'win'],
   ['end-lost', '?level=i02&hero=bran', SEED, 'lose'],
@@ -174,6 +179,60 @@ async function act(page, action, key, size) {
       await page.waitForSelector('.pu-overlay', { timeout: 15000 }).catch(() => problems.push(`${key}: Codex board did not open`));
       await page.waitForTimeout(900);
       break;
+    case 'codexSpec':
+      await p0();
+      await page.waitForTimeout(500);
+      await page.click('[data-testid="codex2d-open"]', { timeout: 15000 }).catch(() => problems.push(`${key}: no Codex button`));
+      await page.click('[data-testid="codex-tab-towers"]', { timeout: 15000 }).catch(() => problems.push(`${key}: no Towers tab`));
+      await page.click('[data-testid="codex-tile-tesla"]', { timeout: 15000 }).catch(() => problems.push(`${key}: no tesla tile`));
+      // Scroll the detail card so the branch cards start at its top edge (no line cut in half).
+      await page
+        .evaluate(() => {
+          const d = document.querySelector('[data-testid="codex-detail"]');
+          const s = document.querySelector('[data-testid="codex-specs"]');
+          const cs = getComputedStyle(d);
+          d.scrollTop += s.getBoundingClientRect().top - (d.getBoundingClientRect().top + d.clientTop + parseFloat(cs.paddingTop));
+        })
+        .catch(() => problems.push(`${key}: no specializations in the codex`));
+      await page.waitForTimeout(900);
+      break;
+    case 'specRing':
+    case 'specCard':
+    case 'specTower':
+    case 'specHint': {
+      // An archer on plot 2 at tier III (specTower: Farwatch Lodge), then its ring / the card.
+      await p0();
+      await page.evaluate((spec) => {
+        const p = window.__p0;
+        p.setGold(5000);
+        p.replay.cmd({ k: 'build', plot: 2, type: 'archer' });
+        const id = p.spec().towers[0].id;
+        p.replay.cmd({ k: 'upgrade', id });
+        p.replay.cmd({ k: 'upgrade', id });
+        if (spec) p.replay.cmd({ k: 'spec', id, spec: 'farwatch' });
+      }, action === 'specTower');
+      await page.waitForTimeout(700);
+      if (action === 'specHint') {
+        await page.waitForFunction(() => window.__p0.spec().hint?.shown, null, { timeout: 5000 }).catch(() => problems.push(`${key}: no tier-III tip`));
+        await page.waitForTimeout(500);
+        break;
+      }
+      const top = await page.evaluate(() => window.__p0.towerTop(window.__p0.spec().towers[0].id));
+      const tap = async (x, y) => (size.touch ? page.touchscreen.tap(x, y) : page.mouse.click(x, y));
+      await tap(top.x, top.y + 30);
+      await page.waitForFunction(() => window.__p0.state().ring?.open, null, { timeout: 5000 }).catch(() => problems.push(`${key}: ring did not open`));
+      await page.waitForTimeout(600);
+      if (action === 'specTower') break;
+      const tk = await page.evaluate(() => window.__p0.state().ring.tokens[0]);
+      await tap(tk.x, tk.y);
+      await page.waitForTimeout(400);
+      if (action === 'specCard') {
+        await tap(tk.x, tk.y);
+        await page.waitForSelector('[data-testid="spec-card"]', { timeout: 8000 }).catch(() => problems.push(`${key}: comparison card did not open`));
+        await page.waitForTimeout(900);
+      }
+      break;
+    }
     case 'pause':
       await p0();
       await page.waitForTimeout(500);

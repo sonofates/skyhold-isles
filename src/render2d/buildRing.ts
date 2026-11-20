@@ -1,6 +1,9 @@
 import { ColorMatrixFilter, Container, Graphics, NineSliceSprite, Sprite, Texture, type Text } from 'pixi.js';
 import type { TargetingMode, TowerType } from '../core/types.ts';
-import { signatureDesc, signatureName, towerName, towerShortName } from '../i18n/data.ts';
+import type { TowerSpecializationDef, TowerTierStats } from '../data/towers.ts';
+import { abilityDesc, abilityName, signatureDesc, signatureName, specDesc, specName, specRole, towerName, towerShortName } from '../i18n/data.ts';
+import { loadSpecPortrait, specPortrait } from './specArt.ts';
+import { branchById, branchStats } from './ui/specInfo.ts';
 import { t as msg, type MsgKey } from '../i18n/index.ts';
 import type { LoadedArt } from './assets2d.ts';
 import { MIN_TOUCH } from './hud.ts';
@@ -16,6 +19,7 @@ import {
   ringRadius,
   roleLine,
   statRows,
+  statRowsFor,
   towerRingAngles,
   uiScale,
   type Insets,
@@ -31,11 +35,21 @@ export type RingAction =
   /** Barracks: next tap on the road moves its rally point. */
   | { readonly kind: 'rally' }
   /** Attack towers: cycle the targeting mode. */
-  | { readonly kind: 'target' };
+  | { readonly kind: 'target' }
+  /** Tier III: open the comparison card of the two specializations (this one focused). */
+  | { readonly kind: 'compare'; readonly id: string }
+  /** Specialized tower: buy this ability. */
+  | { readonly kind: 'ability'; readonly id: string };
 
 export interface TowerPanelInfo {
   readonly type: TowerType;
   readonly tier: number;
+  /** Tier III, not yet specialized: the family's two branches replace the upgrade token. */
+  readonly branches?: readonly TowerSpecializationDef[];
+  /** Specialized: the chosen branch and its bought abilities (ring shows the abilities to buy). */
+  readonly specialization?: { readonly id: string; readonly abilities: readonly string[] };
+  /** Effective stats (`towerStats`): the specialized tower's info card. */
+  readonly stats?: TowerTierStats;
   /** Cost of the next tier, or null at max tier. */
   readonly upgradeCost: number | null;
   readonly refund: number;
@@ -55,6 +69,8 @@ const TARGET_NEXT: Readonly<Record<TargetingMode, TargetingMode>> = { first: 'la
 export interface RingPreview {
   readonly type: TowerType;
   readonly tier: 1 | 2 | 3;
+  /** Base range to preview instead of the tier's (a specialization's own reach). */
+  readonly range?: number;
 }
 
 /** Targeting token tooltip: the current mode, the tower's record, what a tap / click switches to. */
@@ -63,11 +79,13 @@ function targetTip(mode: TargetingMode, record: string, desktop: boolean): TipCo
 }
 
 /** "Tap …" on touch, "Click …" with a mouse. */
-const ACTION_HINT: Readonly<Record<'build' | 'upgrade' | 'sell' | 'choose', readonly [MsgKey, MsgKey]>> = {
+const ACTION_HINT: Readonly<Record<'build' | 'upgrade' | 'sell' | 'choose' | 'compare' | 'ability', readonly [MsgKey, MsgKey]>> = {
   build: ['ring.tapBuild', 'ring.clickBuild'],
   upgrade: ['ring.tapUpgrade', 'ring.clickUpgrade'],
   sell: ['ring.tapSell', 'ring.clickSell'],
   choose: ['ring.tapChoose', 'ring.clickChoose'],
+  compare: ['ring.tapCompare', 'ring.clickCompare'],
+  ability: ['ring.tapBuy', 'ring.clickBuy'],
 };
 
 /** Short tower name (localised; see src/i18n/data.ts). */
@@ -83,6 +101,8 @@ const TARGET_LABEL: Readonly<Record<TargetingMode, MsgKey>> = {
 };
 
 const MAX_TOKENS = 10;
+/** Ability level pips per token (each ability has one level today). */
+const MAX_PIPS = 3;
 const OPEN_S = 0.26;
 const CLOSE_S = 0.13;
 const STAGGER_S = 0.022;
@@ -101,8 +121,12 @@ interface Token {
   readonly tagCoin: Sprite;
   readonly tagText: Text;
   readonly label: Text;
+  /** Ability level pips over the medallion (owned = filled). */
+  readonly pips: Sprite[];
   action: RingAction | null;
   enabled: boolean;
+  /** Acts on the confirming tap even when unaffordable (the comparison card shows the price). */
+  actsWhenPoor: boolean;
   banned: boolean;
   /** Build cost / upgrade cost checked against live gold (null = always enabled / banned). */
   cost: number | null;
@@ -119,6 +143,8 @@ interface TipContent {
   cost?: number | null;
   title: string;
   role: string;
+  /** Wrapped paragraph under the role line (a branch's or ability's effect, owned abilities). */
+  desc?: string;
   rows: StatRow[] | null;
   next: StatRow[] | null;
   hint: string;
@@ -159,6 +185,7 @@ class RingTooltip {
   private readonly cost = inkText(14);
   private readonly coin: Sprite;
   private readonly role = inkText(14, 'left', INK_SOFT, '600');
+  private readonly desc = inkText(14, 'left', INK, '600');
   private readonly labels: Text[] = [];
   private readonly pips = new Graphics();
   /** Painted rank pips (3 rows x 5); used once `pip-empty` / `pip-filled` have loaded. */
@@ -180,7 +207,10 @@ class RingTooltip {
     }
     this.coin = new Sprite(art.ui.gold);
     this.coin.anchor.set(0, 0.5);
-    this.root.addChild(this.bg, this.title, this.role, this.pips, this.hint, this.coin, this.cost);
+    this.desc.anchor.set(0, 0);
+    this.desc.style.wordWrap = true;
+    this.desc.style.breakWords = true;
+    this.root.addChild(this.bg, this.title, this.role, this.desc, this.pips, this.hint, this.coin, this.cost);
     for (let i = 0; i < 15; i++) {
       const p = new Sprite(Texture.EMPTY);
       p.anchor.set(0.5);
@@ -216,24 +246,48 @@ class RingTooltip {
     setText(this.role, c.role);
     let y = pad + fTitle * 0.62;
     this.title.position.set(pad, y);
-    fitWidth(this.title, W - pad * 2);
+    const titleY = y;
     y += fTitle * 0.62 + fBody * 0.75;
     this.role.position.set(pad, y);
     this.cost.visible = this.coin.visible = c.cost != null;
     let costWidth = 0;
+    // With a paragraph (specializations, abilities) the price rides on the title line, so the
+    // role line keeps its full width (it would shrink beside the price on a phone).
+    let costOnTitle = false;
+    if (c.cost != null && c.desc) {
+      setInkSize(this.cost, fBody);
+      setText(this.cost, String(c.cost));
+      this.title.scale.set(1);
+      const need = this.cost.width + (this.coin.texture.width * fBody) / this.coin.texture.height + 8;
+      costOnTitle = this.title.width + need <= W - pad * 2;
+    }
     if (c.cost != null) {
+      const cy = costOnTitle ? titleY : y;
       setInkSize(this.cost, fBody);
       setText(this.cost, String(c.cost));
       this.coin.scale.set(fBody / this.coin.texture.height);
-      this.cost.position.set(W - pad - this.cost.width, y);
-      this.coin.position.set(this.cost.x - this.coin.width - 3, y);
+      this.cost.position.set(W - pad - this.cost.width, cy);
+      this.coin.position.set(this.cost.x - this.coin.width - 3, cy);
       costWidth = W - pad - this.coin.x + 5;
     }
-    fitWidth(this.role, W - pad * 2 - costWidth);
+    fitWidth(this.title, W - pad * 2 - (costOnTitle ? costWidth : 0));
+    fitWidth(this.role, W - pad * 2 - (costOnTitle ? 0 : costWidth));
     // No role line (a fresh tower's targeting / rally tip): the hint moves up into its place.
     const noRole = !c.role && c.cost == null && !c.rows;
     this.role.visible = !noRole;
     y += noRole ? -fBody * 1.3 : fBody * 0.6;
+    this.desc.visible = !!c.desc;
+    if (c.desc) {
+      const fDesc = Math.round(Math.max(12, 13.5 * k));
+      setInkSize(this.desc, fDesc);
+      this.desc.style.wordWrapWidth = W - pad * 2;
+      this.desc.style.lineHeight = Math.round(fDesc * 1.22);
+      setText(this.desc, c.desc);
+      this.desc.position.set(pad, y + fBody * 0.15);
+      y += fBody * 0.15 + this.desc.height;
+      // The rows / hint below step down from the text's last line (their anchors are mid-line).
+      y -= fBody * 0.35;
+    }
     const g = this.pips;
     g.clear();
     const painted = this.pipTex;
@@ -310,7 +364,7 @@ class RingTooltip {
     const b = this.bg.getBounds();
     const f = Math.min(this.w * 0.05, this.h * 0.1);
     const box = { x: b.x + f, y: b.y + f * 0.6, w: b.width - f * 2, h: b.height - f * 1.2 };
-    return [this.title, this.role, this.cost, this.hint, ...this.labels].map((text, i) => ({ name: `ring.tip${i}`, text, box }));
+    return [this.title, this.role, this.cost, this.hint, ...this.labels, this.desc].map((text, i) => ({ name: `ring.tip${i}`, text, box }));
   }
 }
 
@@ -345,6 +399,11 @@ export class BuildRing {
   private screenH = 1;
   private u = 1;
   private shadowBase = 1;
+  private pipTex: { empty: Texture; filled: Texture } | null = null;
+  /** Shown while no token is hovered / selected (a specialized tower's card: branch, stats, abilities). */
+  private infoTip: TipContent | null = null;
+  /** Bumped on every open: a portrait arriving for an older ring is dropped. */
+  private openSeq = 0;
   insets: Insets = NO_INSETS;
   /** What the ring is open on: plot index, or -1. */
   plot = -1;
@@ -384,7 +443,14 @@ export class BuildRing {
       const tagText = inkText(16, 'center');
       tag.addChild(tagBg, tagCoin, tagText);
       const label = paintedText(16, 'center');
-      root.addChild(frame, face, badge, tag, label);
+      const pips: Sprite[] = [];
+      for (let p = 0; p < MAX_PIPS; p++) {
+        const s = new Sprite(Texture.EMPTY);
+        s.anchor.set(0.5);
+        s.visible = false;
+        pips.push(s);
+      }
+      root.addChild(frame, face, badge, tag, label, ...pips);
       root.visible = false;
       this.tokenLayer.addChild(root);
       this.tokens.push({
@@ -397,8 +463,10 @@ export class BuildRing {
         tagCoin,
         tagText,
         label,
+        pips,
         action: null,
         enabled: false,
+        actsWhenPoor: false,
         banned: false,
         cost: null,
         preview: null,
@@ -410,6 +478,9 @@ export class BuildRing {
       });
     }
     this.root.visible = false;
+    void Promise.all([paintedUiTexture(art, 'pip-empty'), paintedUiTexture(art, 'pip-filled')]).then(([empty, filled]) => {
+      if (empty && filled) this.pipTex = { empty, filled };
+    });
   }
 
   /** QA (qaText.ts): the tooltip's lines. */
@@ -425,6 +496,7 @@ export class BuildRing {
     if (this.mode === null) return;
     this.mode = null;
     this.plot = -1;
+    this.infoTip = null;
     this.selected = -1;
     this.hovered = -1;
     this.closing = true;
@@ -465,10 +537,48 @@ export class BuildRing {
     t.label.visible = false;
     t.hoverK = 0;
     t.banned = false;
+    t.actsWhenPoor = false;
     t.cost = null;
     t.preview = null;
     t.tip = null;
+    for (const p of t.pips) p.visible = false;
     return t;
+  }
+
+  /** `n` level pips in an arc over the medallion, the first `owned` filled (painted diamonds once loaded). */
+  private setPips(t: Token, n: number, owned: number): void {
+    const r = this.tokenR;
+    const tex = this.pipTex;
+    const size = Math.max(9, r * 0.36);
+    const gap = size * 1.05;
+    for (let p = 0; p < t.pips.length; p++) {
+      const s = t.pips[p];
+      s.visible = p < n;
+      if (!s.visible) continue;
+      s.texture = tex ? (p < owned ? tex.filled : tex.empty) : Texture.WHITE;
+      if (!tex) s.tint = p < owned ? 0xe9b53c : 0xd8c39a;
+      else s.tint = 0xffffff;
+      s.scale.set(size / Math.max(1, s.texture.width));
+      s.position.set((p - (n - 1) / 2) * gap, -r * 1.02);
+    }
+  }
+
+  /** Swaps a token's face to the branch portrait once it has loaded (the ring may have moved on). */
+  private portraitFace(t: Token, id: string): void {
+    const tex = specPortrait(id);
+    if (tex) {
+      this.setFace(t, tex, true);
+      return;
+    }
+    const seq = this.openSeq;
+    void loadSpecPortrait(this.art, id).then((loaded) => {
+      if (!loaded || seq !== this.openSeq || !this.isOpen) return;
+      const a = t.action;
+      if ((a?.kind === 'compare' || a?.kind === 'ability') && t.root.visible) {
+        this.setFace(t, loaded, true);
+        if (!t.enabled) t.face.filters = [this.gray];
+      }
+    });
   }
 
   /** Face = tower portrait (fits the medallion face) or a painted icon. */
@@ -574,6 +684,8 @@ export class BuildRing {
     this.mode = 'build';
     this.plot = plot;
     this.gold = gold;
+    this.openSeq++;
+    this.infoTip = null;
     const ring = this.art.manifest.buildRing;
     this.count = Math.min(MAX_TOKENS, ring.length);
     for (let i = 0; i < this.count; i++) {
@@ -611,8 +723,83 @@ export class BuildRing {
     // The battle record once the tower has done something (a fresh tower's "0 · 0" is noise).
     const record = info.record && (info.record.kills > 0 || info.record.damage >= 1) ? msg('ring.record', { n: info.record.kills, d: Math.round(info.record.damage) }) : '';
     let i = 0;
-    // Upgrade: next-tier portrait with an upgrade arrow badge.
-    {
+    this.openSeq++;
+    this.infoTip = null;
+    const spec = info.specialization ? branchById(info.type, info.specialization.id) : null;
+    if (spec && info.specialization) {
+      // Specialized: one token per ability (branch portrait, upgrade badge, level pips, price / owned).
+      const owned = info.specialization.abilities;
+      const stats = info.stats ?? branchStats(info.type, spec);
+      const range = stats.range;
+      const ownedNames = owned.map((id) => abilityName(id));
+      this.infoTip = {
+        title: specName(spec.id),
+        role: msg('ring.specOf', { name: towerShortName(info.type) }),
+        desc: ownedNames.length ? msg('ring.abilities', { list: ownedNames.join(msg('common.sep')) }) : msg('ring.noAbilities'),
+        rows: statRowsFor(info.type, stats),
+        next: null,
+        hint: '',
+        hintBad: '',
+        fixedHint: true,
+      };
+      for (const a of spec.abilities) {
+        const t = this.resetToken(i++);
+        const have = owned.includes(a.id);
+        this.portraitFace(t, spec.id);
+        t.badge.texture = kit(this.art, 'iconUpgrade', Texture.EMPTY);
+        t.badge.visible = !have && t.badge.texture !== Texture.EMPTY;
+        this.setTag(t, have ? msg('ring.owned') : String(a.cost), !have);
+        this.setPips(t, 1, have ? 1 : 0);
+        t.action = { kind: 'ability', id: a.id };
+        t.cost = have ? null : a.cost;
+        t.enabled = !have && gold >= a.cost;
+        t.confirm = true;
+        t.preview = { type: info.type, tier, range };
+        t.tip = {
+          title: abilityName(a.id),
+          role: have ? msg('ring.owned') : msg('ring.abilityOf', { name: specName(spec.id) }),
+          desc: abilityDesc(a.id),
+          rows: null,
+          next: null,
+          hint: this.hint('ability'),
+          hintBad: '',
+        };
+        this.applyEnabled(t);
+        if (have) {
+          t.face.filters = null;
+          t.frame.tint = 0xffffff;
+        }
+      }
+    } else if (tier === 3 && info.branches && info.branches.length > 0) {
+      // Tier III: the two specializations (portrait, price) instead of "upgrade". The second tap
+      // opens the comparison card, also when gold is short (it shows what is missing).
+      for (const b of info.branches) {
+        const t = this.resetToken(i++);
+        this.setFace(t, art?.tiers[2] ?? Texture.WHITE, true, tint);
+        this.portraitFace(t, b.id);
+        t.badge.texture = kit(this.art, 'iconUpgrade', Texture.EMPTY);
+        t.badge.visible = t.badge.texture !== Texture.EMPTY;
+        this.setTag(t, String(b.cost), true);
+        t.action = { kind: 'compare', id: b.id };
+        t.cost = b.cost;
+        t.enabled = gold >= b.cost;
+        t.actsWhenPoor = true;
+        t.confirm = true;
+        const bs = branchStats(info.type, b);
+        t.preview = { type: info.type, tier: 3, range: bs.range };
+        t.tip = {
+          title: specName(b.id),
+          role: specRole(b.id),
+          desc: specDesc(b.id),
+          rows: statRows(info.type, 3),
+          next: statRowsFor(info.type, bs),
+          hint: this.hint('compare'),
+          hintBad: '',
+        };
+        this.applyEnabled(t);
+      }
+    } else {
+      // Upgrade: next-tier portrait with an upgrade arrow badge.
       const t = this.resetToken(i++);
       this.setFace(t, art?.tiers[nextTier - 1] ?? Texture.WHITE, true, tint);
       const maxed = info.upgradeCost === null;
@@ -680,6 +867,7 @@ export class BuildRing {
     const radius = Math.max(minR, ringRadius(evenAngles(i), r, r * TAG_H));
     const angles = towerRingAngles(i, cx, cy, r, r * TAG_H, radius, this.screenW, this.screenH, this.insets, k, 6, this.avoidRects());
     this.layout(cx, cy, angles, radius);
+    if (this.infoTip) this.showTip(-1);
   }
 
   /** Refreshes the targeting token's label after the mode changed. */
@@ -733,19 +921,28 @@ export class BuildRing {
   private showTip(i: number): void {
     const t = i >= 0 ? this.tokens[i] : null;
     if (!t || !t.tip) {
-      this.tooltip.root.visible = false;
+      // Nothing pointed at: the tower's own card when it has one (a specialized tower).
+      if (this.infoTip && this.isOpen) this.placeTip(this.infoTip);
+      else this.tooltip.root.visible = false;
       return;
     }
     const c = t.tip;
     const poor = t.cost !== null && !t.enabled;
     c.cost = t.cost;
     c.hintBad = t.banned ? msg('ring.banned') : poor ? msg('ring.needGold', { n: t.cost ?? 0 }) : '';
-    const maxed = t.action?.kind === 'upgrade' && t.cost === null;
+    const kind = t.action?.kind;
+    const maxed = (kind === 'upgrade' || kind === 'ability') && t.cost === null;
     if (c.fixedHint) {
       // targeting / rally: the hint was written with the tip
     } else if (maxed || t.banned) c.hint = '';
     else if (i !== this.selected) c.hint = this.hint('choose');
-    else c.hint = t.action?.kind === 'build' ? this.hint('build') : t.action?.kind === 'upgrade' ? this.hint('upgrade') : t.action?.kind === 'sell' ? this.hint('sell') : '';
+    else
+      c.hint =
+        kind === 'build' || kind === 'upgrade' || kind === 'sell' || kind === 'compare' || kind === 'ability' ? this.hint(kind) : '';
+    this.placeTip(c);
+  }
+
+  private placeTip(c: TipContent): void {
     this.tooltip.set(c, this.u);
     const p = placeTooltip(this.box, this.tooltip.w, this.tooltip.h, this.screenW, this.screenH, this.insets, 10, 6, this.avoid);
     this.tooltip.root.position.set(p.x, p.y);
@@ -768,7 +965,7 @@ export class BuildRing {
       this.select(i);
       return null;
     }
-    return t.enabled ? t.action : null;
+    return t.enabled || t.actsWhenPoor ? t.action : null;
   }
 
   /** Per-frame: bloom / close animation, hover easing, live affordability. */

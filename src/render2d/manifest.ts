@@ -29,6 +29,12 @@ export interface ArtManifest {
   readonly enemyMap: Readonly<Record<string, EnemyMapEntry>>;
   /** Hero art (portraits, icons, sprite sheets) keyed by hero id; absent when the section is missing. */
   readonly heroes?: Readonly<Record<string, HeroArtSpec>>;
+  /**
+   * Tier-IV specialization portraits (manifest `towerSpecializations.<id>.portrait`, building and
+   * crew on transparency): branch id → file. The map art (turret / attack sheets) is read by
+   * towerLayer.ts straight from the raw manifest.
+   */
+  readonly specPortraits?: Readonly<Record<string, string>>;
 }
 
 /**
@@ -491,7 +497,17 @@ export function parseManifest(raw: unknown): ArtManifest {
     enemies,
     enemyMap,
     ...(m.heroes !== undefined && m.heroes !== null ? { heroes: parseHeroArt(m.heroes) } : {}),
+    ...(m.towerSpecializations && typeof m.towerSpecializations === 'object' ? { specPortraits: specPortraits(m.towerSpecializations as Json) } : {}),
   };
+}
+
+function specPortraits(o: Json): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [id, v] of Object.entries(o)) {
+    const p = v && typeof v === 'object' ? (v as Json).portrait : undefined;
+    if (typeof p === 'string' && p) out[id] = p;
+  }
+  return out;
 }
 
 /** Art for a sim enemy type. Unmapped flying types fall back to `*Flying` when present. */

@@ -6,7 +6,7 @@
 import { towerRole } from '../i18n/data.ts';
 import { t } from '../i18n/index.ts';
 import type { TowerType } from '../core/types.ts';
-import { getTowerTierStats, TOWER_DEFS } from '../data/towers.ts';
+import { getTowerTierStats, TOWER_DEFS, type TowerTierStats } from '../data/towers.ts';
 import type { Level2DGate } from '../data/levels2d/gates.ts';
 
 export interface Insets {
@@ -207,6 +207,18 @@ const TOWER_RING_3: readonly (readonly number[])[] = [
   [-90 * DEG, -35 * DEG, 0],
   [-90 * DEG, -145 * DEG, 180 * DEG],
 ];
+/** Tier III: the two specializations first (above, like "upgrade"), then targeting / rally and sell. */
+const TOWER_RING_4: readonly (readonly number[])[] = [
+  [-145 * DEG, -35 * DEG, 145 * DEG, 35 * DEG], // the choices high left / right, clear of the tower's top
+  [125 * DEG, 55 * DEG, 180 * DEG, 0], // top-row plots: the choices below, the others beside
+  [145 * DEG, 35 * DEG, -145 * DEG, -35 * DEG],
+  [-90 * DEG, -30 * DEG, 30 * DEG, 90 * DEG], // left-edge plots: everything on the right half
+  [-90 * DEG, -150 * DEG, 150 * DEG, 90 * DEG], // right-edge plots
+  [90 * DEG, 45 * DEG, 0, -45 * DEG], // corners
+  [90 * DEG, 135 * DEG, 180 * DEG, -135 * DEG],
+  [-90 * DEG, -45 * DEG, 0, 45 * DEG],
+  [-90 * DEG, -135 * DEG, 180 * DEG, 135 * DEG],
+];
 const TOWER_RING_2: readonly (readonly number[])[] = [
   [-90 * DEG, 90 * DEG],
   [180 * DEG, 0],
@@ -246,7 +258,7 @@ export function towerRingAngles(
   margin = 6,
   avoid: readonly Rect[] = [],
 ): readonly number[] {
-  const cands = count >= 3 ? TOWER_RING_3 : TOWER_RING_2;
+  const cands = count >= 4 ? TOWER_RING_4 : count === 3 ? TOWER_RING_3 : TOWER_RING_2;
   const out: Pt[] = [];
   let best: readonly number[] = cands[0];
   let bestScore = Infinity;
@@ -339,8 +351,12 @@ const RANGE_STEPS = [0.1, 4.5, 5.5, 7.5, 10] as const;
 
 /** Three 0..5 pip rows for a tower tier (attack: damage / range / speed; support / barracks get their own). */
 export function statRows(type: TowerType, tier: 1 | 2 | 3): StatRow[] {
+  return statRowsFor(type, getTowerTierStats(type, tier));
+}
+
+/** The same three pip rows for any resolved stats (a specialized tower's `towerStats`). */
+export function statRowsFor(type: TowerType, s: TowerTierStats): StatRow[] {
   const def = TOWER_DEFS[type];
-  const s = getTowerTierStats(type, tier);
   if (def.role === 'support') {
     return [
       { label: t('stat.haste'), pips: pipsFor((s.auraRate ?? 0) * 100, [1, 10, 16, 22, 28]) },
