@@ -68,6 +68,24 @@ export interface WaveCard2D {
   box(): Rect | null;
 }
 
+/**
+ * Inset the wave card slightly from the top of roomy desktop slots so its top and left screen
+ * margins feel balanced, while staying strictly inside `slot` (hudCheck: 0 px outside).
+ */
+export function waveCardSlot(slot: Rect): Rect {
+  const topInset = slot.h >= 96 ? 4 : 0;
+  return topInset > 0 ? { x: slot.x, y: slot.y + topInset, w: slot.w, h: slot.h - topInset } : slot;
+}
+
+/** Responsive layout tier for the wave card inside its slot (pure, tested). */
+export function waveCardTier(chipCount: number, slotW: number): { readonly many: boolean; readonly compact: boolean; readonly tiny: boolean } {
+  return {
+    many: chipCount >= 4,
+    compact: slotW < 140,
+    tiny: slotW < 90,
+  };
+}
+
 export function mountWaveCard(
   enemyUrl: (type: EnemyType) => string | null,
   isNew: (type: EnemyType) => boolean = () => false,
@@ -101,12 +119,13 @@ export function mountWaveCard(
       const face = el('span', 'pu-wave-face');
       if (url) face.append(img(url));
       else face.textContent = name.slice(0, 1);
-      b.append(face, el('span', 'pu-wave-count pu-letter', {}, `×${c.count}`));
-      if (c.elite > 0) b.append(el('span', 'pu-wave-elite', { title: t('wave.elite', { n: c.elite }) }, img(KIT.star)));
+      const faceBox = el('span', 'pu-wave-facebox', {}, face);
+      if (c.elite > 0) faceBox.append(el('span', 'pu-wave-elite', { title: t('wave.elite', { n: c.elite }) }, img(KIT.star)));
       // Shapes, not only the backdrop colour: wing / shield / crown (colour-blind safe).
       const marks = foeMarks(c, 'pu-wave-marks');
-      if (marks) b.append(marks);
-      if (isNew(c.type)) b.append(el('span', 'pu-wave-new', {}, t('foe.new')));
+      if (marks) faceBox.append(marks);
+      b.append(faceBox, el('span', 'pu-wave-count pu-ink', {}, `×${c.count}`));
+      if (isNew(c.type)) b.append(el('span', 'pu-wave-new pu-letter', {}, t('foe.new')));
       if (onChip) b.addEventListener('click', () => onChip(c.type));
       chips.append(b);
     }
@@ -145,14 +164,18 @@ export function mountWaveCard(
         footKey = fk;
         foot.replaceChildren();
         const line = s.first ? t('wave.startHint') : secs > 0 ? t('wave.inSecs', { n: secs }) : '';
-        if (line) foot.append(el('span', '', {}, line));
+        if (line) foot.append(el('span', 'pu-wave-hint', {}, line));
         if (s.earlyBonus > 0) foot.append(el('span', 'pu-wave-bonus', {}, img(KIT.gold), t('wave.earlyBonus', { n: s.earlyBonus })));
       }
       // Measure (a forced layout) only when the text or the slot changed, not every frame.
-      const q = s.slot;
+      const q = waveCardSlot(s.slot);
       const pk = `${key}|${footKey}|${Math.round(q.x)},${Math.round(q.y)},${Math.round(q.w)},${Math.round(q.h)}|${Math.round(s.maxW)}`;
       if (pk !== placeKey) {
         placeKey = pk;
+        const tier = waveCardTier(chipCount, q.w);
+        card.classList.toggle('many', tier.many);
+        card.classList.toggle('compact', tier.compact);
+        card.classList.toggle('tiny', tier.tiny);
         const docked = dockCard(card, q, s.maxW, [foot, head]);
         placed = docked.box;
         scale = docked.scale;

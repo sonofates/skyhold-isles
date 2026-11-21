@@ -25,13 +25,17 @@
 
 /* ---- confirm board ----------------------------------------------------------------------- */
 .pu-sheet.pu-confirm {
-  width: min(max(calc(var(--s) * 34), 440px), 92vw);
+  width: min(max(calc(var(--s) * 42), 500px), 92vw);
+}
+
+.pu-confirm .pu-sheet-title {
+  font-size: calc(var(--s) * 1.85);
 }
 
 .pu-confirm .pu-confirm-text {
-  margin: calc(var(--s) * 0.4) calc(var(--s) * 0.6) calc(var(--s) * 1.2);
-  font-size: calc(var(--s) * 1.35);
-  line-height: 1.35;
+  margin: calc(var(--s) * 0.5) calc(var(--s) * 0.6) calc(var(--s) * 1.2);
+  font-size: max(15px, calc(var(--s) * 1.25));
+  line-height: 1.4;
   text-align: center;
   color: var(--ink);
 }
@@ -40,7 +44,7 @@
   display: flex;
   justify-content: center;
   flex-wrap: wrap;
-  gap: calc(var(--s) * 1);
+  gap: calc(var(--s) * 0.9);
   padding-bottom: calc(var(--s) * 0.4);
 }
 
@@ -62,7 +66,10 @@
   padding: calc(var(--s) * 0.5) calc(var(--s) * 1.1) calc(var(--s) * 0.6);
   border-style: solid;
   border-width: calc(var(--s) * 1.1);
-  border-image: url('/art2d/ui-plaque.webp') 42 64 fill stretch;
+  border-image-source: url('/art2d/ui-plaque.webp');
+  border-image-slice: 50 68 fill;
+  border-image-width: calc(var(--s) * 1.3) calc(var(--s) * 1.76);
+  border-image-repeat: stretch;
   filter: drop-shadow(0 4px 3px rgba(30, 16, 4, 0.45));
   animation: pu-replay-in 0.28s ease-out;
 }

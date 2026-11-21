@@ -1,18 +1,26 @@
 /* Foe info card (enemyCard2d.ts): the kit's gold-framed parchment, in the dock's info slot. */
 .pu-foe-card {
+  --tip-corner: clamp(11px, calc(var(--s) * 0.98), 17px);
   position: fixed;
   left: 0;
   top: 0;
   z-index: 25;
   width: min(calc(var(--s) * 25), 70vw);
-  padding: calc(var(--s) * 0.45) calc(var(--s) * 0.85);
+  min-height: calc(var(--tip-corner) * 2);
+  padding: max(6px, calc(var(--s) * 0.45)) max(10px, calc(var(--s) * 0.78));
+  background: #feebc4;
+  background-clip: padding-box;
   border-style: solid;
-  border-width: calc(var(--s) * 0.95);
-  border-image: url('/art2d/ui/tooltip.webp') 40 fill stretch;
-  filter: drop-shadow(0 3px 3px rgba(30, 16, 4, 0.45));
+  border-width: calc(var(--tip-corner) * 0.52);
+  border-image-source: url('/art2d/ui/tooltip.webp');
+  border-image-slice: 60 fill;
+  border-image-width: var(--tip-corner);
+  border-image-repeat: stretch;
+  filter: drop-shadow(0 4px 5px rgba(30, 16, 4, 0.45));
   pointer-events: none;
-  font-size: calc(var(--s) * 1);
-  line-height: 1.25;
+  overflow: hidden;
+  font-size: max(13px, calc(var(--s) * 0.95));
+  line-height: 1.3;
   transition: opacity 0.4s;
   will-change: transform;
 }
@@ -88,8 +96,9 @@
 }
 
 .pu-foe-name {
-  font-size: calc(var(--s) * 1.3);
+  font-size: max(15px, calc(var(--s) * 1.18));
   font-weight: 700;
+  line-height: 1.15;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -102,10 +111,11 @@
 }
 
 .pu-foe-tag {
-  padding: 0.05em 0.5em;
+  padding: 0.1em 0.55em;
   border-radius: 999px;
-  font-size: calc(var(--s) * 0.85);
+  font-size: max(11px, calc(var(--s) * 0.8));
   font-weight: 700;
+  line-height: 1.15;
   color: #fff4dc;
   background: #6a4a2a;
   white-space: nowrap;
@@ -148,8 +158,9 @@
 
 .pu-foe-hp-text {
   flex: none;
-  font-size: calc(var(--s) * 0.95);
+  font-size: max(13px, calc(var(--s) * 0.94));
   font-weight: 700;
+  font-variant-numeric: tabular-nums;
   min-width: 4.5em;
   text-align: right;
 }
@@ -157,9 +168,11 @@
 .pu-foe-stats {
   display: flex;
   flex-wrap: wrap;
-  column-gap: calc(var(--s) * 0.9);
-  margin-top: calc(var(--s) * 0.45);
-  font-size: calc(var(--s) * 0.95);
+  gap: 2px calc(var(--s) * 0.85);
+  margin-top: calc(var(--s) * 0.4);
+  padding-top: calc(var(--s) * 0.3);
+  border-top: 1.5px dashed rgba(122, 85, 50, 0.3);
+  font-size: max(13.5px, calc(var(--s) * 0.94));
 }
 
 .pu-foe-stats b {
@@ -169,12 +182,14 @@
 
 .pu-foe-desc {
   margin-top: calc(var(--s) * 0.35);
-  font-size: calc(var(--s) * 0.92);
+  font-size: max(13.5px, calc(var(--s) * 0.92));
+  line-height: 1.3;
 }
 
 .pu-foe-counter {
   margin-top: calc(var(--s) * 0.3);
-  font-size: calc(var(--s) * 0.92);
+  font-size: max(13.5px, calc(var(--s) * 0.92));
+  line-height: 1.3;
 }
 
 .pu-foe-counter b {

@@ -96,7 +96,10 @@
   min-width: calc(var(--s) * 10);
   border-style: solid;
   border-width: calc(var(--ph) * 0.28) calc(var(--ph) * 0.42);
-  border-image: url('/art2d/ui-plaque.webp') 42 64 fill stretch;
+  border-image-source: url('/art2d/ui-plaque.webp');
+  border-image-slice: 50 68 fill;
+  border-image-width: calc(var(--ph) * 0.355) calc(var(--ph) * 0.482);
+  border-image-repeat: stretch;
   padding: 0 calc(var(--s) * 0.5);
   font-size: calc(var(--s) * 1.35);
   line-height: 1;

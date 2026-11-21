@@ -190,10 +190,13 @@
 /* ---- the ribbon board (end-panel art, 9-sliced) --------------------------------------------- */
 
 /*
- * end-panel.webp (1024x674) is sliced so every painted bit stays in the border at the art's own
- * scale: the ribbon with its curled tails (top 206 px), the gold frame with the corner brackets
- * (sides 146 px), the frame's foot (bottom 84 px). Only plain parchment stretches, so content can
- * use the whole inner box: nothing runs under a ribbon tail or a bracket on any board size.
+ * end-panel.webp (1024x674) is sliced so every painted bit stays in the corners at exact 1:1 art
+ * scale: the ribbon with its curled tails + both top gold corner brackets and rivets (top 268 px),
+ * the gold frame with the corner brackets (sides 146 px), and both bottom corner brackets and
+ * rivets (bottom 104 px). Only the straight vertical wood rails (y 268..570) and plain parchment
+ * stretch, so neither the top nor bottom rivets ever distort at any sheet height or DPR.
+ * `border-width` keeps the inner content inset tight to the ribbon's underside (206 px) and foot
+ * (84 px), while `border-image-width` draws the full 268 / 104 corner slices at 1:1 `--k` scale.
  * `--k` = css px per art px.
  */
 .pu-sheet {
@@ -205,13 +208,14 @@
   display: flex;
   flex-direction: column;
   min-width: 0;
-  min-height: 0;
+  min-height: calc(var(--k) * 372);
   max-width: 100%;
   max-height: 100%;
   border-style: solid;
   border-width: var(--top) var(--side) var(--bottom);
   border-image-source: url('/art2d/ui/end-panel.webp');
-  border-image-slice: 206 146 84 146 fill;
+  border-image-slice: 268 146 104 146 fill;
+  border-image-width: calc(var(--k) * 268) var(--side) calc(var(--k) * 104) var(--side);
   border-image-repeat: stretch;
   filter: drop-shadow(0 calc(var(--s) * 0.5) calc(var(--s) * 0.6) rgba(30, 16, 4, 0.45));
   animation: pu-pop 0.32s cubic-bezier(0.2, 0.9, 0.3, 1.2);
@@ -374,7 +378,10 @@
   min-width: calc(var(--s) * 9);
   border-style: solid;
   border-width: calc(var(--ph) * 0.3) calc(var(--ph) * 0.45);
-  border-image: url('/art2d/ui-plaque.webp') 42 64 fill stretch;
+  border-image-source: url('/art2d/ui-plaque.webp');
+  border-image-slice: 50 68 fill;
+  border-image-width: calc(var(--ph) * 0.355) calc(var(--ph) * 0.482);
+  border-image-repeat: stretch;
   /* Lettering keeps clear of the iron corner caps (and a tab's notch / scroll roll). */
   padding: 0 max(0.45em, calc(var(--s) * 0.5));
   font-size: calc(var(--s) * 1.6);
@@ -438,11 +445,21 @@
 
 /* ---- gold-framed parchment card (tooltip art, 9-sliced) ------------------------------------- */
 
+/* tooltip.webp (640x490): the four gold corner caps + drop shadow end by 60 art px while the
+   straight wood rails are ~30 px thick. Slicing at 60 with square border-image-width keeps every
+   corner crisp and 1:1; parchment padding-box fill hides any subpixel seam between 9-slice quads. */
 .pu-card {
+  --card-corner: max(12px, calc(var(--s) * 1.25));
+  background: #feebc4;
+  background-clip: padding-box;
   border-style: solid;
-  border-width: calc(var(--s) * 1.1);
-  border-image: url('/art2d/ui/tooltip.webp') 40 fill stretch;
-  padding: calc(var(--s) * 0.6) calc(var(--s) * 0.8);
+  border-width: calc(var(--card-corner) * 0.52);
+  border-image-source: url('/art2d/ui/tooltip.webp');
+  border-image-slice: 60 fill;
+  border-image-width: var(--card-corner);
+  border-image-repeat: stretch;
+  padding: calc(var(--s) * 0.75) calc(var(--s) * 0.95);
+  min-height: calc(var(--card-corner) * 2);
 }
 
 /* ---- gold name tag (price-tag art: ring on the left, 9-sliced body) ------------------------- */
@@ -906,7 +923,10 @@
   min-height: var(--ph);
   border-style: solid;
   border-width: calc(var(--ph) * 0.3) calc(var(--ph) * 0.45);
-  border-image: url('/art2d/ui-plaque.webp') 42 64 fill stretch;
+  border-image-source: url('/art2d/ui-plaque.webp');
+  border-image-slice: 50 68 fill;
+  border-image-width: calc(var(--ph) * 0.355) calc(var(--ph) * 0.482);
+  border-image-repeat: stretch;
   padding: 0 0.4em;
   font-size: calc(var(--s) * 1.7);
   line-height: 1;
@@ -1271,11 +1291,16 @@
 /* ---- storybook panels ----------------------------------------------------------------------- */
 
 .pu-story {
+  --sf: calc(var(--k) * 0.85);
   --title-y: calc(var(--k) * -94);
   --top: calc(var(--k) * 165);
   --side: calc(var(--k) * 100);
   --bottom: calc(var(--k) * 80);
-  border-image: url('/art2d/ui/story-frame.webp') 64 96 fill stretch;
+  min-height: calc(var(--sf) * 248);
+  border-image-source: url('/art2d/ui/story-frame.webp');
+  border-image-slice: 124 116 124 116 fill;
+  border-image-width: calc(var(--sf) * 124) calc(var(--sf) * 116) calc(var(--sf) * 124) calc(var(--sf) * 116);
+  border-image-repeat: stretch;
   width: min(100%, calc(var(--s) * 92));
 }
 
@@ -1734,7 +1759,10 @@
   height: calc(var(--s) * 2);
   border-style: solid;
   border-width: calc(var(--s) * 0.5) calc(var(--s) * 0.75);
-  border-image: url('/art2d/ui-plaque.webp') 42 64 fill stretch;
+  border-image-source: url('/art2d/ui-plaque.webp');
+  border-image-slice: 50 68 fill;
+  border-image-width: calc(var(--s) * 0.71) calc(var(--s) * 0.96);
+  border-image-repeat: stretch;
 }
 
 .pu-bar i {
