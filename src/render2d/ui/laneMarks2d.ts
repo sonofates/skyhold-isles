@@ -63,7 +63,7 @@ export function laneMarkSpot(
     const b = laneMarkBox(at.x, at.y, s);
     let a = 0;
     for (const r of avoid) a += Math.max(0, Math.min(b.x + b.w, r.x + r.w) - Math.max(b.x, r.x)) * Math.max(0, Math.min(b.y + b.h, r.y + r.h) - Math.max(b.y, r.y));
-    if (viewport) {
+    if (viewport && (b.x < pad || b.x + b.w > viewport.w - pad || b.y < pad || b.y + b.h > viewport.h - pad)) {
       const ix = Math.max(0, Math.min(b.x + b.w, viewport.w - pad) - Math.max(b.x, pad));
       const iy = Math.max(0, Math.min(b.y + b.h, viewport.h - pad) - Math.max(b.y, pad));
       a += Math.max(0, b.w * b.h - ix * iy);
