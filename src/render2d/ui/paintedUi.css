@@ -988,16 +988,14 @@
 }
 
 .pu-brief-info {
+  /* A container (1em = the UI unit): the loadout drops the hero's name when the column is narrow. */
+  container-type: inline-size;
+  font-size: var(--s);
   display: flex;
   flex-direction: column;
   gap: calc(var(--s) * 0.7);
   min-width: 0;
   flex: 1;
-}
-
-.pu-brief-sub {
-  font-size: calc(var(--s) * 1.6);
-  line-height: 1.2;
 }
 
 .pu-brief-row {
@@ -1009,7 +1007,13 @@
 }
 
 .pu-brief .pu-stars {
-  font-size: calc(var(--s) * 3);
+  font-size: calc(var(--s) * 2.4);
+}
+
+/* Best stars and the 3-star goal share one line; the goal is the quiet part. */
+.pu-brief-goal {
+  gap: calc(var(--s) * 0.6);
+  font-size: calc(var(--s) * 1.25);
 }
 
 .pu-gem {
@@ -1043,6 +1047,34 @@
   display: flex;
   justify-content: center;
   padding-top: calc(var(--s) * 0.6);
+}
+
+/* Play is the card's one loud thing. */
+.pu-plank.primary.pu-brief-play {
+  --ph: calc(var(--s) * 5.6);
+  min-width: calc(var(--s) * 19);
+  font-size: calc(var(--s) * 2.3);
+}
+
+/*
+ * The run's loadout: hero chip | the three belt slots, on one soft parchment patch (no frame) at
+ * the foot of the island's column.
+ */
+.pu-loadout {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--s) * 0.5) calc(var(--s) * 1.1);
+  width: fit-content;
+  max-width: 100%;
+  margin-top: calc(var(--s) * 0.4);
+  padding: calc(var(--s) * 0.45) calc(var(--s) * 1) calc(var(--s) * 0.45) calc(var(--s) * 0.8);
+  border-radius: calc(var(--s) * 1.4);
+  background: rgba(255, 244, 220, 0.5);
+}
+
+.pu-loadout > .pu-beltchip {
+  padding-left: calc(var(--s) * 1.1);
+  border-left: 2px dashed rgba(122, 85, 50, 0.3);
 }
 
 .pu-brief-main {

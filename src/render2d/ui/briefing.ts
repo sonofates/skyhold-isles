@@ -1,16 +1,21 @@
 /**
- * Island briefing card (world map → tap an island): the island's vignette in a medallion, name on
- * the ribbon, subtitle, difficulty, best stars + the 3-star goal, records, the run modes (island
- * challenges and Endless, once the isle has been won) and Play.
+ * Island briefing card (world map → tap an island). The island and Play come first; the rest is
+ * kept short and quiet:
+ * - the island's column: its vignette in a medallion (the flavour line is the medallion's tooltip),
+ *   one line of tier + waves, one line of best stars + the 3-star goal, then either the records
+ *   (won isle) or a short lock note (challenges and Endless open after the first win);
+ * - the loadout row under it (open isles): the hero chip (portrait → hero picker, round skill-tree
+ *   button) and the three belt slots (any slot → belt picker; the per-item cap is the tooltip);
+ * - the run modes column (island challenges and Endless, once the isle has been won);
+ * - a compact Easy / Normal / Hard selector (its rule line only shows off Normal) and Play.
  *
  * Modes: each challenge is a medallion switch showing its rule and badge state; several may be on
  * together. Endless is a separate switch and runs without challenges, so turning it on clears them
  * (and the other way round). Play hands the choice to `onPlay`, which builds the run URL.
  *
- * Difficulty (open islands): a painted three-way selector (Easy / Normal / Hard) with the chosen
- * one's rules on one line and each one's best result. It starts on the player's last choice.
- * Endless always plays Normal (the selector dims while it is on); Easy carries no challenges
- * (picking a challenge moves an Easy choice to Normal, picking Easy clears the challenges).
+ * Difficulty (open islands): starts on the player's last choice. Endless always plays Normal (the
+ * selector dims while it is on); Easy carries no challenges (picking a challenge moves an Easy
+ * choice to Normal, picking Easy clears the challenges).
  */
 import type { ChallengeId } from '../../data/challenges.ts';
 import { DIFFICULTIES, DIFFICULTY_IDS, type DifficultyId } from '../../data/difficulty.ts';
@@ -63,7 +68,7 @@ function difficultyOption(id: DifficultyId, best: number): HTMLButtonElement {
     : null;
   b.append(difficultySeal(id), el('span', 'pu-diff-name pu-letter', {}, name));
   if (mark) b.append(mark);
-  b.title = won ? t('diff.best', { d: name }) : t('diff.notWon', { d: name });
+  b.title = `${difficultyRuleText(id)}${t('common.sep')}${won ? t('diff.best', { d: name }) : t('diff.notWon', { d: name })}`;
   return b;
 }
 
@@ -86,9 +91,9 @@ export function showBriefing(
   thumb: string | null,
   modes: BriefingModes,
   onPlay: (choice: RunChoice) => void,
-  /** The hero row (heroScreens.ts `heroChip`): shown on an open island. */
+  /** The hero chip (heroScreens.ts `heroChip`): on the loadout row of an open island. */
   hero?: HTMLElement,
-  /** The item belt row (marketBelt.ts): shown on an open island, greyed for runs without items. */
+  /** The item belt (marketBelt.ts): on the loadout row of an open island, greyed for runs without items. */
   belt?: BeltChip,
 ): Sheet {
   const lvl = st.level;
@@ -102,9 +107,8 @@ export function showBriefing(
     'div',
     'pu-brief-info',
     {},
-    el('div', 'pu-brief-sub pu-ink-soft', {}, islandSubtitle(lvl)),
     el('div', 'pu-brief-row', {}, gem, el('span', 'pu-rec pu-ink', {}, glyph('wave'), t('brief.waves', { n: lvl.waves.length }))),
-    el('div', 'pu-brief-row', {}, starsRow(st.stars), el('span', 'pu-ink-soft', {}, st.stars === 3 ? t('brief.perfect') : t('brief.goal3', { goal: goal3 }))),
+    el('div', 'pu-brief-row pu-brief-goal', {}, starsRow(st.stars), el('span', 'pu-ink-soft', {}, st.stars === 3 ? t('brief.perfect') : t('brief.goal3', { goal: goal3 }))),
   );
   if (st.unlocked && st.clears > 0) {
     info.append(
@@ -119,10 +123,13 @@ export function showBriefing(
       ),
     );
   } else if (st.unlocked) {
-    info.append(el('div', 'pu-brief-row pu-brief-hint pu-ink-soft', { 'data-testid': 'brief2d-modes-hint' }, glyph('lock'), t('brief.modesLocked')));
+    info.append(
+      el('div', 'pu-brief-row pu-brief-hint pu-ink-soft', { 'data-testid': 'brief2d-modes-hint', title: t('brief.modesLocked') }, glyph('lock'), t('brief.modesLockedShort')),
+    );
   }
   const thumbBox = medal(thumb, 'calc(var(--s) * 14)', st.frontier && st.unlocked);
   thumbBox.classList.add('pu-brief-medal');
+  thumbBox.title = islandSubtitle(lvl);
   if (!st.unlocked) {
     const lock = el('span', 'pu-node-lock');
     lock.append(glyph('lock'));
@@ -149,7 +156,6 @@ export function showBriefing(
       'div',
       'pu-diff',
       { role: 'radiogroup', 'aria-label': t('diff.title'), 'data-testid': 'brief2d-diff' },
-      el('div', 'pu-diff-head pu-letter', {}, t('diff.title')),
       row,
       diffDesc,
     );
@@ -190,6 +196,7 @@ export function showBriefing(
     ? plank(st.clears > 0 ? t('brief.replay') : t('brief.play'), { kind: 'primary', icon: 'play', testid: 'brief2d-play', sub: hasModes ? t('brief.campaign') : undefined })
     : plank(t('brief.locked'), { kind: 'primary', icon: 'lock', testid: 'brief2d-play', sub: prev ? t('brief.winFirst', { name: islandName(prev) }) : undefined });
   play.disabled = !st.unlocked;
+  play.classList.add('pu-brief-play');
 
   const paint = (): void => {
     const shown: DifficultyId = endless ? 'normal' : difficulty;
@@ -200,9 +207,9 @@ export function showBriefing(
     diffBox?.classList.toggle('muted', endless);
     diffBox?.setAttribute('data-diff', shown);
     if (diffDesc) {
-      diffDesc.textContent = endless
-        ? t('diff.normalOnly')
-        : difficultyRuleText(shown);
+      // Normal is the island as designed: no rule line (its rule is the plank's tooltip).
+      diffDesc.textContent = endless ? t('diff.normalOnly') : shown === 'normal' ? '' : difficultyRuleText(shown);
+      diffDesc.hidden = diffDesc.textContent === '';
       diffDesc.title = shown === 'easy' ? t('diff.easyNoChallenges') : '';
     }
     const easyBlocks = !endless && !DIFFICULTIES[difficulty].allowsChallenges;
@@ -261,13 +268,10 @@ export function showBriefing(
     const diff: DifficultyId = endless ? 'normal' : difficulty;
     onPlay({ challenges: endless || !DIFFICULTIES[diff].allowsChallenges ? [] : [...chosen], endless, difficulty: diff });
   });
-  // The hero is part of the run's setup: with run modes it closes the modes column on a tall
-  // screen (the two columns stay level and Play stays on screen); on a landscape phone the modes
-  // fill their column, so it closes the island's info there (and without modes).
-  const short = typeof matchMedia === 'function' && matchMedia('(max-height: 480px)').matches;
-  if (hero && st.unlocked) (modesBox && !short ? modesBox : info).append(hero);
+  // The run's loadout (hero + belt) closes the island's column on open isles.
+  if (st.unlocked && (hero || belt)) info.append(el('div', 'pu-loadout', { 'data-testid': 'brief2d-loadout' }, hero ?? null, belt?.el ?? null));
   const left = el('div', 'pu-brief-main', {}, thumbBox, info);
-  sheet.body.append(el('div', 'pu-brief-body', {}, left, modesBox), el('div', 'pu-brief-actions', {}, diffBox, st.unlocked ? (belt?.el ?? null) : null, play));
+  sheet.body.append(el('div', 'pu-brief-body', {}, left, modesBox), el('div', 'pu-brief-actions', {}, diffBox, play));
   requestAnimationFrame(() => play.focus({ preventScroll: true }));
   return sheet;
 }

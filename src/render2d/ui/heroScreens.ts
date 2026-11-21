@@ -73,36 +73,26 @@ export interface HeroChip {
   refresh(): void;
 }
 
-/** The hero row on the island briefing: who sails with you, level + XP, Change and Skills. */
+/**
+ * The hero on the island briefing's loadout row: one tappable chip (portrait + level, name) that
+ * opens "Choose your hero", and a small round skill-tree button (badge = unspent points).
+ */
 export function heroChip(ctx: HeroScreenCtx, files: HeroArtFiles): HeroChip {
   const box = el('div', 'pu-hero-chip', { 'data-testid': 'brief2d-hero' });
   const refresh = (): void => {
     const r = roster(ctx).find((e) => e.selected) ?? roster(ctx)[0];
-    const change = plank(t('hero.change'), { kind: 'small', testid: 'brief2d-hero-change' });
-    change.addEventListener('click', () => openHeroSelect(ctx, files, () => refresh()));
-    const skills = plank(t('hero.skillsBtn'), { kind: 'small', testid: 'brief2d-hero-skills' });
-    if (r.skillPointsAvailable > 0) skills.append(el('span', 'pu-badge', { 'aria-label': t('hero.points', { n: r.skillPointsAvailable }) }, String(r.skillPointsAvailable)));
-    skills.addEventListener('click', () => openSkillTree(ctx, files, r.id, () => refresh()));
     const face = portrait(files, r.id, 'pu-hero-chip-face');
     face.append(levelBadge(r.level, 'pu-hero-face-lvl'));
-    box.replaceChildren(
-      el(
-        'div',
-        'pu-hero-chip-in',
-        {},
-        face,
-        el(
-          'div',
-          'pu-hero-chip-text',
-          {},
-          el('div', 'pu-hero-chip-kicker pu-ink-soft', {}, t('hero.yourHero')),
-          el('div', 'pu-hero-chip-name pu-ink', {}, heroName(r.id)),
-          el('div', 'pu-hero-chip-title pu-ink-soft', {}, heroTitle(r.id)),
-          xpBar(r.xpProgress),
-        ),
-        el('div', 'pu-hero-chip-actions', {}, change, skills),
-      ),
-    );
+    const xp = r.xpProgress.nextLevelXp === null ? t('hero.maxLevel') : t('hero.xpOf', { xp: r.xpProgress.xpIntoLevel, need: r.xpProgress.xpForNextLevel });
+    const about = `${t('hero.yourHero')}: ${heroName(r.id)}${t('common.sep')}${heroTitle(r.id)}${t('common.sep')}${t('hero.levelAria', { n: r.level })}${t('common.sep')}${xp}`;
+    const change = el('button', 'pu-hero-chip-pick', { type: 'button', 'data-testid': 'brief2d-hero-change', 'aria-label': `${about}. ${t('hero.change')}`, title: about });
+    change.append(face, el('span', 'pu-hero-chip-name pu-ink', {}, heroName(r.id)));
+    change.addEventListener('click', () => openHeroSelect(ctx, files, () => refresh()));
+    const skills = el('button', 'pu-round pu-hero-chip-tree', { type: 'button', 'data-testid': 'brief2d-hero-skills', 'aria-label': t('hero.skillsBtn'), title: t('hero.skillsBtn') });
+    skills.append(img(KIT.upgrade, '', 'pu-hero-chip-tree-icon'));
+    if (r.skillPointsAvailable > 0) skills.append(el('span', 'pu-badge', { 'aria-label': t('hero.points', { n: r.skillPointsAvailable }) }, String(r.skillPointsAvailable)));
+    skills.addEventListener('click', () => openSkillTree(ctx, files, r.id, () => refresh()));
+    box.replaceChildren(change, skills);
   };
   refresh();
   return { el: box, refresh };

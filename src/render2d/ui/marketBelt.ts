@@ -1,6 +1,6 @@
 /**
- * The belt on the island briefing: one compact row (label, the three slots with the uses this run
- * would start with, a Change plank). A slot or Change opens a small picker board over the briefing:
+ * The belt on the island briefing's loadout row: the three slots with the uses this run would start
+ * with (the per-item cap is the tooltip). Any slot opens a small picker board over the briefing:
  * the six items as switches (up to three on), each with its stock, and a way into the Market.
  * Items are off for challenge / Daily / Endless runs: the row greys out and says why.
  */
@@ -30,7 +30,10 @@ export function beltChip(opts: BeltChipOptions = {}): BeltChip {
   let off = false;
   const paint = (): void => {
     const w = readMarket2D();
-    const slots = el('div', 'pu-beltchip-slots', { role: 'list' });
+    // The rule ("3 per item on this island" / items off in this mode) is the row's tooltip and
+    // label; only "off" also shows on the slots, since a run mode the player just picked turned it.
+    const rule = off ? t('market.disabled') : w.loadout.length === 0 ? t('market.beltNone') : t('market.beltUses', { n: MARKET_RULES.useCap[difficulty] });
+    const slots = el('div', 'pu-beltchip-slots', { role: 'list', 'aria-label': `${t('market.beltRow')}: ${rule}` });
     for (let i = 0; i < MARKET_RULES.slots; i++) {
       const id = w.loadout[i] ?? null;
       const uses = id ? usesFor(difficulty, w.inventory[id] ?? 0) : 0;
@@ -39,25 +42,16 @@ export function beltChip(opts: BeltChipOptions = {}): BeltChip {
         role: 'listitem',
         'data-testid': `brief2d-belt-slot-${i}`,
         'aria-label': id ? `${itemName(id)}: ${t('market.remaining', { n: off ? 0 : uses })}` : t('market.slotEmpty'),
-        title: id ? `${itemName(id)} · ${t('market.remaining', { n: off ? 0 : uses })}` : t('market.slotEmpty'),
+        title: id ? `${itemName(id)} · ${t('market.remaining', { n: off ? 0 : uses })} · ${rule}` : `${t('market.slotEmpty')} · ${rule}`,
       });
       b.append(itemSocket(id));
       if (id) b.append(el('span', `pu-beltchip-uses pu-letter${uses === 0 ? ' none' : ''}`, { 'aria-hidden': 'true' }, String(off ? 0 : uses)));
       b.addEventListener('click', () => openPicker());
       slots.append(b);
     }
-    const change = plank(t('market.beltChange'), { kind: 'small', testid: 'brief2d-belt-change' });
-    change.addEventListener('click', () => openPicker());
-    const label = el(
-      'div',
-      'pu-beltchip-text',
-      {},
-      el('div', 'pu-beltchip-label pu-letter', {}, t('market.beltRow')),
-      el('div', 'pu-beltchip-sub pu-ink-soft', {}, off ? t('market.disabled') : w.loadout.length === 0 ? t('market.beltNone') : t('market.beltUses', { n: MARKET_RULES.useCap[difficulty] })),
-    );
     box.classList.toggle('off', off);
-    box.title = off ? t('market.disabled') : '';
-    box.replaceChildren(label, slots, change);
+    box.title = rule;
+    box.replaceChildren(slots, off ? el('span', 'pu-beltchip-off pu-letter', { 'aria-hidden': 'true' }, t('market.beltOff')) : '');
   };
   const openPicker = (): Sheet => {
     const sheet = openSheet(t('market.beltPick'), { cls: 'pu-meta pu-beltpick', testid: 'beltpick2d', onClose: paint });

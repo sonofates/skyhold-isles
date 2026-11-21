@@ -58,17 +58,18 @@
 .pu-brief-actions:has(> .pu-diff) {
   flex-direction: column;
   align-items: center;
-  gap: calc(var(--s) * 0.9);
+  gap: calc(var(--s) * 1);
+  margin-top: calc(var(--s) * 0.6);
+  border-top: 2px dashed rgba(122, 85, 50, 0.3);
+  padding-top: calc(var(--s) * 1.1);
 }
 
 .pu-diff {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: calc(var(--s) * 0.45);
+  gap: calc(var(--s) * 0.35);
   width: 100%;
-  padding-top: calc(var(--s) * 0.5);
-  border-top: 2px dashed rgba(122, 85, 50, 0.35);
   transition: opacity 0.15s;
 }
 
@@ -76,33 +77,28 @@
   opacity: 0.55;
 }
 
-.pu-diff-head {
-  font-size: calc(var(--s) * 1.3);
-  letter-spacing: 0.04em;
-}
-
-/* Three planks of one width (the widest one's), side by side. */
+/* A segmented row: three planks, nearly touching, each as wide as its name (and best stars). */
 .pu-diff-row {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: calc(var(--s) * 0.7);
+  grid-template-columns: repeat(3, auto);
+  gap: calc(var(--s) * 0.25);
   transition: opacity 0.15s;
 }
 
 .pu-diff-opt {
-  --ph: calc(var(--s) * 3.9);
+  --ph: calc(var(--s) * 3.4);
   position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 0.35em;
-  min-height: max(44px, var(--ph));
-  min-width: calc(var(--s) * 11.5);
+  min-height: max(40px, var(--ph));
+  min-width: calc(var(--s) * 10);
   border-style: solid;
   border-width: calc(var(--ph) * 0.28) calc(var(--ph) * 0.42);
   border-image: url('/art2d/ui-plaque.webp') 42 64 fill stretch;
   padding: 0 calc(var(--s) * 0.5);
-  font-size: calc(var(--s) * 1.45);
+  font-size: calc(var(--s) * 1.35);
   line-height: 1;
   white-space: nowrap;
   filter: saturate(0.6) brightness(0.86) drop-shadow(0 2px 1px rgba(30, 16, 4, 0.35));
@@ -145,9 +141,8 @@
 }
 
 .pu-diff-desc {
-  min-height: 1.2em;
   max-width: 100%;
-  font-size: calc(var(--s) * 1.25);
+  font-size: calc(var(--s) * 1.2);
   font-weight: 600;
   line-height: 1.2;
   text-align: center;
@@ -162,8 +157,8 @@
 }
 
 /*
- * Short screens (landscape phones): the card is already full, so the selector does not get a row
- * of its own: planks and the rule line sit on the left, Play on the right at its usual height.
+ * Short screens (landscape phones): the selector does not get a row of its own: the planks sit on
+ * the left with their rule line (off Normal) under them, Play on the right, centred on both.
  */
 @media (max-height: 480px) {
   .pu-brief-actions:has(> .pu-diff) {
@@ -171,11 +166,12 @@
     grid-template-columns: minmax(0, 1fr) auto;
     grid-template-areas:
       'row play'
-      'desc desc';
-    align-items: start;
-    column-gap: calc(var(--s) * 1.4);
-    row-gap: calc(var(--s) * 0.3);
-    padding-top: calc(var(--s) * 0.5);
+      'desc play';
+    align-items: center;
+    column-gap: calc(var(--s) * 1.6);
+    row-gap: calc(var(--s) * 0.2);
+    margin-top: calc(var(--s) * 0.3);
+    padding-top: calc(var(--s) * 0.6);
   }
 
   .pu-brief-actions > .pu-diff {
@@ -184,20 +180,18 @@
 
   .pu-brief-actions > .pu-plank {
     grid-area: play;
-    align-self: start;
   }
 
-  .pu-diff-head {
-    display: none;
+  .pu-plank.primary.pu-brief-play {
+    --ph: calc(var(--s) * 5.4);
+    min-width: calc(var(--s) * 17);
   }
 
   .pu-diff-row {
     grid-area: row;
     justify-self: center;
-    gap: calc(var(--s) * 0.5);
   }
 
-  /* Under the planks and Play, the card's full width: Hard's rule line stays on one line. */
   .pu-diff-desc {
     grid-area: desc;
     justify-self: center;
@@ -220,7 +214,7 @@
     gap: calc(var(--s) * 0.45);
   }
 
-  /* With run modes the island's column also holds the hero: a smaller medallion gives it room. */
+  /* With run modes the island's column also holds the loadout: a smaller medallion gives it room. */
   .pu-brief.has-modes .pu-brief-medal {
     --d: calc(var(--s) * 10.5) !important;
   }

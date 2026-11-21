@@ -552,32 +552,13 @@
   animation: none;
 }
 
-/* --- briefing belt row (marketBelt.ts) ----------------------------------------------------------- */
+/* --- briefing belt (marketBelt.ts): the loadout row's three slots ------------------------------ */
 
 .pu-beltchip {
+  position: relative;
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: calc(var(--s) * 0.9);
   transition: opacity 0.15s;
-}
-
-.pu-beltchip-text {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  line-height: 1.1;
-}
-
-.pu-beltchip-label {
-  font-size: calc(var(--s) * 1.45);
-}
-
-.pu-beltchip-sub {
-  font-size: calc(var(--s) * 1.05);
-  font-weight: 600;
-  max-width: 16em;
-  text-align: right;
 }
 
 .pu-beltchip-slots {
@@ -592,10 +573,15 @@
   border-radius: 50%;
   min-width: 40px;
   min-height: 40px;
+  transition: transform 0.1s ease-out;
+}
+
+.pu-beltchip-slot:active {
+  transform: scale(0.94);
 }
 
 .pu-beltchip-slot .pu-item-socket {
-  --d: max(40px, calc(var(--s) * 3.4));
+  --d: max(40px, calc(var(--s) * 3.6));
 }
 
 .pu-beltchip-uses {
@@ -618,41 +604,33 @@
 
 .pu-beltchip.off .pu-beltchip-slots {
   filter: grayscale(0.9) brightness(0.85);
-  opacity: 0.7;
+  opacity: 0.6;
 }
 
-.pu-beltchip.off .pu-beltchip-sub {
-  color: #9a3b18;
+/* Items off for this run mode: a red lettered stamp across the slots. */
+.pu-beltchip-off {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  translate: -50% -50%;
+  rotate: -8deg;
+  font-size: max(13px, calc(var(--s) * 1.6));
+  color: #ffe9d6;
+  white-space: nowrap;
+  pointer-events: none;
+  --outline: #7e1a0e;
 }
 
 @media (max-height: 480px) {
-  /* Under Play (the rule line keeps the left column): the planks keep their width. */
-  .pu-brief-actions:has(> .pu-beltchip) {
-    grid-template-areas:
-      'row play'
-      'desc belt';
-  }
-
-  .pu-brief-actions > .pu-beltchip {
-    grid-area: belt;
-    justify-self: center;
-    align-self: center;
-  }
-
-  .pu-beltchip .pu-beltchip-text,
-  .pu-beltchip > .pu-plank {
-    display: none;
-  }
-
   .pu-beltchip-slots {
     gap: 4px;
   }
 
   .pu-beltchip-slot,
   .pu-beltchip-slot .pu-item-socket {
-    --d: 32px;
-    min-width: 32px;
-    min-height: 32px;
+    --d: 34px;
+    min-width: 34px;
+    min-height: 34px;
   }
 }
 
