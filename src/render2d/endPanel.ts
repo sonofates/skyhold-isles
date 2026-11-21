@@ -506,7 +506,7 @@ export class EndPanel {
     this.rule.visible = S.ruleVisible;
     this.rule.position.set(L.summary.x, S.ruleY);
     this.layoutHero(Lb, f, r);
-    this.layoutDiffTag(L);
+    this.layoutDiffTag(Lb);
     for (const b of this.buttons) b.root.visible = shown.includes(b);
     // The glowing medallion marks the way on: Next isle after a win, Retry after a defeat.
     const main = primaryEndAction(this.summary?.won ?? false);
@@ -538,8 +538,15 @@ export class EndPanel {
     const w = (hasSeal ? d * 0.82 + fs * 0.3 : 0) + this.diffText.width + padX * 2;
     const h = fs * 1.6;
     const cx = P.x + P.w / 2;
-    // Between the ribbon and the parchment's inner top (END_FRAME.ribbonMid .. innerTop).
-    const cy = P.y + P.h * (END_FRAME.ribbonMid + (END_FRAME.innerTop - END_FRAME.ribbonMid) * 0.64);
+    // Between the ribbon and the parchment's inner top (END_FRAME.ribbonMid .. innerTop); stay clear
+    // of both the ribbon title and the lifted middle star on short landscape phones with a hero row.
+    const defaultCy = P.y + P.h * (END_FRAME.ribbonMid + (END_FRAME.innerTop - END_FRAME.ribbonMid) * 0.6);
+    const minCy = L.title.y + L.fontTitle * 0.5 + h / 2 + 2;
+    let cy = defaultCy;
+    if (this.summary?.won) {
+      const midStarTop = L.stars[1].y - L.starR * 1.15;
+      cy = Math.max(minCy, Math.min(defaultCy, midStarTop - h / 2 - 2));
+    }
     const x0 = cx - w / 2;
     this.diffPill
       .clear()
