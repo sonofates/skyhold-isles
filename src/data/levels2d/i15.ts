@@ -6,10 +6,10 @@ import layout from './i15.json';
 const moonwell = campaignIsland(LEVEL_15, layout, {
   waves: replaceWaveEnemy(LEVEL_15, 'Veil of Mist', 'flyer', 'draftwing'),
   startingGold: 360,
-  enemyHpScale: 4.1038,
-  waveHpGrowth: 0.052,
+  enemyHpScale: 4.22,
+  waveHpGrowth: 0.0545,
   sites: {
-    '6,3': 3,
+    '6,3': 14,
     '5,4': 24,
     '6,4': 15,
     '11,8': 5,
@@ -39,10 +39,10 @@ const moonwell = campaignIsland(LEVEL_15, layout, {
 export const I15 = {
   ...moonwell,
   scriptedBuildOrder: [
-    // Cover the crossing and the incoming flight path before buying the two ground mortars.
-    build(0, 3, 'frost'), build(0, 7, 'frost', 'strongest'),
-    build(0, 24, 'mortar'), build(0, 15, 'mortar'), build(0, 5, 'archer'),
-    build(1, 6, 'tesla'), build(1, 4, 'ballista'),
+    // Slow the west approach and cover the incoming flyers before buying the ground mortars.
+    build(0, 14, 'frost'), build(0, 7, 'frost', 'strongest'),
+    build(0, 4, 'ballista'), build(0, 5, 'archer'), build(0, 24, 'mortar'),
+    build(1, 15, 'mortar'), build(1, 6, 'tesla'),
     ...(moonwell.scriptedBuildOrder ?? []).filter(action => action.waveIndex > 1 || action.action !== 'build'),
   ],
 };

@@ -11,6 +11,7 @@ import { SimWorld } from '../../src/sim/world.ts';
 import { parseManifest } from '../../src/render2d/manifest.ts';
 import { pickMapVariant } from '../../src/render2d/mapVariant.ts';
 import manifestJson from '../../public/art2d/manifest.json';
+import moonwell from '../../src/data/levels2d/i15.json';
 
 /** The bake-rule check runs compose.py; skip it where Python lacks Pillow/numpy (e.g. the plain node CI image). */
 const PYTHON = process.env.PYTHON ?? 'python3';
@@ -100,7 +101,7 @@ describe.each(ids)('%s campaign plot map', (id) => {
     // Use the compositor itself to include the painted spline and the real gate alpha masks.
     execFileSync(PYTHON, [
       'tools/map-compose/compose.py', file, 'design/art-2d/v2/assets', '--check-plots',
-    ], { env: { ...process.env, PYTHONDONTWRITEBYTECODE: '1' } });
+    ], { stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, PYTHONDONTWRITEBYTECODE: '1' } });
   }, 20_000);
 
   it('selects this map at every resolution and supplies its gate fronts', () => {
@@ -148,13 +149,16 @@ it('Lanternfall hexers can jam the hedge plots while the clearing stays out of r
   expect(new Set(sheltered)).toEqual(clearing);
 });
 
-it('Moonwell raiders pass the crossing twice before joining the shortcut', () => {
-  const level = getLevelById('i15')!;
-  const [road, shortcut] = level.layout2d!.paths;
-  const { pxPerUnit, imageSize } = level.layout2d!;
-  const crossing = { x: (844 - imageSize[0] / 2) / pxPerUnit, z: (529 - imageSize[1] / 2) / pxPerUnit };
-  const atWell = (p: typeof crossing) => Math.hypot(p.x - crossing.x, p.z - crossing.z) < 1;
-  const passes = road.filter((p, i) => atWell(p) && (i === 0 || !atWell(road[i - 1])));
-  expect(passes).toHaveLength(2);
-  expect(shortcut.some(atWell)).toBe(false);
+it('Moonwell raiders round the pond counter-clockwise before joining the shortcut', () => {
+  const [road, shortcut] = moonwell.paths;
+  const south = road.findIndex(([x, y]) => x > 1050 && y > 700);
+  const east = road.findIndex(([x]) => x > 1400);
+  const north = road.findIndex(([x, y]) => x > 1050 && y < 510);
+  const atMerge = ([x, y]: number[]) => x === 823 && y === 284;
+  const merge = road.findIndex(atMerge);
+  expect(south).toBeGreaterThanOrEqual(0);
+  expect(east).toBeGreaterThan(south);
+  expect(north).toBeGreaterThan(east);
+  expect(merge).toBeGreaterThan(north);
+  expect(road.slice(merge)).toEqual(shortcut.slice(shortcut.findIndex(atMerge)));
 });
