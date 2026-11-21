@@ -188,6 +188,19 @@ export interface FullBleedResult {
 /** Zoom past "cover": the room to pan (≈ 5 % of the screen along the tighter axis). */
 export const PAN_ZOOM = 1.05;
 /**
+ * Maximum zoom past "cover" used ONLY when a covered screen (e.g. phone landscape whose aspect
+ * matches the map so PAN_ZOOM leaves barely any pan room) would otherwise trap a plot behind a HUD
+ * piece. Keeps the painting covering 100 % of the screen (zero bands) while giving enough pan room
+ * for every plot to clear the HUD.
+ */
+export const MAX_REACH_ZOOM = 1.45;
+/**
+ * Share of a plot's radius around its centre that must be reachable on screen completely clear of
+ * every HUD piece at some offset inside the pan range (0.5 → a clean bullseye disc of diameter
+ * `plotRadius × scale`, ~25–64 css px, with ≥ 0.5 r clearance in every direction).
+ */
+export const PLOT_REACH_FRAC = 0.5;
+/**
  * Least share of the painting's width / height on screen. Past it (an aspect beyond ~4:3 or
  * ~21:9 for these 2.17:1 maps) the scale stops growing and bands open on the other axis.
  */
@@ -354,20 +367,137 @@ export function slideX(s: HardShapes, fit: FitLike, r: Rect, lo: number, hi: num
   return best;
 }
 
+/**
+ * Returns a pan offset `{ x, y }` inside `pan` at which a clear tap disc of radius
+ * `plot.r × scale × reachFrac` around the plot's centre sits on screen without touching any rect in
+ * `rects`, or `null` if no pan offset in `pan` uncovers it.
+ */
+export function plotReachSpot(
+  plot: Circle,
+  imageW: number,
+  imageH: number,
+  screenW: number,
+  screenH: number,
+  scale: number,
+  pan: PanRange,
+  rects: readonly Rect[],
+  reachFrac = PLOT_REACH_FRAC,
+): { readonly x: number; readonly y: number } | null {
+  const clearR = plot.r * scale * reachFrac;
+  const px = plot.x * scale;
+  const py = plot.y * scale;
+  // Clamped to the painting's own margins (a plot hugging an edge only needs its on-painting side on screen).
+  const inL = Math.min(clearR, px);
+  const inR = Math.min(clearR, (imageW - plot.x) * scale);
+  const inT = Math.min(clearR, py);
+  const inB = Math.min(clearR, (imageH - plot.y) * scale);
+  const x0 = Math.max(inL - 0.5, pan.minX + px);
+  const x1 = Math.min(screenW - inR + 0.5, pan.maxX + px);
+  const y0 = Math.max(inT - 0.5, pan.minY + py);
+  const y1 = Math.min(screenH - inB + 0.5, pan.maxY + py);
+  if (x1 < x0 - 1e-6 || y1 < y0 - 1e-6) return null;
+
+  // Candidate screen Y positions for the plot centre: extremes, midpoint, rect clearance lines, and
+  // a few interior samples (a single rect's blocked X-width shrinks monotonically away from it).
+  const ys: number[] = [y0, y1];
+  if (y1 - y0 > 1e-3) {
+    const mid = (y0 + y1) / 2;
+    ys.push(mid);
+    const n = Math.min(8, Math.max(2, Math.floor((y1 - y0) / 12)));
+    for (let i = 1; i < n; i++) ys.push(y0 + ((y1 - y0) * i) / n);
+    for (const rc of rects) {
+      const a = rc.y - clearR - 0.05;
+      const b = rc.y + rc.h + clearR + 0.05;
+      if (a > y0 && a < y1) ys.push(a);
+      if (b > y0 && b < y1) ys.push(b);
+    }
+  }
+
+  for (const cy of ys) {
+    const blocked: [number, number][] = [];
+    for (const rc of rects) {
+      const dy = cy < rc.y ? rc.y - cy : cy > rc.y + rc.h ? cy - (rc.y + rc.h) : 0;
+      if (clearR === 0 ? dy > 0 : dy >= clearR) continue;
+      const dx = clearR > 0 ? Math.sqrt(Math.max(0, clearR * clearR - dy * dy)) : 0;
+      blocked.push([rc.x - dx, rc.x + rc.w + dx]);
+    }
+    if (blocked.length === 0) {
+      const cx = (x0 + x1) / 2;
+      return clampPan(pan, cx - px, cy - py);
+    }
+    blocked.sort((a, b) => a[0] - b[0]);
+    let cur = x0;
+    for (const [a, b] of blocked) {
+      if (a > cur + 1e-6) {
+        const cx = (cur + Math.min(a, x1)) / 2;
+        return clampPan(pan, cx - px, cy - py);
+      }
+      cur = Math.max(cur, b);
+      if (cur > x1 + 1e-6) break;
+    }
+    if (cur < x1 - 1e-6) {
+      const cx = (cur + x1) / 2;
+      return clampPan(pan, cx - px, cy - py);
+    }
+  }
+  return null;
+}
+
+/** True when `plot` can be panned to a spot where its clear tap disc avoids every rect in `rects`. */
+export function plotReachable(
+  plot: Circle,
+  imageW: number,
+  imageH: number,
+  screenW: number,
+  screenH: number,
+  scale: number,
+  pan: PanRange,
+  rects: readonly Rect[],
+  reachFrac = PLOT_REACH_FRAC,
+): boolean {
+  return plotReachSpot(plot, imageW, imageH, screenW, screenH, scale, pan, rects, reachFrac) !== null;
+}
+
+/** Indices of plots that cannot be panned clear of `dock` anywhere in `pan`. */
+export function unreachablePlots(
+  shapes: HardShapes,
+  imageW: number,
+  imageH: number,
+  screenW: number,
+  screenH: number,
+  scale: number,
+  pan: PanRange,
+  dock: HudDock,
+  reachFrac = PLOT_REACH_FRAC,
+): number[] {
+  const rects = Object.values(dockPieces(dock));
+  const out: number[] = [];
+  for (let i = 0; i < shapes.plots.length; i++) {
+    if (!plotReachable(shapes.plots[i], imageW, imageH, screenW, screenH, scale, pan, rects, reachFrac)) out.push(i);
+  }
+  return out;
+}
+
 /** Hard shapes every dock piece covers at a fit's default view (+½ when the island can't clear). */
 export function dockCost(shapes: HardShapes, r: FullBleedResult): number {
   return Object.values(dockPieces(r.dock)).reduce((n, rect) => n + hardOverlaps(shapes, r.fit, rect).length, 0) + (r.fit.clear ? 0 : 0.5);
 }
 
 /**
- * The fit with the item belt in the tray: its row form where the bottom line has room and it covers
- * no more of the island than the one-button pouch would; else the pouch (the slots open above the
- * tray on a tap, Z / X / C still cast straight away).
+ * The fit with the item belt in the tray: its row form where the bottom line has room, every plot
+ * stays reachable without extra zoom, and it covers no more of the island than the one-button
+ * pouch would; else the pouch (the slots open above the tray on a tap, Z / X / C still cast
+ * straight away).
  */
 export function fullBleedFitItems(screenW: number, screenH: number, layout: Level2DLayout, dockFor: (mode: 'row' | 'pouch') => HudDock, shapes: HardShapes = hardShapes(layout)): FullBleedResult {
   const row = fullBleedFit(screenW, screenH, layout, dockFor('row'), shapes);
   if (row.dock.items.n === 0 || row.dock.items.mode === 'pouch') return row;
   const pouch = fullBleedFit(screenW, screenH, layout, dockFor('pouch'), shapes);
+  const [iw, ih] = layout.imageSize;
+  const rowBad = unreachablePlots(shapes, iw, ih, screenW, screenH, row.fit.scale, row.pan, row.dock).length;
+  const pouchBad = unreachablePlots(shapes, iw, ih, screenW, screenH, pouch.fit.scale, pouch.pan, pouch.dock).length;
+  if (rowBad !== pouchBad) return rowBad > pouchBad ? pouch : row;
+  if (row.fit.scale > pouch.fit.scale + 1e-6) return pouch;
   return dockCost(shapes, row) > dockCost(shapes, pouch) ? pouch : row;
 }
 
@@ -376,92 +506,211 @@ export function fullBleedFit(screenW: number, screenH: number, layout: Level2DLa
   const [sx, sy, sw, sh] = layout.safeArea;
   const m = shapes.mustSee;
   const cover = Math.max(screenW / iw, screenH / ih);
-  const scale = viewScale(screenW, screenH, iw, ih);
-  const pan = panRange(screenW, screenH, iw, ih, scale);
+  const baseScale = viewScale(screenW, screenH, iw, ih);
   const fixed: Rect[] = [dock.buttons, dock.plaque, dock.banner].map((r) => grow({ x: r.x, y: r.y, w: r.w, h: r.h }, HARD_MARGIN));
   const info = grow(dock.info, HARD_MARGIN);
   const hornHome = grow(dock.hornBox, HARD_MARGIN);
   const hornAlt = dock.hornAlt;
   const hornAltBox = hornAlt ? grow(hornAlt.hornBox, HARD_MARGIN) : null;
+  const hornPairs: readonly (readonly [HornSpot, Rect])[] = [
+    [{ horn: dock.horn, hornBox: dock.hornBox }, hornHome],
+    ...(hornAlt && hornAltBox ? [[hornAlt, hornAltBox] as const] : []),
+  ];
   /** Shapes a rect covers (a road counts half: the eye finds the road again either side). */
   const cost = (f: FitLike, r: Rect): number => {
     let n = 0;
     for (const o of hardOverlaps(shapes, f, r)) n += o.kind === 'road' ? 0.5 : 1;
     return n;
   };
-  /** The dock placed at an offset (horn home / alt, tray slid clear where it can) and what it covers. */
-  const evalAt = (ox: number, oy: number): { dock: HudDock; cost: number; info: number } => {
-    const f: FitLike = { scale, offsetX: ox, offsetY: oy };
-    let c = 0;
-    for (const r of fixed) c += cost(f, r);
-    // Horn above the banner, or left of it (then the tray's room ends at the horn); the tray
-    // slides clear along the bottom where it can. The pair covering least wins (home on a tie).
-    let pick: { horn: HornSpot; trayX: number; c: number } | null = null;
-    for (const [horn, box] of [[{ horn: dock.horn, hornBox: dock.hornBox }, hornHome], ...(hornAlt && hornAltBox ? [[hornAlt, hornAltBox] as const] : [])] as const) {
-      const hb = horn.hornBox;
-      const sameRow = hb.y < dock.tray.y + dock.tray.h && hb.y + hb.h > dock.tray.y && hb.x > dock.tray.x;
-      const trayHi = sameRow ? Math.min(dock.trayRange[1], hb.x - dock.gap - dock.tray.w) : dock.trayRange[1];
-      // No room left for the tray between the plaque and this horn spot.
+  const trayHiFor = (hb: Rect): number => {
+    const sameRow = hb.y < dock.tray.y + dock.tray.h && hb.y + hb.h > dock.tray.y && hb.x > dock.tray.x;
+    return sameRow ? Math.min(dock.trayRange[1], hb.x - dock.gap - dock.tray.w) : dock.trayRange[1];
+  };
+  /** Reachable `(horn, trayX)` choices at `scale` (empty when `scale` leaves a plot trapped). */
+  const reachableChoices = (scale: number): { horn: HornSpot; box: Rect; trayXs: number[]; fixedRects: Rect[] }[] => {
+    const pan = panRange(screenW, screenH, iw, ih, scale);
+    const out: { horn: HornSpot; box: Rect; trayXs: number[]; fixedRects: Rect[] }[] = [];
+    for (const [horn, box] of hornPairs) {
+      const trayHi = trayHiFor(horn.hornBox);
       if (trayHi < dock.trayRange[0]) continue;
-      const tx = slideX(shapes, f, dock.tray, dock.trayRange[0], trayHi);
-      const trayX = tx ?? Math.min(trayHi, Math.max(dock.trayRange[0], dock.tray.x));
-      const hc = cost(f, box) + (tx === null ? cost(f, grow({ ...dock.tray, x: trayX }, HARD_MARGIN)) : 0);
-      if (!pick || hc < pick.c) pick = { horn, trayX, c: hc };
-      if (hc === 0) break;
+      const fixedRects: Rect[] = [
+        dock.buttons,
+        dock.info,
+        { x: dock.plaque.x, y: dock.plaque.y, w: dock.plaque.w, h: dock.plaque.h },
+        dock.banner,
+        horn.hornBox,
+      ];
+      // Fast reject: if any plot is already trapped by the non-sliding pieces, no trayX can help.
+      let fixedOk = true;
+      for (const p of shapes.plots) {
+        if (!plotReachable(p, iw, ih, screenW, screenH, scale, pan, fixedRects)) {
+          fixedOk = false;
+          break;
+        }
+      }
+      if (!fixedOk) continue;
+      const lo = dock.trayRange[0];
+      const homeX = Math.min(trayHi, Math.max(lo, dock.tray.x));
+      const cands: number[] = [homeX];
+      if (trayHi > lo + 0.5) {
+        const steps = 12;
+        for (let i = 0; i <= steps; i++) {
+          const tx = lo + ((trayHi - lo) * i) / steps;
+          if (Math.abs(tx - homeX) > 0.5) cands.push(tx);
+        }
+      }
+      const trayXs: number[] = [];
+      for (const tx of cands) {
+        const rects = [...fixedRects, { ...dock.tray, x: tx }];
+        let ok = true;
+        for (const p of shapes.plots) {
+          if (!plotReachable(p, iw, ih, screenW, screenH, scale, pan, rects)) {
+            ok = false;
+            break;
+          }
+        }
+        if (ok) trayXs.push(tx);
+      }
+      if (trayXs.length > 0) {
+        // Keep a compact representative subset (home / endpoints / evenly spaced) for fast default-view scoring.
+        const slim =
+          trayXs.length <= 5
+            ? trayXs
+            : [trayXs[0], trayXs[Math.floor(trayXs.length / 4)], trayXs[Math.floor(trayXs.length / 2)], trayXs[Math.floor((trayXs.length * 3) / 4)], trayXs[trayXs.length - 1]];
+        out.push({ horn, box, trayXs: slim, fixedRects });
+      }
     }
-    const chosen = pick ?? { horn: { horn: dock.horn, hornBox: dock.hornBox }, trayX: dock.tray.x, c: cost(f, hornHome) + cost(f, grow(dock.tray, HARD_MARGIN)) };
-    c += chosen.c;
-    const horn = chosen.horn;
-    const trayX = chosen.trayX;
-    return { dock: { ...dock, horn: horn.horn, hornBox: horn.hornBox, tray: { ...dock.tray, x: trayX } }, cost: c, info: cost(f, info) };
+    return out;
   };
-  // Preferred: the safe area centred, inside the pan range and (where it can) the must-see range.
-  const [mx0, mx1] = mustAxis(screenW, m.x, m.w, scale);
-  const [my0, my1] = mustAxis(screenH, m.y, m.h, scale);
-  const pick = (lo: number, hi: number, a: number, b: number, want: number): number => {
-    const l2 = Math.max(lo, a);
-    const h2 = Math.min(hi, b);
-    return l2 <= h2 ? Math.min(h2, Math.max(l2, want)) : Math.min(hi, Math.max(lo, want));
-  };
-  const px = pick(pan.minX, pan.maxX, mx0, mx1, screenW / 2 - (sx + sw / 2) * scale);
-  const py = pick(pan.minY, pan.maxY, my0, my1, screenH / 2 - (sy + sh / 2) * scale);
-  const xs = samples(pan.minX, pan.maxX, px, Math.max(2, (pan.maxX - pan.minX) / 40));
-  const ys = samples(pan.minY, pan.maxY, py, Math.max(2, (pan.maxY - pan.minY) / 40));
-  const cand: [number, number, number][] = [];
-  for (const x of xs) for (const y of ys) cand.push([Math.hypot(x - px, y - py), x, y]);
-  cand.sort((a, b) => a[0] - b[0]);
-  const mustOk = (ox: number, oy: number): boolean => ox >= mx0 - 0.5 && ox <= mx1 + 0.5 && oy >= my0 - 0.5 && oy <= my1 + 0.5;
-  /** Gameplay the view leaves off screen: plots not wholly on it, caves / the castle whose middle is off it (twice: the entrances matter most). */
-  const offScreen = (ox: number, oy: number): number => {
-    let n = 0;
-    for (const p of shapes.plots) {
-      const x = ox + p.x * scale;
-      const y = oy + p.y * scale;
-      const r = p.r * scale;
-      if (x - r < 0 || y - r < 0 || x + r > screenW || y + r > screenH) n++;
+  const fitAtScale = (scale: number, allowed: ReturnType<typeof reachableChoices> | null): FullBleedResult => {
+    const pan = panRange(screenW, screenH, iw, ih, scale);
+    const evalAt = (ox: number, oy: number): { dock: HudDock; cost: number; info: number } => {
+      const f: FitLike = { scale, offsetX: ox, offsetY: oy };
+      let c = 0;
+      for (const r of fixed) c += cost(f, r);
+      let pick: { horn: HornSpot; trayX: number; c: number; dist: number } | null = null;
+      if (allowed) {
+        for (const ch of allowed) {
+          const hb = ch.horn.hornBox;
+          const trayHi = trayHiFor(hb);
+          const baseC = cost(f, ch.box);
+          // Try slideX first: if the free spot is also reachable, it has zero tray cost.
+          const txSlide = slideX(shapes, f, dock.tray, dock.trayRange[0], trayHi);
+          if (txSlide !== null) {
+            const rects = [...ch.fixedRects, { ...dock.tray, x: txSlide }];
+            if (shapes.plots.every((p) => plotReachable(p, iw, ih, screenW, screenH, scale, pan, rects))) {
+              const dist = Math.abs(txSlide - dock.tray.x);
+              if (!pick || baseC < pick.c || (baseC === pick.c && dist < pick.dist)) pick = { horn: ch.horn, trayX: txSlide, c: baseC, dist };
+              if (baseC === 0) break;
+              continue;
+            }
+          }
+          for (const tx of ch.trayXs) {
+            const hc = baseC + cost(f, grow({ ...dock.tray, x: tx }, HARD_MARGIN));
+            const dist = Math.abs(tx - dock.tray.x);
+            if (!pick || hc < pick.c || (hc === pick.c && dist < pick.dist)) pick = { horn: ch.horn, trayX: tx, c: hc, dist };
+            if (hc === 0) break;
+          }
+          if (pick && pick.c === 0) break;
+        }
+      } else {
+        // Horn above the banner, or left of it (then the tray's room ends at the horn); the tray
+        // slides clear along the bottom where it can. The pair covering least wins (home on a tie).
+        for (const [horn, box] of hornPairs) {
+          const trayHi = trayHiFor(horn.hornBox);
+          if (trayHi < dock.trayRange[0]) continue;
+          const tx = slideX(shapes, f, dock.tray, dock.trayRange[0], trayHi);
+          const trayX = tx ?? Math.min(trayHi, Math.max(dock.trayRange[0], dock.tray.x));
+          const hc = cost(f, box) + (tx === null ? cost(f, grow({ ...dock.tray, x: trayX }, HARD_MARGIN)) : 0);
+          if (!pick || hc < pick.c) pick = { horn, trayX, c: hc, dist: Math.abs(trayX - dock.tray.x) };
+          if (hc === 0) break;
+        }
+      }
+      const chosen = pick ?? { horn: { horn: dock.horn, hornBox: dock.hornBox }, trayX: dock.tray.x, c: cost(f, hornHome) + cost(f, grow(dock.tray, HARD_MARGIN)), dist: 0 };
+      c += chosen.c;
+      return { dock: { ...dock, horn: chosen.horn.horn, hornBox: chosen.horn.hornBox, tray: { ...dock.tray, x: chosen.trayX } }, cost: c, info: cost(f, info) };
+    };
+    // Preferred: the safe area centred, inside the pan range and (where it can) the must-see range.
+    const [mx0, mx1] = mustAxis(screenW, m.x, m.w, scale);
+    const [my0, my1] = mustAxis(screenH, m.y, m.h, scale);
+    const pickAxis = (lo: number, hi: number, a: number, b: number, want: number): number => {
+      const l2 = Math.max(lo, a);
+      const h2 = Math.min(hi, b);
+      return l2 <= h2 ? Math.min(h2, Math.max(l2, want)) : Math.min(hi, Math.max(lo, want));
+    };
+    const px = pickAxis(pan.minX, pan.maxX, mx0, mx1, screenW / 2 - (sx + sw / 2) * scale);
+    const py = pickAxis(pan.minY, pan.maxY, my0, my1, screenH / 2 - (sy + sh / 2) * scale);
+    const divs = allowed ? 20 : 40;
+    const xs = samples(pan.minX, pan.maxX, px, Math.max(2, (pan.maxX - pan.minX) / divs));
+    const ys = samples(pan.minY, pan.maxY, py, Math.max(2, (pan.maxY - pan.minY) / divs));
+    const cand: [number, number, number][] = [];
+    for (const x of xs) for (const y of ys) cand.push([Math.hypot(x - px, y - py), x, y]);
+    cand.sort((a, b) => a[0] - b[0]);
+    const mustOk = (ox: number, oy: number): boolean => ox >= mx0 - 0.5 && ox <= mx1 + 0.5 && oy >= my0 - 0.5 && oy <= my1 + 0.5;
+    /** Gameplay the view leaves off screen: plots not wholly on it, caves / the castle whose middle is off it (twice: the entrances matter most). */
+    const offScreen = (ox: number, oy: number): number => {
+      let n = 0;
+      for (const p of shapes.plots) {
+        const x = ox + p.x * scale;
+        const y = oy + p.y * scale;
+        const r = p.r * scale;
+        if (x - r < 0 || y - r < 0 || x + r > screenW || y + r > screenH) n++;
+      }
+      for (const g of shapes.gates) {
+        const x = ox + (g.x + g.w / 2) * scale;
+        const y = oy + (g.y + g.h / 2) * scale;
+        if (x < 0 || y < 0 || x > screenW || y > screenH) n += 2;
+      }
+      return n;
+    };
+    // Ranked by the gameplay hidden — under a piece (the info card counts half: it shows between
+    // waves only) or off screen — then by showing the must-see box whole, then by distance from the
+    // preferred view.
+    let best: { key: number; ox: number; oy: number; r: ReturnType<typeof evalAt> } | null = null;
+    for (const [, ox, oy] of cand) {
+      const r = evalAt(ox, oy);
+      const key = (r.cost + r.info * 0.5 + offScreen(ox, oy)) * 2 + (mustOk(ox, oy) ? 0 : 1);
+      if (!best || key < best.key) best = { key, ox, oy, r };
+      if (key === 0) break;
     }
-    for (const g of shapes.gates) {
-      const x = ox + (g.x + g.w / 2) * scale;
-      const y = oy + (g.y + g.h / 2) * scale;
-      if (x < 0 || y < 0 || x > screenW || y > screenH) n += 2;
-    }
-    return n;
+    const b = best!;
+    const f = fitAt(screenW, screenH, iw, ih, scale, b.ox, b.oy);
+    return {
+      fit: { ...f, shrink: scale / cover, coverage: coverageOf(screenW, screenH, f), clear: b.r.cost === 0 && b.r.info === 0, clearButInfo: b.r.cost === 0 },
+      dock: b.r.dock,
+      pan,
+    };
   };
-  // Ranked by the gameplay hidden — under a piece (the info card counts half: it shows between
-  // waves only) or off screen — then by showing the must-see box whole, then by distance from the
-  // preferred view.
-  let best: { key: number; ox: number; oy: number; r: ReturnType<typeof evalAt> } | null = null;
-  for (const [, ox, oy] of cand) {
-    const r = evalAt(ox, oy);
-    const key = (r.cost + r.info * 0.5 + offScreen(ox, oy)) * 2 + (mustOk(ox, oy) ? 0 : 1);
-    if (!best || key < best.key) best = { key, ox, oy, r };
-    if (key === 0) break;
+
+  const base = fitAtScale(baseScale, null);
+  if (unreachablePlots(shapes, iw, ih, screenW, screenH, baseScale, base.pan, base.dock).length === 0) return base;
+
+  // Stage 1: keep baseScale (zero extra zoom) and nudge the tray / horn so every plot can be reached.
+  const atBase = reachableChoices(baseScale);
+  if (atBase.length > 0) return fitAtScale(baseScale, atBase);
+
+  // Stage 2: on covered screens where baseScale leaves too little pan room (e.g. phone landscape
+  // matching the map's aspect), grow scale strictly inside [baseScale, cover × MAX_REACH_ZOOM] —
+  // never opening any band — just far enough that every plot can be panned clear of the HUD.
+  const covered = iw * baseScale >= screenW - 1e-6 && ih * baseScale >= screenH - 1e-6;
+  const maxScale = Math.max(baseScale, cover * MAX_REACH_ZOOM);
+  if (covered && maxScale > baseScale + 1e-6) {
+    let bestChoices = reachableChoices(maxScale);
+    if (bestChoices.length > 0) {
+      let lo = baseScale;
+      let hi = maxScale;
+      for (let iter = 0; iter < 7; iter++) {
+        const mid = (lo + hi) / 2;
+        const ch = reachableChoices(mid);
+        if (ch.length > 0) {
+          hi = mid;
+          bestChoices = ch;
+        } else {
+          lo = mid;
+        }
+      }
+      return fitAtScale(hi, bestChoices);
+    }
   }
-  const b = best!;
-  const f = fitAt(screenW, screenH, iw, ih, scale, b.ox, b.oy);
-  return {
-    fit: { ...f, shrink: scale / cover, coverage: coverageOf(screenW, screenH, f), clear: b.r.cost === 0 && b.r.info === 0, clearButInfo: b.r.cost === 0 },
-    dock: b.r.dock,
-    pan,
-  };
+  return base;
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { LEVELS_2D } from '../../src/data/levels2d/index.ts';
-import { clampPan, fullBleedFit, hardOverlaps, hardShapes, PAN_ZOOM, slideX, viewScale } from '../../src/render2d/fullBleed.ts';
+import { clampPan, fullBleedFit, hardOverlaps, hardShapes, MAX_REACH_ZOOM, PAN_ZOOM, slideX, viewScale } from '../../src/render2d/fullBleed.ts';
 import { dockPieces, hudDock, trayLong, trayShort, type HudDock, type HudDockOptions } from '../../src/render2d/hudDock.ts';
 import { distSegRect, playfieldShapes, shapesOverlap } from '../../src/render2d/playfield.ts';
 import { KIT_PLAQUE_SLOTS, NO_INSETS, type Insets, type Rect } from '../../src/render2d/uiLayout.ts';
@@ -50,7 +50,9 @@ describe('map fit + gentle pan + corner HUD (owner feedback 2026-11-21: no bands
       expect([fit.bandLeft, fit.bandTop, fit.bandRight, fit.bandBottom], tag).toEqual([0, 0, 0, 0]);
       expect(fit.coverage, tag).toBeCloseTo(1, 6);
       expect(fit.shrink, tag).toBeGreaterThan(1);
-      expect(fit.shrink, tag).toBeLessThanOrEqual(PAN_ZOOM + 1e-9);
+      // Desktop sizes stay at PAN_ZOOM; compact phone-landscape screens may zoom slightly further
+      // (up to MAX_REACH_ZOOM, still zero bands) only when needed so every plot can clear the HUD.
+      expect(fit.shrink, tag).toBeLessThanOrEqual((desktop(f) ? PAN_ZOOM : MAX_REACH_ZOOM) + 1e-9);
       // Room to pan both ways on both axes (≥ 4 % of the screen).
       expect(pan.maxX - pan.minX, tag).toBeGreaterThanOrEqual(f.w * 0.04);
       expect(pan.maxY - pan.minY, tag).toBeGreaterThanOrEqual(f.h * 0.04);
