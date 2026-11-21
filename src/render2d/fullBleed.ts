@@ -168,7 +168,10 @@ export interface FullBleedFit extends MapFit {
   readonly clearButInfo: boolean;
 }
 
-/** Offsets (screen px of image px (0, 0)) the view may pan between: never past the painting's edge. */
+/**
+ * Offsets (screen px of image px (0, 0)) the view may pan between: inside the painting, bar the
+ * reach past a covered edge a plot under the HUD needs (reachRange; MapView mirrors the art there).
+ */
 export interface PanRange {
   readonly minX: number;
   readonly maxX: number;
@@ -462,6 +465,90 @@ export function fullBleedFit(screenW: number, screenH: number, layout: Level2DLa
   return {
     fit: { ...f, shrink: scale / cover, coverage: coverageOf(screenW, screenH, f), clear: b.r.cost === 0 && b.r.info === 0, clearButInfo: b.r.cost === 0 },
     dock: b.r.dock,
-    pan,
+    pan: reachRange(pan, b.r.dock, shapes, scale, screenW, screenH, iw, ih),
   };
+}
+
+/** Most the pan may reach past a covered edge, as a share of the screen along that axis. */
+export const REACH_MAX = 0.25;
+
+/** The dock pieces a plot's tap area must clear to be tapped (the horn at its dock spot: the worst case). */
+export function reachPieces(dock: HudDock): Rect[] {
+  return Object.values(dockPieces(dock));
+}
+
+/**
+ * The pan range grown past the painting's edges just far enough that every plot can be brought
+ * to a spot where its tap area (the plot's circle, the part painted on the map) lies on screen
+ * and under no dock piece (owner feedback 2026-11-21: never an empty band, yet every plot must be
+ * tappable). Only an axis the painting covers grows (MapView fills that strip with the painting
+ * mirrored about its edge, so it reads as more of the same edge art, not a frame); usually by
+ * 0 on a desktop, a few dozen px on a phone where the tray sits over the bottom of the island.
+ * The default view never uses it.
+ *
+ * Per plot: the offsets clearing it are the allowed box (screen, range + REACH_MAX) minus each
+ * piece grown by the plot's radius (a box — a hair stricter than the circle); a free offset with
+ * the least reach lies on a box edge or a range bound, so only those candidates are tried. Each
+ * side then reaches as far as its neediest plot.
+ */
+export function reachRange(pan: PanRange, dock: HudDock, shapes: HardShapes, scale: number, screenW: number, screenH: number, imageW: number, imageH: number): PanRange {
+  const pieces = reachPieces(dock);
+  const coverX = imageW * scale >= screenW - 0.5;
+  const coverY = imageH * scale >= screenH - 0.5;
+  const capX = coverX ? screenW * REACH_MAX : 0;
+  const capY = coverY ? screenH * REACH_MAX : 0;
+  let extL = 0;
+  let extR = 0;
+  let extT = 0;
+  let extB = 0;
+  for (const c of shapes.plots) {
+    const R = c.r * scale;
+    const cx = c.x * scale;
+    const cy = c.y * scale;
+    // The plot's painted part must be on screen (a plot may poke a px past the art's edge).
+    const x0 = Math.max(0, c.x - c.r) * scale;
+    const x1 = Math.min(imageW, c.x + c.r) * scale;
+    const y0 = Math.max(0, c.y - c.r) * scale;
+    const y1 = Math.min(imageH, c.y + c.r) * scale;
+    const ax0 = Math.max(pan.minX - capX, -x0);
+    const ax1 = Math.min(pan.maxX + capX, screenW - x1);
+    const ay0 = Math.max(pan.minY - capY, -y0);
+    const ay1 = Math.min(pan.maxY + capY, screenH - y1);
+    if (ax1 < ax0 || ay1 < ay0) continue;
+    // Blocked offsets (open boxes) per piece.
+    const boxes = pieces.map((b) => [b.x - R - cx, b.x + b.w + R - cx, b.y - R - cy, b.y + b.h + R - cy] as const);
+    const free = (ox: number, oy: number): boolean => boxes.every(([bx0, bx1, by0, by1]) => ox <= bx0 || ox >= bx1 || oy <= by0 || oy >= by1);
+    const inside = (v: number, lo: number, hi: number): boolean => v >= lo && v <= hi;
+    const xs = [ax0, ax1, Math.min(ax1, Math.max(ax0, pan.minX)), Math.min(ax1, Math.max(ax0, pan.maxX))];
+    const ys = [ay0, ay1, Math.min(ay1, Math.max(ay0, pan.minY)), Math.min(ay1, Math.max(ay0, pan.maxY))];
+    for (const [bx0, bx1, by0, by1] of boxes) {
+      if (inside(bx0, ax0, ax1)) xs.push(bx0);
+      if (inside(bx1, ax0, ax1)) xs.push(bx1);
+      if (inside(by0, ay0, ay1)) ys.push(by0);
+      if (inside(by1, ay0, ay1)) ys.push(by1);
+    }
+    let best: [number, number, number, number] | null = null;
+    let bestCost = Infinity;
+    for (const ox of xs) {
+      for (const oy of ys) {
+        if (!free(ox, oy)) continue;
+        // Reach this offset needs on each side (left / right / top / bottom of the painting).
+        const need: [number, number, number, number] = [Math.max(0, ox - pan.maxX), Math.max(0, pan.minX - ox), Math.max(0, oy - pan.maxY), Math.max(0, pan.minY - oy)];
+        // Reach already granted (another plot) is free; then the least new reach.
+        const cost = Math.max(0, need[0] - extL) + Math.max(0, need[1] - extR) + Math.max(0, need[2] - extT) + Math.max(0, need[3] - extB) + (need[0] + need[1] + need[2] + need[3]) * 1e-3;
+        if (cost < bestCost) {
+          bestCost = cost;
+          best = need;
+        }
+      }
+    }
+    if (!best) continue;
+    extL = Math.max(extL, best[0]);
+    extR = Math.max(extR, best[1]);
+    extT = Math.max(extT, best[2]);
+    extB = Math.max(extB, best[3]);
+  }
+  // A hair more than needed, so the plot's circle clears the piece's edge after rounding.
+  const g = (v: number): number => (v > 0 ? Math.ceil(v + 1) : 0);
+  return { minX: pan.minX - g(extR), maxX: pan.maxX + g(extL), minY: pan.minY - g(extB), maxY: pan.maxY + g(extT) };
 }

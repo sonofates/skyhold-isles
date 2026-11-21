@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { LEVELS_2D } from '../../src/data/levels2d/index.ts';
-import { clampPan, fullBleedFit, hardOverlaps, hardShapes, PAN_ZOOM, slideX, viewScale } from '../../src/render2d/fullBleed.ts';
+import { clampPan, fullBleedFit, hardOverlaps, hardShapes, PAN_ZOOM, REACH_MAX, slideX, viewScale } from '../../src/render2d/fullBleed.ts';
 import { dockPieces, hudDock, trayLong, trayShort, type HudDock, type HudDockOptions } from '../../src/render2d/hudDock.ts';
 import { distSegRect, playfieldShapes, shapesOverlap } from '../../src/render2d/playfield.ts';
 import { KIT_PLAQUE_SLOTS, NO_INSETS, type Insets, type Rect } from '../../src/render2d/uiLayout.ts';
@@ -66,7 +66,7 @@ describe('map fit + gentle pan + corner HUD (owner feedback 2026-11-21: no bands
     expect(viewScale(1920, 1080, 1846, 852)).toBeCloseTo((1080 / 852) * PAN_ZOOM, 9);
   });
 
-  it('neither the default view nor any pan offset ever shows past the painting', () => {
+  it('the default view never shows past the painting; the pan reaches past it only as far as a plot needs (reachRange)', () => {
     for (const f of FITS) {
       const tag = `${f.name} ${f.id}`;
       const { fit, pan } = f.r;
@@ -76,16 +76,19 @@ describe('map fit + gentle pan + corner HUD (owner feedback 2026-11-21: no bands
       expect(fit.offsetY, tag).toBeLessThanOrEqual(1e-6);
       expect(fit.offsetX + iw * s, tag).toBeGreaterThanOrEqual(f.w - 1e-6);
       expect(fit.offsetY + ih * s, tag).toBeGreaterThanOrEqual(f.h - 1e-6);
-      expect(pan.minX, tag).toBeCloseTo(f.w - iw * s, 6);
-      expect(pan.maxX, tag).toBeCloseTo(0, 6);
-      expect(pan.minY, tag).toBeCloseTo(f.h - ih * s, 6);
-      expect(pan.maxY, tag).toBeCloseTo(0, 6);
+      // The art's own range, grown by the reach (MapView mirrors the painted edge there).
+      expect(pan.minX, tag).toBeLessThanOrEqual(f.w - iw * s + 1e-6);
+      expect(pan.maxX, tag).toBeGreaterThanOrEqual(-1e-6);
+      expect(pan.minY, tag).toBeLessThanOrEqual(f.h - ih * s + 1e-6);
+      expect(pan.maxY, tag).toBeGreaterThanOrEqual(-1e-6);
+      expect(f.w - iw * s - pan.minX + pan.maxX, tag).toBeLessThanOrEqual(f.w * REACH_MAX * 2 + 4);
+      expect(f.h - ih * s - pan.minY + pan.maxY, tag).toBeLessThanOrEqual(f.h * REACH_MAX * 2 + 4);
       const c = clampPan(pan, fit.offsetX, fit.offsetY);
       expect([c.x, c.y], tag).toEqual([fit.offsetX, fit.offsetY]);
     }
   });
 
-  it('panning keeps every plot and every cave / castle on screen without ever leaving the painting', () => {
+  it('panning keeps every plot and every cave / castle on screen', () => {
     const bad: string[] = [];
     for (const f of FITS) {
       if (!f.hero) continue;

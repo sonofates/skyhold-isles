@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { LEVELS_2D } from '../../src/data/levels2d/index.ts';
 import { MapPan, PAN_KEY_STEP, PAN_MAX_SPEED } from '../../src/render2d/mapPan.ts';
-import { clampPan, fitAt, fullBleedFit, hardShapes, panRange, viewScale } from '../../src/render2d/fullBleed.ts';
+import { clampPan, fitAt, fullBleedFit, hardShapes, panRange, REACH_MAX, viewScale } from '../../src/render2d/fullBleed.ts';
 import { hudDock, type HudDockOptions } from '../../src/render2d/hudDock.ts';
 import { KIT_PLAQUE_SLOTS, NO_INSETS, type Insets } from '../../src/render2d/uiLayout.ts';
 
@@ -108,7 +108,7 @@ describe('gentle map pan (mapPan.ts)', () => {
     expect(clampPan({ minX: 10, maxX: -20, minY: 5, maxY: -15 }, 50, -50)).toEqual({ x: 10, y: -15 });
   });
 
-  it('never pans past the map art across aspect ratios (16:9, 21:9, 16:10, 4:3, phone landscape, portrait, ultrawide)', () => {
+  it('pans past the map art only by the reach a plot needs (mirrored edge, no frame) across aspect ratios (16:9, 21:9, 16:10, 4:3, phone landscape, portrait, ultrawide)', () => {
     const opts: HudDockOptions = { plaqueAspect: 1024 / 294, plaqueSlots: KIT_PLAQUE_SLOTS, bannerAspect: 512 / 152, hero: true };
     const i16 = LEVELS_2D.find((l) => l.id === 'i16' || l.id === 'emberglass-sanctum')!.layout2d!;
     const shapes = hardShapes(i16);
@@ -136,17 +136,21 @@ describe('gentle map pan (mapPan.ts)', () => {
       for (const [dx, dy] of [[-5000, -5000], [5000, 5000], [-5000, 5000], [5000, -5000]]) {
         p.scrollBy(dx, dy);
         const f = fitAt(w, h, iw, ih, fit.scale, p.x, p.y);
+        // The reach past each edge (0 where no plot needs it).
+        const art = panRange(w, h, iw, ih, fit.scale);
         if (coverX) {
-          expect(f.bandLeft, `${name} (${dx},${dy}) bandLeft`).toBe(0);
-          expect(f.bandRight, `${name} (${dx},${dy}) bandRight`).toBe(0);
+          expect(f.bandLeft, `${name} (${dx},${dy}) bandLeft`).toBeLessThanOrEqual(pan.maxX - art.maxX + 1e-6);
+          expect(f.bandRight, `${name} (${dx},${dy}) bandRight`).toBeLessThanOrEqual(art.minX - pan.minX + 1e-6);
+          expect(f.bandLeft + f.bandRight, name).toBeLessThanOrEqual(w * REACH_MAX + 2);
         } else {
           // Banded axis stays locked centred and never shifts off centre.
           expect(pan.minX, name).toBeCloseTo(pan.maxX, 6);
           expect(f.bandLeft, name).toBeCloseTo(f.bandRight, 6);
         }
         if (coverY) {
-          expect(f.bandTop, `${name} (${dx},${dy}) bandTop`).toBe(0);
-          expect(f.bandBottom, `${name} (${dx},${dy}) bandBottom`).toBe(0);
+          expect(f.bandTop, `${name} (${dx},${dy}) bandTop`).toBeLessThanOrEqual(pan.maxY - art.maxY + 1e-6);
+          expect(f.bandBottom, `${name} (${dx},${dy}) bandBottom`).toBeLessThanOrEqual(art.minY - pan.minY + 1e-6);
+          expect(f.bandTop + f.bandBottom, name).toBeLessThanOrEqual(h * REACH_MAX + 2);
         } else {
           expect(pan.minY, name).toBeCloseTo(pan.maxY, 6);
           expect(f.bandTop, name).toBeCloseTo(f.bandBottom, 6);
@@ -155,7 +159,7 @@ describe('gentle map pan (mapPan.ts)', () => {
     }
   });
 
-  it('resize and orientation changes re-clamp pan inside the new art bounds', () => {
+  it('resize and orientation changes re-clamp pan inside the new range (art + reach)', () => {
     const opts: HudDockOptions = { plaqueAspect: 1024 / 294, plaqueSlots: KIT_PLAQUE_SLOTS, bannerAspect: 512 / 152, hero: true };
     const i16 = LEVELS_2D.find((l) => l.id === 'i16' || l.id === 'emberglass-sanctum')!.layout2d!;
     const shapes = hardShapes(i16);
@@ -169,8 +173,10 @@ describe('gentle map pan (mapPan.ts)', () => {
       p.release(32, false);
       settle(p);
       const f = fitAt(w, h, iw, ih, r.fit.scale, p.x, p.y);
-      if (ih * r.fit.scale >= h) expect(f.bandBottom, `${w}x${h}`).toBe(0);
-      if (iw * r.fit.scale >= w) expect(f.bandRight, `${w}x${h}`).toBe(0);
+      const art = panRange(w, h, iw, ih, r.fit.scale);
+      if (ih * r.fit.scale >= h) expect(f.bandBottom, `${w}x${h}`).toBeLessThanOrEqual(art.minY - r.pan.minY + 1e-6);
+      if (iw * r.fit.scale >= w) expect(f.bandRight, `${w}x${h}`).toBeLessThanOrEqual(art.minX - r.pan.minX + 1e-6);
+      expect(p.y, `${w}x${h}`).toBeGreaterThanOrEqual(r.pan.minY - 1e-6);
     }
   });
 });
