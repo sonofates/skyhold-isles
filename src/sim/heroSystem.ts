@@ -600,7 +600,25 @@ export class HeroSystem {
     return next;
   }
 
-  /** Orders the hero to walk along the ground road graph to `(wantX, wantZ)`. */
+  /**
+   * Orders the hero to walk along the ground road graph to `(wantX, wantZ)`.
+   *
+   * Hero movement, engagement & blocking rules:
+   * - While `state === 'moving'`, the hero immediately drops any melee holds, walks straight along
+   *   its `GroundGraph` route to `(postX, postZ)` at `moveSpeed`, never stops or gets pushed off its
+   *   route when passing enemies or soldiers, and does not engage or block enemies until arriving.
+   * - Once stationed (`state !== 'moving' && state !== 'dead'`), a melee hero only engages holdable
+   *   ground foes within `HERO_RULES.meleeEngageRadius` of `(postX, postZ)` that are locally reachable
+   *   inside the walkable road corridor (`groundGraph.canWalkDirect`, never across canyons/switchbacks),
+   *   and releases targets dragged beyond `HERO_RULES.meleeLeashRadius` of `(postX, postZ)`.
+   * - One blocker per `holdCost` slot: enemies with open blocker slots (`blockers < holdCost`) always
+   *   take priority; a melee hero assisting on an enemy already held by soldiers (`blockers >= holdCost`)
+   *   peels off immediately when an uncovered unheld enemy enters reach, and secondary holds (`holdCap > 1`)
+   *   never double-hold an enemy whose `holdCost` is already satisfied.
+   * - Extra holds (`holdCap > 1`) apply only to enemies within actual melee contact reach
+   *   (`enemy.radius + HERO_RULES.radius + HERO_RULES.contactSlack`), never freezing distant road foes.
+   * - Ranged heroes (`holdCap = 0`) never block enemies or leave `(postX, postZ)`.
+   */
   commandMove(wantX: number, wantZ: number, onCommitted?: () => void): boolean {
     const h = this.hero;
     if (!h || h.state === 'dead' || h.hp <= 0 || !Number.isFinite(wantX) || !Number.isFinite(wantZ)) {
@@ -616,7 +634,14 @@ export class HeroSystem {
     h.rallyZ = last.z;
     h.postX = last.x;
     h.postZ = last.z;
-    h.state = Math.hypot(last.x - h.x, last.z - h.z) > 1e-4 ? 'moving' : 'idle';
+    if (Math.hypot(last.x - h.x, last.z - h.z) > 1e-4) {
+      h.state = 'moving';
+    } else {
+      h.x = last.x;
+      h.z = last.z;
+      h.waypoints.length = 0;
+      h.state = 'idle';
+    }
 
     this.events.emit('heroMoved', {
       heroId: h.heroId,
@@ -1995,12 +2020,20 @@ export class HeroSystem {
     this.reconcileHeroUnblocks();
   }
 
+  private canEngageMeleeTarget(h: HeroEntity, e: EnemyEntity): boolean {
+    return (
+      this.groundGraph.canWalkDirect(h.postX, h.postZ, e.x, e.z, HERO_RULES.maxOffRoadDist) &&
+      this.groundGraph.canWalkDirect(h.x, h.z, e.x, e.z, HERO_RULES.maxOffRoadDist)
+    );
+  }
+
   private updateMeleeCombat(h: HeroEntity, dt: number, rateMul: number): void {
     let target = this.currentMeleeTarget(h);
     if (
       target !== null &&
       (!this.isHoldable(target) ||
-        Math.hypot(target.x - h.postX, target.z - h.postZ) > HERO_RULES.meleeLeashRadius)
+        Math.hypot(target.x - h.postX, target.z - h.postZ) > HERO_RULES.meleeLeashRadius ||
+        !this.canEngageMeleeTarget(h, target))
     ) {
       target = null;
     }
@@ -2013,17 +2046,35 @@ export class HeroSystem {
       h.state = 'idle';
     }
 
-    if (!target) {
+    const targetHeldBySoldiers =
+      target !== null && target.blockers >= ENEMY_MELEE[target.type].holdCost;
+    if (target === null || targetHeldBySoldiers) {
       const holdCandidates = this.holdCandidates;
       this.spatialHash.query(h.postX, h.postZ, HERO_RULES.meleeEngageRadius, holdCandidates);
       const rSq = HERO_RULES.meleeEngageRadius * HERO_RULES.meleeEngageRadius;
       let best: EnemyEntity | null = null;
       let bestNeeds = false;
+      let needyOutsideContact = false;
+      let needyUnmetTotal = 0;
       for (let i = 0; i < holdCandidates.length; i++) {
         const e = this.pool.items[holdCandidates[i]];
         if (!this.isHoldable(e)) continue;
         if ((e.x - h.postX) ** 2 + (e.z - h.postZ) ** 2 > rSq) continue;
-        const needs = e.blockers < ENEMY_MELEE[e.type].holdCost;
+        const unmet = ENEMY_MELEE[e.type].holdCost - e.blockers;
+        const needs = unmet > 0;
+        if (target !== null && !needs) continue;
+        if (!this.canEngageMeleeTarget(h, e)) continue;
+        if (target !== null) {
+          needyUnmetTotal += unmet;
+          const reach = e.radius + HERO_RULES.radius + HERO_RULES.contactSlack;
+          if (
+            (e.x - h.x) ** 2 + (e.z - h.z) ** 2 > reach * reach ||
+            (e.lane !== target.lane &&
+              !this.groundGraph.canWalkDirect(h.x, h.z, e.x, e.z, HERO_RULES.maxOffRoadDist))
+          ) {
+            needyOutsideContact = true;
+          }
+        }
         if (!best) {
           best = e;
           bestNeeds = needs;
@@ -2043,7 +2094,12 @@ export class HeroSystem {
           bestNeeds = needs;
         }
       }
-      if (best) {
+      const alreadyCoveredByExtraHolds =
+        target !== null &&
+        h.state === 'fighting' &&
+        !needyOutsideContact &&
+        needyUnmetTotal <= h.stats.holdCap - 1;
+      if (best && (target === null || (bestNeeds && best !== target && !alreadyCoveredByExtraHolds))) {
         h.targetPoolIndex = best.poolIndex;
         h.targetUid = best.uid;
         h.waypoints.length = 0;
@@ -2054,28 +2110,30 @@ export class HeroSystem {
 
     if (target) {
       const contact = target.radius + HERO_RULES.radius;
-      let dx = h.x - target.x;
-      let dz = h.z - target.z;
-      let d = Math.hypot(dx, dz);
-      if (d < 1e-6) {
-        dx = h.postX - target.x;
-        dz = h.postZ - target.z;
-        d = Math.hypot(dx, dz);
-        if (d < 1e-6) {
-          dx = 0;
-          dz = -1;
-          d = 1;
+      const curDist = Math.hypot(h.x - target.x, h.z - target.z);
+      if (h.state === 'fighting' && curDist > contact + HERO_RULES.contactSlack) {
+        h.state = 'engaging';
+      }
+      if (h.state !== 'fighting') {
+        // Only step inward when outside melee contact; never push/drag backwards when already in reach.
+        if (curDist > contact) {
+          const dx = h.x - target.x;
+          const dz = h.z - target.z;
+          this.stepTowardPoint(
+            h,
+            target.x + (dx / curDist) * contact,
+            target.z + (dz / curDist) * contact,
+            dt,
+          );
+        }
+        const nowDist = Math.hypot(h.x - target.x, h.z - target.z);
+        if (nowDist <= contact + 0.08) {
+          h.state = 'fighting';
+          if (h.attackTimer < 0.15) h.attackTimer = 0.15;
         }
       }
-      this.stepTowardPoint(h, target.x + (dx / d) * contact, target.z + (dz / d) * contact, dt);
-      const nowDist = Math.hypot(h.x - target.x, h.z - target.z);
-      h.yaw = Math.atan2(target.x - h.x, target.z - h.z);
-
-      if (h.state !== 'fighting' && nowDist <= contact + 0.08) {
-        h.state = 'fighting';
-        if (h.attackTimer < 0.15) h.attackTimer = 0.15;
-      } else if (h.state === 'fighting' && nowDist > contact + HERO_RULES.contactSlack) {
-        h.state = 'engaging';
+      if (Math.hypot(target.x - h.x, target.z - h.z) > 0.05) {
+        h.yaw = Math.atan2(target.x - h.x, target.z - h.z);
       }
 
       if (h.state === 'fighting') {
@@ -2141,29 +2199,38 @@ export class HeroSystem {
     // Idle / returning to guard post along the walkable road graph.
     h.attackTimer = Math.max(0, h.attackTimer - dt * rateMul);
     const postDist = Math.hypot(h.postX - h.x, h.postZ - h.z);
-    if (postDist > 1.4 || h.waypoints.length > 0) {
+    if (postDist > 1e-5) {
       if (h.waypoints.length === 0) {
         this.groundGraph.findPathInto(h.x, h.z, h.postX, h.postZ, HERO_RULES.maxOffRoadDist, h.waypoints);
       }
-      const wp = h.waypoints[0];
-      if (this.stepTowardPoint(h, wp.x, wp.z, dt)) {
-        h.waypoints.shift();
-      }
-      return;
+      const arrived = this.stepAlongWaypoints(h, dt);
+      if (!arrived) return;
+    } else {
+      h.x = h.postX;
+      h.z = h.postZ;
+      h.waypoints.length = 0;
     }
-    const atPost = this.stepTowardPoint(h, h.postX, h.postZ, dt);
-    if (atPost) {
-      h.state = 'idle';
-      if (h.sinceHurt >= HERO_RULES.regenDelay && h.hp < h.maxHp) {
-        h.hp = Math.min(h.maxHp, h.hp + h.maxHp * HERO_RULES.regenFrac * dt);
-      }
+    h.state = 'idle';
+    if (h.sinceHurt >= HERO_RULES.regenDelay && h.hp < h.maxHp) {
+      h.hp = Math.min(h.maxHp, h.hp + h.maxHp * HERO_RULES.regenFrac * dt);
     }
   }
 
-  private assignSingleHeroHold(h: HeroEntity, e: EnemyEntity, red: number, budget: number): number {
-    const wasFree = e.blockers + e.heroBlockers === 0;
-    const needed = Math.max(1, ENEMY_MELEE[e.type].holdCost - e.blockers);
+  private assignSingleHeroHold(
+    h: HeroEntity,
+    e: EnemyEntity,
+    red: number,
+    budget: number,
+    isPrimary: boolean,
+  ): number {
+    const unmet = ENEMY_MELEE[e.type].holdCost - e.blockers - e.heroBlockers;
+    const needed = isPrimary ? Math.max(1, unmet) : Math.max(0, unmet);
     const give = Math.min(budget, needed);
+    if (give <= 0) {
+      void h;
+      return budget;
+    }
+    const wasFree = e.blockers + e.heroBlockers === 0;
     e.heroBlockers += give;
     if (red > e.heroDamageReduction) e.heroDamageReduction = red;
     if (!this.prevHeroBlockedIdx.includes(e.poolIndex)) {
@@ -2191,20 +2258,27 @@ export class HeroSystem {
     let budget = h.stats.holdCap;
     const red = h.stats.passive.kind === 'bulwark' ? h.stats.passive.power : 0;
 
-    budget = this.assignSingleHeroHold(h, primary, red, budget);
+    budget = this.assignSingleHeroHold(h, primary, red, budget, true);
     if (this.abortedStep || h.state !== 'fighting' || budget <= 0) return;
 
     const extraHoldIndices = this.extraHoldIndices;
     const holdCandidates = this.holdCandidates;
-    this.spatialHash.query(h.x, h.z, HERO_RULES.meleeEngageRadius, holdCandidates);
+    const maxQueryRadius = HERO_RULES.radius + HERO_RULES.contactSlack + 0.9;
+    this.spatialHash.query(h.x, h.z, maxQueryRadius, holdCandidates);
     extraHoldIndices.length = 0;
-    const rSq = HERO_RULES.meleeEngageRadius * HERO_RULES.meleeEngageRadius;
     for (let i = 0; i < holdCandidates.length; i++) {
       const idx = holdCandidates[i];
       const cand = this.pool.items[idx];
       if (cand === primary || !this.isHoldable(cand)) continue;
       if (cand.blockers + cand.heroBlockers >= ENEMY_MELEE[cand.type].holdCost) continue;
-      if ((cand.x - h.x) ** 2 + (cand.z - h.z) ** 2 > rSq) continue;
+      const reach = cand.radius + HERO_RULES.radius + HERO_RULES.contactSlack;
+      if ((cand.x - h.x) ** 2 + (cand.z - h.z) ** 2 > reach * reach) continue;
+      if (
+        cand.lane !== primary.lane &&
+        !this.groundGraph.canWalkDirect(h.x, h.z, cand.x, cand.z, HERO_RULES.maxOffRoadDist)
+      ) {
+        continue;
+      }
       extraHoldIndices.push(idx);
     }
     if (extraHoldIndices.length > 1) {
@@ -2215,7 +2289,7 @@ export class HeroSystem {
       if (!this.isHoldable(cand) || cand.blockers + cand.heroBlockers >= ENEMY_MELEE[cand.type].holdCost) {
         continue;
       }
-      budget = this.assignSingleHeroHold(h, cand, red, budget);
+      budget = this.assignSingleHeroHold(h, cand, red, budget, false);
       if (this.abortedStep || h.state !== 'fighting') return;
     }
   }
@@ -2247,7 +2321,9 @@ export class HeroSystem {
 
     const target = this.acquireRangedTarget(h.x, h.z, h.stats.range, h.stats.hitsFlyers);
     if (target) {
-      h.yaw = Math.atan2(target.x - h.x, target.z - h.z);
+      if (Math.hypot(target.x - h.x, target.z - h.z) > 0.05) {
+        h.yaw = Math.atan2(target.x - h.x, target.z - h.z);
+      }
       if (h.attackTimer <= 0) {
         h.attackTimer = 1 / h.stats.attackSpeed;
         h.shotCount++;

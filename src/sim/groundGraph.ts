@@ -30,12 +30,10 @@ interface GraphNode {
 
 const SAMPLE_STEP = 0.65;
 const JUNCTION_DIST = 1.05;
-const DIRECT_WALK_DIST = 1.4;
+const DIRECT_SAMPLE_STEP = 0.25;
+const MAX_ROAD_JUMP = JUNCTION_DIST + 0.35;
 const _v: Vec3 = { x: 0, y: 0, z: 0 };
 const _v2: Vec3 = { x: 0, y: 0, z: 0 };
-const _findClampDest: GroundClampResult = { x: 0, z: 0, roadX: 0, roadZ: 0, lane: 0, dist: 0 };
-const _findClampFrom: GroundClampResult = { x: 0, z: 0, roadX: 0, roadZ: 0, lane: 0, dist: 0 };
-const _chainScratch: number[] = [];
 
 /**
  * Undirected road graph built from a level's ground polylines (`groundPath` + `extraGroundPaths`).
@@ -48,6 +46,15 @@ export class GroundGraph {
   private readonly distBuf: Float64Array;
   private readonly prevBuf: Int32Array;
   private readonly visitedBuf: Uint8Array;
+  private readonly findClampDest: GroundClampResult = { x: 0, z: 0, roadX: 0, roadZ: 0, lane: 0, dist: 0 };
+  private readonly findClampFrom: GroundClampResult = { x: 0, z: 0, roadX: 0, roadZ: 0, lane: 0, dist: 0 };
+  private readonly segClampA: GroundClampResult = { x: 0, z: 0, roadX: 0, roadZ: 0, lane: 0, dist: 0 };
+  private readonly segClampB: GroundClampResult = { x: 0, z: 0, roadX: 0, roadZ: 0, lane: 0, dist: 0 };
+  private readonly walkClampPrev: GroundClampResult = { x: 0, z: 0, roadX: 0, roadZ: 0, lane: 0, dist: 0 };
+  private readonly walkClampCur: GroundClampResult = { x: 0, z: 0, roadX: 0, roadZ: 0, lane: 0, dist: 0 };
+  private readonly chainScratch: number[] = [];
+  private readonly rawX: number[] = [];
+  private readonly rawZ: number[] = [];
 
   constructor(groundPaths: readonly CompiledPath[]) {
     this.paths = groundPaths;
@@ -211,6 +218,76 @@ export class GroundGraph {
   }
 
   /**
+   * True when the straight segment `(ax, az) -> (bx, bz)` stays inside `maxOffRoad` of the road
+   * network without jumping across unconnected parallel lanes, canyons, or hairpin switchbacks.
+   * Deterministic and zero-allocation.
+   */
+  canWalkDirect(
+    ax: number,
+    az: number,
+    bx: number,
+    bz: number,
+    maxOffRoad: number = HERO_RULES.maxOffRoadDist,
+  ): boolean {
+    if (!Number.isFinite(ax) || !Number.isFinite(az) || !Number.isFinite(bx) || !Number.isFinite(bz)) {
+      return false;
+    }
+    if (this.paths.length === 0) return true;
+    const safeMaxOff =
+      maxOffRoad === Infinity
+        ? Infinity
+        : Number.isFinite(maxOffRoad)
+          ? Math.max(0, maxOffRoad)
+          : HERO_RULES.maxOffRoadDist;
+
+    const prev = this.clampToGroundOut(ax, az, Infinity, this.walkClampPrev);
+    if (safeMaxOff !== Infinity && (ax - prev.roadX) ** 2 + (az - prev.roadZ) ** 2 > (safeMaxOff + 1e-4) ** 2) {
+      return false;
+    }
+
+    const total = Math.hypot(bx - ax, bz - az);
+    if (total < 1e-6) return true;
+
+    const steps = Math.max(1, Math.ceil(total / DIRECT_SAMPLE_STEP));
+    const maxJumpSq = MAX_ROAD_JUMP * MAX_ROAD_JUMP;
+    const maxOffSq = safeMaxOff === Infinity ? Infinity : (safeMaxOff + 1e-4) ** 2;
+
+    for (let s = 1; s <= steps; s++) {
+      const t = s / steps;
+      const sx = ax + (bx - ax) * t;
+      const sz = az + (bz - az) * t;
+      const cur = this.clampToGroundOut(sx, sz, Infinity, this.walkClampCur);
+      if ((sx - cur.roadX) ** 2 + (sz - cur.roadZ) ** 2 > maxOffSq) {
+        return false;
+      }
+      if ((cur.roadX - prev.roadX) ** 2 + (cur.roadZ - prev.roadZ) ** 2 > maxJumpSq) {
+        return false;
+      }
+      prev.roadX = cur.roadX;
+      prev.roadZ = cur.roadZ;
+      prev.lane = cur.lane;
+      prev.dist = cur.dist;
+    }
+    return true;
+  }
+
+  private segmentCorridorLimit(
+    ax: number,
+    az: number,
+    bx: number,
+    bz: number,
+    safeMaxOff: number,
+  ): number {
+    if (safeMaxOff === Infinity) return Infinity;
+    const ca = this.clampToGroundOut(ax, az, Infinity, this.segClampA);
+    const cb = this.clampToGroundOut(bx, bz, Infinity, this.segClampB);
+    const offA = Math.hypot(ax - ca.roadX, az - ca.roadZ);
+    const offB = Math.hypot(bx - cb.roadX, bz - cb.roadZ);
+    const endpointMax = Math.max(offA, offB);
+    return Math.max(endpointMax, Math.min(safeMaxOff, endpointMax + 0.08));
+  }
+
+  /**
    * Populates `out` in-place with deterministic waypoints along the ground road graph from
    * `(fromX, fromZ)` to the clamped ground point for `(wantX, wantZ)`.
    */
@@ -229,7 +306,7 @@ export class GroundGraph {
         : Number.isFinite(maxOffRoad)
           ? Math.max(0, maxOffRoad)
           : HERO_RULES.maxOffRoadDist;
-    const clamped = this.clampToGroundOut(wantX, wantZ, safeMaxOff, _findClampDest);
+    const clamped = this.clampToGroundOut(wantX, wantZ, safeMaxOff, this.findClampDest);
     let destX = clamped.x;
     let destZ = clamped.z;
     const targetX = Number.isFinite(wantX) && Number.isFinite(wantZ) ? wantX : destX;
@@ -240,21 +317,27 @@ export class GroundGraph {
       return out;
     }
 
-    const fromClamp = this.clampToGroundOut(fromX, fromZ, Infinity, _findClampFrom);
+    const fromClamp = this.clampToGroundOut(fromX, fromZ, Infinity, this.findClampFrom);
     const startX = Number.isFinite(fromX) && Number.isFinite(fromZ) ? fromX : fromClamp.x;
     const startZ = Number.isFinite(fromX) && Number.isFinite(fromZ) ? fromZ : fromClamp.z;
-    const sameNeighborhood =
-      (fromClamp.lane === clamped.lane && Math.abs(fromClamp.dist - clamped.dist) <= DIRECT_WALK_DIST + 0.4) ||
-      Math.hypot(fromClamp.roadX - clamped.roadX, fromClamp.roadZ - clamped.roadZ) <= JUNCTION_DIST;
 
-    if (sameNeighborhood && Math.hypot(destX - startX, destZ - startZ) <= DIRECT_WALK_DIST) {
+    const directLim = this.segmentCorridorLimit(startX, startZ, destX, destZ, safeMaxOff);
+    if (this.canWalkDirect(startX, startZ, destX, destZ, directLim)) {
       out.push({ x: destX, z: destZ });
       return out;
     }
 
     const startIdx = this.nearestNodeIndex(startX, startZ);
     let endIdx = this.nearestNodeIndex(clamped.roadX, clamped.roadZ);
-    if (startIdx < 0 || endIdx < 0 || startIdx === endIdx) {
+    if (startIdx < 0 || endIdx < 0) {
+      out.push({ x: destX, z: destZ });
+      return out;
+    }
+    if (startIdx === endIdx) {
+      const n = this.nodes[startIdx];
+      if (Math.hypot(n.x - startX, n.z - startZ) >= 0.05 && Math.hypot(destX - n.x, destZ - n.z) >= 0.05) {
+        out.push({ x: n.x, z: n.z });
+      }
       out.push({ x: destX, z: destZ });
       return out;
     }
@@ -317,47 +400,75 @@ export class GroundGraph {
       }
     }
 
-    _chainScratch.length = 0;
+    const chain = this.chainScratch;
+    chain.length = 0;
     for (let cur = endIdx; cur !== -1; cur = this.prevBuf[cur]) {
-      _chainScratch.push(cur);
+      chain.push(cur);
       if (cur === startIdx) break;
     }
-    _chainScratch.reverse();
+    chain.reverse();
 
-    // Trim the first graph node if stepping straight to _chainScratch[1] avoids a tiny backtrack.
-    if (_chainScratch.length >= 2) {
-      const n0 = this.nodes[_chainScratch[0]];
-      const n1 = this.nodes[_chainScratch[1]];
+    // Trim the first graph node if stepping straight to chain[1] avoids a tiny backtrack.
+    if (chain.length >= 2) {
+      const n0 = this.nodes[chain[0]];
+      const n1 = this.nodes[chain[1]];
       const segDx = n1.x - n0.x;
       const segDz = n1.z - n0.z;
       const fromDx = startX - n0.x;
       const fromDz = startZ - n0.z;
       if (fromDx * segDx + fromDz * segDz > 0) {
-        _chainScratch.shift();
+        chain.shift();
       }
     }
 
-    // Trim the last graph node if `dest` lies between `_chainScratch[last - 1]` and `_chainScratch[last]`.
-    if (_chainScratch.length >= 2) {
-      const prev = this.nodes[_chainScratch[_chainScratch.length - 2]];
-      const last = this.nodes[_chainScratch[_chainScratch.length - 1]];
-      const segDx = last.x - prev.x;
-      const segDz = last.z - prev.z;
+    // Trim the last graph node if `dest` lies before `chain[last]` along the final approach.
+    if (chain.length >= 1) {
+      const prevX = chain.length >= 2 ? this.nodes[chain[chain.length - 2]].x : startX;
+      const prevZ = chain.length >= 2 ? this.nodes[chain[chain.length - 2]].z : startZ;
+      const last = this.nodes[chain[chain.length - 1]];
+      const segDx = last.x - prevX;
+      const segDz = last.z - prevZ;
       const destDx = destX - last.x;
       const destDz = destZ - last.z;
       if (destDx * segDx + destDz * segDz < 0) {
-        _chainScratch.pop();
+        chain.pop();
       }
     }
 
-    for (let i = 0; i < _chainScratch.length; i++) {
-      const n = this.nodes[_chainScratch[i]];
-      if (Math.hypot(n.x - startX, n.z - startZ) < 0.05) continue;
-      out.push({ x: n.x, z: n.z });
+    const rawX = this.rawX;
+    const rawZ = this.rawZ;
+    rawX.length = 0;
+    rawZ.length = 0;
+    rawX.push(startX);
+    rawZ.push(startZ);
+    for (let i = 0; i < chain.length; i++) {
+      const n = this.nodes[chain[i]];
+      if (Math.hypot(n.x - rawX[rawX.length - 1], n.z - rawZ[rawZ.length - 1]) < 0.05) continue;
+      rawX.push(n.x);
+      rawZ.push(n.z);
     }
-    const prevWp = out[out.length - 1];
-    if (!prevWp || Math.hypot(destX - prevWp.x, destZ - prevWp.z) > 0.03) {
-      out.push({ x: destX, z: destZ });
+    if (Math.hypot(destX - rawX[rawX.length - 1], destZ - rawZ[rawZ.length - 1]) > 0.03) {
+      rawX.push(destX);
+      rawZ.push(destZ);
+    } else {
+      rawX[rawX.length - 1] = destX;
+      rawZ[rawZ.length - 1] = destZ;
+    }
+
+    // String-pull straight walkable segments so shoulder moves stay straight without cutting corners.
+    const rawLen = rawX.length;
+    let cur = 0;
+    while (cur < rawLen - 1) {
+      let next = cur + 1;
+      for (let cand = rawLen - 1; cand > cur + 1; cand--) {
+        const segLim = this.segmentCorridorLimit(rawX[cur], rawZ[cur], rawX[cand], rawZ[cand], safeMaxOff);
+        if (this.canWalkDirect(rawX[cur], rawZ[cur], rawX[cand], rawZ[cand], segLim)) {
+          next = cand;
+          break;
+        }
+      }
+      out.push({ x: rawX[next], z: rawZ[next] });
+      cur = next;
     }
     if (out.length === 0) out.push({ x: destX, z: destZ });
     return out;

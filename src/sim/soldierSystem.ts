@@ -827,13 +827,14 @@ export class SoldierSystem {
           const cur = this.target(s);
           if (!cur) continue;
           const hold = ENEMY_MELEE[cur.type].holdCost;
+          const heroHold = cur.heroBlockers;
           const spareOnCur = this.spareExtraSlotsOnTarget(s, cur);
           if (want === 'engaging') {
-            if (this.claims[cur.poolIndex] - 1 + spareOnCur < hold) continue;
+            if (this.claims[cur.poolIndex] - 1 + heroHold + spareOnCur < hold) continue;
           } else {
             const ownOnCur = this.holdUnitsOn(s, cur);
-            const contactWithout = this.inContact(cur) - ownOnCur;
-            if (this.claims[cur.poolIndex] - ownOnCur + spareOnCur < hold) continue;
+            const contactWithout = this.inContact(cur) - ownOnCur + heroHold;
+            if (this.claims[cur.poolIndex] - ownOnCur + heroHold + spareOnCur < hold) continue;
             if (contactWithout + spareOnCur < hold) continue;
             const needy = this.pickTarget(true);
             if (!needy) break;
@@ -1134,7 +1135,7 @@ export class SoldierSystem {
     if (maxExtra <= 0) return;
     let added = 0;
     const primaryHoldCost = ENEMY_MELEE[primary.type].holdCost;
-    while (added < maxExtra && primary.blockers < primaryHoldCost) {
+    while (added < maxExtra && primary.blockers + primary.heroBlockers < primaryHoldCost) {
       primary.blockers++;
       s.extraHoldPoolIndices.push(primary.poolIndex);
       s.extraHoldUids.push(primary.uid);
@@ -1159,7 +1160,7 @@ export class SoldierSystem {
     for (let k = 0; k < extraHoldOrder.length && added < maxExtra; k++) {
       const cand = this.pool.items[extraHoldOrder[k]];
       const candHoldCost = ENEMY_MELEE[cand.type].holdCost;
-      if (cand.blockers >= candHoldCost) {
+      if (cand.blockers + cand.heroBlockers >= candHoldCost) {
         rank++;
         continue;
       }
@@ -1169,7 +1170,7 @@ export class SoldierSystem {
         this.blockedList.push(cand.poolIndex);
         this.primary[cand.poolIndex] = soldierId;
       }
-      while (added < maxExtra && cand.blockers < candHoldCost) {
+      while (added < maxExtra && cand.blockers + cand.heroBlockers < candHoldCost) {
         cand.blockers++;
         s.extraHoldPoolIndices.push(cand.poolIndex);
         s.extraHoldUids.push(cand.uid);
@@ -1292,7 +1293,7 @@ export class SoldierSystem {
     for (let k = 0; k < engageList.length; k++) {
       const e = this.pool.items[engageList[k]];
       const c = this.claims[e.poolIndex];
-      const needs = c < ENEMY_MELEE[e.type].holdCost;
+      const needs = c + e.heroBlockers < ENEMY_MELEE[e.type].holdCost;
       if (!needs && (needyOnly || c >= SOLDIER_RULES.maxPerEnemy)) continue;
       if (best === null || this.better(e, needs, best, bestNeeds)) {
         best = e;
@@ -1368,7 +1369,7 @@ export class SoldierSystem {
       if (!extra || !extra.active || extra.uid !== eu || !this.isHoldable(extra)) {
         continue;
       }
-      const contactWithout = this.inContact(extra) - this.holdUnitsOn(s, extra);
+      const contactWithout = this.inContact(extra) - this.holdUnitsOn(s, extra) + extra.heroBlockers;
       const needed = Math.max(0, ENEMY_MELEE[extra.type].holdCost - contactWithout);
       if (needed === 0) continue;
       if (spare >= needed) {
