@@ -1,3 +1,5 @@
+import { warmTextureSources } from './textureWarmup.ts';
+import { bootPhase, reportBoot } from './bootTrace.ts';
 import { runItemBelt2D, spendItem2D } from './ui/market2d.ts';
 import '@fontsource-variable/fredoka';
 import './ui/fredokaTr.css';
@@ -8,7 +10,7 @@ import { AbScene } from './abScene.ts';
 import { artCheckSummary, mountArtCheck } from './artCheck.ts';
 import { changeMapVariant, loadArt } from './assets2d.ts';
 import { autoplayHooks, benchHooks } from './benchScene.ts';
-import { mountCodex2D } from './codex2d.ts';
+import { codexEnemyUrl, mountCodex2D } from './codex2d.ts';
 import { specPortraitUrl } from './specArt.ts';
 import { initLocale, t } from '../i18n/index.ts';
 import { heroName, islandName } from '../i18n/data.ts';
@@ -42,7 +44,9 @@ import { hudCheck } from './hudCheck.ts';
 import { auditCanvasTexts } from './qaText.ts';
 import { anySheetOpen } from './ui/dom.ts';
 import { installNav } from './ui/navFocus.ts';
-import { dismissBoot, navigateWithVeil, pickLoadTip, setBootText, setBootTip } from './ui/transition2d.ts';
+import { mountFpsCounter } from './ui/fpsCounter.ts';
+import { islandMapUrl } from './ui/islandArt.ts';
+import { dismissBoot, setBootArtwork, setBootProgress, navigateWithVeil, pickLoadTip, setBootText, setBootTip } from './ui/transition2d.ts';
 
 /**
  * 2d.html entry — the painted 2D renderer (Pixi v8) on the real sim.
@@ -66,7 +70,7 @@ import { dismissBoot, navigateWithVeil, pickLoadTip, setBootText, setBootTip } f
  *   ?melee=1[&tier=N][&types=a,b][&plot=N][&die=1][&kill=1][&crowd=N]  barracks melee QA
  *                     (window.__meleeScene; with &manual=1 the game only advances through
  *                     window.__meleeScene.step(frames), for frame-exact captures)
- *   ?speed=2|3        start at 2× / 3× sim speed (QA recordings)
+ *   ?speed=2|3|4      start at 2× / 3× / 4× sim speed (QA recordings)
  *   ?end=won|lost     force the end panel shortly after load (UI QA)
  *   ?mapmips=1        QA: draw the map texture mipmapped (default: resolution variant, no mips)
  *   &settings=1       open the in-game Settings on load (a language switch reloads with it)
@@ -98,6 +102,7 @@ declare global {
     __p0?: {
       mode: string;
       state: () => Record<string, unknown>;
+      textureWarmup?: ReturnType<typeof warmTextureSources>;
       plotScreen?: (i: number) => { x: number; y: number };
       forceEnd?: (o: 'won' | 'lost') => void;
       /** QA: jump to a one-based wave (Endless records / end-panel shots). */
@@ -279,6 +284,7 @@ async function runTitleScreen(q: URLSearchParams, title: typeof import('./ui/tit
 
 async function main(): Promise<void> {
   const q = new URLSearchParams(location.search);
+  bootPhase('js-entry');
   const fontsReady = bootLocale();
   installNav();
   // Interface size changes on the map too (the run's own listener re-applies the rest).
@@ -343,6 +349,7 @@ async function main(): Promise<void> {
 
   const dprOverride = Number(q.get('dpr')) || undefined;
   const explicitQuality = qualityOverride(q.get('quality'));
+  bootPhase('resolve-run');
   const softwareWebGL = detectSoftwareWebGL();
   const startWave = Number(q.get('wave') ?? 0) || 0;
   // `?quality=` wins over the player's Quality preset (Settings → Graphics), which wins over Auto.
@@ -351,6 +358,7 @@ async function main(): Promise<void> {
   // Desktops always start (and stay) at full canvas resolution; the tier only trims effects there.
   const bootResolutionTier: QualityTier = desktop && !explicitQuality ? 'high' : bootTier;
   const app = new Application();
+  bootPhase('renderer-settings');
   await app.init({
     resizeTo: window,
     background: '#5b8f3a',
@@ -364,7 +372,8 @@ async function main(): Promise<void> {
 
   const gl = (app.renderer as unknown as { gl?: WebGL2RenderingContext }).gl;
 
-  await fontsReady;
+  bootPhase('renderer-initialized');
+  setBootProgress(0.1);
   const layout2d = level.layout2d;
   // Device px per layout px at a screen size: picks the map bake (resolution variant) to load. The
   // map covers the screen (fullBleed.ts; it only ever shrinks from this).
@@ -374,18 +383,25 @@ async function main(): Promise<void> {
   const maxScale = maxMapScale(isDesktopClient(q), textureLimit, layout2d.imageSize);
   const fronts = ab ? [] : layout2d.gates?.flatMap((gate) => gate.front ? [gate.front.art] : []) ?? [];
   const mapMips = q.get('mapmips') === '1';
-  const art = await loadArt(
-    '/art2d/manifest.json',
-    layout2d.image,
-    { raider: q.get('raider') },
-    {
-      need: mapNeed(app.screen.width, app.screen.height),
-      mips: mapMips,
-      overlayKeys: fronts,
-      maxScale,
-    },
-    heroSelection?.heroId ?? null,
-  );
+  const [art, hud] = await Promise.all([
+    loadArt(
+      '/art2d/manifest.json',
+      layout2d.image,
+      { raider: q.get('raider') },
+      {
+        need: mapNeed(app.screen.width, app.screen.height),
+        mips: mapMips,
+        overlayKeys: fronts,
+        maxScale,
+      },
+      heroSelection?.heroId ?? null,
+      manifest => setBootArtwork(islandMapUrl(manifest, level)),
+      fraction => setBootProgress(0.1 + 0.7 * fraction),
+    ),
+    !ab && bench === 0 ? import('./ui/battleHud.ts') : null,
+    fontsReady,
+  ]);
+  bootPhase('art-ready');
   if (art.notes.length > 0) console.info('[art2d] fallbacks:\n  ' + art.notes.join('\n  '));
   if (q.get('artcheck') === '1') mountArtCheck(art);
 
@@ -442,9 +458,12 @@ async function main(): Promise<void> {
     watchMap(scene.map);
     app.renderer.on('resize', onResize);
     app.ticker.add((t) => scene.frame(Math.min(0.1, t.deltaMS / 1000)));
+    setBootProgress(1);
     dismissBoot();
     app.ticker.start();
     window.__p0 = { mode: 'ab', state: () => scene.debugState() };
+    bootPhase('interactive');
+    reportBoot();
     return;
   }
 
@@ -667,6 +686,7 @@ async function main(): Promise<void> {
       return next ? () => navigateWithVeil(routing.islandHref(next)) : undefined;
     },
   };
+  bootPhase('game-hooks');
   const game = new Game2D(app, art, level, hooks);
   gameRef = game;
   if (run.runConfig.endless) game.hud.setEndless(level.waves.length);
@@ -676,27 +696,20 @@ async function main(): Promise<void> {
   }
   game.attachInput(app.canvas);
   const startSpeed = Number(q.get('speed'));
-  if (startSpeed === 2 || startSpeed === 3) game.stepper.speed = startSpeed;
+  if (startSpeed === 2 || startSpeed === 3 || startSpeed === 4) game.stepper.speed = startSpeed;
   game.resize(app.screen.width, app.screen.height);
+  bootPhase('construct-and-resize');
   game.prewarm({ benchSteps: bench > 0 ? Math.ceil(bench / 10) + 2 : 0 });
+  bootPhase('calibrate-resolution');
+  setBootProgress(0.95);
   watchMap(game.map, game.gates);
   const ambient = mapAnimLayer(game.map.world, level.id, art.baseUrl);
   const onResize = (): void => {
     game.resize(app.screen.width, app.screen.height);
   };
   app.renderer.on('resize', onResize);
-  for (let warmFrames = 0; warmFrames < 4; warmFrames++) {
-    await new Promise<void>((resolve) =>
-      requestAnimationFrame(() => {
-        app.render();
-        resolve();
-      }),
-    );
-  }
   draws?.take();
-  dismissBoot();
   // Settings → Graphics: frame-rate cap, FPS chip, and live re-apply while a run is open.
-  const { mountFpsCounter } = await import('./ui/fpsCounter.ts');
   const fpsChip = mountFpsCounter();
   fpsChip.setVisible(gfx.showFps);
   app.ticker.maxFPS = tickerMaxFps(engine.maxFps);
@@ -707,31 +720,28 @@ async function main(): Promise<void> {
     fpsChip.setVisible(gfx.showFps);
     refreshLiveSettings();
   });
-  if (bench === 0) {
+  if (hud) {
     // Global abilities (Meteor Strike, Overcharge): painted bar + aiming + FX (ui/abilityBar2d.ts).
-    const { mountAbilityBar2D, abilityArtFiles } = await import('./ui/abilityBar2d.ts');
     // The hero's portrait + skill buttons sit in front of the abilities as one bar (ui/heroHud2d.ts).
-    const [{ createHeroHud2D }, { heroArtFiles }] = await Promise.all([import('./ui/heroHud2d.ts'), import('./ui/heroBits.ts')]);
-    heroHud = createHeroHud2D(game, {
+    heroHud = hud.createHeroHud2D(game, {
       desktop,
-      files: heroArtFiles(),
+      files: hud.heroArtFiles(),
       onAimStart: () => {
         abilities?.aim(null);
         itemBelt?.press(null);
       },
     });
     // Market items (Sky Crystals): a belt group behind the abilities, own aiming + FX (ui/itemBelt2d.ts).
-    const { mountItemBelt2D } = await import('./ui/itemBelt2d.ts');
-    itemBelt = mountItemBelt2D(game, {
+    itemBelt = hud.mountItemBelt2D(game, {
       desktop,
       onAimStart: () => {
         abilities?.aim(null);
         heroHud?.aim(null);
       },
     });
-    abilities = mountAbilityBar2D(game, {
+    abilities = hud.mountAbilityBar2D(game, {
       desktop,
-      art: abilityArtFiles(art.baseUrl),
+      art: hud.abilityArtFiles(art.baseUrl),
       baseUrl: art.baseUrl,
       trail: { el: itemBelt.el },
       ...(heroHud ? { lead: { el: heroHud.el } } : {}),
@@ -742,8 +752,7 @@ async function main(): Promise<void> {
     });
     if (q.get('herosel') === '1') game.setHeroSelected(true);
     // Keyboard arrows / gamepad: the in-run reticle (a virtual mouse on the canvas).
-    const { mountPadCursor } = await import('./ui/padCursor.ts');
-    padCursor = mountPadCursor({
+    padCursor = hud.mountPadCursor({
       canvas: app.canvas,
       targets: () => game.padTargets(),
       aiming: () => !!abilities?.aiming || !!heroHud?.aiming || !!itemBelt?.aiming,
@@ -751,8 +760,7 @@ async function main(): Promise<void> {
       paused: () => game.stepper.paused,
       clickPoint: (x, y) => game.padClickPoint(x, y),
     });
-  }
-  if (bench === 0) {
+
     const codex = mountCodex2D(art, (open) => {
       if (open) {
         codexWasPaused = game.stepper.paused;
@@ -775,7 +783,7 @@ async function main(): Promise<void> {
       () => undefined,
     );
     settingsRef = settings;
-    const { mountPauseMenu, mountReplayBar, confirmBoard } = await import('./ui/runControls2d.ts');
+    const { mountPauseMenu, mountReplayBar, confirmBoard } = hud;
     let asking = false;
     const ask = async (kind: 'restart' | 'leave'): Promise<boolean> => {
       if (asking) return false;
@@ -818,18 +826,16 @@ async function main(): Promise<void> {
       REPLAY_SPEEDS,
       desktop,
     );
-    const { mountWaveCard } = await import('./ui/wavePreview2d.ts');
     // The painted caves / castle on screen (their fronts, grown a little; `castle` = the goal).
     const gateRects = (): (import('./uiLayout.ts').Rect & { castle: boolean })[] => {
       const f = game.map.fit;
       return gateKeepOutsPx(level.layout2d?.gates ?? []).map((g) => ({ x: f.offsetX + g.x * f.scale, y: f.offsetY + g.y * f.scale, w: g.w * f.scale, h: g.h * f.scale, castle: g.castle }));
     };
     gateRectsRef = gateRects;
-    const { codexEnemyUrl } = await import('./codex2d.ts');
-    livesWarn = (await import('./ui/lowLives2d.ts')).mountLivesWarning();
+    livesWarn = hud.mountLivesWarning();
     if (desktop) {
       // Hover tooltips for the canvas HUD buttons (horn, pause, speed).
-      const tips = (await import('./ui/hudTips2d.ts')).mountHudTips();
+      const tips = hud.mountHudTips();
       let over: import('./ui/hudTips2d.ts').HudTipFor | null = null;
       app.canvas.addEventListener('pointermove', (e) => {
         if (e.pointerType !== 'mouse') return;
@@ -869,9 +875,9 @@ async function main(): Promise<void> {
         tips.update(show, { paused: s.paused, speed: s.speed, canCall: s.canCall, earlyBonus: s.earlyBonus, first: game.world.waveSystem.state === 'preFirstWave' }, at);
       };
     }
-    foeCard = (await import('./ui/enemyCard2d.ts')).mountEnemyCard((type) => codexEnemyUrl(art, type));
+    foeCard = hud.mountEnemyCard((type) => codexEnemyUrl(art, type));
     // First-play tips on the first island (plain play), or forced with ?coach=1 (QA).
-    const coachMod = await import('./ui/coach2d.ts');
+    const coachMod = hud.coach;
     if ((level.id === 'l1c' && plainPlay && !coachMod.coachDone()) || q.get('coach') === '1') {
       const hero = game.world.hero;
       // The caves / castle: the card keeps off them when it has to leave its home spot.
@@ -891,7 +897,7 @@ async function main(): Promise<void> {
     // Tier-IV specializations are bought in the build ring (two taps, game.specializeTower); its
     // branch tip's "(i) Compare" row opens the side-by-side card as optional detail. The gate pauses while the
     // card is up and restores the pause whichever way it goes (incl. a chunk that fails to load).
-    const { SpecCardGate } = await import('./ui/specCardGate.ts');
+    const { SpecCardGate } = hud;
     const gate = new SpecCardGate(game);
     specGate = gate;
     game.onSpecCompare = (req) => {
@@ -910,22 +916,21 @@ async function main(): Promise<void> {
       });
     };
     // The first tower at tier III: a one-time "choose a specialization" tip (?spechint=1 forces it).
-    const sh = await import('./ui/specHint2d.ts');
+    const sh = hud.specHint;
     if ((plainPlay && !sh.specHintDone()) || q.get('spechint') === '1') specHint = sh.mountSpecHint(!desktop || isTouchDevice(), q.get('spechint') === '1');
-    const nf = await import('./ui/newFoes2d.ts');
-    const { LEVELS_2D } = await import('../data/levels2d/index.ts');
+    const nf = hud.newFoes;
     foesSeen = new nf.FoesSeen(nf.seenFromCleared(LEVELS_2D, (i) => (progress2d.bestStars[i] ?? 0) > 0));
     const seenRef = foesSeen;
     newFoeToast = nf.mountNewFoeToast((type) => codexEnemyUrl(art, type));
-    laneMod = await import('./ui/laneMarks2d.ts');
+    laneMod = hud.lanes;
     laneMarks = laneMod.mountLaneMarks();
-    const wb = await import('./ui/waveBanner2d.ts');
+    const wb = hud.waveBanner;
     waveBanner = wb.mountWaveBanner();
-    if (runDifficulty) diffBadge = (await import('./ui/difficulty2d.ts')).mountDifficultyBadge(runDifficulty);
+    if (runDifficulty) diffBadge = hud.mountDifficultyBadge(runDifficulty);
     calloutFor = (i) => wb.waveCallout(nf.waveTypes(game.world.level, i), i, game.world.level.waves.length, game.world.waveSystem.isEndless);
     waveTypesOf = (i) => nf.waveTypes(game.world.level, i);
     // In the dock's info slot (top-left, hudDock.ts), like the foe card.
-    waveCard = mountWaveCard((type) => codexEnemyUrl(art, type), (type) => !seenRef.has(type));
+    waveCard = hud.mountWaveCard((type) => codexEnemyUrl(art, type), (type) => !seenRef.has(type));
     if (q.get('codex') === '1') codex.open();
     else if (q.get('settings') === '1') settings.open();
     // Story panels before an island's first play (map → Play / Next Isle add &intro=1; ?story=intro forces them).
@@ -1259,7 +1264,15 @@ async function main(): Promise<void> {
       },
     });
   }
+  setBootProgress(1);
+  dismissBoot();
   if (!document.hidden || isDebugScene) app.ticker.start();
+  bootPhase('interactive');
+  reportBoot();
+  window.__p0.textureWarmup = warmTextureSources(app, game.textureSources(), () => {
+    bootPhase('all-textures-resident');
+    reportBoot();
+  });
 }
 
 main().catch((err: unknown) => {

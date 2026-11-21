@@ -14,6 +14,14 @@ function runFrames(stepper: FixedTimestepStepper, frames: number, dt: number): n
 }
 
 describe('FixedTimestepStepper', () => {
+  it('advances at 4× for replay and QA, including a capped 100 ms frame', () => {
+    const stepper = new FixedTimestepStepper();
+    stepper.simActive = true;
+    stepper.speed = 4;
+    expect(runFrames(stepper, 60, 1 / 60)).toBe(240);
+    expect(runFrames(stepper, 1, 0.1)).toBe(24);
+  });
+
   it('does not drop sim time at 3x speed with max-length frames', () => {
     const stepper = new FixedTimestepStepper();
     stepper.simActive = true;

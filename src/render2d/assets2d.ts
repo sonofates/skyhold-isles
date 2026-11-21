@@ -1,3 +1,4 @@
+import { bootPhase } from './bootTrace.ts';
 import { Assets, Rectangle, Texture, type TextureSource } from 'pixi.js';
 import type { TowerType } from '../core/types.ts';
 import { alphaFeetAnchor } from './alphaBox.ts';
@@ -197,17 +198,16 @@ function tryTexture(url: string, mips = false): Promise<Texture | null> {
       // networks: retry transient failures; a real 404 / HTML fallback still returns null at once.
       for (let attempt = 0; attempt < LOAD_RETRIES; attempt++) {
         try {
-          // Probe first: a dev/preview server may answer a missing file with index.html (200).
-          const head = await fetch(url, { method: 'HEAD' });
-          const type = head.headers.get('content-type') ?? '';
-          if (head.status === 404 || type.includes('text/html')) return null;
-          if (!head.ok) throw new Error(`HTTP ${head.status}`);
           const tex = await Assets.load<Texture>(mips ? { src: url, data: { autoGenerateMipmaps: true } } : url);
-          if (tex) return tex;
+          return tex ?? null;
         } catch {
-          // transient: fall through to the retry
+          // Only probe failures. Missing optional art (including Vite's 200 HTML fallback)
+          // should resolve immediately, while transient failures still get the existing retries.
+          if (attempt + 1 === LOAD_RETRIES) break;
+          const head = await fetch(url, { method: 'HEAD' }).catch(() => null);
+          if (head?.status === 404 || head?.headers.get('content-type')?.includes('text/html')) return null;
+          await sleep(RETRY_BASE_MS * (attempt + 1));
         }
-        await sleep(RETRY_BASE_MS * (attempt + 1));
       }
       return null;
     })();
@@ -288,7 +288,7 @@ async function tryJson(url: string): Promise<unknown | null> {
     } catch {
       // transient: retry
     }
-    await sleep(RETRY_BASE_MS * (attempt + 1));
+    if (attempt + 1 < LOAD_RETRIES) await sleep(RETRY_BASE_MS * (attempt + 1));
   }
   return null;
 }
@@ -451,14 +451,15 @@ async function loadEnemy(
     if (t) present.add(path);
     return t;
   };
-  const [frontTex, backTex, moundTex] = await Promise.all([
+  const [frontTex, backTex, moundTex, attackSeq, deathSeq, down, up, side] = await Promise.all([
     tex(spec.file),
-    spec.back ? tex(spec.back) : Promise.resolve(null),
-    spec.mound ? tex(spec.mound) : Promise.resolve(null),
-  ]);
-  const [attackSeq, deathSeq] = await Promise.all([
-    spec.attack ? loadSheetSeq(base, spec.attack) : Promise.resolve(null),
-    spec.death ? loadSheetSeq(base, spec.death) : Promise.resolve(null),
+    spec.back ? tex(spec.back) : null,
+    spec.mound ? tex(spec.mound) : null,
+    spec.attack ? loadSheetSeq(base, spec.attack) : null,
+    spec.death ? loadSheetSeq(base, spec.death) : null,
+    spec.sheet ? loadSheetSeq(base, spec.sheet.down) : null,
+    spec.sheet ? loadSheetSeq(base, spec.sheet.up) : null,
+    spec.sheet?.side ? loadSheetSeq(base, spec.sheet.side) : null,
   ]);
   if (spec.attack) {
     if (attackSeq) present.add(spec.attack);
@@ -474,11 +475,6 @@ async function loadEnemy(
   let sheet: SheetRuntime | null = null;
   if (spec.sheet) {
     const sideSpec = spec.sheet.side;
-    const [down, up, side] = await Promise.all([
-      loadSheetSeq(base, spec.sheet.down),
-      loadSheetSeq(base, spec.sheet.up),
-      sideSpec ? loadSheetSeq(base, sideSpec) : Promise.resolve(null),
-    ]);
     if (down) present.add(spec.sheet.down);
     if (up) present.add(spec.sheet.up);
     if (side && sideSpec) present.add(sideSpec);
@@ -690,11 +686,15 @@ export async function loadArt(
   variants: Readonly<Record<string, string | null>> = {},
   mapOpts: MapLoadOptions = {},
   heroId: string | null = null,
+  onManifest?: (manifest: ArtManifest) => void,
+  onProgress?: (fraction: number) => void,
 ): Promise<LoadedArt> {
   const raw = await tryJson(manifestUrl);
   if (!raw) throw new Error(`art manifest not found: ${manifestUrl}`);
   let manifest = parseManifest(raw);
   for (const [base, variant] of Object.entries(variants)) manifest = withArtVariant(manifest, base, variant);
+  bootPhase('manifest');
+  onManifest?.(manifest);
   const base = dirOf(manifestUrl);
   const notes: string[] = [];
   const present = new Set<string>();
@@ -705,25 +705,35 @@ export async function loadArt(
   const kitEntries = Object.entries(manifest.uiKit ?? {});
   const plotSpec = manifest.plot;
   const overlayKeys = mapOpts.overlayKeys ?? Object.keys(manifest.overlays).filter((key) => !key.endsWith('@3x'));
+  // All jobs are registered synchronously below, before the first one can settle.
+  let total = 0;
+  let done = 0;
+  const track = async <T>(job: Promise<T>): Promise<T> => {
+    total++;
+    const result = await job;
+    onProgress?.(++done / total);
+    return result;
+  };
   const [mapRes, plotTex, uiTex, kitTex, towerList, enemyList, overlayTex, hero] = await Promise.all([
-    loadMapVariant(manifest, base, mapKey, mapOpts),
-    plotSpec ? tryTexture(base + plotSpec.file, true) : Promise.resolve(null),
-    Promise.all(uiKeys.map((k) => tryTexture(base + manifest.ui[k]))),
-    Promise.all(kitEntries.map(([, f]) => tryTexture(base + f, true))),
+    track(loadMapVariant(manifest, base, mapKey, mapOpts)),
+    track(plotSpec ? tryTexture(base + plotSpec.file, true) : Promise.resolve(null)),
+    Promise.all(uiKeys.map((k) => track(tryTexture(base + manifest.ui[k])))),
+    Promise.all(kitEntries.map(([, f]) => track(tryTexture(base + f, true)))),
     Promise.all(
       Object.entries(manifest.towers).map(
-        async ([type, spec]) => [type, await loadTower(base, spec as TowerArt, present)] as const,
+        async ([type, spec]) => [type, await track(loadTower(base, spec as TowerArt, present))] as const,
       ),
     ),
     Promise.all(
       Object.entries(manifest.enemies).map(
-        async ([key, spec]) => [key, await loadEnemy(base, key, spec, notes, present)] as const,
+        async ([key, spec]) => [key, await track(loadEnemy(base, key, spec, notes, present))] as const,
       ),
     ),
     // Gate front layers are drawn smaller than their file on phones: mipmapped.
-    Promise.all(overlayKeys.map((k) => tryTexture(base + manifest.overlays[k], true))),
-    heroId ? loadHeroArt(manifest, base, heroId, present, notes) : Promise.resolve(null),
+    Promise.all(overlayKeys.map((k) => track(tryTexture(base + manifest.overlays[k], true)))),
+    track(heroId ? loadHeroArt(manifest, base, heroId, present, notes) : Promise.resolve(null)),
   ]);
+  bootPhase('load-textures-and-sheets');
   if (!mapRes) throw new Error(`map image failed to load: ${mapFile}`);
   const map = mapRes.texture;
   present.add(manifest.maps[mapRes.key]);
@@ -811,7 +821,9 @@ export async function loadArt(
  * Collects every unique `TextureSource` referenced by `LoadedArt` (map, overlays, plot, UI kit,
  * all tower tiers/sheets/turrets, and all enemy walk/attack sheets) for ahead-of-wave GPU upload.
  */
-export function collectArtTextureSources(art: LoadedArt): TextureSource[] {
+export function collectArtTextureSources(
+  art: LoadedArt, enemyKeys: Iterable<string> = [], combatTextures: readonly Texture[] = [],
+): TextureSource[] {
   const seen = new Set<TextureSource>();
   const add = (tex: Texture | null | undefined): void => {
     if (!tex || tex === Texture.EMPTY) return;
@@ -821,33 +833,35 @@ export function collectArtTextureSources(art: LoadedArt): TextureSource[] {
     if (!list) return;
     for (let i = 0; i < list.length; i++) add(list[i]);
   };
+  const addEnemy = (en: EnemyArtRuntime): void => {
+    if (en.sheet) for (const seq of en.sheet.seqs) addList(seq);
+    add(en.base);
+    addList(en.frames);
+    add(en.back);
+    add(en.mound);
+    addList(en.attack?.frames);
+    addList(en.death?.frames);
+  };
+  for (const key of enemyKeys) if (art.enemies[key]) addEnemy(art.enemies[key]);
+  // Cover every build choice at tier I before warming upgrades.
+  for (let tier = 0; tier < 3; tier++) {
+    for (const tw of Object.values(art.towers)) {
+      if (!tw) continue;
+      add(tw.tiers[tier]);
+      addList(tw.attack[tier]?.frames);
+      addList(tw.idle[tier]?.frames);
+      const turret = tw.turrets?.[tier];
+      add(turret?.body);
+      addList(turret?.frames);
+    }
+  }
+  addList(combatTextures);
+  for (const en of Object.values(art.enemies)) addEnemy(en);
   add(art.map.texture);
   add(art.plot?.texture);
   for (const t of Object.values(art.map.overlays)) add(t);
   for (const t of Object.values(art.ui)) add(t);
   if (art.uiKit) for (const t of Object.values(art.uiKit)) add(t);
-  for (const tw of Object.values(art.towers)) {
-    if (!tw) continue;
-    addList(tw.tiers);
-    for (const sh of tw.attack) addList(sh?.frames);
-    for (const sh of tw.idle) addList(sh?.frames);
-    if (tw.turrets) {
-      for (const tur of tw.turrets) {
-        if (!tur) continue;
-        add(tur.body);
-        addList(tur.frames);
-      }
-    }
-  }
-  for (const en of Object.values(art.enemies)) {
-    add(en.base);
-    addList(en.frames);
-    add(en.back);
-    add(en.mound);
-    if (en.sheet) for (const seq of en.sheet.seqs) addList(seq);
-    addList(en.attack?.frames);
-    addList(en.death?.frames);
-  }
   const h = art.hero;
   if (h) for (const sq of [h.idle, h.down, h.up, h.side, h.attack, h.death]) addList(sq?.frames);
   return [...seen];

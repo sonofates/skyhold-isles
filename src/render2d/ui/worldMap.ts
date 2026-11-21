@@ -35,7 +35,7 @@ import { parseDifficulty } from '../../data/difficulty.ts';
 import { loadDifficultyPref, saveDifficultyPref } from './difficulty2d.ts';
 import { isChallengeId } from '../../data/challenges.ts';
 import { anySheetOpen, el, glyph, img, KIT, medal, roundButton, starsRow } from './dom.ts';
-import { fetchMapsManifest, islandMapUrl, type MapsManifest } from './islandArt.ts';
+import { fetchMapsManifest, islandMapUrl, prefetchLevelArt, type MapsManifest } from './islandArt.ts';
 import { routeMarks, scrollToCentre, worldMapLayout, type RouteMark, type WorldMapLayout } from './mapLayout.ts';
 import { dailyFor2D, openDaily, openLogbook, openSettings, openWorkshop, type MetaContext } from './metaScreens.ts';
 import { unseenFeats } from './featSeen.ts';
@@ -312,6 +312,7 @@ export async function mountWorldMap(q: URLSearchParams): Promise<void> {
       openStoreFor(i);
       return;
     }
+    if (st.unlocked) prefetchLevelArt(manifest, st.level);
     const id = st.level.id;
     const difficulty = loadDifficultyPref();
     const modes = st.unlocked
