@@ -739,7 +739,8 @@ export interface EndBoardFit {
 /**
  * Places the end board's text stack and button row so no text reaches the buttons (see
  * `endTextStack`); if the star-rule line (or the caption) still has no room, smaller stars
- * (END_STAR_SQUEEZE) are tried before the rule line is hidden. Boards with the hero row keep its own room (`heroRoom`).
+ * (END_STAR_SQUEEZE) are tried before the rule line is hidden. Hero boards arrive already
+ * reshaped by `endHeroRoom`.
  */
 export function endBoardFit(L: EndLayout, m: EndBoardText): EndBoardFit {
   const f = L.fontBody;
