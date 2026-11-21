@@ -33,7 +33,7 @@ export const TR: { readonly [K in MsgKey]: Msg } = {
   'market.emberPot.name': 'Kor Çömleği',
   'market.emberPot.description': 'Çömleği kırıp yakındaki düşmanları kavur. Korlar yerde 2 saniye yanar.',
   'market.frostLantern.name': 'Ayaz Feneri',
-  'market.frostLantern.description': 'Yakındaki düşmanları 4 saniye dondur. Elebaşılar ve şampiyonlar yarı hızda ilerler.',
+  'market.frostLantern.description': 'Yakındaki düşmanları 4 saniye dondur; donanlar %30 fazla hasar alır. Elebaşılar ve şampiyonlar yarı hızda ilerler.',
   'market.heartstone.name': 'Can Taşı',
   'market.heartstone.description': 'Kaybettiğin canların en fazla 5 tanesini geri kazan. Yıldız hesabında kaybettiğin her can sayılır.',
   'market.skyPurse.name': 'Gök Kesesi',

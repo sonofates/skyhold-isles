@@ -26,7 +26,7 @@ export const EN = {
   'market.emberPot.name': 'Ember Pot',
   'market.emberPot.description': 'Shatter the pot to scorch nearby foes. The embers burn the ground for 2 seconds.',
   'market.frostLantern.name': 'Frost Lantern',
-  'market.frostLantern.description': 'Freeze nearby foes for 4 seconds. Bosses and champions move at half speed.',
+  'market.frostLantern.description': 'Freeze nearby foes for 4 seconds; frozen foes take 30% more damage. Bosses and champions move at half speed.',
   'market.heartstone.name': 'Heartstone',
   'market.heartstone.description': 'Recover up to 5 lost lives. Each life lost still counts toward your stars.',
   'market.skyPurse.name': 'Sky Purse',
