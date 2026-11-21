@@ -182,6 +182,9 @@ export class Game2D {
   private mouths: Seg[] | null = null;
   /** The dock as the map fit placed it (the horn at its corner spot). */
   private dockHome: HudDock | null = null;
+  /** Last logical viewport size passed to `resize(w, h)` (keeps `placeHorn` in the same coordinates). */
+  private viewW = 1;
+  private viewH = 1;
   /** The wave (0-based) the horn was last placed for (-2 = not yet). */
   private hornFor = -2;
   private endShown = false;
@@ -884,8 +887,8 @@ export class Game2D {
         const scr = (p: { x: number; z: number }): { x: number; y: number } => ({ x: this.map.screenX(this.map.pxX(p.x)), y: this.map.screenY(this.map.pxY(p.z)) });
         // The road's mouth as seen: the first point along it out of the cave's painted front and on
         // screen (the path itself starts deep inside the cave, often past the screen's edge).
-        const W0 = this.app.screen.width;
-        const H0 = this.app.screen.height;
+        const W0 = this.viewW;
+        const H0 = this.viewH;
         const f0 = this.map.fit;
         const caves = (this.playShapes ??= hardShapes(lay)).gates
           .filter((g) => !g.castle)
@@ -923,8 +926,8 @@ export class Game2D {
         };
         const m = Math.max(6, home.gap * 0.5);
         const pieces = [home.buttons, home.plaque, home.banner, this.dock.tray, this.dock.info];
-        const W = this.app.screen.width;
-        const H = this.app.screen.height;
+        const W = this.viewW;
+        const H = this.viewH;
         const ins = this.insets;
         placed = hornNearCave({
           mouth,
@@ -982,6 +985,8 @@ export class Game2D {
   }
 
   resize(w: number, h: number): void {
+    this.viewW = w;
+    this.viewH = h;
     this.applyResolution(w, h);
     this.insets = readSafeInsets();
     this.ring.insets = this.insets;

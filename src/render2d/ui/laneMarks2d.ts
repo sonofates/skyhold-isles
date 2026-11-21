@@ -36,10 +36,17 @@ export function kitUnit(w: number, h: number): number {
   return Math.max(8.5, Math.min(0.0095 * w * k, 0.0185 * h * k, 17 * k));
 }
 
-/** Screen box of a mark whose chevron points at (x, y): the pill and chevron above it, with the bob. */
+/** Screen box of a mark whose chevron points at (x, y): the pill (incl. min 12 px font + 2 px outline) and chevron above it, with the bob. */
 export function laneMarkBox(x: number, y: number, s: number): Rect {
-  return { x: x - s * 1.7, y: y - s * 4.9, w: s * 3.4, h: s * 4.9 };
+  const font = Math.max(12, s * 1.1);
+  const pillH = font * 1.45 + 4;
+  const h = Math.max(s * 4.9, s * 3.15 + pillH);
+  const halfW = Math.max(s * 1.7, font * 1.6 + 2);
+  return { x: x - halfW, y: y - h, w: halfW * 2, h };
 }
+
+/** Visual clearance (css px) kept between an entrance marker and any HUD card / box it avoids. */
+export const LANE_MARK_MARGIN = 6;
 
 /**
  * Where a lane's mark stands: just out of the cave along its road, sliding further along it while
@@ -56,19 +63,25 @@ export function laneMarkSpot(
   let best: { x: number; y: number } | null = null;
   let bestA = Infinity;
   const pad = 4;
-  for (const d of [1.6, 2.6, 3.6, 4.8, 6, 7.5, 9, 11]) {
+  const m = LANE_MARK_MARGIN;
+  for (const d of [1.6, 2.6, 3.6, 4.8, 6, 7.5, 9, 11, 13, 15, 18]) {
     const p = pointAlong(path, d);
     if (!p) return null;
     const at = toScreen(p);
     const b = laneMarkBox(at.x, at.y, s);
     let a = 0;
-    for (const r of avoid) a += Math.max(0, Math.min(b.x + b.w, r.x + r.w) - Math.max(b.x, r.x)) * Math.max(0, Math.min(b.y + b.h, r.y + r.h) - Math.max(b.y, r.y));
+    for (const r of avoid) {
+      a +=
+        Math.max(0, Math.min(b.x + b.w, r.x + r.w + m) - Math.max(b.x, r.x - m)) *
+        Math.max(0, Math.min(b.y + b.h, r.y + r.h + m) - Math.max(b.y, r.y - m));
+    }
     if (viewport) {
       const ix = Math.max(0, Math.min(b.x + b.w, viewport.w - pad) - Math.max(b.x, pad));
       const iy = Math.max(0, Math.min(b.y + b.h, viewport.h - pad) - Math.max(b.y, pad));
       a += Math.max(0, b.w * b.h - ix * iy);
     }
-    if (a === 0) return at;
+    // Tolerance avoids IEEE-754 `(x + w) - x < w` false positives rejecting a clean cave-mouth spot.
+    if (a <= 1e-3) return at;
     if (a < bestA) {
       bestA = a;
       best = at;
@@ -109,6 +122,8 @@ export function mountLaneMarks(): LaneMarks2D {
       const n = el('span', 'pu-lane-n pu-letter', {}, wing, count);
       const chev = el('span', 'pu-lane-chev');
       const root = el('div', 'pu pu-lane-mark', { 'aria-hidden': 'true', 'data-testid': 'lane2d-mark' }, n, chev);
+      // Below the wave / foe info cards (z-index: 24) so a marker can never paint on top of a HUD card.
+      root.style.zIndex = '18';
       root.style.display = 'none';
       document.body.append(root);
       pool.push({ root, n, wing, count, chev });

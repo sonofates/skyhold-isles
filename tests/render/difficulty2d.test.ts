@@ -19,7 +19,7 @@ import type { RunConfig } from '../../src/game/runConfig.ts';
 import { setLocale } from '../../src/i18n/index.ts';
 import { decodeSaveCode, encodeSaveCode, mergeProgress } from '../../src/platform/saveCode.ts';
 import { createDefaultProgress, migrateProgress } from '../../src/platform/storage.ts';
-import { difficultyRuleText } from '../../src/render2d/ui/difficulty2d.ts';
+import { difficultyBadgeSpot, difficultyRuleText } from '../../src/render2d/ui/difficulty2d.ts';
 import { endNoteFor } from '../../src/render2d/ui/modeBits.ts';
 import { buildRunHref2D, composeRunModifiers2D, resolveQueryRun2D } from '../../src/render2d/ui/modes2d.ts';
 import { applyRunResult2D, islandStates, remapProgress } from '../../src/render2d/ui/progress2d.ts';
@@ -314,5 +314,20 @@ describe('selector wording', () => {
     setLocale('tr');
     expect(difficultyRuleText('hard')).toContain(`başlangıç altını −%${n} −${g}`);
     setLocale('en');
+  });
+
+  it('pins the in-run difficulty pill centred on the wave banner rope across desktop and small windows', () => {
+    for (const banner of [
+      { x: 642, y: 547.5, w: 150, h: 44.5 }, // 800x600
+      { x: 1086, y: 653.5, w: 181, h: 53.7 }, // 1280x720
+      { x: 1630, y: 980, w: 271, h: 80.5 }, // 1920x1080
+    ]) {
+      const spot = difficultyBadgeSpot(banner);
+      expect(spot.left).toBeCloseTo(banner.x + banner.w / 2, 5);
+      expect(spot.top).toBeGreaterThan(banner.y);
+      expect(spot.top).toBeLessThan(banner.y + banner.h * 0.45);
+      expect(spot.fontSize).toBeGreaterThanOrEqual(11);
+      expect(spot.fontSize).toBeLessThanOrEqual(16);
+    }
   });
 });

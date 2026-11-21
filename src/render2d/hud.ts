@@ -273,6 +273,7 @@ export class Hud {
     this.hornFont = Math.round(Math.max(17, 22 * u));
     setFontSize(this.hornLabel, this.hornFont);
     setFontSize(this.hornSecs, Math.round(Math.max(14, 18 * u)));
+    this.syncHornSprite();
     this.placeHornText('side');
     this.lastHorn = NaN;
     this.lastSecs = -1;
@@ -280,6 +281,7 @@ export class Hud {
 
     setInkSize(this.centre, Math.round(Math.max(24, 44 * u)));
     setInkSize(this.sub, Math.round(Math.max(14, 20 * u)));
+    if (this.plate.visible) this.layoutPlate();
     this.lastPaused = -1;
     this.lastSpeed = -1;
     this.lastBanner = '\u0000';
@@ -532,12 +534,23 @@ export class Hud {
     return { x: this.hornX, y: this.hornY };
   }
 
-  /** Sizes of the horn's label (its widest text) and seconds, for a spot beside a cave (hornSpot.ts). */
+  /** Keeps the horn sprite and ring anchored to `(hornX, hornY)` immediately on resize / re-placement (never lagging until the next ticker frame). */
+  private syncHornSprite(): void {
+    this.horn.position.set(this.hornX, this.hornY);
+    const hs = (this.hornR * 2) / Math.max(1, this.horn.texture.width);
+    this.horn.scale.set(hs);
+    this.hornRing.clear();
+  }
+
+  /** Sizes of the horn's label (its widest text at full `hornFont`) and seconds, for a spot beside a cave (hornSpot.ts). */
   hornLabelSize(): HornLabelSize {
     const ls = this.hornLabel.style;
+    const prev = ls.fontSize;
+    if (prev !== this.hornFont) setFontSize(this.hornLabel, this.hornFont);
     const widest = Math.max(...[t('hud.start'), '+888'].map((s) => CanvasTextMetrics.measureText(s, ls).width));
-    const lf = Number(ls.fontSize);
+    const lf = this.hornFont;
     const sf = Number(this.hornSecs.style.fontSize);
+    if (prev !== this.hornFont) setFontSize(this.hornLabel, Number(prev));
     // Pixi's bounds include the outline stroke (0.2 × size) and the line's ascent / descent.
     return { labelW: Math.ceil(widest + lf * 0.25), labelH: Math.ceil(lf * 1.5), secsH: Math.ceil(sf * 1.45) };
   }
@@ -551,6 +564,7 @@ export class Hud {
       this.hornR = p.horn.r;
       this.hornBox = p.hornBox;
       this.hornTextW = p.shape === 'stack' ? p.hornBox.w : p.hornBox.w - p.horn.r * 2.44;
+      this.syncHornSprite();
       this.placeHornText(p.shape === 'stack' ? 'stack' : p.shape === 'left' ? 'side' : 'right');
     } else {
       const d = this.dockHorn;
@@ -559,6 +573,7 @@ export class Hud {
       this.hornR = d.r;
       this.hornBox = d.box;
       this.hornTextW = d.textW;
+      this.syncHornSprite();
       this.placeHornText('side');
     }
     this.lastHorn = NaN;

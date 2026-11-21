@@ -700,6 +700,12 @@ async function main(): Promise<void> {
   game.attachInput(app.canvas);
   const startSpeed = Number(q.get('speed'));
   if (startSpeed === 2 || startSpeed === 3 || startSpeed === 4) game.stepper.speed = startSpeed;
+  let syncHudDom: (() => void) | null = null;
+  const onResize = (): void => {
+    game.resize(app.screen.width, app.screen.height);
+    syncHudDom?.();
+  };
+  app.renderer.on('resize', onResize);
   game.resize(app.screen.width, app.screen.height);
   bootPhase('construct-and-resize');
   game.prewarm({ benchSteps: bench > 0 ? Math.ceil(bench / 10) + 2 : 0 });
@@ -707,10 +713,6 @@ async function main(): Promise<void> {
   setBootProgress(0.95);
   watchMap(game.map, game.gates);
   const ambient = mapAnimLayer(game.map.world, level.id, art.baseUrl);
-  const onResize = (): void => {
-    game.resize(app.screen.width, app.screen.height);
-  };
-  app.renderer.on('resize', onResize);
   draws?.take();
   // Settings → Graphics: frame-rate cap, FPS chip, and live re-apply while a run is open.
   const fpsChip = mountFpsCounter();
@@ -934,6 +936,79 @@ async function main(): Promise<void> {
     waveTypesOf = (i) => nf.waveTypes(game.world.level, i);
     // In the dock's info slot (top-left, hudDock.ts), like the foe card.
     waveCard = hud.mountWaveCard((type) => codexEnemyUrl(art, type), (type) => !seenRef.has(type));
+    syncHudDom = (): void => {
+      const overlay = storyOpen || anySheetOpen() || game.end.visible;
+      diffBadge?.update(game.dock.banner, !overlay);
+      if (!waveCard) return;
+      const w = game.world;
+      const ws = w.waveSystem;
+      const calm = ws.state === 'preFirstWave' || ws.state === 'betweenWaves' || game.stepper.paused;
+      const hudState = game.debugHud();
+      const visible = calm && !overlay && !game.ringOpen && w.outcome === 'ongoing' && ws.canStartNextWave() && !foeCard?.debug().shown && !newFoeToast?.debug().visible;
+      const pv = visible ? ws.getNextWavePreview() : null;
+      // Update the wave card first so lane marks always avoid its current-frame box (including on resize).
+      waveCard.update({
+        visible,
+        preview: pv,
+        countdown: hudState.countdown,
+        earlyBonus: hudState.earlyBonus,
+        first: ws.state === 'preFirstWave',
+        slot: game.dock.info,
+        maxW: uiUnit(app.screen.width, app.screen.height) * 30,
+      });
+      // Cave / flyer entrance markers: show before every wave while callable (independent of the
+      // top-left info slot, so new-foe toasts, foe inspection and tower building never hide them).
+      const lay = w.level.layout2d;
+      if (laneMarks && laneMod) {
+        let marks: import('./ui/laneMarks2d.ts').LaneMark[] | null = null;
+        const showMarks = laneMod.shouldShowEntranceMarks({
+          waveState: ws.state,
+          canStartNextWave: ws.canStartNextWave(),
+          ongoing: w.outcome === 'ongoing',
+          overlayOpen: overlay,
+        });
+        const nextPv = showMarks ? ws.getNextWavePreview() : null;
+        if (nextPv && lay && lay.paths.length > 0) {
+          const idx = nextPv.waveOneBased - 1;
+          const cacheKey = `${w.level.id}|${ws.isEndless ? 1 : 0}|${idx}`;
+          if (laneCache?.key !== cacheKey) {
+            const def = idx < w.level.waves.length ? w.level.waves[idx] : ws.isEndless ? buildEndlessWaveDef(idx, w.level) : null;
+            laneCache = {
+              key: cacheKey,
+              entries: def ? laneMod.waveEntranceCounts(def.groups, lay.paths, lay.flightPath, (ty) => Boolean(ENEMY_DEFS[ty as EnemyType]?.flying)) : [],
+            };
+          }
+          marks = [];
+          // Keep off the top-left card/foe/toast, the horn, the HUD pieces and the viewport edge.
+          const card = waveCard.box();
+          const foe = foeCard?.debug().rect ?? null;
+          const toast = newFoeToast?.debug().rect ?? null;
+          const diff = diffBadge?.debug();
+          const hr = game.hud.rects();
+          const avoid = [
+            ...(card ? [card] : []),
+            ...(foe ? [foe] : []),
+            ...(toast ? [toast] : []),
+            ...(diff && diff.shown && diff.w > 0 ? [{ x: diff.x, y: diff.y, w: diff.w, h: diff.h }] : []),
+            hr.hornBox,
+            hr.plaque,
+            game.dock.banner,
+            game.dock.tray,
+            hudButtonsKeepOut(app.screen.width, app.screen.height, readSafeInsets()),
+            ...hudKeepOuts(),
+          ];
+          const toScreen = (p: { x: number; z: number }): { x: number; y: number } => ({ x: game.map.screenX(game.map.pxX(p.x)), y: game.map.screenY(game.map.pxY(p.z)) });
+          const unit = laneMod.kitUnit(app.screen.width, app.screen.height);
+          const vp = { w: app.screen.width, h: app.screen.height };
+          for (const entry of laneCache.entries) {
+            const at = laneMod.laneMarkSpot(entry.path, toScreen, avoid, unit, vp);
+            if (at) marks.push({ lane: entry.lane, count: entry.count, flying: entry.flying, ...at });
+          }
+        }
+        laneMarks.update(marks);
+      }
+    };
+    syncHudDom();
     if (q.get('codex') === '1') codex.open();
     else if (q.get('settings') === '1') settings.open();
     // Story panels before an island's first play (map → Play / Next Isle add &intro=1; ?story=intro forces them).
@@ -1076,62 +1151,7 @@ async function main(): Promise<void> {
       newFoeToast.update(t.deltaMS / 1000, game.end.visible || anySheetOpen() || storyOpen || !!foeCard?.debug().shown, dk.info, Math.min(dk.info.w, unit * 30));
     }
     livesWarn?.update(game.world.lives, game.world.startingLives, !game.end.visible && !storyOpen && game.world.outcome === 'ongoing');
-    diffBadge?.update(game.hud.rects().banner, !game.end.visible && !storyOpen && !anySheetOpen());
-    if (waveCard) {
-      const w = game.world;
-      const ws = w.waveSystem;
-      const calm = ws.state === 'preFirstWave' || ws.state === 'betweenWaves' || game.stepper.paused;
-      const hud = game.debugHud();
-      const visible = calm && !storyOpen && !anySheetOpen() && !game.end.visible && !game.ringOpen && w.outcome === 'ongoing' && ws.canStartNextWave() && !foeCard?.debug().shown && !newFoeToast?.debug().visible;
-      const pv = visible ? ws.getNextWavePreview() : null;
-      // Cave / flyer entrance markers: show before every wave while callable (independent of the
-      // top-left info slot, so new-foe toasts, foe inspection and tower building never hide them).
-      const lay = w.level.layout2d;
-      if (laneMarks && laneMod) {
-        let marks: import('./ui/laneMarks2d.ts').LaneMark[] | null = null;
-        const showMarks = laneMod.shouldShowEntranceMarks({
-          waveState: ws.state,
-          canStartNextWave: ws.canStartNextWave(),
-          ongoing: w.outcome === 'ongoing',
-          overlayOpen: storyOpen || anySheetOpen() || game.end.visible,
-        });
-        const nextPv = showMarks ? ws.getNextWavePreview() : null;
-        if (nextPv && lay && lay.paths.length > 0) {
-          const idx = nextPv.waveOneBased - 1;
-          const cacheKey = `${w.level.id}|${ws.isEndless ? 1 : 0}|${idx}`;
-          if (laneCache?.key !== cacheKey) {
-            const def = idx < w.level.waves.length ? w.level.waves[idx] : ws.isEndless ? buildEndlessWaveDef(idx, w.level) : null;
-            laneCache = {
-              key: cacheKey,
-              entries: def ? laneMod.waveEntranceCounts(def.groups, lay.paths, lay.flightPath, (ty) => Boolean(ENEMY_DEFS[ty as EnemyType]?.flying)) : [],
-            };
-          }
-          marks = [];
-          // Keep off the top-left card/toast, the horn, the HUD pieces and the viewport edge.
-          const card = waveCard.box();
-          const toast = newFoeToast?.debug().rect ?? null;
-          const hr = game.hud.rects();
-          const avoid = [...(card ? [card] : []), ...(toast ? [toast] : []), hr.hornBox, hr.plaque, hr.banner, hudButtonsKeepOut(app.screen.width, app.screen.height, readSafeInsets()), ...hudKeepOuts()];
-          const toScreen = (p: { x: number; z: number }): { x: number; y: number } => ({ x: game.map.screenX(game.map.pxX(p.x)), y: game.map.screenY(game.map.pxY(p.z)) });
-          const unit = laneMod.kitUnit(app.screen.width, app.screen.height);
-          const vp = { w: app.screen.width, h: app.screen.height };
-          for (const entry of laneCache.entries) {
-            const at = laneMod.laneMarkSpot(entry.path, toScreen, avoid, unit, vp);
-            if (at) marks.push({ lane: entry.lane, count: entry.count, flying: entry.flying, ...at });
-          }
-        }
-        laneMarks.update(marks);
-      }
-      waveCard.update({
-        visible,
-        preview: pv,
-        countdown: hud.countdown,
-        earlyBonus: hud.earlyBonus,
-        first: ws.state === 'preFirstWave',
-        slot: game.dock.info,
-        maxW: uiUnit(app.screen.width, app.screen.height) * 30,
-      });
-    }
+    syncHudDom?.();
     if (game.replaying && !game.end.visible) {
       replayBar?.update({ paused: game.stepper.paused, speed: game.stepper.speed, progress: game.replayProgress, wave: game.hud.waveLabel });
     }

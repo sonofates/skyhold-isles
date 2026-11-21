@@ -226,6 +226,56 @@
   font-size: max(13.5px, calc(var(--s) * 0.88));
 }
 
+/* Small desktop slots (800×600..1280×720): slightly trimmer type and padding so title, chips and
+   hint all fit in a balanced landscape card without ellipsis, one-word wrapping or dropping the hint. */
+.pu-wave-card.snug {
+  --tip-corner: 11px;
+  gap: 4px;
+  padding: 4px 9px;
+}
+
+.pu-wave-card.snug .pu-wave-head {
+  font-size: 13.5px;
+  padding-bottom: 3px;
+}
+
+.pu-wave-card.snug .pu-wave-chips {
+  gap: 4px 5px;
+}
+
+.pu-wave-card.snug .pu-wave-chip {
+  gap: 4px;
+  padding: 1px 7px 1px 1px;
+}
+
+.pu-wave-card.snug .pu-wave-face {
+  width: 26px;
+  height: 26px;
+}
+
+.pu-wave-card.snug .pu-wave-count {
+  font-size: 13.5px;
+}
+
+.pu-wave-card.snug .pu-wave-chip .pu-wave-new {
+  font-size: 10.5px;
+  padding: 0.12em 0.45em;
+}
+
+.pu-wave-card.snug .pu-wave-foot {
+  font-size: 12.5px;
+  gap: 2px 6px;
+}
+
+.pu-wave-card.snug.many .pu-wave-face {
+  width: 22px;
+  height: 22px;
+}
+
+.pu-wave-card.snug.many .pu-wave-count {
+  font-size: 12px;
+}
+
 /* Narrow slots (portrait phones where the top-left info slot is narrow): chip-only, never overflow. */
 .pu-wave-card.compact {
   --tip-corner: 10px;
@@ -257,13 +307,13 @@
   font-size: 12px;
 }
 
-.pu-wave-card.compact .pu-wave-new {
-  display: none;
-}
-
 /* Extremely narrow slot (390 px portrait phone): stack face over count neatly inside the frame. */
 .pu-wave-card.tiny {
   padding: 2px 3px;
+}
+
+.pu-wave-card.tiny .pu-wave-new {
+  display: none;
 }
 
 .pu-wave-card.tiny .pu-wave-chip {

@@ -12,7 +12,7 @@ import { hudTipText } from '../../src/render2d/ui/hudTips2d.ts';
 import { seenFromCleared, waveTypes } from '../../src/render2d/ui/newFoes2d.ts';
 import { coachCardSpot, coachStep, coachText, type CoachObs } from '../../src/render2d/ui/coach2d.ts';
 import { waveCallout } from '../../src/render2d/ui/waveBanner2d.ts';
-import { laneMarkSpot, pointAlong, shouldShowEntranceMarks, waveEntranceCounts, waveLaneCounts } from '../../src/render2d/ui/laneMarks2d.ts';
+import { LANE_MARK_MARGIN, laneMarkBox, laneMarkSpot, pointAlong, shouldShowEntranceMarks, waveEntranceCounts, waveLaneCounts } from '../../src/render2d/ui/laneMarks2d.ts';
 import { buildEndlessWaveDef } from '../../src/sim/waveSystem.ts';
 import type { EnemyType } from '../../src/core/types.ts';
 import { livesLow } from '../../src/render2d/ui/lowLives2d.ts';
@@ -60,15 +60,22 @@ describe('next-wave card', () => {
     expect(inset.y + inset.h).toBe(desk.y + desk.h);
     expect(inset.w).toBe(desk.w);
 
+    const smallDesk = { x: 8, y: 6, w: 216, h: 100 };
+    expect(waveCardSlot(smallDesk)).toEqual(smallDesk);
+
     const phone = { x: 8, y: 6, w: 177, h: 64 };
     expect(waveCardSlot(phone)).toEqual(phone);
   });
 
-  it('picks responsive wave-card density tiers for multi-foe waves and narrow portrait slots', () => {
-    expect(waveCardTier(1, 289)).toEqual({ many: false, compact: false, tiny: false });
-    expect(waveCardTier(5, 289)).toEqual({ many: true, compact: false, tiny: false });
-    expect(waveCardTier(2, 120)).toEqual({ many: false, compact: true, tiny: false });
-    expect(waveCardTier(1, 50)).toEqual({ many: false, compact: true, tiny: true });
+  it('picks responsive wave-card density tiers for roomy, small desktop (snug), multi-foe and narrow slots', () => {
+    expect(waveCardTier(1, 289)).toEqual({ many: false, snug: false, compact: false, tiny: false });
+    expect(waveCardTier(5, 289)).toEqual({ many: true, snug: false, compact: false, tiny: false });
+    expect(waveCardTier(1, 216)).toEqual({ many: false, snug: true, compact: false, tiny: false });
+    expect(waveCardTier(4, 216)).toEqual({ many: true, snug: true, compact: false, tiny: false });
+    // Below 175 px switches to chip-only compact instead of collapsing into a narrow wrapped column.
+    expect(waveCardTier(2, 160)).toEqual({ many: false, snug: false, compact: true, tiny: false });
+    expect(waveCardTier(2, 120)).toEqual({ many: false, snug: false, compact: true, tiny: false });
+    expect(waveCardTier(1, 50)).toEqual({ many: false, snug: false, compact: true, tiny: true });
   });
 });
 
@@ -247,20 +254,35 @@ describe('next-wave caves', () => {
     expect(pointAlong(path, 3)).toEqual({ x: 2, z: 1 });
     expect(pointAlong(path, 99)).toEqual({ x: 2, z: 4 });
   });
-  it('a mark slides along its road off the next-wave card and stays inside the viewport', () => {
+  it('a mark slides along its road off the next-wave card with clearance and stays inside the viewport', () => {
     const path = [
       { x: 0, z: 0 },
-      { x: 10, z: 0 },
+      { x: 20, z: 0 },
     ];
     const toScreen = (p: { x: number; z: number }): { x: number; y: number } => ({ x: 100 + p.x * 40, y: 300 });
     expect(laneMarkSpot(path, toScreen, [], 10)?.x).toBe(164);
     // A card over the first two spots: the mark moves on to the third (3.6 units out).
     const at = laneMarkSpot(path, toScreen, [{ x: 140, y: 200, w: 70, h: 120 }], 10);
     expect(at?.x).toBe(244);
+    // At small --s (8.5 px, 800x600), laneMarkBox accounts for the 12 px pill floor + outline,
+    // and laneMarkSpot keeps LANE_MARK_MARGIN clear of a wide top-left wave card.
+    const smallBox = laneMarkBox(200, 100, 8.5);
+    expect(smallBox.w).toBeGreaterThanOrEqual(40);
+    expect(smallBox.h).toBeGreaterThanOrEqual(48);
+    const wideCard = { x: 8, y: 6, w: 216, h: 100 };
+    const topRoad = (p: { x: number; z: number }): { x: number; y: number } => ({ x: -40 + p.x * 24, y: 95 });
+    const cleared = laneMarkSpot(path, topRoad, [wideCard], 8.5, { w: 800, h: 600 });
+    expect(cleared).not.toBeNull();
+    const cb = laneMarkBox(cleared!.x, cleared!.y, 8.5);
+    expect(cb.x).toBeGreaterThanOrEqual(wideCard.x + wideCard.w + LANE_MARK_MARGIN - 0.01);
     // Cave mouth off the left edge of the viewport: mark slides into view.
     const toOffLeft = (p: { x: number; z: number }): { x: number; y: number } => ({ x: -100 + p.x * 40, y: 300 });
     const inView = laneMarkSpot(path, toOffLeft, [], 10, { w: 800, h: 600 });
     expect(inView?.x).toBeGreaterThan(20);
+    // Fractional screen coords inside the viewport must pick the very first clear spot (no fp drift skipping).
+    const toFrac = (p: { x: number; z: number }): { x: number; y: number } => ({ x: 135.1302816901408 + p.x * 36.97183, y: 390.1234567 });
+    const firstFrac = laneMarkSpot(path, toFrac, [], 8.55, { w: 900, h: 600 });
+    expect(firstFrac?.x).toBeCloseTo(toFrac({ x: 1.6, z: 0 }).x, 4);
   });
 
   it('per-entrance counts include only active entrances and split flyers when flightPath has its own entry', () => {

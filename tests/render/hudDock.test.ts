@@ -198,6 +198,41 @@ describe('corner HUD layout', () => {
     expect(k.buttons.h).toBeLessThan(1080 * 0.12);
   });
 
+  it('small desktop windows (800x600..1280x720) keep a landscape info slot, readable horn label room, and zero piece overlap', () => {
+    for (const [w, h] of [
+      [800, 600],
+      [900, 600],
+      [960, 640],
+      [1024, 600],
+      [1024, 768],
+      [1280, 600],
+      [1280, 720],
+    ] as const) {
+      const k = hudDock(w, h, NO_INSETS, { ...OPTS, items: 3 });
+      const tag = `${w}x${h}`;
+      expect(k.info.w, tag).toBeGreaterThanOrEqual(200);
+      expect(k.info.h, tag).toBeGreaterThanOrEqual(96);
+      expect(k.info.w, tag).toBeGreaterThan(k.info.h * 1.8);
+      expect(k.info.x + k.info.w, tag).toBeLessThan(k.buttons.x);
+      expect(k.hornTextW, tag).toBeGreaterThanOrEqual(54);
+      const pieces = Object.entries(dockPieces(k));
+      for (const [p, r] of pieces) {
+        expect(r.x, `${tag} ${p}`).toBeGreaterThanOrEqual(-0.5);
+        expect(r.x + r.w, `${tag} ${p}`).toBeLessThanOrEqual(w + 0.5);
+        expect(r.y, `${tag} ${p}`).toBeGreaterThanOrEqual(-0.5);
+        expect(r.y + r.h, `${tag} ${p}`).toBeLessThanOrEqual(h + 0.5);
+      }
+      for (let i = 0; i < pieces.length; i++) {
+        for (let j = i + 1; j < pieces.length; j++) {
+          expect(hits(pieces[i][1], pieces[j][1]), `${tag} ${pieces[i][0]} × ${pieces[j][0]}`).toBe(false);
+        }
+      }
+    }
+    // Phone layouts remain compact: landscape phone keeps 64 px height, portrait phone keeps narrow slot.
+    expect(hudDock(844, 390, NO_INSETS, OPTS).info.h).toBe(64);
+    expect(hudDock(390, 844, NO_INSETS, OPTS).info.w).toBeLessThan(90);
+  });
+
   it('placed pieces stay inside the safe screen and never overlap each other', () => {
     for (const f of FITS) {
       const { w, h, ins } = f;

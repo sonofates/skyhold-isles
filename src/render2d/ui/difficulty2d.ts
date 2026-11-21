@@ -80,6 +80,24 @@ export interface DifficultyBadge2D {
 }
 
 /**
+ * Where the in-run difficulty pill sits on the wave banner's rope (pure, tested): horizontally
+ * centred on the banner, tucked on its top third so it stays inside the banner's dock slot without
+ * overlapping the "Wave n/N" lettering on the cloth below.
+ */
+export function difficultyBadgeSpot(banner: { readonly x: number; readonly y: number; readonly w: number; readonly h: number }): {
+  readonly left: number;
+  readonly top: number;
+  readonly fontSize: number;
+} {
+  const fontSize = Math.round(Math.max(10.5, Math.min(16, banner.h * 0.18)));
+  return {
+    left: banner.x + banner.w / 2,
+    top: banner.y + Math.max(banner.h * 0.15, fontSize * 0.78 + 1),
+    fontSize,
+  };
+}
+
+/**
  * In-run badge: the difficulty seal and name on a small parchment pill hung on the wave banner's rope
  * (bottom-right HUD corner, inside the banner's dock slot so it never covers the playfield).
  * Pointer-transparent; only touches the DOM when its spot moves.
@@ -105,12 +123,11 @@ export function mountDifficultyBadge(id: DifficultyId): DifficultyBadge2D {
         root.style.display = 'none';
         return;
       }
-      // A tag tied on the banner's rope (the art's top third), inside the banner's own dock slot.
-      const fs = Math.round(Math.max(10.5, Math.min(16, banner.h * 0.18)));
+      const spot = difficultyBadgeSpot(banner);
       root.style.display = '';
-      root.style.left = `${banner.x + banner.w / 2}px`;
-      root.style.top = `${banner.y + Math.max(banner.h * 0.15, fs * 0.78 + 1)}px`;
-      root.style.setProperty('--fs', `${fs}px`);
+      root.style.left = `${spot.left}px`;
+      root.style.top = `${spot.top}px`;
+      root.style.setProperty('--fs', `${spot.fontSize}px`);
     },
     debug() {
       const r = root.getBoundingClientRect();

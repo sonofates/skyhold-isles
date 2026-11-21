@@ -139,7 +139,8 @@ export function hudDock(w: number, h: number, insets: Insets, o: HudDockOptions)
   const bh = bw / o.bannerAspect;
   const banner: Rect = { x: w - insets.right - pad - bw, y: bottom - bh, w: bw, h: bh };
   const r = dockHornR(u);
-  const hornTextW = Math.round(Math.max(15, 20 * u) * 2.8);
+  // Wide enough for "Start!" / "Başla!" at the horn's floor font size without squishing it on small windows.
+  const hornTextW = Math.round(Math.max(20, 20 * u) * 2.8);
   const box = (x: number, y: number): Rect => ({ x: x - r * 1.2 - hornTextW, y: y - r * 1.2, w: r * 2.4 + hornTextW, h: r * 2.4 });
   // Home: the horn stands on the banner's right end (one compact corner). Alt: left of the banner.
   const hx = banner.x + banner.w - r * 1.2;
@@ -173,10 +174,16 @@ export function hudDock(w: number, h: number, insets: Insets, o: HudDockOptions)
   }
   // Info slot anchored in the top-left corner, compact (owner feedback 2026-11-21: a card floating
   // mid-top read as misplaced). Never into the top-centre column (the first-island coach card,
-  // 30 --s wide) or the buttons. The map's default view keeps it clear (fullBleed.ts).
+  // 30 --s wide) or the buttons. On small desktop windows (h > 560, w >= 640) where `--s` hits its
+  // 8.5 px floor, keep a sensible landscape floor so the wave card shows its title, chips and hint
+  // without collapsing into a narrow column; landscape phones (h <= 560) and portrait phones
+  // (w < 640) keep their compact slots. The map's default view keeps it clear (fullBleed.ts).
   const stop = Math.min(w / 2 - s * 15 - gap, buttons.x - gap);
-  const iw = Math.max(Math.min(110, stop - leftX), Math.min(s * 17, w * 0.21, stop - leftX));
-  const ih = Math.max(s * 7.5, 64);
+  const desktopInfo = h > 560 && w >= 640;
+  const minDesktopW = desktopInfo ? Math.min(216, Math.round(w * 0.27)) : 0;
+  const minDesktopH = desktopInfo ? Math.min(100, Math.round(h * 0.17)) : 0;
+  const iw = Math.min(stop - leftX, Math.max(Math.min(110, stop - leftX), minDesktopW, Math.min(s * 17, w * 0.21)));
+  const ih = Math.max(s * 7.5, 64, minDesktopH);
   const info: Rect = { x: leftX, y: top, w: iw, h: ih };
   const infoRange: [number, number] = [leftX, leftX];
   return {

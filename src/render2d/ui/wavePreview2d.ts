@@ -73,15 +73,20 @@ export interface WaveCard2D {
  * margins feel balanced, while staying strictly inside `slot` (hudCheck: 0 px outside).
  */
 export function waveCardSlot(slot: Rect): Rect {
-  const topInset = slot.h >= 96 ? 4 : 0;
+  const topInset = slot.h >= 104 ? 4 : 0;
   return topInset > 0 ? { x: slot.x, y: slot.y + topInset, w: slot.w, h: slot.h - topInset } : slot;
 }
 
 /** Responsive layout tier for the wave card inside its slot (pure, tested). */
-export function waveCardTier(chipCount: number, slotW: number): { readonly many: boolean; readonly compact: boolean; readonly tiny: boolean } {
+export function waveCardTier(
+  chipCount: number,
+  slotW: number,
+): { readonly many: boolean; readonly snug: boolean; readonly compact: boolean; readonly tiny: boolean } {
+  const compact = slotW < 175;
   return {
     many: chipCount >= 4,
-    compact: slotW < 140,
+    snug: !compact && slotW < 235,
+    compact,
     tiny: slotW < 90,
   };
 }
@@ -174,6 +179,7 @@ export function mountWaveCard(
         placeKey = pk;
         const tier = waveCardTier(chipCount, q.w);
         card.classList.toggle('many', tier.many);
+        card.classList.toggle('snug', tier.snug);
         card.classList.toggle('compact', tier.compact);
         card.classList.toggle('tiny', tier.tiny);
         const docked = dockCard(card, q, s.maxW, [foot, head]);
