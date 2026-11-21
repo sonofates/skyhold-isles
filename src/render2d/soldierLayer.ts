@@ -949,6 +949,8 @@ export class SoldierLayer {
     f.flag.zIndex = py - 0.5;
     f.flag.skew.x = Math.sin(this.clock * 3 + b.towerId) * 0.05;
     f.flag.alpha = focus > 0 ? 1 : 0.85;
+    // A Cloudguard Banner squad (negative id) stands under its own painted standard (itemFx.ts).
+    f.flag.visible = b.towerId >= 0;
     f.ring.visible = focus > 0;
     if (focus > 0) {
       const k = (this.clock * (focus === 2 ? 1.6 : 0.9)) % 1;

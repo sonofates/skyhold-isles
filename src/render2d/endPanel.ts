@@ -26,6 +26,7 @@ export interface EndSnapshot {
   readonly summary: EndSummary;
   readonly hero: EndHeroXp | null;
   readonly note: EndModeNote | null;
+  readonly crystals?: number;
 }
 
 export interface EndSummary {
@@ -167,6 +168,10 @@ export class EndPanel {
   private readonly coin: Sprite;
   private readonly line1 = inkText(22, 'left');
   private readonly line2 = inkText(22, 'left');
+  /** Sky Crystals the win paid (Market currency): "+42" behind the gold. */
+  private readonly line3 = inkText(22, 'left', '#2f5f8e', '700');
+  private readonly crystal = new Sprite(Texture.EMPTY);
+  private crystals = 0;
   private readonly caption = inkText(20, 'center', '#7a5532', '600');
   /** Victory: lives lost against the island's star limits (small, under the caption). */
   private readonly rule = inkText(15, 'center', '#8a6a48', '600');
@@ -205,7 +210,15 @@ export class EndPanel {
     this.heart = new Sprite(art.ui.heart);
     this.coin = new Sprite(art.ui.gold);
     for (const s of [this.heart, this.coin]) s.anchor.set(0.5);
-    this.board.addChild(this.panelFallback, this.panel, this.title, this.heart, this.coin, this.line1, this.line2, this.caption, this.rule);
+    this.crystal.anchor.set(0.5);
+    this.board.addChild(this.panelFallback, this.panel, this.title, this.heart, this.coin, this.crystal, this.line1, this.line2, this.line3, this.caption, this.rule);
+    void Assets.load<Texture>({ src: `${art.baseUrl}market/skyCrystal-large.webp`, data: { autoGenerateMipmaps: true } })
+      .then((tex) => {
+        if (!tex) return;
+        this.crystal.texture = tex;
+        if (this.root.visible) this.layout(this.w, this.h);
+      })
+      .catch(() => undefined);
     this.diffSeal.anchor.set(0.5);
     this.diffText.anchor.set(0, 0.5);
     this.diffTag.addChild(this.diffPill, this.diffSeal, this.diffText);
@@ -290,6 +303,18 @@ export class EndPanel {
     this.layout(this.w, this.h);
   }
 
+  /** Sky Crystals this win paid (0 hides them). Call after `show`. */
+  setCrystals(n: number): void {
+    this.crystals = Math.max(0, Math.round(n));
+    setText(this.line3, this.crystals > 0 ? `+${this.crystals}` : '');
+    this.layout(this.w, this.h);
+  }
+
+  /** QA: the crystals shown on the board (0 = none). */
+  get crystalsShown(): number {
+    return this.root.visible && this.line3.visible ? this.crystals : 0;
+  }
+
   /** QA: the hero row. */
   get heroInfo(): EndHeroXp | null {
     return this.heroRow.visible ? this.hero : null;
@@ -300,6 +325,8 @@ export class EndPanel {
     this.note = null;
     this.hero = null;
     this.heroRow.visible = false;
+    this.crystals = 0;
+    setText(this.line3, '');
     this.t = 0;
     this.root.visible = true;
     this.panel.texture = kit(this.art, s.won ? 'endPanel' : 'endPanelDefeat', kit(this.art, 'endPanel', Texture.EMPTY));
@@ -378,7 +405,7 @@ export class EndPanel {
   /** The board as shown (null when hidden). */
   snapshot(): EndSnapshot | null {
     if (!this.root.visible || !this.summary) return null;
-    return { summary: this.summary, hero: this.hero, note: this.note };
+    return { summary: this.summary, hero: this.hero, note: this.note, crystals: this.crystals };
   }
 
   /** Shows a saved board again (the stars pop in again). */
@@ -386,6 +413,7 @@ export class EndPanel {
     this.show(snap.summary);
     if (snap.hero) this.setHero(snap.hero);
     if (snap.note) this.annotate(snap.note);
+    if (snap.crystals) this.setCrystals(snap.crystals);
   }
 
   layout(w: number, h: number, insets: Insets = this.insets): void {
@@ -433,7 +461,12 @@ export class EndPanel {
     const gap = f * 0.4;
     const blockA = (won ? icon + gap : 0) + this.line1.width;
     const blockB = icon + gap + this.line2.width;
-    const total = blockA + f * 1.6 + blockB;
+    const showCrystals = won && this.crystals > 0;
+    setInkSize(this.line3, f);
+    const crystalIcon = icon * 1.15;
+    this.crystal.scale.set(crystalIcon / Math.max(1, this.crystal.texture.height));
+    const blockC = showCrystals ? (this.crystal.texture !== Texture.EMPTY ? crystalIcon + gap * 0.6 : 0) + this.line3.width : 0;
+    const total = blockA + f * 1.6 + blockB + (showCrystals ? f * 1.6 + blockC : 0);
     let x = L.summary.x - total / 2;
     // An Endless board has no stars: its lines sit lower, between the ribbon and the buttons.
     const y = won ? L.summary.y : this.note?.victoryBoard ? (L.stars[1].y + L.summary.y) / 2 + f * 0.6 : L.stars[1].y + L.starR * 0.4;
@@ -446,6 +479,14 @@ export class EndPanel {
     this.coin.position.set(x + icon / 2, y);
     x += icon + gap;
     this.line2.position.set(x, y);
+    x += this.line2.width + f * 1.6;
+    this.line3.visible = showCrystals;
+    this.crystal.visible = showCrystals && this.crystal.texture !== Texture.EMPTY;
+    if (this.crystal.visible) {
+      this.crystal.position.set(x + crystalIcon / 2, y);
+      x += crystalIcon + gap * 0.6;
+    }
+    this.line3.position.set(x, y);
     this.caption.position.set(L.summary.x, won ? y + f * 1.3 : y + f * 1.7);
     fitWidth(this.caption, P.w * 0.8);
     this.rule.visible = won && this.rule.text !== '' && !this.note;
@@ -694,7 +735,7 @@ export class EndPanel {
     const P = this.lay.panel;
     const ribbon: Rect = { x: P.x + P.w * 0.2, y: P.y, w: P.w * 0.6, h: P.h * END_FRAME.innerTop };
     const parchment: Rect = { x: P.x + P.w * 0.09, y: P.y + P.h * (END_FRAME.innerTop - 0.03), w: P.w * 0.82, h: P.h * (END_FRAME.innerBottom - END_FRAME.innerTop + 0.05) };
-    const body = [this.line1, this.line2, this.caption, this.rule, this.heroText, this.heroLvl, ...this.buttons.map((b) => b.label)];
+    const body = [this.line1, this.line2, this.line3, this.caption, this.rule, this.heroText, this.heroLvl, ...this.buttons.map((b) => b.label)];
     return [{ name: 'end.title', text: this.title, box: ribbon }, ...body.map((text, i) => ({ name: `end.text${i}`, text, box: parchment }))];
   }
 

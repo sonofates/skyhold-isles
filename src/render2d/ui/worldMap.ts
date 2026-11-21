@@ -27,6 +27,10 @@ import { islandName } from '../../i18n/data.ts';
 import { t } from '../../i18n/index.ts';
 import { readSafeInsets } from '../uiKit.ts';
 import { hardRibbon, showBriefing, type RunChoice } from './briefing.ts';
+import { readMarket2D } from './market2d.ts';
+import { markMarketSeen, marketSeen } from './marketModel.ts';
+import { openMarket, type CrystalShop } from './marketScreen.ts';
+import { beltChip } from './marketBelt.ts';
 import { parseDifficulty } from '../../data/difficulty.ts';
 import { loadDifficultyPref, saveDifficultyPref } from './difficulty2d.ts';
 import { isChallengeId } from '../../data/challenges.ts';
@@ -230,11 +234,16 @@ export async function mountWorldMap(q: URLSearchParams): Promise<void> {
   const banner = el('div', 'pu-title-banner pu-letter', {}, bannerText);
   const tallyBox = el('div', 'pu-tally pu-letter', { 'data-testid': 'map2d-stars', title: t('map.starsEarned') });
   const wsBtn = roundButton('workshop', t('map.workshop'), 'map2d-workshop', t('map.workshop'));
+  // The Market (Sky Crystals → belt items), beside the Workshop: crystal glyph, the wallet on a chip.
+  const mkBtn = roundButton('crystal', t('market.title'), 'map2d-market', t('market.title'));
+  mkBtn.classList.add('pu-market-btn');
+  const mkCount = el('span', 'pu-market-count pu-letter', { 'data-testid': 'map2d-crystals', 'aria-hidden': 'true' });
+  mkBtn.append(mkCount);
   const lbBtn = roundButton('logbook', t('map.logbook'), 'map2d-logbook', t('map.logbookShort'));
   const dailyBtn = roundButton('daily', t('daily.title'), 'map2d-daily', t('map.daily'));
   const setBtn = roundButton('settings', t('map.settings'), 'map2d-settings', t('map.settings'));
   const heroBtn = heroesButton(heroFiles);
-  const right = el('div', 'pu-topbar-right', {}, tallyBox, heroBtn.el, wsBtn, lbBtn, dailyBtn, setBtn);
+  const right = el('div', 'pu-topbar-right', {}, tallyBox, heroBtn.el, mkBtn, wsBtn, lbBtn, dailyBtn, setBtn);
   const topbar = el('div', 'pu-topbar', {}, banner, right);
   const hint = el('div', 'pu-map-hint pu-letter', {}, t('map.hint'));
   // Painted arrows at the sea's edges when more of the route lies that way (mouse users without a
@@ -270,6 +279,23 @@ export async function mountWorldMap(q: URLSearchParams): Promise<void> {
     },
   };
 
+  // Dev builds only (`vite` dev server): ?iapqa=1 shows the mobile crystal packs with a mock store, so
+  // QA can see the section in a browser. A production build drops this branch: no URL flag can
+  // enable purchases there (docs/market.md).
+  const qaShop: CrystalShop | undefined = import.meta.env.DEV && q.get('iapqa') ? (await import('./marketQaShop.ts')).qaShop(q.get('iapqa') ?? '') : undefined;
+  const openMarketSheet = (closed?: () => void): void => {
+    markMarketSeen(localStorage);
+    openMarket({
+      onChange: refreshTopbar,
+      onClose: () => {
+        refreshTopbar();
+        closed?.();
+      },
+      ...(qaShop ? { shop: qaShop } : {}),
+    });
+    refreshTopbar();
+  };
+
   const openStoreFor = (i: number | null): void => {
     const st = i === null ? null : states[i];
     openStore({
@@ -302,6 +328,7 @@ export async function mountWorldMap(q: URLSearchParams): Promise<void> {
         navigateWithVeil(buildRunHref2D(id, { challenges: choice.challenges, endless: choice.endless, difficulty: choice.difficulty, intro: st.clears === 0 }));
       },
       heroChip(ctx, heroFiles).el,
+      st.unlocked ? beltChip({ onMarket: openMarketSheet }) : undefined,
     );
   };
 
@@ -403,6 +430,11 @@ export async function mountWorldMap(q: URLSearchParams): Promise<void> {
     }).length;
     if (affordable > 0) wsBtn.append(el('span', 'pu-badge', { 'aria-label': t('map.affordable', { n: affordable }) }, String(affordable)));
     heroBtn.refresh(ctx);
+    const crystals = readMarket2D().crystals;
+    mkCount.replaceChildren(img('/art2d/market/skyCrystal.webp', '', 'pu-crystal-ico'), String(crystals));
+    mkBtn.setAttribute('aria-label', `${t('market.title')}: ${t('market.walletAria', { n: crystals })}`);
+    mkBtn.querySelector('.pu-market-new')?.remove();
+    if (!marketSeen(localStorage)) mkBtn.append(el('span', 'pu-market-new pu-letter', { 'data-testid': 'map2d-market-new', role: 'img', 'aria-label': t('market.newAria') }, t('market.new')));
     lbBtn.querySelector('.pu-dot')?.remove();
     lbBtn.removeAttribute('data-new-feats');
     const newFeats = unseenFeats(progress, levels).length;
@@ -505,6 +537,7 @@ export async function mountWorldMap(q: URLSearchParams): Promise<void> {
   scroll.addEventListener('pointercancel', endDrag);
 
   wsBtn.addEventListener('click', () => openWorkshop(ctx));
+  mkBtn.addEventListener('click', () => openMarketSheet());
   lbBtn.addEventListener('click', () => openLogbook(ctx, undefined, refreshTopbar));
   dailyBtn.addEventListener('click', () => openDaily(ctx));
   setBtn.addEventListener('click', () => openSettings(ctx));
@@ -548,6 +581,8 @@ export async function mountWorldMap(q: URLSearchParams): Promise<void> {
     });
   }
   else if (screen === 'workshop') openWorkshop(ctx);
+  else if (screen === 'market') openMarketSheet();
+  else if (screen === 'beltpick') openBrief(Math.max(0, Math.min(levels.length - 1, progress.unlockedLevelIndex)));
   else if (screen === 'logbook') openLogbook(ctx, q.get('tab') === 'feats' ? 'feats' : 'islands', refreshTopbar);
   else if (screen === 'daily') openDaily(ctx);
   else if (screen === 'settings') openSettings(ctx);

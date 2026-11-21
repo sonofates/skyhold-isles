@@ -95,3 +95,17 @@ Progress v3 stores per-installation lifetime earnings, spending and item counts,
 The native bridge checks the purchased SKU and records the grant and receipt together in the 2D progression slot. Opening the mobile product list or restoring purchases reconciles RevenueCat's non-subscription transaction history after an interrupted write. An explicit progress reset retains receipt IDs at zero credit to prevent redelivery into the reset save. The ledger travels with a save code. Cross-device continuity of spent currency requires carrying that save history.
 
 For headless QA, construct `new SimWorld(level, events, { itemBelt: { emberPot: 2 } })`, start the first wave and call `world.useItem(...)`. The plain constructor starts with an empty belt. `npm run sim:balance` continues to exercise the original item-free scripts, while `npm run sim:items` runs the full Market item and non-IAP economy simulator (documented in `docs/market-balance.md`). Focused coverage lives in `tests/platform/market.test.ts` and `tests/sim/items.test.ts`.
+
+## Painted UI (2D)
+
+| Piece | Module | Notes |
+|---|---|---|
+| Market screen | `src/render2d/ui/marketScreen.ts` + `market.css` | World map crystal button (wallet chip, one-time "New" ribbon until opened, `skyhold_market_seen_v1`). Stall header + wallet pinned above the scrolling body. Six cards: Buy ×1 / ×5, belt toggle, reason when Buy is off. `?screen=market` opens it. |
+| Crystal packs | same (`packSection`) | Built only when `crystalStoreEnabled()`. Store titles / prices, one purchase at a time, `pending_delivery` re-lists, Restore via `getIap().restore()`. QA: `?iapqa=1` (or `pending`, `cancel`, `error`, `empty`, `slow`) swaps in `marketQaShop.ts` on the **vite dev server only**; production builds drop that branch (`import.meta.env.DEV`). |
+| Briefing belt row | `src/render2d/ui/marketBelt.ts` | Three slots with the uses the chosen difficulty gives, greyed for challenge / Endless runs; a slot or Change opens the belt picker. |
+| Item belt (HUD) | `src/render2d/ui/itemBelt2d.ts` + `.css` | Group behind the abilities in the tray. `hudDock` `items` sizes it; `fullBleedFitItems` picks the row, or a one-button pouch where the row would cover more of the island (or does not fit). Keys Z / X / C. Targeted items aim like Meteor (Esc / right click / second press cancel); refused casts keep the aim and cost nothing. |
+| Item FX | `src/render2d/itemFx.ts` | Listens to `itemCast`, `groundZone`, `enemyFrozen`, `enemyPushed`; Low quality and Reduced motion trim it. |
+| View-models | `src/render2d/ui/marketModel.ts` | Pure: `marketView`, `toggleLoadout`, `beltView`, `beltPress`, `ITEM_KEYS` (tests: `tests/render/marketUi.test.ts`). |
+| Victory board | `src/render2d/endPanel.ts` `setCrystals` | `+n` with the crystal after the gold, from `crystalsEarned`. |
+
+QA screenshots: `qa/marketshots.mjs` (dev server), output in `docs/feedback/2026-11-21/market/`.

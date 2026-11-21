@@ -91,6 +91,8 @@ export interface AbilityBarOptions {
   readonly lead?: { readonly el: HTMLElement };
   /** An ability started aiming (the hero HUD drops its own aim). */
   readonly onAimStart?: () => void;
+  /** A group laid out behind the ability buttons (the item belt, itemBelt2d.ts); its size is in the dock. */
+  readonly trail?: { readonly el: HTMLElement };
 }
 
 /**
@@ -153,6 +155,7 @@ export function mountAbilityBar2D(game: Game2D, opts: AbilityBarOptions): Abilit
   });
   if (opts.lead) root.append(opts.lead.el);
   for (const s of slots) root.append(s.btn);
+  if (opts.trail) root.append(opts.trail.el);
   root.append(tip);
   document.body.append(root, hint);
 
@@ -192,8 +195,14 @@ export function mountAbilityBar2D(game: Game2D, opts: AbilityBarOptions): Abilit
    * The tray's slot in the HUD dock (hudDock.ts): one row at the bottom centre on every screen,
    * slid along the bottom on an island where the centre would cover a plot / road / castle.
    */
+  let placedFor = '';
+  const dockKey = (): string => {
+    const k = game.dock;
+    return `${k.tray.x}|${k.tray.y}|${k.tray.w}|${k.d}|${k.items.n}|${k.items.mode}`;
+  };
   const place = (): void => {
     const k = game.dock;
+    placedFor = dockKey();
     d = k.d;
     const gap = k.gap;
     spot = { x: k.tray.x, y: k.tray.y, layout: k.trayLayout, form: k.form };
@@ -531,6 +540,8 @@ export function mountAbilityBar2D(game: Game2D, opts: AbilityBarOptions): Abilit
   return {
     frame(dt: number): void {
       if (game.events !== bound) bind();
+      // The dock changed outside a renderer resize (the item belt's slot count): lay out again.
+      if (dockKey() !== placedFor) place();
       const paused = game.stepper.paused;
       const simDt = paused ? 0 : dt * game.stepper.speed;
       lastDt = dt;

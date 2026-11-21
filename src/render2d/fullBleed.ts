@@ -22,7 +22,7 @@ import { gateKeepOutsPx, type Rect } from './uiLayout.ts';
 import { distSegRect, playfieldShapes, type Circle, type FitLike, type Seg } from './playfield.ts';
 import type { Level2DLayout } from '../data/levels/types.ts';
 import type { MapFit } from './viewFit.ts';
-import type { HornSpot, HudDock } from './hudDock.ts';
+import { dockPieces, type HornSpot, type HudDock } from './hudDock.ts';
 
 export interface HardShapes {
   readonly roads: readonly Seg[];
@@ -348,6 +348,23 @@ export function slideX(s: HardShapes, fit: FitLike, r: Rect, lo: number, hi: num
   }
   consider(cur, hi + 0.02);
   return best;
+}
+
+/** Hard shapes every dock piece covers at a fit's default view (+½ when the island can't clear). */
+export function dockCost(shapes: HardShapes, r: FullBleedResult): number {
+  return Object.values(dockPieces(r.dock)).reduce((n, rect) => n + hardOverlaps(shapes, r.fit, rect).length, 0) + (r.fit.clear ? 0 : 0.5);
+}
+
+/**
+ * The fit with the item belt in the tray: its row form where the bottom line has room and it covers
+ * no more of the island than the one-button pouch would; else the pouch (the slots open above the
+ * tray on a tap, Z / X / C still cast straight away).
+ */
+export function fullBleedFitItems(screenW: number, screenH: number, layout: Level2DLayout, dockFor: (mode: 'row' | 'pouch') => HudDock, shapes: HardShapes = hardShapes(layout)): FullBleedResult {
+  const row = fullBleedFit(screenW, screenH, layout, dockFor('row'), shapes);
+  if (row.dock.items.n === 0 || row.dock.items.mode === 'pouch') return row;
+  const pouch = fullBleedFit(screenW, screenH, layout, dockFor('pouch'), shapes);
+  return dockCost(shapes, row) > dockCost(shapes, pouch) ? pouch : row;
 }
 
 export function fullBleedFit(screenW: number, screenH: number, layout: Level2DLayout, dock: HudDock, shapes: HardShapes = hardShapes(layout)): FullBleedResult {

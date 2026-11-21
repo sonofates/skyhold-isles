@@ -3,7 +3,7 @@ import type { EnemyType } from '../core/types.ts';
 import { ENEMY_DEFS } from '../data/enemies.ts';
 import type { EnemyEntity } from '../sim/entities.ts';
 import type { ObjectPool } from '../core/pool.ts';
-import { mulTint } from './artResolve.ts';
+import { mixTint, mulTint } from './artResolve.ts';
 import type { DeathSheetRuntime, EnemyArtRuntime, LoadedArt } from './assets2d.ts';
 import {
   createExtras,
@@ -43,6 +43,8 @@ export interface Walker extends SpecialState {
   readonly hitFlashTimer: number;
   readonly scaleOverride: number;
   readonly burrowed: boolean;
+  /** Frost Lantern freeze (sim seconds left; item only). */
+  readonly frozenTimer?: number;
 }
 
 type DeathClip = DeathSheetRuntime;
@@ -60,6 +62,7 @@ const BAR_W = 34;
 const BAR_H = 5;
 const HP_GREEN = 0x7cd34a;
 const HP_BG = 0x3a2412;
+const FROZEN_TINT = 0x86c4ff;
 /** A one-frame jump this long (world units) is a teleport (blink), not a fast walk. */
 const TELEPORT_UNITS = 2.2;
 
@@ -466,6 +469,9 @@ export class EnemyLayer {
       out.shadowAlpha *= passageAlpha;
       this.specials.hideAll(v.ex);
     }
+    // Frost Lantern: a frozen foe turns icy blue while its freeze lasts (the slow-only bosses take
+    // the specials' frost tint through slowTimer).
+    if ((w.frozenTimer ?? 0) > 0) out.tint = mixTint(out.tint, FROZEN_TINT, 0.9);
     // Hit flash: the sim's hitFlashTimer drives a warm tint (no per-sprite filters).
     if (w.hitFlashTimer > 0) out.tint = 0xff9c8c;
 

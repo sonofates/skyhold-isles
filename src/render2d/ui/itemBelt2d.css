@@ -1,0 +1,217 @@
+/*
+ * Item belt group of the in-game tray (itemBelt2d.ts): a divider, then up to three item medallions
+ * (`--di`, a little smaller than the abilities, `--igap` apart) — or, on a narrow screen, one pouch
+ * medallion whose slots open in a parchment strip above the tray. Sizes match hudDock.ts
+ * `itemGroupLong`. The buttons reuse the ability medallion look (abilityBar2d.css `.pu-ab`).
+ */
+
+.pu-items {
+  display: flex;
+  align-items: center;
+  gap: var(--gap, 14px);
+  pointer-events: none;
+}
+
+.pu-items[hidden] {
+  display: none !important;
+}
+
+.pu-items-div {
+  flex: none;
+  width: calc(var(--d, 60px) * 0.08);
+  height: calc(var(--d, 60px) * 0.62);
+  border-radius: 99px;
+  background: linear-gradient(#8fc2e8, #3f6f9c);
+  box-shadow: 0 0 0 2px var(--outline);
+  opacity: 0.9;
+}
+
+.pu-items-row {
+  display: flex;
+  align-items: center;
+  gap: var(--igap, 8px);
+}
+
+.pu-items-pouch {
+  display: none;
+}
+
+.pu-items.pouch .pu-items-pouch {
+  display: block;
+}
+
+.pu-ab.pu-item {
+  --d: var(--di, 52px);
+  width: var(--di, 52px);
+  height: var(--di, 52px);
+  flex: none;
+}
+
+.pu-item .pu-ab-icon {
+  background: radial-gradient(circle at 50% 38%, #fff6df, #f0dcb0 62%, #d9b77c);
+}
+
+.pu-item-art {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: contain;
+  transform: scale(1.08);
+}
+
+/* Uses left on this island: small gems on the medallion's lower-left rim (the key chip is lower right). */
+.pu-item-pips {
+  position: absolute;
+  left: 4%;
+  bottom: -3%;
+  display: flex;
+  gap: 2px;
+}
+
+.pu-item-pips i {
+  width: max(6px, calc(var(--di, 52px) * 0.14));
+  height: max(6px, calc(var(--di, 52px) * 0.14));
+  border-radius: 50%;
+  background: #5f4f3e;
+  box-shadow: 0 0 0 1.5px var(--outline);
+}
+
+.pu-item-pips i.on {
+  background: radial-gradient(circle at 35% 30%, #e8fbff, #5ab4e8 70%);
+}
+
+/* Stock in the pack: a small blue chip on the upper right. */
+.pu-item-stock {
+  position: absolute;
+  right: calc(var(--di, 52px) * -0.1);
+  top: calc(var(--di, 52px) * -0.08);
+  min-width: max(15px, calc(var(--di, 52px) * 0.32));
+  height: max(15px, calc(var(--di, 52px) * 0.32));
+  display: grid;
+  place-items: center;
+  padding: 0 0.2em;
+  border-radius: 99px;
+  font-size: max(10px, calc(var(--di, 52px) * 0.2));
+  line-height: 1;
+  background: linear-gradient(#5a8fc0, #2f5f8e);
+  box-shadow: 0 0 0 2px var(--outline);
+}
+
+.pu-item .pu-ab-cancel {
+  right: auto;
+  left: -4%;
+}
+
+.pu-item[data-state='waiting'],
+.pu-item[data-state='paused'],
+.pu-item[data-state='full'],
+.pu-item[data-state='noFoes'],
+.pu-items-pouch[data-state='waiting'] {
+  filter: saturate(0.55) brightness(0.9) drop-shadow(0 3px 2px rgba(30, 16, 4, 0.45));
+}
+
+.pu-item[data-state='empty'],
+.pu-item[data-state='over'] {
+  filter: grayscale(0.85) brightness(0.8) drop-shadow(0 2px 1px rgba(30, 16, 4, 0.35));
+  opacity: 0.85;
+}
+
+.pu-item[data-state='disabled'] {
+  filter: grayscale(0.95) brightness(0.75) drop-shadow(0 2px 1px rgba(30, 16, 4, 0.35));
+  opacity: 0.8;
+}
+
+.pu-item[data-state='disabled']::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 70%;
+  height: 7%;
+  border-radius: 4px;
+  background: #c8341f;
+  box-shadow: 0 0 0 2px var(--outline);
+  transform: translate(-50%, -50%) rotate(-40deg);
+}
+
+.pu-item.cast-pop {
+  animation: pu-ab-pop 0.45s cubic-bezier(0.2, 0.9, 0.3, 1.5);
+}
+
+.pu-items-pouch.is-open {
+  transform: translateY(-3px) scale(1.06);
+}
+
+/* The pouch's strip above the tray (narrow screens). */
+.pu-items-pop {
+  position: fixed;
+  z-index: 26;
+  padding: max(6px, calc(var(--di, 52px) * 0.16));
+  border-radius: 999px;
+  background: linear-gradient(rgba(86, 54, 26, 0.82), rgba(44, 26, 10, 0.86));
+  box-shadow:
+    inset 0 0 0 2px rgba(222, 178, 104, 0.6),
+    0 3px 6px rgba(20, 10, 2, 0.35);
+}
+
+.pu-items-pop .pu-items-row {
+  gap: var(--igap, 8px);
+}
+
+.pu-reduce-motion .pu-item,
+.pu-reduce-motion .pu-items-pouch {
+  animation: none !important;
+}
+
+/* Tooltip: uses + stock, then the state (green when ready, rust when not). */
+.pu-item-tip-uses {
+  margin-top: 0.1em;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.pu-item-tip-state {
+  font-weight: 700;
+  color: #9a3b18;
+}
+
+.pu-item-tip-state.ok {
+  color: #2f6d1e;
+}
+
+/* Pouch face: the belt's items as a small cluster. */
+.pu-items-cluster {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.pu-items-mini {
+  position: absolute;
+  width: 58%;
+  height: 58%;
+  object-fit: contain;
+  filter: drop-shadow(0 1px 1px rgba(30, 16, 4, 0.4));
+}
+
+.pu-items-cluster .pu-items-mini:nth-child(1) {
+  left: 4%;
+  top: 30%;
+}
+
+.pu-items-cluster .pu-items-mini:nth-child(2) {
+  right: 4%;
+  top: 30%;
+}
+
+.pu-items-cluster .pu-items-mini:nth-child(3) {
+  left: 21%;
+  top: 2%;
+}
+
+.pu-items-cluster.n1 .pu-items-mini {
+  left: 12%;
+  top: 12%;
+  width: 76%;
+  height: 76%;
+}
