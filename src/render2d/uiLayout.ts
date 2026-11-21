@@ -599,3 +599,188 @@ export function endLayout(
     fontBody,
   };
 }
+
+/**
+ * Makes room for the hero XP row: smaller stars lifted a little, the summary closer under them and
+ * the buttons a touch lower (fractions of the parchment's inner height `innerFrac` × panel h).
+ */
+export function endHeroRoom(L: EndLayout, innerFrac: number): EndLayout {
+  const inner = L.panel.h * innerFrac;
+  const starR = L.starR * 0.8;
+  const lift = inner * 0.05;
+  return {
+    ...L,
+    starR,
+    stars: L.stars.map((p, i) => ({ x: L.panel.x + L.panel.w / 2 + (i - 1) * starR * 2.4, y: p.y - lift - (L.starR - starR) * 0.6 })),
+    summary: { x: L.summary.x, y: L.summary.y - inner * 0.1 },
+    buttons: L.buttons.map((p) => ({ x: p.x, y: p.y + inner * 0.035 })),
+    buttonR: L.buttonR * 0.94,
+  };
+}
+
+/**
+ * Smaller stars (× `k`) with their tops where they were: frees room under them on a cramped board
+ * (phones) so the summary row can rise.
+ */
+export function endStarsCompact(L: EndLayout, k: number): EndLayout {
+  const starR = L.starR * k;
+  const cx = L.panel.x + L.panel.w / 2;
+  return {
+    ...L,
+    starR,
+    stars: L.stars.map((p, i) => {
+      const top = i === 1 ? 1.15 : 1;
+      return { x: cx + (i - 1) * starR * 2.4, y: p.y - (L.starR - starR) * top };
+    }),
+  };
+}
+
+/** Lowest point of the star row (the middle star is drawn at 1.15 R). */
+export function endStarsBottom(L: EndLayout): number {
+  return Math.max(...L.stars.map((s, i) => s.y + L.starR * (i === 1 ? 1.15 : 1)));
+}
+
+/** The end board's text stack (summary row, caption, star-rule line) against its button row. */
+export interface EndStackInput {
+  /** Summary row centre as laid out, and the highest it may go (just under the stars). */
+  readonly rowY: number;
+  readonly minRowY: number;
+  /** Caption centre below the row centre, and the caption's height. */
+  readonly captionOff: number;
+  readonly captionH: number;
+  /** Star-rule line height (0 = no rule line); its centre below the caption's, at rest / tightest. */
+  readonly ruleH: number;
+  readonly ruleOff: number;
+  readonly ruleOffMin: number;
+  /** Clear space the text needs above the button circles (the hero row's band when it is shown). */
+  readonly room: number;
+  /** The same with the rule line shown (default `room`). */
+  readonly ruleRoom?: number;
+  /** Button row centre as laid out, its lowest allowed centre (labels still on the parchment), circle radius. */
+  readonly btnY: number;
+  readonly maxBtnY: number;
+  readonly btnR: number;
+}
+
+export interface EndStack {
+  readonly rowY: number;
+  readonly captionY: number;
+  readonly ruleY: number;
+  readonly ruleVisible: boolean;
+  readonly btnY: number;
+  /** Overlap left after every lever (0 = the text clears the buttons). */
+  readonly short: number;
+}
+
+/**
+ * Fits the board's text above its buttons. A board with room keeps its layout untouched; a cramped
+ * one (phones) first drops the button row toward the parchment's bottom, then pulls the rule line
+ * up under the caption, then lifts the whole stack toward the stars. Only if the rule line still
+ * does not clear the buttons is it hidden (the caption is then fitted the same way).
+ */
+export function endTextStack(s: EndStackInput): EndStack {
+  const fit = (withRule: boolean): EndStack => {
+    let rowY = s.rowY;
+    let btnY = s.btnY;
+    let ruleOff = s.ruleOff;
+    const bottom = (): number => rowY + s.captionOff + (withRule ? ruleOff + s.ruleH / 2 : s.captionH / 2);
+    let short = bottom() + (withRule ? (s.ruleRoom ?? s.room) : s.room) - (btnY - s.btnR);
+    if (short > 0) {
+      const drop = Math.max(0, Math.min(short, s.maxBtnY - btnY));
+      btnY += drop;
+      short -= drop;
+    }
+    if (short > 0 && withRule) {
+      const tighten = Math.max(0, Math.min(short, ruleOff - s.ruleOffMin));
+      ruleOff -= tighten;
+      short -= tighten;
+    }
+    if (short > 0) {
+      const lift = Math.max(0, Math.min(short, rowY - s.minRowY));
+      rowY -= lift;
+      short -= lift;
+    }
+    const captionY = rowY + s.captionOff;
+    return { rowY, captionY, ruleY: captionY + ruleOff, ruleVisible: withRule, btnY, short: Math.max(0, short) };
+  };
+  const withRule = s.ruleH > 0 ? fit(true) : null;
+  return withRule && withRule.short <= 1e-6 ? withRule : fit(false);
+}
+
+/** Star sizes tried, in order, when the rule line does not fit under full-size stars. */
+export const END_STAR_SQUEEZE = [0.82, 0.74] as const;
+
+/** Button radius on the end board: four buttons are a little smaller so they stay on the parchment. */
+export function endButtonR(L: EndLayout, count: number): number {
+  return count >= 4 ? L.buttonR * 0.9 : L.buttonR;
+}
+
+/** What the end board shows, with its measured text heights (css px). */
+export interface EndBoardText {
+  readonly won: boolean;
+  /** Endless board (a defeat drawn on the victory art): its lines sit between ribbon and buttons. */
+  readonly victoryBoard: boolean;
+  readonly hero: boolean;
+  readonly buttons: number;
+  readonly captionH: number;
+  /** Star-rule line height (0 = no rule line on this board). */
+  readonly ruleH: number;
+  /** Button label height at full size. */
+  readonly labelH: number;
+}
+
+export interface EndBoardFit {
+  /** The layout with the stars / button row as placed. */
+  readonly layout: EndLayout;
+  readonly stack: EndStack;
+  readonly btnR: number;
+}
+
+/**
+ * Places the end board's text stack and button row so no text reaches the buttons (see
+ * `endTextStack`); if the star-rule line (or the caption) still has no room, smaller stars
+ * (END_STAR_SQUEEZE) are tried before the rule line is hidden. Boards with the hero row keep its own room (`heroRoom`).
+ */
+export function endBoardFit(L: EndLayout, m: EndBoardText): EndBoardFit {
+  const f = L.fontBody;
+  const P = L.panel;
+  const btnR = endButtonR(L, m.buttons);
+  const rowY = m.won ? L.summary.y : m.victoryBoard ? (L.stars[1].y + L.summary.y) / 2 + f * 0.6 : L.stars[1].y + L.starR * 0.4;
+  // Labels sit 1.38 R under the button centres and must stay on the parchment's foot.
+  const maxBtnY = P.y + P.h * (END_FRAME.innerBottom + 0.02) - 2 - btnR * 1.38 - m.labelH / 2;
+  const stackFor = (Lx: EndLayout): EndStack =>
+    endTextStack({
+      rowY,
+      // Row icons are 1.5 f tall: keep a small gap under the stars (a defeat / Endless board shows
+      // none, its lines may rise to the stars' line).
+      minRowY: Math.min(rowY, m.won ? endStarsBottom(Lx) + f * 0.95 : Lx.stars[1].y),
+      captionOff: m.won ? f * 1.3 : f * 1.7,
+      captionH: m.captionH,
+      ruleH: m.ruleH,
+      ruleOff: f * 0.95,
+      ruleOffMin: f * 0.8,
+      // Hero row: a 1.84 f portrait between the text and the buttons; the rule line only stays
+      // with a roomier band (phones drop it there, as before).
+      room: m.hero ? f * 2 : Math.max(3, f * 0.3),
+      ruleRoom: m.hero ? f * 2.6 : Math.max(3, f * 0.3),
+      btnY: Lx.buttons[0].y,
+      maxBtnY: Math.max(Lx.buttons[0].y, maxBtnY),
+      btnR,
+    });
+  let layout = L;
+  let stack = stackFor(L);
+  // Still short (or the rule line had to go): smaller stars free room for the stack to rise.
+  const worse = (a: EndStack, b: EndStack): boolean => (m.ruleH > 0 && a.ruleVisible !== b.ruleVisible ? !a.ruleVisible : a.short > b.short + 1e-6);
+  for (const k of END_STAR_SQUEEZE) {
+    // (A hero board squeezes its stars only to fit its caption, not for the rule line.)
+    if (!m.won || ((stack.ruleVisible || m.ruleH <= 0 || m.hero) && stack.short <= 1e-6)) break;
+    const Lc = endStarsCompact(L, k);
+    const Sc = stackFor(Lc);
+    if (worse(stack, Sc)) {
+      layout = Lc;
+      stack = Sc;
+    }
+  }
+  if (stack.btnY !== layout.buttons[0].y) layout = { ...layout, buttons: layout.buttons.map((p) => ({ x: p.x, y: stack.btnY })) };
+  return { layout, stack, btnR };
+}

@@ -111,6 +111,8 @@ declare global {
       /** QA: the item belt (slots, states, aim, FX counters); `itemPress` presses a slot (null cancels). */
       items?: () => Record<string, unknown> | null;
       endCrystals?: () => number;
+      /** QA: puts a mode note (challenge / Daily / Endless result) on the open end board. */
+      endAnnotate?: (note: import('./ui/modeBits.ts').EndModeNote) => void;
       itemPress?: (id: import('../data/market.ts').ItemId | null) => void;
       /** QA: aim the held item at a screen point and cast there (as a tap would). */
       itemCastAt?: (x: number, y: number) => boolean;
@@ -1131,6 +1133,7 @@ async function main(): Promise<void> {
     hudCheck: () => hudCheck(game),
     items: () => itemBelt?.debug() ?? null,
     endCrystals: () => game.end.crystalsShown,
+    endAnnotate: (note) => game.end.annotate(note),
     itemPress: (id) => itemBelt?.press(id),
     itemCastAt: (x, y) => itemBelt?.castAt(x, y) ?? false,
     textAudit: () => auditCanvasTexts([...game.hud.qaTexts(), ...game.end.qaTexts(), ...game.ring.qaTexts()], app.screen.width, app.screen.height),

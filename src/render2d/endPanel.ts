@@ -3,7 +3,7 @@ import { t, type MsgKey } from '../i18n/index.ts';
 import type { LoadedArt } from './assets2d.ts';
 import { paintedText, setFontSize, setText } from './hudText.ts';
 import { easeOutBack, easeOutCubic, fitWidth, INK_SOFT, inkText, kit, paintedUiTexture, setInkSize } from './uiKit.ts';
-import { END_FRAME, endLayout, NO_INSETS, type EndLayout, type Insets, type Rect } from './uiLayout.ts';
+import { END_FRAME, endBoardFit, endButtonR, endHeroRoom, endLayout, NO_INSETS, type EndLayout, type Insets, type Rect } from './uiLayout.ts';
 import type { EndModeNote } from './ui/modeBits.ts';
 import type { DifficultyId } from '../data/difficulty.ts';
 import { DIFFICULTY_EMBLEMS } from './ui/difficultyEmblems.ts';
@@ -129,24 +129,6 @@ export interface EndHeroXp {
   readonly skillPoints: number;
   /** False when the run is not recorded (QA / debug scenes): no bar, just the run's XP. */
   readonly recorded: boolean;
-}
-
-/**
- * Makes room for the hero XP row: smaller stars lifted a little, the summary closer under them and
- * the buttons a touch lower (fractions of the parchment's inner height `innerFrac` × panel h).
- */
-function heroRoom(L: EndLayout, innerFrac: number): EndLayout {
-  const inner = L.panel.h * innerFrac;
-  const starR = L.starR * 0.8;
-  const lift = inner * 0.05;
-  return {
-    ...L,
-    starR,
-    stars: L.stars.map((p, i) => ({ x: L.panel.x + L.panel.w / 2 + (i - 1) * starR * 2.4, y: p.y - lift - (L.starR - starR) * 0.6 })),
-    summary: { x: L.summary.x, y: L.summary.y - inner * 0.1 },
-    buttons: L.buttons.map((p) => ({ x: p.x, y: p.y + inner * 0.035 })),
-    buttonR: L.buttonR * 0.94,
-  };
 }
 
 const STAR_DELAY = 0.45;
@@ -423,7 +405,7 @@ export class EndPanel {
     const tex = this.panel.texture;
     const hasArt = tex !== Texture.EMPTY;
     const aspect = hasArt ? tex.width / Math.max(1, tex.height) : 1.45;
-    const L = this.hero ? heroRoom(endLayout(w, h, insets, aspect, END_FRAME), END_FRAME.innerBottom - END_FRAME.innerTop) : endLayout(w, h, insets, aspect, END_FRAME);
+    const L = this.hero ? endHeroRoom(endLayout(w, h, insets, aspect, END_FRAME), END_FRAME.innerBottom - END_FRAME.innerTop) : endLayout(w, h, insets, aspect, END_FRAME);
     this.lay = L;
     this.dim.clear().rect(0, 0, w, h).fill({ color: 0x1a1006, alpha: 0.55 });
     const P = L.panel;
@@ -440,15 +422,6 @@ export class EndPanel {
     this.title.position.set(L.title.x, L.title.y);
     fitWidth(this.title, P.w * 0.5);
     const won = this.summary?.won ?? true;
-    for (let i = 0; i < 3; i++) {
-      const st = this.stars[i];
-      for (const sp of [st.empty, st.full]) {
-        sp.position.set(L.stars[i].x, L.stars[i].y);
-        sp.visible = won;
-      }
-      const d = L.starR * (i === 1 ? 2.3 : 2);
-      st.empty.scale.set(d / Math.max(1, st.empty.texture.width));
-    }
     // Summary row: heart + lives (or the wave reached) and coins + gold, centred.
     const f = L.fontBody;
     setInkSize(this.line1, f);
@@ -468,8 +441,50 @@ export class EndPanel {
     const blockC = showCrystals ? (this.crystal.texture !== Texture.EMPTY ? crystalIcon + gap * 0.6 : 0) + this.line3.width : 0;
     const total = blockA + f * 1.6 + blockB + (showCrystals ? f * 1.6 + blockC : 0);
     let x = L.summary.x - total / 2;
-    // An Endless board has no stars: its lines sit lower, between the ribbon and the buttons.
-    const y = won ? L.summary.y : this.note?.victoryBoard ? (L.stars[1].y + L.summary.y) / 2 + f * 0.6 : L.stars[1].y + L.starR * 0.4;
+    fitWidth(this.caption, P.w * 0.8);
+    const ruleOn = won && this.rule.text !== '' && !this.note;
+    setInkSize(this.rule, Math.max(10, Math.round(f * 0.68)));
+    fitWidth(this.rule, P.w * 0.78);
+    // Buttons: Retry / Watch / Next Isle / World Map (Next hidden when there is no open next island).
+    const hasNext = this.summary?.hasNext ?? false;
+    const hasReplay = this.summary?.hasReplay ?? false;
+    const shown = this.buttons.filter((b) => (b.action !== 'next' || hasNext) && (b.action !== 'replay' || hasReplay));
+    // Four buttons: a little smaller and closer so they stay on the parchment.
+    const step = shown.length >= 4 ? 3.05 : 3.4;
+    const r = endButtonR(L, shown.length);
+    const labelFs = Math.round(Math.max(13, r * 0.42));
+    // Label height at full size (the row shares one scale): the buttons may sink until their
+    // labels reach the parchment's foot.
+    let labelH = 0;
+    for (const b of shown) {
+      setInkSize(b.label, labelFs);
+      setText(b.label, t(END_LABELS[b.action]));
+      b.label.scale.set(1);
+      labelH = Math.max(labelH, b.label.height);
+    }
+    // No board text may reach the buttons (phones: the rule line used to sit under them).
+    const fitted = endBoardFit(L, {
+      won,
+      victoryBoard: !!this.note?.victoryBoard,
+      hero: !!this.hero,
+      buttons: shown.length,
+      captionH: this.caption.height,
+      ruleH: ruleOn ? this.rule.height : 0,
+      labelH,
+    });
+    const S = fitted.stack;
+    const Lb = fitted.layout;
+    const y = S.rowY;
+    this.lay = Lb;
+    for (let i = 0; i < 3; i++) {
+      const st = this.stars[i];
+      for (const sp of [st.empty, st.full]) {
+        sp.position.set(Lb.stars[i].x, Lb.stars[i].y);
+        sp.visible = won;
+      }
+      const d = Lb.starR * (i === 1 ? 2.3 : 2);
+      st.empty.scale.set(d / Math.max(1, st.empty.texture.width));
+    }
     if (won) {
       this.heart.position.set(x + icon / 2, y);
       x += icon + gap;
@@ -487,39 +502,21 @@ export class EndPanel {
       x += crystalIcon + gap * 0.6;
     }
     this.line3.position.set(x, y);
-    this.caption.position.set(L.summary.x, won ? y + f * 1.3 : y + f * 1.7);
-    fitWidth(this.caption, P.w * 0.8);
-    this.rule.visible = won && this.rule.text !== '' && !this.note;
-    setInkSize(this.rule, Math.round(f * 0.68));
-    this.rule.position.set(L.summary.x, this.caption.y + f * 0.95);
-    fitWidth(this.rule, P.w * 0.74);
-    // Small boards (phones) with the hero row: no room for the extra line.
-    if (this.rule.visible && this.hero) {
-      const room = L.buttons[0].y - L.buttonR - (this.rule.y + this.rule.height / 2);
-      if (room < f * 2.6) this.rule.visible = false;
-    }
-    this.layoutHero(L, f);
+    this.caption.position.set(L.summary.x, S.captionY);
+    this.rule.visible = S.ruleVisible;
+    this.rule.position.set(L.summary.x, S.ruleY);
+    this.layoutHero(Lb, f, r);
     this.layoutDiffTag(L);
-    // Buttons: Retry / Next Isle / World Map (Next hidden when there is no open next island).
-    const hasNext = this.summary?.hasNext ?? false;
-    const hasReplay = this.summary?.hasReplay ?? false;
-    const shown = this.buttons.filter((b) => (b.action !== 'next' || hasNext) && (b.action !== 'replay' || hasReplay));
     for (const b of this.buttons) b.root.visible = shown.includes(b);
     // The glowing medallion marks the way on: Next isle after a win, Retry after a defeat.
     const main = primaryEndAction(this.summary?.won ?? false);
     for (const b of shown) b.bg.texture = b.action === main ? this.btnHiTex : this.btnTex;
-    // Four buttons: a little smaller and closer so they stay on the parchment.
-    const four = shown.length >= 4;
-    const step = four ? 3.05 : 3.4;
     shown.forEach((b, i) => {
       const k = i - (shown.length - 1) / 2;
-      const r = four ? L.buttonR * 0.9 : L.buttonR;
       b.r = r;
-      b.root.position.set(L.summary.x + k * r * step, L.buttons[0].y);
+      b.root.position.set(L.summary.x + k * r * step, S.btnY);
       b.bg.width = r * 2;
       b.bg.height = r * 2;
-      setInkSize(b.label, Math.round(Math.max(13, r * 0.42)));
-      setText(b.label, t(END_LABELS[b.action]));
       fitWidth(b.label, r * (step - 0.12));
       b.label.position.set(0, r * 1.38);
       this.drawGlyph(b);
@@ -562,13 +559,13 @@ export class EndPanel {
   }
 
   /** Hero row between the caption and the buttons: portrait, "Bran +86 XP", level-up line, XP bar. */
-  private layoutHero(L: EndLayout, f: number): void {
+  private layoutHero(L: EndLayout, f: number, btnR: number): void {
     const h = this.hero;
     this.heroRow.visible = !!h && this.root.visible;
     if (!h) return;
     const P = L.panel;
     const capBottom = this.rule.visible ? this.rule.y + this.rule.height / 2 : this.caption.y + this.caption.height / 2;
-    const btnTop = L.buttons[0].y - L.buttonR;
+    const btnTop = L.buttons[0].y - btnR;
     const yMid = (capBottom + btnTop) / 2 - f * 0.05;
     const fs = Math.round(f * 0.8);
     setInkSize(this.heroText, fs);
@@ -752,6 +749,8 @@ export class EndPanel {
     note: { title: string; line1: string; caption: string } | null;
     /** Buttons drawn with their painted icon (texture loaded), the rest use the Graphics glyph. */
     painted: EndAction[];
+    /** Screen boxes of the shown board texts (QA: nothing may overlap the button circles / labels). */
+    boxes: { name: string; x: number; y: number; w: number; h: number }[];
   } | null {
     if (!this.root.visible || !this.lay) return null;
     return {
@@ -760,6 +759,23 @@ export class EndPanel {
       stars: this.summary?.stars ?? 0,
       note: this.note ? { title: this.title.text, line1: this.line1.text, caption: this.caption.text } : null,
       painted: this.buttons.filter((b) => b.root.visible && b.icon.visible).map((b) => b.action),
+      boxes: (
+        [
+          ['line1', this.line1],
+          ['line2', this.line2],
+          ['line3', this.line3],
+          ['caption', this.caption],
+          ['rule', this.rule],
+          ['heroText', this.heroText],
+          ['heroLvl', this.heroLvl],
+          ...this.buttons.map((b) => [`label:${b.action}`, b.label] as const),
+        ] as const
+      )
+        .filter(([, txt]) => txt.visible && txt.text !== '' && (txt.parent?.visible ?? false) && (txt !== this.heroText && txt !== this.heroLvl ? true : this.heroRow.visible))
+        .map(([name, txt]) => {
+          const r = txt.getBounds();
+          return { name, x: r.x, y: r.y, w: r.width, h: r.height };
+        }),
     };
   }
 }
