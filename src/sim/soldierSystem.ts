@@ -1134,7 +1134,7 @@ export class SoldierSystem {
     if (maxExtra <= 0) return;
     let added = 0;
     const primaryHoldCost = ENEMY_MELEE[primary.type].holdCost;
-    while (added < maxExtra && primary.blockers < primaryHoldCost) {
+    while (added < maxExtra && primary.blockers + primary.heroBlockers < primaryHoldCost) {
       primary.blockers++;
       s.extraHoldPoolIndices.push(primary.poolIndex);
       s.extraHoldUids.push(primary.uid);
@@ -1159,7 +1159,7 @@ export class SoldierSystem {
     for (let k = 0; k < extraHoldOrder.length && added < maxExtra; k++) {
       const cand = this.pool.items[extraHoldOrder[k]];
       const candHoldCost = ENEMY_MELEE[cand.type].holdCost;
-      if (cand.blockers >= candHoldCost) {
+      if (cand.blockers + cand.heroBlockers >= candHoldCost) {
         rank++;
         continue;
       }
@@ -1169,7 +1169,7 @@ export class SoldierSystem {
         this.blockedList.push(cand.poolIndex);
         this.primary[cand.poolIndex] = soldierId;
       }
-      while (added < maxExtra && cand.blockers < candHoldCost) {
+      while (added < maxExtra && cand.blockers + cand.heroBlockers < candHoldCost) {
         cand.blockers++;
         s.extraHoldPoolIndices.push(cand.poolIndex);
         s.extraHoldUids.push(cand.uid);
