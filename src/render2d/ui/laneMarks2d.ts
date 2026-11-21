@@ -1,16 +1,34 @@
 /**
- * "They come from here": on islands with more than one cave, a small bobbing red chevron with the
- * foe count over each cave the next wave will march out of, shown together with the next-wave
- * card (before the first wave, between waves, paused). Data-driven from the wave's groups and the
- * island's ground paths. DOM + CSS, pointer-transparent; Reduced motion: no bobbing.
+ * "They come from here": a small bobbing chevron with the foe count over each cave (and dedicated
+ * flyer entry) that the upcoming wave actually uses, shown before every wave while the next wave
+ * can be called (before wave 1, between waves, and during the early-call window) and hidden as soon
+ * as the wave starts spawning. Data-driven from the wave's groups and the island's paths. DOM +
+ * CSS, pointer-transparent; Reduced motion: no bobbing.
  */
 import './laneMarks2d.css';
 import { t } from '../../i18n/index.ts';
 import { userUiScale, type Rect } from '../uiLayout.ts';
-import { el } from './dom.ts';
+import { el, glyph } from './dom.ts';
 
-export { pointAlong, waveLaneCounts } from '../lanePath.ts';
+export { pointAlong, SHARED_ENTRANCE_DIST, waveEntranceCounts, waveLaneCounts, type EntranceCount } from '../lanePath.ts';
 import { pointAlong } from '../lanePath.ts';
+
+export interface EntranceMarksGate {
+  readonly waveState: string;
+  readonly canStartNextWave: boolean;
+  readonly ongoing: boolean;
+  readonly overlayOpen: boolean;
+}
+
+/**
+ * True when entrance markers for the upcoming wave should be shown: before every wave while it can
+ * be called (pre-first-wave, between-waves break, early-call window after the active wave finished
+ * spawning), and false as soon as a wave starts spawning or an overlay covers the battlefield.
+ */
+export function shouldShowEntranceMarks(g: EntranceMarksGate): boolean {
+  if (!g.ongoing || g.overlayOpen || !g.canStartNextWave) return false;
+  return g.waveState === 'preFirstWave' || g.waveState === 'betweenWaves' || g.waveState === 'clearing' || g.waveState === 'allSpawned';
+}
 
 /** The painted kit's unit (`--s` in paintedUi.css) at this viewport, css px. */
 export function kitUnit(w: number, h: number): number {
@@ -25,17 +43,19 @@ export function laneMarkBox(x: number, y: number, s: number): Rect {
 
 /**
  * Where a lane's mark stands: just out of the cave along its road, sliding further along it while
- * it would sit under the next-wave card, the horn or another HUD piece (pure).
+ * it would sit under the next-wave card, the horn, another HUD piece, or off the viewport (pure).
  */
 export function laneMarkSpot(
   path: readonly { readonly x: number; readonly z: number }[],
   toScreen: (p: { x: number; z: number }) => { x: number; y: number },
   avoid: readonly Rect[],
   s: number,
+  viewport?: { readonly w: number; readonly h: number },
 ): { x: number; y: number } | null {
   // The first clear spot; when every spot is covered, the least covered (earlier wins ties).
   let best: { x: number; y: number } | null = null;
   let bestA = Infinity;
+  const pad = 4;
   for (const d of [1.6, 2.6, 3.6, 4.8, 6, 7.5, 9, 11]) {
     const p = pointAlong(path, d);
     if (!p) return null;
@@ -43,6 +63,11 @@ export function laneMarkSpot(
     const b = laneMarkBox(at.x, at.y, s);
     let a = 0;
     for (const r of avoid) a += Math.max(0, Math.min(b.x + b.w, r.x + r.w) - Math.max(b.x, r.x)) * Math.max(0, Math.min(b.y + b.h, r.y + r.h) - Math.max(b.y, r.y));
+    if (viewport) {
+      const ix = Math.max(0, Math.min(b.x + b.w, viewport.w - pad) - Math.max(b.x, pad));
+      const iy = Math.max(0, Math.min(b.y + b.h, viewport.h - pad) - Math.max(b.y, pad));
+      a += Math.max(0, b.w * b.h - ix * iy);
+    }
     if (a === 0) return at;
     if (a < bestA) {
       bestA = a;
@@ -58,43 +83,59 @@ export interface LaneMark {
   readonly x: number;
   readonly y: number;
   readonly count: number;
+  /** Dedicated air-entry marker (flyers entering away from ground caves). */
+  readonly flying?: boolean;
 }
 
 export interface LaneMarks2D {
   /** Every frame; null / empty hides them. */
   update(marks: readonly LaneMark[] | null): void;
-  debug(): { shown: number; lanes: number[] };
+  debug(): { shown: number; lanes: number[]; counts: { lane: number; count: number; flying: boolean }[] };
 }
 
 export function mountLaneMarks(): LaneMarks2D {
-  const pool: { root: HTMLElement; n: HTMLElement }[] = [];
+  const pool: { root: HTMLElement; n: HTMLElement; wing: HTMLElement; count: HTMLElement; chev: HTMLElement }[] = [];
   let key = '';
-  let shownLanes: number[] = [];
-  const get = (i: number): { root: HTMLElement; n: HTMLElement } => {
+  let shownMarks: { lane: number; count: number; flying: boolean }[] = [];
+  const get = (i: number): (typeof pool)[number] => {
     while (pool.length <= i) {
-      const n = el('span', 'pu-lane-n pu-letter');
-      const root = el('div', 'pu pu-lane-mark', { 'aria-hidden': 'true', 'data-testid': 'lane2d-mark' }, n, el('span', 'pu-lane-chev'));
+      const wing = glyph('wing');
+      wing.style.display = 'none';
+      wing.style.width = '0.95em';
+      wing.style.height = '0.95em';
+      wing.style.verticalAlign = '-0.12em';
+      wing.style.marginRight = '0.2em';
+      const count = el('span');
+      const n = el('span', 'pu-lane-n pu-letter', {}, wing, count);
+      const chev = el('span', 'pu-lane-chev');
+      const root = el('div', 'pu pu-lane-mark', { 'aria-hidden': 'true', 'data-testid': 'lane2d-mark' }, n, chev);
       root.style.display = 'none';
       document.body.append(root);
-      pool.push({ root, n });
+      pool.push({ root, n, wing, count, chev });
     }
     return pool[i];
   };
   return {
     update(marks) {
       const list = marks ?? [];
-      const k = list.map((m) => `${m.lane}:${m.count}@${Math.round(m.x)},${Math.round(m.y)}`).join(';');
+      const k = list.map((m) => `${m.flying ? 'a' : 'g'}${m.lane}:${m.count}@${Math.round(m.x)},${Math.round(m.y)}`).join(';');
       if (k === key) return;
       key = k;
-      shownLanes = list.map((m) => m.lane);
+      shownMarks = list.map((m) => ({ lane: m.lane, count: m.count, flying: !!m.flying }));
       list.forEach((m, i) => {
         const p = get(i);
-        p.n.textContent = t('wave.laneCount', { n: m.count });
+        const air = !!m.flying;
+        p.root.dataset.kind = air ? 'air' : 'ground';
+        p.wing.style.display = air ? 'inline-flex' : 'none';
+        p.count.textContent = t('wave.laneCount', { n: m.count });
+        // Dedicated air entry: cool sky-blue tint (inline so laneMarks2d.css stays untouched).
+        p.n.style.background = air ? 'linear-gradient(#2d78b8, #1a4b7a)' : '';
+        p.chev.style.filter = air ? 'hue-rotate(195deg) saturate(1.15) drop-shadow(0 2px 2px rgba(30, 16, 4, 0.5))' : '';
         p.root.style.display = '';
         p.root.style.transform = `translate(${Math.round(m.x)}px, ${Math.round(m.y)}px)`; // i18n-ignore (css)
       });
       for (let i = list.length; i < pool.length; i++) pool[i].root.style.display = 'none';
     },
-    debug: () => ({ shown: shownLanes.length, lanes: shownLanes }),
+    debug: () => ({ shown: shownMarks.length, lanes: shownMarks.map((m) => m.lane), counts: shownMarks }),
   };
 }

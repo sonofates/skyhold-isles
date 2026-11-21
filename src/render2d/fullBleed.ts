@@ -205,7 +205,7 @@ function rangeAxis(screen: number, img: number): [number, number] {
   return img >= screen ? [screen - img, 0] : [(screen - img) / 2, (screen - img) / 2];
 }
 
-/** The pan range at a scale. */
+/** The pan range at a scale: never past the painting's edges. */
 export function panRange(screenW: number, screenH: number, imageW: number, imageH: number, scale: number): PanRange {
   const [minX, maxX] = rangeAxis(screenW, imageW * scale);
   const [minY, maxY] = rangeAxis(screenH, imageH * scale);
@@ -214,7 +214,11 @@ export function panRange(screenW: number, screenH: number, imageW: number, image
 
 /** An offset clamped into the pan range. */
 export function clampPan(r: PanRange, x: number, y: number): { x: number; y: number } {
-  return { x: Math.min(r.maxX, Math.max(r.minX, x)), y: Math.min(r.maxY, Math.max(r.minY, y)) };
+  const loX = Math.min(r.minX, r.maxX);
+  const hiX = Math.max(r.minX, r.maxX);
+  const loY = Math.min(r.minY, r.maxY);
+  const hiY = Math.max(r.minY, r.maxY);
+  return { x: Math.min(hiX, Math.max(loX, x)), y: Math.min(hiY, Math.max(loY, y)) };
 }
 
 function grow(r: Rect, m: number): Rect {
@@ -458,23 +462,6 @@ export function fullBleedFit(screenW: number, screenH: number, layout: Level2DLa
   return {
     fit: { ...f, shrink: scale / cover, coverage: coverageOf(screenW, screenH, f), clear: b.r.cost === 0 && b.r.info === 0, clearButInfo: b.r.cost === 0 },
     dock: b.r.dock,
-    pan: reachRange(pan, dock, shapes, scale, screenH, ih),
+    pan,
   };
-}
-
-/**
- * The pan range grown past the painting's top / bottom edge just far enough that gameplay painted
- * near that edge (the must-see box) can be lifted clear of the HUD row along it (`hudRows`: how
- * deep the top / bottom pieces reach into the screen). Zero on most islands on a desktop; on a
- * phone the HUD rows are deep next to the map and the cover zoom leaves little vertical room.
- * The default view never uses it (no band at rest); the player sees the frame only when panning
- * there on purpose.
- */
-export function reachRange(pan: PanRange, dock: HudDock, shapes: HardShapes, scale: number, screenH: number, imageH: number): PanRange {
-  const m = shapes.mustSee;
-  const top = Math.max(dock.buttons.y + dock.buttons.h, dock.info.y + dock.info.h) + HARD_MARGIN;
-  const bottom = screenH - Math.min(dock.plaque.y, dock.tray.y, dock.banner.y) + HARD_MARGIN;
-  const extTop = Math.max(0, top - Math.max(0, m.y) * scale);
-  const extBottom = Math.max(0, bottom - Math.max(0, imageH - m.y - m.h) * scale);
-  return { minX: pan.minX, maxX: pan.maxX, minY: pan.minY - extBottom, maxY: pan.maxY + extTop };
 }

@@ -4,9 +4,9 @@
  * drag on the ground, two-finger scroll, Shift + arrow keys, one-finger drag on touch.
  *
  * The state is the map's screen offset (screen px of image px (0, 0)), always inside the pan range
- * (never past the painting, bar the small reach past its top / bottom edge, fullBleed.ts
- * reachRange). A released drag glides on a little and stops (light inertia); keys glide to their
- * step. Reduced motion: no glide, no inertia — the view moves exactly as far as the hand did.
+ * (never past the painting's edges — the HUD may overlay the map, never an empty band). A released
+ * drag glides on a little and stops (light inertia); keys glide to their step. Reduced motion: no
+ * glide, no inertia — the view moves exactly as far as the hand did.
  */
 import { clampPan, type PanRange } from './fullBleed.ts';
 
