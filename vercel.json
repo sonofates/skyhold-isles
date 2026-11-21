@@ -4,6 +4,33 @@
   "outputDirectory": "dist",
   "headers": [
     {
+      "source": "/assets/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    },
+    {
+      "source": "/art2d/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=600, stale-while-revalidate=2592000"
+        }
+      ]
+    },
+    {
+      "source": "/(fonts|audio|sfx|music)/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=600, stale-while-revalidate=2592000"
+        }
+      ]
+    },
+    {
       "source": "/sw.js",
       "headers": [
         {
