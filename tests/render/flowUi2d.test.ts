@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { EventBus } from '../../src/core/eventBus.ts';
-import { LEVEL_L1C } from '../../src/data/levels2d/index.ts';
+import { LEVEL_L1C, LEVELS_2D } from '../../src/data/levels2d/index.ts';
 import { EN } from '../../src/i18n/en.ts';
 import { setLocale, t } from '../../src/i18n/index.ts';
 import { TR } from '../../src/i18n/tr.ts';
@@ -12,7 +12,9 @@ import { hudTipText } from '../../src/render2d/ui/hudTips2d.ts';
 import { seenFromCleared, waveTypes } from '../../src/render2d/ui/newFoes2d.ts';
 import { coachCardSpot, coachStep, coachText, type CoachObs } from '../../src/render2d/ui/coach2d.ts';
 import { waveCallout } from '../../src/render2d/ui/waveBanner2d.ts';
-import { laneMarkSpot, pointAlong, waveLaneCounts } from '../../src/render2d/ui/laneMarks2d.ts';
+import { laneMarkSpot, pointAlong, shouldShowEntranceMarks, waveEntranceCounts, waveLaneCounts } from '../../src/render2d/ui/laneMarks2d.ts';
+import { buildEndlessWaveDef } from '../../src/sim/waveSystem.ts';
+import type { EnemyType } from '../../src/core/types.ts';
 import { livesLow } from '../../src/render2d/ui/lowLives2d.ts';
 import { ENEMY_DEFS, ENEMY_TYPES } from '../../src/data/enemies.ts';
 import { gateKeepOutsPx, plateCentreY } from '../../src/render2d/uiLayout.ts';
@@ -227,7 +229,7 @@ describe('next-wave caves', () => {
     expect(pointAlong(path, 3)).toEqual({ x: 2, z: 1 });
     expect(pointAlong(path, 99)).toEqual({ x: 2, z: 4 });
   });
-  it('a mark slides along its road off the next-wave card', () => {
+  it('a mark slides along its road off the next-wave card and stays inside the viewport', () => {
     const path = [
       { x: 0, z: 0 },
       { x: 10, z: 0 },
@@ -237,5 +239,84 @@ describe('next-wave caves', () => {
     // A card over the first two spots: the mark moves on to the third (3.6 units out).
     const at = laneMarkSpot(path, toScreen, [{ x: 140, y: 200, w: 70, h: 120 }], 10);
     expect(at?.x).toBe(244);
+    // Cave mouth off the left edge of the viewport: mark slides into view.
+    const toOffLeft = (p: { x: number; z: number }): { x: number; y: number } => ({ x: -100 + p.x * 40, y: 300 });
+    const inView = laneMarkSpot(path, toOffLeft, [], 10, { w: 800, h: 600 });
+    expect(inView?.x).toBeGreaterThan(20);
+  });
+
+  it('per-entrance counts include only active entrances and split flyers when flightPath has its own entry', () => {
+    const isFlying = (ty: string): boolean => Boolean(ENEMY_DEFS[ty as EnemyType]?.flying);
+    // i16 has 3 ground caves and a separate flight entry on the eastern rim.
+    const i16 = LEVELS_2D.find((l) => l.id === 'i16' || l.id === 'emberglass-sanctum')!;
+    const lay16 = i16.layout2d!;
+    // Wave 1: 10 grunts lane 0, 10 grunts lane 1 (lane 2 and flight entry unused -> omitted).
+    const w1 = waveEntranceCounts(i16.waves[0].groups, lay16.paths, lay16.flightPath, isFlying);
+    expect(w1.map((e) => ({ lane: e.lane, flying: e.flying, count: e.count }))).toEqual([
+      { lane: 0, flying: false, count: 10 },
+      { lane: 1, flying: false, count: 10 },
+    ]);
+    // Wave 4 (Cinder Fall): 6 splitters lane 0, 7 flyers (own flight entry), 10 grunts lane 1.
+    const w4 = waveEntranceCounts(i16.waves[3].groups, lay16.paths, lay16.flightPath, isFlying);
+    expect(w4.map((e) => ({ lane: e.lane, flying: e.flying, count: e.count }))).toEqual([
+      { lane: 0, flying: false, count: 6 },
+      { lane: 1, flying: false, count: 10 },
+      { lane: -1, flying: true, count: 7 },
+    ]);
+    // Endless wave on i16: flyers always count on the dedicated flight entry regardless of round-robin lane.
+    const endlessDef = buildEndlessWaveDef(i16.waves.length + 2, i16);
+    const endlessEntries = waveEntranceCounts(endlessDef.groups, lay16.paths, lay16.flightPath, isFlying);
+    const totalGroups = endlessDef.groups.reduce((s, g) => s + g.count, 0);
+    const totalEntries = endlessEntries.reduce((s, e) => s + e.count, 0);
+    const totalFlyers = endlessDef.groups.filter((g) => isFlying(g.enemyType)).reduce((s, g) => s + g.count, 0);
+    expect(totalEntries).toBe(totalGroups);
+    expect(endlessEntries.find((e) => e.flying)?.count).toBe(totalFlyers);
+    // i10: flightPath[0] coincides with lane 1 -> flyers merge into lane 1 (no duplicate air entry).
+    const i10 = LEVELS_2D.find((l) => l.id === 'i10' || l.index === 9)!;
+    const lay10 = i10.layout2d!;
+    const m10 = waveEntranceCounts(
+      [
+        { enemyType: 'grunt', count: 5, lane: 0 },
+        { enemyType: 'flyer', count: 6, lane: 0 },
+      ],
+      lay10.paths,
+      lay10.flightPath,
+      isFlying,
+    );
+    expect(m10.map((e) => ({ lane: e.lane, flying: e.flying, count: e.count }))).toEqual([
+      { lane: 0, flying: false, count: 5 },
+      { lane: 1, flying: false, count: 6 },
+    ]);
+    // Single-cave island (i01): flightPath shares lane 0 -> flyers merge into lane 0.
+    const i01 = LEVELS_2D.find((l) => l.id === 'i01' || l.index === 0)!;
+    const lay01 = i01.layout2d!;
+    const m01 = waveEntranceCounts(
+      [
+        { enemyType: 'grunt', count: 4 },
+        { enemyType: 'flyer', count: 3 },
+      ],
+      lay01.paths,
+      lay01.flightPath,
+      isFlying,
+    );
+    expect(m01.map((e) => ({ lane: e.lane, flying: e.flying, count: e.count }))).toEqual([{ lane: 0, flying: false, count: 7 }]);
+    // Flyer-only wave on a dedicated flight entry returns only the air marker.
+    const airOnly = waveEntranceCounts([{ enemyType: 'flyer', count: 9 }], lay16.paths, lay16.flightPath, isFlying);
+    expect(airOnly.map((e) => ({ lane: e.lane, flying: e.flying, count: e.count }))).toEqual([{ lane: -1, flying: true, count: 9 }]);
+  });
+
+  it('entrance marker gate shows before every callable wave and hides on wave start or overlays', () => {
+    expect(shouldShowEntranceMarks({ waveState: 'preFirstWave', canStartNextWave: true, ongoing: true, overlayOpen: false })).toBe(true);
+    expect(shouldShowEntranceMarks({ waveState: 'betweenWaves', canStartNextWave: true, ongoing: true, overlayOpen: false })).toBe(true);
+    expect(shouldShowEntranceMarks({ waveState: 'clearing', canStartNextWave: true, ongoing: true, overlayOpen: false })).toBe(true);
+    // Endless mode after wave N finishes spawning -> callable -> shown.
+    expect(shouldShowEntranceMarks({ waveState: 'allSpawned', canStartNextWave: true, ongoing: true, overlayOpen: false })).toBe(true);
+    // Story mode final wave after spawning -> not callable -> hidden.
+    expect(shouldShowEntranceMarks({ waveState: 'allSpawned', canStartNextWave: false, ongoing: true, overlayOpen: false })).toBe(false);
+    // Wave started (normal or early call) -> spawning -> hidden.
+    expect(shouldShowEntranceMarks({ waveState: 'spawning', canStartNextWave: false, ongoing: true, overlayOpen: false })).toBe(false);
+    // Overlay / run ended -> hidden.
+    expect(shouldShowEntranceMarks({ waveState: 'betweenWaves', canStartNextWave: true, ongoing: true, overlayOpen: true })).toBe(false);
+    expect(shouldShowEntranceMarks({ waveState: 'betweenWaves', canStartNextWave: true, ongoing: false, overlayOpen: false })).toBe(false);
   });
 });

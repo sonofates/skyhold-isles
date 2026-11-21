@@ -15,7 +15,7 @@ import { specPortraitUrl } from './specArt.ts';
 import { initLocale, t } from '../i18n/index.ts';
 import { heroName, islandName } from '../i18n/data.ts';
 import { AimOverlay, aimHooks, meleeHooks, towersHooks, zooHooks, ZooLabels, type AimSceneState, type MeleeSceneState } from './debugScenes.ts';
-import { ENEMY_TYPES } from '../data/enemies.ts';
+import { ENEMY_DEFS, ENEMY_TYPES } from '../data/enemies.ts';
 import { getTowerTierStats } from '../data/towers.ts';
 import type { EnemyType } from '../core/types.ts';
 import { FrameStats } from './frameStats.ts';
@@ -516,8 +516,8 @@ async function main(): Promise<void> {
   let waveBanner: import('./ui/waveBanner2d.ts').WaveBanner2D | null = null;
   let laneMarks: import('./ui/laneMarks2d.ts').LaneMarks2D | null = null;
   let laneMod: typeof import('./ui/laneMarks2d.ts') | null = null;
-  /** Foes per lane of the next wave, cached per wave index (Endless builds its waves). */
-  let laneCache: { idx: number; counts: Map<number, number> } | null = null;
+  /** Foes per entrance of the next wave, cached per level / endless / wave index (Endless builds its waves). */
+  let laneCache: { key: string; entries: readonly import('./lanePath.ts').EntranceCount[] } | null = null;
   let calloutFor: ((waveIndex: number) => import('./ui/waveBanner2d.ts').WaveCallout) | null = null;
   let coachPlot = -1;
   let settingsRef: Settings2D | null = null;
@@ -1081,26 +1081,40 @@ async function main(): Promise<void> {
       const hud = game.debugHud();
       const visible = calm && !storyOpen && !anySheetOpen() && !game.end.visible && !game.ringOpen && w.outcome === 'ongoing' && ws.canStartNextWave() && !foeCard?.debug().shown && !newFoeToast?.debug().visible;
       const pv = visible ? ws.getNextWavePreview() : null;
-      // Multi-cave islands: which caves the next wave marches out of (with the card).
+      // Cave / flyer entrance markers: show before every wave while callable (independent of the
+      // top-left info slot, so new-foe toasts, foe inspection and tower building never hide them).
       const lay = w.level.layout2d;
       if (laneMarks && laneMod) {
         let marks: import('./ui/laneMarks2d.ts').LaneMark[] | null = null;
-        if (pv && lay && lay.paths.length > 1) {
-          const idx = pv.waveOneBased - 1;
-          if (laneCache?.idx !== idx) {
+        const showMarks = laneMod.shouldShowEntranceMarks({
+          waveState: ws.state,
+          canStartNextWave: ws.canStartNextWave(),
+          ongoing: w.outcome === 'ongoing',
+          overlayOpen: storyOpen || anySheetOpen() || game.end.visible,
+        });
+        const nextPv = showMarks ? ws.getNextWavePreview() : null;
+        if (nextPv && lay && lay.paths.length > 0) {
+          const idx = nextPv.waveOneBased - 1;
+          const cacheKey = `${w.level.id}|${ws.isEndless ? 1 : 0}|${idx}`;
+          if (laneCache?.key !== cacheKey) {
             const def = idx < w.level.waves.length ? w.level.waves[idx] : ws.isEndless ? buildEndlessWaveDef(idx, w.level) : null;
-            laneCache = { idx, counts: def ? laneMod.waveLaneCounts(def.groups) : new Map() };
+            laneCache = {
+              key: cacheKey,
+              entries: def ? laneMod.waveEntranceCounts(def.groups, lay.paths, lay.flightPath, (ty) => Boolean(ENEMY_DEFS[ty as EnemyType]?.flying)) : [],
+            };
           }
           marks = [];
-          // Keep off the card (last frame's spot), the horn and the HUD pieces.
+          // Keep off the top-left card/toast, the horn, the HUD pieces and the viewport edge.
           const card = waveCard.box();
+          const toast = newFoeToast?.debug().rect ?? null;
           const hr = game.hud.rects();
-          const avoid = [...(card ? [card] : []), hr.hornBox, hr.plaque, hr.banner, hudButtonsKeepOut(app.screen.width, app.screen.height, readSafeInsets()), ...hudKeepOuts()];
+          const avoid = [...(card ? [card] : []), ...(toast ? [toast] : []), hr.hornBox, hr.plaque, hr.banner, hudButtonsKeepOut(app.screen.width, app.screen.height, readSafeInsets()), ...hudKeepOuts()];
           const toScreen = (p: { x: number; z: number }): { x: number; y: number } => ({ x: game.map.screenX(game.map.pxX(p.x)), y: game.map.screenY(game.map.pxY(p.z)) });
           const unit = laneMod.kitUnit(app.screen.width, app.screen.height);
-          for (const [lane, count] of laneCache.counts) {
-            const at = laneMod.laneMarkSpot(lay.paths[lane] ?? [], toScreen, avoid, unit);
-            if (at) marks.push({ lane, count, ...at });
+          const vp = { w: app.screen.width, h: app.screen.height };
+          for (const entry of laneCache.entries) {
+            const at = laneMod.laneMarkSpot(entry.path, toScreen, avoid, unit, vp);
+            if (at) marks.push({ lane: entry.lane, count: entry.count, flying: entry.flying, ...at });
           }
         }
         laneMarks.update(marks);
