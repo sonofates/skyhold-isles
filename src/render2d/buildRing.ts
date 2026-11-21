@@ -36,7 +36,9 @@ export type RingAction =
   | { readonly kind: 'rally' }
   /** Attack towers: cycle the targeting mode. */
   | { readonly kind: 'target' }
-  /** Tier III: open the comparison card of the two specializations (this one focused). */
+  /** Tier III: take this specialization (first tap previews it, the second buys it — like upgrade). */
+  | { readonly kind: 'spec'; readonly id: string }
+  /** Tier III: open the optional side-by-side card (the branch tip's "(i) Compare" row). */
   | { readonly kind: 'compare'; readonly id: string }
   /** Specialized tower: buy this ability. */
   | { readonly kind: 'ability'; readonly id: string };
@@ -79,14 +81,72 @@ function targetTip(mode: TargetingMode, record: string, desktop: boolean): TipCo
 }
 
 /** "Tap …" on touch, "Click …" with a mouse. */
-const ACTION_HINT: Readonly<Record<'build' | 'upgrade' | 'sell' | 'choose' | 'compare' | 'ability', readonly [MsgKey, MsgKey]>> = {
+const ACTION_HINT: Readonly<Record<'build' | 'upgrade' | 'sell' | 'choose' | 'spec' | 'ability', readonly [MsgKey, MsgKey]>> = {
   build: ['ring.tapBuild', 'ring.clickBuild'],
   upgrade: ['ring.tapUpgrade', 'ring.clickUpgrade'],
   sell: ['ring.tapSell', 'ring.clickSell'],
   choose: ['ring.tapChoose', 'ring.clickChoose'],
-  compare: ['ring.tapCompare', 'ring.clickCompare'],
+  spec: ['ring.tapSpec', 'ring.clickSpec'],
   ability: ['ring.tapBuy', 'ring.clickBuy'],
 };
+
+/** How a ring token answers taps (pure: unit-tested in tests/render/specInline.test.ts). */
+export interface RingTokenRule {
+  readonly action: RingAction;
+  /** Price checked against live gold (null = always enabled). */
+  readonly cost: number | null;
+  /** Needs a confirming second tap (build / upgrade / sell / a branch / an ability). */
+  readonly confirm: boolean;
+}
+
+/**
+ * The tier-III tokens: one per branch. First tap previews it (tip: name, role, effect, stat gains,
+ * range), the second buys it straight from the ring — no board, no pause. The optional comparison
+ * card hangs off the branch's tip ("(i) Compare" row, `tipTap`), not off a token of its own.
+ */
+export function branchTokenRules(branches: readonly { readonly id: string; readonly cost: number }[]): RingTokenRule[] {
+  return branches.map((b) => ({ action: { kind: 'spec', id: b.id }, cost: b.cost, confirm: true }));
+}
+
+/** A tap on the ring's tooltip: a branch tip opens the comparison card (that branch focused), any other tip just swallows it. */
+export function tipTap(compare: string | undefined): RingAction | null {
+  return compare ? { kind: 'compare', id: compare } : null;
+}
+
+/**
+ * A tap on a token: `'select'` (first tap of a confirm token: preview it), the action to run, or
+ * null (unaffordable / banned: the tip says why). Same rule for build, upgrade, sell and branches.
+ */
+export function ringTap(rule: { readonly confirm: boolean; readonly action: RingAction | null }, enabled: boolean, isSelected: boolean): RingAction | 'select' | null {
+  if (!rule.confirm) return enabled ? rule.action : null;
+  if (!isSelected) return 'select';
+  return enabled ? rule.action : null;
+}
+
+let infoTex: Texture | null = null;
+/** Ink "i" in a ring (the branch tip's "Compare" row): drawn once, no font needed. */
+function infoIcon(): Texture {
+  if (infoTex) return infoTex;
+  const c = document.createElement('canvas');
+  c.width = c.height = 96;
+  const g = c.getContext('2d')!;
+  g.fillStyle = '#f6e7c4';
+  g.strokeStyle = '#5a3412';
+  g.lineWidth = 7;
+  g.beginPath();
+  g.arc(48, 48, 40, 0, Math.PI * 2);
+  g.fill();
+  g.stroke();
+  g.fillStyle = '#5a3412';
+  g.beginPath();
+  g.arc(48, 27, 7.5, 0, Math.PI * 2);
+  g.fill();
+  g.beginPath();
+  g.roundRect(41, 40, 14, 36, 5);
+  g.fill();
+  infoTex = Texture.from(c);
+  return infoTex;
+}
 
 /** Short tower name (localised; see src/i18n/data.ts). */
 export function shortTowerName(type: string): string {
@@ -125,8 +185,6 @@ interface Token {
   readonly pips: Sprite[];
   action: RingAction | null;
   enabled: boolean;
-  /** Acts on the confirming tap even when unaffordable (the comparison card shows the price). */
-  actsWhenPoor: boolean;
   banned: boolean;
   /** Build cost / upgrade cost checked against live gold (null = always enabled / banned). */
   cost: number | null;
@@ -151,6 +209,8 @@ interface TipContent {
   hintBad: string;
   /** Acts on the first tap (targeting / rally): keep this hint, never "tap to choose". */
   fixedHint?: boolean;
+  /** A tier-III branch: the tip ends with an "(i) Compare" row (tap = the comparison card). */
+  compare?: string;
 }
 
 /** Tower ring radius: clears a tower drawn above its plot (towers are ~2.7 medallion radii tall). */
@@ -192,6 +252,12 @@ class RingTooltip {
   private readonly pipSprites: Sprite[] = [];
   private pipTex: { empty: Texture; filled: Texture } | null = null;
   private readonly hint = inkText(14, 'left', INK, '600');
+  /** "(i) Compare" row under a branch's hint. */
+  private readonly info = new Container();
+  private readonly infoIconS = new Sprite(Texture.EMPTY);
+  private readonly infoText = inkText(14, 'left', INK, '700');
+  /** That row's box (tooltip-local), or null when the tip has none. */
+  infoBox: Rect | null = null;
   private content: TipContent | null = null;
   private lastU = 1;
   w = 220;
@@ -211,6 +277,10 @@ class RingTooltip {
     this.desc.style.wordWrap = true;
     this.desc.style.breakWords = true;
     this.root.addChild(this.bg, this.title, this.role, this.desc, this.pips, this.hint, this.coin, this.cost);
+    this.infoIconS.anchor.set(0, 0.5);
+    this.info.addChild(this.infoIconS, this.infoText);
+    this.info.visible = false;
+    this.root.addChild(this.info);
     for (let i = 0; i < 15; i++) {
       const p = new Sprite(Texture.EMPTY);
       p.anchor.set(0.5);
@@ -343,6 +413,22 @@ class RingTooltip {
       this.hint.position.set(pad, y);
       fitWidth(this.hint, W - pad * 2);
     }
+    this.info.visible = !!c.compare;
+    this.infoBox = null;
+    if (c.compare) {
+      // Its own row: a painted "i" + "Compare" (the whole tip is the tap target, this says so).
+      y += fBody * 1.55;
+      if (this.infoIconS.texture === Texture.EMPTY) this.infoIconS.texture = infoIcon();
+      const ic = fBody * 1.35;
+      this.infoIconS.scale.set(ic / this.infoIconS.texture.width);
+      this.infoIconS.position.set(0, 0);
+      setInkSize(this.infoText, fBody);
+      setText(this.infoText, msg('ring.compare'));
+      this.infoText.position.set(ic + 5, 0);
+      fitWidth(this.infoText, W - pad * 2 - ic - 5);
+      this.info.position.set(pad, y);
+      this.infoBox = { x: pad - 4, y: y - ic * 0.5 - 4, w: ic + 5 + this.infoText.width + 8, h: ic + 8 };
+    }
     const H = Math.round(y + fBody * 0.55 + pad);
     this.w = W;
     this.h = H;
@@ -369,7 +455,7 @@ class RingTooltip {
     const b = this.bg.getBounds();
     const f = Math.min(this.w * 0.05, this.h * 0.1);
     const box = { x: b.x + f, y: b.y + f * 0.6, w: b.width - f * 2, h: b.height - f * 1.2 };
-    return [this.title, this.role, this.cost, this.hint, ...this.labels, this.desc].map((text, i) => ({ name: `ring.tip${i}`, text, box }));
+    return [this.title, this.role, this.cost, this.hint, ...this.labels, this.desc, this.infoText].map((text, i) => ({ name: `ring.tip${i}`, text, box }));
   }
 }
 
@@ -471,7 +557,6 @@ export class BuildRing {
         pips,
         action: null,
         enabled: false,
-        actsWhenPoor: false,
         banned: false,
         cost: null,
         preview: null,
@@ -509,6 +594,12 @@ export class BuildRing {
     this.tooltip.root.visible = false;
   }
 
+  /** The branch token now selected (the comparison card focuses its column), or null. */
+  get selectedBranch(): string | null {
+    const a = this.isOpen && this.selected >= 0 && this.selected < this.count ? this.tokens[this.selected].action : null;
+    return a?.kind === 'spec' ? a.id : null;
+  }
+
   /** Range preview target: selected token, else hovered token (desktop). */
   get preview(): RingPreview | null {
     if (!this.isOpen) return null;
@@ -542,7 +633,6 @@ export class BuildRing {
     t.label.visible = false;
     t.hoverK = 0;
     t.banned = false;
-    t.actsWhenPoor = false;
     t.cost = null;
     t.preview = null;
     t.tip = null;
@@ -579,7 +669,7 @@ export class BuildRing {
     void loadSpecPortrait(this.art, id).then((loaded) => {
       if (!loaded || seq !== this.openSeq || !this.isOpen) return;
       const a = t.action;
-      if ((a?.kind === 'compare' || a?.kind === 'ability') && t.root.visible) {
+      if ((a?.kind === 'spec' || a?.kind === 'ability') && t.root.visible) {
         this.setFace(t, loaded, true);
         if (!t.enabled) t.face.filters = [this.gray];
       }
@@ -776,20 +866,23 @@ export class BuildRing {
         }
       }
     } else if (tier === 3 && info.branches && info.branches.length > 0) {
-      // Tier III: the two specializations (portrait, price) instead of "upgrade". The second tap
-      // opens the comparison card, also when gold is short (it shows what is missing).
-      for (const b of info.branches) {
+      // Tier III: the two specializations (portrait, price) instead of "upgrade": first tap previews
+      // (name, role, effect, stat gains, range), the second buys it here — no board, no pause. The
+      // tip's "(i) Compare" row opens the side-by-side card (optional detail, specCard2d / main2d).
+      const rules = branchTokenRules(info.branches);
+      for (const rule of rules) {
         const t = this.resetToken(i++);
+        const a = rule.action;
+        const b = info.branches.find((x) => a.kind === 'spec' && x.id === a.id)!;
         this.setFace(t, art?.tiers[2] ?? Texture.WHITE, true, tint);
         this.portraitFace(t, b.id);
         t.badge.texture = kit(this.art, 'iconUpgrade', Texture.EMPTY);
         t.badge.visible = t.badge.texture !== Texture.EMPTY;
         this.setTag(t, String(b.cost), true);
-        t.action = { kind: 'compare', id: b.id };
-        t.cost = b.cost;
+        t.action = a;
+        t.cost = rule.cost;
         t.enabled = gold >= b.cost;
-        t.actsWhenPoor = true;
-        t.confirm = true;
+        t.confirm = rule.confirm;
         const bs = branchStats(info.type, b);
         t.preview = { type: info.type, tier: 3, range: bs.range };
         t.tip = {
@@ -798,8 +891,9 @@ export class BuildRing {
           desc: specDesc(b.id),
           rows: statRows(info.type, 3),
           next: statRowsFor(info.type, bs),
-          hint: this.hint('compare'),
+          hint: this.hint('spec'),
           hintBad: '',
+          compare: b.id,
         };
         this.applyEnabled(t);
       }
@@ -943,7 +1037,7 @@ export class BuildRing {
     else if (i !== this.selected) c.hint = this.hint('choose');
     else
       c.hint =
-        kind === 'build' || kind === 'upgrade' || kind === 'sell' || kind === 'compare' || kind === 'ability' ? this.hint(kind) : '';
+        kind === 'build' || kind === 'upgrade' || kind === 'sell' || kind === 'spec' || kind === 'ability' ? this.hint(kind) : '';
     this.placeTip(c);
   }
 
@@ -961,16 +1055,22 @@ export class BuildRing {
     const i = this.tokenAt(x, y);
     if (i < 0) {
       const tp = this.tooltip.root;
-      if (tp.visible && x >= tp.x && x <= tp.x + this.tooltip.w && y >= tp.y && y <= tp.y + this.tooltip.h) return null;
+      const inX = tp.visible && x >= tp.x && x <= tp.x + this.tooltip.w;
+      // Only the branch tip's "(i) Compare" row (full width, >= a touch target tall, may reach a
+      // little past the tip's edge) opens the card: a stray tap on the rest never pauses the run.
+      const sp = this.compareSpot();
+      const rowH = Math.max(this.tooltip.infoBox?.h ?? 0, MIN_TOUCH);
+      if (sp && inX && Math.abs(y - sp.y) <= rowH / 2 + 2) return tipTap(this.tooltip.current?.compare);
+      if (inX && y >= tp.y && y <= tp.y + this.tooltip.h) return null;
       return undefined;
     }
     const t = this.tokens[i];
-    if (!t.confirm) return t.enabled ? t.action : null;
-    if (this.selected !== i) {
+    const r = ringTap(t, t.enabled, this.selected === i);
+    if (r === 'select') {
       this.select(i);
       return null;
     }
-    return t.enabled || t.actsWhenPoor ? t.action : null;
+    return r;
   }
 
   /** Per-frame: bloom / close animation, hover easing, live affordability. */
@@ -1032,6 +1132,14 @@ export class BuildRing {
       out.push({ x: t.tx, y: t.ty, enabled: t.enabled });
     }
     return out;
+  }
+
+  /** The branch tip's "(i) Compare" row centre (screen), when shown: a pad / keyboard reticle stop. */
+  compareSpot(): { x: number; y: number } | null {
+    const tp = this.tooltip.root;
+    const b = this.tooltip.infoBox;
+    if (!this.isOpen || !tp.visible || !b || !this.tooltip.current?.compare) return null;
+    return { x: tp.x + b.x + b.w / 2, y: tp.y + b.y + b.h / 2 };
   }
 
   /** Token radius, ring box, tooltip rect and selection (QA hooks). */

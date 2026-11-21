@@ -344,8 +344,9 @@ export const EN = {
   'ring.rallyHintClick': 'Click, then click the road to move it',
   'ring.banned': 'Off-limits in this challenge',
   'ring.needGold': 'Need {n} gold',
-  'ring.tapCompare': 'Tap again to compare',
-  'ring.clickCompare': 'Click again to compare',
+  'ring.tapSpec': 'Tap again: permanent pick',
+  'ring.clickSpec': 'Click again: permanent pick',
+  'ring.compare': 'Compare',
   'ring.tapBuy': 'Tap again to buy',
   'ring.clickBuy': 'Click again to buy',
   'ring.specOf': '{name} · tier IV',
@@ -401,8 +402,8 @@ export const EN = {
   'spec.stat.soldierDamage': 'Soldier damage',
   'spec.stat.soldierCleave': 'Sweep damage',
   'spechint.title': 'Choose a specialization',
-  'spechint.text': 'A tower reached tier III. Tap it to pick one of two specializations.',
-  'spechint.textMouse': 'A tower reached tier III. Click it to pick one of two specializations.',
+  'spechint.text': 'A tower reached tier III. Tap it, tap one of the two specializations in the ring, then tap again to take it.',
+  'spechint.textMouse': 'A tower reached tier III. Click it, click one of the two specializations in the ring, then click again to take it.',
   'spechint.ok': 'Got it',
 
   // --- end panel -----------------------------------------------------------------------------

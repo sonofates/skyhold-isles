@@ -504,8 +504,8 @@ async function main(): Promise<void> {
   let settingsRef: Settings2D | null = null;
   let gameRef: Game2D | null = null;
   let codexWasPaused = false;
-  let specWasPaused = false;
-  let specCardOpen = false;
+  // The optional comparison card: pauses while open, always gives the pause back (specCardGate.ts).
+  let specGate: import('./ui/specCardGate.ts').SpecCardGate | null = null;
   let specHint: import('./ui/specHint2d.ts').SpecHint2D | null = null;
   let settingsWasPaused = false;
   let introWasPaused = false;
@@ -563,7 +563,7 @@ async function main(): Promise<void> {
       if (inBackground) {
         // Keep the run paused on resume even if Codex or the intro story was open when backgrounded.
         codexWasPaused = true;
-        specWasPaused = true;
+        specGate?.keepPausedOnClose();
         settingsWasPaused = true;
         introWasPaused = true;
         if (!isDebugScene) app.ticker.stop();
@@ -888,25 +888,25 @@ async function main(): Promise<void> {
         }
       });
     }
-    // Tier-IV specializations: the build ring's "compare" opens the comparison card (pauses the
-    // run while open); "Choose" goes through the recorded command layer (game.specializeTower).
+    // Tier-IV specializations are bought in the build ring (two taps, game.specializeTower); its
+    // branch tip's "(i) Compare" row opens the side-by-side card as optional detail. The gate pauses while the
+    // card is up and restores the pause whichever way it goes (incl. a chunk that fails to load).
+    const { SpecCardGate } = await import('./ui/specCardGate.ts');
+    const gate = new SpecCardGate(game);
+    specGate = gate;
     game.onSpecCompare = (req) => {
-      if (specCardOpen || game.replaying) return;
-      specCardOpen = true;
-      specWasPaused = game.stepper.paused;
-      game.stepper.paused = true;
-      void import('./ui/specCard2d.ts').then(({ openSpecCard }) => {
-        openSpecCard({
-          type: req.type,
-          gold: game.world.gold,
-          focus: req.focus,
-          portraitUrl: (id) => specPortraitUrl(art, id),
-          onChoose: (id) => game.specializeTower(req.towerId, id),
-          onClose: () => {
-            specCardOpen = false;
-            game.stepper.paused = specWasPaused;
-          },
-        });
+      if (game.replaying || game.end.visible) return;
+      gate.open(req.towerId, game.world, async () => {
+        const { openSpecCard } = await import('./ui/specCard2d.ts');
+        return (onClose) =>
+          openSpecCard({
+            type: req.type,
+            gold: game.world.gold,
+            focus: req.focus,
+            portraitUrl: (id) => specPortraitUrl(art, id),
+            onChoose: (id) => game.specializeTower(req.towerId, id),
+            onClose,
+          });
       });
     };
     // The first tower at tier III: a one-time "choose a specialization" tip (?spechint=1 forces it).
@@ -1037,6 +1037,11 @@ async function main(): Promise<void> {
       // Hidden under the pause menu too (the card and its arrow cluttered it on phones).
       coach.update(obs, target, game.end.visible || storyOpen || anySheetOpen() || game.replaying || game.stepper.paused);
     }
+    if (specGate?.isOpen) {
+      // The card only makes sense for this run's tier-III tower without a branch, live play.
+      const tw = specGate.owner === game.world ? game.world.getTowerById(specGate.towerId) : null;
+      specGate.frame(!!tw && tw.tier === 3 && !tw.specialization && !game.end.visible && !game.replaying);
+    }
     if (specHint && !specHint.done) {
       const busy = game.end.visible || storyOpen || anySheetOpen() || game.ringOpen || game.replaying || game.stepper.paused || !!coach?.debug().shown;
       specHint.update(game.world.towers, (id) => game.towerTopScreen(id), busy);
@@ -1143,7 +1148,8 @@ async function main(): Promise<void> {
     foe: () => foeCard?.debug() ?? null,
     coach: () => coach?.debug() ?? null,
     spec: () => ({
-      card: specCardOpen,
+      card: specGate?.isOpen ?? false,
+      cardState: specGate?.debugState ?? 'closed',
       hint: specHint?.debug() ?? null,
       flourishes: game.specFlourishes,
       ringTower: game.ringTower,

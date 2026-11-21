@@ -1426,7 +1426,7 @@ export class Game2D {
    */
   onSpecCompare: ((req: { readonly towerId: number; readonly type: TowerType; readonly focus: string }) => void) | null = null;
 
-  /** The comparison card's "Choose": specializes through the recorded command layer, closes the ring. */
+  /** A branch token's confirming tap (or the card's "Choose"): recorded command, closes the ring. */
   specializeTower(towerId: number, specId: string): boolean {
     const ok = this.command({ k: 'spec', id: towerId, spec: specId });
     if (this.ring.isOpen) this.closeRing();
@@ -1483,7 +1483,13 @@ export class Game2D {
       const sorted = [...bs.filter((b) => b.action === main), ...bs.filter((b) => b.action !== main)];
       return { mode: 'end', points: sorted.map((b) => ({ x: b.x, y: b.y })) };
     }
-    if (this.ring.isOpen) return { mode: 'ring', points: this.ring.tokenPositions().map((p) => ({ x: p.x, y: p.y })) };
+    if (this.ring.isOpen) {
+      // The tokens, then a branch tip's "(i) Compare" row (the optional comparison card).
+      const points = this.ring.tokenPositions().map((p) => ({ x: p.x, y: p.y }));
+      const cmp = this.ring.compareSpot();
+      if (cmp) points.push(cmp);
+      return { mode: 'ring', points };
+    }
     if (this.heroSel || this.rallyTower !== -1) return { mode: 'free', points: [] };
     const lay = this.level.layout2d;
     const points = lay ? lay.plots.map((_, i) => this.plotScreen(i)) : [];
@@ -1571,10 +1577,14 @@ export class Game2D {
       this.command({ k: 'build', plot, type: action.type });
     } else if (action.kind === 'upgrade') {
       if (this.selectedTower !== -1) this.command({ k: 'upgrade', id: this.selectedTower });
+    } else if (action.kind === 'spec') {
+      // The branch's second tap: bought straight from the ring (recorded command; closes the ring).
+      if (this.selectedTower !== -1) this.specializeTower(this.selectedTower, action.id);
+      return;
     } else if (action.kind === 'compare') {
-      // The comparison card (DOM, main2d) decides; the ring stays open under it for a cancel.
+      // Optional detail: the comparison card (DOM, main2d); the ring stays open under it.
       const t = this.selectedTower !== -1 ? world.getTowerById(this.selectedTower) : null;
-      if (t && this.onSpecCompare) this.onSpecCompare({ towerId: t.id, type: t.type, focus: action.id });
+      if (t && this.onSpecCompare) this.onSpecCompare({ towerId: t.id, type: t.type, focus: this.ring.selectedBranch ?? action.id });
       return;
     } else if (action.kind === 'ability') {
       if (this.selectedTower !== -1) this.command({ k: 'ability', id: this.selectedTower, ability: action.id });
@@ -1928,7 +1938,7 @@ export class Game2D {
         matched: this.replayMatched,
       },
       towers: w.towers.map((t) => ({ id: t.id, type: t.type, tier: t.tier, plot: t.col, targeting: t.targetingMode })),
-      ring: { open: this.ring.isOpen, mode: this.ring.mode, plot: this.ring.plot, tokens: this.ring.tokenPositions(), layout: this.ring.layoutInfo, rangeShown: this.rangeDisc.visible },
+      ring: { open: this.ring.isOpen, mode: this.ring.mode, plot: this.ring.plot, tokens: this.ring.tokenPositions(), compare: this.ring.compareSpot(), layout: this.ring.layoutInfo, rangeShown: this.rangeDisc.visible },
       hud: this.hud.rects(),
       end: this.end.debug(),
       insets: this.insets,

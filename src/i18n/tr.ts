@@ -350,8 +350,9 @@ export const TR: { readonly [K in MsgKey]: Msg } = {
   'ring.rallyHintClick': 'Tıkla, sonra yola tıklayarak taşı',
   'ring.banned': 'Bu meydan okumada yasak',
   'ring.needGold': '{n} altın gerekli',
-  'ring.tapCompare': 'Karşılaştırmak için yine dokun',
-  'ring.clickCompare': 'Karşılaştırmak için yine tıkla',
+  'ring.tapSpec': 'Kalıcı seçim: yine dokun',
+  'ring.clickSpec': 'Kalıcı seçim: yine tıkla',
+  'ring.compare': 'Karşılaştır',
   'ring.tapBuy': 'Satın almak için yine dokun',
   'ring.clickBuy': 'Satın almak için yine tıkla',
   'ring.specOf': '{name} · IV. seviye',
@@ -407,8 +408,8 @@ export const TR: { readonly [K in MsgKey]: Msg } = {
   'spec.stat.soldierDamage': 'Asker hasarı',
   'spec.stat.soldierCleave': 'Savuruş hasarı',
   'spechint.title': 'Uzmanlık seç',
-  'spechint.text': 'Bir kule III. seviyeye ulaştı. İki uzmanlıktan birini seçmek için ona dokun.',
-  'spechint.textMouse': 'Bir kule III. seviyeye ulaştı. İki uzmanlıktan birini seçmek için ona tıkla.',
+  'spechint.text': 'Bir kule III. seviyeye ulaştı. Ona dokun, halkadaki iki uzmanlıktan birine dokun, almak için yine dokun.',
+  'spechint.textMouse': 'Bir kule III. seviyeye ulaştı. Ona tıkla, halkadaki iki uzmanlıktan birine tıkla, almak için yine tıkla.',
   'spechint.ok': 'Anladım',
 
   // --- end panel -----------------------------------------------------------------------------
