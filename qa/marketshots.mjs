@@ -204,7 +204,12 @@ if (ONLY.includes('hud')) {
 if (ONLY.includes('fx')) {
   const S = SIZES.desk;
   const castAtFoe = async (page, id, name) => {
-    const foe = await page.evaluate(() => window.__p0.foeAt());
+    const foe = await page.evaluate(() => {
+      const e = window.__p0.hero.nearestEnemy();
+      if (!e) return null;
+      const p = window.__p0.hero.toScreen(e.x, e.z);
+      return { x: p.x, y: p.y, h: 0 };
+    });
     if (!foe) return fail(`fx ${id}: no foe on the field`);
     await page.evaluate((i) => window.__p0.itemPress(i), id);
     await page.mouse.move(foe.x, foe.y - foe.h * 0.3);
@@ -220,11 +225,12 @@ if (ONLY.includes('fx')) {
   };
   {
     const { ctx, page } = await run(S, 'l1c', ['emberPot', 'frostLantern', 'cloudguard']);
-    await callWave(page, 70);
-    await castAtFoe(page, 'emberPot', 'emberPot');
-    await page.waitForTimeout(400);
+    await callWave(page, 160);
     await castAtFoe(page, 'frostLantern', 'frostLantern');
     await page.waitForTimeout(500);
+    await castAtFoe(page, 'emberPot', 'emberPot');
+    await page.waitForTimeout(400);
+    await page.evaluate(() => window.__p0.replay.step(40));
     await castAtFoe(page, 'cloudguard', 'cloudguard');
     await ctx.close();
   }
@@ -265,9 +271,12 @@ if (ONLY.includes('fx')) {
 // --- victory board ----------------------------------------------------------------------------------
 if (ONLY.includes('end')) {
   for (const [k, s] of [['desk', SIZES.desk], ['phone', SIZES.phone]]) {
-    const { ctx, page } = await open(s, 'level=l1c&lang=tr&end=won');
+    const { ctx, page } = await open(s, 'level=l1c&lang=tr&end=won&crystals=42');
     await page.waitForFunction(() => !!window.__p0?.state, null, { timeout: 90000 });
     await page.waitForTimeout(3500);
+    const n = await page.evaluate(() => window.__p0.endCrystals?.() ?? -1);
+    log('end crystals', k, n);
+    if (n !== 42) fail(`end ${k}: crystals shown ${n}`);
     await shot(page, `end-victory-crystals-${k}`);
     await ctx.close();
   }

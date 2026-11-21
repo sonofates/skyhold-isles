@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { ITEM_IDS, ITEMS, MARKET_RULES, type ItemId } from '../../src/data/market.ts';
 import type { MarketWallet } from '../../src/game/market.ts';
 import { hudDock, itemGroupLong, trayLong } from '../../src/render2d/hudDock.ts';
+import { dockCost, fullBleedFit, fullBleedFitItems, hardShapes } from '../../src/render2d/fullBleed.ts';
+import { LEVELS_2D } from '../../src/data/levels2d/index.ts';
 import {
   beltIds,
   beltKeyIndex,
@@ -145,6 +147,23 @@ describe('HUD dock: the item group', () => {
       expect(k.tray.x).toBeGreaterThanOrEqual(k.plaque.x + k.plaque.w);
       expect(k.tray.x + k.tray.w).toBeLessThanOrEqual(k.banner.x + 0.5);
       expect(itemGroupLong(k.d, k.gap, 3, mode)).toBeGreaterThan(0);
+    }
+  });
+});
+
+describe('full-bleed fit with the item belt', () => {
+  const OPTS = { plaqueAspect: 1024 / 294, plaqueSlots: KIT_PLAQUE_SLOTS, bannerAspect: 512 / 152, hero: true };
+  it('the row is kept only where it covers no more of the island than the pouch', () => {
+    for (const [w, h] of [[1920, 1080], [1512, 982], [844, 390]] as const) {
+      for (const lv of LEVELS_2D.slice(0, 8)) {
+        const L = lv.layout2d!;
+        const sh = hardShapes(L);
+        const dockFor = (itemMode: 'row' | 'pouch') => hudDock(w, h, NO_INSETS, { ...OPTS, items: 3, itemMode });
+        const best = fullBleedFitItems(w, h, L, dockFor, sh);
+        const pouch = fullBleedFit(w, h, L, dockFor('pouch'), sh);
+        expect(dockCost(sh, best), `${w}x${h} ${lv.id}`).toBeLessThanOrEqual(dockCost(sh, pouch));
+        expect(best.dock.items.n).toBe(3);
+      }
     }
   });
 });

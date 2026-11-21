@@ -110,6 +110,7 @@ declare global {
       abilities?: () => Record<string, unknown> | null;
       /** QA: the item belt (slots, states, aim, FX counters); `itemPress` presses a slot (null cancels). */
       items?: () => Record<string, unknown> | null;
+      endCrystals?: () => number;
       itemPress?: (id: import('../data/market.ts').ItemId | null) => void;
       /** QA: aim the held item at a screen point and cast there (as a tap would). */
       itemCastAt?: (x: number, y: number) => boolean;
@@ -629,6 +630,8 @@ async function main(): Promise<void> {
           }),
         );
       }
+      // QA (`?end=won&crystals=42`): the board's crystal line without recording a run.
+      if (!plainPlay && won && q.has('crystals')) gameRef?.end.setCrystals(Number(q.get('crystals')) || 0);
       if (!heroRecorded && w.hero) {
         // Not recorded (QA / debug scenes): the run's XP only.
         gameRef?.end.setHero({
@@ -1127,6 +1130,7 @@ async function main(): Promise<void> {
     waveCard: () => waveCard?.debug() ?? null,
     hudCheck: () => hudCheck(game),
     items: () => itemBelt?.debug() ?? null,
+    endCrystals: () => game.end.crystalsShown,
     itemPress: (id) => itemBelt?.press(id),
     itemCastAt: (x, y) => itemBelt?.castAt(x, y) ?? false,
     textAudit: () => auditCanvasTexts([...game.hud.qaTexts(), ...game.end.qaTexts(), ...game.ring.qaTexts()], app.screen.width, app.screen.height),
