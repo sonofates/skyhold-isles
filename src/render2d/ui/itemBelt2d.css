@@ -164,7 +164,8 @@
 
 /* Tooltip: uses + stock, then the state (green when ready, rust when not). */
 .pu-item-tip-uses {
-  margin-top: 0.1em;
+  margin-top: 0.2em;
+  font-size: 0.94em;
   font-weight: 600;
   white-space: nowrap;
 }

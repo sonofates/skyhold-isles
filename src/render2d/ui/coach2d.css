@@ -1,16 +1,23 @@
 /* First-play coach (coach2d.ts): a parchment tip under the top HUD row + a bobbing gold arrow. */
 .pu-coach {
+  --tip-corner: clamp(11px, calc(var(--s) * 1.08), 18px);
   position: fixed;
   z-index: 29;
   left: 50%;
   top: max(10px, calc(var(--safe-t) + var(--s) * 0.8));
   transform: translateX(-50%);
   width: min(calc(var(--s) * 30), 46vw);
-  padding: calc(var(--s) * 0.4) calc(var(--s) * 0.7) calc(var(--s) * 0.35);
+  min-height: calc(var(--tip-corner) * 2);
+  padding: max(6px, calc(var(--s) * 0.45)) max(10px, calc(var(--s) * 0.82)) max(6px, calc(var(--s) * 0.45));
+  background: #feebc4;
+  background-clip: padding-box;
   border-style: solid;
-  border-width: calc(var(--s) * 1);
-  border-image: url('/art2d/ui/tooltip.webp') 40 fill stretch;
-  filter: drop-shadow(0 4px 4px rgba(30, 16, 4, 0.45));
+  border-width: calc(var(--tip-corner) * 0.52);
+  border-image-source: url('/art2d/ui/tooltip.webp');
+  border-image-slice: 60 fill;
+  border-image-width: var(--tip-corner);
+  border-image-repeat: stretch;
+  filter: drop-shadow(0 4px 5px rgba(30, 16, 4, 0.45));
   pointer-events: none;
 }
 
@@ -62,14 +69,15 @@
 
 .pu-coach-title {
   min-width: 0;
-  font-size: calc(var(--s) * 1.35);
+  font-size: max(15px, calc(var(--s) * 1.22));
   font-weight: 700;
+  line-height: 1.2;
 }
 
 .pu-coach-text {
-  margin-top: calc(var(--s) * 0.3);
-  font-size: calc(var(--s) * 1.1);
-  line-height: 1.3;
+  margin-top: calc(var(--s) * 0.35);
+  font-size: max(14px, calc(var(--s) * 1.02));
+  line-height: 1.35;
 }
 
 .pu-coach-skip {
@@ -78,7 +86,7 @@
   margin: 0 0 0 auto;
   min-height: 28px;
   padding: 0 0.5em;
-  font-size: calc(var(--s) * 0.95);
+  font-size: max(13px, calc(var(--s) * 0.92));
   font-weight: 600;
   text-decoration: underline;
   pointer-events: auto;

@@ -1,17 +1,29 @@
-/* Next-wave card in the dock's info slot (wavePreview2d.ts): the kit's gold-framed parchment tag. */
+/*
+ * Next-wave card in the dock's info slot (wavePreview2d.ts): the kit's gold-framed parchment card.
+ * tooltip.webp (640x490) is sliced at 56 px so all four gold corner caps stay 1:1 square while
+ * `border-width` matches the thinner straight wood rails (~30 px), maximizing readable inner room.
+ */
 .pu-wave-card {
+  --tip-corner: clamp(11px, calc(var(--s) * 0.96), 17px);
   position: fixed;
   z-index: 24;
   display: flex;
   flex-direction: column;
-  gap: calc(var(--s) * 0.35);
+  gap: max(5px, calc(var(--s) * 0.34));
   max-width: min(46vw, calc(var(--s) * 30));
-  padding: calc(var(--s) * 0.4) calc(var(--s) * 0.65);
+  min-height: calc(var(--tip-corner) * 2);
+  padding: max(5px, calc(var(--s) * 0.34)) max(10px, calc(var(--s) * 0.72));
+  background: #feebc4;
+  background-clip: padding-box;
   border-style: solid;
-  border-width: calc(var(--s) * 0.95);
-  border-image: url('/art2d/ui/tooltip.webp') 40 fill stretch;
-  filter: drop-shadow(0 3px 3px rgba(30, 16, 4, 0.4));
+  border-width: calc(var(--tip-corner) * 0.52);
+  border-image-source: url('/art2d/ui/tooltip.webp');
+  border-image-slice: 60 fill;
+  border-image-width: var(--tip-corner);
+  border-image-repeat: stretch;
+  filter: drop-shadow(0 4px 5px rgba(30, 16, 4, 0.45));
   animation: pu-wave-in 0.25s ease-out;
+  overflow: hidden;
   /* Information only: taps go through to the plot / road under it. */
   pointer-events: none;
 }
@@ -35,34 +47,46 @@
 }
 
 .pu-wave-head {
-  font-size: max(12px, calc(var(--s) * 1.15));
+  font-size: max(15px, calc(var(--s) * 1.0));
   font-weight: 700;
+  line-height: 1.15;
+  padding-bottom: max(3px, calc(var(--s) * 0.22));
+  border-bottom: 1.5px dashed rgba(122, 85, 50, 0.35);
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .pu-wave-chips {
   display: flex;
   flex-wrap: wrap;
-  gap: calc(var(--s) * 0.35);
+  align-items: center;
+  gap: max(5px, calc(var(--s) * 0.32)) max(6px, calc(var(--s) * 0.42));
 }
 
 .pu-wave-chip {
   position: relative;
   display: inline-flex;
   align-items: center;
-  gap: calc(var(--s) * 0.15);
-  padding: 0 calc(var(--s) * 0.6) 0 0;
+  gap: max(5px, calc(var(--s) * 0.34));
+  padding: 2px max(9px, calc(var(--s) * 0.56)) 2px 2px;
   border-radius: 999px;
-  background: rgba(122, 85, 50, 0.16);
+  background: rgba(122, 85, 50, 0.14);
+  box-shadow: inset 0 0 0 1.5px rgba(122, 85, 50, 0.28);
+}
+
+.pu-wave-facebox {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  flex: none;
 }
 
 .pu-wave-face {
   display: grid;
   place-items: center;
-  width: calc(var(--s) * 2.7);
-  height: calc(var(--s) * 2.7);
-  min-width: 26px;
-  min-height: 26px;
+  width: clamp(28px, calc(var(--s) * 2.05), 34px);
+  height: clamp(28px, calc(var(--s) * 2.05), 34px);
   border-radius: 50%;
   overflow: hidden;
   background: radial-gradient(circle at 50% 35%, #e9f2d0, #9fbf7a 80%);
@@ -89,23 +113,26 @@
 }
 
 .pu-wave-count {
-  font-size: max(12px, calc(var(--s) * 1.2));
+  font-size: max(15px, calc(var(--s) * 1.0));
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
 }
 
 /* Kind marks hang on the face's lower left (the elite star keeps the top left). */
 .pu-wave-marks {
   position: absolute;
-  left: calc(var(--s) * -0.3);
-  bottom: calc(var(--s) * -0.25);
-  --mark: calc(var(--s) * 1.45);
+  left: -3px;
+  bottom: -3px;
+  --mark: clamp(13px, calc(var(--s) * 1.05), 18px);
 }
 
 .pu-wave-elite {
   position: absolute;
-  left: calc(var(--s) * -0.2);
-  top: calc(var(--s) * -0.3);
-  width: calc(var(--s) * 1.3);
-  height: calc(var(--s) * 1.3);
+  left: -3px;
+  top: -3px;
+  width: clamp(13px, calc(var(--s) * 1.0), 17px);
+  height: clamp(13px, calc(var(--s) * 1.0), 17px);
 }
 
 .pu-wave-elite > img {
@@ -113,17 +140,39 @@
   height: 100%;
 }
 
+/* Inline "New" badge inside the chip pill — sits on the same centerline as face + count, never
+   overlapping the portrait or the top frame border. */
+.pu-wave-chip .pu-wave-new {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.14em 0.52em;
+  border-radius: 999px;
+  font-size: max(11px, calc(var(--s) * 0.72));
+  line-height: 1.1;
+  color: var(--cream);
+  font-weight: 700;
+  background: linear-gradient(#e2533a, #a8261a);
+  box-shadow: 0 0 0 1.5px var(--outline);
+  white-space: nowrap;
+}
+
 .pu-wave-foot {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  column-gap: calc(var(--s) * 0.8);
-  font-size: max(11px, calc(var(--s) * 1));
+  justify-content: space-between;
+  gap: 2px max(8px, calc(var(--s) * 0.65));
+  font-size: max(14px, calc(var(--s) * 0.9));
   font-weight: 600;
+  line-height: 1.2;
 }
 
 .pu-wave-foot:empty {
   display: none;
+}
+
+.pu-wave-hint {
+  min-width: 0;
 }
 
 .pu-wave-bonus {
@@ -132,19 +181,113 @@
   gap: 0.25em;
   color: #9a5a10;
   font-weight: 700;
+  white-space: nowrap;
 }
 
 .pu-wave-bonus > img {
-  width: 1.3em;
-  height: 1.3em;
+  width: 1.2em;
+  height: 1.2em;
+  flex: none;
+}
+
+/* Desktop / laptop screens: ensure readable 15–16 px body text without cramped scaling. */
+@media (min-height: 700px) and (min-width: 1024px) {
+  .pu-wave-head {
+    font-size: max(16px, calc(var(--s) * 1.0));
+  }
+  .pu-wave-count {
+    font-size: max(15.5px, calc(var(--s) * 0.98));
+  }
+  .pu-wave-foot {
+    font-size: max(15px, calc(var(--s) * 0.9));
+  }
+}
+
+/* Later waves with 4+ enemy types: slightly tighter chip pills so two rows wrap cleanly. */
+.pu-wave-card.many {
+  gap: max(4px, calc(var(--s) * 0.24));
+}
+
+.pu-wave-card.many .pu-wave-chips {
+  gap: 4px 5px;
+}
+
+.pu-wave-card.many .pu-wave-chip {
+  gap: 4px;
+  padding: 1px 7px 1px 1px;
+}
+
+.pu-wave-card.many .pu-wave-face {
+  width: clamp(24px, calc(var(--s) * 1.7), 28px);
+  height: clamp(24px, calc(var(--s) * 1.7), 28px);
+}
+
+.pu-wave-card.many .pu-wave-count {
+  font-size: max(13.5px, calc(var(--s) * 0.88));
+}
+
+/* Narrow slots (portrait phones where the top-left info slot is narrow): chip-only, never overflow. */
+.pu-wave-card.compact {
+  --tip-corner: 10px;
+  gap: 0;
+  padding: 3px 5px;
+}
+
+.pu-wave-card.compact .pu-wave-head,
+.pu-wave-card.compact .pu-wave-foot {
+  display: none;
+}
+
+.pu-wave-card.compact .pu-wave-chips {
+  justify-content: center;
+  gap: 3px;
+}
+
+.pu-wave-card.compact .pu-wave-chip {
+  gap: 3px;
+  padding: 1px 5px 1px 1px;
+}
+
+.pu-wave-card.compact .pu-wave-face {
+  width: 24px;
+  height: 24px;
+}
+
+.pu-wave-card.compact .pu-wave-count {
+  font-size: 12px;
+}
+
+.pu-wave-card.compact .pu-wave-new {
+  display: none;
+}
+
+/* Extremely narrow slot (390 px portrait phone): stack face over count neatly inside the frame. */
+.pu-wave-card.tiny {
+  padding: 2px 3px;
+}
+
+.pu-wave-card.tiny .pu-wave-chip {
+  flex-direction: column;
+  gap: 2px;
+  padding: 2px 3px;
+  border-radius: 10px;
+}
+
+.pu-wave-card.tiny .pu-wave-face {
+  width: 22px;
+  height: 22px;
+}
+
+.pu-wave-card.tiny .pu-wave-count {
+  font-size: 11px;
 }
 
 /* Phones (landscape, short screens): only the foes. The horn already shows the bonus and the
    seconds, so the head line and the footer go; the faces shrink. */
 @media (max-height: 560px) {
   .pu-wave-card {
-    padding: 0 calc(var(--s) * 0.2);
-    border-width: calc(var(--s) * 0.8);
+    --tip-corner: 10px;
+    padding: 3px 7px;
     gap: 0;
   }
   .pu-wave-head,
@@ -154,13 +297,19 @@
   .pu-wave-face {
     width: 24px;
     height: 24px;
-    min-width: 24px;
-    min-height: 24px;
   }
   .pu-wave-count {
-    font-size: 12px;
+    font-size: 13px;
+  }
+  .pu-wave-chip {
+    gap: 4px;
+    padding: 1px 7px 1px 1px;
+  }
+  .pu-wave-chip .pu-wave-new {
+    font-size: 10px;
+    padding: 1px 5px;
   }
   .pu-wave-chips {
-    gap: 3px;
+    gap: 4px;
   }
 }

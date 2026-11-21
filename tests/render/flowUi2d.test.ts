@@ -6,7 +6,7 @@ import { setLocale, t } from '../../src/i18n/index.ts';
 import { TR } from '../../src/i18n/tr.ts';
 import { SimWorld } from '../../src/sim/world.ts';
 import { nextSpeed, REPLAY_SPEEDS } from '../../src/render2d/game2d.ts';
-import { waveChips } from '../../src/render2d/ui/wavePreview2d.ts';
+import { waveCardSlot, waveCardTier, waveChips } from '../../src/render2d/ui/wavePreview2d.ts';
 import { foeFacts } from '../../src/render2d/ui/enemyCard2d.ts';
 import { hudTipText } from '../../src/render2d/ui/hudTips2d.ts';
 import { seenFromCleared, waveTypes } from '../../src/render2d/ui/newFoes2d.ts';
@@ -50,6 +50,24 @@ describe('next-wave card', () => {
     expect(waveChips(p).length).toBeGreaterThan(0);
   });
 
+  it('insets roomy desktop slots cleanly without ever leaving the dock slot, and leaves short slots untouched', () => {
+    const desk = { x: 14, y: 7, w: 289, h: 128 };
+    const inset = waveCardSlot(desk);
+    expect(inset.x).toBe(desk.x);
+    expect(inset.y).toBeGreaterThan(desk.y);
+    expect(inset.y + inset.h).toBe(desk.y + desk.h);
+    expect(inset.w).toBe(desk.w);
+
+    const phone = { x: 8, y: 6, w: 177, h: 64 };
+    expect(waveCardSlot(phone)).toEqual(phone);
+  });
+
+  it('picks responsive wave-card density tiers for multi-foe waves and narrow portrait slots', () => {
+    expect(waveCardTier(1, 289)).toEqual({ many: false, compact: false, tiny: false });
+    expect(waveCardTier(5, 289)).toEqual({ many: true, compact: false, tiny: false });
+    expect(waveCardTier(2, 120)).toEqual({ many: false, compact: true, tiny: false });
+    expect(waveCardTier(1, 50)).toEqual({ many: false, compact: true, tiny: true });
+  });
 });
 
 describe('foe card + lives warning', () => {
