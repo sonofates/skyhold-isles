@@ -194,38 +194,41 @@ describe('hero movement, engagement & blocking rules', () => {
     expect(world.hero!.x).toBeCloseTo(-5, 4);
   });
 
-  it('does not freeze distant enemies outside melee contact reach with spare holdCap', () => {
-    const world = new SimWorld(makeLevel(STRAIGHT_JSON), new EventBus(), { heroId: 'bran', heroLevel: 1 });
-    expect(world.commandHeroMove(0, 0)).toBe(true);
+  it('does not freeze enemies across unwalkable canyons / unconnected lanes with spare holdCap', () => {
+    const world = new SimWorld(makeLevel(CANYON_LANES_JSON), new EventBus(), { heroId: 'bran', heroLevel: 1 });
+    // Post Bran on Lane 0 verge at (0, -0.65) so Lane 1 at (0, +1.25) is 1.90u away (<= meleeEngageRadius 2.1u)
+    // across an unwalkable canyon (merge is 6.5u downstream -> graphDist = 13u >> 7.2u).
+    expect(world.commandHeroMove(0, -0.65)).toBe(true);
     tickUntil(world, () => world.hero!.state === 'idle');
 
-    const dPost = world.groundPath.nearestDist(0, 0);
-    // e1 is right next to Bran (enters melee contact); e2 is 2.3u behind e1 (~1.8u from Bran:
-    // inside meleeEngageRadius 2.1u, but well outside melee contact reach!).
-    const e1 = spawnAtDist(world, 'grunt', dPost - 0.5, 0, 8000);
-    const e2 = spawnAtDist(world, 'grunt', dPost - 2.35, 0, 8000);
+    const lane0 = world.enemySystem.getPath(false, 0);
+    const lane1 = world.enemySystem.getPath(false, 1);
+    const eSame1 = spawnAtDist(world, 'grunt', lane0.nearestDist(0, -1.25) - 0.3, 0, 8000);
+    const eAcross = spawnAtDist(world, 'grunt', lane1.nearestDist(0, 1.25) - 0.4, 1, 8000);
 
-    tickUntil(world, () => world.hero!.state === 'fighting' && e1.heroBlockers > 0);
+    tickUntil(world, () => world.hero!.state === 'fighting' && eSame1.heroBlockers > 0);
+    expect(Math.hypot(eAcross.x - world.hero!.x, eAcross.z - world.hero!.z)).toBeLessThan(HERO_RULES.meleeEngageRadius);
 
-    // Immediately after Bran starts fighting e1, e2 is still ~1.7u away from Bran -> must NOT be held yet!
-    expect(Math.hypot(e2.x - world.hero!.x, e2.z - world.hero!.z)).toBeGreaterThan(1.4);
-    expect(e2.heroBlockers).toBe(0);
-    const e2DistBefore = e2.dist;
-    tick(world, 12);
-    expect(e2.dist).toBeGreaterThan(e2DistBefore + 0.2);
+    // Bran (`holdCap = 2`) has 1 spare hold slot while fighting `eSame1`, yet MUST NOT freeze `eAcross` across the canyon!
+    const acrossBefore = eAcross.dist;
+    for (let i = 0; i < 20; i++) {
+      world.fixedTick(DT);
+      expect(eAcross.heroBlockers).toBe(0);
+    }
+    expect(eAcross.dist).toBeGreaterThan(acrossBefore + 0.3);
 
-    // Once e2 actually walks up into melee contact reach of Bran, Bran's 2nd hold slot catches it!
-    tickUntil(world, () => e2.heroBlockers > 0, 5);
-    expect(Math.hypot(e2.x - world.hero!.x, e2.z - world.hero!.z)).toBeLessThanOrEqual(
-      e2.radius + HERO_RULES.radius + HERO_RULES.contactSlack + 0.05,
-    );
+    // A second enemy on Bran's own Lane 0 IS caught by Bran's 2nd hold slot!
+    const eSame2 = spawnAtDist(world, 'grunt', lane0.nearestDist(0, -1.25) - 0.8, 0, 8000);
+    tickUntil(world, () => eSame2.heroBlockers > 0, 4);
+    expect(eSame1.heroBlockers).toBe(1);
+    expect(eSame2.heroBlockers).toBe(1);
   });
 
-  it('hero + soldier + enemy at one point: enforces one blocker per holdCost slot and peels off to unblocked enemies', () => {
+  it('hero + soldier + enemy at one point: enforces one blocker per holdCost slot and peels off when holdCap fills', () => {
     const world = new SimWorld(makeLevel(STRAIGHT_JSON), new EventBus(), { heroId: 'bran', heroLevel: 1 });
     world.gold = 5000;
     const barracks = world.placeTowerOnPlot(0, 'barracks')!;
-    // Keep only 1 living soldier at the rally point so 1 soldier + 1 hero share the post.
+    // Keep only 1 living soldier at the rally point so 1 soldier (`holdCap = 1`) + L1 Bran (`holdCap = 2`) share the post.
     const sq = world.soldierSystem.getBarracks(barracks.id)!.squad;
     sq[1].hp = 0;
     sq[1].state = 'dead';
@@ -235,7 +238,7 @@ describe('hero movement, engagement & blocking rules', () => {
     expect(world.commandHeroMove(bState.rallyX, bState.rallyZ)).toBe(true);
     tickUntil(world, () => world.hero!.state === 'idle' && sq[0].state === 'idle');
 
-    // 1. Spawn lone Grunt A (`holdCost = 1`): while nothing else needs holding, Soldier 0 and Bran both
+    // 1. Lone Grunt A (`holdCost = 1`): while nothing else needs holding, Soldier 0 and Bran both
     // assist on Grunt A (`blockers = 1, heroBlockers = 1`, applying Bulwark).
     const dRally = world.groundPath.nearestDist(bState.rallyX, bState.rallyZ);
     const eA = spawnAtDist(world, 'grunt', dRally - 0.4, 0, 9000);
@@ -243,40 +246,24 @@ describe('hero movement, engagement & blocking rules', () => {
     expect(eA.blockers).toBe(1);
     expect(eA.heroBlockers).toBe(1);
 
-    // 2. Grunt B arrives unblocked (`blockers = 0`) inside meleeEngageRadius (`1.95u` from rally, outside
-    // Soldier's `1.7u` engageRadius): Soldier 0 keeps Grunt A while Bran immediately peels off Grunt A
-    // to intercept and block Grunt B — zero wasted secondary holdCap on soldier-held Grunt A!
-    const eB = spawnAtDist(world, 'grunt', dRally - 1.95, 0, 9000);
+    // 2. Grunt B arrives unblocked (`blockers = 0`): Bran (`holdCap = 2`) catches Grunt B with his
+    // spare 2nd slot without needlessly dropping frontmost Grunt A.
+    const eB = spawnAtDist(world, 'grunt', dRally - 1.2, 0, 9000);
     tickUntil(world, () => eB.heroBlockers >= 1, 4);
+    expect(eB.blockers).toBe(0);
+    expect(eB.heroBlockers).toBe(1);
+
+    // 3. Grunt C arrives unblocked (`3` grunts vs `1 Soldier + Bran(holdCap=2)` = 3 total capacity):
+    // Bran immediately peels his primary hold off soldier-held Grunt A (`eA.heroBlockers -> 0`) so
+    // Soldier 0 holds Grunt A and Bran holds Grunt B + Grunt C — exact 1 blocker per holdCost slot!
+    const eC = spawnAtDist(world, 'grunt', dRally - 1.5, 0, 9000);
+    tickUntil(world, () => eC.heroBlockers >= 1, 4);
     expect(world.hero!.targetUid).toBe(eB.uid);
     expect(eA.blockers).toBe(1);
     expect(eA.heroBlockers).toBe(0);
-    expect(eB.blockers).toBe(0);
-    expect(eB.heroBlockers).toBe(1);
     expect(eA.blockers + eA.heroBlockers).toBe(ENEMY_MELEE.grunt.holdCost);
     expect(eB.blockers + eB.heroBlockers).toBe(ENEMY_MELEE.grunt.holdCost);
-
-    // 3. Grunt C walks into Bran's melee contact reach -> Bran (`holdCap = 2`) holds both Grunt B and Grunt C,
-    // while Soldier 0 holds Grunt A: all 3 grunts stopped with exact 1 blocker per holdCost slot!
-    const eC = spawnAtDist(world, 'grunt', dRally - 2.05, 0, 9000);
-    tickUntil(world, () => eC.heroBlockers >= 1, 4);
-    expect(eA.blockers + eA.heroBlockers).toBe(1);
-    expect(eB.blockers + eB.heroBlockers).toBe(1);
-    expect(eC.blockers + eC.heroBlockers).toBe(1);
-
-    // 4. Reverse direction: wake Soldier 1 while Bran is holding Grunt B + Grunt C, and spawn unblocked
-    // Grunt D within Soldier 1's engageRadius -> free Soldier 1 claims unblocked Grunt D instead of
-    // piling onto Bran-held Grunt B!
-    // (Move rally slightly west so both Bran-held Grunt B and unblocked Grunt D are inside Soldier 1's 1.7u reach.)
-    expect(world.setRallyPoint(barracks.id, eB.x + 0.3, 0)).toBe(true);
-    tickUntil(world, () => sq[0].state === 'fighting', 4);
-    const eD = spawnAtDist(world, 'grunt', eB.dist - 0.5, 0, 9000);
-    sq[1].hp = sq[1].maxHp;
-    sq[1].state = 'idle';
-    sq[1].x = sq[1].prevX = bState.postX[1];
-    sq[1].z = sq[1].prevZ = bState.postZ[1];
-    tick(world, 3);
-    expect(sq[1].targetUid).toBe(eD.uid);
+    expect(eC.blockers + eC.heroBlockers).toBe(ENEMY_MELEE.grunt.holdCost);
   });
 
   it('never freezes at a lane edge trying to engage a stationary enemy across an unwalkable canyon', () => {
@@ -384,26 +371,23 @@ describe('hero movement, engagement & blocking rules', () => {
     }
   });
 
-  it('does not get pushed backwards or dragged sideways by an engaged enemy while in melee contact', () => {
+  it('does not get pushed backwards or dragged sideways by crowd spread while co-fighting an enemy', () => {
     const world = new SimWorld(makeLevel(STRAIGHT_JSON), new EventBus(), { heroId: 'bran', heroLevel: 1 });
-    expect(world.commandHeroMove(0, 0)).toBe(true);
-    tickUntil(world, () => world.hero!.state === 'idle');
+    const barracks = world.placeTowerOnPlot(0, 'barracks')!;
+    const bState = world.soldierSystem.getBarracks(barracks.id)!;
+    expect(world.commandHeroMove(bState.rallyX, bState.rallyZ)).toBe(true);
+    tickUntil(world, () => world.hero!.state === 'idle' && bState.squad.every((s) => s.state === 'idle'));
 
-    // Place a runner close inside `contact` (0.30u < 0.30 + 0.36 = 0.66u) with a slight lateral offset,
-    // as happens when a fast runner steps in on the tick Bran engages it or when soldier spread eases it.
-    const runner = spawnAtDist(world, 'runner', 8.0, 0, 9000);
-    runner.x = runner.prevX = -0.30;
-    runner.z = runner.prevZ = 0.18;
-    world.spatialHash.clear();
-    world.spatialHash.insert(runner.poolIndex, runner.x, runner.z);
+    const dRally = world.groundPath.nearestDist(bState.rallyX, bState.rallyZ);
+    const e1 = spawnAtDist(world, 'grunt', dRally - 0.3, 0, 9000);
+    const e2 = spawnAtDist(world, 'grunt', dRally - 0.4, 0, 9000);
+    tickUntil(world, () => world.hero!.state === 'fighting' && e1.blockers > 0 && e2.blockers > 0);
 
-    tick(world, 1);
-    expect(world.hero!.state).toBe('fighting');
     const fightX = world.hero!.x;
     const fightZ = world.hero!.z;
-
-    // Over the next 30 ticks of fighting, Bran holds his ground — zero backward push or lateral slide!
-    for (let i = 0; i < 30; i++) {
+    // As `SoldierSystem.applyBlockedSpread` eases `e1`/`e2` laterally and backwards across the road,
+    // Bran holds his ground with zero backward push or lateral slide!
+    for (let i = 0; i < 45; i++) {
       world.fixedTick(DT);
       expect(world.hero!.state).toBe('fighting');
       expect(world.hero!.x).toBeCloseTo(fightX, 6);

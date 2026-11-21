@@ -46,6 +46,8 @@ export class GroundGraph {
   private readonly distBuf: Float64Array;
   private readonly prevBuf: Int32Array;
   private readonly visitedBuf: Uint8Array;
+  private readonly walkDistBuf: Float64Array;
+  private readonly walkVisitedBuf: Uint8Array;
   private readonly findClampDest: GroundClampResult = { x: 0, z: 0, roadX: 0, roadZ: 0, lane: 0, dist: 0 };
   private readonly findClampFrom: GroundClampResult = { x: 0, z: 0, roadX: 0, roadZ: 0, lane: 0, dist: 0 };
   private readonly segClampA: GroundClampResult = { x: 0, z: 0, roadX: 0, roadZ: 0, lane: 0, dist: 0 };
@@ -53,8 +55,6 @@ export class GroundGraph {
   private readonly walkClampPrev: GroundClampResult = { x: 0, z: 0, roadX: 0, roadZ: 0, lane: 0, dist: 0 };
   private readonly walkClampCur: GroundClampResult = { x: 0, z: 0, roadX: 0, roadZ: 0, lane: 0, dist: 0 };
   private readonly chainScratch: number[] = [];
-  private readonly rawX: number[] = [];
-  private readonly rawZ: number[] = [];
 
   constructor(groundPaths: readonly CompiledPath[]) {
     this.paths = groundPaths;
@@ -104,6 +104,8 @@ export class GroundGraph {
     this.distBuf = new Float64Array(nodes.length);
     this.prevBuf = new Int32Array(nodes.length);
     this.visitedBuf = new Uint8Array(nodes.length);
+    this.walkDistBuf = new Float64Array(nodes.length);
+    this.walkVisitedBuf = new Uint8Array(nodes.length);
   }
 
   /** Castle threshold position where the hero spawns at run start and respawns after death. */
@@ -218,6 +220,68 @@ export class GroundGraph {
   }
 
   /**
+   * True when the road points nearest `(ax, az)` and `(bx, bz)` are connected within `maxGraphDist`
+   * along the walkable `GroundGraph` (same road bend or local merge junction — never across an
+   * unconnected canyon, river chasm, or long hairpin switchback). Deterministic, zero-allocation.
+   */
+  isLocallyConnected(ax: number, az: number, bx: number, bz: number, maxGraphDist: number): boolean {
+    if (!Number.isFinite(ax) || !Number.isFinite(az) || !Number.isFinite(bx) || !Number.isFinite(bz)) {
+      return false;
+    }
+    if (this.nodes.length === 0) return true;
+    const ca = this.clampToGroundOut(ax, az, Infinity, this.walkClampPrev);
+    const cb = this.clampToGroundOut(bx, bz, Infinity, this.walkClampCur);
+    if (ca.lane === cb.lane && Math.abs(ca.dist - cb.dist) <= maxGraphDist) {
+      return true;
+    }
+    return this.areNodesLocallyConnected(ca.roadX, ca.roadZ, cb.roadX, cb.roadZ, maxGraphDist);
+  }
+
+  private areNodesLocallyConnected(
+    ax: number,
+    az: number,
+    bx: number,
+    bz: number,
+    maxGraphDist: number,
+  ): boolean {
+    const startIdx = this.nearestNodeIndex(ax, az);
+    const endIdx = this.nearestNodeIndex(bx, bz);
+    if (startIdx < 0 || endIdx < 0) return false;
+    if (startIdx === endIdx) return true;
+
+    const count = this.nodes.length;
+    const dist = this.walkDistBuf;
+    const vis = this.walkVisitedBuf;
+    dist.fill(Infinity);
+    vis.fill(0);
+    dist[startIdx] = 0;
+
+    for (let step = 0; step < count; step++) {
+      let u = -1;
+      let best = Infinity;
+      for (let i = 0; i < count; i++) {
+        if (!vis[i] && dist[i] < best) {
+          best = dist[i];
+          u = i;
+        }
+      }
+      if (u === -1 || best > maxGraphDist) return false;
+      if (u === endIdx) return true;
+      vis[u] = 1;
+      const edges = this.nodes[u].edges;
+      for (let e = 0; e < edges.length; e++) {
+        const edge = edges[e];
+        if (vis[edge.to]) continue;
+        const cand = best + edge.cost;
+        if (cand < dist[edge.to] - 1e-9) {
+          dist[edge.to] = cand;
+        }
+      }
+    }
+    return dist[endIdx] <= maxGraphDist;
+  }
+
+  /**
    * True when the straight segment `(ax, az) -> (bx, bz)` stays inside `maxOffRoad` of the road
    * network without jumping across unconnected parallel lanes, canyons, or hairpin switchbacks.
    * Deterministic and zero-allocation.
@@ -251,6 +315,7 @@ export class GroundGraph {
     const steps = Math.max(1, Math.ceil(total / DIRECT_SAMPLE_STEP));
     const maxJumpSq = MAX_ROAD_JUMP * MAX_ROAD_JUMP;
     const maxOffSq = safeMaxOff === Infinity ? Infinity : (safeMaxOff + 1e-4) ** 2;
+    const localGraphLimit = Math.max(7.5, total * 3.2);
 
     for (let s = 1; s <= steps; s++) {
       const t = s / steps;
@@ -260,7 +325,10 @@ export class GroundGraph {
       if ((sx - cur.roadX) ** 2 + (sz - cur.roadZ) ** 2 > maxOffSq) {
         return false;
       }
-      if ((cur.roadX - prev.roadX) ** 2 + (cur.roadZ - prev.roadZ) ** 2 > maxJumpSq) {
+      if (
+        (cur.roadX - prev.roadX) ** 2 + (cur.roadZ - prev.roadZ) ** 2 > maxJumpSq &&
+        !this.areNodesLocallyConnected(prev.roadX, prev.roadZ, cur.roadX, cur.roadZ, localGraphLimit)
+      ) {
         return false;
       }
       prev.roadX = cur.roadX;
@@ -284,7 +352,8 @@ export class GroundGraph {
     const offA = Math.hypot(ax - ca.roadX, az - ca.roadZ);
     const offB = Math.hypot(bx - cb.roadX, bz - cb.roadZ);
     const endpointMax = Math.max(offA, offB);
-    return Math.max(endpointMax, Math.min(safeMaxOff, endpointMax + 0.08));
+    if (Math.min(offA, offB) < 0.02) return -1;
+    return Math.max(endpointMax, Math.min(safeMaxOff, endpointMax + 0.01));
   }
 
   /**
@@ -320,24 +389,23 @@ export class GroundGraph {
     const fromClamp = this.clampToGroundOut(fromX, fromZ, Infinity, this.findClampFrom);
     const startX = Number.isFinite(fromX) && Number.isFinite(fromZ) ? fromX : fromClamp.x;
     const startZ = Number.isFinite(fromX) && Number.isFinite(fromZ) ? fromZ : fromClamp.z;
+    const sameNeighborhood =
+      (fromClamp.lane === clamped.lane && Math.abs(fromClamp.dist - clamped.dist) <= 1.8) ||
+      Math.hypot(fromClamp.roadX - clamped.roadX, fromClamp.roadZ - clamped.roadZ) <= JUNCTION_DIST;
+    if (sameNeighborhood && Math.hypot(destX - startX, destZ - startZ) <= 1.4) {
+      out.push({ x: destX, z: destZ });
+      return out;
+    }
 
     const directLim = this.segmentCorridorLimit(startX, startZ, destX, destZ, safeMaxOff);
-    if (this.canWalkDirect(startX, startZ, destX, destZ, directLim)) {
+    if (directLim >= 0 && this.canWalkDirect(startX, startZ, destX, destZ, directLim)) {
       out.push({ x: destX, z: destZ });
       return out;
     }
 
     const startIdx = this.nearestNodeIndex(startX, startZ);
     let endIdx = this.nearestNodeIndex(clamped.roadX, clamped.roadZ);
-    if (startIdx < 0 || endIdx < 0) {
-      out.push({ x: destX, z: destZ });
-      return out;
-    }
-    if (startIdx === endIdx) {
-      const n = this.nodes[startIdx];
-      if (Math.hypot(n.x - startX, n.z - startZ) >= 0.05 && Math.hypot(destX - n.x, destZ - n.z) >= 0.05) {
-        out.push({ x: n.x, z: n.z });
-      }
+    if (startIdx < 0 || endIdx < 0 || startIdx === endIdx) {
       out.push({ x: destX, z: destZ });
       return out;
     }
@@ -421,13 +489,12 @@ export class GroundGraph {
       }
     }
 
-    // Trim the last graph node if `dest` lies before `chain[last]` along the final approach.
-    if (chain.length >= 1) {
-      const prevX = chain.length >= 2 ? this.nodes[chain[chain.length - 2]].x : startX;
-      const prevZ = chain.length >= 2 ? this.nodes[chain[chain.length - 2]].z : startZ;
+    // Trim the last graph node if `dest` lies between `chain[last - 1]` and `chain[last]`.
+    if (chain.length >= 2) {
+      const prev = this.nodes[chain[chain.length - 2]];
       const last = this.nodes[chain[chain.length - 1]];
-      const segDx = last.x - prevX;
-      const segDz = last.z - prevZ;
+      const segDx = last.x - prev.x;
+      const segDz = last.z - prev.z;
       const destDx = destX - last.x;
       const destDz = destZ - last.z;
       if (destDx * segDx + destDz * segDz < 0) {
@@ -435,40 +502,14 @@ export class GroundGraph {
       }
     }
 
-    const rawX = this.rawX;
-    const rawZ = this.rawZ;
-    rawX.length = 0;
-    rawZ.length = 0;
-    rawX.push(startX);
-    rawZ.push(startZ);
     for (let i = 0; i < chain.length; i++) {
       const n = this.nodes[chain[i]];
-      if (Math.hypot(n.x - rawX[rawX.length - 1], n.z - rawZ[rawZ.length - 1]) < 0.05) continue;
-      rawX.push(n.x);
-      rawZ.push(n.z);
+      if (Math.hypot(n.x - startX, n.z - startZ) < 0.05) continue;
+      out.push({ x: n.x, z: n.z });
     }
-    if (Math.hypot(destX - rawX[rawX.length - 1], destZ - rawZ[rawZ.length - 1]) > 0.03) {
-      rawX.push(destX);
-      rawZ.push(destZ);
-    } else {
-      rawX[rawX.length - 1] = destX;
-      rawZ[rawZ.length - 1] = destZ;
-    }
-
-    // String-pull straight walkable segments so shoulder moves stay straight without cutting corners.
-    const rawLen = rawX.length;
-    let cur = 0;
-    while (cur < rawLen - 1) {
-      let next = cur + 1;
-      for (let cand = rawLen - 1; cand > cur + 1; cand--) {
-        const segLim = this.segmentCorridorLimit(rawX[cur], rawZ[cur], rawX[cand], rawZ[cand], safeMaxOff);
-        if (this.canWalkDirect(rawX[cur], rawZ[cur], rawX[cand], rawZ[cand], segLim)) {
-          next = cand;
-          break;
-        }
-      }
-      out.push({ x: rawX[next], z: rawZ[next] });
-      cur = next;
+    const prevWp = out[out.length - 1];
+    if (!prevWp || Math.hypot(destX - prevWp.x, destZ - prevWp.z) > 0.03) {
+      out.push({ x: destX, z: destZ });
     }
     if (out.length === 0) out.push({ x: destX, z: destZ });
     return out;

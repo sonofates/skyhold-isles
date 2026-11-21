@@ -608,15 +608,15 @@ export class HeroSystem {
    *   its `GroundGraph` route to `(postX, postZ)` at `moveSpeed`, never stops or gets pushed off its
    *   route when passing enemies or soldiers, and does not engage or block enemies until arriving.
    * - Once stationed (`state !== 'moving' && state !== 'dead'`), a melee hero only engages holdable
-   *   ground foes within `HERO_RULES.meleeEngageRadius` of `(postX, postZ)` that are locally reachable
-   *   inside the walkable road corridor (`groundGraph.canWalkDirect`, never across canyons/switchbacks),
+   *   ground foes within `HERO_RULES.meleeEngageRadius` of `(postX, postZ)` that are locally connected
+   *   along the walkable road graph (`groundGraph.isLocallyConnected`, never across canyons/switchbacks),
    *   and releases targets dragged beyond `HERO_RULES.meleeLeashRadius` of `(postX, postZ)`.
-   * - One blocker per `holdCost` slot: enemies with open blocker slots (`blockers < holdCost`) always
-   *   take priority; a melee hero assisting on an enemy already held by soldiers (`blockers >= holdCost`)
-   *   peels off immediately when an uncovered unheld enemy enters reach, and secondary holds (`holdCap > 1`)
-   *   never double-hold an enemy whose `holdCost` is already satisfied.
-   * - Extra holds (`holdCap > 1`) apply only to enemies within actual melee contact reach
-   *   (`enemy.radius + HERO_RULES.radius + HERO_RULES.contactSlack`), never freezing distant road foes.
+   * - One blocker per `holdCost` slot: secondary `holdCap` slots never double-hold an enemy whose
+   *   `holdCost` is already satisfied (`blockers + heroBlockers >= holdCost`) or across unconnected
+   *   lanes, and a melee hero assisting on a soldier-held 1-slot enemy peels off as soon as an
+   *   uncovered unheld enemy would exceed spare `holdCap` or extra-hold reach.
+   * - While in `fighting` contact with a soldier-blocked enemy (`target.blockers > 0`), the hero
+   *   holds its ground instead of being dragged laterally/backwards by `SoldierSystem` crowd spread.
    * - Ranged heroes (`holdCap = 0`) never block enemies or leave `(postX, postZ)`.
    */
   commandMove(wantX: number, wantZ: number, onCommitted?: () => void): boolean {
@@ -2020,10 +2020,10 @@ export class HeroSystem {
     this.reconcileHeroUnblocks();
   }
 
-  private canEngageMeleeTarget(h: HeroEntity, e: EnemyEntity): boolean {
+  private canEngageMeleeTarget(h: HeroEntity, e: EnemyEntity, maxGraphDist = 7.2): boolean {
     return (
-      this.groundGraph.canWalkDirect(h.postX, h.postZ, e.x, e.z, HERO_RULES.maxOffRoadDist) &&
-      this.groundGraph.canWalkDirect(h.x, h.z, e.x, e.z, HERO_RULES.maxOffRoadDist)
+      this.groundGraph.isLocallyConnected(h.postX, h.postZ, e.x, e.z, maxGraphDist) &&
+      this.groundGraph.isLocallyConnected(h.x, h.z, e.x, e.z, maxGraphDist)
     );
   }
 
@@ -2033,7 +2033,7 @@ export class HeroSystem {
       target !== null &&
       (!this.isHoldable(target) ||
         Math.hypot(target.x - h.postX, target.z - h.postZ) > HERO_RULES.meleeLeashRadius ||
-        !this.canEngageMeleeTarget(h, target))
+        !this.canEngageMeleeTarget(h, target, 8.5))
     ) {
       target = null;
     }
@@ -2047,7 +2047,9 @@ export class HeroSystem {
     }
 
     const targetHeldBySoldiers =
-      target !== null && target.blockers >= ENEMY_MELEE[target.type].holdCost;
+      target !== null &&
+      ENEMY_MELEE[target.type].holdCost === 1 &&
+      target.blockers >= 1;
     if (target === null || targetHeldBySoldiers) {
       const holdCandidates = this.holdCandidates;
       this.spatialHash.query(h.postX, h.postZ, HERO_RULES.meleeEngageRadius, holdCandidates);
@@ -2066,11 +2068,9 @@ export class HeroSystem {
         if (!this.canEngageMeleeTarget(h, e)) continue;
         if (target !== null) {
           needyUnmetTotal += unmet;
-          const reach = e.radius + HERO_RULES.radius + HERO_RULES.contactSlack;
           if (
-            (e.x - h.x) ** 2 + (e.z - h.z) ** 2 > reach * reach ||
-            (e.lane !== target.lane &&
-              !this.groundGraph.canWalkDirect(h.x, h.z, e.x, e.z, HERO_RULES.maxOffRoadDist))
+            (e.x - h.x) ** 2 + (e.z - h.z) ** 2 > rSq ||
+            !this.groundGraph.isLocallyConnected(h.x, h.z, e.x, e.z, 7.2)
           ) {
             needyOutsideContact = true;
           }
@@ -2110,30 +2110,36 @@ export class HeroSystem {
 
     if (target) {
       const contact = target.radius + HERO_RULES.radius;
-      const curDist = Math.hypot(h.x - target.x, h.z - target.z);
-      if (h.state === 'fighting' && curDist > contact + HERO_RULES.contactSlack) {
-        h.state = 'engaging';
-      }
-      if (h.state !== 'fighting') {
-        // Only step inward when outside melee contact; never push/drag backwards when already in reach.
-        if (curDist > contact) {
-          const dx = h.x - target.x;
-          const dz = h.z - target.z;
-          this.stepTowardPoint(
-            h,
-            target.x + (dx / curDist) * contact,
-            target.z + (dz / curDist) * contact,
-            dt,
-          );
+      let dx = h.x - target.x;
+      let dz = h.z - target.z;
+      let d = Math.hypot(dx, dz);
+      const holdGroundAgainstPush =
+        h.state === 'fighting' &&
+        target.blockers > 0 &&
+        d <= contact + HERO_RULES.contactSlack;
+      if (!holdGroundAgainstPush) {
+        if (d < 1e-6) {
+          dx = h.postX - target.x;
+          dz = h.postZ - target.z;
+          d = Math.hypot(dx, dz);
+          if (d < 1e-6) {
+            dx = 0;
+            dz = -1;
+            d = 1;
+          }
         }
-        const nowDist = Math.hypot(h.x - target.x, h.z - target.z);
-        if (nowDist <= contact + 0.08) {
-          h.state = 'fighting';
-          if (h.attackTimer < 0.15) h.attackTimer = 0.15;
-        }
+        this.stepTowardPoint(h, target.x + (dx / d) * contact, target.z + (dz / d) * contact, dt);
       }
-      if (Math.hypot(target.x - h.x, target.z - h.z) > 0.05) {
+      const nowDist = Math.hypot(h.x - target.x, h.z - target.z);
+      if (nowDist > 0.05) {
         h.yaw = Math.atan2(target.x - h.x, target.z - h.z);
+      }
+
+      if (h.state !== 'fighting' && nowDist <= contact + 0.08) {
+        h.state = 'fighting';
+        if (h.attackTimer < 0.15) h.attackTimer = 0.15;
+      } else if (h.state === 'fighting' && nowDist > contact + HERO_RULES.contactSlack) {
+        h.state = 'engaging';
       }
 
       if (h.state === 'fighting') {
@@ -2199,20 +2205,26 @@ export class HeroSystem {
     // Idle / returning to guard post along the walkable road graph.
     h.attackTimer = Math.max(0, h.attackTimer - dt * rateMul);
     const postDist = Math.hypot(h.postX - h.x, h.postZ - h.z);
-    if (postDist > 1e-5) {
+    if (
+      postDist > 1.4 ||
+      h.waypoints.length > 0 ||
+      (postDist > 1e-5 && !this.groundGraph.isLocallyConnected(h.x, h.z, h.postX, h.postZ, 7.2))
+    ) {
       if (h.waypoints.length === 0) {
         this.groundGraph.findPathInto(h.x, h.z, h.postX, h.postZ, HERO_RULES.maxOffRoadDist, h.waypoints);
       }
-      const arrived = this.stepAlongWaypoints(h, dt);
-      if (!arrived) return;
-    } else {
-      h.x = h.postX;
-      h.z = h.postZ;
-      h.waypoints.length = 0;
+      const wp = h.waypoints[0];
+      if (this.stepTowardPoint(h, wp.x, wp.z, dt)) {
+        h.waypoints.shift();
+      }
+      return;
     }
-    h.state = 'idle';
-    if (h.sinceHurt >= HERO_RULES.regenDelay && h.hp < h.maxHp) {
-      h.hp = Math.min(h.maxHp, h.hp + h.maxHp * HERO_RULES.regenFrac * dt);
+    const atPost = this.stepTowardPoint(h, h.postX, h.postZ, dt);
+    if (atPost) {
+      h.state = 'idle';
+      if (h.sinceHurt >= HERO_RULES.regenDelay && h.hp < h.maxHp) {
+        h.hp = Math.min(h.maxHp, h.hp + h.maxHp * HERO_RULES.regenFrac * dt);
+      }
     }
   }
 
@@ -2263,20 +2275,18 @@ export class HeroSystem {
 
     const extraHoldIndices = this.extraHoldIndices;
     const holdCandidates = this.holdCandidates;
-    const maxQueryRadius = HERO_RULES.radius + HERO_RULES.contactSlack + 0.9;
-    this.spatialHash.query(h.x, h.z, maxQueryRadius, holdCandidates);
+    const queryRadius = HERO_RULES.meleeEngageRadius;
+    this.spatialHash.query(h.x, h.z, queryRadius, holdCandidates);
+    const engageSq = queryRadius * queryRadius;
     extraHoldIndices.length = 0;
     for (let i = 0; i < holdCandidates.length; i++) {
       const idx = holdCandidates[i];
       const cand = this.pool.items[idx];
       if (cand === primary || !this.isHoldable(cand)) continue;
       if (cand.blockers + cand.heroBlockers >= ENEMY_MELEE[cand.type].holdCost) continue;
-      const reach = cand.radius + HERO_RULES.radius + HERO_RULES.contactSlack;
-      if ((cand.x - h.x) ** 2 + (cand.z - h.z) ** 2 > reach * reach) continue;
-      if (
-        cand.lane !== primary.lane &&
-        !this.groundGraph.canWalkDirect(h.x, h.z, cand.x, cand.z, HERO_RULES.maxOffRoadDist)
-      ) {
+      const dHeroSq = (cand.x - h.x) ** 2 + (cand.z - h.z) ** 2;
+      if (dHeroSq > engageSq) continue;
+      if (!this.groundGraph.isLocallyConnected(h.x, h.z, cand.x, cand.z, 7.2)) {
         continue;
       }
       extraHoldIndices.push(idx);
