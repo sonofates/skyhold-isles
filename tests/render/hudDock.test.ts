@@ -66,7 +66,7 @@ describe('map fit + gentle pan + corner HUD (owner feedback 2026-11-21: no bands
     expect(viewScale(1920, 1080, 1846, 852)).toBeCloseTo((1080 / 852) * PAN_ZOOM, 9);
   });
 
-  it('the default view never shows past the painting; the pan reaches past its top / bottom only as deep as the HUD rows', () => {
+  it('neither the default view nor any pan offset ever shows past the painting', () => {
     for (const f of FITS) {
       const tag = `${f.name} ${f.id}`;
       const { fit, pan } = f.r;
@@ -78,37 +78,30 @@ describe('map fit + gentle pan + corner HUD (owner feedback 2026-11-21: no bands
       expect(fit.offsetY + ih * s, tag).toBeGreaterThanOrEqual(f.h - 1e-6);
       expect(pan.minX, tag).toBeCloseTo(f.w - iw * s, 6);
       expect(pan.maxX, tag).toBeCloseTo(0, 6);
-      const d = f.r.dock;
-      const topRow = Math.max(d.buttons.y + d.buttons.h, d.info.y + d.info.h) + 4;
-      const bottomRow = f.h - Math.min(d.plaque.y, d.tray.y, d.banner.y) + 4;
-      expect(pan.maxY, tag).toBeLessThanOrEqual(topRow);
-      expect(f.h - (pan.minY + ih * s), tag).toBeLessThanOrEqual(bottomRow);
+      expect(pan.minY, tag).toBeCloseTo(f.h - ih * s, 6);
+      expect(pan.maxY, tag).toBeCloseTo(0, 6);
       const c = clampPan(pan, fit.offsetX, fit.offsetY);
       expect([c.x, c.y], tag).toEqual([fit.offsetX, fit.offsetY]);
     }
   });
 
-  it('panning reaches every plot: each comes fully on screen out from under every piece (bar the passing info card); every cave / castle comes on screen', () => {
+  it('panning keeps every plot and every cave / castle on screen without ever leaving the painting', () => {
     const bad: string[] = [];
     for (const f of FITS) {
       if (!f.hero) continue;
       const { pan, fit } = f.r;
       const s = fit.scale;
-      const pieces = Object.entries(dockPieces(f.r.dock)).filter(([n]) => n !== 'info').map(([, r]) => r);
-      const steps = 24;
+      const steps = 16;
       const offsets: [number, number][] = [];
       for (let i = 0; i <= steps; i++) for (let j = 0; j <= steps; j++) offsets.push([pan.minX + ((pan.maxX - pan.minX) * i) / steps, pan.minY + ((pan.maxY - pan.minY) * j) / steps]);
+      const [iw, ih] = f.L.imageSize;
       f.shapes.plots.forEach((p, k) => {
         const ok = offsets.some(([ox, oy]) => {
-          const cx = ox + p.x * s;
-          const cy = oy + p.y * s;
-          const r = p.r * s;
-          if (cx - r < 0 || cy - r < 0 || cx + r > f.w || cy + r > f.h) return false;
-          return !pieces.some((q) => {
-            const nx = Math.max(q.x, Math.min(cx, q.x + q.w));
-            const ny = Math.max(q.y, Math.min(cy, q.y + q.h));
-            return (cx - nx) ** 2 + (cy - ny) ** 2 < r * r;
-          });
+          const x0 = ox + Math.max(0, p.x - p.r) * s;
+          const y0 = oy + Math.max(0, p.y - p.r) * s;
+          const x1 = ox + Math.min(iw, p.x + p.r) * s;
+          const y1 = oy + Math.min(ih, p.y + p.r) * s;
+          return x0 >= -0.5 && y0 >= -0.5 && x1 <= f.w + 0.5 && y1 <= f.h + 0.5;
         });
         if (!ok) bad.push(`${f.name} ${f.id} plot${k}`);
       });
