@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { InvariantMonitor } from '../../qa/bot/invariants.ts';
-import { EventBus, type GameEventMap } from '../../src/core/eventBus.ts';
+import { EventBus } from '../../src/core/eventBus.ts';
 import type { EnemyType } from '../../src/core/types.ts';
 import { BALANCE } from '../../src/data/balance.ts';
 import { HERO_RULES } from '../../src/data/heroes.ts';

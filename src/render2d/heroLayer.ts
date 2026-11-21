@@ -19,6 +19,15 @@ import type { HeroEntity } from '../sim/heroSystem.ts';
 import type { SimWorld } from '../sim/world.ts';
 import type { HeroArtRuntime, HeroSeqRuntime, LoadedArt } from './assets2d.ts';
 import type { FxLayer } from './fxLayer.ts';
+import {
+  createHeroAnimState,
+  createHeroPoseOut,
+  onHeroAttackImpact,
+  onHeroCastAnim,
+  onHeroMoveOrdered,
+  resetHeroAnimState,
+  stepHeroAnim,
+} from './heroAnim.ts';
 import { paintedText, setText } from './hudText.ts';
 import { HEIGHT_TO_SCREEN, type WorldLayers } from './layers.ts';
 import type { MapView } from './mapView.ts';
@@ -67,9 +76,6 @@ interface Effect {
 const SEL_RING_R = 0.62;
 const BAR_W = 46;
 const BAR_H = 6;
-/** Seconds the fallen pose holds before it fades. */
-const DEATH_HOLD = 2.0;
-const DEATH_FADE = 0.7;
 const RESPAWN_FADE = 0.8;
 
 const easeOut = (k: number): number => 1 - (1 - k) * (1 - k);
@@ -102,20 +108,11 @@ export class HeroLayer {
   private roadFor: object | null = null;
 
   // --- animation state ---
-  private facing = 1;
-  private animT = 0;
-  private walkSeq: 'down' | 'up' | 'side' = 'down';
-  private attackT = -1;
-  private attackRate = 1;
-  private impactPending = false;
-  private deathT = -1;
+  private readonly anim = createHeroAnimState();
+  private readonly poseOut = createHeroPoseOut();
   private deathX = 0;
   private deathZ = 0;
   private respawnT = 99;
-  private lastPx = NaN;
-  private lastPy = NaN;
-  private smDx = 0;
-  private smDy = 0;
   private clock = 0;
   private iconT = 99;
   private moveMarker: { x: number; z: number; t: number } | null = null;
@@ -172,10 +169,8 @@ export class HeroLayer {
 
   /** Starts a new run (the sim world was rebuilt). */
   reset(): void {
-    this.attackT = -1;
-    this.deathT = -1;
+    resetHeroAnimState(this.anim);
     this.respawnT = 99;
-    this.lastPx = NaN;
     this.effects.length = 0;
     this.moveMarker = null;
     this.invalid = null;
@@ -196,18 +191,9 @@ export class HeroLayer {
 
   wire(ev: EventBus): void {
     ev.on('heroAttack', (e) => {
-      this.facing = e.targetX >= e.x ? 1 : -1;
-      // The sim resolves the hit now: show the painted contact / release frame (pre-rolled when
-      // the swing was predicted, else jump straight to it).
-      const seq = this.art?.attack;
+      const seq = this.art?.attack ?? null;
+      onHeroAttackImpact(this.anim, e.x, e.targetX, seq);
       if (!seq) return;
-      const impact = seq.impact ?? 2;
-      const atImpact = this.attackT >= 0 && Math.floor(this.attackT * seq.fps * this.attackRate) >= impact - 1;
-      if (!(this.attackT >= 0 && this.impactPending && atImpact)) {
-        this.attackRate = 1;
-        this.attackT = impact / seq.fps;
-      }
-      this.impactPending = false;
       this.stats.attacksPlayed++;
       if (e.crit) {
         const m = this.map;
@@ -218,23 +204,25 @@ export class HeroLayer {
       // hit flash comes from hitFlashTimer
     });
     ev.on('heroMoved', (e) => {
+      const wp = e.waypoints.length > 0 ? e.waypoints[0] : null;
+      onHeroMoveOrdered(this.anim, e.x, e.z, wp ? wp.x : e.targetX, wp ? wp.z : e.targetZ);
       this.moveMarker = { x: e.targetX, z: e.targetZ, t: 0 };
       this.stats.moves++;
     });
     ev.on('heroDied', (e) => {
-      this.deathT = 0;
+      this.anim.deathT = 0;
       this.deathX = e.x;
       this.deathZ = e.z;
-      this.attackT = -1;
+      this.anim.attackT = -1;
+      this.anim.impactPending = false;
       this.moveMarker = null;
       this.stats.deaths++;
       const m = this.map;
       this.fx.puffs(m.pxX(e.x), m.pxY(e.z) - 10, 8, 18, 0xd9cbb0);
     });
     ev.on('heroRespawn', (e) => {
-      this.deathT = -1;
+      this.anim.deathT = -1;
       this.respawnT = 0;
-      this.lastPx = NaN;
       this.stats.respawns++;
       const m = this.map;
       const col = this.colors().light;
@@ -269,13 +257,7 @@ export class HeroLayer {
     if (!id) return;
     this.stats.casts++;
     const kind = HERO_DEFS[id].actives[slot].kind;
-    this.facing = Math.abs(tx - x) > 0.05 ? (tx >= x ? 1 : -1) : this.facing;
-    // Cast pose: the attack sheet from its first frame.
-    if (this.art?.attack) {
-      this.attackT = 0;
-      this.attackRate = 1.2;
-      this.impactPending = false;
-    }
+    onHeroCastAnim(this.anim, x, tx, this.art?.attack ?? null);
     this.iconT = 0;
     const ic = this.icon(kind);
     if (ic && ic !== Texture.EMPTY) this.iconPop.texture = ic;
@@ -379,7 +361,7 @@ export class HeroLayer {
 
   /** Hero body box in map px (tap target), or null while it has none (dead / no hero). */
   bodyRect(): { x: number; y: number; w: number; h: number } | null {
-    if (!this.body.visible || this.deathT >= 0) return null;
+    if (!this.body.visible || this.anim.deathT >= 0) return null;
     const hgt = (this.art?.spec.height ?? 1.4) * this.ppu;
     const w = hgt * 0.62;
     return { x: this.body.x - w / 2, y: this.body.y - hgt, w, h: hgt };
@@ -419,88 +401,65 @@ export class HeroLayer {
     const py = m.pxY(iz);
     const heightPx = (art?.spec.height ?? 1.4) * ppu;
 
-    // Screen motion (smoothed) → walk sequence + facing.
-    let dxImg = 0;
-    let dyImg = 0;
-    if (!Number.isNaN(this.lastPx)) {
-      dxImg = px - this.lastPx;
-      dyImg = py - this.lastPy;
-    }
-    this.lastPx = px;
-    this.lastPy = py;
-    const k = simDt > 0 ? Math.min(1, dt * 10) : 0;
-    this.smDx += (dxImg - this.smDx) * k;
-    this.smDy += (dyImg - this.smDy) * k;
-    const walking = !dead && (h.state === 'moving' || h.state === 'engaging') && Math.hypot(this.smDx, this.smDy) > 0.05 * Math.max(0.2, simDt * 60);
-
-    // Attack pre-roll: start the swing so the painted contact frame lands on the sim's hit.
-    const atk = art?.attack ?? null;
-    if (atk && !dead && this.attackT < 0 && simDt > 0) {
-      const lead = (atk.impact ?? 2) / atk.fps;
-      if (h.attackTimer > 0 && h.attackTimer <= lead && this.expectsAttack(world, h)) {
-        this.attackRate = 1;
-        this.attackT = Math.max(0, lead - h.attackTimer);
-        this.impactPending = true;
-        this.stats.prerolled++;
-        const tgt = this.targetOf(world, h);
-        if (tgt) this.facing = tgt.x >= h.x ? 1 : -1;
-      }
-    }
-
-    let seq: HeroSeqRuntime | null = null;
-    let frame = 0;
-    let flip = false;
     let alphaBody = 1;
     if (art) {
-      if (dead) {
-        this.deathT += simDt > 0 ? simDt : dt * 0.25;
-        const d = art.death;
-        if (d) {
-          seq = d;
-          frame = Math.min(d.frames.length - 1, Math.floor(this.deathT * d.fps));
-        } else {
-          seq = art.idle;
-          frame = 0;
-        }
-        const fadeK = (this.deathT - DEATH_HOLD) / DEATH_FADE;
-        alphaBody = fadeK <= 0 ? 1 : Math.max(0, 1 - fadeK);
-        flip = this.facing < 0;
-      } else if (this.attackT >= 0 && atk) {
-        this.attackT += simDt;
-        const f = Math.floor(this.attackT * atk.fps * this.attackRate);
-        if (f >= atk.frames.length) {
-          this.attackT = -1;
-          this.impactPending = false;
-        } else {
-          seq = atk;
-          frame = f;
-          flip = this.facing < 0;
+      const atk = art.attack;
+      let expectsAttack = false;
+      let targetX: number | null = null;
+      if (!dead && atk && this.anim.attackT < 0 && simDt > 0) {
+        const lead = (atk.impact ?? 2) / atk.fps;
+        if (h.attackTimer > 0 && h.attackTimer <= lead) {
+          if (h.stats.attackMode === 'melee') {
+            if (h.state === 'fighting') {
+              expectsAttack = true;
+              const tgt = this.targetOf(world, h);
+              if (tgt) targetX = tgt.x;
+            }
+          } else {
+            const tgt = this.targetOf(world, h);
+            if (tgt) {
+              expectsAttack = true;
+              targetX = tgt.x;
+            }
+          }
         }
       }
-      if (!seq && walking) {
-        const adx = Math.abs(this.smDx);
-        const ady = Math.abs(this.smDy);
-        // Hysteresis: a near-axial step keeps the current view.
-        if (adx > ady * 1.25) this.walkSeq = 'side';
-        else if (ady > adx * 0.9) this.walkSeq = this.smDy > 0 ? 'down' : 'up';
-        if (adx > 0.15) this.facing = this.smDx > 0 ? 1 : -1;
-        seq = art[this.walkSeq];
-        const speedRatio = Math.max(0.6, Math.min(1.6, Math.hypot(dxImg, dyImg) / Math.max(1e-3, simDt) / (h.stats.moveSpeed * ppu)));
-        this.animT += simDt * speedRatio;
-        frame = Math.floor(this.animT * seq.fps) % seq.frames.length;
-        // down sheet faces right, up sheet faces left, side faces right (manifest metadata).
-        flip = this.walkSeq === 'up' ? this.facing > 0 : this.facing < 0;
-      }
-      if (!seq) {
-        if (!walking && h.state !== 'moving') {
-          const sx = Math.sin(h.yaw);
-          if (Math.abs(sx) > 0.3 && this.attackT < 0) this.facing = sx > 0 ? 1 : -1;
-        }
-        seq = art.idle;
-        this.animT += dt;
-        frame = Math.floor(this.animT * seq.fps) % seq.frames.length;
-        flip = this.facing < 0;
-      }
+
+      const wp = h.waypoints.length > 0 ? h.waypoints[0] : null;
+      const pose = this.poseOut;
+      stepHeroAnim(
+        this.anim,
+        art,
+        {
+          heroState: h.state,
+          x: h.x,
+          z: h.z,
+          prevX: h.prevX,
+          prevZ: h.prevZ,
+          yaw: h.yaw,
+          moveSpeed: h.stats.moveSpeed,
+          attackTimer: h.attackTimer,
+          expectsAttack,
+          targetX,
+          nextWaypointX: wp ? wp.x : null,
+          nextWaypointZ: wp ? wp.z : null,
+          simDt,
+          dt,
+        },
+        pose,
+      );
+      if (pose.prerolled) this.stats.prerolled++;
+      alphaBody = pose.alphaBody;
+      const seq: HeroSeqRuntime =
+        pose.kind === 'attack' && atk
+          ? atk
+          : pose.kind === 'death' && art.death
+            ? art.death
+            : pose.kind === 'down' || pose.kind === 'up' || pose.kind === 'side'
+              ? art[pose.kind]
+              : art.idle;
+      const frame = pose.frame;
+      const flip = pose.flip;
       const tex = seq.frames[frame] ?? seq.frames[0];
       if (this.body.texture !== tex) this.body.texture = tex;
       this.body.anchor.set(seq.anchor[0], seq.anchor[1]);
@@ -512,7 +471,7 @@ export class HeroLayer {
       }
       const pop = this.respawnT < RESPAWN_FADE ? 0.85 + 0.15 * (this.respawnT / RESPAWN_FADE) : 1;
       this.body.scale.set(sc * (flip ? -1 : 1) * pop, sc * pop);
-      this.stats.frame = `${seq === art.idle ? 'idle' : seq === atk ? 'attack' : seq === art.death ? 'death' : this.walkSeq}:${frame}`;
+      this.stats.frame = `${pose.kind}:${frame}`;
     } else {
       this.body.texture = this.tex.ball;
       this.body.width = this.body.height = 0.6 * ppu;
@@ -553,12 +512,6 @@ export class HeroLayer {
     this.syncGizmos(world, dt);
     this.syncReticles(world, alpha);
     this.syncArrows(simDt > 0 ? simDt : 0);
-  }
-
-  /** Is the next sim attack tick likely to hit something (drives the pre-roll)? */
-  private expectsAttack(world: SimWorld, h: HeroEntity): boolean {
-    if (h.stats.attackMode === 'melee') return h.state === 'fighting';
-    return this.targetOf(world, h) !== null;
   }
 
   private targetOf(world: SimWorld, h: HeroEntity): EnemyEntity | null {
@@ -614,7 +567,7 @@ export class HeroLayer {
     w.visible = !dead && this.body.visible;
     const bob = Math.sin(this.clock * 2.6) * heightPx * 0.05;
     const orbit = Math.sin(this.clock * 1.3) * heightPx * 0.08;
-    w.position.set(px + this.facing * heightPx * 0.3 + orbit, py - heightPx * 0.82 + bob);
+    w.position.set(px + this.anim.facing * heightPx * 0.3 + orbit, py - heightPx * 0.82 + bob);
     w.scale.set((30 + 4 * Math.sin(this.clock * 9)) / 64);
     w.alpha = this.body.alpha;
   }
@@ -930,7 +883,7 @@ export class HeroLayer {
     const ppu = this.ppu;
     if (h.rallyBannerTimer > 0) {
       // Ironoak standard planted beside Bran: pole, green pennant with a bronze oak disc.
-      const bx = this.body.x - this.facing * 0.55 * ppu;
+      const bx = this.body.x - this.anim.facing * 0.55 * ppu;
       const by = this.body.y;
       const top = by - 2.1 * ppu;
       const wave = Math.sin(this.clock * 5) * 0.08 * ppu;
