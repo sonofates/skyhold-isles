@@ -1,0 +1,73 @@
+{
+  "island": "i13",
+  "maxParticles": 46,
+  "flames": [
+    {
+      "id": "signal-beacon-fire",
+      "x": 1614,
+      "y": 274,
+      "size": 26,
+      "glowRadius": 72,
+      "color": "#ff5e12",
+      "intensity": 0.9,
+      "sparks": 2.0,
+      "smoke": 0.9,
+      "phase": 0.5
+    }
+  ],
+  "glows": [
+    { "id": "beacon-hearth-arch", "x": 1616, "y": 324, "rx": 28, "ry": 20, "color": "#ff7820", "minAlpha": 0.24, "maxAlpha": 0.52, "speed": 2.1, "phase": 1.4 },
+    { "id": "sundial-gold-glint", "x": 1054, "y": 58, "rx": 34, "ry": 26, "color": "#ffdc7a", "minAlpha": 0.1, "maxAlpha": 0.28, "speed": 1.1, "phase": 0.8 },
+    { "id": "castle-snow-windows", "x": 1028, "y": 392, "rx": 44, "ry": 30, "color": "#ffae48", "minAlpha": 0.1, "maxAlpha": 0.22, "speed": 1.7, "phase": 2.3 }
+  ],
+  "zones": [
+    {
+      "id": "highland-mist-west",
+      "kind": "mist",
+      "rect": [10, 220, 220, 560],
+      "rate": 1.0,
+      "color": "#dce8f4",
+      "color2": "#bfd2e6",
+      "size": 94,
+      "drift": [16, -3],
+      "life": 5.8,
+      "alpha": 0.16
+    },
+    {
+      "id": "highland-mist-east",
+      "kind": "mist",
+      "rect": [1580, 380, 250, 420],
+      "rate": 0.95,
+      "color": "#dce8f4",
+      "color2": "#bfd2e6",
+      "size": 92,
+      "drift": [14, -4],
+      "life": 5.8,
+      "alpha": 0.16
+    },
+    {
+      "id": "highland-mist-north",
+      "kind": "mist",
+      "rect": [120, 15, 620, 95],
+      "rate": 0.85,
+      "color": "#e2ecf6",
+      "color2": "#c6d8ea",
+      "size": 86,
+      "drift": [18, -2],
+      "life": 5.4,
+      "alpha": 0.15
+    },
+    {
+      "id": "sundial-sparkles",
+      "kind": "sparkle",
+      "rect": [1015, 25, 80, 68],
+      "rate": 0.8,
+      "color": "#fff3b8",
+      "color2": "#ffffff",
+      "size": 11,
+      "drift": [0, 0],
+      "life": 1.4,
+      "alpha": 0.65
+    }
+  ]
+}

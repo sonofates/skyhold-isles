@@ -1,0 +1,71 @@
+{
+  "island": "i17",
+  "maxParticles": 46,
+  "glows": [
+    { "id": "fallen-bell-glint", "x": 546, "y": 644, "rx": 30, "ry": 22, "color": "#ffe296", "minAlpha": 0.08, "maxAlpha": 0.24, "speed": 1.1, "phase": 0.4 },
+    { "id": "hanging-bell-glint", "x": 204, "y": 592, "rx": 24, "ry": 24, "color": "#ffe49e", "minAlpha": 0.08, "maxAlpha": 0.22, "speed": 1.35, "phase": 2.1 },
+    { "id": "east-arch-sunlight", "x": 1595, "y": 95, "rx": 90, "ry": 48, "color": "#fff1bd", "minAlpha": 0.06, "maxAlpha": 0.16, "speed": 0.8, "phase": 1.4 }
+  ],
+  "zones": [
+    {
+      "id": "east-cliff-cloud-mist",
+      "kind": "mist",
+      "rect": [1660, 120, 180, 680],
+      "rate": 1.1,
+      "color": "#f2f6ff",
+      "color2": "#dce8fb",
+      "size": 96,
+      "drift": [10, -10],
+      "life": 5.8,
+      "alpha": 0.2
+    },
+    {
+      "id": "west-cliff-cloud-mist",
+      "kind": "mist",
+      "rect": [0, 80, 150, 440],
+      "rate": 0.9,
+      "color": "#f2f6ff",
+      "color2": "#dce8fb",
+      "size": 92,
+      "drift": [12, -8],
+      "life": 5.6,
+      "alpha": 0.19
+    },
+    {
+      "id": "cloister-pollen-west",
+      "kind": "firefly",
+      "rect": [80, 520, 420, 290],
+      "rate": 1.1,
+      "color": "#fff2b2",
+      "color2": "#ffffff",
+      "size": 8.5,
+      "drift": [14, -7],
+      "life": 4.2,
+      "alpha": 0.62
+    },
+    {
+      "id": "cloister-pollen-east",
+      "kind": "firefly",
+      "rect": [1340, 30, 400, 200],
+      "rate": 1.1,
+      "color": "#fff2b2",
+      "color2": "#ffffff",
+      "size": 8.5,
+      "drift": [12, -5],
+      "life": 4.2,
+      "alpha": 0.62
+    },
+    {
+      "id": "cloister-meadow-petals",
+      "kind": "petal",
+      "rect": [180, 20, 1300, 130],
+      "rate": 1.4,
+      "color": "#fff5c8",
+      "color2": "#ffe08a",
+      "size": 9.5,
+      "drift": [26, 12],
+      "life": 4.8,
+      "alpha": 0.65
+    }
+  ]
+}

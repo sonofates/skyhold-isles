@@ -1,0 +1,126 @@
+{
+  "island": "i10",
+  "maxParticles": 54,
+  "flames": [
+    {
+      "id": "terrace-lantern-1",
+      "x": 1660,
+      "y": 212,
+      "size": 20,
+      "glowRadius": 54,
+      "color": "#ff9e2c",
+      "intensity": 0.9,
+      "phase": 0.4
+    },
+    {
+      "id": "terrace-lantern-2",
+      "x": 1765,
+      "y": 356,
+      "size": 19,
+      "glowRadius": 50,
+      "color": "#ff9e2c",
+      "intensity": 0.88,
+      "phase": 1.9
+    },
+    {
+      "id": "terrace-lantern-3",
+      "x": 1828,
+      "y": 452,
+      "size": 19,
+      "glowRadius": 50,
+      "color": "#ff9e2c",
+      "intensity": 0.88,
+      "phase": 3.4
+    }
+  ],
+  "glows": [
+    { "id": "se-crystal-cluster", "x": 1485, "y": 748, "rx": 40, "ry": 32, "color": "#44f2d4", "minAlpha": 0.16, "maxAlpha": 0.4, "speed": 1.35, "phase": 0.8 },
+    { "id": "sluice-foam-glow", "x": 960, "y": 792, "rx": 34, "ry": 22, "color": "#c8f6ff", "minAlpha": 0.14, "maxAlpha": 0.34, "speed": 2.4, "phase": 1.7 }
+  ],
+  "zones": [
+    {
+      "id": "nw-stream-sparkles",
+      "kind": "sparkle",
+      "rect": [365, 10, 110, 165],
+      "rate": 1.9,
+      "color": "#d6fbff",
+      "color2": "#ffffff",
+      "size": 11,
+      "drift": [8, 14],
+      "life": 1.3,
+      "alpha": 0.72
+    },
+    {
+      "id": "mid-creek-sparkles",
+      "kind": "sparkle",
+      "rect": [675, 285, 70, 125],
+      "rate": 1.6,
+      "color": "#d6fbff",
+      "color2": "#ffffff",
+      "size": 11,
+      "drift": [4, 15],
+      "life": 1.25,
+      "alpha": 0.74
+    },
+    {
+      "id": "lower-creek-sparkles",
+      "kind": "sparkle",
+      "rect": [780, 505, 130, 120],
+      "rate": 1.8,
+      "color": "#d6fbff",
+      "color2": "#ffffff",
+      "size": 11,
+      "drift": [9, 13],
+      "life": 1.3,
+      "alpha": 0.72
+    },
+    {
+      "id": "lower-creek-ripples",
+      "kind": "ripple",
+      "rect": [935, 775, 50, 55],
+      "rate": 1.2,
+      "color": "#dcf8ff",
+      "color2": "#ffffff",
+      "size": 28,
+      "drift": [0, 8],
+      "life": 1.8,
+      "alpha": 0.34
+    },
+    {
+      "id": "se-crystal-sparkles",
+      "kind": "sparkle",
+      "rect": [1455, 715, 65, 65],
+      "rate": 1.1,
+      "color": "#80ffea",
+      "color2": "#ffffff",
+      "size": 10,
+      "drift": [0, -6],
+      "life": 1.5,
+      "alpha": 0.7
+    },
+    {
+      "id": "willow-fireflies-west",
+      "kind": "firefly",
+      "rect": [30, 80, 210, 560],
+      "rate": 1.0,
+      "color": "#fff28a",
+      "color2": "#ccff84",
+      "size": 9,
+      "drift": [6, -4],
+      "life": 4.4,
+      "alpha": 0.72
+    },
+    {
+      "id": "willow-fireflies-east",
+      "kind": "firefly",
+      "rect": [1520, 560, 290, 240],
+      "rate": 1.0,
+      "color": "#fff28a",
+      "color2": "#ccff84",
+      "size": 9,
+      "drift": [-5, -5],
+      "life": 4.4,
+      "alpha": 0.72
+    }
+  ]
+}

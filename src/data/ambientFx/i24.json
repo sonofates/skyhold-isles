@@ -1,0 +1,122 @@
+{
+  "island": "i24",
+  "maxParticles": 52,
+  "flames": [
+    {
+      "id": "lighthouse-lamp-core",
+      "x": 1156,
+      "y": 516,
+      "size": 20,
+      "glowRadius": 64,
+      "color": "#ffb938",
+      "intensity": 0.95,
+      "phase": 0.5
+    }
+  ],
+  "glows": [
+    {
+      "id": "lighthouse-beacon-east",
+      "x": 1156,
+      "y": 510,
+      "rx": 240,
+      "ry": 74,
+      "rotation": -0.18,
+      "sweep": 0.52,
+      "color": "#ffe596",
+      "kind": "beacon",
+      "minAlpha": 0.1,
+      "maxAlpha": 0.26,
+      "speed": 0.55,
+      "phase": 0.2
+    },
+    {
+      "id": "lighthouse-beacon-west",
+      "x": 1156,
+      "y": 510,
+      "rx": 220,
+      "ry": 68,
+      "rotation": 2.96,
+      "sweep": 0.52,
+      "color": "#ffe596",
+      "kind": "beacon",
+      "minAlpha": 0.08,
+      "maxAlpha": 0.2,
+      "speed": 0.55,
+      "phase": 0.2
+    },
+    {
+      "id": "castle-coastal-lamp",
+      "x": 1445,
+      "y": 655,
+      "rx": 42,
+      "ry": 30,
+      "color": "#ffb044",
+      "minAlpha": 0.1,
+      "maxAlpha": 0.22,
+      "speed": 1.8,
+      "phase": 1.6
+    }
+  ],
+  "zones": [
+    {
+      "id": "west-surf-sparkles",
+      "kind": "sparkle",
+      "rect": [4, 210, 95, 560],
+      "rate": 2.4,
+      "color": "#dff6ff",
+      "color2": "#ffffff",
+      "size": 12,
+      "drift": [4, 0],
+      "life": 1.3,
+      "alpha": 0.72
+    },
+    {
+      "id": "west-surf-spray",
+      "kind": "mist",
+      "rect": [0, 80, 115, 680],
+      "rate": 1.1,
+      "color": "#e4f2fa",
+      "color2": "#c6e0ee",
+      "size": 78,
+      "drift": [14, -8],
+      "life": 4.4,
+      "alpha": 0.18
+    },
+    {
+      "id": "east-surf-sparkles",
+      "kind": "sparkle",
+      "rect": [1730, 80, 110, 740],
+      "rate": 2.5,
+      "color": "#dff6ff",
+      "color2": "#ffffff",
+      "size": 12,
+      "drift": [-4, 0],
+      "life": 1.3,
+      "alpha": 0.72
+    },
+    {
+      "id": "east-surf-spray",
+      "kind": "mist",
+      "rect": [1710, 110, 130, 710],
+      "rate": 1.1,
+      "color": "#e4f2fa",
+      "color2": "#c6e0ee",
+      "size": 78,
+      "drift": [-14, -8],
+      "life": 4.4,
+      "alpha": 0.18
+    },
+    {
+      "id": "east-cove-ripples",
+      "kind": "ripple",
+      "rect": [1735, 360, 100, 420],
+      "rate": 1.1,
+      "color": "#d6f4ff",
+      "color2": "#ffffff",
+      "size": 34,
+      "drift": [-4, 0],
+      "life": 2.3,
+      "alpha": 0.28
+    }
+  ]
+}

@@ -1,0 +1,70 @@
+{
+  "island": "i23",
+  "maxParticles": 50,
+  "glows": [
+    { "id": "honeycomb-hollow-glow", "x": 1756, "y": 114, "rx": 64, "ry": 50, "color": "#ffbc38", "minAlpha": 0.16, "maxAlpha": 0.38, "speed": 1.2, "phase": 0.4 },
+    { "id": "apiary-hives-glow", "x": 964, "y": 230, "rx": 52, "ry": 32, "color": "#ffca4a", "minAlpha": 0.08, "maxAlpha": 0.2, "speed": 1.4, "phase": 1.9 }
+  ],
+  "zones": [
+    {
+      "id": "orchard-leaves-west",
+      "kind": "petal",
+      "rect": [10, 40, 210, 760],
+      "rate": 1.9,
+      "color": "#f49b28",
+      "color2": "#d95026",
+      "size": 12.5,
+      "drift": [22, 12],
+      "life": 4.8,
+      "alpha": 0.76
+    },
+    {
+      "id": "orchard-leaves-east",
+      "kind": "petal",
+      "rect": [1600, 140, 235, 680],
+      "rate": 1.8,
+      "color": "#f6b432",
+      "color2": "#dc5828",
+      "size": 12.5,
+      "drift": [-18, 12],
+      "life": 4.8,
+      "alpha": 0.76
+    },
+    {
+      "id": "honeycomb-golden-motes",
+      "kind": "firefly",
+      "rect": [1630, 35, 195, 170],
+      "rate": 1.3,
+      "color": "#ffdc5c",
+      "color2": "#fff2a8",
+      "size": 8.5,
+      "drift": [-4, 2],
+      "life": 3.8,
+      "alpha": 0.8
+    },
+    {
+      "id": "apiary-golden-motes",
+      "kind": "firefly",
+      "rect": [905, 175, 125, 95],
+      "rate": 1.1,
+      "color": "#ffe064",
+      "color2": "#fff5b2",
+      "size": 8,
+      "drift": [3, -2],
+      "life": 3.6,
+      "alpha": 0.74
+    },
+    {
+      "id": "sunlit-meadow-pollen",
+      "kind": "firefly",
+      "rect": [260, 25, 1280, 95],
+      "rate": 0.9,
+      "color": "#ffeb96",
+      "color2": "#ffffff",
+      "size": 8,
+      "drift": [16, 4],
+      "life": 4.4,
+      "alpha": 0.58
+    }
+  ]
+}
