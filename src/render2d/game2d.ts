@@ -1,3 +1,4 @@
+import { bootPhase } from './bootTrace.ts';
 import type { ItemCounts, ItemId } from '../data/market.ts';
 import { Container, Graphics, NineSliceSprite, Sprite, Text, Texture, type Application, type TextureSource } from 'pixi.js';
 import { EventBus } from '../core/eventBus.ts';
@@ -474,7 +475,7 @@ export class Game2D {
   /** Replay viewer speed (1× / 2× / 4×). */
   setReplaySpeed(s: number): void {
     if (!this.replayCursor) return;
-    (this.stepper as { speed: number }).speed = (REPLAY_SPEEDS as readonly number[]).includes(s) ? s : 1;
+    this.stepper.speed = REPLAY_SPEEDS.find(speed => speed === s) ?? 1;
   }
 
   /** Sets the live game speed (1× / 2× / 3×) and records it. */
@@ -738,15 +739,26 @@ export class Game2D {
     this.hudGoldDirty = true;
   }
 
+  textureSources(): TextureSource[] {
+    const enemies = new Set<string>();
+    for (const wave of this.level.waves) {
+      for (const { enemyType } of [...wave.groups].sort((a, b) => a.startDelay - b.startDelay)) {
+        enemies.add(enemyArtFor(this.art.manifest, enemyType, ENEMY_DEFS[enemyType].flying).art);
+      }
+    }
+    const { arrow, bolt, ball, shard, glow } = this.tex;
+    return collectArtTextureSources(this.art, enemies, [
+      arrow, bolt, ball, shard, glow, ...Object.values(this.tex), this.soldiers.flagTexture,
+    ]);
+  }
+
   /**
-   * Pre-uploads all loaded & procedural `TextureSource`s (+ mipmaps), pre-compiles all Pixi shader
-   * pipelines (`Sprite` normal/add, `Graphics` normal/add, `NineSliceSprite`, `Text`), pre-warms
+   * Pre-compiles the Pixi shader pipelines (`Sprite` normal/add, `Graphics` normal/add, `NineSliceSprite`, `Text`), pre-warms
    * pooled entity/particle sprites, and calibrates initial adaptive resolution before Wave 1 starts.
    */
   prewarm(opts: { readonly benchSteps?: number } = {}): void {
     const renderer = this.app.renderer as unknown as {
       gl?: WebGL2RenderingContext;
-      texture?: { initSource?: (src: TextureSource) => void };
       renderPipes?: { text?: { initGpuText?: (t: Text) => void } };
     };
     const gl = renderer.gl;
@@ -756,17 +768,13 @@ export class Game2D {
     this.projectiles.prewarm(64);
     this.fx.prewarm(this.quality.tier === 'high' ? 160 : 96);
 
-    // 2. Upload every TextureSource + build mipmaps ahead of gameplay.
-    const initSource = renderer.texture?.initSource?.bind(renderer.texture);
-    if (initSource) {
-      const sources = new Set<TextureSource>(collectArtTextureSources(this.art));
-      for (const tex of Object.values(this.tex) as Texture[]) {
-        if (tex && tex !== Texture.EMPTY) sources.add(tex.source);
-      }
-      if (this.soldiers.flagTexture !== Texture.EMPTY) sources.add(this.soldiers.flagTexture.source);
-      for (const src of sources) initSource(src);
+    bootPhase('allocate-pools');
+    // The stress benchmark needs every combat texture resident before it starts sampling.
+    if (opts.benchSteps) {
+      for (const src of this.textureSources()) this.app.renderer.texture.initSource(src);
     }
 
+    bootPhase('upload-textures');
     // 3. Populate initial HUD & run optional bench setup steps while #boot still covers the stage.
     const benchSteps = opts.benchSteps ?? 0;
     if (benchSteps > 0) {
@@ -786,6 +794,7 @@ export class Game2D {
       walkText(this.app.stage);
     }
 
+    bootPhase('prepare-hud-and-text');
     const warm = new Container();
     warm.alpha = 0.001;
     const sNorm = new Sprite(this.tex.puff);
@@ -805,6 +814,7 @@ export class Game2D {
     this.app.stage.removeChild(warm);
     warm.destroy({ children: true });
 
+    bootPhase('shader-pass-and-gpu-flush');
     // 5. Measure actual GPU-flushed frame time (with hot shader/texture caches) and settle
     //    resolution before `#boot` is removed so gameplay starts with zero backlog or mid-wave resizes.
     const software = isSoftwareRenderer(gl);

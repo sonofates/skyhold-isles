@@ -39,19 +39,20 @@ export class FixedTimestepStepper {
   private accumulator = 0;
   private elapsedVisualTime = 0;
 
-  speed: SpeedMultiplier = 1;
+  /** 4× is available to replay and QA. Live game controls select 1× through 3×. */
+  speed: SpeedMultiplier | 4 = 1;
   paused = false;
   simActive = false;
 
   /** Sets speed to a validated `1 | 2 | 3` multiplier and returns it. */
   setSpeed(speed: unknown): SpeedMultiplier {
-    this.speed = clampSpeedMultiplier(speed, this.speed);
+    this.speed = clampSpeedMultiplier(speed, clampSpeedMultiplier(this.speed));
     return this.speed;
   }
 
   /** Cycles speed `1x -> 2x -> 3x -> 1x` and returns the new multiplier. */
   cycleSpeed(): SpeedMultiplier {
-    this.speed = nextSpeedMultiplier(this.speed);
+    this.speed = nextSpeedMultiplier(clampSpeedMultiplier(this.speed));
     return this.speed;
   }
 
@@ -66,14 +67,15 @@ export class FixedTimestepStepper {
 
     let ticksExecuted = 0;
     if (this.simActive && !this.paused && (!shouldContinue || shouldContinue())) {
-      const mult = clampSpeedMultiplier(this.speed, 1);
+      const mult = this.speed === 4 ? 4 : clampSpeedMultiplier(this.speed, 1);
+      const maxSteps = mult === 4 ? 24 : MAX_STEPS_PER_FRAME;
       this.accumulator += clampedDt * mult;
       while (
         this.simActive &&
         !this.paused &&
         (!shouldContinue || shouldContinue()) &&
         this.accumulator >= BALANCE.fixedDt &&
-        ticksExecuted < MAX_STEPS_PER_FRAME
+        ticksExecuted < maxSteps
       ) {
         this.accumulator -= BALANCE.fixedDt;
         ticksExecuted++;

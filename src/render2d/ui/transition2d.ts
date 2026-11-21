@@ -6,13 +6,13 @@
  */
 
 const VEIL_MS = 260;
-const BOOT_FADE_MS = 380;
+const BOOT_FADE_MS = 150;
 
 function reduced(): boolean {
   return typeof document !== 'undefined' && document.documentElement.classList.contains('pu-reduce-motion');
 }
 
-/** Fades the veil in, then goes to `href` (once; a second call while leaving is ignored). */
+/** Starts the veil while navigating to `href` (once; a second call while leaving is ignored). */
 export function navigateWithVeil(href: string, replace = false): void {
   if (typeof document === 'undefined') return;
   if (document.getElementById('pu-veil')) return;
@@ -39,7 +39,7 @@ export function navigateWithVeil(href: string, replace = false): void {
   requestAnimationFrame(() => {
     veil.style.opacity = '1';
   });
-  window.setTimeout(go, VEIL_MS + 30);
+  go();
 }
 
 /** The boot screen fades out (then leaves the DOM); at once with reduced motion. */
@@ -67,6 +67,20 @@ export function setBootText(text: string): void {
   const line = boot.querySelector('.boot-text');
   if (line) line.textContent = text;
   else boot.textContent = text;
+}
+
+/** Battle-only progress reflects finished asset jobs, the rendered scene and installed controls. */
+export function setBootProgress(fraction: number): void {
+  const bar = document.getElementById('boot')?.querySelector('progress');
+  if (bar) {
+    bar.hidden = false;
+    bar.value = fraction;
+  }
+}
+
+export function setBootArtwork(url: string | null): void {
+  const boot = document.getElementById('boot');
+  if (boot && url) boot.style.setProperty('--island-art', `url(${JSON.stringify(url)})`);
 }
 
 /** A "Tip" card under the boot line while a battle loads (label + one sentence). */

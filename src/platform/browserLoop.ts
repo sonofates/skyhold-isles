@@ -1,4 +1,4 @@
-import { FixedTimestepStepper } from '../core/gameLoop.ts';
+import { clampSpeedMultiplier, FixedTimestepStepper } from '../core/gameLoop.ts';
 import type { SpeedMultiplier } from '../core/types.ts';
 
 export interface LoopCallbacks {
@@ -18,7 +18,7 @@ export class GameLoop {
   }
 
   get speed(): SpeedMultiplier {
-    return this.stepper.speed;
+    return clampSpeedMultiplier(this.stepper.speed);
   }
 
   set speed(val: SpeedMultiplier) {

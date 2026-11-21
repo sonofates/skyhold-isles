@@ -3,9 +3,15 @@
  * (smallest resolution variant), cropped by CSS. Islands without a painted map get null and the
  * UI draws a grass mound instead.
  */
+import type { UiArt } from '../manifest.ts';
+import { MASTER_SCALE, pickMapVariant } from '../mapVariant.ts';
+import { graphicsPrefs, isDesktopClient, renderResolution } from '../renderResolution.ts';
 import type { LevelDef } from '../../data/levels/types.ts';
 
 export interface MapsManifest {
+  readonly overlays?: Readonly<Record<string, string>>;
+  readonly plot?: { readonly file: string } | null;
+  readonly ui?: UiArt;
   readonly paintedUi?: Readonly<Record<string, string>>;
   readonly maps: Readonly<Record<string, string>>;
 }
@@ -16,6 +22,31 @@ export function islandMapUrl(manifest: MapsManifest | null, level: Pick<LevelDef
   if (!key || !manifest) return null;
   const file = manifest.maps[`${key}@1x`] ?? manifest.maps[key];
   return file ? baseUrl + file : null;
+}
+
+const prefetched = new Set<string>();
+
+/** Warm the next document's HTTP cache while its unlocked island briefing is on screen. */
+export function prefetchLevelArt(manifest: MapsManifest | null, level: LevelDef): void {
+  const layout = level.layout2d;
+  if (!manifest || !layout) return;
+  const tier = isDesktopClient() ? 'high' : graphicsPrefs().lock ?? 'high';
+  const resolution = renderResolution(innerWidth, innerHeight, devicePixelRatio, undefined, tier);
+  const need = Math.max(innerWidth / layout.imageSize[0], innerHeight / layout.imageSize[1]) * resolution;
+  const key = pickMapVariant(manifest.maps, layout.image, need, MASTER_SCALE);
+  const files = [
+    key && manifest.maps[key], manifest.plot?.file, ...Object.values(manifest.ui ?? {}),
+    ...(layout.gates ?? []).map(g => g.front && manifest.overlays?.[g.front.art]),
+  ];
+  for (const file of files) {
+    if (!file || prefetched.has(file)) continue;
+    prefetched.add(file);
+    // Consume the response to fill the HTTP cache without decoding a second Pixi texture here.
+    void fetch('/art2d/' + file, { priority: 'low' }).then(async response => {
+      if (response.ok) await response.blob();
+      else prefetched.delete(file);
+    }).catch(() => prefetched.delete(file));
+  }
 }
 
 let cached: Promise<MapsManifest | null> | null = null;
