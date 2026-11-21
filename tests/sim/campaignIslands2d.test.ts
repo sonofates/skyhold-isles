@@ -3,6 +3,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 import { EventBus } from '../../src/core/eventBus.ts';
+import { BALANCE } from '../../src/data/balance.ts';
 import { LEVELS, groundLaneCount } from '../../src/data/levels/index.ts';
 import { getLevelById, LEVELS_2D } from '../../src/data/levels2d/index.ts';
 import { parseLevel2D, type Level2DJson } from '../../src/data/levels2d/loader.ts';
@@ -161,4 +162,20 @@ it('Moonwell raiders round the pond counter-clockwise before joining the shortcu
   expect(north).toBeGreaterThan(east);
   expect(merge).toBeGreaterThan(north);
   expect(road.slice(merge)).toEqual(shortcut.slice(shortcut.findIndex(atMerge)));
+});
+
+it('Sanctum can defend both opening lanes using only its base starting gold', () => {
+  const level = getLevelById('i16')!;
+  const world = new SimWorld(level, new EventBus());
+  const startingLives = world.lives;
+  for (const build of level.scriptedBuildOrder!.filter(action => action.waveIndex === 0)) {
+    expect(world.placeTowerOnPlot(build.col, build.towerType!)).not.toBeNull();
+  }
+  expect(world.startNextWave()).toBe(true);
+  for (let tick = 0; tick < 60 / BALANCE.fixedDt && world.waveSystem.state !== 'betweenWaves'; tick++) {
+    world.fixedTick(BALANCE.fixedDt);
+  }
+  expect(world.waveSystem.state).toBe('betweenWaves');
+  expect(world.lives).toBe(startingLives);
+  world.dispose();
 });

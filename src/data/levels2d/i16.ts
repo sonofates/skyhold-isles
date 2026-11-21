@@ -5,9 +5,9 @@ import layout from './i16.json';
 
 const sanctum = campaignIsland(LEVEL_16, layout, {
   waves: replaceWaveEnemy(LEVEL_16, 'Gatecrash', 'brute', 'kilnback'),
-  startingGold: 100,
-  enemyHpScale: 2.0336,
-  waveHpGrowth: 0.066,
+  startingGold: 360,
+  enemyHpScale: 2.3,
+  waveHpGrowth: 0.09,
   sites: {
     '7,4': 23,
     '4,9': 8,
@@ -36,11 +36,14 @@ const sanctum = campaignIsland(LEVEL_16, layout, {
   },
 });
 
+// Cover both roads for 300 gold, then add Tesla on the north bend before the flyers arrive.
+const opening = [
+  build(0, 24, 'frost'), build(0, 1, 'archer'), build(0, 23, 'cannon'), build(0, 8, 'mortar'),
+  build(1, 3, 'tesla'),
+];
+
 export const I16 = {
   ...sanctum,
-  scriptedBuildOrder: [
-    // The first wave's bounty can buy frost in time for the second road's runners and Kilnbacks.
-    build(0, 24, 'frost'), build(0, 1, 'archer'), build(0, 23, 'cannon'), build(0, 8, 'mortar'),
-    ...(sanctum.scriptedBuildOrder ?? []).filter(action => action.waveIndex > 0),
-  ],
+  scriptedBuildOrder: [...opening, ...(sanctum.scriptedBuildOrder ?? []).filter(action => action.waveIndex > 1)],
+  weakBuildOrder: [...opening, ...(sanctum.weakBuildOrder ?? []).filter(action => action.waveIndex > 1)],
 };
