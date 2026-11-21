@@ -976,7 +976,8 @@ export class AmbientFxLayer {
   private spawnFrom(em: EmitterRuntime): void {
     if (this.activeParticles >= this.currentCap) return;
     let slot: ParticleSlot | undefined;
-    for (let i = 0; i < this.currentCap; i++) {
+    const n = Math.min(this.currentCap, this.pool.length);
+    for (let i = 0; i < n; i++) {
       if (!this.pool[i].active) {
         slot = this.pool[i];
         break;
@@ -1098,6 +1099,7 @@ export class AmbientFxLayer {
               ? this.tex('smoke')
               : this.tex('spark');
     sp.tint = slot.tint;
+    sp.rotation = slot.rot;
     sp.visible = true;
     this.activeParticles++;
   }
@@ -1110,7 +1112,8 @@ export class AmbientFxLayer {
     const t = this.time;
 
     const density = fxPrefsNow().density;
-    const nextCap = effectiveParticleCap(this.config.maxParticles, tier, density);
+    // Never above the pool that was allocated at build time (High density can ask for more slots than exist).
+    const nextCap = Math.min(this.pool.length, effectiveParticleCap(this.config.maxParticles, tier, density));
     if (nextCap < this.currentCap) {
       for (let i = nextCap; i < this.pool.length; i++) {
         const p = this.pool[i];
