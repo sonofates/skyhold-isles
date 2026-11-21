@@ -236,6 +236,19 @@ describe('AmbientFxLayer runtime and mapAnimLayer integration', () => {
     layer.destroy();
   });
 
+  it('does not throw when High effects density asks for more particles than the pool holds (every island)', () => {
+    setFxPrefs({ density: 1.35, reduceFlashes: false });
+    for (const id of TARGET_LOW_LIFE_ISLANDS) {
+      const layer = new AmbientFxLayer(getAmbientFxConfig(id)!);
+      expect(() => {
+        for (let i = 0; i < 600; i++) layer.update(true, false, 1 / 30, 'high');
+      }).not.toThrow();
+      const d = layer.debug();
+      expect(d.activeParticles).toBeLessThanOrEqual(d.particleCap);
+      layer.destroy();
+    }
+  });
+
   it('mounts ambient host strictly between mapSprite (0) and WorldLayers (2+) in world', () => {
     const world = new Container();
     const mapSprite = new Sprite(Texture.EMPTY);
