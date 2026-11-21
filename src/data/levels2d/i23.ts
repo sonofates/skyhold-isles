@@ -17,8 +17,8 @@ export const I23 = {
   flightPath: [],
   decorationSeed: 1229,
   startingGold: 400,
-  enemyHpScale: 2.4832,
-  waveHpGrowth: 0.1,
+  enemyHpScale: 2.678,
+  waveHpGrowth: 0.12,
   waves: [
     { name: 'First Pickings', clearBonus: 25, groups: [
       group('bellrunner', 5, 0.74),

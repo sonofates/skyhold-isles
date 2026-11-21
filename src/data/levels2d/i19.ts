@@ -17,7 +17,7 @@ export const I19 = {
   flightPath: [],
   decorationSeed: 1019,
   startingGold: 365,
-  enemyHpScale: 1.7346,
+  enemyHpScale: 1.82,
   waveHpGrowth: 0.1,
   waves: [
     { name: 'A Torn Basket', clearBonus: 24, groups: [
@@ -92,9 +92,9 @@ export const I19 = {
     upgrade(9, 14), upgrade(9, 7), upgrade(10, 11), upgrade(10, 10), upgrade(10, 17), upgrade(10, 6),
   ],
   weakBuildOrder: [
-    build(0, 2, 'archer'), build(0, 12, 'cannon'), build(0, 6, 'archer'),
-    build(1, 5, 'frost'), build(2, 13, 'cannon'), build(3, 3, 'archer'),
-    build(4, 10, 'ballista'), upgrade(4, 2), upgrade(5, 12), upgrade(6, 6),
-    upgrade(7, 5), upgrade(8, 13),
+    build(0, 11, 'archer'), build(0, 12, 'cannon'), build(0, 14, 'archer'),
+    build(1, 17, 'frost'), build(2, 13, 'cannon'), build(3, 9, 'archer'),
+    build(4, 10, 'ballista'), upgrade(4, 11), upgrade(5, 12), upgrade(6, 14),
+    upgrade(7, 17), upgrade(8, 13),
   ],
 } satisfies ChapterIsland;

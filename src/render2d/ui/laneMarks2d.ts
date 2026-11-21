@@ -75,7 +75,7 @@ export function laneMarkSpot(
         Math.max(0, Math.min(b.x + b.w, r.x + r.w + m) - Math.max(b.x, r.x - m)) *
         Math.max(0, Math.min(b.y + b.h, r.y + r.h + m) - Math.max(b.y, r.y - m));
     }
-    if (viewport) {
+    if (viewport && (b.x < pad || b.x + b.w > viewport.w - pad || b.y < pad || b.y + b.h > viewport.h - pad)) {
       const ix = Math.max(0, Math.min(b.x + b.w, viewport.w - pad) - Math.max(b.x, pad));
       const iy = Math.max(0, Math.min(b.y + b.h, viewport.h - pad) - Math.max(b.y, pad));
       a += Math.max(0, b.w * b.h - ix * iy);
