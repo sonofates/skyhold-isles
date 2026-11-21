@@ -11,7 +11,7 @@ import {
   type ResolvedHeroActive,
   type ResolvedHeroStats,
 } from '../data/heroes.ts';
-import { ENEMY_MELEE } from '../data/soldiers.ts';
+import { ENEMY_MELEE, SOLDIER_RULES } from '../data/soldiers.ts';
 import { TOWER_DEFS } from '../data/towers.ts';
 import type { EnemyEntity, TowerEntity } from './entities.ts';
 import type { EnemySystem } from './enemySystem.ts';
@@ -150,6 +150,7 @@ const _clampStep: GroundClampResult = { x: 0, z: 0, roadX: 0, roadZ: 0, lane: 0,
 const GIZMO_DIST_OFFSETS: readonly number[] = [0, 0.45, -0.45, 0.9, -0.9, 1.35, -1.35, 1.8, -1.8, 2.3, -2.3, 2.8, -2.8];
 const GIZMO_LAT_OFFSETS: readonly number[] = [0, 0.45, -0.45, 0.85, -0.85, 1.1, -1.1];
 const _gizmoPlacementOut = { x: 0, z: 0 };
+const _postSoldierCounts = { spare: 0, fighting: 0 };
 
 /** Deterministic FNV-1a string hash for default RNG seeding. */
 export function hashHeroSeed(levelId: string, heroId: string, level: number): number {
@@ -613,10 +614,12 @@ export class HeroSystem {
    *   and releases targets dragged beyond `HERO_RULES.meleeLeashRadius` of `(postX, postZ)`.
    * - One blocker per `holdCost` slot: secondary `holdCap` slots never double-hold an enemy whose
    *   `holdCost` is already satisfied (`blockers + heroBlockers >= holdCost`) or across unconnected
-   *   lanes, and a melee hero assisting on a soldier-held 1-slot enemy peels off as soon as an
-   *   uncovered unheld enemy would exceed spare `holdCap` or extra-hold reach.
-   * - While in `fighting` contact with a soldier-blocked enemy (`target.blockers > 0`), the hero
-   *   holds its ground instead of being dragged laterally/backwards by `SoldierSystem` crowd spread.
+   *   lanes, and a melee hero assisting on an unhurt soldier-held 1-slot enemy peels off when an
+   *   under-strength co-located squad has no spare soldiers and unmet same-lane 1-slot foes within
+   *   soldier reach exceed spare `holdCap`.
+   * - When entering `fighting` contact against a soldier-stopped crowd foe (`blockedCount >= 2`)
+   *   that is actively being displaced inside contact by `SoldierSystem` crowd spread, the hero
+   *   holds its ground instead of being pushed backwards or dragged sideways.
    * - Ranged heroes (`holdCap = 0`) never block enemies or leave `(postX, postZ)`.
    */
   commandMove(wantX: number, wantZ: number, onCommitted?: () => void): boolean {
@@ -1602,6 +1605,7 @@ export class HeroSystem {
     }
     h.targetPoolIndex = -1;
     h.targetUid = 0;
+    this.holdFightGroundUid = 0;
   }
 
   private applyRallyAura(h: HeroEntity, dt: number): void {
@@ -2020,6 +2024,31 @@ export class HeroSystem {
     this.reconcileHeroUnblocks();
   }
 
+  private holdFightGroundUid = 0;
+
+  private countPostSoldiers(h: HeroEntity): { spare: number; fighting: number } {
+    const rSq = HERO_RULES.meleeEngageRadius * HERO_RULES.meleeEngageRadius;
+    const barracks = this.soldierSystem.barracks;
+    let spare = 0;
+    let fighting = 0;
+    for (let bi = 0; bi < barracks.length; bi++) {
+      const b = barracks[bi];
+      if ((b.rallyX - h.postX) ** 2 + (b.rallyZ - h.postZ) ** 2 > rSq) continue;
+      if (!this.groundGraph.isLocallyConnected(h.postX, h.postZ, b.rallyX, b.rallyZ, 7.2)) continue;
+      for (let si = 0; si < b.squad.length; si++) {
+        const sol = b.squad[si];
+        if (sol.state === 'fighting') {
+          fighting += sol.holdCap;
+        } else if (sol.state !== 'dead') {
+          spare += sol.holdCap;
+        }
+      }
+    }
+    _postSoldierCounts.spare = spare;
+    _postSoldierCounts.fighting = fighting;
+    return _postSoldierCounts;
+  }
+
   private canEngageMeleeTarget(h: HeroEntity, e: EnemyEntity, maxGraphDist = 7.2): boolean {
     return (
       this.groundGraph.isLocallyConnected(h.postX, h.postZ, e.x, e.z, maxGraphDist) &&
@@ -2044,35 +2073,43 @@ export class HeroSystem {
       h.targetPoolIndex = -1;
       h.targetUid = 0;
       h.state = 'idle';
+      this.holdFightGroundUid = 0;
     }
 
-    const targetHeldBySoldiers =
+    const postSoldiers =
       target !== null &&
+      h.state === 'fighting' &&
       ENEMY_MELEE[target.type].holdCost === 1 &&
-      target.blockers >= 1;
+      target.blockers === 1 &&
+      target.hp > target.maxHp - h.stats.damage
+        ? this.countPostSoldiers(h)
+        : null;
+    const targetHeldBySoldiers = postSoldiers !== null && postSoldiers.spare === 0;
     if (target === null || targetHeldBySoldiers) {
       const holdCandidates = this.holdCandidates;
+      const soldierEngageSq = SOLDIER_RULES.engageRadius * SOLDIER_RULES.engageRadius;
       this.spatialHash.query(h.postX, h.postZ, HERO_RULES.meleeEngageRadius, holdCandidates);
       const rSq = HERO_RULES.meleeEngageRadius * HERO_RULES.meleeEngageRadius;
       let best: EnemyEntity | null = null;
       let bestNeeds = false;
-      let needyOutsideContact = false;
-      let needyUnmetTotal = 0;
+      let excessSoldierBlockers = 0;
+      let unmetSingleSlotInReach = 0;
       for (let i = 0; i < holdCandidates.length; i++) {
         const e = this.pool.items[holdCandidates[i]];
         if (!this.isHoldable(e)) continue;
-        if ((e.x - h.postX) ** 2 + (e.z - h.postZ) ** 2 > rSq) continue;
-        const unmet = ENEMY_MELEE[e.type].holdCost - e.blockers;
-        const needs = unmet > 0;
-        if (target !== null && !needs) continue;
+        const dPostSq = (e.x - h.postX) ** 2 + (e.z - h.postZ) ** 2;
+        if (dPostSq > rSq) continue;
         if (!this.canEngageMeleeTarget(h, e)) continue;
+        const holdCost = ENEMY_MELEE[e.type].holdCost;
+        const unmet = holdCost - e.blockers;
+        if (unmet < 0) excessSoldierBlockers += -unmet;
+        const needs = unmet > 0;
         if (target !== null) {
-          needyUnmetTotal += unmet;
-          if (
-            (e.x - h.x) ** 2 + (e.z - h.z) ** 2 > rSq ||
-            !this.groundGraph.isLocallyConnected(h.x, h.z, e.x, e.z, 7.2)
-          ) {
-            needyOutsideContact = true;
+          if (!needs || holdCost !== 1 || e.lane !== target.lane) continue;
+          if (dPostSq <= soldierEngageSq && (e.x - h.x) ** 2 + (e.z - h.z) ** 2 <= rSq) {
+            unmetSingleSlotInReach += unmet;
+          } else {
+            continue;
           }
         }
         if (!best) {
@@ -2094,16 +2131,21 @@ export class HeroSystem {
           bestNeeds = needs;
         }
       }
-      const alreadyCoveredByExtraHolds =
+      const shouldPeelOff =
         target !== null &&
-        h.state === 'fighting' &&
-        !needyOutsideContact &&
-        needyUnmetTotal <= h.stats.holdCap - 1;
-      if (best && (target === null || (bestNeeds && best !== target && !alreadyCoveredByExtraHolds))) {
+        best !== null &&
+        best !== target &&
+        bestNeeds &&
+        excessSoldierBlockers === 0 &&
+        unmetSingleSlotInReach > h.stats.holdCap - 1 &&
+        postSoldiers !== null &&
+        postSoldiers.fighting + h.stats.holdCap <= SOLDIER_RULES.maxPerEnemy;
+      if (best && (target === null || shouldPeelOff)) {
         h.targetPoolIndex = best.poolIndex;
         h.targetUid = best.uid;
         h.waypoints.length = 0;
         h.state = 'engaging';
+        this.holdFightGroundUid = 0;
         target = best;
       }
     }
@@ -2113,10 +2155,14 @@ export class HeroSystem {
       let dx = h.x - target.x;
       let dz = h.z - target.z;
       let d = Math.hypot(dx, dz);
+      if (h.state !== 'fighting' || this.holdFightGroundUid !== target.uid) {
+        this.holdFightGroundUid = 0;
+      }
       const holdGroundAgainstPush =
         h.state === 'fighting' &&
-        target.blockers > 0 &&
-        d <= contact + HERO_RULES.contactSlack;
+        this.holdFightGroundUid === target.uid &&
+        target.blockers >= ENEMY_MELEE[target.type].holdCost &&
+        d < contact;
       if (!holdGroundAgainstPush) {
         if (d < 1e-6) {
           dx = h.postX - target.x;
@@ -2138,8 +2184,17 @@ export class HeroSystem {
       if (h.state !== 'fighting' && nowDist <= contact + 0.08) {
         h.state = 'fighting';
         if (h.attackTimer < 0.15) h.attackTimer = 0.15;
+        if (
+          target.blockers >= ENEMY_MELEE[target.type].holdCost &&
+          this.soldierSystem.blockedCount >= 2 &&
+          nowDist < contact - 0.25 &&
+          (target.x - target.prevX) ** 2 + (target.z - target.prevZ) ** 2 > 1e-6
+        ) {
+          this.holdFightGroundUid = target.uid;
+        }
       } else if (h.state === 'fighting' && nowDist > contact + HERO_RULES.contactSlack) {
         h.state = 'engaging';
+        this.holdFightGroundUid = 0;
       }
 
       if (h.state === 'fighting') {

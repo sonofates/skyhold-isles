@@ -395,6 +395,30 @@ describe('hero movement, engagement & blocking rules', () => {
     }
   });
 
+  it('does not prematurely peel off into engaging when spare soldiers exist or upstream heavies enter outer hero reach', () => {
+    const world = new SimWorld(makeLevel(STRAIGHT_JSON), new EventBus(), { heroId: 'bran', heroLevel: 7 });
+    world.gold = 5000;
+    const barracks = world.placeTowerOnPlot(0, 'barracks')!;
+    const bState = world.soldierSystem.getBarracks(barracks.id)!;
+    expect(world.commandHeroMove(bState.rallyX, bState.rallyZ)).toBe(true);
+    tickUntil(world, () => world.hero!.state === 'idle' && bState.squad.every((s) => s.state === 'idle'));
+
+    // Soldier 0 and Bran both fight frontmost Reed Piper while Soldier 1 remains idle at the post.
+    const dRally = world.groundPath.nearestDist(bState.rallyX, bState.rallyZ);
+    const piper = spawnAtDist(world, 'reedpiper', dRally - 0.3, 0, 900);
+    tickUntil(world, () => world.hero!.state === 'fighting' && piper.blockers >= 1);
+    expect(world.hero!.targetUid).toBe(piper.uid);
+
+    // Upstream Kilnback (`holdCost = 2`) + Grunts cross Bran's 2.1u engage circle before Soldier 1's 1.7u reach:
+    // Bran must stay in `'fighting'` on `piper` (keeping extra holds active) rather than resetting to `'engaging'`.
+    spawnAtDist(world, 'kilnback', dRally - 1.95, 0, 1200);
+    spawnAtDist(world, 'grunt', dRally - 1.9, 0, 900);
+    spawnAtDist(world, 'grunt', dRally - 1.85, 0, 900);
+    world.fixedTick(DT);
+    expect(world.hero!.state).toBe('fighting');
+    expect(world.hero!.targetUid).toBe(piper.uid);
+  });
+
   it('maintains monotonic heading (no end-of-walk overshoot backtrack or facing flip) across diagonal verge walks', () => {
     const world = new SimWorld(makeLevel(STRAIGHT_JSON), new EventBus(), { heroId: 'bran', heroLevel: 1 });
     expect(world.commandHeroMove(1.95, 0.9)).toBe(true);
