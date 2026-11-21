@@ -1,0 +1,69 @@
+{
+  "island": "i21",
+  "maxParticles": 48,
+  "glows": [
+    { "id": "kite-sun-glint", "x": 914, "y": 412, "rx": 38, "ry": 34, "color": "#ffe28a", "minAlpha": 0.06, "maxAlpha": 0.18, "speed": 1.25, "phase": 0.6 }
+  ],
+  "zones": [
+    {
+      "id": "heather-petals-north",
+      "kind": "petal",
+      "rect": [220, 10, 1460, 75],
+      "rate": 1.8,
+      "color": "#f49ac2",
+      "color2": "#ffe5f0",
+      "size": 10,
+      "drift": [30, 12],
+      "life": 4.4,
+      "alpha": 0.72
+    },
+    {
+      "id": "heather-petals-south",
+      "kind": "petal",
+      "rect": [120, 745, 1520, 90],
+      "rate": 1.6,
+      "color": "#f292bc",
+      "color2": "#fff0cc",
+      "size": 10,
+      "drift": [32, -8],
+      "life": 4.3,
+      "alpha": 0.72
+    },
+    {
+      "id": "wind-dandelion-motes",
+      "kind": "firefly",
+      "rect": [80, 180, 1660, 500],
+      "rate": 1.3,
+      "color": "#fff8d8",
+      "color2": "#ffe9a8",
+      "size": 8,
+      "drift": [28, -5],
+      "life": 3.8,
+      "alpha": 0.58
+    },
+    {
+      "id": "east-cliff-breeze-mist",
+      "kind": "mist",
+      "rect": [1690, 140, 150, 620],
+      "rate": 0.85,
+      "color": "#f7e8e2",
+      "color2": "#e8d6df",
+      "size": 86,
+      "drift": [14, -7],
+      "life": 5.4,
+      "alpha": 0.18
+    },
+    {
+      "id": "west-cliff-breeze-mist",
+      "kind": "mist",
+      "rect": [0, 160, 120, 560],
+      "rate": 0.75,
+      "color": "#f7e8e2",
+      "color2": "#e8d6df",
+      "size": 84,
+      "drift": [16, -6],
+      "life": 5.2,
+      "alpha": 0.17
+    }
+  ]
+}

@@ -1,4 +1,6 @@
 import { Container, GlProgram, ImageSource, Mesh, MeshGeometry, Shader, VideoSource } from 'pixi.js';
+import { AmbientFxLayer, getAmbientFxConfig, type AmbientFxStats } from './ambientFx.ts';
+import type { QualityTier } from './renderResolution.ts';
 
 interface AmbientTrack {
   file: string;
@@ -66,7 +68,7 @@ class AmbientPlayer {
   private readonly source: VideoSource;
   private mask?: ImageSource;
   private mesh?: Mesh<MeshGeometry, Shader>;
-  private readonly world: Container;
+  private readonly host: Container;
   private readonly data: AmbientMap;
   readonly track: AmbientTrack;
   private requested = false;
@@ -74,8 +76,8 @@ class AmbientPlayer {
   private failed = false;
   private lastFrame = -1;
 
-  constructor(world: Container, data: AmbientMap, track: AmbientTrack, base: string) {
-    this.world = world;
+  constructor(host: Container, data: AmbientMap, track: AmbientTrack, base: string) {
+    this.host = host;
     this.data = data;
     this.track = track;
     const video = this.video;
@@ -102,7 +104,8 @@ class AmbientPlayer {
     });
     this.mesh = new Mesh({ geometry: islandGeometry(this.data), shader });
     this.mesh.eventMode = 'none';
-    this.world.addChildAt(this.mesh, 1); // immediately over the map sprite, below all battle layers
+    // Index 0 inside the dedicated ambient host: over the map sprite, under procedural FX & battle layers.
+    this.host.addChildAt(this.mesh, 0);
     this.upload();
   };
 
@@ -178,29 +181,69 @@ class AmbientPlayer {
   }
 }
 
-export function mapAnimLayer(world: Container, island: string, base: string) {
+export interface MapAnimController {
+  update(enabled: boolean, paused: boolean, smallBake: boolean, dtSec?: number, tier?: QualityTier): void;
+  /** QA: advance procedural ambient FX deterministically when ticker is frozen. */
+  stepFx(dtSec: number, tier?: QualityTier): void;
+  /** QA: inspect procedural ambient FX state (null if island has no procedural config). */
+  debug(): AmbientFxStats | null;
+}
+
+export function mapAnimLayer(world: Container, island: string, base: string): MapAnimController | undefined {
   const data = maps[`../data/mapAnim/${island}.json`];
-  if (!data) return;
+  const fxConfig = getAmbientFxConfig(island);
+  if (!data && !fxConfig) return;
+
+  // Dedicated ambient host strictly at index 1 in `world`: immediately above the map sprite (index 0)
+  // and strictly below all battle layers (groundFx, plots, shadows, actors, air, projectiles, fx, bars).
+  const host = new Container();
+  host.eventMode = 'none';
+  host.interactiveChildren = false;
+  world.addChildAt(host, Math.min(1, world.children.length));
+
   let player: AmbientPlayer | undefined;
-  const release = (): void => {
+  let fx: AmbientFxLayer | undefined;
+  if (fxConfig) {
+    fx = new AmbientFxLayer(fxConfig);
+    host.addChild(fx.root);
+  }
+
+  const releaseVideo = (): void => {
     player?.destroy();
     player = undefined;
   };
-  window.addEventListener('pagehide', release);
+  const releaseAll = (): void => {
+    releaseVideo();
+    fx?.destroy();
+    fx = undefined;
+    if (!host.destroyed) host.destroy({ children: true });
+  };
+
+  if (typeof window !== 'undefined') window.addEventListener('pagehide', releaseVideo);
   world.once('destroyed', () => {
-    window.removeEventListener('pagehide', release);
-    release();
+    if (typeof window !== 'undefined') window.removeEventListener('pagehide', releaseVideo);
+    releaseAll();
   });
+
   return {
-    update(enabled: boolean, paused: boolean, smallBake: boolean): void {
-      if (!enabled) {
-        if (player) release();
-        return;
+    update(enabled: boolean, paused: boolean, smallBake: boolean, dtSec = 1 / 60, tier: QualityTier = 'high'): void {
+      if (data && typeof document !== 'undefined') {
+        if (!enabled) {
+          if (player) releaseVideo();
+        } else {
+          const track = smallBake && data.compact ? data.compact : data;
+          if (player && player.track !== track) releaseVideo();
+          if (!player && !paused && !document.hidden) player = new AmbientPlayer(host, data, track, base);
+          player?.update(paused);
+        }
       }
-      const track = smallBake && data.compact ? data.compact : data;
-      if (player && player.track !== track) release();
-      if (!player && !paused && !document.hidden) player = new AmbientPlayer(world, data, track, base);
-      player?.update(paused);
+      fx?.update(enabled, paused, dtSec, tier);
+    },
+    stepFx(dtSec: number, tier: QualityTier = 'high'): void {
+      fx?.step(dtSec, tier);
+    },
+    debug(): AmbientFxStats | null {
+      return fx ? fx.debug() : null;
     },
   };
 }

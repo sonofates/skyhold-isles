@@ -1,0 +1,57 @@
+{
+  "island": "l1c",
+  "maxParticles": 40,
+  "glows": [
+    { "id": "castle-sun-warmth", "x": 1502, "y": 540, "rx": 48, "ry": 34, "color": "#ffdd88", "minAlpha": 0.06, "maxAlpha": 0.16, "speed": 1.2, "phase": 0.7 }
+  ],
+  "zones": [
+    {
+      "id": "meadow-daisy-petals-north",
+      "kind": "petal",
+      "rect": [360, 10, 1120, 75],
+      "rate": 1.6,
+      "color": "#fffdf0",
+      "color2": "#fff0a8",
+      "size": 10.5,
+      "drift": [26, 12],
+      "life": 4.6,
+      "alpha": 0.72
+    },
+    {
+      "id": "meadow-daisy-petals-west",
+      "kind": "petal",
+      "rect": [15, 120, 165, 650],
+      "rate": 1.2,
+      "color": "#fffdf0",
+      "color2": "#ffe8a6",
+      "size": 10.5,
+      "drift": [24, 11],
+      "life": 4.6,
+      "alpha": 0.7
+    },
+    {
+      "id": "meadow-daisy-petals-east",
+      "kind": "petal",
+      "rect": [1630, 290, 200, 520],
+      "rate": 1.1,
+      "color": "#fffdf0",
+      "color2": "#ffefa6",
+      "size": 10,
+      "drift": [22, 10],
+      "life": 4.5,
+      "alpha": 0.7
+    },
+    {
+      "id": "meadow-sunlit-motes",
+      "kind": "firefly",
+      "rect": [120, 720, 1480, 110],
+      "rate": 1.0,
+      "color": "#fff6b0",
+      "color2": "#ffffff",
+      "size": 8.5,
+      "drift": [16, -5],
+      "life": 4.4,
+      "alpha": 0.62
+    }
+  ]
+}

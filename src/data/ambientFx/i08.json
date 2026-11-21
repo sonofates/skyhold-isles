@@ -1,0 +1,130 @@
+{
+  "island": "i08",
+  "maxParticles": 58,
+  "flames": [
+    {
+      "id": "marsh-stone-lantern",
+      "x": 537,
+      "y": 681,
+      "size": 15,
+      "glowRadius": 58,
+      "color": "#ff7a18",
+      "intensity": 0.78,
+      "sparks": 0.8,
+      "phase": 0.6
+    }
+  ],
+  "glows": [
+    { "id": "castle-torch-warmth", "x": 830, "y": 335, "rx": 46, "ry": 34, "color": "#ff9e36", "minAlpha": 0.1, "maxAlpha": 0.24, "speed": 1.9, "phase": 1.3 }
+  ],
+  "zones": [
+    {
+      "id": "west-lake-sparkles",
+      "kind": "sparkle",
+      "rect": [15, 20, 260, 440],
+      "rate": 2.4,
+      "color": "#fff4cc",
+      "color2": "#c4f0ff",
+      "size": 12.5,
+      "drift": [1, 0],
+      "life": 1.4,
+      "alpha": 0.72
+    },
+    {
+      "id": "west-lake-ripples",
+      "kind": "ripple",
+      "rect": [30, 80, 235, 360],
+      "rate": 1.1,
+      "color": "#d6f2ff",
+      "color2": "#fff4d2",
+      "size": 36,
+      "drift": [0, 0],
+      "life": 2.8,
+      "alpha": 0.28
+    },
+    {
+      "id": "east-lake-sparkles",
+      "kind": "sparkle",
+      "rect": [1580, 20, 250, 460],
+      "rate": 2.4,
+      "color": "#fff4cc",
+      "color2": "#c4f0ff",
+      "size": 12.5,
+      "drift": [1, 0],
+      "life": 1.4,
+      "alpha": 0.72
+    },
+    {
+      "id": "east-lake-ripples",
+      "kind": "ripple",
+      "rect": [1600, 60, 225, 420],
+      "rate": 1.1,
+      "color": "#d6f2ff",
+      "color2": "#fff4d2",
+      "size": 36,
+      "drift": [0, 0],
+      "life": 2.8,
+      "alpha": 0.28
+    },
+    {
+      "id": "se-lake-sparkles",
+      "kind": "sparkle",
+      "rect": [1530, 630, 300, 205],
+      "rate": 1.8,
+      "color": "#fff4cc",
+      "color2": "#c4f0ff",
+      "size": 12,
+      "drift": [1, 0],
+      "life": 1.4,
+      "alpha": 0.7
+    },
+    {
+      "id": "inner-moat-sparkles",
+      "kind": "sparkle",
+      "rect": [610, 280, 155, 130],
+      "rate": 1.2,
+      "color": "#e6fbff",
+      "color2": "#fff6d6",
+      "size": 10.5,
+      "drift": [0, 0],
+      "life": 1.3,
+      "alpha": 0.65
+    },
+    {
+      "id": "inner-moat-east-ripples",
+      "kind": "ripple",
+      "rect": [905, 195, 115, 75],
+      "rate": 0.7,
+      "color": "#d4f4ff",
+      "color2": "#ffffff",
+      "size": 30,
+      "drift": [0, 0],
+      "life": 2.5,
+      "alpha": 0.28
+    },
+    {
+      "id": "marsh-fireflies-west",
+      "kind": "firefly",
+      "rect": [180, 560, 420, 240],
+      "rate": 1.1,
+      "color": "#ffeb78",
+      "color2": "#caff78",
+      "size": 9.5,
+      "drift": [6, -5],
+      "life": 4.4,
+      "alpha": 0.78
+    },
+    {
+      "id": "marsh-fireflies-east",
+      "kind": "firefly",
+      "rect": [1260, 25, 290, 240],
+      "rate": 0.9,
+      "color": "#ffeb78",
+      "color2": "#caff78",
+      "size": 9.5,
+      "drift": [-5, -4],
+      "life": 4.4,
+      "alpha": 0.75
+    }
+  ]
+}

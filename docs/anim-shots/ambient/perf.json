@@ -1,0 +1,185 @@
+{
+  "island": "i16",
+  "before": {
+    "1920x1080": {
+      "frames": 81,
+      "meanMs": 43.62,
+      "p50Ms": 49.9,
+      "p95Ms": 66.7
+    },
+    "1366x768": {
+      "frames": 133,
+      "meanMs": 26.44,
+      "p50Ms": 16.7,
+      "p95Ms": 66.7
+    },
+    "844x390": {
+      "frames": 83,
+      "meanMs": 42.37,
+      "p50Ms": 33.3,
+      "p95Ms": 116.6
+    }
+  },
+  "after": {
+    "1920x1080": {
+      "frames": 53,
+      "meanMs": 57.23,
+      "p50Ms": 50,
+      "p95Ms": 83.4,
+      "activeParticles": 71,
+      "particleCap": 74
+    },
+    "1366x768": {
+      "frames": 55,
+      "meanMs": 55.15,
+      "p50Ms": 50,
+      "p95Ms": 133.3,
+      "activeParticles": 72,
+      "particleCap": 74
+    },
+    "844x390": {
+      "frames": 45,
+      "meanMs": 67.03,
+      "p50Ms": 66.7,
+      "p95Ms": 149.9,
+      "activeParticles": 72,
+      "particleCap": 74
+    }
+  },
+  "checks": {
+    "pauseFreezes": true,
+    "reducedMotionOff": true,
+    "lowQualityOff": true,
+    "i16": {
+      "active": 70,
+      "cap": 74,
+      "cracks": 37,
+      "flames": 4,
+      "glows": 8
+    },
+    "i08": {
+      "active": 23,
+      "cap": 58,
+      "cracks": 0,
+      "flames": 1,
+      "glows": 1
+    },
+    "i09": {
+      "active": 17,
+      "cap": 44,
+      "cracks": 0,
+      "flames": 0,
+      "glows": 15
+    },
+    "i10": {
+      "active": 16,
+      "cap": 54,
+      "cracks": 0,
+      "flames": 3,
+      "glows": 2
+    },
+    "i13": {
+      "active": 13,
+      "cap": 46,
+      "cracks": 0,
+      "flames": 1,
+      "glows": 3
+    },
+    "i15": {
+      "active": 17,
+      "cap": 58,
+      "cracks": 0,
+      "flames": 3,
+      "glows": 4
+    },
+    "i17": {
+      "active": 15,
+      "cap": 46,
+      "cracks": 0,
+      "flames": 0,
+      "glows": 3
+    },
+    "i21": {
+      "active": 19,
+      "cap": 48,
+      "cracks": 0,
+      "flames": 0,
+      "glows": 1
+    },
+    "i22": {
+      "active": 13,
+      "cap": 54,
+      "cracks": 0,
+      "flames": 2,
+      "glows": 8
+    },
+    "i23": {
+      "active": 20,
+      "cap": 50,
+      "cracks": 0,
+      "flames": 0,
+      "glows": 2
+    },
+    "i24": {
+      "active": 15,
+      "cap": 52,
+      "cracks": 0,
+      "flames": 1,
+      "glows": 3
+    },
+    "l1c": {
+      "active": 13,
+      "cap": 40,
+      "cracks": 0,
+      "flames": 0,
+      "glows": 1
+    }
+  },
+  "sameSessionAB": {
+    "1920x1080": {
+      "videoOnly": {
+        "frames": 42,
+        "meanMs": 72.62,
+        "p50Ms": 66.7,
+        "p95Ms": 116.7
+      },
+      "withProceduralFx": {
+        "frames": 53,
+        "meanMs": 57.23,
+        "p50Ms": 50,
+        "p95Ms": 83.4
+      },
+      "deltaMeanMs": -15.39
+    },
+    "1366x768": {
+      "videoOnly": {
+        "frames": 48,
+        "meanMs": 63.54,
+        "p50Ms": 50,
+        "p95Ms": 183.2
+      },
+      "withProceduralFx": {
+        "frames": 55,
+        "meanMs": 55.15,
+        "p50Ms": 50,
+        "p95Ms": 133.3
+      },
+      "deltaMeanMs": -8.39
+    },
+    "844x390": {
+      "videoOnly": {
+        "frames": 49,
+        "meanMs": 62.24,
+        "p50Ms": 66.6,
+        "p95Ms": 116.7
+      },
+      "withProceduralFx": {
+        "frames": 45,
+        "meanMs": 67.03,
+        "p50Ms": 66.7,
+        "p95Ms": 149.9
+      },
+      "deltaMeanMs": 4.79
+    }
+  }
+}

@@ -132,6 +132,9 @@ declare global {
       textAudit?: () => import('./qaText.ts').QaTextProblem[];
       /** QA: what fills the letterbox bands (blurred backdrop, shadow, vignette, border). */
       mapFrame?: () => ReturnType<import('./mapView.ts').MapView['frameInfo']>;
+      /** QA: procedural ambient FX state and deterministic step helper. */
+      ambient?: () => ReturnType<import('./mapAnimLayer.ts').MapAnimController['debug']>;
+      stepAmbient?: (dtSec: number) => void;
       /** QA: the caves / castle fronts on screen (`castle` = the goal). */
       gates?: () => { x: number; y: number; w: number; h: number; castle: boolean }[];
       lives?: () => Record<string, unknown> | null;
@@ -977,7 +980,7 @@ async function main(): Promise<void> {
     const t0 = performance.now();
     stats.record(t.deltaMS, t0);
     if (!manual) game.frame(t.deltaMS / 1000);
-    ambient?.update(game.qualityTier !== 'low' && !gfx.reducedMotion, game.stepper.paused, game.map.texelScale <= 1);
+    ambient?.update(game.qualityTier !== 'low' && !gfx.reducedMotion, game.stepper.paused, game.map.texelScale <= 1, t.deltaMS / 1000, game.qualityTier);
     abilities?.frame(t.deltaMS / 1000);
     itemBelt?.frame(t.deltaMS / 1000);
     heroHud?.frame(t.deltaMS / 1000);
@@ -1162,6 +1165,11 @@ async function main(): Promise<void> {
     itemCastAt: (x, y) => itemBelt?.castAt(x, y) ?? false,
     textAudit: () => auditCanvasTexts([...game.hud.qaTexts(), ...game.end.qaTexts(), ...game.ring.qaTexts()], app.screen.width, app.screen.height),
     mapFrame: () => game.map.frameInfo(),
+    ambient: () => ambient?.debug() ?? null,
+    stepAmbient: (dt) => {
+      ambient?.stepFx(dt, game.qualityTier);
+      app.render();
+    },
     gates: () => gateRectsRef?.() ?? [],
     lives: () => livesWarn?.debug() ?? null,
     foe: () => foeCard?.debug() ?? null,
